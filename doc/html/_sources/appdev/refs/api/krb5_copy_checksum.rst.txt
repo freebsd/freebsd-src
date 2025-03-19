@@ -32,7 +32,7 @@ krb5_copy_checksum -  Copy a krb5_checksum structure.
 
 
 
-This function creates a new krb5_checksum structure with the contents of *ckfrom* . Use :c:func:`krb5_free_checksum()` to free *ckto* when it is no longer needed.
+This function creates a new krb5_checksum structure with the contents of *ckfrom* . Use krb5_free_checksum() to free *ckto* when it is no longer needed.
 
 
 

@@ -16,7 +16,7 @@ Structure for address.
 Declaration
 ------------
 
-typedef struct _krb5_address  krb5_address
+typedef struct _krb5_address krb5_address
 
 
 Members

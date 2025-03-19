@@ -14,7 +14,7 @@ krb5_c_crypto_length -  Return a length of a message field specific to the encry
 
 	          **[in]** **enctype** - Encryption type
 
-	          **[in]** **type** - Type field (See :data:`KRB5_CRYPTO_TYPE` types)
+	          **[in]** **type** - Type field (See KRB5_CRYPTO_TYPE macros)
 
 	          **[out]** **size** - Length of the *type* specific to *enctype*
 

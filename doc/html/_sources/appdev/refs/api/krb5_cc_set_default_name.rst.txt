@@ -38,7 +38,7 @@ Set the default credential cache name to *name* for future operations using *con
 
 
 
-Calls to this function invalidate the result of any previous calls to :c:func:`krb5_cc_default_name()` using *context* .
+Calls to this function invalidate the result of any previous calls to krb5_cc_default_name() using *context* .
 
 
 

@@ -35,11 +35,11 @@ krb5_chpw_message -  Get a result message for changing or setting a password.
 
 
 
-This function processes the *server_string* returned in the *result_string* parameter of :c:func:`krb5_change_password()` , :c:func:`krb5_set_password()` , and related functions, and returns a displayable string. If *server_string* contains Active Directory structured policy information, it will be converted into human-readable text.
+This function processes the *server_string* returned in the *result_string* parameter of krb5_change_password(), krb5_set_password(), and related functions, and returns a displayable string. If *server_string* contains Active Directory structured policy information, it will be converted into human-readable text.
 
 
 
-Use :c:func:`krb5_free_string()` to free *message_out* when it is no longer needed.
+Use krb5_free_string() to free *message_out* when it is no longer needed.
 
 
 

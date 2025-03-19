@@ -32,7 +32,7 @@ krb5_copy_data -  Copy a krb5_data object.
 
 
 
-This function creates a new krb5_data object with the contents of *indata* . Use :c:func:`krb5_free_data()` to free *outdata* when it is no longer needed.
+This function creates a new krb5_data object with the contents of *indata* . Use krb5_free_data() to free *outdata* when it is no longer needed.
 
 
 

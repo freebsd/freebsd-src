@@ -16,7 +16,7 @@ Structure for auth data.
 Declaration
 ------------
 
-typedef struct _krb5_authdata  krb5_authdata
+typedef struct _krb5_authdata krb5_authdata
 
 
 Members

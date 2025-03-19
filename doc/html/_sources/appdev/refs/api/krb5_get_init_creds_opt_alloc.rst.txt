@@ -30,7 +30,7 @@ krb5_get_init_creds_opt_alloc -  Allocate a new initial credential options struc
 
 
 
-This function is the preferred way to create an options structure for getting initial credentials, and is required to make use of certain options. Use :c:func:`krb5_get_init_creds_opt_free()` to free *opt* when it is no longer needed.
+This function is the preferred way to create an options structure for getting initial credentials, and is required to make use of certain options. Use krb5_get_init_creds_opt_free() to free *opt* when it is no longer needed.
 
 
 

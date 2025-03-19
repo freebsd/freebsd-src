@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>Configuration interface (profile) &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="GSSAPI mechanism interface" href="gssapi.html" />
     <link rel="prev" title="Server location interface (locate)" href="locate.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,24 +52,24 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="configuration-interface-profile">
+  <section id="configuration-interface-profile">
 <span id="profile-plugin"></span><h1>Configuration interface (profile)<a class="headerlink" href="#configuration-interface-profile" title="Permalink to this headline">¶</a></h1>
 <p>The profile interface allows a module to control how krb5
 configuration information is obtained by the Kerberos library and
 applications.  For a detailed description of the profile interface,
-see the header file <code class="docutils literal"><span class="pre">&lt;profile.h&gt;</span></code>.</p>
+see the header file <code class="docutils literal notranslate"><span class="pre">&lt;profile.h&gt;</span></code>.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">The profile interface does not follow the normal conventions
+<p class="admonition-title">Note</p>
+<p>The profile interface does not follow the normal conventions
 for MIT krb5 pluggable interfaces, because it is part of a
 lower-level component of the krb5 library.</p>
 </div>
 <p>As with other types of plugin modules, a profile module is a Unix
 shared object or Windows DLL, built separately from the krb5 tree.
 The krb5 library will dynamically load and use a profile plugin module
-if it reads a <code class="docutils literal"><span class="pre">module</span></code> directive at the beginning of krb5.conf, as
+if it reads a <code class="docutils literal notranslate"><span class="pre">module</span></code> directive at the beginning of krb5.conf, as
 described in <a class="reference internal" href="../admin/host_config.html#profile-plugin-config"><span class="std std-ref">Configuration profile modules</span></a>.</p>
-<p>A profile module exports a function named <code class="docutils literal"><span class="pre">profile_module_init</span></code>
+<p>A profile module exports a function named <code class="docutils literal notranslate"><span class="pre">profile_module_init</span></code>
 matching the signature of the profile_module_init_fn type.  This
 function accepts a residual string, which may be used to help locate
 the configuration source.  The function fills in a vtable and may also
@@ -107,7 +98,7 @@ which returns a hardcoded value for the <strong>default_realm</strong> variable 
 <a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>, and provides no other configuration information.
 (For conciseness, the example omits code for checking the return
 values of malloc and strdup.)</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1">#include &lt;stdlib.h&gt;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1">#include &lt;stdlib.h&gt;</span>
 <span class="c1">#include &lt;string.h&gt;</span>
 <span class="c1">#include &lt;profile.h&gt;</span>
 
@@ -149,14 +140,16 @@ values of malloc and strdup.)</p>
 <span class="p">}</span>
 </pre></div>
 </div>
-</div>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">Configuration interface (profile)</a></li>
@@ -204,6 +197,7 @@ values of malloc and strdup.)</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -211,8 +205,8 @@ values of malloc and strdup.)</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

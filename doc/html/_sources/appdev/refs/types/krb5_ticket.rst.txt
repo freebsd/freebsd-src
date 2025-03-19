@@ -16,7 +16,7 @@ The C representation of the ticket message, with a pointer to the C representati
 Declaration
 ------------
 
-typedef struct _krb5_ticket  krb5_ticket
+typedef struct _krb5_ticket krb5_ticket
 
 
 Members

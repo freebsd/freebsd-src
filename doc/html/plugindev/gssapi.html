@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>GSSAPI mechanism interface &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="Internal pluggable interfaces" href="internal.html" />
     <link rel="prev" title="Configuration interface (profile)" href="profile.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,7 +52,7 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="gssapi-mechanism-interface">
+  <section id="gssapi-mechanism-interface">
 <h1>GSSAPI mechanism interface<a class="headerlink" href="#gssapi-mechanism-interface" title="Permalink to this headline">¶</a></h1>
 <p>The GSSAPI library in MIT krb5 can load mechanism modules to augment
 the set of built-in mechanisms.</p>
@@ -84,36 +75,36 @@ implement the “acquire” variants of those functions.</p>
 of other mechanisms.  If the mechglue detects conflicts, it will map
 the mechanism’s status codes onto unique values, and then map them
 back again when <strong>gss_display_status</strong> is called.</p>
-<div class="section" id="negoex-modules">
+<section id="negoex-modules">
 <h2>NegoEx modules<a class="headerlink" href="#negoex-modules" title="Permalink to this headline">¶</a></h2>
 <p>Some Windows GSSAPI mechanisms can only be negotiated via a Microsoft
 extension to SPNEGO called NegoEx.  Beginning with release 1.18,
 mechanism modules can support NegoEx as follows:</p>
 <ul class="simple">
-<li>Implement the gssspi_query_meta_data(), gssspi_exchange_meta_data(),
+<li><p>Implement the gssspi_query_meta_data(), gssspi_exchange_meta_data(),
 and gssspi_query_mechanism_info() SPIs declared in
-<code class="docutils literal"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>.</li>
-<li>Implement gss_inquire_sec_context_by_oid() and answer the
+<code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>.</p></li>
+<li><p>Implement gss_inquire_sec_context_by_oid() and answer the
 <strong>GSS_C_INQ_NEGOEX_KEY</strong> and <strong>GSS_C_INQ_NEGOEX_VERIFY_KEY</strong> OIDs
 to provide the checksum keys for outgoing and incoming checksums,
 respectively.  The answer must be in two buffers: the first buffer
 contains the key contents, and the second buffer contains the key
-encryption type as a four-byte little-endian integer.</li>
+encryption type as a four-byte little-endian integer.</p></li>
 </ul>
 <p>By default, NegoEx mechanisms will not be directly negotiated via
 SPNEGO.  If direct SPNEGO negotiation is required for
 interoperability, implement gss_inquire_attrs_for_mech() and assert
 the GSS_C_MA_NEGOEX_AND_SPNEGO attribute (along with any applicable
 RFC 5587 attributes).</p>
-</div>
-<div class="section" id="interposer-modules">
+</section>
+<section id="interposer-modules">
 <h2>Interposer modules<a class="headerlink" href="#interposer-modules" title="Permalink to this headline">¶</a></h2>
 <p>The mechglue also supports a kind of loadable module, called an
 interposer module, which intercepts calls to existing mechanisms
 rather than implementing a new mechanism.</p>
 <p>An interposer module must export the symbol <strong>gss_mech_interposer</strong>
 with the following signature:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">gss_OID_set</span> <span class="n">gss_mech_interposer</span><span class="p">(</span><span class="n">gss_OID</span> <span class="n">mech_type</span><span class="p">);</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">gss_OID_set</span> <span class="n">gss_mech_interposer</span><span class="p">(</span><span class="n">gss_OID</span> <span class="n">mech_type</span><span class="p">);</span>
 </pre></div>
 </div>
 <p>This function is invoked with the OID of the interposer mechanism as
@@ -121,10 +112,10 @@ specified in the mechanism config file, and returns a set of mechanism
 OIDs to be interposed.  The returned OID set must have been created
 using the mechglue’s gss_create_empty_oid_set and
 gss_add_oid_set_member functions.</p>
-<p>An interposer module must use the prefix <code class="docutils literal"><span class="pre">gssi_</span></code> for the GSSAPI
-functions it exports, instead of the prefix <code class="docutils literal"><span class="pre">gss_</span></code>.  In most cases,
-unexported <code class="docutils literal"><span class="pre">gssi_</span></code> functions will result in failure from their
-corresponding <code class="docutils literal"><span class="pre">gss_</span></code> calls.</p>
+<p>An interposer module must use the prefix <code class="docutils literal notranslate"><span class="pre">gssi_</span></code> for the GSSAPI
+functions it exports, instead of the prefix <code class="docutils literal notranslate"><span class="pre">gss_</span></code>.  In most cases,
+unexported <code class="docutils literal notranslate"><span class="pre">gssi_</span></code> functions will result in failure from their
+corresponding <code class="docutils literal notranslate"><span class="pre">gss_</span></code> calls.</p>
 <p>An interposer module can link against the GSSAPI library in order to
 make calls to the original mechanism.  To do so, it must specify a
 special mechanism OID which is the concatention of the interposer’s
@@ -140,7 +131,7 @@ and pass that as the <em>verifier_cred_handle</em> parameter.</p>
 has been extended to include variants which do.  This allows the
 interposer module to know which mechanism should be used to interpret
 the token.  These functions have the following signatures:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gssi_import_sec_context_by_mech</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gssi_import_sec_context_by_mech</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
     <span class="n">gss_OID</span> <span class="n">desired_mech</span><span class="p">,</span> <span class="n">gss_buffer_t</span> <span class="n">interprocess_token</span><span class="p">,</span>
     <span class="n">gss_ctx_id_t</span> <span class="o">*</span><span class="n">context_handle</span><span class="p">);</span>
 
@@ -158,31 +149,33 @@ functions, the interposer module must wrap the mechanism token in the
 mechglue’s format, using the concatenated OID (except in
 <strong>gss_import_name</strong>).  The mechglue token formats are:</p>
 <ul class="simple">
-<li>For <strong>gss_import_sec_context</strong>, a four-byte OID length in big-endian
+<li><p>For <strong>gss_import_sec_context</strong>, a four-byte OID length in big-endian
 order, followed by the concatenated OID, followed by the mechanism
-token.</li>
-<li>For <strong>gss_import_name</strong>, the bytes 04 01, followed by a two-byte OID
+token.</p></li>
+<li><p>For <strong>gss_import_name</strong>, the bytes 04 01, followed by a two-byte OID
 length in big-endian order, followed by the mechanism OID, followed
 by a four-byte token length in big-endian order, followed by the
 mechanism token.  Unlike most uses of OIDs in the API, the mechanism
 OID encoding must include the DER tag and length for an object
 identifier (06 followed by the DER length of the OID byte string),
 and this prefix must be included in the two-byte OID length.
-input_name_type must also be set to GSS_C_NT_EXPORT_NAME.</li>
-<li>For <strong>gss_import_cred</strong>, a four-byte OID length in big-endian order,
+input_name_type must also be set to GSS_C_NT_EXPORT_NAME.</p></li>
+<li><p>For <strong>gss_import_cred</strong>, a four-byte OID length in big-endian order,
 followed by the concatenated OID, followed by a four-byte token
 length in big-endian order, followed by the mechanism token.  This
-sequence may be repeated multiple times.</li>
+sequence may be repeated multiple times.</p></li>
 </ul>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">GSSAPI mechanism interface</a><ul>
@@ -234,6 +227,7 @@ sequence may be repeated multiple times.</li>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -241,8 +235,8 @@ sequence may be repeated multiple times.</li>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

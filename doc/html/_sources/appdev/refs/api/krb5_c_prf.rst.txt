@@ -34,7 +34,7 @@ krb5_c_prf -  Generate enctype-specific pseudo-random bytes.
 
 
 
-This function selects a pseudo-random function based on *keyblock* and computes its value over *input* , placing the result into *output* . The caller must preinitialize *output* and allocate space for the result, using :c:func:`krb5_c_prf_length()` to determine the required length.
+This function selects a pseudo-random function based on *keyblock* and computes its value over *input* , placing the result into *output* . The caller must preinitialize *output* and allocate space for the result, using krb5_c_prf_length() to determine the required length.
 
 
 

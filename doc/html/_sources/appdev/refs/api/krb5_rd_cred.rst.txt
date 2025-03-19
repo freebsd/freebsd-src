@@ -40,7 +40,7 @@ krb5_rd_cred -  Read and validate a KRB-CRED message.
 
 
 
-Use :c:func:`krb5_free_tgt_creds()` to free *creds_out* when it is no longer needed.
+Use krb5_free_tgt_creds() to free *creds_out* when it is no longer needed.
 
 
 
@@ -60,7 +60,7 @@ Use :c:func:`krb5_free_tgt_creds()` to free *creds_out* when it is no longer nee
 
 .. note::
 
-	 The *rdata_out* argument is required if the :data:`KRB5_AUTH_CONTEXT_RET_TIME` or :data:`KRB5_AUTH_CONTEXT_RET_SEQUENCE` flag is set in *auth_context* .`
+	 The *rdata_out* argument is required if the #KRB5_AUTH_CONTEXT_RET_TIME or #KRB5_AUTH_CONTEXT_RET_SEQUENCE flag is set in *auth_context* .`
  
 
 

@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>krb5_k_verify_checksum_iov - Validate a checksum element in IOV array (operates on opaque key). &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../../../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
     <link rel="next" title="krb5_recvauth - Server function for sendauth protocol." href="krb5_recvauth.html" />
     <link rel="prev" title="krb5_k_verify_checksum - Verify a checksum (operates on opaque key)." href="krb5_k_verify_checksum.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,56 +52,50 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="krb5-k-verify-checksum-iov-validate-a-checksum-element-in-iov-array-operates-on-opaque-key">
+  <section id="krb5-k-verify-checksum-iov-validate-a-checksum-element-in-iov-array-operates-on-opaque-key">
 <h1>krb5_k_verify_checksum_iov -  Validate a checksum element in IOV array (operates on opaque key).<a class="headerlink" href="#krb5-k-verify-checksum-iov-validate-a-checksum-element-in-iov-array-operates-on-opaque-key" title="Permalink to this headline">¶</a></h1>
-<dl class="function">
-<dt id="c.krb5_k_verify_checksum_iov">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <code class="descname">krb5_k_verify_checksum_iov</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_cksumtype.html#c.krb5_cksumtype" title="krb5_cksumtype">krb5_cksumtype</a><em>&nbsp;cksumtype</em>, <a class="reference internal" href="../types/krb5_key.html#c.krb5_key" title="krb5_key">krb5_key</a><em>&nbsp;key</em>, <a class="reference internal" href="../types/krb5_keyusage.html#c.krb5_keyusage" title="krb5_keyusage">krb5_keyusage</a><em>&nbsp;usage</em>, const <a class="reference internal" href="../types/krb5_crypto_iov.html#c.krb5_crypto_iov" title="krb5_crypto_iov">krb5_crypto_iov</a> *<em>&nbsp;data</em>, size_t<em>&nbsp;num_data</em>, <a class="reference internal" href="../types/krb5_boolean.html#c.krb5_boolean" title="krb5_boolean">krb5_boolean</a> *<em>&nbsp;valid</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_k_verify_checksum_iov" title="Permalink to this definition">¶</a></dt>
+<dl class="c function">
+<dt class="sig sig-object c" id="c.krb5_k_verify_checksum_iov">
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code"><span class="n"><span class="pre">krb5_error_code</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_k_verify_checksum_iov</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context"><span class="n"><span class="pre">krb5_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">context</span></span>, <a class="reference internal" href="../types/krb5_cksumtype.html#c.krb5_cksumtype" title="krb5_cksumtype"><span class="n"><span class="pre">krb5_cksumtype</span></span></a><span class="w"> </span><span class="n"><span class="pre">cksumtype</span></span>, <a class="reference internal" href="../types/krb5_key.html#c.krb5_key" title="krb5_key"><span class="n"><span class="pre">krb5_key</span></span></a><span class="w"> </span><span class="n"><span class="pre">key</span></span>, <a class="reference internal" href="../types/krb5_keyusage.html#c.krb5_keyusage" title="krb5_keyusage"><span class="n"><span class="pre">krb5_keyusage</span></span></a><span class="w"> </span><span class="n"><span class="pre">usage</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../types/krb5_crypto_iov.html#c.krb5_crypto_iov" title="krb5_crypto_iov"><span class="n"><span class="pre">krb5_crypto_iov</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">data</span></span>, <span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="n"><span class="pre">num_data</span></span>, <a class="reference internal" href="../types/krb5_boolean.html#c.krb5_boolean" title="krb5_boolean"><span class="n"><span class="pre">krb5_boolean</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">valid</span></span><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_k_verify_checksum_iov" title="Permalink to this definition">¶</a><br /></dt>
 <dd></dd></dl>
 
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>[in]</strong> <strong>context</strong> - Library context</p>
+<dl class="field-list">
+<dt class="field-odd">param</dt>
+<dd class="field-odd"><p><strong>[in]</strong> <strong>context</strong> - Library context</p>
 <p><strong>[in]</strong> <strong>cksumtype</strong> - Checksum type (0 for mandatory type)</p>
 <p><strong>[in]</strong> <strong>key</strong> - Encryption key for a keyed checksum</p>
-<p><strong>[in]</strong> <strong>usage</strong> - Key usage (see <code class="xref py py-data docutils literal"><span class="pre">KRB5_KEYUSAGE</span></code> types)</p>
+<p><strong>[in]</strong> <strong>usage</strong> - Key usage (see KRB5_KEYUSAGE macros)</p>
 <p><strong>[in]</strong> <strong>data</strong> - IOV array</p>
 <p><strong>[in]</strong> <strong>num_data</strong> - Size of <em>data</em></p>
-<p class="last"><strong>[out]</strong> <strong>valid</strong> - Non-zero for success, zero for failure</p>
-</td>
-</tr>
-</tbody>
-</table>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">retval:</th><td class="field-body"><ul class="first last simple">
-<li>0   Success; otherwise - Kerberos error codes</li>
+<p><strong>[out]</strong> <strong>valid</strong> - Non-zero for success, zero for failure</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">retval</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p>0   Success; otherwise - Kerberos error codes</p></li>
 </ul>
-</td>
-</tr>
-</tbody>
-</table>
-<p>Confirm that the checksum in the <a class="reference internal" href="../macros/KRB5_CRYPTO_TYPE_CHECKSUM.html#KRB5_CRYPTO_TYPE_CHECKSUM" title="KRB5_CRYPTO_TYPE_CHECKSUM"><code class="xref py py-data docutils literal"><span class="pre">KRB5_CRYPTO_TYPE_CHECKSUM</span></code></a> element is a valid checksum of the <a class="reference internal" href="../macros/KRB5_CRYPTO_TYPE_DATA.html#KRB5_CRYPTO_TYPE_DATA" title="KRB5_CRYPTO_TYPE_DATA"><code class="xref py py-data docutils literal"><span class="pre">KRB5_CRYPTO_TYPE_DATA</span></code></a> and <a class="reference internal" href="../macros/KRB5_CRYPTO_TYPE_SIGN_ONLY.html#KRB5_CRYPTO_TYPE_SIGN_ONLY" title="KRB5_CRYPTO_TYPE_SIGN_ONLY"><code class="xref py py-data docutils literal"><span class="pre">KRB5_CRYPTO_TYPE_SIGN_ONLY</span></code></a> regions in the iov.</p>
+</dd>
+</dl>
+<p>Confirm that the checksum in the #KRB5_CRYPTO_TYPE_CHECKSUM element is a valid checksum of the #KRB5_CRYPTO_TYPE_DATA and #KRB5_CRYPTO_TYPE_SIGN_ONLY regions in the iov.</p>
 <div class="admonition seealso">
-<p class="first admonition-title">See also</p>
-<p class="last"><a class="reference internal" href="krb5_k_make_checksum_iov.html#c.krb5_k_make_checksum_iov" title="krb5_k_make_checksum_iov"><code class="xref c c-func docutils literal"><span class="pre">krb5_k_make_checksum_iov()</span></code></a></p>
+<p class="admonition-title">See also</p>
+<p>krb5_k_make_checksum_iov()</p>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">This function is similar to <a class="reference internal" href="krb5_c_verify_checksum_iov.html#c.krb5_c_verify_checksum_iov" title="krb5_c_verify_checksum_iov"><code class="xref c c-func docutils literal"><span class="pre">krb5_c_verify_checksum_iov()</span></code></a> , but operates on opaque <em>key</em> .</p>
+<p class="admonition-title">Note</p>
+<p>This function is similar to krb5_c_verify_checksum_iov(), but operates on opaque <em>key</em> .</p>
 </div>
-</div>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">krb5_k_verify_checksum_iov -  Validate a checksum element in IOV array (operates on opaque key).</a></li>
@@ -154,6 +139,7 @@
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -161,8 +147,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

@@ -40,7 +40,7 @@ krb5_cccol_cursor_free -  Free a credential cache collection cursor.
 ..
 
 .. seealso::
-         :c:func:`krb5_cccol_cursor_new()` , :c:func:`krb5_cccol_cursor_next()` 
+         krb5_cccol_cursor_new(), krb5_cccol_cursor_next()
  
 
 

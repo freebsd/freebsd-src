@@ -16,7 +16,7 @@ Store options for *_krb5_get_init_creds* .
 Declaration
 ------------
 
-typedef struct _krb5_get_init_creds_opt  krb5_get_init_creds_opt
+typedef struct _krb5_get_init_creds_opt krb5_get_init_creds_opt
 
 
 Members

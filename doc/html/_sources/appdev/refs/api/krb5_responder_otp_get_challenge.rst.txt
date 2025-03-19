@@ -33,7 +33,7 @@ A convenience function which parses the KRB5_RESPONDER_QUESTION_OTP question cha
 
 
 
-The returned value must be passed to :c:func:`krb5_responder_otp_challenge_free()` to be freed.
+The returned value must be passed to krb5_responder_otp_challenge_free() to be freed.
 
 
 

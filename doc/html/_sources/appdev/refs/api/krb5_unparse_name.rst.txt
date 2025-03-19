@@ -35,11 +35,11 @@ krb5_unparse_name -  Convert a krb5_principal structure to a string representati
 
 
 
-The resulting string representation uses the format and quoting conventions described for :c:func:`krb5_parse_name()` .
+The resulting string representation uses the format and quoting conventions described for krb5_parse_name().
 
 
 
-Use :c:func:`krb5_free_unparsed_name()` to free *name* when it is no longer needed.
+Use krb5_free_unparsed_name() to free *name* when it is no longer needed.
 
 
 

@@ -32,7 +32,7 @@ krb5_auth_con_set_req_cksumtype -  Set checksum type in an an auth context.
 
 
 
-This function sets the checksum type in *auth_context* to be used by :c:func:`krb5_mk_req()` for the authenticator checksum.
+This function sets the checksum type in *auth_context* to be used by krb5_mk_req() for the authenticator checksum.
 
 
 

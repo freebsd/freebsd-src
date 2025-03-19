@@ -11,6 +11,5 @@ GENERATE_HTML          = NO
 GENERATE_LATEX         = NO
 GENERATE_XML           = YES
 PREDEFINED             = KRB5_DEPRECATED KRB5_OLD_CRYPTO
-CLASS_DIAGRAMS         = NO
 CASE_SENSE_NAMES       = NO
 QUIET                  = YES

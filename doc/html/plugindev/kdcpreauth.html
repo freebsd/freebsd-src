@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>KDC preauthentication interface (kdcpreauth) &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="Credential cache selection interface (ccselect)" href="ccselect.html" />
     <link rel="prev" title="Client preauthentication interface (clpreauth)" href="clpreauth.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,31 +52,31 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="kdc-preauthentication-interface-kdcpreauth">
+  <section id="kdc-preauthentication-interface-kdcpreauth">
 <h1>KDC preauthentication interface (kdcpreauth)<a class="headerlink" href="#kdc-preauthentication-interface-kdcpreauth" title="Permalink to this headline">¶</a></h1>
 <p>The kdcpreauth interface allows the addition of KDC support for
 preauthentication mechanisms beyond those included in the core MIT
 krb5 code base.  For a detailed description of the kdcpreauth
-interface, see the header file <code class="docutils literal"><span class="pre">&lt;krb5/kdcpreauth_plugin.h&gt;</span></code> (or
-<code class="docutils literal"><span class="pre">&lt;krb5/preauth_plugin.h&gt;</span></code> before release 1.12).</p>
+interface, see the header file <code class="docutils literal notranslate"><span class="pre">&lt;krb5/kdcpreauth_plugin.h&gt;</span></code> (or
+<code class="docutils literal notranslate"><span class="pre">&lt;krb5/preauth_plugin.h&gt;</span></code> before release 1.12).</p>
 <p>A kdcpreauth module is generally responsible for:</p>
 <ul class="simple">
-<li>Supplying a list of preauth type numbers used by the module in the
-<strong>pa_type_list</strong> field of the vtable structure.</li>
-<li>Indicating what kind of preauthentication mechanism it implements,
+<li><p>Supplying a list of preauth type numbers used by the module in the
+<strong>pa_type_list</strong> field of the vtable structure.</p></li>
+<li><p>Indicating what kind of preauthentication mechanism it implements,
 with the <strong>flags</strong> method.  If the mechanism computes a new reply
-key, it must specify the <code class="docutils literal"><span class="pre">PA_REPLACES_KEY</span></code> flag.  If the mechanism
-is generally only used with hardware tokens, the <code class="docutils literal"><span class="pre">PA_HARDWARE</span></code>
+key, it must specify the <code class="docutils literal notranslate"><span class="pre">PA_REPLACES_KEY</span></code> flag.  If the mechanism
+is generally only used with hardware tokens, the <code class="docutils literal notranslate"><span class="pre">PA_HARDWARE</span></code>
 flag allows the mechanism to work with principals which have the
-<strong>requires_hwauth</strong> flag set.</li>
-<li>Producing a padata value to be sent with a preauth_required error,
-with the <strong>edata</strong> method.</li>
-<li>Examining a padata value sent by a client and verifying that it
+<strong>requires_hwauth</strong> flag set.</p></li>
+<li><p>Producing a padata value to be sent with a preauth_required error,
+with the <strong>edata</strong> method.</p></li>
+<li><p>Examining a padata value sent by a client and verifying that it
 proves knowledge of the appropriate client credential information.
-This is done with the <strong>verify</strong> method.</li>
-<li>Producing a padata response value for the client, and possibly
+This is done with the <strong>verify</strong> method.</p></li>
+<li><p>Producing a padata response value for the client, and possibly
 computing a reply key.  This is done with the <strong>return_padata</strong>
-method.</li>
+method.</p></li>
 </ul>
 <p>A module can create and destroy per-KDC state objects by implementing
 the <strong>init</strong> and <strong>fini</strong> methods.  Per-KDC state objects have the
@@ -107,19 +98,19 @@ maximum allowable clock skew, the client’s long-term keys, the
 DER-encoded request body, the FAST armor key, string attributes on the
 client’s database entry, and the client’s database entry itself.  The
 <strong>verify</strong> method can assert one or more authentication indicators to
-be included in the issued ticket using the <code class="docutils literal"><span class="pre">add_auth_indicator</span></code>
+be included in the issued ticket using the <code class="docutils literal notranslate"><span class="pre">add_auth_indicator</span></code>
 callback (new in release 1.14).</p>
 <p>A module can generate state information to be included with the next
-client request using the <code class="docutils literal"><span class="pre">set_cookie</span></code> callback (new in release
+client request using the <code class="docutils literal notranslate"><span class="pre">set_cookie</span></code> callback (new in release
 1.14).  On the next request, the module can read this state
-information using the <code class="docutils literal"><span class="pre">get_cookie</span></code> callback.  Cookie information is
+information using the <code class="docutils literal notranslate"><span class="pre">get_cookie</span></code> callback.  Cookie information is
 encrypted, timestamped, and transmitted to the client in a
-<code class="docutils literal"><span class="pre">PA-FX-COOKIE</span></code> pa-data item.  Older clients may not support cookies
+<code class="docutils literal notranslate"><span class="pre">PA-FX-COOKIE</span></code> pa-data item.  Older clients may not support cookies
 and therefore may not transmit the cookie in the next request; in this
-case, <code class="docutils literal"><span class="pre">get_cookie</span></code> will not yield the saved information.</p>
+case, <code class="docutils literal notranslate"><span class="pre">get_cookie</span></code> will not yield the saved information.</p>
 <p>If a module implements a mechanism which requires multiple round
 trips, its <strong>verify</strong> method can respond with the code
-<code class="docutils literal"><span class="pre">KRB5KDC_ERR_MORE_PREAUTH_DATA_REQUIRED</span></code> and a list of pa-data in
+<code class="docutils literal notranslate"><span class="pre">KRB5KDC_ERR_MORE_PREAUTH_DATA_REQUIRED</span></code> and a list of pa-data in
 the <em>e_data</em> parameter to be processed by the client.</p>
 <p>The <strong>edata</strong> and <strong>verify</strong> methods can be implemented
 asynchronously.  Because of this, they do not return values directly
@@ -127,14 +118,16 @@ to the caller, but must instead invoke responder functions with their
 results.  A synchronous implementation can invoke the responder
 function immediately.  An asynchronous implementation can use the
 callback to get an event context for use with the <a class="reference external" href="https://fedorahosted.org/libverto/">libverto</a> API.</p>
-</div>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">KDC preauthentication interface (kdcpreauth)</a></li>
@@ -182,6 +175,7 @@ callback to get an event context for use with the <a class="reference external" 
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -189,8 +183,8 @@ callback to get an event context for use with the <a class="reference external" 
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

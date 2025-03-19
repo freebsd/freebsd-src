@@ -32,7 +32,7 @@ krb5_copy_keyblock -  Copy a keyblock.
 
 
 
-This function creates a new keyblock with the same contents as *from* . Use :c:func:`krb5_free_keyblock()` to free *to* when it is no longer needed.
+This function creates a new keyblock with the same contents as *from* . Use krb5_free_keyblock() to free *to* when it is no longer needed.
 
 
 

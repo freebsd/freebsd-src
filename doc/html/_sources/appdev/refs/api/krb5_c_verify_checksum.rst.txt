@@ -58,7 +58,7 @@ This function verifies that *cksum* is a valid checksum for *data* . If the chec
 
 .. note::
 
-	 This function is similar to :c:func:`krb5_k_verify_checksum()` , but operates on keyblock *key* .
+	 This function is similar to krb5_k_verify_checksum(), but operates on keyblock *key* .
  
 
 

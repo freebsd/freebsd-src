@@ -15,7 +15,7 @@ krb5_enc_data
 Declaration
 ------------
 
-typedef struct _krb5_enc_data  krb5_enc_data
+typedef struct _krb5_enc_data krb5_enc_data
 
 
 Members

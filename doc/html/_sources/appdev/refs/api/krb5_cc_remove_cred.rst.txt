@@ -37,7 +37,7 @@ krb5_cc_remove_cred -  Remove credentials from a credential cache.
 
 
 
-This function accepts the same flag values as :c:func:`krb5_cc_retrieve_cred()` .
+This function accepts the same flag values as krb5_cc_retrieve_cred().
 
 
 

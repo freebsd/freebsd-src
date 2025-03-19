@@ -37,7 +37,7 @@ krb5_get_init_creds_opt_free -  Free initial credential options.
 ..
 
 .. seealso::
-         :c:func:`krb5_get_init_creds_opt_alloc()` 
+         krb5_get_init_creds_opt_alloc()
  
 
 

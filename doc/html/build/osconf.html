@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>osconf.hin &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="Kerberos V5 concepts" href="../basic/index.html" />
     <link rel="prev" title="Options to configure" href="options2configure.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,40 +52,42 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="osconf-hin">
+  <section id="osconf-hin">
 <h1>osconf.hin<a class="headerlink" href="#osconf-hin" title="Permalink to this headline">¶</a></h1>
 <p>There is one configuration file which you may wish to edit to control
 various compile-time parameters in the Kerberos distribution:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">include</span><span class="o">/</span><span class="n">osconf</span><span class="o">.</span><span class="n">hin</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">include</span><span class="o">/</span><span class="n">osconf</span><span class="o">.</span><span class="n">hin</span>
 </pre></div>
 </div>
 <p>The list that follows is by no means complete, just some of the more
 interesting variables.</p>
-<dl class="docutils">
-<dt><strong>DEFAULT_PROFILE_PATH</strong></dt>
-<dd>The pathname to the file which contains the profiles for the known
-realms, their KDCs, etc. The default value is <code class="docutils literal"><span class="pre">/etc/krb5.conf</span></code>.</dd>
-<dt><strong>DEFAULT_KEYTAB_NAME</strong></dt>
-<dd>The type and pathname to the default server keytab file.  The
-default is <a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">DEFKTNAME</span></a>.</dd>
-<dt><strong>DEFAULT_KDC_ENCTYPE</strong></dt>
-<dd>The default encryption type for the KDC database master key.  The
-default value is <code class="docutils literal"><span class="pre">aes256-cts-hmac-sha1-96</span></code>.</dd>
-<dt><strong>RCTMPDIR</strong></dt>
-<dd>The directory which stores replay caches.  The default is
-<code class="docutils literal"><span class="pre">/var/tmp</span></code>.</dd>
-<dt><strong>DEFAULT_KDB_FILE</strong></dt>
-<dd>The location of the default database.  The default value is
-<a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal"><span class="pre">/krb5kdc</span></code><code class="docutils literal"><span class="pre">/principal</span></code>.</dd>
+<dl class="simple">
+<dt><strong>DEFAULT_PROFILE_PATH</strong></dt><dd><p>The pathname to the file which contains the profiles for the known
+realms, their KDCs, etc. The default value is <code class="docutils literal notranslate"><span class="pre">/etc/krb5.conf</span></code>.</p>
+</dd>
+<dt><strong>DEFAULT_KEYTAB_NAME</strong></dt><dd><p>The type and pathname to the default server keytab file.  The
+default is <a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">DEFKTNAME</span></a>.</p>
+</dd>
+<dt><strong>DEFAULT_KDC_ENCTYPE</strong></dt><dd><p>The default encryption type for the KDC database master key.  The
+default value is <code class="docutils literal notranslate"><span class="pre">aes256-cts-hmac-sha1-96</span></code>.</p>
+</dd>
+<dt><strong>RCTMPDIR</strong></dt><dd><p>The directory which stores replay caches.  The default is
+<code class="docutils literal notranslate"><span class="pre">/var/tmp</span></code>.</p>
+</dd>
+<dt><strong>DEFAULT_KDB_FILE</strong></dt><dd><p>The location of the default database.  The default value is
+<a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code><code class="docutils literal notranslate"><span class="pre">/principal</span></code>.</p>
+</dd>
 </dl>
-</div>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">osconf.hin</a></li>
@@ -131,6 +124,7 @@ default value is <code class="docutils literal"><span class="pre">aes256-cts-hma
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -138,8 +132,8 @@ default value is <code class="docutils literal"><span class="pre">aes256-cts-hma
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

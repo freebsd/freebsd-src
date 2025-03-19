@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>Server location interface (locate) &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="Configuration interface (profile)" href="profile.html" />
     <link rel="prev" title="Local authorization interface (localauth)" href="localauth.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,13 +52,13 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="server-location-interface-locate">
+  <section id="server-location-interface-locate">
 <h1>Server location interface (locate)<a class="headerlink" href="#server-location-interface-locate" title="Permalink to this headline">¶</a></h1>
 <p>The locate interface allows modules to control how KDCs and similar
 services are located by clients.  For a detailed description of the
-ccselect interface, see the header file <code class="docutils literal"><span class="pre">&lt;krb5/locate_plugin.h&gt;</span></code>.</p>
+ccselect interface, see the header file <code class="docutils literal notranslate"><span class="pre">&lt;krb5/locate_plugin.h&gt;</span></code>.</p>
 <p>A locate module exports a structure object of type
-krb5plugin_service_locate_ftable, with the name <code class="docutils literal"><span class="pre">service_locator</span></code>.
+krb5plugin_service_locate_ftable, with the name <code class="docutils literal notranslate"><span class="pre">service_locator</span></code>.
 The structure contains a minor version and pointers to the module’s
 methods.</p>
 <p>The primary locate method is <strong>lookup</strong>, which accepts a service type,
@@ -85,14 +76,16 @@ process.</p>
 implementing the <strong>init</strong> and <strong>fini</strong> methods.  State objects have
 the type void *, and should be cast to an internal type for the state
 object.</p>
-</div>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">Server location interface (locate)</a></li>
@@ -140,6 +133,7 @@ object.</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -147,8 +141,8 @@ object.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

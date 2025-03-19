@@ -36,11 +36,11 @@ This function fills in *outbuf* with an AP-REP message using information from *a
 
 
 
-If the flags in *auth_context* indicate that a sequence number should be used (either :data:`KRB5_AUTH_CONTEXT_DO_SEQUENCE` or :data:`KRB5_AUTH_CONTEXT_RET_SEQUENCE` ) and the local sequence number in *auth_context* is 0, a new number will be generated with krb5_generate_seq_number().
+If the flags in *auth_context* indicate that a sequence number should be used (either #KRB5_AUTH_CONTEXT_DO_SEQUENCE or #KRB5_AUTH_CONTEXT_RET_SEQUENCE) and the local sequence number in *auth_context* is 0, a new number will be generated with krb5_generate_seq_number().
 
 
 
-Use :c:func:`krb5_free_data_contents()` to free *outbuf* when it is no longer needed.
+Use krb5_free_data_contents() to free *outbuf* when it is no longer needed.
 
 
 

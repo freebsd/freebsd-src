@@ -43,7 +43,7 @@ Retrieve an entry from a key table which matches the *keytab* , *principal* , *v
 
 
 
-Use :c:func:`krb5_free_keytab_entry_contents()` to free *entry* when it is no longer needed.
+Use krb5_free_keytab_entry_contents() to free *entry* when it is no longer needed.
 
 
 

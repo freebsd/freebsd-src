@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>krb5_get_init_creds_opt_set_etype_list - Set allowable encryption types in initial credential options. &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../../../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
     <link rel="next" title="krb5_get_init_creds_opt_set_expire_callback - Set an expiration callback in initial credential options." href="krb5_get_init_creds_opt_set_expire_callback.html" />
     <link rel="prev" title="krb5_get_init_creds_opt_set_change_password_prompt - Set or unset change-password-prompt flag in initial credential options." href="krb5_get_init_creds_opt_set_change_password_prompt.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,32 +52,30 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="krb5-get-init-creds-opt-set-etype-list-set-allowable-encryption-types-in-initial-credential-options">
+  <section id="krb5-get-init-creds-opt-set-etype-list-set-allowable-encryption-types-in-initial-credential-options">
 <h1>krb5_get_init_creds_opt_set_etype_list -  Set allowable encryption types in initial credential options.<a class="headerlink" href="#krb5-get-init-creds-opt-set-etype-list-set-allowable-encryption-types-in-initial-credential-options" title="Permalink to this headline">¶</a></h1>
-<dl class="function">
-<dt id="c.krb5_get_init_creds_opt_set_etype_list">
-void <code class="descname">krb5_get_init_creds_opt_set_etype_list</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_get_init_creds_opt.html#c.krb5_get_init_creds_opt" title="krb5_get_init_creds_opt">krb5_get_init_creds_opt</a> *<em>&nbsp;opt</em>, <a class="reference internal" href="../types/krb5_enctype.html#c.krb5_enctype" title="krb5_enctype">krb5_enctype</a> *<em>&nbsp;etype_list</em>, int<em>&nbsp;etype_list_length</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_get_init_creds_opt_set_etype_list" title="Permalink to this definition">¶</a></dt>
+<dl class="c function">
+<dt class="sig sig-object c" id="c.krb5_get_init_creds_opt_set_etype_list">
+<span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_get_init_creds_opt_set_etype_list</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_get_init_creds_opt.html#c.krb5_get_init_creds_opt" title="krb5_get_init_creds_opt"><span class="n"><span class="pre">krb5_get_init_creds_opt</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">opt</span></span>, <a class="reference internal" href="../types/krb5_enctype.html#c.krb5_enctype" title="krb5_enctype"><span class="n"><span class="pre">krb5_enctype</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">etype_list</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n"><span class="pre">etype_list_length</span></span><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_get_init_creds_opt_set_etype_list" title="Permalink to this definition">¶</a><br /></dt>
 <dd></dd></dl>
 
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>[in]</strong> <strong>opt</strong> - Options structure</p>
+<dl class="field-list">
+<dt class="field-odd">param</dt>
+<dd class="field-odd"><p><strong>[in]</strong> <strong>opt</strong> - Options structure</p>
 <p><strong>[in]</strong> <strong>etype_list</strong> - Array of encryption types</p>
-<p class="last"><strong>[in]</strong> <strong>etype_list_length</strong> - Length of <em>etype_list</em></p>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p><strong>[in]</strong> <strong>etype_list_length</strong> - Length of <em>etype_list</em></p>
+</dd>
+</dl>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">krb5_get_init_creds_opt_set_etype_list -  Set allowable encryption types in initial credential options.</a></li>
@@ -130,6 +119,7 @@ void <code class="descname">krb5_get_init_creds_opt_set_etype_list</code><span c
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -137,8 +127,8 @@ void <code class="descname">krb5_get_init_creds_opt_set_etype_list</code><span c
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

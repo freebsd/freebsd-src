@@ -15,7 +15,7 @@ passwd_phrase_element
 Declaration
 ------------
 
-typedef struct _passwd_phrase_element  passwd_phrase_element
+typedef struct _passwd_phrase_element passwd_phrase_element
 
 
 Members

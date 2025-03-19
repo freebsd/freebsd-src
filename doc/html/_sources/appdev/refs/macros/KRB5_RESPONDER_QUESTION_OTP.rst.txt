@@ -30,7 +30,6 @@ The OTP responder question is asked when the KDC indicates that an OTP value is 
       ]
     }
 
-
 The answer to the question MUST be JSON formatted:
 ::
 
@@ -40,9 +39,8 @@ The answer to the question MUST be JSON formatted:
       "pin":       <string (optional)>,
     }
 
-
 For more detail, please see RFC 6560.
-
+ 
 
 ================================== ======================
 ``KRB5_RESPONDER_QUESTION_OTP``       ``"otp"``

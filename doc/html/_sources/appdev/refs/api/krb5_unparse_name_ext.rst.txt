@@ -37,11 +37,11 @@ krb5_unparse_name_ext -  Convert krb5_principal structure to string and length.
 
 
 
-This function is similar to :c:func:`krb5_unparse_name()` , but allows the use of an existing buffer for the result. If size is not NULL, then *name* must point to either NULL or an existing buffer of at least the size pointed to by *size* . The buffer will be allocated or resized if necessary, with the new pointer stored into *name* . Whether or not the buffer is resized, the necessary space for the result, including null terminator, will be stored into *size* .
+This function is similar to krb5_unparse_name(), but allows the use of an existing buffer for the result. If size is not NULL, then *name* must point to either NULL or an existing buffer of at least the size pointed to by *size* . The buffer will be allocated or resized if necessary, with the new pointer stored into *name* . Whether or not the buffer is resized, the necessary space for the result, including null terminator, will be stored into *size* .
 
 
 
-If size is NULL, this function behaves exactly as :c:func:`krb5_unparse_name()` .
+If size is NULL, this function behaves exactly as krb5_unparse_name().
 
 
 

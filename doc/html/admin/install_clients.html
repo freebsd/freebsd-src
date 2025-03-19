@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>Installing and configuring UNIX client machines &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="UNIX Application Servers" href="install_appl_srv.html" />
     <link rel="prev" title="Installing KDCs" href="install_kdc.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,7 +52,7 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="installing-and-configuring-unix-client-machines">
+  <section id="installing-and-configuring-unix-client-machines">
 <h1>Installing and configuring UNIX client machines<a class="headerlink" href="#installing-and-configuring-unix-client-machines" title="Permalink to this headline">¶</a></h1>
 <p>The Kerberized client programs include <a class="reference internal" href="../user/user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a>,
 <a class="reference internal" href="../user/user_commands/klist.html#klist-1"><span class="std std-ref">klist</span></a>, <a class="reference internal" href="../user/user_commands/kdestroy.html#kdestroy-1"><span class="std std-ref">kdestroy</span></a>, and <a class="reference internal" href="../user/user_commands/kpasswd.html#kpasswd-1"><span class="std std-ref">kpasswd</span></a>.  All of
@@ -76,7 +67,7 @@ programs kinit, klist, and kdestroy.  If you do not have Kerberos
 password changing integrated into the native password program (again,
 typically through PAM), you will need to educate users to use kpasswd
 in place of its non-Kerberos counterparts passwd.</p>
-<div class="section" id="client-machine-configuration-files">
+<section id="client-machine-configuration-files">
 <h2>Client machine configuration files<a class="headerlink" href="#client-machine-configuration-files" title="Permalink to this headline">¶</a></h2>
 <p>Each machine running Kerberos should have a <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> file.
 At a minimum, it should define a <strong>default_realm</strong> setting in
@@ -94,7 +85,7 @@ true for historical reasons only.</p>
 <p>If you anticipate users frequently logging into remote hosts
 (e.g., using ssh) using forwardable credentials, consider setting
 <strong>forwardable</strong> to true so that users obtain forwardable tickets by
-default.  Otherwise users will need to use <code class="docutils literal"><span class="pre">kinit</span> <span class="pre">-f</span></code> to get
+default.  Otherwise users will need to use <code class="docutils literal notranslate"><span class="pre">kinit</span> <span class="pre">-f</span></code> to get
 forwardable tickets.</p>
 <p>Consider adjusting the <strong>ticket_lifetime</strong> setting to match the likely
 length of sessions for your users.  For instance, if most of your
@@ -109,15 +100,17 @@ which hosts belong to which realms.  However, if your clients and KDC
 are running release 1.7 or later, it is also reasonable to leave this
 section out on client machines and just define it in the KDC’s
 krb5.conf.</p>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">Installing and configuring UNIX client machines</a><ul>
@@ -182,6 +175,7 @@ krb5.conf.</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -189,8 +183,8 @@ krb5.conf.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

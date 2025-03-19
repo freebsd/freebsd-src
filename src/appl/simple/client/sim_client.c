@@ -39,10 +39,7 @@
 #include <string.h>
 #include <errno.h>
 #include <netdb.h>
-#include <getopt.h>
-#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
 
 #include "simple.h"
 

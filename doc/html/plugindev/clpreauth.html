@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>Client preauthentication interface (clpreauth) &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="KDC preauthentication interface (kdcpreauth)" href="kdcpreauth.html" />
     <link rel="prev" title="General plugin concepts" href="general.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,7 +52,7 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="client-preauthentication-interface-clpreauth">
+  <section id="client-preauthentication-interface-clpreauth">
 <h1>Client preauthentication interface (clpreauth)<a class="headerlink" href="#client-preauthentication-interface-clpreauth" title="Permalink to this headline">¶</a></h1>
 <p>During an initial ticket request, a KDC may ask a client to prove its
 knowledge of the password before issuing an encrypted ticket, or to
@@ -70,28 +61,28 @@ preauthentication, and is described in <span class="target" id="index-0"></span>
 The clpreauth interface allows the addition of client support for
 preauthentication mechanisms beyond those included in the core MIT
 krb5 code base.  For a detailed description of the clpreauth
-interface, see the header file <code class="docutils literal"><span class="pre">&lt;krb5/clpreauth_plugin.h&gt;</span></code> (or
-<code class="docutils literal"><span class="pre">&lt;krb5/preauth_plugin.h&gt;</span></code> before release 1.12).</p>
+interface, see the header file <code class="docutils literal notranslate"><span class="pre">&lt;krb5/clpreauth_plugin.h&gt;</span></code> (or
+<code class="docutils literal notranslate"><span class="pre">&lt;krb5/preauth_plugin.h&gt;</span></code> before release 1.12).</p>
 <p>A clpreauth module is generally responsible for:</p>
 <ul class="simple">
-<li>Supplying a list of preauth type numbers used by the module in the
-<strong>pa_type_list</strong> field of the vtable structure.</li>
-<li>Indicating what kind of preauthentication mechanism it implements,
+<li><p>Supplying a list of preauth type numbers used by the module in the
+<strong>pa_type_list</strong> field of the vtable structure.</p></li>
+<li><p>Indicating what kind of preauthentication mechanism it implements,
 with the <strong>flags</strong> method.  In the most common case, this method
-just returns <code class="docutils literal"><span class="pre">PA_REAL</span></code>, indicating that it implements a normal
-preauthentication type.</li>
-<li>Examining the padata information included in a PREAUTH_REQUIRED or
+just returns <code class="docutils literal notranslate"><span class="pre">PA_REAL</span></code>, indicating that it implements a normal
+preauthentication type.</p></li>
+<li><p>Examining the padata information included in a PREAUTH_REQUIRED or
 MORE_PREAUTH_DATA_REQUIRED error and producing padata values for the
-next AS request.  This is done with the <strong>process</strong> method.</li>
-<li>Examining the padata information included in a successful ticket
+next AS request.  This is done with the <strong>process</strong> method.</p></li>
+<li><p>Examining the padata information included in a successful ticket
 reply, possibly verifying the KDC identity and computing a reply
-key.  This is also done with the <strong>process</strong> method.</li>
-<li>For preauthentication types which support it, recovering from errors
+key.  This is also done with the <strong>process</strong> method.</p></li>
+<li><p>For preauthentication types which support it, recovering from errors
 by examining the error data from the KDC and producing a padata
 value for another AS request.  This is done with the <strong>tryagain</strong>
-method.</li>
-<li>Receiving option information (supplied by <code class="docutils literal"><span class="pre">kinit</span> <span class="pre">-X</span></code> or by an
-application), with the <strong>gic_opts</strong> method.</li>
+method.</p></li>
+<li><p>Receiving option information (supplied by <code class="docutils literal notranslate"><span class="pre">kinit</span> <span class="pre">-X</span></code> or by an
+application), with the <strong>gic_opts</strong> method.</p></li>
 </ul>
 <p>A clpreauth module can create and destroy per-library-context and
 per-request state objects by implementing the <strong>init</strong>, <strong>fini</strong>,
@@ -107,14 +98,16 @@ expected enctype of the AS reply, the FAST armor key, and the client
 long-term key (prompting for the user password if necessary).  A
 callback can also be used to replace the AS reply key if the
 preauthentication mechanism computes one.</p>
-</div>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">Client preauthentication interface (clpreauth)</a></li>
@@ -162,6 +155,7 @@ preauthentication mechanism computes one.</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -169,8 +163,8 @@ preauthentication mechanism computes one.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

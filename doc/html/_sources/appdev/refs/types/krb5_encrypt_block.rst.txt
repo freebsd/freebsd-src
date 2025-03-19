@@ -15,7 +15,7 @@ krb5_encrypt_block
 Declaration
 ------------
 
-typedef struct _krb5_encrypt_block  krb5_encrypt_block
+typedef struct _krb5_encrypt_block krb5_encrypt_block
 
 
 Members

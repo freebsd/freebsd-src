@@ -46,7 +46,7 @@ This function finishes processing credential cache entries and invalidates *curs
 ..
 
 .. seealso::
-         :c:func:`krb5_cc_start_seq_get()` , :c:func:`krb5_cc_next_cred()` 
+         krb5_cc_start_seq_get(), krb5_cc_next_cred()
  
 
 

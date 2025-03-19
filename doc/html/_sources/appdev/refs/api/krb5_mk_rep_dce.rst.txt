@@ -32,7 +32,7 @@ krb5_mk_rep_dce -  Format and encrypt a KRB_AP_REP message for DCE RPC.
 
 
 
-Use :c:func:`krb5_free_data_contents()` to free *outbuf* when it is no longer needed.
+Use krb5_free_data_contents() to free *outbuf* when it is no longer needed.
 
 
 

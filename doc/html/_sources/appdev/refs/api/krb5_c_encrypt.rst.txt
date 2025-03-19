@@ -14,7 +14,7 @@ krb5_c_encrypt -  Encrypt data using a key (operates on keyblock).
 
 	          **[in]** **key** - Encryption key
 
-	          **[in]** **usage** - Key usage (see :data:`KRB5_KEYUSAGE` types)
+	          **[in]** **usage** - Key usage (see KRB5_KEYUSAGE macros)
 
 	          **[inout]** **cipher_state** - Cipher state; specify NULL if not needed
 
@@ -38,7 +38,7 @@ krb5_c_encrypt -  Encrypt data using a key (operates on keyblock).
 
 
 
-This function encrypts the data block *input* and stores the output into *output* . The actual encryption key will be derived from *key* and *usage* if key derivation is specified for the encryption type. If non-null, *cipher_state* specifies the beginning state for the encryption operation, and is updated with the state to be passed as input to the next operation.
+This function encrypts the data block *input* and stores the outputinto *output* . The actual encryption key will be derived from *key* and *usage* if key derivation is specified for the encryption type. If non-null, *cipher_state* specifies the beginning state for the encryption operation, and is updated with the state to be passed as input to the next operation.
 
 
 
@@ -58,7 +58,7 @@ This function encrypts the data block *input* and stores the output into *output
 
 .. note::
 
-	 The caller must initialize *output* and allocate at least enough space for the result (using :c:func:`krb5_c_encrypt_length()` to determine the amount of space needed). *output->length* will be set to the actual length of the ciphertext.
+	 The caller must initialize *output* and allocate at least enough space for the result (using krb5_c_encrypt_length() to determine the amount of space needed). *output->length* will be set to the actual length of the ciphertext.
  
 
 

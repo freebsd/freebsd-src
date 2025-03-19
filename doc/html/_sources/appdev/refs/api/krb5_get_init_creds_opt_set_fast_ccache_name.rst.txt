@@ -33,7 +33,7 @@ Sets the location of a credential cache containing an armor ticket to protect an
 
 
 
-In version 1.7, setting an armor ccache requires that FAST be used for the exchange. In version 1.8 or later, setting the armor ccache causes FAST to be used if the KDC supports it; :c:func:`krb5_get_init_creds_opt_set_fast_flags()` must be used to require that FAST be used.
+In version 1.7, setting an armor ccache requires that FAST be used for the exchange. In version 1.8 or later, setting the armor ccache causes FAST to be used if the KDC supports it; krb5_get_init_creds_opt_set_fast_flags() must be used to require that FAST be used.
 
 
 

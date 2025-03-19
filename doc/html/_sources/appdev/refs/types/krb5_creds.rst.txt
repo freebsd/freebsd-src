@@ -16,7 +16,7 @@ Credentials structure including ticket, session key, and lifetime info.
 Declaration
 ------------
 
-typedef struct _krb5_creds  krb5_creds
+typedef struct _krb5_creds krb5_creds
 
 
 Members

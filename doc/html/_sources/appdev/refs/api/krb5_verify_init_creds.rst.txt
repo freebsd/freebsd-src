@@ -42,7 +42,7 @@ This function attempts to verify that *creds* were obtained from a KDC with know
 
 
 
-If the specified keytab does not exist, or is empty, or cannot be read, or does not contain an entry for *server* , then credential verification may be skipped unless configuration demands that it succeed. The caller can control this behavior by providing a verification options structure; see :c:func:`krb5_verify_init_creds_opt_init()` and :c:func:`krb5_verify_init_creds_opt_set_ap_req_nofail()` .
+If the specified keytab does not exist, or is empty, or cannot be read, or does not contain an entry for *server* , then credential verification may be skipped unless configuration demands that it succeed. The caller can control this behavior by providing a verification options structure; see krb5_verify_init_creds_opt_init() and krb5_verify_init_creds_opt_set_ap_req_nofail().
 
 
 

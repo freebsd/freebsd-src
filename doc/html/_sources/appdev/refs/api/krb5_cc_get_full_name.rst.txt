@@ -29,7 +29,7 @@ krb5_cc_get_full_name -  Retrieve the full name of a credential cache.
 
 
 
-Use :c:func:`krb5_free_string()` to free *fullname_out* when it is no longer needed.
+Use krb5_free_string() to free *fullname_out* when it is no longer needed.
 
 
 

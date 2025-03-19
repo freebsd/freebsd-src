@@ -249,6 +249,7 @@ krb5_cccol_have_content(krb5_context context)
         save_first_error(context, ret, &errsave);
         if (ret || cache == NULL)
             break;
+        princ = NULL;
         ret = krb5_cc_get_principal(context, cache, &princ);
         save_first_error(context, ret, &errsave);
         if (!ret)

@@ -402,9 +402,10 @@ gss_krb5int_unseal_v3_iov(krb5_context context,
             if (load_16_be(althdr) != KG2_TOK_WRAP_MSG
                 || althdr[2] != ptr[2]
                 || althdr[3] != ptr[3]
+                || load_16_be(althdr + 4) != ec
                 || memcmp(althdr + 8, ptr + 8, 8) != 0) {
                 *minor_status = 0;
-                return GSS_S_BAD_SIG;
+                return GSS_S_DEFECTIVE_TOKEN;
             }
         } else {
             /* Verify checksum: note EC is checksum size here, not padding */

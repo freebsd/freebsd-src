@@ -14,7 +14,7 @@ krb5_mk_req -  Create a KRB_AP_REQ message.
 
 	          **[inout]** **auth_context** - Pre-existing or newly created auth context
 
-	          **[in]** **ap_req_options** - :data:`AP_OPTS` options
+	          **[in]** **ap_req_options** - Options (see AP_OPTS macros)
 
 	          **[in]** **service** - Service name, or NULL to use **"host"**
 
@@ -42,11 +42,11 @@ krb5_mk_req -  Create a KRB_AP_REQ message.
 
 
 
-This function is similar to :c:func:`krb5_mk_req_extended()` except that it uses a given *hostname* , *service* , and *ccache* to construct a service principal name and obtain credentials.
+This function is similar to krb5_mk_req_extended() except that it uses a given *hostname* , *service* , and *ccache* to construct a service principal name and obtain credentials.
 
 
 
-Use :c:func:`krb5_free_data_contents()` to free *outbuf* when it is no longer needed.
+Use krb5_free_data_contents() to free *outbuf* when it is no longer needed.
 
 
 

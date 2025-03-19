@@ -6,7 +6,7 @@
 Copyright and Other Notices
 ---------------------------
 
-Copyright (C) 1985-2023 by the Massachusetts Institute of Technology
+Copyright (C) 1985-2024 by the Massachusetts Institute of Technology
 and its contributors.  All rights reserved.
 
 Please see the file named NOTICE for additional notices.
@@ -96,6 +96,30 @@ removed.
 
 Beginning with the krb5-1.18 release, all support for single-DES
 encryption types has been removed.
+
+Major changes in 1.21.3 (2024-06-26)
+------------------------------------
+
+This is a bug fix release.
+
+* Fix vulnerabilities in GSS message token handling [CVE-2024-37370,
+  CVE-2024-37371].
+
+* Fix a potential bad pointer free in krb5_cccol_have_contents().
+
+* Fix a memory leak in the macOS ccache type.
+
+krb5-1.21.2 changes by ticket ID
+--------------------------------
+
+9102    Eliminate sim_client include of getopt.h
+9103    segfault trying to free a garbage pointer
+9104    Work around Doxygen 1.9.7 change
+9107    In PKINIT, check for null PKCS7 enveloped fields
+9109    memory leak on macos
+9115    Fix leak in KDC NDR encoding
+9125    Formatting error in realm_config.rst
+9128    Fix vulnerabilities in GSS message token handling
 
 Major changes in 1.21.2 (2023-08-14)
 ------------------------------------
@@ -324,6 +348,7 @@ reports, suggestions, and valuable resources:
     Michael Calmer
     Andrea Campi
     Julien Chaffraix
+    Jacob Champion
     Puran Chand
     Ravi Channavajhala
     Srinivas Cheruku
@@ -454,6 +479,7 @@ reports, suggestions, and valuable resources:
     Mantas Mikulėnas
     Markus Moeller
     Kyle Moffett
+    Jon Moore
     Paul Moore
     Keiichi Mori
     Michael Morony
@@ -506,6 +532,7 @@ reports, suggestions, and valuable resources:
     Richard Silverman
     Cel Skeggs
     Simo Sorce
+    Anthony Sottile
     Michael Spang
     Michael Ströder
     Bjørn Tore Sund

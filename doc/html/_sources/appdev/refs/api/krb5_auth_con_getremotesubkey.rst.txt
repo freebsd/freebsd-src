@@ -24,7 +24,7 @@ krb5_auth_con_getremotesubkey
 ..
 
 
-DEPRECATED Replaced by krb5_auth_con_getrecvsubkey() . 
+DEPRECATED Replaced by krb5_auth_con_getrecvsubkey(). 
 
 
 

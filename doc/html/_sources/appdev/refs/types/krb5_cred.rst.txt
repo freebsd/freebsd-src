@@ -16,7 +16,7 @@ Credentials data structure.
 Declaration
 ------------
 
-typedef struct _krb5_cred  krb5_cred
+typedef struct _krb5_cred krb5_cred
 
 
 Members

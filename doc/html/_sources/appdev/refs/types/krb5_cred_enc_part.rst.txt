@@ -16,7 +16,7 @@ Cleartext credentials information.
 Declaration
 ------------
 
-typedef struct _krb5_cred_enc_part  krb5_cred_enc_part
+typedef struct _krb5_cred_enc_part krb5_cred_enc_part
 
 
 Members

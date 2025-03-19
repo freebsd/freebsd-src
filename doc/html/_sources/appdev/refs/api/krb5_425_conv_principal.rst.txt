@@ -40,7 +40,7 @@ This function builds a *princ* from V4 specification based on given input *name.
 
 
 
-Use :c:func:`krb5_free_principal()` to free *princ* when it is no longer needed.
+Use krb5_free_principal() to free *princ* when it is no longer needed.
 
 
 

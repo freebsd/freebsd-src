@@ -15,7 +15,7 @@ krb5_principal_data
 Declaration
 ------------
 
-typedef struct krb5_principal_data  krb5_principal_data
+typedef struct krb5_principal_data krb5_principal_data
 
 
 Members

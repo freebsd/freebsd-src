@@ -31,7 +31,7 @@ krb5_init_context -  Create a krb5 library context.
 
 
 
-The *context* must be released by calling :c:func:`krb5_free_context()` when it is no longer needed.
+The *context* must be released by calling krb5_free_context() when it is no longer needed.
 
 
 
@@ -50,7 +50,7 @@ The *context* must be released by calling :c:func:`krb5_free_context()` when it 
 
 .. warning::
 
-	 Any program or module that needs the Kerberos code to not trust the environment must use :c:func:`krb5_init_secure_context()` , or clean out the environment.
+	 Any program or module that needs the Kerberos code to not trust the environment must use krb5_init_secure_context(), or clean out the environment.
  
 
 

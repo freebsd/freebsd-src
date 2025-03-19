@@ -35,7 +35,7 @@ Create a context structure, using only system configuration files. All informati
 
 
 
-The *context* must be released by calling :c:func:`krb5_free_context()` when it is no longer needed.
+The *context* must be released by calling krb5_free_context() when it is no longer needed.
 
 
 

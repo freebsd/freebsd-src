@@ -51,7 +51,7 @@ Beginning with release 1.20, the name type of the principal will be inferred as 
 
 
 
-Use :c:func:`krb5_free_principal()` to free *principal_out* when it is no longer needed.
+Use krb5_free_principal() to free *principal_out* when it is no longer needed.
 
 
 

@@ -28,7 +28,7 @@ krb5_build_principal_va
 ..
 
 
-DEPRECATED Replaced by krb5_build_principal_alloc_va() . 
+DEPRECATED Replaced by krb5_build_principal_alloc_va(). 
 
 
 

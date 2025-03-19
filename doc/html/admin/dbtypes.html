@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>Database types &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="Account lockout" href="lockout.html" />
     <link rel="prev" title="Database administration" href="database.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,7 +52,7 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="database-types">
+  <section id="database-types">
 <span id="dbtypes"></span><h1>Database types<a class="headerlink" href="#database-types" title="Permalink to this headline">¶</a></h1>
 <p>A Kerberos database can be implemented with one of three built-in
 database providers, called KDB modules.  Software which incorporates
@@ -70,34 +61,34 @@ subsections describe the three built-in KDB modules and the
 configuration specific to them.</p>
 <p>The database type can be configured with the <strong>db_library</strong> variable
 in the <a class="reference internal" href="conf_files/kdc_conf.html#dbmodules"><span class="std std-ref">[dbmodules]</span></a> subsection for the realm.  For example:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">dbmodules</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">dbmodules</span><span class="p">]</span>
     <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">db_library</span> <span class="o">=</span> <span class="n">db2</span>
     <span class="p">}</span>
 </pre></div>
 </div>
-<p>If the <code class="docutils literal"><span class="pre">ATHENA.MIT.EDU</span></code> realm subsection contains a
+<p>If the <code class="docutils literal notranslate"><span class="pre">ATHENA.MIT.EDU</span></code> realm subsection contains a
 <strong>database_module</strong> setting, then the subsection within
-<code class="docutils literal"><span class="pre">[dbmodules]</span></code> should use that name instead of <code class="docutils literal"><span class="pre">ATHENA.MIT.EDU</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">[dbmodules]</span></code> should use that name instead of <code class="docutils literal notranslate"><span class="pre">ATHENA.MIT.EDU</span></code>.</p>
 <p>To transition from one database type to another, stop the
-<a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> service, use <code class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">dump</span></code> to create a dump
+<a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> service, use <code class="docutils literal notranslate"><span class="pre">kdb5_util</span> <span class="pre">dump</span></code> to create a dump
 file, change the <strong>db_library</strong> value and set any appropriate
-configuration for the new database type, and use <code class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">load</span></code> to
+configuration for the new database type, and use <code class="docutils literal notranslate"><span class="pre">kdb5_util</span> <span class="pre">load</span></code> to
 create and populate the new database.  If the new database type is
-LDAP, create the new database using <code class="docutils literal"><span class="pre">kdb5_ldap_util</span></code> and populate it
-from the dump file using <code class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">load</span> <span class="pre">-update</span></code>.  Then restart the
+LDAP, create the new database using <code class="docutils literal notranslate"><span class="pre">kdb5_ldap_util</span></code> and populate it
+from the dump file using <code class="docutils literal notranslate"><span class="pre">kdb5_util</span> <span class="pre">load</span> <span class="pre">-update</span></code>.  Then restart the
 <a class="reference internal" href="admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> and <a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> services.</p>
-<div class="section" id="berkeley-database-module-db2">
+<section id="berkeley-database-module-db2">
 <h2>Berkeley database module (db2)<a class="headerlink" href="#berkeley-database-module-db2" title="Permalink to this headline">¶</a></h2>
-<p>The default KDB module is <code class="docutils literal"><span class="pre">db2</span></code>, which uses a version of the
+<p>The default KDB module is <code class="docutils literal notranslate"><span class="pre">db2</span></code>, which uses a version of the
 Berkeley DB library.  It creates four files based on the database
-pathname.  If the pathname ends with <code class="docutils literal"><span class="pre">principal</span></code> then the four files
+pathname.  If the pathname ends with <code class="docutils literal notranslate"><span class="pre">principal</span></code> then the four files
 are:</p>
 <ul class="simple">
-<li><code class="docutils literal"><span class="pre">principal</span></code>, containing principal entry data</li>
-<li><code class="docutils literal"><span class="pre">principal.ok</span></code>, a lock file for the principal database</li>
-<li><code class="docutils literal"><span class="pre">principal.kadm5</span></code>, containing policy object data</li>
-<li><code class="docutils literal"><span class="pre">principal.kadm5.lock</span></code>, a lock file for the policy database</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">principal</span></code>, containing principal entry data</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">principal.ok</span></code>, a lock file for the principal database</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">principal.kadm5</span></code>, containing policy object data</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">principal.kadm5.lock</span></code>, a lock file for the policy database</p></li>
 </ul>
 <p>For large databases, the <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a> <strong>dump</strong> command (perhaps
 invoked by <a class="reference internal" href="admin_commands/kprop.html#kprop-8"><span class="std std-ref">kprop</span></a> or by <a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> for incremental
@@ -106,8 +97,8 @@ period of time while it iterates over the database.  This delay can be
 avoided by disabling account lockout features so that the KDC does not
 perform database writes (see <a class="reference internal" href="lockout.html#disable-lockout"><span class="std std-ref">KDC performance and account lockout</span></a>).  Alternatively,
 a slower form of iteration can be enabled by setting the
-<strong>unlockiter</strong> variable to <code class="docutils literal"><span class="pre">true</span></code>.  For example:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">dbmodules</span><span class="p">]</span>
+<strong>unlockiter</strong> variable to <code class="docutils literal notranslate"><span class="pre">true</span></code>.  For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">dbmodules</span><span class="p">]</span>
     <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">db_library</span> <span class="o">=</span> <span class="n">db2</span>
         <span class="n">unlockiter</span> <span class="o">=</span> <span class="n">true</span>
@@ -116,28 +107,28 @@ a slower form of iteration can be enabled by setting the
 </div>
 <p>In rare cases, a power failure or other unclean system shutdown may
 cause inconsistencies in the internal pointers within a database file,
-such that <code class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">dump</span></code> cannot retrieve all principal entries in
+such that <code class="docutils literal notranslate"><span class="pre">kdb5_util</span> <span class="pre">dump</span></code> cannot retrieve all principal entries in
 the database.  In this situation, it may be possible to retrieve all
-of the principal data by running <code class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">dump</span> <span class="pre">-recurse</span></code> to
+of the principal data by running <code class="docutils literal notranslate"><span class="pre">kdb5_util</span> <span class="pre">dump</span> <span class="pre">-recurse</span></code> to
 iterate over the database using the tree pointers instead of the
-iteration pointers.  Running <code class="docutils literal"><span class="pre">kdb5_util</span> <span class="pre">dump</span> <span class="pre">-rev</span></code> to iterate over
+iteration pointers.  Running <code class="docutils literal notranslate"><span class="pre">kdb5_util</span> <span class="pre">dump</span> <span class="pre">-rev</span></code> to iterate over
 the database backwards may also retrieve some of the data which is not
 retrieved by a normal dump operation.</p>
-</div>
-<div class="section" id="lightning-memory-mapped-database-module-klmdb">
+</section>
+<section id="lightning-memory-mapped-database-module-klmdb">
 <h2>Lightning Memory-Mapped Database module (klmdb)<a class="headerlink" href="#lightning-memory-mapped-database-module-klmdb" title="Permalink to this headline">¶</a></h2>
 <p>The klmdb module was added in release 1.17.  It uses the LMDB library,
 and may offer better performance and reliability than the db2 module.
 It creates four files based on the database pathname.  If the pathname
-ends with <code class="docutils literal"><span class="pre">principal</span></code>, then the four files are:</p>
+ends with <code class="docutils literal notranslate"><span class="pre">principal</span></code>, then the four files are:</p>
 <ul class="simple">
-<li><code class="docutils literal"><span class="pre">principal.mdb</span></code>, containing policy object data and most principal
-entry data</li>
-<li><code class="docutils literal"><span class="pre">principal.mdb-lock</span></code>, a lock file for the primary database</li>
-<li><code class="docutils literal"><span class="pre">principal.lockout.mdb</span></code>, containing the account lockout attributes
+<li><p><code class="docutils literal notranslate"><span class="pre">principal.mdb</span></code>, containing policy object data and most principal
+entry data</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">principal.mdb-lock</span></code>, a lock file for the primary database</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">principal.lockout.mdb</span></code>, containing the account lockout attributes
 (last successful authentication time, last failed authentication
-time, and number of failed attempts) for each principal entry</li>
-<li><code class="docutils literal"><span class="pre">principal.lockout.mdb-lock</span></code>, a lock file for the lockout database</li>
+time, and number of failed attempts) for each principal entry</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">principal.lockout.mdb-lock</span></code>, a lock file for the lockout database</p></li>
 </ul>
 <p>Separating out the lockout attributes ensures that the KDC will never
 block on an administrative operation such as a database dump or load.
@@ -157,7 +148,7 @@ operations will fail and the error message “Environment mapsize limit
 reached” will appear in the kadmind log file.  In this case, the
 <strong>mapsize</strong> variable can be used to increase the map size.  The
 following example sets the map size to 512 megabytes:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">dbmodules</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">dbmodules</span><span class="p">]</span>
     <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">db_library</span> <span class="o">=</span> <span class="n">klmdb</span>
         <span class="n">mapsize</span> <span class="o">=</span> <span class="mi">512</span>
@@ -178,8 +169,8 @@ variable can be set to “true” to disable synchronization for the
 primary database.</p>
 <p>The klmdb module does not support explicit locking with the
 <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> <strong>lock</strong> command.</p>
-</div>
-<div class="section" id="ldap-module-kldap">
+</section>
+<section id="ldap-module-kldap">
 <h2>LDAP module (kldap)<a class="headerlink" href="#ldap-module-kldap" title="Permalink to this headline">¶</a></h2>
 <p>The kldap module stores principal and policy data using an LDAP
 server.  To use it you must configure an LDAP server to use the
@@ -187,21 +178,23 @@ Kerberos schema.  See <a class="reference internal" href="conf_ldap.html#conf-ld
 <p>Because <a class="reference internal" href="admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> is single-threaded, latency in LDAP database
 accesses may limit KDC operation throughput.  If the LDAP server is
 located on the same server host as the KDC and accessed through an
-<code class="docutils literal"><span class="pre">ldapi://</span></code> URL, latency should be minimal.  If this is not possible,
+<code class="docutils literal notranslate"><span class="pre">ldapi://</span></code> URL, latency should be minimal.  If this is not possible,
 consider starting multiple KDC worker processes with the
 <a class="reference internal" href="admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> <strong>-w</strong> option to enable concurrent processing of KDC
 requests.</p>
 <p>The kldap module does not support explicit locking with the
 <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> <strong>lock</strong> command.</p>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">Database types</a><ul>
@@ -263,6 +256,7 @@ requests.</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -270,8 +264,8 @@ requests.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

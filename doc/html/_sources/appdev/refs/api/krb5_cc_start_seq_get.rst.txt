@@ -32,7 +32,7 @@ krb5_cc_start_seq_get -  Prepare to sequentially read every credential in a cred
 
 
 
- :c:func:`krb5_cc_end_seq_get()` must be called to complete the retrieve operation.
+krb5_cc_end_seq_get() must be called to complete the retrieve operation.
 
 
 
@@ -52,7 +52,7 @@ krb5_cc_start_seq_get -  Prepare to sequentially read every credential in a cred
 
 .. note::
 
-	 If the cache represented by *cache* is modified between the time of the call to this function and the time of the final :c:func:`krb5_cc_end_seq_get()` , these changes may not be reflected in the results of :c:func:`krb5_cc_next_cred()` calls.
+	 If the cache represented by *cache* is modified between the time of the call to this function and the time of the final krb5_cc_end_seq_get(), these changes may not be reflected in the results of krb5_cc_next_cred() calls.
  
 
 

@@ -16,7 +16,7 @@ A key table entry.
 Declaration
 ------------
 
-typedef struct krb5_keytab_entry_st  krb5_keytab_entry
+typedef struct krb5_keytab_entry_st krb5_keytab_entry
 
 
 Members

@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>krb5_kdc_sign_ticket - Sign a PAC, possibly including a ticket signature. &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../../../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
     <link rel="next" title="krb5_kdc_verify_ticket - Verify a PAC, possibly including ticket signature." href="krb5_kdc_verify_ticket.html" />
     <link rel="prev" title="krb5_is_referral_realm - Check for a match with KRB5_REFERRAL_REALM." href="krb5_is_referral_realm.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,53 +52,47 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="krb5-kdc-sign-ticket-sign-a-pac-possibly-including-a-ticket-signature">
+  <section id="krb5-kdc-sign-ticket-sign-a-pac-possibly-including-a-ticket-signature">
 <h1>krb5_kdc_sign_ticket -  Sign a PAC, possibly including a ticket signature.<a class="headerlink" href="#krb5-kdc-sign-ticket-sign-a-pac-possibly-including-a-ticket-signature" title="Permalink to this headline">¶</a></h1>
-<dl class="function">
-<dt id="c.krb5_kdc_sign_ticket">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <code class="descname">krb5_kdc_sign_ticket</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_enc_tkt_part.html#c.krb5_enc_tkt_part" title="krb5_enc_tkt_part">krb5_enc_tkt_part</a> *<em>&nbsp;enc_tkt</em>, const <a class="reference internal" href="../types/krb5_pac.html#c.krb5_pac" title="krb5_pac">krb5_pac</a><em>&nbsp;pac</em>, <a class="reference internal" href="../types/krb5_const_principal.html#c.krb5_const_principal" title="krb5_const_principal">krb5_const_principal</a><em>&nbsp;server_princ</em>, <a class="reference internal" href="../types/krb5_const_principal.html#c.krb5_const_principal" title="krb5_const_principal">krb5_const_principal</a><em>&nbsp;client_princ</em>, const <a class="reference internal" href="../types/krb5_keyblock.html#c.krb5_keyblock" title="krb5_keyblock">krb5_keyblock</a> *<em>&nbsp;server</em>, const <a class="reference internal" href="../types/krb5_keyblock.html#c.krb5_keyblock" title="krb5_keyblock">krb5_keyblock</a> *<em>&nbsp;privsvr</em>, <a class="reference internal" href="../types/krb5_boolean.html#c.krb5_boolean" title="krb5_boolean">krb5_boolean</a><em>&nbsp;with_realm</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_kdc_sign_ticket" title="Permalink to this definition">¶</a></dt>
+<dl class="c function">
+<dt class="sig sig-object c" id="c.krb5_kdc_sign_ticket">
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code"><span class="n"><span class="pre">krb5_error_code</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_kdc_sign_ticket</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context"><span class="n"><span class="pre">krb5_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">context</span></span>, <a class="reference internal" href="../types/krb5_enc_tkt_part.html#c.krb5_enc_tkt_part" title="krb5_enc_tkt_part"><span class="n"><span class="pre">krb5_enc_tkt_part</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">enc_tkt</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../types/krb5_pac.html#c.krb5_pac" title="krb5_pac"><span class="n"><span class="pre">krb5_pac</span></span></a><span class="w"> </span><span class="n"><span class="pre">pac</span></span>, <a class="reference internal" href="../types/krb5_const_principal.html#c.krb5_const_principal" title="krb5_const_principal"><span class="n"><span class="pre">krb5_const_principal</span></span></a><span class="w"> </span><span class="n"><span class="pre">server_princ</span></span>, <a class="reference internal" href="../types/krb5_const_principal.html#c.krb5_const_principal" title="krb5_const_principal"><span class="n"><span class="pre">krb5_const_principal</span></span></a><span class="w"> </span><span class="n"><span class="pre">client_princ</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../types/krb5_keyblock.html#c.krb5_keyblock" title="krb5_keyblock"><span class="n"><span class="pre">krb5_keyblock</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">server</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="../types/krb5_keyblock.html#c.krb5_keyblock" title="krb5_keyblock"><span class="n"><span class="pre">krb5_keyblock</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">privsvr</span></span>, <a class="reference internal" href="../types/krb5_boolean.html#c.krb5_boolean" title="krb5_boolean"><span class="n"><span class="pre">krb5_boolean</span></span></a><span class="w"> </span><span class="n"><span class="pre">with_realm</span></span><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_kdc_sign_ticket" title="Permalink to this definition">¶</a><br /></dt>
 <dd></dd></dl>
 
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>[in]</strong> <strong>context</strong> - Library context</p>
+<dl class="field-list">
+<dt class="field-odd">param</dt>
+<dd class="field-odd"><p><strong>[in]</strong> <strong>context</strong> - Library context</p>
 <p><strong>[in]</strong> <strong>enc_tkt</strong> - The ticket for the signature</p>
 <p><strong>[in]</strong> <strong>pac</strong> - PAC handle</p>
 <p><strong>[in]</strong> <strong>server_princ</strong> - Canonical ticket server name</p>
 <p><strong>[in]</strong> <strong>client_princ</strong> - PAC_CLIENT_INFO principal (or NULL)</p>
 <p><strong>[in]</strong> <strong>server</strong> - Key for server checksum</p>
 <p><strong>[in]</strong> <strong>privsvr</strong> - Key for KDC and ticket checksum</p>
-<p class="last"><strong>[in]</strong> <strong>with_realm</strong> - If true, include the realm of <em>principal</em></p>
-</td>
-</tr>
-</tbody>
-</table>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">retval:</th><td class="field-body"><ul class="first last simple">
-<li>0   on success, otherwise - Kerberos error codes</li>
+<p><strong>[in]</strong> <strong>with_realm</strong> - If true, include the realm of <em>principal</em></p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">retval</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p>0   on success, otherwise - Kerberos error codes</p></li>
 </ul>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 <p>Sign <em>pac</em> using the keys <em>server</em> and <em>privsvr</em> . Include a ticket signature over <em>enc_tkt</em> if <em>server_princ</em> is not a TGS or kadmin/changepw principal name. Add the signed PAC’s encoding to the authorization data of <em>enc_tkt</em> in the first slot, wrapped in an AD-IF-RELEVANT container. If <em>client_princ</em> is non-null, add a PAC_CLIENT_INFO buffer, including the realm if <em>with_realm</em> is true.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">New in 1.20</p>
+<p class="admonition-title">Note</p>
+<p>New in 1.20</p>
 </div>
-</div>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">krb5_kdc_sign_ticket -  Sign a PAC, possibly including a ticket signature.</a></li>
@@ -151,6 +136,7 @@
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -158,8 +144,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

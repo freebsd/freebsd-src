@@ -42,7 +42,7 @@ This function constructs the next KDC request in an initial credential exchange,
 
 
 
-If more requests are needed, *flags* will be set to :data:`KRB5_INIT_CREDS_STEP_FLAG_CONTINUE` and the next request will be placed in *out* . If no more requests are needed, *flags* will not contain :data:`KRB5_INIT_CREDS_STEP_FLAG_CONTINUE` and *out* will be empty.
+If more requests are needed, *flags* will be set to #KRB5_INIT_CREDS_STEP_FLAG_CONTINUE and the next request will be placed in *out* . If no more requests are needed, *flags* will not contain #KRB5_INIT_CREDS_STEP_FLAG_CONTINUE and *out* will be empty.
 
 
 
@@ -50,7 +50,7 @@ If this function returns **KRB5KRB_ERR_RESPONSE_TOO_BIG** , the caller should tr
 
 
 
- *context* must be the same as the one passed to :c:func:`krb5_init_creds_init()` for this initial credentials context.
+ *context* must be the same as the one passed to krb5_init_creds_init() for this initial credentials context.
 
 
 

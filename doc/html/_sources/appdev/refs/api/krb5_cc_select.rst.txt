@@ -38,7 +38,7 @@ Select a cache within the collection containing credentials most appropriate for
 
 
 
-Use :c:func:`krb5_cc_close()` to release *cache_out* when it is no longer needed. Use :c:func:`krb5_free_principal()` to release *princ_out* when it is no longer needed. Note that *princ_out* is set in some error conditions.
+Use krb5_cc_close() to release *cache_out* when it is no longer needed. Use krb5_free_principal() to release *princ_out* when it is no longer needed. Note that *princ_out* is set in some error conditions.
 
 
 

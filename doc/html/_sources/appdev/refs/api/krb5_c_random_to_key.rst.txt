@@ -48,7 +48,7 @@ This function takes random input data *random_data* and produces a valid key *k5
 ..
 
 .. seealso::
-         :c:func:`krb5_c_keylengths()` 
+         krb5_c_keylengths()
  
 
 

@@ -16,7 +16,7 @@ Generic preauth option attribute/value pairs.
 Declaration
 ------------
 
-typedef struct _krb5_gic_opt_pa_data  krb5_gic_opt_pa_data
+typedef struct _krb5_gic_opt_pa_data krb5_gic_opt_pa_data
 
 
 Members

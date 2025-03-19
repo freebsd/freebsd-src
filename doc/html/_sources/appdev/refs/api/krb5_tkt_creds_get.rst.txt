@@ -30,7 +30,7 @@ krb5_tkt_creds_get -  Synchronously obtain credentials using a TGS request conte
 
 
 
-This function synchronously obtains credentials using a context created by :c:func:`krb5_tkt_creds_init()` . On successful return, the credentials can be retrieved with :c:func:`krb5_tkt_creds_get_creds()` .
+This function synchronously obtains credentials using a context created by krb5_tkt_creds_init(). On successful return, the credentials can be retrieved with krb5_tkt_creds_get_creds().
 
 
 

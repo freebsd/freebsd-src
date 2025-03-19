@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>Organization of the source directory &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="Doing the build" href="doing_build.html" />
     <link rel="prev" title="Building Kerberos V5" href="index.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,125 +52,126 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="organization-of-the-source-directory">
+  <section id="organization-of-the-source-directory">
 <h1>Organization of the source directory<a class="headerlink" href="#organization-of-the-source-directory" title="Permalink to this headline">¶</a></h1>
 <p>Below is a brief overview of the organization of the complete source
 directory.  More detailed descriptions follow.</p>
-<table border="1" class="docutils">
+<table class="docutils align-default">
 <colgroup>
-<col width="12%" />
-<col width="88%" />
+<col style="width: 12%" />
+<col style="width: 88%" />
 </colgroup>
-<tbody valign="top">
-<tr class="row-odd"><td>appl</td>
-<td>Kerberos application client and server programs</td>
+<tbody>
+<tr class="row-odd"><td><p>appl</p></td>
+<td><p>Kerberos application client and server programs</p></td>
 </tr>
-<tr class="row-even"><td>ccapi</td>
-<td>Credential cache services</td>
+<tr class="row-even"><td><p>ccapi</p></td>
+<td><p>Credential cache services</p></td>
 </tr>
-<tr class="row-odd"><td>clients</td>
-<td>Kerberos V5 user programs (See <a class="reference internal" href="../user/user_commands/index.html#user-commands"><span class="std std-ref">User commands</span></a>)</td>
+<tr class="row-odd"><td><p>clients</p></td>
+<td><p>Kerberos V5 user programs (See <a class="reference internal" href="../user/user_commands/index.html#user-commands"><span class="std std-ref">User commands</span></a>)</p></td>
 </tr>
-<tr class="row-even"><td>config</td>
-<td>Configure scripts</td>
+<tr class="row-even"><td><p>config</p></td>
+<td><p>Configure scripts</p></td>
 </tr>
-<tr class="row-odd"><td>config-files</td>
-<td>Sample Kerberos configuration files</td>
+<tr class="row-odd"><td><p>config-files</p></td>
+<td><p>Sample Kerberos configuration files</p></td>
 </tr>
-<tr class="row-even"><td>include</td>
-<td>include files needed to build the Kerberos system</td>
+<tr class="row-even"><td><p>include</p></td>
+<td><p>include files needed to build the Kerberos system</p></td>
 </tr>
-<tr class="row-odd"><td>kadmin</td>
-<td>Administrative interface to the Kerberos database: <a class="reference internal" href="../admin/admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>, <a class="reference internal" href="../admin/admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>, <a class="reference internal" href="../admin/admin_commands/ktutil.html#ktutil-1"><span class="std std-ref">ktutil</span></a>.</td>
+<tr class="row-odd"><td><p>kadmin</p></td>
+<td><p>Administrative interface to the Kerberos database: <a class="reference internal" href="../admin/admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>, <a class="reference internal" href="../admin/admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>, <a class="reference internal" href="../admin/admin_commands/ktutil.html#ktutil-1"><span class="std std-ref">ktutil</span></a>.</p></td>
 </tr>
-<tr class="row-even"><td>kdc</td>
-<td>Kerberos V5 Authentication Service and Key Distribution Center</td>
+<tr class="row-even"><td><p>kdc</p></td>
+<td><p>Kerberos V5 Authentication Service and Key Distribution Center</p></td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="#lib">lib</a></td>
-<td>Libraries for use with/by Kerberos V5</td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#lib">lib</a></p></td>
+<td><p>Libraries for use with/by Kerberos V5</p></td>
 </tr>
-<tr class="row-even"><td>plugins</td>
-<td>Kerberos plugins directory</td>
+<tr class="row-even"><td><p>plugins</p></td>
+<td><p>Kerberos plugins directory</p></td>
 </tr>
-<tr class="row-odd"><td>po</td>
-<td>Localization infrastructure</td>
+<tr class="row-odd"><td><p>po</p></td>
+<td><p>Localization infrastructure</p></td>
 </tr>
-<tr class="row-even"><td>prototype</td>
-<td>Templates files containing the MIT copyright message and a placeholder for the title and description of the file.</td>
+<tr class="row-even"><td><p>prototype</p></td>
+<td><p>Templates files containing the MIT copyright message and a placeholder for the title and description of the file.</p></td>
 </tr>
-<tr class="row-odd"><td>kprop</td>
-<td>Utilities for propagating the database to replica KDCs <a class="reference internal" href="../admin/admin_commands/kprop.html#kprop-8"><span class="std std-ref">kprop</span></a> and <a class="reference internal" href="../admin/admin_commands/kpropd.html#kpropd-8"><span class="std std-ref">kpropd</span></a></td>
+<tr class="row-odd"><td><p>kprop</p></td>
+<td><p>Utilities for propagating the database to replica KDCs <a class="reference internal" href="../admin/admin_commands/kprop.html#kprop-8"><span class="std std-ref">kprop</span></a> and <a class="reference internal" href="../admin/admin_commands/kpropd.html#kpropd-8"><span class="std std-ref">kpropd</span></a></p></td>
 </tr>
-<tr class="row-even"><td>tests</td>
-<td>Test suite</td>
+<tr class="row-even"><td><p>tests</p></td>
+<td><p>Test suite</p></td>
 </tr>
-<tr class="row-odd"><td><a class="reference internal" href="#util">util</a></td>
-<td>Various utilities for building/configuring the code, sending bug reports, etc.</td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#util">util</a></p></td>
+<td><p>Various utilities for building/configuring the code, sending bug reports, etc.</p></td>
 </tr>
-<tr class="row-even"><td>windows</td>
-<td>Source code for building Kerberos V5 on Windows (see windows/README)</td>
+<tr class="row-even"><td><p>windows</p></td>
+<td><p>Source code for building Kerberos V5 on Windows (see windows/README)</p></td>
 </tr>
 </tbody>
 </table>
-<div class="section" id="lib">
+<section id="lib">
 <span id="id1"></span><h2>lib<a class="headerlink" href="#lib" title="Permalink to this headline">¶</a></h2>
 <p>The lib directory contain several subdirectories as well as some
 definition and glue files.</p>
 <blockquote>
 <div><ul class="simple">
-<li>The apputils directory contains the code for the generic network
-servicing.</li>
-<li>The crypto subdirectory contains the Kerberos V5 encryption
-library.</li>
-<li>The gssapi library contains the Generic Security Services API,
+<li><p>The apputils directory contains the code for the generic network
+servicing.</p></li>
+<li><p>The crypto subdirectory contains the Kerberos V5 encryption
+library.</p></li>
+<li><p>The gssapi library contains the Generic Security Services API,
 which is a library of commands to be used in secure client-server
-communication.</li>
-<li>The kadm5 directory contains the libraries for the KADM5
-administration utilities.</li>
-<li>The Kerberos 5 database libraries are contained in kdb.</li>
-<li>The krb5 directory contains Kerberos 5 API.</li>
-<li>The rpc directory contains the API for the Kerberos Remote
-Procedure Call protocol.</li>
+communication.</p></li>
+<li><p>The kadm5 directory contains the libraries for the KADM5
+administration utilities.</p></li>
+<li><p>The Kerberos 5 database libraries are contained in kdb.</p></li>
+<li><p>The krb5 directory contains Kerberos 5 API.</p></li>
+<li><p>The rpc directory contains the API for the Kerberos Remote
+Procedure Call protocol.</p></li>
 </ul>
 </div></blockquote>
-</div>
-<div class="section" id="util">
+</section>
+<section id="util">
 <span id="id2"></span><h2>util<a class="headerlink" href="#util" title="Permalink to this headline">¶</a></h2>
-<dl class="docutils">
-<dt>The util directory contains several utility programs and libraries.</dt>
-<dd><ul class="first last simple">
-<li>the programs used to configure and build the code, such as
+<dl class="simple">
+<dt>The util directory contains several utility programs and libraries.</dt><dd><ul class="simple">
+<li><p>the programs used to configure and build the code, such as
 autoconf, lndir, kbuild, reconf, and makedepend, are in this
-directory.</li>
-<li>the profile directory contains most of the functions which parse
-the Kerberos configuration files (krb5.conf and kdc.conf).</li>
-<li>the Kerberos error table library and utilities (et);</li>
-<li>the Sub-system library and utilities (ss);</li>
-<li>database utilities (db2);</li>
-<li>pseudo-terminal utilities (pty);</li>
-<li>bug-reporting program send-pr;</li>
-<li>a generic support library support used by several of our other
-libraries;</li>
-<li>the build infrastructure for building lightweight Kerberos client
-(collected-client-lib)</li>
-<li>the tool for validating Kerberos configuration files
-(confvalidator);</li>
-<li>the toolkit for kernel integrators for building krb5 code subsets
-(gss-kernel-lib);</li>
-<li>source code for building Kerberos V5 on MacOS (mac)</li>
-<li>Windows getopt operations (windows)</li>
+directory.</p></li>
+<li><p>the profile directory contains most of the functions which parse
+the Kerberos configuration files (krb5.conf and kdc.conf).</p></li>
+<li><p>the Kerberos error table library and utilities (et);</p></li>
+<li><p>the Sub-system library and utilities (ss);</p></li>
+<li><p>database utilities (db2);</p></li>
+<li><p>pseudo-terminal utilities (pty);</p></li>
+<li><p>bug-reporting program send-pr;</p></li>
+<li><p>a generic support library support used by several of our other
+libraries;</p></li>
+<li><p>the build infrastructure for building lightweight Kerberos client
+(collected-client-lib)</p></li>
+<li><p>the tool for validating Kerberos configuration files
+(confvalidator);</p></li>
+<li><p>the toolkit for kernel integrators for building krb5 code subsets
+(gss-kernel-lib);</p></li>
+<li><p>source code for building Kerberos V5 on MacOS (mac)</p></li>
+<li><p>Windows getopt operations (windows)</p></li>
 </ul>
 </dd>
 </dl>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">Organization of the source directory</a><ul>
@@ -220,6 +212,7 @@ libraries;</li>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -227,8 +220,8 @@ libraries;</li>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

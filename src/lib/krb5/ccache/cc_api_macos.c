@@ -219,7 +219,7 @@ cleanup:
     if (reply != NULL)
         xpc_release(reply);
     if (conn != NULL)
-        xpc_connection_cancel(conn);
+        xpc_release(conn);
     return ret;
 }
 

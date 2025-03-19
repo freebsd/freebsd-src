@@ -32,7 +32,7 @@ krb5_auth_con_getsendsubkey_k -  Retrieve the send subkey from an auth context.
 
 
 
-This function sets *key* to the send subkey from *auth_context* . Use :c:func:`krb5_k_free_key()` to release *key* when it is no longer needed.
+This function sets *key* to the send subkey from *auth_context* . Use krb5_k_free_key() to release *key* when it is no longer needed.
 
 
 

@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>Replay cache file format &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="KDC cookie format" href="cookie.html" />
     <link rel="prev" title="Keytab file format" href="keytab_file_format.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,7 +52,7 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="replay-cache-file-format">
+  <section id="replay-cache-file-format">
 <h1>Replay cache file format<a class="headerlink" href="#replay-cache-file-format" title="Permalink to this headline">¶</a></h1>
 <p>This section documents the second version of the replay cache file
 format, used by the “file2” replay cache type (new in release 1.18).
@@ -80,10 +71,10 @@ algorithm (<a class="reference external" href="https://131002.net/siphash/siphas
 the file is first created.  All remaining bytes are divided into a
 series of expanding hash tables:</p>
 <ul class="simple">
-<li>Bytes 16-16383: hash table 1 (1023 slots)</li>
-<li>Bytes 16384-49151: hash table 2 (2048 slots)</li>
-<li>Bytes 49152-114687: hash table 3 (4096 slots)</li>
-<li>…</li>
+<li><p>Bytes 16-16383: hash table 1 (1023 slots)</p></li>
+<li><p>Bytes 16384-49151: hash table 2 (2048 slots)</p></li>
+<li><p>Bytes 49152-114687: hash table 3 (4096 slots)</p></li>
+<li><p>…</p></li>
 </ul>
 <p>Only some hash tables will be present in the file at any specific
 time, and the final table may be only partially filled.  Replay cache
@@ -103,14 +94,16 @@ timestamp value less than the current time minus clockskew, or at or
 beyond the end of the file is available for writing.  When all
 candidate locations have been searched without finding a match, the
 new entry is written to the earliest candidate available for writing.</p>
-</div>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">Replay cache file format</a></li>
@@ -148,6 +141,7 @@ new entry is written to the earliest candidate available for writing.</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -155,8 +149,8 @@ new entry is written to the earliest candidate available for writing.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

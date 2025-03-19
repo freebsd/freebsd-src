@@ -15,7 +15,7 @@ krb5_typed_data
 Declaration
 ------------
 
-typedef struct _krb5_typed_data  krb5_typed_data
+typedef struct _krb5_typed_data krb5_typed_data
 
 
 Members

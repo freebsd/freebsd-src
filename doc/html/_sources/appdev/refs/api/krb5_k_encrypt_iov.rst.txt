@@ -14,7 +14,7 @@ krb5_k_encrypt_iov -  Encrypt data in place supporting AEAD (operates on opaque 
 
 	          **[in]** **key** - Encryption key
 
-	          **[in]** **usage** - Key usage (see :data:`KRB5_KEYUSAGE` types)
+	          **[in]** **usage** - Key usage (see KRB5_KEYUSAGE macros)
 
 	          **[in]** **cipher_state** - Cipher state; specify NULL if not needed
 
@@ -52,7 +52,7 @@ This function encrypts the data block *data* and stores the output in-place. The
 ..
 
 .. seealso::
-         :c:func:`krb5_k_decrypt_iov()` 
+         krb5_k_decrypt_iov()
  
 
 
@@ -61,7 +61,7 @@ This function encrypts the data block *data* and stores the output in-place. The
 
 .. note::
 
-	 On return from a :c:func:`krb5_c_encrypt_iov()` call, the *data->length* in the iov structure are adjusted to reflect actual lengths of the ciphertext used. For example, if the padding length is too large, the length will be reduced. Lengths are never increased.
+	 On return from a krb5_c_encrypt_iov() call, the *data->length* in the iov structure are adjusted to reflect actual lengths of the ciphertext used. For example, if the padding length is too large, the length will be reduced. Lengths are never increased.
  
 
 

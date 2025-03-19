@@ -1,5 +1,5 @@
-krb5_free_host_realm -  Free the memory allocated by krb5_get_host_realm() . 
-=============================================================================
+krb5_free_host_realm -  Free the memory allocated by krb5_get_host_realm(). 
+============================================================================
 
 ..
 

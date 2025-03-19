@@ -156,7 +156,8 @@ _kerberos-master._udp
 
     If you have only one KDC, or for whatever reason there is no
     accessible KDC that would get database changes faster than the
-    others, you do not need to define this entry.  _kerberos-adm._tcp
+    others, you do not need to define this entry.
+_kerberos-adm._tcp
     This should list port 749 on your primary KDC.  Support for it is
     not complete at this time, but it will eventually be used by the
     :ref:`kadmin(1)` program and related utilities.  For now, you will

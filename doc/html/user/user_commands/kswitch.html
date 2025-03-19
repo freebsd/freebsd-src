@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>kswitch &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="copyright" title="Copyright" href="../../copyright.html" />
     <link rel="next" title="kvno" href="kvno.html" />
     <link rel="prev" title="ksu" href="ksu.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,54 +52,56 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="kswitch">
+  <section id="kswitch">
 <span id="kswitch-1"></span><h1>kswitch<a class="headerlink" href="#kswitch" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="synopsis">
+<section id="synopsis">
 <h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
 <p><strong>kswitch</strong>
 {<strong>-c</strong> <em>cachename</em>|<strong>-p</strong> <em>principal</em>}</p>
-</div>
-<div class="section" id="description">
+</section>
+<section id="description">
 <h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
 <p>kswitch makes the specified credential cache the primary cache for the
 collection, if a cache collection is available.</p>
-</div>
-<div class="section" id="options">
+</section>
+<section id="options">
 <h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
-<dl class="docutils">
-<dt><strong>-c</strong> <em>cachename</em></dt>
-<dd>Directly specifies the credential cache to be made primary.</dd>
-<dt><strong>-p</strong> <em>principal</em></dt>
-<dd>Causes the cache collection to be searched for a cache containing
+<dl class="simple">
+<dt><strong>-c</strong> <em>cachename</em></dt><dd><p>Directly specifies the credential cache to be made primary.</p>
+</dd>
+<dt><strong>-p</strong> <em>principal</em></dt><dd><p>Causes the cache collection to be searched for a cache containing
 credentials for <em>principal</em>.  If one is found, that collection is
-made primary.</dd>
+made primary.</p>
+</dd>
 </dl>
-</div>
-<div class="section" id="environment">
+</section>
+<section id="environment">
 <h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
 <p>See <a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
 variables.</p>
-</div>
-<div class="section" id="files">
+</section>
+<section id="files">
 <h2>FILES<a class="headerlink" href="#files" title="Permalink to this headline">¶</a></h2>
-<dl class="docutils">
-<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">DEFCCNAME</span></a></dt>
-<dd>Default location of Kerberos 5 credentials cache</dd>
+<dl class="simple">
+<dt><a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">DEFCCNAME</span></a></dt><dd><p>Default location of Kerberos 5 credentials cache</p>
+</dd>
 </dl>
-</div>
-<div class="section" id="see-also">
+</section>
+<section id="see-also">
 <h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
 <p><a class="reference internal" href="kinit.html#kinit-1"><span class="std std-ref">kinit</span></a>, <a class="reference internal" href="kdestroy.html#kdestroy-1"><span class="std std-ref">kdestroy</span></a>, <a class="reference internal" href="klist.html#klist-1"><span class="std std-ref">klist</span></a>,
 <a class="reference internal" href="../user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">kswitch</a><ul>
@@ -164,6 +157,7 @@ variables.</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -171,8 +165,8 @@ variables.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

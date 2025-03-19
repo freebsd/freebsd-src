@@ -30,7 +30,7 @@ krb5_auth_con_initivector -  Cause an auth context to use cipher state.
 
 
 
-Prepare *auth_context* to use cipher state when :c:func:`krb5_mk_priv()` or :c:func:`krb5_rd_priv()` encrypt or decrypt data.
+Prepare *auth_context* to use cipher state when krb5_mk_priv() or krb5_rd_priv() encrypt or decrypt data.
 
 
 

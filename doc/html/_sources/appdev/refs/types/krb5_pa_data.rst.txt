@@ -16,7 +16,7 @@ Pre-authentication data.
 Declaration
 ------------
 
-typedef struct _krb5_pa_data  krb5_pa_data
+typedef struct _krb5_pa_data krb5_pa_data
 
 
 Members

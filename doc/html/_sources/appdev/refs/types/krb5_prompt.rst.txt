@@ -16,7 +16,7 @@ Text for prompt used in prompter callback function.
 Declaration
 ------------
 
-typedef struct _krb5_prompt  krb5_prompt
+typedef struct _krb5_prompt krb5_prompt
 
 
 Members

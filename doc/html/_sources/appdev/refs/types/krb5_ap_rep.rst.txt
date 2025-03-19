@@ -16,7 +16,7 @@ The server's response to a client's request for mutual authentication.
 Declaration
 ------------
 
-typedef struct _krb5_ap_rep  krb5_ap_rep
+typedef struct _krb5_ap_rep krb5_ap_rep
 
 
 Members

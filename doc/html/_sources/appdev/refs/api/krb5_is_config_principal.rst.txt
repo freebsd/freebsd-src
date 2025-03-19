@@ -20,7 +20,7 @@ krb5_is_config_principal -  Test whether a principal is a configuration principa
 
 
 :return:
-         -  TRUE if the principal is a configuration principal (generated part of krb5_cc_set_config() ); FALSE otherwise. 
+         -  TRUE if the principal is a configuration principal (generated part of krb5_cc_set_config()); FALSE otherwise. 
 
 ..
 

@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>Credential cache file format &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="Keytab file format" href="keytab_file_format.html" />
     <link rel="prev" title="Protocols and file formats" href="index.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,7 +52,7 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="credential-cache-file-format">
+  <section id="credential-cache-file-format">
 <span id="ccache-file-format"></span><h1>Credential cache file format<a class="headerlink" href="#credential-cache-file-format" title="Permalink to this headline">¶</a></h1>
 <p>There are four versions of the file format used by the FILE credential
 cache type.  The first byte of the file always has the value 5, and
@@ -71,7 +62,7 @@ representations.  Versions 3 and 4 always use big-endian byte order.</p>
 <p>After the two-byte version indicator, the file has three parts: the
 header (in version 4 only), the default principal name, and a sequence
 of credentials.</p>
-<div class="section" id="header-format">
+<section id="header-format">
 <h2>Header format<a class="headerlink" href="#header-format" title="Permalink to this headline">¶</a></h2>
 <p>The header appears only in format version 4.  It begins with a 16-bit
 integer giving the length of the entire header, followed by a sequence
@@ -84,12 +75,12 @@ giving the seconds and microseconds of the time offset of the KDC
 relative to the client.  Adding this offset to the current time on the
 client should give the current time on the KDC, if that offset has not
 changed since the initial authentication.</p>
-</div>
-<div class="section" id="principal-format">
+</section>
+<section id="principal-format">
 <span id="cache-principal-format"></span><h2>Principal format<a class="headerlink" href="#principal-format" title="Permalink to this headline">¶</a></h2>
 <p>The default principal is marshalled using the following informal
 grammar:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">principal</span> <span class="p">::</span><span class="o">=</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">principal</span> <span class="p">:</span><span class="o">:=</span>
     <span class="n">name</span> <span class="nb">type</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span> <span class="p">[</span><span class="n">omitted</span> <span class="ow">in</span> <span class="n">version</span> <span class="mi">1</span><span class="p">]</span>
     <span class="n">count</span> <span class="n">of</span> <span class="n">components</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span> <span class="p">[</span><span class="n">includes</span> <span class="n">realm</span> <span class="ow">in</span> <span class="n">version</span> <span class="mi">1</span><span class="p">]</span>
     <span class="n">realm</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
@@ -97,7 +88,7 @@ grammar:</p>
     <span class="n">component2</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
     <span class="o">...</span>
 
-<span class="n">data</span> <span class="p">::</span><span class="o">=</span>
+<span class="n">data</span> <span class="p">:</span><span class="o">:=</span>
     <span class="n">length</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
     <span class="n">value</span> <span class="p">(</span><span class="n">length</span> <span class="nb">bytes</span><span class="p">)</span>
 </pre></div>
@@ -105,12 +96,12 @@ grammar:</p>
 <p>There is no external framing on the default principal, so it must be
 parsed according to the above grammar in order to find the sequence of
 credentials which follows.</p>
-</div>
-<div class="section" id="credential-format">
+</section>
+<section id="credential-format">
 <span id="ccache-credential-format"></span><h2>Credential format<a class="headerlink" href="#credential-format" title="Permalink to this headline">¶</a></h2>
 <p>The credential format uses the following informal grammar (referencing
-the <code class="docutils literal"><span class="pre">principal</span></code> and <code class="docutils literal"><span class="pre">data</span></code> types from the previous section):</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">credential</span> <span class="p">::</span><span class="o">=</span>
+the <code class="docutils literal notranslate"><span class="pre">principal</span></code> and <code class="docutils literal notranslate"><span class="pre">data</span></code> types from the previous section):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">credential</span> <span class="p">:</span><span class="o">:=</span>
     <span class="n">client</span> <span class="p">(</span><span class="n">principal</span><span class="p">)</span>
     <span class="n">server</span> <span class="p">(</span><span class="n">principal</span><span class="p">)</span>
     <span class="n">keyblock</span> <span class="p">(</span><span class="n">keyblock</span><span class="p">)</span>
@@ -125,27 +116,27 @@ the <code class="docutils literal"><span class="pre">principal</span></code> and
     <span class="n">ticket</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
     <span class="n">second_ticket</span> <span class="p">(</span><span class="n">data</span><span class="p">)</span>
 
-<span class="n">keyblock</span> <span class="p">::</span><span class="o">=</span>
+<span class="n">keyblock</span> <span class="p">:</span><span class="o">:=</span>
     <span class="n">enctype</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span> <span class="p">[</span><span class="n">repeated</span> <span class="n">twice</span> <span class="ow">in</span> <span class="n">version</span> <span class="mi">3</span><span class="p">]</span>
     <span class="n">data</span>
 
-<span class="n">addresses</span> <span class="p">::</span><span class="o">=</span>
+<span class="n">addresses</span> <span class="p">:</span><span class="o">:=</span>
     <span class="n">count</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
     <span class="n">address1</span>
     <span class="n">address2</span>
     <span class="o">...</span>
 
-<span class="n">address</span> <span class="p">::</span><span class="o">=</span>
+<span class="n">address</span> <span class="p">:</span><span class="o">:=</span>
     <span class="n">addrtype</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span>
     <span class="n">data</span>
 
-<span class="n">authdata</span> <span class="p">::</span><span class="o">=</span>
+<span class="n">authdata</span> <span class="p">:</span><span class="o">:=</span>
     <span class="n">count</span> <span class="p">(</span><span class="mi">32</span> <span class="n">bits</span><span class="p">)</span>
     <span class="n">authdata1</span>
     <span class="n">authdata2</span>
     <span class="o">...</span>
 
-<span class="n">authdata</span> <span class="p">::</span><span class="o">=</span>
+<span class="n">authdata</span> <span class="p">:</span><span class="o">:=</span>
     <span class="n">ad_type</span> <span class="p">(</span><span class="mi">16</span> <span class="n">bits</span><span class="p">)</span>
     <span class="n">data</span>
 </pre></div>
@@ -155,13 +146,13 @@ parsed according to the above grammar in order to find the next
 credential.  There is also no count of credentials or marker at the
 end of the sequence of credentials; the sequence ends when the file
 ends.</p>
-</div>
-<div class="section" id="credential-cache-configuration-entries">
+</section>
+<section id="credential-cache-configuration-entries">
 <h2>Credential cache configuration entries<a class="headerlink" href="#credential-cache-configuration-entries" title="Permalink to this headline">¶</a></h2>
 <p>Configuration entries are encoded as credential entries.  The client
 principal of the entry is the default principal of the cache.  The
-server principal has the realm <code class="docutils literal"><span class="pre">X-CACHECONF:</span></code> and two or three
-components, the first of which is <code class="docutils literal"><span class="pre">krb5_ccache_conf_data</span></code>.  The
+server principal has the realm <code class="docutils literal notranslate"><span class="pre">X-CACHECONF:</span></code> and two or three
+components, the first of which is <code class="docutils literal notranslate"><span class="pre">krb5_ccache_conf_data</span></code>.  The
 server principal’s second component is the configuration key.  The
 third component, if it exists, is a principal to which the
 configuration key is associated.  The configuration value is stored in
@@ -169,64 +160,66 @@ the ticket field of the entry.  All other entry fields are zeroed.</p>
 <p>Programs using credential caches must be aware of configuration
 entries for several reasons:</p>
 <ul class="simple">
-<li>A program which displays the contents of a cache should not
-generally display configuration entries.</li>
-<li>The ticket field of a configuration entry is not (usually) a valid
+<li><p>A program which displays the contents of a cache should not
+generally display configuration entries.</p></li>
+<li><p>The ticket field of a configuration entry is not (usually) a valid
 encoding of a Kerberos ticket.  An implementation must not treat the
-cache file as malformed if it cannot decode the ticket field.</li>
-<li>Configuration entries have an endtime field of 0 and might therefore
+cache file as malformed if it cannot decode the ticket field.</p></li>
+<li><p>Configuration entries have an endtime field of 0 and might therefore
 always be considered expired, but they should not be treated as
 unimportant as a result.  For instance, a program which copies
 credentials from one cache to another should not omit configuration
-entries because of the endtime.</li>
+entries because of the endtime.</p></li>
 </ul>
 <p>The following configuration keys are currently used in MIT krb5:</p>
-<dl class="docutils">
-<dt>fast_avail</dt>
-<dd>The presence of this key with a non-empty value indicates that the
+<dl class="simple">
+<dt>fast_avail</dt><dd><p>The presence of this key with a non-empty value indicates that the
 KDC asserted support for FAST (see <span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6113.html"><strong>RFC 6113</strong></a>) during the initial
 authentication, using the negotiation method described in
 <span class="target" id="index-1"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6806.html"><strong>RFC 6806</strong></a> section 11.  This key is not associated with any
-principal.</dd>
-<dt>pa_config_data</dt>
-<dd>The value of this key contains a JSON object representation of
+principal.</p>
+</dd>
+<dt>pa_config_data</dt><dd><p>The value of this key contains a JSON object representation of
 parameters remembered by the preauthentication mechanism used
 during the initial authentication.  These parameters may be used
 when refreshing credentials.  This key is associated with the
 server principal of the initial authentication (usually the local
-krbtgt principal of the client realm).</dd>
-<dt>pa_type</dt>
-<dd>The value of this key is the ASCII decimal representation of the
+krbtgt principal of the client realm).</p>
+</dd>
+<dt>pa_type</dt><dd><p>The value of this key is the ASCII decimal representation of the
 preauth type number used during the initial authentication.  This
 key is associated with the server principal of the initial
-authentication.</dd>
-<dt>proxy_impersonator</dt>
-<dd>The presence of this key indicates that the cache is a synthetic
+authentication.</p>
+</dd>
+<dt>proxy_impersonator</dt><dd><p>The presence of this key indicates that the cache is a synthetic
 delegated credential for use with S4U2Proxy.  The value is the
 name of the intermediate service whose TGT can be used to make
 S4U2Proxy requests for target services.  This key is not
-associated with any principal.</dd>
-<dt>refresh_time</dt>
-<dd>The presence of this key indicates that the cache was acquired by
+associated with any principal.</p>
+</dd>
+<dt>refresh_time</dt><dd><p>The presence of this key indicates that the cache was acquired by
 the GSS mechanism using a client keytab.  The value is the ASCII
 decimal representation of a timestamp at which the GSS mechanism
 should attempt to refresh the credential cache from the client
-keytab.</dd>
-<dt>start_realm</dt>
-<dd>This key indicates the realm of the ticket-granting ticket to be
+keytab.</p>
+</dd>
+<dt>start_realm</dt><dd><p>This key indicates the realm of the ticket-granting ticket to be
 used for TGS requests, when making a referrals request or
 beginning a cross-realm request.  If it is not present, the client
-realm is used.</dd>
+realm is used.</p>
+</dd>
 </dl>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">Credential cache file format</a><ul>
@@ -270,6 +263,7 @@ realm is used.</dd>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -277,8 +271,8 @@ realm is used.</dd>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

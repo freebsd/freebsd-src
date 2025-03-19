@@ -1,5 +1,5 @@
-krb5_free_default_realm -  Free a default realm string returned by krb5_get_default_realm() . 
-==============================================================================================
+krb5_free_default_realm -  Free a default realm string returned by krb5_get_default_realm(). 
+=============================================================================================
 
 ..
 

@@ -16,7 +16,7 @@ Currently, it only contains the formatted message as determined the the format s
 Declaration
 ------------
 
-typedef struct _krb5_trace_info  krb5_trace_info
+typedef struct _krb5_trace_info krb5_trace_info
 
 
 Members

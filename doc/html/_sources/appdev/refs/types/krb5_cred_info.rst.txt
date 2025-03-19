@@ -16,7 +16,7 @@ Credentials information inserted into *EncKrbCredPart* .
 Declaration
 ------------
 
-typedef struct _krb5_cred_info  krb5_cred_info
+typedef struct _krb5_cred_info krb5_cred_info
 
 
 Members

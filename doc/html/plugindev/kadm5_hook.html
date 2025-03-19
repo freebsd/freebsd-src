@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>KADM5 hook interface (kadm5_hook) &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="kadmin authorization interface (kadm5_auth)" href="kadm5_auth.html" />
     <link rel="prev" title="Password quality interface (pwqual)" href="pwqual.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,12 +52,12 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="kadm5-hook-interface-kadm5-hook">
+  <section id="kadm5-hook-interface-kadm5-hook">
 <span id="kadm5-hook-plugin"></span><h1>KADM5 hook interface (kadm5_hook)<a class="headerlink" href="#kadm5-hook-interface-kadm5-hook" title="Permalink to this headline">¶</a></h1>
 <p>The kadm5_hook interface allows modules to perform actions when
 changes are made to the Kerberos database through <a class="reference internal" href="../admin/admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>.
 For a detailed description of the kadm5_hook interface, see the header
-file <code class="docutils literal"><span class="pre">&lt;krb5/kadm5_hook_plugin.h&gt;</span></code>.</p>
+file <code class="docutils literal notranslate"><span class="pre">&lt;krb5/kadm5_hook_plugin.h&gt;</span></code>.</p>
 <p>The kadm5_hook interface has five primary methods: <strong>chpass</strong>,
 <strong>create</strong>, <strong>modify</strong>, <strong>remove</strong>, and <strong>rename</strong>.  (The <strong>rename</strong>
 method was introduced in release 1.14.)  Each of these methods is
@@ -82,14 +73,16 @@ object.</p>
 <p>Because the kadm5_hook interface is tied closely to the kadmin
 interface (which is explicitly unstable), it may not remain as stable
 across versions as other public pluggable interfaces.</p>
-</div>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">KADM5 hook interface (kadm5_hook)</a></li>
@@ -137,6 +130,7 @@ across versions as other public pluggable interfaces.</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -144,8 +138,8 @@ across versions as other public pluggable interfaces.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

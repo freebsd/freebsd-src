@@ -22,7 +22,7 @@ krb5_sendauth -  Client function for sendauth protocol.
 
 	          **[in]** **server** - Server principal
 
-	          **[in]** **ap_req_options** - :data:`AP_OPTS` options
+	          **[in]** **ap_req_options** - Options (see AP_OPTS macros)
 
 	          **[in]** **in_data** - Data to be sent to the server
 
@@ -32,7 +32,7 @@ krb5_sendauth -  Client function for sendauth protocol.
 
 	          **[out]** **error** - If non-null, contains KRB_ERROR message returned from server
 
-	          **[out]** **rep_result** - If non-null and *ap_req_options* is :data:`AP_OPTS_MUTUAL_REQUIRED` , contains the result of mutual authentication exchange
+	          **[out]** **rep_result** - If non-null and *ap_req_options* is #AP_OPTS_MUTUAL_REQUIRED, contains the result of mutual authentication exchange
 
 	          **[out]** **out_creds** - If non-null, the retrieved credentials
 
@@ -62,11 +62,11 @@ Credentials may be specified in three ways:
 
  
  
-	 - If *in_creds* is NULL, credentials are obtained with :c:func:`krb5_get_credentials()` using the principals *client* and *server* . *server* must be non-null; *client* may NULL to use the default principal of *ccache* .
+	 - If *in_creds* is NULL, credentials are obtained with krb5_get_credentials() using the principals *client* and *server* . *server* must be non-null; *client* may NULL to use the default principal of *ccache* .
  
  
  
-	 - If *in_creds* is non-null, but does not contain a ticket, credentials for the exchange are obtained with :c:func:`krb5_get_credentials()` using *in_creds* . In this case, the values of *client* and *server* are unused.
+	 - If *in_creds* is non-null, but does not contain a ticket, credentials for the exchange are obtained with krb5_get_credentials() using *in_creds* . In this case, the values of *client* and *server* are unused.
  
  
  
@@ -76,7 +76,7 @@ Credentials may be specified in three ways:
 
 
 
-Use :c:func:`krb5_free_creds()` to free *out_creds* , :c:func:`krb5_free_ap_rep_enc_part()` to free *rep_result* , and :c:func:`krb5_free_error()` to free *error* when they are no longer needed.
+Use krb5_free_creds() to free *out_creds* , krb5_free_ap_rep_enc_part() to free *rep_result* , and krb5_free_error() to free *error* when they are no longer needed.
 
 
 
@@ -90,7 +90,7 @@ Use :c:func:`krb5_free_creds()` to free *out_creds* , :c:func:`krb5_free_ap_rep_
 ..
 
 .. seealso::
-         :c:func:`krb5_recvauth()` 
+         krb5_recvauth()
  
 
 

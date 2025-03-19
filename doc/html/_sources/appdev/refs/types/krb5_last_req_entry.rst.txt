@@ -16,7 +16,7 @@ Last request entry.
 Declaration
 ------------
 
-typedef struct _krb5_last_req_entry  krb5_last_req_entry
+typedef struct _krb5_last_req_entry krb5_last_req_entry
 
 
 Members

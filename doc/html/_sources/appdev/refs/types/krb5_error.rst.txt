@@ -16,7 +16,7 @@ Error message structure.
 Declaration
 ------------
 
-typedef struct _krb5_error  krb5_error
+typedef struct _krb5_error krb5_error
 
 
 Members

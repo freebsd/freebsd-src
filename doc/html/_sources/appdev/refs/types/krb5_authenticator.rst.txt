@@ -16,7 +16,7 @@ The C representation of an unencrypted authenticator.
 Declaration
 ------------
 
-typedef struct _krb5_authenticator  krb5_authenticator
+typedef struct _krb5_authenticator krb5_authenticator
 
 
 Members

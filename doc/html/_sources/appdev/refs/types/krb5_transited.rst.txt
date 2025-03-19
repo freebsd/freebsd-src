@@ -16,7 +16,7 @@ Structure for transited encoding.
 Declaration
 ------------
 
-typedef struct _krb5_transited  krb5_transited
+typedef struct _krb5_transited krb5_transited
 
 
 Members

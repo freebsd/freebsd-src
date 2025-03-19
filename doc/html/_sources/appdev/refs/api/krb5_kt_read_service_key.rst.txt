@@ -49,7 +49,7 @@ The default key table is used, unless *keyprocarg* is non-null. *keyprocarg* des
 
 
 
-Use :c:func:`krb5_free_keyblock()` to free *key* when it is no longer needed.
+Use krb5_free_keyblock() to free *key* when it is no longer needed.
 
 
 

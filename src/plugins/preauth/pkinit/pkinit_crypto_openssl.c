@@ -2272,7 +2272,9 @@ cms_envelopeddata_verify(krb5_context context,
     }
 
     /* verify that the received message is PKCS7 EnvelopedData message */
-    if (OBJ_obj2nid(p7->type) != NID_pkcs7_enveloped) {
+    if (OBJ_obj2nid(p7->type) != NID_pkcs7_enveloped ||
+        p7->d.enveloped == NULL ||
+        p7->d.enveloped->enc_data->enc_data == NULL) {
         pkiDebug("Expected id-enveloped PKCS7 msg (received type = %d)\n",
                  OBJ_obj2nid(p7->type));
         krb5_set_error_message(context, retval, "wrong oid\n");

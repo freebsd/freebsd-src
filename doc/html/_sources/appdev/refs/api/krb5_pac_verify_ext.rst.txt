@@ -37,7 +37,7 @@ krb5_pac_verify_ext -  Verify a PAC, possibly from a specified realm.
 
 
 
-This function is similar to :c:func:`krb5_pac_verify()` , but adds a parameter *with_realm* . If *with_realm* is true, the PAC_CLIENT_INFO field is expected to include the realm of *principal* as well as the name. This flag is necessary to verify PACs in cross-realm S4U2Self referral TGTs.
+This function is similar to krb5_pac_verify(), but adds a parameter *with_realm* . If *with_realm* is true, the PAC_CLIENT_INFO field is expected to include the realm of *principal* as well as the name. This flag is necessary to verify PACs in cross-realm S4U2Self referral TGTs.
 
 
 

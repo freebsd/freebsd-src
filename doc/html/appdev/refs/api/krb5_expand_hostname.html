@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>krb5_expand_hostname - Canonicalize a hostname, possibly using name service. &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../../../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
     <link rel="next" title="krb5_free_context - Free a krb5 library context." href="krb5_free_context.html" />
     <link rel="prev" title="krb5_chpw_message - Get a result message for changing or setting a password." href="krb5_chpw_message.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,37 +52,35 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="krb5-expand-hostname-canonicalize-a-hostname-possibly-using-name-service">
+  <section id="krb5-expand-hostname-canonicalize-a-hostname-possibly-using-name-service">
 <h1>krb5_expand_hostname -  Canonicalize a hostname, possibly using name service.<a class="headerlink" href="#krb5-expand-hostname-canonicalize-a-hostname-possibly-using-name-service" title="Permalink to this headline">¶</a></h1>
-<dl class="function">
-<dt id="c.krb5_expand_hostname">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <code class="descname">krb5_expand_hostname</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, const char *<em>&nbsp;host</em>, char **<em>&nbsp;canonhost_out</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_expand_hostname" title="Permalink to this definition">¶</a></dt>
+<dl class="c function">
+<dt class="sig sig-object c" id="c.krb5_expand_hostname">
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code"><span class="n"><span class="pre">krb5_error_code</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_expand_hostname</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context"><span class="n"><span class="pre">krb5_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">context</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">host</span></span>, <span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">canonhost_out</span></span><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_expand_hostname" title="Permalink to this definition">¶</a><br /></dt>
 <dd></dd></dl>
 
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>[in]</strong> <strong>context</strong> - Library context</p>
+<dl class="field-list">
+<dt class="field-odd">param</dt>
+<dd class="field-odd"><p><strong>[in]</strong> <strong>context</strong> - Library context</p>
 <p><strong>[in]</strong> <strong>host</strong> - Input hostname</p>
-<p class="last"><strong>[out]</strong> <strong>canonhost_out</strong> - Canonicalized hostname</p>
-</td>
-</tr>
-</tbody>
-</table>
-<p>This function canonicalizes orig_hostname, possibly using name service lookups if configuration permits. Use <a class="reference internal" href="krb5_free_string.html#c.krb5_free_string" title="krb5_free_string"><code class="xref c c-func docutils literal"><span class="pre">krb5_free_string()</span></code></a> to free <em>canonhost_out</em> when it is no longer needed.</p>
+<p><strong>[out]</strong> <strong>canonhost_out</strong> - Canonicalized hostname</p>
+</dd>
+</dl>
+<p>This function canonicalizes orig_hostname, possibly using name service lookups if configuration permits. Use krb5_free_string() to free <em>canonhost_out</em> when it is no longer needed.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">New in 1.15</p>
+<p class="admonition-title">Note</p>
+<p>New in 1.15</p>
 </div>
-</div>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">krb5_expand_hostname -  Canonicalize a hostname, possibly using name service.</a></li>
@@ -135,6 +124,7 @@
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -142,8 +132,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

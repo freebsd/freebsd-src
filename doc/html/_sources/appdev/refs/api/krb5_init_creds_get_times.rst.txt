@@ -32,7 +32,7 @@ krb5_init_creds_get_times -  Retrieve ticket times from an initial credentials c
 
 
 
-The initial credentials context must have completed obtaining credentials via either :c:func:`krb5_init_creds_get()` or :c:func:`krb5_init_creds_step()` .
+The initial credentials context must have completed obtaining credentials via either krb5_init_creds_get() or krb5_init_creds_step().
 
 
 

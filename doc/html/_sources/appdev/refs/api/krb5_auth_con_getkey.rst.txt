@@ -32,7 +32,7 @@ krb5_auth_con_getkey -  Retrieve the session key from an auth context as a keybl
 
 
 
-This function creates a keyblock containing the session key from *auth_context* . Use :c:func:`krb5_free_keyblock()` to free *keyblock* when it is no longer needed
+This function creates a keyblock containing the session key from *auth_context* . Use krb5_free_keyblock() to free *keyblock* when it is no longer needed
 
 
 

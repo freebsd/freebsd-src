@@ -16,7 +16,7 @@ krb5_k_make_checksum -  Compute a checksum (operates on opaque key).
 
 	          **[in]** **key** - Encryption key for a keyed checksum
 
-	          **[in]** **usage** - Key usage (see :data:`KRB5_KEYUSAGE` types)
+	          **[in]** **usage** - Key usage (see KRB5_KEYUSAGE macros)
 
 	          **[in]** **input** - Input data
 
@@ -38,7 +38,7 @@ krb5_k_make_checksum -  Compute a checksum (operates on opaque key).
 
 
 
-This function computes a checksum of type *cksumtype* over *input* , using *key* if the checksum type is a keyed checksum. If *cksumtype* is 0 and *key* is non-null, the checksum type will be the mandatory-to-implement checksum type for the key's encryption type. The actual checksum key will be derived from *key* and *usage* if key derivation is specified for the checksum type. The newly created *cksum* must be released by calling :c:func:`krb5_free_checksum_contents()` when it is no longer needed.
+This function computes a checksum of type *cksumtype* over *input* , using *key* if the checksum type is a keyed checksum. If *cksumtype* is 0 and *key* is non-null, the checksum type will be the mandatory-to-implement checksum type for the key's encryption type. The actual checksum key will be derived from *key* and *usage* if key derivation is specified for the checksum type. The newly created *cksum* must be released by calling krb5_free_checksum_contents() when it is no longer needed.
 
 
 
@@ -52,7 +52,7 @@ This function computes a checksum of type *cksumtype* over *input* , using *key*
 ..
 
 .. seealso::
-         :c:func:`krb5_c_verify_checksum()` 
+         krb5_c_verify_checksum()
  
 
 
@@ -61,7 +61,7 @@ This function computes a checksum of type *cksumtype* over *input* , using *key*
 
 .. note::
 
-	 This function is similar to :c:func:`krb5_c_make_checksum()` , but operates on opaque *key* .
+	 This function is similar to krb5_c_make_checksum(), but operates on opaque *key* .
  
 
 

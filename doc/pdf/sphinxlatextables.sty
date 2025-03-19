@@ -1,9 +1,173 @@
-\NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{sphinxmulticell}%
-    [2017/02/23 v1.6 better span rows and columns of a table (Sphinx team)]%
-\DeclareOption*{\PackageWarning{sphinxmulticell}{Option `\CurrentOption' is unknown}}%
-\ProcessOptions\relax
+%% TABLES (WITH SUPPORT FOR MERGED CELLS OF GENERAL CONTENTS)
 %
+% change this info string if making any custom modification
+\ProvidesFile{sphinxlatextables.sty}[2021/01/27 tables]%
+
+% Provides support for this output mark-up from Sphinx latex writer
+% and table templates:
+%
+% - the tabulary and longtable environments from the eponymous packages
+% - the varwidth environment
+% - the >{} etc mark-up possible in tabularcolumns is from array package
+%     which is loaded by longtable and tabulary
+% - \X, \Y, T column types; others (L, C, R, J) are from tabulary package
+% - \sphinxaftertopcaption
+% - \sphinxatlongtableend
+% - \sphinxatlongtablestart
+% - \sphinxattableend
+% - \sphinxattablestart
+% - \sphinxcapstartof
+% - \sphinxcolwidth
+% - \sphinxlongtablecapskipadjust
+% - \sphinxmultirow
+% - \sphinxstartmulticolumn
+% - \sphinxstopmulticolumn
+% - \sphinxtablestrut
+% - \sphinxthecaptionisattop
+% - \sphinxthelongtablecaptionisattop
+%
+% Executes \RequirePackage for:
+%
+% - tabulary
+% - longtable
+% - varwidth
+%
+% Extends tabulary and longtable via patches and custom macros to support
+% merged cells possibly containing code-blocks in complex tables
+
+\RequirePackage{tabulary}
+% tabulary has a bug with its re-definition of \multicolumn in its first pass
+% which is not \long. But now Sphinx does not use LaTeX's \multicolumn but its
+% own macro. Hence we don't even need to patch tabulary. See
+% sphinxpackagemulticell.sty
+% X or S (Sphinx) may have meanings if some table package is loaded hence
+% \X was chosen to avoid possibility of conflict
+\newcolumntype{\X}[2]{p{\dimexpr
+      (\linewidth-\arrayrulewidth)*#1/#2-\tw@\tabcolsep-\arrayrulewidth\relax}}
+\newcolumntype{\Y}[1]{p{\dimexpr
+      #1\dimexpr\linewidth-\arrayrulewidth\relax-\tw@\tabcolsep-\arrayrulewidth\relax}}
+% using here T (for Tabulary) feels less of a problem than the X could be
+\newcolumntype{T}{J}%
+% For tables allowing pagebreaks
+\RequirePackage{longtable}
+% User interface to set-up whitespace before and after tables:
+\newcommand*\sphinxtablepre {0pt}%
+\newcommand*\sphinxtablepost{\medskipamount}%
+% Space from caption baseline to top of table or frame of literal-block
+\newcommand*\sphinxbelowcaptionspace{.5\sphinxbaselineskip}%
+% as one can not use \baselineskip from inside longtable (it is zero there)
+% we need \sphinxbaselineskip, which defaults to \baselineskip
+\def\sphinxbaselineskip{\baselineskip}%
+% The following is to ensure that, whether tabular(y) or longtable:
+% - if a caption is on top of table:
+%   a) the space between its last baseline and the top rule of table is
+%      exactly \sphinxbelowcaptionspace
+%   b) the space from last baseline of previous text to first baseline of
+%      caption is exactly \parskip+\baselineskip+ height of a strut.
+%   c) the caption text will wrap at width \LTcapwidth (4in)
+% - make sure this works also if "caption" package is loaded by user
+%   (with its width or margin option taking place of \LTcapwidth role)
+% TODO: obtain same for caption of literal block: a) & c) DONE, b) TO BE DONE
+%
+% To modify space below such top caption, adjust \sphinxbelowcaptionspace
+% To add or remove space above such top caption, adjust \sphinxtablepre:
+%   notice that \abovecaptionskip, \belowcaptionskip, \LTpre are **ignored**
+% A. Table with longtable
+\def\sphinxatlongtablestart
+   {\par
+    \vskip\parskip
+    \vskip\dimexpr\sphinxtablepre\relax % adjust vertical position
+    \vbox{}% get correct baseline from above
+    \LTpre\z@skip\LTpost\z@skip % set to zero longtable's own skips
+    \edef\sphinxbaselineskip{\dimexpr\the\dimexpr\baselineskip\relax\relax}%
+   }%
+% Compatibility with caption package
+\def\sphinxthelongtablecaptionisattop{%
+    \spx@ifcaptionpackage{\noalign{\vskip-\belowcaptionskip}}{}%
+}%
+% Achieves exactly \sphinxbelowcaptionspace below longtable caption
+\def\sphinxlongtablecapskipadjust
+   {\dimexpr-\dp\strutbox
+            -\spx@ifcaptionpackage{\abovecaptionskip}{\sphinxbaselineskip}%
+            +\sphinxbelowcaptionspace\relax}%
+\def\sphinxatlongtableend{\@nobreakfalse % latex3/latex2e#173
+    \prevdepth\z@\vskip\sphinxtablepost\relax}%
+% B. Table with tabular or tabulary
+\def\sphinxattablestart{\par\vskip\dimexpr\sphinxtablepre\relax}%
+\let\sphinxattableend\sphinxatlongtableend
+% This is used by tabular and tabulary templates
+\newcommand*\sphinxcapstartof[1]{%
+   \vskip\parskip
+   \vbox{}% force baselineskip for good positioning by capstart of hyperanchor
+   % hyperref puts the anchor 6pt above this baseline; in case of caption
+   % this baseline will be \ht\strutbox above first baseline of caption
+   \def\@captype{#1}%
+   \capstart
+% move back vertically, as tabular (or its caption) will compensate
+   \vskip-\baselineskip\vskip-\parskip
+}%
+\def\sphinxthecaptionisattop{% locate it after \sphinxcapstartof
+    \spx@ifcaptionpackage
+      {\caption@setposition{t}%
+       \vskip\baselineskip\vskip\parskip % undo those from \sphinxcapstartof
+       \vskip-\belowcaptionskip          % anticipate caption package skip
+       % caption package uses a \vbox, not a \vtop, so "single line" case
+       % gives different result from "multi-line" without this:
+       \nointerlineskip
+      }%
+      {}%
+}%
+\def\sphinxthecaptionisatbottom{% (not finalized; for template usage)
+    \spx@ifcaptionpackage{\caption@setposition{b}}{}%
+}%
+% The aim of \sphinxcaption is to apply to tabular(y) the maximal width
+% of caption as done by longtable
+\def\sphinxtablecapwidth{\LTcapwidth}%
+\newcommand\sphinxcaption{\@dblarg\spx@caption}%
+\long\def\spx@caption[#1]#2{%
+   \noindent\hb@xt@\linewidth{\hss
+      \vtop{\@tempdima\dimexpr\sphinxtablecapwidth\relax
+% don't exceed linewidth for the caption width
+            \ifdim\@tempdima>\linewidth\hsize\linewidth\else\hsize\@tempdima\fi
+% longtable ignores \abovecaptionskip/\belowcaptionskip, so do the same here
+            \abovecaptionskip\sphinxabovecaptionskip % \z@skip
+            \belowcaptionskip\sphinxbelowcaptionskip % \z@skip
+            \caption[{#1}]%
+               {\strut\ignorespaces#2\ifhmode\unskip\@finalstrut\strutbox\fi}%
+           }\hss}%
+   \par\prevdepth\dp\strutbox
+}%
+\def\sphinxabovecaptionskip{\z@skip}% Do not use! Flagged for removal
+\def\sphinxbelowcaptionskip{\z@skip}% Do not use! Flagged for removal
+% This wrapper of \abovecaptionskip is used in sphinxVerbatim for top
+% caption, and with another value in sphinxVerbatimintable
+% TODO: To unify space above caption of a code-block with the one above
+%       caption of a table/longtable, \abovecaptionskip must not be used
+%       This auxiliary will get renamed and receive a different meaning
+%       in future.
+\def\spx@abovecaptionskip{\abovecaptionskip}%
+% Achieve \sphinxbelowcaptionspace below a caption located above a tabular
+% or a tabulary
+\newcommand\sphinxaftertopcaption
+{%
+   \spx@ifcaptionpackage
+     {\par\prevdepth\dp\strutbox\nobreak\vskip-\abovecaptionskip}{\nobreak}%
+   \vskip\dimexpr\sphinxbelowcaptionspace\relax
+   \vskip-\baselineskip\vskip-\parskip
+}%
+% varwidth is crucial for our handling of general contents in merged cells
+\RequirePackage{varwidth}
+% but addition of a compatibility patch with hyperref is needed
+% (tested with varwidth v 0.92  Mar 2009)
+\AtBeginDocument {%
+    \let\@@vwid@Hy@raisedlink\Hy@raisedlink
+    \long\def\@vwid@Hy@raisedlink#1{\@vwid@wrap{\@@vwid@Hy@raisedlink{#1}}}%
+    \edef\@vwid@setup{%
+      \let\noexpand\Hy@raisedlink\noexpand\@vwid@Hy@raisedlink % HYPERREF !
+      \unexpanded\expandafter{\@vwid@setup}}%
+}%
+
+%%%%%%%%%%%%%%%%%%%%%
 % --- MULTICOLUMN ---
 % standard LaTeX's \multicolumn
 % 1. does not allow verbatim contents,
@@ -205,7 +369,8 @@
 \def\sphinx@multiwidth #1#2{\dimexpr % #1 to gobble the \@gobble (!)
     (\ifx\TY@final\@undefined\linewidth\else\sphinx@TY@tablewidth\fi
      -\arrayrulewidth)*#2-\tw@\tabcolsep-\arrayrulewidth\relax}%
-%
+
+%%%%%%%%%%%%%%%%%%
 % --- MULTIROW ---
 % standard \multirow
 % 1. does not allow verbatim contents,
@@ -229,10 +394,10 @@
 % whether or not the multirow is single-column or multi-column.
 %
 % In passing we obtain baseline alignements across rows (only if
-% \arraylinestretch is 1, as LaTeX's does not obey \arraylinestretch in "p"
+% \arraystretch is 1, as LaTeX's does not obey \arraystretch in "p"
 % multi-line contents, only first and last line...)
 %
-% TODO: examine the situation with \arraylinestretch > 1. The \extrarowheight
+% TODO: examine the situation with \arraystretch > 1. The \extrarowheight
 % is hopeless for multirow anyhow, it makes baseline alignment strictly
 % impossible.
 \newcommand\sphinxmultirow[2]{\begingroup
@@ -312,6 +477,5 @@
   % we need this to avoid colour panels hiding bottom parts of multirow text
   \sphinx@hack@CT
 }%
+
 \endinput
-%%
-%% End of file `sphinxmulticell.sty'.

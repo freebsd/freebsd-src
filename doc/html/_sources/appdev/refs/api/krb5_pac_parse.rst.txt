@@ -34,7 +34,7 @@ krb5_pac_parse -  Unparse an encoded PAC into a new handle.
 
 
 
-Use :c:func:`krb5_pac_free()` to free *pac* when it is no longer needed.
+Use krb5_pac_free() to free *pac* when it is no longer needed.
 
 
 

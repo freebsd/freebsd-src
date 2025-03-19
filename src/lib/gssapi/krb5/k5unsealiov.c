@@ -25,6 +25,7 @@
  */
 
 #include "k5-int.h"
+#include "k5-der.h"
 #include "gssapiP_krb5.h"
 
 static OM_uint32
@@ -265,6 +266,73 @@ cleanup:
     return retval;
 }
 
+/* Similar to k5_der_get_value(), but output an unchecked content length
+ * instead of a k5input containing the contents. */
+static inline bool
+get_der_tag(struct k5input *in, uint8_t idbyte, size_t *len_out)
+{
+    uint8_t lenbyte, i;
+    size_t len;
+
+    /* Do nothing if in is empty or the next byte doesn't match idbyte. */
+    if (in->status || in->len == 0 || *in->ptr != idbyte)
+        return false;
+
+    /* Advance past the identifier byte and decode the length. */
+    (void)k5_input_get_byte(in);
+    lenbyte = k5_input_get_byte(in);
+    if (lenbyte < 128) {
+        len = lenbyte;
+    } else {
+        len = 0;
+        for (i = 0; i < (lenbyte & 0x7F); i++) {
+            if (len > (SIZE_MAX >> 8)) {
+                k5_input_set_status(in, EOVERFLOW);
+                return false;
+            }
+            len = (len << 8) | k5_input_get_byte(in);
+        }
+    }
+
+    if (in->status)
+        return false;
+
+    *len_out = len;
+    return true;
+}
+
+/*
+ * Similar to g_verify_token_header() without toktype or flags, but do not read
+ * more than *header_len bytes of ASN.1 wrapper, and on output set *header_len
+ * to the remaining number of header bytes.  Verify the outer DER tag's length
+ * against token_len, which may be larger (but not smaller) than *header_len.
+ */
+static gss_int32
+verify_detached_wrapper(const gss_OID_desc *mech, size_t *header_len,
+                        uint8_t **header_in, size_t token_len)
+{
+    struct k5input in, mech_der;
+    gss_OID_desc toid;
+    size_t len;
+
+    k5_input_init(&in, *header_in, *header_len);
+
+    if (get_der_tag(&in, 0x60, &len)) {
+        if (len != token_len - (in.ptr - *header_in))
+            return G_BAD_TOK_HEADER;
+        if (!k5_der_get_value(&in, 0x06, &mech_der))
+            return G_BAD_TOK_HEADER;
+        toid.elements = (uint8_t *)mech_der.ptr;
+        toid.length = mech_der.len;
+        if (!g_OID_equal(&toid, mech))
+            return G_WRONG_MECH;
+    }
+
+    *header_in = (uint8_t *)in.ptr;
+    *header_len = in.len;
+    return 0;
+}
+
 /*
  * Caller must provide TOKEN | DATA | PADDING | TRAILER, except
  * for DCE in which case it can just provide TOKEN | DATA (must
@@ -285,8 +353,7 @@ kg_unseal_iov_token(OM_uint32 *minor_status,
     gss_iov_buffer_t header;
     gss_iov_buffer_t padding;
     gss_iov_buffer_t trailer;
-    size_t input_length;
-    unsigned int bodysize;
+    size_t input_length, hlen;
     int toktype2;
 
     header = kg_locate_header_iov(iov, iov_count, toktype);
@@ -316,15 +383,14 @@ kg_unseal_iov_token(OM_uint32 *minor_status,
             input_length += trailer->buffer.length;
     }
 
-    code = g_verify_token_header(ctx->mech_used,
-                                 &bodysize, &ptr, -1,
-                                 input_length, 0);
+    hlen = header->buffer.length;
+    code = verify_detached_wrapper(ctx->mech_used, &hlen, &ptr, input_length);
     if (code != 0) {
         *minor_status = code;
         return GSS_S_DEFECTIVE_TOKEN;
     }
 
-    if (bodysize < 2) {
+    if (hlen < 2) {
         *minor_status = (OM_uint32)G_BAD_TOK_HEADER;
         return GSS_S_DEFECTIVE_TOKEN;
     }
@@ -332,7 +398,7 @@ kg_unseal_iov_token(OM_uint32 *minor_status,
     toktype2 = load_16_be(ptr);
 
     ptr += 2;
-    bodysize -= 2;
+    hlen -= 2;
 
     switch (toktype2) {
     case KG2_TOK_MIC_MSG:

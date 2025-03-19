@@ -39,7 +39,7 @@ krb5_cc_get_config -  Get a configuration value from a credential cache.
 
 
 
-Use :c:func:`krb5_free_data_contents()` to free *data* when it is no longer needed.
+Use krb5_free_data_contents() to free *data* when it is no longer needed.
 
 
 

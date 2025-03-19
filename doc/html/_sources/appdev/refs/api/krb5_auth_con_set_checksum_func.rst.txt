@@ -34,7 +34,7 @@ krb5_auth_con_set_checksum_func -  Set a checksum callback in an auth context.
 
 
 
-Set a callback to obtain checksum data in :c:func:`krb5_mk_req()` . The callback will be invoked after the subkey and local sequence number are stored in *auth_context* .
+Set a callback to obtain checksum data in krb5_mk_req(). The callback will be invoked after the subkey and local sequence number are stored in *auth_context* .
 
 
 

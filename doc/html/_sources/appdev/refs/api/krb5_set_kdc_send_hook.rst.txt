@@ -29,7 +29,7 @@ krb5_set_kdc_send_hook -  Set a KDC pre-send hook function.
 
 
 
- *send_hook* will be called before messages are sent to KDCs by library functions such as :c:func:`krb5_get_credentials()` . The hook function may inspect, override, or synthesize its own reply to the message.
+ *send_hook* will be called before messages are sent to KDCs by library functions such as krb5_get_credentials(). The hook function may inspect, override, or synthesize its own reply to the message.
 
 
 

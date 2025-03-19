@@ -41,7 +41,7 @@ krb5_mk_1cred -  Format a KRB-CRED message for a single set of credentials.
 
 
 
-This is a convenience function that calls :c:func:`krb5_mk_ncred()` with a single set of credentials.
+This is a convenience function that calls krb5_mk_ncred() with a single set of credentials.
 
 
 

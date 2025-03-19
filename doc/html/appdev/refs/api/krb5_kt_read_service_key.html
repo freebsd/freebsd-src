@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>krb5_kt_read_service_key - Retrieve a service key from a key table. &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../../../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../../../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../../about.html" />
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
     <link rel="copyright" title="Copyright" href="../../../copyright.html" />
     <link rel="next" title="krb5_kt_remove_entry - Remove an entry from a key table." href="krb5_kt_remove_entry.html" />
     <link rel="prev" title="krb5_kt_next_entry - Retrieve the next entry from the key table." href="krb5_kt_next_entry.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,54 +52,48 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="krb5-kt-read-service-key-retrieve-a-service-key-from-a-key-table">
+  <section id="krb5-kt-read-service-key-retrieve-a-service-key-from-a-key-table">
 <h1>krb5_kt_read_service_key -  Retrieve a service key from a key table.<a class="headerlink" href="#krb5-kt-read-service-key-retrieve-a-service-key-from-a-key-table" title="Permalink to this headline">¶</a></h1>
-<dl class="function">
-<dt id="c.krb5_kt_read_service_key">
-<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code">krb5_error_code</a> <code class="descname">krb5_kt_read_service_key</code><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context">krb5_context</a><em>&nbsp;context</em>, <a class="reference internal" href="../types/krb5_pointer.html#c.krb5_pointer" title="krb5_pointer">krb5_pointer</a><em>&nbsp;keyprocarg</em>, <a class="reference internal" href="../types/krb5_principal.html#c.krb5_principal" title="krb5_principal">krb5_principal</a><em>&nbsp;principal</em>, <a class="reference internal" href="../types/krb5_kvno.html#c.krb5_kvno" title="krb5_kvno">krb5_kvno</a><em>&nbsp;vno</em>, <a class="reference internal" href="../types/krb5_enctype.html#c.krb5_enctype" title="krb5_enctype">krb5_enctype</a><em>&nbsp;enctype</em>, <a class="reference internal" href="../types/krb5_keyblock.html#c.krb5_keyblock" title="krb5_keyblock">krb5_keyblock</a> **<em>&nbsp;key</em><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_kt_read_service_key" title="Permalink to this definition">¶</a></dt>
+<dl class="c function">
+<dt class="sig sig-object c" id="c.krb5_kt_read_service_key">
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code"><span class="n"><span class="pre">krb5_error_code</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_kt_read_service_key</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context"><span class="n"><span class="pre">krb5_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">context</span></span>, <a class="reference internal" href="../types/krb5_pointer.html#c.krb5_pointer" title="krb5_pointer"><span class="n"><span class="pre">krb5_pointer</span></span></a><span class="w"> </span><span class="n"><span class="pre">keyprocarg</span></span>, <a class="reference internal" href="../types/krb5_principal.html#c.krb5_principal" title="krb5_principal"><span class="n"><span class="pre">krb5_principal</span></span></a><span class="w"> </span><span class="n"><span class="pre">principal</span></span>, <a class="reference internal" href="../types/krb5_kvno.html#c.krb5_kvno" title="krb5_kvno"><span class="n"><span class="pre">krb5_kvno</span></span></a><span class="w"> </span><span class="n"><span class="pre">vno</span></span>, <a class="reference internal" href="../types/krb5_enctype.html#c.krb5_enctype" title="krb5_enctype"><span class="n"><span class="pre">krb5_enctype</span></span></a><span class="w"> </span><span class="n"><span class="pre">enctype</span></span>, <a class="reference internal" href="../types/krb5_keyblock.html#c.krb5_keyblock" title="krb5_keyblock"><span class="n"><span class="pre">krb5_keyblock</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">key</span></span><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_kt_read_service_key" title="Permalink to this definition">¶</a><br /></dt>
 <dd></dd></dl>
 
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">param:</th><td class="field-body"><p class="first"><strong>[in]</strong> <strong>context</strong> - Library context</p>
+<dl class="field-list">
+<dt class="field-odd">param</dt>
+<dd class="field-odd"><p><strong>[in]</strong> <strong>context</strong> - Library context</p>
 <p><strong>[in]</strong> <strong>keyprocarg</strong> - Name of a key table (NULL to use default name)</p>
 <p><strong>[in]</strong> <strong>principal</strong> - Service principal</p>
 <p><strong>[in]</strong> <strong>vno</strong> - Key version number (0 for highest available)</p>
 <p><strong>[in]</strong> <strong>enctype</strong> - Encryption type (0 for any type)</p>
-<p class="last"><strong>[out]</strong> <strong>key</strong> - Service key from key table</p>
-</td>
-</tr>
-</tbody>
-</table>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">retval:</th><td class="field-body"><ul class="first simple">
-<li>0   Success</li>
+<p><strong>[out]</strong> <strong>key</strong> - Service key from key table</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">retval</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p>0   Success</p></li>
 </ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">return:</th><td class="field-body"><ul class="first last simple">
-<li>Kerberos error code if not found or keyprocarg is invalid.</li>
+</dd>
+<dt class="field-even">return</dt>
+<dd class="field-even"><ul class="simple">
+<li><p>Kerberos error code if not found or keyprocarg is invalid.</p></li>
 </ul>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
 <p>Open and search the specified key table for the entry identified by <em>principal</em> , <em>enctype</em> , and <em>vno</em> . If no key is found, return an error code.</p>
 <p>The default key table is used, unless <em>keyprocarg</em> is non-null. <em>keyprocarg</em> designates a specific key table.</p>
-<p>Use <a class="reference internal" href="krb5_free_keyblock.html#c.krb5_free_keyblock" title="krb5_free_keyblock"><code class="xref c c-func docutils literal"><span class="pre">krb5_free_keyblock()</span></code></a> to free <em>key</em> when it is no longer needed.</p>
-</div>
+<p>Use krb5_free_keyblock() to free <em>key</em> when it is no longer needed.</p>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">krb5_kt_read_service_key -  Retrieve a service key from a key table.</a></li>
@@ -152,6 +137,7 @@
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -159,8 +145,8 @@
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

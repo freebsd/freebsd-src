@@ -35,7 +35,7 @@ krb5_kt_resolve -  Get a handle for a key table.
 
 
 
-Resolve the key table name *name* and set *ktid* to a handle identifying the key table. Use :c:func:`krb5_kt_close()` to free *ktid* when it is no longer needed.
+Resolve the key table name *name* and set *ktid* to a handle identifying the key table. Use krb5_kt_close() to free *ktid* when it is no longer needed.
 
 
 

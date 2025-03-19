@@ -15,7 +15,7 @@ krb5_pwd_data
 Declaration
 ------------
 
-typedef struct _krb5_pwd_data  krb5_pwd_data
+typedef struct _krb5_pwd_data krb5_pwd_data
 
 
 Members

@@ -15,7 +15,7 @@ krb5_response
 Declaration
 ------------
 
-typedef struct _krb5_response  krb5_response
+typedef struct _krb5_response krb5_response
 
 
 Members

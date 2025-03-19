@@ -34,11 +34,11 @@ This function creates an authentication context to hold configuration and state 
 
 
 
-By default, flags for the context are set to enable the use of the replay cache ( :data:`KRB5_AUTH_CONTEXT_DO_TIME` ), but not sequence numbers. Use :c:func:`krb5_auth_con_setflags()` to change the flags.
+By default, flags for the context are set to enable the use of the replay cache (#KRB5_AUTH_CONTEXT_DO_TIME), but not sequence numbers. Use krb5_auth_con_setflags() to change the flags.
 
 
 
-The allocated *auth_context* must be freed with :c:func:`krb5_auth_con_free()` when it is no longer needed.
+The allocated *auth_context* must be freed with krb5_auth_con_free() when it is no longer needed.
 
 
 

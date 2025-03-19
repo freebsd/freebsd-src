@@ -1,13 +1,18 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesPackage{footnotehyper-sphinx}%
- [2017/03/07 v1.6 hyperref aware footnote.sty for sphinx (JFB)]
+\ProvidesPackage{sphinxpackagefootnote}%
+ [2021/02/04 v1.1d footnotehyper adapted to sphinx (Sphinx team)]
+% Provides support for this output mark-up from Sphinx latex writer:
+% - footnote environment
+% - savenotes environment (table templates)
+% - \sphinxfootnotemark
+%
 %%
-%% Package: footnotehyper-sphinx
-%% Version: based on footnotehyper.sty 2017/03/07 v1.0
-%% as available at http://www.ctan.org/pkg/footnotehyper
+%% Package: sphinxpackagefootnote
+%% Version: based on footnotehyper.sty 2021/02/04 v1.1d
+%% as available at https://www.ctan.org/pkg/footnotehyper
 %% License: the one applying to Sphinx
 %%
-%% Refer to the PDF documentation  at http://www.ctan.org/pkg/footnotehyper for
+%% Refer to the PDF documentation  at https://www.ctan.org/pkg/footnotehyper for
 %% the code comments.
 %%
 %% Differences:
@@ -16,9 +21,12 @@
 %% 3. use of \sphinxunactivateextrasandspace from sphinx.sty,
 %% 4. macro definition \sphinxfootnotemark,
 %% 5. macro definition \sphinxlongtablepatch
-\DeclareOption*{\PackageWarning{footnotehyper-sphinx}{Option `\CurrentOption' is unknown}}%
+%% 6. replaced some \undefined by \@undefined
+\newif\iffootnotehyperparse\footnotehyperparsetrue
+\DeclareOption*{\PackageWarning{sphinxpackagefootnote}{Option `\CurrentOption' is unknown}}%
 \ProcessOptions\relax
 \newbox\FNH@notes
+\newtoks\FNH@toks % 1.1c
 \newdimen\FNH@width
 \let\FNH@colwidth\columnwidth
 \newif\ifFNH@savingnotes
@@ -26,6 +34,7 @@
     \let\FNH@latex@footnote    \footnote
     \let\FNH@latex@footnotetext\footnotetext
     \let\FNH@H@@footnotetext   \@footnotetext
+    \let\FNH@H@@mpfootnotetext \@mpfootnotetext
     \newenvironment{savenotes}
         {\FNH@savenotes\ignorespaces}{\FNH@spewnotes\ignorespacesafterend}%
     \let\spewnotes      \FNH@spewnotes
@@ -36,6 +45,7 @@
     \@ifpackageloaded{hyperref}
      {\ifHy@hyperfootnotes
          \let\FNH@H@@footnotetext\H@@footnotetext
+         \let\FNH@H@@mpfootnotetext\H@@mpfootnotetext
       \else
          \let\FNH@hyper@fntext\FNH@nohyp@fntext
       \fi}%
@@ -110,14 +120,33 @@
   \fi
 }%
 \def\FNH@spewnotes {%
-  \endgroup
+  \if@endpe\ifx\par\@@par\FNH@toks{}\else
+     \FNH@toks\expandafter{\expandafter
+              \def\expandafter\par\expandafter{\par}\@endpetrue}%
+     \expandafter\expandafter\expandafter
+     \FNH@toks
+     \expandafter\expandafter\expandafter
+     {\expandafter\the\expandafter\FNH@toks
+      \expandafter\def\expandafter\@par\expandafter{\@par}}%
+     \expandafter\expandafter\expandafter
+     \FNH@toks
+     \expandafter\expandafter\expandafter
+     {\expandafter\the\expandafter\FNH@toks
+      \expandafter\everypar\expandafter{\the\everypar}}\fi
+  \else\FNH@toks{}\fi
+  \expandafter
+  \endgroup\the\FNH@toks
   \ifFNH@savingnotes\else
    \ifvoid\FNH@notes\else
     \begingroup
      \let\@makefntext\@empty
      \let\@finalstrut\@gobble
      \let\rule\@gobbletwo
-     \FNH@H@@footnotetext{\unvbox\FNH@notes}%
+     \ifx\@footnotetext\@mpfootnotetext
+        \expandafter\FNH@H@@mpfootnotetext
+     \else
+        \expandafter\FNH@H@@footnotetext
+     \fi{\unvbox\FNH@notes}%
     \endgroup
    \fi
   \fi
@@ -195,19 +224,68 @@
     \FNH@endfntext@fntext {\unvbox\z@}%
   \endgroup
 }%
-\AtBeginDocument{%
-   \let\FNH@@makefntext\@makefntext
-   \ifx\@makefntextFB\undefined
-   \expandafter\@gobble\else\expandafter\@firstofone\fi
-   {\ifFBFrenchFootnotes \let\FNH@@makefntext\@makefntextFB \else
-                         \let\FNH@@makefntext\@makefntextORI\fi}%
-   \expandafter\FNH@check@a\FNH@@makefntext{1.2!3?4,}%
-               \FNH@@@1.2!3?4,\FNH@@@\relax
+\let\FNH@prefntext\@empty
+\let\FNH@postfntext\@empty
+\AtBeginDocument{\iffootnotehyperparse\expandafter\FNH@check\fi}%
+\def\FNH@safeif#1{%
+   \iftrue\csname if#1\endcsname\csname fi\endcsname\expandafter\@firstoftwo
+   \else\csname fi\endcsname\expandafter\@secondoftwo
+   \fi
+}%
+\def\FNH@check{%
+   \ifx\@makefntextFB\@undefined\expandafter\FNH@check@
+                           \else\expandafter\FNH@frenchb@
+   \fi
+}%
+\def\FNH@frenchb@{%
+   \def\FNH@prefntext{%
+     \localleftbox{}%
+     \let\FBeverypar@save\FBeverypar@quote
+     \let\FBeverypar@quote\relax
+     \FNH@safeif{FB@koma}%
+       {\FNH@safeif{FBFrenchFootnotes}%
+          {\ifx\footnote\thanks
+             \let\@@makefnmark\@@makefnmarkTH
+             \@makefntextTH{} % space as in french.ldf
+           \else
+             \let\@@makefnmark\@@makefnmarkFB
+             \@makefntextFB{} % space as in french.ldf
+             \fi
+          }{\let\@@makefnmark\@@makefnmarkORI
+             \@makefntextORI{}% no space as in french.ldf
+          }%
+       }%
+       {\FNH@safeif{FBFrenchFootnotes}%
+          {\@makefntextFB{}}%
+          {\@makefntextORI{}}%
+       }%
+   }%
+   \def\FNH@postfntext{%
+     \let\FBeverypar@quote\FBeverypar@save
+     \localleftbox{\FBeveryline@quote}%
+   }%
+}%
+\def\FNH@check@{%
+    \expandafter\FNH@check@a\@makefntext{1.2!3?4,}%
+                \FNH@@@1.2!3?4,\FNH@@@\relax
 }%
 \long\def\FNH@check@a #11.2!3?4,#2\FNH@@@#3{%
-    \ifx\relax#3\expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi
-    \FNH@bad@makefntext@alert
-    {\def\FNH@prefntext{#1}\def\FNH@postfntext{#2}\FNH@check@b}%
+    \ifx\relax#3\expandafter\FNH@checkagain@
+    \else
+      \def\FNH@prefntext{#1}\def\FNH@postfntext{#2}%
+      \expandafter\FNH@check@b
+    \fi
+}%
+\def\FNH@checkagain@{%
+    \expandafter\FNH@checkagain@a
+    \detokenize\expandafter{\@makefntext{1.2!3?4,}}\relax\FNH@@@
+}%
+\edef\FNH@temp{\noexpand\FNH@checkagain@a ##1\string{1.2!3?4,\string}}%
+\expandafter\def\FNH@temp#2#3\FNH@@@{%
+    \ifx\relax#2%
+      \def\FNH@prefntext{\@makefntext{}}%
+    \else\FNH@bad@makefntext@alert
+    \fi
 }%
 \def\FNH@check@b #1\relax{%
     \expandafter\expandafter\expandafter\FNH@check@c
@@ -215,11 +293,11 @@
     \meaning\FNH@postfntext1.2!3?4,\FNH@check@c\relax
 }%
 \def\FNH@check@c #11.2!3?4,#2#3\relax{%
-    \ifx\FNH@check@c#2\expandafter\@gobble\fi\FNH@bad@makefntext@alert
+    \ifx\FNH@check@c#2\else\FNH@bad@makefntext@alert\fi
 }%
 % slight reformulation for Sphinx
 \def\FNH@bad@makefntext@alert{%
-  \PackageWarningNoLine{footnotehyper-sphinx}%
+  \PackageWarningNoLine{sphinxpackagefootnote}%
     {Footnotes will be sub-optimal, sorry. This is due to the document class or^^J
   some package modifying macro \string\@makefntext.^^J
   You can try to report this incompatibility at^^J
@@ -249,12 +327,62 @@
     \noexpand\if@endpe\noexpand\@endpetrue\noexpand\fi
   }%
 }%
-% end of footnotehyper 2017/02/16 v0.99
+%
 % some extras for Sphinx :
 % \sphinxfootnotemark: usable in section titles and silently removed from TOCs.
 \def\sphinxfootnotemark [#1]%
-   {\ifx\thepage\relax\else\protect\spx@opt@BeforeFootnote
-                             \protect\footnotemark[#1]\fi}%
+   {\ifx\thepage\relax\else\sphinxfootref{#1}\fi}%
+% \sphinxfootref:
+% - \spx@opt@BeforeFootnote is from BeforeFootnote sphinxsetup option
+% - \ref:
+%     the latex.py writer inserts a \phantomsection\label{<scope>.<num>}
+%     whenever
+%     - the footnote was explicitly numbered in sources,
+%     - or it was in restrained context and is rendered using footnotetext
+%
+%     These are the two types of footnotes that \sphinxfootnotemark must
+%     handle. But for explicitly numbered footnotes the same number
+%     can be found in document. So a secondary part in  <scope> is updated
+%     at each novel such footnote to know what is the target from then on
+%     for \sphinxfootnotemark and already encountered [1], or [2],...
+%
+% LaTeX package varioref is not supported by hyperref (from its doc: "There
+% are too many problems with varioref. Nobody has time to sort them out.
+% Therefore this package is now unsupported.") So we will simply use our own
+% macros to access the page number of footnote text and decide whether to print
+% it. \pagename is internationalized by latex-babel.
+\def\spx@thefnmark#1#2{%
+  % #1=label for reference, #2=page where footnote was printed
+  \ifx\spx@tempa\spx@tempb
+     % same page
+     #1%
+  \else
+    \sphinxthefootnotemark{#1}{#2}%
+  \fi
+}%
+\def\sphinxfootref@get #1#2#3#4#5\relax{%
+    \def\sphinxfootref@label{#1}%
+    \def\sphinxfootref@page {#2}%
+    \def\sphinxfootref@Href {#4}%
+}%
+\protected\def\sphinxfootref#1{% #1 always explicit number in Sphinx usage
+  \spx@opt@BeforeFootnote
+  \ltx@ifundefined{r@\thesphinxscope.#1}%
+    {\gdef\@thefnmark{?}\H@@footnotemark}%
+    {\expandafter\expandafter\expandafter\sphinxfootref@get
+                 \csname r@\thesphinxscope.#1\endcsname\relax
+     \edef\spx@tempa{\thepage}\edef\spx@tempb{\sphinxfootref@page}%
+     \protected@xdef\@thefnmark{\spx@thefnmark{\sphinxfootref@label}{\sphinxfootref@page}}%
+     \let\spx@@makefnmark\@makefnmark
+     \def\@makefnmark{%
+       \hyper@linkstart{link}{\sphinxfootref@Href}%
+       \spx@@makefnmark
+       \hyper@linkend
+     }%
+     \H@@footnotemark
+     \let\@makefnmark\spx@@makefnmark
+    }%
+}%
 \AtBeginDocument{%
    % let hyperref less complain
    \pdfstringdefDisableCommands{\def\sphinxfootnotemark [#1]{}}%
@@ -265,4 +393,4 @@
 }%
 \endinput
 %%
-%% End of file `footnotehyper-sphinx.sty'.
+%% End of file `sphinxpackagefootnote.sty'.

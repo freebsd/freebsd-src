@@ -16,7 +16,7 @@ Ticket start time, end time, and renewal duration.
 Declaration
 ------------
 
-typedef struct _krb5_ticket_times  krb5_ticket_times
+typedef struct _krb5_ticket_times krb5_ticket_times
 
 
 Members

@@ -34,7 +34,7 @@ krb5_init_keyblock -  Initialize an empty krb5_keyblock .
 
 
 
-Initialize a new keyblock and allocate storage for the contents of the key. It is legal to pass in a length of 0, in which case contents are left unallocated. Use :c:func:`krb5_free_keyblock()` to free *out* when it is no longer needed.
+Initialize a new keyblock and allocate storage for the contents of the key. It is legal to pass in a length of 0, in which case contents are left unallocated. Use krb5_free_keyblock() to free *out* when it is no longer needed.
 
 
 

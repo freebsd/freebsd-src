@@ -16,7 +16,7 @@ krb5_tkt_creds_init -  Create a context to get credentials from a KDC's Ticket G
 
 	          **[in]** **creds** - Input credentials
 
-	          **[in]** **options** - :data:`KRB5_GC` options for this request.
+	          **[in]** **options** - Options (see KRB5_GC macros)
 
 	          **[out]** **ctx** - New TGS request context
 
@@ -40,11 +40,11 @@ This function prepares to obtain credentials matching *creds* , either by retrie
 
 
 
-The resulting TGS acquisition context can be used asynchronously with :c:func:`krb5_tkt_creds_step()` or synchronously with :c:func:`krb5_tkt_creds_get()` . See also :c:func:`krb5_get_credentials()` for synchronous use.
+The resulting TGS acquisition context can be used asynchronously with krb5_tkt_creds_step() or synchronously with krb5_tkt_creds_get(). See also krb5_get_credentials() for synchronous use.
 
 
 
-Use :c:func:`krb5_tkt_creds_free()` to free *ctx* when it is no longer needed.
+Use krb5_tkt_creds_free() to free *ctx* when it is no longer needed.
 
 
 

@@ -37,7 +37,7 @@ krb5_build_principal -  Build a principal name using null-terminated strings.
 
 
 
-Call :c:func:`krb5_free_principal()` to free *princ* when it is no longer needed.
+Call krb5_free_principal() to free *princ* when it is no longer needed.
 
 
 
@@ -65,7 +65,7 @@ Beginning with release 1.20, the name type of the principal will be inferred as 
 
 .. note::
 
-	 :c:func:`krb5_build_principal()` and :c:func:`krb5_build_principal_alloc_va()` perform the same task. :c:func:`krb5_build_principal()` takes variadic arguments. :c:func:`krb5_build_principal_alloc_va()` takes a pre-computed *varargs* pointer.
+	 krb5_build_principal() and krb5_build_principal_alloc_va() perform the same task. krb5_build_principal() takes variadic arguments. krb5_build_principal_alloc_va() takes a pre-computed *varargs* pointer.
  
 
 

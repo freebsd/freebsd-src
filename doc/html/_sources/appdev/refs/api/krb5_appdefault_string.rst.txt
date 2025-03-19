@@ -49,7 +49,7 @@ This function gets the application defaults for *option* based on the given *app
 ..
 
 .. seealso::
-         :c:func:`krb5_appdefault_boolean()` 
+         krb5_appdefault_boolean()
  
 
 

@@ -16,7 +16,7 @@ Representation of the *KDC-REP* protocol message.
 Declaration
 ------------
 
-typedef struct _krb5_kdc_rep  krb5_kdc_rep
+typedef struct _krb5_kdc_rep krb5_kdc_rep
 
 
 Members

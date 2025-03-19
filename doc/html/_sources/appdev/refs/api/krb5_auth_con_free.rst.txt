@@ -30,7 +30,7 @@ krb5_auth_con_free -  Free a krb5_auth_context structure.
 
 
 
-This function frees an auth context allocated by :c:func:`krb5_auth_con_init()` .
+This function frees an auth context allocated by krb5_auth_con_init().
 
 
 

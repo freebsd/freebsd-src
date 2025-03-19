@@ -32,7 +32,7 @@ krb5_c_make_random_key -  Generate an enctype-specific random encryption key.
 
 
 
-Use :c:func:`krb5_free_keyblock_contents()` to free *k5_random_key* when no longer needed.
+Use krb5_free_keyblock_contents() to free *k5_random_key* when no longer needed.
 
 
 

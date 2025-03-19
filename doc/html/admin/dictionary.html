@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>Addressing dictionary attack risks &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="Principal names and DNS" href="princ_dns.html" />
     <link rel="prev" title="SPAKE Preauthentication" href="spake.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,7 +52,7 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="addressing-dictionary-attack-risks">
+  <section id="addressing-dictionary-attack-risks">
 <span id="dictionary"></span><h1>Addressing dictionary attack risks<a class="headerlink" href="#addressing-dictionary-attack-risks" title="Permalink to this headline">¶</a></h1>
 <p>Kerberos initial authentication is normally secured using the client
 principal’s long-term key, which for users is generally derived from a
@@ -99,7 +90,7 @@ making a TGS request (after authenticating as a different user) for a
 server principal which does not have the <strong>-allow_svr</strong> flag.  To
 address off-path attackers, a KDC administrator should set those flags
 on principals with password-derived keys:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">add_principal</span> <span class="o">+</span><span class="n">requires_preauth</span> <span class="o">-</span><span class="n">allow_svr</span> <span class="n">princname</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">add_principal</span> <span class="o">+</span><span class="n">requires_preauth</span> <span class="o">-</span><span class="n">allow_svr</span> <span class="n">princname</span>
 </pre></div>
 </div>
 <p>An attacker with passive network access (one who can monitor packets
@@ -110,14 +101,14 @@ preauthentication, encrypted timestamp.  Any of the following methods
 can prevent dictionary attacks by attackers with passive network
 access:</p>
 <ul class="simple">
-<li>Enabling <a class="reference internal" href="spake.html#spake"><span class="std std-ref">SPAKE preauthentication</span></a> (added in release
+<li><p>Enabling <a class="reference internal" href="spake.html#spake"><span class="std std-ref">SPAKE preauthentication</span></a> (added in release
 1.17) on the KDC, and ensuring that all clients are able to support
-it.</li>
-<li>Using an <a class="reference internal" href="https.html#https"><span class="std std-ref">HTTPS proxy</span></a> for communication with the KDC,
+it.</p></li>
+<li><p>Using an <a class="reference internal" href="https.html#https"><span class="std std-ref">HTTPS proxy</span></a> for communication with the KDC,
 if the attacker cannot monitor communication between the proxy
-server and the KDC.</li>
-<li>Using FAST, protecting the initial authentication with either a
-random key (such as a host key) or with <a class="reference internal" href="pkinit.html#anonymous-pkinit"><span class="std std-ref">anonymous PKINIT</span></a>.</li>
+server and the KDC.</p></li>
+<li><p>Using FAST, protecting the initial authentication with either a
+random key (such as a host key) or with <a class="reference internal" href="pkinit.html#anonymous-pkinit"><span class="std std-ref">anonymous PKINIT</span></a>.</p></li>
 </ul>
 <p>An attacker with active network access (one who can inject or modify
 packets sent between legitimate users and the KDC) can try to fool the
@@ -125,26 +116,28 @@ client software into sending an attackable ciphertext using an
 encryption type and salt string of the attacker’s choosing.  Any of the
 following methods can prevent dictionary attacks by active attackers:</p>
 <ul class="simple">
-<li>Enabling SPAKE preauthentication and setting the
-<strong>disable_encrypted_timestamp</strong> variable to <code class="docutils literal"><span class="pre">true</span></code> in the
-<a class="reference internal" href="conf_files/krb5_conf.html#realms"><span class="std std-ref">[realms]</span></a> subsection of the client configuration.</li>
-<li>Using an HTTPS proxy as described above, configured in the client’s
+<li><p>Enabling SPAKE preauthentication and setting the
+<strong>disable_encrypted_timestamp</strong> variable to <code class="docutils literal notranslate"><span class="pre">true</span></code> in the
+<a class="reference internal" href="conf_files/krb5_conf.html#realms"><span class="std std-ref">[realms]</span></a> subsection of the client configuration.</p></li>
+<li><p>Using an HTTPS proxy as described above, configured in the client’s
 krb5.conf realm configuration.  If <a class="reference internal" href="realm_config.html#kdc-discovery"><span class="std std-ref">KDC discovery</span></a> is used to locate a proxy server, an active
 attacker may be able to use DNS spoofing to cause the client to use
-a different HTTPS server or to not use HTTPS.</li>
-<li>Using FAST as described above.</li>
+a different HTTPS server or to not use HTTPS.</p></li>
+<li><p>Using FAST as described above.</p></li>
 </ul>
 <p>If <a class="reference internal" href="pkinit.html#pkinit"><span class="std std-ref">PKINIT</span></a> or <a class="reference internal" href="otp.html#otp-preauth"><span class="std std-ref">OTP</span></a> are used for
 initial authentication, the principal’s long-term keys are not used
 and dictionary attacks are usually not a concern.</p>
-</div>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">Addressing dictionary attack risks</a></li>
@@ -201,6 +194,7 @@ and dictionary attacks are usually not a concern.</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -208,8 +202,8 @@ and dictionary attacks are usually not a concern.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

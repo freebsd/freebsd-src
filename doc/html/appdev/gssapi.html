@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>Developing with GSSAPI &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="Year 2038 considerations for uses of krb5_timestamp" href="y2038.html" />
     <link rel="prev" title="For application developers" href="index.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,7 +52,7 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="developing-with-gssapi">
+  <section id="developing-with-gssapi">
 <h1>Developing with GSSAPI<a class="headerlink" href="#developing-with-gssapi" title="Permalink to this headline">¶</a></h1>
 <p>The GSSAPI (Generic Security Services API) allows applications to
 communicate securely using Kerberos 5 or other security mechanisms.
@@ -74,50 +65,50 @@ server program.</p>
 <p>This documentation will describe how various ways of using the
 GSSAPI will behave with the krb5 mechanism as implemented in MIT krb5,
 as well as krb5-specific extensions to the GSSAPI.</p>
-<div class="section" id="name-types">
+<section id="name-types">
 <h2>Name types<a class="headerlink" href="#name-types" title="Permalink to this headline">¶</a></h2>
 <p>A GSSAPI application can name a local or remote entity by calling
 <a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.16">gss_import_name</a>, specifying a name type and a value.  The following
 name types are supported by the krb5 mechanism:</p>
 <ul class="simple">
-<li><strong>GSS_C_NT_HOSTBASED_SERVICE</strong>: The value should be a string of the
-form <code class="docutils literal"><span class="pre">service</span></code> or <code class="docutils literal"><span class="pre">service&#64;hostname</span></code>.  This is the most common
+<li><p><strong>GSS_C_NT_HOSTBASED_SERVICE</strong>: The value should be a string of the
+form <code class="docutils literal notranslate"><span class="pre">service</span></code> or <code class="docutils literal notranslate"><span class="pre">service&#64;hostname</span></code>.  This is the most common
 way to name target services when initiating a security context, and
-is the most likely name type to work across multiple mechanisms.</li>
-<li><strong>GSS_KRB5_NT_PRINCIPAL_NAME</strong>: The value should be a principal name
+is the most likely name type to work across multiple mechanisms.</p></li>
+<li><p><strong>GSS_KRB5_NT_PRINCIPAL_NAME</strong>: The value should be a principal name
 string.  This name type only works with the krb5 mechanism, and is
-defined in the <code class="docutils literal"><span class="pre">&lt;gssapi/gssapi_krb5.h&gt;</span></code> header.</li>
-<li><strong>GSS_C_NT_USER_NAME</strong> or <strong>GSS_C_NULL_OID</strong>: The value is treated
+defined in the <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_krb5.h&gt;</span></code> header.</p></li>
+<li><p><strong>GSS_C_NT_USER_NAME</strong> or <strong>GSS_C_NULL_OID</strong>: The value is treated
 as an unparsed principal name string, as above.  These name types
 may work with mechanisms other than krb5, but will have different
 interpretations in those mechanisms.  <strong>GSS_C_NT_USER_NAME</strong> is
 intended to be used with a local username, which will parse into a
-single-component principal in the default realm.</li>
-<li><strong>GSS_C_NT_ANONYMOUS</strong>: The value is ignored.  The anonymous
+single-component principal in the default realm.</p></li>
+<li><p><strong>GSS_C_NT_ANONYMOUS</strong>: The value is ignored.  The anonymous
 principal is used, allowing a client to authenticate to a server
 without asserting a particular identity (which may or may not be
-allowed by a particular server or Kerberos realm).</li>
-<li><strong>GSS_C_NT_MACHINE_UID_NAME</strong>: The value is uid_t object.  On
+allowed by a particular server or Kerberos realm).</p></li>
+<li><p><strong>GSS_C_NT_MACHINE_UID_NAME</strong>: The value is uid_t object.  On
 Unix-like systems, the username of the uid is looked up in the
 system user database and the resulting username is parsed as a
-principal name.</li>
-<li><strong>GSS_C_NT_STRING_UID_NAME</strong>: As above, but the value is a decimal
-string representation of the uid.</li>
-<li><strong>GSS_C_NT_EXPORT_NAME</strong>: The value must be the result of a
-<a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.13">gss_export_name</a> call.</li>
-<li><strong>GSS_KRB5_NT_ENTERPRISE_NAME</strong>: The value should be a krb5
+principal name.</p></li>
+<li><p><strong>GSS_C_NT_STRING_UID_NAME</strong>: As above, but the value is a decimal
+string representation of the uid.</p></li>
+<li><p><strong>GSS_C_NT_EXPORT_NAME</strong>: The value must be the result of a
+<a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.13">gss_export_name</a> call.</p></li>
+<li><p><strong>GSS_KRB5_NT_ENTERPRISE_NAME</strong>: The value should be a krb5
 enterprise name string (see <span class="target" id="index-3"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6806.html"><strong>RFC 6806</strong></a> section 5), in the form
-<code class="docutils literal"><span class="pre">user&#64;suffix</span></code>.  This name type is used to convey alias names, and
-is defined in the <code class="docutils literal"><span class="pre">&lt;gssapi/gssapi_krb5.h&gt;</span></code> header.  (New in
-release 1.17.)</li>
-<li><strong>GSS_KRB5_NT_X509_CERT</strong>: The value should be an X.509 certificate
+<code class="docutils literal notranslate"><span class="pre">user&#64;suffix</span></code>.  This name type is used to convey alias names, and
+is defined in the <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_krb5.h&gt;</span></code> header.  (New in
+release 1.17.)</p></li>
+<li><p><strong>GSS_KRB5_NT_X509_CERT</strong>: The value should be an X.509 certificate
 encoded according to <span class="target" id="index-4"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc5280.html"><strong>RFC 5280</strong></a>.  This name form can be used for
 the desired_name parameter of gss_acquire_cred_impersonate_name(),
 to identify the S4U2Self user by certificate.  (New in release
-1.19.)</li>
+1.19.)</p></li>
 </ul>
-</div>
-<div class="section" id="initiator-credentials">
+</section>
+<section id="initiator-credentials">
 <h2>Initiator credentials<a class="headerlink" href="#initiator-credentials" title="Permalink to this headline">¶</a></h2>
 <p>A GSSAPI client application uses <a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.19">gss_init_sec_context</a> to establish a
 security context.  The <em>initiator_cred_handle</em> parameter determines
@@ -129,7 +120,7 @@ initiator credential.  The call to <a class="reference external" href="https://t
 not have a specific name preference.</p>
 <p>If the desired name for a krb5 initiator credential is a host-based
 name, it is converted to a principal name of the form
-<code class="docutils literal"><span class="pre">service/hostname</span></code> in the local realm, where <em>hostname</em> is the local
+<code class="docutils literal notranslate"><span class="pre">service/hostname</span></code> in the local realm, where <em>hostname</em> is the local
 hostname if not specified.  The hostname will be canonicalized using
 forward name resolution, and possibly also using reverse name
 resolution depending on the value of the <strong>rdns</strong> variable in
@@ -167,8 +158,8 @@ for the first principal in the default client keytab.</p>
 client keytab, the resulting tickets will be stored in the default
 cache or collection, and will be refreshed by future calls to
 <a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.2">gss_acquire_cred</a> as they approach their expire time.</p>
-</div>
-<div class="section" id="acceptor-names">
+</section>
+<section id="acceptor-names">
 <h2>Acceptor names<a class="headerlink" href="#acceptor-names" title="Permalink to this headline">¶</a></h2>
 <p>A GSSAPI server application uses <a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.1">gss_accept_sec_context</a> to establish
 a security context based on tokens provided by the client.  The
@@ -190,37 +181,37 @@ keytab, just as if no acceptor credential was supplied.</p>
 the most common choice is a host-based name.  If the host-based
 <em>desired_name</em> contains just a <em>service</em>, then clients will be allowed
 to authenticate to any host-based service principal (that is, a
-principal of the form <code class="docutils literal"><span class="pre">service/hostname&#64;REALM</span></code>) for the named
+principal of the form <code class="docutils literal notranslate"><span class="pre">service/hostname&#64;REALM</span></code>) for the named
 service, regardless of hostname or realm, as long as it is present in
 the default keytab.  If the input name contains both a <em>service</em> and a
 <em>hostname</em>, clients will be allowed to authenticate to any host-based
 principal for the named service and hostname, regardless of realm.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">If a <em>hostname</em> is specified, it will be canonicalized
+<p class="admonition-title">Note</p>
+<p>If a <em>hostname</em> is specified, it will be canonicalized
 using forward name resolution, and possibly also using
 reverse name resolution depending on the value of the
 <strong>rdns</strong> variable in <a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>.</p>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">If the <strong>ignore_acceptor_hostname</strong> variable in
+<p class="admonition-title">Note</p>
+<p>If the <strong>ignore_acceptor_hostname</strong> variable in
 <a class="reference internal" href="../admin/conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a> is enabled, then <em>hostname</em> will be
 ignored even if one is specified in the input name.</p>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">In MIT krb5 versions prior to 1.10, and in Heimdal’s
+<p class="admonition-title">Note</p>
+<p>In MIT krb5 versions prior to 1.10, and in Heimdal’s
 implementation of the krb5 mechanism, an input name with
 just a <em>service</em> is treated like an input name of
-<code class="docutils literal"><span class="pre">service&#64;localhostname</span></code>, where <em>localhostname</em> is the
+<code class="docutils literal notranslate"><span class="pre">service&#64;localhostname</span></code>, where <em>localhostname</em> is the
 string returned by gethostname().</p>
 </div>
 <p>If the <em>desired_name</em> is a krb5 principal name or a local system name
 type which is mapped to a krb5 principal name, clients will only be
 allowed to authenticate to that principal in the default keytab.</p>
-</div>
-<div class="section" id="name-attributes">
+</section>
+<section id="name-attributes">
 <h2>Name Attributes<a class="headerlink" href="#name-attributes" title="Permalink to this headline">¶</a></h2>
 <p>In release 1.8 or later, the <a class="reference external" href="https://tools.ietf.org/html/rfc6680.txt#section-7.4">gss_inquire_name</a> and
 <a class="reference external" href="https://tools.ietf.org/html/6680.html#section-7.5">gss_get_name_attribute</a> functions, specified in <span class="target" id="index-5"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6680.html"><strong>RFC 6680</strong></a>, can be
@@ -228,20 +219,20 @@ used to retrieve name attributes from the <em>src_name</em> returned by
 <a class="reference external" href="https://tools.ietf.org/html/rfc2744.html#section-5.1">gss_accept_sec_context</a>.  The following attributes are defined when
 the krb5 mechanism is used:</p>
 <ul class="simple" id="gssapi-authind-attr">
-<li>“auth-indicators” attribute:</li>
+<li><p>“auth-indicators” attribute:</p></li>
 </ul>
 <p>This attribute will be included in the <a class="reference external" href="https://tools.ietf.org/html/rfc6680.txt#section-7.4">gss_inquire_name</a> output if the
 ticket contains <a class="reference internal" href="../admin/auth_indicator.html#auth-indicator"><span class="std std-ref">authentication indicators</span></a>.
 One indicator is returned per invocation of <a class="reference external" href="https://tools.ietf.org/html/6680.html#section-7.5">gss_get_name_attribute</a>,
 so multiple invocations may be necessary to retrieve all of the
 indicators from the ticket.  (New in release 1.15.)</p>
-</div>
-<div class="section" id="credential-store-extensions">
+</section>
+<section id="credential-store-extensions">
 <h2>Credential store extensions<a class="headerlink" href="#credential-store-extensions" title="Permalink to this headline">¶</a></h2>
 <p>Beginning with release 1.11, the following GSSAPI extensions declared
-in <code class="docutils literal"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code> can be used to specify how credentials
+in <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code> can be used to specify how credentials
 are acquired or stored:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">struct</span> <span class="n">gss_key_value_element_struct</span> <span class="p">{</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">struct</span> <span class="n">gss_key_value_element_struct</span> <span class="p">{</span>
     <span class="n">const</span> <span class="n">char</span> <span class="o">*</span><span class="n">key</span><span class="p">;</span>
     <span class="n">const</span> <span class="n">char</span> <span class="o">*</span><span class="n">value</span><span class="p">;</span>
 <span class="p">};</span>
@@ -279,33 +270,33 @@ are acquired or stored:</p>
 information about how the credentials should be obtained and stored.
 The following options are supported by the krb5 mechanism:</p>
 <ul class="simple">
-<li><strong>ccache</strong>: For acquiring initiator credentials, the name of the
+<li><p><strong>ccache</strong>: For acquiring initiator credentials, the name of the
 <a class="reference internal" href="../basic/ccache_def.html#ccache-definition"><span class="std std-ref">credential cache</span></a> to which the handle will
 refer.  For storing credentials, the name of the cache or collection
-where the credentials will be stored (see below).</li>
-<li><strong>client_keytab</strong>: For acquiring initiator credentials, the name of
+where the credentials will be stored (see below).</p></li>
+<li><p><strong>client_keytab</strong>: For acquiring initiator credentials, the name of
 the <a class="reference internal" href="../basic/keytab_def.html#keytab-definition"><span class="std std-ref">keytab</span></a> which will be used, if
-necessary, to refresh the credentials in the cache.</li>
-<li><strong>keytab</strong>: For acquiring acceptor credentials, the name of the
+necessary, to refresh the credentials in the cache.</p></li>
+<li><p><strong>keytab</strong>: For acquiring acceptor credentials, the name of the
 <a class="reference internal" href="../basic/keytab_def.html#keytab-definition"><span class="std std-ref">keytab</span></a> to which the handle will refer.
 In release 1.19 and later, this option also determines the keytab to
 be used for verification when initiator credentials are acquired
-using a password and verified.</li>
-<li><strong>password</strong>: For acquiring initiator credentials, this option
+using a password and verified.</p></li>
+<li><p><strong>password</strong>: For acquiring initiator credentials, this option
 instructs the mechanism to acquire fresh credentials into a unique
 memory credential cache.  This option may not be used with the
 <strong>ccache</strong> or <strong>client_keytab</strong> options, and a <em>desired_name</em> must
-be specified.  (New in release 1.19.)</li>
-<li><strong>rcache</strong>: For acquiring acceptor credentials, the name of the
+be specified.  (New in release 1.19.)</p></li>
+<li><p><strong>rcache</strong>: For acquiring acceptor credentials, the name of the
 <a class="reference internal" href="../basic/rcache_def.html#rcache-definition"><span class="std std-ref">replay cache</span></a> to be used when processing
-the initiator tokens.  (New in release 1.13.)</li>
-<li><strong>verify</strong>: For acquiring initiator credentials, this option
+the initiator tokens.  (New in release 1.13.)</p></li>
+<li><p><strong>verify</strong>: For acquiring initiator credentials, this option
 instructs the mechanism to verify the credentials by obtaining a
 ticket to a service with a known key.  The service key is obtained
 from the keytab specified with the <strong>keytab</strong> option or the default
 keytab.  The value may be the name of a principal in the keytab, or
-the empty string.  If the empty string is given, any <code class="docutils literal"><span class="pre">host</span></code>
-service principal in the keytab may be used.  (New in release 1.19.)</li>
+the empty string.  If the empty string is given, any <code class="docutils literal notranslate"><span class="pre">host</span></code>
+service principal in the keytab may be used.  (New in release 1.19.)</p></li>
 </ul>
 <p>In release 1.20 or later, if a collection name is specified for
 <strong>cache</strong> in a call to gss_store_cred_into(), an existing cache for
@@ -315,12 +306,12 @@ false and the selected credential cache already exists, a
 <strong>GSS_S_DUPLICATE_ELEMENT</strong> error will be returned.  If <em>default_cred</em>
 is true, the primary cache of the collection will be switched to the
 selected cache.</p>
-</div>
-<div class="section" id="importing-and-exporting-credentials">
+</section>
+<section id="importing-and-exporting-credentials">
 <h2>Importing and exporting credentials<a class="headerlink" href="#importing-and-exporting-credentials" title="Permalink to this headline">¶</a></h2>
 <p>The following GSSAPI extensions can be used to import and export
-credentials (declared in <code class="docutils literal"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>):</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gss_export_cred</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
+credentials (declared in <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gss_export_cred</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
                           <span class="n">gss_cred_id_t</span> <span class="n">cred_handle</span><span class="p">,</span>
                           <span class="n">gss_buffer_t</span> <span class="n">token</span><span class="p">);</span>
 
@@ -358,8 +349,8 @@ delegated credentials received by <a class="reference external" href="https://to
 case, the contents of the credential cache are serialized, so that the
 resulting token may be imported even if the original memory credential
 cache no longer exists.</p>
-</div>
-<div class="section" id="constrained-delegation-s4u">
+</section>
+<section id="constrained-delegation-s4u">
 <h2>Constrained delegation (S4U)<a class="headerlink" href="#constrained-delegation-s4u" title="Permalink to this headline">¶</a></h2>
 <p>The Microsoft S4U2Self and S4U2Proxy Kerberos protocol extensions
 allow an intermediate service to acquire credentials from a client to
@@ -386,7 +377,7 @@ determine that the client’s ticket is not a valid evidence ticket, it
 will place <strong>GSS_C_NO_CREDENTIAL</strong> in <em>delegated_cred_handle</em>.</p>
 <p>To acquire a proxy credential using an S4U2Self request, the service
 can use the following GSSAPI extension:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gss_acquire_cred_impersonate_name</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gss_acquire_cred_impersonate_name</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
                                             <span class="n">gss_cred_id_t</span> <span class="n">icred</span><span class="p">,</span>
                                             <span class="n">gss_name_t</span> <span class="n">desired_name</span><span class="p">,</span>
                                             <span class="n">OM_uint32</span> <span class="n">time_req</span><span class="p">,</span>
@@ -419,10 +410,10 @@ service.</p>
 <p>If an application needs to find out whether a credential it holds is a
 proxy credential and the name of the intermediate service, it can
 query the credential with the <strong>GSS_KRB5_GET_CRED_IMPERSONATOR</strong> OID
-(new in release 1.16, declared in <code class="docutils literal"><span class="pre">&lt;gssapi/gssapi_krb5.h&gt;</span></code>) using
+(new in release 1.16, declared in <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_krb5.h&gt;</span></code>) using
 the gss_inquire_cred_by_oid extension (declared in
-<code class="docutils literal"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>):</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gss_inquire_cred_by_oid</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
+<code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gss_inquire_cred_by_oid</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
                                   <span class="n">const</span> <span class="n">gss_cred_id_t</span> <span class="n">cred_handle</span><span class="p">,</span>
                                   <span class="n">gss_OID</span> <span class="n">desired_object</span><span class="p">,</span>
                                   <span class="n">gss_buffer_set_t</span> <span class="o">*</span><span class="n">data_set</span><span class="p">);</span>
@@ -434,14 +425,14 @@ unparsed principal name of the intermediate service.  If <em>cred_handle</em>
 is not a proxy credential, <em>data_set</em> will be set to an empty buffer
 set.  If the library does not support the query,
 gss_inquire_cred_by_oid will return <strong>GSS_S_UNAVAILABLE</strong>.</p>
-</div>
-<div class="section" id="aead-message-wrapping">
+</section>
+<section id="aead-message-wrapping">
 <h2>AEAD message wrapping<a class="headerlink" href="#aead-message-wrapping" title="Permalink to this headline">¶</a></h2>
 <p>The following GSSAPI extensions (declared in
-<code class="docutils literal"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>) can be used to wrap and unwrap messages
+<code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>) can be used to wrap and unwrap messages
 with additional “associated data” which is integrity-checked but is
 not included in the output buffer:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gss_wrap_aead</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gss_wrap_aead</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
                         <span class="n">gss_ctx_id_t</span> <span class="n">context_handle</span><span class="p">,</span>
                         <span class="nb">int</span> <span class="n">conf_req_flag</span><span class="p">,</span> <span class="n">gss_qop_t</span> <span class="n">qop_req</span><span class="p">,</span>
                         <span class="n">gss_buffer_t</span> <span class="n">input_assoc_buffer</span><span class="p">,</span>
@@ -461,14 +452,14 @@ not included in the output buffer:</p>
 <p>Wrap tokens created with gss_wrap_aead will successfully unwrap only
 if the same <em>input_assoc_buffer</em> contents are presented to
 gss_unwrap_aead.</p>
-</div>
-<div class="section" id="iov-message-wrapping">
+</section>
+<section id="iov-message-wrapping">
 <h2>IOV message wrapping<a class="headerlink" href="#iov-message-wrapping" title="Permalink to this headline">¶</a></h2>
-<p>The following extensions (declared in <code class="docutils literal"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>) can
+<p>The following extensions (declared in <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>) can
 be used for in-place encryption, fine-grained control over wrap token
 layout, and for constructing wrap tokens compatible with Microsoft DCE
 RPC:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">typedef</span> <span class="n">struct</span> <span class="n">gss_iov_buffer_desc_struct</span> <span class="p">{</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">typedef</span> <span class="n">struct</span> <span class="n">gss_iov_buffer_desc_struct</span> <span class="p">{</span>
     <span class="n">OM_uint32</span> <span class="nb">type</span><span class="p">;</span>
     <span class="n">gss_buffer_desc</span> <span class="n">buffer</span><span class="p">;</span>
 <span class="p">}</span> <span class="n">gss_iov_buffer_desc</span><span class="p">,</span> <span class="o">*</span><span class="n">gss_iov_buffer_t</span><span class="p">;</span>
@@ -500,22 +491,22 @@ RPC:</p>
 structures, each containing a type and a gss_buffer_desc structure.
 Valid types include:</p>
 <ul class="simple">
-<li><strong>GSS_C_BUFFER_TYPE_DATA</strong>: A data buffer to be included in the
+<li><p><strong>GSS_C_BUFFER_TYPE_DATA</strong>: A data buffer to be included in the
 token, and to be encrypted or decrypted in-place if the token is
-confidentiality-protected.</li>
-<li><strong>GSS_C_BUFFER_TYPE_HEADER</strong>: The GSSAPI wrap token header and
-underlying cryptographic header.</li>
-<li><strong>GSS_C_BUFFER_TYPE_TRAILER</strong>: The cryptographic trailer, if one is
-required.</li>
-<li><strong>GSS_C_BUFFER_TYPE_PADDING</strong>: Padding to be combined with the data
+confidentiality-protected.</p></li>
+<li><p><strong>GSS_C_BUFFER_TYPE_HEADER</strong>: The GSSAPI wrap token header and
+underlying cryptographic header.</p></li>
+<li><p><strong>GSS_C_BUFFER_TYPE_TRAILER</strong>: The cryptographic trailer, if one is
+required.</p></li>
+<li><p><strong>GSS_C_BUFFER_TYPE_PADDING</strong>: Padding to be combined with the data
 during encryption and decryption.  (The implementation may choose to
 place padding in the trailer buffer, in which case it will set the
-padding buffer length to 0.)</li>
-<li><strong>GSS_C_BUFFER_TYPE_STREAM</strong>: For unwrapping only, a buffer
-containing a complete wrap token in standard format to be unwrapped.</li>
-<li><strong>GSS_C_BUFFER_TYPE_SIGN_ONLY</strong>: A buffer to be included in the
+padding buffer length to 0.)</p></li>
+<li><p><strong>GSS_C_BUFFER_TYPE_STREAM</strong>: For unwrapping only, a buffer
+containing a complete wrap token in standard format to be unwrapped.</p></li>
+<li><p><strong>GSS_C_BUFFER_TYPE_SIGN_ONLY</strong>: A buffer to be included in the
 token’s integrity protection checksum, but not to be encrypted or
-included in the token itself.</li>
+included in the token itself.</p></li>
 </ul>
 <p>For gss_wrap_iov, the IOV list should contain one HEADER buffer,
 followed by zero or more SIGN_ONLY buffers, followed by one or more
@@ -531,7 +522,7 @@ gss_release_iov_buffer can be used to release all allocated buffers
 within an iov list and unset their allocated flags.  Here is an
 example of how gss_wrap_iov can be used with allocation requested
 (<em>ctx</em> is assumed to be a previously established gss_ctx_id_t):</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">;</span>
 <span class="n">gss_iov_buffer_desc</span> <span class="n">iov</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>
 <span class="n">char</span> <span class="nb">str</span><span class="p">[]</span> <span class="o">=</span> <span class="s2">&quot;message&quot;</span><span class="p">;</span>
 
@@ -558,7 +549,7 @@ lengths of the HEADER, PADDING, and TRAILER buffers.  DATA buffers
 must be provided in the iov list so that padding length can be
 computed correctly, but the output buffers need not be initialized.
 Here is an example of using gss_wrap_iov_length and gss_wrap_iov:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">;</span>
 <span class="n">gss_iov_buffer_desc</span> <span class="n">iov</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>
 <span class="n">char</span> <span class="nb">str</span><span class="p">[</span><span class="mi">1024</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;message&quot;</span><span class="p">,</span> <span class="o">*</span><span class="n">ptr</span><span class="p">;</span>
 
@@ -610,7 +601,7 @@ STREAM buffer, unless it has the <strong>GSS_C_BUFFER_FLAG_ALLOCATE</strong> fla
 set, in which case it will be initialized with a copy of the decrypted
 data.  Here is an example (<em>token</em> and <em>token_len</em> are assumed to be a
 pre-existing pointer and length for a modifiable region of data):</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">;</span>
 <span class="n">gss_iov_buffer_desc</span> <span class="n">iov</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
 
 <span class="n">iov</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">GSS_IOV_BUFFER_TYPE_STREAM</span><span class="p">;</span>
@@ -625,13 +616,13 @@ pre-existing pointer and length for a modifiable region of data):</p>
  <span class="o">*</span> <span class="n">token</span><span class="o">.</span> <span class="o">*/</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="iov-mic-tokens">
+</section>
+<section id="iov-mic-tokens">
 <span id="gssapi-mic-token"></span><h2>IOV MIC tokens<a class="headerlink" href="#iov-mic-tokens" title="Permalink to this headline">¶</a></h2>
-<p>The following extensions (declared in <code class="docutils literal"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>) can
+<p>The following extensions (declared in <code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>) can
 be used in release 1.12 or later to construct and verify MIC tokens
 using an IOV list:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gss_get_mic_iov</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gss_get_mic_iov</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
                           <span class="n">gss_ctx_id_t</span> <span class="n">context_handle</span><span class="p">,</span>
                           <span class="n">gss_qop_t</span> <span class="n">qop_req</span><span class="p">,</span>
                           <span class="n">gss_iov_buffer_desc</span> <span class="o">*</span><span class="n">iov</span><span class="p">,</span>
@@ -654,10 +645,10 @@ using an IOV list:</p>
 structures, each containing a type and a gss_buffer_desc structure.
 Valid types include:</p>
 <ul class="simple">
-<li><strong>GSS_C_BUFFER_TYPE_DATA</strong> and <strong>GSS_C_BUFFER_TYPE_SIGN_ONLY</strong>: The
+<li><p><strong>GSS_C_BUFFER_TYPE_DATA</strong> and <strong>GSS_C_BUFFER_TYPE_SIGN_ONLY</strong>: The
 corresponding buffer for each of these types will be signed for the
-MIC token, in the order provided.</li>
-<li><strong>GSS_C_BUFFER_TYPE_MIC_TOKEN</strong>: The GSSAPI MIC token.</li>
+MIC token, in the order provided.</p></li>
+<li><p><strong>GSS_C_BUFFER_TYPE_MIC_TOKEN</strong>: The GSSAPI MIC token.</p></li>
 </ul>
 <p>The type of the MIC_TOKEN buffer may be combined with
 <strong>GSS_C_BUFFER_FLAG_ALLOCATE</strong> to request that gss_get_mic_iov
@@ -668,7 +659,7 @@ buffers within an iov list and unset their allocated flags.  Here is
 an example of how gss_get_mic_iov can be used with allocation
 requested (<em>ctx</em> is assumed to be a previously established
 gss_ctx_id_t):</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">;</span>
 <span class="n">gss_iov_buffer_desc</span> <span class="n">iov</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span>
 
 <span class="n">iov</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">GSS_IOV_BUFFER_TYPE_DATA</span><span class="p">;</span>
@@ -692,7 +683,7 @@ gss_ctx_id_t):</p>
 gss_get_mic_iov, it should first call gss_get_mic_iov_length to query
 the length of the MIC_TOKEN buffer.  Here is an example of using
 gss_get_mic_iov_length and gss_get_mic_iov:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">;</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">;</span>
 <span class="n">gss_iov_buffer_desc</span> <span class="n">iov</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
 <span class="n">char</span> <span class="n">data</span><span class="p">[</span><span class="mi">1024</span><span class="p">];</span>
 
@@ -713,15 +704,17 @@ gss_get_mic_iov_length and gss_get_mic_iov:</p>
     <span class="n">handle_error</span><span class="p">(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">);</span>
 </pre></div>
 </div>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">Developing with GSSAPI</a><ul>
@@ -772,6 +765,7 @@ gss_get_mic_iov_length and gss_get_mic_iov:</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -779,8 +773,8 @@ gss_get_mic_iov_length and gss_get_mic_iov:</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

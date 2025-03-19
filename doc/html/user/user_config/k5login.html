@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>.k5login &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="copyright" title="Copyright" href="../../copyright.html" />
     <link rel="next" title=".k5identity" href="k5identity.html" />
     <link rel="prev" title="kerberos" href="kerberos.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,9 +52,9 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="k5login">
+  <section id="k5login">
 <span id="k5login-5"></span><h1>.k5login<a class="headerlink" href="#k5login" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="description">
+<section id="description">
 <h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
 <p>The .k5login file, which resides in a user’s home directory, contains
 a list of the Kerberos principals.  Anyone with valid tickets for a
@@ -71,50 +62,52 @@ principal in the file is allowed host access with the UID of the user
 in whose home directory the file resides.  One common use is to place
 a .k5login file in root’s home directory, thereby granting system
 administrators remote root access to the host via Kerberos.</p>
-</div>
-<div class="section" id="examples">
+</section>
+<section id="examples">
 <h2>EXAMPLES<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
-<p>Suppose the user <code class="docutils literal"><span class="pre">alice</span></code> had a .k5login file in her home directory
+<p>Suppose the user <code class="docutils literal notranslate"><span class="pre">alice</span></code> had a .k5login file in her home directory
 containing just the following line:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">bob</span><span class="nd">@FOOBAR</span><span class="o">.</span><span class="n">ORG</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">bob</span><span class="nd">@FOOBAR</span><span class="o">.</span><span class="n">ORG</span>
 </pre></div>
 </div>
-<p>This would allow <code class="docutils literal"><span class="pre">bob</span></code> to use Kerberos network applications, such as
-ssh(1), to access <code class="docutils literal"><span class="pre">alice</span></code>’s account, using <code class="docutils literal"><span class="pre">bob</span></code>’s Kerberos
+<p>This would allow <code class="docutils literal notranslate"><span class="pre">bob</span></code> to use Kerberos network applications, such as
+ssh(1), to access <code class="docutils literal notranslate"><span class="pre">alice</span></code>’s account, using <code class="docutils literal notranslate"><span class="pre">bob</span></code>’s Kerberos
 tickets.  In a default configuration (with <strong>k5login_authoritative</strong> set
 to true in <a class="reference internal" href="../../admin/conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>), this .k5login file would not let
-<code class="docutils literal"><span class="pre">alice</span></code> use those network applications to access her account, since
+<code class="docutils literal notranslate"><span class="pre">alice</span></code> use those network applications to access her account, since
 she is not listed!  With no .k5login file, or with <strong>k5login_authoritative</strong>
-set to false, a default rule would permit the principal <code class="docutils literal"><span class="pre">alice</span></code> in the
-machine’s default realm to access the <code class="docutils literal"><span class="pre">alice</span></code> account.</p>
-<p>Let us further suppose that <code class="docutils literal"><span class="pre">alice</span></code> is a system administrator.
+set to false, a default rule would permit the principal <code class="docutils literal notranslate"><span class="pre">alice</span></code> in the
+machine’s default realm to access the <code class="docutils literal notranslate"><span class="pre">alice</span></code> account.</p>
+<p>Let us further suppose that <code class="docutils literal notranslate"><span class="pre">alice</span></code> is a system administrator.
 Alice and the other system administrators would have their principals
 in root’s .k5login file on each host:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">alice</span><span class="nd">@BLEEP</span><span class="o">.</span><span class="n">COM</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">alice</span><span class="nd">@BLEEP</span><span class="o">.</span><span class="n">COM</span>
 
 <span class="n">joeadmin</span><span class="o">/</span><span class="n">root</span><span class="nd">@BLEEP</span><span class="o">.</span><span class="n">COM</span>
 </pre></div>
 </div>
 <p>This would allow either system administrator to log in to these hosts
 using their Kerberos tickets instead of having to type the root
-password.  Note that because <code class="docutils literal"><span class="pre">bob</span></code> retains the Kerberos tickets for
-his own principal, <code class="docutils literal"><span class="pre">bob&#64;FOOBAR.ORG</span></code>, he would not have any of the
-privileges that require <code class="docutils literal"><span class="pre">alice</span></code>’s tickets, such as root access to
-any of the site’s hosts, or the ability to change <code class="docutils literal"><span class="pre">alice</span></code>’s
+password.  Note that because <code class="docutils literal notranslate"><span class="pre">bob</span></code> retains the Kerberos tickets for
+his own principal, <code class="docutils literal notranslate"><span class="pre">bob&#64;FOOBAR.ORG</span></code>, he would not have any of the
+privileges that require <code class="docutils literal notranslate"><span class="pre">alice</span></code>’s tickets, such as root access to
+any of the site’s hosts, or the ability to change <code class="docutils literal notranslate"><span class="pre">alice</span></code>’s
 password.</p>
-</div>
-<div class="section" id="see-also">
+</section>
+<section id="see-also">
 <h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
 <p>kerberos(1)</p>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">.k5login</a><ul>
@@ -161,6 +154,7 @@ password.</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -168,8 +162,8 @@ password.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

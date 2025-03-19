@@ -24,7 +24,7 @@ krb5_auth_con_getlocalsubkey
 ..
 
 
-DEPRECATED Replaced by krb5_auth_con_getsendsubkey() . 
+DEPRECATED Replaced by krb5_auth_con_getsendsubkey(). 
 
 
 

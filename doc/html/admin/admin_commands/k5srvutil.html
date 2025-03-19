@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>k5srvutil &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../../_static/jquery.js"></script>
-    <script type="text/javascript" src="../../_static/underscore.js"></script>
-    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../../about.html" />
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
     <link rel="copyright" title="Copyright" href="../../copyright.html" />
     <link rel="next" title="sserver" href="sserver.html" />
     <link rel="prev" title="ktutil" href="ktutil.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,27 +52,26 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="k5srvutil">
+  <section id="k5srvutil">
 <span id="k5srvutil-1"></span><h1>k5srvutil<a class="headerlink" href="#k5srvutil" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="synopsis">
+<section id="synopsis">
 <h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
 <p><strong>k5srvutil</strong> <em>operation</em>
 [<strong>-i</strong>]
 [<strong>-f</strong> <em>filename</em>]
 [<strong>-e</strong> <em>keysalts</em>]</p>
-</div>
-<div class="section" id="description">
+</section>
+<section id="description">
 <h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
 <p>k5srvutil allows an administrator to list keys currently in
 a keytab, to obtain new keys for a principal currently in a keytab,
 or to delete non-current keys from a keytab.</p>
 <p><em>operation</em> must be one of the following:</p>
-<dl class="docutils">
-<dt><strong>list</strong></dt>
-<dd>Lists the keys in a keytab, showing version number and principal
-name.</dd>
-<dt><strong>change</strong></dt>
-<dd>Uses the kadmin protocol to update the keys in the Kerberos
+<dl class="simple">
+<dt><strong>list</strong></dt><dd><p>Lists the keys in a keytab, showing version number and principal
+name.</p>
+</dd>
+<dt><strong>change</strong></dt><dd><p>Uses the kadmin protocol to update the keys in the Kerberos
 database to new randomly-generated keys, and updates the keys in
 the keytab to match.  If a key’s version number doesn’t match the
 version number stored in the Kerberos server’s database, then the
@@ -92,39 +82,42 @@ Ordinarily, keys will be generated with the default encryption
 types and key salts.  This can be overridden with the <strong>-e</strong>
 option.  Old keys are retained in the keytab so that existing
 tickets continue to work, but <strong>delold</strong> should be used after
-such tickets expire, to prevent attacks against the old keys.</dd>
-<dt><strong>delold</strong></dt>
-<dd>Deletes keys that are not the most recent version from the keytab.
+such tickets expire, to prevent attacks against the old keys.</p>
+</dd>
+<dt><strong>delold</strong></dt><dd><p>Deletes keys that are not the most recent version from the keytab.
 This operation should be used some time after a change operation
 to remove old keys, after existing tickets issued for the service
 have expired.  If the <strong>-i</strong> flag is given, then k5srvutil will
-prompt for confirmation for each principal.</dd>
-<dt><strong>delete</strong></dt>
-<dd>Deletes particular keys in the keytab, interactively prompting for
-each key.</dd>
+prompt for confirmation for each principal.</p>
+</dd>
+<dt><strong>delete</strong></dt><dd><p>Deletes particular keys in the keytab, interactively prompting for
+each key.</p>
+</dd>
 </dl>
 <p>In all cases, the default keytab is used unless this is overridden by
 the <strong>-f</strong> option.</p>
 <p>k5srvutil uses the <a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> program to edit the keytab in
 place.</p>
-</div>
-<div class="section" id="environment">
+</section>
+<section id="environment">
 <h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
 <p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
 variables.</p>
-</div>
-<div class="section" id="see-also">
+</section>
+<section id="see-also">
 <h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
 <p><a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>, <a class="reference internal" href="ktutil.html#ktutil-1"><span class="std std-ref">ktutil</span></a>, <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">k5srvutil</a><ul>
@@ -200,6 +193,7 @@ variables.</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -207,8 +201,8 @@ variables.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

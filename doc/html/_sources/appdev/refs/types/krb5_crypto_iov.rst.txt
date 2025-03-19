@@ -16,7 +16,7 @@ The *flags* member describes the type of the iov. The *data* member points to th
 Declaration
 ------------
 
-typedef struct _krb5_crypto_iov  krb5_crypto_iov
+typedef struct _krb5_crypto_iov krb5_crypto_iov
 
 
 Members
@@ -25,7 +25,7 @@ Members
 
 .. c:member:: krb5_cryptotype	krb5_crypto_iov.flags
 
-                                             :c:data:`KRB5_CRYPTO_TYPE` type of the iov
+                                             iov type (see KRB5_CRYPTO_TYPE macros)
                                              
 
 .. c:member:: krb5_data	krb5_crypto_iov.data

@@ -16,7 +16,7 @@ krb5_k_verify_checksum_iov -  Validate a checksum element in IOV array (operates
 
 	          **[in]** **key** - Encryption key for a keyed checksum
 
-	          **[in]** **usage** - Key usage (see :data:`KRB5_KEYUSAGE` types)
+	          **[in]** **usage** - Key usage (see KRB5_KEYUSAGE macros)
 
 	          **[in]** **data** - IOV array
 
@@ -40,7 +40,7 @@ krb5_k_verify_checksum_iov -  Validate a checksum element in IOV array (operates
 
 
 
-Confirm that the checksum in the :data:`KRB5_CRYPTO_TYPE_CHECKSUM` element is a valid checksum of the :data:`KRB5_CRYPTO_TYPE_DATA` and :data:`KRB5_CRYPTO_TYPE_SIGN_ONLY` regions in the iov.
+Confirm that the checksum in the #KRB5_CRYPTO_TYPE_CHECKSUM element is a valid checksum of the #KRB5_CRYPTO_TYPE_DATA and #KRB5_CRYPTO_TYPE_SIGN_ONLY regions in the iov.
 
 
 
@@ -54,7 +54,7 @@ Confirm that the checksum in the :data:`KRB5_CRYPTO_TYPE_CHECKSUM` element is a 
 ..
 
 .. seealso::
-         :c:func:`krb5_k_make_checksum_iov()` 
+         krb5_k_make_checksum_iov()
  
 
 
@@ -63,7 +63,7 @@ Confirm that the checksum in the :data:`KRB5_CRYPTO_TYPE_CHECKSUM` element is a 
 
 .. note::
 
-	 This function is similar to :c:func:`krb5_c_verify_checksum_iov()` , but operates on opaque *key* .
+	 This function is similar to krb5_c_verify_checksum_iov(), but operates on opaque *key* .
  
 
 

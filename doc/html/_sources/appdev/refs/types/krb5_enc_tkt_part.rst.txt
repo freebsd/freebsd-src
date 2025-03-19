@@ -16,7 +16,7 @@ Encrypted part of ticket.
 Declaration
 ------------
 
-typedef struct _krb5_enc_tkt_part  krb5_enc_tkt_part
+typedef struct _krb5_enc_tkt_part krb5_enc_tkt_part
 
 
 Members

@@ -1,5 +1,5 @@
-krb5_responder_otp_challenge_free -  Free the value returned by krb5_responder_otp_get_challenge() . 
-=====================================================================================================
+krb5_responder_otp_challenge_free -  Free the value returned by krb5_responder_otp_get_challenge(). 
+====================================================================================================
 
 ..
 

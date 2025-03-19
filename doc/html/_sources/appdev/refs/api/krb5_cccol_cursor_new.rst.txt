@@ -34,7 +34,7 @@ Get a new cache iteration *cursor* that will iterate over all known credential c
 
 
 
-Use :c:func:`krb5_cccol_cursor_free()` to release *cursor* when it is no longer needed.
+Use krb5_cccol_cursor_free() to release *cursor* when it is no longer needed.
 
 
 
@@ -48,7 +48,7 @@ Use :c:func:`krb5_cccol_cursor_free()` to release *cursor* when it is no longer 
 ..
 
 .. seealso::
-         :c:func:`krb5_cccol_cursor_next()` 
+         krb5_cccol_cursor_next()
  
 
 

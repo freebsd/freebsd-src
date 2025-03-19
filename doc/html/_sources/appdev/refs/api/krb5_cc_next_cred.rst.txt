@@ -38,7 +38,7 @@ This function fills in *creds* with the next entry in *cache* and advances *curs
 
 
 
-Use :c:func:`krb5_free_cred_contents()` to free *creds* when it is no longer needed.
+Use krb5_free_cred_contents() to free *creds* when it is no longer needed.
 
 
 
@@ -52,7 +52,7 @@ Use :c:func:`krb5_free_cred_contents()` to free *creds* when it is no longer nee
 ..
 
 .. seealso::
-         :c:func:`krb5_cc_start_seq_get()` , krb5_end_seq_get()
+         krb5_cc_start_seq_get(), krb5_end_seq_get()
  
 
 

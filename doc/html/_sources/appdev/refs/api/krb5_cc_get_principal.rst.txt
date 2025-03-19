@@ -35,11 +35,11 @@ krb5_cc_get_principal -  Get the default principal of a credential cache.
 
 
 
-Returns the default client principal of a credential cache as set by :c:func:`krb5_cc_initialize()` .
+Returns the default client principal of a credential cache as set by krb5_cc_initialize().
 
 
 
-Use :c:func:`krb5_free_principal()` to free *principal* when it is no longer needed.
+Use krb5_free_principal() to free *principal* when it is no longer needed.
 
 
 

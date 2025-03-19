@@ -32,7 +32,7 @@ krb5_copy_principal -  Copy a principal.
 
 
 
-This function creates a new principal structure with the contents of *inprinc* . Use :c:func:`krb5_free_principal()` to free *outprinc* when it is no longer needed.
+This function creates a new principal structure with the contents of *inprinc* . Use krb5_free_principal() to free *outprinc* when it is no longer needed.
 
 
 

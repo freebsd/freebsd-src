@@ -38,7 +38,7 @@ krb5_kt_next_entry -  Retrieve the next entry from the key table.
 
 
 
-Return the next sequential entry in *keytab* and advance *cursor* . Callers must release the returned entry with :c:func:`krb5_kt_free_entry()` .
+Return the next sequential entry in *keytab* and advance *cursor* . Callers must release the returned entry with krb5_kt_free_entry().
 
 
 

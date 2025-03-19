@@ -32,7 +32,7 @@ krb5_copy_creds -  Copy a krb5_creds structure.
 
 
 
-This function creates a new credential with the contents of *incred* . Use :c:func:`krb5_free_creds()` to free *outcred* when it is no longer needed.
+This function creates a new credential with the contents of *incred* . Use krb5_free_creds() to free *outcred* when it is no longer needed.
 
 
 

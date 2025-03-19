@@ -36,7 +36,7 @@ krb5_c_string_to_key -  Convert a string (such a password) to a key.
 
 
 
-This function converts *string* to a *key* of encryption type *enctype* , using the specified *salt* . The newly created *key* must be released by calling :c:func:`krb5_free_keyblock_contents()` when it is no longer needed.
+This function converts *string* to a *key* of encryption type *enctype* , using the specified *salt* . The newly created *key* must be released by calling krb5_free_keyblock_contents() when it is no longer needed.
 
 
 

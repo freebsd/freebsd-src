@@ -32,7 +32,7 @@ krb5_copy_keyblock_contents -  Copy the contents of a keyblock.
 
 
 
-This function copies the contents of *from* to *to* . Use :c:func:`krb5_free_keyblock_contents()` to free *to* when it is no longer needed.
+This function copies the contents of *from* to *to* . Use krb5_free_keyblock_contents() to free *to* when it is no longer needed.
 
 
 

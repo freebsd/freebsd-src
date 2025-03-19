@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>General plugin concepts &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="Client preauthentication interface (clpreauth)" href="clpreauth.html" />
     <link rel="prev" title="For plugin module developers" href="index.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,7 +52,7 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="general-plugin-concepts">
+  <section id="general-plugin-concepts">
 <h1>General plugin concepts<a class="headerlink" href="#general-plugin-concepts" title="Permalink to this headline">¶</a></h1>
 <p>A krb5 dynamic plugin module is a Unix shared object or Windows DLL.
 Typically, the source code for a dynamic plugin module should live in
@@ -70,35 +61,35 @@ tools with similar functionality.</p>
 <p>A plugin module must define a specific symbol name, which depends on
 the pluggable interface and module name.  For most pluggable
 interfaces, the exported symbol is a function named
-<code class="docutils literal"><span class="pre">INTERFACE_MODULE_initvt</span></code>, where <em>INTERFACE</em> is the name of the
+<code class="docutils literal notranslate"><span class="pre">INTERFACE_MODULE_initvt</span></code>, where <em>INTERFACE</em> is the name of the
 pluggable interface and <em>MODULE</em> is the name of the module.  For these
 interfaces, it is possible for one shared object or DLL to implement
 multiple plugin modules, either for the same pluggable interface or
 for different ones.  For example, a shared object could implement both
 KDC and client preauthentication mechanisms, by exporting functions
-named <code class="docutils literal"><span class="pre">kdcpreauth_mymech_initvt</span></code> and <code class="docutils literal"><span class="pre">clpreauth_mymech_initvt</span></code>.</p>
+named <code class="docutils literal notranslate"><span class="pre">kdcpreauth_mymech_initvt</span></code> and <code class="docutils literal notranslate"><span class="pre">clpreauth_mymech_initvt</span></code>.</p>
 <p>A plugin module implementation should include the header file
-<code class="docutils literal"><span class="pre">&lt;krb5/INTERFACE_plugin.h&gt;</span></code>, where <em>INTERFACE</em> is the name of the
+<code class="docutils literal notranslate"><span class="pre">&lt;krb5/INTERFACE_plugin.h&gt;</span></code>, where <em>INTERFACE</em> is the name of the
 pluggable interface.  For instance, a ccselect plugin module
-implementation should use <code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;krb5/ccselect_plugin.h&gt;</span></code>.</p>
+implementation should use <code class="docutils literal notranslate"><span class="pre">#include</span> <span class="pre">&lt;krb5/ccselect_plugin.h&gt;</span></code>.</p>
 <p>initvt functions have the following prototype:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">krb5_error_code</span> <span class="n">interface_modname_initvt</span><span class="p">(</span><span class="n">krb5_context</span> <span class="n">context</span><span class="p">,</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">krb5_error_code</span> <span class="n">interface_modname_initvt</span><span class="p">(</span><span class="n">krb5_context</span> <span class="n">context</span><span class="p">,</span>
                                          <span class="nb">int</span> <span class="n">maj_ver</span><span class="p">,</span> <span class="nb">int</span> <span class="n">min_ver</span><span class="p">,</span>
                                          <span class="n">krb5_plugin_vtable</span> <span class="n">vtable</span><span class="p">);</span>
 </pre></div>
 </div>
 <p>and should do the following:</p>
 <ol class="arabic simple">
-<li>Check that the supplied maj_ver argument is supported by the
+<li><p>Check that the supplied maj_ver argument is supported by the
 module.  If it is not supported, the function should return
-KRB5_PLUGIN_VER_NOTSUPP.</li>
-<li>Cast the supplied vtable pointer to the structure type
+KRB5_PLUGIN_VER_NOTSUPP.</p></li>
+<li><p>Cast the supplied vtable pointer to the structure type
 corresponding to the major version, as documented in the pluggable
-interface header file.</li>
-<li>Fill in the structure fields with pointers to method functions and
+interface header file.</p></li>
+<li><p>Fill in the structure fields with pointers to method functions and
 static data, stopping at the field indicated by the supplied minor
 version.  Fields for unimplemented optional methods can be left
-alone; it is not necessary to initialize them to NULL.</li>
+alone; it is not necessary to initialize them to NULL.</p></li>
 </ol>
 <p>In most cases, the context argument will not be used.  The initvt
 function should not allocate memory; think of it as a glorified
@@ -111,7 +102,7 @@ literal containing the module name.</p>
 <p>Here is an example of what an initvt function might look like for a
 fictional pluggable interface named fences, for a module named
 “wicker”:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">krb5_error_code</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">krb5_error_code</span>
 <span class="n">fences_wicker_initvt</span><span class="p">(</span><span class="n">krb5_context</span> <span class="n">context</span><span class="p">,</span> <span class="nb">int</span> <span class="n">maj_ver</span><span class="p">,</span>
                      <span class="nb">int</span> <span class="n">min_ver</span><span class="p">,</span> <span class="n">krb5_plugin_vtable</span> <span class="n">vtable</span><span class="p">)</span>
 <span class="p">{</span>
@@ -140,7 +131,7 @@ fictional pluggable interface named fences, for a module named
 <span class="p">}</span>
 </pre></div>
 </div>
-<div class="section" id="logging-from-kdc-and-kadmind-plugin-modules">
+<section id="logging-from-kdc-and-kadmind-plugin-modules">
 <h2>Logging from KDC and kadmind plugin modules<a class="headerlink" href="#logging-from-kdc-and-kadmind-plugin-modules" title="Permalink to this headline">¶</a></h2>
 <p>Plugin modules for the KDC or kadmind daemons can write to the
 configured logging outputs (see <a class="reference internal" href="../admin/conf_files/kdc_conf.html#logging"><span class="std std-ref">[logging]</span></a>) by calling the
@@ -149,7 +140,7 @@ the second argument (<em>code</em>) is zero, the formatted message is logged
 at informational severity; otherwise, the formatted message is logged
 at error severity and includes the error message for the supplied
 code.  Here are examples:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">com_err</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Client message contains </span><span class="si">%d</span><span class="s2"> items&quot;</span><span class="p">,</span> <span class="n">nitems</span><span class="p">);</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">com_err</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Client message contains </span><span class="si">%d</span><span class="s2"> items&quot;</span><span class="p">,</span> <span class="n">nitems</span><span class="p">);</span>
 <span class="n">com_err</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">retval</span><span class="p">,</span> <span class="s2">&quot;while decoding client message&quot;</span><span class="p">);</span>
 </pre></div>
 </div>
@@ -158,15 +149,17 @@ releases, the <em>whoami</em> argument is included for some logging output
 types, the logged message does not include the usual header for some
 output types, and the severity for syslog outputs is configured as
 part of the logging specification, defaulting to error severity.)</p>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">General plugin concepts</a><ul>
@@ -217,6 +210,7 @@ part of the logging specification, defaulting to error severity.)</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -224,8 +218,8 @@ part of the logging specification, defaulting to error severity.)</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

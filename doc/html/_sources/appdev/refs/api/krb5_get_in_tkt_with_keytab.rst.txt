@@ -36,7 +36,7 @@ krb5_get_in_tkt_with_keytab
 ..
 
 
-DEPRECATED Replaced by krb5_get_init_creds_keytab() . 
+DEPRECATED Replaced by krb5_get_init_creds_keytab(). 
 
 
 

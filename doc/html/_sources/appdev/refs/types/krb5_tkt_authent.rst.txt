@@ -16,7 +16,7 @@ Ticket authentication data.
 Declaration
 ------------
 
-typedef struct _krb5_tkt_authent  krb5_tkt_authent
+typedef struct _krb5_tkt_authent krb5_tkt_authent
 
 
 Members

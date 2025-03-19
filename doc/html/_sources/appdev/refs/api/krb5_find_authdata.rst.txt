@@ -33,7 +33,7 @@ krb5_find_authdata -  Find authorization data elements.
 
 
 
-This function searches *ticket_authdata* and *ap_req_authdata* for elements of type *ad_type* . Either input list may be NULL, in which case it will not be searched; otherwise, the input lists must be terminated by NULL entries. This function will search inside AD-IF-RELEVANT containers if found in either list. Use :c:func:`krb5_free_authdata()` to free *results* when it is no longer needed.
+This function searches *ticket_authdata* and *ap_req_authdata* for elements of type *ad_type* . Either input list may be NULL, in which case it will not be searched; otherwise, the input lists must be terminated by NULL entries. This function will search inside AD-IF-RELEVANT containers if found in either list. Use krb5_free_authdata() to free *results* when it is no longer needed.
 
 
 

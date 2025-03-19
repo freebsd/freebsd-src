@@ -16,7 +16,7 @@ Exposed contents of a key.
 Declaration
 ------------
 
-typedef struct _krb5_keyblock  krb5_keyblock
+typedef struct _krb5_keyblock krb5_keyblock
 
 
 Members

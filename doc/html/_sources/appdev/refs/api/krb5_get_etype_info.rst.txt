@@ -45,11 +45,11 @@ Send an initial ticket request for *principal* and extract the encryption type, 
 
 
 
- *opt* may be used to specify options which affect the initial request, such as request encryption types or a FAST armor cache (see :c:func:`krb5_get_init_creds_opt_set_etype_list()` and :c:func:`krb5_get_init_creds_opt_set_fast_ccache_name()` ).
+ *opt* may be used to specify options which affect the initial request, such as request encryption types or a FAST armor cache (see krb5_get_init_creds_opt_set_etype_list() and krb5_get_init_creds_opt_set_fast_ccache_name()).
 
 
 
-Use :c:func:`krb5_free_data_contents()` to free *salt_out* and *s2kparams_out* when they are no longer needed.
+Use krb5_free_data_contents() to free *salt_out* and *s2kparams_out* when they are no longer needed.
 
 
 

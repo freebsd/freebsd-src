@@ -1,5 +1,5 @@
-krb5_c_free_state -  Free a cipher state previously allocated by krb5_c_init_state() . 
-=======================================================================================
+krb5_c_free_state -  Free a cipher state previously allocated by krb5_c_init_state(). 
+======================================================================================
 
 ..
 

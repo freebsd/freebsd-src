@@ -35,7 +35,7 @@ krb5_kt_start_seq_get -  Start a sequential retrieval of key table entries.
 
 
 
-Prepare to read sequentially every key in the specified key table. Use :c:func:`krb5_kt_end_seq_get()` to release the cursor when it is no longer needed.
+Prepare to read sequentially every key in the specified key table. Use krb5_kt_end_seq_get() to release the cursor when it is no longer needed.
 
 
 

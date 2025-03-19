@@ -62,7 +62,7 @@ If no PAC is present in *enc_tkt* , set *pac_out* to NULL and return successfull
 
 .. note::
 
-	 This function does not validate the PAC_CLIENT_INFO buffer. If a specific value is expected, the caller can make a separate call to :c:func:`krb5_pac_verify_ext()` with a principal but no keys.
+	 This function does not validate the PAC_CLIENT_INFO buffer. If a specific value is expected, the caller can make a separate call to krb5_pac_verify_ext() with a principal but no keys.
  
 
 

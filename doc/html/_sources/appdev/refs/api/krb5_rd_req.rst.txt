@@ -44,11 +44,11 @@ This function parses, decrypts and verifies a AP-REQ message from *inbuf* and st
 
 
 
-If a keyblock was specified in *auth_context* using :c:func:`krb5_auth_con_setuseruserkey()` , that key is used to decrypt the ticket in AP-REQ message and *keytab* is ignored. In this case, *server* should be specified as a complete principal name to allow for proper transited-path checking and replay cache selection.
+If a keyblock was specified in *auth_context* using krb5_auth_con_setuseruserkey(), that key is used to decrypt the ticket in AP-REQ message and *keytab* is ignored. In this case, *server* should be specified as a complete principal name to allow for proper transited-path checking and replay cache selection.
 
 
 
-Otherwise, the decryption key is obtained from *keytab* , or from the default keytab if it is NULL. In this case, *server* may be a complete principal name, a matching principal (see :c:func:`krb5_sname_match()` ), or NULL to match any principal name. The keys tried against the encrypted part of the ticket are determined as follows:
+Otherwise, the decryption key is obtained from *keytab* , or from the default keytab if it is NULL. In this case, *server* may be a complete principal name, a matching principal (see krb5_sname_match()), or NULL to match any principal name. The keys tried against the encrypted part of the ticket are determined as follows:
 
 
 
@@ -82,11 +82,11 @@ Various other checks are performed on the decoded data, including cross-realm po
 
 
 
-On success the authenticator, subkey, and remote sequence number of the request are stored in *auth_context* . If the :data:`AP_OPTS_MUTUAL_REQUIRED` bit is set, the local sequence number is XORed with the remote sequence number in the request.
+On success the authenticator, subkey, and remote sequence number of the request are stored in *auth_context* . If the #AP_OPTS_MUTUAL_REQUIRED bit is set, the local sequence number is XORed with the remote sequence number in the request.
 
 
 
-Use :c:func:`krb5_free_ticket()` to free *ticket* when it is no longer needed.
+Use krb5_free_ticket() to free *ticket* when it is no longer needed.
 
 
 

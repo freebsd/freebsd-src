@@ -13,5 +13,5 @@ krb5_princ_component
 
 
 ============================================== ======================
-``krb5_princ_component (context, princ, i)``       ``(((i) < krb5_princ_size(context, princ)) ? (princ)->data + (i) : NULL)``
+``krb5_princ_component (context, princ, i)``       ``    (((i) < krb5_princ_size(context, princ)) ? (princ)->data + (i) : NULL)``
 ============================================== ======================

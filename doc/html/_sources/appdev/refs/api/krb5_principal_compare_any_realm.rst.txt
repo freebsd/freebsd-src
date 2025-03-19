@@ -32,7 +32,7 @@ krb5_principal_compare_any_realm -  Compare two principals ignoring realm compon
 
 
 
-Similar to :c:func:`krb5_principal_compare()` , but do not compare the realm components of the principals.
+Similar to krb5_principal_compare(), but do not compare the realm components of the principals.
 
 
 

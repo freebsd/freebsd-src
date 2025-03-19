@@ -35,7 +35,7 @@ krb5_kt_end_seq_get -  Release a keytab cursor.
 
 
 
-This function should be called to release the cursor created by :c:func:`krb5_kt_start_seq_get()` .
+This function should be called to release the cursor created by krb5_kt_start_seq_get().
 
 
 

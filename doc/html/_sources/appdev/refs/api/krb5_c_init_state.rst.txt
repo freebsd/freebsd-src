@@ -14,7 +14,7 @@ krb5_c_init_state -  Initialize a new cipher state.
 
 	          **[in]** **key** - Key
 
-	          **[in]** **usage** - Key usage (see :data:`KRB5_KEYUSAGE` types)
+	          **[in]** **usage** - Key usage (see KRB5_KEYUSAGE macros)
 
 	          **[out]** **new_state** - New cipher state
 

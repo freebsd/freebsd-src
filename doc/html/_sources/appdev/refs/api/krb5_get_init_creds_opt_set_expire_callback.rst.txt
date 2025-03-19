@@ -66,7 +66,7 @@ Note that *cb* may be invoked even if credentials are being acquired for the kad
 
 .. warning::
 
-	 Setting an expire callback with this API will cause :c:func:`krb5_get_init_creds_password()` not to send password expiry warnings to the prompter, as it ordinarily may.
+	 Setting an expire callback with this API will cause krb5_get_init_creds_password() not to send password expiry warnings to the prompter, as it ordinarily may.
  
 
 

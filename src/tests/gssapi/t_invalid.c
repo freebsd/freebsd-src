@@ -36,31 +36,41 @@
  *
  * 1. A pre-CFX wrap or MIC token processed with a CFX-only context causes a
  *    null pointer dereference.  (The token must use SEAL_ALG_NONE or it will
- *    be rejected.)
+ *    be rejected.)  This vulnerability also applies to IOV unwrap.
  *
- * 2. A pre-CFX wrap or MIC token with fewer than 24 bytes after the ASN.1
+ * 2. A CFX wrap token with a different value of EC between the plaintext and
+ *    encrypted copies will be erroneously accepted, which allows a message
+ *    truncation attack.  This vulnerability also applies to IOV unwrap.
+ *
+ * 3. A CFX wrap token with a plaintext length fewer than 16 bytes causes an
+ *    access before the beginning of the input buffer, possibly leading to a
+ *    crash.
+ *
+ * 4. A CFX wrap token with a plaintext EC value greater than the plaintext
+ *    length - 16 causes an integer underflow when computing the result length,
+ *    likely causing a crash.
+ *
+ * 5. An IOV unwrap operation will overrun the header buffer if an ASN.1
+ *    wrapper longer than the header buffer is present.
+ *
+ * 6. A pre-CFX wrap or MIC token with fewer than 24 bytes after the ASN.1
  *    header causes an input buffer overrun, usually leading to either a segv
  *    or a GSS_S_DEFECTIVE_TOKEN error due to garbage algorithm, filler, or
- *    sequence number values.
+ *    sequence number values.  This vulnerability also applies to IOV unwrap.
  *
- * 3. A pre-CFX wrap token with fewer than 16 + cksumlen bytes after the ASN.1
+ * 7. A pre-CFX wrap token with fewer than 16 + cksumlen bytes after the ASN.1
  *    header causes an integer underflow when computing the ciphertext length,
  *    leading to an allocation error on 32-bit platforms or a segv on 64-bit
  *    platforms.  A pre-CFX MIC token of this size causes an input buffer
  *    overrun when comparing the checksum, perhaps leading to a segv.
  *
- * 4. A pre-CFX wrap token with fewer than conflen + padlen bytes in the
+ * 8. A pre-CFX wrap token with fewer than conflen + padlen bytes in the
  *    ciphertext (where padlen is the last byte of the decrypted ciphertext)
  *    causes an integer underflow when computing the original message length,
  *    leading to an allocation error.
  *
- * 5. In the mechglue, truncated encapsulation in the initial context token can
+ * 9. In the mechglue, truncated encapsulation in the initial context token can
  *    cause input buffer overruns in gss_accept_sec_context().
- *
- * Vulnerabilities #1 and #2 also apply to IOV unwrap, although tokens with
- * fewer than 16 bytes after the ASN.1 header will be rejected.
- * Vulnerabilities #2 and #5 can only be robustly detected using a
- * memory-checking environment such as valgrind.
  */
 
 #include "k5-int.h"
@@ -109,17 +119,25 @@ struct test {
     }
 };
 
-/* Fake up enough of a CFX GSS context for gss_unwrap, using an AES key. */
+static void *
+ealloc(size_t len)
+{
+    void *ptr = calloc(len, 1);
+
+    if (ptr == NULL)
+        abort();
+    return ptr;
+}
+
+/* Fake up enough of a CFX GSS context for gss_unwrap, using an AES key.
+ * The context takes ownership of subkey. */
 static gss_ctx_id_t
-make_fake_cfx_context()
+make_fake_cfx_context(krb5_key subkey)
 {
     gss_union_ctx_id_t uctx;
     krb5_gss_ctx_id_t kgctx;
-    krb5_keyblock kb;
 
-    kgctx = calloc(1, sizeof(*kgctx));
-    if (kgctx == NULL)
-        abort();
+    kgctx = ealloc(sizeof(*kgctx));
     kgctx->established = 1;
     kgctx->proto = 1;
     if (g_seqstate_init(&kgctx->seqstate, 0, 0, 0, 0) != 0)
@@ -128,15 +146,10 @@ make_fake_cfx_context()
     kgctx->sealalg = -1;
     kgctx->signalg = -1;
 
-    kb.enctype = ENCTYPE_AES128_CTS_HMAC_SHA1_96;
-    kb.length = 16;
-    kb.contents = (unsigned char *)"1234567887654321";
-    if (krb5_k_create_key(NULL, &kb, &kgctx->subkey) != 0)
-        abort();
+    kgctx->subkey = subkey;
+    kgctx->cksumtype = CKSUMTYPE_HMAC_SHA1_96_AES128;
 
-    uctx = calloc(1, sizeof(*uctx));
-    if (uctx == NULL)
-        abort();
+    uctx = ealloc(sizeof(*uctx));
     uctx->mech_type = &mech_krb5;
     uctx->internal_ctx_id = (gss_ctx_id_t)kgctx;
     return (gss_ctx_id_t)uctx;
@@ -150,9 +163,7 @@ make_fake_context(const struct test *test)
     krb5_gss_ctx_id_t kgctx;
     krb5_keyblock kb;
 
-    kgctx = calloc(1, sizeof(*kgctx));
-    if (kgctx == NULL)
-        abort();
+    kgctx = ealloc(sizeof(*kgctx));
     kgctx->established = 1;
     if (g_seqstate_init(&kgctx->seqstate, 0, 0, 0, 0) != 0)
         abort();
@@ -174,9 +185,7 @@ make_fake_context(const struct test *test)
     if (krb5_k_create_key(NULL, &kb, &kgctx->enc) != 0)
         abort();
 
-    uctx = calloc(1, sizeof(*uctx));
-    if (uctx == NULL)
-        abort();
+    uctx = ealloc(sizeof(*uctx));
     uctx->mech_type = &mech_krb5;
     uctx->internal_ctx_id = (gss_ctx_id_t)kgctx;
     return (gss_ctx_id_t)uctx;
@@ -206,9 +215,7 @@ make_token(unsigned char *token, size_t len, gss_buffer_t out)
 
     assert(mech_krb5.length == 9);
     assert(len + 11 < 128);
-    wrapped = malloc(len + 13);
-    if (wrapped == NULL)
-        abort();
+    wrapped = ealloc(len + 13);
     wrapped[0] = 0x60;
     wrapped[1] = len + 11;
     wrapped[2] = 0x06;
@@ -217,6 +224,18 @@ make_token(unsigned char *token, size_t len, gss_buffer_t out)
     memcpy(wrapped + 13, token, len);
     out->length = len + 13;
     out->value = wrapped;
+}
+
+/* Create a 16-byte header for a CFX confidential wrap token to be processed by
+ * the fake CFX context. */
+static void
+write_cfx_header(uint16_t ec, uint8_t *out)
+{
+    memset(out, 0, 16);
+    store_16_be(KG2_TOK_WRAP_MSG, out);
+    out[2] = FLAG_WRAP_CONFIDENTIAL;
+    out[3] = 0xFF;
+    store_16_be(ec, out + 4);
 }
 
 /* Unwrap a superficially valid RFC 1964 token with a CFX-only context, with
@@ -248,6 +267,134 @@ test_bogus_1964_token(gss_ctx_id_t ctx)
         abort();
 
     free(in.value);
+}
+
+static void
+test_cfx_altered_ec(gss_ctx_id_t ctx, krb5_key subkey)
+{
+    OM_uint32 major, minor;
+    uint8_t tokbuf[128], plainbuf[24];
+    krb5_data plain;
+    krb5_enc_data cipher;
+    gss_buffer_desc in, out;
+    gss_iov_buffer_desc iov[2];
+
+    /* Construct a header with a plaintext EC value of 3. */
+    write_cfx_header(3, tokbuf);
+
+    /* Encrypt a plaintext and a copy of the header with the EC value 0. */
+    memcpy(plainbuf, "truncate", 8);
+    memcpy(plainbuf + 8, tokbuf, 16);
+    store_16_be(0, plainbuf + 12);
+    plain = make_data(plainbuf, 24);
+    cipher.ciphertext.data = (char *)tokbuf + 16;
+    cipher.ciphertext.length = sizeof(tokbuf) - 16;
+    cipher.enctype = subkey->keyblock.enctype;
+    if (krb5_k_encrypt(NULL, subkey, KG_USAGE_INITIATOR_SEAL, NULL,
+                       &plain, &cipher) != 0)
+        abort();
+
+    /* Verify that the token is rejected by gss_unwrap(). */
+    in.value = tokbuf;
+    in.length = 16 + cipher.ciphertext.length;
+    major = gss_unwrap(&minor, ctx, &in, &out, NULL, NULL);
+    if (major != GSS_S_DEFECTIVE_TOKEN)
+        abort();
+    (void)gss_release_buffer(&minor, &out);
+
+    /* Verify that the token is rejected by gss_unwrap_iov(). */
+    iov[0].type = GSS_IOV_BUFFER_TYPE_STREAM;
+    iov[0].buffer = in;
+    iov[1].type = GSS_IOV_BUFFER_TYPE_DATA;
+    major = gss_unwrap_iov(&minor, ctx, NULL, NULL, iov, 2);
+    if (major != GSS_S_DEFECTIVE_TOKEN)
+        abort();
+}
+
+static void
+test_cfx_short_plaintext(gss_ctx_id_t ctx, krb5_key subkey)
+{
+    OM_uint32 major, minor;
+    uint8_t tokbuf[128], zerobyte = 0;
+    krb5_data plain;
+    krb5_enc_data cipher;
+    gss_buffer_desc in, out;
+
+    write_cfx_header(0, tokbuf);
+
+    /* Encrypt a single byte, with no copy of the header. */
+    plain = make_data(&zerobyte, 1);
+    cipher.ciphertext.data = (char *)tokbuf + 16;
+    cipher.ciphertext.length = sizeof(tokbuf) - 16;
+    cipher.enctype = subkey->keyblock.enctype;
+    if (krb5_k_encrypt(NULL, subkey, KG_USAGE_INITIATOR_SEAL, NULL,
+                       &plain, &cipher) != 0)
+        abort();
+
+    /* Verify that the token is rejected by gss_unwrap(). */
+    in.value = tokbuf;
+    in.length = 16 + cipher.ciphertext.length;
+    major = gss_unwrap(&minor, ctx, &in, &out, NULL, NULL);
+    if (major != GSS_S_DEFECTIVE_TOKEN)
+        abort();
+    (void)gss_release_buffer(&minor, &out);
+}
+
+static void
+test_cfx_large_ec(gss_ctx_id_t ctx, krb5_key subkey)
+{
+    OM_uint32 major, minor;
+    uint8_t tokbuf[128] = { 0 }, plainbuf[20];
+    krb5_data plain;
+    krb5_enc_data cipher;
+    gss_buffer_desc in, out;
+
+    /* Construct a header with an EC value of 5. */
+    write_cfx_header(5, tokbuf);
+
+    /* Encrypt a 4-byte plaintext plus the header. */
+    memcpy(plainbuf, "abcd", 4);
+    memcpy(plainbuf + 4, tokbuf, 16);
+    plain = make_data(plainbuf, 20);
+    cipher.ciphertext.data = (char *)tokbuf + 16;
+    cipher.ciphertext.length = sizeof(tokbuf) - 16;
+    cipher.enctype = subkey->keyblock.enctype;
+    if (krb5_k_encrypt(NULL, subkey, KG_USAGE_INITIATOR_SEAL, NULL,
+                       &plain, &cipher) != 0)
+        abort();
+
+    /* Verify that the token is rejected by gss_unwrap(). */
+    in.value = tokbuf;
+    in.length = 16 + cipher.ciphertext.length;
+    major = gss_unwrap(&minor, ctx, &in, &out, NULL, NULL);
+    if (major != GSS_S_DEFECTIVE_TOKEN)
+        abort();
+    (void)gss_release_buffer(&minor, &out);
+}
+
+static void
+test_iov_large_asn1_wrapper(gss_ctx_id_t ctx)
+{
+    OM_uint32 minor, major;
+    uint8_t databuf[10] = { 0 };
+    gss_iov_buffer_desc iov[2];
+
+    /*
+     * In this IOV array, the header contains a DER tag with a dangling eight
+     * bytes of length field.  The data IOV indicates a total token length
+     * sufficient to contain the length bytes.
+     */
+    iov[0].type = GSS_IOV_BUFFER_TYPE_HEADER;
+    iov[0].buffer.value = ealloc(2);
+    iov[0].buffer.length = 2;
+    memcpy(iov[0].buffer.value, "\x60\x88", 2);
+    iov[1].type = GSS_IOV_BUFFER_TYPE_DATA;
+    iov[1].buffer.value = databuf;
+    iov[1].buffer.length = 10;
+    major = gss_unwrap_iov(&minor, ctx, NULL, NULL, iov, 2);
+    if (major != GSS_S_DEFECTIVE_TOKEN)
+        abort();
+    free(iov[0].buffer.value);
 }
 
 /* Process wrap and MIC tokens with incomplete headers. */
@@ -399,9 +546,7 @@ try_accept(void *value, size_t len)
     gss_ctx_id_t ctx = GSS_C_NO_CONTEXT;
 
     /* Copy the provided value to make input overruns more obvious. */
-    in.value = malloc(len);
-    if (in.value == NULL)
-        abort();
+    in.value = ealloc(len);
     memcpy(in.value, value, len);
     in.length = len;
     (void)gss_accept_sec_context(&minor, &ctx, GSS_C_NO_CREDENTIAL, &in,
@@ -436,11 +581,23 @@ test_short_encapsulation()
 int
 main(int argc, char **argv)
 {
+    krb5_keyblock kb;
+    krb5_key cfx_subkey;
     gss_ctx_id_t ctx;
     size_t i;
 
-    ctx = make_fake_cfx_context();
+    kb.enctype = ENCTYPE_AES128_CTS_HMAC_SHA1_96;
+    kb.length = 16;
+    kb.contents = (unsigned char *)"1234567887654321";
+    if (krb5_k_create_key(NULL, &kb, &cfx_subkey) != 0)
+        abort();
+
+    ctx = make_fake_cfx_context(cfx_subkey);
     test_bogus_1964_token(ctx);
+    test_cfx_altered_ec(ctx, cfx_subkey);
+    test_cfx_short_plaintext(ctx, cfx_subkey);
+    test_cfx_large_ec(ctx, cfx_subkey);
+    test_iov_large_asn1_wrapper(ctx);
     free_fake_context(ctx);
 
     for (i = 0; i < sizeof(tests) / sizeof(*tests); i++) {

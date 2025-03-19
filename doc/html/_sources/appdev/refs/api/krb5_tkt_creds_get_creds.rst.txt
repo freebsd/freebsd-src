@@ -32,7 +32,7 @@ krb5_tkt_creds_get_creds -  Retrieve acquired credentials from a TGS request con
 
 
 
-This function copies the acquired initial credentials from *ctx* into *creds* , after the successful completion of :c:func:`krb5_tkt_creds_get()` or :c:func:`krb5_tkt_creds_step()` . Use :c:func:`krb5_free_cred_contents()` to free *creds* when it is no longer needed.
+This function copies the acquired initial credentials from *ctx* into *creds* , after the successful completion of krb5_tkt_creds_get() or krb5_tkt_creds_step(). Use krb5_free_cred_contents() to free *creds* when it is no longer needed.
 
 
 

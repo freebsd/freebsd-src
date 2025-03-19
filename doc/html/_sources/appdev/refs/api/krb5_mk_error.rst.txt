@@ -32,7 +32,7 @@ krb5_mk_error -  Format and encode a KRB_ERROR message.
 
 
 
-This function creates a **KRB_ERROR** message in *enc_err* . Use :c:func:`krb5_free_data_contents()` to free *enc_err* when it is no longer needed.
+This function creates a **KRB_ERROR** message in *enc_err* . Use krb5_free_data_contents() to free *enc_err* when it is no longer needed.
 
 
 

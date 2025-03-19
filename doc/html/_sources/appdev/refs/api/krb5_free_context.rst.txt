@@ -25,7 +25,7 @@ krb5_free_context -  Free a krb5 library context.
 
 
 
-This function frees a *context* that was created by :c:func:`krb5_init_context()` or :c:func:`krb5_init_secure_context()` .
+This function frees a *context* that was created by krb5_init_context() or krb5_init_secure_context().
 
 
 

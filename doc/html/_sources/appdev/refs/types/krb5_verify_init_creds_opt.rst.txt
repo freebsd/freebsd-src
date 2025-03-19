@@ -15,7 +15,7 @@ krb5_verify_init_creds_opt
 Declaration
 ------------
 
-typedef struct _krb5_verify_init_creds_opt  krb5_verify_init_creds_opt
+typedef struct _krb5_verify_init_creds_opt krb5_verify_init_creds_opt
 
 
 Members

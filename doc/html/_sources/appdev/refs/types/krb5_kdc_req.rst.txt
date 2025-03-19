@@ -16,7 +16,7 @@ C representation of KDC-REQ protocol message, including KDC-REQ-BODY.
 Declaration
 ------------
 
-typedef struct _krb5_kdc_req  krb5_kdc_req
+typedef struct _krb5_kdc_req krb5_kdc_req
 
 
 Members

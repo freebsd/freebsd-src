@@ -408,10 +408,15 @@ gss_krb5int_unseal_token_v3(krb5_context *contextptr,
             /* Don't use bodysize here!  Use the fact that
                cipher.ciphertext.length has been adjusted to the
                correct length.  */
+            if (plain.length < 16 + ec) {
+                free(plain.data);
+                goto defective;
+            }
             althdr = (unsigned char *)plain.data + plain.length - 16;
             if (load_16_be(althdr) != KG2_TOK_WRAP_MSG
                 || althdr[2] != ptr[2]
                 || althdr[3] != ptr[3]
+                || load_16_be(althdr+4) != ec
                 || memcmp(althdr+8, ptr+8, 8)) {
                 free(plain.data);
                 goto defective;

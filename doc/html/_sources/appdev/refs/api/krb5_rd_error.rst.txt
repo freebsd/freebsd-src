@@ -32,7 +32,7 @@ krb5_rd_error -  Decode a KRB-ERROR message.
 
 
 
-This function processes **KRB-ERROR** message *enc_errbuf* and returns an allocated structure *dec_error* containing the error message. Use :c:func:`krb5_free_error()` to free *dec_error* when it is no longer needed.
+This function processes **KRB-ERROR** message *enc_errbuf* and returns an allocated structure *dec_error* containing the error message. Use krb5_free_error() to free *dec_error* when it is no longer needed.
 
 
 

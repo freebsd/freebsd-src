@@ -16,7 +16,7 @@ Cleartext that is encrypted and put into :c:type:`_krb5_ap_rep` .
 Declaration
 ------------
 
-typedef struct _krb5_ap_rep_enc_part  krb5_ap_rep_enc_part
+typedef struct _krb5_ap_rep_enc_part krb5_ap_rep_enc_part
 
 
 Members

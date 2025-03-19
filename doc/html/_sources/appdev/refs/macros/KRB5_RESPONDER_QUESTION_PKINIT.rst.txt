@@ -19,7 +19,6 @@ The PKINIT responder question is asked when the client needs a password that's b
         ...
     }
 
-
 The answer to the question MUST be JSON formatted:
 ::
 
@@ -28,8 +27,7 @@ The answer to the question MUST be JSON formatted:
         ...
     }
 
-
-
+  
 
 ===================================== ======================
 ``KRB5_RESPONDER_QUESTION_PKINIT``       ``"pkinit"``

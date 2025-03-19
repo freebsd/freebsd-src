@@ -32,7 +32,7 @@ krb5_copy_addresses -  Copy an array of addresses.
 
 
 
-This function creates a new address array containing a copy of *inaddr* . Use :c:func:`krb5_free_addresses()` to free *outaddr* when it is no longer needed.
+This function creates a new address array containing a copy of *inaddr* . Use krb5_free_addresses() to free *outaddr* when it is no longer needed.
 
 
 

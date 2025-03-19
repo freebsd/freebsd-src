@@ -1,5 +1,5 @@
-krb5_free_error -  Free an error allocated by krb5_read_error() or krb5_sendauth() . 
-=====================================================================================
+krb5_free_error -  Free an error allocated by krb5_read_error() or krb5_sendauth(). 
+====================================================================================
 
 ..
 

@@ -16,7 +16,7 @@ This is the cleartext message that is encrypted and inserted in *KDC-REP* .
 Declaration
 ------------
 
-typedef struct _krb5_enc_kdc_rep_part  krb5_enc_kdc_rep_part
+typedef struct _krb5_enc_kdc_rep_part krb5_enc_kdc_rep_part
 
 
 Members

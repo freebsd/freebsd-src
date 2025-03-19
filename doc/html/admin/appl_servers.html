@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>Application servers &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="Host configuration" href="host_config.html" />
     <link rel="prev" title="Configuring Kerberos with OpenLDAP back-end" href="conf_ldap.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,7 +52,7 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="application-servers">
+  <section id="application-servers">
 <h1>Application servers<a class="headerlink" href="#application-servers" title="Permalink to this headline">¶</a></h1>
 <p>If you need to install the Kerberos V5 programs on an application
 server, please refer to the Kerberos V5 Installation Guide.  Once you
@@ -69,7 +60,7 @@ have installed the software, you need to add that host to the Kerberos
 database (see <a class="reference internal" href="database.html#principals"><span class="std std-ref">Principals</span></a>), and generate a keytab for that host,
 that contains the host’s key.  You also need to make sure the host’s
 clock is within your maximum clock skew of the KDCs.</p>
-<div class="section" id="keytabs">
+<section id="keytabs">
 <h2>Keytabs<a class="headerlink" href="#keytabs" title="Permalink to this headline">¶</a></h2>
 <p>A keytab is a host’s copy of its own keylist, which is analogous to a
 user’s password.  An application server that needs to authenticate
@@ -81,28 +72,28 @@ readable only by root, and you should never send a keytab file over a
 network in the clear.  Ideally, you should run the <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>
 command to extract a keytab on the host on which the keytab is to
 reside.</p>
-<div class="section" id="adding-principals-to-keytabs">
+<section id="adding-principals-to-keytabs">
 <span id="add-princ-kt"></span><h3>Adding principals to keytabs<a class="headerlink" href="#adding-principals-to-keytabs" title="Permalink to this headline">¶</a></h3>
 <p>To generate a keytab, or to add a principal to an existing keytab, use
 the <strong>ktadd</strong> command from kadmin.  Here is a sample session, using
 configuration files that enable only AES encryption:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">ktadd</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">ktadd</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
 <span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">2</span><span class="p">,</span> <span class="n">encryption</span> <span class="nb">type</span> <span class="n">aes256</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span>
 <span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">2</span><span class="p">,</span> <span class="n">encryption</span> <span class="nb">type</span> <span class="n">aes128</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="removing-principals-from-keytabs">
+</section>
+<section id="removing-principals-from-keytabs">
 <h3>Removing principals from keytabs<a class="headerlink" href="#removing-principals-from-keytabs" title="Permalink to this headline">¶</a></h3>
 <p>To remove a principal from an existing keytab, use the kadmin
 <strong>ktremove</strong> command:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span>  <span class="n">ktremove</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span>  <span class="n">ktremove</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
 <span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">2</span> <span class="n">removed</span> <span class="kn">from</span> <span class="nn">keytab</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
 <span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">2</span> <span class="n">removed</span> <span class="kn">from</span> <span class="nn">keytab</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="using-a-keytab-to-acquire-client-credentials">
+</section>
+<section id="using-a-keytab-to-acquire-client-credentials">
 <h3>Using a keytab to acquire client credentials<a class="headerlink" href="#using-a-keytab-to-acquire-client-credentials" title="Permalink to this headline">¶</a></h3>
 <p>While keytabs are ordinarily used to accept credentials from clients,
 they can also be used to acquire initial credentials, allowing one
@@ -114,27 +105,27 @@ the default location.</p>
 automatically obtain initial credentials from a keytab as needed.  The
 recommended configuration is as follows:</p>
 <ol class="arabic simple">
-<li>Create a keytab containing a single entry for the desired client
-identity.</li>
-<li>Place the keytab in a location readable by the service, and set the
+<li><p>Create a keytab containing a single entry for the desired client
+identity.</p></li>
+<li><p>Place the keytab in a location readable by the service, and set the
 <strong>KRB5_CLIENT_KTNAME</strong> environment variable to its filename.
 Alternatively, use the <strong>default_client_keytab_name</strong> profile
 variable in <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>, or use the default location of
-<a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">DEFCKTNAME</span></a>.</li>
-<li>Set <strong>KRB5CCNAME</strong> to a filename writable by the service, which
+<a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">DEFCKTNAME</span></a>.</p></li>
+<li><p>Set <strong>KRB5CCNAME</strong> to a filename writable by the service, which
 will not be used for any other purpose.  Do not manually obtain
 credentials at this location.  (Another credential cache type
 besides <strong>FILE</strong> can be used if desired, as long the cache will not
 conflict with another use.  A <strong>MEMORY</strong> cache can be used if the
 service runs as a long-lived process.  See <a class="reference internal" href="../basic/ccache_def.html#ccache-definition"><span class="std std-ref">Credential cache</span></a>
-for details.)</li>
-<li>Start the service.  When it authenticates using GSSAPI, it will
+for details.)</p></li>
+<li><p>Start the service.  When it authenticates using GSSAPI, it will
 automatically obtain credentials from the client keytab into the
-specified credential cache, and refresh them before they expire.</li>
+specified credential cache, and refresh them before they expire.</p></li>
 </ol>
-</div>
-</div>
-<div class="section" id="clock-skew">
+</section>
+</section>
+<section id="clock-skew">
 <h2>Clock Skew<a class="headerlink" href="#clock-skew" title="Permalink to this headline">¶</a></h2>
 <p>A Kerberos application server host must keep its clock synchronized or
 it will reject authentication requests from clients.  Modern operating
@@ -144,8 +135,8 @@ machines, where clocks tend to drift more rapidly than normal machine
 clocks.</p>
 <p>The default allowable clock skew is controlled by the <strong>clockskew</strong>
 variable in <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>.</p>
-</div>
-<div class="section" id="getting-dns-information-correct">
+</section>
+<section id="getting-dns-information-correct">
 <h2>Getting DNS information correct<a class="headerlink" href="#getting-dns-information-correct" title="Permalink to this headline">¶</a></h2>
 <p>Several aspects of Kerberos rely on name service.  When a hostname is
 used to name a service, clients may canonicalize the hostname using
@@ -157,19 +148,19 @@ host name (including the domain), and each host’s IP address must
 reverse-resolve to the canonical name.</p>
 <p>Configuration of hostnames varies by operating system.  On the
 application server itself, canonicalization will typically use the
-<code class="docutils literal"><span class="pre">/etc/hosts</span></code> file rather than the DNS.  Ensure that the line for the
+<code class="docutils literal notranslate"><span class="pre">/etc/hosts</span></code> file rather than the DNS.  Ensure that the line for the
 server’s hostname is in the following form:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">IP</span> <span class="n">address</span>      <span class="n">fully</span><span class="o">-</span><span class="n">qualified</span> <span class="n">hostname</span>        <span class="n">aliases</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">IP</span> <span class="n">address</span>      <span class="n">fully</span><span class="o">-</span><span class="n">qualified</span> <span class="n">hostname</span>        <span class="n">aliases</span>
 </pre></div>
 </div>
-<p>Here is a sample <code class="docutils literal"><span class="pre">/etc/hosts</span></code> file:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># this is a comment</span>
-<span class="mf">127.0</span><span class="o">.</span><span class="mf">0.1</span>      <span class="n">localhost</span> <span class="n">localhost</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span>
-<span class="mf">10.0</span><span class="o">.</span><span class="mf">0.6</span>       <span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="n">daffodil</span> <span class="n">trillium</span> <span class="n">wake</span><span class="o">-</span><span class="n">robin</span>
+<p>Here is a sample <code class="docutils literal notranslate"><span class="pre">/etc/hosts</span></code> file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># this is a comment</span>
+<span class="mf">127.0.0.1</span>      <span class="n">localhost</span> <span class="n">localhost</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span>
+<span class="mf">10.0.0.6</span>       <span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="n">daffodil</span> <span class="n">trillium</span> <span class="n">wake</span><span class="o">-</span><span class="n">robin</span>
 </pre></div>
 </div>
-<p>The output of <code class="docutils literal"><span class="pre">klist</span> <span class="pre">-k</span></code> for this example host should look like:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">viola</span><span class="c1"># klist -k</span>
+<p>The output of <code class="docutils literal notranslate"><span class="pre">klist</span> <span class="pre">-k</span></code> for this example host should look like:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">viola</span><span class="c1"># klist -k</span>
 <span class="n">Keytab</span> <span class="n">name</span><span class="p">:</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span>
 <span class="n">KVNO</span> <span class="n">Principal</span>
 <span class="o">----</span> <span class="o">------------------------------------------------------------</span>
@@ -178,9 +169,9 @@ server’s hostname is in the following form:</p>
 </div>
 <p>If you were to ssh to this host with a fresh credentials cache (ticket
 file), and then <a class="reference internal" href="../user/user_commands/klist.html#klist-1"><span class="std std-ref">klist</span></a>, the output should list a service
-principal of <code class="docutils literal"><span class="pre">host/daffodil.mit.edu&#64;ATHENA.MIT.EDU</span></code>.</p>
-</div>
-<div class="section" id="configuring-your-firewall-to-work-with-kerberos-v5">
+principal of <code class="docutils literal notranslate"><span class="pre">host/daffodil.mit.edu&#64;ATHENA.MIT.EDU</span></code>.</p>
+</section>
+<section id="configuring-your-firewall-to-work-with-kerberos-v5">
 <span id="conf-firewall"></span><h2>Configuring your firewall to work with Kerberos V5<a class="headerlink" href="#configuring-your-firewall-to-work-with-kerberos-v5" title="Permalink to this headline">¶</a></h2>
 <p>If you need off-site users to be able to get Kerberos tickets in your
 realm, they must be able to get to your KDC.  This requires either
@@ -202,18 +193,20 @@ need to get to Kerberos admin servers in other realms, you will also
 need to allow outgoing TCP and UDP requests to port 749.</p>
 <p>If any of your KDCs are outside your firewall, you will need to allow
 kprop requests to get through to the remote KDC.  <a class="reference internal" href="admin_commands/kprop.html#kprop-8"><span class="std std-ref">kprop</span></a> uses
-the <code class="docutils literal"><span class="pre">krb5_prop</span></code> service on port 754 (tcp).</p>
+the <code class="docutils literal notranslate"><span class="pre">krb5_prop</span></code> service on port 754 (tcp).</p>
 <p>The book <em>UNIX System Security</em>, by David Curry, is a good starting
 point for learning to configure firewalls.</p>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">Application servers</a><ul>
@@ -281,6 +274,7 @@ point for learning to configure firewalls.</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -288,8 +282,8 @@ point for learning to configure firewalls.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 

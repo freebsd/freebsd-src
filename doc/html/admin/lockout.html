@@ -1,35 +1,26 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
     <title>Account lockout &#8212; MIT Kerberos Documentation</title>
-    <link rel="stylesheet" href="../_static/agogo.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="../_static/kerb.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '1.21.2',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="../about.html" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="copyright" title="Copyright" href="../copyright.html" />
     <link rel="next" title="Configuring Kerberos with OpenLDAP back-end" href="conf_ldap.html" />
     <link rel="prev" title="Database types" href="dbtypes.html" /> 
-  </head>
-  <body>
+  </head><body>
     <div class="header-wrapper">
         <div class="header">
             
@@ -61,14 +52,14 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="account-lockout">
+  <section id="account-lockout">
 <span id="lockout"></span><h1>Account lockout<a class="headerlink" href="#account-lockout" title="Permalink to this headline">¶</a></h1>
 <p>As of release 1.8, the KDC can be configured to lock out principals
 after a number of failed authentication attempts within a period of
 time.  Account lockout can make it more difficult to attack a
 principal’s password by brute force, but also makes it easy for an
 attacker to deny access to a principal.</p>
-<div class="section" id="configuring-account-lockout">
+<section id="configuring-account-lockout">
 <h2>Configuring account lockout<a class="headerlink" href="#configuring-account-lockout" title="Permalink to this headline">¶</a></h2>
 <p>Account lockout only works for principals with the
 <strong>+requires_preauth</strong> flag set.  Without this flag, the KDC cannot
@@ -77,7 +68,7 @@ issued.  It is also important to set the <strong>-allow_svr</strong> flag on a
 principal to protect its password from an off-line dictionary attack
 through a TGS request.  You can set these flags on a principal with
 <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> as follows:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">modprinc</span> <span class="o">+</span><span class="n">requires_preauth</span> <span class="o">-</span><span class="n">allow_svr</span> <span class="n">PRINCNAME</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">modprinc</span> <span class="o">+</span><span class="n">requires_preauth</span> <span class="o">-</span><span class="n">allow_svr</span> <span class="n">PRINCNAME</span>
 </pre></div>
 </div>
 <p>Account lockout parameters are configured via <a class="reference internal" href="database.html#policies"><span class="std std-ref">policy objects</span></a>.  There may be an existing policy associated with user
@@ -85,28 +76,28 @@ principals (such as the “default” policy), or you may need to create a
 new one and associate it with each user principal.</p>
 <p>The policy parameters related to account lockout are:</p>
 <ul class="simple">
-<li><a class="reference internal" href="admin_commands/kadmin_local.html#policy-maxfailure"><span class="std std-ref">maxfailure</span></a>: the number of failed attempts
-before the principal is locked out</li>
-<li><a class="reference internal" href="admin_commands/kadmin_local.html#policy-failurecountinterval"><span class="std std-ref">failurecountinterval</span></a>: the
-allowable interval between failed attempts</li>
-<li><a class="reference internal" href="admin_commands/kadmin_local.html#policy-lockoutduration"><span class="std std-ref">lockoutduration</span></a>: the amount of time
-a principal is locked out for</li>
+<li><p><a class="reference internal" href="admin_commands/kadmin_local.html#policy-maxfailure"><span class="std std-ref">maxfailure</span></a>: the number of failed attempts
+before the principal is locked out</p></li>
+<li><p><a class="reference internal" href="admin_commands/kadmin_local.html#policy-failurecountinterval"><span class="std std-ref">failurecountinterval</span></a>: the
+allowable interval between failed attempts</p></li>
+<li><p><a class="reference internal" href="admin_commands/kadmin_local.html#policy-lockoutduration"><span class="std std-ref">lockoutduration</span></a>: the amount of time
+a principal is locked out for</p></li>
 </ul>
 <p>Here is an example of setting these parameters on a new policy and
 associating it with a principal:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">addpol</span> <span class="o">-</span><span class="n">maxfailure</span> <span class="mi">10</span> <span class="o">-</span><span class="n">failurecountinterval</span> <span class="mi">180</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">addpol</span> <span class="o">-</span><span class="n">maxfailure</span> <span class="mi">10</span> <span class="o">-</span><span class="n">failurecountinterval</span> <span class="mi">180</span>
     <span class="o">-</span><span class="n">lockoutduration</span> <span class="mi">60</span> <span class="n">lockout_policy</span>
 <span class="n">kadmin</span><span class="p">:</span> <span class="n">modprinc</span> <span class="o">-</span><span class="n">policy</span> <span class="n">lockout_policy</span> <span class="n">PRINCNAME</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="testing-account-lockout">
+</section>
+<section id="testing-account-lockout">
 <h2>Testing account lockout<a class="headerlink" href="#testing-account-lockout" title="Permalink to this headline">¶</a></h2>
 <p>To test that account lockout is working, try authenticating as the
 principal (hopefully not one that might be in use) multiple times with
 the wrong password.  For instance, if <strong>maxfailure</strong> is set to 2, you
 might see:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span>$ kinit user
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ kinit user
 Password for user@KRBTEST.COM:
 kinit: Password incorrect while getting initial credentials
 $ kinit user
@@ -116,21 +107,21 @@ $ kinit user
 kinit: Client&#39;s credentials have been revoked while getting initial credentials
 </pre></div>
 </div>
-</div>
-<div class="section" id="account-lockout-principal-state">
+</section>
+<section id="account-lockout-principal-state">
 <h2>Account lockout principal state<a class="headerlink" href="#account-lockout-principal-state" title="Permalink to this headline">¶</a></h2>
 <p>A principal entry keeps three pieces of state related to account
 lockout:</p>
 <ul class="simple">
-<li>The time of last successful authentication</li>
-<li>The time of last failed authentication</li>
-<li>A counter of failed attempts</li>
+<li><p>The time of last successful authentication</p></li>
+<li><p>The time of last failed authentication</p></li>
+<li><p>A counter of failed attempts</p></li>
 </ul>
 <p>The time of last successful authentication is not actually needed for
 the account lockout system to function, but may be of administrative
 interest.  These fields can be observed with the <strong>getprinc</strong> kadmin
 command.  For example:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">getprinc</span> <span class="n">user</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">getprinc</span> <span class="n">user</span>
 <span class="n">Principal</span><span class="p">:</span> <span class="n">user</span><span class="nd">@KRBTEST</span><span class="o">.</span><span class="n">COM</span>
 <span class="o">...</span>
 <span class="n">Last</span> <span class="n">successful</span> <span class="n">authentication</span><span class="p">:</span> <span class="p">[</span><span class="n">never</span><span class="p">]</span>
@@ -141,12 +132,12 @@ command.  For example:</p>
 </div>
 <p>A principal which has been locked out can be administratively unlocked
 with the <strong>-unlock</strong> option to the <strong>modprinc</strong> kadmin command:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">modprinc</span> <span class="o">-</span><span class="n">unlock</span> <span class="n">PRINCNAME</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">modprinc</span> <span class="o">-</span><span class="n">unlock</span> <span class="n">PRINCNAME</span>
 </pre></div>
 </div>
 <p>This command will reset the number of failed attempts to 0.</p>
-</div>
-<div class="section" id="kdc-replication-and-account-lockout">
+</section>
+<section id="kdc-replication-and-account-lockout">
 <h2>KDC replication and account lockout<a class="headerlink" href="#kdc-replication-and-account-lockout" title="Permalink to this headline">¶</a></h2>
 <p>The account lockout state of a principal is not replicated by either
 traditional <a class="reference internal" href="admin_commands/kprop.html#kprop-8"><span class="std std-ref">kprop</span></a> or incremental propagation.  Because of
@@ -164,8 +155,8 @@ reset to 1 on the next failure.</p>
 incremental propagation, such as the LDAP KDB module with multi-master
 LDAP replication, then account lockout state may be replicated between
 KDCs and the concerns of this section may not apply.</p>
-</div>
-<div class="section" id="kdc-performance-and-account-lockout">
+</section>
+<section id="kdc-performance-and-account-lockout">
 <span id="disable-lockout"></span><h2>KDC performance and account lockout<a class="headerlink" href="#kdc-performance-and-account-lockout" title="Permalink to this headline">¶</a></h2>
 <p>In order to fully track account lockout state, the KDC must write to
 the the database on each successful and failed authentication.
@@ -175,7 +166,7 @@ As of release 1.9, it is possible to turn off account lockout state
 tracking in order to improve performance, by setting the
 <strong>disable_last_success</strong> and <strong>disable_lockout</strong> variables in the
 database module subsection of <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.  For example:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">dbmodules</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">dbmodules</span><span class="p">]</span>
     <span class="n">DB</span> <span class="o">=</span> <span class="p">{</span>
         <span class="n">disable_last_success</span> <span class="o">=</span> <span class="n">true</span>
         <span class="n">disable_lockout</span> <span class="o">=</span> <span class="n">true</span>
@@ -187,23 +178,25 @@ have the largest positive impact on performance, and will still allow
 account lockout policies to operate.  However, it will make it
 impossible to observe the last successful authentication time with
 kadmin.</p>
-</div>
-<div class="section" id="kdc-setup-and-account-lockout">
+</section>
+<section id="kdc-setup-and-account-lockout">
 <h2>KDC setup and account lockout<a class="headerlink" href="#kdc-setup-and-account-lockout" title="Permalink to this headline">¶</a></h2>
 <p>To update the account lockout state on principals, the KDC must be
 able to write to the principal database.  For the DB2 module, no
 special setup is required.  For the LDAP module, the KDC DN must be
 granted write access to the principal objects.  If the KDC DN has only
 read access, account lockout will not function.</p>
-</div>
-</div>
+</section>
+</section>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
         </div>
         <div class="sidebar">
+          
     <h2>On this page</h2>
     <ul>
 <li><a class="reference internal" href="#">Account lockout</a><ul>
@@ -268,6 +261,7 @@ read access, account lockout will not function.</p>
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+
         </div>
         <div class="clearer"></div>
       </div>
@@ -275,8 +269,8 @@ read access, account lockout will not function.</p>
 
     <div class="footer-wrapper">
         <div class="footer" >
-            <div class="right" ><i>Release: 1.21.2</i><br />
-                &copy; <a href="../copyright.html">Copyright</a> 1985-2023, MIT.
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
             </div>
             <div class="left">
                 
