@@ -18,7 +18,7 @@
 #include <sys/proc.h>
 #include <sys/refcount.h>
 #include <sys/sbuf.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #include <dev/nvme/nvme.h>
 #include <dev/nvmf/host/nvmf_var.h>
 

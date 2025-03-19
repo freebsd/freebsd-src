@@ -32,11 +32,10 @@
 #include <sys/ctype.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/stdarg.h>
 #include <sys/systm.h>
 
 #include <contrib/libfdt/libfdt.h>
-
-#include <machine/stdarg.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofwvar.h>

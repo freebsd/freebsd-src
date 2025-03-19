@@ -47,14 +47,13 @@
 #include <sys/proc.h>
 #include <sys/selinfo.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
 #include <sys/unistd.h>
 
 #include <cddl/dev/dtrace/dtrace_cddl.h>
-
-#include <machine/stdarg.h>
 
 #ifdef LINUX_SYSTRACE
 #if defined(__amd64__)
