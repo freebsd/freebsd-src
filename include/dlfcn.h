@@ -80,6 +80,9 @@ typedef	struct dl_info {
 	const char	*dli_sname;	/* Name of nearest symbol. */
 	void		*dli_saddr;	/* Address of nearest symbol. */
 } Dl_info;
+#if __POSIX_VISIBLE >= 202405
+typedef struct dl_info Dl_info_t;
+#endif
 
 /*-
  * The actual type declared by this typedef is immaterial, provided that
@@ -119,9 +122,12 @@ char	*dlerror(void);
 void	*dlopen(const char *, int);
 void	*dlsym(void * __restrict, const char * __restrict);
 
+#if __POSIX_VISIBLE >= 202405
+int	 dladdr(const void * __restrict, Dl_info * __restrict);
+#endif
+
 #if __BSD_VISIBLE
 void	*fdlopen(int, int);
-int	 dladdr(const void * __restrict, Dl_info * __restrict);
 dlfunc_t dlfunc(void * __restrict, const char * __restrict);
 int	 dlinfo(void * __restrict, int, void * __restrict);
 void	 dllockinit(void *_context,
