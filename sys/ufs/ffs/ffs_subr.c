@@ -384,16 +384,35 @@ void
 ffs_oldfscompat_write(struct fs *fs)
 {
 
-	/*
-	 * Copy back UFS2 updated fields that UFS1 inspects.
-	 */
-	if (fs->fs_magic == FS_UFS1_MAGIC) {
+	switch (fs->fs_magic) {
+	case FS_UFS1_MAGIC:
+		if (fs->fs_sblockloc != SBLOCK_UFS1 &&
+		    (fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
+			printf(
+			"WARNING: %s: correcting fs_sblockloc from %jd to %d\n",
+			    fs->fs_fsmnt, fs->fs_sblockloc, SBLOCK_UFS1);
+			fs->fs_sblockloc = SBLOCK_UFS1;
+		}
+		/*
+		 * Copy back UFS2 updated fields that UFS1 inspects.
+		 */
 		fs->fs_old_time = fs->fs_time;
 		fs->fs_old_cstotal.cs_ndir = fs->fs_cstotal.cs_ndir;
 		fs->fs_old_cstotal.cs_nbfree = fs->fs_cstotal.cs_nbfree;
 		fs->fs_old_cstotal.cs_nifree = fs->fs_cstotal.cs_nifree;
 		fs->fs_old_cstotal.cs_nffree = fs->fs_cstotal.cs_nffree;
-		fs->fs_maxfilesize = fs->fs_save_maxfilesize;
+		if (fs->fs_save_maxfilesize != 0)
+			fs->fs_maxfilesize = fs->fs_save_maxfilesize;
+		break;
+	case FS_UFS2_MAGIC:
+		if (fs->fs_sblockloc != SBLOCK_UFS2 &&
+		    (fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
+			printf(
+			"WARNING: %s: correcting fs_sblockloc from %jd to %d\n",
+			    fs->fs_fsmnt, fs->fs_sblockloc, SBLOCK_UFS2);
+			fs->fs_sblockloc = SBLOCK_UFS2;
+		}
+		break;
 	}
 }
 
@@ -931,6 +950,7 @@ int
 ffs_sbput(void *devfd, struct fs *fs, off_t loc,
     int (*writefunc)(void *devfd, off_t loc, void *buf, int size))
 {
+	struct fs_summary_info *fs_si;
 	int i, error, blks, size;
 	uint8_t *space;
 
@@ -953,23 +973,27 @@ ffs_sbput(void *devfd, struct fs *fs, off_t loc,
 		}
 	}
 	fs->fs_fmod = 0;
-#ifndef _KERNEL
-	{
-		struct fs_summary_info *fs_si;
-
-		fs->fs_time = time(NULL);
-		/* Clear the pointers for the duration of writing. */
-		fs_si = fs->fs_si;
-		fs->fs_si = NULL;
-		fs->fs_ckhash = ffs_calc_sbhash(fs);
-		error = (*writefunc)(devfd, loc, fs, fs->fs_sbsize);
-		fs->fs_si = fs_si;
-	}
-#else /* _KERNEL */
+	ffs_oldfscompat_write(fs);
+#ifdef _KERNEL
 	fs->fs_time = time_second;
+#else /* User Code */
+	fs->fs_time = time(NULL);
+#endif
+	/* Clear the pointers for the duration of writing. */
+	fs_si = fs->fs_si;
+	fs->fs_si = NULL;
 	fs->fs_ckhash = ffs_calc_sbhash(fs);
 	error = (*writefunc)(devfd, loc, fs, fs->fs_sbsize);
-#endif /* _KERNEL */
+	/*
+	 * A negative error code is returned when a copy of the
+	 * superblock has been made which is discarded when the I/O
+	 * is done. So the fs_si field does not and indeed cannot be
+	 * restored after the write is done. Convert the error code
+	 * back to its usual positive value when returning it.
+	 */
+	if (error < 0)
+		return (-error - 1);
+	fs->fs_si = fs_si;
 	return (error);
 }
 

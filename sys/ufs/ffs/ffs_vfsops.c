@@ -2032,9 +2032,15 @@ ffs_sbupdate(struct ufsmount *ump, int waitfor, int suspended)
 		panic("ffs_sbupdate: write read-only filesystem");
 	/*
 	 * We use the superblock's buf to serialize calls to ffs_sbupdate().
+	 * Copy superblock to this buffer and have it written out.
 	 */
 	sbbp = getblk(ump->um_devvp, btodb(fs->fs_sblockloc),
 	    (int)fs->fs_sbsize, 0, 0, 0);
+	UFS_LOCK(ump);
+	fs->fs_fmod = 0;
+	bcopy((caddr_t)fs, sbbp->b_data, (uint64_t)fs->fs_sbsize);
+	UFS_UNLOCK(ump);
+	fs = (struct fs *)sbbp->b_data;
 	/*
 	 * Initialize info needed for write function.
 	 */
@@ -2060,7 +2066,8 @@ ffs_use_bwrite(void *devfd, off_t loc, void *buf, int size)
 
 	devfdp = devfd;
 	ump = devfdp->ump;
-	fs = ump->um_fs;
+	bp = devfdp->sbbp;
+	fs = (struct fs *)bp->b_data;
 	/*
 	 * Writing the superblock summary information.
 	 */
@@ -2077,44 +2084,27 @@ ffs_use_bwrite(void *devfd, off_t loc, void *buf, int size)
 	}
 	/*
 	 * Writing the superblock itself. We need to do special checks for it.
+	 * A negative error code is returned to indicate that a copy of the
+	 * superblock has been made and that the copy is discarded when the
+	 * I/O is done. So the the caller should not attempt to restore the
+	 * fs_si field after the write is done. The caller will convert the
+	 * error code back to its usual positive value when returning it.
 	 */
-	bp = devfdp->sbbp;
 	if (ffs_fsfail_cleanup(ump, devfdp->error))
 		devfdp->error = 0;
 	if (devfdp->error != 0) {
 		brelse(bp);
-		return (devfdp->error);
-	}
-	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_sblockloc != SBLOCK_UFS1 &&
-	    (fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
-		printf("WARNING: %s: correcting fs_sblockloc from %jd to %d\n",
-		    fs->fs_fsmnt, fs->fs_sblockloc, SBLOCK_UFS1);
-		fs->fs_sblockloc = SBLOCK_UFS1;
-	}
-	if (fs->fs_magic == FS_UFS2_MAGIC && fs->fs_sblockloc != SBLOCK_UFS2 &&
-	    (fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
-		printf("WARNING: %s: correcting fs_sblockloc from %jd to %d\n",
-		    fs->fs_fsmnt, fs->fs_sblockloc, SBLOCK_UFS2);
-		fs->fs_sblockloc = SBLOCK_UFS2;
+		return (-devfdp->error - 1);
 	}
 	if (MOUNTEDSOFTDEP(ump->um_mountp))
-		softdep_setup_sbupdate(ump, (struct fs *)bp->b_data, bp);
-	UFS_LOCK(ump);
-	bcopy((caddr_t)fs, bp->b_data, (uint64_t)fs->fs_sbsize);
-	UFS_UNLOCK(ump);
-	fs = (struct fs *)bp->b_data;
-	fs->fs_fmod = 0;
-	ffs_oldfscompat_write(fs);
-	fs->fs_si = NULL;
-	/* Recalculate the superblock hash */
-	fs->fs_ckhash = ffs_calc_sbhash(fs);
+		softdep_setup_sbupdate(ump, fs, bp);
 	if (devfdp->suspended)
 		bp->b_flags |= B_VALIDSUSPWRT;
 	if (devfdp->waitfor != MNT_WAIT)
 		bawrite(bp);
 	else if ((error = bwrite(bp)) != 0)
 		devfdp->error = error;
-	return (devfdp->error);
+	return (-devfdp->error - 1);
 }
 
 static int
