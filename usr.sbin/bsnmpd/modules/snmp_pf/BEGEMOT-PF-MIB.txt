@@ -21,19 +21,17 @@ IMPORTS
 	FROM BEGEMOT-MIB;
 
 begemotPf MODULE-IDENTITY
-    LAST-UPDATED "201003180000Z"
-    ORGANIZATION "NixSys BVBA"
+    LAST-UPDATED "202503190000Z"
+    ORGANIZATION "Alternative Enterprises (HK) Limited"
     CONTACT-INFO
 	    "		Philip Paeps
-
-	     Postal:	NixSys BVBA
-			Louizastraat 14
-			BE-2800 Mechelen
-			Belgium
 
 	     E-Mail:	philip@FreeBSD.org"
     DESCRIPTION
 	    "The Begemot MIB for the pf packet filter."
+    REVISION	"202503190000Z"
+    DESCRIPTION
+		"Reverted pfInterfacesIfRefsState to Unsigned32"
     REVISION	"201003180000Z"
     DESCRIPTION
 		"Modified pfTablesAddrEntry to support IPv6
@@ -583,7 +581,7 @@ PfInterfacesIfEntry ::= SEQUENCE {
     pfInterfacesIfDescr		    OCTET STRING,
     pfInterfacesIfType		    INTEGER,
     pfInterfacesIfTZero		    TimeTicks,
-    pfInterfacesIfRefsState	    Null,
+    pfInterfacesIfRefsState	    Unsigned32,
     pfInterfacesIfRefsRule	    Unsigned32,
     pfInterfacesIf4BytesInPass	    Counter64,
     pfInterfacesIf4BytesInBlock	    Counter64,
