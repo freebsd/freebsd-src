@@ -27,6 +27,7 @@ ATF_TESTS_SH+=	altq \
 		sctp \
 		set_skip \
 		set_tos \
+		snmp \
 		src_track \
 		syncookie \
 		synproxy \
@@ -40,7 +41,9 @@ ATF_TESTS_PYTEST+=	sctp.py
 # Tests reuse jail names and so cannot run in parallel.
 TEST_METADATA+=	is_exclusive=true
 
-${PACKAGE}FILES+=	CVE-2019-5597.py \
+${PACKAGE}FILES+=	\
+			bsnmpd.conf \
+			CVE-2019-5597.py \
 			CVE-2019-5598.py \
 			echo_inetd.conf \
 			fragcommon.py \
@@ -50,6 +53,7 @@ ${PACKAGE}FILES+=	CVE-2019-5597.py \
 			pfsync_defer.py \
 			utils.subr
 
+${PACKAGE}FILESMODE_bsnmpd.conf=		0555
 ${PACKAGE}FILESMODE_CVE-2019-5597.py=	0555
 ${PACKAGE}FILESMODE_CVE-2019-5598.py=	0555
 ${PACKAGE}FILESMODE_fragcommon.py=	0555
