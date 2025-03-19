@@ -677,7 +677,7 @@ Returns the address associated with the interface.
 .It Dv FIONBIO
 .Pq Li int
 Sets or clears non-blocking I/O.
-If arg is non-zero, then doing a
+If arg is nonzero, then doing a
 .Xr read 2
 when no data is available will return -1 and
 .Va errno
@@ -689,7 +689,7 @@ Note: setting this overrides the timeout set by
 .It Dv FIOASYNC
 .Pq Li int
 Enables or disables async I/O.
-When enabled (arg is non-zero), the process or process group specified by
+When enabled (arg is nonzero), the process or process group specified by
 .Dv FIOSETOWN
 will start receiving
 .Dv SIGIO 's
@@ -986,7 +986,7 @@ compare the accumulator against a constant
 .Pq Dv BPF_K
 or the index register
 .Pq Dv BPF_X .
-If the result is true (or non-zero),
+If the result is true (or nonzero),
 the true branch is taken, otherwise the false branch is taken.
 Jump offsets are encoded in 8 bits so the longest jump is 256 instructions.
 However, the jump always
