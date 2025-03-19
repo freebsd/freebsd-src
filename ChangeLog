@@ -1,3 +1,20 @@
+2025-03-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* bsd.after-import.mk: by default generate makefiles
+	closer to BSD style.
+
+	* VERSION (_MAKE_VERSION): 20250308
+	Merge with NetBSD make, pick up
+	o clean up comments and code for parallel mode
+	o job.c: avoid SIGPIPE for children, call Job_Wait befor abort.
+
+2025-02-27  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250225
+	Merge with NetBSD make, pick up
+	o job.c: reliably remove targets on interrupt,
+	by passing signal to children first.
+
 2025-01-25  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20250125

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.132 2024/09/22 19:56:26 sjg Exp $
+#	$Id: Makefile,v 1.133 2025/03/08 20:12:56 sjg Exp $
 
 PROG = bmake
 
@@ -65,7 +65,7 @@ COPTS.main.c += "-D$x=\"${$x}\""
 USE_FILEMON ?= no
 .if ${USE_FILEMON:tl} != "no"
 .PATH:	${srcdir}/filemon
-SRCS+=	filemon_${USE_FILEMON}.c
+SRCS += filemon_${USE_FILEMON}.c
 COPTS.meta.c += -DUSE_FILEMON -DUSE_FILEMON_${USE_FILEMON:tu}
 COPTS.job.c += ${COPTS.meta.c}
 
@@ -134,7 +134,7 @@ SYMLINKS += ${PROG_NAME} ${BINDIR}/${PROG}
 .endif
 .endif
 
-EXTRACT_MAN=no
+EXTRACT_MAN = no
 # end-delete1
 
 .if make(obj) || make(clean)
@@ -182,7 +182,7 @@ SED_CMDS.${MAN} += -e 's/^\.Nx/NetBSD/'
 ${MAN}:	${SRCS.${MAN}} _GENFILES_USE
 
 all man beforeinstall: ${MAN}
-_mfromdir=.
+_mfromdir = .
 .endif
 .endif				# MK_GEN_MAN
 
