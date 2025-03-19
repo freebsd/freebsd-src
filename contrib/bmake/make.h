@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.349 2025/01/19 10:57:10 rillig Exp $	*/
+/*	$NetBSD: make.h,v 1.350 2025/03/07 06:50:34 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -889,7 +889,6 @@ void Error(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);
 void Fatal(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2) MAKE_ATTR_DEAD;
 void Punt(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2) MAKE_ATTR_DEAD;
 void DieHorribly(void) MAKE_ATTR_DEAD;
-void Finish(int) MAKE_ATTR_DEAD;
 int unlink_file(const char *) MAKE_ATTR_USE;
 void execDie(const char *, const char *);
 char *getTmpdir(void) MAKE_ATTR_USE;

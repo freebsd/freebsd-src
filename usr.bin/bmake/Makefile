@@ -2,20 +2,20 @@
 # See contrib/bmake/bsd.after-import.mk
 #
 
-SRCTOP ?= ${.CURDIR:H:H}
+SRCTOP?= ${.CURDIR:H:H}
 
 # look here first for config.h
-CFLAGS += -I${.CURDIR}
+CFLAGS+= -I${.CURDIR}
 
 # for after-import
-CLEANDIRS += FreeBSD
-CLEANFILES += bootstrap
+CLEANDIRS+= FreeBSD
+CLEANFILES+= bootstrap
 
-#	$Id: Makefile,v 1.132 2024/09/22 19:56:26 sjg Exp $
+#	$Id: Makefile,v 1.133 2025/03/08 20:12:56 sjg Exp $
 
-PROG ?= ${.CURDIR:T}
+PROG?= ${.CURDIR:T}
 
-SRCS = \
+SRCS= \
 	arch.c \
 	buf.c \
 	compat.c \
@@ -40,8 +40,8 @@ SRCS = \
 
 .MAIN: all
 
-MAN = ${PROG}.1
-SRCS.${MAN} = ${srcdir}/make.1
+MAN= ${PROG}.1
+SRCS.${MAN}= ${srcdir}/make.1
 
 .-include "Makefile.inc"
 
@@ -49,45 +49,45 @@ SRCS.${MAN} = ${srcdir}/make.1
 .-include "Makefile.config"
 
 .if !empty(LIBOBJS)
-SRCS += ${LIBOBJS:T:.o=.c}
+SRCS+= ${LIBOBJS:T:.o=.c}
 .endif
 
 # just in case
-prefix ?= /usr
-srcdir ?= ${.PARSEDIR}
-srcdir := ${srcdir}
+prefix?= /usr
+srcdir?= ${.PARSEDIR}
+srcdir:= ${srcdir}
 
-DEFAULT_SYS_PATH ?= ${prefix}/share/mk
+DEFAULT_SYS_PATH?= ${prefix}/share/mk
 
-CPPFLAGS += -DUSE_META
-CFLAGS += ${CPPFLAGS}
-CFLAGS += -D_PATH_DEFSYSPATH=\"${DEFAULT_SYS_PATH}\"
-CFLAGS += -I. -I${srcdir} ${XDEFS} -DMAKE_NATIVE
-CFLAGS += ${COPTS.${.ALLSRC:M*.c:T:u}}
-COPTS.main.c += "-DMAKE_VERSION=\"${_MAKE_VERSION}\""
+CPPFLAGS+= -DUSE_META
+CFLAGS+= ${CPPFLAGS}
+CFLAGS+= -D_PATH_DEFSYSPATH=\"${DEFAULT_SYS_PATH}\"
+CFLAGS+= -I. -I${srcdir} ${XDEFS} -DMAKE_NATIVE
+CFLAGS+= ${COPTS.${.ALLSRC:M*.c:T:u}}
+COPTS.main.c+= "-DMAKE_VERSION=\"${_MAKE_VERSION}\""
 
 .for x in FORCE_MAKE_OS FORCE_MACHINE FORCE_MACHINE_ARCH
 .ifdef $x
-COPTS.main.c += "-D$x=\"${$x}\""
+COPTS.main.c+= "-D$x=\"${$x}\""
 .endif
 .endfor
 
 # meta mode can be useful even without filemon
 # should be set by now
-USE_FILEMON ?= no
+USE_FILEMON?= no
 .if ${USE_FILEMON:tl} != "no"
 .PATH:	${srcdir}/filemon
-SRCS +=	filemon_${USE_FILEMON}.c
-COPTS.meta.c += -DUSE_FILEMON -DUSE_FILEMON_${USE_FILEMON:tu}
-COPTS.job.c += ${COPTS.meta.c}
+SRCS+= filemon_${USE_FILEMON}.c
+COPTS.meta.c+= -DUSE_FILEMON -DUSE_FILEMON_${USE_FILEMON:tu}
+COPTS.job.c+= ${COPTS.meta.c}
 
 .if ${USE_FILEMON} == "dev"
-FILEMON_H ?= /usr/include/dev/filemon/filemon.h
+FILEMON_H?= /usr/include/dev/filemon/filemon.h
 .if exists(${FILEMON_H}) && ${FILEMON_H:T} == "filemon.h"
-COPTS.filemon_dev.c += -DHAVE_FILEMON_H -I${FILEMON_H:H}
+COPTS.filemon_dev.c+= -DHAVE_FILEMON_H -I${FILEMON_H:H}
 .endif
 .elif ${USE_FILEMON} == "ktrace"
-COPTS.filemon_ktrace.c += -Wno-error=unused-parameter
+COPTS.filemon_ktrace.c+= -Wno-error=unused-parameter
 .endif
 
 .endif				# USE_FILEMON
@@ -96,10 +96,10 @@ COPTS.filemon_ktrace.c += -Wno-error=unused-parameter
 
 
 .if make(obj) || make(clean)
-SUBDIR.${MK_TESTS} += unit-tests
+SUBDIR.${MK_TESTS}+= unit-tests
 .endif
 
-MAN1 = ${MAN}
+MAN1= ${MAN}
 
 .if ${MK_GEN_MAN:Uno} == "yes"
 
@@ -107,8 +107,8 @@ MAN1 = ${MAN}
 .include <${srcdir}/mk/genfiles.mk>
 
 .if ${PROG} != "make"
-CLEANFILES += my.history
-SED_CMDS.${MAN} += \
+CLEANFILES+= my.history
+SED_CMDS.${MAN}+= \
 	-e '/^.Dt/s/MAKE/${PROG:tu}/' \
 	-e '/^.Nm/s/make/${PROG}/' \
 
@@ -123,7 +123,7 @@ my.history:
 	echo "It uses autoconf to facilitate portability to other platforms."; \
 	echo ".Pp") > $@
 
-SED_CMDS.${MAN} += \
+SED_CMDS.${MAN}+= \
 	-e '/^.Sh HISTORY/rmy.history' \
 	-e '/^.Sh HISTORY/,/BUGS/s,^.Nm,make,' \
 
@@ -131,7 +131,7 @@ SED_CMDS.${MAN} += \
 
 .if ${.MAKE.OS:N*BSD} != ""
 # assume .Nx is not supported
-SED_CMDS.${MAN} += -e 's/^\.Nx/NetBSD/'
+SED_CMDS.${MAN}+= -e 's/^\.Nx/NetBSD/'
 .endif
 
 # watch out for a late change of PROG
@@ -140,35 +140,35 @@ SED_CMDS.${MAN} += -e 's/^\.Nx/NetBSD/'
 ${MAN}:	${SRCS.${MAN}} _GENFILES_USE
 
 all man beforeinstall: ${MAN}
-_mfromdir = .
+_mfromdir= .
 .endif
 .endif				# MK_GEN_MAN
 
-MANTARGET ?= cat
-MANDEST ?= ${MANDIR}/${MANTARGET}1
+MANTARGET?= cat
+MANDEST?= ${MANDIR}/${MANTARGET}1
 
 .if ${MANTARGET} == "cat"
-_mfromdir = ${srcdir}
+_mfromdir= ${srcdir}
 .endif
 
 .include <bsd.prog.mk>
 
-CPPFLAGS += -DMAKE_NATIVE -DHAVE_CONFIG_H
-COPTS.var.c += -Wno-cast-qual
-COPTS.job.c += -Wno-format-nonliteral
-COPTS.parse.c += -Wno-format-nonliteral
-COPTS.var.c += -Wno-format-nonliteral
+CPPFLAGS+= -DMAKE_NATIVE -DHAVE_CONFIG_H
+COPTS.var.c+= -Wno-cast-qual
+COPTS.job.c+= -Wno-format-nonliteral
+COPTS.parse.c+= -Wno-format-nonliteral
+COPTS.var.c+= -Wno-format-nonliteral
 
 # Force these
-SHAREDIR = ${SHAREDIR.bmake:U${prefix}/share}
-BINDIR = ${BINDIR.bmake:U${prefix}/bin}
-MANDIR = ${MANDIR.bmake:U${SHAREDIR}/man}
+SHAREDIR= ${SHAREDIR.bmake:U${prefix}/share}
+BINDIR= ${BINDIR.bmake:U${prefix}/bin}
+MANDIR= ${MANDIR.bmake:U${SHAREDIR}/man}
 
 ${OBJS}: config.h
 
 
 # A simple unit-test driver to help catch regressions
-TEST_MAKE ?= ${.OBJDIR}/${PROG:T}
+TEST_MAKE?= ${.OBJDIR}/${PROG:T}
 accept test: .NOMETA
 	cd ${.CURDIR}/unit-tests && \
 	MAKEFLAGS= ${TEST_MAKE} -r -m / ${.TARGET} ${TESTS:DTESTS=${TESTS:Q}}
@@ -179,9 +179,9 @@ accept test: .NOMETA
 # which prevents MK_AUTO_OBJ doing its job
 # so do it here
 .if defined(MAKEOBJDIRPREFIX) || ${MAKEOBJDIR:U:M*/*} != ""
-_utobj = ${.OBJDIR}/unit-tests
+_utobj= ${.OBJDIR}/unit-tests
 .else
-_utobj = ${.CURDIR}/unit-tests/${MAKEOBJDIR:Uobj}
+_utobj= ${.CURDIR}/unit-tests/${MAKEOBJDIR:Uobj}
 .endif
 utobj: .NOMETA
 	@test -d ${_utobj} && exit 0; \
@@ -192,11 +192,11 @@ test: utobj
 .endif
 
 # override some simple things
-BINDIR = /usr/bin
-MANDIR = /usr/share/man/man
+BINDIR= /usr/bin
+MANDIR= /usr/share/man/man
 
 # make sure we get this
-CFLAGS += ${COPTS.${.IMPSRC:T}}
+CFLAGS+= ${COPTS.${.IMPSRC:T}}
 
 after-import: ${SRCTOP}/contrib/bmake/bsd.after-import.mk
 	cd ${.CURDIR} && ${.MAKE} -f ${SRCTOP}/contrib/bmake/bsd.after-import.mk

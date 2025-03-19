@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.638 2025/01/19 12:59:39 rillig Exp $	*/
+/*	$NetBSD: main.c,v 1.639 2025/03/07 06:50:34 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -83,9 +83,6 @@
  *	Fatal		Print an error message and exit.
  *
  *	Punt		Abort all jobs and exit with a message.
- *
- *	Finish		Finish things up by printing the number of errors
- *			that occurred, and exit.
  */
 
 #include <sys/types.h>
@@ -111,7 +108,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.638 2025/01/19 12:59:39 rillig Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.639 2025/03/07 06:50:34 rillig Exp $");
 #if defined(MAKE_NATIVE)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -1783,7 +1780,7 @@ Cmd_Exec(const char *cmd, char **error)
 	int pipefds[2];
 	int cpid;		/* Child PID */
 	int pid;		/* PID from wait() */
-	int status;		/* command exit status */
+	WAIT_T status;		/* command exit status */
 	Buffer buf;		/* buffer to store the result */
 	ssize_t bytes_read;
 	char *output;
@@ -1960,19 +1957,6 @@ DieHorribly(void)
 		Targ_PrintGraph(2);
 	Trace_Log(MAKEERROR, NULL);
 	exit(2);		/* Not 1 so -q can distinguish error */
-}
-
-/*
- * Called when aborting due to errors in child shell to signal abnormal exit.
- * The program exits.
- * Errors is the number of errors encountered in Make_Make.
- */
-void
-Finish(int errs)
-{
-	if (shouldDieQuietly(NULL, -1))
-		exit(2);
-	Fatal("%d error%s", errs, errs == 1 ? "" : "s");
 }
 
 int

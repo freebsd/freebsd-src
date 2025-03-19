@@ -471,7 +471,7 @@ TESTS+=		varparse-mod
 TESTS+=		varparse-undef-partial
 
 # some shells have quirks
-_shell := ${.SHELL:tA:T}
+_shell:= ${.SHELL:tA:T}
 .if ${_shell} == "dash" 
 # dash fails -x output
 BROKEN_TESTS+= opt-debug-x-trace
