@@ -483,6 +483,16 @@ int	 usleep(useconds_t);
 pid_t	 vfork(void) __returns_twice;
 #endif
 
+/* 1003.1-2024 */
+#if __POSIX_VISIBLE >= 202405
+pid_t	 _Fork(void);
+int	 getentropy(void *, size_t);
+int	 getresgid(gid_t *, gid_t *, gid_t *);
+int	 getresuid(uid_t *, uid_t *, uid_t *);
+int	 setresgid(gid_t, gid_t, gid_t);
+int	 setresuid(uid_t, uid_t, uid_t);
+#endif
+
 #if __BSD_VISIBLE
 struct timeval;				/* select(2) */
 
@@ -510,14 +520,11 @@ int	 feature_present(const char *);
 int	 fchroot(int);
 char	*fflagstostr(u_long);
 int	 getdomainname(char *, int);
-int	 getentropy(void *, size_t);
 int	 getgrouplist(const char *, gid_t, gid_t *, int *);
 int	 getloginclass(char *, size_t);
 mode_t	 getmode(const void *, mode_t);
 int	 getosreldate(void);
 int	 getpeereid(int, uid_t *, gid_t *);
-int	 getresgid(gid_t *, gid_t *, gid_t *);
-int	 getresuid(uid_t *, uid_t *, uid_t *);
 char	*getusershell(void);
 int	 initgroups(const char *, gid_t);
 int	 iruserok(unsigned long, int, const char *, const char *);
@@ -575,8 +582,6 @@ void	*setmode(const char *);
 int	 setpgrp(pid_t, pid_t);			/* obsoleted by setpgid() */
 void	 setproctitle(const char *_fmt, ...) __printf0like(1, 2);
 void	 setproctitle_fast(const char *_fmt, ...) __printf0like(1, 2);
-int	 setresgid(gid_t, gid_t, gid_t);
-int	 setresuid(uid_t, uid_t, uid_t);
 int	 setrgid(gid_t);
 int	 setruid(uid_t);
 void	 setusershell(void);
@@ -589,7 +594,6 @@ int	 undelete(const char *);
 int	 unwhiteout(const char *);
 void	*valloc(size_t);			/* obsoleted by malloc() */
 int	 funlinkat(int, const char *, int, int);
-pid_t	 _Fork(void);
 
 #ifndef _OPTRESET_DECLARED
 #define	_OPTRESET_DECLARED
