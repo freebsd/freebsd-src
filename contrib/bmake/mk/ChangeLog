@@ -1,3 +1,16 @@
+2025-03-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20250314
+
+	* meta.stage.mk: StageFiles --subdir: preserve the dir part of
+	each file under $dest 
+
+2025-03-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta.autodep.mk: do a better job of handling MAKESYSPATH in
+	GENDIRDEPS_ENV.  If we have MAKE_VERSION >= 20230123 we can just
+	use .SYSPATH, otherwise it is a bit more complicated.
+
 2025-01-10  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* rust.mk: use RUST_LIBS and RUST_PROGS

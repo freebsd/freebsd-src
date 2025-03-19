@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: meta.stage.mk,v 1.69 2024/02/17 17:26:57 sjg Exp $
+# $Id: meta.stage.mk,v 1.71 2025/03/14 20:28:42 sjg Exp $
 #
-#	@(#) Copyright (c) 2011-2017, Simon J. Gerraty
+#	@(#) Copyright (c) 2011-2025, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -40,9 +40,11 @@ CLEANFILES+= .dirdep
 
 .if defined(NO_POSIX_SHELL) || ${type printf:L:sh:Mbuiltin} == ""
 _stage_file_basename = `basename $$f`
+_stage_file_dirname = `dirname $$f`
 _stage_target_dirname = `dirname $$t`
 .else
 _stage_file_basename = $${f\#\#*/}
+_stage_file_dirname = $${f%/*}
 _stage_target_dirname = $${t%/*}
 .endif
 
@@ -86,22 +88,37 @@ STAGE_DIRDEP_SCRIPT = ${LN_CP_SCRIPT}; StageDirdep() { \
   if [ -s $$t.dirdep ]; then \
 	cmp -s .dirdep $$t.dirdep && return; \
 	x=`cat $$t.dirdep`; \
-	case "${RELDIR}:${_dirdep}" in $${x%.*}:$${x}*) ;; \
+	case "${RELDIR}:${_dirdep}" in \
+	$${x%.*}:$${x}*) ;; \
 	*) echo "${STAGE_CONFLICT}: $$t installed by $$x not ${_dirdep}" >&2; \
-	${STAGE_CONFLICT_ACTION} ;; esac; \
+	${STAGE_CONFLICT_ACTION} ;; \
+	esac; \
   fi; \
   LnCp .dirdep $$t.dirdep || exit 1; }
 
 # common logic for staging files
 # this all relies on RELDIR being set to a subdir of SRCTOP
 # we use ln(1) if we can, else cp(1)
+# if --subdir is given the dirname part of each file will be preserved
 STAGE_FILE_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageFiles() { \
-  case "$$1" in "") return;; -m) mode=$$2; shift 2;; *) mode=;; esac; \
+  mode= subdir=; \
+  while : ; do \
+	case "$$1" in \
+	"") return;; \
+	-m) mode=$$2; shift 2;; \
+	--subdir) subdir=1; shift;; \
+	*) break;; \
+	esac; \
+  done; \
   dest=$$1; shift; \
   mkdir -p $$dest; \
   [ -s .dirdep ] || echo '${_dirdep}' > .dirdep; \
   for f in "$$@"; do \
-	case "$$f" in */*) t=$$dest/${_stage_file_basename};; *) t=$$dest/$$f;; esac; \
+	case "$$subdir,$$f" in \
+	1,*/*) t=$$dest/$$f; mkdir -p $$dest/${_stage_file_dirname};; \
+	*/*) t=$$dest/${_stage_file_basename};; \
+	*) t=$$dest/$$f;; \
+	esac; \
 	StageDirdep $$t; \
 	LnCp $$f $$t || exit 1; \
 	[ -z "$$mode" ] || chmod $$mode $$t; \
