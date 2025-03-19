@@ -117,6 +117,7 @@ static const struct {
 	{ HDA_INTEL_ALLKPS,  "Intel Alder Lake-PS",	0, 0 },
 	{ HDA_INTEL_RPTLK1,  "Intel Raptor Lake-P",	0, 0 },
 	{ HDA_INTEL_RPTLK2,  "Intel Raptor Lake-P",	0, 0 },
+	{ HDA_INTEL_RPTLK3,  "Intel Raptor Lake-S",	0, 0 },
 	{ HDA_INTEL_MTL,     "Intel Meteor Lake-P",	0, 0 },
 	{ HDA_INTEL_ARLS,    "Intel Arrow Lake-S",	0, 0 },
 	{ HDA_INTEL_ARL,     "Intel Arrow Lake",	0, 0 },
