@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 10, 2024
+.Dd December 8, 2024
 .Dt IWLWIFI 4
 .Os
 .Sh NAME
@@ -250,11 +250,21 @@ The
 driver first appeared in
 .Fx 13.1 .
 .Sh BUGS
-Certainly.
+.%U <https://bugs.freebsd.org/bugzilla/showdependencytree.cgi?id=iwlwifi&hide_resolved=1>
+presents the dependency tree for the iwlwifi tracking meta-bug, which:
 .Pp
-While
-.Nm
-supports 802.11a/b/g/n/ac/ax modes,
-the compatibility code currently only supports 802.11a/b/g modes.
-Support for 802.11n/ac/ax is yet to come.
-802.11ax and 6Ghz support are planned.
+.Bl -bullet -compact
+.It
+blocks the LinuxKPI based wireless drivers tracking meta-bug
+.It
+indirectly blocks the general wireless tracking meta-bug.
+.Pp
+Notable limitations: 
+.Pp
+.Bl -bullet -compact
+.It
+802.11a/b/g modes are supported
+.It
+802.11n/ac/ax and 6Ghz are not yet supported
+.It
+operating system resume (wake from sleep) may be unreliable.
