@@ -140,6 +140,10 @@ FILESMODE_${LOADER}= ${BINMODE} -b
 # files.
 LDFLAGS+=	${BTXCRT}
 
+# Force the linker max page size to 4k so that we fit in the limited space even
+# if someone has set a larger default linker max page size via /etc/src.conf.
+LDFLAGS+= -Wl,-z,max-page-size=0x1000
+
 DPADD=	${LDR_INTERP32} ${LIBI386} ${LIBSA32}
 LDADD=	${LDR_INTERP32} ${LIBI386} ${LIBSA32}
 
