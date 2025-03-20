@@ -343,6 +343,14 @@ ast_sig(struct thread *td, int tda)
 	 * the postsig() loop was performed.
 	 */
 	sigfastblock_setpend(td, resched_sigs);
+
+	/*
+	 * Clear td_sa.code: signal to ptrace that syscall arguments
+	 * are unavailable after this point. This AST handler is the
+	 * last chance for ptracestop() to signal the tracer before
+	 * the tracee returns to userspace.
+	 */
+	td->td_sa.code = 0;
 }
 
 static void
