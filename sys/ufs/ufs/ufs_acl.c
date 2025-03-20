@@ -642,7 +642,7 @@ ufs_aclcheck_posix1e(struct vop_aclcheck_args *ap)
 	 * to this kind of object.
 	 * Rely on the acl_posix1e_check() routine to verify the contents.
 	 */
-	switch(ap->a_type) {
+	switch (ap->a_type) {
 	case ACL_TYPE_ACCESS:
 		break;
 
