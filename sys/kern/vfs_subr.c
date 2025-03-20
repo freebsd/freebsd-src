@@ -6451,6 +6451,8 @@ sysctl_vfs_ctl(SYSCTL_HANDLER_ARGS)
 	int error;
 	struct mount *mp;
 
+	if (req->newptr == NULL)
+		return (EINVAL);
 	error = SYSCTL_IN(req, &vc, sizeof(vc));
 	if (error)
 		return (error);
