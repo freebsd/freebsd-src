@@ -1113,7 +1113,7 @@ local function configurable(def, idx)
 end
 
 local function generate_stackframe(buftype, bufsize, disposition, heap, def)
-	local function len_offset(inverted, disposition)
+	local function len_offset(inverted)
 		-- Tests that don't use __len in their arguments may use an
 		-- inverted sense because we can't just specify a length that
 		-- would induce an access just after the end.  Instead, we have
@@ -1128,7 +1128,7 @@ local function generate_stackframe(buftype, bufsize, disposition, heap, def)
 		end
 	end
 
-	local function test_uses_len(def)
+	local function test_uses_len()
 		if def.uses_len then
 			return true
 		end
@@ -1151,8 +1151,8 @@ local function generate_stackframe(buftype, bufsize, disposition, heap, def)
 	local vars = "\tstruct {\n"
 	vars = vars .. "\t\tuint8_t padding_l;\n"
 
-	local uses_len = test_uses_len(def)
-	local bufsize_offset = len_offset(not uses_len, disposition)
+	local uses_len = test_uses_len()
+	local bufsize_offset = len_offset(not uses_len)
 	local buftype_elem = array_type(buftype)
 	local size_expr = bufsize
 
@@ -1230,7 +1230,7 @@ local function write_test(fh, func, disposition, heap, def)
 		return
 	end
 
-	local function need_addr(buftype)
+	local function need_addr()
 		return not (buftype:match("%[%]") or buftype:match("%*"))
 	end
 
@@ -1292,7 +1292,7 @@ local function write_test(fh, func, disposition, heap, def)
 		end
 
 		if arg == "__buf" then
-			if not heap and need_addr(buftype) then
+			if not heap and need_addr() then
 				body = body .. "&"
 			end
 
