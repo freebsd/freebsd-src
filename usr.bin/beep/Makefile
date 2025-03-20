@@ -1,5 +1,3 @@
-.include <src.opts.mk>
-
 PROG=	beep
 MAN=	beep.1
 LIBADD=	m
