@@ -551,6 +551,7 @@ kern___acl_aclcheck_path(struct thread *td, const char *path, acl_type_t type,
 	error = namei(&nd);
 	if (error == 0) {
 		error = vacl_aclcheck(td, nd.ni_vp, type, aclp);
+		vrele(nd.ni_vp);
 		NDFREE_PNBUF(&nd);
 	}
 	return (error);
