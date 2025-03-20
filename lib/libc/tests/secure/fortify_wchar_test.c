@@ -162,7 +162,10 @@ replace_stdin(void)
 		close(fd);
 }
 
-ATF_TC_WITHOUT_HEAD(wmemcpy_before_end);
+ATF_TC(wmemcpy_before_end);
+ATF_TC_HEAD(wmemcpy_before_end, tc)
+{
+}
 ATF_TC_BODY(wmemcpy_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -181,7 +184,10 @@ ATF_TC_BODY(wmemcpy_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemcpy_end);
+ATF_TC(wmemcpy_end);
+ATF_TC_HEAD(wmemcpy_end, tc)
+{
+}
 ATF_TC_BODY(wmemcpy_end, tc)
 {
 #define BUF &__stack.__buf
@@ -200,7 +206,10 @@ ATF_TC_BODY(wmemcpy_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemcpy_heap_before_end);
+ATF_TC(wmemcpy_heap_before_end);
+ATF_TC_HEAD(wmemcpy_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(wmemcpy_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -221,7 +230,10 @@ ATF_TC_BODY(wmemcpy_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemcpy_heap_end);
+ATF_TC(wmemcpy_heap_end);
+ATF_TC_HEAD(wmemcpy_heap_end, tc)
+{
+}
 ATF_TC_BODY(wmemcpy_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -242,7 +254,10 @@ ATF_TC_BODY(wmemcpy_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemcpy_heap_after_end);
+ATF_TC(wmemcpy_heap_after_end);
+ATF_TC_HEAD(wmemcpy_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(wmemcpy_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -294,7 +309,10 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmempcpy_before_end);
+ATF_TC(wmempcpy_before_end);
+ATF_TC_HEAD(wmempcpy_before_end, tc)
+{
+}
 ATF_TC_BODY(wmempcpy_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -313,7 +331,10 @@ ATF_TC_BODY(wmempcpy_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmempcpy_end);
+ATF_TC(wmempcpy_end);
+ATF_TC_HEAD(wmempcpy_end, tc)
+{
+}
 ATF_TC_BODY(wmempcpy_end, tc)
 {
 #define BUF &__stack.__buf
@@ -332,7 +353,10 @@ ATF_TC_BODY(wmempcpy_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmempcpy_heap_before_end);
+ATF_TC(wmempcpy_heap_before_end);
+ATF_TC_HEAD(wmempcpy_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(wmempcpy_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -353,7 +377,10 @@ ATF_TC_BODY(wmempcpy_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmempcpy_heap_end);
+ATF_TC(wmempcpy_heap_end);
+ATF_TC_HEAD(wmempcpy_heap_end, tc)
+{
+}
 ATF_TC_BODY(wmempcpy_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -374,7 +401,10 @@ ATF_TC_BODY(wmempcpy_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmempcpy_heap_after_end);
+ATF_TC(wmempcpy_heap_after_end);
+ATF_TC_HEAD(wmempcpy_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(wmempcpy_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -426,7 +456,10 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemmove_before_end);
+ATF_TC(wmemmove_before_end);
+ATF_TC_HEAD(wmemmove_before_end, tc)
+{
+}
 ATF_TC_BODY(wmemmove_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -445,7 +478,10 @@ ATF_TC_BODY(wmemmove_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemmove_end);
+ATF_TC(wmemmove_end);
+ATF_TC_HEAD(wmemmove_end, tc)
+{
+}
 ATF_TC_BODY(wmemmove_end, tc)
 {
 #define BUF &__stack.__buf
@@ -464,7 +500,10 @@ ATF_TC_BODY(wmemmove_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemmove_heap_before_end);
+ATF_TC(wmemmove_heap_before_end);
+ATF_TC_HEAD(wmemmove_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(wmemmove_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -485,7 +524,10 @@ ATF_TC_BODY(wmemmove_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemmove_heap_end);
+ATF_TC(wmemmove_heap_end);
+ATF_TC_HEAD(wmemmove_heap_end, tc)
+{
+}
 ATF_TC_BODY(wmemmove_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -506,7 +548,10 @@ ATF_TC_BODY(wmemmove_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemmove_heap_after_end);
+ATF_TC(wmemmove_heap_after_end);
+ATF_TC_HEAD(wmemmove_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(wmemmove_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -558,7 +603,10 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemset_before_end);
+ATF_TC(wmemset_before_end);
+ATF_TC_HEAD(wmemset_before_end, tc)
+{
+}
 ATF_TC_BODY(wmemset_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -576,7 +624,10 @@ ATF_TC_BODY(wmemset_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemset_end);
+ATF_TC(wmemset_end);
+ATF_TC_HEAD(wmemset_end, tc)
+{
+}
 ATF_TC_BODY(wmemset_end, tc)
 {
 #define BUF &__stack.__buf
@@ -594,7 +645,10 @@ ATF_TC_BODY(wmemset_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemset_heap_before_end);
+ATF_TC(wmemset_heap_before_end);
+ATF_TC_HEAD(wmemset_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(wmemset_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -614,7 +668,10 @@ ATF_TC_BODY(wmemset_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemset_heap_end);
+ATF_TC(wmemset_heap_end);
+ATF_TC_HEAD(wmemset_heap_end, tc)
+{
+}
 ATF_TC_BODY(wmemset_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -634,7 +691,10 @@ ATF_TC_BODY(wmemset_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wmemset_heap_after_end);
+ATF_TC(wmemset_heap_after_end);
+ATF_TC_HEAD(wmemset_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(wmemset_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -685,7 +745,10 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcpcpy_before_end);
+ATF_TC(wcpcpy_before_end);
+ATF_TC_HEAD(wcpcpy_before_end, tc)
+{
+}
 ATF_TC_BODY(wcpcpy_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -708,7 +771,10 @@ ATF_TC_BODY(wcpcpy_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcpcpy_end);
+ATF_TC(wcpcpy_end);
+ATF_TC_HEAD(wcpcpy_end, tc)
+{
+}
 ATF_TC_BODY(wcpcpy_end, tc)
 {
 #define BUF &__stack.__buf
@@ -731,7 +797,10 @@ ATF_TC_BODY(wcpcpy_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcpcpy_heap_before_end);
+ATF_TC(wcpcpy_heap_before_end);
+ATF_TC_HEAD(wcpcpy_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(wcpcpy_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -755,7 +824,10 @@ ATF_TC_BODY(wcpcpy_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcpcpy_heap_end);
+ATF_TC(wcpcpy_heap_end);
+ATF_TC_HEAD(wcpcpy_heap_end, tc)
+{
+}
 ATF_TC_BODY(wcpcpy_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -779,7 +851,10 @@ ATF_TC_BODY(wcpcpy_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcpcpy_heap_after_end);
+ATF_TC(wcpcpy_heap_after_end);
+ATF_TC_HEAD(wcpcpy_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(wcpcpy_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -834,7 +909,10 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcpncpy_before_end);
+ATF_TC(wcpncpy_before_end);
+ATF_TC_HEAD(wcpncpy_before_end, tc)
+{
+}
 ATF_TC_BODY(wcpncpy_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -857,7 +935,10 @@ ATF_TC_BODY(wcpncpy_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcpncpy_end);
+ATF_TC(wcpncpy_end);
+ATF_TC_HEAD(wcpncpy_end, tc)
+{
+}
 ATF_TC_BODY(wcpncpy_end, tc)
 {
 #define BUF &__stack.__buf
@@ -880,7 +961,10 @@ ATF_TC_BODY(wcpncpy_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcpncpy_heap_before_end);
+ATF_TC(wcpncpy_heap_before_end);
+ATF_TC_HEAD(wcpncpy_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(wcpncpy_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -904,7 +988,10 @@ ATF_TC_BODY(wcpncpy_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcpncpy_heap_end);
+ATF_TC(wcpncpy_heap_end);
+ATF_TC_HEAD(wcpncpy_heap_end, tc)
+{
+}
 ATF_TC_BODY(wcpncpy_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -928,7 +1015,10 @@ ATF_TC_BODY(wcpncpy_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcpncpy_heap_after_end);
+ATF_TC(wcpncpy_heap_after_end);
+ATF_TC_HEAD(wcpncpy_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(wcpncpy_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -983,7 +1073,10 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcscat_before_end);
+ATF_TC(wcscat_before_end);
+ATF_TC_HEAD(wcscat_before_end, tc)
+{
+}
 ATF_TC_BODY(wcscat_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -1006,7 +1099,10 @@ ATF_TC_BODY(wcscat_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcscat_end);
+ATF_TC(wcscat_end);
+ATF_TC_HEAD(wcscat_end, tc)
+{
+}
 ATF_TC_BODY(wcscat_end, tc)
 {
 #define BUF &__stack.__buf
@@ -1029,7 +1125,10 @@ ATF_TC_BODY(wcscat_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcscat_heap_before_end);
+ATF_TC(wcscat_heap_before_end);
+ATF_TC_HEAD(wcscat_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(wcscat_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -1053,7 +1152,10 @@ ATF_TC_BODY(wcscat_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcscat_heap_end);
+ATF_TC(wcscat_heap_end);
+ATF_TC_HEAD(wcscat_heap_end, tc)
+{
+}
 ATF_TC_BODY(wcscat_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -1077,7 +1179,10 @@ ATF_TC_BODY(wcscat_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcscat_heap_after_end);
+ATF_TC(wcscat_heap_after_end);
+ATF_TC_HEAD(wcscat_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(wcscat_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -1132,7 +1237,10 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcslcat_before_end);
+ATF_TC(wcslcat_before_end);
+ATF_TC_HEAD(wcslcat_before_end, tc)
+{
+}
 ATF_TC_BODY(wcslcat_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -1155,7 +1263,10 @@ ATF_TC_BODY(wcslcat_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcslcat_end);
+ATF_TC(wcslcat_end);
+ATF_TC_HEAD(wcslcat_end, tc)
+{
+}
 ATF_TC_BODY(wcslcat_end, tc)
 {
 #define BUF &__stack.__buf
@@ -1178,7 +1289,10 @@ ATF_TC_BODY(wcslcat_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcslcat_heap_before_end);
+ATF_TC(wcslcat_heap_before_end);
+ATF_TC_HEAD(wcslcat_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(wcslcat_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -1202,7 +1316,10 @@ ATF_TC_BODY(wcslcat_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcslcat_heap_end);
+ATF_TC(wcslcat_heap_end);
+ATF_TC_HEAD(wcslcat_heap_end, tc)
+{
+}
 ATF_TC_BODY(wcslcat_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -1226,7 +1343,10 @@ ATF_TC_BODY(wcslcat_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcslcat_heap_after_end);
+ATF_TC(wcslcat_heap_after_end);
+ATF_TC_HEAD(wcslcat_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(wcslcat_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -1281,7 +1401,10 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcsncat_before_end);
+ATF_TC(wcsncat_before_end);
+ATF_TC_HEAD(wcsncat_before_end, tc)
+{
+}
 ATF_TC_BODY(wcsncat_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -1304,7 +1427,10 @@ ATF_TC_BODY(wcsncat_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcsncat_end);
+ATF_TC(wcsncat_end);
+ATF_TC_HEAD(wcsncat_end, tc)
+{
+}
 ATF_TC_BODY(wcsncat_end, tc)
 {
 #define BUF &__stack.__buf
@@ -1327,7 +1453,10 @@ ATF_TC_BODY(wcsncat_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcsncat_heap_before_end);
+ATF_TC(wcsncat_heap_before_end);
+ATF_TC_HEAD(wcsncat_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(wcsncat_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -1351,7 +1480,10 @@ ATF_TC_BODY(wcsncat_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcsncat_heap_end);
+ATF_TC(wcsncat_heap_end);
+ATF_TC_HEAD(wcsncat_heap_end, tc)
+{
+}
 ATF_TC_BODY(wcsncat_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -1375,7 +1507,10 @@ ATF_TC_BODY(wcsncat_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcsncat_heap_after_end);
+ATF_TC(wcsncat_heap_after_end);
+ATF_TC_HEAD(wcsncat_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(wcsncat_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -1430,7 +1565,10 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcscpy_before_end);
+ATF_TC(wcscpy_before_end);
+ATF_TC_HEAD(wcscpy_before_end, tc)
+{
+}
 ATF_TC_BODY(wcscpy_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -1453,7 +1591,10 @@ ATF_TC_BODY(wcscpy_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcscpy_end);
+ATF_TC(wcscpy_end);
+ATF_TC_HEAD(wcscpy_end, tc)
+{
+}
 ATF_TC_BODY(wcscpy_end, tc)
 {
 #define BUF &__stack.__buf
@@ -1476,7 +1617,10 @@ ATF_TC_BODY(wcscpy_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcscpy_heap_before_end);
+ATF_TC(wcscpy_heap_before_end);
+ATF_TC_HEAD(wcscpy_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(wcscpy_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -1500,7 +1644,10 @@ ATF_TC_BODY(wcscpy_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcscpy_heap_end);
+ATF_TC(wcscpy_heap_end);
+ATF_TC_HEAD(wcscpy_heap_end, tc)
+{
+}
 ATF_TC_BODY(wcscpy_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -1524,7 +1671,10 @@ ATF_TC_BODY(wcscpy_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcscpy_heap_after_end);
+ATF_TC(wcscpy_heap_after_end);
+ATF_TC_HEAD(wcscpy_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(wcscpy_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -1579,7 +1729,10 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcslcpy_before_end);
+ATF_TC(wcslcpy_before_end);
+ATF_TC_HEAD(wcslcpy_before_end, tc)
+{
+}
 ATF_TC_BODY(wcslcpy_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -1602,7 +1755,10 @@ ATF_TC_BODY(wcslcpy_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcslcpy_end);
+ATF_TC(wcslcpy_end);
+ATF_TC_HEAD(wcslcpy_end, tc)
+{
+}
 ATF_TC_BODY(wcslcpy_end, tc)
 {
 #define BUF &__stack.__buf
@@ -1625,7 +1781,10 @@ ATF_TC_BODY(wcslcpy_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcslcpy_heap_before_end);
+ATF_TC(wcslcpy_heap_before_end);
+ATF_TC_HEAD(wcslcpy_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(wcslcpy_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -1649,7 +1808,10 @@ ATF_TC_BODY(wcslcpy_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcslcpy_heap_end);
+ATF_TC(wcslcpy_heap_end);
+ATF_TC_HEAD(wcslcpy_heap_end, tc)
+{
+}
 ATF_TC_BODY(wcslcpy_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -1673,7 +1835,10 @@ ATF_TC_BODY(wcslcpy_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcslcpy_heap_after_end);
+ATF_TC(wcslcpy_heap_after_end);
+ATF_TC_HEAD(wcslcpy_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(wcslcpy_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -1728,7 +1893,10 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcsncpy_before_end);
+ATF_TC(wcsncpy_before_end);
+ATF_TC_HEAD(wcsncpy_before_end, tc)
+{
+}
 ATF_TC_BODY(wcsncpy_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -1751,7 +1919,10 @@ ATF_TC_BODY(wcsncpy_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcsncpy_end);
+ATF_TC(wcsncpy_end);
+ATF_TC_HEAD(wcsncpy_end, tc)
+{
+}
 ATF_TC_BODY(wcsncpy_end, tc)
 {
 #define BUF &__stack.__buf
@@ -1774,7 +1945,10 @@ ATF_TC_BODY(wcsncpy_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcsncpy_heap_before_end);
+ATF_TC(wcsncpy_heap_before_end);
+ATF_TC_HEAD(wcsncpy_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(wcsncpy_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -1798,7 +1972,10 @@ ATF_TC_BODY(wcsncpy_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcsncpy_heap_end);
+ATF_TC(wcsncpy_heap_end);
+ATF_TC_HEAD(wcsncpy_heap_end, tc)
+{
+}
 ATF_TC_BODY(wcsncpy_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -1822,7 +1999,10 @@ ATF_TC_BODY(wcsncpy_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(wcsncpy_heap_after_end);
+ATF_TC(wcsncpy_heap_after_end);
+ATF_TC_HEAD(wcsncpy_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(wcsncpy_heap_after_end, tc)
 {
 #define BUF __stack.__buf

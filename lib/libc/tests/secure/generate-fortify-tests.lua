@@ -1066,8 +1066,15 @@ local all_tests = {
 	},
 }
 
-local function write_test_boilerplate(fh, name, body)
-	fh:write("ATF_TC_WITHOUT_HEAD(" .. name .. ");\n")
+local function write_test_boilerplate(fh, name, body, def)
+	fh:write("ATF_TC(" .. name .. ");\n")
+	fh:write("ATF_TC_HEAD(" .. name .. ", tc)\n")
+	fh:write("{\n")
+	if def.need_root then
+		fh:write("	atf_tc_set_md_var(tc, \"require.user\", \"root\");\n")
+	end
+	fh:write("}\n")
+
 	fh:write("ATF_TC_BODY(" .. name .. ", tc)\n")
 	fh:write("{\n" .. body .. "\n}\n\n")
 	return name
@@ -1342,7 +1349,7 @@ monitor:
 
 ::skip::
 	body = body .. "#undef BUF\n"
-	return write_test_boilerplate(fh, testname, body)
+	return write_test_boilerplate(fh, testname, body, def)
 end
 
 -- main()
