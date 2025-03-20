@@ -340,31 +340,36 @@ ffs_oldfscompat_read(struct fs *fs, ufs2_daddr_t sblockloc)
 		fs->fs_old_flags |= FS_FLAGS_UPDATED;
 		fs->fs_sblockloc = sblockloc;
 	}
-	/*
-	 * If not yet done, update UFS1 superblock with new wider fields.
-	 */
-	if (fs->fs_magic == FS_UFS1_MAGIC && fs->fs_maxbsize != fs->fs_bsize) {
-		fs->fs_maxbsize = fs->fs_bsize;
-		fs->fs_time = fs->fs_old_time;
-		fs->fs_size = fs->fs_old_size;
-		fs->fs_dsize = fs->fs_old_dsize;
-		fs->fs_csaddr = fs->fs_old_csaddr;
-		fs->fs_cstotal.cs_ndir = fs->fs_old_cstotal.cs_ndir;
-		fs->fs_cstotal.cs_nbfree = fs->fs_old_cstotal.cs_nbfree;
-		fs->fs_cstotal.cs_nifree = fs->fs_old_cstotal.cs_nifree;
-		fs->fs_cstotal.cs_nffree = fs->fs_old_cstotal.cs_nffree;
-	}
-	if (fs->fs_magic == FS_UFS1_MAGIC &&
-	    fs->fs_old_inodefmt < FS_44INODEFMT) {
-		fs->fs_maxfilesize = ((uint64_t)1 << 31) - 1;
-		fs->fs_qbmask = ~fs->fs_bmask;
-		fs->fs_qfmask = ~fs->fs_fmask;
-	}
-	if (fs->fs_magic == FS_UFS1_MAGIC) {
+	switch (fs->fs_magic) {
+	case FS_UFS2_MAGIC:
+		/* No changes for now */
+		break;
+
+	case FS_UFS1_MAGIC:
+		/*
+		 * If not yet done, update UFS1 superblock with new wider fields
+		 */
+		if (fs->fs_maxbsize != fs->fs_bsize) {
+			fs->fs_maxbsize = fs->fs_bsize;
+			fs->fs_time = fs->fs_old_time;
+			fs->fs_size = fs->fs_old_size;
+			fs->fs_dsize = fs->fs_old_dsize;
+			fs->fs_csaddr = fs->fs_old_csaddr;
+			fs->fs_cstotal.cs_ndir = fs->fs_old_cstotal.cs_ndir;
+			fs->fs_cstotal.cs_nbfree = fs->fs_old_cstotal.cs_nbfree;
+			fs->fs_cstotal.cs_nifree = fs->fs_old_cstotal.cs_nifree;
+			fs->fs_cstotal.cs_nffree = fs->fs_old_cstotal.cs_nffree;
+		}
+		if (fs->fs_old_inodefmt < FS_44INODEFMT) {
+			fs->fs_maxfilesize = ((uint64_t)1 << 31) - 1;
+			fs->fs_qbmask = ~fs->fs_bmask;
+			fs->fs_qfmask = ~fs->fs_fmask;
+		}
 		fs->fs_save_maxfilesize = fs->fs_maxfilesize;
 		maxfilesize = (uint64_t)0x80000000 * fs->fs_bsize - 1;
 		if (fs->fs_maxfilesize > maxfilesize)
 			fs->fs_maxfilesize = maxfilesize;
+		break;
 	}
 	/* Compatibility for old filesystems */
 	if (fs->fs_avgfilesize <= 0)
@@ -426,9 +431,8 @@ static int prttimechgs = 0;
 #ifdef _KERNEL
 SYSCTL_NODE(_vfs, OID_AUTO, ffs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "FFS filesystem");
-
 SYSCTL_INT(_vfs_ffs, OID_AUTO, prttimechgs, CTLFLAG_RWTUN, &prttimechgs, 0,
-	"print UFS1 time changes made to inodes");
+    "print UFS1 time changes made to inodes");
 #endif /* _KERNEL */
 bool
 ffs_oldfscompat_inode_read(struct fs *fs, union dinodep dp, time_t now)
