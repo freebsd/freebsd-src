@@ -208,6 +208,18 @@ linux_kmem_cache_destroy(struct linux_kmem_cache *c)
 }
 
 void *
+lkpi___kmalloc_node(size_t size, gfp_t flags, int node)
+{
+	if (size <= PAGE_SIZE)
+		return (malloc_domainset(size, M_KMALLOC,
+		    linux_get_vm_domain_set(node), linux_check_m_flags(flags)));
+	else
+		return (contigmalloc_domainset(size, M_KMALLOC,
+		    linux_get_vm_domain_set(node), linux_check_m_flags(flags),
+		    0, -1UL, PAGE_SIZE, 0));
+}
+
+void *
 lkpi___kmalloc(size_t size, gfp_t flags)
 {
 	size_t _s;
