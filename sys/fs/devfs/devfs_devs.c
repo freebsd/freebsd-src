@@ -86,6 +86,9 @@ sysctl_devname(SYSCTL_HANDLER_ARGS)
 	struct cdev_priv *cdp;
 	struct cdev *dev;
 
+	if (req->newptr == NULL)
+		return (EINVAL);
+
 #ifdef COMPAT_FREEBSD11
 	if (req->newlen == sizeof(ud_compat)) {
 		error = SYSCTL_IN(req, &ud_compat, sizeof(ud_compat));
