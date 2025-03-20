@@ -258,6 +258,12 @@ SUBDIR.${MK_TOOLCHAIN}+=	nm
 SUBDIR.${MK_TOOLCHAIN}+=	objcopy
 SUBDIR.${MK_TOOLCHAIN}+=	readelf
 SUBDIR.${MK_TOOLCHAIN}+=	size
+.endif
+# Include elftoolchain's strings in build targets even if using LLVM_BINUTILS,
+# as we may later install with different options.  In particular, the release
+# artifact builds use default options for buildworld but install with
+# MK_TOOLCHAIN=no which implies MK_LLVM_BINUTILS=no.
+.if ${MK_LLVM_BINUTILS} == "no" || !make(install)
 SUBDIR+=			strings
 .endif
 SUBDIR.${MK_TOOLCHAIN}+=	c89
