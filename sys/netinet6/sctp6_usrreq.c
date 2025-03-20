@@ -375,6 +375,8 @@ sctp6_getcred(SYSCTL_HANDLER_ARGS)
 
 	vrf_id = SCTP_DEFAULT_VRFID;
 
+	if (req->newptr == NULL)
+		return (EINVAL);
 	error = priv_check(req->td, PRIV_NETINET_GETCRED);
 	if (error)
 		return (error);
