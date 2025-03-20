@@ -4,6 +4,7 @@
 #define	TMPFILE_SIZE	(1024 * 32)
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/random.h>
 #include <sys/resource.h>
 #include <sys/select.h>
@@ -160,6 +161,27 @@ replace_stdin(void)
 	(void)dup2(fd, STDIN_FILENO);
 	if (fd != STDIN_FILENO)
 		close(fd);
+}
+
+#define	JAIL_HOSTNAME	"host.example.com"
+#define	JAIL_DOMAINNAME	"example.com"
+static void
+dhost_jail(void)
+{
+	struct iovec iov[4];
+	int jid;
+
+	iov[0].iov_base = __DECONST(char *, "host.hostname");
+	iov[0].iov_len = sizeof("host.hostname");
+	iov[1].iov_base = __DECONST(char *, JAIL_HOSTNAME);
+	iov[1].iov_len = sizeof(JAIL_HOSTNAME);
+	iov[2].iov_base = __DECONST(char *, "host.domainname");
+	iov[2].iov_len = sizeof("host.domainname");
+	iov[3].iov_base = __DECONST(char *, JAIL_DOMAINNAME);
+	iov[3].iov_len = sizeof(JAIL_DOMAINNAME);
+
+	jid = jail_set(iov, nitems(iov), JAIL_CREATE | JAIL_ATTACH);
+	ATF_REQUIRE_MSG(jid > 0, "Jail creation failed: %s", strerror(errno));
 }
 
 ATF_TC(getcwd_before_end);
@@ -1354,24 +1376,21 @@ monitor:
 ATF_TC(getdomainname_before_end);
 ATF_TC_HEAD(getdomainname_before_end, tc)
 {
+	atf_tc_set_md_var(tc, "require.user", "root");
 }
 ATF_TC_BODY(getdomainname_before_end, tc)
 {
 #define BUF &__stack.__buf
 	struct {
 		uint8_t padding_l;
-		unsigned char __buf[4];
+		unsigned char __buf[12];
 		uint8_t padding_r;
 	} __stack;
 	const size_t __bufsz __unused = sizeof(__stack.__buf);
-	const size_t __len = 4 - 1;
+	const size_t __len = 12 - 1;
 	const size_t __idx __unused = __len - 1;
-	char sysdomain[256];
 
-	(void)getdomainname(sysdomain, __len);
-	if (strlen(sysdomain) <= __len)
-		atf_tc_skip("domain name too short for testing");
-
+	dhost_jail();
 	getdomainname(__stack.__buf, __len);
 #undef BUF
 
@@ -1380,24 +1399,21 @@ ATF_TC_BODY(getdomainname_before_end, tc)
 ATF_TC(getdomainname_end);
 ATF_TC_HEAD(getdomainname_end, tc)
 {
+	atf_tc_set_md_var(tc, "require.user", "root");
 }
 ATF_TC_BODY(getdomainname_end, tc)
 {
 #define BUF &__stack.__buf
 	struct {
 		uint8_t padding_l;
-		unsigned char __buf[4];
+		unsigned char __buf[12];
 		uint8_t padding_r;
 	} __stack;
 	const size_t __bufsz __unused = sizeof(__stack.__buf);
-	const size_t __len = 4;
+	const size_t __len = 12;
 	const size_t __idx __unused = __len - 1;
-	char sysdomain[256];
 
-	(void)getdomainname(sysdomain, __len);
-	if (strlen(sysdomain) <= __len)
-		atf_tc_skip("domain name too short for testing");
-
+	dhost_jail();
 	getdomainname(__stack.__buf, __len);
 #undef BUF
 
@@ -1406,6 +1422,7 @@ ATF_TC_BODY(getdomainname_end, tc)
 ATF_TC(getdomainname_heap_before_end);
 ATF_TC_HEAD(getdomainname_heap_before_end, tc)
 {
+	atf_tc_set_md_var(tc, "require.user", "root");
 }
 ATF_TC_BODY(getdomainname_heap_before_end, tc)
 {
@@ -1415,15 +1432,11 @@ ATF_TC_BODY(getdomainname_heap_before_end, tc)
 		unsigned char * __buf;
 		uint8_t padding_r;
 	} __stack;
-	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (4);
-	const size_t __len = 4 - 1;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (12);
+	const size_t __len = 12 - 1;
 	const size_t __idx __unused = __len - 1;
-	char sysdomain[256];
 
-	(void)getdomainname(sysdomain, __len);
-	if (strlen(sysdomain) <= __len)
-		atf_tc_skip("domain name too short for testing");
-
+	dhost_jail();
 	__stack.__buf = malloc(__bufsz);
 
 	getdomainname(__stack.__buf, __len);
@@ -1434,6 +1447,7 @@ ATF_TC_BODY(getdomainname_heap_before_end, tc)
 ATF_TC(getdomainname_heap_end);
 ATF_TC_HEAD(getdomainname_heap_end, tc)
 {
+	atf_tc_set_md_var(tc, "require.user", "root");
 }
 ATF_TC_BODY(getdomainname_heap_end, tc)
 {
@@ -1443,15 +1457,11 @@ ATF_TC_BODY(getdomainname_heap_end, tc)
 		unsigned char * __buf;
 		uint8_t padding_r;
 	} __stack;
-	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (4);
-	const size_t __len = 4;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (12);
+	const size_t __len = 12;
 	const size_t __idx __unused = __len - 1;
-	char sysdomain[256];
 
-	(void)getdomainname(sysdomain, __len);
-	if (strlen(sysdomain) <= __len)
-		atf_tc_skip("domain name too short for testing");
-
+	dhost_jail();
 	__stack.__buf = malloc(__bufsz);
 
 	getdomainname(__stack.__buf, __len);
@@ -1462,6 +1472,7 @@ ATF_TC_BODY(getdomainname_heap_end, tc)
 ATF_TC(getdomainname_heap_after_end);
 ATF_TC_HEAD(getdomainname_heap_after_end, tc)
 {
+	atf_tc_set_md_var(tc, "require.user", "root");
 }
 ATF_TC_BODY(getdomainname_heap_after_end, tc)
 {
@@ -1471,17 +1482,13 @@ ATF_TC_BODY(getdomainname_heap_after_end, tc)
 		unsigned char * __buf;
 		uint8_t padding_r;
 	} __stack;
-	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (4);
-	const size_t __len = 4 + 1;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (12);
+	const size_t __len = 12 + 1;
 	const size_t __idx __unused = __len - 1;
 	pid_t __child;
 	int __status;
-	char sysdomain[256];
 
-	(void)getdomainname(sysdomain, __len);
-	if (strlen(sysdomain) <= __len)
-		atf_tc_skip("domain name too short for testing");
-
+	dhost_jail();
 	__child = fork();
 	ATF_REQUIRE(__child >= 0);
 	if (__child > 0)
@@ -1663,25 +1670,21 @@ monitor:
 ATF_TC(gethostname_before_end);
 ATF_TC_HEAD(gethostname_before_end, tc)
 {
+	atf_tc_set_md_var(tc, "require.user", "root");
 }
 ATF_TC_BODY(gethostname_before_end, tc)
 {
 #define BUF &__stack.__buf
 	struct {
 		uint8_t padding_l;
-		unsigned char __buf[4];
+		unsigned char __buf[17];
 		uint8_t padding_r;
 	} __stack;
 	const size_t __bufsz __unused = sizeof(__stack.__buf);
-	const size_t __len = 4 - 1;
+	const size_t __len = 17 - 1;
 	const size_t __idx __unused = __len - 1;
-	char syshost[256];
-	int error;
 
-	error = gethostname(syshost, __len);
-	if (error != 0 || strlen(syshost) <= __len)
-		atf_tc_skip("hostname too short for testing");
-
+	dhost_jail();
 	gethostname(__stack.__buf, __len);
 #undef BUF
 
@@ -1690,25 +1693,21 @@ ATF_TC_BODY(gethostname_before_end, tc)
 ATF_TC(gethostname_end);
 ATF_TC_HEAD(gethostname_end, tc)
 {
+	atf_tc_set_md_var(tc, "require.user", "root");
 }
 ATF_TC_BODY(gethostname_end, tc)
 {
 #define BUF &__stack.__buf
 	struct {
 		uint8_t padding_l;
-		unsigned char __buf[4];
+		unsigned char __buf[17];
 		uint8_t padding_r;
 	} __stack;
 	const size_t __bufsz __unused = sizeof(__stack.__buf);
-	const size_t __len = 4;
+	const size_t __len = 17;
 	const size_t __idx __unused = __len - 1;
-	char syshost[256];
-	int error;
 
-	error = gethostname(syshost, __len);
-	if (error != 0 || strlen(syshost) <= __len)
-		atf_tc_skip("hostname too short for testing");
-
+	dhost_jail();
 	gethostname(__stack.__buf, __len);
 #undef BUF
 
@@ -1717,6 +1716,7 @@ ATF_TC_BODY(gethostname_end, tc)
 ATF_TC(gethostname_heap_before_end);
 ATF_TC_HEAD(gethostname_heap_before_end, tc)
 {
+	atf_tc_set_md_var(tc, "require.user", "root");
 }
 ATF_TC_BODY(gethostname_heap_before_end, tc)
 {
@@ -1726,16 +1726,11 @@ ATF_TC_BODY(gethostname_heap_before_end, tc)
 		unsigned char * __buf;
 		uint8_t padding_r;
 	} __stack;
-	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (4);
-	const size_t __len = 4 - 1;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (17);
+	const size_t __len = 17 - 1;
 	const size_t __idx __unused = __len - 1;
-	char syshost[256];
-	int error;
 
-	error = gethostname(syshost, __len);
-	if (error != 0 || strlen(syshost) <= __len)
-		atf_tc_skip("hostname too short for testing");
-
+	dhost_jail();
 	__stack.__buf = malloc(__bufsz);
 
 	gethostname(__stack.__buf, __len);
@@ -1746,6 +1741,7 @@ ATF_TC_BODY(gethostname_heap_before_end, tc)
 ATF_TC(gethostname_heap_end);
 ATF_TC_HEAD(gethostname_heap_end, tc)
 {
+	atf_tc_set_md_var(tc, "require.user", "root");
 }
 ATF_TC_BODY(gethostname_heap_end, tc)
 {
@@ -1755,16 +1751,11 @@ ATF_TC_BODY(gethostname_heap_end, tc)
 		unsigned char * __buf;
 		uint8_t padding_r;
 	} __stack;
-	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (4);
-	const size_t __len = 4;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (17);
+	const size_t __len = 17;
 	const size_t __idx __unused = __len - 1;
-	char syshost[256];
-	int error;
 
-	error = gethostname(syshost, __len);
-	if (error != 0 || strlen(syshost) <= __len)
-		atf_tc_skip("hostname too short for testing");
-
+	dhost_jail();
 	__stack.__buf = malloc(__bufsz);
 
 	gethostname(__stack.__buf, __len);
@@ -1775,6 +1766,7 @@ ATF_TC_BODY(gethostname_heap_end, tc)
 ATF_TC(gethostname_heap_after_end);
 ATF_TC_HEAD(gethostname_heap_after_end, tc)
 {
+	atf_tc_set_md_var(tc, "require.user", "root");
 }
 ATF_TC_BODY(gethostname_heap_after_end, tc)
 {
@@ -1784,18 +1776,13 @@ ATF_TC_BODY(gethostname_heap_after_end, tc)
 		unsigned char * __buf;
 		uint8_t padding_r;
 	} __stack;
-	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (4);
-	const size_t __len = 4 + 1;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (17);
+	const size_t __len = 17 + 1;
 	const size_t __idx __unused = __len - 1;
 	pid_t __child;
 	int __status;
-	char syshost[256];
-	int error;
 
-	error = gethostname(syshost, __len);
-	if (error != 0 || strlen(syshost) <= __len)
-		atf_tc_skip("hostname too short for testing");
-
+	dhost_jail();
 	__child = fork();
 	ATF_REQUIRE(__child >= 0);
 	if (__child > 0)
