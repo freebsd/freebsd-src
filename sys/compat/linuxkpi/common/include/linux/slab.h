@@ -42,7 +42,6 @@
 MALLOC_DECLARE(M_KMALLOC);
 
 #define	kmalloc(size, flags)		lkpi_kmalloc(size, flags)
-#define	kvmalloc(size, flags)		kmalloc(size, flags)
 #define	kvzalloc(size, flags)		kmalloc(size, (flags) | __GFP_ZERO)
 #define	kvcalloc(n, size, flags)	kvmalloc_array(n, size, (flags) | __GFP_ZERO)
 #define	kzalloc(size, flags)		kmalloc(size, (flags) | __GFP_ZERO)
@@ -93,6 +92,7 @@ struct linux_kmem_cache;
 
 extern void *lkpi_kmalloc(size_t size, gfp_t flags);
 void *lkpi___kmalloc(size_t size, gfp_t flags);
+void *lkpi___kmalloc_node(size_t size, gfp_t flags, int node);
 #define	__kmalloc(_s, _f)	lkpi___kmalloc(_s, _f)
 
 static inline gfp_t
@@ -113,23 +113,39 @@ linux_check_m_flags(gfp_t flags)
 static inline void *
 kmalloc_node(size_t size, gfp_t flags, int node)
 {
-	return (malloc_domainset(size, M_KMALLOC,
-	    linux_get_vm_domain_set(node), linux_check_m_flags(flags)));
+	return (lkpi___kmalloc_node(size, flags, node));
+}
+
+static inline void *
+kmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+	if (WOULD_OVERFLOW(n, size))
+		panic("%s: %zu * %zu overflowed", __func__, n, size);
+
+	return (kmalloc(size * n, flags));
 }
 
 static inline void *
 kcalloc(size_t n, size_t size, gfp_t flags)
 {
 	flags |= __GFP_ZERO;
-	return (mallocarray(n, size, M_KMALLOC, linux_check_m_flags(flags)));
+	return (kmalloc_array(n, size, linux_check_m_flags(flags)));
+}
+
+static inline void *
+kmalloc_array_node(size_t n, size_t size, gfp_t flags, int node)
+{
+	if (WOULD_OVERFLOW(n, size))
+		panic("%s: %zu * %zu overflowed", __func__, n, size);
+
+	return (kmalloc_node(size * n, flags, node));
 }
 
 static inline void *
 kcalloc_node(size_t n, size_t size, gfp_t flags, int node)
 {
 	flags |= __GFP_ZERO;
-	return (mallocarray_domainset(n, size, M_KMALLOC,
-	    linux_get_vm_domain_set(node), linux_check_m_flags(flags)));
+	return (kmalloc_array_node(n, size, flags, node));
 }
 
 static inline void *
@@ -151,23 +167,20 @@ vmalloc_32(size_t size)
 	return (contigmalloc(size, M_KMALLOC, M_WAITOK, 0, UINT_MAX, 1, 1));
 }
 
+/* May return non-contiguous memory. */
 static inline void *
-kmalloc_array(size_t n, size_t size, gfp_t flags)
+kvmalloc(size_t size, gfp_t flags)
 {
-	return (mallocarray(n, size, M_KMALLOC, linux_check_m_flags(flags)));
-}
-
-static inline void *
-kmalloc_array_node(size_t n, size_t size, gfp_t flags, int node)
-{
-	return (mallocarray_domainset(n, size, M_KMALLOC,
-	    linux_get_vm_domain_set(node), linux_check_m_flags(flags)));
+	return (malloc(size, M_KMALLOC, linux_check_m_flags(flags)));
 }
 
 static inline void *
 kvmalloc_array(size_t n, size_t size, gfp_t flags)
 {
-	return (mallocarray(n, size, M_KMALLOC, linux_check_m_flags(flags)));
+	if (WOULD_OVERFLOW(n, size))
+		panic("%s: %zu * %zu overflowed", __func__, n, size);
+
+	return (kvmalloc(size * n, flags));
 }
 
 static inline void *
@@ -179,9 +192,8 @@ krealloc(void *ptr, size_t size, gfp_t flags)
 static inline void *
 krealloc_array(void *ptr, size_t n, size_t size, gfp_t flags)
 {
-	if (WOULD_OVERFLOW(n, size)) {
+	if (WOULD_OVERFLOW(n, size))
 		return NULL;
-	}
 
 	return (realloc(ptr, n * size, M_KMALLOC, linux_check_m_flags(flags)));
 }

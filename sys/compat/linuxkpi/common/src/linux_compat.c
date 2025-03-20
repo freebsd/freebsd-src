@@ -2847,8 +2847,8 @@ linux_compat_init(void *arg)
 	boot_cpu_data.x86_model = CPUID_TO_MODEL(cpu_id);
 	boot_cpu_data.x86_vendor = x86_vendor;
 
-	__cpu_data = mallocarray(mp_maxid + 1,
-	    sizeof(*__cpu_data), M_KMALLOC, M_WAITOK | M_ZERO);
+	__cpu_data = kmalloc_array(mp_maxid + 1,
+	    sizeof(*__cpu_data), M_WAITOK | M_ZERO);
 	CPU_FOREACH(i) {
 		__cpu_data[i].x86_clflush_size = cpu_clflush_line_size;
 		__cpu_data[i].x86_max_cores = mp_ncpus;
@@ -2890,8 +2890,8 @@ linux_compat_init(void *arg)
 	 * This is used by cpumask_of() (and possibly others in the future) for,
 	 * e.g., drivers to pass hints to irq_set_affinity_hint().
 	 */
-	static_single_cpu_mask = mallocarray(mp_maxid + 1,
-	    sizeof(static_single_cpu_mask), M_KMALLOC, M_WAITOK | M_ZERO);
+	static_single_cpu_mask = kmalloc_array(mp_maxid + 1,
+	    sizeof(static_single_cpu_mask), M_WAITOK | M_ZERO);
 
 	/*
 	 * When the number of CPUs reach a threshold, we start to save memory
@@ -2910,9 +2910,9 @@ linux_compat_init(void *arg)
 		 * (_BITSET_BITS / 8)' bytes (for comparison with the
 		 * overlapping scheme).
 		 */
-		static_single_cpu_mask_lcs = mallocarray(mp_ncpus,
+		static_single_cpu_mask_lcs = kmalloc_array(mp_ncpus,
 		    sizeof(*static_single_cpu_mask_lcs),
-		    M_KMALLOC, M_WAITOK | M_ZERO);
+		    M_WAITOK | M_ZERO);
 
 		sscm_ptr = static_single_cpu_mask_lcs;
 		CPU_FOREACH(i) {
