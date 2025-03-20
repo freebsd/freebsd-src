@@ -7905,6 +7905,7 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			struct tcphdr		 th;
 			u_int32_t		 seq;
 			struct pf_state_peer	*src, *dst;
+			u_int16_t		 dummy_cksum = 0;
 			u_int8_t		 dws;
 			int			 copyback = 0;
 
@@ -8026,10 +8027,10 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					    nk->af))
 						return (PF_DROP);
 					pf_change_ap(pd->m, pd2.src, &th.th_sport,
-					    pd->ip_sum, &th.th_sum, &nk->addr[pd2.sidx],
+					    pd->ip_sum, &dummy_cksum, &nk->addr[pd2.sidx],
 					    nk->port[sidx], 1, pd->af, nk->af);
 					pf_change_ap(pd->m, pd2.dst, &th.th_dport,
-					    pd->ip_sum, &th.th_sum, &nk->addr[pd2.didx],
+					    pd->ip_sum, &dummy_cksum, &nk->addr[pd2.didx],
 					    nk->port[didx], 1, pd->af, nk->af);
 					m_copyback(pd2.m, pd2.off, 8, (c_caddr_t)&th);
 					PF_ACPY(&pd->nsaddr, &nk->addr[pd2.sidx],
