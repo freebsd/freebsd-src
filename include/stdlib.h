@@ -157,7 +157,7 @@ _Noreturn void	 _Exit(int) __noexcept;
 /*
  * If we're in a mode greater than C99, expose C11 functions.
  */
-#if __ISO_C_VISIBLE >= 2011 || __cplusplus >= 201103L || __POSIX_VISIBLE >= 202405
+#if __ISO_C_VISIBLE >= 2011 || __cplusplus >= 201103L
 void *	aligned_alloc(size_t, size_t) __malloc_like __alloc_align(1)
 	    __alloc_size(2);
 int	at_quick_exit(void (*)(void)) __noexcept;
@@ -236,13 +236,6 @@ int	 unlockpt(int);
 int	 ptsname_r(int, char *, size_t);
 #endif
 
-#if __POSIX_VISIBLE >= 202405
-void	 qsort_r(void *, size_t, size_t,
-	    int (*)(const void *, const void *, void *), void *);
-void	*reallocarray(void *, size_t, size_t) __result_use_check
-	    __alloc_size2(2, 3);
-#endif
-
 #if __BSD_VISIBLE
 extern const char *malloc_conf;
 extern void (*malloc_message)(void *, const char *);
@@ -312,8 +305,12 @@ int	 mergesort_b(void *, size_t, size_t, int (^)(const void *, const void *));
 int	 mkostemp(char *, int);
 int	 mkostemps(char *, int, int);
 int	 mkostempsat(int, char *, int, int);
+void	 qsort_r(void *, size_t, size_t,
+	    int (*)(const void *, const void *, void *), void *);
 int	 radixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
+void	*reallocarray(void *, size_t, size_t) __result_use_check
+	    __alloc_size2(2, 3);
 void	*reallocf(void *, size_t) __result_use_check __alloc_size(2);
 int	 rpmatch(const char *);
 char	*secure_getenv(const char *);

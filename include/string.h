@@ -63,8 +63,8 @@ void	*memrchr(const void *, int, size_t) __pure;
 #endif
 int	 memcmp(const void *, const void *, size_t) __pure;
 void	*(memcpy)(void * __restrict, const void * __restrict, size_t);
-#if __POSIX_VISIBLE >= 202405
-void	*(memmem)(const void *, size_t, const void *, size_t) __pure;
+#if __BSD_VISIBLE
+void	*memmem(const void *, size_t, const void *, size_t) __pure;
 #endif
 void	*(memmove)(void *, const void *, size_t);
 #if __BSD_VISIBLE
@@ -98,7 +98,7 @@ char	*strerror(int);
 #if __POSIX_VISIBLE >= 200112
 int	 strerror_r(int, char *, size_t);
 #endif
-#if __POSIX_VISIBLE >= 202405
+#if __BSD_VISIBLE
 size_t	 (strlcat)(char * __restrict, const char * __restrict, size_t);
 size_t	 (strlcpy)(char * __restrict, const char * __restrict, size_t);
 #endif

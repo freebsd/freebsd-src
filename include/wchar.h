@@ -235,13 +235,10 @@ size_t	wcsnrtombs(char * __restrict, const wchar_t ** __restrict, size_t,
 	    size_t, mbstate_t * __restrict);
 #endif
 
-#if __POSIX_VISIBLE >= 202405
-size_t	wcslcat(wchar_t *, const wchar_t *, size_t);
-size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
-#endif
-
 #if __BSD_VISIBLE
 wchar_t	*fgetwln(FILE * __restrict, size_t * __restrict);
+size_t	wcslcat(wchar_t *, const wchar_t *, size_t);
+size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
 #endif
 
 #if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
