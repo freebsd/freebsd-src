@@ -65,7 +65,59 @@ basic_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "table" "cleanup"
+table_head()
+{
+	atf_set descr 'Test tables and pf_snmp'
+	atf_set require.user root
+}
+
+table_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}b 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}a
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "table <foo> counters { 192.0.2.0/24 }" \
+	    "pass in from <foo>"
+
+	# Start bsnmpd after creating the table so we don't have to wait for
+	# a refresh timeout
+	jexec alcatraz bsnmpd -c $(atf_get_srcdir)/bsnmpd.conf
+
+	# Sanity check, and create state
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+
+	# We should have one table
+	atf_check -s exit:0 -o match:'pfTablesTblNumber.0 = 1' \
+	    bsnmpwalk -s public@192.0.2.1 -i pf_tree.def begemot
+
+	# We have the 'foo' table
+	atf_check -s exit:0 -o match:'pfTablesTblDescr.* = foo' \
+	    bsnmpwalk -s public@192.0.2.1 -i pf_tree.def pfTables
+
+	# Which contains address 192.0.2.0/24
+	atf_check -s exit:0 -o match:'pfTablesAddrNet.* = 192.0.2.0' \
+	    bsnmpwalk -s public@192.0.2.1 -i pf_tree.def pfTables
+	atf_check -s exit:0 -o match:'pfTablesAddrPrefix.* = 24' \
+	    bsnmpwalk -s public@192.0.2.1 -i pf_tree.def pfTables
+}
+
+table_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
+	atf_add_test_case "table"
 }
