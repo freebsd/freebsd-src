@@ -1637,11 +1637,6 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		to.to_tsecr -= tp->ts_offset;
 		if (TSTMP_GT(to.to_tsecr, tcp_ts_getticks()))
 			to.to_tsecr = 0;
-		else if (tp->t_rxtshift == 1 &&
-			 tp->t_flags & TF_PREVVALID &&
-			 tp->t_badrxtwin != 0 &&
-			 TSTMP_LT(to.to_tsecr, tp->t_badrxtwin))
-			cc_cong_signal(tp, th, CC_RTO_ERR);
 	}
 	/*
 	 * Process options only when we get SYN/ACK back. The SYN case
@@ -1786,15 +1781,17 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 				TCPSTAT_INC(tcps_predack);
 
 				/*
-				 * "bad retransmit" recovery without timestamps.
+				 * "bad retransmit" recovery.
 				 */
-				if ((to.to_flags & TOF_TS) == 0 &&
-				    tp->t_rxtshift == 1 &&
+				if (tp->t_rxtshift == 1 &&
 				    tp->t_flags & TF_PREVVALID &&
 				    tp->t_badrxtwin != 0 &&
-				    TSTMP_LT(ticks, tp->t_badrxtwin)) {
+				    (((to.to_flags & TOF_TS) != 0 &&
+				      to.to_tsecr != 0 &&
+				      TSTMP_LT(to.to_tsecr, tp->t_badrxtwin)) ||
+				     ((to.to_flags & TOF_TS) == 0 &&
+				      TSTMP_LT(ticks, tp->t_badrxtwin))))
 					cc_cong_signal(tp, th, CC_RTO_ERR);
-				}
 
 				/*
 				 * Recalculate the transmit timer / rtt.
