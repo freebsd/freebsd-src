@@ -180,7 +180,7 @@ time_t posix2time(time_t t);
 #include <xlocale/_time.h>
 #endif
 
-#if __ISO_C_VISIBLE >= 2011 || __POSIX_VISIBLE >= 202405 \
+#if __ISO_C_VISIBLE >= 2011 || __POSIX_VISIBLE >= 202405 || \
     (defined(__cplusplus) && __cplusplus >= 201703)
 #include <sys/_timespec.h>
 /* ISO/IEC 9899:2011 7.27.2.5 The timespec_get function */
