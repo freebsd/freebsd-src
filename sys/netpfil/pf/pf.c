@@ -7902,7 +7902,6 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			struct tcphdr		 th;
 			u_int32_t		 seq;
 			struct pf_state_peer	*src, *dst;
-			u_int16_t		 dummy_cksum = 0;
 			u_int8_t		 dws;
 			int			 copyback = 0;
 
@@ -7999,7 +7998,8 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					nk = (*state)->key[pd->didx];
 
 #if defined(INET) && defined(INET6)
-				int	 afto, sidx, didx;
+				int		 afto, sidx, didx;
+				u_int16_t	 dummy_cksum = 0;
 
 				afto = pd->af != nk->af;
 
