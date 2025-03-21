@@ -424,36 +424,48 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
  *     immediately. However, if only one free handle left which is reused
  *     constantly...
  */
-static inline int
-isrc_alloc_irq(struct intr_irqsrc *isrc)
+static inline u_int
+isrc_alloc_irq(void)
 {
 	u_int irq;
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
 	if (irq_next_free >= intr_nirq)
-		return (ENOSPC);
+		return (INTR_IRQ_INVALID);
 
 	for (irq = irq_next_free; irq < intr_nirq; irq++) {
 		if (irq_sources[irq] == NULL)
-			goto found;
+			return (irq);
 	}
 	for (irq = 0; irq < irq_next_free; irq++) {
 		if (irq_sources[irq] == NULL)
-			goto found;
+			return (irq);
 	}
 
 	irq_next_free = intr_nirq;
-	return (ENOSPC);
+	return (INTR_IRQ_INVALID);
+}
 
-found:
+/*
+ *  Set the IRQ for an isrc.
+ *
+ * The IRQ must be known available and the table lock already held.
+ */
+static inline void
+isrc_set_irq(struct intr_irqsrc *isrc, u_int irq)
+{
+	mtx_assert(&isrc_table_lock, MA_OWNED);
+
+	MPASS(irq < intr_nirq);
+	MPASS(irq_sources[irq] == NULL);
+
 	isrc->isrc_irq = irq;
 	irq_sources[irq] = isrc;
 
 	irq_next_free = irq + 1;
 	if (irq_next_free >= intr_nirq)
 		irq_next_free = 0;
-	return (0);
 }
 
 /*
@@ -501,6 +513,7 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
     const char *fmt, ...)
 {
 	int error;
+	u_int irq;
 	va_list ap;
 
 	bzero(isrc, sizeof(struct intr_irqsrc));
@@ -513,11 +526,16 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 	va_end(ap);
 
 	mtx_lock(&isrc_table_lock);
-	error = isrc_alloc_irq(isrc);
+	irq = isrc_alloc_irq();
+	if (irq < intr_nirq) {
+		error = 0;
+	} else
+		error = ENOSPC;
 	if (error != 0) {
 		mtx_unlock(&isrc_table_lock);
 		return (error);
 	}
+	isrc_set_irq(isrc, irq);
 	/*
 	 * Setup interrupt counters, but not for IPI sources. Those are setup
 	 * later and only for used ones (up to INTR_IPI_COUNT) to not exhaust
