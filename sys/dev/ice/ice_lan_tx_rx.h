@@ -948,10 +948,9 @@ struct ice_tx_ctx_desc {
 	__le64 qw1;
 };
 
-#define ICE_TX_GCS_DESC_START	0  /* 7 BITS */
-#define ICE_TX_GCS_DESC_OFFSET	7  /* 4 BITS */
-#define ICE_TX_GCS_DESC_TYPE	11 /* 2 BITS */
-#define ICE_TX_GCS_DESC_ENA	13 /* 1 BIT */
+#define ICE_TX_GCS_DESC_START	0  /* 8 BITS */
+#define ICE_TX_GCS_DESC_OFFSET	8  /* 4 BITS */
+#define ICE_TX_GCS_DESC_TYPE	12 /* 3 BITS */
 
 #define ICE_TXD_CTX_QW1_DTYPE_S	0
 #define ICE_TXD_CTX_QW1_DTYPE_M	(0xFUL << ICE_TXD_CTX_QW1_DTYPE_S)
@@ -2375,4 +2374,5 @@ static inline struct ice_rx_ptype_decoded ice_decode_rx_desc_ptype(u16 ptype)
 #define ICE_LINK_SPEED_40000MBPS	40000
 #define ICE_LINK_SPEED_50000MBPS	50000
 #define ICE_LINK_SPEED_100000MBPS	100000
+#define ICE_LINK_SPEED_200000MBPS	200000
 #endif /* _ICE_LAN_TX_RX_H_ */
