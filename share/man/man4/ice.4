@@ -73,6 +73,16 @@ Intel\(rg Ethernet Connection E822\-L
 Intel\(rg Ethernet Connection E823\-C
 .It
 Intel\(rg Ethernet Connection E823\-L
+.It
+Intel\(rg Ethernet Connection E825\-C
+.It
+Intel\(rg Ethernet Connection E830\-C
+.It
+Intel\(rg Ethernet Connection E830\-CC
+.It
+Intel\(rg Ethernet Connection E830\-L
+.It
+Intel\(rg Ethernet Connection E830\-XXV
 .El
 .Pp
 For questions related to hardware requirements, refer to the documentation
@@ -182,14 +192,38 @@ See the
 .Xr iflib 4
 man page for more information on using iflib sysctl variables as tunables.
 .Bl -tag -width indent
-.It Va hw.ice.#.enable_health_events
-TBW
-.It Va hw.ice.#.debug.enable_tx_fc_filter
-TBW
-.It Va hw.ice.#.debug.enable_tx_lldp_filter
-TBW
-.It Va hw.ice.#.debug.enable_health_events
-TBW
+.It Va hw.ice.enable_health_events
+Set to 1 to enable firmware health event reporting across all devices. Enabled by default.
+.Pp
+If enabled, when the driver receives a firmware health event message, it will
+print out a description of the event to the kernel message buffer and if
+applicable, possible actions to take to remedy it.
+.It Va hw.ice.irdma
+Set to 1 to enable the RDMA client interface, required by the
+.Xr irdma 4
+driver.
+Enabled by default.
+.It Va hw.ice.rdma_max_msix
+Set the maximum number of per-device MSI-X vectors that are allocated for use by the
+.Xr irdma 4
+driver.
+Set to 64 by default.
+.It Va hw.ice.debug.enable_tx_fc_filter
+Set to 1 to enable the TX Flow Control filter across all devices. Enabled by default.
+.Pp
+If enabled, the hardware will drop any transmitted Ethertype 0x8808 control
+frames that do not originate from the hardware.
+.It Va hw.ice.debug.enable_tx_lldp_filter
+Set to 1 to enable the TX LLDP filter across all devices. Enabled by default.
+.Pp
+If enabled, the hardware will drop any transmitted Ethertype 0x88cc LLDP frames
+that do not originate from the hardware.
+This must be disabled in order to use LLDP daemon software such as
+.Xr lldpd 8 .
+.It Va hw.ice.debug.ice_tx_balance_en
+Set to 1 to allow the driver to use the 5-layer Tx Scheduler tree topology if configured by the DDP package.
+.Pp
+Enabled by default. 
 .El
 .Sh SYSCTL PROCEDURES
 .Bl -tag -width indent
