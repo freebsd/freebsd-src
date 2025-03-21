@@ -30,7 +30,13 @@
 #ifndef	_LINUXKPI_LINUX_CPUFEATURE_H_
 #define	_LINUXKPI_LINUX_CPUFEATURE_H_
 
-// #include <linux/init.h>
+/*
+ * Linux includes the following header. We don't have it on FreeBSD yet, so
+ * let's comment this include for now. It is still referenced here because
+ * sometimes, consumers of headers rely voluntarily or not on the namespace
+ * pollution.
+ */
+/* #include <linux/init.h> */
 #include <linux/mod_devicetable.h>
 #include <asm/cpufeature.h>
 
