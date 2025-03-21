@@ -472,6 +472,7 @@ cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 			ENTER_CONGRECOVERY(tp->t_flags);
 		tp->snd_nxt = tp->snd_max;
 		tp->t_flags &= ~TF_PREVVALID;
+		tp->t_rxtshift = 0;
 		tp->t_badrxtwin = 0;
 		break;
 	}
