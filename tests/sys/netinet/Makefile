@@ -24,6 +24,7 @@ ATF_TESTS_SH=	arp \
 		fibs_test \
 		forward \
 		lpm \
+		multicast \
 		output \
 		redirect
 
@@ -47,7 +48,7 @@ TEST_METADATA.forward+=	required_programs="python"	\
 TEST_METADATA.output+=	required_programs="python"
 TEST_METADATA.redirect+= required_programs="python"
 
-PROGS=	udp_dontroute tcp_user_cookie
+PROGS=	udp_dontroute tcp_user_cookie sendto-IP_MULTICAST_IF
 
 ${PACKAGE}FILES+=		redirect.py
 
