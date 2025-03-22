@@ -65,6 +65,7 @@ enum {
 	PFNL_CMD_ADD_TABLE = 27,
 	PFNL_CMD_DEL_TABLE = 28,
 	PFNL_CMD_GET_TSTATS = 29,
+	PFNL_CMD_CLR_TSTATS = 30,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -453,6 +454,7 @@ enum pf_tstats_t {
 	PF_TS_TZERO		= 6, /* u64 */
 	PF_TS_CNT		= 7, /* u64 */
 	PF_TS_REFCNT		= 8, /* u64 array */
+	PF_TS_NZERO		= 9, /* u64 */
 };
 
 #ifdef _KERNEL

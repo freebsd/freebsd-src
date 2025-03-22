@@ -554,5 +554,7 @@ int	pfctl_del_table(struct pfctl_handle *h, struct pfr_table *table,
 typedef int (*pfctl_get_tstats_fn)(const struct pfr_tstats *t, void *arg);
 int	pfctl_get_tstats(struct pfctl_handle *h, const struct pfr_table *filter,
 	    pfctl_get_tstats_fn fn, void *arg);
+int	pfctl_clear_tstats(struct pfctl_handle *h, const struct pfr_table *filter,
+	    int *nzero, int flags);
 
 #endif
