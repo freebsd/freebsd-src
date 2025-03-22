@@ -1237,6 +1237,9 @@ run_rc_command()
 				nfsd)
 					_svcj_cmd_options="allow.nfsd enforce_statfs=1 ${_svcj_cmd_options}"
 					;;
+				routing)
+					_svcj_cmd_options="allow.routing ${_svcj_cmd_options}"
+					;;
 				sysvipc)
 					_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
 					_svcj_cmd_options="sysvmsg=inherit sysvsem=inherit sysvshm=inherit  ${_svcj_cmd_options}"
