@@ -58,11 +58,8 @@ static device_method_t  rbled_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t rbled_driver = {
-	"rbled",
-	rbled_methods,
-	sizeof(struct rbled_softc),
-};
+PRIVATE_DEFINE_CLASSN(rbled, rbled_driver, rbled_methods,
+    sizeof(struct rbled_softc));
 
 DRIVER_MODULE(rbled, simplebus, rbled_driver, 0, 0);
 

@@ -459,11 +459,8 @@ static device_method_t rk_typec_phy_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t rk_typec_phy_driver = {
-	"rk_typec_phy",
-	rk_typec_phy_methods,
-	sizeof(struct rk_typec_phy_softc)
-};
+PRIVATE_DEFINE_CLASSN(rk_typec_phy, rk_typec_phy_driver, rk_typec_phy_methods,
+    sizeof(struct rk_typec_phy_softc));
 
 EARLY_DRIVER_MODULE(rk_typec_phy, simplebus, rk_typec_phy_driver, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);

@@ -44,7 +44,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
@@ -71,7 +71,7 @@ static device_method_t gic_acpi_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_get_resource_list, gic_acpi_get_resource_list),
 
-	DEVMETHOD_END,
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_1(gic, gic_acpi_driver, gic_acpi_methods,

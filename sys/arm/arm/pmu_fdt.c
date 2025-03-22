@@ -222,13 +222,11 @@ pmu_fdt_attach(device_t dev)
 static device_method_t pmu_fdt_methods[] = {
 	DEVMETHOD(device_probe,		pmu_fdt_probe),
 	DEVMETHOD(device_attach,	pmu_fdt_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t pmu_fdt_driver = {
-	"pmu",
-	pmu_fdt_methods,
-	sizeof(struct pmu_softc),
-};
+PRIVATE_DEFINE_CLASSN(pmu, pmu_fdt_driver, pmu_fdt_methods,
+    sizeof(struct pmu_softc));
 
 DRIVER_MODULE(pmu, simplebus, pmu_fdt_driver, 0, 0);

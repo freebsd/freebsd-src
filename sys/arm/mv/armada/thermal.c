@@ -93,14 +93,6 @@ static int armada_thermal_probe(device_t);
 static int armada_thermal_attach(device_t);
 static int armada_thermal_detach(device_t);
 
-static device_method_t armada_thermal_methods[] = {
-	DEVMETHOD(device_probe,		armada_thermal_probe),
-	DEVMETHOD(device_attach,	armada_thermal_attach),
-	DEVMETHOD(device_detach,	armada_thermal_detach),
-
-	DEVMETHOD_END
-};
-
 struct armada_thermal_softc {
 	device_t		dev;
 
@@ -115,11 +107,16 @@ struct armada_thermal_softc {
 	u_long			chip_temperature;
 };
 
-static driver_t	armada_thermal_driver = {
-	"armada_thermal",
-	armada_thermal_methods,
-	sizeof(struct armada_thermal_softc)
+static device_method_t armada_thermal_methods[] = {
+	DEVMETHOD(device_probe,		armada_thermal_probe),
+	DEVMETHOD(device_attach,	armada_thermal_attach),
+	DEVMETHOD(device_detach,	armada_thermal_detach),
+
+	DEVMETHOD_END
 };
+
+PRIVATE_DEFINE_CLASSN(armada_thermal, armada_thermal_driver,
+    armada_thermal_methods, sizeof(struct armada_thermal_softc));
 
 DRIVER_MODULE(armada_thermal, simplebus, armada_thermal_driver, 0, 0);
 DRIVER_MODULE(armada_thermal, ofwbus, armada_thermal_driver, 0, 0);

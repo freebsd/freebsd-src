@@ -48,7 +48,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <arm/freescale/vybrid/vf_common.h>
 #include <arm/freescale/vybrid/vf_dmamux.h>
@@ -138,13 +138,11 @@ dmamux_attach(device_t dev)
 static device_method_t dmamux_methods[] = {
 	DEVMETHOD(device_probe,		dmamux_probe),
 	DEVMETHOD(device_attach,	dmamux_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t dmamux_driver = {
-	"dmamux",
-	dmamux_methods,
-	sizeof(struct dmamux_softc),
-};
+PRIVATE_DEFINE_CLASSN(dmamux, dmamux_driver, dmamux_methods,
+    sizeof(struct dmamux_softc));
 
 DRIVER_MODULE(dmamux, simplebus, dmamux_driver, 0, 0);

@@ -29,13 +29,28 @@
 #ifndef _SYS_INTERRUPT_H_
 #define _SYS_INTERRUPT_H_
 
+#ifndef __MACHINE_INTERRUPT_H__
+#error "sys/interrupt.h included without architecture interrupt header!"
+#endif
+
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/_types_interrupt.h>
 #include <sys/ck.h>
+#include <sys/kobj.h>
+#include <sys/queue.h>
+#include <sys/types.h>
 
 struct intr_event;
 struct intr_thread;
 struct trapframe;
+
+/*
+ * Common base class for PICs.  All FreeBSD architectures provide this,
+ * so present in this header.
+ */
+
+DECLARE_CLASS(pic_base_class);
 
 /*
  * Describe a hardware interrupt handler.
@@ -110,12 +125,8 @@ struct intr_event {
 	char		ie_name[MAXCOMLEN + 1]; /* Individual event name. */
 	char		ie_fullname[MAXCOMLEN + 1];
 	struct mtx	ie_lock;
-	void		*ie_source;	/* Cookie used by MD code. */
 	struct intr_thread *ie_thread;	/* Thread we are connected to. */
-	void		(*ie_pre_ithread)(void *);
-	void		(*ie_post_ithread)(void *);
-	void		(*ie_post_filter)(void *);
-	int		(*ie_assign_cpu)(void *, int);
+	device_t	ie_pic;
 	int		ie_flags;
 	int		ie_hflags;	/* Cumulative flags of all handlers. */
 	int		ie_count;	/* Loop counter. */
@@ -175,6 +186,9 @@ int	intr_event_bind_ithread(struct intr_event *ie, int cpu);
 struct _cpuset;
 int	intr_event_bind_ithread_cpuset(struct intr_event *ie,
 	    struct _cpuset *mask);
+int	intr_event_init(struct intr_event *ie, device_t pic, u_int irq,
+	    int flags, const char *fmt, ...) __printflike(5, 6)
+	    __result_use_check;
 int	intr_event_create(struct intr_event **event, void *source,
 	    int flags, u_int irq, void (*pre_ithread)(void *),
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
@@ -182,12 +196,14 @@ int	intr_event_create(struct intr_event **event, void *source,
 	    __printflike(9, 10);
 int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	    const char *descr);
+int	intr_event_shutdown(struct intr_event *ie) __result_use_check;
 int	intr_event_destroy(struct intr_event *ie);
 int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(void *cookie);
 int	intr_event_suspend_handler(void *cookie);
 int	intr_event_resume_handler(void *cookie);
 int	intr_getaffinity(int irq, int mode, void *mask);
+interrupt_t *intr_handler_interrupt(void *cookie);
 void	*intr_handler_source(void *cookie);
 int	intr_setaffinity(int irq, int mode, const void *mask);
 void	_intr_drain(int irq);  /* LinuxKPI only. */

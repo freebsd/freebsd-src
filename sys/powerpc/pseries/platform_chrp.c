@@ -108,7 +108,8 @@ static platform_method_t chrp_methods[] = {
 #endif
 
 	PLATFORMMETHOD(platform_reset,		chrp_reset),
-	{ 0, 0 }
+
+	PLATFORMMETHOD_END
 };
 
 static platform_def_t chrp_platform = {

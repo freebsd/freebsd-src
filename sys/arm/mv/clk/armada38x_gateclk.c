@@ -302,11 +302,8 @@ static device_method_t armada38x_gateclk_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t armada38x_gateclk_driver = {
-	"armada38x_gateclk",
-	armada38x_gateclk_methods,
-	sizeof(struct armada38x_gateclk_softc),
-};
+PRIVATE_DEFINE_CLASSN(armada38x_gateclk, armada38x_gateclk_driver,
+    armada38x_gateclk_methods, sizeof(struct armada38x_gateclk_softc));
 
 EARLY_DRIVER_MODULE(armada38x_gateclk, simplebus, armada38x_gateclk_driver, 0, 0,
 	BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE + 1);

@@ -49,7 +49,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <arm/freescale/vybrid/vf_common.h>
 
@@ -484,13 +484,10 @@ ccm_attach(device_t dev)
 static device_method_t ccm_methods[] = {
 	DEVMETHOD(device_probe,		ccm_probe),
 	DEVMETHOD(device_attach,	ccm_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t ccm_driver = {
-	"ccm",
-	ccm_methods,
-	sizeof(struct ccm_softc),
-};
+PRIVATE_DEFINE_CLASSN(ccm, ccm_driver, ccm_methods, sizeof(struct ccm_softc));
 
 DRIVER_MODULE(ccm, simplebus, ccm_driver, 0, 0);

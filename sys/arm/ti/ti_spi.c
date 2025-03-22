@@ -37,8 +37,8 @@
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -567,11 +567,8 @@ static device_method_t ti_spi_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ti_spi_driver = {
-	"spi",
-	ti_spi_methods,
-	sizeof(struct ti_spi_softc),
-};
+PRIVATE_DEFINE_CLASSN(spi, ti_spi_driver, ti_spi_methods,
+    sizeof(struct ti_spi_softc));
 
 DRIVER_MODULE(ti_spi, simplebus, ti_spi_driver, 0, 0);
 MODULE_DEPEND(ti_spi, ti_sysc, 1, 1, 1);

@@ -2006,11 +2006,7 @@ static device_method_t awg_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t awg_driver = {
-	"awg",
-	awg_methods,
-	sizeof(struct awg_softc),
-};
+PRIVATE_DEFINE_CLASSN(awg, awg_driver, awg_methods, sizeof(struct awg_softc));
 
 DRIVER_MODULE(awg, simplebus, awg_driver, 0, 0);
 DRIVER_MODULE(miibus, awg, miibus_driver, 0, 0);

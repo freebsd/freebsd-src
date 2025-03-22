@@ -37,7 +37,7 @@
 
 #include <machine/bus.h>
 #include <machine/fdt.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
 
@@ -146,7 +146,7 @@ static platform_method_t tegra124_methods[] = {
 	PLATFORMMETHOD(platform_mp_start_ap,	tegra124_mp_start_ap),
 	PLATFORMMETHOD(platform_mp_setmaxid,	tegra124_mp_setmaxid),
 #endif
-	PLATFORMMETHOD_END,
+	PLATFORMMETHOD_END
 };
 
 FDT_PLATFORM_DEF(tegra124, "Nvidia Jetson-TK1", 0, "nvidia,jetson-tk1", 120);

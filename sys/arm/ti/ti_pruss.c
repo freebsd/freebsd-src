@@ -48,7 +48,7 @@
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 #include <machine/atomic.h>
 
 #include <dev/ofw/openfirm.h>
@@ -153,11 +153,8 @@ static device_method_t ti_pruss_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ti_pruss_driver = {
-	"ti_pruss",
-	ti_pruss_methods,
-	sizeof(struct ti_pruss_softc)
-};
+PRIVATE_DEFINE_CLASSN(ti_pruss, ti_pruss_driver, ti_pruss_methods,
+    sizeof(struct ti_pruss_softc));
 
 DRIVER_MODULE(ti_pruss, simplebus, ti_pruss_driver, 0, 0);
 MODULE_DEPEND(ti_pruss, ti_sysc, 1, 1, 1);

@@ -174,11 +174,8 @@ static device_method_t aw_rtc_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t aw_rtc_driver = {
-	"rtc",
-	aw_rtc_methods,
-	sizeof(struct aw_rtc_softc),
-};
+PRIVATE_DEFINE_CLASSN(rtc, aw_rtc_driver, aw_rtc_methods,
+    sizeof(struct aw_rtc_softc));
 
 EARLY_DRIVER_MODULE(aw_rtc, simplebus, aw_rtc_driver, 0, 0,
     BUS_PASS_RESOURCE + BUS_PASS_ORDER_FIRST);

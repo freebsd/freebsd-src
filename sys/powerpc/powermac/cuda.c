@@ -46,7 +46,7 @@
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/md_var.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
@@ -104,11 +104,8 @@ static device_method_t  cuda_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t cuda_driver = {
-	"cuda",
-	cuda_methods,
-	sizeof(struct cuda_softc),
-};
+PRIVATE_DEFINE_CLASSN(cuda, cuda_driver, cuda_methods,
+    sizeof(struct cuda_softc));
 
 DRIVER_MODULE(cuda, macio, cuda_driver, 0, 0);
 DRIVER_MODULE(adb, cuda, adb_driver, 0, 0);

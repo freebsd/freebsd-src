@@ -39,7 +39,7 @@
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -91,11 +91,8 @@ static device_method_t ti_mbox_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t ti_mbox_driver = {
-	"ti_mbox",
-	ti_mbox_methods,
-	sizeof(struct ti_mbox_softc)
-};
+PRIVATE_DEFINE_CLASSN(ti_mbox, ti_mbox_driver, ti_mbox_methods,
+    sizeof(struct ti_mbox_softc));
 
 DRIVER_MODULE(ti_mbox, simplebus, ti_mbox_driver, 0, 0);
 MODULE_DEPEND(ti_mbox, ti_sysc, 1, 1, 1);

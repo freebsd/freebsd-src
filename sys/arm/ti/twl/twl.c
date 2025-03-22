@@ -57,8 +57,8 @@
 #include <sys/malloc.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
@@ -443,14 +443,10 @@ static device_method_t twl_methods[] = {
 	DEVMETHOD(device_attach,	twl_attach),
 	DEVMETHOD(device_detach,	twl_detach),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
-static driver_t twl_driver = {
-	"twl",
-	twl_methods,
-	sizeof(struct twl_softc),
-};
+PRIVATE_DEFINE_CLASSN(twl, twl_driver, twl_methods, sizeof(struct twl_softc));
 
 DRIVER_MODULE(twl, iicbus, twl_driver, 0, 0);
 MODULE_VERSION(twl, 1);

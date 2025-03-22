@@ -51,7 +51,7 @@
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/interrupt.h>
 
 #include <arm/freescale/vybrid/vf_common.h>
 #include <arm/freescale/vybrid/vf_dmamux.h>
@@ -786,14 +786,11 @@ sai_attach(device_t dev)
 static device_method_t sai_pcm_methods[] = {
 	DEVMETHOD(device_probe,		sai_probe),
 	DEVMETHOD(device_attach,	sai_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
-static driver_t sai_pcm_driver = {
-	"pcm",
-	sai_pcm_methods,
-	PCM_SOFTC_SIZE,
-};
+PRIVATE_DEFINE_CLASSN(pcm, sai_pcm_driver, sai_pcm_methods, PCM_SOFTC_SIZE);
 
 DRIVER_MODULE(sai, simplebus, sai_pcm_driver, 0, 0);
 MODULE_DEPEND(sai, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);

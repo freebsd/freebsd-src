@@ -40,8 +40,8 @@
 #include <sys/gpio.h>
 
 #include <machine/bus.h>
+#include <machine/interrupt.h>
 #include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
@@ -804,11 +804,8 @@ static device_method_t rk_gpio_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t rk_gpio_driver = {
-	"gpio",
-	rk_gpio_methods,
-	sizeof(struct rk_gpio_softc),
-};
+PRIVATE_DEFINE_CLASSN(gpio, rk_gpio_driver, rk_gpio_methods,
+    sizeof(struct rk_gpio_softc));
 
 /*
  * GPIO driver is always a child of rk_pinctrl driver and should be probed
