@@ -396,7 +396,7 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 					    opts & PF_OPT_USEDNS);
 	} else if (!strcmp(command, "zero")) {
 		flags |= PFR_FLAG_ADDRSTOO;
-		RVTEST(pfr_clr_tstats(&table, 1, &nzero, flags));
+		RVTEST(pfctl_clear_tstats(pfh, &table, &nzero, flags));
 		xprintf(opts, "%d table/stats cleared", nzero);
 	} else
 		warnx("pfctl_table: unknown command '%s'", command);

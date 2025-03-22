@@ -235,29 +235,6 @@ pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 }
 
 int
-pfr_clr_tstats(struct pfr_table *tbl, int size, int *nzero, int flags)
-{
-	struct pfioc_table io;
-
-	if (size < 0 || (size && !tbl)) {
-		errno = EINVAL;
-		return (-1);
-	}
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_buffer = tbl;
-	io.pfrio_esize = sizeof(*tbl);
-	io.pfrio_size = size;
-	if (ioctl(dev, DIOCRCLRTSTATS, &io)) {
-		pfr_report_error(tbl, &io, "clear tstats from");
-		return (-1);
-	}
-	if (nzero)
-		*nzero = io.pfrio_nzero;
-	return (0);
-}
-
-int
 pfr_tst_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
     int *nmatch, int flags)
 {
