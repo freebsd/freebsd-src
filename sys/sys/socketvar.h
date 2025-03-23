@@ -82,6 +82,7 @@ struct so_splice {
 	struct mtx mtx;
 	unsigned int wq_index;
 	enum so_splice_state {
+		SPLICE_INIT,	/* embryonic state, don't queue work yet */
 		SPLICE_IDLE,	/* waiting for work to arrive */
 		SPLICE_QUEUED,	/* a wakeup has queued some work */
 		SPLICE_RUNNING,	/* currently transferring data */
