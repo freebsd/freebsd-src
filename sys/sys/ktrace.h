@@ -87,10 +87,9 @@ struct ktr_header {
  * is the public interface.
  */
 #define	KTRCHECK(td, type)	((td)->td_proc->p_traceflag & (1 << type))
-#define KTRPOINT(td, type)  (__predict_false(KTRCHECK((td), (type))))
-#define	KTRCHECKDRAIN(td)	(!(STAILQ_EMPTY(&(td)->td_proc->p_ktr)))
+#define	KTRPOINT(td, type)	(__predict_false(KTRCHECK((td), (type))))
 #define	KTRUSERRET(td) do {						\
-	if (__predict_false(KTRCHECKDRAIN(td)))				\
+	if (__predict_false(!STAILQ_EMPTY_ATOMIC(&(td)->td_proc->p_ktr))) \
 		ktruserret(td);						\
 } while (0)
 
