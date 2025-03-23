@@ -592,11 +592,6 @@ so_splice_xfer_data(struct socket *so_src, struct socket *so_dst, off_t max,
 
 /*
  * Transfer data from the source to the sink.
- *
- * If "direct" is true, the transfer is done in the context of whichever thread
- * is operating on one of the socket buffers.  We do not know which locks are
- * held, so we can only trylock the socket buffers; if this fails, we fall back
- * to the worker thread, which invokes this routine with "direct" set to false.
  */
 static void
 so_splice_xfer(struct so_splice *sp)
@@ -1638,7 +1633,7 @@ so_splice_alloc(off_t max)
 		sp->wq_index = atomic_fetchadd_32(&splice_index, 1) %
 		    (mp_maxid + 1);
 	} while (CPU_ABSENT(sp->wq_index));
-	sp->state = SPLICE_IDLE;
+	sp->state = SPLICE_INIT;
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sp->timeout, 0, so_splice_timeout,
 	    sp);
 	return (sp);
