@@ -303,20 +303,47 @@ private:
 };
 
 struct lun {
-	TAILQ_ENTRY(lun)		l_next;
-	struct conf			*l_conf;
-	nvlist_t			*l_options;
-	char				*l_name;
-	char				*l_backend;
-	uint8_t				l_device_type;
-	int				l_blocksize;
-	char				*l_device_id;
-	char				*l_path;
-	char				*l_scsiname;
-	char				*l_serial;
-	uint64_t			l_size;
+	lun(struct conf *conf, std::string_view name);
 
-	int				l_ctl_lun;
+	const char *name() const { return l_name.c_str(); }
+	const std::string &path() const { return l_path; }
+	int ctl_lun() const { return l_ctl_lun; }
+
+	freebsd::nvlist_up options() const;
+
+	bool add_option(const char *name, const char *value);
+	bool set_backend(std::string_view value);
+	bool set_blocksize(size_t value);
+	bool set_ctl_lun(uint32_t value);
+	bool set_device_type(uint8_t device_type);
+	bool set_device_type(const char *value);
+	bool set_device_id(std::string_view value);
+	bool set_path(std::string_view value);
+	void set_scsiname(std::string_view value);
+	bool set_serial(std::string_view value);
+	bool set_size(uint64_t value);
+
+	bool changed(const struct lun &old) const;
+	bool verify();
+
+	bool kernel_add();
+	bool kernel_modify() const;
+	bool kernel_remove() const;
+
+private:
+	struct conf			*l_conf;
+	freebsd::nvlist_up		l_options;
+	std::string			l_name;
+	std::string			l_backend;
+	uint8_t				l_device_type = 0;
+	int				l_blocksize = 0;
+	std::string			l_device_id;
+	std::string			l_path;
+	std::string			l_scsiname;
+	std::string			l_serial;
+	uint64_t			l_size = 0;
+
+	int				l_ctl_lun = -1;
 };
 
 struct target {
@@ -351,7 +378,7 @@ struct conf {
 	bool reuse_portal_group_socket(struct portal &newp);
 
 	char				*conf_pidfile_path = nullptr;
-	TAILQ_HEAD(, lun)		conf_luns;
+	std::unordered_map<std::string, std::unique_ptr<lun>> conf_luns;
 	TAILQ_HEAD(, target)		conf_targets;
 	std::unordered_map<std::string, auth_group_sp> conf_auth_groups;
 	std::unordered_map<std::string, std::unique_ptr<port>> conf_ports;
@@ -464,17 +491,12 @@ struct target		*target_find(struct conf *conf,
 			    const char *name);
 
 struct lun		*lun_new(struct conf *conf, const char *name);
-void			lun_delete(struct lun *lun);
 struct lun		*lun_find(const struct conf *conf, const char *name);
-void			lun_set_scsiname(struct lun *lun, const char *value);
 
 bool			option_new(nvlist_t *nvl,
 			    const char *name, const char *value);
 
 void			kernel_init(void);
-int			kernel_lun_add(struct lun *lun);
-int			kernel_lun_modify(struct lun *lun);
-int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct ctld_connection *conn);
 void			kernel_capsicate(void);
 
