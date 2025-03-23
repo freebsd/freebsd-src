@@ -1,15 +1,40 @@
 News for the tz database
 
+Release 2025b - 2025-03-22 13:40:46 -0700
+
+  Briefly:
+    New zone for Aysén Region in Chile which moves from -04/-03 to -03.
+
+  Changes to future timestamps
+
+    Chile's Aysén Region moves from -04/-03 to -03 year-round, joining
+    Magallanes Region.  The region will not change its clocks on
+    2025-04-05 at 24:00, diverging from America/Santiago and creating a
+    new zone America/Coyhaique.  (Thanks to Yonathan Dossow.)  Model
+    this as a change to standard offset effective 2025-03-20.
+
+  Changes to past timestamps
+
+    Iran switched from +04 to +0330 on 1978-11-10 at 24:00, not at
+    year end.  (Thanks to Roozbeh Pournader.)
+
+  Changes to code
+
+    'zic -l TIMEZONE -d . -l /some/other/file/system' no longer
+    attempts to create an incorrect symlink, and no longer has a
+    read buffer underflow.  (Problem reported by Evgeniy Gorbanev.)
+
+
 Release 2025a - 2025-01-15 10:47:24 -0800
 
   Briefly:
-    Paraguay adopts permanent -03 starting spring 2024.
+    Paraguay adopted permanent -03 starting spring 2024.
     Improve pre-1991 data for the Philippines.
     Etc/Unknown is now reserved.
 
   Changes to future timestamps
 
-    Paraguay will stop changing its clocks after the spring-forward
+    Paraguay stopped changing its clocks after the spring-forward
     transition on 2024-10-06, so it is now permanently at -03.
     (Thanks to Heitor David Pinto and Even Scharning.)
     This affects timestamps starting 2025-03-22, as well as the
