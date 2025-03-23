@@ -2188,7 +2188,7 @@ FOOTNOTES:
 	happens automatically. If all your modules come from ports, then adding
 	the port origin directories to PORTS_MODULES instead is also automatic
 	and effective, eg:
-	     PORTS_MODULES+=x11/nvidia-driver
+	     PORTS_MODULES+=graphics/drm-kmod graphics/nvidia-drm-kmod
 
 	[3] From the bootblocks, boot -s, and then do
 		fsck -p
