@@ -3138,6 +3138,10 @@ rsn_cipher(const u_int8_t *sel)
 		return "AES-OCB";
 	case RSN_SEL(RSN_CSE_GCMP_128):
 		return "AES-GCMP";
+	case RSN_SEL(RSN_CSE_CCMP_256):
+		return "AES-CCMP-256";
+	case RSN_SEL(RSN_CSE_GCMP_256):
+		return "AES-GCMP-256";
 	}
 	return "?";
 #undef WPA_SEL
@@ -3154,6 +3158,10 @@ rsn_keymgmt(const u_int8_t *sel)
 		return "8021X-UNSPEC";
 	case RSN_SEL(RSN_ASE_8021X_PSK):
 		return "8021X-PSK";
+	case RSN_SEL(RSN_ASE_8021X_UNSPEC_SHA256):
+		return "8021X-UNSPEC-SHA256";
+	case RSN_SEL(RSN_ASE_8021X_PSK_SHA256):
+		return "8021X-PSK-256";
 	case RSN_SEL(RSN_ASE_NONE):
 		return "NONE";
 	}
