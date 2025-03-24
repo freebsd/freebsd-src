@@ -446,7 +446,7 @@ struct kinfo_vm_layout32 {
 	uint32_t	kvm_spare[12];
 };
 
-#if defined(_WANT_KEVENT32) || (defined(_KERNEL) && defined(__LP64__))
+#if defined(_WANT_KEVENT32) || defined(_KERNEL)
 struct kinfo_knote32 {
 	int		knt_kq_fd;
 	struct kevent32	knt_event;
