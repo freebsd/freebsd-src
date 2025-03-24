@@ -506,7 +506,8 @@ vm_reserv_from_page(vm_page_t m)
 }
 
 /*
- * Returns an existing reservation or NULL and initialized successor pointer.
+ * Either returns an existing reservation or returns NULL and initializes
+ * successor pointer.
  */
 static vm_reserv_t
 vm_reserv_from_object(vm_object_t object, vm_pindex_t pindex,
@@ -515,7 +516,6 @@ vm_reserv_from_object(vm_object_t object, vm_pindex_t pindex,
 	vm_reserv_t rv;
 	vm_page_t msucc;
 
-	msucc = NULL;
 	if (mpred != NULL) {
 		KASSERT(mpred->object == object,
 		    ("vm_reserv_from_object: object doesn't contain mpred"));
@@ -523,7 +523,7 @@ vm_reserv_from_object(vm_object_t object, vm_pindex_t pindex,
 		    ("vm_reserv_from_object: mpred doesn't precede pindex"));
 		rv = vm_reserv_from_page(mpred);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
-			goto found;
+			return (rv);
 		msucc = TAILQ_NEXT(mpred, listq);
 	} else
 		msucc = TAILQ_FIRST(&object->memq);
@@ -532,14 +532,10 @@ vm_reserv_from_object(vm_object_t object, vm_pindex_t pindex,
 		    ("vm_reserv_from_object: msucc doesn't succeed pindex"));
 		rv = vm_reserv_from_page(msucc);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
-			goto found;
+			return (rv);
 	}
-	rv = NULL;
-
-found:
 	*msuccp = msucc;
-
-	return (rv);
+	return (NULL);
 }
 
 /*
