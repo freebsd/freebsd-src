@@ -446,6 +446,7 @@ struct kinfo_vm_layout32 {
 	uint32_t	kvm_spare[12];
 };
 
+#if defined(_WANT_KEVENT32) || (defined(_KERNEL) && defined(__LP64__))
 struct kinfo_knote32 {
 	int		knt_kq_fd;
 	struct kevent32	knt_event;
@@ -464,6 +465,7 @@ struct kinfo_knote32 {
 		} knt_pipe;
 	};
 };
+#endif
 
 struct kld_file_stat_1_32 {
 	int	version;	/* set to sizeof(struct kld_file_stat_1) */
