@@ -75,6 +75,7 @@ static void	sbcompress_ktls_rx(struct sockbuf *sb, struct mbuf *m,
     struct mbuf *n);
 #endif
 static struct mbuf	*sbcut_internal(struct sockbuf *sb, int len);
+static void		sbunreserve_locked(struct socket *so, sb_which which);
 
 /*
  * Our own version of m_clrprotoflags(), that can preserve M_NOTREADY.
@@ -618,7 +619,7 @@ soreserve(struct socket *so, u_long sndcc, u_long rcvcc)
 	SOCK_SENDBUF_UNLOCK(so);
 	return (0);
 bad2:
-	sbrelease_locked(so, SO_SND);
+	sbunreserve_locked(so, SO_SND);
 bad:
 	SOCK_RECVBUF_UNLOCK(so);
 	SOCK_SENDBUF_UNLOCK(so);
@@ -681,6 +682,18 @@ sbreserve_locked(struct socket *so, sb_which which, u_long cc,
     struct thread *td)
 {
 	return (sbreserve_locked_limit(so, which, cc, sb_max, td));
+}
+
+static void
+sbunreserve_locked(struct socket *so, sb_which which)
+{
+	struct sockbuf *sb = sobuf(so, which);
+
+	SOCK_BUF_LOCK_ASSERT(so, which);
+
+	(void)chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, 0,
+	    RLIM_INFINITY);
+	sb->sb_mbmax = 0;
 }
 
 int
@@ -786,9 +799,7 @@ sbrelease_locked(struct socket *so, sb_which which)
 	SOCK_BUF_LOCK_ASSERT(so, which);
 
 	sbflush_locked(sb);
-	(void)chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, 0,
-	    RLIM_INFINITY);
-	sb->sb_mbmax = 0;
+	sbunreserve_locked(so, which);
 }
 
 void
