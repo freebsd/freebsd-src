@@ -75,7 +75,6 @@ static void	sbcompress_ktls_rx(struct sockbuf *sb, struct mbuf *m,
     struct mbuf *n);
 #endif
 static struct mbuf	*sbcut_internal(struct sockbuf *sb, int len);
-static void	sbflush_internal(struct sockbuf *sb);
 
 /*
  * Our own version of m_clrprotoflags(), that can preserve M_NOTREADY.
@@ -779,24 +778,17 @@ sbsetopt(struct socket *so, struct sockopt *sopt)
 /*
  * Free mbufs held by a socket, and reserved mbuf space.
  */
-static void
-sbrelease_internal(struct socket *so, sb_which which)
-{
-	struct sockbuf *sb = sobuf(so, which);
-
-	sbflush_internal(sb);
-	(void)chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, 0,
-	    RLIM_INFINITY);
-	sb->sb_mbmax = 0;
-}
-
 void
 sbrelease_locked(struct socket *so, sb_which which)
 {
+	struct sockbuf *sb = sobuf(so, which);
 
 	SOCK_BUF_LOCK_ASSERT(so, which);
 
-	sbrelease_internal(so, which);
+	sbflush_locked(sb);
+	(void)chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, 0,
+	    RLIM_INFINITY);
+	sb->sb_mbmax = 0;
 }
 
 void
@@ -818,7 +810,7 @@ sbdestroy(struct socket *so, sb_which which)
 		ktls_free(sb->sb_tls_info);
 	sb->sb_tls_info = NULL;
 #endif
-	sbrelease_internal(so, which);
+	sbrelease_locked(so, which);
 }
 
 /*
@@ -1530,9 +1522,11 @@ sbcompress_ktls_rx(struct sockbuf *sb, struct mbuf *m, struct mbuf *n)
 /*
  * Free all mbufs in a sockbuf.  Check that all resources are reclaimed.
  */
-static void
-sbflush_internal(struct sockbuf *sb)
+void
+sbflush_locked(struct sockbuf *sb)
 {
+
+	SOCKBUF_LOCK_ASSERT(sb);
 
 	while (sb->sb_mbcnt || sb->sb_tlsdcc) {
 		/*
@@ -1546,14 +1540,6 @@ sbflush_internal(struct sockbuf *sb)
 	KASSERT(sb->sb_ccc == 0 && sb->sb_mb == 0 && sb->sb_mbcnt == 0,
 	    ("%s: ccc %u mb %p mbcnt %u", __func__,
 	    sb->sb_ccc, (void *)sb->sb_mb, sb->sb_mbcnt));
-}
-
-void
-sbflush_locked(struct sockbuf *sb)
-{
-
-	SOCKBUF_LOCK_ASSERT(sb);
-	sbflush_internal(sb);
 }
 
 void
