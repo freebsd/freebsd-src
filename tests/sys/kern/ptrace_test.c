@@ -4161,6 +4161,53 @@ ATF_TC_BODY(ptrace__syscall_args, tc)
 }
 
 /*
+ * Check that syscall info is available whenever kernel has valid td_sa.
+ * Assumes that libc nanosleep(2) is the plain syscall wrapper.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__syscall_args_anywhere);
+ATF_TC_BODY(ptrace__syscall_args_anywhere, tc)
+{
+	struct timespec rqt;
+	struct ptrace_lwpinfo lwpi;
+	register_t args[8];
+	pid_t debuggee, wpid;
+	int error, status;
+
+	debuggee = fork();
+	ATF_REQUIRE(debuggee >= 0);
+	if (debuggee == 0) {
+		rqt.tv_sec = 100000;
+		rqt.tv_nsec = 0;
+		for (;;)
+			nanosleep(&rqt, NULL);
+		_exit(0);
+	}
+
+	/* Give the debuggee some time to go to sleep. */
+	sleep(2);
+	error = ptrace(PT_ATTACH, debuggee, 0, 0);
+	ATF_REQUIRE(error == 0);
+	wpid = waitpid(debuggee, &status, 0);
+	REQUIRE_EQ(wpid, debuggee);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+	error = ptrace(PT_LWPINFO, debuggee, (caddr_t)&lwpi, sizeof(lwpi));
+	ATF_REQUIRE(error == 0);
+	ATF_REQUIRE(lwpi.pl_syscall_code == SYS_nanosleep);
+	ATF_REQUIRE(lwpi.pl_syscall_narg == 2);
+	error = ptrace(PT_GET_SC_ARGS, debuggee, (caddr_t)&args[0],
+	    lwpi.pl_syscall_narg * sizeof(register_t));
+	ATF_REQUIRE(error == 0);
+	ATF_REQUIRE(args[0] == (register_t)&rqt);
+	ATF_REQUIRE(args[1] == 0);
+
+	error = ptrace(PT_DETACH, debuggee, 0, 0);
+	ATF_REQUIRE(error == 0);
+	kill(SIGKILL, debuggee);
+}
+
+/*
  * Verify that when the process is traced that it isn't reparent
  * to the init process when we close all process descriptors.
  */
@@ -4476,6 +4523,7 @@ ATF_TP_ADD_TCS(tp)
 #endif
 	ATF_TP_ADD_TC(tp, ptrace__PT_LWPINFO_stale_siginfo);
 	ATF_TP_ADD_TC(tp, ptrace__syscall_args);
+	ATF_TP_ADD_TC(tp, ptrace__syscall_args_anywhere);
 	ATF_TP_ADD_TC(tp, ptrace__proc_reparent);
 	ATF_TP_ADD_TC(tp, ptrace__procdesc_wait_child);
 	ATF_TP_ADD_TC(tp, ptrace__procdesc_reparent_wait_child);
