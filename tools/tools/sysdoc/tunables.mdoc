@@ -1272,12 +1272,12 @@ bool
 Controls forwarding of source-routed IP packets.
 
 ---
-net.inet.ip.check_interface
+net.inet.ip.rfc1122_strong_es
 bool
 
 This
 .Nm 
-verifies that packets arrive on the correct interfaces.  
+verifies that the packet's IP destination address matches an address on the arrival interface.
 
 ---
 net.inet.ip.fastforwarding
