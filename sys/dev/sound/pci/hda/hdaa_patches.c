@@ -341,6 +341,20 @@ hdac_pin_patch(struct hdaa_widget *w)
 			break;
 		}
 	} else if (id == HDA_CODEC_ALC295 &&
+	    subid == FRAMEWORK_LAPTOP_0005_SUBVENDOR) {
+		switch (nid) {
+		case 20:
+			/*
+			 * This pin is a duplicate of pin 23 (both as=1 seq=0),
+			 * which ends up in the driver disabling the
+			 * association altogether. Since sound quality from pin
+			 * 23 seems to be better, configure this one as a back
+			 * speaker.
+			 */
+			patch_str = "as=1 seq=2";
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC295 &&
 	    subid == FRAMEWORK_LAPTOP_0006_SUBVENDOR) {
 		switch (nid) {
 		case 33:
