@@ -169,186 +169,186 @@ static const struct media mlx5e_mode_table[MLX5E_LINK_SPEEDS_NUMBER] =
 	},
 };
 
-static const struct media mlx5e_ext_mode_table[MLX5E_EXT_LINK_SPEEDS_NUMBER][MLX5E_CABLE_TYPE_NUMBER] =
+static const struct media mlx5e_ext_mode_table[MLX5E_EXT_LINK_SPEEDS_NUMBER][MLX5E_CONNECTOR_TYPE_NUMBER] =
 {
 	/**/
-	[MLX5E_SGMII_100M][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_SGMII_100M][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_100_SGMII,
 		.baudrate = IF_Mbps(100),
 	},
 
 	/**/
-	[MLX5E_1000BASE_X_SGMII][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_1000BASE_X_SGMII][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_1000_CX,
 		.baudrate = IF_Mbps(1000),
 	},
-	[MLX5E_1000BASE_X_SGMII][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+	[MLX5E_1000BASE_X_SGMII][MLX5E_PORT_FIBRE] = {
 		.subtype = IFM_1000_SX,
 		.baudrate = IF_Mbps(1000),
 	},
 
 	/**/
-	[MLX5E_5GBASE_R][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_5GBASE_R][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_5000_KR,
 		.baudrate = IF_Mbps(5000),
 	},
-	[MLX5E_5GBASE_R][MLX5E_CABLE_TYPE_TWISTED_PAIR] = {
+	[MLX5E_5GBASE_R][MLX5E_PORT_TP] = {
 		.subtype = IFM_5000_T,
 		.baudrate = IF_Mbps(5000),
 	},
 
 	/**/
-	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_10G_KR,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_PORT_DA] = {
 		.subtype = IFM_10G_CR1,
 		.baudrate = IF_Gbps(10ULL),
 	},
-	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+	[MLX5E_10GBASE_XFI_XAUI_1][MLX5E_PORT_FIBRE] = {
 		.subtype = IFM_10G_SR,
 		.baudrate = IF_Gbps(10ULL),
 	},
 
 	/**/
-	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_40G_KR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_PORT_DA] = {
 		.subtype = IFM_40G_CR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
-	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+	[MLX5E_40GBASE_XLAUI_4_XLPPI_4][MLX5E_PORT_FIBRE] = {
 		.subtype = IFM_40G_SR4,
 		.baudrate = IF_Gbps(40ULL),
 	},
 
 	/**/
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_25G_KR,
 		.baudrate = IF_Gbps(25ULL),
 	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_PORT_DA] = {
 		.subtype = IFM_25G_CR,
 		.baudrate = IF_Gbps(25ULL),
 	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_PORT_FIBRE] = {
 		.subtype = IFM_25G_SR,
 		.baudrate = IF_Gbps(25ULL),
 	},
-	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_CABLE_TYPE_TWISTED_PAIR] = {
+	[MLX5E_25GAUI_1_25GBASE_CR_KR][MLX5E_PORT_TP] = {
 		.subtype = IFM_25G_T,
 		.baudrate = IF_Gbps(25ULL),
 	},
 
 	/**/
-	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_50G_KR2,
 		.baudrate = IF_Gbps(50ULL),
 	},
-	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_PORT_DA] = {
 		.subtype = IFM_50G_CR2,
 		.baudrate = IF_Gbps(50ULL),
 	},
-	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+	[MLX5E_50GAUI_2_LAUI_2_50GBASE_CR2_KR2][MLX5E_PORT_FIBRE] = {
 		.subtype = IFM_50G_SR2,
 		.baudrate = IF_Gbps(50ULL),
 	},
 
 	/**/
-	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_50G_KR_PAM4,
 		.baudrate = IF_Gbps(50ULL),
 	},
-	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_PORT_DA] = {
 		.subtype = IFM_50G_CP,
 		.baudrate = IF_Gbps(50ULL),
 	},
-	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+	[MLX5E_50GAUI_1_LAUI_1_50GBASE_CR_KR][MLX5E_PORT_FIBRE] = {
 		.subtype = IFM_50G_SR,
 		.baudrate = IF_Gbps(50ULL),
 	},
 
 	/**/
-	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_100G_KR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_PORT_DA] = {
 		.subtype = IFM_100G_CR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+	[MLX5E_CAUI_4_100GBASE_CR4_KR4][MLX5E_PORT_FIBRE] = {
 		.subtype = IFM_100G_SR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
 
 	/**/
-	[MLX5E_100GAUI_1_100GBASE_CR_KR][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_100GAUI_1_100GBASE_CR_KR][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_100G_KR_PAM4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GAUI_1_100GBASE_CR_KR][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+	[MLX5E_100GAUI_1_100GBASE_CR_KR][MLX5E_PORT_DA] = {
 		.subtype = IFM_100G_CR_PAM4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GAUI_1_100GBASE_CR_KR][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+	[MLX5E_100GAUI_1_100GBASE_CR_KR][MLX5E_PORT_FIBRE] = {
 		.subtype = IFM_100G_SR2,	/* XXX */
 		.baudrate = IF_Gbps(100ULL),
 	},
 
 	/**/
-	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_100G_KR4,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_PORT_DA] = {
 		.subtype = IFM_100G_CP2,
 		.baudrate = IF_Gbps(100ULL),
 	},
-	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+	[MLX5E_100GAUI_2_100GBASE_CR2_KR2][MLX5E_PORT_FIBRE] = {
 		.subtype = IFM_100G_SR2,
 		.baudrate = IF_Gbps(100ULL),
 	},
 
 	/**/
-	[MLX5E_200GAUI_2_200GBASE_CR2_KR2][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_200GAUI_2_200GBASE_CR2_KR2][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_200G_KR4_PAM4,	/* XXX */
 		.baudrate = IF_Gbps(200ULL),
 	},
-	[MLX5E_200GAUI_2_200GBASE_CR2_KR2][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+	[MLX5E_200GAUI_2_200GBASE_CR2_KR2][MLX5E_PORT_DA] = {
 		.subtype = IFM_200G_CR4_PAM4,	/* XXX */
 		.baudrate = IF_Gbps(200ULL),
 	},
-	[MLX5E_200GAUI_2_200GBASE_CR2_KR2][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+	[MLX5E_200GAUI_2_200GBASE_CR2_KR2][MLX5E_PORT_FIBRE] = {
 		.subtype = IFM_200G_SR4,	/* XXX */
 		.baudrate = IF_Gbps(200ULL),
 	},
 
 	/**/
-	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_200G_KR4_PAM4,
 		.baudrate = IF_Gbps(200ULL),
 	},
-	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_CABLE_TYPE_PASSIVE_COPPER] = {
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_PORT_DA] = {
 		.subtype = IFM_200G_CR4_PAM4,
 		.baudrate = IF_Gbps(200ULL),
 	},
-	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_CABLE_TYPE_OPTICAL_MODULE] = {
+	[MLX5E_200GAUI_4_200GBASE_CR4_KR4][MLX5E_PORT_FIBRE] = {
 		.subtype = IFM_200G_SR4,
 		.baudrate = IF_Gbps(200ULL),
 	},
 
 	/**/
-	[MLX5E_400GAUI_8][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_400GAUI_8][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_400G_LR8,	/* XXX */
 		.baudrate = IF_Gbps(400ULL),
 	},
 
 	/**/
-	[MLX5E_400GAUI_4_400GBASE_CR4_KR4][MLX5E_CABLE_TYPE_UNKNOWN] = {
+	[MLX5E_400GAUI_4_400GBASE_CR4_KR4][MLX5E_PORT_UNKNOWN] = {
 		.subtype = IFM_400G_LR8,	/* XXX */
 		.baudrate = IF_Gbps(400ULL),
 	},
@@ -372,7 +372,7 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 	u32 eth_proto_oper;
 	int error;
 	u8 i;
-	u8 cable_type;
+	u8 connector_type;
 	u8 port_state;
 	u8 is_er_type;
 	bool ext;
@@ -403,24 +403,14 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 	ext = MLX5_CAP_PCAM_FEATURE(mdev, ptys_extended_ethernet);
 	eth_proto_oper = MLX5_GET_ETH_PROTO(ptys_reg, out, ext,
 	    eth_proto_oper);
-
+	connector_type = MLX5_GET(ptys_reg, out, connector_type);
 	i = ilog2(eth_proto_oper);
 
 	if (ext) {
-		error = mlx5_query_pddr_cable_type(mdev, 1, &cable_type);
-		if (error != 0) {
-			/* use fallback entry */
-			media_entry = mlx5e_ext_mode_table[i][MLX5E_CABLE_TYPE_UNKNOWN];
-
-			mlx5_en_err(priv->ifp,
-			    "query port pddr failed: %d\n", error);
-		} else {
-			media_entry = mlx5e_ext_mode_table[i][cable_type];
-
+		media_entry = mlx5e_ext_mode_table[i][connector_type];
 			/* check if we should use fallback entry */
-			if (media_entry.subtype == 0)
-				media_entry = mlx5e_ext_mode_table[i][MLX5E_CABLE_TYPE_UNKNOWN];
-		}
+		if (media_entry.subtype == 0)
+			media_entry = mlx5e_ext_mode_table[i][MLX5E_PORT_UNKNOWN];
 	} else {
 		media_entry = mlx5e_mode_table[i];
 	}
