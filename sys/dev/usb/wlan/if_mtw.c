@@ -53,6 +53,9 @@
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_ratectl.h>
 #include <net80211/ieee80211_regdomain.h>
+#ifdef	IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 #include <netinet/if_ether.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -2801,10 +2804,10 @@ mtw_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, u_int index)
 #ifdef IEEE80211_SUPPORT_SUPERG
 	/* XXX TODO: make this deferred rather than unlock/relock */
 	/* XXX TODO: should only do the QoS AC this belongs to */
-	if (pq->tx_nfree >= RUN_TX_RING_COUNT) {
-		RUN_UNLOCK(sc);
+	if (pq->tx_nfree >= MTW_TX_RING_COUNT) {
+		MTW_UNLOCK(sc);
 		ieee80211_ff_flush_all(ic);
-		RUN_LOCK(sc);
+		MTW_LOCK(sc);
 	}
 #endif
 }
