@@ -79,6 +79,13 @@ The I/O operation was submitted with
 and the value of the
 .Fa aio_lio_opcode
 is invalid.
+.It Bq Er ENOSYS
+The
+.Fn aio_return
+system call is not supported.
+This can occur if
+.Xr aio 4
+support is not present.
 .El
 .Sh SEE ALSO
 .Xr aio_cancel 2 ,

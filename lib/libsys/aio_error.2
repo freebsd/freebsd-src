@@ -72,6 +72,13 @@ The
 .Fa iocb
 argument
 does not reference an outstanding asynchronous I/O request.
+.It Bq Er ENOSYS
+The
+.Fn aio_error
+system call is not supported.
+This can occur if
+.Xr aio 4
+support is not present.
 .El
 .Sh SEE ALSO
 .Xr aio_cancel 2 ,

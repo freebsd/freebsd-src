@@ -98,6 +98,13 @@ The request was not queued because of system resource limitations.
 The asynchronous notification method in
 .Fa iocb->aio_sigevent.sigev_notify
 is invalid or not supported.
+.It Bq Er ENOSYS
+The
+.Fn aio_mlock
+system call is not supported.
+This can occur if
+.Xr aio 4
+support is not present.
 .El
 .Pp
 If the request is successfully enqueued, but subsequently cancelled
