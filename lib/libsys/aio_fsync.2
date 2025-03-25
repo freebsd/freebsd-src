@@ -136,6 +136,13 @@ argument
 is not a valid descriptor.
 .It Bq Er EINVAL
 This implementation does not support synchronized I/O for this file.
+.It Bq Er ENOSYS
+The
+.Fn aio_fsync
+system call is not supported.
+This can occur if
+.Xr aio 4
+support is not present.
 .El
 .Pp
 If the request is successfully enqueued, but subsequently cancelled
