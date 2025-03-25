@@ -83,6 +83,9 @@ br.noacc.kbd:fr:Brésilien (sans accents)
 br.noacc.kbd:pt:Brasileiro (without accent keys)
 br.noacc.kbd:es:Brasileño (without accent keys)
 
+br.lenovo.kbd:en:Brazilian Lenovo Laptop (accent keys, with slash in place of right Ctrl)
+br.lenovo.kbd:pt:Brasileiro Lenovo Laptop (com acentos, com barra no lugar do Ctrl da direita)
+
 by.kbd:en:Belarusian
 by.kbd:da:Hviderussisk
 by.kbd:de:Weißrussisch
