@@ -2909,29 +2909,24 @@ _dtrace_tools= cddl/lib/libctf cddl/lib/libspl cddl/usr.bin/ctfconvert \
     cddl/usr.bin/ctfmerge
 .endif
 
-# If we're given an XAS, don't build binutils.
-.if ${XAS:M/*} == ""
 .if ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
+# Some bespoke tools from or based on ELF Tool Chain.  objcopy (elfcopy) is
+# included because llvm-objcopy is currently not capable of translating ELF to
+# PE32+, which is required for EFI boot programs.
 _elftctools=	lib/libelftc \
 		lib/libpe \
 		usr.bin/elfctl \
 		usr.bin/elfdump \
-		usr.bin/objcopy \
-		usr.bin/nm \
+		usr.bin/objcopy
+# If we're given an XNM we don't need to build standard binary utilities.
+.if ${XNM:M/*} == ""
+_elftctools+=	usr.bin/nm \
 		usr.bin/size \
 		usr.bin/strings
 # These are not required by the build, but can be useful for developers who
 # cross-build on a FreeBSD 10 host:
 _elftctools+=	usr.bin/addr2line
 .endif
-.elif ${TARGET_ARCH} != ${MACHINE_ARCH} && ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
-# If cross-building with an external binutils we still need to build strip for
-# the target (for at least crunchide).
-_elftctools=	lib/libelftc \
-		lib/libpe \
-		usr.bin/elfctl \
-		usr.bin/elfdump \
-		usr.bin/objcopy
 .endif
 
 .if ${MK_CLANG_BOOTSTRAP} != "no"
