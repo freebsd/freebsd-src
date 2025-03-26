@@ -114,7 +114,7 @@ The associated RDMA driver for this driver is
 .Ss Dynamic Device Personalization
 The DDP package loads during device initialization.
 The driver looks for the
-ice_ddp
+.Em ice_ddp
 module and checks that it contains a valid DDP package file.
 .Pp
 If the driver is unable to load the DDP package, the device will enter Safe
@@ -141,6 +141,56 @@ You can only use one DDP package per driver, even if you have more than one
 device installed that uses the driver.
 .Pp
 Only the first loaded PF per device can download a package for that device.
+.Ss Remote Direct Memory Access
+.sp
+Remote Direct Memory Access, or RDMA, allows a network device to transfer data
+directly to and from application memory on another system, increasing
+throughput and lowering latency in certain networking environments.
+.Pp
+The ice driver supports both the iWARP (Internet Wide Area RDMA Protocol) and
+RoCEv2 (RDMA over Converged Ethernet) protocols.
+The major difference is that iWARP performs RDMA over TCP, while RoCEv2 uses
+UDP.
+.Pp
+Devices based on the Intel(R) Ethernet 800 Series do not support RDMA when
+operating in multiport mode with more than 4 ports.
+.Pp
+For detailed installation and configuration information for RDMA, see
+.Xr irdma 4 .
+.Ss RDMA Monitoring
+For debugging/testing purposes, you can use sysctl to set up a mirroring
+interface on a port.
+The interface can receive mirrored RDMA traffic for packet
+analysis tools like
+.Xr tcpdump 1 .
+This mirroring may impact performance.
+.Pp
+To use RDMA monitoring, you may need to reserve more MSI\-X interrupts.
+Before the
+.Nm ice
+driver loads, configure the following tunable:
+.Bd -literal -offset indent
+dev.ice.0.iflib.use_extra_msix_vectors=4
+.Ed
+.Pp
+You may need to adjust the number of extra MSI\-X interrupt vectors.
+.Pp
+To create/delete the interface:
+.Bd -literal -offset indent
+sysctl dev.ice.0.create_interface=1
+sysctl dev.ice.0.delete_interface=1
+.Ed
+.Pp
+The mirrored interface receives both LAN and RDMA traffic. Additional
+filters can be configured in tcpdump.
+.Pp
+To differentiate the mirrored interface from the primary interface, the network
+interface naming convention is:
+.Bd -literal -offset indent
+<driver name><port number><modifier><modifier unit number>
+.Ed
+.Pp
+For example, ice0m0 is the first mirrored interface on ice0.
 .Ss Additional Utilities
 There are additional tools available from Intel to help configure and update
 the adapters covered by this driver.
