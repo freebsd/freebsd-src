@@ -615,15 +615,6 @@ __CONCAT(PMTYPE, bootstrap)(vm_paddr_t firstaddr)
 	res = atop(firstaddr - (vm_paddr_t)KERNLOAD);
 
 	/*
-	 * Add a physical memory segment (vm_phys_seg) corresponding to the
-	 * preallocated kernel page table pages so that vm_page structures
-	 * representing these pages will be created.  The vm_page structures
-	 * are required for promotion of the corresponding kernel virtual
-	 * addresses to superpage mappings.
-	 */
-	vm_phys_early_add_seg(KPTphys, KPTphys + ptoa(nkpt));
-
-	/*
 	 * Initialize the first available kernel virtual address.
 	 * However, using "firstaddr" may waste a few pages of the
 	 * kernel virtual address space, because pmap_cold() may not
