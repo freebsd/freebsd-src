@@ -41,6 +41,7 @@
 #include <libiscsiutil.h>
 #include <libutil.h>
 
+#include <array>
 #include <list>
 #include <memory>
 #include <string>
@@ -347,16 +348,53 @@ private:
 };
 
 struct target {
-	TAILQ_ENTRY(target)		t_next;
+	target(struct conf *conf, std::string_view name) :
+		t_conf(conf), t_name(name) {}
+
+	bool has_alias() const { return !t_alias.empty(); }
+	bool has_pport() const { return !t_pport.empty(); }
+	bool has_redirection() const { return !t_redirection.empty(); }
+	const char *alias() const { return t_alias.c_str(); }
+	const char *name() const { return t_name.c_str(); }
+	const char *pport() const { return t_pport.c_str(); }
+	bool private_auth() const { return t_private_auth; }
+	const char *redirection() const { return t_redirection.c_str(); }
+
+	struct auth_group *auth_group() const { return t_auth_group.get(); }
+	const std::list<port *> &ports() const { return t_ports; }
+	const struct lun *lun(int idx) const { return t_luns[idx]; }
+
+	bool add_chap(const char *user, const char *secret);
+	bool add_chap_mutual(const char *user, const char *secret,
+	    const char *user2, const char *secret2);
+	bool add_initiator_name(std::string_view name);
+	bool add_initiator_portal(const char *addr);
+	bool add_lun(u_int id, const char *lun_name);
+	bool add_portal_group(const char *pg_name, const char *ag_name);
+	bool set_alias(std::string_view alias);
+	bool set_auth_group(const char *ag_name);
+	bool set_auth_type(const char *type);
+	bool set_physical_port(std::string_view pport);
+	bool set_redirection(const char *addr);
+	struct lun *start_lun(u_int id);
+
+	void add_port(struct port *port);
+	void remove_lun(struct lun *lun);
+	void remove_port(struct port *port);
+	void verify();
+
+private:
+	bool use_private_auth(const char *keyword);
+
 	struct conf			*t_conf;
-	struct lun			*t_luns[MAX_LUNS] = {};
+	std::array<struct lun *, MAX_LUNS> t_luns;
 	auth_group_sp			t_auth_group;
 	std::list<port *>		t_ports;
-	char				*t_name;
-	char				*t_alias;
-	char				*t_redirection;
+	std::string			t_name;
+	std::string			t_alias;
+	std::string			t_redirection;
 	/* Name of this target's physical port, if any, i.e. "isp0" */
-	char				*t_pport;
+	std::string			t_pport;
 	bool				t_private_auth;
 };
 
@@ -379,11 +417,12 @@ struct conf {
 
 	char				*conf_pidfile_path = nullptr;
 	std::unordered_map<std::string, std::unique_ptr<lun>> conf_luns;
-	TAILQ_HEAD(, target)		conf_targets;
+	std::unordered_map<std::string, std::unique_ptr<target>> conf_targets;
 	std::unordered_map<std::string, auth_group_sp> conf_auth_groups;
 	std::unordered_map<std::string, std::unique_ptr<port>> conf_ports;
 	std::unordered_map<std::string, portal_group_up> conf_portal_groups;
 	std::unordered_map<std::string, isns> conf_isns;
+	struct target			*conf_first_target = nullptr;
 	int				conf_isns_period;
 	int				conf_isns_timeout;
 	int				conf_debug;
@@ -466,7 +505,6 @@ void			conf_start(struct conf *new_conf);
 bool			conf_verify(struct conf *conf);
 
 struct auth_group	*auth_group_new(struct conf *conf, const char *name);
-auth_group_sp		auth_group_new(struct target *target);
 auth_group_sp		auth_group_find(const struct conf *conf,
 			    const char *name);
 
@@ -486,7 +524,6 @@ bool			port_new(struct conf *conf, struct target *target,
 			    struct portal_group *pg, uint32_t ctl_port);
 
 struct target		*target_new(struct conf *conf, const char *name);
-void			target_delete(struct target *target);
 struct target		*target_find(struct conf *conf,
 			    const char *name);
 

@@ -817,7 +817,7 @@ kernel_handoff(struct ctld_connection *conn)
 	memcpy(req.data.handoff.initiator_isid, conn->conn_initiator_isid,
 	    sizeof(req.data.handoff.initiator_isid));
 	strlcpy(req.data.handoff.target_name,
-	    conn->conn_target->t_name, sizeof(req.data.handoff.target_name));
+	    conn->conn_target->name(), sizeof(req.data.handoff.target_name));
 	strlcpy(req.data.handoff.offload, pg->offload(),
 	    sizeof(req.data.handoff.offload));
 #ifdef ICL_KERNEL_PROXY
@@ -910,14 +910,14 @@ portal_group_port::kernel_create_port()
 	struct target *targ = p_target;
 
 	freebsd::nvlist_up nvl = pg->options();
-	nvlist_add_string(nvl.get(), "cfiscsi_target", targ->t_name);
+	nvlist_add_string(nvl.get(), "cfiscsi_target", targ->name());
 	nvlist_add_string(nvl.get(), "ctld_portal_group_name", pg->name());
 	nvlist_add_stringf(nvl.get(), "cfiscsi_portal_group_tag", "%u",
 	    pg->tag());
 
-	if (targ->t_alias) {
+	if (targ->has_alias()) {
 		nvlist_add_string(nvl.get(), "cfiscsi_target_alias",
-		    targ->t_alias);
+		    targ->alias());
 	}
 
 	return (ctl_create_port("iscsi", nvl.get(), &p_ctl_port));
@@ -941,13 +941,13 @@ kernel_port::kernel_create_port()
 
 	p_ctl_port = p_pport->ctl_port();
 
-	if (strncmp(targ->t_name, "naa.", 4) == 0 &&
-	    strlen(targ->t_name) == 20) {
+	if (strncmp(targ->name(), "naa.", 4) == 0 &&
+	    strlen(targ->name()) == 20) {
 		bzero(&entry, sizeof(entry));
 		entry.port_type = CTL_PORT_NONE;
 		entry.targ_port = p_ctl_port;
 		entry.flags |= CTL_PORT_WWNN_VALID;
-		entry.wwnn = strtoull(targ->t_name + 4, NULL, 16);
+		entry.wwnn = strtoull(targ->name() + 4, NULL, 16);
 		if (ioctl(ctl_fd, CTL_SET_PORT_WWNS, &entry) == -1)
 			log_warn("CTL_SET_PORT_WWNS ioctl failed");
 	}
@@ -975,11 +975,11 @@ port::kernel_add()
 
 	/* Map configured LUNs */
 	for (i = 0; i < MAX_LUNS; i++) {
-		if (targ->t_luns[i] == NULL)
+		if (targ->lun(i) == nullptr)
 			continue;
 		lm.port = p_ctl_port;
 		lm.plun = i;
-		lm.lun = targ->t_luns[i]->ctl_lun();
+		lm.lun = targ->lun(i)->ctl_lun();
 		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
 		if (error != 0)
 			log_warn("CTL_LUN_MAP ioctl failed");
@@ -1012,14 +1012,14 @@ port::kernel_update(const struct port *oport)
 	for (i = 0; i < MAX_LUNS; i++) {
 		lm.port = p_ctl_port;
 		lm.plun = i;
-		if (targ->t_luns[i] == NULL)
+		if (targ->lun(i) == nullptr)
 			lm.lun = UINT32_MAX;
 		else
-			lm.lun = targ->t_luns[i]->ctl_lun();
-		if (otarg->t_luns[i] == NULL)
+			lm.lun = targ->lun(i)->ctl_lun();
+		if (otarg->lun(i) == nullptr)
 			olun = UINT32_MAX;
 		else
-			olun = otarg->t_luns[i]->ctl_lun();
+			olun = otarg->lun(i)->ctl_lun();
 		if (lm.lun == olun)
 			continue;
 		error = ioctl(ctl_fd, CTL_LUN_MAP, &lm);
@@ -1066,7 +1066,7 @@ bool
 portal_group_port::kernel_remove_port()
 {
 	freebsd::nvlist_up nvl(nvlist_create(0));
-	nvlist_add_string(nvl.get(), "cfiscsi_target", p_target->t_name);
+	nvlist_add_string(nvl.get(), "cfiscsi_target", p_target->name());
 	nvlist_add_stringf(nvl.get(), "cfiscsi_portal_group_tag", "%u",
 	    p_portal_group->tag());
 
