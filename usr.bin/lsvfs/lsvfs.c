@@ -5,14 +5,19 @@
  *
  */
 
+#include <sys/capsicum.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <libcasper.h>
+#include <casper/cap_sysctl.h>
 
 #define FMT	"%-32.32s 0x%08x %5d  %s\n"
 #define HDRFMT	"%-32.32s %10s %5.5s  %s\n"
@@ -40,9 +45,26 @@ main(int argc, char **argv)
 {
 	struct xvfsconf vfc, *xvfsp;
 	size_t buflen;
-	int cnt, i, rv = 0;
+	int cnt, rv = 0;
+	cap_channel_t *capcas, *capsysctl;
+	cap_sysctl_limit_t *limit;
 
 	argc--, argv++;
+
+	if ((capcas = cap_init()) == NULL)
+		err(EXIT_FAILURE, "unable to contact Casper");
+	if ((capsysctl = cap_service_open(capcas, "system.sysctl")) == NULL)
+		err(EXIT_FAILURE, "unable to open system.sysctl service");
+	cap_close(capcas);
+
+	limit = cap_sysctl_limit_init(capsysctl);
+	cap_sysctl_limit_name(limit, "vfs.conflist", CAP_SYSCTL_READ);
+	if (cap_sysctl_limit(limit) < 0)
+		err(EXIT_FAILURE, "unable to apply the limits");
+
+	caph_cache_catpages();
+	if (caph_enter_casper() != 0)
+		err(EXIT_FAILURE, "failed to enter capability mode");
 
 	printf(HDRFMT, "Filesystem", "Num", "Refs", "Flags");
 	fputs(DASHES, stdout);
@@ -58,16 +80,15 @@ main(int argc, char **argv)
 			}
 		}
 	} else {
-		if (sysctlbyname("vfs.conflist", NULL, &buflen, NULL, 0) < 0)
-			err(1, "sysctl(vfs.conflist)");
-		xvfsp = malloc(buflen);
-		if (xvfsp == NULL)
-			errx(1, "malloc failed");
-		if (sysctlbyname("vfs.conflist", xvfsp, &buflen, NULL, 0) < 0)
-			err(1, "sysctl(vfs.conflist)");
+		if (cap_sysctlbyname(capsysctl, "vfs.conflist", NULL, &buflen, NULL, 0) < 0)
+			err(EXIT_FAILURE, "sysctl(vfs.conflist)");
+		if ((xvfsp = malloc(buflen)) == NULL)
+			errx(EXIT_FAILURE, "malloc failed");
+		if (cap_sysctlbyname(capsysctl, "vfs.conflist", xvfsp, &buflen, NULL, 0) < 0)
+			err(EXIT_FAILURE, "sysctl(vfs.conflist)");
 		cnt = buflen / sizeof(struct xvfsconf);
 
-		for (i = 0; i < cnt; i++) {
+		for (int i = 0; i < cnt; i++) {
 			printf(FMT, xvfsp[i].vfc_name, xvfsp[i].vfc_typenum,
 			    xvfsp[i].vfc_refcount,
 			    fmt_flags(xvfsp[i].vfc_flags));
@@ -82,10 +103,9 @@ static const char *
 fmt_flags(int flags)
 {
 	static char buf[sizeof(struct flaglist) * sizeof(fl)];
-	int i;
 
 	buf[0] = '\0';
-	for (i = 0; i < (int)nitems(fl); i++) {
+	for (int i = 0; i < (int)nitems(fl); i++) {
 		if ((flags & fl[i].flag) != 0) {
 			strlcat(buf, fl[i].str, sizeof(buf));
 			strlcat(buf, ", ", sizeof(buf));
