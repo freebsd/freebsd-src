@@ -743,6 +743,28 @@ HEIMDAL_KRB5_2.0 {
 		# kinit helper
 		krb5_get_init_creds_opt_set_pkinit_user_certs;
 		krb5_pk_enterprise_cert;
+		krb5_auth_con_getrecvsubkey;
+		krb5_auth_con_getsendsubkey;
+		krb5_auth_con_setrecvsubkey;
+		krb5_auth_con_setsendsubkey;
+		krb5_c_random_make_octets;
+		krb5_cc_copy_creds;
+		krb5_cc_get_flags;
+		krb5_creds_get_ticket_flags;
+		krb5_get_validated_creds;
+		krb5_init_creds_free;
+		krb5_init_creds_get_creds;
+		krb5_init_creds_get_error;
+		krb5_init_creds_get;
+		krb5_init_creds_init;
+		krb5_init_creds_set_keyblock;
+		krb5_init_creds_set_keytab;
+		krb5_init_creds_set_password;
+		krb5_init_creds_set_service;
+		krb5_init_creds_step;
+		krb5_rd_req_out_get_server;
+		krb5_sockaddr_is_loopback;
+		krb5_ticket_get_flags;
 
 		# testing
 		_krb5_n_fold;
