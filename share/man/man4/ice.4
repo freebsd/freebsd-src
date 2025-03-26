@@ -167,7 +167,7 @@ This mirroring may impact performance.
 .Pp
 To use RDMA monitoring, you may need to reserve more MSI\-X interrupts.
 Before the
-.Nm ice
+.Nm
 driver loads, configure the following tunable:
 .Bd -literal -offset indent
 dev.ice.0.iflib.use_extra_msix_vectors=4
@@ -190,7 +190,102 @@ interface naming convention is:
 <driver name><port number><modifier><modifier unit number>
 .Ed
 .Pp
-For example, ice0m0 is the first mirrored interface on ice0.
+For example,
+.Dq Li ice0m0
+is the first mirroring interface on
+.Dq Li ice0 .
+.Ss Data Center Bridging
+Data Center Bridging (DCB) is a configuration Quality of Service
+implementation in hardware.
+It uses the VLAN priority tag (802.1p) to filter traffic.
+That means that there are 8 different priorities that traffic can be filtered
+into.
+It also enables priority flow control (802.1Qbb) which can limit or eliminate
+the number of dropped packets during network stress.
+Bandwidth can be allocated to each of these priorities, which is enforced at
+the hardware level (802.1Qaz).
+.Pp
+DCB is normally configured on the network using the DCBX protocol (802.1Qaz), a
+specialization of LLDP (802.1AB). The
+.Nm
+driver supports the following mutually exclusive variants of DCBX support:
+.Bl -bullet -compact
+.It
+Firmware\-based LLDP Agent
+.It
+Software\-based LLDP Agent
+.El
+.Pp
+In firmware\-based mode, firmware intercepts all LLDP traffic and handles DCBX
+negotiation transparently for the user.
+In this mode, the adapter operates in
+.Dq willing
+DCBX mode, receiving DCB settings from the link partner (typically a
+switch).
+The local user can only query the negotiated DCB configuration.
+For information on configuring DCBX parameters on a switch, please consult the
+switch manufacturer\(aqs documentation.
+.Pp
+In software\-based mode, LLDP traffic is forwarded to the network stack and user
+space, where a software agent can handle it.
+In this mode, the adapter can operate in
+.Dq nonwilling
+DCBX mode and DCB configuration can be both queried and set locally.
+This mode requires the FW\-based LLDP Agent to be disabled.
+.Pp
+Firmware\-based mode and software\-based mode are controlled by the
+.Dq fw_lldp_agent
+sysctl.
+Refer to the Firmware Link Layer Discovery Protocol Agent section for more
+information.
+.Pp
+Link\-level flow control and priority flow control are mutually exclusive.
+The ice driver will disable link flow control when priority flow control
+is enabled on any traffic class (TC).
+It will disable priority flow control when link flow control is enabled.
+.Pp
+To enable/disable priority flow control in software\-based DCBX mode:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.pfc=1 (or 0 to disable)
+.Ed
+Enhanced Transmission Selection (ETS) allows you to assign bandwidth to certain
+TCs, to help ensure traffic reliability.
+To view the assigned ETS configuration, use the following:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.ets_min_rate
+.Ed
+To set the minimum ETS bandwidth per TC, separate the values by commas.
+All values must add up to 100.
+For example, to set all TCs to a minimum bandwidth of 10% and TC 7 to 30%,
+use the following:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.ets_min_rate=10,10,10,10,10,10,10,30
+.Ed
+To set the User Priority (UP) to a TC mapping for a port, separate the values
+by commas. For example, to map UP 0 and 1 to TC 0, UP 2 and 3 to TC 1, UP 4 and
+5 to TC 2, and UP 6 and 7 to TC 3, use the following:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.up2tc_map=0,0,1,1,2,2,3,3
+.Ed
+.Ss L3 QoS mode
+The
+.Nm
+driver supports setting DSCP\-based Layer 3 Quality of Service (L3 QoS)
+in the PF driver.
+The driver initializes in L2 QoS mode by default; L3 QoS is disabled by
+default.
+Use the following sysctl to enable or disable L3 QoS:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.pfc_mode=1 (or 0 to disable)
+.Ed
+If you disable L3 QoS mode, it returns to L2 QoS mode.
+.Pp
+To map a DSCP value to a traffic class, separate the values by commas. For
+example, to map DSCPs 0\-3 and DSCP 8 to DCB TCs 0\-3 and 4, respectively:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.dscp2tc_map.0\-7=0,1,2,3,0,0,0,0
+sysctl dev.ice.<interface #>.dscp2tc_map.8\-15=4,0,0,0,0,0,0,0
+.Ed
 .Ss Additional Utilities
 There are additional tools available from Intel to help configure and update
 the adapters covered by this driver.
