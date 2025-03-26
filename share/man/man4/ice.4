@@ -111,6 +111,22 @@ The associated Virtual Function (VF) driver for this driver is
 .Pp
 The associated RDMA driver for this driver is
 .Xr irdma 4 .
+.Ss Dynamic Device Personalization
+The DDP package loads during device initialization.
+The driver looks for the
+ice_ddp
+module and checks that it contains a valid DDP package file.
+.Pp
+If the driver is unable to load the DDP package, the device will enter Safe
+Mode.
+Safe Mode disables advanced and performance features and supports only
+basic traffic and minimal functionality, such as updating the NVM or
+downloading a new driver or DDP package.
+Safe Mode only applies to the affected physical function and does not impact
+any other PFs.
+See the
+.Em Intel(R) Ethernet Adapters and Devices User Guide
+for more details on DDP and Safe Mode.
 .Ss Additional Utilities
 There are additional tools available from Intel to help configure and update
 the adapters covered by this driver.
