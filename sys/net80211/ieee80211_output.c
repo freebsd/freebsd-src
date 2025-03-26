@@ -2649,6 +2649,12 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 
 /*
  * Calculate capability information for mgt frames.
+ *
+ * This fills out the 16 bit capability field in various management
+ * frames for non-DMG STAs.  DMG STAs are not supported.
+ *
+ * See 802.11-2020 9.4.1.4 (Capability Information Field) for the
+ * field definitions.
  */
 uint16_t
 ieee80211_getcapinfo(struct ieee80211vap *vap, struct ieee80211_channel *chan)
