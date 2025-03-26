@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2019 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2019-2025 Ruslan Bukin <br@bsdpad.com>
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory (Department of Computer Science and
@@ -42,6 +42,9 @@
 #include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+
+#include <vm/vm.h>
+#include <vm/vm_page.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
@@ -94,6 +97,7 @@
 #define	NUM_RX_MBUF		16
 #define	BUFRING_SIZE		8192
 #define	MDIO_CLK_DIV_DEFAULT	29
+#define	BUF_NPAGES		512
 
 #define	PHY1_RD(sc, _r)		\
 	xae_miibus_read_reg(sc->dev, 1, _r)
@@ -834,6 +838,8 @@ setup_xdma(struct xae_softc *sc)
 {
 	device_t dev;
 	vmem_t *vmem;
+	vm_paddr_t phys;
+	vm_page_t m;
 	int error;
 
 	dev = sc->dev;
@@ -886,10 +892,18 @@ setup_xdma(struct xae_softc *sc)
 
 	/* Setup bounce buffer */
 	vmem = xdma_get_memory(dev);
-	if (vmem) {
-		xchan_set_memory(sc->xchan_tx, vmem);
-		xchan_set_memory(sc->xchan_rx, vmem);
+	if (!vmem) {
+		m = vm_page_alloc_noobj_contig(VM_ALLOC_WIRED | VM_ALLOC_ZERO,
+		    BUF_NPAGES, 0, BUS_SPACE_MAXADDR_32BIT, PAGE_SIZE, 0,
+		    VM_MEMATTR_DEFAULT);
+		phys = VM_PAGE_TO_PHYS(m);
+		vmem = vmem_create("xdma vmem", 0, 0, PAGE_SIZE, PAGE_SIZE,
+		    M_BESTFIT | M_WAITOK);
+		vmem_add(vmem, phys, BUF_NPAGES * PAGE_SIZE, 0);
 	}
+
+	xchan_set_memory(sc->xchan_tx, vmem);
+	xchan_set_memory(sc->xchan_rx, vmem);
 
 	xdma_prep_sg(sc->xchan_tx,
 	    TX_QUEUE_SIZE,	/* xchan requests queue size */
