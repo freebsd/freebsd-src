@@ -4085,10 +4085,10 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 			else 
 				(void) nfsm_strtom(nd, "udp6", 4);
 			rin6 = (struct sockaddr_in6 *)clp->lc_req.nr_nam;
-			ucp = inet_ntop(AF_INET6, &rin6->sin6_addr, addrbuf,
+			ucp = (u_char *)inet_ntop(AF_INET6, &rin6->sin6_addr, addrbuf,
 			    INET6_ADDRSTRLEN);
 			if (ucp != NULL)
-				i = strlen(ucp);
+				i = strlen((char *)ucp);
 			else
 				i = 0;
 			ucp2 = (u_char *)&rin6->sin6_port;
