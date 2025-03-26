@@ -75,6 +75,8 @@ protocol_to_string(int domain, int type, int protocol)
 			return ("UDS");
 		case SOCK_DGRAM:
 			return ("UDD");
+		case SOCK_SEQPACKET:
+			return ("UDQ");
 		default:
 			return ("UD?");
 		}
