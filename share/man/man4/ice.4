@@ -127,6 +127,20 @@ any other PFs.
 See the
 .Em Intel(R) Ethernet Adapters and Devices User Guide
 for more details on DDP and Safe Mode.
+.Pp
+If you encounter issues with the DDP package file, you may need to download
+an updated driver or
+.Em ice_ddp
+module. See the log messages for more information.
+.Pp
+You cannot update the DDP package if any PF drivers are already loaded.
+To overwrite a package, unload all PFs and then reload the driver with the
+new package.
+.Pp
+You can only use one DDP package per driver, even if you have more than one
+device installed that uses the driver.
+.Pp
+Only the first loaded PF per device can download a package for that device.
 .Ss Additional Utilities
 There are additional tools available from Intel to help configure and update
 the adapters covered by this driver.
