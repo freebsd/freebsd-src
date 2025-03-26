@@ -416,7 +416,7 @@ for details.
 The process scheduling increment (see
 .Xr setpriority 2 ) .
 .It Cm rss
-the real memory (resident set) size of the process (in 1024 byte units).
+the real memory (resident set) size of the process in Kbytes.
 .It Cm start
 The time the command started.
 If the command started less than 24 hours ago, the start time is
@@ -668,7 +668,7 @@ real group ID
 .It Cm rgroup
 group name (from rgid)
 .It Cm rss
-resident set size
+resident set size (in Kbytes)
 .It Cm rtprio
 realtime priority (see
 .Xr rtprio 1)
