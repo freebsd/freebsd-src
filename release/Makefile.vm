@@ -129,8 +129,8 @@ cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT}
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
-		WITHOUT_QEMU=${WITHOUT_QEMU:Dtrue} \
-		NO_ROOT=${NO_ROOT:Dtrue} \
+		${WITHOUT_QEMU:DWITHOUT_QEMU=true} \
+		${NO_ROOT:DNO_ROOT=true} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${_FS} \
 		-i ${.OBJDIR}/${_CW:tl}.${_FS}.${_FMT}.img -s ${VMSIZE} -f ${_FMT} \
