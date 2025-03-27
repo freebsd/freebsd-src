@@ -1795,6 +1795,7 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_disable_io.9 \
 	pci.9 pci_enable_busmaster.9 \
 	pci.9 pci_enable_io.9 \
+	pci.9 pci_enable_pme.9 \
 	pci.9 pci_find_bsf.9 \
 	pci.9 pci_find_cap.9 \
 	pci.9 pci_find_dbsf.9 \
@@ -1807,6 +1808,7 @@ MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_get_powerstate.9 \
 	pci.9 pci_get_vpd_ident.9 \
 	pci.9 pci_get_vpd_readonly.9 \
+	pci.9 pci_has_pm.9 \
 	pci.9 pci_iov_attach.9 \
 	pci.9 pci_iov_attach_name.9 \
 	pci.9 pci_iov_detach.9 \
