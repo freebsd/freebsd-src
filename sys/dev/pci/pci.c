@@ -908,13 +908,8 @@ pci_read_cap(device_t pcib, pcicfgregs *cfg)
 		/* Process this entry */
 		switch (REG(ptr + PCICAP_ID, 1)) {
 		case PCIY_PMG:		/* PCI power management */
-			if (cfg->pp.pp_cap == 0) {
-				cfg->pp.pp_cap = REG(ptr + PCIR_POWER_CAP, 2);
-				cfg->pp.pp_status = ptr + PCIR_POWER_STATUS;
-				cfg->pp.pp_bse = ptr + PCIR_POWER_BSE;
-				if ((nextptr - ptr) > PCIR_POWER_DATA)
-					cfg->pp.pp_data = ptr + PCIR_POWER_DATA;
-			}
+			cfg->pp.pp_location = ptr;
+			cfg->pp.pp_cap = REG(ptr + PCIR_POWER_CAP, 2);
 			break;
 		case PCIY_HT:		/* HyperTransport */
 			/* Determine HT-specific capability type. */
@@ -2838,7 +2833,7 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	uint16_t status;
 	int oldstate, highest, delay;
 
-	if (cfg->pp.pp_cap == 0)
+	if (cfg->pp.pp_location == 0)
 		return (EOPNOTSUPP);
 
 	/*
@@ -2869,8 +2864,8 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	    delay = 200;
 	else
 	    delay = 0;
-	status = PCI_READ_CONFIG(dev, child, cfg->pp.pp_status, 2)
-	    & ~PCIM_PSTAT_DMASK;
+	status = PCI_READ_CONFIG(dev, child, cfg->pp.pp_location +
+	    PCIR_POWER_STATUS, 2) & ~PCIM_PSTAT_DMASK;
 	switch (state) {
 	case PCI_POWERSTATE_D0:
 		status |= PCIM_PSTAT_D0;
@@ -2896,7 +2891,8 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 		pci_printf(cfg, "Transition from D%d to D%d\n", oldstate,
 		    state);
 
-	PCI_WRITE_CONFIG(dev, child, cfg->pp.pp_status, status, 2);
+	PCI_WRITE_CONFIG(dev, child, cfg->pp.pp_location + PCIR_POWER_STATUS,
+	    status, 2);
 	if (delay)
 		DELAY(delay);
 	return (0);
@@ -2910,8 +2906,9 @@ pci_get_powerstate_method(device_t dev, device_t child)
 	uint16_t status;
 	int result;
 
-	if (cfg->pp.pp_cap != 0) {
-		status = PCI_READ_CONFIG(dev, child, cfg->pp.pp_status, 2);
+	if (cfg->pp.pp_location != 0) {
+		status = PCI_READ_CONFIG(dev, child, cfg->pp.pp_location +
+		    PCIR_POWER_STATUS, 2);
 		switch (status & PCIM_PSTAT_DMASK) {
 		case PCIM_PSTAT_D0:
 			result = PCI_POWERSTATE_D0;
@@ -2944,11 +2941,13 @@ pci_clear_pme(device_t dev)
 	pcicfgregs *cfg = &dinfo->cfg;
 	uint16_t status;
 
-	if (cfg->pp.pp_cap != 0) {
-		status = pci_read_config(dev, dinfo->cfg.pp.pp_status, 2);
+	if (cfg->pp.pp_location != 0) {
+		status = pci_read_config(dev, dinfo->cfg.pp.pp_location +
+		    PCIR_POWER_STATUS, 2);
 		status &= ~PCIM_PSTAT_PMEENABLE;
 		status |= PCIM_PSTAT_PME;
-		pci_write_config(dev, dinfo->cfg.pp.pp_status, status, 2);
+		pci_write_config(dev, dinfo->cfg.pp.pp_location +
+		    PCIR_POWER_STATUS, status, 2);
 	}
 }
 
@@ -2960,10 +2959,12 @@ pci_enable_pme(device_t dev)
 	pcicfgregs *cfg = &dinfo->cfg;
 	uint16_t status;
 
-	if (cfg->pp.pp_cap != 0) {
-		status = pci_read_config(dev, dinfo->cfg.pp.pp_status, 2);
+	if (cfg->pp.pp_location != 0) {
+		status = pci_read_config(dev, dinfo->cfg.pp.pp_location +
+		    PCIR_POWER_STATUS, 2);
 		status |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-		pci_write_config(dev, dinfo->cfg.pp.pp_status, status, 2);
+		pci_write_config(dev, dinfo->cfg.pp.pp_location +
+		    PCIR_POWER_STATUS, status, 2);
 	}
 }
 
@@ -2973,7 +2974,7 @@ pci_has_pm(device_t dev)
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	pcicfgregs *cfg = &dinfo->cfg;
 
-	return (cfg->pp.pp_cap != 0);
+	return (cfg->pp.pp_location != 0);
 }
 
 /*
@@ -3079,10 +3080,11 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 		if (cfg->intpin > 0)
 			printf("\tintpin=%c, irq=%d\n",
 			    cfg->intpin +'a' -1, cfg->intline);
-		if (cfg->pp.pp_cap) {
+		if (cfg->pp.pp_location) {
 			uint16_t status;
 
-			status = pci_read_config(cfg->dev, cfg->pp.pp_status, 2);
+			status = pci_read_config(cfg->dev, cfg->pp.pp_location +
+			    PCIR_POWER_STATUS, 2);
 			printf("\tpowerspec %d  supports D0%s%s D3  current D%d\n",
 			    cfg->pp.pp_cap & PCIM_PCAP_SPEC,
 			    cfg->pp.pp_cap & PCIM_PCAP_D1SUPP ? " D1" : "",
