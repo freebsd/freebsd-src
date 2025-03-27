@@ -58,6 +58,7 @@ ATF_TESTS_PYTEST+=	frag6.py
 ATF_TESTS_PYTEST+=	icmp.py
 ATF_TESTS_PYTEST+=	nat64.py
 ATF_TESTS_PYTEST+=	nat66.py
+ATF_TESTS_PYTEST+=	return.py
 ATF_TESTS_PYTEST+=	sctp.py
 
 # Allow tests to run in parallel in their own jails
