@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 18, 2025
+.Dd March 27, 2025
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -766,7 +766,8 @@ to any pointer type.
 .Pp
 Values in
 .Ic return
-statements should be enclosed in parentheses.
+statements should be enclosed in parentheses where possible.
+For example, parentheses cannot be used if the value is a C++ braced-init-list.
 .Pp
 Use
 .Xr err 3
