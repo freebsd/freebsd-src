@@ -778,6 +778,30 @@ a storm condition in the kernel.
 It is suggested that this be resolved by setting
 .Va hw.intr_storm_threshold
 to 0.
+.Sh IOVCTL OPTIONS
+The driver supports additional optional parameters for created VFs
+(Virtual Functions) when using
+.Xr iovctl 8 :
+.Bl -tag -width indent
+.It mac-addr Pq unicast-mac
+Set the Ethernet MAC address that the VF will use.
+If unspecified, the VF will use a randomly generated MAC address.
+.It mac-anti-spoof Pq bool
+Prevent the VF from sending Ethernet frames with a source address
+that does not match its own.
+.It allow-set-mac Pq bool
+Allow the VF to set its own Ethernet MAC address
+.It allow-promisc Pq bool
+Allow the VF to inspect all of the traffic sent to the port.
+.It num-queues Pq uint16_t
+Specify the number of queues the VF will have.
+By default, this is set to the number of MSI-X vectors supported by the VF
+minus one.
+.El
+.Pp
+An up to date list of parameters and their defaults can be found by using
+.Xr iovctl 8
+with the -S option.
 .Sh SUPPORT
 For general information and support,
 go to the Intel support website at:
