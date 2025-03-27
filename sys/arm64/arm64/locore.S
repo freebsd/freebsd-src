@@ -87,6 +87,7 @@ ENTRY(_start)
 	 * x26 = Kernel L1 table
 	 * x24 = TTBR1 table
 	 * x22 = PTE shareability attributes
+	 * x21 = BTI guarded page attribute if supported
 	 */
 
 	/* Enable the mmu */
@@ -136,9 +137,13 @@ virtdone:
 	str	x27, [x0, #BP_KERN_TTBR0]
 	str	x23, [x0, #BP_BOOT_EL]
 
-	/* Set this before it's used in kasan_init_early */
+	/* Set these before they are used in kasan_init_early */
 	adrp	x1, pmap_sh_attr
 	str	x22, [x1, :lo12:pmap_sh_attr]
+#ifdef __ARM_FEATURE_BTI_DEFAULT
+	adrp	x1, pmap_gp_attr
+	str	x21, [x1, :lo12:pmap_gp_attr]
+#endif
 
 #ifdef KASAN
 	/* Save bootparams */
@@ -487,6 +492,17 @@ LENTRY(create_pagetables)
 	cmp	x6, x27
 	b.lo	1b
 
+#ifdef __ARM_FEATURE_BTI_DEFAULT
+	/*
+	 * Check if the CPU supports BTI
+	 */
+	mrs	x6, id_aa64pfr1_el1		/* Read the ID register */
+	and	x6, x6, ID_AA64PFR1_BT_MASK	/* Mask the field we need */
+	cmp	x6, xzr				/* Check it's non-zero */
+	cset	x6, ne				/* x6 is set if non-zero */
+	lsl	x21, x6, ATTR_S1_GP_SHIFT	/* Shift to the correct bit */
+#endif
+
 	/*
 	 * Find the shareability attribute we should use. If FEAT_LPA2 is
 	 * enabled then the shareability field is moved from the page table
@@ -785,7 +801,7 @@ LENTRY(build_l2_block_pagetable)
 	orr	x12, x12, #(ATTR_AF)
 	orr	x12, x12, #(ATTR_S1_UXN)
 #ifdef __ARM_FEATURE_BTI_DEFAULT
-	orr	x12, x12, #(ATTR_S1_GP)
+	orr	x12, x12, x21
 #endif
 	/* Set the shareability attribute */
 	orr	x12, x12, x22
@@ -863,7 +879,7 @@ LENTRY(build_l3_page_pagetable)
 	orr	x12, x12, #(ATTR_AF)
 	orr	x12, x12, #(ATTR_S1_UXN)
 #ifdef __ARM_FEATURE_BTI_DEFAULT
-	orr	x12, x12, #(ATTR_S1_GP)
+	orr	x12, x12, x21
 #endif
 	/* Set the shareability attribute */
 	orr	x12, x12, x22
