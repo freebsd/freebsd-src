@@ -1629,6 +1629,7 @@ pf_state_insert(struct pfi_kkif *kif, struct pfi_kkif *orig_kif,
 	/* Returns with ID locked on success. */
 	if ((error = pf_state_key_attach(skw, sks, s)) != 0)
 		return (error);
+	skw = sks = NULL;
 
 	ih = &V_pf_idhash[PF_IDHASH(s)];
 	PF_HASHROW_ASSERT(ih);
@@ -5064,6 +5065,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 		action = pf_create_state(r, nr, a, pd, nsn, nk, sk, m, off,
 		    sport, dport, &rewrite, kif, sm, tag, bproto_sum, bip_sum,
 		    hdrlen, &match_rules);
+		sk = nk = NULL;
 		if (action != PF_PASS) {
 			pd->act.log |= PF_LOG_FORCE;
 			if (action == PF_DROP &&
@@ -5081,6 +5083,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, struct pfi_kkif *kif,
 
 		uma_zfree(V_pf_state_key_z, sk);
 		uma_zfree(V_pf_state_key_z, nk);
+		sk = nk = NULL;
 	}
 
 	/* copy back packet headers if we performed NAT operations */
@@ -5294,6 +5297,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		goto drop;
 	} else
 		*sm = s;
+	sk = nk = NULL;
 
 	if (tag > 0)
 		s->tag = tag;
