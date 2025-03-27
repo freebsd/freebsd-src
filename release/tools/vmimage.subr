@@ -53,6 +53,7 @@ vm_create_base() {
 
 vm_copy_base() {
 	# Defunct
+	return 0
 }
 
 vm_install_base() {
