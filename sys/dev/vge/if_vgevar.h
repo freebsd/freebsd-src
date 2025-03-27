@@ -191,7 +191,6 @@ struct vge_softc {
 #define	VGE_FLAG_SUSPENDED	0x4000
 #define	VGE_FLAG_LINK		0x8000
 	int			vge_expcap;
-	int			vge_pmcap;
 	int			vge_camidx;
 	int			vge_int_holdoff;
 	int			vge_rx_coal_pkt;

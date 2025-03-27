@@ -898,7 +898,7 @@ sis_attach(device_t dev)
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct sis_softc	*sc;
 	if_t			ifp;
-	int			error = 0, pmc;
+	int			error = 0;
 
 	sc = device_get_softc(dev);
 
@@ -1066,7 +1066,7 @@ sis_attach(device_t dev)
 	if_setsendqlen(ifp, SIS_TX_LIST_CNT - 1);
 	if_setsendqready(ifp);
 
-	if (pci_find_cap(sc->sis_dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_has_pm(sc->sis_dev)) {
 		if (sc->sis_type == SIS_TYPE_83815)
 			if_setcapabilitiesbit(ifp, IFCAP_WOL, 0);
 		else
@@ -2311,8 +2311,6 @@ sis_wol(struct sis_softc *sc)
 {
 	if_t			ifp;
 	uint32_t		val;
-	uint16_t		pmstat;
-	int			pmc;
 
 	ifp = sc->sis_ifp;
 	if ((if_getcapenable(ifp) & IFCAP_WOL) == 0)
@@ -2339,20 +2337,13 @@ sis_wol(struct sis_softc *sc)
 		/* Enable silent RX mode. */
 		SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
 	} else {
-		if (pci_find_cap(sc->sis_dev, PCIY_PMG, &pmc) != 0)
-			return;
 		val = 0;
 		if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0)
 			val |= SIS_PWRMAN_WOL_MAGIC;
 		CSR_WRITE_4(sc, SIS_PWRMAN_CTL, val);
 		/* Request PME. */
-		pmstat = pci_read_config(sc->sis_dev,
-		    pmc + PCIR_POWER_STATUS, 2);
-		pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 		if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0)
-			pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-		pci_write_config(sc->sis_dev,
-		    pmc + PCIR_POWER_STATUS, pmstat, 2);
+			pci_enable_pme(sc->sis_dev);
 	}
 }
 

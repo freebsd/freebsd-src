@@ -608,7 +608,7 @@ nfe_attach(device_t dev)
 			    (IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO), 0);
 	}
 
-	if (pci_find_cap(dev, PCIY_PMG, &reg) == 0)
+	if (pci_has_pm(dev))
 		if_setcapabilitiesbit(ifp, IFCAP_WOL_MAGIC, 0);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
 
@@ -3309,12 +3309,10 @@ nfe_set_wol(struct nfe_softc *sc)
 {
 	if_t ifp;
 	uint32_t wolctl;
-	int pmc;
-	uint16_t pmstat;
 
 	NFE_LOCK_ASSERT(sc);
 
-	if (pci_find_cap(sc->nfe_dev, PCIY_PMG, &pmc) != 0)
+	if (!pci_has_pm(sc->nfe_dev))
 		return;
 	ifp = sc->nfe_ifp;
 	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0)
@@ -3334,9 +3332,6 @@ nfe_set_wol(struct nfe_softc *sc)
 		    NFE_RX_START);
 	}
 	/* Request PME if WOL is requested. */
-	pmstat = pci_read_config(sc->nfe_dev, pmc + PCIR_POWER_STATUS, 2);
-	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0)
-		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->nfe_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+		pci_enable_pme(sc->nfe_dev);
 }

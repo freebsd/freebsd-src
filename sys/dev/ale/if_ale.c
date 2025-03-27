@@ -452,7 +452,7 @@ ale_attach(device_t dev)
 	struct ale_softc *sc;
 	if_t ifp;
 	uint16_t burst;
-	int error, i, msic, msixc, pmc;
+	int error, i, msic, msixc;
 	uint32_t rxf_len, txf_len;
 
 	error = 0;
@@ -619,8 +619,7 @@ ale_attach(device_t dev)
 	if_setsendqready(ifp);
 	if_setcapabilities(ifp, IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4);
 	if_sethwassist(ifp, ALE_CSUM_FEATURES | CSUM_TSO);
-	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0) {
-		sc->ale_flags |= ALE_FLAG_PMCAP;
+	if (pci_has_pm(dev)) {
 		if_setcapabilitiesbit(ifp, IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST, 0);
 	}
 	if_setcapenable(ifp, if_getcapabilities(ifp));
@@ -1467,12 +1466,10 @@ ale_setwol(struct ale_softc *sc)
 {
 	if_t ifp;
 	uint32_t reg, pmcs;
-	uint16_t pmstat;
-	int pmc;
 
 	ALE_LOCK_ASSERT(sc);
 
-	if (pci_find_cap(sc->ale_dev, PCIY_PMG, &pmc) != 0) {
+	if (!pci_has_pm(sc->ale_dev)) {
 		/* Disable WOL. */
 		CSR_WRITE_4(sc, ALE_WOL_CFG, 0);
 		reg = CSR_READ_4(sc, ALE_PCIE_PHYMISC);
@@ -1518,11 +1515,8 @@ ale_setwol(struct ale_softc *sc)
 		    GPHY_CTRL_PWDOWN_HW);
 	}
 	/* Request PME. */
-	pmstat = pci_read_config(sc->ale_dev, pmc + PCIR_POWER_STATUS, 2);
-	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0)
-		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->ale_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+		pci_enable_pme(sc->ale_dev);
 }
 
 static int
@@ -1545,23 +1539,11 @@ ale_resume(device_t dev)
 {
 	struct ale_softc *sc;
 	if_t ifp;
-	int pmc;
-	uint16_t pmstat;
 
 	sc = device_get_softc(dev);
 
-	ALE_LOCK(sc);
-	if (pci_find_cap(sc->ale_dev, PCIY_PMG, &pmc) == 0) {
-		/* Disable PME and clear PME status. */
-		pmstat = pci_read_config(sc->ale_dev,
-		    pmc + PCIR_POWER_STATUS, 2);
-		if ((pmstat & PCIM_PSTAT_PMEENABLE) != 0) {
-			pmstat &= ~PCIM_PSTAT_PMEENABLE;
-			pci_write_config(sc->ale_dev,
-			    pmc + PCIR_POWER_STATUS, pmstat, 2);
-		}
-	}
 	/* Reset PHY. */
+	ALE_LOCK(sc);
 	ale_phy_reset(sc);
 	ifp = sc->ale_ifp;
 	if ((if_getflags(ifp) & IFF_UP) != 0) {

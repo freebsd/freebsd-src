@@ -1024,10 +1024,8 @@ vge_attach(device_t dev)
 		sc->vge_expcap = cap;
 	} else
 		sc->vge_flags |= VGE_FLAG_JUMBO;
-	if (pci_find_cap(dev, PCIY_PMG, &cap) == 0) {
+	if (pci_has_pm(dev))
 		sc->vge_flags |= VGE_FLAG_PMCAP;
-		sc->vge_pmcap = cap;
-	}
 	rid = 0;
 	msic = pci_msi_count(dev);
 	if (msi_disable == 0 && msic > 0) {
@@ -2444,20 +2442,9 @@ vge_resume(device_t dev)
 {
 	struct vge_softc *sc;
 	if_t ifp;
-	uint16_t pmstat;
 
 	sc = device_get_softc(dev);
 	VGE_LOCK(sc);
-	if ((sc->vge_flags & VGE_FLAG_PMCAP) != 0) {
-		/* Disable PME and clear PME status. */
-		pmstat = pci_read_config(sc->vge_dev,
-		    sc->vge_pmcap + PCIR_POWER_STATUS, 2);
-		if ((pmstat & PCIM_PSTAT_PMEENABLE) != 0) {
-			pmstat &= ~PCIM_PSTAT_PMEENABLE;
-			pci_write_config(sc->vge_dev,
-			    sc->vge_pmcap + PCIR_POWER_STATUS, pmstat, 2);
-		}
-	}
 	vge_clrwol(sc);
 	/* Restart MII auto-polling. */
 	vge_miipoll_start(sc);
@@ -2836,7 +2823,6 @@ static void
 vge_setwol(struct vge_softc *sc)
 {
 	if_t ifp;
-	uint16_t pmstat;
 	uint8_t val;
 
 	VGE_LOCK_ASSERT(sc);
@@ -2888,13 +2874,8 @@ vge_setwol(struct vge_softc *sc)
 	val |= VGE_STICKHW_DS0 | VGE_STICKHW_DS1;
 	CSR_WRITE_1(sc, VGE_PWRSTAT, val);
 	/* Request PME if WOL is requested. */
-	pmstat = pci_read_config(sc->vge_dev, sc->vge_pmcap +
-	    PCIR_POWER_STATUS, 2);
-	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0)
-		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->vge_dev, sc->vge_pmcap + PCIR_POWER_STATUS,
-	    pmstat, 2);
+		pci_enable_pme(sc->vge_dev);
 }
 
 static void

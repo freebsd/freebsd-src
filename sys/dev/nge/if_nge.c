@@ -915,7 +915,7 @@ nge_attach(device_t dev)
 	 * supply(3VAUX) to drive PME such that checking PCI power
 	 * management capability is necessary.
 	 */
-	if (pci_find_cap(sc->nge_dev, PCIY_PMG, &i) == 0)
+	if (pci_has_pm(sc->nge_dev))
 		if_setcapabilitiesbit(ifp, IFCAP_WOL, 0);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
 
@@ -2510,12 +2510,10 @@ nge_wol(struct nge_softc *sc)
 {
 	if_t ifp;
 	uint32_t reg;
-	uint16_t pmstat;
-	int pmc;
 
 	NGE_LOCK_ASSERT(sc);
 
-	if (pci_find_cap(sc->nge_dev, PCIY_PMG, &pmc) != 0)
+	if (!pci_has_pm(sc->nge_dev))
 		return;
 
 	ifp = sc->nge_ifp;
@@ -2556,11 +2554,8 @@ nge_wol(struct nge_softc *sc)
 	}
 
 	/* Request PME. */
-	pmstat = pci_read_config(sc->nge_dev, pmc + PCIR_POWER_STATUS, 2);
-	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0)
-		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->nge_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+		pci_enable_pme(sc->nge_dev);
 }
 
 /*
@@ -2595,23 +2590,11 @@ nge_resume(device_t dev)
 {
 	struct nge_softc *sc;
 	if_t ifp;
-	uint16_t pmstat;
-	int pmc;
 
 	sc = device_get_softc(dev);
 
 	NGE_LOCK(sc);
 	ifp = sc->nge_ifp;
-	if (pci_find_cap(sc->nge_dev, PCIY_PMG, &pmc) == 0) {
-		/* Disable PME and clear PME status. */
-		pmstat = pci_read_config(sc->nge_dev,
-		    pmc + PCIR_POWER_STATUS, 2);
-		if ((pmstat & PCIM_PSTAT_PMEENABLE) != 0) {
-			pmstat &= ~PCIM_PSTAT_PMEENABLE;
-			pci_write_config(sc->nge_dev,
-			    pmc + PCIR_POWER_STATUS, pmstat, 2);
-		}
-	}
 	if (if_getflags(ifp) & IFF_UP) {
 		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 		nge_init_locked(sc);

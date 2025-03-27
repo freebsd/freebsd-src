@@ -460,7 +460,7 @@ age_attach(device_t dev)
 	struct age_softc *sc;
 	if_t ifp;
 	uint16_t burst;
-	int error, i, msic, msixc, pmc;
+	int error, i, msic, msixc;
 
 	error = 0;
 	sc = device_get_softc(dev);
@@ -600,8 +600,7 @@ age_attach(device_t dev)
 	if_setsendqready(ifp);
 	if_setcapabilities(ifp, IFCAP_HWCSUM | IFCAP_TSO4);
 	if_sethwassist(ifp, AGE_CSUM_FEATURES | CSUM_TSO);
-	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0) {
-		sc->age_flags |= AGE_FLAG_PMCAP;
+	if (pci_has_pm(dev)) {
 		if_setcapabilitiesbit(ifp, IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST, 0);
 	}
 	if_setcapenable(ifp, if_getcapabilities(ifp));
@@ -1303,12 +1302,11 @@ age_setwol(struct age_softc *sc)
 	if_t ifp;
 	struct mii_data *mii;
 	uint32_t reg, pmcs;
-	uint16_t pmstat;
-	int aneg, i, pmc;
+	int aneg, i;
 
 	AGE_LOCK_ASSERT(sc);
 
-	if (pci_find_cap(sc->age_dev, PCIY_PMG, &pmc) != 0) {
+	if (!pci_has_pm(sc->age_dev)) {
 		CSR_WRITE_4(sc, AGE_WOL_CFG, 0);
 		/*
 		 * No PME capability, PHY power down.
@@ -1414,11 +1412,8 @@ got_link:
 	}
 
 	/* Request PME. */
-	pmstat = pci_read_config(sc->age_dev, pmc + PCIR_POWER_STATUS, 2);
-	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0)
-		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->age_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+		pci_enable_pme(sc->age_dev);
 #ifdef notyet
 	/* See above for powering down PHY issues. */
 	if ((if_getcapenable(ifp) & IFCAP_WOL) == 0) {

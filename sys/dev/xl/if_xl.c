@@ -1063,7 +1063,7 @@ xl_attach(device_t dev)
 	u_int16_t		sinfo2, xcvr[2];
 	struct xl_softc		*sc;
 	if_t			ifp;
-	int			media, pmcap;
+	int			media;
 	int			error = 0, phy, rid, res;
 	uint16_t		did;
 
@@ -1314,9 +1314,7 @@ xl_attach(device_t dev)
 		sc->xl_type = XL_TYPE_90X;
 
 	/* Check availability of WOL. */
-	if ((sc->xl_caps & XL_CAPS_PWRMGMT) != 0 &&
-	    pci_find_cap(dev, PCIY_PMG, &pmcap) == 0) {
-		sc->xl_pmcap = pmcap;
+	if ((sc->xl_caps & XL_CAPS_PWRMGMT) != 0 && pci_has_pm(dev)) {
 		sc->xl_flags |= XL_FLAG_WOL;
 		sinfo2 = 0;
 		xl_read_eeprom(sc, (caddr_t)&sinfo2, XL_EE_SOFTINFO2, 1, 0);
@@ -3256,7 +3254,7 @@ static void
 xl_setwol(struct xl_softc *sc)
 {
 	if_t			ifp;
-	u_int16_t		cfg, pmstat;
+	u_int16_t		cfg;
 
 	if ((sc->xl_flags & XL_FLAG_WOL) == 0)
 		return;
@@ -3273,12 +3271,6 @@ xl_setwol(struct xl_softc *sc)
 	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0)
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_ENABLE);
 	/* Request PME. */
-	pmstat = pci_read_config(sc->xl_dev,
-	    sc->xl_pmcap + PCIR_POWER_STATUS, 2);
 	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0)
-		pmstat |= PCIM_PSTAT_PMEENABLE;
-	else
-		pmstat &= ~PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->xl_dev,
-	    sc->xl_pmcap + PCIR_POWER_STATUS, pmstat, 2);
+		pci_enable_pme(sc->xl_dev);
 }

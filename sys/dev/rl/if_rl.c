@@ -640,7 +640,7 @@ rl_attach(device_t dev)
 	const struct rl_type	*t;
 	struct sysctl_ctx_list	*ctx;
 	struct sysctl_oid_list	*children;
-	int			error = 0, hwrev, i, phy, pmc, rid;
+	int			error = 0, hwrev, i, phy, rid;
 	int			prefer_iomap, unit;
 	uint16_t		rl_did = 0;
 	char			tn[32];
@@ -803,8 +803,7 @@ rl_attach(device_t dev)
 	if_setinitfn(ifp, rl_init);
 	if_setcapabilities(ifp, IFCAP_VLAN_MTU);
 	/* Check WOL for RTL8139B or newer controllers. */
-	if (sc->rl_type == RL_8139 &&
-	    pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
+	if (sc->rl_type == RL_8139 && pci_has_pm(sc->rl_dev)) {
 		hwrev = CSR_READ_4(sc, RL_TXCFG) & RL_TXCFG_HWREV;
 		switch (hwrev) {
 		case RL_HWREV_8139B:
@@ -1972,24 +1971,13 @@ rl_resume(device_t dev)
 {
 	struct rl_softc		*sc;
 	if_t			ifp;
-	int			pmc;
-	uint16_t		pmstat;
 
 	sc = device_get_softc(dev);
 	ifp = sc->rl_ifp;
 
 	RL_LOCK(sc);
 
-	if ((if_getcapabilities(ifp) & IFCAP_WOL) != 0 &&
-	    pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
-		/* Disable PME and clear PME status. */
-		pmstat = pci_read_config(sc->rl_dev,
-		    pmc + PCIR_POWER_STATUS, 2);
-		if ((pmstat & PCIM_PSTAT_PMEENABLE) != 0) {
-			pmstat &= ~PCIM_PSTAT_PMEENABLE;
-			pci_write_config(sc->rl_dev,
-			    pmc + PCIR_POWER_STATUS, pmstat, 2);
-		}
+	if ((if_getcapabilities(ifp) & IFCAP_WOL) != 0) {
 		/*
 		 * Clear WOL matching such that normal Rx filtering
 		 * wouldn't interfere with WOL patterns.
@@ -2037,16 +2025,12 @@ static void
 rl_setwol(struct rl_softc *sc)
 {
 	if_t			ifp;
-	int			pmc;
-	uint16_t		pmstat;
 	uint8_t			v;
 
 	RL_LOCK_ASSERT(sc);
 
 	ifp = sc->rl_ifp;
 	if ((if_getcapabilities(ifp) & IFCAP_WOL) == 0)
-		return;
-	if (pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
 		return;
 
 	/* Enable config register write. */
@@ -2080,11 +2064,8 @@ rl_setwol(struct rl_softc *sc)
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	/* Request PME if WOL is requested. */
-	pmstat = pci_read_config(sc->rl_dev, pmc + PCIR_POWER_STATUS, 2);
-	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0)
-		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->rl_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+		pci_enable_pme(sc->rl_dev);
 }
 
 static void

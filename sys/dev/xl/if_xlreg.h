@@ -603,7 +603,6 @@ struct xl_softc {
 	u_int16_t		xl_media;
 	u_int16_t		xl_caps;
 	u_int16_t		xl_tx_thresh;
-	int			xl_pmcap;
 	int			xl_if_flags;
 	struct xl_list_data	xl_ldata;
 	struct xl_chain_data	xl_cdata;

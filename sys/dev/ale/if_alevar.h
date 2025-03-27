@@ -200,7 +200,6 @@ struct ale_softc {
 #define	ALE_FLAG_PCIX		0x0002
 #define	ALE_FLAG_MSI		0x0004
 #define	ALE_FLAG_MSIX		0x0008
-#define	ALE_FLAG_PMCAP		0x0010
 #define	ALE_FLAG_FASTETHER	0x0020
 #define	ALE_FLAG_JUMBO		0x0040
 #define	ALE_FLAG_RXCSUM_BUG	0x0080
