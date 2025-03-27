@@ -93,6 +93,7 @@ opal_ipmi_recv(struct opal_ipmi_softc *sc, uint64_t *msg_len, int timo)
 		opal_call(OPAL_POLL_EVENTS, NULL);
 		err = opal_call(OPAL_IPMI_RECV, sc->sc_interface,
 		    vtophys(sc->sc_msg), vtophys(msg_len));
+		*msg_len = be64toh(*msg_len);
 		if (err != OPAL_EMPTY)
 			break;
 
