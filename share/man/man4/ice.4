@@ -133,7 +133,8 @@ for more details on DDP and Safe Mode.
 If you encounter issues with the DDP package file, you may need to download
 an updated driver or
 .Em ice_ddp
-module. See the log messages for more information.
+module.
+See the log messages for more information.
 .Pp
 You cannot update the DDP package if any PF drivers are already loaded.
 To overwrite a package, unload all PFs and then reload the driver with the
@@ -164,7 +165,6 @@ frames.
 If you observe a drop in performance after enabling jumbo frames, enabling
 flow control may mitigate the issue.
 .Ss Remote Direct Memory Access
-.sp
 Remote Direct Memory Access, or RDMA, allows a network device to transfer data
 directly to and from application memory on another system, increasing
 throughput and lowering latency in certain networking environments.
@@ -203,8 +203,8 @@ sysctl dev.ice.0.create_interface=1
 sysctl dev.ice.0.delete_interface=1
 .Ed
 .Pp
-The mirrored interface receives both LAN and RDMA traffic. Additional
-filters can be configured in tcpdump.
+The mirrored interface receives both LAN and RDMA traffic.
+Additional filters can be configured in tcpdump.
 .Pp
 To differentiate the mirrored interface from the primary interface, the network
 interface naming convention is:
@@ -287,7 +287,8 @@ sysctl dev.ice.<interface #>.ets_min_rate=10,10,10,10,10,10,10,30
 .Ed
 .Pp
 To set the User Priority (UP) to a TC mapping for a port, separate the values
-by commas. For example, to map UP 0 and 1 to TC 0, UP 2 and 3 to TC 1, UP 4 and
+by commas.
+For example, to map UP 0 and 1 to TC 0, UP 2 and 3 to TC 1, UP 4 and
 5 to TC 2, and UP 6 and 7 to TC 3, use the following:
 .Bd -literal -offset indent
 sysctl dev.ice.<interface #>.up2tc_map=0,0,1,1,2,2,3,3
@@ -306,8 +307,8 @@ sysctl dev.ice.<interface #>.pfc_mode=1 (or 0 to disable)
 .Pp
 If you disable L3 QoS mode, it returns to L2 QoS mode.
 .Pp
-To map a DSCP value to a traffic class, separate the values by commas. For
-example, to map DSCPs 0\-3 and DSCP 8 to DCB TCs 0\-3 and 4, respectively:
+To map a DSCP value to a traffic class, separate the values by commas.
+For example, to map DSCPs 0\-3 and DSCP 8 to DCB TCs 0\-3 and 4, respectively:
 .Bd -literal -offset indent
 sysctl dev.ice.<interface #>.dscp2tc_map.0\-7=0,1,2,3,0,0,0,0
 sysctl dev.ice.<interface #>.dscp2tc_map.8\-15=4,0,0,0,0,0,0,0
@@ -355,7 +356,6 @@ If the
 .Dq LLDP AGENT
 attribute is set to disabled, you cannot enable it from the OS.
 .Ss Link\-Level Flow Control (LFC)
-.Pp
 Ethernet Flow Control (IEEE 802.3x) can be configured with sysctl to enable
 receiving and transmitting pause frames for
 .Nm .
@@ -459,7 +459,6 @@ To disable link when the interface is down:
 sysctl dev.ice.<interface #>.link_active_on_if_down=0
 .Ed
 .Ss Firmware Logging
-.sp
 The
 .Nm
 driver allows for the generation of firmware logs for supported categories of
@@ -702,7 +701,8 @@ See the
 man page for more information on using iflib sysctl variables as tunables.
 .Bl -tag -width indent
 .It Va hw.ice.enable_health_events
-Set to 1 to enable firmware health event reporting across all devices. Enabled by default.
+Set to 1 to enable firmware health event reporting across all devices.
+Enabled by default.
 .Pp
 If enabled, when the driver receives a firmware health event message, it will
 print out a description of the event to the kernel message buffer and if
@@ -713,26 +713,30 @@ Set to 1 to enable the RDMA client interface, required by the
 driver.
 Enabled by default.
 .It Va hw.ice.rdma_max_msix
-Set the maximum number of per-device MSI-X vectors that are allocated for use by the
+Set the maximum number of per-device MSI-X vectors that are allocated for use
+by the
 .Xr irdma 4
 driver.
 Set to 64 by default.
 .It Va hw.ice.debug.enable_tx_fc_filter
-Set to 1 to enable the TX Flow Control filter across all devices. Enabled by default.
+Set to 1 to enable the TX Flow Control filter across all devices.
+Enabled by default.
 .Pp
 If enabled, the hardware will drop any transmitted Ethertype 0x8808 control
 frames that do not originate from the hardware.
 .It Va hw.ice.debug.enable_tx_lldp_filter
-Set to 1 to enable the TX LLDP filter across all devices. Enabled by default.
+Set to 1 to enable the TX LLDP filter across all devices.
+Enabled by default.
 .Pp
 If enabled, the hardware will drop any transmitted Ethertype 0x88cc LLDP frames
 that do not originate from the hardware.
 This must be disabled in order to use LLDP daemon software such as
 .Xr lldpd 8 .
 .It Va hw.ice.debug.ice_tx_balance_en
-Set to 1 to allow the driver to use the 5-layer Tx Scheduler tree topology if configured by the DDP package.
+Set to 1 to allow the driver to use the 5-layer Tx Scheduler tree topology if
+configured by the DDP package.
 .Pp
-Enabled by default. 
+Enabled by default.
 .El
 .Sh SYSCTL PROCEDURES
 .Bl -tag -width indent
