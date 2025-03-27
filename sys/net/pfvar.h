@@ -1557,8 +1557,10 @@ struct pf_pdesc {
 	struct pf_krule	*nat_rule;	/* nat/rdr rule applied to packet */
 	struct pf_addr	*src;		/* src address */
 	struct pf_addr	*dst;		/* dst address */
-	u_int16_t *sport;
-	u_int16_t *dport;
+	struct pf_addr	 osrc;
+	struct pf_addr	 odst;
+	u_int16_t	*sport;
+	u_int16_t	*dport;
 	struct pf_mtag	*pf_mtag;
 	struct pf_rule_actions	act;
 
