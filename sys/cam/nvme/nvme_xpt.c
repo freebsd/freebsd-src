@@ -38,6 +38,7 @@
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/sbuf.h>
+#include <sys/stdarg.h>
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -57,7 +58,6 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/nvme/nvme_all.h>
-#include <machine/stdarg.h>	/* for xpt_print below */
 
 struct nvme_quirk_entry {
 	u_int quirks;

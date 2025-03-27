@@ -38,8 +38,8 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/sema.h>
+#include <sys/stdarg.h>
 #include <sys/taskqueue.h>
-#include <machine/stdarg.h>
 #include <vm/uma.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
