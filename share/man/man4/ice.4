@@ -467,7 +467,7 @@ Refer to the Intel(R) Ethernet Adapters and Devices User Guide for
 an overview of this feature and additional tips.
 .Pp
 At a high level, to capture a firmware log:
-.Bl -enum -offset -compact
+.Bl -enum -compact
 .It
 Set the configuration for the firmware log.
 .It
@@ -617,6 +617,164 @@ dmesg > log_output
 .Pp
 NOTE: Logging a large number of modules or too high of a verbosity level will
 add extraneous messages to dmesg and could hinder debug efforts.
+
+.Ss Debug Dump
+Intel(R) Ethernet 800 Series devices support debug dump, which allows you to
+obtain runtime register values from the firmware for
+.Dq clusters
+of events and then write the results to a single dump file, for debugging
+complicated issues in the field.
+.Pp
+This debug dump contains a snapshot of the device and its existing hardware
+configuration, such as switch tables, transmit scheduler tables, and other
+information.
+Debug dump captures the current state of the specified cluster(s) and is a
+stateless snapshot of the whole device.
+.Pp
+.Sy NOTE:
+Like with firmware logs, the contents of the debug dump are not
+human\-readable.
+You must work with Customer Support to decode the file.
+.Pp
+Debug dump is per device, not per PF.
+.Pp
+Debug dump writes all information to a single file.
+.Pp
+To generate a debug dump file in FreeBSD, do the following:
+.Pp
+Specify the cluster(s) to include in the dump file, using a bitmask and the
+following command:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.debug.dump.clusters=<bitmask>
+.Ed
+.Pp
+To print the complete cluster bitmask and parameter list to the screen,
+pass the \fB\-d\fP argument.
+For example:
+.Bd -literal -offset indent
+sysctl \-d dev.ice.0.debug.dump.clusters
+.Ed
+.Pp
+Possible bitmask values for \fBclusters\fP are:
+.Bl -bullet -compact
+.It
+0 \- Dump all clusters (only supported on Intel(R) Ethernet E810 Series and
+Intel(R) Ethernet E830 Series)
+.It
+0x1 \- Switch
+.It
+0x2 \- ACL
+.It
+0x4 \- Tx Scheduler
+.It
+0x8 \- Profile Configuration
+.It
+0x20 \- Link
+.It
+0x80 \- DCB
+.It
+0x100 \- L2P
+.It
+0x400000 \- Manageability Transactions (only supported on Intel(R) Ethernet
+E810 Series)
+.El
+.Pp
+For example, to dump the Switch, DCB, and L2P clusters, use the following:
+.Bd -literal -offset indent
+sysctl dev.ice.0.debug.dump.clusters=0x181
+.Ed
+.Pp
+To dump all clusters, use the following:
+.Bd -literal -offset indent
+sysctl dev.ice.0.debug.dump.clusters=0
+.Ed
+.Pp
+.Sy NOTE:
+Using
+.Sy 0
+will skip Manageability Transactions data.
+.Pp
+If you don\(aqt specify a cluster, the driver will dump all clusters to a
+single file.
+Issue the debug dump command, using the following:
+.Bd -literal -offset indent
+sysctl \-b dev.ice.<interface #>.debug.dump.dump=1 > dump.bin
+.Ed
+.Pp
+.Sy NOTE:
+The driver will not receive the command if you do not write
+.Dq 1
+to the sysctl.
+.Pp
+Replace
+.Sy dump.bin
+above with the file name you want to use.
+.Pp
+If you did not specify any clusters, the dump file will include
+information about all clusters.
+.Pp
+To clear the clusters bitmap before a subsequent debug dump and then do the
+dump:
+.Bd -literal -offset indent
+sysctl dev.ice.0.debug.dump.clusters=0
+sysctl dev.ice.0.debug.dump.dump=1
+.Ed
+.Ss Debugging PHY Statistics
+The ice driver supports the ability to obtain the values of the PHY registers
+from Intel(R) Ethernet 810 Series devices in order to debug link and
+connection issues during runtime.
+.Pp
+The driver allows you to obtain information about:
+.Bl -bullet
+.It
+Rx and Tx Equalization parameters
+.It
+RS FEC correctable and uncorrectable block counts
+.El
+.Pp
+Use the following sysctl to read the PHY registers:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.debug.phy_statistics
+.Ed
+.Pp
+.Sy NOTE:
+The contents of the registers are not human\-readable.
+Like with firmware logs and debug dump, you must work with Customer Support
+to decode the file.
+.Ss Transmit Balancing
+Some Intel(R) Ethernet 800 Series devices allow you to enable a transmit
+balancing feature to improve transmit performance under certain conditions.
+When the feature is enabled, you should experience more consistent transmit
+performance across queues and/or PFs and VFs.
+.Pp
+By default, transmit balancing is disabled in the NVM. To enable this feature,
+use one of the following to persistently change the setting for the device:
+.Bl -bullet
+.It
+Use the Ethernet Port Configuration Tool (EPCT) to enable the \fBtx_balancing\fP
+option. Refer to the EPCT readme for more information.
+.It
+Enable the Transmit Balancing device setting in UEFI HII.
+.El
+.Pp
+When the driver loads, it reads the transmit balancing setting from the NVM and
+configures the device accordingly.
+.Pp
+.Sy NOTE:
+The user selection for transmit balancing in EPCT or HII is persistent
+across reboots.
+You must reboot the system for the selected setting to take effect.
+.Pp
+This setting is device wide.
+.Pp
+The driver, NVM, and DDP package must all support this functionality to
+enable the feature.
+.Ss Thermal Monitoring
+Intel(R) Ethernet 810 Series and Intel(R) Ethernet 830 Series devices can
+display temperature data (in degrees Celsius) via:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.temp
+.Ed
 .Ss Additional Utilities
 There are additional tools available from Intel to help configure and update
 the adapters covered by this driver.
@@ -838,12 +996,10 @@ If an issue is identified with this driver with a supported adapter,
 email all the specific information related to the issue to
 .Aq Mt freebsd@intel.com .
 .Sh SEE ALSO
-.Xr arp 4 ,
 .Xr iflib 4 ,
-.Xr netintro 4 ,
-.Xr ng_ether 4 ,
 .Xr vlan 4 ,
-.Xr ifconfig 8
+.Xr ifconfig 8 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
