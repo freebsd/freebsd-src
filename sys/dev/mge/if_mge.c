@@ -398,33 +398,16 @@ mge_ver_params(struct mge_softc *sc)
 	uint32_t d, r;
 
 	soc_id(&d, &r);
-	if (d == MV_DEV_88F6281 || d == MV_DEV_88F6781 ||
-	    d == MV_DEV_88F6282 ||
-	    d == MV_DEV_MV78100 ||
-	    d == MV_DEV_MV78100_Z0 ||
-	    (d & MV_DEV_FAMILY_MASK) == MV_DEV_DISCOVERY) {
-		sc->mge_ver = 2;
-		sc->mge_mtu = 0x4e8;
-		sc->mge_tfut_ipg_max = 0xFFFF;
-		sc->mge_rx_ipg_max = 0xFFFF;
-		sc->mge_tx_arb_cfg = 0xFC0000FF;
-		sc->mge_tx_tok_cfg = 0xFFFF7FFF;
-		sc->mge_tx_tok_cnt = 0x3FFFFFFF;
-	} else {
-		sc->mge_ver = 1;
-		sc->mge_mtu = 0x458;
-		sc->mge_tfut_ipg_max = 0x3FFF;
-		sc->mge_rx_ipg_max = 0x3FFF;
-		sc->mge_tx_arb_cfg = 0x000000FF;
-		sc->mge_tx_tok_cfg = 0x3FFFFFFF;
-		sc->mge_tx_tok_cnt = 0x3FFFFFFF;
-	}
-	if (d == MV_DEV_88RC8180)
-		sc->mge_intr_cnt = 1;
-	else
-		sc->mge_intr_cnt = 2;
+	sc->mge_ver = 1;
+	sc->mge_mtu = 0x458;
+	sc->mge_tfut_ipg_max = 0x3FFF;
+	sc->mge_rx_ipg_max = 0x3FFF;
+	sc->mge_tx_arb_cfg = 0x000000FF;
+	sc->mge_tx_tok_cfg = 0x3FFFFFFF;
+	sc->mge_tx_tok_cnt = 0x3FFFFFFF;
+	sc->mge_intr_cnt = 2;
 
-	if (d == MV_DEV_MV78160 || d == MV_DEV_MV78260 || d == MV_DEV_MV78460)
+	if (d == MV_DEV_MV78260 || d == MV_DEV_MV78460)
 		sc->mge_hw_csum = 0;
 	else
 		sc->mge_hw_csum = 1;

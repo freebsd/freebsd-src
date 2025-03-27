@@ -56,7 +56,6 @@
 enum soc_family{
 	MV_SOC_ARMADA_38X 	= 0x00,
 	MV_SOC_ARMADA_XP	= 0x01,
-	MV_SOC_ARMV5		= 0x02,
 	MV_SOC_UNSUPPORTED	= 0xff,
 };
 
@@ -84,7 +83,6 @@ extern int xor_wins_no;
 int soc_decode_win(void);
 void soc_id(uint32_t *dev, uint32_t *rev);
 void soc_dump_decode_win(void);
-uint32_t soc_power_ctrl_get(uint32_t mask);
 void soc_power_ctrl_set(uint32_t mask);
 
 int decode_win_cpu_set(int target, int attr, vm_paddr_t base, uint32_t size,
@@ -98,9 +96,7 @@ int ddr_is_active(int i);
 uint32_t ddr_base(int i);
 uint32_t ddr_size(int i);
 uint32_t ddr_attr(int i);
-uint32_t ddr_target(int i);
 
-uint32_t cpu_extra_feat(void);
 uint32_t get_tclk(void);
 uint32_t get_cpu_freq(void);
 uint32_t get_l2clk(void);

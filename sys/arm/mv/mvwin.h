@@ -56,15 +56,7 @@
  * External devices: 0x80000000, 1 GB (VA == PA)
  * Includes Device Bus, PCI and PCIE.
  */
-#if defined(SOC_MV_ORION)
-#define MV_PCI_PORTS	2	/* 1x PCI + 1x PCIE */
-#elif defined(SOC_MV_KIRKWOOD)
-#define MV_PCI_PORTS	1	/* 1x PCIE */
-#elif defined(SOC_MV_DISCOVERY)
-#define MV_PCI_PORTS	8	/* 8x PCIE */
-#else
 #define	MV_PCI_PORTS    1       /* 1x PCIE -> worst case */
-#endif
 
 /* PCI/PCIE Memory */
 #define MV_PCI_MEM_PHYS_BASE	0x80000000
@@ -132,11 +124,7 @@
 #define	MV_WIN_CPU_REMAP_LO_ARMV5(n)		(0x10 * (n) + (((n) < 8) ? 0x008 : 0x888))
 #define	MV_WIN_CPU_REMAP_HI_ARMV5(n)		(0x10 * (n) + (((n) < 8) ? 0x00C : 0x88C))
 
-#if defined(SOC_MV_DISCOVERY)
-#define MV_WIN_CPU_MAX			14
-#else
 #define MV_WIN_CPU_MAX			8
-#endif
 #define	MV_WIN_CPU_MAX_ARMV7		20
 
 #define MV_WIN_CPU_ATTR_SHIFT		8
@@ -154,13 +142,8 @@
 #define MV_WIN_DDR_ATTR(cs)		(0x0F & ~(0x01 << (cs)))
 #define MV_WIN_DDR_TARGET		0x0
 
-#if defined(SOC_MV_DISCOVERY)
-#define MV_WIN_CESA_TARGET		9
-#define MV_WIN_CESA_ATTR(eng_sel)	1
-#else
 #define	MV_WIN_CESA_TARGET		3
 #define	MV_WIN_CESA_ATTR(eng_sel)	0
-#endif
 
 #define	MV_WIN_CESA_TARGET_ARMADAXP	9
 /*
@@ -227,19 +210,9 @@
 #define	MV_WIN_PCIE_TARGET_ARMADA38X(n)		((n) == 0 ? 8 : 4)
 #define	MV_WIN_PCIE_MEM_ATTR_ARMADA38X(n)	((n) < 2 ? 0xE8 : (0xD8 - (((n) % 2) * 0x20)))
 #define	MV_WIN_PCIE_IO_ATTR_ARMADA38X(n)	((n) < 2 ? 0xE0 : (0xD0 - (((n) % 2) * 0x20)))
-#if defined(SOC_MV_DISCOVERY) || defined(SOC_MV_KIRKWOOD)
-#define MV_WIN_PCIE_TARGET(n)		4
-#define MV_WIN_PCIE_MEM_ATTR(n)		0xE8
-#define MV_WIN_PCIE_IO_ATTR(n)		0xE0
-#elif defined(SOC_MV_ORION)
-#define MV_WIN_PCIE_TARGET(n)		4
-#define MV_WIN_PCIE_MEM_ATTR(n)		0x59
-#define MV_WIN_PCIE_IO_ATTR(n)		0x51
-#else
 #define	MV_WIN_PCIE_TARGET(n)           (4 + (4 * ((n) % 2)))
 #define	MV_WIN_PCIE_MEM_ATTR(n)         (0xE8 + (0x10 * ((n) / 2)))
 #define	MV_WIN_PCIE_IO_ATTR(n)          (0xE0 + (0x10 * ((n) / 2)))
-#endif
 
 #define MV_WIN_PCI_TARGET		3
 #define MV_WIN_PCI_MEM_ATTR		0x59
