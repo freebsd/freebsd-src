@@ -617,7 +617,6 @@ dmesg > log_output
 .Pp
 NOTE: Logging a large number of modules or too high of a verbosity level will
 add extraneous messages to dmesg and could hinder debug efforts.
-
 .Ss Debug Dump
 Intel(R) Ethernet 800 Series devices support debug dump, which allows you to
 obtain runtime register values from the firmware for
@@ -631,8 +630,7 @@ information.
 Debug dump captures the current state of the specified cluster(s) and is a
 stateless snapshot of the whole device.
 .Pp
-.Sy NOTE:
-Like with firmware logs, the contents of the debug dump are not
+NOTE: Like with firmware logs, the contents of the debug dump are not
 human\-readable.
 You must work with Customer Support to decode the file.
 .Pp
@@ -640,7 +638,9 @@ Debug dump is per device, not per PF.
 .Pp
 Debug dump writes all information to a single file.
 .Pp
-To generate a debug dump file in FreeBSD, do the following:
+To generate a debug dump file in
+.Fx
+do the following:
 .Pp
 Specify the cluster(s) to include in the dump file, using a bitmask and the
 following command:
@@ -689,10 +689,7 @@ To dump all clusters, use the following:
 sysctl dev.ice.0.debug.dump.clusters=0
 .Ed
 .Pp
-.Sy NOTE:
-Using
-.Sy 0
-will skip Manageability Transactions data.
+NOTE: Using 0 will skip Manageability Transactions data.
 .Pp
 If you don\(aqt specify a cluster, the driver will dump all clusters to a
 single file.
@@ -701,14 +698,11 @@ Issue the debug dump command, using the following:
 sysctl \-b dev.ice.<interface #>.debug.dump.dump=1 > dump.bin
 .Ed
 .Pp
-.Sy NOTE:
-The driver will not receive the command if you do not write
+NOTE: The driver will not receive the command if you do not write
 .Dq 1
 to the sysctl.
 .Pp
-Replace
-.Sy dump.bin
-above with the file name you want to use.
+Replace dump.bin above with the file name you want to use.
 .Pp
 If you did not specify any clusters, the dump file will include
 information about all clusters.
@@ -737,8 +731,7 @@ Use the following sysctl to read the PHY registers:
 sysctl dev.ice.<interface #>.debug.phy_statistics
 .Ed
 .Pp
-.Sy NOTE:
-The contents of the registers are not human\-readable.
+NOTE: The contents of the registers are not human\-readable.
 Like with firmware logs and debug dump, you must work with Customer Support
 to decode the file.
 .Ss Transmit Balancing
@@ -747,12 +740,14 @@ balancing feature to improve transmit performance under certain conditions.
 When the feature is enabled, you should experience more consistent transmit
 performance across queues and/or PFs and VFs.
 .Pp
-By default, transmit balancing is disabled in the NVM. To enable this feature,
-use one of the following to persistently change the setting for the device:
+By default, transmit balancing is disabled in the NVM.
+To enable this feature, use one of the following to persistently change the
+setting for the device:
 .Bl -bullet
 .It
-Use the Ethernet Port Configuration Tool (EPCT) to enable the \fBtx_balancing\fP
-option. Refer to the EPCT readme for more information.
+Use the Ethernet Port Configuration Tool (EPCT) to enable the tx_balancing
+option.
+Refer to the EPCT readme for more information.
 .It
 Enable the Transmit Balancing device setting in UEFI HII.
 .El
@@ -760,8 +755,7 @@ Enable the Transmit Balancing device setting in UEFI HII.
 When the driver loads, it reads the transmit balancing setting from the NVM and
 configures the device accordingly.
 .Pp
-.Sy NOTE:
-The user selection for transmit balancing in EPCT or HII is persistent
+NOTE: The user selection for transmit balancing in EPCT or HII is persistent
 across reboots.
 You must reboot the system for the selected setting to take effect.
 .Pp
@@ -871,8 +865,8 @@ higher transfer rate.
 .Ed
 .Pp
 If this error occurs, moving your adapter to a true PCIe x8 or x16 slot will
-resolve the issue. For best performance, install devices in the following PCI
-slots:
+resolve the issue.
+For best performance, install devices in the following PCI slots:
 .Bl -bullet
 .It
 Any 100Gbps\-capable Intel(R) Ethernet 800 Series device: Install in a
