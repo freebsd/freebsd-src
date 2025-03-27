@@ -1716,8 +1716,6 @@ pmap_init(void)
 	pt2_entry_t *pte2p, pte2;
 	u_int i, pte1_idx, pv_npg;
 
-	PDEBUG(1, printf("%s: phys_start = %#x\n", __func__, PHYSADDR));
-
 	/*
 	 * Initialize the vm page array entries for kernel pmap's
 	 * L2 page table pages allocated in advance.
