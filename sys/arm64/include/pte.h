@@ -73,7 +73,8 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 
 #define	ATTR_CONTIGUOUS		(1UL << 52)
 #define	ATTR_DBM		(1UL << 51)
-#define	ATTR_S1_GP		(1UL << 50)
+#define	ATTR_S1_GP_SHIFT	50
+#define	ATTR_S1_GP		(1UL << ATTR_S1_GP_SHIFT)
 
 /*
  * Largest possible output address field for a level 3 page. Block

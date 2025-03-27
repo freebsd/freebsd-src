@@ -182,7 +182,8 @@
 #define	pmap_l2_pindex(v)	((v) >> L2_SHIFT)
 
 #ifdef __ARM_FEATURE_BTI_DEFAULT
-#define	ATTR_KERN_GP		ATTR_S1_GP
+pt_entry_t __read_mostly pmap_gp_attr;
+#define	ATTR_KERN_GP		pmap_gp_attr
 #else
 #define	ATTR_KERN_GP		0
 #endif
