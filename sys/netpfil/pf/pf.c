@@ -5491,6 +5491,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	int			 asd = 0;
 	int			 match = 0;
 	int			 state_icmp = 0, icmp_dir;
+	int			 action = PF_PASS;
 	u_int16_t		 virtual_type, virtual_id;
 	u_int16_t		 bproto_sum = 0, bip_sum = 0;
 	u_int8_t		 icmptype = 0, icmpcode = 0;
@@ -5963,7 +5964,6 @@ nextrule:
 	if (pd->virtual_proto != PF_VPROTO_FRAGMENT &&
 	   (!state_icmp && (r->keep_state || nr != NULL ||
 	    (pd->flags & PFDESC_TCP_NORM)))) {
-		int action;
 		bool nat64;
 
 		action = pf_create_state(r, nr, a, pd, nk, sk,
@@ -6005,6 +6005,9 @@ nextrule:
 				goto cleanup;
 
 			rewrite += ret;
+
+			if (rewrite && sk->af != nk->af)
+				action = PF_AFRT;
 		}
 	} else {
 		while ((ri = SLIST_FIRST(&match_rules))) {
@@ -6032,10 +6035,7 @@ nextrule:
 		 */
 		return (PF_DEFER);
 
-	if (rewrite && sk != NULL && nk != NULL && sk->af != nk->af) {
-		return (PF_AFRT);
-	} else
-		return (PF_PASS);
+	return (action);
 
 cleanup:
 	while ((ri = SLIST_FIRST(&match_rules))) {
