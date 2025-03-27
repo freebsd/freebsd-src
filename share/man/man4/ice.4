@@ -635,7 +635,7 @@ To update the firmware on an adapter, use the Intel
 The
 .Nm
 driver supports the Intel Ethernet 800 series.
-Most adapters in this series with SFP28/QSFP28 cages
+Some adapters in this series with SFP28/QSFP28 cages
 have firmware that requires that Intel qualified modules are used; these
 qualified modules are listed below.
 This qualification check cannot be disabled by the driver.
@@ -691,6 +691,11 @@ SFF-8472 v10.4 specifications.
 .Pp
 This is not an exhaustive list; please consult product documentation for an
 up-to-date list of supported media.
+.Ss Fiber optics and auto\-negotiation
+Modules based on 100GBASE\-SR4, active optical cable (AOC), and active copper
+cable (ACC) do not support auto\-negotiation per the IEEE specification.
+To obtain link with these modules, auto\-negotiation must be turned off on the
+link partner\(aqs switch ports.
 .Sh LOADER TUNABLES
 Tunables can be set at the
 .Xr loader 8
