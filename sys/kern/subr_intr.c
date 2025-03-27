@@ -1733,14 +1733,6 @@ intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data)
 			return (i);
 		}
 	}
-	for (i = 0; i < irq_map_first_free_idx; i++) {
-		if (irq_map[i] == NULL) {
-			irq_map[i] = entry;
-			irq_map_first_free_idx = i + 1;
-			mtx_unlock(&irq_map_lock);
-			return (i);
-		}
-	}
 	mtx_unlock(&irq_map_lock);
 
 	/* XXX Expand irq_map table */
@@ -1760,7 +1752,8 @@ intr_unmap_irq(u_int res_id)
 		panic("Attempt to unmap invalid resource id: %u\n", res_id);
 	entry = irq_map[res_id];
 	irq_map[res_id] = NULL;
-	irq_map_first_free_idx = res_id;
+	if (res_id < irq_map_first_free_idx)
+		irq_map_first_free_idx = res_id;
 	mtx_unlock(&irq_map_lock);
 	intr_free_intr_map_data(entry->map_data);
 	free(entry, M_INTRNG);
