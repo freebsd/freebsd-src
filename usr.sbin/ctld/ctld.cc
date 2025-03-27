@@ -1026,11 +1026,12 @@ conf::isns_update()
 }
 
 bool
-kports::add_port(const char *name, uint32_t ctl_port)
+kports::add_port(std::string &name, uint32_t ctl_port)
 {
 	const auto &pair = pports.try_emplace(name, name, ctl_port);
 	if (!pair.second) {
-		log_warnx("duplicate kernel port \"%s\" (%u)", name, ctl_port);
+		log_warnx("duplicate kernel port \"%s\" (%u)", name.c_str(),
+		    ctl_port);
 		return (false);
 	}
 
@@ -1038,7 +1039,7 @@ kports::add_port(const char *name, uint32_t ctl_port)
 }
 
 bool
-kports::has_port(const char *name)
+kports::has_port(std::string &name)
 {
 	return (pports.count(name) > 0);
 }

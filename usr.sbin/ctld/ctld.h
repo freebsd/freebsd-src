@@ -494,8 +494,8 @@ typedef std::unique_ptr<conf> conf_up;
 
 /* Physical ports exposed by the kernel */
 struct pport {
-	pport(const char *name, uint32_t ctl_port) : pp_name(name),
-						     pp_ctl_port(ctl_port) {}
+	pport(std::string &name, uint32_t ctl_port) : pp_name(name),
+						      pp_ctl_port(ctl_port) {}
 
 	const char *name() const { return pp_name.c_str(); }
 	uint32_t ctl_port() const { return pp_ctl_port; }
@@ -510,8 +510,8 @@ private:
 };
 
 struct kports {
-	bool add_port(const char *name, uint32_t ctl_port);
-	bool has_port(const char *name);
+	bool add_port(std::string &name, uint32_t ctl_port);
+	bool has_port(std::string &name);
 	struct pport *find_port(const char *name);
 
 private:
