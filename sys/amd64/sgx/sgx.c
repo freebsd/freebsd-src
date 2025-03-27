@@ -593,10 +593,17 @@ sgx_pg_fault(vm_object_t object, vm_ooffset_t offset,
 	return (VM_PAGER_FAIL);
 }
 
+static void
+sgx_pg_path(void *handle, char *path, size_t len)
+{
+	strlcpy(path, "sgx", len);
+}
+
 static struct cdev_pager_ops sgx_pg_ops = {
 	.cdev_pg_ctor = sgx_pg_ctor,
 	.cdev_pg_dtor = sgx_pg_dtor,
 	.cdev_pg_fault = sgx_pg_fault,
+	.cdev_pg_path = sgx_pg_path,
 };
 
 static void
