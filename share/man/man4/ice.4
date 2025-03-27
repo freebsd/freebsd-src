@@ -696,6 +696,33 @@ Modules based on 100GBASE\-SR4, active optical cable (AOC), and active copper
 cable (ACC) do not support auto\-negotiation per the IEEE specification.
 To obtain link with these modules, auto\-negotiation must be turned off on the
 link partner\(aqs switch ports.
+.Ss PCI-Express Slot Bandwidth
+Some PCIe x8 slots are actually configured as x4 slots.
+These slots have insufficient bandwidth for full line rate with dual port and
+quad port devices.
+In addition, if you put a PCIe v4.0 or v3.0\-capable adapter into a PCIe v2.x
+slot, you cannot get full bandwidth.
+.Pp
+The driver detects this situation and writes the following message in the
+system log:
+.Bd -literal -offset indent
+PCI\-Express bandwidth available for this device may be insufficient for
+optimal performance.
+Please move the device to a different PCI\-e link with more lanes and/or
+higher transfer rate.
+.Ed
+.Pp
+If this error occurs, moving your adapter to a true PCIe x8 or x16 slot will
+resolve the issue. For best performance, install devices in the following PCI
+slots:
+.Bl -bullet
+.It
+Any 100Gbps\-capable Intel(R) Ethernet 800 Series device: Install in a
+PCIe v4.0 x8 or v3.0 x16 slot
+.It
+A 200Gbps\-capable Intel(R) Ethernet 830 Series device: Install in a
+PCIe v5.0 x8 or v4.0 x16 slot
+.El
 .Sh LOADER TUNABLES
 Tunables can be set at the
 .Xr loader 8
