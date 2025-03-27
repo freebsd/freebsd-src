@@ -2952,6 +2952,30 @@ pci_clear_pme(device_t dev)
 	}
 }
 
+/* Clear any active PME# and enable PME# generation. */
+void
+pci_enable_pme(device_t dev)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	pcicfgregs *cfg = &dinfo->cfg;
+	uint16_t status;
+
+	if (cfg->pp.pp_cap != 0) {
+		status = pci_read_config(dev, dinfo->cfg.pp.pp_status, 2);
+		status |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
+		pci_write_config(dev, dinfo->cfg.pp.pp_status, status, 2);
+	}
+}
+
+bool
+pci_has_pm(device_t dev)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	pcicfgregs *cfg = &dinfo->cfg;
+
+	return (cfg->pp.pp_cap != 0);
+}
+
 /*
  * Some convenience functions for PCI device drivers.
  */
