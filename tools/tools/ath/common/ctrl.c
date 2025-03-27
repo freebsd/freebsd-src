@@ -87,7 +87,7 @@ ath_driver_req_open(struct ath_driver_req *req, const char *ifname)
 {
 	int s;
 
-	if (s != -1)
+	if (req->s != -1)
 		ath_driver_req_close(req);
 
 	/* For now, netif socket, not /dev/ filedescriptor */
