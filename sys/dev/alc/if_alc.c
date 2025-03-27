@@ -1595,10 +1595,9 @@ alc_attach(device_t dev)
 	if_setsendqready(ifp);
 	if_setcapabilities(ifp, IFCAP_TXCSUM | IFCAP_TSO4);
 	if_sethwassist(ifp, ALC_CSUM_FEATURES | CSUM_TSO);
-	if (pci_find_cap(dev, PCIY_PMG, &base) == 0) {
+	if (pci_has_pm(dev)) {
 		if_setcapabilitiesbit(ifp, IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST, 0);
 		sc->alc_flags |= ALC_FLAG_PM;
-		sc->alc_pmcap = base;
 	}
 	if_setcapenable(ifp, if_getcapabilities(ifp));
 
@@ -2535,7 +2534,6 @@ alc_setwol_813x(struct alc_softc *sc)
 {
 	if_t ifp;
 	uint32_t reg, pmcs;
-	uint16_t pmstat;
 
 	ALC_LOCK_ASSERT(sc);
 
@@ -2584,13 +2582,8 @@ alc_setwol_813x(struct alc_softc *sc)
 		    CSR_READ_4(sc, ALC_MASTER_CFG) | MASTER_CLK_SEL_DIS);
 	}
 	/* Request PME. */
-	pmstat = pci_read_config(sc->alc_dev,
-	    sc->alc_pmcap + PCIR_POWER_STATUS, 2);
-	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0)
-		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->alc_dev,
-	    sc->alc_pmcap + PCIR_POWER_STATUS, pmstat, 2);
+		pci_enable_pme(sc->alc_dev);
 }
 
 static void
@@ -2598,7 +2591,6 @@ alc_setwol_816x(struct alc_softc *sc)
 {
 	if_t ifp;
 	uint32_t gphy, mac, master, pmcs, reg;
-	uint16_t pmstat;
 
 	ALC_LOCK_ASSERT(sc);
 
@@ -2649,13 +2641,8 @@ alc_setwol_816x(struct alc_softc *sc)
 
 	if ((sc->alc_flags & ALC_FLAG_PM) != 0) {
 		/* Request PME. */
-		pmstat = pci_read_config(sc->alc_dev,
-		    sc->alc_pmcap + PCIR_POWER_STATUS, 2);
-		pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 		if ((if_getcapenable(ifp) & IFCAP_WOL) != 0)
-			pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-		pci_write_config(sc->alc_dev,
-		    sc->alc_pmcap + PCIR_POWER_STATUS, pmstat, 2);
+			pci_enable_pme(sc->alc_dev);
 	}
 }
 
@@ -2679,22 +2666,11 @@ alc_resume(device_t dev)
 {
 	struct alc_softc *sc;
 	if_t ifp;
-	uint16_t pmstat;
 
 	sc = device_get_softc(dev);
 
-	ALC_LOCK(sc);
-	if ((sc->alc_flags & ALC_FLAG_PM) != 0) {
-		/* Disable PME and clear PME status. */
-		pmstat = pci_read_config(sc->alc_dev,
-		    sc->alc_pmcap + PCIR_POWER_STATUS, 2);
-		if ((pmstat & PCIM_PSTAT_PMEENABLE) != 0) {
-			pmstat &= ~PCIM_PSTAT_PMEENABLE;
-			pci_write_config(sc->alc_dev,
-			    sc->alc_pmcap + PCIR_POWER_STATUS, pmstat, 2);
-		}
-	}
 	/* Reset PHY. */
+	ALC_LOCK(sc);
 	alc_phy_reset(sc);
 	ifp = sc->alc_ifp;
 	if ((if_getflags(ifp) & IFF_UP) != 0) {
