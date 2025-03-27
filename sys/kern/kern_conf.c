@@ -1245,6 +1245,19 @@ devtoname(struct cdev *dev)
 	return (dev->si_name);
 }
 
+void
+dev_copyname(struct cdev *dev, char *path, size_t len)
+{
+	struct cdevsw *csw;
+	int ref;
+
+	csw = dev_refthread(dev, &ref);
+	if (csw != NULL) {
+		strlcpy(path, dev->si_name, len);
+		dev_relthread(dev, ref);
+	}
+}
+
 int
 dev_stdclone(char *name, char **namep, const char *stem, int *unit)
 {
