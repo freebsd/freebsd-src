@@ -801,7 +801,7 @@ its_init_cpu_lpi(device_t dev, struct gicv3_its_softc *sc)
 		/* Make sure changes are observable my the GIC */
 		dsb(sy);
 
-		size = (flsl(LPI_CONFTAB_SIZE | GIC_FIRST_LPI) - 1);
+		size = ilog2_long(LPI_CONFTAB_SIZE | GIC_FIRST_LPI) - 1;
 
 		xbaser = vtophys(sc->sc_conf_base) |
 		    (GICR_PROPBASER_SHARE_IS << GICR_PROPBASER_SHARE_SHIFT) |
