@@ -89,7 +89,7 @@ main(int argc, char *argv[])
 	atd.ad_out_data = (caddr_t) &state.revs;
 	atd.ad_out_size = sizeof(state.revs);
 	if (ioctl(s, SIOCGATHDIAG, &atd) < 0)
-		err(1, atd.ad_name);
+		err(1, "%s", atd.ad_name);
 
 	argc -= optind;
 	argv += optind;
@@ -132,7 +132,7 @@ regread(int s, struct ath_diag *atd, uint32_t r)
 	atd->ad_out_size = sizeof(v);
 	atd->ad_id = HAL_DIAG_REGS | ATH_DIAG_IN | ATH_DIAG_DYN;
 	if (ioctl(s, SIOCGATHDIAG, atd) < 0)
-		err(1, atd->ad_name);
+		err(1, "%s", atd->ad_name);
 	return v[2];
 }
 
@@ -147,7 +147,7 @@ regwrite(int s, struct ath_diag *atd, uint32_t r, uint32_t v)
 	atd->ad_in_size = sizeof(rw);
 	atd->ad_id = HAL_DIAG_SETREGS | ATH_DIAG_IN;
 	if (ioctl(s, SIOCGATHDIAG, atd) < 0)
-		err(1, atd->ad_name);
+		err(1, "%s", atd->ad_name);
 }
 
 static int
