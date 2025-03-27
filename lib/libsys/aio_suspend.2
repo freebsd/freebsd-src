@@ -89,13 +89,6 @@ contains more asynchronous I/O requests than the
 variable, or at least one of the requests is not valid.
 .It Bq Er EINTR
 the suspend was interrupted by a signal.
-.It Bq Er ENOSYS
-The
-.Fn aio_suspend
-system call is not supported.
-This can occur if
-.Xr aio 4
-support is not present.
 .El
 .Sh SEE ALSO
 .Xr aio_cancel 2 ,
