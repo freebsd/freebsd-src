@@ -70,48 +70,43 @@ conf_finish(void)
 bool
 isns_add_server(const char *addr)
 {
-	return (isns_new(conf, addr));
+	return (conf->add_isns(addr));
 }
 
 void
 conf_set_debug(int debug)
 {
-	conf->conf_debug = debug;
+	conf->set_debug(debug);
 }
 
 void
 conf_set_isns_period(int period)
 {
-	conf->conf_isns_period = period;
+	conf->set_isns_period(period);
 }
 
 void
 conf_set_isns_timeout(int timeout)
 {
-	conf->conf_isns_timeout = timeout;
+	conf->set_isns_timeout(timeout);
 }
 
 void
 conf_set_maxproc(int maxproc)
 {
-	conf->conf_maxproc = maxproc;
+	conf->set_maxproc(maxproc);
 }
 
 bool
 conf_set_pidfile_path(const char *path)
 {
-	if (conf->conf_pidfile_path != NULL) {
-		log_warnx("pidfile specified more than once");
-		return (false);
-	}
-	conf->conf_pidfile_path = checked_strdup(path);
-	return (true);
+	return (conf->set_pidfile_path(path));
 }
 
 void
 conf_set_timeout(int timeout)
 {
-	conf->conf_timeout = timeout;
+	conf->set_timeout(timeout);
 }
 
 bool
@@ -148,22 +143,10 @@ auth_group_set_type(const char *type)
 bool
 auth_group_start(const char *name)
 {
-	/*
-	 * Make it possible to redefine the default auth-group. but
-	 * only once.
-	 */
-	if (strcmp(name, "default") == 0) {
-		if (conf->conf_default_ag_defined) {
-			log_warnx("duplicated auth-group \"default\"");
-			return (false);
-		}
-
-		conf->conf_default_ag_defined = true;
-		auth_group = auth_group_find(conf, "default").get();
-		return (true);
-	}
-
-	auth_group = auth_group_new(conf, name);
+	if (strcmp(name, "default") == 0)
+		auth_group = conf->define_default_auth_group();
+	else
+		auth_group = conf->add_auth_group(name);
 	return (auth_group != nullptr);
 }
 
@@ -176,22 +159,10 @@ auth_group_finish(void)
 bool
 portal_group_start(const char *name)
 {
-	/*
-	 * Make it possible to redefine the default portal-group. but
-	 * only once.
-	 */
-	if (strcmp(name, "default") == 0) {
-		if (conf->conf_default_pg_defined) {
-			log_warnx("duplicated portal-group \"default\"");
-			return (false);
-		}
-
-		conf->conf_default_pg_defined = true;
-		portal_group = portal_group_find(conf, "default");
-		return (true);
-	}
-
-	portal_group = portal_group_new(conf, name);
+	if (strcmp(name, "default") == 0)
+		portal_group = conf->define_default_portal_group();
+	else
+		portal_group = conf->add_portal_group(name);
 	return (portal_group != NULL);
 }
 
@@ -264,7 +235,7 @@ portal_group_set_tag(uint16_t tag)
 bool
 lun_start(const char *name)
 {
-	lun = lun_new(conf, name);
+	lun = conf->add_lun(name);
 	return (lun != NULL);
 }
 
@@ -331,7 +302,7 @@ lun_set_ctl_lun(uint32_t value)
 bool
 target_start(const char *name)
 {
-	target = target_new(conf, name);
+	target = conf->add_target(name);
 	return (target != NULL);
 }
 

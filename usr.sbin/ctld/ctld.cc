@@ -96,29 +96,75 @@ usage(void)
 	exit(1);
 }
 
-struct conf *
-conf_new(void)
+void
+conf::set_debug(int debug)
 {
-	struct conf *conf;
-
-	conf = new struct conf();
-
-	conf->conf_isns_period = 900;
-	conf->conf_isns_timeout = 5;
-	conf->conf_debug = 0;
-	conf->conf_timeout = 60;
-	conf->conf_maxproc = 30;
-
-	return (conf);
+	conf_debug = debug;
 }
 
 void
-conf_delete(struct conf *conf)
+conf::set_isns_period(int period)
 {
-	assert(conf->conf_pidfh == NULL);
+	conf_isns_period = period;
+}
 
-	free(conf->conf_pidfile_path);
-	delete conf;
+void
+conf::set_isns_timeout(int timeout)
+{
+	conf_isns_timeout = timeout;
+}
+
+void
+conf::set_maxproc(int maxproc)
+{
+	conf_maxproc = maxproc;
+}
+
+void
+conf::set_timeout(int timeout)
+{
+	conf_timeout = timeout;
+}
+
+bool
+conf::set_pidfile_path(const char *path)
+{
+	if (!conf_pidfile_path.empty()) {
+		log_warnx("pidfile specified more than once");
+		return (false);
+	}
+	conf_pidfile_path = path;
+	return (true);
+}
+
+void
+conf::open_pidfile()
+{
+	const char *path;
+	pid_t otherpid;
+
+	assert(!conf_pidfile_path.empty());
+	path = conf_pidfile_path.c_str();
+	log_debugx("opening pidfile %s", path);
+	conf_pidfile = pidfile_open(path, 0600, &otherpid);
+	if (!conf_pidfile) {
+		if (errno == EEXIST)
+			log_errx(1, "daemon already running, pid: %jd.",
+			    (intmax_t)otherpid);
+		log_err(1, "cannot open or create pidfile \"%s\"", path);
+	}
+}
+
+void
+conf::write_pidfile()
+{
+	conf_pidfile.write();
+}
+
+void
+conf::close_pidfile()
+{
+	conf_pidfile.close();
 }
 
 #ifdef ICL_KERNEL_PROXY
@@ -372,9 +418,9 @@ auth_group::initiator_permitted(const struct sockaddr_storage *sa) const
 }
 
 struct auth_group *
-auth_group_new(struct conf *conf, const char *name)
+conf::add_auth_group(const char *name)
 {
-	const auto &pair = conf->conf_auth_groups.try_emplace(name,
+	const auto &pair = conf_auth_groups.try_emplace(name,
 	    std::make_shared<auth_group>(freebsd::stringf("auth-group \"%s\"",
 	    name)));
 	if (!pair.second) {
@@ -385,11 +431,26 @@ auth_group_new(struct conf *conf, const char *name)
 	return (pair.first->second.get());
 }
 
-auth_group_sp
-auth_group_find(const struct conf *conf, const char *name)
+/*
+ * Make it possible to redefine the default auth-group, but only once.
+ */
+struct auth_group *
+conf::define_default_auth_group()
 {
-	auto it = conf->conf_auth_groups.find(name);
-	if (it == conf->conf_auth_groups.end())
+	if (conf_default_ag_defined) {
+		log_warnx("duplicated auth-group \"default\"");
+		return (nullptr);
+	}
+
+	conf_default_ag_defined = true;
+	return (find_auth_group("default").get());
+}
+
+auth_group_sp
+conf::find_auth_group(const char *name)
+{
+	auto it = conf_auth_groups.find(name);
+	if (it == conf_auth_groups.end())
 		return {};
 
 	return (it->second);
@@ -401,10 +462,10 @@ portal_group::portal_group(struct conf *conf, const char *name)
 }
 
 struct portal_group *
-portal_group_new(struct conf *conf, const char *name)
+conf::add_portal_group(const char *name)
 {
-	auto pair = conf->conf_portal_groups.try_emplace(name,
-	    std::make_unique<portal_group>(conf, name));
+	auto pair = conf_portal_groups.try_emplace(name,
+	    std::make_unique<portal_group>(this, name));
 	if (!pair.second) {
 		log_warnx("duplicated portal-group \"%s\"", name);
 		return (nullptr);
@@ -413,11 +474,27 @@ portal_group_new(struct conf *conf, const char *name)
 	return (pair.first->second.get());
 }
 
+/*
+ * Make it possible to redefine the default portal-group, but only
+ * once.
+ */
 struct portal_group *
-portal_group_find(struct conf *conf, const char *name)
+conf::define_default_portal_group()
 {
-	auto it = conf->conf_portal_groups.find(name);
-	if (it == conf->conf_portal_groups.end())
+	if (conf_default_pg_defined) {
+		log_warnx("duplicated portal-group \"default\"");
+		return (nullptr);
+	}
+
+	conf_default_pg_defined = true;
+	return (find_portal_group("default"));
+}
+
+struct portal_group *
+conf::find_portal_group(const char *name)
+{
+	auto it = conf_portal_groups.find(name);
+	if (it == conf_portal_groups.end())
 		return (nullptr);
 
 	return (it->second.get());
@@ -540,7 +617,7 @@ portal_group::set_discovery_auth_group(const char *ag_name)
 		    "\"%s\" specified more than once", name());
 		return (false);
 	}
-	pg_discovery_auth_group = auth_group_find(pg_conf, ag_name);
+	pg_discovery_auth_group = pg_conf->find_auth_group(ag_name);
 	if (pg_discovery_auth_group == nullptr) {
 		log_warnx("unknown discovery-auth-group \"%s\" "
 		    "for portal-group \"%s\"", ag_name, name());
@@ -652,7 +729,7 @@ void
 portal_group::verify(struct conf *conf)
 {
 	if (pg_discovery_auth_group == nullptr) {
-		pg_discovery_auth_group =  auth_group_find(conf, "default");
+		pg_discovery_auth_group = conf->find_auth_group("default");
 		assert(pg_discovery_auth_group != nullptr);
 	}
 
@@ -734,11 +811,11 @@ portal_group::close_sockets()
 }
 
 bool
-isns_new(struct conf *conf, const char *addr)
+conf::add_isns(const char *addr)
 {
 	struct addrinfo *ai;
 
-	if (conf->conf_isns.count(addr) > 0) {
+	if (conf_isns.count(addr) > 0) {
 		log_warnx("duplicate iSNS address %s", addr);
 		return (false);
 	}
@@ -753,9 +830,10 @@ isns_new(struct conf *conf, const char *addr)
 	 *	those into multiple servers.
 	 */
 
-	conf->conf_isns.emplace(addr, isns(addr, ai));
+	conf_isns.emplace(addr, isns(addr, ai));
 	return (true);
 }
+
 
 freebsd::fd_up
 isns::connect()
@@ -794,18 +872,18 @@ isns::send_request(int s, struct isns_req req)
 	return (true);
 }
 
-static struct isns_req
-isns_register_request(struct conf *conf, const char *hostname)
+struct isns_req
+conf::isns_register_request(const char *hostname)
 {
 	const struct portal_group *pg;
 
 	isns_req req(ISNS_FUNC_DEVATTRREG, ISNS_FLAG_CLIENT, "register");
-	req.add_str(32, conf->conf_first_target->name());
+	req.add_str(32, conf_first_target->name());
 	req.add_delim();
 	req.add_str(1, hostname);
 	req.add_32(2, 2); /* 2 -- iSCSI */
-	req.add_32(6, conf->conf_isns_period);
-	for (const auto &kv : conf->conf_portal_groups) {
+	req.add_32(6, conf_isns_period);
+	for (const auto &kv : conf_portal_groups) {
 		pg = kv.second.get();
 
 		if (!pg->assigned())
@@ -815,7 +893,7 @@ isns_register_request(struct conf *conf, const char *hostname)
 			req.add_port(17, portal->ai());
 		}
 	}
-	for (const auto &kv : conf->conf_targets) {
+	for (const auto &kv : conf_targets) {
 		const struct target *target = kv.second.get();
 
 		req.add_str(32, target->name());
@@ -836,40 +914,39 @@ isns_register_request(struct conf *conf, const char *hostname)
 	return (req);
 }
 
-static struct isns_req
-isns_check_request(struct conf *conf, const char *hostname)
+struct isns_req
+conf::isns_check_request(const char *hostname)
 {
 	isns_req req(ISNS_FUNC_DEVATTRQRY, ISNS_FLAG_CLIENT, "check");
-	req.add_str(32, conf->conf_first_target->name());
+	req.add_str(32, conf_first_target->name());
 	req.add_str(1, hostname);
 	req.add_delim();
 	req.add(2, 0, NULL);
 	return (req);
 }
 
-static struct isns_req
-isns_deregister_request(struct conf *conf, const char *hostname)
+struct isns_req
+conf::isns_deregister_request(const char *hostname)
 {
 	isns_req req(ISNS_FUNC_DEVDEREG, ISNS_FLAG_CLIENT, "deregister");
-	req.add_str(32, conf->conf_first_target->name());
+	req.add_str(32, conf_first_target->name());
 	req.add_delim();
 	req.add_str(1, hostname);
 	return (req);
 }
 
 void
-isns_register_targets(struct conf *conf, struct isns *isns,
-    struct conf *oldconf)
+conf::isns_register_targets(struct isns *isns, struct conf *oldconf)
 {
 	int error;
 	char hostname[256];
 
-	if (conf->conf_targets.empty() || conf->conf_portal_groups.empty())
+	if (conf_targets.empty() || conf_portal_groups.empty())
 		return;
-	set_timeout(conf->conf_isns_timeout, false);
+	start_timer(conf_isns_timeout);
 	freebsd::fd_up s = isns->connect();
 	if (!s) {
-		set_timeout(0, false);
+		stop_timer();
 		return;
 	}
 	error = gethostname(hostname, sizeof(hostname));
@@ -877,48 +954,48 @@ isns_register_targets(struct conf *conf, struct isns *isns,
 		log_err(1, "gethostname");
 
 	if (oldconf == nullptr || oldconf->conf_first_target == nullptr)
-		oldconf = conf;
-	isns->send_request(s, isns_deregister_request(oldconf, hostname));
-	isns->send_request(s, isns_register_request(conf, hostname));
+		oldconf = this;
+	isns->send_request(s, oldconf->isns_deregister_request(hostname));
+	isns->send_request(s, isns_register_request(hostname));
 	s.reset();
-	set_timeout(0, false);
+	stop_timer();
 }
 
 void
-isns_check(struct conf *conf, struct isns *isns)
+conf::isns_check(struct isns *isns)
 {
 	int error;
 	char hostname[256];
 
-	if (conf->conf_targets.empty() || conf->conf_portal_groups.empty())
+	if (conf_targets.empty() || conf_portal_groups.empty())
 		return;
-	set_timeout(conf->conf_isns_timeout, false);
+	start_timer(conf_isns_timeout);
 	freebsd::fd_up s = isns->connect();
 	if (!s) {
-		set_timeout(0, false);
+		stop_timer();
 		return;
 	}
 	error = gethostname(hostname, sizeof(hostname));
 	if (error != 0)
 		log_err(1, "gethostname");
 
-	if (!isns->send_request(s, isns_check_request(conf, hostname))) {
-		isns->send_request(s, isns_deregister_request(conf, hostname));
-		isns->send_request(s, isns_register_request(conf, hostname));
+	if (!isns->send_request(s, isns_check_request(hostname))) {
+		isns->send_request(s, isns_deregister_request(hostname));
+		isns->send_request(s, isns_register_request(hostname));
 	}
 	s.reset();
-	set_timeout(0, false);
+	stop_timer();
 }
 
 void
-isns_deregister_targets(struct conf *conf, struct isns *isns)
+conf::isns_deregister_targets(struct isns *isns)
 {
 	int error;
 	char hostname[256];
 
-	if (conf->conf_targets.empty() || conf->conf_portal_groups.empty())
+	if (conf_targets.empty() || conf_portal_groups.empty())
 		return;
-	set_timeout(conf->conf_isns_timeout, false);
+	start_timer(conf_isns_timeout);
 	freebsd::fd_up s = isns->connect();
 	if (!s)
 		return;
@@ -926,9 +1003,26 @@ isns_deregister_targets(struct conf *conf, struct isns *isns)
 	if (error != 0)
 		log_err(1, "gethostname");
 
-	isns->send_request(s, isns_deregister_request(conf, hostname));
+	isns->send_request(s, isns_deregister_request(hostname));
 	s.reset();
-	set_timeout(0, false);
+	stop_timer();
+}
+
+void
+conf::isns_schedule_update()
+{
+	if (!conf_isns.empty())
+		start_timer((conf_isns_period + 2) / 3);
+}
+
+void
+conf::isns_update()
+{
+	stop_timer();
+	for (auto &kv : conf_isns)
+		isns_check(&kv.second);
+
+	isns_schedule_update();
 }
 
 bool
@@ -992,12 +1086,11 @@ portal_group_port::clear_references()
 }
 
 bool
-port_new(struct conf *conf, struct target *target, struct portal_group *pg,
-    auth_group_sp ag)
+conf::add_port(struct target *target, struct portal_group *pg, auth_group_sp ag)
 {
 	std::string name = freebsd::stringf("%s-%s", pg->name(),
 	    target->name());
-	const auto &pair = conf->conf_ports.try_emplace(name,
+	const auto &pair = conf_ports.try_emplace(name,
 	    std::make_unique<portal_group_port>(target, pg, ag, 0));
 	if (!pair.second) {
 		log_warnx("duplicate port \"%s\"", name.c_str());
@@ -1008,12 +1101,12 @@ port_new(struct conf *conf, struct target *target, struct portal_group *pg,
 }
 
 bool
-port_new(struct conf *conf, struct target *target, struct portal_group *pg,
+conf::add_port(struct target *target, struct portal_group *pg,
     uint32_t ctl_port)
 {
 	std::string name = freebsd::stringf("%s-%s", pg->name(),
 	    target->name());
-	const auto &pair = conf->conf_ports.try_emplace(name,
+	const auto &pair = conf_ports.try_emplace(name,
 	    std::make_unique<portal_group_port>(target, pg, nullptr, ctl_port));
 	if (!pair.second) {
 		log_warnx("duplicate port \"%s\"", name.c_str());
@@ -1023,12 +1116,12 @@ port_new(struct conf *conf, struct target *target, struct portal_group *pg,
 	return (true);
 }
 
-static bool
-port_new_pp(struct conf *conf, struct target *target, struct pport *pp)
+bool
+conf::add_port(struct target *target, struct pport *pp)
 {
 	std::string name = freebsd::stringf("%s-%s", pp->name(),
 	    target->name());
-	const auto &pair = conf->conf_ports.try_emplace(name,
+	const auto &pair = conf_ports.try_emplace(name,
 	    std::make_unique<kernel_port>(target, pp));
 	if (!pair.second) {
 		log_warnx("duplicate port \"%s\"", name.c_str());
@@ -1039,9 +1132,8 @@ port_new_pp(struct conf *conf, struct target *target, struct pport *pp)
 	return (true);
 }
 
-static bool
-port_new_ioctl(struct conf *conf, struct kports &kports, struct target *target,
-    int pp, int vp)
+bool
+conf::add_port(struct kports &kports, struct target *target, int pp, int vp)
 {
 	struct pport *pport;
 
@@ -1049,10 +1141,10 @@ port_new_ioctl(struct conf *conf, struct kports &kports, struct target *target,
 
 	pport = kports.find_port(pname.c_str());
 	if (pport != NULL)
-		return (port_new_pp(conf, target, pport));
+		return (add_port(target, pport));
 
 	std::string name = pname + "-" + target->name();
-	const auto &pair = conf->conf_ports.try_emplace(name,
+	const auto &pair = conf_ports.try_emplace(name,
 	    std::make_unique<ioctl_port>(target, pp, vp));
 	if (!pair.second) {
 		log_warnx("duplicate port \"%s\"", name.c_str());
@@ -1072,7 +1164,7 @@ portal_group::find_port(const char *target) const
 }
 
 struct target *
-target_new(struct conf *conf, const char *name)
+conf::add_target(const char *name)
 {
 	if (!valid_iscsi_name(name, log_warnx))
 		return (nullptr);
@@ -1084,23 +1176,23 @@ target_new(struct conf *conf, const char *name)
 	for (char &c : t_name)
 		c = tolower(c);
 
-	auto const &pair = conf->conf_targets.try_emplace(t_name,
-	    std::make_unique<target>(conf, t_name));
+	auto const &pair = conf_targets.try_emplace(t_name,
+	    std::make_unique<target>(this, t_name));
 	if (!pair.second) {
 		log_warnx("duplicated target \"%s\"", name);
 		return (NULL);
 	}
 
-	if (conf->conf_first_target == nullptr)
-		conf->conf_first_target = pair.first->second.get();
+	if (conf_first_target == nullptr)
+		conf_first_target = pair.first->second.get();
 	return (pair.first->second.get());
 }
 
 struct target *
-target_find(struct conf *conf, const char *name)
+conf::find_target(const char *name)
 {
-	auto it = conf->conf_targets.find(name);
-	if (it == conf->conf_targets.end())
+	auto it = conf_targets.find(name);
+	if (it == conf_targets.end())
 		return (nullptr);
 	return (it->second.get());
 }
@@ -1171,7 +1263,7 @@ target::add_lun(u_int id, const char *lun_name)
 		return (false);
 	}
 
-	t_lun = lun_find(t_conf, lun_name);
+	t_lun = t_conf->find_lun(lun_name);
 	if (t_lun == NULL) {
 		log_warnx("unknown LUN named %s used for target \"%s\"",
 		    lun_name, name());
@@ -1188,7 +1280,7 @@ target::add_portal_group(const char *pg_name, const char *ag_name)
 	struct portal_group *pg;
 	auth_group_sp ag;
 
-	pg = portal_group_find(t_conf, pg_name);
+	pg = t_conf->find_portal_group(pg_name);
 	if (pg == NULL) {
 		log_warnx("unknown portal-group \"%s\" for target \"%s\"",
 		    pg_name, name());
@@ -1196,7 +1288,7 @@ target::add_portal_group(const char *pg_name, const char *ag_name)
 	}
 
 	if (ag_name != NULL) {
-		ag = auth_group_find(t_conf, ag_name);
+		ag = t_conf->find_auth_group(ag_name);
 		if (ag == NULL) {
 			log_warnx("unknown auth-group \"%s\" for target \"%s\"",
 			    ag_name, name());
@@ -1204,7 +1296,7 @@ target::add_portal_group(const char *pg_name, const char *ag_name)
 		}
 	}
 
-	if (!port_new(t_conf, this, pg, std::move(ag))) {
+	if (!t_conf->add_port(this, pg, std::move(ag))) {
 		log_warnx("can't link portal-group \"%s\" to target \"%s\"",
 		    pg_name, name());
 		return (false);
@@ -1236,7 +1328,7 @@ target::set_auth_group(const char *ag_name)
 			    "specified more than once", name());
 		return (false);
 	}
-	t_auth_group = auth_group_find(t_conf, ag_name);
+	t_auth_group = t_conf->find_auth_group(ag_name);
 	if (t_auth_group == nullptr) {
 		log_warnx("unknown auth-group \"%s\" for target \"%s\"",
 		    ag_name, name());
@@ -1297,7 +1389,7 @@ target::start_lun(u_int id)
 	}
 
 	std::string lun_name = freebsd::stringf("%s,lun,%u", name(), id);
-	new_lun = lun_new(t_conf, lun_name.c_str());
+	new_lun = t_conf->add_lun(lun_name.c_str());
 	if (new_lun == nullptr)
 		return (nullptr);
 
@@ -1332,13 +1424,13 @@ void
 target::verify()
 {
 	if (t_auth_group == nullptr) {
-		t_auth_group = auth_group_find(t_conf, "default");
+		t_auth_group = t_conf->find_auth_group("default");
 		assert(t_auth_group != nullptr);
 	}
 	if (t_ports.empty()) {
-		struct portal_group *pg = portal_group_find(t_conf, "default");
+		struct portal_group *pg = t_conf->find_portal_group("default");
 		assert(pg != NULL);
-		port_new(t_conf, this, pg, nullptr);
+		t_conf->add_port(this, pg, nullptr);
 	}
 
 	bool found = std::any_of(t_luns.begin(), t_luns.end(),
@@ -1356,10 +1448,10 @@ lun::lun(struct conf *conf, const char *name)
 }
 
 struct lun *
-lun_new(struct conf *conf, const char *name)
+conf::add_lun(const char *name)
 {
-	const auto &pair = conf->conf_luns.try_emplace(name,
-	    std::make_unique<lun>(conf, name));
+	const auto &pair = conf_luns.try_emplace(name,
+	    std::make_unique<lun>(this, name));
 	if (!pair.second) {
 		log_warnx("duplicated lun \"%s\"", name);
 		return (NULL);
@@ -1367,18 +1459,18 @@ lun_new(struct conf *conf, const char *name)
 	return (pair.first->second.get());
 }
 
-static void
-conf_delete_target_luns(struct conf *conf, struct lun *lun)
+void
+conf::delete_target_luns(struct lun *lun)
 {
-	for (const auto &kv : conf->conf_targets)
+	for (const auto &kv : conf_targets)
 		kv.second->remove_lun(lun);
 }
 
 struct lun *
-lun_find(const struct conf *conf, const char *name)
+conf::find_lun(const char *name)
 {
-	auto it = conf->conf_luns.find(name);
-	if (it == conf->conf_luns.end())
+	auto it = conf_luns.find(name);
+	if (it == conf_luns.end())
 		return (nullptr);
 	return (it->second.get());
 }
@@ -1697,13 +1789,13 @@ lun::verify()
 }
 
 bool
-conf_verify(struct conf *conf)
+conf::verify()
 {
-	if (conf->conf_pidfile_path == NULL)
-		conf->conf_pidfile_path = checked_strdup(DEFAULT_PIDFILE);
+	if (conf_pidfile_path.empty())
+		conf_pidfile_path = DEFAULT_PIDFILE;
 
 	std::unordered_map<std::string, struct lun *> path_map;
-	for (const auto &kv : conf->conf_luns) {
+	for (const auto &kv : conf_luns) {
 		struct lun *lun = kv.second.get();
 		if (!lun->verify())
 			return (false);
@@ -1722,13 +1814,13 @@ conf_verify(struct conf *conf)
 		}
 	}
 
-	for (auto &kv : conf->conf_targets) {
+	for (auto &kv : conf_targets) {
 		kv.second->verify();
 	}
-	for (auto &kv : conf->conf_portal_groups) {
-		kv.second->verify(conf);
+	for (auto &kv : conf_portal_groups) {
+		kv.second->verify(this);
 	}
-	for (const auto &kv : conf->conf_auth_groups) {
+	for (const auto &kv : conf_auth_groups) {
 		const std::string &ag_name = kv.first;
 		if (ag_name == "default" ||
 		    ag_name == "no-authentication" ||
@@ -1879,41 +1971,32 @@ conf::reuse_portal_group_socket(struct portal &newp)
 	return (false);
 }
 
-static int
-conf_apply(struct conf *oldconf, struct conf *newconf)
+int
+conf::apply(struct conf *oldconf)
 {
 	int cumulated_error = 0, error;
 
-	if (oldconf->conf_debug != newconf->conf_debug) {
-		log_debugx("changing debug level to %d", newconf->conf_debug);
-		log_init(newconf->conf_debug);
+	if (oldconf->conf_debug != conf_debug) {
+		log_debugx("changing debug level to %d", conf_debug);
+		log_init(conf_debug);
 	}
 
-	if (oldconf->conf_pidfile_path != NULL &&
-	    newconf->conf_pidfile_path != NULL)
-	{
-		if (strcmp(oldconf->conf_pidfile_path,
-		           newconf->conf_pidfile_path) != 0)
-		{
-			/* pidfile has changed.  rename it */
-			log_debugx("moving pidfile to %s",
-				newconf->conf_pidfile_path);
-			if (rename(oldconf->conf_pidfile_path,
-				   newconf->conf_pidfile_path))
-			{
-				log_err(1, "renaming pidfile %s -> %s",
-					oldconf->conf_pidfile_path,
-					newconf->conf_pidfile_path);
-			}
+	if (oldconf->conf_pidfile_path != conf_pidfile_path) {
+		/* pidfile has changed.  rename it */
+		log_debugx("moving pidfile to %s", conf_pidfile_path.c_str());
+		if (rename(oldconf->conf_pidfile_path.c_str(),
+		    conf_pidfile_path.c_str()) != 0) {
+			log_err(1, "renaming pidfile %s -> %s",
+			    oldconf->conf_pidfile_path.c_str(),
+			    conf_pidfile_path.c_str());
 		}
-		newconf->conf_pidfh = oldconf->conf_pidfh;
-		oldconf->conf_pidfh = NULL;
 	}
+	conf_pidfile = std::move(oldconf->conf_pidfile);
 
 	/*
 	 * Go through the new portal groups, assigning tags or preserving old.
 	 */
-	for (auto &kv : newconf->conf_portal_groups) {
+	for (auto &kv : conf_portal_groups) {
 		struct portal_group &newpg = *kv.second;
 
 		if (newpg.tag() != 0)
@@ -1927,14 +2010,14 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 
 	/* Deregister on removed iSNS servers. */
 	for (auto &kv : oldconf->conf_isns) {
-		if (newconf->conf_isns.count(kv.first) == 0)
-			isns_deregister_targets(oldconf, &kv.second);
+		if (conf_isns.count(kv.first) == 0)
+			oldconf->isns_deregister_targets(&kv.second);
 	}
 
 	/*
 	 * XXX: If target or lun removal fails, we should somehow "move"
-	 *      the old lun or target into newconf, so that subsequent
-	 *      conf_apply() would try to remove them again.  That would
+	 *      the old lun or target into this, so that subsequent
+	 *      conf::apply() would try to remove them again.  That would
 	 *      be somewhat hairy, though, and lun deletion failures don't
 	 *      really happen, so leave it as it is for now.
 	 */
@@ -1948,8 +2031,8 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 
 		if (oldport->is_dummy())
 			continue;
-		const auto it = newconf->conf_ports.find(name);
-		if (it == newconf->conf_ports.end())
+		const auto it = conf_ports.find(name);
+		if (it == conf_ports.end())
 			continue;
 		if (it->second->is_dummy())
 			continue;
@@ -1973,8 +2056,8 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	     it != oldconf->conf_luns.end(); ) {
 		struct lun *oldlun = it->second.get();
 
-		auto newit = newconf->conf_luns.find(it->first);
-		if (newit == newconf->conf_luns.end()) {
+		auto newit = conf_luns.find(it->first);
+		if (newit == conf_luns.end()) {
 			log_debugx("lun \"%s\", CTL lun %d "
 			    "not found in new configuration; "
 			    "removing", oldlun->name(), oldlun->ctl_lun());
@@ -2012,8 +2095,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		it++;
 	}
 
-	for (auto it = newconf->conf_luns.begin();
-	     it != newconf->conf_luns.end(); ) {
+	for (auto it = conf_luns.begin(); it != conf_luns.end(); ) {
 		struct lun *newlun = it->second.get();
 
 		auto oldit = oldconf->conf_luns.find(it->first);
@@ -2033,8 +2115,8 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		log_debugx("adding lun \"%s\"", newlun->name());
 		if (!newlun->kernel_add()) {
 			log_warnx("failed to add lun \"%s\"", newlun->name());
-			conf_delete_target_luns(newconf, newlun);
-			it = newconf->conf_luns.erase(it);
+			delete_target_luns(newlun);
+			it = conf_luns.erase(it);
 			cumulated_error++;
 		} else
 			it++;
@@ -2043,8 +2125,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	/*
 	 * Now add new ports or modify existing ones.
 	 */
-	for (auto it = newconf->conf_ports.begin();
-	     it != newconf->conf_ports.end(); ) {
+	for (auto it = conf_ports.begin(); it != conf_ports.end(); ) {
 		const std::string &name = it->first;
 		port *newport = it->second.get();
 
@@ -2074,7 +2155,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				 * deleting the port.
 				 */
 				newport->clear_references();
-				it = newconf->conf_ports.erase(it);
+				it = conf_ports.erase(it);
 			} else
 				it++;
 		} else {
@@ -2089,7 +2170,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	/*
 	 * Go through the new portals, opening the sockets as necessary.
 	 */
-	for (auto &kv : newconf->conf_portal_groups) {
+	for (auto &kv : conf_portal_groups) {
 		cumulated_error += kv.second->open_sockets(*oldconf);
 	}
 
@@ -2101,17 +2182,15 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	}
 
 	/* (Re-)Register on remaining/new iSNS servers. */
-	for (auto &kv : newconf->conf_isns) {
+	for (auto &kv : conf_isns) {
 		auto it = oldconf->conf_isns.find(kv.first);
 		if (it == oldconf->conf_isns.end())
-			isns_register_targets(newconf, &kv.second, nullptr);
+			isns_register_targets(&kv.second, nullptr);
 		else
-			isns_register_targets(newconf, &kv.second, oldconf);
+			isns_register_targets(&kv.second, oldconf);
 	}
 
-	/* Schedule iSNS update */
-	if (!newconf->conf_isns.empty())
-		set_timeout((newconf->conf_isns_period + 2) / 3, false);
+	isns_schedule_update();
 
 	return (cumulated_error);
 }
@@ -2151,19 +2230,28 @@ sigalrm_handler(int dummy __unused)
 }
 
 void
-set_timeout(int timeout, int fatal)
+stop_timer()
+{
+	struct itimerval itv;
+	int error;
+
+	log_debugx("session timeout disabled");
+	bzero(&itv, sizeof(itv));
+	error = setitimer(ITIMER_REAL, &itv, NULL);
+	if (error != 0)
+		log_err(1, "setitimer");
+	sigalrm_received = false;
+}
+
+void
+start_timer(int timeout, bool fatal)
 {
 	struct sigaction sa;
 	struct itimerval itv;
 	int error;
 
 	if (timeout <= 0) {
-		log_debugx("session timeout disabled");
-		bzero(&itv, sizeof(itv));
-		error = setitimer(ITIMER_REAL, &itv, NULL);
-		if (error != 0)
-			log_err(1, "setitimer");
-		sigalrm_received = false;
+		stop_timer();
 		return;
 	}
 
@@ -2179,7 +2267,7 @@ set_timeout(int timeout, int fatal)
 		log_err(1, "sigaction");
 
 	/*
-	 * First SIGALRM will arive after conf_timeout seconds.
+	 * First SIGALRM will arive after timeout seconds.
 	 * If we do nothing, another one will arrive a second later.
 	 */
 	log_debugx("setting session timeout to %d seconds", timeout);
@@ -2243,9 +2331,10 @@ handle_connection(struct portal *portal, int fd,
 		nchildren -= wait_for_children(false);
 		assert(nchildren >= 0);
 
-		while (conf->conf_maxproc > 0 && nchildren >= conf->conf_maxproc) {
+		while (conf->maxproc() > 0 && nchildren >= conf->maxproc()) {
 			log_debugx("maxproc limit of %d child processes hit; "
-			    "waiting for child process to exit", conf->conf_maxproc);
+			    "waiting for child process to exit",
+			    conf->maxproc());
 			nchildren -= wait_for_children(true);
 			assert(nchildren >= 0);
 		}
@@ -2259,7 +2348,7 @@ handle_connection(struct portal *portal, int fd,
 			close(fd);
 			return;
 		}
-		pidfile_close(conf->conf_pidfh);
+		conf->close_pidfile();
 	}
 
 	error = getnameinfo(client_sa, client_sa->sa_len,
@@ -2273,7 +2362,7 @@ handle_connection(struct portal *portal, int fd,
 	setproctitle("%s", host);
 
 	conn = connection_new(portal, fd, host, client_sa);
-	set_timeout(conf->conf_timeout, true);
+	start_timer(conf->timeout(), true);
 	kernel_capsicate();
 	login(conn);
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
@@ -2442,33 +2531,32 @@ check_perms(const char *path)
 	 */
 }
 
-static struct conf *
+static conf_up
 conf_new_from_file(const char *path, bool ucl)
 {
-	struct conf *conf;
 	struct auth_group *ag;
 	struct portal_group *pg;
 	bool valid;
 
 	log_debugx("obtaining configuration from %s", path);
 
-	conf = conf_new();
+	conf_up conf = std::make_unique<struct conf>();
 
-	ag = auth_group_new(conf, "default");
+	ag = conf->add_auth_group("default");
 	assert(ag != NULL);
 
-	ag = auth_group_new(conf, "no-authentication");
+	ag = conf->add_auth_group("no-authentication");
 	assert(ag != NULL);
 	ag->set_type(AG_TYPE_NO_AUTHENTICATION);
 
-	ag = auth_group_new(conf, "no-access");
+	ag = conf->add_auth_group("no-access");
 	assert(ag != NULL);
 	ag->set_type(AG_TYPE_DENY);
 
-	pg = portal_group_new(conf, "default");
+	pg = conf->add_portal_group("default");
 	assert(pg != NULL);
 
-	conf_start(conf);
+	conf_start(conf.get());
 	if (ucl)
 		valid = uclparse_conf(path);
 	else
@@ -2476,34 +2564,32 @@ conf_new_from_file(const char *path, bool ucl)
 	conf_finish();
 
 	if (!valid) {
-		conf_delete(conf);
-		return (NULL);
+		conf.reset();
+		return {};
 	}
 
 	check_perms(path);
 
-	if (conf->conf_default_ag_defined == false) {
+	if (!conf->default_auth_group_defined()) {
 		log_debugx("auth-group \"default\" not defined; "
 		    "going with defaults");
-		ag = auth_group_find(conf, "default").get();
+		ag = conf->find_auth_group("default").get();
 		assert(ag != NULL);
 		ag->set_type(AG_TYPE_DENY);
 	}
 
-	if (conf->conf_default_pg_defined == false) {
+	if (!conf->default_portal_group_defined()) {
 		log_debugx("portal-group \"default\" not defined; "
 		    "going with defaults");
-		pg = portal_group_find(conf, "default");
+		pg = conf->find_portal_group("default");
 		assert(pg != NULL);
 		pg->add_portal("0.0.0.0", false);
 		pg->add_portal("[::]", false);
 	}
 
-	conf->conf_kernel_port_on = true;
-
-	if (!conf_verify(conf)) {
-		conf_delete(conf);
-		return (NULL);
+	if (!conf->verify()) {
+		conf.reset();
+		return {};
 	}
 
 	return (conf);
@@ -2513,13 +2599,13 @@ conf_new_from_file(const char *path, bool ucl)
  * If the config file specifies physical ports for any target, associate them
  * with the config file.  If necessary, create them.
  */
-static bool
-new_pports_from_conf(struct conf *conf, struct kports &kports)
+bool
+conf::add_pports(struct kports &kports)
 {
 	struct pport *pp;
 	int ret, i_pp, i_vp;
 
-	for (auto &kv : conf->conf_targets) {
+	for (auto &kv : conf_targets) {
 		struct target *targ = kv.second.get();
 
 		if (!targ->has_pport())
@@ -2527,7 +2613,7 @@ new_pports_from_conf(struct conf *conf, struct kports &kports)
 
 		ret = sscanf(targ->pport(), "ioctl/%d/%d", &i_pp, &i_vp);
 		if (ret > 0) {
-			if (!port_new_ioctl(conf, kports, targ, i_pp, i_vp)) {
+			if (!add_port(kports, targ, i_pp, i_vp)) {
 				log_warnx("can't create new ioctl port "
 				    "for target \"%s\"", targ->name());
 				return (false);
@@ -2548,7 +2634,7 @@ new_pports_from_conf(struct conf *conf, struct kports &kports)
 			    targ->pport(), targ->name());
 			return (false);
 		}
-		if (!port_new_pp(conf, targ, pp)) {
+		if (!add_port(targ, pp)) {
 			log_warnx("can't link port \"%s\" to target \"%s\"",
 			    targ->pport(), targ->name());
 			return (false);
@@ -2561,10 +2647,8 @@ int
 main(int argc, char **argv)
 {
 	struct kports kports;
-	struct conf *oldconf, *newconf, *tmpconf;
 	const char *config_path = DEFAULT_CONFIG_PATH;
 	int debug = 0, ch, error;
-	pid_t otherpid;
 	bool daemonize = true;
 	bool test_config = false;
 	bool use_ucl = false;
@@ -2603,7 +2687,7 @@ main(int argc, char **argv)
 	log_init(debug);
 	kernel_init();
 
-	newconf = conf_new_from_file(config_path, use_ucl);
+	conf_up newconf = conf_new_from_file(config_path, use_ucl);
 
 	if (newconf == NULL)
 		log_errx(1, "configuration error; exiting");
@@ -2611,85 +2695,69 @@ main(int argc, char **argv)
 	if (test_config)
 		return (0);
 
-	assert(newconf->conf_pidfile_path != NULL);
-	log_debugx("opening pidfile %s", newconf->conf_pidfile_path);
-	newconf->conf_pidfh = pidfile_open(newconf->conf_pidfile_path, 0600,
-		&otherpid);
-	if (newconf->conf_pidfh == NULL) {
-		if (errno == EEXIST)
-			log_errx(1, "daemon already running, pid: %jd.",
-			    (intmax_t)otherpid);
-		log_err(1, "cannot open or create pidfile \"%s\"",
-		    newconf->conf_pidfile_path);
-	}
+	newconf->open_pidfile();
 
 	register_signals();
 
-	oldconf = conf_new_from_kernel(kports);
+	conf_up oldconf = conf_new_from_kernel(kports);
 
 	if (debug > 0) {
-		oldconf->conf_debug = debug;
-		newconf->conf_debug = debug;
+		oldconf->set_debug(debug);
+		newconf->set_debug(debug);
 	}
 
-	if (!new_pports_from_conf(newconf, kports))
+	if (!newconf->add_pports(kports))
 		log_errx(1, "Error associating physical ports; exiting");
 
 	if (daemonize) {
 		log_debugx("daemonizing");
 		if (daemon(0, 0) == -1) {
 			log_warn("cannot daemonize");
-			pidfile_remove(newconf->conf_pidfh);
-			exit(1);
+			return (1);
 		}
 	}
 
 	kqfd = kqueue();
 	if (kqfd == -1) {
 		log_warn("Cannot create kqueue");
-		pidfile_remove(newconf->conf_pidfh);
-		exit(1);
+		return (1);
 	}
 
-	error = conf_apply(oldconf, newconf);
+	error = newconf->apply(oldconf.get());
 	if (error != 0)
 		log_errx(1, "failed to apply configuration; exiting");
 
-	conf_delete(oldconf);
-	oldconf = NULL;
+	oldconf.reset();
 
-	pidfile_write(newconf->conf_pidfh);
+	newconf->write_pidfile();
 
-	/* Schedule iSNS update */
-	if (!newconf->conf_isns.empty())
-		set_timeout((newconf->conf_isns_period + 2) / 3, false);
+	newconf->isns_schedule_update();
 
 	for (;;) {
 		main_loop(!daemonize);
 		if (sighup_received) {
 			sighup_received = false;
 			log_debugx("received SIGHUP, reloading configuration");
-			tmpconf = conf_new_from_file(config_path, use_ucl);
+			conf_up tmpconf = conf_new_from_file(config_path,
+			    use_ucl);
 
 			if (tmpconf == NULL) {
 				log_warnx("configuration error, "
 				    "continuing with old configuration");
-			} else if (!new_pports_from_conf(tmpconf, kports)) {
+			} else if (!tmpconf->add_pports(kports)) {
 				log_warnx("Error associating physical ports, "
 				    "continuing with old configuration");
-				conf_delete(tmpconf);
 			} else {
 				if (debug > 0)
-					tmpconf->conf_debug = debug;
-				oldconf = newconf;
-				newconf = tmpconf;
+					tmpconf->set_debug(debug);
+				oldconf = std::move(newconf);
+				newconf = std::move(tmpconf);
 
-				error = conf_apply(oldconf, newconf);
+				error = newconf->apply(oldconf.get());
 				if (error != 0)
 					log_warnx("failed to reload "
 					    "configuration");
-				conf_delete(oldconf);
-				oldconf = NULL;
+				oldconf.reset();
 			}
 		} else if (sigterm_received) {
 			log_debugx("exiting on signal; "
@@ -2698,37 +2766,22 @@ main(int argc, char **argv)
 			log_debugx("removing CTL iSCSI ports "
 			    "and terminating all connections");
 
-			oldconf = newconf;
-			newconf = conf_new();
+			oldconf = std::move(newconf);
+			newconf = std::make_unique<conf>();
 			if (debug > 0)
-				newconf->conf_debug = debug;
-			error = conf_apply(oldconf, newconf);
+				newconf->set_debug(debug);
+			error = newconf->apply(oldconf.get());
 			if (error != 0)
 				log_warnx("failed to apply configuration");
-			if (oldconf->conf_pidfh) {
-				pidfile_remove(oldconf->conf_pidfh);
-				oldconf->conf_pidfh = NULL;
-			}
-			conf_delete(newconf);
-			conf_delete(oldconf);
-			oldconf = NULL;
+			oldconf.reset();
 
 			log_warnx("exiting on signal");
-			exit(0);
+			return (0);
 		} else {
 			nchildren -= wait_for_children(false);
 			assert(nchildren >= 0);
 			if (timed_out()) {
-				set_timeout(0, false);
-				for (auto &kv : newconf->conf_isns)
-					isns_check(newconf, &kv.second);
-
-				/* Schedule iSNS update */
-				if (!newconf->conf_isns.empty()) {
-					set_timeout((newconf->conf_isns_period
-					    + 2) / 3,
-					    false);
-				}
+				newconf->isns_update();
 			}
 		}
 	}

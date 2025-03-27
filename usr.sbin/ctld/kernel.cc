@@ -395,10 +395,9 @@ cctl_char_handler(void *user_data, const XML_Char *str, int len)
 	sbuf_bcat(devlist->cur_sb[devlist->level], str, len);
 }
 
-struct conf *
+conf_up
 conf_new_from_kernel(struct kports &kports)
 {
-	struct conf *conf = NULL;
 	struct target *targ;
 	struct portal_group *pg;
 	struct lun *cl;
@@ -516,7 +515,7 @@ retry_port:
 		return (NULL);
 	}
 
-	conf = conf_new();
+	conf_up conf = std::make_unique<struct conf>();
 
 	name = NULL;
 	STAILQ_FOREACH(port, &devlist.port_list, links) {
@@ -554,28 +553,31 @@ retry_port:
 			continue;
 		}
 
-		targ = target_find(conf, port->cfiscsi_target);
+		targ = conf->find_target(port->cfiscsi_target);
 		if (targ == NULL) {
-			targ = target_new(conf, port->cfiscsi_target);
+			targ = conf->add_target(port->cfiscsi_target);
 			if (targ == NULL) {
-				log_warnx("target_new failed");
+				log_warnx("Failed to add target \"%s\"",
+				    port->cfiscsi_target);
 				continue;
 			}
 		}
 
 		if (port->ctld_portal_group_name == NULL)
 			continue;
-		pg = portal_group_find(conf, port->ctld_portal_group_name);
+		pg = conf->find_portal_group(port->ctld_portal_group_name);
 		if (pg == NULL) {
-			pg = portal_group_new(conf, port->ctld_portal_group_name);
+			pg = conf->add_portal_group(port->ctld_portal_group_name);
 			if (pg == NULL) {
-				log_warnx("portal_group_new failed");
+				log_warnx("Failed to add portal_group \"%s\"",
+				    port->ctld_portal_group_name);
 				continue;
 			}
 		}
 		pg->set_tag(port->cfiscsi_portal_group_tag);
-		if (!port_new(conf, targ, pg, port->port_id)) {
-			log_warnx("port_new failed");
+		if (!conf->add_port(targ, pg, port->port_id)) {
+			log_warnx("Failed to add port for target \"%s\" and portal-group \"%s\"",
+			    port->cfiscsi_target, port->ctld_portal_group_name);
 			continue;
 		}
 	}
@@ -597,7 +599,7 @@ retry_port:
 			continue;
 		}
 
-		cl = lun_find(conf, lun->ctld_name);
+		cl = conf->find_lun(lun->ctld_name);
 		if (cl != NULL) {
 			log_warnx("found CTL lun %ju \"%s\", "
 			    "also backed by CTL lun %d; ignoring",
@@ -609,7 +611,7 @@ retry_port:
 		log_debugx("found CTL lun %ju \"%s\"",
 		    (uintmax_t)lun->lun_id, lun->ctld_name);
 
-		cl = lun_new(conf, lun->ctld_name);
+		cl = conf->add_lun(lun->ctld_name);
 		if (cl == NULL) {
 			log_warnx("lun_new failed");
 			continue;
