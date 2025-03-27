@@ -44,16 +44,25 @@
 #ifndef _FREEBSD_SIMD_POWERPC_H
 #define	_FREEBSD_SIMD_POWERPC_H
 
+#include <machine/pcpu.h>
+
 #include <sys/types.h>
 #include <sys/cdefs.h>
 
 #include <machine/pcb.h>
 #include <machine/cpu.h>
+#include <machine/fpu.h>
 
-#define	kfpu_allowed()		0
+#define	kfpu_allowed()		1
 #define	kfpu_initialize(tsk)	do {} while (0)
-#define	kfpu_begin()		do {} while (0)
-#define	kfpu_end()		do {} while (0)
+#define kfpu_begin() {					\
+	if (__predict_false(!is_fpu_kern_thread(0)))	\
+	fpu_kern_enter(PCPU_GET(curthread), NULL, FPU_KERN_NOCTX);\
+}
+#define kfpu_end()	{				\
+	if (__predict_false(PCPU_GET(curpcb)->pcb_flags & PCB_KERN_FPU_NOSAVE))\
+	fpu_kern_leave(PCPU_GET(curthread), NULL);	\
+}
 #define	kfpu_init()		(0)
 #define	kfpu_fini()		do {} while (0)
 
