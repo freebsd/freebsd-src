@@ -3397,8 +3397,8 @@ pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
 
 	/* undo NAT changes, if they have taken place */
 	if (nr != NULL) {
-		PF_ACPY(saddr, &sk->addr[pd->sidx], af);
-		PF_ACPY(daddr, &sk->addr[pd->didx], af);
+		PF_ACPY(saddr, &pd->osrc, pd->af);
+		PF_ACPY(daddr, &pd->odst, pd->af);
 		if (pd->sport)
 			*pd->sport = sk->port[pd->sidx];
 		if (pd->dport)
@@ -4697,8 +4697,8 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 			struct pf_state_key *skt = s->key[PF_SK_WIRE];
 			if (pd->dir == PF_OUT)
 				skt = s->key[PF_SK_STACK];
-			PF_ACPY(pd->src, &skt->addr[pd->sidx], pd->af);
-			PF_ACPY(pd->dst, &skt->addr[pd->didx], pd->af);
+			PF_ACPY(pd->src, &pd->osrc, pd->af);
+			PF_ACPY(pd->dst, &pd->odst, pd->af);
 			if (pd->sport)
 				*pd->sport = skt->port[pd->sidx];
 			if (pd->dport)
@@ -7499,6 +7499,8 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 
 	pd.src = (struct pf_addr *)&h->ip_src;
 	pd.dst = (struct pf_addr *)&h->ip_dst;
+	PF_ACPY(&pd.osrc, pd.src, pd.af);
+	PF_ACPY(&pd.odst, pd.dst, pd.af);
 	pd.sport = pd.dport = NULL;
 	pd.ip_sum = &h->ip_sum;
 	pd.proto_sum = NULL;
@@ -7974,6 +7976,8 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 
 	pd.src = (struct pf_addr *)&h->ip6_src;
 	pd.dst = (struct pf_addr *)&h->ip6_dst;
+	PF_ACPY(&pd.osrc, pd.src, pd.af);
+	PF_ACPY(&pd.odst, pd.dst, pd.af);
 	pd.sport = pd.dport = NULL;
 	pd.ip_sum = NULL;
 	pd.proto_sum = NULL;
