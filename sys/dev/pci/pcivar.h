@@ -686,6 +686,8 @@ void	pci_save_state(device_t dev);
 int	pci_set_max_read_req(device_t dev, int size);
 int	pci_power_reset(device_t dev);
 void	pci_clear_pme(device_t dev);
+void	pci_enable_pme(device_t dev);
+bool	pci_has_pm(device_t dev);
 uint32_t pcie_read_config(device_t dev, int reg, int width);
 void	pcie_write_config(device_t dev, int reg, uint32_t value, int width);
 uint32_t pcie_adjust_config(device_t dev, int reg, uint32_t mask,
