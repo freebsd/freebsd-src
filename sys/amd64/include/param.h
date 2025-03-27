@@ -103,6 +103,9 @@
 #define PAGE_SIZE_PV	PAGE_SIZE_4K
 #define PAGE_MASK_PV	PAGE_MASK_4K
 #define PAGE_SIZE_PTES	(PAGE_SIZE / PAGE_SIZE_PT)
+#define	MINIDUMP_PAGE_SIZE	PAGE_SIZE_4K
+#define	MINIDUMP_PAGE_MASK	PAGE_MASK_4K
+#define	MINIDUMP_PAGE_SHIFT	PAGE_SHIFT_4K
 /* Size of the level 2 page directory units */
 #define	NPDEPG		(PAGE_SIZE_PT/(sizeof (pd_entry_t)))
 #define	NPDEPGSHIFT	9		/* LOG2(NPDEPG) */
@@ -141,10 +144,11 @@
 
 #ifndef	KSTACK_PAGES
 #if defined(KASAN) || defined(KMSAN)
-#define	KSTACK_PAGES	6
+#define	KSTACK_BYTES	(6 * 4096)
 #else
-#define	KSTACK_PAGES	4	/* pages of kstack (with pcb) */
+#define	KSTACK_BYTES	(4 * 4096)	/* pages of kstack (with pcb) */
 #endif
+#define	KSTACK_PAGES	howmany(KSTACK_BYTES, PAGE_SIZE)
 #endif
 #define	KSTACK_GUARD_PAGES 1	/* pages of kstack guard; 0 disables */
 

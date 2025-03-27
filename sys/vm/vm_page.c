@@ -621,8 +621,9 @@ vm_page_startup(vm_offset_t vaddr)
 	last_pa = 0;
 	vm_page_dump_pages = 0;
 	for (i = 0; dump_avail[i + 1] != 0; i += 2) {
-		vm_page_dump_pages += howmany(dump_avail[i + 1], PAGE_SIZE) -
-		    dump_avail[i] / PAGE_SIZE;
+		vm_page_dump_pages +=
+		    howmany(dump_avail[i + 1], MINIDUMP_PAGE_SIZE) -
+		    dump_avail[i] / MINIDUMP_PAGE_SIZE;
 		if (dump_avail[i + 1] > last_pa)
 			last_pa = dump_avail[i + 1];
 	}

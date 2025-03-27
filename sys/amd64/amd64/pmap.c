@@ -2437,7 +2437,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 * are required for promotion of the corresponding kernel virtual
 	 * addresses to superpage mappings.
 	 */
-	vm_phys_early_add_seg(KPTphys, KPTphys + round_page(ptoa_pt(nkpt)));
+	vm_phys_early_add_seg(trunc_page(KPTphys), round_page(KPTphys + ptoa_pt(nkpt)));
 
 	/*
 	 * Account for the virtual addresses mapped by create_pagetables().
