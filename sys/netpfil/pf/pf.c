@@ -4280,8 +4280,7 @@ pf_send_tcp(const struct pf_krule *r, sa_family_t af,
 
 static void
 pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
-    struct pf_state_key *sk, struct tcphdr *th,
-    u_int16_t bproto_sum, u_int16_t bip_sum,
+    struct tcphdr *th, u_int16_t bproto_sum, u_int16_t bip_sum,
     u_short *reason, int rtableid)
 {
 	struct pf_addr	* const saddr = pd->src;
@@ -4289,12 +4288,12 @@ pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
 
 	/* undo NAT changes, if they have taken place */
 	if (nr != NULL) {
-		PF_ACPY(saddr, &sk->addr[pd->sidx], pd->af);
-		PF_ACPY(daddr, &sk->addr[pd->didx], pd->af);
+		PF_ACPY(saddr, &pd->osrc, pd->af);
+		PF_ACPY(daddr, &pd->odst, pd->af);
 		if (pd->sport)
-			*pd->sport = sk->port[pd->sidx];
+			*pd->sport = pd->osport;
 		if (pd->dport)
-			*pd->dport = sk->port[pd->didx];
+			*pd->dport = pd->odport;
 		if (pd->ip_sum)
 			*pd->ip_sum = bip_sum;
 		m_copyback(pd->m, pd->off, pd->hdrlen, pd->hdr.any);
@@ -5926,7 +5925,7 @@ nextrule:
 	    ((r->rule_flag & PFRULE_RETURNRST) ||
 	    (r->rule_flag & PFRULE_RETURNICMP) ||
 	    (r->rule_flag & PFRULE_RETURN))) {
-		pf_return(r, nr, pd, sk, th, bproto_sum,
+		pf_return(r, nr, pd, th, bproto_sum,
 		    bip_sum, &reason, r->rtableid);
 	}
 
@@ -5975,7 +5974,7 @@ nextrule:
 			pd->act.log |= PF_LOG_FORCE;
 			if (action == PF_DROP &&
 			    (r->rule_flag & PFRULE_RETURN))
-				pf_return(r, nr, pd, sk, th,
+				pf_return(r, nr, pd, th,
 				    bproto_sum, bip_sum, &reason,
 				    pd->act.rtableid);
 			return (action);
@@ -6255,15 +6254,12 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		pf_set_protostate(s, PF_PEER_SRC, PF_TCPS_PROXY_SRC);
 		/* undo NAT changes, if they have taken place */
 		if (nr != NULL) {
-			struct pf_state_key *skt = s->key[PF_SK_WIRE];
-			if (pd->dir == PF_OUT)
-				skt = s->key[PF_SK_STACK];
-			PF_ACPY(pd->src, &skt->addr[pd->sidx], pd->af);
-			PF_ACPY(pd->dst, &skt->addr[pd->didx], pd->af);
+			PF_ACPY(pd->src, &pd->osrc, pd->af);
+			PF_ACPY(pd->dst, &pd->odst, pd->af);
 			if (pd->sport)
-				*pd->sport = skt->port[pd->sidx];
+				*pd->sport = pd->osport;
 			if (pd->dport)
-				*pd->dport = skt->port[pd->didx];
+				*pd->dport = pd->odport;
 			if (pd->ip_sum)
 				*pd->ip_sum = bip_sum;
 			m_copyback(pd->m, pd->off, pd->hdrlen, pd->hdr.any);
@@ -9883,6 +9879,8 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		}
 		pd->src = (struct pf_addr *)&h->ip_src;
 		pd->dst = (struct pf_addr *)&h->ip_dst;
+		PF_ACPY(&pd->osrc, pd->src, af);
+		PF_ACPY(&pd->odst, pd->dst, af);
 		pd->ip_sum = &h->ip_sum;
 		pd->virtual_proto = pd->proto = h->ip_p;
 		pd->tos = h->ip_tos & ~IPTOS_ECN_MASK;
@@ -9924,6 +9922,8 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		h = mtod(pd->m, struct ip6_hdr *);
 		pd->src = (struct pf_addr *)&h->ip6_src;
 		pd->dst = (struct pf_addr *)&h->ip6_dst;
+		PF_ACPY(&pd->osrc, pd->src, af);
+		PF_ACPY(&pd->odst, pd->dst, af);
 		pd->ip_sum = NULL;
 		pd->tos = IPV6_DSCP(h);
 		pd->ttl = h->ip6_hlim;
