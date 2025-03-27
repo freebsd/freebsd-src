@@ -173,13 +173,6 @@ points outside the process's allocated address space.
 The asynchronous notification method in
 .Fa iocb->aio_sigevent.sigev_notify
 is invalid or not supported.
-.It Bq Er ENOSYS
-The
-.Fn aio_read
-system call is not supported.
-This can occur if
-.Xr aio 4
-support is not present.
 .It Bq Er EOPNOTSUPP
 Asynchronous read operations on the file descriptor
 .Fa iocb->aio_fildes

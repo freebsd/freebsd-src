@@ -101,13 +101,6 @@ A signal was delivered before the timeout expired and before any
 asynchronous I/O requests completed.
 .It Bq Er EINVAL
 The specified time limit is invalid.
-.It Bq Er ENOSYS
-The
-.Fn aio_waitcomplete
-system call is not supported.
-This can occur if
-.Xr aio 4
-support is not present.
 .It Bq Er EWOULDBLOCK
 .It Bq Er EINPROGRESS
 The specified time limit expired before any asynchronous I/O requests
