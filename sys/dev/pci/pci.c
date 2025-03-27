@@ -2936,6 +2936,22 @@ pci_get_powerstate_method(device_t dev, device_t child)
 	return (result);
 }
 
+/* Clear any active PME# and disable PME# generation. */
+void
+pci_clear_pme(device_t dev)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	pcicfgregs *cfg = &dinfo->cfg;
+	uint16_t status;
+
+	if (cfg->pp.pp_cap != 0) {
+		status = pci_read_config(dev, dinfo->cfg.pp.pp_status, 2);
+		status &= ~PCIM_PSTAT_PMEENABLE;
+		status |= PCIM_PSTAT_PME;
+		pci_write_config(dev, dinfo->cfg.pp.pp_status, status, 2);
+	}
+}
+
 /*
  * Some convenience functions for PCI device drivers.
  */
@@ -4472,6 +4488,7 @@ pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 	resource_list_init(&dinfo->resources);
 	pci_cfg_save(dev, dinfo, 0);
 	pci_cfg_restore(dev, dinfo);
+	pci_clear_pme(dev);
 	pci_print_verbose(dinfo);
 	pci_add_resources(bus, dev, 0, 0);
 	if (pci_enable_mps_tune)
@@ -4662,6 +4679,7 @@ pci_resume_child(device_t dev, device_t child)
 
 	dinfo = device_get_ivars(child);
 	pci_cfg_restore(child, dinfo);
+	pci_clear_pme(child);
 	if (!device_is_attached(child))
 		pci_cfg_save(child, dinfo, 1);
 

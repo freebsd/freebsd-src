@@ -1790,6 +1790,7 @@ MLINKS+=panic.9 vpanic.9 \
 	panic.9 KERNEL_PANICKED.9
 MLINKS+=pci.9 pci_alloc_msi.9 \
 	pci.9 pci_alloc_msix.9 \
+	pci.9 pci_clear_pme.9 \
 	pci.9 pci_disable_busmaster.9 \
 	pci.9 pci_disable_io.9 \
 	pci.9 pci_enable_busmaster.9 \
