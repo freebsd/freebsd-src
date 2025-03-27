@@ -97,11 +97,13 @@ static int old_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 static void old_dev_pager_dtor(void *handle);
 static int old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
     int prot, vm_page_t *mres);
+static void old_dev_pager_path(void *handle, char *path, size_t len);
 
 static const struct cdev_pager_ops old_dev_pager_ops = {
 	.cdev_pg_ctor =	old_dev_pager_ctor,
 	.cdev_pg_dtor =	old_dev_pager_dtor,
-	.cdev_pg_fault = old_dev_pager_fault
+	.cdev_pg_fault = old_dev_pager_fault,
+	.cdev_pg_path = old_dev_pager_path
 };
 
 static void
@@ -260,6 +262,14 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 	return (cdev_pager_allocate(handle, OBJT_DEVICE, &old_dev_pager_ops,
 	    size, prot, foff, cred));
+}
+
+void
+cdev_pager_get_path(vm_object_t object, char *path, size_t sz)
+{
+	if (object->un_pager.devp.ops->cdev_pg_path != NULL)
+		object->un_pager.devp.ops->cdev_pg_path(
+		    object->un_pager.devp.handle, path, sz);
 }
 
 void
@@ -536,4 +546,13 @@ old_dev_pager_dtor(void *handle)
 {
 
 	dev_rel(handle);
+}
+
+static void
+old_dev_pager_path(void *handle, char *path, size_t len)
+{
+	struct cdev *cdev = handle;
+
+	if (cdev != NULL)
+		dev_copyname(cdev, path, len);
 }

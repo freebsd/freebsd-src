@@ -204,7 +204,6 @@ struct vm_object {
 #define	OBJ_PAGERPRIV2	0x00008000	/* Pager private */
 #define	OBJ_SYSVSHM	0x00010000	/* SysV SHM */
 #define	OBJ_POSIXSHM	0x00020000	/* Posix SHM */
-#define	OBJ_CDEVH	0x00040000	/* OBJT_DEVICE handle is cdev */
 
 /*
  * Helpers to perform conversion between vm_object page indexes and offsets.
