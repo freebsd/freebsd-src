@@ -520,7 +520,7 @@ private:
 };
 
 struct kports {
-	bool add_port(const char *name, uint32_t ctl_port);
+	bool add_port(std::string &name, uint32_t ctl_port);
 	bool has_port(std::string_view name);
 	struct pport *find_port(std::string_view name);
 
