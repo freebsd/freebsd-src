@@ -2199,14 +2199,16 @@ again:
 			/*
 			 * Allocate a page in the destination object.
 			 */
-			dst_m = vm_page_alloc_after(dst_object, (src_object ==
-			    dst_object ? src_pindex : 0) + dst_pindex,
+			pindex = (src_object == dst_object ? src_pindex : 0) +
+			    dst_pindex;
+			dst_m = vm_page_alloc_after(dst_object, pindex,
 			    VM_ALLOC_NORMAL, mpred);
 			if (dst_m == NULL) {
 				VM_OBJECT_WUNLOCK(dst_object);
 				VM_OBJECT_RUNLOCK(object);
 				vm_wait(dst_object);
 				VM_OBJECT_WLOCK(dst_object);
+				mpred = vm_page_mpred(src_object, pindex);
 				goto again;
 			}
 
