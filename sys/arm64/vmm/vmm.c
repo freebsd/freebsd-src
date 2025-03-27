@@ -311,6 +311,20 @@ vm_exitinfo(struct vcpu *vcpu)
 }
 
 static int
+vmm_unsupported_quirk(void)
+{
+	/*
+	 * Known to not load on Ampere eMAG
+	 * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=285051
+	 */
+	if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK, CPU_IMPL_APM,
+	    CPU_PART_EMAG8180, 0, 0))
+		return (ENXIO);
+
+	return (0);
+}
+
+static int
 vmm_init(void)
 {
 	int error;
@@ -339,6 +353,9 @@ vmm_handler(module_t mod, int what, void *arg)
 
 	switch (what) {
 	case MOD_LOAD:
+		error = vmm_unsupported_quirk();
+		if (error != 0)
+			break;
 		error = vmmdev_init();
 		if (error != 0)
 			break;
