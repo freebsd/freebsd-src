@@ -391,8 +391,6 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
 	device_t child, dev;
 	ACPI_STATUS status;
-	int pmc;
-	uint16_t pmstat;
 	int error;
 
 	dev = context;
@@ -419,12 +417,8 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 			return;
 		}
 		if ((acpi_quirks & ACPI_Q_CLEAR_PME_ON_DETACH) &&
-		    (pci_find_cap(child, PCIY_PMG, &pmc) == 0)) {
-			pmstat = pci_read_config(child, pmc + PCIR_POWER_STATUS, 2);
-			pmstat &= ~PCIM_PSTAT_PMEENABLE;
-			pmstat |= PCIM_PSTAT_PME;
-			pci_write_config(child, pmc + PCIR_POWER_STATUS, pmstat, 2);
-		}
+		    pci_has_pm(child))
+			pci_clear_pme(child);
 		status = acpi_SetInteger(h, "_EJ0", 1);
 		if (ACPI_FAILURE(status)) {
 			bus_topo_unlock();
