@@ -24,3 +24,5 @@ CFLAGS+= -DLIBWRAP=1
 # Built-in security key support
 CFLAGS+= -include sk_config.h
 .endif
+
+CFLAGS+= -DOPENSSL_API_COMPAT=0x10100000L
