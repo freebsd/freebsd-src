@@ -212,6 +212,7 @@ cardbus_attach_card(device_t cbdev)
 			DEVPRINTF((cbdev, "Warning: Bogus CIS ignored\n"));
 		pci_cfg_save(dinfo->pci.cfg.dev, &dinfo->pci, 0);
 		pci_cfg_restore(dinfo->pci.cfg.dev, &dinfo->pci);
+		pci_clear_pme(child);
 		cardbus_device_setup_regs(&dinfo->pci.cfg);
 		pci_add_resources(cbdev, child, 1, dinfo->mprefetchable);
 		pci_print_verbose(&dinfo->pci);
