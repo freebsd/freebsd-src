@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -58,10 +59,6 @@ extern "C" {
  */
 typedef struct vdev_queue vdev_queue_t;
 struct abd;
-
-extern uint_t zfs_vdev_queue_depth_pct;
-extern uint_t zfs_vdev_def_queue_depth;
-extern uint_t zfs_vdev_async_write_max_active;
 
 /*
  * Virtual device operations
