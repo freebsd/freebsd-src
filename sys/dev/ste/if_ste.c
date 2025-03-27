@@ -905,7 +905,7 @@ ste_attach(device_t dev)
 	struct ste_softc *sc;
 	if_t ifp;
 	uint16_t eaddr[ETHER_ADDR_LEN / 2];
-	int error = 0, phy, pmc, prefer_iomap, rid;
+	int error = 0, phy, prefer_iomap, rid;
 
 	sc = device_get_softc(dev);
 	sc->ste_dev = dev;
@@ -1020,7 +1020,7 @@ ste_attach(device_t dev)
 	 */
 	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
-	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0)
+	if (pci_has_pm(dev))
 		if_setcapabilitiesbit(ifp, IFCAP_WOL_MAGIC, 0);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
 #ifdef DEVICE_POLLING
@@ -1992,21 +1992,9 @@ ste_resume(device_t dev)
 {
 	struct ste_softc *sc;
 	if_t ifp;
-	int pmc;
-	uint16_t pmstat;
 
 	sc = device_get_softc(dev);
 	STE_LOCK(sc);
-	if (pci_find_cap(sc->ste_dev, PCIY_PMG, &pmc) == 0) {
-		/* Disable PME and clear PME status. */
-		pmstat = pci_read_config(sc->ste_dev,
-		    pmc + PCIR_POWER_STATUS, 2);
-		if ((pmstat & PCIM_PSTAT_PMEENABLE) != 0) {
-			pmstat &= ~PCIM_PSTAT_PMEENABLE;
-			pci_write_config(sc->ste_dev,
-			    pmc + PCIR_POWER_STATUS, pmstat, 2);
-		}
-	}
 	ifp = sc->ste_ifp;
 	if ((if_getflags(ifp) & IFF_UP) != 0) {
 		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
@@ -2095,13 +2083,11 @@ static void
 ste_setwol(struct ste_softc *sc)
 {
 	if_t ifp;
-	uint16_t pmstat;
 	uint8_t val;
-	int pmc;
 
 	STE_LOCK_ASSERT(sc);
 
-	if (pci_find_cap(sc->ste_dev, PCIY_PMG, &pmc) != 0) {
+	if (!pci_has_pm(sc->ste_dev)) {
 		/* Disable WOL. */
 		CSR_READ_1(sc, STE_WAKE_EVENT);
 		CSR_WRITE_1(sc, STE_WAKE_EVENT, 0);
@@ -2116,9 +2102,6 @@ ste_setwol(struct ste_softc *sc)
 		val |= STE_WAKEEVENT_MAGICPKT_ENB | STE_WAKEEVENT_WAKEONLAN_ENB;
 	CSR_WRITE_1(sc, STE_WAKE_EVENT, val);
 	/* Request PME. */
-	pmstat = pci_read_config(sc->ste_dev, pmc + PCIR_POWER_STATUS, 2);
-	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0)
-		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->ste_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+		pci_enable_pme(sc->ste_dev);
 }

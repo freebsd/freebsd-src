@@ -607,7 +607,7 @@ vr_attach(device_t dev)
 	const struct vr_type	*t;
 	uint8_t			eaddr[ETHER_ADDR_LEN];
 	int			error, rid;
-	int			i, phy, pmc;
+	int			i, phy;
 
 	sc = device_get_softc(dev);
 	sc->vr_dev = dev;
@@ -688,8 +688,7 @@ vr_attach(device_t dev)
 		sc->vr_txthresh = VR_TXTHRESH_MAX;
 	}
 
-	if (sc->vr_revid >= REV_ID_VT6102_A &&
-	    pci_find_cap(dev, PCIY_PMG, &pmc) == 0)
+	if (sc->vr_revid >= REV_ID_VT6102_A && pci_has_pm(dev))
 		if_setcapabilitiesbit(ifp, IFCAP_WOL_UCAST | IFCAP_WOL_MAGIC, 0);
 
 	/* Rhine supports oversized VLAN frame. */
@@ -704,7 +703,7 @@ vr_attach(device_t dev)
 	 * shuts down. Be sure to kick it in the head to wake it
 	 * up again.
 	 */
-	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0)
+	if (pci_has_pm(dev))
 		VR_CLRBIT(sc, VR_STICKHW, (VR_STICKHW_DS0|VR_STICKHW_DS1));
 
 	/*
@@ -2526,14 +2525,12 @@ static void
 vr_setwol(struct vr_softc *sc)
 {
 	if_t			ifp;
-	int			pmc;
-	uint16_t		pmstat;
 	uint8_t			v;
 
 	VR_LOCK_ASSERT(sc);
 
 	if (sc->vr_revid < REV_ID_VT6102_A ||
-	    pci_find_cap(sc->vr_dev, PCIY_PMG, &pmc) != 0)
+	    !pci_has_pm(sc->vr_dev))
 		return;
 
 	ifp = sc->vr_ifp;
@@ -2572,11 +2569,8 @@ vr_setwol(struct vr_softc *sc)
 	CSR_WRITE_1(sc, VR_STICKHW, v);
 
 	/* Request PME if WOL is requested. */
-	pmstat = pci_read_config(sc->vr_dev, pmc + PCIR_POWER_STATUS, 2);
-	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0)
-		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->vr_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+		pci_enable_pme(sc->vr_dev);
 }
 
 static void

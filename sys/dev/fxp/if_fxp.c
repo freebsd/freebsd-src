@@ -431,7 +431,7 @@ fxp_attach(device_t dev)
 	uint32_t val;
 	uint16_t data;
 	u_char eaddr[ETHER_ADDR_LEN];
-	int error, flags, i, pmc, prefer_iomap;
+	int error, flags, i, prefer_iomap;
 
 	error = 0;
 	sc = device_get_softc(dev);
@@ -518,8 +518,7 @@ fxp_attach(device_t dev)
 	if (sc->revision >= FXP_REV_82558_A4 &&
 	    sc->revision != FXP_REV_82559S_A) {
 		data = sc->eeprom[FXP_EEPROM_MAP_ID];
-		if ((data & 0x20) != 0 &&
-		    pci_find_cap(sc->dev, PCIY_PMG, &pmc) == 0)
+		if ((data & 0x20) != 0 && pci_has_pm(sc->dev))
 			sc->flags |= FXP_FLAG_WOLCAP;
 	}
 
@@ -1054,24 +1053,17 @@ fxp_suspend(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
 	if_t ifp;
-	int pmc;
-	uint16_t pmstat;
 
 	FXP_LOCK(sc);
 
 	ifp = sc->ifp;
-	if (pci_find_cap(sc->dev, PCIY_PMG, &pmc) == 0) {
-		pmstat = pci_read_config(sc->dev, pmc + PCIR_POWER_STATUS, 2);
-		pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
-		if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0) {
-			/* Request PME. */
-			pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-			sc->flags |= FXP_FLAG_WOL;
-			/* Reconfigure hardware to accept magic frames. */
-			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
-			fxp_init_body(sc, 0);
-		}
-		pci_write_config(sc->dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0) {
+		/* Request PME. */
+		pci_enable_pme(sc->dev);
+		sc->flags |= FXP_FLAG_WOL;
+		/* Reconfigure hardware to accept magic frames. */
+		if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
+		fxp_init_body(sc, 0);
 	}
 	fxp_stop(sc);
 
@@ -1090,17 +1082,11 @@ fxp_resume(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
 	if_t ifp = sc->ifp;
-	int pmc;
-	uint16_t pmstat;
 
 	FXP_LOCK(sc);
 
-	if (pci_find_cap(sc->dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_has_pm(sc->dev)) {
 		sc->flags &= ~FXP_FLAG_WOL;
-		pmstat = pci_read_config(sc->dev, pmc + PCIR_POWER_STATUS, 2);
-		/* Disable PME and clear PME status. */
-		pmstat &= ~PCIM_PSTAT_PMEENABLE;
-		pci_write_config(sc->dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
 		if ((sc->flags & FXP_FLAG_WOLCAP) != 0)
 			CSR_WRITE_1(sc, FXP_CSR_PMDR,
 			    CSR_READ_1(sc, FXP_CSR_PMDR));

@@ -1685,7 +1685,7 @@ re_attach(device_t dev)
 	if (if_getcapabilities(ifp) & IFCAP_HWCSUM)
 		if_setcapabilitiesbit(ifp, IFCAP_VLAN_HWCSUM, 0);
 	/* Enable WOL if PM is supported. */
-	if (pci_find_cap(sc->rl_dev, PCIY_PMG, &reg) == 0)
+	if (pci_has_pm(sc->rl_dev))
 		if_setcapabilitiesbit(ifp, IFCAP_WOL, 0);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
 	if_setcapenablebit(ifp, 0, (IFCAP_WOL_UCAST | IFCAP_WOL_MCAST));
@@ -3859,13 +3859,11 @@ static void
 re_setwol(struct rl_softc *sc)
 {
 	if_t ifp;
-	int			pmc;
-	uint16_t		pmstat;
 	uint8_t			v;
 
 	RL_LOCK_ASSERT(sc);
 
-	if (pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
+	if (!pci_has_pm(sc->rl_dev))
 		return;
 
 	ifp = sc->rl_ifp;
@@ -3927,22 +3925,18 @@ re_setwol(struct rl_softc *sc)
 	 */
 
 	/* Request PME if WOL is requested. */
-	pmstat = pci_read_config(sc->rl_dev, pmc + PCIR_POWER_STATUS, 2);
-	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if ((if_getcapenable(ifp) & IFCAP_WOL) != 0)
-		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(sc->rl_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+		pci_enable_pme(sc->rl_dev);
 }
 
 static void
 re_clrwol(struct rl_softc *sc)
 {
-	int			pmc;
 	uint8_t			v;
 
 	RL_LOCK_ASSERT(sc);
 
-	if (pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
+	if (!pci_has_pm(sc->rl_dev))
 		return;
 
 	/* Enable config register write. */
