@@ -51,9 +51,7 @@ struct pcicfg_bridge {
 /* Interesting values for PCI power management */
 struct pcicfg_pp {
     uint16_t	pp_cap;		/* PCI power management capabilities */
-    uint8_t	pp_status;	/* conf. space addr. of PM control/status reg */
-    uint8_t	pp_bse;		/* conf. space addr. of PM BSE reg */
-    uint8_t	pp_data;	/* conf. space addr. of PM data reg */
+    uint8_t	pp_location;	/* Offset of power management registers */
 };
 
 struct pci_map {
