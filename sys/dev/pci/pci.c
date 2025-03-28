@@ -4175,6 +4175,7 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 		if (q->devid == devid && q->type == PCI_QUIRK_MAP_REG)
 			pci_add_map(bus, dev, q->arg1, rl, force, 0);
 
+#if defined(__i386__) || defined(__amd64__)
 	if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
 		/*
 		 * Try to re-route interrupts. Sometimes the BIOS or
@@ -4184,6 +4185,7 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 		 */
 		pci_assign_interrupt(bus, dev, 1);
 	}
+#endif
 
 	if (pci_usb_takeover && pci_get_class(dev) == PCIC_SERIALBUS &&
 	    pci_get_subclass(dev) == PCIS_SERIALBUS_USB) {
