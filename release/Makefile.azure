@@ -1,6 +1,4 @@
 #
-#
-#
 # Makefile for uploading Microsoft Azure disk images.
 #
 
@@ -17,9 +15,6 @@ AZURE${VAR}!=	grep -E '^AZURE${VAR}' ${AZURE_UPLOAD_CONF} | awk -F '	' '{print $
 .if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE"
 SNAPSHOT_DATE!=		date +-${BUILDDATE}
 .endif
-
-START_DATE!=	date -v-1d -I -u
-EXPIRY_DATE!=	date -v+1m -I -u
 
 azure-upload:		${AZURE_UPLOAD_TGTS}
 
@@ -52,19 +47,16 @@ azure-do-upload-${_FS}:
 		--account-name ${AZURE_ACCOUNT} --account-key ${AZURE_KEY} \
 		--container-name ${AZURE_STORAGE} --type page \
 		--file ${AZURE_IMG_${_FS}} --name ${AZURE_TARGET_${_FS}}.vhd
-	@echo "The disk access URL with shared access signature is:"
+	@echo "The disk has been uploaded to Storage Account, use following information"
+	@echo "to create an image in Compute Gallery:"
 	@echo
-	@echo -n https://${AZURE_ACCOUNT}.blob.core.windows.net/${AZURE_STORAGE}/${AZURE_TARGET_${_FS}}.vhd?
-	@/usr/local/bin/az storage container generate-sas \
-		--account-name ${AZURE_ACCOUNT} --account-key ${AZURE_KEY} \
-		--name ${AZURE_STORAGE} \
-		--permissions lr \
-		--start ${START_DATE} \
-		--expiry ${EXPIRY_DATE} | cut -d '"' -f 2
+	@echo "Storage Account name: ${AZURE_ACCOUNT}"
+	@echo "Container name:       ${AZURE_STORAGE}"
+	@echo "Blob name:            ${AZURE_TARGET_${_FS}}.vhd"
 	@echo
 	@echo "Please go to Microsoft Partner Center to create a new offer and publish it:"
 	@echo
-	@echo "https://partner.microsoft.com/dashboard/commercial-marketplace/overview"
+	@echo "https://partner.microsoft.com/dashboard/marketplace-offers/overview"
 	@echo
 	@echo "After the new offer status is live, you can delete the disk file with:"
 	@echo
