@@ -57,6 +57,8 @@ class TestIfOps(VnetTestTemplate):
     @pytest.mark.require_user("root")
     def test_change_prefix_route_same_iface(self, family):
         """Tests that prefix route changes to the new ifa upon addr deletion"""
+        if family == "inet6":
+            pytest.skip("This test behavior is not supported for inet6")
         vnet = self.vnet_map["vnet1"]
         first_iface = vnet.iface_alias_map["if1"]
 
