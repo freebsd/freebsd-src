@@ -423,6 +423,7 @@ extern vm_page_t bogus_page;
 
 #include <sys/kassert.h>
 #include <machine/atomic.h>
+struct domainset;
 struct pctrie_iter;
 
 /*
@@ -575,6 +576,7 @@ vm_page_t vm_page_alloc_noobj_contig_domain(int domain, int req, u_long npages,
     vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr);
 vm_page_t vm_page_alloc_noobj_domain(int domain, int req);
+vm_page_t vm_page_alloc_noobj_domainset(struct domainset *ds, int req);
 void vm_page_bits_set(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t set);
 bool vm_page_blacklist_add(vm_paddr_t pa, bool verbose);
 bool vm_page_busy_acquire(vm_page_t m, int allocflags);

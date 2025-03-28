@@ -2637,6 +2637,26 @@ vm_page_alloc_noobj(int req)
 }
 
 vm_page_t
+vm_page_alloc_noobj_domainset(struct domainset *ds, int req)
+{
+	struct vm_domainset_iter di;
+	vm_page_t m;
+	int domain, m_flags;
+
+	MPASS((req & (VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL)) == 0);
+	m_flags = M_NOWAIT;
+	if (vm_domainset_iter_policy_init(&di, ds, &domain, &m_flags) != 0)
+		return (NULL);
+	do {
+		m = vm_page_alloc_noobj_domain(domain, req);
+		if (m != NULL)
+			break;
+	} while (vm_domainset_iter_policy(&di, &domain) == 0);
+
+	return (m);
+}
+
+vm_page_t
 vm_page_alloc_noobj_contig(int req, u_long npages, vm_paddr_t low,
     vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr)
