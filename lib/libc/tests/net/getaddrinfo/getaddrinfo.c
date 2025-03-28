@@ -122,19 +122,14 @@ ATF_TC_BODY(timeout, tc)
 
 	resconf = badresolvconf;
 	rv = getaddrinfo(goodname, NULL, &hints, &res);
-	/*
-	 * XXXGL: EAI_ADDRFAMILY is most likely a regression from 144361386696.
-	 * Error code on timeout used to be EAI_NONAME for many years and IMHO
-	 * this is not correct either.  Should be EAI_AGAIN.
-	 */
-	ATF_REQUIRE_MSG(rv == EAI_ADDRFAMILY,
-	    "Expected %d (EAI_ADDRFAMILY), got %d (%s)",
-	    EAI_ADDRFAMILY, rv, gai_strerror(rv));
+	ATF_REQUIRE_MSG(rv == EAI_AGAIN,
+	    "Expected %d (EAI_AGAIN), got %d (%s)",
+	    EAI_AGAIN, rv, gai_strerror(rv));
 
 	rv = getaddrinfo(goodname_dot, NULL, &hints, &res);
-	ATF_REQUIRE_MSG(rv == EAI_ADDRFAMILY,
-	    "Expected %d (EAI_ADDRFAMILY), got %d (%s)",
-	    EAI_ADDRFAMILY, rv, gai_strerror(rv));
+	ATF_REQUIRE_MSG(rv == EAI_AGAIN,
+	    "Expected %d (EAI_AGAIN), got %d (%s)",
+	    EAI_AGAIN, rv, gai_strerror(rv));
 }
 
 ATF_TC_WITHOUT_HEAD(timeout_specific);
@@ -150,14 +145,14 @@ ATF_TC_BODY(timeout_specific, tc)
 
 	resconf = badresolvconf;
 	rv = getaddrinfo(goodname, "666", &hints, &res);
-	ATF_REQUIRE_MSG(rv == EAI_ADDRFAMILY,
-	    "Expected %d (EAI_ADDRFAMILY), got %d (%s)",
-	    EAI_ADDRFAMILY, rv, gai_strerror(rv));
+	ATF_REQUIRE_MSG(rv == EAI_AGAIN,
+	    "Expected %d (EAI_AGAIN), got %d (%s)",
+	    EAI_AGAIN, rv, gai_strerror(rv));
 
 	rv = getaddrinfo(goodname_dot, "666", &hints, &res);
-	ATF_REQUIRE_MSG(rv == EAI_ADDRFAMILY,
-	    "Expected %d (EAI_ADDRFAMILY), got %d (%s)",
-	    EAI_ADDRFAMILY, rv, gai_strerror(rv));
+	ATF_REQUIRE_MSG(rv == EAI_AGAIN,
+	    "Expected %d (EAI_AGAIN), got %d (%s)",
+	    EAI_AGAIN, rv, gai_strerror(rv));
 }
 
 ATF_TC_WITHOUT_HEAD(timeout2);
@@ -172,14 +167,14 @@ ATF_TC_BODY(timeout2, tc)
 
 	resconf = badresolvconf2;
 	rv = getaddrinfo(goodname, NULL, &hints, &res);
-	ATF_REQUIRE_MSG(rv == EAI_ADDRFAMILY,
-	    "Expected %d (EAI_ADDRFAMILY), got %d (%s)",
-	    EAI_ADDRFAMILY, rv, gai_strerror(rv));
+	ATF_REQUIRE_MSG(rv == EAI_AGAIN,
+	    "Expected %d (EAI_AGAIN), got %d (%s)",
+	    EAI_AGAIN, rv, gai_strerror(rv));
 
 	rv = getaddrinfo(goodname_dot, NULL, &hints, &res);
-	ATF_REQUIRE_MSG(rv == EAI_ADDRFAMILY,
-	    "Expected %d (EAI_ADDRFAMILY), got %d (%s)",
-	    EAI_ADDRFAMILY, rv, gai_strerror(rv));
+	ATF_REQUIRE_MSG(rv == EAI_AGAIN,
+	    "Expected %d (EAI_AGAIN), got %d (%s)",
+	    EAI_AGAIN, rv, gai_strerror(rv));
 }
 
 /*
@@ -197,14 +192,14 @@ ATF_TC_BODY(netdown, tc)
 
 	send_error = ENETDOWN;
 	rv = getaddrinfo(goodname, NULL, &hints, &res);
-	ATF_REQUIRE_MSG(rv == EAI_NONAME,
-	    "Expected %d (EAI_NONAME), got %d (%s)",
-	    EAI_NONAME, rv, gai_strerror(rv));
+	ATF_REQUIRE_MSG(rv == EAI_AGAIN,
+	    "Expected %d (EAI_AGAIN), got %d (%s)",
+	    EAI_AGAIN, rv, gai_strerror(rv));
 
 	rv = getaddrinfo(goodname_dot, NULL, &hints, &res);
-	ATF_REQUIRE_MSG(rv == EAI_ADDRFAMILY,
-	    "Expected %d (EAI_ADDRFAMILY), got %d (%s)",
-	    EAI_ADDRFAMILY, rv, gai_strerror(rv));
+	ATF_REQUIRE_MSG(rv == EAI_AGAIN,
+	    "Expected %d (EAI_AGAIN), got %d (%s)",
+	    EAI_AGAIN, rv, gai_strerror(rv));
 }
 
 /*
