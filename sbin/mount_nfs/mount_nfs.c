@@ -587,6 +587,7 @@ getnfsargs(char **specp, char **hostpp, struct iovec **iov, int *iovlen)
 	char *hostp, *delimp, *errstr, *spec;
 	size_t len;
 	static char nam[MNAMELEN + 1], pname[MAXHOSTNAMELEN + 5];
+	bool resolved;
 
 	spec = *specp;
 	if (*spec == '[' && (delimp = strchr(spec + 1, ']')) != NULL &&
@@ -643,30 +644,7 @@ getnfsargs(char **specp, char **hostpp, struct iovec **iov, int *iovlen)
 	else if (nfsproto == IPPROTO_UDP)
 		hints.ai_socktype = SOCK_DGRAM;
 
-	if (getaddrinfo(hostp, portspec, &hints, &ai_nfs) != 0) {
-		hints.ai_flags = AI_CANONNAME;
-		if ((ecode = getaddrinfo(hostp, portspec, &hints, &ai_nfs))
-		    != 0) {
-			if (portspec == NULL)
-				errx(1, "%s: %s", hostp, gai_strerror(ecode));
-			else
-				errx(1, "%s:%s: %s", hostp, portspec,
-				    gai_strerror(ecode));
-			return (0);
-		}
-
-		/*
-		 * For a Kerberized nfs mount where the "principal"
-		 * argument has not been set, add it here.
-		 */
-		if (got_principal == 0 && secflavor != AUTH_SYS &&
-		    ai_nfs->ai_canonname != NULL) {
-			snprintf(pname, sizeof (pname), "nfs@%s",
-			    ai_nfs->ai_canonname);
-			build_iovec(iov, iovlen, "principal", pname,
-			    strlen(pname) + 1);
-		}
-	}
+	resolved = (getaddrinfo(hostp, portspec, &hints, &ai_nfs) == 0);
 
 	if ((opflags & (BGRNDNOW | ISBGRND)) == BGRNDNOW) {
 		warnx("Mount %s:%s, backgrounding",
@@ -678,6 +656,37 @@ getnfsargs(char **specp, char **hostpp, struct iovec **iov, int *iovlen)
 
 	ret = TRYRET_LOCALERR;
 	for (;;) {
+		if (!resolved) {
+			hints.ai_flags = AI_CANONNAME;
+			if ((ecode = getaddrinfo(hostp, portspec, &hints,
+			    &ai_nfs)) != 0) {
+				if (portspec == NULL)
+					warnx("%s: %s", hostp,
+					    gai_strerror(ecode));
+				else
+					warnx("%s:%s: %s", hostp, portspec,
+					    gai_strerror(ecode));
+				if (ecode == EAI_AGAIN &&
+				    (opflags & (BGRNDNOW | BGRND)))
+					goto retry;
+				else
+					exit(1);
+			}
+			resolved = true;
+			/*
+			 * For a Kerberized nfs mount where the
+			 * "principal" argument has not been set, add
+			 * it here.
+			 */
+			if (got_principal == 0 && secflavor != AUTH_SYS &&
+			    ai_nfs->ai_canonname != NULL) {
+				snprintf(pname, sizeof (pname), "nfs@%s",
+				    ai_nfs->ai_canonname);
+				build_iovec(iov, iovlen, "principal", pname,
+				    strlen(pname) + 1);
+			}
+		}
+
 		/*
 		 * Try each entry returned by getaddrinfo(). Note the
 		 * occurrence of remote errors by setting `remoteerr'.
@@ -705,7 +714,7 @@ getnfsargs(char **specp, char **hostpp, struct iovec **iov, int *iovlen)
 		/* Exit if all errors were local. */
 		if (!remoteerr)
 			exit(1);
-
+retry:
 		/*
 		 * If retrycnt == 0, we are to keep retrying forever.
 		 * Otherwise decrement it, and exit if it hits zero.
