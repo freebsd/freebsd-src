@@ -37,11 +37,11 @@
 .Os
 .Sh NAME
 .Nm ice
-.Nd "Intel Ethernet 800 Series Driver"
+.Nd "Intel\(rg Ethernet 800 Series Driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel, place the following lines in your
 kernel configuration file:
-.Bd -ragged -offset indent
+.Bd -literal -offset indent
 .Cd device iflib
 .Cd device ice
 .Ed
@@ -57,7 +57,7 @@ The
 .Nm
 driver provides support for any PCI Express adapter or LOM
 (LAN On Motherboard)
-in the Intel Ethernet 800 Series.
+in the Intel\(rg Ethernet 800 Series.
 As of this writing, the series includes devices with these model numbers:
 .Pp
 .Bl -bullet -compact
@@ -116,7 +116,7 @@ The associated RDMA driver for this driver is
 .Ss Dynamic Device Personalization
 The DDP package loads during device initialization.
 The driver looks for the
-.Em ice_ddp
+.Sy ice_ddp
 module and checks that it contains a valid DDP package file.
 .Pp
 If the driver is unable to load the DDP package, the device will enter Safe
@@ -127,12 +127,12 @@ downloading a new driver or DDP package.
 Safe Mode only applies to the affected physical function and does not impact
 any other PFs.
 See the
-.Em Intel(R) Ethernet Adapters and Devices User Guide
+.Dq Intel\(rg Ethernet Adapters and Devices User Guide
 for more details on DDP and Safe Mode.
 .Pp
 If you encounter issues with the DDP package file, you may need to download
 an updated driver or
-.Em ice_ddp
+.Sy ice_ddp
 module.
 See the log messages for more information.
 .Pp
@@ -174,7 +174,7 @@ RoCEv2 (RDMA over Converged Ethernet) protocols.
 The major difference is that iWARP performs RDMA over TCP, while RoCEv2 uses
 UDP.
 .Pp
-Devices based on the Intel(R) Ethernet 800 Series do not support RDMA when
+Devices based on the Intel\(rg Ethernet 800 Series do not support RDMA when
 operating in multiport mode with more than 4 ports.
 .Pp
 For detailed installation and configuration information for RDMA, see
@@ -247,7 +247,7 @@ DCBX mode, receiving DCB settings from the link partner (typically a
 switch).
 The local user can only query the negotiated DCB configuration.
 For information on configuring DCBX parameters on a switch, please consult the
-switch manufacturer\(aqs documentation.
+switch manufacturer'ss documentation.
 .Pp
 In software\-based mode, LLDP traffic is forwarded to the network stack and user
 space, where a software agent can handle it.
@@ -420,7 +420,8 @@ in case your link partner does not have FEC enabled or is not FEC capable:
 sysctl dev.ice.<interface #>.allow_no_fec_modules_in_auto=1
 .Ed
 .Pp
-NOTE: This flag is currently not supported on the Intel(R) Ethernet 830 Series.
+NOTE: This flag is currently not supported on the Intel\(rg Ethernet 830
+Series.
 .Pp
 To show the current FEC settings that are negotiated on the link:
 .Bd -literal -offset indent
@@ -466,7 +467,7 @@ When the
 .Em link_active_on_if_down
 sysctl flag is set to
 .Dq 0 ,
-the port\(aqs link will go down when the interface is brought down.
+the port's link will go down when the interface is brought down.
 By default, link will stay up.
 .Pp
 To disable link when the interface is down:
@@ -478,8 +479,9 @@ The
 .Nm
 driver allows for the generation of firmware logs for supported categories of
 events, to help debug issues with Customer Support.
-Refer to the Intel(R) Ethernet Adapters and Devices User Guide for
-an overview of this feature and additional tips.
+Refer to the
+.Dq Intel\(rg Ethernet Adapters and Devices User Guide
+for an overview of this feature and additional tips.
 .Pp
 At a high level, to capture a firmware log:
 .Bl -enum -compact
@@ -503,7 +505,7 @@ Information collected is related only to firmware and hardware for debug
 purposes.
 .Pp
 Once the driver is loaded, it will create the fw_log sysctl node under the
-debug section of the driver\(aqs sysctl list.
+debug section of the driver's sysctl list.
 The driver groups these events into
 categories, called
 .Dq modules .
@@ -633,7 +635,7 @@ dmesg > log_output
 NOTE: Logging a large number of modules or too high of a verbosity level will
 add extraneous messages to dmesg and could hinder debug efforts.
 .Ss Debug Dump
-Intel(R) Ethernet 800 Series devices support debug dump, which allows you to
+Intel\(rg Ethernet 800 Series devices support debug dump, which allows you to
 obtain runtime register values from the firmware for
 .Dq clusters
 of events and then write the results to a single dump file, for debugging
@@ -664,7 +666,9 @@ sysctl dev.ice.<interface #>.debug.dump.clusters=<bitmask>
 .Ed
 .Pp
 To print the complete cluster bitmask and parameter list to the screen,
-pass the \fB\-d\fP argument.
+pass the
+.Sy \-d
+argument.
 For example:
 .Bd -literal -offset indent
 sysctl \-d dev.ice.0.debug.dump.clusters
@@ -673,8 +677,8 @@ sysctl \-d dev.ice.0.debug.dump.clusters
 Possible bitmask values for \fBclusters\fP are:
 .Bl -bullet -compact
 .It
-0 \- Dump all clusters (only supported on Intel(R) Ethernet E810 Series and
-Intel(R) Ethernet E830 Series)
+0 \- Dump all clusters (only supported on Intel\(rg Ethernet E810 Series and
+Intel\(rg Ethernet E830 Series)
 .It
 0x1 \- Switch
 .It
@@ -690,7 +694,7 @@ Intel(R) Ethernet E830 Series)
 .It
 0x100 \- L2P
 .It
-0x400000 \- Manageability Transactions (only supported on Intel(R) Ethernet
+0x400000 \- Manageability Transactions (only supported on Intel\(rg Ethernet
 E810 Series)
 .El
 .Pp
@@ -706,7 +710,7 @@ sysctl dev.ice.0.debug.dump.clusters=0
 .Pp
 NOTE: Using 0 will skip Manageability Transactions data.
 .Pp
-If you don\(aqt specify a cluster, the driver will dump all clusters to a
+If you don't specify a cluster, the driver will dump all clusters to a
 single file.
 Issue the debug dump command, using the following:
 .Bd -literal -offset indent
@@ -783,6 +787,35 @@ Intel(R) Ethernet 810 Series and Intel(R) Ethernet 830 Series devices can
 display temperature data (in degrees Celsius) via:
 .Bd -literal -offset indent
 sysctl dev.ice.<interface #>.temp
+.Ed
+.Ss Network Memory Buffer Allocation
+.Fx
+may have a low number of network memory buffers (mbufs) by default.
+If the number of mbufs available is too low, it may cause the driver to fail
+to initialize and/or cause the system to become unresponsive.
+You can check to see if the system is mbuf\-starved by running
+.Ic netstat Fl m .
+Increase the number of mbufs by editing the lines below in
+.Pa /etc/sysctl.conf :
+.Bd -literal -offset indent
+kern.ipc.nmbclusters
+kern.ipc.nmbjumbop
+kern.ipc.nmbjumbo9
+kern.ipc.nmbjumbo16
+kern.ipc.nmbufs
+.Ed
+.Pp
+The amount of memory that you allocate is system specific, and may require some
+trial and error.
+Also, increasing the following in
+.Pa /etc/sysctl.conf
+could help increase network performance:
+.Bd -literal -offset indent
+kern.ipc.maxsockbuf
+net.inet.tcp.sendspace
+net.inet.tcp.recvspace
+net.inet.udp.maxdgram
+net.inet.udp.recvspace
 .Ed
 .Ss Additional Utilities
 There are additional tools available from Intel to help configure and update
@@ -862,7 +895,7 @@ up-to-date list of supported media.
 Modules based on 100GBASE\-SR4, active optical cable (AOC), and active copper
 cable (ACC) do not support auto\-negotiation per the IEEE specification.
 To obtain link with these modules, auto\-negotiation must be turned off on the
-link partner\(aqs switch ports.
+link partner's switch ports.
 .Ss PCI-Express Slot Bandwidth
 Some PCIe x8 slots are actually configured as x4 slots.
 These slots have insufficient bandwidth for full line rate with dual port and
@@ -953,6 +986,8 @@ This information should be submitted along with any support requests.
 Displays the Product Board Assembly Number.
 May be used to help identify the type of adapter in use.
 This sysctl may not exist depending on the adapter type.
+.It Va dev.ice.#.hw.mac.*
+This sysctl tree contains statistics collected by the hardware for the port.
 .El
 .Sh INTERRUPT STORMS
 It is important to note that 100G operation can generate high
