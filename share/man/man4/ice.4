@@ -1003,23 +1003,58 @@ The driver supports additional optional parameters for created VFs
 .Bl -tag -width indent
 .It mac-addr Pq unicast-mac
 Set the Ethernet MAC address that the VF will use.
-If unspecified, the VF will use a randomly generated MAC address.
+If unspecified, the VF will use a randomly generated MAC address and
+.Dq allow-set-mac
+will be set to true.
 .It mac-anti-spoof Pq bool
 Prevent the VF from sending Ethernet frames with a source address
 that does not match its own.
+Enabled by default.
 .It allow-set-mac Pq bool
-Allow the VF to set its own Ethernet MAC address
+Allow the VF to set its own Ethernet MAC address.
+Disallowed by default.
 .It allow-promisc Pq bool
-Allow the VF to inspect all of the traffic sent to the port.
+Allow the VF to inspect all of the traffic sent to the port that it is created
+on. Disabled by default.
 .It num-queues Pq uint16_t
 Specify the number of queues the VF will have.
 By default, this is set to the number of MSI-X vectors supported by the VF
 minus one.
+.It mirror-src-vsi Pq uint16_t
+Specify which VSI the VF will mirror traffic from by setting this to a value
+other than \-1.
+All traffic from that VSI will be mirrored to this VF.
+Can be used as an alternative method to mirror RDMA traffic to another
+interface than the method described in the
+.Sx RDMA Monitoring
+section.
+Not affected by the
+.Dq allow-promisc
+parameter.
+.It max-vlan-allowed Pq uint16_t
+Specify maximum number of VLAN filters that the VF can use.
+Receiving traffic on a VLAN requires a hardware filter which are a finite
+resource; this is used to prevent a VF from starving other VFs or the PF of
+filter resources.
+By default, this is set to 16.
+.It max-mac-filters Pq uint16_t
+Specify maximum number of MAC address filters that the VF can use.
+Each allowed MAC address requires a hardware filter which are a finite
+resource; this is used to prevent a VF from starving other VFs or the PF of
+filter resources.
+The VF's default mac address does not count towards this limit.
+By default, this is set to 64.
 .El
 .Pp
 An up to date list of parameters and their defaults can be found by using
 .Xr iovctl 8
-with the -S option.
+with the
+.Fl S
+option.
+.Pp
+For more information on standard and mandatory parameters, see
+.Xr iovctl.conf 5
+.
 .Sh SUPPORT
 For general information and support,
 go to the Intel support website at:
