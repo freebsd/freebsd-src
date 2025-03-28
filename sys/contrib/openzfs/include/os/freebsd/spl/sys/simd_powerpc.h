@@ -44,8 +44,6 @@
 #ifndef _FREEBSD_SIMD_POWERPC_H
 #define	_FREEBSD_SIMD_POWERPC_H
 
-#include <machine/pcpu.h>
-
 #include <sys/types.h>
 #include <sys/cdefs.h>
 
