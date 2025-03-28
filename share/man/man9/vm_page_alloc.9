@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.Dd August 4, 2024
+.Dd November 9, 2026
 .Dt VM_PAGE_ALLOC 9
 .Os
 .Sh NAME
@@ -116,6 +116,11 @@
 .Fa "int domain"
 .Fa "int req"
 .Fc
+.Ft vm_page_t
+.Fo vm_page_alloc_noobj_domainset
+.Fa "struct domainset *ds"
+.Fa "int req"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn vm_page_alloc
@@ -147,6 +152,17 @@ support NUMA-aware allocation by returning pages from the
 .Xr numa 4
 domain specified by
 .Fa domain .
+The
+.Fn vm_page_alloc_noobj_domainset
+function allocates the page from the domains selected by the
+.Xr domainset 9
+policy
+.Fa ds .
+It does not sleep, and the
+.Dv VM_ALLOC_WAITOK
+and
+.Dv VM_ALLOC_WAITFAIL
+flags must not be specified.
 .Pp
 The
 .Fn vm_page_alloc_after
