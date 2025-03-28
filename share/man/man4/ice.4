@@ -32,7 +32,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd Mar 28, 2025
+.Dd March 28, 2025
 .Dt ICE 4
 .Os
 .Sh NAME
@@ -98,8 +98,12 @@ For more information, see the
 section.
 .Pp
 This driver version supports VLANs.
-For information on enabling VLANs, see the
-.Pa README .
+For information on enabling VLANs, see
+.Xr vlan 4 .
+For additional information on configuring VLANs, see
+.Xr ifconfig 8 Ns 's
+.Dq VLAN Parameters
+section.
 .Pp
 Offloads are also controlled via the interface, for instance, checksumming for
 both IPv4 and IPv6 can be set and unset, TSO4 and/or TSO6, and finally LRO can
@@ -341,7 +345,7 @@ To enable the FW\-LLDP Agent:
 sysctl dev.ice.<interface #>.fw_lldp_agent=1
 .Ed
 .Pp
-To disable LLDP:
+To disable the FW\-LLDP Agebt:
 .Bd -literal -offset indent
 sysctl dev.ice.<interface #>.fw_lldp_agent=0
 .Ed
@@ -355,7 +359,8 @@ You must enable the UEFI HII LLDP Agent attribute for this setting
 to take effect.
 If the
 .Dq LLDP AGENT
-attribute is set to disabled, you cannot enable it from the OS.
+attribute is set to disabled, you cannot enable the FW\-LLDP Agent from the
+driver.
 .Ss Link\-Level Flow Control (LFC)
 Ethernet Flow Control (IEEE 802.3x) can be configured with sysctl to enable
 receiving and transmitting pause frames for
@@ -464,8 +469,8 @@ could include:
 .Ed
 .Ss Disabling physical link when the interface is brought down
 When the
-.Em link_active_on_if_down
-sysctl flag is set to
+.Va link_active_on_if_down
+sysctl is set to
 .Dq 0 ,
 the port's link will go down when the interface is brought down.
 By default, link will stay up.
@@ -504,77 +509,77 @@ Customer Support.
 Information collected is related only to firmware and hardware for debug
 purposes.
 .Pp
-Once the driver is loaded, it will create the fw_log sysctl node under the
-debug section of the driver's sysctl list.
-The driver groups these events into
-categories, called
+Once the driver is loaded, it will create the
+.Va fw_log
+sysctl node under the debug section of the driver's sysctl list.
+The driver groups these events into categories, called
 .Dq modules .
 Supported modules include:
 .Pp
 .Bl -tag -offset indent -compact -width "task_dispatch"
-.It general
+.It Va general
 General (Bit 0)
-.It ctrl
+.It Va ctrl
 Control (Bit 1)
-.It link
+.It Va link
 Link Management (Bit 2)
-.It link_topo
+.It Va link_topo
 Link Topology Detection (Bit 3)
-.It dnl
+.It Va dnl
 Link Control Technology (Bit 4)
-.It i2c
+.It Va i2c
 I2C (Bit 5)
-.It sdp
+.It Va sdp
 SDP (Bit 6)
-.It mdio
+.It Va mdio
 MDIO (Bit 7)
-.It adminq
+.It Va adminq
 Admin Queue (Bit 8)
-.It hdma
+.It Va hdma
 Host DMA (Bit 9)
-.It lldp
+.It Va lldp
 LLDP (Bit 10)
-.It dcbx
+.It Va dcbx
 DCBx (Bit 11)
-.It dcb
+.It Va dcb
 DCB (Bit 12)
-.It xlr
+.It Va xlr
 XLR (function\-level resets; Bit 13)
-.It nvm
+.It Va nvm
 NVM (Bit 14)
-.It auth
+.It Va auth
 Authentication (Bit 15)
-.It vpd
+.It Va vpd
 Vital Product Data (Bit 16)
-.It iosf
+.It Va iosf
 Intel On\-Chip System Fabric (Bit 17)
-.It parser
+.It Va parser
 Parser (Bit 18)
-.It sw
+.It Va sw
 Switch (Bit 19)
-.It scheduler
+.It Va scheduler
 Scheduler (Bit 20)
-.It txq
+.It Va txq
 TX Queue Management (Bit 21)
-.It acl
+.It Va acl
 ACL (Access Control List; Bit 22)
-.It post
+.It Va post
 Post (Bit 23)
-.It watchdog
+.It Va watchdog
 Watchdog (Bit 24)
-.It task_dispatch
+.It Va task_dispatch
 Task Dispatcher (Bit 25)
-.It mng
+.It Va mng
 Manageability (Bit 26)
-.It synce
+.It Va synce
 SyncE (Bit 27)
-.It health
+.It Va health
 Health (Bit 28)
-.It tsdrv
+.It Va tsdrv
 Time Sync (Bit 29)
-.It pfreg
+.It Va pfreg
 PF Registration (Bit 30)
-.It mdlver
+.It Va mdlver
 Module Version (Bit 31)
 .El
 .Pp
@@ -616,7 +621,7 @@ To log firmware messages after booting, but before the driver initializes, use
 .Xr kenv 1
 to set the tunable.
 The
-.Em on_load
+.Va on_load
 setting tells the device to register the variable as soon as possible during
 driver load.
 For example:
@@ -667,14 +672,16 @@ sysctl dev.ice.<interface #>.debug.dump.clusters=<bitmask>
 .Pp
 To print the complete cluster bitmask and parameter list to the screen,
 pass the
-.Sy \-d
+.Fl d
 argument.
 For example:
 .Bd -literal -offset indent
 sysctl \-d dev.ice.0.debug.dump.clusters
 .Ed
 .Pp
-Possible bitmask values for \fBclusters\fP are:
+Possible bitmask values for
+.Va clusters
+are:
 .Bl -bullet -compact
 .It
 0 \- Dump all clusters (only supported on Intel\(rg Ethernet E810 Series and
@@ -721,13 +728,13 @@ NOTE: The driver will not receive the command if you do not write
 .Dq 1
 to the sysctl.
 .Pp
-Replace dump.bin above with the file name you want to use.
+Replace
+.Dq dump.bin
+above with the file name you want to use.
 .Pp
-If you did not specify any clusters, the dump file will include
-information about all clusters.
-.Pp
-To clear the clusters bitmap before a subsequent debug dump and then do the
-dump:
+To clear the
+.Va clusters
+mask before a subsequent debug dump and then do the dump:
 .Bd -literal -offset indent
 sysctl dev.ice.0.debug.dump.clusters=0
 sysctl dev.ice.0.debug.dump.dump=1
@@ -764,7 +771,8 @@ To enable this feature, use one of the following to persistently change the
 setting for the device:
 .Bl -bullet
 .It
-Use the Ethernet Port Configuration Tool (EPCT) to enable the tx_balancing
+Use the Ethernet Port Configuration Tool (EPCT) to enable the
+.Va tx_balancing
 option.
 Refer to the EPCT readme for more information.
 .It
@@ -826,10 +834,10 @@ by searching for their names:
 .Bl -bullet
 .It
 To change the behavior of the QSFP28 ports on E810-C adapters, use the Intel
-.Em Ethernet Port Configuration Tool - FreeBSD .
+.Sy Ethernet Port Configuration Tool - FreeBSD .
 .It
 To update the firmware on an adapter, use the Intel
-.Em Non-Volatile Memory (NVM) Update Utility for Intel Ethernet Network Adapters E810 series - FreeBSD
+.Sy Non-Volatile Memory (NVM) Update Utility for Intel Ethernet Network Adapters E810 series - FreeBSD
 .El
 .Sh HARDWARE
 The
@@ -1019,7 +1027,7 @@ on.
 Disabled by default.
 .It num-queues Pq uint16_t
 Specify the number of queues the VF will have.
-By default, this is set to the number of MSI-X vectors supported by the VF
+By default, this is set to the number of MSI\-X vectors supported by the VF
 minus one.
 .It mirror-src-vsi Pq uint16_t
 Specify which VSI the VF will mirror traffic from by setting this to a value
@@ -1054,11 +1062,9 @@ with the
 option.
 .Pp
 For more information on standard and mandatory parameters, see
-.Xr iovctl.conf 5
-.
+.Xr iovctl.conf 5 .
 .Sh SUPPORT
-For general information and support,
-go to the Intel support website at:
+For general information and support, go to the Intel support website at:
 .Lk http://www.intel.com/support/ .
 .Pp
 If an issue is identified with this driver with a supported adapter,
