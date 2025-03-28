@@ -1,0 +1,1 @@
+rdr on vtnet0 inet proto tcp from 192.0.2.1 to 192.0.2.2 port 1005:2005 -> 192.0.2.3 port 3004:4004

@@ -1,0 +1,1 @@
+nat on vtnet0 inet6 proto tcp from 2001:db8::1 to 2001:db8::2 -> (vlan1063) round-robin
