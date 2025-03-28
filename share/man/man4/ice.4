@@ -190,17 +190,18 @@ This mirroring may impact performance.
 To use RDMA monitoring, you may need to reserve more MSI\-X interrupts.
 Before the
 .Nm
-driver loads, configure the following tunable:
+driver loads, configure the following tunable provided by
+.Xr iflib 4 :
 .Bd -literal -offset indent
-dev.ice.0.iflib.use_extra_msix_vectors=4
+dev.ice.<interface #>.iflib.use_extra_msix_vectors=4
 .Ed
 .Pp
 You may need to adjust the number of extra MSI\-X interrupt vectors.
 .Pp
 To create/delete the interface:
 .Bd -literal -offset indent
-sysctl dev.ice.0.create_interface=1
-sysctl dev.ice.0.delete_interface=1
+sysctl dev.ice.<interface #>.create_interface=1
+sysctl dev.ice.<interface #>.delete_interface=1
 .Ed
 .Pp
 The mirrored interface receives both LAN and RDMA traffic.
@@ -362,12 +363,15 @@ receiving and transmitting pause frames for
 When transmit is enabled, pause frames are generated when the receive packet
 buffer crosses a predefined threshold.
 When receive is enabled, the transmit unit will halt for the time delay
-specified when a pause frame is received.
+specified in the firmware when a pause frame is received.
 .Pp
 Flow Control is disabled by default.
 .Pp
 Use sysctl to change the flow control settings for a single interface without
-reloading the driver.
+reloading the driver:
+.Bd -literal -offset indent
+sysctl dev.ice.<interface #>.fc
+.Ed
 .Pp
 The available values for flow control are:
 .Bd -literal -offset indent
@@ -376,6 +380,17 @@ The available values for flow control are:
 2 = Enable Tx pause
 3 = Enable Rx and Tx pause
 .Ed
+.Pp
+Verify that link flow control was negotiated on the link by checking the
+interface entry in
+.Xr ifconfig 8
+and looking for the flags
+.Dq txpause
+and/or
+.Dq rxpause
+in the
+.Dq media
+status.
 .Pp
 The
 .Nm
@@ -924,31 +939,16 @@ Enabled by default.
 .El
 .Sh SYSCTL PROCEDURES
 .Bl -tag -width indent
-.It Va dev.ice.#.fc
-Allows one to set the flow control value.
-A value of 0 disables flow control, 3 enables full, 1 is RX, and 2 is
-TX pause.
-.It Va dev.ice.#.advertise_speed
-Allows one to set advertised link speeds, this will then cause a link
-renegotiation.
 .It Va dev.ice.#.current_speed
-This is a display of the current setting.
+This is a display of the current link speed of the interface.
+This is expected to match the speed of the media type in-use displayed by
+.Xr ifconfig 8 .
 .It Va dev.ice.#.fw_version
 Displays the current firmware and NVM versions of the adapter.
+This information should be submitted along with any support requests.
 .It Va dev.ice.#.ddp_version
-TBW
-.It Va dev.ice.#.requested_fec
-TBW
-.It Va dev.ice.#.negotiated_fec
-TBW
-.It Va dev.ice.#.fw_lldp_agent
-TBW
-.It Va dev.ice.#.ets_min_rate
-TBW
-.It Va dev.ice.#.up2tc_map
-TBW
-.It Va dev.ice.#.pfc
-TBW
+Displays the current DDP package version downloaded to the adapter.
+This information should be submitted along with any support requests.
 .El
 .Sh INTERRUPT STORMS
 It is important to note that 100G operation can generate high
