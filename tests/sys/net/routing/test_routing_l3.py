@@ -22,9 +22,13 @@ class TestIfOps(VnetTestTemplate):
     @pytest.mark.require_user("root")
     def test_change_prefix_route(self, family):
         """Tests that prefix route changes to the new one upon addr deletion"""
+        if family == "inet6":
+            pytest.skip("This test behavior is not supported for inet6")
+
         vnet = self.vnet_map["vnet1"]
         first_iface = vnet.iface_alias_map["if1"]
         second_iface = vnet.iface_alias_map["if2"]
+
         if family == "inet":
             first_addr = ipaddress.ip_interface("192.0.2.1/24")
             second_addr = ipaddress.ip_interface("192.0.2.2/24")
