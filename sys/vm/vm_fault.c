@@ -2208,7 +2208,7 @@ again:
 				VM_OBJECT_RUNLOCK(object);
 				vm_wait(dst_object);
 				VM_OBJECT_WLOCK(dst_object);
-				mpred = vm_page_mpred(src_object, pindex);
+				mpred = vm_page_mpred(dst_object, pindex);
 				goto again;
 			}
 
