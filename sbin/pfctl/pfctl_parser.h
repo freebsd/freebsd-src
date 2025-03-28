@@ -277,6 +277,7 @@ TAILQ_HEAD(pf_opt_queue, pf_opt_rule);
 int	pfctl_rules(int, char *, int, int, char *, struct pfr_buffer *);
 int	pfctl_optimize_ruleset(struct pfctl *, struct pfctl_ruleset *);
 
+void	pfctl_init_rule(struct pfctl_rule *r);
 int	pfctl_append_rule(struct pfctl *, struct pfctl_rule *, const char *);
 int	pfctl_append_eth_rule(struct pfctl *, struct pfctl_eth_rule *,
 	    const char *);
