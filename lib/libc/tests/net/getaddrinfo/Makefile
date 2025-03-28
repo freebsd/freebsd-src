@@ -6,8 +6,6 @@ TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libc/net/${.CURDIR:T}
 
 BINDIR=		${TESTSDIR}
 
-.error This testcase needs to be ported to FreeBSD (the output from getaddrinfo_test differs from NetBSD)
-
 NETBSD_ATF_TESTS_SH=	getaddrinfo_test
 
 PROGS=		h_gai
