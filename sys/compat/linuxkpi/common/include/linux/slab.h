@@ -94,6 +94,7 @@ extern void *lkpi_kmalloc(size_t size, gfp_t flags);
 void *lkpi___kmalloc(size_t size, gfp_t flags);
 void *lkpi___kmalloc_node(size_t size, gfp_t flags, int node);
 #define	__kmalloc(_s, _f)	lkpi___kmalloc(_s, _f)
+void *lkpi_krealloc(void *, size_t, gfp_t);
 
 static inline gfp_t
 linux_check_m_flags(gfp_t flags)
@@ -149,6 +150,21 @@ kcalloc_node(size_t n, size_t size, gfp_t flags, int node)
 }
 
 static inline void *
+krealloc(void *ptr, size_t size, gfp_t flags)
+{
+	return (lkpi_krealloc(ptr, size, flags));
+}
+
+static inline void *
+krealloc_array(void *ptr, size_t n, size_t size, gfp_t flags)
+{
+	if (WOULD_OVERFLOW(n, size))
+		return NULL;
+
+	return (krealloc(ptr, n * size, flags));
+}
+
+static inline void *
 __vmalloc(size_t size, gfp_t flags, int other)
 {
 	return (malloc(size, M_KMALLOC, linux_check_m_flags(flags)));
@@ -181,21 +197,6 @@ kvmalloc_array(size_t n, size_t size, gfp_t flags)
 		panic("%s: %zu * %zu overflowed", __func__, n, size);
 
 	return (kvmalloc(size * n, flags));
-}
-
-static inline void *
-krealloc(void *ptr, size_t size, gfp_t flags)
-{
-	return (realloc(ptr, size, M_KMALLOC, linux_check_m_flags(flags)));
-}
-
-static inline void *
-krealloc_array(void *ptr, size_t n, size_t size, gfp_t flags)
-{
-	if (WOULD_OVERFLOW(n, size))
-		return NULL;
-
-	return (realloc(ptr, n * size, M_KMALLOC, linux_check_m_flags(flags)));
 }
 
 extern void linux_kfree_async(void *);
