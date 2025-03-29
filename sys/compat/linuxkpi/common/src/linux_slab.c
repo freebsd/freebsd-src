@@ -215,7 +215,7 @@ lkpi___kmalloc(size_t size, gfp_t flags)
 	/* sizeof(struct llist_node) is used for kfree_async(). */
 	_s = MAX(size, sizeof(struct llist_node));
 
-	if (_s < PAGE_SIZE)
+	if (_s <= PAGE_SIZE)
 		return (malloc(_s, M_KMALLOC, linux_check_m_flags(flags)));
 	else
 		return (contigmalloc(_s, M_KMALLOC, linux_check_m_flags(flags),
