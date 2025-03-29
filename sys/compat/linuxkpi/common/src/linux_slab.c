@@ -234,6 +234,41 @@ lkpi___kmalloc(size_t size, gfp_t flags)
 		    0, -1UL, PAGE_SIZE, 0));
 }
 
+void *
+lkpi_krealloc(void *ptr, size_t size, gfp_t flags)
+{
+	void *nptr;
+	size_t osize;
+
+	/*
+	 * First handle invariants based on function arguments.
+	 */
+	if (ptr == NULL)
+		return (kmalloc(size, flags));
+
+	osize = ksize(ptr);
+	if (size <= osize)
+		return (ptr);
+
+	/*
+	 * We know the new size > original size.  realloc(9) does not (and cannot)
+	 * know about our requirements for physically contiguous memory, so we can
+	 * only call it for sizes up to and including PAGE_SIZE, and otherwise have
+	 * to replicate its functionality using kmalloc to get the contigmalloc(9)
+	 * backing.
+	 */
+	if (size <= PAGE_SIZE)
+		return (realloc(ptr, size, M_KMALLOC, linux_check_m_flags(flags)));
+
+	nptr = kmalloc(size, flags);
+	if (nptr == NULL)
+		return (NULL);
+
+	memcpy(nptr, ptr, osize);
+	kfree(ptr);
+	return (nptr);
+}
+
 struct lkpi_kmalloc_ctx {
 	size_t size;
 	gfp_t flags;
