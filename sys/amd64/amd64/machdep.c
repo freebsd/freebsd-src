@@ -1866,6 +1866,24 @@ wrmsr_early_safe_end(void)
 		memset_early(&idt0[i], 0, sizeof(idt0[0]));
 }
 
+int
+safe_read(vm_offset_t addr, char *valp)
+{
+	struct uio uio;
+	struct iovec iov;
+
+	iov.iov_base = valp;
+	iov.iov_len = 1;
+	uio.uio_offset = addr;
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_resid = 1;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_td = NULL;
+	return (uiomove_mem(UIO_MEM_KMEM, &uio));
+}
+
 #ifdef KDB
 
 /*
