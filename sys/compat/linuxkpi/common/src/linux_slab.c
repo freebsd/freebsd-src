@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2017 Mellanox Technologies, Ltd.
  * All rights reserved.
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Björn Zeeb
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -303,7 +307,7 @@ linux_kfree_async_fn(void *context, int pending)
 static struct task linux_kfree_async_task =
     TASK_INITIALIZER(0, linux_kfree_async_fn, &linux_kfree_async_task);
 
-void
+static void
 linux_kfree_async(void *addr)
 {
 	if (addr == NULL)
@@ -311,3 +315,16 @@ linux_kfree_async(void *addr)
 	llist_add(addr, &linux_kfree_async_list);
 	taskqueue_enqueue(linux_irq_work_tq, &linux_kfree_async_task);
 }
+
+void
+lkpi_kfree(const void *ptr)
+{
+	if (ZERO_OR_NULL_PTR(ptr))
+		return;
+
+	if (curthread->td_critnest != 0)
+		linux_kfree_async(__DECONST(void *, ptr));
+	else
+		free(__DECONST(void *, ptr), M_KMALLOC);
+}
+
