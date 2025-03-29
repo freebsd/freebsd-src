@@ -598,6 +598,25 @@ extern struct sx pf_end_lock;
 #endif /* PF_INET6_ONLY */
 #endif /* PF_INET_INET6 */
 
+#ifdef _KERNEL
+#ifdef INET6
+static void inline
+pf_addrcpy(struct pf_addr *dst, const struct pf_addr *src, sa_family_t af)
+{
+	switch (af) {
+#ifdef INET
+	case AF_INET:
+		memcpy(&dst->v4, &src->v4, sizeof(dst->v4));
+		break;
+#endif /* INET */
+	case AF_INET6:
+		memcpy(&dst->v6, &src->v6, sizeof(dst->v6));
+		break;
+	}
+}
+#endif /* INET6 */
+#endif
+
 /*
  * XXX callers not FIB-aware in our version of pf yet.
  * OpenBSD fixed it later it seems, 2010/05/07 13:33:16 claudio.
