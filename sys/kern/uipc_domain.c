@@ -98,6 +98,12 @@ pr_control_notsupp(struct socket *so, u_long cmd, void *data,
 }
 
 static int
+pr_ctloutput_notsupp(struct socket *so, struct sockopt *sopt)
+{
+	return (ENOPROTOOPT);
+}
+
+static int
 pr_disconnect_notsupp(struct socket *so)
 {
 	return (EOPNOTSUPP);
@@ -194,6 +200,7 @@ pr_init(struct domain *dom, struct protosw *pr)
 	NOTSUPP(pr_connect2);
 	NOTSUPP(pr_connectat);
 	NOTSUPP(pr_control);
+	NOTSUPP(pr_ctloutput);
 	NOTSUPP(pr_disconnect);
 	NOTSUPP(pr_listen);
 	NOTSUPP(pr_peeraddr);

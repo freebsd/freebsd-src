@@ -3804,10 +3804,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 	CURVNET_SET(so->so_vnet);
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
-		if (so->so_proto->pr_ctloutput != NULL)
-			error = (*so->so_proto->pr_ctloutput)(so, sopt);
-		else
-			error = ENOPROTOOPT;
+		error = (*so->so_proto->pr_ctloutput)(so, sopt);
 	} else {
 		switch (sopt->sopt_name) {
 		case SO_ACCEPTFILTER:
@@ -4017,7 +4014,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				error = ENOPROTOOPT;
 			break;
 		}
-		if (error == 0 && so->so_proto->pr_ctloutput != NULL)
+		if (error == 0)
 			(void)(*so->so_proto->pr_ctloutput)(so, sopt);
 	}
 bad:
@@ -4068,10 +4065,7 @@ sogetopt(struct socket *so, struct sockopt *sopt)
 	CURVNET_SET(so->so_vnet);
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
-		if (so->so_proto->pr_ctloutput != NULL)
-			error = (*so->so_proto->pr_ctloutput)(so, sopt);
-		else
-			error = ENOPROTOOPT;
+		error = (*so->so_proto->pr_ctloutput)(so, sopt);
 		CURVNET_RESTORE();
 		return (error);
 	} else {
