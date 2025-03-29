@@ -195,8 +195,8 @@ struct proc;
 
 struct credbatch {
 	struct ucred *cred;
-	int users;
-	int ref;
+	u_int users;
+	long ref;
 };
 
 static inline void
