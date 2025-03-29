@@ -393,7 +393,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		/*
 		 * How many bytes to copy
 		 */
-		len = min(PAGE_SIZE - page_offset, uio->uio_resid);
+		len = MIN(PAGE_SIZE - page_offset, uio->uio_resid);
 
 		/*
 		 * Fault and hold the page on behalf of the process.
@@ -1388,6 +1388,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 	case PT_IO:
 		piod = addr;
+		if (piod->piod_len > SSIZE_MAX) {
+			error = EINVAL;
+			goto out;
+		}
 		iov.iov_base = piod->piod_addr;
 		iov.iov_len = piod->piod_len;
 		uio.uio_offset = (off_t)(uintptr_t)piod->piod_offs;
