@@ -554,6 +554,14 @@ void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
 void counted_warning(unsigned *counter, const char *msg);
 
 /*
+ * Safely read one byte of kernel memory at address addr, placing the
+ * value into *valp.  Returns 0 on success, EFAULT if read was
+ * impossible, e.g. due to the address not being mapped or not having
+ * necessary permissions.
+ */
+int safe_read(vm_offset_t addr, char *valp);
+
+/*
  * APIs to manage deprecation and obsolescence.
  */
 void _gone_in(int major, const char *msg, ...) __printflike(2, 3);
