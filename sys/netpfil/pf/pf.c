@@ -4263,17 +4263,12 @@ pf_send_tcp(const struct pf_krule *r, sa_family_t af,
 }
 
 static void
-pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
-    struct tcphdr *th, u_int16_t bproto_sum, u_int16_t bip_sum,
-    u_short *reason, int rtableid)
+pf_undo_nat(struct pf_krule *nr, struct pf_pdesc *pd, uint16_t bip_sum)
 {
-	struct pf_addr	* const saddr = pd->src;
-	struct pf_addr	* const daddr = pd->dst;
-
 	/* undo NAT changes, if they have taken place */
 	if (nr != NULL) {
-		PF_ACPY(saddr, &pd->osrc, pd->af);
-		PF_ACPY(daddr, &pd->odst, pd->af);
+		PF_ACPY(pd->src, &pd->osrc, pd->af);
+		PF_ACPY(pd->dst, &pd->odst, pd->af);
 		if (pd->sport)
 			*pd->sport = pd->osport;
 		if (pd->dport)
@@ -4282,6 +4277,15 @@ pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
 			*pd->ip_sum = bip_sum;
 		m_copyback(pd->m, pd->off, pd->hdrlen, pd->hdr.any);
 	}
+}
+
+static void
+pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
+    struct tcphdr *th, u_int16_t bproto_sum, u_int16_t bip_sum,
+    u_short *reason, int rtableid)
+{
+	pf_undo_nat(nr, pd, bip_sum);
+
 	if (pd->proto == IPPROTO_TCP &&
 	    ((r->rule_flag & PFRULE_RETURNRST) ||
 	    (r->rule_flag & PFRULE_RETURN)) &&
@@ -6239,18 +6243,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if (pd->proto == IPPROTO_TCP && (tcp_get_flags(th) & (TH_SYN|TH_ACK)) ==
 	    TH_SYN && r->keep_state == PF_STATE_SYNPROXY) {
 		pf_set_protostate(s, PF_PEER_SRC, PF_TCPS_PROXY_SRC);
-		/* undo NAT changes, if they have taken place */
-		if (nr != NULL) {
-			PF_ACPY(pd->src, &pd->osrc, pd->af);
-			PF_ACPY(pd->dst, &pd->odst, pd->af);
-			if (pd->sport)
-				*pd->sport = pd->osport;
-			if (pd->dport)
-				*pd->dport = pd->odport;
-			if (pd->ip_sum)
-				*pd->ip_sum = bip_sum;
-			m_copyback(pd->m, pd->off, pd->hdrlen, pd->hdr.any);
-		}
+		pf_undo_nat(nr, pd, bip_sum);
 		s->src.seqhi = htonl(arc4random());
 		/* Find mss option */
 		int rtid = M_GETFIB(pd->m);
