@@ -462,6 +462,10 @@ rl_insert_sleep(struct rangelock *lock)
 	smr_enter(rl_smr);
 }
 
+/*
+ * Try to insert an entry into the queue.  Return true if successful, otherwise
+ * false.
+ */
 static bool
 rl_q_cas(struct rl_q_entry **prev, struct rl_q_entry *old,
     struct rl_q_entry *new)
@@ -517,15 +521,60 @@ again:
 
 enum RL_INSERT_RES {
 	RL_TRYLOCK_FAILED,
+	RL_TRYLOCK_FAILED_MARKED,
 	RL_LOCK_SUCCESS,
 	RL_LOCK_RETRY,
 };
 
+/*
+ * Handle a possible lock conflict between cur and e.  "inserted" is true if e
+ * is already inserted into the queue.
+ */
+static enum RL_INSERT_RES
+rl_conflict(struct rangelock *lock, struct rl_q_entry *cur, struct rl_q_entry *e,
+    bool trylock, bool inserted)
+{
+	sleepq_lock(&lock->sleepers);
+	if (rl_e_is_marked(rl_q_load(&cur->rl_q_next))) {
+		sleepq_release(&lock->sleepers);
+		return (RL_LOCK_SUCCESS); /* no conflict after all */
+	}
+
+	/*
+	 * Make sure we're not conflicting with one of our own locks.  This
+	 * scenario could conceivably happen for one of two reasons: a bug in
+	 * the rangelock consumer (if "inserted" is true), or a bug in the
+	 * rangelock implementation itself (if "inserted" is false).
+	 */
+	KASSERT(cur->rl_q_owner != curthread,
+	    ("%s: conflicting range is locked by the current thread",
+	    __func__));
+
+	if (inserted)
+		rangelock_unlock_int(lock, e);
+	if (trylock) {
+		sleepq_release(&lock->sleepers);
+
+		/*
+		 * If the new entry e has been enqueued and is thus visible to
+		 * other threads, it cannot be safely freed.
+		 */
+		return (inserted ? RL_TRYLOCK_FAILED_MARKED: RL_TRYLOCK_FAILED);
+	}
+	rl_insert_sleep(lock);
+	return (RL_LOCK_RETRY);
+}
+
+/*
+ * Having inserted entry e, verify that no conflicting write locks are present;
+ * clean up dead entries that we encounter along the way.
+ */
 static enum RL_INSERT_RES
 rl_r_validate(struct rangelock *lock, struct rl_q_entry *e, bool trylock,
     struct rl_q_entry **free)
 {
 	struct rl_q_entry *cur, *next, **prev;
+	enum RL_INSERT_RES res;
 
 again:
 	prev = &e->rl_q_next;
@@ -550,28 +599,23 @@ again:
 			cur = rl_e_unmark_unchecked(rl_q_load(prev));
 			continue;
 		}
-		if (!rl_e_is_marked(rl_q_load(&cur->rl_q_next))) {
-			sleepq_lock(&lock->sleepers);
-			if (rl_e_is_marked(rl_q_load(&cur->rl_q_next))) {
-				sleepq_release(&lock->sleepers);
-				continue;
-			}
-			rangelock_unlock_int(lock, e);
-			if (trylock) {
-				sleepq_release(&lock->sleepers);
-				return (RL_TRYLOCK_FAILED);
-			}
-			rl_insert_sleep(lock);
-			return (RL_LOCK_RETRY);
-		}
+
+		res = rl_conflict(lock, cur, e, trylock, true);
+		if (res != RL_LOCK_SUCCESS)
+			return (res);
 	}
 }
 
+/*
+ * Having inserted entry e, verify that no conflicting locks are present;
+ * clean up dead entries that we encounter along the way.
+ */
 static enum RL_INSERT_RES
 rl_w_validate(struct rangelock *lock, struct rl_q_entry *e,
     bool trylock, struct rl_q_entry **free)
 {
 	struct rl_q_entry *cur, *next, **prev;
+	enum RL_INSERT_RES res;
 
 again:
 	prev = (struct rl_q_entry **)&lock->head;
@@ -596,20 +640,10 @@ again:
 			cur = rl_e_unmark_unchecked(rl_q_load(prev));
 			continue;
 		}
-		sleepq_lock(&lock->sleepers);
-		/* Reload after sleepq is locked */
-		next = rl_q_load(&cur->rl_q_next);
-		if (rl_e_is_marked(next)) {
-			sleepq_release(&lock->sleepers);
-			goto again;
-		}
-		rangelock_unlock_int(lock, e);
-		if (trylock) {
-			sleepq_release(&lock->sleepers);
-			return (RL_TRYLOCK_FAILED);
-		}
-		rl_insert_sleep(lock);
-		return (RL_LOCK_RETRY);
+
+		res = rl_conflict(lock, cur, e, trylock, true);
+		if (res != RL_LOCK_SUCCESS)
+			return (res);
 	}
 }
 
@@ -653,19 +687,19 @@ again:
 			prev = &cur->rl_q_next;
 			cur = rl_q_load(prev);
 		} else if (r == 0) {
-			sleepq_lock(&lock->sleepers);
-			if (__predict_false(rl_e_is_marked(rl_q_load(
-			    &cur->rl_q_next)))) {
-				sleepq_release(&lock->sleepers);
-				continue;
+			enum RL_INSERT_RES res;
+
+			res = rl_conflict(lock, cur, e, trylock, false);
+			switch (res) {
+			case RL_LOCK_SUCCESS:
+				/* cur does not conflict after all. */
+				break;
+			case RL_LOCK_RETRY:
+				/* e is still valid. */
+				goto again;
+			default:
+				return (res);
 			}
-			if (trylock) {
-				sleepq_release(&lock->sleepers);
-				return (RL_TRYLOCK_FAILED);
-			}
-			rl_insert_sleep(lock);
-			/* e is still valid */
-			goto again;
 		} else /* r == 1 */ {
 			e->rl_q_next = cur;
 			if (rl_q_cas(prev, cur, e)) {
@@ -697,10 +731,12 @@ rangelock_lock_int(struct rangelock *lock, bool trylock, vm_ooffset_t start,
 		smr_enter(rl_smr);
 		res = rl_insert(lock, e, trylock, &free);
 		smr_exit(rl_smr);
-		if (res == RL_TRYLOCK_FAILED) {
+		if (res == RL_TRYLOCK_FAILED || res == RL_TRYLOCK_FAILED_MARKED) {
 			MPASS(trylock);
-			e->rl_q_free = free;
-			free = e;
+			if (res == RL_TRYLOCK_FAILED) {
+				e->rl_q_free = free;
+				free = e;
+			}
 			e = NULL;
 		}
 		rangelock_free_free(free);
