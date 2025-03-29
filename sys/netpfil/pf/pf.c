@@ -798,23 +798,6 @@ pf_set_protostate(struct pf_kstate *s, int which, u_int8_t newstate)
 	s->src.state = newstate;
 }
 
-#ifdef INET6
-void
-pf_addrcpy(struct pf_addr *dst, const struct pf_addr *src, sa_family_t af)
-{
-	switch (af) {
-#ifdef INET
-	case AF_INET:
-		memcpy(&dst->v4, &src->v4, sizeof(dst->v4));
-		break;
-#endif /* INET */
-	case AF_INET6:
-		memcpy(&dst->v6, &src->v6, sizeof(dst->v6));
-		break;
-	}
-}
-#endif /* INET6 */
-
 static void
 pf_init_threshold(struct pf_threshold *threshold,
     u_int32_t limit, u_int32_t seconds)
