@@ -794,7 +794,7 @@ trap_pfault(struct trapframe *frame, bool user, int *signo, int *ucode)
 		return (true);
 #endif
 
-	if (__predict_false((td->td_pflags & TDP_NOFAULTING) == 0)) {
+	if (__predict_true((td->td_pflags & TDP_NOFAULTING) == 0)) {
 		/*
 		 * If we get a page fault while in a critical section, then
 		 * it is most likely a fatal kernel page fault.  The kernel
