@@ -2226,7 +2226,8 @@ VNET_DECLARE(struct pf_udpendpointhash *, pf_udpendpointhash);
 VNET_DECLARE(struct pf_srchash *, pf_srchash);
 #define	V_pf_srchash	VNET(pf_srchash)
 
-#define PF_IDHASH(s)	(be64toh((s)->id) % (V_pf_hashmask + 1))
+#define	PF_IDHASHID(id)	(be64toh(id) % (V_pf_hashmask + 1))
+#define	PF_IDHASH(s)	PF_IDHASHID((s)->id)
 
 VNET_DECLARE(void *, pf_swi_cookie);
 #define V_pf_swi_cookie	VNET(pf_swi_cookie)
