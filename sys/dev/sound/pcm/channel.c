@@ -977,9 +977,13 @@ static const struct {
 #if BYTE_ORDER == LITTLE_ENDIAN
 	{ "s32le", "s32", "32", AFMT_S32_LE },
 	{ "s32be",  NULL, NULL, AFMT_S32_BE },
+	{ "f32le", "f32", NULL, AFMT_F32_LE },
+	{ "f32be",  NULL, NULL, AFMT_F32_BE },
 #else
 	{ "s32le",  NULL, NULL, AFMT_S32_LE },
 	{ "s32be", "s32", "32", AFMT_S32_BE },
+	{ "f32le",  NULL, NULL, AFMT_F32_LE },
+	{ "f32be", "f32", NULL, AFMT_F32_BE },
 #endif
 	{ "u32le",  NULL, NULL, AFMT_U32_LE },
 	{ "u32be",  NULL, NULL, AFMT_U32_BE },
