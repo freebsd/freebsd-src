@@ -128,7 +128,8 @@ static const struct {
 static __always_inline __unused intpcm_t
 pcm_sample_read(const uint8_t *src, uint32_t fmt)
 {
-	intpcm_t v;
+	intpcm_t v, e, m;
+	bool s;
 
 	fmt = AFMT_ENCODING(fmt);
 
@@ -190,6 +191,34 @@ pcm_sample_read(const uint8_t *src, uint32_t fmt)
 		v = INTPCM_T(src[3] | src[2] << 8 | src[1] << 16 |
 		    (int8_t)(src[0] ^ 0x80) << 24);
 		break;
+	case AFMT_F32_LE:	/* FALLTHROUGH */
+	case AFMT_F32_BE:
+		if (fmt == AFMT_F32_LE) {
+			v = INTPCM_T(src[0] | src[1] << 8 | src[2] << 16 |
+			    (int8_t)src[3] << 24);
+		} else {
+			v = INTPCM_T(src[3] | src[2] << 8 | src[1] << 16 |
+			    (int8_t)src[0] << 24);
+		}
+		e = (v >> 23) & 0xff;
+		/* NaN, +/- Inf  or too small */
+		if (e == 0xff || e < 96) {
+			v = INTPCM_T(0);
+			break;
+		}
+		s = v & 0x80000000U;
+		if (e > 126) {
+			v = INTPCM_T((s == 0) ? PCM_S32_MAX : PCM_S32_MIN);
+			break;
+		}
+		m = 0x800000 | (v & 0x7fffff);
+		e += 8 - 127;
+		if (e < 0)
+			m >>= -e;
+		else
+			m <<= e;
+		v = INTPCM_T((s == 0) ? m : -m);
+		break;
 	default:
 		v = 0;
 		printf("%s(): unknown format: 0x%08x\n", __func__, fmt);
@@ -241,7 +270,37 @@ pcm_sample_read_calc(const uint8_t *src, uint32_t fmt)
 static __always_inline __unused void
 pcm_sample_write(uint8_t *dst, intpcm_t v, uint32_t fmt)
 {
+	intpcm_t r, e;
+
 	fmt = AFMT_ENCODING(fmt);
+
+	if (fmt & (AFMT_F32_LE | AFMT_F32_BE)) {
+		if (v == 0)
+			r = 0;
+		else if (v == PCM_S32_MAX)
+			r = 0x3f800000;
+		else if (v == PCM_S32_MIN)
+			r = 0x80000000U | 0x3f800000;
+		else {
+			r = 0;
+			if (v < 0) {
+				r |= 0x80000000U;
+				v = -v;
+			}
+			e = 127 - 8;
+			while ((v & 0x7f000000) != 0) {
+				v >>= 1;
+				e++;
+			}
+			while ((v & 0x7f800000) == 0) {
+				v <<= 1;
+				e--;
+			}
+			r |= (e & 0xff) << 23;
+			r |= v & 0x7fffff;
+		}
+		v = r;
+	}
 
 	switch (fmt) {
 	case AFMT_AC3:
@@ -295,13 +354,15 @@ pcm_sample_write(uint8_t *dst, intpcm_t v, uint32_t fmt)
 		dst[1] = v >> 8;
 		dst[0] = (v >> 16) ^ 0x80;
 		break;
-	case AFMT_S32_LE:
+	case AFMT_S32_LE:	/* FALLTHROUGH */
+	case AFMT_F32_LE:
 		dst[0] = v;
 		dst[1] = v >> 8;
 		dst[2] = v >> 16;
 		dst[3] = v >> 24;
 		break;
-	case AFMT_S32_BE:
+	case AFMT_S32_BE:	/* FALLTHROUGH */
+	case AFMT_F32_BE:
 		dst[3] = v;
 		dst[2] = v >> 8;
 		dst[1] = v >> 16;
