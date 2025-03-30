@@ -152,7 +152,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	int32_t *buffer;
+	float *buffer;
 	size_t slope;
 	size_t size;
 	size_t off;
@@ -208,9 +208,9 @@ main(int argc, char **argv)
 	if (ioctl(f, SOUND_PCM_WRITE_CHANNELS, &c) != 0)
 		errx(1, "ioctl SOUND_PCM_WRITE_CHANNELS(1) failed");
 
-	c = AFMT_S32_NE;
+	c = AFMT_FLOAT;
 	if (ioctl(f, SNDCTL_DSP_SETFMT, &c) != 0)
-		errx(1, "ioctl SNDCTL_DSP_SETFMT(AFMT_S32_NE) failed");
+		errx(1, "ioctl SNDCTL_DSP_SETFMT(AFMT_FLOAT) failed");
 
 	if (ioctl(f, SNDCTL_DSP_SPEED, &sample_rate) != 0)
 		errx(1, "ioctl SNDCTL_DSP_SPEED(%d) failed", sample_rate);
@@ -251,7 +251,7 @@ main(int argc, char **argv)
 		else if (off > (size - slope))
 			sample = sample * (size - off - 1) / (float)slope;
 
-		buffer[off] = sample * 0x7fffff00;
+		buffer[off] = sample;
 	}
 
 	if (write(f, buffer, size * sizeof(buffer[0])) !=
