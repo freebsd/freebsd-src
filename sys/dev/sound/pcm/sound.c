@@ -116,17 +116,21 @@ sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 	unit = snd_unit;
 	error = sysctl_handle_int(oidp, &unit, 0, req);
 	if (error == 0 && req->newptr != NULL) {
+		bus_topo_lock();
 		d = devclass_get_softc(pcm_devclass, unit);
-		if (!PCM_REGISTERED(d) || CHN_EMPTY(d, channels.pcm))
+		if (!PCM_REGISTERED(d) || CHN_EMPTY(d, channels.pcm)) {
+			bus_topo_unlock();
 			return EINVAL;
+		}
 		snd_unit = unit;
 		snd_unit_auto = 0;
+		bus_topo_unlock();
 	}
 	return (error);
 }
 /* XXX: do we need a way to let the user change the default unit? */
 SYSCTL_PROC(_hw_snd, OID_AUTO, default_unit,
-    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_ANYBODY | CTLFLAG_NEEDGIANT, 0,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE, 0,
     sizeof(int), sysctl_hw_snd_default_unit, "I",
     "default sound device");
 
@@ -213,6 +217,7 @@ pcm_best_unit(int old)
 
 	best = -1;
 	bestprio = -100;
+	bus_topo_lock();
 	for (i = 0; pcm_devclass != NULL &&
 	    i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
@@ -228,6 +233,8 @@ pcm_best_unit(int old)
 			bestprio = prio;
 		}
 	}
+	bus_topo_unlock();
+
 	return (best);
 }
 
@@ -557,6 +564,7 @@ sound_oss_sysinfo(oss_sysinfo *si)
 
 	j = 0;
 
+	bus_topo_lock();
 	for (i = 0; pcm_devclass != NULL &&
 	    i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
@@ -583,6 +591,7 @@ sound_oss_sysinfo(oss_sysinfo *si)
 
 		PCM_UNLOCK(d);
 	}
+	bus_topo_unlock();
 
 	si->numsynths = 0;	/* OSSv4 docs:  this field is obsolete */
 	/**
@@ -603,9 +612,11 @@ sound_oss_sysinfo(oss_sysinfo *si)
 	 * break if they try to loop through all mixers and some of them are
 	 * not available.
 	 */
+	bus_topo_lock();
 	si->nummixers = devclass_get_maxunit(pcm_devclass);
 	si->numcards = devclass_get_maxunit(pcm_devclass);
 	si->numaudios = devclass_get_maxunit(pcm_devclass);
+	bus_topo_unlock();
 		/* OSSv4 docs:	Intended only for test apps; API doesn't
 		   really have much of a concept of cards.  Shouldn't be
 		   used by applications. */
@@ -631,6 +642,7 @@ sound_oss_card_info(oss_card_info *si)
 	struct snddev_info *d;
 	int i;
 
+	bus_topo_lock();
 	for (i = 0; pcm_devclass != NULL &&
 	    i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
@@ -658,8 +670,11 @@ sound_oss_card_info(oss_card_info *si)
 			PCM_UNLOCK(d);
 		}
 
+		bus_topo_unlock();
 		return (0);
 	}
+	bus_topo_unlock();
+
 	return (ENXIO);
 }
 
