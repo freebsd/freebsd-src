@@ -259,9 +259,13 @@ sysctl_dev_pcm_vchans(SYSCTL_HANDLER_ARGS)
 	struct snddev_info *d;
 	int err, enabled, flag;
 
+	bus_topo_lock();
 	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
-	if (!PCM_REGISTERED(d))
+	if (!PCM_REGISTERED(d)) {
+		bus_topo_unlock();
 		return (EINVAL);
+	}
+	bus_topo_unlock();
 
 	PCM_LOCK(d);
 	PCM_WAIT(d);
@@ -317,9 +321,13 @@ sysctl_dev_pcm_vchanmode(SYSCTL_HANDLER_ARGS)
 	int *vchanmode, direction, ret;
 	char dtype[16];
 
+	bus_topo_lock();
 	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
-	if (!PCM_REGISTERED(d))
+	if (!PCM_REGISTERED(d)) {
+		bus_topo_unlock();
 		return (EINVAL);
+	}
+	bus_topo_unlock();
 
 	PCM_LOCK(d);
 	PCM_WAIT(d);
@@ -407,9 +415,13 @@ sysctl_dev_pcm_vchanrate(SYSCTL_HANDLER_ARGS)
 	struct pcm_channel *c, *ch;
 	int *vchanrate, direction, ret, newspd, restart;
 
+	bus_topo_lock();
 	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
-	if (!PCM_REGISTERED(d))
+	if (!PCM_REGISTERED(d)) {
+		bus_topo_unlock();
 		return (EINVAL);
+	}
+	bus_topo_unlock();
 
 	PCM_LOCK(d);
 	PCM_WAIT(d);
@@ -499,9 +511,13 @@ sysctl_dev_pcm_vchanformat(SYSCTL_HANDLER_ARGS)
 	int *vchanformat, direction, ret, restart;
 	char fmtstr[AFMTSTR_LEN];
 
+	bus_topo_lock();
 	d = devclass_get_softc(pcm_devclass, VCHAN_SYSCTL_UNIT(oidp->oid_arg1));
-	if (!PCM_REGISTERED(d))
+	if (!PCM_REGISTERED(d)) {
+		bus_topo_unlock();
 		return (EINVAL);
+	}
+	bus_topo_unlock();
 
 	PCM_LOCK(d);
 	PCM_WAIT(d);
@@ -749,6 +765,7 @@ sysctl_hw_snd_vchans_enable(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
+	bus_topo_lock();
 	snd_vchans_enable = v >= 1;
 
 	for (i = 0; pcm_devclass != NULL &&
@@ -766,11 +783,12 @@ sysctl_hw_snd_vchans_enable(SYSCTL_HANDLER_ARGS)
 			d->flags &= ~(SD_F_PVCHANS | SD_F_RVCHANS);
 		PCM_RELEASE_QUICK(d);
 	}
+	bus_topo_unlock();
 
 	return (0);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, vchans_enable,
-    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, sizeof(int),
     sysctl_hw_snd_vchans_enable, "I", "global virtual channel switch");
 
 void
