@@ -559,6 +559,8 @@ ads111x_attach(device_t dev)
 		return (err);
 	}
 
+	sx_init(&sc->lock, "ads111x");
+
 	/* Add the sysctl handler to set the chip configuration register.  */
 	ctx = device_get_sysctl_ctx(dev);
 	tree = device_get_sysctl_tree(dev);
@@ -574,8 +576,6 @@ ads111x_attach(device_t dev)
 
 	/* Set up channels based on metadata or default config. */
 	ads111x_add_channels(sc);
-
-	sx_init(&sc->lock, "ads111x");
 
 	return (0);
 }
