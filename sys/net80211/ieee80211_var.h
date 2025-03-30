@@ -845,6 +845,9 @@ bool	ieee80211_is_key_global(const struct ieee80211vap *vap,
 bool	ieee80211_is_key_unicast(const struct ieee80211vap *vap,
 	    const struct ieee80211_key *key);
 
+bool	ieee80211_is_ctl_frame_for_vap(struct ieee80211_node *,
+	    const struct mbuf *);
+
 void	ieee80211_radiotap_attach(struct ieee80211com *,
 	    struct ieee80211_radiotap_header *th, int tlen,
 		uint32_t tx_radiotap,
