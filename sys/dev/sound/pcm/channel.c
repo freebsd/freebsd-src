@@ -132,6 +132,7 @@ chn_vpc_proc(int reset, int db)
 	struct pcm_channel *c;
 	int i;
 
+	bus_topo_lock();
 	for (i = 0; pcm_devclass != NULL &&
 	    i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
@@ -150,6 +151,7 @@ chn_vpc_proc(int reset, int db)
 		PCM_RELEASE(d);
 		PCM_UNLOCK(d);
 	}
+	bus_topo_unlock();
 }
 
 static int
@@ -170,7 +172,7 @@ sysctl_hw_snd_vpc_0db(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_0db,
-    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, sizeof(int),
     sysctl_hw_snd_vpc_0db, "I",
     "0db relative level");
 
@@ -190,7 +192,7 @@ sysctl_hw_snd_vpc_reset(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_reset,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof(int),
     sysctl_hw_snd_vpc_reset, "I",
     "reset volume on all channels");
 

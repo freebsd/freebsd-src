@@ -258,6 +258,7 @@ sysctl_hw_snd_feeder_rate_quality(SYSCTL_HANDLER_ARGS)
 	 * set resampler quality if and only if it is exist as
 	 * part of feeder chains and the channel is idle.
 	 */
+	bus_topo_lock();
 	for (i = 0; pcm_devclass != NULL &&
 	    i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
@@ -279,11 +280,12 @@ sysctl_hw_snd_feeder_rate_quality(SYSCTL_HANDLER_ARGS)
 		PCM_RELEASE(d);
 		PCM_UNLOCK(d);
 	}
+	bus_topo_unlock();
 
 	return (0);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_quality,
-    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, sizeof(int),
     sysctl_hw_snd_feeder_rate_quality, "I",
     "sample rate converter quality ("__XSTRING(Z_QUALITY_MIN)"=low .. "
     __XSTRING(Z_QUALITY_MAX)"=high)");
