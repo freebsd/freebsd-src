@@ -961,33 +961,38 @@ static const struct {
 	{ "mulaw",  NULL, NULL, AFMT_MU_LAW },
 	{    "u8",   "8", NULL, AFMT_U8     },
 	{    "s8",  NULL, NULL, AFMT_S8     },
+	{   "ac3",  NULL, NULL, AFMT_AC3    },
 #if BYTE_ORDER == LITTLE_ENDIAN
 	{ "s16le", "s16", "16", AFMT_S16_LE },
 	{ "s16be",  NULL, NULL, AFMT_S16_BE },
-#else
-	{ "s16le",  NULL, NULL, AFMT_S16_LE },
-	{ "s16be", "s16", "16", AFMT_S16_BE },
-#endif
-	{ "u16le",  NULL, NULL, AFMT_U16_LE },
-	{ "u16be",  NULL, NULL, AFMT_U16_BE },
-	{ "s24le",  NULL, NULL, AFMT_S24_LE },
+	{ "s24le", "s24", "24", AFMT_S24_LE },
 	{ "s24be",  NULL, NULL, AFMT_S24_BE },
-	{ "u24le",  NULL, NULL, AFMT_U24_LE },
-	{ "u24be",  NULL, NULL, AFMT_U24_BE },
-#if BYTE_ORDER == LITTLE_ENDIAN
 	{ "s32le", "s32", "32", AFMT_S32_LE },
 	{ "s32be",  NULL, NULL, AFMT_S32_BE },
 	{ "f32le", "f32", NULL, AFMT_F32_LE },
 	{ "f32be",  NULL, NULL, AFMT_F32_BE },
+	{ "u16le", "u16", NULL, AFMT_U16_LE },
+	{ "u16be",  NULL, NULL, AFMT_U16_BE },
+	{ "u24le", "u24", NULL, AFMT_U24_LE },
+	{ "u24be",  NULL, NULL, AFMT_U24_BE },
+	{ "u32le", "u32", NULL, AFMT_U32_LE },
+	{ "u32be",  NULL, NULL, AFMT_U32_BE },
 #else
+	{ "s16le",  NULL, NULL, AFMT_S16_LE },
+	{ "s16be", "s16", "16", AFMT_S16_BE },
+	{ "s24le",  NULL, NULL, AFMT_S24_LE },
+	{ "s24be", "s24", "24", AFMT_S24_BE },
 	{ "s32le",  NULL, NULL, AFMT_S32_LE },
 	{ "s32be", "s32", "32", AFMT_S32_BE },
 	{ "f32le",  NULL, NULL, AFMT_F32_LE },
 	{ "f32be", "f32", NULL, AFMT_F32_BE },
-#endif
+	{ "u16le",  NULL, NULL, AFMT_U16_LE },
+	{ "u16be", "u16", NULL, AFMT_U16_BE },
+	{ "u24le",  NULL, NULL, AFMT_U24_LE },
+	{ "u24be", "u24", NULL, AFMT_U24_BE },
 	{ "u32le",  NULL, NULL, AFMT_U32_LE },
-	{ "u32be",  NULL, NULL, AFMT_U32_BE },
-	{   "ac3",  NULL, NULL, AFMT_AC3    },
+	{ "u32be", "u32", NULL, AFMT_U32_BE },
+#endif
 	{    NULL,  NULL, NULL, 0           }
 };
 
