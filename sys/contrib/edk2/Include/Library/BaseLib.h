@@ -152,6 +152,29 @@ typedef struct {
 
 #endif // defined (MDE_CPU_RISCV64)
 
+#if defined (MDE_CPU_LOONGARCH64)
+///
+/// The LoongArch architecture context buffer used by SetJump() and LongJump()
+///
+typedef struct {
+  UINT64    S0;
+  UINT64    S1;
+  UINT64    S2;
+  UINT64    S3;
+  UINT64    S4;
+  UINT64    S5;
+  UINT64    S6;
+  UINT64    S7;
+  UINT64    S8;
+  UINT64    SP;
+  UINT64    FP;
+  UINT64    RA;
+} BASE_LIBRARY_JUMP_BUFFER;
+
+#define BASE_LIBRARY_JUMP_BUFFER_ALIGNMENT  8
+
+#endif // defined (MDE_CPU_LOONGARCH64)
+
 //
 // String Services
 //
