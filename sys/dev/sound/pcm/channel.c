@@ -1176,7 +1176,7 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
 	char buf[CHN_NAMELEN];
-	int err, i, direction;
+	int err, i, direction, *vchanrate, *vchanformat;
 
 	PCM_BUSYASSERT(d);
 	PCM_LOCKASSERT(d);
@@ -1189,6 +1189,8 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		if (dir == PCMDIR_PLAY_VIRTUAL)
 			d->pvchancount++;
 		direction = PCMDIR_PLAY;
+		vchanrate = &d->pvchanrate;
+		vchanformat = &d->pvchanformat;
 		break;
 	case PCMDIR_REC:
 		d->reccount++;
@@ -1197,6 +1199,8 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		if (dir == PCMDIR_REC_VIRTUAL)
 			d->rvchancount++;
 		direction = PCMDIR_REC;
+		vchanrate = &d->rvchanrate;
+		vchanformat = &d->rvchanformat;
 		break;
 	default:
 		device_printf(d->dev,
@@ -1301,8 +1305,12 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 
 	PCM_LOCK(d);
 	CHN_INSERT_SORT_ASCEND(d, c, channels.pcm);
-	if ((c->flags & CHN_F_VIRTUAL) == 0)
+	if ((c->flags & CHN_F_VIRTUAL) == 0) {
 		CHN_INSERT_SORT_ASCEND(d, c, channels.pcm.primary);
+		/* Initialize the *vchanrate/vchanformat parameters. */
+		*vchanrate = sndbuf_getspd(c->bufsoft);
+		*vchanformat = sndbuf_getfmt(c->bufsoft);
+	}
 
 	return (c);
 
