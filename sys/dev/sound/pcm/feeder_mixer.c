@@ -337,9 +337,11 @@ feed_mixer_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 						feed_mixer_apply(tmp, b, cnt,
 						    AFMT_S32_NE);
 						break;
+					default:
+						feed_mixer_apply(tmp, b, cnt,
+						    info->format);
+						break;
 					}
-					feed_mixer_apply(tmp, b, cnt,
-					    info->format);
 					if (cnt > rcnt)
 						rcnt = cnt;
 				}
