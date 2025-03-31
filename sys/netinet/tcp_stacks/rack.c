@@ -610,8 +610,9 @@ rack_swap_beta_values(struct tcp_rack *rack, uint8_t flex8)
 {
 	struct sockopt sopt;
 	struct cc_newreno_opts opt;
-	struct newreno old;
 	struct tcpcb *tp;
+	uint32_t old_beta;
+	uint32_t old_beta_ecn;
 	int error, failed = 0;
 
 	tp = rack->rc_tp;
@@ -631,7 +632,6 @@ rack_swap_beta_values(struct tcp_rack *rack, uint8_t flex8)
 		failed = 2;
 		goto out;
 	}
-	old.newreno_flags = CC_NEWRENO_BETA_ECN_ENABLED;
 	/* Get the current values out */
 	sopt.sopt_valsize = sizeof(struct cc_newreno_opts);
 	sopt.sopt_dir = SOPT_GET;
@@ -641,33 +641,34 @@ rack_swap_beta_values(struct tcp_rack *rack, uint8_t flex8)
 		failed = 3;
 		goto out;
 	}
-	old.beta = opt.val;
+	old_beta = opt.val;
 	opt.name = CC_NEWRENO_BETA_ECN;
 	error = CC_ALGO(tp)->ctl_output(&tp->t_ccv, &sopt, &opt);
 	if (error)  {
 		failed = 4;
 		goto out;
 	}
-	old.beta_ecn = opt.val;
+	old_beta_ecn = opt.val;
 
 	/* Now lets set in the values we have stored */
 	sopt.sopt_dir = SOPT_SET;
 	opt.name = CC_NEWRENO_BETA;
-	opt.val = rack->r_ctl.rc_saved_beta.beta;
+	opt.val = rack->r_ctl.rc_saved_beta;
 	error = CC_ALGO(tp)->ctl_output(&tp->t_ccv, &sopt, &opt);
 	if (error)  {
 		failed = 5;
 		goto out;
 	}
 	opt.name = CC_NEWRENO_BETA_ECN;
-	opt.val = rack->r_ctl.rc_saved_beta.beta_ecn;
+	opt.val = rack->r_ctl.rc_saved_beta_ecn;
 	error = CC_ALGO(tp)->ctl_output(&tp->t_ccv, &sopt, &opt);
 	if (error) {
 		failed = 6;
 		goto out;
 	}
 	/* Save off the values for restoral */
-	memcpy(&rack->r_ctl.rc_saved_beta, &old, sizeof(struct newreno));
+	rack->r_ctl.rc_saved_beta = old_beta;
+	rack->r_ctl.rc_saved_beta_ecn = old_beta_ecn;
 out:
 	if (rack_verbose_logging && tcp_bblogging_on(rack->rc_tp)) {
 		union tcp_log_stackspecific log;
@@ -680,8 +681,8 @@ out:
 		log.u_bbr.flex1 = ptr->beta;
 		log.u_bbr.flex2 = ptr->beta_ecn;
 		log.u_bbr.flex3 = ptr->newreno_flags;
-		log.u_bbr.flex4 = rack->r_ctl.rc_saved_beta.beta;
-		log.u_bbr.flex5 = rack->r_ctl.rc_saved_beta.beta_ecn;
+		log.u_bbr.flex4 = rack->r_ctl.rc_saved_beta;
+		log.u_bbr.flex5 = rack->r_ctl.rc_saved_beta_ecn;
 		log.u_bbr.flex6 = failed;
 		log.u_bbr.flex7 = rack->gp_ready;
 		log.u_bbr.flex7 <<= 1;
@@ -15059,7 +15060,7 @@ rack_init(struct tcpcb *tp, void **ptr)
 	rack->rc_new_rnd_needed = 1;
 	rack->r_ctl.rc_split_limit = V_tcp_map_split_limit;
 	/* We want abe like behavior as well */
-	rack->r_ctl.rc_saved_beta.newreno_flags |= CC_NEWRENO_BETA_ECN_ENABLED;
+
 	rack->r_ctl.rc_reorder_fade = rack_reorder_fade;
 	rack->rc_allow_data_af_clo = rack_ignore_data_after_close;
 	rack->r_ctl.rc_tlp_threshold = rack_tlp_thresh;
@@ -15095,13 +15096,13 @@ rack_init(struct tcpcb *tp, void **ptr)
 	rack->rc_user_set_max_segs = rack_hptsi_segments;
 	rack->rc_force_max_seg = 0;
 	TAILQ_INIT(&rack->r_ctl.opt_list);
-	rack->r_ctl.rc_saved_beta.beta = V_newreno_beta_ecn;
-	rack->r_ctl.rc_saved_beta.beta_ecn = V_newreno_beta_ecn;
+	rack->r_ctl.rc_saved_beta = V_newreno_beta_ecn;
+	rack->r_ctl.rc_saved_beta_ecn = V_newreno_beta_ecn;
 	if (rack_hibeta_setting) {
 		rack->rack_hibeta = 1;
 		if ((rack_hibeta_setting >= 50) &&
 		    (rack_hibeta_setting <= 100)) {
-			rack->r_ctl.rc_saved_beta.beta = rack_hibeta_setting;
+			rack->r_ctl.rc_saved_beta = rack_hibeta_setting;
 			rack->r_ctl.saved_hibeta = rack_hibeta_setting;
 		}
 	} else {
@@ -23051,7 +23052,7 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 				rack->r_ctl.saved_hibeta = optval;
 				if (rack->rc_pacing_cc_set)
 					rack_undo_cc_pacing(rack);
-				rack->r_ctl.rc_saved_beta.beta = optval;
+				rack->r_ctl.rc_saved_beta = optval;
 			}
 			if (rack->rc_pacing_cc_set == 0)
 				rack_set_cc_pacing(rack);
@@ -23088,7 +23089,7 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 			 * Not pacing yet so set it into our local
 			 * rack pcb storage.
 			 */
-			rack->r_ctl.rc_saved_beta.beta = optval;
+			rack->r_ctl.rc_saved_beta = optval;
 		}
 		break;
 	case TCP_RACK_TIMER_SLOP:
@@ -23129,8 +23130,7 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 			 * Not pacing yet so set it into our local
 			 * rack pcb storage.
 			 */
-			rack->r_ctl.rc_saved_beta.beta_ecn = optval;
-			rack->r_ctl.rc_saved_beta.newreno_flags = CC_NEWRENO_BETA_ECN_ENABLED;
+			rack->r_ctl.rc_saved_beta_ecn = optval;
 		}
 		break;
 	case TCP_DEFER_OPTIONS:
@@ -23680,7 +23680,6 @@ rack_process_option(struct tcpcb *tp, struct tcp_rack *rack, int sopt_name,
 	return (error);
 }
 
-
 static void
 rack_apply_deferred_options(struct tcp_rack *rack)
 {
@@ -24050,7 +24049,7 @@ rack_get_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 		if (strcmp(tp->t_cc->name, CCALGONAME_NEWRENO) != 0)
 			error = EINVAL;
 		else if (rack->rc_pacing_cc_set == 0)
-			optval = rack->r_ctl.rc_saved_beta.beta;
+			optval = rack->r_ctl.rc_saved_beta;
 		else {
 			/*
 			 * Reach out into the CC data and report back what
@@ -24074,7 +24073,7 @@ rack_get_sockopt(struct tcpcb *tp, struct sockopt *sopt)
 		if (strcmp(tp->t_cc->name, CCALGONAME_NEWRENO) != 0)
 			error = EINVAL;
 		else if (rack->rc_pacing_cc_set == 0)
-			optval = rack->r_ctl.rc_saved_beta.beta_ecn;
+			optval = rack->r_ctl.rc_saved_beta_ecn;
 		else {
 			/*
 			 * Reach out into the CC data and report back what
