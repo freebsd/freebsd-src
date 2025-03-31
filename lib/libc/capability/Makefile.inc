@@ -9,6 +9,7 @@ MAN+=	cap_rights_init.3
 
 MLINKS+=cap_rights_init.3 cap_rights_set.3
 MLINKS+=cap_rights_init.3 cap_rights_clear.3
+MLINKS+=cap_rights_init.3 cap_rights_is_empty.3
 MLINKS+=cap_rights_init.3 cap_rights_is_set.3
 MLINKS+=cap_rights_init.3 cap_rights_is_valid.3
 MLINKS+=cap_rights_init.3 cap_rights_merge.3

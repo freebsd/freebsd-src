@@ -237,6 +237,33 @@ rtwn_pci_tx_report(struct rtwn_pci_softc *pc, int len)
 }
 
 static void
+rtwn_pci_tx_report2(struct rtwn_pci_softc *pc, int len)
+{
+	struct rtwn_softc *sc = &pc->pc_sc;
+
+	if (sc->sc_ratectl != RTWN_RATECTL_NET80211) {
+		/* shouldn't happen */
+		device_printf(sc->sc_dev,
+		    "%s called while ratectl = %d!\n",
+		     __func__, sc->sc_ratectl);
+		return;
+	}
+
+	RTWN_NT_LOCK(sc);
+	rtwn_handle_tx_report2(sc, pc->pc_rx_buf, len);
+	RTWN_NT_UNLOCK(sc);
+
+#ifdef IEEE80211_SUPPORT_SUPERG
+	/*
+	 * NB: this will executed only when 'report' bit is set.
+	 */
+	if (sc->sc_tx_n_active > 0 && --sc->sc_tx_n_active <= 1)
+		rtwn_cmd_sleepable(sc, NULL, 0, rtwn_ff_flush_all);
+#endif
+}
+
+
+static void
 rtwn_pci_c2h_report(struct rtwn_pci_softc *pc, int len)
 {
 	rtwn_handle_c2h_report(&pc->pc_sc, pc->pc_rx_buf, len);
@@ -340,6 +367,9 @@ rtwn_pci_rx_done(struct rtwn_softc *sc)
 			break;
 		case RTWN_RX_TX_REPORT:
 			rtwn_pci_tx_report(pc, len);
+			break;
+		case RTWN_RX_TX_REPORT2:
+			rtwn_pci_tx_report2(pc, len);
 			break;
 		case RTWN_RX_OTHER:
 			rtwn_pci_c2h_report(pc, len);

@@ -585,15 +585,17 @@ struct ieee80211_mimo_info {
 #define	IEEE80211_RX_F_AMPDU		0x00000010 /* This is the start of an decap AMPDU list */
 #define	IEEE80211_RX_F_AMPDU_MORE	0x00000020 /* This is another decap AMPDU frame in the batch */
 #define	IEEE80211_RX_F_FAIL_FCSCRC	0x00000040 /* Failed CRC/FCS */
-#define	IEEE80211_RX_F_FAIL_MIC		0x00000080 /* Failed MIC check */
+#define	IEEE80211_RX_F_FAIL_MMIC	0x00000080 /* Failed Michael MIC (MMIC) check */
 #define	IEEE80211_RX_F_DECRYPTED	0x00000100 /* Hardware decrypted */
 #define	IEEE80211_RX_F_IV_STRIP		0x00000200 /* Decrypted; IV stripped */
-#define	IEEE80211_RX_F_MMIC_STRIP	0x00000400 /* Decrypted; MMIC stripped */
+#define	IEEE80211_RX_F_MMIC_STRIP	0x00000400 /* Decrypted; Michael MIC (MMIC) stripped */
 #define	IEEE80211_RX_F_SHORTGI		0x00000800 /* This is a short-GI frame */
 #define	IEEE80211_RX_F_CCK		0x00001000
 #define	IEEE80211_RX_F_OFDM		0x00002000
 #define	IEEE80211_RX_F_HT		0x00004000
 #define	IEEE80211_RX_F_VHT		0x00008000
+#define	IEEE80211_RX_F_PN_VALIDATED	0x00010000 /* Decrypted; PN validated */
+#define	IEEE80211_RX_F_MIC_STRIP	0x00020000 /* Decrypted; MIC stripped */
 
 /* Channel width */
 #define	IEEE80211_RX_FW_20MHZ		1

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
  *  Copyright (C) 2007 The Regents of the University of California.
@@ -42,7 +43,7 @@
 #define	TS_ZOMB				EXIT_ZOMBIE
 #define	TS_STOPPED			TASK_STOPPED
 
-typedef void (*thread_func_t)(void *);
+typedef void (*thread_func_t)(void *) __attribute__((noreturn));
 
 #define	thread_create_named(name, stk, stksize, func, arg, len,	\
     pp, state, pri)	\

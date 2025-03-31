@@ -68,14 +68,6 @@
 #define	W_SEP	" \t"		/* "Whitespace" list separators */
 #define	T_SEP	","		/* "Terminate-element" list separators */
 
-#ifdef LAZY_PS
-#define	DEF_UREAD	0
-#define	OPT_LAZY_f	"f"
-#else
-#define	DEF_UREAD	1	/* Always do the more-expensive read. */
-#define	OPT_LAZY_f		/* I.e., the `-f' option is not added. */
-#endif
-
 /*
  * isdigit takes an `int', but expects values in the range of unsigned char.
  * This wrapper ensures that values from a 'char' end up in the correct range.
@@ -92,7 +84,6 @@ int	 showthreads;		/* will threads be shown? */
 
 struct velisthead varlist = STAILQ_HEAD_INITIALIZER(varlist);
 
-static int	 forceuread = DEF_UREAD; /* Do extra work to get u-area. */
 static kvm_t	*kd;
 static int	 needcomm;	/* -o "command" */
 static int	 needenv;	/* -e */
@@ -154,7 +145,7 @@ static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,"
 			"%cpu,%mem,command";
 static char Zfmt[] = "label";
 
-#define	PS_ARGS	"AaCcD:de" OPT_LAZY_f "G:gHhjJ:LlM:mN:O:o:p:rSTt:U:uvwXxZ"
+#define	PS_ARGS	"AaCcD:defG:gHhjJ:LlM:mN:O:o:p:rSTt:U:uvwXxZ"
 
 int
 main(int argc, char *argv[])
@@ -272,12 +263,9 @@ main(int argc, char *argv[])
 		case 'e':			/* XXX set ufmt */
 			needenv = 1;
 			break;
-#ifdef LAZY_PS
 		case 'f':
-			if (getuid() == 0 || getgid() == 0)
-				forceuread = 1;
+			/* compat */
 			break;
-#endif
 		case 'G':
 			add_list(&gidlist, optarg);
 			xkeep_implied = 1;
@@ -1276,38 +1264,24 @@ fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
 	return (s);
 }
 
-#define UREADOK(ki)	(forceuread || (ki->ki_p->ki_flag & P_INMEM))
-
 static void
 saveuser(KINFO *ki)
 {
 	char tdname[COMMLEN + 1];
-	char *argsp;
 
-	if (ki->ki_p->ki_flag & P_INMEM) {
-		/*
-		 * The u-area might be swapped out, and we can't get
-		 * at it because we have a crashdump and no swap.
-		 * If it's here fill in these fields, otherwise, just
-		 * leave them 0.
-		 */
-		ki->ki_valid = 1;
-	} else
-		ki->ki_valid = 0;
+	ki->ki_valid = 1;
+
 	/*
 	 * save arguments if needed
 	 */
 	if (needcomm) {
 		if (ki->ki_p->ki_stat == SZOMB) {
 			ki->ki_args = strdup("<defunct>");
-		} else if (UREADOK(ki) || (ki->ki_p->ki_args != NULL)) {
+		} else {
 			(void)snprintf(tdname, sizeof(tdname), "%s%s",
 			    ki->ki_p->ki_tdname, ki->ki_p->ki_moretdname);
 			ki->ki_args = fmt(kvm_getargv, ki,
 			    ki->ki_p->ki_comm, tdname, COMMLEN * 2 + 1);
-		} else {
-			asprintf(&argsp, "(%s)", ki->ki_p->ki_comm);
-			ki->ki_args = argsp;
 		}
 		if (ki->ki_args == NULL)
 			xo_errx(1, "malloc failed");
@@ -1315,11 +1289,8 @@ saveuser(KINFO *ki)
 		ki->ki_args = NULL;
 	}
 	if (needenv) {
-		if (UREADOK(ki))
-			ki->ki_env = fmt(kvm_getenvv, ki,
-			    (char *)NULL, (char *)NULL, 0);
-		else
-			ki->ki_env = strdup("()");
+		ki->ki_env = fmt(kvm_getenvv, ki, (char *)NULL,
+		    (char *)NULL, 0);
 		if (ki->ki_env == NULL)
 			xo_errx(1, "malloc failed");
 	} else {
@@ -1479,7 +1450,7 @@ pidmax_init(void)
 static void __dead2
 usage(void)
 {
-#define	SINGLE_OPTS	"[-aCcde" OPT_LAZY_f "HhjlmrSTuvwXxZ]"
+#define	SINGLE_OPTS	"[-aCcdeHhjlmrSTuvwXxZ]"
 
 	xo_error("%s\n%s\n%s\n%s\n%s\n",
 	    "usage: ps [--libxo] " SINGLE_OPTS " [-O fmt | -o fmt]",

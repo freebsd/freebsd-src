@@ -112,10 +112,10 @@ struct amdtemp_softc {
 #define	DEVICEID_AMD_HOSTB17H_ROOT	0x1450
 #define	DEVICEID_AMD_HOSTB17H_M10H_ROOT	0x15d0
 #define	DEVICEID_AMD_HOSTB17H_M30H_ROOT	0x1480	/* Also M70H, F19H M00H/M20H */
-#define	DEVICEID_AMD_HOSTB17H_M60H_ROOT	0x1630
+#define	DEVICEID_AMD_HOSTB17H_M60H_ROOT	0x1630	/* Also F19H M50H */
 #define	DEVICEID_AMD_HOSTB19H_M10H_ROOT	0x14a4
 #define	DEVICEID_AMD_HOSTB19H_M40H_ROOT	0x14b5
-#define	DEVICEID_AMD_HOSTB19H_M60H_ROOT	0x14d8
+#define	DEVICEID_AMD_HOSTB19H_M60H_ROOT	0x14d8	/* Also F1AH M40H */
 #define	DEVICEID_AMD_HOSTB19H_M70H_ROOT	0x14e8
 
 static const struct amdtemp_product {
@@ -230,6 +230,7 @@ static int32_t	amdtemp_gettemp15hm60h(device_t dev, amdsensor_t sensor);
 static int32_t	amdtemp_gettemp17h(device_t dev, amdsensor_t sensor);
 static void	amdtemp_probe_ccd_sensors17h(device_t dev, uint32_t model);
 static void	amdtemp_probe_ccd_sensors19h(device_t dev, uint32_t model);
+static void	amdtemp_probe_ccd_sensors1ah(device_t dev, uint32_t model);
 static int	amdtemp_sysctl(SYSCTL_HANDLER_ARGS);
 
 static device_method_t amdtemp_methods[] = {
@@ -317,6 +318,7 @@ amdtemp_probe(device_t dev)
 	case 0x16:
 	case 0x17:
 	case 0x19:
+	case 0x1a:
 		break;
 	default:
 		return (ENXIO);
@@ -476,6 +478,7 @@ amdtemp_attach(device_t dev)
 		break;
 	case 0x17:
 	case 0x19:
+	case 0x1a:
 		sc->sc_ntemps = 1;
 		sc->sc_gettemp = amdtemp_gettemp17h;
 		needsmn = true;
@@ -539,6 +542,8 @@ amdtemp_attach(device_t dev)
 		amdtemp_probe_ccd_sensors17h(dev, model);
 	else if (family == 0x19)
 		amdtemp_probe_ccd_sensors19h(dev, model);
+	else if (family == 0x1a)
+		amdtemp_probe_ccd_sensors1ah(dev, model);
 	else if (sc->sc_ntemps > 1) {
 		SYSCTL_ADD_PROC(sysctlctx,
 		    SYSCTL_CHILDREN(sysctlnode),
@@ -868,6 +873,7 @@ amdtemp_probe_ccd_sensors19h(device_t dev, uint32_t model)
 	switch (model) {
 	case 0x00 ... 0x0f: /* Zen3 EPYC "Milan" */
 	case 0x20 ... 0x2f: /* Zen3 Ryzen "Vermeer" */
+	case 0x50 ... 0x5f: /* Zen3 Ryzen "Cezanne" */
 		maxreg = 8;
 		_Static_assert((int)NUM_CCDS >= 8, "");
 		break;
@@ -886,6 +892,27 @@ amdtemp_probe_ccd_sensors19h(device_t dev, uint32_t model)
 	default:
 		device_printf(dev,
 		    "Unrecognized Family 19h Model: %02xh\n", model);
+		return;
+	}
+
+	amdtemp_probe_ccd_sensors(dev, maxreg);
+}
+
+static void
+amdtemp_probe_ccd_sensors1ah(device_t dev, uint32_t model)
+{
+	struct amdtemp_softc *sc = device_get_softc(dev);
+	uint32_t maxreg;
+
+	switch (model) {
+	case 0x40 ... 0x4f: /* Zen5 Ryzen "Granite Ridge" */
+		sc->sc_temp_base = AMDTEMP_ZEN4_CCD_TMP_BASE;
+		maxreg = 8;
+		_Static_assert((int)NUM_CCDS >= 8, "");
+		break;
+	default:
+		device_printf(dev,
+		    "Unrecognized Family 1ah Model: %02xh\n", model);
 		return;
 	}
 

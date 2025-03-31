@@ -28,11 +28,9 @@
  */
 
 #include <sys/param.h>
-#include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <sys/systm.h>
 #include <sys/assym.h>
-#include <sys/intr.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/mbuf.h>
@@ -130,8 +128,6 @@ ASSYM(DCACHE_LINE_SIZE, offsetof(struct cpuinfo, dcache_line_size));
 ASSYM(DCACHE_LINE_MASK, offsetof(struct cpuinfo, dcache_line_mask));
 ASSYM(ICACHE_LINE_SIZE, offsetof(struct cpuinfo, icache_line_size));
 ASSYM(ICACHE_LINE_MASK, offsetof(struct cpuinfo, icache_line_mask));
-
-ASSYM(INTR_ROOT_IRQ, INTR_ROOT_IRQ);
 
 /*
  * Emit the LOCORE_MAP_MB option as a #define only if the option was set.

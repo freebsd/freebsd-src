@@ -186,27 +186,18 @@ main(int argc, char **argv)
 		 * No path prefix was given, so try in this order:
 		 *     /dev/r%s
 		 *     /dev/%s
-		 *     /dev/vinum/r%s
-		 *     /dev/vinum/%s.
 		 * 
-		 * FreeBSD now doesn't distinguish between raw and  block
+		 * FreeBSD now doesn't distinguish between raw and block
 		 * devices any longer, but it should still work this way.
 		 */
-		len = strlen(device) + strlen(_PATH_DEV) + 2 + strlen("vinum/");
+		len = strlen(device) + strlen(_PATH_DEV) + 2;
 		special = (char *)malloc(len);
 		if (special == NULL)
 			errx(1, "malloc failed");
 		snprintf(special, len, "%sr%s", _PATH_DEV, device);
 		if (stat(special, &st) == -1) {
+			/* For now this is the 'last resort' */
 			snprintf(special, len, "%s%s", _PATH_DEV, device);
-			if (stat(special, &st) == -1) {
-				snprintf(special, len, "%svinum/r%s",
-				    _PATH_DEV, device);
-				if (stat(special, &st) == -1)
-					/* For now this is the 'last resort' */
-					snprintf(special, len, "%svinum/%s",
-					    _PATH_DEV, device);
-			}
 		}
 		device = special;
 	}

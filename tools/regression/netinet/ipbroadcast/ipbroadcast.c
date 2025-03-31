@@ -91,9 +91,6 @@ usage(void)
 	fprintf(stderr, "-p: Set local and remote port (default: %d)\n",
 	    DEFAULT_PORT);
 	fprintf(stderr, "-R: Use raw IP (protocol %d)\n", IPPROTO_ZEROHOP);
-#if 0
-	fprintf(stderr, "-r: Fill datagram with random bytes\n");
-#endif
 	fprintf(stderr, "-s: Set IP_SENDSRCADDR to <srcaddr>\n");
 	fprintf(stderr, "-t: Set IP_TTL to <ttl>\n");
 
@@ -109,10 +106,8 @@ main(int argc, char *argv[])
 	struct msghdr		 msg;
 	struct sockaddr_in	 dsin;
 	struct sockaddr_in	 laddr;
-	struct sockaddr_dl	*sdl;
 	struct cmsghdr		*cmsgp;
 	struct in_addr		 dstaddr;
-	struct in_addr		*srcaddrp;
 	char			*ifname;
 	char			*laddr_s;
 	char			*srcaddr_s;
@@ -121,7 +116,6 @@ main(int argc, char *argv[])
 	int			 dobroadcast;
 	int			 dontroute;
 	int			 doonesbcast;
-	int			 dorandom;
 	int			 dorawip;
 	size_t			 buflen;
 	ssize_t			 nbytes;
@@ -136,7 +130,6 @@ main(int argc, char *argv[])
 	dobroadcast = 0;
 	dontroute = 0;
 	doonesbcast = 0;
-	dorandom = 0;
 	dorawip = 0;
 
 	ifname = NULL;
@@ -150,7 +143,7 @@ main(int argc, char *argv[])
 	buflen = DEFAULT_PAYLOAD_SIZE;
 
 	progname = basename(argv[0]);
-	while ((ch = getopt(argc, argv, "1A:bBdi:l:p:Rrs:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "1A:bBdi:l:p:Rs:t:")) != -1) {
 		switch (ch) {
 		case '1':
 			doonesbcast = 1;
@@ -178,9 +171,6 @@ main(int argc, char *argv[])
 			break;
 		case 'R':
 			dorawip = 1;
-			break;
-		case 'r':
-			dorandom = 1;
 			break;
 		case 's':
 			srcaddr_s = optarg;
@@ -311,8 +301,9 @@ main(int argc, char *argv[])
 		cmsgp->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
 		cmsgp->cmsg_level = IPPROTO_IP;
 		cmsgp->cmsg_type = IP_SENDSRCADDR;
-		srcaddrp = (struct in_addr *)CMSG_DATA(cmsgp);
-		srcaddrp->s_addr = inet_addr(srcaddr_s);
+		memcpy(CMSG_DATA(cmsgp),
+		    &(struct in_addr){ inet_addr(srcaddr_s) },
+		    sizeof(struct in_addr));
 	}
 
 	if (ifname != NULL) {
@@ -327,13 +318,11 @@ main(int argc, char *argv[])
 		fprintf(stderr, "DEBUG: cmsgp->cmsg_len is %d\n",
 		    cmsgp->cmsg_len);
 #endif
-
-		sdl = (struct sockaddr_dl *)CMSG_DATA(cmsgp);
-		memset(sdl, 0, sizeof(struct sockaddr_dl));
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_len = sizeof(struct sockaddr_dl);
-		sdl->sdl_index = if_nametoindex(ifname);
-
+		memcpy(CMSG_DATA(cmsgp), &(struct sockaddr_dl){
+		    .sdl_family = AF_LINK,
+		    .sdl_len = sizeof(struct sockaddr_dl),
+		    .sdl_index = if_nametoindex(ifname) },
+		    sizeof(struct sockaddr_dl));
 #ifdef DIAGNOSTIC
 		fprintf(stderr, "DEBUG: sdl->sdl_family is %d\n",
 		    sdl->sdl_family);

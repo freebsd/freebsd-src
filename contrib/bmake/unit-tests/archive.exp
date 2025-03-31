@@ -18,6 +18,18 @@ list-archive-wildcard: archive-suffix.mk
 list-archive-wildcard: archive.mk
 list-archive-wildcard: ternary.mk
 
+make: "archive.mk" line 61: Error in source archive spec "libprog.a${UNDEF}(archive.mk) pre post"
+	in directory <curdir>
+make: Fatal errors encountered -- cannot continue
+make: stopped making "list-archive-undef-archive" in unit-tests
+exit 1
+
+make: "archive.mk" line 68: Error in source archive spec "libprog.a"
+	in directory <curdir>
+make: Fatal errors encountered -- cannot continue
+make: stopped making "list-archive-undef-member" in unit-tests
+exit 1
+
 Making depend-on-existing-member out-of-date archive.mk
 depend-on-existing-member
 

@@ -200,6 +200,7 @@ struct iwm_nvm_data {
 	int sku_cap_11n_enable;
 	int sku_cap_amt_enable;
 	int sku_cap_ipan_enable;
+	int sku_cap_mimo_disable;
 
 	uint8_t radio_cfg_type;
 	uint8_t radio_cfg_step;

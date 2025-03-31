@@ -267,19 +267,17 @@ hidbus_attach_children(device_t dev)
 	 * attach twice in that case.
 	 */
 	sc->nest++;
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	sc->nest--;
 	if (sc->nest != 0)
 		return (0);
 
 	if (hid_is_keyboard(sc->rdesc.data, sc->rdesc.len) != 0)
-		error = bus_generic_attach(dev);
+		bus_attach_children(dev);
 	else
-		error = bus_delayed_attach_children(dev);
-	if (error != 0)
-		device_printf(dev, "failed to attach child: error %d\n", error);
+		bus_delayed_attach_children(dev);
 
-	return (error);
+	return (0);
 }
 
 static int
@@ -299,8 +297,7 @@ hidbus_detach_children(device_t dev)
 
 	if (is_bus) {
 		/* If hidbus is passed, delete all children. */
-		bus_generic_detach(bus);
-		device_delete_children(bus);
+		error = bus_generic_detach(bus);
 	} else {
 		/*
 		 * If hidbus child is passed, delete all hidbus children

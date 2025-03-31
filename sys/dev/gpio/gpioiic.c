@@ -321,7 +321,8 @@ gpioiic_attach(device_t dev)
 
 	/* Add the bitbang driver as our only child; it will add iicbus. */
 	device_add_child(sc->dev, "iicbb", DEVICE_UNIT_ANY);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int
@@ -330,7 +331,7 @@ gpioiic_detach(device_t dev)
 	struct gpioiic_softc *sc = device_get_softc(dev);
 	int err;
 
-	if ((err = bus_generic_detach(dev)) != 0)
+	if ((err = bus_detach_children(dev)) != 0)
 		return (err);
 
 	gpioiic_cleanup(sc);

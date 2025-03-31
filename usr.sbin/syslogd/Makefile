@@ -13,6 +13,13 @@ SYSLOGD_DPACAKGE=	syslogd
 
 LIBADD=	util
 
+.if ${MK_CASPER} != "no"
+SRCS+=	syslogd_cap.c \
+	syslogd_cap_config.c \
+	syslogd_cap_log.c
+CFLAGS+= -DWITH_CASPER
+LIBADD+= cap_net casper nv
+.endif
 .if ${MK_INET_SUPPORT} != "no"
 CFLAGS+= -DINET
 .endif

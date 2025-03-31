@@ -237,7 +237,6 @@ struct dmar_ctx *dmar_get_ctx_for_devpath(struct dmar_unit *dmar, uint16_t rid,
 int dmar_move_ctx_to_domain(struct dmar_domain *domain, struct dmar_ctx *ctx);
 void dmar_free_ctx_locked_method(struct iommu_unit *dmar,
     struct iommu_ctx *ctx);
-void dmar_free_ctx_method(struct iommu_ctx *ctx);
 struct dmar_ctx *dmar_find_ctx_locked(struct dmar_unit *dmar, uint16_t rid);
 struct iommu_ctx *dmar_get_ctx(struct iommu_unit *iommu, device_t dev,
     uint16_t rid, bool id_mapped, bool rmrr_init);

@@ -158,6 +158,9 @@ rtwn_chan2centieee(const struct ieee80211_channel *c)
 {
 	int chan;
 
+	if (IEEE80211_IS_CHAN_VHT(c))
+		return c->ic_vht_ch_freq1;
+
 	chan = c->ic_ieee;
 	if (c->ic_extieee != 0)
 		chan = (chan + c->ic_extieee) / 2;

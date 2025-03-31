@@ -55,7 +55,6 @@
    identify exactly which byte is causing the termination, and why.  */
 
 ENTRY (__strrchr_aarch64)
-	PTR_ARG (0)
 	/* Magic constant 0x40100401 to allow us to identify which lane
 	   matches the requested byte.  Magic constant 0x80200802 used
 	   similarly for NUL termination.  */

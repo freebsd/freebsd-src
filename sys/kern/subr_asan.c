@@ -405,6 +405,9 @@ kasan_shadow_check(unsigned long addr, size_t size, bool write,
 
 	if (__predict_false(!kasan_enabled))
 		return;
+	if (__predict_false(curthread != NULL &&
+	    (curthread->td_pflags2 & TDP2_SAN_QUIET) != 0))
+		return;
 	if (__predict_false(size == 0))
 		return;
 	if (__predict_false(kasan_md_unsupported(addr)))
@@ -757,7 +760,7 @@ kasan_casueword(volatile u_long *base, u_long oldval, u_long *oldvalp,
 	}
 
 #define	_ASAN_ATOMIC_FUNC_LOAD(name, type)				\
-	type kasan_atomic_load_##name(volatile type *ptr)		\
+	type kasan_atomic_load_##name(const volatile type *ptr)		\
 	{								\
 		kasan_shadow_check((uintptr_t)ptr, sizeof(type), true,	\
 		    __RET_ADDR);					\
@@ -827,11 +830,13 @@ ASAN_ATOMIC_FUNC_TESTANDCLEAR(32, uint32_t);
 ASAN_ATOMIC_FUNC_TESTANDCLEAR(64, uint64_t);
 ASAN_ATOMIC_FUNC_TESTANDCLEAR(int, u_int);
 ASAN_ATOMIC_FUNC_TESTANDCLEAR(long, u_long);
+ASAN_ATOMIC_FUNC_TESTANDCLEAR(ptr, uintptr_t);
 
 ASAN_ATOMIC_FUNC_TESTANDSET(32, uint32_t);
 ASAN_ATOMIC_FUNC_TESTANDSET(64, uint64_t);
 ASAN_ATOMIC_FUNC_TESTANDSET(int, u_int);
 ASAN_ATOMIC_FUNC_TESTANDSET(long, u_long);
+ASAN_ATOMIC_FUNC_TESTANDSET(ptr, uintptr_t);
 
 ASAN_ATOMIC_FUNC_SWAP(32, uint32_t);
 ASAN_ATOMIC_FUNC_SWAP(64, uint64_t);

@@ -141,6 +141,7 @@ r12a_attach_private(struct rtwn_softc *sc)
 	rs->rs_iq_calib_sw		= r12a_iq_calib_sw;
 
 	rs->ampdu_max_time		= 0x70;
+	rs->ampdu_max_size		= 0x1ffff; /* 128k */
 
 	sc->sc_priv = rs;
 }
@@ -173,7 +174,25 @@ r12au_adj_devcaps(struct rtwn_softc *sc)
 				 IEEE80211_HTC_TXLDPC;
 	}
 
-	/* TODO: STBC, VHT etc */
+	ic->ic_htcaps |=
+	    IEEE80211_HTCAP_CHWIDTH40 | /* 40 MHz channel width */
+	    IEEE80211_HTCAP_SHORTGI40 /* short GI in 40MHz */
+	;
+
+	/* TODO: STBC */
+
+	/* VHT config */
+	ic->ic_flags_ext |= IEEE80211_FEXT_VHT;
+	ic->ic_vht_cap.vht_cap_info =
+	    IEEE80211_VHTCAP_MAX_MPDU_LENGTH_11454 |
+	    IEEE80211_VHTCAP_SHORT_GI_80 |
+	    IEEE80211_VHTCAP_TXSTBC |
+	    IEEE80211_VHTCAP_RXSTBC_1 |
+	    IEEE80211_VHTCAP_HTC_VHT |
+	    _IEEE80211_SHIFTMASK(7,
+	      IEEE80211_VHTCAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK);
+
+	rtwn_attach_vht_cap_info_mcs(sc);
 }
 
 void
@@ -200,6 +219,7 @@ r12au_attach(struct rtwn_usb_softc *uc)
 	sc->sc_get_rssi_ofdm		= r88e_get_rssi_ofdm;
 	sc->sc_classify_intr		= r12au_classify_intr;
 	sc->sc_handle_tx_report		= r12a_ratectl_tx_complete;
+	sc->sc_handle_tx_report2	= rtwn_nop_softc_uint8_int;
 	sc->sc_handle_c2h_report	= r12a_handle_c2h_report;
 	sc->sc_check_frame		= r12a_check_frame_checksum;
 	sc->sc_rf_write			= r12a_rf_write;
@@ -231,6 +251,7 @@ r12au_attach(struct rtwn_usb_softc *uc)
 #endif
 	sc->sc_beacon_init		= r12a_beacon_init;
 	sc->sc_beacon_enable		= r92c_beacon_enable;
+	sc->sc_sta_beacon_enable	= r12a_sta_beacon_enable;
 	sc->sc_beacon_set_rate		= r12a_beacon_set_rate;
 	sc->sc_beacon_select		= rtwn_nop_softc_int;
 	sc->sc_temp_measure		= r88e_temp_measure;
@@ -245,6 +266,7 @@ r12au_attach(struct rtwn_usb_softc *uc)
 	sc->sc_init_antsel		= r12a_init_antsel;
 	sc->sc_post_init		= r12au_post_init;
 	sc->sc_init_bcnq1_boundary	= rtwn_nop_int_softc;
+	sc->sc_set_tx_power		= rtwn_nop_int_softc_vap;
 
 	sc->chan_list_5ghz[0]		= r12a_chan_5ghz_0;
 	sc->chan_list_5ghz[1]		= r12a_chan_5ghz_1;
@@ -290,6 +312,8 @@ r12au_attach(struct rtwn_usb_softc *uc)
 
 	sc->ntxchains			= 2;
 	sc->nrxchains			= 2;
+
+	sc->sc_ht40			= 1;
 
 	r12a_attach_private(sc);
 }

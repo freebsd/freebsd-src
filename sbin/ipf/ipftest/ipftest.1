@@ -34,7 +34,6 @@ interface
 <optionlist>
 ]
 .SH DESCRIPTION
-.PP
 \fBipftest\fP is provided for the purpose of being able to test a set of
 filter rules without having to put them in place, in operation and proceed
 to test their effectiveness.  The hope is that this minimises disruptions
@@ -126,7 +125,7 @@ This is the default if no \fB\-F\fP argument is specified.
 The format used is as follows:
 .nf
 	"in"|"out" "on" if ["tcp"|"udp"|"icmp"]
-		srchost[,srcport] dsthost[,destport] [FSRPAU]
+		srchost[,srcport] dsthost[,destport] [FSRPAUEWe]
 .fi
 .PP
 This allows for a packet going "in" or "out" of an interface (if) to be

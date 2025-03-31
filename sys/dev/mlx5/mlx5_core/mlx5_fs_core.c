@@ -144,6 +144,8 @@
 #define KERNEL_TX_MACSEC_NUM_LEVELS 2
 #define KERNEL_TX_MACSEC_MIN_LEVEL       (KERNEL_TX_IPSEC_MIN_LEVEL + KERNEL_TX_MACSEC_NUM_PRIOS)
 
+#define MAX_VPORTS 128
+
 struct node_caps {
 	size_t	arr_sz;
 	long	*caps;
@@ -3184,6 +3186,12 @@ int mlx5_fs_core_init(struct mlx5_core_dev *dev)
 			if (err)
 				goto err;
 		}
+		err = mlx5_fs_egress_acls_init(dev, MAX_VPORTS);
+		if (err)
+			goto err;
+		err = mlx5_fs_ingress_acls_init(dev, MAX_VPORTS);
+		if (err)
+			goto err;
 	}
 
 	if (MLX5_CAP_FLOWTABLE_SNIFFER_RX(dev, ft_support)) {

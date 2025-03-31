@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -316,7 +316,7 @@ AcpiUtInitGlobals (
 
     /* Global Lock support */
 
-    AcpiGbl_GlobalLockSemaphore         = NULL;
+    AcpiGbl_GlobalLockSemaphore         = ACPI_SEMAPHORE_NULL;
     AcpiGbl_GlobalLockMutex             = NULL;
     AcpiGbl_GlobalLockAcquired          = FALSE;
     AcpiGbl_GlobalLockHandle            = 0;

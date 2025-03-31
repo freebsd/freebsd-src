@@ -392,6 +392,7 @@ void
 newreno_cc_post_recovery(struct cc_var *ccv)
 {
 	int pipe;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	if (IN_FASTRECOVERY(CCV(ccv, t_flags))) {
 		/*
@@ -400,20 +401,14 @@ newreno_cc_post_recovery(struct cc_var *ccv)
 		 * approximately snd_ssthresh outstanding data. But in case we
 		 * would be inclined to send a burst, better to do it via the
 		 * slow start mechanism.
-		 *
-		 * XXXLAS: Find a way to do this without needing curack
 		 */
-		if (V_tcp_do_newsack)
-			pipe = tcp_compute_pipe(ccv->tp);
-		else
-			pipe = CCV(ccv, snd_max) - ccv->curack;
+		pipe = tcp_compute_pipe(ccv->tp);
 		if (pipe < CCV(ccv, snd_ssthresh))
 			/*
 			 * Ensure that cwnd does not collapse to 1 MSS under
 			 * adverse conditions. Implements RFC6582
 			 */
-			CCV(ccv, snd_cwnd) = max(pipe, CCV(ccv, t_maxseg)) +
-			    CCV(ccv, t_maxseg);
+			CCV(ccv, snd_cwnd) = max(pipe, mss) + mss;
 		else
 			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 	}
@@ -500,13 +495,7 @@ newreno_cc_cong_signal(struct cc_var *ccv, ccsignal_t type)
 		break;
 	case CC_RTO:
 		if (CCV(ccv, t_rxtshift) == 1) {
-			if (V_tcp_do_newsack) {
-				pipe = tcp_compute_pipe(ccv->tp);
-			} else {
-				pipe = CCV(ccv, snd_max) -
-					CCV(ccv, snd_fack) +
-					CCV(ccv, sackhint.sack_bytes_rexmit);
-			}
+			pipe = tcp_compute_pipe(ccv->tp);
 			CCV(ccv, snd_ssthresh) = max(2,
 				min(CCV(ccv, snd_wnd), pipe) / 2 / mss) * mss;
 		}
@@ -521,7 +510,7 @@ u_int
 newreno_cc_cwnd_in_cong_avoid(struct cc_var *ccv)
 {
 	u_int cw = CCV(ccv, snd_cwnd);
-	u_int incr = CCV(ccv, t_maxseg);
+	u_int incr = tcp_fixed_maxseg(ccv->tp);
 
 	KASSERT(cw > CCV(ccv, snd_ssthresh),
 		("congestion control state not in congestion avoidance\n"));
@@ -561,7 +550,8 @@ u_int
 newreno_cc_cwnd_in_slow_start(struct cc_var *ccv)
 {
 	u_int cw = CCV(ccv, snd_cwnd);
-	u_int incr = CCV(ccv, t_maxseg);
+	u_int mss = tcp_fixed_maxseg(ccv->tp);
+	u_int incr = mss;
 
 	KASSERT(cw <= CCV(ccv, snd_ssthresh),
 		("congestion control state not in slow start\n"));
@@ -599,9 +589,9 @@ newreno_cc_cwnd_in_slow_start(struct cc_var *ccv)
 			abc_val = V_tcp_abc_l_var;
 		if (CCV(ccv, snd_nxt) == CCV(ccv, snd_max))
 			incr = min(ccv->bytes_this_ack,
-			           ccv->nsegs * abc_val * CCV(ccv, t_maxseg));
+			           ccv->nsegs * abc_val * mss);
 		else
-			incr = min(ccv->bytes_this_ack, CCV(ccv, t_maxseg));
+			incr = min(ccv->bytes_this_ack, mss);
 	}
 	/* ABC is on by default, so incr equals 0 frequently. */
 	if (incr > 0)

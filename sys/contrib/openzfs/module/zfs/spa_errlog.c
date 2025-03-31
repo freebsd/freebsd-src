@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -1491,8 +1492,6 @@ EXPORT_SYMBOL(zep_to_zb);
 EXPORT_SYMBOL(name_to_errphys);
 #endif
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs_spa, spa_, upgrade_errlog_limit, UINT, ZMOD_RW,
 	"Limit the number of errors which will be upgraded to the new "
 	"on-disk error log when enabling head_errlog");
-/* END CSTYLED */

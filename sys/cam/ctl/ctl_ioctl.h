@@ -800,7 +800,7 @@ struct ctl_nvmf_terminate_params {
 };
 
 union ctl_nvmf_data {
-	struct nvmf_handoff_controller_qpair	handoff;
+	struct nvmf_ioc_nv			handoff;
 	struct ctl_nvmf_list_params		list;
 	struct ctl_nvmf_terminate_params	terminate;
 };

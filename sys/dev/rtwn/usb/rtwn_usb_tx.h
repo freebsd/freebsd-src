@@ -17,7 +17,10 @@
 #ifndef RTWN_USB_TX_H
 #define RTWN_USB_TX_H
 
-void	rtwn_bulk_tx_callback(struct usb_xfer *, usb_error_t);
+void	rtwn_bulk_tx_callback_bk(struct usb_xfer *, usb_error_t);
+void	rtwn_bulk_tx_callback_be(struct usb_xfer *, usb_error_t);
+void	rtwn_bulk_tx_callback_vi(struct usb_xfer *, usb_error_t);
+void	rtwn_bulk_tx_callback_vo(struct usb_xfer *, usb_error_t);
 int	rtwn_usb_tx_start(struct rtwn_softc *, struct ieee80211_node *,
 	    struct mbuf *, uint8_t *, uint8_t, int);
 

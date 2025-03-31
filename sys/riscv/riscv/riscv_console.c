@@ -243,7 +243,7 @@ rcons_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	bus_generic_attach(sc->dev);
+	bus_attach_children(sc->dev);
 
 	return (0);
 }

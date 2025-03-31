@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -195,6 +195,9 @@ AcpiDmDumpAest (
     ACPI_DMTABLE_INFO       *InfoTable;
     ACPI_SIZE               Length;
     UINT8                   Type;
+    UINT8                   Revision = Table->Revision;
+    UINT32                  Count;
+    ACPI_AEST_NODE_INTERFACE_HEADER *InterfaceHeader;
 
 
     /* Very small, generic main table. AEST consists of mostly subtables */
@@ -234,13 +237,37 @@ AcpiDmDumpAest (
             break;
 
         case ACPI_AEST_VENDOR_ERROR_NODE:
-            InfoTable = AcpiDmTableInfoAestVendorError;
-            Length = sizeof (ACPI_AEST_VENDOR);
+            switch (Revision)
+            {
+            case 1:
+                InfoTable = AcpiDmTableInfoAestVendorError;
+                Length = sizeof (ACPI_AEST_VENDOR);
+                break;
+
+            case 2:
+                InfoTable = AcpiDmTableInfoAestVendorV2Error;
+                Length = sizeof (ACPI_AEST_VENDOR_V2);
+                break;
+
+            default:
+                AcpiOsPrintf ("\n**** Unknown AEST revision 0x%X\n", Revision);
+                return;
+            }
             break;
 
         case ACPI_AEST_GIC_ERROR_NODE:
             InfoTable = AcpiDmTableInfoAestGicError;
             Length = sizeof (ACPI_AEST_GIC);
+            break;
+
+        case ACPI_AEST_PCIE_ERROR_NODE:
+            InfoTable = AcpiDmTableInfoAestPCIeError;
+            Length = sizeof (ACPI_AEST_PCIE);
+            break;
+
+        case ACPI_AEST_PROXY_ERROR_NODE:
+            InfoTable = AcpiDmTableInfoAestProxyError;
+            Length = sizeof (ACPI_AEST_PROXY);
             break;
 
         /* Error case below */
@@ -335,8 +362,57 @@ AcpiDmDumpAest (
             return;
         }
 
-        Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,
-            sizeof (ACPI_AEST_NODE_INTERFACE), AcpiDmTableInfoAestXface);
+        if (Revision == 1)
+        {
+            InfoTable = AcpiDmTableInfoAestXface;
+            Length = sizeof (ACPI_AEST_NODE_INTERFACE);
+        }
+        else if (Revision == 2)
+        {
+            InfoTable = AcpiDmTableInfoAestXfaceHeader;
+            Length = sizeof (ACPI_AEST_NODE_INTERFACE_HEADER);
+
+            Status = AcpiDmDumpTable (Table->Length, Offset, Subtable, Length, InfoTable);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
+
+            Offset += Length;
+
+            InterfaceHeader = ACPI_CAST_PTR (ACPI_AEST_NODE_INTERFACE_HEADER, Subtable);
+            switch (InterfaceHeader->GroupFormat)
+	        {
+            case ACPI_AEST_NODE_GROUP_FORMAT_4K:
+                InfoTable = AcpiDmTableInfoAestXface4k;
+                Length = sizeof (ACPI_AEST_NODE_INTERFACE_4K);
+                break;
+
+            case ACPI_AEST_NODE_GROUP_FORMAT_16K:
+                InfoTable = AcpiDmTableInfoAestXface16k;
+                Length = sizeof (ACPI_AEST_NODE_INTERFACE_16K);
+                break;
+
+            case ACPI_AEST_NODE_GROUP_FORMAT_64K:
+                InfoTable = AcpiDmTableInfoAestXface64k;
+                Length = sizeof (ACPI_AEST_NODE_INTERFACE_64K);
+                break;
+
+            default:
+                AcpiOsPrintf ("\n**** Unknown AEST Interface Group Format 0x%X\n",
+                    InterfaceHeader->GroupFormat);
+                return;
+            }
+
+            Subtable = ACPI_ADD_PTR (ACPI_AEST_HEADER, Table, Offset);
+        }
+        else
+        {
+            AcpiOsPrintf ("\n**** Unknown AEST revision 0x%X\n", Revision);
+            return;
+        }
+
+        Status = AcpiDmDumpTable (Table->Length, Offset, Subtable, Length, InfoTable);
         if (ACPI_FAILURE (Status))
         {
             return;
@@ -345,22 +421,36 @@ AcpiDmDumpAest (
         /* Point past the interface structure */
 
         AcpiOsPrintf ("\n");
-        Offset += sizeof (ACPI_AEST_NODE_INTERFACE);
+        Offset += Length;
 
         /* Dump the entire interrupt structure array, if present */
 
         if (NodeHeader->NodeInterruptOffset)
         {
-            Length = NodeHeader->NodeInterruptCount;
+            Count = NodeHeader->NodeInterruptCount;
             Subtable = ACPI_ADD_PTR (ACPI_AEST_HEADER, Table, Offset);
 
-            while (Length)
+            while (Count)
             {
                 /* Dump the interrupt structure */
 
+                switch (Revision) {
+                case 1:
+                    InfoTable = AcpiDmTableInfoAestXrupt;
+                    Length = sizeof (ACPI_AEST_NODE_INTERRUPT);
+                    break;
+
+                case 2:
+                    InfoTable = AcpiDmTableInfoAestXruptV2;
+                    Length = sizeof (ACPI_AEST_NODE_INTERRUPT_V2);
+                    break;
+                default:
+                    AcpiOsPrintf ("\n**** Unknown AEST revision 0x%X\n",
+                        Revision);
+                    return;
+                }
                 Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,
-                    sizeof (ACPI_AEST_NODE_INTERRUPT),
-                    AcpiDmTableInfoAestXrupt);
+                    Length, InfoTable);
                 if (ACPI_FAILURE (Status))
                 {
                     return;
@@ -368,9 +458,9 @@ AcpiDmDumpAest (
 
                 /* Point to the next interrupt structure */
 
-                Offset += sizeof (ACPI_AEST_NODE_INTERRUPT);
+                Offset += Length;
                 Subtable = ACPI_ADD_PTR (ACPI_AEST_HEADER, Table, Offset);
-                Length--;
+                Count--;
                 AcpiOsPrintf ("\n");
             }
         }
@@ -936,9 +1026,14 @@ AcpiDmDumpCedt (
         case ACPI_CEDT_TYPE_CFMWS:
         {
             ACPI_CEDT_CFMWS *ptr = (ACPI_CEDT_CFMWS *) Subtable;
-            unsigned int i, max = 0x01 << (ptr->InterleaveWays);
+            unsigned int i, max;
 
-            /* print out table with first "Interleave target" */
+            if (ptr->InterleaveWays < 8)
+                max = 1 << (ptr->InterleaveWays);
+            else
+                max = 3 << (ptr->InterleaveWays - 8);
+
+	    /* print out table with first "Interleave target" */
 
             Status = AcpiDmDumpTable (Length, Offset, Subtable,
                 Subtable->Length, AcpiDmTableInfoCedt1);
@@ -956,6 +1051,37 @@ AcpiDmDumpCedt (
 
                 Status = AcpiDmDumpTable (Length, loc_offset, trg,
                         Subtable->Length, AcpiDmTableInfoCedt1_te);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+            }
+            break;
+        }
+
+        case ACPI_CEDT_TYPE_CXIMS:
+        {
+            ACPI_CEDT_CXIMS *ptr = (ACPI_CEDT_CXIMS *) Subtable;
+            unsigned int i, max = ptr->NrXormaps;
+
+            /* print out table with first "XOR Map" */
+
+            Status = AcpiDmDumpTable (Length, Offset, Subtable,
+                Subtable->Length, AcpiDmTableInfoCedt2);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
+
+            /* Now, print out any XOR Map beyond the first. */
+
+            for (i = 1; i < max; i++)
+            {
+                unsigned int loc_offset = Offset + (i * 1) + ACPI_OFFSET (ACPI_CEDT_CXIMS, XormapList);
+                UINT64 *trg = &(ptr->XormapList[i]);
+
+                Status = AcpiDmDumpTable (Length, loc_offset, trg,
+                        Subtable->Length, AcpiDmTableInfoCedt2_te);
                 if (ACPI_FAILURE (Status))
                 {
                     return;
@@ -1245,8 +1371,8 @@ AcpiDmDumpDbg2 (
 
         if (Subtable->OemDataOffset)
         {
-            Status = AcpiDmDumpTable (Length, Offset + Subtable->OemDataOffset,
-                Table, Subtable->OemDataLength,
+            Status = AcpiDmDumpTable (Length, Subtable->OemDataOffset,
+                Subtable, Subtable->OemDataLength,
                 AcpiDmTableInfoDbg2OemData);
             if (ACPI_FAILURE (Status))
             {

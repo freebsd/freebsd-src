@@ -137,10 +137,8 @@ main(int argc, char *argv[])
 			break;
 		case 'e':
 			eflag = 1;
-			if ((temp_arg = malloc(strlen(optarg) + 2)) == NULL)
-				err(1, "malloc");
-			strcpy(temp_arg, optarg);
-			strcat(temp_arg, "\n");
+			if (asprintf(&temp_arg, "%s\n", optarg) == -1)
+				err(1, "asprintf");
 			add_compunit(CU_STRING, temp_arg);
 			break;
 		case 'f':
@@ -173,7 +171,9 @@ main(int argc, char *argv[])
 
 	/* First usage case; script is the first arg */
 	if (!eflag && !fflag && *argv) {
-		add_compunit(CU_STRING, *argv);
+		if (asprintf(&temp_arg, "%s\n", *argv) == -1)
+			err(1, "asprintf");
+		add_compunit(CU_STRING, temp_arg);
 		argv++;
 	}
 

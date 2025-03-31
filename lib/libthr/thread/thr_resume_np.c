@@ -38,7 +38,8 @@
 #include "thr_private.h"
 
 __weak_reference(_pthread_resume_np, pthread_resume_np);
-__weak_reference(_pthread_resume_all_np, pthread_resume_all_np);
+__weak_reference(_thr_resume_all_np, pthread_resume_all_np);
+__weak_reference(_thr_resume_all_np, _pthread_resume_all_np);
 
 static void resume_common(struct pthread *thread);
 
@@ -59,7 +60,7 @@ _pthread_resume_np(pthread_t thread)
 }
 
 void
-_pthread_resume_all_np(void)
+_thr_resume_all_np(void)
 {
 	struct pthread *curthread = _get_curthread();
 	struct pthread *thread;

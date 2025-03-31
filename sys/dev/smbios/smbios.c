@@ -85,8 +85,8 @@ smbios_identify (driver_t *driver, device_t parent)
 	void *ptr;
 	device_t child;
 	vm_paddr_t addr = 0;
-	size_t map_size = sizeof (*eps);
-	int length;
+	size_t map_size = sizeof(*eps);
+	uint8_t length;
 
 	if (!device_is_alive(parent))
 		return;
@@ -94,7 +94,7 @@ smbios_identify (driver_t *driver, device_t parent)
 #ifdef ARCH_MAY_USE_EFI
 	if (!efi_get_table(&efi_smbios3, &addr_efi)) {
 		addr = (vm_paddr_t)addr_efi;
-		map_size = sizeof (*eps3);
+		map_size = sizeof(*eps3);
 	} else if (!efi_get_table(&efi_smbios, &addr_efi)) {
 		addr = (vm_paddr_t)addr_efi;
 	}
@@ -102,59 +102,88 @@ smbios_identify (driver_t *driver, device_t parent)
 #endif
 
 #if defined(__amd64__) || defined(__i386__)
-	if (addr == 0)
-		addr = bios_sigsearch(SMBIOS_START, SMBIOS_SIG, SMBIOS_LEN,
+	if (addr == 0) {
+		addr = bios_sigsearch(SMBIOS_START, SMBIOS3_SIG, SMBIOS3_LEN,
 		    SMBIOS_STEP, SMBIOS_OFF);
+		if (addr != 0)
+			map_size = sizeof(*eps3);
+		else
+			addr = bios_sigsearch(SMBIOS_START,
+			    SMBIOS_SIG, SMBIOS_LEN, SMBIOS_STEP, SMBIOS_OFF);
+	}
 #endif
 
-	if (addr != 0) {
-		ptr = pmap_mapbios(addr, map_size);
-		if (ptr == NULL)
-			return;
-		if (map_size == sizeof (*eps3)) {
-			eps3 = ptr;
-			length = eps3->length;
-			if (memcmp(eps3->anchor_string,
-			    SMBIOS3_SIG, SMBIOS3_LEN) != 0) {
-				printf("smbios3: corrupt sig %s found\n",
-				    eps3->anchor_string);
-				return;
-			}
-		} else {
-			eps = ptr;
-			length = eps->length;
-			if (memcmp(eps->anchor_string,
-			    SMBIOS_SIG, SMBIOS_LEN) != 0) {
-				printf("smbios: corrupt sig %s found\n",
-				    eps->anchor_string);
-				return;
-			}
+	if (addr == 0)
+		return;
+
+	ptr = pmap_mapbios(addr, map_size);
+	if (ptr == NULL) {
+		printf("smbios: Unable to map memory.\n");
+		return;
+	}
+	if (map_size == sizeof(*eps3)) {
+		eps3 = ptr;
+		length = eps3->length;
+		if (memcmp(eps3->anchor_string, SMBIOS3_SIG, SMBIOS3_LEN) != 0)
+			goto corrupt_sig;
+	} else {
+		eps = ptr;
+		length = eps->length;
+		if (memcmp(eps->anchor_string, SMBIOS_SIG, SMBIOS_LEN) != 0)
+			goto corrupt_sig;
+	}
+	if (length != map_size) {
+		/*
+		 * SMBIOS v2.1 implementations might use 0x1e because the
+		 * standard was then erroneous.
+		 */
+		if (length == 0x1e && map_size == sizeof(*eps) &&
+		    eps->major_version == 2 && eps->minor_version == 1)
+			length = map_size;
+		else {
+			printf("smbios: %s-bit Entry Point: Invalid length: "
+			    "Got %hhu, expected %zu\n",
+			    map_size == sizeof(*eps3) ? "64" : "32",
+			    length, map_size);
+			goto unmap_return;
 		}
-		if (length != map_size) {
-			u_int8_t major, minor;
-
-			major = eps->major_version;
-			minor = eps->minor_version;
-
-			/* SMBIOS v2.1 implementation might use 0x1e. */
-			if (length == 0x1e && major == 2 && minor == 1) {
-				length = 0x1f;
-			} else {
-				pmap_unmapbios(eps, map_size);
-				return;
-			}
-		}
-
-		child = BUS_ADD_CHILD(parent, 5, "smbios", DEVICE_UNIT_ANY);
-		device_set_driver(child, driver);
-
-		/* smuggle the phys addr into probe and attach */
-		bus_set_resource(child, SYS_RES_MEMORY, 0, addr, length);
-		device_set_desc(child, "System Management BIOS");
-		pmap_unmapbios(ptr, map_size);
 	}
 
+	child = BUS_ADD_CHILD(parent, 5, "smbios", DEVICE_UNIT_ANY);
+	device_set_driver(child, driver);
+
+	/* smuggle the phys addr into probe and attach */
+	bus_set_resource(child, SYS_RES_MEMORY, 0, addr, length);
+	device_set_desc(child, "System Management BIOS");
+
+unmap_return:
+	pmap_unmapbios(ptr, map_size);
 	return;
+
+corrupt_sig:
+	{
+		const char *sig;
+	        const char *table_ver_str;
+		size_t i, end;
+
+		if (map_size == sizeof(*eps3)) {
+			sig = eps3->anchor_string;
+			table_ver_str = "64";
+			end = SMBIOS3_LEN;
+		} else {
+			sig = eps->anchor_string;
+			table_ver_str = "32";
+			end = SMBIOS_LEN;
+		}
+
+		/* Space after ':' printed by the loop. */
+		printf("smbios: %s-bit Entry Point: Corrupt signature (hex):",
+		    table_ver_str);
+		for (i = 0; i < end; ++i)
+			printf(" %02hhx", sig[i]);
+		printf("\n");
+	}
+	goto unmap_return;
 }
 
 static int
@@ -205,18 +234,28 @@ smbios_attach (device_t dev)
 
 	if (sc->is_eps3) {
 		sc->eps3 = va;
-		device_printf(dev, "Version: %u.%u",
+		device_printf(dev, "Entry point: v3 (64-bit), Version: %u.%u\n",
 		    sc->eps3->major_version, sc->eps3->minor_version);
+		if (bootverbose)
+			device_printf(dev,
+			    "Docrev: %u, Entry Point Revision: %u\n",
+			    sc->eps3->docrev, sc->eps3->entry_point_revision);
 	} else {
+		const struct smbios_eps *const eps = va;
+		const uint8_t bcd = eps->BCD_revision;
+
 		sc->eps = va;
-		device_printf(dev, "Version: %u.%u",
-		    sc->eps->major_version, sc->eps->minor_version);
-		if (bcd2bin(sc->eps->BCD_revision))
-			printf(", BCD Revision: %u.%u",
-			    bcd2bin(sc->eps->BCD_revision >> 4),
-			    bcd2bin(sc->eps->BCD_revision & 0x0f));
+		device_printf(dev, "Entry point: v2.1 (32-bit), Version: %u.%u",
+		    eps->major_version, eps->minor_version);
+		if (bcd < LIBKERN_LEN_BCD2BIN && bcd2bin(bcd) != 0)
+			printf(", BCD Revision: %u.%u\n",
+			    bcd2bin(bcd >> 4), bcd2bin(bcd & 0x0f));
+		else
+			printf("\n");
+		if (bootverbose)
+			device_printf(dev, "Entry Point Revision: %u\n",
+			    eps->entry_point_revision);
 	}
-	printf("\n");
 	return (0);
 }
 
@@ -299,25 +338,24 @@ smbios_eps3 (void *v)
 static int
 smbios_cksum (void *v)
 {
-	struct smbios3_eps *eps3;
-	struct smbios_eps *eps;
-	u_int8_t *ptr;
+	const u_int8_t *ptr;
 	u_int8_t cksum;
 	u_int8_t length;
 	int i;
 
 	if (smbios_eps3(v)) {
-		eps3 = (struct smbios3_eps *)v;
+		const struct smbios3_eps *eps3 = v;
+
 		length = eps3->length;
 	} else {
-		eps = (struct smbios_eps *)v;
+		const struct smbios_eps *eps = v;
+
 		length = eps->length;
 	}
-	ptr = (u_int8_t *)v;
+	ptr = v;
 	cksum = 0;
-	for (i = 0; i < length; i++) {
+	for (i = 0; i < length; i++)
 		cksum += ptr[i];
-	}
 
 	return (cksum);
 }

@@ -1355,7 +1355,7 @@ vm_fault_getpages(struct faultstate *fs, int *behindp, int *aheadp)
 	MPASS(status == FAULT_CONTINUE || status == FAULT_RESTART);
 	if (status == FAULT_RESTART)
 		return (status);
-	KASSERT(fs->vp == NULL || !fs->map->system_map,
+	KASSERT(fs->vp == NULL || !vm_map_is_system(fs->map),
 	    ("vm_fault: vnode-backed object mapped by system map"));
 
 	/*
@@ -2085,7 +2085,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map __unused,
 	vm_pindex_t dst_pindex, pindex, src_pindex;
 	vm_prot_t access, prot;
 	vm_offset_t vaddr;
-	vm_page_t dst_m;
+	vm_page_t dst_m, mpred;
 	vm_page_t src_m;
 	bool upgrade;
 
@@ -2157,9 +2157,11 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map __unused,
 	 * with the source object, all of its pages must be dirtied,
 	 * regardless of whether they can be written.
 	 */
+	mpred = (src_object == dst_object) ?
+	   vm_page_mpred(src_object, src_pindex) : NULL;
 	for (vaddr = dst_entry->start, dst_pindex = 0;
 	    vaddr < dst_entry->end;
-	    vaddr += PAGE_SIZE, dst_pindex++) {
+	    vaddr += PAGE_SIZE, dst_pindex++, mpred = dst_m) {
 again:
 		/*
 		 * Find the page in the source object, and copy it in.
@@ -2197,14 +2199,16 @@ again:
 			/*
 			 * Allocate a page in the destination object.
 			 */
-			dst_m = vm_page_alloc(dst_object, (src_object ==
-			    dst_object ? src_pindex : 0) + dst_pindex,
-			    VM_ALLOC_NORMAL);
+			pindex = (src_object == dst_object ? src_pindex : 0) +
+			    dst_pindex;
+			dst_m = vm_page_alloc_after(dst_object, pindex,
+			    VM_ALLOC_NORMAL, mpred);
 			if (dst_m == NULL) {
 				VM_OBJECT_WUNLOCK(dst_object);
 				VM_OBJECT_RUNLOCK(object);
 				vm_wait(dst_object);
 				VM_OBJECT_WLOCK(dst_object);
+				mpred = vm_page_mpred(dst_object, pindex);
 				goto again;
 			}
 

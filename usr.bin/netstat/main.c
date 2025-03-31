@@ -194,33 +194,33 @@ static int kresolve_list(struct nlist *_nl);
 static kvm_t *kvmd;
 static char *nlistf = NULL, *memf = NULL;
 
-int	Aflag;		/* show addresses of protocol control block */
-int	aflag;		/* show all sockets (including servers) */
-static int	Bflag;		/* show information about bpf consumers */
-int	bflag;		/* show i/f total bytes in/out */
-int	cflag;		/* show TCP congestion control stack */
-int	Cflag;		/* show congestion control algo and vars */
-int	dflag;		/* show i/f dropped packets */
-int	gflag;		/* show group (multicast) routing or stats */
-int	hflag;		/* show counters in human readable format */
-int	iflag;		/* show interfaces */
-int	Lflag;		/* show size of listen queues */
-int	mflag;		/* show memory stats */
+bool	Aflag;		/* show addresses of protocol control block */
+bool	aflag;		/* show all sockets (including servers) */
+static bool	Bflag;		/* show information about bpf consumers */
+bool	bflag;		/* show i/f total bytes in/out */
+bool	cflag;		/* show TCP congestion control stack */
+bool	Cflag;		/* show congestion control algo and vars */
+bool	dflag;		/* show i/f dropped packets */
+bool	gflag;		/* show group (multicast) routing or stats */
+bool	hflag;		/* show counters in human readable format */
+bool	iflag;		/* show interfaces */
+bool	Lflag;		/* show size of listen queues */
+bool	mflag;		/* show memory stats */
 int	noutputs = 0;	/* how much outputs before we exit */
-int	numeric_addr;	/* show addresses numerically */
-int	numeric_port;	/* show ports numerically */
-int	Oflag;		/* show nhgrp objects*/
-int	oflag;		/* show nexthop objects*/
-int	Pflag;		/* show TCP log ID */
-static int pflag;	/* show given protocol */
-static int	Qflag;		/* show netisr information */
-int	rflag;		/* show routing tables (or routing stats) */
-int	Rflag;		/* show flow / RSS statistics */
+u_int	numeric_addr = 0; /* show addresses numerically */
+bool	numeric_port;	/* show ports numerically */
+bool	Oflag;		/* show nhgrp objects*/
+bool	oflag;		/* show nexthop objects*/
+bool	Pflag;		/* show TCP log ID */
+static bool pflag;	/* show given protocol */
+static bool Qflag;	/* show netisr information */
+bool	rflag;		/* show routing tables (or routing stats) */
+bool	Rflag;		/* show flow / RSS statistics */
 int	sflag;		/* show protocol statistics */
-int	Wflag;		/* wide display */
-int	Tflag;		/* TCP Information */
-int	xflag;		/* extra information, includes all socket buffer info */
-int	zflag;		/* zero stats */
+bool	Wflag;		/* wide display */
+bool	Tflag;		/* TCP Information */
+bool	xflag;		/* extra information, includes all socket buffer info */
+bool	zflag;		/* zero stats */
 
 int	interval;	/* repeat interval for i/f stats */
 
@@ -269,25 +269,25 @@ main(int argc, char *argv[])
 #endif
 			break;
 		case 'A':
-			Aflag = 1;
+			Aflag = true;
 			break;
 		case 'a':
-			aflag = 1;
+			aflag = true;
 			break;
 		case 'B':
-			Bflag = 1;
+			Bflag = true;
 			break;
 		case 'b':
-			bflag = 1;
+			bflag = true;
 			break;
 		case 'c':
-			cflag = 1;
+			cflag = true;
 			break;
 		case 'C':
-			Cflag = 1;
+			Cflag = true;
 			break;
 		case 'd':
-			dflag = 1;
+			dflag = true;
 			break;
 		case 'F':
 			fib = strtol(optarg, &endptr, 0);
@@ -322,22 +322,22 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 'g':
-			gflag = 1;
+			gflag = true;
 			break;
 		case 'h':
-			hflag = 1;
+			hflag = true;
 			break;
 		case 'I': {
 			char *cp;
 
-			iflag = 1;
+			iflag = true;
 			for (cp = interface = optarg; isalpha(*cp); cp++)
 				continue;
 			unit = atoi(cp);
 			break;
 		}
 		case 'i':
-			iflag = 1;
+			iflag = true;
 			break;
 		case 'j':
 #ifdef JAIL
@@ -349,38 +349,39 @@ main(int argc, char *argv[])
 #endif
 			break;
 		case 'L':
-			Lflag = 1;
+			Lflag = true;
 			break;
 		case 'M':
 			memf = optarg;
 			break;
 		case 'm':
-			mflag = 1;
+			mflag = true;
 			break;
 		case 'N':
 			nlistf = optarg;
 			break;
 		case 'n':
-			numeric_addr = numeric_port = 1;
+			numeric_addr++;
+			numeric_port = true;
 			break;
 		case 'o':
-			oflag = 1;
+			oflag = true;
 			break;
 		case 'O':
-			Oflag = 1;
+			Oflag = true;
 			break;
 		case 'P':
-			Pflag = 1;
+			Pflag = true;
 			break;
 		case 'p':
 			if ((tp = name2protox(optarg)) == NULL) {
 				xo_errx(EX_DATAERR, "%s: unknown or uninstrumented "
 				    "protocol", optarg);
 			}
-			pflag = 1;
+			pflag = true;
 			break;
 		case 'Q':
-			Qflag = 1;
+			Qflag = true;
 			break;
 		case 'q':
 			noutputs = atoi(optarg);
@@ -388,10 +389,10 @@ main(int argc, char *argv[])
 				noutputs++;
 			break;
 		case 'r':
-			rflag = 1;
+			rflag = true;
 			break;
 		case 'R':
-			Rflag = 1;
+			Rflag = true;
 			break;
 		case 's':
 			++sflag;
@@ -404,20 +405,20 @@ main(int argc, char *argv[])
 			break;
 		case 'W':
 		case 'l':
-			Wflag = 1;
+			Wflag = true;
 			break;
 		case 'w':
 			interval = atoi(optarg);
-			iflag = 1;
+			iflag = true;
 			break;
 		case 'T':
-			Tflag = 1;
+			Tflag = true;
 			break;
 		case 'x':
-			xflag = 1;
+			xflag = true;
 			break;
 		case 'z':
-			zflag = 1;
+			zflag = true;
 			break;
 		case '?':
 		default:
@@ -434,7 +435,7 @@ main(int argc, char *argv[])
 			if (interval <= 0)
 				usage();
 			++argv;
-			iflag = 1;
+			iflag = true;
 		}
 		if (*argv) {
 			nlistf = *argv;

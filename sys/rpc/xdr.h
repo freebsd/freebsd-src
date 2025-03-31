@@ -40,6 +40,8 @@
 #define _KRPC_XDR_H
 #include <sys/cdefs.h>
 
+struct mbuf;
+
 /*
  * XDR provides a conventional way for converting between C data
  * types and an external bit-string representation.  Library supplied
@@ -105,6 +107,8 @@ typedef struct XDR {
 		bool_t	(*x_getbytes)(struct XDR *, char *, u_int);
 		/* put some bytes to " */
 		bool_t	(*x_putbytes)(struct XDR *, const char *, u_int);
+		/* put mbuf or copy its bytes */
+		bool_t	(*x_putmbuf)(struct XDR *, struct mbuf *);
 		/* returns bytes off from beginning */
 		u_int	(*x_getpostn)(struct XDR *);
 		/* lets you reposition the stream */
@@ -189,6 +193,11 @@ xdr_putint32(XDR *xdrs, int32_t *ip)
 	(*(xdrs)->x_ops->x_putbytes)(xdrs, addr, len)
 #define xdr_putbytes(xdrs, addr, len)			\
 	(*(xdrs)->x_ops->x_putbytes)(xdrs, addr, len)
+
+#define XDR_PUTMBUF(xdrs, mbuf)				\
+	(*(xdrs)->x_ops->x_putmbuf)(xdrs, mbuf)
+#define xdr_putmbuf(xdrs, mbuf)				\
+	(*(xdrs)->x_ops->x_putmbuf)(xdrs, mbuf)
 
 #define XDR_GETPOS(xdrs)				\
 	(*(xdrs)->x_ops->x_getpostn)(xdrs)
@@ -359,9 +368,7 @@ __BEGIN_DECLS
 extern void   xdrmem_create(XDR *, char *, u_int, enum xdr_op);
 
 /* XDR using mbufs */
-struct mbuf;
 extern void   xdrmbuf_create(XDR *, struct mbuf *, enum xdr_op);
-extern void   xdrmbuf_append(XDR *, struct mbuf *);
 extern struct mbuf * xdrmbuf_getall(XDR *);
 
 /* XDR pseudo records for tcp */

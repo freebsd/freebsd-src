@@ -869,7 +869,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		to_fd = create_tempfile(to_name, tempfile,
 		    sizeof(tempfile));
 		if (to_fd < 0)
-			err(EX_OSERR, "%s", tempfile);
+			err(EX_OSERR, "%s", dirname(tempfile));
 		if (!devnull) {
 			if (dostrip) {
 				stripped = strip(tempfile, to_fd, from_name,
@@ -1432,10 +1432,22 @@ metadata_log(const char *path, const char *type, struct timespec *ts,
 	p = buf;
 	/* Print details. */
 	fprintf(metafp, ".%s%s type=%s", *p ? "/" : "", p, type);
-	if (owner)
-		fprintf(metafp, " uname=%s", owner);
-	if (group)
-		fprintf(metafp, " gname=%s", group);
+	if (owner) {
+		id_t id;
+
+		if (parseid(owner, &id))
+			fprintf(metafp, " uid=%jd", (intmax_t)id);
+		else
+			fprintf(metafp, " uname=%s", owner);
+	}
+	if (group) {
+		id_t id;
+
+		if (parseid(group, &id))
+			fprintf(metafp, " gid=%jd", (intmax_t)id);
+		else
+			fprintf(metafp, " gname=%s", group);
+	}
 	fprintf(metafp, " mode=%#o", mode);
 	if (slink) {
 		strsnvis(buf, buflen, slink, VIS_CSTYLE, extra);

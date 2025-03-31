@@ -34,6 +34,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/event.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>

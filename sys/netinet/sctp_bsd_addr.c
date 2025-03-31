@@ -338,8 +338,8 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		    (void *)ifa, ifa->ifa_addr, ifa_flags, 1);
 	} else {
 		sctp_del_addr_from_vrf(SCTP_DEFAULT_VRFID, ifa->ifa_addr,
-		    ifa->ifa_ifp->if_index,
-		    ifa->ifa_ifp->if_xname);
+		    (void *)ifa->ifa_ifp,
+		    ifa->ifa_ifp->if_index);
 
 		/*
 		 * We don't bump refcount here so when it completes the

@@ -99,15 +99,15 @@ struct {
 	{0x6002, "Chelsio T6225-SO-CR"},	/* 2 x 10/25G, nomem */
 	{0x6003, "Chelsio T6425-CR"},		/* 4 x 10/25G */
 	{0x6004, "Chelsio T6425-SO-CR"},	/* 4 x 10/25G, nomem */
-	{0x6005, "Chelsio T6225-OCP-SO"},	/* 2 x 10/25G, nomem */
-	{0x6006, "Chelsio T62100-OCP-SO"},	/* 2 x 40/50/100G, nomem */
+	{0x6005, "Chelsio T6225-SO-OCP3"},	/* 2 x 10/25G, nomem */
+	{0x6006, "Chelsio T6225-OCP3"},		/* 2 x 10/25G */
 	{0x6007, "Chelsio T62100-LP-CR"},	/* 2 x 40/50/100G */
 	{0x6008, "Chelsio T62100-SO-CR"},	/* 2 x 40/50/100G, nomem */
 	{0x6009, "Chelsio T6210-BT"},		/* 2 x 10GBASE-T */
 	{0x600d, "Chelsio T62100-CR"},		/* 2 x 40/50/100G */
 	{0x6010, "Chelsio T6-DBG-100"},		/* 2 x 40/50/100G, debug */
 	{0x6011, "Chelsio T6225-LL-CR"},	/* 2 x 10/25G */
-	{0x6014, "Chelsio T61100-OCP-SO"},	/* 1 x 40/50/100G, nomem */
+	{0x6014, "Chelsio T62100-SO-OCP3"},	/* 2 x 40/50/100G, nomem */
 	{0x6015, "Chelsio T6201-BT"},		/* 2 x 1000BASE-T */
 
 	/* Custom */

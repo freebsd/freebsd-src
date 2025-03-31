@@ -233,6 +233,89 @@ quick_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "quick_nested" "cleanup"
+quick_nested_head()
+{
+	atf_set descr 'Verify that a nested anchor does not clear quick'
+	atf_set require.user root
+}
+
+quick_nested_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}a
+
+	ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "anchor quick {\n\
+	        pass\n\
+	        anchor {\n\
+	            block proto tcp\n\
+	        }\n\
+	    }" \
+	    "block"
+	ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -sr -v
+	jexec alcatraz pfctl -ss -v
+
+	# We can still ping because the anchor is 'quick'
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+	jexec alcatraz pfctl -sr -v
+	jexec alcatraz pfctl -ss -v
+}
+
+quick_nested_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "counter" "cleanup"
+counter_head()
+{
+	atf_set descr 'Test counters on anchors'
+	atf_set require.user root
+}
+
+counter_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}a
+
+	ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "anchor \"foo\" {\n\
+	        pass\n\
+	    }"
+
+	# Generate traffic
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+	atf_check -s exit:0 -e ignore \
+	    -o match:'[ Evaluations: 1         Packets: 2         Bytes: 168         States: 1     ]' \
+	    jexec alcatraz pfctl -sr -vv
+}
+
+counter_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "pr183198"
@@ -241,4 +324,6 @@ atf_init_test_cases()
 	atf_add_test_case "wildcard"
 	atf_add_test_case "nested_label"
 	atf_add_test_case "quick"
+	atf_add_test_case "quick_nested"
+	atf_add_test_case "counter"
 }

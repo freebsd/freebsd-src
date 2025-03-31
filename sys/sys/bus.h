@@ -277,6 +277,7 @@ enum intr_type {
 	INTR_EXCL = 256,		/* exclusive interrupt */
 	INTR_MPSAFE = 512,		/* this interrupt is SMP safe */
 	INTR_ENTROPY = 1024,		/* this interrupt provides entropy */
+	INTR_SLEEPABLE = 2048,		/* this interrupt handler can sleep */
 	INTR_MD1 = 4096,		/* flag reserved for MD use */
 	INTR_MD2 = 8192,		/* flag reserved for MD use */
 	INTR_MD3 = 16384,		/* flag reserved for MD use */
@@ -304,18 +305,6 @@ enum intr_polarity {
 enum cpu_sets {
 	LOCAL_CPUS = 0,
 	INTR_CPUS
-};
-
-typedef int (*devop_t)(void);
-
-/**
- * @brief This structure is deprecated.
- *
- * Use the kobj(9) macro DEFINE_CLASS to
- * declare classes which implement device drivers.
- */
-struct driver {
-	KOBJ_CLASS_FIELDS;
 };
 
 struct resource;
@@ -442,7 +431,8 @@ struct resource *
 				   rman_res_t count, u_int flags);
 int	bus_generic_translate_resource(device_t dev, int type, rman_res_t start,
 			      rman_res_t *newstart);
-int	bus_generic_attach(device_t dev);
+int	bus_generic_attach(device_t dev)
+	__deprecated1("Use bus_attach_children instead");
 int	bus_generic_bind_intr(device_t dev, device_t child,
 			      struct resource *irq, int cpu);
 int	bus_generic_child_location(device_t dev, device_t child, struct sbuf *sb);
@@ -467,8 +457,6 @@ int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
 ssize_t	bus_generic_get_property(device_t dev, device_t child,
 				 const char *propname, void *propvalue,
 				 size_t size, device_property_type_t type);
-struct resource_list *
-	bus_generic_get_resource_list(device_t, device_t);
 int	bus_generic_map_resource(device_t dev, device_t child,
 				 struct resource *r,
 				 struct resource_map_request *args,
@@ -478,7 +466,8 @@ int	bus_print_child_header(device_t dev, device_t child);
 int	bus_print_child_domain(device_t dev, device_t child);
 int	bus_print_child_footer(device_t dev, device_t child);
 int	bus_generic_print_child(device_t dev, device_t child);
-int	bus_generic_probe(device_t dev);
+int	bus_generic_probe(device_t dev)
+	__deprecated1("Use bus_identify_children instead");
 int	bus_generic_read_ivar(device_t dev, device_t child, int which,
 			      uintptr_t *result);
 int	bus_generic_release_resource(device_t bus, device_t child,
@@ -591,8 +580,12 @@ void	bus_delete_resource(device_t dev, int type, int rid);
 int	bus_child_present(device_t child);
 int	bus_child_pnpinfo(device_t child, struct sbuf *sb);
 int	bus_child_location(device_t child, struct sbuf *sb);
+
+void	bus_attach_children(device_t dev);
+void	bus_delayed_attach_children(device_t bus);
+int	bus_detach_children(device_t dev);
 void	bus_enumerate_hinted_children(device_t bus);
-int	bus_delayed_attach_children(device_t bus);
+void	bus_identify_children(device_t dev);
 
 static __inline struct resource *
 bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
@@ -818,9 +811,7 @@ void	bus_data_generation_update(void);
 #define BUS_LOCATOR_UEFI	"UEFI"
 #define BUS_LOCATOR_OFW		"OFW"
 
-extern int bus_current_pass;
-
-void	bus_set_pass(int pass);
+int	bus_get_pass(void);
 
 /**
  * Routines to lock / unlock the newbus lock.
@@ -859,24 +850,25 @@ struct driver_module_data {
 	int		dmd_pass;
 };
 
-#define	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, evh, arg,	 \
+#define	EARLY_DRIVER_MODULE_ORDERED(_name, busname, driver, evh, arg,	\
     order, pass)							\
 									\
-static struct driver_module_data name##_##busname##_driver_mod = {	\
-	evh, arg,							\
-	#busname,							\
-	(kobj_class_t) &driver,						\
-	NULL,								\
-	pass								\
+static struct driver_module_data _name##_##busname##_driver_mod = {	\
+	.dmd_chainevh = evh,						\
+	.dmd_chainarg = arg,						\
+	.dmd_busname =  #busname,					\
+	.dmd_driver =   (kobj_class_t)&driver,				\
+	.dmd_devclass = NULL,						\
+	.dmd_pass =     pass,						\
 };									\
 									\
-static moduledata_t name##_##busname##_mod = {				\
-	#busname "/" #name,						\
-	driver_module_handler,						\
-	&name##_##busname##_driver_mod					\
+static moduledata_t _name##_##busname##_mod = {				\
+	.name =	  #busname "/" #_name ,					\
+	.evhand = driver_module_handler,				\
+	.priv =	  &_name##_##busname##_driver_mod,			\
 };									\
-DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
-	       SI_SUB_DRIVERS, order)
+DECLARE_MODULE(_name##_##busname, _name##_##busname##_mod,		\
+   SI_SUB_DRIVERS, order)
 
 #define	EARLY_DRIVER_MODULE(name, busname, driver, evh, arg, pass)	\
 	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, evh, arg,	\

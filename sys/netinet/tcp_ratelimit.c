@@ -246,10 +246,10 @@ const uint64_t desired_rates[] = {
 #define RS_ONE_GIGABIT_PERSEC 1000000000
 #define RS_TEN_GIGABIT_PERSEC 10000000000
 
-static struct head_tcp_rate_set int_rs;
+static struct head_tcp_rate_set int_rs = CK_LIST_HEAD_INITIALIZER();
 static struct mtx rs_mtx;
-uint32_t rs_number_alive;
-uint32_t rs_number_dead;
+uint32_t rs_number_alive = 0;
+uint32_t rs_number_dead = 0;
 static uint32_t rs_floor_mss = 0;
 static uint32_t wait_time_floor = 8000;	/* 8 ms */
 static uint32_t rs_hw_floor_mss = 16;
@@ -1778,9 +1778,6 @@ static eventhandler_tag rl_shutdown_start;
 static void
 tcp_rs_init(void *st __unused)
 {
-	CK_LIST_INIT(&int_rs);
-	rs_number_alive = 0;
-	rs_number_dead = 0;
 	mtx_init(&rs_mtx, "tcp_rs_mtx", "rsmtx", MTX_DEF);
 	rl_ifnet_departs = EVENTHANDLER_REGISTER(ifnet_departure_event,
 	    tcp_rl_ifnet_departure,

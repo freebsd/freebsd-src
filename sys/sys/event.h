@@ -101,7 +101,7 @@ struct freebsd11_kevent {
 };
 #endif
 
-#if defined(_WANT_KEVENT32) || (defined(_KERNEL) && defined(__LP64__))
+#if defined(_WANT_KEVENT32) || defined(_KERNEL)
 struct kevent32 {
 	__uint32_t	ident;		/* identifier for this event */
 	short		filter;		/* filter for event */
@@ -262,12 +262,17 @@ struct knlist {
 #define EVENT_REGISTER	1
 #define EVENT_PROCESS	2
 
+struct kinfo_knote;
+struct proc;
+
 struct filterops {
 	int	f_isfd;		/* true if ident == filedescriptor */
 	int	(*f_attach)(struct knote *kn);
 	void	(*f_detach)(struct knote *kn);
 	int	(*f_event)(struct knote *kn, long hint);
 	void	(*f_touch)(struct knote *kn, struct kevent *kev, u_long type);
+	int	(*f_userdump)(struct proc *p, struct knote *kn,
+		    struct kinfo_knote *kin);
 };
 
 /*

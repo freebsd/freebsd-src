@@ -29,6 +29,21 @@ static bool rtw89_disable_ps_mode;
 module_param_named(disable_ps_mode, rtw89_disable_ps_mode, bool, 0644);
 MODULE_PARM_DESC(disable_ps_mode, "Set Y to disable low power mode");
 
+#if defined(__FreeBSD__)
+static bool rtw_ht_support = false;
+module_param_named(support_ht, rtw_ht_support, bool, 0644);
+MODULE_PARM_DESC(support_ht, "Set to Y to enable HT support");
+
+static bool rtw_vht_support = false;
+module_param_named(support_vht, rtw_vht_support, bool, 0644);
+MODULE_PARM_DESC(support_vht, "Set to Y to enable VHT support");
+
+static bool rtw_eht_support = false;
+module_param_named(support_eht, rtw_eht_support, bool, 0644);
+MODULE_PARM_DESC(support_eht, "Set to Y to enable EHT support");
+#endif
+
+
 #define RTW89_DEF_CHAN(_freq, _hw_val, _flags, _band)	\
 	{ .center_freq = _freq, .hw_value = _hw_val, .flags = _flags, .band = _band, }
 #define RTW89_DEF_CHAN_2G(_freq, _hw_val)	\
@@ -4006,7 +4021,13 @@ static int rtw89_core_set_supported_band(struct rtw89_dev *rtwdev)
 		sband_2ghz = kmemdup(&rtw89_sband_2ghz, size, GFP_KERNEL);
 		if (!sband_2ghz)
 			goto err;
+#if defined(__FreeBSD__)
+		if (rtw_ht_support)
+#endif
 		rtw89_init_ht_cap(rtwdev, &sband_2ghz->ht_cap);
+#if defined(__FreeBSD__)
+		if (rtw_eht_support)
+#endif
 		rtw89_init_he_eht_cap(rtwdev, NL80211_BAND_2GHZ, sband_2ghz);
 		hw->wiphy->bands[NL80211_BAND_2GHZ] = sband_2ghz;
 	}
@@ -4015,8 +4036,17 @@ static int rtw89_core_set_supported_band(struct rtw89_dev *rtwdev)
 		sband_5ghz = kmemdup(&rtw89_sband_5ghz, size, GFP_KERNEL);
 		if (!sband_5ghz)
 			goto err;
+#if defined(__FreeBSD__)
+		if (rtw_ht_support)
+#endif
 		rtw89_init_ht_cap(rtwdev, &sband_5ghz->ht_cap);
+#if defined(__FreeBSD__)
+		if (rtw_vht_support)
+#endif
 		rtw89_init_vht_cap(rtwdev, &sband_5ghz->vht_cap);
+#if defined(__FreeBSD__)
+		if (rtw_eht_support)
+#endif
 		rtw89_init_he_eht_cap(rtwdev, NL80211_BAND_5GHZ, sband_5ghz);
 		hw->wiphy->bands[NL80211_BAND_5GHZ] = sband_5ghz;
 	}

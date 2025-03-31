@@ -24,11 +24,14 @@ SRCS=	\
 		hostdisk.c \
 		hostfs.c \
 		init.c \
-		kbootfdt.c \
 		main.c \
 		seg.c \
 		util.c \
 		vers.c
+
+.if ${MK_FDT} != "no"
+SRCS+=		kbootfdt.c
+.endif
 
 .if ${MK_LOADER_ZFS} != "no"
 CFLAGS+=	-I${ZFSSRC}

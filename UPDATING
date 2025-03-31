@@ -27,6 +27,63 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250314:
+	We now use LLVM's binary utilities (nm, objcopy, etc.) by default.
+	The WITHOUT_LLVM_BINUTILS src.conf(5) knob can be used to revert to
+	ELF Tool Chain tools if desired.
+
+20250303:
+	Commit 4a77657cbc01 changed the ABI between ipfw(8) and ipfw(4).
+	Please note that the old ipfw(8) binary will not work with the new
+	ipfw(4) module. Therefore, it is recommended to disable ipfw during
+	the upgrade, otherwise the host system may become inaccessible because
+	ipfw rules cannot be installed with the old binary.
+
+20250214:
+	Commit 4517fbfd4251 modified the internal API between the
+	nfscommon and nfscl modules.  As such, both of these modules
+	need to be rebuilt from sources.
+
+20250201:
+	The NFS related daemons, that provide RPC services to the kernel:
+	gssd(8), rpcbind(8), rpc.tlsservd(8) and rpc.tlsclntd(8), now use a
+	different transport - netlink(4) socket instead of unix(4).  Users of
+	NFS need to upgrade both kernel and world (binaries and libc) at once.
+	Also, any revision between 88cd1e17a7d8 and 99e5a70046da should be
+	avoided.
+
+20250129:
+	Defer the January 19, 2038 date limit in UFS1 filesystems to
+	February 7, 2106. This affects only UFS1 format filesystems.
+	See commit message 1111a44301da for details.
+
+20250127:
+	The Allwinner a10_timer driver has been renamed to aw_driver. If you
+	have a custom kernel configuration including the line 'device
+	a10_timer', it must be adjusted to 'device aw_timer'. The same applies
+	for device exclusions with 'nodevice'.
+
+20250106:
+	A new SOC_ROCKCHIP options appeared, so if you have a custom kernel configuration
+	targetting Rockchip SoC you need to add it so shared and mandatory drivers for
+	this SoC familly will be selected.
+	Also a new rk8xx device was added, this select the base driver for Rockchip PMIC.
+
+20241223:
+	The layout of NFS file handles for the tarfs, tmpfs, cd9660, and ext2fs
+	file systems has changed.  An NFS server that exports any of these file
+	systems will need its clients to unmount and remount the exports.
+
+20241216:
+	The iwm(4) firmwares are no longer compiled as kernel modules but instead
+	shipped as raw files. For pkgbase users if you use iwm(4) you will need
+	to install the FreeBSD-firmware-iwm package.
+
+20241124:
+	The OpenBSD derived bc and dc implementations and the WITHOUT_GH_BC
+	option that allowed building them instead of the advanced version
+	imported more than 4 years ago have been removed.
+
 20241025:
 	The support for the rc_fast_and_loose variable has been removed from
 	rc.subr(8). Users setting rc_fast_and_loose on their systems are
@@ -2131,7 +2188,7 @@ FOOTNOTES:
 	happens automatically. If all your modules come from ports, then adding
 	the port origin directories to PORTS_MODULES instead is also automatic
 	and effective, eg:
-	     PORTS_MODULES+=x11/nvidia-driver
+	     PORTS_MODULES+=graphics/drm-kmod graphics/nvidia-drm-kmod
 
 	[3] From the bootblocks, boot -s, and then do
 		fsck -p

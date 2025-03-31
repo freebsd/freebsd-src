@@ -594,14 +594,20 @@ EXTRA_REVISION=	p${_BRANCH:C/.*-p([0-9]+$)/\1/}
 .if !defined(PKG_VERSION)
 PKG_VERSION:=	${_PKG_REVISION}${EXTRA_REVISION:C/[[:space:]]//g}
 .endif
-.endif	# !defined(PKG_VERSION)
+.endif	# !defined(_MKSHOWCONFIG)
 
+.if make(*package*)
 .if !defined(PKG_TIMESTAMP)
+.if !empty(GIT_CMD) && exists(${GIT_CMD}) && exists(${SRCDIR}/.git)
+SOURCE_DATE_EPOCH!=	${GIT_CMD} -C ${SRCDIR} show -s --format=%ct HEAD
+.else
 TIMEEPOCHNOW=		%s
 SOURCE_DATE_EPOCH=	${TIMEEPOCHNOW:gmtime}
+.endif
 .else
 SOURCE_DATE_EPOCH=	${PKG_TIMESTAMP}
 .endif
+PKG_WORKERS_COUNT?=	1
 
 PKG_NAME_PREFIX?=	FreeBSD
 PKG_MAINTAINER?=	re@FreeBSD.org
@@ -609,6 +615,7 @@ PKG_WWW?=		https://www.FreeBSD.org
 .export PKG_NAME_PREFIX
 .export PKG_MAINTAINER
 .export PKG_WWW
+.endif
 
 .if !defined(_MKSHOWCONFIG)
 _CPUTYPE!=	MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} -f /dev/null \
@@ -770,7 +777,6 @@ BSARGS= 	DESTDIR= \
 		MK_CLANG_FULL=no \
 		MK_HTML=no \
 		MK_MAN=no \
-		MK_PROFILE=no \
 		MK_RETPOLINE=no \
 		MK_SSP=no \
 		MK_TESTS=no \
@@ -837,7 +843,6 @@ KTMAKE=		${TIME_ENV} \
 		MK_CTF=no \
 		MK_HTML=no \
 		MK_MAN=no \
-		MK_PROFILE=no \
 		MK_SSP=no \
 		MK_RETPOLINE=no \
 		MK_WERROR=no
@@ -1002,6 +1007,17 @@ INSTALLFLAGS+=	-h sha256
 IMAKE_INSTALL=	INSTALL="${INSTALL_CMD} ${INSTALLFLAGS}"
 IMAKE_MTREE=	MTREE_CMD="${MTREE_CMD} ${MTREEFLAGS}"
 .endif
+
+.if make(distributeworld) || make(packageworld) || make(distributekernel) || \
+    make(packagekernel)
+.if ${DISTDIR:U/} == /
+.error DISTDIR must be set for make distribute* and make package*, and may not be the root directory.
+.endif
+.if !defined(NO_ROOT) || !defined(METALOG)
+.error NO_ROOT and METALOG must be set for make distribute* and make package*.
+.endif
+.endif
+
 .if make(distributeworld)
 CERTCTLDESTDIR=	${DESTDIR}/${DISTDIR}
 CERTCTLFLAGS+=	-d /base
@@ -1207,7 +1223,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG MK_HTML=no -DNO_LINT MK_MAN=no \
-	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS_SUPPORT} \
+	    MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS_SUPPORT} \
 	    libraries
 everything: .PHONY
 	@echo
@@ -1497,10 +1513,9 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    -p ${DESTDIR}/${DISTDIR}/${dist}${TESTSBASE} >/dev/null
 .if ${MK_DEBUG_FILES} != "no"
 	${DESTDIR_MTREE} -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib/debug/${TESTSBASE} >/dev/null
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib/debug${TESTSBASE} >/dev/null
 .endif
 .endif
-.if defined(NO_ROOT)
 	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
 	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
 	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
@@ -1514,7 +1529,6 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	${IMAKEENV} ${DISTR_MTREE} -C -f ${.CURDIR}/etc/mtree/BSD.lib${libcompat}.dist | \
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
 .endfor
-.endif
 .endfor
 	-mkdir ${DESTDIR}/${DISTDIR}/base
 	${_+_}cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH:Q} ${MAKE} \
@@ -1538,54 +1552,32 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 .for dist in ${EXTRA_DISTRIBUTIONS}
 	find ${DESTDIR}/${DISTDIR}/${dist} -mindepth 1 -type d -empty -delete
 .endfor
-.if defined(NO_ROOT)
 .for dist in base ${EXTRA_DISTRIBUTIONS}
+.for path suffix in "" .meta /usr/lib/debug .debug.meta
 	@# For each file that exists in this dist, print the corresponding
 	@# line from the METALOG.  This relies on the fact that
 	@# a line containing only the filename will sort immediately before
 	@# the relevant mtree line.
 	cd ${DESTDIR}/${DISTDIR}; \
-	find ./${dist} | ${METALOG_SORT_CMD} -u ${METALOG} - | \
-	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}/, "."); print } }' > \
-	${DESTDIR}/${DISTDIR}/${dist}.meta
+	    find ./${dist}${path} | ${METALOG_SORT_CMD} -u ${METALOG} - | \
+	    awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}/, "."); print } }' > \
+	    ${DESTDIR}/${DISTDIR}/${dist}${suffix}
 .endfor
-.for dist in ${DEBUG_DISTRIBUTIONS}
-	@# For each file that exists in this dist, print the corresponding
-	@# line from the METALOG.  This relies on the fact that
-	@# a line containing only the filename will sort immediately before
-	@# the relevant mtree line.
-	cd ${DESTDIR}/${DISTDIR}; \
-	find ./${dist}/usr/lib/debug | ${METALOG_SORT_CMD} -u ${METALOG} - | \
-	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}/, "."); print } }' > \
-	${DESTDIR}/${DISTDIR}/${dist}.debug.meta
 .endfor
-.endif
 .endif # make(distributeworld)
 
 packageworld: .PHONY
 .for dist in base ${EXTRA_DISTRIBUTIONS}
-.if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    ${TAR_CMD} cvf - --exclude usr/lib/debug \
 	    @${DESTDIR}/${DISTDIR}/${dist}.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}.txz
-.else
-	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    ${TAR_CMD} cvf - --exclude usr/lib/debug . | \
-	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}.txz
-.endif
 .endfor
 
 .for dist in ${DEBUG_DISTRIBUTIONS}
-. if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    ${TAR_CMD} cvf - @${DESTDIR}/${DISTDIR}/${dist}.debug.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
-. else
-	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    ${TAR_CMD} cvLf - usr/lib/debug | \
-	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
-. endif
 .endfor
 
 makeman: .PHONY
@@ -1607,7 +1599,8 @@ _sysent_dirs+=	sys/compat/freebsd32
 _sysent_dirs+=	sys/amd64/linux		\
 		sys/amd64/linux32	\
 		sys/arm64/linux		\
-		sys/i386/linux
+		sys/i386/linux		\
+		sys/tools/syscalls/examples/cpp
 
 sysent: .PHONY
 .for _dir in ${_sysent_dirs}
@@ -1911,9 +1904,7 @@ distributekernel distributekernel.debug: .PHONY
 	false
 .endif
 	mkdir -p ${DESTDIR}/${DISTDIR}
-.if defined(NO_ROOT)
-	@echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.premeta
-.endif
+	rm -f ${DESTDIR}/${DISTDIR}/kernel.premeta
 	${_+_}cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH:Q} ${MAKE} KERNEL=${INSTKERNNAME} \
@@ -1921,15 +1912,14 @@ distributekernel distributekernel.debug: .PHONY
 	    METALOG=${METALOG:S/METALOG/kernel.premeta/} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
-	@sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta > \
-	    ${DESTDIR}/${DISTDIR}/kernel.meta
+	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.meta
+	sed -e 's|^./kernel|.|' ${DESTDIR}/${DISTDIR}/kernel.premeta | \
+	    ${METALOG_SORT_CMD} >> ${DESTDIR}/${DISTDIR}/kernel.meta
 .endif
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
-.if defined(NO_ROOT)
-	@echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
-.endif
+	rm -f ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta
 	${_+_}cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.${_kernel}.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH:Q} ${MAKE} \
@@ -1938,9 +1928,10 @@ distributekernel distributekernel.debug: .PHONY
 	    METALOG=${METALOG:S/METALOG/kernel.${_kernel}.premeta/} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
-	@sed -e "s|^./kernel.${_kernel}|.|" \
-	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta > \
-	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+	echo "#${MTREE_MAGIC}" > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
+	sed -e "s|^./kernel.${_kernel}|.|" \
+	    ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.premeta | \
+	    ${METALOG_SORT_CMD} >> ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta
 .endif
 .endfor
 .endif
@@ -1999,7 +1990,7 @@ packagekernel: .PHONY
 .endif
 
 stagekernel: .PHONY
-	${_+_}${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} distributekernel
+	${_+_}${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} DISTDIR=. distributekernel
 
 PORTSDIR?=	/usr/ports
 WSTAGEDIR?=	${OBJTOP}/worldstage
@@ -2367,7 +2358,8 @@ real-sign-packages:	_pkgbootstrap .PHONY
 .if ${PKG_BIN_VERSION} < 11700
 	printf "packing_format = \"${PKG_FORMAT}\";\n" >> ${WSTAGEDIR}/meta
 .endif
-	@${PKG_CMD} -o ABI=${PKG_ABI} repo -o OSVERSION="${SRCRELDATE}" \
+	@${PKG_CMD} -o ABI=${PKG_ABI} -o OSVERSION="${SRCRELDATE}" \
+		-o WORKERS_COUNT=${PKG_WORKERS_COUNT} repo \
 		-m ${WSTAGEDIR}/meta \
 		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
 		${REPODIR}/${PKG_ABI}/${PKG_VERSION} \
@@ -2917,29 +2909,24 @@ _dtrace_tools= cddl/lib/libctf cddl/lib/libspl cddl/usr.bin/ctfconvert \
     cddl/usr.bin/ctfmerge
 .endif
 
-# If we're given an XAS, don't build binutils.
-.if ${XAS:M/*} == ""
 .if ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
+# Some bespoke tools from or based on ELF Tool Chain.  objcopy (elfcopy) is
+# included because llvm-objcopy is currently not capable of translating ELF to
+# PE32+, which is required for EFI boot programs.
 _elftctools=	lib/libelftc \
 		lib/libpe \
 		usr.bin/elfctl \
 		usr.bin/elfdump \
-		usr.bin/objcopy \
-		usr.bin/nm \
+		usr.bin/objcopy
+# If we're given an XNM we don't need to build standard binary utilities.
+.if ${XNM:M/*} == ""
+_elftctools+=	usr.bin/nm \
 		usr.bin/size \
 		usr.bin/strings
 # These are not required by the build, but can be useful for developers who
 # cross-build on a FreeBSD 10 host:
 _elftctools+=	usr.bin/addr2line
 .endif
-.elif ${TARGET_ARCH} != ${MACHINE_ARCH} && ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
-# If cross-building with an external binutils we still need to build strip for
-# the target (for at least crunchide).
-_elftctools=	lib/libelftc \
-		lib/libpe \
-		usr.bin/elfctl \
-		usr.bin/elfdump \
-		usr.bin/objcopy
 .endif
 
 .if ${MK_CLANG_BOOTSTRAP} != "no"
@@ -3086,7 +3073,6 @@ NXBMAKEARGS+= \
 	MK_MAN_UTILS=yes \
 	MK_OFED=no \
 	MK_OPENSSH=no \
-	MK_PROFILE=no \
 	MK_RETPOLINE=no \
 	MK_SENDMAIL=no \
 	MK_SSP=no \
@@ -3451,9 +3437,9 @@ ${_lib}__PL: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,all,install)"; \
 		cd ${.CURDIR}/${_lib}; \
 		if [ -z "${NO_OBJWALK}" ]; then ${MAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj; fi; \
-		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
+		${MAKE} MK_TESTS=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ all; \
-		${MAKE} MK_TESTS=no MK_PROFILE=no -DNO_PIC \
+		${MAKE} MK_TESTS=no -DNO_PIC \
 		    DIRPRFX=${_lib}/ install
 .endif
 .endfor
@@ -3756,7 +3742,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 .endif
 
 NOFUN=-DNO_FSCHG MK_HTML=no -DNO_LINT \
-	MK_MAN=no MK_NLS=no MK_PROFILE=no \
+	MK_MAN=no MK_NLS=no \
 	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WERROR=no \
 	TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}

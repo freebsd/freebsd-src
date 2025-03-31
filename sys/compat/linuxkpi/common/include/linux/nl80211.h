@@ -133,11 +133,13 @@ enum nl80211_band {
 
 	/* Keep this last. */
 	NUM_NL80211_BANDS
-};
+} __packed;
 
-enum nl80211_chan_flags {
-	/* XXX TODO */
+enum nl80211_channel_type {
 	NL80211_CHAN_NO_HT,
+	NL80211_CHAN_HT20,
+	NL80211_CHAN_HT40PLUS,
+	NL80211_CHAN_HT40MINUS,
 };
 
 enum nl80211_chan_width {
@@ -247,6 +249,7 @@ enum nl80211_ext_feature {
 	NUM_NL80211_EXT_FEATURES
 };
 
+/* Keep in order with lkpi_nl80211_sta_info_to_str() */
 enum nl80211_sta_info {
 	/* XXX TODO */
 	NL80211_STA_INFO_BEACON_RX,

@@ -65,10 +65,6 @@ static struct rtwn_data * rtwn_usb_getbuf(struct rtwn_usb_softc *);
 static void		rtwn_usb_txeof(struct rtwn_usb_softc *,
 			    struct rtwn_data *, int);
 
-static const uint8_t wme2qid[] =
-	{ RTWN_BULK_TX_BE, RTWN_BULK_TX_BK,
-	  RTWN_BULK_TX_VI, RTWN_BULK_TX_VO };
-
 static struct rtwn_data *
 _rtwn_usb_getbuf(struct rtwn_usb_softc *uc)
 {
@@ -105,6 +101,7 @@ static void
 rtwn_usb_txeof(struct rtwn_usb_softc *uc, struct rtwn_data *data, int status)
 {
 	struct rtwn_softc *sc = &uc->uc_sc;
+	bool is_empty = true;
 
 	RTWN_ASSERT_LOCKED(sc);
 
@@ -120,42 +117,54 @@ rtwn_usb_txeof(struct rtwn_usb_softc *uc, struct rtwn_data *data, int status)
 
 	STAILQ_INSERT_TAIL(&uc->uc_tx_inactive, data, next);
 	sc->qfullmsk = 0;
+
 #ifndef D4054
-	if (STAILQ_EMPTY(&uc->uc_tx_active) && STAILQ_EMPTY(&uc->uc_tx_pending))
+	for (int i = RTWN_BULK_TX_FIRST; i < RTWN_BULK_EP_COUNT; i++) {
+		if (!STAILQ_EMPTY(&uc->uc_tx_active[i]) ||
+		    !STAILQ_EMPTY(&uc->uc_tx_pending[i]))
+			is_empty = false;
+	}
+
+	if (is_empty)
 		sc->sc_tx_timer = 0;
 	else
 		sc->sc_tx_timer = 5;
 #endif
 }
 
-void
-rtwn_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
+static void
+rtwn_bulk_tx_callback_qid(struct usb_xfer *xfer, usb_error_t error, int qid)
 {
 	struct rtwn_usb_softc *uc = usbd_xfer_softc(xfer);
 	struct rtwn_softc *sc = &uc->uc_sc;
 	struct rtwn_data *data;
+	bool do_is_empty_check = false;
+	int i;
+
+	RTWN_DPRINTF(sc, RTWN_DEBUG_XMIT,
+	    "%s: called, qid=%d\n", __func__, qid);
 
 	RTWN_ASSERT_LOCKED(sc);
 
 	switch (USB_GET_STATE(xfer)){
 	case USB_ST_TRANSFERRED:
-		data = STAILQ_FIRST(&uc->uc_tx_active);
+		data = STAILQ_FIRST(&uc->uc_tx_active[qid]);
 		if (data == NULL)
 			goto tr_setup;
-		STAILQ_REMOVE_HEAD(&uc->uc_tx_active, next);
+		STAILQ_REMOVE_HEAD(&uc->uc_tx_active[qid], next);
 		rtwn_usb_txeof(uc, data, 0);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		data = STAILQ_FIRST(&uc->uc_tx_pending);
+		data = STAILQ_FIRST(&uc->uc_tx_pending[qid]);
 		if (data == NULL) {
 			RTWN_DPRINTF(sc, RTWN_DEBUG_XMIT,
 			    "%s: empty pending queue\n", __func__);
-			sc->sc_tx_n_active = 0;
+			do_is_empty_check = true;
 			goto finish;
 		}
-		STAILQ_REMOVE_HEAD(&uc->uc_tx_pending, next);
-		STAILQ_INSERT_TAIL(&uc->uc_tx_active, data, next);
+		STAILQ_REMOVE_HEAD(&uc->uc_tx_pending[qid], next);
+		STAILQ_INSERT_TAIL(&uc->uc_tx_active[qid], data, next);
 
 		/*
 		 * Note: if this is a beacon frame, ensure that it will go
@@ -169,11 +178,17 @@ tr_setup:
 			sc->sc_tx_n_active++;
 		break;
 	default:
-		data = STAILQ_FIRST(&uc->uc_tx_active);
+		data = STAILQ_FIRST(&uc->uc_tx_active[qid]);
 		if (data == NULL)
 			goto tr_setup;
-		STAILQ_REMOVE_HEAD(&uc->uc_tx_active, next);
+		STAILQ_REMOVE_HEAD(&uc->uc_tx_active[qid], next);
 		rtwn_usb_txeof(uc, data, 1);
+		if (error != 0)
+			device_printf(sc->sc_dev,
+			    "%s: called; txeof qid=%d, error=%s\n",
+			    __func__,
+			    qid,
+			    usbd_errstr(error));
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
@@ -181,6 +196,19 @@ tr_setup:
 		break;
 	}
 finish:
+
+	/*
+	 * Clear sc_tx_n_active if all the pending transfers are 0.
+	 *
+	 * This is currently a crutch because net80211 doesn't provide
+	 * a way to defer all the FF checks or one of the FF checks.
+	 * Eventually this should just be tracked per-endpoint.
+	 */
+	for (i = RTWN_BULK_TX_FIRST; i < RTWN_BULK_EP_COUNT; i++)
+		if (STAILQ_FIRST(&uc->uc_tx_pending[i]) != NULL)
+			do_is_empty_check = false;
+	if (do_is_empty_check)
+		sc->sc_tx_n_active = 0;
 #ifdef	IEEE80211_SUPPORT_SUPERG
 	/*
 	 * If the TX active queue drops below a certain
@@ -210,6 +238,34 @@ finish:
 	rtwn_start(sc);
 }
 
+void
+rtwn_bulk_tx_callback_be(struct usb_xfer *xfer, usb_error_t error)
+{
+
+	rtwn_bulk_tx_callback_qid(xfer, error, RTWN_BULK_TX_BE);
+}
+
+void
+rtwn_bulk_tx_callback_bk(struct usb_xfer *xfer, usb_error_t error)
+{
+
+	rtwn_bulk_tx_callback_qid(xfer, error, RTWN_BULK_TX_BK);
+}
+
+void
+rtwn_bulk_tx_callback_vi(struct usb_xfer *xfer, usb_error_t error)
+{
+
+	rtwn_bulk_tx_callback_qid(xfer, error, RTWN_BULK_TX_VI);
+}
+
+void
+rtwn_bulk_tx_callback_vo(struct usb_xfer *xfer, usb_error_t error)
+{
+
+	rtwn_bulk_tx_callback_qid(xfer, error, RTWN_BULK_TX_VO);
+}
+
 static void
 rtwn_usb_tx_checksum(struct rtwn_tx_desc_common *txd)
 {
@@ -226,6 +282,7 @@ rtwn_usb_tx_start(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	struct rtwn_data *data;
 	struct usb_xfer *xfer;
 	uint16_t ac;
+	int qid = 0;
 
 	RTWN_ASSERT_LOCKED(sc);
 
@@ -236,17 +293,23 @@ rtwn_usb_tx_start(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	if (data == NULL)
 		return (ENOBUFS);
 
+	/* TODO: should really get a consistent AC/TID, ath(4) style */
 	ac = M_WME_GETAC(m);
 
 	switch (type) {
 	case IEEE80211_FC0_TYPE_CTL:
 	case IEEE80211_FC0_TYPE_MGT:
-		xfer = uc->uc_xfer[RTWN_BULK_TX_VO];
+		qid = RTWN_BULK_TX_VO;
 		break;
 	default:
-		xfer = uc->uc_xfer[wme2qid[ac]];
+		qid = uc->wme2qid[ac];
 		break;
 	}
+	xfer = uc->uc_xfer[qid];
+
+	RTWN_DPRINTF(sc, RTWN_DEBUG_XMIT,
+	    "%s: called, ac=%d, qid=%d, xfer=%p\n",
+	    __func__, ac, qid, xfer);
 
 	txd = (struct rtwn_tx_desc_common *)tx_desc;
 	txd->pktlen = htole16(m->m_pkthdr.len);
@@ -264,6 +327,7 @@ rtwn_usb_tx_start(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	data->buflen = m->m_pkthdr.len + sc->txdesc_len;
 	data->id = id;
 	data->ni = ni;
+	data->qid = qid;
 	if (data->ni != NULL) {
 		data->m = m;
 #ifndef D4054
@@ -271,7 +335,7 @@ rtwn_usb_tx_start(struct rtwn_softc *sc, struct ieee80211_node *ni,
 #endif
 	}
 
-	STAILQ_INSERT_TAIL(&uc->uc_tx_pending, data, next);
+	STAILQ_INSERT_TAIL(&uc->uc_tx_pending[qid], data, next);
 	if (STAILQ_EMPTY(&uc->uc_tx_inactive))
 		sc->qfullmsk = 1;
 

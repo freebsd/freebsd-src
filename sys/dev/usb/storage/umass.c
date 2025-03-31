@@ -1,4 +1,3 @@
-#include <sys/cdefs.h>
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
@@ -364,6 +363,26 @@ typedef uint8_t (umass_transform_t)(struct umass_softc *sc, uint8_t *cmd_ptr,
 #define	NO_SYNCHRONIZE_CACHE	0x4000
 	/* Device does not support 'PREVENT/ALLOW MEDIUM REMOVAL'. */
 #define	NO_PREVENT_ALLOW	0x8000
+
+#define UMASS_QUIRKS_STRING		\
+	"\020"				\
+	"\001NO_TEST_UNIT_READY"	\
+	"\002RS_NO_CLEAR_UA"		\
+	"\003NO_START_STOP"		\
+	"\004FORCE_SHORT_INQUIRY"	\
+	"\005SHUTTLE_INIT"		\
+	"\006ALT_IFACE_1"		\
+	"\007FLOPPY_SPEED"		\
+	"\010IGNORE_RESIDUE"		\
+	"\011NO_GETMAXLUN"		\
+	"\012WRONG_CSWSIG"		\
+	"\013NO_INQUIRY"		\
+	"\014NO_INQUIRY_EVPD"		\
+	"\015RBC_PAD_TO_12"		\
+	"\016READ_CAPACITY_OFFBY1"	\
+	"\017NO_SYNCHRONIZE_CACHE"	\
+	"\020NO_PREVENT_ALLOW"		\
+
 
 struct umass_softc {
 	struct scsi_sense cam_scsi_sense;
@@ -956,7 +975,7 @@ umass_attach(device_t dev)
 		    sc->sc_proto & UMASS_PROTO_WIRE);
 	}
 
-	printf("; quirks = 0x%04x\n", sc->sc_quirks);
+	printf("; quirks = 0x%b\n", sc->sc_quirks, UMASS_QUIRKS_STRING);
 #endif
 
 	if (sc->sc_quirks & ALT_IFACE_1) {
@@ -2247,7 +2266,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 							/*sense_format*/ SSD_TYPE_NONE,
 							/*current_error*/ 1,
 							/*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-							/*asc*/ 0x24,
+							/*asc*/ 0x24,	/* 24h/00h INVALID FIELD IN CDB */
 							/*ascq*/ 0x00,
 							/*extra args*/ SSD_ELEM_NONE);
 						ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
@@ -2504,10 +2523,6 @@ umass_cam_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 
 		if (umass_std_transform(sc, ccb, &sc->cam_scsi_sense.opcode,
 		    sizeof(sc->cam_scsi_sense))) {
-			if ((sc->sc_quirks & FORCE_SHORT_INQUIRY) &&
-			    (sc->sc_transfer.cmd_data[0] == INQUIRY)) {
-				ccb->csio.sense_len = SHORT_INQUIRY_LENGTH;
-			}
 			umass_command_start(sc, DIR_IN, &ccb->csio.sense_data.error_code,
 			    ccb->csio.sense_len, ccb->ccb_h.timeout,
 			    &umass_cam_sense_cb, ccb);

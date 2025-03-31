@@ -2308,7 +2308,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x3E, 0x02, SS_RDEF,
 	    "Timeout on logical unit") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x3E, 0x03, SS_RDEF,	/* XXX TBD */
+	{ SST(0x3E, 0x03, SS_FATAL | ENXIO,
 	    "Logical unit failed self-test") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x3E, 0x04, SS_RDEF,	/* XXX TBD */
@@ -2394,10 +2394,10 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x3F, 0x1A, SS_RDEF,	/* XXX TBD */
 	    "Subsidiary binding changed") },
-	{ SST(0x40, 0x00, SS_RDEF,
+	{ SST(0x40, 0x00, SS_FATAL | ENXIO,
 	    "RAM failure") },		/* deprecated - use 40 NN instead */
 	/* DTLPWROMAEBKVF */
-	{ SST(0x40, 0x80, SS_RDEF,
+	{ SST(0x40, 0x80, SS_FATAL | ENXIO,
 	    "Diagnostic failure: ASCQ = Component ID") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x40, 0xFF, SS_RDEF | SSQ_RANGE,
@@ -3419,7 +3419,15 @@ fetchtableentries(int sense_key, int asc, int ascq,
 				      ascentrycomp);
 
 		if (found_entry) {
+			/*
+			 * If we get to the SSQ_RANGE entry, we're one too
+			 * far. The prior entry is the interesting one, since it
+			 * contains the string to print, etc. Only the top end
+			 * range is interesting in this entry.
+			 */
 			*asc_entry = (struct asc_table_entry *)found_entry;
+			if (((*asc_entry)->action & SSQ_RANGE) != 0)
+				(*asc_entry)--;
 			break;
 		}
 	}

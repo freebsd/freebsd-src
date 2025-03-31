@@ -1135,10 +1135,7 @@ uaudio_attach(device_t dev)
 		    &sc->sc_sndcard_func);
 	}
 
-	if (bus_generic_attach(dev)) {
-		DPRINTF("child attach failed\n");
-		goto detach;
-	}
+	bus_attach_children(dev);
 
 	if (uaudio_handle_hid) {
 		if (uaudio_hid_probe(sc, uaa) == 0) {
@@ -1209,14 +1206,9 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 	snprintf(status, sizeof(status), "on %s",
 	    device_get_nameunit(device_get_parent(dev)));
 
-	if (pcm_register(dev, sc,
-	    (sc->sc_play_chan[i].num_alt > 0) ? 1 : 0,
-	    (sc->sc_rec_chan[i].num_alt > 0) ? 1 : 0)) {
-		goto detach;
-	}
+	pcm_init(dev, sc);
 
 	uaudio_pcm_setflags(dev, SD_F_MPSAFE);
-	sc->sc_child[i].pcm_registered = 1;
 
 	if (sc->sc_play_chan[i].num_alt > 0) {
 		sc->sc_play_chan[i].priv_sc = sc;
@@ -1229,7 +1221,9 @@ uaudio_attach_sub(device_t dev, kobj_class_t mixer_class, kobj_class_t chan_clas
 		pcm_addchan(dev, PCMDIR_REC, chan_class,
 		    &sc->sc_rec_chan[i]);
 	}
-	pcm_setstatus(dev, status);
+	if (pcm_register(dev, status))
+		goto detach;
+	sc->sc_child[i].pcm_registered = 1;
 
 	uaudio_mixer_register_sysctl(sc, dev, i);
 

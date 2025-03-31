@@ -54,16 +54,9 @@ static int
 mdio_attach(device_t dev)
 {
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	return (bus_generic_attach(dev));
-}
-
-static int
-mdio_detach(device_t dev)
-{
-
-	bus_generic_detach(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 
@@ -108,7 +101,7 @@ static device_method_t mdio_methods[] = {
 	DEVMETHOD(device_identify,	mdio_identify),
 	DEVMETHOD(device_probe,		mdio_probe),
 	DEVMETHOD(device_attach,	mdio_attach),
-	DEVMETHOD(device_detach,	mdio_detach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
 	/* bus interface */

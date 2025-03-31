@@ -191,13 +191,13 @@ static void cuse_client_kqfilter_write_detach(struct knote *kn);
 static int cuse_client_kqfilter_read_event(struct knote *kn, long hint);
 static int cuse_client_kqfilter_write_event(struct knote *kn, long hint);
 
-static struct filterops cuse_client_kqfilter_read_ops = {
+static const struct filterops cuse_client_kqfilter_read_ops = {
 	.f_isfd = 1,
 	.f_detach = cuse_client_kqfilter_read_detach,
 	.f_event = cuse_client_kqfilter_read_event,
 };
 
-static struct filterops cuse_client_kqfilter_write_ops = {
+static const struct filterops cuse_client_kqfilter_write_ops = {
 	.f_isfd = 1,
 	.f_detach = cuse_client_kqfilter_write_detach,
 	.f_event = cuse_client_kqfilter_write_event,
@@ -332,7 +332,7 @@ cuse_kern_uninit(void *arg)
 
 	mtx_destroy(&cuse_global_mtx);
 }
-SYSUNINIT(cuse_kern_uninit, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_uninit, 0);
+SYSUNINIT(cuse_kern_uninit, SI_SUB_DEVFS, SI_ORDER_ANY, cuse_kern_uninit, NULL);
 
 static int
 cuse_server_get(struct cuse_server **ppcs)

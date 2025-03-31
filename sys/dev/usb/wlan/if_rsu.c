@@ -15,7 +15,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <sys/cdefs.h>
 /*
  * Driver for Realtek RTL8188SU/RTL8191SU/RTL8192SU.
  *
@@ -1500,7 +1499,8 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ni = ieee80211_ref_node(vap->iv_bss);
 		rs = &ni->ni_rates;
 		/* Indicate highest supported rate. */
-		ni->ni_txrate = rs->rs_rates[rs->rs_nrates - 1];
+		ieee80211_node_set_txrate_dot11rate(ni,
+		    rs->rs_rates[rs->rs_nrates - 1]);
 		(void) rsu_set_fw_power_state(sc, RSU_PWR_SLEEP);
 		ieee80211_free_node(ni);
 		startcal = 1;

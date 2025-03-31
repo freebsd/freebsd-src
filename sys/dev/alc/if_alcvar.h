@@ -219,7 +219,6 @@ struct alc_softc {
 	uint32_t		alc_dma_wr_burst;
 	uint32_t		alc_rcb;
 	int			alc_expcap;
-	int			alc_pmcap;
 	int			alc_flags;
 #define	ALC_FLAG_PCIE		0x0001
 #define	ALC_FLAG_PCIX		0x0002

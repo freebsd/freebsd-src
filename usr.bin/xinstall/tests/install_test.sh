@@ -32,6 +32,15 @@ copy_to_empty_body() {
 	    install testf ""
 }
 
+atf_test_case copy_to_nonexistent_dir
+copy_to_nonexistent_dir_body() {
+	local dir="/nonexistent"
+
+	printf 'test\n123\r456\r\n789\0z' >testf
+	atf_check -s not-exit:0 -e match:$dir": No such file or directory" \
+	    install testf $dir/testf
+}
+
 copy_to_nonexistent_with_opts() {
 	printf 'test\n123\r456\r\n789\0z' >testf
 	atf_check install "$@" testf copyf
@@ -506,6 +515,7 @@ set_optional_exec_body()
 atf_init_test_cases() {
 	atf_add_test_case copy_to_empty
 	atf_add_test_case copy_to_nonexistent
+	atf_add_test_case copy_to_nonexistent_dir
 	atf_add_test_case copy_to_nonexistent_safe
 	atf_add_test_case copy_to_nonexistent_comparing
 	atf_add_test_case copy_to_nonexistent_safe_comparing

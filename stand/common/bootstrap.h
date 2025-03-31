@@ -230,7 +230,7 @@ struct kernel_module
 struct preloaded_file
 {
 	char *f_name;	/* file name */
-	char *f_type; /* verbose file type, eg 'ELF kernel', 'pnptable', etc. */
+	char *f_type; /* verbose file type, eg 'elf kernel', 'pnptable', etc. */
 	char *f_args;	/* arguments for the file */
 	/* metadata that will be placed in the module directory */
 	struct file_metadata *f_metadata;
@@ -239,10 +239,10 @@ struct preloaded_file
 	size_t f_size;		/* file size */
 	struct kernel_module	*f_modules;	/* list of modules if any */
 	struct preloaded_file	*f_next;	/* next file */
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__) || (defined(__i386__) && defined(EFI))
 	bool			f_kernphys_relocatable;
 #endif
-#if defined(__i386__)
+#if defined(__i386__) && !defined(EFI)
 	bool			f_tg_kernel_support;
 #endif
 };
@@ -271,7 +271,7 @@ void unload(void);
 struct preloaded_file *file_alloc(void);
 struct preloaded_file *file_findfile(const char *name, const char *type);
 struct file_metadata *file_findmetadata(struct preloaded_file *fp, int type);
-struct preloaded_file *file_loadraw(const char *name, char *type, int insert);
+struct preloaded_file *file_loadraw(const char *name, const char *type, int insert);
 void file_discard(struct preloaded_file *fp);
 void file_addmetadata(struct preloaded_file *, int, size_t, void *);
 int file_addmodule(struct preloaded_file *, char *, int,

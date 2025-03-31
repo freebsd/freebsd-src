@@ -210,7 +210,14 @@ printlong(const DISPLAY *dp)
 
 	if ((dp->list == NULL || dp->list->fts_level != FTS_ROOTLEVEL) &&
 	    (f_longform || f_size)) {
-		(void)printf("total %lu\n", howmany(dp->btotal, blocksize));
+		if (!f_humanval)
+			(void)printf("total %lu\n", howmany(dp->btotal, blocksize));
+		else {
+			(void)humanize_number(buf, 7 /* "1024 KB" */,
+			    dp->btotal * 512, "B", HN_AUTOSCALE, HN_DECIMAL);
+
+			(void)printf("total %s\n", buf);
+		}
 	}
 
 	for (p = dp->list; p; p = p->fts_link) {

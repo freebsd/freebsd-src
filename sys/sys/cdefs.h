@@ -155,6 +155,7 @@
 #define	__unused	__attribute__((__unused__))
 #define	__used		__attribute__((__used__))
 #define __deprecated	__attribute__((__deprecated__))
+#define __deprecated1(msg)	__attribute__((__deprecated__(msg)))
 #define	__packed	__attribute__((__packed__))
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 #define	__section(x)	__attribute__((__section__(x)))
@@ -513,9 +514,22 @@
 #define	_POSIX_C_SOURCE		199209
 #endif
 
-/* Deal with various X/Open Portability Guides and Single UNIX Spec. */
+/*
+ * Deal with various X/Open Portability Guides and Single UNIX Spec. We use the
+ * '- 0' construct so software that defines _XOPEN_SOURCE to nothing doesn't
+ * cause errors. X/Open CAE Specification, August 1994, System Interfaces and
+ * Headers, Issue 4, Version 2 section 2.2 states an empty definition means the
+ * same thing as _POSIX_C_SOURCE == 2. This broadly mirrors "System V Interface
+ * Definition, Fourth Edition", but earlier editions suggest some ambiguity.
+ * However, FreeBSD has histoically implemented this as a NOP, so we just
+ * document what it should be for now to not break ports gratuitously.
+ */
 #ifdef _XOPEN_SOURCE
-#if _XOPEN_SOURCE - 0 >= 700
+#if _XOPEN_SOURCE - 0 >= 800
+#define	__XSI_VISIBLE		800
+#undef _POSIX_C_SOURCE
+#define	_POSIX_C_SOURCE		202405
+#elif _XOPEN_SOURCE - 0 >= 700
 #define	__XSI_VISIBLE		700
 #undef _POSIX_C_SOURCE
 #define	_POSIX_C_SOURCE		200809
@@ -527,6 +541,8 @@
 #define	__XSI_VISIBLE		500
 #undef _POSIX_C_SOURCE
 #define	_POSIX_C_SOURCE		199506
+#else
+/* #define	_POSIX_C_SOURCE		199209 */
 #endif
 #endif
 
@@ -538,7 +554,10 @@
 #define	_POSIX_C_SOURCE		198808
 #endif
 #ifdef _POSIX_C_SOURCE
-#if _POSIX_C_SOURCE >= 200809
+#if _POSIX_C_SOURCE >= 202405
+#define	__POSIX_VISIBLE		202405
+#define	__ISO_C_VISIBLE		2017
+#elif _POSIX_C_SOURCE >= 200809
 #define	__POSIX_VISIBLE		200809
 #define	__ISO_C_VISIBLE		1999
 #elif _POSIX_C_SOURCE >= 200112
@@ -560,18 +579,25 @@
 #define	__POSIX_VISIBLE		198808
 #define	__ISO_C_VISIBLE		0
 #endif /* _POSIX_C_SOURCE */
+
 /*
- * Both glibc and OpenBSD enable c11 features when _ISOC11_SOURCE is defined, or
- * when compiling with -stdc=c11. A strict reading of the standard would suggest
- * doing it only for the former. However, a strict reading also requires C99
- * mode only, so building with C11 is already undefined. Follow glibc's and
- * OpenBSD's lead for this non-standard configuration for maximum compatibility.
+ * When we've explicitly asked for a newer C version, make the C variable
+ * visible by default. Also honor the glibc _ISOC{11,23}_SOURCE macros
+ * extensions. Both glibc and OpenBSD do this, even when a more strict
+ * _POSIX_C_SOURCE has been requested, and it makes good sense (especially for
+ * pre POSIX 2024, since C11 is much nicer than the old C99 base). Continue the
+ * practice with C23, though don't do older standards. Also, GLIBC doesn't have
+ * a _ISOC17_SOURCE, so it's not implemented here. glibc has earlier ISOCxx defines,
+ * but we don't implement those as they are not relevant enough.
  */
-#if _ISOC11_SOURCE || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L)
+#if _ISOC23_SOURCE || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L)
+#undef __ISO_C_VISIBLE
+#define __ISO_C_VISIBLE		2023
+#elif _ISOC11_SOURCE || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L)
 #undef __ISO_C_VISIBLE
 #define __ISO_C_VISIBLE		2011
 #endif
-#else
+#else /* _POSIX_C_SOURCE */
 /*-
  * Deal with _ANSI_SOURCE:
  * If it is defined, and no other compilation environment is explicitly
@@ -602,14 +628,20 @@
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		2011
 #define	__EXT1_VISIBLE		0
+#elif defined(_C23_SOURCE)	/* Localism to specify strict C23 env. */
+#define	__POSIX_VISIBLE		0
+#define	__XSI_VISIBLE		0
+#define	__BSD_VISIBLE		0
+#define	__ISO_C_VISIBLE		2023
+#define	__EXT1_VISIBLE		0
 #else				/* Default environment: show everything. */
-#define	__POSIX_VISIBLE		200809
-#define	__XSI_VISIBLE		700
+#define	__POSIX_VISIBLE		202405
+#define	__XSI_VISIBLE		800
 #define	__BSD_VISIBLE		1
-#define	__ISO_C_VISIBLE		2011
+#define	__ISO_C_VISIBLE		2023
 #define	__EXT1_VISIBLE		1
 #endif
-#endif
+#endif /* _POSIX_C_SOURCE */
 
 /* User override __EXT1_VISIBLE */
 #if defined(__STDC_WANT_LIB_EXT1__)

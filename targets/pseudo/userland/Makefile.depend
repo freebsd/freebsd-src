@@ -72,7 +72,6 @@ DIRDEPS+= \
 	sbin/ggate/ggated \
 	sbin/ggate/ggatel \
 	sbin/growfs \
-	sbin/gvinum \
 	sbin/hastctl \
 	sbin/hastd \
 	sbin/ifconfig \
@@ -430,6 +429,7 @@ DIRDEPS+= \
 	usr.sbin/bluetooth/l2control \
 	usr.sbin/bluetooth/l2ping \
 	usr.sbin/bluetooth/rfcomm_pppd \
+	usr.sbin/bluetooth/rtlbtfw \
 	usr.sbin/bluetooth/sdpcontrol \
 	usr.sbin/bluetooth/sdpd \
 	usr.sbin/bootparamd/bootparamd \

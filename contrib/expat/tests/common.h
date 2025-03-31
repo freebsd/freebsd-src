@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2023 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2024 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -111,12 +111,6 @@ extern void _expect_failure(const char *text, enum XML_Error errorCode,
 /* Support functions for handlers to collect up character and attribute data.
  */
 
-extern void XMLCALL accumulate_characters(void *userData, const XML_Char *s,
-                                          int len);
-
-extern void XMLCALL accumulate_attribute(void *userData, const XML_Char *name,
-                                         const XML_Char **atts);
-
 extern void _run_character_check(const char *text, const XML_Char *expected,
                                  const char *file, int line);
 
@@ -134,9 +128,6 @@ typedef struct ExtTest {
   const XML_Char *encoding;
   CharData *storage;
 } ExtTest;
-
-extern void XMLCALL ext_accumulate_characters(void *userData, const XML_Char *s,
-                                              int len);
 
 extern void _run_ext_character_check(const char *text, ExtTest *test_data,
                                      const XML_Char *expected, const char *file,

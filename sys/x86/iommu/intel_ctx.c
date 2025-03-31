@@ -76,7 +76,6 @@ static void dmar_unref_domain_locked(struct dmar_unit *dmar,
 static void dmar_domain_destroy(struct dmar_domain *domain);
 
 static void dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx);
-static void dmar_free_ctx(struct dmar_ctx *ctx);
 
 static void
 dmar_ensure_ctx_page(struct dmar_unit *dmar, int bus)
@@ -803,16 +802,6 @@ dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx)
 	TD_PINNED_ASSERT;
 }
 
-static void
-dmar_free_ctx(struct dmar_ctx *ctx)
-{
-	struct dmar_unit *dmar;
-
-	dmar = CTX2DMAR(ctx);
-	DMAR_LOCK(dmar);
-	dmar_free_ctx_locked(dmar, ctx);
-}
-
 /*
  * Returns with the domain locked.
  */
@@ -940,13 +929,4 @@ dmar_free_ctx_locked_method(struct iommu_unit *iommu,
 	dmar = IOMMU2DMAR(iommu);
 	ctx = IOCTX2CTX(context);
 	dmar_free_ctx_locked(dmar, ctx);
-}
-
-void
-dmar_free_ctx_method(struct iommu_ctx *context)
-{
-	struct dmar_ctx *ctx;
-
-	ctx = IOCTX2CTX(context);
-	dmar_free_ctx(ctx);
 }

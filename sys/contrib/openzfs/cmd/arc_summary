@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2008 Ben Rockwood <benr@cuddletech.com>,
 # Copyright (c) 2010 Martin Matuska <mm@FreeBSD.org>,
@@ -662,10 +663,7 @@ def section_arc(kstats_dict):
     print()
 
     print('ARC hash breakdown:')
-    prt_i1('Elements max:', f_hits(arc_stats['hash_elements_max']))
-    prt_i2('Elements current:',
-           f_perc(arc_stats['hash_elements'], arc_stats['hash_elements_max']),
-           f_hits(arc_stats['hash_elements']))
+    prt_i1('Elements:', f_hits(arc_stats['hash_elements']))
     prt_i1('Collisions:', f_hits(arc_stats['hash_collisions']))
 
     prt_i1('Chain max:', f_hits(arc_stats['hash_chain_max']))

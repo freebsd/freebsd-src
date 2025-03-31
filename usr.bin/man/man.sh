@@ -739,10 +739,9 @@ man_setup_locale() {
 # Display usage for the man utility.
 man_usage() {
 	echo 'Usage:'
-	echo ' man [-adho] [-t | -w] [-K regexp] [-M manpath] [-P pager] [-S mansect]'
+	echo ' man [-adho] [-t | -w] [-M manpath] [-P pager] [-S mansect]'
 	echo '     [-m arch[:machine]] [-p [eprtv]] [mansect] page [...]'
-	echo ' man -f page [...] -- Emulates whatis(1)'
-	echo ' man -k page [...] -- Emulates apropos(1)'
+	echo ' man -K | -f | -k expression [...] -- Search manual pages'
 
 	# When exit'ing with -h, it's not an error.
 	exit ${1:-1}

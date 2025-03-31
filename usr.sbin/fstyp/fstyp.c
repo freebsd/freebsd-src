@@ -54,25 +54,55 @@ bool show_label = false;
 
 typedef int (*fstyp_function)(FILE *, char *, size_t);
 
+/*
+ * The ordering of fstypes[] is not arbitrary.
+ *
+ * fstyp checks the existence of a file system header to determine the
+ * type of file system on a given device. For different file systems,
+ * these headers reside at different offsets within the device.
+ *
+ * For example, the header for an MS-DOS file system begins at offset 0,
+ * whereas a header for UFS *normally* begins at offset 64k. If a device
+ * was constructed as MS-DOS and then repurposed as UFS (via newfs), it
+ * is possible the MS-DOS header will still be intact. To prevent
+ * misidentifying the file system, it is desirable to check the header
+ * with the largest offset first (i.e., UFS before MS-DOS).
+ */
 static struct {
 	const char	*name;
 	fstyp_function	function;
 	bool		unmountable;
 	const char	*precache_encoding;
 } fstypes[] = {
-	{ "apfs", &fstyp_apfs, true, NULL },
-	{ "befs", &fstyp_befs, false, NULL },
-	{ "cd9660", &fstyp_cd9660, false, NULL },
-	{ "exfat", &fstyp_exfat, false, EXFAT_ENC },
-	{ "ext2fs", &fstyp_ext2fs, false, NULL },
+	/* last sector of geli device */
 	{ "geli", &fstyp_geli, true, NULL },
-	{ "hammer", &fstyp_hammer, true, NULL },
-	{ "hammer2", &fstyp_hammer2, true, NULL },
-	{ "hfs+", &fstyp_hfsp, false, NULL },
-	{ "msdosfs", &fstyp_msdosfs, false, NULL },
-	{ "ntfs", &fstyp_ntfs, false, NTFS_ENC },
+	/*
+	 * ufs headers have four different areas, searched in this order:
+	 * offsets: 64k, 8k, 0k, 256k + 8192 bytes
+	 */
 	{ "ufs", &fstyp_ufs, false, NULL },
+	/* offset 32768 + 512 bytes */
+	{ "cd9660", &fstyp_cd9660, false, NULL },
+	/* offset 1024 + 512 bytes */
+	{ "hfs+", &fstyp_hfsp, false, NULL },
+	/* offset 1024 + 512 bytes */
+	{ "ext2fs", &fstyp_ext2fs, false, NULL },
+	/* offset 512 + 36 bytes */
+	{ "befs", &fstyp_befs, false, NULL },
+	/* offset 0 + 40 bytes */
+	{ "apfs", &fstyp_apfs, true, NULL },
+	/* offset 0 + 512 bytes (for initial signature check) */
+	{ "exfat", &fstyp_exfat, false, EXFAT_ENC },
+	/* offset 0 + 1928 bytes */
+	{ "hammer", &fstyp_hammer, true, NULL },
+	/* offset 0 + 65536 bytes (for initial signature check) */
+	{ "hammer2", &fstyp_hammer2, true, NULL },
+	/* offset 0 + 512 bytes (for initial signature check) */
+	{ "msdosfs", &fstyp_msdosfs, false, NULL },
+	/* offset 0 + 512 bytes (for initial signature check) */
+	{ "ntfs", &fstyp_ntfs, false, NTFS_ENC },
 #ifdef HAVE_ZFS
+	/* offset 0 + 256k */
 	{ "zfs", &fstyp_zfs, true, NULL },
 #endif
 	{ NULL, NULL, NULL, NULL }

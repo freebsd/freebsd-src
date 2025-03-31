@@ -1,0 +1,5 @@
+#
+# Eswin SoC support
+#
+
+files		"../eswin/files.eswin"

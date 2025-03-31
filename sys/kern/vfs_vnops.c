@@ -106,7 +106,7 @@ static fo_mmap_t	vn_mmap;
 static fo_fallocate_t	vn_fallocate;
 static fo_fspacectl_t	vn_fspacectl;
 
-struct 	fileops vnops = {
+const struct fileops vnops = {
 	.fo_read = vn_io_fault,
 	.fo_write = vn_io_fault,
 	.fo_truncate = vn_truncate,
@@ -891,6 +891,26 @@ foffset_read(struct file *fp)
 	return (foffset_lock(fp, FOF_NOLOCK));
 }
 #endif
+
+void
+foffset_lock_pair(struct file *fp1, off_t *off1p, struct file *fp2, off_t *off2p,
+    int flags)
+{
+	KASSERT(fp1 != fp2, ("foffset_lock_pair: fp1 == fp2"));
+
+	/* Lock in a consistent order to avoid deadlock. */
+	if ((uintptr_t)fp1 > (uintptr_t)fp2) {
+		struct file *tmpfp;
+		off_t *tmpoffp;
+
+		tmpfp = fp1, fp1 = fp2, fp2 = tmpfp;
+		tmpoffp = off1p, off1p = off2p, off2p = tmpoffp;
+	}
+	if (fp1 != NULL)
+		*off1p = foffset_lock(fp1, flags);
+	if (fp2 != NULL)
+		*off2p = foffset_lock(fp2, flags);
+}
 
 void
 foffset_lock_uio(struct file *fp, struct uio *uio, int flags)

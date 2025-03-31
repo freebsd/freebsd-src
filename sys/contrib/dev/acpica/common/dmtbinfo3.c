@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -379,7 +379,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat3[] =
     ACPI_DMT_TERMINATOR
 };
 
-/* 4: GCC ITS Affinity (ACPI 6.2) */
+/* 4: GIC ITS Affinity (ACPI 6.2) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat4[] =
 {
@@ -414,6 +414,19 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat5[] =
 ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat6[] =
 {
     ACPI_DM_SRAT_GENERIC_AFFINITY,
+    ACPI_DMT_TERMINATOR
+};
+
+/* 7: RINTC Affinity Structure (ACPI 6.6) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat7[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_SRAT7_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_SRAT7_OFFSET (ProximityDomain),        "Proximity Domain", 0},
+    {ACPI_DMT_UINT32,   ACPI_SRAT7_OFFSET (AcpiProcessorUid),       "Acpi Processor UID", 0},
+    {ACPI_DMT_UINT32,   ACPI_SRAT7_OFFSET (Flags),                  "Flags (decoded below)", DT_FLAG},
+    {ACPI_DMT_FLAG0,    ACPI_SRAT7_FLAG_OFFSET (Flags,0),           "Enabled", 0},
+    {ACPI_DMT_UINT32,   ACPI_SRAT7_OFFSET (ClockDomain),            "Clock Domain", 0},
     ACPI_DMT_TERMINATOR
 };
 

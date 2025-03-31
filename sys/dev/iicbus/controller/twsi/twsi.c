@@ -817,7 +817,7 @@ twsi_attach(device_t dev)
 		twsi_detach(dev);
 		return (ENXIO);
 	}
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	config_intrhook_oneshot(twsi_intr_start, dev);
 
@@ -834,10 +834,6 @@ twsi_detach(device_t dev)
 
 	if ((rv = bus_generic_detach(dev)) != 0)
 		return (rv);
-
-	if (sc->iicbus != NULL)
-		if ((rv = device_delete_child(dev, sc->iicbus)) != 0)
-			return (rv);
 
 	if (sc->intrhand != NULL)
 		bus_teardown_intr(sc->dev, sc->res[1], sc->intrhand);

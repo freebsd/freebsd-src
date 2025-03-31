@@ -155,6 +155,7 @@ libusb_init_context(libusb_context **context,
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	memset(ctx, 0, sizeof(*ctx));
+	ctx->devd_pipe = -1;
 
 	debug = getenv("LIBUSB_DEBUG");
 	if (debug != NULL) {
@@ -280,6 +281,13 @@ libusb_exit(libusb_context *ctx)
 		HOTPLUG_LOCK(ctx);
 		td = ctx->hotplug_handler;
 		ctx->hotplug_handler = NO_THREAD;
+		if (ctx->usb_event_mode == usb_event_devd) {
+			close(ctx->devd_pipe);
+			ctx->devd_pipe = -1;
+		} else if (ctx->usb_event_mode == usb_event_netlink) {
+			close(ctx->ss.fd);
+			ctx->ss.fd = -1;
+		}
 		HOTPLUG_UNLOCK(ctx);
 
 		pthread_join(td, &ptr);

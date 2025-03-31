@@ -264,14 +264,20 @@ ti_spi_attach(device_t dev)
 #endif
 
 	device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
+	bus_attach_children(dev);
 
-	return (bus_generic_attach(dev));
+	return (0);
 }
 
 static int
 ti_spi_detach(device_t dev)
 {
 	struct ti_spi_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 
@@ -281,8 +287,6 @@ ti_spi_detach(device_t dev)
 
 	/* Reset controller. */
 	TI_SPI_WRITE(sc, MCSPI_SYSCONFIG, MCSPI_SYSCONFIG_SOFTRESET);
-
-	bus_generic_detach(dev);
 
 	mtx_destroy(&sc->sc_mtx);
 	if (sc->sc_intrhand)

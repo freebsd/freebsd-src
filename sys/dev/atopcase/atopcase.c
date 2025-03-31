@@ -533,7 +533,8 @@ atopcase_init(struct atopcase_softc *sc)
 	if (sc->sc_tq != NULL)
 		taskqueue_enqueue_timeout(sc->sc_tq, &sc->sc_task, hz / 120);
 
-	return (bus_generic_attach(sc->sc_dev));
+	bus_attach_children(sc->sc_dev);
+	return (0);
 
 err:
 	return (err);
@@ -544,7 +545,7 @@ atopcase_destroy(struct atopcase_softc *sc)
 {
 	int err;
 
-	err = device_delete_children(sc->sc_dev);
+	err = bus_generic_detach(sc->sc_dev);
 	if (err)
 		return (err);
 

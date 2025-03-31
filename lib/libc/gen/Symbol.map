@@ -47,6 +47,7 @@ FBSD_1.0 {
 	pthread_mutexattr_init;
 	pthread_mutexattr_settype;
 	pthread_once;
+	pthread_resume_all_np;
 	pthread_rwlock_destroy;
 	pthread_rwlock_init;
 	pthread_rwlock_rdlock;
@@ -59,6 +60,7 @@ FBSD_1.0 {
 	pthread_setcanceltype;
 	pthread_setspecific;
 	pthread_sigmask;
+	pthread_suspend_all_np;
 	pthread_testcancel;
 	alarm;
 	arc4random;
@@ -456,12 +458,15 @@ FBSD_1.8 {
 	aio_read2;
 	aio_write2;
 	execvpe;
+	rtld_get_var;
+	rtld_set_var;
 };
 
 FBSDprivate_1.0 {
 	/* needed by thread libraries */
 	__thr_jtable;
 
+	_dl_iterate_phdr_locked;
 	_pthread_atfork;
 	_pthread_attr_destroy;
 	_pthread_attr_getdetachstate;

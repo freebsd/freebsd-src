@@ -238,7 +238,7 @@ static struct cdevsw	audit_pipe_cdevsw = {
 static int	audit_pipe_kqread(struct knote *note, long hint);
 static void	audit_pipe_kqdetach(struct knote *note);
 
-static struct filterops audit_pipe_read_filterops = {
+static const struct filterops audit_pipe_read_filterops = {
 	.f_isfd =	1,
 	.f_attach =	NULL,
 	.f_detach =	audit_pipe_kqdetach,

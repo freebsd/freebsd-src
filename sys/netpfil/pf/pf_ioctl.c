@@ -100,14 +100,13 @@ SDT_PROBE_DEFINE2(pf, ioctl, addrule, error, "int", "int");
 SDT_PROBE_DEFINE2(pf, ioctl, nvchk, error, "int", "int");
 
 static struct pf_kpool	*pf_get_kpool(const char *, u_int32_t, u_int8_t,
-			    u_int32_t, u_int8_t, u_int8_t, u_int8_t);
+			    u_int32_t, u_int8_t, u_int8_t, u_int8_t, int);
 
 static void		 pf_mv_kpool(struct pf_kpalist *, struct pf_kpalist *);
 static void		 pf_empty_kpool(struct pf_kpalist *);
 static int		 pfioctl(struct cdev *, u_long, caddr_t, int,
 			    struct thread *);
 static int		 pf_begin_eth(uint32_t *, const char *);
-static void		 pf_rollback_eth_cb(struct epoch_context *);
 static int		 pf_rollback_eth(uint32_t, const char *);
 static int		 pf_commit_eth(uint32_t, const char *);
 static void		 pf_free_eth_rule(struct pf_keth_rule *);
@@ -233,7 +232,6 @@ static int		 pf_clearstates_nv(struct pfioc_nv *);
 static int		 pf_getstate(struct pfioc_nv *);
 static int		 pf_getstatus(struct pfioc_nv *);
 static int		 pf_clear_tables(void);
-static void		 pf_clear_srcnodes(void);
 static void		 pf_kill_srcnodes(struct pfioc_src_node_kill *);
 static int		 pf_keepcounters(struct pfioc_nv *);
 static void		 pf_tbladdr_copyout(struct pf_addr_wrap *);
@@ -354,7 +352,8 @@ pfattach_vnet(void)
 	}
 	V_pf_default_rule.states_cur = counter_u64_alloc(M_WAITOK);
 	V_pf_default_rule.states_tot = counter_u64_alloc(M_WAITOK);
-	V_pf_default_rule.src_nodes = counter_u64_alloc(M_WAITOK);
+	for (pf_sn_types_t sn_type = 0; sn_type<PF_SN_MAX; sn_type++)
+		V_pf_default_rule.src_nodes[sn_type] = counter_u64_alloc(M_WAITOK);
 
 	V_pf_default_rule.timestamp = uma_zalloc_pcpu(pf_timestamp_pcpu_zone,
 	    M_WAITOK | M_ZERO);
@@ -431,11 +430,13 @@ pfattach_vnet(void)
 static struct pf_kpool *
 pf_get_kpool(const char *anchor, u_int32_t ticket, u_int8_t rule_action,
     u_int32_t rule_number, u_int8_t r_last, u_int8_t active,
-    u_int8_t check_ticket)
+    u_int8_t check_ticket, int which)
 {
 	struct pf_kruleset	*ruleset;
 	struct pf_krule		*rule;
 	int			 rs_num;
+
+	MPASS(which == PF_RDR || which == PF_NAT || which == PF_RT);
 
 	ruleset = pf_find_kruleset(anchor);
 	if (ruleset == NULL)
@@ -469,7 +470,16 @@ pf_get_kpool(const char *anchor, u_int32_t ticket, u_int8_t rule_action,
 	if (rule == NULL)
 		return (NULL);
 
-	return (&rule->rpool);
+	switch (which) {
+	case PF_RDR:
+		return (&rule->rdr);
+	case PF_NAT:
+		return (&rule->nat);
+	case PF_RT:
+		return (&rule->route);
+	default:
+		panic("Unknow pool type %d", which);
+	}
 }
 
 static void
@@ -606,7 +616,9 @@ pf_free_rule(struct pf_krule *rule)
 	if (rule->rcv_kif)
 		pfi_kkif_unref(rule->rcv_kif);
 	pf_kanchor_remove(rule);
-	pf_empty_kpool(&rule->rpool.list);
+	pf_empty_kpool(&rule->rdr.list);
+	pf_empty_kpool(&rule->nat.list);
+	pf_empty_kpool(&rule->route.list);
 
 	pf_krule_free(rule);
 }
@@ -782,23 +794,6 @@ pf_begin_eth(uint32_t *ticket, const char *anchor)
 	return (0);
 }
 
-static void
-pf_rollback_eth_cb(struct epoch_context *ctx)
-{
-	struct pf_keth_ruleset *rs;
-
-	rs = __containerof(ctx, struct pf_keth_ruleset, epoch_ctx);
-
-	CURVNET_SET(rs->vnet);
-
-	PF_RULES_WLOCK();
-	pf_rollback_eth(rs->inactive.ticket,
-	    rs->anchor ? rs->anchor->path : "");
-	PF_RULES_WUNLOCK();
-
-	CURVNET_RESTORE();
-}
-
 static int
 pf_rollback_eth(uint32_t ticket, const char *anchor)
 {
@@ -892,15 +887,12 @@ pf_commit_eth(uint32_t ticket, const char *anchor)
 	pf_eth_calc_skip_steps(rs->inactive.rules);
 
 	rules = rs->active.rules;
-	ck_pr_store_ptr(&rs->active.rules, rs->inactive.rules);
+	atomic_store_ptr(&rs->active.rules, rs->inactive.rules);
 	rs->inactive.rules = rules;
 	rs->inactive.ticket = rs->active.ticket;
 
-	/* Clean up inactive rules (i.e. previously active rules), only when
-	 * we're sure they're no longer used. */
-	NET_EPOCH_CALL(pf_rollback_eth_cb, &rs->epoch_ctx);
-
-	return (0);
+	return (pf_rollback_eth(rs->inactive.ticket,
+	    rs->anchor ? rs->anchor->path : ""));
 }
 
 #ifdef ALTQ
@@ -1325,6 +1317,7 @@ pf_hash_rule_rolling(MD5_CTX *ctx, struct pf_krule *rule)
 	PF_MD5_UPD(rule, af);
 	PF_MD5_UPD(rule, quick);
 	PF_MD5_UPD(rule, ifnot);
+	PF_MD5_UPD(rule, rcvifnot);
 	PF_MD5_UPD(rule, match_tag_not);
 	PF_MD5_UPD(rule, natpass);
 	PF_MD5_UPD(rule, keep_state);
@@ -1571,6 +1564,7 @@ pf_src_node_copy(const struct pf_ksrc_node *in, struct pf_src_node *out)
 		out->expire = 0;
 
 	/* Adjust the connection rate estimate. */
+	out->conn_rate = in->conn_rate;
 	diff = secs - in->conn_rate.last;
 	if (diff >= in->conn_rate.seconds)
 		out->conn_rate.count = 0;
@@ -1824,7 +1818,9 @@ pf_krule_alloc(void)
 	struct pf_krule *rule;
 
 	rule = malloc(sizeof(struct pf_krule), M_PFRULE, M_WAITOK | M_ZERO);
-	mtx_init(&rule->rpool.mtx, "pf_krule_pool", NULL, MTX_DEF);
+	mtx_init(&rule->nat.mtx, "pf_krule_nat_pool", NULL, MTX_DEF);
+	mtx_init(&rule->rdr.mtx, "pf_krule_rdr_pool", NULL, MTX_DEF);
+	mtx_init(&rule->route.mtx, "pf_krule_route_pool", NULL, MTX_DEF);
 	rule->timestamp = uma_zalloc_pcpu(pf_timestamp_pcpu_zone,
 	    M_WAITOK | M_ZERO);
 	return (rule);
@@ -1859,10 +1855,13 @@ pf_krule_free(struct pf_krule *rule)
 	}
 	counter_u64_free(rule->states_cur);
 	counter_u64_free(rule->states_tot);
-	counter_u64_free(rule->src_nodes);
+	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++)
+		counter_u64_free(rule->src_nodes[sn_type]);
 	uma_zfree_pcpu(pf_timestamp_pcpu_zone, rule->timestamp);
 
-	mtx_destroy(&rule->rpool.mtx);
+	mtx_destroy(&rule->nat.mtx);
+	mtx_destroy(&rule->rdr.mtx);
+	mtx_destroy(&rule->route.mtx);
 	free(rule, M_PFRULE);
 }
 
@@ -1966,7 +1965,7 @@ pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 	if (ret != 0)
 		return (ret);
 
-	pf_pool_to_kpool(&rule->rpool, &krule->rpool);
+	pf_pool_to_kpool(&rule->rpool, &krule->rdr);
 
 	/* Don't allow userspace to set evaluations, packets or bytes. */
 	/* kif, anchor, overload_tbl are not copied over. */
@@ -2093,10 +2092,13 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	}
 	rule->states_cur = counter_u64_alloc(M_WAITOK);
 	rule->states_tot = counter_u64_alloc(M_WAITOK);
-	rule->src_nodes = counter_u64_alloc(M_WAITOK);
+	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++)
+		rule->src_nodes[sn_type] = counter_u64_alloc(M_WAITOK);
 	rule->cuid = uid;
 	rule->cpid = pid;
-	TAILQ_INIT(&rule->rpool.list);
+	TAILQ_INIT(&rule->rdr.list);
+	TAILQ_INIT(&rule->nat.list);
+	TAILQ_INIT(&rule->route.list);
 
 	PF_CONFIG_LOCK();
 	PF_RULES_WLOCK();
@@ -2182,8 +2184,6 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 		error = EINVAL;
 	if (!rule->log)
 		rule->logif = 0;
-	if (rule->logif >= PFLOGIFS_MAX)
-		error = EINVAL;
 	if (pf_addr_setup(ruleset, &rule->src.addr, rule->af))
 		error = ENOMEM;
 	if (pf_addr_setup(ruleset, &rule->dst.addr, rule->af))
@@ -2194,13 +2194,15 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	    (rule->set_prio[0] > PF_PRIO_MAX ||
 	    rule->set_prio[1] > PF_PRIO_MAX))
 		error = EINVAL;
-	TAILQ_FOREACH(pa, &V_pf_pabuf, entries)
-		if (pa->addr.type == PF_ADDR_TABLE) {
-			pa->addr.p.tbl = pfr_attach_table(ruleset,
-			    pa->addr.v.tblname);
-			if (pa->addr.p.tbl == NULL)
-				error = ENOMEM;
-		}
+	for (int i = 0; i < 3; i++) {
+		TAILQ_FOREACH(pa, &V_pf_pabuf[i], entries)
+			if (pa->addr.type == PF_ADDR_TABLE) {
+				pa->addr.p.tbl = pfr_attach_table(ruleset,
+				    pa->addr.v.tblname);
+				if (pa->addr.p.tbl == NULL)
+					error = ENOMEM;
+			}
+	}
 
 	rule->overload_tbl = NULL;
 	if (rule->overload_tblname[0]) {
@@ -2212,14 +2214,17 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 			    PFR_TFLAG_ACTIVE;
 	}
 
-	pf_mv_kpool(&V_pf_pabuf, &rule->rpool.list);
+	pf_mv_kpool(&V_pf_pabuf[0], &rule->nat.list);
+	pf_mv_kpool(&V_pf_pabuf[1], &rule->rdr.list);
+	pf_mv_kpool(&V_pf_pabuf[2], &rule->route.list);
 	if (((((rule->action == PF_NAT) || (rule->action == PF_RDR) ||
 	    (rule->action == PF_BINAT)) && rule->anchor == NULL) ||
 	    (rule->rt > PF_NOPFROUTE)) &&
-	    (TAILQ_FIRST(&rule->rpool.list) == NULL))
+	    (TAILQ_FIRST(&rule->rdr.list) == NULL &&
+	     TAILQ_FIRST(&rule->route.list) == NULL))
 		error = EINVAL;
 
-	if (rule->action == PF_PASS && rule->rpool.opts & PF_POOL_STICKYADDR &&
+	if (rule->action == PF_PASS && rule->rdr.opts & PF_POOL_STICKYADDR &&
 	    !rule->keep_state) {
 		error = EINVAL;
 	}
@@ -2230,7 +2235,9 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 		ERROUT(error);
 	}
 
-	rule->rpool.cur = TAILQ_FIRST(&rule->rpool.list);
+	rule->nat.cur = TAILQ_FIRST(&rule->nat.list);
+	rule->rdr.cur = TAILQ_FIRST(&rule->rdr.list);
+	rule->route.cur = TAILQ_FIRST(&rule->route.list);
 	TAILQ_INSERT_TAIL(ruleset->rules[rs_num].inactive.ptr,
 	    rule, entries);
 	ruleset->rules[rs_num].inactive.rcount++;
@@ -2341,7 +2348,7 @@ relock_DIOCKILLSTATES:
 		if (!  PF_MATCHA(psk->psk_rt_addr.neg,
 		    &psk->psk_rt_addr.addr.v.a.addr,
 		    &psk->psk_rt_addr.addr.v.a.mask,
-		    &s->rt_addr, sk->af))
+		    &s->act.rt_addr, sk->af))
 			continue;
 
 		if (psk->psk_src.port_op != 0 &&
@@ -2397,6 +2404,12 @@ relock_DIOCKILLSTATES:
 	PF_HASHROW_UNLOCK(ih);
 
 	return (killed);
+}
+
+void
+unhandled_af(int af)
+{
+	panic("unhandled af %d", af);
 }
 
 int
@@ -2538,7 +2551,9 @@ int
 pf_ioctl_begin_addrs(uint32_t *ticket)
 {
 	PF_RULES_WLOCK();
-	pf_empty_kpool(&V_pf_pabuf);
+	pf_empty_kpool(&V_pf_pabuf[0]);
+	pf_empty_kpool(&V_pf_pabuf[1]);
+	pf_empty_kpool(&V_pf_pabuf[2]);
 	*ticket = ++V_ticket_pabuf;
 	PF_RULES_WUNLOCK();
 
@@ -2546,11 +2561,15 @@ pf_ioctl_begin_addrs(uint32_t *ticket)
 }
 
 int
-pf_ioctl_add_addr(struct pfioc_pooladdr *pp)
+pf_ioctl_add_addr(struct pf_nl_pooladdr *pp)
 {
 	struct pf_kpooladdr	*pa = NULL;
 	struct pfi_kkif		*kif = NULL;
 	int error;
+
+	if (pp->which != PF_RDR && pp->which != PF_NAT &&
+	    pp->which != PF_RT)
+		return (EINVAL);
 
 #ifndef INET
 	if (pp->af == AF_INET)
@@ -2596,7 +2615,17 @@ pf_ioctl_add_addr(struct pfioc_pooladdr *pp)
 		PF_RULES_WUNLOCK();
 		goto out;
 	}
-	TAILQ_INSERT_TAIL(&V_pf_pabuf, pa, entries);
+	switch (pp->which) {
+	case PF_NAT:
+		TAILQ_INSERT_TAIL(&V_pf_pabuf[0], pa, entries);
+		break;
+	case PF_RDR:
+		TAILQ_INSERT_TAIL(&V_pf_pabuf[1], pa, entries);
+		break;
+	case PF_RT:
+		TAILQ_INSERT_TAIL(&V_pf_pabuf[2], pa, entries);
+		break;
+	}
 	PF_RULES_WUNLOCK();
 
 	return (0);
@@ -2607,19 +2636,23 @@ out:
 }
 
 int
-pf_ioctl_get_addrs(struct pfioc_pooladdr *pp)
+pf_ioctl_get_addrs(struct pf_nl_pooladdr *pp)
 {
 	struct pf_kpool		*pool;
 	struct pf_kpooladdr	*pa;
 
 	PF_RULES_RLOCK_TRACKER;
 
+	if (pp->which != PF_RDR && pp->which != PF_NAT &&
+	    pp->which != PF_RT)
+		return (EINVAL);
+
 	pp->anchor[sizeof(pp->anchor) - 1] = 0;
 	pp->nr = 0;
 
 	PF_RULES_RLOCK();
 	pool = pf_get_kpool(pp->anchor, pp->ticket, pp->r_action,
-	    pp->r_num, 0, 1, 0);
+	    pp->r_num, 0, 1, 0, pp->which);
 	if (pool == NULL) {
 		PF_RULES_RUNLOCK();
 		return (EBUSY);
@@ -2632,11 +2665,15 @@ pf_ioctl_get_addrs(struct pfioc_pooladdr *pp)
 }
 
 int
-pf_ioctl_get_addr(struct pfioc_pooladdr *pp)
+pf_ioctl_get_addr(struct pf_nl_pooladdr *pp)
 {
 	struct pf_kpool		*pool;
 	struct pf_kpooladdr	*pa;
 	u_int32_t		 nr = 0;
+
+	if (pp->which != PF_RDR && pp->which != PF_NAT &&
+	    pp->which != PF_RT)
+		return (EINVAL);
 
 	PF_RULES_RLOCK_TRACKER;
 
@@ -2644,7 +2681,7 @@ pf_ioctl_get_addr(struct pfioc_pooladdr *pp)
 
 	PF_RULES_RLOCK();
 	pool = pf_get_kpool(pp->anchor, pp->ticket, pp->r_action,
-	    pp->r_num, 0, 1, 1);
+	    pp->r_num, 0, 1, 1, pp->which);
 	if (pool == NULL) {
 		PF_RULES_RUNLOCK();
 		return (EBUSY);
@@ -3623,10 +3660,13 @@ DIOCGETRULENV_error:
 			}
 			newrule->states_cur = counter_u64_alloc(M_WAITOK);
 			newrule->states_tot = counter_u64_alloc(M_WAITOK);
-			newrule->src_nodes = counter_u64_alloc(M_WAITOK);
+			for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++)
+				newrule->src_nodes[sn_type] = counter_u64_alloc(M_WAITOK);
 			newrule->cuid = td->td_ucred->cr_ruid;
 			newrule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
-			TAILQ_INIT(&newrule->rpool.list);
+			TAILQ_INIT(&newrule->nat.list);
+			TAILQ_INIT(&newrule->rdr.list);
+			TAILQ_INIT(&newrule->route.list);
 		}
 #define	ERROUT(x)	ERROUT_IOCTL(DIOCCHANGERULE_error, x)
 
@@ -3715,22 +3755,22 @@ DIOCGETRULENV_error:
 				error = EINVAL;
 			if (!newrule->log)
 				newrule->logif = 0;
-			if (newrule->logif >= PFLOGIFS_MAX)
-				error = EINVAL;
 			if (pf_addr_setup(ruleset, &newrule->src.addr, newrule->af))
 				error = ENOMEM;
 			if (pf_addr_setup(ruleset, &newrule->dst.addr, newrule->af))
 				error = ENOMEM;
 			if (pf_kanchor_setup(newrule, ruleset, pcr->anchor_call))
 				error = EINVAL;
-			TAILQ_FOREACH(pa, &V_pf_pabuf, entries)
-				if (pa->addr.type == PF_ADDR_TABLE) {
-					pa->addr.p.tbl =
-					    pfr_attach_table(ruleset,
-					    pa->addr.v.tblname);
-					if (pa->addr.p.tbl == NULL)
-						error = ENOMEM;
-				}
+			for (int i = 0; i < 3; i++) {
+				TAILQ_FOREACH(pa, &V_pf_pabuf[i], entries)
+					if (pa->addr.type == PF_ADDR_TABLE) {
+						pa->addr.p.tbl =
+						    pfr_attach_table(ruleset,
+						    pa->addr.v.tblname);
+						if (pa->addr.p.tbl == NULL)
+							error = ENOMEM;
+					}
+			}
 
 			newrule->overload_tbl = NULL;
 			if (newrule->overload_tblname[0]) {
@@ -3743,13 +3783,15 @@ DIOCGETRULENV_error:
 					    PFR_TFLAG_ACTIVE;
 			}
 
-			pf_mv_kpool(&V_pf_pabuf, &newrule->rpool.list);
+			pf_mv_kpool(&V_pf_pabuf[0], &newrule->nat.list);
+			pf_mv_kpool(&V_pf_pabuf[1], &newrule->rdr.list);
+			pf_mv_kpool(&V_pf_pabuf[2], &newrule->route.list);
 			if (((((newrule->action == PF_NAT) ||
 			    (newrule->action == PF_RDR) ||
 			    (newrule->action == PF_BINAT) ||
 			    (newrule->rt > PF_NOPFROUTE)) &&
 			    !newrule->anchor)) &&
-			    (TAILQ_FIRST(&newrule->rpool.list) == NULL))
+			    (TAILQ_FIRST(&newrule->rdr.list) == NULL))
 				error = EINVAL;
 
 			if (error) {
@@ -3759,9 +3801,12 @@ DIOCGETRULENV_error:
 				break;
 			}
 
-			newrule->rpool.cur = TAILQ_FIRST(&newrule->rpool.list);
+			newrule->nat.cur = TAILQ_FIRST(&newrule->nat.list);
+			newrule->rdr.cur = TAILQ_FIRST(&newrule->rdr.list);
 		}
-		pf_empty_kpool(&V_pf_pabuf);
+		pf_empty_kpool(&V_pf_pabuf[0]);
+		pf_empty_kpool(&V_pf_pabuf[1]);
+		pf_empty_kpool(&V_pf_pabuf[2]);
 
 		if (pcr->action == PF_CHANGE_ADD_HEAD)
 			oldrule = TAILQ_FIRST(
@@ -4390,22 +4435,35 @@ DIOCGETSTATESV2_full:
 
 	case DIOCADDADDR: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
+		struct pf_nl_pooladdr npp = {};
 
-		error = pf_ioctl_add_addr(pp);
+		npp.which = PF_RDR;
+		memcpy(&npp, pp, sizeof(*pp));
+		error = pf_ioctl_add_addr(&npp);
 		break;
 	}
 
 	case DIOCGETADDRS: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
+		struct pf_nl_pooladdr npp = {};
 
-		error = pf_ioctl_get_addrs(pp);
+		npp.which = PF_RDR;
+		memcpy(&npp, pp, sizeof(*pp));
+		error = pf_ioctl_get_addrs(&npp);
+		memcpy(pp, &npp, sizeof(*pp));
+
 		break;
 	}
 
 	case DIOCGETADDR: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
+		struct pf_nl_pooladdr npp = {};
 
-		error = pf_ioctl_get_addr(pp);
+		npp.which = PF_RDR;
+		memcpy(&npp, pp, sizeof(*pp));
+		error = pf_ioctl_get_addr(&npp);
+		memcpy(pp, &npp, sizeof(*pp));
+
 		break;
 	}
 
@@ -4460,7 +4518,7 @@ DIOCGETSTATESV2_full:
 			ERROUT(EBUSY);
 
 		pool = pf_get_kpool(pca->anchor, pca->ticket, pca->r_action,
-		    pca->r_num, pca->r_last, 1, 1);
+		    pca->r_num, pca->r_last, 1, 1, PF_RDR);
 		if (pool == NULL)
 			ERROUT(EBUSY);
 
@@ -5111,8 +5169,6 @@ DIOCCHANGEADDR_error:
 			free(ioes, M_TEMP);
 			break;
 		}
-		/* Ensure there's no more ethernet rules to clean up. */
-		NET_EPOCH_DRAIN_CALLBACKS();
 		PF_RULES_WLOCK();
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			ioe->anchor[sizeof(ioe->anchor) - 1] = '\0';
@@ -5451,8 +5507,7 @@ DIOCCHANGEADDR_error:
 	}
 
 	case DIOCCLRSRCNODES: {
-		pf_clear_srcnodes();
-		pf_purge_expired_src_nodes();
+		pf_kill_srcnodes(NULL);
 		break;
 	}
 
@@ -5588,7 +5643,7 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 
 	/* copy from state */
 	strlcpy(sp->pfs_1301.ifname, st->kif->pfik_name, sizeof(sp->pfs_1301.ifname));
-	bcopy(&st->rt_addr, &sp->pfs_1301.rt_addr, sizeof(sp->pfs_1301.rt_addr));
+	bcopy(&st->act.rt_addr, &sp->pfs_1301.rt_addr, sizeof(sp->pfs_1301.rt_addr));
 	sp->pfs_1301.creation = htonl(time_uptime - (st->creation / 1000));
 	sp->pfs_1301.expire = pf_state_expires(st);
 	if (sp->pfs_1301.expire <= time_uptime)
@@ -5616,10 +5671,10 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 			sp->pfs_1400.max_mss = htons(st->act.max_mss);
 			sp->pfs_1400.set_prio[0] = st->act.set_prio[0];
 			sp->pfs_1400.set_prio[1] = st->act.set_prio[1];
-			sp->pfs_1400.rt = st->rt;
-			if (st->rt_kif)
+			sp->pfs_1400.rt = st->act.rt;
+			if (st->act.rt_kif)
 				strlcpy(sp->pfs_1400.rt_ifname,
-				    st->rt_kif->pfik_name,
+				    st->act.rt_kif->pfik_name,
 				    sizeof(sp->pfs_1400.rt_ifname));
 			break;
 		default:
@@ -5627,9 +5682,14 @@ pfsync_state_export(union pfsync_state_union *sp, struct pf_kstate *st, int msg_
 			    __func__, msg_version);
 	}
 
-	if (st->src_node)
+	/*
+	 * XXX Why do we bother pfsyncing source node information if source
+	 * nodes are not synced? Showing users that there is source tracking
+	 * when there is none seems useless.
+	 */
+	if (st->sns[PF_SN_LIMIT] != NULL)
 		sp->pfs_1301.sync_flags |= PFSYNC_FLAG_SRCNODE;
-	if (st->nat_src_node)
+	if (st->sns[PF_SN_NAT] != NULL || st->sns[PF_SN_ROUTE])
 		sp->pfs_1301.sync_flags |= PFSYNC_FLAG_NATSRCNODE;
 
 	sp->pfs_1301.id = st->id;
@@ -5679,7 +5739,7 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 	strlcpy(sp->ifname, st->kif->pfik_name, sizeof(sp->ifname));
 	strlcpy(sp->orig_ifname, st->orig_kif->pfik_name,
 	    sizeof(sp->orig_ifname));
-	bcopy(&st->rt_addr, &sp->rt_addr, sizeof(sp->rt_addr));
+	memcpy(&sp->rt_addr, &st->act.rt_addr, sizeof(sp->rt_addr));
 	sp->creation = htonl(time_uptime - (st->creation / 1000));
 	sp->expire = pf_state_expires(st);
 	if (sp->expire <= time_uptime)
@@ -5693,11 +5753,10 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 	/* 8 bits for the old libpfctl, 16 bits for the new libpfctl */
 	sp->state_flags_compat = st->state_flags;
 	sp->state_flags = htons(st->state_flags);
-	if (st->src_node)
+	if (st->sns[PF_SN_LIMIT] != NULL)
 		sp->sync_flags |= PFSYNC_FLAG_SRCNODE;
-	if (st->nat_src_node)
+	if (st->sns[PF_SN_NAT] != NULL || st->sns[PF_SN_ROUTE] != NULL)
 		sp->sync_flags |= PFSYNC_FLAG_NATSRCNODE;
-
 	sp->id = st->id;
 	sp->creatorid = st->creatorid;
 	pf_state_peer_hton(&st->src, &sp->src);
@@ -5729,9 +5788,9 @@ pf_state_export(struct pf_state_export *sp, struct pf_kstate *st)
 	sp->min_ttl = st->act.min_ttl;
 	sp->set_tos = st->act.set_tos;
 	sp->max_mss = htons(st->act.max_mss);
-	sp->rt = st->rt;
-	if (st->rt_kif)
-		strlcpy(sp->rt_ifname, st->rt_kif->pfik_name,
+	sp->rt = st->act.rt;
+	if (st->act.rt_kif)
+		strlcpy(sp->rt_ifname, st->act.rt_kif->pfik_name,
 		    sizeof(sp->rt_ifname));
 	sp->set_prio[0] = st->act.set_prio[0];
 	sp->set_prio[1] = st->act.set_prio[1];
@@ -5928,39 +5987,10 @@ pf_clear_tables(void)
 }
 
 static void
-pf_clear_srcnodes(void)
-{
-	struct pf_kstate	*s;
-	struct pf_srchash	*sh;
-	struct pf_ksrc_node	*sn;
-	int			 i;
-
-	for (i = 0; i <= V_pf_hashmask; i++) {
-		struct pf_idhash *ih = &V_pf_idhash[i];
-
-		PF_HASHROW_LOCK(ih);
-		LIST_FOREACH(s, &ih->states, entry) {
-			s->src_node = NULL;
-			s->nat_src_node = NULL;
-		}
-		PF_HASHROW_UNLOCK(ih);
-	}
-
-	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
-	    i++, sh++) {
-		PF_HASHROW_LOCK(sh);
-		LIST_FOREACH(sn, &sh->nodes, entry) {
-			sn->expire = 1;
-			sn->states = 0;
-		}
-		PF_HASHROW_UNLOCK(sh);
-	}
-}
-
-static void
 pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 {
 	struct pf_ksrc_node_list	 kill;
+	u_int 				 killed;
 
 	LIST_INIT(&kill);
 	for (int i = 0; i <= V_pf_srchashmask; i++) {
@@ -5969,14 +5999,15 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 
 		PF_HASHROW_LOCK(sh);
 		LIST_FOREACH_SAFE(sn, &sh->nodes, entry, tmp)
-			if (PF_MATCHA(psnk->psnk_src.neg,
+			if (psnk == NULL ||
+			    (PF_MATCHA(psnk->psnk_src.neg,
 			      &psnk->psnk_src.addr.v.a.addr,
 			      &psnk->psnk_src.addr.v.a.mask,
 			      &sn->addr, sn->af) &&
 			    PF_MATCHA(psnk->psnk_dst.neg,
 			      &psnk->psnk_dst.addr.v.a.addr,
 			      &psnk->psnk_dst.addr.v.a.mask,
-			      &sn->raddr, sn->af)) {
+			      &sn->raddr, sn->af))) {
 				pf_unlink_src_node(sn);
 				LIST_INSERT_HEAD(&kill, sn, entry);
 				sn->expire = 1;
@@ -5990,15 +6021,21 @@ pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
-			if (s->src_node && s->src_node->expire == 1)
-				s->src_node = NULL;
-			if (s->nat_src_node && s->nat_src_node->expire == 1)
-				s->nat_src_node = NULL;
+			for(pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX;
+			    sn_type++) {
+				if (s->sns[sn_type] &&
+				    s->sns[sn_type]->expire == 1) {
+					s->sns[sn_type] = NULL;
+				}
+			}
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}
 
-	psnk->psnk_killed = pf_free_src_nodes(&kill);
+	killed = pf_free_src_nodes(&kill);
+
+	if (psnk != NULL)
+		psnk->psnk_killed = killed;
 }
 
 static int
@@ -6422,7 +6459,7 @@ shutdown_pf(void)
 
 		pf_clear_all_states();
 
-		pf_clear_srcnodes();
+		pf_kill_srcnodes(NULL);
 
 		/* status does not use malloced mem so no need to cleanup */
 		/* fingerprints and interfaces have their own cleanup code */
@@ -6763,9 +6800,6 @@ pf_unload_vnet(void)
 	shutdown_pf();
 	PF_RULES_WUNLOCK();
 
-	/* Make sure we've cleaned up ethernet rules before we continue. */
-	NET_EPOCH_DRAIN_CALLBACKS();
-
 	ret = swi_remove(V_pf_swi_cookie);
 	MPASS(ret == 0);
 	ret = intr_event_destroy(V_pf_swi_ie);
@@ -6817,7 +6851,8 @@ pf_unload_vnet(void)
 	}
 	counter_u64_free(V_pf_default_rule.states_cur);
 	counter_u64_free(V_pf_default_rule.states_tot);
-	counter_u64_free(V_pf_default_rule.src_nodes);
+	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++)
+		counter_u64_free(V_pf_default_rule.src_nodes[sn_type]);
 	uma_zfree_pcpu(pf_timestamp_pcpu_zone, V_pf_default_rule.timestamp);
 
 	for (int i = 0; i < PFRES_MAX; i++)
@@ -6904,4 +6939,5 @@ static moduledata_t pf_mod = {
 
 DECLARE_MODULE(pf, pf_mod, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND);
 MODULE_DEPEND(pf, netlink, 1, 1, 1);
+MODULE_DEPEND(pf, crypto, 1, 1, 1);
 MODULE_VERSION(pf, PF_MODVER);

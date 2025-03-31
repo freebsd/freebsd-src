@@ -1,8 +1,10 @@
-# $NetBSD: varname-dot-make-level.mk,v 1.3 2024/06/01 18:44:05 rillig Exp $
+# $NetBSD: varname-dot-make-level.mk,v 1.5 2024/11/23 22:59:51 rillig Exp $
 #
 # Tests for the special .MAKE.LEVEL variable, which informs about the
 # recursion level.  It is related to the environment variable MAKELEVEL,
 # even though they don't have the same value.
+
+all: level_1 set-env
 
 level_1: .PHONY
 	@printf 'level 1: variable %s, env %s\n' ${.MAKE.LEVEL} "$$${.MAKE.LEVEL.ENV}"
@@ -20,3 +22,8 @@ level_3: .PHONY
 .if make(level_2)
 .unexport-env
 .endif
+
+
+# expect: make: Cannot override read-only global variable ".MAKE.LEVEL.ENV" with a command line variable
+set-env:
+	@${MAKE} -f /dev/null .MAKE.LEVEL.ENV=MAKELEVEL

@@ -179,7 +179,7 @@ ath_rate_sample_find_min_pktlength(struct ath_softc *sc,
 	const struct txschedule *sched = &sn->sched[rix0];
 	int max_pkt_length = 65530; // ATH_AGGR_MAXSIZE
 	// Note: this may not be true in all cases; need to check?
-	int is_ht40 = (an->an_node.ni_chw == 40);
+	int is_ht40 = (an->an_node.ni_chw == IEEE80211_STA_RX_BW_40);
 	// Note: not great, but good enough..
 	int idx = is_ht40 ? MCS_HT40 : MCS_HT20;
 
@@ -397,7 +397,8 @@ pick_best_rate(struct ath_node *an, const HAL_RATE_TABLE *rt,
 		 * be abstracted out and properly handled.
 		 */
 		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
-			if (best_rate_tt == 0 || ((tt * 10) <= (best_rate_tt * 10))) {
+			if (best_rate_tt == 0 ||
+			    ((tt * 9) <= (best_rate_tt * 10))) {
 				best_rate_tt = tt;
 				best_rate_rix = rix;
 				best_rate_pct = pct;
@@ -854,9 +855,14 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 			/* 
 			 * Set the visible txrate for this node.
 			 */
-			an->an_node.ni_txrate =
-			    (rt->info[best_rix].phy == IEEE80211_T_HT) ?
-			     MCS(best_rix) : DOT11RATE(best_rix);
+			if (rt->info[best_rix].phy == IEEE80211_T_HT)
+				ieee80211_node_set_txrate_ht_mcsrate(
+				    &an->an_node,
+				    MCS(best_rix) & IEEE80211_RATE_VAL);
+			else
+				ieee80211_node_set_txrate_dot11rate(
+				    &an->an_node,
+				    DOT11RATE(best_rix));
 		}
 		rix = sn->current_rix[size_bin];
 		sn->packets_since_switch[size_bin]++;
@@ -973,7 +979,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	const int size_bin = size_to_bin(frame_size);
 	const int size = bin_to_size(size_bin);
 	int tt;
-	int is_ht40 = (an->an_node.ni_chw == 40);
+	int is_ht40 = (an->an_node.ni_chw == IEEE80211_STA_RX_BW_40);
 	int pct;
 
 	if (!IS_RATE_DEFINED(sn, rix0))
@@ -1359,7 +1365,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 				continue;
 			printf(" %d %s/%d", dot11rate(rt, rix), dot11rate_label(rt, rix),
 			    calc_usecs_unicast_packet(sc, 1600, rix, 0,0,
-			        (ni->ni_chw == 40)));
+			        (ni->ni_chw == IEEE80211_STA_RX_BW_40)));
 		}
 		printf("\n");
 	}
@@ -1390,7 +1396,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 			
 			sn->stats[y][rix].perfect_tx_time =
 			    calc_usecs_unicast_packet(sc, size, rix, 0, 0,
-			    (ni->ni_chw == 40));
+			    (ni->ni_chw == IEEE80211_STA_RX_BW_40));
 			sn->stats[y][rix].average_tx_time =
 			    sn->stats[y][rix].perfect_tx_time;
 		}
@@ -1408,9 +1414,10 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 #endif
 	/* set the visible bit-rate */
 	if (sn->static_rix != -1)
-		ni->ni_txrate = DOT11RATE(sn->static_rix);
+		ieee80211_node_set_txrate_dot11rate(ni,
+		    DOT11RATE(sn->static_rix));
 	else
-		ni->ni_txrate = RATE(0);
+		ieee80211_node_set_txrate_dot11rate(ni, RATE(0));
 #undef RATE
 #undef DOT11RATE
 }

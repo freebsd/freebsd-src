@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ole2compounddocs,v 1.26 2023/05/15 16:46:12 christos Exp $
+# $File: ole2compounddocs,v 1.29 2024/06/18 17:07:48 christos Exp $
 # Microsoft OLE 2 Compound Documents : file(1) magic for Microsoft Structured
 # storage (https://en.wikipedia.org/wiki/Compound_File_Binary_Format)
 # Additional tests for OLE 2 Compound Documents should be under this recipe.
@@ -319,6 +319,18 @@
 #>>>>>>&0	use		PageMaker
 # THIS WORKS PARTLY!
 >>>>>>&0	indirect	x
+#
+# URL:		http://fileformats.archiveteam.org/wiki/Easy_CD_Creator
+# From:		Joerg Jenderek
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/cl4.trid.xml
+# Note:		called "Easy CD Creator Layout" by TrID
+#		"newer" version 4 contain a clsid
+# Second directory entry name Contents
+>>>>128 	lestring16	Contents		: Easy CD Creator 2 Layout
+# contains also 3 strings SesnDescriptor CD_PLUS 0090
+#!:mime	application/x-ole-storage
+!:mime	application/x-corel-cl2
+!:ext	cl2
 #	remaining null clsid
 >>>>128 	default		x
 >>>>>0 	use		ole2-unknown
@@ -503,10 +515,17 @@
 # https://extension.nirsoft.net/wsb
 # like: wsbsamp.wsb WORKS2003_CD:\MSWorks\Common\Sammlung.wsb
 !:ext	wsb
-#??
-# URL:	http://fileformats.archiveteam.org/wiki/Microsoft_Publisher
+#
+# Update:	Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Microsoft_Publisher
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/p/pub.trid.xml
+# Note:		called like "Microsoft Publisher document" by TrID
+#		"version" string MSPublisher.2 inside CompObj stream
 >>88 	ubequad		0x00c0000000000046	: Microsoft
->>>80 	ubequad		0x0112020000000000	Publisher
+>>>80 	ubequad		0x0012020000000000	Publisher 95 (2.0)
+!:mime	application/vnd.ms-publisher
+!:ext	pub
+>>>80 	ubequad		0x0112020000000000	Publisher 97-2013 (3.0-11.0)
 !:mime	application/vnd.ms-publisher
 !:ext	pub
 #
@@ -731,6 +750,33 @@
 !:ext	max
 # also chr for character file according to DROID https://www.nationalarchives.gov.uk/PRONOM/fmt/978
 #!:ext	max/chr
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/IPT
+#		https://en.wikipedia.org/wiki/Autodesk_Inventor
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/i/ipt.trid.xml
+# Note:		called "Autodesk Inventor Part" by TrID
+# second, third, fifth and seventh directory entry name like RSeStorage RSeEmbeddings RefdFiles RSeDb
+>>88 	ubequad		0x93c37e0706000000	: Autodesk
+>>>80 	ubequad		0x90b4294db249d011	Inventor Part
+#!:mime	application/x-ole-storage
+!:mime	model/x-autodesk-ipt
+!:ext	ipt
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Easy_CD_Creator
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/c/cl4.trid.xml
+# Note:		called "Easy CD Creator Layout" by TrID,
+#		"Easy CD Creator 4" by CREATR32.exe and "Easy CD Creator Document" on Windows
+#		verified by Michal Mutl Structured Storage Viewer `SSView.exe MY_CD3.cl4`
+#		verified partly by libolecf-utils `olecfinfo -v MY_CD4.cl4`
+#		created by Adaptec Easy CD Creator 4.02b
+#		"older" version 2 contain no clsid
+>>88 	ubequad		0x893f00802964b632	: Easy
+>>>80 	ubequad		0x0293c3a90a77d111	CD Creator 4 Layout
+#!:mime	application/x-ole-storage
+!:mime	application/x-corel-cl4
+!:ext	cl4
+# maybe also suffix cl3
+#!:ext	cl3/cl4
 # remaining non null clsid
 >>88 	default		x
 >>>0 	use		ole2-unknown

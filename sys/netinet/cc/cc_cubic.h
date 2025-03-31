@@ -94,16 +94,8 @@ struct cubic {
 	int64_t		sum_rtt_usecs;
 	/* Size of cwnd just before cwnd was reduced in the last congestion event */
 	uint64_t	W_max;
-	/* An estimate for the congestion window in the Reno-friendly region */
-	uint64_t	W_est;
 	/* The cwnd at the beginning of the current congestion avoidance stage */
 	uint64_t	cwnd_epoch;
-	/*
-	 * Size of cwnd at the time of setting ssthresh most recently,
-	 * either upon exiting the first slow start, or just before cwnd
-	 * was reduced in the last congestion event
-	 */
-	uint64_t	cwnd_prior;
 	/* various flags */
 	uint32_t	flags;
 	/* Minimum observed rtt in usecs. */
@@ -118,9 +110,7 @@ struct cubic {
 	int		undo_t_epoch;
 	/* Few variables to restore the state after RTO_ERR */
 	int64_t		undo_K;
-	uint64_t	undo_cwnd_prior;
 	uint64_t	undo_W_max;
-	uint64_t	undo_W_est;
 	uint64_t	undo_cwnd_epoch;
 	uint32_t css_baseline_minrtt;
 	uint32_t css_current_round_minrtt;

@@ -1,38 +1,274 @@
 .\"-
-.\" Copyright (c) 2024 Baptiste Daroussin <bapt@FreeBSD.org>
-.\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd May 22, 2024
+.\" Copyright (c) 2024 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" Copyright (c) 2024 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Olivier Certner
+.\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+.\" Foundation.
+.\"
+.Dd December 19, 2024
 .Dt MAC_DO 4
 .Os
 .Sh NAME
 .Nm mac_do
-.Nd "policy allowing user to execute program as another user"
+.Nd "policy allowing unprivileged users to change process credentials"
 .Sh SYNOPSIS
 To compile the
-.Nm
-policy into your kernel, place the following lines
-in your kernel configruation file:
+.Sy mac_do
+policy into your kernel, place the following lines in your kernel configuration
+file:
 .Bd -ragged -offset indent
 .Cd "options MAC"
 .Cd "options MAC_DO"
 .Ed
+.Pp
+Alternately, to load this policy module at boot time, place the following line
+in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Ed
+.Pp
+and in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mac_do_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
-policy grants users the ability to run processs as other users
-according to predefined rules.
+policy module allows unprivileged users to change process credentials according
+to rules configured by the administrator.
+It supports per-jail configuration.
 .Pp
-The exact set of kernel privileges granted are:
-.Bl -inset -compact -offset indent
-.It Dv PRIV_CRED_SETGROUPS
-.It Dv PRIV_CRED_SETUID
+Currently, the
+.Nm
+policy module only produces effects to processes spwaned from the
+.Pa /usr/bin/mdo
+executable, please see
+.Xr mdo 1
+for more details on this program.
+.Sh CREDENTIALS RULES
+Rules specify which transitions of process credentials
+.Nm
+will allow, based on current process credentials and the desired final ones.
+They are passed by an administrator in the form of a string having the specific
+syntax described below in a top-bottom manner.
+They have been designed to be able to finely describe the desired target
+credentials in a safe and compact way.
+.Ss Top-Level List of Rules
+At the top, rules are a possibly empty list of individual rules separated by
+a semi-colon
+.Pq Ql ";" :
+.Dl Ao rules Ac \ ⟶\  Oo Ao rule Ac Oo So ";" Sc Ao rule Ac Oc Ns * Oc
+They form a disjunction, i.e.,
+.Nm
+authorizes a credentials transition as soon as at least one rule in the list
+matches.
+.Pp
+One rule is composed of a
+.Li Aq from
+part
+.Pq also called Dq match
+and a
+.Li Aq to
+part
+.Pq also called Dq target ,
+in this order, separated by a colon
+.Pq Ql ":" :
+.Dl Ao rule Ac \ ⟶\  Ao from Ac So ":" Sc Ao to Ac
+.Ss Rule's Ao from Ac Part
+The first part of a rule,
+.Li Aq from ,
+is matched against the credentials of the process requesting some credentials
+transition.
+It has the form:
+.Dl Ao from Ac \ ⟶\  Ao type Ac So = Sc Ao id Ac
+.Pp
+.Li Aq type
+must be:
+.Dl Ao type Ac \ ⟶\  Op So uid Sc | So gid Sc
+i.e., one of the literal strings
+.Ql uid
+or
+.Ql gid .
+.Li Aq id
+must be the numerical ID of a user or group, and is matched with the current
+process real ID of the corresponding type.
+.Ss Rule's Ao to Ac Part
+The second part of a rule,
+.Li Aq to ,
+is a comma-separated
+.Pq Ql ","
+non-empty list of target clauses:
+.Dl Ao to Ac \ ⟶\  Ao target_clause Ac Oo So "," Sc Ao target_clause Ac Oc Ns *
+Target clauses of a given rule also form a disjunction, i.e., the IDs they
+specify are alternatives for the target credentials, except in some cases
+described below.
+.Pp
+The next subsections describe the syntax of target clauses, the defaults that
+apply and the principle of non-redundancy and non-contradiction in each rule's
+.Li Aq to
+part.
+.Ss Target Clauses
+A target clause in a rule's
+.Li Aq to
+part must be of one of the following forms:
+.Dl Ao target_clause Ac \ ⟶\  So any Sc
+.Dl Ao target_clause Ac \ ⟶\  Ao flags Ac Ao type Ac So = Sc Ao id Ac
+The first form is a compact way to specify that any target credentials are
+allowed.
+The second form is similar to that of
+.Li Aq from
+clauses, with the following extensions:
+.Bl -bullet -compact
+.It
+.Li Aq id
+may also be a literal
+.Ql *
+or
+.Ql any
+or
+.Ql "." .
+.Ql *
+and
+.Ql any
+both designate any ID for the specified
+.Li Aq type ,
+and are treated identically.
+.Ql "."
+designates the process' current IDs for the specified
+.Li Aq type ,
+as explained below.
+.It
+.Li Aq flags
+may contain at most one of the
+.Ql + ,
+.Ql -
+and
+.Ql "!"
+characters, and may be non-empty only when
+.Li Aq type
+is
+.Ql gid .
+Additionally, if
+.Li Aq id
+is
+.Ql *
+or
+.Ql any ,
+only the
+.Ql +
+flag may appear.
 .El
 .Pp
+For target clauses of
+.Ql gid
+type, an absence of flag indicates that the specified group ID is allowed as the
+real, effective and/or saved group IDs
+.Pq the Do primary Dc groups .
+Conversely, the presence of any allowed flag indicates that the specification
+concerns supplementary groups.
+Each flag has a specific meaning:
+.Bl -bullet -compact
+.It
+.Ql +
+indicates that the group ID is allowed as a supplementary group.
+.It
+.Ql "!"
+indicates that the group ID is mandatory, i.e., it must be listed in the
+supplementary groups.
+.It
+.Ql -
+indicates that the group ID must not be listed in the supplementary groups.
+.El
+A specification with
+.Ql -
+is only useful in conjunction with a
+.Ql + Ns
+-tagged specification where only one of them has
+.Ql "."
+as its
+.Li Aq id .
+Target clauses having the
+.Ql "!"
+or
+.Ql -
+flag are
+.Dq forcing
+clauses, and as such do not take part in the disjunction of the other
+target clauses but rather unconditionally apply in their rule.
+.Pp
+.Ql "."
+is a placeholder for IDs that the calling process already has on privilege
+check.
+For type
+.Ql uid ,
+it designates any of the process' real, effective or
+saved user IDs.
+For type
+.Ql gid ,
+its effect depends on whether flags are present.
+If none is present, it designates any of the process' real, effective or saved
+group IDs.
+If one is present, it designates any of the process' supplementary groups.
+.Ss Defaults for the Ao to Ac Part
+If the
+.Li Aq to
+part does not list a target clause with type
+.Ql uid ,
+any of the current user IDs of the calling process is accepted.
+In other words, in this case,
+.Nm
+behaves as if a target clause of:
+.Dl uid=.
+had been listed.
+.Pp
+Similarly, if the
+.Li Aq to
+part does not list a target clause with type
+.Ql gid ,
+all the groups of the calling process are assumed to be required.
+More precisely, each of the desired real, effective and saved group IDs must be
+one of the current real, effective or saved group ID, and all supplementary
+groups must be the same as those that are current.
+It is as if the
+.Li Aq to
+part had contained the following two clauses:
+.Dl gid=.,!gid=.
+.Ss Non-Redundancy and Non-Contradiction in a Ao to Ac Part
+No two target clauses of a single rule may express the exact same logical intent
+nor contradictory ones.
+.Pp
+In practice, no two clauses may display the same ID except for group IDs but
+only if, each time the same ID appears, it does so with a different flag, or no
+flags only once.
+Additionally, the specified flags in multiple occurences must not be
+contradictory.
+For example, the same group ID appearing with both
+.Ql +
+and
+.Ql -
+will cause rejection of the rule.
+.Ss Parsing Specifics
+Any amount of whitespace is allowed around tokens of the above grammar, except
+that there may be no spaces between
+.Li Aq flags
+and
+.Li Aq id
+in target clauses.
+.Pp
+For convenience, numerical IDs may be specified as negative integers, which are
+then converted to unsigned ones as specified in the C standard for the
+.Vt uid_t
+and
+.Vt gid_t
+types, which are both 64-bit unsigned integers.
+.Sh RUNTIME CONFIGURATION
 The following
 .Xr sysctl 8
-MIBs are available:
+knobs are available:
 .Bl -tag -width indent
 .It Va security.mac.do.enabled
 Enable the
@@ -40,39 +276,177 @@ Enable the
 policy.
 (Default: 1).
 .It Va security.mac.do.rules
-The set of rules.
+The list of credential rules, whose syntax is described in the
+.Sx CREDENTIALS RULES
+section above.
+This list is specific to each jail.
+Please see the
+.Sx JAIL SUPPORT
+section below for more details on the interaction of
+.Nm
+with jails.
+.It Va security.mac.do.print_parse_error
+Logs a message on trying to set incorrect rules via the
+.Va security.mac.do.rules
+.Xr sysctl 8
+knob.
+.El
+.Sh JAIL SUPPORT
+.Nm
+supports per-jail configuration of rules.
+.Pp
+By default, at creation, a new jail has no credentials rules, effectively
+disabling
+.Nm
+for its processes.
+.Pp
+The following jail parameters are defined:
+.Bl -tag -width indent
+.It Va mac.do
+Possible values are:
+.Bl -tag -width "'disable'" -compact
+.It Ql enable
+.Nm
+will enforce specific credential rules in the jail.
+The
+.Va mac.do.rules
+jail parameter must also be set in this case.
+.It Ql disable
+Disables
+.Nm
+in the jail.
+Strictly equivalent to jail creation's default behavior and to setting the rules
+to an empty string.
+.It Ql inherit
+The jail's credentials rules are inherited from the jail's parent
+.Pq which may themselves have been inherited .
+Modified rules propagate to all children jails configured for inheritance.
+.El
+.It Va mac.do.rules
+The credentials rules for the jail.
+It is always equal to the value that can be retrieved by the
+.Xr sysctl 8
+knob
+.Va security.mac.do.rules
+described in section
+.Sx RUNTIME CONFIGURATION .
+If set, and the jail parameter
+.Va mac.do
+is not so explicitly, the value of the latter will default to
+.Ql disable
+if empty, else to
+.Ql enable .
 .El
 .Pp
-The rules consist of a list of elements separated by
-.So , Sc .
-Each element is of the form
-.Sm off
-.Do
-.Op Cm uid | Cm gid
-.Li =
-.Ar fid
-.Li :
-.Ar tid
-.Dc
-.Sm on .
-Where
-.Ar fid
-is the uid or gid of the user or group the rule applies to, and
-.Ar tid
-is the uid of the targetted user.
-Two special forms are accepted for
-.Ar tid :
-.Va any
-or
-.Va * ,
-which allow to target any user.
+Each jail must have
+.Xr mdo 1
+installed at path
+.Pa /usr/bin/mdo ,
+as this path is currently not configurable.
 .Sh EXAMPLES
-The following rule:
+Here are several examples of single rules matching processes having a real user
+ID of 10001:
+.Bl -tag -width indent
+.It Li uid=10001:uid=10002
+Allows the process to switch any of its real, effective or saved user ID to
+10002, but keeping the groups it is already in, and with the same
+primary/supplementary groups split.
+.It Li uid=10001:uid=10002,uid=10003
+Same as the first example, but also allows to switch to UID 10003 instead of
+10002.
+.It Li uid=10001:uid=10002,gid=10002
+Same as the first example, but the new primary groups must be set to 10002 and
+no supplementary groups should be set.
+.It Li uid=10001:uid=10002,gid=10002,+gid=.\&
+Same as the previous example, but in addition allowing to retain any current
+supplementary groups.
+.It Li uid=10001:uid=10002,gid=10002,!gid=.\&
+Same as the previous example, but with the additional constraint that all
+current supplementary groups must be kept.
+.It Li uid=10001:uid=10002,gid=10002,+gid=.,-gid=10001
+Same as
+.Ql uid=10001:uid=10002,gid=10002,+gid=.\&
+above, but 10001 cannot be retained as a supplementary group.
+.It Li uid=10001:uid=10002,gid=10002,+gid=.,!gid=10003
+Same as
+.Ql uid=10001:uid=10002,gid=10002,+gid=.\&
+above, with the additional constraint that 10003 must appear in the
+supplementary groups.
+.It Li uid=10001:uid=10002,gid=*,+gid=*
+Same as the first example, but lifting any constraints on groups, allowing the
+process to become part of any groups it sees fit.
+.El
 .Pp
-.Dl security.mac.do.rules=uid=1001:80,gid=0:any
-.Pp
-means the user with the uid 1001 can execute processes as user with uid 80,
-all the users which belongs to the group gid 0 can execute processes as any user.
+Here are several examples of single rules matching processes having a real group
+ID of 10001:
+.Bl -tag -width indent
+.It Li gid=10001:uid=0
+Makes 10001 a more powerful
+.Ql wheel
+group, allowing its members to switch to root without password.
+.It Li gid=10001:gid=10002
+Allows the process to enter GID 10002 as a primary group, but only if
+giving up all its supplementary groups.
+.It Li security.mac.do.rules=gid=10001:gid=10002,+gid=.\&
+Same as the previous example, but allows to retain any current supplementary
+groups.
+.It Li gid=10001:gid=10002,!gid=.\&
+Same as the previous example, but with the additional constraint that all
+current supplementary groups must be kept.
+.El
 .Sh SEE ALSO
 .Xr mdo 1 ,
-.Xr mac 4
+.Xr setcred 2 ,
+.Xr mac 4 ,
+.Xr jail 8 ,
+.Xr sysctl 8
+.Sh AUTHORS
+.An Olivier Certner Aq Mt olce@FreeBSD.org
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org
+.Sh BUGS
+Currently,
+.Nm
+considers only credentials transitions requested through the
+.Xr setcred 2
+system call.
+This system call was in large part created so that
+.Nm
+can see whole credentials transitions to decide whether to authorize them, which
+the traditional UNIX's piecewise approach of successively changing different
+parts of them cannot allow.
+.Pp
+However, calls to traditional or standard credentials-changing functions can be
+considered as full transitions on their own, however limited, and as such should
+be equally monitored by
+.Nm .
+Future work will lift this restriction.
+.Sh SECURITY CONSIDERATIONS
+The threat model for
+.Nm
+is to consider userland programs as generally untrustable to decide upon which
+credentials changes are acceptable.
+It is in contrast with the traditional UNIX way to change credentials, in which
+specialized programs are installed with the setuid bit, giving them full
+administrator privileges so that they are effectively able to establish new
+ones.
+Vulnerabilities in such credentials-changing programs can have catastrophic
+consequences on the integrity of the system.
+.Pp
+Consequently,
+.Nm
+does not rely on companion userland programs to decide whether some credentials
+transition is acceptable.
+Instead, it maintains its own configuration independently from the userland
+password and group databases.
+Establishing this configuration currently itself relies on userland programs
+issuing calls to
+.Xr sysctl 3
+or
+.Xr jail 2 .
+It should thus be established near system boot or jail start, before any
+possible attacks could happen on the system, and further measures should be
+taken to ensure that potential corruptions does not affect the configuration in
+subsequent restarts, such as re-establishing pristine state or ensuring that the
+boot procedure up to the configuration of
+.Nm
+can be trusted.

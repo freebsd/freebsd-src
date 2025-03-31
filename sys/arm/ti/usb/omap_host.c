@@ -413,14 +413,15 @@ omap_uhh_attach(device_t dev)
 	/*
 	 * Allow devices to identify.
 	 */
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 	/*
 	 * Now walk the OFW tree and attach top-level devices.
 	 */
 	for (node = OF_child(node); node > 0; node = OF_peer(node))
 		simplebus_add_device(dev, node, 0, NULL, -1, NULL);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 error:
 	omap_uhh_detach(dev);
@@ -431,9 +432,12 @@ static int
 omap_uhh_detach(device_t dev)
 {
 	struct omap_uhh_softc *isc = device_get_softc(dev);
+	int error;
 
 	/* during module unload there are lots of children leftover */
-	device_delete_children(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	if (isc->uhh_mem_res) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, isc->uhh_mem_res);

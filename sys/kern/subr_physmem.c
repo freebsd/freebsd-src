@@ -622,5 +622,6 @@ static device_method_t ram_methods[] = {
 };
 
 DEFINE_CLASS_0(ram, ram_driver, ram_methods, /* no softc */ 1);
-DRIVER_MODULE(ram, nexus, ram_driver, 0, 0);
+EARLY_DRIVER_MODULE(ram, nexus, ram_driver, 0, 0,
+    BUS_PASS_ROOT + BUS_PASS_ORDER_MIDDLE);
 #endif /* _KERNEL */

@@ -330,6 +330,12 @@ ow_add_child(device_t dev, romid_t romid)
 	return (0);
 }
 
+static void
+ow_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_OW);
+}
+
 static device_t
 ow_child_by_romid(device_t dev, romid_t romid)
 {
@@ -552,15 +558,13 @@ ow_attach(device_t ndev)
 	sc->dev = ndev;
 	mtx_init(&sc->mtx, device_get_nameunit(sc->dev), "ow", MTX_DEF);
 	ow_enumerate(ndev, ow_search_rom, ow_device_found);
-	return bus_generic_attach(ndev);
+	bus_attach_children(ndev);
+	return (0);
 }
 
 static int
 ow_detach(device_t ndev)
 {
-	device_t *children, child;
-	int nkid, i;
-	struct ow_devinfo *di;
 	struct ow_softc *sc;
 
 	sc = device_get_softc(ndev);
@@ -569,19 +573,6 @@ ow_detach(device_t ndev)
 	 * have stopped, etc.
 	 */
 	bus_generic_detach(ndev);
-
-	/*
-	 * We delete all the children, and free up the ivars 
-	 */
-	if (device_get_children(ndev, &children, &nkid) != 0)
-		return ENOMEM;
-	for (i = 0; i < nkid; i++) {
-		child = children[i];
-		di = device_get_ivars(child);
-		free(di, M_OW);
-		device_delete_child(ndev, child);
-	}
-	free(children, M_TEMP);
 
 	OW_LOCK_DESTROY(sc);
 	return 0;
@@ -703,6 +694,7 @@ static device_method_t ow_methods[] = {
 	DEVMETHOD(device_detach,	ow_detach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_child_deleted,	ow_child_deleted),
 	DEVMETHOD(bus_child_pnpinfo,	ow_child_pnpinfo),
 	DEVMETHOD(bus_read_ivar,	ow_read_ivar),
 	DEVMETHOD(bus_write_ivar,	ow_write_ivar),

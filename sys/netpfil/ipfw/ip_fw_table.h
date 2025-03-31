@@ -156,10 +156,6 @@ int add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 int del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei, uint8_t flags, uint32_t count);
 int flush_table(struct ip_fw_chain *ch, struct tid_info *ti);
-void ipfw_import_table_value_legacy(uint32_t value, struct table_value *v);
-uint32_t ipfw_export_table_value_legacy(struct table_value *v);
-int ipfw_get_table_size(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
 
 /* ipfw_table_value.c functions */
 struct table_config;
@@ -180,7 +176,7 @@ int ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
     struct rule_check_info *ci);
 int ipfw_mark_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
     uint32_t *bmask);
-int ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint16_t kidx,
+int ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint32_t kidx,
     struct sockopt_data *sd);
 void ipfw_unref_rule_tables(struct ip_fw_chain *chain, struct ip_fw *rule);
 struct namedobj_instance *ipfw_get_table_objhash(struct ip_fw_chain *ch);
@@ -190,7 +186,7 @@ int ipfw_move_tables_sets(struct ip_fw_chain *ch, ipfw_range_tlv *rt,
     uint32_t new_set);
 void ipfw_swap_tables_sets(struct ip_fw_chain *ch, uint32_t old_set,
     uint32_t new_set, int mv);
-int ipfw_foreach_table_tentry(struct ip_fw_chain *ch, uint16_t kidx,
+int ipfw_foreach_table_tentry(struct ip_fw_chain *ch, uint32_t kidx,
     ta_foreach_f f, void *arg);
 
 /* internal functions */
@@ -219,14 +215,6 @@ struct tableop_state {
 void add_toperation_state(struct ip_fw_chain *ch, struct tableop_state *ts);
 void del_toperation_state(struct ip_fw_chain *ch, struct tableop_state *ts);
 void rollback_toperation_state(struct ip_fw_chain *ch, void *object);
-
-/* Legacy interfaces */
-int ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti,
-    uint32_t *cnt);
-int ipfw_count_xtable(struct ip_fw_chain *ch, struct tid_info *ti,
-    uint32_t *cnt);
-int ipfw_dump_table_legacy(struct ip_fw_chain *ch, struct tid_info *ti,
-    ipfw_table *tbl);
 
 #endif /* _KERNEL */
 #endif /* _IPFW2_TABLE_H */

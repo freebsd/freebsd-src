@@ -3655,8 +3655,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 				sin.sin_len = sizeof(struct sockaddr_in);
 				sin.sin_port = stcb->rport;
 				m_copydata(control, cmsg_data_off, sizeof(struct in_addr), (caddr_t)&sin.sin_addr);
-				if ((sin.sin_addr.s_addr == INADDR_ANY) ||
-				    (sin.sin_addr.s_addr == INADDR_BROADCAST) ||
+				if (in_broadcast(sin.sin_addr) ||
 				    IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
 					*error = EINVAL;
 					return (1);
@@ -3687,8 +3686,7 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 #ifdef INET
 				if (IN6_IS_ADDR_V4MAPPED(&sin6.sin6_addr)) {
 					in6_sin6_2_sin(&sin, &sin6);
-					if ((sin.sin_addr.s_addr == INADDR_ANY) ||
-					    (sin.sin_addr.s_addr == INADDR_BROADCAST) ||
+					if (in_broadcast(sin.sin_addr) ||
 					    IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
 						*error = EINVAL;
 						return (1);
@@ -4073,7 +4071,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				ip->ip_off = htons(0);
 			}
 			/* FreeBSD has a function for ip_id's */
-			ip_fillid(ip);
+			ip_fillid(ip, V_ip_random_id);
 
 			ip->ip_ttl = inp->ip_inp.inp.inp_ip_ttl;
 			ip->ip_len = htons(packet_length);
@@ -11199,7 +11197,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 		ip->ip_hl = (sizeof(struct ip) >> 2);
 		ip->ip_tos = 0;
 		ip->ip_off = htons(IP_DF);
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip_random_id);
 		ip->ip_ttl = MODULE_GLOBAL(ip_defttl);
 		if (port) {
 			ip->ip_p = IPPROTO_UDP;

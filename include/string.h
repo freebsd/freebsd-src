@@ -54,7 +54,7 @@ typedef	__size_t	size_t;
 #endif
 
 __BEGIN_DECLS
-#if __XSI_VISIBLE >= 600
+#if __XSI_VISIBLE >= 600 || __ISO_C_VISIBLE >= 2023
 void	*memccpy(void * __restrict, const void * __restrict, int, size_t);
 #endif
 void	*memchr(const void *, int, size_t) __pure;
@@ -71,6 +71,9 @@ void	*(memmove)(void *, const void *, size_t);
 void	*(mempcpy)(void * __restrict, const void * __restrict, size_t);
 #endif
 void	*(memset)(void *, int, size_t);
+#if __BSD_VISIBLE || __ISO_C_VISIBLE >= 2023
+void	*memset_explicit(void *, int, size_t);
+#endif
 #if __POSIX_VISIBLE >= 200809
 char	*(stpcpy)(char * __restrict, const char * __restrict);
 char	*(stpncpy)(char * __restrict, const char * __restrict, size_t);
@@ -88,7 +91,7 @@ int	 strcmp(const char *, const char *) __pure;
 int	 strcoll(const char *, const char *);
 char	*(strcpy)(char * __restrict, const char * __restrict);
 size_t	 strcspn(const char *, const char *) __pure;
-#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE || __ISO_C_VISIBLE >= 2023
 char	*strdup(const char *) __malloc_like;
 #endif
 char	*strerror(int);
@@ -112,8 +115,10 @@ void	 strmode(mode_t, char *);
 char	*(strncat)(char * __restrict, const char * __restrict, size_t);
 int	 strncmp(const char *, const char *, size_t) __pure;
 char	*(strncpy)(char * __restrict, const char * __restrict, size_t);
-#if __POSIX_VISIBLE >= 200809
+#if __POSIX_VISIBLE >= 200809 || __ISO_C_VISIBLE >= 2023
 char	*strndup(const char *, size_t) __malloc_like;
+#endif
+#if __POSIX_VISIBLE >= 200809
 size_t	 strnlen(const char *, size_t) __pure;
 #endif
 #if __BSD_VISIBLE

@@ -203,6 +203,7 @@ ath_rate_update(struct ath_softc *sc, struct ieee80211_node *ni, int rate)
 	struct ieee80211vap *vap = ni->ni_vap;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	u_int8_t rix;
+	uint8_t dot11rate;
 
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
 
@@ -221,8 +222,9 @@ ath_rate_update(struct ath_softc *sc, struct ieee80211_node *ni, int rate)
 	if (ni->ni_rates.rs_nrates == 0)
 		goto done;
 	on->on_rix = rate;
-	ni->ni_txrate = ni->ni_rates.rs_rates[rate] & IEEE80211_RATE_VAL;
-	on->on_tx_rix0 = sc->sc_rixmap[ni->ni_txrate];
+	dot11rate = ni->ni_rates.rs_rates[rate] & IEEE80211_RATE_VAL;
+	ieee80211_node_set_txrate_dot11rate(ni, dot11rate);
+	on->on_tx_rix0 = sc->sc_rixmap[dot11rate];
 	on->on_tx_rate0 = rt->info[on->on_tx_rix0].rateCode;
 
 	on->on_tx_rate0sp = on->on_tx_rate0 |
@@ -389,7 +391,7 @@ ath_rate_ctl(void *arg, struct ieee80211_node *ni)
 	if (nrate != on->on_rix) {
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
 		    "%s: %dM -> %dM (%d ok, %d err, %d retr)", __func__,
-		    ni->ni_txrate / 2,
+		    ieee80211_node_get_txrate_kbit(ni) / 1000,
 		    (rs->rs_rates[nrate] & IEEE80211_RATE_VAL) / 2,
 		    on->on_tx_ok, on->on_tx_err, on->on_tx_retr);
 		ath_rate_update(sc, ni, nrate);

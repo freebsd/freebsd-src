@@ -606,7 +606,7 @@ int nfscl_doclose(vnode_t, struct nfsclclient **, NFSPROC_T *);
 int nfsrpc_doclose(struct nfsmount *, struct nfsclopen *, NFSPROC_T *, bool,
     bool);
 int nfscl_deleg(mount_t, struct nfsclclient *, u_int8_t *, int,
-    struct ucred *, NFSPROC_T *, struct nfscldeleg **);
+    struct ucred *, NFSPROC_T *, struct nfscldeleg *);
 void nfscl_lockinit(struct nfsv4lock *);
 void nfscl_lockexcl(struct nfsv4lock *, void *);
 void nfscl_lockunlock(struct nfsv4lock *);
@@ -626,7 +626,7 @@ int nfscl_renamedeleg(vnode_t, nfsv4stateid_t *, int *, vnode_t,
     nfsv4stateid_t *, int *, NFSPROC_T *);
 void nfscl_reclaimnode(vnode_t);
 void nfscl_newnode(vnode_t);
-void nfscl_delegmodtime(vnode_t);
+void nfscl_delegmodtime(struct vnode *, struct timespec *);
 void nfscl_deleggetmodtime(vnode_t, struct timespec *);
 int nfscl_trydelegreturn(struct nfscldeleg *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
@@ -780,6 +780,7 @@ int newnfs_request(struct nfsrv_descript *, struct nfsmount *,
     struct nfsclient *, struct nfssockreq *, vnode_t, NFSPROC_T *,
     struct ucred *, u_int32_t, u_int32_t, u_char *, int, u_int64_t *,
     struct nfsclsession *);
+void nfs_resetslots(struct nfsclsession *);
 int newnfs_connect(struct nfsmount *, struct nfssockreq *,
     struct ucred *, NFSPROC_T *, int, bool, struct __rpc_client **);
 void newnfs_disconnect(struct nfsmount *, struct nfssockreq *);

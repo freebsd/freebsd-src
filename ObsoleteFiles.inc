@@ -51,6 +51,259 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250310: caroot bundle updated
+OLD_FILES+=usr/share/certs/trusted/Entrust_Root_Certification_Authority_-_G4.pem
+OLD_FILES+=usr/share/certs/trusted/SecureSign_RootCA11.pem
+OLD_FILES+=usr/share/certs/trusted/Security_Communication_RootCA3.pem
+OLD_FILES+=usr/share/certs/trusted/SwissSign_Silver_CA_-_G2.pem
+OLD_FILES+=usr/share/certs/untrusted/AddTrust_External_Root.pem
+OLD_FILES+=usr/share/certs/untrusted/AddTrust_Low-Value_Services_Root.pem
+OLD_FILES+=usr/share/certs/untrusted/Staat_der_Nederlanden_Root_CA_-_G2.pem
+OLD_FILES+=usr/share/certs/untrusted/Cybertrust_Global_Root.pem
+OLD_FILES+=usr/share/certs/untrusted/DST_Root_CA_X3.pem
+OLD_FILES+=usr/share/certs/untrusted/GlobalSign_Root_CA_-_R2.pem
+OLD_FILES+=usr/share/certs/untrusted/QuoVadis_Root_CA.pem
+OLD_FILES+=usr/share/certs/untrusted/Sonera_Class_2_Root_CA.pem
+OLD_FILES+=usr/share/certs/untrusted/GeoTrust_Global_CA.pem
+OLD_FILES+=usr/share/certs/untrusted/Staat_der_Nederlanden_EV_Root_CA.pem
+OLD_FILES+=usr/share/certs/untrusted/E-Tugra_Certification_Authority.pem
+OLD_FILES+=usr/share/certs/untrusted/Hongkong_Post_Root_CA_1.pem
+OLD_FILES+=usr/share/certs/untrusted/Security_Communication_Root_CA.pem
+OLD_FILES+=usr/share/certs/untrusted/Trustis_FPS_Root_CA.pem
+
+# 20250205: bus_generic_attach.9 removed after the function was deprecated
+OLD_FILES+=usr/share/man/man9/bus_generic_attach.9.gz
+
+# 20250204: sys/vm/stack test symbols moved to /usr/lib/debug
+OLD_FILES+=usr/tests/sys/vm/stack/.debug/libsoxstack.so.debug
+OLD_DIRS+=usr/tests/sys/vm/stack/.debug
+
+# 20250129: libdevinfo bumped to version 7
+OLD_LIBS+=lib/libdevinfo.so.6
+
+# 20250123: Remove gvinum(8)
+OLD_FILES+=sbin/gvinum
+OLD_FILES+=usr/share/man/man8/gvinum.8.gz
+
+# 20250122: Remove publickey(5) stuff
+OLD_FILES+=usr/bin/chkey
+OLD_FILES+=usr/bin/keylogin
+OLD_FILES+=usr/bin/keylogout
+OLD_FILES+=usr/sbin/keyserv
+OLD_FILES+=usr/bin/newkey
+OLD_FILES+=usr/share/man/man1/chkey.1.gz
+OLD_FILES+=usr/share/man/man1/keylogin.1.gz
+OLD_FILES+=usr/share/man/man1/keylogin.1.gz
+OLD_FILES+=usr/share/man/man5/publickey.5.gz
+OLD_FILES+=usr/share/man/man8/keyserv.1.gz
+
+# 20241206: Remove Altera DE4 drivers
+OLD_FILES+=usr/share/man/man4/altera_atse.4.gz
+OLD_FILES+=usr/share/man/man4/altera_avgen.4.gz
+OLD_FILES+=usr/share/man/man4/altera_jtag_uart.4.gz
+OLD_FILES+=usr/share/man/man4/altera_sdcard.4.gz
+OLD_FILES+=usr/share/man/man4/altera_sdcardc.4.gz
+OLD_FILES+=usr/share/man/man4/atse.4.gz
+
+# 20241124: library and tests of OpenBSD dc
+OLD_FILES+=usr/share/misc/bc.library
+OLD_FILES+=usr/tests/usr.bin/dc/Kyuafile
+OLD_FILES+=usr/tests/usr.bin/dc/bcode
+OLD_FILES+=usr/tests/usr.bin/dc/inout
+OLD_DIRS+=usr/tests/usr.bin/dc
+
+# 20241119: rewrite mv tests
+OLD_FILES+=usr/tests/bin/mv/legacy_test
+
+# 20241112: Retire MK_PROFILE support
+OLD_FILES+=usr/lib/lib80211_p.a
+OLD_FILES+=usr/lib/lib9p_p.a
+OLD_FILES+=usr/lib/libBlocksRuntime_p.a
+OLD_FILES+=usr/lib/libalias_dummy_p.a
+OLD_FILES+=usr/lib/libalias_ftp_p.a
+OLD_FILES+=usr/lib/libalias_irc_p.a
+OLD_FILES+=usr/lib/libalias_nbt_p.a
+OLD_FILES+=usr/lib/libalias_p.a
+OLD_FILES+=usr/lib/libalias_pptp_p.a
+OLD_FILES+=usr/lib/libalias_skinny_p.a
+OLD_FILES+=usr/lib/libalias_smedia_p.a
+OLD_FILES+=usr/lib/libarchive_p.a
+OLD_FILES+=usr/lib/libasn1_p.a
+OLD_FILES+=usr/lib/libauditd_p.a
+OLD_FILES+=usr/lib/libavl_p.a
+OLD_FILES+=usr/lib/libbe_p.a
+OLD_FILES+=usr/lib/libbegemot_p.a
+OLD_FILES+=usr/lib/libblacklist_p.a
+OLD_FILES+=usr/lib/libbluetooth_p.a
+OLD_FILES+=usr/lib/libbsdxml_p.a
+OLD_FILES+=usr/lib/libbsm_p.a
+OLD_FILES+=usr/lib/libbsnmp_p.a
+OLD_FILES+=usr/lib/libbz2_p.a
+OLD_FILES+=usr/lib/libc++_p.a
+OLD_FILES+=usr/lib/libc_p.a
+OLD_FILES+=usr/lib/libcalendar_p.a
+OLD_FILES+=usr/lib/libcam_p.a
+OLD_FILES+=usr/lib/libcom_err_p.a
+OLD_FILES+=usr/lib/libcompat_p.a
+OLD_FILES+=usr/lib/libcompiler_rt_p.a
+OLD_FILES+=usr/lib/libcrypt_p.a
+OLD_FILES+=usr/lib/libcrypto_p.a
+OLD_FILES+=usr/lib/libctf_p.a
+OLD_FILES+=usr/lib/libcurses_p.a
+OLD_FILES+=usr/lib/libcursesw_p.a
+OLD_FILES+=usr/lib/libcuse_p.a
+OLD_FILES+=usr/lib/libcxxrt_p.a
+OLD_FILES+=usr/lib/libdevctl_p.a
+OLD_FILES+=usr/lib/libdevinfo_p.a
+OLD_FILES+=usr/lib/libdevstat_p.a
+OLD_FILES+=usr/lib/libdialog_p.a
+OLD_FILES+=usr/lib/libdl_p.a
+OLD_FILES+=usr/lib/libdpv_p.a
+OLD_FILES+=usr/lib/libdtrace_p.a
+OLD_FILES+=usr/lib/libdwarf_p.a
+OLD_FILES+=usr/lib/libedit_p.a
+OLD_FILES+=usr/lib/libefivar_p.a
+OLD_FILES+=usr/lib/libelf_p.a
+OLD_FILES+=usr/lib/libexecinfo_p.a
+OLD_FILES+=usr/lib/libfetch_p.a
+OLD_FILES+=usr/lib/libfigpar_p.a
+OLD_FILES+=usr/lib/libfl_p.a
+OLD_FILES+=usr/lib/libform_p.a
+OLD_FILES+=usr/lib/libformw_p.a
+OLD_FILES+=usr/lib/libgcc_eh_p.a
+OLD_FILES+=usr/lib/libgcc_p.a
+OLD_FILES+=usr/lib/libgeom_p.a
+OLD_FILES+=usr/lib/libgpio_p.a
+OLD_FILES+=usr/lib/libgssapi_krb5_p.a
+OLD_FILES+=usr/lib/libgssapi_ntlm_p.a
+OLD_FILES+=usr/lib/libgssapi_p.a
+OLD_FILES+=usr/lib/libgssapi_spnego_p.a
+OLD_FILES+=usr/lib/libhdb_p.a
+OLD_FILES+=usr/lib/libheimbase_p.a
+OLD_FILES+=usr/lib/libheimntlm_p.a
+OLD_FILES+=usr/lib/libheimsqlite_p.a
+OLD_FILES+=usr/lib/libhistory_p.a
+OLD_FILES+=usr/lib/libhx509_p.a
+OLD_FILES+=usr/lib/libicp_p.a
+OLD_FILES+=usr/lib/libicp_rescue_p.a
+OLD_FILES+=usr/lib/libipsec_p.a
+OLD_FILES+=usr/lib/libipt_p.a
+OLD_FILES+=usr/lib/libjail_p.a
+OLD_FILES+=usr/lib/libkadm5clnt_p.a
+OLD_FILES+=usr/lib/libkadm5srv_p.a
+OLD_FILES+=usr/lib/libkafs5_p.a
+OLD_FILES+=usr/lib/libkdc_p.a
+OLD_FILES+=usr/lib/libkiconv_p.a
+OLD_FILES+=usr/lib/libkrb5_p.a
+OLD_FILES+=usr/lib/libkvm_p.a
+OLD_FILES+=usr/lib/libl_p.a
+OLD_FILES+=usr/lib/libln_p.a
+OLD_FILES+=usr/lib/liblzma_p.a
+OLD_FILES+=usr/lib/libm_p.a
+OLD_FILES+=usr/lib/libmagic_p.a
+OLD_FILES+=usr/lib/libmd_p.a
+OLD_FILES+=usr/lib/libmemstat_p.a
+OLD_FILES+=usr/lib/libmenu_p.a
+OLD_FILES+=usr/lib/libmenuw_p.a
+OLD_FILES+=usr/lib/libmilter_p.a
+OLD_FILES+=usr/lib/libmp_p.a
+OLD_FILES+=usr/lib/libmt_p.a
+OLD_FILES+=usr/lib/libncurses_p.a
+OLD_FILES+=usr/lib/libncursesw_p.a
+OLD_FILES+=usr/lib/libnetgraph_p.a
+OLD_FILES+=usr/lib/libnetmap_p.a
+OLD_FILES+=usr/lib/libnss_tacplus_p.a
+OLD_FILES+=usr/lib/libnv_p.a
+OLD_FILES+=usr/lib/libnvpair_p.a
+OLD_FILES+=usr/lib/libopencsd_p.a
+OLD_FILES+=usr/lib/libopie_p.a
+OLD_FILES+=usr/lib/libpanel_p.a
+OLD_FILES+=usr/lib/libpanelw_p.a
+OLD_FILES+=usr/lib/libpathconv_p.a
+OLD_FILES+=usr/lib/libpcap_p.a
+OLD_FILES+=usr/lib/libpjdlog_p.a
+OLD_FILES+=usr/lib/libpmc_p.a
+OLD_FILES+=usr/lib/libprivateatf-c++_p.a
+OLD_FILES+=usr/lib/libprivateatf-c_p.a
+OLD_FILES+=usr/lib/libprivateauditd_p.a
+OLD_FILES+=usr/lib/libprivatebsdstat_p.a
+OLD_FILES+=usr/lib/libprivatecbor_p.a
+OLD_FILES+=usr/lib/libprivatedevdctl_p.a
+OLD_FILES+=usr/lib/libprivateevent_p.a
+OLD_FILES+=usr/lib/libprivateevent1_p.a
+OLD_FILES+=usr/lib/libprivatefido2_p.a
+OLD_FILES+=usr/lib/libprivategmock_main_p.a
+OLD_FILES+=usr/lib/libprivategmock_p.a
+OLD_FILES+=usr/lib/libprivategtest_main_p.a
+OLD_FILES+=usr/lib/libprivategtest_p.a
+OLD_FILES+=usr/lib/libprivateheimipcc_p.a
+OLD_FILES+=usr/lib/libprivateheimipcs_p.a
+OLD_FILES+=usr/lib/libprivateifconfig_p.a
+OLD_FILES+=usr/lib/libprivateldns_p.a
+OLD_FILES+=usr/lib/libprivatesqlite3_p.a
+OLD_FILES+=usr/lib/libprivatessh_p.a
+OLD_FILES+=usr/lib/libprivateucl_p.a
+OLD_FILES+=usr/lib/libprivateunbound_p.a
+OLD_FILES+=usr/lib/libprivatezstd_p.a
+OLD_FILES+=usr/lib/libproc_p.a
+OLD_FILES+=usr/lib/libprocstat_p.a
+OLD_FILES+=usr/lib/libpthread_p.a
+OLD_FILES+=usr/lib/libradius_p.a
+OLD_FILES+=usr/lib/libregex_p.a
+OLD_FILES+=usr/lib/libroken_p.a
+OLD_FILES+=usr/lib/librpcsvc_p.a
+OLD_FILES+=usr/lib/librss_p.a
+OLD_FILES+=usr/lib/librt_p.a
+OLD_FILES+=usr/lib/librtld_db_p.a
+OLD_FILES+=usr/lib/libsbuf_p.a
+OLD_FILES+=usr/lib/libsdp_p.a
+OLD_FILES+=usr/lib/libsmb_p.a
+OLD_FILES+=usr/lib/libspl_p.a
+OLD_FILES+=usr/lib/libssl_p.a
+OLD_FILES+=usr/lib/libstats_p.a
+OLD_FILES+=usr/lib/libstdbuf_p.a
+OLD_FILES+=usr/lib/libstdc++_p.a
+OLD_FILES+=usr/lib/libstdthreads_p.a
+OLD_FILES+=usr/lib/libsupc++_p.a
+OLD_FILES+=usr/lib/libsysdecode_p.a
+OLD_FILES+=usr/lib/libtacplus_p.a
+OLD_FILES+=usr/lib/libtermcap_p.a
+OLD_FILES+=usr/lib/libtermcapw_p.a
+OLD_FILES+=usr/lib/libtermlib_p.a
+OLD_FILES+=usr/lib/libtermlibw_p.a
+OLD_FILES+=usr/lib/libthr_p.a
+OLD_FILES+=usr/lib/libthread_db_p.a
+OLD_FILES+=usr/lib/libtinfo_p.a
+OLD_FILES+=usr/lib/libtinfow_p.a
+OLD_FILES+=usr/lib/libtpool_p.a
+OLD_FILES+=usr/lib/libufs_p.a
+OLD_FILES+=usr/lib/libugidfw_p.a
+OLD_FILES+=usr/lib/libulog_p.a
+OLD_FILES+=usr/lib/libumem_p.a
+OLD_FILES+=usr/lib/libusb_p.a
+OLD_FILES+=usr/lib/libusbhid_p.a
+OLD_FILES+=usr/lib/libutempter_p.a
+OLD_FILES+=usr/lib/libutil_p.a
+OLD_FILES+=usr/lib/libuutil_p.a
+OLD_FILES+=usr/lib/libvgl_p.a
+OLD_FILES+=usr/lib/libvmmapi_p.a
+OLD_FILES+=usr/lib/libwind_p.a
+OLD_FILES+=usr/lib/libwrap_p.a
+OLD_FILES+=usr/lib/libxo_p.a
+OLD_FILES+=usr/lib/liby_p.a
+OLD_FILES+=usr/lib/libypclnt_p.a
+OLD_FILES+=usr/lib/libz_p.a
+OLD_FILES+=usr/lib/libzfs_core_p.a
+OLD_FILES+=usr/lib/libzfs_p.a
+OLD_FILES+=usr/lib/libzfsbootenv_p.a
+OLD_FILES+=usr/lib/libzutil_p.a
+
+# 20241112: move p9fs from section 5 to section 4
+OLD_FILES+=usr/share/man/man5/p9fs.5.gz
+
+# 20241104: remove the outdated c2x.7 symlink in favor of c23.7
+OLD_FILES+=usr/share/man/man7/c2x.7.gz
+
 # 20241023: new clang import which bumps version from 18 to 19
 OLD_FILES+=usr/lib/clang/18/include/__clang_cuda_builtin_vars.h
 OLD_FILES+=usr/lib/clang/18/include/__clang_cuda_cmath.h
@@ -347,6 +600,7 @@ OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_cxx-powerpc64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_cxx-powerpc64le.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_cxx-riscv64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_static-aarch64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_static-i386.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_static-powerpc64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_static-powerpc64le.a
@@ -365,6 +619,7 @@ OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.dd-aarch64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.dd-x86_64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.fuzzer-aarch64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.fuzzer-x86_64.a
+OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.fuzzer_interceptors-aarch64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.fuzzer_interceptors-x86_64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.fuzzer_no_main-aarch64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.fuzzer_no_main-x86_64.a
@@ -530,11 +785,6 @@ OLD_FILES+=usr/tests/sys/netpfil/pf/divapp
 
 # 20240930: libmd bumped to version 7
 OLD_LIBS+=lib/libmd.so.6
-
-# 20240914 libpcap upgrade from 1.10.4 to 1.10.5
-OLD_FILES+=contrib/libpcap/pcap-haiku.cpp
-OLD_FILES+=contrib/libpcap/pcap-rpcap-int.h
-OLD_FILES+=contrib/libpcap/pcap-usb-linux-common.c
 
 # 20240827: retire fips.so
 OLD_LIBS+=usr/lib/ossl-modules/fips.so
@@ -2028,6 +2278,9 @@ OLD_FILES+=usr/share/certs/trusted/Staat_der_Nederlanden_EV_Root_CA.pem
 OLD_FILES+=usr/share/certs/trusted/TrustCor_ECA-1.pem
 OLD_FILES+=usr/share/certs/trusted/TrustCor_RootCert_CA-1.pem
 OLD_FILES+=usr/share/certs/trusted/TrustCor_RootCert_CA-2.pem
+
+# 20230510: twe(4) driver removed
+OLD_FILES+=usr/share/man/man4/twe.4.gz
 
 # 20230505: md5 tests are now self-contained
 OLD_FILES+=usr/tests/sbin/md5/1.inp
@@ -12220,8 +12473,6 @@ OLD_FILES+=usr/bin/llvm-pdbdump
 OLD_FILES+=usr/share/man/man2/pdwait4.2.gz
 # 20170610: chown-f_test replaced by chown_test
 OLD_FILES+=usr/tests/usr.sbin/chown/chown-f_test
-# 20170609: drop obsolete manpage link (if_rtwn.ko -> rtwn.ko)
-OLD_FILES+=usr/share/man/man4/if_rtwn.4.gz
 # 20170531: removal of groff
 OLD_FILES+=usr/bin/addftinfo
 OLD_FILES+=usr/bin/afmtodit
@@ -13336,9 +13587,6 @@ OLD_FILES+=usr/share/man/man1/rlog.1.gz
 OLD_FILES+=usr/share/man/man5/rcsfile.5.gz
 # 20161010: remove link to removed m_getclr(9) macro
 OLD_FILES+=usr/share/man/man9/m_getclr.9.gz
-# 20161003: MK_ELFCOPY_AS_OBJCOPY option retired
-OLD_FILES+=usr/bin/elfcopy
-OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
 # 20160906: libkqueue tests moved to /usr/tests/sys/kqueue/libkqueue
 OLD_FILES+=usr/tests/sys/kqueue/kqtest
 OLD_FILES+=usr/tests/sys/kqueue/kqueue_test

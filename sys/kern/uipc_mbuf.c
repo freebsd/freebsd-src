@@ -1887,7 +1887,7 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 	 * ciphersuites.
 	 */
 	if (__predict_false(total == 0)) {
-		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs);
+		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs, 0);
 		if (mb == NULL)
 			return (NULL);
 		mb->m_epg_flags = EPG_FLAG_ANON;
@@ -1899,7 +1899,7 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 	 */
 	m = NULL;
 	while (total > 0) {
-		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs);
+		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs, 0);
 		if (mb == NULL)
 			goto failed;
 		if (m == NULL)

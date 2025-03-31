@@ -205,16 +205,14 @@ bus_release_resource(device_t dev, int type, int rid, struct resource *r)
 	return (EINVAL);
 }
 
-int
-bus_generic_attach(device_t dev)
+void
+bus_attach_children(device_t dev)
 {
 	device_t child;
 
 	TAILQ_FOREACH(child, &dev->dev_children, dev_link) {
 		device_probe_and_attach(child);
 	}
-
-	return (0);
 }
 
 bus_space_tag_t
@@ -556,27 +554,8 @@ static const char unknown_string[] = { "unknown" };
 
 static TAILQ_HEAD(, module_data) module_head =
     TAILQ_HEAD_INITIALIZER(module_head);
-
-static uint8_t
-devclass_equal(const char *a, const char *b)
-{
-	char ta, tb;
-
-	if (a == b)
-		return (1);
-
-	while (1) {
-		ta = *a;
-		tb = *b;
-		if (ta != tb)
-			return (0);
-		if (ta == 0)
-			break;
-		a++;
-		b++;
-	}
-	return (1);
-}
+static TAILQ_HEAD(, devclass) devclasses =
+    TAILQ_HEAD_INITIALIZER(devclasses);
 
 int
 bus_generic_resume(device_t dev)
@@ -664,7 +643,7 @@ device_get_unit(device_t dev)
 }
 
 int
-bus_generic_detach(device_t dev)
+bus_detach_children(device_t dev)
 {
 	device_t child;
 	int error;
@@ -679,6 +658,17 @@ bus_generic_detach(device_t dev)
 	return (0);
 }
 
+int
+bus_generic_detach(device_t dev)
+{
+	int error;
+
+	error = bus_detach_children(dev);
+	if (error == 0)
+		error = device_delete_children(dev);
+	return (error);
+}
+
 const char *
 device_get_nameunit(device_t dev)
 {
@@ -688,58 +678,50 @@ device_get_nameunit(device_t dev)
 	return (unknown_string);
 }
 
-static uint8_t
-devclass_create(devclass_t *dc_pp)
+static devclass_t
+devclass_create(const char *classname)
 {
-	if (dc_pp == NULL) {
-		return (1);
-	}
-	if (dc_pp[0] == NULL) {
-		dc_pp[0] = malloc(sizeof(**(dc_pp)),
-		    M_DEVBUF, M_WAITOK | M_ZERO);
+	devclass_t dc;
 
-		if (dc_pp[0] == NULL) {
-			return (1);
-		}
+	dc = malloc(sizeof(*dc), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (dc == NULL) {
+		return (NULL);
 	}
-	return (0);
+	dc->name = classname;
+	TAILQ_INSERT_TAIL(&devclasses, dc, link);
+	return (dc);
 }
 
-static const struct module_data *
+static devclass_t
 devclass_find_create(const char *classname)
 {
-	const struct module_data *mod;
+	devclass_t dc;
 
-	TAILQ_FOREACH(mod, &module_head, entry) {
-		if (devclass_equal(mod->mod_name, classname)) {
-			if (devclass_create(mod->devclass_pp)) {
-				continue;
-			}
-			return (mod);
-		}
-	}
-	return (NULL);
+	dc = devclass_find(classname);
+	if (dc == NULL)
+		dc = devclass_create(classname);
+	return (dc);
 }
 
 static uint8_t
-devclass_add_device(const struct module_data *mod, device_t dev)
+devclass_add_device(devclass_t dc, device_t dev)
 {
 	device_t *pp_dev;
 	device_t *end;
 	uint8_t unit;
 
-	pp_dev = mod->devclass_pp[0]->dev_list;
+	pp_dev = dc->dev_list;
 	end = pp_dev + DEVCLASS_MAXUNIT;
 	unit = 0;
 
 	while (pp_dev != end) {
 		if (*pp_dev == NULL) {
 			*pp_dev = dev;
+			dev->dev_class = dc;
 			dev->dev_unit = unit;
-			dev->dev_module = mod;
 			snprintf(dev->dev_nameunit,
 			    sizeof(dev->dev_nameunit),
-			    "%s%d", device_get_name(dev), unit);
+			    "%s%d", dc->name, unit);
 			return (0);
 		}
 		pp_dev++;
@@ -750,26 +732,26 @@ devclass_add_device(const struct module_data *mod, device_t dev)
 }
 
 static void
-devclass_delete_device(const struct module_data *mod, device_t dev)
+devclass_delete_device(devclass_t dc, device_t dev)
 {
-	if (mod == NULL) {
+	if (dc == NULL) {
 		return;
 	}
-	mod->devclass_pp[0]->dev_list[dev->dev_unit] = NULL;
-	dev->dev_module = NULL;
+	dc->dev_list[dev->dev_unit] = NULL;
+	dev->dev_class = NULL;
 }
 
 static device_t
 make_device(device_t parent, const char *name)
 {
 	device_t dev = NULL;
-	const struct module_data *mod = NULL;
+	devclass_t dc = NULL;
 
 	if (name) {
 
-		mod = devclass_find_create(name);
+		dc = devclass_find_create(name);
 
-		if (!mod) {
+		if (!dc) {
 
 			DPRINTF("%s:%d:%s: can't find device "
 			    "class %s\n", __FILE__, __LINE__,
@@ -789,7 +771,7 @@ make_device(device_t parent, const char *name)
 
 	if (name) {
 		dev->dev_fixed_class = 1;
-		if (devclass_add_device(mod, dev)) {
+		if (devclass_add_device(dc, dev)) {
 			goto error;
 		}
 	}
@@ -845,7 +827,8 @@ device_delete_child(device_t dev, device_t child)
 		}
 	}
 
-	devclass_delete_device(child->dev_module, child);
+	if (child->dev_class != NULL)
+		devclass_delete_device(child->dev_class, child);
 
 	if (dev != NULL) {
 		/* remove child from parent */
@@ -902,7 +885,7 @@ device_get_method(device_t dev, const char *what)
 
 	mtod = dev->dev_module->driver->methods;
 	while (mtod->func != NULL) {
-		if (devclass_equal(mtod->desc, what)) {
+		if (strcmp(mtod->desc, what) == 0) {
 			return (mtod->func);
 		}
 		mtod++;
@@ -913,7 +896,7 @@ device_get_method(device_t dev, const char *what)
 const char *
 device_get_name(device_t dev)
 {
-	if (dev == NULL)
+	if (dev == NULL || dev->dev_module == NULL)
 		return (unknown_string);
 
 	return (dev->dev_module->driver->name);
@@ -944,16 +927,34 @@ device_probe_and_attach(device_t dev)
 {
 	const struct module_data *mod;
 	const char *bus_name_parent;
-
-	bus_name_parent = device_get_name(device_get_parent(dev));
+	devclass_t dc;
 
 	if (dev->dev_attached)
 		return (0);		/* fail-safe */
 
-	if (dev->dev_fixed_class) {
+	/*
+         * Find a module for our device, if any
+         */
+	bus_name_parent = device_get_name(device_get_parent(dev));
 
-		mod = dev->dev_module;
+	TAILQ_FOREACH(mod, &module_head, entry) {
+		if (strcmp(mod->bus_name, bus_name_parent) != 0)
+			continue;
 
+		dc = devclass_find(mod->mod_name);
+
+		/* Does this device need assigning to the new devclass? */
+		if (dev->dev_class != dc) {
+			if (dev->dev_fixed_class)
+				continue;
+			if (dev->dev_class != NULL)
+				devclass_delete_device(dev->dev_class, dev);
+			if (devclass_add_device(dc, dev)) {
+				continue;
+			}
+		}
+
+		dev->dev_module = mod;
 		if (DEVICE_PROBE(dev) <= 0) {
 
 			if (device_allocate_softc(dev) == 0) {
@@ -965,40 +966,11 @@ device_probe_and_attach(device_t dev)
 				}
 			}
 		}
+		/* else try next driver */
+
 		device_detach(dev);
-
-		goto error;
-	}
-	/*
-         * Else find a module for our device, if any
-         */
-
-	TAILQ_FOREACH(mod, &module_head, entry) {
-		if (devclass_equal(mod->bus_name, bus_name_parent)) {
-			if (devclass_create(mod->devclass_pp)) {
-				continue;
-			}
-			if (devclass_add_device(mod, dev)) {
-				continue;
-			}
-			if (DEVICE_PROBE(dev) <= 0) {
-
-				if (device_allocate_softc(dev) == 0) {
-
-					if (DEVICE_ATTACH(dev) == 0) {
-						/* success */
-						dev->dev_attached = 1;
-						return (0);
-					}
-				}
-			}
-			/* else try next driver */
-
-			device_detach(dev);
-		}
 	}
 
-error:
 	return (ENODEV);
 }
 
@@ -1017,9 +989,10 @@ device_detach(device_t dev)
 		dev->dev_attached = 0;
 	}
 	device_set_softc(dev, NULL);
+	dev->dev_module = NULL;
 
 	if (dev->dev_fixed_class == 0)
-		devclass_delete_device(mod, dev);
+		devclass_delete_device(dev->dev_class, dev);
 
 	return (0);
 }
@@ -1095,11 +1068,11 @@ devclass_get_device(devclass_t dc, int unit)
 devclass_t
 devclass_find(const char *classname)
 {
-	const struct module_data *mod;
+	devclass_t dc;
 
-	TAILQ_FOREACH(mod, &module_head, entry) {
-		if (devclass_equal(mod->driver->name, classname))
-			return (mod->devclass_pp[0]);
+	TAILQ_FOREACH(dc, &devclasses, link) {
+		if (strcmp(dc->name, classname) == 0)
+			return (dc);
 	}
 	return (NULL);
 }
@@ -1110,6 +1083,7 @@ module_register(void *data)
 	struct module_data *mdata = data;
 
 	TAILQ_INSERT_TAIL(&module_head, mdata, entry);
+	(void)devclass_find_create(mdata->mod_name);
 }
 
 /*------------------------------------------------------------------------*

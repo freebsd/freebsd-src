@@ -759,7 +759,7 @@ ether_init(__unused void *arg)
 SYSINIT(ether, SI_SUB_INIT_IF, SI_ORDER_ANY, ether_init, NULL);
 
 static void
-vnet_ether_init(__unused void *arg)
+vnet_ether_init(const __unused void *arg)
 {
 	struct pfil_head_args args;
 
@@ -778,7 +778,7 @@ VNET_SYSINIT(vnet_ether_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
 
 #ifdef VIMAGE
 static void
-vnet_ether_pfil_destroy(__unused void *arg)
+vnet_ether_pfil_destroy(const __unused void *arg)
 {
 
 	pfil_head_unregister(V_link_pfil_head);

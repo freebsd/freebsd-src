@@ -11,7 +11,6 @@ SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
 CFLAGS+= -I${SRCTOP}/include
 CFLAGS+= -I${SRCTOP}/lib/libc_rpc
-MK_PROFILE=	no
 
 MAN=	rpcsec_gss.3
 MAN+=	rpc_gss_seccreate.3

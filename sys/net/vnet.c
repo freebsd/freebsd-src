@@ -101,7 +101,7 @@ struct sx		vnet_sxlock;
 	sx_xunlock(&vnet_sxlock);					\
 } while (0)
 
-struct vnet_list_head vnet_head;
+struct vnet_list_head vnet_head = LIST_HEAD_INITIALIZER(vnet_head);
 struct vnet *vnet0;
 
 /*
@@ -209,7 +209,7 @@ struct vnet_data_free {
 static MALLOC_DEFINE(M_VNET_DATA_FREE, "vnet_data_free",
     "VNET resource accounting");
 static TAILQ_HEAD(, vnet_data_free) vnet_data_free_head =
-	    TAILQ_HEAD_INITIALIZER(vnet_data_free_head);
+    TAILQ_HEAD_INITIALIZER(vnet_data_free_head);
 static struct sx vnet_data_free_lock;
 
 SDT_PROVIDER_DEFINE(vnet);
@@ -318,7 +318,6 @@ vnet_init_prelink(void *arg __unused)
 	rw_init(&vnet_rwlock, "vnet_rwlock");
 	sx_init(&vnet_sxlock, "vnet_sxlock");
 	sx_init(&vnet_sysinit_sxlock, "vnet_sysinit_sxlock");
-	LIST_INIT(&vnet_head);
 }
 SYSINIT(vnet_init_prelink, SI_SUB_VNET_PRELINK, SI_ORDER_FIRST,
     vnet_init_prelink, NULL);
@@ -513,7 +512,7 @@ vnet_restore_init(void *start, size_t size)
 void
 vnet_register_sysinit(void *arg)
 {
-	struct vnet_sysinit *vs, *vs2;	
+	struct vnet_sysinit *vs, *vs2;
 	struct vnet *vnet;
 
 	vs = arg;
@@ -788,11 +787,12 @@ db_show_vnet_print_vs(struct vnet_sysinit *vs, int ddb)
 	c_db_sym_t sym;
 	db_expr_t  offset;
 
-#define xprint(...)							\
+#define xprint(...) do {						\
 	if (ddb)							\
 		db_printf(__VA_ARGS__);					\
 	else								\
-		printf(__VA_ARGS__)
+		printf(__VA_ARGS__);					\
+} while (0)
 
 	if (vs == NULL) {
 		xprint("%s: no vnet_sysinit * given\n", __func__);

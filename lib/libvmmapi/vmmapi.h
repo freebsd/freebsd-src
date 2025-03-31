@@ -117,6 +117,9 @@ int	vm_munmap_memseg(struct vmctx *ctx, vm_paddr_t gpa, size_t len);
 
 int	vm_create(const char *name);
 struct vmctx *vm_open(const char *name);
+#define	VMMAPI_OPEN_CREATE	0x01	/* create if the VM does not exist */
+#define	VMMAPI_OPEN_REINIT	0x02	/* reinitialize the VM if it exists */
+struct vmctx *vm_openf(const char *name, int flags);
 void	vm_close(struct vmctx *ctx);
 void	vm_destroy(struct vmctx *ctx);
 int	vm_limit_rights(struct vmctx *ctx);
@@ -161,12 +164,17 @@ int	vm_suspend(struct vmctx *ctx, enum vm_suspend_how how);
 int	vm_reinit(struct vmctx *ctx);
 int	vm_raise_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg,
     int bus, int slot, int func);
-#ifdef __aarch64__
+#if defined(__aarch64__)
 int	vm_attach_vgic(struct vmctx *ctx, uint64_t dist_start, size_t dist_size,
     uint64_t redist_start, size_t redist_size);
+int	vm_inject_exception(struct vcpu *vcpu, uint64_t esr, uint64_t far);
+#elif defined(__riscv)
+int	vm_attach_aplic(struct vmctx *ctx, uint64_t mem_start, size_t mem_size);
+int	vm_inject_exception(struct vcpu *vcpu, uint64_t scause);
+#endif
+#if defined(__aarch64__) || defined(__riscv)
 int	vm_assert_irq(struct vmctx *ctx, uint32_t irq);
 int	vm_deassert_irq(struct vmctx *ctx, uint32_t irq);
-int	vm_inject_exception(struct vcpu *vcpu, uint64_t esr, uint64_t far);
 #endif
 #ifdef __amd64__
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);

@@ -487,18 +487,6 @@ struct sctp_vrf *sctp_allocate_vrf(int vrfid);
 struct sctp_vrf *sctp_find_vrf(uint32_t vrfid);
 void sctp_free_vrf(struct sctp_vrf *vrf);
 
-/*-
- * Change address state, can be used if
- * O/S supports telling transports about
- * changes to IFA/IFN's (link layer triggers).
- * If a ifn goes down, we will do src-addr-selection
- * and NOT use that, as a source address. This does
- * not stop the routing system from routing out
- * that interface, but we won't put it as a source.
- */
-void sctp_mark_ifa_addr_down(uint32_t vrf_id, struct sockaddr *addr, const char *if_name, uint32_t ifn_index);
-void sctp_mark_ifa_addr_up(uint32_t vrf_id, struct sockaddr *addr, const char *if_name, uint32_t ifn_index);
-
 struct sctp_ifa *
 sctp_add_addr_to_vrf(uint32_t vrfid,
     void *ifn, uint32_t ifn_index, uint32_t ifn_type,
@@ -510,7 +498,7 @@ void sctp_free_ifa(struct sctp_ifa *sctp_ifap);
 
 void
 sctp_del_addr_from_vrf(uint32_t vrfid, struct sockaddr *addr,
-    uint32_t ifn_index, const char *if_name);
+    void *ifn, uint32_t ifn_index);
 
 struct sctp_nets *sctp_findnet(struct sctp_tcb *, struct sockaddr *);
 

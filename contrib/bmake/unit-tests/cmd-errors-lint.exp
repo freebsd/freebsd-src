@@ -1,9 +1,11 @@
 : undefined 
-make: in target "unclosed-expression": Unclosed variable "UNCLOSED"
-: unclosed-expression 
-make: in target "unclosed-modifier": while evaluating variable "UNCLOSED" with value "": Unclosed expression, expecting '}'
-: unclosed-modifier 
-make: in target "unknown-modifier": while evaluating variable "UNKNOWN" with value "": Unknown modifier "Z"
-: unknown-modifier 
+make: Unclosed variable "UNCLOSED"
+	in target "unclosed-expression"
+make: Unclosed expression, expecting '}'
+	while evaluating variable "UNCLOSED" with value ""
+	in target "unclosed-modifier"
+make: Unknown modifier "Z"
+	while evaluating variable "UNKNOWN" with value ""
+	in target "unknown-modifier"
 : end
 exit status 2

@@ -207,7 +207,6 @@ contrib/openzfs/module/os/freebsd/zfs/hkdf.c		optional zfs compile-with "${ZFS_C
 contrib/openzfs/module/os/freebsd/zfs/kmod_core.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/os/freebsd/zfs/spa_os.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/os/freebsd/zfs/sysctl_os.c		optional zfs compile-with "${ZFS_C}  -include $S/modules/zfs/zfs_config.h"
-contrib/openzfs/module/os/freebsd/zfs/vdev_file.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/os/freebsd/zfs/vdev_label_os.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/os/freebsd/zfs/vdev_geom.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/os/freebsd/zfs/zfs_acl.c		optional zfs compile-with "${ZFS_C}"
@@ -225,7 +224,6 @@ contrib/openzfs/module/os/freebsd/zfs/zio_crypt.c		optional zfs compile-with "${
 contrib/openzfs/module/os/freebsd/zfs/zvol_os.c		optional zfs compile-with "${ZFS_C}"
 
 #zfs unicode support
-contrib/openzfs/module/unicode/uconv.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/unicode/u8_textprep.c		optional zfs compile-with "${ZFS_C}"
 
 #zfs checksums / zcommon
@@ -333,6 +331,7 @@ contrib/openzfs/module/zfs/unique.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_draid.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_draid_rand.c		optional zfs compile-with "${ZFS_C}"
+contrib/openzfs/module/zfs/vdev_file.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_indirect.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_indirect_births.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zfs/vdev_indirect_mapping.c		optional zfs compile-with "${ZFS_C}"
@@ -857,18 +856,6 @@ contrib/alpine-hal/eth/al_hal_eth_main.c	optional al_eth		\
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
 dev/alpm/alpm.c			optional alpm pci
-dev/altera/avgen/altera_avgen.c		optional altera_avgen
-dev/altera/avgen/altera_avgen_fdt.c	optional altera_avgen fdt
-dev/altera/avgen/altera_avgen_nexus.c	optional altera_avgen
-dev/altera/msgdma/msgdma.c		optional altera_msgdma xdma
-dev/altera/sdcard/altera_sdcard.c	optional altera_sdcard
-dev/altera/sdcard/altera_sdcard_disk.c	optional altera_sdcard
-dev/altera/sdcard/altera_sdcard_io.c	optional altera_sdcard
-dev/altera/sdcard/altera_sdcard_fdt.c	optional altera_sdcard fdt
-dev/altera/sdcard/altera_sdcard_nexus.c	optional altera_sdcard
-dev/altera/softdma/softdma.c	optional altera_softdma xdma fdt
-dev/altera/pio/pio.c		optional altera_pio
-dev/altera/pio/pio_if.m		optional altera_pio
 dev/amdpm/amdpm.c		optional amdpm pci | nfpm pci
 dev/amdsmb/amdsmb.c		optional amdsmb pci
 #
@@ -1723,6 +1710,7 @@ dev/flash/at45d.c		optional at45d
 dev/flash/cqspi.c		optional cqspi fdt xdma
 dev/flash/mx25l.c		optional mx25l
 dev/flash/n25q.c		optional n25q fdt
+dev/flash/w25n.c		optional w25n fdt
 dev/flash/qspi_if.m		optional cqspi fdt | n25q fdt
 dev/fxp/if_fxp.c		optional fxp
 dev/fxp/inphy.c			optional fxp
@@ -1732,14 +1720,17 @@ dev/gve/gve_adminq.c		optional gve
 dev/gve/gve_main.c		optional gve
 dev/gve/gve_qpl.c		optional gve
 dev/gve/gve_rx.c		optional gve
+dev/gve/gve_rx_dqo.c		optional gve
 dev/gve/gve_sysctl.c		optional gve
 dev/gve/gve_tx.c		optional gve
+dev/gve/gve_tx_dqo.c		optional gve
 dev/gve/gve_utils.c		optional gve
 dev/goldfish/goldfish_rtc.c	optional goldfish_rtc fdt
 dev/gpio/acpi_gpiobus.c		optional acpi gpio
 dev/gpio/dwgpio/dwgpio.c	optional gpio dwgpio fdt
 dev/gpio/dwgpio/dwgpio_bus.c	optional gpio dwgpio fdt
 dev/gpio/dwgpio/dwgpio_if.m	optional gpio dwgpio fdt
+dev/gpio/gpioaei.c		optional acpi gpio
 dev/gpio/gpiobacklight.c	optional gpiobacklight fdt
 dev/gpio/gpiokeys.c		optional gpiokeys fdt
 dev/gpio/gpiokeys_codes.c	optional gpiokeys fdt
@@ -3130,7 +3121,6 @@ dev/sound/pci/hdspe.c		optional snd_hdspe pci
 dev/sound/pci/hdspe-pcm.c	optional snd_hdspe pci
 dev/sound/pcm/ac97.c		optional sound
 dev/sound/pcm/ac97_if.m		optional sound
-dev/sound/pcm/ac97_patch.c	optional sound
 dev/sound/pcm/buffer.c		optional sound	\
 	dependency	"snd_fxdiv_gen.h"
 dev/sound/pcm/channel.c		optional sound
@@ -3304,6 +3294,7 @@ dev/usb/net/if_muge.c		optional muge
 dev/usb/net/if_rue.c		optional rue
 dev/usb/net/if_smsc.c		optional smsc
 dev/usb/net/if_udav.c		optional udav
+dev/usb/net/if_umb.c		optional umb
 dev/usb/net/if_ure.c		optional ure
 dev/usb/net/if_usie.c		optional usie
 dev/usb/net/if_urndis.c		optional urndis
@@ -3724,21 +3715,6 @@ geom/uzip/g_uzip_wrkthr.c	optional geom_uzip
 geom/uzip/g_uzip_zlib.c		optional geom_uzip
 geom/uzip/g_uzip_zstd.c		optional geom_uzip zstdio \
 	compile-with "${NORMAL_C} -I$S/contrib/zstd/lib/freebsd"
-geom/vinum/geom_vinum.c		optional geom_vinum
-geom/vinum/geom_vinum_create.c	optional geom_vinum
-geom/vinum/geom_vinum_drive.c	optional geom_vinum
-geom/vinum/geom_vinum_plex.c	optional geom_vinum
-geom/vinum/geom_vinum_volume.c	optional geom_vinum
-geom/vinum/geom_vinum_subr.c	optional geom_vinum
-geom/vinum/geom_vinum_raid5.c	optional geom_vinum
-geom/vinum/geom_vinum_share.c	optional geom_vinum
-geom/vinum/geom_vinum_list.c	optional geom_vinum
-geom/vinum/geom_vinum_rm.c	optional geom_vinum
-geom/vinum/geom_vinum_init.c	optional geom_vinum
-geom/vinum/geom_vinum_state.c	optional geom_vinum
-geom/vinum/geom_vinum_rename.c	optional geom_vinum
-geom/vinum/geom_vinum_move.c	optional geom_vinum
-geom/vinum/geom_vinum_events.c	optional geom_vinum
 geom/virstor/binstream.c	optional geom_virstor
 geom/virstor/g_virstor.c	optional geom_virstor
 geom/virstor/g_virstor_md.c	optional geom_virstor
@@ -3816,6 +3792,7 @@ kern/kern_hhook.c		standard
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
 kern/kern_jail.c		standard
+kern/kern_jailmeta.c		standard
 kern/kern_kcov.c		optional kcov			\
 	compile-with "${NOSAN_C} ${MSAN_CFLAGS}"
 kern/kern_khelp.c		standard
@@ -3943,6 +3920,7 @@ kern/subr_stack.c		optional ddb | stack | ktr
 kern/subr_stats.c		optional stats
 kern/subr_taskqueue.c		standard
 kern/subr_terminal.c		optional vt
+kern/subr_ticks.S		standard
 kern/subr_trap.c		standard
 kern/subr_turnstile.c		standard
 kern/subr_uio.c			standard
@@ -4049,7 +4027,6 @@ kgssapi/krb5/krb5_mech.c	optional kgssapi
 kgssapi/krb5/kcrypto.c		optional kgssapi
 kgssapi/krb5/kcrypto_aes.c	optional kgssapi
 kgssapi/kgss_if.m		optional kgssapi
-kgssapi/gsstest.c		optional kgssapi_debug
 # These files in libkern/ are those needed by all architectures.  Some
 # of the files in libkern/ are only needed on some architectures, e.g.,
 # libkern/divdi3.c is needed by i386 but not alpha.  Also, some of these
@@ -4225,6 +4202,8 @@ net80211/ieee80211_amrr.c	optional wlan | wlan_amrr
 net80211/ieee80211_crypto.c	optional wlan \
 	compile-with "${NORMAL_C} -Wno-unused-function"
 net80211/ieee80211_crypto_ccmp.c optional wlan wlan_ccmp
+net80211/ieee80211_crypto_gcmp.c optional wlan wlan_gcmp
+net80211/ieee80211_crypto_gcm.c	optional wlan wlan_gcmp
 net80211/ieee80211_crypto_none.c optional wlan
 net80211/ieee80211_crypto_tkip.c optional wlan wlan_tkip
 net80211/ieee80211_crypto_wep.c	optional wlan wlan_wep
@@ -4264,6 +4243,7 @@ net80211/ieee80211_alq.c	optional wlan ieee80211_alq
 netgraph/bluetooth/common/ng_bluetooth.c optional netgraph_bluetooth
 netgraph/bluetooth/drivers/ubt/ng_ubt.c optional netgraph_bluetooth_ubt usb
 netgraph/bluetooth/drivers/ubt/ng_ubt_intel.c optional netgraph_bluetooth_ubt usb
+netgraph/bluetooth/drivers/ubt/ng_ubt_rtl.c optional netgraph_bluetooth_ubt usb
 netgraph/bluetooth/drivers/ubtbcmfw/ubtbcmfw.c optional netgraph_bluetooth_ubtbcmfw usb
 netgraph/bluetooth/hci/ng_hci_cmds.c optional netgraph_bluetooth_hci
 netgraph/bluetooth/hci/ng_hci_evnt.c optional netgraph_bluetooth_hci
@@ -4491,7 +4471,6 @@ netipsec/xform_ipcomp.c		optional ipsec inet | ipsec inet6
 netipsec/xform_tcp.c		optional ipsec inet tcp_signature | \
 	 ipsec inet6 tcp_signature | ipsec_support inet tcp_signature | \
 	 ipsec_support inet6 tcp_signature
-netlink/netlink_generic_kpi.c	standard
 netlink/netlink_glue.c		standard
 netlink/netlink_message_parser.c	standard
 netlink/netlink_domain.c	optional netlink
@@ -4569,6 +4548,7 @@ netpfil/pf/pf_table.c		optional pf inet
 netpfil/pf/pflow.c		optional pflow pf inet
 netpfil/pf/pfsync_nv.c		optional pfsync pf inet
 netpfil/pf/in4_cksum.c		optional pf inet
+netpfil/pf/inet_nat64.c		optional pf inet
 netsmb/smb_conn.c		optional netsmb
 netsmb/smb_crypt.c		optional netsmb
 netsmb/smb_dev.c		optional netsmb
@@ -5125,6 +5105,7 @@ rpc/auth_unix.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfscl | nfsd
 rpc/clnt_bck.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/clnt_dg.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/clnt_nl.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/clnt_rc.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/clnt_vc.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/getnetconfig.c		optional krpc | nfslockd | nfscl | nfsd

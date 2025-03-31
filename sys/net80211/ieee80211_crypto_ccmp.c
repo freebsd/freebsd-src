@@ -238,10 +238,11 @@ ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	struct ieee80211_frame *wh;
 	uint8_t *ivp, tid;
 	uint64_t pn;
+	bool noreplaycheck;
 
 	rxs = ieee80211_get_rx_params_ptr(m);
 
-	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP) != 0)
 		goto finish;
 
 	/*
@@ -261,8 +262,10 @@ ccmp_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 	}
 	tid = ieee80211_gettid(wh);
 	pn = READ_6(ivp[0], ivp[1], ivp[4], ivp[5], ivp[6], ivp[7]);
-	if (pn <= k->wk_keyrsc[tid] &&
-	    (k->wk_flags & IEEE80211_KEY_NOREPLAY) == 0) {
+
+	noreplaycheck = (k->wk_flags & IEEE80211_KEY_NOREPLAY) != 0;
+	noreplaycheck |= (rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_PN_VALIDATED) != 0;
+	if (pn <= k->wk_keyrsc[tid] && !noreplaycheck) {
 		/*
 		 * Replay violation.
 		 */
@@ -292,17 +295,21 @@ finish:
 		m_adj(m, ccmp.ic_header);
 	}
 
-	/*
-	 * XXX TODO: see if MMIC_STRIP also covers CCMP MIC trailer.
-	 */
-	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP)))
+	if ((rxs == NULL) || (rxs->c_pktflags & IEEE80211_RX_F_MIC_STRIP) == 0)
 		m_adj(m, -ccmp.ic_trailer);
 
 	/*
 	 * Ok to update rsc now.
 	 */
-	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
-		k->wk_keyrsc[tid] = pn;
+	if ((rxs == NULL) || (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP) == 0) {
+		/*
+		 * Do not go backwards in the IEEE80211_KEY_NOREPLAY cases
+		 * or in case hardware has checked but frames are arriving
+		 * reordered (e.g., LinuxKPI drivers doing RSS which we are
+		 * not prepared for at all).
+		 */
+		if (pn > k->wk_keyrsc[tid])
+			k->wk_keyrsc[tid] = pn;
 	}
 
 	return 1;
@@ -592,6 +599,7 @@ done:
 static int
 ccmp_decrypt(struct ieee80211_key *key, u_int64_t pn, struct mbuf *m, int hdrlen)
 {
+	const struct ieee80211_rx_stats *rxs;
 	struct ccmp_ctx *ctx = key->wk_private;
 	struct ieee80211vap *vap = ctx->cc_vap;
 	struct ieee80211_frame *wh;
@@ -602,6 +610,10 @@ ccmp_decrypt(struct ieee80211_key *key, u_int64_t pn, struct mbuf *m, int hdrlen
 	int i;
 	uint8_t *pos;
 	u_int space;
+
+	rxs = ieee80211_get_rx_params_ptr(m);
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED) != 0)
+		return (1);
 
 	ctx->cc_vap->iv_stats.is_crypto_ccmp++;
 
@@ -665,6 +677,13 @@ ccmp_decrypt(struct ieee80211_key *key, u_int64_t pn, struct mbuf *m, int hdrlen
 			space = m->m_len;
 		}
 	}
+
+	/*
+	 * If the MIC was stripped by HW/driver we are done.
+	 */
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_MIC_STRIP) != 0)
+		return (1);
+
 	if (memcmp(mic, a, ccmp.ic_trailer) != 0) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
 		    "%s", "AES-CCM decrypt failed; MIC mismatch");

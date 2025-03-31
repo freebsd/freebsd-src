@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -438,6 +438,7 @@ NamePathTail                [.]{NameSeg}
 "DMA"                       { count (1); return (PARSEOP_DMA); }
 "DWordIO"                   { count (1); return (PARSEOP_DWORDIO); }
 "DWordMemory"               { count (1); return (PARSEOP_DWORDMEMORY); }
+"DWordPcc"                  { count (1); return (PARSEOP_DWORDPCC); }
 "DWordSpace"                { count (1); return (PARSEOP_DWORDSPACE); }
 "EndDependentFn"            { count (1); return (PARSEOP_ENDDEPENDENTFN); }
 "ExtendedIO"                { count (1); return (PARSEOP_EXTENDEDIO); }
@@ -464,6 +465,7 @@ NamePathTail                [.]{NameSeg}
 "ClockInput"                { count (1); return (PARSEOP_CLOCKINPUT); }
 "QWordIO"                   { count (1); return (PARSEOP_QWORDIO); }
 "QWordMemory"               { count (1); return (PARSEOP_QWORDMEMORY); }
+"QWordPcc"                  { count (1); return (PARSEOP_DWORDPCC); }
 "QWordSpace"                { count (1); return (PARSEOP_QWORDSPACE); }
 "Register"                  { count (1); return (PARSEOP_REGISTER); }
 "SpiSerialBus"              { count (1); return (PARSEOP_SPI_SERIALBUS); }
@@ -476,6 +478,7 @@ NamePathTail                [.]{NameSeg}
 "VendorShort"               { count (1); return (PARSEOP_VENDORSHORT); }
 "WordBusNumber"             { count (1); return (PARSEOP_WORDBUSNUMBER); }
 "WordIO"                    { count (1); return (PARSEOP_WORDIO); }
+"WordPcc"                   { count (1); return (PARSEOP_DWORDPCC); }
 "WordSpace"                 { count (1); return (PARSEOP_WORDSPACE); }
 
 

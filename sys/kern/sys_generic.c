@@ -49,6 +49,7 @@
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/protosw.h>
 #include <sys/socketvar.h>
 #include <sys/uio.h>
 #include <sys/eventfd.h>
@@ -1049,14 +1050,26 @@ kern_pselect(struct thread *td, int nd, fd_set *in, fd_set *ou, fd_set *ex,
 		if (error != 0)
 			return (error);
 		td->td_pflags |= TDP_OLDMASK;
+	}
+	error = kern_select(td, nd, in, ou, ex, tvp, abi_nfdbits);
+	if (uset != NULL) {
 		/*
 		 * Make sure that ast() is called on return to
 		 * usermode and TDP_OLDMASK is cleared, restoring old
-		 * sigmask.
+		 * sigmask.  If we didn't get interrupted, then the caller is
+		 * likely not expecting a signal to hit that should normally be
+		 * blocked by its signal mask, so we restore the mask before
+		 * any signals could be delivered.
 		 */
-		ast_sched(td, TDA_SIGSUSPEND);
+		if (error == EINTR) {
+			ast_sched(td, TDA_SIGSUSPEND);
+		} else {
+			/* *select(2) should never restart. */
+			MPASS(error != ERESTART);
+			ast_sched(td, TDA_PSELECT);
+		}
 	}
-	error = kern_select(td, nd, in, ou, ex, tvp, abi_nfdbits);
+
 	return (error);
 }
 
@@ -1528,12 +1541,6 @@ kern_poll_kfds(struct thread *td, struct pollfd *kfds, u_int nfds,
 		if (error)
 			return (error);
 		td->td_pflags |= TDP_OLDMASK;
-		/*
-		 * Make sure that ast() is called on return to
-		 * usermode and TDP_OLDMASK is cleared, restoring old
-		 * sigmask.
-		 */
-		ast_sched(td, TDA_SIGSUSPEND);
 	}
 
 	seltdinit(td);
@@ -1556,6 +1563,22 @@ kern_poll_kfds(struct thread *td, struct pollfd *kfds, u_int nfds,
 		error = EINTR;
 	if (error == EWOULDBLOCK)
 		error = 0;
+
+	if (uset != NULL) {
+		/*
+		 * Make sure that ast() is called on return to
+		 * usermode and TDP_OLDMASK is cleared, restoring old
+		 * sigmask.  If we didn't get interrupted, then the caller is
+		 * likely not expecting a signal to hit that should normally be
+		 * blocked by its signal mask, so we restore the mask before
+		 * any signals could be delivered.
+		 */
+		if (error == EINTR)
+			ast_sched(td, TDA_SIGSUSPEND);
+		else
+			ast_sched(td, TDA_PSELECT);
+	}
+
 	return (error);
 }
 
@@ -1795,7 +1818,7 @@ selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
 	 */
 	for (;;) {
 		selfdalloc(td, NULL);
-		if (sopoll(so, events, NULL, td) != 0) {
+		if (so->so_proto->pr_sopoll(so, events, td) != 0) {
 			error = 0;
 			break;
 		}

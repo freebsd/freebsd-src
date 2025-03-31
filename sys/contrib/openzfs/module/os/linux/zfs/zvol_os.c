@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -202,7 +203,16 @@ static int zvol_blk_mq_alloc_tag_set(zvol_state_t *zv)
 	 * We need BLK_MQ_F_BLOCKING here since we do blocking calls in
 	 * zvol_request_impl()
 	 */
-	zso->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
+	zso->tag_set.flags = BLK_MQ_F_BLOCKING;
+
+#ifdef BLK_MQ_F_SHOULD_MERGE
+	/*
+	 * Linux 6.14 removed BLK_MQ_F_SHOULD_MERGE and made it implicit.
+	 * For older kernels, we set it.
+	 */
+	zso->tag_set.flags |= BLK_MQ_F_SHOULD_MERGE;
+#endif
+
 	zso->tag_set.driver_data = zv;
 
 	return (blk_mq_alloc_tag_set(&zso->tag_set));
@@ -290,7 +300,7 @@ zvol_write(zv_request_t *zvr)
 		dmu_tx_hold_write_by_dnode(tx, zv->zv_dn, off, bytes);
 
 		/* This will only fail for ENOSPC */
-		error = dmu_tx_assign(tx, TXG_WAIT);
+		error = dmu_tx_assign(tx, DMU_TX_WAIT);
 		if (error) {
 			dmu_tx_abort(tx);
 			break;
@@ -386,7 +396,7 @@ zvol_discard(zv_request_t *zvr)
 
 	tx = dmu_tx_create(zv->zv_objset);
 	dmu_tx_mark_netfree(tx);
-	error = dmu_tx_assign(tx, TXG_WAIT);
+	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error != 0) {
 		dmu_tx_abort(tx);
 	} else {
@@ -1176,7 +1186,7 @@ zvol_queue_limits_init(zvol_queue_limits_t *limits, zvol_state_t *zv,
 		limits->zql_max_segment_size = UINT_MAX;
 	}
 
-	limits->zql_io_opt = zv->zv_volblocksize;
+	limits->zql_io_opt = DMU_MAX_ACCESS / 2;
 
 	limits->zql_physical_block_size = zv->zv_volblocksize;
 	limits->zql_max_discard_sectors =
@@ -1899,7 +1909,6 @@ zvol_fini(void)
 	ida_destroy(&zvol_ida);
 }
 
-/* BEGIN CSTYLED */
 module_param(zvol_inhibit_dev, uint, 0644);
 MODULE_PARM_DESC(zvol_inhibit_dev, "Do not create zvol device nodes");
 
@@ -1908,7 +1917,7 @@ MODULE_PARM_DESC(zvol_major, "Major number for zvol device");
 
 module_param(zvol_threads, uint, 0444);
 MODULE_PARM_DESC(zvol_threads, "Number of threads to handle I/O requests. Set"
-    "to 0 to use all active CPUs");
+	"to 0 to use all active CPUs");
 
 module_param(zvol_request_sync, uint, 0644);
 MODULE_PARM_DESC(zvol_request_sync, "Synchronously handle bio requests");
@@ -1933,11 +1942,9 @@ MODULE_PARM_DESC(zvol_use_blk_mq, "Use the blk-mq API for zvols");
 
 module_param(zvol_blk_mq_blocks_per_thread, uint, 0644);
 MODULE_PARM_DESC(zvol_blk_mq_blocks_per_thread,
-    "Process volblocksize blocks per thread");
+	"Process volblocksize blocks per thread");
 
 #ifndef HAVE_BLKDEV_GET_ERESTARTSYS
 module_param(zvol_open_timeout_ms, uint, 0644);
 MODULE_PARM_DESC(zvol_open_timeout_ms, "Timeout for ZVOL open retries");
 #endif
-
-/* END CSTYLED */

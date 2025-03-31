@@ -26,7 +26,9 @@
 #include <stand.h>
 #include <sys/param.h>
 #include <sys/boot.h>
+#ifdef LOADER_FDT_SUPPORT
 #include <fdt_platform.h>
+#endif
 
 #include <machine/cpufunc.h>
 #include <bootstrap.h>
@@ -259,6 +261,10 @@ kboot_find_smbios(void)
 	ep = buffer + strlen(buffer);
 	walker = buffer;
 	while (walker <= ep) {
+		/*
+		 * Linux outputs the v3 table first if present, so we will
+		 * choose it in priority.
+		 */
 		if (strncmp("SMBIOS3=", walker, 8) == 0)
 			return((vm_offset_t)strtoull(walker + 8, NULL, 0));
 		if (strncmp("SMBIOS=", walker, 7) == 0)
@@ -620,6 +626,7 @@ kboot_zfs_probe(void)
 #endif
 }
 
+#ifdef LOADER_FDT_SUPPORT
 /*
  * Since proper fdt command handling function is defined in fdt_loader_cmd.c,
  * and declaring it as extern is in contradiction with COMMAND_SET() macro
@@ -634,4 +641,4 @@ command_fdt(int argc, char *argv[])
 }
 
 COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
-
+#endif

@@ -145,6 +145,8 @@
 #define IGC_FFVT_REG(_i)	(0x09800 + ((_i) * 8))
 #define IGC_FFLT_REG(_i)	(0x05F00 + ((_i) * 8))
 #define IGC_TXPBS		0x03404  /* Tx Packet Buffer Size - RW */
+#define IGC_DTXTCPFLGL	0x0359C  /* DMA Tx Control flag low - RW */
+#define IGC_DTXTCPFLGH	0x035A0  /* DMA Tx Control flag high - RW */
 /* Statistics Register Descriptions */
 #define IGC_CRCERRS		0x04000  /* CRC Error Count - R/clr */
 #define IGC_ALGNERRC		0x04004  /* Alignment Error Count - R/clr */

@@ -80,7 +80,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * Moschip MCS7730/MCS7830/MCS7832 USB to Ethernet controller
  * The datasheet is available at the following URL:

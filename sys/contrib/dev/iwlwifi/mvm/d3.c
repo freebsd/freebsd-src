@@ -9,6 +9,7 @@
 #include <linux/fs.h>
 #if defined(__FreeBSD__)
 #include <linux/string.h>
+#include <linux/delay.h>
 #endif
 #include <net/cfg80211.h>
 #include <net/ipv6.h>
@@ -3702,7 +3703,11 @@ static ssize_t iwl_mvm_d3_test_read(struct file *file, char __user *user_buf,
 				break;
 		}
 
+#if defined(__linux__)
 		if (msleep_interruptible(100))
+#elif defined(__FreeBSD__)
+		if (linux_msleep_interruptible(100))
+#endif
 			break;
 
 		if (time_is_before_jiffies(end)) {
@@ -3756,7 +3761,11 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 		while (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
 		       remaining_time > 0) {
 			remaining_time--;
+#if defined(__linux__)
 			msleep(1000);
+#elif defined(__FreeBSD__)
+			linux_msleep(1000);
+#endif
 		}
 
 		if (remaining_time == 0)

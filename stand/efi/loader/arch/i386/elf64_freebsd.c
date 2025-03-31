@@ -28,7 +28,11 @@
 #define __ELF_WORD_SIZE 64
 #include <sys/param.h>
 #include <sys/linker.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 #include <machine/elf.h>
+#include <machine/pmap_pae.h>
+#include <machine/segments.h>
 
 #include <efi.h>
 #include <efilib.h>
@@ -36,9 +40,6 @@
 #include "bootstrap.h"
 
 #include "loader_efi.h"
-
-extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
-    bool exit_bs);
 
 static int	elf64_exec(struct preloaded_file *amp);
 static int	elf64_obj_exec(struct preloaded_file *amp);
@@ -59,40 +60,14 @@ struct file_format *file_formats[] = {
 	NULL
 };
 
-struct gdtr {
-	uint16_t size;
-	uint64_t ptr;
-} __packed;
-
-#define PG_V	0x001
-#define PG_RW	0x002
-#define PG_PS	0x080
-
-#define GDT_P	0x00800000000000
-#define GDT_E	0x00080000000000
-#define GDT_S	0x00100000000000
-#define GDT_RW	0x00020000000000
-#define GDT_L	0x20000000000000
-
-#define M(x)	((x) * 1024 * 1024)
-#define G(x)	(1ULL * (x) * 1024 * 1024 * 1024)
-
-typedef uint64_t p4_entry_t;
-typedef uint64_t p3_entry_t;
-typedef uint64_t p2_entry_t;
-typedef uint64_t gdt_t;
-
-static p4_entry_t *PT4;
-static p3_entry_t *PT3;
-static p3_entry_t *PT3_l, *PT3_u;
-static p2_entry_t *PT2;
-static p2_entry_t *PT2_l0, *PT2_l1, *PT2_l2, *PT2_l3, *PT2_u0, *PT2_u1;
-static gdt_t *GDT;
-
-extern EFI_PHYSICAL_ADDRESS staging;
+/*
+ * i386's pmap_pae.h doesn't provide this, so
+ * just typedef our own.
+ */
+typedef pdpt_entry_t pml4_entry_t;
 
 static void (*trampoline)(uint32_t stack, void *copy_finish, uint32_t kernend,
-    uint32_t modulep, uint64_t *pagetable, struct gdtr *gdtr, uint64_t entry);
+    uint32_t modulep, uint64_t *pagetable, void *gdtr, uint64_t entry);
 
 extern void *amd64_tramp;
 extern uint32_t amd64_tramp_size;
@@ -105,12 +80,23 @@ extern uint32_t amd64_tramp_size;
 static int
 elf64_exec(struct preloaded_file *fp)
 {
+	/*
+	 * segments.h gives us a 32-bit gdtr, but
+	 * we want a 64-bit one, so define our own.
+	 */
+	struct {
+		uint16_t rd_limit;
+		uint64_t rd_base;
+	} __packed *gdtr;
 	EFI_PHYSICAL_ADDRESS	ptr;
 	EFI_ALLOCATE_TYPE	type;
 	EFI_STATUS		err;
 	struct file_metadata	*md;
-	struct gdtr		*gdtr;
 	Elf_Ehdr 		*ehdr;
+	pml4_entry_t		*PT4;
+	pdpt_entry_t		*PT3;
+	pd_entry_t		*PT2;
+	struct user_segment_descriptor *gdt;
 	vm_offset_t		modulep, kernend, trampstack;
 	int i;
 
@@ -131,36 +117,47 @@ elf64_exec(struct preloaded_file *fp)
 		return (EFTYPE);
 	ehdr = (Elf_Ehdr *)&(md->md_data);
 
-	/*
-	 * Make our temporary stack 32 bytes big, which is
-	 * a little more than we need.
-	 */
 	ptr = G(1);
 	err = BS->AllocatePages(type, EfiLoaderCode,
-	    EFI_SIZE_TO_PAGES(amd64_tramp_size + 32), &ptr);
+	    EFI_SIZE_TO_PAGES(amd64_tramp_size), &ptr);
 	if (EFI_ERROR(err)) {
 		printf("Unable to allocate trampoline\n");
 		return (ENOMEM);
 	}
 
 	trampoline = (void *)(uintptr_t)ptr;
-	trampstack = ptr + amd64_tramp_size + 32;
 	bcopy(&amd64_tramp, trampoline, amd64_tramp_size);
+
+	/*
+	 * Allocate enough space for the GDTR + two GDT segments +
+	 * our temporary stack (28 bytes).
+	 */
+#define DATASZ (sizeof(*gdtr) + \
+	    sizeof(struct user_segment_descriptor) * 2 + 28)
 
 	ptr = G(1);
 	err = BS->AllocatePages(type, EfiLoaderData,
-	    EFI_SIZE_TO_PAGES(sizeof(struct gdtr) + sizeof(uint64_t) * 2), &ptr);
+	    EFI_SIZE_TO_PAGES(DATASZ), &ptr);
 	if (EFI_ERROR(err)) {
-		printf("Unable to allocate GDT\n");
+		printf("Unable to allocate GDT and stack\n");
 		BS->FreePages((uintptr_t)trampoline, 1);
 		return (ENOMEM);
 	}
-	GDT = (gdt_t *)(uintptr_t)ptr;
-	GDT[1] = GDT_P | GDT_E | GDT_S | GDT_RW | GDT_L; /* CS */
-	GDT[0] = 0;
-	gdtr = (struct gdtr *)&GDT[2];
-	gdtr->size = sizeof(uint64_t) * 2 - 1;
-	gdtr->ptr = (uintptr_t)GDT;
+
+	trampstack = ptr + DATASZ;
+
+#undef DATASZ
+
+	gdt = (void *)(uintptr_t)ptr;
+	gdt[0] = (struct user_segment_descriptor) { 0 };
+	gdt[1] = (struct user_segment_descriptor) {
+	    .sd_p = 1, .sd_long = 1, .sd_type = SDT_MEMERC
+	};
+
+	gdtr = (void *)(uintptr_t)(ptr +
+	    sizeof(struct user_segment_descriptor) * 2);
+	gdtr->rd_limit = sizeof(struct user_segment_descriptor) * 2 - 1;
+	gdtr->rd_base = (uintptr_t)gdt;
 
 	if (type == AllocateMaxAddress) {
 		/* Copy staging enabled */
@@ -171,10 +168,10 @@ elf64_exec(struct preloaded_file *fp)
 		if (EFI_ERROR(err)) {
 			printf("Unable to allocate trampoline page table\n");
 			BS->FreePages((uintptr_t)trampoline, 1);
-			BS->FreePages((uintptr_t)GDT, 1);
+			BS->FreePages((uintptr_t)gdt, 1);
 			return (ENOMEM);
 		}
-		PT4 = (p4_entry_t *)(uintptr_t)ptr;
+		PT4 = (pml4_entry_t *)(uintptr_t)ptr;
 
 		PT3 = &PT4[512];
 		PT2 = &PT3[512];
@@ -203,15 +200,18 @@ elf64_exec(struct preloaded_file *fp)
 			PT2[i] = (i * M(2)) | PG_V | PG_RW | PG_PS;
 		}
 	} else {
+		pdpt_entry_t	*PT3_l, *PT3_u;
+		pd_entry_t	*PT2_l0, *PT2_l1, *PT2_l2, *PT2_l3, *PT2_u0, *PT2_u1;
+
 		err = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
 		    EFI_SIZE_TO_PAGES(512 * 9 * sizeof(uint64_t)), &ptr);
 		if (EFI_ERROR(err)) {
 			printf("Unable to allocate trampoline page table\n");
 			BS->FreePages((uintptr_t)trampoline, 1);
-			BS->FreePages((uintptr_t)GDT, 1);
+			BS->FreePages((uintptr_t)gdt, 1);
 			return (ENOMEM);
 		}
-		PT4 = (p4_entry_t *)(uintptr_t)ptr;
+		PT4 = (pml4_entry_t *)(uintptr_t)ptr;
 
 		PT3_l = &PT4[512];
 		PT3_u = &PT3_l[512];
@@ -229,7 +229,7 @@ elf64_exec(struct preloaded_file *fp)
 		PT3_l[2] = (uintptr_t)PT2_l2 | PG_V | PG_RW;
 		PT3_l[3] = (uintptr_t)PT2_l3 | PG_V | PG_RW;
 		for (i = 0; i < 2048; i++) {
-			PT2_l0[i] = ((p2_entry_t)i * M(2)) | PG_V | PG_RW | PG_PS;
+			PT2_l0[i] = ((pd_entry_t)i * M(2)) | PG_V | PG_RW | PG_PS;
 		}
 
 		/* mapping of kernel 2G below top */
@@ -248,7 +248,7 @@ elf64_exec(struct preloaded_file *fp)
 	printf(
 	    "staging %#llx (%scopying) tramp %p PT4 %p GDT %p\n"
 	    "Start @ %#llx ...\n", staging,
-	    type == AllocateMaxAddress ? "" : "not ", trampoline, PT4, GDT,
+	    type == AllocateMaxAddress ? "" : "not ", trampoline, PT4, gdt,
 	    ehdr->e_entry
 	);
 

@@ -155,11 +155,12 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
  */
 #define MAX_GARP_RETRANSMITS 16
 static int sysctl_garp_rexmit(SYSCTL_HANDLER_ARGS);
-static int garp_rexmit_count = 0; /* GARP retransmission setting. */
+VNET_DEFINE_STATIC(int, garp_rexmit_count) = 0; /* GARP retransmission setting. */
+#define	V_garp_rexmit_count	VNET(garp_rexmit_count)
 
 SYSCTL_PROC(_net_link_ether_inet, OID_AUTO, garp_rexmit_count,
-    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MPSAFE,
-    &garp_rexmit_count, 0, sysctl_garp_rexmit, "I",
+    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MPSAFE|CTLFLAG_VNET,
+    &VNET_NAME(garp_rexmit_count), 0, sysctl_garp_rexmit, "I",
     "Number of times to retransmit GARP packets;"
     " 0 to disable, maximum of 16");
 
@@ -1352,6 +1353,7 @@ sysctl_garp_rexmit(SYSCTL_HANDLER_ARGS)
 static void
 garp_rexmit(void *arg)
 {
+	struct epoch_tracker et;
 	struct in_ifaddr *ia = arg;
 
 	if (callout_pending(&ia->ia_garp_timer) ||
@@ -1361,6 +1363,7 @@ garp_rexmit(void *arg)
 		return;
 	}
 
+	NET_EPOCH_ENTER(et);
 	CURVNET_SET(ia->ia_ifa.ifa_ifp->if_vnet);
 
 	/*
@@ -1377,7 +1380,7 @@ garp_rexmit(void *arg)
 	 * the callout to retransmit another GARP packet.
 	 */
 	++ia->ia_garp_count;
-	if (ia->ia_garp_count >= garp_rexmit_count) {
+	if (ia->ia_garp_count >= V_garp_rexmit_count) {
 		ifa_free(&ia->ia_ifa);
 	} else {
 		int rescheduled;
@@ -1392,6 +1395,7 @@ garp_rexmit(void *arg)
 	}
 
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 }
 
 /*
@@ -1444,7 +1448,7 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 	NET_EPOCH_ENTER(et);
 	arp_announce_ifaddr(ifp, dst_in->sin_addr, IF_LLADDR(ifp));
 	NET_EPOCH_EXIT(et);
-	if (garp_rexmit_count > 0) {
+	if (V_garp_rexmit_count > 0) {
 		garp_timer_start(ifa);
 	}
 
@@ -1506,7 +1510,7 @@ vnet_arp_init(void)
 #endif
 }
 VNET_SYSINIT(vnet_arp_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND,
-    vnet_arp_init, 0);
+    vnet_arp_init, NULL);
 
 #ifdef VIMAGE
 /*

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -319,6 +319,7 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* DWORDCONST */                OP_TABLE_ENTRY (AML_RAW_DATA_DWORD,         0,                              0,                  ACPI_BTYPE_INTEGER),
 /* DWORDIO */                   OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
 /* DWORDMEMORY */               OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
+/* DWORDPCC */                  OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
 /* DWORDSPACE */                OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* EISAID */                    OP_TABLE_ENTRY (AML_DWORD_OP,               0,                              0,                  ACPI_BTYPE_INTEGER),
 /* ELSE */                      OP_TABLE_ENTRY (AML_ELSE_OP,                0,                              OP_AML_PACKAGE,     0),
@@ -473,6 +474,7 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* QWORDCONST */                OP_TABLE_ENTRY (AML_RAW_DATA_QWORD,         0,                              0,                  ACPI_BTYPE_INTEGER),
 /* QWORDIO */                   OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* QWORDMEMORY */               OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
+/* QWORDPCC */                  OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
 /* QWORDSPACE */                OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* RANGE_TYPE_ENTIRE */         OP_TABLE_ENTRY (AML_BYTE_OP,                3,                              0,                  0),
 /* RANGE_TYPE_ISAONLY */        OP_TABLE_ENTRY (AML_BYTE_OP,                2,                              0,                  0),
@@ -560,6 +562,7 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* WORDBUSNUMBER */             OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* WORDCONST */                 OP_TABLE_ENTRY (AML_RAW_DATA_WORD,          0,                              0,                  ACPI_BTYPE_INTEGER),
 /* WORDIO */                    OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
+/* WORDPCC */                   OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
 /* WORDSPACE */                 OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* XFERSIZE_8 */                OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),
 /* XFERSIZE_16 */               OP_TABLE_ENTRY (AML_BYTE_OP,                0,                              0,                  0),

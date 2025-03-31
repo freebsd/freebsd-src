@@ -14,7 +14,6 @@
 #include <sys/memdesc.h>
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
-#include <sys/sx.h>
 #include <sys/taskqueue.h>
 
 #include <dev/nvmf/nvmf_transport.h>
@@ -55,8 +54,6 @@ nvmft_controller_alloc(struct nvmft_port *np, uint16_t cntlid,
 
 	ctrlr = malloc(sizeof(*ctrlr), M_NVMFT, M_WAITOK | M_ZERO);
 	ctrlr->cntlid = cntlid;
-	nvmft_port_ref(np);
-	TAILQ_INSERT_TAIL(&np->controllers, ctrlr, link);
 	ctrlr->np = np;
 	mtx_init(&ctrlr->lock, "nvmft controller", NULL, MTX_DEF);
 	callout_init(&ctrlr->ka_timer, 1);
@@ -107,9 +104,8 @@ nvmft_keep_alive_timer(void *arg)
 }
 
 int
-nvmft_handoff_admin_queue(struct nvmft_port *np,
-    const struct nvmf_handoff_controller_qpair *handoff,
-    const struct nvmf_fabric_connect_cmd *cmd,
+nvmft_handoff_admin_queue(struct nvmft_port *np, enum nvmf_trtype trtype,
+    const nvlist_t *params, const struct nvmf_fabric_connect_cmd *cmd,
     const struct nvmf_fabric_connect_data *data)
 {
 	struct nvmft_controller *ctrlr;
@@ -120,18 +116,17 @@ nvmft_handoff_admin_queue(struct nvmft_port *np,
 	if (cmd->qid != htole16(0))
 		return (EINVAL);
 
-	qp = nvmft_qpair_init(handoff->trtype, &handoff->params, 0,
-	    "admin queue");
+	qp = nvmft_qpair_init(trtype, params, 0, "admin queue");
 	if (qp == NULL) {
 		printf("NVMFT: Failed to setup admin queue from %.*s\n",
 		    (int)sizeof(data->hostnqn), data->hostnqn);
 		return (ENXIO);
 	}
 
-	sx_xlock(&np->lock);
+	mtx_lock(&np->lock);
 	cntlid = alloc_unr(np->ids);
 	if (cntlid == -1) {
-		sx_xunlock(&np->lock);
+		mtx_unlock(&np->lock);
 		printf("NVMFT: Unable to allocate controller for %.*s\n",
 		    (int)sizeof(data->hostnqn), data->hostnqn);
 		nvmft_connect_error(qp, cmd, NVME_SCT_COMMAND_SPECIFIC,
@@ -146,12 +141,25 @@ nvmft_handoff_admin_queue(struct nvmft_port *np,
 		    ("%s: duplicate controllers with id %d", __func__, cntlid));
 	}
 #endif
+	mtx_unlock(&np->lock);
 
 	ctrlr = nvmft_controller_alloc(np, cntlid, data);
+
+	mtx_lock(&np->lock);
+	if (!np->online) {
+		mtx_unlock(&np->lock);
+		nvmft_controller_free(ctrlr);
+		free_unr(np->ids, cntlid);
+		nvmft_qpair_destroy(qp);
+		return (ENXIO);
+	}
+	nvmft_port_ref(np);
+	TAILQ_INSERT_TAIL(&np->controllers, ctrlr, link);
+
 	nvmft_printf(ctrlr, "associated with %.*s\n",
 	    (int)sizeof(data->hostnqn), data->hostnqn);
 	ctrlr->admin = qp;
-	ctrlr->trtype = handoff->trtype;
+	ctrlr->trtype = trtype;
 
 	/*
 	 * The spec requires a non-zero KeepAlive timer, but allow a
@@ -167,17 +175,16 @@ nvmft_handoff_admin_queue(struct nvmft_port *np,
 		callout_reset_sbt(&ctrlr->ka_timer, ctrlr->ka_sbt, 0,
 		    nvmft_keep_alive_timer, ctrlr, C_HARDCLOCK);
 	}
+	mtx_unlock(&np->lock);
 
 	nvmft_finish_accept(qp, cmd, ctrlr);
-	sx_xunlock(&np->lock);
 
 	return (0);
 }
 
 int
-nvmft_handoff_io_queue(struct nvmft_port *np,
-    const struct nvmf_handoff_controller_qpair *handoff,
-    const struct nvmf_fabric_connect_cmd *cmd,
+nvmft_handoff_io_queue(struct nvmft_port *np, enum nvmf_trtype trtype,
+    const nvlist_t *params, const struct nvmf_fabric_connect_cmd *cmd,
     const struct nvmf_fabric_connect_data *data)
 {
 	struct nvmft_controller *ctrlr;
@@ -191,20 +198,20 @@ nvmft_handoff_io_queue(struct nvmft_port *np,
 	cntlid = le16toh(data->cntlid);
 
 	snprintf(name, sizeof(name), "I/O queue %u", qid);
-	qp = nvmft_qpair_init(handoff->trtype, &handoff->params, qid, name);
+	qp = nvmft_qpair_init(trtype, params, qid, name);
 	if (qp == NULL) {
 		printf("NVMFT: Failed to setup I/O queue %u from %.*s\n", qid,
 		    (int)sizeof(data->hostnqn), data->hostnqn);
 		return (ENXIO);
 	}
 
-	sx_slock(&np->lock);
+	mtx_lock(&np->lock);
 	TAILQ_FOREACH(ctrlr, &np->controllers, link) {
 		if (ctrlr->cntlid == cntlid)
 			break;
 	}
 	if (ctrlr == NULL) {
-		sx_sunlock(&np->lock);
+		mtx_unlock(&np->lock);
 		printf("NVMFT: Nonexistent controller %u for I/O queue %u from %.*s\n",
 		    ctrlr->cntlid, qid, (int)sizeof(data->hostnqn),
 		    data->hostnqn);
@@ -215,7 +222,7 @@ nvmft_handoff_io_queue(struct nvmft_port *np,
 	}
 
 	if (memcmp(ctrlr->hostid, data->hostid, sizeof(ctrlr->hostid)) != 0) {
-		sx_sunlock(&np->lock);
+		mtx_unlock(&np->lock);
 		nvmft_printf(ctrlr,
 		    "hostid mismatch for I/O queue %u from %.*s\n", qid,
 		    (int)sizeof(data->hostnqn), data->hostnqn);
@@ -225,7 +232,7 @@ nvmft_handoff_io_queue(struct nvmft_port *np,
 		return (EINVAL);
 	}
 	if (memcmp(ctrlr->hostnqn, data->hostnqn, sizeof(ctrlr->hostnqn)) != 0) {
-		sx_sunlock(&np->lock);
+		mtx_unlock(&np->lock);
 		nvmft_printf(ctrlr,
 		    "hostnqn mismatch for I/O queue %u from %.*s\n", qid,
 		    (int)sizeof(data->hostnqn), data->hostnqn);
@@ -235,12 +242,12 @@ nvmft_handoff_io_queue(struct nvmft_port *np,
 		return (EINVAL);
 	}
 
-	/* XXX: Require handoff->trtype == ctrlr->trtype? */
+	/* XXX: Require trtype == ctrlr->trtype? */
 
 	mtx_lock(&ctrlr->lock);
 	if (ctrlr->shutdown) {
 		mtx_unlock(&ctrlr->lock);
-		sx_sunlock(&np->lock);
+		mtx_unlock(&np->lock);
 		nvmft_printf(ctrlr,
 		    "attempt to create I/O queue %u on disabled controller from %.*s\n",
 		    qid, (int)sizeof(data->hostnqn), data->hostnqn);
@@ -251,7 +258,7 @@ nvmft_handoff_io_queue(struct nvmft_port *np,
 	}
 	if (ctrlr->num_io_queues == 0) {
 		mtx_unlock(&ctrlr->lock);
-		sx_sunlock(&np->lock);
+		mtx_unlock(&np->lock);
 		nvmft_printf(ctrlr,
 		    "attempt to create I/O queue %u without enabled queues from %.*s\n",
 		    qid, (int)sizeof(data->hostnqn), data->hostnqn);
@@ -262,7 +269,7 @@ nvmft_handoff_io_queue(struct nvmft_port *np,
 	}
 	if (cmd->qid > ctrlr->num_io_queues) {
 		mtx_unlock(&ctrlr->lock);
-		sx_sunlock(&np->lock);
+		mtx_unlock(&np->lock);
 		nvmft_printf(ctrlr,
 		    "attempt to create invalid I/O queue %u from %.*s\n", qid,
 		    (int)sizeof(data->hostnqn), data->hostnqn);
@@ -273,7 +280,7 @@ nvmft_handoff_io_queue(struct nvmft_port *np,
 	}
 	if (ctrlr->io_qpairs[qid - 1].qp != NULL) {
 		mtx_unlock(&ctrlr->lock);
-		sx_sunlock(&np->lock);
+		mtx_unlock(&np->lock);
 		nvmft_printf(ctrlr,
 		    "attempt to re-create I/O queue %u from %.*s\n", qid,
 		    (int)sizeof(data->hostnqn), data->hostnqn);
@@ -285,8 +292,8 @@ nvmft_handoff_io_queue(struct nvmft_port *np,
 
 	ctrlr->io_qpairs[qid - 1].qp = qp;
 	mtx_unlock(&ctrlr->lock);
+	mtx_unlock(&np->lock);
 	nvmft_finish_accept(qp, cmd, ctrlr);
-	sx_sunlock(&np->lock);
 
 	return (0);
 }
@@ -385,11 +392,11 @@ nvmft_controller_terminate(void *arg, int pending)
 
 	/* Remove association (CNTLID). */
 	np = ctrlr->np;
-	sx_xlock(&np->lock);
+	mtx_lock(&np->lock);
 	TAILQ_REMOVE(&np->controllers, ctrlr, link);
-	free_unr(np->ids, ctrlr->cntlid);
 	wakeup_np = (!np->online && TAILQ_EMPTY(&np->controllers));
-	sx_xunlock(&np->lock);
+	mtx_unlock(&np->lock);
+	free_unr(np->ids, ctrlr->cntlid);
 	if (wakeup_np)
 		wakeup(np);
 

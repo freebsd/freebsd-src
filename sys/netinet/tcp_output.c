@@ -203,7 +203,7 @@ tcp_default_output(struct tcpcb *tp)
 	unsigned ipoptlen, optlen, hdrlen, ulen;
 	unsigned ipsec_optlen = 0;
 	int idle, sendalot, curticks;
-	int sack_rxmit, sack_bytes_rxmt;
+	int sack_bytes_rxmt;
 	struct sackhole *p;
 	int tso, mtu;
 	struct tcpopt to;
@@ -211,6 +211,7 @@ tcp_default_output(struct tcpcb *tp)
 	struct tcp_log_buffer *lgb;
 	unsigned int wanted_cookie = 0;
 	unsigned int dont_sendalot = 0;
+	bool sack_rxmit;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 	const bool isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
@@ -287,12 +288,11 @@ again:
 	/*
 	 * Still in sack recovery , reset rxmit flag to zero.
 	 */
-	sack_rxmit = 0;
 	sack_bytes_rxmt = 0;
 	len = 0;
-	p = NULL;
 	if ((tp->t_flags & TF_SACK_PERMIT) &&
-	    (IN_FASTRECOVERY(tp->t_flags) || SEQ_LT(tp->snd_nxt, tp->snd_max)) &&
+	    (IN_FASTRECOVERY(tp->t_flags) ||
+	     (SEQ_LT(tp->snd_nxt, tp->snd_max) && (tp->t_dupacks >= tcprexmtthresh))) &&
 	    (p = tcp_sack_output(tp, &sack_bytes_rxmt))) {
 		int32_t cwin;
 
@@ -316,6 +316,7 @@ again:
 				 * moves past p->rxmit.
 				 */
 				p = NULL;
+				sack_rxmit = false;
 				goto after_sack_rexmit;
 			} else {
 				/* Can rexmit part of the current hole */
@@ -342,12 +343,15 @@ again:
 		 * Wouldn't be here if there would have been
 		 * nothing in the scoreboard to transmit.
 		 */
-		sack_rxmit = 1;
 		if (len > 0) {
 			off = SEQ_SUB(p->rxmit, tp->snd_una);
 			KASSERT(off >= 0,("%s: sack block to the left of una : %d",
 			    __func__, off));
 		}
+		sack_rxmit = true;
+	} else {
+		p = NULL;
+		sack_rxmit = false;
 	}
 after_sack_rexmit:
 	/*
@@ -359,7 +363,7 @@ after_sack_rexmit:
 	if (tp->t_flags & TF_NEEDSYN)
 		flags |= TH_SYN;
 
-	SOCKBUF_LOCK(&so->so_snd);
+	SOCK_SENDBUF_LOCK(so);
 	/*
 	 * If in persist timeout with window of 0, send 1 byte.
 	 * Otherwise, if window is small but nonzero
@@ -408,7 +412,7 @@ after_sack_rexmit:
 	 * If sack_rxmit is true we are retransmitting from the scoreboard
 	 * in which case len is already set.
 	 */
-	if (sack_rxmit == 0) {
+	if (!sack_rxmit) {
 		if ((sack_bytes_rxmt == 0) || SEQ_LT(tp->snd_nxt, tp->snd_max)) {
 			len = imin(sbavail(&so->so_snd), sendwin) - off;
 		} else {
@@ -417,8 +421,9 @@ after_sack_rexmit:
 			 * sending new data, having retransmitted all the
 			 * data possible in the scoreboard.
 			 */
-			len = imin(sbavail(&so->so_snd) - off,
-				sendwin - tcp_compute_pipe(tp));
+			len = imax(
+			    imin(sbavail(&so->so_snd), sendwin) -
+			    imax(tcp_compute_pipe(tp), off), 0);
 		}
 	}
 
@@ -513,8 +518,8 @@ after_sack_rexmit:
 	 * hardware).
 	 *
 	 * TSO may only be used if we are in a pure bulk sending state.  The
-	 * presence of TCP-MD5, SACK retransmits, SACK advertizements and
-	 * IP options prevent using TSO.  With TSO the TCP header is the same
+	 * presence of TCP-MD5, IP options (IPsec), and possibly SACK
+	 * retransmits prevent using TSO.  With TSO the TCP header is the same
 	 * (except for the sequence number) for all generated packets.  This
 	 * makes it impossible to transmit any options which vary per generated
 	 * segment or packet.
@@ -556,9 +561,9 @@ after_sack_rexmit:
 	if ((tp->t_flags & TF_TSO) && V_tcp_do_tso && len > tp->t_maxseg &&
 	    (tp->t_port == 0) &&
 	    ((tp->t_flags & TF_SIGNATURE) == 0) &&
-	    tp->rcv_numsacks == 0 && ((sack_rxmit == 0) || V_tcp_sack_tso) &&
+	    (!sack_rxmit || V_tcp_sack_tso) &&
 	    (ipoptlen == 0 || (ipoptlen == ipsec_optlen &&
-	    (tp->t_flags2 & TF2_IPSEC_TSO) != 0)) &&
+	     (tp->t_flags2 & TF2_IPSEC_TSO) != 0)) &&
 	    !(flags & TH_SYN))
 		tso = 1;
 
@@ -752,11 +757,11 @@ dontupdate:
 	 * No reason to send a segment, just return.
 	 */
 just_return:
-	SOCKBUF_UNLOCK(&so->so_snd);
+	SOCK_SENDBUF_UNLOCK(so);
 	return (0);
 
 send:
-	SOCKBUF_LOCK_ASSERT(&so->so_snd);
+	SOCK_SENDBUF_LOCK_ASSERT(so);
 	if (len > 0) {
 		if (len >= tp->t_maxseg)
 			tp->t_flags2 |= TF2_PLPMTU_MAXSEGSNT;
@@ -886,7 +891,7 @@ send:
 	if (tp->t_port) {
 		if (V_tcp_udp_tunneling_port == 0) {
 			/* The port was removed?? */
-			SOCKBUF_UNLOCK(&so->so_snd);
+			SOCK_SENDBUF_UNLOCK(so);
 			return (EHOSTUNREACH);
 		}
 		hdrlen += sizeof(struct udphdr);
@@ -978,9 +983,9 @@ send:
 				 * byte of the payload can be put into the
 				 * TCP segment.
 				 */
-				SOCKBUF_UNLOCK(&so->so_snd);
+				SOCK_SENDBUF_UNLOCK(so);
 				error = EMSGSIZE;
-				sack_rxmit = 0;
+				sack_rxmit = false;
 				goto out;
 			}
 			len = tp->t_maxseg - optlen - ipoptlen;
@@ -1060,9 +1065,9 @@ send:
 			m = m_gethdr(M_NOWAIT, MT_DATA);
 
 		if (m == NULL) {
-			SOCKBUF_UNLOCK(&so->so_snd);
+			SOCK_SENDBUF_UNLOCK(so);
 			error = ENOBUFS;
-			sack_rxmit = 0;
+			sack_rxmit = false;
 			goto out;
 		}
 
@@ -1103,10 +1108,10 @@ send:
 				tso = 0;
 			}
 			if (m->m_next == NULL) {
-				SOCKBUF_UNLOCK(&so->so_snd);
+				SOCK_SENDBUF_UNLOCK(so);
 				(void) m_free(m);
 				error = ENOBUFS;
-				sack_rxmit = 0;
+				sack_rxmit = false;
 				goto out;
 			}
 		}
@@ -1120,9 +1125,9 @@ send:
 		if (((uint32_t)off + (uint32_t)len == sbused(&so->so_snd)) &&
 		    !(flags & TH_SYN))
 			flags |= TH_PUSH;
-		SOCKBUF_UNLOCK(&so->so_snd);
+		SOCK_SENDBUF_UNLOCK(so);
 	} else {
-		SOCKBUF_UNLOCK(&so->so_snd);
+		SOCK_SENDBUF_UNLOCK(so);
 		if (tp->t_flags & TF_ACKNOW)
 			TCPSTAT_INC(tcps_sndacks);
 		else if (flags & (TH_SYN|TH_FIN|TH_RST))
@@ -1135,7 +1140,7 @@ send:
 		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
-			sack_rxmit = 0;
+			sack_rxmit = false;
 			goto out;
 		}
 #ifdef INET6
@@ -1147,7 +1152,7 @@ send:
 		m->m_data += max_linkhdr;
 		m->m_len = hdrlen;
 	}
-	SOCKBUF_UNLOCK_ASSERT(&so->so_snd);
+	SOCK_SENDBUF_UNLOCK_ASSERT(so);
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 #ifdef MAC
 	mac_inpcb_create_mbuf(inp, m);
@@ -1232,7 +1237,7 @@ send:
 	 * case, since we know we aren't doing a retransmission.
 	 * (retransmit and persist are mutually exclusive...)
 	 */
-	if (sack_rxmit == 0) {
+	if (!sack_rxmit) {
 		if (len || (flags & (TH_SYN|TH_FIN)) ||
 		    tcp_timer_active(tp, TT_PERSIST))
 			th->th_seq = htonl(tp->snd_nxt);
@@ -1264,7 +1269,6 @@ send:
 		bcopy(opt, th + 1, optlen);
 		th->th_off = (sizeof (struct tcphdr) + optlen) >> 2;
 	}
-	tcp_set_flags(th, flags);
 	/*
 	 * Calculate receive window.  Don't shrink window,
 	 * but avoid silly window syndrome.
@@ -1309,8 +1313,8 @@ send:
 		tp->t_flags &= ~TF_RXWIN0SENT;
 	if (SEQ_GT(tp->snd_up, tp->snd_nxt)) {
 		th->th_urp = htons((u_short)(tp->snd_up - tp->snd_nxt));
-		th->th_flags |= TH_URG;
-	} else
+		flags |= TH_URG;
+	} else {
 		/*
 		 * If no urgent pointer to send, then we pull
 		 * the urgent pointer to the left edge of the send window
@@ -1318,6 +1322,8 @@ send:
 		 * number wraparound.
 		 */
 		tp->snd_up = tp->snd_una;		/* drag it along */
+	}
+	tcp_set_flags(th, flags);
 
 	/*
 	 * Put TCP length in extended header, and then
@@ -1687,7 +1693,7 @@ timer:
 			if (IN_RECOVERY(tp->t_flags))
 				tp->sackhint.prr_out -= len;
 		}
-		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);	/* Check gotos. */
+		SOCK_SENDBUF_UNLOCK_ASSERT(so);	/* Check gotos. */
 		switch (error) {
 		case EACCES:
 		case EPERM:
@@ -1695,7 +1701,7 @@ timer:
 			return (error);
 		case ENOBUFS:
 			TCP_XMIT_TIMER_ASSERT(tp, len, flags);
-			tp->snd_cwnd = tp->t_maxseg;
+			tp->snd_cwnd = tcp_maxseg(tp);
 			return (0);
 		case EMSGSIZE:
 			/*

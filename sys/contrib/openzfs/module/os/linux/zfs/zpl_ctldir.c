@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -189,8 +190,14 @@ zpl_snapdir_automount(struct path *path)
  * as of the 3.18 kernel revaliding the mountpoint dentry will result in
  * the snapshot being immediately unmounted.
  */
+#ifdef HAVE_D_REVALIDATE_4ARGS
+static int
+zpl_snapdir_revalidate(struct inode *dir, const struct qstr *name,
+    struct dentry *dentry, unsigned int flags)
+#else
 static int
 zpl_snapdir_revalidate(struct dentry *dentry, unsigned int flags)
+#endif
 {
 	return (!!dentry->d_inode);
 }

@@ -519,8 +519,10 @@ ok:
 		rlen = len;
 
 #if 1
-	if (verbose == 1)
-		printf("[%d]", rlen); fflush(stdout);
+	if (verbose == 1) {
+		printf("[%d]", rlen);
+		fflush(stdout);
+	}
 #endif
 
 again:

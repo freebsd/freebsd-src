@@ -416,31 +416,31 @@ void MockFS::debug_response(const mockfs_buf_out &out) {
 	}
 }
 
-MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
+MockFS::MockFS(int max_read, int max_readahead, bool allow_other,
+	bool default_permissions,
 	bool push_symlinks_in, bool ro, enum poll_method pm, uint32_t flags,
 	uint32_t kernel_minor_version, uint32_t max_write, bool async,
 	bool noclusterr, unsigned time_gran, bool nointr, bool noatime,
 	const char *fsname, const char *subtype)
+	: m_daemon_id(NULL),
+	  m_kernel_minor_version(kernel_minor_version),
+	  m_kq(pm == KQ ? kqueue() : -1),
+	  m_maxread(max_read),
+	  m_maxreadahead(max_readahead),
+	  m_pid(getpid()),
+	  m_uniques(new std::unordered_set<uint64_t>),
+	  m_pm(pm),
+	  m_time_gran(time_gran),
+	  m_child_pid(-1),
+	  m_maxwrite(MIN(max_write, max_max_write)),
+	  m_nready(-1),
+	  m_quit(false)
 {
 	struct sigaction sa;
 	struct iovec *iov = NULL;
 	int iovlen = 0;
 	char fdstr[15];
 	const bool trueval = true;
-
-	m_daemon_id = NULL;
-	m_kernel_minor_version = kernel_minor_version;
-	m_maxreadahead = max_readahead;
-	m_maxwrite = MIN(max_write, max_max_write);
-	m_nready = -1;
-	m_pm = pm;
-	m_time_gran = time_gran;
-	m_quit = false;
-	m_last_unique = 0;
-	if (m_pm == KQ)
-		m_kq = kqueue();
-	else
-		m_kq = -1;
 
 	/*
 	 * Kyua sets pwd to a testcase-unique tempdir; no need to use
@@ -466,15 +466,18 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 		throw(std::system_error(errno, std::system_category(),
 			"Couldn't open /dev/fuse"));
 
-	m_pid = getpid();
-	m_child_pid = -1;
-
 	build_iovec(&iov, &iovlen, "fstype", __DECONST(void *, "fusefs"), -1);
 	build_iovec(&iov, &iovlen, "fspath",
 		    __DECONST(void *, "mountpoint"), -1);
 	build_iovec(&iov, &iovlen, "from", __DECONST(void *, "/dev/fuse"), -1);
 	sprintf(fdstr, "%d", m_fuse_fd);
 	build_iovec(&iov, &iovlen, "fd", fdstr, -1);
+	if (m_maxread > 0) {
+		char val[10];
+
+		snprintf(val, sizeof(val), "%d", m_maxread);
+		build_iovec(&iov, &iovlen, "max_read=", &val, -1);
+	}
 	if (allow_other) {
 		build_iovec(&iov, &iovlen, "allow_other",
 			__DECONST(void*, &trueval), sizeof(bool));
@@ -738,14 +741,10 @@ void MockFS::audit_request(const mockfs_buf_in &in, ssize_t buflen) {
 	default:
 		FAIL() << "Unknown opcode " << in.header.opcode;
 	}
-	/*
-	 * Check that the ticket's unique value is sequential.  Technically it
-	 * doesn't need to be sequential, merely unique.  But the current
-	 * fusefs driver _does_ make it sequential, and that's easy to check
-	 * for.
-	 */
-	if (in.header.unique != ++m_last_unique)
-		FAIL() << "Non-sequential unique value";
+	/* Verify that the ticket's unique value is actually unique. */
+	if (m_uniques->find(in.header.unique) != m_uniques->end())
+		FAIL() << "Non-unique \"unique\" value";
+	m_uniques->insert(in.header.unique);
 }
 
 void MockFS::init(uint32_t flags) {
@@ -1035,6 +1034,10 @@ void MockFS::write_response(const mockfs_buf_out &out) {
 		ASSERT_EQ(-1, r);
 		ASSERT_EQ(out.expected_errno, errno) << strerror(errno);
 	} else {
+		if (r <= 0 && errno == EINVAL) {
+			printf("Failed to write response.  unique=%" PRIu64
+			    ":\n", out.header.unique);
+		}
 		ASSERT_TRUE(r > 0 || errno == EAGAIN) << strerror(errno);
 	}
 }

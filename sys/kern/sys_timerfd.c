@@ -284,7 +284,7 @@ filt_timerfdread(struct knote *kn, long hint)
 	return (tfd->tfd_count > 0);
 }
 
-static struct filterops timerfd_rfiltops = {
+static const struct filterops timerfd_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_timerfddetach,
 	.f_event = filt_timerfdread,
@@ -359,7 +359,7 @@ timerfd_fill_kinfo(struct file *fp, struct kinfo_file *kif,
 	return (0);
 }
 
-static struct fileops timerfdops = {
+static const struct fileops timerfdops = {
 	.fo_read = timerfd_read,
 	.fo_write = invfo_rdwr,
 	.fo_truncate = invfo_truncate,

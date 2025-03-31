@@ -1,0 +1,51 @@
+// tables and constants for approximating erfc(x).
+//
+// Copyright (c) 2023-2024, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+display = hexadecimal;
+prec=128;
+
+// Tables
+print("{ i, r, erfc(r), 2/sqrt(pi) * exp(-r^2) }");
+for i from 0 to 3787 do {
+  r = 0.0 + i / 128;
+  t0 = double(erfc(r) * 2^128);
+  t1 = double(2/sqrt(pi) * exp(-r * r) * 2^128);
+  print("{ " @ t0 @ ",\t" @ t1 @ " },");
+};
+
+// Constants
+print("> 2/sqrt(pi)");
+double(2/sqrt(pi));
+
+print("> 1/3");
+double(1/3);
+
+print("> P5");
+double(2/15);
+double(1/10);
+double(2/9);
+double(2/45);
+
+print("> P6");
+double(1/42);
+double(1/7);
+double(2/21);
+double(4/315);
+
+print("> Q");
+double( 5.0 / 4.0);
+double( 6.0 / 5.0);
+double( 7.0 / 6.0);
+double( 8.0 / 7.0);
+double( 9.0 / 8.0);
+double(10.0 / 9.0);
+
+print("> R");
+double(-2.0 * 4.0 / (5.0 * 6.0));
+double(-2.0 * 5.0 / (6.0 * 7.0));
+double(-2.0 * 6.0 / (7.0 * 8.0));
+double(-2.0 * 7.0 / (8.0 * 9.0));
+double(-2.0 * 8.0 / (9.0 * 10.0));
+double(-2.0 * 9.0 / (10.0 * 11.0));

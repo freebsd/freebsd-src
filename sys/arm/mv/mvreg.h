@@ -36,23 +36,6 @@
 
 #include <arm/mv/mvwin.h>
 
-#if defined(SOC_MV_DISCOVERY)
-#define IRQ_CAUSE_ERROR		0x0
-#define IRQ_CAUSE		0x4
-#define IRQ_CAUSE_HI		0x8
-#define IRQ_MASK_ERROR		0xC
-#define IRQ_MASK		0x10
-#define IRQ_MASK_HI		0x14
-#define IRQ_CAUSE_SELECT	0x18
-#define FIQ_MASK_ERROR		0x1C
-#define FIQ_MASK		0x20
-#define FIQ_MASK_HI		0x24
-#define FIQ_CAUSE_SELECT	0x28
-#define ENDPOINT_IRQ_MASK_ERROR(n) 0x2C
-#define ENDPOINT_IRQ_MASK(n)	0x30
-#define ENDPOINT_IRQ_MASK_HI(n)	0x34
-#define ENDPOINT_IRQ_CAUSE_SELECT 0x38
-#else
 #define IRQ_CAUSE		0x0
 #define IRQ_MASK		0x4
 #define FIQ_MASK		0x8
@@ -64,7 +47,6 @@
 #define ENDPOINT_IRQ_MASK_ERROR(n) (-1)
 #define IRQ_CAUSE_ERROR		(-1)		/* Fake defines for unified */
 #define IRQ_MASK_ERROR		(-1)		/* interrupt controller code */
-#endif
 
 #define MAIN_IRQ_NUM		116
 #define ERR_IRQ_NUM		32
@@ -119,71 +101,16 @@
 /*
  * Power Control
  */
-#if defined(SOC_MV_KIRKWOOD)
-#define CPU_PM_CTRL		0x18
-#else
 #define CPU_PM_CTRL		0x1C
-#endif
 #define CPU_PM_CTRL_NONE	0
 #define CPU_PM_CTRL_ALL		~0x0
 
-#if defined(SOC_MV_KIRKWOOD)
-#define CPU_PM_CTRL_GE0		(1 << 0)
-#define CPU_PM_CTRL_PEX0_PHY	(1 << 1)
-#define CPU_PM_CTRL_PEX0	(1 << 2)
-#define CPU_PM_CTRL_USB0	(1 << 3)
-#define CPU_PM_CTRL_SDIO	(1 << 4)
-#define CPU_PM_CTRL_TSU		(1 << 5)
-#define CPU_PM_CTRL_DUNIT	(1 << 6)
-#define CPU_PM_CTRL_RUNIT	(1 << 7)
-#define CPU_PM_CTRL_XOR0	(1 << 8)
-#define CPU_PM_CTRL_AUDIO	(1 << 9)
-#define CPU_PM_CTRL_SATA0	(1 << 14)
-#define CPU_PM_CTRL_SATA1	(1 << 15)
-#define CPU_PM_CTRL_XOR1	(1 << 16)
-#define CPU_PM_CTRL_CRYPTO	(1 << 17)
-#define CPU_PM_CTRL_GE1		(1 << 19)
-#define CPU_PM_CTRL_TDM		(1 << 20)
-#define CPU_PM_CTRL_XOR		(CPU_PM_CTRL_XOR0 | CPU_PM_CTRL_XOR1)
-#define CPU_PM_CTRL_USB(u)	(CPU_PM_CTRL_USB0)
-#define CPU_PM_CTRL_SATA	(CPU_PM_CTRL_SATA0 | CPU_PM_CTRL_SATA1)
-#define CPU_PM_CTRL_GE(u)	(CPU_PM_CTRL_GE1 * (u) | CPU_PM_CTRL_GE0 * \
-				(1 - (u)))
-#define CPU_PM_CTRL_IDMA	(CPU_PM_CTRL_NONE)
-#elif defined(SOC_MV_DISCOVERY)
-#define CPU_PM_CTRL_GE0		(1 << 1)
-#define CPU_PM_CTRL_GE1		(1 << 2)
-#define CPU_PM_CTRL_PEX00	(1 << 5)
-#define CPU_PM_CTRL_PEX01	(1 << 6)
-#define CPU_PM_CTRL_PEX02	(1 << 7)
-#define CPU_PM_CTRL_PEX03	(1 << 8)
-#define CPU_PM_CTRL_PEX10	(1 << 9)
-#define CPU_PM_CTRL_PEX11	(1 << 10)
-#define CPU_PM_CTRL_PEX12	(1 << 11)
-#define CPU_PM_CTRL_PEX13	(1 << 12)
-#define CPU_PM_CTRL_SATA0_PHY	(1 << 13)
-#define CPU_PM_CTRL_SATA0	(1 << 14)
-#define CPU_PM_CTRL_SATA1_PHY	(1 << 15)
-#define CPU_PM_CTRL_SATA1	(1 << 16)
-#define CPU_PM_CTRL_USB0	(1 << 17)
-#define CPU_PM_CTRL_USB1	(1 << 18)
-#define CPU_PM_CTRL_USB2	(1 << 19)
-#define CPU_PM_CTRL_IDMA	(1 << 20)
-#define CPU_PM_CTRL_XOR		(1 << 21)
-#define CPU_PM_CTRL_CRYPTO	(1 << 22)
-#define CPU_PM_CTRL_DEVICE	(1 << 23)
-#define CPU_PM_CTRL_USB(u)	(1 << (17 + (u)))
-#define CPU_PM_CTRL_SATA	(CPU_PM_CTRL_SATA0 | CPU_PM_CTRL_SATA1)
-#define CPU_PM_CTRL_GE(u)	(CPU_PM_CTRL_GE1 * (u) | CPU_PM_CTRL_GE0 * \
-				(1 - (u)))
-#else
 #define CPU_PM_CTRL_CRYPTO	(CPU_PM_CTRL_NONE)
 #define CPU_PM_CTRL_IDMA	(CPU_PM_CTRL_NONE)
 #define CPU_PM_CTRL_XOR		(CPU_PM_CTRL_NONE)
 #define CPU_PM_CTRL_SATA	(CPU_PM_CTRL_NONE)
 #define CPU_PM_CTRL_USB(u)	(CPU_PM_CTRL_NONE)
 #define CPU_PM_CTRL_GE(u)	(CPU_PM_CTRL_NONE)
-#endif
 
 /*
  * Timers
@@ -308,11 +235,6 @@
 #define MV_GPIO_OUT_OPEN_DRAIN		0x2
 #define MV_GPIO_OUT_OPEN_SRC		0x4
 
-#if defined(SOC_MV_ORION)
-#define SAMPLE_AT_RESET		0x10
-#elif defined(SOC_MV_KIRKWOOD)
-#define SAMPLE_AT_RESET		0x30
-#endif
 #define	SAMPLE_AT_RESET_ARMADA38X	0x400
 #define	SAMPLE_AT_RESET_LO		0x30
 #define	SAMPLE_AT_RESET_HI		0x34
@@ -320,13 +242,6 @@
 /*
  * Clocks
  */
-#if defined(SOC_MV_ORION)
-#define TCLK_MASK		0x00000300
-#define TCLK_SHIFT		0x08
-#elif defined(SOC_MV_DISCOVERY)
-#define TCLK_MASK		0x00000180
-#define TCLK_SHIFT		0x07
-#endif
 
 #define	TCLK_MASK_ARMADA38X		0x00008000
 #define	TCLK_SHIFT_ARMADA38X		15
@@ -371,28 +286,14 @@
 /*
  * Chip ID
  */
-#define MV_DEV_88F5181		0x5181
-#define MV_DEV_88F5182		0x5182
-#define MV_DEV_88F5281		0x5281
-#define MV_DEV_88F6281		0x6281
-#define MV_DEV_88F6282		0x6282
-#define MV_DEV_88F6781		0x6781
 #define MV_DEV_88F6828		0x6828
 #define MV_DEV_88F6820		0x6820
 #define MV_DEV_88F6810		0x6810
-#define MV_DEV_MV78100_Z0	0x6381
-#define MV_DEV_MV78100		0x7810
-#define MV_DEV_MV78130		0x7813
-#define MV_DEV_MV78160		0x7816
 #define MV_DEV_MV78230		0x7823
 #define MV_DEV_MV78260		0x7826
 #define MV_DEV_MV78460		0x7846
-#define MV_DEV_88RC8180		0x8180
-#define MV_DEV_88RC9480		0x9480
-#define MV_DEV_88RC9580		0x9580
 
 #define MV_DEV_FAMILY_MASK	0xff00
-#define MV_DEV_DISCOVERY	0x7800
 #define	MV_DEV_ARMADA38X	0x6800
 
 /*

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: sys.vars.mk,v 1.16 2024/02/17 17:26:57 sjg Exp $
+# $Id: sys.vars.mk,v 1.18 2025/03/09 02:47:59 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2023, Simon J. Gerraty
 #
@@ -140,3 +140,9 @@ M_mtime = tW:S,^,${STAT:Ustat} -f %m ,:sh
 M_mtime = mtime${M_mtime_fallback:U}
 .endif
 
+# This line noise allows doing .bel .space and .tab below
+# don't expect sane results if input is more than a single word
+M_CharLiteral = L:@c@$${x x:L:$${:Uts$$c}:S/x//Wg}@
+.bel := ${\007:${M_CharLiteral}}
+.space := ${\040:${M_CharLiteral}}
+.tab := ${\t:${M_CharLiteral}}

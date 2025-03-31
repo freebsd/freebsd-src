@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 10, 2024
+.Dd January 29, 2025
 .Dt IP6ADDRCTL 8
 .Os
 .\"
@@ -37,16 +37,21 @@
 .\"
 .Sh SYNOPSIS
 .Nm
+.Op Fl j Ar jail
 .Op Cm show
 .Nm
+.Op Fl j Ar jail
 .Cm add
 .Ar prefix precedence label
 .Nm
+.Op Fl j Ar jail
 .Cm delete
 .Ar prefix
 .Nm
+.Op Fl j Ar jail
 .Cm flush
 .Nm
+.Op Fl j Ar jail
 .Cm install
 .Ar configfile
 .\"
@@ -61,6 +66,10 @@ is invoked without an argument or with a single argument
 .Cm show ,
 it prints the content of the policy table currently installed in the
 kernel.
+.Pp
+To operate inside a jail, the option
+.Op Fl j Ar jail
+should precede other options.
 .Pp
 To modify the table, the following operations are available:
 .Bl -tag -width indent
@@ -100,6 +109,7 @@ In the configuration file, lines beginning with the pound-sign
 .Pq Ql #
 are
 comments and are ignored.
+Note that the configuration file will be processed before attaching to a jail.
 .El
 .\"
 .Sh EXIT STATUS

@@ -1,4 +1,4 @@
-# $NetBSD: varmod-hash.mk,v 1.5 2020/09/04 06:54:07 rillig Exp $
+# $NetBSD: varmod-hash.mk,v 1.6 2024/07/20 11:05:12 rillig Exp $
 #
 # Tests for the :hash variable modifier, which computes a 32-bit hash from
 # the value of the expression.
@@ -56,9 +56,14 @@ VECTORS+=	de41416c abcdefghijklmnopqrstuvwxyz
 .  endif
 .endfor
 
-all:
+all: step-{1,2,3,4,5}
+step-1:
 	@echo ${12345:L:has}			# modifier name too short
+step-2:
 	@echo ${12345:L:hash}			# ok
+step-3:
 	@echo ${12345:L:hash=SHA-256}		# :hash does not accept '='
+step-4:
 	@echo ${12345:L:hasX}			# misspelled
+step-5:
 	@echo ${12345:L:hashed}			# modifier name too long

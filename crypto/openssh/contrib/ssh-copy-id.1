@@ -1,5 +1,5 @@
 .ig \"  -*- nroff -*-
-Copyright (c) 1999-2023 hands.com Ltd. <http://hands.com/>
+Copyright (c) 1999-2024 Philip Hands <phil@hands.com>
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions
@@ -34,9 +34,10 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .Op Fl s
 .Op Fl x
 .Op Fl i Op Ar identity_file
-.Op Fl p Ar port
-.Op Fl o Ar ssh_option
 .Op Fl t Ar target_path
+.Op Fl F Ar ssh_config
+.Op Bo Fl o Ar ssh_option Bc ...
+.Op Fl p Ar port
 .Op Ar user Ns @ Ns
 .Ar hostname
 .Nm
@@ -67,7 +68,7 @@ command instead.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl i Ar identity_file
+.It Fl i Op Ar identity_file
 Use only the key(s) contained in
 .Ar identity_file
 (rather than looking for identities via
@@ -104,11 +105,13 @@ on commands which can be used on the remote side.
 .It Fl t Ar target_path
 the path on the target system where the keys should be added
 (defaults to ".ssh/authorized_keys")
-.It Fl p Ar port , Fl o Ar ssh_option
-These two options are simply passed through untouched, along with their
-argument, to allow one to set the port or other
-.Xr ssh 1
-options, respectively.
+.It Fl p Ar port
+Specifies the port to connect to on the remote host.
+.It Fl F Ar ssh_config , Fl o Ar ssh_option
+These options are simply passed through untouched (with their argument)
+to ssh/sftp,
+allowing one to set an alternative config file,
+or other options, respectively.
 .Pp
 Rather than specifying these as command line options,
 it is often better to use (per-host) settings in

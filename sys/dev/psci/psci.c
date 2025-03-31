@@ -350,7 +350,7 @@ psci_attach(device_t dev, psci_initfn_t psci_init, int default_version)
 	if (sc->smccc_dev == NULL)
 		device_printf(dev, "Unable to add SMCCC device\n");
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 #endif
 
 	return (0);

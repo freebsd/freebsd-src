@@ -120,6 +120,9 @@ env_setup() {
 	# cloud providers as part of the release.
 	WITH_CLOUDWARE=
 
+	# Set to non-empty to build OCI images as part of the release
+	WITH_OCIIMAGES=
+
 	return 0
 } # env_setup()
 
@@ -195,7 +198,8 @@ env_check() {
 	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} ${RELEASE_FLAGS} \
 		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${SRCPORTS} \
 		WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
-		WITH_CLOUDWARE=${WITH_CLOUDWARE} XZ_THREADS=${XZ_THREADS}"
+		WITH_CLOUDWARE=${WITH_CLOUDWARE} WITH_OCIIMAGES=${WITH_OCIIMAGES} \
+		XZ_THREADS=${XZ_THREADS}"
 
 	return 0
 } # env_check()
@@ -323,6 +327,9 @@ chroot_build_target() {
 	fi
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
+	if [ ! -z "${WITH_OCIIMAGES}" ]; then
+		eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} packages
+	fi
 
 	return 0
 } # chroot_build_target

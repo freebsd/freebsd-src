@@ -218,7 +218,7 @@ static int modify_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 static struct mlx5_flow_handle *
 esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u32 vport)
 {
-	struct mlx5_flow_destination dest;
+	struct mlx5_flow_destination dest = {};
 	struct mlx5_flow_handle *flow_rule = NULL;
 	struct mlx5_flow_act flow_act = {};
 	struct mlx5_flow_spec *spec;
@@ -240,13 +240,13 @@ esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u8 mac[ETH_ALEN], u32 vport)
 	/* Match criteria mask */
 	memset(dmac_c, 0xff, 6);
 
-	dest.type = MLX5_FLOW_CONTEXT_DEST_TYPE_VPORT;
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	dest.vport.num = vport;
 
 	esw_debug(esw->dev,
 		  "\tFDB add rule dmac_v(%pM) dmac_c(%pM) -> vport(%d)\n",
 		  dmac_v, dmac_c, vport);
-	flow_act.action = MLX5_FLOW_RULE_FWD_ACTION_DEST;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	flow_rule =
 		mlx5_add_flow_rules(esw->fdb_table.fdb, spec,
 				   &flow_act, &dest, 1);
@@ -290,7 +290,7 @@ static int esw_create_fdb_table(struct mlx5_eswitch *esw)
 	/* (-2) Since MaorG said so .. */
 	table_size = BIT(MLX5_CAP_ESW_FLOWTABLE_FDB(dev, log_max_ft_size)) - 2;
 
-	ft_attr.prio = 0;
+	ft_attr.prio = FDB_SLOW_PATH;
 	ft_attr.max_fte = table_size;
 	fdb = mlx5_create_flow_table(root_ns, &ft_attr);
 	if (IS_ERR_OR_NULL(fdb)) {
@@ -616,7 +616,7 @@ static void esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 	esw_debug(dev, "Create vport[%d] egress ACL log_max_size(%d)\n",
 		  vport->vport, MLX5_CAP_ESW_EGRESS_ACL(dev, log_max_ft_size));
 
-	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_EGRESS);
+	root_ns = mlx5_get_flow_vport_acl_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_EGRESS, vport->vport);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch egress flow namespace\n");
 		return;
@@ -627,6 +627,8 @@ static void esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 		return;
 
 	ft_attr.max_fte = table_size;
+        if (vport->vport)
+                ft_attr.flags = MLX5_FLOW_TABLE_OTHER_VPORT;
 	acl = mlx5_create_vport_flow_table(root_ns, &ft_attr, vport->vport);
 	if (IS_ERR_OR_NULL(acl)) {
 		err = PTR_ERR(acl);
@@ -716,7 +718,7 @@ static void esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	esw_debug(dev, "Create vport[%d] ingress ACL log_max_size(%d)\n",
 		  vport->vport, MLX5_CAP_ESW_INGRESS_ACL(dev, log_max_ft_size));
 
-	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS);
+	root_ns = mlx5_get_flow_vport_acl_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS, vport->vport);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch ingress flow namespace\n");
 		return;
@@ -727,6 +729,8 @@ static void esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 		return;
 
 	ft_attr.max_fte = table_size;
+        if (vport->vport)
+                ft_attr.flags = MLX5_FLOW_TABLE_OTHER_VPORT;
 	acl = mlx5_create_vport_flow_table(root_ns, &ft_attr, vport->vport);
 	if (IS_ERR_OR_NULL(acl)) {
 		err = PTR_ERR(acl);
@@ -811,7 +815,7 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.cvlan_tag);
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_value, outer_headers.cvlan_tag);
 
-	flow_act.action = MLX5_FLOW_RULE_FWD_ACTION_DROP;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 	vport->ingress.drop_rule =
 		mlx5_add_flow_rules(vport->ingress.acl, spec,
@@ -863,7 +867,7 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 	MLX5_SET(fte_match_param, spec->match_value, outer_headers.first_vid, vport->vlan);
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
-	flow_act.action = MLX5_FLOW_RULE_FWD_ACTION_ALLOW;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_ALLOW;
 
 	vport->egress.allowed_vlan =
 		mlx5_add_flow_rules(vport->egress.acl, spec,
@@ -875,7 +879,7 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 		goto out;
 	}
 
-	flow_act.action = MLX5_FLOW_RULE_FWD_ACTION_DROP;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 	vport->egress.drop_rule =
 		mlx5_add_flow_rules(vport->egress.acl, NULL,
 				   &flow_act, NULL, 0);
@@ -1004,7 +1008,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs)
 		esw_warn(esw->dev, "E-Switch ingress ACL is not supported by FW\n");
 
 	if (!MLX5_CAP_ESW_EGRESS_ACL(esw->dev, ft_support))
-		esw_warn(esw->dev, "E-Switch engress ACL is not supported by FW\n");
+		esw_warn(esw->dev, "E-Switch egress ACL is not supported by FW\n");
 
 	esw_info(esw->dev, "E-Switch enable SRIOV: nvfs(%d)\n", nvfs);
 

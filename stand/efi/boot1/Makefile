@@ -96,7 +96,7 @@ ${BOOT1}.efi: ${PROG}
 		exit 1; \
 	fi
 	SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
-	${OBJCOPY} -j .peheader -j .text -j .sdata -j .data \
+	${EFI_OBJCOPY} -j .peheader -j .text -j .sdata -j .data \
 		-j .dynamic -j .dynsym -j .rel.dyn \
 		-j .rela.dyn -j .reloc -j .eh_frame \
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}

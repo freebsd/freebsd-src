@@ -46,6 +46,7 @@
 ;	NOPROTO	same as STD except do not create structure or
 ;		function prototype in sys/sysproto.h.  Does add a
 ;		definition to syscall.h besides adding a sysent.
+;	NOLIB	don't create stubs in libc or libsys
 ;	NOTSTATIC syscall is loadable
 ;	SYSMUX	syscall multiplexer.  No prototype, argument struct, or
 ;		handler is declared or used.  Handled in MD syscall code.
@@ -106,9 +107,11 @@
 ;	timet_	Object contains a time_t and varies between i386 and other
 ;		ABIs.
 
-; #include's, #defines's, etc. may be included, and are copied to the output
-; files. However, #ifdef, etc will be copied, but any lines that don't start
-; with # will not. Caveat Emptor.
+; #include's, #defines's, etc. may be included, and are copied to a
+; limited set of output files.  Before the first syscalls, #include lines will
+; be copied and %%ABI_HEADERS%% expanded.  Between system call entries,
+; all lines beginning with # will be copied.  Caveat Emptor.
+; WARNING: this functionality is deprecated.
 
 #include <sys/param.h>
 #include <sys/sysent.h>
@@ -1679,7 +1682,7 @@
 		    _In_opt_ _Contains_ptr_ struct osigevent *sig
 		);
 	}
-321	AUE_NULL	STD|CAPENABLED {
+321	AUE_NULL	STD|CAPENABLED|NOLIB {
 		int yield(void);
 	}
 322	AUE_NULL	OBSOL	thr_sleep
@@ -2767,12 +2770,7 @@
 		    int flags
 		);
 	}
-; 505 is initialised by the kgssapi code, if present.
-505	AUE_NULL	NOSTD {
-		int gssd_syscall(
-		    _In_z_ const char *path
-		);
-	}
+505	AUE_NULL	OBSOL	kgssapi
 506	AUE_JAIL_GET	STD {
 		int jail_get(
 		    _In_reads_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
@@ -3253,8 +3251,7 @@
 ; 576 is initialised by the krpc code, if present.
 576	AUE_NULL	NOSTD {
 		int rpctls_syscall(
-		    int op,
-		    _In_z_ const char *path
+		    uint64_t socookie
 		);
 	}
 577	AUE_SPECIALFD	STD|CAPENABLED {
@@ -3338,6 +3335,18 @@
 		    u_int which,
 		    int flags,
 		    _Out_ rlim_t *res
+		);
+	}
+590	AUE_NULL	STD {
+		int fchroot(
+		    int fd
+		);
+	}
+591	AUE_SETCRED	STD|CAPENABLED {
+		int setcred(
+		    u_int flags,
+		    _In_reads_bytes_(size) _Contains_ptr_ const struct setcred *wcred,
+		    size_t size
 		);
 	}
 

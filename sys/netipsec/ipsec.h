@@ -260,6 +260,7 @@ struct ipsecstat {
 #define	IPSECCTL_DEBUG			12
 #define	IPSECCTL_ESP_RANDPAD		13
 #define	IPSECCTL_MIN_PMTU		14
+#define	IPSECCTL_RANDOM_ID		15
 
 #ifdef _KERNEL
 #include <sys/counter.h>
@@ -293,6 +294,7 @@ VNET_DECLARE(int, ip4_ah_net_deflev);
 VNET_DECLARE(int, ip4_ipsec_dfbit);
 VNET_DECLARE(int, ip4_ipsec_min_pmtu);
 VNET_DECLARE(int, ip4_ipsec_ecn);
+VNET_DECLARE(int, ip4_ipsec_random_id);
 VNET_DECLARE(int, crypto_support);
 VNET_DECLARE(int, async_crypto);
 VNET_DECLARE(int, natt_cksum_policy);
@@ -310,6 +312,7 @@ VNET_DECLARE(int, natt_cksum_policy);
 #define	V_ip4_ipsec_dfbit	VNET(ip4_ipsec_dfbit)
 #define	V_ip4_ipsec_min_pmtu	VNET(ip4_ipsec_min_pmtu)
 #define	V_ip4_ipsec_ecn		VNET(ip4_ipsec_ecn)
+#define	V_ip4_ipsec_random_id	VNET(ip4_ipsec_random_id)
 #define	V_crypto_support	VNET(crypto_support)
 #define	V_async_crypto		VNET(async_crypto)
 #define	V_natt_cksum_policy	VNET(natt_cksum_policy)
@@ -325,6 +328,7 @@ VNET_DECLARE(int, natt_cksum_policy);
 #endif
 
 struct inpcb;
+struct ip;
 struct m_tag;
 struct secasvar;
 struct sockopt;
@@ -336,7 +340,7 @@ int ipsec_if_input(struct mbuf *, struct secasvar *, uint32_t);
 struct ipsecrequest *ipsec_newisr(void);
 void ipsec_delisr(struct ipsecrequest *);
 struct secpolicy *ipsec4_checkpolicy(const struct mbuf *, struct inpcb *,
-    int *, int);
+    struct ip *, int *, int);
 
 u_int ipsec_get_reqlevel(struct secpolicy *, u_int);
 
@@ -351,12 +355,13 @@ size_t ipsec_hdrsiz_internal(struct secpolicy *);
 
 void ipsec_setspidx_inpcb(struct inpcb *, struct secpolicyindex *, u_int);
 
-void ipsec4_setsockaddrs(const struct mbuf *, union sockaddr_union *,
-    union sockaddr_union *);
+void ipsec4_setsockaddrs(const struct mbuf *, const struct ip *,
+    union sockaddr_union *, union sockaddr_union *);
 int ipsec4_common_input_cb(struct mbuf *, struct secasvar *, int, int);
-int ipsec4_check_pmtu(struct ifnet *, struct mbuf *, struct secpolicy *, int);
-int ipsec4_process_packet(struct ifnet *, struct mbuf *, struct secpolicy *,
-    struct inpcb *, u_long);
+int ipsec4_check_pmtu(struct ifnet *, struct mbuf *, struct ip *ip1,
+    struct secpolicy *, int);
+int ipsec4_process_packet(struct ifnet *, struct mbuf *, struct ip *ip1,
+    struct secpolicy *, struct inpcb *, u_long);
 int ipsec_process_done(struct mbuf *, struct secpolicy *, struct secasvar *,
     u_int);
 

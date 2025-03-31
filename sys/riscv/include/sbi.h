@@ -123,6 +123,8 @@
 #define	SBI_REMOTE_SFENCE_VMA_ASID	7
 #define	SBI_SHUTDOWN			8
 
+#ifndef LOCORE
+
 #define	SBI_CALL0(e, f)				SBI_CALL5(e, f, 0, 0, 0, 0, 0)
 #define	SBI_CALL1(e, f, p1)			SBI_CALL5(e, f, p1, 0, 0, 0, 0)
 #define	SBI_CALL2(e, f, p1, p2)			SBI_CALL5(e, f, p1, p2, 0, 0, 0)
@@ -242,4 +244,5 @@ sbi_console_getchar(void)
 void sbi_print_version(void);
 void sbi_init(void);
 
+#endif /* !LOCORE */
 #endif /* !_MACHINE_SBI_H_ */

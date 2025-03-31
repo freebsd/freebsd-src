@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.319 2021/09/21 17:58:13 schwarze Exp $
+* $Id: TODO,v 1.335 2024/09/21 12:08:54 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -67,6 +67,14 @@ are mere guesses, and some may be wrong.
   loc *  exist *  algo *  size *  imp *
   but watch out for regressions in the high-level parsers
   maybe it should not even remove comments? - consider T{\"
+
+- In the body of conditional requests, escape sequence expansion
+  must not be performed if the condition is false.  This implies
+  the first part of a request line must be expanded before
+  request parsing (like it is now), but expansion in the second
+  part must be delayed.
+  to Nab 8 Aug 2023 20:05:32 +0200 Subject: if/ie d condition always true
+  loc **  exist ***  algo ***  size **  imp *
 
 
 ************************************************************************
@@ -148,6 +156,11 @@ are mere guesses, and some may be wrong.
   loc *  exist *  algo *  size *  imp *
 
 --- missing mdoc features ----------------------------------------------
+
+- support mixed case for section names
+  also, first section is not "NAME" should not appear more than once per page
+  Alejandro Colomar 28 Apr 2023 16:57:49 +0200
+  loc * exist * algo * size * imp ***
 
 - .Sh and .Ss should be parsed and partially callable, see groff_mdoc(7)
   reed at reedmedia dot net Sat, 21 Dec 2019 17:13:07 -0600
@@ -292,7 +305,11 @@ are mere guesses, and some may be wrong.
 
 --- missing misc features ----------------------------------------------
 
-- conisder whether man(1) fallback code in main.c/fs_*() can find files
+- use the default volume headers for sections with suffixes
+  certainly affects man(7); possibly mdoc(7)?; and also groff(1)
+  Alejandro Colomar 21 Aug 2022
+
+- consider whether man(1) fallback code in main.c/fs_*() can find files
   like man3c/fopen.3c (illumos, Solaris) and man3p/fopen.3p (POSIX)
   discussed with Robert Mustacchi 21 Sep 2021 10:39:40 -0700
   loc *  exist *  algo **  size *  imp **
@@ -301,6 +318,11 @@ are mere guesses, and some may be wrong.
   this may be feasible using fts_set(FTS_FOLLOW)
   mail to sternenseemann 19 Aug 2021 19:11:50 +0200
   loc *  exist **  algo **  size *  imp **
+
+- handle Unicode letters in tags in both HTML and terminal output
+  thread "section headers with diacritics" starting with
+  Mario Blaettermann 24 Mar 2022 18:13:23 +0100
+  loc **  exist *  algo *  size *  imp **
 
 - -T man does not handle eqn(7) and tbl(7)
   Stephen Gregoratto 16 Feb 2020 01:28:07 +1100
@@ -324,6 +346,10 @@ are mere guesses, and some may be wrong.
       see textproc/mgdiff(1) for nice examples
   (3) undefined, just output the character -> perhaps WARNING
   loc ***  exist **  algo **  size **  imp *** (parser reorg helps)
+
+- man.conf(5) alias aliasname dirname or just -Mb -Mx -Mp
+  mail to jmc@ Mar 23, 2015 03:53:14PM +0100
+  loc *  exist *  algo *  size *  imp **
 
 - kettenis wants base roff, ms, and me  Fri, 1 Jan 2010 22:13:15 +0100 (CET)
   loc **  exist **  algo **  size ***  imp *
@@ -443,6 +469,10 @@ are mere guesses, and some may be wrong.
   reminded by jmc@  Thu, 23 Sep 2010 18:13:39 +0059
   loc *  exist **  algo ***  size *  imp ***
 
+- the man(7) single-font macros (e.g. .B) use .itc,
+  so ".B foo\c" followed by "bar" prints "bar" in bold
+  gbranden@ Sun, 5 Jun 2022 18:08:46 -0500
+
 - a line starting with "\fB something" counts as starting with whitespace
   and triggers a line break; found in audio/normalize-mp3(1)
   This will become easier once escape sequences are represented
@@ -468,19 +498,45 @@ are mere guesses, and some may be wrong.
 
 --- HTML issues --------------------------------------------------------
 
-- make the HTML scaffolding customozable with -O skip=...
+- support the idiom .TP .IP .TP for multi-paragraph list item bodies
+  to: Alejandro Colomar Thu, 19 Oct 2023 16:45:21 +0200
+  loc **  exist **  algo **  size **  imp **
+
+- .Nm without an argument and .Bx cause premature </pre>
+  Nab Sun, 5 Jun 2022 18:30:09 +0200
+
+- .Aq Mt could set and reset "white-space: nowrap";
+  Check whether other enclosure macros could profit from similar handling,
+  or whether that is covered by Unicode line-breaking classes WJ, ZW, GL, ZWJ.
+  John Gardner 25 Mar 2022 04:44:27 +1100
+
+- make the HTML scaffolding customizable with -O skip=...
   mail to Oliver Corff  3 Jun 2021 17:28:02 +0200
   more feedback from Oliver  3 Jun 2021 18:27:56 +0200
   more feedback from Oliver  3 Jun 2021 23:37:18 +0200
+  would also be useful for
+  https://github.com/gbdev/rgbds-www/blob/master/
+  maintainer/support/man_postproc.awk
 
 - .Bd -unfilled should not use monospaced font
   anton@  4 Mar 2021 08:19:35 +0100
   loc **  exist *  algo *  size *  imp **
 
-- HTML formatting of .nf should avoid <br/>
+- HTML formatting of .nf should avoid <br/>,
+  even when input lines start with whitespace,
   and not close and re-open <pre> on .P
   my mail to ports@ 27 Jun 2021 16:09:20 +0200
+  reported again by Mohamed Akram 25 Jun 2022 16:28:18 +0000
   loc **  exist **  algo *  size *  imp **
+
+- tbl(7) HTML output does not implement column width specifications
+  reported by Ted Bullock 11 Jan 2022 16:00:44 -0700
+  loc *  exist *  algo ?  size ?  imp *
+
+- link from flags in the SYNOPSIS to their descriptions
+  https://github.com/gbdev/rgbds-www/blob/master/
+  maintainer/support/man_postproc.awk
+  loc *  exist *  algo **  size *  imp *
 
 - get rid of the last handful of style= attributes such that
   Content-Security-Policy: can be enabled without unsafe-inline
@@ -504,18 +560,17 @@ are mere guesses, and some may be wrong.
   does this affect other characters, other source macros...?
   Jackson Pauls  29 Aug 2017 16:56:27 +0100
 
-- The tables used to render the three-part page headers actually force
-  the width of the <body> to the max-width given for <html>.
-  Not yet sure how to fix that...
-  Observed by an Anonymous Coward on undeadly.org:
-  http://undeadly.org/cgi?action=article&sid=20140925064244&pid=1
-  loc *  exist *  algo **  size *  imp ***
-
 - generate <img> tags in HTML
   idea from florian@  Tue, 7 Apr 2015 00:26:28 +0000
   may be possible to implement with .Lk img://something.png alt_text
 
 - check https://github.com/trentm/mdocml
+
+--- CSS issues ---------------------------------------------------------
+
+- use flexbox for .Bl-tag instead of the fragile float/clear mechanism
+  John Gardner 25 Mar 2022 04:44:27 +1100
+
 
 ************************************************************************
 * formatting issues: gratuitous differences
@@ -527,7 +582,17 @@ are mere guesses, and some may be wrong.
   Steffen Nurpmeso  Sat, 08 Nov 2014 13:34:59 +0100
   loc *  exist **  algo **  size *  imp **
 
-- In .Bl -enum -width 0n, groff continues one the same line after
+- Multiple issues with .In below SYNOPSIS; groff behaviour is:
+  text line + .In -> no line break before #include
+  called .In -> no line break before angle bracket
+  .In + .In -> second one gets #include, too
+  two arguments -> line break before second
+  child macro -> line break before child
+  .In + text line -> line break before the text line
+  Evan Silberman  Fri, 20 Sep 2024 16:48:19 -0700
+  loc **  exist **  algo *  size *  imp *
+
+- In .Bl -enum -width 0n, groff continues on the same line after
   the number, mandoc breaks the line.
   mail to kristaps@  Mon, 20 Jul 2009 02:21:39 +0200
   loc *  exist **  algo **  size *  imp **
@@ -562,6 +627,10 @@ are mere guesses, and some may be wrong.
   reported again by Nicolas Joly Thu, 1 Mar 2012 13:41:26 +0100 via wiz@ 5 Mar
   reported again by Franco Fichtner Fri, 27 Sep 2013 21:02:28 +0200
   reported again by Bruce Evans Fri, 17 Feb 2017 21:22:44 +0100 via bapt@
+  https://reviews.freebsd.org/D35245
+  even groff_mdoc(7) uses this: Nab Sun, 5 Jun 2022 22:16:37 +0200
+  When implementing this, try to avoid breaking existing manuals,
+  or at least fix them: Jan Stary Sun, 5 Jun 2022 22:48:05 +0200
   loc ***  exist ***  algo ***  size **  imp ***
   An easy partial fix has been implemented as skip_leading_dot_word().
 
@@ -573,6 +642,10 @@ are mere guesses, and some may be wrong.
 - Sequences of multiple man(7) paragraphs (.PP, .IP) interspersed
   with .ps and .nf/.fi produce execessive blank lines, see libJudy
   and graphics/dcmtk.  The parser reorg may help with this.
+
+- The man(7) .UR macro produces UTF-8 angle brackets in -Tutf8 output mode
+  with groff, but ASCII <> with mandoc
+  Alejandro Colomar Mon, 7 Aug 2023 17:13:29 +0200 Subject: hostname
 
 - trailing whitespace must be ignored even when followed by a font escape,
   see for example
@@ -589,6 +662,14 @@ are mere guesses, and some may be wrong.
 - shorten/simplify error messages for usage errors
   To: deraadt@ 25 Oct 2020 23:37:01 +0100
   loc **  exist *  algo *  size **  imp ***
+
+- warn about \\ and \. in interpretation mode
+  gbranden@, groff issue #62776, 10 Nov 2023 01:57:32 -0500
+
+- warn about output lines exceeding 80 characters
+  Alejandro Colomar Aug 22, 2022
+  not trivial because -T lint does not call any formatter
+  loc ***  exist *  algo **  size **  imp **
 
 - warn about duplicate .Sh/.Ss heads
   gre(4): Rename duplicate sections 20 Apr 2018 15:27:33 +0200

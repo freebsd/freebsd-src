@@ -225,7 +225,6 @@ static int nfs_bigreply[NFSV42_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
 static void nfsv4_wanted(struct nfsv4lock *lp);
 static uint32_t nfsv4_filesavail(struct statfs *, struct mount *);
-static int nfsrv_cmpmixedcase(u_char *cp, u_char *cp2, int len);
 static int nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name);
 static void nfsrv_removeuser(struct nfsusrgrp *usrp, int isuser);
 static int nfsrv_getrefstr(struct nfsrv_descript *, u_char **, u_char **,
@@ -2304,6 +2303,23 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			if (compare && !(*retcmpp) && i != nfs_srvmaxio)
 				*retcmpp = NFSERR_NOTSAME;
 			break;
+		case NFSATTRBIT_CHANGEATTRTYPE:
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			if (compare) {
+				if (!(*retcmpp)) {
+				    tuint = NFSV4CHANGETYPE_UNDEFINED;
+				    if ((vp->v_mount->mnt_vfc->vfc_flags &
+					VFCF_FILEREVINC) != 0)
+					tuint = NFSV4CHANGETYPE_VERS_COUNTER_NOPNFS;
+				    else if ((vp->v_mount->mnt_vfc->vfc_flags &
+					VFCF_FILEREVCT) != 0)
+					tuint = NFSV4CHANGETYPE_TIME_METADATA;
+				    if (fxdr_unsigned(uint32_t, *tl) != tuint)
+					*retcmpp = NFSERR_NOTSAME;
+				}
+			}
+			attrsum += NFSX_UNSIGNED;
+			break;
 		default:
 			printf("EEK! nfsv4_loadattr unknown attr=%d\n",
 				bitpos);
@@ -3128,6 +3144,21 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			*tl = 0;
 			retnum += 2 * NFSX_UNSIGNED;
 			break;
+		case NFSATTRBIT_CHANGEATTRTYPE:
+			NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(NFSV4CHANGETYPE_UNDEFINED);
+			if (mp != NULL) {
+				if ((mp->mnt_vfc->vfc_flags &
+				    VFCF_FILEREVINC) != 0)
+					*tl = txdr_unsigned(
+					   NFSV4CHANGETYPE_VERS_COUNTER_NOPNFS);
+				else if ((mp->mnt_vfc->vfc_flags &
+				    VFCF_FILEREVCT) != 0)
+					*tl = txdr_unsigned(
+					   NFSV4CHANGETYPE_TIME_METADATA);
+			}
+			retnum += NFSX_UNSIGNED;
+			break;
 		default:
 			printf("EEK! Bad V4 attribute bitpos=%d\n", bitpos);
 		}
@@ -3438,13 +3469,13 @@ tryagain:
 		/*
 		 * If an '@' is found and the domain name matches, search for
 		 * the name with dns stripped off.
-		 * Mixed case alphabetics will match for the domain name, but
-		 * all upper case will not.
+		 * The match for alphabetics in now case insensitive,
+		 * since RFC8881 defines this string as a DNS domain name.
 		 */
 		if (cnt == 0 && i < len && i > 0 &&
 		    (len - 1 - i) == NFSD_VNET(nfsrv_dnsnamelen) &&
-		    !nfsrv_cmpmixedcase(cp,
-		     NFSD_VNET(nfsrv_dnsname), NFSD_VNET(nfsrv_dnsnamelen))) {
+		    strncasecmp(cp, NFSD_VNET(nfsrv_dnsname),
+		     NFSD_VNET(nfsrv_dnsnamelen)) == 0) {
 			len -= (NFSD_VNET(nfsrv_dnsnamelen) + 1);
 			*(cp - 1) = '\0';
 		}
@@ -3665,8 +3696,8 @@ tryagain:
 		 */
 		if (cnt == 0 && i < len && i > 0 &&
 		    (len - 1 - i) == NFSD_VNET(nfsrv_dnsnamelen) &&
-		    !nfsrv_cmpmixedcase(cp,
-		     NFSD_VNET(nfsrv_dnsname), NFSD_VNET(nfsrv_dnsnamelen))) {
+		    strncasecmp(cp, NFSD_VNET(nfsrv_dnsname),
+		    NFSD_VNET(nfsrv_dnsnamelen)) == 0) {
 			len -= (NFSD_VNET(nfsrv_dnsnamelen) + 1);
 			*(cp - 1) = '\0';
 		}
@@ -3712,35 +3743,6 @@ out:
 	NFSD_CURVNET_RESTORE();
 	NFSEXITCODE(error);
 	return (error);
-}
-
-/*
- * Cmp len chars, allowing mixed case in the first argument to match lower
- * case in the second, but not if the first argument is all upper case.
- * Return 0 for a match, 1 otherwise.
- */
-static int
-nfsrv_cmpmixedcase(u_char *cp, u_char *cp2, int len)
-{
-	int i;
-	u_char tmp;
-	int fndlower = 0;
-
-	for (i = 0; i < len; i++) {
-		if (*cp >= 'A' && *cp <= 'Z') {
-			tmp = *cp++ + ('a' - 'A');
-		} else {
-			tmp = *cp++;
-			if (tmp >= 'a' && tmp <= 'z')
-				fndlower = 1;
-		}
-		if (tmp != *cp2++)
-			return (1);
-	}
-	if (fndlower)
-		return (0);
-	else
-		return (1);
 }
 
 /*
@@ -4051,8 +4053,9 @@ nfssvc_idname(struct nfsd_idargs *nidp)
 			 */
 			cr = crget();
 			cr->cr_uid = cr->cr_ruid = cr->cr_svuid = nidp->nid_uid;
-			crsetgroups(cr, nidp->nid_ngroup, grps);
-			cr->cr_rgid = cr->cr_svgid = cr->cr_groups[0];
+			crsetgroups_fallback(cr, nidp->nid_ngroup, grps,
+			    GID_NOGROUP);
+			cr->cr_rgid = cr->cr_svgid = cr->cr_gid;
 			cr->cr_prison = curthread->td_ucred->cr_prison;
 			prison_hold(cr->cr_prison);
 #ifdef MAC
@@ -5044,6 +5047,8 @@ nfsv4_freeslot(struct nfsclsession *sep, int slot, bool resetseq)
 	mtx_lock(&sep->nfsess_mtx);
 	if (resetseq)
 		sep->nfsess_slotseq[slot]--;
+	else if (slot > sep->nfsess_foreslots)
+		sep->nfsess_slotseq[slot] = 0;
 	if ((bitval & sep->nfsess_slots) == 0)
 		printf("freeing free slot!!\n");
 	sep->nfsess_slots &= ~bitval;

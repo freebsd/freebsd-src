@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd February 24, 2018
+.Dd January 17, 2025
 .Dt GETENTROPY 3
 .Os
 .Sh NAME
@@ -60,8 +60,8 @@ The
 .Fa buf
 parameter points to an
 invalid address.
-.It Bq Er EIO
-Too many bytes requested, or some other fatal error occurred.
+.It Bq Er EINVAL
+Too many bytes requested.
 .El
 .Sh SEE ALSO
 .Xr getrandom 2 ,
@@ -69,10 +69,8 @@ Too many bytes requested, or some other fatal error occurred.
 .Xr random 4
 .Sh STANDARDS
 .Fn getentropy
-is non-standard.
-It is present on
-.Ox
-and Linux.
+conforms to
+.St -p1003.1-2024 .
 .Sh HISTORY
 The
 .Fn getentropy

@@ -717,8 +717,8 @@ superio_attach(device_t dev)
 		    sc->known_devices[i].ldn);
 	}
 
-	bus_generic_probe(dev);
-	bus_generic_attach(dev);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 
 	sc->chardev = make_dev(&superio_cdevsw, device_get_unit(dev),
 	    UID_ROOT, GID_WHEEL, 0600, "superio%d", device_get_unit(dev));
@@ -740,7 +740,6 @@ superio_detach(device_t dev)
 		return (error);
 	if (sc->chardev != NULL)
 		destroy_dev(sc->chardev);
-	device_delete_children(dev);
 	bus_release_resource(dev, SYS_RES_IOPORT, sc->io_rid, sc->io_res);
 	mtx_destroy(&sc->conf_lock);
 	return (0);
@@ -766,6 +765,18 @@ superio_add_child(device_t dev, u_int order, const char *name, int unit)
 	resource_list_init(&dinfo->resources);
 	device_set_ivars(child, dinfo);
 	return (child);
+}
+
+static void
+superio_child_deleted(device_t dev, device_t child)
+{
+	struct superio_devinfo *dinfo;
+
+	dinfo = device_get_ivars(child);
+	if (dinfo == NULL)
+		return;
+	resource_list_free(&dinfo->resources);
+	free(dinfo, M_DEVBUF);
 }
 
 static int
@@ -1078,6 +1089,7 @@ static device_method_t superio_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	DEVMETHOD(bus_add_child,	superio_add_child),
+	DEVMETHOD(bus_child_deleted,	superio_child_deleted),
 	DEVMETHOD(bus_child_detached,	superio_child_detached),
 	DEVMETHOD(bus_child_location,	superio_child_location),
 	DEVMETHOD(bus_child_pnpinfo,	superio_child_pnp),

@@ -903,7 +903,6 @@ getmemsize(int first)
 	struct vm86context vmc;
 	vm_paddr_t pa;
 	struct bios_smap *smap, *smapbase;
-	caddr_t kmdp;
 
 	has_smap = 0;
 	bzero(&vmf, sizeof(vmf));
@@ -924,10 +923,7 @@ getmemsize(int first)
 	 * use that and do not make any VM86 calls.
 	 */
 	physmap_idx = 0;
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf32 kernel");
-	smapbase = (struct bios_smap *)preload_search_info(kmdp,
+	smapbase = (struct bios_smap *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_SMAP);
 	if (smapbase != NULL) {
 		add_smap_entries(smapbase, physmap, &physmap_idx);
@@ -1388,7 +1384,6 @@ init386(int first)
 	int gsel_tss, metadata_missing, x, pa;
 	struct pcpu *pc;
 	struct xstate_hdr *xhdr;
-	caddr_t kmdp;
 	vm_offset_t addend;
 	size_t ucode_len;
 
@@ -1547,8 +1542,9 @@ init386(int first)
 		TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
 	}
 
-	kmdp = preload_search_by_type("elf kernel");
-	link_elf_ireloc(kmdp);
+	/* Initialize preload_kmdp */
+	preload_initkmdp(!metadata_missing);
+	link_elf_ireloc();
 
 	vm86_initialize();
 	getmemsize(first);
@@ -1734,19 +1730,15 @@ smap_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	struct bios_smap *smapbase;
 	struct bios_smap_xattr smap;
-	caddr_t kmdp;
 	uint32_t *smapattr;
 	int count, error, i;
 
 	/* Retrieve the system memory map from the loader. */
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf32 kernel");
-	smapbase = (struct bios_smap *)preload_search_info(kmdp,
+	smapbase = (struct bios_smap *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_SMAP);
 	if (smapbase == NULL)
 		return (0);
-	smapattr = (uint32_t *)preload_search_info(kmdp,
+	smapattr = (uint32_t *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_SMAP_XATTR);
 	count = *((u_int32_t *)smapbase - 1) / sizeof(*smapbase);
 	error = 0;

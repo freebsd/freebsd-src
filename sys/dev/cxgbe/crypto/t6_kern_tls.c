@@ -995,7 +995,7 @@ t6_ktls_parse_pkt(struct mbuf *m)
 	 * See if we have any TCP options or a FIN requiring a
 	 * dedicated packet.
 	 */
-	if ((tcp->th_flags & TH_FIN) != 0 || ktls_has_tcp_options(tcp)) {
+	if ((tcp_get_flags(tcp) & TH_FIN) != 0 || ktls_has_tcp_options(tcp)) {
 		wr_len = sizeof(struct fw_eth_tx_pkt_wr) +
 		    sizeof(struct cpl_tx_pkt_core) + roundup2(m->m_len, 16);
 		if (wr_len > SGE_MAX_WR_LEN) {
@@ -1180,7 +1180,7 @@ ktls_write_tcp_options(struct sge_txq *txq, void *dst, struct mbuf *m,
 	/* Clear PUSH and FIN in the TCP header if present. */
 	tcp = (void *)((char *)eh + m->m_pkthdr.l2hlen + m->m_pkthdr.l3hlen);
 	newtcp = *tcp;
-	newtcp.th_flags &= ~(TH_PUSH | TH_FIN);
+	tcp_set_flags(&newtcp, tcp_get_flags(&newtcp) & ~(TH_PUSH | TH_FIN));
 	copy_to_txd(&txq->eq, (caddr_t)&newtcp, &out, sizeof(newtcp));
 
 	/* Copy rest of packet. */
@@ -1370,7 +1370,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq, void *dst,
 		CTR4(KTR_CXGBE, "%s: tid %d short TLS record %u with offset %u",
 		    __func__, tlsp->tid, (u_int)m_tls->m_epg_seqno, offset);
 #endif
-		if (m_tls->m_next == NULL && (tcp->th_flags & TH_FIN) != 0) {
+		if (m_tls->m_next == NULL && (tcp_get_flags(tcp) & TH_FIN) != 0) {
 			txq->kern_tls_fin_short++;
 #ifdef INVARIANTS
 			panic("%s: FIN on short TLS record", __func__);
@@ -1385,7 +1385,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq, void *dst,
 	 * FIN is set, then ktls_write_tcp_fin() will write out the
 	 * last work request.
 	 */
-	last_wr = m_tls->m_next == NULL && (tcp->th_flags & TH_FIN) == 0;
+	last_wr = m_tls->m_next == NULL && (tcp_get_flags(tcp) & TH_FIN) == 0;
 
 	/*
 	 * The host stack may ask us to not send part of the start of
@@ -1769,7 +1769,7 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq, void *dst,
 		tx_data->rsvd = htobe32(tcp_seqno + m_tls->m_epg_hdrlen + offset);
 	}
 	tx_data->flags = htobe32(F_TX_BYPASS);
-	if (last_wr && tcp->th_flags & TH_PUSH)
+	if (last_wr && tcp_get_flags(tcp) & TH_PUSH)
 		tx_data->flags |= htobe32(F_TX_PUSH | F_TX_SHOVE);
 
 	/* Populate the TLS header */
@@ -1966,7 +1966,7 @@ t6_ktls_write_wr(struct sge_txq *txq, void *dst, struct mbuf *m,
 	tcp = (struct tcphdr *)((char *)eh + m->m_pkthdr.l2hlen +
 	    m->m_pkthdr.l3hlen);
 	pidx = eq->pidx;
-	has_fin = (tcp->th_flags & TH_FIN) != 0;
+	has_fin = (tcp_get_flags(tcp) & TH_FIN) != 0;
 
 	/*
 	 * If this TLS record has a FIN, then we will send any

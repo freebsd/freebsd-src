@@ -1,4 +1,4 @@
-/* $Id: mandoc.css,v 1.48 2021/03/30 19:26:20 schwarze Exp $ */
+/* $Id: mandoc.css,v 1.52 2022/07/06 14:34:59 schwarze Exp $ */
 /*
  * Standard style sheet for mandoc(1) -Thtml and man.cgi(8).
  *
@@ -16,7 +16,7 @@ html {		max-width: 65em;
 body {		background: var(--bg);
 		color: var(--fg);
 		font-family: Helvetica,Arial,sans-serif; }
-h1 {		font-size: 110%; }
+h1, h2 {	font-size: 110%; }
 table {		margin-top: 0em;
 		margin-bottom: 0em;
 		border-collapse: collapse; }
@@ -53,31 +53,39 @@ table.results {	margin-top: 1em;
 
 /* Header and footer lines. */
 
-table.head {	width: 100%;
+div[role=doc-pageheader] {
+		display: flex;
 		border-bottom: 1px dotted #808080;
 		margin-bottom: 1em;
 		font-size: smaller; }
-td.head-vol {	text-align: center; }
-td.head-rtitle {
+.head-ltitle {	flex: 1; }
+.head-vol {	flex: 0 1 auto;
+		text-align: center; }
+.head-rtitle {	flex: 1;
 		text-align: right; }
 
-table.foot {	width: 100%;
+div[role=doc-pagefooter] {
+		display: flex;
+		justify-content: space-between;
 		border-top: 1px dotted #808080;
 		margin-top: 1em;
 		font-size: smaller; }
-td.foot-os {	text-align: right; }
+.foot-left {	flex: 1; }
+.foot-date {	flex: 0 1 auto;
+		text-align: center; }
+.foot-os {	flex: 1;
+		text-align: right; }
 
 /* Sections and paragraphs. */
 
-.manual-text {
-		margin-left: 3.8em; }
+main {		margin-left: 3.8em; }
 .Nd { }
 section.Sh { }
-h1.Sh {		margin-top: 1.2em;
+h2.Sh {		margin-top: 1.2em;
 		margin-bottom: 0.6em;
 		margin-left: -3.2em; }
 section.Ss { }
-h2.Ss {		margin-top: 1.2em;
+h3.Ss {		margin-top: 1.2em;
 		margin-bottom: 0.6em;
 		margin-left: -1.2em;
 		font-size: 105%; }
@@ -195,7 +203,7 @@ code.Nm {	font-style: normal;
 		font-family: inherit; }
 .Ar {		font-style: italic;
 		font-weight: normal; }
-.Op {		display: inline; }
+.Op {		display: inline flow; }
 .Ic {		font-style: normal;
 		font-weight: bold;
 		font-family: inherit; }
@@ -250,7 +258,7 @@ a.In { }
 
 /* Physical markup. */
 
-.Bf {		display: inline; }
+.Bf {		display: inline flow; }
 .No {		font-style: normal;
 		font-weight: normal; }
 .Em {		font-style: italic;
@@ -263,11 +271,11 @@ a.In { }
 
 /* Tooltip support. */
 
-h1.Sh, h2.Ss {	position: relative; }
+h2.Sh, h3.Ss {	position: relative; }
 .An, .Ar, .Cd, .Cm, .Dv, .Em, .Er, .Ev, .Fa, .Fd, .Fl, .Fn, .Ft,
 .Ic, code.In, .Lb, .Lk, .Ms, .Mt, .Nd, code.Nm, .Pa, .Rs,
 .St, .Sx, .Sy, .Va, .Vt, .Xr {
-		display: inline-block;
+		display: inline flow;
 		position: relative; }
 
 .An::before {	content: "An"; }
@@ -293,8 +301,8 @@ code.In::before { content: "In"; }
 code.Nm::before { content: "Nm"; }
 .Pa::before {	content: "Pa"; }
 .Rs::before {	content: "Rs"; }
-h1.Sh::before {	content: "Sh"; }
-h2.Ss::before {	content: "Ss"; }
+h2.Sh::before {	content: "Sh"; }
+h3.Ss::before {	content: "Ss"; }
 .St::before {	content: "St"; }
 .Sx::before {	content: "Sx"; }
 .Sy::before {	content: "Sy"; }
@@ -308,7 +316,7 @@ h2.Ss::before {	content: "Ss"; }
 .Ic::before, code.In::before, .Lb::before, .Lk::before,
 .Ms::before, .Mt::before, .Nd::before, code.Nm::before,
 .Pa::before, .Rs::before,
-h1.Sh::before, h2.Ss::before, .St::before, .Sx::before, .Sy::before,
+h2.Sh::before, h3.Ss::before, .St::before, .Sx::before, .Sy::before,
 .Va::before, .Vt::before, .Xr::before {
 		opacity: 0;
 		transition: .15s ease opacity;
@@ -329,7 +337,7 @@ h1.Sh::before, h2.Ss::before, .St::before, .Sx::before, .Sy::before,
 .Ft:hover::before, .Ic:hover::before, code.In:hover::before,
 .Lb:hover::before, .Lk:hover::before, .Ms:hover::before, .Mt:hover::before,
 .Nd:hover::before, code.Nm:hover::before, .Pa:hover::before,
-.Rs:hover::before, h1.Sh:hover::before, h2.Ss:hover::before, .St:hover::before,
+.Rs:hover::before, h2.Sh:hover::before, h3.Ss:hover::before, .St:hover::before,
 .Sx:hover::before, .Sy:hover::before, .Va:hover::before, .Vt:hover::before,
 .Xr:hover::before {
 		opacity: 1;
@@ -338,9 +346,8 @@ h1.Sh::before, h2.Ss::before, .St::before, .Sx::before, .Sy::before,
 /* Overrides to avoid excessive margins on small devices. */
 
 @media (max-width: 37.5em) {
-.manual-text {
-		margin-left: 0.5em; }
-h1.Sh, h2.Ss {	margin-left: 0em; }
+main {		margin-left: 0.5em; }
+h2.Sh, h3.Ss {	margin-left: 0em; }
 .Bd-indent {	margin-left: 2em; }
 .Bl-hang > dd {
 		margin-left: 2em; }

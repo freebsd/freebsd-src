@@ -77,6 +77,11 @@ static int broken_txfifo = 0;
 SYSCTL_INT(_hw, OID_AUTO, broken_txfifo, CTLFLAG_RWTUN,
 	&broken_txfifo, 0, "UART FIFO has QEMU emulation bug");
 
+static int uart_noise_threshold = 0;
+SYSCTL_INT(_hw, OID_AUTO, uart_noise_threshold, CTLFLAG_RWTUN,
+	&uart_noise_threshold, 0,
+	"Number of UART RX interrupts where TX is not ready, before data is discarded");
+
 /*
  * To use early printf on x86, add the following to your kernel config:
  *
@@ -1012,6 +1017,7 @@ int
 ns8250_bus_receive(struct uart_softc *sc)
 {
 	struct uart_bas *bas;
+	struct ns8250_softc *ns8250 = (struct ns8250_softc *)sc;
 	int xc;
 	uint8_t lsr;
 
@@ -1023,6 +1029,17 @@ ns8250_bus_receive(struct uart_softc *sc)
 			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
 			break;
 		}
+		/* Filter out possible noise on the line.
+		 * Expect that the device should be able to transmit as well as
+		 * receive, so if we receive too many characters before transmit
+		 * is ready, it's probably noise.
+		 */
+		if ((lsr & (LSR_TXRDY | LSR_TEMT)) == 0 &&
+		    uart_noise_threshold > 0) {
+			if (++ns8250->noise_count >= uart_noise_threshold)
+				break;
+		} else
+			ns8250->noise_count = 0;
 		xc = uart_getreg(bas, REG_DATA);
 		if (lsr & LSR_FE)
 			xc |= UART_STAT_FRAMERR;

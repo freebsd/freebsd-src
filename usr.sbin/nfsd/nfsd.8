@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 5, 2024
+.Dd February 21, 2025
 .Dt NFSD 8
 .Os
 .Sh NAME
@@ -88,13 +88,20 @@ without creating any servers.
 Specifies a hostname to be used as a principal name, instead of
 the default hostname.
 .It Fl n Ar threads
-Specifies how many servers to create.
-This option is equivalent to specifying
+This option is deprecated and is limited to a maximum of 256 threads.
+The options
 .Fl Fl maxthreads
 and
 .Fl Fl minthreads
-with their respective arguments to
-.Ar threads .
+should now be used.
+The
+.Ar threads
+argument for
+.Fl Fl minthreads
+and
+.Fl Fl maxthreads
+may be set to the same value to avoid dynamic
+changes to the number of threads.
 .It Fl Fl maxthreads Ar threads
 Specifies the maximum servers that will be kept around to service requests.
 .It Fl Fl minthreads Ar threads
@@ -223,12 +230,15 @@ to execute in the foreground instead of in daemon mode.
 .El
 .Pp
 For example,
-.Dq Li "nfsd -u -t -n 6"
-serves UDP and TCP transports using six daemons.
+.Dq Li "nfsd -u -t --minthreads 6 --maxthreads 6"
+serves UDP and TCP transports using six kernel threads (servers).
 .Pp
-A server should run enough daemons to handle
-the maximum level of concurrency from its clients,
-typically four to six.
+For a system dedicated to servicing NFS RPCs, the number of
+threads (servers) should be sufficient to handle the peak
+client RPC load.
+For systems that perform other services, the number of
+threads (servers) may need to be limited, so that resources
+are available for these other services.
 .Pp
 The
 .Nm

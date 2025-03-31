@@ -39,6 +39,7 @@
  */
 /* r88e_beacon.c */
 void	r88e_beacon_enable(struct rtwn_softc *, int, int);
+void	r88e_sta_beacon_enable(struct rtwn_softc *, int, bool);
 
 /* r88e_calib.c */
 void	r88e_iq_calib(struct rtwn_softc *);
@@ -85,6 +86,7 @@ int8_t	r88e_get_rssi_cck(struct rtwn_softc *, void *);
 int8_t	r88e_get_rssi_ofdm(struct rtwn_softc *, void *);
 void	r88e_get_rx_stats(struct rtwn_softc *, struct ieee80211_rx_stats *,
 	    const void *, const void *);
+void	r88e_ratectl_tx_complete_periodic(struct rtwn_softc *, uint8_t *, int);
 
 /* r88e_tx.c */
 void	r88e_tx_enable_ampdu(void *, int);

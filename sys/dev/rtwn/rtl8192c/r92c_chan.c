@@ -53,6 +53,56 @@
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 #include <dev/rtwn/rtl8192c/r92c_var.h>
 
+void
+r92c_dump_txpower(struct rtwn_softc *sc, int chain,
+    uint8_t power[RTWN_RIDX_COUNT])
+{
+
+#ifdef RTWN_DEBUG
+	if (sc->sc_debug & RTWN_DEBUG_TXPWR) {
+		int i;
+
+		/* Print CCK */
+		RTWN_DPRINTF(sc, RTWN_DEBUG_TXPWR,
+		    "TX [%d]: CCK: 1M: %d 2M: %d 5.5M: %d 11M: %d\n",
+		    chain,
+		    power[RTWN_RIDX_CCK1],
+		    power[RTWN_RIDX_CCK2],
+		    power[RTWN_RIDX_CCK55],
+		    power[RTWN_RIDX_CCK11]);
+		/* Print OFDM */
+		RTWN_DPRINTF(sc, RTWN_DEBUG_TXPWR,
+		    "TX [%d]: OFDM: 6M: %d 9M: %d 12M: %d 18M: %d 24M: %d "
+		    "36M: %d 48M: %d 54M: %d\n",
+		    chain,
+		    power[RTWN_RIDX_OFDM6],
+		    power[RTWN_RIDX_OFDM9],
+		    power[RTWN_RIDX_OFDM12],
+		    power[RTWN_RIDX_OFDM18],
+		    power[RTWN_RIDX_OFDM24],
+		    power[RTWN_RIDX_OFDM36],
+		    power[RTWN_RIDX_OFDM48],
+		    power[RTWN_RIDX_OFDM54]);
+		/* Print HT, 1 and 2 stream */
+		for (i = 0; i < sc->ntxchains; i++) {
+			RTWN_DPRINTF(sc, RTWN_DEBUG_TXPWR,
+			    "TX [%d]: MCS%d-%d: %d %d %d %d %d %d %d %d\n",
+			    chain,
+			    i * 8,
+			    i * 8 + 7,
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 0)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 1)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 2)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 3)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 4)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 5)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 6)],
+			    power[RTWN_RIDX_HT_MCS(i * 8 + 7)]);
+		}
+	}
+#endif
+}
+
 static int
 r92c_get_power_group(struct rtwn_softc *sc, struct ieee80211_channel *c)
 {
@@ -81,6 +131,7 @@ void
 r92c_get_txpower(struct rtwn_softc *sc, int chain,
     struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
 {
+	const struct ieee80211com *ic = &sc->sc_ic;
 	struct r92c_softc *rs = sc->sc_priv;
 	struct rtwn_r92c_txpwr *rt = rs->rs_txpwr;
 	const struct rtwn_r92c_txagc *base = rs->rs_txagc;
@@ -94,16 +145,21 @@ r92c_get_txpower(struct rtwn_softc *sc, int chain,
 		return;
 	}
 
-	/* XXX net80211 regulatory */
+	/*
+	 * Treat the entries in 1/2 dBm resolution where 0 = 0dBm.
+	 * Apply the adjustments afterwards; assume that the vendor
+	 * driver is applying offsets to make up for the actual
+	 * target power in dBm.
+	 */
 
 	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
-	KASSERT(max_mcs <= RTWN_RIDX_COUNT, ("increase ridx limit\n"));
+	KASSERT(max_mcs <= RTWN_RIDX_LEGACY_HT_COUNT, ("increase ridx limit\n"));
 
 	if (rs->regulatory == 0) {
 		for (ridx = RTWN_RIDX_CCK1; ridx <= RTWN_RIDX_CCK11; ridx++)
 			power[ridx] = base[chain].pwr[0][ridx];
 	}
-	for (ridx = RTWN_RIDX_OFDM6; ridx < RTWN_RIDX_COUNT; ridx++) {
+	for (ridx = RTWN_RIDX_OFDM6; ridx < RTWN_RIDX_LEGACY_HT_COUNT; ridx++) {
 		if (rs->regulatory == 3) {
 			power[ridx] = base[chain].pwr[0][ridx];
 			/* Apply vendor limits. */
@@ -149,6 +205,10 @@ r92c_get_txpower(struct rtwn_softc *sc, int chain,
 	for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++) {
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
+		/* Apply net80211 limits */
+		if (power[ridx] > ic->ic_txpowlimit)
+			power[ridx] = ic->ic_txpowlimit;
+
 	}
 }
 
@@ -224,21 +284,30 @@ r92c_set_txpower(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		memset(power, 0, sizeof(power));
 		/* Compute per-rate Tx power values. */
 		rtwn_r92c_get_txpower(sc, i, c, power);
-#ifdef RTWN_DEBUG
-		if (sc->sc_debug & RTWN_DEBUG_TXPWR) {
-			int max_mcs, ridx;
-
-			max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
-
-			/* Dump per-rate Tx power values. */
-			printf("Tx power for chain %d:\n", i);
-			for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++)
-				printf("Rate %d = %u\n", ridx, power[ridx]);
-		}
-#endif
+		/* Optionally print out the power table */
+		r92c_dump_txpower(sc, i, power);
 		/* Write per-rate Tx power values to hardware. */
 		r92c_write_txpower(sc, i, power);
 	}
+}
+
+/*
+ * Only reconfigure the transmit power if there's a valid BSS node and
+ * channel.  Otherwise just let the next call to r92c_set_chan()
+ * configure the transmit power.
+ */
+int
+r92c_set_tx_power(struct rtwn_softc *sc, struct ieee80211vap *vap)
+{
+	if (vap->iv_bss == NULL)
+		return (EINVAL);
+	if (vap->iv_bss->ni_chan == IEEE80211_CHAN_ANYC)
+		return (EINVAL);
+
+	/* Set it for the current channel */
+	r92c_set_txpower(sc, vap->iv_bss->ni_chan);
+
+	return (0);
 }
 
 static void
@@ -262,7 +331,8 @@ r92c_set_bw40(struct rtwn_softc *sc, uint8_t chan, int prichlo)
 	rtwn_bb_setbits(sc, R92C_FPGA0_ANAPARAM2,
 	    R92C_FPGA0_ANAPARAM2_CBW20, 0);
 
-	rtwn_bb_setbits(sc, 0x818, 0x0c000000, (prichlo ? 2 : 1) << 26);
+	rtwn_bb_setbits(sc, R92C_FPGA0_POWER_SAVE,
+	    R92C_FPGA0_POWER_SAVE_PS_MASK, (prichlo ? 2 : 1) << 26);
 
 	/* Select 40MHz bandwidth. */
 	rtwn_rf_write(sc, 0, R92C_RF_CHNLBW,

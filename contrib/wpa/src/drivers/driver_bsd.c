@@ -378,6 +378,12 @@ bsd_set_key(void *priv, struct wpa_driver_set_key_params *params)
 	case WPA_ALG_CCMP:
 		wk.ik_type = IEEE80211_CIPHER_AES_CCM;
 		break;
+	case WPA_ALG_GCMP:
+		wk.ik_type = IEEE80211_CIPHER_AES_GCM_128;
+		break;
+	case WPA_ALG_BIP_CMAC_128:
+		wk.ik_type = IEEE80211_CIPHER_BIP_CMAC_128;
+		break;
 	default:
 		wpa_printf(MSG_ERROR, "%s: unknown alg=%d", __func__, alg);
 		return -1;
@@ -449,6 +455,12 @@ bsd_configure_wpa(void *priv, struct wpa_bss_params *params)
 	case WPA_CIPHER_CCMP:
 		v = IEEE80211_CIPHER_AES_CCM;
 		break;
+	case WPA_CIPHER_GCMP:
+		v = IEEE80211_CIPHER_AES_GCM_128;
+		break;
+	case WPA_CIPHER_BIP_CMAC_128:
+		v = IEEE80211_CIPHER_BIP_CMAC_128;
+		break;
 	case WPA_CIPHER_TKIP:
 		v = IEEE80211_CIPHER_TKIP;
 		break;
@@ -485,6 +497,10 @@ bsd_configure_wpa(void *priv, struct wpa_bss_params *params)
 	}
 
 	v = 0;
+	if (params->wpa_pairwise & WPA_CIPHER_BIP_CMAC_128)
+		v |= 1<<IEEE80211_CIPHER_BIP_CMAC_128;
+	if (params->wpa_pairwise & WPA_CIPHER_GCMP)
+		v |= 1<<IEEE80211_CIPHER_AES_GCM_128;
 	if (params->wpa_pairwise & WPA_CIPHER_CCMP)
 		v |= 1<<IEEE80211_CIPHER_AES_CCM;
 	if (params->wpa_pairwise & WPA_CIPHER_TKIP)
@@ -615,6 +631,7 @@ bsd_set_freq(void *priv, struct hostapd_freq_params *freq)
 		mode = IFM_IEEE80211_11B;
 	} else {
 		mode =
+			freq->vht_enabled ? IFM_IEEE80211_VHT5G :
 			freq->ht_enabled ? IFM_IEEE80211_11NA :
 			IFM_IEEE80211_11A;
 	}
@@ -1567,6 +1584,10 @@ static int wpa_driver_bsd_capa(struct bsd_driver_data *drv)
 		drv->capa.enc |= WPA_DRIVER_CAPA_ENC_TKIP;
 	if (devcaps.dc_cryptocaps & IEEE80211_CRYPTO_AES_CCM)
 		drv->capa.enc |= WPA_DRIVER_CAPA_ENC_CCMP;
+	if (devcaps.dc_cryptocaps & IEEE80211_CRYPTO_AES_GCM_128)
+		drv->capa.enc |= WPA_DRIVER_CAPA_ENC_GCMP;
+	if (devcaps.dc_cryptocaps & IEEE80211_CRYPTO_BIP_CMAC_128)
+		drv->capa.enc |= WPA_DRIVER_CAPA_ENC_BIP;
 
 	if (devcaps.dc_drivercaps & IEEE80211_C_HOSTAP)
 		drv->capa.flags |= WPA_DRIVER_FLAGS_AP;

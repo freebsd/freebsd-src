@@ -94,65 +94,82 @@ char	  f_mntonname[MNAMELEN];    /* directory on which mounted */
 .Pp
 The flags that may be returned include:
 .Bl -tag -width MNT_SYNCHRONOUS
-.It Dv MNT_RDONLY
-The file system is mounted read-only;
-Even the super-user may not write on it.
-.It Dv MNT_NOEXEC
-Files may not be executed from the file system.
-.It Dv MNT_NOSUID
-Setuid and setgid bits on files are not honored when they are executed.
-.It Dv MNT_SYNCHRONOUS
-All I/O to the file system is done synchronously.
+.It Dv MNT_ACLS
+Access Control List (ACL) support enabled.
 .It Dv MNT_ASYNC
 No file system I/O is done synchronously.
-.It Dv MNT_SOFTDEP
-Soft updates being done (see
-.Xr ffs 4 ) .
+.It Dv MNT_AUTOMOUNTED
+The filesystem was auto-mounted, see
+.Xr autofs 4 .
+.It Dv MNT_DEFEXPORTED
+The file system is exported for both reading and writing to any Internet host.
 .It Dv MNT_GJOURNAL
 Journaling with gjournal is enabled (see
 .Xr gjournal 8 ) .
-.It Dv MNT_SUIDDIR
-Special handling of SUID bit on directories.
-.It Dv MNT_UNION
-Union with underlying file system.
-.It Dv MNT_NOSYMFOLLOW
-Symbolic links are not followed.
-.It Dv MNT_NOCLUSTERR
-Read clustering is disabled.
-.It Dv MNT_NOCLUSTERW
-Write clustering is disabled.
-.\".It Dv MNT_JAILDEVFS
-.\"XXX
+.It Dv MNT_EXKERB
+The file system is exported with Kerberos uid mapping.
+.It Dv MNT_EXPORTANON
+The file system maps all remote accesses to the anonymous user.
+.It Dv MNT_EXPORTED
+The file system is exported for both reading and writing.
+.It Dv MNT_EXPUBLIC
+The file system is exported publicly (WebNFS).
+.It Dv MNT_EXRDONLY
+The file system is exported read-only.
+.It Dv MNT_IGNORE
+The file system should not be listed, e.g. by
+.Xr df 1 .
+.It Dv MNT_LOCAL
+The file system resides locally.
 .It Dv MNT_MULTILABEL
 Mandatory Access Control (MAC) support for individual objects
 (see
 .Xr mac 4 ) .
-.It Dv MNT_ACLS
-Access Control List (ACL) support enabled.
-.It Dv MNT_LOCAL
-The file system resides locally.
-.It Dv MNT_QUOTA
-The file system has quotas enabled on it.
-.It Dv MNT_ROOTFS
-Identifies the root file system.
-.It Dv MNT_EXRDONLY
-The file system is exported read-only.
+.It Dv MNT_NFS4ACLS
+ACLs in NFSv4 variant are supported.
 .It Dv MNT_NOATIME
 Updating of file access times is disabled.
+.It Dv MNT_NOCLUSTERR
+Read clustering is disabled.
+.It Dv MNT_NOCLUSTERW
+Write clustering is disabled.
+.It Dv MNT_NOEXEC
+Files may not be executed from the file system.
+.It Dv MNT_NOSUID
+Setuid and setgid bits on files are not honored when they are executed.
+.It Dv MNT_NOSYMFOLLOW
+Symbolic links are not followed.
+.It Dv MNT_SOFTDEP
+Soft updates being done (see
+.Xr ffs 4 ) .
+.It Dv MNT_SUIDDIR
+Special handling of SUID bit on directories.
+.It Dv MNT_SUJ
+Soft-updates with journaling being done.
+.It Dv MNT_SYNCHRONOUS
+All I/O to the file system is done synchronously.
+.It Dv MNT_QUOTA
+The file system has quotas enabled on it.
+.It Dv MNT_RDONLY
+The file system is mounted read-only;
+Even the super-user may not write on it.
+.It Dv MNT_ROOTFS
+Identifies the root file system.
+.It Dv MNT_UNION
+Union with underlying file system.
+.It Dv MNT_UNTRUSTED
+The file system was mounted with the
+.Cm untrusted
+option, which indicates media of unknown provenance or integrity.
+Currently honored by
+.Xr ffs 4 .
 .It Dv MNT_USER
 The file system has been mounted by a user.
-.\".It Dv MNT_IGNORE
-.\"XXX
-.It Dv MNT_EXPORTED
-The file system is exported for both reading and writing.
-.It Dv MNT_DEFEXPORTED
-The file system is exported for both reading and writing to any Internet host.
-.It Dv MNT_EXPORTANON
-The file system maps all remote accesses to the anonymous user.
-.It Dv MNT_EXKERB
-The file system is exported with Kerberos uid mapping.
-.It Dv MNT_EXPUBLIC
-The file system is exported publicly (WebNFS).
+.It Dv MNT_VERIFIED
+The file system is marked as verified, no fingerprint check on
+.Xr execve 2
+is needed, see
+.Xr mac_veriexec 4 .
 .El
 .Pp
 Fields that are undefined for a particular file system are set to -1.

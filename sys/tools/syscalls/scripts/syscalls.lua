@@ -38,6 +38,9 @@ function syscalls.generate(tbl, config, fh)
 	for _, v in pairs(s) do
 		--print("num " .. v.num .. " name " .. v.name)
 		local c = v:compatLevel()
+
+		gen:write(v.prolog);
+
 		if v:native() then
 			gen:write(string.format([[
 	"%s",			/* %d = %s */
@@ -80,6 +83,7 @@ function syscalls.generate(tbl, config, fh)
 
 		end
 	end
+	gen:write(tbl.epilog)
 	-- End
 	gen:write("};\n")
 end

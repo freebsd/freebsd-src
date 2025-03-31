@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd July 20, 2024
+.Dd January 6, 2025
 .Dt CDEFS 9
 .Os
 .Sh NAME
@@ -91,6 +91,11 @@ warn about it
 .It Sy __deprecated Ta Function interface has been deprecated, and clients
 should migrate to a new interface.
 A warning will be issued for clients of this interface.
+.It Sy __deprecated1(msg) Ta Function interface has been deprecated, and clients
+should migrate to a new interface.
+The string
+.Fa msg
+will be included in a warning issued for clients of this interface.
 .It Sy __packed Ta \&Do not have space between structure elements for natural alignment.
 Used when communicating with external protocols.
 .It Sy __aligned(x) Ta Specify in bytes the minimum alignment for the specified field, structure or variable
@@ -303,7 +308,7 @@ to distinguish it from newer standards.
 Support for this compilation environment is dependent on compilers supporting
 this configuration.
 Most of the old forms of C have been deprecated or removed in
-ISO/IEC 9899:2024 (“ISO C23”).
+.St -isoC-2024 .
 Compilers make compiling in this mode increasingly difficult and support for it
 may ultimately be removed from the tree.
 .It St -ansiC
@@ -333,11 +338,11 @@ since there are no new C17 only symbols or macros.
 .Pp
 This version of the standard did not introduce any new features, only made
 minor, technical corrections.
-.It ISO/IEC 9899:2024 (“ISO C23”)
+.It St -isoC-2024
 .Dv __STDC_VERSION__ = 202311L
 Strict environment selected with
 .Dv _C23_SOURCE
-though this is not yet implemented.
+though ISO C23 support is only partially implemented.
 .El
 .Pp
 For more information on C standards, see
@@ -347,6 +352,7 @@ Defining the macros outlined below requests that the system header files provide
 only the functions, structures and macros (symbols) defined by the appropriate
 standard, while suppressing all extensions.
 However, system headers not defined by that standard may define extensions.
+You may only define one of the following for any compilation unit.
 .Bl -column "---------------"
 .It Sy Macro Ta Sy Environment
 .It Dv _POSIX_SOURCE Ta St -p1003.1-88 including St -ansiC
@@ -356,17 +362,26 @@ However, system headers not defined by that standard may define extensions.
 .It Dv _POSIX_C_SOURCE = 199506 Ta St -p1003.1c-95 including St -ansiC
 .It Dv _POSIX_C_SOURCE = 200112 Ta St -p1003.1-2001 including St -isoC-99
 .It Dv _POSIX_C_SOURCE = 200809 Ta St -p1003.1-2008 including St -isoC-99
-.It Dv _POSIX_C_SOURCE = 202405 Ta in the future IEEE Std 1003.1-2024 (“POSIX.1”) including ISO/IEC 9899:2024 (“ISO C23”)
+.It Dv _POSIX_C_SOURCE = 202405 Ta St -p1003.1-2024 including ISO/IEC 9899:2018 ("ISO C17"),
+.It Dv _XOPEN_SOURCE defined Ta St -p1003.1-90 with XPG Extensions to St -susv1 including St -ansiC .
+However,
+.Fx
+implements this as a NOP because too much software breaks with the correct strict environment.
 .It Dv _XOPEN_SOURCE = 500 Ta St -p1003.1c-95 and XPG extensions to St -susv2 including St -ansiC
 .It Dv _XOPEN_SOURCE = 600 Ta St -p1003.1-2001 and XPG extensions to St -susv3 including St -isoC-99
 .It Dv _XOPEN_SOURCE = 700 Ta St -p1003.1-2008 and XPG extensions to St -susv4 including St -isoC-99
-.It Dv _XOPEN_SOURCE = 800 Ta in the future IEEE Std 1003.1-2024 (“POSIX.1”) and XPG extensions to Version 5 of the Single UNIX Specification (“SUSv5”) including ISO/IEC 9899:2024 (“ISO C23”)
+.It Dv _XOPEN_SOURCE = 800 Ta St -p1003.1-2024 and XPG extensions to Version 5 of the Single UNIX Specification (“SUSv5”) including ISO/IEC 9899:2018 (“ISO C17”)
 .It Dv _ANSI_SOURCE Ta St -ansiC
 .It Dv _C99_SOURCE Ta St -isoC-99
 .It Dv _C11_SOURCE Ta St -isoC-2011
-.It Dv _C23_SOURCE Ta in the future ISO/IEC 9899:2024 (“ISO C23”)
+.It Dv _C23_SOURCE Ta St -isoC-2024
 .It Dv _BSD_SOURCE Ta Everything, including Fx extensions
 .El
+.Pp
+Note:
+.St -p1003.1-2024
+and XPG extensions to Version 5 of the Single UNIX Specification ("SUSv5")
+support is incomplete.
 .Pp
 When both POSIX and C environments are selected, the POSIX environment selects
 which C environment is used.
@@ -374,12 +389,20 @@ However, when C11 dialect is selected with
 .St -p1003.1-2008 ,
 definitions for
 .St -isoC-2011
-are included.
+are also included.
+Likewise, when C23 dialog is selected with
+.St -p1003.1-2008
+or
+.St -p1003.1-2024 ,
+definitions for
+.St -isoC-2024
+are also included.
 .Ss Header Visibility Macros
 These macros are set by
 .Nm
 to control the visibility of different standards.
-Users should not use these, but they are documented here for developers.
+Users must not define these, and doing so will produced undefined results.
+They are documented here for developers working on system's header files.
 .Bl -column "---------------"
 .It Dv __XSI_VISIBLE Ta Restricts the visibility of XOPEN Single Unix Standard version.
 Possible values are 500, 600, 700 or 800, corresponding to Issue 5, 6, 7, or 8
@@ -393,13 +416,13 @@ by convention with 199009 for
 and 199209
 .St -p1003.1-90 .
 .It Dv __ISO_C_VISIBLE Ta The C level that's visible.
-Possible values include 1990, 1999, and 2011 for
+Possible values include 1990, 1999, 2011, 2017 and 2023 for
 .St -isoC-90 ,
-.St -isoC-99
-and
-.St -isoC-2011
+.St -isoC-99 ,
+.St -isoC-2011 ,
+ISO/IEC 9899:2018 ("ISO C17"), and
+.St -isoC-2024 ,
 respectively.
-In the future, 2023 will be used for ISO C2023.
 .It Dv __BSD_VISIBLE Ta 1 if the
 .Fx
 extensions are visible, 0 otherwise.

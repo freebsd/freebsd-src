@@ -62,17 +62,16 @@ static char * _strptime(const char *, const char *, struct tm *, int *, locale_t
 #define	FLAG_WDAY	(1 << 5)
 
 /*
- * Calculate the week day of the first day of a year. Valid for
- * the Gregorian calendar, which began Sept 14, 1752 in the UK
- * and its colonies. Ref:
- * http://en.wikipedia.org/wiki/Determination_of_the_day_of_the_week
+ * Gauss's algorithm for the day of the week of the first day of any year
+ * in the Gregorian calendar.
  */
-
 static int
 first_wday_of(int year)
 {
-	return (((2 * (3 - (year / 100) % 4)) + (year % 100) +
-		((year % 100) / 4) + (isleap(year) ? 6 : 0) + 1) % 7);
+	return ((1 +
+	    5 * ((year - 1) % 4) +
+	    4 * ((year - 1) % 100) +
+	    6 * ((year - 1) % 400)) % 7);
 }
 
 static char *
@@ -674,13 +673,8 @@ label:
 			flags |= FLAG_MDAY;
 		}
 		if (!(flags & FLAG_WDAY)) {
-			i = 0;
-			wday_offset = first_wday_of(tm->tm_year);
-			while (i++ <= tm->tm_yday) {
-				if (wday_offset++ >= 6)
-					wday_offset = 0;
-			}
-			tm->tm_wday = wday_offset;
+			wday_offset = first_wday_of(tm->tm_year + TM_YEAR_BASE);
+			tm->tm_wday = (wday_offset + tm->tm_yday) % 7;
 			flags |= FLAG_WDAY;
 		}
 	}

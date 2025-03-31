@@ -52,11 +52,30 @@ load_poolnode(int role, char *name, ip_pool_node_t *node, int ttl,
 
 	if (err != 0) {
 		if ((opts & OPT_DONOTHING) == 0) {
-			char msg[80];
+			char msg[255];
+			char ipaddr[80], mask_msg[10], mask[8];
 
-			snprintf(msg, sizeof(msg), "%s pool node(%s/", what,
-				inet_ntoa(pn.ipn_addr.adf_addr.in4));
-			strcat(msg, inet_ntoa(pn.ipn_mask.adf_addr.in4));
+			inet_ntop(pn.ipn_addr.adf_family,
+				pn.ipn_addr.adf_addr.vptr, ipaddr,
+				sizeof(ipaddr));
+
+#ifdef USE_INET6
+			if (pn.ipn_mask.adf_family == AF_INET) {
+#endif
+				inet_ntop(pn.ipn_mask.adf_family,
+					pn.ipn_mask.adf_addr.vptr, mask,
+					sizeof(mask));
+				mask_msg[0]='/';
+				mask_msg[1]='\0';
+				strlcat(mask_msg, mask, sizeof(mask_msg));
+#ifdef USE_INET6
+			} else {
+				mask_msg[0]='\0';
+			}
+#endif
+
+			snprintf(msg, sizeof(msg), "%s pool(%s) node(%s%s)",
+				what, name, ipaddr, mask_msg);
 			return (ipf_perror_fd(pool_fd(), iocfunc, msg));
 		}
 	}

@@ -171,7 +171,8 @@ pci_host_generic_fdt_attach(device_t dev)
 		return (error);
 
 	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int
@@ -214,6 +215,7 @@ parse_pci_mem_ranges(device_t dev, struct generic_pcie_core_softc *sc)
 			sc->ranges[i].flags |= FLAG_TYPE_MEM;
 		}
 
+		sc->ranges[i].rid = -1;
 		sc->ranges[i].pci_base = 0;
 		for (k = 0; k < (pci_addr_cells - 1); k++) {
 			sc->ranges[i].pci_base <<= 32;

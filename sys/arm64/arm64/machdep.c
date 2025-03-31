@@ -40,6 +40,7 @@
 #include <sys/csan.h>
 #include <sys/devmap.h>
 #include <sys/efi.h>
+#include <sys/efi_map.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
@@ -77,6 +78,7 @@
 
 #include <machine/armreg.h>
 #include <machine/cpu.h>
+#include <machine/cpu_feat.h>
 #include <machine/debug_monitor.h>
 #include <machine/hypervisor.h>
 #include <machine/kdb.h>
@@ -172,36 +174,42 @@ SYSINIT(ssp_warn, SI_SUB_COPYRIGHT, SI_ORDER_ANY, print_ssp_warning, NULL);
 SYSINIT(ssp_warn2, SI_SUB_LAST, SI_ORDER_ANY, print_ssp_warning, NULL);
 #endif
 
-static void
-pan_setup(void)
+static bool
+pan_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t id_aa64mfr1;
 
 	id_aa64mfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
-	if (ID_AA64MMFR1_PAN_VAL(id_aa64mfr1) != ID_AA64MMFR1_PAN_NONE)
-		has_pan = 1;
+	return (ID_AA64MMFR1_PAN_VAL(id_aa64mfr1) != ID_AA64MMFR1_PAN_NONE);
 }
 
-void
-pan_enable(void)
+static void
+pan_enable(const struct cpu_feat *feat __unused,
+    cpu_feat_errata errata_status __unused, u_int *errata_list __unused,
+    u_int errata_count __unused)
 {
+	has_pan = 1;
 
 	/*
-	 * The LLVM integrated assembler doesn't understand the PAN
-	 * PSTATE field. Because of this we need to manually create
-	 * the instruction in an asm block. This is equivalent to:
-	 * msr pan, #1
-	 *
 	 * This sets the PAN bit, stopping the kernel from accessing
 	 * memory when userspace can also access it unless the kernel
 	 * uses the userspace load/store instructions.
 	 */
-	if (has_pan) {
-		WRITE_SPECIALREG(sctlr_el1,
-		    READ_SPECIALREG(sctlr_el1) & ~SCTLR_SPAN);
-		__asm __volatile(".inst 0xd500409f | (0x1 << 8)");
-	}
+	WRITE_SPECIALREG(sctlr_el1,
+	    READ_SPECIALREG(sctlr_el1) & ~SCTLR_SPAN);
+	__asm __volatile(
+	    ".arch_extension pan	\n"
+	    "msr pan, #1		\n"
+	    ".arch_extension nopan	\n");
 }
+
+static struct cpu_feat feat_pan = {
+	.feat_name		= "FEAT_PAN",
+	.feat_check		= pan_check,
+	.feat_enable		= pan_enable,
+	.feat_flags		= CPU_FEAT_EARLY_BOOT | CPU_FEAT_PER_CPU,
+};
+DATA_SET(cpu_feat_set, feat_pan);
 
 bool
 has_hyp(void)
@@ -450,172 +458,6 @@ arm64_get_writable_addr(void *addr, void **out)
 	return (false);
 }
 
-typedef void (*efi_map_entry_cb)(struct efi_md *, void *argp);
-
-static void
-foreach_efi_map_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb, void *argp)
-{
-	struct efi_md *map, *p;
-	size_t efisz;
-	int ndesc, i;
-
-	/*
-	 * Memory map data provided by UEFI via the GetMemoryMap
-	 * Boot Services API.
-	 */
-	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
-	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
-
-	if (efihdr->descriptor_size == 0)
-		return;
-	ndesc = efihdr->memory_size / efihdr->descriptor_size;
-
-	for (i = 0, p = map; i < ndesc; i++,
-	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
-		cb(p, argp);
-	}
-}
-
-/*
- * Handle the EFI memory map list.
- *
- * We will make two passes at this, the first (exclude == false) to populate
- * physmem with valid physical memory ranges from recognized map entry types.
- * In the second pass we will exclude memory ranges from physmem which must not
- * be used for general allocations, either because they are used by runtime
- * firmware or otherwise reserved.
- *
- * Adding the runtime-reserved memory ranges to physmem and excluding them
- * later ensures that they are included in the DMAP, but excluded from
- * phys_avail[].
- *
- * Entry types not explicitly listed here are ignored and not mapped.
- */
-static void
-handle_efi_map_entry(struct efi_md *p, void *argp)
-{
-	bool exclude = *(bool *)argp;
-
-	switch (p->md_type) {
-	case EFI_MD_TYPE_RECLAIM:
-		/*
-		 * The recomended location for ACPI tables. Map into the
-		 * DMAP so we can access them from userspace via /dev/mem.
-		 */
-	case EFI_MD_TYPE_RT_CODE:
-		/*
-		 * Some UEFI implementations put the system table in the
-		 * runtime code section. Include it in the DMAP, but will
-		 * be excluded from phys_avail.
-		 */
-	case EFI_MD_TYPE_RT_DATA:
-		/*
-		 * Runtime data will be excluded after the DMAP
-		 * region is created to stop it from being added
-		 * to phys_avail.
-		 */
-		if (exclude) {
-			physmem_exclude_region(p->md_phys,
-			    p->md_pages * EFI_PAGE_SIZE, EXFLAG_NOALLOC);
-			break;
-		}
-		/* FALLTHROUGH */
-	case EFI_MD_TYPE_CODE:
-	case EFI_MD_TYPE_DATA:
-	case EFI_MD_TYPE_BS_CODE:
-	case EFI_MD_TYPE_BS_DATA:
-	case EFI_MD_TYPE_FREE:
-		/*
-		 * We're allowed to use any entry with these types.
-		 */
-		if (!exclude)
-			physmem_hardware_region(p->md_phys,
-			    p->md_pages * EFI_PAGE_SIZE);
-		break;
-	default:
-		/* Other types shall not be handled by physmem. */
-		break;
-	}
-}
-
-static void
-add_efi_map_entries(struct efi_map_header *efihdr)
-{
-	bool exclude = false;
-	foreach_efi_map_entry(efihdr, handle_efi_map_entry, &exclude);
-}
-
-static void
-exclude_efi_map_entries(struct efi_map_header *efihdr)
-{
-	bool exclude = true;
-	foreach_efi_map_entry(efihdr, handle_efi_map_entry, &exclude);
-}
-
-static void
-print_efi_map_entry(struct efi_md *p, void *argp __unused)
-{
-	const char *type;
-	static const char *types[] = {
-		"Reserved",
-		"LoaderCode",
-		"LoaderData",
-		"BootServicesCode",
-		"BootServicesData",
-		"RuntimeServicesCode",
-		"RuntimeServicesData",
-		"ConventionalMemory",
-		"UnusableMemory",
-		"ACPIReclaimMemory",
-		"ACPIMemoryNVS",
-		"MemoryMappedIO",
-		"MemoryMappedIOPortSpace",
-		"PalCode",
-		"PersistentMemory"
-	};
-
-	if (p->md_type < nitems(types))
-		type = types[p->md_type];
-	else
-		type = "<INVALID>";
-	printf("%23s %012lx %012lx %08lx ", type, p->md_phys,
-	    p->md_virt, p->md_pages);
-	if (p->md_attr & EFI_MD_ATTR_UC)
-		printf("UC ");
-	if (p->md_attr & EFI_MD_ATTR_WC)
-		printf("WC ");
-	if (p->md_attr & EFI_MD_ATTR_WT)
-		printf("WT ");
-	if (p->md_attr & EFI_MD_ATTR_WB)
-		printf("WB ");
-	if (p->md_attr & EFI_MD_ATTR_UCE)
-		printf("UCE ");
-	if (p->md_attr & EFI_MD_ATTR_WP)
-		printf("WP ");
-	if (p->md_attr & EFI_MD_ATTR_RP)
-		printf("RP ");
-	if (p->md_attr & EFI_MD_ATTR_XP)
-		printf("XP ");
-	if (p->md_attr & EFI_MD_ATTR_NV)
-		printf("NV ");
-	if (p->md_attr & EFI_MD_ATTR_MORE_RELIABLE)
-		printf("MORE_RELIABLE ");
-	if (p->md_attr & EFI_MD_ATTR_RO)
-		printf("RO ");
-	if (p->md_attr & EFI_MD_ATTR_RT)
-		printf("RUNTIME");
-	printf("\n");
-}
-
-static void
-print_efi_map_entries(struct efi_map_header *efihdr)
-{
-
-	printf("%23s %12s %12s %8s %4s\n",
-	    "Type", "Physical", "Virtual", "#Pages", "Attr");
-	foreach_efi_map_entry(efihdr, print_efi_map_entry, NULL);
-}
-
 /*
  * Map the passed in VA in EFI space to a void * using the efi memory table to
  * find the PA and return it in the DMAP, if it exists. We're used between the
@@ -652,7 +494,7 @@ efi_early_map(vm_offset_t va)
 {
 	struct early_map_data emd = { .va = va };
 
-	foreach_efi_map_entry(efihdr, efi_early_map_entry, &emd);
+	efi_map_foreach_entry(efihdr, efi_early_map_entry, &emd);
 	if (emd.pa == 0)
 		return NULL;
 	return (void *)PHYS_TO_DMAP(emd.pa);
@@ -666,7 +508,7 @@ efi_early_map(vm_offset_t va)
  * anything since msgbufp isn't initialized, let alone a console...
  */
 static void
-exclude_efi_memreserve(vm_offset_t efi_systbl_phys)
+exclude_efi_memreserve(vm_paddr_t efi_systbl_phys)
 {
 	struct efi_systbl *systbl;
 	struct uuid efi_memreserve = LINUX_EFI_MEMRESERVE_TABLE;
@@ -727,11 +569,11 @@ exclude_efi_memreserve(vm_offset_t efi_systbl_phys)
 
 #ifdef FDT
 static void
-try_load_dtb(caddr_t kmdp)
+try_load_dtb(void)
 {
 	vm_offset_t dtbp;
 
-	dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+	dtbp = MD_FETCH(preload_kmdp, MODINFOMD_DTBP, vm_offset_t);
 #if defined(FDT_DTB_STATIC)
 	/*
 	 * In case the device tree blob was not retrieved (from metadata) try
@@ -893,7 +735,6 @@ initarm(struct arm64_bootparams *abp)
 	char dts_version[255];
 #endif
 	vm_offset_t lastaddr;
-	caddr_t kmdp;
 	bool valid;
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
@@ -902,11 +743,6 @@ initarm(struct arm64_bootparams *abp)
 
 	/* Parse loader or FDT boot parameters. Determine last used address. */
 	lastaddr = parse_boot_param(abp);
-
-	/* Find the kernel address */
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
 
 	identify_cpu(0);
 	identify_hypervisor_smbios();
@@ -929,18 +765,19 @@ initarm(struct arm64_bootparams *abp)
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(midr, get_midr());
 
-	link_elf_ireloc(kmdp);
+	link_elf_ireloc();
 #ifdef FDT
-	try_load_dtb(kmdp);
+	try_load_dtb();
 #endif
 
-	efi_systbl_phys = MD_FETCH(kmdp, MODINFOMD_FW_HANDLE, vm_paddr_t);
+	efi_systbl_phys = MD_FETCH(preload_kmdp, MODINFOMD_FW_HANDLE,
+	    vm_paddr_t);
 
 	/* Load the physical memory ranges */
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	efihdr = (struct efi_map_header *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr != NULL)
-		add_efi_map_entries(efihdr);
+		efi_map_add_entries(efihdr);
 #ifdef FDT
 	else {
 		/* Grab physical memory regions information from device tree. */
@@ -955,7 +792,7 @@ initarm(struct arm64_bootparams *abp)
 #endif
 
 	/* Exclude the EFI framebuffer from our view of physical memory. */
-	efifb = (struct efi_fb *)preload_search_info(kmdp,
+	efifb = (struct efi_fb *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_FB);
 	if (efifb != NULL)
 		physmem_exclude_region(efifb->fb_addr, efifb->fb_size,
@@ -965,13 +802,12 @@ initarm(struct arm64_bootparams *abp)
 	init_param1();
 
 	cache_setup();
-	pan_setup();
 
 	/* Bootstrap enough of pmap  to enter the kernel proper */
 	pmap_bootstrap(lastaddr - KERNBASE);
 	/* Exclude entries needed in the DMAP region, but not phys_avail */
 	if (efihdr != NULL)
-		exclude_efi_map_entries(efihdr);
+		efi_map_exclude_entries(efihdr);
 	/*  Do the same for reserve entries in the EFI MEMRESERVE table */
 	if (efi_systbl_phys != 0)
 		exclude_efi_memreserve(efi_systbl_phys);
@@ -1001,12 +837,8 @@ initarm(struct arm64_bootparams *abp)
 		panic("Invalid bus configuration: %s",
 		    kern_getenv("kern.cfg.order"));
 
-	/*
-	 * Check if pointer authentication is available on this system, and
-	 * if so enable its use. This needs to be called before init_proc0
-	 * as that will configure the thread0 pointer authentication keys.
-	 */
-	ptrauth_init();
+	/* Detect early CPU feature support */
+	enable_cpu_feat(CPU_FEAT_EARLY_BOOT);
 
 	/*
 	 * Dump the boot metadata. We have to wait for cninit() since console
@@ -1027,7 +859,6 @@ initarm(struct arm64_bootparams *abp)
 	if ((boothowto & RB_KDB) != 0)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
-	pan_enable();
 
 	kcsan_cpu_init(0);
 	kasan_init();
@@ -1055,7 +886,7 @@ initarm(struct arm64_bootparams *abp)
 
 	if (boothowto & RB_VERBOSE) {
 		if (efihdr != NULL)
-			print_efi_map_entries(efihdr);
+			efi_map_print_entries(efihdr);
 		physmem_print_tables();
 	}
 

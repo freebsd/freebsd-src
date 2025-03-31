@@ -77,7 +77,7 @@
 
 extern bool proxy_mode;
 
-static int	ctl_fd = 0;
+int	ctl_fd = 0;
 
 void
 kernel_init(void)
@@ -106,15 +106,6 @@ kernel_init(void)
 }
 
 /*
- * Name/value pair used for per-LUN attributes.
- */
-struct cctl_lun_nv {
-	char *name;
-	char *value;
-	STAILQ_ENTRY(cctl_lun_nv) links;
-};
-
-/*
  * Backend LUN information.
  */
 struct cctl_lun {
@@ -126,7 +117,7 @@ struct cctl_lun {
 	char *serial_number;
 	char *device_id;
 	char *ctld_name;
-	STAILQ_HEAD(,cctl_lun_nv) attr_list;
+	nvlist_t *attr_list;
 	STAILQ_ENTRY(cctl_lun) links;
 };
 
@@ -140,7 +131,7 @@ struct cctl_port {
 	char *cfiscsi_target;
 	uint16_t cfiscsi_portal_group_tag;
 	char *ctld_portal_group_name;
-	STAILQ_HEAD(,cctl_lun_nv) attr_list;
+	nvlist_t *attr_list;
 	STAILQ_ENTRY(cctl_port) links;
 };
 
@@ -187,7 +178,7 @@ cctl_start_element(void *user_data, const char *name, const char **attr)
 		devlist->num_luns++;
 		devlist->cur_lun = cur_lun;
 
-		STAILQ_INIT(&cur_lun->attr_list);
+		cur_lun->attr_list = nvlist_create(0);
 		STAILQ_INSERT_TAIL(&devlist->lun_list, cur_lun, links);
 
 		for (i = 0; attr[i] != NULL; i += 2) {
@@ -207,6 +198,7 @@ cctl_end_element(void *user_data, const char *name)
 	struct cctl_devlist_data *devlist;
 	struct cctl_lun *cur_lun;
 	char *str;
+	int error;
 
 	devlist = (struct cctl_devlist_data *)user_data;
 	cur_lun = devlist->cur_lun;
@@ -260,18 +252,12 @@ cctl_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "ctllunlist") == 0) {
 		/* Nothing. */
 	} else {
-		struct cctl_lun_nv *nv;
-
-		nv = calloc(1, sizeof(*nv));
-		if (nv == NULL)
-			log_err(1, "%s: can't allocate %zd bytes for nv pair",
-			    __func__, sizeof(*nv));
-
-		nv->name = checked_strdup(name);
-
-		nv->value = str;
+		nvlist_move_string(cur_lun->attr_list, name, str);
+		error = nvlist_error(cur_lun->attr_list);
+		if (error != 0)
+			log_errc(1, error, "%s: failed to add nv pair for %s",
+			    __func__, name);
 		str = NULL;
-		STAILQ_INSERT_TAIL(&cur_lun->attr_list, nv, links);
 	}
 
 	free(str);
@@ -309,7 +295,7 @@ cctl_start_pelement(void *user_data, const char *name, const char **attr)
 		devlist->num_ports++;
 		devlist->cur_port = cur_port;
 
-		STAILQ_INIT(&cur_port->attr_list);
+		cur_port->attr_list = nvlist_create(0);
 		STAILQ_INSERT_TAIL(&devlist->port_list, cur_port, links);
 
 		for (i = 0; attr[i] != NULL; i += 2) {
@@ -329,6 +315,7 @@ cctl_end_pelement(void *user_data, const char *name)
 	struct cctl_devlist_data *devlist;
 	struct cctl_port *cur_port;
 	char *str;
+	int error;
 
 	devlist = (struct cctl_devlist_data *)user_data;
 	cur_port = devlist->cur_port;
@@ -386,18 +373,12 @@ cctl_end_pelement(void *user_data, const char *name)
 	} else if (strcmp(name, "ctlportlist") == 0) {
 		/* Nothing. */
 	} else {
-		struct cctl_lun_nv *nv;
-
-		nv = calloc(1, sizeof(*nv));
-		if (nv == NULL)
-			log_err(1, "%s: can't allocate %zd bytes for nv pair",
-			    __func__, sizeof(*nv));
-
-		nv->name = checked_strdup(name);
-
-		nv->value = str;
+		nvlist_move_string(cur_port->attr_list, name, str);
+		error = nvlist_error(cur_port->attr_list);
+		if (error != 0)
+			log_errc(1, error, "%s: failed to add nv pair for %s",
+			    __func__, name);
 		str = NULL;
-		STAILQ_INSERT_TAIL(&cur_port->attr_list, nv, links);
 	}
 
 	free(str);
@@ -422,14 +403,15 @@ conf_new_from_kernel(struct kports *kports)
 	struct pport *pp;
 	struct port *cp;
 	struct lun *cl;
-	struct option *o;
 	struct ctl_lun_list list;
 	struct cctl_devlist_data devlist;
 	struct cctl_lun *lun;
 	struct cctl_port *port;
 	XML_Parser parser;
+	const char *key;
 	char *str, *name;
-	int len, retval;
+	void *cookie;
+	int error, len, retval;
 
 	bzero(&devlist, sizeof(devlist));
 	STAILQ_INIT(&devlist.lun_list);
@@ -561,10 +543,6 @@ retry_port:
 			    port->port_id, name);
 			pp = pport_find(kports, name);
 			if (pp == NULL) {
-#if 0
-				log_debugx("found new kernel port %u \"%s\"",
-				    port->port_id, name);
-#endif
 				pp = pport_new(kports, name, port->port_id);
 				if (pp == NULL) {
 					log_warnx("pport_new failed");
@@ -581,10 +559,6 @@ retry_port:
 
 		targ = target_find(conf, port->cfiscsi_target);
 		if (targ == NULL) {
-#if 0
-			log_debugx("found new kernel target %s for CTL port %ld",
-			    port->cfiscsi_target, port->port_id);
-#endif
 			targ = target_new(conf, port->cfiscsi_target);
 			if (targ == NULL) {
 				log_warnx("target_new failed");
@@ -596,10 +570,6 @@ retry_port:
 			continue;
 		pg = portal_group_find(conf, port->ctld_portal_group_name);
 		if (pg == NULL) {
-#if 0
-			log_debugx("found new kernel portal group %s for CTL port %ld",
-			    port->ctld_portal_group_name, port->port_id);
-#endif
 			pg = portal_group_new(conf, port->ctld_portal_group_name);
 			if (pg == NULL) {
 				log_warnx("portal_group_new failed");
@@ -615,26 +585,17 @@ retry_port:
 		cp->p_ctl_port = port->port_id;
 	}
 	while ((port = STAILQ_FIRST(&devlist.port_list))) {
-		struct cctl_lun_nv *nv;
-
 		STAILQ_REMOVE_HEAD(&devlist.port_list, links);
 		free(port->port_frontend);
 		free(port->port_name);
 		free(port->cfiscsi_target);
 		free(port->ctld_portal_group_name);
-		while ((nv = STAILQ_FIRST(&port->attr_list))) {
-			STAILQ_REMOVE_HEAD(&port->attr_list, links);
-			free(nv->value);
-			free(nv->name);
-			free(nv);
-		}
+		nvlist_destroy(port->attr_list);
 		free(port);
 	}
 	free(name);
 
 	STAILQ_FOREACH(lun, &devlist.lun_list, links) {
-		struct cctl_lun_nv *nv;
-
 		if (lun->ctld_name == NULL) {
 			log_debugx("CTL lun %ju wasn't managed by ctld; "
 			    "ignoring", (uintmax_t)lun->lun_id);
@@ -658,48 +619,56 @@ retry_port:
 			log_warnx("lun_new failed");
 			continue;
 		}
-		lun_set_backend(cl, lun->backend_type);
-		lun_set_device_type(cl, lun->device_type);
-		lun_set_blocksize(cl, lun->blocksize);
-		lun_set_device_id(cl, lun->device_id);
-		lun_set_serial(cl, lun->serial_number);
-		lun_set_size(cl, lun->size_blocks * cl->l_blocksize);
-		lun_set_ctl_lun(cl, lun->lun_id);
+		cl->l_backend = lun->backend_type;
+		lun->backend_type = NULL;
+		cl->l_device_type = lun->device_type;
+		cl->l_blocksize = lun->blocksize;
+		cl->l_device_id = lun->device_id;
+		lun->device_id = NULL;
+		cl->l_serial = lun->serial_number;
+		lun->serial_number = NULL;
+		cl->l_size = lun->size_blocks * cl->l_blocksize;
+		cl->l_ctl_lun = lun->lun_id;
 
-		STAILQ_FOREACH(nv, &lun->attr_list, links) {
-			if (strcmp(nv->name, "file") == 0 ||
-			    strcmp(nv->name, "dev") == 0) {
-				lun_set_path(cl, nv->value);
+		cookie = NULL;
+		while ((key = nvlist_next(lun->attr_list, NULL, &cookie)) !=
+		    NULL) {
+			if (strcmp(key, "file") == 0 ||
+			    strcmp(key, "dev") == 0) {
+				cl->l_path = nvlist_take_string(lun->attr_list,
+				    key);
 				continue;
 			}
-			o = option_new(&cl->l_options, nv->name, nv->value);
-			if (o == NULL)
-				log_warnx("unable to add CTL lun option %s "
-				    "for CTL lun %ju \"%s\"",
-				    nv->name, (uintmax_t) lun->lun_id,
+			nvlist_add_string(cl->l_options, key,
+			    nvlist_get_string(lun->attr_list, key));
+			error = nvlist_error(cl->l_options);
+			if (error != 0)
+				log_warnc(error, "unable to add CTL lun option "
+				    "%s for CTL lun %ju \"%s\"",
+				    key, (uintmax_t)lun->lun_id,
 				    cl->l_name);
 		}
 	}
 	while ((lun = STAILQ_FIRST(&devlist.lun_list))) {
-		struct cctl_lun_nv *nv;
-
 		STAILQ_REMOVE_HEAD(&devlist.lun_list, links);
-		while ((nv = STAILQ_FIRST(&lun->attr_list))) {
-			STAILQ_REMOVE_HEAD(&lun->attr_list, links);
-			free(nv->value);
-			free(nv->name);
-			free(nv);
-		}
+		nvlist_destroy(lun->attr_list);
 		free(lun);
 	}
 
 	return (conf);
 }
 
+static void
+nvlist_replace_string(nvlist_t *nvl, const char *name, const char *value)
+{
+	if (nvlist_exists_string(nvl, name))
+		nvlist_free_string(nvl, name);
+	nvlist_add_string(nvl, name, value);
+}
+
 int
 kernel_lun_add(struct lun *lun)
 {
-	struct option *o;
 	struct ctl_lun_req req;
 	int error;
 
@@ -733,43 +702,18 @@ kernel_lun_add(struct lun *lun)
 		req.reqdata.create.flags |= CTL_LUN_FLAG_DEVID;
 	}
 
-	if (lun->l_path != NULL) {
-		o = option_find(&lun->l_options, "file");
-		if (o != NULL) {
-			option_set(o, lun->l_path);
-		} else {
-			o = option_new(&lun->l_options, "file", lun->l_path);
-			assert(o != NULL);
-		}
-	}
+	if (lun->l_path != NULL)
+		nvlist_replace_string(lun->l_options, "file", lun->l_path);
 
-	o = option_find(&lun->l_options, "ctld_name");
-	if (o != NULL) {
-		option_set(o, lun->l_name);
-	} else {
-		o = option_new(&lun->l_options, "ctld_name", lun->l_name);
-		assert(o != NULL);
-	}
+	nvlist_replace_string(lun->l_options, "ctld_name", lun->l_name);
 
-	o = option_find(&lun->l_options, "scsiname");
-	if (o == NULL && lun->l_scsiname != NULL) {
-		o = option_new(&lun->l_options, "scsiname", lun->l_scsiname);
-		assert(o != NULL);
-	}
+	if (!nvlist_exists_string(lun->l_options, "scsiname") &&
+	    lun->l_scsiname != NULL)
+		nvlist_add_string(lun->l_options, "scsiname", lun->l_scsiname);
 
-	if (!TAILQ_EMPTY(&lun->l_options)) {
-		req.args_nvl = nvlist_create(0);
-		if (req.args_nvl == NULL) {
-			log_warn("error allocating nvlist");
-			return (1);
-		}
-
-		TAILQ_FOREACH(o, &lun->l_options, o_next)
-			nvlist_add_string(req.args_nvl, o->o_name, o->o_value);
-
-		req.args = nvlist_pack(req.args_nvl, &req.args_len);
+	if (!nvlist_empty(lun->l_options)) {
+		req.args = nvlist_pack(lun->l_options, &req.args_len);
 		if (req.args == NULL) {
-			nvlist_destroy(req.args_nvl);
 			log_warn("error packing nvlist");
 			return (1);
 		}
@@ -777,7 +721,6 @@ kernel_lun_add(struct lun *lun)
 
 	error = ioctl(ctl_fd, CTL_LUN_REQ, &req);
 	free(req.args);
-	nvlist_destroy(req.args_nvl);
 
 	if (error != 0) {
 		log_warn("error issuing CTL_LUN_REQ ioctl");
@@ -799,14 +742,13 @@ kernel_lun_add(struct lun *lun)
 		return (1);
 	}
 
-	lun_set_ctl_lun(lun, req.reqdata.create.req_lun_id);
+	lun->l_ctl_lun = req.reqdata.create.req_lun_id;
 	return (0);
 }
 
 int
 kernel_lun_modify(struct lun *lun)
 {
-	struct option *o;
 	struct ctl_lun_req req;
 	int error;
 
@@ -818,43 +760,18 @@ kernel_lun_modify(struct lun *lun)
 	req.reqdata.modify.lun_id = lun->l_ctl_lun;
 	req.reqdata.modify.lun_size_bytes = lun->l_size;
 
-	if (lun->l_path != NULL) {
-		o = option_find(&lun->l_options, "file");
-		if (o != NULL) {
-			option_set(o, lun->l_path);
-		} else {
-			o = option_new(&lun->l_options, "file", lun->l_path);
-			assert(o != NULL);
-		}
-	}
+	if (lun->l_path != NULL)
+		nvlist_replace_string(lun->l_options, "file", lun->l_path);
 
-	o = option_find(&lun->l_options, "ctld_name");
-	if (o != NULL) {
-		option_set(o, lun->l_name);
-	} else {
-		o = option_new(&lun->l_options, "ctld_name", lun->l_name);
-		assert(o != NULL);
-	}
+	nvlist_replace_string(lun->l_options, "ctld_name", lun->l_name);
 
-	o = option_find(&lun->l_options, "scsiname");
-	if (o == NULL && lun->l_scsiname != NULL) {
-		o = option_new(&lun->l_options, "scsiname", lun->l_scsiname);
-		assert(o != NULL);
-	}
+	if (!nvlist_exists_string(lun->l_options, "scsiname") &&
+	    lun->l_scsiname != NULL)
+		nvlist_add_string(lun->l_options, "scsiname", lun->l_scsiname);
 
-	if (!TAILQ_EMPTY(&lun->l_options)) {
-		req.args_nvl = nvlist_create(0);
-		if (req.args_nvl == NULL) {
-			log_warn("error allocating nvlist");
-			return (1);
-		}
-
-		TAILQ_FOREACH(o, &lun->l_options, o_next)
-			nvlist_add_string(req.args_nvl, o->o_name, o->o_value);
-
-		req.args = nvlist_pack(req.args_nvl, &req.args_len);
+	if (!nvlist_empty(lun->l_options)) {
+		req.args = nvlist_pack(lun->l_options, &req.args_len);
 		if (req.args == NULL) {
-			nvlist_destroy(req.args_nvl);
 			log_warn("error packing nvlist");
 			return (1);
 		}
@@ -862,7 +779,6 @@ kernel_lun_modify(struct lun *lun)
 
 	error = ioctl(ctl_fd, CTL_LUN_REQ, &req);
 	free(req.args);
-	nvlist_destroy(req.args_nvl);
 
 	if (error != 0) {
 		log_warn("error issuing CTL_LUN_REQ ioctl");
@@ -982,64 +898,9 @@ kernel_handoff(struct ctld_connection *conn)
 	}
 }
 
-void
-kernel_limits(const char *offload, int s, int *max_recv_dsl, int *max_send_dsl,
-    int *max_burst_length, int *first_burst_length)
-{
-	struct ctl_iscsi req;
-	struct ctl_iscsi_limits_params *cilp;
-
-	bzero(&req, sizeof(req));
-
-	req.type = CTL_ISCSI_LIMITS;
-	cilp = (struct ctl_iscsi_limits_params *)&(req.data.limits);
-	if (offload != NULL) {
-		strlcpy(cilp->offload, offload, sizeof(cilp->offload));
-	}
-	cilp->socket = s;
-
-	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
-		log_err(1, "error issuing CTL_ISCSI ioctl; "
-		    "dropping connection");
-	}
-
-	if (req.status != CTL_ISCSI_OK) {
-		log_errx(1, "error returned from CTL iSCSI limits request: "
-		    "%s; dropping connection", req.error_str);
-	}
-
-	if (cilp->max_recv_data_segment_length != 0) {
-		*max_recv_dsl = cilp->max_recv_data_segment_length;
-		*max_send_dsl = cilp->max_recv_data_segment_length;
-	}
-	if (cilp->max_send_data_segment_length != 0)
-		*max_send_dsl = cilp->max_send_data_segment_length;
-	if (cilp->max_burst_length != 0)
-		*max_burst_length = cilp->max_burst_length;
-	if (cilp->first_burst_length != 0)
-		*first_burst_length = cilp->first_burst_length;
-	if (*max_burst_length < *first_burst_length)
-		*first_burst_length = *max_burst_length;
-
-	if (offload != NULL) {
-		log_debugx("Kernel limits for offload \"%s\" are "
-		    "MaxRecvDataSegment=%d, max_send_dsl=%d, "
-		    "MaxBurstLength=%d, FirstBurstLength=%d",
-		    offload, *max_recv_dsl, *max_send_dsl, *max_burst_length,
-		    *first_burst_length);
-	} else {
-		log_debugx("Kernel limits are "
-		    "MaxRecvDataSegment=%d, max_send_dsl=%d, "
-		    "MaxBurstLength=%d, FirstBurstLength=%d",
-		    *max_recv_dsl, *max_send_dsl, *max_burst_length,
-		    *first_burst_length);
-	}
-}
-
 int
 kernel_port_add(struct port *port)
 {
-	struct option *o;
 	struct ctl_port_entry entry;
 	struct ctl_req req;
 	struct ctl_lun_map lm;
@@ -1055,7 +916,7 @@ kernel_port_add(struct port *port)
 
 		if (port->p_portal_group) {
 			strlcpy(req.driver, "iscsi", sizeof(req.driver));
-			req.args_nvl = nvlist_create(0);
+			req.args_nvl = nvlist_clone(pg->pg_options);
 			nvlist_add_string(req.args_nvl, "cfiscsi_target",
 			    targ->t_name);
 			nvlist_add_string(req.args_nvl,
@@ -1067,10 +928,6 @@ kernel_port_add(struct port *port)
 				nvlist_add_string(req.args_nvl,
 				    "cfiscsi_target_alias", targ->t_alias);
 			}
-
-			TAILQ_FOREACH(o, &pg->pg_options, o_next)
-				nvlist_add_string(req.args_nvl, o->o_name,
-				    o->o_value);
 		}
 
 		if (port->p_ioctl_port) {

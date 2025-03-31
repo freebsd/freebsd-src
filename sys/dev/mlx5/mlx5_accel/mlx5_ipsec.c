@@ -256,69 +256,69 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 	if (!(mlx5_ipsec_device_caps(mdev) &
 				MLX5_IPSEC_CAP_PACKET_OFFLOAD)) {
 		mlx5_core_err(mdev, "FULL offload is not supported\n");
-		return (EINVAL);
+		return (EOPNOTSUPP);
 	}
 	if (savp->state == SADB_SASTATE_DEAD)
-		return (EINVAL);
+		return (EOPNOTSUPP);
 	if (savp->alg_enc == SADB_EALG_NONE) {
 		mlx5_core_err(mdev, "Cannot offload authenticated xfrm states\n");
-		return (EINVAL);
+		return (EOPNOTSUPP);
 	}
 	if (savp->alg_enc != SADB_X_EALG_AESGCM16) {
 		mlx5_core_err(mdev, "Only IPSec aes-gcm-16 encryption protocol may be offloaded\n");
-		return (EINVAL);
+		return (EOPNOTSUPP);
 	}
 	if (savp->tdb_compalgxform) {
 		mlx5_core_err(mdev, "Cannot offload compressed xfrm states\n");
-		return (EINVAL);
+		return (EOPNOTSUPP);
 	}
 	if (savp->alg_auth != SADB_X_AALG_AES128GMAC && savp->alg_auth != SADB_X_AALG_AES256GMAC) {
 		mlx5_core_err(mdev, "Cannot offload xfrm states with AEAD key length other than 128/256 bits\n");
-		return (EINVAL);
+		return (EOPNOTSUPP);
 	}
 	if ((saidx->dst.sa.sa_family != AF_INET && saidx->dst.sa.sa_family != AF_INET6) ||
 	    (saidx->src.sa.sa_family != AF_INET && saidx->src.sa.sa_family != AF_INET6)) {
 		mlx5_core_err(mdev, "Only IPv4/6 xfrm states may be offloaded\n");
-		return (EINVAL);
+		return (EOPNOTSUPP);
 	}
 	if (saidx->proto != IPPROTO_ESP) {
 		mlx5_core_err(mdev, "Only ESP xfrm state may be offloaded\n");
-		return (EINVAL);
+		return (EOPNOTSUPP);
 	}
 	/* subtract off the salt, RFC4106, 8.1 and RFC3686, 5.1 */
 	keylen = _KEYLEN(key_encp) - SAV_ISCTRORGCM(savp) * 4 - SAV_ISCHACHA(savp) * 4;
 	if (keylen != 128/8 && keylen != 256 / 8) {
 		mlx5_core_err(mdev, "Cannot offload xfrm states with AEAD key length other than 128/256 bit\n");
-		return (EINVAL);
+		return (EOPNOTSUPP);
 	}
 
 	if (saidx->mode != IPSEC_MODE_TRANSPORT) {
-		mlx5_core_err(mdev, "Only transport xfrm states may be offloaded in full offlaod mode\n");
-		return (EINVAL);
+		mlx5_core_err(mdev, "Only transport xfrm states may be offloaded in full offload mode\n");
+		return (EOPNOTSUPP);
 	}
 
 	if (savp->natt) {
 		if (!(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_ESPINUDP)) {
 			mlx5_core_err(mdev, "Encapsulation is not supported\n");
-			return (EINVAL);
+			return (EOPNOTSUPP);
 		}
         }
 
         if (savp->replay && savp->replay->wsize != 0 && savp->replay->wsize != 4 &&
 	    savp->replay->wsize != 8 && savp->replay->wsize != 16 && savp->replay->wsize != 32) {
 		mlx5_core_err(mdev, "Unsupported replay window size %d\n", savp->replay->wsize);
-		return (EINVAL);
+		return (EOPNOTSUPP);
 	}
 
 	if ((savp->flags & SADB_X_SAFLAGS_ESN) != 0) {
 		if ((mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_ESN) == 0) {
 			mlx5_core_err(mdev, "ESN is not supported\n");
-			return (EINVAL);
+			return (EOPNOTSUPP);
 		}
 	} else if (savp->replay != NULL && savp->replay->wsize != 0) {
 		mlx5_core_warn(mdev,
 		    "non-ESN but replay-protect SA offload is not supported\n");
-		return (EINVAL);
+		return (EOPNOTSUPP);
 	}
         return 0;
 }

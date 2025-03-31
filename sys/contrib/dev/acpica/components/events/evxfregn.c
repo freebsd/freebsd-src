@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -392,7 +392,6 @@ AcpiRemoveAddressSpaceHandler (
 
             /* Now we can delete the handler object */
 
-            AcpiOsReleaseMutex (HandlerObj->AddressSpace.ContextMutex);
             AcpiUtRemoveReference (HandlerObj);
             goto UnlockAndExit;
         }

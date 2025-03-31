@@ -253,11 +253,12 @@ dpaa2_mc_fdt_attach(device_t dev)
 	sc->acpi_based = false;
 	sc->ofw_node = ofw_bus_get_node(dev);
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
+
 	/*
 	 * Attach the children represented in the device tree.
 	 */

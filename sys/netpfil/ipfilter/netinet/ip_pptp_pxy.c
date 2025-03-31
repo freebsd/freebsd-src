@@ -515,7 +515,7 @@ ipf_p_pptp_inout(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 		rev = 0;
 
 	tcp = (tcphdr_t *)fin->fin_dp;
-	if ((tcp->th_flags & TH_OPENING) == TH_OPENING) {
+	if ((tcp_get_flags(tcp) & TH_OPENING) == TH_OPENING) {
 		pptp = (pptp_pxy_t *)aps->aps_data;
 		pptp->pptp_side[1 - rev].pptps_next = ntohl(tcp->th_ack);
 		pptp->pptp_side[1 - rev].pptps_nexthdr = ntohl(tcp->th_ack);

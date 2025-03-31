@@ -75,7 +75,6 @@ BADHDRS= \
 	sys/lockf.h \
 	sys/lockmgr.h \
 	sys/loginclass.h \
-	sys/mac.h \
 	sys/mbuf.h \
 	sys/md4.h \
 	sys/md5.h \
@@ -100,7 +99,6 @@ BADHDRS= \
 	sys/prng.h \
 	sys/qmath.h \
 	sys/racct.h \
-	sys/refcount.h \
 	sys/resourcevar.h \
 	sys/rman.h \
 	sys/rmlock.h \

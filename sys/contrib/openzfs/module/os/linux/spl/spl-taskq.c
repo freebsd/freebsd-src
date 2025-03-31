@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
  *  Copyright (C) 2007 The Regents of the University of California.
@@ -117,9 +118,7 @@ module_param(spl_taskq_thread_bind, int, 0644);
 MODULE_PARM_DESC(spl_taskq_thread_bind, "Bind taskq thread to CPU by default");
 
 static uint_t spl_taskq_thread_timeout_ms = 5000;
-/* BEGIN CSTYLED */
 module_param(spl_taskq_thread_timeout_ms, uint, 0644);
-/* END CSTYLED */
 MODULE_PARM_DESC(spl_taskq_thread_timeout_ms,
 	"Minimum idle threads exit interval for dynamic taskqs");
 
@@ -133,9 +132,7 @@ MODULE_PARM_DESC(spl_taskq_thread_priority,
 	"Allow non-default priority for taskq threads");
 
 static uint_t spl_taskq_thread_sequential = 4;
-/* BEGIN CSTYLED */
 module_param(spl_taskq_thread_sequential, uint, 0644);
-/* END CSTYLED */
 MODULE_PARM_DESC(spl_taskq_thread_sequential,
 	"Create new taskq threads after N sequential tasks");
 

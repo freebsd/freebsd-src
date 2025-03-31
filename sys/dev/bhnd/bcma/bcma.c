@@ -81,7 +81,6 @@ bcma_attach(device_t dev)
 
 	/* Enumerate children */
 	if ((error = bcma_add_children(dev))) {
-		device_delete_children(dev);
 		return (error);
 	}
 

@@ -51,14 +51,13 @@
 #include "bootstrap.h"
 #include "multiboot2.h"
 #include "loader_efi.h"
+#include "modinfo.h"
 
 extern int elf32_loadfile_raw(char *filename, uint64_t dest,
     struct preloaded_file **result, int multiboot);
 extern int elf64_load_modmetadata(struct preloaded_file *fp, uint64_t dest);
 extern int elf64_obj_loadfile(char *filename, uint64_t dest,
     struct preloaded_file **result);
-extern int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
-    bool exit_bs);
 
 extern void multiboot2_exec(void *entry, uint64_t multiboot_info,
     uint64_t stack);
@@ -438,7 +437,7 @@ exec(struct preloaded_file *fp)
 	 *  module 0                 module 1
 	 */
 
-	fp = file_findfile(NULL, "elf kernel");
+	fp = file_findfile(NULL, md_kerntype);
 	if (fp == NULL) {
 		printf("No FreeBSD kernel provided, aborting\n");
 		error = EINVAL;
@@ -500,7 +499,7 @@ obj_loadfile(char *filename, uint64_t dest, struct preloaded_file **result)
 	int			 error;
 
 	/* See if there's a multiboot kernel loaded */
-	mfp = file_findfile(NULL, "elf multiboot kernel");
+	mfp = file_findfile(NULL, md_kerntype_mb);
 	if (mfp == NULL)
 		return (EFTYPE);
 
@@ -508,14 +507,14 @@ obj_loadfile(char *filename, uint64_t dest, struct preloaded_file **result)
 	 * We have a multiboot kernel loaded, see if there's a FreeBSD
 	 * kernel loaded also.
 	 */
-	kfp = file_findfile(NULL, "elf kernel");
+	kfp = file_findfile(NULL, md_kerntype);
 	if (kfp == NULL) {
 		/*
 		 * No kernel loaded, this must be it. The kernel has to
 		 * be loaded as a raw file, it will be processed by
 		 * Xen and correctly loaded as an ELF file.
 		 */
-		rfp = file_loadraw(filename, "elf kernel", 0);
+		rfp = file_loadraw(filename, md_kerntype, 0);
 		if (rfp == NULL) {
 			printf(
 			"Unable to load %s as a multiboot payload kernel\n",

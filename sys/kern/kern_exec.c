@@ -354,7 +354,16 @@ kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	    exec_args_get_begin_envv(args) - args->begin_argv);
 	AUDIT_ARG_ENVV(exec_args_get_begin_envv(args), args->envc,
 	    args->endp - exec_args_get_begin_envv(args));
-
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_ARGS)) {
+		ktrdata(KTR_ARGS, args->begin_argv,
+		    exec_args_get_begin_envv(args) - args->begin_argv);
+        }
+	if (KTRPOINT(td, KTR_ENVS)) {
+		ktrdata(KTR_ENVS, exec_args_get_begin_envv(args),
+		    args->endp - exec_args_get_begin_envv(args));
+        }
+#endif
 	/* Must have at least one argument. */
 	if (args->argc == 0) {
 		exec_free_args(args);
@@ -1231,7 +1240,7 @@ exec_map_stack(struct image_params *imgp)
 	}
 	error = vm_map_find(map, NULL, 0, &stack_addr, (vm_size_t)ssiz,
 	    sv->sv_usrstack, find_space, stack_prot, VM_PROT_ALL,
-	    MAP_STACK_GROWS_DOWN);
+	    MAP_STACK_AREA);
 	if (error != KERN_SUCCESS) {
 		uprintf("exec_new_vmspace: mapping stack size %#jx prot %#x "
 		    "failed, mach error %d errno %d\n", (uintmax_t)ssiz,
@@ -1466,7 +1475,7 @@ exec_free_args_kva(void *cookie)
 }
 
 static void
-exec_args_kva_lowmem(void *arg __unused)
+exec_args_kva_lowmem(void *arg __unused, int flags __unused)
 {
 	SLIST_HEAD(, exec_args_kva) head;
 	struct exec_args_kva *argkva;

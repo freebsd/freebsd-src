@@ -299,7 +299,7 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 	if (port_attr->state == IB_PORT_ACTIVE)
 		port_attr->phys_state = IB_PORT_PHYS_STATE_LINK_UP;
 	port_attr->max_mtu = IB_MTU_4096;
-	port_attr->active_mtu = iboe_get_mtu(rdev->netdev->if_mtu);
+	port_attr->active_mtu = iboe_get_mtu(if_getmtu(rdev->netdev));
 	port_attr->gid_tbl_len = dev_attr->max_sgid;
 	port_attr->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_REINIT_SUP |
 				    IB_PORT_DEVICE_MGMT_SUP |
@@ -2118,7 +2118,7 @@ static int bnxt_re_init_qp_attr(struct bnxt_re_qp *qp, struct bnxt_re_pd *pd,
 		qplqp->max_rd_atomic = dev_attr->max_qp_rd_atom;
 		qplqp->max_dest_rd_atomic = dev_attr->max_qp_init_rd_atom;
 	}
-	qplqp->mtu = ib_mtu_enum_to_int(iboe_get_mtu(rdev->netdev->if_mtu));
+	qplqp->mtu = ib_mtu_enum_to_int(iboe_get_mtu(if_getmtu(rdev->netdev)));
 	qplqp->dpi = &rdev->dpi_privileged; /* Doorbell page */
 	if (init_attr->create_flags) {
 		dev_dbg(rdev_to_dev(rdev),
@@ -2691,7 +2691,7 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 
 	/* MTU settings allowed only during INIT -> RTR */
 	if (qp_attr->qp_state == IB_QPS_RTR) {
-		bnxt_re_init_qpmtu(qp, rdev->netdev->if_mtu, qp_attr_mask, qp_attr,
+		bnxt_re_init_qpmtu(qp, if_getmtu(rdev->netdev), qp_attr_mask, qp_attr,
 				   &is_qpmtu_high);
 		if (udata && !ib_copy_from_udata(&ureq, udata, sizeof(ureq))) {
 			if (ureq.comp_mask & BNXT_RE_COMP_MASK_MQP_EX_PATH_MTU_MASK) {

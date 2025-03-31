@@ -264,7 +264,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	struct cpuref	bsp;
 	vm_offset_t	startkernel, endkernel;
 	char		*env;
-	void		*kmdp = NULL;
         bool		ofw_bootargs = false;
 #ifdef DDB
 	bool		symbols_provided = false;
@@ -336,33 +335,34 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 			preload_metadata += md_offset;
 			preload_bootstrap_relocate(md_offset);
 		}
-		kmdp = preload_search_by_type("elf kernel");
-		if (kmdp != NULL) {
-			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-			envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
-			if (envp != NULL)
-				envp += md_offset;
-			init_static_kenv(envp, 0);
-			if (fdt == 0) {
-				fdt = MD_FETCH(kmdp, MODINFOMD_DTBP, uintptr_t);
-				if (fdt != 0)
-					fdt += md_offset;
-			}
-			/* kernelstartphys is already relocated. */
-			kernelendphys = MD_FETCH(kmdp, MODINFOMD_KERNEND,
-			    vm_offset_t);
-			if (kernelendphys != 0)
-				kernelendphys += md_offset;
-			endkernel = ulmax(endkernel, kernelendphys);
-#ifdef DDB
-			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 
-			db_fetch_ksymtab(ksym_start, ksym_end, md_offset);
-			/* Symbols provided by loader. */
-			symbols_provided = true;
-#endif
+		/* Initialize preload_kmdp */
+		preload_initkmdp(true);
+
+		boothowto = MD_FETCH(preload_kmdp, MODINFOMD_HOWTO, int);
+		envp = MD_FETCH(preload_kmdp, MODINFOMD_ENVP, char *);
+		if (envp != NULL)
+			envp += md_offset;
+		init_static_kenv(envp, 0);
+		if (fdt == 0) {
+			fdt = MD_FETCH(preload_kmdp, MODINFOMD_DTBP, uintptr_t);
+			if (fdt != 0)
+				fdt += md_offset;
 		}
+		/* kernelstartphys is already relocated. */
+		kernelendphys = MD_FETCH(preload_kmdp, MODINFOMD_KERNEND,
+		    vm_offset_t);
+		if (kernelendphys != 0)
+			kernelendphys += md_offset;
+		endkernel = ulmax(endkernel, kernelendphys);
+#ifdef DDB
+		ksym_start = MD_FETCH(preload_kmdp, MODINFOMD_SSYM, uintptr_t);
+		ksym_end = MD_FETCH(preload_kmdp, MODINFOMD_ESYM, uintptr_t);
+
+		db_fetch_ksymtab(ksym_start, ksym_end, md_offset);
+		/* Symbols provided by loader. */
+		symbols_provided = true;
+#endif
 	} else {
 		/*
 		 * Self-loading kernel, we have to fake up metadata.
@@ -372,7 +372,8 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 		 * preload_boostrap_relocate().
 		 */
 		fake_preload_metadata();
-		kmdp = preload_search_by_type("elf kernel");
+		/* Initialize preload_kmdp */
+		preload_initkmdp(true);
 		init_static_kenv(init_kenv, sizeof(init_kenv));
 		ofw_bootargs = true;
 	}
@@ -466,7 +467,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	 * Bring up MMU
 	 */
 	pmap_mmu_init();
-	link_elf_ireloc(kmdp);
+	link_elf_ireloc();
 	pmap_bootstrap(startkernel, endkernel);
 	mtmsr(psl_kernset & ~PSL_EE);
 
@@ -643,15 +644,14 @@ fake_preload_metadata(void) {
 
 	fake_preload[i++] = MODINFO_NAME;
 	fake_preload[i++] = strlen("kernel") + 1;
-	strcpy((char*)&fake_preload[i], "kernel");
+	strcpy((char *)&fake_preload[i], "kernel");
 	/* ['k' 'e' 'r' 'n'] ['e' 'l' '\0' ..] */
 	i += 2;
 
 	fake_preload[i++] = MODINFO_TYPE;
-	fake_preload[i++] = strlen("elf kernel") + 1;
-	strcpy((char*)&fake_preload[i], "elf kernel");
-	/* ['e' 'l' 'f' ' '] ['k' 'e' 'r' 'n'] ['e' 'l' '\0' ..] */
-	i += 3;
+	fake_preload[i++] = strlen(preload_kerntype) + 1;
+	strcpy((char *)&fake_preload[i], preload_kerntype);
+	i += howmany(fake_preload[i - 1], sizeof(uint32_t));
 
 #ifdef __powerpc64__
 	/* Padding -- Fields start on u_long boundaries */

@@ -414,7 +414,7 @@ int	route6_input(struct mbuf **, int *, int);
 void	frag6_init(void);
 void	frag6_destroy(void);
 int	frag6_input(struct mbuf **, int *, int);
-void	frag6_drain(void);
+void	frag6_drain(void *, int);
 
 void	rip6_init(void);
 int	rip6_ctloutput(struct socket *, struct sockopt *);

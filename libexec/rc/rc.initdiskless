@@ -174,7 +174,10 @@ log() {
 chkerr() {
     lastitem () ( n=$(($# - 1)) ; shift $n ; echo $1 )
     mountpoint="$(lastitem $2)"
-    [ -r $mountpoint/remount_optional ] && ( echo "$2 failed: ignoring due to remount_optional" ; return )
+    if [ -r $mountpoint/remount_optional ]; then
+        echo "$2 failed: ignoring due to remount_optional"
+        return
+    fi
     case $1 in
     0)
 	;;

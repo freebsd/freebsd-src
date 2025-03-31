@@ -56,6 +56,7 @@
 
 #include <machine/machdep.h>
 #include <machine/cpu.h>
+#include <machine/cpu_feat.h>
 #include <machine/debug_monitor.h>
 #include <machine/intr.h>
 #include <machine/smp.h>
@@ -90,6 +91,7 @@ static struct {
 } fdt_quirks[] = {
 	{ "arm,foundation-aarch64",	MP_QUIRK_CPULIST },
 	{ "arm,fvp-base",		MP_QUIRK_CPULIST },
+	{ "arm,fvp-base-revc",		MP_QUIRK_CPULIST },
 	/* This is incorrect in some DTS files */
 	{ "arm,vfp-base",		MP_QUIRK_CPULIST },
 	{ NULL, 0 },
@@ -223,6 +225,9 @@ init_secondary(uint64_t cpu)
 	/* Ensure the stores in identify_cpu have completed */
 	atomic_thread_fence_acq_rel();
 
+	/* Detect early CPU feature support */
+	enable_cpu_feat(CPU_FEAT_EARLY_BOOT);
+
 	/* Signal the BSP and spin until it has released all APs. */
 	atomic_add_int(&aps_started, 1);
 	while (!atomic_load_int(&aps_ready))
@@ -240,6 +245,7 @@ init_secondary(uint64_t cpu)
 	pcpup->pc_curpmap = pmap0;
 
 	install_cpu_errata();
+	enable_cpu_feat(CPU_FEAT_AFTER_DEV);
 
 	intr_pic_init_secondary();
 
@@ -251,7 +257,6 @@ init_secondary(uint64_t cpu)
 #endif
 
 	dbg_init();
-	pan_enable();
 
 	mtx_lock_spin(&ap_boot_mtx);
 	atomic_add_rel_32(&smp_cpus, 1);

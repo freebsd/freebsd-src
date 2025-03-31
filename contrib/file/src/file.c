@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.215 2023/05/21 17:08:34 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.217 2024/09/29 16:49:25 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -166,6 +166,8 @@ file_private struct {
 	    MAGIC_PARAM_NAME_MAX, 0 },
 	{ "regex", 0, FILE_REGEX_MAX, "length limit for REGEX searches",
 	    MAGIC_PARAM_REGEX_MAX, 0 },
+	{ "magwarn", 0, FILE_MAGWARN_MAX, "maximum number of magic warnings",
+	    MAGIC_PARAM_MAGWARN_MAX, 0 },
 };
 
 file_private int posixly;
@@ -363,11 +365,7 @@ main(int argc, char *argv[])
 		return e;
 
 #ifdef HAVE_LIBSECCOMP
-#if 0
-	if (sandbox && enable_sandbox_basic() == -1)
-#else
-	if (sandbox && enable_sandbox_full() == -1)
-#endif
+	if (sandbox && enable_sandbox() == -1)
 		file_err(EXIT_FAILURE, "SECCOMP initialisation failed");
 	if (sandbox)
 		flags |= MAGIC_NO_COMPRESS_FORK;

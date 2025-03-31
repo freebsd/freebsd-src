@@ -306,11 +306,9 @@ e6060sw_attach(device_t dev)
 	if (err != 0)
 		return (err);
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	err = bus_generic_attach(dev);
-	if (err != 0)
-		return (err);
+	bus_attach_children(dev);
 	
 	callout_init(&sc->callout_tick, 0);
 
@@ -323,9 +321,13 @@ static int
 e6060sw_detach(device_t dev)
 {
 	struct e6060sw_softc *sc;
-	int i, port;
+	int error, i, port;
 
 	sc = device_get_softc(dev);
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	callout_drain(&sc->callout_tick);
 
@@ -333,8 +335,6 @@ e6060sw_detach(device_t dev)
 		if (((1 << i) & sc->phymask) == 0)
 			continue;
 		port = e6060sw_portforphy(sc, i);
-		if (sc->miibus[port] != NULL)
-			device_delete_child(dev, (*sc->miibus[port]));
 		if (sc->ifp[port] != NULL)
 			if_free(sc->ifp[port]);
 		free(sc->ifname[port], M_E6060SW);
@@ -346,7 +346,6 @@ e6060sw_detach(device_t dev)
 	free(sc->ifname, M_E6060SW);
 	free(sc->ifp, M_E6060SW);
 
-	bus_generic_detach(dev);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);

@@ -198,9 +198,9 @@ SUBDIR=	\
 	${_iwlwifi} \
 	${_iwlwififw} \
 	${_iwm} \
-	${_iwmfw} \
 	${_iwn} \
 	${_iwnfw} \
+	${_iwx} \
 	${_ix} \
 	${_ixv} \
 	${_ixl} \
@@ -421,6 +421,7 @@ SUBDIR=	\
 	wlan_acl \
 	wlan_amrr \
 	wlan_ccmp \
+	wlan_gcmp \
 	wlan_rssadapt \
 	wlan_tkip \
 	wlan_wep \
@@ -802,10 +803,10 @@ _ipw=		ipw
 _iwi=		iwi
 _iwm=		iwm
 _iwn=		iwn
+_iwx=		iwx
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ipwfw=		ipwfw
 _iwifw=		iwifw
-_iwmfw=		iwmfw
 _iwnfw=		iwnfw
 .endif
 _nfe=		nfe
@@ -856,7 +857,8 @@ _smartpqi=	smartpqi
 _p2sb=		p2sb
 .endif
 
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "riscv"
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 .if ${KERN_OPTS:MSMP}
 _vmm=		vmm

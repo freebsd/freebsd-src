@@ -23,17 +23,19 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 20, 2021
+.Dd March 27, 2025
 .Dt PCI 9
 .Os
 .Sh NAME
 .Nm pci ,
 .Nm pci_alloc_msi ,
 .Nm pci_alloc_msix ,
+.Nm pci_clear_pme ,
 .Nm pci_disable_busmaster ,
 .Nm pci_disable_io ,
 .Nm pci_enable_busmaster ,
 .Nm pci_enable_io ,
+.Nm pci_enable_pme ,
 .Nm pci_find_bsf ,
 .Nm pci_find_cap ,
 .Nm pci_find_dbsf ,
@@ -50,6 +52,7 @@
 .Nm pci_get_powerstate ,
 .Nm pci_get_vpd_ident ,
 .Nm pci_get_vpd_readonly ,
+.Nm pci_has_pm ,
 .Nm pci_iov_attach ,
 .Nm pci_iov_attach_name ,
 .Nm pci_iov_detach ,
@@ -81,6 +84,8 @@
 .Fn pci_alloc_msi "device_t dev" "int *count"
 .Ft int
 .Fn pci_alloc_msix "device_t dev" "int *count"
+.Ft void
+.Fn pci_clear_pme "device_t dev"
 .Ft int
 .Fn pci_disable_busmaster "device_t dev"
 .Ft int
@@ -89,6 +94,8 @@
 .Fn pci_enable_busmaster "device_t dev"
 .Ft int
 .Fn pci_enable_io "device_t dev" "int space"
+.Ft void
+.Fn pci_enable_pme "device_t dev"
 .Ft device_t
 .Fn pci_find_bsf "uint8_t bus" "uint8_t slot" "uint8_t func"
 .Ft int
@@ -121,6 +128,8 @@
 .Fn pci_get_vpd_ident "device_t dev" "const char **identptr"
 .Ft int
 .Fn pci_get_vpd_readonly "device_t dev" "const char *kw" "const char **vptr"
+.Ft bool
+.Fn pci_has_pm "device_t dev"
 .Ft int
 .Fn pci_msi_count "device_t dev"
 .Ft int
@@ -353,6 +362,12 @@ or
 When no more instances are located
 .Fn pci_find_next_cap
 returns an error.
+.Pp
+The
+.Fn pci_has_pm
+function returns true if
+.Fa dev
+supports power management.
 .Pp
 The
 .Fn pci_find_extcap
@@ -668,6 +683,16 @@ it does not support the specific power state
 .Fa state ,
 then the function will fail with
 .Er EOPNOTSUPP .
+.Pp
+The
+.Fn pci_clear_pme
+function is used to clear any pending PME# signal and disable generation
+of power management events.
+.Pp
+The
+.Fn pci_enable_pme
+function is used to enable generation of power management events before
+suspending a device.
 .Pp
 The
 .Fn pci_iov_attach

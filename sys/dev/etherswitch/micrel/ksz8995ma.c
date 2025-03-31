@@ -308,11 +308,9 @@ ksz8995ma_attach(device_t dev)
 	if (err != 0)
 		goto failed;
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	err = bus_generic_attach(dev);
-	if (err != 0)
-		goto failed;
+	bus_attach_children(dev);
 	
 	callout_init(&sc->callout_tick, 0);
 
@@ -341,7 +339,11 @@ static int
 ksz8995ma_detach(device_t dev)
 {
 	struct ksz8995ma_softc	*sc;
-	int			 i, port;
+	int			 error, i, port;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 
@@ -351,8 +353,6 @@ ksz8995ma_detach(device_t dev)
 		if (((1 << i) & sc->phymask) == 0)
 			continue;
 		port = ksz8995ma_portforphy(sc, i);
-		if (sc->miibus[port] != NULL)
-			device_delete_child(dev, (*sc->miibus[port]));
 		if (sc->ifp[port] != NULL)
 			if_free(sc->ifp[port]);
 		free(sc->ifname[port], M_KSZ8995MA);
@@ -364,7 +364,6 @@ ksz8995ma_detach(device_t dev)
 	free(sc->ifname, M_KSZ8995MA);
 	free(sc->ifp, M_KSZ8995MA);
 
-	bus_generic_detach(dev);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);

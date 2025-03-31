@@ -936,8 +936,8 @@ mb_unmapped_free_mext(struct mbuf *m)
 	mb_free_extpg(old_m);
 }
 
-static struct mbuf *
-_mb_unmapped_to_ext(struct mbuf *m)
+static int
+_mb_unmapped_to_ext(struct mbuf *m, struct mbuf **mres)
 {
 	struct mbuf *m_new, *top, *prev, *mref;
 	struct sf_buf *sf;
@@ -947,9 +947,15 @@ _mb_unmapped_to_ext(struct mbuf *m)
 	u_int ref_inc = 0;
 
 	M_ASSERTEXTPG(m);
+
+	if (m->m_epg_tls != NULL) {
+		/* can't convert TLS mbuf */
+		m_free(m);
+		*mres = NULL;
+		return (EINVAL);
+	}
+
 	len = m->m_len;
-	KASSERT(m->m_epg_tls == NULL, ("%s: can't convert TLS mbuf %p",
-	    __func__, m));
 
 	/* See if this is the mbuf that holds the embedded refcount. */
 	if (m->m_ext.ext_flags & EXT_FLAG_EMBREF) {
@@ -1014,7 +1020,8 @@ _mb_unmapped_to_ext(struct mbuf *m)
 
 		ref_inc++;
 		m_extadd(m_new, (char *)sf_buf_kva(sf), PAGE_SIZE,
-		    mb_unmapped_free_mext, sf, mref, M_RDONLY, EXT_SFBUF);
+		    mb_unmapped_free_mext, sf, mref, m->m_flags & M_RDONLY,
+		    EXT_SFBUF);
 		m_new->m_data += segoff;
 		m_new->m_len = seglen;
 
@@ -1047,7 +1054,8 @@ _mb_unmapped_to_ext(struct mbuf *m)
 			atomic_add_int(refcnt, ref_inc);
 	}
 	m_free(m);
-	return (top);
+	*mres = top;
+	return (0);
 
 fail:
 	if (ref_inc != 0) {
@@ -1064,13 +1072,15 @@ fail:
 	}
 	m_free(m);
 	m_freem(top);
-	return (NULL);
+	*mres = NULL;
+	return (ENOMEM);
 }
 
-struct mbuf *
-mb_unmapped_to_ext(struct mbuf *top)
+int
+mb_unmapped_to_ext(struct mbuf *top, struct mbuf **mres)
 {
-	struct mbuf *m, *next, *prev = NULL;
+	struct mbuf *m, *m1, *next, *prev = NULL;
+	int error;
 
 	prev = NULL;
 	for (m = top; m != NULL; m = next) {
@@ -1086,12 +1096,15 @@ mb_unmapped_to_ext(struct mbuf *top)
 				 */
 				prev->m_next = NULL;
 			}
-			m = _mb_unmapped_to_ext(m);
-			if (m == NULL) {
-				m_freem(top);
+			error = _mb_unmapped_to_ext(m, &m1);
+			if (error != 0) {
+				if (top != m)
+					m_freem(top);
 				m_freem(next);
-				return (NULL);
+				*mres = NULL;
+				return (error);
 			}
+			m = m1;
 			if (prev == NULL) {
 				top = m;
 			} else {
@@ -1110,7 +1123,8 @@ mb_unmapped_to_ext(struct mbuf *top)
 			prev = m;
 		}
 	}
-	return (top);
+	*mres = top;
+	return (0);
 }
 
 /*
@@ -1119,7 +1133,7 @@ mb_unmapped_to_ext(struct mbuf *top)
  * freed.
  */
 struct mbuf *
-mb_alloc_ext_pgs(int how, m_ext_free_t ext_free)
+mb_alloc_ext_pgs(int how, m_ext_free_t ext_free, int flags)
 {
 	struct mbuf *m;
 
@@ -1137,7 +1151,7 @@ mb_alloc_ext_pgs(int how, m_ext_free_t ext_free)
 	m->m_epg_tls = NULL;
 	m->m_epg_so = NULL;
 	m->m_data = NULL;
-	m->m_flags |= (M_EXT | M_RDONLY | M_EXTPG);
+	m->m_flags |= M_EXT | M_EXTPG | flags;
 	m->m_ext.ext_flags = EXT_FLAG_EMBREF;
 	m->m_ext.ext_count = 1;
 	m->m_ext.ext_size = 0;
@@ -1709,7 +1723,7 @@ mb_alloc_ext_plus_pages(int len, int how)
 	vm_page_t pg;
 	int i, npgs;
 
-	m = mb_alloc_ext_pgs(how, mb_free_mext_pgs);
+	m = mb_alloc_ext_pgs(how, mb_free_mext_pgs, 0);
 	if (m == NULL)
 		return (NULL);
 	m->m_epg_flags |= EPG_FLAG_ANON;

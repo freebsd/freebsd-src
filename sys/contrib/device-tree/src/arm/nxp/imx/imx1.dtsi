@@ -134,7 +134,7 @@
 				clock-names = "ipg", "per";
 			};
 
-			dma: dma@209000 {
+			dma: dma-controller@209000 {
 				compatible = "fsl,imx1-dma";
 				reg = <0x00209000 0x1000>;
 				interrupts = <61 60>;
@@ -251,7 +251,7 @@
 			};
 		};
 
-		weim: weim@220000 {
+		weim: memory-controller@220000 {
 			#address-cells = <2>;
 			#size-cells = <1>;
 			compatible = "fsl,imx1-weim";

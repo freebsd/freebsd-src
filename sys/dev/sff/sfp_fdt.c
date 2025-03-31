@@ -138,7 +138,6 @@ static device_method_t sfp_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sfp_fdt_probe),
 	DEVMETHOD(device_attach,	sfp_fdt_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
 
 	/* SFF */
 	DEVMETHOD(sff_get_i2c_bus,	sfp_fdt_get_i2c_bus),

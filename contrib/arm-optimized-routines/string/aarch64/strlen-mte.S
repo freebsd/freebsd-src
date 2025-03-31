@@ -33,7 +33,6 @@
    identifies the first zero byte.  */
 
 ENTRY (__strlen_aarch64_mte)
-	PTR_ARG (0)
 	bic	src, srcin, 15
 	ld1	{vdata.16b}, [src]
 	cmeq	vhas_nul.16b, vdata.16b, 0
@@ -41,37 +40,50 @@ ENTRY (__strlen_aarch64_mte)
 	shrn	vend.8b, vhas_nul.8h, 4		/* 128->64 */
 	fmov	synd, dend
 	lsr	synd, synd, shift
-	cbz	synd, L(loop)
+	cbz	synd, L(next16)
 
 	rbit	synd, synd
 	clz	result, synd
 	lsr	result, result, 2
 	ret
 
-	.p2align 5
-L(loop):
+L(next16):
 	ldr	data, [src, 16]
 	cmeq	vhas_nul.16b, vdata.16b, 0
-	umaxp	vend.16b, vhas_nul.16b, vhas_nul.16b
-	fmov	synd, dend
-	cbnz	synd, L(loop_end)
-	ldr	data, [src, 32]!
-	cmeq	vhas_nul.16b, vdata.16b, 0
-	umaxp	vend.16b, vhas_nul.16b, vhas_nul.16b
+	shrn	vend.8b, vhas_nul.8h, 4		/* 128->64 */
 	fmov	synd, dend
 	cbz	synd, L(loop)
-	sub	src, src, 16
-L(loop_end):
-	shrn	vend.8b, vhas_nul.8h, 4		/* 128->64 */
-	sub	result, src, srcin
-	fmov	synd, dend
+	add	src, src, 16
 #ifndef __AARCH64EB__
 	rbit	synd, synd
 #endif
-	add	result, result, 16
+	sub	result, src, srcin
 	clz	tmp, synd
 	add	result, result, tmp, lsr 2
 	ret
 
-END (__strlen_aarch64_mte)
+	.p2align 5
+L(loop):
+	ldr	data, [src, 32]!
+	cmeq	vhas_nul.16b, vdata.16b, 0
+	addhn	vend.8b, vhas_nul.8h, vhas_nul.8h
+	fmov	synd, dend
+	cbnz	synd, L(loop_end)
+	ldr	data, [src, 16]
+	cmeq	vhas_nul.16b, vdata.16b, 0
+	addhn	vend.8b, vhas_nul.8h, vhas_nul.8h
+	fmov	synd, dend
+	cbz	synd, L(loop)
+	add	src, src, 16
+L(loop_end):
+	sub	result, shift, src, lsl 2	/* (srcin - src) << 2.  */
+#ifndef __AARCH64EB__
+	rbit	synd, synd
+	sub	result, result, 3
+#endif
+	clz	tmp, synd
+	sub	result, tmp, result
+	lsr	result, result, 2
+	ret
 
+END (__strlen_aarch64_mte)

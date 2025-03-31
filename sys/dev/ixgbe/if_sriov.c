@@ -217,7 +217,7 @@ ixgbe_ping_all_vfs(struct ixgbe_softc *sc)
 
 static void
 ixgbe_vf_set_default_vlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
-                          uint16_t tag)
+    uint16_t tag)
 {
 	struct ixgbe_hw *hw;
 	uint32_t vmolr, vmvir;
@@ -269,7 +269,6 @@ ixgbe_clear_vfmbmem(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 static boolean_t
 ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
-
 	/*
 	 * Frame size compatibility between PF and VF is only a problem on
 	 * 82599-based cards.  X540 and later support any combination of jumbo
@@ -282,8 +281,8 @@ ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	case IXGBE_API_VER_1_0:
 	case IXGBE_API_VER_UNKNOWN:
 		/*
-		 * On legacy (1.0 and older) VF versions, we don't support jumbo
-		 * frames on either the PF or the VF.
+		 * On legacy (1.0 and older) VF versions, we don't support
+		 * jumbo frames on either the PF or the VF.
 		 */
 		if (sc->max_frame_size > ETHER_MAX_LEN ||
 		    vf->maximum_frame_size > ETHER_MAX_LEN)
@@ -302,8 +301,8 @@ ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 			return (true);
 
 		/*
-		 * Jumbo frames only work with VFs if the PF is also using jumbo
-		 * frames.
+		 * Jumbo frames only work with VFs if the PF is also using
+		 * jumbo frames.
 		 */
 		if (sc->max_frame_size <= ETHER_MAX_LEN)
 			return (true);
@@ -526,7 +525,7 @@ ixgbe_vf_set_lpe(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 
 static void
 ixgbe_vf_set_macvlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
-                     uint32_t *msg)
+    uint32_t *msg)
 {
 	//XXX implement this
 	ixgbe_send_vf_failure(sc, vf, msg[0]);
@@ -537,7 +536,6 @@ static void
 ixgbe_vf_api_negotiate(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
     uint32_t *msg)
 {
-
 	switch (msg[1]) {
 	case IXGBE_API_VER_1_0:
 	case IXGBE_API_VER_1_1:
@@ -553,7 +551,8 @@ ixgbe_vf_api_negotiate(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 
 
 static void
-ixgbe_vf_get_queues(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
+ixgbe_vf_get_queues(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    uint32_t *msg)
 {
 	struct ixgbe_hw *hw;
 	uint32_t resp[IXGBE_VF_GET_QUEUES_RESP_LEN];
@@ -585,9 +584,9 @@ ixgbe_vf_get_queues(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 static void
 ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
 {
-	struct ixgbe_softc  *sc = iflib_get_softc(ctx);
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 #ifdef KTR
-	if_t		ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 #endif
 	struct ixgbe_hw *hw;
 	uint32_t msg[IXGBE_VFMAILBOX_SIZE];
@@ -639,13 +638,12 @@ ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
 	}
 } /* ixgbe_process_vf_msg */
 
-
 /* Tasklet for handling VF -> PF mailbox messages */
 void
 ixgbe_handle_mbx(void *context)
 {
-	if_ctx_t        ctx = context;
-	struct ixgbe_softc  *sc = iflib_get_softc(ctx);
+	if_ctx_t ctx = context;
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw;
 	struct ixgbe_vf *vf;
 	int i;
@@ -656,13 +654,16 @@ ixgbe_handle_mbx(void *context)
 		vf = &sc->vfs[i];
 
 		if (vf->flags & IXGBE_VF_ACTIVE) {
-			if (hw->mbx.ops[vf->pool].check_for_rst(hw, vf->pool) == 0)
+			if (hw->mbx.ops[vf->pool].check_for_rst(hw,
+			    vf->pool) == 0)
 				ixgbe_process_vf_reset(sc, vf);
 
-			if (hw->mbx.ops[vf->pool].check_for_msg(hw, vf->pool) == 0)
+			if (hw->mbx.ops[vf->pool].check_for_msg(hw,
+			    vf->pool) == 0)
 				ixgbe_process_vf_msg(ctx, vf);
 
-			if (hw->mbx.ops[vf->pool].check_for_ack(hw, vf->pool) == 0)
+			if (hw->mbx.ops[vf->pool].check_for_ack(hw,
+			    vf->pool) == 0)
 				ixgbe_process_vf_ack(sc, vf);
 		}
 	}
@@ -799,27 +800,27 @@ ixgbe_initialize_iov(struct ixgbe_softc *sc)
 
 	/* RMW appropriate registers based on IOV mode */
 	/* Read... */
-	mrqc    = IXGBE_READ_REG(hw, IXGBE_MRQC);
+	mrqc = IXGBE_READ_REG(hw, IXGBE_MRQC);
 	gcr_ext = IXGBE_READ_REG(hw, IXGBE_GCR_EXT);
-	gpie    = IXGBE_READ_REG(hw, IXGBE_GPIE);
+	gpie = IXGBE_READ_REG(hw, IXGBE_GPIE);
 	/* Modify... */
-	mrqc    &= ~IXGBE_MRQC_MRQE_MASK;
-	mtqc     =  IXGBE_MTQC_VT_ENA;      /* No initial MTQC read needed */
-	gcr_ext |=  IXGBE_GCR_EXT_MSIX_EN;
+	mrqc &= ~IXGBE_MRQC_MRQE_MASK;
+	mtqc = IXGBE_MTQC_VT_ENA;      /* No initial MTQC read needed */
+	gcr_ext |= IXGBE_GCR_EXT_MSIX_EN;
 	gcr_ext &= ~IXGBE_GCR_EXT_VT_MODE_MASK;
-	gpie    &= ~IXGBE_GPIE_VTMODE_MASK;
+	gpie &= ~IXGBE_GPIE_VTMODE_MASK;
 	switch (sc->iov_mode) {
 	case IXGBE_64_VM:
-		mrqc    |= IXGBE_MRQC_VMDQRSS64EN;
-		mtqc    |= IXGBE_MTQC_64VF;
+		mrqc |= IXGBE_MRQC_VMDQRSS64EN;
+		mtqc |= IXGBE_MTQC_64VF;
 		gcr_ext |= IXGBE_GCR_EXT_VT_MODE_64;
-		gpie    |= IXGBE_GPIE_VTMODE_64;
+		gpie |= IXGBE_GPIE_VTMODE_64;
 		break;
 	case IXGBE_32_VM:
-		mrqc    |= IXGBE_MRQC_VMDQRSS32EN;
-		mtqc    |= IXGBE_MTQC_32VF;
+		mrqc |= IXGBE_MRQC_VMDQRSS32EN;
+		mtqc |= IXGBE_MTQC_32VF;
 		gcr_ext |= IXGBE_GCR_EXT_VT_MODE_32;
-		gpie    |= IXGBE_GPIE_VTMODE_32;
+		gpie |= IXGBE_GPIE_VTMODE_32;
 		break;
 	default:
 		panic("Unexpected SR-IOV mode %d", sc->iov_mode);

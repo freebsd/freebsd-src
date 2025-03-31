@@ -670,7 +670,7 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 		}
 	}
 
-	bus_generic_attach(bus);
+	bus_attach_children(bus);
 }
 
 static int

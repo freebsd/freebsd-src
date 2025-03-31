@@ -144,6 +144,10 @@ typedef int	(*mpo_cred_check_setaudit_t)(struct ucred *cred,
 typedef int	(*mpo_cred_check_setaudit_addr_t)(struct ucred *cred,
 		    struct auditinfo_addr *aia);
 typedef int	(*mpo_cred_check_setauid_t)(struct ucred *cred, uid_t auid);
+typedef void	(*mpo_cred_setcred_enter_t)(void);
+typedef int	(*mpo_cred_check_setcred_t)(u_int flags,
+		    const struct ucred *old_cred, struct ucred *new_cred);
+typedef void	(*mpo_cred_setcred_exit_t)(void);
 typedef int	(*mpo_cred_check_setegid_t)(struct ucred *cred, gid_t egid);
 typedef int	(*mpo_cred_check_seteuid_t)(struct ucred *cred, uid_t euid);
 typedef int	(*mpo_cred_check_setgid_t)(struct ucred *cred, gid_t gid);
@@ -720,6 +724,9 @@ struct mac_policy_ops {
 	mpo_cred_check_setaudit_t		mpo_cred_check_setaudit;
 	mpo_cred_check_setaudit_addr_t		mpo_cred_check_setaudit_addr;
 	mpo_cred_check_setauid_t		mpo_cred_check_setauid;
+	mpo_cred_setcred_enter_t		mpo_cred_setcred_enter;
+	mpo_cred_check_setcred_t		mpo_cred_check_setcred;
+	mpo_cred_setcred_exit_t			mpo_cred_setcred_exit;
 	mpo_cred_check_setuid_t			mpo_cred_check_setuid;
 	mpo_cred_check_seteuid_t		mpo_cred_check_seteuid;
 	mpo_cred_check_setgid_t			mpo_cred_check_setgid;
@@ -1033,8 +1040,9 @@ struct mac_policy_conf {
  *   3                       7.x
  *   4                       8.x
  *   5                       14.x
+ *   6                       15.x
  */
-#define	MAC_VERSION	5
+#define	MAC_VERSION	6
 
 #define	MAC_POLICY_SET(mpops, mpname, mpfullname, mpflags, privdata_wanted) \
 	static struct mac_policy_conf mpname##_mac_policy_conf = {	\
@@ -1063,5 +1071,20 @@ int	mac_policy_modevent(module_t mod, int type, void *data);
  */
 intptr_t	mac_label_get(struct label *l, int slot);
 void		mac_label_set(struct label *l, int slot, intptr_t v);
+
+/*
+ * Common MAC Framework's sysctl and jail parameters' sysctl nodes' declarations.
+ *
+ * Headers <sys/jail.h> and <sys/sysctl.h> normally have to be included before
+ * this header as style(9) hints to.  If they weren't, just forego the
+ * corresponding declarations, assuming they are not needed.
+ */
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_security_mac);
+#endif
+
+#ifdef SYSCTL_JAIL_PARAM_DECL
+SYSCTL_JAIL_PARAM_DECL(mac);
+#endif
 
 #endif /* !_SECURITY_MAC_MAC_POLICY_H_ */

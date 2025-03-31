@@ -1,4 +1,4 @@
-# $NetBSD: varmod-gmtime.mk,v 1.24 2024/07/05 19:47:22 rillig Exp $
+# $NetBSD: varmod-gmtime.mk,v 1.27 2025/01/11 20:54:45 rillig Exp $
 #
 # Tests for the :gmtime variable modifier, which formats a timestamp
 # using strftime(3) in UTC.
@@ -56,8 +56,7 @@
 # 1970.  Going back 50 years in the past is not a practical use case for
 # make.  Therefore, since var.c 1.631, negative time stamps produce a
 # parse error.
-# expect+2: while evaluating "${:L:gmtime=-1} != """ with value "": Invalid time value "-1"
-# expect+1: Malformed conditional (${:L:gmtime=-1} != "")
+# expect+1: Invalid time value "-1"
 .if ${:L:gmtime=-1} != ""
 .  error
 .else
@@ -67,8 +66,7 @@
 
 # Spaces were allowed before var.c 1.631 from 2020-10-31 21:40:20, not
 # because it would make sense but just as a side-effect from using strtoul.
-# expect+2: while evaluating "${:L:gmtime= 1} != """ with value "": Invalid time value " 1"
-# expect+1: Malformed conditional (${:L:gmtime= 1} != "")
+# expect+1: Invalid time value " 1"
 .if ${:L:gmtime= 1} != ""
 .  error
 .else
@@ -115,8 +113,7 @@
 #
 # Since var.c 1.631 from 2020-10-31, the overflow is detected and produces a
 # parse error.
-# expect+2: while evaluating "${:L:gmtime=10000000000000000000000000000000} != """ with value "": Invalid time value "10000000000000000000000000000000"
-# expect+1: Malformed conditional (${:L:gmtime=10000000000000000000000000000000} != "")
+# expect+1: Invalid time value "10000000000000000000000000000000"
 .if ${:L:gmtime=10000000000000000000000000000000} != ""
 .  error
 .else
@@ -128,8 +125,7 @@
 # stopped after the '=', and the remaining string was parsed for more variable
 # modifiers.  Because of the unknown modifier 'e' from the 'error', the whole
 # variable value was discarded and thus not printed.
-# expect+2: while evaluating "${:L:gmtime=error} != """ with value "": Invalid time value "error"
-# expect+1: Malformed conditional (${:L:gmtime=error} != "")
+# expect+1: Invalid time value "error"
 .if ${:L:gmtime=error} != ""
 .  error
 .else
@@ -139,8 +135,7 @@
 # Before var.c 1.1050 from 2023-05-09, the timestamp could be directly
 # followed by the next modifier, without a ':' separator.  This was the same
 # bug as for the ':L' and ':P' modifiers.
-# expect+2: while evaluating variable "%Y" with value "%Y": Invalid time value "100000S,1970,bad,"
-# expect+1: Malformed conditional (${%Y:L:gmtime=100000S,1970,bad,} != "bad")
+# expect+1: Invalid time value "100000S,1970,bad,"
 .if ${%Y:L:gmtime=100000S,1970,bad,} != "bad"
 .  error
 .endif

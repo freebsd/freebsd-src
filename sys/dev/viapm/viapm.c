@@ -374,7 +374,7 @@ viapm_pro_attach(device_t dev)
 	viapm->smbus = device_add_child(dev, "smbus", DEVICE_UNIT_ANY);
 
 	/* probe and attach the smbus */
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	/* disable slave function */
 	VIAPM_OUTB(SMBSCTRL, VIAPM_INB(SMBSCTRL) & ~SMBSCTRL_ENABLE);
@@ -426,7 +426,7 @@ viapm_586b_attach(device_t dev)
 	if (!(viapm->iicbb = device_add_child(dev, "iicbb", -1)))
 		goto error;
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return 0;
 
@@ -444,9 +444,6 @@ viapm_586b_detach(device_t dev)
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
 
 	bus_generic_detach(dev);
-	if (viapm->iicbb) {
-		device_delete_child(dev, viapm->iicbb);
-	}
 
 	if (viapm->iores)
 		bus_release_resource(dev, SYS_RES_IOPORT, viapm->iorid,
@@ -462,9 +459,6 @@ viapm_pro_detach(device_t dev)
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
 
 	bus_generic_detach(dev);
-	if (viapm->smbus) {
-		device_delete_child(dev, viapm->smbus);
-	}
 
 	bus_release_resource(dev, SYS_RES_IOPORT, viapm->iorid, viapm->iores);
 

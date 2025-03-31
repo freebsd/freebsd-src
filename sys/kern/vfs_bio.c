@@ -206,7 +206,7 @@ static int sysctl_bufspace(SYSCTL_HANDLER_ARGS);
 int vmiodirenable = TRUE;
 SYSCTL_INT(_vfs, OID_AUTO, vmiodirenable, CTLFLAG_RW, &vmiodirenable, 0,
     "Use the VM system for directory writes");
-long runningbufspace;
+static long runningbufspace;
 SYSCTL_LONG(_vfs, OID_AUTO, runningbufspace, CTLFLAG_RD, &runningbufspace, 0,
     "Amount of presently outstanding async buffer io");
 SYSCTL_PROC(_vfs, OID_AUTO, bufspace, CTLTYPE_LONG|CTLFLAG_MPSAFE|CTLFLAG_RD,
@@ -941,6 +941,16 @@ runningbufwakeup(struct buf *bp)
 	runningwakeup();
 }
 
+long
+runningbufclaim(struct buf *bp, int space)
+{
+	long old;
+
+	old = atomic_fetchadd_long(&runningbufspace, space);
+	bp->b_runningbufspace = space;
+	return (old);
+}
+
 /*
  *	waitrunningbufspace()
  *
@@ -1253,15 +1263,16 @@ bufinit(void)
 	bufspacethresh = lobufspace + (hibufspace - lobufspace) / 2;
 
 	/*
-	 * Note: The 16 MiB upper limit for hirunningspace was chosen
-	 * arbitrarily and may need further tuning. It corresponds to
-	 * 128 outstanding write IO requests (if IO size is 128 KiB),
-	 * which fits with many RAID controllers' tagged queuing limits.
+	 * Note: The upper limit for hirunningspace was chosen arbitrarily and
+	 * may need further tuning. It corresponds to 128 outstanding write IO
+	 * requests, which fits with many RAID controllers' tagged queuing
+	 * limits.
+	 *
 	 * The lower 1 MiB limit is the historical upper limit for
 	 * hirunningspace.
 	 */
 	hirunningspace = lmax(lmin(roundup(hibufspace / 64, maxbcachebuf),
-	    16 * 1024 * 1024), 1024 * 1024);
+	    128 * maxphys), 1024 * 1024);
 	lorunningspace = roundup((hirunningspace * 2) / 3, maxbcachebuf);
 
 	/*
@@ -1507,8 +1518,8 @@ bufshutdown(int show_busybufs)
 		if (!KERNEL_PANICKED()) {
 			swapoff_all();
 			vfs_unmountall();
+			BOOTTRACE("shutdown unmounted all filesystems");
 		}
-		BOOTTRACE("shutdown unmounted all filesystems");
 	}
 	DELAY(100000);		/* wait for console output to finish */
 }
@@ -2304,10 +2315,10 @@ breadn_flags(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size,
 int
 bufwrite(struct buf *bp)
 {
-	int oldflags;
 	struct vnode *vp;
 	long space;
-	int vp_md;
+	int oldflags, retval;
+	bool vp_md;
 
 	CTR3(KTR_BUF, "bufwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	if ((bp->b_bufobj->bo_flag & BO_DEAD) != 0) {
@@ -2316,24 +2327,21 @@ bufwrite(struct buf *bp)
 		brelse(bp);
 		return (ENXIO);
 	}
-	if (bp->b_flags & B_INVAL) {
+	if ((bp->b_flags & B_INVAL) != 0) {
 		brelse(bp);
 		return (0);
 	}
 
-	if (bp->b_flags & B_BARRIER)
+	if ((bp->b_flags & B_BARRIER) != 0)
 		atomic_add_long(&barrierwrites, 1);
 
 	oldflags = bp->b_flags;
 
-	KASSERT(!(bp->b_vflags & BV_BKGRDINPROG),
+	KASSERT((bp->b_vflags & BV_BKGRDINPROG) == 0,
 	    ("FFS background buffer should not get here %p", bp));
 
 	vp = bp->b_vp;
-	if (vp)
-		vp_md = vp->v_vflag & VV_MD;
-	else
-		vp_md = 0;
+	vp_md = vp != NULL && (vp->v_vflag & VV_MD) != 0;
 
 	/*
 	 * Mark the buffer clean.  Increment the bufobj write count
@@ -2354,8 +2362,7 @@ bufwrite(struct buf *bp)
 	/*
 	 * Normal bwrites pipeline writes
 	 */
-	bp->b_runningbufspace = bp->b_bufsize;
-	space = atomic_fetchadd_long(&runningbufspace, bp->b_runningbufspace);
+	space = runningbufclaim(bp, bp->b_bufsize);
 
 #ifdef RACCT
 	if (racct_enable) {
@@ -2365,24 +2372,22 @@ bufwrite(struct buf *bp)
 	}
 #endif /* RACCT */
 	curthread->td_ru.ru_oublock++;
-	if (oldflags & B_ASYNC)
+	if ((oldflags & B_ASYNC) != 0)
 		BUF_KERNPROC(bp);
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	buf_track(bp, __func__);
 	bstrategy(bp);
 
 	if ((oldflags & B_ASYNC) == 0) {
-		int rtval = bufwait(bp);
+		retval = bufwait(bp);
 		brelse(bp);
-		return (rtval);
+		return (retval);
 	} else if (space > hirunningspace) {
 		/*
-		 * don't allow the async write to saturate the I/O
-		 * system.  We will not deadlock here because
-		 * we are blocking waiting for I/O that is already in-progress
-		 * to complete. We do not block here if it is the update
-		 * or syncer daemon trying to clean up as that can lead
-		 * to deadlock.
+		 * Don't allow the async write to saturate the I/O
+		 * system.  We do not block here if it is the update
+		 * or syncer daemon trying to clean up as that can
+		 * lead to deadlock.
 		 */
 		if ((curthread->td_pflags & TDP_NORUNNINGBUF) == 0 && !vp_md)
 			waitrunningbufspace();

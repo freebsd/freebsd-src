@@ -63,8 +63,6 @@
 #include <net80211/ieee80211_vht.h>
 #include <net80211/ieee80211_sta.h> /* for parse_wmeie */
 
-#define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
-
 static	void hostap_vattach(struct ieee80211vap *);
 static	int hostap_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static	int hostap_input(struct ieee80211_node *ni, struct mbuf *m,
@@ -311,10 +309,9 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    ether_sprintf(ni->ni_bssid));
 				ieee80211_print_essid(ni->ni_essid,
 				    ni->ni_esslen);
-				/* XXX MCS/HT */
-				printf(" channel %d start %uMb\n",
+				printf(" channel %d start %uMbit/s\n",
 				    ieee80211_chan2ieee(ic, ic->ic_curchan),
-				    IEEE80211_RATE2MBS(ni->ni_txrate));
+				    ieee80211_node_get_txrate_kbit(ni) / 1000);
 			}
 #endif
 			break;
@@ -532,8 +529,7 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m,
 	 */
 	wh = mtod(m, struct ieee80211_frame *);
 
-	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
-	    IEEE80211_FC0_VERSION_0) {
+	if (!IEEE80211_IS_FC0_CHECK_VER(wh, IEEE80211_FC0_VERSION_0)) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
 		    ni->ni_macaddr, NULL, "wrong version, fc %02x:%02x",
 		    wh->i_fc[0], wh->i_fc[1]);
@@ -1210,6 +1206,7 @@ wpa_cipher(const uint8_t *sel, uint8_t *keylen, uint8_t *cipher)
 	case WPA_SEL(WPA_CSE_CCMP):
 		*cipher = IEEE80211_CIPHER_AES_CCM;
 		break;
+	/* Note: no GCM cipher in the legacy WPA1 OUI */
 	default:
 		return (EINVAL);
 	}
@@ -1388,6 +1385,9 @@ rsn_cipher(const uint8_t *sel, uint8_t *keylen, uint8_t *cipher)
 	case RSN_SEL(RSN_CSE_WRAP):
 		*cipher = IEEE80211_CIPHER_AES_OCB;
 		break;
+	case RSN_SEL(RSN_CSE_GCMP_128):
+		*cipher = IEEE80211_CIPHER_AES_GCM_128;
+		break;
 	default:
 		return (EINVAL);
 	}
@@ -1500,8 +1500,10 @@ ieee80211_parse_rsn(struct ieee80211vap *vap, const uint8_t *frm,
 
 		frm += 4, len -= 4;
 	}
-        if (w & (1 << IEEE80211_CIPHER_AES_CCM))
-                rsn->rsn_ucastcipher = IEEE80211_CIPHER_AES_CCM;
+	if (w & (1 << IEEE80211_CIPHER_AES_GCM_128))
+		rsn->rsn_ucastcipher = IEEE80211_CIPHER_AES_GCM_128;
+	else if (w & (1 << IEEE80211_CIPHER_AES_CCM))
+		rsn->rsn_ucastcipher = IEEE80211_CIPHER_AES_CCM;
 	else if (w & (1 << IEEE80211_CIPHER_AES_OCB))
 		rsn->rsn_ucastcipher = IEEE80211_CIPHER_AES_OCB;
 	else if (w & (1 << IEEE80211_CIPHER_TKIP))
@@ -1758,6 +1760,29 @@ is11bclient(const uint8_t *rates, const uint8_t *xrates)
 			return 0;
 	}
 	return 1;
+}
+
+/**
+ * Check if the given cipher is valid for 802.11 HT operation.
+ *
+ * The 802.11 specification only allows HT A-MPDU to be performed
+ * on CCMP / GCMP encrypted frames.  The WEP/TKIP hardware crypto
+ * implementations may not meet the timing required for A-MPDU
+ * operation.
+ *
+ * @param cipher	the IEEE80211_CIPHER_ value to check
+ * @returns	true if the cipher is valid for HT A-MPDU, false otherwise
+ */
+static bool
+hostapd_validate_cipher_for_ht_ampdu(uint8_t cipher)
+{
+	switch (cipher) {
+	case IEEE80211_CIPHER_AES_CCM:
+	case IEEE80211_CIPHER_AES_GCM_128:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static void
@@ -2226,13 +2251,16 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 #endif
 		/*
 		 * Allow AMPDU operation only with unencrypted traffic
-		 * or AES-CCM; the 11n spec only specifies these ciphers
-		 * so permitting any others is undefined and can lead
+		 * or AES-CCM / AES-GCM; the 802.11n spec only specifies these
+		 * ciphers so permitting any others is undefined and can lead
 		 * to interoperability problems.
+		 *
+		 * TODO: before landing, find exactly where in 802.11-2020 this
+		 * is called out!
 		 */
 		if ((ni->ni_flags & IEEE80211_NODE_HT) &&
 		    (((vap->iv_flags & IEEE80211_F_WPA) &&
-		      rsnparms.rsn_ucastcipher != IEEE80211_CIPHER_AES_CCM) ||
+		    !hostapd_validate_cipher_for_ht_ampdu(rsnparms.rsn_ucastcipher)) ||
 		     (vap->iv_flags & (IEEE80211_F_WPA|IEEE80211_F_PRIVACY)) == IEEE80211_F_PRIVACY)) {
 			IEEE80211_NOTE(vap,
 			    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N, ni,

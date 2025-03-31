@@ -67,6 +67,10 @@
 static int mana_up(struct mana_port_context *apc);
 static int mana_down(struct mana_port_context *apc);
 
+extern unsigned int mana_tx_req_size;
+extern unsigned int mana_rx_req_size;
+extern unsigned int mana_rx_refill_threshold;
+
 static void
 mana_rss_key_fill(void *k, size_t size)
 {
@@ -492,6 +496,7 @@ mana_xmit(struct mana_txq *txq)
 	if_t ndev = txq->ndev;
 	struct mbuf *mbuf;
 	struct mana_port_context *apc = if_getsoftc(ndev);
+	unsigned int tx_queue_size = apc->tx_queue_size;
 	struct mana_port_stats *port_stats = &apc->port_stats;
 	struct gdma_dev *gd = apc->ac->gdma_dev;
 	uint64_t packets, bytes;
@@ -634,8 +639,7 @@ mana_xmit(struct mana_txq *txq)
 			continue;
 		}
 
-		next_to_use =
-		    (next_to_use + 1) % MAX_SEND_BUFFERS_PER_QUEUE;
+		next_to_use = MANA_IDX_NEXT(next_to_use, tx_queue_size);
 
 		(void)atomic_inc_return(&txq->pending_sends);
 
@@ -1423,6 +1427,7 @@ mana_poll_tx_cq(struct mana_cq *cq)
 	unsigned int wqe_unit_cnt = 0;
 	struct mana_txq *txq = cq->txq;
 	struct mana_port_context *apc;
+	unsigned int tx_queue_size;
 	uint16_t next_to_complete;
 	if_t ndev;
 	int comp_read;
@@ -1436,6 +1441,7 @@ mana_poll_tx_cq(struct mana_cq *cq)
 
 	ndev = txq->ndev;
 	apc = if_getsoftc(ndev);
+	tx_queue_size = apc->tx_queue_size;
 
 	comp_read = mana_gd_poll_cq(cq->gdma_cq, completions,
 	    CQE_POLLING_BUFFER);
@@ -1521,7 +1527,7 @@ mana_poll_tx_cq(struct mana_cq *cq)
 		mb();
 
 		next_to_complete =
-		    (next_to_complete + 1) % MAX_SEND_BUFFERS_PER_QUEUE;
+		    MANA_IDX_NEXT(next_to_complete, tx_queue_size);
 
 		pkt_transmitted++;
 	}
@@ -1586,17 +1592,10 @@ mana_poll_tx_cq(struct mana_cq *cq)
 }
 
 static void
-mana_post_pkt_rxq(struct mana_rxq *rxq)
+mana_post_pkt_rxq(struct mana_rxq *rxq,
+    struct mana_recv_buf_oob *recv_buf_oob)
 {
-	struct mana_recv_buf_oob *recv_buf_oob;
-	uint32_t curr_index;
 	int err;
-
-	curr_index = rxq->buf_index++;
-	if (rxq->buf_index == rxq->num_rx_buf)
-		rxq->buf_index = 0;
-
-	recv_buf_oob = &rxq->rx_oobs[curr_index];
 
 	err = mana_gd_post_work_request(rxq->gdma_rq, &recv_buf_oob->wqe_req,
 	    &recv_buf_oob->wqe_inf);
@@ -1716,6 +1715,68 @@ mana_rx_mbuf(struct mbuf *mbuf, struct mana_rxcomp_oob *cqe,
 	counter_exit();
 }
 
+static int
+mana_refill_rx_mbufs(struct mana_port_context *apc,
+    struct mana_rxq *rxq, uint32_t num)
+{
+	struct mana_recv_buf_oob *rxbuf_oob;
+	uint32_t next_to_refill;
+	uint32_t i;
+	int err;
+
+	next_to_refill = rxq->next_to_refill;
+
+	for (i = 0; i < num; i++) {
+		if (next_to_refill == rxq->buf_index) {
+			mana_warn(NULL, "refilling index reached current, "
+			    "aborted! rxq %u, oob idx %u\n",
+			    rxq->rxq_idx, next_to_refill);
+			break;
+		}
+
+		rxbuf_oob = &rxq->rx_oobs[next_to_refill];
+
+		if (likely(rxbuf_oob->mbuf == NULL)) {
+			err = mana_load_rx_mbuf(apc, rxq, rxbuf_oob, true);
+		} else {
+			mana_warn(NULL, "mbuf not null when refilling, "
+			    "rxq %u, oob idx %u, reusing\n",
+			    rxq->rxq_idx, next_to_refill);
+			err = mana_load_rx_mbuf(apc, rxq, rxbuf_oob, false);
+		}
+
+		if (unlikely(err != 0)) {
+			mana_dbg(NULL,
+			    "failed to load rx mbuf, err = %d, rxq = %u\n",
+			    err, rxq->rxq_idx);
+			counter_u64_add(rxq->stats.mbuf_alloc_fail, 1);
+			break;
+		}
+
+		mana_post_pkt_rxq(rxq, rxbuf_oob);
+
+		next_to_refill = MANA_IDX_NEXT(next_to_refill,
+		    rxq->num_rx_buf);
+	}
+
+	if (likely(i != 0)) {
+		struct gdma_context *gc =
+		    rxq->gdma_rq->gdma_dev->gdma_context;
+
+		mana_gd_wq_ring_doorbell(gc, rxq->gdma_rq);
+	}
+
+	if (unlikely(i < num)) {
+		counter_u64_add(rxq->stats.partial_refill, 1);
+		mana_dbg(NULL,
+		    "refilled rxq %u with only %u mbufs (%u requested)\n",
+		    rxq->rxq_idx, i, num);
+	}
+
+	rxq->next_to_refill = next_to_refill;
+	return (i);
+}
+
 static void
 mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
     struct gdma_comp *cqe)
@@ -1725,8 +1786,8 @@ mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 	if_t ndev = rxq->ndev;
 	struct mana_port_context *apc;
 	struct mbuf *old_mbuf;
+	uint32_t refill_required;
 	uint32_t curr, pktlen;
-	int err;
 
 	switch (oob->cqe_hdr.cqe_type) {
 	case CQE_RX_OKAY:
@@ -1779,29 +1840,24 @@ mana_process_rx_cqe(struct mana_rxq *rxq, struct mana_cq *cq,
 
 	/* Unload DMA map for the old mbuf */
 	mana_unload_rx_mbuf(apc, rxq, rxbuf_oob, false);
-
-	/* Load a new mbuf to replace the old one */
-	err = mana_load_rx_mbuf(apc, rxq, rxbuf_oob, true);
-	if (err) {
-		mana_dbg(NULL,
-		    "failed to load rx mbuf, err = %d, packet dropped.\n",
-		    err);
-		counter_u64_add(rxq->stats.mbuf_alloc_fail, 1);
-		/*
-		 * Failed to load new mbuf, rxbuf_oob->mbuf is still
-		 * pointing to the old one. Drop the packet.
-		 */
-		 old_mbuf = NULL;
-		 /* Reload the existing mbuf */
-		 mana_load_rx_mbuf(apc, rxq, rxbuf_oob, false);
-	}
+	/* Clear the mbuf pointer to avoid reuse */
+	rxbuf_oob->mbuf = NULL;
 
 	mana_rx_mbuf(old_mbuf, oob, rxq);
 
 drop:
 	mana_move_wq_tail(rxq->gdma_rq, rxbuf_oob->wqe_inf.wqe_size_in_bu);
 
-	mana_post_pkt_rxq(rxq);
+	rxq->buf_index = MANA_IDX_NEXT(rxq->buf_index, rxq->num_rx_buf);
+
+	/* Check if refill is needed */
+	refill_required = MANA_GET_SPACE(rxq->next_to_refill,
+	    rxq->buf_index, rxq->num_rx_buf);
+
+	if (refill_required >= rxq->refill_thresh) {
+		/* Refill empty rx_oobs with new mbufs */
+		mana_refill_rx_mbufs(apc, rxq, refill_required);
+	}
 }
 
 static void
@@ -1834,13 +1890,6 @@ mana_poll_rx_cq(struct mana_cq *cq)
 		mana_process_rx_cqe(cq->rxq, cq, &comp[i]);
 	}
 
-	if (comp_read > 0) {
-		struct gdma_context *gc =
-		    cq->rxq->gdma_rq->gdma_dev->gdma_context;
-
-		mana_gd_wq_ring_doorbell(gc, cq->rxq->gdma_rq);
-	}
-
 	tcp_lro_flush_all(&cq->rxq->lro);
 }
 
@@ -1867,9 +1916,9 @@ mana_cq_handler(void *context, struct gdma_queue *gdma_queue)
 	mana_gd_ring_cq(gdma_queue, arm_bit);
 }
 
-#define MANA_POLL_BUDGET	8
-#define MANA_RX_BUDGET		256
-#define MANA_TX_BUDGET		MAX_SEND_BUFFERS_PER_QUEUE
+#define MANA_POLL_BUDGET	256
+#define MANA_RX_BUDGET		8
+#define MANA_TX_BUDGET		8
 
 static void
 mana_poll(void *arg, int pending)
@@ -1976,7 +2025,7 @@ mana_deinit_txq(struct mana_port_context *apc, struct mana_txq *txq)
 
 	if (txq->tx_buf_info) {
 		/* Free all mbufs which are still in-flight */
-		for (i = 0; i < MAX_SEND_BUFFERS_PER_QUEUE; i++) {
+		for (i = 0; i < apc->tx_queue_size; i++) {
 			txbuf_info = &txq->tx_buf_info[i];
 			if (txbuf_info->mbuf) {
 				mana_tx_unmap_mbuf(apc, txbuf_info);
@@ -2034,15 +2083,19 @@ mana_create_txq(struct mana_port_context *apc, if_t net)
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 
 	/*  The minimum size of the WQE is 32 bytes, hence
-	 *  MAX_SEND_BUFFERS_PER_QUEUE represents the maximum number of WQEs
+	 *  apc->tx_queue_size represents the maximum number of WQEs
 	 *  the SQ can store. This value is then used to size other queues
 	 *  to prevent overflow.
+	 *  Also note that the txq_size is always going to be page aligned,
+	 *  as min val of apc->tx_queue_size is 128 and that would make
+	 *  txq_size 128 * 32 = 4096 and the other higher values of
+	 *  apc->tx_queue_size are always power of two.
 	 */
-	txq_size = MAX_SEND_BUFFERS_PER_QUEUE * 32;
+	txq_size = apc->tx_queue_size * 32;
 	KASSERT(IS_ALIGNED(txq_size, PAGE_SIZE),
 	    ("txq size not page aligned"));
 
-	cq_size = MAX_SEND_BUFFERS_PER_QUEUE * COMP_ENTRY_SIZE;
+	cq_size = apc->tx_queue_size * COMP_ENTRY_SIZE;
 	cq_size = ALIGN(cq_size, PAGE_SIZE);
 
 	gc = gd->gdma_context;
@@ -2125,7 +2178,7 @@ mana_create_txq(struct mana_port_context *apc, if_t net)
 		gc->cq_table[cq->gdma_id] = cq->gdma_cq;
 
 		/* Initialize tx specific data */
-		txq->tx_buf_info = malloc(MAX_SEND_BUFFERS_PER_QUEUE *
+		txq->tx_buf_info = malloc(apc->tx_queue_size *
 		    sizeof(struct mana_send_buf_info),
 		    M_DEVBUF, M_WAITOK | M_ZERO);
 
@@ -2133,7 +2186,7 @@ mana_create_txq(struct mana_port_context *apc, if_t net)
 		    "mana:tx(%d)", i);
 		mtx_init(&txq->txq_mtx, txq->txq_mtx_name, NULL, MTX_DEF);
 
-		txq->txq_br = buf_ring_alloc(4 * MAX_SEND_BUFFERS_PER_QUEUE,
+		txq->txq_br = buf_ring_alloc(4 * apc->tx_queue_size,
 		    M_DEVBUF, M_WAITOK, &txq->txq_mtx);
 
 		/* Allocate taskqueue for deferred send */
@@ -2323,10 +2376,10 @@ mana_create_rxq(struct mana_port_context *apc, uint32_t rxq_idx,
 	gc = gd->gdma_context;
 
 	rxq = malloc(sizeof(*rxq) +
-	    RX_BUFFERS_PER_QUEUE * sizeof(struct mana_recv_buf_oob),
+	    apc->rx_queue_size * sizeof(struct mana_recv_buf_oob),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 	rxq->ndev = ndev;
-	rxq->num_rx_buf = RX_BUFFERS_PER_QUEUE;
+	rxq->num_rx_buf = apc->rx_queue_size;
 	rxq->rxq_idx = rxq_idx;
 	/*
 	 * Minimum size is MCLBYTES(2048) bytes for a mbuf cluster.
@@ -2338,6 +2391,23 @@ mana_create_rxq(struct mana_port_context *apc, uint32_t rxq_idx,
 
 	mana_dbg(NULL, "Setting rxq %d datasize %d\n",
 	    rxq_idx, rxq->datasize);
+
+	/*
+	 * Two steps to set the mbuf refill_thresh.
+	 * 1) If mana_rx_refill_threshold is set, honor it.
+	 *    Set to default value otherwise.
+	 * 2) Select the smaller of 1) above and 1/4 of the
+	 *    rx buffer size.
+	 */
+	if (mana_rx_refill_threshold != 0)
+		rxq->refill_thresh = mana_rx_refill_threshold;
+	else
+		rxq->refill_thresh = MANA_RX_REFILL_THRESH;
+	rxq->refill_thresh = min_t(uint32_t,
+	    rxq->num_rx_buf / 4, rxq->refill_thresh);
+
+	mana_dbg(NULL, "Setting rxq %d refill thresh %u\n",
+	    rxq_idx, rxq->refill_thresh);
 
 	rxq->rxobj = INVALID_MANA_HANDLE;
 
@@ -2763,6 +2833,62 @@ mana_detach(if_t ndev)
 	return err;
 }
 
+static unsigned int
+mana_get_tx_queue_size(int port_idx, unsigned int request_size)
+{
+	unsigned int new_size;
+
+	if (request_size == 0)
+		/* Uninitialized */
+		new_size = DEF_SEND_BUFFERS_PER_QUEUE;
+	else
+		new_size = roundup_pow_of_two(request_size);
+
+	if (new_size < MIN_SEND_BUFFERS_PER_QUEUE ||
+	    new_size > MAX_SEND_BUFFERS_PER_QUEUE) {
+		mana_info(NULL, "mana port %d: requested tx buffer "
+		    "size %u out of allowable range (%u - %u), "
+		    "setting to default\n",
+		    port_idx, request_size,
+		    MIN_SEND_BUFFERS_PER_QUEUE,
+		    MAX_SEND_BUFFERS_PER_QUEUE);
+		new_size = DEF_SEND_BUFFERS_PER_QUEUE;
+	}
+	mana_info(NULL, "mana port %d: tx buffer size %u "
+	    "(%u requested)\n",
+	    port_idx, new_size, request_size);
+
+	return (new_size);
+}
+
+static unsigned int
+mana_get_rx_queue_size(int port_idx, unsigned int request_size)
+{
+	unsigned int new_size;
+
+	if (request_size == 0)
+		/* Uninitialized */
+		new_size = DEF_RX_BUFFERS_PER_QUEUE;
+	else
+		new_size = roundup_pow_of_two(request_size);
+
+	if (new_size < MIN_RX_BUFFERS_PER_QUEUE ||
+	    new_size > MAX_RX_BUFFERS_PER_QUEUE) {
+		mana_info(NULL, "mana port %d: requested rx buffer "
+		    "size %u out of allowable range (%u - %u), "
+		    "setting to default\n",
+		    port_idx, request_size,
+		    MIN_RX_BUFFERS_PER_QUEUE,
+		    MAX_RX_BUFFERS_PER_QUEUE);
+		new_size = DEF_RX_BUFFERS_PER_QUEUE;
+	}
+	mana_info(NULL, "mana port %d: rx buffer size %u "
+	    "(%u requested)\n",
+	    port_idx, new_size, request_size);
+
+	return (new_size);
+}
+
 static int
 mana_probe_port(struct mana_context *ac, int port_idx,
     if_t *ndev_storage)
@@ -2782,6 +2908,10 @@ mana_probe_port(struct mana_context *ac, int port_idx,
 	apc->max_queues = gc->max_num_queues;
 	apc->num_queues = min_t(unsigned int,
 	    gc->max_num_queues, MANA_MAX_NUM_QUEUES);
+	apc->tx_queue_size = mana_get_tx_queue_size(port_idx,
+	    mana_tx_req_size);
+	apc->rx_queue_size = mana_get_rx_queue_size(port_idx,
+	    mana_rx_req_size);
 	apc->port_handle = INVALID_MANA_HANDLE;
 	apc->port_idx = port_idx;
 	apc->frame_size = DEFAULT_FRAME_SIZE;

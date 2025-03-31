@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2020 iXsystems, Inc.
  * All rights reserved.
@@ -93,6 +94,9 @@
 
 #define	param_set_max_auto_ashift_args(var) \
     CTLTYPE_UINT, NULL, 0, param_set_max_auto_ashift, "IU"
+
+#define	param_set_raidz_impl_args(var) \
+    CTLTYPE_STRING, NULL, 0, param_set_raidz_impl, "A"
 
 #define	spa_taskq_read_param_set_args(var) \
     CTLTYPE_STRING, NULL, 0, spa_taskq_read_param, "A"

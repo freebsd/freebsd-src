@@ -1,3 +1,159 @@
+2025-03-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* bsd.after-import.mk: by default generate makefiles
+	closer to BSD style.
+
+	* VERSION (_MAKE_VERSION): 20250308
+	Merge with NetBSD make, pick up
+	o clean up comments and code for parallel mode
+	o job.c: avoid SIGPIPE for children, call Job_Wait befor abort.
+
+2025-02-27  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250225
+	Merge with NetBSD make, pick up
+	o job.c: reliably remove targets on interrupt,
+	by passing signal to children first.
+
+2025-01-25  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250125
+	Merge with NetBSD make, sync up below change.
+
+	* unit-tests/Makefile: remove $TMPDIR via .END
+	to avoid failure in test on NFS - since the temp file for the
+	target script is open and thus gets renamed by the server rather
+	than removed.
+
+2025-01-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250120
+	Merge with NetBSD make, pick up
+	o use FORK_FUNCTION so it can be forced to fork when doing coverage.
+	o main.c: avoid memory allocation in error path after exec failure.
+
+2025-01-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250116
+	Merge with NetBSD make, pick up
+	o clarify that undefined expressions are allowed in dependencies
+	o simplify code for evaluating the '!=' variable assignment
+
+2025-01-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250111
+	Merge with NetBSD make, pick up
+	o replace "Malformed conditional" with "Variable is undefined"
+	when appropriate
+
+2025-01-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250110
+	Merge with NetBSD make, pick up
+	o job.c: remove some unnecessary layers in job handling
+	o unit-tests: test expressions based on undefined variables
+
+2025-01-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250101
+	Merge with NetBSD make, pick up
+	o var.c: reduce pointer indirections when unexporting a variable
+
+2024-12-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20241212
+	* mk/ updates
+
+2024-11-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20241124
+	Merge with NetBSD make, pick up
+	o var.c: fix confusing error message when overriding a read-only
+	variable
+
+2024-11-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20241122
+	Merge with NetBSD make, pick up
+	o unit-tests/Makefile: optimize running of tests skip extra cat
+	in 99% of cases.
+
+2024-11-15  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20241114
+	Merge with NetBSD make, pick up
+	o make.1: note that MAKEOBJPREFIX should be absolute path
+	also that it can be set via makefile if suitable care taken.
+	
+2024-11-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20241110
+	Merge with NetBSD make, pick up
+	o make: allow .../ (search here and above) in
+	.MAKE.MAKEFILE_PREFERENCE and -f argument.
+
+2024-11-03  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20241101
+	Merge with NetBSD make, pick up
+	o parse.c: report filename:linenumber in parse debug output
+
+2024-09-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240921
+	Merge with NetBSD make, pick up
+	o make.1: Only list the defaults for MAKEFILE_PREFERENCE once.
+
+	* Makefile: use genfiles.mk to generate ${MAN}
+	so that it can be tuned for local site.
+	Ensure MAN  is defined before including Makefile.inc
+
+	* Makefile: use MK_GEN_MAN to make it easier to control whether we
+	generate ${MAN}
+
+2024-09-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240909
+
+	* arch.c: fix NetBSD PR 58597
+
+2024-09-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* Makefile: use SUBDIR.${MK_TESTS} so that we skip
+	unit-tests for obj and clean when FreeBSD is building WITHOUT_TESTS
+
+	* VERSION (_MAKE_VERSION): 20240901
+	Merge with NetBSD make, pick up
+	o reduce line length in error messages
+	o var.c: simplify printing of an evaluation stack element
+
+2024-08-29  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240828
+	Merge with NetBSD make, pick up
+	o add more context to error message about recursive variables
+	o treat recursive variables non-fatally - continue parsing to end
+	of makefile
+
+2024-08-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240808
+	Merge with NetBSD make, pick up
+	o improve some error messages for better clarify and readability
+
+2024-07-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240722
+	Merge with NetBSD make, pick up
+	o job.c: remove dead code
+
+2024-07-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20240720
+	Merge with NetBSD make, pick up
+	o compat.c: do not run commands that have parse or evaluation errors.
+	o var.c: remove wrong error message about an undefined variable
+
 2024-07-13  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* cleanup redundant differences from NetBSD make

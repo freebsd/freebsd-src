@@ -6,7 +6,7 @@ efivar-dp-parse.c is a copy of MdePkg/Library/UefiDevicePathLib/DevicePathFromTe
 
 These files are first mechnaically processed with
 
-sed -e "s/L'/'/;"'s/L"/"/g;s/%g/%36s/g;s/%a/%s/g;s/^VOID/static VOID/g;s/ *$//g'
+sed -e "s/L'/'/g;"'s/L"/"/g;s/%g/%36s/g;s/%a/%s/g;s/^VOID/static VOID/g;s/ *$//g'
 
 for several reasons. We're moving from wide rotuines to narrow routines. The
 UTC-2 this code is written for is a bad match for wchar_t which is an int. It's

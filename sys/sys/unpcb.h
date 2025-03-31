@@ -93,6 +93,7 @@ struct unpcb {
 	u_int	unp_msgcount;		/* (g) references from message queue */
 	u_int	unp_gcrefs;		/* (g) garbage collector refcount */
 	ino_t	unp_ino;		/* (g) fake inode number */
+	mode_t  unp_mode;		/* (g) initial pre-bind() mode */
 	LIST_ENTRY(unpcb) unp_dead;	/* (g) link in dead list */
 } __aligned(CACHE_LINE_SIZE);
 

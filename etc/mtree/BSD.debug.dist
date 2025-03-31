@@ -37,7 +37,19 @@
                 ..
                 engines-3
                 ..
+                flua
+                    freebsd
+                        sys
+                        ..
+                    ..
+                ..
                 i18n
+                ..
+                libxo
+                    encoder
+                    ..
+                ..
+                ossl-modules
                 ..
             ..
             libexec

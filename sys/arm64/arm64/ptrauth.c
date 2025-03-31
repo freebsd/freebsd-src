@@ -43,6 +43,7 @@
 
 #include <machine/armreg.h>
 #include <machine/cpu.h>
+#include <machine/cpu_feat.h>
 #include <machine/reg.h>
 #include <machine/vmparam.h>
 
@@ -81,8 +82,8 @@ ptrauth_disable(void)
 	return (false);
 }
 
-void
-ptrauth_init(void)
+static bool
+ptrauth_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
 	uint64_t isar1;
 	int pac_enable;
@@ -96,27 +97,42 @@ ptrauth_init(void)
 	if (!pac_enable) {
 		if (boothowto & RB_VERBOSE)
 			printf("Pointer authentication is disabled\n");
-		return;
+		return (false);
 	}
 
 	if (!get_kernel_reg(ID_AA64ISAR1_EL1, &isar1))
-		return;
+		return (false);
 
 	if (ptrauth_disable())
-		return;
+		return (false);
 
 	/*
 	 * This assumes if there is pointer authentication on the boot CPU
 	 * it will also be available on any non-boot CPUs. If this is ever
 	 * not the case we will have to add a quirk.
 	 */
-	if (ID_AA64ISAR1_APA_VAL(isar1) > 0 ||
-	    ID_AA64ISAR1_API_VAL(isar1) > 0) {
-		enable_ptrauth = true;
-		elf64_addr_mask.code |= PAC_ADDR_MASK;
-		elf64_addr_mask.data |= PAC_ADDR_MASK;
-	}
+	return (ID_AA64ISAR1_APA_VAL(isar1) > 0 ||
+	    ID_AA64ISAR1_API_VAL(isar1) > 0);
 }
+
+static void
+ptrauth_enable(const struct cpu_feat *feat __unused,
+    cpu_feat_errata errata_status __unused, u_int *errata_list __unused,
+    u_int errata_count __unused)
+{
+	enable_ptrauth = true;
+	elf64_addr_mask.code |= PAC_ADDR_MASK;
+	elf64_addr_mask.data |= PAC_ADDR_MASK;
+}
+
+
+static struct cpu_feat feat_pauth = {
+	.feat_name		= "FEAT_PAuth",
+	.feat_check		= ptrauth_check,
+	.feat_enable		= ptrauth_enable,
+	.feat_flags		= CPU_FEAT_EARLY_BOOT | CPU_FEAT_SYSTEM,
+};
+DATA_SET(cpu_feat_set, feat_pauth);
 
 /* Copy the keys when forking a new process */
 void

@@ -1,3 +1,6 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2004-2006
 .\"	Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
 .\"
@@ -23,12 +26,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 15, 2015
+.Dd November 10, 2024
 .Dt IPW 4
 .Os
 .Sh NAME
 .Nm ipw
-.Nd "Intel PRO/Wireless 2100 IEEE 802.11 driver"
+.Nd Intel PRO/Wireless 2100 IEEE 802.11a/b driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -57,19 +60,14 @@ legal.intel_ipw.license_ack=1
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the
-.Tn Intel
-PRO/Wireless 2100 MiniPCI network adapter.
-.Nm
-supports
+driver provides support for Intel PRO/Wireless 2100 802.11a/b
+wireless network devices in
 .Cm station ,
 .Cm adhoc ,
 and
 .Cm monitor
 mode operation.
 Only one virtual interface may be configured at any time.
-For more information on configuring this device, see
-.Xr ifconfig 8 .
 .Pp
 This driver requires the firmware built with the
 .Nm ipwfw
@@ -80,28 +78,34 @@ must be agreed by adding the following line to
 .Xr loader.conf 5 :
 .Pp
 .Dl "legal.intel_ipw.license_ack=1"
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver provides support for the
+Intel PRO/Wireless 2100a/b MiniPCI network adapter.
 .Sh FILES
-.Bl -tag -width ".Pa /usr/share/doc/legal/intel_ipw.LICENSE" -compact
+.Bl -tag -width "/usr/share/doc/legal/intel_ipw.LICENSE" -compact
 .It Pa /usr/share/doc/legal/intel_ipw.LICENSE
 .Nm
 firmware license
 .El
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Bd -literal -offset indent
-ifconfig wlan create wlandev ipw0 inet 192.168.0.20 \e
-    netmask 0xffffff00
-.Ed
+.Pp
+.Dl ifconfig wlan create wlandev ipw0 inet 192.0.2.20/24
 .Pp
 Join a specific BSS network with network name
-.Dq Li my_net :
+.Ar my_net :
 .Pp
-.Dl "ifconfig wlan create wlandev ipw0 ssid my_net up"
+.Dl ifconfig wlan create wlandev ipw0 ssid my_net up
 .Pp
 Join a specific BSS network with 64-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig wlan create wlandev ipw0 ssid my_net \e
-	wepmode on wepkey 0x1234567890 weptxkey 1 up
+    wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
 .Pp
 Join a specific BSS network with 128-bit WEP encryption:
@@ -144,6 +148,7 @@ This should not happen.
 .Xr wlan_ccmp 4 ,
 .Xr wlan_tkip 4 ,
 .Xr wlan_wep 4 ,
+.Xr networking 7 ,
 .Xr ifconfig 8 ,
 .Xr wpa_supplicant 8
 .Sh AUTHORS

@@ -1325,8 +1325,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	    ("%s: LK_INTERLOCK passed without valid interlock @ %s:%d",
 	    __func__, file, line));
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
-	    ("%s: idle thread %p on lockmgr %s @ %s:%d", __func__, curthread,
-	    lk->lock_object.lo_name, file, line));
+	    ("%s: idle thread %p on lockmgr %p @ %s:%d", __func__, curthread,
+	    lk, file, line));
 
 	class = (flags & LK_INTERLOCK) ? LOCK_CLASS(ilk) : NULL;
 

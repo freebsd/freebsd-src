@@ -61,7 +61,7 @@
 
 #include "nat64stl.h"
 
-VNET_DEFINE(uint16_t, nat64stl_eid) = 0;
+VNET_DEFINE(uint32_t, nat64stl_eid) = 0;
 
 static struct nat64stl_cfg *nat64stl_alloc_config(const char *name,
     uint8_t set);
@@ -489,81 +489,23 @@ nat64stl_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 }
 
 static struct ipfw_sopt_handler	scodes[] = {
-	{ IP_FW_NAT64STL_CREATE, 0,	HDIR_SET,	nat64stl_create },
-	{ IP_FW_NAT64STL_DESTROY,0,	HDIR_SET,	nat64stl_destroy },
-	{ IP_FW_NAT64STL_CONFIG, 0,	HDIR_BOTH,	nat64stl_config },
-	{ IP_FW_NAT64STL_LIST,   0,	HDIR_GET,	nat64stl_list },
-	{ IP_FW_NAT64STL_STATS,  0,	HDIR_GET,	nat64stl_stats },
-	{ IP_FW_NAT64STL_RESET_STATS,0,	HDIR_SET,	nat64stl_reset_stats },
+    { IP_FW_NAT64STL_CREATE,	IP_FW3_OPVER,	HDIR_SET, nat64stl_create },
+    { IP_FW_NAT64STL_DESTROY,	IP_FW3_OPVER,	HDIR_SET, nat64stl_destroy },
+    { IP_FW_NAT64STL_CONFIG,	IP_FW3_OPVER,	HDIR_BOTH,nat64stl_config },
+    { IP_FW_NAT64STL_LIST,	IP_FW3_OPVER,	HDIR_GET, nat64stl_list },
+    { IP_FW_NAT64STL_STATS,	IP_FW3_OPVER,	HDIR_GET, nat64stl_stats },
+    { IP_FW_NAT64STL_RESET_STATS, IP_FW3_OPVER,	HDIR_SET, nat64stl_reset_stats },
 };
 
 static int
-nat64stl_classify(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
-{
-	ipfw_insn *icmd;
-
-	icmd = cmd - 1;
-	if (icmd->opcode != O_EXTERNAL_ACTION ||
-	    icmd->arg1 != V_nat64stl_eid)
-		return (1);
-
-	*puidx = cmd->arg1;
-	*ptype = 0;
-	return (0);
-}
-
-static void
-nat64stl_update_arg1(ipfw_insn *cmd, uint16_t idx)
-{
-
-	cmd->arg1 = idx;
-}
-
-static int
-nat64stl_findbyname(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct named_object **pno)
-{
-	int err;
-
-	err = ipfw_objhash_find_type(CHAIN_TO_SRV(ch), ti,
-	    IPFW_TLV_NAT64STL_NAME, pno);
-	return (err);
-}
-
-static struct named_object *
-nat64stl_findbykidx(struct ip_fw_chain *ch, uint16_t idx)
-{
-	struct namedobj_instance *ni;
-	struct named_object *no;
-
-	IPFW_UH_WLOCK_ASSERT(ch);
-	ni = CHAIN_TO_SRV(ch);
-	no = ipfw_objhash_lookup_kidx(ni, idx);
-	KASSERT(no != NULL, ("NAT with index %d not found", idx));
-
-	return (no);
-}
-
-static int
-nat64stl_manage_sets(struct ip_fw_chain *ch, uint16_t set, uint8_t new_set,
+nat64stl_manage_sets(struct ip_fw_chain *ch, uint32_t set, uint8_t new_set,
     enum ipfw_sets_cmd cmd)
 {
 
 	return (ipfw_obj_manage_sets(CHAIN_TO_SRV(ch), IPFW_TLV_NAT64STL_NAME,
 	    set, new_set, cmd));
 }
-
-static struct opcode_obj_rewrite opcodes[] = {
-	{
-		.opcode = O_EXTERNAL_INSTANCE,
-		.etlv = IPFW_TLV_EACTION /* just show it isn't table */,
-		.classifier = nat64stl_classify,
-		.update = nat64stl_update_arg1,
-		.find_byname = nat64stl_findbyname,
-		.find_bykidx = nat64stl_findbykidx,
-		.manage_sets = nat64stl_manage_sets,
-	},
-};
+NAT64_DEFINE_OPCODE_REWRITER(nat64stl, NAT64STL, opcodes);
 
 static int
 destroy_config_cb(struct namedobj_instance *ni, struct named_object *no,

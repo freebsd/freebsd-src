@@ -40,8 +40,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is design to provide access to the user to generic netlink
-protocols.
+utility provides user access to generic netlink protocols.
 .Pp
 The following commands are available:
 .Bl -tag -width indent
@@ -57,15 +56,16 @@ Id of the available multicast group if any and it associated name
 Connect to the
 .Ar family
 protocol and subscribe to the
-.Ar mulicast group
+.Ar multicast group
 then print the received messages in a readable format if the protocol is known.
 So far only
 .Qq nlctrl
 and
 .Qq nlsysevent
-are known. If no
+are known.
+If no
 .Ar multicast group
-are provided then all the groups are subsribed to.
+are provided then all the groups are subscribed to.
 .El
 .Sh SEE ALSO
 .Xr genetlink 4 ,

@@ -458,7 +458,8 @@ vm_page_domain_init(int domain)
 	vmd->vmd_page_count = 0;
 	vmd->vmd_free_count = 0;
 	vmd->vmd_segs = 0;
-	vmd->vmd_oom = FALSE;
+	vmd->vmd_oom = false;
+	vmd->vmd_helper_threads_enabled = true;
 	for (i = 0; i < PQ_COUNT; i++) {
 		pq = &vmd->vmd_pagequeues[i];
 		TAILQ_INIT(&pq->pq_pl);
@@ -569,6 +570,7 @@ vm_page_startup(vm_offset_t vaddr)
 #if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
 	long ii;
 #endif
+	int pool;
 #ifdef VM_FREEPOOL_LAZYINIT
 	int lazyinit;
 #endif
@@ -648,41 +650,42 @@ vm_page_startup(vm_offset_t vaddr)
 		dump_add_page(pa);
 		pa += PAGE_SIZE;
 	}
+#else
+	(void)pa;
 #endif
+
 	/*
-	 * Compute the number of pages of memory that will be available for
-	 * use, taking into account the overhead of a page structure per page.
-	 * In other words, solve
-	 *	"available physical memory" - round_page(page_range *
-	 *	    sizeof(struct vm_page)) = page_range * PAGE_SIZE 
-	 * for page_range.  
+	 * Determine the lowest and highest physical addresses and, in the case
+	 * of VM_PHYSSEG_SPARSE, the exact size of the available physical
+	 * memory.  vm_phys_early_startup() already checked that phys_avail[]
+	 * has at least one element.
 	 */
+#ifdef VM_PHYSSEG_SPARSE
+	size = phys_avail[1] - phys_avail[0];
+#endif
 	low_avail = phys_avail[0];
 	high_avail = phys_avail[1];
-	for (i = 0; i < vm_phys_nsegs; i++) {
-		if (vm_phys_segs[i].start < low_avail)
-			low_avail = vm_phys_segs[i].start;
-		if (vm_phys_segs[i].end > high_avail)
-			high_avail = vm_phys_segs[i].end;
-	}
-	/* Skip the first chunk.  It is already accounted for. */
 	for (i = 2; phys_avail[i + 1] != 0; i += 2) {
+#ifdef VM_PHYSSEG_SPARSE
+		size += phys_avail[i + 1] - phys_avail[i];
+#endif
 		if (phys_avail[i] < low_avail)
 			low_avail = phys_avail[i];
 		if (phys_avail[i + 1] > high_avail)
 			high_avail = phys_avail[i + 1];
 	}
-	first_page = low_avail / PAGE_SIZE;
+	for (i = 0; i < vm_phys_nsegs; i++) {
 #ifdef VM_PHYSSEG_SPARSE
-	size = 0;
-	for (i = 0; i < vm_phys_nsegs; i++)
 		size += vm_phys_segs[i].end - vm_phys_segs[i].start;
-	for (i = 0; phys_avail[i + 1] != 0; i += 2)
-		size += phys_avail[i + 1] - phys_avail[i];
-#elif defined(VM_PHYSSEG_DENSE)
+#endif
+		if (vm_phys_segs[i].start < low_avail)
+			low_avail = vm_phys_segs[i].start;
+		if (vm_phys_segs[i].end > high_avail)
+			high_avail = vm_phys_segs[i].end;
+	}
+	first_page = low_avail / PAGE_SIZE;
+#ifdef VM_PHYSSEG_DENSE
 	size = high_avail - low_avail;
-#else
-#error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
 #endif
 
 #ifdef PMAP_HAS_PAGE_ARRAY
@@ -744,17 +747,19 @@ vm_page_startup(vm_offset_t vaddr)
 	 * physical pages.
 	 */
 	for (i = 0; phys_avail[i + 1] != 0; i += 2)
-		if (vm_phys_avail_size(i) != 0)
-			vm_phys_add_seg(phys_avail[i], phys_avail[i + 1]);
+		vm_phys_add_seg(phys_avail[i], phys_avail[i + 1]);
 
 	/*
 	 * Initialize the physical memory allocator.
 	 */
 	vm_phys_init();
 
+	pool = VM_FREEPOOL_DEFAULT;
 #ifdef VM_FREEPOOL_LAZYINIT
 	lazyinit = 1;
 	TUNABLE_INT_FETCH("debug.vm.lazy_page_init", &lazyinit);
+	if (lazyinit)
+		pool = VM_FREEPOOL_LAZYINIT;
 #endif
 
 	/*
@@ -774,48 +779,27 @@ vm_page_startup(vm_offset_t vaddr)
 		seg = &vm_phys_segs[segind];
 
 		/*
-		 * If lazy vm_page initialization is not enabled, simply
-		 * initialize all of the pages in the segment.  Otherwise, we
-		 * only initialize:
-		 * 1. Pages not covered by phys_avail[], since they might be
-		 *    freed to the allocator at some future point, e.g., by
-		 *    kmem_bootstrap_free().
-		 * 2. The first page of each run of free pages handed to the
-		 *    vm_phys allocator, which in turn defers initialization
-		 *    of pages until they are needed.
-		 * This avoids blocking the boot process for long periods, which
-		 * may be relevant for VMs (which ought to boot as quickly as
-		 * possible) and/or systems with large amounts of physical
-		 * memory.
+		 * Initialize pages not covered by phys_avail[], since they
+		 * might be freed to the allocator at some future point, e.g.,
+		 * by kmem_bootstrap_free().
 		 */
-#ifdef VM_FREEPOOL_LAZYINIT
-		if (lazyinit) {
-			startp = seg->start;
-			for (i = 0; phys_avail[i + 1] != 0; i += 2) {
-				if (startp >= seg->end)
-					break;
-
-				if (phys_avail[i + 1] < startp)
-					continue;
-				if (phys_avail[i] <= startp) {
-					startp = phys_avail[i + 1];
-					continue;
-				}
-
-				m = vm_phys_seg_paddr_to_vm_page(seg, startp);
-				for (endp = MIN(phys_avail[i], seg->end);
-				    startp < endp; startp += PAGE_SIZE, m++) {
-					vm_page_init_page(m, startp, segind,
-					    VM_FREEPOOL_DEFAULT);
-				}
+		startp = seg->start;
+		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
+			if (startp >= seg->end)
+				break;
+			if (phys_avail[i + 1] < startp)
+				continue;
+			if (phys_avail[i] <= startp) {
+				startp = phys_avail[i + 1];
+				continue;
 			}
-		} else
-#endif
-			for (m = seg->first_page, pa = seg->start;
-			    pa < seg->end; m++, pa += PAGE_SIZE) {
-				vm_page_init_page(m, pa, segind,
+			m = vm_phys_seg_paddr_to_vm_page(seg, startp);
+			for (endp = MIN(phys_avail[i], seg->end);
+			    startp < endp; startp += PAGE_SIZE, m++) {
+				vm_page_init_page(m, startp, segind,
 				    VM_FREEPOOL_DEFAULT);
 			}
+		}
 
 		/*
 		 * Add the segment's pages that are covered by one of
@@ -832,16 +816,31 @@ vm_page_startup(vm_offset_t vaddr)
 			if (pagecount == 0)
 				continue;
 
+			/*
+			 * If lazy vm_page initialization is not enabled, simply
+			 * initialize all of the pages in the segment covered by
+			 * phys_avail.  Otherwise, initialize only the first
+			 * page of each run of free pages handed to the vm_phys
+			 * allocator, which in turn defers initialization of
+			 * pages until they are needed.
+			 *
+			 * This avoids blocking the boot process for long
+			 * periods, which may be relevant for VMs (which ought
+			 * to boot as quickly as possible) and/or systems with
+			 * large amounts of physical memory.
+			 */
 			m = vm_phys_seg_paddr_to_vm_page(seg, startp);
-#ifdef VM_FREEPOOL_LAZYINIT
-			if (lazyinit) {
-				vm_page_init_page(m, startp, segind,
-				    VM_FREEPOOL_LAZYINIT);
+			vm_page_init_page(m, startp, segind, pool);
+			if (pool == VM_FREEPOOL_DEFAULT) {
+				for (u_long j = 1; j < pagecount; j++) {
+					vm_page_init_page(&m[j],
+					    startp + ptoa((vm_paddr_t)j),
+					    segind, pool);
+				}
 			}
-#endif
 			vmd = VM_DOMAIN(seg->domain);
 			vm_domain_free_lock(vmd);
-			vm_phys_enqueue_contig(m, pagecount);
+			vm_phys_enqueue_contig(m, pool, pagecount);
 			vm_domain_free_unlock(vmd);
 			vm_domain_freecnt_inc(vmd, pagecount);
 			vm_cnt.v_page_count += (u_int)pagecount;
@@ -1475,16 +1474,17 @@ vm_page_dirty_KBI(vm_page_t m)
 /*
  * Insert the given page into the given object at the given pindex.  mpred is
  * used for memq linkage.  From vm_page_insert, lookup is true, mpred is
- * initially NULL, and this procedure looks it up.  From vm_page_insert_after,
- * lookup is false and mpred is known to the caller to be valid, and may be
- * NULL if this will be the page with the lowest pindex.
+ * initially NULL, and this procedure looks it up.  From vm_page_insert_after
+ * and vm_page_iter_insert, lookup is false and mpred is known to the caller
+ * to be valid, and may be NULL if this will be the page with the lowest
+ * pindex.
  *
  * The procedure is marked __always_inline to suggest to the compiler to
  * eliminate the lookup parameter and the associated alternate branch.
  */
 static __always_inline int
 vm_page_insert_lookup(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
-    vm_page_t mpred, bool lookup)
+    struct pctrie_iter *pages, bool iter, vm_page_t mpred, bool lookup)
 {
 	int error;
 
@@ -1503,7 +1503,10 @@ vm_page_insert_lookup(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
 	 * Add this page to the object's radix tree, and look up mpred if
 	 * needed.
 	 */
-	if (lookup)
+	if (iter) {
+		KASSERT(!lookup, ("%s: cannot lookup mpred", __func__));
+		error = vm_radix_iter_insert(pages, m);
+	} else if (lookup)
 		error = vm_radix_insert_lookup_lt(&object->rtree, m, &mpred);
 	else
 		error = vm_radix_insert(&object->rtree, m);
@@ -1532,7 +1535,8 @@ vm_page_insert_lookup(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
 int
 vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
-	return (vm_page_insert_lookup(m, object, pindex, NULL, true));
+	return (vm_page_insert_lookup(m, object, pindex, NULL, false, NULL,
+	    true));
 }
 
 /*
@@ -1549,7 +1553,28 @@ static int
 vm_page_insert_after(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
     vm_page_t mpred)
 {
-	return (vm_page_insert_lookup(m, object, pindex, mpred, false));
+	return (vm_page_insert_lookup(m, object, pindex, NULL, false, mpred,
+	    false));
+}
+
+/*
+ *	vm_page_iter_insert:
+ *
+ *	Tries to insert the page "m" into the specified object at offset
+ *	"pindex" using the iterator "pages".  Returns 0 if the insertion was
+ *	successful.
+ *
+ *	The page "mpred" must immediately precede the offset "pindex" within
+ *	the specified object.
+ *
+ *	The object must be locked.
+ */
+static int
+vm_page_iter_insert(struct pctrie_iter *pages, vm_page_t m, vm_object_t object,
+    vm_pindex_t pindex, vm_page_t mpred)
+{
+	return (vm_page_insert_lookup(m, object, pindex, pages, true, mpred,
+	    false));
 }
 
 /*
@@ -1611,14 +1636,18 @@ vm_page_insert_radixdone(vm_page_t m, vm_object_t object, vm_page_t mpred)
 }
 
 /*
- * Do the work to remove a page from its object.  The caller is responsible for
- * updating the page's fields to reflect this removal.
+ *	vm_page_remove_radixdone
+ *
+ *	Complete page "m" removal from the specified object after the radix trie
+ *	unhooking.
+ *
+ *	The caller is responsible for updating the page's fields to reflect this
+ *	removal.
  */
 static void
-vm_page_object_remove(vm_page_t m)
+vm_page_remove_radixdone(vm_page_t m)
 {
 	vm_object_t object;
-	vm_page_t mrem __diagused;
 
 	vm_page_assert_xbusied(m);
 	object = m->object;
@@ -1631,10 +1660,7 @@ vm_page_object_remove(vm_page_t m)
 		vm_pager_page_unswapped(m);
 
 	vm_pager_page_removed(object, m);
-
 	m->object = NULL;
-	mrem = vm_radix_remove(&object->rtree, m->pindex);
-	KASSERT(mrem == m, ("removed page %p, expected page %p", mrem, m));
 
 	/*
 	 * Now remove from the object's list of backed pages.
@@ -1651,6 +1677,50 @@ vm_page_object_remove(vm_page_t m)
 	 */
 	if (object->resident_page_count == 0 && object->type == OBJT_VNODE)
 		vdrop(object->handle);
+}
+
+/*
+ *	vm_page_free_object_prep:
+ *
+ *	Disassociates the given page from its VM object.
+ *
+ *	The object must be locked, and the page must be xbusy.
+ */
+static void
+vm_page_free_object_prep(vm_page_t m)
+{
+	KASSERT(((m->oflags & VPO_UNMANAGED) != 0) ==
+	    ((m->object->flags & OBJ_UNMANAGED) != 0),
+	    ("%s: managed flag mismatch for page %p",
+	     __func__, m));
+	vm_page_assert_xbusied(m);
+
+	/*
+	 * The object reference can be released without an atomic
+	 * operation.
+	 */
+	KASSERT((m->flags & PG_FICTITIOUS) != 0 ||
+	    m->ref_count == VPRC_OBJREF,
+	    ("%s: page %p has unexpected ref_count %u",
+	    __func__, m, m->ref_count));
+	vm_page_remove_radixdone(m);
+	m->ref_count -= VPRC_OBJREF;
+}
+
+/*
+ *	vm_page_iter_free:
+ *
+ *	Free the given page, and use the iterator to remove it from the radix
+ *	tree.
+ */
+void
+vm_page_iter_free(struct pctrie_iter *pages, vm_page_t m)
+{
+	vm_radix_iter_remove(pages);
+	vm_page_free_object_prep(m);
+	vm_page_xunbusy(m);
+	m->flags &= ~PG_ZERO;
+	vm_page_free_toq(m);
 }
 
 /*
@@ -1677,6 +1747,40 @@ vm_page_remove(vm_page_t m)
 }
 
 /*
+ *	vm_page_iter_remove:
+ *
+ *	Remove the current page, and use the iterator to remove it from the
+ *	radix tree.
+ */
+bool
+vm_page_iter_remove(struct pctrie_iter *pages, vm_page_t m)
+{
+	bool dropped;
+
+	vm_radix_iter_remove(pages);
+	vm_page_remove_radixdone(m);
+	dropped = (vm_page_drop(m, VPRC_OBJREF) == VPRC_OBJREF);
+	vm_page_xunbusy(m);
+
+	return (dropped);
+}
+
+/*
+ *	vm_page_radix_remove
+ *
+ *	Removes the specified page from the radix tree.
+ */
+static void
+vm_page_radix_remove(vm_page_t m)
+{
+	vm_page_t mrem __diagused;
+
+	mrem = vm_radix_remove(&m->object->rtree, m->pindex);
+	KASSERT(mrem == m,
+	    ("removed page %p, expected page %p", mrem, m));
+}
+
+/*
  *	vm_page_remove_xbusy
  *
  *	Removes the page but leaves the xbusy held.  Returns true if this
@@ -1686,7 +1790,8 @@ bool
 vm_page_remove_xbusy(vm_page_t m)
 {
 
-	vm_page_object_remove(m);
+	vm_page_radix_remove(m);
+	vm_page_remove_radixdone(m);
 	return (vm_page_drop(m, VPRC_OBJREF) == VPRC_OBJREF);
 }
 
@@ -1729,21 +1834,6 @@ vm_page_iter_limit_init(struct pctrie_iter *pages, vm_object_t object,
 {
 
 	vm_radix_iter_limit_init(pages, &object->rtree, limit);
-}
-
-/*
- *	vm_page_iter_lookup:
- *
- *	Returns the page associated with the object/offset pair specified, and
- *	stores the path to its position; if none is found, NULL is returned.
- *
- *	The iter pctrie must be locked.
- */
-vm_page_t
-vm_page_iter_lookup(struct pctrie_iter *pages, vm_pindex_t pindex)
-{
-
-	return (vm_radix_iter_lookup(pages, pindex));
 }
 
 /*
@@ -1828,22 +1918,6 @@ vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
 	if ((m = TAILQ_FIRST(&object->memq)) != NULL && m->pindex < pindex)
 		m = vm_radix_lookup_ge(&object->rtree, pindex);
 	return (m);
-}
-
-/*
- *	vm_page_iter_lookup_ge:
- *
- *	Returns the page associated with the object with least pindex
- *	greater than or equal to the parameter pindex, or NULL.  Initializes the
- *	iterator to point to that page.
- *
- *	The iter pctrie must be locked.
- */
-vm_page_t
-vm_page_iter_lookup_ge(struct pctrie_iter *pages, vm_pindex_t pindex)
-{
-
-	return (vm_radix_iter_lookup_ge(pages, pindex));
 }
 
 /*
@@ -1955,10 +2029,14 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
 }
 
 /*
- *	vm_page_rename:
+ *	vm_page_iter_rename:
  *
- *	Move the given memory entry from its
- *	current object to the specified target object/offset.
+ *	Tries to move the specified page from its current object to a new object
+ *	and pindex, using the given iterator to remove the page from its current
+ *	object.  Returns true if the move was successful, and false if the move
+ *	was aborted due to a failed memory allocation.
+ *
+ *	Panics if a page already resides in the new object at the new pindex.
  *
  *	Note: swap associated with the page must be invalidated by the move.  We
  *	      have to do this for several reasons:  (1) we aren't freeing the
@@ -1972,15 +2050,17 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
  *
  *	The objects must be locked.
  */
-int
-vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
+bool
+vm_page_iter_rename(struct pctrie_iter *old_pages, vm_page_t m,
+    vm_object_t new_object, vm_pindex_t new_pindex)
 {
 	vm_page_t mpred;
 	vm_pindex_t opidx;
 
+	KASSERT((m->ref_count & VPRC_OBJREF) != 0,
+	    ("%s: page %p is missing object ref", __func__, m));
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	VM_OBJECT_ASSERT_WLOCKED(new_object);
-
-	KASSERT(m->ref_count != 0, ("vm_page_rename: page %p has no refs", m));
 
 	/*
 	 * Create a custom version of vm_page_insert() which does not depend
@@ -1991,7 +2071,7 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 	m->pindex = new_pindex;
 	if (vm_radix_insert_lookup_lt(&new_object->rtree, m, &mpred) != 0) {
 		m->pindex = opidx;
-		return (1);
+		return (false);
 	}
 
 	/*
@@ -1999,7 +2079,8 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 	 * the listq iterator is tainted.
 	 */
 	m->pindex = opidx;
-	vm_page_object_remove(m);
+	vm_radix_iter_remove(old_pages);
+	vm_page_remove_radixdone(m);
 
 	/* Return back to the new pindex to complete vm_page_insert(). */
 	m->pindex = new_pindex;
@@ -2008,7 +2089,7 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 	vm_page_insert_radixdone(m, new_object, mpred);
 	vm_page_dirty(m);
 	vm_pager_page_inserted(new_object, m);
-	return (0);
+	return (true);
 }
 
 /*
@@ -2225,6 +2306,7 @@ found:
 	m->flags = flags;
 	m->a.flags = 0;
 	m->oflags = (object->flags & OBJ_UNMANAGED) != 0 ? VPO_UNMANAGED : 0;
+	m->pool = VM_FREEPOOL_DEFAULT;
 	if ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) == 0)
 		m->busy_lock = VPB_CURTHREAD_EXCLUSIVE;
 	else if ((req & VM_ALLOC_SBUSY) != 0)
@@ -2373,6 +2455,7 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
     int req, u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr)
 {
+	struct pctrie_iter pages;
 	vm_page_t m, m_ret, mpred;
 	u_int busy_lock, flags, oflags;
 
@@ -2391,7 +2474,8 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 	    object));
 	KASSERT(npages > 0, ("vm_page_alloc_contig: npages is zero"));
 
-	mpred = vm_page_mpred(object, pindex);
+	vm_page_iter_init(&pages, object);
+	mpred = vm_radix_iter_lookup_le(&pages, pindex);
 	KASSERT(mpred == NULL || mpred->pindex != pindex,
 	    ("vm_page_alloc_contig: pindex already allocated"));
 	for (;;) {
@@ -2440,7 +2524,8 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 			m->ref_count = 1;
 		m->a.act_count = 0;
 		m->oflags = oflags;
-		if (vm_page_insert_after(m, object, pindex, mpred)) {
+		m->pool = VM_FREEPOOL_DEFAULT;
+		if (vm_page_iter_insert(&pages, m, object, pindex, mpred)) {
 			if ((req & VM_ALLOC_WIRED) != 0)
 				vm_wire_sub(npages);
 			KASSERT(m->object == NULL,
@@ -2537,6 +2622,7 @@ found:
 	m->flags = (m->flags & PG_ZERO) | flags;
 	m->a.flags = 0;
 	m->oflags = VPO_UNMANAGED;
+	m->pool = VM_FREEPOOL_DIRECT;
 	m->busy_lock = VPB_UNBUSIED;
 	if ((req & VM_ALLOC_WIRED) != 0) {
 		vm_wire_add(1);
@@ -2685,6 +2771,7 @@ vm_page_alloc_noobj_contig_domain(int domain, int req, u_long npages,
 			m->ref_count = 1;
 		m->a.act_count = 0;
 		m->oflags = VPO_UNMANAGED;
+		m->pool = VM_FREEPOOL_DIRECT;
 
 		/*
 		 * Zero the page before updating any mappings since the page is
@@ -2763,7 +2850,7 @@ vm_page_zone_release(void *arg, void **store, int cnt)
 	vm_domain_free_lock(vmd);
 	for (i = 0; i < cnt; i++) {
 		m = (vm_page_t)store[i];
-		vm_phys_free_pages(m, 0);
+		vm_phys_free_pages(m, pgcache->pool, 0);
 	}
 	vm_domain_free_unlock(vmd);
 	vm_domain_freecnt_inc(vmd, cnt);
@@ -3148,7 +3235,7 @@ unlock:
 		do {
 			MPASS(vm_page_domain(m) == domain);
 			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
-			vm_phys_free_pages(m, 0);
+			vm_phys_free_pages(m, m->pool, 0);
 			cnt++;
 		} while ((m = SLIST_FIRST(&free)) != NULL);
 		vm_domain_free_unlock(vmd);
@@ -4076,22 +4163,8 @@ vm_page_free_prep(vm_page_t m)
 	VM_CNT_INC(v_tfree);
 
 	if (m->object != NULL) {
-		KASSERT(((m->oflags & VPO_UNMANAGED) != 0) ==
-		    ((m->object->flags & OBJ_UNMANAGED) != 0),
-		    ("vm_page_free_prep: managed flag mismatch for page %p",
-		    m));
-		vm_page_assert_xbusied(m);
-
-		/*
-		 * The object reference can be released without an atomic
-		 * operation.
-		 */
-		KASSERT((m->flags & PG_FICTITIOUS) != 0 ||
-		    m->ref_count == VPRC_OBJREF,
-		    ("vm_page_free_prep: page %p has unexpected ref_count %u",
-		    m, m->ref_count));
-		vm_page_object_remove(m);
-		m->ref_count -= VPRC_OBJREF;
+		vm_page_radix_remove(m);
+		vm_page_free_object_prep(m);
 	} else
 		vm_page_assert_unbusied(m);
 
@@ -4167,7 +4240,7 @@ vm_page_free_toq(vm_page_t m)
 		return;
 	}
 	vm_domain_free_lock(vmd);
-	vm_phys_free_pages(m, 0);
+	vm_phys_free_pages(m, m->pool, 0);
 	vm_domain_free_unlock(vmd);
 	vm_domain_freecnt_inc(vmd, 1);
 }
@@ -4939,8 +5012,8 @@ retrylookup:
 				    !vm_page_tryxbusy(ma[i]))
 					break;
 			} else {
-				ma[i] = vm_page_alloc(object, m->pindex + i,
-				    VM_ALLOC_NORMAL);
+				ma[i] = vm_page_alloc_after(object,
+				    m->pindex + i, VM_ALLOC_NORMAL, ma[i - 1]);
 				if (ma[i] == NULL)
 					break;
 			}
@@ -4978,6 +5051,57 @@ out:
 		vm_page_busy_release(m);
 	*mp = m;
 	return (VM_PAGER_OK);
+}
+
+/*
+ * Fill a partial page with zeroes.  The object write lock is held on entry and
+ * exit, but may be temporarily released.
+ */
+int
+vm_page_grab_zero_partial(vm_object_t object, vm_pindex_t pindex, int base,
+    int end)
+{
+	vm_page_t m;
+	int rv;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	KASSERT(base >= 0, ("%s: base %d", __func__, base));
+	KASSERT(end - base <= PAGE_SIZE, ("%s: base %d end %d", __func__, base,
+	    end));
+
+retry:
+	m = vm_page_grab(object, pindex, VM_ALLOC_NOCREAT);
+	if (m != NULL) {
+		MPASS(vm_page_all_valid(m));
+	} else if (vm_pager_has_page(object, pindex, NULL, NULL)) {
+		m = vm_page_alloc(object, pindex,
+		    VM_ALLOC_NORMAL | VM_ALLOC_WAITFAIL);
+		if (m == NULL)
+			goto retry;
+		vm_object_pip_add(object, 1);
+		VM_OBJECT_WUNLOCK(object);
+		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
+		VM_OBJECT_WLOCK(object);
+		vm_object_pip_wakeup(object);
+		if (rv != VM_PAGER_OK) {
+			vm_page_free(m);
+			return (EIO);
+		}
+
+		/*
+		 * Since the page was not resident, and therefore not recently
+		 * accessed, immediately enqueue it for asynchronous laundering.
+		 * The current operation is not regarded as an access.
+		 */
+		vm_page_launder(m);
+	} else
+		return (0);
+
+	pmap_zero_page_area(m, base, end - base);
+	KASSERT(vm_page_all_valid(m), ("%s: page %p is invalid", __func__, m));
+	vm_page_set_dirty(m);
+	vm_page_xunbusy(m);
+	return (0);
 }
 
 /*

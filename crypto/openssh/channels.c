@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.437 2024/03/06 02:59:59 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.439 2024/07/25 22:40:08 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -92,13 +92,6 @@
 
 /* -- agent forwarding */
 #define	NUM_SOCKS	10
-
-/* -- tcp forwarding */
-/* special-case port number meaning allow any port */
-#define FWD_PERMIT_ANY_PORT	0
-
-/* special-case wildcard meaning allow any host */
-#define FWD_PERMIT_ANY_HOST	"*"
 
 /* -- X11 forwarding */
 /* Maximum number of fake X11 displays to try. */
@@ -1023,14 +1016,16 @@ channel_format_status(const Channel *c)
 {
 	char *ret = NULL;
 
-	xasprintf(&ret, "t%d [%s] %s%u i%u/%zu o%u/%zu e[%s]/%zu "
-	    "fd %d/%d/%d sock %d cc %d io 0x%02x/0x%02x",
+	xasprintf(&ret, "t%d [%s] %s%u %s%u i%u/%zu o%u/%zu e[%s]/%zu "
+	    "fd %d/%d/%d sock %d cc %d %s%u io 0x%02x/0x%02x",
 	    c->type, c->xctype != NULL ? c->xctype : c->ctype,
 	    c->have_remote_id ? "r" : "nr", c->remote_id,
+	    c->mux_ctx != NULL ? "m" : "nm", c->mux_downstream_id,
 	    c->istate, sshbuf_len(c->input),
 	    c->ostate, sshbuf_len(c->output),
 	    channel_format_extended_usage(c), sshbuf_len(c->extended),
 	    c->rfd, c->wfd, c->efd, c->sock, c->ctl_chan,
+	    c->have_ctl_child_id ? "c" : "nc", c->ctl_child_id,
 	    c->io_want, c->io_ready);
 	return ret;
 }
@@ -4577,19 +4572,6 @@ channel_update_permission(struct ssh *ssh, int idx, int newport)
 		pset->permitted_user[idx].listen_port =
 		    (ssh->compat & SSH_BUG_DYNAMIC_RPORT) ? 0 : newport;
 	}
-}
-
-/* returns port number, FWD_PERMIT_ANY_PORT or -1 on error */
-int
-permitopen_port(const char *p)
-{
-	int port;
-
-	if (strcmp(p, "*") == 0)
-		return FWD_PERMIT_ANY_PORT;
-	if ((port = a2port(p)) > 0)
-		return port;
-	return -1;
 }
 
 /* Try to start non-blocking connect to next host in cctx list */

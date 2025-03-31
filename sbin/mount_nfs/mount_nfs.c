@@ -108,6 +108,7 @@ static u_char *fh = NULL;
 static int fhsize = 0;
 static int secflavor = -1;
 static int got_principal = 0;
+static in_port_t mntproto_port = 0;
 
 static enum mountmode {
 	ANY,
@@ -360,6 +361,13 @@ main(int argc, char *argv[])
 					softintr = true;
 				} else if (strcmp(opt, "intr") == 0) {
 					softintr = true;
+				} else if (strcmp(opt, "mountport") == 0) {
+					num = strtol(val, &p, 10);
+					if (*p || num <= 0 || num > IPPORT_MAX)
+						errx(1, "illegal port num -- "
+						    "%s", val);
+					mntproto_port = num;
+					pass_flag_to_nmount=0;
 				}
 				if (pass_flag_to_nmount) {
 					build_iovec(&iov, &iovlen, opt,
@@ -579,6 +587,7 @@ getnfsargs(char **specp, char **hostpp, struct iovec **iov, int *iovlen)
 	char *hostp, *delimp, *errstr, *spec;
 	size_t len;
 	static char nam[MNAMELEN + 1], pname[MAXHOSTNAMELEN + 5];
+	bool resolved;
 
 	spec = *specp;
 	if (*spec == '[' && (delimp = strchr(spec + 1, ']')) != NULL &&
@@ -635,30 +644,7 @@ getnfsargs(char **specp, char **hostpp, struct iovec **iov, int *iovlen)
 	else if (nfsproto == IPPROTO_UDP)
 		hints.ai_socktype = SOCK_DGRAM;
 
-	if (getaddrinfo(hostp, portspec, &hints, &ai_nfs) != 0) {
-		hints.ai_flags = AI_CANONNAME;
-		if ((ecode = getaddrinfo(hostp, portspec, &hints, &ai_nfs))
-		    != 0) {
-			if (portspec == NULL)
-				errx(1, "%s: %s", hostp, gai_strerror(ecode));
-			else
-				errx(1, "%s:%s: %s", hostp, portspec,
-				    gai_strerror(ecode));
-			return (0);
-		}
-
-		/*
-		 * For a Kerberized nfs mount where the "principal"
-		 * argument has not been set, add it here.
-		 */
-		if (got_principal == 0 && secflavor != AUTH_SYS &&
-		    ai_nfs->ai_canonname != NULL) {
-			snprintf(pname, sizeof (pname), "nfs@%s",
-			    ai_nfs->ai_canonname);
-			build_iovec(iov, iovlen, "principal", pname,
-			    strlen(pname) + 1);
-		}
-	}
+	resolved = (getaddrinfo(hostp, portspec, &hints, &ai_nfs) == 0);
 
 	if ((opflags & (BGRNDNOW | ISBGRND)) == BGRNDNOW) {
 		warnx("Mount %s:%s, backgrounding",
@@ -670,6 +656,37 @@ getnfsargs(char **specp, char **hostpp, struct iovec **iov, int *iovlen)
 
 	ret = TRYRET_LOCALERR;
 	for (;;) {
+		if (!resolved) {
+			hints.ai_flags = AI_CANONNAME;
+			if ((ecode = getaddrinfo(hostp, portspec, &hints,
+			    &ai_nfs)) != 0) {
+				if (portspec == NULL)
+					warnx("%s: %s", hostp,
+					    gai_strerror(ecode));
+				else
+					warnx("%s:%s: %s", hostp, portspec,
+					    gai_strerror(ecode));
+				if (ecode == EAI_AGAIN &&
+				    (opflags & (BGRNDNOW | BGRND)))
+					goto retry;
+				else
+					exit(1);
+			}
+			resolved = true;
+			/*
+			 * For a Kerberized nfs mount where the
+			 * "principal" argument has not been set, add
+			 * it here.
+			 */
+			if (got_principal == 0 && secflavor != AUTH_SYS &&
+			    ai_nfs->ai_canonname != NULL) {
+				snprintf(pname, sizeof (pname), "nfs@%s",
+				    ai_nfs->ai_canonname);
+				build_iovec(iov, iovlen, "principal", pname,
+				    strlen(pname) + 1);
+			}
+		}
+
 		/*
 		 * Try each entry returned by getaddrinfo(). Note the
 		 * occurrence of remote errors by setting `remoteerr'.
@@ -697,7 +714,7 @@ getnfsargs(char **specp, char **hostpp, struct iovec **iov, int *iovlen)
 		/* Exit if all errors were local. */
 		if (!remoteerr)
 			exit(1);
-
+retry:
 		/*
 		 * If retrycnt == 0, we are to keep retrying forever.
 		 * Otherwise decrement it, and exit if it hits zero.
@@ -900,11 +917,47 @@ tryagain:
 		return (TRYRET_SUCCESS);
 	}
 
+	/*
+	 * malloc() and copy the address, so that it can be used for
+	 * nfsargs below.
+	 */
+	addrlen = nfs_nb.len;
+	addr = malloc(addrlen);
+	if (addr == NULL)
+		err(1, "malloc");
+	bcopy(nfs_nb.buf, addr, addrlen);
+
 	/* Send the MOUNTPROC_MNT RPC to get the root filehandle. */
 	try.tv_sec = 10;
 	try.tv_usec = 0;
-	clp = clnt_tp_create(hostp, MOUNTPROG, mntvers, nconf_mnt);
+	if (mntproto_port != 0) {
+		struct sockaddr *sad;
+		struct sockaddr_in *sin;
+		struct sockaddr_in6 *sin6;
+
+		sad = (struct sockaddr *)nfs_nb.buf;
+		switch (sad->sa_family) {
+		case AF_INET:
+			sin = (struct sockaddr_in *)nfs_nb.buf;
+			sin->sin_port = htons(mntproto_port);
+			break;
+		case AF_INET6:
+			sin6 = (struct sockaddr_in6 *)nfs_nb.buf;
+			sin6->sin6_port = htons(mntproto_port);
+			break;
+		default:
+			snprintf(errbuf, sizeof(errbuf),
+			    "Mnt port bad addr family %d\n", sad->sa_family);
+			return (TRYRET_LOCALERR);
+		}
+		clp = clnt_tli_create(RPC_ANYFD, nconf_mnt, &nfs_nb, MOUNTPROG,
+		    mntvers, 0, 0);
+	} else {
+		/* Get the Mount protocol port# via rpcbind. */
+		clp = clnt_tp_create(hostp, MOUNTPROG, mntvers, nconf_mnt);
+	}
 	if (clp == NULL) {
+		free(addr);
 		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid_mnt,
 		    hostp, spec, clnt_spcreateerror("RPCMNT: clnt_create"));
 		return (returncode(rpc_createerr.cf_stat,
@@ -914,10 +967,10 @@ tryagain:
 	nfhret.auth = secflavor;
 	nfhret.vers = mntvers;
 	clntstat = clnt_call(clp, MOUNTPROC_MNT, (xdrproc_t)xdr_dir, spec, 
-			 (xdrproc_t)xdr_fh, &nfhret,
-	    try);
+	    (xdrproc_t)xdr_fh, &nfhret, try);
 	auth_destroy(clp->cl_auth);
 	if (clntstat != RPC_SUCCESS) {
+		free(addr);
 		if (clntstat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
 			clnt_destroy(clp);
 			trymntmode = V2;
@@ -932,6 +985,7 @@ tryagain:
 	clnt_destroy(clp);
 
 	if (nfhret.stat != 0) {
+		free(addr);
 		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid_mnt,
 		    hostp, spec, strerror(nfhret.stat));
 		return (TRYRET_REMOTEERR);
@@ -941,13 +995,10 @@ tryagain:
 	 * Store the filehandle and server address in nfsargsp, making
 	 * sure to copy any locally allocated structures.
 	 */
-	addrlen = nfs_nb.len;
-	addr = malloc(addrlen);
 	fhsize = nfhret.fhsize;
 	fh = malloc(fhsize);
-	if (addr == NULL || fh == NULL)
+	if (fh == NULL)
 		err(1, "malloc");
-	bcopy(nfs_nb.buf, addr, addrlen);
 	bcopy(nfhret.nfh, fh, fhsize);
 
 	build_iovec(iov, iovlen, "addr", addr, addrlen);

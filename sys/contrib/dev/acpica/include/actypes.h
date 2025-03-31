@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1561,6 +1561,7 @@ typedef enum
 #define ACPI_OSI_WIN_10_19H1            0x14
 #define ACPI_OSI_WIN_10_20H1            0x15
 #define ACPI_OSI_WIN_11                 0x16
+#define ACPI_OSI_WIN_11_22H2            0x17
 
 
 /* Definitions of getopt */

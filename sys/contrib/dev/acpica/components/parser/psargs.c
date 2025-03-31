@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -169,6 +169,10 @@ AcpiPsGetNextPackageLength (
 static ACPI_PARSE_OBJECT *
 AcpiPsGetNextField (
     ACPI_PARSE_STATE        *ParserState);
+
+static void
+AcpiPsFreeFieldList (
+    ACPI_PARSE_OBJECT       *Start);
 
 
 /*******************************************************************************
@@ -872,6 +876,43 @@ AcpiPsGetNextField (
     return_PTR (Field);
 }
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiPsFreeFieldList
+ *
+ * PARAMETERS:  Start               - First Op in field list
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Free all Op objects inside a field list.
+ *
+ ******************************************************************************/
+
+static void
+AcpiPsFreeFieldList (
+    ACPI_PARSE_OBJECT	*Start)
+{
+    ACPI_PARSE_OBJECT *Current = Start;
+    ACPI_PARSE_OBJECT *Next;
+    ACPI_PARSE_OBJECT *Arg;
+
+    while (Current)
+    {
+        Next = Current->Common.Next;
+
+        /* AML_INT_CONNECTION_OP can have a single argument */
+
+        Arg = AcpiPsGetArg (Current, 0);
+        if (Arg)
+        {
+            AcpiPsFreeOp (Arg);
+        }
+
+        AcpiPsFreeOp(Current);
+        Current = Next;
+    }
+}
+
 
 /*******************************************************************************
  *
@@ -948,6 +989,11 @@ AcpiPsGetNextArg (
                 Field = AcpiPsGetNextField (ParserState);
                 if (!Field)
                 {
+                    if (Arg)
+                    {
+                        AcpiPsFreeFieldList(Arg);
+                    }
+
                     return_ACPI_STATUS (AE_NO_MEMORY);
                 }
 
@@ -1016,6 +1062,11 @@ AcpiPsGetNextArg (
 
             Status = AcpiPsGetNextNamepath (WalkState, ParserState,
                 Arg, ACPI_NOT_METHOD_CALL);
+            if (ACPI_FAILURE(Status))
+            {
+                AcpiPsFreeOp (Arg);
+                return_ACPI_STATUS (Status);
+            }
         }
         else
         {
@@ -1048,6 +1099,11 @@ AcpiPsGetNextArg (
 
             Status = AcpiPsGetNextNamepath (WalkState, ParserState,
                 Arg, ACPI_POSSIBLE_METHOD_CALL);
+            if (ACPI_FAILURE(Status))
+            {
+                AcpiPsFreeOp (Arg);
+                return_ACPI_STATUS (Status);
+            }
 
             if (Arg->Common.AmlOpcode == AML_INT_METHODCALL_OP)
             {

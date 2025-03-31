@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -276,6 +276,20 @@ AcpiEnableSubsystem (
      */
     AcpiGbl_EarlyInitialization = FALSE;
 
+    /*
+     * Obtain a permanent mapping for the FACS. This is required for the
+     * Global Lock and the Firmware Waking Vector
+     */
+    if (!(Flags & ACPI_NO_FACS_INIT))
+    {
+        Status = AcpiTbInitializeFacs ();
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_WARNING ((AE_INFO, "Could not map the FACS table"));
+            return_ACPI_STATUS (Status);
+        }
+    }
+
 #if (!ACPI_REDUCED_HARDWARE)
 
     /* Enable ACPI mode */
@@ -290,20 +304,6 @@ AcpiEnableSubsystem (
         if (ACPI_FAILURE (Status))
         {
             ACPI_WARNING ((AE_INFO, "AcpiEnable failed"));
-            return_ACPI_STATUS (Status);
-        }
-    }
-
-    /*
-     * Obtain a permanent mapping for the FACS. This is required for the
-     * Global Lock and the Firmware Waking Vector
-     */
-    if (!(Flags & ACPI_NO_FACS_INIT))
-    {
-        Status = AcpiTbInitializeFacs ();
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_WARNING ((AE_INFO, "Could not map the FACS table"));
             return_ACPI_STATUS (Status);
         }
     }

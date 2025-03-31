@@ -127,6 +127,7 @@ ipfw_check_packet(struct mbuf **m0, struct ifnet *ifp, int flags,
 	int ipfw;
 
 	args.flags = (flags & PFIL_IN) ? IPFW_ARGS_IN : IPFW_ARGS_OUT;
+	args.rule.pkt_mark = 0;
 again:
 	/*
 	 * extract and remove the tag if present. If we are left
@@ -144,7 +145,6 @@ again:
 	args.m = *m0;
 	args.ifp = ifp;
 	args.inp = inp;
-	args.rule.pkt_mark = 0;
 
 	ipfw = ipfw_chk(&args);
 	*m0 = args.m;

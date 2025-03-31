@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -258,9 +259,7 @@ const ddt_ops_t ddt_zap_ops = {
 	ddt_zap_count,
 };
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs_dedup, , ddt_zap_default_bs, UINT, ZMOD_RW,
 	"DDT ZAP leaf blockshift");
 ZFS_MODULE_PARAM(zfs_dedup, , ddt_zap_default_ibs, UINT, ZMOD_RW,
 	"DDT ZAP indirect blockshift");
-/* END CSTYLED */

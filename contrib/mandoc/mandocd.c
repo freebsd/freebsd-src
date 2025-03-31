@@ -1,7 +1,7 @@
-/*	$Id: mandocd.c,v 1.12 2020/06/14 23:40:31 schwarze Exp $ */
+/* $Id: mandocd.c,v 1.13 2022/04/14 16:43:44 schwarze Exp $ */
 /*
  * Copyright (c) 2017 Michael Stapelberg <stapelberg@debian.org>
- * Copyright (c) 2017, 2019 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2017, 2019, 2021 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -35,6 +35,10 @@
 #include <unistd.h>
 
 #include "mandoc.h"
+#if DEBUG_MEMORY
+#define DEBUG_NODEF 1
+#include "mandoc_dbg.h"
+#endif
 #include "roff.h"
 #include "mdoc.h"
 #include "man.h"
@@ -128,6 +132,10 @@ main(int argc, char *argv[])
 	int			 fds[3];
 	int			 state, opt;
 	enum outt		 outtype;
+
+#if DEBUG_MEMORY
+	mandoc_dbg_init(argc, argv);
+#endif
 
 	defos = NULL;
 	outtype = OUTT_ASCII;
@@ -240,6 +248,9 @@ main(int argc, char *argv[])
 	}
 	mparse_free(parser);
 	mchars_free();
+#if DEBUG_MEMORY
+	mandoc_dbg_finish();
+#endif
 	return state == -1 ? 1 : 0;
 }
 

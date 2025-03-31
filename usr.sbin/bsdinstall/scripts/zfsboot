@@ -139,7 +139,7 @@ f_include $BSDCFG_SHARE/variable.subr
 #
 # Default ZFS datasets for root zpool
 #
-# NOTE: Requires /tmp, /var/tmp, /$ZFSBOOT_BOOTFS_NAME/$ZFSBOOT_BOOTFS_NAME
+# NOTE: Requires /tmp, /var/tmp, /$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME
 # NOTE: Anything after pound/hash character [#] is ignored as a comment.
 #
 f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
@@ -206,7 +206,6 @@ GPART_ADD_ALIGN_LABEL='gpart add %s -l %s -t %s "%s"'
 GPART_ADD_ALIGN_LABEL_WITH_SIZE='gpart add %s -l %s -t %s -s %s "%s"'
 GPART_BOOTCODE='gpart bootcode -b "%s" "%s"'
 GPART_BOOTCODE_PART='gpart bootcode -b "%s" -p "%s" -i %s "%s"'
-GPART_BOOTCODE_PARTONLY='gpart bootcode -p "%s" -i %s "%s"'
 GPART_CREATE='gpart create -s %s "%s"'
 GPART_DESTROY_F='gpart destroy -F "%s"'
 GPART_SET_ACTIVE='gpart set -a active -i %s "%s"'
@@ -324,6 +323,9 @@ msg_unsupported_partition_scheme="%s is an unsupported partition scheme"
 msg_user_cancelled="User Cancelled."
 msg_yes="YES"
 msg_zfs_configuration="ZFS Configuration"
+msg_please_enter_options_for_your_zpool="Please enter options for your zpool"
+msg_zfs_options_name="ZFS Pool Options"
+msg_zfs_options_name_help="Customize ZFS options for the zpool to be created"
 
 ############################################################ FUNCTIONS
 
@@ -374,6 +376,8 @@ dialog_menu_main()
 		                        '$msg_swap_mirror_help'
 		'W $msg_swap_encrypt'   '$swapgeli'
 		                        '$msg_swap_encrypt_help'
+		'O $msg_zfs_options_name'   '$ZFSBOOT_POOL_CREATE_OPTIONS'
+		                        '$msg_zfs_options_name_help'
 	" # END-QUOTE
 	local defaultitem= # Calculated below
 	local hline="$hline_alnum_arrows_punc_tab_enter"
@@ -684,17 +688,17 @@ dialog_menu_layout()
 			done
 
 			eval f_dialog_checklist_size height width rows \
-				\"\$title\" \"\$btitle\" \"\$prompt\" \
-				\"\$hline\" $disk_check_list
+				\"\$title\" \"\$btitle\" \"\$disk_prompt\" \
+				\"\$disk_hline\" $disk_check_list
 
 			selections=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--separate-output                  \
-				--hline \"\$hline\"                \
+				--hline \"\$disk_hline\"           \
 				--ok-label \"\$msg_ok\"            \
 				--cancel-label \"\$msg_back\"      \
-				--checklist \"\$prompt\"           \
+				--checklist \"\$disk_prompt\"      \
 				$height $width $rows               \
 				$disk_check_list                   \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -1852,6 +1856,13 @@ while :; do
 		else
 			ZFSBOOT_SWAP_ENCRYPTION=1
 		fi
+		;;
+	?" $msg_zfs_options_name")
+		# Prompt the user to input/change the pool options
+		f_dialog_input input \
+			"$msg_please_enter_options_for_your_zpool" \
+			"$ZFSBOOT_POOL_CREATE_OPTIONS" &&
+			ZFSBOOT_POOL_CREATE_OPTIONS="$input"
 		;;
 	esac
 done

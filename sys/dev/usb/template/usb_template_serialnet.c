@@ -37,7 +37,6 @@
  * This file contains the USB template for USB Networking and Serial
  */
 
-#include <sys/cdefs.h>
 #ifdef USB_GLOBAL_INCLUDE_FILE
 #include USB_GLOBAL_INCLUDE_FILE
 #else

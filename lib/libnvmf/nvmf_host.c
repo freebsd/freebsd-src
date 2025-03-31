@@ -5,6 +5,7 @@
  * Written by: John Baldwin <jhb@FreeBSD.org>
  */
 
+#include <sys/nv.h>
 #include <sys/sysctl.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -710,6 +711,27 @@ nvmf_host_fetch_discovery_log_page(struct nvmf_qpair *qp,
 }
 
 int
+nvmf_init_dle_from_admin_qp(struct nvmf_qpair *qp,
+    const struct nvme_controller_data *cdata,
+    struct nvme_discovery_log_entry *dle)
+{
+	int error;
+	uint16_t cntlid;
+
+	memset(dle, 0, sizeof(*dle));
+	error = nvmf_populate_dle(qp, dle);
+	if (error != 0)
+		return (error);
+	if ((cdata->fcatt & 1) == 0)
+		cntlid = NVMF_CNTLID_DYNAMIC;
+	else
+		cntlid = cdata->ctrlr_id;
+	dle->cntlid = htole16(cntlid);
+	memcpy(dle->subnqn, cdata->subnqn, sizeof(dle->subnqn));
+	return (0);
+}
+
+int
 nvmf_host_request_queues(struct nvmf_qpair *qp, u_int requested, u_int *actual)
 {
 	struct nvme_command cmd;
@@ -767,15 +789,22 @@ is_queue_pair_idle(struct nvmf_qpair *qp)
 }
 
 static int
-prepare_queues_for_handoff(struct nvmf_handoff_host *hh,
+prepare_queues_for_handoff(struct nvmf_ioc_nv *nv,
+    const struct nvme_discovery_log_entry *dle, const char *hostnqn,
     struct nvmf_qpair *admin_qp, u_int num_queues,
     struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata)
 {
-	struct nvmf_handoff_qpair_params *io;
+	const struct nvmf_association *na = admin_qp->nq_association;
+	nvlist_t *nvl, *nvl_qp, *nvl_rparams;
 	u_int i;
 	int error;
 
-	memset(hh, 0, sizeof(*hh));
+	if (num_queues == 0)
+		return (EINVAL);
+
+	/* Ensure trtype matches. */
+	if (dle->trtype != na->na_trtype)
+		return (EINVAL);
 
 	/* All queue pairs must be idle. */
 	if (!is_queue_pair_idle(admin_qp))
@@ -785,34 +814,67 @@ prepare_queues_for_handoff(struct nvmf_handoff_host *hh,
 			return (EBUSY);
 	}
 
-	/* First, the admin queue. */
-	hh->trtype = admin_qp->nq_association->na_trtype;
-	hh->kato = admin_qp->nq_kato;
-	error = nvmf_kernel_handoff_params(admin_qp, &hh->admin);
-	if (error)
+	/* Fill out reconnect parameters. */
+	nvl_rparams = nvlist_create(0);
+	nvlist_add_binary(nvl_rparams, "dle", dle, sizeof(*dle));
+	nvlist_add_string(nvl_rparams, "hostnqn", hostnqn);
+	nvlist_add_number(nvl_rparams, "num_io_queues", num_queues);
+	nvlist_add_number(nvl_rparams, "kato", admin_qp->nq_kato);
+	nvlist_add_number(nvl_rparams, "io_qsize", io_queues[0]->nq_qsize);
+	nvlist_add_bool(nvl_rparams, "sq_flow_control",
+	    na->na_params.sq_flow_control);
+	switch (na->na_trtype) {
+	case NVMF_TRTYPE_TCP:
+		nvlist_add_bool(nvl_rparams, "header_digests",
+		    na->na_params.tcp.header_digests);
+		nvlist_add_bool(nvl_rparams, "data_digests",
+		    na->na_params.tcp.data_digests);
+		break;
+	default:
+		__unreachable();
+	}
+	error = nvlist_error(nvl_rparams);
+	if (error != 0) {
+		nvlist_destroy(nvl_rparams);
 		return (error);
-
-	/* Next, the I/O queues. */
-	hh->num_io_queues = num_queues;
-	io = calloc(num_queues, sizeof(*io));
-	for (i = 0; i < num_queues; i++) {
-		error = nvmf_kernel_handoff_params(io_queues[i], &io[i]);
-		if (error) {
-			free(io);
-			return (error);
-		}
 	}
 
-	hh->io = io;
-	hh->cdata = cdata;
-	return (0);
+	nvl = nvlist_create(0);
+	nvlist_add_number(nvl, "trtype", na->na_trtype);
+	nvlist_add_number(nvl, "kato", admin_qp->nq_kato);
+	nvlist_move_nvlist(nvl, "rparams", nvl_rparams);
+
+	/* First, the admin queue. */
+	error = nvmf_kernel_handoff_params(admin_qp, &nvl_qp);
+	if (error) {
+		nvlist_destroy(nvl);
+		return (error);
+	}
+	nvlist_move_nvlist(nvl, "admin", nvl_qp);
+
+	/* Next, the I/O queues. */
+	for (i = 0; i < num_queues; i++) {
+		error = nvmf_kernel_handoff_params(io_queues[i], &nvl_qp);
+		if (error) {
+			nvlist_destroy(nvl);
+			return (error);
+		}
+		nvlist_append_nvlist_array(nvl, "io", nvl_qp);
+	}
+
+	nvlist_add_binary(nvl, "cdata", cdata, sizeof(*cdata));
+
+	error = nvmf_pack_ioc_nvlist(nv, nvl);
+	nvlist_destroy(nvl);
+	return (error);
 }
 
 int
-nvmf_handoff_host(struct nvmf_qpair *admin_qp, u_int num_queues,
+nvmf_handoff_host(const struct nvme_discovery_log_entry *dle,
+    const char *hostnqn, struct nvmf_qpair *admin_qp, u_int num_queues,
     struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata)
 {
-	struct nvmf_handoff_host hh;
+	struct nvmf_ioc_nv nv;
 	u_int i;
 	int error, fd;
 
@@ -822,14 +884,14 @@ nvmf_handoff_host(struct nvmf_qpair *admin_qp, u_int num_queues,
 		goto out;
 	}
 
-	error = prepare_queues_for_handoff(&hh, admin_qp, num_queues, io_queues,
-	    cdata);
+	error = prepare_queues_for_handoff(&nv, dle, hostnqn, admin_qp,
+	    num_queues, io_queues, cdata);
 	if (error != 0)
 		goto out;
 
-	if (ioctl(fd, NVMF_HANDOFF_HOST, &hh) == -1)
+	if (ioctl(fd, NVMF_HANDOFF_HOST, &nv) == -1)
 		error = errno;
-	free(hh.io);
+	free(nv.data);
 
 out:
 	if (fd >= 0)
@@ -882,34 +944,67 @@ out:
 	return (error);
 }
 
-int
-nvmf_reconnect_params(int fd, struct nvmf_reconnect_params *rparams)
+static int
+nvmf_read_ioc_nv(int fd, u_long com, nvlist_t **nvlp)
 {
-	if (ioctl(fd, NVMF_RECONNECT_PARAMS, rparams) == -1)
+	struct nvmf_ioc_nv nv;
+	nvlist_t *nvl;
+	int error;
+
+	memset(&nv, 0, sizeof(nv));
+	if (ioctl(fd, com, &nv) == -1)
 		return (errno);
+
+	nv.data = malloc(nv.len);
+	nv.size = nv.len;
+	if (ioctl(fd, com, &nv) == -1) {
+		error = errno;
+		free(nv.data);
+		return (error);
+	}
+
+	nvl = nvlist_unpack(nv.data, nv.len, 0);
+	free(nv.data);
+	if (nvl == NULL)
+		return (EINVAL);
+
+	*nvlp = nvl;
 	return (0);
 }
 
 int
-nvmf_reconnect_host(int fd, struct nvmf_qpair *admin_qp, u_int num_queues,
+nvmf_reconnect_params(int fd, nvlist_t **nvlp)
+{
+	return (nvmf_read_ioc_nv(fd, NVMF_RECONNECT_PARAMS, nvlp));
+}
+
+int
+nvmf_reconnect_host(int fd, const struct nvme_discovery_log_entry *dle,
+    const char *hostnqn, struct nvmf_qpair *admin_qp, u_int num_queues,
     struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata)
 {
-	struct nvmf_handoff_host hh;
+	struct nvmf_ioc_nv nv;
 	u_int i;
 	int error;
 
-	error = prepare_queues_for_handoff(&hh, admin_qp, num_queues, io_queues,
-	    cdata);
+	error = prepare_queues_for_handoff(&nv, dle, hostnqn, admin_qp,
+	    num_queues, io_queues, cdata);
 	if (error != 0)
 		goto out;
 
-	if (ioctl(fd, NVMF_RECONNECT_HOST, &hh) == -1)
+	if (ioctl(fd, NVMF_RECONNECT_HOST, &nv) == -1)
 		error = errno;
-	free(hh.io);
+	free(nv.data);
 
 out:
 	for (i = 0; i < num_queues; i++)
 		(void)nvmf_free_qpair(io_queues[i]);
 	(void)nvmf_free_qpair(admin_qp);
 	return (error);
+}
+
+int
+nvmf_connection_status(int fd, nvlist_t **nvlp)
+{
+	return (nvmf_read_ioc_nv(fd, NVMF_CONNECTION_STATUS, nvlp));
 }

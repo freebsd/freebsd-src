@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: hp,v 1.25 2019/01/13 00:32:38 christos Exp $
+# $File: hp,v 1.27 2024/08/27 18:50:57 christos Exp $
 # hp:  file(1) magic for Hewlett Packard machines (see also "printer")
 #
 # XXX - somebody should figure out whether any byte order needs to be
@@ -261,25 +261,6 @@
 >7	string		J		(ASCII Vector specification)
 >7	string		K		(wildcard)
 
-# Summary: HP-38/39 calculator
-# Created by: Samuel Thibault <samuel.thibault@ens-lyon.org>
-0	string		HP3
->3	string		8		HP 38
->3	string		9		HP 39
->4	string		Bin		binary
->4	string		Asc		ASCII
->7	string		A		(Directory List)
->7	string		B		(Zaplet)
->7	string		C		(Note)
->7	string		D		(Program)
->7	string		E		(Variable)
->7	string		F		(List)
->7	string		G		(Matrix)
->7	string		H		(Library)
->7	string		I		(Target List)
->7	string		J		(ASCII Vector specification)
->7	string		K		(wildcard)
-
 # hpBSD magic numbers
 0	beshort		200		hp200 (68010) BSD
 >2	beshort		0407		impure binary
@@ -430,4 +411,8 @@
 >>>>>>>>>0xC4	belong	33		- received SIGXCPU
 >>>>>>>>>0xC4	belong	34		- received SIGXFSZ
 
+# PA-RISC COFF object file
+0	leshort		0x0290
+>16	leshort		0
+>>0	use		display-coff
 

@@ -75,6 +75,8 @@ protocol_to_string(int domain, int type, int protocol)
 			return ("UDS");
 		case SOCK_DGRAM:
 			return ("UDD");
+		case SOCK_SEQPACKET:
+			return ("UDQ");
 		default:
 			return ("UD?");
 		}
@@ -149,6 +151,7 @@ static struct cap_desc {
 	{ CAP_FCHFLAGS,		"cf" },
 	{ CAP_FCHMOD,		"cm" },
 	{ CAP_FCHOWN,		"cn" },
+	{ CAP_FCHROOT,		"ct" },
 	{ CAP_FCNTL,		"fc" },
 	{ CAP_FLOCK,		"fl" },
 	{ CAP_FPATHCONF,	"fp" },

@@ -26,6 +26,7 @@ EFI_TARGET=	efi-app-x86_64
 .else
 EFI_TARGET=	binary
 .endif
+EFI_OBJCOPY?=	elfcopy
 
 # Arbitrarily set the PE/COFF header timestamps to 1 Jan 2024 00:00:00
 # for build reproducibility.

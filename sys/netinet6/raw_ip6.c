@@ -59,7 +59,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
 #include "opt_route.h"
@@ -117,6 +116,9 @@
 
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 #define	V_ripcbinfo			VNET(ripcbinfo)
+
+VNET_DECLARE(int, rip_bind_all_fibs);
+#define	V_rip_bind_all_fibs	VNET(rip_bind_all_fibs)
 
 extern u_long	rip_sendspace;
 extern u_long	rip_recvspace;
@@ -190,14 +192,16 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	struct rip6_inp_match_ctx ctx = { .ip6 = ip6, .proto = proto };
 	struct inpcb_iterator inpi = INP_ITERATOR(&V_ripcbinfo,
 	    INPLOOKUP_RLOCKPCB, rip6_inp_match, &ctx);
-	int delivered = 0;
+	int delivered = 0, fib;
 
+	M_ASSERTPKTHDR(m);
 	NET_EPOCH_ASSERT();
 
 	RIP6STAT_INC(rip6s_ipackets);
 
 	init_sin6(&fromsa, m, 0); /* general init */
 
+	fib = M_GETFIB(m);
 	ifp = m->m_pkthdr.rcvif;
 
 	while ((inp = inp_next(&inpi)) != NULL) {
@@ -219,6 +223,12 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			 * Allow raw socket in jail to receive multicast;
 			 * assume process had PRIV_NETINET_RAW at attach,
 			 * and fall through into normal filter path if so.
+			 */
+			continue;
+		if (V_rip_bind_all_fibs == 0 && fib != inp->inp_inc.inc_fibnum)
+			/*
+			 * Sockets bound to a specific FIB can only receive
+			 * packets from that FIB.
 			 */
 			continue;
 		if (inp->in6p_cksum != -1) {
@@ -576,13 +586,10 @@ rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 		 */
 		return (icmp6_ctloutput(so, sopt));
 	else if (sopt->sopt_level != IPPROTO_IPV6) {
-		if (sopt->sopt_level == SOL_SOCKET &&
-		    sopt->sopt_name == SO_SETFIB) {
-			INP_WLOCK(inp);
-			inp->inp_inc.inc_fibnum = so->so_fibnum;
-			INP_WUNLOCK(inp);
-			return (0);
-		}
+		if (sopt->sopt_dir == SOPT_SET &&
+		    sopt->sopt_level == SOL_SOCKET &&
+		    sopt->sopt_name == SO_SETFIB)
+			return (ip6_ctloutput(so, sopt));
 		return (EINVAL);
 	}
 
@@ -766,9 +773,7 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	NET_EPOCH_EXIT(et);
 	INP_WLOCK(inp);
-	INP_INFO_WLOCK(&V_ripcbinfo);
 	inp->in6p_laddr = addr->sin6_addr;
-	INP_INFO_WUNLOCK(&V_ripcbinfo);
 	INP_WUNLOCK(inp);
 	return (0);
 }
@@ -806,14 +811,12 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error);
 
 	INP_WLOCK(inp);
-	INP_INFO_WLOCK(&V_ripcbinfo);
 	/* Source address selection. XXX: need pcblookup? */
 	NET_EPOCH_ENTER(et);
 	error = in6_selectsrc_socket(addr, inp->in6p_outputopts,
 	    inp, so->so_cred, scope_ambiguous, &in6a, NULL);
 	NET_EPOCH_EXIT(et);
 	if (error) {
-		INP_INFO_WUNLOCK(&V_ripcbinfo);
 		INP_WUNLOCK(inp);
 		return (error);
 	}
@@ -821,7 +824,6 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp->in6p_faddr = addr->sin6_addr;
 	inp->in6p_laddr = in6a;
 	soisconnected(so);
-	INP_INFO_WUNLOCK(&V_ripcbinfo);
 	INP_WUNLOCK(inp);
 	return (0);
 }

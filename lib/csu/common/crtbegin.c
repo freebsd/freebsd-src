@@ -66,19 +66,27 @@ static crt_func __DTOR_LIST__[] __section(".dtors") __used = {
 	(crt_func)-1
 };
 
+extern const char startof_dtors[] __asm(".startof..dtors")
+    __weak_symbol __hidden;
+extern const char sizeof_dtors[] __asm(".sizeof..dtors")
+    __weak_symbol __hidden;
+
 static void
 __do_global_dtors_aux(void)
 {
 	crt_func fn;
+	uintptr_t dtors_end;
 	int n;
 
 #ifdef SHARED
 	run_cxa_finalize();
 #endif
 
+	dtors_end = (uintptr_t)&startof_dtors + (uintptr_t)&sizeof_dtors;
 	for (n = 1;; n++) {
 		fn = __DTOR_LIST__[n];
-		if (fn == (crt_func)0 || fn == (crt_func)-1)
+		if (fn == (crt_func)0 || fn == (crt_func)-1 || (dtors_end > 0 &&
+		    (uintptr_t)&__DTOR_LIST__[n] >= dtors_end))
 			break;
 		fn();
 	}

@@ -14,7 +14,7 @@ OSv=$OS
 
 # compressed with .zst extension
 REPO="https://github.com/mcmilk/openzfs-freebsd-images"
-FREEBSD="$REPO/releases/download/v2024-10-05"
+FREEBSD="$REPO/releases/download/v2024-12-14"
 URLzs=""
 
 # Ubuntu mirrors
@@ -40,6 +40,12 @@ case "$OS" in
     # dns sometimes fails with that url  :/
     echo "89.187.191.12  geo.mirror.pkgbuild.com" | sudo tee /etc/hosts > /dev/null
     ;;
+  centos-stream10)
+    OSNAME="CentOS Stream 10"
+    # TODO: #16903 Overwrite OSv to stream9 for virt-install until it's added to osinfo
+    OSv="centos-stream9"
+    URL="https://cloud.centos.org/centos/10-stream/x86_64/images/CentOS-Stream-GenericCloud-10-latest.x86_64.qcow2"
+    ;;
   centos-stream9)
     OSNAME="CentOS Stream 9"
     URL="https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2"
@@ -52,22 +58,15 @@ case "$OS" in
     OSNAME="Debian 12"
     URL="https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2"
     ;;
-  fedora39)
-    OSNAME="Fedora 39"
-    OSv="fedora39"
-    URL="https://download.fedoraproject.org/pub/fedora/linux/releases/39/Cloud/x86_64/images/Fedora-Cloud-Base-39-1.5.x86_64.qcow2"
-    ;;
   fedora40)
     OSNAME="Fedora 40"
-    OSv="fedora39"
+    OSv="fedora-unknown"
     URL="https://download.fedoraproject.org/pub/fedora/linux/releases/40/Cloud/x86_64/images/Fedora-Cloud-Base-Generic.x86_64-40-1.14.qcow2"
     ;;
-  freebsd13-3r)
-    OSNAME="FreeBSD 13.3-RELEASE"
-    OSv="freebsd13.0"
-    URLzs="$FREEBSD/amd64-freebsd-13.3-RELEASE.qcow2.zst"
-    BASH="/usr/local/bin/bash"
-    NIC="rtl8139"
+  fedora41)
+    OSNAME="Fedora 41"
+    OSv="fedora-unknown"
+    URL="https://download.fedoraproject.org/pub/fedora/linux/releases/41/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-41-1.4.x86_64.qcow2"
     ;;
   freebsd13-4r)
     OSNAME="FreeBSD 13.4-RELEASE"
@@ -76,16 +75,10 @@ case "$OS" in
     BASH="/usr/local/bin/bash"
     NIC="rtl8139"
     ;;
-  freebsd14-0r)
-    OSNAME="FreeBSD 14.0-RELEASE"
+  freebsd14-2r)
+    OSNAME="FreeBSD 14.2-RELEASE"
     OSv="freebsd14.0"
-    URLzs="$FREEBSD/amd64-freebsd-14.0-RELEASE.qcow2.zst"
-    BASH="/usr/local/bin/bash"
-    ;;
-  freebsd14-1r)
-    OSNAME="FreeBSD 14.1-RELEASE"
-    OSv="freebsd14.0"
-    URLzs="$FREEBSD/amd64-freebsd-14.1-RELEASE.qcow2.zst"
+    URLzs="$FREEBSD/amd64-freebsd-14.2-RELEASE.qcow2.zst"
     BASH="/usr/local/bin/bash"
     ;;
   freebsd13-4s)
@@ -93,11 +86,12 @@ case "$OS" in
     OSv="freebsd13.0"
     URLzs="$FREEBSD/amd64-freebsd-13.4-STABLE.qcow2.zst"
     BASH="/usr/local/bin/bash"
+    NIC="rtl8139"
     ;;
-  freebsd14-1s)
-    OSNAME="FreeBSD 14.1-STABLE"
+  freebsd14-2s)
+    OSNAME="FreeBSD 14.2-STABLE"
     OSv="freebsd14.0"
-    URLzs="$FREEBSD/amd64-freebsd-14.1-STABLE.qcow2.zst"
+    URLzs="$FREEBSD/amd64-freebsd-14.2-STABLE.qcow2.zst"
     BASH="/usr/local/bin/bash"
     ;;
   freebsd15-0c)
@@ -212,6 +206,15 @@ sudo virt-install \
   --cloud-init user-data=/tmp/user-data \
   --disk $DISK,bus=virtio,cache=none,format=$FORMAT,driver.discard=unmap \
   --import --noautoconsole >/dev/null
+
+# Give the VMs hostnames so we don't have to refer to them with
+# hardcoded IP addresses.
+#
+# vm0:          Initial VM we install dependencies and build ZFS on.
+# vm1..2        Testing VMs
+for i in {0..9} ; do
+  echo "192.168.122.1$i vm$i" | sudo tee -a /etc/hosts
+done
 
 # in case the directory isn't there already
 mkdir -p $HOME/.ssh

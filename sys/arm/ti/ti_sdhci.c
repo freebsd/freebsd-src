@@ -687,8 +687,8 @@ ti_sdhci_attach(device_t dev)
 	if (OF_hasprop(node, "non-removable"))
 		sc->force_card_present = true;
 
-	bus_generic_probe(dev);
-	bus_generic_attach(dev);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 
 	sdhci_start_slot(&sc->slot);
 	return (0);

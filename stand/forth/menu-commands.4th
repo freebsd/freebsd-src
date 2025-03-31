@@ -128,6 +128,7 @@ also menu-namespace also menu-command-helpers
 	s" set hw.ata.atapi_dma=0" evaluate
 	s" set kern.eventtimer.periodic=1" evaluate
 	s" set kern.geom.part.check_integrity=0" evaluate
+	s" set boot_safe=YES" evaluate
 ;
 
 : safemode_disable ( -- )
@@ -136,6 +137,7 @@ also menu-namespace also menu-command-helpers
 	s" hw.ata.atapi_dma" unsetenv
 	s" kern.eventtimer.periodic" unsetenv
 	s" kern.geom.part.check_integrity" unsetenv
+	s" boot_safe" unsetenv
 ;
 
 : init_safemode ( N -- N )

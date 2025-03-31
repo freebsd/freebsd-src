@@ -61,6 +61,11 @@ enum {
 	PFNL_CMD_GET_RULESETS = 23,
 	PFNL_CMD_GET_RULESET = 24,
 	PFNL_CMD_GET_SRCNODES = 25,
+	PFNL_CMD_CLEAR_TABLES = 26,
+	PFNL_CMD_ADD_TABLE = 27,
+	PFNL_CMD_DEL_TABLE = 28,
+	PFNL_CMD_GET_TSTATS = 29,
+	PFNL_CMD_CLR_TSTATS = 30,
 	__PFNL_CMD_MAX,
 };
 #define PFNL_CMD_MAX (__PFNL_CMD_MAX -1)
@@ -71,6 +76,8 @@ enum pfstate_key_type_t {
 	PF_STK_ADDR1		= 2, /* ip */
 	PF_STK_PORT0		= 3, /* u16 */
 	PF_STK_PORT1		= 4, /* u16 */
+	PF_STK_AF		= 5, /* u8 */
+	PF_STK_PROTO		= 6, /* u16 */
 };
 
 enum pfstate_peer_type_t {
@@ -126,6 +133,7 @@ enum pfstate_type_t {
 	PF_ST_DNRPIPE		= 35, /* u16 */
 	PF_ST_RT		= 36, /* u8 */
 	PF_ST_RT_IFNAME		= 37, /* string */
+	PF_ST_SRC_NODE_FLAGS	= 38, /* u8 */
 };
 
 enum pf_addr_type_t {
@@ -198,7 +206,7 @@ enum pf_rule_type_t {
 	PF_RT_TAGNAME		= 8, /* string */
 	PF_RT_MATCH_TAGNAME	= 9, /* string */
 	PF_RT_OVERLOAD_TBLNAME	= 10, /* string */
-	PF_RT_RPOOL		= 11, /* nested, pf_rpool_type_t */
+	PF_RT_RPOOL_RDR		= 11, /* nested, pf_rpool_type_t */
 	PF_RT_OS_FINGERPRINT	= 12, /* u32 */
 	PF_RT_RTABLEID		= 13, /* u32 */
 	PF_RT_TIMEOUT		= 14, /* nested, pf_timeout_type_t */
@@ -262,6 +270,13 @@ enum pf_rule_type_t {
 	PF_RT_ANCHOR_CALL	= 72, /* string */
 	PF_RT_RCV_IFNAME	= 73, /* string */
 	PF_RT_MAX_SRC_CONN	= 74, /* u32 */
+	PF_RT_RPOOL_NAT		= 75, /* nested, pf_rpool_type_t */
+	PF_RT_NAF		= 76, /* u8 */
+	PF_RT_RPOOL_RT		= 77, /* nested, pf_rpool_type_t */
+	PF_RT_RCV_IFNOT		= 78, /* bool */
+	PF_RT_SRC_NODES_LIMIT	= 79, /* u64 */
+	PF_RT_SRC_NODES_NAT	= 80, /* u64 */
+	PF_RT_SRC_NODES_ROUTE	= 81, /* u64 */
 };
 
 enum pf_addrule_type_t {
@@ -381,6 +396,7 @@ enum pf_add_addr_types_t {
 	PF_AA_AF		= 7, /* u8 */
 	PF_AA_ANCHOR		= 8, /* string */
 	PF_AA_ADDR		= 9, /* nested, pf_pooladdr */
+	PF_AA_WHICH		= 10, /* u32 */
 };
 
 enum pf_get_rulesets_types_t {
@@ -414,6 +430,31 @@ enum pf_srcnodes_types_t {
 	PF_SN_CREATION		= 12, /* u64 */
 	PF_SN_EXPIRE		= 13, /* u64 */
 	PF_SN_CONNECTION_RATE	= 14, /* nested, pf_threshold */
+	PF_SN_NAF		= 15, /* u8 */
+	PF_SN_NODE_TYPE		= 16, /* u8 */
+};
+
+enum pf_tables_t {
+	PF_T_UNSPEC,
+	PF_T_ANCHOR		= 1, /* string */
+	PF_T_NAME		= 2, /* string */
+	PF_T_TABLE_FLAGS	= 3, /* u32 */
+	PF_T_FLAGS		= 4, /* u32 */
+	PF_T_NBR_DELETED	= 5, /* u32 */
+	PF_T_NBR_ADDED		= 6, /* u32 */
+};
+
+enum pf_tstats_t {
+	PF_TS_UNSPEC,
+	PF_TS_TABLE		= 1, /* nested, pfr_table */
+	PF_TS_PACKETS		= 2, /* u64 array */
+	PF_TS_BYTES		= 3, /* u64 array */
+	PF_TS_MATCH		= 4, /* u64 */
+	PF_TS_NOMATCH		= 5, /* u64 */
+	PF_TS_TZERO		= 6, /* u64 */
+	PF_TS_CNT		= 7, /* u64 */
+	PF_TS_REFCNT		= 8, /* u64 array */
+	PF_TS_NZERO		= 9, /* u64 */
 };
 
 #ifdef _KERNEL

@@ -373,10 +373,9 @@ puc_bfe_attach(device_t dev)
 	return (0);
 
 fail:
+	device_delete_children(dev);
 	for (idx = 0; idx < sc->sc_nports; idx++) {
 		port = &sc->sc_port[idx];
-		if (port->p_dev != NULL)
-			device_delete_child(dev, port->p_dev);
 		if (port->p_rres != NULL)
 			rman_release_resource(port->p_rres);
 		if (port->p_ires != NULL)
@@ -409,21 +408,19 @@ puc_bfe_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	/* Detach our children. */
-	error = 0;
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
+
 	for (idx = 0; idx < sc->sc_nports; idx++) {
 		port = &sc->sc_port[idx];
 		if (port->p_dev == NULL)
 			continue;
-		if (device_delete_child(dev, port->p_dev) == 0) {
-			if (port->p_rres != NULL)
-				rman_release_resource(port->p_rres);
-			if (port->p_ires != NULL)
-				rman_release_resource(port->p_ires);
-		} else
-			error = ENXIO;
+		if (port->p_rres != NULL)
+			rman_release_resource(port->p_rres);
+		if (port->p_ires != NULL)
+			rman_release_resource(port->p_ires);
 	}
-	if (error)
-		return (error);
 
 	if (sc->sc_serdevs != 0UL)
 		bus_teardown_intr(dev, sc->sc_ires, sc->sc_icookie);

@@ -45,7 +45,7 @@
 #include <disk.h>
 #include <dev_net.h>
 #include <net.h>
-#include <inttypes.h>
+#include <machine/_inttypes.h>
 
 #include <efi.h>
 #include <efilib.h>
@@ -798,10 +798,12 @@ static const char *
 acpi_uart_type(UINT8 t)
 {
 	static const char *types[] = {
-		[0] = "ns8250",		/* Full 16550 */
-		[1] = "ns8250",		/* DBGP Rev 1 16550 subset */
-		[3] = "pl011",		/* Arm PL011 */
-		[5] = "ns8250",		/* Nvidia 16550 */
+		[0x00] = "ns8250",	/* Full 16550 */
+		[0x01] = "ns8250",	/* DBGP Rev 1 16550 subset */
+		[0x03] = "pl011",	/* Arm PL011 */
+		[0x05] = "ns8250",	/* Nvidia 16550 */
+		[0x0d] = "pl011",	/* Arm SBSA 32-bit width */
+		[0x0e] = "pl011",	/* Arm SBSA generic */
 		[0x12] = "ns8250",	/* 16550 defined in SerialPort */
 	};
 
@@ -1150,12 +1152,45 @@ acpi_detect(void)
 	}
 }
 
+static void
+efi_smbios_detect(void)
+{
+	VOID *smbios_v2_ptr = NULL;
+	UINTN k;
+
+	for (k = 0; k < ST->NumberOfTableEntries; k++) {
+		EFI_GUID *guid;
+		VOID *const VT = ST->ConfigurationTable[k].VendorTable;
+		char buf[40];
+		bool is_smbios_v2, is_smbios_v3;
+
+		guid = &ST->ConfigurationTable[k].VendorGuid;
+		is_smbios_v2 = memcmp(guid, &smbios, sizeof(*guid)) == 0;
+		is_smbios_v3 = memcmp(guid, &smbios3, sizeof(*guid)) == 0;
+
+		if (!is_smbios_v2 && !is_smbios_v3)
+			continue;
+
+		snprintf(buf, sizeof(buf), "%p", VT);
+		setenv("hint.smbios.0.mem", buf, 1);
+		if (is_smbios_v2)
+			/*
+			 * We will parse a v2 table only if we don't find a v3
+			 * table.  In the meantime, store the address.
+			 */
+			smbios_v2_ptr = VT;
+		else if (smbios_detect(VT) != NULL)
+			/* v3 parsing succeeded, we are done. */
+			return;
+	}
+	if (smbios_v2_ptr != NULL)
+		(void)smbios_detect(smbios_v2_ptr);
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
-	EFI_GUID *guid;
 	int howto, i, uhowto;
-	UINTN k;
 	bool has_kbd, is_last;
 	char *s;
 	EFI_DEVICE_PATH *imgpath;
@@ -1178,19 +1213,7 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_zfs_probe = efi_zfs_probe;
 
 #if !defined(__arm__)
-	for (k = 0; k < ST->NumberOfTableEntries; k++) {
-		guid = &ST->ConfigurationTable[k].VendorGuid;
-		if (!memcmp(guid, &smbios, sizeof(EFI_GUID)) ||
-		    !memcmp(guid, &smbios3, sizeof(EFI_GUID))) {
-			char buf[40];
-
-			snprintf(buf, sizeof(buf), "%p",
-			    ST->ConfigurationTable[k].VendorTable);
-			setenv("hint.smbios.0.mem", buf, 1);
-			smbios_detect(ST->ConfigurationTable[k].VendorTable);
-			break;
-		}
-	}
+	efi_smbios_detect();
 #endif
 
         /* Get our loaded image protocol interface structure. */
@@ -1960,6 +1983,7 @@ command_chain(int argc, char *argv[])
 
 COMMAND_SET(chain, "chain", "chain load file", command_chain);
 
+#if defined(LOADER_NET_SUPPORT)
 extern struct in_addr servip;
 static int
 command_netserver(int argc, char *argv[])
@@ -1990,3 +2014,4 @@ command_netserver(int argc, char *argv[])
 
 COMMAND_SET(netserver, "netserver", "change or display netserver URI",
     command_netserver);
+#endif

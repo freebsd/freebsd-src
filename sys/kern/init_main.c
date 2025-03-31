@@ -138,7 +138,6 @@ SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
  * - 1, 'compiled in but verbose by default' (default)
  */
 int	verbose_sysinit = VERBOSE_SYSINIT;
-TUNABLE_INT("debug.verbose_sysinit", &verbose_sysinit);
 #endif
 
 #ifdef INVARIANTS
@@ -270,8 +269,9 @@ mi_startup(void)
 	/* Construct and sort sysinit list. */
 	sysinit_mklist(&sysinit_list, SET_BEGIN(sysinit_set), SET_LIMIT(sysinit_set));
 
-	last = SI_SUB_COPYRIGHT;
+	last = SI_SUB_DUMMY;
 #if defined(VERBOSE_SYSINIT)
+	TUNABLE_INT_FETCH("debug.verbose_sysinit", &verbose_sysinit);
 	verbose = 0;
 #if !defined(DDB)
 	printf("VERBOSE_SYSINIT: DDB not enabled, symbol lookups disabled.\n");
@@ -298,7 +298,7 @@ mi_startup(void)
 #if defined(VERBOSE_SYSINIT)
 		if (sip->subsystem > last && verbose_sysinit != 0) {
 			verbose = 1;
-			printf("subsystem %x\n", last);
+			printf("subsystem %x\n", sip->subsystem);
 		}
 		if (verbose) {
 #if defined(DDB)

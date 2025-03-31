@@ -117,7 +117,8 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 			page = vm_page_alloc_noobj_contig(req, npages, 0, pmax,
 			    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 			if (page == NULL) {
-				if (flags & M_WAITOK) {
+				if ((flags & (M_WAITOK | __GFP_NORETRY)) ==
+				    M_WAITOK) {
 					int err = vm_page_reclaim_contig(req,
 					    npages, 0, pmax, PAGE_SIZE, 0);
 					if (err == ENOMEM)
@@ -182,12 +183,10 @@ linux_alloc_kmem(gfp_t flags, unsigned int order)
 	size_t size = ((size_t)PAGE_SIZE) << order;
 	void *addr;
 
-	if ((flags & GFP_DMA32) == 0) {
-		addr = kmem_malloc(size, flags & GFP_NATIVE_MASK);
-	} else {
-		addr = kmem_alloc_contig(size, flags & GFP_NATIVE_MASK, 0,
-		    BUS_SPACE_MAXADDR_32BIT, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	}
+	addr = kmem_alloc_contig(size, flags & GFP_NATIVE_MASK, 0,
+	    ((flags & GFP_DMA32) == 0) ? -1UL : BUS_SPACE_MAXADDR_32BIT,
+	    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+
 	return ((vm_offset_t)addr);
 }
 
@@ -418,27 +417,13 @@ lkpi_io_mapping_map_user(struct io_mapping *iomap,
  */
 void
 lkpi_unmap_mapping_range(void *obj, loff_t const holebegin __unused,
-    loff_t const holelen, int even_cows __unused)
+    loff_t const holelen __unused, int even_cows __unused)
 {
 	vm_object_t devobj;
-	vm_page_t page;
-	int i, page_count;
 
 	devobj = cdev_pager_lookup(obj);
 	if (devobj != NULL) {
-		page_count = OFF_TO_IDX(holelen);
-
-		VM_OBJECT_WLOCK(devobj);
-retry:
-		for (i = 0; i < page_count; i++) {
-			page = vm_page_lookup(devobj, i);
-			if (page == NULL)
-				continue;
-			if (!vm_page_busy_acquire(page, VM_ALLOC_WAITFAIL))
-				goto retry;
-			cdev_mgtdev_pager_free_page(devobj, page);
-		}
-		VM_OBJECT_WUNLOCK(devobj);
+		cdev_mgtdev_pager_free_pages(devobj);
 		vm_object_deallocate(devobj);
 	}
 }

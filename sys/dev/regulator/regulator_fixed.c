@@ -485,14 +485,17 @@ regfix_attach(device_t dev)
 
 	/* Try to get and configure GPIO. */
 	rv = regfix_get_gpio(sc);
-	if (rv != 0)
-		return (bus_generic_attach(dev));
+	if (rv != 0) {
+		bus_attach_children(dev);
+		return (0);
+	}
 
 	/* Register regulator. */
 	regnode_fixed_register(sc->dev, &sc->init_def);
 	sc->attach_done = true;
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static device_method_t regfix_methods[] = {

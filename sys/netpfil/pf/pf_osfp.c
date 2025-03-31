@@ -103,7 +103,7 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const st
 	char srcname[INET_ADDRSTRLEN];
 #endif
 
-	if ((tcp->th_flags & (TH_SYN|TH_ACK)) != TH_SYN)
+	if ((tcp_get_flags(tcp) & (TH_SYN|TH_ACK)) != TH_SYN)
 		return (NULL);
 	if (ip) {
 		if ((ip->ip_off & htons(IP_OFFMASK)) != 0)
@@ -157,13 +157,13 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const st
 					    sizeof(fp.fp_mss));
 				fp.fp_tcpopts = (fp.fp_tcpopts <<
 				    PF_OSFP_TCPOPT_BITS) | PF_OSFP_TCPOPT_MSS;
-				NTOHS(fp.fp_mss);
+				fp.fp_mss = ntohs(fp.fp_mss);
 				break;
 			case TCPOPT_WINDOW:
 				if (optlen >= TCPOLEN_WINDOW)
 					memcpy(&fp.fp_wscale, &optp[2],
 					    sizeof(fp.fp_wscale));
-				NTOHS(fp.fp_wscale);
+				fp.fp_wscale = ntohs(fp.fp_wscale);
 				fp.fp_tcpopts = (fp.fp_tcpopts <<
 				    PF_OSFP_TCPOPT_BITS) |
 				    PF_OSFP_TCPOPT_WSCALE;

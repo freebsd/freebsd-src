@@ -32,7 +32,7 @@ match_full_v4_head()
 {
     atf_set descr 'Matching non-fragmented IPv4 packets'
     atf_set require.user root
-    atf_set require.progs scapy
+    atf_set require.progs python3 scapy
 }
 
 match_full_v4_body()
@@ -63,7 +63,7 @@ match_fragment_v4_head()
 {
     atf_set descr 'Matching fragmented IPv4 packets'
     atf_set require.user root
-    atf_set require.progs scapy
+    atf_set require.progs python3 scapy
 }
 
 match_fragment_v4_body()
@@ -93,7 +93,7 @@ compat_override_v4_head()
 {
     atf_set descr 'Scrub rules override "set reassemble" for IPv4'
     atf_set require.user root
-    atf_set require.progs scapy
+    atf_set require.progs python3 scapy
 }
 
 compat_override_v4_body()

@@ -107,7 +107,6 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 		cons_tail = atomic_load_acq_32(&br->br_cons_tail);
 
 		if ((int32_t)(cons_tail + br->br_prod_size - prod_next) < 1) {
-			rmb();
 			if (prod_head == atomic_load_32(&br->br_prod_head) &&
 			    cons_tail == atomic_load_32(&br->br_cons_tail)) {
 				br->br_drops++;
@@ -116,7 +115,7 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 			}
 			continue;
 		}
-	} while (!atomic_cmpset_acq_32(&br->br_prod_head, prod_head, prod_next));
+	} while (!atomic_cmpset_32(&br->br_prod_head, prod_head, prod_next));
 	prod_idx = prod_head & mask;
 #ifdef DEBUG_BUFRING
 	if (br->br_ring[prod_idx] != NULL)
@@ -163,7 +162,7 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 			critical_exit();
 			return (NULL);
 		}
-	} while (!atomic_cmpset_acq_32(&br->br_cons_head, cons_head, cons_next));
+	} while (!atomic_cmpset_32(&br->br_cons_head, cons_head, cons_next));
 	cons_idx = cons_head & mask;
 
 	buf = br->br_ring[cons_idx];

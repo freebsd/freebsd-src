@@ -118,8 +118,8 @@ struct ieee80211_key {
 	 IEEE80211_KEY_NOIVMGT|IEEE80211_KEY_NOMIC|IEEE80211_KEY_NOMICMGT)
 
 #define	IEEE80211_KEY_BITS \
-	"\20\1XMIT\2RECV\3GROUP\4SWENCRYPT\5SWDECRYPT\6SWENMIC\7SWDEMIC" \
-	"\10DEVKEY\11CIPHER0\12CIPHER1"
+	"\20\1XMIT\2RECV\3GROUP\4NOREPLAY\5SWENCRYPT\6SWDECRYPT\7SWENMIC\10SWDEMIC" \
+	"\11DEVKEY\12CIPHER0\13CIPHER1\14NOIV\15NOIVMGT\16NOMIC\17NOMICMGT"
 
 #define	IEEE80211_KEYIX_NONE	((ieee80211_keyix) -1)
 
@@ -273,6 +273,6 @@ void	ieee80211_notify_replay_failure(struct ieee80211vap *,
 		const struct ieee80211_frame *, const struct ieee80211_key *,
 		uint64_t rsc, int tid);
 void	ieee80211_notify_michael_failure(struct ieee80211vap *,
-		const struct ieee80211_frame *, u_int keyix);
+		const struct ieee80211_frame *, ieee80211_keyix keyix);
 #endif /* defined(__KERNEL__) || defined(_KERNEL) */
 #endif /* _NET80211_IEEE80211_CRYPTO_H_ */

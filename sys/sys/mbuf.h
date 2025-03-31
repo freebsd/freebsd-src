@@ -808,12 +808,12 @@ void		 mb_dupcl(struct mbuf *, struct mbuf *);
 void		 mb_free_ext(struct mbuf *);
 void		 mb_free_extpg(struct mbuf *);
 void		 mb_free_mext_pgs(struct mbuf *);
-struct mbuf	*mb_alloc_ext_pgs(int, m_ext_free_t);
+struct mbuf	*mb_alloc_ext_pgs(int, m_ext_free_t, int);
 struct mbuf	*mb_alloc_ext_plus_pages(int, int);
 struct mbuf	*mb_mapped_to_unmapped(struct mbuf *, int, int, int,
 		    struct mbuf **);
 int		 mb_unmapped_compress(struct mbuf *m);
-struct mbuf 	*mb_unmapped_to_ext(struct mbuf *m);
+int		 mb_unmapped_to_ext(struct mbuf *m, struct mbuf **mres);
 void		 mb_free_notready(struct mbuf *m, int count);
 void		 m_adj(struct mbuf *, int);
 void		 m_adj_decap(struct mbuf *, int);

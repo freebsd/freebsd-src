@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -375,7 +376,26 @@ zpl_prune_sb(uint64_t nr_to_scan, void *arg)
 	struct super_block *sb = (struct super_block *)arg;
 	int objects = 0;
 
-	(void) -zfs_prune(sb, nr_to_scan, &objects);
+	/*
+	 * Ensure the superblock is not in the process of being torn down.
+	 */
+#ifdef HAVE_SB_DYING
+	if (down_read_trylock(&sb->s_umount)) {
+		if (!(sb->s_flags & SB_DYING) && sb->s_root &&
+		    (sb->s_flags & SB_BORN)) {
+			(void) zfs_prune(sb, nr_to_scan, &objects);
+		}
+		up_read(&sb->s_umount);
+	}
+#else
+	if (down_read_trylock(&sb->s_umount)) {
+		if (!hlist_unhashed(&sb->s_instances) &&
+		    sb->s_root && (sb->s_flags & SB_BORN)) {
+			(void) zfs_prune(sb, nr_to_scan, &objects);
+		}
+		up_read(&sb->s_umount);
+	}
+#endif
 }
 
 const struct super_operations zpl_super_operations = {

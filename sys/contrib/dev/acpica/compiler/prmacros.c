@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -455,7 +455,7 @@ PrAddMacro (
         }
 
         DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
-            "Macro param: %s \n",
+            "Macro param: %s\n",
             AslGbl_CurrentLineNumber, Token);
 
         Args[i].Name = UtLocalCalloc (strlen (Token) + 1);
@@ -497,7 +497,7 @@ PrAddMacro (
 
 
                 DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
-                    "Macro Arg #%u: %s UseCount %u Offset %u \n",
+                    "Macro Arg #%u: %s UseCount %u Offset %u\n",
                     AslGbl_CurrentLineNumber, i, Token,
                     UseCount+1, Args[i].Offset[UseCount]);
 
@@ -544,7 +544,7 @@ AddMacroToList:
     }
 
     DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
-        "Macro body: %s \n",
+        "Macro body: %s\n",
         AslGbl_CurrentLineNumber, BodyInSource);
 
     /* Add macro to the #define list */
@@ -668,7 +668,7 @@ PrDoMacroInvocation (
             PrReplaceResizeSubstring (Args, Diff1, Diff2, i, Token);
 
             DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
-                "ExpandArg: %s \n",
+                "ExpandArg: %s\n",
                 AslGbl_CurrentLineNumber, AslGbl_MacroTokenBuffer);
         }
 
@@ -696,7 +696,7 @@ BadInvocation:
         THIS_TOKEN_OFFSET (MacroStart));
 
     DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
-        "Bad macro invocation: %s \n",
+        "Bad macro invocation: %s\n",
         AslGbl_CurrentLineNumber, AslGbl_MacroTokenBuffer);
     return;
 }

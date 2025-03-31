@@ -146,6 +146,7 @@
 #include <vm/uma.h>
 
 #include <machine/asan.h>
+#include <machine/cpu_feat.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -181,7 +182,8 @@
 #define	pmap_l2_pindex(v)	((v) >> L2_SHIFT)
 
 #ifdef __ARM_FEATURE_BTI_DEFAULT
-#define	ATTR_KERN_GP		ATTR_S1_GP
+pt_entry_t __read_mostly pmap_gp_attr;
+#define	ATTR_KERN_GP		pmap_gp_attr
 #else
 #define	ATTR_KERN_GP		0
 #endif
@@ -355,7 +357,7 @@ static u_int physmap_idx;
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM/pmap parameters");
 
-static bool pmap_lpa_enabled __read_mostly = false;
+bool pmap_lpa_enabled __read_mostly = false;
 pt_entry_t pmap_sh_attr __read_mostly = ATTR_SH(ATTR_SH_IS);
 
 #if PAGE_SIZE == PAGE_SIZE_4K
@@ -1545,11 +1547,11 @@ pmap_init_pv_table(void)
 	int domain, i, j, pages;
 
 	/*
-	 * We strongly depend on the size being a power of two, so the assert
-	 * is overzealous. However, should the struct be resized to a
-	 * different power of two, the code below needs to be revisited.
+	 * We depend on the size being evenly divisible into a page so
+	 * that the pv_table array can be indexed directly while
+	 * safely spanning multiple pages from different domains.
 	 */
-	CTASSERT((sizeof(*pvd) == 64));
+	CTASSERT(PAGE_SIZE % sizeof(*pvd) == 0);
 
 	/*
 	 * Calculate the size of the array.
@@ -1622,6 +1624,75 @@ pmap_init_pv_table(void)
 		}
 	}
 }
+
+static bool
+pmap_dbm_check(const struct cpu_feat *feat __unused, u_int midr __unused)
+{
+	uint64_t id_aa64mmfr1;
+
+	id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
+	return (ID_AA64MMFR1_HAFDBS_VAL(id_aa64mmfr1) >=
+	    ID_AA64MMFR1_HAFDBS_AF_DBS);
+}
+
+static bool
+pmap_dbm_has_errata(const struct cpu_feat *feat __unused, u_int midr,
+    u_int **errata_list, u_int *errata_count)
+{
+	/* Disable on Cortex-A55 for erratum 1024718 - all revisions */
+	if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK, CPU_IMPL_ARM,
+	    CPU_PART_CORTEX_A55, 0, 0)) {
+		static u_int errata_id = 1024718;
+
+		*errata_list = &errata_id;
+		*errata_count = 1;
+		return (true);
+	}
+
+	/* Disable on Cortex-A510 for erratum 2051678 - r0p0 to r0p2 */
+	if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK | CPU_VAR_MASK,
+	    CPU_IMPL_ARM, CPU_PART_CORTEX_A510, 0, 0)) {
+		if (CPU_REV(PCPU_GET(midr)) < 3) {
+			static u_int errata_id = 2051678;
+
+			*errata_list = &errata_id;
+			*errata_count = 1;
+			return (true);
+		}
+	}
+
+	return (false);
+}
+
+static void
+pmap_dbm_enable(const struct cpu_feat *feat __unused,
+    cpu_feat_errata errata_status, u_int *errata_list __unused,
+    u_int errata_count)
+{
+	uint64_t tcr;
+
+	/* Skip if there is an erratum affecting DBM */
+	if (errata_status != ERRATA_NONE)
+		return;
+
+	tcr = READ_SPECIALREG(tcr_el1) | TCR_HD;
+	WRITE_SPECIALREG(tcr_el1, tcr);
+	isb();
+	/* Flush the local TLB for the TCR_HD flag change */
+	dsb(nshst);
+	__asm __volatile("tlbi vmalle1");
+	dsb(nsh);
+	isb();
+}
+
+static struct cpu_feat feat_dbm = {
+	.feat_name		= "FEAT_HAFDBS (DBM)",
+	.feat_check		= pmap_dbm_check,
+	.feat_has_errata	= pmap_dbm_has_errata,
+	.feat_enable		= pmap_dbm_enable,
+	.feat_flags		= CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU,
+};
+DATA_SET(cpu_feat_set, feat_dbm);
 
 /*
  *	Initialize the pmap module.

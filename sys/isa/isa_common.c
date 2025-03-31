@@ -501,7 +501,7 @@ isa_probe_children(device_t dev)
 	 * Create all the non-hinted children by calling drivers'
 	 * identify methods.
 	 */
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 	if (device_get_children(dev, &children, &nchildren))
 		return;
@@ -620,6 +620,12 @@ isa_add_child(device_t dev, u_int order, const char *name, int unit)
 	device_set_ivars(child, idev);
 
 	return (child);
+}
+
+static void
+isa_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_ISADEV);
 }
 
 static int
@@ -1058,6 +1064,7 @@ static device_method_t isa_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_add_child,	isa_add_child),
+	DEVMETHOD(bus_child_deleted,	isa_child_deleted),
 	DEVMETHOD(bus_print_child,	isa_print_child),
 	DEVMETHOD(bus_probe_nomatch,	isa_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	isa_read_ivar),
@@ -1108,9 +1115,10 @@ isab_attach(device_t dev)
 	device_t child;
 
 	child = device_add_child(dev, "isa", 0);
-	if (child != NULL)
-		return (bus_generic_attach(dev));
-	return (ENXIO);
+	if (child == NULL)
+		return (ENXIO);
+	bus_attach_children(dev);
+	return (0);
 }
 
 char *

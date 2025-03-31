@@ -445,37 +445,35 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 	bool locked;
 
 	KASSERT(so->so_pcb == NULL, ("uipc_attach: so_pcb != NULL"));
-	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
-		switch (so->so_type) {
-		case SOCK_STREAM:
-			sendspace = unpst_sendspace;
-			recvspace = unpst_recvspace;
-			break;
+	switch (so->so_type) {
+	case SOCK_STREAM:
+		sendspace = unpst_sendspace;
+		recvspace = unpst_recvspace;
+		break;
 
-		case SOCK_DGRAM:
-			STAILQ_INIT(&so->so_rcv.uxdg_mb);
-			STAILQ_INIT(&so->so_snd.uxdg_mb);
-			TAILQ_INIT(&so->so_rcv.uxdg_conns);
-			/*
-			 * Since send buffer is either bypassed or is a part
-			 * of one-to-many receive buffer, we assign both space
-			 * limits to unpdg_recvspace.
-			 */
-			sendspace = recvspace = unpdg_recvspace;
-			break;
+	case SOCK_DGRAM:
+		STAILQ_INIT(&so->so_rcv.uxdg_mb);
+		STAILQ_INIT(&so->so_snd.uxdg_mb);
+		TAILQ_INIT(&so->so_rcv.uxdg_conns);
+		/*
+		 * Since send buffer is either bypassed or is a part
+		 * of one-to-many receive buffer, we assign both space
+		 * limits to unpdg_recvspace.
+		 */
+		sendspace = recvspace = unpdg_recvspace;
+		break;
 
-		case SOCK_SEQPACKET:
-			sendspace = unpsp_sendspace;
-			recvspace = unpsp_recvspace;
-			break;
+	case SOCK_SEQPACKET:
+		sendspace = unpsp_sendspace;
+		recvspace = unpsp_recvspace;
+		break;
 
-		default:
-			panic("uipc_attach");
-		}
-		error = soreserve(so, sendspace, recvspace);
-		if (error)
-			return (error);
+	default:
+		panic("uipc_attach");
 	}
+	error = soreserve(so, sendspace, recvspace);
+	if (error)
+		return (error);
 	unp = uma_zalloc(unp_zone, M_NOWAIT | M_ZERO);
 	if (unp == NULL)
 		return (ENOBUFS);
@@ -484,6 +482,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 	unp->unp_socket = so;
 	so->so_pcb = unp;
 	refcount_init(&unp->unp_refcount, 1);
+	unp->unp_mode = ACCESSPERMS;
 
 	if ((locked = UNP_LINK_WOWNED()) == false)
 		UNP_LINK_WLOCK();
@@ -526,6 +525,7 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct mount *mp;
 	cap_rights_t rights;
 	char *buf;
+	mode_t mode;
 
 	if (nam->sa_family != AF_UNIX)
 		return (EAFNOSUPPORT);
@@ -558,6 +558,7 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EALREADY);
 	}
 	unp->unp_flags |= UNP_BINDING;
+	mode = unp->unp_mode & ~td->td_proc->p_pd->pd_cmask;
 	UNP_PCB_UNLOCK(unp);
 
 	buf = malloc(namelen + 1, M_TEMP, M_WAITOK);
@@ -590,7 +591,7 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VSOCK;
-	vattr.va_mode = (ACCESSPERMS & ~td->td_proc->p_pd->pd_cmask);
+	vattr.va_mode = mode;
 #ifdef MAC
 	error = mac_vnode_check_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
@@ -700,6 +701,27 @@ uipc_close(struct socket *so)
 		mtx_unlock(vplock);
 		vrele(vp);
 	}
+}
+
+static int
+uipc_chmod(struct socket *so, mode_t mode, struct ucred *cred __unused,
+    struct thread *td __unused)
+{
+	struct unpcb *unp;
+	int error;
+
+	if ((mode & ~ACCESSPERMS) != 0)
+		return (EINVAL);
+
+	error = 0;
+	unp = sotounpcb(so);
+	UNP_PCB_LOCK(unp);
+	if (unp->unp_vnode != NULL || (unp->unp_flags & UNP_BINDING) != 0)
+		error = EINVAL;
+	else
+		unp->unp_mode = mode;
+	UNP_PCB_UNLOCK(unp);
+	return (error);
 }
 
 static int
@@ -1772,7 +1794,7 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 			if (unp->unp_flags & UNP_HAVEPC)
 				xu = unp->unp_peercred;
 			else {
-				if (so->so_type == SOCK_STREAM)
+				if (so->so_proto->pr_flags & PR_CONNREQUIRED)
 					error = ENOTCONN;
 				else
 					error = EINVAL;
@@ -1873,6 +1895,8 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	int error, len;
 	bool connreq;
 
+	CURVNET_ASSERT_SET();
+
 	if (nam->sa_family != AF_UNIX)
 		return (EAFNOSUPPORT);
 	if (nam->sa_len > sizeof(struct sockaddr_un))
@@ -1967,11 +1991,9 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		goto bad2;
 	}
 	if (connreq) {
-		if (SOLISTENING(so2)) {
-			CURVNET_SET(so2->so_vnet);
+		if (SOLISTENING(so2))
 			so2 = sonewconn(so2, 0);
-			CURVNET_RESTORE();
-		} else
+		else
 			so2 = NULL;
 		if (so2 == NULL) {
 			error = ECONNREFUSED;
@@ -3357,6 +3379,7 @@ static struct protosw streamproto = {
 	.pr_sockaddr =		uipc_sockaddr,
 	.pr_soreceive =		soreceive_generic,
 	.pr_close =		uipc_close,
+	.pr_chmod =		uipc_chmod,
 };
 
 static struct protosw dgramproto = {
@@ -3380,6 +3403,7 @@ static struct protosw dgramproto = {
 	.pr_sockaddr =		uipc_sockaddr,
 	.pr_soreceive =		uipc_soreceive_dgram,
 	.pr_close =		uipc_close,
+	.pr_chmod =		uipc_chmod,
 };
 
 static struct protosw seqpacketproto = {
@@ -3411,6 +3435,7 @@ static struct protosw seqpacketproto = {
 	.pr_sockaddr =		uipc_sockaddr,
 	.pr_soreceive =		soreceive_generic,	/* XXX: or...? */
 	.pr_close =		uipc_close,
+	.pr_chmod =		uipc_chmod,
 };
 
 static struct domain localdomain = {

@@ -86,6 +86,7 @@ struct daemon_state {
 	int pipe_rd;
 	int pipe_wr;
 	int keep_cur_workdir;
+	int kqueue_fd;
 	int restart_delay;
 	int stdmask;
 	int syslog_priority;
@@ -113,6 +114,9 @@ static void daemon_terminate(struct daemon_state *);
 static void daemon_exec(struct daemon_state *);
 static bool daemon_is_child_dead(struct daemon_state *);
 static void daemon_set_child_pipe(struct daemon_state *);
+static int daemon_setup_kqueue(void);
+
+static int pidfile_truncate(struct pidfh *);
 
 static const char shortopts[] = "+cfHSp:P:ru:o:s:l:t:m:R:T:C:h";
 
@@ -342,6 +346,8 @@ main(int argc, char *argv[])
 	/* Write out parent pidfile if needed. */
 	pidfile_write(state.parent_pidfh);
 
+	state.kqueue_fd = daemon_setup_kqueue();
+
 	do {
 		state.mode = MODE_SUPERVISE;
 		daemon_eventloop(&state);
@@ -406,27 +412,13 @@ daemon_eventloop(struct daemon_state *state)
 	state->pipe_rd = pipe_fd[0];
 	state->pipe_wr = pipe_fd[1];
 
-	kq = kqueuex(KQUEUE_CLOEXEC);
+	kq = state->kqueue_fd;
 	EV_SET(&event, state->pipe_rd, EVFILT_READ, EV_ADD|EV_CLEAR, 0, 0,
 	    NULL);
 	if (kevent(kq, &event, 1, NULL, 0, NULL) == -1) {
 		err(EXIT_FAILURE, "failed to register kevent");
 	}
 
-	EV_SET(&event, SIGHUP,  EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
-	if (kevent(kq, &event, 1, NULL, 0, NULL) == -1) {
-		err(EXIT_FAILURE, "failed to register kevent");
-	}
-
-	EV_SET(&event, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
-	if (kevent(kq, &event, 1, NULL, 0, NULL) == -1) {
-		err(EXIT_FAILURE, "failed to register kevent");
-	}
-
-	EV_SET(&event, SIGCHLD, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
-	if (kevent(kq, &event, 1, NULL, 0, NULL) == -1) {
-		err(EXIT_FAILURE, "failed to register kevent");
-	}
 	memset(&event, 0, sizeof(struct kevent));
 
 	/* Spawn a child to exec the command. */
@@ -519,28 +511,95 @@ daemon_eventloop(struct daemon_state *state)
 			}
 			continue;
 		default:
+			assert(0 && "Unexpected kevent filter type");
 			continue;
 		}
 	}
 
-	close(kq);
+	/* EVFILT_READ kqueue filter goes away here. */
 	close(state->pipe_rd);
 	state->pipe_rd = -1;
+
+	/*
+	 * We don't have to truncate the pidfile, but it's easier to test
+	 * daemon(8) behavior in some respects if we do.  We won't bother if
+	 * the child won't be restarted.
+	 */
+	if (state->child_pidfh != NULL && state->restart_enabled) {
+		pidfile_truncate(state->child_pidfh);
+	}
 }
 
+/*
+ * Note that daemon_sleep() should not be called with anything but the signal
+ * events in the kqueue without further consideration.
+ */
 static void
 daemon_sleep(struct daemon_state *state)
 {
-	struct timespec ts = { state->restart_delay, 0 };
+	struct kevent event = { 0 };
+	int ret;
+
+	assert(state->pipe_rd == -1);
+	assert(state->pipe_wr == -1);
 
 	if (!state->restart_enabled) {
 		return;
 	}
-	while (nanosleep(&ts, &ts) == -1) {
-		if (errno != EINTR) {
-			err(1, "nanosleep");
+
+	EV_SET(&event, 0, EVFILT_TIMER, EV_ADD|EV_ONESHOT, NOTE_SECONDS,
+	    state->restart_delay, NULL);
+	if (kevent(state->kqueue_fd, &event, 1, NULL, 0, NULL) == -1) {
+		err(1, "failed to register timer");
+	}
+
+	for (;;) {
+		ret = kevent(state->kqueue_fd, NULL, 0, &event, 1, NULL);
+		if (ret == -1) {
+			if (errno != EINTR) {
+				err(1, "kevent");
+			}
+
+			continue;
+		}
+
+		/*
+		 * Any other events being raised are indicative of a problem
+		 * that we need to investigate.  Most likely being that
+		 * something was not cleaned up from the eventloop.
+		 */
+		assert(event.filter == EVFILT_TIMER ||
+		    event.filter == EVFILT_SIGNAL);
+
+		if (event.filter == EVFILT_TIMER) {
+			/* Break's over, back to work. */
+			break;
+		}
+
+		/* Process any pending signals. */
+		switch (event.ident) {
+		case SIGTERM:
+			/*
+			 * We could disarm the timer, but we'll be terminating
+			 * promptly anyways.
+			 */
+			state->restart_enabled = false;
+			return;
+		case SIGHUP:
+			if (state->log_reopen && state->output_fd >= 0) {
+				reopen_log(state);
+			}
+
+			break;
+		case SIGCHLD:
+		default:
+			/* Discard */
+			break;
 		}
 	}
+
+	/* SIGTERM should've returned immediately. */
+	assert(state->restart_enabled);
 }
 
 static void
@@ -734,6 +793,7 @@ daemon_state_init(struct daemon_state *state)
 		.pipe_rd = -1,
 		.pipe_wr = -1,
 		.keep_cur_workdir = 1,
+		.kqueue_fd = -1,
 		.restart_delay = 1,
 		.stdmask = STDOUT_FILENO | STDERR_FILENO,
 		.syslog_enabled = false,
@@ -754,6 +814,9 @@ daemon_terminate(struct daemon_state *state)
 {
 	assert(state != NULL);
 
+	if (state->kqueue_fd >= 0) {
+		close(state->kqueue_fd);
+	}
 	if (state->output_fd >= 0) {
 		close(state->output_fd);
 	}
@@ -822,4 +885,52 @@ daemon_set_child_pipe(struct daemon_state *state)
 
 	/* The child gets dup'd pipes. */
 	close(state->pipe_rd);
+}
+
+static int
+daemon_setup_kqueue(void)
+{
+	int kq;
+	struct kevent event = { 0 };
+
+	kq = kqueuex(KQUEUE_CLOEXEC);
+	if (kq == -1) {
+		err(EXIT_FAILURE, "kqueue");
+	}
+
+	EV_SET(&event, SIGHUP,  EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
+	if (kevent(kq, &event, 1, NULL, 0, NULL) == -1) {
+		err(EXIT_FAILURE, "failed to register kevent");
+	}
+
+	EV_SET(&event, SIGTERM, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
+	if (kevent(kq, &event, 1, NULL, 0, NULL) == -1) {
+		err(EXIT_FAILURE, "failed to register kevent");
+	}
+
+	EV_SET(&event, SIGCHLD, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
+	if (kevent(kq, &event, 1, NULL, 0, NULL) == -1) {
+		err(EXIT_FAILURE, "failed to register kevent");
+	}
+
+	return (kq);
+}
+
+static int
+pidfile_truncate(struct pidfh *pfh)
+{
+	int pfd = pidfile_fileno(pfh);
+
+	assert(pfd >= 0);
+
+	if (ftruncate(pfd, 0) == -1)
+		return (-1);
+
+	/*
+	 * pidfile_write(3) will always pwrite(..., 0) today, but let's assume
+	 * it may not always and do a best-effort reset of the position just to
+	 * set a good example.
+	 */
+	(void)lseek(pfd, 0, SEEK_SET);
+	return (0);
 }

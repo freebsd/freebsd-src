@@ -75,6 +75,7 @@
 #include <linux/moduleparam.h>
 #include <linux/cdev.h>
 #include <linux/file.h>
+#include <linux/fs.h>
 #include <linux/sysfs.h>
 #include <linux/mm.h>
 #include <linux/io.h>
@@ -772,7 +773,7 @@ linux_dev_fdopen(struct cdev *dev, int fflags, struct thread *td,
 	}
 
 	/* hold on to the vnode - used for fstat() */
-	vhold(filp->f_vnode);
+	vref(filp->f_vnode);
 
 	/* release the file from devfs */
 	finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
@@ -1082,6 +1083,58 @@ linux_poll_wakeup(struct linux_file *filp)
 	spin_unlock(&filp->f_kqlock);
 }
 
+static struct linux_file *
+__get_file_rcu(struct linux_file **f)
+{
+	struct linux_file *file1, *file2;
+
+	file1 = READ_ONCE(*f);
+	if (file1 == NULL)
+		return (NULL);
+
+	if (!refcount_acquire_if_not_zero(
+	    file1->_file == NULL ? &file1->f_count : &file1->_file->f_count))
+		return (ERR_PTR(-EAGAIN));
+
+	file2 = READ_ONCE(*f);
+	if (file2 == file1)
+		return (file2);
+
+	fput(file1);
+	return (ERR_PTR(-EAGAIN));
+}
+
+struct linux_file *
+linux_get_file_rcu(struct linux_file **f)
+{
+	struct linux_file *file1;
+
+	for (;;) {
+		file1 = __get_file_rcu(f);
+		if (file1 == NULL)
+			return (NULL);
+
+		if (IS_ERR(file1))
+			continue;
+
+		return (file1);
+	}
+}
+
+struct linux_file *
+get_file_active(struct linux_file **f)
+{
+	struct linux_file *file1;
+
+	rcu_read_lock();
+	file1 = __get_file_rcu(f);
+	rcu_read_unlock();
+	if (IS_ERR(file1))
+		file1 = NULL;
+
+	return (file1);
+}
+
 static void
 linux_file_kqfilter_detach(struct knote *kn)
 {
@@ -1112,13 +1165,13 @@ linux_file_kqfilter_write_event(struct knote *kn, long hint)
 	return ((filp->f_kqflags & LINUX_KQ_FLAG_NEED_WRITE) ? 1 : 0);
 }
 
-static struct filterops linux_dev_kqfiltops_read = {
+static const struct filterops linux_dev_kqfiltops_read = {
 	.f_isfd = 1,
 	.f_detach = linux_file_kqfilter_detach,
 	.f_event = linux_file_kqfilter_read_event,
 };
 
-static struct filterops linux_dev_kqfiltops_write = {
+static const struct filterops linux_dev_kqfiltops_write = {
 	.f_isfd = 1,
 	.f_detach = linux_file_kqfilter_detach,
 	.f_event = linux_file_kqfilter_write_event,
@@ -1504,7 +1557,7 @@ linux_file_close(struct file *file, struct thread *td)
 		error = -OPW(file, td, release(filp->f_vnode, filp));
 	funsetown(&filp->f_sigio);
 	if (filp->f_vnode != NULL)
-		vdrop(filp->f_vnode);
+		vrele(filp->f_vnode);
 	linux_drop_fop(ldev);
 	ldev = filp->f_cdev;
 	if (ldev != NULL)
@@ -1737,7 +1790,7 @@ linux_file_kcmp(struct file *fp1, struct file *fp2, struct thread *td)
 	return (kcmp_cmp((uintptr_t)filp1->f_cdev, (uintptr_t)filp2->f_cdev));
 }
 
-struct fileops linuxfileops = {
+const struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
 	.fo_write = linux_file_write,
 	.fo_truncate = invfo_truncate,

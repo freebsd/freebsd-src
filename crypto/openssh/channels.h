@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.154 2023/12/18 14:47:20 djm Exp $ */
+/* $OpenBSD: channels.h,v 1.157 2024/07/25 22:40:08 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -85,7 +85,6 @@
 struct ssh;
 struct Channel;
 typedef struct Channel Channel;
-struct fwd_perm_list;
 
 typedef void channel_open_fn(struct ssh *, int, int, void *);
 typedef void channel_callback_fn(struct ssh *, int, int, void *);
@@ -140,6 +139,8 @@ struct Channel {
 	u_int	io_ready;	/* bitmask of SSH_CHAN_IO_* */
 	int	pfds[4];	/* pollfd entries for rfd/wfd/efd/sock */
 	int     ctl_chan;	/* control channel (multiplexed connections) */
+	uint32_t ctl_child_id;	/* child session for mux controllers */
+	int	have_ctl_child_id;/* non-zero if ctl_child_id is valid */
 	int     isatty;		/* rfd is a tty */
 #ifdef _AIX
 	int     wfd_isatty;	/* wfd is a tty */
@@ -325,7 +326,6 @@ int	 channel_input_ieof(int, u_int32_t, struct ssh *);
 int	 channel_input_oclose(int, u_int32_t, struct ssh *);
 int	 channel_input_open_confirmation(int, u_int32_t, struct ssh *);
 int	 channel_input_open_failure(int, u_int32_t, struct ssh *);
-int	 channel_input_port_open(int, u_int32_t, struct ssh *);
 int	 channel_input_window_adjust(int, u_int32_t, struct ssh *);
 int	 channel_input_status_confirm(int, u_int32_t, struct ssh *);
 

@@ -226,6 +226,9 @@ struct {								\
 
 #define	SLIST_EMPTY(head)	((head)->slh_first == NULL)
 
+#define	SLIST_EMPTY_ATOMIC(head)					\
+	(atomic_load_ptr(&(head)->slh_first) == NULL)
+
 #define	SLIST_FIRST(head)	((head)->slh_first)
 
 #define	SLIST_FOREACH(var, head, field)					\
@@ -339,6 +342,40 @@ struct {								\
 /*
  * Singly-linked Tail queue functions.
  */
+#if (defined(_KERNEL) && defined(INVARIANTS))
+/*
+ * QMD_STAILQ_CHECK_EMPTY(STAILQ_HEAD *head)
+ *
+ * Validates that the stailq head's pointer to the last element's next pointer
+ * actually points to the head's first element pointer field.
+ */
+#define	QMD_STAILQ_CHECK_EMPTY(head) do {				\
+	if ((head)->stqh_last != &(head)->stqh_first)			\
+		panic("Empty stailq %p->stqh_last is %p, not head's "	\
+		    "first field address", (head), (head)->stqh_last);	\
+} while (0)
+
+#define	STAILQ_ASSERT_EMPTY(head) do {					\
+	if (!STAILQ_EMPTY((head)))					\
+		panic("stailq %p is not empty", (head));		\
+} while (0)
+
+/*
+ * QMD_STAILQ_CHECK_TAIL(STAILQ_HEAD *head)
+ *
+ * Validates that the stailq's last element's next pointer is NULL.
+ */
+#define	QMD_STAILQ_CHECK_TAIL(head) do {				\
+	if (*(head)->stqh_last != NULL)					\
+		panic("Stailq %p last element's next pointer is %p, "	\
+		    "not NULL", (head), *(head)->stqh_last);		\
+} while (0)
+#else
+#define	QMD_STAILQ_CHECK_EMPTY(head)
+#define	STAILQ_ASSERT_EMPTY(head)
+#define	QMD_STAILQ_CHECK_TAIL(head)
+#endif /* (_KERNEL && INVARIANTS) */
+
 #define	STAILQ_CONCAT(head1, head2) do {				\
 	if (!STAILQ_EMPTY((head2))) {					\
 		*(head1)->stqh_last = (head2)->stqh_first;		\
@@ -347,7 +384,14 @@ struct {								\
 	}								\
 } while (0)
 
-#define	STAILQ_EMPTY(head)	((head)->stqh_first == NULL)
+#define	STAILQ_EMPTY(head)	({					\
+	if (STAILQ_FIRST(head) == NULL)					\
+		QMD_STAILQ_CHECK_EMPTY(head);				\
+	STAILQ_FIRST(head) == NULL;					\
+})
+
+#define	STAILQ_EMPTY_ATOMIC(head)					\
+	(atomic_load_ptr(&(head)->stqh_first) == NULL)
 
 #define	STAILQ_FIRST(head)	((head)->stqh_first)
 
@@ -389,6 +433,7 @@ struct {								\
 } while (0)
 
 #define	STAILQ_INSERT_TAIL(head, elm, field) do {			\
+	QMD_STAILQ_CHECK_TAIL(head);					\
 	STAILQ_NEXT((elm), field) = NULL;				\
 	*(head)->stqh_last = (elm);					\
 	(head)->stqh_last = &STAILQ_NEXT((elm), field);			\
@@ -434,9 +479,9 @@ struct {								\
 	(head1)->stqh_last = (head2)->stqh_last;			\
 	STAILQ_FIRST(head2) = swap_first;				\
 	(head2)->stqh_last = swap_last;					\
-	if (STAILQ_EMPTY(head1))					\
+	if (STAILQ_FIRST(head1) == NULL)				\
 		(head1)->stqh_last = &STAILQ_FIRST(head1);		\
-	if (STAILQ_EMPTY(head2))					\
+	if (STAILQ_FIRST(head2) == NULL)				\
 		(head2)->stqh_last = &STAILQ_FIRST(head2);		\
 } while (0)
 
@@ -535,6 +580,9 @@ struct {								\
 } while (0)
 
 #define	LIST_EMPTY(head)	((head)->lh_first == NULL)
+
+#define	LIST_EMPTY_ATOMIC(head)						\
+	(atomic_load_ptr(&(head)->lh_first) == NULL)
 
 #define	LIST_FIRST(head)	((head)->lh_first)
 
@@ -739,6 +787,9 @@ struct {								\
 } while (0)
 
 #define	TAILQ_EMPTY(head)	((head)->tqh_first == NULL)
+
+#define	TAILQ_EMPTY_ATOMIC(head)					\
+	(atomic_load_ptr(&(head)->tqh_first) == NULL)
 
 #define	TAILQ_FIRST(head)	((head)->tqh_first)
 

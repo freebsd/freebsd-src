@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -206,7 +206,14 @@ DtCompileAest (
     UINT32                  i;
     UINT32                  Offset;
     DT_FIELD                **PFieldList = (DT_FIELD **) List;
+    ACPI_AEST_NODE_INTERFACE_HEADER *AestNodeHeader;
+    UINT8                   Revision;
+    ACPI_TABLE_HEADER       *Header;
 
+    ParentTable = DtPeekSubtable ();
+
+    Header = ACPI_CAST_PTR (ACPI_TABLE_HEADER, ParentTable->Buffer);
+    Revision = Header->Revision;
 
     while (*PFieldList)
     {
@@ -257,13 +264,36 @@ DtCompileAest (
             break;
 
         case ACPI_AEST_VENDOR_ERROR_NODE:
+            switch (Revision)
+            {
+            case 1:
+                InfoTable = AcpiDmTableInfoAestVendorError;
+                break;
 
-            InfoTable = AcpiDmTableInfoAestVendorError;
+            case 2:
+                InfoTable = AcpiDmTableInfoAestVendorV2Error;
+                break;
+
+            default:
+                AcpiOsPrintf ("Unknown AEST Vendor Error Revision: %X\n",
+                    Revision);
+                return (AE_ERROR);
+            }
             break;
 
         case ACPI_AEST_GIC_ERROR_NODE:
 
             InfoTable = AcpiDmTableInfoAestGicError;
+            break;
+
+        case ACPI_AEST_PCIE_ERROR_NODE:
+
+            InfoTable = AcpiDmTableInfoAestPCIeError;
+            break;
+
+        case ACPI_AEST_PROXY_ERROR_NODE:
+
+            InfoTable = AcpiDmTableInfoAestProxyError;
             break;
 
         /* Error case below */
@@ -341,9 +371,57 @@ DtCompileAest (
         }
 
         /* Compile the (required) node interface structure */
+        if (Revision == 1)
+        {
+            InfoTable = AcpiDmTableInfoAestXface;
+        }
+        else if (Revision == 2)
+        {
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoAestXfaceHeader,
+                &Subtable);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
 
-        Status = DtCompileTable (PFieldList, AcpiDmTableInfoAestXface,
-            &Subtable);
+            ParentTable = DtPeekSubtable ();
+            DtInsertSubtable (ParentTable, Subtable);
+
+            Offset += Subtable->Length;
+
+            AestNodeHeader = ACPI_CAST_PTR (ACPI_AEST_NODE_INTERFACE_HEADER,
+                    Subtable->Buffer);
+
+            switch (AestNodeHeader->GroupFormat)
+            {
+            case ACPI_AEST_NODE_GROUP_FORMAT_4K:
+
+                InfoTable = AcpiDmTableInfoAestXface4k;
+                break;
+
+            case ACPI_AEST_NODE_GROUP_FORMAT_16K:
+
+                InfoTable = AcpiDmTableInfoAestXface16k;
+                break;
+
+            case ACPI_AEST_NODE_GROUP_FORMAT_64K:
+
+                InfoTable = AcpiDmTableInfoAestXface64k;
+                break;
+
+            /* Error case below */
+            default:
+                AcpiOsPrintf ("Unknown AEST Interface Group Format: %X\n",
+                    AestNodeHeader->GroupFormat);
+                return (AE_ERROR);
+            }
+        }
+        else
+        {
+           AcpiOsPrintf ("Unknown AEST Revision: %X\n", Revision);
+        }
+
+        Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -367,8 +445,22 @@ DtCompileAest (
 
         for (i = 0; i < ErrorNodeHeader->NodeInterruptCount; i++)
         {
-            Status = DtCompileTable (PFieldList, AcpiDmTableInfoAestXrupt,
-                &Subtable);
+            switch (Revision) {
+            case 1:
+
+                InfoTable = AcpiDmTableInfoAestXrupt;
+                break;
+
+            case 2:
+
+                InfoTable = AcpiDmTableInfoAestXruptV2;
+                break;
+
+            default:
+                AcpiOsPrintf ("Unknown AEST Revision: %X\n", Revision);
+                return (AE_ERROR);
+            }
+            Status = DtCompileTable (PFieldList, InfoTable, &Subtable);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -965,6 +1057,53 @@ DtCompileCedt (
                     if (Subtable)
                     {
                         DtInsertSubtable (ParentTable, Subtable);       /* got a target, so insert table. */
+                        InsertFlag = 0;
+                    }
+                }
+            }
+
+            DtPopSubtable ();
+            ParentTable = DtPeekSubtable ();
+            break;
+        }
+        case ACPI_CEDT_TYPE_CXIMS: {
+            unsigned char *dump;
+            unsigned int idx, offset, max = 0;
+
+            /* Compile table with first "Xor map" */
+
+            Status = DtCompileTable (PFieldList, AcpiDmTableInfoCedt2, &Subtable);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+
+            /* Look in buffer for the number of Xor maps */
+            offset = (unsigned int) ACPI_OFFSET (ACPI_CEDT_CXIMS, NrXormaps);
+            dump = (unsigned char *) Subtable->Buffer - 4;     /* place at beginning of cedt2 */
+            max = dump[offset];
+
+            /* We need to add more XOR maps, so write the current Subtable. */
+
+            ParentTable = DtPeekSubtable ();
+            DtInsertSubtable (ParentTable, Subtable);   /* Insert AcpiDmTableInfoCedt2 table so we can put in */
+            DtPushSubtable (Subtable);
+
+            /* Now, find out all Xor maps beyond the first. */
+
+            for (idx = 1; idx < max; idx++) {
+                ParentTable = DtPeekSubtable ();
+
+                if (*PFieldList)
+                {
+                    Status = DtCompileTable (PFieldList, AcpiDmTableInfoCedt2_te, &Subtable);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        return (Status);
+                    }
+                    if (Subtable)
+                    {
+                        DtInsertSubtable (ParentTable, Subtable);       /* got an Xor map, so insert table. */
                         InsertFlag = 0;
                     }
                 }

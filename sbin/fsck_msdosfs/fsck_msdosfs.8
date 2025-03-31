@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 6, 2020
+.Dd December 18, 2024
 .Dt FSCK_MSDOSFS 8
 .Os
 .Sh NAME
@@ -32,10 +32,10 @@
 .Sh SYNOPSIS
 .Nm
 .Fl p
-.Op Fl Cf
+.Op Fl BCf
 .Ar filesystem ...
 .Nm
-.Op Fl CMny
+.Op Fl BCMny
 .Ar filesystem ...
 .Sh DESCRIPTION
 The
@@ -71,10 +71,14 @@ making any changes.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl C
-Compatibility with the corresponding
+.It Fl B
+Ignored for
 .Xr fsck 8
-option (skip check if clean), defined to no-op.
+compatibility.
+.It Fl C
+Ignored for
+.Xr fsck 8
+compatibility.
 .It Fl F
 Compatibility with the wrapper
 .Xr fsck 8

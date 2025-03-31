@@ -35,6 +35,7 @@ alonso [label="Alonso Schaich\nalonso@FreeBSD.org\n2014/08/14\n2017/08/07"]
 anray [label="Andrey Slusar\nanray@FreeBSD.org\n2005/12/11\n2011/01/14"]
 araujo [label="Marcelo Araujo\naraujo@FreeBSD.org\n2007/04/26\n2020/11/03"]
 asami [label="Satoshi Asami\nasami@FreeBSD.org\n1994/11/18\n2001/09/11"]
+ashafer [label="Austin Shafer\nashafer@FreeBSD.org\n2025/01/26"]
 avilla [label="Alberto Villa\navilla@FreeBSD.org\n2010/01/24\n2018/10/01"]
 avl [label="Alexander Logvinov\navl@FreeBSD.org\n2009/05/27\n2013/12/02"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03\n2019/11/04"]
@@ -263,6 +264,7 @@ pi [label="Kurt Jaeger\npi@FreeBSD.org\n2014/03/14"]
 pizzamig [label="Luca Pizzamiglio\npizzamig@FreeBSD.org\n2017/08/25"]
 pkubaj [label="Piotr Kubaj\npkubaj@FreeBSD.org\n2019/04/14"]
 rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
+rea [label="Eygene Ryabinkin\nrea@FreeBSD.org\n2010/10/15"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
 rhurlin [label="Rainer Hurling\nrhurlin@FreeBSD.org\n2020/08/31"]
 riggs [label="Thomas Zander\nriggs@FreeBSD.org\n2014/01/09"]
@@ -460,6 +462,7 @@ erwin -> gabor
 erwin -> gordon
 erwin -> lbr
 erwin -> lth
+erwin -> rea
 erwin -> simon
 
 feld -> brnrd
@@ -502,6 +505,7 @@ garga -> dutra
 garga -> eduardo
 garga -> mandree
 garga -> mm
+garga -> rea
 garga -> rnoland
 garga -> vd
 garga -> wxs
@@ -545,6 +549,8 @@ jrm -> jwb
 jrm -> michaelo
 
 junovitch -> tz
+
+kbowling -> ashafer
 
 kmoore -> jhixson
 
@@ -855,6 +861,8 @@ wxs -> swills
 wxs -> zi
 
 ygy -> yasu
+
+yuri -> rea
 
 zirias -> jbo
 

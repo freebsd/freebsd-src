@@ -134,7 +134,8 @@ owc_gpiobus_attach(device_t dev)
 	 * the system timecounter (which initializes after device attachments).
 	 */
 	device_add_child(sc->sc_dev, "ow", DEVICE_UNIT_ANY);
-	return (bus_delayed_attach_children(dev));
+	bus_delayed_attach_children(dev);
+	return (0);
 }
 
 static int
@@ -145,7 +146,7 @@ owc_gpiobus_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if ((err = device_delete_children(dev)) != 0)
+	if ((err = bus_generic_detach(dev)) != 0)
 		return (err);
 
 	gpio_pin_release(sc->sc_pin);

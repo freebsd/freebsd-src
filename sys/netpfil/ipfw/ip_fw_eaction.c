@@ -1,6 +1,8 @@
 /*-
- * Copyright (c) 2016-2017 Yandex LLC
- * Copyright (c) 2016-2017 Andrey V. Elsukov <ae@FreeBSD.org>
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2016-2025 Yandex LLC
+ * Copyright (c) 2016-2025 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -68,7 +70,7 @@
  * It is possible to pass some additional information to external
  * action handler using O_EXTERNAL_INSTANCE and O_EXTERNAL_DATA opcodes.
  * Such opcodes should be next after the O_EXTERNAL_ACTION opcode.
- * For the O_EXTERNAL_INSTANCE opcode the cmd->arg1 contains index of named
+ * For the O_EXTERNAL_INSTANCE opcode the cmd->kidx contains index of named
  * object related to an instance of external action.
  * For the O_EXTERNAL_DATA opcode the cmd contains the data that can be used
  * by external action handler without needing to create named instance.
@@ -76,7 +78,7 @@
  * In case when eaction module uses named instances, it should register
  * opcode rewriting routines for O_EXTERNAL_INSTANCE opcode. The
  * classifier callback can look back into O_EXTERNAL_ACTION opcode (it
- * must be in the (ipfw_insn *)(cmd - 1)). By arg1 from O_EXTERNAL_ACTION
+ * must be in the (ipfw_insn *)(cmd - 2)). By kidx from O_EXTERNAL_ACTION
  * it can deteremine eaction_id and compare it with its own.
  * The macro IPFW_TLV_EACTION_NAME(eaction_id) can be used to deteremine
  * the type of named_object related to external action instance.
@@ -92,7 +94,7 @@ struct eaction_obj {
 };
 
 #define	EACTION_OBJ(ch, cmd)			\
-    ((struct eaction_obj *)SRV_OBJECT((ch), (cmd)->arg1))
+    ((struct eaction_obj *)SRV_OBJECT((ch), insntod((cmd), kidx)->kidx))
 
 #if 0
 #define	EACTION_DEBUG(fmt, ...)	do {			\
@@ -116,21 +118,28 @@ default_eaction(struct ip_fw_chain *ch, struct ip_fw_args *args,
  * Opcode rewriting callbacks.
  */
 static int
-eaction_classify(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
+eaction_classify(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)
 {
+	ipfw_insn_kidx *cmd;
 
-	EACTION_DEBUG("opcode %d, arg1 %d", cmd->opcode, cmd->arg1);
-	*puidx = cmd->arg1;
+	if (F_LEN(cmd0) <= 1)
+		return (EINVAL);
+
+	cmd = insntod(cmd0, kidx);
+	EACTION_DEBUG("opcode %u, kidx %u", cmd0->opcode, cmd->kidx);
+	*puidx = cmd->kidx;
 	*ptype = 0;
 	return (0);
 }
 
 static void
-eaction_update(ipfw_insn *cmd, uint16_t idx)
+eaction_update(ipfw_insn *cmd0, uint32_t idx)
 {
+	ipfw_insn_kidx *cmd;
 
-	cmd->arg1 = idx;
-	EACTION_DEBUG("opcode %d, arg1 -> %d", cmd->opcode, cmd->arg1);
+	cmd = insntod(cmd0, kidx);
+	cmd->kidx = idx;
+	EACTION_DEBUG("opcode %u, kidx -> %u", cmd0->opcode, cmd->kidx);
 }
 
 static int
@@ -162,7 +171,7 @@ eaction_findbyname(struct ip_fw_chain *ch, struct tid_info *ti,
 }
 
 static struct named_object *
-eaction_findbykidx(struct ip_fw_chain *ch, uint16_t idx)
+eaction_findbykidx(struct ip_fw_chain *ch, uint32_t idx)
 {
 
 	EACTION_DEBUG("kidx %u", idx);
@@ -182,7 +191,7 @@ static struct opcode_obj_rewrite eaction_opcodes[] = {
 
 static int
 create_eaction_obj(struct ip_fw_chain *ch, ipfw_eaction_t handler,
-    const char *name, uint16_t *eaction_id)
+    const char *name, uint32_t *eaction_id)
 {
 	struct namedobj_instance *ni;
 	struct eaction_obj *obj;
@@ -249,8 +258,8 @@ destroy_eaction_obj(struct ip_fw_chain *ch, struct named_object *no)
  * Resets all eaction opcodes to default handlers.
  */
 static void
-reset_eaction_rules(struct ip_fw_chain *ch, uint16_t eaction_id,
-    uint16_t instance_id, bool reset_rules)
+reset_eaction_rules(struct ip_fw_chain *ch, uint32_t eaction_id,
+    uint32_t instance_id, bool reset_rules)
 {
 	struct named_object *no;
 	int i;
@@ -332,11 +341,11 @@ ipfw_eaction_uninit(struct ip_fw_chain *ch, int last)
  * Registers external action handler to the global array.
  * On success it returns eaction id, otherwise - zero.
  */
-uint16_t
+uint32_t
 ipfw_add_eaction(struct ip_fw_chain *ch, ipfw_eaction_t handler,
     const char *name)
 {
-	uint16_t eaction_id;
+	uint32_t eaction_id;
 
 	eaction_id = 0;
 	if (ipfw_check_object_name_generic(name) == 0) {
@@ -351,7 +360,7 @@ ipfw_add_eaction(struct ip_fw_chain *ch, ipfw_eaction_t handler,
  * Deregisters external action handler with id eaction_id.
  */
 int
-ipfw_del_eaction(struct ip_fw_chain *ch, uint16_t eaction_id)
+ipfw_del_eaction(struct ip_fw_chain *ch, uint32_t eaction_id)
 {
 	struct named_object *no;
 
@@ -371,7 +380,7 @@ ipfw_del_eaction(struct ip_fw_chain *ch, uint16_t eaction_id)
 
 int
 ipfw_reset_eaction(struct ip_fw_chain *ch, struct ip_fw *rule,
-    uint16_t eaction_id, uint16_t default_id, uint16_t instance_id)
+    uint32_t eaction_id, uint32_t default_id, uint32_t instance_id)
 {
 	ipfw_insn *cmd, *icmd;
 	int l;
@@ -385,22 +394,23 @@ ipfw_reset_eaction(struct ip_fw_chain *ch, struct ip_fw *rule,
 	 */
 	cmd = ipfw_get_action(rule);
 	if (cmd->opcode != O_EXTERNAL_ACTION ||
-	    cmd->arg1 != eaction_id)
+	    insntod(cmd, kidx)->kidx != eaction_id)
 		return (0);
 	/*
 	 * Check if there is O_EXTERNAL_INSTANCE opcode, we need
 	 * to truncate the rule length.
 	 *
-	 * NOTE: F_LEN(cmd) must be 1 for O_EXTERNAL_ACTION opcode,
+	 * NOTE: F_LEN(cmd) must be 2 for O_EXTERNAL_ACTION opcode,
 	 *  and rule length should be enough to keep O_EXTERNAL_INSTANCE
-	 *  opcode, thus we do check for l > 1.
+	 *  opcode, thus we do check for l > 2.
 	 */
 	l = rule->cmd + rule->cmd_len - cmd;
-	if (l > 1) {
-		MPASS(F_LEN(cmd) == 1);
-		icmd = cmd + 1;
+	if (l > 2) {
+		MPASS(F_LEN(cmd) == 2);
+		icmd = cmd + F_LEN(cmd);
 		if (icmd->opcode == O_EXTERNAL_INSTANCE &&
-		    instance_id != 0 && icmd->arg1 != instance_id)
+		    instance_id != 0 &&
+		    insntod(icmd, kidx)->kidx != instance_id)
 			return (0);
 		/*
 		 * Since named_object related to this instance will be
@@ -408,7 +418,7 @@ ipfw_reset_eaction(struct ip_fw_chain *ch, struct ip_fw *rule,
 		 * the rest of cmd chain just after O_EXTERNAL_ACTION
 		 * opcode.
 		 */
-		EACTION_DEBUG("truncate rule %d: len %u -> %u",
+		EACTION_DEBUG("truncate rule %u: len %u -> %u",
 		    rule->rulenum, rule->cmd_len,
 		    rule->cmd_len - F_LEN(icmd));
 		rule->cmd_len -= F_LEN(icmd);
@@ -416,7 +426,7 @@ ipfw_reset_eaction(struct ip_fw_chain *ch, struct ip_fw *rule,
 		    (uint32_t *)rule->cmd) == rule->cmd_len);
 	}
 
-	cmd->arg1 = default_id; /* Set to default id */
+	insntod(cmd, kidx)->kidx = default_id; /* Set to default id */
 	/*
 	 * Return 1 when reset successfully happened.
 	 */
@@ -429,8 +439,8 @@ ipfw_reset_eaction(struct ip_fw_chain *ch, struct ip_fw *rule,
  * eaction has instance with id == kidx.
  */
 int
-ipfw_reset_eaction_instance(struct ip_fw_chain *ch, uint16_t eaction_id,
-    uint16_t kidx)
+ipfw_reset_eaction_instance(struct ip_fw_chain *ch, uint32_t eaction_id,
+    uint32_t kidx)
 {
 	struct named_object *no;
 
@@ -448,5 +458,6 @@ ipfw_run_eaction(struct ip_fw_chain *ch, struct ip_fw_args *args,
     ipfw_insn *cmd, int *done)
 {
 
+	MPASS(F_LEN(cmd) == 2);
 	return (EACTION_OBJ(ch, cmd)->handler(ch, args, cmd, done));
 }

@@ -243,7 +243,9 @@ opal_sensor_attach(device_t dev)
 
 static device_method_t opal_sensor_methods[] = {
 	DEVMETHOD(device_probe,		opal_sensor_probe),
-	DEVMETHOD(device_attach,		opal_sensor_attach),
+	DEVMETHOD(device_attach,	opal_sensor_attach),
+
+	DEVMETHOD_END
 };
 
 static driver_t opal_sensor_driver = {
@@ -290,7 +292,8 @@ opalsens_attach(device_t dev)
 		device_set_ivars(cdev, dinfo);
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static const struct ofw_bus_devinfo *

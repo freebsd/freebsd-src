@@ -314,7 +314,7 @@ vnet_rtables_init(const void *unused __unused)
 	RTABLES_UNLOCK();
 }
 VNET_SYSINIT(vnet_rtables_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
-    vnet_rtables_init, 0);
+    vnet_rtables_init, NULL);
 
 #ifdef VIMAGE
 static void
@@ -353,7 +353,7 @@ rtables_destroy(const void *unused __unused)
 #endif
 }
 VNET_SYSUNINIT(rtables_destroy, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
-    rtables_destroy, 0);
+    rtables_destroy, NULL);
 #endif
 
 static inline struct rib_head *

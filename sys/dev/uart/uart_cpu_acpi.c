@@ -221,12 +221,6 @@ uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 		di->pci_info.device = spcr->PciDeviceId;
 	}
 
-	/* Apply device tweaks. */
-	if ((cd->cd_quirks & UART_F_IGNORE_SPCR_REGSHFT) ==
-	    UART_F_IGNORE_SPCR_REGSHFT) {
-		di->bas.regshft = cd->cd_regshft;
-	}
-
 	/* Create a bus space handle. */
 	error = bus_space_map(di->bas.bst, spcr->SerialPort.Address,
 	    uart_getrange(class), 0, &di->bas.bsh);
@@ -295,12 +289,6 @@ next:
 
 	/* XXX: Find the correct value */
 	di->baudrate = 115200;
-
-	/* Apply device tweaks. */
-	if ((cd->cd_quirks & UART_F_IGNORE_SPCR_REGSHFT) ==
-	    UART_F_IGNORE_SPCR_REGSHFT) {
-		di->bas.regshft = cd->cd_regshft;
-	}
 
 	/* Create a bus space handle. */
 	error = bus_space_map(di->bas.bst, base_address->Address,

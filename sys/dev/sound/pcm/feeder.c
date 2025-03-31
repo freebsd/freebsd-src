@@ -4,6 +4,10 @@
  * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -68,9 +72,6 @@ feeder_register_root(void *p)
 	fte->idx = feedercnt;
 	SLIST_INSERT_HEAD(&feedertab, fte, link);
 	feedercnt++;
-
-	/* we've got our root feeder so don't veto pcm loading anymore */
-	pcm_veto_load = 0;
 }
 
 void
@@ -465,6 +466,10 @@ static struct feeder_class feeder_root_class = {
 	.desc =		NULL,
 	.data =		NULL,
 };
+/*
+ * Register the root feeder first so that pcm_addchan() and subsequent
+ * functions can use it.
+ */
 SYSINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_register_root,
     &feeder_root_class);
 SYSUNINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_unregisterall, NULL);

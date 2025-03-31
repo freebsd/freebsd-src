@@ -1564,8 +1564,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m,
 	*/
 	wh = mtod(m, struct ieee80211_frame *);
 
-	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
-	    IEEE80211_FC0_VERSION_0) {
+	if (!IEEE80211_IS_FC0_CHECK_VER(wh, IEEE80211_FC0_VERSION_0)) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
 		    ni->ni_macaddr, NULL, "wrong version %x", wh->i_fc[0]);
 		vap->iv_stats.is_rx_badversion++;
@@ -3299,7 +3298,7 @@ mesh_airtime_calc(struct ieee80211_node *ni)
 	uint64_t res;
 
 	/* Time to transmit a frame */
-	rate = ni->ni_txrate;
+	rate = ieee80211_node_get_txrate_dot11rate(ni);
 	overhead = ieee80211_compute_duration(ic->ic_rt,
 	    ifp->if_mtu + IEEE80211_MESH_MAXOVERHEAD, rate, 0) << M_BITS;
 	/* Error rate in percentage */

@@ -562,7 +562,8 @@ mv_pcib_attach(device_t self)
 	}
 
 	mtx_init(&sc->sc_msi_mtx, "msi_mtx", NULL, MTX_DEF);
-	return (bus_generic_attach(self));
+	bus_attach_children(self);
+	return (0);
 
 error:
 	/* XXX SYS_RES_ should be released here */

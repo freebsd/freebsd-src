@@ -102,6 +102,7 @@ static uint32_t feeder_chain_formats_multi[] = {
 	AFMT_S16_LE, AFMT_S16_BE, AFMT_U16_LE, AFMT_U16_BE,
 	AFMT_S24_LE, AFMT_S24_BE, AFMT_U24_LE, AFMT_U24_BE,
 	AFMT_S32_LE, AFMT_S32_BE, AFMT_U32_LE, AFMT_U32_BE,
+	AFMT_F32_LE, AFMT_F32_BE,
 	0
 };
 
@@ -111,6 +112,7 @@ static uint32_t feeder_chain_formats_fullmulti[] = {
 	AFMT_S16_LE, AFMT_S16_BE, AFMT_U16_LE, AFMT_U16_BE,
 	AFMT_S24_LE, AFMT_S24_BE, AFMT_U24_LE, AFMT_U24_BE,
 	AFMT_S32_LE, AFMT_S32_BE, AFMT_U32_LE, AFMT_U32_BE,
+	AFMT_F32_LE, AFMT_F32_BE,
 	0
 };
 
@@ -718,6 +720,17 @@ feeder_chain(struct pcm_channel *c)
 		c->format = cdesc.target.afmt;
 		c->speed  = cdesc.target.rate;
 	} else {
+		/*
+		 * Bail out early if we do not support either of those formats.
+		 */
+		if ((cdesc.origin.afmt & AFMT_CONVERTIBLE) == 0 ||
+		    (cdesc.target.afmt & AFMT_CONVERTIBLE) == 0) {
+			device_printf(c->dev,
+			    "%s(): unsupported formats: in=0x%08x, out=0x%08x\n",
+			    __func__, cdesc.origin.afmt, cdesc.target.afmt);
+			return (ENODEV);
+		}
+
 		/* hwfmt is not convertible, so 'dummy' it. */
 		if (hwfmt & AFMT_PASSTHROUGH)
 			cdesc.dummy = 1;

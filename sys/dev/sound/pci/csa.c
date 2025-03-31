@@ -273,28 +273,20 @@ csa_attach(device_t dev)
 	/* Attach the children. */
 
 	/* PCM Audio */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (func == NULL) {
-		error = ENOMEM;
-		goto err_teardown;
-	}
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
 	func->varinfo = &scp->binfo;
 	func->func = SCF_PCM;
 	scp->pcm = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
 	device_set_ivars(scp->pcm, func);
 
 	/* Midi Interface */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (func == NULL) {
-		error = ENOMEM;
-		goto err_teardown;
-	}
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
 	func->varinfo = &scp->binfo;
 	func->func = SCF_MIDI;
 	scp->midi = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
 	device_set_ivars(scp->midi, func);
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 
@@ -309,43 +301,32 @@ err_io:
 	return (error);
 }
 
+static void
+csa_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_DEVBUF);
+}
+
 static int
 csa_detach(device_t dev)
 {
 	csa_res *resp;
 	sc_p scp;
-	struct sndcard_func *func;
 	int err;
 
 	scp = device_get_softc(dev);
 	resp = &scp->res;
 
-	if (scp->midi != NULL) {
-		func = device_get_ivars(scp->midi);
-		err = device_delete_child(dev, scp->midi);
-		if (err != 0)
-			return err;
-		if (func != NULL)
-			free(func, M_DEVBUF);
-		scp->midi = NULL;
-	}
-
-	if (scp->pcm != NULL) {
-		func = device_get_ivars(scp->pcm);
-		err = device_delete_child(dev, scp->pcm);
-		if (err != 0)
-			return err;
-		if (func != NULL)
-			free(func, M_DEVBUF);
-		scp->pcm = NULL;
-	}
+	err = bus_generic_detach(dev);
+	if (err != 0)
+		return err;
 
 	bus_teardown_intr(dev, resp->irq, scp->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, resp->irq_rid, resp->irq);
 	bus_release_resource(dev, SYS_RES_MEMORY, resp->mem_rid, resp->mem);
 	bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
 
-	return bus_generic_detach(dev);
+	return (0);
 }
 
 static int
@@ -1060,6 +1041,7 @@ static device_method_t csa_methods[] = {
 	DEVMETHOD(device_resume,	csa_resume),
 
 	/* Bus interface */
+	DEVMETHOD(bus_child_deleted,	csa_child_deleted),
 	DEVMETHOD(bus_alloc_resource,	csa_alloc_resource),
 	DEVMETHOD(bus_release_resource,	csa_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),

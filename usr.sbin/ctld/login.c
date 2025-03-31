@@ -29,19 +29,79 @@
  *
  */
 
-#include <sys/cdefs.h>
+#include <sys/time.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <netinet/in.h>
+#include <cam/ctl/ctl.h>
+#include <cam/ctl/ctl_io.h>
+#include <cam/ctl/ctl_ioctl.h>
 
 #include "ctld.h"
 #include "iscsi_proto.h"
 
+#define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)
+
 static void login_send_error(struct pdu *request,
     char class, char detail);
+
+static void
+kernel_limits(const char *offload, int s, int *max_recv_dsl, int *max_send_dsl,
+    int *max_burst_length, int *first_burst_length)
+{
+	struct ctl_iscsi req;
+	struct ctl_iscsi_limits_params *cilp;
+
+	bzero(&req, sizeof(req));
+
+	req.type = CTL_ISCSI_LIMITS;
+	cilp = (struct ctl_iscsi_limits_params *)&(req.data.limits);
+	if (offload != NULL) {
+		strlcpy(cilp->offload, offload, sizeof(cilp->offload));
+	}
+	cilp->socket = s;
+
+	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
+		log_err(1, "error issuing CTL_ISCSI ioctl; "
+		    "dropping connection");
+	}
+
+	if (req.status != CTL_ISCSI_OK) {
+		log_errx(1, "error returned from CTL iSCSI limits request: "
+		    "%s; dropping connection", req.error_str);
+	}
+
+	if (cilp->max_recv_data_segment_length != 0) {
+		*max_recv_dsl = cilp->max_recv_data_segment_length;
+		*max_send_dsl = cilp->max_recv_data_segment_length;
+	}
+	if (cilp->max_send_data_segment_length != 0)
+		*max_send_dsl = cilp->max_send_data_segment_length;
+	if (cilp->max_burst_length != 0)
+		*max_burst_length = cilp->max_burst_length;
+	if (cilp->first_burst_length != 0)
+		*first_burst_length = cilp->first_burst_length;
+	if (*max_burst_length < *first_burst_length)
+		*first_burst_length = *max_burst_length;
+
+	if (offload != NULL) {
+		log_debugx("Kernel limits for offload \"%s\" are "
+		    "MaxRecvDataSegment=%d, max_send_dsl=%d, "
+		    "MaxBurstLength=%d, FirstBurstLength=%d",
+		    offload, *max_recv_dsl, *max_send_dsl, *max_burst_length,
+		    *first_burst_length);
+	} else {
+		log_debugx("Kernel limits are "
+		    "MaxRecvDataSegment=%d, max_send_dsl=%d, "
+		    "MaxBurstLength=%d, FirstBurstLength=%d",
+		    *max_recv_dsl, *max_send_dsl, *max_burst_length,
+		    *first_burst_length);
+	}
+}
 
 static void
 login_set_nsg(struct pdu *response, int nsg)
@@ -874,7 +934,7 @@ login(struct ctld_connection *conn)
 		login_send_error(request, 0x02, 0x07);
 		log_errx(1, "received Login PDU without InitiatorName");
 	}
-	if (valid_iscsi_name(initiator_name) == false) {
+	if (valid_iscsi_name(initiator_name, log_warnx) == false) {
 		login_send_error(request, 0x02, 0x00);
 		log_errx(1, "received Login PDU with invalid InitiatorName");
 	}
@@ -967,12 +1027,12 @@ login(struct ctld_connection *conn)
 	/*
 	 * Enforce initiator-name and initiator-portal.
 	 */
-	if (auth_name_check(ag, initiator_name) != 0) {
+	if (!auth_name_check(ag, initiator_name)) {
 		login_send_error(request, 0x02, 0x02);
 		log_errx(1, "initiator does not match allowed initiator names");
 	}
 
-	if (auth_portal_check(ag, &conn->conn_initiator_sa) != 0) {
+	if (!auth_portal_check(ag, &conn->conn_initiator_sa)) {
 		login_send_error(request, 0x02, 0x02);
 		log_errx(1, "initiator does not match allowed "
 		    "initiator portals");

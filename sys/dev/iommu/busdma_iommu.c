@@ -397,6 +397,8 @@ static int
 iommu_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 {
 	struct bus_dma_tag_iommu *dmat;
+	struct iommu_unit *iommu;
+	struct iommu_ctx *ctx;
 	int error;
 
 	error = 0;
@@ -407,8 +409,12 @@ iommu_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 			error = EBUSY;
 			goto out;
 		}
-		if (dmat == dmat->ctx->tag)
-			iommu_free_ctx(dmat->ctx);
+		ctx = dmat->ctx;
+		if (dmat == ctx->tag) {
+			iommu = ctx->domain->iommu;
+			IOMMU_LOCK(iommu);
+			iommu_free_ctx_locked(iommu, dmat->ctx);
+		}
 		free(dmat->segments, M_IOMMU_DMAMAP);
 		free(dmat, M_DEVBUF);
 	}

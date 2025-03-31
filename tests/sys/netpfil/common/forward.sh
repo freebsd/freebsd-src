@@ -33,7 +33,7 @@ v4_head()
 {
 	atf_set descr 'Basic forwarding test'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 v4_body()

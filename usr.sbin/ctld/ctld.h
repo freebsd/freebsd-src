@@ -31,6 +31,7 @@
 #ifndef CTLD_H
 #define	CTLD_H
 
+#include <sys/_nv.h>
 #include <sys/queue.h>
 #ifdef ICL_KERNEL_PROXY
 #include <sys/types.h>
@@ -46,8 +47,6 @@
 #define	DEFAULT_CD_BLOCKSIZE		2048
 
 #define	MAX_LUNS			1024
-#define	MAX_NAME_LEN			223
-#define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)
 #define	SOCKBUF_SIZE			1048576
 
 struct auth {
@@ -104,8 +103,6 @@ struct portal {
 	int				p_socket;
 };
 
-TAILQ_HEAD(options, option);
-
 #define	PG_FILTER_UNKNOWN		0
 #define	PG_FILTER_NONE			1
 #define	PG_FILTER_PORTAL		2
@@ -115,11 +112,11 @@ TAILQ_HEAD(options, option);
 struct portal_group {
 	TAILQ_ENTRY(portal_group)	pg_next;
 	struct conf			*pg_conf;
-	struct options			pg_options;
+	nvlist_t			*pg_options;
 	char				*pg_name;
 	struct auth_group		*pg_discovery_auth_group;
 	int				pg_discovery_filter;
-	int				pg_foreign;
+	bool				pg_foreign;
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
 	TAILQ_HEAD(, port)		pg_ports;
@@ -153,22 +150,16 @@ struct port {
 	struct pport			*p_pport;
 	struct target			*p_target;
 
-	int				p_ioctl_port;
+	bool				p_ioctl_port;
 	int				p_ioctl_pp;
 	int				p_ioctl_vp;
 	uint32_t			p_ctl_port;
 };
 
-struct option {
-	TAILQ_ENTRY(option)		o_next;
-	char				*o_name;
-	char				*o_value;
-};
-
 struct lun {
 	TAILQ_ENTRY(lun)		l_next;
 	struct conf			*l_conf;
-	struct options			l_options;
+	nvlist_t			*l_options;
 	char				*l_name;
 	char				*l_backend;
 	uint8_t				l_device_type;
@@ -177,7 +168,7 @@ struct lun {
 	char				*l_path;
 	char				*l_scsiname;
 	char				*l_serial;
-	int64_t				l_size;
+	uint64_t			l_size;
 
 	int				l_ctl_lun;
 };
@@ -254,59 +245,54 @@ struct ctld_connection {
 	struct chap		*conn_chap;
 };
 
-int			parse_conf(struct conf *newconf, const char *path);
-int			uclparse_conf(struct conf *conf, const char *path);
+extern int ctl_fd;
+
+bool			uclparse_conf(const char *path);
 
 struct conf		*conf_new(void);
 struct conf		*conf_new_from_kernel(struct kports *kports);
 void			conf_delete(struct conf *conf);
-int			conf_verify(struct conf *conf);
+void			conf_finish(void);
+void			conf_start(struct conf *new_conf);
+bool			conf_verify(struct conf *conf);
 
 struct auth_group	*auth_group_new(struct conf *conf, const char *name);
 void			auth_group_delete(struct auth_group *ag);
 struct auth_group	*auth_group_find(const struct conf *conf,
 			    const char *name);
-int			auth_group_set_type(struct auth_group *ag,
-			    const char *type);
 
-const struct auth	*auth_new_chap(struct auth_group *ag,
-			    const char *user, const char *secret);
-const struct auth	*auth_new_chap_mutual(struct auth_group *ag,
+bool			auth_new_chap(struct auth_group *ag, const char *user,
+			    const char *secret);
+bool			auth_new_chap_mutual(struct auth_group *ag,
 			    const char *user, const char *secret,
 			    const char *user2, const char *secret2);
 const struct auth	*auth_find(const struct auth_group *ag,
 			    const char *user);
 
-const struct auth_name	*auth_name_new(struct auth_group *ag,
+bool			auth_name_new(struct auth_group *ag,
 			    const char *initiator_name);
 bool			auth_name_defined(const struct auth_group *ag);
 const struct auth_name	*auth_name_find(const struct auth_group *ag,
 			    const char *initiator_name);
-int			auth_name_check(const struct auth_group *ag,
+bool			auth_name_check(const struct auth_group *ag,
 			    const char *initiator_name);
 
-const struct auth_portal	*auth_portal_new(struct auth_group *ag,
+bool				auth_portal_new(struct auth_group *ag,
 				    const char *initiator_portal);
 bool			auth_portal_defined(const struct auth_group *ag);
 const struct auth_portal	*auth_portal_find(const struct auth_group *ag,
 				    const struct sockaddr_storage *sa);
-int				auth_portal_check(const struct auth_group *ag,
+bool				auth_portal_check(const struct auth_group *ag,
 				    const struct sockaddr_storage *sa);
 
 struct portal_group	*portal_group_new(struct conf *conf, const char *name);
 void			portal_group_delete(struct portal_group *pg);
 struct portal_group	*portal_group_find(const struct conf *conf,
 			    const char *name);
-int			portal_group_add_listen(struct portal_group *pg,
-			    const char *listen, bool iser);
-int			portal_group_set_filter(struct portal_group *pg,
-			    const char *filter);
-int			portal_group_set_offload(struct portal_group *pg,
-			    const char *offload);
-int			portal_group_set_redirection(struct portal_group *pg,
-			    const char *addr);
+bool			portal_group_add_portal(struct portal_group *pg,
+			    const char *value, bool iser);
 
-int			isns_new(struct conf *conf, const char *addr);
+bool			isns_new(struct conf *conf, const char *addr);
 void			isns_delete(struct isns *is);
 void			isns_register(struct isns *isns, struct isns *oldisns);
 void			isns_check(struct isns *isns);
@@ -330,44 +316,26 @@ struct port		*port_find(const struct conf *conf, const char *name);
 struct port		*port_find_in_pg(const struct portal_group *pg,
 			    const char *target);
 void			port_delete(struct port *port);
-int			port_is_dummy(struct port *port);
+bool			port_is_dummy(struct port *port);
 
 struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);
 struct target		*target_find(struct conf *conf,
 			    const char *name);
-int			target_set_redirection(struct target *target,
-			    const char *addr);
 
 struct lun		*lun_new(struct conf *conf, const char *name);
 void			lun_delete(struct lun *lun);
 struct lun		*lun_find(const struct conf *conf, const char *name);
-void			lun_set_backend(struct lun *lun, const char *value);
-void			lun_set_device_type(struct lun *lun, uint8_t value);
-void			lun_set_blocksize(struct lun *lun, size_t value);
-void			lun_set_device_id(struct lun *lun, const char *value);
-void			lun_set_path(struct lun *lun, const char *value);
 void			lun_set_scsiname(struct lun *lun, const char *value);
-void			lun_set_serial(struct lun *lun, const char *value);
-void			lun_set_size(struct lun *lun, size_t value);
-void			lun_set_ctl_lun(struct lun *lun, uint32_t value);
 
-struct option		*option_new(struct options *os,
+bool			option_new(nvlist_t *nvl,
 			    const char *name, const char *value);
-void			option_delete(struct options *os, struct option *co);
-struct option		*option_find(const struct options *os, const char *name);
-void			option_set(struct option *o, const char *value);
 
 void			kernel_init(void);
 int			kernel_lun_add(struct lun *lun);
 int			kernel_lun_modify(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct ctld_connection *conn);
-void			kernel_limits(const char *offload, int s,
-			    int *max_recv_data_segment_length,
-			    int *max_send_data_segment_length,
-			    int *max_burst_length,
-			    int *first_burst_length);
 int			kernel_port_add(struct port *port);
 int			kernel_port_update(struct port *port, struct port *old);
 int			kernel_port_remove(struct port *port);
@@ -387,7 +355,6 @@ void			login(struct ctld_connection *conn);
 
 void			discovery(struct ctld_connection *conn);
 
-bool			valid_iscsi_name(const char *name);
 void			set_timeout(int timeout, int fatal);
 
 #endif /* !CTLD_H */

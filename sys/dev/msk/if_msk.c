@@ -252,6 +252,7 @@ static const char *model_name[] = {
 
 static int mskc_probe(device_t);
 static int mskc_attach(device_t);
+static void mskc_child_deleted(device_t, device_t);
 static int mskc_detach(device_t);
 static int mskc_shutdown(device_t);
 static int mskc_setup_rambuffer(struct msk_softc *);
@@ -335,6 +336,7 @@ static device_method_t mskc_methods[] = {
 	DEVMETHOD(device_resume,	mskc_resume),
 	DEVMETHOD(device_shutdown,	mskc_shutdown),
 
+	DEVMETHOD(bus_child_deleted,	mskc_child_deleted),
 	DEVMETHOD(bus_get_dma_tag,	mskc_get_dma_tag),
 
 	DEVMETHOD_END
@@ -1970,11 +1972,7 @@ mskc_attach(device_t dev)
 		device_set_ivars(sc->msk_devs[MSK_PORT_B], mmd);
 	}
 
-	error = bus_generic_attach(dev);
-	if (error) {
-		device_printf(dev, "failed to attach port(s)\n");
-		goto fail;
-	}
+	bus_attach_children(dev);
 
 	/* Hook interrupt last to avoid having to lock softc. */
 	error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |
@@ -2022,17 +2020,6 @@ msk_detach(device_t dev)
 		MSK_IF_LOCK(sc_if);
 	}
 
-	/*
-	 * We're generally called from mskc_detach() which is using
-	 * device_delete_child() to get to here. It's already trashed
-	 * miibus for us, so don't do it here or we'll panic.
-	 *
-	 * if (sc_if->msk_miibus != NULL) {
-	 * 	device_delete_child(dev, sc_if->msk_miibus);
-	 * 	sc_if->msk_miibus = NULL;
-	 * }
-	 */
-
 	msk_rx_dma_jfree(sc_if);
 	msk_txrx_dma_free(sc_if);
 	bus_generic_detach(dev);
@@ -2046,6 +2033,12 @@ msk_detach(device_t dev)
 	return (0);
 }
 
+static void
+mskc_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_DEVBUF);
+}
+
 static int
 mskc_detach(device_t dev)
 {
@@ -2054,19 +2047,7 @@ mskc_detach(device_t dev)
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->msk_mtx), ("msk mutex not initialized"));
 
-	if (device_is_alive(dev)) {
-		if (sc->msk_devs[MSK_PORT_A] != NULL) {
-			free(device_get_ivars(sc->msk_devs[MSK_PORT_A]),
-			    M_DEVBUF);
-			device_delete_child(dev, sc->msk_devs[MSK_PORT_A]);
-		}
-		if (sc->msk_devs[MSK_PORT_B] != NULL) {
-			free(device_get_ivars(sc->msk_devs[MSK_PORT_B]),
-			    M_DEVBUF);
-			device_delete_child(dev, sc->msk_devs[MSK_PORT_B]);
-		}
-		bus_generic_detach(dev);
-	}
+	bus_generic_detach(dev);
 
 	/* Disable all interrupts. */
 	CSR_WRITE_4(sc, B0_IMSK, 0);

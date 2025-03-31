@@ -424,7 +424,7 @@
 #define	FREEBSD32_SYS_symlinkat	502
 #define	FREEBSD32_SYS_unlinkat	503
 #define	FREEBSD32_SYS_posix_openpt	504
-#define	FREEBSD32_SYS_gssd_syscall	505
+				/* 505 is obsolete kgssapi */
 #define	FREEBSD32_SYS_freebsd32_jail_get	506
 #define	FREEBSD32_SYS_freebsd32_jail_set	507
 #define	FREEBSD32_SYS_jail_remove	508
@@ -508,4 +508,6 @@
 #define	FREEBSD32_SYS_freebsd32_timerfd_settime	587
 #define	FREEBSD32_SYS_kcmp	588
 #define	FREEBSD32_SYS_getrlimitusage	589
-#define	FREEBSD32_SYS_MAXSYSCALL	590
+#define	FREEBSD32_SYS_fchroot	590
+#define	FREEBSD32_SYS_freebsd32_setcred	591
+#define	FREEBSD32_SYS_MAXSYSCALL	592

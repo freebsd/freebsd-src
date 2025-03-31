@@ -1064,13 +1064,10 @@ hdspe_pcm_attach(device_t dev)
 		pcm_flags |= SD_F_BITPERFECT;
 	pcm_setflags(dev, pcm_flags);
 
+	pcm_init(dev, scp);
+
 	play = (hdspe_channel_play_ports(scp->hc)) ? 1 : 0;
 	rec = (hdspe_channel_rec_ports(scp->hc)) ? 1 : 0;
-	err = pcm_register(dev, scp, play, rec);
-	if (err) {
-		device_printf(dev, "Can't register pcm.\n");
-		return (ENXIO);
-	}
 
 	scp->chnum = 0;
 	if (play) {
@@ -1087,7 +1084,11 @@ hdspe_pcm_attach(device_t dev)
 	    rman_get_start(scp->sc->cs),
 	    rman_get_start(scp->sc->irq),
 	    device_get_nameunit(device_get_parent(dev)));
-	pcm_setstatus(dev, status);
+	err = pcm_register(dev, status);
+	if (err) {
+		device_printf(dev, "Can't register pcm.\n");
+		return (ENXIO);
+	}
 
 	mixer_init(dev, &hdspemixer_class, scp);
 

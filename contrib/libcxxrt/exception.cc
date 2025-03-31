@@ -237,7 +237,7 @@ static_assert(offsetof(__cxa_dependent_exception, unwindHeader) ==
 
 namespace std
 {
-	void unexpected();
+	[[noreturn]] void unexpected();
 	class exception
 	{
 		public:
@@ -1530,28 +1530,34 @@ namespace std
 		if (0 != info && 0 != info->terminateHandler)
 		{
 			info->terminateHandler();
-			// Should not be reached - a terminate handler is not expected to
-			// return.
-			abort();
 		}
-		terminateHandler.load()();
+		else
+		{
+			terminateHandler.load()();
+		}
+		// Should not be reached - a terminate handler is not expected
+		// to return.
+		abort();
 	}
 	/**
 	 * Called when an unexpected exception is encountered (i.e. an exception
 	 * violates an exception specification).  This calls abort() unless a
 	 * custom handler has been set..
 	 */
-	void unexpected()
+	[[noreturn]] void unexpected()
 	{
 		static __cxa_thread_info *info = thread_info();
 		if (0 != info && 0 != info->unexpectedHandler)
 		{
 			info->unexpectedHandler();
-			// Should not be reached - a terminate handler is not expected to
-			// return.
-			abort();
 		}
-		unexpectedHandler.load()();
+		else
+		{
+			unexpectedHandler.load()();
+		}
+		// Should not be reached - a unexpected handler is not expected
+		// to return.
+		abort();
 	}
 	/**
 	 * Returns whether there are any exceptions currently being thrown that

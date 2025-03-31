@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -512,7 +513,8 @@ get_usage(zpool_help_t idx)
 		return (gettext("\tinitialize [-c | -s | -u] [-w] <pool> "
 		    "[<device> ...]\n"));
 	case HELP_SCRUB:
-		return (gettext("\tscrub [-s | -p] [-w] [-e] <pool> ...\n"));
+		return (gettext("\tscrub [-e | -s | -p | -C] [-w] "
+		    "<pool> ...\n"));
 	case HELP_RESILVER:
 		return (gettext("\tresilver <pool> ...\n"));
 	case HELP_TRIM:
@@ -6882,8 +6884,13 @@ collect_pool(zpool_handle_t *zhp, list_cbdata_t *cb)
 		if (cb->cb_json) {
 			if (pl->pl_prop == ZPOOL_PROP_NAME)
 				continue;
+			const char *prop_name;
+			if (pl->pl_prop != ZPROP_USERPROP)
+				prop_name = zpool_prop_to_name(pl->pl_prop);
+			else
+				prop_name = pl->pl_user_prop;
 			(void) zprop_nvlist_one_property(
-			    zpool_prop_to_name(pl->pl_prop), propstr,
+			    prop_name, propstr,
 			    sourcetype, NULL, NULL, props, cb->cb_json_as_int);
 		} else {
 			/*
@@ -7966,8 +7973,11 @@ zpool_do_online(int argc, char **argv)
 
 	poolname = argv[0];
 
-	if ((zhp = zpool_open(g_zfs, poolname)) == NULL)
+	if ((zhp = zpool_open(g_zfs, poolname)) == NULL) {
+		(void) fprintf(stderr, gettext("failed to open pool "
+		    "\"%s\""), poolname);
 		return (1);
+	}
 
 	for (i = 1; i < argc; i++) {
 		vdev_state_t oldstate;
@@ -7988,12 +7998,15 @@ zpool_do_online(int argc, char **argv)
 		    &l2cache, NULL);
 		if (tgt == NULL) {
 			ret = 1;
+			(void) fprintf(stderr, gettext("couldn't find device "
+			"\"%s\" in pool \"%s\"\n"), argv[i], poolname);
 			continue;
 		}
 		uint_t vsc;
 		oldstate = ((vdev_stat_t *)fnvlist_lookup_uint64_array(tgt,
 		    ZPOOL_CONFIG_VDEV_STATS, &vsc))->vs_state;
-		if (zpool_vdev_online(zhp, argv[i], flags, &newstate) == 0) {
+		if ((rc = zpool_vdev_online(zhp, argv[i], flags,
+		    &newstate)) == 0) {
 			if (newstate != VDEV_STATE_HEALTHY) {
 				(void) printf(gettext("warning: device '%s' "
 				    "onlined, but remains in faulted state\n"),
@@ -8019,6 +8032,9 @@ zpool_do_online(int argc, char **argv)
 				}
 			}
 		} else {
+			(void) fprintf(stderr, gettext("Failed to online "
+			    "\"%s\" in pool \"%s\": %d\n"),
+			    argv[i], poolname, rc);
 			ret = 1;
 		}
 	}
@@ -8103,8 +8119,11 @@ zpool_do_offline(int argc, char **argv)
 
 	poolname = argv[0];
 
-	if ((zhp = zpool_open(g_zfs, poolname)) == NULL)
+	if ((zhp = zpool_open(g_zfs, poolname)) == NULL) {
+		(void) fprintf(stderr, gettext("failed to open pool "
+		    "\"%s\""), poolname);
 		return (1);
+	}
 
 	for (i = 1; i < argc; i++) {
 		uint64_t guid = zpool_vdev_path_to_guid(zhp, argv[i]);
@@ -8412,12 +8431,13 @@ wait_callback(zpool_handle_t *zhp, void *data)
 }
 
 /*
- * zpool scrub [-s | -p] [-w] [-e] <pool> ...
+ * zpool scrub [-e | -s | -p | -C] [-w] <pool> ...
  *
  *	-e	Only scrub blocks in the error log.
  *	-s	Stop.  Stops any in-progress scrub.
  *	-p	Pause. Pause in-progress scrub.
  *	-w	Wait.  Blocks until scrub has completed.
+ *	-C	Scrub from last saved txg.
  */
 int
 zpool_do_scrub(int argc, char **argv)
@@ -8433,9 +8453,10 @@ zpool_do_scrub(int argc, char **argv)
 	boolean_t is_error_scrub = B_FALSE;
 	boolean_t is_pause = B_FALSE;
 	boolean_t is_stop = B_FALSE;
+	boolean_t is_txg_continue = B_FALSE;
 
 	/* check options */
-	while ((c = getopt(argc, argv, "spwe")) != -1) {
+	while ((c = getopt(argc, argv, "spweC")) != -1) {
 		switch (c) {
 		case 'e':
 			is_error_scrub = B_TRUE;
@@ -8449,6 +8470,9 @@ zpool_do_scrub(int argc, char **argv)
 		case 'w':
 			wait = B_TRUE;
 			break;
+		case 'C':
+			is_txg_continue = B_TRUE;
+			break;
 		case '?':
 			(void) fprintf(stderr, gettext("invalid option '%c'\n"),
 			    optopt);
@@ -8458,7 +8482,19 @@ zpool_do_scrub(int argc, char **argv)
 
 	if (is_pause && is_stop) {
 		(void) fprintf(stderr, gettext("invalid option "
-		    "combination :-s and -p are mutually exclusive\n"));
+		    "combination: -s and -p are mutually exclusive\n"));
+		usage(B_FALSE);
+	} else if (is_pause && is_txg_continue) {
+		(void) fprintf(stderr, gettext("invalid option "
+		    "combination: -p and -C are mutually exclusive\n"));
+		usage(B_FALSE);
+	} else if (is_stop && is_txg_continue) {
+		(void) fprintf(stderr, gettext("invalid option "
+		    "combination: -s and -C are mutually exclusive\n"));
+		usage(B_FALSE);
+	} else if (is_error_scrub && is_txg_continue) {
+		(void) fprintf(stderr, gettext("invalid option "
+		    "combination: -e and -C are mutually exclusive\n"));
 		usage(B_FALSE);
 	} else {
 		if (is_error_scrub)
@@ -8468,6 +8504,8 @@ zpool_do_scrub(int argc, char **argv)
 			cb.cb_scrub_cmd = POOL_SCRUB_PAUSE;
 		} else if (is_stop) {
 			cb.cb_type = POOL_SCAN_NONE;
+		} else if (is_txg_continue) {
+			cb.cb_scrub_cmd = POOL_SCRUB_FROM_LAST_TXG;
 		} else {
 			cb.cb_scrub_cmd = POOL_SCRUB_NORMAL;
 		}
@@ -10017,9 +10055,8 @@ print_removal_status(zpool_handle_t *zhp, pool_removal_stat_t *prs)
 		(void) printf(gettext("Removal of %s canceled on %s"),
 		    vdev_name, ctime(&end));
 	} else {
-		uint64_t copied, total, elapsed, mins_left, hours_left;
+		uint64_t copied, total, elapsed, rate, mins_left, hours_left;
 		double fraction_done;
-		uint_t rate;
 
 		assert(prs->prs_state == DSS_SCANNING);
 
@@ -10115,9 +10152,8 @@ print_raidz_expand_status(zpool_handle_t *zhp, pool_raidz_expand_stat_t *pres)
 		    copied_buf, time_buf, ctime((time_t *)&end));
 	} else {
 		char examined_buf[7], total_buf[7], rate_buf[7];
-		uint64_t copied, total, elapsed, secs_left;
+		uint64_t copied, total, elapsed, rate, secs_left;
 		double fraction_done;
-		uint_t rate;
 
 		assert(pres->pres_state == DSS_SCANNING);
 

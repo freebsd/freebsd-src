@@ -652,7 +652,7 @@ VNET_PCPUSTAT_DECLARE(struct icmp6stat, icmp6stat);
 #define ICMP6STAT_INC2(name, type)                                       \
 	do {                                                             \
 		MIB_SDT_PROBE2(icmp6, count, name, 1, type);             \
-		VNET_PCPUSTAT_ADD(struct icmp6stat, icmp6stat, name, 1); \
+		VNET_PCPUSTAT_ADD(struct icmp6stat, icmp6stat, name[type], 1); \
 	} while (0)
 
 /*

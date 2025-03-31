@@ -248,7 +248,7 @@ LUA_C = \
 	lvm.c \
 	lzio.c
 
-UNICODE_C = u8_textprep.c uconv.c
+UNICODE_C = u8_textprep.c
 
 SRCS+=		${USER_C} ${KERNEL_C} ${LUA_C} ${UNICODE_C} ${ARCH_C}
 
@@ -282,9 +282,6 @@ CFLAGS+=	-I${SRCTOP}/lib/libthr/arch/${MACHINE_CPUARCH}/include
 CFLAGS.gcc+=	-fms-extensions
 
 LIBADD=		md pthread z spl icp nvpair avl umem
-
-# atomic.S doesn't like profiling.
-MK_PROFILE=	no
 
 CSTD=	c99
 

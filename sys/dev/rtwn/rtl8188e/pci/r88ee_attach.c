@@ -145,6 +145,7 @@ r88ee_attach(struct rtwn_pci_softc *pc)
 	sc->sc_get_rssi_ofdm		= r88e_get_rssi_ofdm;
 	sc->sc_classify_intr		= r88e_classify_intr;
 	sc->sc_handle_tx_report		= r88e_ratectl_tx_complete;
+	sc->sc_handle_tx_report2	= rtwn_nop_softc_uint8_int;
 	sc->sc_handle_c2h_report	= r88e_handle_c2h_report;
 	sc->sc_check_frame		= rtwn_nop_int_softc_mbuf;
 	sc->sc_rf_read			= r92c_rf_read;
@@ -176,6 +177,7 @@ r88ee_attach(struct rtwn_pci_softc *pc)
 #endif
 	sc->sc_beacon_init		= r92c_beacon_init;
 	sc->sc_beacon_enable		= r88e_beacon_enable;
+	sc->sc_sta_beacon_enable	= r88e_sta_beacon_enable;
 	sc->sc_beacon_set_rate		= rtwn_nop_void_int;
 	sc->sc_beacon_select		= rtwn_nop_softc_int;
 	sc->sc_temp_measure		= r88e_temp_measure;
@@ -190,6 +192,7 @@ r88ee_attach(struct rtwn_pci_softc *pc)
 	sc->sc_init_antsel		= rtwn_nop_softc;
 	sc->sc_post_init		= r88ee_post_init;
 	sc->sc_init_bcnq1_boundary	= rtwn_nop_int_softc;
+	sc->sc_set_tx_power		= r92c_set_tx_power;
 
 	sc->mac_prog			= &rtl8188e_mac[0];
 	sc->mac_size			= nitems(rtl8188e_mac);

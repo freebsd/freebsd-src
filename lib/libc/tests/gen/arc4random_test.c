@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2011 David Schultz
+ * Copyright (c) 2024 Robert Clausecker <fuz@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +30,7 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -77,10 +79,34 @@ ATF_TC_BODY(test_arc4random, tc)
 	    "sequences are the same");
 }
 
+/*
+ * Test whether arc4random_uniform() returns a number below the given threshold.
+ * Test with various thresholds.
+ */
+ATF_TC_WITHOUT_HEAD(test_arc4random_uniform);
+ATF_TC_BODY(test_arc4random_uniform, tc)
+{
+	size_t i, j;
+	static const uint32_t thresholds[] = {
+		1, 2, 3, 4, 5, 10, 100, 1000,
+		INT32_MAX, (uint32_t)INT32_MAX + 1,
+		UINT32_MAX - 1000000000, UINT32_MAX - 1000000, UINT32_MAX - 1, 0
+	};
+
+	for (i = 0; thresholds[i] != 0; i++)
+		for (j = 0; j < 10000; j++)
+			ATF_CHECK(arc4random_uniform(thresholds[i]) < thresholds[i]);
+
+	/* for a threshold of zero, just check that we get zero every time */
+	for (j = 0; j < 1000; j++)
+		ATF_CHECK_EQ(0, arc4random_uniform(0));
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, test_arc4random);
+	ATF_TP_ADD_TC(tp, test_arc4random_uniform);
 
 	return (atf_no_error());
 }

@@ -14,6 +14,8 @@ SRCS=		gsb_crc32.c \
 		nvmf_transport.c \
 		nvmft_subr.c
 
+LIBADD=		nv
+
 CFLAGS+=	-I${SRCTOP}/sys/dev/nvmf/controller
 CFLAGS+=	-I${SRCTOP}/sys/dev/nvmf
 

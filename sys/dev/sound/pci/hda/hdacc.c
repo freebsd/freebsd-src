@@ -74,6 +74,7 @@ static const struct {
 } hdacc_codecs[] = {
 	{ HDA_CODEC_CS4206, 0,		"Cirrus Logic CS4206" },
 	{ HDA_CODEC_CS4207, 0,		"Cirrus Logic CS4207" },
+	{ HDA_CODEC_CS4208, 0,		"Cirrus Logic CS4208" },
 	{ HDA_CODEC_CS4210, 0,		"Cirrus Logic CS4210" },
 	{ HDA_CODEC_ALC215, 0,		"Realtek ALC215" },
 	{ HDA_CODEC_ALC221, 0,		"Realtek ALC221" },
@@ -147,6 +148,7 @@ static const struct {
 	{ HDA_CODEC_ALC889, 0,		"Realtek ALC889" },
 	{ HDA_CODEC_ALC892, 0,		"Realtek ALC892" },
 	{ HDA_CODEC_ALC897, 0,		"Realtek ALC897" },
+	{ HDA_CODEC_ALC898, 0,		"Realtek ALC898" },
 	{ HDA_CODEC_ALC899, 0,		"Realtek ALC899" },
 	{ HDA_CODEC_ALC1150, 0,		"Realtek ALC1150" },
 	{ HDA_CODEC_ALCS1200A, 0,	"Realtek ALCS1200A" },
@@ -530,7 +532,7 @@ hdacc_attach(device_t dev)
 		device_set_ivars(child, &codec->fgs[n]);
 	}
 
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }
@@ -541,7 +543,7 @@ hdacc_detach(device_t dev)
 	struct hdacc_softc *codec = device_get_softc(dev);
 	int error;
 
-	if ((error = device_delete_children(dev)) != 0)
+	if ((error = bus_generic_detach(dev)) != 0)
 		return (error);
 	free(codec->fgs, M_HDACC);
 	return (0);

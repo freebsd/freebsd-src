@@ -56,7 +56,6 @@
 
 /* UART quirk flags */
 #define	UART_F_BUSY_DETECT		0x1
-#define	UART_F_IGNORE_SPCR_REGSHFT	0x2
 
 /*
  * UART class & instance (=softc)

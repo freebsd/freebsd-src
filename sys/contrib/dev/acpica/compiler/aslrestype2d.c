@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -158,10 +158,167 @@
 /*
  * This module contains the Dword (32-bit) address space descriptors:
  *
+ * DWordPcc
  * DwordIO
  * DwordMemory
  * DwordSpace
  */
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    RsDoDwordPccDescriptor
+ *
+ * PARAMETERS:  Info                - Parse Op and resource template offset
+ *
+ * RETURN:      Completed resource node
+ *
+ * DESCRIPTION: Construct a long "DWordPcc" descriptor
+ *
+ ******************************************************************************/
+
+ASL_RESOURCE_NODE *
+RsDoDwordPccDescriptor (
+    ASL_RESOURCE_INFO       *Info)
+{
+    AML_RESOURCE            *Descriptor;
+    ACPI_PARSE_OBJECT       *InitializerOp;
+    ACPI_PARSE_OBJECT       *MinOp = NULL;
+    ACPI_PARSE_OBJECT       *MaxOp = NULL;
+    ACPI_PARSE_OBJECT       *LengthOp = NULL;
+    ACPI_PARSE_OBJECT       *GranOp = NULL;
+    ASL_RESOURCE_NODE       *Rnode;
+    UINT16                  StringLength = 0;
+    UINT32                  OptionIndex = 0;
+    UINT8                   *OptionalFields;
+    UINT32                  i;
+    BOOLEAN                 ResSourceIndex = FALSE;
+
+
+    InitializerOp = Info->DescriptorTypeOp->Asl.Child;
+    StringLength = RsGetStringDataLength (InitializerOp);
+
+    Rnode = RsAllocateResourceNode (
+        sizeof (AML_RESOURCE_ADDRESS32) + 1 + StringLength);
+
+    Descriptor = Rnode->Buffer;
+    Descriptor->Address32.DescriptorType = ACPI_RESOURCE_NAME_ADDRESS32;
+    Descriptor->Address32.ResourceType  = ACPI_ADDRESS_TYPE_PCC_NUMBER;
+
+    /*
+     * Initial descriptor length -- may be enlarged if there are
+     * optional fields present
+     */
+    OptionalFields = ((UINT8 *) Descriptor) + sizeof (AML_RESOURCE_ADDRESS32);
+    Descriptor->Address32.ResourceLength = (UINT16)
+        (sizeof (AML_RESOURCE_ADDRESS32) -
+         sizeof (AML_RESOURCE_LARGE_HEADER));
+
+
+    /*
+    * Bit [3] Max Address Fixed, _MAF: 1 (max address is fixed)
+    * Bit [2] Min Address Fixed,_MIF: 1 (min address is fixed)
+    * Bit [1] Decode Type, _DEC: 0 (do not care)
+    * BIT [0] Ignored (must be zero)
+    */
+    Descriptor->Address32.Flags = 0b1100;
+
+    // No type specific flags. Set to 0.
+    Descriptor->Address32.SpecificFlags = 0;
+
+    // must be set to zero if _MAX == _MIN.
+    Descriptor->Address32.Granularity = 0x0;
+    /* Process all child initialization nodes */
+
+    // No translation offset.
+    Descriptor->Address32.TranslationOffset = 0;
+
+    // Pcc is unique address.
+    Descriptor->Address32.AddressLength = 1;
+
+    for (i = 0; InitializerOp; i++)
+    {
+        switch (i)
+        {
+
+        case 0: /* Address Min = Max */
+
+            Descriptor->Address32.Minimum =
+                (UINT32) InitializerOp->Asl.Value.Integer;
+            Descriptor->Address32.Maximum =
+                (UINT32) InitializerOp->Asl.Value.Integer;
+
+            break;
+
+        case 1: /* ResSourceIndex [Optional Field - BYTE] */
+
+            if (InitializerOp->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG)
+            {
+                /* Found a valid ResourceSourceIndex */
+
+                OptionalFields[0] = (UINT8) InitializerOp->Asl.Value.Integer;
+                OptionIndex++;
+                Descriptor->Address32.ResourceLength++;
+                ResSourceIndex = TRUE;
+            }
+            break;
+
+        case 2: /* ResSource [Optional Field - STRING] */
+
+            if ((InitializerOp->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG) &&
+                (InitializerOp->Asl.Value.String))
+            {
+                if (StringLength)
+                {
+                    /* Found a valid ResourceSource */
+
+                    Descriptor->Address32.ResourceLength = (UINT16)
+                        (Descriptor->Address32.ResourceLength + StringLength);
+
+                    strcpy ((char *)
+                        &OptionalFields[OptionIndex],
+                        InitializerOp->Asl.Value.String);
+
+                    /* ResourceSourceIndex must also be valid */
+
+                    if (!ResSourceIndex)
+                    {
+                        AslError (ASL_ERROR, ASL_MSG_RESOURCE_INDEX,
+                            InitializerOp, NULL);
+                    }
+                }
+            }
+
+            break;
+
+        case 3: // DescriptorName
+            UtAttachNamepathToOwner (Info->DescriptorTypeOp, InitializerOp);
+            break;
+
+        default:
+
+            AslError (ASL_ERROR, ASL_MSG_RESOURCE_LIST, InitializerOp, NULL);
+            break;
+        }
+
+        InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
+    }
+
+    /* Validate the Min/Max/Len/Gran values */
+
+    RsLargeAddressCheck (
+        (UINT64) Descriptor->Address32.Minimum,
+        (UINT64) Descriptor->Address32.Maximum,
+        (UINT64) Descriptor->Address32.AddressLength,
+        (UINT64) Descriptor->Address32.Granularity,
+        Descriptor->Address32.Flags,
+        MinOp, MaxOp, LengthOp, GranOp, Info->DescriptorTypeOp);
+
+    Rnode->BufferLength = sizeof (AML_RESOURCE_ADDRESS32) +
+        OptionIndex + StringLength;
+    return (Rnode);
+}
+
 
 /*******************************************************************************
  *

@@ -154,7 +154,7 @@ void FuseTest::SetUp() {
 		m_maxwrite = MIN(libfuse_max_write, (uint32_t)m_maxphys / 2);
 
 	try {
-		m_mock = new MockFS(m_maxreadahead, m_allow_other,
+		m_mock = new MockFS(m_maxread, m_maxreadahead, m_allow_other,
 			m_default_permissions, m_push_symlinks_in, m_ro,
 			m_pm, m_init_flags, m_kernel_minor_version,
 			m_maxwrite, m_async, m_noclusterr, m_time_gran,

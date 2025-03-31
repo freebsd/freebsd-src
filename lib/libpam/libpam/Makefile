@@ -44,8 +44,6 @@ SHLIB=	pam
 
 PACKAGE=	runtime
 
-MK_PROFILE=no
-
 SRCS=	openpam_asprintf.c \
 	openpam_borrow_cred.c \
 	openpam_check_owner_perms.c \

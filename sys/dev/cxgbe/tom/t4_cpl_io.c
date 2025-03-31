@@ -633,7 +633,7 @@ write_tx_sgl(void *dst, struct mbuf *start, struct mbuf *stop, int nsegs, int n)
  * stalls).  When drop is set this function MUST drop the bytes and wake up any
  * writers.
  */
-void
+static void
 t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 {
 	struct mbuf *sndptr, *m, *sb_sndptr;
@@ -2126,7 +2126,7 @@ alloc_aiotx_mbuf(struct kaiocb *job, int len)
 		if (npages < 0)
 			break;
 
-		m = mb_alloc_ext_pgs(M_WAITOK, aiotx_free_pgs);
+		m = mb_alloc_ext_pgs(M_WAITOK, aiotx_free_pgs, M_RDONLY);
 		m->m_epg_1st_off = pgoff;
 		m->m_epg_npgs = npages;
 		if (npages == 1) {

@@ -365,11 +365,8 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	    MODINFOMD_ELFHDR);
 	shdr = (Elf_Shdr *)preload_search_info(modptr, MODINFO_METADATA |
 	    MODINFOMD_SHDR);
-	if (type == NULL || (strcmp(type, "elf" __XSTRING(__ELF_WORD_SIZE)
-	    " obj module") != 0 &&
-	    strcmp(type, "elf obj module") != 0)) {
+	if (type == NULL || strcmp(type, preload_modtype_obj) != 0)
 		return (EFTYPE);
-	}
 	if (baseptr == NULL || sizeptr == NULL || hdr == NULL ||
 	    shdr == NULL)
 		return (EINVAL);

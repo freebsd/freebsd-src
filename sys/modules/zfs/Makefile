@@ -185,7 +185,6 @@ SRCS+=	abd_os.c \
 	kmod_core.c \
 	spa_os.c \
 	sysctl_os.c \
-	vdev_file.c \
 	vdev_geom.c \
 	vdev_label_os.c \
 	zfs_acl.c \
@@ -202,8 +201,7 @@ SRCS+=	abd_os.c \
 	zvol_os.c
 
 #unicode
-SRCS+=	uconv.c \
-	u8_textprep.c
+SRCS+=	u8_textprep.c
 
 #zcommon
 SRCS+=	zfeature_common.c \
@@ -299,6 +297,7 @@ SRCS+=	abd.c \
 	vdev.c \
 	vdev_draid.c \
 	vdev_draid_rand.c \
+	vdev_file.c \
 	vdev_indirect.c \
 	vdev_indirect_births.c \
 	vdev_indirect_mapping.c \

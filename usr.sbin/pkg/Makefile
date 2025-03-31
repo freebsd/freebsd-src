@@ -21,11 +21,14 @@ CONFSNAME_${PKGCONF}=	${PKGCONF:C/\.conf.+$/.conf/}
 CONFSDIR=	/etc/pkg
 CONFSMODE=	644
 PROG=	pkg
-SRCS=	pkg.c dns_utils.c config.c hash.c
+SRCS=	pkg.c rsa.c dns_utils.c config.c ecc.c hash.c
 MAN=	pkg.7
 
 CFLAGS+=-I${SRCTOP}/contrib/libucl/include
 .PATH:	${SRCTOP}/contrib/libucl/include
-LIBADD=	archive fetch ucl crypto ssl util md
+LIBADD=	archive der fetch pkgecc ucl crypto ssl util md
+
+CFLAGS+=-I${SRCTOP}/contrib/libder/libder
+CFLAGS+=-I${SRCTOP}/crypto/libecc/include
 
 .include <bsd.prog.mk>

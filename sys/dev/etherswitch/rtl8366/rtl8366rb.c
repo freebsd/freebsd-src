@@ -254,11 +254,9 @@ rtl8366rb_attach(device_t dev)
 		}
 	}
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	err = bus_generic_attach(dev);
-	if (err != 0)
-		return (err);
+	bus_attach_children(dev);
 	
 	callout_init_mtx(&sc->callout_tick, &sc->callout_mtx, 0);
 	rtl8366rb_tick(sc);
@@ -270,18 +268,19 @@ static int
 rtl8366rb_detach(device_t dev)
 {
 	struct rtl8366rb_softc *sc;
-	int i;
+	int error, i;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 
 	for (i=0; i < sc->numphys; i++) {
-		if (sc->miibus[i])
-			device_delete_child(dev, sc->miibus[i]);
 		if (sc->ifp[i] != NULL)
 			if_free(sc->ifp[i]);
 		free(sc->ifname[i], M_DEVBUF);
 	}
-	bus_generic_detach(dev);
 	callout_drain(&sc->callout_tick);
 	mtx_destroy(&sc->callout_mtx);
 	mtx_destroy(&sc->sc_mtx);

@@ -13,9 +13,9 @@ DDEESSCCRRIIPPTTIIOONN
      bbmmaakkee is a program designed to simplify the maintenance of other
      programs.  Its input is a list of specifications as to the files upon
      which programs and other files depend.  If no --ff _m_a_k_e_f_i_l_e option is
-     given, bbmmaakkee tries to open `_m_a_k_e_f_i_l_e' then `_M_a_k_e_f_i_l_e' in order to find
-     the specifications.  If the file `_._d_e_p_e_n_d' exists, it is read, see
-     mkdep(1).
+     given, bbmmaakkee looks for the makefiles listed in _._M_A_K_E_._M_A_K_E_F_I_L_E___P_R_E_F_E_R_E_N_C_E
+     (default `_m_a_k_e_f_i_l_e', `_M_a_k_e_f_i_l_e') in order to find the specifications.  If
+     the file `_._d_e_p_e_n_d' exists, it is read, see mkdep(1).
 
      This manual page is intended as a reference document only.  For a more
      thorough description of bbmmaakkee and makefiles, please refer to _P_M_a_k_e _- _A
@@ -138,9 +138,12 @@ DDEESSCCRRIIPPTTIIOONN
              makefiles.
 
      --ff _m_a_k_e_f_i_l_e
-             Specify a makefile to read instead of the default _m_a_k_e_f_i_l_e or
-             _M_a_k_e_f_i_l_e.  If _m_a_k_e_f_i_l_e is `-', standard input is read.  Multiple
-             makefiles may be specified, and are read in the order specified.
+             Specify a makefile to read instead of one of the defaults listed
+             in _._M_A_K_E_._M_A_K_E_F_I_L_E___P_R_E_F_E_R_E_N_C_E.  If _m_a_k_e_f_i_l_e is `-', standard input
+             is read.  If _m_a_k_e_f_i_l_e starts with the string `.../', bbmmaakkee
+             searches for the specified path in the rest of the argument in
+             the current directory and its parents.  Multiple makefiles may be
+             specified, and are read in the order specified.
 
      --II _d_i_r_e_c_t_o_r_y
              Specify a directory in which to search for makefiles and included
@@ -765,7 +768,8 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
              debug.
 
      _M_A_K_E_O_B_J_D_I_R_P_R_E_F_I_X
-             Used to create files in a separate directory, see _._O_B_J_D_I_R.
+             Used to create files in a separate directory, see _._O_B_J_D_I_R.  It
+             should be an absolute path.
 
      _._M_A_K_E_._O_S
              The name of the operating system, see uname(1).  It is read-only.
@@ -1691,9 +1695,11 @@ EENNVVIIRROONNMMEENNTT
      MACHINE_ARCH, MAKE, MAKEFLAGS, MAKEOBJDIR, MAKEOBJDIRPREFIX, MAKESYSPATH,
      PWD, and TMPDIR.
 
-     MAKEOBJDIRPREFIX and MAKEOBJDIR may only be set in the environment or on
+     MAKEOBJDIRPREFIX and MAKEOBJDIR should be set in the environment or on
      the command line to bbmmaakkee and not as makefile variables; see the
-     description of `_._O_B_J_D_I_R' for more details.
+     description of `_._O_B_J_D_I_R' for more details.  It is possible to set these
+     via makefile variables but unless done very early and the `..OOBBJJDDIIRR'
+     target is used to reset `_._O_B_J_D_I_R', there may be unexpected side effects.
 
 FFIILLEESS
      .depend        list of dependencies
@@ -1774,17 +1780,17 @@ HHIISSTTOORRYY
      _F_R_C file).
 
 BBUUGGSS
-     The make syntax is difficult to parse.  For instance, finding the end of
+     The bbmmaakkee syntax is difficult to parse.  For instance, finding the end of
      a variable's use should involve scanning each of the modifiers, using the
-     correct terminator for each field.  In many places make just counts {}
+     correct terminator for each field.  In many places bbmmaakkee just counts {}
      and () in order to find the end of a variable expansion.
 
      There is no way of escaping a space character in a filename.
 
-     In jobs mode, when a target fails; make will put an error token into the
-     job token pool.  This will cause all other instances of make using that
+     In jobs mode, when a target fails; bbmmaakkee will put an error token into the
+     job token pool.  This will cause all other instances of bbmmaakkee using that
      token pool to abort the build and exit with error code 6.  Sometimes the
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 14.1-RELEASE             July 1, 2024             FreeBSD 14.1-RELEASE
+FreeBSD 14.1-RELEASE-p7        November 14, 2024       FreeBSD 14.1-RELEASE-p7

@@ -596,6 +596,48 @@ EOF
 }
 
 
+utils_test_case config_unprivileged_user
+config_unprivileged_user_body() {
+    cat >"my-config" <<EOF
+syntax(2)
+unprivileged_user = "nobody"
+EOF
+    cat >Kyuafile <<EOF
+syntax(2)
+atf_test_program{name="config1", test_suite="suite1"}
+EOF
+    utils_cp_helper config config1
+
+    CONFIG_VAR_FILE="$(pwd)/cookie"; export CONFIG_VAR_FILE
+    if [ -f "${CONFIG_VAR_FILE}" ]; then
+        atf_fail "Cookie file already created; test case list may have gotten" \
+            "a bad configuration"
+    fi
+
+    CONFIG_VAR_NAME="unprivileged-user"; export CONFIG_VAR_NAME
+    atf_check -s exit:1 -o ignore -e ignore kyua -c my-config test config1
+    [ -f "${CONFIG_VAR_FILE}" ] || \
+        atf_fail "Cookie file not created; test case list did not get" \
+            "configuration variables"
+    value="$(cat "${CONFIG_VAR_FILE}")"
+    [ "${value}" = "nobody" ] || \
+        atf_fail "Invalid value (${value}) in cookie file; test case list did" \
+            "not get the correct configuration variables"
+
+    rm "${CONFIG_VAR_FILE}"
+
+    CONFIG_VAR_NAME="unprivileged_user"; export CONFIG_VAR_NAME
+    atf_check -s exit:1 -o ignore -e ignore kyua -c my-config test config1
+    [ -f "${CONFIG_VAR_FILE}" ] || \
+        atf_fail "Cookie file not created; test case list did not get" \
+            "configuration variables"
+    value="$(cat "${CONFIG_VAR_FILE}")"
+    [ "${value}" = "nobody" ] || \
+        atf_fail "Invalid value (${value}) in cookie file; test case list did" \
+            "not get the correct configuration variables"
+}
+
+
 utils_test_case store_contents
 store_contents_body() {
     utils_install_stable_test_wrapper
@@ -1042,6 +1084,7 @@ atf_init_test_cases() {
     atf_add_test_case only_load_used_test_programs
 
     atf_add_test_case config_behavior
+    atf_add_test_case config_unprivileged_user
 
     atf_add_test_case store_contents
     atf_add_test_case results_file__ok

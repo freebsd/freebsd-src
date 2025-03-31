@@ -7,6 +7,7 @@
 local nuage = require("nuage")
 local ucl = require("ucl")
 local yaml = require("yaml")
+local sys_stat = require("posix.sys.stat")
 
 if #arg ~= 2 then
 	nuage.err("Usage: " .. arg[0] .. " <cloud-init-directory> (<config-2> | <nocloud>)", false)
@@ -28,13 +29,22 @@ if not root then
 	root = ""
 end
 
-local function open_config(name)
-	nuage.mkdir_p(root .. "/etc/rc.conf.d")
-	local f, err = io.open(root .. "/etc/rc.conf.d/" .. name, "w")
+local function openat(dir, name)
+	local path_dir = root .. dir
+	local path_name = path_dir .. "/" .. name
+	nuage.mkdir_p(path_dir)
+	local f, err = io.open(path_name, "w")
 	if not f then
-		nuage.err("unable to open " .. name .. " config: " .. err)
+		nuage.err("unable to open " .. path_name .. ": " .. err)
 	end
-	return f
+	return f, path_name
+end
+local function open_ssh_key(name)
+	return openat("/etc/ssh", name)
+end
+
+local function open_config(name)
+	return openat("/etc/rc.conf.d", name)
 end
 
 local function get_ifaces()
@@ -85,7 +95,6 @@ local function config2_network(p)
 		mylinks[v["id"]] = ifaces[s]
 	end
 
-	nuage.mkdir_p(root .. "/etc/rc.conf.d")
 	local network = open_config("network")
 	local routing = open_config("routing")
 	local ipv6 = {}
@@ -268,6 +277,28 @@ if line == "#cloud-config" then
 	-- default user if none are defined
 		nuage.adduser(default_user)
 	end
+	if obj.ssh_keys and type(obj.ssh_keys) == "table" then
+		for key, val in pairs(obj.ssh_keys) do
+			for keyname, keytype in key:gmatch("(%w+)_(%w+)") do
+				local sshkn = nil
+				if keytype == "public" then
+					sshkn =  "ssh_host_" .. keyname .. "_key.pub"
+				elseif keytype == "private" then
+					sshkn = "ssh_host_" .. keyname .. "_key"
+				end
+				if sshkn then
+					local sshkey, path = open_ssh_key(sshkn)
+					if sshkey then
+						sshkey:write(val .. "\n")
+						sshkey:close()
+					end
+					if keytype == "private" then
+						sys_stat.chmod(path, 384)
+					end
+				end
+			end
+		end
+	end
 	if obj.ssh_authorized_keys then
 		local homedir = nuage.adduser(default_user)
 		for _, k in ipairs(obj.ssh_authorized_keys) do
@@ -276,7 +307,6 @@ if line == "#cloud-config" then
 	end
 	if obj.network then
 		local ifaces = get_ifaces()
-		nuage.mkdir_p(root .. "/etc/rc.conf.d")
 		local network = open_config("network")
 		local routing = open_config("routing")
 		local ipv6 = {}

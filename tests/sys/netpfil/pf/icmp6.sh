@@ -33,7 +33,7 @@ zero_id_head()
 {
 	atf_set descr 'Test ICMPv6 echo with ID 0 keep being blocked'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 zero_id_body()

@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.480 2024/07/07 07:50:57 rillig Exp $	*/
+/*	$NetBSD: job.c,v 1.489 2025/03/08 20:15:03 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -102,10 +102,7 @@
  *			define the shell that is used for the creation
  *			commands in jobs mode.
  *
- *	Job_Finish	Perform any final processing which needs doing.
- *			This includes the execution of any commands
- *			which have been/were attached to the .END
- *			target. It should only be called when the
+ *	Job_Finish	Make the .END target. Should only be called when the
  *			job table is empty.
  *
  *	Job_AbortAll	Abort all currently running jobs. Do not handle
@@ -154,7 +151,7 @@
 #include "trace.h"
 
 /*	"@(#)job.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: job.c,v 1.480 2024/07/07 07:50:57 rillig Exp $");
+MAKE_RCSID("$NetBSD: job.c,v 1.489 2025/03/08 20:15:03 rillig Exp $");
 
 /*
  * A shell defines how the commands are run.  All commands for a target are
@@ -285,12 +282,6 @@ static enum {			/* Why is the make aborting? */
 
 /* Tracks the number of tokens currently "out" to build jobs. */
 int jobTokensRunning = 0;
-
-typedef enum JobStartResult {
-	JOB_RUNNING,		/* Job is running */
-	JOB_ERROR,		/* Error in starting the job */
-	JOB_FINISHED		/* The job is already finished */
-} JobStartResult;
 
 /*
  * Descriptions for various shells.
@@ -695,7 +686,7 @@ JobPassSig_suspend(int signo)
 	act.sa_flags = 0;
 	(void)sigaction(signo, &act, NULL);
 
-	DEBUG1(JOB, "JobPassSig passing signal %d to self.\n", signo);
+	DEBUG1(JOB, "JobPassSig_suspend passing signal %d to self.\n", signo);
 
 	(void)kill(getpid(), signo);
 
@@ -1257,8 +1248,16 @@ JobFinish (Job *job, WAIT_T status)
 	if (return_job_token)
 		Job_TokenReturn();
 
-	if (aborting == ABORT_ERROR && jobTokensRunning == 0)
-		Finish(job_errors);
+	if (aborting == ABORT_ERROR && jobTokensRunning == 0) {
+		if (shouldDieQuietly(NULL, -1)) {
+			/*
+			 * TODO: better clean up properly, to avoid killing
+			 *  child processes by SIGPIPE.
+			 */
+			exit(2);
+		}
+		Fatal("%d error%s", job_errors, job_errors == 1 ? "" : "s");
+	}
 }
 
 static void
@@ -1296,7 +1295,7 @@ TouchRegular(GNode *gn)
 }
 
 /*
- * Touch the given target. Called by JobStart when the -t flag was given.
+ * Touch the given target. Called by Job_Make when the -t flag was given.
  *
  * The modification date of the file is changed.
  * If the file did not exist, it is created.
@@ -1451,9 +1450,9 @@ JobExec(Job *job, char **argv)
 
 	Var_ReexportVars(job->node);
 
-	cpid = vfork();
+	cpid = FORK_FUNCTION();
 	if (cpid == -1)
-		Punt("Cannot vfork: %s", strerror(errno));
+		Punt("Cannot fork: %s", strerror(errno));
 
 	if (cpid == 0) {
 		/* Child */
@@ -1645,22 +1644,8 @@ JobWriteShellCommands(Job *job, GNode *gn, bool *out_run)
 	*out_run = JobWriteCommands(job);
 }
 
-/*
- * Start a target-creation process going for the target described by gn.
- *
- * Results:
- *	JOB_ERROR if there was an error in the commands, JOB_FINISHED
- *	if there isn't actually anything left to do for the job and
- *	JOB_RUNNING if the job has been started.
- *
- * Details:
- *	A new Job node is created and added to the list of running
- *	jobs. PMake is forked and a child shell created.
- *
- * NB: The return value is ignored by everyone.
- */
-static JobStartResult
-JobStart(GNode *gn, bool special)
+void
+Job_Make(GNode *gn)
 {
 	Job *job;		/* new job descriptor */
 	char *argv[10];		/* Argument vector to shell */
@@ -1672,14 +1657,14 @@ JobStart(GNode *gn, bool special)
 			break;
 	}
 	if (job >= job_table_end)
-		Punt("JobStart no job slots vacant");
+		Punt("Job_Make no job slots vacant");
 
 	memset(job, 0, sizeof *job);
 	job->node = gn;
 	job->tailCmds = NULL;
 	job->status = JOB_ST_SET_UP;
 
-	job->special = special || gn->type & OP_SPECIAL;
+	job->special = (gn->type & OP_SPECIAL) != OP_NONE;
 	job->ignerr = opts.ignoreErrors || gn->type & OP_IGNORE;
 	job->echo = !(opts.silent || gn->type & OP_SILENT);
 
@@ -1712,6 +1697,8 @@ JobStart(GNode *gn, bool special)
 		 * virtual targets.
 		 */
 
+		int parseErrorsBefore;
+
 		/*
 		 * We're serious here, but if the commands were bogus, we're
 		 * also dead...
@@ -1721,7 +1708,10 @@ JobStart(GNode *gn, bool special)
 			DieHorribly();
 		}
 
+		parseErrorsBefore = parseErrors;
 		JobWriteShellCommands(job, gn, &run);
+		if (parseErrors != parseErrorsBefore)
+			run = false;
 		(void)fflush(job->cmdFILE);
 	} else if (!GNode_ShouldExecute(gn)) {
 		/*
@@ -1759,7 +1749,7 @@ JobStart(GNode *gn, bool special)
 			Make_Update(job->node);
 		}
 		job->status = JOB_ST_FREE;
-		return cmdsOK ? JOB_FINISHED : JOB_ERROR;
+		return;
 	}
 
 	/*
@@ -1772,7 +1762,6 @@ JobStart(GNode *gn, bool special)
 	JobCreatePipe(job, 3);
 
 	JobExec(job, argv);
-	return JOB_RUNNING;
 }
 
 /*
@@ -1970,54 +1959,22 @@ again:
 static void
 JobRun(GNode *targ)
 {
-#if 0
-	/*
-	 * Unfortunately it is too complicated to run .BEGIN, .END, and
-	 * .INTERRUPT job in the parallel job module.  As of 2020-09-25,
-	 * unit-tests/deptgt-end-jobs.mk hangs in an endless loop.
-	 *
-	 * Running these jobs in compat mode also guarantees that these
-	 * jobs do not overlap with other unrelated jobs.
-	 */
-	GNodeList lst = LST_INIT;
-	Lst_Append(&lst, targ);
-	(void)Make_Run(&lst);
-	Lst_Done(&lst);
-	JobStart(targ, true);
-	while (jobTokensRunning != 0) {
-		Job_CatchOutput();
-	}
-#else
+	/* Don't let these special jobs overlap with other unrelated jobs. */
 	Compat_Make(targ, targ);
-	/* XXX: Replace with GNode_IsError(gn) */
-	if (targ->made == ERROR) {
+	if (GNode_IsError(targ)) {
 		PrintOnError(targ, "\n\nStop.\n");
 		exit(1);
 	}
-#endif
 }
 
-/*
- * Handle the exit of a child. Called from Make_Make.
- *
- * The job descriptor is removed from the list of children.
- *
- * Notes:
- *	We do waits, blocking or not, according to the wisdom of our
- *	caller, until there are no more children to report. For each
- *	job, call JobFinish to finish things off.
- */
 void
 Job_CatchChildren(void)
 {
-	int pid;		/* pid of dead child */
-	WAIT_T status;		/* Exit/termination status */
+	int pid;
+	WAIT_T status;
 
-	/* Don't even bother if we know there's no one around. */
 	if (jobTokensRunning == 0)
 		return;
-
-	/* Have we received SIGCHLD since last call? */
 	if (caught_sigchld == 0)
 		return;
 	caught_sigchld = 0;
@@ -2036,21 +1993,19 @@ Job_CatchChildren(void)
 void
 JobReapChild(pid_t pid, WAIT_T status, bool isJobs)
 {
-	Job *job;		/* job descriptor for dead child */
+	Job *job;
 
-	/* Don't even bother if we know there's no one around. */
 	if (jobTokensRunning == 0)
 		return;
 
 	job = JobFindPid(pid, JOB_ST_RUNNING, isJobs);
 	if (job == NULL) {
-		if (isJobs) {
-			if (!lurking_children)
-				Error("Child (%d) status %x not in table?",
-				    pid, status);
-		}
-		return;		/* not ours */
+		if (isJobs && !lurking_children)
+			Error("Child (%d) status %x not in table?",
+			    pid, status);
+		return;
 	}
+
 	if (WIFSTOPPED(status)) {
 		DEBUG2(JOB, "Process %d (%s) stopped.\n",
 		    job->pid, job->node->name);
@@ -2082,12 +2037,6 @@ JobReapChild(pid_t pid, WAIT_T status, bool isJobs)
 	JobFinish(job, status);
 }
 
-/*
- * Catch the output from our children, if we're using pipes do so. Otherwise
- * just block time until we get a signal(most likely a SIGCHLD) since there's
- * no point in just spinning when there's nothing to do and the reaping of a
- * child can wait for a while.
- */
 void
 Job_CatchOutput(void)
 {
@@ -2097,7 +2046,7 @@ Job_CatchOutput(void)
 
 	(void)fflush(stdout);
 
-	/* The first fd in the list is the job token pipe */
+	/* Skip the first fd in the list, as it is the job token pipe. */
 	do {
 		nready = poll(fds + 1 - wantToken, fdsLen - 1 + wantToken,
 		    POLL_MSEC);
@@ -2108,13 +2057,12 @@ Job_CatchOutput(void)
 
 	if (nready > 0 && readyfd(&childExitJob)) {
 		char token = 0;
-		ssize_t count;
-		count = read(childExitJob.inPipe, &token, 1);
+		ssize_t count = read(childExitJob.inPipe, &token, 1);
 		if (count == 1) {
 			if (token == DO_JOB_RESUME[0])
 				/*
 				 * Complete relay requested from our SIGCONT
-				 * handler
+				 * handler.
 				 */
 				JobRestartJobs();
 		} else if (count == 0)
@@ -2148,16 +2096,6 @@ Job_CatchOutput(void)
 		if (--nready == 0)
 			return;
 	}
-}
-
-/*
- * Start the creation of a target. Basically a front-end for JobStart used by
- * the Make module.
- */
-void
-Job_Make(GNode *gn)
-{
-	(void)JobStart(gn, false);
 }
 
 static void
@@ -2205,10 +2143,7 @@ Shell_Init(void)
 	}
 }
 
-/*
- * Return the string literal that is used in the current command shell
- * to produce a newline character.
- */
+/* Return the shell string literal that results in a newline character. */
 const char *
 Shell_GetNewline(void)
 {
@@ -2237,12 +2172,11 @@ AddSig(int sig, SignalProc handler)
 	}
 }
 
-/* Initialize the process module. */
 void
 Job_Init(void)
 {
 	Job_SetPrefix();
-	/* Allocate space for all the job info */
+
 	job_table = bmake_malloc((size_t)opts.maxJobs * sizeof *job_table);
 	memset(job_table, 0, (size_t)opts.maxJobs * sizeof *job_table);
 	job_table_end = job_table + opts.maxJobs;
@@ -2259,8 +2193,8 @@ Job_Init(void)
 
 
 	/*
-	 * There is a non-zero chance that we already have children.
-	 * eg after 'make -f- <<EOF'
+	 * There is a non-zero chance that we already have children,
+	 * e.g. after 'make -f- <<EOF'.
 	 * Since their termination causes a 'Child (pid) not in table'
 	 * message, Collect the status of any that are already dead, and
 	 * suppress the error message if there are any undead ones.
@@ -2282,7 +2216,6 @@ Job_Init(void)
 	JobCreatePipe(&childExitJob, 3);
 
 	{
-		/* Preallocate enough for the maximum number of jobs. */
 		size_t nfds = (npseudojobs + (size_t)opts.maxJobs) *
 			      nfds_per_job();
 		fds = bmake_malloc(sizeof *fds * nfds);
@@ -2294,24 +2227,19 @@ Job_Init(void)
 	watchfd(&childExitJob);
 
 	sigemptyset(&caught_signals);
-	/* Install a SIGCHLD handler. */
 	(void)bmake_signal(SIGCHLD, JobChildSig);
 	sigaddset(&caught_signals, SIGCHLD);
 
-	/*
-	 * Catch the four signals that POSIX specifies if they aren't ignored.
-	 * JobPassSig will take care of calling JobInterrupt if appropriate.
-	 */
+	/* Handle the signals specified by POSIX. */
 	AddSig(SIGINT, JobPassSig_int);
 	AddSig(SIGHUP, JobPassSig_term);
 	AddSig(SIGTERM, JobPassSig_term);
 	AddSig(SIGQUIT, JobPassSig_term);
 
 	/*
-	 * There are additional signals that need to be caught and passed if
-	 * either the export system wants to be told directly of signals or if
-	 * we're giving each job its own process group (since then it won't get
-	 * signals from the terminal driver as we own the terminal)
+	 * These signals need to be passed to the jobs, as each job has its
+	 * own process group and thus the terminal driver doesn't forward the
+	 * signals itself.
 	 */
 	AddSig(SIGTSTP, JobPassSig_suspend);
 	AddSig(SIGTTOU, JobPassSig_suspend);
@@ -2320,10 +2248,7 @@ Job_Init(void)
 	AddSig(SIGCONT, JobContinueSig);
 
 	(void)Job_RunTarget(".BEGIN", NULL);
-	/*
-	 * Create the .END node now, even though no code in the unit tests
-	 * depends on it.  See also Targ_GetEndNode in Compat_MakeAll.
-	 */
+	/* Create the .END node, see Targ_GetEndNode in Compat_MakeAll. */
 	(void)Targ_GetEndNode();
 }
 
@@ -2349,7 +2274,6 @@ JobSigReset(void)
 	(void)bmake_signal(SIGCHLD, SIG_DFL);
 }
 
-/* Find a shell in 'shells' given its name, or return NULL. */
 static Shell *
 FindShellByName(const char *name)
 {
@@ -2371,40 +2295,35 @@ FindShellByName(const char *name)
  *	line		The shell spec
  *
  * Results:
- *	false if the specification was incorrect.
- *
- * Side Effects:
- *	'shell' points to a Shell structure (either predefined or
- *	created from the shell spec), shellPath is the full path of the
- *	shell described by 'shell', while shellName is just the
- *	final component of shellPath.
+ *	Returns false if the specification was incorrect.
+ *	If successful, 'shell' is usable, shellPath is the full path of the
+ *	shell described by 'shell', and shellName is the final component of
+ *	shellPath.
  *
  * Notes:
- *	A shell specification consists of a .SHELL target, with dependency
- *	operator, followed by a series of blank-separated words. Double
- *	quotes can be used to use blanks in words. A backslash escapes
+ *	A shell specification has the form ".SHELL: keyword=value...". Double
+ *	quotes can be used to enclose blanks in words. A backslash escapes
  *	anything (most notably a double-quote and a space) and
- *	provides the functionality it does in C. Each word consists of
- *	keyword and value separated by an equal sign. There should be no
- *	unnecessary spaces in the word. The keywords are as follows:
+ *	provides the usual escape sequences from C. There should be no
+ *	unnecessary spaces in the word. The keywords are:
  *	    name	Name of shell.
  *	    path	Location of shell.
  *	    quiet	Command to turn off echoing.
  *	    echo	Command to turn echoing on
- *	    filter	Result of turning off echoing that shouldn't be
- *			printed.
- *	    echoFlag	Flag to turn echoing on at the start
- *	    errFlag	Flag to turn error checking on at the start
- *	    hasErrCtl	True if shell has error checking control
- *	    newline	String literal to represent a newline char
- *	    check	Command to turn on error checking if hasErrCtl
- *			is true or template of command to echo a command
- *			for which error checking is off if hasErrCtl is
- *			false.
- *	    ignore	Command to turn off error checking if hasErrCtl
- *			is true or template of command to execute a
- *			command so as to ignore any errors it returns if
- *			hasErrCtl is false.
+ *	    filter	The output from the shell command that turns off
+ *			echoing, to be filtered from the final output.
+ *	    echoFlag	Flag to turn echoing on at the start.
+ *	    errFlag	Flag to turn error checking on at the start.
+ *	    hasErrCtl	True if the shell has error checking control.
+ *	    newline	String literal to represent a newline character.
+ *	    check	If hasErrCtl is true: The command to turn on error
+ *			checking. If hasErrCtl is false: The template for a
+ *			shell command that echoes a command for which error
+ *			checking is off.
+ *	    ignore	If hasErrCtl is true: The command to turn off error
+ *			checking. If hasErrCtl is false: The template for a
+ *			shell command that executes a command so as to ignore
+ *			any errors it returns.
  */
 bool
 Job_ParseShell(char *line)
@@ -2425,7 +2344,6 @@ Job_ParseShell(char *line)
 
 	memset(&newShell, 0, sizeof newShell);
 
-	/* Parse the specification by keyword. */
 	wordsList = Str_Words(line, true);
 	words = wordsList.words;
 	argc = wordsList.len;
@@ -2489,12 +2407,6 @@ Job_ParseShell(char *line)
 	}
 
 	if (path == NULL) {
-		/*
-		 * If no path was given, the user wants one of the
-		 * pre-defined shells, yes? So we find the one s/he wants
-		 * with the help of FindShellByName and set things up the
-		 * right way. shellPath will be set up by Shell_Init.
-		 */
 		if (newShell.name == NULL) {
 			Parse_Error(PARSE_FATAL,
 			    "Neither path nor name specified");
@@ -2510,10 +2422,6 @@ Job_ParseShell(char *line)
 			shell = sh;
 			shellName = newShell.name;
 			if (shellPath != NULL) {
-				/*
-				 * Shell_Init has already been called!
-				 * Do it again.
-				 */
 				free(shellPath);
 				shellPath = NULL;
 				Shell_Init();
@@ -2536,7 +2444,7 @@ Job_ParseShell(char *line)
 			shell = bmake_malloc(sizeof *shell);
 			*shell = newShell;
 		}
-		/* this will take care of shellErrFlag */
+		/* This will take care of shellErrFlag. */
 		Shell_Init();
 	}
 
@@ -2551,7 +2459,7 @@ Job_ParseShell(char *line)
 	}
 
 	/*
-	 * Do not free up the words themselves, since they might be in use
+	 * Do not free up the words themselves, since they may be in use
 	 * by the shell specification.
 	 */
 	free(words);
@@ -2559,40 +2467,34 @@ Job_ParseShell(char *line)
 }
 
 /*
- * Handle the receipt of an interrupt.
- *
- * All children are killed. Another job will be started if the .INTERRUPT
- * target is defined.
- *
- * Input:
- *	runINTERRUPT	Non-zero if commands for the .INTERRUPT target
- *			should be executed
- *	signo		signal received
+ * After receiving an interrupt signal, terminate all child processes and if
+ * necessary make the .INTERRUPT target.
  */
 static void
 JobInterrupt(bool runINTERRUPT, int signo)
 {
-	Job *job;		/* job descriptor in that element */
-	GNode *interrupt;	/* the node describing the .INTERRUPT target */
+	Job *job;
+	GNode *interrupt;
 	sigset_t mask;
-	GNode *gn;
 
 	aborting = ABORT_INTERRUPT;
 
 	JobSigLock(&mask);
 
 	for (job = job_table; job < job_table_end; job++) {
-		if (job->status != JOB_ST_RUNNING)
-			continue;
-
-		gn = job->node;
-
-		JobDeleteTarget(gn);
-		if (job->pid != 0) {
+		if (job->status == JOB_ST_RUNNING && job->pid != 0) {
 			DEBUG2(JOB,
 			    "JobInterrupt passing signal %d to child %d.\n",
 			    signo, job->pid);
 			KILLPG(job->pid, signo);
+		}
+	}
+
+	for (job = job_table; job < job_table_end; job++) {
+		if (job->status == JOB_ST_RUNNING && job->pid != 0) {
+			int status;
+			(void)waitpid(job->pid, &status, 0);
+			JobDeleteTarget(job->node);
 		}
 	}
 
@@ -2609,11 +2511,7 @@ JobInterrupt(bool runINTERRUPT, int signo)
 	exit(signo);		/* XXX: why signo? */
 }
 
-/*
- * Do the final processing, i.e. run the commands attached to the .END target.
- *
- * Return the number of errors reported.
- */
+/* Make the .END target, returning the number of job-related errors. */
 int
 Job_Finish(void)
 {
@@ -2629,7 +2527,6 @@ Job_Finish(void)
 }
 
 #ifdef CLEANUP
-/* Clean up any memory used by the jobs module. */
 void
 Job_End(void)
 {
@@ -2637,14 +2534,11 @@ Job_End(void)
 }
 #endif
 
-/*
- * Waits for all running jobs to finish and returns.
- * Sets 'aborting' to ABORT_WAIT to prevent other jobs from starting.
- */
+/* Waits for all running jobs to finish. */
 void
 Job_Wait(void)
 {
-	aborting = ABORT_WAIT;
+	aborting = ABORT_WAIT;	/* Prevent other jobs from starting. */
 	while (jobTokensRunning != 0) {
 		Job_CatchOutput();
 	}
@@ -2655,14 +2549,12 @@ Job_Wait(void)
  * Abort all currently running jobs without handling output or anything.
  * This function is to be called only in the event of a major error.
  * Most definitely NOT to be called from JobInterrupt.
- *
- * All children are killed, not just the firstborn.
  */
 void
 Job_AbortAll(void)
 {
-	Job *job;		/* the job descriptor in that element */
-	WAIT_T foo;
+	Job *job;
+	WAIT_T status;
 
 	aborting = ABORT_ERROR;
 
@@ -2670,25 +2562,18 @@ Job_AbortAll(void)
 		for (job = job_table; job < job_table_end; job++) {
 			if (job->status != JOB_ST_RUNNING)
 				continue;
-			/*
-			 * kill the child process with increasingly drastic
-			 * signals to make darn sure it's dead.
-			 */
 			KILLPG(job->pid, SIGINT);
 			KILLPG(job->pid, SIGKILL);
 		}
 	}
 
-	/*
-	 * Catch as many children as want to report in at first, then give up
-	 */
-	while (waitpid((pid_t)-1, &foo, WNOHANG) > 0)
+	while (waitpid((pid_t)-1, &status, WNOHANG) > 0)
 		continue;
 }
 
 /*
  * Tries to restart stopped jobs if there are slots available.
- * Called in process context in response to a SIGCONT.
+ * Called in response to a SIGCONT.
  */
 static void
 JobRestartJobs(void)
@@ -2753,10 +2638,6 @@ clearfd(Job *job)
 	fdsLen--;
 #if defined(USE_FILEMON) && !defined(USE_FILEMON_DEV)
 	if (useMeta) {
-		/*
-		 * Sanity check: there should be two fds per job, so the job's
-		 * pollfd number should be even.
-		 */
 		assert(nfds_per_job() == 2);
 		if (i % 2 != 0)
 			Punt("odd-numbered fd with meta");
@@ -2801,7 +2682,7 @@ JobTokenAdd(void)
 		tok = '+';		/* no error token */
 	}
 
-	/* If we are depositing an error token flush everything else */
+	/* If we are depositing an error token, flush everything else. */
 	while (tok != '+' && read(tokenWaitJob.inPipe, &tok1, 1) == 1)
 		continue;
 
@@ -2811,7 +2692,6 @@ JobTokenAdd(void)
 		continue;
 }
 
-/* Get a temp file */
 int
 Job_TempFile(const char *pattern, char *tfile, size_t tfile_sz)
 {
@@ -2827,7 +2707,7 @@ Job_TempFile(const char *pattern, char *tfile, size_t tfile_sz)
 	return fd;
 }
 
-/* Prep the job token pipe in the root make process. */
+/* Prepare the job token pipe in the root make process. */
 void
 Job_ServerStart(int max_tokens, int jp_0, int jp_1)
 {
@@ -2835,7 +2715,6 @@ Job_ServerStart(int max_tokens, int jp_0, int jp_1)
 	char jobarg[64];
 
 	if (jp_0 >= 0 && jp_1 >= 0) {
-		/* Pipe passed in from parent */
 		tokenWaitJob.inPipe = jp_0;
 		tokenWaitJob.outPipe = jp_1;
 		(void)fcntl(jp_0, F_SETFD, FD_CLOEXEC);
@@ -2877,7 +2756,7 @@ Job_TokenReturn(void)
 /*
  * Attempt to withdraw a token from the pool.
  *
- * If pool is empty, set wantToken so that we wake up when a token is
+ * If the pool is empty, set wantToken so that we wake up when a token is
  * released.
  *
  * Returns true if a token was withdrawn, and false if the pool is currently
@@ -2916,8 +2795,10 @@ Job_TokenWithdraw(void)
 		while (write(tokenWaitJob.outPipe, &tok, 1) == -1 &&
 		       errno == EAGAIN)
 			continue;
-		if (shouldDieQuietly(NULL, 1))
-			exit(6);	/* we aborted */
+		if (shouldDieQuietly(NULL, 1)) {
+			Job_Wait();
+			exit(6);
+		}
 		Fatal("A failure has been detected "
 		      "in another branch of the parallel make");
 	}
@@ -2933,12 +2814,7 @@ Job_TokenWithdraw(void)
 	return true;
 }
 
-/*
- * Run the named target if found. If a filename is specified, then set that
- * to the sources.
- *
- * Exits if the target fails.
- */
+/* Make the named target if found, exit if the target fails. */
 bool
 Job_RunTarget(const char *target, const char *fname)
 {
@@ -2950,11 +2826,6 @@ Job_RunTarget(const char *target, const char *fname)
 		Var_Set(gn, ALLSRC, fname);
 
 	JobRun(gn);
-	/* XXX: Replace with GNode_IsError(gn) */
-	if (gn->made == ERROR) {
-		PrintOnError(gn, "\n\nStop.\n");
-		exit(1);
-	}
 	return true;
 }
 

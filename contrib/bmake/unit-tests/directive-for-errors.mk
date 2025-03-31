@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-errors.mk,v 1.13 2024/07/06 10:14:35 rillig Exp $
+# $NetBSD: directive-for-errors.mk,v 1.14 2024/08/29 20:20:36 rillig Exp $
 #
 # Tests for error handling in .for loops.
 
@@ -85,7 +85,7 @@ ${:U\\}=	backslash	# see whether the "variable" '\' is local
 #
 # XXX: As of 2020-12-31, Var_Subst doesn't report any errors, therefore
 # the loop body is expanded as if no error had happened.
-# expect+1: while evaluating "${:U3:Z} 4" with value "3": Unknown modifier "Z"
+# expect+1: Unknown modifier "Z"
 .for i in 1 2 ${:U3:Z} 4
 # expect+3: warning: Should not be reached.
 # expect+2: warning: Should not be reached.

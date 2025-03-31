@@ -23,14 +23,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 18, 2018
+.Dd January 3, 2025
 .Dt CNV 9
 .Os
 .Sh NAME
 .Nm cnvlist_get ,
 .Nm cnvlist_take ,
 .Nm cnvlist_free
-.Nd "API for managing name/value pairs by cookie."
+.Nd "API for managing name/value pairs by cookie"
 .Sh LIBRARY
 .Lb libnv
 .Sh SYNOPSIS
@@ -115,7 +115,7 @@ The
 .Nm libnv
 library permits easy management of name/value pairs and can send and receive
 them over sockets.
-For more information, also see
+For more information, see
 .Xr nv 9 .
 .Pp
 The concept of cookies is explained in
@@ -128,25 +128,28 @@ from
 .Pp
 The
 .Fn cnvlist_name
-function returns the name of an element associated with the given cookie.
+function returns the name of an element associated with
+.Fa cookie .
 .Pp
 The
 .Fn cnvlist_type
-function returns the type of an element associated with the given cookie.
+function returns the type of an element associated with
+.Fa cookie .
 Types which can be returned are described in
 .Xr nv 9 .
 .Pp
 The
 .Nm cnvlist_get
-family of functions obtains the value associated with the given cookie.
+functions return the value associated with
+.Fa cookie .
 Returned strings, nvlists, descriptors, binaries, or arrays must not be modified
-by the user, since they still belong to the nvlist.
+by the user since they still belong to the nvlist.
 The nvlist must not be in an error state.
 .Pp
 The
 .Nm cnvlist_take
-family of functions returns the value associated with the given cookie and
-removes the element from the nvlist.
+functions return the value associated with the given cookie and
+remove the element from the nvlist.
 When the value is a string, binary, or array value, the caller is responsible
 for freeing the returned memory with
 .Fn free 3 .
@@ -154,18 +157,21 @@ When the value is an nvlist, the caller is responsible for destroying the
 returned nvlist with
 .Fn nvlist_destroy .
 When the value is a descriptor, the caller is responsible for closing the
-returned descriptor with the
+returned descriptor with
 .Fn close 2 .
 .Pp
 The
 .Nm cnvlist_free
-family of functions removes an element of the supplied cookie and frees all
-resources.
-If an element of the given cookie has the wrong type or does not exist, the
+functions remove the element identified by
+.Fa cookie
+and free any associated resources.
+If the element identified by
+.Fa cookie
+has the wrong type or does not exist, the
 program
-is aborted.
+aborts.
 .Sh EXAMPLES
-The following example demonstrates how to deal with cnvlist API.
+The following example demonstrates how to deal with the cnvlist API.
 .Bd -literal
 int type;
 void *cookie, *scookie, *bcookie;

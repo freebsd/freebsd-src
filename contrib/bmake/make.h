@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.344 2024/07/11 20:09:16 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.350 2025/03/07 06:50:34 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -181,6 +181,15 @@
 typedef unsigned char bool;
 #define true	1
 #define false	0
+#endif
+
+/*
+ * In code coverage mode with gcc>=12, calling vfork/exec does not mark any
+ * further code from the parent process as covered. gcc-10.5.0 is fine, as
+ * are fork/exec calls, as well as posix_spawn.
+ */
+#ifndef FORK_FUNCTION
+#define FORK_FUNCTION vfork
 #endif
 
 #include "lst.h"
@@ -716,7 +725,7 @@ typedef struct CmdOpts {
 	 */
 	DebugFlags debug;
 
-	/* -df: debug output is written here - default stderr */
+	/* -dF: debug output is written here - default stderr */
 	FILE *debug_file;
 
 	/*
@@ -880,7 +889,6 @@ void Error(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);
 void Fatal(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2) MAKE_ATTR_DEAD;
 void Punt(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2) MAKE_ATTR_DEAD;
 void DieHorribly(void) MAKE_ATTR_DEAD;
-void Finish(int) MAKE_ATTR_DEAD;
 int unlink_file(const char *) MAKE_ATTR_USE;
 void execDie(const char *, const char *);
 char *getTmpdir(void) MAKE_ATTR_USE;
@@ -985,6 +993,12 @@ typedef enum VarEvalMode {
 	 * Parse and evaluate the expression.  It is an error if a
 	 * subexpression evaluates to undefined.
 	 */
+	VARE_EVAL_DEFINED_LOUD,
+
+	/*
+	 * Parse and evaluate the expression.  It is a silent error if a
+	 * subexpression evaluates to undefined.
+	 */
 	VARE_EVAL_DEFINED,
 
 	/*
@@ -1064,7 +1078,7 @@ void Global_Append(const char *, const char *);
 void Global_Delete(const char *);
 void Global_Set_ReadOnly(const char *, const char *);
 
-const char *EvalStack_Details(void);
+void EvalStack_PrintDetails(void);
 
 /* util.c */
 typedef void (*SignalProc)(int);

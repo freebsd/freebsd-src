@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -44,10 +45,6 @@ static unsigned long zio_decompress_fail_fraction = 0;
 
 /*
  * Compression vectors.
- *
- * NOTE: DO NOT CHANGE THE NAMES OF THESE COMPRESSION FUNCTIONS.
- * THEY ARE USED AS ZAP KEY NAMES BY FAST DEDUP AND THEREFORE
- * PART OF THE ON-DISK FORMAT.
  */
 zio_compress_info_t zio_compress_table[ZIO_COMPRESS_FUNCTIONS] = {
 	{"inherit",	0,	NULL,	NULL, NULL},

@@ -107,6 +107,7 @@ ryusuke [label="Ryusuke Suzuki\nryusuke@FreeBSD.org\n2009/12/21"]
 salvadore [label="Lorenzo Salvadore\nsalvadore@FreeBSD.org\n2023/03/20"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/03/25"]
 ygy [label="Guangyuan Yang\nygy@FreeBSD.org\n2017/09/18"]
+ziaee [label="Alexander Ziaee\nziaee@FreeBSD.org\n2024/12/30"]
 
 # Here are the mentor/mentee relationships.
 # Group together all the mentees for a particular mentor.
@@ -144,6 +145,7 @@ carlavilla -> grahamperrin
 carlavilla -> lwhsu
 carlavilla -> pauamma
 carlavilla -> salvadore
+carlavilla -> ziaee
 
 ceri -> brd
 ceri -> brueffer
@@ -208,6 +210,8 @@ marck -> taras
 maxim -> taras
 
 mheinen -> jkois
+
+mhorne -> ziaee
 
 murray -> ceri
 murray -> delphij

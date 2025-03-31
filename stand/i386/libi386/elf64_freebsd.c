@@ -28,8 +28,11 @@
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/linker.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 #include <string.h>
 #include <machine/bootinfo.h>
+#include <machine/pmap_pae.h>
 #include <machine/elf.h>
 #include <stand.h>
 
@@ -43,16 +46,15 @@ static int	elf64_obj_exec(struct preloaded_file *amp);
 struct file_format amd64_elf = { elf64_loadfile, elf64_exec };
 struct file_format amd64_elf_obj = { elf64_obj_loadfile, elf64_obj_exec };
 
-#define PG_V	0x001
-#define PG_RW	0x002
-#define PG_PS	0x080
+/*
+ * i386's pmap_pae.h doesn't provide this, so
+ * just typedef our own.
+ */
+typedef pdpt_entry_t pml4_entry_t;
 
-typedef uint64_t p4_entry_t;
-typedef uint64_t p3_entry_t;
-typedef uint64_t p2_entry_t;
-extern p4_entry_t PT4[];
-extern p3_entry_t PT3[];
-extern p2_entry_t PT2[];
+extern pml4_entry_t	PT4[];
+extern pdpt_entry_t	PT3[];
+extern pd_entry_t	PT2[];
 
 uint32_t entry_hi;
 uint32_t entry_lo;
@@ -91,11 +93,11 @@ elf64_exec(struct preloaded_file *fp)
      */
     for (i = 0; i < 512; i++) {
 	/* Each slot of the level 4 pages points to the same level 3 page */
-	PT4[i] = (p4_entry_t)VTOP((uintptr_t)&PT3[0]);
+	PT4[i] = (pml4_entry_t)VTOP((uintptr_t)&PT3[0]);
 	PT4[i] |= PG_V | PG_RW;
 
 	/* Each slot of the level 3 pages points to the same level 2 page */
-	PT3[i] = (p3_entry_t)VTOP((uintptr_t)&PT2[0]);
+	PT3[i] = (pdpt_entry_t)VTOP((uintptr_t)&PT2[0]);
 	PT3[i] |= PG_V | PG_RW;
 
 	/* The level 2 page slots are mapped with 2MB pages for 1GB. */

@@ -5,7 +5,7 @@
  * Copyright (c) 2001 Cameron Grant <cg@FreeBSD.org>
  * Copyright (c) 2020 The FreeBSD Foundation
  * All rights reserved.
- * Copyright (c) 2024 The FreeBSD Foundation
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
  *
  * Portions of this software were developed by Christos Margiolis
  * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
@@ -47,7 +47,6 @@
 #include <sys/sx.h>
 
 #include <dev/sound/pcm/sound.h>
-#include <dev/sound/pcm/pcm.h>
 
 #include "feeder_if.h"
 

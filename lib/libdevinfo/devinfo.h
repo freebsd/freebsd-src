@@ -34,7 +34,7 @@
 #include <sys/bus.h>
 
 typedef __uintptr_t	devinfo_handle_t;
-#define DEVINFO_ROOT_DEVICE	((devinfo_handle_t)0)
+#define DEVINFO_ROOT_DEVICE	((devinfo_handle_t)-1)
 
 typedef enum device_state devinfo_state_t;
 

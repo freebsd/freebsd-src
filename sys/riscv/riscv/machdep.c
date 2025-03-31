@@ -45,6 +45,7 @@
 #include <sys/cons.h>
 #include <sys/cpu.h>
 #include <sys/devmap.h>
+#include <sys/efi_map.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
@@ -112,10 +113,6 @@ int cold = 1;
 #define	DTB_SIZE_MAX	(1024 * 1024)
 
 struct kva_md_info kmi;
-
-int64_t dcache_line_size;	/* The minimum D cache line size */
-int64_t icache_line_size;	/* The minimum I cache line size */
-int64_t idcache_line_size;	/* The minimum cache line size */
 
 #define BOOT_HART_INVALID	0xffffffff
 uint32_t boot_hart = BOOT_HART_INVALID;	/* The hart we booted on. */
@@ -223,8 +220,18 @@ cpu_flush_dcache(void *ptr, size_t len)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
+	struct pcpu *pc;
 
-	panic("cpu_est_clockrate");
+	pc = pcpu_find(cpu_id);
+	if (pc == NULL || rate == NULL)
+		return (EINVAL);
+
+	if (pc->pc_clock == 0)
+		return (EOPNOTSUPP);
+
+	*rate = pc->pc_clock;
+
+	return (0);
 }
 
 void
@@ -301,11 +308,11 @@ init_proc0(vm_offset_t kstack)
 
 #ifdef FDT
 static void
-try_load_dtb(caddr_t kmdp)
+try_load_dtb(void)
 {
 	vm_offset_t dtbp;
 
-	dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+	dtbp = MD_FETCH(preload_kmdp, MODINFOMD_DTBP, vm_offset_t);
 
 #if defined(FDT_DTB_STATIC)
 	/*
@@ -328,17 +335,6 @@ try_load_dtb(caddr_t kmdp)
 		panic("OF_init failed with the found device tree");
 }
 #endif
-
-static void
-cache_setup(void)
-{
-
-	/* TODO */
-
-	dcache_line_size = 0;
-	icache_line_size = 0;
-	idcache_line_size = 0;
-}
 
 /*
  * Fake up a boot descriptor table.
@@ -370,7 +366,7 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_NAME);
 	PRELOAD_PUSH_STRING("kernel");
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_TYPE);
-	PRELOAD_PUSH_STRING("elf kernel");
+	PRELOAD_PUSH_STRING(preload_kerntype);
 
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_ADDR);
 	PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));
@@ -423,6 +419,45 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 /* Support for FDT configurations only. */
 CTASSERT(FDT);
 
+static void
+parse_boot_hartid(void)
+{
+	uint64_t *mdp;
+#ifdef FDT
+	phandle_t chosen;
+	uint32_t hart;
+#endif
+
+	mdp = (uint64_t *)preload_search_info(preload_kmdp,
+	    MODINFO_METADATA | MODINFOMD_BOOT_HARTID);
+	if (mdp != NULL && *mdp < UINT32_MAX) {
+		boot_hart = (uint32_t)*mdp;
+		goto out;
+	}
+
+#ifdef FDT
+	/*
+	 * Deprecated:
+	 *
+	 * Look for the boot hart ID. This was either passed in directly from
+	 * the SBI firmware and handled by locore, or was stored in the device
+	 * tree by an earlier boot stage.
+	 */
+	chosen = OF_finddevice("/chosen");
+	if (OF_getencprop(chosen, "boot-hartid", &hart, sizeof(hart)) != -1) {
+		boot_hart = hart;
+	}
+#endif
+
+	/* We failed... */
+	if (boot_hart == BOOT_HART_INVALID) {
+		panic("Boot hart ID was not properly set");
+	}
+
+out:
+	PCPU_SET(hart, boot_hart);
+}
+
 #ifdef FDT
 static void
 parse_fdt_bootargs(void)
@@ -439,37 +474,35 @@ parse_fdt_bootargs(void)
 static vm_offset_t
 parse_metadata(void)
 {
-	caddr_t kmdp;
 	vm_offset_t lastaddr;
 #ifdef DDB
 	vm_offset_t ksym_start, ksym_end;
 #endif
 	char *kern_envp;
 
-	/* Find the kernel address */
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	KASSERT(kmdp != NULL, ("No preload metadata found!"));
+	/* Initialize preload_kmdp */
+	preload_initkmdp(true);
 
 	/* Read the boot metadata */
-	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	boothowto = MD_FETCH(preload_kmdp, MODINFOMD_HOWTO, int);
+	lastaddr = MD_FETCH(preload_kmdp, MODINFOMD_KERNEND, vm_offset_t);
+	kern_envp = MD_FETCH(preload_kmdp, MODINFOMD_ENVP, char *);
 	if (kern_envp != NULL)
 		init_static_kenv(kern_envp, 0);
 	else
 		init_static_kenv(static_kenv, sizeof(static_kenv));
 #ifdef DDB
-	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+	ksym_start = MD_FETCH(preload_kmdp, MODINFOMD_SSYM, uintptr_t);
+	ksym_end = MD_FETCH(preload_kmdp, MODINFOMD_ESYM, uintptr_t);
 	db_fetch_ksymtab(ksym_start, ksym_end, 0);
 #endif
 #ifdef FDT
-	try_load_dtb(kmdp);
+	try_load_dtb();
 	if (kern_envp == NULL)
 		parse_fdt_bootargs();
 #endif
+	parse_boot_hartid();
+
 	return (lastaddr);
 }
 
@@ -477,14 +510,11 @@ void
 initriscv(struct riscv_bootparams *rvbp)
 {
 	struct mem_region mem_regions[FDT_MEM_REGIONS];
+	struct efi_map_header *efihdr;
 	struct pcpu *pcpup;
 	int mem_regions_sz;
 	vm_offset_t lastaddr;
 	vm_size_t kernlen;
-#ifdef FDT
-	phandle_t chosen;
-	uint32_t hart;
-#endif
 	char *env;
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
@@ -509,37 +539,40 @@ initriscv(struct riscv_bootparams *rvbp)
 	}
 	lastaddr = parse_metadata();
 
+	efihdr = (struct efi_map_header *)preload_search_info(preload_kmdp,
+	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
+	if (efihdr != NULL) {
+		efi_map_add_entries(efihdr);
+		efi_map_exclude_entries(efihdr);
+	}
 #ifdef FDT
-	/*
-	 * Look for the boot hart ID. This was either passed in directly from
-	 * the SBI firmware and handled by locore, or was stored in the device
-	 * tree by an earlier boot stage.
-	 */
-	chosen = OF_finddevice("/chosen");
-	if (OF_getencprop(chosen, "boot-hartid", &hart, sizeof(hart)) != -1) {
-		boot_hart = hart;
-	}
-#endif
-	if (boot_hart == BOOT_HART_INVALID) {
-		panic("Boot hart ID was not properly set");
-	}
-	pcpup->pc_hart = boot_hart;
+	else {
+		/* Exclude reserved memory specified by the device tree. */
+		if (fdt_get_reserved_mem(mem_regions, &mem_regions_sz) == 0) {
+			physmem_exclude_regions(mem_regions, mem_regions_sz,
+			    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+		}
 
-#ifdef FDT
-	/*
-	 * Exclude reserved memory specified by the device tree. Typically,
-	 * this contains an entry for memory used by the runtime SBI firmware.
-	 */
-	if (fdt_get_reserved_mem(mem_regions, &mem_regions_sz) == 0) {
-		physmem_exclude_regions(mem_regions, mem_regions_sz,
+		/* Grab physical memory regions information from device tree. */
+		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) != 0)
+			panic("Cannot get physical memory regions");
+		physmem_hardware_regions(mem_regions, mem_regions_sz);
+
+		/*
+		 * XXX: Unconditionally exclude the lowest 2MB of physical
+		 * memory, as this area is assumed to contain the SBI firmware,
+		 * and this is not properly reserved in all cases (e.g. in
+		 * older firmware like BBL).
+		 *
+		 * This is a little fragile, but it is consistent with the
+		 * platforms we support so far.
+		 *
+		 * TODO: remove this when the all regular booting methods
+		 * properly report their reserved memory in the device tree.
+		 */
+		physmem_exclude_region(mem_regions[0].mr_start, L2_SIZE,
 		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 	}
-
-	/* Grab physical memory regions information from device tree. */
-	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) != 0) {
-		panic("Cannot get physical memory regions");
-	}
-	physmem_hardware_regions(mem_regions, mem_regions_sz);
 #endif
 
 	/*
@@ -549,21 +582,6 @@ initriscv(struct riscv_bootparams *rvbp)
 
 	/* Do basic tuning, hz etc */
 	init_param1();
-
-	cache_setup();
-
-#ifdef FDT
-	/*
-	 * XXX: Unconditionally exclude the lowest 2MB of physical memory, as
-	 * this area is assumed to contain the SBI firmware. This is a little
-	 * fragile, but it is consistent with the platforms we support so far.
-	 *
-	 * TODO: remove this when the all regular booting methods properly
-	 * report their reserved memory in the device tree.
-	 */
-	physmem_exclude_region(mem_regions[0].mr_start, L2_SIZE,
-	    EXFLAG_NODUMP | EXFLAG_NOALLOC);
-#endif
 
 	/* Bootstrap enough of pmap to enter the kernel proper */
 	kernlen = (lastaddr - KERNBASE);
@@ -599,8 +617,11 @@ initriscv(struct riscv_bootparams *rvbp)
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
 
-	if (boothowto & RB_VERBOSE)
+	if (boothowto & RB_VERBOSE) {
+		if (efihdr != NULL)
+			efi_map_print_entries(efihdr);
 		physmem_print_tables();
+	}
 
 	early_boot = 0;
 

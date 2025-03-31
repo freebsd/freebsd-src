@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 24, 2024
+.Dd December 10, 2024
 .Dt ISP 4
 .Os
 .Sh NAME
@@ -167,11 +167,11 @@ Supported values are:
 .Pp
 .Bl -tag -width ".Li lport-only" -compact
 .It Li lport
-Prefer loopback and fallback to point to point.
+Prefer arbitrated loop and fallback to point to point.
 .It Li nport
-Prefer point to point and fallback to loopback.
+Prefer point to point and fallback to arbitrated loop.
 .It Li lport-only
-Loopback only.
+Arbitrated loop only.
 .It Li nport-only
 Point to point only.
 .El

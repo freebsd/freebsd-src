@@ -115,7 +115,7 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 	ctx = device_get_sysctl_ctx(softc->dev);
 	softc->dcb_oid = SYSCTL_ADD_NODE(ctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
-	    "dcb", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "dcb");
+	    "dcb", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Data Center Bridging");
 	if (!softc->dcb_oid) {
 		sysctl_ctx_free(&softc->dcb_ctx);
 		return ENOMEM;
@@ -1792,9 +1792,6 @@ bnxt_dcb_dcbx_cap(SYSCTL_HANDLER_ARGS)
 	int val;
 	int rc;
 
-	if (softc == NULL)
-		return EBUSY;
-
 	val = bnxt_dcb_getdcbx(softc);
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
@@ -1874,7 +1871,7 @@ bnxt_pfc_get_string(struct bnxt_softc *softc, char *buf, struct bnxt_ieee_pfc *p
 		buf += sprintf(buf, "none");
 }
 
-static char *bnxt_get_tlv_selector_str(uint8_t selector)
+static const char *bnxt_get_tlv_selector_str(uint8_t selector)
 {
 	switch (selector) {
 	case BNXT_IEEE_8021QAZ_APP_SEL_ETHERTYPE:
@@ -1889,24 +1886,23 @@ static char *bnxt_get_tlv_selector_str(uint8_t selector)
 }
 
 static void
-bnxt_app_tlv_get_string(struct bnxt_softc *softc, char *buf,
-			struct bnxt_dcb_app *app, int num)
+bnxt_app_tlv_get_string(struct sbuf *sb, struct bnxt_dcb_app *app, int num)
 {
-	uint32_t i;
+	int i;
 
-	if (!num) {
-		buf += sprintf(buf, " None");
+	if (num == 0) {
+		sbuf_printf(sb, " None");
 		return;
 	}
 
-	buf += sprintf(buf, "\n");
+	sbuf_putc(sb, '\n');
 	for (i = 0; i < num; i++) {
-		buf += sprintf(buf, "\tAPP#%0d:\tpri: %d,\tSel: %d,\t%s: %d\n",
-				i,
-				app[i].priority,
-				app[i].selector,
-				bnxt_get_tlv_selector_str(app[i].selector),
-				app[i].protocol);
+		sbuf_printf(sb, "\tAPP#%0d:\tpri: %d,\tSel: %d,\t%s: %d\n",
+		    i,
+		    app[i].priority,
+		    app[i].selector,
+		    bnxt_get_tlv_selector_str(app[i].selector),
+		    app[i].protocol);
 	}
 }
 
@@ -1939,28 +1935,16 @@ bnxt_ets_get_string(struct bnxt_softc *softc, char *buf)
 static int
 bnxt_dcb_list_app(SYSCTL_HANDLER_ARGS)
 {
+	struct sbuf sb;
 	struct bnxt_dcb_app app[128] = {0};
 	struct bnxt_softc *softc = arg1;
 	int rc, num_inputs = 0;
-	char *buf;
 
-	if (softc == NULL)
-		return EBUSY;
-
-#define BNXT_APP_TLV_STR_LEN	4096
-	buf = malloc(BNXT_APP_TLV_STR_LEN, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (!buf)
-		return ENOMEM;
-
-	bnxt_dcb_ieee_listapp(softc, app, &num_inputs);
-	bnxt_app_tlv_get_string(softc, buf, app, num_inputs);
-
-	rc = sysctl_handle_string(oidp, buf, BNXT_APP_TLV_STR_LEN, req);
-	if (rc || req->newptr == NULL)
-		goto end;
-
-end:
-	free(buf, M_DEVBUF);
+	sbuf_new_for_sysctl(&sb, NULL, 128, req);
+	bnxt_dcb_ieee_listapp(softc, app, nitems(app), &num_inputs);
+	bnxt_app_tlv_get_string(&sb, app, num_inputs);
+	rc = sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return rc;
 }
 
@@ -1971,9 +1955,6 @@ bnxt_dcb_del_app(SYSCTL_HANDLER_ARGS)
 	struct bnxt_dcb_app app = {0};
 	char buf[256] = {0};
 	int rc, num_inputs;
-
-	if (softc == NULL)
-		return EBUSY;
 
 	rc = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (rc || req->newptr == NULL)
@@ -1998,9 +1979,6 @@ bnxt_dcb_set_app(SYSCTL_HANDLER_ARGS)
 	struct bnxt_dcb_app app = {0};
 	char buf[256] = {0};
 	int rc, num_inputs;
-
-	if (softc == NULL)
-		return EBUSY;
 
 	rc = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (rc || req->newptr == NULL)
@@ -2028,9 +2006,6 @@ bnxt_dcb_pfc(SYSCTL_HANDLER_ARGS)
 	char buf[256] = {0};
 	int pri_mask = 0;
 	char pri[8];
-
-	if (softc == NULL)
-		return EBUSY;
 
 	rc = bnxt_dcb_ieee_getpfc(softc, &pfc);
 	if (!rc)
@@ -2087,9 +2062,6 @@ bnxt_dcb_ets(SYSCTL_HANDLER_ARGS)
 	char buf[256] = {0};
 	char tsa[8];
 
-	if (softc == NULL)
-		return EBUSY;
-
 	rc = bnxt_dcb_ieee_getets(softc, &ets);
 	if (!rc)
 		bnxt_ets_get_string(softc, buf);
@@ -2131,7 +2103,7 @@ bnxt_create_dcb_sysctls(struct bnxt_softc *softc)
 	SYSCTL_ADD_PROC(&softc->dcb_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "dcbx_cap", CTLTYPE_INT | CTLFLAG_RWTUN, softc,
 	    0, bnxt_dcb_dcbx_cap, "A",
-	    "Enable or Disable LRO: 0 / 1");
+	    "Enable DCB Capability Exchange Protocol (DCBX) capabilities");
 
 	SYSCTL_ADD_PROC(&softc->dcb_ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "ets",
 	    CTLTYPE_STRING | CTLFLAG_RWTUN, softc, 0,

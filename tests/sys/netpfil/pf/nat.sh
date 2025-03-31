@@ -301,10 +301,151 @@ nat6_nolinklocal_cleanup()
 	pft_cleanup
 }
 
+empty_table_common()
+{
+	option=$1
+
+	pft_init
+
+	epair_wan=$(vnet_mkepair)
+	epair_lan=$(vnet_mkepair)
+
+	vnet_mkjail srv ${epair_wan}a
+	jexec srv ifconfig ${epair_wan}a 192.0.2.2/24 up
+
+	vnet_mkjail rtr ${epair_wan}b ${epair_lan}a
+	jexec rtr ifconfig ${epair_wan}b 192.0.2.1/24 up
+	jexec rtr ifconfig ${epair_lan}a 198.51.100.1/24 up
+	jexec rtr sysctl net.inet.ip.forwarding=1
+
+	ifconfig ${epair_lan}b 198.51.100.2/24 up
+	route add default 198.51.100.1
+
+	jexec rtr pfctl -e
+	pft_set_rules rtr \
+	    "table <empty>" \
+	    "nat on ${epair_wan}b inet from 198.51.100.0/24 -> <empty> ${option}" \
+	    "pass"
+
+	# Sanity checks
+	atf_check -s exit:0 -o ignore \
+	    jexec rtr ping -c 1 192.0.2.2
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 198.51.100.1
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+
+	# Provoke divide by zero
+	ping -c 1 192.0.2.2
+	true
+}
+
+atf_test_case "empty_table_source_hash" "cleanup"
+empty_table_source_hash_head()
+{
+	atf_set descr 'Test source-hash on an emtpy table'
+	atf_set require.user root
+}
+
+empty_table_source_hash_body()
+{
+	empty_table_common "source-hash"
+}
+
+empty_table_source_hash_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "empty_table_random" "cleanup"
+empty_table_random_head()
+{
+	atf_set descr 'Test random on an emtpy table'
+	atf_set require.user root
+}
+
+empty_table_random_body()
+{
+	empty_table_common "random"
+}
+
+empty_table_random_cleanup()
+{
+	pft_cleanup
+}
+
+no_addrs_common()
+{
+	option=$1
+
+	pft_init
+
+	epair_wan=$(vnet_mkepair)
+	epair_lan=$(vnet_mkepair)
+
+	vnet_mkjail srv ${epair_wan}a
+	jexec srv ifconfig ${epair_wan}a 192.0.2.2/24 up
+
+	vnet_mkjail rtr ${epair_wan}b ${epair_lan}a
+	jexec rtr route add -net 192.0.2.0/24 -iface ${epair_wan}b
+	jexec rtr ifconfig ${epair_lan}a 198.51.100.1/24 up
+	jexec rtr sysctl net.inet.ip.forwarding=1
+
+	ifconfig ${epair_lan}b 198.51.100.2/24 up
+	route add default 198.51.100.1
+
+	jexec rtr pfctl -e
+	pft_set_rules rtr \
+	    "nat on ${epair_wan}b inet from 198.51.100.0/24 -> (${epair_wan}b) ${option}" \
+	    "pass"
+
+	# Provoke divide by zero
+	ping -c 1 192.0.2.2
+	true
+}
+
+atf_test_case "no_addrs_source_hash" "cleanup"
+no_addrs_source_hash_head()
+{
+	atf_set descr 'Test source-hash on an interface with no addresses'
+	atf_set require.user root
+}
+
+no_addrs_source_hash_body()
+{
+	no_addrs_common "source-hash"
+}
+
+no_addrs_source_hash_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "no_addrs_random" "cleanup"
+no_addrs_random_head()
+{
+	atf_set descr 'Test random on an interface with no addresses'
+	atf_set require.user root
+}
+
+no_addrs_random_body()
+{
+	no_addrs_common "random"
+}
+
+no_addrs_random_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "exhaust"
 	atf_add_test_case "nested_anchor"
 	atf_add_test_case "endpoint_independent"
 	atf_add_test_case "nat6_nolinklocal"
+	atf_add_test_case "empty_table_source_hash"
+	atf_add_test_case "no_addrs_source_hash"
+	atf_add_test_case "empty_table_random"
+	atf_add_test_case "no_addrs_random"
 }

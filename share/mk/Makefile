@@ -69,14 +69,21 @@ FILES=	\
 	meta.sys.mk \
 	meta2deps.py \
 	meta2deps.sh \
+	${SRCTOP}/contrib/bmake/mk/newlog.sh \
 	${SRCTOP}/contrib/bmake/mk/posix.mk \
 	stage-install.sh \
+	${SRCTOP}/contrib/bmake/mk/setopts.sh \
 	sys.mk \
 	sys.dependfile.mk \
 	sys.dirdeps.mk \
 	version_gen.awk
 
 FILESDIR=	${BINDIR}/mk
+
+# make sure scripts are executable
+.for file in ${FILES:M*.sh} ${FILES:M*.py}
+FILESMODE_${file} = 555
+.endfor
 
 .if ${MK_TESTS} != "no"
 FILES+=	atf.test.mk

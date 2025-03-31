@@ -314,8 +314,8 @@ openfile(const char *path, char **p, struct stat *st)
 bool
 can_libdiff(int flags)
 {
-	/* We can't use fifos with libdiff yet */
-	if (S_ISFIFO(stb1.st_mode) || S_ISFIFO(stb2.st_mode))
+	/* libdiff's atomizer can only deal with files */
+	if (!S_ISREG(stb1.st_mode) || !S_ISREG(stb2.st_mode))
 		return false;
 
 	/* Is this one of the supported input/output modes for diffreg_new? */

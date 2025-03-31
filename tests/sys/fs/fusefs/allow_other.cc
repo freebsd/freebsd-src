@@ -52,9 +52,6 @@ const static char RELPATH[] = "some_file.txt";
 class NoAllowOther: public FuseTest {
 
 public:
-/* Unprivileged user id */
-int m_uid;
-
 virtual void SetUp() {
 	if (geteuid() != 0) {
 		GTEST_SKIP() << "This test must be run as root";

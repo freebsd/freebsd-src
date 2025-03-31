@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/*  Copyright (c) 2021, Intel Corporation
+/*  Copyright (c) 2024, Intel Corporation
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -370,7 +370,7 @@ iavf_if_attach_pre(if_ctx_t ctx)
 	}
 	scctx->isc_rxqsizes[0] = roundup2(scctx->isc_nrxd[0]
 	    * sizeof(union iavf_32byte_rx_desc), DBA_ALIGN);
-	scctx->isc_msix_bar = PCIR_BAR(IAVF_MSIX_BAR);
+	scctx->isc_msix_bar = pci_msix_table_bar(dev);
 	scctx->isc_tx_nsegments = IAVF_MAX_TX_SEGS;
 	scctx->isc_tx_tso_segments_max = IAVF_MAX_TSO_SEGS;
 	scctx->isc_tx_tso_size_max = IAVF_TSO_SIZE;
@@ -378,9 +378,6 @@ iavf_if_attach_pre(if_ctx_t ctx)
 	scctx->isc_rss_table_size = IAVF_RSS_VSI_LUT_SIZE;
 	scctx->isc_capabilities = scctx->isc_capenable = IAVF_CAPS;
 	scctx->isc_tx_csum_flags = CSUM_OFFLOAD;
-
-	/* Update OS cache of MSIX control register values */
-	iavf_update_msix_devinfo(dev);
 
 	return (0);
 

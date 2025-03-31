@@ -97,15 +97,19 @@ igc_dump_rs(struct igc_softc *sc)
 			cur = txr->tx_rsq[rs_cidx];
 			status = txr->tx_base[cur].upper.fields.status;
 			if (!(status & IGC_TXD_STAT_DD))
-				printf("qid[%d]->tx_rsq[%d]: %d clear ", qid, rs_cidx, cur);
+				printf("qid[%d]->tx_rsq[%d]: %d clear ",
+				    qid, rs_cidx, cur);
 		} else {
 			rs_cidx = (rs_cidx-1)&(ntxd-1);
 			cur = txr->tx_rsq[rs_cidx];
-			printf("qid[%d]->tx_rsq[rs_cidx-1=%d]: %d  ", qid, rs_cidx, cur);
+			printf("qid[%d]->tx_rsq[rs_cidx-1=%d]: %d  ",
+			    qid, rs_cidx, cur);
 		}
-		printf("cidx_prev=%d rs_pidx=%d ",txr->tx_cidx_processed, txr->tx_rs_pidx);
+		printf("cidx_prev=%d rs_pidx=%d ",txr->tx_cidx_processed,
+		    txr->tx_rs_pidx);
 		for (i = 0; i < ntxd; i++) {
-			if (txr->tx_base[i].upper.fields.status & IGC_TXD_STAT_DD)
+			if (txr->tx_base[i].upper.fields.status &
+			    IGC_TXD_STAT_DD)
 				printf("%d set ", i);
 		}
 		printf("\n");
@@ -138,14 +142,15 @@ igc_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
 		break;
 	default:
 		panic("%s: CSUM_TSO but no supported IP version (0x%04x)",
-		      __func__, ntohs(pi->ipi_etype));
+		    __func__, ntohs(pi->ipi_etype));
 		break;
 	}
 
 	TXD = (struct igc_adv_tx_context_desc *) &txr->tx_base[pi->ipi_pidx];
 
 	/* This is used in the transmit desc in encap */
-	paylen = pi->ipi_len - pi->ipi_ehdrlen - pi->ipi_ip_hlen - pi->ipi_tcp_hlen;
+	paylen = pi->ipi_len - pi->ipi_ehdrlen - pi->ipi_ip_hlen -
+	    pi->ipi_tcp_hlen;
 
 	/* VLAN MACLEN IPLEN */
 	if (pi->ipi_mflags & M_VLANTAG) {
@@ -180,8 +185,8 @@ igc_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
  *
  **********************************************************************/
 static int
-igc_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
-    uint32_t *olinfo_status)
+igc_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi,
+    uint32_t *cmd_type_len, uint32_t *olinfo_status)
 {
 	struct igc_adv_tx_context_desc *TXD;
 	uint32_t vlan_macip_lens, type_tucmd_mlhl;
@@ -275,7 +280,7 @@ igc_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	pidx_last = olinfo_status = 0;
 	/* Basic descriptor defines */
 	cmd_type_len = (IGC_ADVTXD_DTYP_DATA |
-			IGC_ADVTXD_DCMD_IFCS | IGC_ADVTXD_DCMD_DEXT);
+	    IGC_ADVTXD_DCMD_IFCS | IGC_ADVTXD_DCMD_DEXT);
 
 	if (pi->ipi_mflags & M_VLANTAG)
 		cmd_type_len |= IGC_ADVTXD_DCMD_VLE;
@@ -324,9 +329,9 @@ igc_isc_txd_encap(void *arg, if_pkt_info_t pi)
 static void
 igc_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 {
-	struct igc_softc *sc	= arg;
-	struct igc_tx_queue *que	= &sc->tx_queues[txqid];
-	struct tx_ring *txr	= &que->txr;
+	struct igc_softc *sc = arg;
+	struct igc_tx_queue *que = &sc->tx_queues[txqid];
+	struct tx_ring *txr = &que->txr;
 
 	IGC_WRITE_REG(&sc->hw, IGC_TDT(txr->me), pidx);
 }
@@ -370,12 +375,13 @@ igc_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 		MPASS(delta > 0);
 
 		processed += delta;
-		prev  = cur;
+		prev = cur;
 		rs_cidx = (rs_cidx + 1) & (ntxd-1);
-		if (rs_cidx  == txr->tx_rs_pidx)
+		if (rs_cidx == txr->tx_rs_pidx)
 			break;
 		cur = txr->tx_rsq[rs_cidx];
-		status = ((union igc_adv_tx_desc *)&txr->tx_base[cur])->wb.status;
+		status =
+		    ((union igc_adv_tx_desc *)&txr->tx_base[cur])->wb.status;
 	} while ((status & IGC_TXD_STAT_DD));
 
 	txr->tx_rs_cidx = rs_cidx;
@@ -411,7 +417,8 @@ igc_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 }
 
 static void
-igc_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused, qidx_t pidx)
+igc_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused,
+    qidx_t pidx)
 {
 	struct igc_softc *sc = arg;
 	struct igc_rx_queue *que = &sc->rx_queues[rxqid];
@@ -477,7 +484,8 @@ igc_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		MPASS ((staterr & IGC_RXD_STAT_DD) != 0);
 
 		len = le16toh(rxd->wb.upper.length);
-		ptype = le32toh(rxd->wb.lower.lo_dword.data) &  IGC_PKTTYPE_MASK;
+		ptype =
+		    le32toh(rxd->wb.lower.lo_dword.data) & IGC_PKTTYPE_MASK;
 
 		ri->iri_len += len;
 		rxr->rx_bytes += ri->iri_len;
@@ -558,7 +566,8 @@ igc_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 		    (ptype & IGC_RXDADV_PKTTYPE_SCTP) != 0)) {
 			ri->iri_csum_flags |= CSUM_SCTP_VALID;
 		} else {
-			ri->iri_csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			ri->iri_csum_flags |=
+			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 			ri->iri_csum_data = htons(0xffff);
 		}
 	}

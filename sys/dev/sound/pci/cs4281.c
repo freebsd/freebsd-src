@@ -839,8 +839,7 @@ cs4281_pci_attach(device_t dev)
 
     mixer_init(dev, ac97_getmixerclass(), codec);
 
-    if (pcm_register(dev, sc, 1, 1))
-	goto bad;
+    pcm_init(dev, sc);
 
     pcm_addchan(dev, PCMDIR_PLAY, &cs4281chan_class, sc);
     pcm_addchan(dev, PCMDIR_REC, &cs4281chan_class, sc);
@@ -849,7 +848,8 @@ cs4281_pci_attach(device_t dev)
 	     (sc->regtype == SYS_RES_IOPORT)? "port" : "mem",
 	     rman_get_start(sc->reg), rman_get_start(sc->irq),
 	     device_get_nameunit(device_get_parent(dev)));
-    pcm_setstatus(dev, status);
+    if (pcm_register(dev, status))
+	goto bad;
 
     return 0;
 

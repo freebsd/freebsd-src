@@ -241,7 +241,8 @@ cleanup:
 	if (err)
 		return (err);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

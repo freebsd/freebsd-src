@@ -62,19 +62,15 @@ where p is the floating\(enpoint precision of
 .Ar x ,
 then the returned value is \*(Pm0 and it has no significance.
 .Sh SPECIAL VALUES
-.Bl -tag
-.It
-.Fn sinpi \*(Pm0
+.Bl -tag -width "sinpi(NaN)"
+.It Fn sinpi \*(Pm0
 returns \*(Pm0.
-.It
-.Fn sinpi \*(Pmn
+.It Fn sinpi \*(Pmn
 returns \*(Pm0 for positive integers
 .Ar n .
-.It
-.Fn sinpi \*(Pm\(if
+.It Fn sinpi \*(Pm\(if
 return an \*(Na and raises an FE_INVALID exception.
-.It
-.Fn sinpi \*(Na
+.It Fn sinpi \*(Na
 return an \*(Na and raises an FE_INVALID exception.
 .El
 .Sh SEE ALSO

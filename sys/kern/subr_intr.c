@@ -89,15 +89,6 @@
 
 #define	INTRNAME_LEN	(2*MAXCOMLEN + 1)
 
-/*
- * Archs may define multiple roots with INTR_ROOT_NUM to support different kinds
- * of interrupts (e.g. arm64 FIQs which use a different exception vector than
- * IRQs).
- */
-#if !defined(INTR_ROOT_NUM)
-#define	INTR_ROOT_NUM	1
-#endif
-
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
     printf(fmt,##args); } while (0)
@@ -115,7 +106,7 @@ struct intr_irq_root {
 	void *arg;
 };
 
-static struct intr_irq_root intr_irq_roots[INTR_ROOT_NUM];
+static struct intr_irq_root intr_irq_roots[INTR_ROOT_COUNT];
 
 struct intr_pic_child {
 	SLIST_ENTRY(intr_pic_child)	 pc_next;
@@ -343,7 +334,7 @@ intr_irq_handler(struct trapframe *tf, uint32_t rootnum)
 	struct thread * td;
 	struct intr_irq_root *root;
 
-	KASSERT(rootnum < INTR_ROOT_NUM,
+	KASSERT(rootnum < INTR_ROOT_COUNT,
 	    ("%s: invalid interrupt root %d", __func__, rootnum));
 
 	root = &intr_irq_roots[rootnum];
@@ -497,7 +488,7 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 device_t
 intr_irq_root_device(uint32_t rootnum)
 {
-	KASSERT(rootnum < INTR_ROOT_NUM,
+	KASSERT(rootnum < INTR_ROOT_COUNT,
 	    ("%s: invalid interrupt root %d", __func__, rootnum));
 	return (intr_irq_roots[rootnum].dev);
 }
@@ -925,7 +916,7 @@ intr_pic_claim_root(device_t dev, intptr_t xref, intr_irq_filter_t *filter,
 	 * Note that we further suppose that there is not threaded interrupt
 	 * routine (handler) on the root. See intr_irq_handler().
 	 */
-	KASSERT(rootnum < INTR_ROOT_NUM,
+	KASSERT(rootnum < INTR_ROOT_COUNT,
 	    ("%s: invalid interrupt root %d", __func__, rootnum));
 	root = &intr_irq_roots[rootnum];
 	if (root->dev != NULL) {
@@ -1586,7 +1577,7 @@ intr_pic_init_secondary(void)
 	 * QQQ: Only root PICs are aware of other CPUs ???
 	 */
 	//mtx_lock(&isrc_table_lock);
-	for (rootnum = 0; rootnum < INTR_ROOT_NUM; rootnum++) {
+	for (rootnum = 0; rootnum < INTR_ROOT_COUNT; rootnum++) {
 		dev = intr_irq_roots[rootnum].dev;
 		if (dev != NULL) {
 			PIC_INIT_SECONDARY(dev, rootnum);
@@ -1742,14 +1733,6 @@ intr_map_irq(device_t dev, intptr_t xref, struct intr_map_data *data)
 			return (i);
 		}
 	}
-	for (i = 0; i < irq_map_first_free_idx; i++) {
-		if (irq_map[i] == NULL) {
-			irq_map[i] = entry;
-			irq_map_first_free_idx = i + 1;
-			mtx_unlock(&irq_map_lock);
-			return (i);
-		}
-	}
 	mtx_unlock(&irq_map_lock);
 
 	/* XXX Expand irq_map table */
@@ -1769,7 +1752,8 @@ intr_unmap_irq(u_int res_id)
 		panic("Attempt to unmap invalid resource id: %u\n", res_id);
 	entry = irq_map[res_id];
 	irq_map[res_id] = NULL;
-	irq_map_first_free_idx = res_id;
+	if (res_id < irq_map_first_free_idx)
+		irq_map_first_free_idx = res_id;
 	mtx_unlock(&irq_map_lock);
 	intr_free_intr_map_data(entry->map_data);
 	free(entry, M_INTRNG);

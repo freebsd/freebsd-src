@@ -3,6 +3,10 @@
  *
  * Copyright (c) 2008-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,133 +46,83 @@
 #undef SND_FEEDER_MULTIFORMAT
 #define SND_FEEDER_MULTIFORMAT	1
 
-typedef void (*feed_mixer_t)(uint8_t *, uint8_t *, uint32_t);
-
-#define FEEDMIXER_DECLARE(SIGN, BIT, ENDIAN)				\
-static void								\
-feed_mixer_##SIGN##BIT##ENDIAN(uint8_t *src, uint8_t *dst,		\
-    uint32_t count)							\
-{									\
-	intpcm##BIT##_t z;						\
-	intpcm_t x, y;							\
-									\
-	src += count;							\
-	dst += count;							\
-									\
-	do {								\
-		src -= PCM_##BIT##_BPS;					\
-		dst -= PCM_##BIT##_BPS;					\
-		count -= PCM_##BIT##_BPS;				\
-		x = PCM_READ_##SIGN##BIT##_##ENDIAN(src);		\
-		y = PCM_READ_##SIGN##BIT##_##ENDIAN(dst);		\
-		z = INTPCM##BIT##_T(x) + y;				\
-		x = PCM_CLAMP_##SIGN##BIT(z);				\
-		_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, x);		\
-	} while (count != 0);						\
-}
-
-#if BYTE_ORDER == LITTLE_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
-FEEDMIXER_DECLARE(S, 16, LE)
-FEEDMIXER_DECLARE(S, 32, LE)
-#endif
-#if BYTE_ORDER == BIG_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
-FEEDMIXER_DECLARE(S, 16, BE)
-FEEDMIXER_DECLARE(S, 32, BE)
-#endif
-#ifdef SND_FEEDER_MULTIFORMAT
-FEEDMIXER_DECLARE(S,  8, NE)
-FEEDMIXER_DECLARE(S, 24, LE)
-FEEDMIXER_DECLARE(S, 24, BE)
-FEEDMIXER_DECLARE(U,  8, NE)
-FEEDMIXER_DECLARE(U, 16, LE)
-FEEDMIXER_DECLARE(U, 24, LE)
-FEEDMIXER_DECLARE(U, 32, LE)
-FEEDMIXER_DECLARE(U, 16, BE)
-FEEDMIXER_DECLARE(U, 24, BE)
-FEEDMIXER_DECLARE(U, 32, BE)
-#endif
-
 struct feed_mixer_info {
 	uint32_t format;
+	uint32_t channels;
 	int bps;
-	feed_mixer_t mix;
 };
 
-#define FEEDMIXER_ENTRY(SIGN, BIT, ENDIAN)				\
-	{								\
-		AFMT_##SIGN##BIT##_##ENDIAN, PCM_##BIT##_BPS,		\
-		feed_mixer_##SIGN##BIT##ENDIAN				\
-	}
+__always_inline static void
+feed_mixer_apply(uint8_t *src, uint8_t *dst, uint32_t count, const uint32_t fmt)
+{
+	intpcm32_t z;
+	intpcm_t x, y;
 
-static struct feed_mixer_info feed_mixer_info_tab[] = {
-	FEEDMIXER_ENTRY(S,  8, NE),
-#if BYTE_ORDER == LITTLE_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
-	FEEDMIXER_ENTRY(S, 16, LE),
-	FEEDMIXER_ENTRY(S, 32, LE),
-#endif
-#if BYTE_ORDER == BIG_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
-	FEEDMIXER_ENTRY(S, 16, BE),
-	FEEDMIXER_ENTRY(S, 32, BE),
-#endif
-#ifdef SND_FEEDER_MULTIFORMAT
-	FEEDMIXER_ENTRY(S, 24, LE),
-	FEEDMIXER_ENTRY(S, 24, BE),
-	FEEDMIXER_ENTRY(U,  8, NE),
-	FEEDMIXER_ENTRY(U, 16, LE),
-	FEEDMIXER_ENTRY(U, 24, LE),
-	FEEDMIXER_ENTRY(U, 32, LE),
-	FEEDMIXER_ENTRY(U, 16, BE),
-	FEEDMIXER_ENTRY(U, 24, BE),
-	FEEDMIXER_ENTRY(U, 32, BE),
-#endif
-	{    AFMT_AC3, PCM_16_BPS, NULL },
-	{ AFMT_MU_LAW,  PCM_8_BPS, feed_mixer_U8NE },	/* dummy */
-	{  AFMT_A_LAW,  PCM_8_BPS, feed_mixer_U8NE }	/* dummy */
-};
+	src += count;
+	dst += count;
 
-#define FEEDMIXER_TAB_SIZE	((int32_t)				\
-				 (sizeof(feed_mixer_info_tab) /		\
-				  sizeof(feed_mixer_info_tab[0])))
-
-#define FEEDMIXER_DATA(i, c)	((void *)				\
-				 ((uintptr_t)((((i) & 0x1f) << 7) |	\
-				 ((c) & 0x7f))))
-#define FEEDMIXER_INFOIDX(d)	((uint32_t)((uintptr_t)(d) >> 7) & 0x1f)
-#define FEEDMIXER_CHANNELS(d)	((uint32_t)((uintptr_t)(d)) & 0x7f)
+	do {
+		src -= AFMT_BPS(fmt);
+		dst -= AFMT_BPS(fmt);
+		count -= AFMT_BPS(fmt);
+		x = pcm_sample_read_calc(src, fmt);
+		y = pcm_sample_read_calc(dst, fmt);
+		z = INTPCM_T(x) + y;
+		x = pcm_clamp_calc(z, fmt);
+		pcm_sample_write(dst, x, fmt);
+	} while (count != 0);
+}
 
 static int
 feed_mixer_init(struct pcm_feeder *f)
 {
-	int i;
+	struct feed_mixer_info *info;
 
 	if (f->desc->in != f->desc->out)
 		return (EINVAL);
 
-	for (i = 0; i < FEEDMIXER_TAB_SIZE; i++) {
-		if (AFMT_ENCODING(f->desc->in) ==
-		    feed_mixer_info_tab[i].format) {
-		    	f->data =
-			    FEEDMIXER_DATA(i, AFMT_CHANNEL(f->desc->in));
-			return (0);
-		}
-	}
+	info = malloc(sizeof(*info), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (info == NULL)
+		return (ENOMEM);
 
-	return (EINVAL);
+	info->format = AFMT_ENCODING(f->desc->in);
+	info->channels = AFMT_CHANNEL(f->desc->in);
+	info->bps = AFMT_BPS(f->desc->in);
+
+	f->data = info;
+
+	return (0);
+}
+
+static int
+feed_mixer_free(struct pcm_feeder *f)
+{
+	struct feed_mixer_info *info;
+
+	info = f->data;
+	if (info != NULL)
+		free(info, M_DEVBUF);
+
+	f->data = NULL;
+
+	return (0);
 }
 
 static int
 feed_mixer_set(struct pcm_feeder *f, int what, int value)
 {
+	struct feed_mixer_info *info;
+
+	info = f->data;
 
 	switch (what) {
 	case FEEDMIXER_CHANNELS:
 		if (value < SND_CHN_MIN || value > SND_CHN_MAX)
 			return (EINVAL);
-		f->data = FEEDMIXER_DATA(FEEDMIXER_INFOIDX(f->data), value);
+		info->channels = (uint32_t)value;
 		break;
 	default:
 		return (EINVAL);
-		break;
 	}
 
 	return (0);
@@ -294,8 +248,8 @@ feed_mixer_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	if (sz < count)
 		count = sz;
 
-	info = &feed_mixer_info_tab[FEEDMIXER_INFOIDX(f->data)];
-	sz = info->bps * FEEDMIXER_CHANNELS(f->data);
+	info = f->data;
+	sz = info->bps * info->channels;
 	count = SND_FXROUND(count, sz);
 	if (count < sz)
 		return (0);
@@ -328,7 +282,7 @@ feed_mixer_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 		if ((ch->flags & CHN_F_MMAP) && !(ch->flags & CHN_F_CLOSING))
 			sndbuf_acquire(ch->bufsoft, NULL,
 			    sndbuf_getfree(ch->bufsoft));
-		if (info->mix == NULL) {
+		if (c->flags & CHN_F_PASSTHROUGH) {
 			/*
 			 * Passthrough. Dump the first digital/passthrough
 			 * channel into destination buffer, and the rest into
@@ -370,7 +324,24 @@ feed_mixer_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 						    f->desc->out), mcnt);
 						mcnt = 0;
 					}
-					info->mix(tmp, b, cnt);
+					switch (info->format) {
+					case AFMT_S16_NE:
+						feed_mixer_apply(tmp, b, cnt,
+						    AFMT_S16_NE);
+						break;
+					case AFMT_S24_NE:
+						feed_mixer_apply(tmp, b, cnt,
+						    AFMT_S24_NE);
+						break;
+					case AFMT_S32_NE:
+						feed_mixer_apply(tmp, b, cnt,
+						    AFMT_S32_NE);
+						break;
+					default:
+						feed_mixer_apply(tmp, b, cnt,
+						    info->format);
+						break;
+					}
 					if (cnt > rcnt)
 						rcnt = cnt;
 				}
@@ -394,6 +365,7 @@ static struct pcm_feederdesc feeder_mixer_desc[] = {
 
 static kobj_method_t feeder_mixer_methods[] = {
 	KOBJMETHOD(feeder_init,		feed_mixer_init),
+	KOBJMETHOD(feeder_free,		feed_mixer_free),
 	KOBJMETHOD(feeder_set,		feed_mixer_set),
 	KOBJMETHOD(feeder_feed,		feed_mixer_feed),
 	KOBJMETHOD_END

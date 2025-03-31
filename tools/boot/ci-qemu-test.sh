@@ -125,8 +125,8 @@ timeout 300 \
         -snapshot -hda $hda 2>&1 | tee ${BOOTLOG}
 
 # Check whether we succesfully booted...
-if grep -q 'Hello world.' ${BOOTLOG}; then
-	echo "OK"
+if grep -q 'Hello world.' ${BOOTLOG} && egrep -q '^Uptime: ' ${BOOTLOG}; then
+	echo "Boot successful"
 else
 	die "Did not boot successfully, see ${BOOTLOG}"
 fi

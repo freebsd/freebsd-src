@@ -33,6 +33,7 @@
  */
 
 #include "namespace.h"
+#include <errno.h>
 #include <stdio.h>
 #include "un-namespace.h"
 #include "libc_private.h"
@@ -40,14 +41,29 @@
 #undef fileno
 #undef fileno_unlocked
 
+static int
+__fileno_impl(FILE *fp)
+{
+	int fd;
+
+	fd = fp->_file;
+	if (fd == -1)
+		errno = EBADF;
+	return (fd);
+}
+
 int
 fileno(FILE *fp)
 {
 	int fd;
 
-	FLOCKFILE(fp);
-	fd = __sfileno(fp);
-	FUNLOCKFILE(fp);
+	if (__isthreaded) {
+		FLOCKFILE(fp);
+		fd = __fileno_impl(fp);
+		FUNLOCKFILE(fp);
+	} else {
+		fd = __fileno_impl(fp);
+	}
 
 	return (fd);
 }
@@ -55,6 +71,5 @@ fileno(FILE *fp)
 int
 fileno_unlocked(FILE *fp)
 {
-
-	return (__sfileno(fp));
+	return (__fileno_impl(fp));
 }

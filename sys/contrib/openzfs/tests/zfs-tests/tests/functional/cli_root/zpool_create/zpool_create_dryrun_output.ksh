@@ -1,4 +1,5 @@
 #!/bin/ksh -p
+# SPDX-License-Identifier: CDDL-1.0
 #
 # CDDL HEADER START
 #
@@ -124,8 +125,8 @@ done
 
 # Foreach test create pool, add -n devices and check output.
 for (( i=0; i < ${#tests[@]}; i+=1 )); do
-	typeset tree="${tests[$i].tree}"
-	typeset want="${tests[$i].want}"
+	tree="${tests[$i].tree}"
+	want="${tests[$i].want}"
 
 	typeset out="$(log_must eval "zpool create -n '$TESTPOOL' $tree" | \
 	    sed /^SUCCESS/d)"

@@ -231,12 +231,9 @@ mtkswitch_attach(device_t dev)
 	if (err != 0)
 		return (err);
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	err = bus_generic_attach(dev);
-	DPRINTF(dev, "%s: bus_generic_attach: err=%d\n", __func__, err);
-	if (err != 0)
-		return (err);
+	bus_attach_children(dev);
 
 	callout_init_mtx(&sc->callout_tick, &sc->sc_mtx, 0);
 
@@ -251,19 +248,20 @@ static int
 mtkswitch_detach(device_t dev)
 {
 	struct mtkswitch_softc *sc = device_get_softc(dev);
-	int phy;
+	int error, phy;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	callout_drain(&sc->callout_tick);
 
 	for (phy = 0; phy < MTKSWITCH_MAX_PHYS; phy++) {
-		if (sc->miibus[phy] != NULL)
-			device_delete_child(dev, sc->miibus[phy]);
 		if (sc->ifp[phy] != NULL)
 			if_free(sc->ifp[phy]);
 		free(sc->ifname[phy], M_DEVBUF);
 	}
 
-	bus_generic_detach(dev);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);

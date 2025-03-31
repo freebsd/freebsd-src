@@ -70,9 +70,9 @@ nvmft_online(void *arg)
 {
 	struct nvmft_port *np = arg;
 
-	sx_xlock(&np->lock);
+	mtx_lock(&np->lock);
 	np->online = true;
-	sx_xunlock(&np->lock);
+	mtx_unlock(&np->lock);
 }
 
 static void
@@ -81,7 +81,7 @@ nvmft_offline(void *arg)
 	struct nvmft_port *np = arg;
 	struct nvmft_controller *ctrlr;
 
-	sx_xlock(&np->lock);
+	mtx_lock(&np->lock);
 	np->online = false;
 
 	TAILQ_FOREACH(ctrlr, &np->controllers, link) {
@@ -91,8 +91,32 @@ nvmft_offline(void *arg)
 	}
 
 	while (!TAILQ_EMPTY(&np->controllers))
-		sx_sleep(np, &np->lock, 0, "nvmfoff", 0);
-	sx_xunlock(&np->lock);
+		mtx_sleep(np, &np->lock, 0, "nvmfoff", 0);
+	mtx_unlock(&np->lock);
+}
+
+static int
+nvmft_info(void *arg, struct sbuf *sb)
+{
+	struct nvmft_port *np = arg;
+	struct nvmft_controller *ctrlr;
+	int retval;
+
+	mtx_lock(&np->lock);
+	retval = sbuf_printf(sb, "\t<port>%s,p,%u</port>\n", np->cdata.subnqn,
+	    np->portid);
+	if (retval != 0)
+		goto out;
+
+	TAILQ_FOREACH(ctrlr, &np->controllers, link) {
+		retval = sbuf_printf(sb, "\t<host id=\"%u\">%s</host>\n",
+		    ctrlr->cntlid, ctrlr->hostnqn);
+		if (retval != 0)
+			break;
+	}
+out:
+	mtx_unlock(&np->lock);
+	return (retval);
 }
 
 static int
@@ -102,7 +126,7 @@ nvmft_lun_enable(void *arg, int lun_id)
 	struct nvmft_controller *ctrlr;
 	uint32_t *old_ns, *new_ns;
 	uint32_t nsid;
-	u_int i;
+	u_int i, new_count;
 
 	if (lun_id >= le32toh(np->cdata.nn)) {
 		printf("NVMFT: %s lun %d larger than maximum nsid %u\n",
@@ -111,14 +135,22 @@ nvmft_lun_enable(void *arg, int lun_id)
 	}
 	nsid = lun_id + 1;
 
-	sx_xlock(&np->lock);
-	new_ns = mallocarray(np->num_ns + 1, sizeof(*new_ns), M_NVMFT,
-	    M_WAITOK);
+	mtx_lock(&np->lock);
+	for (;;) {
+		new_count = np->num_ns + 1;
+		mtx_unlock(&np->lock);
+		new_ns = mallocarray(new_count, sizeof(*new_ns), M_NVMFT,
+		    M_WAITOK);
+		mtx_lock(&np->lock);
+		if (np->num_ns + 1 <= new_count)
+			break;
+		free(new_ns, M_NVMFT);
+	}
 	for (i = 0; i < np->num_ns; i++) {
 		if (np->active_ns[i] < nsid)
 			continue;
 		if (np->active_ns[i] == nsid) {
-			sx_xunlock(&np->lock);
+			mtx_unlock(&np->lock);
 			free(new_ns, M_NVMFT);
 			printf("NVMFT: %s duplicate lun %d\n",
 			    np->cdata.subnqn, lun_id);
@@ -145,7 +177,7 @@ nvmft_lun_enable(void *arg, int lun_id)
 		nvmft_controller_lun_changed(ctrlr, lun_id);
 	}
 
-	sx_xunlock(&np->lock);
+	mtx_unlock(&np->lock);
 	free(old_ns, M_NVMFT);
 
 	return (0);
@@ -163,12 +195,12 @@ nvmft_lun_disable(void *arg, int lun_id)
 		return (0);
 	nsid = lun_id + 1;
 
-	sx_xlock(&np->lock);
+	mtx_lock(&np->lock);
 	for (i = 0; i < np->num_ns; i++) {
 		if (np->active_ns[i] == nsid)
 			goto found;
 	}
-	sx_xunlock(&np->lock);
+	mtx_unlock(&np->lock);
 	printf("NVMFT: %s request to disable nonexistent lun %d\n",
 	    np->cdata.subnqn, lun_id);
 	return (EINVAL);
@@ -185,7 +217,7 @@ found:
 		nvmft_controller_lun_changed(ctrlr, lun_id);
 	}
 
-	sx_xunlock(&np->lock);
+	mtx_unlock(&np->lock);
 
 	return (0);
 }
@@ -196,7 +228,7 @@ nvmft_populate_active_nslist(struct nvmft_port *np, uint32_t nsid,
 {
 	u_int i, count;
 
-	sx_slock(&np->lock);
+	mtx_lock(&np->lock);
 	count = 0;
 	for (i = 0; i < np->num_ns; i++) {
 		if (np->active_ns[i] <= nsid)
@@ -206,7 +238,7 @@ nvmft_populate_active_nslist(struct nvmft_port *np, uint32_t nsid,
 		if (count == nitems(nslist->ns))
 			break;
 	}
-	sx_sunlock(&np->lock);
+	mtx_unlock(&np->lock);
 }
 
 void
@@ -625,7 +657,7 @@ nvmft_port_free(struct nvmft_port *np)
 	free(np->active_ns, M_NVMFT);
 	clean_unrhdr(np->ids);
 	delete_unrhdr(np->ids);
-	sx_destroy(&np->lock);
+	mtx_destroy(&np->lock);
 	free(np, M_NVMFT);
 }
 
@@ -795,9 +827,10 @@ nvmft_port_create(struct ctl_req *req)
 
 	np = malloc(sizeof(*np), M_NVMFT, M_WAITOK | M_ZERO);
 	refcount_init(&np->refs, 1);
+	np->portid = portid;
 	np->max_io_qsize = max_io_qsize;
 	np->cap = _nvmf_controller_cap(max_io_qsize, enable_timeout / 500);
-	sx_init(&np->lock, "nvmft port");
+	mtx_init(&np->lock, "nvmft port", NULL, MTX_DEF);
 	np->ids = new_unrhdr(0, MIN(CTL_MAX_INIT_PER_PORT - 1,
 	    NVMF_CNTLID_STATIC_MAX), UNR_NO_MTX);
 	TAILQ_INIT(&np->controllers);
@@ -826,6 +859,7 @@ nvmft_port_create(struct ctl_req *req)
 	port->virtual_port = 0;
 	port->port_online = nvmft_online;
 	port->port_offline = nvmft_offline;
+	port->port_info = nvmft_info;
 	port->onoff_arg = np;
 	port->lun_enable = nvmft_lun_enable;
 	port->lun_disable = nvmft_lun_disable;
@@ -915,7 +949,13 @@ nvmft_port_remove(struct ctl_req *req)
 	TAILQ_REMOVE(&nvmft_ports, np, link);
 	sx_xunlock(&nvmft_ports_lock);
 
-	ctl_port_offline(&np->port);
+	mtx_lock(&np->lock);
+	if (np->online) {
+		mtx_unlock(&np->lock);
+		ctl_port_offline(&np->port);
+	} else
+		mtx_unlock(&np->lock);
+
 	nvmft_port_rele(np);
 	req->status = CTL_LUN_OK;
 }
@@ -923,29 +963,55 @@ nvmft_port_remove(struct ctl_req *req)
 static void
 nvmft_handoff(struct ctl_nvmf *cn)
 {
-	struct nvmf_fabric_connect_cmd cmd;
-	struct nvmf_handoff_controller_qpair *handoff;
-	struct nvmf_fabric_connect_data *data;
+	const struct nvmf_fabric_connect_cmd *cmd;
+	const struct nvmf_fabric_connect_data *data;
+	const nvlist_t *params;
 	struct nvmft_port *np;
+	nvlist_t *nvl;
+	size_t len;
+	enum nvmf_trtype trtype;
 	int error;
 
 	np = NULL;
-	data = NULL;
-	handoff = &cn->data.handoff;
-	error = copyin(handoff->cmd, &cmd, sizeof(cmd));
+	error = nvmf_unpack_ioc_nvlist(&cn->data.handoff, &nvl);
 	if (error != 0) {
 		cn->status = CTL_NVMF_ERROR;
 		snprintf(cn->error_str, sizeof(cn->error_str),
-		    "Failed to copyin CONNECT SQE");
+		    "Failed to copyin and unpack handoff arguments");
 		return;
 	}
 
-	data = malloc(sizeof(*data), M_NVMFT, M_WAITOK);
-	error = copyin(handoff->data, data, sizeof(*data));
-	if (error != 0) {
+	if (!nvlist_exists_number(nvl, "trtype") ||
+	    !nvlist_exists_nvlist(nvl, "params") ||
+	    !nvlist_exists_binary(nvl, "cmd") ||
+	    !nvlist_exists_binary(nvl, "data")) {
 		cn->status = CTL_NVMF_ERROR;
 		snprintf(cn->error_str, sizeof(cn->error_str),
-		    "Failed to copyin CONNECT data");
+		    "Handoff arguments missing required value");
+		goto out;
+	}
+
+	params = nvlist_get_nvlist(nvl, "params");
+	if (!nvmf_validate_qpair_nvlist(params, true)) {
+		cn->status = CTL_NVMF_ERROR;
+		snprintf(cn->error_str, sizeof(cn->error_str),
+		    "Invalid queue pair parameters");
+		goto out;
+	}
+
+	cmd = nvlist_get_binary(nvl, "cmd", &len);
+	if (len != sizeof(*cmd)) {
+		cn->status = CTL_NVMF_ERROR;
+		snprintf(cn->error_str, sizeof(cn->error_str),
+		    "Wrong size for CONNECT SQE");
+		goto out;
+	}
+
+	data = nvlist_get_binary(nvl, "data", &len);
+	if (len != sizeof(*data)) {
+		cn->status = CTL_NVMF_ERROR;
+		snprintf(cn->error_str, sizeof(cn->error_str),
+		    "Wrong size for CONNECT data");
 		goto out;
 	}
 
@@ -976,8 +1042,10 @@ nvmft_handoff(struct ctl_nvmf *cn)
 	nvmft_port_ref(np);
 	sx_sunlock(&nvmft_ports_lock);
 
-	if (handoff->params.admin) {
-		error = nvmft_handoff_admin_queue(np, handoff, &cmd, data);
+	trtype = nvlist_get_number(nvl, "trtype");
+	if (nvlist_get_bool(params, "admin")) {
+		error = nvmft_handoff_admin_queue(np, trtype, params, cmd,
+		    data);
 		if (error != 0) {
 			cn->status = CTL_NVMF_ERROR;
 			snprintf(cn->error_str, sizeof(cn->error_str),
@@ -985,11 +1053,11 @@ nvmft_handoff(struct ctl_nvmf *cn)
 			goto out;
 		}
 	} else {
-		error = nvmft_handoff_io_queue(np, handoff, &cmd, data);
+		error = nvmft_handoff_io_queue(np, trtype, params, cmd, data);
 		if (error != 0) {
 			cn->status = CTL_NVMF_ERROR;
 			snprintf(cn->error_str, sizeof(cn->error_str),
-			    "Failed to handoff admin queue: %d", error);
+			    "Failed to handoff I/O queue: %d", error);
 			goto out;
 		}
 	}
@@ -998,7 +1066,7 @@ nvmft_handoff(struct ctl_nvmf *cn)
 out:
 	if (np != NULL)
 		nvmft_port_rele(np);
-	free(data, M_NVMFT);
+	nvlist_destroy(nvl);
 }
 
 static void
@@ -1024,7 +1092,7 @@ nvmft_list(struct ctl_nvmf *cn)
 	sbuf_printf(sb, "<ctlnvmflist>\n");
 	sx_slock(&nvmft_ports_lock);
 	TAILQ_FOREACH(np, &nvmft_ports, link) {
-		sx_slock(&np->lock);
+		mtx_lock(&np->lock);
 		TAILQ_FOREACH(ctrlr, &np->controllers, link) {
 			sbuf_printf(sb, "<connection id=\"%d\">"
 			    "<hostnqn>%s</hostnqn>"
@@ -1036,7 +1104,7 @@ nvmft_list(struct ctl_nvmf *cn)
 			    np->cdata.subnqn,
 			    ctrlr->trtype);
 		}
-		sx_sunlock(&np->lock);
+		mtx_unlock(&np->lock);
 	}
 	sx_sunlock(&nvmft_ports_lock);
 	sbuf_printf(sb, "</ctlnvmflist>\n");
@@ -1074,7 +1142,7 @@ nvmft_terminate(struct ctl_nvmf *cn)
 	found = false;
 	sx_slock(&nvmft_ports_lock);
 	TAILQ_FOREACH(np, &nvmft_ports, link) {
-		sx_slock(&np->lock);
+		mtx_lock(&np->lock);
 		TAILQ_FOREACH(ctrlr, &np->controllers, link) {
 			if (tp->all != 0)
 				match = true;
@@ -1092,7 +1160,7 @@ nvmft_terminate(struct ctl_nvmf *cn)
 			nvmft_controller_error(ctrlr, NULL, ECONNABORTED);
 			found = true;
 		}
-		sx_sunlock(&np->lock);
+		mtx_unlock(&np->lock);
 	}
 	sx_sunlock(&nvmft_ports_lock);
 

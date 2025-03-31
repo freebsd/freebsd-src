@@ -328,10 +328,6 @@ db_print_sbflags(short sb_flags)
 		db_printf("%sSB_UPCALL", comma ? ", " : "");
 		comma = 1;
 	}
-	if (sb_flags & SB_NOINTR) {
-		db_printf("%sSB_NOINTR", comma ? ", " : "");
-		comma = 1;
-	}
 	if (sb_flags & SB_AIO) {
 		db_printf("%sSB_AIO", comma ? ", " : "");
 		comma = 1;

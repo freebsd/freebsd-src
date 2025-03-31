@@ -603,8 +603,7 @@ ieee80211_validate_frame(struct mbuf *m,
 		return (EINVAL);
 
 	wh = mtod(m, struct ieee80211_frame *);
-	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
-	    IEEE80211_FC0_VERSION_0)
+	if (!IEEE80211_IS_FC0_CHECK_VER(wh, IEEE80211_FC0_VERSION_0))
 		return (EINVAL);
 
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
@@ -2650,6 +2649,12 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 
 /*
  * Calculate capability information for mgt frames.
+ *
+ * This fills out the 16 bit capability field in various management
+ * frames for non-DMG STAs.  DMG STAs are not supported.
+ *
+ * See 802.11-2020 9.4.1.4 (Capability Information Field) for the
+ * field definitions.
  */
 uint16_t
 ieee80211_getcapinfo(struct ieee80211vap *vap, struct ieee80211_channel *chan)

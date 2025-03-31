@@ -394,7 +394,7 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 	 * directly notify as a michael failure to the upper
 	 * layers.
 	 */
-	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MIC)) {
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MMIC)) {
 		struct ieee80211vap *vap = ctx->tc_vap;
 		ieee80211_notify_michael_failure(vap, wh,
 		    k->wk_rxkeyix != IEEE80211_KEYIX_NONE ?
@@ -860,7 +860,8 @@ michael_mic_hdr(const struct ieee80211_frame *wh0, uint8_t hdr[16])
 		break;
 	}
 
-	if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS_DATA) {
+	/* Match on any QOS frame, not just data */
+	if (IEEE80211_IS_QOS_ANY(wh)) {
 		const struct ieee80211_qosframe *qwh =
 			(const struct ieee80211_qosframe *) wh;
 		hdr[12] = qwh->i_qos[0] & IEEE80211_QOS_TID;

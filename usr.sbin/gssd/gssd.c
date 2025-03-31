@@ -61,9 +61,6 @@
 #ifndef _PATH_GSS_MECH
 #define _PATH_GSS_MECH	"/etc/gss/mech"
 #endif
-#ifndef _PATH_GSSDSOCK
-#define _PATH_GSSDSOCK	"/var/run/gssd.sock"
-#endif
 #define GSSD_CREDENTIAL_CACHE_FILE	"/tmp/krb5cc_gssd"
 
 struct gss_resource {
@@ -103,18 +100,16 @@ static OM_uint32 gssd_get_user_cred(OM_uint32 *, uid_t, gss_cred_id_t *);
 void gssd_terminate(int);
 
 extern void gssd_1(struct svc_req *rqstp, SVCXPRT *transp);
-extern int gssd_syscall(char *path);
 
 int
 main(int argc, char **argv)
 {
 	/*
-	 * We provide an RPC service on a local-domain socket. The
-	 * kernel's GSS-API code will pass what it can't handle
-	 * directly to us.
+	 * We provide an RPC service on a Netlink socket. The kernel's GSS API
+	 * code will multicast its calls, we will listen to them, receive them,
+	 * process them and reply.
 	 */
-	struct sockaddr_un sun;
-	int fd, oldmask, ch, debug, jailed;
+	int oldmask, ch, debug, jailed;
 	SVCXPRT *xprt;
 	size_t jailed_size;
 
@@ -195,37 +190,7 @@ main(int argc, char **argv)
 	signal(SIGTERM, gssd_terminate);
 	signal(SIGPIPE, gssd_terminate);
 
-	memset(&sun, 0, sizeof sun);
-	sun.sun_family = AF_LOCAL;
-	unlink(_PATH_GSSDSOCK);
-	strcpy(sun.sun_path, _PATH_GSSDSOCK);
-	sun.sun_len = SUN_LEN(&sun);
-	fd = socket(AF_LOCAL, SOCK_STREAM, 0);
-	if (fd < 0) {
-		if (debug_level == 0) {
-			syslog(LOG_ERR, "Can't create local gssd socket");
-			exit(1);
-		}
-		err(1, "Can't create local gssd socket");
-	}
-	oldmask = umask(S_IXUSR|S_IRWXG|S_IRWXO);
-	if (bind(fd, (struct sockaddr *) &sun, sun.sun_len) < 0) {
-		if (debug_level == 0) {
-			syslog(LOG_ERR, "Can't bind local gssd socket");
-			exit(1);
-		}
-		err(1, "Can't bind local gssd socket");
-	}
-	umask(oldmask);
-	if (listen(fd, SOMAXCONN) < 0) {
-		if (debug_level == 0) {
-			syslog(LOG_ERR, "Can't listen on local gssd socket");
-			exit(1);
-		}
-		err(1, "Can't listen on local gssd socket");
-	}
-	xprt = svc_vc_create(fd, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
-	if (!xprt) {
+	if ((xprt = svc_nl_create("kgss")) == NULL) {
 		if (debug_level == 0) {
 			syslog(LOG_ERR,
 			    "Can't create transport for local gssd socket");
@@ -245,30 +210,7 @@ main(int argc, char **argv)
 	LIST_INIT(&gss_resources);
 	gss_next_id = 1;
 	gss_start_time = time(0);
-
-	if (gssd_syscall(_PATH_GSSDSOCK) < 0) {
-		jailed = 0;
-		if (errno == EPERM) {
-			jailed_size = sizeof(jailed);
-			sysctlbyname("security.jail.jailed", &jailed,
-			    &jailed_size, NULL, 0);
-		}
-		if (debug_level == 0) {
-			if (jailed != 0)
-				syslog(LOG_ERR, "Cannot start gssd."
-				    " allow.nfsd must be configured");
-			else
-				syslog(LOG_ERR, "Cannot start gssd");
-			exit(1);
-		}
-		if (jailed != 0)
-			err(1, "Cannot start gssd."
-			    " allow.nfsd must be configured");
-		else
-			err(1, "Cannot start gssd");
-	}
 	svc_run();
-	gssd_syscall("");
 
 	return (0);
 }
@@ -1326,7 +1268,6 @@ void gssd_terminate(int sig __unused)
 	if (hostbased_initiator_cred != 0)
 		unlink(GSSD_CREDENTIAL_CACHE_FILE);
 #endif
-	gssd_syscall("");
 	exit(0);
 }
 

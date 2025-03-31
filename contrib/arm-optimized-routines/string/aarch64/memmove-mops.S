@@ -8,10 +8,6 @@
 #include "asmdefs.h"
 
 ENTRY (__memmove_aarch64_mops)
-	PTR_ARG (0)
-	PTR_ARG (1)
-	SIZE_ARG (2)
-
 	mov	x3, x0
 	.inst	0x1d010443	/* cpyp    [x3]!, [x1]!, x2!  */
 	.inst	0x1d410443	/* cpym    [x3]!, [x1]!, x2!  */

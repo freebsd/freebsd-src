@@ -1,4 +1,4 @@
-/*	$Id: catman.c,v 1.22 2020/06/14 23:40:31 schwarze Exp $ */
+/*	$Id: catman.c,v 1.23 2021/10/15 15:04:02 schwarze Exp $ */
 /*
  * Copyright (c) 2017 Michael Stapelberg <stapelberg@debian.org>
  * Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -62,7 +62,7 @@ run_mandocd(int sockfd, const char *outtype, const char* defos)
 	else
 		execlp("mandocd", "mandocd", "-T", outtype,
 		    "-I", defos, sockfdstr, (char *)NULL);
-	err(1, "exec");
+	err(1, "exec(mandocd)");
 }
 
 ssize_t

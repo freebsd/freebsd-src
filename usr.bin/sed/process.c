@@ -134,7 +134,7 @@ redirect:
 				psl = 0;
 				if (cp->a2 == NULL || lastaddr || lastline())
 					(void)fprintf(outfile, "%s", cp->t);
-				break;
+				goto new;
 			case 'd':
 				pd = 1;
 				goto new;
@@ -436,14 +436,12 @@ substitute(struct s_command *cp)
 		 * and at the end of the line, terminate.
 		 */
 		if (match[0].rm_so == match[0].rm_eo) {
-			if (*s == '\0' || *s == '\n')
-				slen = -1;
-			else
-				slen--;
-			if (*s != '\0') {
+			if (slen > 0) {
 			 	cspace(&SS, s++, 1, APPEND);
+				slen--;
 				le++;
-			}
+			} else
+				slen = -1;
 			lastempty = 1;
 		} else
 			lastempty = 0;

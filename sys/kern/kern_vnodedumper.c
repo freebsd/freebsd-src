@@ -133,8 +133,10 @@ livedump_start_vnode(struct vnode *vp, int flags, uint8_t compression)
 	if (error != 0)
 		goto out;
 
+	curthread->td_pflags2 |= TDP2_SAN_QUIET;
 	dump_savectx();
 	error = minidumpsys(livedi, true);
+	curthread->td_pflags2 &= ~TDP2_SAN_QUIET;
 
 	EVENTHANDLER_INVOKE(livedumper_finish);
 out:

@@ -1226,9 +1226,9 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    nsegs * MLX5E_MAX_RX_BYTES,	/* maxsize */
+	    nsegs * wqe_sz,		/* maxsize */
 	    nsegs,			/* nsegments */
-	    nsegs * MLX5E_MAX_RX_BYTES,	/* maxsegsize */
+	    nsegs * wqe_sz,		/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockfuncarg */
 	    &rq->dma_tag)))
@@ -2317,28 +2317,18 @@ mlx5e_close_channel_wait(struct mlx5e_channel *c)
 static int
 mlx5e_get_wqe_sz(struct mlx5e_priv *priv, u32 *wqe_sz, u32 *nsegs)
 {
-	u32 r, n;
+	u32 r, n, maxs;
 
-	r = priv->params.hw_lro_en ? priv->params.lro_wqe_sz :
+	maxs = priv->params.hw_lro_en ? priv->params.lro_wqe_sz :
 	    MLX5E_SW2MB_MTU(if_getmtu(priv->ifp));
-	if (r > MJUM16BYTES)
-		return (-ENOMEM);
-
-	if (r > MJUM9BYTES)
-		r = MJUM16BYTES;
-	else if (r > MJUMPAGESIZE)
-		r = MJUM9BYTES;
-	else if (r > MCLBYTES)
-		r = MJUMPAGESIZE;
-	else
-		r = MCLBYTES;
+	r = maxs > MCLBYTES ? MJUMPAGESIZE : MCLBYTES;
 
 	/*
 	 * n + 1 must be a power of two, because stride size must be.
 	 * Stride size is 16 * (n + 1), as the first segment is
 	 * control.
 	 */
-	n = roundup_pow_of_two(1 + howmany(r, MLX5E_MAX_RX_BYTES)) - 1;
+	n = roundup_pow_of_two(1 + howmany(maxs, r)) - 1;
 	if (n > MLX5E_MAX_BUSDMA_RX_SEGS)
 		return (-ENOMEM);
 
@@ -2945,6 +2935,71 @@ mlx5e_get_rss_key(void *key_ptr)
 }
 
 static void
+mlx5e_hw_lro_set_tir_ctx_lro_max_msg_sz(struct mlx5e_priv *priv, u32 *tirc)
+{
+	MLX5_SET(tirc, tirc, lro_max_msg_sz, (priv->params.lro_wqe_sz >> 8) -
+	    (MLX5_CAP_ETH(priv->mdev, lro_max_msg_sz_mode) == 0 ? 1 : 0));
+}
+
+static void
+mlx5e_hw_lro_set_tir_ctx(struct mlx5e_priv *priv, u32 *tirc)
+{
+	MLX5_SET(tirc, tirc, lro_enable_mask,
+	    MLX5_TIRC_LRO_ENABLE_MASK_IPV4_LRO |
+	    MLX5_TIRC_LRO_ENABLE_MASK_IPV6_LRO);
+	/* TODO: add the option to choose timer value dynamically */
+	MLX5_SET(tirc, tirc, lro_timeout_period_usecs,
+	    MLX5_CAP_ETH(priv->mdev, lro_timer_supported_periods[2]));
+	mlx5e_hw_lro_set_tir_ctx_lro_max_msg_sz(priv, tirc);
+}
+
+static int
+mlx5e_hw_lro_update_tir(struct mlx5e_priv *priv, int tt, bool inner_vxlan)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 *in;
+	void *tirc;
+	int inlen;
+	int err;
+
+	inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
+	in = mlx5_vzalloc(inlen);
+	if (in == NULL)
+		return (-ENOMEM);
+	tirc = MLX5_ADDR_OF(modify_tir_in, in, tir_context);
+
+	/* fill the command part */
+	MLX5_SET(modify_tir_in, in, tirn, inner_vxlan ?
+	    priv->tirn_inner_vxlan[tt] : priv->tirn[tt]);
+	MLX5_SET64(modify_tir_in, in, modify_bitmask,
+	    (1 << MLX5_MODIFY_TIR_BITMASK_LRO));
+
+	/* fill the context */
+	if (priv->params.hw_lro_en)
+		mlx5e_hw_lro_set_tir_ctx(priv, tirc);
+
+	err = mlx5_core_modify_tir(mdev, in, inlen);
+
+	kvfree(in);
+	return (err);
+}
+
+int
+mlx5e_hw_lro_update_tirs(struct mlx5e_priv *priv)
+{
+	int err, err1, i;
+
+	err = 0;
+	for (i = 0; i != 2 * MLX5E_NUM_TT; i++) {
+		err1 = mlx5e_hw_lro_update_tir(priv, i / 2, (i % 2) ? true :
+		    false);
+		if (err1 != 0 && err == 0)
+			err = err1;
+	}
+	return (-err);
+}
+
+static void
 mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt, bool inner_vxlan)
 {
 	void *hfso = MLX5_ADDR_OF(tirc, tirc, rx_hash_field_selector_outer);
@@ -2953,8 +3008,6 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt, bool inner_vxla
 	__be32 *hkey;
 
 	MLX5_SET(tirc, tirc, transport_domain, priv->tdn);
-
-#define	ROUGH_MAX_L2_L3_HDR_SZ 256
 
 #define	MLX5_HASH_IP     (MLX5_HASH_FIELD_SEL_SRC_IP   |\
 			  MLX5_HASH_FIELD_SEL_DST_IP)
@@ -2968,18 +3021,8 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt, bool inner_vxla
 				 MLX5_HASH_FIELD_SEL_DST_IP   |\
 				 MLX5_HASH_FIELD_SEL_IPSEC_SPI)
 
-	if (priv->params.hw_lro_en) {
-		MLX5_SET(tirc, tirc, lro_enable_mask,
-		    MLX5_TIRC_LRO_ENABLE_MASK_IPV4_LRO |
-		    MLX5_TIRC_LRO_ENABLE_MASK_IPV6_LRO);
-		MLX5_SET(tirc, tirc, lro_max_msg_sz,
-		    (priv->params.lro_wqe_sz -
-		    ROUGH_MAX_L2_L3_HDR_SZ) >> 8);
-		/* TODO: add the option to choose timer value dynamically */
-		MLX5_SET(tirc, tirc, lro_timeout_period_usecs,
-		    MLX5_CAP_ETH(priv->mdev,
-		    lro_timer_supported_periods[2]));
-	}
+	if (priv->params.hw_lro_en)
+		mlx5e_hw_lro_set_tir_ctx(priv, tirc);
 
 	if (inner_vxlan)
 		MLX5_SET(tirc, tirc, tunneled_offload_en, 1);
@@ -3404,6 +3447,51 @@ mlx5e_set_rx_mode(if_t ifp)
 	queue_work(priv->wq, &priv->set_rx_mode_work);
 }
 
+static bool
+mlx5e_is_ipsec_capable(struct mlx5_core_dev *mdev)
+{
+#ifdef IPSEC_OFFLOAD
+	if ((mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD) != 0)
+		return (true);
+#endif
+	return (false);
+}
+
+static bool
+mlx5e_is_ratelimit_capable(struct mlx5_core_dev *mdev)
+{
+#ifdef RATELIMIT
+	if (MLX5_CAP_GEN(mdev, qos) &&
+	    MLX5_CAP_QOS(mdev, packet_pacing))
+		return (true);
+#endif
+	return (false);
+}
+
+static bool
+mlx5e_is_tlstx_capable(struct mlx5_core_dev *mdev)
+{
+#ifdef KERN_TLS
+	if (MLX5_CAP_GEN(mdev, tls_tx) != 0 &&
+	    MLX5_CAP_GEN(mdev, log_max_dek) != 0)
+		return (true);
+#endif
+	return (false);
+}
+
+static bool
+mlx5e_is_tlsrx_capable(struct mlx5_core_dev *mdev)
+{
+#ifdef KERN_TLS
+	if (MLX5_CAP_GEN(mdev, tls_rx) != 0 &&
+	    MLX5_CAP_GEN(mdev, log_max_dek) != 0 &&
+	    MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
+	    ft_field_support.outer_ip_version) != 0)
+		return (true);
+#endif
+	return (false);
+}
+
 static int
 mlx5e_ioctl(if_t ifp, u_long command, caddr_t data)
 {
@@ -3507,6 +3595,24 @@ mlx5e_ioctl(if_t ifp, u_long command, caddr_t data)
 		drv_ioctl_data = (struct siocsifcapnv_driver_data *)data;
 		PRIV_LOCK(priv);
 siocsifcap_driver:
+		if (!mlx5e_is_tlstx_capable(priv->mdev)) {
+			drv_ioctl_data->reqcap &= ~(IFCAP_TXTLS4 |
+			    IFCAP_TXTLS6);
+		}
+		if (!mlx5e_is_tlsrx_capable(priv->mdev)) {
+		        drv_ioctl_data->reqcap2 &= ~(
+			    IFCAP2_BIT(IFCAP2_RXTLS4) |
+			    IFCAP2_BIT(IFCAP2_RXTLS6));
+		}
+		if (!mlx5e_is_ipsec_capable(priv->mdev)) {
+			drv_ioctl_data->reqcap2 &=
+			    ~IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD);
+		}
+		if (!mlx5e_is_ratelimit_capable(priv->mdev)) {
+			drv_ioctl_data->reqcap &= ~(IFCAP_TXTLS_RTLMT |
+			    IFCAP_TXRTLMT);
+		}
+
 		mask = drv_ioctl_data->reqcap ^ if_getcapenable(ifp);
 
 		if (mask & IFCAP_TXCSUM) {
@@ -3607,31 +3713,11 @@ siocsifcap_driver:
 		}
 
 		VLAN_CAPABILITIES(ifp);
-		/* turn off LRO means also turn of HW LRO - if it's on */
-		if (mask & IFCAP_LRO) {
-			int was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
-			bool need_restart = false;
 
+		/* hw_lro and IFCAP_LRO are divorsed, only toggle sw LRO. */
+		if (mask & IFCAP_LRO)
 			if_togglecapenable(ifp, IFCAP_LRO);
 
-			/* figure out if updating HW LRO is needed */
-			if (!(if_getcapenable(ifp) & IFCAP_LRO)) {
-				if (priv->params.hw_lro_en) {
-					priv->params.hw_lro_en = false;
-					need_restart = true;
-				}
-			} else {
-				if (priv->params.hw_lro_en == false &&
-				    priv->params_ethtool.hw_lro != 0) {
-					priv->params.hw_lro_en = true;
-					need_restart = true;
-				}
-			}
-			if (was_opened && need_restart) {
-				mlx5e_close_locked(ifp);
-				mlx5e_open_locked(ifp);
-			}
-		}
 		if (mask & IFCAP_HWRXTSTMP) {
 			if_togglecapenable(ifp, IFCAP_HWRXTSTMP);
 			if (if_getcapenable(ifp) & IFCAP_HWRXTSTMP) {
@@ -4535,15 +4621,18 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	if_setcapabilitiesbit(ifp, IFCAP_TSO | IFCAP_VLAN_HWTSO, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_HWSTATS | IFCAP_HWRXTSTMP, 0);
 	if_setcapabilitiesbit(ifp, IFCAP_MEXTPG, 0);
-	if_setcapabilitiesbit(ifp, IFCAP_TXTLS4 | IFCAP_TXTLS6, 0);
-#ifdef RATELIMIT
-	if_setcapabilitiesbit(ifp, IFCAP_TXRTLMT | IFCAP_TXTLS_RTLMT, 0);
-#endif
+	if (mlx5e_is_tlstx_capable(mdev))
+		if_setcapabilitiesbit(ifp, IFCAP_TXTLS4 | IFCAP_TXTLS6, 0);
+	if (mlx5e_is_tlsrx_capable(mdev))
+		if_setcapabilities2bit(ifp, IFCAP2_BIT(IFCAP2_RXTLS4) |
+		    IFCAP2_BIT(IFCAP2_RXTLS6), 0);
+	if (mlx5e_is_ratelimit_capable(mdev)) {
+		if_setcapabilitiesbit(ifp, IFCAP_TXRTLMT, 0);
+		if (mlx5e_is_tlstx_capable(mdev))
+			if_setcapabilitiesbit(ifp, IFCAP_TXTLS_RTLMT, 0);
+	}
 	if_setcapabilitiesbit(ifp, IFCAP_VXLAN_HWCSUM | IFCAP_VXLAN_HWTSO, 0);
-	if_setcapabilities2bit(ifp, IFCAP2_BIT(IFCAP2_RXTLS4) |
-	    IFCAP2_BIT(IFCAP2_RXTLS6), 0);
-
-	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)
+	if (mlx5e_is_ipsec_capable(mdev))
 		if_setcapabilities2bit(ifp, IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD),
 		    0);
 

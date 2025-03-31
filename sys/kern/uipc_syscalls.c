@@ -1433,7 +1433,9 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr *sa)
 		error = ENOTCONN;
 		goto done;
 	}
+	CURVNET_SET(so->so_vnet);
 	error = sopeeraddr(so, sa);
+	CURVNET_RESTORE();
 #ifdef KTRACE
 	if (error == 0 && KTRPOINT(td, KTR_STRUCT))
 		ktrsockaddr(sa);

@@ -157,7 +157,7 @@ struct pci_route_interrupt_args {
 static mpfps_t mpfps;
 static mpcth_t mpct;
 static ext_entry_ptr mpet;
-static void *ioapics[IOAPIC_MAX_ID + 1];
+static ioapic_drv_t ioapics[IOAPIC_MAX_ID + 1];
 static bus_datum *busses;
 static int mptable_nioapics, mptable_nbusses, mptable_maxbusid;
 static int pci0 = -1;
@@ -760,7 +760,7 @@ intentry_trigger(int_entry_ptr intr)
 static void
 mptable_parse_io_int(int_entry_ptr intr)
 {
-	void *ioapic;
+	ioapic_drv_t ioapic;
 	u_int pin, apic_id;
 
 	apic_id = intr->dst_apic_id;

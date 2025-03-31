@@ -307,7 +307,7 @@ gpiobus_attach_bus(device_t dev)
 #ifdef FDT
 	ofw_gpiobus_register_provider(dev);
 #endif
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (busdev);
 }
@@ -315,16 +315,10 @@ gpiobus_attach_bus(device_t dev)
 int
 gpiobus_detach_bus(device_t dev)
 {
-	int err;
-
 #ifdef FDT
 	ofw_gpiobus_unregister_provider(dev);
 #endif
-	err = bus_generic_detach(dev);
-	if (err != 0)
-		return (err);
-
-	return (device_delete_children(dev));
+	return (bus_generic_detach(dev));
 }
 
 int
@@ -560,10 +554,11 @@ gpiobus_attach(device_t dev)
 	/*
 	 * Get parent's pins and mark them as unmapped
 	 */
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 /*
@@ -574,28 +569,16 @@ int
 gpiobus_detach(device_t dev)
 {
 	struct gpiobus_softc *sc;
-	struct gpiobus_ivar *devi;
-	device_t *devlist;
-	int i, err, ndevs;
+	int i, err;
 
 	sc = GPIOBUS_SOFTC(dev);
 	KASSERT(mtx_initialized(&sc->sc_mtx),
 	    ("gpiobus mutex not initialized"));
 	GPIOBUS_LOCK_DESTROY(sc);
 
-	if ((err = bus_generic_detach(dev)) != 0)
+	if ((err = bus_detach_children(dev)) != 0)
 		return (err);
 
-	if ((err = device_get_children(dev, &devlist, &ndevs)) != 0)
-		return (err);
-	for (i = 0; i < ndevs; i++) {
-		devi = GPIOBUS_IVAR(devlist[i]);
-		gpiobus_free_ivars(devi);
-		resource_list_free(&devi->rl);
-		free(devi, M_DEVBUF);
-		device_delete_child(dev, devlist[i]);
-	}
-	free(devlist, M_TEMP);
 	rman_fini(&sc->sc_intr_rman);
 	if (sc->sc_pins) {
 		for (i = 0; i < sc->sc_npins; i++) {
@@ -699,6 +682,19 @@ gpiobus_add_child(device_t dev, u_int order, const char *name, int unit)
 	return (child);
 }
 
+static void
+gpiobus_child_deleted(device_t dev, device_t child)
+{
+	struct gpiobus_ivar *devi;
+
+	devi = GPIOBUS_IVAR(child);
+	if (devi == NULL)
+		return;
+	gpiobus_free_ivars(devi);
+	resource_list_free(&devi->rl);
+	free(devi, M_DEVBUF);
+}
+
 static int
 gpiobus_rescan(device_t dev)
 {
@@ -710,7 +706,7 @@ gpiobus_rescan(device_t dev)
 	 * hints or drivers have arrived since we last tried.
 	 */
 	bus_enumerate_hinted_children(dev);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 
@@ -718,7 +714,6 @@ static void
 gpiobus_hinted_child(device_t bus, const char *dname, int dunit)
 {
 	struct gpiobus_softc *sc = GPIOBUS_SOFTC(bus);
-	struct gpiobus_ivar *devi;
 	device_t child;
 	const char *pins;
 	int irq, pinmask;
@@ -728,19 +723,14 @@ gpiobus_hinted_child(device_t bus, const char *dname, int dunit)
 	}
 
 	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
-	devi = GPIOBUS_IVAR(child);
 	if (resource_int_value(dname, dunit, "pins", &pinmask) == 0) {
 		if (gpiobus_parse_pins(sc, child, pinmask)) {
-			resource_list_free(&devi->rl);
-			free(devi, M_DEVBUF);
 			device_delete_child(bus, child);
 			return;
 		}
 	}
 	else if (resource_string_value(dname, dunit, "pin_list", &pins) == 0) {
 		if (gpiobus_parse_pin_list(sc, child, pins)) {
-			resource_list_free(&devi->rl);
-			free(devi, M_DEVBUF);
 			device_delete_child(bus, child);
 			return;
 		}
@@ -1045,6 +1035,7 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(bus_get_resource_list,	gpiobus_get_resource_list),
 	DEVMETHOD(bus_get_rman,		gpiobus_get_rman),
 	DEVMETHOD(bus_add_child,	gpiobus_add_child),
+	DEVMETHOD(bus_child_deleted,	gpiobus_child_deleted),
 	DEVMETHOD(bus_rescan,		gpiobus_rescan),
 	DEVMETHOD(bus_probe_nomatch,	gpiobus_probe_nomatch),
 	DEVMETHOD(bus_print_child,	gpiobus_print_child),

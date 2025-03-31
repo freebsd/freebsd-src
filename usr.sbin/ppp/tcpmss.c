@@ -115,7 +115,7 @@ MSSFixup(struct tcphdr *tc, size_t pktlen, u_int16_t maxmss)
     return;
 
   /* MSS option only allowed within SYN packets. */
-  if (!(tc->th_flags & TH_SYN))
+  if (!(__tcp_get_flags(tc) & TH_SYN))
     return;
 
   for (olen = hlen - sizeof(struct tcphdr), opt = (u_char *)(tc + 1);

@@ -84,6 +84,18 @@ static slirp_new_p_t slirp_new_p;
 static slirp_pollfds_fill_p_t slirp_pollfds_fill_p;
 static slirp_pollfds_poll_p_t slirp_pollfds_poll_p;
 
+static void
+checked_close(int *fdp)
+{
+	int error;
+
+	if (*fdp != -1) {
+		error = close(*fdp);
+		assert(error == 0);
+		*fdp = -1;
+	}
+}
+
 static int
 slirp_init_once(void)
 {
@@ -134,7 +146,8 @@ struct slirp_priv {
 
 #define	SLIRP_MTU	2048
 	struct mevent *mevp;
-	int pipe[2];
+	int pipe[2];		/* used to buffer data sent to the guest */
+	int wakeup[2];		/* used to wake up the pollfd thread */
 
 	pthread_t pollfd_td;
 	struct pollfd *pollfds;
@@ -151,6 +164,7 @@ slirp_priv_init(struct slirp_priv *priv)
 
 	memset(priv, 0, sizeof(*priv));
 	priv->pipe[0] = priv->pipe[1] = -1;
+	priv->wakeup[0] = priv->wakeup[1] = -1;
 	error = pthread_mutex_init(&priv->mtx, NULL);
 	assert(error == 0);
 }
@@ -160,14 +174,10 @@ slirp_priv_cleanup(struct slirp_priv *priv)
 {
 	int error;
 
-	if (priv->pipe[0] != -1) {
-		error = close(priv->pipe[0]);
-		assert(error == 0);
-	}
-	if (priv->pipe[1] != -1) {
-		error = close(priv->pipe[1]);
-		assert(error == 0);
-	}
+	checked_close(&priv->pipe[0]);
+	checked_close(&priv->pipe[1]);
+	checked_close(&priv->wakeup[0]);
+	checked_close(&priv->wakeup[1]);
 	if (priv->mevp)
 		mevent_delete(priv->mevp);
 	if (priv->slirp != NULL)
@@ -188,8 +198,13 @@ slirp_cb_clock_get_ns(void *param __unused)
 }
 
 static void
-slirp_cb_notify(void *param __unused)
+slirp_cb_notify(void *param)
 {
+	struct slirp_priv *priv;
+
+	/* Wake up the poll thread.  We assume that priv->mtx is held here. */
+	priv = param;
+	(void)write(priv->wakeup[1], "M", 1);
 }
 
 static void
@@ -310,11 +325,19 @@ slirp_poll_revents(int idx, void *param)
 {
 	struct slirp_priv *priv;
 	struct pollfd *pollfd;
+	short revents;
 
 	priv = param;
+	assert(idx >= 0);
+	assert((unsigned int)idx < priv->npollfds);
 	pollfd = &priv->pollfds[idx];
 	assert(pollfd->fd != -1);
-	return (pollev2slirpev(pollfd->revents));
+
+	/* The kernel may report POLLHUP even if we didn't ask for it. */
+	revents = pollfd->revents;
+	if ((pollfd->events & POLLHUP) == 0)
+		revents &= ~POLLHUP;
+	return (pollev2slirpev(revents));
 }
 
 static void *
@@ -331,8 +354,13 @@ slirp_pollfd_td_loop(void *param)
 
 	pthread_mutex_lock(&priv->mtx);
 	for (;;) {
+		int wakeup;
+
 		for (size_t i = 0; i < priv->npollfds; i++)
 			priv->pollfds[i].fd = -1;
+
+		/* Register for notifications from slirp_cb_notify(). */
+		wakeup = slirp_addpoll_cb(priv->wakeup[0], POLLIN, priv);
 
 		timeout = UINT32_MAX;
 		slirp_pollfds_fill_p(priv->slirp, &timeout, slirp_addpoll_cb,
@@ -341,20 +369,32 @@ slirp_pollfd_td_loop(void *param)
 		pollfds = priv->pollfds;
 		npollfds = priv->npollfds;
 		pthread_mutex_unlock(&priv->mtx);
-		for (;;) {
-			error = poll(pollfds, npollfds, timeout);
-			if (error == -1) {
-				if (errno != EINTR) {
-					EPRINTLN("poll: %s", strerror(errno));
-					exit(1);
-				}
-				continue;
-			}
-			break;
+		error = poll(pollfds, npollfds, timeout);
+		if (error == -1 && errno != EINTR) {
+			EPRINTLN("poll: %s", strerror(errno));
+			exit(1);
 		}
 		pthread_mutex_lock(&priv->mtx);
 		slirp_pollfds_poll_p(priv->slirp, error == -1,
 		    slirp_poll_revents, priv);
+
+		/*
+		 * If we were woken up by the notify callback, mask the
+		 * interrupt.
+		 */
+		if ((pollfds[wakeup].revents & POLLIN) != 0) {
+			ssize_t n;
+
+			do {
+				uint8_t b;
+
+				n = read(priv->wakeup[0], &b, 1);
+			} while (n == 1);
+			if (n != -1 || errno != EAGAIN) {
+				EPRINTLN("read(wakeup): %s", strerror(errno));
+				exit(1);
+			}
+		}
 	}
 }
 
@@ -510,9 +550,15 @@ _slirp_init(struct net_backend *be, const char *devname __unused,
 		free(tofree);
 	}
 
-	error = socketpair(PF_LOCAL, SOCK_DGRAM, 0, priv->pipe);
+	error = socketpair(PF_LOCAL, SOCK_DGRAM | SOCK_CLOEXEC, 0, priv->pipe);
 	if (error != 0) {
 		EPRINTLN("Unable to create pipe: %s", strerror(errno));
+		goto err;
+	}
+
+	error = pipe2(priv->wakeup, O_CLOEXEC | O_NONBLOCK);
+	if (error != 0) {
+		EPRINTLN("Unable to create wakeup pipe: %s", strerror(errno));
 		goto err;
 	}
 
@@ -609,11 +655,22 @@ static ssize_t
 slirp_recv(struct net_backend *be, const struct iovec *iov, int iovcnt)
 {
 	struct slirp_priv *priv = NET_BE_PRIV(be);
+	struct msghdr hdr;
 	ssize_t n;
 
-	n = readv(priv->pipe[0], iov, iovcnt);
-	if (n < 0)
+	hdr.msg_name = NULL;
+	hdr.msg_namelen = 0;
+	hdr.msg_iov = __DECONST(struct iovec *, iov);
+	hdr.msg_iovlen = iovcnt;
+	hdr.msg_control = NULL;
+	hdr.msg_controllen = 0;
+	hdr.msg_flags = 0;
+	n = recvmsg(priv->pipe[0], &hdr, MSG_DONTWAIT);
+	if (n < 0) {
+		if (errno == EWOULDBLOCK)
+			return (0);
 		return (-1);
+	}
 	assert(n <= SLIRP_MTU);
 	return (n);
 }

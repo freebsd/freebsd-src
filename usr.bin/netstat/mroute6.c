@@ -70,9 +70,7 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/protosw.h>
 #include <sys/mbuf.h>
 #include <sys/time.h>
 
@@ -88,6 +86,7 @@
 #include <libxo/xo.h>
 
 #define	KERNEL 1
+struct sockopt;
 #include <netinet6/ip6_mroute.h>
 #undef KERNEL
 

@@ -555,14 +555,6 @@ struct mlx5_ifc_flow_counter_list_bits {
 	u8         reserved_1[0x20];
 };
 
-enum {
-	MLX5_FLOW_CONTEXT_DEST_TYPE_VPORT                    = 0x0,
-	MLX5_FLOW_CONTEXT_DEST_TYPE_FLOW_TABLE               = 0x1,
-	MLX5_FLOW_CONTEXT_DEST_TYPE_TIR                      = 0x2,
-	MLX5_FLOW_CONTEXT_DEST_TYPE_QP                       = 0x3,
-	MLX5_FLOW_CONTEXT_DEST_TYPE_TABLE_TYPE               = 0xA,
-};
-
 struct mlx5_ifc_dest_format_struct_bits {
         u8         destination_type[0x8];
         u8         destination_id[0x18];

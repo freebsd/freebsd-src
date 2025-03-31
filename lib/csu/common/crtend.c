@@ -21,7 +21,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <sys/types.h>
 #include "crt.h"
 
 typedef void (*crt_func)(void);
@@ -45,15 +45,22 @@ static crt_func __DTOR_END__[] __section(".dtors") __used = {
 	(crt_func)0
 };
 
+extern const char startof_ctors[] __asm(".startof..ctors")
+    __weak_symbol __hidden;
+
 static void
 __do_global_ctors_aux(void)
 {
 	crt_func fn;
+	uintptr_t ctors_start;
 	int n;
 
+	ctors_start = (uintptr_t)&startof_ctors;
 	for (n = 1;; n++) {
 		fn = __CTOR_END__[-n];
-		if (fn == (crt_func)0 || fn == (crt_func)-1)
+		if (fn == (crt_func)0 || fn == (crt_func)-1 ||
+		    (ctors_start > 0 &&
+		    (uintptr_t)&__CTOR_END__[-n] < ctors_start))
 			break;
 		fn();
 	}

@@ -384,7 +384,8 @@ vmd_attach(device_t dev)
 
 	sc->vmd_dma_tag = bus_get_dma_tag(dev);
 	sc->psc.child = device_add_child(dev, "pci", DEVICE_UNIT_ANY);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	vmd_free(sc);
@@ -398,9 +399,6 @@ vmd_detach(device_t dev)
 	int error;
 
 	error = bus_generic_detach(dev);
-	if (error)
-		return (error);
-	error = device_delete_children(dev);
 	if (error)
 		return (error);
 	if (sc->vmd_msix_count == 0)

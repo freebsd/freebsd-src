@@ -147,6 +147,10 @@ device_t root_pic;
 static void *ipi_cookie;
 #endif
 
+static int powerpc_setup_intr_int(const char *name, u_int irq, driver_filter_t
+    filter, driver_intr_t handler, void *arg, enum intr_type flags, void
+    **cookiep, int domain, bool ipi);
+
 static void
 intrcnt_setname(const char *name, int index)
 {
@@ -217,7 +221,6 @@ intrcnt_add(const char *name, u_long **countp)
 	intrcnt_setname(name, idx);
 }
 
-extern void kdb_backtrace(void);
 static struct powerpc_intr *
 intr_lookup(u_int irq)
 {
@@ -464,24 +467,15 @@ powerpc_enable_intr(void)
 			KASSERT(piclist[n].ipis != 0,
 			    ("%s: SMP root PIC does not supply any IPIs",
 			    __func__));
-			error = powerpc_setup_intr("IPI",
+			error = powerpc_setup_intr_int("IPI",
 			    MAP_IRQ(piclist[n].node, piclist[n].irqs),
 			    powerpc_ipi_handler, NULL, NULL,
 			    INTR_TYPE_MISC | INTR_EXCL, &ipi_cookie,
-			    0 /* domain XXX */);
+			    0 /* domain XXX */, true);
 			if (error) {
 				printf("unable to setup IPI handler\n");
 				return (error);
 			}
-
-			/*
-			 * Some subterfuge: disable late EOI and mark this
-			 * as an IPI to the dispatch layer.
-			 */
-			i = intr_lookup(MAP_IRQ(piclist[n].node,
-			    piclist[n].irqs));
-			i->event->ie_post_filter = NULL;
-			i->ipi = 1;
 		}
 	}
 #endif
@@ -514,6 +508,17 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
     driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep,
     int domain)
 {
+
+	return (powerpc_setup_intr_int(name, irq, filter, handler, arg, flags,
+	    cookiep, domain, false));
+}
+
+
+static int
+powerpc_setup_intr_int(const char *name, u_int irq, driver_filter_t filter,
+    driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep,
+    int domain, bool ipi)
+{
 	struct powerpc_intr *i;
 	int error, enable = 0;
 
@@ -524,12 +529,14 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 	if (i->event == NULL) {
 		error = intr_event_create(&i->event, (void *)i, 0, irq,
 		    powerpc_intr_pre_ithread, powerpc_intr_post_ithread,
-		    powerpc_intr_eoi, powerpc_assign_intr_cpu, "irq%u:", irq);
+		    (ipi ? NULL : powerpc_intr_eoi), powerpc_assign_intr_cpu,
+		    "irq%u:", irq);
 		if (error)
 			return (error);
 
 		enable = 1;
 	}
+	i->ipi = ipi;
 
 	error = intr_event_add_handler(i->event, name, filter, handler, arg,
 	    intr_priority(flags), flags, cookiep);

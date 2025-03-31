@@ -58,6 +58,8 @@
 
 	ENTRY(dtrace_invop_start)
 
+	KMSAN_ENTER
+
 	/*
 	 * #BP traps with %rip set to the next address. We need to decrement
 	 * the value to indicate the address of the int3 (0xcc) instruction
@@ -76,6 +78,12 @@
 
 	call	dtrace_invop
 	addq	$16, %rsp
+
+#ifdef KMSAN
+	movq	%rax, %r12
+	KMSAN_LEAVE
+	movq	%r12, %rax
+#endif
 
 	cmpl	$DTRACE_INVOP_PUSHL_EBP, %eax
 	je	bp_push

@@ -10,8 +10,7 @@
 
 .include <bsd.compiler.mk>
 
-# the default is gnu99 for now
-CSTD?=		gnu99
+CSTD?=		gnu17
 
 .if ${CSTD} == "c89" || ${CSTD} == "c90"
 CFLAGS+=	-std=iso9899:1990
@@ -304,7 +303,11 @@ CXXFLAGS.clang+=	 -Wno-c++11-extensions
 FORTIFY_SOURCE?=	0
 .if ${MK_SSP} != "no"
 # Don't use -Wstack-protector as it breaks world with -Werror.
+.if ${COMPILER_FEATURES:Mstackclash}
+SSP_CFLAGS?=	-fstack-protector-strong -fstack-clash-protection
+.else
 SSP_CFLAGS?=	-fstack-protector-strong
+.endif
 CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP
 .if ${FORTIFY_SOURCE} > 0

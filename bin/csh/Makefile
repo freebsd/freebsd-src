@@ -121,9 +121,14 @@ build-tools: gethost
 tc.defs.c: gethost
 
 DEPENDOBJS+= gethost
-gethost: gethost.c sh.err.h tc.const.h sh.h ${BUILD_TOOLS_META}
+gethost: gethost.c sh.err.h sh.h ${BUILD_TOOLS_META}
 	@rm -f ${.TARGET}
+	# Define _h_tc_const so that tc.h will skip including tc.const.h.
+	# gethost.c does not actually require any of the definitions in there,
+	# and building tc.const.h requires target headers which are not
+	# available when we need to build gethost.
 	${HOST_CC:N${CCACHE_BIN}} -o gethost ${LDFLAGS} ${CFLAGS:C/-DHAVE_ICONV//} \
+	    -D_h_tc_const \
 	    ${TCSHDIR}/gethost.c
 .endif
 

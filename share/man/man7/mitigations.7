@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 23, 2024
+.Dd January 29, 2025
 .Dt MITIGATIONS 7
 .Os
 .Sh NAME
@@ -245,8 +245,13 @@ and it is possible that some applications may not function correctly.
 supports stack overflow protection using the Stack Smashing Protector
 .Pq SSP
 compiler feature.
+Stack clash protection is also enabled,
+if supported by the compiler for the given architecture.
 In userland, SSP adds a per-process randomized canary at the end of every stack
-frame which is checked for corruption upon return from the function.
+frame which is checked for corruption upon return from the function,
+and stack probing in
+.Dv PAGE_SIZE
+chunks.
 In the kernel, a single randomized canary is used globally except on aarch64,
 which has a
 .Dv PERTHREAD_SSP
@@ -264,7 +269,9 @@ When
 .Va WITH_SSP
 is enabled, which is the default, world is built with the
 .Fl fstack-protector-strong
-compiler option.
+and
+.Fl fstack-clash-protection
+compiler options.
 The kernel is built with the
 .Fl fstack-protector
 option.

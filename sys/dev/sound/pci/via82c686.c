@@ -585,10 +585,11 @@ via_attach(device_t dev)
 		 device_get_nameunit(device_get_parent(dev)));
 
 	/* Register */
-	if (pcm_register(dev, via, 1, 1)) goto bad;
+	pcm_init(dev, via);
 	pcm_addchan(dev, PCMDIR_PLAY, &viachan_class, via);
 	pcm_addchan(dev, PCMDIR_REC, &viachan_class, via);
-	pcm_setstatus(dev, status);
+	if (pcm_register(dev, status))
+		goto bad;
 	return 0;
 bad:
 	if (via->codec) ac97_destroy(via->codec);

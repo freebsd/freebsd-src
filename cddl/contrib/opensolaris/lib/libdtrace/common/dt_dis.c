@@ -348,86 +348,86 @@ dt_dis(const dtrace_difo_t *dp, FILE *fp)
 		void (*op_func)(const dtrace_difo_t *, const char *,
 		    dif_instr_t, FILE *);
 	} optab[] = {
-		{ "(illegal opcode)", dt_dis_str },
-		{ "or", dt_dis_log },		/* DIF_OP_OR */
-		{ "xor", dt_dis_log },		/* DIF_OP_XOR */
-		{ "and", dt_dis_log },		/* DIF_OP_AND */
-		{ "sll", dt_dis_log },		/* DIF_OP_SLL */
-		{ "srl", dt_dis_log },		/* DIF_OP_SRL */
-		{ "sub", dt_dis_log },		/* DIF_OP_SUB */
-		{ "add", dt_dis_log },		/* DIF_OP_ADD */
-		{ "mul", dt_dis_log },		/* DIF_OP_MUL */
-		{ "sdiv", dt_dis_log },		/* DIF_OP_SDIV */
-		{ "udiv", dt_dis_log },		/* DIF_OP_UDIV */
-		{ "srem", dt_dis_log },		/* DIF_OP_SREM */
-		{ "urem", dt_dis_log },		/* DIF_OP_UREM */
-		{ "not", dt_dis_r1rd },		/* DIF_OP_NOT */
-		{ "mov", dt_dis_r1rd },		/* DIF_OP_MOV */
-		{ "cmp", dt_dis_cmp },		/* DIF_OP_CMP */
-		{ "tst", dt_dis_tst },		/* DIF_OP_TST */
-		{ "ba", dt_dis_branch },	/* DIF_OP_BA */
-		{ "be", dt_dis_branch },	/* DIF_OP_BE */
-		{ "bne", dt_dis_branch },	/* DIF_OP_BNE */
-		{ "bg", dt_dis_branch },	/* DIF_OP_BG */
-		{ "bgu", dt_dis_branch },	/* DIF_OP_BGU */
-		{ "bge", dt_dis_branch },	/* DIF_OP_BGE */
-		{ "bgeu", dt_dis_branch },	/* DIF_OP_BGEU */
-		{ "bl", dt_dis_branch },	/* DIF_OP_BL */
-		{ "blu", dt_dis_branch },	/* DIF_OP_BLU */
-		{ "ble", dt_dis_branch },	/* DIF_OP_BLE */
-		{ "bleu", dt_dis_branch },	/* DIF_OP_BLEU */
-		{ "ldsb", dt_dis_load },	/* DIF_OP_LDSB */
-		{ "ldsh", dt_dis_load },	/* DIF_OP_LDSH */
-		{ "ldsw", dt_dis_load },	/* DIF_OP_LDSW */
-		{ "ldub", dt_dis_load },	/* DIF_OP_LDUB */
-		{ "lduh", dt_dis_load },	/* DIF_OP_LDUH */
-		{ "lduw", dt_dis_load },	/* DIF_OP_LDUW */
-		{ "ldx", dt_dis_load },		/* DIF_OP_LDX */
-		{ "ret", dt_dis_ret },		/* DIF_OP_RET */
-		{ "nop", dt_dis_str },		/* DIF_OP_NOP */
-		{ "setx", dt_dis_setx },	/* DIF_OP_SETX */
-		{ "sets", dt_dis_sets },	/* DIF_OP_SETS */
-		{ "scmp", dt_dis_cmp },		/* DIF_OP_SCMP */
-		{ "ldga", dt_dis_lda },		/* DIF_OP_LDGA */
-		{ "ldgs", dt_dis_ldv },		/* DIF_OP_LDGS */
-		{ "stgs", dt_dis_stv },		/* DIF_OP_STGS */
-		{ "ldta", dt_dis_lda },		/* DIF_OP_LDTA */
-		{ "ldts", dt_dis_ldv },		/* DIF_OP_LDTS */
-		{ "stts", dt_dis_stv },		/* DIF_OP_STTS */
-		{ "sra", dt_dis_log },		/* DIF_OP_SRA */
-		{ "call", dt_dis_call },	/* DIF_OP_CALL */
-		{ "pushtr", dt_dis_pushts },	/* DIF_OP_PUSHTR */
-		{ "pushtv", dt_dis_pushts },	/* DIF_OP_PUSHTV */
-		{ "popts", dt_dis_str },	/* DIF_OP_POPTS */
-		{ "flushts", dt_dis_str },	/* DIF_OP_FLUSHTS */
-		{ "ldgaa", dt_dis_ldv },	/* DIF_OP_LDGAA */
-		{ "ldtaa", dt_dis_ldv },	/* DIF_OP_LDTAA */
-		{ "stgaa", dt_dis_stv },	/* DIF_OP_STGAA */
-		{ "sttaa", dt_dis_stv },	/* DIF_OP_STTAA */
-		{ "ldls", dt_dis_ldv },		/* DIF_OP_LDLS */
-		{ "stls", dt_dis_stv },		/* DIF_OP_STLS */
-		{ "allocs", dt_dis_r1rd },	/* DIF_OP_ALLOCS */
-		{ "copys", dt_dis_log },	/* DIF_OP_COPYS */
-		{ "stb", dt_dis_store },	/* DIF_OP_STB */
-		{ "sth", dt_dis_store },	/* DIF_OP_STH */
-		{ "stw", dt_dis_store },	/* DIF_OP_STW */
-		{ "stx", dt_dis_store },	/* DIF_OP_STX */
-		{ "uldsb", dt_dis_load },	/* DIF_OP_ULDSB */
-		{ "uldsh", dt_dis_load },	/* DIF_OP_ULDSH */
-		{ "uldsw", dt_dis_load },	/* DIF_OP_ULDSW */
-		{ "uldub", dt_dis_load },	/* DIF_OP_ULDUB */
-		{ "ulduh", dt_dis_load },	/* DIF_OP_ULDUH */
-		{ "ulduw", dt_dis_load },	/* DIF_OP_ULDUW */
-		{ "uldx", dt_dis_load },	/* DIF_OP_ULDX */
-		{ "rldsb", dt_dis_load },	/* DIF_OP_RLDSB */
-		{ "rldsh", dt_dis_load },	/* DIF_OP_RLDSH */
-		{ "rldsw", dt_dis_load },	/* DIF_OP_RLDSW */
-		{ "rldub", dt_dis_load },	/* DIF_OP_RLDUB */
-		{ "rlduh", dt_dis_load },	/* DIF_OP_RLDUH */
-		{ "rlduw", dt_dis_load },	/* DIF_OP_RLDUW */
-		{ "rldx", dt_dis_load },	/* DIF_OP_RLDX */
-		{ "xlate", dt_dis_xlate },	/* DIF_OP_XLATE */
-		{ "xlarg", dt_dis_xlate },	/* DIF_OP_XLARG */
+		[0] = { "(illegal opcode)", dt_dis_str },
+		[DIF_OP_OR] = { "or", dt_dis_log },
+		[DIF_OP_XOR] = { "xor", dt_dis_log },
+		[DIF_OP_AND] = { "and", dt_dis_log },
+		[DIF_OP_SLL] = { "sll", dt_dis_log },
+		[DIF_OP_SRL] = { "srl", dt_dis_log },
+		[DIF_OP_SUB] = { "sub", dt_dis_log },
+		[DIF_OP_ADD] = { "add", dt_dis_log },
+		[DIF_OP_MUL] = { "mul", dt_dis_log },
+		[DIF_OP_SDIV] = { "sdiv", dt_dis_log },
+		[DIF_OP_UDIV] = { "udiv", dt_dis_log },
+		[DIF_OP_SREM] = { "srem", dt_dis_log },
+		[DIF_OP_UREM] = { "urem", dt_dis_log },
+		[DIF_OP_NOT] = { "not", dt_dis_r1rd },
+		[DIF_OP_MOV] = { "mov", dt_dis_r1rd },
+		[DIF_OP_CMP] = { "cmp", dt_dis_cmp },
+		[DIF_OP_TST] = { "tst", dt_dis_tst },
+		[DIF_OP_BA] = { "ba", dt_dis_branch },
+		[DIF_OP_BE] = { "be", dt_dis_branch },
+		[DIF_OP_BNE] = { "bne", dt_dis_branch },
+		[DIF_OP_BG] = { "bg", dt_dis_branch },
+		[DIF_OP_BGU] = { "bgu", dt_dis_branch },
+		[DIF_OP_BGE] = { "bge", dt_dis_branch },
+		[DIF_OP_BGEU] = { "bgeu", dt_dis_branch },
+		[DIF_OP_BL] = { "bl", dt_dis_branch },
+		[DIF_OP_BLU] = { "blu", dt_dis_branch },
+		[DIF_OP_BLE] = { "ble", dt_dis_branch },
+		[DIF_OP_BLEU] = { "bleu", dt_dis_branch },
+		[DIF_OP_LDSB] = { "ldsb", dt_dis_load },
+		[DIF_OP_LDSH] = { "ldsh", dt_dis_load },
+		[DIF_OP_LDSW] = { "ldsw", dt_dis_load },
+		[DIF_OP_LDUB] = { "ldub", dt_dis_load },
+		[DIF_OP_LDUH] = { "lduh", dt_dis_load },
+		[DIF_OP_LDUW] = { "lduw", dt_dis_load },
+		[DIF_OP_LDX] = { "ldx", dt_dis_load },
+		[DIF_OP_RET] = { "ret", dt_dis_ret },
+		[DIF_OP_NOP] = { "nop", dt_dis_str },
+		[DIF_OP_SETX] = { "setx", dt_dis_setx },
+		[DIF_OP_SETS] = { "sets", dt_dis_sets },
+		[DIF_OP_SCMP] = { "scmp", dt_dis_cmp },
+		[DIF_OP_LDGA] = { "ldga", dt_dis_lda },
+		[DIF_OP_LDGS] = { "ldgs", dt_dis_ldv },
+		[DIF_OP_STGS] = { "stgs", dt_dis_stv },
+		[DIF_OP_LDTA] = { "ldta", dt_dis_lda },
+		[DIF_OP_LDTS] = { "ldts", dt_dis_ldv },
+		[DIF_OP_STTS] = { "stts", dt_dis_stv },
+		[DIF_OP_SRA] = { "sra", dt_dis_log },
+		[DIF_OP_CALL] = { "call", dt_dis_call },
+		[DIF_OP_PUSHTR] = { "pushtr", dt_dis_pushts },
+		[DIF_OP_PUSHTV] = { "pushtv", dt_dis_pushts },
+		[DIF_OP_POPTS] = { "popts", dt_dis_str },
+		[DIF_OP_FLUSHTS] = { "flushts", dt_dis_str },
+		[DIF_OP_LDGAA] = { "ldgaa", dt_dis_ldv },
+		[DIF_OP_LDTAA] = { "ldtaa", dt_dis_ldv },
+		[DIF_OP_STGAA] = { "stgaa", dt_dis_stv },
+		[DIF_OP_STTAA] = { "sttaa", dt_dis_stv },
+		[DIF_OP_LDLS] = { "ldls", dt_dis_ldv },
+		[DIF_OP_STLS] = { "stls", dt_dis_stv },
+		[DIF_OP_ALLOCS] = { "allocs", dt_dis_r1rd },
+		[DIF_OP_COPYS] = { "copys", dt_dis_log },
+		[DIF_OP_STB] = { "stb", dt_dis_store },
+		[DIF_OP_STH] = { "sth", dt_dis_store },
+		[DIF_OP_STW] = { "stw", dt_dis_store },
+		[DIF_OP_STX] = { "stx", dt_dis_store },
+		[DIF_OP_ULDSB] = { "uldsb", dt_dis_load },
+		[DIF_OP_ULDSH] = { "uldsh", dt_dis_load },
+		[DIF_OP_ULDSW] = { "uldsw", dt_dis_load },
+		[DIF_OP_ULDUB] = { "uldub", dt_dis_load },
+		[DIF_OP_ULDUH] = { "ulduh", dt_dis_load },
+		[DIF_OP_ULDUW] = { "ulduw", dt_dis_load },
+		[DIF_OP_ULDX] = { "uldx", dt_dis_load },
+		[DIF_OP_RLDSB] = { "rldsb", dt_dis_load },
+		[DIF_OP_RLDSH] = { "rldsh", dt_dis_load },
+		[DIF_OP_RLDSW] = { "rldsw", dt_dis_load },
+		[DIF_OP_RLDUB] = { "rldub", dt_dis_load },
+		[DIF_OP_RLDUH] = { "rlduh", dt_dis_load },
+		[DIF_OP_RLDUW] = { "rlduw", dt_dis_load },
+		[DIF_OP_RLDX] = { "rldx", dt_dis_load },
+		[DIF_OP_XLATE] = { "xlate", dt_dis_xlate },
+		[DIF_OP_XLARG] = { "xlarg", dt_dis_xlate },
 	};
 
 	const struct opent *op;

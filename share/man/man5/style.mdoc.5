@@ -1,4 +1,4 @@
-.\"-
+.\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2018-2022 Mateusz Piotrowski <0mp@FreeBSD.org>
@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 12, 2024
+.Dd December 21, 2024
 .Dt STYLE.MDOC 5
 .Os
 .Sh NAME
@@ -73,6 +73,33 @@ Historically,
 .Sy \&Dq \&Li
 was the preferred way before the deprecation of
 .Sy \&Li .
+.El
+.Ss HARDWARE Section
+Driver manuals in section four should have a
+.Sx HARDWARE
+section describing hardware known to work with the driver.
+This section is drawn verbatim into the Release Hardware Notes,
+therefore there are several things to note:
+.Bl -dash -width ""
+.It
+The introductory sentence should be in the form:
+.Bd -literal -offset indent
+The
+\&.Nm
+driver supports the following $device_class:
+.Ed
+.Pp
+Followed by the list of supported hardware.
+.Pp
+This defines what driver the subsection is referring to,
+and allows the reader to search through the Hardware Notes
+not only for the device models they have,
+but also for the device type they are looking to acquire.
+.It
+The supported hardware should be listed as a bullet list,
+or if complexity requires, a column list.
+These two list types create very neat subsections
+with clean starting and stopping points.
 .El
 .Ss EXAMPLES Section
 .Bl -dash -width ""
@@ -124,7 +151,8 @@ The
 .Fl width
 argument to the
 .Sy \&.Bl
-macro should match the length of the longest item in the list, e.g.:
+macro should match the length of the longest rendered item in the list,
+e.g.:
 .Bd -literal -offset indent
 \&.Bl -tag -width "-a address"
 \&.It Fl a Ar address

@@ -98,7 +98,7 @@ ATF_TC_BODY(test_snl_get_genl_family_groups, tc)
 	ATF_CHECK(snl_parse_nlmsg(&ss, hdr, &_genl_ctrl_getfam_parser, &attrs));
 	ATF_CHECK_EQ(attrs.mcast_groups.num_groups, 1);
 
-	struct snl_genl_ctrl_mcast_group *group = attrs.mcast_groups.groups[0];
+	struct _snl_genl_ctrl_mcast_group *group = attrs.mcast_groups.groups[0];
 
 	ATF_CHECK(group->mcast_grp_id > 0);
 	ATF_CHECK(!strcmp(group->mcast_grp_name, "notify"));

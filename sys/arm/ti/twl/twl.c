@@ -417,20 +417,21 @@ twl_attach(device_t dev)
 	if ((sc->sc_clks = device_add_child(dev, "twl_clks", -1)) == NULL)
 		device_printf(dev, "could not allocate twl_clks instance\n");
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int
 twl_detach(device_t dev)
 {
 	struct twl_softc *sc;
+	int error;
 
 	sc = device_get_softc(dev);
 
-	if (sc->sc_vreg)
-		device_delete_child(dev, sc->sc_vreg);
-	if (sc->sc_clks)
-		device_delete_child(dev, sc->sc_clks);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	TWL_LOCK_DESTROY(sc);
 

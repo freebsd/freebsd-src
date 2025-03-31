@@ -27,12 +27,12 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 4, 2021
+.Dd November 14, 2024
 .Dt ENA 4
 .Os
 .Sh NAME
 .Nm ena
-.Nd "FreeBSD kernel driver for Elastic Network Adapter (ENA) family"
+.Nd AWS EC2 Elastic Network Adapter (ENA) driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in the
@@ -93,7 +93,9 @@ framework is provided by the
 driver.
 Kernel must be built with the DEV_NETMAP option to be able to use this feature.
 .Sh HARDWARE
-Supported PCI vendor ID/device IDs:
+The
+.Nm
+driver supports the following PCI vendor ID/device IDs:
 .Pp
 .Bl -bullet -compact
 .It

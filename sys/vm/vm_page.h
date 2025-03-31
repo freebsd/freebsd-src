@@ -628,6 +628,8 @@ vm_page_t vm_page_alloc_noobj_contig_domain(int domain, int req, u_long npages,
     vm_memattr_t memattr);
 void vm_page_bits_set(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t set);
 bool vm_page_blacklist_add(vm_paddr_t pa, bool verbose);
+int vm_page_grab_zero_partial(vm_object_t object, vm_pindex_t pindex, int base,
+    int end);
 vm_page_t vm_page_grab(vm_object_t, vm_pindex_t, int);
 vm_page_t vm_page_grab_unlocked(vm_object_t, vm_pindex_t, int);
 int vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
@@ -643,7 +645,6 @@ void vm_page_deactivate_noreuse(vm_page_t);
 void vm_page_dequeue(vm_page_t m);
 void vm_page_dequeue_deferred(vm_page_t m);
 vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
-vm_page_t vm_page_iter_lookup_ge(struct pctrie_iter *, vm_pindex_t);
 void vm_page_free_invalid(vm_page_t);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
@@ -651,11 +652,14 @@ void vm_page_init_marker(vm_page_t marker, int queue, uint16_t aflags);
 void vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind, int pool);
 int vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_invalid(vm_page_t m);
-void vm_page_launder(vm_page_t m);
-vm_page_t vm_page_lookup(vm_object_t, vm_pindex_t);
+void vm_page_iter_free(struct pctrie_iter *pages, vm_page_t m);
 void vm_page_iter_init(struct pctrie_iter *, vm_object_t);
 void vm_page_iter_limit_init(struct pctrie_iter *, vm_object_t, vm_pindex_t);
-vm_page_t vm_page_iter_lookup(struct pctrie_iter *, vm_pindex_t);
+bool vm_page_iter_remove(struct pctrie_iter *pages, vm_page_t m);
+bool vm_page_iter_rename(struct pctrie_iter *old_pages, vm_page_t m,
+    vm_object_t new_object, vm_pindex_t new_pindex);
+void vm_page_launder(vm_page_t m);
+vm_page_t vm_page_lookup(vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup_unlocked(vm_object_t, vm_pindex_t);
 vm_page_t vm_page_next(vm_page_t m);
 void vm_page_pqbatch_drain(void);
@@ -681,7 +685,6 @@ void vm_page_release_locked(vm_page_t m, int flags);
 vm_page_t vm_page_relookup(vm_object_t, vm_pindex_t);
 bool vm_page_remove(vm_page_t);
 bool vm_page_remove_xbusy(vm_page_t);
-int vm_page_rename(vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_replace(vm_page_t mnew, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mold);
 int vm_page_sbusied(vm_page_t m);

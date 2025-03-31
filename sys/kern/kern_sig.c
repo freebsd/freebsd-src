@@ -117,7 +117,7 @@ static void	sigqueue_start(void);
 static void	sigfastblock_setpend(struct thread *td, bool resched);
 
 static uma_zone_t	ksiginfo_zone = NULL;
-struct filterops sig_filtops = {
+const struct filterops sig_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_sigattach,
 	.f_detach = filt_sigdetach,
@@ -343,6 +343,14 @@ ast_sig(struct thread *td, int tda)
 	 * the postsig() loop was performed.
 	 */
 	sigfastblock_setpend(td, resched_sigs);
+
+	/*
+	 * Clear td_sa.code: signal to ptrace that syscall arguments
+	 * are unavailable after this point. This AST handler is the
+	 * last chance for ptracestop() to signal the tracer before
+	 * the tracee returns to userspace.
+	 */
+	td->td_sa.code = 0;
 }
 
 static void
@@ -365,6 +373,16 @@ sigqueue_start(void)
 	SIGFILLSET(fastblock_mask);
 	SIG_CANTMASK(fastblock_mask);
 	ast_register(TDA_SIG, ASTR_UNCOND, 0, ast_sig);
+
+	/*
+	 * TDA_PSELECT is for the case where the signal mask should be restored
+	 * before delivering any signals so that we do not deliver any that are
+	 * blocked by the normal thread mask.  It is mutually exclusive with
+	 * TDA_SIGSUSPEND, which should be used if we *do* want to deliver
+	 * signals that are normally blocked, e.g., if it interrupted our sleep.
+	 */
+	ast_register(TDA_PSELECT, ASTR_ASTF_REQUIRED | ASTR_TDP,
+	    TDP_OLDMASK, ast_sigsuspend);
 	ast_register(TDA_SIGSUSPEND, ASTR_ASTF_REQUIRED | ASTR_TDP,
 	    TDP_OLDMASK, ast_sigsuspend);
 }
@@ -3596,11 +3614,17 @@ sigexit(struct thread *td, int sig)
 	struct proc *p = td->td_proc;
 	const char *coreinfo;
 	int rv;
+	bool logexit;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	proc_set_p2_wexit(p);
 
 	p->p_acflag |= AXSIG;
+	if ((p->p_flag2 & P2_LOGSIGEXIT_CTL) == 0)
+		logexit = kern_logsigexit != 0;
+	else
+		logexit = (p->p_flag2 & P2_LOGSIGEXIT_ENABLE) != 0;
+
 	/*
 	 * We must be single-threading to generate a core dump.  This
 	 * ensures that the registers in the core file are up-to-date.
@@ -3639,7 +3663,7 @@ sigexit(struct thread *td, int sig)
 			coreinfo = " (no core dump - other error)";
 			break;
 		}
-		if (kern_logsigexit)
+		if (logexit)
 			log(LOG_INFO,
 			    "pid %d (%s), jid %d, uid %d: exited on "
 			    "signal %d%s\n", p->p_pid, p->p_comm,

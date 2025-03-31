@@ -27,18 +27,20 @@
 #ifndef _MACHINE_INTR_H_
 #define	_MACHINE_INTR_H_
 
+#ifndef LOCORE
 #ifdef FDT
 #include <dev/ofw/openfirm.h>
-#endif
-
-#ifndef NIRQ
-#define	NIRQ		16384	/* XXX - It should be an option. */
 #endif
 
 static inline void
 arm_irq_memory_barrier(uintptr_t irq)
 {
 }
+#endif /* !LOCORE */
+
+#ifndef NIRQ
+#define	NIRQ		16384	/* XXX - It should be an option. */
+#endif
 
 #ifdef DEV_ACPI
 #define	ACPI_INTR_XREF	1
@@ -46,7 +48,8 @@ arm_irq_memory_barrier(uintptr_t irq)
 #define	ACPI_GPIO_XREF	3
 #endif
 
+#define	INTR_ROOT_IRQ	0
 #define	INTR_ROOT_FIQ	1
-#define	INTR_ROOT_NUM	2
+#define	INTR_ROOT_COUNT	2
 
 #endif	/* _MACHINE_INTR_H */

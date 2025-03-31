@@ -1138,6 +1138,14 @@ static struct OptionInfo optionTable[] = {
 		"same_ports",
 		"m" },
 
+	{ LibAliasOption,
+		PKT_ALIAS_UDP_EIM,
+		YesNo,
+		"[yes|no]",
+		"UDP traffic uses endpoint-independent mapping (\"full cone\" NAT)",
+		"udp_eim",
+		NULL },
+
 	{ Verbose,
 		0,
 		YesNo,

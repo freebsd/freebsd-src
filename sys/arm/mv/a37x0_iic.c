@@ -237,7 +237,8 @@ a37x0_iic_attach(device_t dev)
 	}
 
 	/* Probe and attach the iicbus. */
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int
@@ -248,8 +249,6 @@ a37x0_iic_detach(device_t dev)
 	bus_generic_detach(dev);
 
 	sc = device_get_softc(dev);
-	if (sc->sc_iicbus != NULL)
-		device_delete_child(dev, sc->sc_iicbus);
 	mtx_destroy(&sc->sc_mtx);
 	if (sc->sc_intrhand)
 		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_intrhand);

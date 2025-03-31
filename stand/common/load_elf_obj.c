@@ -37,6 +37,7 @@
 #include <sys/link_elf.h>
 
 #include "bootstrap.h"
+#include "modinfo.h"
 
 #define COPYOUT(s,d,l)	archsw.arch_copyout((vm_offset_t)(s), d, l)
 
@@ -76,9 +77,6 @@ static int __elfN(obj_reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
 static int __elfN(obj_parse_modmetadata)(struct preloaded_file *mp,
     elf_file_t ef);
 static Elf_Addr __elfN(obj_symaddr)(struct elf_file *ef, Elf_Size symidx);
-
-const char	*__elfN(obj_kerneltype) = "elf kernel";
-const char	*__elfN(obj_moduletype) = "elf obj module";
 
 /*
  * Attempt to load the file (file) as an ELF module.  It will be stored at
@@ -154,7 +152,7 @@ __elfN(obj_loadfile)(char *filename, uint64_t dest,
 	}
 #endif
 
-	kfp = file_findfile(NULL, __elfN(obj_kerneltype));
+	kfp = file_findfile(NULL, md_kerntype);
 	if (kfp == NULL) {
 		printf("elf" __XSTRING(__ELF_WORD_SIZE)
 		    "_obj_loadfile: can't load module before kernel\n");
@@ -178,7 +176,7 @@ __elfN(obj_loadfile)(char *filename, uint64_t dest,
 		goto out;
 	}
 	fp->f_name = strdup(filename);
-	fp->f_type = strdup(__elfN(obj_moduletype));
+	fp->f_type = strdup(md_modtype_obj);
 
 	if (module_verbose > MODULE_VERBOSE_SILENT)
 		printf("%s ", filename);

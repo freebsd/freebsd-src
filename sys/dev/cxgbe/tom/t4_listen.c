@@ -769,6 +769,8 @@ t4_listen_stop(struct toedev *tod, struct tcpcb *tp)
 
 	if (lctx->flags & LCTX_SETUP_IN_HW)
 		destroy_server(sc, lctx);
+	else
+		inp = release_lctx(sc, lctx);
 	return (0);
 }
 
@@ -1592,7 +1594,7 @@ synqe_to_protohdrs(struct adapter *sc, struct synq_entry *synqe,
 	pass_accept_req_to_protohdrs(sc, synqe->syn, inc, th, &iptos);
 
 	/* modify parts to make it look like the ACK to our SYN|ACK */
-	th->th_flags = TH_ACK;
+	tcp_set_flags(th, TH_ACK);
 	th->th_ack = synqe->iss + 1;
 	th->th_seq = be32toh(cpl->rcv_isn);
 	bzero(to, sizeof(*to));

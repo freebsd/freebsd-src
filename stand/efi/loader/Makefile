@@ -128,7 +128,7 @@ ${LOADER}.efi: ${PROG}
 		exit 1; \
 	fi
 	SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
-	${OBJCOPY} -j .peheader -j .text -j .sdata -j .data \
+	${EFI_OBJCOPY} -j .peheader -j .text -j .sdata -j .data \
 		-j .dynamic -j .dynsym -j .rel.dyn \
 		-j .rela.dyn -j .reloc -j .eh_frame -j set_Xcommand_set \
 		-j set_X${LOADER_INTERP}_compile_set \

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2023 The FreeBSD Foundation
+ * Copyright (c) 2020-2025 The FreeBSD Foundation
  * Copyright (c) 2021-2023 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -45,6 +45,7 @@
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/ktime.h>
+#include <linux/compiler.h>
 
 #include "opt_wlan.h"
 
@@ -167,6 +168,7 @@ struct sk_buff {
 #define	_SKB_FLAGS_SKBEXTFRAG	0x0001
 	enum sk_buff_pkt_type	pkt_type;
 	uint16_t		mac_header;	/* offset of mac_header */
+	refcount_t		refcnt;
 
 	/* "Scratch" area for layers to store metadata. */
 	/* ??? I see sizeof() operations so probably an array. */
@@ -199,7 +201,7 @@ struct sk_buff *linuxkpi_dev_alloc_skb(size_t, gfp_t);
 struct sk_buff *linuxkpi_build_skb(void *, size_t);
 void linuxkpi_kfree_skb(struct sk_buff *);
 
-struct sk_buff *linuxkpi_skb_copy(struct sk_buff *, gfp_t);
+struct sk_buff *linuxkpi_skb_copy(const struct sk_buff *, gfp_t);
 
 /* -------------------------------------------------------------------------- */
 
@@ -243,6 +245,13 @@ kfree_skb(struct sk_buff *skb)
 }
 
 static inline void
+consume_skb(struct sk_buff *skb)
+{
+	SKB_TRACE(skb);
+	kfree_skb(skb);
+}
+
+static inline void
 dev_kfree_skb(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
@@ -276,9 +285,12 @@ build_skb(void *data, unsigned int fragsz)
 
 /* -------------------------------------------------------------------------- */
 
-/* XXX BZ review this one for terminal condition as Linux "queues" are special. */
-#define	skb_list_walk_safe(_q, skb, tmp)				\
-	for ((skb) = (_q)->next; (skb) != NULL && ((tmp) = (skb)->next); (skb) = (tmp))
+static inline bool
+skb_is_nonlinear(struct sk_buff *skb)
+{
+	SKB_TRACE(skb);
+	return ((skb->data_len > 0) ? true : false);
+}
 
 /* Add headroom; cannot do once there is data in there. */
 static inline void
@@ -350,12 +362,14 @@ skb_tailroom(struct sk_buff *skb)
 	SKB_TRACE(skb);
 	KASSERT((skb->end - skb->tail) >= 0, ("%s: skb %p tailroom < 0, "
 	    "end %p tail %p\n", __func__, skb, skb->end, skb->tail));
+	if (unlikely(skb_is_nonlinear(skb)))
+		return (0);
 	return (skb->end - skb->tail);
 }
 
-/* Return numer of bytes available at the beginning of buffer. */
+/* Return number of bytes available at the beginning of buffer. */
 static inline unsigned int
-skb_headroom(struct sk_buff *skb)
+skb_headroom(const struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
 	KASSERT((skb->data - skb->head) >= 0, ("%s: skb %p headroom < 0, "
@@ -502,13 +516,10 @@ skb_add_rx_frag(struct sk_buff *skb, int fragno, struct page *page,
         skb->len += size;
 	skb->data_len += size;
         skb->truesize += truesize;
-
-	/* XXX TODO EXTEND truesize? */
 }
 
 /* -------------------------------------------------------------------------- */
 
-/* XXX BZ review this one for terminal condition as Linux "queues" are special. */
 #define	skb_queue_walk(_q, skb)						\
 	for ((skb) = (_q)->next; (skb) != (struct sk_buff *)(_q);	\
 	    (skb) = (skb)->next)
@@ -517,12 +528,23 @@ skb_add_rx_frag(struct sk_buff *skb, int fragno, struct page *page,
 	for ((skb) = (_q)->next, (tmp) = (skb)->next;			\
 	    (skb) != (struct sk_buff *)(_q); (skb) = (tmp), (tmp) = (skb)->next)
 
-static inline bool
-skb_queue_empty(struct sk_buff_head *q)
-{
+#define	skb_list_walk_safe(_q, skb, tmp)				\
+	for ((skb) = (_q), (tmp) = ((skb) != NULL) ? (skb)->next ? NULL; \
+	    ((skb) != NULL);						\
+	    (skb) = (tmp), (tmp) = ((skb) != NULL) ? (skb)->next ? NULL)
 
+static inline bool
+skb_queue_empty(const struct sk_buff_head *q)
+{
 	SKB_TRACE(q);
-	return (q->qlen == 0);
+	return (q->next == (const struct sk_buff *)q);
+}
+
+static inline bool
+skb_queue_empty_lockless(const struct sk_buff_head *q)
+{
+	SKB_TRACE(q);
+	return (READ_ONCE(q->next) == (const struct sk_buff *)q);
 }
 
 static inline void
@@ -537,7 +559,8 @@ static inline void
 skb_queue_head_init(struct sk_buff_head *q)
 {
 	SKB_TRACE(q);
-	return (__skb_queue_head_init(q));
+	__skb_queue_head_init(q);
+	spin_lock_init(&q->lock);
 }
 
 static inline void
@@ -546,11 +569,11 @@ __skb_insert(struct sk_buff *new, struct sk_buff *prev, struct sk_buff *next,
 {
 
 	SKB_TRACE_FMT(new, "prev %p next %p q %p", prev, next, q);
-	new->prev = prev;
-	new->next = next;
-	((struct sk_buff_head_l *)next)->prev = new;
-	((struct sk_buff_head_l *)prev)->next = new;
-	q->qlen++;
+	WRITE_ONCE(new->prev, prev);
+	WRITE_ONCE(new->next, next);
+	WRITE_ONCE(((struct sk_buff_head_l *)next)->prev, new);
+	WRITE_ONCE(((struct sk_buff_head_l *)prev)->next, new);
+	WRITE_ONCE(q->qlen, q->qlen + 1);
 }
 
 static inline void
@@ -582,53 +605,62 @@ __skb_queue_tail(struct sk_buff_head *q, struct sk_buff *new)
 static inline void
 skb_queue_tail(struct sk_buff_head *q, struct sk_buff *new)
 {
+	unsigned long flags;
+
 	SKB_TRACE2(q, new);
-	return (__skb_queue_tail(q, new));
+	spin_lock_irqsave(&q->lock, flags);
+	__skb_queue_tail(q, new);
+	spin_unlock_irqrestore(&q->lock, flags);
 }
 
 static inline struct sk_buff *
-skb_peek(struct sk_buff_head *q)
+skb_peek(const struct sk_buff_head *q)
 {
 	struct sk_buff *skb;
 
 	skb = q->next;
 	SKB_TRACE2(q, skb);
-	if (skb == (struct sk_buff *)q)
+	if (skb == (const struct sk_buff *)q)
 		return (NULL);
 	return (skb);
 }
 
 static inline struct sk_buff *
-skb_peek_tail(struct sk_buff_head *q)
+skb_peek_tail(const struct sk_buff_head *q)
 {
 	struct sk_buff *skb;
 
-	skb = q->prev;
+	skb = READ_ONCE(q->prev);
 	SKB_TRACE2(q, skb);
-	if (skb == (struct sk_buff *)q)
+	if (skb == (const struct sk_buff *)q)
 		return (NULL);
 	return (skb);
 }
 
 static inline void
-__skb_unlink(struct sk_buff *skb, struct sk_buff_head *head)
+__skb_unlink(struct sk_buff *skb, struct sk_buff_head *q)
 {
-	SKB_TRACE2(skb, head);
 	struct sk_buff *p, *n;
 
-	head->qlen--;
+	SKB_TRACE2(skb, q);
+
+	WRITE_ONCE(q->qlen, q->qlen - 1);
 	p = skb->prev;
 	n = skb->next;
-	p->next = n;
-	n->prev = p;
+	WRITE_ONCE(n->prev, p);
+	WRITE_ONCE(p->next, n);
 	skb->prev = skb->next = NULL;
 }
 
 static inline void
-skb_unlink(struct sk_buff *skb, struct sk_buff_head *head)
+skb_unlink(struct sk_buff *skb, struct sk_buff_head *q)
 {
-	SKB_TRACE2(skb, head);
-	return (__skb_unlink(skb, head));
+	unsigned long flags;
+
+	SKB_TRACE2(skb, q);
+	spin_lock_irqsave(&q->lock, flags);
+	__skb_unlink(skb, q);
+	spin_unlock_irqrestore(&q->lock, flags);
 }
 
 static inline struct sk_buff *
@@ -636,32 +668,47 @@ __skb_dequeue(struct sk_buff_head *q)
 {
 	struct sk_buff *skb;
 
-	SKB_TRACE(q);
-	skb = q->next;
-	if (skb == (struct sk_buff *)q)
-		return (NULL);
+	skb = skb_peek(q);
 	if (skb != NULL)
 		__skb_unlink(skb, q);
-	SKB_TRACE(skb);
+	SKB_TRACE2(q, skb);
 	return (skb);
 }
 
 static inline struct sk_buff *
 skb_dequeue(struct sk_buff_head *q)
 {
-	SKB_TRACE(q);
-	return (__skb_dequeue(q));
+	unsigned long flags;
+	struct sk_buff *skb;
+
+	spin_lock_irqsave(&q->lock, flags);
+	skb = __skb_dequeue(q);
+	spin_unlock_irqrestore(&q->lock, flags);
+	SKB_TRACE2(q, skb);
+	return (skb);
 }
 
 static inline struct sk_buff *
-skb_dequeue_tail(struct sk_buff_head *q)
+__skb_dequeue_tail(struct sk_buff_head *q)
 {
 	struct sk_buff *skb;
 
 	skb = skb_peek_tail(q);
 	if (skb != NULL)
 		__skb_unlink(skb, q);
+	SKB_TRACE2(q, skb);
+	return (skb);
+}
 
+static inline struct sk_buff *
+skb_dequeue_tail(struct sk_buff_head *q)
+{
+	unsigned long flags;
+	struct sk_buff *skb;
+
+	spin_lock_irqsave(&q->lock, flags);
+	skb = __skb_dequeue_tail(q);
+	spin_unlock_irqrestore(&q->lock, flags);
 	SKB_TRACE2(q, skb);
 	return (skb);
 }
@@ -677,26 +724,73 @@ __skb_queue_head(struct sk_buff_head *q, struct sk_buff *skb)
 static inline void
 skb_queue_head(struct sk_buff_head *q, struct sk_buff *skb)
 {
+	unsigned long flags;
 
 	SKB_TRACE2(q, skb);
-	__skb_queue_after(q, (struct sk_buff *)q, skb);
+	spin_lock_irqsave(&q->lock, flags);
+	__skb_queue_head(q, skb);
+	spin_unlock_irqrestore(&q->lock, flags);
 }
 
 static inline uint32_t
-skb_queue_len(struct sk_buff_head *head)
+skb_queue_len(const struct sk_buff_head *q)
 {
 
-	SKB_TRACE(head);
-	return (head->qlen);
+	SKB_TRACE(q);
+	return (q->qlen);
 }
 
 static inline uint32_t
-skb_queue_len_lockless(const struct sk_buff_head *head)
+skb_queue_len_lockless(const struct sk_buff_head *q)
 {
 
-	SKB_TRACE(head);
-	return (READ_ONCE(head->qlen));
+	SKB_TRACE(q);
+	return (READ_ONCE(q->qlen));
 }
+
+static inline void
+___skb_queue_splice(const struct sk_buff_head *from,
+    struct sk_buff *p, struct sk_buff *n)
+{
+	struct sk_buff *b, *e;
+
+	b = from->next;
+	e = from->prev;
+
+	WRITE_ONCE(b->prev, p);
+	WRITE_ONCE(((struct sk_buff_head_l *)p)->next, b);
+	WRITE_ONCE(e->next, n);
+	WRITE_ONCE(((struct sk_buff_head_l *)n)->prev, e);
+}
+
+static inline void
+skb_queue_splice_init(struct sk_buff_head *from, struct sk_buff_head *to)
+{
+
+	SKB_TRACE2(from, to);
+
+	if (skb_queue_empty(from))
+		return;
+
+	___skb_queue_splice(from, (struct sk_buff *)to, to->next);
+	to->qlen += from->qlen;
+	__skb_queue_head_init(from);
+}
+
+static inline void
+skb_queue_splice_tail_init(struct sk_buff_head *from, struct sk_buff_head *to)
+{
+
+	SKB_TRACE2(from, to);
+
+	if (skb_queue_empty(from))
+		return;
+
+	___skb_queue_splice(from, to->prev, (struct sk_buff *)to);
+	to->qlen += from->qlen;
+	__skb_queue_head_init(from);
+}
+
 
 static inline void
 __skb_queue_purge(struct sk_buff_head *q)
@@ -706,13 +800,26 @@ __skb_queue_purge(struct sk_buff_head *q)
 	SKB_TRACE(q);
         while ((skb = __skb_dequeue(q)) != NULL)
 		kfree_skb(skb);
+	WARN_ONCE(skb_queue_len(q) != 0, "%s: queue %p not empty: %u",
+	    __func__, q, skb_queue_len(q));
 }
 
 static inline void
 skb_queue_purge(struct sk_buff_head *q)
 {
+	struct sk_buff_head _q;
+	unsigned long flags;
+
 	SKB_TRACE(q);
-	return (__skb_queue_purge(q));
+
+	if (skb_queue_empty_lockless(q))
+		return;
+
+	__skb_queue_head_init(&_q);
+	spin_lock_irqsave(&q->lock, flags);
+	skb_queue_splice_init(q, &_q);
+	spin_unlock_irqrestore(&q->lock, flags);
+	__skb_queue_purge(&_q);
 }
 
 static inline struct sk_buff *
@@ -727,20 +834,13 @@ skb_queue_prev(struct sk_buff_head *q, struct sk_buff *skb)
 /* -------------------------------------------------------------------------- */
 
 static inline struct sk_buff *
-skb_copy(struct sk_buff *skb, gfp_t gfp)
+skb_copy(const struct sk_buff *skb, gfp_t gfp)
 {
 	struct sk_buff *new;
 
 	new = linuxkpi_skb_copy(skb, gfp);
 	SKB_TRACE2(skb, new);
 	return (new);
-}
-
-static inline void
-consume_skb(struct sk_buff *skb)
-{
-	SKB_TRACE(skb);
-	SKB_TODO();
 }
 
 static inline uint16_t
@@ -772,8 +872,7 @@ static inline size_t
 skb_frag_size(const skb_frag_t *frag)
 {
 	SKB_TRACE(frag);
-	SKB_TODO();
-	return (-1);
+	return (frag->size);
 }
 
 #define	skb_walk_frags(_skb, _frag)					\
@@ -798,8 +897,7 @@ static inline void *
 skb_frag_address(const skb_frag_t *frag)
 {
 	SKB_TRACE(frag);
-	SKB_TODO();
-	return (NULL);
+	return (page_address(frag->page + frag->offset));
 }
 
 static inline void
@@ -829,50 +927,7 @@ static inline void
 skb_mark_not_on_list(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
-	SKB_TODO();
-}
-
-static inline void
-___skb_queue_splice(const struct sk_buff_head *from,
-    struct sk_buff *p, struct sk_buff *n)
-{
-	struct sk_buff *b, *e;
-
-	b = from->next;
-	e = from->prev;
-
-	b->prev = p;
-	((struct sk_buff_head_l *)p)->next = b;
-	e->next = n;
-	((struct sk_buff_head_l *)n)->prev = e;
-}
-
-static inline void
-skb_queue_splice_init(struct sk_buff_head *from, struct sk_buff_head *to)
-{
-
-	SKB_TRACE2(from, to);
-
-	if (skb_queue_empty(from))
-		return;
-
-	___skb_queue_splice(from, (struct sk_buff *)to, to->next);
-	to->qlen += from->qlen;
-	__skb_queue_head_init(from);
-}
-
-static inline void
-skb_queue_splice_tail_init(struct sk_buff_head *from, struct sk_buff_head *to)
-{
-
-	SKB_TRACE2(from, to);
-
-	if (skb_queue_empty(from))
-		return;
-
-	___skb_queue_splice(from, to->prev, (struct sk_buff *)to);
-	to->qlen += from->qlen;
-	__skb_queue_head_init(from);
+	skb->next = NULL;
 }
 
 static inline void
@@ -899,25 +954,17 @@ skb_network_header(struct sk_buff *skb)
         return (skb->head + skb->l3hdroff);
 }
 
-static inline bool
-skb_is_nonlinear(struct sk_buff *skb)
-{
-	SKB_TRACE(skb);
-	return ((skb->data_len > 0) ? true : false);
-}
-
 static inline int
 __skb_linearize(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
 	SKB_TODO();
-	return (ENXIO);
+	return (-ENXIO);
 }
 
 static inline int
 skb_linearize(struct sk_buff *skb)
 {
-
 	return (skb_is_nonlinear(skb) ? __skb_linearize(skb) : 0);
 }
 
@@ -951,7 +998,7 @@ skb_header_cloned(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
 	SKB_TODO();
-	return (false);
+	return (true);
 }
 
 static inline uint8_t *
@@ -994,7 +1041,6 @@ skb_orphan(struct sk_buff *skb)
 static inline __sum16
 csum_unfold(__sum16 sum)
 {
-	SKB_TODO();
 	return (sum);
 }
 
@@ -1020,7 +1066,8 @@ static inline struct sk_buff *
 skb_get(struct sk_buff *skb)
 {
 
-	SKB_TODO();	/* XXX refcnt? as in get/put_device? */
+	SKB_TRACE(skb);
+	refcount_inc(&skb->refcnt);
 	return (skb);
 }
 
@@ -1055,7 +1102,8 @@ skb_list_del_init(struct sk_buff *skb)
 {
 
 	SKB_TRACE(skb);
-	SKB_TODO();
+	__list_del_entry(&skb->list);
+	skb_mark_not_on_list(skb);
 }
 
 static inline void
@@ -1086,6 +1134,7 @@ static inline void
 skb_mark_for_recycle(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
+	/* page_pool */
 	SKB_TODO();
 }
 

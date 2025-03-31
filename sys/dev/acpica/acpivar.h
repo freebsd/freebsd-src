@@ -89,6 +89,7 @@ struct acpi_device {
     void			*ad_private;
     int				ad_flags;
     int				ad_cls_class;
+    int				ad_domain;
 
     ACPI_BUFFER			dsd;	/* Device Specific Data */
     const ACPI_OBJECT	*dsd_pkg;
@@ -229,6 +230,10 @@ extern struct mtx			acpi_mutex;
  *	compatible flag and ignoring overrides that redirect IRQ 0 to pin 2.
  * ACPI_Q_AEI_NOPULL: Specifies that _AEI objects incorrectly designate pins
  *	as "PullUp" and they should be treated as "NoPull" instead.
+ * ACPI_Q_CLEAR_PME_ON_DETACH: Specifies that PCIM_PSTAT_(PME & ~PMEENABLE)
+ *	should be written to the power status register as part of ACPI Eject.
+ * ACPI_Q_DELAY_BEFORE_EJECT_RESCAN: Specifies that we need a short (10ms)
+ *	delay after _EJ0 returns before rescanning the PCI bus.
  */
 extern int	acpi_quirks;
 #define ACPI_Q_OK		0
@@ -236,6 +241,8 @@ extern int	acpi_quirks;
 #define ACPI_Q_TIMER		(1 << 1)
 #define ACPI_Q_MADT_IRQ0	(1 << 2)
 #define ACPI_Q_AEI_NOPULL	(1 << 3)
+#define ACPI_Q_CLEAR_PME_ON_DETACH	(1 << 4)
+#define ACPI_Q_DELAY_BEFORE_EJECT_RESCAN	(1 << 5)
 
 #if defined(__amd64__) || defined(__i386__)
 /*
@@ -272,6 +279,12 @@ extern int	acpi_override_isa_irq_polarity;
 #define ACPI_IVAR_UNUSED	0x101	/* Unused/reserved. */
 #define ACPI_IVAR_PRIVATE	0x102
 #define ACPI_IVAR_FLAGS		0x103
+#define	ACPI_IVAR_DOMAIN	0x104
+
+/*
+ * ad_domain NUMA domain special value.
+ */
+#define	ACPI_DEV_DOMAIN_UNKNOWN	(-1)
 
 /*
  * Accessor functions for our ivars.  Default value for BUS_READ_IVAR is
@@ -297,6 +310,7 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)	\
 __ACPI_BUS_ACCESSOR(acpi, handle, ACPI, HANDLE, ACPI_HANDLE)
 __ACPI_BUS_ACCESSOR(acpi, private, ACPI, PRIVATE, void *)
 __ACPI_BUS_ACCESSOR(acpi, flags, ACPI, FLAGS, int)
+__ACPI_BUS_ACCESSOR(acpi, domain, ACPI, DOMAIN, int)
 
 void acpi_fake_objhandler(ACPI_HANDLE h, void *data);
 static __inline device_t
@@ -585,6 +599,7 @@ void		acpi_pxm_parse_tables(void);
 void		acpi_pxm_set_mem_locality(void);
 void		acpi_pxm_set_cpu_locality(void);
 int		acpi_pxm_get_cpu_locality(int apic_id);
+int		acpi_pxm_parse(device_t dev);
 
 /*
  * Map a PXM to a VM domain.
@@ -593,7 +608,6 @@ int		acpi_pxm_get_cpu_locality(int apic_id);
  */
 int		acpi_map_pxm_to_vm_domainid(int pxm);
 bus_get_cpus_t		acpi_get_cpus;
-bus_get_domain_t	acpi_get_domain;
 
 #ifdef __aarch64__
 /*

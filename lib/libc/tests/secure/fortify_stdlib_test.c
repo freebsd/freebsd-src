@@ -4,6 +4,7 @@
 #define	TMPFILE_SIZE	(1024 * 32)
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/random.h>
 #include <sys/resource.h>
 #include <sys/select.h>
@@ -162,7 +163,10 @@ replace_stdin(void)
 		close(fd);
 }
 
-ATF_TC_WITHOUT_HEAD(arc4random_buf_before_end);
+ATF_TC(arc4random_buf_before_end);
+ATF_TC_HEAD(arc4random_buf_before_end, tc)
+{
+}
 ATF_TC_BODY(arc4random_buf_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -180,7 +184,10 @@ ATF_TC_BODY(arc4random_buf_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(arc4random_buf_end);
+ATF_TC(arc4random_buf_end);
+ATF_TC_HEAD(arc4random_buf_end, tc)
+{
+}
 ATF_TC_BODY(arc4random_buf_end, tc)
 {
 #define BUF &__stack.__buf
@@ -198,7 +205,10 @@ ATF_TC_BODY(arc4random_buf_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(arc4random_buf_heap_before_end);
+ATF_TC(arc4random_buf_heap_before_end);
+ATF_TC_HEAD(arc4random_buf_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(arc4random_buf_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -218,7 +228,10 @@ ATF_TC_BODY(arc4random_buf_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(arc4random_buf_heap_end);
+ATF_TC(arc4random_buf_heap_end);
+ATF_TC_HEAD(arc4random_buf_heap_end, tc)
+{
+}
 ATF_TC_BODY(arc4random_buf_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -238,7 +251,10 @@ ATF_TC_BODY(arc4random_buf_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(arc4random_buf_heap_after_end);
+ATF_TC(arc4random_buf_heap_after_end);
+ATF_TC_HEAD(arc4random_buf_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(arc4random_buf_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -289,7 +305,10 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(realpath_before_end);
+ATF_TC(realpath_before_end);
+ATF_TC_HEAD(realpath_before_end, tc)
+{
+}
 ATF_TC_BODY(realpath_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -307,7 +326,10 @@ ATF_TC_BODY(realpath_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(realpath_end);
+ATF_TC(realpath_end);
+ATF_TC_HEAD(realpath_end, tc)
+{
+}
 ATF_TC_BODY(realpath_end, tc)
 {
 #define BUF &__stack.__buf
@@ -325,7 +347,10 @@ ATF_TC_BODY(realpath_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(realpath_heap_before_end);
+ATF_TC(realpath_heap_before_end);
+ATF_TC_HEAD(realpath_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(realpath_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -345,7 +370,10 @@ ATF_TC_BODY(realpath_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(realpath_heap_end);
+ATF_TC(realpath_heap_end);
+ATF_TC_HEAD(realpath_heap_end, tc)
+{
+}
 ATF_TC_BODY(realpath_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -365,7 +393,10 @@ ATF_TC_BODY(realpath_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(realpath_heap_after_end);
+ATF_TC(realpath_heap_after_end);
+ATF_TC_HEAD(realpath_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(realpath_heap_after_end, tc)
 {
 #define BUF __stack.__buf

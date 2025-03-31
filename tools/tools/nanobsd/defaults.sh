@@ -67,7 +67,6 @@ NANO_PKG_META_BASE=/var/db
 # Make & parallel Make
 NANO_MAKE="make"
 NANO_NCPU=$(sysctl -n hw.ncpu)
-NANO_PMAKE="make -j $NANO_NCPU"
 
 # The default name for any image we create.
 NANO_IMGNAME="_.disk.full"
@@ -498,10 +497,10 @@ run_late_customize ( ) (
 # a user's cfg file would override this.
 #
 fixup_before_diskimage ( ) (
-	# Run the deduplication script that takes the matalog journal and
+	# Run the deduplication script that takes the metalog journal and
 	# combines multiple entries for the same file (see source for
 	# details). We take the extra step of removing the size keywords. This
-	# script, and many of the user scripts, copies, appeneds and otherwise
+	# script, and many of the user scripts, copies, appends and otherwise
 	# modifies files in the build, changing their sizes.  These actions are
 	# impossible to trap, so go ahead remove the size= keyword. For this
 	# narrow use, it doesn't buy us any protection and just gets in the way.
@@ -571,13 +570,42 @@ setup_nanobsd_etc ( ) (
 	# create diskless marker file
 	touch etc/diskless
 
+	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 666 boot/defaults/loader.conf
+	{
+		echo
+		echo '###  NanoBSD configuration  ##################################'
+		echo 'hostuuid_load="NO"'
+		echo 'entropy_cache_load="NO"		# Disable loading cached entropy at boot time.'
+		echo 'kern.random.initial_seeding.disable_bypass_warnings="1"	# Do not log a warning'
+		echo "				# if the 'bypass_before_seeding' knob is enabled"
+		echo "				# and a request is submitted prior to initial"
+		echo "				# seeding."
+	} >> boot/defaults/loader.conf
+	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 444 boot/defaults/loader.conf
+
 	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 666 etc/defaults/rc.conf
+	if ! ed -s etc/defaults/rc.conf <<\EOF
+/^### Define source_rc_confs, the mechanism used by \/etc\/rc\.\* ##$/i
+###  NanoBSD options  ########################################
+##############################################################
 
-	# Make root filesystem R/O by default
-	echo "root_rw_mount=NO" >> etc/defaults/rc.conf
-	# Disable entropy file, since / is read-only /var/db/entropy should be enough?
-	echo "entropy_file=NO" >> etc/defaults/rc.conf
+kldxref_enable="NO"	# Disable building linker.hints files with kldxref(8).
+root_rw_mount="NO"	# Inhibit remounting root read-write.
+entropy_boot_file="NO"	# Disable very early (used at early boot time)
+			# entropy caching through reboots.
+entropy_file="NO"	# Disable late (used when going multi-user)
+			# entropy through reboots.
+entropy_dir="NO"	# Disable caching entropy via cron.
 
+##############################################################
+.
+w
+q
+EOF
+	then
+		echo "Regular expression pattern not found"
+		exit 2
+	fi
 	[ -n "${NANO_NOPRIV_BUILD}" ] && chmod 444 etc/defaults/rc.conf
 
 	# save config file for scripts
@@ -714,10 +742,10 @@ UsbDevice ( ) {
 
 cust_comconsole ( ) (
 	# Enable getty on console
-	sed -i "" -e /tty[du]0/s/off/on/ ${NANO_WORLDDIR}/etc/ttys
+	sed -i "" -e '/^tty[du]0/s/off/onifconsole/' ${NANO_WORLDDIR}/etc/ttys
 
-	# Disable getty on syscons devices
-	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' ${NANO_WORLDDIR}/etc/ttys
+	# Disable getty on syscons or vt devices
+	sed -i "" -E '/^ttyv[0-8]/s/\ton(ifexists)?/\toff/' ${NANO_WORLDDIR}/etc/ttys
 
 	# Tell loader to use serial console early.
 	echo "${NANO_BOOT2CFG}" > ${NANO_WORLDDIR}/boot.config
@@ -760,6 +788,7 @@ cust_pkgng ( ) (
 	fi
 
 	# If the package directory doesn't exist, we're done.
+	NANO_PACKAGE_DIR="$(realpath $NANO_PACKAGE_DIR)"
 	if [ ! -d ${NANO_PACKAGE_DIR} ]; then
 		echo "DONE 0 packages"
 		return 0
@@ -785,7 +814,7 @@ cust_pkgng ( ) (
 	CR "${PKGCMD} add /_.p/${_NANO_PKG_PACKAGE}"
 
 	(
-		# Expand any glob characters in pacakge list
+		# Expand any glob characters in package list
 		cd "${NANO_PACKAGE_DIR}"
 		_PKGS=`find ${NANO_PACKAGE_LIST} -not -name "${_NANO_PKG_PACKAGE}" -print | sort | uniq`
 
@@ -852,17 +881,20 @@ pprint ( ) (
 
 usage ( ) {
 	(
-	echo "Usage: $0 [-bfhiKknqvwX] [-c config_file]"
+	echo "Usage: $0 [-BbfhIiKknqvWwX] [-c config_file]"
+	echo "	-B	suppress installs (both kernel and world)"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-c	specify config file"
 	echo "	-f	suppress code slice extraction (implies -i)"
 	echo "	-h	print this help summary page"
+	echo "	-I	build disk image from existing build/install"
 	echo "	-i	suppress disk image build"
 	echo "	-K	suppress installkernel"
 	echo "	-k	suppress buildkernel"
 	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
 	echo "	-q	make output more quiet"
 	echo "	-v	make output more verbose"
+	echo "	-W	suppress installworld"
 	echo "	-w	suppress buildworld"
 	echo "	-X	make native-xtools"
 	) 1>&2
@@ -873,7 +905,7 @@ usage ( ) {
 # Setup and Export Internal variables
 #
 
-export_var ( ) {		# Don't wawnt a subshell
+export_var ( ) {		# Don't want a subshell
 	var=$1
 	# Lookup value of the variable.
 	eval val=\$$var
@@ -882,13 +914,17 @@ export_var ( ) {		# Don't wawnt a subshell
 }
 
 # Call this function to set defaults _after_ parsing options.
-# dont want a subshell otherwise variable setting is thrown away.
+# don't want a subshell otherwise variable setting is thrown away.
 set_defaults_and_export ( ) {
 	: ${NANO_OBJ:=/usr/obj/nanobsd.${NANO_NAME}${NANO_LAYOUT:+.${NANO_LAYOUT}}}
 	: ${MAKEOBJDIRPREFIX:=${NANO_OBJ}}
 	: ${NANO_DISKIMGDIR:=${NANO_OBJ}}
 	: ${NANO_WORLDDIR:=${NANO_OBJ}/_.w}
 	: ${NANO_LOG:=${NANO_OBJ}}
+	: ${NANO_PMAKE:="${NANO_MAKE} -j ${NANO_NCPU}"}
+	if ! $do_clean; then
+		NANO_PMAKE="${NANO_PMAKE} -DNO_CLEAN"
+	fi
 	NANO_MAKE_CONF_BUILD=${MAKEOBJDIRPREFIX}/make.conf.build
 	NANO_MAKE_CONF_INSTALL=${NANO_OBJ}/make.conf.install
 

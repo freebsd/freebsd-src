@@ -887,7 +887,7 @@ hdsp_attach(device_t dev)
 		return (ENXIO);
 
 	for (i = 0; i < HDSP_MAX_CHANS && chan_map[i].descr != NULL; i++) {
-		scp = malloc(sizeof(struct sc_pcminfo), M_DEVBUF, M_NOWAIT | M_ZERO);
+		scp = malloc(sizeof(struct sc_pcminfo), M_DEVBUF, M_WAITOK | M_ZERO);
 		scp->hc = &chan_map[i];
 		scp->sc = sc;
 		scp->dev = device_add_child(dev, "pcm", -1);
@@ -952,7 +952,14 @@ hdsp_attach(device_t dev)
 		    "Analog input level ('LowGain', '+4dBU', '-10dBV')");
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
+}
+
+static void
+hdsp_child_deleted(device_t dev, device_t child)
+{
+	free(device_get_ivars(child), M_DEVBUF);
 }
 
 static void
@@ -978,7 +985,7 @@ hdsp_detach(device_t dev)
 		return (0);
 	}
 
-	err = device_delete_children(dev);
+	err = bus_generic_detach(dev);
 	if (err)
 		return (err);
 
@@ -1002,6 +1009,7 @@ static device_method_t hdsp_methods[] = {
 	DEVMETHOD(device_probe,     hdsp_probe),
 	DEVMETHOD(device_attach,    hdsp_attach),
 	DEVMETHOD(device_detach,    hdsp_detach),
+	DEVMETHOD(bus_child_deleted, hdsp_child_deleted),
 	{ 0, 0 }
 };
 

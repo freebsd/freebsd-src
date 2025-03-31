@@ -17,8 +17,17 @@ contrib/openzfs/module/icp/asm-ppc64/blake3/b3_ppc64le_sse41.S	optional zfs comp
 # zfs sha2 hash support
 contrib/openzfs/module/icp/asm-ppc64/sha2/sha256-p8.S		optional zfs compile-with "${ZFS_S}"
 contrib/openzfs/module/icp/asm-ppc64/sha2/sha512-p8.S		optional zfs compile-with "${ZFS_S}"
-contrib/openzfs/module/icp/asm-ppc64/sha2/sha256-ppc.S		optional zfs compile-with "${ZFS_S}"
-contrib/openzfs/module/icp/asm-ppc64/sha2/sha512-ppc.S		optional zfs compile-with "${ZFS_S}"
+zfs-sha256-ppc.o		optional	zfs			\
+	dependency "$S/contrib/openzfs/module/icp/asm-ppc64/sha2/sha256-ppc.S" \
+	compile-with	"${CC} -c ${ZFS_ASM_CFLAGS} -o ${.TARGET} ${WERROR} $S/contrib/openzfs/module/icp/asm-ppc64/sha2/sha256-ppc.S" \
+	no-implicit-rule \
+	clean "zfs-sha256-ppc.o"
+
+zfs-sha512-ppc.o		optional	zfs			\
+	dependency "$S/contrib/openzfs/module/icp/asm-ppc64/sha2/sha512-ppc.S" \
+	compile-with	"${CC} -c ${ZFS_ASM_CFLAGS} -o ${.TARGET} ${WERROR} $S/contrib/openzfs/module/icp/asm-ppc64/sha2/sha512-ppc.S" \
+	no-implicit-rule \
+	clean "zfs-sha512-ppc.o"
 
 # openssl ppc common files
 crypto/openssl/ossl_ppc.c	optional	ossl powerpc64 | ossl powerpc64le

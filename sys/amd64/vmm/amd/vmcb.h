@@ -167,7 +167,7 @@
 #define	VMCB_NPF_INFO1_GPT		BIT(33) /* Guest page table. */
 
 /*
- * EXITINTINFO, Interrupt exit info for all intrecepts.
+ * EXITINTINFO, Interrupt exit info for all intercepts.
  * Section 15.7.2, Intercepts during IDT Interrupt Delivery.
  */
 #define VMCB_EXITINTINFO_VECTOR(x)	((x) & 0xFF)

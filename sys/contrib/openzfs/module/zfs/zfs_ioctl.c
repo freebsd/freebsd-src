@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -900,9 +901,18 @@ zfs_secpolicy_recv(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 	(void) innvl;
 	int error;
 
+	/*
+	 * zfs receive -F requires full receive permission,
+	 * otherwise receive:append permission is enough
+	 */
 	if ((error = zfs_secpolicy_write_perms(zc->zc_name,
-	    ZFS_DELEG_PERM_RECEIVE, cr)) != 0)
-		return (error);
+	    ZFS_DELEG_PERM_RECEIVE, cr)) != 0) {
+		if (zc->zc_guid || nvlist_exists(innvl, "force"))
+			return (error);
+		if ((error = zfs_secpolicy_write_perms(zc->zc_name,
+		    ZFS_DELEG_PERM_RECEIVE_APPEND, cr)) != 0)
+			return (error);
+	}
 
 	if ((error = zfs_secpolicy_write_perms(zc->zc_name,
 	    ZFS_DELEG_PERM_MOUNT, cr)) != 0)
@@ -1718,6 +1728,9 @@ zfs_ioc_pool_scrub(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 		error = spa_scrub_pause_resume(spa, POOL_SCRUB_PAUSE);
 	} else if (scan_type == POOL_SCAN_NONE) {
 		error = spa_scan_stop(spa);
+	} else if (scan_cmd == POOL_SCRUB_FROM_LAST_TXG) {
+		error = spa_scan_range(spa, scan_type,
+		    spa_get_last_scrubbed_txg(spa), 0);
 	} else {
 		error = spa_scan(spa, scan_type);
 	}

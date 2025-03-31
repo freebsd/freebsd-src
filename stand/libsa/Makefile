@@ -200,8 +200,8 @@ MAN=libsa.3
 # Create a subset of includes that are safe, as well as adjusting those that aren't
 # The lists may drive people nuts, but they are explicitly opt-in
 FAKE_DIRS=xlocale arpa ssp
-SAFE_INCS=a.out.h assert.h elf.h inttypes.h limits.h nlist.h setjmp.h stddef.h stdbool.h string.h strings.h time.h unistd.h uuid.h
-STAND_H_INC=ctype.h fcntl.h signal.h stdio.h stdlib.h
+SAFE_INCS=a.out.h assert.h elf.h limits.h nlist.h setjmp.h stddef.h stdbool.h string.h strings.h time.h uuid.h
+STAND_H_INC=ctype.h fcntl.h signal.h stdio.h stdlib.h unistd.h
 OTHER_INC=stdarg.h errno.h stdint.h
 
 beforedepend:

@@ -97,10 +97,6 @@ static void	quot(char *, char *);
 	(((fs)->fs_magic == FS_UFS1_MAGIC ? sizeof(struct ufs1_dinode) : \
 	sizeof(struct ufs2_dinode)) * INOCNT(fs))
 
-union dinode {
-	struct ufs1_dinode dp1;
-	struct ufs2_dinode dp2;
-};
 #define	DIP(fs, dp, field) \
 	(((fs)->fs_magic == FS_UFS1_MAGIC) ? \
 	(dp)->dp1.field : (dp)->dp2.field)

@@ -36,7 +36,6 @@ logging.getLogger("scapy").setLevel(logging.CRITICAL)
 curdir = os.path.dirname(os.path.realpath(__file__))
 netpfil_common = curdir + "/../netpfil/common"
 sys.path.append(netpfil_common)
-from sniffer import Sniffer
 
 sc = None
 sp = None
@@ -81,12 +80,14 @@ class TestIGMP(VnetTestTemplate):
             sp = _sp
         super().setup_method(method)
 
+    @pytest.mark.require_progs(["scapy"])
     def test_igmp3_join_leave(self):
         "Test that we send the expected join/leave IGMPv2 messages"
 
         if1 = self.vnet.iface_alias_map["if1"]
 
         # Start a background sniff
+        from sniffer import Sniffer
         expected_pkt = { "type": "join", "group": "230.0.0.1" }
         sniffer = Sniffer(expected_pkt, check_igmpv3, if1.name, timeout=10)
 

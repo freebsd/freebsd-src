@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2023 Google LLC
+ * Copyright (c) 2023-2024 Google LLC
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -137,9 +137,20 @@ _Static_assert(sizeof(struct gve_device_option_gqi_qpl) == 4,
 
 struct gve_device_option_dqo_rda {
 	__be32 supported_features_mask;
+	__be16 tx_comp_ring_entries;
+	__be16 rx_buff_ring_entries;
 };
 
-_Static_assert(sizeof(struct gve_device_option_dqo_rda) == 4,
+_Static_assert(sizeof(struct gve_device_option_dqo_rda) == 8,
+    "gve: bad admin queue struct length");
+
+struct gve_device_option_dqo_qpl {
+	__be32 supported_features_mask;
+	__be16 tx_comp_ring_entries;
+	__be16 rx_buff_ring_entries;
+};
+
+_Static_assert(sizeof(struct gve_device_option_dqo_qpl) == 8,
     "gve: bad admin queue struct length");
 
 struct gve_device_option_modify_ring {
@@ -166,6 +177,7 @@ enum gve_dev_opt_id {
 	GVE_DEV_OPT_ID_GQI_QPL = 0x3,
 	GVE_DEV_OPT_ID_DQO_RDA = 0x4,
 	GVE_DEV_OPT_ID_MODIFY_RING = 0x6,
+	GVE_DEV_OPT_ID_DQO_QPL = 0x7,
 	GVE_DEV_OPT_ID_JUMBO_FRAMES = 0x8,
 };
 
@@ -180,6 +192,7 @@ enum gve_dev_opt_req_feat_mask {
 	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RDA = 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_QPL = 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_RDA = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_QPL = 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_MODIFY_RING = 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_JUMBO_FRAMES = 0x0,
 };
@@ -194,9 +207,8 @@ enum gve_sup_feature_mask {
 enum gve_driver_capability {
 	gve_driver_capability_gqi_qpl = 0,
 	gve_driver_capability_gqi_rda = 1,
-	gve_driver_capability_dqo_qpl = 2, /* reserved for future use */
+	gve_driver_capability_dqo_qpl = 2,
 	gve_driver_capability_dqo_rda = 3,
-	gve_driver_capability_alt_miss_compl = 4,
 };
 
 #define GVE_CAP1(a) BIT((int) a)
@@ -209,7 +221,10 @@ enum gve_driver_capability {
  * Only a few bits (as shown in `gve_driver_compatibility`) are currently
  * defined. The rest are reserved for future use.
  */
-#define GVE_DRIVER_CAPABILITY_FLAGS1 (GVE_CAP1(gve_driver_capability_gqi_qpl))
+#define GVE_DRIVER_CAPABILITY_FLAGS1 \
+	(GVE_CAP1(gve_driver_capability_gqi_qpl) | \
+	 GVE_CAP1(gve_driver_capability_dqo_qpl) | \
+	 GVE_CAP1(gve_driver_capability_dqo_rda))
 #define GVE_DRIVER_CAPABILITY_FLAGS2 0x0
 #define GVE_DRIVER_CAPABILITY_FLAGS3 0x0
 #define GVE_DRIVER_CAPABILITY_FLAGS4 0x0
@@ -282,6 +297,8 @@ struct gve_adminq_create_tx_queue {
 _Static_assert(sizeof(struct gve_adminq_create_tx_queue) == 48,
     "gve: bad admin queue struct length");
 
+#define GVE_RAW_ADDRESSING_QPL_ID 0xFFFFFFFF
+
 struct gve_adminq_create_rx_queue {
 	__be32 queue_id;
 	__be32 index;
@@ -352,6 +369,23 @@ struct stats {
 _Static_assert(sizeof(struct stats) == 16,
     "gve: bad admin queue struct length");
 
+/* These are control path types for PTYPE which are the same as the data path
+ * types.
+ */
+struct gve_ptype_entry {
+	uint8_t l3_type;
+	uint8_t l4_type;
+};
+
+struct gve_ptype_map {
+	struct gve_ptype_entry ptypes[1 << 10]; /* PTYPES are always 10 bits. */
+};
+
+struct gve_adminq_get_ptype_map {
+	__be64 ptype_map_len;
+	__be64 ptype_map_addr;
+};
+
 struct gve_adminq_command {
 	__be32 opcode;
 	__be32 status;
@@ -368,12 +402,31 @@ struct gve_adminq_command {
 		struct gve_adminq_set_driver_parameter set_driver_param;
 		struct gve_adminq_verify_driver_compatibility
 					verify_driver_compatibility;
+		struct gve_adminq_get_ptype_map get_ptype_map;
 		uint8_t reserved[56];
 	};
 };
 
 _Static_assert(sizeof(struct gve_adminq_command) == 64,
     "gve: bad admin queue struct length");
+
+enum gve_l3_type {
+	/* Must be zero so zero initialized LUT is unknown. */
+	GVE_L3_TYPE_UNKNOWN = 0,
+	GVE_L3_TYPE_OTHER,
+	GVE_L3_TYPE_IPV4,
+	GVE_L3_TYPE_IPV6,
+};
+
+enum gve_l4_type {
+	/* Must be zero so zero initialized LUT is unknown. */
+	GVE_L4_TYPE_UNKNOWN = 0,
+	GVE_L4_TYPE_OTHER,
+	GVE_L4_TYPE_TCP,
+	GVE_L4_TYPE_UDP,
+	GVE_L4_TYPE_ICMP,
+	GVE_L4_TYPE_SCTP,
+};
 
 int gve_adminq_create_rx_queues(struct gve_priv *priv, uint32_t num_queues);
 int gve_adminq_create_tx_queues(struct gve_priv *priv, uint32_t num_queues);
@@ -387,8 +440,10 @@ int gve_adminq_configure_device_resources(struct gve_priv *priv);
 int gve_adminq_deconfigure_device_resources(struct gve_priv *priv);
 void gve_release_adminq(struct gve_priv *priv);
 int gve_adminq_register_page_list(struct gve_priv *priv,
-        struct gve_queue_page_list *qpl);
+    struct gve_queue_page_list *qpl);
 int gve_adminq_unregister_page_list(struct gve_priv *priv, uint32_t page_list_id);
 int gve_adminq_verify_driver_compatibility(struct gve_priv *priv,
-        uint64_t driver_info_len, vm_paddr_t driver_info_addr);
+    uint64_t driver_info_len, vm_paddr_t driver_info_addr);
+int gve_adminq_get_ptype_map_dqo(struct gve_priv *priv,
+    struct gve_ptype_lut *ptype_lut);
 #endif /* _GVE_AQ_H_ */

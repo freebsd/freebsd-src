@@ -130,7 +130,7 @@ debugfs_fill(PFS_FILL_ARGS)
 	rc = d->dm_fops->open(&vn, &lf);
 	if (rc < 0) {
 #ifdef INVARIANTS
-		printf("%s:%d open failed with %d\n", __FUNCTION__, __LINE__, rc);
+		printf("%s:%d open failed with %d\n", __func__, __LINE__, rc);
 #endif
 		return (-rc);
 	}
@@ -165,7 +165,7 @@ debugfs_fill(PFS_FILL_ARGS)
 
 	if (rc < 0) {
 #ifdef INVARIANTS
-		printf("%s:%d read/write failed with %d\n", __FUNCTION__, __LINE__, rc);
+		printf("%s:%d read/write failed with %d\n", __func__, __LINE__, rc);
 #endif
 		return (-rc);
 	}
@@ -326,6 +326,23 @@ debugfs_create_symlink(const char *name, struct dentry *parent,
  fail1:
 	free(data, M_DFSINT);
 	return (NULL);
+}
+
+struct dentry *
+debugfs_lookup(const char *name, struct dentry *parent)
+{
+	struct dentry_meta *dm;
+	struct dentry *dnode;
+	struct pfs_node *pnode;
+
+	pnode = pfs_find_node(parent->d_pfs_node, name);
+	if (pnode == NULL)
+		return (NULL);
+
+	dm = (struct dentry_meta *)pnode->pn_data;
+	dnode = &dm->dm_dnode;
+
+	return (dnode);
 }
 
 void

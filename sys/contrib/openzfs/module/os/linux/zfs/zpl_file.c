@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -28,6 +29,7 @@
 #include <linux/compat.h>
 #endif
 #include <linux/fs.h>
+#include <linux/migrate.h>
 #include <sys/file.h>
 #include <sys/dmu_objset.h>
 #include <sys/zfs_znode.h>
@@ -215,27 +217,6 @@ zpl_file_accessed(struct file *filp)
 	}
 }
 
-/*
- * When HAVE_VFS_IOV_ITER is defined the iov_iter structure supports
- * iovecs, kvevs, bvecs and pipes, plus all the required interfaces to
- * manipulate the iov_iter are available.  In which case the full iov_iter
- * can be attached to the uio and correctly handled in the lower layers.
- * Otherwise, for older kernels extract the iovec and pass it instead.
- */
-static void
-zpl_uio_init(zfs_uio_t *uio, struct kiocb *kiocb, struct iov_iter *to,
-    loff_t pos, ssize_t count, size_t skip)
-{
-#if defined(HAVE_VFS_IOV_ITER)
-	zfs_uio_iov_iter_init(uio, to, pos, count, skip);
-#else
-	zfs_uio_iovec_init(uio, zfs_uio_iter_iov(to), to->nr_segs, pos,
-	    zfs_uio_iov_iter_type(to) & ITER_KVEC ?
-	    UIO_SYSSPACE : UIO_USERSPACE,
-	    count, skip);
-#endif
-}
-
 static ssize_t
 zpl_iter_read(struct kiocb *kiocb, struct iov_iter *to)
 {
@@ -245,7 +226,7 @@ zpl_iter_read(struct kiocb *kiocb, struct iov_iter *to)
 	ssize_t count = iov_iter_count(to);
 	zfs_uio_t uio;
 
-	zpl_uio_init(&uio, kiocb, to, kiocb->ki_pos, count, 0);
+	zfs_uio_iov_iter_init(&uio, to, kiocb->ki_pos, count, 0);
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
@@ -295,7 +276,8 @@ zpl_iter_write(struct kiocb *kiocb, struct iov_iter *from)
 	if (ret)
 		return (ret);
 
-	zpl_uio_init(&uio, kiocb, from, kiocb->ki_pos, count, from->iov_offset);
+	zfs_uio_iov_iter_init(&uio, from, kiocb->ki_pos, count,
+	    from->iov_offset);
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
@@ -316,33 +298,17 @@ zpl_iter_write(struct kiocb *kiocb, struct iov_iter *from)
 }
 
 static ssize_t
-zpl_direct_IO_impl(void)
+zpl_direct_IO(struct kiocb *kiocb, struct iov_iter *iter)
 {
 	/*
 	 * All O_DIRECT requests should be handled by
-	 * zpl_{iter/aio}_{write/read}(). There is no way kernel generic code
-	 * should call the direct_IO address_space_operations function. We set
-	 * this code path to be fatal if it is executed.
+	 * zpl_iter_write/read}(). There is no way kernel generic code should
+	 * call the direct_IO address_space_operations function. We set this
+	 * code path to be fatal if it is executed.
 	 */
 	PANIC(0);
 	return (0);
 }
-
-#if defined(HAVE_VFS_DIRECT_IO_ITER)
-static ssize_t
-zpl_direct_IO(struct kiocb *kiocb, struct iov_iter *iter)
-{
-	return (zpl_direct_IO_impl());
-}
-#elif defined(HAVE_VFS_DIRECT_IO_ITER_OFFSET)
-static ssize_t
-zpl_direct_IO(struct kiocb *kiocb, struct iov_iter *iter, loff_t pos)
-{
-	return (zpl_direct_IO_impl());
-}
-#else
-#error "Unknown Direct I/O interface"
-#endif
 
 static loff_t
 zpl_llseek(struct file *filp, loff_t offset, int whence)
@@ -606,42 +572,6 @@ zpl_writepage(struct page *pp, struct writeback_control *wbc)
 
 	return (zpl_putpage(pp, wbc, &for_sync));
 }
-
-static int
-zpl_releasepage(struct page *pp, gfp_t gfp)
-{
-	if (PagePrivate(pp)) {
-		ClearPagePrivate(pp);
-		put_page(pp);
-	}
-	return (1);
-}
-
-#ifdef HAVE_VFS_RELEASE_FOLIO
-static bool
-zpl_release_folio(struct folio *folio, gfp_t gfp)
-{
-	return (zpl_releasepage(&folio->page, gfp));
-}
-#endif
-
-#ifdef HAVE_VFS_INVALIDATE_FOLIO
-static void
-zpl_invalidate_folio(struct folio *folio, size_t offset, size_t len)
-{
-	if ((offset == 0) && (len == PAGE_SIZE)) {
-		zpl_releasepage(&folio->page, 0);
-	}
-}
-#else
-static void
-zpl_invalidatepage(struct page *pp, unsigned int offset, unsigned int len)
-{
-	if ((offset == 0) && (len == PAGE_SIZE)) {
-		zpl_releasepage(pp, 0);
-	}
-}
-#endif
 
 /*
  * The flag combination which matches the behavior of zfs_space() is
@@ -1126,15 +1056,10 @@ const struct address_space_operations zpl_address_space_operations = {
 #ifdef HAVE_VFS_FILEMAP_DIRTY_FOLIO
 	.dirty_folio	= filemap_dirty_folio,
 #endif
-#ifdef HAVE_VFS_RELEASE_FOLIO
-	.release_folio	= zpl_release_folio,
+#ifdef HAVE_VFS_MIGRATE_FOLIO
+	.migrate_folio	= migrate_folio,
 #else
-	.releasepage	= zpl_releasepage,
-#endif
-#ifdef HAVE_VFS_INVALIDATE_FOLIO
-	.invalidate_folio = zpl_invalidate_folio,
-#else
-	.invalidatepage = zpl_invalidatepage,
+	.migratepage	= migrate_page,
 #endif
 };
 
@@ -1144,14 +1069,12 @@ const struct file_operations zpl_file_operations = {
 	.llseek		= zpl_llseek,
 	.read_iter	= zpl_iter_read,
 	.write_iter	= zpl_iter_write,
-#ifdef HAVE_VFS_IOV_ITER
 #ifdef HAVE_COPY_SPLICE_READ
 	.splice_read	= copy_splice_read,
 #else
 	.splice_read	= generic_file_splice_read,
 #endif
 	.splice_write	= iter_file_splice_write,
-#endif
 	.mmap		= zpl_mmap,
 	.fsync		= zpl_fsync,
 	.fallocate	= zpl_fallocate,
@@ -1183,7 +1106,6 @@ const struct file_operations zpl_dir_file_operations = {
 #endif
 };
 
-/* CSTYLED */
 module_param(zfs_fallocate_reserve_percent, uint, 0644);
 MODULE_PARM_DESC(zfs_fallocate_reserve_percent,
 	"Percentage of length to use for the available capacity check");

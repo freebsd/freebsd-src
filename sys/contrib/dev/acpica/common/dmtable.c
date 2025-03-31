@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -190,6 +190,8 @@ static const char           *AcpiDmAestSubnames[] =
     "SMMU Error Node",
     "Vendor-defined Error Node",
     "GIC Error Node",
+    "PCIE Error Node",
+    "PROXY Error Node",
     "Unknown Subtable Type"         /* Reserved */
 };
 
@@ -214,6 +216,7 @@ static const char           *AcpiDmAestXfaceNames[] =
 {
     "System Register Interface",
     "Memory Mapped Interface",
+    "Single Record Memory Mapped Interface",
     "Unknown Interface Type"        /* Reserved */
 };
 
@@ -257,6 +260,7 @@ static const char           *AcpiDmCedtSubnames[] =
 {
     "CXL Host Bridge Structure",
     "CXL Fixed Memory Window Structure",
+    "CXL XOR Interleave Math Structure",
     "Unknown Subtable Type"         /* Reserved */
 };
 
@@ -461,70 +465,6 @@ static const char           *AcpiDmNfitSubnames[] =
     "Unknown Subtable Type"             /* Reserved */
 };
 
-static const char           *AcpiDmNhltLinkTypeNames[] =
-{
-    "Reserved for HD-Audio",            /* ACPI_NHLT_RESERVED_HD_AUDIO */
-    "Reserved for DSP",                 /* ACPI_NHLT_RESERVED_DSP */
-    "Type PDM",                         /* ACPI_NHLT_PDM */
-    "Type SSP",                         /* ACPI_NHLT_SSP */
-    "Reserved for SlimBus",             /* ACPI_NHLT_RESERVED_SLIMBUS */
-    "Reserved for SoundWire",           /* ACPI_NHLT_RESERVED_SOUNDWIRE */
-    "Unknown Link Type"                 /* Reserved */
-};
-
-static const char           *AcpiDmNhltDirectionNames[] =
-{
-    "Render",                           /* ACPI_NHLT_DIR_RENDER */
-    "Capture",                          /* ACPI_NHLT_DIR_CAPTURE */
-    "Render with Loopback",             /* ACPI_NHLT_DIR_RENDER_LOOPBACK */
-    "Feedback for Render",              /* ACPI_NHLT_DIR_RENDER_FEEDBACK */
-    "Unknown Direction"                 /* Reserved */
-};
-
-static const char           *AcpiDmNhltMicTypeNames[] =
-{
-    "Omnidirectional",                  /* ACPI_NHLT_MIC_OMNIDIRECTIONAL */
-    "Subcardioid",                      /* ACPI_NHLT_MIC_SUBCARDIOID */
-    "Cardioid",                         /* ACPI_NHLT_MIC_CARDIOID */
-    "SuperCardioid",                    /* ACPI_NHLT_MIC_SUPER_CARDIOID */
-    "HyperCardioid",                    /* ACPI_NHLT_MIC_HYPER_CARDIOID */
-    "8 Shaped",                         /* ACPI_NHLT_MIC_8_SHAPED */
-    "Reserved Mic Type",                /* Reserved */
-    "Vendor Defined",                   /* ACPI_NHLT_MIC_VENDOR_DEFINED */
-    "Unknown Mic Type"                  /* ACPI_NHLT_MIC_RESERVED */
-};
-
-static const char           *AcpiDmNhltMicPositionNames[] =
-{
-    "Top",                              /* ACPI_NHLT_MIC_POSITION_TOP */
-    "Bottom",                           /* ACPI_NHLT_MIC_POSITION_BOTTOM */
-    "Left",                             /* ACPI_NHLT_MIC_POSITION_LEFT */
-    "Right",                            /* ACPI_NHLT_MIC_POSITION_RIGHT */
-    "Front",                            /* ACPI_NHLT_MIC_POSITION_FRONT */
-    "Back",                             /* ACPI_NHLT_MIC_POSITION_BACK */
-    "Unknown Mic Position"              /* 6 and above are reserved */
-};
-
-static const char           *AcpiDmNhltMicArrayTypeNames[] =
-{
-    "Unknown Array Type",               /* ACPI_NHLT_ARRAY_TYPE_RESERVED */
-    "Small Linear 2-element",           /* ACPI_NHLT_SMALL_LINEAR_2ELEMENT */
-    "Big Linear 2-element",             /* ACPI_NHLT_BIG_LINEAR_2ELEMENT */
-    "Linear 4-element 1st Geometry",    /* ACPI_NHLT_FIRST_GEOMETRY_LINEAR_4ELEMENT */
-    "Planar L-shaped 4-element",        /* ACPI_NHLT_PLANAR_LSHAPED_4ELEMENT */
-    "Linear 4-element 2nd Geometry",    /* ACPI_NHLT_SECOND_GEOMETRY_LINEAR_4ELEMENT */
-    "Vendor Defined"                    /* ACPI_NHLT_VENDOR_DEFINED */
-};
-
-static const char           *AcpiDmNhltConfigTypeNames[] =
-{
-    "Generic Type",                     /* ACPI_NHLT_CONFIG_TYPE_GENERIC */
-    "Microphone Array",                 /* ACPI_NHLT_CONFIG_TYPE_MIC_ARRAY */
-    "Reserved",                         /* ACPI_NHLT_CONFIG_TYPE_RESERVED */
-    "Render Feedback",                  /* ACPI_NHLT_CONFIG_TYPE_RENDER_FEEDBACK */
-    "Unknown Config Type"               /* ACPI_NHLT_CONFIG_TYPE_RESERVED */
-};
-
 static const char           *AcpiDmPcctSubnames[] =
 {
     "Generic Communications Subspace",  /* ACPI_PCCT_TYPE_GENERIC_SUBSPACE */
@@ -582,6 +522,7 @@ static const char           *AcpiDmSratSubnames[] =
     "GIC ITS Affinity",             /* Acpi 6.2 */
     "Generic Initiator Affinity",   /* Acpi 6.3 */
     "Generic Port Affinity",        /* Acpi 6.4 */
+    "RINTC Affinity",               /* Acpi 6.6 */
     "Unknown Subtable Type"         /* Reserved */
 };
 
@@ -737,7 +678,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_MSCT, NULL,                   AcpiDmDumpMsct, DtCompileMsct,  TemplateMsct},
     {ACPI_SIG_MSDM, NULL,                   AcpiDmDumpSlic, DtCompileSlic,  TemplateMsdm},
     {ACPI_SIG_NFIT, AcpiDmTableInfoNfit,    AcpiDmDumpNfit, DtCompileNfit,  TemplateNfit},
-    {ACPI_SIG_NHLT, AcpiDmTableInfoNhlt,    AcpiDmDumpNhlt, DtCompileNhlt,  TemplateNhlt},
+    {ACPI_SIG_NHLT, NULL,                   NULL,           NULL,           NULL},
     {ACPI_SIG_PCCT, AcpiDmTableInfoPcct,    AcpiDmDumpPcct, DtCompilePcct,  TemplatePcct},
     {ACPI_SIG_PDTT, AcpiDmTableInfoPdtt,    AcpiDmDumpPdtt, DtCompilePdtt,  TemplatePdtt},
     {ACPI_SIG_PHAT, NULL,                   AcpiDmDumpPhat, DtCompilePhat,  TemplatePhat},
@@ -745,6 +686,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_PPTT, NULL,                   AcpiDmDumpPptt, DtCompilePptt,  TemplatePptt},
     {ACPI_SIG_PRMT, NULL,                   AcpiDmDumpPrmt, DtCompilePrmt,  TemplatePrmt},
     {ACPI_SIG_RASF, AcpiDmTableInfoRasf,    NULL,           NULL,           TemplateRasf},
+    {ACPI_SIG_RAS2, AcpiDmTableInfoRas2,    AcpiDmDumpRas2, DtCompileRas2,  TemplateRas2},
     {ACPI_SIG_RGRT, NULL,                   AcpiDmDumpRgrt, DtCompileRgrt,  TemplateRgrt},
     {ACPI_SIG_RHCT, NULL,                   AcpiDmDumpRhct, DtCompileRhct,  TemplateRhct},
     {ACPI_SIG_RSDT, NULL,                   AcpiDmDumpRsdt, DtCompileRsdt,  TemplateRsdt},
@@ -1144,7 +1086,7 @@ AcpiDmDumpTable (
         {
             AcpiOsPrintf (
                 "/**** ACPI table terminates "
-                "in the middle of a data structure! (dump table) \n"
+                "in the middle of a data structure! (dump table)\n"
                 "CurrentOffset: %X, TableLength: %X ***/", CurrentOffset, TableLength);
             return (AE_BAD_DATA);
         }
@@ -1163,12 +1105,6 @@ AcpiDmDumpTable (
         case ACPI_DMT_GTDT:
         case ACPI_DMT_MADT:
         case ACPI_DMT_MPAM_LOCATOR:
-        case ACPI_DMT_NHLT1:
-        case ACPI_DMT_NHLT1a:
-        case ACPI_DMT_NHLT1b:
-        case ACPI_DMT_NHLT1c:
-        case ACPI_DMT_NHLT1d:
-        case ACPI_DMT_NHLT1f:
         case ACPI_DMT_PCCT:
         case ACPI_DMT_PMTT:
         case ACPI_DMT_PPTT:
@@ -1199,7 +1135,6 @@ AcpiDmDumpTable (
         case ACPI_DMT_HEST:
         case ACPI_DMT_HMAT:
         case ACPI_DMT_NFIT:
-        case ACPI_DMT_NHLT1e:
         case ACPI_DMT_PHAT:
         case ACPI_DMT_RHCT:
 
@@ -1264,6 +1199,16 @@ AcpiDmDumpTable (
         case ACPI_DMT_BUF18:
 
             ByteLength = 18;
+            break;
+
+        case ACPI_DMT_BUF32:
+
+            ByteLength = 32;
+            break;
+
+        case ACPI_DMT_BUF112:
+
+            ByteLength = 112;
             break;
 
         case ACPI_DMT_BUF128:
@@ -1477,6 +1422,8 @@ AcpiDmDumpTable (
         case ACPI_DMT_BUF12:
         case ACPI_DMT_BUF16:
         case ACPI_DMT_BUF18:
+        case ACPI_DMT_BUF32:
+        case ACPI_DMT_BUF112:
         case ACPI_DMT_BUF128:
             /*
              * Buffer: Size depends on the opcode and was set above.
@@ -1964,123 +1911,6 @@ AcpiDmDumpTable (
 
             AcpiOsPrintf (UINT16_FORMAT, ACPI_GET16 (Target),
                 AcpiDmNfitSubnames[Temp16]);
-            break;
-
-        case ACPI_DMT_NHLT1:
-
-            /* NHLT link types */
-
-            Temp8 = *Target;
-            if (Temp8 > ACPI_NHLT_TYPE_RESERVED)
-            {
-                Temp8 = ACPI_NHLT_TYPE_RESERVED;
-            }
-
-            AcpiOsPrintf (UINT8_FORMAT, *Target,
-                AcpiDmNhltLinkTypeNames[Temp8]);
-            break;
-
-        case ACPI_DMT_NHLT1a:
-
-            /* NHLT direction */
-
-            Temp8 = *Target;
-            if (Temp8 > ACPI_NHLT_DIR_RESERVED)
-            {
-                Temp8 = ACPI_NHLT_DIR_RESERVED;
-            }
-
-            AcpiOsPrintf (UINT8_FORMAT, *Target,
-                AcpiDmNhltDirectionNames[Temp8]);
-            break;
-
-        case ACPI_DMT_NHLT1b:
-
-            /* NHLT microphone type */
-
-            Temp8 = *Target;
-            if (Temp8 > ACPI_NHLT_MIC_RESERVED)
-            {
-                Temp8 = ACPI_NHLT_MIC_RESERVED;
-            }
-
-            AcpiOsPrintf (UINT8_FORMAT, *Target,
-                AcpiDmNhltMicTypeNames[Temp8]);
-            break;
-
-        case ACPI_DMT_NHLT1c:
-
-            /* NHLT microphone position */
-
-            Temp8 = *Target;
-            if (Temp8 > ACPI_NHLT_MIC_POSITION_RESERVED)
-            {
-                Temp8 = ACPI_NHLT_MIC_POSITION_RESERVED;
-            }
-
-            AcpiOsPrintf (UINT8_FORMAT, *Target,
-                AcpiDmNhltMicPositionNames[Temp8]);
-            break;
-
-        case ACPI_DMT_NHLT1d:
-
-            /* NHLT microphone array type */
-
-            Temp8 = *Target & ACPI_NHLT_ARRAY_TYPE_MASK;
-            if (Temp8 < ACPI_NHLT_ARRAY_TYPE_RESERVED)
-            {
-                Temp8 = ACPI_NHLT_ARRAY_TYPE_RESERVED;
-            }
-
-            AcpiOsPrintf (UINT8_FORMAT_NO_NEWLINE, *Target,
-                AcpiDmNhltMicArrayTypeNames[Temp8 - ACPI_NHLT_ARRAY_TYPE_RESERVED]);
-
-            Temp8 = *Target;
-            if (Temp8 & ACPI_NHLT_MIC_SNR_SENSITIVITY_EXT)
-            {
-                AcpiOsPrintf (" [%s]", "SNR and Sensitivity");
-            }
-
-            AcpiOsPrintf ("\n");
-            break;
-
-        case ACPI_DMT_NHLT1e:
-
-            /* NHLT Endpoint Device ID */
-
-            Temp16 = ACPI_GET16 (Target);
-            if (Temp16 == 0xAE20)
-            {
-                Name = "PDM DMIC";
-            }
-            else if (Temp16 == 0xAE30)
-            {
-                Name = "BT Sideband";
-            }
-            else if (Temp16 == 0xAE34)
-            {
-                Name = "I2S/TDM Codecs";
-            }
-            else
-            {
-                Name = "Unknown Device ID";
-            }
-
-            AcpiOsPrintf (UINT16_FORMAT, Temp16, Name);
-            break;
-
-        case ACPI_DMT_NHLT1f:
-
-            /* NHLT ConfigType field */
-
-            Temp8 = *Target;
-            if (Temp8 > ACPI_NHLT_CONFIG_TYPE_RESERVED)
-            {
-                Temp8 = ACPI_NHLT_CONFIG_TYPE_RESERVED;
-            }
-
-            AcpiOsPrintf (UINT8_FORMAT, *Target,
-                AcpiDmNhltConfigTypeNames[Temp8]);
             break;
 
         case ACPI_DMT_PCCT:

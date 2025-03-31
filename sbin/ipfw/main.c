@@ -43,7 +43,7 @@ help(void)
 "add [num] [set N] [prob x] RULE-BODY\n"
 "{pipe|queue} N config PIPE-BODY\n"
 "[pipe|queue] {zero|delete|show} [N{,N}]\n"
-"nat N config {ip IPADDR|if IFNAME|log|deny_in|same_ports|unreg_only|unreg_cgn|\n"
+"nat N config {ip IPADDR|if IFNAME|log|deny_in|same_ports|unreg_only|unreg_cgn|udp_eim|\n"
 "		reset|reverse|proxy_only|redirect_addr linkspec|\n"
 "		redirect_port linkspec|redirect_proto linkspec|\n"
 "		port_range lower-upper}\n"

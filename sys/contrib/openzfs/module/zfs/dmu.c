@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -1050,7 +1051,7 @@ dmu_free_long_range_impl(objset_t *os, dnode_t *dn, uint64_t offset,
 		 * reduction in space used.
 		 */
 		dmu_tx_mark_netfree(tx);
-		err = dmu_tx_assign(tx, TXG_WAIT);
+		err = dmu_tx_assign(tx, DMU_TX_WAIT);
 		if (err) {
 			dmu_tx_abort(tx);
 			return (err);
@@ -1141,7 +1142,7 @@ dmu_free_long_object(objset_t *os, uint64_t object)
 	dmu_tx_hold_bonus(tx, object);
 	dmu_tx_hold_free(tx, object, 0, DMU_OBJECT_END);
 	dmu_tx_mark_netfree(tx);
-	err = dmu_tx_assign(tx, TXG_WAIT);
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (err == 0) {
 		err = dmu_object_free(os, object, tx);
 		dmu_tx_commit(tx);
@@ -1221,6 +1222,7 @@ dmu_read_impl(dnode_t *dn, uint64_t offset, uint64_t size,
 			bufoff = offset - db->db_offset;
 			tocpy = MIN(db->db_size - bufoff, size);
 
+			ASSERT(db->db_data != NULL);
 			(void) memcpy(buf, (char *)db->db_data + bufoff, tocpy);
 
 			offset += tocpy;
@@ -1278,6 +1280,7 @@ dmu_write_impl(dmu_buf_t **dbp, int numbufs, uint64_t offset, uint64_t size,
 		else
 			dmu_buf_will_dirty(db, tx);
 
+		ASSERT(db->db_data != NULL);
 		(void) memcpy((char *)db->db_data + bufoff, buf, tocpy);
 
 		if (tocpy == db->db_size)
@@ -1426,6 +1429,7 @@ dmu_read_uio_dnode(dnode_t *dn, zfs_uio_t *uio, uint64_t size)
 		bufoff = zfs_uio_offset(uio) - db->db_offset;
 		tocpy = MIN(db->db_size - bufoff, size);
 
+		ASSERT(db->db_data != NULL);
 		err = zfs_uio_fault_move((char *)db->db_data + bufoff, tocpy,
 		    UIO_READ, uio);
 
@@ -1550,6 +1554,7 @@ top:
 		else
 			dmu_buf_will_dirty(db, tx);
 
+		ASSERT(db->db_data != NULL);
 		err = zfs_uio_fault_move((char *)db->db_data + bufoff,
 		    tocpy, UIO_WRITE, uio);
 
@@ -1895,6 +1900,7 @@ dmu_sync_done(zio_t *zio, arc_buf_t *buf, void *varg)
 	mutex_enter(&db->db_mtx);
 	ASSERT(dr->dt.dl.dr_override_state == DR_IN_DMU_SYNC);
 	if (zio->io_error == 0) {
+		ASSERT0(dr->dt.dl.dr_has_raw_params);
 		dr->dt.dl.dr_nopwrite = !!(zio->io_flags & ZIO_FLAG_NOPWRITE);
 		if (dr->dt.dl.dr_nopwrite) {
 			blkptr_t *bp = zio->io_bp;
@@ -1910,6 +1916,7 @@ dmu_sync_done(zio_t *zio, arc_buf_t *buf, void *varg)
 		dr->dt.dl.dr_overridden_by = *zio->io_bp;
 		dr->dt.dl.dr_override_state = DR_OVERRIDDEN;
 		dr->dt.dl.dr_copies = zio->io_prop.zp_copies;
+		dr->dt.dl.dr_gang_copies = zio->io_prop.zp_gang_copies;
 
 		/*
 		 * Old style holes are filled with all zeros, whereas
@@ -1990,7 +1997,7 @@ dmu_sync_late_arrival(zio_t *pio, objset_t *os, dmu_sync_cb_t *done, zgd_t *zgd,
 	 * which time the log block we are writing will be obsolete, so we can
 	 * skip waiting and just return error here instead.
 	 */
-	if (dmu_tx_assign(tx, TXG_NOWAIT | TXG_NOTHROTTLE) != 0) {
+	if (dmu_tx_assign(tx, DMU_TX_NOWAIT | DMU_TX_NOTHROTTLE) != 0) {
 		dmu_tx_abort(tx);
 		/* Make zl_get_data do txg_waited_synced() */
 		return (SET_ERROR(EIO));
@@ -2190,6 +2197,7 @@ dmu_sync(zio_t *pio, uint64_t txg, dmu_sync_cb_t *done, zgd_t *zgd)
 		return (SET_ERROR(EALREADY));
 	}
 
+	ASSERT0(dr->dt.dl.dr_has_raw_params);
 	ASSERT(dr->dt.dl.dr_override_state == DR_NOT_OVERRIDDEN);
 	dr->dt.dl.dr_override_state = DR_IN_DMU_SYNC;
 	mutex_exit(&db->db_mtx);
@@ -2315,6 +2323,7 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 	boolean_t dedup_verify = os->os_dedup_verify;
 	boolean_t encrypt = B_FALSE;
 	int copies = os->os_copies;
+	int gang_copies = os->os_copies;
 
 	/*
 	 * We maintain different write policies for each of the following
@@ -2347,15 +2356,24 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 		switch (os->os_redundant_metadata) {
 		case ZFS_REDUNDANT_METADATA_ALL:
 			copies++;
+			gang_copies++;
 			break;
 		case ZFS_REDUNDANT_METADATA_MOST:
 			if (level >= zfs_redundant_metadata_most_ditto_level ||
 			    DMU_OT_IS_METADATA(type) || (wp & WP_SPILL))
 				copies++;
+			if (level + 1 >=
+			    zfs_redundant_metadata_most_ditto_level ||
+			    DMU_OT_IS_METADATA(type) || (wp & WP_SPILL))
+				gang_copies++;
 			break;
 		case ZFS_REDUNDANT_METADATA_SOME:
-			if (DMU_OT_IS_CRITICAL(type))
+			if (DMU_OT_IS_CRITICAL(type)) {
 				copies++;
+				gang_copies++;
+			} else if (DMU_OT_IS_METADATA(type)) {
+				gang_copies++;
+			}
 			break;
 		case ZFS_REDUNDANT_METADATA_NONE:
 			break;
@@ -2429,6 +2447,12 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 		nopwrite = (!dedup && (zio_checksum_table[checksum].ci_flags &
 		    ZCHECKSUM_FLAG_NOPWRITE) &&
 		    compress != ZIO_COMPRESS_OFF && zfs_nopwrite_enabled);
+
+		if (os->os_redundant_metadata == ZFS_REDUNDANT_METADATA_ALL ||
+		    (os->os_redundant_metadata ==
+		    ZFS_REDUNDANT_METADATA_MOST &&
+		    zfs_redundant_metadata_most_ditto_level <= 1))
+			gang_copies++;
 	}
 
 	/*
@@ -2445,6 +2469,7 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 
 		if (DMU_OT_IS_ENCRYPTED(type)) {
 			copies = MIN(copies, SPA_DVAS_PER_BP - 1);
+			gang_copies = MIN(gang_copies, SPA_DVAS_PER_BP - 1);
 			nopwrite = B_FALSE;
 		} else {
 			dedup = B_FALSE;
@@ -2462,6 +2487,7 @@ dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp, zio_prop_t *zp)
 	zp->zp_type = (wp & WP_SPILL) ? dn->dn_bonustype : type;
 	zp->zp_level = level;
 	zp->zp_copies = MIN(copies, spa_max_replication(os->os_spa));
+	zp->zp_gang_copies = MIN(gang_copies, spa_max_replication(os->os_spa));
 	zp->zp_dedup = dedup;
 	zp->zp_dedup_verify = dedup && dedup_verify;
 	zp->zp_nopwrite = nopwrite;
@@ -2657,6 +2683,7 @@ dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 		db = (dmu_buf_impl_t *)dbuf;
 		bp = &bps[i];
 
+		ASSERT3U(db->db.db_object, !=, DMU_META_DNODE_OBJECT);
 		ASSERT0(db->db_level);
 		ASSERT(db->db_blkid != DMU_BONUS_BLKID);
 		ASSERT(db->db_blkid != DMU_SPILL_BLKID);
@@ -2672,11 +2699,6 @@ dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 		db = (dmu_buf_impl_t *)dbuf;
 		bp = &bps[i];
 
-		ASSERT0(db->db_level);
-		ASSERT(db->db_blkid != DMU_BONUS_BLKID);
-		ASSERT(db->db_blkid != DMU_SPILL_BLKID);
-		ASSERT(BP_IS_HOLE(bp) || dbuf->db_size == BP_GET_LSIZE(bp));
-
 		dmu_buf_will_clone_or_dio(dbuf, tx);
 
 		mutex_enter(&db->db_mtx);
@@ -2685,6 +2707,7 @@ dmu_brt_clone(objset_t *os, uint64_t object, uint64_t offset, uint64_t length,
 		VERIFY(dr != NULL);
 		ASSERT3U(dr->dr_txg, ==, tx->tx_txg);
 		dl = &dr->dt.dl;
+		ASSERT0(dl->dr_has_raw_params);
 		dl->dr_overridden_by = *bp;
 		if (!BP_IS_HOLE(bp) || BP_GET_LOGICAL_BIRTH(bp) != 0) {
 			if (!BP_IS_EMBEDDED(bp)) {
@@ -2939,10 +2962,8 @@ ZFS_MODULE_PARAM(zfs, zfs_, per_txg_dirty_frees_percent, UINT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs, zfs_, dmu_offset_next_sync, INT, ZMOD_RW,
 	"Enable forcing txg sync to find holes");
 
-/* CSTYLED */
 ZFS_MODULE_PARAM(zfs, , dmu_prefetch_max, UINT, ZMOD_RW,
 	"Limit one prefetch call to this size");
 
-/* CSTYLED */
 ZFS_MODULE_PARAM(zfs, , dmu_ddt_copies, UINT, ZMOD_RW,
 	"Override copies= for dedup objects");

@@ -1339,10 +1339,6 @@ static device_method_t npxisa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		npxisa_probe),
 	DEVMETHOD(device_attach,	npxisa_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
 	{ 0, 0 }
 };
 

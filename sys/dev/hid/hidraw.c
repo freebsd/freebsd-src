@@ -172,7 +172,7 @@ static int		hidraw_kqread(struct knote *, long);
 static void		hidraw_kqdetach(struct knote *);
 static void		hidraw_notify(struct hidraw_softc *);
 
-static struct filterops hidraw_filterops_read = {
+static const struct filterops hidraw_filterops_read = {
 	.f_isfd =	1,
 	.f_detach =	hidraw_kqdetach,
 	.f_event =	hidraw_kqread,
@@ -570,6 +570,7 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	struct hidraw_devinfo *hd;
 	const char *devname;
 	uint32_t size;
+	hid_size_t actsize;
 	int id, len;
 	int error = 0;
 
@@ -747,16 +748,16 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		}
 		size = MIN(hgd->hgd_maxlen, size);
 		buf = HIDRAW_LOCAL_ALLOC(local_buf, size);
-		error = hid_get_report(sc->sc_dev, buf, size, NULL,
+		actsize = 0;
+		error = hid_get_report(sc->sc_dev, buf, size, &actsize,
 		    hgd->hgd_report_type, id);
 		if (!error)
-			error = copyout(buf, hgd->hgd_data, size);
+			error = copyout(buf, hgd->hgd_data, actsize);
 		HIDRAW_LOCAL_FREE(local_buf, buf);
+		hgd->hgd_actlen = actsize;
 #ifdef COMPAT_FREEBSD32
-		/*
-		 * HIDRAW_GET_REPORT is declared _IOWR, but hgd is not written
-		 * so we don't call update_hgd32().
-		 */
+		if (hgd32 != NULL)
+			update_hgd32(hgd, hgd32);
 #endif
 		return (error);
 

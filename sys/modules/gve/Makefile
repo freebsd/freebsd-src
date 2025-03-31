@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 #
-# Copyright (c) 2023 Google LLC
+# Copyright (c) 2023-2024 Google LLC
 #
 # Redistribution and use in source and binary forms, with or without modification,
 # are permitted provided that the following conditions are met:
@@ -30,7 +30,15 @@
 .PATH:	${SRCTOP}/sys/dev/gve
 
 KMOD=   if_gve
-SRCS=   gve_main.c gve_adminq.c gve_utils.c gve_qpl.c gve_rx.c gve_tx.c gve_sysctl.c
+SRCS=	gve_main.c \
+	gve_adminq.c \
+	gve_utils.c \
+	gve_qpl.c \
+	gve_rx.c \
+	gve_rx_dqo.c \
+	gve_tx.c \
+	gve_tx_dqo.c \
+	gve_sysctl.c
 SRCS+=  device_if.h bus_if.h pci_if.h
 
 .include <bsd.kmod.mk>

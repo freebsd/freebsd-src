@@ -1,6 +1,6 @@
-/* $Id: man_html.c,v 1.179 2020/10/16 17:22:43 schwarze Exp $ */
+/* $Id: man_html.c,v 1.187 2023/10/24 20:53:12 schwarze Exp $ */
 /*
- * Copyright (c) 2013-2015, 2017-2020 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013-15,2017-20,2022-23 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008-2012, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -53,6 +53,7 @@ static	char		  list_continues(const struct roff_node *,
 static	int		  man_B_pre(MAN_ARGS);
 static	int		  man_IP_pre(MAN_ARGS);
 static	int		  man_I_pre(MAN_ARGS);
+static	int		  man_MR_pre(MAN_ARGS);
 static	int		  man_OP_pre(MAN_ARGS);
 static	int		  man_PP_pre(MAN_ARGS);
 static	int		  man_RS_pre(MAN_ARGS);
@@ -60,7 +61,6 @@ static	int		  man_SH_pre(MAN_ARGS);
 static	int		  man_SM_pre(MAN_ARGS);
 static	int		  man_SY_pre(MAN_ARGS);
 static	int		  man_UR_pre(MAN_ARGS);
-static	int		  man_abort_pre(MAN_ARGS);
 static	int		  man_alt_pre(MAN_ARGS);
 static	int		  man_ign_pre(MAN_ARGS);
 static	int		  man_in_pre(MAN_ARGS);
@@ -75,9 +75,9 @@ static	const struct man_html_act man_html_acts[MAN_MAX - MAN_TH] = {
 	{ man_SH_pre, NULL }, /* SS */
 	{ man_IP_pre, NULL }, /* TP */
 	{ man_IP_pre, NULL }, /* TQ */
-	{ man_abort_pre, NULL }, /* LP */
+	{ man_PP_pre, NULL }, /* LP */
 	{ man_PP_pre, NULL }, /* PP */
-	{ man_abort_pre, NULL }, /* P */
+	{ man_PP_pre, NULL }, /* P */
 	{ man_IP_pre, NULL }, /* IP */
 	{ man_PP_pre, NULL }, /* HP */
 	{ man_SM_pre, NULL }, /* SM */
@@ -107,6 +107,7 @@ static	const struct man_html_act man_html_acts[MAN_MAX - MAN_TH] = {
 	{ NULL, NULL }, /* UE */
 	{ man_UR_pre, NULL }, /* MT */
 	{ NULL, NULL }, /* ME */
+	{ man_MR_pre, NULL }, /* MR */
 };
 
 
@@ -123,16 +124,16 @@ html_man(void *arg, const struct roff_meta *man)
 	if ((h->oflags & HTML_FRAGMENT) == 0) {
 		print_gen_decls(h);
 		print_otag(h, TAG_HTML, "");
-		if (n != NULL && n->type == ROFFT_COMMENT)
-			print_gen_comment(h, n);
 		t = print_otag(h, TAG_HEAD, "");
 		print_man_head(man, h);
 		print_tagq(h, t);
+		if (n != NULL && n->type == ROFFT_COMMENT)
+			print_gen_comment(h, n);
 		print_otag(h, TAG_BODY, "");
 	}
 
 	man_root_pre(man, h);
-	t = print_otag(h, TAG_DIV, "c", "manual-text");
+	t = print_otag(h, TAG_MAIN, "c", "manual-text");
 	print_man_nodelist(man, n, h);
 	print_tagq(h, t);
 	man_root_post(man, h);
@@ -263,26 +264,26 @@ print_man_node(MAN_ARGS)
 static void
 man_root_pre(const struct roff_meta *man, struct html *h)
 {
-	struct tag	*t, *tt;
+	struct tag	*t;
 	char		*title;
 
 	assert(man->title);
 	assert(man->msec);
 	mandoc_asprintf(&title, "%s(%s)", man->title, man->msec);
 
-	t = print_otag(h, TAG_TABLE, "c", "head");
-	tt = print_otag(h, TAG_TR, "");
+	t = print_otag(h, TAG_DIV, "cr?", "head", "doc-pageheader",
+	    "aria-label", "Manual header line");
 
-	print_otag(h, TAG_TD, "c", "head-ltitle");
+	print_otag(h, TAG_SPAN, "c", "head-ltitle");
 	print_text(h, title);
-	print_stagq(h, tt);
+	print_stagq(h, t);
 
-	print_otag(h, TAG_TD, "c", "head-vol");
+	print_otag(h, TAG_SPAN, "c", "head-vol");
 	if (man->vol != NULL)
 		print_text(h, man->vol);
-	print_stagq(h, tt);
+	print_stagq(h, t);
 
-	print_otag(h, TAG_TD, "c", "head-rtitle");
+	print_otag(h, TAG_SPAN, "c", "head-rtitle");
 	print_text(h, title);
 	print_tagq(h, t);
 	free(title);
@@ -291,16 +292,19 @@ man_root_pre(const struct roff_meta *man, struct html *h)
 static void
 man_root_post(const struct roff_meta *man, struct html *h)
 {
-	struct tag	*t, *tt;
+	struct tag	*t;
 
-	t = print_otag(h, TAG_TABLE, "c", "foot");
-	tt = print_otag(h, TAG_TR, "");
+	t = print_otag(h, TAG_DIV, "cr?", "foot", "doc-pagefooter",
+	    "aria-label", "Manual footer line");
 
-	print_otag(h, TAG_TD, "c", "foot-date");
+	print_otag(h, TAG_SPAN, "c", "foot-left");
+	print_stagq(h, t);
+
+	print_otag(h, TAG_SPAN, "c", "foot-date");
 	print_text(h, man->date);
-	print_stagq(h, tt);
+	print_stagq(h, t);
 
-	print_otag(h, TAG_TD, "c", "foot-os");
+	print_otag(h, TAG_SPAN, "c", "foot-os");
 	if (man->os != NULL)
 		print_text(h, man->os);
 	print_tagq(h, t);
@@ -313,10 +317,10 @@ man_SH_pre(MAN_ARGS)
 	enum htmltag	 tag;
 
 	if (n->tok == MAN_SH) {
-		tag = TAG_H1;
+		tag = TAG_H2;
 		class = "Sh";
 	} else {
-		tag = TAG_H2;
+		tag = TAG_H3;
 		class = "Ss";
 	}
 	switch (n->type) {
@@ -403,7 +407,7 @@ man_PP_pre(MAN_ARGS)
 		if (n->child != NULL &&
 		    (n->child->flags & NODE_NOFILL) == 0)
 			print_otag(h, TAG_P, "c",
-			    n->tok == MAN_PP ? "Pp" : "Pp HP");
+			    n->tok == MAN_HP ? "Pp HP" : "Pp");
 		break;
 	default:
 		abort();
@@ -431,10 +435,12 @@ list_continues(const struct roff_node *n1, const struct roff_node *n2)
 	s2 = n2 == NULL ? "" : n2->string;
 	c1 = strcmp(s1, "*") == 0 ? '*' :
 	     strcmp(s1, "\\-") == 0 ? '-' :
-	     strcmp(s1, "\\(bu") == 0 ? 'b' : ' ';
+	     strcmp(s1, "\\(bu") == 0 ? 'b' :
+	     strcmp(s1, "\\[bu]") == 0 ? 'b' : ' ';
 	c2 = strcmp(s2, "*") == 0 ? '*' :
 	     strcmp(s2, "\\-") == 0 ? '-' :
-	     strcmp(s2, "\\(bu") == 0 ? 'b' : ' ';
+	     strcmp(s2, "\\(bu") == 0 ? 'b' :
+	     strcmp(s2, "\\[bu]") == 0 ? 'b' : ' ';
 	return c1 != c2 ? '\0' : c1 == 'b' ? '*' : c1;
 }
 
@@ -510,6 +516,52 @@ man_IP_pre(MAN_ARGS)
 		break;
 	default:
 		abort();
+	}
+	return 0;
+}
+
+static int
+man_MR_pre(MAN_ARGS)
+{
+	struct tag	*t;
+	const char	*name, *section, *suffix;
+	char		*label;
+
+	html_setfont(h, ESCAPE_FONTROMAN);
+	name = section = suffix = label = NULL;
+	if (n->child != NULL) {
+		name = n->child->string;
+		if (n->child->next != NULL) {
+			section = n->child->next->string;
+			mandoc_asprintf(&label,
+			    "%s, section %s", name, section);
+			if (n->child->next->next != NULL)
+				suffix = n->child->next->next->string;
+		}
+	}
+
+	if (name != NULL && section != NULL && h->base_man1 != NULL)
+		t = print_otag(h, TAG_A, "chM?", "Xr",
+		    name, section, "aria-label", label);
+	else
+		t = print_otag(h, TAG_A, "c?", "Xr", "aria-label", label);
+
+	free(label);
+	if (name != NULL) {
+		print_text(h, name);
+		h->flags |= HTML_NOSPACE;
+	}
+	print_text(h, "(");
+	h->flags |= HTML_NOSPACE;
+	if (section != NULL) {
+		print_text(h, section);
+		h->flags |= HTML_NOSPACE;
+	}
+	print_text(h, ")");
+	print_tagq(h, t);
+	if (suffix != NULL) {
+		h->flags |= HTML_NOSPACE;
+		print_text(h, suffix);
 	}
 	return 0;
 }
@@ -631,10 +683,4 @@ man_UR_pre(MAN_ARGS)
 
 	print_man_nodelist(man, n->child, h);
 	return 0;
-}
-
-static int
-man_abort_pre(MAN_ARGS)
-{
-	abort();
 }

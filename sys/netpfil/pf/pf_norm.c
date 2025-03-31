@@ -42,6 +42,7 @@
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
@@ -49,6 +50,8 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/nd6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet/tcp.h>
@@ -95,16 +98,9 @@ struct pf_fragment {
 	RB_ENTRY(pf_fragment) fr_entry;
 	TAILQ_ENTRY(pf_fragment) frag_next;
 	uint32_t	fr_timeout;
+	TAILQ_HEAD(pf_fragq, pf_frent) fr_queue;
 	uint16_t	fr_maxlen;	/* maximum length of single fragment */
 	u_int16_t	fr_holes;	/* number of holes in the queue */
-	TAILQ_HEAD(pf_fragq, pf_frent) fr_queue;
-};
-
-struct pf_fragment_tag {
-	uint16_t	ft_hdrlen;	/* header length of reassembled pkt */
-	uint16_t	ft_extoff;	/* last extension header offset or 0 */
-	uint16_t	ft_maxlen;	/* maximum fragment payload length */
-	uint32_t	ft_id;		/* fragment id */
 };
 
 VNET_DEFINE_STATIC(struct mtx, pf_frag_mtx);
@@ -134,7 +130,6 @@ static RB_GENERATE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 
 static void	pf_flush_fragments(void);
 static void	pf_free_fragment(struct pf_fragment *);
-static void	pf_remove_fragment(struct pf_fragment *);
 
 static struct pf_frent *pf_create_fragment(u_short *);
 static int	pf_frent_holes(struct pf_frent *frent);
@@ -277,7 +272,10 @@ pf_flush_fragments(void)
 	}
 }
 
-/* Frees the fragments and all associated entries */
+/*
+ * Remove a fragment from the fragment queue, free its fragment entries,
+ * and free the fragment itself.
+ */
 static void
 pf_free_fragment(struct pf_fragment *frag)
 {
@@ -285,16 +283,18 @@ pf_free_fragment(struct pf_fragment *frag)
 
 	PF_FRAG_ASSERT();
 
-	/* Free all fragments */
-	for (frent = TAILQ_FIRST(&frag->fr_queue); frent;
-	    frent = TAILQ_FIRST(&frag->fr_queue)) {
+	RB_REMOVE(pf_frag_tree, &V_pf_frag_tree, frag);
+	TAILQ_REMOVE(&V_pf_fragqueue, frag, frag_next);
+
+	/* Free all fragment entries */
+	while ((frent = TAILQ_FIRST(&frag->fr_queue)) != NULL) {
 		TAILQ_REMOVE(&frag->fr_queue, frent, fr_next);
 
 		m_freem(frent->fe_m);
 		uma_zfree(V_pf_frent_z, frent);
 	}
 
-	pf_remove_fragment(frag);
+	uma_zfree(V_pf_frag_z, frag);
 }
 
 static struct pf_fragment *
@@ -306,26 +306,11 @@ pf_find_fragment(struct pf_fragment_cmp *key, struct pf_frag_tree *tree)
 
 	frag = RB_FIND(pf_frag_tree, tree, (struct pf_fragment *)key);
 	if (frag != NULL) {
-		/* XXX Are we sure we want to update the timeout? */
-		frag->fr_timeout = time_uptime;
 		TAILQ_REMOVE(&V_pf_fragqueue, frag, frag_next);
 		TAILQ_INSERT_HEAD(&V_pf_fragqueue, frag, frag_next);
 	}
 
 	return (frag);
-}
-
-/* Removes a fragment from the fragment queue and frees the fragment */
-static void
-pf_remove_fragment(struct pf_fragment *frag)
-{
-
-	PF_FRAG_ASSERT();
-	KASSERT(frag, ("frag != NULL"));
-
-	RB_REMOVE(pf_frag_tree, &V_pf_frag_tree, frag);
-	TAILQ_REMOVE(&V_pf_fragqueue, frag, frag_next);
-	uma_zfree(V_pf_frag_z, frag);
 }
 
 static struct pf_frent *
@@ -547,7 +532,6 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 	struct pf_frent		*after, *next, *prev;
 	struct pf_fragment	*frag;
 	uint16_t		total;
-	int			old_index, new_index;
 
 	PF_FRAG_ASSERT();
 
@@ -593,9 +577,9 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		memset(frag->fr_firstoff, 0, sizeof(frag->fr_firstoff));
 		memset(frag->fr_entries, 0, sizeof(frag->fr_entries));
 		frag->fr_timeout = time_uptime;
+		TAILQ_INIT(&frag->fr_queue);
 		frag->fr_maxlen = frent->fe_len;
 		frag->fr_holes = 1;
-		TAILQ_INIT(&frag->fr_queue);
 
 		RB_INSERT(pf_frag_tree, &V_pf_frag_tree, frag);
 		TAILQ_INSERT_HEAD(&V_pf_fragqueue, frag, frag_next);
@@ -642,10 +626,15 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 	if (prev != NULL && prev->fe_off + prev->fe_len > frent->fe_off) {
 		uint16_t precut;
 
+		if (frag->fr_af == AF_INET6)
+			goto free_fragment;
+
 		precut = prev->fe_off + prev->fe_len - frent->fe_off;
-		if (precut >= frent->fe_len)
-			goto bad_fragment;
-		DPFPRINTF(("overlap -%d\n", precut));
+		if (precut >= frent->fe_len) {
+			DPFPRINTF(("new frag overlapped\n"));
+			goto drop_fragment;
+		}
+		DPFPRINTF(("frag head overlap %d\n", precut));
 		m_adj(frent->fe_m, precut);
 		frent->fe_off += precut;
 		frent->fe_len -= precut;
@@ -656,37 +645,26 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 		uint16_t aftercut;
 
 		aftercut = frent->fe_off + frent->fe_len - after->fe_off;
-		DPFPRINTF(("adjust overlap %d\n", aftercut));
 		if (aftercut < after->fe_len) {
+			DPFPRINTF(("frag tail overlap %d", aftercut));
 			m_adj(after->fe_m, aftercut);
-			old_index = pf_frent_index(after);
+			/* Fragment may switch queue as fe_off changes */
+			pf_frent_remove(frag, after);
 			after->fe_off += aftercut;
 			after->fe_len -= aftercut;
-			new_index = pf_frent_index(after);
-			if (old_index != new_index) {
-				DPFPRINTF(("frag index %d, new %d",
-				    old_index, new_index));
-				/* Fragment switched queue as fe_off changed */
-				after->fe_off -= aftercut;
-				after->fe_len += aftercut;
-				/* Remove restored fragment from old queue */
-				pf_frent_remove(frag, after);
-				after->fe_off += aftercut;
-				after->fe_len -= aftercut;
-				/* Insert into correct queue */
-				if (pf_frent_insert(frag, after, prev)) {
-					DPFPRINTF(
-					    ("fragment requeue limit exceeded"));
-					m_freem(after->fe_m);
-					uma_zfree(V_pf_frent_z, after);
-					/* There is not way to recover */
-					goto bad_fragment;
-				}
+			/* Insert into correct queue */
+			if (pf_frent_insert(frag, after, prev)) {
+				DPFPRINTF(("fragment requeue limit exceeded"));
+				m_freem(after->fe_m);
+				uma_zfree(V_pf_frent_z, after);
+				/* There is not way to recover */
+				goto free_fragment;
 			}
 			break;
 		}
 
 		/* This fragment is completely overlapped, lose it. */
+		DPFPRINTF(("old frag overlapped\n"));
 		next = TAILQ_NEXT(after, fr_next);
 		pf_frent_remove(frag, after);
 		m_freem(after->fe_m);
@@ -701,6 +679,16 @@ pf_fillup_fragment(struct pf_fragment_cmp *key, struct pf_frent *frent,
 
 	return (frag);
 
+free_fragment:
+	/*
+	 * RFC 5722, Errata 3089:  When reassembling an IPv6 datagram, if one
+	 * or more its constituent fragments is determined to be an overlapping
+	 * fragment, the entire datagram (and any constituent fragments) MUST
+	 * be silently discarded.
+	 */
+	DPFPRINTF(("flush overlapping fragments\n"));
+	pf_free_fragment(frag);
+
 bad_fragment:
 	REASON_SET(reason, PFRES_FRAG);
 drop_fragment:
@@ -712,29 +700,31 @@ static struct mbuf *
 pf_join_fragment(struct pf_fragment *frag)
 {
 	struct mbuf *m, *m2;
-	struct pf_frent	*frent, *next;
+	struct pf_frent	*frent;
 
 	frent = TAILQ_FIRST(&frag->fr_queue);
-	next = TAILQ_NEXT(frent, fr_next);
+	TAILQ_REMOVE(&frag->fr_queue, frent, fr_next);
 
 	m = frent->fe_m;
-	m_adj(m, (frent->fe_hdrlen + frent->fe_len) - m->m_pkthdr.len);
+	if ((frent->fe_hdrlen + frent->fe_len) < m->m_pkthdr.len)
+		m_adj(m, (frent->fe_hdrlen + frent->fe_len) - m->m_pkthdr.len);
 	uma_zfree(V_pf_frent_z, frent);
-	for (frent = next; frent != NULL; frent = next) {
-		next = TAILQ_NEXT(frent, fr_next);
+	while ((frent = TAILQ_FIRST(&frag->fr_queue)) != NULL) {
+		TAILQ_REMOVE(&frag->fr_queue, frent, fr_next);
 
 		m2 = frent->fe_m;
 		/* Strip off ip header. */
 		m_adj(m2, frent->fe_hdrlen);
 		/* Strip off any trailing bytes. */
-		m_adj(m2, frent->fe_len - m2->m_pkthdr.len);
+		if (frent->fe_len < m2->m_pkthdr.len)
+			m_adj(m2, frent->fe_len - m2->m_pkthdr.len);
 
 		uma_zfree(V_pf_frent_z, frent);
 		m_cat(m, m2);
 	}
 
 	/* Remove from fragment queue. */
-	pf_remove_fragment(frag);
+	pf_free_fragment(frag);
 
 	return (m);
 }
@@ -747,8 +737,12 @@ pf_reassemble(struct mbuf **m0, int dir, u_short *reason)
 	struct ip		*ip = mtod(m, struct ip *);
 	struct pf_frent		*frent;
 	struct pf_fragment	*frag;
+	struct m_tag		*mtag;
+	struct pf_fragment_tag	*ftag;
 	struct pf_fragment_cmp	key;
 	uint16_t		total, hdrlen;
+	uint32_t		 frag_id;
+	uint16_t		 maxlen;
 
 	/* Get an entry for the fragment queue */
 	if ((frent = pf_create_fragment(reason)) == NULL)
@@ -781,6 +775,8 @@ pf_reassemble(struct mbuf **m0, int dir, u_short *reason)
 		TAILQ_LAST(&frag->fr_queue, pf_fragq)->fe_len;
 	hdrlen = frent->fe_hdrlen;
 
+	maxlen = frag->fr_maxlen;
+	frag_id = frag->fr_id;
 	m = *m0 = pf_join_fragment(frag);
 	frag = NULL;
 
@@ -791,6 +787,19 @@ pf_reassemble(struct mbuf **m0, int dir, u_short *reason)
 		m = *m0;
 		m->m_pkthdr.len = plen;
 	}
+
+	if ((mtag = m_tag_get(PACKET_TAG_PF_REASSEMBLED,
+	    sizeof(struct pf_fragment_tag), M_NOWAIT)) == NULL) {
+		REASON_SET(reason, PFRES_SHORT);
+		/* PF_DROP requires a valid mbuf *m0 in pf_test() */
+		return (PF_DROP);
+	}
+	ftag = (struct pf_fragment_tag *)(mtag + 1);
+	ftag->ft_hdrlen = hdrlen;
+	ftag->ft_extoff = 0;
+	ftag->ft_maxlen = maxlen;
+	ftag->ft_id = frag_id;
+	m_tag_prepend(m, mtag);
 
 	ip = mtod(m, struct ip *);
 	ip->ip_sum = pf_cksum_fixup(ip->ip_sum, ip->ip_len,
@@ -958,7 +967,7 @@ pf_max_frag_size(struct mbuf *m)
 
 int
 pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
-    bool forward)
+    struct ifnet *rt, bool forward)
 {
 	struct mbuf		*m = *m0, *t;
 	struct ip6_hdr		*hdr;
@@ -1029,16 +1038,27 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
 		m->m_flags |= M_SKIP_FIREWALL;
 		memset(&pd, 0, sizeof(pd));
 		pd.pf_mtag = pf_find_mtag(m);
-		if (error == 0)
-			if (forward) {
-				MPASS(m->m_pkthdr.rcvif != NULL);
-				ip6_forward(m, 0);
-			} else {
-				(void)ip6_output(m, NULL, NULL, 0, NULL, NULL,
-				    NULL);
-			}
-		else
+		if (error != 0) {
 			m_freem(m);
+			continue;
+		}
+		if (rt != NULL) {
+			struct sockaddr_in6	dst;
+			hdr = mtod(m, struct ip6_hdr *);
+
+			bzero(&dst, sizeof(dst));
+			dst.sin6_family = AF_INET6;
+			dst.sin6_len = sizeof(dst);
+			dst.sin6_addr = hdr->ip6_dst;
+
+			nd6_output_ifp(rt, rt, m, &dst, NULL);
+		} else if (forward) {
+			MPASS(m->m_pkthdr.rcvif != NULL);
+			ip6_forward(m, 0);
+		} else {
+			(void)ip6_output(m, NULL, NULL, 0, NULL, NULL,
+			    NULL);
+		}
 	}
 
 	return (action);
@@ -1047,11 +1067,10 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
 
 #ifdef INET
 int
-pf_normalize_ip(struct mbuf **m0, u_short *reason,
-    struct pf_pdesc *pd)
+pf_normalize_ip(u_short *reason, struct pf_pdesc *pd)
 {
 	struct pf_krule		*r;
-	struct ip		*h = mtod(*m0, struct ip *);
+	struct ip		*h = mtod(pd->m, struct ip *);
 	int			 mff = (ntohs(h->ip_off) & IP_MF);
 	int			 hlen = h->ip_hl << 2;
 	u_int16_t		 fragoff = (ntohs(h->ip_off) & IP_OFFMASK) << 3;
@@ -1062,8 +1081,6 @@ pf_normalize_ip(struct mbuf **m0, u_short *reason,
 	bool			 scrub_compat;
 
 	PF_RULES_RASSERT();
-
-	MPASS(pd->m == *m0);
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	/*
@@ -1173,17 +1190,17 @@ pf_normalize_ip(struct mbuf **m0, u_short *reason,
 		 * Might return a completely reassembled mbuf, or NULL */
 		PF_FRAG_LOCK();
 		DPFPRINTF(("reass frag %d @ %d-%d\n", h->ip_id, fragoff, max));
-		verdict = pf_reassemble(m0, pd->dir, reason);
+		verdict = pf_reassemble(&pd->m, pd->dir, reason);
 		PF_FRAG_UNLOCK();
 
 		if (verdict != PF_PASS)
 			return (PF_DROP);
 
-		pd->m = *m0;
 		if (pd->m == NULL)
 			return (PF_DROP);
 
 		h = mtod(pd->m, struct ip *);
+		pd->tot_len = htons(h->ip_len);
 
  no_fragment:
 		/* At this point, only IP_DF is allowed in ip_off */
@@ -1202,7 +1219,7 @@ pf_normalize_ip(struct mbuf **m0, u_short *reason,
 	REASON_SET(reason, PFRES_FRAG);
  drop:
 	if (r != NULL && r->log)
-		PFLOG_PACKET(PF_DROP, *reason, r, NULL, NULL, pd, 1);
+		PFLOG_PACKET(PF_DROP, *reason, r, NULL, NULL, pd, 1, NULL);
 
 	return (PF_DROP);
 }
@@ -1210,16 +1227,15 @@ pf_normalize_ip(struct mbuf **m0, u_short *reason,
 
 #ifdef INET6
 int
-pf_normalize_ip6(struct mbuf **m0, int off, u_short *reason,
+pf_normalize_ip6(int off, u_short *reason,
     struct pf_pdesc *pd)
 {
 	struct pf_krule		*r;
+	struct ip6_hdr		*h;
 	struct ip6_frag		 frag;
 	bool			 scrub_compat;
 
 	PF_RULES_RASSERT();
-
-	pd->m = *m0;
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	/*
@@ -1275,11 +1291,12 @@ pf_normalize_ip6(struct mbuf **m0, int off, u_short *reason,
 	if (pd->virtual_proto == PF_VPROTO_FRAGMENT) {
 		/* Returns PF_DROP or *m0 is NULL or completely reassembled
 		 * mbuf. */
-		if (pf_reassemble6(m0, &frag, off, pd->extoff, reason) != PF_PASS)
+		if (pf_reassemble6(&pd->m, &frag, off, pd->extoff, reason) != PF_PASS)
 			return (PF_DROP);
-		pd->m = *m0;
 		if (pd->m == NULL)
 			return (PF_DROP);
+		h = mtod(pd->m, struct ip6_hdr *);
+		pd->tot_len = ntohs(h->ip6_plen) + sizeof(struct ip6_hdr);
 	}
 
 	return (PF_PASS);
@@ -1406,7 +1423,7 @@ pf_normalize_tcp(struct pf_pdesc *pd)
  tcp_drop:
 	REASON_SET(&reason, PFRES_NORM);
 	if (rm != NULL && r->log)
-		PFLOG_PACKET(PF_DROP, reason, r, NULL, NULL, pd, 1);
+		PFLOG_PACKET(PF_DROP, reason, r, NULL, NULL, pd, 1, NULL);
 	return (PF_DROP);
 }
 
@@ -1446,7 +1463,7 @@ pf_normalize_tcp_init(struct pf_pdesc *pd, struct tcphdr *th,
 	 * All normalizations below are only begun if we see the start of
 	 * the connections.  They must all set an enabled bit in pfss_flags
 	 */
-	if ((th->th_flags & TH_SYN) == 0)
+	if ((tcp_get_flags(th) & TH_SYN) == 0)
 		return (0);
 
 	if (th->th_off > (sizeof(struct tcphdr) >> 2) && src->scrub &&
@@ -1797,7 +1814,7 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 			    dst->scrub->pfss_tsecr, dst->scrub->pfss_tsval0));
 			if (V_pf_status.debug >= PF_DEBUG_MISC) {
 				pf_print_state(state);
-				pf_print_flags(th->th_flags);
+				pf_print_flags(tcp_get_flags(th));
 				printf("\n");
 			}
 			REASON_SET(reason, PFRES_TS);
@@ -1806,9 +1823,9 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 
 		/* XXX I'd really like to require tsecr but it's optional */
 
-	} else if (!got_ts && (th->th_flags & TH_RST) == 0 &&
+	} else if (!got_ts && (tcp_get_flags(th) & TH_RST) == 0 &&
 	    ((src->state == TCPS_ESTABLISHED && dst->state == TCPS_ESTABLISHED)
-	    || pd->p_len > 0 || (th->th_flags & TH_SYN)) &&
+	    || pd->p_len > 0 || (tcp_get_flags(th) & TH_SYN)) &&
 	    src->scrub && dst->scrub &&
 	    (src->scrub->pfss_flags & PFSS_PAWS) &&
 	    (dst->scrub->pfss_flags & PFSS_PAWS)) {
@@ -1847,7 +1864,7 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 				DPFPRINTF(("Did not receive expected RFC1323 "
 				    "timestamp\n"));
 				pf_print_state(state);
-				pf_print_flags(th->th_flags);
+				pf_print_flags(tcp_get_flags(th));
 				printf("\n");
 			}
 			REASON_SET(reason, PFRES_TS);
@@ -1876,7 +1893,7 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 				    "timestamp data packet. Disabled PAWS "
 				    "security.\n"));
 				pf_print_state(state);
-				pf_print_flags(th->th_flags);
+				pf_print_flags(tcp_get_flags(th));
 				printf("\n");
 			}
 		}
@@ -1928,8 +1945,8 @@ pf_normalize_mss(struct pf_pdesc *pd)
 	thoff = th->th_off << 2;
 	cnt = thoff - sizeof(struct tcphdr);
 
-	if (cnt > 0 && !pf_pull_hdr(pd->m, pd->off + sizeof(*th), opts, cnt,
-	    NULL, NULL, pd->af))
+	if (cnt <= 0 || cnt > MAX_TCPOPTLEN || !pf_pull_hdr(pd->m,
+	    pd->off + sizeof(*th), opts, cnt, NULL, NULL, pd->af))
 		return (0);
 
 	for (; cnt > 0; cnt -= optlen, optp += optlen) {
@@ -2088,6 +2105,14 @@ pf_scan_sctp(struct pf_pdesc *pd)
 	if ((pd->sctp_flags & PFDESC_SCTP_SHUTDOWN_COMPLETE) &&
 	    (pd->sctp_flags & ~PFDESC_SCTP_SHUTDOWN_COMPLETE))
 		return (PF_DROP);
+	if ((pd->sctp_flags & PFDESC_SCTP_ABORT) &&
+	    (pd->sctp_flags & PFDESC_SCTP_DATA)) {
+		/*
+		 * RFC4960 3.3.7: DATA chunks MUST NOT be
+		 * bundled with ABORT.
+		 */
+		return (PF_DROP);
+	}
 
 	return (PF_PASS);
 }
@@ -2162,7 +2187,7 @@ sctp_drop:
 	REASON_SET(&reason, PFRES_NORM);
 	if (rm != NULL && r->log)
 		PFLOG_PACKET(PF_DROP, reason, r, NULL, NULL, pd,
-		    1);
+		    1, NULL);
 
 	return (PF_DROP);
 }
@@ -2224,12 +2249,14 @@ pf_scrub(struct pf_pdesc *pd)
 	}
 
 	/* random-id, but not for fragments */
+#ifdef INET
 	if (pd->af == AF_INET &&
 	    pd->act.flags & PFSTATE_RANDOMID && !(h->ip_off & ~htons(IP_DF))) {
 		uint16_t ip_id = h->ip_id;
 
-		ip_fillid(h);
+		ip_fillid(h, V_ip_random_id);
 		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_id, h->ip_id, 0);
 	}
+#endif
 }
 #endif

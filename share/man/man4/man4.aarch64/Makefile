@@ -6,6 +6,7 @@ MAN=	\
 	felix.4 \
 	rk_gpio.4 \
 	rk_grf.4 \
+	rk_grf_gpio.4 \
 	rk_i2c.4 \
 	rk_pinctrl.4 \
 

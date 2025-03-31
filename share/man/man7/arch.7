@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 13, 2024
+.Dd February 4, 2025
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@ documentation.
 .Pp
 If not explicitly mentioned, sizes are in bytes.
 The architecture details in this document apply to
-.Fx 12.0
+.Fx 13.0
 and later, unless otherwise noted.
 .Pp
 .Fx
@@ -414,7 +414,7 @@ in the top level Makefile for cross building.
 Unused outside of that scope.
 It is not passed down to the rest of the build.
 Makefiles outside of the top level should not use it at all (though
-some have their own private copy for hysterical raisons).
+some have their own private copy for historical reasons).
 .It Dv TARGET_ARCH
 Used to set
 .Dv MACHINE_ARCH

@@ -211,13 +211,12 @@ chipc_attach(device_t dev)
 	 * response to ChipCommin API requests.
 	 * 
 	 * Since our children may need access to ChipCommon, this must be done
-	 * before attaching our children below (via bus_generic_attach).
+	 * before attaching our children below (via bus_attach_children).
 	 */
 	if ((error = bhnd_register_provider(dev, BHND_SERVICE_CHIPC)))
 		goto failed;
 
-	if ((error = bus_generic_attach(dev)))
-		goto failed;
+	bus_attach_children(dev);
 
 	return (0);
 
@@ -243,9 +242,6 @@ chipc_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	if ((error = bus_generic_detach(dev)))
-		return (error);
-
-	if ((error = device_delete_children(dev)))
 		return (error);
 
 	if ((error = bhnd_deregister_provider(dev, BHND_SERVICE_ANY)))
@@ -894,6 +890,10 @@ chipc_release_resource(device_t dev, device_t child, struct resource *r)
 	if (cr == NULL)
 		return (EINVAL);
 
+	/* Cache rle */
+	rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
+	    rman_get_type(r), rman_get_rid(r));
+
 	/* Deactivate resources */
 	error = bus_generic_rman_release_resource(dev, child, r);
 	if (error != 0)
@@ -903,8 +903,6 @@ chipc_release_resource(device_t dev, device_t child, struct resource *r)
 	chipc_release_region(sc, cr, RF_ALLOCATED);
 
 	/* Clear reference from the resource list entry if exists */
-	rle = resource_list_find(BUS_GET_RESOURCE_LIST(dev, child),
-	    rman_get_type(r), rman_get_rid(r));
 	if (rle != NULL)
 		rle->res = NULL;
 

@@ -892,9 +892,11 @@ void
 putfsent(struct statfs *ent)
 {
 	struct fstab *fst;
+	const char *mntfromname;
 	char *opts, *rw;
 	int l;
 
+	mntfromname = ent->f_mntfromname;
 	opts = NULL;
 	/* flags2opts() doesn't return the "rw" option. */
 	if ((ent->f_flags & MNT_RDONLY) != 0)
@@ -905,16 +907,14 @@ putfsent(struct statfs *ent)
 	opts = flags2opts(ent->f_flags);
 	opts = catopt(rw, opts);
 
-	if (strncmp(ent->f_mntfromname, "<below>", 7) == 0 ||
-	    strncmp(ent->f_mntfromname, "<above>", 7) == 0) {
-		strlcpy(ent->f_mntfromname,
-		    (strnstr(ent->f_mntfromname, ":", 8) +1),
-		    sizeof(ent->f_mntfromname));
+	if (strncmp(mntfromname, "<below>:", 8) == 0 ||
+	    strncmp(mntfromname, "<above>:", 8) == 0) {
+		mntfromname += 8;
 	}
 
-	l = strlen(ent->f_mntfromname);
+	l = strlen(mntfromname);
 	xo_emit("{:device}{P:/%s}{P:/%s}{P:/%s}",
-	    ent->f_mntfromname,
+	    mntfromname,
 	    l < 8 ? "\t" : "",
 	    l < 16 ? "\t" : "",
 	    l < 24 ? "\t" : " ");
@@ -930,7 +930,7 @@ putfsent(struct statfs *ent)
 	    l < 8 ? "\t" : " ");
 	free(opts);
 
-	if ((fst = getfsspec(ent->f_mntfromname)))
+	if ((fst = getfsspec(mntfromname)))
 		xo_emit("{P:\t}{n:dump/%u}{P: }{n:pass/%u}\n",
 		    fst->fs_freq, fst->fs_passno);
 	else if ((fst = getfsfile(ent->f_mntonname)))

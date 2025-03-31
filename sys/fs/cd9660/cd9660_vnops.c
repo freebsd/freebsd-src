@@ -443,7 +443,7 @@ cd9660_readdir(struct vop_readdir_args *ap)
 	u_short namelen;
 	u_int ncookies = 0;
 	uint64_t *cookies = NULL;
-	cd_ino_t ino;
+	ino_t ino;
 
 	dp = VTOI(vdp);
 	imp = dp->i_mnt;
@@ -757,6 +757,9 @@ cd9660_pathconf(struct vop_pathconf_args *ap)
 	}
 	/* NOTREACHED */
 }
+
+_Static_assert(sizeof(struct ifid) <= sizeof(struct fid),
+    "struct ifid must be no larger than struct fid");
 
 /*
  * Vnode pointer to File handle

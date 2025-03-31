@@ -288,12 +288,6 @@ iommu_free_ctx_locked(struct iommu_unit *iommu, struct iommu_ctx *context)
 	x86_iommu->free_ctx_locked(iommu, context);
 }
 
-void
-iommu_free_ctx(struct iommu_ctx *context)
-{
-	x86_iommu->free_ctx(context);
-}
-
 struct iommu_unit *
 iommu_find(device_t dev, bool verbose)
 {

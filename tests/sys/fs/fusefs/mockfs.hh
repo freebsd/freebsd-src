@@ -36,6 +36,8 @@ extern "C" {
 #include "fuse_kernel.h"
 }
 
+#include <unordered_set>
+
 #include <gmock/gmock.h>
 
 #define TIME_T_MAX (std::numeric_limits<time_t>::max())
@@ -292,14 +294,20 @@ class MockFS {
 
 	int m_kq;
 
+	/*
+	 * If nonzero, the maximum size in bytes of a read that the kernel will
+	 * send to the server.
+	 */
+	int m_maxread;
+
 	/* The max_readahead file system option */
 	uint32_t m_maxreadahead;
 
 	/* pid of the test process */
 	pid_t m_pid;
 
-	/* The unique value of the header of the last received operation */
-	uint64_t m_last_unique;
+	/* Every "unique" value of a fuse ticket seen so far */
+	std::unique_ptr<std::unordered_set<uint64_t>> m_uniques;
 
 	/* Method the daemon should use for I/O to and from /dev/fuse */
 	enum poll_method m_pm;
@@ -353,7 +361,7 @@ class MockFS {
 	bool m_quit;
 
 	/* Create a new mockfs and mount it to a tempdir */
-	MockFS(int max_readahead, bool allow_other,
+	MockFS(int max_read, int max_readahead, bool allow_other,
 		bool default_permissions, bool push_symlinks_in, bool ro,
 		enum poll_method pm, uint32_t flags,
 		uint32_t kernel_minor_version, uint32_t max_write, bool async,

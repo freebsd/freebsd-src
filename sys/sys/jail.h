@@ -141,6 +141,9 @@ MALLOC_DECLARE(M_PRISON);
 #define	DEFAULT_HOSTUUID	"00000000-0000-0000-0000-000000000000"
 #define	OSRELEASELEN	32
 
+#define	JAIL_META_PRIVATE	"meta"
+#define	JAIL_META_SHARED	"env"
+
 struct racct;
 struct prison_racct;
 
@@ -376,29 +379,36 @@ extern struct	sx allprison_lock;
 /*
  * Sysctls to describe jail parameters.
  */
+SYSCTL_DECL(_security_jail);
 SYSCTL_DECL(_security_jail_param);
 
+#define SYSCTL_JAIL_PARAM_DECL(name)					\
+	SYSCTL_DECL(_security_jail_param_##name)
 #define	SYSCTL_JAIL_PARAM(module, param, type, fmt, descr)		\
-    SYSCTL_PROC(_security_jail_param ## module, OID_AUTO, param,	\
-	(type) | CTLFLAG_MPSAFE, NULL, 0, sysctl_jail_param, fmt, descr)
+	SYSCTL_PROC(_security_jail_param ## module, OID_AUTO, param,	\
+	    (type) | CTLFLAG_MPSAFE, NULL, 0, sysctl_jail_param, fmt, descr)
 #define	SYSCTL_JAIL_PARAM_STRING(module, param, access, len, descr)	\
-    SYSCTL_PROC(_security_jail_param ## module, OID_AUTO, param,	\
-	CTLTYPE_STRING | CTLFLAG_MPSAFE | (access), NULL, len,		\
-	sysctl_jail_param, "A", descr)
-#define	SYSCTL_JAIL_PARAM_STRUCT(module, param, access, len, fmt, descr)\
-    SYSCTL_PROC(_security_jail_param ## module, OID_AUTO, param,	\
-	CTLTYPE_STRUCT | CTLFLAG_MPSAFE | (access), NULL, len,		\
-	sysctl_jail_param, fmt, descr)
+	SYSCTL_PROC(_security_jail_param ## module, OID_AUTO, param,	\
+	    CTLTYPE_STRING | CTLFLAG_MPSAFE | (access), NULL, len,	\
+	    sysctl_jail_param, "A", descr)
+#define	SYSCTL_JAIL_PARAM_STRUCT(module, param, access, len, fmt, descr) \
+	SYSCTL_PROC(_security_jail_param ## module, OID_AUTO, param,	\
+	    CTLTYPE_STRUCT | CTLFLAG_MPSAFE | (access), NULL, len,	\
+	    sysctl_jail_param, fmt, descr)
 #define	SYSCTL_JAIL_PARAM_NODE(module, descr)				\
-    SYSCTL_NODE(_security_jail_param, OID_AUTO, module, CTLFLAG_MPSAFE,	\
-        0, descr)
+	SYSCTL_NODE(_security_jail_param, OID_AUTO, module, CTLFLAG_MPSAFE, \
+	    0, descr)
 #define	SYSCTL_JAIL_PARAM_SUBNODE(parent, module, descr)		\
-    SYSCTL_NODE(_security_jail_param_##parent, OID_AUTO, module, 	\
-        CTLFLAG_MPSAFE, 0, descr)
+	SYSCTL_NODE(_security_jail_param_##parent, OID_AUTO, module,	\
+	    CTLFLAG_MPSAFE, 0, descr)
 #define	SYSCTL_JAIL_PARAM_SYS_NODE(module, access, descr)		\
-    SYSCTL_JAIL_PARAM_NODE(module, descr);				\
-    SYSCTL_JAIL_PARAM(_##module, , CTLTYPE_INT | (access), "E,jailsys",	\
-	descr)
+	SYSCTL_JAIL_PARAM_NODE(module, descr);				\
+	SYSCTL_JAIL_PARAM(_##module, , CTLTYPE_INT | (access), "E,jailsys", \
+	    descr)
+#define	SYSCTL_JAIL_PARAM_SYS_SUBNODE(parent, module, access, descr)	\
+	SYSCTL_JAIL_PARAM_SUBNODE(parent, module, descr);		\
+	SYSCTL_JAIL_PARAM(_##parent##_##module, , CTLTYPE_INT | (access), \
+	    "E,jailsys", descr)
 
 /*
  * Kernel support functions for jail().

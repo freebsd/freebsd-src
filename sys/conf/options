@@ -71,7 +71,6 @@ TSLOGSIZE	opt_global.h
 
 # Miscellaneous options.
 ALQ
-ALTERA_SDCARD_FAST_SIM	opt_altera_sdcard.h
 ATSE_CFI_HACK	opt_cfi.h
 AUDIT		opt_global.h
 BOOTHOWTO	opt_global.h
@@ -143,7 +142,7 @@ GEOM_ZERO	opt_geom.h
 IFLIB		opt_iflib.h
 KDTRACE_HOOKS	opt_global.h
 KDTRACE_FRAME	opt_kdtrace.h
-KDTRACE_NO_MIB_SDT	opt_global.h
+KDTRACE_MIB_SDT	opt_global.h
 KN_HASHSIZE	opt_kqueue.h
 KSTACK_MAX_PAGES
 KSTACK_PAGES
@@ -291,7 +290,6 @@ TARFS_DEBUG	opt_tarfs.h
 
 # In-kernel GSS-API
 KGSSAPI		opt_kgssapi.h
-KGSSAPI_DEBUG	opt_kgssapi.h
 
 # These static filesystems have one slightly bogus static dependency in
 # sys/i386/i386/autoconf.c.  If any of these filesystems are
@@ -837,12 +835,6 @@ AH_INTERRUPT_DEBUGGING	opt_ah.h
 # AR5416 and later interrupt mitigation
 # XXX do not use this for AR9130
 AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h
-
-# options for the Altera mSGDMA driver (altera_msgdma)
-ALTERA_MSGDMA_DESC_STD		opt_altera_msgdma.h
-ALTERA_MSGDMA_DESC_EXT		opt_altera_msgdma.h
-ALTERA_MSGDMA_DESC_PF_STD	opt_altera_msgdma.h
-ALTERA_MSGDMA_DESC_PF_EXT	opt_altera_msgdma.h
 
 # options for the Broadcom BCM43xx driver (bwi)
 BWI_DEBUG		opt_bwi.h

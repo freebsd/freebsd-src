@@ -502,7 +502,8 @@ xpcife_attach(device_t dev)
 	}
 
  out:
-	return bus_generic_attach(dev);
+	bus_attach_children(dev);
+	return (0);
 }
 
 static devclass_t xpcife_devclass;
@@ -559,7 +560,8 @@ xpcib_attach(device_t dev)
 	DPRINTF("xpcib attach (bus=%d)\n", sc->bus);
 
 	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
-	return bus_generic_attach(dev);
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

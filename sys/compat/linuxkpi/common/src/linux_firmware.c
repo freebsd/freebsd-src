@@ -88,17 +88,17 @@ _linuxkpi_request_firmware(const char *fw_name, const struct linuxkpi_firmware *
 	 * way rather than adding more name-mangling-hacks here in the future
 	 * (though we could if needed).
 	 */
-	/* (1) Try any name removed of path. */
-	fwimg = strrchr(fw_name, '/');
-	if (fwimg != NULL)
-		fwimg++;
-	if (fwimg == NULL || *fwimg == '\0')
-		fwimg = fw_name;
-	fbdfw = firmware_get_flags(fwimg, flags);
-	/* (2) Try the original name if we have not yet. */
-	if (fbdfw == NULL && fwimg != fw_name) {
-		fwimg = fw_name;
-		fbdfw = firmware_get_flags(fwimg, flags);
+	/* (1) Try the original name. */
+	fbdfw = firmware_get_flags(fw_name, flags);
+	/* (2) Try any name removed of path, if we have not yet. */
+	if (fbdfw == NULL) {
+		fwimg = strrchr(fw_name, '/');
+		if (fwimg != NULL)
+			fwimg++;
+		if (fwimg == NULL || *fwimg == '\0')
+			fwimg = fw_name;
+		if (fwimg != fw_name)
+			fbdfw = firmware_get_flags(fwimg, flags);
 	}
 	/* (3) Flatten '/', '.' and '-' to '_' and try with adjusted name. */
 	if (fbdfw == NULL &&

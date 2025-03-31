@@ -161,8 +161,8 @@ legacy_attach(device_t dev)
 	 * can find.  Once that is done attach any devices that we
 	 * found.
 	 */
-	bus_generic_probe(dev);
-	bus_generic_attach(dev);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 
 	/*
 	 * If we didn't see ISA on a PCI bridge, add a top-level bus.
@@ -342,8 +342,8 @@ cpu_probe(device_t dev)
 static int
 cpu_attach(device_t dev)
 {
-	bus_generic_probe(dev);
-	bus_generic_attach(dev);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 	return (0);
 }
 

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -287,6 +287,16 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoAestVendorError[] =
     ACPI_DMT_TERMINATOR
 };
 
+/* 3: Vendor Defined V2 */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestVendorV2Error[] =
+{
+    {ACPI_DMT_UINT64,   ACPI_AEST3A_OFFSET (AcpiHid),                "ACPI HID", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST3A_OFFSET (AcpiUid),                "ACPI UID", 0},
+    {ACPI_DMT_BUF16,    ACPI_AEST3A_OFFSET (VendorSpecificData),     "Vendor Specific Data", 0},
+    ACPI_DMT_TERMINATOR
+};
+
 /* 4: Gic Error */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoAestGicError[] =
@@ -295,6 +305,31 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoAestGicError[] =
     {ACPI_DMT_UINT32,   ACPI_AEST4_OFFSET (InstanceId),             "Instance ID", 0},
     ACPI_DMT_TERMINATOR
 };
+
+/* 5: PCIe Error */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestPCIeError[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_AEST5_OFFSET (IortNodeReference),      "Iort Node Reference", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 6: Proxy Error */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestProxyError[] =
+{
+    {ACPI_DMT_UINT64,   ACPI_AEST6_OFFSET (NodeAddress),            "Proxy Node Address", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Common AEST structures for subtables */
+
+#define ACPI_DM_AEST_INTERFACE_COMMON(a) \
+    {ACPI_DMT_UINT32,   ACPI_AEST0D##a##_OFFSET (Common.ErrorNodeDevice),               "Arm Error Node Device", 0},\
+    {ACPI_DMT_UINT32,   ACPI_AEST0D##a##_OFFSET (Common.ProcessorAffinity),             "Processor Affinity", 0}, \
+    {ACPI_DMT_UINT64,   ACPI_AEST0D##a##_OFFSET (Common.ErrorGroupRegisterBase),        "Err-Group Register Addr", 0}, \
+    {ACPI_DMT_UINT64,   ACPI_AEST0D##a##_OFFSET (Common.FaultInjectRegisterBase),       "Err-Inject Register Addr", 0}, \
+    {ACPI_DMT_UINT64,   ACPI_AEST0D##a##_OFFSET (Common.InterruptConfigRegisterBase),   "IRQ-Config Register Addr", 0},
 
 /* AestXface: Node Interface Structure */
 
@@ -314,6 +349,60 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoAestXface[] =
     ACPI_DMT_TERMINATOR
 };
 
+/* AestXface: Node Interface Structure V2 Header */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestXfaceHeader[] =
+{
+    {ACPI_DMT_AEST_XFACE, ACPI_AEST0DH_OFFSET (Type),                "Interface Type", 0},
+    {ACPI_DMT_UINT8,    ACPI_AEST0DH_OFFSET (GroupFormat),           "Group Format", 0},
+    {ACPI_DMT_UINT16,   ACPI_AEST0DH_OFFSET (Reserved[0]),           "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST0DH_OFFSET (Flags),                 "Flags (decoded below)", 0},
+    {ACPI_DMT_FLAG0,    ACPI_AEST0D_FLAG_OFFSET (Flags, 0),          "Shared Interface", 0},
+    {ACPI_DMT_FLAG1,    ACPI_AEST0D_FLAG_OFFSET (Flags, 0),          "Clear MISCx Registers", 0},
+    {ACPI_DMT_FLAG2,    ACPI_AEST0D_FLAG_OFFSET (Flags, 0),          "Error Node Device Valid", 0},
+    {ACPI_DMT_FLAG3,    ACPI_AEST0D_FLAG_OFFSET (Flags, 0),          "Affinity Type", 0},
+    {ACPI_DMT_FLAG4,    ACPI_AEST0D_FLAG_OFFSET (Flags, 0),          "Error group Address Valid", 0},
+    {ACPI_DMT_FLAG5,    ACPI_AEST0D_FLAG_OFFSET (Flags, 0),          "Fault Injection Address Valid", 0},
+    {ACPI_DMT_FLAG7,    ACPI_AEST0D_FLAG_OFFSET (Flags, 0),          "Interrupt Config Address valid", 0},
+    {ACPI_DMT_UINT64,   ACPI_AEST0DH_OFFSET (Address),               "Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST0DH_OFFSET (ErrorRecordIndex),      "Error Record Index", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST0DH_OFFSET (ErrorRecordCount),      "Error Record Count", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* AestXface: Node Interface Structure V2 4K Group Format */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestXface4k[] =
+{
+    {ACPI_DMT_UINT64,   ACPI_AEST0D4_OFFSET (ErrorRecordImplemented),"Error Record Implemented", 0},
+    {ACPI_DMT_UINT64,   ACPI_AEST0D4_OFFSET (ErrorStatusReporting),  "Error Status Reporting", 0},
+    {ACPI_DMT_UINT64,   ACPI_AEST0D4_OFFSET (AddressingMode),        "Addressing Mode", 0},
+    ACPI_DM_AEST_INTERFACE_COMMON(4)
+    ACPI_DMT_TERMINATOR
+};
+
+/* AestXface: Node Interface Structure V2 16K Group Format */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestXface16k[] =
+{
+    {ACPI_DMT_BUF32,    ACPI_AEST0D16_OFFSET (ErrorRecordImplemented[0]),"Error Record Implemented", 0},
+    {ACPI_DMT_BUF32,    ACPI_AEST0D16_OFFSET (ErrorStatusReporting[0]),  "Error Status Reporting", 0},
+    {ACPI_DMT_BUF32,    ACPI_AEST0D16_OFFSET (AddressingMode[0]),        "Addressing Mode", 0},
+    ACPI_DM_AEST_INTERFACE_COMMON(16)
+    ACPI_DMT_TERMINATOR
+};
+
+/* AestXface: Node Interface Structure V2 64K Group Format */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestXface64k[] =
+{
+    {ACPI_DMT_BUF112,   ACPI_AEST0D64_OFFSET (ErrorRecordImplemented[0]),"Error Record Implemented", 0},
+    {ACPI_DMT_BUF112,   ACPI_AEST0D64_OFFSET (ErrorStatusReporting[0]),  "Error Status Reporting", 0},
+    {ACPI_DMT_BUF112,   ACPI_AEST0D64_OFFSET (AddressingMode[0]),        "Addressing Mode", 0},
+    ACPI_DM_AEST_INTERFACE_COMMON(64)
+    ACPI_DMT_TERMINATOR
+};
+
 /* AestXrupt: Node Interrupt Structure */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoAestXrupt[] =
@@ -325,6 +414,20 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoAestXrupt[] =
     {ACPI_DMT_UINT32,   ACPI_AEST0E_OFFSET (Gsiv),                  "Gsiv", 0},
     {ACPI_DMT_UINT8,    ACPI_AEST0E_OFFSET (IortId),                "IortId", 0},
     {ACPI_DMT_UINT24,   ACPI_AEST0E_OFFSET (Reserved1[0]),          "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/* AestXrupt: Node Interrupt Structure V2 */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoAestXruptV2[] =
+{
+    {ACPI_DMT_AEST_XRUPT, ACPI_AEST0EA_OFFSET (Type),                "Interrupt Type", 0},
+    {ACPI_DMT_UINT16,   ACPI_AEST0EA_OFFSET (Reserved),              "Reserved", 0},
+    {ACPI_DMT_UINT8,    ACPI_AEST0EA_OFFSET (Flags),                 "Flags (decoded below)", 0},
+    {ACPI_DMT_FLAG0,    ACPI_AEST0EA_FLAG_OFFSET (Flags, 0),         "Level Triggered", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST0EA_OFFSET (Gsiv),                  "Gsiv", 0},
+    {ACPI_DMT_UINT32,   ACPI_AEST0EA_OFFSET (Reserved1[0]),          "Reserved", 0},
     ACPI_DMT_TERMINATOR
 };
 
@@ -689,7 +792,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoCedt1[] =
     {ACPI_DMT_UINT32,   ACPI_CEDT1_OFFSET (Reserved1),            "Reserved", 0},
     {ACPI_DMT_UINT64,   ACPI_CEDT1_OFFSET (BaseHpa),              "Window base address", 0},
     {ACPI_DMT_UINT64,   ACPI_CEDT1_OFFSET (WindowSize),           "Window size", 0},
-    {ACPI_DMT_UINT8,    ACPI_CEDT1_OFFSET (InterleaveWays),       "Interleave Members (2^n)", 0},
+    {ACPI_DMT_UINT8,    ACPI_CEDT1_OFFSET (InterleaveWays),       "Interleave Members", 0},
     {ACPI_DMT_UINT8,    ACPI_CEDT1_OFFSET (InterleaveArithmetic), "Interleave Arithmetic", 0},
     {ACPI_DMT_UINT16,   ACPI_CEDT1_OFFSET (Reserved2),            "Reserved", 0},
     {ACPI_DMT_UINT32,   ACPI_CEDT1_OFFSET (Granularity),          "Granularity", 0},
@@ -702,6 +805,23 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoCedt1[] =
 ACPI_DMTABLE_INFO           AcpiDmTableInfoCedt1_te[] =
 {
     {ACPI_DMT_UINT32,   ACPI_CEDT1_TE_OFFSET (InterleaveTarget),  "Next Target", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 2: CXL XOR Interleave Math Structure */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoCedt2[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_CEDT2_OFFSET (Reserved1),            "Reserved", 0},
+    {ACPI_DMT_UINT8,    ACPI_CEDT2_OFFSET (Hbig),                 "Interleave Granularity", 0},
+    {ACPI_DMT_UINT8,    ACPI_CEDT2_OFFSET (NrXormaps),            "Xormap List Count", 0},
+    {ACPI_DMT_UINT64,   ACPI_CEDT2_OFFSET (XormapList),           "First Xormap", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoCedt2_te[] =
+{
+    {ACPI_DMT_UINT64,   ACPI_CEDT2_TE_OFFSET (Xormap),            "Next Xormap", 0},
     ACPI_DMT_TERMINATOR
 };
 
@@ -1548,7 +1668,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoHmat2[] =
     {ACPI_DMT_FLAGS4_8,     ACPI_HMAT2_FLAG_OFFSET (CacheAttributes,0), "Cache Associativity", 0},
     {ACPI_DMT_FLAGS4_12,    ACPI_HMAT2_FLAG_OFFSET (CacheAttributes,0), "Write Policy", 0},
     {ACPI_DMT_FLAGS16_16,   ACPI_HMAT2_FLAG_OFFSET (CacheAttributes,0), "Cache Line Size", 0},
-    {ACPI_DMT_UINT16,       ACPI_HMAT2_OFFSET (Reserved2),              "Reserved2", 0},
+    {ACPI_DMT_UINT16,       ACPI_HMAT2_OFFSET (AddressMode),            "Address Mode", 0},
     {ACPI_DMT_UINT16,       ACPI_HMAT2_OFFSET (NumberOfSMBIOSHandles),  "SMBIOS Handle #", 0},
     ACPI_DMT_TERMINATOR
 };

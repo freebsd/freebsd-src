@@ -592,7 +592,7 @@ sdhci_xenon_detach(device_t dev)
 {
 	struct sdhci_xenon_softc *sc = device_get_softc(dev);
 
-	bus_generic_detach(dev);
+	bus_detach_children(dev);
 	bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq_res),
 	    sc->irq_res);

@@ -404,7 +404,7 @@ ppbus_attach(device_t dev)
 	}
 
 	/* Locate our children */
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 
 #ifndef DONTPROBE_1284
 	/* detect IEEE1284 compliant devices */
@@ -414,22 +414,7 @@ ppbus_attach(device_t dev)
 #endif /* !DONTPROBE_1284 */
 
 	/* launch attachment of the added children */
-	bus_generic_attach(dev);
-
-	return (0);
-}
-
-static int
-ppbus_detach(device_t dev)
-{
-	int error;
-
-	error = bus_generic_detach(dev);
-	if (error)
-		return (error);
-
-	/* detach & delete all children */
-	device_delete_children(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }
@@ -578,7 +563,7 @@ static device_method_t ppbus_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		ppbus_probe),
 	DEVMETHOD(device_attach,	ppbus_attach),
-	DEVMETHOD(device_detach,	ppbus_detach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
 
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	ppbus_add_child),

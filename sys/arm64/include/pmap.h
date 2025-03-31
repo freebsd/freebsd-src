@@ -101,6 +101,8 @@ extern struct pmap	kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)
 #define	pmap_kernel()	kernel_pmap
 
+extern bool		pmap_lpa_enabled;
+
 #define	PMAP_ASSERT_LOCKED(pmap) \
 				mtx_assert(&(pmap)->pm_mtx, MA_OWNED)
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)

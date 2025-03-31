@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -1047,12 +1048,10 @@ ZFS_MODULE_PARAM(zfs_vdev_mirror, zfs_vdev_mirror_, rotating_inc, INT, ZMOD_RW,
 ZFS_MODULE_PARAM(zfs_vdev_mirror, zfs_vdev_mirror_, rotating_seek_inc, INT,
 	ZMOD_RW, "Rotating media load increment for seeking I/Os");
 
-/* BEGIN CSTYLED */
 ZFS_MODULE_PARAM(zfs_vdev_mirror, zfs_vdev_mirror_, rotating_seek_offset, INT,
 	ZMOD_RW,
 	"Offset in bytes from the last I/O which triggers "
 	"a reduced rotating media seek increment");
-/* END CSTYLED */
 
 ZFS_MODULE_PARAM(zfs_vdev_mirror, zfs_vdev_mirror_, non_rotating_inc, INT,
 	ZMOD_RW, "Non-rotating media load increment for non-seeking I/Os");

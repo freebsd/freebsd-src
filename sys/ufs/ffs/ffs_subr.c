@@ -34,6 +34,7 @@
 #include <sys/limits.h>
 
 #ifndef _KERNEL
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -59,6 +60,7 @@ struct malloc_type;
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/ucred.h>
+#include <sys/sysctl.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -123,6 +125,7 @@ ffs_update_dinode_ckhash(struct fs *fs, struct ufs2_dinode *dip)
 static off_t sblock_try[] = SBLOCKSEARCH;
 static int readsuper(void *, struct fs **, off_t, int,
 	int (*)(void *, off_t, void **, int));
+static void ffs_oldfscompat_read(struct fs *, ufs2_daddr_t);
 static int validate_sblock(struct fs *, int);
 
 /*
@@ -268,6 +271,7 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int flags,
 	if (fs->fs_magic == FS_UFS1_MAGIC && (flags & UFS_ALTSBLK) == 0 &&
 	    fs->fs_bsize == SBLOCK_UFS2 && sblockloc == SBLOCK_UFS2)
 		return (ENOENT);
+	ffs_oldfscompat_read(fs, sblockloc);
 	if ((error = validate_sblock(fs, flags)) > 0)
 		return (error);
 	/*
@@ -314,6 +318,165 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int flags,
 	/* Not yet any summary information */
 	fs->fs_si = NULL;
 	return (0);
+}
+
+/*
+ * Sanity checks for loading old filesystem superblocks.
+ * See ffs_oldfscompat_write below for unwound actions.
+ *
+ * XXX - Parts get retired eventually.
+ * Unfortunately new bits get added.
+ */
+static void
+ffs_oldfscompat_read(struct fs *fs, ufs2_daddr_t sblockloc)
+{
+	uint64_t maxfilesize;
+
+	/*
+	 * If not yet done, update fs_flags location and value of fs_sblockloc.
+	 */
+	if ((fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
+		fs->fs_flags = fs->fs_old_flags;
+		fs->fs_old_flags |= FS_FLAGS_UPDATED;
+		fs->fs_sblockloc = sblockloc;
+	}
+	switch (fs->fs_magic) {
+	case FS_UFS2_MAGIC:
+		/* No changes for now */
+		break;
+
+	case FS_UFS1_MAGIC:
+		/*
+		 * If not yet done, update UFS1 superblock with new wider fields
+		 */
+		if (fs->fs_maxbsize != fs->fs_bsize) {
+			fs->fs_maxbsize = fs->fs_bsize;
+			fs->fs_time = fs->fs_old_time;
+			fs->fs_size = fs->fs_old_size;
+			fs->fs_dsize = fs->fs_old_dsize;
+			fs->fs_csaddr = fs->fs_old_csaddr;
+			fs->fs_cstotal.cs_ndir = fs->fs_old_cstotal.cs_ndir;
+			fs->fs_cstotal.cs_nbfree = fs->fs_old_cstotal.cs_nbfree;
+			fs->fs_cstotal.cs_nifree = fs->fs_old_cstotal.cs_nifree;
+			fs->fs_cstotal.cs_nffree = fs->fs_old_cstotal.cs_nffree;
+		}
+		if (fs->fs_old_inodefmt < FS_44INODEFMT) {
+			fs->fs_maxfilesize = ((uint64_t)1 << 31) - 1;
+			fs->fs_qbmask = ~fs->fs_bmask;
+			fs->fs_qfmask = ~fs->fs_fmask;
+		}
+		fs->fs_save_maxfilesize = fs->fs_maxfilesize;
+		maxfilesize = (uint64_t)0x80000000 * fs->fs_bsize - 1;
+		if (fs->fs_maxfilesize > maxfilesize)
+			fs->fs_maxfilesize = maxfilesize;
+		break;
+	}
+	/* Compatibility for old filesystems */
+	if (fs->fs_avgfilesize <= 0)
+		fs->fs_avgfilesize = AVFILESIZ;
+	if (fs->fs_avgfpdir <= 0)
+		fs->fs_avgfpdir = AFPDIR;
+}
+
+/*
+ * Unwinding superblock updates for old filesystems.
+ * See ffs_oldfscompat_read above for details.
+ *
+ * XXX - Parts get retired eventually.
+ * Unfortunately new bits get added.
+ */
+void
+ffs_oldfscompat_write(struct fs *fs)
+{
+
+	switch (fs->fs_magic) {
+	case FS_UFS1_MAGIC:
+		if (fs->fs_sblockloc != SBLOCK_UFS1 &&
+		    (fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
+			printf(
+			"WARNING: %s: correcting fs_sblockloc from %jd to %d\n",
+			    fs->fs_fsmnt, fs->fs_sblockloc, SBLOCK_UFS1);
+			fs->fs_sblockloc = SBLOCK_UFS1;
+		}
+		/*
+		 * Copy back UFS2 updated fields that UFS1 inspects.
+		 */
+		fs->fs_old_time = fs->fs_time;
+		fs->fs_old_cstotal.cs_ndir = fs->fs_cstotal.cs_ndir;
+		fs->fs_old_cstotal.cs_nbfree = fs->fs_cstotal.cs_nbfree;
+		fs->fs_old_cstotal.cs_nifree = fs->fs_cstotal.cs_nifree;
+		fs->fs_old_cstotal.cs_nffree = fs->fs_cstotal.cs_nffree;
+		if (fs->fs_save_maxfilesize != 0)
+			fs->fs_maxfilesize = fs->fs_save_maxfilesize;
+		break;
+	case FS_UFS2_MAGIC:
+		if (fs->fs_sblockloc != SBLOCK_UFS2 &&
+		    (fs->fs_old_flags & FS_FLAGS_UPDATED) == 0) {
+			printf(
+			"WARNING: %s: correcting fs_sblockloc from %jd to %d\n",
+			    fs->fs_fsmnt, fs->fs_sblockloc, SBLOCK_UFS2);
+			fs->fs_sblockloc = SBLOCK_UFS2;
+		}
+		break;
+	}
+}
+
+/*
+ * Sanity checks for loading old filesystem inodes.
+ *
+ * XXX - Parts get retired eventually.
+ * Unfortunately new bits get added.
+ */
+static int prttimechgs = 0;
+#ifdef _KERNEL
+SYSCTL_NODE(_vfs, OID_AUTO, ffs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "FFS filesystem");
+SYSCTL_INT(_vfs_ffs, OID_AUTO, prttimechgs, CTLFLAG_RWTUN, &prttimechgs, 0,
+    "print UFS1 time changes made to inodes");
+#endif /* _KERNEL */
+bool
+ffs_oldfscompat_inode_read(struct fs *fs, union dinodep dp, time_t now)
+{
+	bool change;
+
+	change = false;
+	switch (fs->fs_magic) {
+	case FS_UFS2_MAGIC:
+		/* No changes for now */
+		break;
+
+	case FS_UFS1_MAGIC:
+		/*
+		 * With the change to unsigned time values in UFS1, times set
+		 * before Jan 1, 1970 will appear to be in the future. Check
+		 * for future times and set them to be the current time.
+		 */
+		if (dp.dp1->di_ctime > now) {
+			if (prttimechgs)
+				printf("ctime %ud changed to %ld\n",
+				    dp.dp1->di_ctime, (long)now);
+			dp.dp1->di_ctime = now;
+			change = true;
+		}
+		if (dp.dp1->di_mtime > now) {
+			if (prttimechgs)
+				printf("mtime %ud changed to %ld\n",
+				    dp.dp1->di_mtime, (long)now);
+			dp.dp1->di_mtime = now;
+			dp.dp1->di_ctime = now;
+			change = true;
+		}
+		if (dp.dp1->di_atime > now) {
+			if (prttimechgs)
+				printf("atime %ud changed to %ld\n",
+				    dp.dp1->di_atime, (long)now);
+			dp.dp1->di_atime = now;
+			dp.dp1->di_ctime = now;
+			change = true;
+		}
+		break;
+	}
+	return (change);
 }
 
 /*
@@ -561,7 +724,7 @@ validate_sblock(struct fs *fs, int flags)
 		sizepb *= NINDIR(fs);
 		maxfilesize += sizepb;
 	}
-	WCHK(fs->fs_maxfilesize, !=, maxfilesize, %jd);
+	WCHK(fs->fs_maxfilesize, >, maxfilesize, %jd);
 	/*
 	 * These values have a tight interaction with each other that
 	 * makes it hard to tightly bound them. So we can only check
@@ -791,6 +954,7 @@ int
 ffs_sbput(void *devfd, struct fs *fs, off_t loc,
     int (*writefunc)(void *devfd, off_t loc, void *buf, int size))
 {
+	struct fs_summary_info *fs_si;
 	int i, error, blks, size;
 	uint8_t *space;
 
@@ -813,23 +977,27 @@ ffs_sbput(void *devfd, struct fs *fs, off_t loc,
 		}
 	}
 	fs->fs_fmod = 0;
-#ifndef _KERNEL
-	{
-		struct fs_summary_info *fs_si;
-
-		fs->fs_time = time(NULL);
-		/* Clear the pointers for the duration of writing. */
-		fs_si = fs->fs_si;
-		fs->fs_si = NULL;
-		fs->fs_ckhash = ffs_calc_sbhash(fs);
-		error = (*writefunc)(devfd, loc, fs, fs->fs_sbsize);
-		fs->fs_si = fs_si;
-	}
-#else /* _KERNEL */
+	ffs_oldfscompat_write(fs);
+#ifdef _KERNEL
 	fs->fs_time = time_second;
+#else /* User Code */
+	fs->fs_time = time(NULL);
+#endif
+	/* Clear the pointers for the duration of writing. */
+	fs_si = fs->fs_si;
+	fs->fs_si = NULL;
 	fs->fs_ckhash = ffs_calc_sbhash(fs);
 	error = (*writefunc)(devfd, loc, fs, fs->fs_sbsize);
-#endif /* _KERNEL */
+	/*
+	 * A negative error code is returned when a copy of the
+	 * superblock has been made which is discarded when the I/O
+	 * is done. So the fs_si field does not and indeed cannot be
+	 * restored after the write is done. Convert the error code
+	 * back to its usual positive value when returning it.
+	 */
+	if (error < 0)
+		return (-error - 1);
+	fs->fs_si = fs_si;
 	return (error);
 }
 

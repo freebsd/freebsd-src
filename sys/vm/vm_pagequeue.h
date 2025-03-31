@@ -257,8 +257,9 @@ struct vm_domain {
 
 	/* Paging control variables, used within single threaded page daemon. */
 	struct pidctrl vmd_pid;		/* Pageout controller. */
-	boolean_t vmd_oom;
-	u_int vmd_inactive_threads;
+	bool vmd_oom;			/* An OOM kill was requested. */
+	bool vmd_helper_threads_enabled;/* Use multiple threads to scan. */
+	u_int vmd_inactive_threads;	/* Number of extra helper threads. */
 	u_int vmd_inactive_shortage;		/* Per-thread shortage. */
 	blockcount_t vmd_inactive_running;	/* Number of inactive threads. */
 	blockcount_t vmd_inactive_starting;	/* Number of threads started. */

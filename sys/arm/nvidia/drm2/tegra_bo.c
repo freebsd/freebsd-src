@@ -29,6 +29,8 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/pctrie.h>
+#include <sys/vmem.h>
 
 #include <machine/bus.h>
 
@@ -39,14 +41,14 @@
 
 #include <arm/nvidia/drm2/tegra_drm.h>
 
-#include <sys/vmem.h>
-#include <sys/vmem.h>
 #include <vm/vm.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_radix.h>
 
 static void
 tegra_bo_destruct(struct tegra_bo *bo)
 {
+	struct pctrie_iter pages;
 	vm_page_t m;
 	size_t size;
 	int i;
@@ -58,11 +60,12 @@ tegra_bo_destruct(struct tegra_bo *bo)
 	if (bo->vbase != 0)
 		pmap_qremove(bo->vbase, bo->npages);
 
+	vm_page_iter_init(&pages, bo->cdev_pager);
 	VM_OBJECT_WLOCK(bo->cdev_pager);
 	for (i = 0; i < bo->npages; i++) {
-		m = bo->m[i];
+		m = vm_radix_iter_lookup(&pages, i);
 		vm_page_busy_acquire(m, 0);
-		cdev_mgtdev_pager_free_page(bo->cdev_pager, m);
+		cdev_mgtdev_pager_free_page(&pages, m);
 		m->flags &= ~PG_FICTITIOUS;
 		vm_page_unwire_noq(m);
 		vm_page_free(m);

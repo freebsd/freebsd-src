@@ -78,7 +78,7 @@ static d_kqfilter_t	g_dev_kqfilter;
 static void		gdev_filter_detach(struct knote *kn);
 static int		gdev_filter_vnode(struct knote *kn, long hint);
 
-static struct filterops gdev_filterops_vnode = {
+static const struct filterops gdev_filterops_vnode = {
 	.f_isfd = 1,
 	.f_detach = gdev_filter_detach,
 	.f_event = gdev_filter_vnode,
@@ -852,6 +852,9 @@ g_dev_orphan(struct g_consumer *cp)
 	sc = cp->private;
 	dev = sc->sc_dev;
 	g_trace(G_T_TOPOLOGY, "g_dev_orphan(%p(%s))", cp, cp->geom->name);
+
+	if (dev == NULL)
+		return;
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV) {

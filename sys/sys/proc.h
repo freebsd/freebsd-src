@@ -493,13 +493,14 @@ enum {
 	TDA_KQUEUE,
 	TDA_RACCT,
 	TDA_MOD1,		/* For third party use, before signals are */
-	TAD_MOD2,		/* processed .. */
+	TDA_MOD2,		/* processed .. */
+	TDA_PSELECT,		/* For discarding temporary signal mask */
 	TDA_SIG,
 	TDA_KTRACE,
 	TDA_SUSPEND,
 	TDA_SIGSUSPEND,
 	TDA_MOD3,		/* .. and after */
-	TAD_MOD4,
+	TDA_MOD4,
 	TDA_MAX,
 };
 #define	TDAI(tda)		(1U << (tda))
@@ -560,13 +561,14 @@ enum {
 #define	TDP_RESETSPUR	0x04000000 /* Reset spurious page fault history. */
 #define	TDP_NERRNO	0x08000000 /* Last errno is already in td_errno */
 #define	TDP_UIOHELD	0x10000000 /* Current uio has pages held in td_ma */
-#define	TDP_UNUSED0	0x20000000 /* UNUSED */
+#define	TDP_EFIRT	0x20000000 /* In firmware (EFI RT) call */
 #define	TDP_EXECVMSPC	0x40000000 /* Execve destroyed old vmspace */
 #define	TDP_SIGFASTPENDING 0x80000000 /* Pending signal due to sigfastblock */
 
 #define	TDP2_SBPAGES	0x00000001 /* Owns sbusy on some pages */
 #define	TDP2_COMPAT32RB	0x00000002 /* compat32 ABI for robust lists */
 #define	TDP2_ACCT	0x00000004 /* Doing accounting */
+#define	TDP2_SAN_QUIET	0x00000008 /* Disable warnings from K(A|M)SAN */
 
 /*
  * Reasons that the current thread can not be run yet.
@@ -709,7 +711,7 @@ struct proc {
 	int		p_suspcount;	/* (j) Num threads in suspended mode. */
 	struct thread	*p_xthread;	/* (c) Trap thread */
 	int		p_boundary_count;/* (j) Num threads at user boundary */
-	int		p_pendingcnt;	/* how many signals are pending */
+	int		p_pendingcnt;	/* (c) how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
 	struct procdesc	*p_procdesc;	/* (e) Process descriptor, if any. */
 	u_int		p_treeflag;	/* (e) P_TREE flags */
@@ -868,7 +870,7 @@ struct proc {
 						   MAP_STACK */
 #define	P2_STKGAP_DISABLE_EXEC	0x00001000	/* Stack gap disabled
 						   after exec */
-#define	P2_ITSTOPPED		0x00002000
+#define	P2_ITSTOPPED		0x00002000	/* itimers stopped */
 #define	P2_PTRACEREQ		0x00004000	/* Active ptrace req */
 #define	P2_NO_NEW_PRIVS		0x00008000	/* Ignore setuid */
 #define	P2_WXORX_DISABLE	0x00010000	/* WX mappings enabled */
@@ -876,13 +878,16 @@ struct proc {
 #define	P2_WEXIT		0x00040000	/* exit just started, no
 						   external thread_single() is
 						   permitted */
-#define	P2_REAPKILLED		0x00080000
+#define	P2_REAPKILLED		0x00080000	/* REAP_KILL pass touched me */
 #define	P2_MEMBAR_PRIVE		0x00100000	/* membar private expedited
 						   registered */
 #define	P2_MEMBAR_PRIVE_SYNCORE	0x00200000	/* membar private expedited
 						   sync core registered */
 #define	P2_MEMBAR_GLOBE		0x00400000	/* membar global expedited
 						   registered */
+
+#define	P2_LOGSIGEXIT_ENABLE	0x00800000	/* Disable logging on sigexit */
+#define	P2_LOGSIGEXIT_CTL	0x01000000	/* Override kern.logsigexit */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
@@ -1174,6 +1179,7 @@ int	p_canwait(struct thread *td, struct proc *p);
 struct	pargs *pargs_alloc(int len);
 void	pargs_drop(struct pargs *pa);
 void	pargs_hold(struct pargs *pa);
+int	pgrp_calc_jobc(struct pgrp *pgrp);
 void	proc_add_orphan(struct proc *child, struct proc *parent);
 int	proc_get_binpath(struct proc *p, char *binname, char **fullpath,
 	    char **freepath);
@@ -1214,6 +1220,7 @@ extern	void (*cpu_idle_hook)(sbintime_t);	/* Hook to machdep CPU idler. */
 void	cpu_switch(struct thread *, struct thread *, struct mtx *);
 void	cpu_sync_core(void);
 void	cpu_throw(struct thread *, struct thread *) __dead2;
+void	cpu_update_pcb(struct thread *);
 bool	curproc_sigkilled(void);
 void	userret(struct thread *, struct trapframe *);
 

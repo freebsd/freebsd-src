@@ -1,4 +1,3 @@
-
 This directory is for standalone test programs.  For the FreeBSD
 Test Suite, which uses Kyua, please see /usr/src/tests/
 
@@ -7,6 +6,7 @@ and either tries to break it or measures its performance.
 
 Please make a subdir per program, and add a brief description to this file.
 
+arc4random	Bias test for arc4random_uniform()
 auxinfo		Return information on page sizes, CPUs, and OS release date.
 devrandom	Programs to test /dev/*random.
 gpioevents	Test delivery of gpio pin-change events to userland.

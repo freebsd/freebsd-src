@@ -322,11 +322,13 @@ dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
 */
 	if (if_getaddrlen(ifp) != 0) {
 		struct ifaddr *ifa;
+		struct ifa_iter it;
 
 		NET_EPOCH_ENTER(et);
-		ifa = CK_STAILQ_FIRST(&ifp->if_addrhead);
+		ifa = ifa_iter_start(ifp, &it);
 		if (ifa != NULL)
 			dump_sa(nw, IFLA_ADDRESS, ifa->ifa_addr);
+		ifa_iter_finish(&it);
 		NET_EPOCH_EXIT(et);
 	}
 
@@ -816,9 +818,9 @@ ifa_get_scope(const struct ifaddr *ifa)
                 {
                         struct in_addr addr;
                         addr = ((const struct sockaddr_in *)sa)->sin_addr;
-                        if (IN_LOOPBACK(addr.s_addr))
+                        if (IN_LOOPBACK(ntohl(addr.s_addr)))
                                 addr_scope = RT_SCOPE_HOST;
-                        else if (IN_LINKLOCAL(addr.s_addr))
+                        else if (IN_LINKLOCAL(ntohl(addr.s_addr)))
                                 addr_scope = RT_SCOPE_LINK;
                         break;
                 }
@@ -1361,7 +1363,7 @@ static void
 rtnl_handle_ifaddr(void *arg __unused, struct ifaddr *ifa, int cmd)
 {
 	struct nlmsghdr hdr = {};
-	struct nl_writer nw = {};
+	struct nl_writer nw;
 	uint32_t group = 0;
 
 	switch (ifa->ifa_addr->sa_family) {
@@ -1381,10 +1383,8 @@ rtnl_handle_ifaddr(void *arg __unused, struct ifaddr *ifa, int cmd)
 		return;
 	}
 
-	if (!nl_has_listeners(NETLINK_ROUTE, group))
-		return;
-
-	if (!nlmsg_get_group_writer(&nw, NLMSG_LARGE, NETLINK_ROUTE, group)) {
+	if (!nl_writer_group(&nw, NLMSG_LARGE, NETLINK_ROUTE, group, 0,
+	    false)) {
 		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}
@@ -1399,13 +1399,11 @@ static void
 rtnl_handle_ifevent(if_t ifp, int nlmsg_type, int if_flags_mask)
 {
 	struct nlmsghdr hdr = { .nlmsg_type = nlmsg_type };
-	struct nl_writer nw = {};
+	struct nl_writer nw;
 
-	if (!nl_has_listeners(NETLINK_ROUTE, RTNLGRP_LINK))
-		return;
-
-	if (!nlmsg_get_group_writer(&nw, NLMSG_LARGE, NETLINK_ROUTE, RTNLGRP_LINK)) {
-		NL_LOG(LOG_DEBUG, "error allocating mbuf");
+	if (!nl_writer_group(&nw, NLMSG_LARGE, NETLINK_ROUTE, RTNLGRP_LINK, 0,
+	    false)) {
+		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}
 	dump_iface(&nw, ifp, &hdr, if_flags_mask);
@@ -1427,7 +1425,7 @@ rtnl_handle_ifdetach(void *arg, if_t ifp)
 }
 
 static void
-rtnl_handle_iflink(void *arg, if_t ifp)
+rtnl_handle_iflink(void *arg, if_t ifp, int link_state __unused)
 {
 	NL_LOG(LOG_DEBUG2, "ifnet %s", if_name(ifp));
 	rtnl_handle_ifevent(ifp, NL_RTM_NEWLINK, 0);
@@ -1519,7 +1517,7 @@ rtnl_ifaces_init(void)
 	    ifnet_link_event, rtnl_handle_iflink, NULL,
 	    EVENTHANDLER_PRI_ANY);
 	NL_VERIFY_PARSERS(all_parsers);
-	rtnl_register_messages(cmd_handlers, NL_ARRAY_LEN(cmd_handlers));
+	rtnl_register_messages(cmd_handlers, nitems(cmd_handlers));
 }
 
 void

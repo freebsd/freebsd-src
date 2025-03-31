@@ -151,7 +151,7 @@ static struct cdevsw gpioc_cdevsw = {
 	.d_name		= "gpioc",
 };
 
-static struct filterops gpioc_read_filterops = {
+static const struct filterops gpioc_read_filterops = {
 	.f_isfd =	true,
 	.f_attach =	NULL,
 	.f_detach =	gpioc_kqdetach,

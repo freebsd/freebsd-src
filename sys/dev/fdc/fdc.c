@@ -1840,7 +1840,7 @@ int
 fdc_hints_probe(device_t dev)
 {
 	const char *name, *dname;
-	int i, error, dunit;
+	int i, dunit;
 
 	/*
 	 * Probe and attach any children.  We should probably detect
@@ -1853,8 +1853,7 @@ fdc_hints_probe(device_t dev)
 		fdc_add_child(dev, dname, dunit);
 	}
 
-	if ((error = bus_generic_attach(dev)) != 0)
-		return (error);
+	bus_attach_children(dev);
 	return (0);
 }
 

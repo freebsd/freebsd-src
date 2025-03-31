@@ -35,6 +35,7 @@ THIS SOFTWARE.
 #include <stdlib.h>
 #include <time.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include "awk.h"
 #include "awkgram.tab.h"
@@ -957,16 +958,12 @@ Cell *indirect(Node **a, int n)	/* $( a[0] ) */
 	Awkfloat val;
 	Cell *x;
 	int m;
-	char *s;
 
 	x = execute(a[0]);
 	val = getfval(x);	/* freebsd: defend against super large field numbers */
 	if ((Awkfloat)INT_MAX < val)
 		FATAL("trying to access out of range field %s", x->nval);
 	m = (int) val;
-	if (m == 0 && !is_number(s = getsval(x), NULL))	/* suspicion! */
-		FATAL("illegal field $(%s), name \"%s\"", s, x->nval);
-		/* BUG: can x->nval ever be null??? */
 	tempfree(x);
 	x = fieldadr(m);
 	x->ctype = OCELL;	/* BUG?  why are these needed? */
@@ -2069,7 +2066,7 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 	FILE *fp;
 	int status = 0;
 	time_t tv;
-	struct tm *tm;
+	struct tm *tm, tmbuf;
 	int estatus = 0;
 
 	t = ptoi(a[0]);
@@ -2223,6 +2220,26 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 		else
 			u = fflush(fp);
 		break;
+	case FMKTIME:
+		memset(&tmbuf, 0, sizeof(tmbuf));
+		tm = &tmbuf;
+		t = sscanf(getsval(x), "%d %d %d %d %d %d %d",
+		    &tm->tm_year, &tm->tm_mon, &tm->tm_mday, &tm->tm_hour,
+		    &tm->tm_min, &tm->tm_sec, &tm->tm_isdst);
+		switch (t) {
+		case 6:
+			tm->tm_isdst = -1;	/* let mktime figure it out */
+			/* FALLTHROUGH */
+		case 7:
+			tm->tm_year -= 1900;
+			tm->tm_mon--;
+			u = mktime(tm);
+			break;
+		default:
+			u = -1;
+			break;
+		}
+		break;
 	case FSYSTIME:
 		u = time((time_t *) 0);
 		break;
@@ -2353,9 +2370,11 @@ FILE *openfile(int a, const char *us, bool *pnewflag)
 	size_t i;
 	int m;
 	FILE *fp = NULL;
+	struct stat sbuf;
 
 	if (*s == '\0')
 		FATAL("null file name in print or getline");
+
 	for (i = 0; i < nfiles; i++)
 		if (files[i].fname && strcmp(s, files[i].fname) == 0 &&
 		    (a == files[i].mode || (a==APPEND && files[i].mode==GT) ||
@@ -2366,7 +2385,6 @@ FILE *openfile(int a, const char *us, bool *pnewflag)
 		}
 	if (a == FFLUSH)	/* didn't find it, so don't create it! */
 		return NULL;
-
 	for (i = 0; i < nfiles; i++)
 		if (files[i].fp == NULL)
 			break;
@@ -2380,7 +2398,14 @@ FILE *openfile(int a, const char *us, bool *pnewflag)
 		nfiles = nnf;
 		files = nf;
 	}
+
 	fflush(stdout);	/* force a semblance of order */
+
+	/* don't try to read or write a directory */
+	if (a == LT || a == GT || a == APPEND)
+		if (stat(s, &sbuf) == 0 && S_ISDIR(sbuf.st_mode))
+				return NULL;
+
 	m = a;
 	if (a == GT) {
 		fp = fopen(s, "w");

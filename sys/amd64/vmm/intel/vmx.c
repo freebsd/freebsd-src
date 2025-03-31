@@ -59,6 +59,7 @@
 #include <machine/vmm_snapshot.h>
 
 #include <dev/vmm/vmm_ktr.h>
+#include <dev/vmm/vmm_mem.h>
 
 #include "vmm_lapic.h"
 #include "vmm_host.h"
@@ -74,6 +75,7 @@
 #include "vmx_msr.h"
 #include "x86.h"
 #include "vmx_controls.h"
+#include "io/ppt.h"
 
 #define	PINBASED_CTLS_ONE_SETTING					\
 	(PINBASED_EXTINT_EXITING	|				\
@@ -649,11 +651,19 @@ vmx_enable(void *arg __unused)
 }
 
 static void
+vmx_modsuspend(void)
+{
+
+	if (vmxon_enabled[curcpu])
+		vmx_disable(NULL);
+}
+
+static void
 vmx_modresume(void)
 {
 
 	if (vmxon_enabled[curcpu])
-		vmxon(&vmxon_region[curcpu * PAGE_SIZE]);
+		vmx_enable(NULL);
 }
 
 static int
@@ -2748,7 +2758,7 @@ vmx_exit_process(struct vmx *vmx, struct vmx_vcpu *vcpu, struct vm_exit *vmexit)
 		 */
 		gpa = vmcs_gpa();
 		if (vm_mem_allocated(vcpu->vcpu, gpa) ||
-		    apic_access_fault(vcpu, gpa)) {
+		    ppt_is_mmio(vmx->vm, gpa) || apic_access_fault(vcpu, gpa)) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->inst_length = 0;
 			vmexit->u.paging.gpa = gpa;
@@ -4271,6 +4281,7 @@ vmx_restore_tsc(void *vcpui, uint64_t offset)
 const struct vmm_ops vmm_ops_intel = {
 	.modinit	= vmx_modinit,
 	.modcleanup	= vmx_modcleanup,
+	.modsuspend	= vmx_modsuspend,
 	.modresume	= vmx_modresume,
 	.init		= vmx_init,
 	.run		= vmx_run,

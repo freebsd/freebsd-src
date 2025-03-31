@@ -1611,6 +1611,9 @@ EOF
 	# Initialize conflicts and warnings handling.
 	rm -f $WARNINGS
 	mkdir -p $CONFLICTS
+	if ! chmod 0700 ${CONFLICTS}; then
+		panic "Unable to set permissions on conflicts directory"
+	fi
 
 	# Ignore removed files for the pre-world case.  A pre-world
 	# update uses a stripped-down tree.

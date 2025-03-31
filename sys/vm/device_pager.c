@@ -51,7 +51,9 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_radix.h>
 #include <vm/uma.h>
 
 static void dev_pager_init(void);
@@ -95,11 +97,13 @@ static int old_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 static void old_dev_pager_dtor(void *handle);
 static int old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
     int prot, vm_page_t *mres);
+static void old_dev_pager_path(void *handle, char *path, size_t len);
 
 static const struct cdev_pager_ops old_dev_pager_ops = {
 	.cdev_pg_ctor =	old_dev_pager_ctor,
 	.cdev_pg_dtor =	old_dev_pager_dtor,
-	.cdev_pg_fault = old_dev_pager_fault
+	.cdev_pg_fault = old_dev_pager_fault,
+	.cdev_pg_path = old_dev_pager_path
 };
 
 static void
@@ -118,8 +122,8 @@ cdev_pager_lookup(void *handle)
 again:
 	mtx_lock(&dev_pager_mtx);
 	object = vm_pager_object_lookup(&dev_pager_object_list, handle);
-	if (object != NULL && object->un_pager.devp.dev == NULL) {
-		msleep(&object->un_pager.devp.dev, &dev_pager_mtx,
+	if (object != NULL && object->un_pager.devp.handle == NULL) {
+		msleep(&object->un_pager.devp.handle, &dev_pager_mtx,
 		    PVM | PDROP, "cdplkp", 0);
 		vm_object_deallocate(object);
 		goto again;
@@ -135,6 +139,8 @@ cdev_pager_allocate(void *handle, enum obj_type tp,
 {
 	vm_object_t object;
 	vm_pindex_t pindex;
+
+	KASSERT(handle != NULL, ("device pager with NULL handle"));
 
 	if (tp != OBJT_DEVICE && tp != OBJT_MGTDEVICE)
 		return (NULL);
@@ -183,8 +189,8 @@ again:
 			object1->type = OBJT_DEAD;
 			vm_object_deallocate(object1);
 			object1 = NULL;
-			if (object->un_pager.devp.dev == NULL) {
-				msleep(&object->un_pager.devp.dev,
+			if (object->un_pager.devp.handle == NULL) {
+				msleep(&object->un_pager.devp.handle,
 				    &dev_pager_mtx, PVM | PDROP, "cdplkp", 0);
 				vm_object_deallocate(object);
 				goto again;
@@ -218,7 +224,7 @@ again:
 				mtx_lock(&dev_pager_mtx);
 				TAILQ_REMOVE(&dev_pager_object_list, object,
 				    pager_object_list);
-				wakeup(&object->un_pager.devp.dev);
+				wakeup(&object->un_pager.devp.handle);
 				mtx_unlock(&dev_pager_mtx);
 				object->type = OBJT_DEAD;
 				vm_object_deallocate(object);
@@ -228,14 +234,14 @@ again:
 				mtx_lock(&dev_pager_mtx);
 				object->flags |= OBJ_COLORED;
 				object->pg_color = color;
-				object->un_pager.devp.dev = handle;
-				wakeup(&object->un_pager.devp.dev);
+				object->un_pager.devp.handle = handle;
+				wakeup(&object->un_pager.devp.handle);
 			}
 		}
 		MPASS(object1 == NULL);
 	} else {
-		if (object->un_pager.devp.dev == NULL) {
-			msleep(&object->un_pager.devp.dev,
+		if (object->un_pager.devp.handle == NULL) {
+			msleep(&object->un_pager.devp.handle,
 			    &dev_pager_mtx, PVM | PDROP, "cdplkp", 0);
 			vm_object_deallocate(object);
 			goto again;
@@ -259,12 +265,24 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 }
 
 void
+cdev_pager_get_path(vm_object_t object, char *path, size_t sz)
+{
+	if (object->un_pager.devp.ops->cdev_pg_path != NULL)
+		object->un_pager.devp.ops->cdev_pg_path(
+		    object->un_pager.devp.handle, path, sz);
+}
+
+void
 cdev_pager_free_page(vm_object_t object, vm_page_t m)
 {
 
-	if (object->type == OBJT_MGTDEVICE)
-		cdev_mgtdev_pager_free_page(object, m);
-	else if (object->type == OBJT_DEVICE)
+	if (object->type == OBJT_MGTDEVICE) {
+		struct pctrie_iter pages;
+
+		vm_page_iter_init(&pages, object);
+		vm_radix_iter_lookup(&pages, m->pindex);
+		cdev_mgtdev_pager_free_page(&pages, m);
+	} else if (object->type == OBJT_DEVICE)
 		dev_pager_free_page(object, m);
 	else
 		KASSERT(false,
@@ -272,15 +290,32 @@ cdev_pager_free_page(vm_object_t object, vm_page_t m)
 }
 
 void
-cdev_mgtdev_pager_free_page(vm_object_t object, vm_page_t m)
+cdev_mgtdev_pager_free_page(struct pctrie_iter *pages, vm_page_t m)
 {
-
-	VM_OBJECT_ASSERT_WLOCKED(object);
-	KASSERT((object->type == OBJT_MGTDEVICE &&
-	    (m->oflags & VPO_UNMANAGED) == 0),
-	    ("Unmanaged device or page obj %p m %p", object, m));
 	pmap_remove_all(m);
-	(void)vm_page_remove(m);
+	vm_page_iter_remove(pages, m);
+}
+
+void
+cdev_mgtdev_pager_free_pages(vm_object_t object)
+{
+	struct pctrie_iter pages;
+	vm_page_t m;
+
+	vm_page_iter_init(&pages, object);
+	VM_OBJECT_WLOCK(object);
+retry:
+	KASSERT(pctrie_iter_is_reset(&pages),
+	    ("%s: pctrie_iter not reset for retry", __func__));
+	for (m = vm_radix_iter_lookup_ge(&pages, 0); m != NULL;
+	    m = vm_radix_iter_step(&pages)) {
+		if (!vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL)) {
+			pctrie_iter_reset(&pages);
+			goto retry;
+		}
+		cdev_mgtdev_pager_free_page(&pages, m);
+	}
+	VM_OBJECT_WUNLOCK(object);
 }
 
 static void
@@ -301,7 +336,7 @@ dev_pager_dealloc(vm_object_t object)
 	vm_page_t m;
 
 	VM_OBJECT_WUNLOCK(object);
-	object->un_pager.devp.ops->cdev_pg_dtor(object->un_pager.devp.dev);
+	object->un_pager.devp.ops->cdev_pg_dtor(object->un_pager.devp.handle);
 
 	mtx_lock(&dev_pager_mtx);
 	TAILQ_REMOVE(&dev_pager_object_list, object, pager_object_list);
@@ -511,4 +546,13 @@ old_dev_pager_dtor(void *handle)
 {
 
 	dev_rel(handle);
+}
+
+static void
+old_dev_pager_path(void *handle, char *path, size_t len)
+{
+	struct cdev *cdev = handle;
+
+	if (cdev != NULL)
+		dev_copyname(cdev, path, len);
 }

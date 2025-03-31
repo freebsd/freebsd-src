@@ -191,7 +191,7 @@ isavga_attach(device_t dev)
 
 #if 0 /* experimental */
 	device_add_child(dev, "fb", DEVICE_UNIT_ANY);
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 #endif
 
 	return (0);
@@ -259,8 +259,8 @@ static int
 vgapm_attach(device_t dev)
 {
 
-	bus_generic_probe(dev);
-	bus_generic_attach(dev);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

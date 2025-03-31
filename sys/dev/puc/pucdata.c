@@ -493,6 +493,428 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_siig
 	},
 
+	{   0x135a, 0x0841, 0xffff, 0,
+	    "Brainboxes UC-268",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0861, 0xffff, 0,
+	    "Brainboxes UC-257",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0862, 0xffff, 0,
+	    "Brainboxes UC-257",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0863, 0xffff, 0,
+	    "Brainboxes UC-257",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0881, 0xffff, 0,
+	    "Brainboxes UC-279",
+	    DEFAULT_RCLK,
+	    PUC_PORT_8S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x08a1, 0xffff, 0,
+	    "Brainboxes UC-313",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x08a2, 0xffff, 0,
+	    "Brainboxes UC-313",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x08a3, 0xffff, 0,
+	    "Brainboxes UC-313",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x08c1, 0xffff, 0,
+	    "Brainboxes UC-310",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x08e1, 0xffff, 0,
+	    "Brainboxes UC-302",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x08e2, 0xffff, 0,
+	    "Brainboxes UC-302",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x08e3, 0xffff, 0,
+	    "Brainboxes UC-302",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0901, 0xffff, 0,
+	    "Brainboxes UC-431",
+	    DEFAULT_RCLK,
+	    PUC_PORT_3S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0921, 0xffff, 0,
+	    "Brainboxes UC-420",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0981, 0xffff, 0,
+	    "Brainboxes UC-475",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0982, 0xffff, 0,
+	    "Brainboxes UC-475",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x09a1, 0xffff, 0,
+	    "Brainboxes UC-607",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x09a2, 0xffff, 0,
+	    "Brainboxes UC-607",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x09a3, 0xffff, 0,
+	    "Brainboxes UC-607",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0a81, 0xffff, 0,
+	    "Brainboxes UC-357",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0a82, 0xffff, 0,
+	    "Brainboxes UC-357",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0a83, 0xffff, 0,
+	    "Brainboxes UC-357",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0ac1, 0xffff, 0,
+	    "Brainboxes UP-189",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0ac2, 0xffff, 0,
+	    "Brainboxes UP-189",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0ac3, 0xffff, 0,
+	    "Brainboxes UP-189",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0b01, 0xffff, 0,
+	    "Brainboxes UC-346",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0b02, 0xffff, 0,
+	    "Brainboxes UC-346",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0b21, 0xffff, 0,
+	    "Brainboxes UP-200",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0b22, 0xffff, 0,
+	    "Brainboxes UP-200",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0b23, 0xffff, 0,
+	    "Brainboxes UP-200",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0ba1, 0xffff, 0,
+	    "Brainboxes UC-101",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0bc1, 0xffff, 0,
+	    "Brainboxes UC-203",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0bc2, 0xffff, 0,
+	    "Brainboxes UC-203",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0c01, 0xffff, 0,
+	    "Brainboxes UP-869",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0c02, 0xffff, 0,
+	    "Brainboxes UP-869",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0c03, 0xffff, 0,
+	    "Brainboxes UP-869",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0c21, 0xffff, 0,
+	    "Brainboxes UP-880",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0c22, 0xffff, 0,
+	    "Brainboxes UP-880",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0c23, 0xffff, 0,
+	    "Brainboxes UP-880",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0c41, 0xffff, 0,
+	    "Brainboxes UC-368",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0ca1, 0xffff, 0,
+	    "Brainboxes UC-253",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0d21, 0xffff, 0,
+	    "Brainboxes UC-260",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0d41, 0xffff, 0,
+	    "Brainboxes UC-836",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0d80, 0xffff, 0,
+	    "Intashield IS-200",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0dc0, 0xffff, 0,
+	    "Intashield IS-400",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0e41, 0xffff, 0,
+	    "Brainboxes PX-279",
+	    DEFAULT_RCLK,
+	    PUC_PORT_8S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x0e61, 0xffff, 0,
+	    "Brainboxes UC-414",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x18, 0, 8,
+	},
+
+	{   0x135a, 0x400a, 0xffff, 0,
+	    "Brainboxes PX-260",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x400b, 0xffff, 0,
+	    "Brainboxes PX-320",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x400c, 0xffff, 0,
+	    "Brainboxes PX-313",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x400e, 0xffff, 0,
+	    "Brainboxes PX-310",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x400f, 0xffff, 0,
+	    "Brainboxes PX-346",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4010, 0xffff, 0,
+	    "Brainboxes PX-368",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4011, 0xffff, 0,
+	    "Brainboxes PX-420",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4012, 0xffff, 0,
+	    "Brainboxes PX-431",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4013, 0xffff, 0,
+	    "Brainboxes PX-820",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4014, 0xffff, 0,
+	    "Brainboxes PX-831",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4015, 0xffff, 0,
+	    "Brainboxes PX-257",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4016, 0xffff, 0,
+	    "Brainboxes PX-246",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4017, 0xffff, 0,
+	    "Brainboxes PX-846",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4018, 0xffff, 0,
+	    "Brainboxes PX-857",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4019, 0xffff, 0,
+	    "Brainboxes PX-101",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x401d, 0xffff, 0,
+	    "Brainboxes PX-475",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x401e, 0xffff, 0,
+	    "Brainboxes PX-803",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4027, 0xffff, 0,
+	    "Intashield IX-100",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4028, 0xffff, 0,
+	    "Intashield IX-200",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
+	{   0x135a, 0x4029, 0xffff, 0,
+	    "Intashield IX-400",
+	    DEFAULT_RCLK * 0x22,
+	    PUC_PORT_NONSTANDARD, 0x10, 0, -1,
+	    .config_function = puc_config_oxford_pcie
+	},
+
 	{   0x135c, 0x0010, 0xffff, 0,
 	    "Quatech QSC-100",
 	    -3,	/* max 8x clock rate */

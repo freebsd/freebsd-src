@@ -5,7 +5,7 @@
  */
 
 #include <sys/limits.h>
-
+#include <sys/ucred.h>
 #include <err.h>
 #include <paths.h>
 #include <pwd.h>
@@ -23,22 +23,26 @@ usage(void)
 	exit(EXIT_FAILURE);
 }
 
-static char*
-join_strings(char **arr, int size, const char *delimiter)
+static char *join_strings(char **arr, size_t nlen, const char *delim)
 {
-	int total_length = 0, delimiter_length = strlen(delimiter);
-	for (int i = 0; i < size; i++)
-		total_length += strlen(arr[i]) + (i < size - 1 ? delimiter_length : 0);
-	char *result = malloc(total_length + 1);
-	if (!result)
-		exit(1);
-	result[0] = '\0';
-	for (int i = 0; i < size; i++) {
-		strcat(result, arr[i]);
-		if (i < size - 1)
-			strcat(result, delimiter);
+	char *buf;
+	size_t dlen, tlen, i;
+
+	tlen = 0;
+	dlen = strlen(delim);
+	for (i = 0; i < nlen; i++)
+		tlen += strlen(arr[i]) + dlen;
+
+	if ((buf = malloc(tlen)) == NULL)
+		err(1, "malloc()");
+
+	*buf = '\0';
+	strcpy(buf, arr[0]);
+	for (i = 1; i < nlen; i++) {
+		strcpy(buf + strlen(buf), delim);
+		strcpy(buf + strlen(buf), arr[i]);
 	}
-	return (result);
+	return buf;
 }
 
 int
@@ -47,6 +51,8 @@ main(int argc, char **argv)
 	struct passwd *pw = getpwuid(getuid());
 	char original_username[33];
 	const char *username = "root";
+	struct setcred wcred = SETCRED_INITIALIZER;
+	u_int setcred_flags = 0;
 	bool uidonly = false;
 	int ch;
 
@@ -72,54 +78,56 @@ main(int argc, char **argv)
 		if (strspn(username, "0123456789") == strlen(username)) {
 			const char *errp = NULL;
 			uid_t uid = strtonum(username, 0, UID_MAX, &errp);
-
 			if (errp != NULL) {
-				syslog(LOG_ERR, "Failed due to: %s", errp);
-				err(EXIT_FAILURE, "%s", errp);
+				syslog(LOG_ERR, "Failed to login: %s", username);
+				err(EXIT_FAILURE, "invalid user ID '%s'", username);
 			}
 			pw = getpwuid(uid);
 		}
 		if (pw == NULL) {
-			syslog(LOG_AUTH | LOG_WARNING, "invalid username: %s", username);
+			syslog(LOG_ERR, "Failed to login: %s", username);
 			err(EXIT_FAILURE, "invalid username '%s'", username);
 		}
 	}
 
+	wcred.sc_uid = wcred.sc_ruid = wcred.sc_svuid = pw->pw_uid;
+	setcred_flags |= SETCREDF_UID | SETCREDF_RUID | SETCREDF_SVUID;
+
 	if (!uidonly) {
-		if (initgroups(pw->pw_name, pw->pw_gid) == -1) {
-			syslog(LOG_AUTH | LOG_ERR, "USER: %s; failed to call initgroups: %d",
-				   original_username,
-				   EXIT_FAILURE);
-			err(EXIT_FAILURE, "failed to call initgroups");
-		}
-		if (setgid(pw->pw_gid) == -1) {
-			syslog(LOG_AUTH | LOG_ERR, "USER: %s; failed to call setgid: %d",
-				   original_username,
-				   EXIT_FAILURE);
-			err(EXIT_FAILURE, "failed to call setgid");
-		}
+		const long ngroups_alloc = sysconf(_SC_NGROUPS_MAX) + 2;
+		gid_t *const groups = malloc(sizeof(*groups) * ngroups_alloc);
+		int ngroups = ngroups_alloc;
+
+		if (groups == NULL)
+			err(EXIT_FAILURE, "cannot allocate memory for groups");
+
+		getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups);
+
+		wcred.sc_gid = wcred.sc_rgid = wcred.sc_svgid = pw->pw_gid;
+		wcred.sc_supp_groups = groups + 1;
+		wcred.sc_supp_groups_nb = ngroups - 1;
+		setcred_flags |= SETCREDF_GID | SETCREDF_RGID | SETCREDF_SVGID |
+		    SETCREDF_SUPP_GROUPS;
 	}
-	if (setuid(pw->pw_uid) == -1) {
-		syslog(LOG_AUTH | LOG_ERR, "USER: %s; failed to call setuid: %d",
-			   original_username,
-			   EXIT_FAILURE);
-		err(EXIT_FAILURE, "failed to call setuid");
+
+	if (setcred(setcred_flags, &wcred, sizeof(wcred)) != 0) {
+		syslog(LOG_ERR, "calling setcred() failed");
+		err(EXIT_FAILURE, "calling setcred() failed");
 	}
+
 	if (*argv == NULL) {
 		const char *sh = getenv("SHELL");
 		if (sh == NULL)
 			sh = _PATH_BSHELL;
-		syslog(LOG_AUTH | LOG_INFO,
-			   "USER: %s; COMMAND=%s",
-			   original_username, sh);
 		execlp(sh, sh, "-i", NULL);
-	} else {
-        char *command = join_strings(argv, argc, " ");
 		syslog(LOG_AUTH | LOG_INFO, "USER: %s; COMMAND=%s",
-			   original_username,
-			   command);
-        free(command);
+		    original_username, sh);
+	} else {
+		char *command = join_strings(argv, argc, " ");
+		syslog(LOG_AUTH | LOG_INFO, "USER: %s; COMMAND=%s",
+		    original_username, command);
 		execvp(argv[0], argv);
 	}
 	err(EXIT_FAILURE, "exec failed");
 }
+

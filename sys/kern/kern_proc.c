@@ -91,6 +91,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/uma.h>
 
 #include <fs/devfs/devfs.h>
@@ -412,7 +413,7 @@ pidhash_sunlockall(void)
 }
 
 /*
- * Similar to pfind_any(), this function finds zombies.
+ * Similar to pfind(), this function locate a process by number.
  */
 struct proc *
 pfind_any_locked(pid_t pid)
@@ -725,7 +726,7 @@ jobc_parent(struct proc *p, struct proc *p_exiting)
 	return (jobc_reaper(pp));
 }
 
-static int
+int
 pgrp_calc_jobc(struct pgrp *pgrp)
 {
 	struct proc *q;
@@ -2615,11 +2616,9 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 	struct ucred *cred;
 	struct vnode *vp;
 	struct vmspace *vm;
-	struct cdev *cdev;
-	struct cdevsw *csw;
 	vm_offset_t addr;
 	unsigned int last_timestamp;
-	int error, ref;
+	int error;
 	key_t key;
 	unsigned short seq;
 	bool guard, super;
@@ -2694,8 +2693,6 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
 		if (entry->eflags & MAP_ENTRY_NOCOREDUMP)
 			kve->kve_flags |= KVME_FLAG_NOCOREDUMP;
-		if (entry->eflags & MAP_ENTRY_GROWS_UP)
-			kve->kve_flags |= KVME_FLAG_GROWS_UP;
 		if (entry->eflags & MAP_ENTRY_GROWS_DOWN)
 			kve->kve_flags |= KVME_FLAG_GROWS_DOWN;
 		if (entry->eflags & MAP_ENTRY_USER_WIRED)
@@ -2719,16 +2716,8 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			kve->kve_shadow_count = obj->shadow_count;
 			if (obj->type == OBJT_DEVICE ||
 			    obj->type == OBJT_MGTDEVICE) {
-				cdev = obj->un_pager.devp.dev;
-				if (cdev != NULL) {
-					csw = dev_refthread(cdev, &ref);
-					if (csw != NULL) {
-						strlcpy(kve->kve_path,
-						    cdev->si_name, sizeof(
-						    kve->kve_path));
-						dev_relthread(cdev, ref);
-					}
-				}
+				cdev_pager_get_path(obj, kve->kve_path,
+				    sizeof(kve->kve_path));
 			}
 			VM_OBJECT_RUNLOCK(obj);
 			if ((lobj->flags & OBJ_SYSVSHM) != 0) {

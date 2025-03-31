@@ -264,12 +264,18 @@ get_file(struct linux_file *f)
 	return (f);
 }
 
+struct linux_file * linux_get_file_rcu(struct linux_file **f);
+struct linux_file * get_file_active(struct linux_file **f);
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION < 60700
 static inline bool
 get_file_rcu(struct linux_file *f)
 {
 	return (refcount_acquire_if_not_zero(
 	    f->_file == NULL ? &f->f_count : &f->_file->f_count));
 }
+#else
+#define	get_file_rcu(f)	linux_get_file_rcu(f)
+#endif
 
 static inline struct inode *
 igrab(struct inode *inode)

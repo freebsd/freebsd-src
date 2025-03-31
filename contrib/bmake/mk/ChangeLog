@@ -1,3 +1,133 @@
+2025-03-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20250314
+
+	* meta.stage.mk: StageFiles --subdir: preserve the dir part of
+	each file under $dest 
+
+2025-03-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta.autodep.mk: do a better job of handling MAKESYSPATH in
+	GENDIRDEPS_ENV.  If we have MAKE_VERSION >= 20230123 we can just
+	use .SYSPATH, otherwise it is a bit more complicated.
+
+2025-01-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* rust.mk: use RUST_LIBS and RUST_PROGS
+
+2025-01-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20250101
+
+	* use W flag to :S and :C rather than :tW
+
+2024-12-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* rust.mk: add RUSTFLAGS if needed
+
+2024-12-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* init.mk (OBJS_SRCS_FILTER): apply this as
+	${OBJS_SRCS_FILTER:ts:} as we do in FreeBSD.
+
+2024-12-03  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20241202
+
+	* setopts.sh: needed by newlog.sh
+
+2024-11-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta.sys.mk: add META_MODE_XTRAS to META_MODE to make it
+	easier to add things like 'env' when debugging.
+
+	* install-mk (MK_VERSION): 20241122
+
+	* rust.mk: rename CARGO* to RUST_CARGO* so I don't feel
+	like this makefile should be renamed to cargo.mk
+
+2024-11-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: add DIRDEPS_CACHED_ENV to dirdeps-cached and
+	DIRDEP_USE_EPILOGUE to _DIRDEP_USE
+
+2024-10-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta.sys.mk: if MK_META_ERROR_TARGET is yes and NEWLOG_SH is
+	set, and ERROR_LOGDIR already exists, hook _rotateErrorLog to
+	.BEGIN target.
+
+2024-10-27  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* options.mk: add support for DEBUG_OPTIONS (similar to
+	DEBUG_DIRDEPS) to allow us to see where options get set.
+	Eg. DEBUG_OPTIONS="STAGING*" gives:
+
+	bmake[1]: "mk/options.mk" line 89: sys.mk: MK_STAGING=yes (MK_DIRDEPS_BUILD=no)
+	bmake[1]: "mk/options.mk" line 66: local.init.mk: MK_STAGING=yes
+	bmake[1]: "mk/options.mk" line 66: local.init.mk: MK_STAGING_PROG=no
+	bmake[1]: "mk/options.mk" line 89: own.mk: MK_STAGING_MAN=yes (MK_STAGING=yes)
+	bmake[1]: "mk/options.mk" line 89: own.mk: MK_STAGING_PROG=no (MK_STAGING=yes)
+	bmake[1]: "mk/options.mk" line 89: own.mk: MK_STAGING_RUST=no (MK_STAGING_PROG=no)
+
+	* own.mk: fix setting of STAGE_OBJTOP (normally set by sys.dirdeps.mk)
+
+2024-10-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* rust.mk: add some documentation and support for staging
+
+2024-10-25  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* rust.mk: a means of integrating Rust projects into a larger build.
+
+2024-10-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps-targets.mk: if DEBUG_DIRDEPS_TARGETS and we found
+	STATIC_DIRDEPS_CACHE, report its relative path.
+
+2024-09-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: tweak the debug message for "Loading" a
+	Makefile.depend file, always report what the actual makefile is
+	with the DIRDEP it is for.
+	Remove the redundant "Looking" message.
+
+2024-09-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta2deps.py: when raising AssertionError include meta file name
+	with $SB trimmed if possible.
+
+2024-09-23  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta2deps.py: replace assert() with raise AssertionError when we
+	detect missing eXits, to ensure a meaningful message gets into
+	log.
+
+2024-09-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240921
+
+	* FILES: add genfiles.mk
+
+2024-09-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240920
+
+	* cython.mk: Get PYTHON_VERSION from PYTHON
+
+2024-08-31  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* subdir.mk: add ${SUBDIR.yes} - allows for SUBDIR.${MK_*}
+	  and handle subdir with '-' in its name.
+
+2024-08-23  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20240820
+
+	* links.mk: Allow a filter to be applied to SYMLINKS etc.
+	It is up to [BUILD_][SYM]LINKS_FILTER to do something sane.
+	Also only claim we are making a symlink if the value changed.
+
 2024-06-22  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20240616

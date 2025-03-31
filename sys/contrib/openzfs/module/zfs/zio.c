@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -23,7 +24,7 @@
  * Copyright (c) 2011, 2022 by Delphix. All rights reserved.
  * Copyright (c) 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2017, Intel Corporation.
- * Copyright (c) 2019, 2023, 2024, Klara Inc.
+ * Copyright (c) 2019, 2023, 2024, 2025, Klara, Inc.
  * Copyright (c) 2019, Allan Jude
  * Copyright (c) 2021, Datto, Inc.
  * Copyright (c) 2021, 2024 by George Melikov. All rights reserved.
@@ -145,9 +146,52 @@ static const int zio_buf_debug_limit = 16384;
 static const int zio_buf_debug_limit = 0;
 #endif
 
+typedef struct zio_stats {
+	kstat_named_t ziostat_total_allocations;
+	kstat_named_t ziostat_alloc_class_fallbacks;
+	kstat_named_t ziostat_gang_writes;
+	kstat_named_t ziostat_gang_multilevel;
+} zio_stats_t;
+
+static zio_stats_t zio_stats = {
+	{ "total_allocations",	KSTAT_DATA_UINT64 },
+	{ "alloc_class_fallbacks",	KSTAT_DATA_UINT64 },
+	{ "gang_writes",	KSTAT_DATA_UINT64 },
+	{ "gang_multilevel",	KSTAT_DATA_UINT64 },
+};
+
+struct {
+	wmsum_t ziostat_total_allocations;
+	wmsum_t ziostat_alloc_class_fallbacks;
+	wmsum_t ziostat_gang_writes;
+	wmsum_t ziostat_gang_multilevel;
+} ziostat_sums;
+
+#define	ZIOSTAT_BUMP(stat)	wmsum_add(&ziostat_sums.stat, 1);
+
+static kstat_t *zio_ksp;
+
 static inline void __zio_execute(zio_t *zio);
 
 static void zio_taskq_dispatch(zio_t *, zio_taskq_type_t, boolean_t);
+
+static int
+zio_kstats_update(kstat_t *ksp, int rw)
+{
+	zio_stats_t *zs = ksp->ks_data;
+	if (rw == KSTAT_WRITE)
+		return (EACCES);
+
+	zs->ziostat_total_allocations.value.ui64 =
+	    wmsum_value(&ziostat_sums.ziostat_total_allocations);
+	zs->ziostat_alloc_class_fallbacks.value.ui64 =
+	    wmsum_value(&ziostat_sums.ziostat_alloc_class_fallbacks);
+	zs->ziostat_gang_writes.value.ui64 =
+	    wmsum_value(&ziostat_sums.ziostat_gang_writes);
+	zs->ziostat_gang_multilevel.value.ui64 =
+	    wmsum_value(&ziostat_sums.ziostat_gang_multilevel);
+	return (0);
+}
 
 void
 zio_init(void)
@@ -158,6 +202,19 @@ zio_init(void)
 	    sizeof (zio_t), 0, NULL, NULL, NULL, NULL, NULL, 0);
 	zio_link_cache = kmem_cache_create("zio_link_cache",
 	    sizeof (zio_link_t), 0, NULL, NULL, NULL, NULL, NULL, 0);
+
+	wmsum_init(&ziostat_sums.ziostat_total_allocations, 0);
+	wmsum_init(&ziostat_sums.ziostat_alloc_class_fallbacks, 0);
+	wmsum_init(&ziostat_sums.ziostat_gang_writes, 0);
+	wmsum_init(&ziostat_sums.ziostat_gang_multilevel, 0);
+	zio_ksp = kstat_create("zfs", 0, "zio_stats",
+	    "misc", KSTAT_TYPE_NAMED, sizeof (zio_stats) /
+	    sizeof (kstat_named_t), KSTAT_FLAG_VIRTUAL);
+	if (zio_ksp != NULL) {
+		zio_ksp->ks_data = &zio_stats;
+		zio_ksp->ks_update = zio_kstats_update;
+		kstat_install(zio_ksp);
+	}
 
 	for (c = 0; c < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT; c++) {
 		size_t size = (c + 1) << SPA_MINBLOCKSHIFT;
@@ -285,6 +342,16 @@ zio_fini(void)
 		VERIFY3P(zio_buf_cache[i], ==, NULL);
 		VERIFY3P(zio_data_buf_cache[i], ==, NULL);
 	}
+
+	if (zio_ksp != NULL) {
+		kstat_delete(zio_ksp);
+		zio_ksp = NULL;
+	}
+
+	wmsum_fini(&ziostat_sums.ziostat_total_allocations);
+	wmsum_fini(&ziostat_sums.ziostat_alloc_class_fallbacks);
+	wmsum_fini(&ziostat_sums.ziostat_gang_writes);
+	wmsum_fini(&ziostat_sums.ziostat_gang_multilevel);
 
 	kmem_cache_destroy(zio_link_cache);
 	kmem_cache_destroy(zio_cache);
@@ -1098,7 +1165,7 @@ zfs_blkptr_verify_log(spa_t *spa, const blkptr_t *bp,
  * it only contains known object types, checksum/compression identifiers,
  * block sizes within the maximum allowed limits, valid DVAs, etc.
  *
- * If everything checks out B_TRUE is returned.  The zfs_blkptr_verify
+ * If everything checks out 0 is returned.  The zfs_blkptr_verify
  * argument controls the behavior when an invalid field is detected.
  *
  * Values for blk_verify_flag:
@@ -1113,7 +1180,7 @@ zfs_blkptr_verify_log(spa_t *spa, const blkptr_t *bp,
  *   BLK_CONFIG_SKIP: skip checks which require SCL_VDEV, for better
  *   performance
  */
-boolean_t
+int
 zfs_blkptr_verify(spa_t *spa, const blkptr_t *bp,
     enum blk_config_flag blk_config, enum blk_verify_flag blk_verify)
 {
@@ -1145,7 +1212,17 @@ zfs_blkptr_verify(spa_t *spa, const blkptr_t *bp,
 			    "blkptr at %px has invalid PSIZE %llu",
 			    bp, (longlong_t)BPE_GET_PSIZE(bp));
 		}
-		return (errors == 0);
+		return (errors ? ECKSUM : 0);
+	} else if (BP_IS_HOLE(bp)) {
+		/*
+		 * Holes are allowed (expected, even) to have no DVAs, no
+		 * checksum, and no psize.
+		 */
+		return (errors ? ECKSUM : 0);
+	} else if (unlikely(!DVA_IS_VALID(&bp->blk_dva[0]))) {
+		/* Non-hole, non-embedded BPs _must_ have at least one DVA */
+		errors += zfs_blkptr_verify_log(spa, bp, blk_verify,
+		    "blkptr at %px has no valid DVAs", bp);
 	}
 	if (unlikely(BP_GET_CHECKSUM(bp) >= ZIO_CHECKSUM_FUNCTIONS)) {
 		errors += zfs_blkptr_verify_log(spa, bp, blk_verify,
@@ -1163,7 +1240,7 @@ zfs_blkptr_verify(spa_t *spa, const blkptr_t *bp,
 	 * will be done once the zio is executed in vdev_mirror_map_alloc.
 	 */
 	if (unlikely(!spa->spa_trust_config))
-		return (errors == 0);
+		return (errors ? ECKSUM : 0);
 
 	switch (blk_config) {
 	case BLK_CONFIG_HELD:
@@ -1172,8 +1249,12 @@ zfs_blkptr_verify(spa_t *spa, const blkptr_t *bp,
 	case BLK_CONFIG_NEEDED:
 		spa_config_enter(spa, SCL_VDEV, bp, RW_READER);
 		break;
+	case BLK_CONFIG_NEEDED_TRY:
+		if (!spa_config_tryenter(spa, SCL_VDEV, bp, RW_READER))
+			return (EBUSY);
+		break;
 	case BLK_CONFIG_SKIP:
-		return (errors == 0);
+		return (errors ? ECKSUM : 0);
 	default:
 		panic("invalid blk_config %u", blk_config);
 	}
@@ -1228,10 +1309,11 @@ zfs_blkptr_verify(spa_t *spa, const blkptr_t *bp,
 			    bp, i, (longlong_t)offset);
 		}
 	}
-	if (blk_config == BLK_CONFIG_NEEDED)
+	if (blk_config == BLK_CONFIG_NEEDED || blk_config ==
+	    BLK_CONFIG_NEEDED_TRY)
 		spa_config_exit(spa, SCL_VDEV, bp);
 
-	return (errors == 0);
+	return (errors ? ECKSUM : 0);
 }
 
 boolean_t
@@ -1333,8 +1415,8 @@ zio_rewrite(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp, abd_t *data,
 }
 
 void
-zio_write_override(zio_t *zio, blkptr_t *bp, int copies, boolean_t nopwrite,
-    boolean_t brtwrite)
+zio_write_override(zio_t *zio, blkptr_t *bp, int copies, int gang_copies,
+    boolean_t nopwrite, boolean_t brtwrite)
 {
 	ASSERT(zio->io_type == ZIO_TYPE_WRITE);
 	ASSERT(zio->io_child_type == ZIO_CHILD_LOGICAL);
@@ -1351,6 +1433,7 @@ zio_write_override(zio_t *zio, blkptr_t *bp, int copies, boolean_t nopwrite,
 	zio->io_prop.zp_nopwrite = nopwrite;
 	zio->io_prop.zp_brtwrite = brtwrite;
 	zio->io_prop.zp_copies = copies;
+	zio->io_prop.zp_gang_copies = gang_copies;
 	zio->io_bp_override = bp;
 }
 
@@ -1924,8 +2007,7 @@ zio_write_compress(zio_t *zio)
 			compress = ZIO_COMPRESS_OFF;
 			if (cabd != NULL)
 				abd_free(cabd);
-		} else if (!zp->zp_dedup && !zp->zp_encrypt &&
-		    psize <= BPE_PAYLOAD_SIZE &&
+		} else if (psize <= BPE_PAYLOAD_SIZE && !zp->zp_encrypt &&
 		    zp->zp_level == 0 && !DMU_OT_HAS_FILL(zp->zp_type) &&
 		    spa_feature_is_enabled(spa, SPA_FEATURE_EMBEDDED_DATA)) {
 			void *cbuf = abd_borrow_buf_copy(cabd, lsize);
@@ -2192,31 +2274,20 @@ zio_delay_interrupt(zio_t *zio)
 		} else {
 			taskqid_t tid;
 			hrtime_t diff = zio->io_target_timestamp - now;
-			clock_t expire_at_tick = ddi_get_lbolt() +
-			    NSEC_TO_TICK(diff);
+			int ticks = MAX(1, NSEC_TO_TICK(diff));
+			clock_t expire_at_tick = ddi_get_lbolt() + ticks;
 
 			DTRACE_PROBE3(zio__delay__hit, zio_t *, zio,
 			    hrtime_t, now, hrtime_t, diff);
 
-			if (NSEC_TO_TICK(diff) == 0) {
-				/* Our delay is less than a jiffy - just spin */
-				zfs_sleep_until(zio->io_target_timestamp);
-				zio_interrupt(zio);
-			} else {
+			tid = taskq_dispatch_delay(system_taskq, zio_interrupt,
+			    zio, TQ_NOSLEEP, expire_at_tick);
+			if (tid == TASKQID_INVALID) {
 				/*
-				 * Use taskq_dispatch_delay() in the place of
-				 * OpenZFS's timeout_generic().
+				 * Couldn't allocate a task.  Just finish the
+				 * zio without a delay.
 				 */
-				tid = taskq_dispatch_delay(system_taskq,
-				    zio_interrupt, zio, TQ_NOSLEEP,
-				    expire_at_tick);
-				if (tid == TASKQID_INVALID) {
-					/*
-					 * Couldn't allocate a task.  Just
-					 * finish the zio without a delay.
-					 */
-					zio_interrupt(zio);
-				}
+				zio_interrupt(zio);
 			}
 		}
 		return;
@@ -2548,13 +2619,29 @@ zio_reexecute(void *arg)
 	pio->io_state[ZIO_WAIT_READY] = (pio->io_stage >= ZIO_STAGE_READY) ||
 	    (pio->io_pipeline & ZIO_STAGE_READY) == 0;
 	pio->io_state[ZIO_WAIT_DONE] = (pio->io_stage >= ZIO_STAGE_DONE);
+
+	/*
+	 * It's possible for a failed ZIO to be a descendant of more than one
+	 * ZIO tree. When reexecuting it, we have to be sure to add its wait
+	 * states to all parent wait counts.
+	 *
+	 * Those parents, in turn, may have other children that are currently
+	 * active, usually because they've already been reexecuted after
+	 * resuming. Those children may be executing and may call
+	 * zio_notify_parent() at the same time as we're updating our parent's
+	 * counts. To avoid races while updating the counts, we take
+	 * gio->io_lock before each update.
+	 */
 	zio_link_t *zl = NULL;
 	while ((gio = zio_walk_parents(pio, &zl)) != NULL) {
+		mutex_enter(&gio->io_lock);
 		for (int w = 0; w < ZIO_WAIT_TYPES; w++) {
 			gio->io_children[pio->io_child_type][w] +=
 			    !pio->io_state[w];
 		}
+		mutex_exit(&gio->io_lock);
 	}
+
 	for (int c = 0; c < ZIO_CHILD_TYPES; c++)
 		pio->io_child_error[c] = 0;
 
@@ -3047,64 +3134,33 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 	abd_t *gbh_abd;
 	uint64_t txg = pio->io_txg;
 	uint64_t resid = pio->io_size;
-	uint64_t lsize;
-	int copies = gio->io_prop.zp_copies;
+	uint64_t psize;
 	zio_prop_t zp;
 	int error;
 	boolean_t has_data = !(pio->io_flags & ZIO_FLAG_NODATA);
 
 	/*
-	 * If one copy was requested, store 2 copies of the GBH, so that we
-	 * can still traverse all the data (e.g. to free or scrub) even if a
-	 * block is damaged.  Note that we can't store 3 copies of the GBH in
-	 * all cases, e.g. with encryption, which uses DVA[2] for the IV+salt.
+	 * Store multiple copies of the GBH, so that we can still traverse
+	 * all the data (e.g. to free or scrub) even if a block is damaged.
+	 * This value respects the redundant_metadata property.
 	 */
-	int gbh_copies = copies;
-	if (gbh_copies == 1) {
-		gbh_copies = MIN(2, spa_max_replication(spa));
-	}
+	int gbh_copies = gio->io_prop.zp_gang_copies;
+	ASSERT3S(gbh_copies, >, 0);
+	ASSERT3S(gbh_copies, <=, SPA_DVAS_PER_BP);
 
 	ASSERT(ZIO_HAS_ALLOCATOR(pio));
-	int flags = METASLAB_HINTBP_FAVOR | METASLAB_GANG_HEADER;
+	int flags = METASLAB_GANG_HEADER;
 	if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
 		ASSERT(pio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
 		ASSERT(has_data);
 
 		flags |= METASLAB_ASYNC_ALLOC;
-		VERIFY(zfs_refcount_held(&mc->mc_allocator[pio->io_allocator].
-		    mca_alloc_slots, pio));
-
-		/*
-		 * The logical zio has already placed a reservation for
-		 * 'copies' allocation slots but gang blocks may require
-		 * additional copies. These additional copies
-		 * (i.e. gbh_copies - copies) are guaranteed to succeed
-		 * since metaslab_class_throttle_reserve() always allows
-		 * additional reservations for gang blocks.
-		 */
-		VERIFY(metaslab_class_throttle_reserve(mc, gbh_copies - copies,
-		    pio->io_allocator, pio, flags));
 	}
 
 	error = metaslab_alloc(spa, mc, SPA_GANGBLOCKSIZE,
 	    bp, gbh_copies, txg, pio == gio ? NULL : gio->io_bp, flags,
-	    &pio->io_alloc_list, pio, pio->io_allocator);
+	    &pio->io_alloc_list, pio->io_allocator, pio);
 	if (error) {
-		if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
-			ASSERT(pio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
-			ASSERT(has_data);
-
-			/*
-			 * If we failed to allocate the gang block header then
-			 * we remove any additional allocation reservations that
-			 * we placed here. The original reservation will
-			 * be removed when the logical I/O goes to the ready
-			 * stage.
-			 */
-			metaslab_class_throttle_unreserve(mc,
-			    gbh_copies - copies, pio->io_allocator, pio);
-		}
-
 		pio->io_error = error;
 		return (pio);
 	}
@@ -3129,14 +3185,20 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 	    ZIO_GANG_CHILD_FLAGS(pio), &pio->io_bookmark);
 
 	zio_gang_inherit_allocator(pio, zio);
+	if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
+		boolean_t more;
+		VERIFY(metaslab_class_throttle_reserve(mc, gbh_copies,
+		    zio, B_TRUE, &more));
+	}
 
 	/*
 	 * Create and nowait the gang children.
 	 */
-	for (int g = 0; resid != 0; resid -= lsize, g++) {
-		lsize = P2ROUNDUP(resid / (SPA_GBH_NBLKPTRS - g),
-		    SPA_MINBLOCKSIZE);
-		ASSERT(lsize >= SPA_MINBLOCKSIZE && lsize <= resid);
+	for (int g = 0; resid != 0; resid -= psize, g++) {
+		psize = zio_roundup_alloc_size(spa,
+		    resid / (SPA_GBH_NBLKPTRS - g));
+		psize = MIN(resid, psize);
+		ASSERT3U(psize, >=, SPA_MINBLOCKSIZE);
 
 		zp.zp_checksum = gio->io_prop.zp_checksum;
 		zp.zp_compress = ZIO_COMPRESS_OFF;
@@ -3144,6 +3206,7 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 		zp.zp_type = zp.zp_storage_type = DMU_OT_NONE;
 		zp.zp_level = 0;
 		zp.zp_copies = gio->io_prop.zp_copies;
+		zp.zp_gang_copies = gio->io_prop.zp_gang_copies;
 		zp.zp_dedup = B_FALSE;
 		zp.zp_dedup_verify = B_FALSE;
 		zp.zp_nopwrite = B_FALSE;
@@ -3156,25 +3219,20 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 
 		zio_t *cio = zio_write(zio, spa, txg, &gbh->zg_blkptr[g],
 		    has_data ? abd_get_offset(pio->io_abd, pio->io_size -
-		    resid) : NULL, lsize, lsize, &zp,
+		    resid) : NULL, psize, psize, &zp,
 		    zio_write_gang_member_ready, NULL,
 		    zio_write_gang_done, &gn->gn_child[g], pio->io_priority,
 		    ZIO_GANG_CHILD_FLAGS(pio), &pio->io_bookmark);
 
 		zio_gang_inherit_allocator(zio, cio);
+		/*
+		 * We do not reserve for the child writes, since we already
+		 * reserved for the parent.  Unreserve though will be called
+		 * for individual children.  We can do this since sum of all
+		 * child's physical sizes is equal to parent's physical size.
+		 * It would not work for potentially bigger allocation sizes.
+		 */
 
-		if (pio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
-			ASSERT(pio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
-			ASSERT(has_data);
-
-			/*
-			 * Gang children won't throttle but we should
-			 * account for their work, so reserve an allocation
-			 * slot for them here.
-			 */
-			VERIFY(metaslab_class_throttle_reserve(mc,
-			    zp.zp_copies, cio->io_allocator, cio, flags));
-		}
 		zio_nowait(cio);
 	}
 
@@ -3632,7 +3690,13 @@ zio_ddt_write(zio_t *zio)
 	ASSERT3B(zio->io_prop.zp_direct_write, ==, B_FALSE);
 
 	ddt_enter(ddt);
-	dde = ddt_lookup(ddt, bp);
+	/*
+	 * Search DDT for matching entry.  Skip DVAs verification here, since
+	 * they can go only from override, and once we get here the override
+	 * pointer can't have "D" flag to be confused with pruned DDT entries.
+	 */
+	IMPLY(zio->io_bp_override, !BP_GET_DEDUP(zio->io_bp_override));
+	dde = ddt_lookup(ddt, bp, B_FALSE);
 	if (dde == NULL) {
 		/* DDT size is over its quota so no new entries */
 		zp->zp_dedup = B_FALSE;
@@ -3858,7 +3922,7 @@ zio_ddt_write(zio_t *zio)
 	 * grow the DDT entry by to satisfy the request.
 	 */
 	zio_prop_t czp = *zp;
-	czp.zp_copies = need_dvas;
+	czp.zp_copies = czp.zp_gang_copies = need_dvas;
 	zio_t *cio = zio_write(zio, spa, txg, bp, zio->io_orig_abd,
 	    zio->io_orig_size, zio->io_orig_size, &czp,
 	    zio_ddt_child_write_ready, NULL,
@@ -3908,7 +3972,7 @@ zio_ddt_free(zio_t *zio)
 	ASSERT(zio->io_child_type == ZIO_CHILD_LOGICAL);
 
 	ddt_enter(ddt);
-	freedde = dde = ddt_lookup(ddt, bp);
+	freedde = dde = ddt_lookup(ddt, bp, B_TRUE);
 	if (dde) {
 		ddt_phys_variant_t v = ddt_phys_select(ddt, dde, bp);
 		if (v != DDT_PHYS_NONE)
@@ -3936,15 +4000,17 @@ zio_ddt_free(zio_t *zio)
  */
 
 static zio_t *
-zio_io_to_allocate(spa_t *spa, int allocator)
+zio_io_to_allocate(metaslab_class_allocator_t *mca, boolean_t *more)
 {
 	zio_t *zio;
 
-	ASSERT(MUTEX_HELD(&spa->spa_allocs[allocator].spaa_lock));
+	ASSERT(MUTEX_HELD(&mca->mca_lock));
 
-	zio = avl_first(&spa->spa_allocs[allocator].spaa_tree);
-	if (zio == NULL)
+	zio = avl_first(&mca->mca_tree);
+	if (zio == NULL) {
+		*more = B_FALSE;
 		return (NULL);
+	}
 
 	ASSERT(IO_IS_ALLOCATING(zio));
 	ASSERT(ZIO_HAS_ALLOCATOR(zio));
@@ -3953,15 +4019,16 @@ zio_io_to_allocate(spa_t *spa, int allocator)
 	 * Try to place a reservation for this zio. If we're unable to
 	 * reserve then we throttle.
 	 */
-	ASSERT3U(zio->io_allocator, ==, allocator);
 	if (!metaslab_class_throttle_reserve(zio->io_metaslab_class,
-	    zio->io_prop.zp_copies, allocator, zio, 0)) {
+	    zio->io_prop.zp_copies, zio, B_FALSE, more)) {
 		return (NULL);
 	}
 
-	avl_remove(&spa->spa_allocs[allocator].spaa_tree, zio);
+	avl_remove(&mca->mca_tree, zio);
 	ASSERT3U(zio->io_stage, <, ZIO_STAGE_DVA_ALLOCATE);
 
+	if (avl_is_empty(&mca->mca_tree))
+		*more = B_FALSE;
 	return (zio);
 }
 
@@ -3971,9 +4038,14 @@ zio_dva_throttle(zio_t *zio)
 	spa_t *spa = zio->io_spa;
 	zio_t *nio;
 	metaslab_class_t *mc;
+	boolean_t more;
 
-	/* locate an appropriate allocation class */
-	mc = spa_preferred_class(spa, zio);
+	/*
+	 * If not already chosen, choose an appropriate allocation class.
+	 */
+	mc = zio->io_metaslab_class;
+	if (mc == NULL)
+		mc = spa_preferred_class(spa, zio);
 
 	if (zio->io_priority == ZIO_PRIORITY_SYNC_WRITE ||
 	    !mc->mc_alloc_throttle_enabled ||
@@ -3988,29 +4060,33 @@ zio_dva_throttle(zio_t *zio)
 	ASSERT3U(zio->io_queued_timestamp, >, 0);
 	ASSERT(zio->io_stage == ZIO_STAGE_DVA_THROTTLE);
 
-	int allocator = zio->io_allocator;
 	zio->io_metaslab_class = mc;
-	mutex_enter(&spa->spa_allocs[allocator].spaa_lock);
-	avl_add(&spa->spa_allocs[allocator].spaa_tree, zio);
-	nio = zio_io_to_allocate(spa, allocator);
-	mutex_exit(&spa->spa_allocs[allocator].spaa_lock);
+	metaslab_class_allocator_t *mca = &mc->mc_allocator[zio->io_allocator];
+	mutex_enter(&mca->mca_lock);
+	avl_add(&mca->mca_tree, zio);
+	nio = zio_io_to_allocate(mca, &more);
+	mutex_exit(&mca->mca_lock);
 	return (nio);
 }
 
 static void
-zio_allocate_dispatch(spa_t *spa, int allocator)
+zio_allocate_dispatch(metaslab_class_t *mc, int allocator)
 {
+	metaslab_class_allocator_t *mca = &mc->mc_allocator[allocator];
 	zio_t *zio;
+	boolean_t more;
 
-	mutex_enter(&spa->spa_allocs[allocator].spaa_lock);
-	zio = zio_io_to_allocate(spa, allocator);
-	mutex_exit(&spa->spa_allocs[allocator].spaa_lock);
-	if (zio == NULL)
-		return;
+	do {
+		mutex_enter(&mca->mca_lock);
+		zio = zio_io_to_allocate(mca, &more);
+		mutex_exit(&mca->mca_lock);
+		if (zio == NULL)
+			return;
 
-	ASSERT3U(zio->io_stage, ==, ZIO_STAGE_DVA_THROTTLE);
-	ASSERT0(zio->io_error);
-	zio_taskq_dispatch(zio, ZIO_TASKQ_ISSUE, B_TRUE);
+		ASSERT3U(zio->io_stage, ==, ZIO_STAGE_DVA_THROTTLE);
+		ASSERT0(zio->io_error);
+		zio_taskq_dispatch(zio, ZIO_TASKQ_ISSUE, B_TRUE);
+	} while (more);
 }
 
 static zio_t *
@@ -4033,22 +4109,22 @@ zio_dva_allocate(zio_t *zio)
 	ASSERT3U(zio->io_prop.zp_copies, <=, spa_max_replication(spa));
 	ASSERT3U(zio->io_size, ==, BP_GET_PSIZE(bp));
 
-	if (zio->io_flags & ZIO_FLAG_NODATA)
-		flags |= METASLAB_DONT_THROTTLE;
 	if (zio->io_flags & ZIO_FLAG_GANG_CHILD)
 		flags |= METASLAB_GANG_CHILD;
 	if (zio->io_priority == ZIO_PRIORITY_ASYNC_WRITE)
 		flags |= METASLAB_ASYNC_ALLOC;
 
 	/*
-	 * if not already chosen, locate an appropriate allocation class
+	 * If not already chosen, choose an appropriate allocation class.
 	 */
 	mc = zio->io_metaslab_class;
 	if (mc == NULL) {
 		mc = spa_preferred_class(spa, zio);
 		zio->io_metaslab_class = mc;
 	}
+	ZIOSTAT_BUMP(ziostat_total_allocations);
 
+again:
 	/*
 	 * Try allocating the block in the usual metaslab class.
 	 * If that's full, allocate it in the normal class.
@@ -4063,7 +4139,7 @@ zio_dva_allocate(zio_t *zio)
 	ASSERT(ZIO_HAS_ALLOCATOR(zio));
 	error = metaslab_alloc(spa, mc, zio->io_size, bp,
 	    zio->io_prop.zp_copies, zio->io_txg, NULL, flags,
-	    &zio->io_alloc_list, zio, zio->io_allocator);
+	    &zio->io_alloc_list, zio->io_allocator, zio);
 
 	/*
 	 * Fallback to normal class when an alloc class is full
@@ -4090,41 +4166,51 @@ zio_dva_allocate(zio_t *zio)
 		}
 
 		/*
-		 * If throttling, transfer reservation over to normal class.
-		 * The io_allocator slot can remain the same even though we
-		 * are switching classes.
+		 * If we are holding old class reservation, drop it.
+		 * Dispatch the next ZIO(s) there if some are waiting.
 		 */
-		if (mc->mc_alloc_throttle_enabled &&
-		    (zio->io_flags & ZIO_FLAG_IO_ALLOCATING)) {
-			metaslab_class_throttle_unreserve(mc,
-			    zio->io_prop.zp_copies, zio->io_allocator, zio);
+		if (zio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
+			if (metaslab_class_throttle_unreserve(mc,
+			    zio->io_prop.zp_copies, zio)) {
+				zio_allocate_dispatch(zio->io_metaslab_class,
+				    zio->io_allocator);
+			}
 			zio->io_flags &= ~ZIO_FLAG_IO_ALLOCATING;
-
-			VERIFY(metaslab_class_throttle_reserve(
-			    spa_normal_class(spa),
-			    zio->io_prop.zp_copies, zio->io_allocator, zio,
-			    flags | METASLAB_MUST_RESERVE));
 		}
-		zio->io_metaslab_class = mc = spa_normal_class(spa);
+
 		if (zfs_flags & ZFS_DEBUG_METASLAB_ALLOC) {
 			zfs_dbgmsg("%s: metaslab allocation failure, "
 			    "trying normal class: zio %px, size %llu, error %d",
 			    spa_name(spa), zio, (u_longlong_t)zio->io_size,
 			    error);
 		}
+		zio->io_metaslab_class = mc = spa_normal_class(spa);
+		ZIOSTAT_BUMP(ziostat_alloc_class_fallbacks);
 
-		error = metaslab_alloc(spa, mc, zio->io_size, bp,
-		    zio->io_prop.zp_copies, zio->io_txg, NULL, flags,
-		    &zio->io_alloc_list, zio, zio->io_allocator);
+		/*
+		 * If normal class uses throttling, return to that pipeline
+		 * stage.  Otherwise just do another allocation attempt.
+		 */
+		if (zio->io_priority != ZIO_PRIORITY_SYNC_WRITE &&
+		    mc->mc_alloc_throttle_enabled &&
+		    zio->io_child_type != ZIO_CHILD_GANG &&
+		    !(zio->io_flags & ZIO_FLAG_NODATA)) {
+			zio->io_stage = ZIO_STAGE_DVA_THROTTLE >> 1;
+			return (zio);
+		}
+		goto again;
 	}
 
-	if (error == ENOSPC && zio->io_size > SPA_MINBLOCKSIZE) {
+	if (error == ENOSPC && zio->io_size > spa->spa_min_alloc) {
 		if (zfs_flags & ZFS_DEBUG_METASLAB_ALLOC) {
 			zfs_dbgmsg("%s: metaslab allocation failure, "
 			    "trying ganging: zio %px, size %llu, error %d",
 			    spa_name(spa), zio, (u_longlong_t)zio->io_size,
 			    error);
 		}
+		ZIOSTAT_BUMP(ziostat_gang_writes);
+		if (flags & METASLAB_GANG_CHILD)
+			ZIOSTAT_BUMP(ziostat_gang_multilevel);
 		return (zio_write_gang_block(zio, mc));
 	}
 	if (error != 0) {
@@ -4216,18 +4302,20 @@ zio_alloc_zil(spa_t *spa, objset_t *os, uint64_t txg, blkptr_t *new_bp,
 	int flags = METASLAB_ZIL;
 	int allocator = (uint_t)cityhash1(os->os_dsl_dataset->ds_object)
 	    % spa->spa_alloc_count;
+	ZIOSTAT_BUMP(ziostat_total_allocations);
 	error = metaslab_alloc(spa, spa_log_class(spa), size, new_bp, 1,
-	    txg, NULL, flags, &io_alloc_list, NULL, allocator);
+	    txg, NULL, flags, &io_alloc_list, allocator, NULL);
 	*slog = (error == 0);
 	if (error != 0) {
 		error = metaslab_alloc(spa, spa_embedded_log_class(spa), size,
-		    new_bp, 1, txg, NULL, flags,
-		    &io_alloc_list, NULL, allocator);
+		    new_bp, 1, txg, NULL, flags, &io_alloc_list, allocator,
+		    NULL);
 	}
 	if (error != 0) {
+		ZIOSTAT_BUMP(ziostat_alloc_class_fallbacks);
 		error = metaslab_alloc(spa, spa_normal_class(spa), size,
-		    new_bp, 1, txg, NULL, flags,
-		    &io_alloc_list, NULL, allocator);
+		    new_bp, 1, txg, NULL, flags, &io_alloc_list, allocator,
+		    NULL);
 	}
 	metaslab_trace_fini(&io_alloc_list);
 
@@ -4417,16 +4505,6 @@ zio_vdev_io_start(zio_t *zio)
 	    zio->io_type == ZIO_TYPE_WRITE ||
 	    zio->io_type == ZIO_TYPE_TRIM)) {
 
-		if (zio_handle_device_injection(vd, zio, ENOSYS) != 0) {
-			/*
-			 * "no-op" injections return success, but do no actual
-			 * work. Just skip the remaining vdev stages.
-			 */
-			zio_vdev_io_bypass(zio);
-			zio_interrupt(zio);
-			return (NULL);
-		}
-
 		if ((zio = vdev_queue_io(zio)) == NULL)
 			return (NULL);
 
@@ -4436,6 +4514,15 @@ zio_vdev_io_start(zio_t *zio)
 			return (NULL);
 		}
 		zio->io_delay = gethrtime();
+
+		if (zio_handle_device_injection(vd, zio, ENOSYS) != 0) {
+			/*
+			 * "no-op" injections return success, but do no actual
+			 * work. Just return it.
+			 */
+			zio_delay_interrupt(zio);
+			return (NULL);
+		}
 	}
 
 	vd->vdev_ops->vdev_op_io_start(zio);
@@ -4617,13 +4704,16 @@ zio_vdev_io_assess(zio_t *zio)
 	}
 
 	/*
-	 * If a cache flush returns ENOTSUP or ENOTTY, we know that no future
+	 * If a cache flush returns ENOTSUP we know that no future
 	 * attempts will ever succeed. In this case we set a persistent
-	 * boolean flag so that we don't bother with it in the future.
+	 * boolean flag so that we don't bother with it in the future, and
+	 * then we act like the flush succeeded.
 	 */
-	if ((zio->io_error == ENOTSUP || zio->io_error == ENOTTY) &&
-	    zio->io_type == ZIO_TYPE_FLUSH && vd != NULL)
+	if (zio->io_error == ENOTSUP && zio->io_type == ZIO_TYPE_FLUSH &&
+	    vd != NULL) {
 		vd->vdev_nowritecache = B_TRUE;
+		zio->io_error = 0;
+	}
 
 	if (zio->io_error)
 		zio->io_pipeline = ZIO_INTERLOCK_PIPELINE;
@@ -5053,10 +5143,12 @@ zio_ready(zio_t *zio)
 			 * We were unable to allocate anything, unreserve and
 			 * issue the next I/O to allocate.
 			 */
-			metaslab_class_throttle_unreserve(
+			if (metaslab_class_throttle_unreserve(
 			    zio->io_metaslab_class, zio->io_prop.zp_copies,
-			    zio->io_allocator, zio);
-			zio_allocate_dispatch(zio->io_spa, zio->io_allocator);
+			    zio)) {
+				zio_allocate_dispatch(zio->io_metaslab_class,
+				    zio->io_allocator);
+			}
 		}
 	}
 
@@ -5099,10 +5191,10 @@ zio_ready(zio_t *zio)
 static void
 zio_dva_throttle_done(zio_t *zio)
 {
-	zio_t *lio __maybe_unused = zio->io_logical;
 	zio_t *pio = zio_unique_parent(zio);
 	vdev_t *vd = zio->io_vd;
 	int flags = METASLAB_ASYNC_ALLOC;
+	const void *tag = pio;
 
 	ASSERT3P(zio->io_bp, !=, NULL);
 	ASSERT3U(zio->io_type, ==, ZIO_TYPE_WRITE);
@@ -5113,48 +5205,33 @@ zio_dva_throttle_done(zio_t *zio)
 	ASSERT(zio_injection_enabled || !(zio->io_flags & ZIO_FLAG_IO_RETRY));
 	ASSERT(!(zio->io_flags & ZIO_FLAG_IO_REPAIR));
 	ASSERT(zio->io_flags & ZIO_FLAG_IO_ALLOCATING);
-	ASSERT(!(lio->io_flags & ZIO_FLAG_IO_REWRITE));
-	ASSERT(!(lio->io_orig_flags & ZIO_FLAG_NODATA));
 
 	/*
-	 * Parents of gang children can have two flavors -- ones that
-	 * allocated the gang header (will have ZIO_FLAG_IO_REWRITE set)
-	 * and ones that allocated the constituent blocks. The allocation
-	 * throttle needs to know the allocating parent zio so we must find
-	 * it here.
+	 * Parents of gang children can have two flavors -- ones that allocated
+	 * the gang header (will have ZIO_FLAG_IO_REWRITE set) and ones that
+	 * allocated the constituent blocks.  The first use their parent as tag.
 	 */
-	if (pio->io_child_type == ZIO_CHILD_GANG) {
-		/*
-		 * If our parent is a rewrite gang child then our grandparent
-		 * would have been the one that performed the allocation.
-		 */
-		if (pio->io_flags & ZIO_FLAG_IO_REWRITE)
-			pio = zio_unique_parent(pio);
-		flags |= METASLAB_GANG_CHILD;
-	}
+	if (pio->io_child_type == ZIO_CHILD_GANG &&
+	    (pio->io_flags & ZIO_FLAG_IO_REWRITE))
+		tag = zio_unique_parent(pio);
 
-	ASSERT(IO_IS_ALLOCATING(pio));
+	ASSERT(IO_IS_ALLOCATING(pio) || (pio->io_child_type == ZIO_CHILD_GANG &&
+	    (pio->io_flags & ZIO_FLAG_IO_REWRITE)));
 	ASSERT(ZIO_HAS_ALLOCATOR(pio));
 	ASSERT3P(zio, !=, zio->io_logical);
 	ASSERT(zio->io_logical != NULL);
 	ASSERT(!(zio->io_flags & ZIO_FLAG_IO_REPAIR));
 	ASSERT0(zio->io_flags & ZIO_FLAG_NOPWRITE);
 	ASSERT(zio->io_metaslab_class != NULL);
+	ASSERT(zio->io_metaslab_class->mc_alloc_throttle_enabled);
 
-	mutex_enter(&pio->io_lock);
-	metaslab_group_alloc_decrement(zio->io_spa, vd->vdev_id, pio, flags,
-	    pio->io_allocator, B_TRUE);
-	mutex_exit(&pio->io_lock);
+	metaslab_group_alloc_decrement(zio->io_spa, vd->vdev_id,
+	    pio->io_allocator, flags, pio->io_size, tag);
 
-	metaslab_class_throttle_unreserve(zio->io_metaslab_class, 1,
-	    pio->io_allocator, pio);
-
-	/*
-	 * Call into the pipeline to see if there is more work that
-	 * needs to be done. If there is work to be done it will be
-	 * dispatched to another taskq thread.
-	 */
-	zio_allocate_dispatch(zio->io_spa, pio->io_allocator);
+	if (metaslab_class_throttle_unreserve(zio->io_metaslab_class, 1, pio)) {
+		zio_allocate_dispatch(zio->io_metaslab_class,
+		    pio->io_allocator);
+	}
 }
 
 static zio_t *
@@ -5183,28 +5260,8 @@ zio_done(zio_t *zio)
 	 * by the logical I/O but the actual write is done by child I/Os.
 	 */
 	if (zio->io_flags & ZIO_FLAG_IO_ALLOCATING &&
-	    zio->io_child_type == ZIO_CHILD_VDEV) {
-		ASSERT(zio->io_metaslab_class != NULL);
-		ASSERT(zio->io_metaslab_class->mc_alloc_throttle_enabled);
+	    zio->io_child_type == ZIO_CHILD_VDEV)
 		zio_dva_throttle_done(zio);
-	}
-
-	/*
-	 * If the allocation throttle is enabled, verify that
-	 * we have decremented the refcounts for every I/O that was throttled.
-	 */
-	if (zio->io_flags & ZIO_FLAG_IO_ALLOCATING) {
-		ASSERT(zio->io_type == ZIO_TYPE_WRITE);
-		ASSERT(zio->io_priority == ZIO_PRIORITY_ASYNC_WRITE);
-		ASSERT(zio->io_bp != NULL);
-		ASSERT(ZIO_HAS_ALLOCATOR(zio));
-
-		metaslab_group_alloc_verify(zio->io_spa, zio->io_bp, zio,
-		    zio->io_allocator);
-		VERIFY(zfs_refcount_not_held(&zio->io_metaslab_class->
-		    mc_allocator[zio->io_allocator].mca_alloc_slots, zio));
-	}
-
 
 	for (int c = 0; c < ZIO_CHILD_TYPES; c++)
 		for (int w = 0; w < ZIO_WAIT_TYPES; w++)
