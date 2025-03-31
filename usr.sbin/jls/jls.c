@@ -448,6 +448,7 @@ print_jail(int pflags, int jflags)
 			if (!(params[i].jp_flags & JP_USER))
 				continue;
 			if ((pflags & PRINT_SKIP) &&
+			    !(params[i].jp_flags & JP_KEYVALUE) &&
 			    ((!(params[i].jp_ctltype &
 				(CTLFLAG_WR | CTLFLAG_TUN))) ||
 			     (param_parent[i] >= 0 &&
@@ -458,6 +459,13 @@ print_jail(int pflags, int jflags)
 				xo_emit("{P: }");
 			else
 				spc = 1;
+			if ((params[i].jp_flags & JP_KEYVALUE) &&
+			    params[i].jp_valuelen == 0) {
+				/* Communicate back a missing key. */
+				if (pflags & PRINT_NAMEVAL)
+					xo_emit("{d:%s}", params[i].jp_name);
+				continue;
+			}
 			if (pflags & PRINT_NAMEVAL) {
 				/*
 				 * Generally "name=value", but for booleans

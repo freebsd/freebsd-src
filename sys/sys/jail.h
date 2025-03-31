@@ -141,6 +141,9 @@ MALLOC_DECLARE(M_PRISON);
 #define	DEFAULT_HOSTUUID	"00000000-0000-0000-0000-000000000000"
 #define	OSRELEASELEN	32
 
+#define	JAIL_META_PRIVATE	"meta"
+#define	JAIL_META_SHARED	"env"
+
 struct racct;
 struct prison_racct;
 
@@ -376,6 +379,7 @@ extern struct	sx allprison_lock;
 /*
  * Sysctls to describe jail parameters.
  */
+SYSCTL_DECL(_security_jail);
 SYSCTL_DECL(_security_jail_param);
 
 #define SYSCTL_JAIL_PARAM_DECL(name)					\
