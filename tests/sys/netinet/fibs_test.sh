@@ -311,8 +311,11 @@ same_ip_multiple_ifaces_fib0_head()
 same_ip_multiple_ifaces_fib0_body()
 {
 	ADDR="192.0.2.2"
+	TMP_ADDR="192.0.2.3"
 	MASK0="24"
+	SUBMASK0="255.255.255.0"
 	MASK1="32"
+	SUBMASK1="255.255.255.255"
 
 	# Unlike most of the tests in this file, this is applicable regardless
 	# of net.add_addr_allfibs
@@ -320,16 +323,17 @@ same_ip_multiple_ifaces_fib0_body()
 	# Setup the interfaces, then remove one alias.  It should not panic.
 	setup_tap 0 inet ${ADDR} ${MASK0}
 	TAP0=${TAP}
-	setup_tap 0 inet ${ADDR} ${MASK1}
+    # Because only programs can follow up the atf_check command, setup_tap cannot be used here. Hence we cannot just assign the ${ADDR} to the new interface, which will raise an error. Instead, we assign ${TMP_ADDR} to the new interface, and then alias it with address ${ADDR}.
+	setup_tap 0 inet ${TMP_ADDR} ${MASK0}
 	TAP1=${TAP}
-	ifconfig ${TAP1} -alias ${ADDR}
+ 	atf_check -s ignore -o ignore -e ignore ifconfig ${TAP1} alias ${ADDR} netmask ${SUBMASK1}
 
 	# Do it again, in the opposite order.  It should not panic.
 	setup_tap 0 inet ${ADDR} ${MASK0}
 	TAP0=${TAP}
-	setup_tap 0 inet ${ADDR} ${MASK1}
+	setup_tap 0 inet ${TMP_ADDR} ${MASK0}
 	TAP1=${TAP}
-	ifconfig ${TAP0} -alias ${ADDR}
+ 	atf_check -s ignore -o ignore -e ignore ifconfig ${TAP1} alias ${ADDR} netmask ${SUBMASK1}
 }
 same_ip_multiple_ifaces_fib0_cleanup()
 {
