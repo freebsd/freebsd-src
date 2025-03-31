@@ -951,6 +951,11 @@ SYSCTL_INT(_hw_pci, OID_AUTO, enable_pcie_hp, CTLFLAG_RDTUN,
     &pci_enable_pcie_hp, 0,
     "Enable support for native PCI-express HotPlug.");
 
+static sbintime_t pcie_hp_detach_timeout = 5 * SBT_1S;
+SYSCTL_SBINTIME_MSEC(_hw_pci, OID_AUTO, pcie_hp_detach_timeout, CTLFLAG_RWTUN,
+    &pcie_hp_detach_timeout,
+    "Attention Button delay for PCI-express Eject.");
+
 TASKQUEUE_DEFINE_THREAD(pci_hp);
 
 static void
@@ -1221,11 +1226,17 @@ pcib_pcie_intr_hotplug(void *arg)
 			    &sc->pcie_ab_task, NULL);
 		} else if (old_slot_sta & PCIEM_SLOT_STA_PDS) {
 			/* Only initiate detach sequence if device present. */
-			device_printf(dev,
-		    "Attention Button Pressed: Detaching in 5 seconds\n");
-			sc->flags |= PCIB_DETACH_PENDING;
-			taskqueue_enqueue_timeout(taskqueue_pci_hp,
-			    &sc->pcie_ab_task, 5 * hz);
+			if (pcie_hp_detach_timeout != 0) {
+				device_printf(dev,
+			    "Attention Button Pressed: Detaching in %ld ms\n",
+			    (long)(pcie_hp_detach_timeout / SBT_1MS));
+				sc->flags |= PCIB_DETACH_PENDING;
+				taskqueue_enqueue_timeout_sbt(taskqueue_pci_hp,
+				    &sc->pcie_ab_task, pcie_hp_detach_timeout,
+				    SBT_1S, 0);
+			} else {
+				sc->flags |= PCIB_DETACHING;
+			}
 		}
 	}
 	if (sc->pcie_slot_sta & PCIEM_SLOT_STA_PFD)
