@@ -263,14 +263,14 @@ SUBDIR.${MK_TOOLCHAIN}+=	ctags
 .if ${MK_LLVM_CXXFILT} == "no"
 SUBDIR.${MK_TOOLCHAIN}+=	cxxfilt
 .endif
+# ELF Tool Chain elfcopy required for EFI objects (PR280771)
+SUBDIR.${MK_TOOLCHAIN}+=	elfcopy
 SUBDIR.${MK_TOOLCHAIN}+=	file2c
 SUBDIR.${MK_TOOLCHAIN}+=	gprof
 SUBDIR.${MK_TOOLCHAIN}+=	indent
 SUBDIR.${MK_TOOLCHAIN}+=	lex
 SUBDIR.${MK_TOOLCHAIN}+=	lorder
 SUBDIR.${MK_TOOLCHAIN}+=	mkstr
-# ELF Tool Chain elfcopy required for EFI objects (PR280771)
-SUBDIR.${MK_TOOLCHAIN}+=	objcopy
 SUBDIR.${MK_TOOLCHAIN}+=	rpcgen
 SUBDIR.${MK_TOOLCHAIN}+=	unifdef
 SUBDIR.${MK_TOOLCHAIN}+=	xstr

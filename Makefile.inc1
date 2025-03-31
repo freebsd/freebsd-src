@@ -2910,14 +2910,14 @@ _dtrace_tools= cddl/lib/libctf cddl/lib/libspl cddl/usr.bin/ctfconvert \
 .endif
 
 .if ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
-# Some bespoke tools from or based on ELF Tool Chain.  objcopy (elfcopy) is
-# included because llvm-objcopy is currently not capable of translating ELF to
-# PE32+, which is required for EFI boot programs.
+# Some bespoke tools from or based on ELF Tool Chain.  elfcopy is included
+# because llvm-objcopy is currently not capable of translating ELF to PE32+,
+# which is required for EFI boot programs.
 _elftctools=	lib/libelftc \
 		lib/libpe \
+		usr.bin/elfcopy \
 		usr.bin/elfctl \
-		usr.bin/elfdump \
-		usr.bin/objcopy
+		usr.bin/elfdump
 # If we're given an XNM we don't need to build standard binary utilities.
 .if ${XNM:M/*} == ""
 _elftctools+=	usr.bin/nm \
@@ -3011,7 +3011,7 @@ NXBDIRS+= \
     usr.bin/cmp \
     usr.bin/diff \
     usr.bin/dirname \
-    usr.bin/objcopy \
+    usr.bin/elfcopy \
     usr.bin/env \
     usr.bin/fetch \
     usr.bin/find \
