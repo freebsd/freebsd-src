@@ -85,6 +85,9 @@ static void print_registers(struct trapframe *frame);
 
 int (*dtrace_invop_jump_addr)(struct trapframe *);
 
+u_long cnt_efirt_faults;
+int print_efirt_faults;
+
 typedef void (abort_handler)(struct thread *, struct trapframe *, uint64_t,
     uint64_t, int);
 

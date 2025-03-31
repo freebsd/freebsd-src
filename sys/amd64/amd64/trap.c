@@ -163,6 +163,9 @@ SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RWTUN,
     &uprintf_signal, 0,
     "Print debugging information on trap signal to ctty");
 
+u_long cnt_efirt_faults;
+int print_efirt_faults = 1;
+
 /*
  * Control L1D flush on return from NMI.
  *
@@ -431,8 +434,14 @@ trap(struct trapframe *frame)
 		 */
 		if ((td->td_pflags & TDP_EFIRT) != 0 &&
 		    curpcb->pcb_onfault != NULL && type != T_PAGEFLT) {
-			trap_diag(frame, 0);
-			printf("EFI RT fault %s\n", traptype_to_msg(type));
+			u_long cnt = atomic_fetchadd_long(&cnt_efirt_faults, 1);
+
+			if ((print_efirt_faults == 1 && cnt == 1) ||
+			    print_efirt_faults == 2) {
+				trap_diag(frame, 0);
+				printf("EFI RT fault %s\n",
+				    traptype_to_msg(type));
+			}
 			frame->tf_rip = (long)curpcb->pcb_onfault;
 			return;
 		}
