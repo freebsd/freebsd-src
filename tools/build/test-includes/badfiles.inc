@@ -280,7 +280,6 @@ BADHDRS= \
 	netinet/tcp_log_buf.h \
 	netinet/tcp_lro.h \
 	netinet/tcp_offload.h \
-	netinet/tcp_pcap.h \
 	netinet/tcp_ratelimit.h \
 	netinet/tcp_var.h \
 	netinet/tcpip.h \

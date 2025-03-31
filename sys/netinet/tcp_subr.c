@@ -109,9 +109,6 @@
 #include <netinet/tcpip.h>
 #include <netinet/tcp_fastopen.h>
 #include <netinet/tcp_accounting.h>
-#ifdef TCPPCAP
-#include <netinet/tcp_pcap.h>
-#endif
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
@@ -1416,13 +1413,6 @@ tcp_drain(void *ctx __unused, int flags __unused)
 #ifdef TCP_BLACKBOX
 				tcp_log_drain(tcpb);
 #endif
-#ifdef TCPPCAP
-				if (tcp_pcap_aggressive_free) {
-					/* Free the TCP PCAP queues. */
-					tcp_pcap_drain(&(tcpb->t_inpkts));
-					tcp_pcap_drain(&(tcpb->t_outpkts));
-				}
-#endif
 			}
 		}
 		CURVNET_RESTORE();
@@ -1535,9 +1525,6 @@ tcp_init(void *arg __unused)
 	tcp_bad_csums = counter_u64_alloc(M_WAITOK);
 	tcp_pacing_failures = counter_u64_alloc(M_WAITOK);
 	tcp_dgp_failures = counter_u64_alloc(M_WAITOK);
-#ifdef TCPPCAP
-	tcp_pcap_init();
-#endif
 
 	hashsize = tcp_tcbhashsize;
 	if (hashsize == 0) {
@@ -2337,12 +2324,6 @@ tcp_newtcpcb(struct inpcb *inp, struct tcpcb *listening_tcb)
 	 * which may match an IPv4-mapped IPv6 address.
 	 */
 	inp->inp_ip_ttl = V_ip_defttl;
-#ifdef TCPPCAP
-	/*
-	 * Init the TCP PCAP queues.
-	 */
-	tcp_pcap_tcpcb_init(tp);
-#endif
 #ifdef TCP_BLACKBOX
 	/* Initialize the per-TCPCB log data. */
 	tcp_log_tcpcbinit(tp);
@@ -2418,11 +2399,6 @@ tcp_discardcb(struct tcpcb *tp)
 	/* Disconnect offload device, if any. */
 	if (tp->t_flags & TF_TOE)
 		tcp_offload_detach(tp);
-#endif
-#ifdef TCPPCAP
-	/* Free the TCP PCAP queues. */
-	tcp_pcap_drain(&(tp->t_inpkts));
-	tcp_pcap_drain(&(tp->t_outpkts));
 #endif
 
 	/* Allow the CC algorithm to clean up after itself. */

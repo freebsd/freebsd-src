@@ -499,10 +499,6 @@ struct tcpcb {
 	uint64_t tcp_cnt_counters[TCP_NUM_CNT_COUNTERS];
 	uint64_t tcp_proc_time[TCP_NUM_CNT_COUNTERS];
 #endif
-#ifdef TCPPCAP
-	struct mbufq t_inpkts;		/* List of saved input packets. */
-	struct mbufq t_outpkts;		/* List of saved output packets. */
-#endif
 };
 #endif	/* _KERNEL || _WANT_TCPCB */
 

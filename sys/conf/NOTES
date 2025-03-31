@@ -1025,9 +1025,6 @@ device		dummymbuf
 #
 # PF_DEFAULT_TO_DROP causes the default pf(4) rule to deny everything.
 #
-# TCPPCAP enables code which keeps the last n packets sent and received
-# on a TCP socket.
-#
 # TCP_BLACKBOX enables enhanced TCP event logging.
 #
 # TCP_HHOOK enables the hhook(9) framework hooks for the TCP stack.
@@ -1050,7 +1047,6 @@ options 	IPFILTER_LOOKUP		#ipfilter pools
 options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
 options 	PF_DEFAULT_TO_DROP	#drop everything by default
-options 	TCPPCAP
 options 	TCP_BLACKBOX
 options 	TCP_HHOOK
 options		SOCKET_HHOOK
