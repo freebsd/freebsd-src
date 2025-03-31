@@ -4940,16 +4940,17 @@ int
 kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
     off_t *outoffp, size_t len, unsigned int flags)
 {
-	struct file *infp, *outfp;
+	struct file *infp, *infp1, *outfp, *outfp1;
 	struct vnode *invp, *outvp;
 	int error;
 	size_t retlen;
 	void *rl_rcookie, *rl_wcookie;
-	off_t savinoff, savoutoff;
+	off_t inoff, outoff, savinoff, savoutoff;
+	bool foffsets_locked;
 
 	infp = outfp = NULL;
 	rl_rcookie = rl_wcookie = NULL;
-	savinoff = -1;
+	foffsets_locked = false;
 	error = 0;
 	retlen = 0;
 
@@ -4991,13 +4992,35 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 		goto out;
 	}
 
-	/* Set the offset pointers to the correct place. */
-	if (inoffp == NULL)
-		inoffp = &infp->f_offset;
-	if (outoffp == NULL)
-		outoffp = &outfp->f_offset;
-	savinoff = *inoffp;
-	savoutoff = *outoffp;
+	/*
+	 * Figure out which file offsets we're reading from and writing to.
+	 * If the offsets come from the file descriptions, we need to lock them,
+	 * and locking both offsets requires a loop to avoid deadlocks.
+	 */
+	infp1 = outfp1 = NULL;
+	if (inoffp != NULL)
+		inoff = *inoffp;
+	else
+		infp1 = infp;
+	if (outoffp != NULL)
+		outoff = *outoffp;
+	else
+		outfp1 = outfp;
+	if (infp1 != NULL || outfp1 != NULL) {
+		if (infp1 == outfp1) {
+			/*
+			 * Overlapping ranges are not allowed.  A more thorough
+			 * check appears below, but we must not lock the same
+			 * offset twice.
+			 */
+			error = EINVAL;
+			goto out;
+		}
+		foffset_lock_pair(infp1, &inoff, outfp1, &outoff, 0);
+		foffsets_locked = true;
+	}
+	savinoff = inoff;
+	savoutoff = outoff;
 
 	invp = infp->f_vnode;
 	outvp = outfp->f_vnode;
@@ -5017,8 +5040,8 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 	 * overlap.
 	 */
 	if (invp == outvp) {
-		if ((savinoff <= savoutoff && savinoff + len > savoutoff) ||
-		    (savinoff > savoutoff && savoutoff + len > savinoff)) {
+		if ((inoff <= outoff && inoff + len > outoff) ||
+		    (inoff > outoff && outoff + len > inoff)) {
 			error = EINVAL;
 			goto out;
 		}
@@ -5027,28 +5050,36 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 
 	/* Range lock the byte ranges for both invp and outvp. */
 	for (;;) {
-		rl_wcookie = vn_rangelock_wlock(outvp, *outoffp, *outoffp +
-		    len);
-		rl_rcookie = vn_rangelock_tryrlock(invp, *inoffp, *inoffp +
-		    len);
+		rl_wcookie = vn_rangelock_wlock(outvp, outoff, outoff + len);
+		rl_rcookie = vn_rangelock_tryrlock(invp, inoff, inoff + len);
 		if (rl_rcookie != NULL)
 			break;
 		vn_rangelock_unlock(outvp, rl_wcookie);
-		rl_rcookie = vn_rangelock_rlock(invp, *inoffp, *inoffp + len);
+		rl_rcookie = vn_rangelock_rlock(invp, inoff, inoff + len);
 		vn_rangelock_unlock(invp, rl_rcookie);
 	}
 
 	retlen = len;
-	error = vn_copy_file_range(invp, inoffp, outvp, outoffp, &retlen,
+	error = vn_copy_file_range(invp, &inoff, outvp, &outoff, &retlen,
 	    flags, infp->f_cred, outfp->f_cred, td);
 out:
 	if (rl_rcookie != NULL)
 		vn_rangelock_unlock(invp, rl_rcookie);
 	if (rl_wcookie != NULL)
 		vn_rangelock_unlock(outvp, rl_wcookie);
-	if (savinoff != -1 && (error == EINTR || error == ERESTART)) {
-		*inoffp = savinoff;
-		*outoffp = savoutoff;
+	if (foffsets_locked) {
+		if (error == EINTR || error == ERESTART) {
+			inoff = savinoff;
+			outoff = savoutoff;
+		}
+		if (inoffp == NULL)
+			foffset_unlock(infp, inoff, 0);
+		else
+			*inoffp = inoff;
+		if (outoffp == NULL)
+			foffset_unlock(outfp, outoff, 0);
+		else
+			*outoffp = outoff;
 	}
 	if (outfp != NULL)
 		fdrop(outfp, td);
