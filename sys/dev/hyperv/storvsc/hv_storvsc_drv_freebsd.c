@@ -1833,7 +1833,6 @@ storvsc_xferbuf_prepare(void *arg, bus_dma_segment_t *segs, int nsegs, int error
 
 	for (i = 0; i < nsegs; i++) {
 #ifdef INVARIANTS
-#if !defined(__aarch64__)
 		if (nsegs > 1) {
 			if (i == 0) {
 				KASSERT((segs[i].ds_addr & PAGE_MASK) +
@@ -1853,7 +1852,6 @@ storvsc_xferbuf_prepare(void *arg, bus_dma_segment_t *segs, int nsegs, int error
 				     segs[i].ds_len));
 			}
 		}
-#endif
 #endif
 		prplist->gpa_page[i] = atop(segs[i].ds_addr);
 	}
