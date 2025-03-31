@@ -95,9 +95,6 @@
 #include <netinet/cc/cc.h>
 #include <netinet/tcp_fastopen.h>
 #include <netinet/tcp_hpts.h>
-#ifdef TCPPCAP
-#include <netinet/tcp_pcap.h>
-#endif
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
@@ -2342,26 +2339,6 @@ unlock_and_done:
 				    TP_MAXIDLE(tp));
 			goto unlock_and_done;
 
-#ifdef TCPPCAP
-		case TCP_PCAP_OUT:
-		case TCP_PCAP_IN:
-			INP_WUNLOCK(inp);
-			error = sooptcopyin(sopt, &optval, sizeof optval,
-			    sizeof optval);
-			if (error)
-				return (error);
-
-			INP_WLOCK_RECHECK(inp);
-			if (optval >= 0)
-				tcp_pcap_set_sock_max(
-					(sopt->sopt_name == TCP_PCAP_OUT) ?
-					&(tp->t_outpkts) : &(tp->t_inpkts),
-					optval);
-			else
-				error = EINVAL;
-			goto unlock_and_done;
-#endif
-
 		case TCP_FASTOPEN: {
 			struct tcp_fastopen tfo_optval;
 
@@ -2592,16 +2569,6 @@ unhold:
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &ui, sizeof(ui));
 			break;
-#ifdef TCPPCAP
-		case TCP_PCAP_OUT:
-		case TCP_PCAP_IN:
-			optval = tcp_pcap_get_sock_max(
-					(sopt->sopt_name == TCP_PCAP_OUT) ?
-					&(tp->t_outpkts) : &(tp->t_inpkts));
-			INP_WUNLOCK(inp);
-			error = sooptcopyout(sopt, &optval, sizeof optval);
-			break;
-#endif
 		case TCP_FASTOPEN:
 			optval = tp->t_flags & TF_FASTOPEN;
 			INP_WUNLOCK(inp);
