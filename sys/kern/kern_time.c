@@ -884,6 +884,8 @@ realitexpire_reset_callout(struct proc *p, sbintime_t *isbtp)
 {
 	sbintime_t prec;
 
+	if ((p->p_flag & P_WEXIT) != 0)
+		return;
 	prec = isbtp == NULL ? tvtosbt(p->p_realtimer.it_interval) : *isbtp;
 	callout_reset_sbt(&p->p_itcallout, tvtosbt(p->p_realtimer.it_value),
 	    prec >> tc_precexp, realitexpire, p, C_ABSOLUTE);

@@ -375,6 +375,7 @@ exit1(struct thread *td, int rval, int signo)
 	 * Stop the real interval timer.  If the handler is currently
 	 * executing, prevent it from rearming itself and let it finish.
 	 */
+	p->p_flag2 &= ~P2_ITSTOPPED;
 	if (timevalisset(&p->p_realtimer.it_value) &&
 	    callout_stop(&p->p_itcallout) == 0) {
 		timevalclear(&p->p_realtimer.it_interval);
