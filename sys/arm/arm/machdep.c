@@ -105,8 +105,8 @@
 #endif
 
 
-#if __ARM_ARCH < 6
-#error FreeBSD requires ARMv6 or later
+#if __ARM_ARCH < 7
+#error FreeBSD requires ARMv7 or later
 #endif
 
 struct pcpu __pcpu[MAXCPU];
