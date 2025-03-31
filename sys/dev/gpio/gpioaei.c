@@ -120,8 +120,9 @@ gpio_aei_attach(device_t dev)
 		device_printf(dev, "Cannot allocate an IRQ\n");
 		return (ENOTSUP);
 	}
-	err = bus_setup_intr(dev, sc->intr_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, gpio_aei_intr, sc, &sc->intr_cookie);
+	err = bus_setup_intr(dev, sc->intr_res, INTR_TYPE_MISC | INTR_MPSAFE |
+	    INTR_EXCL | INTR_SLEEPABLE, NULL, gpio_aei_intr, sc,
+	    &sc->intr_cookie);
 	if (err != 0) {
 		device_printf(dev, "Cannot set up IRQ\n");
 		bus_release_resource(dev, SYS_RES_IRQ, sc->intr_rid,
