@@ -381,20 +381,6 @@ main(int argc, char *argv[])
 			 */
 			nselectors++;
 			break;
-#if 0
-		case 'R':
-			/*
-			 * XXX - This un-standard option is still under
-			 *	debate.  This is what SUSv3 defines as
-			 *	the `-U' option, and while it would be
-			 *	nice to have, it could cause even more
-			 *	confusion to implement it as `-R'.
-			 */
-			add_list(&ruidlist, optarg);
-			xkeep_implied = 1;
-			nselectors++;
-			break;
-#endif
 		case 'r':
 			sortby = SORTCPU;
 			break;
@@ -426,21 +412,34 @@ main(int argc, char *argv[])
 			nselectors++;
 			break;
 		case 'U':
+			add_list(&ruidlist, optarg);
+			xkeep_implied = 1;
+			nselectors++;
+			break;
+		case 'u':
+#if 0
 			/*
-			 * POSIX says that '-U' should match on real user IDs,
-			 * not effective ones as we are doing here, which is
-			 * normally the behavior of option '-u' according to the
-			 * standard.
+			 * POSIX's '-u' behavior.
+			 *
+			 * This has not been activated because:
+			 * 1. Option '-U' is a substitute for most users, and
+			 *    those that care seem more likely to want to match
+			 *    on the real user ID to display all processes
+			 *    launched by some users.
+			 * 2. '-u' has been a canned display on the BSDs for
+			 *    a very long time (POLA).
 			 */
 			add_list(&uidlist, optarg);
 			xkeep_implied = 1;
 			nselectors++;
 			break;
-		case 'u':
+#else
+			/* Historical BSD's '-u'. */
 			parsefmt(ufmt, &varlist, 0);
 			sortby = SORTCPU;
 			_fmt = 1;
 			break;
+#endif
 		case 'v':
 			parsefmt(vfmt, &varlist, 0);
 			sortby = SORTMEM;
