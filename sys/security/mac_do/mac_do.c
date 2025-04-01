@@ -844,7 +844,7 @@ pour_list_into_rule(const id_type_t type, struct id_list *const list,
 }
 
 /*
- * See also first comments for parse_rule() below.
+ * See also the herald comment for parse_rules() below.
  *
  * The second part of a rule, called <target> (or <to>), is a comma-separated
  * (',') list of '<flags><type>=<id>' clauses similar to that of the <from>
