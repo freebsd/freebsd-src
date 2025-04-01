@@ -106,6 +106,86 @@ atf_test_case "4in4" "cleanup"
 	ovpn_cleanup
 }
 
+atf_test_case "bz283426" "cleanup"
+bz283426_head()
+{
+	atf_set descr 'FreeBSD Bugzilla 283426'
+	atf_set require.user root
+	atf_set require.progs openvpn python3
+}
+
+bz283426_body()
+{
+	ovpn_init
+
+	l=$(vnet_mkepair)
+
+	vnet_mkjail a ${l}a
+	jexec a ifconfig ${l}a 192.0.2.1/24 up
+	vnet_mkjail b ${l}b
+	jexec b ifconfig ${l}b 192.0.2.2/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore jexec a ping -c 1 192.0.2.2
+
+	ovpn_start a "
+		dev ovpn0
+		dev-type tun
+		proto udp4
+
+		cipher AES-256-GCM
+		auth SHA256
+
+		bind 0.0.0.0:1194
+		server 198.51.100.0 255.255.255.0
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/server.crt
+		key $(atf_get_srcdir)/server.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		mode server
+		script-security 2
+		auth-user-pass-verify /usr/bin/true via-env
+		topology subnet
+
+		keepalive 100 600
+	"
+	ovpn_start b "
+		dev tun0
+		dev-type tun
+
+		client
+
+		remote 192.0.2.1
+		auth-user-pass $(atf_get_srcdir)/user.pass
+
+		ca $(atf_get_srcdir)/ca.crt
+		cert $(atf_get_srcdir)/client.crt
+		key $(atf_get_srcdir)/client.key
+		dh $(atf_get_srcdir)/dh.pem
+
+		keepalive 100 600
+	"
+
+	# Give the tunnel time to come up
+	sleep 10
+
+	atf_check -s exit:0 -o ignore jexec b ping -c 1 198.51.100.1
+
+	# Send a broadcast packet in the outer link.
+	echo "import socket as sk
+s = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
+s.setsockopt(sk.SOL_SOCKET, sk.SO_BROADCAST, 1)
+s.sendto(b'x' * 1000, ('192.0.2.255', 1194))" | jexec b python3
+
+	atf_check -s exit:0 -o ignore jexec b ping -c 3 198.51.100.1
+}
+
+bz283426_cleanup()
+{
+	ovpn_cleanup
+}
+
 atf_test_case "4mapped" "cleanup"
 4mapped_head()
 {
@@ -1072,6 +1152,7 @@ destroy_unused_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case "4in4"
+	atf_add_test_case "bz283426"
 	atf_add_test_case "4mapped"
 	atf_add_test_case "6in4"
 	atf_add_test_case "6in6"
