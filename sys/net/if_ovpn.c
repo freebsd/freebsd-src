@@ -2255,12 +2255,6 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 
 	M_ASSERTPKTHDR(m);
 
-	m = m_unshare(m, M_NOWAIT);
-	if (m == NULL) {
-		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
-		return (true);
-	}
-
 	OVPN_COUNTER_ADD(sc, transport_bytes_received, m->m_pkthdr.len - off);
 
 	ohdrlen = sizeof(*ohdr) - sizeof(ohdr->auth_tag);
@@ -2286,6 +2280,12 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 		/* Control packet? */
 		OVPN_RUNLOCK(sc);
 		return (false);
+	}
+
+	m = m_unshare(m, M_NOWAIT);
+	if (m == NULL) {
+		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
+		return (true);
 	}
 
 	m = m_pullup(m, off + sizeof(*uhdr) + ohdrlen);
