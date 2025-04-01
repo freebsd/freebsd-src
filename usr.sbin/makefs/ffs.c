@@ -679,8 +679,9 @@ ffs_build_dinode1(struct ufs1_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 {
 	size_t slen;
 	void *membuf;
-	struct stat *st = stampst.st_ino != 0 ? &stampst : &cur->inode->st;
+	struct stat *st;
 
+	st = &cur->inode->st;
 	memset(dinp, 0, sizeof(*dinp));
 	dinp->di_mode = cur->inode->st.st_mode;
 	dinp->di_nlink = cur->inode->nlink;
@@ -725,8 +726,9 @@ ffs_build_dinode2(struct ufs2_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 {
 	size_t slen;
 	void *membuf;
-	struct stat *st = stampst.st_ino != 0 ? &stampst : &cur->inode->st;
+	struct stat *st;
 
+	st = &cur->inode->st;
 	memset(dinp, 0, sizeof(*dinp));
 	dinp->di_mode = cur->inode->st.st_mode;
 	dinp->di_nlink = cur->inode->nlink;

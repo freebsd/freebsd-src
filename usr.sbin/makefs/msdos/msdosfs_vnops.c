@@ -94,8 +94,6 @@ static void unix2fattime(const struct timespec *tsp, uint16_t *ddp,
 static void
 msdosfs_times(struct denode *dep, const struct stat *st)
 {
-	if (stampst.st_ino)
-		st = &stampst;
 
 #if HAVE_STRUCT_STAT_BIRTHTIME
 	unix2fattime(&st->st_birthtim, &dep->de_CDate, &dep->de_CTime);
