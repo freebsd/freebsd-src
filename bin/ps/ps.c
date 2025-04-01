@@ -535,13 +535,14 @@ main(int argc, char *argv[])
 		 */
 		nselectors = 0;
 	else if (nselectors == 0) {
-		/* Default is to request our processes only. */
-		uidlist.l.ptr = malloc(sizeof(uid_t));
-		if (uidlist.l.ptr == NULL)
-			xo_errx(1, "malloc failed");
+		/*
+		 * Default is to request our processes only.  As per POSIX, we
+		 * match processes by their effective user IDs and we use our
+		 * effective user ID as our own identity.
+		 */
+		expand_list(&uidlist);
+		uidlist.l.uids[uidlist.count++] = geteuid();
 		nselectors = 1;
-		uidlist.count = uidlist.maxcount = 1;
-		*uidlist.l.uids = getuid();
 	}
 
 	/*
