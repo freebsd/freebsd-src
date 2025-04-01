@@ -244,6 +244,17 @@ Extracts the distributions listed in
 .Ev DISTRIBUTIONS
 into
 .Ev BSDINSTALL_CHROOT .
+.It Cm pkgbase Op Fl --no-kernel
+Fetch and install base system packages to
+.Ev BSDINSTALL_CHROOT .
+Packages are fetched according to repository configuration in
+.Ev BSDINSTALL_PKG_REPOS_DIR
+if set, or
+.Lk pkg.freebsd.org
+otherwise.
+If the
+.Fl --no-kernel
+option is passed, no kernel is installed.
 .It Cm firmware
 executes
 .Xr fwget 8
@@ -324,6 +335,17 @@ Example:
 .Pa https://download.freebsd.org/ftp/releases/powerpc/powerpc64/13.1-RELEASE/
 or
 .Pa http://ftp-archive.freebsd.org/pub/FreeBSD-Archive/old-releases/amd64/12.2-RELEASE/ .
+.It Ev BSDINSTALL_PKG_REPOS_DIR
+Directory containing
+.Xr pkg 8
+repository configuration files used by the
+.Cm pkgbase
+target.
+See
+.Sx REPOSITORY CONFIGURATION
+in
+.Xr pkg.conf 5 .
+Default: unset
 .It Ev BSDINSTALL_CHROOT
 The directory into which the distribution files should be unpacked and the
 directory at which the root file system of the new system should be mounted.

@@ -1,0 +1,172 @@
+#!/usr/libexec/flua
+
+-- SPDX-License-Identifier: BSD-2-Clause
+--
+-- Copyright(c) 2025 The FreeBSD Foundation.
+--
+-- This software was developed by Isaac Freund <ifreund@freebsdfoundation.org>
+-- under sponsorship from the FreeBSD Foundation.
+
+local all_libcompats <const> = "%%_ALL_libcompats%%"
+
+-- Run a command using the OS shell and capture the stdout
+-- Strips exactly one trailing newline if present, does not strip any other whitespace.
+-- Asserts that the command exits cleanly
+local function capture(command)
+	local p = io.popen(command)
+	local output = p:read("*a")
+	assert(p:close())
+	-- Strip exactly one trailing newline from the output, if there is one
+	return output:match("(.-)\n$") or output
+end
+
+local function prompt_yn(question)
+	while true do
+		io.write(question .. " (y/n) ")
+		local input = io.read()
+		if input == "y" or input == "Y" then
+			return true
+		elseif input == "n" or input == "N" then
+			return false
+		end
+	end
+end
+
+local function append_list(list, other)
+	for _, item in ipairs(other) do
+		table.insert(list, item)
+	end
+end
+
+-- Returns a list of pkgbase packages equivalent to the default base.txz and kernel.txz
+local function select_packages(pkg, options)
+	local components = {
+		["kernel"] = {},
+		["kernel-dbg"] = {},
+		["base"] = {},
+		["base-dbg"] = {},
+		["src"] = {},
+		["tests"] = {},
+	}
+
+	for compat in all_libcompats:gmatch("%S+") do
+		components["lib" .. compat] = {}
+		components["lib" .. compat .. "-dbg"] = {}
+	end
+
+	local rquery = capture(pkg .. "rquery -U -r FreeBSD-base %n")
+	for package in rquery:gmatch("[^\n]+") do
+		if package == "FreeBSD-src" or package:match("^FreeBSD%-src%-.*") then
+			table.insert(components["src"], package)
+		elseif package == "FreeBSD-tests" or package:match("^FreeBSD%-tests%-.*") then
+			table.insert(components["tests"], package)
+		elseif package:match("^FreeBSD%-kernel%-.*") then
+			-- Kernels other than FreeBSD-kernel-generic are ignored
+			if package == "FreeBSD-kernel-generic" then
+				table.insert(components["kernel"], package)
+			elseif package == "FreeBSD-kernel-generic-dbg" then
+				table.insert(components["kernel-dbg"], package)
+			end
+		elseif package:match(".*%-dbg$") then
+			table.insert(components["base-dbg"], package)
+		else
+			local found = false
+			for compat in all_libcompats:gmatch("%S+") do
+				if package:match(".*%-dbg%-lib" .. compat .. "$") then
+					table.insert(components["lib" .. compat .. "-dbg"], package)
+					found = true
+					break
+				elseif package:match(".*%-lib" .. compat .. "$") then
+					table.insert(components["lib" .. compat], package)
+					found = true
+					break
+				end
+			end
+			if not found then
+				table.insert(components["base"], package)
+			end
+		end
+	end
+	-- Don't assert the existence of dbg, tests, and src packages here. If using
+	-- a custom local repository with BSDINSTALL_PKG_REPOS_DIR we shouldn't
+	-- require it to have all packages.
+	assert(#components["kernel"] == 1)
+	assert(#components["base"] > 0)
+
+	local selected = {}
+	append_list(selected, components["base"])
+	if not options.no_kernel then
+		append_list(selected, components["kernel"])
+	end
+
+	return selected
+end
+
+local function parse_options()
+	local options = {}
+	for _, a in ipairs(arg) do
+		if a == "--no-kernel" then
+			options.no_kernel = true
+		else
+			io.stderr:write("Error: unknown option " .. a .. "\n")
+			os.exit(1)
+		end
+	end
+	return options
+end
+
+-- Fetch and install pkgbase packages to BSDINSTALL_CHROOT.
+-- Respect BSDINSTALL_PKG_REPOS_DIR if set, otherwise use pkg.freebsd.org.
+local function pkgbase()
+	local options = parse_options()
+
+	-- TODO Support fully offline pkgbase installation by taking a new enough
+	-- version of pkg.pkg as input.
+	if not os.execute("pkg -N > /dev/null 2>&1") then
+		print("Bootstrapping pkg on the host system")
+		assert(os.execute("pkg bootstrap -y"))
+	end
+
+	local chroot = assert(os.getenv("BSDINSTALL_CHROOT"))
+	assert(os.execute("mkdir -p " .. chroot))
+
+	local repos_dir = os.getenv("BSDINSTALL_PKG_REPOS_DIR")
+	if not repos_dir then
+		repos_dir = chroot .. "/usr/local/etc/pkg/repos/"
+		assert(os.execute("mkdir -p " .. repos_dir))
+		assert(os.execute("cp /usr/share/bsdinstall/FreeBSD-base.conf " .. repos_dir))
+
+		-- Since pkg always interprets fingerprints paths as relative to
+		-- the --rootdir we must copy the key from the host.
+		assert(os.execute("mkdir -p " .. chroot .. "/usr/share/keys"))
+		assert(os.execute("cp -R /usr/share/keys/pkg " .. chroot .. "/usr/share/keys/"))
+	end
+
+	-- We must use --repo-conf-dir rather than -o REPOS_DIR here as the latter
+	-- is interpreted relative to the --rootdir. BSDINSTALL_PKG_REPOS_DIR must
+	-- be allowed to point to a path outside the chroot.
+	local pkg = "pkg --rootdir " .. chroot ..
+		" --repo-conf-dir " .. repos_dir .. " -o IGNORE_OSVERSION=yes "
+
+	while not os.execute(pkg .. "update") do
+		if not prompt_yn("Updating repositories failed, try again?") then
+			print("Canceled")
+			os.exit(1)
+		end
+	end
+
+	local packages = table.concat(select_packages(pkg, options), " ")
+
+	while not os.execute(pkg .. "install -U -F -y -r FreeBSD-base " .. packages) do
+		if not prompt_yn("Fetching packages failed, try again?") then
+			print("Canceled")
+			os.exit(1)
+		end
+	end
+
+	if not os.execute(pkg .. "install -U -y -r FreeBSD-base " .. packages) then
+		os.exit(1)
+	end
+end
+
+pkgbase()

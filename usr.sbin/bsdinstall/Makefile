@@ -12,4 +12,21 @@ SCRIPTSDIR_startbsdinstall=	${LIBEXECDIR}/bsdinstall
 
 UPDATE_DEPENDFILE= no
 
+FILESDIR=	${SHAREDIR}/bsdinstall
+FILES=		FreeBSD-base.conf
+
+_BRANCH!=	${MAKE} -C ${SRCTOP}/release -V BRANCH
+BRANCH?=	${_BRANCH}
+_REVISION!=	${MAKE} -C ${SRCTOP}/release -V REVISION
+REVISION?=	${_REVISION}
+
+.if ${BRANCH} == CURRENT || ${BRANCH} == STABLE
+SUBURL=		base_latest
+.else
+SUBURL=		base_release_${REVISION:C/[0-9]+\.//}
+.endif
+
+FreeBSD-base.conf: FreeBSD-base.conf.in
+	sed "s|%%SUBURL%%|${SUBURL}|" < ${.ALLSRC} > ${.TARGET}
+
 .include <bsd.prog.mk>
