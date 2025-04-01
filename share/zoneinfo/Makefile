@@ -98,6 +98,20 @@ zonefiles: ${TDATA}
 	(umask 022; cd ${.CURDIR}; \
 	${ZIC:Uzic} -D -d ${TZBUILDDIR} ${ZICFLAGS} -m ${NOBINMODE} \
 	    ${LEAPFILE} ${TZFILES})
+	(umask 022; cd ${TZBUILDDIR}; \
+	read -r version <${CONTRIBDIR}version && \
+	LC_ALL=C awk \
+	    -v DATAFORM='main' \
+	    -v PACKRATDATA='' \
+	    -v PACKRATLIST='' \
+	    -f ${CONTRIBDIR}ziguard.awk ${TZFILES} >${TZBUILDDIR}/main.zi; \
+	LC_ALL=C awk \
+	    -v dataform='main' \
+	    -v deps='zishrink.awk' \
+	    -v redo='posix_only' \
+	    -v version="$$version" \
+	    -f ${CONTRIBDIR}zishrink.awk \
+	main.zi >tzdata.zi; rm main.zi)
 	(cd ${TZBUILDDIR} && find * -type f | LC_ALL=C sort) > ${.TARGET}
 
 beforeinstall: install-zoneinfo
@@ -113,6 +127,8 @@ install-zoneinfo:
 	    ${CONTRIBDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
 	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${CONTRIBDIR}/zone1970.tab ${DESTDIR}/usr/share/zoneinfo/
+	${INSTALL} ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	    ${CONTRIBDIR}/version ${DESTDIR}/usr/share/zoneinfo/
 
 afterinstall:
 #
