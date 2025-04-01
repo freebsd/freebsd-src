@@ -288,17 +288,24 @@ main(int argc, char *argv[])
 			break;
 		case 'g':
 #if 0
-			/*-
-			 * XXX - This SUSv3 behavior is still under debate
-			 *	since it conflicts with the (undocumented)
-			 *	`-g' option.  So we skip it for now.
+			/*
+			 * XXX - This behavior is still under debate since it
+			 *	conflicts with the (undocumented) `-g' option
+			 *	and is non-standard.  However, it is the
+			 *	behavior of most UNIX systems except
+			 *	SunOS/Solaris/illumos (see next comment; see
+			 *	also comment for '-s' below).
 			 */
 			add_list(&pgrplist, optarg);
 			xkeep_implied = 1;
 			nselectors++;
 			break;
 #else
-			/* The historical BSD-ish (from SunOS) behavior. */
+			/*
+			 * The historical BSD-ish (from SunOS) behavior: Also
+			 * display process group leaders (but we do not filter
+			 * them out).
+			 */
 			break;			/* no-op */
 #endif
 		case 'H':
@@ -351,7 +358,7 @@ main(int argc, char *argv[])
 			break;
 #if 0
 		case 'R':
-			/*-
+			/*
 			 * XXX - This un-standard option is still under
 			 *	debate.  This is what SUSv3 defines as
 			 *	the `-U' option, and while it would be
@@ -371,11 +378,13 @@ main(int argc, char *argv[])
 			break;
 #if 0
 		case 's':
-			/*-
-			 * XXX - This non-standard option is still under
-			 *	debate.  This *is* supported on Solaris,
-			 *	Linux, and IRIX, but conflicts with `-s'
-			 *	on NetBSD and maybe some older BSD's.
+			/*
+			 * XXX - This non-standard option is still under debate.
+			 *	It is supported on Solaris, Linux, IRIX, and
+			 *	OpenBSD but conflicts with '-s' on NetBSD.  This
+			 *	is the same functionality as POSIX option '-g',
+			 *	but the cited systems do not provide it under
+			 *	'-g', only under '-s'.
 			 */
 			add_list(&sesslist, optarg);
 			xkeep_implied = 1;
@@ -392,7 +401,12 @@ main(int argc, char *argv[])
 			nselectors++;
 			break;
 		case 'U':
-			/* This is what SUSv3 defines as the `-u' option. */
+			/*
+			 * POSIX says that '-U' should match on real user IDs,
+			 * not effective ones as we are doing here, which is
+			 * normally the behavior of option '-u' according to the
+			 * standard.
+			 */
 			add_list(&uidlist, optarg);
 			xkeep_implied = 1;
 			nselectors++;
@@ -892,7 +906,7 @@ addelem_pid(struct listinfo *inf, const char *elem)
 	return (1);
 }
 
-/*-
+/*
  * The user can specify a device via one of three formats:
  *     1) fully qualified, e.g.:     /dev/ttyp0 /dev/console	/dev/pts/0
  *     2) missing "/dev", e.g.:      ttyp0      console		pts/0
