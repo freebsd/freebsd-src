@@ -169,16 +169,16 @@ static void	 remove_redundant_columns(struct keyword_info *);
 static void	 pidmax_init(void);
 static void	 usage(void);
 
-static char dfmt[] = "pid,tt,state,time,command";
-static char jfmt[] = "user,pid,ppid,pgid,sid,jobc,state,tt,time,command";
-static char lfmt[] = "uid,pid,ppid,cpu,pri,nice,vsz,rss,mwchan,state,"
-			"tt,time,command";
-static char   o1[] = "pid";
-static char   o2[] = "tt,state,time,command";
-static char ufmt[] = "user,pid,%cpu,%mem,vsz,rss,tt,state,start,time,command";
-static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,"
-			"%cpu,%mem,command";
-static char Zfmt[] = "label";
+static const char dfmt[] = "pid,tt,state,time,command";
+static const char jfmt[] = "user,pid,ppid,pgid,sid,jobc,state,tt,time,command";
+static const char lfmt[] = "uid,pid,ppid,cpu,pri,nice,vsz,rss,mwchan,state,"
+			   "tt,time,command";
+static const char   o1[] = "pid";
+static const char   o2[] = "tt,state,time,command";
+static const char ufmt[] = "user,pid,%cpu,%mem,vsz,rss,tt,state,start,time,command";
+static const char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,"
+			   "%cpu,%mem,command";
+static const char Zfmt[] = "label";
 
 #define	PS_ARGS	"AaCcD:de" OPT_LAZY_f "G:gHhjJ:LlM:mN:O:o:p:rSTt:U:uvwXxZ"
 
@@ -341,7 +341,6 @@ main(int argc, char *argv[])
 		case 'j':
 			parsefmt(jfmt, &varlist, 0);
 			_fmt = 1;
-			jfmt[0] = '\0';
 			break;
 		case 'L':
 			showkey();
@@ -349,7 +348,6 @@ main(int argc, char *argv[])
 		case 'l':
 			parsefmt(lfmt, &varlist, 0);
 			_fmt = 1;
-			lfmt[0] = '\0';
 			break;
 		case 'M':
 			memf = optarg;
@@ -364,7 +362,6 @@ main(int argc, char *argv[])
 			parsefmt(o1, &varlist, 1);
 			parsefmt(optarg, &varlist, 1);
 			parsefmt(o2, &varlist, 1);
-			o1[0] = o2[0] = '\0';
 			_fmt = 1;
 			break;
 		case 'o':
@@ -433,13 +430,11 @@ main(int argc, char *argv[])
 			parsefmt(ufmt, &varlist, 0);
 			sortby = SORTCPU;
 			_fmt = 1;
-			ufmt[0] = '\0';
 			break;
 		case 'v':
 			parsefmt(vfmt, &varlist, 0);
 			sortby = SORTMEM;
 			_fmt = 1;
-			vfmt[0] = '\0';
 			break;
 		case 'w':
 			if (wflag)
@@ -467,7 +462,6 @@ main(int argc, char *argv[])
 			break;
 		case 'Z':
 			parsefmt(Zfmt, &varlist, 0);
-			Zfmt[0] = '\0';
 			break;
 		case '?':
 		default:
