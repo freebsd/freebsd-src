@@ -12,6 +12,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250713:
+	LinuxKPI dma-mapping.h were pulled into the tree from drm-kmod.
+	Bump _FreeBSD_version to 1403503 to be able to detect this change.
+
 20250707:
 	Commit f5195b1a63df removed in6_maxmtu and its setter in6_setmaxmtu().
 	in6_maxmtu is used to store the max IPv6 MTU of all interfaces,
