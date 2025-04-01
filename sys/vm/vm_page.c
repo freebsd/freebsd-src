@@ -4823,46 +4823,70 @@ vm_page_grab_pflags(int allocflags)
 }
 
 /*
- * Grab a page, waiting until we are waken up due to the page
- * changing state.  We keep on waiting, if the page continues
- * to be in the object.  If the page doesn't exist, first allocate it
- * and then conditionally zero it.
+ * Grab a page, waiting until we are woken up due to the page changing state.
+ * We keep on waiting, if the page continues to be in the object, unless
+ * allocflags forbid waiting.
  *
- * This routine may sleep.
+ * The object must be locked on entry.  This routine may sleep.  The lock will,
+ * however, be released and reacquired if the routine sleeps.
  *
- * The object must be locked on entry.  The lock will, however, be released
- * and reacquired if the routine sleeps.
+ *  Return a grabbed page, or NULL.  Set *found if a page was found, whether or
+ *  not it was grabbed.
+ */
+static inline vm_page_t
+vm_page_grab_lookup(struct pctrie_iter *pages, vm_object_t object,
+    vm_pindex_t pindex, int allocflags, bool *found)
+{
+	vm_page_t m;
+
+	while ((*found = (m = vm_radix_iter_lookup(pages, pindex)) != NULL) &&
+	    !vm_page_tryacquire(m, allocflags)) {
+		if (!vm_page_grab_sleep(object, m, pindex, "pgrbwt",
+		    allocflags, true))
+			return (NULL);
+		pctrie_iter_reset(pages);
+	}
+	return (m);
+}
+
+/*
+ * Grab a page.  Keep on waiting, as long as the page exists in the object.  If
+ * the page doesn't exist, first allocate it and then conditionally zero it.
+ *
+ * The object must be locked on entry.  This routine may sleep.  The lock will,
+ * however, be released and reacquired if the routine sleeps.
  */
 vm_page_t
 vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 {
-	vm_page_t m;
+	struct pctrie_iter pages;
+	vm_page_t m, mpred;
+	bool found;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	vm_page_grab_check(allocflags);
 
-retrylookup:
-	if ((m = vm_page_lookup(object, pindex)) != NULL) {
-		if (!vm_page_tryacquire(m, allocflags)) {
-			if (vm_page_grab_sleep(object, m, pindex, "pgrbwt",
-			    allocflags, true))
-				goto retrylookup;
+	vm_page_iter_init(&pages, object);
+	while ((m = vm_page_grab_lookup(
+	    &pages, object, pindex, allocflags, &found)) == NULL) {
+		if ((allocflags & VM_ALLOC_NOCREAT) != 0)
 			return (NULL);
+		if (found &&
+		    (allocflags & (VM_ALLOC_NOWAIT | VM_ALLOC_WAITFAIL)) != 0)
+			return (NULL);
+		mpred = vm_radix_iter_lookup_le(&pages, pindex);
+		m = vm_page_alloc_after(object, pindex,
+		    vm_page_grab_pflags(allocflags), mpred);
+		if (m != NULL) {
+			if ((allocflags & VM_ALLOC_ZERO) != 0 &&
+			    (m->flags & PG_ZERO) == 0)
+				pmap_zero_page(m);
+			break;
 		}
-		goto out;
-	}
-	if ((allocflags & VM_ALLOC_NOCREAT) != 0)
-		return (NULL);
-	m = vm_page_alloc(object, pindex, vm_page_grab_pflags(allocflags));
-	if (m == NULL) {
-		if ((allocflags & (VM_ALLOC_NOWAIT | VM_ALLOC_WAITFAIL)) != 0)
+		if ((allocflags &
+		    (VM_ALLOC_NOWAIT | VM_ALLOC_WAITFAIL)) != 0)
 			return (NULL);
-		goto retrylookup;
 	}
-	if (allocflags & VM_ALLOC_ZERO && (m->flags & PG_ZERO) == 0)
-		pmap_zero_page(m);
-
-out:
 	vm_page_grab_release(m, allocflags);
 
 	return (m);
@@ -5054,48 +5078,57 @@ out:
 }
 
 /*
- * Fill a partial page with zeroes.  The object write lock is held on entry and
- * exit, but may be temporarily released.
+ * Grab a page.  Keep on waiting, as long as the page exists in the object.  If
+ * the page doesn't exist, and the pager has it, allocate it and zero part of
+ * it.
+ *
+ * The object must be locked on entry.  This routine may sleep.  The lock will,
+ * however, be released and reacquired if the routine sleeps.
  */
 int
 vm_page_grab_zero_partial(vm_object_t object, vm_pindex_t pindex, int base,
     int end)
 {
-	vm_page_t m;
-	int rv;
+	struct pctrie_iter pages;
+	vm_page_t m, mpred;
+	int allocflags, rv;
+	bool found;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(base >= 0, ("%s: base %d", __func__, base));
 	KASSERT(end - base <= PAGE_SIZE, ("%s: base %d end %d", __func__, base,
 	    end));
 
-retry:
-	m = vm_page_grab(object, pindex, VM_ALLOC_NOCREAT);
-	if (m != NULL) {
-		MPASS(vm_page_all_valid(m));
-	} else if (vm_pager_has_page(object, pindex, NULL, NULL)) {
-		m = vm_page_alloc(object, pindex,
-		    VM_ALLOC_NORMAL | VM_ALLOC_WAITFAIL);
-		if (m == NULL)
-			goto retry;
-		vm_object_pip_add(object, 1);
-		VM_OBJECT_WUNLOCK(object);
-		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
-		VM_OBJECT_WLOCK(object);
-		vm_object_pip_wakeup(object);
-		if (rv != VM_PAGER_OK) {
-			vm_page_free(m);
-			return (EIO);
-		}
+	allocflags = VM_ALLOC_NOCREAT | VM_ALLOC_NORMAL | VM_ALLOC_WAITFAIL;
+	vm_page_iter_init(&pages, object);
+	while ((m = vm_page_grab_lookup(
+	    &pages, object, pindex, allocflags, &found)) == NULL) {
+		if (!vm_pager_has_page(object, pindex, NULL, NULL))
+			return (0);
+		mpred = vm_radix_iter_lookup_le(&pages, pindex);
+		m = vm_page_alloc_after(object, pindex,
+		    vm_page_grab_pflags(allocflags), mpred);
+		if (m != NULL) {
+			vm_object_pip_add(object, 1);
+			VM_OBJECT_WUNLOCK(object);
+			rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
+			VM_OBJECT_WLOCK(object);
+			vm_object_pip_wakeup(object);
+			if (rv != VM_PAGER_OK) {
+				vm_page_free(m);
+				return (EIO);
+			}
 
-		/*
-		 * Since the page was not resident, and therefore not recently
-		 * accessed, immediately enqueue it for asynchronous laundering.
-		 * The current operation is not regarded as an access.
-		 */
-		vm_page_launder(m);
-	} else
-		return (0);
+			/*
+			 * Since the page was not resident, and therefore not
+			 * recently accessed, immediately enqueue it for
+			 * asynchronous laundering.  The current operation is
+			 * not regarded as an access.
+			 */
+			vm_page_launder(m);
+			break;
+		}
+	}
 
 	pmap_zero_page_area(m, base, end - base);
 	KASSERT(vm_page_all_valid(m), ("%s: page %p is invalid", __func__, m));
