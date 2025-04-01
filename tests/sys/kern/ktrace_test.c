@@ -397,7 +397,7 @@ ATF_TC_BODY(ktrace__cap_sockaddr, tc)
 		 * violation.
 		 */
 		CHILD_REQUIRE(sendto(sfd, NULL, 0, 0,
-		    (const struct sockaddr *)&addr, sizeof(addr)) != -1);
+		    (const struct sockaddr *)&addr, sizeof(addr)) == -1);
 		exit(0);
 	}
 
