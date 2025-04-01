@@ -68,6 +68,12 @@ basic_body()
 {
 	TEST=$(atf_get_srcdir)/h_gai
 
+	# Begin FreeBSD
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_expect_fail "https://bugs.freebsd.org/285826"
+	fi
+	# End FreeBSD
+
 	( $TEST ::1 http
 	  $TEST 127.0.0.1 http
 	  $TEST localhost http
@@ -128,6 +134,12 @@ empty_servname_body()
 {
 	TEST=$(atf_get_srcdir)/h_gai
 
+	# Begin FreeBSD
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_expect_fail "https://bugs.freebsd.org/285826"
+	fi
+	# End FreeBSD
+
 	( $TEST ::1 ''
 	  $TEST 127.0.0.1 ''
 	  $TEST localhost ''
@@ -144,6 +156,12 @@ sock_raw_head()
 sock_raw_body()
 {
 	TEST=$(atf_get_srcdir)/h_gai
+
+	# Begin FreeBSD
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_expect_fail "https://bugs.freebsd.org/285826"
+	fi
+	# End FreeBSD
 
 	( $TEST -R -p 0 localhost ''
 	  $TEST -R -p 59 localhost ''
