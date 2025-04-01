@@ -1203,6 +1203,9 @@ rtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			/* Stop Rx of data frames. */
 			rtwn_write_2(sc, R92C_RXFLTMAP2, 0);
 
+			/* Stop Rx of control frames. */
+			rtwn_write_2(sc, R92C_RXFLTMAP1, 0);
+
 			/* Reset EDCA parameters. */
 			rtwn_write_4(sc, R92C_EDCA_VO_PARAM, 0x002f3217);
 			rtwn_write_4(sc, R92C_EDCA_VI_PARAM, 0x005e4317);
@@ -1374,6 +1377,11 @@ rtwn_run(struct rtwn_softc *sc, struct ieee80211vap *vap)
 	rtwn_write_2(sc, R92C_BCN_INTERVAL(uvp->id), ni->ni_intval);
 
 	if (sc->vaps_running == sc->monvaps_running) {
+		/* Enable Rx of BAR control frames. */
+		rtwn_write_2(sc, R92C_RXFLTMAP1,
+		    1 << (IEEE80211_FC0_SUBTYPE_BAR >>
+		    IEEE80211_FC0_SUBTYPE_SHIFT));
+
 		/* Enable Rx of data frames. */
 		rtwn_write_2(sc, R92C_RXFLTMAP2, 0xffff);
 
