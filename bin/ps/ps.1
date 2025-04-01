@@ -68,7 +68,7 @@ Other output styles can be requested via
 .Fl -libxo .
 .Pp
 By default, only the processes of the calling user, determined by matching their
-effective user ID with the real user ID of the
+effective user ID with that of the
 .Nm
 process, that have controlling terminals are shown.
 A different set of processes can be selected for display by using combinations
@@ -980,14 +980,6 @@ However, other UNIX systems that provide this functionality do so via option
 instead, reserving
 .Fl g
 to query by group leaders.
-.Pp
-.Nm
-currently determines the processes of the current user by matching their
-effective user IDs with its own real user ID, whereas
-.St -p1003.1-2024
-mandates the traditional UNIX practice of using the effective user ID as the
-current user.
-This is expected to be changed soon.
 .Sh HISTORY
 The
 .Nm
@@ -999,22 +991,6 @@ Since
 .Nm
 cannot run faster than the system and is run as any other scheduled
 process, the information it displays can never be exact.
-.Pp
-.Nm
-currently uses its real user ID as the current user when determining default
-processes to show.
-Besides being inconsistent with POSIX, using the real user ID essentially makes
-sense for programs installed as setuid executables, which
-.Nm
-is not.
-It also complicates the use of
-.Nm
-from other setuid executables, which cannot rely on its default process listing.
-Finally, no other
-.Nm
-implementation (for other BSDs, illumos or Linux) behaves like this.
-For all these reasons, the behavior is expected to be changed soon to using the
-effective user ID instead.
 .Pp
 .Nm ps
 currently does not correctly limit the ouput width, and in most cases does not
