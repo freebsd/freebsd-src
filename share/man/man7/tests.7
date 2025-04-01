@@ -171,6 +171,9 @@ Enables tests that change globally significant
 .Xr sysctl 8
 variables.
 The tests will undo any changes in their cleanup phases.
+.It allow_network_access
+Enables tests that need to access the network the test host is connected to.
+Such tests may require properly configured Internet access.
 .It disks
 Must be set to a space delimited list of disk device nodes.
 Tests that need destructive access to disks must use these devices.
