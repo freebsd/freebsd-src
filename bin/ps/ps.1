@@ -371,8 +371,8 @@ Implies
 .Fl x
 by default.
 .It Fl U
-Display information about processes whose effective user ID matches the
-specified user IDs or names.
+Display information about processes whose real user ID matches the specified
+user IDs or names.
 Implies
 .Fl x
 by default.
@@ -953,20 +953,16 @@ equivalently to
 .Pc ,
 and option
 .Fl u
-to select processes by effective user ID
-.Po
-which is the current behavior of option
-.Fl U
-.Pc .
+to select processes by effective user ID.
 .Pp
 However, options
-.Fl A , a , G , l , o , p ,
+.Fl A , a , G , l , o , p , U ,
 and
 .Fl t
 behave as prescribed by
 .St -p1003.1-2024 .
 Options
-.Fl f , U ,
+.Fl f
 and
 .Fl w
 currently do not, but may be changed to in the future.
