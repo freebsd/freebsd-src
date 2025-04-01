@@ -214,6 +214,20 @@ dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
 	lkpi_dma_unmap(dev, dma_address, size, direction, 0);
 }
 
+static inline dma_addr_t
+dma_map_resource(struct device *dev, phys_addr_t paddr, size_t size,
+    enum dma_data_direction direction, unsigned long attrs)
+{
+	return (lkpi_dma_map_phys(dev, paddr, size, direction, attrs));
+}
+
+static inline void
+dma_unmap_resource(struct device *dev, dma_addr_t dma, size_t size,
+    enum dma_data_direction direction, unsigned long attrs)
+{
+	lkpi_dma_unmap(dev, dma, size, direction, attrs);
+}
+
 static inline void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma, size_t size,
     enum dma_data_direction direction)

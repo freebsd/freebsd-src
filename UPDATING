@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250603:
+	LinuxKPI dma-mapping.h were pulled into the tree from drm-kmod.
+	Bump _FreeBSD_version to 1500045 to be able to detect this change.
+
 20250527:
 	The CAM target layer userland, i.e. ctld(8), ctladm(8) and ctlstat(8),
 	has moved to the new FreeBSD-ctl package.  If you use pkgbase and you
