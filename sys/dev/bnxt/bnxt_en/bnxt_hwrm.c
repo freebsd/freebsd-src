@@ -1369,15 +1369,24 @@ bnxt_hwrm_set_link_common(struct bnxt_softc *softc,
 		req->flags |=
 		    htole32(HWRM_PORT_PHY_CFG_INPUT_FLAGS_RESTART_AUTONEG);
 	} else {
-		req->flags |= htole32(HWRM_PORT_PHY_CFG_INPUT_FLAGS_FORCE);
 
-		if (link_info->force_pam4_speed_set_by_user) {
+		if (link_info->force_speed2_nrz ||
+		    link_info->force_pam4_56_speed2 ||
+		    link_info->force_pam4_112_speed2) {
+			req->force_link_speeds2 = htole16(fw_link_speed);
+			req->enables |= htole32(HWRM_PORT_PHY_CFG_INPUT_ENABLES_FORCE_LINK_SPEEDS2);
+			link_info->force_speed2_nrz = false;
+			link_info->force_pam4_56_speed2 = false;
+			link_info->force_pam4_112_speed2 = false;
+		} else if (link_info->force_pam4_speed) {
 			req->force_pam4_link_speed = htole16(fw_link_speed);
 			req->enables |= htole32(HWRM_PORT_PHY_CFG_INPUT_ENABLES_FORCE_PAM4_LINK_SPEED);
-			link_info->force_pam4_speed_set_by_user = false;
+			link_info->force_pam4_speed = false;
 		} else {
 			req->force_link_speed = htole16(fw_link_speed);
 		}
+
+		req->flags |= htole32(HWRM_PORT_PHY_CFG_INPUT_FLAGS_FORCE);
 	}
 
 	/* tell chimp that the setting takes effect immediately */
@@ -2832,7 +2841,7 @@ int bnxt_read_sfp_module_eeprom_info(struct bnxt_softc *softc, uint16_t i2c_addr
 				HWRM_PORT_PHY_I2C_READ_INPUT_ENABLES_PAGE_OFFSET : 0) |
 				(bank_sel_en ?
 				HWRM_PORT_PHY_I2C_READ_INPUT_ENABLES_BANK_NUMBER : 0));
-		rc = hwrm_send_message(softc, &req, sizeof(req));
+		rc = _hwrm_send_message(softc, &req, sizeof(req));
 		if (!rc)
 			memcpy(buf + byte_offset, output->data, xfer_size);
 		byte_offset += xfer_size;
@@ -2932,6 +2941,10 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
 	if (softc->hwrm_spec_code >= 0x10504)
 		link_info->active_fec_sig_mode = resp->active_fec_signal_mode;
 
+	link_info->support_speeds2 = le16toh(resp->support_speeds2);
+	link_info->auto_link_speeds2 = le16toh(resp->auto_link_speeds2);
+	link_info->force_link_speeds2 = le16toh(resp->force_link_speeds2);
+
 exit:
 	BNXT_HWRM_UNLOCK(softc);
 	return rc;
@@ -2943,7 +2956,9 @@ bnxt_phy_qcaps_no_speed(struct hwrm_port_phy_qcaps_output *resp)
 	if (!resp->supported_speeds_auto_mode &&
 	    !resp->supported_speeds_force_mode &&
 	    !resp->supported_pam4_speeds_auto_mode &&
-	    !resp->supported_pam4_speeds_force_mode)
+	    !resp->supported_pam4_speeds_force_mode &&
+	    !resp->supported_speeds2_auto_mode &&
+	    !resp->supported_speeds2_force_mode)
 		return true;
 
 	return false;
@@ -2986,6 +3001,7 @@ int bnxt_hwrm_phy_qcaps(struct bnxt_softc *softc)
 			/* Phy re-enabled, reprobe the speeds */
 			link_info->support_auto_speeds = 0;
 			link_info->support_pam4_auto_speeds = 0;
+			link_info->support_auto_speeds2 = 0;
 		}
 	}
 	if (resp->supported_speeds_auto_mode)
@@ -3000,6 +3016,14 @@ int bnxt_hwrm_phy_qcaps(struct bnxt_softc *softc)
 	if (resp->supported_pam4_speeds_force_mode)
 		link_info->support_pam4_force_speeds =
 			le16toh(resp->supported_pam4_speeds_force_mode);
+
+	if (resp->supported_speeds2_auto_mode)
+		link_info->support_auto_speeds2 =
+			le16toh(resp->supported_speeds2_auto_mode);
+
+	if (resp->supported_speeds2_force_mode)
+		link_info->support_force_speeds2 =
+			le16toh(resp->supported_speeds2_force_mode);
 
 exit:
 	BNXT_HWRM_UNLOCK(softc);
