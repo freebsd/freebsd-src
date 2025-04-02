@@ -254,6 +254,7 @@ struct bridge_iflist {
 	uint32_t		bif_addrcnt;	/* cur. # of addresses */
 	uint32_t		bif_addrexceeded;/* # of address violations */
 	struct epoch_context	bif_epoch_ctx;
+	uint32_t		bif_pvid;	/* native vlan id */
 };
 
 /*
@@ -335,12 +336,12 @@ static int	bridge_enqueue(struct bridge_softc *, struct ifnet *,
 static void	bridge_rtdelete(struct bridge_softc *, struct ifnet *ifp, int);
 
 static void	bridge_forward(struct bridge_softc *, struct bridge_iflist *,
-		    struct mbuf *m);
+		    struct mbuf *m, uint32_t vlan);
 
 static void	bridge_timer(void *);
 
 static void	bridge_broadcast(struct bridge_softc *, struct ifnet *,
-		    struct mbuf *, int);
+		    struct mbuf *, int, uint32_t);
 static void	bridge_span(struct bridge_softc *, struct mbuf *);
 
 static int	bridge_rtupdate(struct bridge_softc *, const uint8_t *,
@@ -399,6 +400,7 @@ static int	bridge_ioctl_sma(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifprio(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifcost(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifmaxaddr(struct bridge_softc *, void *);
+static int	bridge_ioctl_sifpvid(struct bridge_softc *, void *);
 static int	bridge_ioctl_addspan(struct bridge_softc *, void *);
 static int	bridge_ioctl_delspan(struct bridge_softc *, void *);
 static int	bridge_ioctl_gbparam(struct bridge_softc *, void *);
@@ -604,6 +606,8 @@ static const struct bridge_control bridge_control_table[] = {
 	{ bridge_ioctl_sifmaxaddr,	sizeof(struct ifbreq),
 	  BC_F_COPYIN|BC_F_SUSER },
 
+	{ bridge_ioctl_sifpvid,		sizeof(struct ifbreq),
+	  BC_F_COPYIN|BC_F_SUSER },
 };
 static const int bridge_control_table_size = nitems(bridge_control_table);
 
@@ -1460,6 +1464,7 @@ bridge_ioctl_gifflags(struct bridge_softc *sc, void *arg)
 	req->ifbr_addrcnt = bif->bif_addrcnt;
 	req->ifbr_addrmax = bif->bif_addrmax;
 	req->ifbr_addrexceeded = bif->bif_addrexceeded;
+	req->ifbr_pvid = bif->bif_pvid;
 
 	/* Copy STP state options as flags */
 	if (bp->bp_operedge)
@@ -1834,6 +1839,23 @@ bridge_ioctl_sifmaxaddr(struct bridge_softc *sc, void *arg)
 		return (ENOENT);
 
 	bif->bif_addrmax = req->ifbr_addrmax;
+	return (0);
+}
+
+static int
+bridge_ioctl_sifpvid(struct bridge_softc *sc, void *arg)
+{
+	struct ifbreq *req = arg;
+	struct bridge_iflist *bif;
+
+	bif = bridge_lookup_member(sc, req->ifbr_ifsname);
+	if (bif == NULL)
+		return (ENOENT);
+
+	if (req->ifbr_pvid >= 4096)
+		return (EINVAL);
+
+	bif->bif_pvid = req->ifbr_pvid;
 	return (0);
 }
 
@@ -2341,7 +2363,7 @@ bridge_transmit(struct ifnet *ifp, struct mbuf *m)
 	    NULL) {
 		error = bridge_enqueue(sc, dst_if, m);
 	} else
-		bridge_broadcast(sc, ifp, m, 0);
+		bridge_broadcast(sc, ifp, m, 0, DOT1Q_VID_NULL);
 
 	return (error);
 }
@@ -2395,12 +2417,11 @@ bridge_qflush(struct ifnet *ifp __unused)
  */
 static void
 bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
-    struct mbuf *m)
+    struct mbuf *m, uint32_t vlan)
 {
 	struct bridge_iflist *dbif;
 	struct ifnet *src_if, *dst_if, *ifp;
 	struct ether_header *eh;
-	uint16_t vlan;
 	uint8_t *dst;
 	int error;
 
@@ -2411,7 +2432,6 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
-	vlan = VLANTAGOF(m);
 
 	if ((sbif->bif_flags & IFBIF_STP) &&
 	    sbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
@@ -2500,7 +2520,7 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	}
 
 	if (dst_if == NULL) {
-		bridge_broadcast(sc, src_if, m, 1);
+		bridge_broadcast(sc, src_if, m, 1, vlan);
 		return;
 	}
 
@@ -2518,6 +2538,17 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 
 	/* Private segments can not talk to each other */
 	if (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE)
+		goto drop;
+
+	/*
+	 * If the destination port is on a different vlan, drop the frame.
+	 * TODO: this is where we'd want to do .1q encap for tagged ports.
+	 *
+	 * Because we don't currently support configuring allowed VLANs for a
+	 * trunk port, treat any interface with VLAN ID 0 as a trunk port for
+	 * any VLAN.
+	 */
+	if ((dbif->bif_pvid != DOT1Q_VID_NULL) && (vlan != dbif->bif_pvid))
 		goto drop;
 
 	if ((dbif->bif_flags & IFBIF_STP) &&
@@ -2601,6 +2632,12 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		return (NULL);
 	}
 
+	/*
+	 * If the frame has no vlan id, take the vlan from the interface.
+	 */
+	if (vlan == DOT1Q_VID_NULL)
+		vlan = bif->bif_pvid;
+
 	bridge_span(sc, m);
 
 	if (m->m_flags & (M_BCAST|M_MCAST)) {
@@ -2627,7 +2664,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		}
 
 		/* Perform the bridge forwarding function with the copy. */
-		bridge_forward(sc, bif, mc);
+		bridge_forward(sc, bif, mc, vlan);
 
 #ifdef DEV_NETMAP
 		/*
@@ -2761,7 +2798,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 #undef GRAB_OUR_PACKETS
 
 	/* Perform the bridge forwarding function. */
-	bridge_forward(sc, bif, m);
+	bridge_forward(sc, bif, m, vlan);
 
 	return (NULL);
 }
@@ -2799,7 +2836,7 @@ bridge_inject(struct ifnet *ifp, struct mbuf *m)
  */
 static void
 bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
-    struct mbuf *m, int runfilt)
+    struct mbuf *m, int runfilt, uint32_t vlan)
 {
 	struct bridge_iflist *dbif, *sbif;
 	struct mbuf *mc;
@@ -2825,6 +2862,11 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 
 		/* Private segments can not talk to each other */
 		if (sbif && (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE))
+			continue;
+
+		/* VLAN filtering for interfaces with non-zero VLAN ID */
+		if ((dbif->bif_pvid != DOT1Q_VID_NULL) &&
+		    (vlan != dbif->bif_pvid))
 			continue;
 
 		if ((dbif->bif_flags & IFBIF_STP) &&

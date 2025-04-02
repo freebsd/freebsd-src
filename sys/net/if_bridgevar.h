@@ -122,6 +122,7 @@
 #define	BRDGSPROTO		28	/* set protocol (ifbrparam) */
 #define	BRDGSTXHC		29	/* set tx hold count (ifbrparam) */
 #define	BRDGSIFAMAX		30	/* set max interface addrs (ifbreq) */
+#define	BRDGSIFPVID		31	/* set if PVID */
 
 /*
  * Generic bridge control request.
@@ -139,7 +140,8 @@ struct ifbreq {
 	uint32_t	ifbr_addrcnt;		/* member if addr number */
 	uint32_t	ifbr_addrmax;		/* member if addr max */
 	uint32_t	ifbr_addrexceeded;	/* member if addr violations */
-	uint8_t		pad[32];
+	ether_vlanid_t	ifbr_pvid;		/* member if PVID */
+	uint8_t		pad[30];
 };
 
 /* BRDGGIFFLAGS, BRDGSIFFLAGS */
