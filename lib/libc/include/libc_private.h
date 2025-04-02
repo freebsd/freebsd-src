@@ -345,6 +345,7 @@ struct __ucontext;
 struct __wrusage;
 enum idtype;
 
+int		__libc_execvpe(const char *, char * const *, char * const *);
 int		__libc_sigaction(int, const struct sigaction *,
 		    struct sigaction *) __hidden;
 int		__libc_sigprocmask(int, const __sigset_t *, __sigset_t *)
