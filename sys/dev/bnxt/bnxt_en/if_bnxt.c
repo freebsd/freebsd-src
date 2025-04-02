@@ -4712,8 +4712,10 @@ bnxt_def_cp_task(void *context, int pending)
 			break;
 		case CMPL_BASE_TYPE_TX_L2:
 		case CMPL_BASE_TYPE_RX_L2:
+		case CMPL_BASE_TYPE_RX_L2_V3:
 		case CMPL_BASE_TYPE_RX_AGG:
 		case CMPL_BASE_TYPE_RX_TPA_START:
+		case CMPL_BASE_TYPE_RX_TPA_START_V3:
 		case CMPL_BASE_TYPE_RX_TPA_END:
 		case CMPL_BASE_TYPE_STAT_EJECT:
 		case CMPL_BASE_TYPE_HWRM_DONE:
