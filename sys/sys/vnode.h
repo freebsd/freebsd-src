@@ -283,7 +283,7 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 struct vattr {
 	__enum_uint8(vtype)	va_type;	/* vnode type (for create) */
 	u_short		va_mode;	/* files access mode and type */
-	u_short		va_padding0;
+	uint16_t	va_bsdflags;	/* same as st_bsdflags from stat(2) */
 	uid_t		va_uid;		/* owner user id */
 	gid_t		va_gid;		/* owner group id */
 	nlink_t		va_nlink;	/* number of references to file */
@@ -988,10 +988,10 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 	AUDIT_ARG_VNODE1(ap->a_vp);						\
 	_error = mac_vnode_check_stat(_ap->a_active_cred, _ap->a_file_cred, _ap->a_vp);\
 	if (__predict_true(_error == 0)) {					\
-		ap->a_sb->st_padding0 = 0;					\
 		ap->a_sb->st_padding1 = 0;					\
 		bzero(_ap->a_sb->st_spare, sizeof(_ap->a_sb->st_spare));	\
 		ap->a_sb->st_filerev = 0;					\
+		ap->a_sb->st_bsdflags = 0;					\
 	}									\
 	_error;									\
 })

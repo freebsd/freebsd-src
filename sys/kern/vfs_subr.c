@@ -1202,6 +1202,7 @@ vattr_null(struct vattr *vap)
 	vap->va_gen = VNOVAL;
 	vap->va_vaflags = 0;
 	vap->va_filerev = VNOVAL;
+	vap->va_bsdflags = 0;
 }
 
 /*

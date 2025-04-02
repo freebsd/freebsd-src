@@ -159,7 +159,7 @@ struct stat {
 	ino_t	  st_ino;		/* inode's number */
 	nlink_t	  st_nlink;		/* number of hard links */
 	mode_t	  st_mode;		/* inode protection mode */
-	__int16_t st_padding0;
+	__int16_t st_bsdflags;		/* misc system flags */
 	uid_t	  st_uid;		/* user ID of the file's owner */
 	gid_t	  st_gid;		/* group ID of the file's group */
 	__int32_t st_padding1;
@@ -339,6 +339,9 @@ struct nstat {
 #define	SF_APPEND	0x00040000	/* writes to file may only append */
 #define	SF_NOUNLINK	0x00100000	/* file may not be removed or renamed */
 #define	SF_SNAPSHOT	0x00200000	/* snapshot inode */
+
+/* st_bsdflags */
+#define	SFBSD_NAMEDATTR	0x0001		/* file is named attribute or dir */
 
 #ifdef _KERNEL
 /*
