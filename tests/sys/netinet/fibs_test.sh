@@ -352,14 +352,13 @@ same_ip_multiple_ifaces_head()
 }
 same_ip_multiple_ifaces_body()
 {
-	atf_expect_fail "kern/189088 Assigning the same IP to multiple interfaces in different FIBs creates a host route for only one"
 	ADDR="192.0.2.2"
 	MASK0="24"
 	MASK1="32"
 
 	# Unlike most of the tests in this file, this is applicable regardless
 	# of net.add_addr_allfibs
-	get_fibs 2
+	get_fibs 4
 
 	# Setup the interfaces, then remove one alias.  It should not panic.
 	setup_tap ${FIB0} inet ${ADDR} ${MASK0}
@@ -371,13 +370,13 @@ same_ip_multiple_ifaces_body()
 		setfib ${FIB1} netstat -rn -f inet
 
 	# Do it again, in the opposite order.  It should not panic.
-	setup_tap ${FIB0} inet ${ADDR} ${MASK0}
+	setup_tap ${FIB2} inet ${ADDR} ${MASK0}
 	TAP0=${TAP}
-	setup_tap ${FIB1} inet ${ADDR} ${MASK1}
+	setup_tap ${FIB3} inet ${ADDR} ${MASK1}
 	TAP1=${TAP}
 	ifconfig ${TAP0} -alias ${ADDR}
 	atf_check -o not-match:"^${ADDR}[[:space:]]" \
-		setfib ${FIB0} netstat -rn -f inet
+		setfib ${FIB2} netstat -rn -f inet
 }
 same_ip_multiple_ifaces_cleanup()
 {
