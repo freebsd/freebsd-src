@@ -179,6 +179,24 @@ send_sig(pid_t pid, int signo, bool foreground)
 			      (int)rk.rk_fpid);
 		logv("signaled %u processes", rk.rk_killed);
 	}
+
+	/*
+	 * If the child process was stopped by a signal, POSIX.1-2024
+	 * requires to send a SIGCONT signal.  However, the standard also
+	 * allows to send a SIGCONT regardless of the stop state, as we
+	 * are doing here.
+	 */
+	if (signo != SIGKILL && signo != SIGSTOP && signo != SIGCONT) {
+		logv("sending signal %s(%d) to command '%s'",
+		     sys_signame[SIGCONT], SIGCONT, command);
+		if (foreground) {
+			kill(pid, SIGCONT);
+		} else {
+			memset(&rk, 0, sizeof(rk));
+			rk.rk_sig = SIGCONT;
+			procctl(P_PID, getpid(), PROC_REAP_KILL, &rk);
+		}
+	}
 }
 
 static void
