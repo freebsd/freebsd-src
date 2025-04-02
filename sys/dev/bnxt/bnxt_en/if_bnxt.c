@@ -3135,17 +3135,15 @@ bnxt_media_change(if_ctx_t ctx)
 	struct ifmedia *ifm = iflib_get_media(ctx);
 	struct ifmediareq ifmr;
 	int rc;
+	struct bnxt_link_info *link_info = &softc->link_info;
 
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
 		return EINVAL;
 
-	softc->link_info.req_signal_mode =
-			HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4;
-
 	switch (IFM_SUBTYPE(ifm->ifm_media)) {
 	case IFM_100_T:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+		link_info->req_link_speed =
 		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_100MB;
 		break;
 	case IFM_1000_KX:
@@ -3153,103 +3151,229 @@ bnxt_media_change(if_ctx_t ctx)
 	case IFM_1000_CX:
 	case IFM_1000_SX:
 	case IFM_1000_LX:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_1GB;
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_1GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_1GB;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_1GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_1GB;
+			link_info->force_speed2_nrz = true;
+		}
+
 		break;
+
 	case IFM_2500_KX:
 	case IFM_2500_T:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+		link_info->req_link_speed =
 		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_2_5GB;
 		break;
 	case IFM_10G_CR1:
 	case IFM_10G_KR:
 	case IFM_10G_LR:
 	case IFM_10G_SR:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_10GB;
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds & HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_10GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_10GB;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_10GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_10GB;
+			link_info->force_speed2_nrz = true;
+		}
+
 		break;
 	case IFM_20G_KR2:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+		link_info->req_link_speed =
 		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_20GB;
 		break;
 	case IFM_25G_CR:
 	case IFM_25G_KR:
 	case IFM_25G_SR:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_25GB;
+	case IFM_25G_LR:
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds & HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_25GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_25GB;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_25GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_25GB;
+			link_info->force_speed2_nrz = true;
+		}
+
 		break;
+
 	case IFM_40G_CR4:
 	case IFM_40G_KR4:
 	case IFM_40G_LR4:
 	case IFM_40G_SR4:
 	case IFM_40G_XLAUI:
 	case IFM_40G_XLAUI_AC:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_40GB;
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds & HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_40GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_40GB;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_40GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_40GB;
+			link_info->force_speed2_nrz = true;
+		}
+
 		break;
+
 	case IFM_50G_CR2:
 	case IFM_50G_KR2:
+	case IFM_50G_KR4:
 	case IFM_50G_SR2:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_50GB;
+	case IFM_50G_LR2:
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_50GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_50GB;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_50GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_50GB;
+			link_info->force_speed2_nrz = true;
+		}
+
 		break;
+
 	case IFM_50G_CP:
 	case IFM_50G_LR:
 	case IFM_50G_SR:
 	case IFM_50G_KR_PAM4:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-		    HWRM_PORT_PHY_CFG_INPUT_FORCE_PAM4_LINK_SPEED_50GB;
-		softc->link_info.req_signal_mode =
-			HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4;
-		softc->link_info.force_pam4_speed_set_by_user = true;
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_pam4_speeds & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_PAM4_SPEEDS_50G) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_PAM4_LINK_SPEED_50GB;
+			link_info->force_pam4_speed = true;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_50GB_PAM4_56) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_50GB_PAM4_56;
+			link_info->force_pam4_56_speed2 = true;
+		}
+
 		break;
+
 	case IFM_100G_CR4:
 	case IFM_100G_KR4:
 	case IFM_100G_LR4:
 	case IFM_100G_SR4:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-			HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_100GB;
+	case IFM_100G_AUI4:
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_100GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_100GB;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_100GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_100GB;
+			link_info->force_speed2_nrz = true;
+		}
+
 		break;
+
 	case IFM_100G_CP2:
 	case IFM_100G_SR2:
-	case IFM_100G_KR_PAM4:
 	case IFM_100G_KR2_PAM4:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-			HWRM_PORT_PHY_CFG_INPUT_FORCE_PAM4_LINK_SPEED_100GB;
-		softc->link_info.req_signal_mode =
-			HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4;
-		softc->link_info.force_pam4_speed_set_by_user = true;
+	case IFM_100G_AUI2:
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_pam4_speeds & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_PAM4_SPEEDS_100G) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_PAM4_LINK_SPEED_100GB;
+			link_info->force_pam4_speed = true;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_100GB_PAM4_56) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_100GB_PAM4_56;
+			link_info->force_pam4_56_speed2 = true;
+		}
+
 		break;
+
+	case IFM_100G_KR_PAM4:
+	case IFM_100G_CR_PAM4:
+	case IFM_100G_DR:
+	case IFM_100G_AUI2_AC:
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_100GB_PAM4_112) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_100GB_PAM4_112;
+			link_info->force_pam4_112_speed2 = true;
+		}
+
+		break;
+
 	case IFM_200G_SR4:
 	case IFM_200G_FR4:
 	case IFM_200G_LR4:
 	case IFM_200G_DR4:
 	case IFM_200G_CR4_PAM4:
 	case IFM_200G_KR4_PAM4:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-			HWRM_PORT_PHY_CFG_INPUT_FORCE_PAM4_LINK_SPEED_200GB;
-		softc->link_info.force_pam4_speed_set_by_user = true;
-		softc->link_info.req_signal_mode =
-			HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4;
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_pam4_speeds & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_PAM4_SPEEDS_200G) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_PAM4_LINK_SPEED_200GB;
+			link_info->force_pam4_speed = true;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_200GB_PAM4_56) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_200GB_PAM4_56;
+			link_info->force_pam4_56_speed2 = true;
+		}
+
 		break;
+
+	case IFM_200G_AUI4:
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_200GB_PAM4_112) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_200GB_PAM4_112;
+			link_info->force_pam4_112_speed2 = true;
+		}
+
+		break;
+
+	case IFM_400G_FR8:
+	case IFM_400G_LR8:
+	case IFM_400G_AUI8:
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_400GB_PAM4_56) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_400GB_PAM4_56;
+			link_info->force_pam4_56_speed2 = true;
+		}
+
+		break;
+
+	case IFM_400G_AUI8_AC:
+	case IFM_400G_DR4:
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_400GB_PAM4_112) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_400GB_PAM4_112;
+			link_info->force_pam4_112_speed2 = true;
+		}
+
+		break;
+
 	case IFM_1000_T:
-		softc->link_info.advertising = HWRM_PORT_PHY_CFG_INPUT_AUTO_LINK_SPEED_MASK_1GB;
-		softc->link_info.autoneg |= BNXT_AUTONEG_SPEED;
+		link_info->advertising = HWRM_PORT_PHY_CFG_INPUT_AUTO_LINK_SPEED_MASK_1GB;
+		link_info->autoneg |= BNXT_AUTONEG_SPEED;
 		break;
 	case IFM_10G_T:
-		softc->link_info.advertising = HWRM_PORT_PHY_CFG_INPUT_AUTO_LINK_SPEED_MASK_10GB;
-		softc->link_info.autoneg |= BNXT_AUTONEG_SPEED;
+		link_info->advertising = HWRM_PORT_PHY_CFG_INPUT_AUTO_LINK_SPEED_MASK_10GB;
+		link_info->autoneg |= BNXT_AUTONEG_SPEED;
 		break;
 	default:
 		device_printf(softc->dev,
@@ -3257,9 +3381,10 @@ bnxt_media_change(if_ctx_t ctx)
 		/* Fall-through */
 	case IFM_AUTO:
 		// Auto
-		softc->link_info.autoneg |= BNXT_AUTONEG_SPEED;
+		link_info->autoneg |= BNXT_AUTONEG_SPEED;
 		break;
 	}
+
 	rc = bnxt_hwrm_set_link_setting(softc, true, true, true);
 	bnxt_media_status(softc->ctx, &ifmr);
 	return rc;
@@ -4031,57 +4156,161 @@ bnxt_probe_phy(struct bnxt_softc *softc)
 }
 
 static void
-add_media(struct bnxt_softc *softc, uint8_t media_type, uint16_t supported,
-	  uint16_t supported_pam4)
+add_media(struct bnxt_softc *softc, u8 media_type, u16 supported_NRZ_speeds,
+	  u16 supported_pam4_speeds, u16 supported_speeds2)
 {
+
 	switch (media_type) {
 		case BNXT_MEDIA_CR:
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_50G, IFM_50G_CP);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_100G, IFM_100G_CP2);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_200G, IFM_200G_CR4_PAM4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_100GB, IFM_100G_CR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_50GB, IFM_50G_CR2);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_CR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_CR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_CR1);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_CX);
+
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_50G, IFM_50G_CP);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_100G, IFM_100G_CP2);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_200G, IFM_200G_CR4_PAM4);
+
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100GB, IFM_100G_CR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_50GB, IFM_50G_CR2);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_CR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_25GB, IFM_25G_CR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_CR1);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_CX);
+			/* thor2 nrz*/
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB, IFM_100G_CR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB, IFM_50G_CR2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_40GB, IFM_40G_CR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_25GB, IFM_25G_CR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_10GB, IFM_10G_CR1);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_1GB, IFM_1000_CX);
+			/* thor2 PAM56 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB_PAM4_56, IFM_50G_CP);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_56, IFM_100G_CP2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_56, IFM_200G_CR4_PAM4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_AUI8);
+			/* thor2 PAM112 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_CR_PAM4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_AUI8_AC);
+
 			break;
 
 		case BNXT_MEDIA_LR:
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_50G, IFM_50G_LR);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_200G, IFM_200G_LR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_100GB, IFM_100G_LR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_50GB, IFM_50G_LR2);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_LR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_LR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_LR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_LX);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_50G, IFM_50G_LR);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_200G, IFM_200G_LR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100GB, IFM_100G_LR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_50GB, IFM_50G_LR2);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_LR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_25GB, IFM_25G_LR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_LR);
+			/* thor2 nrz*/
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB, IFM_100G_LR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB, IFM_50G_LR2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_40GB, IFM_40G_LR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_25GB, IFM_25G_LR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_10GB, IFM_10G_LR);
+			/* thor2 PAM56 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB_PAM4_56, IFM_50G_LR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_56, IFM_100G_AUI2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_56, IFM_200G_LR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_LR8);
+			/* thor2 PAM112 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_AUI2_AC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_AUI8_AC);
+
 			break;
 
 		case BNXT_MEDIA_SR:
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_50G, IFM_50G_SR);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_100G, IFM_100G_SR2);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_200G, IFM_200G_SR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_100GB, IFM_100G_SR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_50GB, IFM_50G_SR2);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_SR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_SR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_SR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_SX);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_50G, IFM_50G_SR);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_100G, IFM_100G_SR2);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_200G, IFM_200G_SR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100GB, IFM_100G_SR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_50GB, IFM_50G_SR2);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_SR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_25GB, IFM_25G_SR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_SR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_SX);
+			/* thor2 nrz*/
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB, IFM_100G_SR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB, IFM_50G_SR2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_40GB, IFM_40G_SR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_25GB, IFM_25G_SR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_10GB, IFM_10G_SR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_1GB, IFM_1000_SX);
+			/* thor2 PAM56 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB_PAM4_56, IFM_50G_SR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_56, IFM_100G_SR2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_56, IFM_200G_SR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_AUI8);
+			/* thor2 PAM112 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_AUI2_AC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_DR4);
+			break;
+
+		case BNXT_MEDIA_ER:
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_ER4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100GB, IFM_100G_AUI4);
+			/* thor2 PAM56 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB_PAM4_56, IFM_50G_LR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_56, IFM_100G_AUI2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_56, IFM_200G_LR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_FR8);
+			/* thor2 PAM112 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_AUI2_AC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4_AC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_AUI8_AC);
 			break;
 
 		case BNXT_MEDIA_KR:
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_50G, IFM_50G_KR_PAM4);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_100G, IFM_100G_KR2_PAM4);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_200G, IFM_200G_KR4_PAM4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_100GB, IFM_100G_KR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_50GB, IFM_50G_KR2);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_50GB, IFM_50G_KR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_KR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_KR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_20GB, IFM_20G_KR2);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_KR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_KX);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_50G, IFM_50G_KR_PAM4);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_100G, IFM_100G_KR2_PAM4);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_200G, IFM_200G_KR4_PAM4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100GB, IFM_100G_KR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_50GB, IFM_50G_KR2);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_50GB, IFM_50G_KR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_KR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_25GB, IFM_25G_KR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_20GB, IFM_20G_KR2);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_KR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_KX);
+			break;
+
+		case BNXT_MEDIA_AC:
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_25GB, IFM_25G_ACC);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_AOC);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_XLAUI);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_XLAUI_AC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_25GB, IFM_25G_ACC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_10GB, IFM_10G_AOC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_40GB, IFM_40G_XLAUI);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_40GB, IFM_40G_XLAUI_AC);
+			break;
+
+		case BNXT_MEDIA_BASECX:
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_CX);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_1GB, IFM_1000_CX);
+			break;
+
+		case BNXT_MEDIA_BASET:
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_T);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_2_5GB, IFM_2500_T);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_T);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100MB, IFM_100_T);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10MB, IFM_10_T);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_10GB, IFM_10G_T);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_1GB, IFM_1000_T);
+			break;
+
+		case BNXT_MEDIA_BASEKX:
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_KR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_2_5GB, IFM_2500_KX);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_KX);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_10GB, IFM_10G_KR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_1GB, IFM_1000_KX);
+			break;
+
+		case BNXT_MEDIA_BASESGMII:
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_SGMII);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_1GB, IFM_1000_SGMII);
 			break;
 
 		default:
@@ -4096,11 +4325,12 @@ static void
 bnxt_add_media_types(struct bnxt_softc *softc)
 {
 	struct bnxt_link_info *link_info = &softc->link_info;
-	uint16_t supported = 0, supported_pam4 = 0;
+	uint16_t supported_NRZ_speeds = 0, supported_pam4_speeds = 0, supported_speeds2 = 0;
 	uint8_t phy_type = get_phy_type(softc), media_type;
 
-	supported = link_info->support_speeds;
-	supported_pam4 = link_info->support_pam4_speeds;
+	supported_NRZ_speeds = link_info->support_speeds;
+	supported_speeds2 = link_info->support_speeds2;
+	supported_pam4_speeds = link_info->support_pam4_speeds;
 
 	/* Auto is always supported */
 	ifmedia_add(softc->media, IFM_ETHER | IFM_AUTO, 0, NULL);
@@ -4109,38 +4339,73 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		return;
 
 	switch (phy_type) {
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASECR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASECR4:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASECR2:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASECR:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASECR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_25G_BASECR_CA_L:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_25G_BASECR_CA_S:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_25G_BASECR_CA_N:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASECR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASECR2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASECR4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASECR8:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASECR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASECR2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASECR4:
+
 		media_type = BNXT_MEDIA_CR;
 		break;
 
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASELR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASELR4:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASELR:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASELR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASELR:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASELR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASELR2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASELR4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASELR8:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASELR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASELR2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASELR4:
+
 		media_type = BNXT_MEDIA_LR;
 		break;
 
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASESR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASESR10:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASESR4:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASESR:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASESR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASESR:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASEER4:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASEER4:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASEER4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_25G_BASESR:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASESX:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASESR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASESR2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASESR4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASESR8:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASESR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASESR2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASESR4:
+
 		media_type = BNXT_MEDIA_SR;
+		break;
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASEER4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASEER4:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASEER:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASEER2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASEER4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASEER8:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASEER:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASEER2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASEER4:
+
+		media_type = BNXT_MEDIA_ER;
 		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
@@ -4150,34 +4415,25 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_ACTIVE_CABLE:
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_ACC);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_AOC);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_XLAUI);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_XLAUI_AC);
+		media_type = BNXT_MEDIA_AC;
 		return;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASECX:
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GBHD, IFM_1000_CX);
+		media_type = BNXT_MEDIA_BASECX;
 		return;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASET:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASET:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASETE:
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_T);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_2_5GB, IFM_2500_T);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_T);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_100MB, IFM_100_T);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_10MB, IFM_10_T);
+		media_type = BNXT_MEDIA_BASET;
 		return;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_KR);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_2_5GB, IFM_2500_KX);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_KX);
+		media_type = BNXT_MEDIA_BASEKX;
 		return;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_SGMIIEXTPHY:
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_SGMII);
+		media_type = BNXT_MEDIA_BASESGMII;
 		return;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_UNKNOWN:
@@ -4190,17 +4446,22 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		return;
 	}
 
-	/* add_media is invoked twice, once with a firmware speed mask of 0 and a valid
-	 * value for both NRZ and PAM4 sig mode. This ensures accurate display of all
-	 * supported medias and currently configured media in the "ifconfig -m" output
-	 */
-
-	if (link_info->sig_mode == BNXT_SIG_MODE_PAM4) {
-		add_media(softc, media_type, supported, 0);
-		add_media(softc, media_type, 0, supported_pam4);
-	} else {
-		add_media(softc, media_type, 0, supported_pam4);
-		add_media(softc, media_type, supported, 0);
+	switch (link_info->sig_mode) {
+	case BNXT_SIG_MODE_NRZ:
+		if (supported_NRZ_speeds != 0)
+			add_media(softc, media_type, supported_NRZ_speeds, 0, 0);
+		else
+			add_media(softc, media_type, 0, 0, supported_speeds2);
+		break;
+	case BNXT_SIG_MODE_PAM4:
+		if (supported_pam4_speeds != 0)
+			add_media(softc, media_type, 0, supported_pam4_speeds, 0);
+		else
+			add_media(softc, media_type, 0, 0, supported_speeds2);
+		break;
+	case BNXT_SIG_MODE_PAM4_112:
+		add_media(softc, media_type, 0, 0, supported_speeds2);
+		break;
 	}
 
 	return;
@@ -4373,7 +4634,10 @@ bnxt_report_link(struct bnxt_softc *softc)
 				signal_mode = "(NRZ) ";
 				break;
 			case BNXT_SIG_MODE_PAM4:
-				signal_mode = "(PAM4) ";
+				signal_mode = "(PAM4 56Gbps) ";
+				break;
+			case BNXT_SIG_MODE_PAM4_112:
+				signal_mode = "(PAM4 112Gbps) ";
 				break;
 			default:
 				break;
@@ -4837,6 +5101,8 @@ bnxt_get_baudrate(struct bnxt_link_info *link)
 		return IF_Mbps(10);
 	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_200GB:
 		return IF_Gbps(200);
+	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_400GB:
+		return IF_Gbps(400);
 	}
 	return IF_Gbps(100);
 }

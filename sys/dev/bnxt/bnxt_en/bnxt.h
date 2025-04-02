@@ -411,12 +411,19 @@ struct bnxt_link_info {
 
 	uint16_t	link_speed;
 	uint16_t	support_speeds;
+	uint16_t	support_speeds2;
 	uint16_t	support_pam4_speeds;
 	uint16_t	auto_link_speeds;
+	uint16_t	auto_link_speeds2;
 	uint16_t	auto_pam4_link_speeds;
 	uint16_t	force_link_speed;
+	uint16_t	force_link_speeds2;
 	uint16_t	force_pam4_link_speed;
-	bool		force_pam4_speed_set_by_user;
+
+	bool		force_pam4_speed;
+	bool		force_speed2_nrz;
+	bool		force_pam4_56_speed2;
+	bool		force_pam4_112_speed2;
 
 	uint16_t	advertising;
 	uint16_t	advertising_pam4;
@@ -426,8 +433,11 @@ struct bnxt_link_info {
 	uint16_t	support_force_speeds;
 	uint16_t	support_pam4_auto_speeds;
 	uint16_t	support_pam4_force_speeds;
+	uint16_t	support_auto_speeds2;
+	uint16_t	support_force_speeds2;
 #define BNXT_SIG_MODE_NRZ	HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_NRZ
 #define BNXT_SIG_MODE_PAM4	HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4
+#define BNXT_SIG_MODE_PAM4_112 HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4_112
 	uint8_t		req_signal_mode;
 
 	uint8_t		active_fec_sig_mode;
@@ -447,7 +457,13 @@ enum bnxt_phy_type {
 	BNXT_MEDIA_CR = 0,
 	BNXT_MEDIA_LR,
 	BNXT_MEDIA_SR,
+	BNXT_MEDIA_ER,
 	BNXT_MEDIA_KR,
+	BNXT_MEDIA_AC,
+	BNXT_MEDIA_BASECX,
+	BNXT_MEDIA_BASET,
+	BNXT_MEDIA_BASEKX,
+	BNXT_MEDIA_BASESGMII,
 	BNXT_MEDIA_END
 };
 
