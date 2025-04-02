@@ -89,7 +89,11 @@ By default,
 .Dv SIGTERM
 is sent.
 .It Fl v , Fl -verbose
-Show information to stderr about any signal sent on timeout.
+Show information to
+.Xr stderr 4
+about timeouts, signals to be sent, and the
+.Ar command
+exits.
 .El
 .Ss Duration Format
 The
