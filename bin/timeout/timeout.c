@@ -56,8 +56,8 @@ static void __dead2
 usage(void)
 {
 	fprintf(stderr,
-		"Usage: %s [--foreground] [-k time | --kill-after time]"
-		" [--preserve-status] [-s signal | --signal signal] "
+		"Usage: %s [-f | --foreground] [-k time | --kill-after time]"
+		" [-p | --preserve-status] [-s signal | --signal signal] "
 		" [-v | --verbose] <duration> <command> [arg ...]\n",
 		getprogname());
 	exit(EXIT_FAILURE);
@@ -175,13 +175,14 @@ int
 main(int argc, char **argv)
 {
 	int ch, status, sig;
-	int foreground, preserve;
 	int pstat = 0;
 	int killsig = SIGTERM;
 	size_t i;
 	pid_t pid, cpid;
 	double first_kill;
-	double second_kill;
+	double second_kill = 0;
+	bool foreground = false;
+	bool preserve = false;
 	bool timedout = false;
 	bool do_second_kill = false;
 	bool child_done = false;
@@ -198,24 +199,28 @@ main(int argc, char **argv)
 		SIGQUIT,
 	};
 
-	foreground = preserve = 0;
-	second_kill = 0;
-
+	const char optstr[] = "+fhk:ps:v";
 	const struct option longopts[] = {
-		{ "foreground",      no_argument,       &foreground,  1  },
-		{ "help",            no_argument,       NULL,        'h' },
-		{ "kill-after",      required_argument, NULL,        'k' },
-		{ "preserve-status", no_argument,       &preserve,    1  },
-		{ "signal",          required_argument, NULL,        's' },
-		{ "verbose",         no_argument,       NULL,        'v' },
-		{ NULL,              0,                 NULL,         0  },
+		{ "foreground",      no_argument,       NULL, 'f' },
+		{ "help",            no_argument,       NULL, 'h' },
+		{ "kill-after",      required_argument, NULL, 'k' },
+		{ "preserve-status", no_argument,       NULL, 'p' },
+		{ "signal",          required_argument, NULL, 's' },
+		{ "verbose",         no_argument,       NULL, 'v' },
+		{ NULL,              0,                 NULL,  0  },
 	};
 
-	while ((ch = getopt_long(argc, argv, "+k:s:vh", longopts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, optstr, longopts, NULL)) != -1) {
 		switch (ch) {
+		case 'f':
+			foreground = true;
+			break;
 		case 'k':
 			do_second_kill = true;
 			second_kill = parse_duration(optarg);
+			break;
+		case 'p':
+			preserve = true;
 			break;
 		case 's':
 			killsig = parse_signal(optarg);
