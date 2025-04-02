@@ -178,7 +178,7 @@ main(int argc, char **argv)
 {
 	int ch;
 	int foreground, preserve;
-	int error, pstat, status;
+	int pstat, status;
 	int killsig = SIGTERM;
 	size_t i;
 	pid_t pid, cpid;
@@ -280,13 +280,9 @@ main(int argc, char **argv)
 		signal(SIGTTIN, SIG_DFL);
 		signal(SIGTTOU, SIG_DFL);
 
-		error = execvp(argv[0], argv);
-		if (error == -1) {
-			if (errno == ENOENT)
-				err(EXIT_CMD_NOENT, "exec(%s)", argv[0]);
-			else
-				err(EXIT_CMD_ERROR, "exec(%s)", argv[0]);
-		}
+		execvp(argv[0], argv);
+		warn("exec(%s)", argv[0]);
+		_exit(errno == ENOENT ? EXIT_CMD_NOENT : EXIT_CMD_ERROR);
 	}
 
 	if (sigprocmask(SIG_BLOCK, &signals.sa_mask, NULL) == -1)
