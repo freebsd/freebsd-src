@@ -28,9 +28,13 @@
 #ifndef _LINUXKPI_LINUX_SEQ_FILE_H_
 #define _LINUXKPI_LINUX_SEQ_FILE_H_
 
+#include <sys/types.h>
+#include <sys/sbuf.h>
+
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/string_helpers.h>
+#include <linux/printk.h>
 
 #undef file
 #define inode vnode
@@ -88,6 +92,16 @@ void lkpi_seq_printf(struct seq_file *m, const char *fmt, ...);
 
 #define	seq_vprintf(...)	lkpi_seq_vprintf(__VA_ARGS__)
 #define	seq_printf(...)		lkpi_seq_printf(__VA_ARGS__)
+
+int __lkpi_hexdump_sbuf_printf(void *, const char *, ...) __printflike(2, 3);
+
+static inline void
+seq_hex_dump(struct seq_file *m, const char *prefix_str, int prefix_type,
+    int rowsize, int groupsize, const void *buf, size_t len, bool ascii)
+{
+	lkpi_hex_dump(__lkpi_hexdump_sbuf_printf, m->buf, NULL, prefix_str, prefix_type,
+	    rowsize, groupsize, buf, len, ascii);
+}
 
 #define	file			linux_file
 
