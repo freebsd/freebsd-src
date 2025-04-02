@@ -47,7 +47,7 @@
 #define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)
 
 static void login_send_error(struct pdu *request,
-    char class, char detail);
+    char error_class, char detail);
 
 static void
 kernel_limits(const char *offload, int s, int *max_recv_dsl, int *max_send_dsl,
@@ -230,16 +230,16 @@ login_new_response(struct pdu *request)
 }
 
 static void
-login_send_error(struct pdu *request, char class, char detail)
+login_send_error(struct pdu *request, char error_class, char detail)
 {
 	struct pdu *response;
 	struct iscsi_bhs_login_response *bhslr2;
 
 	log_debugx("sending Login Response PDU with failure class 0x%x/0x%x; "
-	    "see next line for reason", class, detail);
+	    "see next line for reason", error_class, detail);
 	response = login_new_response(request);
 	bhslr2 = (struct iscsi_bhs_login_response *)response->pdu_bhs;
-	bhslr2->bhslr_status_class = class;
+	bhslr2->bhslr_status_class = error_class;
 	bhslr2->bhslr_status_detail = detail;
 
 	pdu_send(response);
