@@ -365,6 +365,7 @@ struct mntoptnames {
 	{ MNT_RELOAD,		"reload" },				\
 	{ MNT_FORCE,		"force" },				\
 	{ MNT_SNAPSHOT,		"snapshot" },				\
+	{ MNT_NAMEDATTR,	"named attributes" },			\
 	{ 0, NULL }
 #endif
 
@@ -390,6 +391,7 @@ struct mntoptnames {
 #define	MNT_SUJ		0x0000000100000000ULL /* using journaled soft updates */
 #define	MNT_AUTOMOUNTED	0x0000000200000000ULL /* mounted by automountd(8) */
 #define	MNT_UNTRUSTED	0x0000000800000000ULL /* filesys metadata untrusted */
+#define	MNT_NAMEDATTR	0x0000020000000000ULL /* named attributes enabled */
 
 /*
  * NFS export related mount flags.
@@ -429,7 +431,7 @@ struct mntoptnames {
 			MNT_IGNORE	| MNT_EXPUBLIC	| MNT_NOSYMFOLLOW | \
 			MNT_GJOURNAL	| MNT_MULTILABEL | MNT_ACLS	| \
 			MNT_NFS4ACLS	| MNT_AUTOMOUNTED | MNT_VERIFIED | \
-			MNT_UNTRUSTED)
+			MNT_UNTRUSTED	| MNT_NAMEDATTR)
 
 /* Mask of flags that can be updated. */
 #define	MNT_UPDATEMASK (MNT_NOSUID	| MNT_NOEXEC	| \

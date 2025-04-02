@@ -381,6 +381,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 			error = fgetvp_lookup(ndp, dpp);
 		}
 		if (error == 0 && (*dpp)->v_type != VDIR &&
+		    (cnp->cn_flags & OPENNAMED) == 0 &&
 		    (cnp->cn_pnbuf[0] != '\0' ||
 		    (cnp->cn_flags & EMPTYPATH) == 0))
 			error = ENOTDIR;

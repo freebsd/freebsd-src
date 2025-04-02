@@ -140,6 +140,7 @@ typedef	__pid_t		pid_t;
 #define	O_DSYNC		0x01000000	/* POSIX data sync */
 #if __BSD_VISIBLE
 #define	O_EMPTY_PATH	0x02000000
+#define	O_NAMEDATTR	0x04000000	/* NFSv4 named attributes */
 #endif
 
 /*
