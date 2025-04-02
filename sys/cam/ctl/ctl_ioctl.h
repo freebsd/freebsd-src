@@ -112,10 +112,10 @@ typedef enum {
 	CTL_SS_ERROR
 } ctl_stats_status;
 
-typedef enum {
-	CTL_STATS_FLAG_NONE		= 0x00,
-	CTL_STATS_FLAG_TIME_VALID	= 0x01
-} ctl_stats_flags;
+typedef u_int ctl_stats_flags;
+
+#define	CTL_STATS_FLAG_NONE		0x00
+#define	CTL_STATS_FLAG_TIME_VALID	0x01
 
 struct ctl_io_stats {
 	uint32_t			item;
@@ -151,16 +151,16 @@ struct ctl_get_io_stats {
  * CONTINUOUS:	This error will stay around until explicitly cleared.
  * DESCRIPTOR:	Use descriptor sense instead of fixed sense.
  */
-typedef enum {
-	CTL_LUN_INJ_NONE		= 0x000,
-	CTL_LUN_INJ_ABORTED		= 0x001,
-	CTL_LUN_INJ_MEDIUM_ERR		= 0x002,
-	CTL_LUN_INJ_UA			= 0x003,
-	CTL_LUN_INJ_CUSTOM		= 0x004,
-	CTL_LUN_INJ_TYPE		= 0x0ff,
-	CTL_LUN_INJ_CONTINUOUS		= 0x100,
-	CTL_LUN_INJ_DESCRIPTOR		= 0x200
-} ctl_lun_error;
+typedef u_int ctl_lun_error;
+
+#define	CTL_LUN_INJ_NONE		0x000
+#define	CTL_LUN_INJ_ABORTED		0x001
+#define	CTL_LUN_INJ_MEDIUM_ERR		0x002
+#define	CTL_LUN_INJ_UA			0x003
+#define	CTL_LUN_INJ_CUSTOM		0x004
+#define	CTL_LUN_INJ_TYPE		0x0ff
+#define	CTL_LUN_INJ_CONTINUOUS		0x100
+#define	CTL_LUN_INJ_DESCRIPTOR		0x200
 
 /*
  * Flags to specify what type of command the given error pattern will
@@ -180,18 +180,18 @@ typedef enum {
  * RANGE:	For read/write commands, act when the LBA is in the
  *		specified range.
  */
-typedef enum {
-	CTL_LUN_PAT_NONE	= 0x000,
-	CTL_LUN_PAT_READ	= 0x001,
-	CTL_LUN_PAT_WRITE	= 0x002,
-	CTL_LUN_PAT_READWRITE	= CTL_LUN_PAT_READ | CTL_LUN_PAT_WRITE,
-	CTL_LUN_PAT_READCAP	= 0x004,
-	CTL_LUN_PAT_TUR		= 0x008,
-	CTL_LUN_PAT_ANY		= 0x0ff,
-	CTL_LUN_PAT_MASK	= 0x0ff,
-	CTL_LUN_PAT_CMD		= 0x100,
-	CTL_LUN_PAT_RANGE	= 0x200
-} ctl_lun_error_pattern;
+typedef u_int ctl_lun_error_pattern;
+
+#define	CTL_LUN_PAT_NONE	0x000
+#define	CTL_LUN_PAT_READ	0x001
+#define	CTL_LUN_PAT_WRITE	0x002
+#define	CTL_LUN_PAT_READWRITE	CTL_LUN_PAT_READ | CTL_LUN_PAT_WRITE
+#define	CTL_LUN_PAT_READCAP	0x004
+#define	CTL_LUN_PAT_TUR		0x008
+#define	CTL_LUN_PAT_ANY		0x0ff
+#define	CTL_LUN_PAT_MASK	0x0ff
+#define	CTL_LUN_PAT_CMD		0x100
+#define	CTL_LUN_PAT_RANGE	0x200
 
 /*
  * This structure allows the user to specify a particular CDB pattern to
@@ -231,10 +231,10 @@ struct ctl_error_desc {
 	STAILQ_ENTRY(ctl_error_desc)	links;		/* Kernel use only */
 };
 
-typedef enum {
-	CTL_OOA_FLAG_NONE	= 0x00,
-	CTL_OOA_FLAG_ALL_LUNS	= 0x01
-} ctl_ooa_flags;
+typedef u_int ctl_ooa_flags;
+
+#define	CTL_OOA_FLAG_NONE	0x00
+#define	CTL_OOA_FLAG_ALL_LUNS	0x01
 
 typedef enum {
 	CTL_OOA_OK,
@@ -242,16 +242,16 @@ typedef enum {
 	CTL_OOA_ERROR
 } ctl_get_ooa_status;
 
-typedef enum {
-	CTL_OOACMD_FLAG_NONE		= 0x00,
-	CTL_OOACMD_FLAG_DMA		= 0x01,
-	CTL_OOACMD_FLAG_BLOCKED		= 0x02,
-	CTL_OOACMD_FLAG_ABORT		= 0x04,
-	CTL_OOACMD_FLAG_RTR		= 0x08,
-	CTL_OOACMD_FLAG_DMA_QUEUED	= 0x10,
-	CTL_OOACMD_FLAG_STATUS_QUEUED	= 0x20,
-	CTL_OOACMD_FLAG_STATUS_SENT	= 0x40
-} ctl_ooa_cmd_flags;
+typedef u_int ctl_ooa_cmd_flags;
+
+#define	CTL_OOACMD_FLAG_NONE		0x00
+#define	CTL_OOACMD_FLAG_DMA		0x01
+#define	CTL_OOACMD_FLAG_BLOCKED		0x02
+#define	CTL_OOACMD_FLAG_ABORT		0x04
+#define	CTL_OOACMD_FLAG_RTR		0x08
+#define	CTL_OOACMD_FLAG_DMA_QUEUED	0x10
+#define	CTL_OOACMD_FLAG_STATUS_QUEUED	0x20
+#define	CTL_OOACMD_FLAG_STATUS_SENT	0x40
 
 struct ctl_ooa_entry {
 	ctl_ooa_cmd_flags	cmd_flags;
@@ -322,18 +322,18 @@ typedef enum {
  *
  * The OFFLINE flag tells us that this LUN can not access backing store.
  */
-typedef enum {
-	CTL_LUN_FLAG_ID_REQ		= 0x01,
-	CTL_LUN_FLAG_STOPPED		= 0x02,
-	CTL_LUN_FLAG_NO_MEDIA		= 0x04,
-	CTL_LUN_FLAG_PRIMARY		= 0x08,
-	CTL_LUN_FLAG_SERIAL_NUM		= 0x10,
-	CTL_LUN_FLAG_DEVID		= 0x20,
-	CTL_LUN_FLAG_DEV_TYPE		= 0x40,
-	CTL_LUN_FLAG_UNMAP		= 0x80,
-	CTL_LUN_FLAG_EJECTED		= 0x100,
-	CTL_LUN_FLAG_READONLY		= 0x200
-} ctl_backend_lun_flags;
+typedef u_int ctl_backend_lun_flags;
+
+#define	CTL_LUN_FLAG_ID_REQ		0x01
+#define	CTL_LUN_FLAG_STOPPED		0x02
+#define	CTL_LUN_FLAG_NO_MEDIA		0x04
+#define	CTL_LUN_FLAG_PRIMARY		0x08
+#define	CTL_LUN_FLAG_SERIAL_NUM		0x10
+#define	CTL_LUN_FLAG_DEVID		0x20
+#define	CTL_LUN_FLAG_DEV_TYPE		0x40
+#define	CTL_LUN_FLAG_UNMAP		0x80
+#define	CTL_LUN_FLAG_EJECTED		0x100
+#define	CTL_LUN_FLAG_READONLY		0x200
 
 /*
  * LUN creation parameters:
