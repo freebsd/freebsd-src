@@ -40,10 +40,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#define EXIT_TIMEOUT 124
-#define EXIT_INVALID 125
-#define EXIT_CMD_ERROR 126
-#define EXIT_CMD_NOENT 127
+#define EXIT_TIMEOUT	124
+#define EXIT_INVALID	125
+#define EXIT_CMD_ERROR	126
+#define EXIT_CMD_NOENT	127
 
 static volatile sig_atomic_t sig_chld = 0;
 static volatile sig_atomic_t sig_term = 0;
@@ -52,15 +52,14 @@ static volatile sig_atomic_t sig_ign = 0;
 static const char *command = NULL;
 static bool verbose = false;
 
-static void
+static void __dead2
 usage(void)
 {
-
-	fprintf(stderr, "Usage: %s [-k time | --kill-after time]"
-		" [-s sig | --signal sig] [-v | --verbose] [--foreground]"
-		" [--preserve-status] <duration> <command> <arg ...>\n",
+	fprintf(stderr,
+		"Usage: %s [--foreground] [-k time | --kill-after time]"
+		" [--preserve-status] [-s signal | --signal signal] "
+		" [-v | --verbose] <duration> <command> [arg ...]\n",
 		getprogname());
-
 	exit(EXIT_FAILURE);
 }
 
@@ -109,13 +108,11 @@ parse_signal(const char *str)
 	const char *errstr;
 
 	sig = strtonum(str, 1, sys_nsig - 1, &errstr);
-
 	if (errstr == NULL)
 		return (sig);
 
 	if (strncasecmp(str, "SIG", 3) == 0)
 		str += 3;
-
 	for (i = 1; i < sys_nsig; i++) {
 		if (strcasecmp(str, sys_signame[i]) == 0)
 			return (i);
@@ -133,7 +130,6 @@ sig_handler(int signo)
 	}
 
 	switch (signo) {
-	case 0:
 	case SIGINT:
 	case SIGHUP:
 	case SIGQUIT:
@@ -154,7 +150,7 @@ send_sig(pid_t pid, int signo)
 {
 	if (verbose) {
 		warnx("sending signal %s(%d) to command '%s'",
-		sys_signame[signo], signo, command);
+		      sys_signame[signo], signo, command);
 	}
 	kill(pid, signo);
 }
@@ -165,9 +161,11 @@ set_interval(double iv)
 	struct itimerval tim;
 
 	memset(&tim, 0, sizeof(tim));
-	tim.it_value.tv_sec = (time_t)iv;
-	iv -= (double)tim.it_value.tv_sec;
-	tim.it_value.tv_usec = (suseconds_t)(iv * 1000000UL);
+	if (iv > 0) {
+		tim.it_value.tv_sec = (time_t)iv;
+		iv -= (double)(time_t)iv;
+		tim.it_value.tv_usec = (suseconds_t)(iv * 1000000UL);
+	}
 
 	if (setitimer(ITIMER_REAL, &tim, NULL) == -1)
 		err(EXIT_FAILURE, "setitimer()");
@@ -176,9 +174,9 @@ set_interval(double iv)
 int
 main(int argc, char **argv)
 {
-	int ch;
+	int ch, status;
 	int foreground, preserve;
-	int pstat, status;
+	int pstat = 0;
 	int killsig = SIGTERM;
 	size_t i;
 	pid_t pid, cpid;
@@ -204,38 +202,36 @@ main(int argc, char **argv)
 	second_kill = 0;
 
 	const struct option longopts[] = {
-		{ "preserve-status", no_argument,       &preserve,    1 },
-		{ "foreground",      no_argument,       &foreground,  1 },
-		{ "kill-after",      required_argument, NULL,        'k'},
-		{ "signal",          required_argument, NULL,        's'},
-		{ "help",            no_argument,       NULL,        'h'},
-		{ "verbose",         no_argument,       NULL,        'v'},
-		{ NULL,              0,                 NULL,         0 }
+		{ "foreground",      no_argument,       &foreground,  1  },
+		{ "help",            no_argument,       NULL,        'h' },
+		{ "kill-after",      required_argument, NULL,        'k' },
+		{ "preserve-status", no_argument,       &preserve,    1  },
+		{ "signal",          required_argument, NULL,        's' },
+		{ "verbose",         no_argument,       NULL,        'v' },
+		{ NULL,              0,                 NULL,         0  },
 	};
 
 	while ((ch = getopt_long(argc, argv, "+k:s:vh", longopts, NULL)) != -1) {
 		switch (ch) {
-			case 'k':
-				do_second_kill = true;
-				second_kill = parse_duration(optarg);
-				break;
-			case 's':
-				killsig = parse_signal(optarg);
-				break;
-			case 'v':
-				verbose = true;
-				break;
-			case 0:
-				break;
-			case 'h':
-			default:
-				usage();
+		case 'k':
+			do_second_kill = true;
+			second_kill = parse_duration(optarg);
+			break;
+		case 's':
+			killsig = parse_signal(optarg);
+			break;
+		case 'v':
+			verbose = true;
+			break;
+		case 0:
+			break;
+		default:
+			usage();
 		}
 	}
 
 	argc -= optind;
 	argv += optind;
-
 	if (argc < 2)
 		usage();
 
@@ -247,7 +243,7 @@ main(int argc, char **argv)
 	if (!foreground) {
 		/* Acquire a reaper */
 		if (procctl(P_PID, getpid(), PROC_REAP_ACQUIRE, NULL) == -1)
-			err(EXIT_FAILURE, "Fail to acquire the reaper");
+			err(EXIT_FAILURE, "procctl(PROC_REAP_ACQUIRE)");
 	}
 
 	memset(&signals, 0, sizeof(signals));
@@ -263,7 +259,7 @@ main(int argc, char **argv)
 	signals.sa_flags = SA_RESTART;
 
 	for (i = 0; i < sizeof(signums) / sizeof(signums[0]); i++) {
-		if (signums[i] != -1 && signums[i] != 0 &&
+		if (signums[i] > 0 &&
 		    sigaction(signums[i], &signals, NULL) == -1)
 			err(EXIT_FAILURE, "sigaction()");
 	}
@@ -273,9 +269,9 @@ main(int argc, char **argv)
 	signal(SIGTTOU, SIG_IGN);
 
 	pid = fork();
-	if (pid == -1)
+	if (pid == -1) {
 		err(EXIT_FAILURE, "fork()");
-	else if (pid == 0) {
+	} else if (pid == 0) {
 		/* child process */
 		signal(SIGTTIN, SIG_DFL);
 		signal(SIGTTOU, SIG_DFL);
@@ -285,14 +281,15 @@ main(int argc, char **argv)
 		_exit(errno == ENOENT ? EXIT_CMD_NOENT : EXIT_CMD_ERROR);
 	}
 
+	/* parent continues here */
+
 	if (sigprocmask(SIG_BLOCK, &signals.sa_mask, NULL) == -1)
 		err(EXIT_FAILURE, "sigprocmask()");
 
-	/* parent continues here */
 	set_interval(first_kill);
+	sigemptyset(&signals.sa_mask);
 
 	for (;;) {
-		sigemptyset(&signals.sa_mask);
 		sigsuspend(&signals.sa_mask);
 
 		if (sig_chld) {
@@ -300,9 +297,7 @@ main(int argc, char **argv)
 
 			while ((cpid = waitpid(-1, &status, WNOHANG)) != 0) {
 				if (cpid < 0) {
-					if (errno == EINTR)
-						continue;
-					else
+					if (errno != EINTR)
 						break;
 				} else if (cpid == pid) {
 					pstat = status;
@@ -328,16 +323,18 @@ main(int argc, char **argv)
 				killemall.rk_flags = 0;
 				procctl(P_PID, getpid(), PROC_REAP_KILL,
 				    &killemall);
-			} else
+			} else {
 				send_sig(pid, killsig);
+			}
 
 			if (do_second_kill) {
 				set_interval(second_kill);
 				do_second_kill = false;
 				sig_ign = killsig;
 				killsig = SIGKILL;
-			} else
+			} else {
 				break;
+			}
 
 		} else if (sig_term) {
 			if (!foreground) {
@@ -345,34 +342,37 @@ main(int argc, char **argv)
 				killemall.rk_flags = 0;
 				procctl(P_PID, getpid(), PROC_REAP_KILL,
 				    &killemall);
-			} else
+			} else {
 				send_sig(pid, sig_term);
+			}
 
 			if (do_second_kill) {
 				set_interval(second_kill);
 				do_second_kill = false;
 				sig_ign = killsig;
 				killsig = SIGKILL;
-			} else
+			} else {
 				break;
+			}
 		}
 	}
 
 	while (!child_done && wait(&pstat) == -1) {
 		if (errno != EINTR)
-			err(EXIT_FAILURE, "waitpid()");
+			err(EXIT_FAILURE, "wait()");
 	}
 
 	if (!foreground)
 		procctl(P_PID, getpid(), PROC_REAP_RELEASE, NULL);
 
-	if (WEXITSTATUS(pstat))
-		pstat = WEXITSTATUS(pstat);
-	else if (WIFSIGNALED(pstat))
-		pstat = 128 + WTERMSIG(pstat);
-
-	if (timedout && !preserve)
+	if (timedout && !preserve) {
 		pstat = EXIT_TIMEOUT;
+	} else {
+		if (WIFEXITED(pstat))
+			pstat = WEXITSTATUS(pstat);
+		else if (WIFSIGNALED(pstat))
+			pstat = 128 + WTERMSIG(pstat);
+	}
 
 	return (pstat);
 }
