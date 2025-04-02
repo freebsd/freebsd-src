@@ -261,7 +261,7 @@ _posix_spawn_thr(void *data)
 	}
 	envp = psa->envp != NULL ? psa->envp : environ;
 	if (psa->use_env_path)
-		execvpe(psa->path, psa->argv, envp);
+		__libc_execvpe(psa->path, psa->argv, envp);
 	else
 		_execve(psa->path, psa->argv, envp);
 	psa->error = errno;
