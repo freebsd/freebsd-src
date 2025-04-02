@@ -456,7 +456,7 @@ eqos_reset(struct eqos_softc *sc)
 	int retry;
 
 	WR4(sc, GMAC_DMA_MODE, GMAC_DMA_MODE_SWR);
-	for (retry = 2000; retry > 0; retry--) {
+	for (retry = 5000; retry > 0; retry--) {
 		DELAY(1000);
 		val = RD4(sc, GMAC_DMA_MODE);
 		if (!(val & GMAC_DMA_MODE_SWR))
@@ -491,7 +491,7 @@ eqos_init(void *if_softc)
 	struct eqos_softc *sc = if_softc;
 	if_t ifp = sc->ifp;
 	struct mii_data *mii = device_get_softc(sc->miibus);
-	uint32_t val;
+	uint32_t val, mtl_tx_val, mtl_rx_val;
 
 	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
@@ -508,13 +508,18 @@ eqos_init(void *if_softc)
 	val = RD4(sc, GMAC_DMA_CHAN0_CONTROL);
 	val &= ~GMAC_DMA_CHAN0_CONTROL_DSL_MASK;
 	val |= ((DESC_ALIGN - 16) / 8) << GMAC_DMA_CHAN0_CONTROL_DSL_SHIFT;
-	val |= GMAC_DMA_CHAN0_CONTROL_PBLX8;
+	if (sc->pblx8)
+		val |= GMAC_DMA_CHAN0_CONTROL_PBLX8;
 	WR4(sc, GMAC_DMA_CHAN0_CONTROL, val);
 	val = RD4(sc, GMAC_DMA_CHAN0_TX_CONTROL);
+	if (sc->txpbl > 0)
+		val |= (sc->txpbl << GMAC_DMA_CHAN0_TXRX_PBL_SHIFT);
 	val |= GMAC_DMA_CHAN0_TX_CONTROL_OSP;
 	val |= GMAC_DMA_CHAN0_TX_CONTROL_START;
 	WR4(sc, GMAC_DMA_CHAN0_TX_CONTROL, val);
 	val = RD4(sc, GMAC_DMA_CHAN0_RX_CONTROL);
+	if (sc->rxpbl > 0)
+		val |= (sc->rxpbl << GMAC_DMA_CHAN0_TXRX_PBL_SHIFT);
 	val &= ~GMAC_DMA_CHAN0_RX_CONTROL_RBSZ_MASK;
 	val |= (MCLBYTES << GMAC_DMA_CHAN0_RX_CONTROL_RBSZ_SHIFT);
 	val |= GMAC_DMA_CHAN0_RX_CONTROL_START;
@@ -527,11 +532,19 @@ eqos_init(void *if_softc)
 	    GMAC_MMC_CONTROL_CNTPRSTLVL);
 
 	/* Configure operation modes */
+	if (sc->thresh_dma_mode) {
+		mtl_tx_val = sc->ttc;
+		mtl_rx_val = sc->rtc;
+	} else {
+		mtl_tx_val = GMAC_MTL_TXQ0_OPERATION_MODE_TSF;
+		mtl_rx_val = GMAC_MTL_RXQ0_OPERATION_MODE_RSF;
+	}
+
 	WR4(sc, GMAC_MTL_TXQ0_OPERATION_MODE,
-	    GMAC_MTL_TXQ0_OPERATION_MODE_TSF |
+	    mtl_tx_val |
 	    GMAC_MTL_TXQ0_OPERATION_MODE_TXQEN_EN);
 	WR4(sc, GMAC_MTL_RXQ0_OPERATION_MODE,
-	    GMAC_MTL_RXQ0_OPERATION_MODE_RSF |
+	    mtl_rx_val |
 	    GMAC_MTL_RXQ0_OPERATION_MODE_FEP |
 	    GMAC_MTL_RXQ0_OPERATION_MODE_FUP);
 
@@ -1112,6 +1125,14 @@ eqos_attach(device_t dev)
 	int error;
 	int n;
 
+	/* default values */
+	sc->thresh_dma_mode = false;
+	sc->pblx8 = true;
+	sc->txpbl = 0;
+	sc->rxpbl = 0;
+	sc->ttc = 0x10;
+	sc->rtc = 0;
+
 	/* setup resources */
 	if (bus_alloc_resources(dev, eqos_spec, sc->res)) {
 		device_printf(dev, "Could not allocate resources\n");
@@ -1128,7 +1149,7 @@ eqos_attach(device_t dev)
 	    GMAC_MAC_VERSION_USERVER_SHIFT;
 	snpsver = ver & GMAC_MAC_VERSION_SNPSVER_MASK;
 
-	if (snpsver != 0x51) {
+	if (snpsver != 0x51 && snpsver != 0x52) {
 		device_printf(dev, "EQOS version 0x%02x not supported\n",
 		    snpsver);
 		return (ENXIO);
