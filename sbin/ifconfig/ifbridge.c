@@ -679,7 +679,7 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG2("ifpriority",	setbridge_ifpriority),
 	DEF_CMD_ARG2("ifpathcost",	setbridge_ifpathcost),
 	DEF_CMD_ARG2("ifmaxaddr",	setbridge_ifmaxaddr),
-	DEF_CMD_ARG2("ifvlan"	,	setbridge_ifvlan),
+	DEF_CMD_ARG2("ifvlan",		setbridge_ifvlan),
 	DEF_CMD_ARG("timeout",		setbridge_timeout),
 	DEF_CMD_ARG("private",		setbridge_private),
 	DEF_CMD_ARG("-private",		unsetbridge_private),
