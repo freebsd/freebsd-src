@@ -51,6 +51,8 @@
 #include <unistd.h>
 #include <cam/scsi/scsi_all.h>
 
+#include <libutil++>
+
 #include "conf.h"
 #include "ctld.h"
 #include "isns.h"
@@ -243,16 +245,15 @@ auth_name_check(const struct auth_group *ag, const char *initiator_name)
 bool
 auth_portal_new(struct auth_group *ag, const char *portal)
 {
-	struct auth_portal *ap;
-	char *net, *mask, *str, *tmp;
+	struct sockaddr_storage ss;
+	char *net, *mask, *tmp;
 	int len, dm, m;
 
-	ap = reinterpret_cast<struct auth_portal *>(calloc(1, sizeof(*ap)));
-	if (ap == NULL)
-		log_err(1, "calloc");
-	ap->ap_auth_group = ag;
-	ap->ap_initiator_portal = checked_strdup(portal);
-	mask = str = checked_strdup(portal);
+	freebsd::malloc_up<char> str(strdup(portal));
+	if (str == nullptr)
+		throw std::bad_alloc();
+
+	mask = str.get();
 	net = strsep(&mask, "/");
 	if (net[0] == '[') {
 		net++;
@@ -264,9 +265,9 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 		net[len - 1] = 0;
 	} else if (net[0] == '\0')
 		goto error;
-	if (str[0] == '[' || strchr(net, ':') != NULL) {
+	if (str.get()[0] == '[' || strchr(net, ':') != NULL) {
 		struct sockaddr_in6 *sin6 =
-		    (struct sockaddr_in6 *)&ap->ap_sa;
+		    (struct sockaddr_in6 *)&ss;
 
 		sin6->sin6_len = sizeof(*sin6);
 		sin6->sin6_family = AF_INET6;
@@ -275,7 +276,7 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 		dm = 128;
 	} else {
 		struct sockaddr_in *sin =
-		    (struct sockaddr_in *)&ap->ap_sa;
+		    (struct sockaddr_in *)&ss;
 
 		sin->sin_len = sizeof(*sin);
 		sin->sin_family = AF_INET;
@@ -291,85 +292,58 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 			goto error;
 	} else
 		m = dm;
-	ap->ap_mask = m;
-	free(str);
-	TAILQ_INSERT_TAIL(&ag->ag_portals, ap, ap_next);
+
+	ag->ag_portals.emplace_back(&ss, m);
 	return (true);
 
 error:
-	free(str);
-	free(ap);
-	log_warnx("incorrect initiator portal \"%s\"", portal);
+	log_warnx("invalid initiator portal \"%s\"", portal);
 	return (false);
 }
 
-static void
-auth_portal_delete(struct auth_portal *ap)
-{
-	TAILQ_REMOVE(&ap->ap_auth_group->ag_portals, ap, ap_next);
-
-	free(ap->ap_initiator_portal);
-	free(ap);
-}
-
 bool
-auth_portal_defined(const struct auth_group *ag)
+auth_portal::matches(const struct sockaddr_storage *ss) const
 {
-	if (TAILQ_EMPTY(&ag->ag_portals))
-		return (false);
-	return (true);
-}
-
-const struct auth_portal *
-auth_portal_find(const struct auth_group *ag, const struct sockaddr_storage *ss)
-{
-	const struct auth_portal *ap;
 	const uint8_t *a, *b;
 	int i;
-	uint8_t bmask;
 
-	TAILQ_FOREACH(ap, &ag->ag_portals, ap_next) {
-		if (ap->ap_sa.ss_family != ss->ss_family)
-			continue;
-		if (ss->ss_family == AF_INET) {
-			a = (const uint8_t *)
-			    &((const struct sockaddr_in *)ss)->sin_addr;
-			b = (const uint8_t *)
-			    &((const struct sockaddr_in *)&ap->ap_sa)->sin_addr;
-		} else {
-			a = (const uint8_t *)
-			    &((const struct sockaddr_in6 *)ss)->sin6_addr;
-			b = (const uint8_t *)
-			    &((const struct sockaddr_in6 *)&ap->ap_sa)->sin6_addr;
-		}
-		for (i = 0; i < ap->ap_mask / 8; i++) {
-			if (a[i] != b[i])
-				goto next;
-		}
-		if (ap->ap_mask % 8) {
-			bmask = 0xff << (8 - (ap->ap_mask % 8));
-			if ((a[i] & bmask) != (b[i] & bmask))
-				goto next;
-		}
-		return (ap);
-next:
-		;
+	if (ap_sa.ss_family != ss->ss_family)
+		return (false);
+
+	if (ss->ss_family == AF_INET) {
+		a = (const uint8_t *)
+		    &((const struct sockaddr_in *)ss)->sin_addr;
+		b = (const uint8_t *)
+		    &((const struct sockaddr_in *)&ap_sa)->sin_addr;
+	} else {
+		a = (const uint8_t *)
+		    &((const struct sockaddr_in6 *)ss)->sin6_addr;
+		b = (const uint8_t *)
+		    &((const struct sockaddr_in6 *)&ap_sa)->sin6_addr;
 	}
-
-	return (NULL);
+	for (i = 0; i < ap_mask / 8; i++) {
+		if (a[i] != b[i])
+			return (false);
+	}
+	if ((ap_mask % 8) != 0) {
+		uint8_t bmask = 0xff << (8 - (ap_mask % 8));
+		if ((a[i] & bmask) != (b[i] & bmask))
+			return (false);
+	}
+	return (true);
 }
 
 bool
-auth_portal_check(const struct auth_group *ag, const struct sockaddr_storage *sa)
+auth_portal_check(const struct auth_group *ag,
+    const struct sockaddr_storage *sa)
 {
-
-	if (!auth_portal_defined(ag))
+	if (ag->ag_portals.empty())
 		return (true);
 
-	if (auth_portal_find(ag, sa) == NULL)
-		return (false);
-
-	return (true);
+	for (const auth_portal &ap : ag->ag_portals)
+		if (ap.matches(sa))
+			return (true);
+	return (false);
 }
 
 static struct auth_group *
@@ -381,7 +355,6 @@ auth_group_create(struct conf *conf, const char *name, char *label)
 	if (name != NULL)
 		ag->ag_name = checked_strdup(name);
 	ag->ag_label = label;
-	TAILQ_INIT(&ag->ag_portals);
 	ag->ag_conf = conf;
 	TAILQ_INSERT_TAIL(&conf->conf_auth_groups, ag, ag_next);
 
@@ -416,13 +389,8 @@ auth_group_new(struct conf *conf, struct target *target)
 void
 auth_group_delete(struct auth_group *ag)
 {
-	struct auth_portal *auth_portal, *auth_portal_tmp;
-
 	TAILQ_REMOVE(&ag->ag_conf->conf_auth_groups, ag, ag_next);
 
-	TAILQ_FOREACH_SAFE(auth_portal, &ag->ag_portals, ap_next,
-	    auth_portal_tmp)
-		auth_portal_delete(auth_portal);
 	free(ag->ag_label);
 	free(ag->ag_name);
 	delete ag;
