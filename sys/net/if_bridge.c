@@ -336,7 +336,7 @@ static void	bridge_forward(struct bridge_softc *, struct bridge_iflist *,
 static void	bridge_timer(void *);
 
 static void	bridge_broadcast(struct bridge_softc *, struct ifnet *,
-		    struct mbuf *, int);
+		    struct mbuf *, int, uint32_t);
 static void	bridge_span(struct bridge_softc *, struct mbuf *);
 
 static int	bridge_rtupdate(struct bridge_softc *, const uint8_t *,
@@ -2319,7 +2319,7 @@ bridge_transmit(struct ifnet *ifp, struct mbuf *m)
 	    NULL) {
 		error = bridge_enqueue(sc, dst_if, m);
 	} else
-		bridge_broadcast(sc, ifp, m, 0);
+		bridge_broadcast(sc, ifp, m, 0, DOT1Q_VID_NULL);
 
 	return (error);
 }
@@ -2476,7 +2476,7 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	}
 
 	if (dst_if == NULL) {
-		bridge_broadcast(sc, src_if, m, 1);
+		bridge_broadcast(sc, src_if, m, 1, vlan);
 		return;
 	}
 
@@ -2499,8 +2499,12 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	/*
 	 * If the destination port is on a different vlan, drop the frame.
 	 * TODO: this is where we'd want to do .1q encap for tagged ports.
+	 *
+	 * Because we don't currently support configuring allowed VLANs for a
+	 * trunk port, treat any interface with VLAN ID 0 as a trunk port for
+	 * any VLAN.
 	 */
-	if (vlan != dbif->bif_vlan)
+	if ((dbif->bif_vlan != DOT1Q_VID_NULL) && (vlan != dbif->bif_vlan))
 		goto drop;
 
 	if ((dbif->bif_flags & IFBIF_STP) &&
@@ -2789,7 +2793,7 @@ bridge_inject(struct ifnet *ifp, struct mbuf *m)
  */
 static void
 bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
-    struct mbuf *m, int runfilt)
+    struct mbuf *m, int runfilt, uint32_t vlan)
 {
 	struct bridge_iflist *dbif, *sbif;
 	struct mbuf *mc;
@@ -2815,6 +2819,10 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 
 		/* Private segments can not talk to each other */
 		if (sbif && (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE))
+			continue;
+
+		/* VLAN filtering for interfaces with non-zero VLAN ID */
+		if ((dbif->bif_vlan != DOT1Q_VID_NULL) && (vlan != dbif->bif_vlan))
 			continue;
 
 		if ((dbif->bif_flags & IFBIF_STP) &&
