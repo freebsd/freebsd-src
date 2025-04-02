@@ -378,12 +378,11 @@ ATF_TC_BODY(ktrace__cap_sockaddr, tc)
 	ATF_REQUIRE(sigaddset(&set, SIGUSR1) != -1);
 	ATF_REQUIRE(sigprocmask(SIG_BLOCK, &set, NULL) != -1);
 
-	CHILD_REQUIRE((sfd = socket(AF_INET, SOCK_DGRAM,
-	    IPPROTO_UDP)) != -1);
+	ATF_REQUIRE((sfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) != -1);
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(5000);
-	addr.sin_addr.s_addr = INADDR_ANY;
-	CHILD_REQUIRE(bind(sfd, (const struct sockaddr *)&addr,
+	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	ATF_REQUIRE(bind(sfd, (const struct sockaddr *)&addr,
 	    sizeof(addr)) != -1);
 
 	ATF_REQUIRE((pid = fork()) != -1);
@@ -409,7 +408,7 @@ ATF_TC_BODY(ktrace__cap_sockaddr, tc)
 	saddr = (struct sockaddr_in *)&violation.cap_data.cap_sockaddr;
 	ATF_REQUIRE_EQ(saddr->sin_family, AF_INET);
 	ATF_REQUIRE_EQ(saddr->sin_port, htons(5000));
-	ATF_REQUIRE_EQ(saddr->sin_addr.s_addr, INADDR_ANY);
+	ATF_REQUIRE_EQ(saddr->sin_addr.s_addr, htonl(INADDR_LOOPBACK));
 	close(sfd);
 }
 
