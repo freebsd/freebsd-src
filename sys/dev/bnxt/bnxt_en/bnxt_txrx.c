@@ -338,6 +338,7 @@ bnxt_isc_rxd_available(void *sc, uint16_t rxqid, qidx_t idx, qidx_t budget)
 		type = le16toh(cmp[cons].type) & CMPL_BASE_TYPE_MASK;
 		switch (type) {
 		case CMPL_BASE_TYPE_RX_L2:
+		case CMPL_BASE_TYPE_RX_L2_V3:
 			rcp = (void *)&cmp[cons];
 			ags = (rcp->agg_bufs_v1 & RX_PKT_CMPL_AGG_BUFS_MASK) >>
 			    RX_PKT_CMPL_AGG_BUFS_SFT;
@@ -622,10 +623,12 @@ bnxt_isc_rxd_pkt_get(void *sc, if_rxd_info_t ri)
 
 		switch (type) {
 		case CMPL_BASE_TYPE_RX_L2:
+		case CMPL_BASE_TYPE_RX_L2_V3:
 			return bnxt_pkt_get_l2(softc, ri, cpr, flags_type);
 		case CMPL_BASE_TYPE_RX_TPA_END:
 			return bnxt_pkt_get_tpa(softc, ri, cpr, flags_type);
 		case CMPL_BASE_TYPE_RX_TPA_START:
+		case CMPL_BASE_TYPE_RX_TPA_START_V3:
 			rtpa = (void *)&cmp_q[cpr->cons];
 			agg_id = (rtpa->agg_id &
 			    RX_TPA_START_CMPL_AGG_ID_MASK) >>
