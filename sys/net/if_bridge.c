@@ -251,6 +251,7 @@ struct bridge_iflist {
 	uint32_t		bif_addrcnt;	/* cur. # of addresses */
 	uint32_t		bif_addrexceeded;/* # of address violations */
 	struct epoch_context	bif_epoch_ctx;
+	uint32_t		bif_vlan;	/* native vlan id */
 };
 
 /*
@@ -330,7 +331,7 @@ static int	bridge_enqueue(struct bridge_softc *, struct ifnet *,
 static void	bridge_rtdelete(struct bridge_softc *, struct ifnet *ifp, int);
 
 static void	bridge_forward(struct bridge_softc *, struct bridge_iflist *,
-		    struct mbuf *m);
+		    struct mbuf *m, uint32_t vlan);
 
 static void	bridge_timer(void *);
 
@@ -394,6 +395,7 @@ static int	bridge_ioctl_sma(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifprio(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifcost(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifmaxaddr(struct bridge_softc *, void *);
+static int	bridge_ioctl_sifvlan(struct bridge_softc *, void *);
 static int	bridge_ioctl_addspan(struct bridge_softc *, void *);
 static int	bridge_ioctl_delspan(struct bridge_softc *, void *);
 static int	bridge_ioctl_gbparam(struct bridge_softc *, void *);
@@ -599,6 +601,8 @@ static const struct bridge_control bridge_control_table[] = {
 	{ bridge_ioctl_sifmaxaddr,	sizeof(struct ifbreq),
 	  BC_F_COPYIN|BC_F_SUSER },
 
+	{ bridge_ioctl_sifvlan,		sizeof(struct ifbreq),
+	  BC_F_COPYIN|BC_F_SUSER },
 };
 static const int bridge_control_table_size = nitems(bridge_control_table);
 
@@ -1419,6 +1423,7 @@ bridge_ioctl_gifflags(struct bridge_softc *sc, void *arg)
 	req->ifbr_addrcnt = bif->bif_addrcnt;
 	req->ifbr_addrmax = bif->bif_addrmax;
 	req->ifbr_addrexceeded = bif->bif_addrexceeded;
+	req->ifbr_vlan = bif->bif_vlan;
 
 	/* Copy STP state options as flags */
 	if (bp->bp_operedge)
@@ -1793,6 +1798,23 @@ bridge_ioctl_sifmaxaddr(struct bridge_softc *sc, void *arg)
 		return (ENOENT);
 
 	bif->bif_addrmax = req->ifbr_addrmax;
+	return (0);
+}
+
+static int
+bridge_ioctl_sifvlan(struct bridge_softc *sc, void *arg)
+{
+	struct ifbreq *req = arg;
+	struct bridge_iflist *bif;
+
+	bif = bridge_lookup_member(sc, req->ifbr_ifsname);
+	if (bif == NULL)
+		return (ENOENT);
+
+	if (req->ifbr_vlan >= 4096)
+		return (EINVAL);
+
+	bif->bif_vlan = req->ifbr_vlan;
 	return (0);
 }
 
@@ -2351,12 +2373,11 @@ bridge_qflush(struct ifnet *ifp __unused)
  */
 static void
 bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
-    struct mbuf *m)
+    struct mbuf *m, uint32_t vlan)
 {
 	struct bridge_iflist *dbif;
 	struct ifnet *src_if, *dst_if, *ifp;
 	struct ether_header *eh;
-	uint16_t vlan;
 	uint8_t *dst;
 	int error;
 
@@ -2367,7 +2388,6 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
-	vlan = VLANTAGOF(m);
 
 	if ((sbif->bif_flags & IFBIF_STP) &&
 	    sbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
@@ -2476,6 +2496,13 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	if (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE)
 		goto drop;
 
+	/*
+	 * If the destination port is on a different vlan, drop the frame.
+	 * TODO: this is where we'd want to do .1q encap for tagged ports.
+	 */
+	if (vlan != dbif->bif_vlan)
+		goto drop;
+
 	if ((dbif->bif_flags & IFBIF_STP) &&
 	    dbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
 		goto drop;
@@ -2558,6 +2585,12 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		return (m);
 	}
 
+	/*
+	 * If the frame has no vlan id, take the vlan from the interface.
+	 */
+	if (vlan == DOT1Q_VID_NULL)
+		vlan = bif->bif_vlan;
+
 	bridge_span(sc, m);
 
 	if (m->m_flags & (M_BCAST|M_MCAST)) {
@@ -2584,7 +2617,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		}
 
 		/* Perform the bridge forwarding function with the copy. */
-		bridge_forward(sc, bif, mc);
+		bridge_forward(sc, bif, mc, vlan);
 
 #ifdef DEV_NETMAP
 		/*
@@ -2718,7 +2751,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 #undef GRAB_OUR_PACKETS
 
 	/* Perform the bridge forwarding function. */
-	bridge_forward(sc, bif, m);
+	bridge_forward(sc, bif, m, vlan);
 
 	return (NULL);
 }
