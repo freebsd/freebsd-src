@@ -45,10 +45,10 @@
 #define EXIT_CMD_ERROR 126
 #define EXIT_CMD_NOENT 127
 
-static sig_atomic_t sig_chld = 0;
-static sig_atomic_t sig_term = 0;
-static sig_atomic_t sig_alrm = 0;
-static sig_atomic_t sig_ign = 0;
+static volatile sig_atomic_t sig_chld = 0;
+static volatile sig_atomic_t sig_term = 0;
+static volatile sig_atomic_t sig_alrm = 0;
+static volatile sig_atomic_t sig_ign = 0;
 static const char *command = NULL;
 static bool verbose = false;
 
