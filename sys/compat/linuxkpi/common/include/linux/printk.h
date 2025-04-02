@@ -44,57 +44,19 @@ enum {
 	DUMP_PREFIX_OFFSET
 };
 
+int __lkpi_hexdump_printf(void *, const char *, ...) __printflike(2, 3);
+
+void lkpi_hex_dump(int(*)(void *, const char *, ...), void *arg1,
+    const char *, const char *, const int, const int, const int,
+    const void *, size_t, const bool);
+
 static inline void
 print_hex_dump(const char *level, const char *prefix_str,
     const int prefix_type, const int rowsize, const int groupsize,
     const void *buf, size_t len, const bool ascii)
 {
-	typedef const struct { long long value; } __packed *print_64p_t;
-	typedef const struct { uint32_t value; } __packed *print_32p_t;
-	typedef const struct { uint16_t value; } __packed *print_16p_t;
-	const void *buf_old = buf;
-	int row;
-
-	while (len > 0) {
-		if (level != NULL)
-			printf("%s", level);
-		if (prefix_str != NULL)
-			printf("%s ", prefix_str);
-
-		switch (prefix_type) {
-		case DUMP_PREFIX_ADDRESS:
-			printf("[%p] ", buf);
-			break;
-		case DUMP_PREFIX_OFFSET:
-			printf("[%#tx] ", ((const char *)buf -
-			    (const char *)buf_old));
-			break;
-		default:
-			break;
-		}
-		for (row = 0; row != rowsize; row++) {
-			if (groupsize == 8 && len > 7) {
-				printf("%016llx ", ((print_64p_t)buf)->value);
-				buf = (const uint8_t *)buf + 8;
-				len -= 8;
-			} else if (groupsize == 4 && len > 3) {
-				printf("%08x ", ((print_32p_t)buf)->value);
-				buf = (const uint8_t *)buf + 4;
-				len -= 4;
-			} else if (groupsize == 2 && len > 1) {
-				printf("%04x ", ((print_16p_t)buf)->value);
-				buf = (const uint8_t *)buf + 2;
-				len -= 2;
-			} else if (len > 0) {
-				printf("%02x ", *(const uint8_t *)buf);
-				buf = (const uint8_t *)buf + 1;
-				len--;
-			} else {
-				break;
-			}
-		}
-		printf("\n");
-	}
+	lkpi_hex_dump(__lkpi_hexdump_printf, NULL, level, prefix_str, prefix_type,
+	    rowsize, groupsize, buf, len, ascii);
 }
 
 static inline void
