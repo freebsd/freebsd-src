@@ -68,19 +68,19 @@ static double
 parse_duration(const char *duration)
 {
 	double ret;
-	char *end;
+	char *suffix;
 
-	ret = strtod(duration, &end);
-	if (ret == 0 && end == duration)
-		errx(EXIT_INVALID, "invalid duration");
+	ret = strtod(duration, &suffix);
+	if (suffix == duration)
+		errx(EXIT_INVALID, "duration is not a number");
 
-	if (end == NULL || *end == '\0')
+	if (*suffix == '\0')
 		return (ret);
 
-	if (end != NULL && *(end + 1) != '\0')
-		errx(EXIT_INVALID, "invalid duration");
+	if (suffix[1] != '\0')
+		errx(EXIT_INVALID, "duration unit suffix too long");
 
-	switch (*end) {
+	switch (*suffix) {
 	case 's':
 		break;
 	case 'm':
@@ -93,11 +93,11 @@ parse_duration(const char *duration)
 		ret *= 60 * 60 * 24;
 		break;
 	default:
-		errx(EXIT_INVALID, "invalid duration");
+		errx(EXIT_INVALID, "duration unit suffix invalid");
 	}
 
 	if (ret < 0 || ret >= 100000000UL)
-		errx(EXIT_INVALID, "invalid duration");
+		errx(EXIT_INVALID, "duration out of range");
 
 	return (ret);
 }
