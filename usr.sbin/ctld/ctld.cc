@@ -78,6 +78,9 @@ static struct connection_ops conn_ops = {
 #ifdef ICL_KERNEL_PROXY
 	.pdu_receive_proxy = pdu_receive_proxy,
 	.pdu_send_proxy = pdu_send_proxy,
+#else
+	.pdu_receive_proxy = nullptr,
+	.pdu_send_proxy = nullptr,
 #endif
 	.fail = pdu_fail,
 };
@@ -96,7 +99,7 @@ conf_new(void)
 {
 	struct conf *conf;
 
-	conf = calloc(1, sizeof(*conf));
+	conf = reinterpret_cast<struct conf *>(calloc(1, sizeof(*conf)));
 	if (conf == NULL)
 		log_err(1, "calloc");
 	TAILQ_INIT(&conf->conf_luns);
@@ -146,7 +149,7 @@ auth_new(struct auth_group *ag)
 {
 	struct auth *auth;
 
-	auth = calloc(1, sizeof(*auth));
+	auth = reinterpret_cast<struct auth *>(calloc(1, sizeof(*auth)));
 	if (auth == NULL)
 		log_err(1, "calloc");
 	auth->a_auth_group = ag;
@@ -304,7 +307,7 @@ auth_name_new(struct auth_group *ag, const char *name)
 {
 	struct auth_name *an;
 
-	an = calloc(1, sizeof(*an));
+	an = reinterpret_cast<struct auth_name *>(calloc(1, sizeof(*an)));
 	if (an == NULL)
 		log_err(1, "calloc");
 	an->an_auth_group = ag;
@@ -362,7 +365,7 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 	char *net, *mask, *str, *tmp;
 	int len, dm, m;
 
-	ap = calloc(1, sizeof(*ap));
+	ap = reinterpret_cast<struct auth_portal *>(calloc(1, sizeof(*ap)));
 	if (ap == NULL)
 		log_err(1, "calloc");
 	ap->ap_auth_group = ag;
@@ -495,7 +498,7 @@ auth_group_new(struct conf *conf, const char *name)
 		}
 	}
 
-	ag = calloc(1, sizeof(*ag));
+	ag = reinterpret_cast<struct auth_group *>(calloc(1, sizeof(*ag)));
 	if (ag == NULL)
 		log_err(1, "calloc");
 	if (name != NULL)
@@ -548,7 +551,7 @@ portal_new(struct portal_group *pg)
 {
 	struct portal *portal;
 
-	portal = calloc(1, sizeof(*portal));
+	portal = reinterpret_cast<struct portal *>(calloc(1, sizeof(*portal)));
 	if (portal == NULL)
 		log_err(1, "calloc");
 	TAILQ_INIT(&portal->p_targets);
@@ -579,7 +582,7 @@ portal_group_new(struct conf *conf, const char *name)
 		return (NULL);
 	}
 
-	pg = calloc(1, sizeof(*pg));
+	pg = reinterpret_cast<struct portal_group *>(calloc(1, sizeof(*pg)));
 	if (pg == NULL)
 		log_err(1, "calloc");
 	pg->pg_name = checked_strdup(name);
@@ -712,7 +715,7 @@ isns_new(struct conf *conf, const char *addr)
 {
 	struct isns *isns;
 
-	isns = calloc(1, sizeof(*isns));
+	isns = reinterpret_cast<struct isns *>(calloc(1, sizeof(*isns)));
 	if (isns == NULL)
 		log_err(1, "calloc");
 	isns->i_conf = conf;
@@ -974,7 +977,7 @@ pport_new(struct kports *kports, const char *name, uint32_t ctl_port)
 {
 	struct pport *pp;
 
-	pp = calloc(1, sizeof(*pp));
+	pp = reinterpret_cast<struct pport *>(calloc(1, sizeof(*pp)));
 	if (pp == NULL)
 		log_err(1, "calloc");
 	pp->pp_kports = kports;
@@ -1033,7 +1036,7 @@ port_new(struct conf *conf, struct target *target, struct portal_group *pg)
 		free(name);
 		return (NULL);
 	}
-	port = calloc(1, sizeof(*port));
+	port = reinterpret_cast<struct port *>(calloc(1, sizeof(*port)));
 	if (port == NULL)
 		log_err(1, "calloc");
 	port->p_conf = conf;
@@ -1078,7 +1081,7 @@ port_new_ioctl(struct conf *conf, struct kports *kports, struct target *target,
 		free(name);
 		return (NULL);
 	}
-	port = calloc(1, sizeof(*port));
+	port = reinterpret_cast<struct port *>(calloc(1, sizeof(*port)));
 	if (port == NULL)
 		log_err(1, "calloc");
 	port->p_conf = conf;
@@ -1107,7 +1110,7 @@ port_new_pp(struct conf *conf, struct target *target, struct pport *pp)
 		free(name);
 		return (NULL);
 	}
-	port = calloc(1, sizeof(*port));
+	port = reinterpret_cast<struct port *>(calloc(1, sizeof(*port)));
 	if (port == NULL)
 		log_err(1, "calloc");
 	port->p_conf = conf;
@@ -1188,7 +1191,7 @@ target_new(struct conf *conf, const char *name)
 	if (valid_iscsi_name(name, log_warnx) == false) {
 		return (NULL);
 	}
-	targ = calloc(1, sizeof(*targ));
+	targ = reinterpret_cast<struct target *>(calloc(1, sizeof(*targ)));
 	if (targ == NULL)
 		log_err(1, "calloc");
 	targ->t_name = checked_strdup(name);
@@ -1246,7 +1249,7 @@ lun_new(struct conf *conf, const char *name)
 		return (NULL);
 	}
 
-	lun = calloc(1, sizeof(*lun));
+	lun = reinterpret_cast<struct lun *>(calloc(1, sizeof(*lun)));
 	if (lun == NULL)
 		log_err(1, "calloc");
 	lun->l_conf = conf;
@@ -1366,7 +1369,7 @@ connection_new(struct portal *portal, int fd, const char *host,
 {
 	struct ctld_connection *conn;
 
-	conn = calloc(1, sizeof(*conn));
+	conn = reinterpret_cast<struct ctld_connection *>(calloc(1, sizeof(*conn)));
 	if (conn == NULL)
 		log_err(1, "calloc");
 	connection_init(&conn->conn, &conn_ops, proxy_mode);
@@ -2255,7 +2258,7 @@ found:
 
 			switch (kev.filter) {
 			case EVFILT_READ:
-				portal = kev.udata;
+				portal = reinterpret_cast<struct portal *>(kev.udata);
 				assert(portal->p_socket == (int)kev.ident);
 
 				client_salen = sizeof(client_sa);

@@ -49,14 +49,14 @@ isns_req_alloc(void)
 {
 	struct isns_req *req;
 
-	req = calloc(1, sizeof(struct isns_req));
+	req = reinterpret_cast<struct isns_req *>(calloc(1, sizeof(struct isns_req)));
 	if (req == NULL) {
 		log_err(1, "calloc");
 		return (NULL);
 	}
 	req->ir_buflen = sizeof(struct isns_hdr);
 	req->ir_usedlen = 0;
-	req->ir_buf = calloc(1, req->ir_buflen);
+	req->ir_buf = reinterpret_cast<uint8_t *>(calloc(1, req->ir_buflen));
 	if (req->ir_buf == NULL) {
 		free(req);
 		log_err(1, "calloc");
@@ -102,7 +102,7 @@ isns_req_getspace(struct isns_req *req, uint32_t len)
 		log_err(1, "realloc");
 		return (1);
 	}
-	req->ir_buf = newbuf;
+	req->ir_buf = reinterpret_cast<uint8_t *>(newbuf);
 	req->ir_buflen = newlen;
 	return (0);
 }

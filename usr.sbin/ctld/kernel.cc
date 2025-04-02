@@ -171,7 +171,7 @@ cctl_start_element(void *user_data, const char *name, const char **attr)
 			log_errx(1, "%s: improper lun element nesting",
 			    __func__);
 
-		cur_lun = calloc(1, sizeof(*cur_lun));
+		cur_lun = reinterpret_cast<struct cctl_lun *>(calloc(1, sizeof(*cur_lun)));
 		if (cur_lun == NULL)
 			log_err(1, "%s: cannot allocate %zd bytes", __func__,
 			    sizeof(*cur_lun));
@@ -288,7 +288,7 @@ cctl_start_pelement(void *user_data, const char *name, const char **attr)
 			log_errx(1, "%s: improper port element nesting (%s)",
 			    __func__, name);
 
-		cur_port = calloc(1, sizeof(*cur_port));
+		cur_port = reinterpret_cast<struct cctl_port *>(calloc(1, sizeof(*cur_port)));
 		if (cur_port == NULL)
 			log_err(1, "%s: cannot allocate %zd bytes", __func__,
 			    sizeof(*cur_port));
@@ -423,7 +423,7 @@ conf_new_from_kernel(struct kports *kports)
 	str = NULL;
 	len = 4096;
 retry:
-	str = realloc(str, len);
+	str = reinterpret_cast<char *>(realloc(str, len));
 	if (str == NULL)
 		log_err(1, "realloc");
 
@@ -472,7 +472,7 @@ retry:
 	str = NULL;
 	len = 4096;
 retry_port:
-	str = realloc(str, len);
+	str = reinterpret_cast<char *>(realloc(str, len));
 	if (str == NULL)
 		log_err(1, "realloc");
 
@@ -692,13 +692,13 @@ kernel_lun_add(struct lun *lun)
 	req.reqdata.create.device_type = lun->l_device_type;
 
 	if (lun->l_serial != NULL) {
-		strncpy(req.reqdata.create.serial_num, lun->l_serial,
+		strncpy((char *)req.reqdata.create.serial_num, lun->l_serial,
 			sizeof(req.reqdata.create.serial_num));
 		req.reqdata.create.flags |= CTL_LUN_FLAG_SERIAL_NUM;
 	}
 
 	if (lun->l_device_id != NULL) {
-		strncpy(req.reqdata.create.device_id, lun->l_device_id,
+		strncpy((char *)req.reqdata.create.device_id, lun->l_device_id,
 			sizeof(req.reqdata.create.device_id));
 		req.reqdata.create.flags |= CTL_LUN_FLAG_DEVID;
 	}
