@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,6 +62,19 @@ usage(void)
 		" [-v | --verbose] <duration> <command> [arg ...]\n",
 		getprogname());
 	exit(EXIT_FAILURE);
+}
+
+static void
+logv(const char *fmt, ...)
+{
+	va_list ap;
+
+	if (!verbose)
+		return;
+
+	va_start(ap, fmt);
+	vwarnx(fmt, ap);
+	va_end(ap);
 }
 
 static double
@@ -146,13 +160,25 @@ sig_handler(int signo)
 }
 
 static void
-send_sig(pid_t pid, int signo)
+send_sig(pid_t pid, int signo, bool foreground)
 {
-	if (verbose) {
-		warnx("sending signal %s(%d) to command '%s'",
-		      sys_signame[signo], signo, command);
+	struct procctl_reaper_kill rk;
+
+	logv("sending signal %s(%d) to command '%s'",
+	     sys_signame[signo], signo, command);
+	if (foreground) {
+		if (kill(pid, signo) == -1)
+			warnx("kill(%d, %s)", (int)pid, sys_signame[signo]);
+	} else {
+		memset(&rk, 0, sizeof(rk));
+		rk.rk_sig = signo;
+		if (procctl(P_PID, getpid(), PROC_REAP_KILL, &rk) == -1)
+			warnx("procctl(PROC_REAP_KILL)");
+		else if (rk.rk_fpid > 0)
+			warnx("failed to signal some processes: first pid=%d",
+			      (int)rk.rk_fpid);
+		logv("signaled %u processes", rk.rk_killed);
 	}
-	kill(pid, signo);
 }
 
 static void
@@ -188,7 +214,6 @@ main(int argc, char **argv)
 	bool child_done = false;
 	struct sigaction signals;
 	struct procctl_reaper_status info;
-	struct procctl_reaper_kill killemall;
 	int signums[] = {
 		-1,
 		SIGTERM,
@@ -329,14 +354,7 @@ main(int argc, char **argv)
 				sig_term = 0;
 			}
 
-			if (foreground) {
-				send_sig(pid, sig);
-			} else {
-				killemall.rk_sig = sig;
-				killemall.rk_flags = 0;
-				procctl(P_PID, getpid(), PROC_REAP_KILL,
-					&killemall);
-			}
+			send_sig(pid, sig, foreground);
 
 			if (do_second_kill) {
 				set_interval(second_kill);
