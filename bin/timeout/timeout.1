@@ -32,11 +32,11 @@
 .Nd run a command with a time limit
 .Sh SYNOPSIS
 .Nm
+.Op Fl f | Fl -foreground
 .Op Fl k Ar time | Fl -kill-after Ar time
+.Op Fl p | Fl -preserve-status
 .Op Fl s Ar signal | Fl -signal Ar signal
 .Op Fl v | Fl -verbose
-.Op Fl -foreground
-.Op Fl -preserve-status
 .Ar duration
 .Ar command
 .Op Ar arg ...
@@ -67,7 +67,7 @@ is 0.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl -foreground
+.It Fl f , Fl -foreground
 Only time out the
 .Ar command
 itself, but do not propagate signals to its descendants.
@@ -79,7 +79,7 @@ signal if
 is still running after
 .Ar time
 since the first signal was sent.
-.It Fl -preserve-status
+.It Fl p , Fl -preserve-status
 Always exit with the same status as
 .Ar command ,
 even if the timeout was reached.
