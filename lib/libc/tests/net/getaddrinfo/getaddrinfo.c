@@ -79,7 +79,12 @@ send(int s, const void *msg, size_t len, int flags)
 	}
 }
 
-ATF_TC_WITHOUT_HEAD(basic);
+ATF_TC(basic);
+ATF_TC_HEAD(basic, tc)
+{
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
+}
+
 ATF_TC_BODY(basic, tc)
 {
 	static const struct addrinfo hints = {
@@ -205,7 +210,11 @@ ATF_TC_BODY(netdown, tc)
 /*
  * See https://reviews.freebsd.org/D37139.
  */
-ATF_TC_WITHOUT_HEAD(nofamily);
+ATF_TC(nofamily);
+ATF_TC_HEAD(nofamily, tc)
+{
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
+}
 ATF_TC_BODY(nofamily, tc)
 {
 	static const struct addrinfo hints4 = {
