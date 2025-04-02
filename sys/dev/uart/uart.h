@@ -40,6 +40,7 @@
 struct uart_bas {
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
+	void	*driver1;
 	u_int	chan;
 	u_int	rclk;
 	u_int	regshft;
