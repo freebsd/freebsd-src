@@ -2309,8 +2309,8 @@ copy_stat(struct stat *in, struct stat32 *out)
 	CP(*in, *out, st_flags);
 	CP(*in, *out, st_gen);
 	CP(*in, *out, st_filerev);
+	CP(*in, *out, st_bsdflags);
 	TS_CP(*in, *out, st_birthtim);
-	out->st_padding0 = 0;
 	out->st_padding1 = 0;
 #ifdef __STAT32_TIME_T_EXT
 	out->st_atim_ext = 0;
