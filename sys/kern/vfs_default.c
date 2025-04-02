@@ -1515,6 +1515,7 @@ vop_stdstat(struct vop_stat_args *a)
 	vap->va_gen = 0;
 	vap->va_rdev = NODEV;
 	vap->va_filerev = 0;
+	vap->va_bsdflags = 0;
 
 	error = VOP_GETATTR(vp, vap, a->a_active_cred);
 	if (error)
@@ -1592,6 +1593,7 @@ vop_stdstat(struct vop_stat_args *a)
 	sb->st_blocks = vap->va_bytes / S_BLKSIZE;
 	sb->st_gen = vap->va_gen;
 	sb->st_filerev = vap->va_filerev;
+	sb->st_bsdflags = vap->va_bsdflags;
 out:
 	return (vop_stat_helper_post(a, error));
 }

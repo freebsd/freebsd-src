@@ -214,7 +214,7 @@ struct stat32 {
 	ino_t st_ino;
 	nlink_t st_nlink;
 	mode_t	st_mode;
-	uint16_t st_padding0;
+	uint16_t st_bsdflags;
 	uid_t	st_uid;
 	gid_t	st_gid;
 	uint32_t st_padding1;
