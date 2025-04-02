@@ -174,7 +174,7 @@ set_interval(double iv)
 int
 main(int argc, char **argv)
 {
-	int ch, status;
+	int ch, status, sig;
 	int foreground, preserve;
 	int pstat = 0;
 	int killsig = SIGTERM;
@@ -314,36 +314,23 @@ main(int argc, char **argv)
 						break;
 				}
 			}
-		} else if (sig_alrm) {
-			sig_alrm = 0;
-
-			timedout = true;
-			if (!foreground) {
-				killemall.rk_sig = killsig;
-				killemall.rk_flags = 0;
-				procctl(P_PID, getpid(), PROC_REAP_KILL,
-				    &killemall);
+		} else if (sig_alrm || sig_term) {
+			if (sig_alrm) {
+				sig = killsig;
+				sig_alrm = 0;
+				timedout = true;
 			} else {
-				send_sig(pid, killsig);
+				sig = sig_term;
+				sig_term = 0;
 			}
 
-			if (do_second_kill) {
-				set_interval(second_kill);
-				do_second_kill = false;
-				sig_ign = killsig;
-				killsig = SIGKILL;
+			if (foreground) {
+				send_sig(pid, sig);
 			} else {
-				break;
-			}
-
-		} else if (sig_term) {
-			if (!foreground) {
-				killemall.rk_sig = sig_term;
+				killemall.rk_sig = sig;
 				killemall.rk_flags = 0;
 				procctl(P_PID, getpid(), PROC_REAP_KILL,
-				    &killemall);
-			} else {
-				send_sig(pid, sig_term);
+					&killemall);
 			}
 
 			if (do_second_kill) {
