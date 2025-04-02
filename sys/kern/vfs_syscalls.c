@@ -3930,9 +3930,7 @@ restart:
 		goto out;
 #endif
 	error = VOP_MKDIR(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
-#ifdef MAC
 out:
-#endif
 	NDFREE_PNBUF(&nd);
 	VOP_VPUT_PAIR(nd.ni_dvp, error == 0 ? &nd.ni_vp : NULL, true);
 	vn_finished_write(mp);
