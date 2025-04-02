@@ -344,6 +344,19 @@ main(int argc, char **argv)
 				} else if (cpid == pid) {
 					pstat = status;
 					child_done = true;
+					logv("child terminated: pid=%d, "
+					     "exit=%d, signal=%d",
+					     (int)pid, WEXITSTATUS(status),
+					     WTERMSIG(status));
+				} else {
+					/*
+					 * Collect grandchildren zombies.
+					 * Only effective if we're a reaper.
+					 */
+					logv("collected zombie: pid=%d, "
+					     "exit=%d, signal=%d",
+					     (int)cpid, WEXITSTATUS(status),
+					     WTERMSIG(status));
 				}
 			}
 			if (child_done) {
@@ -361,9 +374,12 @@ main(int argc, char **argv)
 				sig = killsig;
 				sig_alrm = 0;
 				timedout = true;
+				logv("time limit reached or received SIGALRM");
 			} else {
 				sig = sig_term;
 				sig_term = 0;
+				logv("received terminating signal %s(%d)",
+				     sys_signame[sig], sig);
 			}
 
 			send_sig(pid, sig, foreground);
