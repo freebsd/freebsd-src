@@ -307,10 +307,9 @@ struct vattr {
 /*
  * Flags for va_vaflags.
  */
-#define	VA_UTIMES_NULL		0x01	/* utimes argument was NULL */
-#define	VA_EXCLUSIVE		0x02	/* exclusive create request */
-#define	VA_SYNC			0x04	/* O_SYNC truncation */
-#define	VA_NAMEDATTR_TYPE	0x08	/* vnode is for named attribute */
+#define	VA_UTIMES_NULL	0x01		/* utimes argument was NULL */
+#define	VA_EXCLUSIVE	0x02		/* exclusive create request */
+#define	VA_SYNC		0x04		/* O_SYNC truncation */
 
 /*
  * Flags for ioflag. (high 16 bits used to ask for read-ahead and
