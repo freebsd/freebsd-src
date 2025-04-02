@@ -1054,6 +1054,8 @@ static int bnxt_setup_ctxm_pg_tbls(struct bnxt_softc *softc,
 		rc = bnxt_alloc_ctx_pg_tbls(softc, &ctx_pg[i], mem_size, pg_lvl,
 					    ctxm->init_value ? ctxm : NULL);
 	}
+	if (!rc)
+		ctxm->mem_valid = 1;
 	return rc;
 }
 
@@ -1086,6 +1088,54 @@ static void bnxt_free_ctx_mem(struct bnxt_softc *softc)
 	softc->ctx_mem = NULL;
 }
 
+static int
+bnxt_backing_store_cfg_v2(struct bnxt_softc *softc, u32 ena)
+{
+	struct bnxt_ctx_mem_info *ctx = softc->ctx_mem;
+	struct bnxt_ctx_mem_type *ctxm;
+	u16 last_type = BNXT_CTX_INV;
+	int rc = 0;
+	u16 type;
+
+	if (BNXT_PF(softc)) {
+		for (type = BNXT_CTX_SRT_TRACE; type <= BNXT_CTX_ROCE_HWRM_TRACE; type++) {
+			ctxm = &ctx->ctx_arr[type];
+			if (!(ctxm->flags & BNXT_CTX_MEM_TYPE_VALID))
+				continue;
+			rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, ctxm->max_entries, 1);
+			if (rc) {
+				device_printf(softc->dev, "Unable to setup ctx page for type:0x%x.\n", type);
+				rc = 0;
+				continue;
+			}
+			/* ckp TODO: this is trace buffer related stuff, so keeping it diabled now. needs revisit */
+			//bnxt_bs_trace_init(bp, ctxm, type - BNXT_CTX_SRT_TRACE);
+			last_type = type;
+		}
+	}
+
+	if (last_type == BNXT_CTX_INV) {
+		if (!ena)
+			return 0;
+		else if (ena & HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_TIM)
+			last_type = BNXT_CTX_MAX - 1;
+		else
+			last_type = BNXT_CTX_L2_MAX - 1;
+	}
+	ctx->ctx_arr[last_type].last = 1;
+
+	for (type = 0 ; type < BNXT_CTX_V2_MAX; type++) {
+		ctxm = &ctx->ctx_arr[type];
+
+		if (!ctxm->mem_valid)
+			continue;
+		rc = bnxt_hwrm_func_backing_store_cfg_v2(softc, ctxm, ctxm->last);
+		if (rc)
+			return rc;
+	}
+	return 0;
+}
+
 static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 {
 	struct bnxt_ctx_pg_info *ctx_pg;
@@ -1112,6 +1162,10 @@ static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 	ctx = softc->ctx_mem;
 	if (!ctx || (ctx->flags & BNXT_CTX_FLAG_INITED))
 		return 0;
+
+	ena = 0;
+	if (BNXT_VF(softc))
+		goto skip_legacy;
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_QP];
 	l2_qps = ctxm->qp_l2_entries;
@@ -1153,7 +1207,6 @@ static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 	if (rc)
 		return rc;
 
-	ena = 0;
 	if (!(softc->flags & BNXT_FLAG_ROCE_CAP))
 		goto skip_rdma;
 
@@ -1202,10 +1255,16 @@ skip_rdma:
 	}
 	ena |= HWRM_FUNC_BACKING_STORE_CFG_INPUT_DFLT_ENABLES;
 
-	rc = bnxt_hwrm_func_backing_store_cfg(softc, ena);
+skip_legacy:
+	if (BNXT_CHIP_P7(softc)) {
+		if (softc->fw_cap & BNXT_FW_CAP_BACKING_STORE_V2)
+			rc = bnxt_backing_store_cfg_v2(softc, ena);
+	} else {
+		rc = bnxt_hwrm_func_backing_store_cfg(softc, ena);
+	}
 	if (rc) {
 		device_printf(softc->dev, "Failed configuring context mem, rc = %d.\n",
-			   rc);
+			      rc);
 		return rc;
 	}
 	ctx->flags |= BNXT_CTX_FLAG_INITED;
