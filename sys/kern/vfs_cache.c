@@ -4461,7 +4461,7 @@ cache_fpl_terminated(struct cache_fpl *fpl)
 	(NC_NOMAKEENTRY | NC_KEEPPOSENTRY | LOCKLEAF | LOCKPARENT | WANTPARENT | \
 	 FAILIFEXISTS | FOLLOW | EMPTYPATH | LOCKSHARED | ISRESTARTED | WILLBEDIR | \
 	 ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2 | NOCAPCHECK | OPENREAD | \
-	 OPENWRITE | WANTIOCTLCAPS)
+	 OPENWRITE | WANTIOCTLCAPS | OPENNAMED)
 
 #define CACHE_FPL_INTERNAL_CN_FLAGS \
 	(ISDOTDOT | MAKEENTRY | ISLASTCN)
@@ -4522,6 +4522,10 @@ cache_can_fplookup(struct cache_fpl *fpl)
 		return (false);
 	}
 	if (ndp->ni_startdir != NULL) {
+		cache_fpl_aborted_early(fpl);
+		return (false);
+	}
+	if ((cnp->cn_flags & OPENNAMED) != 0) {
 		cache_fpl_aborted_early(fpl);
 		return (false);
 	}
