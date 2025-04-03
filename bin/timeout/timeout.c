@@ -224,6 +224,7 @@ main(int argc, char **argv)
 	bool timedout = false;
 	bool do_second_kill = false;
 	bool child_done = false;
+	sigset_t zeromask, allmask, oldmask;
 	struct sigaction signals;
 	struct procctl_reaper_status info;
 	int signums[] = {
@@ -288,6 +289,33 @@ main(int argc, char **argv)
 			err(EXIT_FAILURE, "procctl(PROC_REAP_ACQUIRE)");
 	}
 
+	/* Block all signals to avoid racing against the child. */
+	sigfillset(&allmask);
+	if (sigprocmask(SIG_BLOCK, &allmask, &oldmask) == -1)
+		err(EXIT_FAILURE, "sigprocmask()");
+
+	pid = fork();
+	if (pid == -1) {
+		err(EXIT_FAILURE, "fork()");
+	} else if (pid == 0) {
+		/*
+		 * child process
+		 *
+		 * POSIX.1-2024 requires that the child process inherit the
+		 * same signal dispositions as the timeout(1) utility
+		 * inherited, except for the signal to be sent upon timeout.
+		 */
+		signal(killsig, SIG_DFL);
+		if (sigprocmask(SIG_SETMASK, &oldmask, NULL) == -1)
+			err(EXIT_FAILURE, "sigprocmask(oldmask)");
+
+		execvp(argv[0], argv);
+		warn("exec(%s)", argv[0]);
+		_exit(errno == ENOENT ? EXIT_CMD_NOENT : EXIT_CMD_ERROR);
+	}
+
+	/* parent continues here */
+
 	memset(&signals, 0, sizeof(signals));
 	sigemptyset(&signals.sa_mask);
 
@@ -310,29 +338,11 @@ main(int argc, char **argv)
 	signal(SIGTTIN, SIG_IGN);
 	signal(SIGTTOU, SIG_IGN);
 
-	pid = fork();
-	if (pid == -1) {
-		err(EXIT_FAILURE, "fork()");
-	} else if (pid == 0) {
-		/* child process */
-		signal(SIGTTIN, SIG_DFL);
-		signal(SIGTTOU, SIG_DFL);
-
-		execvp(argv[0], argv);
-		warn("exec(%s)", argv[0]);
-		_exit(errno == ENOENT ? EXIT_CMD_NOENT : EXIT_CMD_ERROR);
-	}
-
-	/* parent continues here */
-
-	if (sigprocmask(SIG_BLOCK, &signals.sa_mask, NULL) == -1)
-		err(EXIT_FAILURE, "sigprocmask()");
-
 	set_interval(first_kill);
-	sigemptyset(&signals.sa_mask);
+	sigemptyset(&zeromask);
 
 	for (;;) {
-		sigsuspend(&signals.sa_mask);
+		sigsuspend(&zeromask);
 
 		if (sig_chld) {
 			sig_chld = 0;
