@@ -12,6 +12,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250403:
+	Commit 8aedc83c1cc2 ("New setcred() system call and associated MAC
+	hooks") introduces new MAC hooks for the new setcred() system call,
+	modifying the layout and size of 'struct mac_policy_ops'.  As a result,
+	all MAC modules need to be recompiled.
+
 20250228:
 	Commit 9fed5151903f modified the internal API between the
 	nfscommon and nfscl modules.  As such, both of these modules
