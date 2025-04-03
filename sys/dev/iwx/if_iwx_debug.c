@@ -126,7 +126,7 @@ iwx_dump_cmd(uint32_t id, void *data, uint16_t len, const char *str, int type)
 }
 
 void 
-iwx_bbl_add_entry(uint64_t code, int type, int ticks)
+iwx_bbl_add_entry(uint32_t code, int type, int ticks)
 {
 	/* 
 	 * Compress together repeated notifications, but increment the sequence
@@ -162,22 +162,22 @@ iwx_bbl_print_entry(struct iwx_bbl_entry *e)
 	switch(e->type) {
 	case IWX_BBL_PKT_TX:
 		printf("pkt     ");
-		printf("seq %08d\t pkt len %ld",
+		printf("seq %08d\t pkt len %u",
 			e->seq, e->code);
 		break;
 		printf("pkt dup ");
-		printf("seq %08d\t dup count %ld",
+		printf("seq %08d\t dup count %u",
 			e->seq, e->code);
 		break;
 	case IWX_BBL_CMD_TX:
 		printf("tx ->   ");
-		printf("seq %08d\tcode 0x%08lx (%s:%s)",
+		printf("seq %08d\tcode 0x%08x (%s:%s)",
 			e->seq, e->code, get_label(command_group, group),
 			get_label(get_table(group), opcode));
 		break;
 	case IWX_BBL_CMD_RX:
 		printf("rx      ");
-		printf("seq %08d\tcode 0x%08lx (%s:%s)",
+		printf("seq %08d\tcode 0x%08x (%s:%s)",
 			e->seq, e->code, get_label(command_group, group),
 			get_label(get_table(group), opcode));
 		break;
