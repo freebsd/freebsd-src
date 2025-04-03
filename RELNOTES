@@ -10,6 +10,16 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+4b4bd20e17e0-f9b5d5bf1186, f74cd62b5c71:
+	mac_do(4) is now considered production-ready and its functionality has
+	been considerably extended at the price of breaking credentials
+	transition rules' backwards compatibility.  All that could be specified
+	with old rules can also be with new rules.  Migrating old rules is just
+	a matter of adding "uid=" in front of the target part, substituting
+	commas (",") with semi-colons (";") and colons (":") with greater-than
+	signs (">").  Please consult the mac_do(4) manual page for the new rules
+	grammar.
+
 960ee8094913:
 	hw.snd.maxautovchans has been retired. The commit introduced a
 	hw.snd.vchans_enable sysctl, which along with
