@@ -1857,16 +1857,21 @@ retry:
 	COPY_STAT_T(rttvar);
 	COPY_STAT(rcv_up);
 	COPY_STAT(rcv_adv);
+	COPY_STAT_T(flags2);
 	COPY_STAT(rcv_nxt);
 	COPY_STAT(rcv_wnd);
 	COPY_STAT_T(dupacks);
 	COPY_STAT_T(segqlen);
 	COPY_STAT(snd_numholes);
-	COPY_STAT(snd_scale);
-	COPY_STAT(rcv_scale);
-	COPY_STAT_T(flags2);
+	log_buf->tlb_flex1 = 0;
+	log_buf->tlb_flex2 = 0;
 	COPY_STAT_T(fbyte_in);
 	COPY_STAT_T(fbyte_out);
+	COPY_STAT(snd_scale);
+	COPY_STAT(rcv_scale);
+	log_buf->_pad[0] = 0;
+	log_buf->_pad[1] = 0;
+	log_buf->_pad[2] = 0;
 #undef COPY_STAT
 #undef COPY_STAT_T
 	/* Copy stack-specific info. */
