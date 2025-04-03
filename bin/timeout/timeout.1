@@ -73,6 +73,28 @@ inherited, except for the signal that will be sent upon timeout,
 which is reset to take the default action and should terminate
 the process.
 .Pp
+If
+.Nm
+receives the
+.Dv SIGALRM
+signal, it will behave as if the time limit has been reached
+and send the specified signal to
+.Ar command .
+For any other signals delivered to
+.Nm ,
+it will propagate them to
+.Ar command ,
+with the exception of
+.Dv SIGKILL
+and
+.Dv SIGSTOP .
+If you want to prevent the
+.Ar command
+from being timed out, send
+.Dv SIGKILL
+to
+.Nm .
+.Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl f , Fl -foreground
