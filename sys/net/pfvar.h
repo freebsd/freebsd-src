@@ -696,6 +696,7 @@ struct pf_rule_actions {
 	uint8_t		 min_ttl;
 	uint8_t		 set_prio[2];
 	uint8_t		 rt;
+	uint8_t		 allow_opts;
 };
 
 union pf_keth_rule_ptr {
