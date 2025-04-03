@@ -2822,7 +2822,8 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 			continue;
 
 		/* VLAN filtering for interfaces with non-zero VLAN ID */
-		if ((dbif->bif_vlan != DOT1Q_VID_NULL) && (vlan != dbif->bif_vlan))
+		if ((dbif->bif_vlan != DOT1Q_VID_NULL) &&
+		    (vlan != dbif->bif_vlan))
 			continue;
 
 		if ((dbif->bif_flags & IFBIF_STP) &&
