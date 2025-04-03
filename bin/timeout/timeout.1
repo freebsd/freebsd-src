@@ -1,6 +1,7 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2014 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" Copyright (c) 2025 Aaron LI <aly@aaronly.me>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -101,6 +102,9 @@ The options are as follows:
 Only time out the
 .Ar command
 itself, but do not propagate signals to its descendants.
+See the
+.Sx IMPLEMENTATION NOTES
+section for more details.
 .It Fl k Ar time , Fl -kill-after Ar time
 Send a
 .Dv SIGKILL
@@ -145,6 +149,30 @@ hours
 .It Cm d
 days
 .El
+.Sh IMPLEMENTATION NOTES
+If the
+.Fl -foreground
+option is not specified,
+.Nm
+runs as the reaper (see also
+.Xr procctl 2 )
+of the
+.Ar command
+and its descendants, and will wait for all the descendants to terminate.
+This behavior might cause surprises if there are descendants running
+in the background, because they will ignore
+.Dv SIGINT
+and
+.Dv SIGQUIT
+signals.
+For example, the following command that sends a
+.Dv SIGTERM
+signal will complete in 2 seconds:
+.Dl $ timeout -s TERM 2 sh -c 'sleep 4 & sleep 5'
+However, this command that sends a
+.Dv SIGINT
+signal will complete in 4 seconds:
+.Dl $ timeout -s INT 2 sh -c 'sleep 4 & sleep 5'
 .Sh EXIT STATUS
 If the time limit was reached and the
 .Fl -preserve-status
@@ -247,9 +275,9 @@ The
 command first appeared in
 .Fx 10.3 .
 .Pp
-The
+The initial
 .Fx
-work is compatible with GNU
+work was compatible with GNU
 .Nm
 by
 .An Padraig Brady ,
@@ -258,6 +286,7 @@ The
 .Nm
 utility first appeared in GNU Coreutils 7.0.
 .Sh AUTHORS
-.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org
-and
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org ,
 .An Vsevolod Stakhov Aq Mt vsevolod@FreeBSD.org
+and
+.An Aaron LI Aq Mt aly@aaronly.me
