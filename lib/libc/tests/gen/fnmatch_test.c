@@ -26,6 +26,7 @@
 
 #include <sys/param.h>
 #include <errno.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -176,10 +177,90 @@ ATF_TC_BODY(fnmatch_test, tc)
 
 }
 
+ATF_TC(fnmatch_characterclass);
+ATF_TC_HEAD(fnmatch_characterclass, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test fnmatch with character classes");
+}
+
+ATF_TC_BODY(fnmatch_characterclass, tc)
+{
+	ATF_CHECK(fnmatch("[[:alnum:]]", "a", 0) == 0);
+	ATF_CHECK(fnmatch("[[:cntrl:]]", "\a", 0) == 0);
+	ATF_CHECK(fnmatch("[[:lower:]]", "a", 0) == 0);
+	ATF_CHECK(fnmatch("[[:space:]]", " ", 0) == 0);
+	ATF_CHECK(fnmatch("[[:alpha:]]", "a", 0) == 0);
+	ATF_CHECK(fnmatch("[[:digit:]]", "0", 0) == 0);
+	ATF_CHECK(fnmatch("[[:print:]]", "a", 0) == 0);
+	ATF_CHECK(fnmatch("[[:upper:]]", "A", 0) == 0);
+	ATF_CHECK(fnmatch("[[:blank:]]", " ", 0) == 0);
+	ATF_CHECK(fnmatch("[[:graph:]]", "a", 0) == 0);
+	ATF_CHECK(fnmatch("[[:punct:]]", ".", 0) == 0);
+	ATF_CHECK(fnmatch("[[:xdigit:]]", "f", 0) == 0);
+
+	/*
+	 * POSIX.1, section 9.3.5. states that '[:' and ':]'
+	 * should be interpreted as character classes symbol only
+	 * when part of a bracket expression.
+	 */
+	ATF_CHECK(fnmatch("[:alnum:]", "a", 0) == 0);
+	ATF_CHECK(fnmatch("[:alnum:]", ":", 0) == 0);
+	ATF_CHECK(fnmatch("[:alnum:]", "1", 0) != 0);
+}
+
+ATF_TC(fnmatch_collsym);
+ATF_TC_HEAD(fnmatch_collsym, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test fnmatch with collating symbols");
+}
+
+ATF_TC_BODY(fnmatch_collsym, tc)
+{
+	setlocale(LC_ALL, "cs_CZ.UTF-8");
+	ATF_CHECK(fnmatch("[ch]", "ch", 0) != 0);
+	ATF_CHECK(fnmatch("[[.ch.]]", "ch", 0) == 0);
+	ATF_CHECK(fnmatch("[[.ch.]]h", "chh", 0) == 0);
+
+	/*
+	 * POSIX.1, section 9.3.5. states that '[.' and '.]'
+	 * should be interpreted as a collating symbol only
+	 * when part of a bracket expression.
+	 */
+	ATF_CHECK(fnmatch("[.ch.]", "c", 0) == 0);
+	ATF_CHECK(fnmatch("[.ch.]", "h", 0) == 0);
+	ATF_CHECK(fnmatch("[.ch.]", ".", 0) == 0);
+}
+
+ATF_TC(fnmatch_equivclass);
+ATF_TC_HEAD(fnmatch_equivclass, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test fnmatch with equivalence classes");
+}
+
+ATF_TC_BODY(fnmatch_equivclass, tc)
+{
+	setlocale(LC_ALL, "en_US.UTF-8");
+	ATF_CHECK(fnmatch("[[=a=]]b", "ab", 0) == 0);
+	ATF_CHECK(fnmatch("[[=a=]]b", "Ab", 0) == 0);
+	ATF_CHECK(fnmatch("[[=à=]]b", "ab", 0) == 0);
+	ATF_CHECK(fnmatch("[[=a=]]b", "àb", 0) == 0);
+
+	/*
+	 * POSIX.1, section 9.3.5. states that '[=' and '=]'
+	 * should be interpreted as an equivalence class only
+	 * when part of a bracket expression.
+	 */
+	ATF_CHECK(fnmatch("[=a=]b", "=b", 0) == 0);
+	ATF_CHECK(fnmatch("[=a=]b", "ab", 0) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, fnmatch_test);
+	ATF_TP_ADD_TC(tp, fnmatch_collsym);
+	ATF_TP_ADD_TC(tp, fnmatch_characterclass);
+	ATF_TP_ADD_TC(tp, fnmatch_equivclass);
 
 	return (atf_no_error());
 }
