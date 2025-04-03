@@ -26,6 +26,8 @@
 
 . $(atf_get_srcdir)/utils.subr
 
+common_dir=$(atf_get_srcdir)/../common
+
 atf_test_case "dummynet" "cleanup"
 dummynet_head()
 {
@@ -112,8 +114,72 @@ quick_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "allow_opts" "cleanup"
+allow_opts_head()
+{
+	atf_set descr 'Test allowing IP options via match'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+allow_opts_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}b 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}a
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	jexec alcatraz pfctl -e
+	jexec alcatraz pfctl -x loud
+	pft_set_rules alcatraz \
+	    "match proto icmp allow-opts" \
+	    "pass"
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+
+	atf_check -s exit:0 -o ignore \
+	    ${common_dir}/pft_ping.py  \
+	    --sendif ${epair}b \
+	    --to 192.0.2.1 \
+	    --send-nop \
+	    --replyif ${epair}b
+
+	# This doesn't work without 'allow-opts'
+	pft_set_rules alcatraz \
+	    "match proto icmp" \
+	    "pass"
+	atf_check -s exit:1 -o ignore \
+	    ${common_dir}/pft_ping.py  \
+	    --sendif ${epair}b \
+	    --to 192.0.2.1 \
+	    --send-nop \
+	    --replyif ${epair}b
+
+	# Setting it on a pass rule still works.
+	pft_set_rules alcatraz \
+	    "pass allow-opts"
+	atf_check -s exit:0 -o ignore \
+	    ${common_dir}/pft_ping.py  \
+	    --sendif ${epair}b \
+	    --to 192.0.2.1 \
+	    --send-nop \
+	    --replyif ${epair}b
+}
+
+allow_opts_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "dummynet"
 	atf_add_test_case "quick"
+	atf_add_test_case "allow_opts"
 }

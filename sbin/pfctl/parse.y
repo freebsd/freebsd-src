@@ -5325,8 +5325,9 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 		    r->af == AF_INET ? "inet" : "inet6");
 		problems++;
 	}
-	if (r->allow_opts && r->action != PF_PASS) {
-		yyerror("allow-opts can only be specified for pass rules");
+	if (r->allow_opts && r->action != PF_PASS && r->action != PF_MATCH) {
+		yyerror("allow-opts can only be specified for pass or "
+		    "match rules");
 		problems++;
 	}
 	if (r->rule_flag & PFRULE_FRAGMENT && (r->src.port_op ||
