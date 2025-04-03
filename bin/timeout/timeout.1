@@ -146,37 +146,33 @@ hours
 days
 .El
 .Sh EXIT STATUS
-If the timeout was not reached, the exit status of
-.Ar command
-is returned.
-.Pp
-If the timeout was reached and
+If the time limit was reached and the
 .Fl -preserve-status
-is set, the exit status of
+option is not specified, the exit status is 124.
+Otherwise,
+.Nm
+exits with the same exit status as the
+.Ar command .
+For example,
+.Nm
+will terminate itself with the same signal if the
 .Ar command
-is returned.
-If
-.Fl -preserve-status
-is not set, an exit status of 124 is returned.
+is terminated by a signal.
 .Pp
-If an invalid parameter is passed to
-.Fl s
-or
-.Fl k ,
-the exit status returned is 125.
-.Pp
-If
+If an error occurred, the following exit values are returned:
+.Bl -tag -offset indent with indent -compact
+.It 125
+An error other than the two described below occurred.
+For example, an invalid duration or signal was specified.
+.It 126
+The
 .Ar command
-is an otherwise invalid program, the exit status returned is 126.
-.Pp
-If
+was found but could not be executed.
+.It 127
+The
 .Ar command
-refers to a non-existing program, the exit status returned is 127.
-.Pp
-If
-.Ar command
-exits after receiving a signal, the exit status returned is the signal number
-plus 128.
+could not be found.
+.El
 .Sh EXAMPLES
 Run
 .Xr sleep 1
@@ -202,7 +198,8 @@ $ echo $?
 .Pp
 Same as above but preserving status.
 The exit status is 128 + signal number (15 for
-.Dv SIGTERM ) :
+.Dv SIGTERM )
+for most shells:
 .Bd -literal -offset indent
 $ timeout --preserve-status 2 sleep 4
 $ echo $?
