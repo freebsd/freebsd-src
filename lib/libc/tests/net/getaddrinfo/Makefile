@@ -15,27 +15,27 @@ ${PACKAGE}DATA_FILESPACKAGE=	tests
 
 ${PACKAGE}DATA_FILESDIR=	${TESTSDIR}/data
 
-${PACKAGE}DATA_FILES+= basics_v4.exp
-${PACKAGE}DATA_FILES+= basics_v4v6_prefer_v4.exp
-${PACKAGE}DATA_FILES+= basics_v4v6_prefer_v6.exp
-${PACKAGE}DATA_FILES+= no_host_v4.exp
-${PACKAGE}DATA_FILES+= no_host_v4v6_prefer_v4.exp
-${PACKAGE}DATA_FILES+= no_host_v4v6_prefer_v6.exp
-${PACKAGE}DATA_FILES+= no_serv_v4.exp
-${PACKAGE}DATA_FILES+= no_serv_v4v6_prefer_v4.exp
-${PACKAGE}DATA_FILES+= no_serv_v4v6_prefer_v6.exp
-${PACKAGE}DATA_FILES+= scoped_v4.exp
-${PACKAGE}DATA_FILES+= scoped_v4v6_prefer_v4.exp
-${PACKAGE}DATA_FILES+= scoped_v4v6_prefer_v6.exp
-${PACKAGE}DATA_FILES+= sock_raw_v4.exp
-${PACKAGE}DATA_FILES+= sock_raw_v4v6_prefer_v4.exp
-${PACKAGE}DATA_FILES+= sock_raw_v4v6_prefer_v6.exp
-${PACKAGE}DATA_FILES+= spec_fam_v4.exp
-${PACKAGE}DATA_FILES+= spec_fam_v4v6_prefer_v4.exp
-${PACKAGE}DATA_FILES+= spec_fam_v4v6_prefer_v6.exp
-${PACKAGE}DATA_FILES+= unsup_fam_v4.exp
-${PACKAGE}DATA_FILES+= unsup_fam_v4v6_prefer_v4.exp
-${PACKAGE}DATA_FILES+= unsup_fam_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/basics_v4.exp
+${PACKAGE}DATA_FILES+= data/basics_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/basics_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/no_host_v4.exp
+${PACKAGE}DATA_FILES+= data/no_host_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/no_host_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/no_serv_v4.exp
+${PACKAGE}DATA_FILES+= data/no_serv_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/no_serv_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/scoped_v4.exp
+${PACKAGE}DATA_FILES+= data/scoped_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/scoped_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/sock_raw_v4.exp
+${PACKAGE}DATA_FILES+= data/sock_raw_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/sock_raw_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/spec_fam_v4.exp
+${PACKAGE}DATA_FILES+= data/spec_fam_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/spec_fam_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/unsup_fam_v4.exp
+${PACKAGE}DATA_FILES+= data/unsup_fam_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/unsup_fam_v4v6_prefer_v6.exp
 
 
 .include "../../Makefile.netbsd-tests"
