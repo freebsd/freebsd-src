@@ -28,6 +28,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/procctl.h>
+#include <sys/resource.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 
@@ -239,6 +240,34 @@ set_interval(double iv)
 		err(EXIT_FAILURE, "setitimer()");
 }
 
+/*
+ * In order to avoid any possible ambiguity that a shell may not set '$?' to
+ * '128+signal_number', POSIX.1-2024 requires that timeout mimic the wait
+ * status of the child process by terminating itself with the same signal,
+ * while disabling core generation.
+ */
+static void __dead2
+kill_self(int signo)
+{
+	sigset_t mask;
+	struct rlimit rl;
+
+	/* Reset the signal disposition and make sure it's unblocked. */
+	signal(signo, SIG_DFL);
+	sigfillset(&mask);
+	sigdelset(&mask, signo);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
+
+	/* Disable core generation. */
+	memset(&rl, 0, sizeof(rl));
+	setrlimit(RLIMIT_CORE, &rl);
+
+	logv("killing self with signal %s(%d)", sys_signame[signo], signo);
+	kill(getpid(), signo);
+	err(128 + signo, "signal %s(%d) failed to kill self",
+	    sys_signame[signo], signo);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -430,10 +459,12 @@ main(int argc, char **argv)
 	if (timedout && !preserve) {
 		pstat = EXIT_TIMEOUT;
 	} else {
+		if (WIFSIGNALED(pstat))
+			kill_self(WTERMSIG(pstat));
+			/* NOTREACHED */
+
 		if (WIFEXITED(pstat))
 			pstat = WEXITSTATUS(pstat);
-		else if (WIFSIGNALED(pstat))
-			pstat = 128 + WTERMSIG(pstat);
 	}
 
 	return (pstat);
