@@ -187,6 +187,15 @@ xrefinfo_add(phandle_t node, phandle_t xref, device_t dev)
 	return (xi);
 }
 
+static void
+xrefinfo_remove(struct xrefinfo *xi)
+{
+
+	mtx_lock(&xreflist_lock);
+	SLIST_REMOVE(&xreflist, xi, xrefinfo, next_entry);
+	mtx_unlock(&xreflist_lock);
+}
+
 /*
  * OFW install routines.  Highest priority wins, equal priority also
  * overrides allowing last-set to win.
@@ -702,6 +711,16 @@ OF_device_register_xref(phandle_t xref, device_t dev)
 		return (0);
 	}
 	panic("Attempt to register device before xreflist_init");
+}
+
+void
+OF_device_unregister_xref(phandle_t xref, device_t dev)
+{
+	struct xrefinfo *xi;
+
+	if ((xi = xrefinfo_find(xref, FIND_BY_XREF)) == NULL)
+		return;
+	xrefinfo_remove(xi);
 }
 
 /*  Call the method in the scope of a given instance. */
