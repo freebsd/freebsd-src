@@ -56,7 +56,7 @@ enum {
 void print_opcode(const char *, int, int, uint32_t);
 void print_ratenflags(const char *, int , uint32_t , int );
 void iwx_dump_cmd(uint32_t , void *, uint16_t, const char *, int);
-void iwx_bbl_add_entry(uint64_t, int, int);
+void iwx_bbl_add_entry(uint32_t, int, int);
 void iwx_bbl_print_log(void);
 
 #define IWX_BBL_NONE	0x00
@@ -254,7 +254,7 @@ static struct opcode_label phyops_opcodes[] = {
 
 struct iwx_bbl_entry {
 	uint8_t type;
-	uint64_t code;
+	uint32_t code;
 	uint32_t seq;
 	uint32_t ticks;
 	uint32_t count;
