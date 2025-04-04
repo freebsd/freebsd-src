@@ -1885,7 +1885,10 @@ bnxt_hwrm_stat_ctx_alloc(struct bnxt_softc *softc, struct bnxt_cp_ring *cpr,
 
 	req.update_period_ms = htole32(1000);
 	req.stats_dma_addr = htole64(paddr);
-	if (BNXT_CHIP_P5_PLUS(softc))
+
+	if (BNXT_CHIP_P7(softc))
+		req.stats_dma_length = htole16(sizeof(struct ctx_hw_stats_ext));
+	else if (BNXT_CHIP_P5(softc))
 		req.stats_dma_length = htole16(sizeof(struct ctx_hw_stats_ext) - 8);
 	else
 		req.stats_dma_length = htole16(sizeof(struct ctx_hw_stats));
