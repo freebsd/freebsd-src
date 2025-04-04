@@ -1601,16 +1601,21 @@ retry:
 		}
 
 		/*
-		 * The page was left invalid.  Likely placed there by
+		 * If the page was left invalid, it was likely placed there by
 		 * an incomplete fault.  Just remove and ignore.
+		 *
+		 * One other possibility is that the map entry is wired, in
+		 * which case we must hang on to the page to avoid leaking it,
+		 * as the map entry owns the wiring.  This case can arise if the
+		 * backing pager is truncated.
 		 */
-		if (vm_page_none_valid(m)) {
+		if (vm_page_none_valid(m) && entry->wired_count == 0) {
 			if (vm_page_remove(m))
 				vm_page_free(m);
 			continue;
 		}
 
-		/* vm_page_rename() will dirty the page. */
+		/* vm_page_rename() will dirty the page if it is valid. */
 		if (vm_page_rename(m, new_object, idx)) {
 			vm_page_xunbusy(m);
 			VM_OBJECT_WUNLOCK(new_object);
