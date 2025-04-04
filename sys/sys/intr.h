@@ -86,8 +86,6 @@ typedef int intr_irq_filter_t(void *arg);
 #endif
 typedef int intr_child_irq_filter_t(void *arg, __uintptr_t irq);
 
-#define INTR_ISRC_NAMELEN	(MAXCOMLEN + 1)
-
 #define INTR_ISRCF_IPI		0x01	/* IPI interrupt */
 #define INTR_ISRCF_PPI		0x02	/* PPI interrupt */
 #define INTR_ISRCF_BOUND	0x04	/* bound to a CPU */
@@ -99,7 +97,6 @@ struct _device;
 struct intr_irqsrc {
 	struct intr_event	isrc_event;
 	unsigned int		isrc_flags;
-	char			isrc_name[INTR_ISRC_NAMELEN];
 	cpuset_t		isrc_cpu;	/* on which CPUs is enabled */
 	unsigned int		isrc_index;
 	unsigned long *		isrc_count;
