@@ -1,7 +1,7 @@
 .\" Written by Garrett Wollman
 .\" This file is in the public domain.
 .\"
-.Dd November 13, 2019
+.Dd May 29, 2025
 .Dt LINPROCFS 4
 .Os
 .Sh NAME
@@ -26,17 +26,53 @@ There is also a special node called
 .Pa self
 which always refers to the process making the lookup request.
 .Pp
-Each node is a directory containing several files:
-.Bl -tag -width status
+Each process node is a directory containing several files:
+.Bl -tag -width oom_score_adj
+.It Pa auxv
+The auxiliary vector passed to the program.
+.It Pa cmdline
+The command line used to execute the process.
+.It Pa cwd
+A symbolic link pointing to the current work directory of the process.
+.It Pa environ
+The list of environment variables and values of the process.
+Every variable and pair value is separated from the next by a NULL byte.
 .It Pa exe
 A reference to the vnode from which the process text was read.
 This can be used to gain access to the process' symbol table,
 or to start another copy of the process.
+.It Pa limits
+The soft and hard limits for the process along with the units used.
+.It Pa maps
+Memory map of the process.
 .It Pa mem
 The complete virtual memory image of the process.
 Only those addresses which exist in the process can be accessed.
 Reads and writes to this file modify the process.
 Writes to the text segment remain private to the process.
+.It Pa mountinfo
+Information about mount points.
+.It Pa mounts
+Similar to the above.
+.It Pa oom_score_adj
+Score adjustment for the Out Of Memory killer.
+.It Pa root
+Symbolic link to the root directory for this process.
+.It Pa stat
+Process statistics.
+It includes user, nice, system, idle, iowait, irq, softirq,
+steal, guest and guest_nice.
+.It Pa statm
+Process size statistics.
+It includes total program size, resident set size, number of resident shared
+pages (unused), text size, library size (unused), data + stack and dirty pages
+(unused).
+.It Pa status
+Process statistics in human readable form.
+It includes process name, state, PID,
+etc.
+.It Pa task
+Dummy directory to avoid problems in specific software such as Chromium.
 .El
 .Pp
 Each node is owned by the process's user, and belongs to that user's
@@ -46,23 +82,55 @@ node, which belongs to the
 .Li kmem
 group.
 .Sh FILES
-.Bl -tag -width /compat/linux/proc/self/XXXXXXX -compact
+.Bl -tag -width /compat/linux/proc/filesystems -compact
 .It Pa /compat/linux/proc
-The normal mount point for the
+The normal mount point for
 .Nm .
+.It Pa /compat/linux/proc/cmdline
+Contains the path of the kernel image used to boot the system.
 .It Pa /compat/linux/proc/cpuinfo
 CPU vendor and model information in human-readable form.
+.It Pa /compat/linux/proc/devices
+List of character and block devices.
+The later is usually empty on
+.Fx .
+.It Pa /compat/linux/proc/filesystems
+List of supported filesystems.
+For pseudo filesystems, the first column contains
+.Em nodev .
 .It Pa /compat/linux/proc/meminfo
 System memory information in human-readable form.
+.It Pa /compat/linux/proc/modules
+Loaded kernel modules.
+Empty for now.
+.It Pa /compat/linux/proc/mounts
+Devices corresponding mount points.
+.It Pa /compat/linux/proc/mtab
+Same as above.
+.It Pa /compat/linux/proc/partitions
+Partition information including major and minor numbers, number of blocks and
+name.
+The rest of the fields are set to zero.
+.It Pa /compat/linux/proc/stat
+System statistics.
+For each cpu it includes at most user time, nice time, system
+time and idle time, iowait (time waiting for I/O to complete), times serving
+irqs and softirq, steal, guest and guest_nice times that represent times spent
+in different modes in a virtualized environment.
+The last columns are set to zero.
+This file also contains brief statistics for disks, context switches and
+more.
+.It Pa /compat/linux/proc/swap
+Information about the swap device if any.
+.It Pa /compat/linux/proc/uptime
+Time since the last boot and time spent in idle state.
+.It Pa /compat/linux/proc/version
+Version of the emulated linux system.
 .It Pa /compat/linux/proc/pid
 A directory containing process information for process
 .Pa pid .
 .It Pa /compat/linux/proc/self
 A directory containing process information for the current process.
-.It Pa /compat/linux/proc/self/exe
-The executable image for the current process.
-.It Pa /compat/linux/proc/self/mem
-The complete virtual address space of the current process.
 .El
 .Sh EXAMPLES
 To mount a
@@ -74,6 +142,7 @@ file system on
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
+.Xr auxv 3 ,
 .Xr linux 4 ,
 .Xr procfs 5 ,
 .Xr pseudofs 9
