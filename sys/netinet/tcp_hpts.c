@@ -440,7 +440,7 @@ tcp_hpts_log(struct tcp_hpts_entry *hpts, struct tcpcb *tp, struct timeval *tv,
 	 * 16 bit - cwnd_gain
 	 *  8 bit - bbr_state, bbr_substate, inhpts;
 	 */
-	memset(&log.u_bbr, 0, sizeof(log.u_bbr));
+	memset(&log, 0, sizeof(log));
 	log.u_bbr.flex1 = hpts->p_nxt_slot;
 	log.u_bbr.flex2 = hpts->p_cur_slot;
 	log.u_bbr.flex3 = hpts->p_prev_slot;
