@@ -285,6 +285,88 @@ gve_setup_main_stat_sysctl(struct sysctl_ctx_list *ctx,
 	    &priv->reset_cnt, 0, "Times reset");
 }
 
+static int
+gve_check_num_queues(struct gve_priv *priv, int val, bool is_rx)
+{
+	if (val < 1) {
+		device_printf(priv->dev,
+		    "Requested num queues (%u) must be a positive integer\n", val);
+		return (EINVAL);
+	}
+
+	if (val > (is_rx ? priv->rx_cfg.max_queues : priv->tx_cfg.max_queues)) {
+		device_printf(priv->dev,
+		    "Requested num queues (%u) is too large\n", val);
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
+gve_sysctl_num_tx_queues(SYSCTL_HANDLER_ARGS)
+{
+	struct gve_priv *priv = arg1;
+	int val;
+	int err;
+
+	val = priv->tx_cfg.num_queues;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	err = gve_check_num_queues(priv, val, /*is_rx=*/false);
+	if (err != 0)
+		return (err);
+
+	if (val != priv->tx_cfg.num_queues) {
+		GVE_IFACE_LOCK_LOCK(priv->gve_iface_lock);
+		err = gve_adjust_tx_queues(priv, val);
+		GVE_IFACE_LOCK_UNLOCK(priv->gve_iface_lock);
+	}
+
+	return (err);
+}
+
+static int
+gve_sysctl_num_rx_queues(SYSCTL_HANDLER_ARGS)
+{
+	struct gve_priv *priv = arg1;
+	int val;
+	int err;
+
+	val = priv->rx_cfg.num_queues;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	err = gve_check_num_queues(priv, val, /*is_rx=*/true);
+
+	if (err != 0)
+		return (err);
+
+	if (val != priv->rx_cfg.num_queues) {
+		GVE_IFACE_LOCK_LOCK(priv->gve_iface_lock);
+		err = gve_adjust_rx_queues(priv, val);
+		GVE_IFACE_LOCK_UNLOCK(priv->gve_iface_lock);
+	}
+
+	return (err);
+}
+
+static void
+gve_setup_sysctl_writables(struct sysctl_ctx_list *ctx,
+    struct sysctl_oid_list *child, struct gve_priv *priv)
+{
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "num_tx_queues",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+	    gve_sysctl_num_tx_queues, "I", "Number of TX queues");
+
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "num_rx_queues",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+	    gve_sysctl_num_rx_queues, "I", "Number of RX queues");
+}
+
 void gve_setup_sysctl(struct gve_priv *priv)
 {
 	device_t dev;
@@ -300,6 +382,7 @@ void gve_setup_sysctl(struct gve_priv *priv)
 	gve_setup_queue_stat_sysctl(ctx, child, priv);
 	gve_setup_adminq_stat_sysctl(ctx, child, priv);
 	gve_setup_main_stat_sysctl(ctx, child, priv);
+	gve_setup_sysctl_writables(ctx, child, priv);
 }
 
 void
