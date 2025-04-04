@@ -74,6 +74,9 @@
  * Data structure and control definitions for bridge interfaces.
  */
 
+#ifndef	_NET_IF_BRIDGEVAR_H_
+#define	_NET_IF_BRIDGEVAR_H_
+
 #include <sys/types.h>
 #include <sys/callout.h>
 #include <sys/queue.h>
@@ -324,3 +327,5 @@ extern	bool (*bridge_same_p)(const void *, const void *);
 extern	void *(*bridge_get_softc_p)(struct ifnet *);
 
 #endif /* _KERNEL */
+
+#endif /* _NET_IF_BRIDGEVAR_H_ */
