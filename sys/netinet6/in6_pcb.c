@@ -214,14 +214,13 @@ in6_pcbbind_avail(struct inpcb *inp, const struct sockaddr_in6 *sin6, int fib,
 		}
 
 		/*
-		 * XXX: bind to an anycast address might accidentally
-		 * cause sending a packet with anycast source address.
-		 * We should allow to bind to a deprecated address, since
-		 * the application dares to use it.
+		 * We used to prohibit binding to an anycast address here,
+		 * based on RFC3513, but that restriction was removed in
+		 * RFC4291.
 		 */
 		if (ifa != NULL &&
 		    ((struct in6_ifaddr *)ifa)->ia6_flags &
-		    (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY | IN6_IFF_DETACHED)) {
+		    (IN6_IFF_NOTREADY | IN6_IFF_DETACHED)) {
 			NET_EPOCH_EXIT(et);
 			return (EADDRNOTAVAIL);
 		}
