@@ -736,7 +736,7 @@ jh7110_pcie_attach(device_t dev)
 	phandle_t xref;
 	uint32_t val;
 	int i, err, rid, irq, win_idx = 0;
-	char name[INTR_ISRC_NAMELEN];
+	char name[MAXCOMLEN + 1];
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -954,8 +954,7 @@ jh7110_pcie_attach(device_t dev)
 	sc->isrcs = malloc(sizeof(*sc->isrcs) * MSI_COUNT, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
 
-	snprintf(name, INTR_ISRC_NAMELEN, "%s, MSI",
-	    device_get_nameunit(sc->dev));
+	snprintf(name, sizeof(name), "%s, MSI", device_get_nameunit(sc->dev));
 
 	for (irq = 0; irq < MSI_COUNT; irq++) {
 		sc->isrcs[irq].irq = irq;
