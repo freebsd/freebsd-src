@@ -2878,6 +2878,7 @@ tcp_log_sendfile(struct socket *so, off_t offset, size_t nbytes, int flags)
 		struct timeval tv;
 		tcp_log_eventspecific_t log;
 
+		memset(&log, 0, sizeof(log));
 		microuptime(&tv);
 		log.u_sf.offset = offset;
 		log.u_sf.length = nbytes;
