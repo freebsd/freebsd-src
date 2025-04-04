@@ -271,21 +271,20 @@ static void
 isrc_update_name(struct intr_irqsrc *isrc, const char *name)
 {
 	char str[INTRNAME_LEN];
+	char space = ' ';
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
-	if (name != NULL) {
-		snprintf(str, INTRNAME_LEN, "%s: %s", isrc->isrc_name, name);
-		intrcnt_setname(str, isrc->isrc_index);
-		snprintf(str, INTRNAME_LEN, "stray %s: %s", isrc->isrc_name,
-		    name);
-		intrcnt_setname(str, isrc->isrc_index + 1);
-	} else {
-		snprintf(str, INTRNAME_LEN, "%s:", isrc->isrc_name);
-		intrcnt_setname(str, isrc->isrc_index);
-		snprintf(str, INTRNAME_LEN, "stray %s:", isrc->isrc_name);
-		intrcnt_setname(str, isrc->isrc_index + 1);
+	if (name == NULL) {
+		name = "";
+		space = 0;
 	}
+	snprintf(str, sizeof(str), "%s:%c%s", isrc->isrc_event.ie_name, space,
+	    name);
+	intrcnt_setname(str, isrc->isrc_index);
+	snprintf(str, sizeof(str), "stray %s:%c%s", isrc->isrc_event.ie_name,
+	    space, name);
+	intrcnt_setname(str, isrc->isrc_index + 1);
 }
 
 /*
@@ -517,10 +516,6 @@ intr_isrc_register(struct intr_irqsrc *isrc, device_t dev, u_int flags,
 	bzero(isrc, sizeof(struct intr_irqsrc));
 	isrc->isrc_irq = INTR_IRQ_INVALID;	/* just to be safe */
 	isrc->isrc_flags = flags;
-
-	va_start(ap, fmt);
-	vsnprintf(isrc->isrc_name, INTR_ISRC_NAMELEN, fmt, ap);
-	va_end(ap);
 
 	mtx_lock(&isrc_table_lock);
 	irq = isrc_alloc_irq();
@@ -1578,7 +1573,7 @@ DB_SHOW_COMMAND_FLAGS(irqs, db_show_irqs, DB_CMD_MEMSAFE)
 
 		num = isrc->isrc_count != NULL ? isrc->isrc_count[0] : 0;
 		db_printf("irq%-3u <%s>: cpu %02lx%s cnt %lu\n", i,
-		    isrc->isrc_name, isrc->isrc_cpu.__bits[0],
+		    isrc->isrc_event.ie_name, isrc->isrc_cpu.__bits[0],
 		    isrc->isrc_flags & INTR_ISRCF_BOUND ? " (bound)" : "", num);
 		irqsum += num;
 	}
