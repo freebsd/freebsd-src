@@ -52,6 +52,7 @@ static void
 gve_tx_free_ring_gqi(struct gve_priv *priv, int i)
 {
 	struct gve_tx_ring *tx = &priv->tx[i];
+	struct gve_ring_com *com = &tx->com;
 
 	if (tx->desc_ring != NULL) {
 		gve_dma_free_coherent(&tx->desc_ring_mem);
@@ -61,6 +62,11 @@ gve_tx_free_ring_gqi(struct gve_priv *priv, int i)
 	if (tx->info != NULL) {
 		free(tx->info, M_GVE);
 		tx->info = NULL;
+	}
+
+	if (com->qpl != NULL) {
+		gve_free_qpl(priv, com->qpl);
+		com->qpl = NULL;
 	}
 }
 
@@ -109,9 +115,11 @@ gve_tx_alloc_ring_gqi(struct gve_priv *priv, int i)
 	}
 	tx->desc_ring = tx->desc_ring_mem.cpu_addr;
 
-	com->qpl = &priv->qpls[i];
+	com->qpl = gve_alloc_qpl(priv, i, priv->tx_desc_cnt / GVE_QPL_DIVISOR,
+	    /*single_kva=*/true);
 	if (com->qpl == NULL) {
-		device_printf(priv->dev, "No QPL left for tx ring %d\n", i);
+		device_printf(priv->dev,
+		    "Failed to alloc QPL for tx ring %d\n", i);
 		err = ENOMEM;
 		goto abort;
 	}

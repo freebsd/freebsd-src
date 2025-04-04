@@ -36,6 +36,7 @@ static void
 gve_rx_free_ring_gqi(struct gve_priv *priv, int i)
 {
 	struct gve_rx_ring *rx = &priv->rx[i];
+	struct gve_ring_com *com = &rx->com;
 
 	if (rx->page_info != NULL) {
 		free(rx->page_info, M_GVE);
@@ -50,6 +51,11 @@ gve_rx_free_ring_gqi(struct gve_priv *priv, int i)
 	if (rx->desc_ring != NULL) {
 		gve_dma_free_coherent(&rx->desc_ring_mem);
 		rx->desc_ring = NULL;
+	}
+
+	if (com->qpl != NULL) {
+		gve_free_qpl(priv, com->qpl);
+		com->qpl = NULL;
 	}
 }
 
@@ -113,10 +119,13 @@ gve_rx_alloc_ring_gqi(struct gve_priv *priv, int i)
 	rx->mask = priv->rx_pages_per_qpl - 1;
 	rx->desc_ring = rx->desc_ring_mem.cpu_addr;
 
-	com->qpl = &priv->qpls[priv->tx_cfg.max_queues + i];
+	com->qpl = gve_alloc_qpl(priv, i + priv->tx_cfg.max_queues,
+	    priv->rx_desc_cnt, /*single_kva=*/false);
 	if (com->qpl == NULL) {
-		device_printf(priv->dev, "No QPL left for rx ring %d", i);
-		return (ENOMEM);
+		device_printf(priv->dev,
+		    "Failed to alloc QPL for rx ring %d", i);
+		err = ENOMEM;
+		goto abort;
 	}
 
 	rx->page_info = malloc(priv->rx_desc_cnt * sizeof(*rx->page_info),

@@ -482,20 +482,12 @@ gve_free_rings(struct gve_priv *priv)
 	gve_free_irqs(priv);
 	gve_free_tx_rings(priv);
 	gve_free_rx_rings(priv);
-	if (gve_is_qpl(priv))
-		gve_free_qpls(priv);
 }
 
 static int
 gve_alloc_rings(struct gve_priv *priv)
 {
 	int err;
-
-	if (gve_is_qpl(priv)) {
-		err = gve_alloc_qpls(priv);
-		if (err != 0)
-			goto abort;
-	}
 
 	err = gve_alloc_rx_rings(priv);
 	if (err != 0)
