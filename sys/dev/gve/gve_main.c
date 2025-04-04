@@ -32,10 +32,10 @@
 #include "gve_adminq.h"
 #include "gve_dqo.h"
 
-#define GVE_DRIVER_VERSION "GVE-FBSD-1.3.2\n"
+#define GVE_DRIVER_VERSION "GVE-FBSD-1.3.3\n"
 #define GVE_VERSION_MAJOR 1
 #define GVE_VERSION_MINOR 3
-#define GVE_VERSION_SUB 2
+#define GVE_VERSION_SUB 3
 
 #define GVE_DEFAULT_RX_COPYBREAK 256
 
@@ -258,6 +258,54 @@ gve_adjust_tx_queues(struct gve_priv *priv, uint16_t new_queue_cnt)
 		gve_schedule_reset(priv);
 
 	return (err);
+}
+
+int
+gve_adjust_ring_sizes(struct gve_priv *priv, uint16_t new_desc_cnt, bool is_rx)
+{
+	int err;
+	uint16_t prev_desc_cnt;
+
+	GVE_IFACE_LOCK_ASSERT(priv->gve_iface_lock);
+
+	gve_down(priv);
+
+	if (is_rx) {
+		gve_free_rx_rings(priv, 0, priv->rx_cfg.num_queues);
+		prev_desc_cnt = priv->rx_desc_cnt;
+		priv->rx_desc_cnt = new_desc_cnt;
+		err = gve_alloc_rx_rings(priv, 0, priv->rx_cfg.num_queues);
+		if (err != 0) {
+			device_printf(priv->dev,
+			    "Failed to allocate rings. Trying to start back up with previous ring size.");
+			priv->rx_desc_cnt = prev_desc_cnt;
+			err = gve_alloc_rx_rings(priv, 0, priv->rx_cfg.num_queues);
+		}
+	} else {
+		gve_free_tx_rings(priv, 0, priv->tx_cfg.num_queues);
+		prev_desc_cnt = priv->tx_desc_cnt;
+		priv->tx_desc_cnt = new_desc_cnt;
+		err = gve_alloc_tx_rings(priv, 0, priv->tx_cfg.num_queues);
+		if (err != 0) {
+			device_printf(priv->dev,
+			    "Failed to allocate rings. Trying to start back up with previous ring size.");
+			priv->tx_desc_cnt = prev_desc_cnt;
+			err = gve_alloc_tx_rings(priv, 0, priv->tx_cfg.num_queues);
+		}
+	}
+
+	if (err != 0) {
+		device_printf(priv->dev, "Failed to allocate rings! Cannot start device back up!");
+		return (err);
+	}
+
+	err = gve_up(priv);
+	if (err != 0) {
+		gve_schedule_reset(priv);
+		return (err);
+	}
+
+	return (0);
 }
 
 static int

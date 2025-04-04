@@ -153,13 +153,21 @@ struct gve_device_option_dqo_qpl {
 _Static_assert(sizeof(struct gve_device_option_dqo_qpl) == 8,
     "gve: bad admin queue struct length");
 
-struct gve_device_option_modify_ring {
-	__be32 supported_features_mask;
-	__be16 max_rx_ring_size;
-	__be16 max_tx_ring_size;
+struct gve_ring_size_bound {
+	__be16 rx;
+	__be16 tx;
 };
 
-_Static_assert(sizeof(struct gve_device_option_modify_ring) == 8,
+_Static_assert(sizeof(struct gve_ring_size_bound) == 4,
+    "gve: bad admin queue struct length");
+
+struct gve_device_option_modify_ring {
+	__be32 supported_features_mask;
+	struct gve_ring_size_bound max_ring_size;
+	struct gve_ring_size_bound min_ring_size;
+};
+
+_Static_assert(sizeof(struct gve_device_option_modify_ring) == 12,
     "gve: bad admin queue struct length");
 
 struct gve_device_option_jumbo_frames {

@@ -354,6 +354,83 @@ gve_sysctl_num_rx_queues(SYSCTL_HANDLER_ARGS)
 	return (err);
 }
 
+static int
+gve_check_ring_size(struct gve_priv *priv, int val, bool is_rx)
+{
+	if (!powerof2(val) || val == 0) {
+		device_printf(priv->dev,
+		    "Requested ring size (%u) must be a power of 2\n", val);
+		return (EINVAL);
+	}
+
+	if (val < (is_rx ? priv->min_rx_desc_cnt : priv->min_tx_desc_cnt)) {
+		device_printf(priv->dev,
+		    "Requested ring size (%u) cannot be less than %d\n", val,
+		    (is_rx ? priv->min_rx_desc_cnt : priv->min_tx_desc_cnt));
+		return (EINVAL);
+	}
+
+
+	if (val > (is_rx ? priv->max_rx_desc_cnt : priv->max_tx_desc_cnt)) {
+		device_printf(priv->dev,
+		    "Requested ring size (%u) cannot be greater than %d\n", val,
+		    (is_rx ? priv->max_rx_desc_cnt : priv->max_tx_desc_cnt));
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
+gve_sysctl_tx_ring_size(SYSCTL_HANDLER_ARGS)
+{
+	struct gve_priv *priv = arg1;
+	int val;
+	int err;
+
+	val = priv->tx_desc_cnt;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	err = gve_check_ring_size(priv, val, /*is_rx=*/false);
+	if (err != 0)
+		return (err);
+
+	if (val != priv->tx_desc_cnt) {
+		GVE_IFACE_LOCK_LOCK(priv->gve_iface_lock);
+		err = gve_adjust_ring_sizes(priv, val, /*is_rx=*/false);
+		GVE_IFACE_LOCK_UNLOCK(priv->gve_iface_lock);
+	}
+
+	return (err);
+}
+
+static int
+gve_sysctl_rx_ring_size(SYSCTL_HANDLER_ARGS)
+{
+	struct gve_priv *priv = arg1;
+	int val;
+	int err;
+
+	val = priv->rx_desc_cnt;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	err = gve_check_ring_size(priv, val, /*is_rx=*/true);
+	if (err != 0)
+		return (err);
+
+	if (val != priv->rx_desc_cnt) {
+		GVE_IFACE_LOCK_LOCK(priv->gve_iface_lock);
+		err = gve_adjust_ring_sizes(priv, val, /*is_rx=*/true);
+		GVE_IFACE_LOCK_UNLOCK(priv->gve_iface_lock);
+	}
+
+	return (err);
+}
+
 static void
 gve_setup_sysctl_writables(struct sysctl_ctx_list *ctx,
     struct sysctl_oid_list *child, struct gve_priv *priv)
@@ -365,6 +442,16 @@ gve_setup_sysctl_writables(struct sysctl_ctx_list *ctx,
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "num_rx_queues",
 	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
 	    gve_sysctl_num_rx_queues, "I", "Number of RX queues");
+
+	if (priv->modify_ringsize_enabled) {
+		SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_ring_size",
+		    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+		    gve_sysctl_tx_ring_size, "I", "TX ring size");
+
+		SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_ring_size",
+		    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+		    gve_sysctl_rx_ring_size, "I", "RX ring size");
+	}
 }
 
 void gve_setup_sysctl(struct gve_priv *priv)

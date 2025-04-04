@@ -86,6 +86,12 @@ Change the TX queue count to 4 for the gve0 interface:
 .Pp
 Change the RX queue count to 4 for the gve0 interface:
 .D1 sysctl dev.gve.0.num_rx_queues=4
+.Pp
+Change the TX ring size to 512 for the gve0 interface:
+.D1 sysctl dev.gve.0.tx_ring_size=512
+.Pp
+Change the RX ring size to 512 for the gve0 interface:
+.D1 sysctl dev.gve.0.rx_ring_size=512
 .Sh DIAGNOSTICS
 The following messages are recorded during driver initialization:
 .Bl -diag
@@ -229,6 +235,17 @@ In that situation, the driver will revert to the previous number of RX/TX queues
 If this also fails, a device reset will be triggered.
 .Pp
 Note: sysctl nodes for queue stats remain available even if a queue is removed.
+.Pp
+.It Va dev.gve.X.rx_ring_size and dev.gve.X.tx_ring_size
+Run-time tunables that represent the current ring size for RX/TX queues.
+The default value is set to device defaults for ring size.
+.Pp
+This call turns down the interface while setting up the queues with the new ring size,
+which may potentially cause any new packets to be dropped.
+This call can fail if the system is not able to provide the driver with enough resources.
+In that situation, the driver will try to revert to the previous ring size for RX/TX queues.
+If this also fails, the device will be in an unhealthy state and will need to be reloaded.
+This value must be a power of 2 and within the defined range.
 .Pp
 .El
 .Sh LIMITATIONS
