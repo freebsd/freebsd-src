@@ -419,7 +419,7 @@ static void	bridge_linkcheck(struct bridge_softc *sc);
  * to indicate untagged frames.
  */
 #define	VLANTAGOF(_m)	\
-    (_m->m_flags & M_VLANTAG) ? EVL_VLANOFTAG(_m->m_pkthdr.ether_vtag) : DOT1Q_VID_NULL
+    ((_m->m_flags & M_VLANTAG) ? EVL_VLANOFTAG(_m->m_pkthdr.ether_vtag) : DOT1Q_VID_NULL)
 
 static struct bstp_cb_ops bridge_ops = {
 	.bcb_state = bridge_state_change,
