@@ -92,6 +92,7 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sdt.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <machine/cpu.h>
 
@@ -122,8 +123,6 @@
 #include <netinet/ip_ecn.h>
 
 #include <netinet/ip_encap.h>
-
-#include <machine/stdarg.h>
 
 #include <net/bpf.h>
 

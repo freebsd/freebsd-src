@@ -32,8 +32,7 @@
 #include <sys/malloc.h>
 #include <sys/rmlock.h>
 #include <sys/socket.h>
-
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #include <net/if.h>
 #include <net/route.h>
