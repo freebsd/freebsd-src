@@ -118,11 +118,10 @@
  *
  */
 #ifdef QUEUE_MACRO_DEBUG
-#warn Use QUEUE_MACRO_DEBUG_TRACE and/or QUEUE_MACRO_DEBUG_TRASH
+#warn Use QUEUE_MACRO_DEBUG_xxx instead (TRACE, TRASH and/or ASSERTIONS)
 #define QUEUE_MACRO_DEBUG_TRACE
 #define QUEUE_MACRO_DEBUG_TRASH
 #endif
-
 #ifdef QUEUE_MACRO_DEBUG_TRACE
 /* Store the last 2 places the queue element or head was altered */
 struct qm_trace {
@@ -166,6 +165,62 @@ struct qm_trace {
 #define QMD_IS_TRASHED(x)	0
 #endif	/* QUEUE_MACRO_DEBUG_TRASH */
 
+#if defined(QUEUE_MACRO_DEBUG_ASSERTIONS) &&				\
+    defined(QUEUE_MACRO_NO_DEBUG_ASSERTIONS)
+#error Both QUEUE_MACRO_DEBUG_ASSERTIONS and QUEUE_MACRO_NO_DEBUG_ASSERTIONS defined
+#endif
+
+/*
+ * Automatically define QUEUE_MACRO_DEBUG_ASSERTIONS when compiling the kernel
+ * with INVARIANTS, if not already defined and not prevented by presence of
+ * QUEUE_MACRO_NO_DEBUG_ASSERTIONS.
+ */
+#if !defined(QUEUE_MACRO_DEBUG_ASSERTIONS) &&				\
+    !defined(QUEUE_MACRO_NO_DEBUG_ASSERTIONS) &&			\
+    (defined(_KERNEL) && defined(INVARIANTS))
+#define QUEUE_MACRO_DEBUG_ASSERTIONS
+#endif
+
+/*
+ * If queue assertions are enabled, provide default definitions for QMD_PANIC()
+ * and QMD_ASSERT() if undefined.
+ */
+#ifdef QUEUE_MACRO_DEBUG_ASSERTIONS
+#ifndef QMD_PANIC
+#if defined(_KERNEL) || defined(_STANDALONE)
+/*
+ * On _STANDALONE, either <stand.h> or the headers using <sys/queue.h> provide
+ * a declaration or macro for panic().
+ */
+#ifdef _KERNEL
+#include <sys/kassert.h>
+#endif
+#define QMD_PANIC(fmt, ...) do {					\
+	panic(fmt, ##__VA_ARGS__);					\
+} while (0)
+#else /* !(_KERNEL || _STANDALONE) */
+#include <stdio.h>
+#include <stdlib.h>
+#define QMD_PANIC(fmt, ...) do {					\
+	fprintf(stderr, fmt "\n", ##__VA_ARGS__);			\
+	abort();							\
+} while (0)
+#endif /* _KERNEL || _STANDALONE */
+#endif /* !QMD_PANIC */
+
+#ifndef QMD_ASSERT
+#define QMD_ASSERT(expression, fmt, ...) do {				\
+	if (!(expression))						\
+		QMD_PANIC("%s:%u: %s: " fmt,				\
+		    __FILE__, __LINE__, __func__,  ##__VA_ARGS__);	\
+} while (0)
+#endif /* !QMD_ASSERT */
+#else /* !QUEUE_MACRO_DEBUG_ASSERTIONS */
+#undef QMD_ASSERT
+#define QMD_ASSERT(test, fmt, ...) do {} while (0)
+#endif /* QUEUE_MACRO_DEBUG_ASSERTIONS */
+
+
 #ifdef __cplusplus
 /*
  * In C++ there can be structure lists and class lists:
@@ -178,6 +233,7 @@ struct qm_trace {
 /*
  * Singly-linked List declarations.
  */
+
 #define SLIST_HEAD(name, type)						\
 struct name {								\
 	struct type *slh_first;	/* first element */			\
@@ -204,27 +260,19 @@ struct {								\
 /*
  * Singly-linked List functions.
  */
-#if (defined(_KERNEL) && defined(INVARIANTS))
-#define QMD_SLIST_CHECK_PREVPTR(prevp, elm) do {			\
-	if (*(prevp) != (elm))						\
-		panic("Bad prevptr *(%p) == %p != %p",			\
-		    (prevp), *(prevp), (elm));				\
-} while (0)
 
-#define SLIST_ASSERT_EMPTY(head) do {					\
-	if (!SLIST_EMPTY((head)))					\
-		panic("%s: slist %p is not empty", __func__, (head));	\
-} while (0)
+#define QMD_SLIST_CHECK_PREVPTR(prevp, elm)				\
+	QMD_ASSERT(*(prevp) == (elm),					\
+	    "Bad prevptr *(%p) == %p != %p",				\
+	    (prevp), *(prevp), (elm))
 
-#define SLIST_ASSERT_NONEMPTY(head) do {				\
-	if (SLIST_EMPTY((head)))					\
-		panic("%s: slist %p is empty", __func__, (head));	\
-} while (0)
-#else
-#define QMD_SLIST_CHECK_PREVPTR(prevp, elm)
-#define SLIST_ASSERT_EMPTY(head)
-#define SLIST_ASSERT_NONEMPTY(head)
-#endif
+#define SLIST_ASSERT_EMPTY(head)					\
+	QMD_ASSERT(SLIST_EMPTY((head)),					\
+	    "slist %p is not empty", (head))
+
+#define SLIST_ASSERT_NONEMPTY(head)					\
+	QMD_ASSERT(!SLIST_EMPTY((head)),				\
+	    "slist %p is empty", (head))
 
 #define SLIST_CONCAT(head1, head2, type, field) do {			\
 	QUEUE_TYPEOF(type) *curelm = SLIST_FIRST(head1);		\
@@ -335,6 +383,7 @@ struct {								\
 /*
  * Singly-linked Tail queue declarations.
  */
+
 #define STAILQ_HEAD(name, type)						\
 struct name {								\
 	struct type *stqh_first;/* first element */			\
@@ -363,46 +412,36 @@ struct {								\
 /*
  * Singly-linked Tail queue functions.
  */
-#if (defined(_KERNEL) && defined(INVARIANTS))
+
 /*
  * QMD_STAILQ_CHECK_EMPTY(STAILQ_HEAD *head)
  *
  * Validates that the stailq head's pointer to the last element's next pointer
  * actually points to the head's first element pointer field.
  */
-#define QMD_STAILQ_CHECK_EMPTY(head) do {				\
-	if ((head)->stqh_last != &(head)->stqh_first)			\
-		panic("Empty stailq %p->stqh_last is %p, not head's "	\
-		    "first field address", (head), (head)->stqh_last);	\
-} while (0)
+#define QMD_STAILQ_CHECK_EMPTY(head)					\
+	QMD_ASSERT((head)->stqh_last == &(head)->stqh_first,		\
+	    "Empty stailq %p->stqh_last is %p, "			\
+	    "not head's first field address",				\
+	    (head), (head)->stqh_last)
 
 /*
  * QMD_STAILQ_CHECK_TAIL(STAILQ_HEAD *head)
  *
  * Validates that the stailq's last element's next pointer is NULL.
  */
-#define QMD_STAILQ_CHECK_TAIL(head) do {				\
-	if (*(head)->stqh_last != NULL)					\
-		panic("Stailq %p last element's next pointer is %p, "	\
-		    "not NULL", (head), *(head)->stqh_last);		\
-} while (0)
+#define QMD_STAILQ_CHECK_TAIL(head)					\
+	QMD_ASSERT(*(head)->stqh_last == NULL,				\
+	    "Stailq %p last element's next pointer is "			\
+	    "%p, not NULL", (head), *(head)->stqh_last)
 
-#define STAILQ_ASSERT_EMPTY(head) do {					\
-	if (!STAILQ_EMPTY((head)))					\
-		panic("%s: stailq %p is not empty", __func__, (head));	\
-} while (0)
+#define STAILQ_ASSERT_EMPTY(head)					\
+	QMD_ASSERT(STAILQ_EMPTY((head)),				\
+	    "stailq %p is not empty", (head))
 
-#define STAILQ_ASSERT_NONEMPTY(head) do {				\
-	if (STAILQ_EMPTY((head)))					\
-		panic("%s: stailq %p is empty", __func__, (head));	\
-} while (0)
-
-#else
-#define QMD_STAILQ_CHECK_EMPTY(head)
-#define QMD_STAILQ_CHECK_TAIL(head)
-#define STAILQ_ASSERT_EMPTY(head)
-#define STAILQ_ASSERT_NONEMPTY(head)
-#endif /* _KERNEL && INVARIANTS */
+#define STAILQ_ASSERT_NONEMPTY(head)					\
+	QMD_ASSERT(!STAILQ_EMPTY((head)),				\
+	    "stailq %p is empty", (head))
 
 #define STAILQ_CONCAT(head1, head2) do {				\
 	if (!STAILQ_EMPTY((head2))) {					\
@@ -533,6 +572,7 @@ struct {								\
 /*
  * List declarations.
  */
+
 #define LIST_HEAD(name, type)						\
 struct name {								\
 	struct type *lh_first;	/* first element */			\
@@ -562,19 +602,18 @@ struct {								\
  * List functions.
  */
 
-#if (defined(_KERNEL) && defined(INVARIANTS))
 /*
  * QMD_LIST_CHECK_HEAD(LIST_HEAD *head, LIST_ENTRY NAME)
  *
  * If the list is non-empty, validates that the first element of the list
  * points back at 'head.'
  */
-#define QMD_LIST_CHECK_HEAD(head, field) do {				\
-	if (LIST_FIRST((head)) != NULL &&				\
-	    LIST_FIRST((head))->field.le_prev !=			\
-	     &LIST_FIRST((head)))					\
-		panic("Bad list head %p first->prev != head", (head));	\
-} while (0)
+#define QMD_LIST_CHECK_HEAD(head, field)				\
+	QMD_ASSERT(LIST_FIRST((head)) == NULL ||			\
+	    LIST_FIRST((head))->field.le_prev ==			\
+	    &LIST_FIRST((head)),					\
+	    "Bad list head %p first->prev != head",			\
+	    (head))
 
 /*
  * QMD_LIST_CHECK_NEXT(TYPE *elm, LIST_ENTRY NAME)
@@ -582,39 +621,28 @@ struct {								\
  * If an element follows 'elm' in the list, validates that the next element
  * points back at 'elm.'
  */
-#define QMD_LIST_CHECK_NEXT(elm, field) do {				\
-	if (LIST_NEXT((elm), field) != NULL &&				\
-	    LIST_NEXT((elm), field)->field.le_prev !=			\
-	     &((elm)->field.le_next))					\
-		panic("Bad link elm %p next->prev != elm", (elm));	\
-} while (0)
+#define QMD_LIST_CHECK_NEXT(elm, field)					\
+	QMD_ASSERT(LIST_NEXT((elm), field) == NULL ||			\
+	    LIST_NEXT((elm), field)->field.le_prev ==			\
+	    &((elm)->field.le_next),					\
+	    "Bad link elm %p next->prev != elm", (elm))
 
 /*
  * QMD_LIST_CHECK_PREV(TYPE *elm, LIST_ENTRY NAME)
  *
  * Validates that the previous element (or head of the list) points to 'elm.'
  */
-#define QMD_LIST_CHECK_PREV(elm, field) do {				\
-	if (*(elm)->field.le_prev != (elm))				\
-		panic("Bad link elm %p prev->next != elm", (elm));	\
-} while (0)
+#define QMD_LIST_CHECK_PREV(elm, field)					\
+	QMD_ASSERT(*(elm)->field.le_prev == (elm),			\
+	    "Bad link elm %p prev->next != elm", (elm))
 
-#define LIST_ASSERT_EMPTY(head) do {					\
-	if (!LIST_EMPTY((head)))					\
-		panic("%s: list %p is not empty", __func__, (head));	\
-} while (0)
+#define LIST_ASSERT_EMPTY(head)						\
+	QMD_ASSERT(LIST_EMPTY((head)),					\
+	    "list %p is not empty", (head))
 
-#define LIST_ASSERT_NONEMPTY(head) do {					\
-	if (LIST_EMPTY((head)))						\
-		panic("%s: list %p is empty", __func__, (head));	\
-} while (0)
-#else
-#define QMD_LIST_CHECK_HEAD(head, field)
-#define QMD_LIST_CHECK_NEXT(elm, field)
-#define QMD_LIST_CHECK_PREV(elm, field)
-#define LIST_ASSERT_EMPTY(head)
-#define LIST_ASSERT_NONEMPTY(head)
-#endif /* (_KERNEL && INVARIANTS) */
+#define LIST_ASSERT_NONEMPTY(head)					\
+	QMD_ASSERT(!LIST_EMPTY((head)),					\
+	    "list %p is empty", (head))
 
 #define LIST_CONCAT(head1, head2, type, field) do {			\
 	QUEUE_TYPEOF(type) *curelm = LIST_FIRST(head1);			\
@@ -755,6 +783,7 @@ struct {								\
 /*
  * Tail queue declarations.
  */
+
 #define TAILQ_HEAD(name, type)						\
 struct name {								\
 	struct type *tqh_first;	/* first element */			\
@@ -789,29 +818,29 @@ struct {								\
 /*
  * Tail queue functions.
  */
-#if (defined(_KERNEL) && defined(INVARIANTS))
+
 /*
  * QMD_TAILQ_CHECK_HEAD(TAILQ_HEAD *head, TAILQ_ENTRY NAME)
  *
  * If the tailq is non-empty, validates that the first element of the tailq
  * points back at 'head.'
  */
-#define QMD_TAILQ_CHECK_HEAD(head, field) do {				\
-	if (!TAILQ_EMPTY(head) &&					\
-	    TAILQ_FIRST((head))->field.tqe_prev !=			\
-	     &TAILQ_FIRST((head)))					\
-		panic("Bad tailq head %p first->prev != head", (head));	\
-} while (0)
+#define QMD_TAILQ_CHECK_HEAD(head, field)				\
+	QMD_ASSERT(TAILQ_EMPTY(head) ||					\
+	    TAILQ_FIRST((head))->field.tqe_prev ==			\
+	    &TAILQ_FIRST((head)),					\
+	    "Bad tailq head %p first->prev != head",			\
+	    (head))
 
 /*
  * QMD_TAILQ_CHECK_TAIL(TAILQ_HEAD *head, TAILQ_ENTRY NAME)
  *
  * Validates that the tail of the tailq is a pointer to pointer to NULL.
  */
-#define QMD_TAILQ_CHECK_TAIL(head, field) do {				\
-	if (*(head)->tqh_last != NULL)					\
-		panic("Bad tailq NEXT(%p->tqh_last) != NULL", (head));	\
-} while (0)
+#define QMD_TAILQ_CHECK_TAIL(head, field)				\
+	QMD_ASSERT(*(head)->tqh_last == NULL,				\
+	    "Bad tailq NEXT(%p->tqh_last) != NULL",			\
+	    (head))
 
 /*
  * QMD_TAILQ_CHECK_NEXT(TYPE *elm, TAILQ_ENTRY NAME)
@@ -819,40 +848,28 @@ struct {								\
  * If an element follows 'elm' in the tailq, validates that the next element
  * points back at 'elm.'
  */
-#define QMD_TAILQ_CHECK_NEXT(elm, field) do {				\
-	if (TAILQ_NEXT((elm), field) != NULL &&				\
-	    TAILQ_NEXT((elm), field)->field.tqe_prev !=			\
-	     &((elm)->field.tqe_next))					\
-		panic("Bad link elm %p next->prev != elm", (elm));	\
-} while (0)
+#define QMD_TAILQ_CHECK_NEXT(elm, field)				\
+	QMD_ASSERT(TAILQ_NEXT((elm), field) == NULL ||			\
+	    TAILQ_NEXT((elm), field)->field.tqe_prev ==			\
+	    &((elm)->field.tqe_next),					\
+	    "Bad link elm %p next->prev != elm", (elm))
 
 /*
  * QMD_TAILQ_CHECK_PREV(TYPE *elm, TAILQ_ENTRY NAME)
  *
  * Validates that the previous element (or head of the tailq) points to 'elm.'
  */
-#define QMD_TAILQ_CHECK_PREV(elm, field) do {				\
-	if (*(elm)->field.tqe_prev != (elm))				\
-		panic("Bad link elm %p prev->next != elm", (elm));	\
-} while (0)
+#define QMD_TAILQ_CHECK_PREV(elm, field)				\
+	QMD_ASSERT(*(elm)->field.tqe_prev == (elm),			\
+	    "Bad link elm %p prev->next != elm", (elm))
 
-#define TAILQ_ASSERT_EMPTY(head) do {					\
-	if (!TAILQ_EMPTY((head)))					\
-		panic("%s: tailq %p is not empty", __func__, (head));	\
-} while (0)
+#define TAILQ_ASSERT_EMPTY(head)					\
+	QMD_ASSERT(TAILQ_EMPTY((head)),					\
+	    "tailq %p is not empty", (head))
 
-#define TAILQ_ASSERT_NONEMPTY(head) do {				\
-	if (TAILQ_EMPTY((head)))					\
-		panic("%s: tailq %p is empty", __func__, (head));	\
-} while (0)
-#else
-#define QMD_TAILQ_CHECK_HEAD(head, field)
-#define QMD_TAILQ_CHECK_TAIL(head, headname)
-#define QMD_TAILQ_CHECK_NEXT(elm, field)
-#define QMD_TAILQ_CHECK_PREV(elm, field)
-#define TAILQ_ASSERT_EMPTY(head)
-#define TAILQ_ASSERT_NONEMPTY(head)
-#endif /* (_KERNEL && INVARIANTS) */
+#define TAILQ_ASSERT_NONEMPTY(head)					\
+	QMD_ASSERT(!TAILQ_EMPTY((head)),				\
+	    "tailq %p is empty", (head))
 
 #define TAILQ_CONCAT(head1, head2, field) do {				\
 	if (!TAILQ_EMPTY(head2)) {					\

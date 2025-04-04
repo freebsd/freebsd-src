@@ -1392,18 +1392,80 @@ while (n1 != NULL) {
 TAILQ_INIT(&head);
 .Ed
 .Sh DIAGNOSTICS
-When debugging
-.Nm queue(3) ,
-it can be useful to trace queue changes.
+.Nm queue(3)
+provides several diagnostic and debugging facilities.
+.Pp
+Check code that performs basic integrity and API conformance checks is
+automatically inserted when using queue macros in the kernel if compiling it
+with
+.Va INVARIANTS .
+One can request insertion or elision of check code by respectively defining one
+of the macros
+.Va QUEUE_MACRO_DEBUG_ASSERTIONS
+or
+.Va QUEUE_MACRO_NO_DEBUG_ASSERTIONS
+before first inclusion of
+.In sys/queue.h .
+When check code encounters an anomaly, it panics the kernel or aborts the
+program.
+To this end, in the kernel or in
+.Va _STANDALONE
+builds, it by default calls
+.Fn panic ,
+while in userland builds it prints the diagnostic message on
+.Dv stderr
+and then calls
+.Fn abort .
+These behaviors can be overriden by defining a custom
+.Fn QMD_PANIC
+macro before first inclusion of
+.In sys/queue.h .
+The diagnostic messages automatically include the source file, line and function
+where the failing check occured.
+This behavior can be overriden by defining a custom
+.Fn QMD_ASSERT
+macro before first inclusion of
+.In sys/queue.h .
+.Pp
+The
+.Fn SLIST_REMOVE_PREVPTR
+macro is available to aid debugging:
+.Bl -hang -offset indent
+.It Fn SLIST_REMOVE_PREVPTR "TYPE **prev" "TYPE *elm" "SLIST_ENTRY NAME"
+.Pp
+Removes element
+.Fa elm ,
+which must directly follow the element whose
+.Va &SLIST_NEXT()
+is
+.Fa prev ,
+from the list.
+This macro may insert, under conditions detailed above, check code that
+validates that
+.Fa elm
+indeed follows
+.Fa prev
+in the list
+.Po
+through the
+.Fn QMD_SLIST_CHECK_PREVPTR
+macro
+.Pc .
+.El
+.Pp
+When debugging, it can be useful to trace queue changes.
 To enable tracing, define the macro
-.Va QUEUE_MACRO_DEBUG_TRACE
-at compile time.
+.Va QUEUE_MACRO_DEBUG_TRACE .
+Note that, at the moment, only macros for regular tail queues have been
+instrumented.
 .Pp
 It can also be useful to trash pointers that have been unlinked from a queue,
 to detect use after removal.
 To enable pointer trashing, define the macro
 .Va QUEUE_MACRO_DEBUG_TRASH
 at compile time.
+Note that, at the moment, only a limited number of macros have been
+instrumented.
 The macro
 .Fn QMD_IS_TRASHED "void *ptr"
 returns true if
@@ -1411,30 +1473,6 @@ returns true if
 has been trashed by the
 .Va QUEUE_MACRO_DEBUG_TRASH
 option.
-.Pp
-In the kernel (with
-.Va INVARIANTS
-enabled), the
-.Fn SLIST_REMOVE_PREVPTR
-macro is available to aid debugging:
-.Bl -hang -offset indent
-.It Fn SLIST_REMOVE_PREVPTR "TYPE **prev" "TYPE *elm" "SLIST_ENTRY NAME"
-.Pp
-Removes
-.Fa elm ,
-which must directly follow the element whose
-.Va &SLIST_NEXT()
-is
-.Fa prev ,
-from the SLIST.
-This macro validates that
-.Fa elm
-follows
-.Fa prev
-in
-.Va INVARIANTS
-mode.
-.El
 .Sh SEE ALSO
 .Xr arb 3 ,
 .Xr tree 3
