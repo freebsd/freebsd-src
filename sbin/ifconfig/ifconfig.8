@@ -2696,10 +2696,11 @@ Set the maximum number of hosts allowed from an interface, packets with unknown
 source addresses are dropped until an existing host cache entry expires or is
 removed.
 Set to 0 to disable.
-.It Cm ifvlan Ar interface Ar vlan-id
-Set the native VLAN ID for this interface.
-Incoming frames which do not have an 802.1Q VLAN tag will inherit the VLAN ID
-from the interface on which they were received.
+.It Cm ifpvid Ar interface Ar vlan-id
+Set the Port VLAN ID (PVID, sometimes called native VLAN ID) for this
+interface.
+Incoming frames which do not have an 802.1Q VLAN tag will inherit the
+PVID from the interface on which they were received.
 .El
 .Ss Link Aggregation and Link Failover Parameters
 The following parameters are specific to lagg interfaces:

@@ -251,7 +251,7 @@ struct bridge_iflist {
 	uint32_t		bif_addrcnt;	/* cur. # of addresses */
 	uint32_t		bif_addrexceeded;/* # of address violations */
 	struct epoch_context	bif_epoch_ctx;
-	uint32_t		bif_vlan;	/* native vlan id */
+	uint32_t		bif_pvid;	/* native vlan id */
 };
 
 /*
@@ -395,7 +395,7 @@ static int	bridge_ioctl_sma(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifprio(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifcost(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifmaxaddr(struct bridge_softc *, void *);
-static int	bridge_ioctl_sifvlan(struct bridge_softc *, void *);
+static int	bridge_ioctl_sifpvid(struct bridge_softc *, void *);
 static int	bridge_ioctl_addspan(struct bridge_softc *, void *);
 static int	bridge_ioctl_delspan(struct bridge_softc *, void *);
 static int	bridge_ioctl_gbparam(struct bridge_softc *, void *);
@@ -601,7 +601,7 @@ static const struct bridge_control bridge_control_table[] = {
 	{ bridge_ioctl_sifmaxaddr,	sizeof(struct ifbreq),
 	  BC_F_COPYIN|BC_F_SUSER },
 
-	{ bridge_ioctl_sifvlan,		sizeof(struct ifbreq),
+	{ bridge_ioctl_sifpvid,		sizeof(struct ifbreq),
 	  BC_F_COPYIN|BC_F_SUSER },
 };
 static const int bridge_control_table_size = nitems(bridge_control_table);
@@ -1423,7 +1423,7 @@ bridge_ioctl_gifflags(struct bridge_softc *sc, void *arg)
 	req->ifbr_addrcnt = bif->bif_addrcnt;
 	req->ifbr_addrmax = bif->bif_addrmax;
 	req->ifbr_addrexceeded = bif->bif_addrexceeded;
-	req->ifbr_vlan = bif->bif_vlan;
+	req->ifbr_pvid = bif->bif_pvid;
 
 	/* Copy STP state options as flags */
 	if (bp->bp_operedge)
@@ -1802,7 +1802,7 @@ bridge_ioctl_sifmaxaddr(struct bridge_softc *sc, void *arg)
 }
 
 static int
-bridge_ioctl_sifvlan(struct bridge_softc *sc, void *arg)
+bridge_ioctl_sifpvid(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
 	struct bridge_iflist *bif;
@@ -1811,10 +1811,10 @@ bridge_ioctl_sifvlan(struct bridge_softc *sc, void *arg)
 	if (bif == NULL)
 		return (ENOENT);
 
-	if (req->ifbr_vlan >= 4096)
+	if (req->ifbr_pvid >= 4096)
 		return (EINVAL);
 
-	bif->bif_vlan = req->ifbr_vlan;
+	bif->bif_pvid = req->ifbr_pvid;
 	return (0);
 }
 
@@ -2504,7 +2504,7 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	 * trunk port, treat any interface with VLAN ID 0 as a trunk port for
 	 * any VLAN.
 	 */
-	if ((dbif->bif_vlan != DOT1Q_VID_NULL) && (vlan != dbif->bif_vlan))
+	if ((dbif->bif_pvid != DOT1Q_VID_NULL) && (vlan != dbif->bif_pvid))
 		goto drop;
 
 	if ((dbif->bif_flags & IFBIF_STP) &&
@@ -2593,7 +2593,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	 * If the frame has no vlan id, take the vlan from the interface.
 	 */
 	if (vlan == DOT1Q_VID_NULL)
-		vlan = bif->bif_vlan;
+		vlan = bif->bif_pvid;
 
 	bridge_span(sc, m);
 
@@ -2822,8 +2822,8 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 			continue;
 
 		/* VLAN filtering for interfaces with non-zero VLAN ID */
-		if ((dbif->bif_vlan != DOT1Q_VID_NULL) &&
-		    (vlan != dbif->bif_vlan))
+		if ((dbif->bif_pvid != DOT1Q_VID_NULL) &&
+		    (vlan != dbif->bif_pvid))
 			continue;
 
 		if ((dbif->bif_flags & IFBIF_STP) &&

@@ -261,23 +261,24 @@ The
 driver has limited support for virtual LANs (VLANs).
 An incoming packet with an 802.1Q tag will be assigned to the
 appropriate VLAN.
-An interface's native VLAN ID may be configured using the
+An interface's Port VLAN ID (PVID, sometimes called native VLAN ID) may
+be configured using the
 .Xr ifconfig 8
-.Cm ifvlan
+.Cm ifpvid
 option; incoming packets with no 802.1Q tag (or where the VLAN ID in the
-tag is zero) will be assigned to the interface's VLAN.
+tag is zero) will be assigned to the interface's PVID.
 .Pp
-An interface without a VLAN ID configured will receive frames for all
+An interface without a PVID configured will receive frames for all
 VLANs.
-An interface with a VLAN ID configured will only receive frames for its
-configured VLAN.
+An interface with a PVID configured will only receive frames for its
+configured PVID.
 In either case, if the incoming frame has an 802.1Q tag, the tag will be
 preserved in the output frame; if not, no tag will be added to the
 output frame.
 .Pp
 There is no support for adding or removing 802.1Q tags on outgoing
-frames, and for interfaces without a VLAN ID configured, there is no way
-to restrict which VLANs the interface can send or receive frames for.
+frames, and for interfaces without a PVID configured, there is no way to
+restrict which VLANs the interface can send or receive frames for.
 .Sh PACKET FILTERING
 Packet filtering can be used with any firewall package that hooks in via
 the
