@@ -4559,7 +4559,8 @@ port_redirspec	: no_port_redirspec;
 		}
 
 /* Redirection with an arrow and an optional port: FreeBSD NAT rules */
-nat_redirspec	: ARROW port_redirspec {
+nat_redirspec	: /* empty */		{ $$ = NULL; }
+		| ARROW port_redirspec {
 			$$ = $2;
 		}
 		;

@@ -173,3 +173,5 @@ PFCTL_TEST_IFACE(1061, "Interface translation: IPv6 rule, interface without brac
 PFCTL_TEST_IFACE(1062, "Interface translation: IPv6 rule, interface without brackets is translated, extra host, round-robin is applied")
 PFCTL_TEST_IFACE(1063, "Interface translation: IPv6 rule, interface with brackets is not translated, round-robin is applied")
 PFCTL_TEST_IFACE(1064, "Interface translation: IPv6 rule, interface with brackets is not translated, extra host, round robin is applied")
+PFCTL_TEST(1065, "no nat")
+PFCTL_TEST(1066, "no rdr")
