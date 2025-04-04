@@ -5129,8 +5129,8 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 		    "Unhandled async completion type %u\n", async_id);
 		break;
 	default:
-		device_printf(softc->dev,
-		    "Unknown async completion type %u\n", async_id);
+		dev_dbg(softc->dev, "Unknown Async event completion type %u\n",
+			async_id);
 		break;
 	}
 	bnxt_queue_sp_work(softc);
@@ -5184,12 +5184,12 @@ bnxt_def_cp_task(void *context, int pending)
 		case CMPL_BASE_TYPE_DBQ_EVENT:
 		case CMPL_BASE_TYPE_QP_EVENT:
 		case CMPL_BASE_TYPE_FUNC_EVENT:
-			device_printf(softc->dev,
-			    "Unhandled completion type %u\n", type);
+			dev_dbg(softc->dev, "Unhandled Async event completion type %u\n",
+				type);
 			break;
 		default:
-			device_printf(softc->dev,
-			    "Unknown completion type %u\n", type);
+			dev_dbg(softc->dev, "Unknown Async event completion type %u\n",
+				type);
 			break;
 		}
 	}
