@@ -74,6 +74,9 @@
  * Data structure and control definitions for bridge interfaces.
  */
 
+#ifndef	_NET_IF_BRIDGEVAR_H_
+#define	_NET_IF_BRIDGEVAR_H_
+
 #include <sys/types.h>
 #include <sys/callout.h>
 #include <sys/queue.h>
@@ -323,3 +326,5 @@ extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
 extern	bool (*bridge_member_ifaddrs_p)(void);
 
 #endif /* _KERNEL */
+
+#endif /* _NET_IF_BRIDGEVAR_H_ */
