@@ -542,7 +542,6 @@ struct gve_priv {
 	struct gve_irq_db *irq_db_indices;
 
 	enum gve_queue_format queue_format;
-	struct gve_queue_page_list *qpls;
 	struct gve_queue_config tx_cfg;
 	struct gve_queue_config rx_cfg;
 	uint32_t num_queues;
@@ -629,8 +628,9 @@ void gve_db_bar_write_4(struct gve_priv *priv, bus_size_t offset, uint32_t val);
 void gve_db_bar_dqo_write_4(struct gve_priv *priv, bus_size_t offset, uint32_t val);
 
 /* QPL (Queue Page List) functions defined in gve_qpl.c */
-int gve_alloc_qpls(struct gve_priv *priv);
-void gve_free_qpls(struct gve_priv *priv);
+struct gve_queue_page_list *gve_alloc_qpl(struct gve_priv *priv, uint32_t id,
+    int npages, bool single_kva);
+void gve_free_qpl(struct gve_priv *priv, struct gve_queue_page_list *qpl);
 int gve_register_qpls(struct gve_priv *priv);
 int gve_unregister_qpls(struct gve_priv *priv);
 void gve_mextadd_free(struct mbuf *mbuf);

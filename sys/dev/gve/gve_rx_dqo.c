@@ -58,6 +58,7 @@ void
 gve_rx_free_ring_dqo(struct gve_priv *priv, int i)
 {
 	struct gve_rx_ring *rx = &priv->rx[i];
+	struct gve_ring_com *com = &rx->com;
 	int j;
 
 	if (rx->dqo.compl_ring != NULL) {
@@ -86,6 +87,11 @@ gve_rx_free_ring_dqo(struct gve_priv *priv, int i)
 
 	if (!gve_is_qpl(priv) && rx->dqo.buf_dmatag)
 		bus_dma_tag_destroy(rx->dqo.buf_dmatag);
+
+	if (com->qpl != NULL) {
+		gve_free_qpl(priv, com->qpl);
+		com->qpl = NULL;
+	}
 }
 
 int
@@ -123,10 +129,13 @@ gve_rx_alloc_ring_dqo(struct gve_priv *priv, int i)
 	    M_GVE, M_WAITOK | M_ZERO);
 
 	if (gve_is_qpl(priv)) {
-		rx->com.qpl = &priv->qpls[priv->tx_cfg.max_queues + i];
+		rx->com.qpl = gve_alloc_qpl(priv, i + priv->tx_cfg.max_queues,
+		    GVE_RX_NUM_QPL_PAGES_DQO, /*single_kva=*/false);
 		if (rx->com.qpl == NULL) {
-			device_printf(priv->dev, "No QPL left for rx ring %d", i);
-			return (ENOMEM);
+			device_printf(priv->dev,
+			    "Failed to alloc QPL for rx ring %d", i);
+			err = ENOMEM;
+			goto abort;
 		}
 		return (0);
 	}

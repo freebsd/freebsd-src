@@ -75,6 +75,7 @@ void
 gve_tx_free_ring_dqo(struct gve_priv *priv, int i)
 {
 	struct gve_tx_ring *tx = &priv->tx[i];
+	struct gve_ring_com *com = &tx->com;
 	int j;
 
 	if (tx->dqo.desc_ring != NULL) {
@@ -108,6 +109,11 @@ gve_tx_free_ring_dqo(struct gve_priv *priv, int i)
 	if (gve_is_qpl(priv) && tx->dqo.qpl_bufs != NULL) {
 		free(tx->dqo.qpl_bufs, M_GVE);
 		tx->dqo.qpl_bufs = NULL;
+	}
+
+	if (com->qpl != NULL) {
+		gve_free_qpl(priv, com->qpl);
+		com->qpl = NULL;
 	}
 }
 
@@ -210,7 +216,15 @@ gve_tx_alloc_ring_dqo(struct gve_priv *priv, int i)
 	if (gve_is_qpl(priv)) {
 		int qpl_buf_cnt;
 
-		tx->com.qpl = &priv->qpls[i];
+		tx->com.qpl = gve_alloc_qpl(priv, i, GVE_TX_NUM_QPL_PAGES_DQO,
+		    /*single_kva*/false);
+		if (tx->com.qpl == NULL) {
+			device_printf(priv->dev,
+			    "Failed to alloc QPL for tx ring %d", i);
+			err = ENOMEM;
+			goto abort;
+		}
+
 		qpl_buf_cnt = GVE_TX_BUFS_PER_PAGE_DQO *
 		    tx->com.qpl->num_pages;
 
