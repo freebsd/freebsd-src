@@ -93,12 +93,32 @@ firstbcast(struct in_addr *out)
 ATF_TC_WITHOUT_HEAD(INADDR_BROADCAST);
 ATF_TC_BODY(INADDR_BROADCAST, tc)
 {
+	struct ifaddrs *ifa0, *ifa;
+	bool skip = true;
+
 	struct sockaddr_in sin = {
 		.sin_family = AF_INET,
 		.sin_len = sizeof(struct sockaddr_in),
 	};
 	socklen_t slen = sizeof(sin);
 	int l, s;
+
+	ATF_REQUIRE(getifaddrs(&ifa0) == 0);
+	for (ifa = ifa0; ifa != NULL; ifa = ifa->ifa_next) {
+		if (!(ifa->ifa_flags & IFF_UP))
+			continue;
+		if (ifa->ifa_addr == NULL || ifa->ifa_addr->sa_family != AF_INET)
+			continue;
+		if (!(ifa->ifa_flags & IFF_BROADCAST))
+			continue;
+		skip = false;
+		printf("Found broadcast on interface: %s\n", ifa->ifa_name);
+		break;
+	}
+	freeifaddrs(ifa0);
+
+	if (skip)
+		atf_tc_skip("No interface with IFF_BROADCAST found");
 
 	l = bcastsock();
 	ATF_REQUIRE(bind(l, (struct sockaddr *)&sin, sizeof(sin)) == 0);
