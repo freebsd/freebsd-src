@@ -420,7 +420,7 @@ static void	bridge_linkcheck(struct bridge_softc *sc);
 
 /* The default bridge vlan is 1 (IEEE 802.1Q-2003 Table 9-2) */
 #define	VLANTAGOF(_m)	\
-    (_m->m_flags & M_VLANTAG) ? EVL_VLANOFTAG(_m->m_pkthdr.ether_vtag) : 1
+    ((_m->m_flags & M_VLANTAG) ? EVL_VLANOFTAG(_m->m_pkthdr.ether_vtag) : 1)
 
 static struct bstp_cb_ops bridge_ops = {
 	.bcb_state = bridge_state_change,
