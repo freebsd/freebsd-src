@@ -59,6 +59,7 @@ void gve_parse_device_option(struct gve_priv *priv,
     struct gve_device_option_gqi_qpl **dev_op_gqi_qpl,
     struct gve_device_option_dqo_rda **dev_op_dqo_rda,
     struct gve_device_option_dqo_qpl **dev_op_dqo_qpl,
+    struct gve_device_option_modify_ring **dev_op_modify_ring,
     struct gve_device_option_jumbo_frames **dev_op_jumbo_frames)
 {
 	uint32_t req_feat_mask = be32toh(option->required_features_mask);
@@ -121,6 +122,34 @@ void gve_parse_device_option(struct gve_priv *priv,
 		*dev_op_dqo_qpl = (void *)(option + 1);
 		break;
 
+	case GVE_DEV_OPT_ID_MODIFY_RING:
+		if (option_length < (sizeof(**dev_op_modify_ring) -
+		    sizeof(struct gve_ring_size_bound)) ||
+		    req_feat_mask != GVE_DEV_OPT_REQ_FEAT_MASK_MODIFY_RING) {
+			device_printf(priv->dev, GVE_DEVICE_OPTION_ERROR_FMT,
+			    "Modify Ring", (int)sizeof(**dev_op_modify_ring),
+			    GVE_DEV_OPT_REQ_FEAT_MASK_MODIFY_RING,
+			    option_length, req_feat_mask);
+			break;
+		}
+
+		if (option_length > sizeof(**dev_op_modify_ring)) {
+			device_printf(priv->dev, GVE_DEVICE_OPTION_TOO_BIG_FMT,
+			    "Modify Ring");
+		}
+		*dev_op_modify_ring = (void *)(option + 1);
+
+		/* Min ring size included; set the minimum ring size. */
+		if (option_length == sizeof(**dev_op_modify_ring)) {
+			priv->min_rx_desc_cnt = max(
+			    be16toh((*dev_op_modify_ring)->min_ring_size.rx),
+			    GVE_DEFAULT_MIN_RX_RING_SIZE);
+			priv->min_tx_desc_cnt = max(
+			    be16toh((*dev_op_modify_ring)->min_ring_size.tx),
+			    GVE_DEFAULT_MIN_TX_RING_SIZE);
+		}
+		break;
+
 	case GVE_DEV_OPT_ID_JUMBO_FRAMES:
 		if (option_length < sizeof(**dev_op_jumbo_frames) ||
 		    req_feat_mask != GVE_DEV_OPT_REQ_FEAT_MASK_JUMBO_FRAMES) {
@@ -155,6 +184,7 @@ gve_process_device_options(struct gve_priv *priv,
     struct gve_device_option_gqi_qpl **dev_op_gqi_qpl,
     struct gve_device_option_dqo_rda **dev_op_dqo_rda,
     struct gve_device_option_dqo_qpl **dev_op_dqo_qpl,
+    struct gve_device_option_modify_ring **dev_op_modify_ring,
     struct gve_device_option_jumbo_frames **dev_op_jumbo_frames)
 {
 	char *desc_end = (char *)descriptor + be16toh(descriptor->total_length);
@@ -176,6 +206,7 @@ gve_process_device_options(struct gve_priv *priv,
 		    dev_op_gqi_qpl,
 		    dev_op_dqo_rda,
 		    dev_op_dqo_qpl,
+		    dev_op_modify_ring,
 		    dev_op_jumbo_frames);
 		dev_opt = (void *)((char *)(dev_opt + 1) + be16toh(dev_opt->option_length));
 	}
@@ -390,8 +421,18 @@ gve_adminq_set_mtu(struct gve_priv *priv, uint32_t mtu) {
 static void
 gve_enable_supported_features(struct gve_priv *priv,
     uint32_t supported_features_mask,
+    const struct gve_device_option_modify_ring *dev_op_modify_ring,
     const struct gve_device_option_jumbo_frames *dev_op_jumbo_frames)
 {
+	if (dev_op_modify_ring &&
+	    (supported_features_mask & GVE_SUP_MODIFY_RING_MASK)) {
+		if (bootverbose)
+			device_printf(priv->dev, "MODIFY RING device option enabled.\n");
+		priv->modify_ringsize_enabled = true;
+		priv->max_rx_desc_cnt = be16toh(dev_op_modify_ring->max_ring_size.rx);
+		priv->max_tx_desc_cnt = be16toh(dev_op_modify_ring->max_ring_size.tx);
+	}
+
 	if (dev_op_jumbo_frames &&
 	    (supported_features_mask & GVE_SUP_JUMBO_FRAMES_MASK)) {
 		if (bootverbose)
@@ -410,6 +451,7 @@ gve_adminq_describe_device(struct gve_priv *priv)
 	struct gve_device_option_gqi_qpl *dev_op_gqi_qpl = NULL;
 	struct gve_device_option_dqo_rda *dev_op_dqo_rda = NULL;
 	struct gve_device_option_dqo_qpl *dev_op_dqo_qpl = NULL;
+	struct gve_device_option_modify_ring *dev_op_modify_ring = NULL;
 	struct gve_device_option_jumbo_frames *dev_op_jumbo_frames = NULL;
 	uint32_t supported_features_mask = 0;
 	int rc;
@@ -438,10 +480,15 @@ gve_adminq_describe_device(struct gve_priv *priv)
 
 	bus_dmamap_sync(desc_mem.tag, desc_mem.map, BUS_DMASYNC_POSTREAD);
 
+	/* Default min in case device options don't have min values */
+	priv->min_rx_desc_cnt = GVE_DEFAULT_MIN_RX_RING_SIZE;
+	priv->min_tx_desc_cnt = GVE_DEFAULT_MIN_TX_RING_SIZE;
+
 	rc = gve_process_device_options(priv, desc,
 	    &dev_op_gqi_qpl,
 	    &dev_op_dqo_rda,
 	    &dev_op_dqo_qpl,
+	    &dev_op_modify_ring,
 	    &dev_op_jumbo_frames);
 	if (rc != 0)
 		goto free_device_descriptor;
@@ -489,8 +536,12 @@ gve_adminq_describe_device(struct gve_priv *priv)
 	priv->default_num_queues = be16toh(desc->default_num_queues);
 	priv->supported_features =  supported_features_mask;
 
+	/* Default max to current in case modify ring size option is disabled */
+	priv->max_rx_desc_cnt = priv->rx_desc_cnt;
+	priv->max_tx_desc_cnt = priv->tx_desc_cnt;
+
 	gve_enable_supported_features(priv, supported_features_mask,
-	    dev_op_jumbo_frames);
+	    dev_op_modify_ring, dev_op_jumbo_frames);
 
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		priv->mac[i] = desc->mac[i];
