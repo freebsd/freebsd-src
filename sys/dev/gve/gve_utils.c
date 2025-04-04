@@ -234,7 +234,7 @@ gve_free_irqs(struct gve_priv *priv)
 		return;
 	}
 
-	num_irqs = priv->tx_cfg.num_queues + priv->rx_cfg.num_queues + 1;
+	num_irqs = priv->tx_cfg.max_queues + priv->rx_cfg.max_queues + 1;
 
 	for (i = 0; i < num_irqs; i++) {
 		irq = &priv->irq_tbl[i];
@@ -268,8 +268,8 @@ gve_free_irqs(struct gve_priv *priv)
 int
 gve_alloc_irqs(struct gve_priv *priv)
 {
-	int num_tx = priv->tx_cfg.num_queues;
-	int num_rx = priv->rx_cfg.num_queues;
+	int num_tx = priv->tx_cfg.max_queues;
+	int num_rx = priv->rx_cfg.max_queues;
 	int req_nvecs = num_tx + num_rx + 1;
 	int got_nvecs = req_nvecs;
 	struct gve_irq *irq;

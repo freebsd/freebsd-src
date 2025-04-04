@@ -181,39 +181,32 @@ abort:
 }
 
 int
-gve_alloc_tx_rings(struct gve_priv *priv)
+gve_alloc_tx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_idx)
 {
-	int err = 0;
 	int i;
+	int err;
 
-	priv->tx = malloc(sizeof(struct gve_tx_ring) * priv->tx_cfg.num_queues,
-	    M_GVE, M_WAITOK | M_ZERO);
+	KASSERT(priv->tx != NULL, ("priv->tx is NULL!"));
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++) {
+	for (i = start_idx; i < stop_idx; i++) {
 		err = gve_tx_alloc_ring(priv, i);
 		if (err != 0)
 			goto free_rings;
-
 	}
 
 	return (0);
-
 free_rings:
-	while (i--)
-		gve_tx_free_ring(priv, i);
-	free(priv->tx, M_GVE);
+	gve_free_tx_rings(priv, start_idx, i);
 	return (err);
 }
 
 void
-gve_free_tx_rings(struct gve_priv *priv)
+gve_free_tx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_idx)
 {
 	int i;
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++)
+	for (i = start_idx; i < stop_idx; i++)
 		gve_tx_free_ring(priv, i);
-
-	free(priv->tx, M_GVE);
 }
 
 static void

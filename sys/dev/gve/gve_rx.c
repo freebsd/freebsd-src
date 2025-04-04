@@ -185,38 +185,32 @@ abort:
 }
 
 int
-gve_alloc_rx_rings(struct gve_priv *priv)
+gve_alloc_rx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_idx)
 {
-	int err = 0;
 	int i;
+	int err;
 
-	priv->rx = malloc(sizeof(struct gve_rx_ring) * priv->rx_cfg.num_queues,
-	    M_GVE, M_WAITOK | M_ZERO);
+	KASSERT(priv->rx != NULL, ("priv->rx is NULL!"));
 
-	for (i = 0; i < priv->rx_cfg.num_queues; i++) {
+	for (i = start_idx; i < stop_idx; i++) {
 		err = gve_rx_alloc_ring(priv, i);
 		if (err != 0)
 			goto free_rings;
 	}
 
 	return (0);
-
 free_rings:
-	while (i--)
-		gve_rx_free_ring(priv, i);
-	free(priv->rx, M_GVE);
+	gve_free_rx_rings(priv, start_idx, i);
 	return (err);
 }
 
 void
-gve_free_rx_rings(struct gve_priv *priv)
+gve_free_rx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_idx)
 {
 	int i;
 
-	for (i = 0; i < priv->rx_cfg.num_queues; i++)
+	for (i = start_idx; i < stop_idx; i++)
 		gve_rx_free_ring(priv, i);
-
-	free(priv->rx, M_GVE);
 }
 
 static void

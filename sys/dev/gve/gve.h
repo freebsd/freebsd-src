@@ -620,6 +620,8 @@ gve_is_qpl(struct gve_priv *priv)
 
 /* Defined in gve_main.c */
 void gve_schedule_reset(struct gve_priv *priv);
+int gve_adjust_tx_queues(struct gve_priv *priv, uint16_t new_queue_cnt);
+int gve_adjust_rx_queues(struct gve_priv *priv, uint16_t new_queue_cnt);
 
 /* Register access functions defined in gve_utils.c */
 uint32_t gve_reg_bar_read_4(struct gve_priv *priv, bus_size_t offset);
@@ -636,8 +638,8 @@ int gve_unregister_qpls(struct gve_priv *priv);
 void gve_mextadd_free(struct mbuf *mbuf);
 
 /* TX functions defined in gve_tx.c */
-int gve_alloc_tx_rings(struct gve_priv *priv);
-void gve_free_tx_rings(struct gve_priv *priv);
+int gve_alloc_tx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_idx);
+void gve_free_tx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_idx);
 int gve_create_tx_rings(struct gve_priv *priv);
 int gve_destroy_tx_rings(struct gve_priv *priv);
 int gve_tx_intr(void *arg);
@@ -656,8 +658,8 @@ int gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf *mbuf);
 void gve_tx_cleanup_tq_dqo(void *arg, int pending);
 
 /* RX functions defined in gve_rx.c */
-int gve_alloc_rx_rings(struct gve_priv *priv);
-void gve_free_rx_rings(struct gve_priv *priv);
+int gve_alloc_rx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_idx);
+void gve_free_rx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_idx);
 int gve_create_rx_rings(struct gve_priv *priv);
 int gve_destroy_rx_rings(struct gve_priv *priv);
 int gve_rx_intr(void *arg);
