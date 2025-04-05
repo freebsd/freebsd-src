@@ -1731,6 +1731,31 @@ lkpi_80211_flush_tx(struct lkpi_hw *lhw, struct lkpi_sta *lsta)
 	}
 }
 
+
+static void
+lkpi_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	/* Take the chan ctx down. */
+	if (vif->chanctx_conf != NULL) {
+		struct lkpi_chanctx *lchanctx;
+		struct ieee80211_chanctx_conf *chanctx_conf;
+
+		chanctx_conf = vif->chanctx_conf;
+		/* Remove vif context. */
+		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
+		/* NB: vif->chanctx_conf is NULL now. */
+
+		lkpi_hw_conf_idle(hw, true);
+
+		/* Remove chan ctx. */
+		lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
+		vif->bss_conf.chanctx_conf = NULL;
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
+		free(lchanctx, M_LKPI80211);
+	}
+}
+
+
 /* -------------------------------------------------------------------------- */
 
 static int
@@ -1924,6 +1949,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			ic_printf(vap->iv_ic, "%s:%d: mo_assign_vif_chanctx "
 			    "failed: %d\n", __func__, __LINE__, error);
 			lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
+			vif->bss_conf.chanctx_conf = NULL;
 			lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 			free(lchanctx, M_LKPI80211);
 			goto out;
@@ -2157,23 +2183,7 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	/* conf_tx */
 
-	/* Take the chan ctx down. */
-	if (vif->chanctx_conf != NULL) {
-		struct lkpi_chanctx *lchanctx;
-		struct ieee80211_chanctx_conf *chanctx_conf;
-
-		chanctx_conf = vif->chanctx_conf;
-		/* Remove vif context. */
-		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
-		/* NB: vif->chanctx_conf is NULL now. */
-
-		lkpi_hw_conf_idle(hw, true);
-
-		/* Remove chan ctx. */
-		lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
-		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
-		free(lchanctx, M_LKPI80211);
-	}
+	lkpi_remove_chanctx(hw, vif);
 
 out:
 	LKPI_80211_LHW_UNLOCK(lhw);
@@ -2501,23 +2511,7 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 
 	/* conf_tx */
 
-	/* Take the chan ctx down. */
-	if (vif->chanctx_conf != NULL) {
-		struct lkpi_chanctx *lchanctx;
-		struct ieee80211_chanctx_conf *chanctx_conf;
-
-		chanctx_conf = vif->chanctx_conf;
-		/* Remove vif context. */
-		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
-		/* NB: vif->chanctx_conf is NULL now. */
-
-		lkpi_hw_conf_idle(hw, true);
-
-		/* Remove chan ctx. */
-		lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
-		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
-		free(lchanctx, M_LKPI80211);
-	}
+	lkpi_remove_chanctx(hw, vif);
 
 	error = EALREADY;
 out:
@@ -3117,23 +3111,7 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 
 	/* conf_tx */
 
-	/* Take the chan ctx down. */
-	if (vif->chanctx_conf != NULL) {
-		struct lkpi_chanctx *lchanctx;
-		struct ieee80211_chanctx_conf *chanctx_conf;
-
-		chanctx_conf = vif->chanctx_conf;
-		/* Remove vif context. */
-		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
-		/* NB: vif->chanctx_conf is NULL now. */
-
-		lkpi_hw_conf_idle(hw, true);
-
-		/* Remove chan ctx. */
-		lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
-		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
-		free(lchanctx, M_LKPI80211);
-	}
+	lkpi_remove_chanctx(hw, vif);
 
 	error = EALREADY;
 out:
