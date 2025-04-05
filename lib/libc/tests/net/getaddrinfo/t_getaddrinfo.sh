@@ -55,7 +55,7 @@ check_output()
 	fi
 
 	cmp  -s $(atf_get_srcdir)/data/${exp} out && return
-	diff -u $(atf_get_srcdir)/data/${exp} out && \
+	diff -u $(atf_get_srcdir)/data/${exp} out || \
 	atf_fail "Actual output does not match expected output"
 }
 
@@ -188,6 +188,7 @@ scopeaddr_body()
 
 atf_init_test_cases()
 {
+	service ip6addrctl prefer_ipv6
 	atf_add_test_case basic
 	atf_add_test_case specific
 	atf_add_test_case empty_hostname
