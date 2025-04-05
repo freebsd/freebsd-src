@@ -238,12 +238,15 @@
 #define BRIDGE_RT_LOCK_OR_NET_EPOCH_ASSERT(_sc)	\
 	    MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(_sc)->sc_rt_mtx))
 
+struct bridge_softc;
+
 /*
  * Bridge interface list entry.
  */
 struct bridge_iflist {
 	CK_LIST_ENTRY(bridge_iflist) bif_next;
 	struct ifnet		*bif_ifp;	/* member if */
+	struct bridge_softc	*bif_sc;	/* parent bridge */
 	struct bstp_port	bif_stp;	/* STP state */
 	uint32_t		bif_flags;	/* member if flags */
 	int			bif_savedcaps;	/* saved capabilities */
@@ -314,6 +317,8 @@ static void	bridge_set_ifcap(struct bridge_softc *, struct bridge_iflist *,
 static void	bridge_ifdetach(void *arg __unused, struct ifnet *);
 static void	bridge_init(void *);
 static void	bridge_dummynet(struct mbuf *, struct ifnet *);
+static bool	bridge_same(const void *, const void *);
+static void	*bridge_get_softc(struct ifnet *);
 static void	bridge_stop(struct ifnet *, int);
 static int	bridge_transmit(struct ifnet *, struct mbuf *);
 #ifdef ALTQ
@@ -658,6 +663,8 @@ bridge_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		bridge_dn_p = bridge_dummynet;
+		bridge_same_p = bridge_same;
+		bridge_get_softc_p = bridge_get_softc;
 		bridge_detach_cookie = EVENTHANDLER_REGISTER(
 		    ifnet_departure_event, bridge_ifdetach, NULL,
 		    EVENTHANDLER_PRI_ANY);
@@ -666,6 +673,8 @@ bridge_modevent(module_t mod, int type, void *data)
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event,
 		    bridge_detach_cookie);
 		bridge_dn_p = NULL;
+		bridge_same_p = NULL;
+		bridge_get_softc_p = NULL;
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -739,6 +748,43 @@ bridge_reassign(struct ifnet *ifp, struct vnet *newvnet, char *arg)
 	ether_reassign(ifp, newvnet, arg);
 }
 #endif
+
+/*
+ * bridge_get_softc:
+ *
+ * Return the bridge softc for an ifnet.
+ */
+static void *
+bridge_get_softc(struct ifnet *ifp)
+{
+	struct bridge_iflist *bif;
+
+	NET_EPOCH_ASSERT();
+
+	bif = ifp->if_bridge;
+	if (bif == NULL)
+		return (NULL);
+	return (bif->bif_sc);
+}
+
+/*
+ * bridge_same:
+ *
+ * Return true if two interfaces are in the same bridge.  This is only used by
+ * bridgestp via bridge_same_p.
+ */
+static bool
+bridge_same(const void *bifap, const void *bifbp)
+{
+	const struct bridge_iflist *bifa = bifap, *bifb = bifbp;
+
+	NET_EPOCH_ASSERT();
+
+	if (bifa == NULL || bifb == NULL)
+		return (false);
+
+	return (bifa->bif_sc == bifb->bif_sc);
+}
 
 /*
  * bridge_clone_create:
@@ -1116,16 +1162,8 @@ bridge_lookup_member(struct bridge_softc *sc, const char *name)
 static struct bridge_iflist *
 bridge_lookup_member_if(struct bridge_softc *sc, struct ifnet *member_ifp)
 {
-	struct bridge_iflist *bif;
-
 	BRIDGE_LOCK_OR_NET_EPOCH_ASSERT(sc);
-
-	CK_LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
-		if (bif->bif_ifp == member_ifp)
-			return (bif);
-	}
-
-	return (NULL);
+	return (member_ifp->if_bridge);
 }
 
 static void
@@ -1257,11 +1295,13 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		if (ifs == bif->bif_ifp)
 			return (EBUSY);
 
-	if (ifs->if_bridge == sc)
-		return (EEXIST);
+	if (ifs->if_bridge) {
+		struct bridge_iflist *sbif = ifs->if_bridge;
+		if (sbif->bif_sc == sc)
+			return (EEXIST);
 
-	if (ifs->if_bridge != NULL)
 		return (EBUSY);
+	}
 
 	switch (ifs->if_type) {
 	case IFT_ETHER:
@@ -1336,6 +1376,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	if (bif == NULL)
 		return (ENOMEM);
 
+	bif->bif_sc = sc;
 	bif->bif_ifp = ifs;
 	bif->bif_flags = IFBIF_LEARNING | IFBIF_DISCOVER;
 	bif->bif_savedcaps = ifs->if_capenable;
@@ -1352,7 +1393,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		EVENTHANDLER_INVOKE(iflladdr_event, sc->sc_ifp);
 	}
 
-	ifs->if_bridge = sc;
+	ifs->if_bridge = bif;
 	ifs->if_bridge_output = bridge_output;
 	ifs->if_bridge_input = bridge_input;
 	ifs->if_bridge_linkstate = bridge_linkstate;
@@ -1979,8 +2020,11 @@ bridge_ioctl_stxhc(struct bridge_softc *sc, void *arg)
 static void
 bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 {
-	struct bridge_softc *sc = ifp->if_bridge;
-	struct bridge_iflist *bif;
+	struct bridge_iflist *bif = ifp->if_bridge;
+	struct bridge_softc *sc = NULL;
+
+	if (bif)
+		sc = bif->bif_sc;
 
 	if (ifp->if_flags & IFF_RENAMING)
 		return;
@@ -1994,11 +2038,7 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 	/* Check if the interface is a bridge member */
 	if (sc != NULL) {
 		BRIDGE_LOCK(sc);
-
-		bif = bridge_lookup_member_if(sc, ifp);
-		if (bif != NULL)
-			bridge_delete_member(sc, bif, 1);
-
+		bridge_delete_member(sc, bif, 1);
 		BRIDGE_UNLOCK(sc);
 		return;
 	}
@@ -2136,9 +2176,11 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 static void
 bridge_dummynet(struct mbuf *m, struct ifnet *ifp)
 {
-	struct bridge_softc *sc;
+	struct bridge_iflist *bif = ifp->if_bridge;
+	struct bridge_softc *sc = NULL;
 
-	sc = ifp->if_bridge;
+	if (bif)
+		sc = bif->bif_sc;
 
 	/*
 	 * The packet didnt originate from a member interface. This should only
@@ -2175,6 +2217,7 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
     struct rtentry *rt)
 {
 	struct ether_header *eh;
+	struct bridge_iflist *sbif;
 	struct ifnet *bifp, *dst_if;
 	struct bridge_softc *sc;
 	uint16_t vlan;
@@ -2187,11 +2230,12 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 			return (0);
 	}
 
-	eh = mtod(m, struct ether_header *);
-	sc = ifp->if_bridge;
-	vlan = VLANTAGOF(m);
-
+	sbif = ifp->if_bridge;
+	sc = sbif->bif_sc;
 	bifp = sc->sc_ifp;
+
+	eh = mtod(m, struct ether_header *);
+	vlan = VLANTAGOF(m);
 
 	/*
 	 * If bridge is down, but the original output interface is up,
@@ -2503,7 +2547,7 @@ drop:
 static struct mbuf *
 bridge_input(struct ifnet *ifp, struct mbuf *m)
 {
-	struct bridge_softc *sc;
+	struct bridge_softc *sc = NULL;
 	struct bridge_iflist *bif, *bif2;
 	struct ifnet *bifp;
 	struct ether_header *eh;
@@ -2516,7 +2560,10 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	eh = mtod(m, struct ether_header *);
 	vlan = VLANTAGOF(m);
 
-	sc = ifp->if_bridge;
+	bif = ifp->if_bridge;
+	if (bif)
+		sc = bif->bif_sc;
+
 	if (sc == NULL) {
 		/*
 		 * This packet originated from the bridge itself, so it must
@@ -2552,10 +2599,6 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		if_inc_counter(bifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 		m_freem(m);
 		return (NULL);
-	}
-	bif = bridge_lookup_member_if(sc, ifp);
-	if (bif == NULL) {
-		return (m);
 	}
 
 	bridge_span(sc, m);
@@ -3329,10 +3372,16 @@ bridge_rtnode_destroy(struct bridge_softc *sc, struct bridge_rtnode *brt)
 static void
 bridge_rtable_expire(struct ifnet *ifp, int age)
 {
-	struct bridge_softc *sc = ifp->if_bridge;
+	struct bridge_iflist *bif = NULL;
+	struct bridge_softc *sc = NULL;
 	struct bridge_rtnode *brt;
 
 	CURVNET_SET(ifp->if_vnet);
+
+	bif = ifp->if_bridge;
+	if (bif)
+		sc = bif->bif_sc;
+	MPASS(sc != NULL);
 	BRIDGE_RT_LOCK(sc);
 
 	/*
@@ -3362,7 +3411,8 @@ bridge_rtable_expire(struct ifnet *ifp, int age)
 static void
 bridge_state_change(struct ifnet *ifp, int state)
 {
-	struct bridge_softc *sc = ifp->if_bridge;
+	struct bridge_iflist *bif = ifp->if_bridge;
+	struct bridge_softc *sc = bif->bif_sc;
 	static const char *stpstates[] = {
 		"disabled",
 		"listening",
@@ -3877,20 +3927,20 @@ dropit:
 static void
 bridge_linkstate(struct ifnet *ifp)
 {
-	struct bridge_softc *sc = ifp->if_bridge;
+	struct bridge_softc *sc = NULL;
 	struct bridge_iflist *bif;
 	struct epoch_tracker et;
 
 	NET_EPOCH_ENTER(et);
 
-	bif = bridge_lookup_member_if(sc, ifp);
-	if (bif == NULL) {
-		NET_EPOCH_EXIT(et);
-		return;
-	}
-	bridge_linkcheck(sc);
+	bif = ifp->if_bridge;
+	if (bif)
+		sc = bif->bif_sc;
 
-	bstp_linkstate(&bif->bif_stp);
+	if (sc != NULL) {
+		bridge_linkcheck(sc);
+		bstp_linkstate(&bif->bif_stp);
+	}
 
 	NET_EPOCH_EXIT(et);
 }
