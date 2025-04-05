@@ -1,7 +1,7 @@
 PACKAGE=	kerberos-lib
 
 LIB=	wind
-LDFLAGS=	-Wl,--no-undefined
+LDFLAGS+=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/lib/wind/version-script.map
 LIBADD=	com_err roken
 

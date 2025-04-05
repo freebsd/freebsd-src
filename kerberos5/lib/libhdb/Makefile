@@ -1,7 +1,7 @@
 PACKAGE=	kerberos-lib
 
 LIB=	hdb
-LDFLAGS=	-Wl,--no-undefined ${LDAPLDFLAGS}
+LDFLAGS+=	-Wl,--no-undefined ${LDAPLDFLAGS}
 VERSION_MAP=	${KRB5DIR}/lib/hdb/version-script.map
 LIBADD=	asn1 com_err krb5 roken sqlite3
 LDADD=	${LDAPLDADD}

@@ -9,7 +9,7 @@ CFLAGS+=	-I${KRB5DIR}/lib/kadm5 \
 		-I${KRB5DIR}/lib/sl \
 		-I.
 LIBADD=	kadm5srv hdb krb5 roken edit sl vers
-LDFLAGS=${LDAPLDFLAGS}
+LDFLAGS+=${LDAPLDFLAGS}
 
 CLEANFILES=	iprop-commands.h iprop-commands.c
 

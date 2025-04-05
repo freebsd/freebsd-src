@@ -1,7 +1,7 @@
 PACKAGE=	kerberos-lib
 
 LIB=	krb5
-LDFLAGS=	-Wl,--no-undefined
+LDFLAGS+=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/lib/krb5/version-script.map
 LIBADD=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc
 

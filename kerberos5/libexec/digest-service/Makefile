@@ -10,7 +10,7 @@ CFLAGS+=	-I${KRB5DIR}/kdc \
 		-I${KRB5DIR}/lib/roken \
 		-I${SRCTOP}/contrib/com_err
 LIBADD=	hdb kdc heimipcs krb5 roken asn1 crypto vers heimntlm
-LDFLAGS=${LDAPLDFLAGS}
+LDFLAGS+=${LDAPLDFLAGS}
 
 .include <bsd.prog.mk>
 

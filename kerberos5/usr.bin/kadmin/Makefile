@@ -29,7 +29,7 @@ CFLAGS+=-I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/roken \
 LIBADD=	kadm5clnt kadm5srv hdb krb5 roken vers sl asn1 crypto edit
 DPADD=	${LDAPDPADD}
 LDADD=	${LDAPLDADD}
-LDFLAGS=${LDAPLDFLAGS}
+LDFLAGS+=${LDAPLDFLAGS}
 
 CLEANFILES=	kadmin-commands.h kadmin-commands.c
 
