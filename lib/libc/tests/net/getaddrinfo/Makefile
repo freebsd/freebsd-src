@@ -1,12 +1,10 @@
 PACKAGE=	tests
 
-TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libc/net/${.CURDIR:T}
-
 .include <bsd.own.mk>
 
 BINDIR=		${TESTSDIR}
 
-NETBSD_ATF_TESTS_SH=	getaddrinfo_test
+ATF_TESTS_SH=	t_getaddrinfo
 ATF_TESTS_C=	getaddrinfo
 
 PROGS=		h_gai
