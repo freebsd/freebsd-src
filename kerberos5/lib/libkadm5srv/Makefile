@@ -1,7 +1,7 @@
 PACKAGE=	kerberos-lib
 
 LIB=	kadm5srv
-LDFLAGS=	-Wl,--no-undefined
+LDFLAGS+=	-Wl,--no-undefined
 LIBADD=	com_err hdb krb5 roken
 VERSION_MAP= ${KRB5DIR}/lib/kadm5/version-script.map
 MAN=	kadm5_pwcheck.3

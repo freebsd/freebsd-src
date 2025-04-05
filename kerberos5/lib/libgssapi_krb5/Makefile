@@ -1,7 +1,7 @@
 PACKAGE=	kerberos-lib
 
 LIB=	gssapi_krb5
-LDFLAGS= -Wl,-Bsymbolic -Wl,--no-undefined
+LDFLAGS+= -Wl,-Bsymbolic -Wl,--no-undefined
 LIBADD=	gssapi krb5 crypto roken asn1 com_err
 SHLIB_MAJOR=	10
 
