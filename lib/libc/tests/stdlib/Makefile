@@ -1,6 +1,7 @@
 .include <src.opts.mk>
 
 ATF_TESTS_C+=		clearenv_test
+ATF_TESTS_C+=		cxa_atexit_test
 ATF_TESTS_C+=		dynthr_test
 ATF_TESTS_C+=		heapsort_test
 ATF_TESTS_C+=		libc_exit_test
@@ -79,5 +80,6 @@ LIBADD.libc_exit_test+=		pthread
 LIBADD.strtod_test+=		m
 
 SUBDIR+=	dynthr_mod
+SUBDIR+=	libatexit
 
 .include <bsd.test.mk>
