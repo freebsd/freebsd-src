@@ -1,6 +1,7 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2014 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" Copyright (c) 2025 Aaron LI <aly@aaronly.me>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 4, 2025
+.Dd April 3, 2025
 .Dt TIMEOUT 1
 .Os
 .Sh NAME
@@ -32,37 +33,78 @@
 .Nd run a command with a time limit
 .Sh SYNOPSIS
 .Nm
+.Op Fl f | Fl -foreground
 .Op Fl k Ar time | Fl -kill-after Ar time
-.Op Fl s Ar sig | Fl -signal Ar sig
+.Op Fl p | Fl -preserve-status
+.Op Fl s Ar signal | Fl -signal Ar signal
 .Op Fl v | Fl -verbose
-.Op Fl -foreground
-.Op Fl -preserve-status
 .Ar duration
 .Ar command
-.Op Ar args ...
+.Op Ar arg ...
 .Sh DESCRIPTION
-.Nm
+.Nm Timeout
 starts the
 .Ar command
 with its
-.Ar args .
+.Ar arg
+list.
 If the
 .Ar command
 is still running after
 .Ar duration ,
-it is killed.
-By default,
+it is killed by sending the
+.Ar signal ,
+or
 .Dv SIGTERM
-is sent.
+if the
+.Fl s
+option is unspecified.
 The special
 .Ar duration ,
 zero, signifies no limit.
-Therefore a signal is never sent if
+Therefore, a signal is never sent if
 .Ar duration
 is 0.
 .Pp
+The signal dispositions inherited by the
+.Ar command
+are the same as the dispositions that
+.Nm
+inherited, except for the signal that will be sent upon timeout,
+which is reset to take the default action and should terminate
+the process.
+.Pp
+If
+.Nm
+receives the
+.Dv SIGALRM
+signal, it will behave as if the time limit has been reached
+and send the specified signal to
+.Ar command .
+For any other signals delivered to
+.Nm ,
+it will propagate them to
+.Ar command ,
+with the exception of
+.Dv SIGKILL
+and
+.Dv SIGSTOP .
+If you want to prevent the
+.Ar command
+from being timed out, send
+.Dv SIGKILL
+to
+.Nm .
+.Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl f , Fl -foreground
+Only time out the
+.Ar command
+itself, but do not propagate signals to its descendants.
+See the
+.Sx IMPLEMENTATION NOTES
+section for more details.
 .It Fl k Ar time , Fl -kill-after Ar time
 Send a
 .Dv SIGKILL
@@ -70,32 +112,33 @@ signal if
 .Ar command
 is still running after
 .Ar time
-after the first signal was sent.
-.It Fl s Ar sig , Fl -signal Ar sig
+since the first signal was sent.
+.It Fl p , Fl -preserve-status
+Always exit with the same status as
+.Ar command ,
+even if the timeout was reached.
+.It Fl s Ar signal , Fl -signal Ar signal
 Specify the signal to send on timeout.
 By default,
 .Dv SIGTERM
 is sent.
 .It Fl v , Fl -verbose
-Show information to stderr about any signal sent on timeout.
-.It Fl -foreground
-Do not propagate timeout to the children of
-.Ar command .
-.It Fl -preserve-status
-Exit with the same status as
-.Ar command ,
-even if it times out and is killed.
+Show information to
+.Xr stderr 4
+about timeouts, signals to be sent, and the
+.Ar command
+exits.
 .El
-.Sh DURATION FORMAT
+.Ss Duration Format
 The
 .Ar duration
 and
 .Ar time
 are non-negative integer or real (decimal) numbers, with an optional
-unit-specifying suffix.
+suffix specifying the unit.
 Values without an explicit unit are interpreted as seconds.
 .Pp
-Supported unit symbols are:
+Supported unit suffixes are:
 .Bl -tag -offset indent -width indent -compact
 .It Cm s
 seconds
@@ -106,38 +149,58 @@ hours
 .It Cm d
 days
 .El
+.Sh IMPLEMENTATION NOTES
+If the
+.Fl -foreground
+option is not specified,
+.Nm
+runs as the reaper (see also
+.Xr procctl 2 )
+of the
+.Ar command
+and its descendants, and will wait for all the descendants to terminate.
+This behavior might cause surprises if there are descendants running
+in the background, because they will ignore
+.Dv SIGINT
+and
+.Dv SIGQUIT
+signals.
+For example, the following command that sends a
+.Dv SIGTERM
+signal will complete in 2 seconds:
+.Dl $ timeout -s TERM 2 sh -c 'sleep 4 & sleep 5'
+However, this command that sends a
+.Dv SIGINT
+signal will complete in 4 seconds:
+.Dl $ timeout -s INT 2 sh -c 'sleep 4 & sleep 5'
 .Sh EXIT STATUS
-If the timeout was not reached, the exit status of
-.Ar command
-is returned.
-.Pp
-If the timeout was reached and
+If the time limit was reached and the
 .Fl -preserve-status
-is set, the exit status of
+option is not specified, the exit status is 124.
+Otherwise,
+.Nm
+exits with the same exit status as the
+.Ar command .
+For example,
+.Nm
+will terminate itself with the same signal if the
 .Ar command
-is returned.
-If
-.Fl -preserve-status
-is not set, an exit status of 124 is returned.
+is terminated by a signal.
 .Pp
-If an invalid parameter is passed to
-.Fl s
-or
-.Fl k ,
-the exit status returned is 125.
-.Pp
-If
+If an error occurred, the following exit values are returned:
+.Bl -tag -offset indent with indent -compact
+.It 125
+An error other than the two described below occurred.
+For example, an invalid duration or signal was specified.
+.It 126
+The
 .Ar command
-is an otherwise invalid program, the exit status returned is 126.
-.Pp
-If
+was found but could not be executed.
+.It 127
+The
 .Ar command
-refers to a non-existing program, the exit status returned is 127.
-.Pp
-If
-.Ar command
-exits after receiving a signal, the exit status returned is the signal number
-plus 128.
+could not be found.
+.El
 .Sh EXAMPLES
 Run
 .Xr sleep 1
@@ -152,9 +215,9 @@ $ echo $?
 Run
 .Xr sleep 1
 for 4 seconds and terminate process after 2 seconds.
-124 is returned since no
+The exit status is 124 since
 .Fl -preserve-status
-is used:
+is not used:
 .Bd -literal -offset indent
 $ timeout 2 sleep 4
 $ echo $?
@@ -162,8 +225,9 @@ $ echo $?
 .Ed
 .Pp
 Same as above but preserving status.
-Exit status is 128 + signal number (15 for
-.Va SIGTERM ) :
+The exit status is 128 + signal number (15 for
+.Dv SIGTERM )
+for most shells:
 .Bd -literal -offset indent
 $ timeout --preserve-status 2 sleep 4
 $ echo $?
@@ -171,9 +235,9 @@ $ echo $?
 .Ed
 .Pp
 Same as above but sending
-.Va SIGALRM
+.Dv SIGALRM
 (signal number 14) instead of
-.Va SIGTERM :
+.Dv SIGTERM :
 .Bd -literal -offset indent
 $ timeout --preserve-status -s SIGALRM 2 sleep 4
 $ echo $?
@@ -186,9 +250,9 @@ the PDF version of the
 .Fx
 Handbook.
 Send a
-.Va SIGTERM
+.Dv SIGTERM
 signal after 1 minute and send a
-.Va SIGKILL
+.Dv SIGKILL
 signal 5 seconds later if the process refuses to stop:
 .Bd -literal -offset indent
 $ timeout -k 5s 1m fetch \\
@@ -202,7 +266,7 @@ $ timeout -k 5s 1m fetch \\
 .Sh STANDARDS
 The
 .Nm
-utility is compliant with the
+utility is expected to conform to the
 .St -p1003.1-2024
 specification.
 .Sh HISTORY
@@ -211,9 +275,9 @@ The
 command first appeared in
 .Fx 10.3 .
 .Pp
-The
+The initial
 .Fx
-work is compatible with GNU
+work was compatible with GNU
 .Nm
 by
 .An Padraig Brady ,
@@ -222,6 +286,7 @@ The
 .Nm
 utility first appeared in GNU Coreutils 7.0.
 .Sh AUTHORS
-.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org
-and
+.An Baptiste Daroussin Aq Mt bapt@FreeBSD.org ,
 .An Vsevolod Stakhov Aq Mt vsevolod@FreeBSD.org
+and
+.An Aaron LI Aq Mt aly@aaronly.me
