@@ -508,7 +508,7 @@ SYSCTL_BOOL(_net_link_bridge, OID_AUTO, member_ifaddrs,
 static bool
 bridge_member_ifaddrs(void)
 {
-	return V_member_ifaddrs;
+	return (V_member_ifaddrs);
 }
 
 VNET_DEFINE_STATIC(int, log_interval) = 5;
