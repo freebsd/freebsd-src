@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2021, Adrian Chadd <adrian@FreeBSD.org>
+ * Copyright (c) 2025, Adrian Chadd <adrian@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Driver for Qualcomm IPQ4018 clock and reset device */
+/* Driver for Qualcomm clock/reset trees */
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -49,19 +49,29 @@
 #include "clkdev_if.h"
 #include "hwreset_if.h"
 
-#include <dt-bindings/clock/qcom,gcc-ipq4019.h>
+#include "qcom_gcc_var.h"
+#include "qcom_gcc_ipq4018.h"
 
-#include "qcom_gcc_ipq4018_var.h"
+static int	qcom_gcc_modevent(module_t, int, void *);
 
+static int	qcom_gcc_probe(device_t);
+static int	qcom_gcc_attach(device_t);
+static int	qcom_gcc_detach(device_t);
 
-static int	qcom_gcc_ipq4018_modevent(module_t, int, void *);
+struct qcom_gcc_chipset_list_entry {
+	const char *ofw;
+	const char *desc;
+	qcom_gcc_chipset_t chipset;
+};
 
-static int	qcom_gcc_ipq4018_probe(device_t);
-static int	qcom_gcc_ipq4018_attach(device_t);
-static int	qcom_gcc_ipq4018_detach(device_t);
+static struct qcom_gcc_chipset_list_entry qcom_gcc_chipset_list[] = {
+	{ "qcom,gcc-ipq4019", "Qualcomm IPQ4018 Clock/Reset Controller",
+	    QCOM_GCC_CHIPSET_IPQ4018 },
+	{ NULL, NULL, 0 },
+};
 
 static int
-qcom_gcc_ipq4018_modevent(module_t mod, int type, void *unused)
+qcom_gcc_modevent(module_t mod, int type, void *unused)
 {
 	int error;
 
@@ -81,36 +91,63 @@ qcom_gcc_ipq4018_modevent(module_t mod, int type, void *unused)
 }
 
 static int
-qcom_gcc_ipq4018_probe(device_t dev)
+qcom_gcc_probe(device_t dev)
 {
+	struct qcom_gcc_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+
 	if (! ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "qcom,gcc-ipq4019") == 0)
-		return (ENXIO);
+	for (i = 0; qcom_gcc_chipset_list[i].ofw != NULL; i++) {
+		const struct qcom_gcc_chipset_list_entry *ce;
 
-	return (0);
+		ce = &qcom_gcc_chipset_list[i];
+		if (ofw_bus_is_compatible(dev, ce->ofw) == 0)
+			continue;
+		device_set_desc(dev, ce->desc);
+		sc->sc_chipset = ce->chipset;
+		return (0);
+	}
+
+	return (ENXIO);
 }
 
 static int
-qcom_gcc_ipq4018_attach(device_t dev)
+qcom_gcc_attach(device_t dev)
 {
-	struct qcom_gcc_ipq4018_softc *sc;
+	struct qcom_gcc_softc *sc;
+	size_t mem_sz;
 
 	sc = device_get_softc(dev);
 
 	/* Found a compatible device! */
 	sc->dev = dev;
 
+	/*
+	 * Setup the hardware callbacks, before any further initialisation
+	 * is performed.
+	 */
+	switch (sc->sc_chipset) {
+	case QCOM_GCC_CHIPSET_IPQ4018:
+		qcom_gcc_ipq4018_hwreset_init(sc);
+		mem_sz = 0x60000;
+		break;
+	case QCOM_GCC_CHIPSET_NONE:
+		device_printf(dev, "Invalid chipset (%d)\n", sc->sc_chipset);
+		return (ENXIO);
+	}
+
 	sc->reg_rid = 0;
+
 	sc->reg = bus_alloc_resource_anywhere(dev, SYS_RES_MEMORY,
-	    &sc->reg_rid, 0x60000, RF_ACTIVE);
+	    &sc->reg_rid, mem_sz, RF_ACTIVE);
 	if (sc->reg == NULL) {
 		device_printf(dev, "Couldn't allocate memory resource!\n");
 		return (ENXIO);
 	}
-
-	device_set_desc(dev, "Qualcomm IPQ4018 Clock/Reset Controller");
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
@@ -122,15 +159,22 @@ qcom_gcc_ipq4018_attach(device_t dev)
 	/*
 	 * Setup and register as a clock provider.
 	 */
-	qcom_gcc_ipq4018_clock_setup(sc);
+	switch (sc->sc_chipset) {
+	case QCOM_GCC_CHIPSET_IPQ4018:
+		qcom_gcc_ipq4018_clock_setup(sc);
+		break;
+	case QCOM_GCC_CHIPSET_NONE:
+		device_printf(dev, "Invalid chipset (%d)\n", sc->sc_chipset);
+		return (ENXIO);
+	}
 
 	return (0);
 }
 
 static int
-qcom_gcc_ipq4018_detach(device_t dev)
+qcom_gcc_detach(device_t dev)
 {
-	struct qcom_gcc_ipq4018_softc *sc;
+	struct qcom_gcc_softc *sc;
 
 	sc = device_get_softc(dev);
 
@@ -145,34 +189,34 @@ qcom_gcc_ipq4018_detach(device_t dev)
 	return (0);
 }
 
-static device_method_t qcom_gcc_ipq4018_methods[] = {
+static device_method_t qcom_gcc_methods[] = {
 	/* Device methods. */
-	DEVMETHOD(device_probe,		qcom_gcc_ipq4018_probe),
-	DEVMETHOD(device_attach,	qcom_gcc_ipq4018_attach),
-	DEVMETHOD(device_detach,	qcom_gcc_ipq4018_detach),
+	DEVMETHOD(device_probe,		qcom_gcc_probe),
+	DEVMETHOD(device_attach,	qcom_gcc_attach),
+	DEVMETHOD(device_detach,	qcom_gcc_detach),
 
 	/* Reset interface */
-	DEVMETHOD(hwreset_assert,	qcom_gcc_ipq4018_hwreset_assert),
-	DEVMETHOD(hwreset_is_asserted,	qcom_gcc_ipq4018_hwreset_is_asserted),
+	DEVMETHOD(hwreset_assert,	qcom_gcc_hwreset_assert),
+	DEVMETHOD(hwreset_is_asserted,	qcom_gcc_hwreset_is_asserted),
 
 	/* Clock interface */
-	DEVMETHOD(clkdev_read_4,	qcom_gcc_ipq4018_clock_read),
-	DEVMETHOD(clkdev_write_4,	qcom_gcc_ipq4018_clock_write),
-	DEVMETHOD(clkdev_modify_4,	qcom_gcc_ipq4018_clock_modify),
-	DEVMETHOD(clkdev_device_lock,	qcom_gcc_ipq4018_clock_lock),
-	DEVMETHOD(clkdev_device_unlock,	qcom_gcc_ipq4018_clock_unlock),
+	DEVMETHOD(clkdev_read_4,	qcom_gcc_clock_read),
+	DEVMETHOD(clkdev_write_4,	qcom_gcc_clock_write),
+	DEVMETHOD(clkdev_modify_4,	qcom_gcc_clock_modify),
+	DEVMETHOD(clkdev_device_lock,	qcom_gcc_clock_lock),
+	DEVMETHOD(clkdev_device_unlock,	qcom_gcc_clock_unlock),
 
 	DEVMETHOD_END
 };
 
-static driver_t qcom_gcc_ipq4018_driver = {
+static driver_t qcom_gcc_driver = {
 	"qcom_gcc",
-	qcom_gcc_ipq4018_methods,
-	sizeof(struct qcom_gcc_ipq4018_softc)
+	qcom_gcc_methods,
+	sizeof(struct qcom_gcc_softc)
 };
 
-EARLY_DRIVER_MODULE(qcom_gcc_ipq4018, simplebus, qcom_gcc_ipq4018_driver,
-    qcom_gcc_ipq4018_modevent, NULL, BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);
-EARLY_DRIVER_MODULE(qcom_gcc_ipq4018, ofwbus, qcom_gcc_ipq4018_driver,
-    qcom_gcc_ipq4018_modevent, NULL, BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);
-MODULE_VERSION(qcom_gcc_ipq4018, 1);
+EARLY_DRIVER_MODULE(qcom_gcc, simplebus, qcom_gcc_driver,
+    qcom_gcc_modevent, NULL, BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);
+EARLY_DRIVER_MODULE(qcom_gcc, ofwbus, qcom_gcc_driver,
+    qcom_gcc_modevent, NULL, BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);
+MODULE_VERSION(qcom_gcc, 1);

@@ -46,7 +46,7 @@ device 		mpcore_timer
 device 		psci
 
 # Clock/Reset provider
-device 		qcom_gcc_ipq4018
+device 		qcom_gcc
 
 # TLMM (gpio/pinmux)
 device 		gpio
