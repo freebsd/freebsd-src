@@ -57,6 +57,7 @@
 #include <net/if_types.h>
 #include <net/if_llc.h>
 #include <net/if_media.h>
+#include <net/if_bridgevar.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -2059,6 +2060,7 @@ bstp_reinit(struct bstp_state *bs)
 	mif = NULL;
 	bridgeptr = LIST_FIRST(&bs->bs_bplist)->bp_ifp->if_bridge;
 	KASSERT(bridgeptr != NULL, ("Invalid bridge pointer"));
+	KASSERT(bridge_same_p != NULL, ("if_bridge not loaded"));
 	/*
 	 * Search through the Ethernet adapters and find the one with the
 	 * lowest value. Make sure the adapter which we take the MAC address
@@ -2070,7 +2072,7 @@ bstp_reinit(struct bstp_state *bs)
 		if (ifp->if_type != IFT_ETHER && ifp->if_type != IFT_L2VLAN)
 			continue;	/* Not Ethernet */
 
-		if (ifp->if_bridge != bridgeptr)
+		if (!bridge_same_p(ifp->if_bridge, bridgeptr))
 			continue;	/* Not part of our bridge */
 
 		if (bstp_addr_cmp(IF_LLADDR(ifp), llzero) == 0)
