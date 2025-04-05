@@ -518,7 +518,7 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 	/* check for non-auto OID number collision */
 	if (oidp->oid_number >= 0 && oidp->oid_number < CTL_AUTO_START &&
 	    oid_number >= CTL_AUTO_START) {
-		printf("sysctl: OID number(%d) is already in use for '%s'\n",
+		panic("sysctl: OID number(%d) is already in use for '%s'\n",
 		    oidp->oid_number, oidp->oid_name);
 	}
 	/* update the OID number, if any */
