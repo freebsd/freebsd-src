@@ -58,7 +58,7 @@ static struct ofw_compat_data compat_data[] = {
 struct qcom_dwc3_softc {
 	struct simplebus_softc	sc;
 	device_t		dev;
-	clk_t			clk_master;
+	clk_t			clk_core;
 	clk_t			clk_sleep;
 	clk_t			clk_mock_utmi;
 	int			type;
@@ -98,8 +98,8 @@ qcom_dwc3_attach(device_t dev)
 	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 
 	/* Mandatory clocks */
-	if (clk_get_by_ofw_name(dev, 0, "master", &sc->clk_master) != 0) {
-		device_printf(dev, "Cannot get master clock\n");
+	if (clk_get_by_ofw_name(dev, 0, "core", &sc->clk_core) != 0) {
+		device_printf(dev, "Cannot get core clock\n");
 		return (ENXIO);
 	}
 
@@ -121,10 +121,10 @@ qcom_dwc3_attach(device_t dev)
 	/*
 	 * Now, iterate over the clocks and enable them.
 	 */
-	err = clk_enable(sc->clk_master);
+	err = clk_enable(sc->clk_core);
 	if (err != 0) {
 		device_printf(dev, "Could not enable clock %s\n",
-		    clk_get_name(sc->clk_master));
+		    clk_get_name(sc->clk_core));
 		return (ENXIO);
 	}
 	err = clk_enable(sc->clk_sleep);
