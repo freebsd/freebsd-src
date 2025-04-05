@@ -34,17 +34,19 @@ dev/qcom_rnd/qcom_rnd.c			optional qcom_rnd
 dev/qcom_qup/qcom_spi.c			optional qcom_qup_spi
 dev/qcom_qup/qcom_spi_hw.c		optional qcom_qup_spi
 
-dev/qcom_gcc/qcom_gcc_ipq4018.c		optional qcom_gcc_ipq4018
-dev/qcom_gcc/qcom_gcc_ipq4018_reset.c	optional qcom_gcc_ipq4018
-dev/qcom_gcc/qcom_gcc_ipq4018_clock.c	optional qcom_gcc_ipq4018
+dev/qcom_gcc/qcom_gcc_main.c		optional qcom_gcc
+dev/qcom_gcc/qcom_gcc_clock.c		optional qcom_gcc
+dev/qcom_gcc/qcom_gcc_reset.c		optional qcom_gcc
+dev/qcom_gcc/qcom_gcc_ipq4018_reset.c	optional qcom_gcc
+dev/qcom_gcc/qcom_gcc_ipq4018_clock.c	optional qcom_gcc
 
-dev/qcom_clk/qcom_clk_fepll.c		optional qcom_gcc_ipq4018
-dev/qcom_clk/qcom_clk_fdiv.c		optional qcom_gcc_ipq4018
-dev/qcom_clk/qcom_clk_apssdiv.c		optional qcom_gcc_ipq4018
-dev/qcom_clk/qcom_clk_freqtbl.c		optional qcom_gcc_ipq4018
-dev/qcom_clk/qcom_clk_rcg2.c		optional qcom_gcc_ipq4018
-dev/qcom_clk/qcom_clk_branch2.c		optional qcom_gcc_ipq4018
-dev/qcom_clk/qcom_clk_ro_div.c		optional qcom_gcc_ipq4018
+dev/qcom_clk/qcom_clk_fepll.c		optional qcom_gcc
+dev/qcom_clk/qcom_clk_fdiv.c		optional qcom_gcc
+dev/qcom_clk/qcom_clk_apssdiv.c		optional qcom_gcc
+dev/qcom_clk/qcom_clk_freqtbl.c		optional qcom_gcc
+dev/qcom_clk/qcom_clk_rcg2.c		optional qcom_gcc
+dev/qcom_clk/qcom_clk_branch2.c		optional qcom_gcc
+dev/qcom_clk/qcom_clk_ro_div.c		optional qcom_gcc
 
 dev/qcom_tlmm/qcom_tlmm_debug.c		optional qcom_tlmm_ipq4018
 dev/qcom_tlmm/qcom_tlmm_ipq4018.c	optional qcom_tlmm_ipq4018

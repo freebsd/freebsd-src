@@ -50,10 +50,10 @@
 
 #include <dt-bindings/clock/qcom,gcc-ipq4019.h>
 
-#include "qcom_gcc_ipq4018_var.h"
+#include "qcom_gcc_var.h"
+#include "qcom_gcc_ipq4018.h"
 
-
-static const struct qcom_gcc_ipq4018_reset_entry gcc_ipq4019_reset_list[] = {
+static const struct qcom_gcc_reset_entry gcc_ipq4019_reset_list[] = {
 	[WIFI0_CPU_INIT_RESET] = { 0x1f008, 5 },
 	[WIFI0_RADIO_SRIF_RESET] = { 0x1f008, 4 },
 	[WIFI0_RADIO_WARM_RESET] = { 0x1f008, 3 },
@@ -127,10 +127,10 @@ static const struct qcom_gcc_ipq4018_reset_entry gcc_ipq4019_reset_list[] = {
 	[GCC_SPDM_BCR] = {0x25000, 0},
 };
 
-int
+static int
 qcom_gcc_ipq4018_hwreset_assert(device_t dev, intptr_t id, bool reset)
 {
-	struct qcom_gcc_ipq4018_softc *sc;
+	struct qcom_gcc_softc *sc;
 	uint32_t reg;
 
 	sc = device_get_softc(dev);
@@ -151,10 +151,10 @@ qcom_gcc_ipq4018_hwreset_assert(device_t dev, intptr_t id, bool reset)
 	return (0);
 }
 
-int
+static int
 qcom_gcc_ipq4018_hwreset_is_asserted(device_t dev, intptr_t id, bool *reset)
 {
-	struct qcom_gcc_ipq4018_softc *sc;
+	struct qcom_gcc_softc *sc;
 	uint32_t reg;
 
 	sc = device_get_softc(dev);
@@ -175,3 +175,9 @@ qcom_gcc_ipq4018_hwreset_is_asserted(device_t dev, intptr_t id, bool *reset)
 	return (0);
 }
 
+void
+qcom_gcc_ipq4018_hwreset_init(struct qcom_gcc_softc *sc)
+{
+	sc->sc_cb.hw_reset_assert = qcom_gcc_ipq4018_hwreset_assert;
+	sc->sc_cb.hw_reset_is_asserted = qcom_gcc_ipq4018_hwreset_is_asserted;
+}
