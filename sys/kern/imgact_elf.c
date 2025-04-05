@@ -1118,6 +1118,13 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	bool free_interp;
 	int error, i, n;
 
+#if defined(__amd64__) && __ELF_WORD_SIZE == 32 && PAGE_SIZE != PAGE_SIZE_4K
+	/*
+	 * XXX CHUQ ia32 code hard-codes 4k page size, just reject for now.
+	 */
+	return -1;
+#endif
+
 	hdr = (const Elf_Ehdr *)imgp->image_header;
 
 	/*
