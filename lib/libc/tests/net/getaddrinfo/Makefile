@@ -1,14 +1,13 @@
 PACKAGE=	tests
 
-TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libc/net/${.CURDIR:T}
-
 .include <bsd.own.mk>
 
 BINDIR=		${TESTSDIR}
 
-NETBSD_ATF_TESTS_SH=	getaddrinfo_test
+ATF_TESTS_SH=  	getaddrinfo_test getaddrinfo_test_v6
 ATF_TESTS_C=	getaddrinfo
 
+SRCS.h_gai= h_gai.c
 PROGS=		h_gai
 
 FILESGROUPS+=	${PACKAGE}DATA_FILES
@@ -16,13 +15,28 @@ ${PACKAGE}DATA_FILESPACKAGE=	tests
 
 ${PACKAGE}DATA_FILESDIR=	${TESTSDIR}/data
 
-${PACKAGE}DATA_FILES+=		basics_v4.exp	basics_v4v6.exp
-${PACKAGE}DATA_FILES+=		no_host_v4.exp	no_host_v4v6.exp
-${PACKAGE}DATA_FILES+=		no_serv_v4.exp	no_serv_v4v6.exp
-${PACKAGE}DATA_FILES+=		sock_raw_v4.exp	sock_raw_v4v6.exp
-${PACKAGE}DATA_FILES+=		spec_fam_v4.exp	spec_fam_v4v6.exp
-${PACKAGE}DATA_FILES+=		scoped.exp
-${PACKAGE}DATA_FILES+=		unsup_fam.exp
+${PACKAGE}DATA_FILES+= data/basics_v4.exp
+${PACKAGE}DATA_FILES+= data/basics_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/basics_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/no_host_v4.exp
+${PACKAGE}DATA_FILES+= data/no_host_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/no_host_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/no_serv_v4.exp
+${PACKAGE}DATA_FILES+= data/no_serv_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/no_serv_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/scoped_v4.exp
+${PACKAGE}DATA_FILES+= data/scoped_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/scoped_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/sock_raw_v4.exp
+${PACKAGE}DATA_FILES+= data/sock_raw_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/sock_raw_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/spec_fam_v4.exp
+${PACKAGE}DATA_FILES+= data/spec_fam_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/spec_fam_v4v6_prefer_v6.exp
+${PACKAGE}DATA_FILES+= data/unsup_fam_v4.exp
+${PACKAGE}DATA_FILES+= data/unsup_fam_v4v6_prefer_v4.exp
+${PACKAGE}DATA_FILES+= data/unsup_fam_v4v6_prefer_v6.exp
+
 
 .include "../../Makefile.netbsd-tests"
 
