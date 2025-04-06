@@ -4018,6 +4018,11 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_PROC_SETRLIMIT:
 
 		/*
+		 * Debuggers should work in jails.
+		 */
+	case PRIV_PROC_MEM_WRITE:
+
+		/*
 		 * System V and POSIX IPC privileges are granted in jail.
 		 */
 	case PRIV_IPC_READ:
