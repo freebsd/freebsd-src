@@ -4,7 +4,7 @@ PACKAGE=	tests
 
 BINDIR=		${TESTSDIR}
 
-ATF_TESTS_SH=	t_getaddrinfo
+ATF_TESTS_SH=	getaddrinfo_test
 ATF_TESTS_C=	getaddrinfo
 
 PROGS=		h_gai
