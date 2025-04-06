@@ -851,7 +851,7 @@ in_arpinput(struct mbuf *m)
 		}
 
 #define BDG_MEMBER_MATCHES_ARP(addr, ifp, ia)				\
-  (bridge_get_softc_p(ia->ia_ifp) == ifp->if_softc &&				\
+  (bridge_get_softc_p(ia->ia_ifp) == ifp->if_softc &&			\
   !bcmp(IF_LLADDR(ia->ia_ifp), IF_LLADDR(ifp), ifp->if_addrlen) &&	\
   addr == ia->ia_addr.sin_addr.s_addr)
 	/*

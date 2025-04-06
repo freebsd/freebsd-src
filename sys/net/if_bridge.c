@@ -763,8 +763,8 @@ bridge_get_softc(struct ifnet *ifp)
 
 	bif = ifp->if_bridge;
 	if (bif == NULL)
-		return NULL;
-	return bif->bif_sc;
+		return (NULL);
+	return (bif->bif_sc);
 }
 
 /*
@@ -781,11 +781,11 @@ bridge_same(struct ifnet *ifa, struct ifnet *ifb)
 	NET_EPOCH_ASSERT();
 
 	if (ifa->if_bridge == NULL || ifb->if_bridge == NULL)
-		return false;
+		return (false);
 
 	bifa = ifa->if_bridge;
 	bifb = ifb->if_bridge;
-	return bifa->bif_sc == bifb->bif_sc;
+	return (bifa->bif_sc == bifb->bif_sc);
 }
 
 /*
