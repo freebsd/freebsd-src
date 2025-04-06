@@ -5,6 +5,7 @@
 PACKAGE=	tests
 
 FILES=	__init__.py atf_pytest.py ktest.py utils.py
+MAN= atf-python.3
 SUBDIR=	sys
 
 .include <bsd.own.mk>
