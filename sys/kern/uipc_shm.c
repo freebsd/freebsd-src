@@ -481,7 +481,10 @@ shm_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	struct shmfd *shmfd;
 	void *rl_cookie;
 	int error;
-	off_t size;
+	off_t newsize;
+
+	KASSERT((flags & FOF_OFFSET) == 0 || uio->uio_offset >= 0,
+	    ("%s: negative offset", __func__));
 
 	shmfd = fp->f_data;
 #ifdef MAC
@@ -503,21 +506,23 @@ shm_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			return (EFBIG);
 		}
 
-		size = shmfd->shm_size;
+		newsize = atomic_load_64(&shmfd->shm_size);
 	} else {
-		size = uio->uio_offset + uio->uio_resid;
+		newsize = uio->uio_offset + uio->uio_resid;
 	}
 	if ((flags & FOF_OFFSET) == 0)
 		rl_cookie = shm_rangelock_wlock(shmfd, 0, OFF_MAX);
 	else
-		rl_cookie = shm_rangelock_wlock(shmfd, uio->uio_offset, size);
+		rl_cookie = shm_rangelock_wlock(shmfd, uio->uio_offset,
+		    MAX(newsize, uio->uio_offset));
 	if ((shmfd->shm_seals & F_SEAL_WRITE) != 0) {
 		error = EPERM;
 	} else {
 		error = 0;
 		if ((shmfd->shm_flags & SHM_GROW_ON_WRITE) != 0 &&
-		    size > shmfd->shm_size) {
-			error = shm_dotruncate_cookie(shmfd, size, rl_cookie);
+		    newsize > shmfd->shm_size) {
+			error = shm_dotruncate_cookie(shmfd, newsize,
+			    rl_cookie);
 		}
 		if (error == 0)
 			error = uiomove_object(shmfd->shm_object,
