@@ -1607,7 +1607,7 @@ retry:
 		 * One other possibility is that the map entry is wired, in
 		 * which case we must hang on to the page to avoid leaking it,
 		 * as the map entry owns the wiring.  This case can arise if the
-		 * backing pager is truncated.
+		 * backing object is truncated by the pager.
 		 */
 		if (vm_page_none_valid(m) && entry->wired_count == 0) {
 			if (vm_page_remove(m))
