@@ -36,7 +36,7 @@
 #include <contrib/libfdt/libfdt_env.h>
 #include <dev/ofw/ofw_bus.h>
 
-#define FDT_MEM_REGIONS	16
+#define FDT_MEM_REGIONS	64
 
 #define DI_MAX_INTR_NUM	32
 
