@@ -29,43 +29,69 @@
 # SUCH DAMAGE.
 #
 
+IP6ADDRCTL_CMD="/usr/sbin/ip6addrctl"
+CURRENT_POLICY_FILE="current.conf"
+
+policy_backup()
+{
+    "${IP6ADDRCTL_CMD}" > "${CURRENT_POLICY_FILE}"
+}
+
+policy_cleanup()
+{
+    if [ -f "${CURRENT_POLICY_FILE}" ]; then
+        "${IP6ADDRCTL_CMD}" flush
+        cat "${CURRENT_POLICY_FILE}" | tail -n +2 | "${IP6ADDRCTL_CMD}" install /dev/stdin
+    fi
+}
+
 check_output()
 {
-	if [ "$2" = "none" ] ; then
-		exp="${1}.exp"
-	elif [ "$2" = "hosts" ] ; then
-		# Determine if localhost has an IPv6 address or not
-		lcl=$( cat /etc/hosts					| \
-			 sed -e 's/#.*$//' -e 's/[ 	][ 	]*/ /g'	| \
-			 awk '/ localhost($| )/ {printf "%s ", $1}' )
-		if [ "${lcl%*::*}" = "${lcl}" ] ; then
-			exp="${1}_v4.exp"
+	if [ "$2" = "none" ]; then
+		if [ "$3" = "prefer_v6" ]; then
+			exp="${1}.exp"
 		else
-			exp="${1}_v4v6.exp"
+			exp="${1}_v4_only.exp"
 		fi
-	elif [ "$2" = "ifconfig" ] ; then
-		lcl=$( ifconfig lo0 | grep inet6 )
-		if [ -n "${lcl}" ] ; then
-			exp="${1}_v4v6.exp"
+	elif [ "$2" = "hosts" ]; then
+		lcl=$(cat /etc/hosts | sed -e 's/#.*$//' -e 's/[ 	][ 	]*/ /g' | awk '/ localhost($| )/ {printf "%s ", $1}')
+		if [ "${lcl%*::*}" = "${lcl}" ]; then
+			exp="${1}_v4_only.exp"
 		else
-			exp="${1}_v4.exp"
+			if [ "$3" = "prefer_v6" ]; then
+				exp="${1}_v4v6.exp"
+			else
+				exp="${1}_v4v6_prefer_v4.exp"
+			fi
+		fi
+	elif [ "$2" = "ifconfig" ]; then
+		lcl=$(ifconfig lo0 | grep inet6)
+		if [ -n "${lcl}" ]; then
+			if [ "$3" = "prefer_v6" ]; then
+				exp="${1}_v4v6.exp"
+			else
+				exp="${1}_v4v6_prefer_v4.exp"
+			fi
+		else
+			exp="${1}_v4_only.exp"
 		fi
 	else
 		atf_fail "Invalid family_match_type $2 requested."
 	fi
 
-	cmp  -s $(atf_get_srcdir)/data/${exp} out && return
-	diff -u $(atf_get_srcdir)/data/${exp} out || \
-	atf_fail "Actual output does not match expected output"
+	cmp -s "$(atf_get_srcdir)/data/${exp}" out && return
+	diff -u "$(atf_get_srcdir)/data/${exp}" out || atf_fail "Actual output does not match expected output"
 }
 
-atf_test_case basic
-basic_head()
+atf_test_case basic_prefer_v4 cleanup
+basic_prefer_v4_head()
 {
-	atf_set "descr" "Testing basic ones"
+	atf_set "descr" "Testing basic ones with prefer_v4"
 }
-basic_body()
+basic_prefer_v4_body()
 {
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv4
 	TEST=$(atf_get_srcdir)/h_gai
 
 	( $TEST ::1 http
@@ -78,31 +104,92 @@ basic_body()
 	  $TEST 127.0.0.1 echo
 	  $TEST localhost echo ) > out 2>&1
 
-	check_output basics hosts
+	check_output basics hosts prefer_v4
+}
+basic_prefer_v4_cleanup()
+{
+	policy_cleanup
 }
 
-atf_test_case specific
-specific_head()
+atf_test_case basic cleanup
+basic_head()
 {
-	atf_set "descr" "Testing specific address family"
+	atf_set "descr" "Testing basic ones with prefer_v6"
 }
-specific_body()
+basic_body()
 {
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv6
+	TEST=$(atf_get_srcdir)/h_gai
+
+	( $TEST ::1 http
+	  $TEST 127.0.0.1 http
+	  $TEST localhost http
+	  $TEST ::1 tftp
+	  $TEST 127.0.0.1 tftp
+	  $TEST localhost tftp
+	  $TEST ::1 echo
+	  $TEST 127.0.0.1 echo
+	  $TEST localhost echo ) > out 2>&1
+
+	check_output basics ifconfig prefer_v6
+}
+basic_cleanup()
+{
+	policy_cleanup
+}
+
+atf_test_case specific_prefer_v4 cleanup
+specific_prefer_v4_head()
+{
+	atf_set "descr" "Testing specific address family with prefer_v4"
+}
+specific_prefer_v4_body()
+{
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv4
 	TEST=$(atf_get_srcdir)/h_gai
 
 	( $TEST -4 localhost http
 	  $TEST -6 localhost http ) > out 2>&1
 
-	check_output spec_fam hosts
+	check_output spec_fam hosts prefer_v4
+}
+specific_prefer_v4_cleanup()
+{
+	policy_cleanup
 }
 
-atf_test_case empty_hostname
-empty_hostname_head()
+atf_test_case specific cleanup
+specific_head()
 {
-	atf_set "descr" "Testing empty hostname"
+	atf_set "descr" "Testing specific address family with prefer_v6"
 }
-empty_hostname_body()
+specific_body()
 {
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv6
+	TEST=$(atf_get_srcdir)/h_gai
+
+	( $TEST -4 localhost http
+	  $TEST -6 localhost http ) > out 2>&1
+
+	check_output spec_fam hosts prefer_v6
+}
+specific_cleanup()
+{
+	policy_cleanup
+}
+
+atf_test_case empty_hostname_prefer_v4 cleanup
+empty_hostname_prefer_v4_head()
+{
+	atf_set "descr" "Testing empty hostname with prefer_v4"
+}
+empty_hostname_prefer_v4_body()
+{
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv4
 	TEST=$(atf_get_srcdir)/h_gai
 
 	( $TEST '' http
@@ -116,16 +203,51 @@ empty_hostname_body()
 	  $TEST -S '' 80
 	  $TEST -D '' 80 ) > out 2>&1
 
-	check_output no_host ifconfig
+	check_output no_host ifconfig prefer_v4
+}
+empty_hostname_prefer_v4_cleanup()
+{
+	policy_cleanup
 }
 
-atf_test_case empty_servname
-empty_servname_head()
+atf_test_case empty_hostname cleanup
+empty_hostname_head()
 {
-	atf_set "descr" "Testing empty service name"
+	atf_set "descr" "Testing empty hostname with prefer_v6"
 }
-empty_servname_body()
+empty_hostname_body()
 {
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv6
+	TEST=$(atf_get_srcdir)/h_gai
+
+	( $TEST '' http
+	  $TEST '' echo
+	  $TEST '' tftp
+	  $TEST '' 80
+	  $TEST -P '' http
+	  $TEST -P '' echo
+	  $TEST -P '' tftp
+	  $TEST -P '' 80
+	  $TEST -S '' 80
+	  $TEST -D '' 80 ) > out 2>&1
+
+	check_output no_host ifconfig prefer_v6
+}
+empty_hostname_cleanup()
+{
+	policy_cleanup
+}
+
+atf_test_case empty_servname_prefer_v4 cleanup
+empty_servname_prefer_v4_head()
+{
+	atf_set "descr" "Testing empty service name with prefer_v4"
+}
+empty_servname_prefer_v4_body()
+{
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv4
 	TEST=$(atf_get_srcdir)/h_gai
 
 	( $TEST ::1 ''
@@ -133,16 +255,45 @@ empty_servname_body()
 	  $TEST localhost ''
 	  $TEST '' '' ) > out 2>&1
 
-	check_output no_serv hosts
+	check_output no_serv hosts prefer_v4
+}
+empty_servname_prefer_v4_cleanup()
+{
+	policy_cleanup
 }
 
-atf_test_case sock_raw
-sock_raw_head()
+atf_test_case empty_servname cleanup
+empty_servname_head()
 {
-	atf_set "descr" "Testing raw socket"
+	atf_set "descr" "Testing empty service name with prefer_v6"
 }
-sock_raw_body()
+empty_servname_body()
 {
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv6
+	TEST=$(atf_get_srcdir)/h_gai
+
+	( $TEST ::1 ''
+	  $TEST 127.0.0.1 ''
+	  $TEST localhost ''
+	  $TEST '' '' ) > out 2>&1
+
+	check_output no_serv ifconfig prefer_v6
+}
+empty_servname_cleanup()
+{
+	policy_cleanup
+}
+
+atf_test_case sock_raw_prefer_v4 cleanup
+sock_raw_prefer_v4_head()
+{
+	atf_set "descr" "Testing raw socket with prefer_v4"
+}
+sock_raw_prefer_v4_body()
+{
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv4
 	TEST=$(atf_get_srcdir)/h_gai
 
 	( $TEST -R -p 0 localhost ''
@@ -151,44 +302,133 @@ sock_raw_body()
 	  $TEST -R -p 59 localhost www
 	  $TEST -R -p 59 ::1 '' ) > out 2>&1
 
-	check_output sock_raw hosts
+	check_output sock_raw hosts prefer_v4
+}
+sock_raw_prefer_v4_cleanup()
+{
+	policy_cleanup
 }
 
-atf_test_case unsupported_family
-unsupported_family_head()
+atf_test_case sock_raw cleanup
+sock_raw_head()
 {
-	atf_set "descr" "Testing unsupported family"
+	atf_set "descr" "Testing raw socket with prefer_v6"
 }
-unsupported_family_body()
+sock_raw_body()
 {
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv6
+	TEST=$(atf_get_srcdir)/h_gai
+
+	( $TEST -R -p 0 localhost ''
+	  $TEST -R -p 59 localhost ''
+	  $TEST -R -p 59 localhost 80
+	  $TEST -R -p 59 localhost www
+	  $TEST -R -p 59 ::1 '' ) > out 2>&1
+
+	check_output sock_raw ifconfig prefer_v6
+}
+sock_raw_cleanup()
+{
+	policy_cleanup
+}
+
+atf_test_case unsupported_family_prefer_v4 cleanup
+unsupported_family_prefer_v4_head()
+{
+	atf_set "descr" "Testing unsupported family with prefer_v4"
+}
+unsupported_family_prefer_v4_body()
+{
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv4
 	TEST=$(atf_get_srcdir)/h_gai
 
 	( $TEST -f 99 localhost '' ) > out 2>&1
 
-	check_output unsup_fam none
+	check_output unsup_fam ifconfig prefer_v4
+}
+unsupported_family_prefer_v4_cleanup()
+{
+	policy_cleanup
 }
 
-atf_test_case scopeaddr
-scopeaddr_head()
+atf_test_case unsupported_family cleanup
+unsupported_family_head()
 {
-	atf_set "descr" "Testing scoped address format"
+	atf_set "descr" "Testing unsupported family with prefer_v6"
 }
-scopeaddr_body()
+unsupported_family_body()
 {
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv6
+	TEST=$(atf_get_srcdir)/h_gai
+
+	( $TEST -f 99 localhost '' ) > out 2>&1
+
+	check_output unsup_fam none prefer_v6
+}
+unsupported_family_cleanup()
+{
+	policy_cleanup
+}
+
+atf_test_case scopeaddr_prefer_v4 cleanup
+scopeaddr_prefer_v4_head()
+{
+	atf_set "descr" "Testing scoped address format with prefer_v4"
+}
+scopeaddr_prefer_v4_body()
+{
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv4
 	TEST=$(atf_get_srcdir)/h_gai
 
 	( $TEST fe80::1%lo0 http
-#	  IF=`ifconfig -a | grep -v '^	' | \
-#		sed -e 's/:.*//' | head -1 | awk '{print $1}'`
+#	  IF=`ifconfig -a | grep -v '^	' | sed -e 's/:.*//' | head -1 | awk '{print $1}'`
 #	  $TEST fe80::1%$IF http
 	) > out 2>&1
 
-	check_output scoped none
+	check_output scoped ifconfig prefer_v4
+}
+scopeaddr_prefer_v4_cleanup()
+{
+	policy_cleanup
+}
+
+atf_test_case scopeaddr cleanup
+scopeaddr_head()
+{
+	atf_set "descr" "Testing scoped address format with prefer_v6"
+}
+scopeaddr_body()
+{
+	policy_backup
+	/etc/rc.d/ip6addrctl prefer_ipv6
+	TEST=$(atf_get_srcdir)/h_gai
+
+	( $TEST fe80::1%lo0 http
+#	  IF=`ifconfig -a | grep -v '^	' | sed -e 's/:.*//' | head -1 | awk '{print $1}'`
+#	  $TEST fe80::1%$IF http
+	) > out 2>&1
+
+	check_output scoped none prefer_v6
+}
+scopeaddr_cleanup()
+{
+	policy_cleanup
 }
 
 atf_init_test_cases()
 {
-	service ip6addrctl prefer_ipv6
+	atf_add_test_case basic_prefer_v4
+	atf_add_test_case specific_prefer_v4
+	atf_add_test_case empty_hostname_prefer_v4
+	atf_add_test_case empty_servname_prefer_v4
+	atf_add_test_case sock_raw_prefer_v4
+	atf_add_test_case unsupported_family_prefer_v4
+	atf_add_test_case scopeaddr_prefer_v4
+
 	atf_add_test_case basic
 	atf_add_test_case specific
 	atf_add_test_case empty_hostname
