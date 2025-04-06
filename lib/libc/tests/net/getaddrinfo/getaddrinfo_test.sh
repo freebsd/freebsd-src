@@ -87,6 +87,7 @@ atf_test_case basic_prefer_v4 cleanup
 basic_prefer_v4_head()
 {
 	atf_set "descr" "Testing basic ones with prefer_v4"
+	atf_set "require.user" "root"
 }
 basic_prefer_v4_body()
 {
@@ -115,6 +116,7 @@ atf_test_case basic cleanup
 basic_head()
 {
 	atf_set "descr" "Testing basic ones with prefer_v6"
+	atf_set "require.user" "root"
 }
 basic_body()
 {
@@ -143,6 +145,7 @@ atf_test_case specific_prefer_v4 cleanup
 specific_prefer_v4_head()
 {
 	atf_set "descr" "Testing specific address family with prefer_v4"
+	atf_set "require.user" "root"
 }
 specific_prefer_v4_body()
 {
@@ -164,6 +167,7 @@ atf_test_case specific cleanup
 specific_head()
 {
 	atf_set "descr" "Testing specific address family with prefer_v6"
+	atf_set "require.user" "root"
 }
 specific_body()
 {
@@ -185,6 +189,7 @@ atf_test_case empty_hostname_prefer_v4 cleanup
 empty_hostname_prefer_v4_head()
 {
 	atf_set "descr" "Testing empty hostname with prefer_v4"
+	atf_set "require.user" "root"
 }
 empty_hostname_prefer_v4_body()
 {
@@ -214,6 +219,7 @@ atf_test_case empty_hostname cleanup
 empty_hostname_head()
 {
 	atf_set "descr" "Testing empty hostname with prefer_v6"
+	atf_set "require.user" "root"
 }
 empty_hostname_body()
 {
@@ -243,6 +249,7 @@ atf_test_case empty_servname_prefer_v4 cleanup
 empty_servname_prefer_v4_head()
 {
 	atf_set "descr" "Testing empty service name with prefer_v4"
+	atf_set "require.user" "root"
 }
 empty_servname_prefer_v4_body()
 {
@@ -266,6 +273,7 @@ atf_test_case empty_servname cleanup
 empty_servname_head()
 {
 	atf_set "descr" "Testing empty service name with prefer_v6"
+	atf_set "require.user" "root"
 }
 empty_servname_body()
 {
@@ -289,6 +297,7 @@ atf_test_case sock_raw_prefer_v4 cleanup
 sock_raw_prefer_v4_head()
 {
 	atf_set "descr" "Testing raw socket with prefer_v4"
+	atf_set "require.user" "root"
 }
 sock_raw_prefer_v4_body()
 {
@@ -313,6 +322,7 @@ atf_test_case sock_raw cleanup
 sock_raw_head()
 {
 	atf_set "descr" "Testing raw socket with prefer_v6"
+	atf_set "require.user" "root"
 }
 sock_raw_body()
 {
@@ -337,6 +347,7 @@ atf_test_case unsupported_family_prefer_v4 cleanup
 unsupported_family_prefer_v4_head()
 {
 	atf_set "descr" "Testing unsupported family with prefer_v4"
+	atf_set "require.user" "root"
 }
 unsupported_family_prefer_v4_body()
 {
@@ -357,6 +368,7 @@ atf_test_case unsupported_family cleanup
 unsupported_family_head()
 {
 	atf_set "descr" "Testing unsupported family with prefer_v6"
+	atf_set "require.user" "root"
 }
 unsupported_family_body()
 {
@@ -377,6 +389,7 @@ atf_test_case scopeaddr_prefer_v4 cleanup
 scopeaddr_prefer_v4_head()
 {
 	atf_set "descr" "Testing scoped address format with prefer_v4"
+	atf_set "require.user" "root"
 }
 scopeaddr_prefer_v4_body()
 {
@@ -400,6 +413,7 @@ atf_test_case scopeaddr cleanup
 scopeaddr_head()
 {
 	atf_set "descr" "Testing scoped address format with prefer_v6"
+	atf_set "require.user" "root"
 }
 scopeaddr_body()
 {
