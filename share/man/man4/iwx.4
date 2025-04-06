@@ -1,0 +1,157 @@
+.\"
+.\" SPDX-License-Identifier: ISC
+.\"
+.\" $OpenBSD: iwx.4,v 1.21 2025/03/27 15:12:14 jmc Exp $
+.\"
+.\" Copyright (c) 2020 Stefan Sperling <stsp@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd May 2, 2025
+.Dt IWX 4
+.Os
+.Sh NAME
+.Nm iwx
+.Nd Intel WiFi 6 IEEE 802.11ax wireless network driver
+.Sh SYNOPSIS
+.Cd device iwx
+.Cd device wlan
+.Pp
+In
+.Xr rc.conf 5 :
+.Cd devmatch_blocklist="if_iwlwifi"
+.Cd kld_list="if_iwx"
+.Pp
+In
+.Xr sysctl.conf 5 :
+.Cd dev.iwx.?.debug=0xffffffff
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the Intel Wi-Fi 6 series of M.2
+wireless network adapters.
+If the appropriate hardware is detected, and
+.Xr iwlwifi 4
+is blacklisted in
+.Xr rc.conf 5 ,
+the driver will be automatically loaded with
+.Xr devmatch 8 .
+The
+.Nm
+driver can be configured at runtime with
+.Xr ifconfig 8
+or at boot with
+.Xr rc.conf 5 .
+.Pp
+These are the modes the
+.Nm
+driver can operate in:
+.Bl -tag -width "monitor mode"
+.It station mode
+This is used when associating with an access point,
+through which all traffic passes.
+Background scanning is supported in this mode, see
+.Xr ifconfig 8 .
+Station mode is the default.
+.It monitor mode
+In this mode the driver is able to receive packets without
+associating with an access point.
+This disables the internal receive filter and enables the card to
+capture packets from networks which it wouldn't normally have access to,
+or to scan for access points.
+.El
+.Sh HARDWARE
+The
+.Nm
+driver supports the following M.2 wireless network adapters:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Intel Wi-Fi 6 AX200
+.It
+Intel Wi-Fi 6 AX201 CNVi
+.It
+Intel Wi-Fi 6 AX210
+.It
+Intel Wi-Fi 6 AX211 CNVi
+.El
+.Sh SYSCTL VARIABLES
+The
+.Nm
+driver supports the following
+.Xr sysctl 8
+variables:
+.Bl -tag -width "hw.usb.mtw.debug"
+.It Va dev.iwx.?.debug
+Specify debug level as a bitmask.
+Default
+.Ql 0 .
+.El
+.Sh FILES
+The
+.Nm
+driver requires firmware from
+.Pa ports/net/wifi-firmware-iwlwifi-kmod .
+This firmware package will be installed automatically with
+.Xr fwget 8
+if the appropriate hardware is detected at installation or runtime.
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "iwx0: device timeout"
+A frame dispatched to the hardware for transmission did not complete
+in time.
+The driver will reset the hardware.
+This should not happen.
+.It "iwx0: fatal firmware error"
+For some reason, the firmware crashed.
+The driver will reset the hardware.
+This should not happen.
+.It "iwx0: radio is disabled by hardware switch"
+The radio transmitter is off and thus no packet can go out.
+The driver will reset the hardware.
+Make sure the laptop radio switch is on.
+.It "iwx0: could not read firmware ... (error N)"
+For some reason, the driver was unable to read the firmware image from
+the filesystem.
+The file might be missing or corrupted.
+.It "iwx0: firmware too short: N bytes"
+The firmware image is corrupted and can't be loaded into the adapter.
+.It "iwx0: could not load firmware"
+An attempt to load the firmware into the adapter failed.
+The driver will reset the hardware.
+.El
+.Sh SEE ALSO
+.Xr intro 4 ,
+.Xr iwlwifi 4 ,
+.Xr iwlwififw 4 ,
+.Xr wlan 4 ,
+.Xr networking 7 ,
+.Xr fwget 8 ,
+.Xr ifconfig 8 ,
+.Xr wpa_supplicant 8
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 15.0 .
+.Sh CAVEATS
+The
+.Nm
+driver does not support hardware encryption offload.
+.Pp
+The
+.Nm
+driver does not support 802.11ax.
+Additional work is required in
+.Xr ieee80211 9
+before those features can be supported.
