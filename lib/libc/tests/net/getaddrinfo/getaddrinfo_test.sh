@@ -29,20 +29,24 @@
 # SUCH DAMAGE.
 #
 
-IP6ADDRCTL_CMD="/usr/sbin/ip6addrctl"
-CURRENT_POLICY_FILE="current.conf"
+if [ "$(sysctl -i -n kern.features.vimage)" != 1 ]; then
+	atf_skip "This test requires VIMAGE"
+fi
 
-policy_backup()
+vnet_mkjail()
 {
-    "${IP6ADDRCTL_CMD}" > "${CURRENT_POLICY_FILE}"
+       jailname=getaddrinfo_test_$1
+       jail -c name=${jailname} persist vnet
+       ifconfig -j ${jailname} lo0 inet 127.0.0.1/8
+       # For those machines not support IPv6
+       ifconfig -j ${jailname} lo0 inet6 ::1/64 || true
+       service -j ${jailname} ip6addrctl $2 || true
 }
 
-policy_cleanup()
+vnet_cleanup()
 {
-    if [ -f "${CURRENT_POLICY_FILE}" ]; then
-        "${IP6ADDRCTL_CMD}" flush
-        cat "${CURRENT_POLICY_FILE}" | tail -n +2 | "${IP6ADDRCTL_CMD}" install /dev/stdin
-    fi
+       jailname=getaddrinfo_test_$1
+       jail -r ${jailname}
 }
 
 check_output()
@@ -91,9 +95,8 @@ basic_prefer_v4_head()
 }
 basic_prefer_v4_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv4
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail basic_prefer_v4 prefer_ipv4
+	TEST="jexec getaddrinfo_test_basic_prefer_v4 $(atf_get_srcdir)/h_gai"
 
 	( $TEST ::1 http
 	  $TEST 127.0.0.1 http
@@ -109,7 +112,7 @@ basic_prefer_v4_body()
 }
 basic_prefer_v4_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup basic_prefer_v4
 }
 
 atf_test_case basic cleanup
@@ -120,9 +123,8 @@ basic_head()
 }
 basic_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv6
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail basic prefer_ipv6
+	TEST="jexec getaddrinfo_test_basic $(atf_get_srcdir)/h_gai"
 
 	( $TEST ::1 http
 	  $TEST 127.0.0.1 http
@@ -138,7 +140,7 @@ basic_body()
 }
 basic_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup basic
 }
 
 atf_test_case specific_prefer_v4 cleanup
@@ -149,9 +151,8 @@ specific_prefer_v4_head()
 }
 specific_prefer_v4_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv4
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail specific_prefer_v4 prefer_ipv4
+	TEST="jexec getaddrinfo_test_specific_prefer_v4 $(atf_get_srcdir)/h_gai"
 
 	( $TEST -4 localhost http
 	  $TEST -6 localhost http ) > out 2>&1
@@ -160,7 +161,7 @@ specific_prefer_v4_body()
 }
 specific_prefer_v4_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup specific_prefer_v4
 }
 
 atf_test_case specific cleanup
@@ -171,9 +172,8 @@ specific_head()
 }
 specific_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv6
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail specific prefer_ipv6
+	TEST="jexec getaddrinfo_test_specific $(atf_get_srcdir)/h_gai"
 
 	( $TEST -4 localhost http
 	  $TEST -6 localhost http ) > out 2>&1
@@ -182,7 +182,7 @@ specific_body()
 }
 specific_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup specific
 }
 
 atf_test_case empty_hostname_prefer_v4 cleanup
@@ -193,9 +193,8 @@ empty_hostname_prefer_v4_head()
 }
 empty_hostname_prefer_v4_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv4
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail empty_hostname_prefer_v4 prefer_ipv4
+	TEST="jexec getaddrinfo_test_empty_hostname_prefer_v4 $(atf_get_srcdir)/h_gai"
 
 	( $TEST '' http
 	  $TEST '' echo
@@ -212,7 +211,7 @@ empty_hostname_prefer_v4_body()
 }
 empty_hostname_prefer_v4_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup empty_hostname_prefer_v4
 }
 
 atf_test_case empty_hostname cleanup
@@ -223,9 +222,8 @@ empty_hostname_head()
 }
 empty_hostname_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv6
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail empty_hostname prefer_ipv6
+	TEST="jexec getaddrinfo_test_empty_hostname $(atf_get_srcdir)/h_gai"
 
 	( $TEST '' http
 	  $TEST '' echo
@@ -242,7 +240,7 @@ empty_hostname_body()
 }
 empty_hostname_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup empty_hostname
 }
 
 atf_test_case empty_servname_prefer_v4 cleanup
@@ -253,9 +251,8 @@ empty_servname_prefer_v4_head()
 }
 empty_servname_prefer_v4_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv4
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail empty_servname_prefer_v4 prefer_ipv4
+	TEST="jexec getaddrinfo_test_empty_servname_prefer_v4 $(atf_get_srcdir)/h_gai"
 
 	( $TEST ::1 ''
 	  $TEST 127.0.0.1 ''
@@ -266,7 +263,7 @@ empty_servname_prefer_v4_body()
 }
 empty_servname_prefer_v4_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup empty_servname_prefer_v4
 }
 
 atf_test_case empty_servname cleanup
@@ -277,9 +274,8 @@ empty_servname_head()
 }
 empty_servname_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv6
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail empty_servname prefer_ipv6
+	TEST="jexec getaddrinfo_test_empty_servname $(atf_get_srcdir)/h_gai"
 
 	( $TEST ::1 ''
 	  $TEST 127.0.0.1 ''
@@ -290,7 +286,7 @@ empty_servname_body()
 }
 empty_servname_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup empty_servname
 }
 
 atf_test_case sock_raw_prefer_v4 cleanup
@@ -301,9 +297,8 @@ sock_raw_prefer_v4_head()
 }
 sock_raw_prefer_v4_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv4
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail sock_raw_prefer_v4 prefer_ipv4
+	TEST="jexec getaddrinfo_test_sock_raw_prefer_v4 $(atf_get_srcdir)/h_gai"
 
 	( $TEST -R -p 0 localhost ''
 	  $TEST -R -p 59 localhost ''
@@ -315,7 +310,7 @@ sock_raw_prefer_v4_body()
 }
 sock_raw_prefer_v4_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup sock_raw_prefer_v4
 }
 
 atf_test_case sock_raw cleanup
@@ -326,9 +321,8 @@ sock_raw_head()
 }
 sock_raw_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv6
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail sock_raw prefer_ipv6
+	TEST="jexec getaddrinfo_test_sock_raw $(atf_get_srcdir)/h_gai"
 
 	( $TEST -R -p 0 localhost ''
 	  $TEST -R -p 59 localhost ''
@@ -340,7 +334,7 @@ sock_raw_body()
 }
 sock_raw_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup sock_raw
 }
 
 atf_test_case unsupported_family_prefer_v4 cleanup
@@ -351,9 +345,8 @@ unsupported_family_prefer_v4_head()
 }
 unsupported_family_prefer_v4_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv4
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail unsupported_family_prefer_v4 prefer_ipv4
+	TEST="jexec getaddrinfo_test_unsupported_family_prefer_v4 $(atf_get_srcdir)/h_gai"
 
 	( $TEST -f 99 localhost '' ) > out 2>&1
 
@@ -361,7 +354,7 @@ unsupported_family_prefer_v4_body()
 }
 unsupported_family_prefer_v4_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup unsupported_family_prefer_v4
 }
 
 atf_test_case unsupported_family cleanup
@@ -372,9 +365,8 @@ unsupported_family_head()
 }
 unsupported_family_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv6
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail unsupported_family prefer_ipv6
+	TEST="jexec getaddrinfo_test_unsupported_family $(atf_get_srcdir)/h_gai"
 
 	( $TEST -f 99 localhost '' ) > out 2>&1
 
@@ -382,7 +374,7 @@ unsupported_family_body()
 }
 unsupported_family_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup unsupported_family
 }
 
 atf_test_case scopeaddr_prefer_v4 cleanup
@@ -393,20 +385,19 @@ scopeaddr_prefer_v4_head()
 }
 scopeaddr_prefer_v4_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv4
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail scopeaddr_prefer_v4 prefer_ipv4
+	TEST="jexec getaddrinfo_test_scopeaddr_prefer_v4 $(atf_get_srcdir)/h_gai"
 
 	( $TEST fe80::1%lo0 http
-#	  IF=`ifconfig -a | grep -v '^	' | sed -e 's/:.*//' | head -1 | awk '{print $1}'`
-#	  $TEST fe80::1%$IF http
+#	 IF=ifconfig -a | grep -v '^  ' | sed -e 's/:.*//' | head -1 | awk '{print $1}'
+#	 $TEST fe80::1%$IF http
 	) > out 2>&1
 
 	check_output scoped ifconfig prefer_v4
 }
 scopeaddr_prefer_v4_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup scopeaddr_prefer_v4
 }
 
 atf_test_case scopeaddr cleanup
@@ -417,20 +408,19 @@ scopeaddr_head()
 }
 scopeaddr_body()
 {
-	policy_backup
-	/etc/rc.d/ip6addrctl prefer_ipv6
-	TEST=$(atf_get_srcdir)/h_gai
+	vnet_mkjail scopeaddr prefer_ipv6
+	TEST="jexec getaddrinfo_test_scopeaddr $(atf_get_srcdir)/h_gai"
 
 	( $TEST fe80::1%lo0 http
-#	  IF=`ifconfig -a | grep -v '^	' | sed -e 's/:.*//' | head -1 | awk '{print $1}'`
-#	  $TEST fe80::1%$IF http
+#	 IF=ifconfig -a | grep -v '^  ' | sed -e 's/:.*//' | head -1 | awk '{print $1}'
+#	 $TEST fe80::1%$IF http
 	) > out 2>&1
 
 	check_output scoped none prefer_v6
 }
 scopeaddr_cleanup()
 {
-	policy_cleanup
+	vnet_cleanup scopeaddr
 }
 
 atf_init_test_cases()
