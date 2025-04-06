@@ -1,0 +1,15 @@
+arg: flags 0x2 family 0 socktype 3 protocol 0 addrlen 0 host localhost serv (empty)
+ai1: flags 0x2 family 2 socktype 3 protocol 0 addrlen 16 host 127.0.0.1 serv 0
+ai2: flags 0x2 family 28 socktype 3 protocol 0 addrlen 28 host ::1 serv 0
+
+arg: flags 0x2 family 0 socktype 3 protocol 59 addrlen 0 host localhost serv (empty)
+ai1: flags 0x2 family 2 socktype 3 protocol 59 addrlen 16 host 127.0.0.1 serv 0
+ai2: flags 0x2 family 28 socktype 3 protocol 59 addrlen 28 host ::1 serv 0
+
+arg: flags 0x2 family 0 socktype 3 protocol 59 addrlen 0 host localhost serv 80
+Service was not recognized for socket type
+arg: flags 0x2 family 0 socktype 3 protocol 59 addrlen 0 host localhost serv www
+Service was not recognized for socket type
+arg: flags 0x2 family 0 socktype 3 protocol 59 addrlen 0 host ::1 serv (empty)
+ai1: flags 0x2 family 28 socktype 3 protocol 59 addrlen 28 host ::1 serv 0
+
