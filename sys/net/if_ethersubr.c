@@ -110,7 +110,7 @@ void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 /* if_bridge(4) support */
 void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
-bool	(*bridge_same_p)(struct ifnet *, struct ifnet *);
+bool	(*bridge_same_p)(const void *, const void *);
 void	*(*bridge_get_softc_p)(struct ifnet *);
 
 /* if_lagg(4) support */

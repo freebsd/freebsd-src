@@ -317,7 +317,7 @@ static void	bridge_set_ifcap(struct bridge_softc *, struct bridge_iflist *,
 static void	bridge_ifdetach(void *arg __unused, struct ifnet *);
 static void	bridge_init(void *);
 static void	bridge_dummynet(struct mbuf *, struct ifnet *);
-static bool	bridge_same(struct ifnet *, struct ifnet *);
+static bool	bridge_same(const void *, const void *);
 static void	*bridge_get_softc(struct ifnet *);
 static void	bridge_stop(struct ifnet *, int);
 static int	bridge_transmit(struct ifnet *, struct mbuf *);
@@ -774,17 +774,15 @@ bridge_get_softc(struct ifnet *ifp)
  * bridgestp via bridge_same_p.
  */
 static bool
-bridge_same(struct ifnet *ifa, struct ifnet *ifb)
+bridge_same(const void *bifap, const void *bifbp)
 {
-	struct bridge_iflist *bifa, *bifb;
+	const struct bridge_iflist *bifa = bifap, *bifb = bifbp;
 
 	NET_EPOCH_ASSERT();
 
-	if (ifa->if_bridge == NULL || ifb->if_bridge == NULL)
+	if (bifa == NULL || bifb == NULL)
 		return (false);
 
-	bifa = ifa->if_bridge;
-	bifb = ifb->if_bridge;
 	return (bifa->bif_sc == bifb->bif_sc);
 }
 
