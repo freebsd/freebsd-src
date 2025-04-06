@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 29, 2025
+.Dd April 30, 2025
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -105,6 +105,10 @@
 .It Nm Fl Q
 .Op Fl j Ar jail
 .Op Fl -libxo
+.It Nm Fl o
+.Fl 4 | Fl 6
+.It Nm Fl O
+.Fl 4 | Fl 6
 .El
 .Ek
 .Sh DESCRIPTION
@@ -399,6 +403,34 @@ Run inside a jail.
 See
 .Sx GENERAL OPTIONS .
 .El
+.It Xo
+.Bk -words
+.Nm netstat
+.Fl o
+.Fl 4 | Fl 6
+.Ek
+.Xc
+Print nexthop (nhops) information associated with routing entries.
+When used with
+.Fl 4
+or
+.Fl 6 ,
+limit the output to IPv4 or IPv6 routes respectively.
+This option provides details about individual nexthop addresses used in routing decisions.
+.It Xo
+.Bk -words
+.Nm netstat
+.Fl O
+.Fl 4 | Fl 6
+.Ek
+.Xc
+Print nexthop groups (nhgrp) information associated with routing entries.
+When used with
+.Fl 4
+or
+.Fl 6 ,
+restrict the output to IPv4 or IPv6 nexthop groups respectively.
+This option shows grouped nexthop entries for multipath or load-balanced routing setups.
 .It Xo
 .Bk -words
 .Nm
