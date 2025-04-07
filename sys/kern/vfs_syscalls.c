@@ -4998,6 +4998,15 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 		goto out;
 
 	/*
+	 * Make sure that the ranges we check and lock below are valid.  Note
+	 * that len is clamped to SSIZE_MAX above.
+	 */
+	if (inoff < 0 || outoff < 0) {
+		error = EINVAL;
+		goto out;
+	}
+
+	/*
 	 * If infp and outfp refer to the same file, the byte ranges cannot
 	 * overlap.
 	 */
