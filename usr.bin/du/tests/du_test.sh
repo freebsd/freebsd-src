@@ -97,6 +97,47 @@ I_flag_body()
 	atf_check diff -u du.out du_I.out
 }
 
+atf_test_case L_flag
+L_flag_head()
+{
+	atf_set "descr" "Verify -L behavior"
+}
+L_flag_body()
+{
+	atf_check mkdir -p testdir1
+	atf_check truncate -s 8192 testdir1/A
+	atf_check ln -s A testdir1/B
+	atf_check -o inline:'9\ttestdir1\n' du -A testdir1
+	atf_check -o inline:'17\ttestdir1\n' du -AL testdir1
+}
+
+atf_test_case P_flag
+P_flag_head()
+{
+	atf_set "descr" "Verify -P behavior"
+}
+P_flag_body()
+{
+	atf_check mkdir -p testdir1
+	atf_check truncate -s 8192 testdir1/A
+	atf_check ln -s A testdir1/B
+	atf_check -o inline:'9\ttestdir1\n' du -A testdir1
+	atf_check -o inline:'9\ttestdir1\n' du -AP testdir1
+}
+
+atf_test_case a_flag
+a_flag_head()
+{
+	atf_set "descr" "Verify -a behavior"
+}
+a_flag_body()
+{
+	atf_check mkdir -p testdir1
+	atf_check truncate -s 0 testdir1/A
+	atf_check -o inline:'1\ttestdir1\n' du -A testdir1
+	atf_check -o inline:'0\ttestdir1/A\n1\ttestdir1\n' du -Aa testdir1
+}
+
 atf_test_case c_flag
 c_flag_head()
 {
@@ -104,7 +145,23 @@ c_flag_head()
 }
 c_flag_body()
 {
-	atf_check truncate -s 0 foo bar
+	atf_check truncate -s 8192 foo bar
+	atf_check -o inline:'8\tfoo\n8\tbar\n' du -A foo bar
+	atf_check -o inline:'8\tfoo\n8\tbar\n16\ttotal\n' du -Ac foo bar
+}
+
+atf_test_case d_flag
+d_flag_head()
+{
+	atf_set "descr" "Verify -d behavior"
+}
+d_flag_body()
+{
+	atf_check mkdir -p d0/d1/d2
+	atf_check -o inline:'2\td0\n' du -A -d 0 d0
+	atf_check -o inline:'1\td0/d1\n2\td0\n' du -A -d 1 d0
+	atf_check -o inline:'1\td0/d1/d2\n1\td0/d1\n2\td0\n' du -A -d 2 d0
+	atf_check -o inline:'1\td0/d1/d2\n1\td0/d1\n2\td0\n' du -A -d 3 d0
 }
 
 atf_test_case g_flag
@@ -149,6 +206,19 @@ k_flag_body()
 	atf_check -o inline:'1\tA\n1024\tB\n' du -Ak A B
 }
 
+atf_test_case l_flag
+l_flag_head()
+{
+	atf_set "descr" "Verify -l output"
+}
+l_flag_body()
+{
+	atf_check truncate -s 0 A
+	atf_check ln A B
+	atf_check -o inline:'0\tA\n' du -A A B
+	atf_check -o inline:'0\tA\n0\tB\n' du -Al A B
+}
+
 atf_test_case m_flag
 m_flag_head()
 {
@@ -160,6 +230,36 @@ m_flag_body()
 	atf_check truncate -s 1m B
 	atf_check truncate -s 1g C
 	atf_check -o inline:'1\tA\n1\tB\n1024\tC\n' du -Am A B C
+}
+
+atf_test_case n_flag
+n_flag_head()
+{
+	atf_set "descr" "Verify -n output"
+}
+n_flag_body()
+{
+	atf_check truncate -s 0 A
+	atf_check truncate -s 0 B
+	atf_check -o inline:'0\tA\n0\tB\n' du -An A B
+	atf_check chflags nodump B
+	atf_check -o inline:'0\tA\n' du -An A B
+}
+
+atf_test_case s_flag
+s_flag_head()
+{
+	atf_set "descr" "Verify -s behavior"
+}
+s_flag_body()
+{
+	atf_check mkdir -p testdir1/testdir2
+	atf_check truncate -s 0 testdir1/A testdir1/testdir2/B
+	atf_check -o inline:'1\ttestdir1\n' du -As testdir1
+	atf_check -o inline:'0\ttestdir1/A\n' du -As testdir1/A
+	atf_check -o inline:'1\ttestdir1/testdir2\n' du -As testdir1/testdir2
+	atf_check -o inline:'0\ttestdir1/testdir2/B\n' \
+	    du -As testdir1/testdir2/B
 }
 
 atf_test_case si_flag
@@ -176,14 +276,42 @@ si_flag_body()
 	atf_check -o inline:'1.5M\tA\n1.6M\tB\n' du -A --si A B
 }
 
+atf_add_test_case t_flag
+t_flag_head()
+{
+	atf_set "descr" "Verify -t output"
+}
+t_flag_body()
+{
+	atf_check mkdir -p testdir1/testdir2
+	atf_check truncate -s 8192 testdir1/A testdir1/testdir2/B
+
+	atf_check -o inline:'17\ttestdir1\n' du -At 10240 testdir1
+	atf_check -o inline:'9\ttestdir1/testdir2\n' du -At -10240 testdir1
+	atf_check -o inline:'9\ttestdir1/testdir2\n17\ttestdir1\n' \
+	    du -Aat 9216 testdir1
+	atf_check -o save:du.out du -Aat -9216 testdir1
+	atf_check -o inline:'8\ttestdir1/A\n8\ttestdir1/testdir2/B\n' \
+	    sort du.out
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case A_flag
 	atf_add_test_case H_flag
 	atf_add_test_case I_flag
+	atf_add_test_case L_flag
+	atf_add_test_case P_flag
+	atf_add_test_case a_flag
+	atf_add_test_case c_flag
+	atf_add_test_case d_flag
 	atf_add_test_case g_flag
 	atf_add_test_case h_flag
 	atf_add_test_case k_flag
+	atf_add_test_case l_flag
 	atf_add_test_case m_flag
+	atf_add_test_case n_flag
+	atf_add_test_case s_flag
 	atf_add_test_case si_flag
+	atf_add_test_case t_flag
 }
