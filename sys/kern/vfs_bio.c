@@ -160,7 +160,7 @@ nbufp(unsigned i)
 
 caddr_t __read_mostly unmapped_buf;
 #ifdef INVARIANTS
-caddr_t	poisoned_buf = (void *)-1;
+void *poisoned_buf = (void *)-1;
 #endif
 
 /* Used below and for softdep flushing threads in ufs/ffs/ffs_softdep.c */
