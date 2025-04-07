@@ -1840,40 +1840,36 @@ retry:
 		log_buf->tlb_txbuf.tls_sb_ccc = 0;
 	}
 	/* Copy values from tp to the log entry. */
-#define	COPY_STAT(f)	log_buf->tlb_ ## f = tp->f
-#define	COPY_STAT_T(f)	log_buf->tlb_ ## f = tp->t_ ## f
-	COPY_STAT_T(state);
-	COPY_STAT_T(starttime);
-	COPY_STAT(iss);
-	COPY_STAT_T(flags);
-	COPY_STAT(snd_una);
-	COPY_STAT(snd_max);
-	COPY_STAT(snd_cwnd);
-	COPY_STAT(snd_nxt);
-	COPY_STAT(snd_recover);
-	COPY_STAT(snd_wnd);
-	COPY_STAT(snd_ssthresh);
-	COPY_STAT_T(srtt);
-	COPY_STAT_T(rttvar);
-	COPY_STAT(rcv_up);
-	COPY_STAT(rcv_adv);
-	COPY_STAT_T(flags2);
-	COPY_STAT(rcv_nxt);
-	COPY_STAT(rcv_wnd);
-	COPY_STAT_T(dupacks);
-	COPY_STAT_T(segqlen);
-	COPY_STAT(snd_numholes);
+	log_buf->tlb_state = tp->t_state;
+	log_buf->tlb_starttime = tp->t_starttime;
+	log_buf->tlb_iss = tp->iss;
+	log_buf->tlb_flags = tp->t_flags;
+	log_buf->tlb_snd_una = tp->snd_una;
+	log_buf->tlb_snd_max = tp->snd_max;
+	log_buf->tlb_snd_cwnd = tp->snd_cwnd;
+	log_buf->tlb_snd_nxt = tp->snd_nxt;
+	log_buf->tlb_snd_recover = tp->snd_recover;
+	log_buf->tlb_snd_wnd = tp->snd_wnd;
+	log_buf->tlb_snd_ssthresh = tp->snd_ssthresh;
+	log_buf->tlb_srtt = tp->t_srtt;
+	log_buf->tlb_rttvar = tp->t_rttvar;
+	log_buf->tlb_rcv_up = tp->rcv_up;
+	log_buf->tlb_rcv_adv = tp->rcv_adv;
+	log_buf->tlb_flags2 = tp->t_flags2;
+	log_buf->tlb_rcv_nxt = tp->rcv_nxt;
+	log_buf->tlb_rcv_wnd = tp->rcv_wnd;
+	log_buf->tlb_dupacks = tp->t_dupacks;
+	log_buf->tlb_segqlen = tp->t_segqlen;
+	log_buf->tlb_snd_numholes = tp->snd_numholes;
 	log_buf->tlb_flex1 = 0;
 	log_buf->tlb_flex2 = 0;
-	COPY_STAT_T(fbyte_in);
-	COPY_STAT_T(fbyte_out);
-	COPY_STAT(snd_scale);
-	COPY_STAT(rcv_scale);
+	log_buf->tlb_fbyte_in = tp->t_fbyte_in;
+	log_buf->tlb_fbyte_out = tp->t_fbyte_out;
+	log_buf->tlb_snd_scale = tp->snd_scale;
+	log_buf->tlb_rcv_scale = tp->rcv_scale;
 	log_buf->_pad[0] = 0;
 	log_buf->_pad[1] = 0;
 	log_buf->_pad[2] = 0;
-#undef COPY_STAT
-#undef COPY_STAT_T
 	/* Copy stack-specific info. */
 	if (stackinfo != NULL) {
 		memcpy(&log_buf->tlb_stackinfo, stackinfo,
