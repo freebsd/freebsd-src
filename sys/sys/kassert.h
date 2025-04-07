@@ -51,11 +51,11 @@ extern const char *panicstr;	/* panic message */
  */
 #ifdef	INVARIANTS
 
-extern caddr_t poisoned_buf;
+extern void *poisoned_buf;
 #define DEBUG_POISON_POINTER_VALUE poisoned_buf
 
 #define DEBUG_POISON_POINTER(x) ({				\
-	x = (void *)(DEBUG_POISON_POINTER_VALUE);		\
+	x = (DEBUG_POISON_POINTER_VALUE);			\
 })
 
 #else
