@@ -322,7 +322,9 @@ main(int argc, char *argv[])
 			    howmany(p->fts_statp->st_size, cblocksize) :
 			    howmany(p->fts_statp->st_blocks, cblocksize);
 
-			if (aflag || p->fts_level == 0) {
+			if ((aflag || p->fts_level == 0) && threshold <=
+			    threshold_sign * howmany(curblocks * cblocksize,
+			    blocksize)) {
 				xo_open_instance("paths");
 				if (hflag > 0) {
 					prthumanval("{:blocks/%4s}", curblocks);
