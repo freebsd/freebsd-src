@@ -39,10 +39,6 @@ valid_redirect_head() {
 
 valid_redirect_body() {
 
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/247729"
-	fi
-
 	ids=65533
 	id=`printf "%x" ${ids}`
 	if [ $$ -gt 65535 ]; then
@@ -89,7 +85,7 @@ valid_redirect_body() {
 	while [ `ifconfig ${epair}a inet6 | grep -c tentative` != "0" ]; do
 		sleep 0.1
 	done
-	while [ `jexec ${jname}b ifconfig ${epair}b inet6 | grep -c tentative` != "0" ]; do
+	while [ `jexec ${jname} ifconfig ${epair}b inet6 | grep -c tentative` != "0" ]; do
 		sleep 0.1
 	done
 
