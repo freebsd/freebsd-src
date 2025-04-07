@@ -589,7 +589,7 @@ in6_control_ioctl(u_long cmd, void *data,
 #endif
 		error = in6_addifaddr(ifp, ifra, ia);
 		ia = NULL;
-		break;
+		goto out;
 
 	case SIOCDIFADDR_IN6:
 		in6_purgeifaddr(ia);
