@@ -44,7 +44,7 @@ main(int argc, char **argv)
 	struct addrinfo hints, *ai;
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family = is_traceroute6 ? AF_INET6 : AF_UNSPEC;
 
 	while ((opt = getopt(argc, argv, optstr)) != -1) {
 		switch (opt) {
