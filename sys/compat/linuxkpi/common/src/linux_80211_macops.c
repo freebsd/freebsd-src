@@ -458,7 +458,7 @@ lkpi_80211_mo_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *
 	    hw, vif, conf, chanctx_conf);
 	error = lhw->ops->assign_vif_chanctx(hw, vif, conf, chanctx_conf);
 	if (error == 0)
-		vif->chanctx_conf = chanctx_conf;
+		vif->bss_conf.chanctx_conf = chanctx_conf;
 
 out:
 	return (error);
