@@ -252,6 +252,21 @@ main(int argc, char **argv)
 	}
 
 	for (; ai; ai = ai->ai_next) {
+		if (ai->ai_family != AF_INET && ai->ai_family != AF_INET6)
+			continue;
+
+		if (ai->ai_next) {
+			char shost[NI_MAXHOST];
+			ret = getnameinfo(ai->ai_addr, ai->ai_addrlen, shost,
+					  sizeof(shost), NULL, 0,
+					  NI_NUMERICHOST);
+			if (ret)
+				errx(1, "getnameinfo failed");
+
+			warnx("%s has multiple addresses; using %s",
+			      argv[0], shost);
+		}
+
 		hostname = ai->ai_canonname ? ai->ai_canonname : argv[0];
 
 		switch (ai->ai_family) {
