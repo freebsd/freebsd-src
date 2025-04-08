@@ -122,8 +122,8 @@ struct pcicfg_msix {
 };
 
 struct pci_id_ofw_iommu {
+	uintptr_t xref;
 	uint32_t id;
-	uint32_t xref;
 };
 
 /* Interesting values for HyperTransport */

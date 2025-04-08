@@ -1781,7 +1781,7 @@ smmu_set_buswide(device_t dev, struct smmu_domain *domain,
 }
 
 static int
-smmu_pci_get_sid(device_t child, u_int *xref0, u_int *sid0)
+smmu_pci_get_sid(device_t child, uintptr_t *xref0, u_int *sid0)
 {
 	struct pci_id_ofw_iommu pi;
 	int err;
@@ -1945,7 +1945,7 @@ static int
 smmu_find(device_t dev, device_t child)
 {
 	struct smmu_softc *sc;
-	u_int xref;
+	uintptr_t xref;
 	int err;
 
 	sc = device_get_softc(dev);

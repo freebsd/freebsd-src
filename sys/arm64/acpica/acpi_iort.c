@@ -630,7 +630,7 @@ acpi_iort_map_pci_msi(u_int seg, u_int rid, u_int *xref, u_int *devid)
 }
 
 int
-acpi_iort_map_pci_smmuv3(u_int seg, u_int rid, u_int *xref, u_int *sid)
+acpi_iort_map_pci_smmuv3(u_int seg, u_int rid, uint64_t *xref, u_int *sid)
 {
 	ACPI_IORT_SMMU_V3 *smmu;
 	struct iort_node *node;
@@ -672,7 +672,7 @@ acpi_iort_map_named_msi(const char *devname, u_int rid, u_int *xref,
 }
 
 int
-acpi_iort_map_named_smmuv3(const char *devname, u_int rid, u_int *xref,
+acpi_iort_map_named_smmuv3(const char *devname, u_int rid, uint64_t *xref,
     u_int *devid)
 {
 	ACPI_IORT_SMMU_V3 *smmu;

@@ -367,7 +367,7 @@ generic_pcie_get_iommu(device_t pci, device_t child, uintptr_t *id)
 {
 	struct pci_id_ofw_iommu *iommu;
 	uint32_t iommu_rid;
-	uint32_t iommu_xref;
+	phandle_t iommu_xref;
 	uint16_t pci_rid;
 	phandle_t node;
 	int err;
