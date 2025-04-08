@@ -308,34 +308,14 @@ static int protlen;			/* length of protocol part of packet */
 static int minpacket;			/* min ip packet size */
 static int maxpacket = 32 * 1024;	/* max ip packet size */
 static int pmtu;			/* Path MTU Discovery (RFC1191) */
-static u_int pausemsecs;
 
-char *source;
-static char *device;
 static const char devnull[] = "/dev/null";
 
-int nprobes = -1;
-int max_ttl = 30;
-int first_ttl = 1;
 static u_short ident;
 static u_short port;		/* protocol specific base "port" */
 
-int options;		/* socket options */
-int verbose;
-int waittime = 5;		/* time to wait for response (in seconds) */
-int nflag;			/* print addresses numerically */
-int as_path;			/* print as numbers for each hop */
-char *as_server = NULL;
 static void *asn;
-#ifdef CANT_HACK_IPCKSUM
-static int doipcksum = 0;	/* don't calculate ip checksums by default */
-#else
-static int doipcksum = 1;	/* calculate ip checksums by default */
-#endif
 static int optlen;		/* length of ip options */
-static int fixedPort = 0;	/* Use fixed destination port for TCP and UDP */
-static int printdiff = 0;	/* Print the difference between sent and quoted */
-int ecnflag = 0;		/* ECN bleaching detection flag */
 
 extern int optind;
 extern int opterr;
@@ -348,8 +328,8 @@ static cap_channel_t *capdns;
 /* Forwards */
 static double	deltaT(struct timeval *, struct timeval *);
 static void	freehostinfo(struct hostinfo *);
-static void	getaddr(u_int32_t *, char *);
-static struct	hostinfo *gethostinfo(char *);
+static void	getaddr(u_int32_t *, const char *);
+static struct	hostinfo *gethostinfo(const char *);
 static u_short	in_cksum(u_short *, int);
 static u_int32_t sctp_crc32c(const void *, u_int32_t);
 static char	*inetname(struct in_addr);
@@ -362,7 +342,6 @@ static int	setpolicy(int so, char *policy);
 #endif
 static void	send_probe(int, int);
 static struct outproto *setproto(char *);
-static int	str2val(const char *, const char *, int, int);
 static void	tvsub(struct timeval *, struct timeval *);
 static void	usage(void);
 static int	wait_for_reply(int, struct sockaddr_in *, const struct timeval *);
@@ -481,13 +460,9 @@ traceroute4(struct sockaddr *whereto)
 	register struct protoent *pe;
 	register int ttl, probe, i;
 	register int seq = 0;
-	int tos = 0, settos = 0;
 	register int lsrr = 0;
-	register u_short off = 0;
 	struct ifaddrlist *al;
 	char errbuf[132];
-	int requestPort = -1;
-	int sump = 0;
 	int sockerrno;
 #ifdef WITH_CASPER
 	const char *types[] = { "NAME2ADDR", "ADDR2NAME" };
@@ -536,145 +511,41 @@ traceroute4(struct sockaddr *whereto)
 		errx(1, "unable to limit access to system.dns service");
 #endif /* WITH_CASPER */
 
+	if (max_ttl == -1) {
 #ifdef IPCTL_DEFTTL
-	{
-		int mib[4] = { CTL_NET, PF_INET, IPPROTO_IP, IPCTL_DEFTTL };
-		size_t sz = sizeof(max_ttl);
+		{
+			int mib[4] = { CTL_NET, PF_INET, IPPROTO_IP,
+				IPCTL_DEFTTL };
+			size_t sz = sizeof(max_ttl);
 
-		if (sysctl(mib, 4, &max_ttl, &sz, NULL, 0) == -1) {
-			perror("sysctl(net.inet.ip.ttl)");
-			exit(1);
+			if (sysctl(mib, 4, &max_ttl, &sz, NULL, 0) == -1) {
+				perror("sysctl(net.inet.ip.ttl)");
+				exit(1);
+			}
 		}
-	}
 #else /* !IPCTL_DEFTTL */
-	max_ttl = 30;
+		max_ttl = 30;
 #endif
+	}
 
 #ifdef WITH_CASPER
 	cap_close(casper);
 #endif
 
-#if 0
-	opterr = 0;
-	while ((op = getopt(argc, argv, "aA:eEdDFInrSvxf:g:i:M:m:P:p:q:s:t:w:z:")) != EOF)
-		switch (op) {
-		case 'a':
-			as_path = 1;
-			break;
+	for (n = 0; n < ngateways; ++n) {
+		if (lsrr >= NGATEWAYS)
+			errx(1, "No more than %d gateways", NGATEWAYS);
+		getaddr(gwlist + lsrr, gateways[n]);
+		++lsrr;
+	}
 
-		case 'A':
-			as_path = 1;
-			as_server = optarg;
-			break;
+	if (protoname && Iflag)
+		errx(1, "the -I and -P options are mutually exclusive");
 
-		case 'd':
-			options |= SO_DEBUG;
-			break;
-
-		case 'D':
-			printdiff = 1;
-			break;
-
-		case 'e':
-			fixedPort = 1;
-			break;
-
-		case 'E':
-			ecnflag = 1;
-			break;
-
-		case 'f':
-		case 'M':	/* FreeBSD compat. */
-			first_ttl = str2val(optarg, "first ttl", 1, 255);
-			break;
-
-		case 'F':
-			off = IP_DF;
-			break;
-
-		case 'g':
-			if (lsrr >= NGATEWAYS) {
-				Fprintf(stderr,
-				    "%s: No more than %d gateways\n",
-				    prog, NGATEWAYS);
-				exit(1);
-			}
-			getaddr(gwlist + lsrr, optarg);
-			++lsrr;
-			break;
-
-		case 'i':
-			device = optarg;
-			break;
-
-		case 'I':
-			proto = setproto("icmp");
-			break;
-
-		case 'm':
-			max_ttl = str2val(optarg, "max ttl", 1, 255);
-			break;
-
-		case 'n':
-			++nflag;
-			break;
-
-		case 'P':
-			proto = setproto(optarg);
-			break;
-
-		case 'p':
-			requestPort = (u_short)str2val(optarg, "port",
-			    1, (1 << 16) - 1);
-			break;
-
-		case 'q':
-			nprobes = str2val(optarg, "nprobes", 1, -1);
-			break;
-
-		case 'r':
-			options |= SO_DONTROUTE;
-			break;
-
-		case 's':
-			/*
-			 * set the ip source address of the outbound
-			 * probe (e.g., on a multi-homed host).
-			 */
-			source = optarg;
-			break;
-
-		case 'S':
-			sump = 1;
-			break;
-
-		case 't':
-			tos = str2val(optarg, "tos", 0, 255);
-			++settos;
-			break;
-
-		case 'v':
-			++verbose;
-			break;
-
-		case 'x':
-			doipcksum = (doipcksum == 0);
-			break;
-
-		case 'w':
-			waittime = str2val(optarg, "wait time",
-			    1, 24 * 60 * 60);
-			break;
-
-		case 'z':
-			pausemsecs = str2val(optarg, "pause msecs",
-			    0, 60 * 60 * 1000);
-			break;
-
-		default:
-			usage();
-		}
-#endif
+	if (protoname)
+		proto = setproto(protoname);
+	else if (Iflag)
+		proto = setproto("icmp");
 
 	/* Set requested port, if any, else default for this protocol */
 	port = (requestPort != -1) ? requestPort : proto->port;
@@ -715,7 +586,7 @@ traceroute4(struct sockaddr *whereto)
 	memset((char *)outip, 0, packlen);
 
 	outip->ip_v = IPVERSION;
-	if (settos)
+	if (tos != -1)
 		outip->ip_tos = tos;
 	if (ecnflag) {
 		outip->ip_tos &= ~IPTOS_ECN_MASK;
@@ -792,7 +663,7 @@ traceroute4(struct sockaddr *whereto)
 	}
 #else
 #ifdef IP_TOS
-	if (settos && setsockopt(sndsock, IPPROTO_IP, IP_TOS,
+	if (tos != -1 && setsockopt(sndsock, IPPROTO_IP, IP_TOS,
 	    (char *)&tos, sizeof(tos)) < 0) {
 		err(1, "setsockopt tos %d", tos);
 	}
@@ -1811,7 +1682,7 @@ inetname(struct in_addr in)
 }
 
 struct hostinfo *
-gethostinfo(register char *hostname)
+gethostinfo(const char *hostname)
 {
 	register int n;
 	register struct hostent *hp;
@@ -1870,7 +1741,7 @@ freehostinfo(register struct hostinfo *hi)
 }
 
 void
-getaddr(register u_int32_t *ap, register char *hostname)
+getaddr(register u_int32_t *ap, const char *hostname)
 {
 	register struct hostinfo *hi;
 

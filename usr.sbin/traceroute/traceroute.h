@@ -29,6 +29,10 @@
 
 #include <netinet/in.h>
 
+#define MAX_GATEWAYS 127
+extern const char *gateways[];
+extern int ngateways;
+
 extern int as_path;
 extern char *as_server;
 extern int options;
@@ -40,13 +44,25 @@ extern int nprobes;
 extern int waittime;
 extern int verbose;
 extern int packlen;
+extern int printdiff;
+extern int fixedPort;
+extern int sump;
+extern int tos;
+extern int doipcksum;
+extern int Iflag;
+extern int requestPort;
+extern unsigned int pausemsecs;
+extern unsigned short off;
 extern char *source;
 extern char *prog;
+extern char *protoname;
 extern char *hostname;
+extern char *device;
 
 int	traceroute4(struct sockaddr *);
 int	traceroute6(struct sockaddr *);
 
 void	setsin(struct sockaddr_in *, u_int32_t);
+int	str2val(const char *str, const char *what, int mi, int ma);
 
 #endif	/* !TRACEROUTE_H_INCLUDED */

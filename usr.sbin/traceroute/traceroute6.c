@@ -316,16 +316,14 @@ static struct in6_pktinfo *rcvpktinfo;
 static struct sockaddr_in6 Src, Dst, Rcv;
 #define	ICMP6ECHOLEN	8
 /* XXX: 2064 = 127(max hops in type 0 rthdr) * sizeof(ip6_hdr) + 16(margin) */
-/*static char rtbuf[2064];*/
+static char rtbuf[2064];
 static struct ip6_rthdr *rth;
 static struct cmsghdr *cmsg;
 
 static cap_channel_t *capdns;
 
 static u_int16_t srcport;
-static u_int16_t port = 32768 + 666;	/* start udp dest port # for probe packets */
 static u_int16_t ident;
-static int tclass = -1;
 static int useproto = IPPROTO_UDP;	/* protocol to use to send packet */
 static void *asn;
 
@@ -338,7 +336,6 @@ traceroute6(struct sockaddr *whereto)
 	char *ep;
 	int ch;
 	u_long lport, ltclass;
-	struct hostent *hp;
 #endif
 	int i, on = 1, seq, rcvcmsglen, error;
 	struct addrinfo hints, *res;
@@ -363,9 +360,12 @@ traceroute6(struct sockaddr *whereto)
 		exit(5);
 	}
 
-	size = sizeof(i);
-	(void) sysctl(mib, sizeof(mib) / sizeof(mib[0]), &i, &size, NULL, 0);
-	max_ttl = i;
+	if (max_ttl == -1) {
+		size = sizeof(i);
+		(void) sysctl(mib, sizeof(mib) / sizeof(mib[0]), &i,
+			      &size, NULL, 0);
+		max_ttl = i;
+	}
 
 	/* specify to tell receiving interface */
 #ifdef IPV6_RECVPKTINFO
@@ -391,6 +391,9 @@ traceroute6(struct sockaddr *whereto)
 
 	seq = 0;
 	ident = htons(getpid() & 0xffff); /* same as ping6 */
+
+	if (requestPort == -1)
+		requestPort = 32768 + 666;
 
 	if (packlen == 0)
 		packlen = 20;
@@ -420,36 +423,6 @@ traceroute6(struct sockaddr *whereto)
 				    "traceroute6: invalid min hoplimit.\n");
 				exit(1);
 			}
-			break;
-		case 'g':
-			/* XXX use after capability mode is entered */
-			hp = getipnodebyname(optarg, AF_INET6, 0, &h_errno);
-			if (hp == NULL) {
-				fprintf(stderr,
-				    "traceroute6: unknown host %s\n", optarg);
-				exit(1);
-			}
-			if (rth == NULL) {
-				/*
-				 * XXX: We can't detect the number of
-				 * intermediate nodes yet.
-				 */
-				if ((rth = inet6_rth_init((void *)rtbuf,
-				    sizeof(rtbuf), IPV6_RTHDR_TYPE_0,
-				    0)) == NULL) {
-					fprintf(stderr,
-					    "inet6_rth_init failed.\n");
-					exit(1);
-				}
-			}
-			if (inet6_rth_add((void *)rth,
-			    (struct in6_addr *)hp->h_addr)) {
-				fprintf(stderr,
-				    "inet6_rth_add failed for %s\n",
-				    optarg);
-				exit(1);
-			}
-			freehostent(hp);
 			break;
 		case 'I':
 			useproto = IPPROTO_ICMPV6;
@@ -557,6 +530,32 @@ traceroute6(struct sockaddr *whereto)
 	argv += optind;
 #endif
 
+	for (i = 0; i < ngateways; ++i) {
+		struct hostent *hp;
+
+		/* XXX use after capability mode is entered */
+		hp = getipnodebyname(gateways[i], AF_INET6, 0, &h_errno);
+
+		if (hp == NULL)
+			errx(1, "unknown host %s", gateways[i]);
+
+		if (rth == NULL) {
+			if ((rth = inet6_rth_init((void *)rtbuf,
+			    sizeof(rtbuf), IPV6_RTHDR_TYPE_0,
+			    ngateways)) == NULL) {
+				errx(1, "inet6_rth_init failed");
+			}
+		}
+
+		if (inet6_rth_add((void *)rth, (struct in6_addr *)hp->h_addr))
+			errx(1, "inet6_rth_add failed for %s", gateways[i]);
+
+		freehostent(hp);
+	}
+
+	if (Iflag)
+		useproto = IPPROTO_ICMPV6;
+
 	/*
 	 * Open socket to send probe packets.
 	 */
@@ -583,12 +582,12 @@ traceroute6(struct sockaddr *whereto)
 	}
 
 	if (ecnflag) {
-		if (tclass != -1) {
-			tclass &= ~IPTOS_ECN_MASK;
+		if (tos != -1) {
+			tos &= ~IPTOS_ECN_MASK;
 		} else {
-			tclass = 0;
+			tos = 0;
 		}
-		tclass |= IPTOS_ECN_ECT1;
+		tos |= IPTOS_ECN_ECT1;
 	}
 
 	/* revoke privs */
@@ -598,8 +597,8 @@ traceroute6(struct sockaddr *whereto)
 		exit(1);
 	}
 
-	if (tclass != -1) {
-		if (setsockopt(sndsock, IPPROTO_IPV6, IPV6_TCLASS, &tclass,
+	if (tos != -1) {
+		if (setsockopt(sndsock, IPPROTO_IPV6, IPV6_TCLASS, &tos,
 		    sizeof(int)) == -1) {
 			perror("setsockopt(IPV6_TCLASS)");
 			exit(7);
@@ -1053,7 +1052,7 @@ send_probe(int seq, int hops)
 		perror("setsockopt IPV6_UNICAST_HOPS");
 	}
 
-	Dst.sin6_port = htons(port + seq);
+	Dst.sin6_port = htons(requestPort + seq);
 
 	switch (useproto) {
 	case IPPROTO_ICMPV6:
@@ -1068,7 +1067,7 @@ send_probe(int seq, int hops)
 	case IPPROTO_UDP:
 		outudp = (struct udphdr *) outpacket;
 		outudp->uh_sport = htons(ident);
-		outudp->uh_dport = htons(port + seq);
+		outudp->uh_dport = htons(requestPort + seq);
 		outudp->uh_ulen = htons(packlen);
 		outudp->uh_sum = 0;
 		outudp->uh_sum = udp_cksum(&Src, &Dst, outpacket, packlen);
@@ -1080,7 +1079,7 @@ send_probe(int seq, int hops)
 		sctp = (struct sctphdr *)outpacket;
 
 		sctp->src_port = htons(ident);
-		sctp->dest_port = htons(port + seq);
+		sctp->dest_port = htons(requestPort + seq);
 		if ((u_long)packlen >= (u_long)(sizeof(struct sctphdr) +
 		    sizeof(struct sctp_init_chunk))) {
 			sctp->v_tag = 0;
@@ -1146,7 +1145,7 @@ send_probe(int seq, int hops)
 		tcp = (struct tcphdr *)outpacket;
 
 		tcp->th_sport = htons(ident);
-		tcp->th_dport = htons(port + seq);
+		tcp->th_dport = htons(requestPort + seq);
 		tcp->th_seq = (tcp->th_sport << 16) | tcp->th_dport;
 		tcp->th_ack = 0;
 		tcp->th_off = 5;
@@ -1355,13 +1354,13 @@ packet_ok(struct msghdr *mhdr, int cc, int seq, u_char *type, u_char *code,
 		case IPPROTO_UDP:
 			udp = (struct udphdr *)up;
 			if (udp->uh_sport == htons(ident) &&
-			    udp->uh_dport == htons(port + seq))
+			    udp->uh_dport == htons(requestPort + seq))
 				return (1);
 			break;
 		case IPPROTO_SCTP:
 			sctp = (struct sctphdr *)up;
 			if (sctp->src_port != htons(ident) ||
-			    sctp->dest_port != htons(port + seq)) {
+			    sctp->dest_port != htons(requestPort + seq)) {
 				break;
 			}
 			if ((u_long)packlen >= (u_long)(sizeof(struct sctphdr) +
@@ -1389,7 +1388,7 @@ packet_ok(struct msghdr *mhdr, int cc, int seq, u_char *type, u_char *code,
 		case IPPROTO_TCP:
 			tcp = (struct tcphdr *)up;
 			if (tcp->th_sport == htons(ident) &&
-			    tcp->th_dport == htons(port + seq) &&
+			    tcp->th_dport == htons(requestPort + seq) &&
 			    tcp->th_seq ==
 			    (tcp_seq)((tcp->th_sport << 16) | tcp->th_dport))
 				return (1);
