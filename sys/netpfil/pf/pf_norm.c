@@ -1429,7 +1429,7 @@ pf_normalize_tcp(struct pf_pdesc *pd)
 
 int
 pf_normalize_tcp_init(struct pf_pdesc *pd, struct tcphdr *th,
-    struct pf_state_peer *src, struct pf_state_peer *dst)
+    struct pf_state_peer *src)
 {
 	u_int32_t tsval, tsecr;
 	u_int8_t hdr[60];
