@@ -839,7 +839,6 @@ struct ieee80211_vif {
 	bool				probe_req_reg;
 	uint8_t				addr[ETH_ALEN];
 	struct ieee80211_vif_cfg	cfg;
-	struct ieee80211_chanctx_conf	*chanctx_conf;					/* XXX-BZ no longer used anywhere but in linuxkpi 802.11 internally; now in bss_conf per-link? */
 	struct ieee80211_txq		*txq;
 	struct ieee80211_bss_conf	bss_conf;
 	struct ieee80211_bss_conf	*link_conf[IEEE80211_MLD_MAX_NUM_LINKS];	/* rcu? */

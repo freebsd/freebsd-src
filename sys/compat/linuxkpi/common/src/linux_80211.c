@@ -1736,14 +1736,14 @@ static void
 lkpi_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	/* Take the chan ctx down. */
-	if (vif->chanctx_conf != NULL) {
+	if (vif->bss_conf.chanctx_conf != NULL) {
 		struct lkpi_chanctx *lchanctx;
 		struct ieee80211_chanctx_conf *chanctx_conf;
 
-		chanctx_conf = vif->chanctx_conf;
+		chanctx_conf = vif->bss_conf.chanctx_conf;
 		/* Remove vif context. */
-		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->chanctx_conf);
-		/* NB: vif->chanctx_conf is NULL now. */
+		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->bss_conf.chanctx_conf);
+		/* NB: vif->bss_conf.chanctx_conf is NULL now. */
 
 		lkpi_hw_conf_idle(hw, true);
 
@@ -1840,8 +1840,8 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	LKPI_80211_LHW_LOCK(lhw);
 
 	/* Add chanctx (or if exists, change it). */
-	if (vif->chanctx_conf != NULL) {
-		chanctx_conf = vif->chanctx_conf;
+	if (vif->bss_conf.chanctx_conf != NULL) {
+		chanctx_conf = vif->bss_conf.chanctx_conf;
 		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 		IMPROVE("diff changes for changed, working on live copy, rcu");
 	} else {
@@ -1916,7 +1916,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
 
 	error = 0;
-	if (vif->chanctx_conf != NULL) {
+	if (vif->bss_conf.chanctx_conf != NULL) {
 		changed = IEEE80211_CHANCTX_CHANGE_MIN_WIDTH;
 		changed |= IEEE80211_CHANCTX_CHANGE_RADAR;
 		changed |= IEEE80211_CHANCTX_CHANGE_RX_CHAINS;
@@ -3470,7 +3470,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 
 	/* XXX-BZ hardcoded for now! */
 #if 1
-	vif->chanctx_conf = NULL;
+	vif->bss_conf.chanctx_conf = NULL;
 	vif->bss_conf.vif = vif;
 	/* vap->iv_myaddr is not set until net80211::vap_setup or vap_attach. */
 	IEEE80211_ADDR_COPY(vif->bss_conf.addr, mac);
@@ -5970,10 +5970,10 @@ linuxkpi_ieee80211_iterate_chan_contexts(struct ieee80211_hw *hw,
 	TAILQ_FOREACH(lvif, &lhw->lvif_head, lvif_entry) {
 
 		vif = LVIF_TO_VIF(lvif);
-		if (vif->chanctx_conf == NULL)
+		if (vif->bss_conf.chanctx_conf == NULL)
 			continue;
 
-		lchanctx = CHANCTX_CONF_TO_LCHANCTX(vif->chanctx_conf);
+		lchanctx = CHANCTX_CONF_TO_LCHANCTX(vif->bss_conf.chanctx_conf);
 		if (!lchanctx->added_to_drv)
 			continue;
 
