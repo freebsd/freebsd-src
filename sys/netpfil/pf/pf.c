@@ -6182,7 +6182,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 
 	if (pd->proto == IPPROTO_TCP) {
 		if (s->state_flags & PFSTATE_SCRUB_TCP &&
-		    pf_normalize_tcp_init(pd, th, &s->src, &s->dst)) {
+		    pf_normalize_tcp_init(pd, th, &s->src)) {
 			REASON_SET(&reason, PFRES_MEMORY);
 			goto csfailed;
 		}
@@ -6438,7 +6438,7 @@ pf_tcp_track_full(struct pf_kstate *state, struct pf_pdesc *pd,
 
 		if ((state->state_flags & PFSTATE_SCRUB_TCP || dst->scrub) &&
 		    src->scrub == NULL) {
-			if (pf_normalize_tcp_init(pd, th, src, dst)) {
+			if (pf_normalize_tcp_init(pd, th, src)) {
 				REASON_SET(reason, PFRES_MEMORY);
 				return (PF_DROP);
 			}
