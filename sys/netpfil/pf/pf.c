@@ -4958,6 +4958,8 @@ pf_socket_lookup(struct pf_pdesc *pd)
 		}
 		break;
 #endif /* INET6 */
+	default:
+		unhandled_af(pd->af);
 	}
 	INP_RLOCK_ASSERT(inp);
 	pd->lookup.uid = inp->inp_cred->cr_uid;
