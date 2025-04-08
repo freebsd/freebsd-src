@@ -93,9 +93,6 @@ static int decode_win_pcie_valid(void);
 static int decode_win_sata_valid(void);
 static int decode_win_sdhci_valid(void);
 
-static int decode_win_idma_valid(void);
-static int decode_win_xor_valid(void);
-
 static void decode_win_cpu_setup(void);
 static int decode_win_sdram_fixup(void);
 static void decode_win_cesa_setup(u_long);
@@ -108,17 +105,12 @@ static void decode_win_sata_setup(u_long);
 static void decode_win_ahci_setup(u_long);
 static void decode_win_sdhci_setup(u_long);
 
-static void decode_win_idma_setup(u_long);
-static void decode_win_xor_setup(u_long);
-
 static void decode_win_cesa_dump(u_long);
 static void decode_win_a38x_cesa_dump(u_long);
 static void decode_win_usb_dump(u_long);
 static void decode_win_usb3_dump(u_long);
 static void decode_win_eth_dump(u_long base);
 static void decode_win_neta_dump(u_long base);
-static void decode_win_idma_dump(u_long base);
-static void decode_win_xor_dump(u_long base);
 static void decode_win_ahci_dump(u_long base);
 static void decode_win_sdhci_dump(u_long);
 static void decode_win_pcie_dump(u_long);
@@ -195,9 +187,6 @@ static struct soc_node_spec soc_nodes[] = {
 	{ "marvell,armada-380-sdhci", &decode_win_sdhci_setup,
 	    &decode_win_sdhci_dump, &decode_win_sdhci_valid},
 	{ "mrvl,sata", &decode_win_sata_setup, NULL, &decode_win_sata_valid},
-	{ "mrvl,xor", &decode_win_xor_setup, &decode_win_xor_dump, &decode_win_xor_valid},
-	{ "mrvl,idma", &decode_win_idma_setup, &decode_win_idma_dump, &decode_win_idma_valid},
-	{ "mrvl,cesa", &decode_win_cesa_setup, &decode_win_cesa_dump, &decode_win_cesa_valid},
 	{ "mrvl,pcie", &decode_win_pcie_setup, &decode_win_pcie_dump, &decode_win_pcie_valid},
 	{ "marvell,armada-38x-crypto", &decode_win_a38x_cesa_setup,
 	    &decode_win_a38x_cesa_dump, &decode_win_cesa_valid},
@@ -1526,49 +1515,6 @@ decode_win_pcie_valid(void)
 {
 
 	return (decode_win_can_cover_ddr(MV_WIN_PCIE_MAX));
-}
-
-/**************************************************************************
- * IDMA windows routines
- **************************************************************************/
-
-/* Provide dummy functions to satisfy the build for SoCs not equipped with IDMA */
-int
-decode_win_idma_valid(void)
-{
-
-	return (1);
-}
-
-void
-decode_win_idma_setup(u_long base)
-{
-}
-
-void
-decode_win_idma_dump(u_long base)
-{
-}
-
-/**************************************************************************
- * XOR windows routines
- **************************************************************************/
-/* Provide dummy functions to satisfy the build for SoCs not equipped with XOR */
-static int
-decode_win_xor_valid(void)
-{
-
-	return (1);
-}
-
-static void
-decode_win_xor_setup(u_long base)
-{
-}
-
-static void
-decode_win_xor_dump(u_long base)
-{
 }
 
 /**************************************************************************
