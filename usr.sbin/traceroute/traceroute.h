@@ -63,10 +63,18 @@ extern char *protoname;
 extern char *hostname;
 extern char *device;
 
+#ifdef INET
 int	traceroute4(struct sockaddr *);
-int	traceroute6(struct sockaddr *);
+#endif
 
+#ifdef INET6
+int	traceroute6(struct sockaddr *);
+#endif
+
+#ifdef INET
 void	setsin(struct sockaddr_in *, u_int32_t);
+#endif
+
 int	str2val(const char *str, const char *what, int mi, int ma);
 
 #endif	/* !TRACEROUTE_H_INCLUDED */

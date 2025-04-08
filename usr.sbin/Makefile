@@ -90,7 +90,6 @@ SUBDIR=	adduser \
 	tcpdrop \
 	tcpdump \
 	tcpsso \
-	traceroute \
 	trim \
 	tzsetup \
 	ugidfw \
@@ -103,6 +102,10 @@ SUBDIR=	adduser \
 	zdump \
 	zic \
 	zonectl
+
+.if ${MK_INET} != "no" || ${MK_INET6} != "no"
+SUBDIR+=	traceroute
+.endif
 
 # NB: keep these sorted by MK_* knobs
 

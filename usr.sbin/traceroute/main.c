@@ -84,17 +84,25 @@ main(int argc, char **argv)
 	struct addrinfo hints, *ai;
 
 	memset(&hints, 0, sizeof(hints));
+#ifdef INET6
 	hints.ai_family = is_traceroute6 ? AF_INET6 : AF_UNSPEC;
+#else
+	hints.ai_family = AF_INET;
+#endif
 
 	while ((opt = getopt(argc, argv, optstr)) != -1) {
 		switch (opt) {
+#ifdef INET
 		case '4':
 			hints.ai_family = AF_INET;
 			break;
+#endif
 
+#ifdef INET6
 		case '6':
 			hints.ai_family = AF_INET6;
 			break;
+#endif
 
 		case 'a':
 			as_path = 1;
@@ -272,8 +280,17 @@ main(int argc, char **argv)
 	}
 
 	for (; ai; ai = ai->ai_next) {
-		if (ai->ai_family != AF_INET && ai->ai_family != AF_INET6)
+		switch (ai->ai_family) {
+#ifdef INET
+		case AF_INET:
+#endif
+#ifdef INET6
+		case AF_INET6:
+#endif
+			break;
+		default:
 			continue;
+		}
 
 		if (ai->ai_next) {
 			char shost[NI_MAXHOST];
@@ -290,9 +307,12 @@ main(int argc, char **argv)
 		hostname = ai->ai_canonname ? ai->ai_canonname : argv[0];
 
 		switch (ai->ai_family) {
+#ifdef INET
 		case AF_INET:
 			return (traceroute4(ai->ai_addr));
+#endif
 
+#ifdef INET6
 		case AF_INET6:
 			/*
 			 * Many of these could be supported for AF_INET6, they
@@ -328,6 +348,7 @@ main(int argc, char **argv)
 				     "IPv6 hosts");
 
 			return (traceroute6(ai->ai_addr));
+#endif
 
 		default:
 			break;

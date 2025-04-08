@@ -1759,33 +1759,6 @@ setsin(register struct sockaddr_in *sin, register u_int32_t addr)
 	sin->sin_addr.s_addr = addr;
 }
 
-/* String to value with optional min and max. Handles decimal and hex. */
-int
-str2val(register const char *str, register const char *what,
-    register int mi, register int ma)
-{
-	register const char *cp;
-	register int val;
-	char *ep;
-
-	if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
-		cp = str + 2;
-		val = (int)strtol(cp, &ep, 16);
-	} else
-		val = (int)strtol(str, &ep, 10);
-	if (*ep != '\0')
-		errx(1, "\"%s\" bad value for %s", str, what);
-	if (val < mi && mi >= 0) {
-		if (mi == 0)
-			errx(1, "%s must be >= %d", what, mi);
-		else
-			errx(1, "%s must be > %d", what, mi - 1);
-	}
-	if (val > ma && ma >= 0)
-		errx(1, "%s must be <= %d\n", what, ma);
-	return (val);
-}
-
 struct outproto *
 setproto(char *pname)
 {
