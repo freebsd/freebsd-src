@@ -48,15 +48,19 @@ int ecnflag;		/* ECN bleaching detection flag */
 int first_ttl = 1;
 int Iflag;
 int max_ttl = -1;
+int Nflag;
 int nflag;		/* print addresses numerically */
 int nprobes = -1;
 unsigned short off;
 unsigned int pausemsecs;
 char *protoname;
 int requestPort = -1;
+int Sflag;
 char *source;
 int sump;
+int Tflag;
 int tos = -1;
+int Uflag;
 int verbose;
 int waittime = 5;	/* time to wait for response (in seconds) */
 
@@ -141,8 +145,19 @@ main(int argc, char **argv)
 			device = optarg;
 			break;
 
+		case 'l':
+			/*
+			 * Ignored for backward compatibility with historical
+			 * versions of traceroute6.
+			 */
+			break;
+
 		case 'm':
 			max_ttl = str2val(optarg, "max ttl", 1, 255);
+			break;
+
+		case 'N': /* traceroute6 only */
+			Nflag = 1;
 			break;
 
 		case 'n':
@@ -173,15 +188,26 @@ main(int argc, char **argv)
 			break;
 
 		case 'S':
-			sump = 1;
+			if (is_traceroute6)
+				Sflag = 1; /* use SCTP */
+			else
+				sump = 1; /* print loss% on each hop */
 			break;
 
 		case 's':
 			source = optarg;
 			break;
 
+		case 'T': /* traceroute6 only */
+			Tflag = 1;
+			break;
+
 		case 't':
 			tos = str2val(optarg, "tos", 0, 255);
+			break;
+
+		case 'U': /* traceroute6 only */
+			Uflag = 1;
 			break;
 
 		case 'v':

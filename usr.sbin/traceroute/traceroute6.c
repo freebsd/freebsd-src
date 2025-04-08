@@ -398,138 +398,6 @@ traceroute6(struct sockaddr *whereto)
 	if (packlen == 0)
 		packlen = 20;
 
-#if 0
-	while ((ch = getopt(argc, argv, "aA:dEf:g:Ilm:nNp:q:rs:St:TUvw:")) != -1)
-		switch (ch) {
-		case 'a':
-			as_path = 1;
-			break;
-		case 'A':
-			as_path = 1;
-			as_server = optarg;
-			break;
-		case 'd':
-			options |= SO_DEBUG;
-			break;
-		case 'E':
-			ecnflag = 1;
-			break;
-		case 'f':
-			ep = NULL;
-			errno = 0;
-			first_ttl = strtoul(optarg, &ep, 0);
-			if (errno || !*optarg || *ep || first_ttl > 255) {
-				fprintf(stderr,
-				    "traceroute6: invalid min hoplimit.\n");
-				exit(1);
-			}
-			break;
-		case 'I':
-			useproto = IPPROTO_ICMPV6;
-			break;
-		case 'l':
-			break;
-		case 'm':
-			ep = NULL;
-			errno = 0;
-			max_ttl = strtoul(optarg, &ep, 0);
-			if (errno || !*optarg || *ep || max_ttl > 255) {
-				fprintf(stderr,
-				    "traceroute6: invalid max hoplimit.\n");
-				exit(1);
-			}
-			break;
-		case 'n':
-			nflag++;
-			break;
-		case 'N':
-			useproto = IPPROTO_NONE;
-			break;
-		case 'p':
-			ep = NULL;
-			errno = 0;
-			lport = strtoul(optarg, &ep, 0);
-			if (errno || !*optarg || *ep) {
-				fprintf(stderr, "traceroute6: invalid port.\n");
-				exit(1);
-			}
-			if (lport == 0 || lport != (lport & 0xffff)) {
-				fprintf(stderr,
-				    "traceroute6: port out of range.\n");
-				exit(1);
-			}
-			port = lport & 0xffff;
-			break;
-		case 'q':
-			ep = NULL;
-			errno = 0;
-			nprobes = strtoul(optarg, &ep, 0);
-			if (errno || !*optarg || *ep) {
-				fprintf(stderr,
-				    "traceroute6: invalid nprobes.\n");
-				exit(1);
-			}
-			if (nprobes < 1) {
-				fprintf(stderr,
-				    "traceroute6: nprobes must be >0.\n");
-				exit(1);
-			}
-			break;
-		case 'r':
-			options |= SO_DONTROUTE;
-			break;
-		case 's':
-			/*
-			 * set the ip source address of the outbound
-			 * probe (e.g., on a multi-homed host).
-			 */
-			source = optarg;
-			break;
-		case 'S':
-			useproto = IPPROTO_SCTP;
-			break;
-		case 't':
-			ep = NULL;
-			errno = 0;
-			ltclass = strtoul(optarg, &ep, 0);
-			if (errno || !*optarg || *ep || ltclass > 255) {
-				fprintf(stderr,
-				    "traceroute6: invalid traffic class.\n");
-				exit(1);
-			}
-			tclass = (int)ltclass;
-			break;
-		case 'T':
-			useproto = IPPROTO_TCP;
-			break;
-		case 'U':
-			useproto = IPPROTO_UDP;
-			break;
-		case 'v':
-			verbose++;
-			break;
-		case 'w':
-			ep = NULL;
-			errno = 0;
-			waittime = strtoul(optarg, &ep, 0);
-			if (errno || !*optarg || *ep) {
-				fprintf(stderr,
-				    "traceroute6: invalid wait time.\n");
-				exit(1);
-			}
-			if (waittime < 1) {
-				fprintf(stderr,
-				    "traceroute6: wait must be >= 1 sec.\n");
-				exit(1);
-			}
-			break;
-		default:
-			usage();
-		}
-	argc -= optind;
-	argv += optind;
-#endif
-
 	for (i = 0; i < ngateways; ++i) {
 		struct hostent *hp;
 
@@ -553,8 +421,20 @@ traceroute6(struct sockaddr *whereto)
 		freehostent(hp);
 	}
 
+	if (Iflag + Nflag + Sflag + Tflag + Uflag > 1)
+		errx(1, "the -I, -N, -S, -T and -U options are "
+		     "mutually exclusive");
+
 	if (Iflag)
 		useproto = IPPROTO_ICMPV6;
+	else if (Nflag)
+		useproto = IPPROTO_NONE;
+	else if (Sflag)
+		useproto = IPPROTO_SCTP;
+	else if (Tflag)
+		useproto = IPPROTO_TCP;
+	else if (Uflag)
+		useproto = IPPROTO_UDP;
 
 	/*
 	 * Open socket to send probe packets.
