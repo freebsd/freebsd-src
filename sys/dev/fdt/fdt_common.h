@@ -76,11 +76,14 @@ extern u_char fdt_static_dtb;
 
 SYSCTL_DECL(_hw_fdt);
 
+typedef void (*fdt_mem_region_cb)(const struct mem_region *, void *);
+
 int fdt_addrsize_cells(phandle_t, int *, int *);
 u_long fdt_data_get(void *, int);
 int fdt_data_to_res(pcell_t *, int, int, u_long *, u_long *);
 phandle_t fdt_find_compatible(phandle_t, const char *, int);
 phandle_t fdt_depth_search_compatible(phandle_t, const char *, int);
+int fdt_foreach_mem_region(fdt_mem_region_cb, void *);
 int fdt_get_mem_regions(struct mem_region *, int *, uint64_t *);
 int fdt_get_reserved_mem(struct mem_region *, int *);
 int fdt_get_reserved_regions(struct mem_region *, int *);
