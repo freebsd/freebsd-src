@@ -1845,8 +1845,9 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	wiphy_lock(hw->wiphy);
 
 	/* Add chanctx (or if exists, change it). */
-	if (vif->bss_conf.chanctx_conf != NULL) {
-		chanctx_conf = vif->bss_conf.chanctx_conf;
+	chanctx_conf = rcu_dereference_protected(vif->bss_conf.chanctx_conf,
+	    lockdep_is_held(&hw->wiphy->mtx));
+	if (chanctx_conf != NULL) {
 		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 		IMPROVE("diff changes for changed, working on live copy, rcu");
 	} else {
@@ -1921,7 +1922,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
 
 	error = 0;
-	if (vif->bss_conf.chanctx_conf != NULL) {
+	if (vif->bss_conf.chanctx_conf == chanctx_conf) {
 		changed = IEEE80211_CHANCTX_CHANGE_MIN_WIDTH;
 		changed |= IEEE80211_CHANCTX_CHANGE_RADAR;
 		changed |= IEEE80211_CHANCTX_CHANGE_RX_CHAINS;
@@ -1942,7 +1943,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			goto out;
 		}
 
-		vif->bss_conf.chanctx_conf = chanctx_conf;
+		rcu_assign_pointer(vif->bss_conf.chanctx_conf, chanctx_conf);
 
 		/* Assign vif chanctx. */
 		if (error == 0)
@@ -1954,7 +1955,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			ic_printf(vap->iv_ic, "%s:%d: mo_assign_vif_chanctx "
 			    "failed: %d\n", __func__, __LINE__, error);
 			lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
-			vif->bss_conf.chanctx_conf = NULL;
+			rcu_assign_pointer(vif->bss_conf.chanctx_conf, NULL);
 			lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
 			free(lchanctx, M_LKPI80211);
 			goto out;
@@ -3473,7 +3474,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 
 	/* XXX-BZ hardcoded for now! */
 #if 1
-	vif->bss_conf.chanctx_conf = NULL;
+	RCU_INIT_POINTER(vif->bss_conf.chanctx_conf, NULL);
 	vif->bss_conf.vif = vif;
 	/* vap->iv_myaddr is not set until net80211::vap_setup or vap_attach. */
 	IEEE80211_ADDR_COPY(vif->bss_conf.addr, mac);
@@ -5969,7 +5970,7 @@ linuxkpi_ieee80211_iterate_chan_contexts(struct ieee80211_hw *hw,
 	TAILQ_FOREACH(lvif, &lhw->lvif_head, lvif_entry) {
 
 		vif = LVIF_TO_VIF(lvif);
-		if (vif->bss_conf.chanctx_conf == NULL)
+		if (vif->bss_conf.chanctx_conf == NULL)			/* XXX-BZ; FIXME see IMPROVE above. */
 			continue;
 
 		lchanctx = CHANCTX_CONF_TO_LCHANCTX(vif->bss_conf.chanctx_conf);
