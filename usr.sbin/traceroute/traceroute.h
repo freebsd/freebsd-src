@@ -21,6 +21,32 @@
  * @(#) $Id: traceroute.h,v 1.1 2000/11/23 20:06:54 leres Exp $ (LBL)
  */
 
+#ifndef	TRACEROUTE_H_INCLUDED
+#define	TRACEROUTE_H_INCLUDED
+
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <netinet/in.h>
+
+extern int as_path;
+extern char *as_server;
+extern int options;
+extern int ecnflag;
+extern int first_ttl;
+extern int max_ttl;
+extern int nflag;
+extern int nprobes;
+extern int waittime;
+extern int verbose;
+extern int packlen;
+extern char *source;
 extern char *prog;
+extern char *hostname;
+
+int	traceroute4(struct sockaddr *);
+int	traceroute6(struct sockaddr *);
 
 void	setsin(struct sockaddr_in *, u_int32_t);
+
+#endif	/* !TRACEROUTE_H_INCLUDED */

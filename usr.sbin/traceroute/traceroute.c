@@ -289,56 +289,52 @@ struct outdata {
 	struct timeval tv;	/* time packet left */
 };
 
-u_char	packet[512];		/* last inbound (icmp) packet */
+static u_char	packet[512];		/* last inbound (icmp) packet */
 
-struct ip *outip;		/* last output ip packet */
-u_char *outp;		/* last output inner protocol packet */
+static struct ip *outip;		/* last output ip packet */
+static u_char *outp;			/* last output inner protocol packet */
 
-struct ip *hip = NULL;		/* Quoted IP header */
-int hiplen = 0;
+static struct ip *hip = NULL;		/* Quoted IP header */
+static int hiplen = 0;
 
 /* loose source route gateway list (including room for final destination) */
-u_int32_t gwlist[NGATEWAYS + 1];
+static u_int32_t gwlist[NGATEWAYS + 1];
 
-int s;				/* receive (icmp) socket file descriptor */
-int sndsock;			/* send (udp) socket file descriptor */
+static int s;				/* receive (icmp) socket file descriptor */
+static int sndsock;			/* send (udp) socket file descriptor */
 
-struct sockaddr whereto;	/* Who to try to reach */
-struct sockaddr wherefrom;	/* Who we are */
-int packlen;			/* total length of packet */
-int protlen;			/* length of protocol part of packet */
-int minpacket;			/* min ip packet size */
-int maxpacket = 32 * 1024;	/* max ip packet size */
-int pmtu;			/* Path MTU Discovery (RFC1191) */
-u_int pausemsecs;
+static struct sockaddr wherefrom;	/* Who we are */
+static int protlen;			/* length of protocol part of packet */
+static int minpacket;			/* min ip packet size */
+static int maxpacket = 32 * 1024;	/* max ip packet size */
+static int pmtu;			/* Path MTU Discovery (RFC1191) */
+static u_int pausemsecs;
 
-char *prog;
 char *source;
-char *hostname;
-char *device;
+static char *device;
 static const char devnull[] = "/dev/null";
 
 int nprobes = -1;
-int max_ttl;
+int max_ttl = 30;
 int first_ttl = 1;
-u_short ident;
-u_short port;			/* protocol specific base "port" */
+static u_short ident;
+static u_short port;		/* protocol specific base "port" */
 
-int options;			/* socket options */
+int options;		/* socket options */
 int verbose;
 int waittime = 5;		/* time to wait for response (in seconds) */
 int nflag;			/* print addresses numerically */
 int as_path;			/* print as numbers for each hop */
 char *as_server = NULL;
-void *asn;
+static void *asn;
 #ifdef CANT_HACK_IPCKSUM
-int doipcksum = 0;		/* don't calculate ip checksums by default */
+static int doipcksum = 0;	/* don't calculate ip checksums by default */
 #else
-int doipcksum = 1;		/* calculate ip checksums by default */
+static int doipcksum = 1;	/* calculate ip checksums by default */
 #endif
-int optlen;			/* length of ip options */
-int fixedPort = 0;		/* Use fixed destination port for TCP and UDP */
-int printdiff = 0;		/* Print the difference between sent and quoted */
+static int optlen;		/* length of ip options */
+static int fixedPort = 0;	/* Use fixed destination port for TCP and UDP */
+static int printdiff = 0;	/* Print the difference between sent and quoted */
 int ecnflag = 0;		/* ECN bleaching detection flag */
 
 extern int optind;
@@ -350,43 +346,42 @@ static cap_channel_t *capdns;
 #endif
 
 /* Forwards */
-double	deltaT(struct timeval *, struct timeval *);
-void	freehostinfo(struct hostinfo *);
-void	getaddr(u_int32_t *, char *);
-struct	hostinfo *gethostinfo(char *);
-u_short	in_cksum(u_short *, int);
-u_int32_t sctp_crc32c(const void *, u_int32_t);
-char	*inetname(struct in_addr);
-int	main(int, char **);
-u_short p_cksum(struct ip *, u_short *, int, int);
-int	packet_ok(u_char *, int, struct sockaddr_in *, int);
-char	*pr_type(u_char);
-void	print(u_char *, int, struct sockaddr_in *);
+static double	deltaT(struct timeval *, struct timeval *);
+static void	freehostinfo(struct hostinfo *);
+static void	getaddr(u_int32_t *, char *);
+static struct	hostinfo *gethostinfo(char *);
+static u_short	in_cksum(u_short *, int);
+static u_int32_t sctp_crc32c(const void *, u_int32_t);
+static char	*inetname(struct in_addr);
+static u_short	p_cksum(struct ip *, u_short *, int, int);
+static int	packet_ok(u_char *, int, struct sockaddr_in *, int);
+static char	*pr_type(u_char);
+static void	print(u_char *, int, struct sockaddr_in *);
 #ifdef	IPSEC
-int	setpolicy(int so, char *policy);
+static int	setpolicy(int so, char *policy);
 #endif
-void	send_probe(int, int);
-struct outproto *setproto(char *);
-int	str2val(const char *, const char *, int, int);
-void	tvsub(struct timeval *, struct timeval *);
-void usage(void);
-int	wait_for_reply(int, struct sockaddr_in *, const struct timeval *);
-void pkt_compare(const u_char *, int, const u_char *, int);
+static void	send_probe(int, int);
+static struct outproto *setproto(char *);
+static int	str2val(const char *, const char *, int, int);
+static void	tvsub(struct timeval *, struct timeval *);
+static void	usage(void);
+static int	wait_for_reply(int, struct sockaddr_in *, const struct timeval *);
+static void	pkt_compare(const u_char *, int, const u_char *, int);
 
-void	udp_prep(struct outdata *);
-int	udp_check(const u_char *, int);
-void	udplite_prep(struct outdata *);
-int	udplite_check(const u_char *, int);
-void	tcp_prep(struct outdata *);
-int	tcp_check(const u_char *, int);
-void	sctp_prep(struct outdata *);
-int	sctp_check(const u_char *, int);
-void	gre_prep(struct outdata *);
-int	gre_check(const u_char *, int);
-void	gen_prep(struct outdata *);
-int	gen_check(const u_char *, int);
-void	icmp_prep(struct outdata *);
-int	icmp_check(const u_char *, int);
+static void	udp_prep(struct outdata *);
+static int	udp_check(const u_char *, int);
+static void	udplite_prep(struct outdata *);
+static int	udplite_check(const u_char *, int);
+static void	tcp_prep(struct outdata *);
+static int	tcp_check(const u_char *, int);
+static void	sctp_prep(struct outdata *);
+static int	sctp_check(const u_char *, int);
+static void	gre_prep(struct outdata *);
+static int	gre_check(const u_char *, int);
+static void	gen_prep(struct outdata *);
+static int	gen_check(const u_char *, int);
+static void	icmp_prep(struct outdata *);
+static int	icmp_check(const u_char *, int);
 
 /* Descriptor structure for each outgoing protocol we support */
 struct outproto {
@@ -403,7 +398,7 @@ struct outproto {
 
 /* List of supported protocols. The first one is the default. The last
    one is the handler for generic protocols not explicitly listed. */
-struct	outproto protos[] = {
+static struct	outproto protos[] = {
 	{
 		"udp",
 		"spt dpt len sum",
@@ -468,19 +463,19 @@ struct	outproto protos[] = {
 		gen_check
 	},
 };
-struct	outproto *proto = &protos[0];
+static struct	outproto *proto = &protos[0];
 
-const char *ip_hdr_key = "vhtslen id  off tlprsum srcip   dstip   opts";
+static const char *ip_hdr_key = "vhtslen id  off tlprsum srcip   dstip   opts";
 
 int
-main(int argc, char **argv)
+traceroute4(struct sockaddr *whereto)
 {
-	register int op, code, n;
+	register int code, n;
 	register char *cp;
-	register const char *err;
+	register const char *serr;
 	register u_int32_t *ap;
 	register struct sockaddr_in *from = (struct sockaddr_in *)&wherefrom;
-	register struct sockaddr_in *to = (struct sockaddr_in *)&whereto;
+	register struct sockaddr_in *to = (struct sockaddr_in *)whereto;
 	register struct hostinfo *hi;
 	int on = 1;
 	register struct protoent *pe;
@@ -506,9 +501,7 @@ main(int argc, char **argv)
 	if (open(devnull, O_RDONLY) < 0 ||
 	    open(devnull, O_RDONLY) < 0 ||
 	    open(devnull, O_RDONLY) < 0) {
-		Fprintf(stderr, "%s: open \"%s\": %s\n",
-		    prog, devnull, strerror(errno));
-		exit(1);
+		err(1, "open \"%s\"", devnull);
 	}
 	/*
 	 * Do the setuid-required stuff first, then lose privileges ASAP.
@@ -561,13 +554,7 @@ main(int argc, char **argv)
 	cap_close(casper);
 #endif
 
-	if (argv[0] == NULL)
-		prog = "traceroute";
-	else if ((cp = strrchr(argv[0], '/')) != NULL)
-		prog = cp + 1;
-	else
-		prog = argv[0];
-
+#if 0
 	opterr = 0;
 	while ((op = getopt(argc, argv, "aA:eEdDFInrSvxf:g:i:M:m:P:p:q:s:t:w:z:")) != EOF)
 		switch (op) {
@@ -687,6 +674,7 @@ main(int argc, char **argv)
 		default:
 			usage();
 		}
+#endif
 
 	/* Set requested port, if any, else default for this protocol */
 	port = (requestPort != -1) ? requestPort : proto->port;
@@ -694,63 +682,36 @@ main(int argc, char **argv)
 	if (nprobes == -1)
 		nprobes = printdiff ? 1 : 3;
 
-	if (first_ttl > max_ttl) {
-		Fprintf(stderr,
-		    "%s: first ttl (%d) may not be greater than max ttl (%d)\n",
-		    prog, first_ttl, max_ttl);
-		exit(1);
-	}
+	if (first_ttl > max_ttl)
+		errx(1, "first ttl (%d) may not be greater than max ttl (%d)",
+		     first_ttl, max_ttl);
 
 	if (!doipcksum)
-		Fprintf(stderr, "%s: Warning: ip checksums disabled\n", prog);
+		warnx("Warning: ip checksums disabled");
 
 	if (lsrr > 0)
 		optlen = (lsrr + 1) * sizeof(gwlist[0]);
 	minpacket = sizeof(*outip) + proto->hdrlen + optlen;
-	if (minpacket > 40)
-		packlen = minpacket;
-	else
-		packlen = 40;
-
-	/* Process destination and optional packet size */
-	switch (argc - optind) {
-
-	case 2:
-		packlen = str2val(argv[optind + 1],
-		    "packet length", minpacket, maxpacket);
-		/* Fall through */
-
-	case 1:
-		hostname = argv[optind];
-		hi = gethostinfo(hostname);
-		setsin(to, hi->addrs[0]);
-		if (hi->n > 1)
-			Fprintf(stderr,
-		    "%s: Warning: %s has multiple addresses; using %s\n",
-				prog, hostname, inet_ntoa(to->sin_addr));
-		hostname = hi->name;
-		hi->name = NULL;
-		freehostinfo(hi);
-		break;
-
-	default:
-		usage();
+	if (packlen == 0) {
+		if (minpacket > 40)
+			packlen = minpacket;
+		else
+			packlen = 40;
 	}
+
+	if (packlen < minpacket || packlen > maxpacket)
+		errx(1, "invalid packet length: %d", packlen);
 
 	setlinebuf(stdout);
 
 	protlen = packlen - sizeof(*outip) - optlen;
-	if ((proto->num == IPPROTO_SCTP) && (packlen & 3)) {
-		Fprintf(stderr, "%s: packet length must be a multiple of 4\n",
-		    prog);
-		exit(1);
-	}
+	if ((proto->num == IPPROTO_SCTP) && (packlen & 3))
+		errx(1, "packet length must be a multiple of 4");
 
 	outip = (struct ip *)malloc((unsigned)packlen);
-	if (outip == NULL) {
-		Fprintf(stderr, "%s: malloc: %s\n", prog, strerror(errno));
-		exit(1);
-	}
+	if (outip == NULL)
+		err(1, "malloc");
+
 	memset((char *)outip, 0, packlen);
 
 	outip->ip_v = IPVERSION;
@@ -790,15 +751,14 @@ main(int argc, char **argv)
 	outip->ip_hl = (outp - (u_char *)outip) >> 2;
 	ident = (getpid() & 0xffff) | 0x8000;
 
-	if (pe == NULL) {
-		Fprintf(stderr, "%s: unknown protocol %s\n", prog, cp);
-		exit(1);
-	}
+	if (pe == NULL)
+		errx(1, "unknown protocol %s", cp);
+
 	if (s < 0) {
 		errno = sockerrno;
-		Fprintf(stderr, "%s: icmp socket: %s\n", prog, strerror(errno));
-		exit(1);
+		err(1, "icmp socket");
 	}
+
 	if (options & SO_DEBUG)
 		(void)setsockopt(s, SOL_SOCKET, SO_DEBUG, (char *)&on,
 		    sizeof(on));
@@ -816,30 +776,25 @@ main(int argc, char **argv)
 
 	if (sndsock < 0) {
 		errno = sockerrno;
-		Fprintf(stderr, "%s: raw socket: %s\n", prog, strerror(errno));
-		exit(1);
+		err(1, "raw socket");
 	}
 
 #ifdef SO_SNDBUF
 	if (setsockopt(sndsock, SOL_SOCKET, SO_SNDBUF, (char *)&packlen,
 	    sizeof(packlen)) < 0) {
-		Fprintf(stderr, "%s: SO_SNDBUF: %s\n", prog, strerror(errno));
-		exit(1);
+		err(1, "SO_SNDBUF");
 	}
 #endif
 #ifdef IP_HDRINCL
 	if (setsockopt(sndsock, IPPROTO_IP, IP_HDRINCL, (char *)&on,
 	    sizeof(on)) < 0) {
-		Fprintf(stderr, "%s: IP_HDRINCL: %s\n", prog, strerror(errno));
-		exit(1);
+		err(1, "IP_HDRINCL");
 	}
 #else
 #ifdef IP_TOS
 	if (settos && setsockopt(sndsock, IPPROTO_IP, IP_TOS,
 	    (char *)&tos, sizeof(tos)) < 0) {
-		Fprintf(stderr, "%s: setsockopt tos %d: %s\n",
-		    prog, tos, strerror(errno));
-		exit(1);
+		err(1, "setsockopt tos %d", tos);
 	}
 #endif
 #endif
@@ -852,26 +807,18 @@ main(int argc, char **argv)
 
 	/* Get the interface address list */
 	n = ifaddrlist(&al, errbuf);
-	if (n < 0) {
-		Fprintf(stderr, "%s: ifaddrlist: %s\n", prog, errbuf);
-		exit(1);
-	}
-	if (n == 0) {
-		Fprintf(stderr,
-		    "%s: Can't find any network interfaces\n", prog);
-		exit(1);
-	}
+	if (n < 0)
+		errx(1, "ifaddrlist: %s", errbuf);
+	if (n == 0)
+		errx(1, "Can't find any network interfaces");
 
 	/* Look for a specific device */
 	if (device != NULL) {
 		for (i = n; i > 0; --i, ++al)
 			if (strcmp(device, al->device) == 0)
 				break;
-		if (i <= 0) {
-			Fprintf(stderr, "%s: Can't find interface %.32s\n",
-			    prog, device);
-			exit(1);
-		}
+		if (i <= 0)
+			errx(1, "Can't find interface %.32s", device);
 	}
 
 	/* Determine our source address */
@@ -882,10 +829,8 @@ main(int argc, char **argv)
 		 */
 		if (device != NULL)
 			setsin(from, al->addr);
-		else if ((err = findsaddr(to, from)) != NULL) {
-			Fprintf(stderr, "%s: findsaddr: %s\n",
-			    prog, err);
-			exit(1);
+		else if ((serr = findsaddr(to, from)) != NULL) {
+			errx(1, "findsaddr: %s", serr);
 		}
 	} else {
 		hi = gethostinfo(source);
@@ -901,19 +846,15 @@ main(int argc, char **argv)
 			for (i = hi->n, ap = hi->addrs; i > 0; --i, ++ap)
 				if (*ap == al->addr)
 					break;
-			if (i <= 0) {
-				Fprintf(stderr,
-				    "%s: %s is not on interface %.32s\n",
-				    prog, source, device);
-				exit(1);
-			}
+			if (i <= 0)
+				errx(1, "%s is not on interface %.32s",
+				     source, device);
 			setsin(from, *ap);
 		} else {
 			setsin(from, hi->addrs[0]);
 			if (hi->n > 1)
-				Fprintf(stderr,
-			"%s: Warning: %s has multiple addresses; using %s\n",
-				    prog, source, inet_ntoa(from->sin_addr));
+				warnx("Warning: %s has multiple addresses; using %s",
+				      source, inet_ntoa(from->sin_addr));
 		}
 		freehostinfo(hi);
 	}
@@ -921,27 +862,20 @@ main(int argc, char **argv)
 	outip->ip_src = from->sin_addr;
 
 	/* Check the source address (-s), if any, is valid */
-	if (bind(sndsock, (struct sockaddr *)from, sizeof(*from)) < 0) {
-		Fprintf(stderr, "%s: bind: %s\n",
-		    prog, strerror(errno));
-		exit(1);
-	}
+	if (bind(sndsock, (struct sockaddr *)from, sizeof(*from)) < 0)
+		errx(1, "bind");
 
 	if (as_path) {
 		asn = as_setup(as_server);
 		if (asn == NULL) {
-			Fprintf(stderr, "%s: as_setup failed, AS# lookups"
-			    " disabled\n", prog);
-			(void)fflush(stderr);
+			warnx("as_setup failed, AS# lookups disabled");
 			as_path = 0;
 		}
 	}
 
-	if (connect(sndsock, (struct sockaddr *)&whereto,
-	    sizeof(whereto)) != 0) {
-		Fprintf(stderr, "%s: connect: %s\n", prog, strerror(errno));
-		exit(1);
-	}
+	if (connect(sndsock, (struct sockaddr *)whereto,
+	    sizeof(struct sockaddr_in)) != 0)
+		errx(1, "connect");
 
 #ifdef WITH_CASPER
 	cansandbox = true;
@@ -960,28 +894,19 @@ main(int argc, char **argv)
 	 * We must connect(2) our socket before this point.
 	 */
 	if (cansandbox && cap_enter() < 0) {
-		if (errno != ENOSYS) {
-			Fprintf(stderr, "%s: cap_enter: %s\n", prog,
-			    strerror(errno));
-			exit(1);
-		} else {
+		if (errno != ENOSYS)
+			errx(1, "cap_enter");
+		else
 			cansandbox = false;
-		}
 	}
 
 	cap_rights_init(&rights, CAP_SEND, CAP_SETSOCKOPT);
-	if (cansandbox && cap_rights_limit(sndsock, &rights) < 0) {
-		Fprintf(stderr, "%s: cap_rights_limit sndsock: %s\n", prog,
-		    strerror(errno));
-		exit(1);
-	}
+	if (cansandbox && cap_rights_limit(sndsock, &rights) < 0)
+		errx(1, "cap_rights_limit sndsock");
 
 	cap_rights_init(&rights, CAP_RECV, CAP_EVENT);
-	if (cansandbox && cap_rights_limit(s, &rights) < 0) {
-		Fprintf(stderr, "%s: cap_rights_limit s: %s\n", prog,
-		    strerror(errno));
-		exit(1);
-	}
+	if (cansandbox && cap_rights_limit(s, &rights) < 0)
+		errx(1, "cap_rights_limit s");
 
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	if (setpolicy(sndsock, "in bypass") < 0)
@@ -991,8 +916,8 @@ main(int argc, char **argv)
 		errx(1, "%s", ipsec_strerror());
 #endif	/* defined(IPSEC) && defined(IPSEC_POLICY_IPSEC) */
 
-	Fprintf(stderr, "%s to %s (%s)",
-	    prog, hostname, inet_ntoa(to->sin_addr));
+	Fprintf(stderr, "traceroute to %s (%s)",
+		hostname, inet_ntoa(to->sin_addr));
 	if (source)
 		Fprintf(stderr, " from %s", source);
 	Fprintf(stderr, ", %d hops max, %d byte packets\n", max_ttl, packlen);
@@ -1237,10 +1162,8 @@ wait_for_reply(register int sock, register struct sockaddr_in *fromp,
 	}
 
 	error = select(sock + 1, fdsp, NULL, NULL, &wait);
-	if (error == -1 && errno == EINVAL) {
-		Fprintf(stderr, "%s: botched select() args\n", prog);
-		exit(1);
-	}
+	if (error == -1 && errno == EINVAL)
+		errx(1, "botched select() args");
 	if (error > 0)
 		cc = recvfrom(sock, (char *)packet, sizeof(packet), 0,
 			    (struct sockaddr *)fromp, &fromlen);
@@ -1281,21 +1204,15 @@ send_probe(int seq, int ttl)
 
 #if !defined(IP_HDRINCL) && defined(IP_TTL)
 	if (setsockopt(sndsock, IPPROTO_IP, IP_TTL,
-	    (char *)&ttl, sizeof(ttl)) < 0) {
-		Fprintf(stderr, "%s: setsockopt ttl %d: %s\n",
-		    prog, ttl, strerror(errno));
-		exit(1);
-	}
+	    (char *)&ttl, sizeof(ttl)) < 0)
+		errx(1, "setsockopt ttl %d", ttl);
 #endif
 
 	cc = send(sndsock, (char *)outip, packlen, 0);
 	if (cc < 0 || cc != packlen)  {
 		if (cc < 0)
-			Fprintf(stderr, "%s: sendto: %s\n",
-			    prog, strerror(errno));
-		Printf("%s: wrote %s %d chars, ret=%d\n",
-		    prog, hostname, packlen, cc);
-		(void)fflush(stdout);
+			warn("sendto");
+		warnx("wrote %s %d chars, ret=%d", hostname, packlen, cc);
 	}
 }
 
@@ -1902,26 +1819,19 @@ gethostinfo(register char *hostname)
 	register char **p;
 	register u_int32_t addr, *ap;
 
-	if (strlen(hostname) >= MAXHOSTNAMELEN) {
-		Fprintf(stderr, "%s: hostname \"%.32s...\" is too long\n",
-		    prog, hostname);
-		exit(1);
-	}
+	if (strlen(hostname) >= MAXHOSTNAMELEN)
+		errx(1, "hostname \"%.32s...\" is too long", hostname);
 	hi = calloc(1, sizeof(*hi));
-	if (hi == NULL) {
-		Fprintf(stderr, "%s: calloc %s\n", prog, strerror(errno));
-		exit(1);
-	}
+	if (hi == NULL)
+		err(1, "calloc");
+
 	addr = inet_addr(hostname);
 	if ((int32_t)addr != -1) {
 		hi->name = strdup(hostname);
 		hi->n = 1;
 		hi->addrs = calloc(1, sizeof(hi->addrs[0]));
-		if (hi->addrs == NULL) {
-			Fprintf(stderr, "%s: calloc %s\n",
-			    prog, strerror(errno));
-			exit(1);
-		}
+		if (hi->addrs == NULL)
+			err(1, "calloc");
 		hi->addrs[0] = addr;
 		return (hi);
 	}
@@ -1932,23 +1842,17 @@ gethostinfo(register char *hostname)
 	else
 #endif
 		hp = gethostbyname(hostname);
-	if (hp == NULL) {
-		Fprintf(stderr, "%s: unknown host %s\n", prog, hostname);
-		exit(1);
-	}
-	if (hp->h_addrtype != AF_INET || hp->h_length != 4) {
-		Fprintf(stderr, "%s: bad host %s\n", prog, hostname);
-		exit(1);
-	}
+	if (hp == NULL)
+		errx(1, "unknown host %s", hostname);
+	if (hp->h_addrtype != AF_INET || hp->h_length != 4)
+		errx(1, "bad host %s", hostname);
 	hi->name = strdup(hp->h_name);
 	for (n = 0, p = hp->h_addr_list; *p != NULL; ++n, ++p)
 		continue;
 	hi->n = n;
 	hi->addrs = calloc(n, sizeof(hi->addrs[0]));
-	if (hi->addrs == NULL) {
-		Fprintf(stderr, "%s: calloc %s\n", prog, strerror(errno));
-		exit(1);
-	}
+	if (hi->addrs == NULL)
+		err(1, "calloc");
 	for (ap = hi->addrs, p = hp->h_addr_list; *p != NULL; ++ap, ++p)
 		memcpy(ap, *p, sizeof(*ap));
 	return (hi);
@@ -1999,24 +1903,16 @@ str2val(register const char *str, register const char *what,
 		val = (int)strtol(cp, &ep, 16);
 	} else
 		val = (int)strtol(str, &ep, 10);
-	if (*ep != '\0') {
-		Fprintf(stderr, "%s: \"%s\" bad value for %s\n",
-		    prog, str, what);
-		exit(1);
-	}
+	if (*ep != '\0')
+		errx(1, "\"%s\" bad value for %s", str, what);
 	if (val < mi && mi >= 0) {
 		if (mi == 0)
-			Fprintf(stderr, "%s: %s must be >= %d\n",
-			    prog, what, mi);
+			errx(1, "%s must be >= %d", what, mi);
 		else
-			Fprintf(stderr, "%s: %s must be > %d\n",
-			    prog, what, mi - 1);
-		exit(1);
+			errx(1, "%s must be > %d", what, mi - 1);
 	}
-	if (val > ma && ma >= 0) {
-		Fprintf(stderr, "%s: %s must be <= %d\n", prog, what, ma);
-		exit(1);
-	}
+	if (val > ma && ma >= 0)
+		errx(1, "%s must be <= %d\n", what, ma);
 	return (val);
 }
 
@@ -2070,9 +1966,9 @@ void
 usage(void)
 {
 	Fprintf(stderr,
-	    "Usage: %s [-adDeEFInrSvx] [-A as_server] [-f first_ttl] [-g gateway]\n"
+	    "Usage: traceroute [-adDeEFInrSvx] [-A as_server] [-f first_ttl] [-g gateway]\n"
 	    "\t[-i iface] [-m max_ttl] [-M first_ttl] [-p port] [-P proto]\n"
 	    "\t[-q nprobes] [-s src_addr] [-t tos] [-w waittime]\n"
-	    "\t[-z pausemsecs] host [packetlen]\n", prog);
+	    "\t[-z pausemsecs] host [packetlen]\n");
 	exit(1);
 }

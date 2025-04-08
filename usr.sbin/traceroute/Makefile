@@ -3,7 +3,7 @@
 PACKAGE=	runtime
 PROG=	traceroute
 MAN=	traceroute.8
-SRCS=	as.c traceroute.c ifaddrlist.c findsaddr-udp.c
+SRCS=	as.c traceroute.c traceroute6.c ifaddrlist.c findsaddr-udp.c main.c
 BINOWN=	root
 BINMODE=4555
 
