@@ -1630,13 +1630,3 @@ tcp_chksum(struct sockaddr_in6 *src, struct sockaddr_in6 *dst,
 
 	return (~in_cksum(sum, sizeof(sum)));
 }
-
-void
-usage(void)
-{
-	fprintf(stderr,
-"Usage: traceroute6 [-adEIlnNrSTUv] [-A as_server] [-f firsthop] [-g gateway]\n"
-"\t[-m hoplimit] [-p port] [-q probes] [-s src] [-t tclass]\n"
-"\t[-w waittime] target [datalen]\n");
-	exit(1);
-}
