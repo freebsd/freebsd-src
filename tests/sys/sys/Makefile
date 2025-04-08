@@ -7,6 +7,7 @@ ATF_TESTS_C=	arb_test \
 		bitset_test \
 		bitstring_test \
 		qmath_test \
+		queue_test \
 		rb_test \
 		splay_test \
 		time_test
