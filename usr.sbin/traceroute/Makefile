@@ -6,6 +6,7 @@ MAN=	traceroute.8
 SRCS=	as.c traceroute.c traceroute6.c ifaddrlist.c findsaddr-udp.c main.c
 BINOWN=	root
 BINMODE=4555
+LINKS=	${BINDIR}/traceroute ${BINDIR}/traceroute6
 
 .if !defined(TRACEROUTE_NO_IPSEC)
 CFLAGS+= -DIPSEC
