@@ -303,13 +303,13 @@ fdt_parent_addr_cells(phandle_t node)
 }
 
 u_long
-fdt_data_get(void *data, int cells)
+fdt_data_get(const void *data, int cells)
 {
 
 	if (cells == 1)
-		return (fdt32_to_cpu(*((uint32_t *)data)));
+		return (fdt32_to_cpu(*((const uint32_t *)data)));
 
-	return (fdt64_to_cpu(*((uint64_t *)data)));
+	return (fdt64_to_cpu(*((const uint64_t *)data)));
 }
 
 int
@@ -336,22 +336,22 @@ fdt_addrsize_cells(phandle_t node, int *addr_cells, int *size_cells)
 }
 
 int
-fdt_data_to_res(pcell_t *data, int addr_cells, int size_cells, u_long *start,
-    u_long *count)
+fdt_data_to_res(const pcell_t *data, int addr_cells, int size_cells,
+    u_long *start, u_long *count)
 {
 
 	/* Address portion. */
 	if (addr_cells > 2)
 		return (ERANGE);
 
-	*start = fdt_data_get((void *)data, addr_cells);
+	*start = fdt_data_get((const void *)data, addr_cells);
 	data += addr_cells;
 
 	/* Size portion. */
 	if (size_cells > 2)
 		return (ERANGE);
 
-	*count = fdt_data_get((void *)data, size_cells);
+	*count = fdt_data_get((const void *)data, size_cells);
 	return (0);
 }
 
