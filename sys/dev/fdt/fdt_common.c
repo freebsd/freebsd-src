@@ -443,6 +443,55 @@ fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 }
 
 int
+fdt_foreach_reserved_region(fdt_mem_region_cb cb, void *arg)
+{
+	struct mem_region mr;
+	pcell_t reserve[FDT_REG_CELLS * FDT_MEM_REGIONS];
+	pcell_t *reservep;
+	phandle_t memory, root;
+	int addr_cells, size_cells;
+	int i, res_len, rv, tuple_size, tuples;
+
+	root = OF_finddevice("/");
+	memory = OF_finddevice("/memory");
+	if (memory == -1)
+		return (ENXIO);
+
+	if ((rv = fdt_addrsize_cells(OF_parent(memory), &addr_cells,
+	    &size_cells)) != 0)
+		return (rv);
+
+	if (addr_cells > 2)
+		return (ERANGE);
+
+	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
+
+	res_len = OF_getproplen(root, "memreserve");
+	if (res_len <= 0 || res_len > sizeof(reserve))
+		return (ERANGE);
+
+	if (OF_getprop(root, "memreserve", reserve, res_len) <= 0)
+		return (ENXIO);
+
+	tuples = res_len / tuple_size;
+	reservep = (pcell_t *)&reserve;
+	for (i = 0; i < tuples; i++) {
+
+		rv = fdt_data_to_res(reservep, addr_cells, size_cells,
+			(u_long *)&mr.mr_start, (u_long *)&mr.mr_size);
+
+		if (rv != 0)
+			return (rv);
+
+		cb(&mr, arg);
+
+		reservep += addr_cells + size_cells;
+	}
+
+	return (0);
+}
+
+int
 fdt_get_reserved_regions(struct mem_region *mr, int *mrcnt)
 {
 	pcell_t reserve[FDT_REG_CELLS * FDT_MEM_REGIONS];
