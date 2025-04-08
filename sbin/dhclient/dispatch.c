@@ -160,8 +160,8 @@ dispatch(void)
 	struct protocol *l;
 	struct pollfd *fds;
 	struct timespec howlong;
-	time_now.tv_sec = cur_time;
-	time_now.tv_nsec = 0;
+
+	clock_gettime(CLOCK_MONOTONIC, &time_now);
 
 	for (l = protocols; l; l = l->next)
 		nfds++;
@@ -225,7 +225,7 @@ another:
 		if (count == -1) {
 			if (errno == EAGAIN || errno == EINTR) {
 				clock_gettime(CLOCK_MONOTONIC, &time_now);
-				cur_time = time_now.tv_sec;
+				cur_time = time(NULL);
 				continue;
 			} else
 				error("poll: %m");
@@ -233,7 +233,7 @@ another:
 
 		/* Get the current time... */
 		clock_gettime(CLOCK_MONOTONIC, &time_now);
-		cur_time = time_now.tv_sec;
+		cur_time = time(NULL);
 
 		i = 0;
 		for (l = protocols; l; l = l->next) {
@@ -366,7 +366,11 @@ active:
 void
 add_timeout(time_t when_s, void (*where)(void *), void *what)
 {
-	struct timespec when = { .tv_sec = when_s, .tv_nsec = 0 };
+	struct timespec when;
+
+	cur_time = time(NULL);
+	clock_gettime(CLOCK_MONOTONIC, &when);
+	when.tv_sec += when_s - cur_time;
 	add_timeout_timespec(when, where, what);
 }
 
