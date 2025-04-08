@@ -343,6 +343,7 @@ struct ieee80211_bss_conf {
 	bool					eht_support;
 	bool					csa_active;
 	bool					mu_mimo_owner;
+	bool					color_change_active;
 	uint32_t				sync_device_ts;
 	uint64_t				sync_tsf;
 	uint16_t				beacon_int;
@@ -363,7 +364,6 @@ struct ieee80211_bss_conf {
 	int		twt_requester, uora_exists, uora_ocw_range;
 	int		assoc_capability, enable_beacon, hidden_ssid, ibss_joined, twt_protected;
 	int		twt_responder, unsol_bcast_probe_resp_interval;
-	int		color_change_active;
 };
 
 struct ieee80211_channel_switch {
@@ -831,9 +831,8 @@ struct ieee80211_vif_cfg {
 struct ieee80211_vif {
 	/* TODO FIXME */
 	enum nl80211_iftype		type;
-	int		csa_active, mu_mimo_owner;
 	int		cab_queue;
-	int     color_change_active, offload_flags;
+	int		offload_flags;
 	enum ieee80211_vif_driver_flags	driver_flags;
 	bool				p2p;
 	bool				probe_req_reg;
