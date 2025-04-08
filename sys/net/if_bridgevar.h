@@ -320,5 +320,6 @@ struct ifbpstpconf {
 } while (0)
 
 extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
+extern	bool (*bridge_member_ifaddrs_p)(void);
 
 #endif /* _KERNEL */
