@@ -87,6 +87,7 @@ int fdt_foreach_mem_region(fdt_mem_region_cb, void *);
 int fdt_get_mem_regions(struct mem_region *, int *, uint64_t *);
 int fdt_foreach_reserved_mem(fdt_mem_region_cb, void *);
 int fdt_get_reserved_mem(struct mem_region *, int *);
+int fdt_foreach_reserved_region(fdt_mem_region_cb, void *);
 int fdt_get_reserved_regions(struct mem_region *, int *);
 int fdt_get_phyaddr(phandle_t, device_t, int *, void **);
 int fdt_get_range(phandle_t, int, u_long *, u_long *);
