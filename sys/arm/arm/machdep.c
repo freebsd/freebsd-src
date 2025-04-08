@@ -415,14 +415,26 @@ arm_kdb_init(void)
 }
 
 #ifdef FDT
+static void
+fdt_physmem_hardware_region_cb(const struct mem_region *mr, void *arg __unused)
+{
+	physmem_hardware_region(mr->mr_start, mr->mr_size);
+}
+
+static void
+fdt_physmem_exclude_region_cb(const struct mem_region *mr, void *arg __unused)
+{
+	physmem_exclude_region(mr->mr_start, mr->mr_size,
+	    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+}
+
 void *
 initarm(struct arm_boot_params *abp)
 {
-	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	vm_paddr_t lastaddr;
 	vm_offset_t dtbp, kernelstack, dpcpu;
 	char *env;
-	int err_devmap, mem_regions_sz;
+	int err_devmap;
 	phandle_t root;
 	char dts_version[255];
 #ifdef EFI
@@ -469,15 +481,13 @@ initarm(struct arm_boot_params *abp)
 #endif
 	{
 		/* Grab physical memory regions information from device tree. */
-		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,NULL) != 0)
+		if (fdt_foreach_mem_region(fdt_physmem_hardware_region_cb,
+		    NULL) != 0)
 			panic("Cannot get physical memory regions");
 
-		physmem_hardware_regions(mem_regions, mem_regions_sz);
-
 		/* Grab reserved memory regions information from device tree. */
-		if (fdt_get_reserved_regions(mem_regions, &mem_regions_sz) == 0)
-			physmem_exclude_regions(mem_regions, mem_regions_sz,
-			    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+		fdt_foreach_reserved_region(fdt_physmem_exclude_region_cb,
+		    NULL);
 	}
 
 	/*
