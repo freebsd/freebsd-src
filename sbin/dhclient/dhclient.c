@@ -90,8 +90,8 @@
 
 cap_channel_t *capsyslog;
 
-time_t cur_time;
-struct timespec time_now;
+time_t cur_time;	/* Seconds since epoch. */
+struct timespec time_now;	/* CLOCK_MONOTONIC. */
 static time_t default_lease_time = 43200; /* 12 hours... */
 
 const char *path_dhclient_conf = _PATH_DHCLIENT_CONF;
@@ -450,7 +450,7 @@ main(int argc, char *argv[])
 
 	tzset();
 	clock_gettime(CLOCK_MONOTONIC, &time_now);
-	cur_time = time_now.tv_sec;
+	cur_time = time(NULL);
 
 	inaddr_broadcast.s_addr = INADDR_BROADCAST;
 	inaddr_any.s_addr = INADDR_ANY;
@@ -1030,12 +1030,12 @@ dhcpoffer(struct packet *packet)
 	struct client_lease *lease, *lp;
 	int i;
 	struct timespec arp_timeout_needed;
-	struct timespec stop_selecting = { .tv_sec = 0, .tv_nsec = 0 };
-	time_now.tv_sec = cur_time;
-	time_now.tv_nsec = 0;
-
+	time_t stop_selecting;
+	struct timespec stop_time;
 	const char *name = packet->options[DHO_DHCP_MESSAGE_TYPE].len ?
 	    "DHCPOFFER" : "BOOTREPLY";
+
+	clock_gettime(CLOCK_MONOTONIC, &time_now);
 
 	/* If we're not receptive to an offer right now, or if the offer
 	   has an unrecognizable transaction id, then just drop it. */
@@ -1095,7 +1095,7 @@ dhcpoffer(struct packet *packet)
 		arp_timeout_needed = arp_timeout;
 
 	/* Figure out when we're supposed to stop selecting. */
-	stop_selecting.tv_sec =
+	stop_selecting =
 	    ip->client->first_sending + ip->client->config->select_interval;
 
 	/* If this is the lease we asked for, put it at the head of the
@@ -1116,7 +1116,7 @@ dhcpoffer(struct packet *packet)
 		timespecadd(&time_now, &arp_timeout_needed, &interm_struct);
 
 		if (ip->client->offered_leases &&
-		    timespeccmp(&interm_struct, &stop_selecting, >))
+		    interm_struct.tv_sec >= stop_selecting)
 			arp_timeout_needed = zero_timespec;
 
 		/* Put the lease at the end of the list. */
@@ -1131,27 +1131,21 @@ dhcpoffer(struct packet *packet)
 		}
 	}
 
-	/* If we're supposed to stop selecting before we've had time
-	   to wait for the ARPREPLY, add some delay to wait for
-	   the ARPREPLY. */
-	struct timespec time_left;
-	timespecsub(&stop_selecting, &time_now, &time_left);
-
+	/*
+	 * Wait until stop_selecting seconds past the epoch, or until
+	 * arp_timeout_needed past now, whichever is longer.  Note that
+	 * the first case only occurs if select-timeout is set to nonzero
+	 * in dhclient.conf.
+	 */
+	struct timespec time_left =
+	    {.tv_sec = stop_selecting - cur_time, .tv_nsec = 0};
 	if (timespeccmp(&time_left, &arp_timeout_needed, <)) {
-		timespecadd(&time_now, &arp_timeout_needed, &stop_selecting);
+		timespecadd(&time_now, &arp_timeout_needed, &stop_time);
+	} else {
+		timespecadd(&time_now, &time_left, &stop_time);
 	}
-
-	/* If the selecting interval has expired, go immediately to
-	   state_selecting().  Otherwise, time out into
-	   state_selecting at the select interval. */
-
-
-	if (timespeccmp(&stop_selecting, &zero_timespec, <=))
-		state_selecting(ip);
-	else {
-		add_timeout_timespec(stop_selecting, state_selecting, ip);
-		cancel_timeout(send_discover, ip);
-	}
+	add_timeout_timespec(stop_time, state_selecting, ip);
+	cancel_timeout(send_discover, ip);
 }
 
 /* Allocate a client_lease structure and initialize it from the parameters
