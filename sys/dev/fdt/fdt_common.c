@@ -541,6 +541,53 @@ fdt_get_reserved_mem(struct mem_region *reserved, int *mreserved)
 }
 
 int
+fdt_foreach_mem_region(fdt_mem_region_cb cb, void *arg)
+{
+	struct mem_region mr;
+	pcell_t reg[FDT_REG_CELLS * FDT_MEM_REGIONS];
+	pcell_t *regp;
+	phandle_t memory;
+	int addr_cells, size_cells;
+	int i, reg_len, rv, tuple_size, tuples;
+
+	memory = OF_finddevice("/memory");
+	if (memory == -1)
+		return (ENXIO);
+
+	if ((rv = fdt_addrsize_cells(OF_parent(memory), &addr_cells,
+	    &size_cells)) != 0)
+		return (rv);
+
+	if (addr_cells > 2)
+		return (ERANGE);
+
+	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
+	reg_len = OF_getproplen(memory, "reg");
+	if (reg_len <= 0 || reg_len > sizeof(reg))
+		return (ERANGE);
+
+	if (OF_getprop(memory, "reg", reg, reg_len) <= 0)
+		return (ENXIO);
+
+	tuples = reg_len / tuple_size;
+	regp = (pcell_t *)&reg;
+	for (i = 0; i < tuples; i++) {
+
+		rv = fdt_data_to_res(regp, addr_cells, size_cells,
+			(u_long *)&mr.mr_start, (u_long *)&mr.mr_size);
+
+		if (rv != 0)
+			return (rv);
+
+		cb(&mr, arg);
+
+		regp += addr_cells + size_cells;
+	}
+
+	return (0);
+}
+
+int
 fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint64_t *memsize)
 {
 	pcell_t reg[FDT_REG_CELLS * FDT_MEM_REGIONS];
