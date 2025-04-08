@@ -85,6 +85,7 @@ phandle_t fdt_find_compatible(phandle_t, const char *, int);
 phandle_t fdt_depth_search_compatible(phandle_t, const char *, int);
 int fdt_foreach_mem_region(fdt_mem_region_cb, void *);
 int fdt_get_mem_regions(struct mem_region *, int *, uint64_t *);
+int fdt_foreach_reserved_mem(fdt_mem_region_cb, void *);
 int fdt_get_reserved_mem(struct mem_region *, int *);
 int fdt_get_reserved_regions(struct mem_region *, int *);
 int fdt_get_phyaddr(phandle_t, device_t, int *, void **);
