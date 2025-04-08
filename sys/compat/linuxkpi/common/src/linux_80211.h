@@ -216,6 +216,8 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	TAILQ_HEAD(, lkpi_vif)		lvif_head;
 	struct sx			lvif_sx;
 
+	struct list_head		lchanctx_list;
+
 	struct mtx			txq_mtx;
 	uint32_t			txq_generation[IEEE80211_NUM_ACS];
 	TAILQ_HEAD(, lkpi_txq)		scheduled_txqs[IEEE80211_NUM_ACS];
@@ -282,7 +284,10 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 #define	HW_TO_LHW(_hw)		container_of(_hw, struct lkpi_hw, hw)
 
 struct lkpi_chanctx {
+	struct list_head		entry;
+
 	bool				added_to_drv;	/* Managed by MO */
+
 	struct ieee80211_chanctx_conf	chanctx_conf __aligned(CACHE_LINE_SIZE);
 };
 #define	LCHANCTX_TO_CHANCTX_CONF(_lchanctx)		\
