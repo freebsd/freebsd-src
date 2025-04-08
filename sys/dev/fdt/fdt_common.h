@@ -66,10 +66,6 @@ struct fdt_ic {
 	device_t		dev;
 };
 
-extern vm_paddr_t fdt_immr_pa;
-extern vm_offset_t fdt_immr_va;
-extern vm_offset_t fdt_immr_size;
-
 #if defined(FDT_DTB_STATIC)
 extern u_char fdt_static_dtb;
 #endif

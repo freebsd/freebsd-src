@@ -103,6 +103,10 @@ void mv_axp_platform_mp_setmaxid(platform_t plate);
 void mv_axp_platform_mp_start_ap(platform_t plate);
 #endif
 
+vm_paddr_t fdt_immr_pa;
+vm_offset_t fdt_immr_va;
+static vm_offset_t fdt_immr_size;
+
 #define MPP_PIN_MAX		68
 #define MPP_PIN_CELLS		2
 #define MPP_PINS_PER_REG	8
@@ -270,9 +274,35 @@ static int
 mv_platform_probe_and_attach(platform_t plate)
 {
 
-	if (fdt_immr_addr(MV_BASE) != 0)
-		while (1);
-	return (0);
+	phandle_t node;
+	u_long base, size;
+	int r;
+
+	/*
+	 * Try to access the SOC node directly i.e. through /aliases/.
+	 */
+	if ((node = OF_finddevice("soc")) != -1)
+		if (ofw_bus_node_is_compatible(node, "simple-bus"))
+			goto moveon;
+	/*
+	 * Find the node the long way.
+	 */
+	if ((node = OF_finddevice("/")) == -1)
+		goto errout;
+
+	if ((node = fdt_find_compatible(node, "simple-bus", 0)) == 0)
+		goto errout;
+
+moveon:
+	if ((r = fdt_get_range(node, 0, &base, &size)) == 0) {
+		fdt_immr_pa = base;
+		fdt_immr_va = MV_BASE;
+		fdt_immr_size = size;
+		return (0);
+	}
+
+errout:
+	while (1);
 }
 
 static void
