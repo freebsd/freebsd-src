@@ -506,13 +506,46 @@ parse_metadata(void)
 	return (lastaddr);
 }
 
+#ifdef FDT
+static void
+fdt_physmem_hardware_region_cb(const struct mem_region *mr, void *arg)
+{
+	bool *first = arg;
+
+	physmem_hardware_region(mr->mr_start, mr->mr_size);
+
+	if (*first) {
+		/*
+		 * XXX: Unconditionally exclude the lowest 2MB of physical
+		 * memory, as this area is assumed to contain the SBI firmware,
+		 * and this is not properly reserved in all cases (e.g. in
+		 * older firmware like BBL).
+		 *
+		 * This is a little fragile, but it is consistent with the
+		 * platforms we support so far.
+		 *
+		 * TODO: remove this when the all regular booting methods
+		 * properly report their reserved memory in the device tree.
+		 */
+		physmem_exclude_region(mr->mr_start, L2_SIZE,
+		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+		*first = false;
+	}
+}
+
+static void
+fdt_physmem_exclude_region_cb(const struct mem_region *mr, void *arg __unused)
+{
+	physmem_exclude_region(mr->mr_start, mr->mr_size,
+	    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+}
+#endif
+
 void
 initriscv(struct riscv_bootparams *rvbp)
 {
-	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	struct efi_map_header *efihdr;
 	struct pcpu *pcpup;
-	int mem_regions_sz;
 	vm_offset_t lastaddr;
 	vm_size_t kernlen;
 	char *env;
@@ -547,31 +580,17 @@ initriscv(struct riscv_bootparams *rvbp)
 	}
 #ifdef FDT
 	else {
+		bool first;
+
 		/* Exclude reserved memory specified by the device tree. */
-		if (fdt_get_reserved_mem(mem_regions, &mem_regions_sz) == 0) {
-			physmem_exclude_regions(mem_regions, mem_regions_sz,
-			    EXFLAG_NODUMP | EXFLAG_NOALLOC);
-		}
+		fdt_foreach_reserved_mem(fdt_physmem_exclude_region_cb, NULL);
 
 		/* Grab physical memory regions information from device tree. */
-		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, NULL) != 0)
+		first = true;
+		if (fdt_foreach_mem_region(fdt_physmem_hardware_region_cb,
+		    &first) != 0)
 			panic("Cannot get physical memory regions");
-		physmem_hardware_regions(mem_regions, mem_regions_sz);
 
-		/*
-		 * XXX: Unconditionally exclude the lowest 2MB of physical
-		 * memory, as this area is assumed to contain the SBI firmware,
-		 * and this is not properly reserved in all cases (e.g. in
-		 * older firmware like BBL).
-		 *
-		 * This is a little fragile, but it is consistent with the
-		 * platforms we support so far.
-		 *
-		 * TODO: remove this when the all regular booting methods
-		 * properly report their reserved memory in the device tree.
-		 */
-		physmem_exclude_region(mem_regions[0].mr_start, L2_SIZE,
-		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 	}
 #endif
 
