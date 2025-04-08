@@ -1735,24 +1735,27 @@ lkpi_80211_flush_tx(struct lkpi_hw *lhw, struct lkpi_sta *lsta)
 static void
 lkpi_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	/* Take the chan ctx down. */
-	if (vif->bss_conf.chanctx_conf != NULL) {
-		struct lkpi_chanctx *lchanctx;
-		struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct lkpi_chanctx *lchanctx;
 
-		chanctx_conf = vif->bss_conf.chanctx_conf;
-		/* Remove vif context. */
-		lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, &vif->bss_conf.chanctx_conf);
-		/* NB: vif->bss_conf.chanctx_conf is NULL now. */
+	chanctx_conf = rcu_dereference_protected(vif->bss_conf.chanctx_conf,
+	    lockdep_is_held(&hw->wiphy->mtx));
 
-		lkpi_hw_conf_idle(hw, true);
+	if (chanctx_conf == NULL)
+		return;
 
-		/* Remove chan ctx. */
-		lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
-		vif->bss_conf.chanctx_conf = NULL;
-		lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
-		free(lchanctx, M_LKPI80211);
-	}
+	/* Remove vif context. */
+	lkpi_80211_mo_unassign_vif_chanctx(hw, vif, &vif->bss_conf, chanctx_conf);
+
+	lkpi_hw_conf_idle(hw, true);
+
+	/* Remove chan ctx. */
+	lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
+
+	/* Cleanup. */
+	rcu_assign_pointer(vif->bss_conf.chanctx_conf, NULL);
+	lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
+	free(lchanctx, M_LKPI80211);
 }
 
 
@@ -2183,7 +2186,9 @@ lkpi_sta_auth_to_scan(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	/* conf_tx */
 
+	wiphy_lock(hw->wiphy);
 	lkpi_remove_chanctx(hw, vif);
+	wiphy_unlock(hw->wiphy);
 
 out:
 	LKPI_80211_LHW_UNLOCK(lhw);
@@ -2511,7 +2516,9 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 
 	/* conf_tx */
 
+	wiphy_lock(hw->wiphy);
 	lkpi_remove_chanctx(hw, vif);
+	wiphy_unlock(hw->wiphy);
 
 	error = EALREADY;
 out:
@@ -3111,7 +3118,9 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 
 	/* conf_tx */
 
+	wiphy_lock(hw->wiphy);
 	lkpi_remove_chanctx(hw, vif);
+	wiphy_unlock(hw->wiphy);
 
 	error = EALREADY;
 out:

@@ -425,7 +425,7 @@ int lkpi_80211_mo_config(struct ieee80211_hw *, uint32_t);
 int lkpi_80211_mo_assign_vif_chanctx(struct ieee80211_hw *, struct ieee80211_vif *,
     struct ieee80211_bss_conf *, struct ieee80211_chanctx_conf *);
 void lkpi_80211_mo_unassign_vif_chanctx(struct ieee80211_hw *, struct ieee80211_vif *,
-    struct ieee80211_bss_conf *, struct ieee80211_chanctx_conf **);
+    struct ieee80211_bss_conf *, struct ieee80211_chanctx_conf *);
 int lkpi_80211_mo_add_chanctx(struct ieee80211_hw *, struct ieee80211_chanctx_conf *);
 void lkpi_80211_mo_change_chanctx(struct ieee80211_hw *,
     struct ieee80211_chanctx_conf *, uint32_t);
