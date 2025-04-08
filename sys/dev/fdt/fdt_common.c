@@ -492,63 +492,6 @@ fdt_foreach_reserved_region(fdt_mem_region_cb cb, void *arg)
 }
 
 int
-fdt_get_reserved_regions(struct mem_region *mr, int *mrcnt)
-{
-	pcell_t reserve[FDT_REG_CELLS * FDT_MEM_REGIONS];
-	pcell_t *reservep;
-	phandle_t memory, root;
-	int addr_cells, size_cells;
-	int i, res_len, rv, tuple_size, tuples;
-
-	root = OF_finddevice("/");
-	memory = OF_finddevice("/memory");
-	if (memory == -1) {
-		rv = ENXIO;
-		goto out;
-	}
-
-	if ((rv = fdt_addrsize_cells(OF_parent(memory), &addr_cells,
-	    &size_cells)) != 0)
-		goto out;
-
-	if (addr_cells > 2) {
-		rv = ERANGE;
-		goto out;
-	}
-
-	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
-
-	res_len = OF_getproplen(root, "memreserve");
-	if (res_len <= 0 || res_len > sizeof(reserve)) {
-		rv = ERANGE;
-		goto out;
-	}
-
-	if (OF_getprop(root, "memreserve", reserve, res_len) <= 0) {
-		rv = ENXIO;
-		goto out;
-	}
-
-	tuples = res_len / tuple_size;
-	reservep = (pcell_t *)&reserve;
-	for (i = 0; i < tuples; i++) {
-
-		rv = fdt_data_to_res(reservep, addr_cells, size_cells,
-			(u_long *)&mr[i].mr_start, (u_long *)&mr[i].mr_size);
-
-		if (rv != 0)
-			goto out;
-
-		reservep += addr_cells + size_cells;
-	}
-
-	*mrcnt = i;
-	rv = 0;
-out:
-	return (rv);
-}
-
-int
 fdt_foreach_reserved_mem(fdt_mem_region_cb cb, void *arg)
 {
 	struct mem_region mr;
@@ -582,47 +525,6 @@ fdt_foreach_reserved_mem(fdt_mem_region_cb cb, void *arg)
 
 		cb(&mr, arg);
 	}
-
-	return (0);
-}
-
-int
-fdt_get_reserved_mem(struct mem_region *reserved, int *mreserved)
-{
-	pcell_t reg[FDT_REG_CELLS];
-	phandle_t child, root;
-	int addr_cells, size_cells;
-	int i, rv;
-
-	root = OF_finddevice("/reserved-memory");
-	if (root == -1) {
-		return (ENXIO);
-	}
-
-	if ((rv = fdt_addrsize_cells(root, &addr_cells, &size_cells)) != 0)
-		return (rv);
-
-	if (addr_cells + size_cells > FDT_REG_CELLS)
-		panic("Too many address and size cells %d %d", addr_cells,
-		    size_cells);
-
-	i = 0;
-	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
-		if (!OF_hasprop(child, "no-map"))
-			continue;
-
-		rv = OF_getprop(child, "reg", reg, sizeof(reg));
-		if (rv <= 0)
-			/* XXX: Does a no-map of a dynamic range make sense? */
-			continue;
-
-		fdt_data_to_res(reg, addr_cells, size_cells,
-		    (u_long *)&reserved[i].mr_start,
-		    (u_long *)&reserved[i].mr_size);
-		i++;
-	}
-
-	*mreserved = i;
 
 	return (0);
 }
@@ -672,71 +574,6 @@ fdt_foreach_mem_region(fdt_mem_region_cb cb, void *arg)
 	}
 
 	return (0);
-}
-
-int
-fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint64_t *memsize)
-{
-	pcell_t reg[FDT_REG_CELLS * FDT_MEM_REGIONS];
-	pcell_t *regp;
-	phandle_t memory;
-	uint64_t memory_size;
-	int addr_cells, size_cells;
-	int i, reg_len, rv, tuple_size, tuples;
-
-	memory = OF_finddevice("/memory");
-	if (memory == -1) {
-		rv = ENXIO;
-		goto out;
-	}
-
-	if ((rv = fdt_addrsize_cells(OF_parent(memory), &addr_cells,
-	    &size_cells)) != 0)
-		goto out;
-
-	if (addr_cells > 2) {
-		rv = ERANGE;
-		goto out;
-	}
-
-	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
-	reg_len = OF_getproplen(memory, "reg");
-	if (reg_len <= 0 || reg_len > sizeof(reg)) {
-		rv = ERANGE;
-		goto out;
-	}
-
-	if (OF_getprop(memory, "reg", reg, reg_len) <= 0) {
-		rv = ENXIO;
-		goto out;
-	}
-
-	memory_size = 0;
-	tuples = reg_len / tuple_size;
-	regp = (pcell_t *)&reg;
-	for (i = 0; i < tuples; i++) {
-
-		rv = fdt_data_to_res(regp, addr_cells, size_cells,
-			(u_long *)&mr[i].mr_start, (u_long *)&mr[i].mr_size);
-
-		if (rv != 0)
-			goto out;
-
-		regp += addr_cells + size_cells;
-		memory_size += mr[i].mr_size;
-	}
-
-	if (memory_size == 0) {
-		rv = ERANGE;
-		goto out;
-	}
-
-	*mrcnt = i;
-	if (memsize != NULL)
-		*memsize = memory_size;
-	rv = 0;
-out:
-	return (rv);
 }
 
 int
