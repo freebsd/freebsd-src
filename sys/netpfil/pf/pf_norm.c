@@ -434,7 +434,7 @@ pf_frent_remove(struct pf_fragment *frag, struct pf_frent *frent)
 {
 #ifdef INVARIANTS
 	struct pf_frent *prev = TAILQ_PREV(frent, pf_fragq, fr_next);
-#endif
+#endif /* INVARIANTS */
 	struct pf_frent *next = TAILQ_NEXT(frent, fr_next);
 	int index;
 
@@ -1457,6 +1457,8 @@ pf_normalize_tcp_init(struct pf_pdesc *pd, struct tcphdr *th,
 		break;
 	}
 #endif /* INET6 */
+	default:
+		unhandled_af(pd->af);
 	}
 
 	/*
@@ -1581,6 +1583,8 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 		break;
 	}
 #endif /* INET6 */
+	default:
+		unhandled_af(pd->af);
 	}
 
 	if (th->th_off > (sizeof(struct tcphdr) >> 2) &&
@@ -2200,7 +2204,7 @@ pf_scrub(struct pf_pdesc *pd)
 	struct ip		*h = mtod(pd->m, struct ip *);
 #ifdef INET6
 	struct ip6_hdr		*h6 = mtod(pd->m, struct ip6_hdr *);
-#endif
+#endif /* INET6 */
 
 	/* Clear IP_DF if no-df was requested */
 	if (pd->af == AF_INET && pd->act.flags & PFSTATE_NODF &&
@@ -2225,7 +2229,7 @@ pf_scrub(struct pf_pdesc *pd)
 	if (pd->af == AF_INET6 && pd->act.min_ttl &&
 	    h6->ip6_hlim < pd->act.min_ttl)
 		h6->ip6_hlim = pd->act.min_ttl;
-#endif
+#endif /* INET6 */
 	/* Enforce tos */
 	if (pd->act.flags & PFSTATE_SETTOS) {
 		switch (pd->af) {
@@ -2244,7 +2248,7 @@ pf_scrub(struct pf_pdesc *pd)
 			h6->ip6_flow &= IPV6_FLOWLABEL_MASK | IPV6_VERSION_MASK;
 			h6->ip6_flow |= htonl((pd->act.set_tos | IPV6_ECN(h6)) << 20);
 			break;
-#endif
+#endif /* INET6 */
 		}
 	}
 
@@ -2257,6 +2261,6 @@ pf_scrub(struct pf_pdesc *pd)
 		ip_fillid(h, V_ip_random_id);
 		h->ip_sum = pf_cksum_fixup(h->ip_sum, ip_id, h->ip_id, 0);
 	}
-#endif
+#endif /* INET */
 }
-#endif
+#endif /* INET || INET6 */
