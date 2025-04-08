@@ -57,11 +57,11 @@
 
 #ifdef INET
 #include <netinet/in_var.h>
-#endif
+#endif /* INET */
 
 #ifdef INET6
 #include <netinet6/in6_var.h>
-#endif
+#endif /* INET6 */
 
 
 /*
@@ -94,7 +94,7 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 		uint64_t hash64;
 		uint32_t hash32[2];
 	} h;
-#endif
+#endif /* INET6 */
 	uint64_t	 res = 0;
 
 	_Static_assert(sizeof(*key) >= SIPHASH_KEY_LENGTH, "");
@@ -122,6 +122,8 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 		hash->addr32[3] = ~h.hash32[0];
 		break;
 #endif /* INET6 */
+	default:
+		unhandled_af(af);
 	}
 	return (res);
 }
@@ -497,6 +499,8 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 			rmask = &rpool->cur->addr.p.dyn->pfid_mask6;
 			break;
 #endif /* INET6 */
+		default:
+			unhandled_af(af);
 		}
 	} else if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 		if (!PF_POOL_DYNTYPE(rpool->opts)) {
