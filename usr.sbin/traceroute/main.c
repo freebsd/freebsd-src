@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -66,6 +67,9 @@ int waittime = 5;	/* time to wait for response (in seconds) */
 
 const char *gateways[MAX_GATEWAYS];
 int ngateways;
+
+static void usage(void);
+static void usage6(void);
 
 int
 main(int argc, char **argv)
@@ -233,6 +237,14 @@ main(int argc, char **argv)
 			pausemsecs = str2val(optarg, "pause msecs",
 			    0, 60 * 60 * 1000);
 			break;
+
+		case '?':
+		default:
+			if (is_traceroute6)
+				usage6();
+			else
+				usage();
+			/*NOTREACHED*/
 		}
 	}
 
@@ -315,4 +327,25 @@ main(int argc, char **argv)
 	}
 
 	errx(1, "%s: no suitable addresses", argv[0]);
+}
+
+void
+usage(void)
+{
+	fprintf(stderr,
+"Usage: traceroute [-adDeEFInrSvx] [-A as_server] [-f first_ttl] [-g gateway]\n"
+"\t[-i iface] [-m max_ttl] [-M first_ttl] [-p port] [-P proto]\n"
+"\t[-q nprobes] [-s src_addr] [-t tos] [-w waittime]\n"
+"\t[-z pausemsecs] host [packetlen]\n");
+	exit(1);
+}
+
+void
+usage6(void)
+{
+	fprintf(stderr,
+"Usage: traceroute6 [-adEIlnNrSTUv] [-A as_server] [-f firsthop] [-g gateway]\n"
+"\t[-m hoplimit] [-p port] [-q probes] [-s src] [-t tclass]\n"
+"\t[-w waittime] target [datalen]\n");
+	exit(1);
 }

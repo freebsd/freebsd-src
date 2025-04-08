@@ -343,7 +343,6 @@ static int	setpolicy(int so, char *policy);
 static void	send_probe(int, int);
 static struct outproto *setproto(char *);
 static void	tvsub(struct timeval *, struct timeval *);
-static void	usage(void);
 static int	wait_for_reply(int, struct sockaddr_in *, const struct timeval *);
 static void	pkt_compare(const u_char *, int, const u_char *, int);
 
@@ -1833,13 +1832,3 @@ pkt_compare(const u_char *a, int la, const u_char *b, int lb) {
 }
 
 
-void
-usage(void)
-{
-	Fprintf(stderr,
-	    "Usage: traceroute [-adDeEFInrSvx] [-A as_server] [-f first_ttl] [-g gateway]\n"
-	    "\t[-i iface] [-m max_ttl] [-M first_ttl] [-p port] [-P proto]\n"
-	    "\t[-q nprobes] [-s src_addr] [-t tos] [-w waittime]\n"
-	    "\t[-z pausemsecs] host [packetlen]\n");
-	exit(1);
-}

@@ -451,13 +451,13 @@ traceroute6(struct sockaddr *whereto)
 		}
 		break;
 	default:
-		fprintf(stderr, "traceroute6: unknown probe protocol %d\n",
+		fprintf(stderr, "traceroute: unknown probe protocol %d\n",
 		    useproto);
 		exit(5);
 	}
 	if (max_ttl < first_ttl) {
 		fprintf(stderr,
-		    "traceroute6: max hoplimit must be larger than first hoplimit.\n");
+		    "traceroute: max hoplimit must be larger than first hoplimit.\n");
 		exit(1);
 	}
 
@@ -512,7 +512,7 @@ traceroute6(struct sockaddr *whereto)
 		minlen = sizeof(struct tcphdr);
 		break;
 	default:
-		fprintf(stderr, "traceroute6: unknown probe protocol %d.\n",
+		fprintf(stderr, "traceroute: unknown probe protocol %d.\n",
 		    useproto);
 		exit(1);
 	}
@@ -520,13 +520,13 @@ traceroute6(struct sockaddr *whereto)
 		packlen = minlen;
 	else if (packlen >= MAXPACKET) {
 		fprintf(stderr,
-		    "traceroute6: packet size must be %zu <= s < %d.\n",
+		    "traceroute: packet size must be %zu <= s < %d.\n",
 		    minlen, MAXPACKET);
 		exit(1);
 	}
 	if ((useproto == IPPROTO_SCTP) && (packlen & 3)) {
 		fprintf(stderr,
-		    "traceroute6: packet size must be a multiple of 4.\n");
+		    "traceroute: packet size must be a multiple of 4.\n");
 		exit(1);
 	}
 	outpacket = malloc(packlen);
@@ -546,7 +546,7 @@ traceroute6(struct sockaddr *whereto)
 	rcvcmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo)) +
 	    CMSG_SPACE(sizeof(int));
 	if ((rcvcmsgbuf = malloc(rcvcmsglen)) == NULL) {
-		fprintf(stderr, "traceroute6: malloc failed\n");
+		fprintf(stderr, "traceroute: malloc failed\n");
 		exit(1);
 	}
 	rcvmhdr.msg_control = (caddr_t) rcvcmsgbuf;
@@ -656,12 +656,12 @@ traceroute6(struct sockaddr *whereto)
 		hints.ai_flags = AI_NUMERICHOST;
 		error = cap_getaddrinfo(capdns, source, "0", &hints, &res);
 		if (error) {
-			printf("traceroute6: %s: %s\n", source,
+			printf("traceroute: %s: %s\n", source,
 			    gai_strerror(error));
 			exit(1);
 		}
 		if (res->ai_addrlen > sizeof(Src)) {
-			printf("traceroute6: %s: %s\n", source,
+			printf("traceroute: %s: %s\n", source,
 			    gai_strerror(error));
 			exit(1);
 		}
@@ -720,7 +720,7 @@ traceroute6(struct sockaddr *whereto)
 		asn = as_setup(as_server);
 		if (asn == NULL) {
 			fprintf(stderr,
-			    "traceroute6: as_setup failed, AS# lookups"
+			    "traceroute: as_setup failed, AS# lookups"
 			    " disabled\n");
 			(void)fflush(stderr);
 			as_path = 0;
@@ -733,7 +733,7 @@ traceroute6(struct sockaddr *whereto)
 	if (cap_getnameinfo(capdns, (struct sockaddr *)&Dst, Dst.sin6_len, hbuf,
 	    sizeof(hbuf), NULL, 0, NI_NUMERICHOST))
 		strlcpy(hbuf, "(invalid)", sizeof(hbuf));
-	fprintf(stderr, "traceroute6");
+	fprintf(stderr, "traceroute");
 	fprintf(stderr, " to %s (%s)", hostname, hbuf);
 	if (source)
 		fprintf(stderr, " from %s", source);
@@ -1042,7 +1042,7 @@ send_probe(int seq, int hops)
 	if (i < 0 || i != packlen)  {
 		if (i < 0)
 			perror("send");
-		printf("traceroute6: wrote %s %d chars, ret=%d\n",
+		printf("traceroute: wrote %s %d chars, ret=%d\n",
 		    hostname, packlen, i);
 		(void) fflush(stdout);
 	}
