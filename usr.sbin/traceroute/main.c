@@ -291,7 +291,7 @@ main(int argc, char **argv)
 
 		switch (ai->ai_family) {
 		case AF_INET:
-			return traceroute4(ai->ai_addr);
+			return (traceroute4(ai->ai_addr));
 
 		case AF_INET6:
 			/*
@@ -327,7 +327,7 @@ main(int argc, char **argv)
 				errx(1, "the -P flag is not supported for "
 				     "IPv6 hosts");
 
-			return traceroute6(ai->ai_addr);
+			return (traceroute6(ai->ai_addr));
 
 		default:
 			break;
