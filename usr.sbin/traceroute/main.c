@@ -94,12 +94,20 @@ main(int argc, char **argv)
 		switch (opt) {
 #ifdef INET
 		case '4':
+#ifdef INET6
+			if (hints.ai_family == AF_INET6)
+				errx(1, "-4 and -6 are mutually exclusive");
+#endif
 			hints.ai_family = AF_INET;
 			break;
 #endif
 
 #ifdef INET6
 		case '6':
+#ifdef INET
+			if (hints.ai_family == AF_INET)
+				errx(1, "-4 and -6 are mutually exclusive");
+#endif
 			hints.ai_family = AF_INET6;
 			break;
 #endif
