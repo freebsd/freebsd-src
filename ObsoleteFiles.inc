@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250409: removal of iwlwifi firmware files
+OLD_FILES+=usr/share/doc/legal/intel_iwlwifi_firmware.LICENCE
+
 # 20250331: removal of TCPPCAP
 OLD_FILES+=usr/include/netinet/tcp_pcap.h
 

@@ -196,7 +196,6 @@ SUBDIR=	\
 	${_iwi} \
 	${_iwifw} \
 	${_iwlwifi} \
-	${_iwlwififw} \
 	${_iwm} \
 	${_iwn} \
 	${_iwnfw} \
@@ -571,9 +570,6 @@ _mlx5ib=	mlx5ib
 _ena=		ena
 _gve=		gve
 _iwlwifi=	iwlwifi
-.if ${MK_SOURCELESS_UCODE} != "no"
-_iwlwififw=	iwlwififw
-.endif
 _rtw88=		rtw88
 _rtw89=		rtw89
 _vmware=	vmware
