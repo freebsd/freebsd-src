@@ -461,6 +461,7 @@ smbios_parse_table(const caddr_t addr)
 		break;
 
 	case 4:		/* 3.3.5 Processor Information (Type 4) */
+		smbios_setenv("smbios.processor.version", addr, 0x10);
 		/*
 		 * Offset 18h: Processor Status
 		 *
