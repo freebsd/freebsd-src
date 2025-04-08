@@ -984,40 +984,46 @@ decode_win_cpu_setup(void)
 
 }
 
+struct ddr_data {
+	uint8_t window_valid[MV_WIN_DDR_MAX];
+	uint32_t mr_count;
+	uint32_t valid_win_num;
+};
+
+static void
+ddr_valid_cb(const struct mem_region *mr, void *arg)
+{
+	struct ddr_data *data = arg;
+	int j;
+
+	for (j = 0; j < MV_WIN_DDR_MAX; j++) {
+		if (ddr_is_active(j) &&
+		    (ddr_base(j) == mr->mr_start) &&
+		    (ddr_size(j) == mr->mr_size)) {
+			data->window_valid[j] = 1;
+			data->valid_win_num++;
+		}
+	}
+	data->mr_count++;
+}
+
 static int
 decode_win_sdram_fixup(void)
 {
-	struct mem_region mr[FDT_MEM_REGIONS];
-	uint8_t window_valid[MV_WIN_DDR_MAX];
-	int mr_cnt, err, i, j;
-	uint32_t valid_win_num = 0;
+	struct ddr_data window_data;
+	int err, j;
 
-	/* Grab physical memory regions information from device tree. */
-	err = fdt_get_mem_regions(mr, &mr_cnt, NULL);
+	memset(&window_data, 0, sizeof(window_data));
+	err = fdt_foreach_mem_region(ddr_valid_cb, &window_data);
 	if (err != 0)
 		return (err);
 
-	for (i = 0; i < MV_WIN_DDR_MAX; i++)
-		window_valid[i] = 0;
-
-	/* Try to match entries from device tree with settings from u-boot */
-	for (i = 0; i < mr_cnt; i++) {
-		for (j = 0; j < MV_WIN_DDR_MAX; j++) {
-			if (ddr_is_active(j) &&
-			    (ddr_base(j) == mr[i].mr_start) &&
-			    (ddr_size(j) == mr[i].mr_size)) {
-				window_valid[j] = 1;
-				valid_win_num++;
-			}
-		}
-	}
-
-	if (mr_cnt != valid_win_num)
+	if (window_data.mr_count != window_data.valid_win_num)
 		return (EINVAL);
 
 	/* Destroy windows without corresponding device tree entry */
 	for (j = 0; j < MV_WIN_DDR_MAX; j++) {
-		if (ddr_is_active(j) && (window_valid[j] != 1)) {
+		if (ddr_is_active(j) && (window_data.window_valid[j] != 1)) {
 			printf("Disabling SDRAM decoding window: %d\n", j);
 			ddr_disable(j);
 		}
