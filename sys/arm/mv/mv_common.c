@@ -579,7 +579,6 @@ SYSINIT(mv_enter_debugger, SI_SUB_CPU, SI_ORDER_ANY, mv_enter_debugger, NULL);
 int
 soc_decode_win(void)
 {
-	uint32_t dev, rev;
 	int mask, err;
 
 	mask = 0;
@@ -591,9 +590,6 @@ soc_decode_win(void)
 	/* Retrieve data about physical addresses from device tree. */
 	if ((err = win_cpu_from_dt()) != 0)
 		return (err);
-
-	/* Retrieve our ID: some windows facilities vary between SoC models */
-	soc_id(&dev, &rev);
 
 	if (soc_family == MV_SOC_ARMADA_XP)
 		if ((err = decode_win_sdram_fixup()) != 0)
@@ -1603,10 +1599,6 @@ decode_win_ahci_dump(u_long base)
 static int
 decode_win_sata_valid(void)
 {
-	uint32_t dev, rev;
-
-	soc_id(&dev, &rev);
-
 	return (decode_win_can_cover_ddr(MV_WIN_SATA_MAX));
 }
 
