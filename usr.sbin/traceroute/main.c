@@ -251,6 +251,14 @@ main(int argc, char **argv)
 	argv += optind;
 	argc -= optind;
 
+	if (argc == 0) {
+		if (is_traceroute6)
+			usage6();
+		else
+			usage();
+		/*NOTREACHED*/
+	}
+
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_protocol = IPPROTO_UDP;
 	hints.ai_flags = AI_ADDRCONFIG | AI_CANONNAME | AI_NUMERICSERV;
