@@ -1757,6 +1757,7 @@ lkpi_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	/* Cleanup. */
 	rcu_assign_pointer(vif->bss_conf.chanctx_conf, NULL);
 	lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
+	list_del(&lchanctx->entry);
 	free(lchanctx, M_LKPI80211);
 }
 
@@ -1943,6 +1944,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			goto out;
 		}
 
+		list_add_rcu(&lchanctx->entry, &lhw->lchanctx_list);
 		rcu_assign_pointer(vif->bss_conf.chanctx_conf, chanctx_conf);
 
 		/* Assign vif chanctx. */
@@ -1957,6 +1959,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 			lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
 			rcu_assign_pointer(vif->bss_conf.chanctx_conf, NULL);
 			lchanctx = CHANCTX_CONF_TO_LCHANCTX(chanctx_conf);
+			list_del(&lchanctx->entry);
 			free(lchanctx, M_LKPI80211);
 			goto out;
 		}
@@ -5458,6 +5461,9 @@ linuxkpi_ieee80211_alloc_hw(size_t priv_len, const struct ieee80211_ops *ops)
 		TAILQ_INIT(&lhw->scheduled_txqs[ac]);
 	}
 
+	/* Chanctx_conf */
+	INIT_LIST_HEAD(&lhw->lchanctx_list);
+
 	/* Deferred RX path. */
 	LKPI_80211_LHW_RXQ_LOCK_INIT(lhw);
 	TASK_INIT(&lhw->rxq_task, 0, lkpi_80211_lhw_rxq_task, lhw);
@@ -5520,6 +5526,22 @@ linuxkpi_ieee80211_iffree(struct ieee80211_hw *hw)
 	KASSERT(mbufq_empty(&lhw->rxq), ("%s: lhw %p has rxq len %d != 0\n",
 	    __func__, lhw, mbufq_len(&lhw->rxq)));
 	LKPI_80211_LHW_RXQ_LOCK_DESTROY(lhw);
+
+	/* Chanctx_conf. */
+	if (!list_empty_careful(&lhw->lchanctx_list)) {
+		struct lkpi_chanctx *lchanctx, *next;
+		struct ieee80211_chanctx_conf *chanctx_conf;
+
+		list_for_each_entry_safe(lchanctx, next, &lhw->lchanctx_list, entry) {
+			if (lchanctx->added_to_drv) {
+				/* In reality we should panic? */
+				chanctx_conf = &lchanctx->chanctx_conf;
+				lkpi_80211_mo_remove_chanctx(hw, chanctx_conf);
+			}
+			list_del(&lchanctx->entry);
+			free(lchanctx, M_LKPI80211);
+		}
+	}
 
 	/* Cleanup more of lhw here or in wiphy_free()? */
 	LKPI_80211_LHW_TXQ_LOCK_DESTROY(lhw);
@@ -5955,8 +5977,6 @@ linuxkpi_ieee80211_iterate_chan_contexts(struct ieee80211_hw *hw,
     void *arg)
 {
 	struct lkpi_hw *lhw;
-	struct lkpi_vif *lvif;
-	struct ieee80211_vif *vif;
 	struct lkpi_chanctx *lchanctx;
 
 	KASSERT(hw != NULL && iterfunc != NULL,
@@ -5964,22 +5984,13 @@ linuxkpi_ieee80211_iterate_chan_contexts(struct ieee80211_hw *hw,
 
 	lhw = HW_TO_LHW(hw);
 
-	IMPROVE("lchanctx should be its own list somewhere");
-
-	LKPI_80211_LHW_LVIF_LOCK(lhw);
-	TAILQ_FOREACH(lvif, &lhw->lvif_head, lvif_entry) {
-
-		vif = LVIF_TO_VIF(lvif);
-		if (vif->bss_conf.chanctx_conf == NULL)			/* XXX-BZ; FIXME see IMPROVE above. */
-			continue;
-
-		lchanctx = CHANCTX_CONF_TO_LCHANCTX(vif->bss_conf.chanctx_conf);
+	rcu_read_lock();
+	list_for_each_entry_rcu(lchanctx, &lhw->lchanctx_list, entry) {
 		if (!lchanctx->added_to_drv)
 			continue;
-
 		iterfunc(hw, &lchanctx->chanctx_conf, arg);
 	}
-	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
+	rcu_read_unlock();
 }
 
 void
