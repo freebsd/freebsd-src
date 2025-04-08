@@ -217,6 +217,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	struct sx			lvif_sx;
 
 	struct sx			sx;			/* XXX-BZ Can this be wiphy->mtx in the future? */
+	struct list_head		lchanctx_list;
 
 	struct mtx			txq_mtx;
 	uint32_t			txq_generation[IEEE80211_NUM_ACS];
@@ -284,7 +285,10 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 #define	HW_TO_LHW(_hw)		container_of(_hw, struct lkpi_hw, hw)
 
 struct lkpi_chanctx {
+	struct list_head		entry;
+
 	bool				added_to_drv;	/* Managed by MO */
+
 	struct ieee80211_chanctx_conf	chanctx_conf __aligned(CACHE_LINE_SIZE);
 };
 #define	LCHANCTX_TO_CHANCTX_CONF(_lchanctx)		\
