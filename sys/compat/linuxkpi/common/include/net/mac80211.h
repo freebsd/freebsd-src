@@ -373,18 +373,6 @@ struct ieee80211_channel_switch {
 	struct cfg80211_chan_def		chandef;
 };
 
-struct ieee80211_cipher_scheme {
-	uint32_t	cipher;
-	uint8_t		iftype;		/* We do not know the size of this. */
-	uint8_t		hdr_len;
-	uint8_t		pn_len;
-	uint8_t		pn_off;
-	uint8_t		key_idx_off;
-	uint8_t		key_idx_mask;
-	uint8_t		key_idx_shift;
-	uint8_t		mic_len;
-};
-
 enum ieee80211_event_type {
 	BA_FRAME_TIMEOUT,
 	BAR_RX_EVENT,
@@ -508,8 +496,6 @@ struct ieee80211_hw {
 	/* TODO FIXME */
 	int		extra_tx_headroom, weight_multiplier;
 	int		max_rate_tries, max_rates, max_report_rates;
-	struct ieee80211_cipher_scheme	*cipher_schemes;
-	int				n_cipher_schemes;
 	const char			*rate_control_algorithm;
 	struct {
 		uint16_t units_pos;	/* radiotap "spec" is .. inconsistent. */
