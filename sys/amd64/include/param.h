@@ -90,7 +90,11 @@
 #define NPTEPG		(PAGE_SIZE_PT/(sizeof (pt_entry_t)))
 #define NDPTEPG		(NPTEPG / PAGE_SIZE_PTES)
 #define	NPTEPGSHIFT	9		/* LOG2(NPTEPG) */
-#define PAGE_SHIFT	14		/* LOG2(PAGE_SIZE) */
+#ifdef OS_PAGE_SHIFT
+#define PAGE_SHIFT	OS_PAGE_SHIFT	/* LOG2(PAGE_SIZE) */
+#else
+#define PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
+#endif
 #define PAGE_SIZE	(1<<PAGE_SHIFT)	/* bytes/page */
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define PAGE_SHIFT_4K	12		/* LOG2(PAGE_SIZE_4K) */

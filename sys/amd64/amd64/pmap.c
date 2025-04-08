@@ -382,7 +382,8 @@ pmap_pt_page_array_mark(void)
 static __inline pt_entry_t
 pte_load_datapg(pt_entry_t *ptep)
 {
-	pt_entry_t pte, apte, cpte;
+	pt_entry_t pte;
+	__unused pt_entry_t apte, cpte;
 	int i;
 
 	pte = *ptep;
