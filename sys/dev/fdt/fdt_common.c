@@ -62,10 +62,6 @@
 SYSCTL_NODE(_hw, OID_AUTO, fdt, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Flattened Device Tree");
 
-vm_paddr_t fdt_immr_pa;
-vm_offset_t fdt_immr_va;
-vm_offset_t fdt_immr_size;
-
 struct fdt_ic_list fdt_ic_list_head = SLIST_HEAD_INITIALIZER(fdt_ic_list_head);
 
 static int
@@ -197,38 +193,6 @@ fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 
 	*size = fdt_data_get((void *)rangesptr, size_cells);
 	return (0);
-}
-
-int
-fdt_immr_addr(vm_offset_t immr_va)
-{
-	phandle_t node;
-	u_long base, size;
-	int r;
-
-	/*
-	 * Try to access the SOC node directly i.e. through /aliases/.
-	 */
-	if ((node = OF_finddevice("soc")) != -1)
-		if (ofw_bus_node_is_compatible(node, "simple-bus"))
-			goto moveon;
-	/*
-	 * Find the node the long way.
-	 */
-	if ((node = OF_finddevice("/")) == -1)
-		return (ENXIO);
-
-	if ((node = fdt_find_compatible(node, "simple-bus", 0)) == 0)
-		return (ENXIO);
-
-moveon:
-	if ((r = fdt_get_range(node, 0, &base, &size)) == 0) {
-		fdt_immr_pa = base;
-		fdt_immr_va = immr_va;
-		fdt_immr_size = size;
-	}
-
-	return (r);
 }
 
 int
