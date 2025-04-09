@@ -396,14 +396,6 @@
    don't. */
 #define HAVE_DECL_OFFSETOF 1
 
-/* Define to 1 if you have the declaration of 'OPENSSL_IS_BORINGSSL', and to 0
-   if you don't. */
-/* #undef HAVE_DECL_OPENSSL_IS_BORINGSSL */
-
-/* Define to 1 if you have the declaration of 'OPENSSL_NO_DSA', and to 0 if
-   you don't. */
-/* #undef HAVE_DECL_OPENSSL_NO_DSA */
-
 /* Define to 1 if you have the declaration of 'O_NONBLOCK', and to 0 if you
    don't. */
 #define HAVE_DECL_O_NONBLOCK 1
@@ -1990,9 +1982,6 @@
 
 /* Define if you want to enable AIX4's authenticate function */
 /* #undef WITH_AIXAUTHENTICATE */
-
-/* DSA keys explicitly enabled */
-/* #undef WITH_DSA */
 
 /* Define if you have/want arrays (cluster-wide session management, not C
    arrays) */
