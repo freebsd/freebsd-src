@@ -691,7 +691,7 @@ int bnxt_hwrm_func_resc_qcaps(struct bnxt_softc *softc, bool all)
 	hw_resc->min_stat_ctxs = le16toh(resp->min_stat_ctx);
 	hw_resc->max_stat_ctxs = le16toh(resp->max_stat_ctx);
 
-	if (BNXT_CHIP_P5(softc)) {
+	if (BNXT_CHIP_P5_PLUS(softc)) {
 		hw_resc->max_nqs = le16toh(resp->max_msix);
 		hw_resc->max_hw_ring_grps = hw_resc->max_rx_rings;
 	}
@@ -1087,7 +1087,7 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 		softc->flags |= BNXT_FLAG_FW_CAP_EXT_STATS;
 
 	/* Enable RoCE only on Thor devices */
-	if (BNXT_CHIP_P5(softc)) {
+	if (BNXT_CHIP_P5_PLUS(softc)) {
 		if (flags & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_ROCE_V1_SUPPORTED)
 			softc->flags |= BNXT_FLAG_ROCEV1_CAP;
 		if (flags & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_ROCE_V2_SUPPORTED)
@@ -1244,9 +1244,10 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
 
 	if (BNXT_CHIP_P5(softc)) {
 		if (BNXT_PF(softc))
-		min_db_offset = DB_PF_OFFSET_P5;
+			min_db_offset = DB_PF_OFFSET_P5;
 		else
 			min_db_offset = DB_VF_OFFSET_P5;
+		softc->legacy_db_size = min_db_offset;
 	}
 
 	softc->db_size = roundup2(le16_to_cpu(resp->l2_doorbell_bar_size_kb) *
@@ -1420,7 +1421,7 @@ bnxt_hwrm_vnic_set_hds(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
 {
 	struct hwrm_vnic_plcmodes_cfg_input req = {0};
 
-	if (!BNXT_CHIP_P5(softc))
+	if (!BNXT_CHIP_P5_PLUS(softc))
 		return 0;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_PLCMODES_CFG);
@@ -1444,7 +1445,7 @@ bnxt_hwrm_vnic_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
 		req.flags |= htole32(HWRM_VNIC_CFG_INPUT_FLAGS_BD_STALL_MODE);
 	if (vnic->flags & BNXT_VNIC_FLAG_VLAN_STRIP)
 		req.flags |= htole32(HWRM_VNIC_CFG_INPUT_FLAGS_VLAN_STRIP_MODE);
-	if (BNXT_CHIP_P5 (softc)) {
+	if (BNXT_CHIP_P5_PLUS (softc)) {
 		req.default_rx_ring_id =
 			htole16(softc->rx_rings[0].phys_id);
 		req.default_cmpl_ring_id =
@@ -1584,7 +1585,7 @@ bnxt_hwrm_ring_grp_alloc(struct bnxt_softc *softc, struct bnxt_grp_info *grp)
 		return EDOOFUS;
 	}
 
-	if (BNXT_CHIP_P5 (softc))
+	if (BNXT_CHIP_P5_PLUS (softc))
 		return 0;
 
 	resp = (void *)softc->hwrm_cmd_resp.idi_vaddr;
@@ -1615,7 +1616,7 @@ bnxt_hwrm_ring_grp_free(struct bnxt_softc *softc, struct bnxt_grp_info *grp)
 	if (grp->grp_id == (uint16_t)HWRM_NA_SIGNATURE)
 		return 0;
 
-	if (BNXT_CHIP_P5 (softc))
+	if (BNXT_CHIP_P5_PLUS (softc))
 		return 0;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_RING_GRP_FREE);
@@ -1705,7 +1706,7 @@ bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
 		    HWRM_RING_ALLOC_INPUT_ENABLES_STAT_CTX_ID_VALID);
 		break;
 	case HWRM_RING_ALLOC_INPUT_RING_TYPE_RX:
-		if (!BNXT_CHIP_P5(softc))
+		if (!BNXT_CHIP_P5_PLUS(softc))
 			break;
 
 		cp_ring = &softc->rx_cp_rings[idx];
@@ -1717,7 +1718,7 @@ bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
 			HWRM_RING_ALLOC_INPUT_ENABLES_STAT_CTX_ID_VALID);
 		break;
 	case HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG:
-		if (!BNXT_CHIP_P5(softc)) {
+		if (!BNXT_CHIP_P5_PLUS(softc)) {
 			req.ring_type = HWRM_RING_ALLOC_INPUT_RING_TYPE_RX;
 			break;
 		}
@@ -1733,7 +1734,7 @@ bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
 			HWRM_RING_ALLOC_INPUT_ENABLES_STAT_CTX_ID_VALID);
 		break;
 	case HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL:
-		if (!BNXT_CHIP_P5(softc)) {
+		if (!BNXT_CHIP_P5_PLUS(softc)) {
 			req.int_mode = HWRM_RING_ALLOC_INPUT_INT_MODE_MSIX;
 			break;
 		}
@@ -1807,7 +1808,7 @@ bnxt_hwrm_stat_ctx_alloc(struct bnxt_softc *softc, struct bnxt_cp_ring *cpr,
 
 	req.update_period_ms = htole32(1000);
 	req.stats_dma_addr = htole64(paddr);
-	if (BNXT_CHIP_P5(softc))
+	if (BNXT_CHIP_P5_PLUS(softc))
 		req.stats_dma_length = htole16(sizeof(struct ctx_hw_stats_ext) - 8);
 	else
 		req.stats_dma_length = htole16(sizeof(struct ctx_hw_stats));
@@ -1919,7 +1920,7 @@ bnxt_hwrm_port_qstats_ext(struct bnxt_softc *softc)
 	if (!rc) {
 		softc->fw_rx_stats_ext_size =
 			le16toh(resp->rx_stat_size) / 8;
-		if (BNXT_FW_MAJ(softc) < 220 &&
+		if (BNXT_FW_MAJ(softc) < 220 && !BNXT_CHIP_P7(softc) &&
 		    softc->fw_rx_stats_ext_size > BNXT_RX_STATS_EXT_NUM_LEGACY)
 			softc->fw_rx_stats_ext_size = BNXT_RX_STATS_EXT_NUM_LEGACY;
 
@@ -2123,12 +2124,15 @@ bnxt_hwrm_rss_cfg(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic,
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_VNIC_RSS_CFG);
 
+	if (BNXT_CHIP_P7(softc))
+		req.flags |= HWRM_VNIC_RSS_CFG_INPUT_FLAGS_IPSEC_HASH_TYPE_CFG_SUPPORT;
+
 	req.hash_type = htole32(hash_type);
 	req.ring_grp_tbl_addr = htole64(vnic->rss_grp_tbl.idi_paddr);
 	req.hash_key_tbl_addr = htole64(vnic->rss_hash_key_tbl.idi_paddr);
 	req.rss_ctx_idx = htole16(vnic->rss_id);
 	req.hash_mode_flags = HWRM_FUNC_SPD_CFG_INPUT_HASH_MODE_FLAGS_DEFAULT;
-	if (BNXT_CHIP_P5(softc)) {
+	if (BNXT_CHIP_P5_PLUS(softc)) {
 		req.vnic_id = htole16(vnic->id);
 		req.ring_table_pair_index = 0x0;
 	}
@@ -2175,7 +2179,7 @@ bnxt_cfg_async_cr(struct bnxt_softc *softc)
 
 	req.fid = htole16(0xffff);
 	req.enables = htole32(HWRM_FUNC_CFG_INPUT_ENABLES_ASYNC_EVENT_CR);
-	if (BNXT_CHIP_P5(softc))
+	if (BNXT_CHIP_P5_PLUS(softc))
 		req.async_event_cr = htole16(softc->nq_rings[0].ring.phys_id);
 	else
 		req.async_event_cr = htole16(softc->def_cp_ring.ring.phys_id);
