@@ -733,7 +733,7 @@ traceroute4(struct sockaddr *whereto)
 
 	/* Check the source address (-s), if any, is valid */
 	if (bind(sndsock, (struct sockaddr *)from, sizeof(*from)) < 0)
-		errx(1, "bind");
+		err(1, "bind");
 
 	if (as_path) {
 		asn = as_setup(as_server);
@@ -745,7 +745,7 @@ traceroute4(struct sockaddr *whereto)
 
 	if (connect(sndsock, (struct sockaddr *)whereto,
 	    sizeof(struct sockaddr_in)) != 0)
-		errx(1, "connect");
+		err(1, "connect");
 
 #ifdef WITH_CASPER
 	cansandbox = true;
@@ -765,18 +765,18 @@ traceroute4(struct sockaddr *whereto)
 	 */
 	if (cansandbox && cap_enter() < 0) {
 		if (errno != ENOSYS)
-			errx(1, "cap_enter");
+			err(1, "cap_enter");
 		else
 			cansandbox = false;
 	}
 
 	cap_rights_init(&rights, CAP_SEND, CAP_SETSOCKOPT);
 	if (cansandbox && cap_rights_limit(sndsock, &rights) < 0)
-		errx(1, "cap_rights_limit sndsock");
+		err(1, "cap_rights_limit sndsock");
 
 	cap_rights_init(&rights, CAP_RECV, CAP_EVENT);
 	if (cansandbox && cap_rights_limit(s, &rights) < 0)
-		errx(1, "cap_rights_limit s");
+		err(1, "cap_rights_limit s");
 
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	if (setpolicy(sndsock, "in bypass") < 0)
@@ -1075,7 +1075,7 @@ send_probe(int seq, int ttl)
 #if !defined(IP_HDRINCL) && defined(IP_TTL)
 	if (setsockopt(sndsock, IPPROTO_IP, IP_TTL,
 	    (char *)&ttl, sizeof(ttl)) < 0)
-		errx(1, "setsockopt ttl %d", ttl);
+		err(1, "setsockopt ttl %d", ttl);
 #endif
 
 	cc = send(sndsock, (char *)outip, packlen, 0);
