@@ -112,6 +112,8 @@ mmc_wait_for_app_cmd(device_t busdev, device_t dev, uint16_t rca,
 
 	sc = device_get_softc(busdev);
 
+	cmd->flags |= MMC_CMD_IS_APP;
+
 	/* Squelch error reporting at lower levels, we report below. */
 	sc->squelched++;
 	do {
