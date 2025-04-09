@@ -36,7 +36,7 @@ foreach_efi_map_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb, void *
 	 * Memory map data provided by UEFI via the GetMemoryMap
 	 * Boot Services API.
 	 */
-	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
+	efisz = roundup2(sizeof(struct efi_map_header), 16);
 	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
 
 	if (efihdr->descriptor_size == 0)
@@ -169,7 +169,7 @@ do_memory_from_fdt(int fd)
 	 * so early boot can copy the memory map into this space and have the
 	 * rest of the code cope.
 	 */
-	efisz = (sizeof(*efihdr) + 0xf) & ~0xf;
+	efisz = roundup2(sizeof(*efihdr), 16);
 	buf = malloc(sz + efisz);
 	if (buf == NULL)
 		return false;
