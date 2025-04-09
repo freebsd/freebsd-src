@@ -12,6 +12,17 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250410:
+	13.5-RELEASE-p1 EN-25:04.tzdata
+			EN-25:05.expat
+			EN-25:08.caroot
+
+	Timezone database information update [EN-25:04.tzdata]
+
+	Update expat to 2.7.1 [EN-25:05.expat]
+
+	Root certificate bundle update [EN-25:08.caroot]
+
 20250311:
 	13.5-RELEASE.
 
