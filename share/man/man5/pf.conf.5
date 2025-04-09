@@ -1659,10 +1659,6 @@ allows echo requests (such as those created by
 out statefully, and matches incoming echo replies correctly to states.
 .Pp
 Also, looking up states is usually faster than evaluating rules.
-If there are 50 rules, all of them are evaluated sequentially in O(n).
-Even with 50000 states, only 16 comparisons are needed to match a
-state, since states are stored in a binary search tree that allows
-searches in O(log2 n).
 .Pp
 Furthermore, correct handling of ICMP error messages is critical to
 many protocols, particularly TCP.
