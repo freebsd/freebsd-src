@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.244 2024/09/15 01:09:40 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.247 2024/12/03 22:30:03 jsg Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -105,7 +105,9 @@ static Gssctxt *gsscontext = NULL;
 /* Imports */
 extern ServerOptions options;
 extern u_int utmp_len;
+extern struct sshbuf *cfg;
 extern struct sshbuf *loginmsg;
+extern struct include_list includes;
 extern struct sshauthopt *auth_opts; /* XXX move to permanent ssh->authctxt? */
 
 /* State exported from the child */
@@ -126,6 +128,7 @@ int mm_answer_keyverify(struct ssh *, int, struct sshbuf *);
 int mm_answer_pty(struct ssh *, int, struct sshbuf *);
 int mm_answer_pty_cleanup(struct ssh *, int, struct sshbuf *);
 int mm_answer_term(struct ssh *, int, struct sshbuf *);
+int mm_answer_state(struct ssh *, int, struct sshbuf *);
 
 #ifdef USE_PAM
 int mm_answer_pam_start(struct ssh *, int, struct sshbuf *);
@@ -184,6 +187,7 @@ static int monitor_read(struct ssh *, struct monitor *, struct mon_table *,
 static int monitor_read_log(struct monitor *);
 
 struct mon_table mon_dispatch_proto20[] = {
+    {MONITOR_REQ_STATE, MON_ONCE, mm_answer_state},
 #ifdef WITH_OPENSSL
     {MONITOR_REQ_MODULI, MON_ONCE, mm_answer_moduli},
 #endif
@@ -219,6 +223,7 @@ struct mon_table mon_dispatch_proto20[] = {
 };
 
 struct mon_table mon_dispatch_postauth20[] = {
+    {MONITOR_REQ_STATE, MON_ONCE, mm_answer_state},
 #ifdef WITH_OPENSSL
     {MONITOR_REQ_MODULI, 0, mm_answer_moduli},
 #endif
@@ -284,7 +289,8 @@ monitor_child_preauth(struct ssh *ssh, struct monitor *pmonitor)
 	authctxt->loginmsg = loginmsg;
 
 	mon_dispatch = mon_dispatch_proto20;
-	/* Permit requests for moduli and signatures */
+	/* Permit requests for state, moduli and signatures */
+	monitor_permit(mon_dispatch, MONITOR_REQ_STATE, 1);
 	monitor_permit(mon_dispatch, MONITOR_REQ_MODULI, 1);
 	monitor_permit(mon_dispatch, MONITOR_REQ_SIGN, 1);
 
@@ -405,6 +411,7 @@ monitor_child_postauth(struct ssh *ssh, struct monitor *pmonitor)
 	mon_dispatch = mon_dispatch_postauth20;
 
 	/* Permit requests for moduli and signatures */
+	monitor_permit(mon_dispatch, MONITOR_REQ_STATE, 1);
 	monitor_permit(mon_dispatch, MONITOR_REQ_MODULI, 1);
 	monitor_permit(mon_dispatch, MONITOR_REQ_SIGN, 1);
 	monitor_permit(mon_dispatch, MONITOR_REQ_TERM, 1);
@@ -462,7 +469,8 @@ monitor_read_log(struct monitor *pmonitor)
 	/* Log it */
 	if (log_level_name(level) == NULL)
 		fatal_f("invalid log level %u (corrupted message?)", level);
-	sshlogdirect(level, forced, "%s [preauth]", msg);
+	sshlogdirect(level, forced, "%s [%s]", msg,
+	    mon_dispatch == mon_dispatch_postauth20 ? "postauth" : "preauth");
 
 	sshbuf_free(logmsg);
 	free(msg);
@@ -568,6 +576,82 @@ monitor_reset_key_state(void)
 	hostbased_chost = NULL;
 }
 
+int
+mm_answer_state(struct ssh *ssh, int sock, struct sshbuf *m)
+{
+	struct sshbuf *inc = NULL, *hostkeys = NULL;
+	struct sshbuf *opts = NULL, *confdata = NULL;
+	struct include_item *item = NULL;
+	int postauth;
+	int r;
+
+	sshbuf_reset(m);
+
+	debug_f("config len %zu", sshbuf_len(cfg));
+
+	if ((m = sshbuf_new()) == NULL ||
+	    (inc = sshbuf_new()) == NULL ||
+	    (opts = sshbuf_new()) == NULL ||
+	    (confdata = sshbuf_new()) == NULL)
+		fatal_f("sshbuf_new failed");
+
+	/* XXX unnecessary? */
+	/* pack includes into a string */
+	TAILQ_FOREACH(item, &includes, entry) {
+		if ((r = sshbuf_put_cstring(inc, item->selector)) != 0 ||
+		    (r = sshbuf_put_cstring(inc, item->filename)) != 0 ||
+		    (r = sshbuf_put_stringb(inc, item->contents)) != 0)
+			fatal_fr(r, "compose includes");
+	}
+
+	hostkeys = pack_hostkeys();
+
+	/*
+	 * Protocol from monitor to unpriv privsep process:
+	 *	string	configuration
+	 *	uint64	timing_secret	XXX move delays to monitor and remove
+	 *	string	host_keys[] {
+	 *		string public_key
+	 *		string certificate
+	 *	}
+	 *	string  server_banner
+	 *	string  client_banner
+	 *	string	included_files[] {
+	 *		string	selector
+	 *		string	filename
+	 *		string	contents
+	 *	}
+	 *	string	configuration_data (postauth)
+	 *	string  keystate (postauth)
+	 *	string  authenticated_user (postauth)
+	 *	string  session_info (postauth)
+	 *	string  authopts (postauth)
+	 */
+	if ((r = sshbuf_put_stringb(m, cfg)) != 0 ||
+	    (r = sshbuf_put_u64(m, options.timing_secret)) != 0 ||
+	    (r = sshbuf_put_stringb(m, hostkeys)) != 0 ||
+	    (r = sshbuf_put_stringb(m, ssh->kex->server_version)) != 0 ||
+	    (r = sshbuf_put_stringb(m, ssh->kex->client_version)) != 0 ||
+	    (r = sshbuf_put_stringb(m, inc)) != 0)
+		fatal_fr(r, "compose config");
+
+	postauth = (authctxt && authctxt->pw && authctxt->authenticated);
+	if (postauth) {
+		/* XXX shouldn't be reachable */
+		fatal_f("internal error: called in postauth");
+	}
+
+	sshbuf_free(inc);
+	sshbuf_free(opts);
+	sshbuf_free(confdata);
+
+	mm_request_send(sock, MONITOR_ANS_STATE, m);
+
+	debug3_f("done");
+
+	return (0);
+}
+
 #ifdef WITH_OPENSSL
 int
 mm_answer_moduli(struct ssh *ssh, int sock, struct sshbuf *m)
@@ -613,24 +697,27 @@ int
 mm_answer_sign(struct ssh *ssh, int sock, struct sshbuf *m)
 {
 	extern int auth_sock;			/* XXX move to state struct? */
-	struct sshkey *key;
+	struct sshkey *pubkey, *key;
 	struct sshbuf *sigbuf = NULL;
 	u_char *p = NULL, *signature = NULL;
 	char *alg = NULL;
-	size_t datlen, siglen, alglen;
-	int r, is_proof = 0;
-	u_int keyid, compat;
+	size_t datlen, siglen;
+	int r, is_proof = 0, keyid;
+	u_int compat;
 	const char proof_req[] = "hostkeys-prove-00@openssh.com";
 
 	debug3_f("entering");
 
-	if ((r = sshbuf_get_u32(m, &keyid)) != 0 ||
+	if ((r = sshkey_froms(m, &pubkey)) != 0 ||
 	    (r = sshbuf_get_string(m, &p, &datlen)) != 0 ||
-	    (r = sshbuf_get_cstring(m, &alg, &alglen)) != 0 ||
+	    (r = sshbuf_get_cstring(m, &alg, NULL)) != 0 ||
 	    (r = sshbuf_get_u32(m, &compat)) != 0)
 		fatal_fr(r, "parse");
-	if (keyid > INT_MAX)
-		fatal_f("invalid key ID");
+
+	if ((keyid = get_hostkey_index(pubkey, 1, ssh)) == -1)
+		fatal_f("unknown hostkey");
+	debug_f("hostkey %s index %d", sshkey_ssh_name(pubkey), keyid);
+	sshkey_free(pubkey);
 
 	/*
 	 * Supported KEX types use SHA1 (20 bytes), SHA256 (32 bytes),
@@ -1833,8 +1920,6 @@ monitor_openfds(struct monitor *mon, int do_logfds)
 	} else
 		mon->m_log_recvfd = mon->m_log_sendfd = -1;
 }
-
-#define MM_MEMSIZE	65536
 
 struct monitor *
 monitor_init(void)

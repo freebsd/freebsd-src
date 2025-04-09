@@ -250,24 +250,27 @@ DESCRIPTION
                    AddressFamily
                    BatchMode
                    BindAddress
+                   BindInterface
+                   CASignatureAlgorithms
                    CanonicalDomains
                    CanonicalizeFallbackLocal
                    CanonicalizeHostname
                    CanonicalizeMaxDots
                    CanonicalizePermittedCNAMEs
-                   CASignatureAlgorithms
                    CertificateFile
+                   ChannelTimeout
                    CheckHostIP
                    Ciphers
                    ClearAllForwardings
                    Compression
-                   ConnectionAttempts
                    ConnectTimeout
+                   ConnectionAttempts
                    ControlMaster
                    ControlPath
                    ControlPersist
                    DynamicForward
                    EnableEscapeCommandline
+                   EnableSSHKeysign
                    EscapeChar
                    ExitOnForwardFailure
                    FingerprintHash
@@ -276,21 +279,23 @@ DESCRIPTION
                    ForwardX11
                    ForwardX11Timeout
                    ForwardX11Trusted
-                   GatewayPorts
-                   GlobalKnownHostsFile
                    GSSAPIAuthentication
                    GSSAPIDelegateCredentials
+                   GatewayPorts
+                   GlobalKnownHostsFile
                    HashKnownHosts
                    Host
-                   HostbasedAcceptedAlgorithms
-                   HostbasedAuthentication
                    HostKeyAlgorithms
                    HostKeyAlias
+                   HostbasedAcceptedAlgorithms
+                   HostbasedAuthentication
                    Hostname
+                   IPQoS
                    IdentitiesOnly
                    IdentityAgent
                    IdentityFile
-                   IPQoS
+                   IgnoreUnknown
+                   Include
                    KbdInteractiveAuthentication
                    KbdInteractiveDevices
                    KexAlgorithms
@@ -298,14 +303,15 @@ DESCRIPTION
                    LocalCommand
                    LocalForward
                    LogLevel
+                   LogVerbose
                    MACs
-                   Match
                    NoHostAuthenticationForLocalhost
                    NumberOfPasswordPrompts
+                   ObscureKeystrokeTiming
+                   PKCS11Provider
                    PasswordAuthentication
                    PermitLocalCommand
                    PermitRemoteOpen
-                   PKCS11Provider
                    Port
                    PreferredAuthentications
                    ProxyCommand
@@ -318,16 +324,20 @@ DESCRIPTION
                    RemoteForward
                    RequestTTY
                    RequiredRSASize
+                   RevokedHostKeys
+                   SecurityKeyProvider
                    SendEnv
-                   ServerAliveInterval
                    ServerAliveCountMax
+                   ServerAliveInterval
                    SessionType
                    SetEnv
                    StdinNull
                    StreamLocalBindMask
                    StreamLocalBindUnlink
                    StrictHostKeyChecking
+                   SyslogFacility
                    TCPKeepAlive
+                   Tag
                    Tunnel
                    TunnelDevice
                    UpdateHostKeys
@@ -1017,4 +1027,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.6                      July 18, 2024                     OpenBSD 7.6
+OpenBSD 7.6                    December 4, 2024                    OpenBSD 7.6

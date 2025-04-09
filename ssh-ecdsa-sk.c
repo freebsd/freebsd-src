@@ -310,7 +310,7 @@ ssh_ecdsa_sk_verify(const struct sshkey *key,
 	}
 
 #ifdef DEBUG_SK
-	fprintf(stderr, "%s: data: (len %zu)\n", __func__, datalen);
+	fprintf(stderr, "%s: data: (len %zu)\n", __func__, dlen);
 	/* sshbuf_dump_data(data, datalen, stderr); */
 	fprintf(stderr, "%s: sig_r: %s\n", __func__, (tmp = BN_bn2hex(sig_r)));
 	free(tmp);

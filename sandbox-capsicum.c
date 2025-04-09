@@ -45,8 +45,8 @@
  */
 
 struct ssh_sandbox {
-	struct monitor *monitor;
-	pid_t child_pid;
+	int m_recvfd;
+	int m_log_sendfd;
 };
 
 struct ssh_sandbox *
@@ -54,15 +54,10 @@ ssh_sandbox_init(struct monitor *monitor)
 {
 	struct ssh_sandbox *box;
 
-	/*
-	 * Strictly, we don't need to maintain any state here but we need
-	 * to return non-NULL to satisfy the API.
-	 */
 	debug3("%s: preparing capsicum sandbox", __func__);
 	box = xcalloc(1, sizeof(*box));
-	box->monitor = monitor;
-	box->child_pid = 0;
-
+	box->m_recvfd = monitor->m_recvfd;
+	box->m_log_sendfd = monitor->m_log_sendfd;
 	return box;
 }
 
@@ -100,29 +95,16 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 		fatal("can't limit stderr: %m");
 
 	cap_rights_init(&rights, CAP_READ, CAP_WRITE);
-	if (cap_rights_limit(box->monitor->m_recvfd, &rights) < 0 &&
+	if (cap_rights_limit(box->m_recvfd, &rights) < 0 &&
 	    errno != ENOSYS)
 		fatal("%s: failed to limit the network socket", __func__);
 	cap_rights_init(&rights, CAP_WRITE);
-	if (cap_rights_limit(box->monitor->m_log_sendfd, &rights) < 0 &&
+	if (cap_rights_limit(box->m_log_sendfd, &rights) < 0 &&
 	    errno != ENOSYS)
 		fatal("%s: failed to limit the logging socket", __func__);
 	if (cap_enter() < 0 && errno != ENOSYS)
 		fatal("%s: failed to enter capability mode", __func__);
 
-}
-
-void
-ssh_sandbox_parent_finish(struct ssh_sandbox *box)
-{
-	free(box);
-	debug3("%s: finished", __func__);
-}
-
-void
-ssh_sandbox_parent_preauth(struct ssh_sandbox *box, pid_t child_pid)
-{
-	box->child_pid = child_pid;
 }
 
 #endif /* SANDBOX_CAPSICUM */

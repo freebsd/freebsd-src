@@ -55,11 +55,11 @@ DESCRIPTION
              Match keyword are satisfied.  Match conditions are specified
              using one or more criteria or the single token all which always
              matches.  The available criteria keywords are: canonical, final,
-             exec, localnetwork, host, originalhost, tagged, user, and
-             localuser.  The all criteria must appear alone or immediately
-             after canonical or final.  Other criteria may be combined
-             arbitrarily.  All criteria but all, canonical, and final require
-             an argument.  Criteria may be negated by prepending an
+             exec, localnetwork, host, originalhost, tagged, command, user,
+             localuser, and version.  The all criteria must appear alone or
+             immediately after canonical or final.  Other criteria may be
+             combined arbitrarily.  All criteria but all, canonical, and final
+             require an argument.  Criteria may be negated by prepending an
              exclamation mark (M-bM-^@M-^X!M-bM-^@M-^Y).
 
              The canonical keyword matches only when the configuration file is
@@ -89,16 +89,32 @@ DESCRIPTION
 
              The other keywords' criteria must be single entries or comma-
              separated lists and may use the wildcard and negation operators
-             described in the PATTERNS section.  The criteria for the host
-             keyword are matched against the target hostname, after any
-             substitution by the Hostname or CanonicalizeHostname options.
-             The originalhost keyword matches against the hostname as it was
-             specified on the command-line.  The tagged keyword matches a tag
-             name specified by a prior Tag directive or on the ssh(1) command-
-             line using the -P flag.  The user keyword matches against the
-             target username on the remote host.  The localuser keyword
-             matches against the name of the local user running ssh(1) (this
-             keyword may be useful in system-wide ssh_config files).
+             described in the PATTERNS section.
+
+             The criteria for the host keyword are matched against the target
+             hostname, after any substitution by the Hostname or
+             CanonicalizeHostname options.  The originalhost keyword matches
+             against the hostname as it was specified on the command-line.
+
+             The tagged keyword matches a tag name specified by a prior Tag
+             directive or on the ssh(1) command-line using the -P flag.  The
+             command keyword matches the remote command that has been
+             requested, or the subsystem name that is being invoked (e.g.
+             "sftp" for an SFTP session).  The empty string will match the
+             case where a command or tag has not been specified, i.e. M-bM-^@M-^XMatch
+             tag ""M-bM-^@M-^Y.  The version keyword matches against the version string
+             of ssh(1), for example M-bM-^@M-^\OpenSSH_10.0M-bM-^@M-^].
+
+             The user keyword matches against the target username on the
+             remote host.  The localuser keyword matches against the name of
+             the local user running ssh(1) (this keyword may be useful in
+             system-wide ssh_config files).
+
+             Finally, the sessiontype keyword matches the requested session
+             type, which may be one of shell for interactive sessions, exec
+             for command execution sessions, subsystem for subsystem
+             invocations such as sftp(1), or none for transport-only sessions,
+             such as when ssh(1) is started with the -N flag.
 
      AddKeysToAgent
              Specifies whether keys should be automatically added to a running
@@ -317,8 +333,8 @@ DESCRIPTION
              The default is:
 
                    chacha20-poly1305@openssh.com,
-                   aes128-ctr,aes192-ctr,aes256-ctr,
-                   aes128-gcm@openssh.com,aes256-gcm@openssh.com
+                   aes128-gcm@openssh.com,aes256-gcm@openssh.com,
+                   aes128-ctr,aes192-ctr,aes256-ctr
 
              The list of available ciphers may also be obtained using "ssh -Q
              cipher".
@@ -755,8 +771,8 @@ DESCRIPTION
 
              The default is:
 
-                   sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,
                    mlkem768x25519-sha256,
+                   sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,
                    curve25519-sha256,curve25519-sha256@libssh.org,
                    ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
                    diffie-hellman-group-exchange-sha256,
@@ -798,21 +814,28 @@ DESCRIPTION
              enabled.
 
      LocalForward
-             Specifies that a TCP port on the local machine be forwarded over
-             the secure channel to the specified host and port from the remote
-             machine.  The first argument specifies the listener and may be
-             [bind_address:]port or a Unix domain socket path.  The second
-             argument is the destination and may be host:hostport or a Unix
-             domain socket path if the remote host supports it.
+             Specifies that a TCP port or Unix-domain socket on the local
+             machine be forwarded over the secure channel to the specified
+             host and port (or Unix-domain socket) from the remote machine.
+             For a TCP port, the first argument must be [bind_address:]port or
+             a Unix domain socket path.  The second argument is the
+             destination and may be host:hostport or a Unix domain socket path
+             if the remote host supports it.
 
              IPv6 addresses can be specified by enclosing addresses in square
-             brackets.  Multiple forwardings may be specified, and additional
-             forwardings can be given on the command line.  Only the superuser
-             can forward privileged ports.  By default, the local port is
-             bound in accordance with the GatewayPorts setting.  However, an
-             explicit bind_address may be used to bind the connection to a
-             specific address.  The bind_address of localhost indicates that
-             the listening port be bound for local use only, while an empty
+             brackets.
+
+             If either argument contains a '/' in it, that argument will be
+             interpreted as a Unix-domain socket (on the corresponding host)
+             rather than a TCP port.
+
+             Multiple forwardings may be specified, and additional forwardings
+             can be given on the command line.  Only the superuser can forward
+             privileged ports.  By default, the local port is bound in
+             accordance with the GatewayPorts setting.  However, an explicit
+             bind_address may be used to bind the connection to a specific
+             address.  The bind_address of localhost indicates that the
+             listening port be bound for local use only, while an empty
              address or M-bM-^@M-^X*M-bM-^@M-^Y indicates that the port should be available from
              all interfaces.  Unix domain socket paths may use the tokens
              described in the TOKENS section and environment variables as
@@ -1034,27 +1057,34 @@ DESCRIPTION
              the TOKENS section.
 
      RemoteForward
-             Specifies that a TCP port on the remote machine be forwarded over
-             the secure channel.  The remote port may either be forwarded to a
-             specified host and port from the local machine, or may act as a
-             SOCKS 4/5 proxy that allows a remote client to connect to
-             arbitrary destinations from the local machine.  The first
-             argument is the listening specification and may be
-             [bind_address:]port or, if the remote host supports it, a Unix
-             domain socket path.  If forwarding to a specific destination then
-             the second argument must be host:hostport or a Unix domain socket
-             path, otherwise if no destination argument is specified then the
-             remote forwarding will be established as a SOCKS proxy.  When
-             acting as a SOCKS proxy, the destination of the connection can be
-             restricted by PermitRemoteOpen.
+             Specifies that a TCP port or Unix-domain socket on the remote
+             machine be forwarded over the secure channel.  The remote port
+             may either be forwarded to a specified host and port or Unix-
+             domain socket from the local machine, or may act as a SOCKS 4/5
+             proxy that allows a remote client to connect to arbitrary
+             destinations from the local machine.  The first argument is the
+             listening specification and may be [bind_address:]port or, if the
+             remote host supports it, a Unix domain socket path.  If
+             forwarding to a specific destination then the second argument
+             must be host:hostport or a Unix domain socket path, otherwise if
+             no destination argument is specified then the remote forwarding
+             will be established as a SOCKS proxy.  When acting as a SOCKS
+             proxy, the destination of the connection can be restricted by
+             PermitRemoteOpen.
 
              IPv6 addresses can be specified by enclosing addresses in square
-             brackets.  Multiple forwardings may be specified, and additional
-             forwardings can be given on the command line.  Privileged ports
-             can be forwarded only when logging in as root on the remote
-             machine.  Unix domain socket paths may use the tokens described
-             in the TOKENS section and environment variables as described in
-             the ENVIRONMENT VARIABLES section.
+             brackets.
+
+             If either argument contains a '/' in it, that argument will be
+             interpreted as a Unix-domain socket (on the corresponding host)
+             rather than a TCP port.
+
+             Multiple forwardings may be specified, and additional forwardings
+             can be given on the command line.  Privileged ports can be
+             forwarded only when logging in as root on the remote machine.
+             Unix domain socket paths may use the tokens described in the
+             TOKENS section and environment variables as described in the
+             ENVIRONMENT VARIABLES section.
 
              If the port argument is 0, the listen port will be dynamically
              allocated on the server and reported to the client at run time.
@@ -1154,9 +1184,13 @@ DESCRIPTION
              execution).
 
      SetEnv  Directly specify one or more environment variables and their
-             contents to be sent to the server.  Similarly to SendEnv, with
-             the exception of the TERM variable, the server must be prepared
-             to accept the environment variable.
+             contents to be sent to the server in the form M-bM-^@M-^\NAME=VALUEM-bM-^@M-^].
+             Similarly to SendEnv, with the exception of the TERM variable,
+             the server must be prepared to accept the environment variable.
+
+             The M-bM-^@M-^\VALUEM-bM-^@M-^] may use the tokens described in the TOKENS section
+             and environment variables as described in the ENVIRONMENT
+             VARIABLES section.
 
      StdinNull
              Redirects stdin from /dev/null (actually, prevents reading from
@@ -1275,7 +1309,10 @@ DESCRIPTION
      User    Specifies the user to log in as.  This can be useful when a
              different user name is used on different machines.  This saves
              the trouble of having to remember to give the user name on the
-             command line.
+             command line.  Arguments to User may use the tokens described in
+             the TOKENS section (with the exception of %r and %C) and
+             environment variables as described in the ENVIRONMENT VARIABLES
+             section.
 
      UserKnownHostsFile
              Specifies one or more files to use for the user host key
@@ -1297,6 +1334,11 @@ DESCRIPTION
              default is no.
 
              See also VERIFYING HOST KEYS in ssh(1).
+
+     VersionAddendum
+             Optionally specifies additional text to append to the SSH
+             protocol banner sent by the client upon connection.  The default
+             is none.
 
      VisualHostKey
              If this flag is set to yes, an ASCII art representation of the
@@ -1377,8 +1419,8 @@ TOKENS
 
      CertificateFile, ControlPath, IdentityAgent, IdentityFile, Include,
      KnownHostsCommand, LocalForward, Match exec, RemoteCommand,
-     RemoteForward, RevokedHostKeys, and UserKnownHostsFile accept the tokens
-     %%, %C, %d, %h, %i, %j, %k, %L, %l, %n, %p, %r, and %u.
+     RemoteForward, RevokedHostKeys, UserKnownHostsFile and VersionAddendum
+     accept the tokens %%, %C, %d, %h, %i, %j, %k, %L, %l, %n, %p, %r, and %u.
 
      KnownHostsCommand additionally accepts the tokens %f, %H, %I, %K and %t.
 
@@ -1430,4 +1472,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.6                    September 9, 2024                   OpenBSD 7.6
+OpenBSD 7.6                      March 3, 2025                     OpenBSD 7.6

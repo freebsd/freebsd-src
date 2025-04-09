@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.136 2024/06/19 23:24:47 djm Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.138 2024/10/22 06:13:00 dtucker Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -109,16 +109,6 @@ mm_log_handler(LogLevel level, int forced, const char *msg, void *ctx)
 	    sshbuf_mutable_ptr(log_msg), len) != len)
 		fatal_f("write: %s", strerror(errno));
 	sshbuf_free(log_msg);
-}
-
-int
-mm_is_monitor(void)
-{
-	/*
-	 * m_pid is only set in the privileged part, and
-	 * points to the unprivileged child.
-	 */
-	return (pmonitor && pmonitor->m_pid > 0);
 }
 
 static void
@@ -264,15 +254,13 @@ mm_sshkey_sign(struct ssh *ssh, struct sshkey *key, u_char **sigp, size_t *lenp,
     const u_char *data, size_t datalen, const char *hostkey_alg,
     const char *sk_provider, const char *sk_pin, u_int compat)
 {
-	struct kex *kex = *pmonitor->m_pkex;
 	struct sshbuf *m;
-	u_int ndx = kex->host_key_index(key, 0, ssh);
 	int r;
 
 	debug3_f("entering");
 	if ((m = sshbuf_new()) == NULL)
 		fatal_f("sshbuf_new failed");
-	if ((r = sshbuf_put_u32(m, ndx)) != 0 ||
+	if ((r = sshkey_puts(key, m)) != 0 ||
 	    (r = sshbuf_put_string(m, data, datalen)) != 0 ||
 	    (r = sshbuf_put_cstring(m, hostkey_alg)) != 0 ||
 	    (r = sshbuf_put_u32(m, compat)) != 0)
@@ -285,6 +273,8 @@ mm_sshkey_sign(struct ssh *ssh, struct sshkey *key, u_char **sigp, size_t *lenp,
 	if ((r = sshbuf_get_string(m, sigp, lenp)) != 0)
 		fatal_fr(r, "parse");
 	sshbuf_free(m);
+	debug3_f("%s signature len=%zu", hostkey_alg ? hostkey_alg : "(null)",
+	    *lenp);
 
 	return (0);
 }
@@ -859,6 +849,72 @@ mm_terminate(void)
 		fatal_f("sshbuf_new failed");
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_TERM, m);
 	sshbuf_free(m);
+}
+
+/* Request state information */
+
+void
+mm_get_state(struct ssh *ssh, struct include_list *includes,
+    struct sshbuf *conf, struct sshbuf **confdatap,
+    uint64_t *timing_secretp,
+    struct sshbuf **hostkeysp, struct sshbuf **keystatep,
+    u_char **pw_namep,
+    struct sshbuf **authinfop, struct sshbuf **auth_optsp)
+{
+	struct sshbuf *m, *inc;
+	u_char *cp;
+	size_t len;
+	int r;
+	struct include_item *item;
+
+	debug3_f("entering");
+
+	if ((m = sshbuf_new()) == NULL || (inc = sshbuf_new()) == NULL)
+		fatal_f("sshbuf_new failed");
+
+	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_STATE, m);
+
+	debug3_f("waiting for MONITOR_ANS_STATE");
+	mm_request_receive_expect(pmonitor->m_recvfd,
+	    MONITOR_ANS_STATE, m);
+
+	if ((r = sshbuf_get_string(m, &cp, &len)) != 0 ||
+	    (r = sshbuf_get_u64(m, timing_secretp)) != 0 ||
+	    (r = sshbuf_froms(m, hostkeysp)) != 0 ||
+	    (r = sshbuf_get_stringb(m, ssh->kex->server_version)) != 0 ||
+	    (r = sshbuf_get_stringb(m, ssh->kex->client_version)) != 0 ||
+	    (r = sshbuf_get_stringb(m, inc)) != 0)
+		fatal_fr(r, "parse config");
+
+	/* postauth */
+	if (confdatap) {
+		if ((r = sshbuf_froms(m, confdatap)) != 0 ||
+		    (r = sshbuf_froms(m, keystatep)) != 0 ||
+		    (r = sshbuf_get_string(m, pw_namep, NULL)) != 0 ||
+		    (r = sshbuf_froms(m, authinfop)) != 0 ||
+		    (r = sshbuf_froms(m, auth_optsp)) != 0)
+			fatal_fr(r, "parse config postauth");
+	}
+
+	if (conf != NULL && (r = sshbuf_put(conf, cp, len)))
+		fatal_fr(r, "sshbuf_put");
+
+	while (sshbuf_len(inc) != 0) {
+		item = xcalloc(1, sizeof(*item));
+		if ((item->contents = sshbuf_new()) == NULL)
+			fatal_f("sshbuf_new failed");
+		if ((r = sshbuf_get_cstring(inc, &item->selector, NULL)) != 0 ||
+		    (r = sshbuf_get_cstring(inc, &item->filename, NULL)) != 0 ||
+		    (r = sshbuf_get_stringb(inc, item->contents)) != 0)
+			fatal_fr(r, "parse includes");
+		TAILQ_INSERT_TAIL(includes, item, entry);
+	}
+
+	free(cp);
+	sshbuf_free(m);
+	sshbuf_free(inc);
+
+	debug3_f("done");
 }
 
 static void

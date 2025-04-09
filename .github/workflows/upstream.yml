@@ -9,19 +9,25 @@ jobs:
   selfhosted:
     name: "upstream ${{ matrix.target }} ${{ matrix.config }}"
     if: github.repository == 'openssh/openssh-portable-selfhosted'
-    runs-on: 'libvirt'
+    runs-on: ${{ matrix.host }}
     env:
       DEBUG_ACTIONS: true
       EPHEMERAL: true
-      HOST: 'libvirt'
+      HOST:  ${{ matrix.host }}
       TARGET_HOST: ${{ matrix.target }}
       TARGET_CONFIG: ${{ matrix.config }}
       TARGET_DOMAIN: ${{ format('{0}-{1}-{2}', matrix.target, matrix.config, github.run_id) || matrix.target }}
     strategy:
       fail-fast: false
       matrix:
+        host:
+          - libvirt
         target: [ obsdsnap, obsdsnap-i386 ]
         config: [ default, without-openssl, ubsan ]
+        include:
+          - { host: libvirt-arm64, target: obsdsnap-arm64, config: default }
+          - { host: libvirt-arm64, target: obsdsnap-arm64, config: without-openssl }
+          - { host: libvirt-arm64, target: obsdsnap-arm64, config: ubsan }
     steps:
     - name: unmount stale workspace
       run: fusermount -u ${GITHUB_WORKSPACE} || true
@@ -49,17 +55,22 @@ jobs:
       env:
         SUDO: sudo
       timeout-minutes: 300
+    - name: show logs
+      if: failure()
+      run: vmrun 'for i in /usr/src/regress/usr.bin/ssh/obj/*.log; do echo ====; echo logfile $i; echo =====; cat $i; done'
     - name: save logs
       if: failure()
       uses: actions/upload-artifact@main
       with:
         name: ${{ matrix.target }}-${{ matrix.config }}-logs
         path: |
-          /usr/obj/regress/usr.bin/ssh/obj/*.log
-          /usr/obj/regress/usr.bin/ssh/obj/log/*
+          /usr/src/regress/usr.bin/ssh/obj/*.log
+          /usr/src/regress/usr.bin/ssh/obj/log/*
     - name: unmount workspace
       if: always()
-      run: fusermount -u ${GITHUB_WORKSPACE} || true
+      run: |
+        fusermount -u ${GITHUB_WORKSPACE} || true
+        fusermount -z -u ${GITHUB_WORKSPACE} || true
       working-directory: ${{ runner.temp }}
     - name: shutdown VM
       if: always()

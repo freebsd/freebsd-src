@@ -91,67 +91,106 @@ DESCRIPTION
              the options listed below, and their possible values, see
              ssh_config(5).
 
+                   AddKeysToAgent
                    AddressFamily
                    BatchMode
                    BindAddress
                    BindInterface
+                   CASignatureAlgorithms
                    CanonicalDomains
                    CanonicalizeFallbackLocal
                    CanonicalizeHostname
                    CanonicalizeMaxDots
                    CanonicalizePermittedCNAMEs
-                   CASignatureAlgorithms
                    CertificateFile
+                   ChannelTimeout
                    CheckHostIP
                    Ciphers
+                   ClearAllForwardings
                    Compression
-                   ConnectionAttempts
                    ConnectTimeout
+                   ConnectionAttempts
                    ControlMaster
                    ControlPath
                    ControlPersist
-                   GlobalKnownHostsFile
+                   DynamicForward
+                   EnableEscapeCommandline
+                   EnableSSHKeysign
+                   EscapeChar
+                   ExitOnForwardFailure
+                   FingerprintHash
+                   ForkAfterAuthentication
+                   ForwardAgent
+                   ForwardX11
+                   ForwardX11Timeout
+                   ForwardX11Trusted
                    GSSAPIAuthentication
                    GSSAPIDelegateCredentials
+                   GatewayPorts
+                   GlobalKnownHostsFile
                    HashKnownHosts
                    Host
-                   HostbasedAcceptedAlgorithms
-                   HostbasedAuthentication
                    HostKeyAlgorithms
                    HostKeyAlias
+                   HostbasedAcceptedAlgorithms
+                   HostbasedAuthentication
                    Hostname
+                   IPQoS
                    IdentitiesOnly
                    IdentityAgent
                    IdentityFile
-                   IPQoS
+                   IgnoreUnknown
+                   Include
                    KbdInteractiveAuthentication
                    KbdInteractiveDevices
                    KexAlgorithms
                    KnownHostsCommand
+                   LocalCommand
+                   LocalForward
                    LogLevel
+                   LogVerbose
                    MACs
                    NoHostAuthenticationForLocalhost
                    NumberOfPasswordPrompts
-                   PasswordAuthentication
+                   ObscureKeystrokeTiming
                    PKCS11Provider
+                   PasswordAuthentication
+                   PermitLocalCommand
+                   PermitRemoteOpen
                    Port
                    PreferredAuthentications
                    ProxyCommand
                    ProxyJump
+                   ProxyUseFdpass
                    PubkeyAcceptedAlgorithms
                    PubkeyAuthentication
                    RekeyLimit
+                   RemoteCommand
+                   RemoteForward
+                   RequestTTY
                    RequiredRSASize
+                   RevokedHostKeys
+                   SecurityKeyProvider
                    SendEnv
-                   ServerAliveInterval
                    ServerAliveCountMax
+                   ServerAliveInterval
+                   SessionType
                    SetEnv
+                   StdinNull
+                   StreamLocalBindMask
+                   StreamLocalBindUnlink
                    StrictHostKeyChecking
+                   SyslogFacility
                    TCPKeepAlive
+                   Tag
+                   Tunnel
+                   TunnelDevice
                    UpdateHostKeys
                    User
                    UserKnownHostsFile
                    VerifyHostKeyDNS
+                   VisualHostKey
+                   XAuthLocation
 
      -P port
              Specifies the port to connect to on the remote host.  Note that
@@ -229,4 +268,4 @@ CAVEATS
      requires careful quoting of any characters that have special meaning to
      the remote shell, such as quote characters.
 
-OpenBSD 7.6                    December 16, 2022                   OpenBSD 7.6
+OpenBSD 7.6                    December 6, 2024                    OpenBSD 7.6

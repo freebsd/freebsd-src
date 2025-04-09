@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.102 2024/07/25 22:40:08 djm Exp $ */
+/* $OpenBSD: mux.c,v 1.103 2024/10/12 10:50:37 jsg Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -68,7 +68,6 @@
 #include "readconf.h"
 #include "clientloop.h"
 #include "ssherr.h"
-#include "misc.h"
 
 /* from ssh.c */
 extern int tty_flag;

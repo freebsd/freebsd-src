@@ -1,4 +1,4 @@
-#	$OpenBSD: sshfp-connect.sh,v 1.4 2021/09/01 00:50:27 dtucker Exp $
+#	$OpenBSD: sshfp-connect.sh,v 1.5 2025/03/11 11:46:44 dtucker Exp $
 #	Placed in the Public Domain.
 
 # This test requires external setup and thus is skipped unless
@@ -29,6 +29,12 @@ if ! $SSH -Q key-plain | grep ssh-rsa >/dev/null; then
 elif [ -z "${TEST_SSH_SSHFP_DOMAIN}" ]; then
 	skip "TEST_SSH_SSHFP_DOMAIN not set."
 else
+	# Prime any DNS caches and resolvers.
+	for i in sshtest sshtest-sha1 sshtest-sha256; do
+		host -t sshfp ${i}.${TEST_SSH_SSHFP_DOMAIN} >/dev/null 2>&1
+		host -t sshfp ${i}-bad.${TEST_SSH_SSHFP_DOMAIN} >/dev/null 2>&1
+	done
+
 	# Set RSA host key to match fingerprints above.
 	mv $OBJ/sshd_proxy $OBJ/sshd_proxy.orig
 	$SUDO cp $SRC/rsa_openssh.prv $OBJ/host.ssh-rsa

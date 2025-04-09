@@ -239,7 +239,7 @@ function add(str) {
       while(w<nwords&&match(words[w+1],"^[\\.,:;)]"))
 	add(words[++w])
     } else if(match(words[w],"^Op$")) {
-      option=1
+      option++
       if(!nospace)
 	nospace=1
       add("[")
@@ -358,7 +358,7 @@ function add(str) {
     add(")")
   if(angles)
     add(">")
-  if(option)
+  for(;option;option--)
     add("]")
   if(ext&&!extopt&&!match(line," $"))
     add(OFS)

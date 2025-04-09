@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.375 2024/09/09 02:39:57 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.377 2025/02/18 08:02:48 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -1888,10 +1888,8 @@ userauth_pubkey(struct ssh *ssh)
 			debug("Trying private key: %s", id->filename);
 			id->key = load_identity_file(id);
 			if (id->key != NULL) {
-				if (id->key != NULL) {
-					id->isprivate = 1;
-					sent = sign_and_send_pubkey(ssh, id);
-				}
+				id->isprivate = 1;
+				sent = sign_and_send_pubkey(ssh, id);
 				sshkey_free(id->key);
 				id->key = NULL;
 				id->isprivate = 0;

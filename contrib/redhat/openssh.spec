@@ -1,4 +1,4 @@
-%global ver 9.9p2
+%global ver 10.0p1
 %global rel 1%{?dist}
 
 # OpenSSH privilege separation requires a user & group ID
@@ -23,14 +23,6 @@
 # Use GTK2 instead of GNOME in gnome-ssh-askpass
 %global gtk2 1
 
-# Use build6x options for older RHEL builds
-# RHEL 7 not yet supported
-%if 0%{?rhel} > 6
-%global build6x 0
-%else
-%global build6x 1
-%endif
-
 %global without_openssl 0
 # build without openssl where 1.1.1 is not available
 %if %{defined fedora} && 0%{?fedora} <= 28
@@ -52,14 +44,6 @@
 # RedHat <= 7.2 and Red Hat Advanced Server 2.1 are examples.
 # rpm -ba|--rebuild --define 'no_gtk2 1'
 %{?no_gtk2:%global gtk2 0}
-
-# Is this a build for RHL 6.x or earlier?
-%{?build_6x:%global build6x 1}
-
-# If this is RHL 6.x, the default configuration has sysconfdir in /usr/etc.
-%if %{build6x}
-%global _sysconfdir /etc
-%endif
 
 # Options for static OpenSSL link:
 # rpm -ba|--rebuild --define "static_openssl 1"
@@ -93,21 +77,13 @@ License: BSD
 Group: Applications/Internet
 BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
 Obsoletes: ssh
-%if %{build6x}
-PreReq: initscripts >= 5.00
-%else
 Requires: initscripts >= 5.20
-%endif
 BuildRequires: perl
 %if ! %{without_openssl}
 BuildRequires: openssl-devel >= 1.1.1
 %endif
 BuildRequires: /bin/login
-%if ! %{build6x}
 BuildRequires: glibc-devel, pam
-%else
-BuildRequires: /usr/include/security/pam_appl.h
-%endif
 %if ! %{no_x11_askpass}
 BuildRequires: /usr/include/X11/Xlib.h
 # Xt development tools
@@ -136,9 +112,7 @@ Summary: The OpenSSH server daemon.
 Group: System Environment/Daemons
 Obsoletes: ssh-server
 Requires: openssh = %{version}-%{release}, chkconfig >= 0.9
-%if ! %{build6x}
 Requires: /etc/pam.d/system-auth
-%endif
 
 %package askpass
 Summary: A passphrase dialog for OpenSSH and X.
@@ -427,6 +401,8 @@ fi
 - Remove reference of dropped sshd.pam.old file
 - Update openssl-devel dependency to require >= 1.1.1
 - Build with --without-openssl elsewhere
+- Remove ancient build6x config, intended for RHL 6.x
+  (the distro predating Fedora, not RHEL)
 
 * Thu Oct 28 2021 Damien Miller <djm@mindrot.org>
 - Remove remaining traces of --with-md5-passwords

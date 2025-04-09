@@ -656,10 +656,9 @@ CERTIFICATES
 
      verify-required
              Require signatures made using this key indicate that the user was
-             first verified.  This option only makes sense for the FIDO
-             authenticator algorithms ecdsa-sk and ed25519-sk.  Currently PIN
-             authentication is the only supported verification method, but
-             other methods may be supported in the future.
+             first verified, e.g. by PIN or on-token biometrics.  This option
+             only makes sense for the FIDO authenticator algorithms ecdsa-sk
+             and ed25519-sk.
 
      At present, no standard options are valid for host keys.
 
@@ -906,4 +905,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 7.6                     August 17, 2024                    OpenBSD 7.6
+OpenBSD 7.6                    November 27, 2024                   OpenBSD 7.6
