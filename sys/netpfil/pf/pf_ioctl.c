@@ -342,7 +342,7 @@ pfattach_vnet(void)
 	/* default rule should never be garbage collected */
 	V_pf_default_rule.entries.tqe_prev = &V_pf_default_rule.entries.tqe_next;
 	V_pf_default_rule.action = V_default_to_drop ? PF_DROP : PF_PASS;
-	V_pf_default_rule.nr = -1;
+	V_pf_default_rule.nr = (uint32_t)-1;
 	V_pf_default_rule.rtableid = -1;
 
 	pf_counter_u64_init(&V_pf_default_rule.evaluations, M_WAITOK);

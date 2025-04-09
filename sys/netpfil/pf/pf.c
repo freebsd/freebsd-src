@@ -2206,6 +2206,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 		switch (type) {
 		case ICMP_ECHO:
 			*icmp_dir = PF_IN;
+			/* FALLTHROUGH */
 		case ICMP_ECHOREPLY:
 			*virtual_type = ICMP_ECHO;
 			*virtual_id = pd->hdr.icmp.icmp_id;
@@ -2213,6 +2214,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 
 		case ICMP_TSTAMP:
 			*icmp_dir = PF_IN;
+			/* FALLTHROUGH */
 		case ICMP_TSTAMPREPLY:
 			*virtual_type = ICMP_TSTAMP;
 			*virtual_id = pd->hdr.icmp.icmp_id;
@@ -2220,6 +2222,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 
 		case ICMP_IREQ:
 			*icmp_dir = PF_IN;
+			/* FALLTHROUGH */
 		case ICMP_IREQREPLY:
 			*virtual_type = ICMP_IREQ;
 			*virtual_id = pd->hdr.icmp.icmp_id;
@@ -2227,6 +2230,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 
 		case ICMP_MASKREQ:
 			*icmp_dir = PF_IN;
+			/* FALLTHROUGH */
 		case ICMP_MASKREPLY:
 			*virtual_type = ICMP_MASKREQ;
 			*virtual_id = pd->hdr.icmp.icmp_id;
@@ -2234,6 +2238,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 
 		case ICMP_IPV6_WHEREAREYOU:
 			*icmp_dir = PF_IN;
+			/* FALLTHROUGH */
 		case ICMP_IPV6_IAMHERE:
 			*virtual_type = ICMP_IPV6_WHEREAREYOU;
 			*virtual_id = 0; /* Nothing sane to match on! */
@@ -2241,6 +2246,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 
 		case ICMP_MOBILE_REGREQUEST:
 			*icmp_dir = PF_IN;
+			/* FALLTHROUGH */
 		case ICMP_MOBILE_REGREPLY:
 			*virtual_type = ICMP_MOBILE_REGREQUEST;
 			*virtual_id = 0; /* Nothing sane to match on! */
@@ -2248,6 +2254,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 
 		case ICMP_ROUTERSOLICIT:
 			*icmp_dir = PF_IN;
+			/* FALLTHROUGH */
 		case ICMP_ROUTERADVERT:
 			*virtual_type = ICMP_ROUTERSOLICIT;
 			*virtual_id = 0; /* Nothing sane to match on! */
@@ -2283,6 +2290,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 		switch (type) {
 		case ICMP6_ECHO_REQUEST:
 			*icmp_dir = PF_IN;
+			/* FALLTHROUGH */
 		case ICMP6_ECHO_REPLY:
 			*virtual_type = ICMP6_ECHO_REQUEST;
 			*virtual_id = pd->hdr.icmp6.icmp6_id;
@@ -2304,6 +2312,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 		}
 		case MLD_MTRACE:
 			*icmp_dir = PF_IN;
+			/* FALLTHROUGH */
 		case MLD_MTRACE_RESP:
 			*virtual_type = MLD_MTRACE;
 			*virtual_id = 0; /* Nothing sane to match on! */
@@ -2311,6 +2320,7 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 
 		case ND_NEIGHBOR_SOLICIT:
 			*icmp_dir = PF_IN;
+			/* FALLTHROUGH */
 		case ND_NEIGHBOR_ADVERT: {
 			*virtual_type = ND_NEIGHBOR_SOLICIT;
 			*virtual_id = 0;
