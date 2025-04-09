@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.239 2024/06/26 23:14:14 deraadt Exp $ */
+/* $OpenBSD: sftp.c,v 1.240 2025/03/28 06:04:07 dtucker Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -2463,6 +2463,7 @@ main(int argc, char **argv)
 	addargs(&args, "-oForwardX11 no");
 	addargs(&args, "-oPermitLocalCommand no");
 	addargs(&args, "-oClearAllForwardings yes");
+	addargs(&args, "-oControlMaster no");
 
 	ll = SYSLOG_LEVEL_INFO;
 	infile = stdin;

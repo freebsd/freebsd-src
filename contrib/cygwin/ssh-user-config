@@ -58,7 +58,7 @@ create_identity() {
       else
         ssh-keygen -t "${type}" -f "${pwdhome}/.ssh/${file}" > /dev/null
       fi
-      if csih_request "Do you want to use this identity to login to this machine?"
+      if csih_request "Do you want to use this identity to log in to this machine?"
       then
         csih_inform "Adding to ${pwdhome}/.ssh/authorized_keys"
         cat "${pwdhome}/.ssh/${file}.pub" >> "${pwdhome}/.ssh/authorized_keys"

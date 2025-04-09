@@ -1,4 +1,4 @@
-#	$OpenBSD: hostkey-agent.sh,v 1.13 2021/09/30 05:20:08 dtucker Exp $
+#	$OpenBSD: hostkey-agent.sh,v 1.15 2024/12/04 10:51:13 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey agent"
@@ -49,7 +49,7 @@ for k in $SSH_KEYTYPES ; do
 	fi
 done
 
-SSH_CERTTYPES=`ssh -Q key-sig | grep 'cert-v01@openssh.com'`
+SSH_CERTTYPES=`ssh -Q key-sig | grep 'cert-v01@openssh.com' | maybe_filter_sk`
 
 # Prepare sshd_proxy for certificates.
 cp $OBJ/sshd_proxy.orig $OBJ/sshd_proxy
@@ -81,6 +81,30 @@ for k in $SSH_CERTTYPES ; do
 		fail "bad SSH_CONNECTION key type $k"
 	fi
 done
+
+verbose "multiple hostkeys"
+cp $OBJ/sshd_proxy.orig $OBJ/sshd_proxy
+cp $OBJ/ssh_proxy $OBJ/ssh_proxy.orig
+grep -vi 'globalknownhostsfile' $OBJ/ssh_proxy.orig > $OBJ/ssh_proxy
+echo "UpdateHostkeys=yes" >> $OBJ/ssh_proxy
+echo "GlobalKnownHostsFile=none" >> $OBJ/ssh_proxy
+
+for k in $SSH_KEYTYPES ; do
+	verbose "Addkey type $k"
+	echo "Hostkey $OBJ/agent-key.${k}" >> $OBJ/sshd_proxy
+
+	( printf 'localhost-with-alias ' ;
+    cat $OBJ/agent-key.$k.pub) > $OBJ/known_hosts
+done
+
+opts="-oStrictHostKeyChecking=yes -F $OBJ/ssh_proxy"
+SSH_CONNECTION=`${SSH} $opts host 'echo $SSH_CONNECTION'`
+if [ $? -ne 0 ]; then
+	fail "connection to server with multiple hostkeys failed"
+fi
+if [ "$SSH_CONNECTION" != "UNKNOWN 65535 UNKNOWN 65535" ]; then
+	fail "bad SSH_CONNECTION key while using multiple hostkeys"
+fi
 
 trace "kill agent"
 ${SSHAGENT} -k > /dev/null

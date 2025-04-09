@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.104 2021/07/02 05:11:21 dtucker Exp $
+#	$OpenBSD: sshd_config,v 1.105 2024/12/03 14:12:47 dtucker Exp $
 
 # This is the sshd server system-wide configuration file.  See
 # sshd_config(5) for more information.
@@ -53,11 +53,13 @@ AuthorizedKeysFile	.ssh/authorized_keys
 # Don't read the user's ~/.rhosts and ~/.shosts files
 #IgnoreRhosts yes
 
-# To disable tunneled clear text passwords, change to no here!
+# To disable tunneled clear text passwords, change to "no" here!
 #PasswordAuthentication yes
 #PermitEmptyPasswords no
 
-# Change to no to disable s/key passwords
+# Change to "no" to disable keyboard-interactive authentication.  Depending on
+# the system's configuration, this may involve passwords, challenge-response,
+# one-time passwords or some combination of these and other methods.
 #KbdInteractiveAuthentication yes
 
 # Kerberos options

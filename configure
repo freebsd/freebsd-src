@@ -678,11 +678,13 @@ GSSLIBS
 KRB5CONF
 SSHDLIBS
 SSH_PRIVSEP_USER
+SK_STANDALONE
 LIBFIDO2
 SK_DUMMY_LIBRARY
 OPENSSL_BIN
 openssl_bin
 PICFLAG
+LIBWTMPDB
 LIBEDIT
 LDNSCONFIG
 LIBOBJS
@@ -784,6 +786,7 @@ with_ldflags
 with_ldflags_after
 with_libs
 with_Werror
+with_linux_memlock_onfault
 with_solaris_contracts
 with_solaris_projects
 with_solaris_privs
@@ -792,12 +795,13 @@ with_zlib
 with_zlib_version_check
 with_ldns
 with_libedit
+with_wtmpdb
 with_audit
 with_pie
 enable_pkcs11
 enable_security_key
 with_security_key_builtin
-enable_dsa_keys
+with_security_key_standalone
 with_ssl_dir
 with_openssl_header_check
 with_ssl_engine
@@ -1467,7 +1471,6 @@ Optional Features:
   --disable-largefile     omit support for large files
   --disable-pkcs11        disable PKCS#11 support code [no]
   --disable-security-key  disable U2F/FIDO support code no
-  --enable-dsa-keys       enable DSA key support no
   --disable-strip         Disable calling strip(1) on install
   --disable-etc-default-login Disable using PATH from /etc/default/login no
   --disable-fd-passing    disable file descriptor passsing no
@@ -1495,6 +1498,7 @@ Optional Packages:
   --with-ldflags-after    Specify additional flags to pass to linker after configure
   --with-libs             Specify additional libraries to link with
   --with-Werror           Build main code with -Werror
+  --with-linux-memlock-onfault Enables memory locking on Linux
   --with-solaris-contracts Enable Solaris process contracts (experimental)
   --with-solaris-projects Enable Solaris projects (experimental)
   --with-solaris-privs    Enable Solaris/Illumos privileges (experimental)
@@ -1503,9 +1507,11 @@ Optional Packages:
   --without-zlib-version-check Disable zlib version check
   --with-ldns[=PATH]      Use ldns for DNSSEC support (optionally in PATH)
   --with-libedit[=PATH]   Enable libedit support for sftp
+  --with-wtmpdb[=PATH]   Enable wtmpdb support for sshd
   --with-audit=module     Enable audit support (modules=debug,bsm,linux)
   --with-pie              Build Position Independent Executables if possible
   --with-security-key-builtin include builtin U2F/FIDO support
+  --with-security-key-standalone build standalone sk-libfido2 SecurityKeyProvider
   --with-ssl-dir=PATH     Specify path to OpenSSL installation
   --without-openssl-header-check Disable OpenSSL version consistency check
   --with-ssl-engine       Enable OpenSSL (hardware) ENGINE support
@@ -1514,7 +1520,7 @@ Optional Packages:
   --with-pam              Enable PAM support
   --with-pam-service=name Specify PAM service name
   --with-privsep-user=user Specify non-privileged user for privilege separation
-  --with-sandbox=style    Specify privilege separation sandbox (no, capsicum, darwin, rlimit, seccomp_filter, systrace, pledge)
+  --with-sandbox=style    Specify privilege separation sandbox (no, capsicum, darwin, rlimit, seccomp_filter)
   --with-selinux          Enable SELinux support
   --with-kerberos5=PATH   Enable Kerberos 5 support
   --with-privsep-path=xxx Path for privilege separation chroot (default=/var/empty)
@@ -5973,16 +5979,6 @@ ac_fn_check_decl "$LINENO" "LONG_LONG_MAX" "ac_cv_have_decl_LONG_LONG_MAX" "#inc
 if test "x$ac_cv_have_decl_LONG_LONG_MAX" = xyes
 then :
   have_long_long_max=1
-fi
-ac_fn_check_decl "$LINENO" "SYSTR_POLICY_KILL" "ac_cv_have_decl_SYSTR_POLICY_KILL" "
-	#include <sys/types.h>
-	#include <sys/param.h>
-	#include <dev/systrace.h>
-
-" "$ac_c_undeclared_builtin_options" "CFLAGS"
-if test "x$ac_cv_have_decl_SYSTR_POLICY_KILL" = xyes
-then :
-  have_systr_policy_kill=1
 fi
 ac_fn_check_decl "$LINENO" "RLIMIT_NPROC" "ac_cv_have_decl_RLIMIT_NPROC" "
 	#include <sys/types.h>
@@ -11325,6 +11321,65 @@ then :
 fi
 
 
+ac_fn_check_decl "$LINENO" "le32toh" "ac_cv_have_decl_le32toh" "
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#ifdef HAVE_ENDIAN_H
+# include <endian.h>
+#endif
+
+" "$ac_c_undeclared_builtin_options" "CFLAGS"
+if test "x$ac_cv_have_decl_le32toh" = xyes
+then :
+  ac_have_decl=1
+else $as_nop
+  ac_have_decl=0
+fi
+printf "%s\n" "#define HAVE_DECL_LE32TOH $ac_have_decl" >>confdefs.h
+ac_fn_check_decl "$LINENO" "le64toh" "ac_cv_have_decl_le64toh" "
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#ifdef HAVE_ENDIAN_H
+# include <endian.h>
+#endif
+
+" "$ac_c_undeclared_builtin_options" "CFLAGS"
+if test "x$ac_cv_have_decl_le64toh" = xyes
+then :
+  ac_have_decl=1
+else $as_nop
+  ac_have_decl=0
+fi
+printf "%s\n" "#define HAVE_DECL_LE64TOH $ac_have_decl" >>confdefs.h
+ac_fn_check_decl "$LINENO" "htole64" "ac_cv_have_decl_htole64" "
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
+#ifdef HAVE_ENDIAN_H
+# include <endian.h>
+#endif
+
+" "$ac_c_undeclared_builtin_options" "CFLAGS"
+if test "x$ac_cv_have_decl_htole64" = xyes
+then :
+  ac_have_decl=1
+else $as_nop
+  ac_have_decl=0
+fi
+printf "%s\n" "#define HAVE_DECL_HTOLE64 $ac_have_decl" >>confdefs.h
+
+
 # On some platforms (eg SunOS4) sys/audit.h requires sys/[time|types|label.h]
 # to be included first.
 ac_fn_c_check_header_compile "$LINENO" "sys/audit.h" "ac_cv_header_sys_audit_h" "
@@ -11506,6 +11561,9 @@ SPP_MSG="no"
 # the --with-solaris-privs option and --with-sandbox=solaris).
 SOLARIS_PRIVS="no"
 
+# Default shared library extension
+SHLIBEXT=".so"
+
 # Check for some target-specific stuff
 case "$host" in
 *-*-aix*)
@@ -11519,6 +11577,7 @@ printf %s "checking if compiler allows macro redefinitions... " >&6; }
 	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
+#include <stdlib.h>
 #define testmacro foo
 #define testmacro bar
 int
@@ -11974,6 +12033,7 @@ printf "%s\n" "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 }
+	SHLIBEXT=".dll"
 	;;
 *-*-dgux*)
 
@@ -12138,6 +12198,7 @@ fi
 
 printf "%s\n" "#define BROKEN_POLL 1" >>confdefs.h
 
+	SHLIBEXT=".dylib"
 	;;
 *-*-dragonfly*)
 	SSHDLIBS="$SSHDLIBS"
@@ -12388,6 +12449,46 @@ printf "%s\n" "#define _PATH_BTMP \"/var/log/btmp\"" >>confdefs.h
 
 
 printf "%s\n" "#define LINUX_OOM_ADJUST 1" >>confdefs.h
+
+
+# Check whether --with-linux-memlock-onfault was given.
+if test ${with_linux_memlock_onfault+y}
+then :
+  withval=$with_linux_memlock_onfault;
+			if test "x$withval" != "xno" ; then
+				{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for MCL_ONFAULT" >&5
+printf %s "checking for MCL_ONFAULT... " >&6; }
+				cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <sys/mman.h>
+int
+main (void)
+{
+ mlockall(MCL_FUTURE | MCL_ONFAULT);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+
+					{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: supported" >&5
+printf "%s\n" "supported" >&6; }
+
+printf "%s\n" "#define LINUX_MEMLOCK_ONFAULT 1" >>confdefs.h
+
+else $as_nop
+
+					{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: not supported" >&5
+printf "%s\n" "not supported" >&6; }
+					as_fn_error $? "MCL_ONFAULT is not available on your system" "$LINENO" 5
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+			fi
+
+fi
+
 
 
 printf "%s\n" "#define SYSTEMD_NOTIFY 1" >>confdefs.h
@@ -15324,6 +15425,95 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 fi
 
 
+# Check whether user wants wtmpdb support
+WTMPDB_MSG="no"
+
+# Check whether --with-wtmpdb was given.
+if test ${with_wtmpdb+y}
+then :
+  withval=$with_wtmpdb;  if test "x$withval" != "xno" ; then
+		if test "x$withval" = "xyes" ; then
+			if test "x$PKGCONFIG" != "xno"; then
+				{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if $PKGCONFIG knows about wtmpdb" >&5
+printf %s "checking if $PKGCONFIG knows about wtmpdb... " >&6; }
+				if "$PKGCONFIG" libwtmpdb; then
+					{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+					use_pkgconfig_for_libwtmpdb=yes
+				else
+					{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+				fi
+			fi
+		else
+			CPPFLAGS="$CPPFLAGS -I${withval}/include"
+			if test -n "${rpath_opt}"; then
+				LDFLAGS="-L${withval}/lib ${rpath_opt}${withval}/lib ${LDFLAGS}"
+			else
+				LDFLAGS="-L${withval}/lib ${LDFLAGS}"
+			fi
+		fi
+		if test "x$use_pkgconfig_for_libwtmpdb" = "xyes"; then
+			LIBWTMPDB=`$PKGCONFIG --libs libwtmpdb`
+			CPPFLAGS="$CPPFLAGS `$PKGCONFIG --cflags libwtmpdb`"
+		else
+			LIBWTMPDB="-lwtmpdb"
+		fi
+		OTHERLIBS=`echo $LIBWTMPDB | sed 's/-lwtmpdb//'`
+		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for wtmpdb_login in -lwtmpdb" >&5
+printf %s "checking for wtmpdb_login in -lwtmpdb... " >&6; }
+if test ${ac_cv_lib_wtmpdb_wtmpdb_login+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lwtmpdb  $OTHERLIBS
+		 $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char wtmpdb_login ();
+int
+main (void)
+{
+return wtmpdb_login ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_wtmpdb_wtmpdb_login=yes
+else $as_nop
+  ac_cv_lib_wtmpdb_wtmpdb_login=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_wtmpdb_wtmpdb_login" >&5
+printf "%s\n" "$ac_cv_lib_wtmpdb_wtmpdb_login" >&6; }
+if test "x$ac_cv_lib_wtmpdb_wtmpdb_login" = xyes
+then :
+
+printf "%s\n" "#define USE_WTMPDB 1" >>confdefs.h
+
+			  WTMPDB_MSG="yes"
+
+
+else $as_nop
+   as_fn_error $? "libwtmpdb not found" "$LINENO" 5
+fi
+
+	fi
+
+fi
+
+
+
 AUDIT_MODULE=none
 
 # Check whether --with-audit was given.
@@ -16726,6 +16916,40 @@ then :
 fi
 
 
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether compiler supports __builtin_popcount" >&5
+printf %s "checking whether compiler supports __builtin_popcount... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+		#include <stdlib.h>
+
+int
+main (void)
+{
+ int x = 123, y;
+	   y = __builtin_popcount(123);
+	   exit(y == 6 ? 0 : -1);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+else $as_nop
+
+		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+
+printf "%s\n" "#define MISSING_BUILTIN_POPCOUNT 1" >>confdefs.h
+
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+
 ac_fn_check_decl "$LINENO" "bzero" "ac_cv_have_decl_bzero" "$ac_includes_default" "$ac_c_undeclared_builtin_options" "CFLAGS"
 if test "x$ac_cv_have_decl_bzero" = xyes
 then :
@@ -16868,15 +17092,12 @@ then :
 fi
 
 
-enable_dsa=
-# Check whether --enable-dsa-keys was given.
-if test ${enable_dsa_keys+y}
-then :
-  enableval=$enable_dsa_keys;
-		if test "x$enableval" != "xno" ; then
-			enable_dsa=1
-		fi
+enable_sk_standalone=
 
+# Check whether --with-security-key-standalone was given.
+if test ${with_security_key_standalone+y}
+then :
+  withval=$with_security_key_standalone;  enable_sk_standalone=$withval
 
 fi
 
@@ -19463,61 +19684,19 @@ printf "%s\n" "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam \
     conftest$ac_exeext conftest.$ac_ext
-
-	openssl_dsa=no
-	if test ! -z "$enable_dsa" ; then
-		ac_fn_check_decl "$LINENO" "OPENSSL_NO_DSA" "ac_cv_have_decl_OPENSSL_NO_DSA" " #include <openssl/opensslconf.h>
-
-" "$ac_c_undeclared_builtin_options" "CFLAGS"
-if test "x$ac_cv_have_decl_OPENSSL_NO_DSA" = xyes
-then :
-  ac_have_decl=1
-else $as_nop
-  ac_have_decl=0
-fi
-printf "%s\n" "#define HAVE_DECL_OPENSSL_NO_DSA $ac_have_decl" >>confdefs.h
-if test $ac_have_decl = 1
-then :
-
-else $as_nop
-
-			ac_fn_check_decl "$LINENO" "OPENSSL_IS_BORINGSSL" "ac_cv_have_decl_OPENSSL_IS_BORINGSSL" " #include <openssl/opensslconf.h>
-
-" "$ac_c_undeclared_builtin_options" "CFLAGS"
-if test "x$ac_cv_have_decl_OPENSSL_IS_BORINGSSL" = xyes
-then :
-  ac_have_decl=1
-else $as_nop
-  ac_have_decl=0
-fi
-printf "%s\n" "#define HAVE_DECL_OPENSSL_IS_BORINGSSL $ac_have_decl" >>confdefs.h
-if test $ac_have_decl = 1
-then :
-
-else $as_nop
-   openssl_dsa=yes
-fi
-
-
-fi
-
-		{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether to enable DSA key support" >&5
-printf %s "checking whether to enable DSA key support... " >&6; }
-		if test "x$openssl_dsa" = "xno"; then
-			as_fn_error $? "DSA requested but not supported by OpenSSL" "$LINENO" 5
-		else
-			{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-
-printf "%s\n" "#define WITH_DSA 1" >>confdefs.h
-
-		fi
-	fi
 fi
 
 # PKCS11/U2F depend on OpenSSL and dlopen().
 enable_pkcs11=yes
 enable_sk=yes
+
+ac_fn_check_decl "$LINENO" "OPENSSL_IS_AWSLC" "ac_cv_have_decl_OPENSSL_IS_AWSLC" "#include <openssl/base.h>
+
+" "$ac_c_undeclared_builtin_options" "CFLAGS"
+if test "x$ac_cv_have_decl_OPENSSL_IS_AWSLC" = xyes
+then :
+  enable_pkcs11="disabled; PKCS#11 not supported with AWS-LC"
+fi
 if test "x$openssl" != "xyes" ; then
 	enable_pkcs11="disabled; missing libcrypto"
 fi
@@ -19716,6 +19895,21 @@ fi
 
 		LIBS="$saved_LIBS"
 	fi
+fi
+
+# Check for standalone SecurityKeyProvider
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether to build standalone sk-libfido2" >&5
+printf %s "checking whether to build standalone sk-libfido2... " >&6; }
+if test "x$enable_sk_standalone" = "xyes" ; then
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+	SK_STANDALONE=sk-libfido2$SHLIBEXT
+
+else
+	{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+	SK_STANDALONE=""
+
 fi
 
 ac_fn_c_check_func "$LINENO" "arc4random" "ac_cv_func_arc4random"
@@ -20536,23 +20730,7 @@ fi
 
 fi
 
-if test "x$sandbox_arg" = "xpledge" || \
-   ( test -z "$sandbox_arg" && test "x$ac_cv_func_pledge" = "xyes" ) ; then
-	test "x$ac_cv_func_pledge" != "xyes" && \
-		as_fn_error $? "pledge sandbox requires pledge(2) support" "$LINENO" 5
-	SANDBOX_STYLE="pledge"
-
-printf "%s\n" "#define SANDBOX_PLEDGE 1" >>confdefs.h
-
-elif test "x$sandbox_arg" = "xsystrace" || \
-   ( test -z "$sandbox_arg" && test "x$have_systr_policy_kill" = "x1" ) ; then
-	test "x$have_systr_policy_kill" != "x1" && \
-		as_fn_error $? "systrace sandbox requires systrace headers and SYSTR_POLICY_KILL support" "$LINENO" 5
-	SANDBOX_STYLE="systrace"
-
-printf "%s\n" "#define SANDBOX_SYSTRACE 1" >>confdefs.h
-
-elif test "x$sandbox_arg" = "xdarwin" || \
+if test "x$sandbox_arg" = "xdarwin" || \
      ( test -z "$sandbox_arg" && test "x$ac_cv_func_sandbox_init" = "xyes" && \
        test "x$ac_cv_header_sandbox_h" = "xyes") ; then
 	test "x$ac_cv_func_sandbox_init" != "xyes" -o \
@@ -22226,7 +22404,11 @@ int main(void)
 	long long num = 0x7fffffffffffffffll;
 #endif
 	strcpy(expected_out, "9223372036854775807");
+#if (SIZEOF_LONG_INT == 8)
+	snprintf(buf, mazsize, "%ld", num);
+#else
 	snprintf(buf, mazsize, "%lld", num);
+#endif
 	if(strcmp(buf, expected_out) != 0)
 		exit(1);
 	exit(0);
@@ -26312,8 +26494,8 @@ CFLAGS="${CFLAGS} ${CFLAGS_AFTER}"
 LDFLAGS="${LDFLAGS} ${LDFLAGS_AFTER}"
 
 # Make a copy of CFLAGS/LDFLAGS without PIE options.
-LDFLAGS_NOPIE=`echo "$LDFLAGS" | sed 's/ -pie//'`
-CFLAGS_NOPIE=`echo "$CFLAGS" | sed 's/ -fPIE//'`
+LDFLAGS_NOPIE=`echo "$LDFLAGS" | sed 's/^-pie //;s/ -pie//g'`
+CFLAGS_NOPIE=`echo "$CFLAGS" | sed 's/^-fPIE //;s/ -fPIE//g'`
 
 
 
