@@ -2140,16 +2140,6 @@ AC_ARG_WITH([security-key-builtin],
 	[ enable_sk_internal=$withval ]
 )
 
-enable_dsa=
-AC_ARG_ENABLE([dsa-keys],
-	[  --enable-dsa-keys       enable DSA key support [no]],
-	[
-		if test "x$enableval" != "xno" ; then
-			enable_dsa=1
-		fi
-	]
-)
-
 AC_SEARCH_LIBS([dlopen], [dl])
 AC_CHECK_FUNCS([dlopen])
 AC_CHECK_DECL([RTLD_NOW], [], [], [#include <dlfcn.h>])
@@ -3258,26 +3248,6 @@ if test "x$openssl" = "xyes" ; then
 			AC_MSG_RESULT([no])
 		]
 	)
-
-	openssl_dsa=no
-	if test ! -z "$enable_dsa" ; then
-		AC_CHECK_DECLS([OPENSSL_NO_DSA], [], [
-			AC_CHECK_DECLS([OPENSSL_IS_BORINGSSL], [],
-			    [ openssl_dsa=yes ],
-			    [ #include <openssl/opensslconf.h> ]
-			)
-		    ],
-		    [ #include <openssl/opensslconf.h> ]
-		)
-		AC_MSG_CHECKING([whether to enable DSA key support])
-		if test "x$openssl_dsa" = "xno"; then
-			AC_MSG_ERROR([DSA requested but not supported by OpenSSL])
-		else
-			AC_MSG_RESULT([yes])
-			AC_DEFINE([WITH_DSA], [1],
-			   [DSA keys explicitly enabled])
-		fi
-	fi
 fi
 
 # PKCS11/U2F depend on OpenSSL and dlopen().
