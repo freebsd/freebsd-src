@@ -237,7 +237,11 @@ iommu_init(void)
 				 */
 				error = iommu_add_device(host_domain, dev,
 				    pci_get_rid(dev));
-				if (error != 0) {
+				if (error != 0 && error != ENXIO) {
+					printf(
+			"iommu_add_device(%s rid %#x) failed,  error %d\n",
+					    device_get_name(dev),
+					    pci_get_rid(dev), error);
 					iommu_cleanup_int(false);
 					return;
 				}
