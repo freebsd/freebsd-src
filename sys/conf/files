@@ -2412,11 +2412,11 @@ dev/mii/ukphy.c			optional miibus | mii
 dev/mii/ukphy_subr.c		optional miibus | mii
 dev/mii/vscphy.c		optional miibus | vscphy
 dev/mii/xmphy.c			optional miibus | xmphy
-dev/mlxfw/mlxfw_fsm.c			optional mlxfw \
+dev/mlxfw/mlxfw_fsm.c			optional mlxfw compat_linuxkpi \
 	compile-with "${MLXFW_C}"
-dev/mlxfw/mlxfw_mfa2.c			optional mlxfw \
+dev/mlxfw/mlxfw_mfa2.c			optional mlxfw compat_linuxkpi \
 	compile-with "${MLXFW_C}"
-dev/mlxfw/mlxfw_mfa2_tlv_multi.c	optional mlxfw \
+dev/mlxfw/mlxfw_mfa2_tlv_multi.c	optional mlxfw compat_linuxkpi \
 	compile-with "${MLXFW_C}"
 dev/mlx/mlx.c			optional mlx
 dev/mlx/mlx_disk.c		optional mlx
@@ -4907,137 +4907,137 @@ dev/mlx4/mlx4_en/mlx4_en_rx.c			optional mlx4en pci inet inet6	\
 dev/mlx4/mlx4_en/mlx4_en_tx.c			optional mlx4en pci inet inet6	\
 	compile-with "${OFED_C}"
 
-dev/mlx5/mlx5_ib/mlx5_ib_ah.c			optional mlx5ib pci ofed \
+dev/mlx5/mlx5_ib/mlx5_ib_ah.c			optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_ib/mlx5_ib_cong.c			optional mlx5ib pci ofed \
+dev/mlx5/mlx5_ib/mlx5_ib_cong.c			optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_ib/mlx5_ib_cq.c			optional mlx5ib pci ofed \
+dev/mlx5/mlx5_ib/mlx5_ib_cq.c			optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_ib/mlx5_ib_devx.c			optional mlx5ib pci ofed \
+dev/mlx5/mlx5_ib/mlx5_ib_devx.c			optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_ib/mlx5_ib_doorbell.c		optional mlx5ib pci ofed \
+dev/mlx5/mlx5_ib/mlx5_ib_doorbell.c		optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_ib/mlx5_ib_gsi.c			optional mlx5ib pci ofed \
+dev/mlx5/mlx5_ib/mlx5_ib_gsi.c			optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_ib/mlx5_ib_mad.c			optional mlx5ib pci ofed \
+dev/mlx5/mlx5_ib/mlx5_ib_mad.c			optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_ib/mlx5_ib_main.c			optional mlx5ib pci ofed \
+dev/mlx5/mlx5_ib/mlx5_ib_main.c			optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_ib/mlx5_ib_mem.c			optional mlx5ib pci ofed \
+dev/mlx5/mlx5_ib/mlx5_ib_mem.c			optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_ib/mlx5_ib_mr.c			optional mlx5ib pci ofed \
+dev/mlx5/mlx5_ib/mlx5_ib_mr.c			optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_ib/mlx5_ib_qp.c			optional mlx5ib pci ofed \
+dev/mlx5/mlx5_ib/mlx5_ib_qp.c			optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_ib/mlx5_ib_srq.c			optional mlx5ib pci ofed \
+dev/mlx5/mlx5_ib/mlx5_ib_srq.c			optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_ib/mlx5_ib_virt.c			optional mlx5ib pci ofed \
-	compile-with "${OFED_C}"
-
-dev/mlx5/mlx5_core/mlx5_alloc.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_cmd.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_crypto.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_cq.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_diag_cnt.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_diagnostics.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_eq.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_eswitch.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_fs_chains.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_fs_cmd.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_fs_core.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_fs_counters.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_fs_ft_pool.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_fs_tcp.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_fw.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_fwdump.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_health.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_mad.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_main.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_mcg.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_mpfs.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_mr.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_pagealloc.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_pd.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_port.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_qp.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_rl.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_srq.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_tls.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_transobj.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_uar.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_vport.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_vsc.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_wq.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_lib/mlx5_aso.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_lib/mlx5_gid.c			optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_accel/mlx5_ipsec_fs.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_accel/mlx5_ipsec_offload.c	optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_accel/mlx5_ipsec.c		optional mlx5 pci	\
-	compile-with "${OFED_C}"
-dev/mlx5/mlx5_accel/mlx5_ipsec_rxtx.c		optional mlx5 pci	\
+dev/mlx5/mlx5_ib/mlx5_ib_virt.c			optional mlx5ib pci ofed compat_linuxkpi \
 	compile-with "${OFED_C}"
 
-dev/mlx5/mlx5_en/mlx5_en_dim.c			optional mlx5en pci inet inet6	\
+dev/mlx5/mlx5_core/mlx5_alloc.c			optional mlx5 pci compat_linuxkpi	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_en/mlx5_en_ethtool.c		optional mlx5en pci inet inet6	\
+dev/mlx5/mlx5_core/mlx5_cmd.c			optional mlx5 pci compat_linuxkpi	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_en/mlx5_en_main.c			optional mlx5en pci inet inet6	\
+dev/mlx5/mlx5_core/mlx5_crypto.c		optional mlx5 pci compat_linuxkpi	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_en/mlx5_en_tx.c			optional mlx5en pci inet inet6	\
+dev/mlx5/mlx5_core/mlx5_cq.c			optional mlx5 pci compat_linuxkpi	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_en/mlx5_en_flow_table.c		optional mlx5en pci inet inet6	\
+dev/mlx5/mlx5_core/mlx5_diag_cnt.c		optional mlx5 pci compat_linuxkpi	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_en/mlx5_en_hw_tls.c		optional mlx5en pci inet inet6	\
+dev/mlx5/mlx5_core/mlx5_diagnostics.c		optional mlx5 pci compat_linuxkpi	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_en/mlx5_en_hw_tls_rx.c		optional mlx5en pci inet inet6	\
+dev/mlx5/mlx5_core/mlx5_eq.c			optional mlx5 pci compat_linuxkpi	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_en/mlx5_en_iq.c			optional mlx5en pci inet inet6	\
+dev/mlx5/mlx5_core/mlx5_eswitch.c		optional mlx5 pci compat_linuxkpi	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_en/mlx5_en_rx.c			optional mlx5en pci inet inet6	\
+dev/mlx5/mlx5_core/mlx5_fs_chains.c		optional mlx5 pci compat_linuxkpi	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_en/mlx5_en_rl.c			optional mlx5en pci inet inet6	\
+dev/mlx5/mlx5_core/mlx5_fs_cmd.c		optional mlx5 pci compat_linuxkpi	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_en/mlx5_en_txrx.c			optional mlx5en pci inet inet6	\
+dev/mlx5/mlx5_core/mlx5_fs_core.c		optional mlx5 pci compat_linuxkpi	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_en/mlx5_en_port_buffer.c		optional mlx5en pci inet inet6	\
+dev/mlx5/mlx5_core/mlx5_fs_counters.c		optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_fs_ft_pool.c		optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_fs_tcp.c		optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_fw.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_fwdump.c		optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_health.c		optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_mad.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_main.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_mcg.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_mpfs.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_mr.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_pagealloc.c		optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_pd.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_port.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_qp.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_rl.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_srq.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_tls.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_transobj.c		optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_uar.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_vport.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_vsc.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_wq.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_lib/mlx5_aso.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_lib/mlx5_gid.c			optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_accel/mlx5_ipsec_fs.c		optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_accel/mlx5_ipsec_offload.c	optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_accel/mlx5_ipsec.c		optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_accel/mlx5_ipsec_rxtx.c		optional mlx5 pci compat_linuxkpi	\
+	compile-with "${OFED_C}"
+
+dev/mlx5/mlx5_en/mlx5_en_dim.c			optional mlx5en pci inet inet6 compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_ethtool.c		optional mlx5en pci inet inet6 compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_main.c			optional mlx5en pci inet inet6 compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_tx.c			optional mlx5en pci inet inet6 compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_flow_table.c		optional mlx5en pci inet inet6 compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_hw_tls.c		optional mlx5en pci inet inet6 compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_hw_tls_rx.c		optional mlx5en pci inet inet6 compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_iq.c			optional mlx5en pci inet inet6 compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_rx.c			optional mlx5en pci inet inet6 compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_rl.c			optional mlx5en pci inet inet6 compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_txrx.c			optional mlx5en pci inet inet6 compat_linuxkpi	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_en/mlx5_en_port_buffer.c		optional mlx5en pci inet inet6 compat_linuxkpi	\
 	compile-with "${OFED_C}"
 
 # crypto support
