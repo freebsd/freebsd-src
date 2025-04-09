@@ -1,6 +1,6 @@
 .include <src.opts.mk>
 
-PACKAGE=runtime
+PACKAGE=iputils
 PROG=	ping
 SRCS=	main.c
 MAN=	ping.8

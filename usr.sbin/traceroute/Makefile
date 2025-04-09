@@ -1,6 +1,6 @@
 .include <src.opts.mk>
 
-PACKAGE=	runtime
+PACKAGE=	iputils
 PROG=	traceroute
 MAN=	traceroute.8
 SRCS=	as.c traceroute.c ifaddrlist.c findsaddr-udp.c
