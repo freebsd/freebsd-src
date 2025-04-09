@@ -6,10 +6,10 @@ WARNS?= 4
 .PATH:	${.CURDIR}/arch/${MACHINE_ARCH}
 CFLAGS+=-I${.CURDIR} -I${.CURDIR}/arch/${MACHINE_ARCH}
 
-SRCS=	crt1.c \
-	host_syscall.S \
-	host_syscalls.c \
-	termios.c
+SRCS=	crt1.c
+SRCS+=	host_syscall.S
+SRCS+=	host_syscalls.c
+SRCS+=	termios.c
 
 .sinclude "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
 
