@@ -11,6 +11,7 @@ SRCS+=	host_syscall.S
 SRCS+=	host_syscalls.c
 SRCS+=	seg.c
 SRCS+=	termios.c
+SRCS+=	util.c
 
 .sinclude "${.CURDIR}/arch/${MACHINE_ARCH}/Makefile.inc"
 

@@ -6,7 +6,7 @@
 
 #include "stand.h"
 #include "host_syscall.h"
-#include "kboot.h"
+#include "util.h"
 
 bool
 file2str(const char *fn, char *buffer, size_t buflen)

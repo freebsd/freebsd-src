@@ -33,10 +33,7 @@ const char *hostdisk_gen_probe(void);
 void hostdisk_zfs_probe(void);
 bool hostdisk_zfs_find_default(void);
 
-/* util.c */
-bool file2str(const char *fn, char *buffer, size_t buflen);
-bool file2u64(const char *fn, uint64_t *val);
-
 #include "seg.h"
+#include "util.h"
 
 #endif /* KBOOT_H */
