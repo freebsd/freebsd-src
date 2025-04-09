@@ -10,7 +10,7 @@
    Copyright (c) 2003      Greg Stein <gstein@users.sourceforge.net>
    Copyright (c) 2005-2007 Steven Solie <steven@solie.ca>
    Copyright (c) 2005-2012 Karl Waclawek <karl@waclawek.net>
-   Copyright (c) 2016-2023 Sebastian Pipping <sebastian@pipping.org>
+   Copyright (c) 2016-2025 Sebastian Pipping <sebastian@pipping.org>
    Copyright (c) 2017-2022 Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2017      Joe Orton <jorton@redhat.com>
    Copyright (c) 2017      José Gutiérrez de la Concha <jose@zeroc.com>
@@ -42,6 +42,8 @@
 */
 
 #include <assert.h>
+#include <errno.h>
+#include <stdint.h> // for SIZE_MAX
 #include <stdio.h>
 #include <string.h>
 
@@ -51,6 +53,7 @@
 #include "chardata.h"
 #include "minicheck.h"
 #include "common.h"
+#include "handlers.h"
 
 /* Common test data */
 
@@ -201,6 +204,12 @@ _XML_Parse_SINGLE_BYTES(XML_Parser parser, const char *s, int len,
     for (; len > chunksize; len -= chunksize, s += chunksize) {
       enum XML_Status res = XML_Parse(parser, s, chunksize, XML_FALSE);
       if (res != XML_STATUS_OK) {
+        if ((res == XML_STATUS_SUSPENDED) && (len > chunksize)) {
+          fail("Use of function _XML_Parse_SINGLE_BYTES with a chunk size "
+               "greater than 0 (from g_chunkSize) does not work well with "
+               "suspension. Please consider use of plain XML_Parse at this "
+               "place in your test, instead.");
+        }
         return res;
       }
     }
@@ -219,30 +228,6 @@ _expect_failure(const char *text, enum XML_Error errorCode,
     _fail(file, lineno, errorMessage);
   if (XML_GetErrorCode(g_parser) != errorCode)
     _xml_failure(g_parser, file, lineno);
-}
-
-/* Character data support for handlers, built on top of the code in
- * chardata.c
- */
-void XMLCALL
-accumulate_characters(void *userData, const XML_Char *s, int len) {
-  CharData_AppendXMLChars((CharData *)userData, s, len);
-}
-
-void XMLCALL
-accumulate_attribute(void *userData, const XML_Char *name,
-                     const XML_Char **atts) {
-  CharData *storage = (CharData *)userData;
-  UNUSED_P(name);
-  /* Check there are attributes to deal with */
-  if (atts == NULL)
-    return;
-
-  while (storage->count < 0 && atts[0] != NULL) {
-    /* "accumulate" the value of the first attribute we see */
-    CharData_AppendXMLChars(storage, atts[1], -1);
-    atts += 2;
-  }
 }
 
 void
@@ -271,12 +256,6 @@ _run_attribute_check(const char *text, const XML_Char *expected,
       == XML_STATUS_ERROR)
     _xml_failure(g_parser, file, line);
   CharData_CheckXMLChars(&storage, expected);
-}
-
-void XMLCALL
-ext_accumulate_characters(void *userData, const XML_Char *s, int len) {
-  ExtTest *test_data = (ExtTest *)userData;
-  accumulate_characters(test_data->storage, s, len);
 }
 
 void
@@ -322,4 +301,27 @@ duff_reallocator(void *ptr, size_t size) {
   if (g_reallocation_count != REALLOC_ALWAYS_SUCCEED)
     g_reallocation_count--;
   return realloc(ptr, size);
+}
+
+// Portable remake of strndup(3) for C99; does not care about space efficiency
+char *
+portable_strndup(const char *s, size_t n) {
+  if ((s == NULL) || (n == SIZE_MAX)) {
+    errno = EINVAL;
+    return NULL;
+  }
+
+  char *const buffer = (char *)malloc(n + 1);
+  if (buffer == NULL) {
+    errno = ENOMEM;
+    return NULL;
+  }
+
+  errno = 0;
+
+  memcpy(buffer, s, n);
+
+  buffer[n] = '\0';
+
+  return buffer;
 }
