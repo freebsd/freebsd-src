@@ -895,8 +895,13 @@ after_vmfault:
 	if (td->td_intr_nesting_level == 0 &&
 	    curpcb->pcb_onfault != NULL) {
 		if ((td->td_pflags2 & TDP2_EFIRT) != 0) {
-			trap_diag(frame, eva);
-			printf("EFI RT page fault\n");
+			u_long cnt = atomic_fetchadd_long(&cnt_efirt_faults, 1);
+
+			if ((print_efirt_faults == 1 && cnt == 1) ||
+			    print_efirt_faults == 2) {
+				trap_diag(frame, eva);
+				printf("EFI RT page fault\n");
+			}
 		}
 		frame->tf_rip = (long)curpcb->pcb_onfault;
 		return (0);
