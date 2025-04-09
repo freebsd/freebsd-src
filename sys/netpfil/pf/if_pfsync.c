@@ -1051,7 +1051,7 @@ relock:
 			LIST_FOREACH(s, &ih->states, entry) {
 				if (s->creatorid == creatorid) {
 					s->state_flags |= PFSTATE_NOSYNC;
-					pf_unlink_state(s);
+					pf_remove_state(s);
 					goto relock;
 				}
 			}
@@ -1440,7 +1440,7 @@ pfsync_in_del_c(struct mbuf *m, int offset, int count, int flags, int action)
 		}
 
 		st->state_flags |= PFSTATE_NOSYNC;
-		pf_unlink_state(st);
+		pf_remove_state(st);
 	}
 
 	return (len);

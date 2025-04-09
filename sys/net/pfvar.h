@@ -2331,7 +2331,7 @@ extern void			 pf_unload_vnet_purge(void);
 extern void			 pf_intr(void *);
 extern void			 pf_purge_expired_src_nodes(void);
 
-extern int			 pf_unlink_state(struct pf_kstate *);
+extern int			 pf_remove_state(struct pf_kstate *);
 extern int			 pf_state_insert(struct pfi_kkif *,
 				    struct pfi_kkif *,
 				    struct pf_state_key *,

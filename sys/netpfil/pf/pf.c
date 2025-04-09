@@ -1910,7 +1910,7 @@ pf_find_state(struct pfi_kkif *kif, const struct pf_state_key_cmp *key,
 			if (__predict_false(s->timeout >= PFTM_MAX)) {
 				/*
 				 * State is either being processed by
-				 * pf_unlink_state() in an other thread, or
+				 * pf_remove_state() in an other thread, or
 				 * is scheduled for immediate expiry.
 				 */
 				PF_STATE_UNLOCK(s);
@@ -1930,7 +1930,7 @@ pf_find_state(struct pfi_kkif *kif, const struct pf_state_key_cmp *key,
 			if (__predict_false(s->timeout >= PFTM_MAX)) {
 				/*
 				 * State is either being processed by
-				 * pf_unlink_state() in an other thread, or
+				 * pf_remove_state() in an other thread, or
 				 * is scheduled for immediate expiry.
 				 */
 				PF_STATE_UNLOCK(s);
@@ -2730,7 +2730,7 @@ pf_src_tree_remove_state(struct pf_kstate *s)
  * unlocked, since it needs to go through key hash locking.
  */
 int
-pf_unlink_state(struct pf_kstate *s)
+pf_remove_state(struct pf_kstate *s)
 {
 	struct pf_idhash *ih = &V_pf_idhash[PF_IDHASH(s)];
 
@@ -2740,7 +2740,7 @@ pf_unlink_state(struct pf_kstate *s)
 	if (s->timeout == PFTM_UNLINKED) {
 		/*
 		 * State is being processed
-		 * by pf_unlink_state() in
+		 * by pf_remove_state() in
 		 * an other thread.
 		 */
 		PF_HASHROW_UNLOCK(ih);
@@ -2837,7 +2837,7 @@ relock:
 			LIST_FOREACH(s, &ih->states, entry) {
 				if (pf_state_expires(s) <= time_uptime) {
 					V_pf_status.states -=
-					    pf_unlink_state(s);
+					    pf_remove_state(s);
 					goto relock;
 				}
 				s->rule->rule_ref |= PFRULE_REFS;
@@ -6982,7 +6982,7 @@ pf_test_state(struct pf_kstate **state, struct pf_pdesc *pd, u_short *reason)
 			}
 			/* XXX make sure it's the same direction ?? */
 			pf_set_protostate(*state, PF_PEER_BOTH, TCPS_CLOSED);
-			pf_unlink_state(*state);
+			pf_remove_state(*state);
 			*state = NULL;
 			return (PF_DROP);
 		}
@@ -7019,7 +7019,7 @@ pf_test_state(struct pf_kstate **state, struct pf_pdesc *pd, u_short *reason)
 		    (dst->state >= SCTP_SHUTDOWN_SENT || dst->state == SCTP_CLOSED) &&
 		    pd->sctp_flags & PFDESC_SCTP_INIT) {
 			pf_set_protostate(*state, PF_PEER_BOTH, SCTP_CLOSED);
-			pf_unlink_state(*state);
+			pf_remove_state(*state);
 			*state = NULL;
 			return (PF_DROP);
 		}
