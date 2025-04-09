@@ -54,8 +54,9 @@ SRCS+=	rtw8852cu.c
 .endif
 
 .if defined(RTW89_CONFIG_PM) && ${RTW89_CONFIG_PM} > 0
-CFLAGS+=	-DCONFIG_PM=${RTW89_CONFIG_PM}
 SRCS+=	wow.c
+SRCS+=	lkpi_rtw89_pm.c
+CFLAGS+=	-DCONFIG_PM=${RTW89_CONFIG_PM}
 .endif
 
 .if defined(RTW89_DEBUGFS) && ${RTW89_DEBUGFS} > 0

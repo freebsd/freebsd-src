@@ -105,6 +105,11 @@ SYSCTL_DECL(_compat_linuxkpi);
 SYSCTL_NODE(_compat_linuxkpi, OID_AUTO, 80211, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "LinuxKPI 802.11 compatibility layer");
 
+static int lkpi_suspend_type = 1;
+SYSCTL_INT(_compat_linuxkpi_80211, OID_AUTO, suspend_type, CTLFLAG_RW,
+    &lkpi_suspend_type, 0,
+    "LinuxKPI 802.11 suspend type bitmask (0=off, 1=net80211, 2=wowlan");
+
 static bool lkpi_order_scanlist = false;
 SYSCTL_BOOL(_compat_linuxkpi_80211, OID_AUTO, order_scanlist, CTLFLAG_RW,
     &lkpi_order_scanlist, 0, "Enable LinuxKPI 802.11 scan list shuffeling");
@@ -6859,10 +6864,19 @@ linuxkpi_set_ieee80211_dev(struct ieee80211_hw *hw)
 	/*
 	 * Set a proper name before ieee80211_ifattach() if dev is set.
 	 * ath1xk also unset the dev so we need to check.
+	 * Also we will (ab)use this opportunity to register the
+	 * power management sub-children if thay exist (for suspend/resume).
 	 */
 	dev = wiphy_dev(hw->wiphy);
 	if (dev != NULL) {
 		ic->ic_name = dev_name(dev);
+		if (dev->bsddev != NULL) {
+			bus_identify_children(dev->bsddev);
+			bus_enumerate_hinted_children(dev->bsddev);
+			bus_topo_lock();
+			bus_attach_children(dev->bsddev);
+			bus_topo_unlock();
+		}
 	} else {
 		TODO("adjust arguments to still have the old dev or go through "
 		    "the hoops of getting the bsddev from hw and detach; "
@@ -9538,7 +9552,130 @@ ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw,
 }
 
 /* -------------------------------------------------------------------------- */
+/* LinuxKPI 802.11 PM. */
+int
+lkpi_80211_suspend(struct ieee80211com *ic, pm_message_t state)
+{
+	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	int error;
 
+	lhw = ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	error = 0;
+
+	/* Check:
+	 * - device_set_wakeup_capable() / device_can_wakeup()
+	 * - hw->wiphy->wowlan to be non-NULL, if so contents.
+	 * - hw->wiphy->max_sched_scan_ssids (rtw88)
+	 */
+	if ((lkpi_suspend_type & 0x2) != 0) {
+		struct cfg80211_wowlan wowlan;
+
+		IMPROVE("various options for WoWLAN");
+		memset(&wowlan, 0, sizeof(wowlan));
+		wiphy_lock(hw->wiphy);
+		error = lkpi_80211_mo_suspend(hw, &wowlan);
+		wiphy_unlock(hw->wiphy);
+		if (error == EOPNOTSUPP)
+			error = 0;
+	}
+	if ((lkpi_suspend_type & 0x1) != 0) {
+		struct lkpi_vif *lvif;
+
+		ieee80211_suspend_all(ic);
+
+		wiphy_lock(hw->wiphy);
+		/*
+		 * At the end of this net80211 will run a task to call
+		 * (*ic_parent)() which is entirely unhelpful as we do not
+		 * know when it will happen.  So deal with it here.
+		 */
+		TAILQ_FOREACH(lvif, &lhw->lvif_head, lvif_entry) {
+			lkpi_80211_mo_remove_interface(hw, LVIF_TO_VIF(lvif));
+		}
+
+		if ((lhw->sc_flags & LKPI_MAC80211_DRV_STARTED) != 0)
+			lkpi_80211_mo_stop(hw, true);
+		wiphy_unlock(hw->wiphy);
+	}
+
+	if (error < 0)
+		error = -error;
+
+	if (error != 0)
+		ic_printf(ic, "%s: SUSPEND FAILED: %d\n", __func__, error);
+
+	return (error);
+}
+
+int
+lkpi_80211_resume(struct ieee80211com *ic)
+{
+	struct lkpi_hw *lhw;
+	struct ieee80211_hw *hw;
+	int error;
+	bool hw_scan_running;
+
+	lhw = ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	error = 0;
+
+	/*
+	 * Ongoing HW scans during suspend are a problem on resume.
+	 * Be verbose about that.
+	 */
+	LKPI_80211_LHW_SCAN_LOCK(lhw);
+	hw_scan_running = (lhw->scan_flags & (LKPI_LHW_SCAN_RUNNING|LKPI_LHW_SCAN_HW)) != 0;
+	LKPI_80211_LHW_SCAN_UNLOCK(lhw);
+	if (hw_scan_running)
+		ic_printf(ic, "%s: WARNING: ongoing hw scan on resume!\n", __func__);
+
+	if ((lkpi_suspend_type & 0x1) != 0) {
+		struct lkpi_vif *lvif;
+
+		wiphy_lock(hw->wiphy);
+		error = lkpi_80211_mo_start(hw);
+		if (error != 0 && error != EEXIST) {
+			ic_printf(ic, "%s: mo_start failed: %d\n",
+			    __func__, error);
+			wiphy_unlock(hw->wiphy);
+			goto err;
+		}
+
+		TAILQ_FOREACH(lvif, &lhw->lvif_head, lvif_entry) {
+			error = lkpi_80211_mo_add_interface(hw, LVIF_TO_VIF(lvif));
+			if (error != 0) {
+				struct ieee80211vap *vap;
+
+				vap = LVIF_TO_VAP(lvif);
+				ic_printf(ic, "%s: mo_add_interface %s failed: %d\n",
+				    __func__, if_name(vap->iv_ifp), error);
+				wiphy_unlock(hw->wiphy);
+				goto err;
+			}
+		}
+		wiphy_unlock(hw->wiphy);
+
+		ieee80211_resume_all(ic);
+	}
+
+	if ((lkpi_suspend_type & 0x2) != 0) {
+		wiphy_lock(hw->wiphy);
+		error = lkpi_80211_mo_resume(hw);
+		wiphy_unlock(hw->wiphy);
+		if (error == EOPNOTSUPP)
+			error = 0;
+	}
+
+err:
+	if (error < 0)
+		error = -error;
+
+	return (error);
+}
+
+/* -------------------------------------------------------------------------- */
 MODULE_VERSION(linuxkpi_wlan, 1);
 MODULE_DEPEND(linuxkpi_wlan, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(linuxkpi_wlan, wlan, 1, 1, 1);

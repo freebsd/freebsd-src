@@ -819,3 +819,119 @@ lkpi_80211_mo_sta_statistics(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 out:
 	return (error);
 }
+
+int
+lkpi_80211_mo_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->suspend == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p wowlan %p", hw, wowlan);
+	error = lhw->ops->suspend(hw, wowlan);
+
+out:
+	return (error);
+}
+
+int
+lkpi_80211_mo_resume(struct ieee80211_hw *hw)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->resume == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p", hw);
+	error = lhw->ops->resume(hw);
+
+out:
+	return (error);
+}
+
+int
+lkpi_80211_mo_set_wakeup(struct ieee80211_hw *hw, bool enable)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->set_wakeup == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p enable %d", hw, enable);
+	lhw->ops->set_wakeup(hw, enable);
+	error = 0;
+
+out:
+	return (error);
+}
+
+int
+lkpi_80211_mo_set_rekey_data(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, struct cfg80211_gtk_rekey_data *grd)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->set_rekey_data == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p vif %p grd %p", hw, vif, grd);
+	lhw->ops->set_rekey_data(hw, vif, grd);
+	error = 0;
+
+out:
+	return (error);
+}
+
+int
+lkpi_80211_mo_set_default_unicast_key(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, int idx)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->set_default_unicast_key == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p vif %p idx %d", hw, vif, idx);
+	lhw->ops->set_default_unicast_key(hw, vif, idx);
+	error = 0;
+
+out:
+	return (error);
+}
+
