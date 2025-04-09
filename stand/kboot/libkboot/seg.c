@@ -20,6 +20,7 @@ init_avail(void)
 		free(segs);
 	nr_seg = 0;
 	segalloc = 16;
+	free(segs);
 	segs = malloc(sizeof(*segs) * segalloc);
 	if (segs == NULL)
 		panic("not enough memory to get memory map\n");
