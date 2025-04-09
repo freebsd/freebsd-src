@@ -43,6 +43,7 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/vnet.h>
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
@@ -1051,7 +1052,13 @@ pf_refragment6(struct ifnet *ifp, struct mbuf **m0, struct m_tag *mtag,
 			dst.sin6_len = sizeof(dst);
 			dst.sin6_addr = hdr->ip6_dst;
 
-			nd6_output_ifp(rt, rt, m, &dst, NULL);
+			if (m->m_pkthdr.len <= if_getmtu(ifp)) {
+				nd6_output_ifp(rt, rt, m, &dst, NULL);
+			} else {
+				in6_ifstat_inc(ifp, ifs6_in_toobig);
+				icmp6_error(m, ICMP6_PACKET_TOO_BIG, 0,
+				    if_getmtu(ifp));
+			}
 		} else if (forward) {
 			MPASS(m->m_pkthdr.rcvif != NULL);
 			ip6_forward(m, 0);
