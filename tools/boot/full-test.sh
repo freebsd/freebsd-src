@@ -366,7 +366,7 @@ make_linuxboot_scripts()
 		if [ ${bios_code} -ot /usr/local/share/qemu/edk2-x86_64-code.fd ]; then
 		    cp /usr/local/share/qemu/edk2-x86_64-code.fd ${bios_code}
 		    # vars file works on both 32 and 64 bit x86
-		    cp /usr/local/share/qemu/edk2-i386-vars.fd ${bios_vars}
+#		    cp /usr/local/share/qemu/edk2-i386-vars.fd ${bios_vars}
 		fi
 		;;
 	    aarch64)
@@ -448,7 +448,8 @@ EOF
 make_freebsd_esps()
 {
     # At the moment, we have just three (armv7 could also be here too, but we're not doing that)
-    for a in amd64:amd64 arm64:aarch64 riscv:riscv64; do
+#   for a in amd64:amd64 arm64:aarch64 riscv:riscv64; do
+    for a in amd64:amd64 arm64:aarch64; do
 	m=${a%%:*}
 	ma=${a##*:}
 	ma_combo="${m}"
@@ -470,7 +471,8 @@ make_freebsd_images()
 {
     # ESP variant: In this variant, riscv, amd64 and arm64 are created more or
     # less the same way. UEFI + ACPI implementations
-    for a in amd64:amd64 arm64:aarch64 riscv:riscv64; do
+#   for a in amd64:amd64 arm64:aarch64 riscv:riscv64; do
+    for a in amd64:amd64 arm64:aarch64; do
 	m=${a%%:*}
 	ma=${a##*:}
 	ma_combo="${m}"
@@ -495,6 +497,7 @@ EOF
 
     set -x
 
+if false; then
     # BIOS i386
     a=i386:i386
     m=${a%%:*}
@@ -541,6 +544,7 @@ EOF
         -p freebsd-boot:=${dir2}/boot/boot1.hfs \
         -p freebsd-ufs:=${ufs} \
         -o ${img}
+fi
 
     set +x
 }
@@ -562,7 +566,7 @@ make_freebsd_scripts()
 		if [ ${bios_code} -ot /usr/local/share/qemu/edk2-x86_64-code.fd ]; then
 		    cp /usr/local/share/qemu/edk2-x86_64-code.fd ${bios_code}
 		    # vars file works on both 32 and 64 bit x86
-		    cp /usr/local/share/qemu/edk2-i386-vars.fd ${bios_vars}
+#		    cp /usr/local/share/qemu/edk2-i386-vars.fd ${bios_vars}
 		fi
 		;;
 	    aarch64)
@@ -609,6 +613,7 @@ EOF
 	esac
     done
 
+if false; then
     set -x
     a=powerpc:powerpc
     m=${a%%:*}
@@ -644,6 +649,7 @@ ${qemu_bin}/qemu-system-i386 -m 1g \\
         -monitor telnet::4444,server,nowait \\
         -serial stdio \$*
 EOF
+fi
 }
 
 # The smallest FAT32 filesystem is 33292 KB
