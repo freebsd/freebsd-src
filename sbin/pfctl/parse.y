@@ -5362,8 +5362,9 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 			problems++;
 		}
 	}
-	/* match rules rules */
-	if (r->action == PF_MATCH) {
+	/* Basic rule sanity check. */
+	switch (r->action) {
+	case PF_MATCH:
 		if (r->divert.port) {
 			yyerror("divert is not supported on match rules");
 			problems++;
@@ -5377,6 +5378,15 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 			yyerror("af-to is not supported on match rules");
 			problems++;
 		}
+		break;
+	case PF_DROP:
+		if (r->rt) {
+			yyerror("route-to, reply-to and dup-to "
+			    "are not supported on block rules");
+			problems++;
+		}
+		break;
+	default:;
 	}
 	if (r->rdr.opts & PF_POOL_STICKYADDR && !r->keep_state) {
 		yyerror("'sticky-address' requires 'keep state'");
