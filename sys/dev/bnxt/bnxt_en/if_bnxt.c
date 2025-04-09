@@ -427,6 +427,18 @@ bnxt_nq_free(struct bnxt_softc *softc)
 	softc->nq_rings = NULL;
 }
 
+
+static void
+bnxt_set_db_mask(struct bnxt_softc *bp, struct bnxt_ring *db,
+		 u32 ring_type)
+{
+	if (BNXT_CHIP_P7(bp)) {
+		db->db_epoch_mask = db->db_ring_mask + 1;
+		db->db_epoch_shift = DBR_EPOCH_SFT - ilog2(db->db_epoch_mask);
+
+	}
+}
+
 /*
  * Device Dependent Configuration Functions
 */
@@ -491,6 +503,8 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 			softc->legacy_db_size: softc->tx_cp_rings[i].ring.id * 0x80;
 		softc->tx_cp_rings[i].ring.ring_size =
 		    softc->scctx->isc_ntxd[0];
+		softc->tx_cp_rings[i].ring.db_ring_mask =
+		    softc->tx_cp_rings[i].ring.ring_size - 1;
 		softc->tx_cp_rings[i].ring.vaddr = vaddrs[i * ntxqs];
 		softc->tx_cp_rings[i].ring.paddr = paddrs[i * ntxqs];
 
@@ -504,6 +518,7 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->tx_rings[i].doorbell = (BNXT_CHIP_P5_PLUS(softc)) ?
 			softc->legacy_db_size : softc->tx_rings[i].id * 0x80;
 		softc->tx_rings[i].ring_size = softc->scctx->isc_ntxd[1];
+		softc->tx_rings[i].db_ring_mask = softc->tx_rings[i].ring_size - 1;
 		softc->tx_rings[i].vaddr = vaddrs[i * ntxqs + 1];
 		softc->tx_rings[i].paddr = paddrs[i * ntxqs + 1];
 
@@ -520,8 +535,10 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 			softc->nq_rings[i].ring.doorbell = (BNXT_CHIP_P5_PLUS(softc)) ?
 				softc->legacy_db_size : softc->nq_rings[i].ring.id * 0x80;
 			softc->nq_rings[i].ring.ring_size = softc->scctx->isc_ntxd[2];
+			softc->nq_rings[i].ring.db_ring_mask = softc->nq_rings[i].ring.ring_size - 1;
 			softc->nq_rings[i].ring.vaddr = vaddrs[i * ntxqs + 2];
 			softc->nq_rings[i].ring.paddr = paddrs[i * ntxqs + 2];
+			softc->nq_rings[i].type = Q_TYPE_TX;
 		}
 	}
 
@@ -683,6 +700,8 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		 */
 		softc->rx_cp_rings[i].ring.ring_size =
 		    softc->scctx->isc_nrxd[0];
+		softc->rx_cp_rings[i].ring.db_ring_mask =
+		    softc->rx_cp_rings[i].ring.ring_size - 1;
 
 		softc->rx_cp_rings[i].ring.vaddr = vaddrs[i * nrxqs];
 		softc->rx_cp_rings[i].ring.paddr = paddrs[i * nrxqs];
@@ -695,6 +714,8 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->rx_rings[i].doorbell = (BNXT_CHIP_P5_PLUS(softc)) ?
 			softc->legacy_db_size : softc->rx_rings[i].id * 0x80;
 		softc->rx_rings[i].ring_size = softc->scctx->isc_nrxd[1];
+		softc->rx_rings[i].db_ring_mask =
+			softc->rx_rings[i].ring_size -1;
 		softc->rx_rings[i].vaddr = vaddrs[i * nrxqs + 1];
 		softc->rx_rings[i].paddr = paddrs[i * nrxqs + 1];
 
@@ -716,6 +737,7 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->ag_rings[i].doorbell = (BNXT_CHIP_P5_PLUS(softc)) ?
 			softc->legacy_db_size : softc->ag_rings[i].id * 0x80;
 		softc->ag_rings[i].ring_size = softc->scctx->isc_nrxd[2];
+		softc->ag_rings[i].db_ring_mask = softc->ag_rings[i].ring_size - 1;
 		softc->ag_rings[i].vaddr = vaddrs[i * nrxqs + 2];
 		softc->ag_rings[i].paddr = paddrs[i * nrxqs + 2];
 
@@ -1404,6 +1426,141 @@ static void bnxt_thor_db_nq(void *db_ptr, bool enable_irq)
 	db_msg.type_path_xid = ((cpr->ring.phys_id << DBC_DBC_XID_SFT) &
 			DBC_DBC_XID_MASK) | DBC_DBC_PATH_L2 |
 		((enable_irq) ? DBC_DBC_TYPE_NQ_ARM: DBC_DBC_TYPE_NQ);
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, cpr->ring.doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, cpr->ring.doorbell,
+			htole64(*(uint64_t *)&db_msg));
+	bus_space_barrier(db_bar->tag, db_bar->handle, 0, db_bar->size,
+			BUS_SPACE_BARRIER_WRITE);
+}
+
+static void
+bnxt_thor2_db_rx(void *db_ptr, uint16_t idx)
+{
+	struct bnxt_ring *ring = (struct bnxt_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &ring->softc->doorbell_bar;
+	uint64_t db_val;
+
+	if (idx >= ring->ring_size) {
+		device_printf(ring->softc->dev, "%s: BRCM DBG: idx: %d crossed boundary\n", __func__, idx);
+		return;
+	}
+
+	db_val = ((DBR_PATH_L2 | DBR_TYPE_SRQ | DBR_VALID | idx) |
+				((uint64_t)ring->phys_id << DBR_XID_SFT));
+
+	/* Add the PI index */
+	db_val |= DB_RING_IDX(ring, idx, ring->epoch_arr[idx]);
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, ring->doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, ring->doorbell,
+			htole64(db_val));
+}
+
+static void
+bnxt_thor2_db_tx(void *db_ptr, uint16_t idx)
+{
+	struct bnxt_ring *ring = (struct bnxt_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &ring->softc->doorbell_bar;
+	uint64_t db_val;
+
+	if (idx >= ring->ring_size) {
+		device_printf(ring->softc->dev, "%s: BRCM DBG: idx: %d crossed boundary\n", __func__, idx);
+		return;
+	}
+
+	db_val = ((DBR_PATH_L2 | DBR_TYPE_SQ | DBR_VALID | idx) |
+				((uint64_t)ring->phys_id << DBR_XID_SFT));
+
+	/* Add the PI index */
+	db_val |= DB_RING_IDX(ring, idx, ring->epoch_arr[idx]);
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, ring->doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, ring->doorbell,
+			htole64(db_val));
+}
+
+static void
+bnxt_thor2_db_rx_cq(void *db_ptr, bool enable_irq)
+{
+	struct bnxt_cp_ring *cpr = (struct bnxt_cp_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &cpr->ring.softc->doorbell_bar;
+	u64 db_msg = { 0 };
+	uint32_t cons = cpr->raw_cons;
+	uint32_t toggle = 0;
+
+	if (cons == UINT32_MAX)
+		cons = 0;
+
+	if (enable_irq == true)
+		toggle = cpr->toggle;
+
+	db_msg = DBR_PATH_L2 | ((u64)cpr->ring.phys_id << DBR_XID_SFT) | DBR_VALID |
+			DB_RING_IDX_CMP(&cpr->ring, cons) | DB_TOGGLE(toggle);
+
+	if (enable_irq)
+		db_msg |= DBR_TYPE_CQ_ARMALL;
+	else
+		db_msg |= DBR_TYPE_CQ;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, cpr->ring.doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, cpr->ring.doorbell,
+			htole64(*(uint64_t *)&db_msg));
+	bus_space_barrier(db_bar->tag, db_bar->handle, 0, db_bar->size,
+			BUS_SPACE_BARRIER_WRITE);
+}
+
+static void
+bnxt_thor2_db_tx_cq(void *db_ptr, bool enable_irq)
+{
+	struct bnxt_cp_ring *cpr = (struct bnxt_cp_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &cpr->ring.softc->doorbell_bar;
+	u64 db_msg = { 0 };
+	uint32_t cons = cpr->raw_cons;
+	uint32_t toggle = 0;
+
+	if (enable_irq == true)
+		toggle = cpr->toggle;
+
+	db_msg = DBR_PATH_L2 | ((u64)cpr->ring.phys_id << DBR_XID_SFT) | DBR_VALID |
+			DB_RING_IDX_CMP(&cpr->ring, cons) | DB_TOGGLE(toggle);
+
+	if (enable_irq)
+		db_msg |= DBR_TYPE_CQ_ARMALL;
+	else
+		db_msg |= DBR_TYPE_CQ;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, cpr->ring.doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, cpr->ring.doorbell,
+			htole64(*(uint64_t *)&db_msg));
+	bus_space_barrier(db_bar->tag, db_bar->handle, 0, db_bar->size,
+			BUS_SPACE_BARRIER_WRITE);
+}
+
+static void
+bnxt_thor2_db_nq(void *db_ptr, bool enable_irq)
+{
+	struct bnxt_cp_ring *cpr = (struct bnxt_cp_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &cpr->ring.softc->doorbell_bar;
+	u64 db_msg = { 0 };
+	uint32_t cons = cpr->raw_cons;
+	uint32_t toggle = 0;
+
+	if (enable_irq == true)
+		toggle = cpr->toggle;
+
+	db_msg = DBR_PATH_L2 | ((u64)cpr->ring.phys_id << DBR_XID_SFT) | DBR_VALID |
+			DB_RING_IDX_CMP(&cpr->ring, cons) | DB_TOGGLE(toggle);
+
+	if (enable_irq)
+		db_msg |= DBR_TYPE_NQ_ARM;
+	else
+		db_msg |= DBR_TYPE_NQ_MASK;
 
 	bus_space_barrier(db_bar->tag, db_bar->handle, cpr->ring.doorbell, 8,
 			BUS_SPACE_BARRIER_WRITE);
@@ -2294,6 +2451,12 @@ bnxt_attach_pre(if_ctx_t ctx)
 		softc->db_ops.bnxt_db_rx_cq = bnxt_thor_db_rx_cq;
 		softc->db_ops.bnxt_db_tx_cq = bnxt_thor_db_tx_cq;
 		softc->db_ops.bnxt_db_nq = bnxt_thor_db_nq;
+	} else if (BNXT_CHIP_P7(softc)) {
+		softc->db_ops.bnxt_db_tx = bnxt_thor2_db_tx;
+		softc->db_ops.bnxt_db_rx = bnxt_thor2_db_rx;
+		softc->db_ops.bnxt_db_rx_cq = bnxt_thor2_db_rx_cq;
+		softc->db_ops.bnxt_db_tx_cq = bnxt_thor2_db_tx_cq;
+		softc->db_ops.bnxt_db_nq = bnxt_thor2_db_nq;
 	} else {
 		softc->db_ops.bnxt_db_tx = bnxt_cuw_db_tx;
 		softc->db_ops.bnxt_db_rx = bnxt_cuw_db_rx;
@@ -2454,6 +2617,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 		softc->legacy_db_size : softc->def_cp_ring.ring.id * 0x80;
 	softc->def_cp_ring.ring.ring_size = PAGE_SIZE /
 	    sizeof(struct cmpl_base);
+	softc->def_cp_ring.ring.db_ring_mask = softc->def_cp_ring.ring.ring_size -1 ;
 	rc = iflib_dma_alloc(ctx,
 	    sizeof(struct cmpl_base) * softc->def_cp_ring.ring.ring_size,
 	    &softc->def_cp_ring_mem, 0);
@@ -2871,6 +3035,8 @@ bnxt_init(if_ctx_t ctx)
 	rc = bnxt_hwrm_ring_alloc(softc,
 			HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
 			&softc->def_cp_ring.ring);
+	bnxt_set_db_mask(softc, &softc->def_cp_ring.ring,
+			HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL);
 	if (rc)
 		goto fail;
 skip_def_cp_ring:
@@ -2881,15 +3047,18 @@ skip_def_cp_ring:
 		if (rc)
 			goto fail;
 
-		if (BNXT_CHIP_P5(softc)) {
+		if (BNXT_CHIP_P5_PLUS(softc)) {
 			/* Allocate the NQ */
 			softc->nq_rings[i].cons = 0;
+			softc->nq_rings[i].raw_cons = 0;
 			softc->nq_rings[i].v_bit = 1;
 			softc->nq_rings[i].last_idx = UINT32_MAX;
 			bnxt_mark_cpr_invalid(&softc->nq_rings[i]);
 			rc = bnxt_hwrm_ring_alloc(softc,
 					HWRM_RING_ALLOC_INPUT_RING_TYPE_NQ,
 					&softc->nq_rings[i].ring);
+			bnxt_set_db_mask(softc, &softc->nq_rings[i].ring,
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_NQ);
 			if (rc)
 				goto fail;
 
@@ -2897,21 +3066,27 @@ skip_def_cp_ring:
 		}
 		/* Allocate the completion ring */
 		softc->rx_cp_rings[i].cons = UINT32_MAX;
+		softc->rx_cp_rings[i].raw_cons = UINT32_MAX;
 		softc->rx_cp_rings[i].v_bit = 1;
 		softc->rx_cp_rings[i].last_idx = UINT32_MAX;
+		softc->rx_cp_rings[i].toggle = 0;
 		bnxt_mark_cpr_invalid(&softc->rx_cp_rings[i]);
 		rc = bnxt_hwrm_ring_alloc(softc,
 				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
 				&softc->rx_cp_rings[i].ring);
+		bnxt_set_db_mask(softc, &softc->rx_cp_rings[i].ring,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL);
 		if (rc)
 			goto fail;
 
-		if (BNXT_CHIP_P5(softc))
+		if (BNXT_CHIP_P5_PLUS(softc))
 			softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[i], 1);
 
 		/* Allocate the RX ring */
 		rc = bnxt_hwrm_ring_alloc(softc,
 		    HWRM_RING_ALLOC_INPUT_RING_TYPE_RX, &softc->rx_rings[i]);
+		bnxt_set_db_mask(softc, &softc->rx_rings[i],
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX);
 		if (rc)
 			goto fail;
 		softc->db_ops.bnxt_db_rx(&softc->rx_rings[i], 0);
@@ -2920,6 +3095,8 @@ skip_def_cp_ring:
 		rc = bnxt_hwrm_ring_alloc(softc,
 				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG,
 				&softc->ag_rings[i]);
+		bnxt_set_db_mask(softc, &softc->ag_rings[i],
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG);
 		if (rc)
 			goto fail;
 		softc->db_ops.bnxt_db_rx(&softc->ag_rings[i], 0);
@@ -2982,21 +3159,27 @@ skip_def_cp_ring:
 
 		/* Allocate the completion ring */
 		softc->tx_cp_rings[i].cons = UINT32_MAX;
+		softc->tx_cp_rings[i].raw_cons = UINT32_MAX;
 		softc->tx_cp_rings[i].v_bit = 1;
+		softc->tx_cp_rings[i].toggle = 0;
 		bnxt_mark_cpr_invalid(&softc->tx_cp_rings[i]);
 		rc = bnxt_hwrm_ring_alloc(softc,
 				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
 				&softc->tx_cp_rings[i].ring);
+		bnxt_set_db_mask(softc, &softc->tx_cp_rings[i].ring,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL);
 		if (rc)
 			goto fail;
 
-		if (BNXT_CHIP_P5(softc))
+		if (BNXT_CHIP_P5_PLUS(softc))
 			softc->db_ops.bnxt_db_tx_cq(&softc->tx_cp_rings[i], 1);
 
 		/* Allocate the TX ring */
 		rc = bnxt_hwrm_ring_alloc(softc,
 				HWRM_RING_ALLOC_INPUT_RING_TYPE_TX,
 				&softc->tx_rings[i]);
+		bnxt_set_db_mask(softc, &softc->tx_rings[i],
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_TX);
 		if (rc)
 			goto fail;
 		softc->db_ops.bnxt_db_tx(&softc->tx_rings[i], 0);
@@ -3567,25 +3750,35 @@ process_nq(struct bnxt_softc *softc, uint16_t nqid)
 {
 	struct bnxt_cp_ring *cpr = &softc->nq_rings[nqid];
 	nq_cn_t *cmp = (nq_cn_t *) cpr->ring.vaddr;
+	struct bnxt_cp_ring *tx_cpr = &softc->tx_cp_rings[nqid];
+	struct bnxt_cp_ring *rx_cpr = &softc->rx_cp_rings[nqid];
 	bool v_bit = cpr->v_bit;
 	uint32_t cons = cpr->cons;
+	uint32_t raw_cons = cpr->raw_cons;
 	uint16_t nq_type, nqe_cnt = 0;
 
 	while (1) {
-		if (!NQ_VALID(&cmp[cons], v_bit))
+		if (!NQ_VALID(&cmp[cons], v_bit)) {
 			goto done;
+		}
 
 		nq_type = NQ_CN_TYPE_MASK & cmp[cons].type;
 
-		if (nq_type != NQ_CN_TYPE_CQ_NOTIFICATION)
+		if (NQE_CN_TYPE(nq_type) != NQ_CN_TYPE_CQ_NOTIFICATION) {
 			 bnxt_process_async_msg(cpr, (tx_cmpl_t *)&cmp[cons]);
+		} else {
+			tx_cpr->toggle = NQE_CN_TOGGLE(cmp[cons].type);
+			rx_cpr->toggle = NQE_CN_TOGGLE(cmp[cons].type);
+		}
 
 		NEXT_CP_CONS_V(&cpr->ring, cons, v_bit);
+		raw_cons++;
 		nqe_cnt++;
 	}
 done:
 	if (nqe_cnt) {
 		cpr->cons = cons;
+		cpr->raw_cons = raw_cons;
 		cpr->v_bit = v_bit;
 	}
 }

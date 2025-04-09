@@ -190,32 +190,36 @@
 #define BNXT_NO_MORE_WOL_FILTERS	0xFFFF
 #define bnxt_wol_supported(softc)	(!((softc)->flags & BNXT_FLAG_VF) && \
 					  ((softc)->flags & BNXT_FLAG_WOL_CAP ))
-
 /* 64-bit doorbell */
-#define DBR_INDEX_MASK                                  0x0000000000ffffffULL
-#define DBR_PI_LO_MASK                                  0xff000000UL
-#define DBR_PI_LO_SFT                                   24
-#define DBR_XID_MASK                                    0x000fffff00000000ULL
-#define DBR_XID_SFT                                     32
-#define DBR_PI_HI_MASK                                  0xf0000000000000ULL
-#define DBR_PI_HI_SFT                                   52
-#define DBR_PATH_L2                                     (0x1ULL << 56)
-#define DBR_VALID                                       (0x1ULL << 58)
-#define DBR_TYPE_SQ                                     (0x0ULL << 60)
-#define DBR_TYPE_RQ                                     (0x1ULL << 60)
-#define DBR_TYPE_SRQ                                    (0x2ULL << 60)
-#define DBR_TYPE_SRQ_ARM                                (0x3ULL << 60)
-#define DBR_TYPE_CQ                                     (0x4ULL << 60)
-#define DBR_TYPE_CQ_ARMSE                               (0x5ULL << 60)
-#define DBR_TYPE_CQ_ARMALL                              (0x6ULL << 60)
-#define DBR_TYPE_CQ_ARMENA                              (0x7ULL << 60)
-#define DBR_TYPE_SRQ_ARMENA                             (0x8ULL << 60)
-#define DBR_TYPE_CQ_CUTOFF_ACK                          (0x9ULL << 60)
-#define DBR_TYPE_NQ                                     (0xaULL << 60)
-#define DBR_TYPE_NQ_ARM                                 (0xbULL << 60)
-#define DBR_TYPE_PUSH_START                             (0xcULL << 60)
-#define DBR_TYPE_PUSH_END                               (0xdULL << 60)
-#define DBR_TYPE_NULL                                   (0xfULL << 60)
+#define DBR_INDEX_MASK					0x0000000000ffffffULL
+#define DBR_PI_LO_MASK					0xff000000UL
+#define DBR_PI_LO_SFT					24
+#define DBR_EPOCH_MASK					0x01000000UL
+#define DBR_EPOCH_SFT					24
+#define DBR_TOGGLE_MASK					0x06000000UL
+#define DBR_TOGGLE_SFT					25
+#define DBR_XID_MASK					0x000fffff00000000ULL
+#define DBR_XID_SFT					32
+#define DBR_PI_HI_MASK					0xf0000000000000ULL
+#define DBR_PI_HI_SFT					52
+#define DBR_PATH_L2					(0x1ULL << 56)
+#define DBR_VALID					(0x1ULL << 58)
+#define DBR_TYPE_SQ					(0x0ULL << 60)
+#define DBR_TYPE_RQ					(0x1ULL << 60)
+#define DBR_TYPE_SRQ					(0x2ULL << 60)
+#define DBR_TYPE_SRQ_ARM				(0x3ULL << 60)
+#define DBR_TYPE_CQ					(0x4ULL << 60)
+#define DBR_TYPE_CQ_ARMSE				(0x5ULL << 60)
+#define DBR_TYPE_CQ_ARMALL				(0x6ULL << 60)
+#define DBR_TYPE_CQ_ARMENA				(0x7ULL << 60)
+#define DBR_TYPE_SRQ_ARMENA				(0x8ULL << 60)
+#define DBR_TYPE_CQ_CUTOFF_ACK				(0x9ULL << 60)
+#define DBR_TYPE_NQ					(0xaULL << 60)
+#define DBR_TYPE_NQ_ARM					(0xbULL << 60)
+#define DBR_TYPE_PUSH_START				(0xcULL << 60)
+#define DBR_TYPE_PUSH_END				(0xdULL << 60)
+#define DBR_TYPE_NQ_MASK				(0xeULL << 60)
+#define DBR_TYPE_NULL					(0xfULL << 60)
 
 #define BNXT_MAX_L2_QUEUES				128
 #define BNXT_ROCE_IRQ_COUNT				9
@@ -582,6 +586,8 @@ struct bnxt_grp_info {
 	uint16_t	ag_ring_id;
 };
 
+#define	EPOCH_ARR_SZ	4096
+
 struct bnxt_ring {
 	uint64_t		paddr;
 	vm_offset_t		doorbell;
@@ -592,12 +598,24 @@ struct bnxt_ring {
 	uint16_t		phys_id;
 	uint16_t		idx;
 	struct bnxt_full_tpa_start *tpa_start;
+	union {
+		u64             db_key64;
+		u32             db_key32;
+	};
+	uint32_t                db_ring_mask;
+	uint32_t                db_epoch_mask;
+	uint8_t                 db_epoch_shift;
+
+	uint64_t		epoch_arr[EPOCH_ARR_SZ];
+	bool                    epoch_bit;
+
 };
 
 struct bnxt_cp_ring {
 	struct bnxt_ring	ring;
 	struct if_irq		irq;
 	uint32_t		cons;
+	uint32_t		raw_cons;
 	bool			v_bit;		/* Value of valid bit */
 	struct ctx_hw_stats	*stats;
 	uint32_t		stats_ctx_id;
@@ -605,6 +623,10 @@ struct bnxt_cp_ring {
 						 * set to the last read pidx
 						 */
 	uint64_t 		int_count;
+	uint8_t			toggle;
+	uint8_t			type;
+#define Q_TYPE_TX		1
+#define Q_TYPE_RX		2
 };
 
 struct bnxt_full_tpa_start {
@@ -1005,6 +1027,22 @@ struct bnxt_fw_health {
 
 #define BNXT_GRC_BASE_MASK			0xfffff000
 #define BNXT_GRC_OFFSET_MASK			0x00000ffc
+
+#define NQE_CN_TYPE(type)	((type) & NQ_CN_TYPE_MASK)
+#define NQE_CN_TOGGLE(type)	(((type) & NQ_CN_TOGGLE_MASK) >>        \
+				 NQ_CN_TOGGLE_SFT)
+
+#define DB_EPOCH(ring, idx)	(((idx) & (ring)->db_epoch_mask) <<       \
+				 ((ring)->db_epoch_shift))
+
+#define DB_TOGGLE(tgl)		((tgl) << DBR_TOGGLE_SFT)
+
+#define DB_RING_IDX_CMP(ring, idx)    (((idx) & (ring)->db_ring_mask) |         \
+				       DB_EPOCH(ring, idx))
+
+#define DB_RING_IDX(ring, idx, bit)    (((idx) & (ring)->db_ring_mask) | \
+                                       ((bit) << (24)))
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
