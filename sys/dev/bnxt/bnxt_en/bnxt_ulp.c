@@ -124,7 +124,7 @@ static void bnxt_fill_msix_vecs(struct bnxt_softc *bp, struct bnxt_msix_entry *e
 	for (i = 0; i < num_msix; i++) {
 		ent[i].vector = bp->irq_tbl[idx + i].vector;
 		ent[i].ring_idx = idx + i;
-		if (BNXT_CHIP_P5(bp))
+		if (BNXT_CHIP_P5_PLUS(bp))
 			ent[i].db_offset = DB_PF_OFFSET_P5;
 		else
 			ent[i].db_offset = (idx + i) * 0x80;
