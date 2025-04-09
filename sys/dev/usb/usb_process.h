@@ -29,9 +29,10 @@
 #define	_USB_PROCESS_H_
 
 #ifndef USB_GLOBAL_INCLUDE_FILE
-#include <sys/interrupt.h>
 #include <sys/priority.h>
 #include <sys/runq.h>
+
+#include <machine/interrupt.h>
 #endif
 
 /* defines */
