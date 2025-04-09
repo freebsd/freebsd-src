@@ -701,6 +701,10 @@ mmc_select_card(struct mmc_softc *sc, uint16_t rca)
 {
 	int err, flags;
 
+	/* No card selection in SPI mode. */
+	if (mmcbr_get_bus_type(sc->dev) == bus_type_spi)
+		return (MMC_ERR_NONE);
+
 	flags = (rca ? MMC_RSP_R1B : MMC_RSP_NONE) | MMC_CMD_AC;
 	sc->retune_paused++;
 	err = mmc_wait_for_command(sc, MMC_SELECT_CARD, (uint32_t)rca << 16,
@@ -899,6 +903,10 @@ mmc_set_timing(struct mmc_softc *sc, struct mmc_ivars *ivar,
 	u_char switch_res[64];
 	uint8_t	value;
 	int err;
+
+	/* No timings in SPI mode. */
+	if (mmcbr_get_bus_type(sc->dev) == bus_type_spi)
+		return (MMC_ERR_NONE);
 
 	if (mmcbr_get_mode(sc->dev) == mode_sd) {
 		switch (timing) {
