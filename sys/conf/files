@@ -2427,6 +2427,7 @@ dev/mmc/mmc.c			optional mmc !mmccam
 dev/mmc/mmcbr_if.m		standard
 dev/mmc/mmcbus_if.m		standard
 dev/mmc/mmcsd.c			optional mmcsd !mmccam
+dev/mmc/mmcspi.c		optional mmcsd spibus !mmccam
 dev/mmc/mmc_fdt_helpers.c	optional mmc regulator clk fdt | mmccam regulator clk fdt
 dev/mmc/mmc_helpers.c		optional mmc gpio regulator clk | mmccam gpio regulator clk
 dev/mmc/mmc_pwrseq.c		optional mmc clk regulator fdt | mmccam clk regulator fdt
