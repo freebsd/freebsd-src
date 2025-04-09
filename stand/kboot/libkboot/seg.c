@@ -5,7 +5,7 @@
  */
 
 #include "stand.h"
-#include "kboot.h"
+#include "seg.h"
 
 #include <sys/param.h>
 

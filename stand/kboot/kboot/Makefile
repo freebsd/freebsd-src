@@ -25,7 +25,6 @@ SRCS=	\
 		hostfs.c \
 		init.c \
 		main.c \
-		seg.c \
 		util.c \
 		vers.c
 
