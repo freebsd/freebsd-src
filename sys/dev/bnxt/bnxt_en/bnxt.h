@@ -88,6 +88,10 @@
 #define BCM57504  	0x1751
 #define BCM57504_NPAR	0x1801
 #define BCM57502  	0x1752
+#define BCM57608  	0x1760
+#define BCM57604  	0x1761
+#define BCM57602  	0x1762
+#define BCM57601  	0x1763
 #define NETXTREME_C_VF1	0x16cb
 #define NETXTREME_C_VF2	0x16e1
 #define NETXTREME_C_VF3	0x16e5
@@ -224,6 +228,13 @@
 
 /* Chip class phase 5 */
 #define BNXT_CHIP_P5(sc) ((sc->flags & BNXT_FLAG_CHIP_P5))
+
+/* Chip class phase 7 */
+#define BNXT_CHIP_P7(sc) ((sc->flags & BNXT_FLAG_CHIP_P7))
+
+/* Chip class phase 5 plus */
+#define BNXT_CHIP_P5_PLUS(sc)                   \
+	(BNXT_CHIP_P5(sc) || BNXT_CHIP_P7(sc))
 
 #define DB_PF_OFFSET_P5                                 0x10000
 #define DB_VF_OFFSET_P5                                 0x4000
@@ -1002,6 +1013,7 @@ struct bnxt_softc {
 #define BNXT_FLAG_ROCEV1_CAP			0x0400
 #define BNXT_FLAG_ROCEV2_CAP			0x0800
 #define BNXT_FLAG_ROCE_CAP			(BNXT_FLAG_ROCEV1_CAP | BNXT_FLAG_ROCEV2_CAP)
+#define BNXT_FLAG_CHIP_P7			0x1000
 	uint32_t		flags;
 #define BNXT_STATE_LINK_CHANGE  (0)
 #define BNXT_STATE_MAX		(BNXT_STATE_LINK_CHANGE + 1)

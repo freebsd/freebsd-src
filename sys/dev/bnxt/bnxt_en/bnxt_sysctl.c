@@ -553,7 +553,7 @@ bnxt_create_port_stats_sysctls(struct bnxt_softc *softc)
 	    "rx_stat_err", CTLFLAG_RD,
 	    &softc->rx_port_stats->rx_stat_err, "Received stat err");
 
-	if (BNXT_CHIP_P5(softc) &&
+	if (BNXT_CHIP_P5_PLUS(softc) &&
 	    (softc->flags & BNXT_FLAG_FW_CAP_EXT_STATS)) {
 		SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
 		    "tx_bytes_cos0", CTLFLAG_RD,
@@ -1002,7 +1002,7 @@ bnxt_create_rx_sysctls(struct bnxt_softc *softc, int rxr)
 	if (!oid)
 		return ENOMEM;
 
-	if (BNXT_CHIP_P5(softc))
+	if (BNXT_CHIP_P5_PLUS(softc))
 		SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
 		    "nq_num_ints", CTLFLAG_RD, &softc->nq_rings[rxr].int_count,
 		    "Num Interrupts");
@@ -1589,7 +1589,7 @@ bnxt_reset_ctrl(SYSCTL_HANDLER_ARGS) {
 	if (rc || req->newptr == NULL)
 		return rc;
 
-	if (BNXT_CHIP_P5(softc))
+	if (BNXT_CHIP_P5_PLUS(softc))
 		simulate_reset(softc, buf);
 
 	return rc;
