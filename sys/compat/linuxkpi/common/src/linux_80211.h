@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2020-2026 The FreeBSD Foundation
- * Copyright (c) 2020-2021 Bjoern A. Zeeb
+ * Copyright (c) 2020-2025 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -43,6 +43,9 @@
 #define _LKPI_SRC_LINUX_80211_H
 
 #include "opt_wlan.h"
+
+#include <linux/skbuff.h>
+#include <net/mac80211.h>
 
 #if defined(IEEE80211_DEBUG) && !defined(LINUXKPI_DEBUG_80211)
 #define	LINUXKPI_DEBUG_80211
@@ -504,5 +507,16 @@ int lkpi_80211_mo_ampdu_action(struct ieee80211_hw *, struct ieee80211_vif *,
     struct ieee80211_ampdu_params *);
 int lkpi_80211_mo_sta_statistics(struct ieee80211_hw *, struct ieee80211_vif *,
     struct ieee80211_sta *, struct station_info *);
+int lkpi_80211_mo_suspend(struct ieee80211_hw *, struct cfg80211_wowlan *);
+int lkpi_80211_mo_resume(struct ieee80211_hw *);
+int lkpi_80211_mo_set_wakeup(struct ieee80211_hw *, bool);
+int lkpi_80211_mo_set_rekey_data(struct ieee80211_hw *,
+    struct ieee80211_vif *, struct cfg80211_gtk_rekey_data *);
+int lkpi_80211_mo_set_default_unicast_key(struct ieee80211_hw *,
+    struct ieee80211_vif *, int);
+
+/* LinuxKPI 802.11 PM. */
+int lkpi_80211_suspend(struct ieee80211com *, pm_message_t);
+int lkpi_80211_resume(struct ieee80211com *);
 
 #endif	/* _LKPI_SRC_LINUX_80211_H */

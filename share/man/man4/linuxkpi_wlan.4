@@ -6,7 +6,7 @@
 .\" This documentation was written by Bj\xc3\xb6rn Zeeb under sponsorship from
 .\" the FreeBSD Foundation.
 .\"
-.Dd December 28, 2025
+.Dd May 23, 2026
 .Dt LINUXKPI_WLAN 4
 .Os
 .Sh NAME
@@ -107,6 +107,12 @@ debug messages.
 See
 .Pa sys/compat/linuxkpi/common/src/linux_80211.h
 for details.
+.It Va compat.linuxkpi.80211.suspend_type
+For the time being this variable allows suspend/resume to be
+enabled/disabled.
+The default is 1 which enables normal suspend/resume.
+To disable any suspend/resume set it to 0.
+Other values may enable specific features in the future.
 .It Va compat.linuxkpi.80211.IF.dump_stas
 Print statistics for a given, associated
 .Xr wlan 4

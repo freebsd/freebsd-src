@@ -4636,6 +4636,8 @@ compat/linuxkpi/common/src/linux_80211.c	optional compat_linuxkpi wlan \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_80211_macops.c	optional compat_linuxkpi wlan \
 	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linuxkpi_80211_pm.c	optional compat_linuxkpi wlan \
+	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_kmod.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_acpi.c		optional compat_linuxkpi acpi \
