@@ -12,6 +12,23 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250410:
+	14.2-RELEASE-p3 EN-25:04.tzdata
+			EN-25:05.expat
+			EN-25:06.daemon
+			EN-25:07.openssl
+			EN-25:08.caroot
+
+	Timezone database information update [EN-25:04.tzdata]
+
+	Update expat to 2.7.1 [EN-25:05.expat]
+
+	daemon(8) missing signals [EN-25:06.daemon]
+
+	Update OpenSSL to 3.0.16 [EN-25:07.openssl]
+
+	Root certificate bundle update [EN-25:08.caroot]
+
 20250221:
 	14.2-RELEASE-p2 SA-25:05.openssh
 
