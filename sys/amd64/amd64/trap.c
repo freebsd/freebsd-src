@@ -436,7 +436,7 @@ trap(struct trapframe *frame)
 		    curpcb->pcb_onfault != NULL && type != T_PAGEFLT) {
 			u_long cnt = atomic_fetchadd_long(&cnt_efirt_faults, 1);
 
-			if ((print_efirt_faults == 1 && cnt == 1) ||
+			if ((print_efirt_faults == 1 && cnt == 0) ||
 			    print_efirt_faults == 2) {
 				trap_diag(frame, 0);
 				printf("EFI RT fault %s\n",
@@ -871,7 +871,7 @@ after_vmfault:
 		if ((td->td_pflags & TDP_EFIRT) != 0) {
 			u_long cnt = atomic_fetchadd_long(&cnt_efirt_faults, 1);
 
-			if ((print_efirt_faults == 1 && cnt == 1) ||
+			if ((print_efirt_faults == 1 && cnt == 0) ||
 			    print_efirt_faults == 2) {
 				trap_diag(frame, eva);
 				printf("EFI RT page fault\n");
