@@ -190,10 +190,6 @@ lacp_linkstate_destroy_stress_head()
 }
 lacp_linkstate_destroy_stress_body()
 {
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/244168"
-	fi
-
 	local TAP0 TAP1 LAGG MAC SRCDIR
 
 	# Configure the lagg interface to use an RFC5737 nonrouteable addresses
