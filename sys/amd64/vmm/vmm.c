@@ -851,6 +851,7 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 {
 	int error;
 	vm_paddr_t maxaddr;
+	bool map = false;
 
 	/* Set up the IOMMU to do the 'gpa' to 'hpa' translation */
 	if (ppt_assigned_devices(vm) == 0) {
@@ -860,12 +861,12 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 		vm->iommu = iommu_create_domain(maxaddr);
 		if (vm->iommu == NULL)
 			return (ENXIO);
+		map = true;
 	}
 
 	error = ppt_assign_device(vm, bus, slot, func);
-	if (error != 0)
-		return (error);
-	error = vm_iommu_map(vm);
+	if (error == 0 && map)
+		error = vm_iommu_map(vm);
 	return (error);
 }
 
