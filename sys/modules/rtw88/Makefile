@@ -66,6 +66,7 @@ CFLAGS+=	-DCONFIG_RTW88_USB
 
 .if defined(RTW88_CONFIG_PM) && ${RTW88_CONFIG_PM} > 0
 SRCS+=	wow.c
+SRCS+=	lkpi_rtw88_pm.c
 CFLAGS+=	-DCONFIG_PM=${RTW88_CONFIG_PM}
 .endif
 
