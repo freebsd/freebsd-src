@@ -442,7 +442,8 @@ lkpi_sta_sync_vht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
 	uint16_t rx_mcs_map;
 	uint8_t mcs;
 
-	if ((ni->ni_flags & IEEE80211_NODE_VHT) == 0) {
+	if ((ni->ni_flags & IEEE80211_NODE_VHT) == 0 ||
+	    !IEEE80211_IS_CHAN_VHT_5GHZ(ni->ni_chan)) {
 		sta->deflink.vht_cap.vht_supported = false;
 		return;
 	}
@@ -1878,7 +1879,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	}
 #endif
 #ifdef LKPI_80211_VHT
-	if (IEEE80211_IS_CHAN_VHT(ni->ni_chan)) {
+	if (IEEE80211_IS_CHAN_VHT_5GHZ(ni->ni_chan)) {
 #ifdef __notyet__
 		if (IEEE80211_IS_CHAN_VHT80P80(ni->ni_chan))
 			chanctx_conf->def.width = NL80211_CHAN_WIDTH_80P80;
@@ -3860,7 +3861,8 @@ lkpi_scan_ies_add(uint8_t *p, struct ieee80211_scan_ies *scan_ies,
 		}
 #endif
 #if defined(LKPI_80211_VHT)
-		if ((vap->iv_vht_flags & IEEE80211_FVHT_VHT) != 0) {
+		if (band == NL80211_BAND_5GHZ &&
+		    (vap->iv_vht_flags & IEEE80211_FVHT_VHT) != 0) {
 			struct ieee80211_channel *c;
 
 			c = ieee80211_ht_adjust_channel(ic, ic->ic_curchan,
@@ -5362,7 +5364,7 @@ lkpi_ic_getradiocaps(struct ieee80211com *ic, int maxchan,
 		    NL80211_BAND_5GHZ);
 
 #ifdef LKPI_80211_VHT
-		if (hw->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap.vht_supported){
+		if (hw->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap.vht_supported) {
 
 			ic->ic_flags_ext |= IEEE80211_FEXT_VHT;
 			ic->ic_vht_cap.vht_cap_info =
