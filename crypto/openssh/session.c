@@ -2194,7 +2194,8 @@ session_auth_agent_req(struct ssh *ssh, Session *s)
 	if ((r = sshpkt_get_end(ssh)) != 0)
 		sshpkt_fatal(ssh, r, "%s: parse packet", __func__);
 	if (!auth_opts->permit_agent_forwarding_flag ||
-	    !options.allow_agent_forwarding) {
+	    !options.allow_agent_forwarding ||
+	    options.disable_forwarding) {
 		debug_f("agent forwarding disabled");
 		return 0;
 	}
@@ -2589,7 +2590,7 @@ session_setup_x11fwd(struct ssh *ssh, Session *s)
 		ssh_packet_send_debug(ssh, "X11 forwarding disabled by key options.");
 		return 0;
 	}
-	if (!options.x11_forwarding) {
+	if (!options.x11_forwarding || options.disable_forwarding) {
 		debug("X11 forwarding disabled in server configuration file.");
 		return 0;
 	}
