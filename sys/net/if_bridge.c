@@ -254,7 +254,7 @@ struct bridge_iflist {
 	uint32_t		bif_addrcnt;	/* cur. # of addresses */
 	uint32_t		bif_addrexceeded;/* # of address violations */
 	struct epoch_context	bif_epoch_ctx;
-	uint32_t		bif_pvid;	/* native vlan id */
+	ether_vlanid_t		bif_pvid;	/* native vlan id */
 };
 
 /*
@@ -267,7 +267,7 @@ struct bridge_rtnode {
 	unsigned long		brt_expire;	/* expiration time */
 	uint8_t			brt_flags;	/* address flags */
 	uint8_t			brt_addr[ETHER_ADDR_LEN];
-	uint16_t		brt_vlan;	/* vlan id */
+	ether_vlanid_t		brt_vlan;	/* vlan id */
 	struct	vnet		*brt_vnet;
 	struct	epoch_context	brt_epoch_ctx;
 };
@@ -336,30 +336,30 @@ static int	bridge_enqueue(struct bridge_softc *, struct ifnet *,
 static void	bridge_rtdelete(struct bridge_softc *, struct ifnet *ifp, int);
 
 static void	bridge_forward(struct bridge_softc *, struct bridge_iflist *,
-		    struct mbuf *m, uint32_t vlan);
+		    struct mbuf *m, ether_vlanid_t);
 
 static void	bridge_timer(void *);
 
 static void	bridge_broadcast(struct bridge_softc *, struct ifnet *,
-		    struct mbuf *, int, uint32_t);
+		    struct mbuf *, int, ether_vlanid_t);
 static void	bridge_span(struct bridge_softc *, struct mbuf *);
 
 static int	bridge_rtupdate(struct bridge_softc *, const uint8_t *,
-		    uint16_t, struct bridge_iflist *, int, uint8_t);
+		    ether_vlanid_t, struct bridge_iflist *, int, uint8_t);
 static struct ifnet *bridge_rtlookup(struct bridge_softc *, const uint8_t *,
-		    uint16_t);
+		    ether_vlanid_t);
 static void	bridge_rttrim(struct bridge_softc *);
 static void	bridge_rtage(struct bridge_softc *);
 static void	bridge_rtflush(struct bridge_softc *, int);
 static int	bridge_rtdaddr(struct bridge_softc *, const uint8_t *,
-		    uint16_t);
+		    ether_vlanid_t);
 
 static void	bridge_rtable_init(struct bridge_softc *);
 static void	bridge_rtable_fini(struct bridge_softc *);
 
 static int	bridge_rtnode_addr_cmp(const uint8_t *, const uint8_t *);
 static struct bridge_rtnode *bridge_rtnode_lookup(struct bridge_softc *,
-		    const uint8_t *, uint16_t);
+		    const uint8_t *, ether_vlanid_t);
 static int	bridge_rtnode_insert(struct bridge_softc *,
 		    struct bridge_rtnode *);
 static void	bridge_rtnode_destroy(struct bridge_softc *,
@@ -2242,7 +2242,7 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 	struct bridge_iflist *sbif;
 	struct ifnet *bifp, *dst_if;
 	struct bridge_softc *sc;
-	uint16_t vlan;
+	ether_vlanid_t vlan;
 
 	NET_EPOCH_ASSERT();
 
@@ -2417,7 +2417,7 @@ bridge_qflush(struct ifnet *ifp __unused)
  */
 static void
 bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
-    struct mbuf *m, uint32_t vlan)
+    struct mbuf *m, ether_vlanid_t vlan)
 {
 	struct bridge_iflist *dbif;
 	struct ifnet *src_if, *dst_if, *ifp;
@@ -2583,7 +2583,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	struct ifnet *bifp;
 	struct ether_header *eh;
 	struct mbuf *mc, *mc2;
-	uint16_t vlan;
+	ether_vlanid_t vlan;
 	int error;
 
 	NET_EPOCH_ASSERT();
@@ -2836,7 +2836,7 @@ bridge_inject(struct ifnet *ifp, struct mbuf *m)
  */
 static void
 bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
-    struct mbuf *m, int runfilt, uint32_t vlan)
+    struct mbuf *m, int runfilt, ether_vlanid_t vlan)
 {
 	struct bridge_iflist *dbif, *sbif;
 	struct mbuf *mc;
@@ -2958,8 +2958,9 @@ bridge_span(struct bridge_softc *sc, struct mbuf *m)
  *	Add a bridge routing entry.
  */
 static int
-bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
-    struct bridge_iflist *bif, int setflags, uint8_t flags)
+bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
+		ether_vlanid_t vlan, struct bridge_iflist *bif,
+		int setflags, uint8_t flags)
 {
 	struct bridge_rtnode *brt;
 	struct bridge_iflist *obif;
@@ -3066,7 +3067,8 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
  *	Lookup the destination interface for an address.
  */
 static struct ifnet *
-bridge_rtlookup(struct bridge_softc *sc, const uint8_t *addr, uint16_t vlan)
+bridge_rtlookup(struct bridge_softc *sc, const uint8_t *addr,
+		ether_vlanid_t vlan)
 {
 	struct bridge_rtnode *brt;
 
@@ -3177,7 +3179,8 @@ bridge_rtflush(struct bridge_softc *sc, int full)
  *	Remove an address from the table.
  */
 static int
-bridge_rtdaddr(struct bridge_softc *sc, const uint8_t *addr, uint16_t vlan)
+bridge_rtdaddr(struct bridge_softc *sc, const uint8_t *addr,
+	       ether_vlanid_t vlan)
 {
 	struct bridge_rtnode *brt;
 	int found = 0;
@@ -3306,7 +3309,8 @@ bridge_rtnode_addr_cmp(const uint8_t *a, const uint8_t *b)
  *	vlan id or if zero then just return the first match.
  */
 static struct bridge_rtnode *
-bridge_rtnode_lookup(struct bridge_softc *sc, const uint8_t *addr, uint16_t vlan)
+bridge_rtnode_lookup(struct bridge_softc *sc, const uint8_t *addr,
+		     ether_vlanid_t vlan)
 {
 	struct bridge_rtnode *brt;
 	uint32_t hash;
