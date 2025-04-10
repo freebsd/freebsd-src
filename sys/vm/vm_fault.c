@@ -105,6 +105,7 @@
 #include <vm/vm_pageout.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_reserv.h>
 
@@ -1230,7 +1231,7 @@ vm_fault_allocate_oom(struct faultstate *fs)
  * Allocate a page directly or via the object populate method.
  */
 static enum fault_status
-vm_fault_allocate(struct faultstate *fs)
+vm_fault_allocate(struct faultstate *fs, struct pctrie_iter *pages)
 {
 	struct domainset *dset;
 	enum fault_status res;
@@ -1291,8 +1292,9 @@ vm_fault_allocate(struct faultstate *fs)
 			vm_fault_unlock_and_deallocate(fs);
 			return (FAULT_FAILURE);
 		}
-		fs->m = vm_page_alloc(fs->object, fs->pindex,
-		    P_KILLED(curproc) ? VM_ALLOC_SYSTEM : 0);
+		fs->m = vm_page_alloc_after(fs->object, fs->pindex,
+		    P_KILLED(curproc) ? VM_ALLOC_SYSTEM : 0,
+		    vm_radix_iter_lookup_lt(pages, fs->pindex));
 	}
 	if (fs->m == NULL) {
 		if (vm_fault_allocate_oom(fs))
@@ -1459,6 +1461,7 @@ vm_fault_busy_sleep(struct faultstate *fs)
 static enum fault_status
 vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 {
+	struct pctrie_iter pages;
 	enum fault_status res;
 	bool dead;
 
@@ -1484,7 +1487,8 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	/*
 	 * See if the page is resident.
 	 */
-	fs->m = vm_page_lookup(fs->object, fs->pindex);
+	vm_page_iter_init(&pages, fs->object);
+	fs->m = vm_radix_iter_lookup(&pages, fs->pindex);
 	if (fs->m != NULL) {
 		if (!vm_page_tryxbusy(fs->m)) {
 			vm_fault_busy_sleep(fs);
@@ -1514,7 +1518,7 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 			vm_fault_unlock_and_deallocate(fs);
 			return (FAULT_RESTART);
 		}
-		res = vm_fault_allocate(fs);
+		res = vm_fault_allocate(fs, &pages);
 		if (res != FAULT_CONTINUE)
 			return (res);
 	}
@@ -1549,6 +1553,7 @@ int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
 {
+	struct pctrie_iter pages;
 	struct faultstate fs;
 	int ahead, behind, faultcount, rv;
 	enum fault_status res;
@@ -1603,6 +1608,7 @@ RetryFault:
 		}
 		VM_OBJECT_ASSERT_WLOCKED(fs.first_object);
 	} else {
+		vm_page_iter_init(&pages, fs.first_object);
 		VM_OBJECT_WLOCK(fs.first_object);
 	}
 
@@ -1627,7 +1633,7 @@ RetryFault:
 	fs.pindex = fs.first_pindex;
 
 	if ((fs.entry->eflags & MAP_ENTRY_SPLIT_BOUNDARY_MASK) != 0) {
-		res = vm_fault_allocate(&fs);
+		res = vm_fault_allocate(&fs, &pages);
 		switch (res) {
 		case FAULT_RESTART:
 			goto RetryFault;
