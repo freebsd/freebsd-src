@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -353,7 +353,7 @@ AcpiUtSafeStrncpy (
 {
     /* Always terminate destination string */
 
-    strncpy (Dest, Source, DestSize);
+    memcpy (Dest, Source, DestSize);
     Dest[DestSize - 1] = 0;
 }
 

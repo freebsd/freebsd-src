@@ -1,4 +1,20 @@
 ----------------------------------------
+4 April 2025. Summary of changes for version 20250404:
+
+Major changes:
+
+Update all the copyright continuation year to 2025 in the license header of all files
+
+Add complete support for 3 new ACPI tables ? MRRM,ERDT and RIMT (Tony Luck & V L Sunil)
+
+Add a license file to the project which is a great improvement (Dionna Glaze)
+
+Update DMAR and TPM2 tables to support their latest versions (Alexey Neyman and Stuart Yoder) 
+
+A few fixes including local cache allocation, FFixedHW Region, attribute packing, string vs. non-string char array, vsnprintf()etc. along with some comments, spelling errors and code alignment (multiple awesome contributors)
+ 
+
+----------------------------------------
 12 December 2024. Summary of changes for version 20241212:
 
 Major changes:
