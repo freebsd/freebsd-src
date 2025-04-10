@@ -721,6 +721,7 @@ static uint32_t
 ff_approx_txtime(struct ieee80211_node *ni,
 	const struct mbuf *m1, const struct mbuf *m2)
 {
+	struct ieee80211_node_txrate txr;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	uint32_t framelen;
@@ -743,20 +744,33 @@ ff_approx_txtime(struct ieee80211_node *ni,
 	if (m2 != NULL)
 		framelen += m2->m_pkthdr.len;
 
-	/*
-	 * For now, we assume non-shortgi, 20MHz, just because I want to
-	 * at least test 802.11n.
-	 */
-	dot11rate = ieee80211_node_get_txrate_dot11rate(ni);
-	if (dot11rate & IEEE80211_RATE_MCS)
+	ieee80211_node_get_txrate(ni, &txr);
+
+	switch (txr.type) {
+	case IEEE80211_NODE_TXRATE_LEGACY:
+		dot11rate = ieee80211_node_get_txrate_dot11rate(ni);
+		frame_time = ieee80211_compute_duration(ic->ic_rt, framelen,
+			    dot11rate, 0);
+		break;
+	case IEEE80211_NODE_TXRATE_HT:
+		/* TODO: check ht40/shortgi */
+		dot11rate = ieee80211_node_get_txrate_dot11rate(ni);
 		frame_time = ieee80211_compute_duration_ht(framelen,
 		    dot11rate,
 		    IEEE80211_HT_RC_2_STREAMS(dot11rate),
 		    0, /* isht40 */
 		    0); /* isshortgi */
-	else
-		frame_time = ieee80211_compute_duration(ic->ic_rt, framelen,
-			    dot11rate, 0);
+		break;
+	case IEEE80211_NODE_TXRATE_VHT:
+		/* TODO: there's no VHT frame length calculation just yet */
+		frame_time = 1000;	/* 1ms */
+		break;
+	case IEEE80211_NODE_TXRATE_UNDEFINED:
+		/* TODO: proper error handling */
+		frame_time = 4000; /* 4ms */
+		break;
+	}
+
 	return (frame_time);
 }
 
