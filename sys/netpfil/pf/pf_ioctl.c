@@ -2571,14 +2571,20 @@ pf_ioctl_add_addr(struct pf_nl_pooladdr *pp)
 	    pp->which != PF_RT)
 		return (EINVAL);
 
-#ifndef INET
-	if (pp->af == AF_INET)
-		return (EAFNOSUPPORT);
+	switch (pp->af) {
+#ifdef INET
+	case AF_INET:
+		/* FALLTHROUGH */
 #endif /* INET */
-#ifndef INET6
-	if (pp->af == AF_INET6)
-		return (EAFNOSUPPORT);
+#ifdef INET6
+	case AF_INET6:
+		/* FALLTHROUGH */
 #endif /* INET6 */
+	case AF_UNSPEC:
+		break;
+	default:
+		return (EAFNOSUPPORT);
+	}
 
 	if (pp->addr.addr.type != PF_ADDR_ADDRMASK &&
 	    pp->addr.addr.type != PF_ADDR_DYNIFTL &&
