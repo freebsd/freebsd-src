@@ -1,6 +1,3 @@
-#
-#
-
 # Figure out where the git binary is.
 .for _P in /usr/bin /usr/local/bin
 . if !defined(GIT_CMD) || empty(GIT_CMD)
@@ -24,13 +21,19 @@ GITREV!=	${GIT_CMD} -C ${.CURDIR} rev-parse --verify --short HEAD 2>/dev/null ||
 GITCOUNT!=	${GIT_CMD} -C ${.CURDIR} rev-list --first-parent --count HEAD 2>/dev/null || true
 . export GITCOUNT
 . endif
+. if !defined(GITEPOCH) || empty(GITEPOCH)
+GITEPOCH!=	${GIT_CMD} -C ${.CURDIR} show -s --format=%ct HEAD 2>/dev/null || true
+. export GITEPOCH
+. endif
 .else
 GITBRANCH=	nullbranch
 GITREV=		nullhash
 GITCOUNT=	nullcount
+GITEPOCH=	0
 . export GITBRANCH
 . export GITREV
 . export GITCOUNT
+. export GITEPOCH
 .endif
 
 # Set the build date, primarily for snapshot builds.
