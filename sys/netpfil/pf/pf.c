@@ -342,7 +342,7 @@ static int		 pf_test_eth_rule(int, struct pfi_kkif *,
 			    struct mbuf **);
 static int		 pf_test_rule(struct pf_krule **, struct pf_kstate **,
 			    struct pf_pdesc *, struct pf_krule **,
-			    struct pf_kruleset **, struct inpcb *);
+			    struct pf_kruleset **, u_short *, struct inpcb *);
 static int		 pf_create_state(struct pf_krule *, struct pf_krule *,
 			    struct pf_krule *, struct pf_pdesc *,
 			    struct pf_state_key *, struct pf_state_key *, int *,
@@ -5478,7 +5478,7 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 static int
 pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
     struct pf_pdesc *pd, struct pf_krule **am,
-    struct pf_kruleset **rsm, struct inpcb *inp)
+    struct pf_kruleset **rsm, u_short *reason, struct inpcb *inp)
 {
 	struct pf_krule		*nr = NULL;
 	struct pf_krule		*r, *a = NULL;
@@ -5487,7 +5487,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	struct pf_krule_item	*ri;
 	struct tcphdr		*th = &pd->hdr.tcp;
 	struct pf_state_key	*sk = NULL, *nk = NULL;
-	u_short			 reason, transerror;
+	u_short			 transerror;
 	int			 rewrite = 0;
 	int			 tag = -1;
 	int			 asd = 0;
@@ -5575,7 +5575,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	switch (transerror) {
 	default:
 		/* A translation error occurred. */
-		REASON_SET(&reason, transerror);
+		REASON_SET(reason, transerror);
 		goto cleanup;
 	case PFRES_MAX:
 		/* No match. */
@@ -5859,7 +5859,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 			if (r->action == PF_MATCH) {
 				ri = malloc(sizeof(struct pf_krule_item), M_PF_RULE_ITEM, M_NOWAIT | M_ZERO);
 				if (ri == NULL) {
-					REASON_SET(&reason, PFRES_MEMORY);
+					REASON_SET(reason, PFRES_MEMORY);
 					goto cleanup;
 				}
 				ri->r = r;
@@ -5873,7 +5873,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 					pd->naf = r->naf;
 				if (pd->af != pd->naf) {
 					if (pf_get_transaddr_af(r, pd) == -1) {
-						REASON_SET(&reason, PFRES_TRANSLATE);
+						REASON_SET(reason, PFRES_TRANSLATE);
 						goto cleanup;
 					}
 				}
@@ -5903,7 +5903,7 @@ nextrule:
 	a = *am;
 	ruleset = *rsm;
 
-	REASON_SET(&reason, PFRES_MATCH);
+	REASON_SET(reason, PFRES_MATCH);
 
 	/* apply actions for last matching pass/block rule */
 	pf_rule_to_actions(r, &pd->act);
@@ -5911,7 +5911,7 @@ nextrule:
 		pd->naf = r->naf;
 	if (pd->af != pd->naf) {
 		if (pf_get_transaddr_af(r, pd) == -1) {
-			REASON_SET(&reason, PFRES_TRANSLATE);
+			REASON_SET(reason, PFRES_TRANSLATE);
 			goto cleanup;
 		}
 	}
@@ -5919,7 +5919,7 @@ nextrule:
 	if (r->log) {
 		if (rewrite)
 			m_copyback(pd->m, pd->off, pd->hdrlen, pd->hdr.any);
-		PFLOG_PACKET(r->action, reason, r, a, ruleset, pd, 1, NULL);
+		PFLOG_PACKET(r->action, *reason, r, a, ruleset, pd, 1, NULL);
 	}
 	if (pd->act.log & PF_LOG_MATCHES)
 		pf_log_matches(pd, r, a, ruleset, &match_rules);
@@ -5929,14 +5929,14 @@ nextrule:
 	    (r->rule_flag & PFRULE_RETURNICMP) ||
 	    (r->rule_flag & PFRULE_RETURN))) {
 		pf_return(r, nr, pd, th, bproto_sum,
-		    bip_sum, &reason, r->rtableid);
+		    bip_sum, reason, r->rtableid);
 	}
 
 	if (r->action == PF_DROP)
 		goto cleanup;
 
 	if (tag > 0 && pf_tag_packet(pd, tag)) {
-		REASON_SET(&reason, PFRES_MEMORY);
+		REASON_SET(reason, PFRES_MEMORY);
 		goto cleanup;
 	}
 	if (pd->act.rtableid >= 0)
@@ -5957,9 +5957,9 @@ nextrule:
 		 */
 		pd->act.rt = r->rt;
 		/* Don't use REASON_SET, pf_map_addr increases the reason counters */
-		reason = pf_map_addr_sn(pd->af, r, pd->src, &pd->act.rt_addr,
+		*reason = pf_map_addr_sn(pd->af, r, pd->src, &pd->act.rt_addr,
 		    &pd->act.rt_kif, NULL, &sn, &snh, pool, PF_SN_ROUTE);
-		if (reason != 0)
+		if (*reason != 0)
 			goto cleanup;
 	}
 
@@ -5978,7 +5978,7 @@ nextrule:
 			if (action == PF_DROP &&
 			    (r->rule_flag & PFRULE_RETURN))
 				pf_return(r, nr, pd, th,
-				    bproto_sum, bip_sum, &reason,
+				    bproto_sum, bip_sum, reason,
 				    pd->act.rtableid);
 			return (action);
 		}
@@ -7279,6 +7279,7 @@ pf_sctp_multihome_delayed(struct pf_pdesc *pd, struct pfi_kkif *kif,
 	struct pf_krule		*ra = NULL;
 	struct pf_krule		*r = &V_pf_default_rule;
 	struct pf_kruleset	*rs = NULL;
+	u_short			 reason;
 	bool do_extra = true;
 
 	PF_RULES_RLOCK_TRACKER;
@@ -7319,7 +7320,7 @@ again:
 				j->pd.related_rule = s->rule;
 			}
 			ret = pf_test_rule(&r, &sm,
-			    &j->pd, &ra, &rs, NULL);
+			    &j->pd, &ra, &rs, &reason, NULL);
 			PF_RULES_RUNLOCK();
 			SDT_PROBE4(pf, sctp, multihome, test, kif, r, j->pd.m, ret);
 			if (ret != PF_DROP && sm != NULL) {
@@ -10367,7 +10368,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			action = PF_DROP;
 		else
 			action = pf_test_rule(&r, &s, &pd, &a,
-			    &ruleset, inp);
+			    &ruleset, &reason, inp);
 		if (action != PF_PASS)
 			REASON_SET(&reason, PFRES_FRAG);
 		break;
@@ -10425,7 +10426,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 				break;
 			} else {
 				action = pf_test_rule(&r, &s, &pd,
-				    &a, &ruleset, inp);
+				    &a, &ruleset, &reason, inp);
 			}
 		}
 		break;
@@ -10446,7 +10447,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			a = s->anchor;
 		} else if (s == NULL) {
 			action = pf_test_rule(&r, &s,
-			    &pd, &a, &ruleset, inp);
+			    &pd, &a, &ruleset, &reason, inp);
 		}
 		break;
 
@@ -10474,7 +10475,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			a = s->anchor;
 		} else if (s == NULL)
 			action = pf_test_rule(&r, &s, &pd,
-			    &a, &ruleset, inp);
+			    &a, &ruleset, &reason, inp);
 		break;
 	}
 
