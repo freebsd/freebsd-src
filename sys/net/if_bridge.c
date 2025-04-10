@@ -1852,7 +1852,7 @@ bridge_ioctl_sifpvid(struct bridge_softc *sc, void *arg)
 	if (bif == NULL)
 		return (ENOENT);
 
-	if (req->ifbr_pvid >= 4096)
+	if (req->ifbr_pvid > DOT1Q_VID_MAX)
 		return (EINVAL);
 
 	bif->bif_pvid = req->ifbr_pvid;
