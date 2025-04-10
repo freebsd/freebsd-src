@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -264,7 +264,7 @@ ApWriteToBinaryFile (
     ACPI_TABLE_HEADER       *Table,
     UINT32                  Instance)
 {
-    char                    Filename[ACPI_NAMESEG_SIZE + 16];
+    char                    Filename[ACPI_NAMESEG_SIZE + 16] ACPI_NONSTRING;
     char                    InstanceStr [16];
     ACPI_FILE               File;
     ACPI_SIZE               Actual;

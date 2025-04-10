@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -532,21 +532,16 @@ AcpiUtValidateResource (
     AmlResource = ACPI_CAST_PTR (AML_RESOURCE, Aml);
     if (ResourceType == ACPI_RESOURCE_NAME_SERIAL_BUS)
     {
-        /* Avoid undefined behavior: member access within misaligned address */
-
-        AML_RESOURCE_COMMON_SERIALBUS CommonSerialBus;
-        memcpy(&CommonSerialBus, AmlResource, sizeof(CommonSerialBus));
-
         /* Validate the BusType field */
 
-        if ((CommonSerialBus.Type == 0) ||
-            (CommonSerialBus.Type > AML_RESOURCE_MAX_SERIALBUSTYPE))
+        if ((AmlResource->CommonSerialBus.Type == 0) ||
+            (AmlResource->CommonSerialBus.Type > AML_RESOURCE_MAX_SERIALBUSTYPE))
         {
             if (WalkState)
             {
                 ACPI_ERROR ((AE_INFO,
                     "Invalid/unsupported SerialBus resource descriptor: BusType 0x%2.2X",
-                    CommonSerialBus.Type));
+                    AmlResource->CommonSerialBus.Type));
             }
             return (AE_AML_INVALID_RESOURCE_TYPE);
         }

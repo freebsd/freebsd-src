@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -680,7 +680,7 @@ AxDumpTableHeader (
 
     /* RSDP has an oddball signature and header */
 
-    if (!strncmp (TableHeader->Signature, "RSD PTR ", 8))
+    if (ACPI_VALIDATE_RSDP_SIG (TableHeader->Signature))
     {
         AxCheckAscii ((char *) &Header[9], 6);
 
