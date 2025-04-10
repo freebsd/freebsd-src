@@ -1,15 +1,15 @@
 #
 #
-NANO_SRC=$(pwd)
-NANO_SRC=${NANO_SRC%/tools/tools/nanobsd/rescue}
-NANO_OBJ=${NANO_SRC}/../nanobsd-builds/${NANO_NAME}/obj
+#NANO_SRC=$(pwd)
+#NANO_SRC=${NANO_SRC%/tools/tools/nanobsd/rescue}
+#NANO_OBJ=${NANO_SRC}/../nanobsd-builds/${NANO_NAME}/obj
 NANO_TOOLS=`pwd`
 NANO_PACKAGE_DIR=`pwd`/Pkg
 NANO_RAM_TMPVARSIZE=40960
 NANO_PMAKE="make -j 8"
 NANO_LABEL="rescue"
 NANO_RAM_TMPVARSIZE=40960
-NANO_MEDIASIZE="3932160"
+NANO_MEDIASIZE="6000000"
 NANO_SECTS="63"
 NANO_HEADS="16"
 NANO_IMAGES="2"
@@ -31,10 +31,12 @@ CONF_INSTALL='
 CONF_WORLD='                                                                    
 CFLAGS=-O -pipe                                                                
 # We do not need these for rescue
-WITHOUT_LIB32=true
 WITHOUT_TESTS=true
-WITHOUT_DEBUG_FILES=t
-WITHOUT_KERNEL_SYMBOLS=t
+WITHOUT_DEBUG_FILES=true
+WITHOUT_KERNEL_SYMBOLS=true
+WITHOUT_CLANG_FULL=true
+WITH_CLANG_EXTRAS=true
+WITHOUT_LIB32=true
 '
 
 # Functions
@@ -50,14 +52,14 @@ toUpper() {
 customize_cmd cust_allow_ssh_root
 customize_cmd cust_install_files
 
-cust_ld32_cfg () (
-	cd ${NANO_WORLDDIR}/libexec
-	if [ \! -f ld-elf32.so.1 ]; then
-	ln -s ld-elf.so.1 ld-elf32.so.1
-	fi
-)
-customize_cmd cust_ld32_cfg
-
+#cust_ld32_cfg () (
+#	cd ${NANO_WORLDDIR}/libexec
+#	if [ \! -f ld-elf32.so.1 ]; then
+#	ln -s ld-elf.so.1 ld-elf32.so.1
+#	fi
+#)
+#customize_cmd cust_ld32_cfg
+#
 #cust_boot_cfg () (
 #	cd ${NANO_WORLDDIR}
 #	echo "-S115200 -h" > boot.config
@@ -67,7 +69,7 @@ customize_cmd cust_ld32_cfg
 #)
 #customize_cmd cust_boot_cfg
 
-customize_cmd cust_pkgng
+#customize_cmd cust_pkgng
 
 cust_etc_cfg () (
   cd ${NANO_WORLDDIR}
