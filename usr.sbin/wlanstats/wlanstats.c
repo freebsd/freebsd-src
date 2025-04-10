@@ -394,6 +394,8 @@ static const struct fmt wlanstats[] = {
 	{ 9,	"gcmp_nomem",	"gcmpnomem",	"No memory available (GCMP)" },
 #define	S_RX_GCMPNOSPC		AFTER(S_RX_GCMPNOMEM)
 	{ 9,	"gcmp_nospc",	"gcmpnospc",	"No mbuf space available (GCMP)" },
+#define	S_CRYPTO_SWCIPHERFAIL	AFTER(S_RX_GCMPNOSPC)
+	{ 12,	"crypto_swcipherfail",	"swcipherfail",	"No matching software cipher support" },
 };
 
 struct wlanstatfoo_p {
@@ -848,6 +850,7 @@ wlan_get_curstat(struct bsdstat *sf, int s, char b[], size_t bs)
 	case S_RX_GCMPMIC:	STAT(rx_gcmpmic);
 	case S_RX_GCMPNOMEM:	STAT(crypto_gcmp_nomem);
 	case S_RX_GCMPNOSPC:	STAT(crypto_gcmp_nospc);
+	case S_CRYPTO_SWCIPHERFAIL:	STAT(crypto_swcipherfail);
 	}
 	return wlan_getinfo(wf, s, b, bs);
 #undef NSTAT
@@ -1019,6 +1022,7 @@ wlan_get_totstat(struct bsdstat *sf, int s, char b[], size_t bs)
 	case S_RX_GCMPMIC:	STAT(rx_gcmpmic);
 	case S_RX_GCMPNOMEM:	STAT(crypto_gcmp_nomem);
 	case S_RX_GCMPNOSPC:	STAT(crypto_gcmp_nospc);
+	case S_CRYPTO_SWCIPHERFAIL:	STAT(crypto_swcipherfail);
 	}
 	return wlan_getinfo(wf, s, b, bs);
 #undef NSTAT
