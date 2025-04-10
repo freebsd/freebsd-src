@@ -271,6 +271,19 @@ vm_radix_iter_lookup_le(struct pctrie_iter *pages, vm_pindex_t index)
 }
 
 /*
+ * Initialize an iterator pointing to the page with the greatest pindex that is
+ * less than to the specified pindex, or NULL if there are no such
+ * pages.  Return the page.
+ *
+ * Requires that access be externally synchronized by a lock.
+ */
+static __inline vm_page_t
+vm_radix_iter_lookup_lt(struct pctrie_iter *pages, vm_pindex_t index)
+{
+	return (index == 0 ? NULL : vm_radix_iter_lookup_le(pages, index - 1));
+}
+
+/*
  * Update the iterator to point to the page with the pindex that is one greater
  * than the current pindex, or NULL if there is no such page.  Return the page.
  *
