@@ -365,9 +365,81 @@ lkpi_80211_dump_stas(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static enum ieee80211_sta_rx_bw
+lkpi_cw_to_rx_bw(enum nl80211_chan_width cw)
+{
+	switch (cw) {
+	case NL80211_CHAN_WIDTH_320:
+		return (IEEE80211_STA_RX_BW_320);
+	case NL80211_CHAN_WIDTH_160:
+	case NL80211_CHAN_WIDTH_80P80:
+		return (IEEE80211_STA_RX_BW_160);
+	case NL80211_CHAN_WIDTH_80:
+		return (IEEE80211_STA_RX_BW_80);
+	case NL80211_CHAN_WIDTH_40:
+		return (IEEE80211_STA_RX_BW_40);
+	case NL80211_CHAN_WIDTH_20:
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		return (IEEE80211_STA_RX_BW_20);
+	case NL80211_CHAN_WIDTH_5:
+	case NL80211_CHAN_WIDTH_10:
+		/* Unsupported input. */
+		return (IEEE80211_STA_RX_BW_20);
+	}
+}
+
+static enum nl80211_chan_width
+lkpi_rx_bw_to_cw(enum ieee80211_sta_rx_bw rx_bw)
+{
+	switch (rx_bw) {
+	case IEEE80211_STA_RX_BW_20:
+		return (NL80211_CHAN_WIDTH_20);	/* _NOHT */
+	case IEEE80211_STA_RX_BW_40:
+		return (NL80211_CHAN_WIDTH_40);
+	case IEEE80211_STA_RX_BW_80:
+		return (NL80211_CHAN_WIDTH_80);
+	case IEEE80211_STA_RX_BW_160:
+		return (NL80211_CHAN_WIDTH_160); /* 80P80 */
+	case IEEE80211_STA_RX_BW_320:
+		return (NL80211_CHAN_WIDTH_320);
+	}
+}
+
+static void
+lkpi_sync_chanctx_cw_from_rx_bw(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, struct ieee80211_sta *sta)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	enum ieee80211_sta_rx_bw old_bw;
+	uint32_t changed;
+
+	chanctx_conf = rcu_dereference_protected(vif->bss_conf.chanctx_conf,
+	    lockdep_is_held(&hw->wiphy->mtx));
+	if (chanctx_conf == NULL)
+		return;
+
+	old_bw = lkpi_cw_to_rx_bw(chanctx_conf->def.width);
+	if (old_bw == sta->deflink.bandwidth)
+		return;
+
+	chanctx_conf->def.width = lkpi_rx_bw_to_cw(sta->deflink.bandwidth);
+	if (chanctx_conf->def.width == NL80211_CHAN_WIDTH_20 &&
+	    !sta->deflink.ht_cap.ht_supported)
+		chanctx_conf->def.width = NL80211_CHAN_WIDTH_20_NOHT;
+
+	chanctx_conf->min_def = chanctx_conf->def;
+
+	vif->bss_conf.chanreq.oper.width = chanctx_conf->def.width;
+
+	changed = IEEE80211_CHANCTX_CHANGE_MIN_WIDTH;
+	changed |= IEEE80211_CHANCTX_CHANGE_WIDTH;
+	lkpi_80211_mo_change_chanctx(hw, chanctx_conf, changed);
+}
+
 #if defined(LKPI_80211_HT)
 static void
-lkpi_sta_sync_ht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
+lkpi_sta_sync_ht_from_ni(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+    struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap;
 	uint8_t *ie;
@@ -399,7 +471,8 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
 	sta->deflink.ht_cap.cap = htcap->cap_info;
 	sta->deflink.ht_cap.mcs = htcap->mcs;
 
-	if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) != 0)
+	if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) != 0 &&
+	    IEEE80211_IS_CHAN_HT40(ni->ni_chan))
 		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_40;
 	else
 		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
@@ -435,7 +508,8 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
 
 #if defined(LKPI_80211_VHT)
 static void
-lkpi_sta_sync_vht_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
+lkpi_sta_sync_vht_from_ni(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+    struct ieee80211_node *ni)
 {
 	uint32_t width;
 	int rx_nss;
@@ -508,15 +582,25 @@ skip_bw:
 #endif
 
 static void
-lkpi_sta_sync_from_ni(struct ieee80211_sta *sta, struct ieee80211_node *ni)
+lkpi_sta_sync_from_ni(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_sta *sta, struct ieee80211_node *ni, bool updchnctx)
 {
 
 #if defined(LKPI_80211_HT)
-	lkpi_sta_sync_ht_from_ni(sta, ni);
+	lkpi_sta_sync_ht_from_ni(vif, sta, ni);
 #endif
 #if defined(LKPI_80211_VHT)
-	lkpi_sta_sync_vht_from_ni(sta, ni);
+	lkpi_sta_sync_vht_from_ni(vif, sta, ni);
 #endif
+	/*
+	 * We are also called from node allocation which net80211
+	 * can do even on `ifconfig down`; in that case the chanctx
+	 * may still be valid and we get a discrepancy between
+	 * sta and chanctx.  Thus do not try to update the chanctx
+	 * when called from lkpi_lsta_alloc().
+	 */
+	if (updchnctx)
+		lkpi_sync_chanctx_cw_from_rx_bw(hw, vif, sta);
 }
 
 static uint8_t
@@ -686,7 +770,9 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
 	sta->deflink.rx_nss = 1;
 
-	lkpi_sta_sync_from_ni(sta, ni);
+	wiphy_lock(hw->wiphy);
+	lkpi_sta_sync_from_ni(hw, vif, sta, ni, false);
+	wiphy_unlock(hw->wiphy);
 
 	IMPROVE("he, eht, bw_320, ... smps_mode, ..");
 
@@ -1870,6 +1956,7 @@ lkpi_sta_scan_to_auth(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	IMPROVE("Check vht_cap from band not just chan?");
 	KASSERT(ni->ni_chan != NULL && ni->ni_chan != IEEE80211_CHAN_ANYC,
 	   ("%s:%d: ni %p ni_chan %p\n", __func__, __LINE__, ni, ni->ni_chan));
+
 #ifdef LKPI_80211_HT
 	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
 		if (IEEE80211_IS_CHAN_HT40(ni->ni_chan))
@@ -2658,7 +2745,6 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	}
 
 	bss_changed |= lkpi_update_dtim_tsf(vif, ni, vap, __func__, __LINE__);
-
 	lkpi_80211_mo_bss_info_changed(hw, vif, &vif->bss_conf, bss_changed);
 
 	/* - change_chanctx (if needed)
@@ -2693,7 +2779,7 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 
 	sta->deflink.rx_nss = MAX(1, sta->deflink.rx_nss);
 	IMPROVE("Is this the right spot, has net80211 done all updates already?");
-	lkpi_sta_sync_from_ni(sta, ni);
+	lkpi_sta_sync_from_ni(hw, vif, sta, ni, true);
 
 	/* Update sta_state (ASSOC to AUTHORIZED). */
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
