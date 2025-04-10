@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -294,7 +294,7 @@ OpcParsePrintf (
         if (StringToProcess)
         {
             NewString = UtLocalCacheCalloc (StringLength + 1);
-            strncpy (NewString, StartPosition, StringLength);
+            memcpy (NewString, StartPosition, StringLength);
 
             NewOp = TrAllocateOp (PARSEOP_STRING_LITERAL);
             NewOp->Asl.Value.String = NewString;
@@ -383,7 +383,7 @@ OpcParsePrintf (
     if (StringToProcess)
     {
         NewString = UtLocalCacheCalloc (StringLength + 1);
-        strncpy (NewString, StartPosition, StringLength);
+        memcpy (NewString, StartPosition, StringLength);
 
         NewOp = TrAllocateOp (PARSEOP_STRING_LITERAL);
         NewOp->Asl.Value.String = NewString;

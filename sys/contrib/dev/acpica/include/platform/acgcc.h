@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -224,6 +224,14 @@ typedef __builtin_va_list       va_list;
                 struct { } __Empty_ ## NAME;    \
                 TYPE NAME[];                    \
         }
+#endif
+
+/*
+ * Explicitly mark strings that lack a terminating NUL character so
+ * that ACPICA can be built with -Wunterminated-string-initialization.
+ */
+#if __has_attribute(__nonstring__)
+#define ACPI_NONSTRING __attribute__((__nonstring__))
 #endif
 
 #endif /* __ACGCC_H__ */

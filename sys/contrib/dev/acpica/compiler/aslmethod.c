@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -546,9 +546,9 @@ MtMethodAnalysisWalkBegin (
         else if (HidExists && AdrExists)
         {
             /*
-             * According to the ACPI spec, "A device object must contain
-             * either an _HID object or an _ADR object, but should not contain
-             * both".
+             * "A device object must contain either an _HID object or
+             * an _ADR object, but must not contain both".
+             * (ACPI spec 6.3, Errata A Section 6.1, page 327)
              */
             AslError (ASL_WARNING, ASL_MSG_MULTIPLE_TYPES, Op,
                 "Device object requires either a _HID or _ADR, but not both");

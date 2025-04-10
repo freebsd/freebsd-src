@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1480,6 +1480,12 @@ AcpiDmDumpDmar (
             ScopeOffset = sizeof (ACPI_DMAR_SATC);
             break;
 
+        case ACPI_DMAR_TYPE_SIDP:
+
+            InfoTable = AcpiDmTableInfoDmar6;
+            ScopeOffset = sizeof (ACPI_DMAR_SIDP);
+            break;
+
         default:
 
             AcpiOsPrintf ("\n**** Unknown DMAR subtable type 0x%X\n\n",
@@ -1713,6 +1719,233 @@ AcpiDmDumpEinj (
         Offset += sizeof (ACPI_WHEA_HEADER);
         Subtable = ACPI_ADD_PTR (ACPI_WHEA_HEADER, Subtable,
             sizeof (ACPI_WHEA_HEADER));
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpErdt
+ *
+ * PARAMETERS:  Table               - A ERDT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a ERDT. This table type consists
+ *              of an open-ended number of subtables.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpErdt (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_SUBTBL_HDR_16      *Subtable, *Subsubtable;
+    ACPI_ERDT_DACD_PATHS    *ScopeTable;
+    UINT32                  Offset = sizeof (ACPI_TABLE_ERDT);
+    UINT32                  Suboffset;
+    UINT32                  ScopeOffset;
+    UINT32                  SubsubtableLength = 0;
+    ACPI_DMTABLE_INFO       *InfoTable, *TrailEntries, *DacdEntries;
+    UINT32                  NumTrailers = 0;
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoErdt);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Subtables */
+    Subtable = ACPI_ADD_PTR (ACPI_SUBTBL_HDR_16, Table, Offset);
+    while (Offset < Table->Length)
+    {
+
+        /* Dump common header */
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,
+            Subtable->Length, AcpiDmTableInfoErdtHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,
+            Subtable->Length, AcpiDmTableInfoErdtRmdd);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Subtables of this RMDD table */
+
+        Suboffset = Offset + sizeof(ACPI_ERDT_RMDD);
+        Subsubtable = ACPI_ADD_PTR (ACPI_SUBTBL_HDR_16, Table, Suboffset);
+        while (Suboffset < Offset + Subtable->Length)
+        {
+            AcpiOsPrintf ("\n");
+
+            TrailEntries = NULL;
+            DacdEntries = NULL;
+            switch (Subsubtable->Type)
+            {
+            case ACPI_ERDT_TYPE_CACD:
+                 InfoTable = AcpiDmTableInfoErdtCacd;
+                 TrailEntries = AcpiDmTableInfoErdtCacdX2apic;
+                 SubsubtableLength = sizeof(ACPI_ERDT_CACD);
+                 break;
+
+            case ACPI_ERDT_TYPE_DACD:
+                 InfoTable = AcpiDmTableInfoErdtDacd;
+                 DacdEntries = AcpiDmTableInfoErdtDacdScope;
+                 SubsubtableLength = sizeof(ACPI_ERDT_DACD);
+                 break;
+
+            case ACPI_ERDT_TYPE_CMRC:
+                 InfoTable = AcpiDmTableInfoErdtCmrc;
+                 break;
+
+            case ACPI_ERDT_TYPE_MMRC:
+                 InfoTable = AcpiDmTableInfoErdtMmrc;
+                 TrailEntries = AcpiDmTableInfoErdtMmrcCorrFactor;
+                 SubsubtableLength = sizeof(ACPI_ERDT_MMRC);
+                 break;
+
+            case ACPI_ERDT_TYPE_MARC:
+                 InfoTable = AcpiDmTableInfoErdtMarc;
+                 break;
+
+            case ACPI_ERDT_TYPE_CARC:
+                 InfoTable = AcpiDmTableInfoErdtCarc;
+                 break;
+
+            case ACPI_ERDT_TYPE_CMRD:
+                 InfoTable = AcpiDmTableInfoErdtCmrd;
+                 break;
+
+            case ACPI_ERDT_TYPE_IBRD:
+                 InfoTable = AcpiDmTableInfoErdtIbrd;
+                 TrailEntries = AcpiDmTableInfoErdtIbrdCorrFactor;
+                 SubsubtableLength = sizeof(ACPI_ERDT_IBRD);
+                 break;
+
+            case ACPI_ERDT_TYPE_IBAD:
+                 InfoTable = AcpiDmTableInfoErdtIbad;
+                 break;
+
+            case ACPI_ERDT_TYPE_CARD:
+                 InfoTable = AcpiDmTableInfoErdtCard;
+                 break;
+
+            default:
+                AcpiOsPrintf ("\n**** Unknown RMDD subtable type 0x%X\n",
+                    Subsubtable->Type);
+
+                /* Attempt to continue */
+
+                if (!Subsubtable->Length)
+                {
+                    AcpiOsPrintf ("Invalid zero length subtable\n");
+                    return;
+                }
+                goto NextSubsubtable;
+            }
+
+            /* Dump subtable header */
+
+            Status = AcpiDmDumpTable (Table->Length, Suboffset, Subsubtable,
+                Subsubtable->Length, AcpiDmTableInfoErdtHdr);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
+
+            /* Dump subtable body */
+
+            Status = AcpiDmDumpTable (Table->Length, Suboffset, Subsubtable,
+                Subsubtable->Length, InfoTable);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
+
+            /* CACD, MMRC, and IBRD subtables have simple flex array at end */
+
+            if (TrailEntries)
+            {
+                NumTrailers = 0;
+                while (NumTrailers < Subsubtable->Length - SubsubtableLength)
+                {
+
+                    /* Dump one flex array element */
+
+                    Status = AcpiDmDumpTable (Table->Length, Suboffset +
+                        SubsubtableLength + NumTrailers,
+                        ACPI_ADD_PTR (ACPI_SUBTBL_HDR_16, Subsubtable,
+                            SubsubtableLength + NumTrailers),
+                        sizeof(UINT32), TrailEntries);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        return;
+                    }
+                    NumTrailers += sizeof(UINT32);
+                }
+            }
+
+            /* DACD subtable has flex array of device agent structures */
+
+            if (DacdEntries) {
+                 ScopeOffset = Suboffset + SubsubtableLength;
+                 ScopeTable = ACPI_ADD_PTR (ACPI_ERDT_DACD_PATHS,
+                     Subsubtable, SubsubtableLength);
+                 while (ScopeOffset < Suboffset + Subsubtable->Length)
+                 {
+                     /* Dump one device agent structure */
+
+                     AcpiOsPrintf ("\n");
+                     Status = AcpiDmDumpTable (Table->Length, ScopeOffset,
+                         ScopeTable, ScopeTable->Header.Length, DacdEntries);
+                     if (ACPI_FAILURE (Status))
+                     {
+                         return;
+                     }
+
+                     /* Flex array of UINT8 for device path */
+
+                     NumTrailers = 0;
+                     while (NumTrailers < ScopeTable->Header.Length - sizeof(ACPI_ERDT_DACD_PATHS))
+                     {
+                         /* Dump one UINT8 of the device path */
+
+                         Status = AcpiDmDumpTable (Table->Length, ScopeOffset +
+                             sizeof(ACPI_ERDT_DACD_PATHS) + NumTrailers,
+                             ACPI_ADD_PTR (ACPI_SUBTBL_HDR_16, ScopeTable,
+                                 sizeof(*ScopeTable) + NumTrailers),
+                             sizeof(UINT32), AcpiDmTableInfoErdtDacdPath);
+                         if (ACPI_FAILURE (Status))
+                         {
+                             return;
+                         }
+                         NumTrailers++;
+                     }
+
+                     ScopeOffset += ScopeTable->Header.Length;
+                     ScopeTable = ACPI_ADD_PTR (ACPI_ERDT_DACD_PATHS,
+                         ScopeTable, ScopeTable->Header.Length);
+                 }
+            }
+NextSubsubtable:
+            Suboffset += Subsubtable->Length;
+            Subsubtable = ACPI_ADD_PTR (ACPI_SUBTBL_HDR_16, Table, Suboffset);
+        }
+
+        Offset += Subtable->Length;
+        Subtable = ACPI_ADD_PTR (ACPI_SUBTBL_HDR_16, Subtable,
+            Subtable->Length);
     }
 }
 

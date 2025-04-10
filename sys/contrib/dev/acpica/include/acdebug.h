@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -187,7 +187,7 @@ typedef struct acpi_db_execute_walk
 {
     UINT32                  Count;
     UINT32                  MaxCount;
-    char                    NameSeg[ACPI_NAMESEG_SIZE + 1];
+    char                    NameSeg[ACPI_NAMESEG_SIZE + 1] ACPI_NONSTRING;
 
 } ACPI_DB_EXECUTE_WALK;
 

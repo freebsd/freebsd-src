@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1011,7 +1011,8 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoDmarScope[] =
 {
     {ACPI_DMT_DMAR_SCOPE, ACPI_DMARS_OFFSET (EntryType),            "Device Scope Type", 0},
     {ACPI_DMT_UINT8,    ACPI_DMARS_OFFSET (Length),                 "Entry Length", DT_LENGTH},
-    {ACPI_DMT_UINT16,   ACPI_DMARS_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT8,    ACPI_DMARS_OFFSET (Flags),                  "Flags", 0},
+    {ACPI_DMT_UINT8,    ACPI_DMARS_OFFSET (Reserved),               "Reserved", 0},
     {ACPI_DMT_UINT8,    ACPI_DMARS_OFFSET (EnumerationId),          "Enumeration ID", 0},
     {ACPI_DMT_UINT8,    ACPI_DMARS_OFFSET (Bus),                    "PCI Bus Number", 0},
     ACPI_DMT_TERMINATOR
@@ -1024,7 +1025,8 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoDmarScope[] =
 ACPI_DMTABLE_INFO           AcpiDmTableInfoDmar0[] =
 {
     {ACPI_DMT_UINT8,    ACPI_DMAR0_OFFSET (Flags),                  "Flags", 0},
-    {ACPI_DMT_UINT8,    ACPI_DMAR0_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT8,    ACPI_DMAR0_OFFSET (Size),                   "Size (decoded below)", 0},
+    {ACPI_DMT_FLAGS4_0, ACPI_DMAR0_FLAG_OFFSET (Size,0),            "Size (pages, log2)", 0},
     {ACPI_DMT_UINT16,   ACPI_DMAR0_OFFSET (Segment),                "PCI Segment Number", 0},
     {ACPI_DMT_UINT64,   ACPI_DMAR0_OFFSET (Address),                "Register Base Address", 0},
     ACPI_DMT_TERMINATOR
@@ -1071,7 +1073,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoDmar4[] =
     ACPI_DMT_TERMINATOR
 };
 
-/* 5: Hardware Unit Definition */
+/* 5: SoC Integrated Address Translation Cache */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoDmar5[] =
 {
@@ -1080,6 +1082,16 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoDmar5[] =
     {ACPI_DMT_UINT16,   ACPI_DMAR5_OFFSET (Segment),                "PCI Segment Number", 0},
     ACPI_DMT_TERMINATOR
 };
+
+/* 6: SoC Integrated Device Property */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoDmar6[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_DMAR6_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT16,   ACPI_DMAR6_OFFSET (Segment),                "PCI Segment Number", 0},
+    ACPI_DMT_TERMINATOR
+};
+
 
 /*******************************************************************************
  *
@@ -1184,6 +1196,276 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoEinj0[] =
     {ACPI_DMT_GAS,      ACPI_EINJ0_OFFSET (RegisterRegion),         "Register Region", 0},
     {ACPI_DMT_UINT64,   ACPI_EINJ0_OFFSET (Value),                  "Value", 0},
     {ACPI_DMT_UINT64,   ACPI_EINJ0_OFFSET (Mask),                   "Mask", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * ERDT - Enhanced Resource Director Technology table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdt[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_ERDT_OFFSET (MaxClos),                 "Maximum supported CLOSID", 0},
+    {ACPI_DMT_BUF24,    ACPI_ERDT_OFFSET (Reserved),                "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * ERDT - Common Subtable Header
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtHdr[] =
+{
+    {ACPI_DMT_ERDT,     ACPI_ERDT_HDR_OFFSET (Type),                "Type", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_HDR_OFFSET (Length),              "Length", DT_LENGTH},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * RMDD - ERDT Resource Management Domain Description subtable
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtRmdd[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_ERDT_RMDD_OFFSET      (Flags),              "Flags (decoded below)", DT_FLAG},
+    {ACPI_DMT_FLAG0,    ACPI_ERDT_RMDD_FLAG_OFFSET (Flags,0),            "L3 Domain", 0},
+    {ACPI_DMT_FLAG1,    ACPI_ERDT_RMDD_FLAG_OFFSET (Flags,0),            "I/O L3 Domain", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_RMDD_OFFSET      (IO_l3_Slices),       "I/O L3 Slices", 0},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_RMDD_OFFSET      (IO_l3_Sets),         "I/O L3 Sets", 0},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_RMDD_OFFSET      (IO_l3_Ways),         "I/O L3 Ways", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_RMDD_OFFSET      (Reserved),           "Reserved", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_RMDD_OFFSET      (DomainId),           "Domain ID", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_RMDD_OFFSET      (MaxRmid),            "Maximum supported RMID", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_RMDD_OFFSET      (CregBase),           "Control Register Base Address", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_RMDD_OFFSET      (CregSize),           "Control Register Base Size", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * RMDD - CACD CPU Agent Collection Description subtable
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtCacd[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_ERDT_CACD_OFFSET (Reserved),                "Reserved", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_CACD_OFFSET (DomainId),                "Domain ID", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtCacdX2apic[] =
+{
+    {ACPI_DMT_UINT32,   0,                                               "X2ApicID", DT_OPTIONAL},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * RMDD - DACD Device Agent Collection Description subtable
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtDacd[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_ERDT_DACD_OFFSET (Reserved),                "Reserved", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_DACD_OFFSET (DomainId),                "Domain ID", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtDacdScope[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_ERDT_DACD_PATH_OFFSET (Header.Type),        "PCIType", DT_OPTIONAL},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_DACD_PATH_OFFSET (Header.Length),      "Length", DT_OPTIONAL},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_DACD_PATH_OFFSET (Segment),            "Segment", DT_OPTIONAL},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_DACD_PATH_OFFSET (Reserved),           "Reserved", DT_OPTIONAL},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_DACD_PATH_OFFSET (StartBus),           "StartBus", DT_OPTIONAL},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtDacdPath[] =
+{
+    {ACPI_DMT_UINT8,    0,                                               "Path", DT_OPTIONAL},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * RMDD - Cache Monitoring Registers for CPU Agents subtable
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtCmrc[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_ERDT_CMRC_OFFSET (Reserved1),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_CMRC_OFFSET (Flags),                   "Flags", 0},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_CMRC_OFFSET (IndexFn),                 "Register Index Function", 0},
+    {ACPI_DMT_BUF11,    ACPI_ERDT_CMRC_OFFSET (Reserved2),               "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_CMRC_OFFSET (CmtRegBase),              "CMT Register Base Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_CMRC_OFFSET (CmtRegSize),              "CMT Register Size", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_CMRC_OFFSET (ClumpSize),               "Clump Size", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_CMRC_OFFSET (ClumpStride),             "Clump Stride", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_CMRC_OFFSET (UpScale),                 "Upscale factor", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * RMDD - Memory-bandwidth Monitoring Registers for CPU agents subtable
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtMmrc[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_ERDT_MMRC_OFFSET (Reserved1),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_MMRC_OFFSET (Flags),                   "Flags", 0},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_MMRC_OFFSET (IndexFn),                 "Register Index Function", 0},
+    {ACPI_DMT_BUF11,    ACPI_ERDT_MMRC_OFFSET (Reserved2),               "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_MMRC_OFFSET (RegBase),                 "MBM Register Base Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_MMRC_OFFSET (RegSize),                 "MBM Register Size", 0},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_MMRC_OFFSET (CounterWidth),            "MBM Counter Width", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_MMRC_OFFSET (UpScale),                 "Upscale factor", 0},
+    {ACPI_DMT_UINT56,   ACPI_ERDT_MMRC_OFFSET (Reserved3),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_MMRC_OFFSET (CorrFactorListLen),       "Corr Factor List Length", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtMmrcCorrFactor[] =
+{
+    {ACPI_DMT_UINT32,   0,                                               "CorrFactor", DT_OPTIONAL},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * RMDD - Memory-bandwidth Allocation Registers for CPU agents subtable
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtMarc[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_ERDT_MARC_OFFSET (Reserved1),               "Reserved", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_MARC_OFFSET (Flags),                   "Flags", 0},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_MARC_OFFSET (IndexFn),                 "Register Index Function", 0},
+    {ACPI_DMT_UINT56,   ACPI_ERDT_MARC_OFFSET (Reserved2),               "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_MARC_OFFSET (RegBaseOpt),              "MBA Register Opt Base Address", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_MARC_OFFSET (RegBaseMin),              "MBA Register Min Base Address", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_MARC_OFFSET (RegBaseMax),              "MBA Register Max Base Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_MARC_OFFSET (MbaRegSize),              "MBA Register Size", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_MARC_OFFSET (MbaCtrlRange),            "MBA Control Range", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * RMDD - Cache Allocation Registers for CPU Agents subtable
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtCarc[] =
+{
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * RMDD - Cache Monitoring Registers for Device Agents subtable
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtCmrd[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_ERDT_CMRD_OFFSET (Reserved1),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_CMRD_OFFSET (Flags),                   "Flags", 0},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_CMRD_OFFSET (IndexFn),                 "Register Index Function", 0},
+    {ACPI_DMT_BUF11,    ACPI_ERDT_CMRD_OFFSET (Reserved2),               "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_CMRD_OFFSET (RegBase),                 "CMRD Register Base Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_CMRD_OFFSET (RegSize),                 "CMRD Register Size", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_CMRD_OFFSET (CmtRegOff),               "Register Offset", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_CMRD_OFFSET (CmtClumpSize),            "Clump Size", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_CMRD_OFFSET (UpScale),                 "Upscale factor", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * RMDD - O Bandwidth Monitoring Registers for Device Agents subtable
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtIbrd[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_ERDT_IBRD_OFFSET (Reserved1),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_IBRD_OFFSET (Flags),                   "Flags", 0},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_IBRD_OFFSET (IndexFn),                 "Register Index Function", 0},
+    {ACPI_DMT_BUF11,    ACPI_ERDT_IBRD_OFFSET (Reserved2),               "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_IBRD_OFFSET (RegBase),                 "IBRD Register Base Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_IBRD_OFFSET (RegSize),                 "IBRD Register Size", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_IBRD_OFFSET (TotalBwOffset),           "TotalBw Offset", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_IBRD_OFFSET (IOMissBwOffset),          "IO Miss Offset", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_IBRD_OFFSET (TotalBwClump),            "TotalBw Clump", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_IBRD_OFFSET (IOMissBwClump),           "IO Miss Clump", 0},
+    {ACPI_DMT_UINT56,   ACPI_ERDT_IBRD_OFFSET (Reserved3),               "Reserved", 0},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_IBRD_OFFSET (CounterWidth),            "Counter Width", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_IBRD_OFFSET (UpScale),                 "Upscale factor", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_IBRD_OFFSET (CorrFactorListLen),       "Corr Factor List Length", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtIbrdCorrFactor[] =
+{
+    {ACPI_DMT_UINT32,   0,                                               "CorrFactor", DT_OPTIONAL},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * RMDD - O bandwidth Allocation Registers for Device Agents subtable
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtIbad[] =
+{
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * RMDD - Cache Allocation Registers for Device Agents subtable
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoErdtCard[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_ERDT_CARD_OFFSET (Reserved1),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_CARD_OFFSET (Flags),                   "Flags", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_CARD_OFFSET (ContentionMask),          "ContentionMask", 0},
+    {ACPI_DMT_UINT8,    ACPI_ERDT_CARD_OFFSET (IndexFn),                 "Register Index Function", 0},
+    {ACPI_DMT_UINT56,   ACPI_ERDT_CARD_OFFSET (Reserved2),               "Register Index Function", 0},
+    {ACPI_DMT_UINT64,   ACPI_ERDT_CARD_OFFSET (RegBase),                 "CARD Register Base Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_ERDT_CARD_OFFSET (RegSize),                 "CARD Register Size", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_CARD_OFFSET (CatRegOffset),            "CARD Register Offset", 0},
+    {ACPI_DMT_UINT16,   ACPI_ERDT_CARD_OFFSET (CatRegBlockSize),         "CARD Register Block Size", 0},
+
     ACPI_DMT_TERMINATOR
 };
 

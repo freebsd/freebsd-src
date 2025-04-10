@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -1420,6 +1420,39 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoMpst2[] =
 
 /*******************************************************************************
  *
+ * MRRM - Memory Range and Region Mapping Table
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoMrrm[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_MRRM_OFFSET (MaxMemRegion),            "Max Memory Regions", 0},
+    {ACPI_DMT_UINT8,    ACPI_MRRM_OFFSET (Flags),                   "Region Assignment Type", 0},
+    {ACPI_DMT_BUF26,    ACPI_MRRM_OFFSET (Reserved),                "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* MRRM Subtable */
+
+/* 0: Memory Range entry */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoMrrm0[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_MRRM0_OFFSET (Header.Type),            "Memory Range", 0},
+    {ACPI_DMT_UINT16,   ACPI_MRRM0_OFFSET (Header.Length),          "Length", DT_LENGTH},
+    {ACPI_DMT_UINT32,   ACPI_MRRM0_OFFSET (Reserved0),              "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_MRRM0_OFFSET (AddrBase),               "System Address Base", 0},
+    {ACPI_DMT_UINT64,   ACPI_MRRM0_OFFSET (AddrLen),                "System Address Length", 0},
+    {ACPI_DMT_UINT16,   ACPI_MRRM0_OFFSET (RegionIdFlags),          "Region Valid Flags", 0},
+    {ACPI_DMT_UINT8,    ACPI_MRRM0_OFFSET (LocalRegionId),          "Static Local Region ID", 0},
+    {ACPI_DMT_UINT8,    ACPI_MRRM0_OFFSET (RemoteRegionId),         "Static Remote Region ID", 0},
+    {ACPI_DMT_UINT32,   ACPI_MRRM0_OFFSET (Reserved1),              "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
  * MSCT - Maximum System Characteristics Table (ACPI 4.0)
  *
  ******************************************************************************/
@@ -2203,6 +2236,97 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoRhctHartInfo1[] =
 ACPI_DMTABLE_INFO           AcpiDmTableInfoRhctHartInfo2[] =
 {
     {ACPI_DMT_UINT32,   0,                                    "Nodes", DT_OPTIONAL},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/*******************************************************************************
+ *
+ * RIMT - RISC-V IO Mapping Table
+ *
+ * https://github.com/riscv-non-isa/riscv-acpi-rimt
+ *
+ ******************************************************************************/
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoRimt[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_RIMT_OFFSET (NumNodes),              "Number of RIMT Nodes", 0},
+    {ACPI_DMT_UINT32,   ACPI_RIMT_OFFSET (NodeOffset),            "Offset to RIMT Node Array", 0},
+    {ACPI_DMT_UINT32,   ACPI_RIMT_OFFSET (Reserved),              "Reserved", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+/* Common Subtable header (one per Subtable) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoRimtNodeHdr[] =
+{
+    {ACPI_DMT_UINT8,     ACPI_RIMTH_OFFSET (Type),                "Type", 0},
+    {ACPI_DMT_UINT8,     ACPI_RIMTH_OFFSET (Revision),            "Revision", 0},
+    {ACPI_DMT_UINT16,    ACPI_RIMTH_OFFSET (Length),              "Length", 0},
+    {ACPI_DMT_UINT16,    ACPI_RIMTH_OFFSET (Reserved),            "Reserved", 0},
+    {ACPI_DMT_UINT16,    ACPI_RIMTH_OFFSET (Id),                  "ID", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 0: IOMMU Node type */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoRimtIommu[] =
+{
+    {ACPI_DMT_NAME8,    ACPI_RIMTI_OFFSET (HardwareId),           "Hardware ID", 0},
+    {ACPI_DMT_UINT64,   ACPI_RIMTI_OFFSET (BaseAddress),          "Base Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_RIMTI_OFFSET (Flags),                "Flags", 0},
+    {ACPI_DMT_UINT32,   ACPI_RIMTI_OFFSET (ProximityDomain),      "Proximity Domain", 0},
+    {ACPI_DMT_UINT16,   ACPI_RIMTI_OFFSET (PcieSegmentNumber),    "PCIe Segment number", 0},
+    {ACPI_DMT_UINT16,   ACPI_RIMTI_OFFSET (PcieBdf),              "PCIe B/D/F", 0},
+    {ACPI_DMT_UINT16,   ACPI_RIMTI_OFFSET (NumInterruptWires),    "Number of interrupt wires", 0},
+    {ACPI_DMT_UINT16,   ACPI_RIMTI_OFFSET (InterruptWireOffset),  "Interrupt wire array offset", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoRimtIommuWire[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_RIMTW_OFFSET (IrqNum),               "Interrupt Number", 0},
+    {ACPI_DMT_UINT32,   ACPI_RIMTW_OFFSET (Flags),                "Flags", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 1: PCIE Root Complex Node type */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoRimtPcieRc[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_RIMTP_OFFSET (Flags),               "Flags", 0},
+    {ACPI_DMT_UINT16,   ACPI_RIMTP_OFFSET (Reserved),            "Reserved", 0},
+    {ACPI_DMT_UINT16,   ACPI_RIMTP_OFFSET (PcieSegmentNumber),   "PCIe Segment number", 0},
+    {ACPI_DMT_UINT16,   ACPI_RIMTP_OFFSET (IdMappingOffset),     "ID mapping array offset", 0},
+    {ACPI_DMT_UINT16,   ACPI_RIMTP_OFFSET (NumIdMappings),       "Number of ID mappings", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoRimtIdMapping[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_RIMTM_OFFSET (SourceIdBase),        "Source ID Base", 0},
+    {ACPI_DMT_UINT32,   ACPI_RIMTM_OFFSET (NumIds),              "Number of IDs", 0},
+    {ACPI_DMT_UINT32,   ACPI_RIMTM_OFFSET (DestIdBase),          "Destination Device ID Base", 0},
+    {ACPI_DMT_UINT32,   ACPI_RIMTM_OFFSET (DestOffset),          "Destination IOMMU Offset", 0},
+    {ACPI_DMT_UINT32,   ACPI_RIMTM_OFFSET (Flags),               "Flags", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* 2: Platform Device Node type */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoRimtPlatDev[] =
+{
+    {ACPI_DMT_UINT16,   ACPI_RIMTN_OFFSET (IdMappingOffset),     "ID mapping array offset", 0},
+    {ACPI_DMT_UINT16,   ACPI_RIMTN_OFFSET (NumIdMappings),       "Number of ID mappings", 0},
+    {ACPI_DMT_STRING,   ACPI_RIMTN_OFFSET (DeviceName[0]),       "Device Object Name", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoRimtPlatDevPad[] =
+{
+    {ACPI_DMT_RAW_BUFFER, 0,                                     "Padding", DT_OPTIONAL},
     ACPI_DMT_TERMINATOR
 };
 

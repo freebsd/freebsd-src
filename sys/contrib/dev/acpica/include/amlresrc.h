@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2024, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -792,10 +792,6 @@ typedef struct aml_resource_pin_group_config
 
 #define AML_RESOURCE_PIN_GROUP_CONFIG_REVISION    1       /* ACPI 6.2 */
 
-/* restore default alignment */
-
-#pragma pack()
-
 /* Union of all resource descriptors, so we can allocate the worst case */
 
 typedef union aml_resource
@@ -852,6 +848,9 @@ typedef union aml_resource
 
 } AML_RESOURCE;
 
+/* restore default alignment */
+
+#pragma pack()
 
 /* Interfaces used by both the disassembler and compiler */
 
