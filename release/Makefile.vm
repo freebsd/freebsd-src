@@ -1,6 +1,4 @@
 #
-#
-#
 # Makefile for building virtual machine and cloud provider disk images.
 #
 
@@ -107,11 +105,12 @@ QEMUTGT=emulator-portinstall
 .endif
 QEMUTGT?=
 
-.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 .if (defined(WITHOUT_QEMU) && !defined(NO_ROOT)) || \
   (!defined(WITHOUT_QEMU) && defined(NO_ROOT))
 .error WITHOUT_QEMU requires NO_ROOT (and vice versa)
 .endif
+
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 . for _CW in ${CLOUDWARE}
 .  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
 ${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
@@ -181,6 +180,7 @@ vm-image:	${QEMUTGT}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
 		${WITHOUT_QEMU:DWITHOUT_QEMU=true} \
+		${NO_ROOT:DNO_ROOT=true} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr \
 		-d ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS} -F ${FS} \
