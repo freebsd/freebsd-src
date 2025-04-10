@@ -65,7 +65,7 @@ __stat11_to_stat(const struct freebsd11_stat *sb11, struct stat *sb)
 	sb->st_blksize = sb11->st_blksize;
 	sb->st_flags = sb11->st_flags;
 	sb->st_gen = sb11->st_gen;
-	sb->st_padding0 = 0;
+	sb->st_bsdflags = 0;
 	sb->st_padding1 = 0;
 	memset(sb->st_spare, 0, sizeof(sb->st_spare));
 }
