@@ -37,7 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef _FLOAT_IEEE754
+#ifndef __i386__
 
 ATF_TC(no_test);
 ATF_TC_HEAD(no_test, tc)
@@ -52,9 +52,16 @@ ATF_TC_BODY(no_test, tc)
 	atf_tc_skip("Test not available on this architecture.");
 }
 
-#else /* defined(_FLOAT_IEEE754) */
+#else /* defined(__i386__) */
 
 #include <ieeefp.h>
+#ifndef ___STRING
+#define ___STRING(x) #x
+#endif
+#ifndef __arraycount
+#define __arraycount(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
 
 #if __arm__ && !__SOFTFP__
 	/*
@@ -142,8 +149,8 @@ f_inv(void)
 static void
 f_ofl(void)
 {
-
 	f_x = f_huge * f_huge;
+	printf("%f %f %Lf", f_x, d_x, ld_x); // avoid compiler optimization
 }
 
 static void
@@ -151,6 +158,7 @@ d_ofl(void)
 {
 
 	d_x = d_huge * d_huge;
+	printf("%f %f %Lf", f_x, d_x, ld_x); // avoid compiler optimization
 }
 
 static void
@@ -158,33 +166,34 @@ ld_ofl(void)
 {
 
 	ld_x = ld_huge * ld_huge;
+	printf("%f %f %Lf", f_x, d_x, ld_x); // avoid compiler optimization
 }
 
 /* trip underflow */
 static void
 f_ufl(void)
 {
-
 	f_x = f_tiny * f_tiny;
+	printf("%f %f %Lf", f_x, d_x, ld_x); // avoid compiler optimization
 }
 
 static void
 d_ufl(void)
 {
-
 	d_x = d_tiny * d_tiny;
+	printf("%f %f %Lf", f_x, d_x, ld_x); // avoid compiler optimization
 }
 
 static void
 ld_ufl(void)
 {
-
 	ld_x = ld_tiny * ld_tiny;
+	printf("%f %f %Lf", f_x, d_x, ld_x); // avoid compiler optimization
 }
 
 struct ops {
 	void (*op)(void);
-	fp_except mask;
+	fp_except_t mask;
 	int sicode;
 };
 
@@ -218,12 +227,12 @@ static void
 fpsetmask_masked(const struct ops *test_ops)
 {
 	struct sigaction sa;
-	fp_except ex1, ex2;
+	fp_except_t ex1, ex2;
 	const struct ops *t;
 
 	/* mask all exceptions, clear history */
 	fpsetmask(0);
-	fpsetsticky(0);
+	fpresetsticky(~0);
 
 	/* set up signal handler */
 	sa.sa_sigaction = sigfpe;
@@ -241,8 +250,8 @@ fpsetmask_masked(const struct ops *test_ops)
 		ATF_CHECK_EQ(ex1 & t->mask, t->mask);
 		ATF_CHECK_EQ(signal_caught, 0);
 
-		/* check correct fpsetsticky() behaviour */
-		ex2 = fpsetsticky(0);
+		/* check correct fpresetsticky() behaviour */
+		ex2 = fpresetsticky(~0);
 		ATF_CHECK_EQ(fpgetsticky(), 0);
 		ATF_CHECK_EQ(ex1, ex2);
 	}
@@ -260,7 +269,7 @@ fpsetmask_unmasked(const struct ops *test_ops)
 
 	/* mask all exceptions, clear history */
 	fpsetmask(0);
-	fpsetsticky(0);
+	fpresetsticky(~0);
 
 	/* set up signal handler */
 	sa.sa_sigaction = sigfpe;
@@ -275,13 +284,16 @@ fpsetmask_unmasked(const struct ops *test_ops)
 	for (t = test_ops; t->op != NULL; t++) {
 		fpsetmask(t->mask);
 		r = sigsetjmp(b, 1);
+		printf("r = %d\n", r);
 		if (!r) {
 			(*t->op)();
 			BARRIER();
+			fpresetsticky(~0);
 		}
 		ATF_CHECK_EQ(signal_caught, 1);
 		ATF_CHECK_EQ(sicode, t->sicode);
 		signal_caught = 0;
+		sicode = 0;
 	}
 }
 
@@ -312,8 +324,6 @@ sigfpe(int s, siginfo_t *si, void *c)
 		if (strcmp(MACHINE, "macppc") == 0)			\
 			atf_tc_expect_fail("PR port-macppc/46319");	\
 									\
-		if (isQEMU())						\
-			atf_tc_expect_fail("PR misc/44767");		\
 									\
 		m(t##_ops);						\
 	}
@@ -348,12 +358,12 @@ ATF_TC_BODY(fpsetmask_basic, tc)
 
 }
 
-#endif /* defined(_FLOAT_IEEE754) */
+#endif /* defined(__i386__) */
 
 ATF_TP_ADD_TCS(tp)
 {
 
-#ifndef _FLOAT_IEEE754
+#ifndef __i386__
 	ATF_TP_ADD_TC(tp, no_test);
 #else
 	ATF_TP_ADD_TC(tp, fpsetmask_basic);

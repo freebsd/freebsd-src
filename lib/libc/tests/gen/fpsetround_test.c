@@ -54,8 +54,9 @@ ATF_TC_HEAD(fpsetround_basic, tc)
 	    "Minimal testing of fpgetround(3) and fpsetround(3)");
 }
 
-#ifdef _FLOAT_IEEE754
+#ifdef __i386__
 #include <ieeefp.h>
+#define __arraycount(a) (sizeof(a) / sizeof(*(a)))
 
 static const struct {
 	const char *n;
@@ -121,7 +122,7 @@ test(int r)
 ATF_TC_BODY(fpsetround_basic, tc)
 {
 
-#ifndef _FLOAT_IEEE754
+#ifndef __i386__
 	atf_tc_skip("Test not applicable on this architecture.");
 #else
 	int r;
@@ -151,7 +152,7 @@ ATF_TC_BODY(fpsetround_basic, tc)
 			    rnd[j].rf, r);
 		test(r);
 	}
-#endif /* _FLOAT_IEEE754 */
+#endif /* __i386__ */
 }
 
 ATF_TP_ADD_TCS(tp)
