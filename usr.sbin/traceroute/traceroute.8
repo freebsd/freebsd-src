@@ -15,22 +15,23 @@
 .\"
 .\"	$Id: traceroute.8,v 1.19 2000/09/21 08:44:19 leres Exp $
 .\"
-.Dd November 17, 2023
+.Dd April 8, 2025
 .Dt TRACEROUTE 8
 .Os
 .Sh NAME
-.Nm traceroute
+.Nm traceroute ,
+.Nm traceroute6
 .Nd "print the route packets take to network host"
 .Sh SYNOPSIS
 .Nm
 .Bk -words
-.Op Fl adDeEFISnrvx
+.Op Fl 46adDeEFISnrvx
 .Op Fl A Ar as_server
-.Op Fl f Ar first_ttl
+.Op Fl f Ar first_hop
 .Op Fl g Ar gateway
 .Op Fl i Ar iface
-.Op Fl m Ar max_ttl
-.Op Fl M Ar first_ttl
+.Op Fl m Ar hoplimit
+.Op Fl M Ar first_hop
 .Op Fl p Ar port
 .Op Fl P Ar proto
 .Op Fl q Ar nprobes
@@ -41,21 +42,60 @@
 .Ar host
 .Op Ar packetlen
 .Ek
+.br
+.Nm traceroute6
+.Bk -words
+.Op Fl adEIlnNrSTUv
+.Op Fl A Ar as_server
+.Op Fl f Ar first_hop
+.Op Fl g Ar gateway
+.Op Fl m Ar hoplimit
+.Op Fl p Ar port
+.Op Fl q Ar nprobes
+.Op Fl s Ar src_addr
+.Op Fl t Ar tclass
+.Op Fl w Ar waittime
+.Ar host
+.Op Ar packetlen
+.Ek
 .Sh DESCRIPTION
 The Internet is a large and complex aggregation of network hardware, connected
 together by gateways.
 Tracking the route one's packets follow (or finding the miscreant gateway
 that's discarding your packets) can be difficult.
-.Nm
-utilizes the IP protocol `time to live' field and attempts to elicit an ICMP
-TIME_EXCEEDED response from each gateway along the path to some host.
+The
+.Nm traceroute
+utility utilizes the IP protocol
+.Sq time to live
+field (or
+.Sq hop limit
+for IPv6) and attempts to elicit an ICMP TIME_EXCEEDED response from
+each gateway along the path to some host.
 .Pp
 The only mandatory parameter is the destination host name or IP number.
 The default probe datagram length is 40 bytes, but this may be increased by
 specifying a packet length (in bytes) after the destination host name.
 .Pp
-Other options are:
+Other options are described below.
+For compatibility with the historical
+.Nm traceroute6
+command (which should no longer be used), some flags are accepted only
+when the utility is invoked as
+.Nm traceroute6 ,
+and not when invoked as
+.Nm traceroute .
+Conversely, some flags accepted by
+.Nm
+are only supported for IPv4 targets.
 .Bl -tag -width Ds
+.It Fl 4
+Force
+.Ar host
+to be resolved to an IPv4 address.
+.It Fl 6
+Force
+.Ar host
+to be resolved to an IPv6 address.
 .It Fl a
 Turn on AS# lookups for each hop encountered.
 .It Fl A Ar as_server
@@ -63,6 +103,7 @@ Turn on AS# lookups and use the given server instead of the default.
 .It Fl d
 Enable socket level debugging.
 .It Fl D
+(IPv4-only)
 When an ICMP response to our probe datagram is received, print the differences
 between the transmitted packet and the packet quoted by the ICMP response.
 A key showing the location of fields within the transmitted packet is printed,
@@ -72,6 +113,7 @@ Note, the IP checksum and the TTL of the quoted packet are not expected to
 match.
 By default, only one probe per hop is sent with this option.
 .It Fl e
+(IPv4-only)
 Firewall evasion mode.
 Use fixed destination ports for UDP, UDP-Lite, TCP and SCTP probes.
 The destination port does NOT increment with each packet sent.
@@ -91,15 +133,27 @@ Otherwise, report that it passed the bits appropriately.
 If
 .Fl t
 is also specified, the corresponding ECN bits will be replaced.
-.It Fl f Ar first_ttl
-Set the initial time-to-live used in the first outgoing probe packet.
+.It Fl f Ar first_hop
+Set the initial time-to-live (or hop limit for IPv6) in the first
+outgoing probe packet.
 .It Fl F
-Set the "don't fragment" bit.
+(IPv4-only)
+Set the
+.Dq don't fragment
+bit.
 .It Fl g Ar gateway
-Specify a loose source route gateway (8 maximum).
+Specify source routing for the probe packets.
+For IPv4 targets, this uses loose source routing, and up to 8 gateways
+may be specified.
+For IPv6 targets, this uses routing header type 0, and up to 127
+gateways may be specified.
+Note that the vast majority of IP routers on the Internet (including
+.Fx )
+ignore both IPv4 and IPv6 source routing.
 .It Fl i Ar iface
-Specify a network interface to obtain the source IP address for outgoing probe
-packets.
+(IPv4-only)
+Specify a network interface to obtain the source IP address for outgoing
+probe packets.
 This is normally only useful on a multi-homed host.
 (See the
 .Fl s
@@ -107,15 +161,26 @@ flag for another way to do this).
 .It Fl I
 Use ICMP ECHO instead of UDP datagrams.
 (A synonym for "-P icmp").
-.It Fl m Ar max_ttl
-Set the max time-to-live (max number of hops) used in outgoing probe packets.
+.It Fl l
+This flag is ignored for compatibility with historical versions of
+.Nm traceroute6 .
+.It Fl m Ar hoplimit
+Set the max time-to-live (or hop limit, for IPv6) used in outgoing probe
+packets.
 The default is the value of the
 .Va net.inet.ip.ttl
 .Xr sysctl 8
 (the same default used for TCP connections).
-.It Fl M Ar first_ttl
-Set the initial time-to-live value used in outgoing probe packets.
+.It Fl M Ar first_hop
+Set the initial time-to-live value (or hop limit, for IPv6) used in
+outgoing probe packets.
 The default is 1, i.e., start with the first hop.
+.It Fl N
+.Nm ( traceroute6
+only)
+Set the outgoing protocol to
+.Dq none ,
+i.e. do not provide any payload other than the IP header.
 .It Fl n
 Print hop addresses numerically rather than symbolically and numerically
 (saves a nameserver address-to-name lookup for each gateway found on the path).
@@ -136,6 +201,7 @@ to terminate the route tracing).
 If something is listening on a port in the default range, this option can be
 used to pick an unused port range.
 .It Fl P Ar proto
+(IPv4-only)
 Send packets of specified IP protocol.
 The currently supported protocols
 are: UDP, UDP-Lite, TCP, SCTP, GRE and ICMP.
@@ -169,16 +235,34 @@ returned and nothing is sent.
 .Fl i
 flag for another way to do this).
 .It Fl S
-Print a summary of how many probes were not answered for each hop.
+When used with
+.Nm traceroute ,
+print a summary of how many probes were not answered for each hop.
+This is only supported for IPv4 targets.
+When used with
+.Nm traceroute6 ,
+set the outgoing protocol to SCTP.
+.It Fl T
+.Nm ( traceroute6
+only)
+Set the outgoing protocol to TCP.
 .It Fl t Ar tos
 Set the
 .Em type-of-service
+(or
+.Em traffic class ,
+for IPv6)
 in probe packets to the following value (default zero).
 The value must be a decimal integer in the range 0 to 255.
 This option can be used to see if different types-of-service result in
 different paths.
 The upper six bits are the Differentiated Services Codepoint (RFC4594).
 The lower two bits are the Explicit Congestion Notification field (RFC3168).
+.It Fl U
+.Nm ( traceroute6
+only)
+Set the outgoing protocol to UDP.
+This is the default.
 .It Fl v
 Verbose output.
 Received ICMP packets other than
@@ -201,6 +285,7 @@ probes
 .Pq Fl I .
 So they are always calculated when using ICMP.
 .It Fl z Ar pausemsecs
+(IPv4-only)
 Set the time (in milliseconds) to pause between probes (default 0).
 Some systems such as Solaris and routers such as Ciscos rate limit ICMP
 messages.
@@ -209,7 +294,9 @@ A good value to use with this is 500 (e.g., 1/2 second).
 .Pp
 This program attempts to trace the route an IP packet would follow to some
 internet host by launching UDP probe packets with a small TTL (time to live)
-then listening for an ICMP "time exceeded" reply from a gateway.
+then listening for an ICMP
+.Dq time exceeded
+reply from a gateway.
 We start our probes with a TTL of one and increase by one until we get an ICMP
 "port unreachable" (which means we got to "host") or hit a max (which defaults
 to the amount of hops specified by the
@@ -388,6 +475,10 @@ Implemented by
 from a suggestion by Steve Deering.
 Debugged by a cast of thousands with particularly cogent suggestions or fixes
 from C. Philip Wood, Tim Seaver and Ken Adelman.
+.Pp
+IPv6 support first appeared in
+.Nm traceroute6 ,
+which was part of the WIDE Hydrangea IPv6 protocol stack.
 .Sh BUGS
 When using protocols other than UDP, functionality is reduced.
 In particular, the last packet will often appear to be lost, because even

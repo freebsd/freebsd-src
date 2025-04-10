@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250408:
+	traceroute6(8) has been merged into traceroute(8), and
+	/usr/sbin/traceroute6 is now a link to traceroute.
+	Use 'traceroute -4' to force the old behaviour (IPv4-only).
+
 20250314:
 	We now use LLVM's binary utilities (nm, objcopy, etc.) by default.
 	The WITHOUT_LLVM_BINUTILS src.conf(5) knob can be used to revert to
