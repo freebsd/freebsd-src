@@ -554,6 +554,9 @@ lkpi_80211_mo_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vi
 	    lhw->ops->bss_info_changed == NULL)
 		return;
 
+	if (changed == 0)
+		return;
+
 	LKPI_80211_TRACE_MO("hw %p vif %p conf %p changed %#jx", hw, vif, conf, (uintmax_t)changed);
 	if (lhw->ops->link_info_changed != NULL)
 		lhw->ops->link_info_changed(hw, vif, conf, changed);
