@@ -4882,6 +4882,7 @@ vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 		if ((allocflags &
 		    (VM_ALLOC_NOWAIT | VM_ALLOC_WAITFAIL)) != 0)
 			return (NULL);
+		pctrie_iter_reset(&pages);
 	}
 	vm_page_grab_release(m, allocflags);
 
@@ -5124,6 +5125,7 @@ vm_page_grab_zero_partial(vm_object_t object, vm_pindex_t pindex, int base,
 			vm_page_launder(m);
 			break;
 		}
+		pctrie_iter_reset(&pages);
 	}
 
 	pmap_zero_page_area(m, base, end - base);
