@@ -2648,38 +2648,64 @@ found:
  * the routine will try to fetch a new one from the freelists
  * and discard the old one.
  */
-static vm_page_t
+static vm_page_t __noinline
 vm_page_alloc_nofree_domain(int domain, int req)
 {
 	vm_page_t m;
 	struct vm_domain *vmd;
-	struct vm_nofreeq *nqp;
 
 	KASSERT((req & VM_ALLOC_NOFREE) != 0, ("invalid request %#x", req));
 
 	vmd = VM_DOMAIN(domain);
-	nqp = &vmd->vmd_nofreeq;
 	vm_domain_free_lock(vmd);
-	if (nqp->offs >= (1 << VM_NOFREE_IMPORT_ORDER) || nqp->ma == NULL) {
-		if (!vm_domain_allocate(vmd, req,
-		    1 << VM_NOFREE_IMPORT_ORDER)) {
+	if (TAILQ_EMPTY(&vmd->vmd_nofreeq)) {
+		int count;
+
+		count = 1 << VM_NOFREE_IMPORT_ORDER;
+		if (!vm_domain_allocate(vmd, req, count)) {
 			vm_domain_free_unlock(vmd);
 			return (NULL);
 		}
-		nqp->ma = vm_phys_alloc_pages(domain, VM_FREEPOOL_DEFAULT,
+		m = vm_phys_alloc_pages(domain, VM_FREEPOOL_DEFAULT,
 		    VM_NOFREE_IMPORT_ORDER);
-		if (nqp->ma == NULL) {
-			vm_domain_freecnt_inc(vmd, 1 << VM_NOFREE_IMPORT_ORDER);
+		if (m == NULL) {
+			vm_domain_freecnt_inc(vmd, count);
 			vm_domain_free_unlock(vmd);
 			return (NULL);
 		}
-		nqp->offs = 0;
+		m->pindex = count;
+		TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m, listq);
+		VM_CNT_ADD(v_nofree_count, count);
 	}
-	m = &nqp->ma[nqp->offs++];
+	m = TAILQ_FIRST(&vmd->vmd_nofreeq);
+	TAILQ_REMOVE(&vmd->vmd_nofreeq, m, listq);
+	if (m->pindex > 1) {
+		vm_page_t m_next;
+
+		m_next = &m[1];
+		m_next->pindex = m->pindex - 1;
+		TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m_next, listq);
+	}
 	vm_domain_free_unlock(vmd);
-	VM_CNT_ADD(v_nofree_count, 1);
+	VM_CNT_ADD(v_nofree_count, -1);
 
 	return (m);
+}
+
+/*
+ * Though a NOFREE page by definition should not be freed, we support putting
+ * them aside for future NOFREE allocations.  This enables code which allocates
+ * NOFREE pages for some purpose but then encounters an error and releases
+ * resources.
+ */
+static void __noinline
+vm_page_free_nofree(struct vm_domain *vmd, vm_page_t m)
+{
+	vm_domain_free_lock(vmd);
+	m->pindex = 1;
+	TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m, listq);
+	vm_domain_free_unlock(vmd);
+	VM_CNT_ADD(v_nofree_count, 1);
 }
 
 vm_page_t
@@ -4145,8 +4171,6 @@ vm_page_free_prep(vm_page_t m)
 			    m, i, (uintmax_t)*p));
 	}
 #endif
-	KASSERT((m->flags & PG_NOFREE) == 0,
-	    ("%s: attempting to free a PG_NOFREE page", __func__));
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		KASSERT(!pmap_page_is_mapped(m),
 		    ("vm_page_free_prep: freeing mapped page %p", m));
@@ -4230,6 +4254,10 @@ vm_page_free_toq(vm_page_t m)
 		return;
 
 	vmd = vm_pagequeue_domain(m);
+	if (__predict_false((m->flags & PG_NOFREE) != 0)) {
+		vm_page_free_nofree(vmd, m);
+		return;
+	}
 	zone = vmd->vmd_pgcache[m->pool].zone;
 	if ((m->flags & PG_PCPU_CACHE) != 0 && zone != NULL) {
 		uma_zfree(zone, m);
