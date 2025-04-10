@@ -152,8 +152,10 @@ fnmatch1(const char *pattern, const char *string, const char *stringstart,
 			 * there is no way having it match more characters
 			 * can help us, given that we are already here.
 			 */
-			bt_pattern = pattern, bt_patmbs = patmbs;
-			bt_string = string, bt_strmbs = strmbs;
+			bt_pattern = pattern;
+			bt_patmbs = patmbs;
+			bt_string = string;
+			bt_strmbs = strmbs;
 			break;
 		case '[':
 			if (sc == EOS)
