@@ -33,7 +33,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifndef _FLOAT_IEEE754
+#ifndef __i386__
 
 ATF_TC(no_test);
 ATF_TC_HEAD(no_test, tc)
@@ -46,7 +46,10 @@ ATF_TC_BODY(no_test,tc)
 	atf_tc_skip("Test not available on this architecture");
 }
 
-#else /* defined(_FLOAT_IEEE754) */
+#else /* defined(__i386__) */
+
+#undef LDBL_MANT_DIG
+#define LDBL_MANT_DIG DBL_MANT_DIG
 
 ATF_TC(fpclassify_float);
 ATF_TC_HEAD(fpclassify_float, tc)
@@ -187,12 +190,12 @@ ATF_TC_BODY(fpclassify_long_double, tc)
 	ATF_REQUIRE_EQ(f, 0);
 }
 #endif /* TEST_LONG_DOUBLE */
-#endif /* _FLOAT_IEEE754 */
+#endif /* __i386__ */
 
 ATF_TP_ADD_TCS(tp)
 {
 
-#ifndef _FLOAT_IEEE754
+#ifndef __i386__
 	ATF_TP_ADD_TC(tp, no_test);
 #else
 	ATF_TP_ADD_TC(tp, fpclassify_float);
@@ -200,7 +203,7 @@ ATF_TP_ADD_TCS(tp)
 #ifdef TEST_LONG_DOUBLE
 	ATF_TP_ADD_TC(tp, fpclassify_long_double);
 #endif /* TEST_LONG_DOUBLE */
-#endif /* _FLOAT_IEEE754 */
+#endif /* __i386__ */
 
 	return atf_no_error();
 }
