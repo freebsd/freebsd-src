@@ -28,10 +28,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20250409:
+	Intel iwlwifi firmware has been removed from the src repository.
 	Before updating their system, users of iwlwifi(4) or iwx(4) must
 	install the appropriate firmware for their chipset using fwget(8) or
-	building it from ports as Intel iwlwifi firmware has been removed
-	from the src repository.
+	building it from ports.
 
 20250314:
 	We now use LLVM's binary utilities (nm, objcopy, etc.) by default.
