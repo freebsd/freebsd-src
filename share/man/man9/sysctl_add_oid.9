@@ -123,7 +123,7 @@ If the OID is not dynamic, or the pointer is
 the function returns
 .Er EINVAL .
 .It Fa del
-If non-zero,
+If nonzero,
 .Fn sysctl_remove_oid
 will try to free the OID's resources
 when the reference count of the OID becomes zero.
@@ -136,7 +136,7 @@ This behaviour is useful when the caller expects to rollback
 (possibly partially failed)
 deletion of many OIDs later.
 .It Fa recurse
-If non-zero, attempt to remove the node and all its children.
+If nonzero, attempt to remove the node and all its children.
 If
 .Pa recurse
 is set to 0,
