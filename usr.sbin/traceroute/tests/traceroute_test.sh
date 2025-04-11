@@ -1,0 +1,467 @@
+# SPDX-License-Identifier: ISC
+#
+# Copyright (c) 2025 Lexi Winter
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+# We are missing tests for the following flags:
+#
+# -a (turn on ASN lookups)
+# -A (specify ASN lookup server)
+# -d (enable SO_DEBUG)
+# -D (print the diff between our packet and the quote in the ICMP error)
+# -e (use a fixed port; 'firewall evasion mode')
+# -E (detect ECN bleaching)
+# -g (source routing)
+# -n (or rather, we enable -n by default and don't test without it)
+# -p (specify base port number)
+# -P (for UDP-lite and GRE)
+# -r (set SO_DONTROUTE)
+# -S (print per-hop packet loss)
+# -t (set outgoing IP ToS)
+# -v (verbose output)
+# -w (how long to wait for an error response)
+# -x (toggle IP checksums)
+# -z (how long to wait between each probe)
+
+. $(atf_get_srcdir)/../../sys/common/vnet.subr
+
+# These are the default flags we use for most test cases:
+# - only send a single probe packet to reduce the risk of kernel ICMP
+#   rate-limiting breaking the test.
+# - only trace up to 5 hops and only wait 1 second for a response so the test
+#   fails quicker if something goes wrong.
+# - disable DNS resolution as we don't usually care about this.
+TR_FLAGS="-w 1 -q 1 -m 5 -n"
+
+# The prefix our test networks are in.
+TEST_PREFIX="192.0.2.0/24"
+
+# The IPv4 addresses of the first link net between trsrc and trrtr.
+LINK_TRSRC_TRSRC="192.0.2.5"
+LINK_TRSRC_TRRTR="192.0.2.6"
+LINK_TRSRC_PREFIXLEN="30"
+
+# The IPv4 addresses of the second link net between trsrc and trrtr.
+LINK_TRSRC2_TRSRC="192.0.2.13"
+LINK_TRSRC2_TRRTR="192.0.2.14"
+LINK_TRSRC2_PREFIXLEN="30"
+
+# The IPv4 addresses of the link net between trdst and trrtr.
+LINK_TRDST_TRDST="192.0.2.9"
+LINK_TRDST_TRRTR="192.0.2.10"
+LINK_TRDST_PREFIXLEN="30"
+
+# This is an address inside $TEST_PREFIX which is not routed anywhere.
+UNREACHABLE_ADDR="192.0.2.255"
+
+setup_network()
+{
+	# Create 3 jails: one to be the source host, one to be the router,
+	# and one to be the destination host.
+
+	vnet_init
+
+	# src jail
+	epsrc=$(vnet_mkepair)
+	epsrc2=$(vnet_mkepair)
+	vnet_mkjail trsrc ${epsrc}a ${epsrc2}a
+
+	# dst jail
+	epdst=$(vnet_mkepair)
+	vnet_mkjail trdst ${epdst}a
+
+	# router jail
+	vnet_mkjail trrtr ${epsrc}b ${epsrc2}b ${epdst}b
+
+	# Configure IPv4 addresses and routes on each jail.
+
+	# trsrc
+	jexec trsrc ifconfig ${epsrc}a inet \
+	    ${LINK_TRSRC_TRSRC}/${LINK_TRSRC_PREFIXLEN}
+	jexec trrtr ifconfig ${epsrc}b inet \
+	    ${LINK_TRSRC_TRRTR}/${LINK_TRSRC_PREFIXLEN}
+	jexec trsrc route add -inet ${TEST_PREFIX} ${LINK_TRSRC_TRRTR}
+
+	# trsrc2
+	jexec trsrc ifconfig ${epsrc2}a inet \
+	    ${LINK_TRSRC2_TRSRC}/${LINK_TRSRC2_PREFIXLEN}
+	jexec trrtr ifconfig ${epsrc2}b inet \
+	    ${LINK_TRSRC2_TRRTR}/${LINK_TRSRC2_PREFIXLEN}
+
+	# trdst
+	jexec trdst ifconfig ${epdst}a inet \
+	    ${LINK_TRDST_TRDST}/${LINK_TRDST_PREFIXLEN}
+	jexec trrtr ifconfig ${epdst}b inet \
+	    ${LINK_TRDST_TRRTR}/${LINK_TRDST_PREFIXLEN}
+	jexec trdst route add -inet ${TEST_PREFIX} ${LINK_TRDST_TRRTR}
+
+	# The router jail (only) needs IP forwarding enabled.
+	jexec trrtr sysctl net.inet.ip.forwarding=1
+}
+
+##
+# test: ipv4_basic
+#
+
+atf_test_case "ipv4_basic" "cleanup"
+ipv4_basic_head()
+{
+	atf_set descr "Basic IPv4 traceroute across a router"
+	atf_set require.user root
+}
+
+ipv4_basic_body()
+{
+	setup_network
+
+	# Use a more detailed set of regexp here than the rest of the tests to
+	# make sure the basic output format is correct.
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST} \\(${LINK_TRDST_TRDST}\\), 5 hops max, 40 byte packets$" \
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}  [0-9.]+ ms$"	\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}  [0-9.]+ ms$"	\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS ${LINK_TRDST_TRDST}
+}
+
+ipv4_basic_cleanup()
+{
+	vnet_cleanup
+}
+
+##
+# test: ipv4_icmp
+#
+
+atf_test_case "ipv4_icmp" "cleanup"
+ipv4_icmp_head()
+{
+	atf_set descr "Basic IPv4 ICMP traceroute across a router"
+	atf_set require.user root
+}
+
+ipv4_icmp_body()
+{
+	setup_network
+
+	# -I and -Picmp should mean the same thing, so test both.
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS -I ${LINK_TRDST_TRDST}
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS -Picmp ${LINK_TRDST_TRDST}
+}
+
+ipv4_icmp_cleanup()
+{
+	vnet_cleanup
+}
+
+##
+# test: ipv4_sctp
+#
+
+atf_test_case "ipv4_sctp" "cleanup"
+ipv4_sctp_head()
+{
+	atf_set descr "IPv4 SCTP traceroute"
+	atf_set require.user root
+}
+
+ipv4_sctp_body()
+{
+	setup_network
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST} .* !P"		\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS -Psctp ${LINK_TRDST_TRDST}
+}
+
+ipv4_sctp_cleanup()
+{
+	vnet_cleanup
+}
+
+##
+# test: ipv4_tcp
+#
+
+atf_test_case "ipv4_tcp" "cleanup"
+ipv4_tcp_head()
+{
+	atf_set descr "IPv4 TCP traceroute"
+	atf_set require.user root
+}
+
+ipv4_tcp_body()
+{
+	setup_network
+
+	# We expect the second hop to be a failure since traceroute doesn't
+	# know how to capture the RST packet.
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  \\*"					\
+	    jexec trsrc traceroute $TR_FLAGS -Ptcp ${LINK_TRDST_TRDST}
+}
+
+ipv4_tcp_cleanup()
+{
+	vnet_cleanup
+}
+
+##
+# test: ipv4_srcaddr
+#
+
+atf_test_case "ipv4_srcaddr" "cleanup"
+ipv4_srcaddr_head()
+{
+	atf_set descr "IPv4 traceroute with explicit source address"
+	atf_set require.user root
+}
+
+ipv4_srcaddr_body()
+{
+	setup_network
+
+	atf_check -s exit:0				\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST} \\($LINK_TRDST_TRDST\\) from ${LINK_TRSRC2_TRSRC}" \
+	    -o match:"^ 1  ${LINK_TRSRC2_TRRTR}"	\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}"		\
+	    -o not-match:"^ 3"				\
+	    jexec trsrc traceroute $TR_FLAGS		\
+	        -s ${LINK_TRSRC2_TRSRC} ${LINK_TRDST_TRDST}
+}
+
+ipv4_srcaddr_cleanup()
+{
+	vnet_cleanup
+}
+
+##
+# test: ipv4_srcinterface
+#
+
+atf_test_case "ipv4_srcinterface" "cleanup"
+ipv4_srcinterface_head()
+{
+	atf_set descr "IPv4 traceroute with explicit source address"
+	atf_set require.user root
+}
+
+ipv4_srcinterface_body()
+{
+	setup_network
+
+	# Unlike -s, traceroute doesn't print 'from ...' when using -i.
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC2_TRRTR}"		\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS			\
+	        -i ${epsrc2}a ${LINK_TRDST_TRDST}
+}
+
+ipv4_srcinterface_cleanup()
+{
+	vnet_cleanup
+}
+
+##
+# test: ipv4_maxhops
+#
+
+atf_test_case "ipv4_maxhops" "cleanup"
+ipv4_maxhops_head()
+{
+	atf_set descr "IPv4 traceroute with -m"
+	atf_set require.user root
+}
+
+ipv4_maxhops_body()
+{
+	setup_network
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o not-match:"^ 2"					\
+	    jexec trsrc traceroute -w1 -q1 -m1 ${LINK_TRDST_TRDST}
+}
+
+ipv4_maxhops_cleanup()
+{
+	vnet_cleanup
+}
+
+##
+# test: ipv4_unreachable
+#
+
+atf_test_case "ipv4_unreachable" "cleanup"
+ipv4_unreachable_head()
+{
+	atf_set descr "IPv4 traceroute to an unreachable destination"
+	atf_set require.user root
+}
+
+ipv4_unreachable_body()
+{
+	setup_network
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${UNREACHABLE_ADDR}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  ${LINK_TRSRC_TRRTR}  [0-9.]+ ms !H"	\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS $UNREACHABLE_ADDR
+}
+
+ipv4_unreachable_cleanup()
+{
+	vnet_cleanup
+}
+
+##
+# test: ipv4_hugepacket
+#
+
+atf_test_case "ipv4_hugepacket" "cleanup"
+ipv4_hugepacket_head()
+{
+	atf_set descr "IPv4 traceroute with a huge packet"
+	atf_set require.user root
+}
+
+ipv4_hugepacket_body()
+{
+	setup_network
+
+	# We expect this to fail since we specified -F (don't fragment) and the
+	# 2000-byte packet is too large to fit through our tiny epair.  Make
+	# sure traceroute reports the error.
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST} \\(${LINK_TRDST_TRDST}\\), 5 hops max, 2000 byte packets$" \
+	    -o match:"^ 1 traceroute: wrote ${LINK_TRDST_TRDST} 2000 chars, ret=-1" \
+	    -e match:"^traceroute: sendto: Message too long"	\
+	    jexec trsrc traceroute -F $TR_FLAGS ${LINK_TRDST_TRDST} 2000
+}
+
+ipv4_hugepacket_cleanup()
+{
+	vnet_cleanup
+}
+
+##
+# test: ipv4_firsthop
+#
+
+atf_test_case "ipv4_firsthop" "cleanup"
+ipv4_firsthop_head()
+{
+	atf_set descr "IPv4 traceroute with one hop skipped"
+	atf_set require.user root
+}
+
+ipv4_firsthop_body()
+{
+	setup_network
+
+	# -f 2 means we skip the first hop
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o not-match:"^ 1"					\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute -f2 $TR_FLAGS ${LINK_TRDST_TRDST}
+
+	# For backward compatibility, -M is the same as -f, so test that too.
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o not-match:"^ 1"					\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute -M2 $TR_FLAGS ${LINK_TRDST_TRDST}
+}
+
+ipv4_firsthop_cleanup()
+{
+	vnet_cleanup
+}
+
+##
+# test: ipv4_nprobes
+#
+
+atf_test_case "ipv4_nprobes" "cleanup"
+ipv4_nprobes_head()
+{
+	atf_set descr "IPv4 traceroute with varying number of probes"
+	atf_set require.user root
+}
+
+ipv4_nprobes_body()
+{
+	setup_network
+
+	# By default we should send 3 probes.
+	atf_check -s exit:0 -e ignore				\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR} \(${LINK_TRSRC_TRRTR}\)(  [0-9.]+ ms){3}$" \
+	    jexec trsrc traceroute -w1 -m1 ${LINK_TRDST_TRDST}
+
+	# Also test 1 and 2 (below the default) and 5 (above the default)
+	for nprobes in 1 2 5; do
+		atf_check -s exit:0 -e ignore				\
+		    -o match:"^ 1  ${LINK_TRSRC_TRRTR} \(${LINK_TRSRC_TRRTR}\)(  [0-9.]+ ms){$nprobes}$" \
+		    jexec trsrc traceroute -q$nprobes -w1 -m1 ${LINK_TRDST_TRDST}
+	    done
+}
+
+ipv4_nprobes_cleanup()
+{
+	vnet_cleanup
+}
+
+##
+# test case declarations
+
+atf_init_test_cases()
+{
+	atf_add_test_case ipv4_basic
+	atf_add_test_case ipv4_icmp
+	atf_add_test_case ipv4_tcp
+	atf_add_test_case ipv4_sctp
+	atf_add_test_case ipv4_srcaddr
+	atf_add_test_case ipv4_srcinterface
+	atf_add_test_case ipv4_maxhops
+	atf_add_test_case ipv4_unreachable
+	atf_add_test_case ipv4_hugepacket
+	atf_add_test_case ipv4_firsthop
+	atf_add_test_case ipv4_nprobes
+}
