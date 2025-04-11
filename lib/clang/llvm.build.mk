@@ -122,7 +122,6 @@ LDFLAGS+=	-Wl,-m,elf64lriscv_fbsd
 .endif
 .endif
 
-CXXSTD?=	c++17
 CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
 CXXFLAGS+=	-fvisibility-inlines-hidden

@@ -21,7 +21,6 @@ SRCS+=		typeinfo.cc
 
 WARNS?=		0
 CFLAGS+=	-isystem ${SRCDIR} -nostdinc++
-CXXSTD?=	c++14
 VERSION_MAP=	${.CURDIR}/Version.map
 
 .include <bsd.lib.mk>

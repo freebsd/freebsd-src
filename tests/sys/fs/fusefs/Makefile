@@ -100,7 +100,6 @@ CXXWARNFLAGS+=	-Wno-vla-cxx-extension
 CXXFLAGS+=	-I${SRCTOP}/tests
 CXXFLAGS+=	-I${FUSEFS}
 CXXFLAGS+=	-I${MOUNT}
-CXXSTD=		c++14
 
 .for f in getmntopts.c mntopts.h
 CLEANFILES+=	${f}
