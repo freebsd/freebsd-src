@@ -11,6 +11,10 @@
 
 #include <atf-c.h>
 
+static const struct snl_hdr_parser *snl_all_genl_parsers[] = {
+	&_genl_ctrl_getfam_parser, &_genl_ctrl_mc_parser,
+};
+
 static void
 require_netlink(void)
 {
