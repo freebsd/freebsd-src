@@ -36,9 +36,9 @@
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
+#include <sys/stdarg.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
-#include <machine/stdarg.h>
 #else /* _KERNEL */
 #include <ctype.h>
 #include <errno.h>

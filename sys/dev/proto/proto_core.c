@@ -38,11 +38,11 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/reboot.h>
+#include <sys/stdarg.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/uio.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/pci/pcivar.h>
 

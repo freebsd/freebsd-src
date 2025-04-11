@@ -42,8 +42,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/conf.h>
-
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #include <net/ethernet.h>		/* XXX for ether_sprintf */
 
