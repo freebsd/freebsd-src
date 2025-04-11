@@ -350,6 +350,8 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 		dm = 32;
 	}
 	if (mask != NULL) {
+		if (mask[0] == '\0')
+			goto error;
 		m = strtol(mask, &tmp, 0);
 		if (m < 0 || m > dm || tmp[0] != 0)
 			goto error;
