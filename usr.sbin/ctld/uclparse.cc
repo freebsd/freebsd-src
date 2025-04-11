@@ -100,14 +100,14 @@ uclparse_chap_mutual(const char *ag_name, const ucl_object_t *obj)
 	}
 
 	mutual_user = ucl_object_find_key(obj, "mutual-user");
-	if (!user || user->type != UCL_STRING) {
+	if (!mutual_user || mutual_user->type != UCL_STRING) {
 		log_warnx("chap-mutual section in auth-group \"%s\" is missing "
 		    "\"mutual-user\" string key", ag_name);
 		return (false);
 	}
 
 	mutual_secret = ucl_object_find_key(obj, "mutual-secret");
-	if (!secret || secret->type != UCL_STRING) {
+	if (!mutual_secret || mutual_secret->type != UCL_STRING) {
 		log_warnx("chap-mutual section in auth-group \"%s\" is missing "
 		    "\"mutual-secret\" string key", ag_name);
 		return (false);
@@ -165,14 +165,14 @@ uclparse_target_chap_mutual(const char *t_name, const ucl_object_t *obj)
 	}
 
 	mutual_user = ucl_object_find_key(obj, "mutual-user");
-	if (!user || user->type != UCL_STRING) {
+	if (!mutual_user || mutual_user->type != UCL_STRING) {
 		log_warnx("chap-mutual section in target \"%s\" is missing "
 		    "\"mutual-user\" string key", t_name);
 		return (false);
 	}
 
 	mutual_secret = ucl_object_find_key(obj, "mutual-secret");
-	if (!secret || secret->type != UCL_STRING) {
+	if (!mutual_secret || mutual_secret->type != UCL_STRING) {
 		log_warnx("chap-mutual section in target \"%s\" is missing "
 		    "\"mutual-secret\" string key", t_name);
 		return (false);
