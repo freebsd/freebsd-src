@@ -57,7 +57,6 @@ CFLAGS+=	-fdata-sections
 CXXFLAGS+=	-fvisibility-inlines-hidden
 CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
-CXXSTD=		c++17
 
 .if ${COMPILER_TYPE} == "clang"
 .if ${MACHINE_CPUARCH} == "i386"

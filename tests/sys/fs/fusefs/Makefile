@@ -89,7 +89,6 @@ CXXFLAGS+=	-I${SRCTOP}/tests
 CXXFLAGS+=	-I${FUSEFS}
 CXXFLAGS+=	-I${MOUNT}
 .PATH:		${MOUNT}
-CXXSTD=		c++14
 
 LIBADD+=	pthread
 LIBADD+=	gmock gtest

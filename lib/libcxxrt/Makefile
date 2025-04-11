@@ -23,7 +23,6 @@ SRCS+=		typeinfo.cc
 
 WARNS?=		0
 CFLAGS+=	-isystem ${SRCDIR} -nostdinc++
-CXXSTD?=	c++14
 
 .if exists(Version.map.${MACHINE})
 VERSION_MAP=	${.CURDIR}/Version.map.${MACHINE}

@@ -22,6 +22,8 @@ CFLAGS+=	-std=iso9899:1999
 CFLAGS+=	-std=${CSTD}
 .endif # CSTD
 
+CXXSTD?=	gnu++17
+
 .if !empty(CXXSTD)
 CXXFLAGS+=	-std=${CXXSTD}
 .endif
