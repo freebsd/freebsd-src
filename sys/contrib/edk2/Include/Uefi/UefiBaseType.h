@@ -248,6 +248,13 @@ typedef union {
 #define EFI_IMAGE_MACHINE_RISCV64   0x5064
 #define EFI_IMAGE_MACHINE_RISCV128  0x5128
 
+///
+/// PE32+ Machine type for LoongArch 32/64 images.
+///
+#define EFI_IMAGE_MACHINE_LOONGARCH32  0x6232
+#define EFI_IMAGE_MACHINE_LOONGARCH64  0x6264
+
+
 #if   defined (MDE_CPU_IA32)
 
 #define EFI_IMAGE_MACHINE_TYPE_SUPPORTED(Machine) \
@@ -280,6 +287,13 @@ typedef union {
   ((Machine) == EFI_IMAGE_MACHINE_RISCV64)
 
 #define EFI_IMAGE_MACHINE_CROSS_TYPE_SUPPORTED(Machine) (FALSE)
+
+  #elif defined (MDE_CPU_LOONGARCH64)
+
+#define EFI_IMAGE_MACHINE_TYPE_SUPPORTED(Machine) \
+    ((Machine) == EFI_IMAGE_MACHINE_LOONGARCH64)
+
+#define EFI_IMAGE_MACHINE_CROSS_TYPE_SUPPORTED(Machine)  (FALSE)
 
 #elif defined (MDE_CPU_EBC)
 
