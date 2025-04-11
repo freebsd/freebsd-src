@@ -945,12 +945,15 @@ struct ieee80211_vht_cap {
 	struct ieee80211_vht_mcs_info	supp_mcs;
 } __packed;
 
-/* 802.11ac-2013, Table 8-183x-VHT Operation Information subfields */
+/*
+ * 802.11ac-2013, Table 8-183x-VHT Operation Information subfields.
+ * 802.11-2020, Table 9-274-VHT Operation Information subfields (for deprecations)
+ */
 enum ieee80211_vht_chanwidth {
 	IEEE80211_VHT_CHANWIDTH_USE_HT		= 0,	/* 20 MHz or 40 MHz */
 	IEEE80211_VHT_CHANWIDTH_80MHZ		= 1,	/* 80MHz */
-	IEEE80211_VHT_CHANWIDTH_160MHZ		= 2,	/* 160MHz */
-	IEEE80211_VHT_CHANWIDTH_80P80MHZ	= 3,	/* 80+80MHz */
+	IEEE80211_VHT_CHANWIDTH_160MHZ		= 2,	/* 160MHz (deprecated) */
+	IEEE80211_VHT_CHANWIDTH_80P80MHZ	= 3,	/* 80+80MHz (deprecated) */
 	/* 4..255 reserved. */
 };
 

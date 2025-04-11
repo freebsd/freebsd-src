@@ -1931,66 +1931,132 @@ ieee80211_ht_updateparams(struct ieee80211_node *ni,
 static uint32_t
 ieee80211_vht_get_vhtflags(struct ieee80211_node *ni, uint32_t htflags)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
-	uint32_t vhtflags = 0;
+#define	_RETURN_CHAN_BITS(_cb)						\
+do {									\
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N, ni,		\
+	    "%s:%d: selected %b", __func__, __LINE__,			\
+	    (_cb), IEEE80211_CHAN_BITS);				\
+	return (_cb);							\
+} while(0)
+	struct ieee80211vap *vap;
+	const struct ieee80211_ie_htinfo *htinfo;
+	uint32_t vhtflags;
+	bool can_vht160, can_vht80p80, can_vht80;
+	bool ht40;
+
+	vap = ni->ni_vap;
+
+	/* If we do not support VHT or VHT is disabled just return. */
+	if ((ni->ni_flags & IEEE80211_NODE_VHT) == 0 ||
+	    (vap->iv_vht_flags & IEEE80211_FVHT_VHT) == 0)
+		_RETURN_CHAN_BITS(0);
+
+	/*
+	 * The original code was based on
+	 * 802.11ac-2013, Table 8-183x-VHT Operation Information subfields.
+	 * 802.11-2020, Table 9-274-VHT Operation Information subfields
+	 * has IEEE80211_VHT_CHANWIDTH_160MHZ and
+	 * IEEE80211_VHT_CHANWIDTH_80P80MHZ deprecated.
+	 * For current logic see
+	 * 802.11-2020, 11.38.1 Basic VHT BSS functionality.
+	 */
+
+	htinfo = (const struct ieee80211_ie_htinfo *)ni->ni_ies.htinfo_ie;
+	ht40 = ((htinfo->hi_byte1 & IEEE80211_HTINFO_TXWIDTH) ==
+	    IEEE80211_HTINFO_TXWIDTH_2040);
+	can_vht160 = can_vht80p80 = can_vht80 = false;
+
+	/* 20 Mhz */
+	if (!ht40) {
+		/* Check for the full valid combination -- other fields be 0. */
+		if (ni->ni_vht_chanwidth != IEEE80211_VHT_CHANWIDTH_USE_HT ||
+		    ni->ni_vht_chan2 != 0)
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N, ni,
+			    "%s: invalid VHT BSS bandwidth 0/%d/%d/%d",
+			    __func__, ni->ni_vht_chanwidth,
+			    ni->ni_vht_chan1, ni->ni_vht_chan2);
+
+		_RETURN_CHAN_BITS(IEEE80211_CHAN_VHT20 | IEEE80211_CHAN_HT20);
+	}
 
 	vhtflags = 0;
-	if (ni->ni_flags & IEEE80211_NODE_VHT && vap->iv_vht_flags & IEEE80211_FVHT_VHT) {
-		if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_160MHZ) &&
-		    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(vap->iv_vht_cap.vht_cap_info) &&
-		    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT160)) {
-			vhtflags = IEEE80211_CHAN_VHT160;
-			/* Mirror the HT40 flags */
-			if (htflags == IEEE80211_CHAN_HT40U) {
-				vhtflags |= IEEE80211_CHAN_HT40U;
-			} else if (htflags == IEEE80211_CHAN_HT40D) {
-				vhtflags |= IEEE80211_CHAN_HT40D;
-			}
-		} else if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_80P80MHZ) &&
-		    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(vap->iv_vht_cap.vht_cap_info) &&
-		    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT80P80)) {
-			vhtflags = IEEE80211_CHAN_VHT80P80;
-			/* Mirror the HT40 flags */
-			if (htflags == IEEE80211_CHAN_HT40U) {
-				vhtflags |= IEEE80211_CHAN_HT40U;
-			} else if (htflags == IEEE80211_CHAN_HT40D) {
-				vhtflags |= IEEE80211_CHAN_HT40D;
-			}
-		} else if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_80MHZ) &&
-		    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT80)) {
-			vhtflags = IEEE80211_CHAN_VHT80;
-			/* Mirror the HT40 flags */
-			if (htflags == IEEE80211_CHAN_HT40U) {
-				vhtflags |= IEEE80211_CHAN_HT40U;
-			} else if (htflags == IEEE80211_CHAN_HT40D) {
-				vhtflags |= IEEE80211_CHAN_HT40D;
-			}
-		} else if (ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_USE_HT) {
-			/* Mirror the HT40 flags */
-			/*
-			 * XXX TODO: if ht40 is disabled, but vht40 isn't
-			 * disabled then this logic will get very, very sad.
-			 * It's quite possible the only sane thing to do is
-			 * to not have vht40 as an option, and just obey
-			 * 'ht40' as that flag.
-			 */
-			if ((htflags == IEEE80211_CHAN_HT40U) &&
-			    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT40)) {
-				vhtflags = IEEE80211_CHAN_VHT40U
-				    | IEEE80211_CHAN_HT40U;
-			} else if (htflags == IEEE80211_CHAN_HT40D &&
-			    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT40)) {
-				vhtflags = IEEE80211_CHAN_VHT40D
-				    | IEEE80211_CHAN_HT40D;
-			} else if (htflags == IEEE80211_CHAN_HT20) {
-				vhtflags = IEEE80211_CHAN_VHT20
-				    | IEEE80211_CHAN_HT20;
-			}
-		} else {
-			vhtflags = IEEE80211_CHAN_VHT20;
+
+	/* We know we can at least do 40Mhz, so mirror the HT40 flags. */
+	if (htflags == IEEE80211_CHAN_HT40U)
+		vhtflags |= IEEE80211_CHAN_HT40U;
+	else if (htflags == IEEE80211_CHAN_HT40D)
+		vhtflags |= IEEE80211_CHAN_HT40D;
+
+	/* 40 MHz */
+	if (ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_USE_HT) {
+		if (ni->ni_vht_chan2 != 0)
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N, ni,
+			    "%s: invalid VHT BSS bandwidth 1/%d/%d/%d",
+			    __func__, ni->ni_vht_chanwidth,
+			    ni->ni_vht_chan1, ni->ni_vht_chan2);
+
+		if ((vap->iv_vht_flags & IEEE80211_FVHT_USEVHT40) != 0) {
+			if (htflags == IEEE80211_CHAN_HT40U)
+				_RETURN_CHAN_BITS(IEEE80211_CHAN_VHT40U | vhtflags);
+			if (htflags == IEEE80211_CHAN_HT40D)
+				_RETURN_CHAN_BITS(IEEE80211_CHAN_VHT40D | vhtflags);
 		}
+
+		/* If we get here VHT40 is not supported or disabled. */
+		_RETURN_CHAN_BITS(IEEE80211_CHAN_VHT20 | IEEE80211_CHAN_HT20);
 	}
-	return (vhtflags);
+
+	/* Deprecated check for 160. */
+	if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_160MHZ) &&
+	    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(vap->iv_vht_cap.vht_cap_info) &&
+	    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT160) != 0)
+		_RETURN_CHAN_BITS(IEEE80211_CHAN_VHT160 | vhtflags);
+
+	/* Deprecated check for 80P80. */
+	if ((ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_80P80MHZ) &&
+	    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(vap->iv_vht_cap.vht_cap_info) &&
+	    (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT80P80) != 0)
+		_RETURN_CHAN_BITS(IEEE80211_CHAN_VHT80P80 | vhtflags);
+
+	if (ni->ni_vht_chanwidth != IEEE80211_VHT_CHANWIDTH_80MHZ) {
+		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N, ni,
+		    "%s: invalid VHT BSS bandwidth %d/%d/%d", __func__,
+		    ni->ni_vht_chanwidth, ni->ni_vht_chan2);
+
+		_RETURN_CHAN_BITS(0);
+	}
+
+	/* CCFS1 > 0 and | CCFS1 - CCFS0 | = 8 */
+	if (ni->ni_vht_chan2 > 0 && (ni->ni_vht_chan2 - ni->ni_vht_chan1) == 8)
+		can_vht160 = can_vht80 = true;
+
+	/* CCFS1 > 0 and | CCFS1 - CCFS0 | > 16 */
+	if (ni->ni_vht_chan2 > 0 && (ni->ni_vht_chan2 - ni->ni_vht_chan1) > 16)
+		can_vht80p80 = can_vht80 = true;
+
+	/* CFFS1 == 0 */
+	if (ni->ni_vht_chan2 == 0)
+		can_vht80 = true;
+
+	if (can_vht160 && (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT160) != 0)
+		_RETURN_CHAN_BITS(IEEE80211_CHAN_VHT160 | vhtflags);
+
+	if (can_vht80p80 && (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT80P80) != 0)
+		_RETURN_CHAN_BITS(IEEE80211_CHAN_VHT80P80 | vhtflags);
+
+	if (can_vht80 && (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT80) != 0)
+		_RETURN_CHAN_BITS(IEEE80211_CHAN_VHT80 | vhtflags);
+
+	if (ht40 && (vap->iv_vht_flags & IEEE80211_FVHT_USEVHT40) != 0) {
+		if (htflags == IEEE80211_CHAN_HT40U)
+			_RETURN_CHAN_BITS(IEEE80211_CHAN_VHT40U | vhtflags);
+		if (htflags == IEEE80211_CHAN_HT40D)
+			_RETURN_CHAN_BITS(IEEE80211_CHAN_VHT40D | vhtflags);
+	}
+
+	/* Either we disabled support or got an invalid setting. */
+	_RETURN_CHAN_BITS(IEEE80211_CHAN_VHT20 | IEEE80211_CHAN_HT20);
+#undef _RETURN_CHAN_BITS
 }
 
 /*
