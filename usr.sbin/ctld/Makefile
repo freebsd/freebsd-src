@@ -14,6 +14,7 @@ CFLAGS+=	-I${SRCTOP}/sys/dev/iscsi
 CFLAGS+=	-I${SRCTOP}/lib/libiscsiutil
 #CFLAGS+=	-DICL_KERNEL_PROXY
 NO_WCAST_ALIGN=
+CXXWARNFLAGS.gcc= -Wno-shadow
 MAN=		ctld.8 ctl.conf.5
 
 LIBADD=		bsdxml iscsiutil md sbuf util ucl m nv
