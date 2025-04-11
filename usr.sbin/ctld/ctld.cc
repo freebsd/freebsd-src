@@ -190,24 +190,14 @@ auth_check_secret_length(const struct auth_group *ag, const char *user,
 
 	len = strlen(secret);
 	if (len > 16) {
-		if (ag->ag_name != NULL)
-			log_warnx("%s for user \"%s\", auth-group \"%s\", "
-			    "is too long; it should be at most 16 characters "
-			    "long", secret_type, user, ag->ag_name);
-		else
-			log_warnx("%s for user \"%s\", target \"%s\", "
-			    "is too long; it should be at most 16 characters "
-			    "long", secret_type, user, ag->ag_target->t_name);
+		log_warnx("%s for user \"%s\", %s, is too long; it should be "
+		    "at most 16 characters long", secret_type, user,
+		    ag->ag_label);
 	}
 	if (len < 12) {
-		if (ag->ag_name != NULL)
-			log_warnx("%s for user \"%s\", auth-group \"%s\", "
-			    "is too short; it should be at least 12 characters "
-			    "long", secret_type, user, ag->ag_name);
-		else
-			log_warnx("%s for user \"%s\", target \"%s\", "
-			    "is too short; it should be at least 12 characters "
-			    "long", secret_type, user, ag->ag_target->t_name);
+		log_warnx("%s for user \"%s\", %s, is too short; it should be "
+		    "at least 12 characters long", secret_type, user,
+		    ag->ag_label);
 	}
 }
 
@@ -220,13 +210,8 @@ auth_new_chap(struct auth_group *ag, const char *user,
 	if (ag->ag_type == AG_TYPE_UNKNOWN)
 		ag->ag_type = AG_TYPE_CHAP;
 	if (ag->ag_type != AG_TYPE_CHAP) {
-		if (ag->ag_name != NULL)
-			log_warnx("cannot mix \"chap\" authentication with "
-			    "other types for auth-group \"%s\"", ag->ag_name);
-		else
-			log_warnx("cannot mix \"chap\" authentication with "
-			    "other types for target \"%s\"",
-			    ag->ag_target->t_name);
+		log_warnx("cannot mix \"chap\" authentication with "
+		    "other types for %s", ag->ag_label);
 		return (false);
 	}
 
@@ -248,14 +233,8 @@ auth_new_chap_mutual(struct auth_group *ag, const char *user,
 	if (ag->ag_type == AG_TYPE_UNKNOWN)
 		ag->ag_type = AG_TYPE_CHAP_MUTUAL;
 	if (ag->ag_type != AG_TYPE_CHAP_MUTUAL) {
-		if (ag->ag_name != NULL)
-			log_warnx("cannot mix \"chap-mutual\" authentication "
-			    "with other types for auth-group \"%s\"",
-			    ag->ag_name);
-		else
-			log_warnx("cannot mix \"chap-mutual\" authentication "
-			    "with other types for target \"%s\"",
-			    ag->ag_target->t_name);
+		log_warnx("cannot mix \"chap-mutual\" authentication "
+		    "with other types for %s", ag->ag_label);
 		return (false);
 	}
 
@@ -454,24 +433,17 @@ auth_portal_check(const struct auth_group *ag, const struct sockaddr_storage *sa
 	return (true);
 }
 
-struct auth_group *
-auth_group_new(struct conf *conf, const char *name)
+static struct auth_group *
+auth_group_create(struct conf *conf, const char *name, char *label)
 {
 	struct auth_group *ag;
-
-	if (name != NULL) {
-		ag = auth_group_find(conf, name);
-		if (ag != NULL) {
-			log_warnx("duplicated auth-group \"%s\"", name);
-			return (NULL);
-		}
-	}
 
 	ag = reinterpret_cast<struct auth_group *>(calloc(1, sizeof(*ag)));
 	if (ag == NULL)
 		log_err(1, "calloc");
 	if (name != NULL)
 		ag->ag_name = checked_strdup(name);
+	ag->ag_label = label;
 	TAILQ_INIT(&ag->ag_auths);
 	TAILQ_INIT(&ag->ag_names);
 	TAILQ_INIT(&ag->ag_portals);
@@ -479,6 +451,31 @@ auth_group_new(struct conf *conf, const char *name)
 	TAILQ_INSERT_TAIL(&conf->conf_auth_groups, ag, ag_next);
 
 	return (ag);
+}
+
+struct auth_group *
+auth_group_new(struct conf *conf, const char *name)
+{
+	struct auth_group *ag;
+	char *label;
+
+	ag = auth_group_find(conf, name);
+	if (ag != NULL) {
+		log_warnx("duplicated auth-group \"%s\"", name);
+		return (NULL);
+	}
+
+	asprintf(&label, "auth-group \"%s\"", name);
+	return (auth_group_create(conf, name, label));
+}
+
+struct auth_group *
+auth_group_new(struct conf *conf, struct target *target)
+{
+	char *label;
+
+	asprintf(&label, "target \"%s\"", target->t_name);
+	return (auth_group_create(conf, NULL, label));
 }
 
 void
@@ -497,6 +494,7 @@ auth_group_delete(struct auth_group *ag)
 	TAILQ_FOREACH_SAFE(auth_portal, &ag->ag_portals, ap_next,
 	    auth_portal_tmp)
 		auth_portal_delete(auth_portal);
+	free(ag->ag_label);
 	free(ag->ag_name);
 	free(ag);
 }
@@ -1541,11 +1539,6 @@ conf_verify(struct conf *conf)
 		}
 	}
 	TAILQ_FOREACH(ag, &conf->conf_auth_groups, ag_next) {
-		if (ag->ag_name == NULL)
-			assert(ag->ag_target != NULL);
-		else
-			assert(ag->ag_target == NULL);
-
 		found = false;
 		TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
 			if (targ->t_auth_group == ag) {

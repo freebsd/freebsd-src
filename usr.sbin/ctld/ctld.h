@@ -82,7 +82,7 @@ struct auth_group {
 	TAILQ_ENTRY(auth_group)		ag_next;
 	struct conf			*ag_conf;
 	char				*ag_name;
-	struct target			*ag_target;
+	char				*ag_label;
 	int				ag_type;
 	TAILQ_HEAD(, auth)		ag_auths;
 	TAILQ_HEAD(, auth_name)		ag_names;
@@ -257,6 +257,8 @@ void			conf_start(struct conf *new_conf);
 bool			conf_verify(struct conf *conf);
 
 struct auth_group	*auth_group_new(struct conf *conf, const char *name);
+struct auth_group	*auth_group_new(struct conf *conf,
+			    struct target *target);
 void			auth_group_delete(struct auth_group *ag);
 struct auth_group	*auth_group_find(const struct conf *conf,
 			    const char *name);
