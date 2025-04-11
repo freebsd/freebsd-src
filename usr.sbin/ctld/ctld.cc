@@ -183,63 +183,31 @@ auth_find(const struct auth_group *ag, const char *user)
 }
 
 static void
-auth_check_secret_length(struct auth *auth)
+auth_check_secret_length(const struct auth_group *ag, const char *user,
+    const char *secret, const char *secret_type)
 {
 	size_t len;
 
-	len = strlen(auth->a_secret);
+	len = strlen(secret);
 	if (len > 16) {
-		if (auth->a_auth_group->ag_name != NULL)
-			log_warnx("secret for user \"%s\", auth-group \"%s\", "
+		if (ag->ag_name != NULL)
+			log_warnx("%s for user \"%s\", auth-group \"%s\", "
 			    "is too long; it should be at most 16 characters "
-			    "long", auth->a_user, auth->a_auth_group->ag_name);
+			    "long", secret_type, user, ag->ag_name);
 		else
-			log_warnx("secret for user \"%s\", target \"%s\", "
+			log_warnx("%s for user \"%s\", target \"%s\", "
 			    "is too long; it should be at most 16 characters "
-			    "long", auth->a_user,
-			    auth->a_auth_group->ag_target->t_name);
+			    "long", secret_type, user, ag->ag_target->t_name);
 	}
 	if (len < 12) {
-		if (auth->a_auth_group->ag_name != NULL)
-			log_warnx("secret for user \"%s\", auth-group \"%s\", "
+		if (ag->ag_name != NULL)
+			log_warnx("%s for user \"%s\", auth-group \"%s\", "
 			    "is too short; it should be at least 12 characters "
-			    "long", auth->a_user,
-			    auth->a_auth_group->ag_name);
+			    "long", secret_type, user, ag->ag_name);
 		else
-			log_warnx("secret for user \"%s\", target \"%s\", "
+			log_warnx("%s for user \"%s\", target \"%s\", "
 			    "is too short; it should be at least 12 characters "
-			    "long", auth->a_user,
-			    auth->a_auth_group->ag_target->t_name);
-	}
-
-	if (auth->a_mutual_secret != NULL) {
-		len = strlen(auth->a_mutual_secret);
-		if (len > 16) {
-			if (auth->a_auth_group->ag_name != NULL)
-				log_warnx("mutual secret for user \"%s\", "
-				    "auth-group \"%s\", is too long; it should "
-				    "be at most 16 characters long",
-				    auth->a_user, auth->a_auth_group->ag_name);
-			else
-				log_warnx("mutual secret for user \"%s\", "
-				    "target \"%s\", is too long; it should "
-				    "be at most 16 characters long",
-				    auth->a_user,
-				    auth->a_auth_group->ag_target->t_name);
-		}
-		if (len < 12) {
-			if (auth->a_auth_group->ag_name != NULL)
-				log_warnx("mutual secret for user \"%s\", "
-				    "auth-group \"%s\", is too short; it "
-				    "should be at least 12 characters long",
-				    auth->a_user, auth->a_auth_group->ag_name);
-			else
-				log_warnx("mutual secret for user \"%s\", "
-				    "target \"%s\", is too short; it should be "
-				    "at least 12 characters long",
-				    auth->a_user,
-				    auth->a_auth_group->ag_target->t_name);
-		}
+			    "long", secret_type, user, ag->ag_target->t_name);
 	}
 }
 
@@ -262,11 +230,11 @@ auth_new_chap(struct auth_group *ag, const char *user,
 		return (false);
 	}
 
+	auth_check_secret_length(ag, user, secret, "secret");
+
 	auth = auth_new(ag);
 	auth->a_user = checked_strdup(user);
 	auth->a_secret = checked_strdup(secret);
-
-	auth_check_secret_length(auth);
 
 	return (true);
 }
@@ -291,13 +259,14 @@ auth_new_chap_mutual(struct auth_group *ag, const char *user,
 		return (false);
 	}
 
+	auth_check_secret_length(ag, user, secret, "secret");
+	auth_check_secret_length(ag, user, secret2, "mutual secret");
+
 	auth = auth_new(ag);
 	auth->a_user = checked_strdup(user);
 	auth->a_secret = checked_strdup(secret);
 	auth->a_mutual_user = checked_strdup(user2);
 	auth->a_mutual_secret = checked_strdup(secret2);
-
-	auth_check_secret_length(auth);
 
 	return (true);
 }
