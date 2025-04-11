@@ -1427,7 +1427,7 @@ lkpi_iv_key_update_begin(struct ieee80211vap *vap)
 	struct lkpi_hw *lhw;
 	struct ieee80211_hw *hw;
 	struct lkpi_vif *lvif;
-	bool islocked;
+	bool icislocked, ntislocked;
 
 	ic = vap->iv_ic;
 	lhw = ic->ic_softc;
@@ -1435,28 +1435,35 @@ lkpi_iv_key_update_begin(struct ieee80211vap *vap)
 	lvif = VAP_TO_LVIF(vap);
 	nt = &ic->ic_sta;
 
-	islocked = IEEE80211_NODE_IS_LOCKED(nt);
+	icislocked = IEEE80211_IS_LOCKED(ic);
+	ntislocked = IEEE80211_NODE_IS_LOCKED(nt);
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(vap->iv_ic, "%s: tid %d vap %p nt %p %slocked "
-		    "lvif nt_unlocked %d\n", __func__, curthread->td_tid,
-		    vap, nt, islocked ? "" : "un", lvif->nt_unlocked);
+		ic_printf(ic, "%s: tid %d vap %p ic %p %slocked nt %p %slocked "
+		    "lvif ic_unlocked %d nt_unlocked %d\n", __func__,
+		    curthread->td_tid, vap,
+		    ic, icislocked ? "" : "un", nt, ntislocked ? "" : "un",
+		    lvif->ic_unlocked, lvif->nt_unlocked);
 #endif
 
 	/* This is inconsistent net80211 locking to be fixed one day. */
-	if (islocked)
+	if (icislocked)
+		IEEE80211_UNLOCK(ic);
+	if (ntislocked)
 		IEEE80211_NODE_UNLOCK(nt);
 
 	wiphy_lock(hw->wiphy);
 
 	/*
-	 * nt_unlocked could be a bool given we are under the lock and there
+	 * ic/nt_unlocked could be a bool given we are under the lock and there
 	 * must only be a single thread.
 	 * In case anything in the future disturbs the order the refcnt will
 	 * help us catching problems a lot easier.
 	 */
-	if (islocked)
+	if (icislocked)
+		refcount_acquire(&lvif->ic_unlocked);
+	if (ntislocked)
 		refcount_acquire(&lvif->nt_unlocked);
 }
 
@@ -1468,7 +1475,7 @@ lkpi_iv_key_update_end(struct ieee80211vap *vap)
 	struct lkpi_hw *lhw;
 	struct ieee80211_hw *hw;
 	struct lkpi_vif *lvif;
-	bool islocked;
+	bool icislocked, ntislocked;
 
 	ic = vap->iv_ic;
 	lhw = ic->ic_softc;
@@ -1476,14 +1483,18 @@ lkpi_iv_key_update_end(struct ieee80211vap *vap)
 	lvif = VAP_TO_LVIF(vap);
 	nt = &ic->ic_sta;
 
-	islocked = IEEE80211_NODE_IS_LOCKED(nt);
-	MPASS(!islocked);
+	icislocked = IEEE80211_IS_LOCKED(ic);
+	MPASS(!icislocked);
+	ntislocked = IEEE80211_NODE_IS_LOCKED(nt);
+	MPASS(!ntislocked);
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(vap->iv_ic, "%s: tid %d vap %p nt %p %slocked "
-		    "lvif nt_unlocked %d\n", __func__, curthread->td_tid,
-		    vap, nt, islocked ? "" : "un", lvif->nt_unlocked);
+		ic_printf(ic, "%s: tid %d vap %p ic %p %slocked nt %p %slocked "
+		    "lvif ic_unlocked %d nt_unlocked %d\n", __func__,
+		    curthread->td_tid, vap,
+		    ic, icislocked ? "" : "un", nt, ntislocked ? "" : "un",
+		    lvif->ic_unlocked, lvif->nt_unlocked);
 #endif
 
 	/*
@@ -1491,11 +1502,17 @@ lkpi_iv_key_update_end(struct ieee80211vap *vap)
 	 * In case the refcnt gets out of sync locking in net80211 will
 	 * quickly barf as well (trying to unlock a lock not held).
 	 */
-	islocked = refcount_release_if_last(&lvif->nt_unlocked);
+	icislocked = refcount_release_if_last(&lvif->ic_unlocked);
+	ntislocked = refcount_release_if_last(&lvif->nt_unlocked);
 	wiphy_unlock(hw->wiphy);
 
-	/* This is inconsistent net80211 locking to be fixed one day. */
-	if (islocked)
+	/*
+	 * This is inconsistent net80211 locking to be fixed one day.
+	 * ic before nt to avoid a LOR.
+	 */
+	if (icislocked)
+		IEEE80211_LOCK(ic);
+	if (ntislocked)
 		IEEE80211_NODE_LOCK(nt);
 }
 #endif
