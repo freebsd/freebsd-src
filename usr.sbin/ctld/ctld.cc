@@ -2602,7 +2602,7 @@ main(int argc, char **argv)
 			if (tmpconf == NULL) {
 				log_warnx("configuration error, "
 				    "continuing with old configuration");
-			} else if (new_pports_from_conf(tmpconf, &kports)) {
+			} else if (!new_pports_from_conf(tmpconf, &kports)) {
 				log_warnx("Error associating physical ports, "
 				    "continuing with old configuration");
 				conf_delete(tmpconf);
