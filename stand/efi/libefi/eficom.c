@@ -336,7 +336,7 @@ comc_probe(struct console *sc)
 		return;
 	}
 
-	if (env != NULL) 
+	if (env != NULL)
 		unsetenv("efi_com_port");
 	snprintf(value, sizeof (value), "%u", comc_port->ioaddr);
 	env_setenv("efi_com_port", EV_VOLATILE, value,
@@ -497,7 +497,7 @@ comc_port_set(struct env_var *ev, int flags, const void *value)
 	if (value == NULL || comc_port == NULL)
 		return (CMD_ERROR);
 
-	if (comc_parse_intval(value, &port) != CMD_OK) 
+	if (comc_parse_intval(value, &port) != CMD_OK)
 		return (CMD_ERROR);
 
 	handle = efi_serial_get_handle(port, NULL);
@@ -532,7 +532,7 @@ comc_speed_set(struct env_var *ev, int flags, const void *value)
 	if (value == NULL || comc_port == NULL)
 		return (CMD_ERROR);
 
-	if (comc_parse_intval(value, &speed) != CMD_OK) 
+	if (comc_parse_intval(value, &speed) != CMD_OK)
 		return (CMD_ERROR);
 
 	comc_port->newbaudrate = speed;
