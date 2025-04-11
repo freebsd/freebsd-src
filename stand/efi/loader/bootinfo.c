@@ -414,7 +414,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	/* Handle device tree blob */
 	dtbp = addr;
 	dtb_size = fdt_copy(addr);
-		
+
 	/* Pad to a page boundary */
 	if (dtb_size)
 		addr += roundup(dtb_size, PAGE_SIZE);
