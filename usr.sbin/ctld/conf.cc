@@ -126,25 +126,13 @@ _auth_group_set_type(struct auth_group *ag, const char *str)
 	} else if (strcmp(str, "chap-mutual") == 0) {
 		type = AG_TYPE_CHAP_MUTUAL;
 	} else {
-		if (ag->ag_name != NULL)
-			log_warnx("invalid auth-type \"%s\" for auth-group "
-			    "\"%s\"", str, ag->ag_name);
-		else
-			log_warnx("invalid auth-type \"%s\" for target "
-			    "\"%s\"", str, ag->ag_target->t_name);
+		log_warnx("invalid auth-type \"%s\" for %s", str, ag->ag_label);
 		return (false);
 	}
 
 	if (ag->ag_type != AG_TYPE_UNKNOWN && ag->ag_type != type) {
-		if (ag->ag_name != NULL) {
-			log_warnx("cannot set auth-type to \"%s\" for "
-			    "auth-group \"%s\"; already has a different "
-			    "type", str, ag->ag_name);
-		} else {
-			log_warnx("cannot set auth-type to \"%s\" for target "
-			    "\"%s\"; already has a different type",
-			    str, ag->ag_target->t_name);
-		}
+		log_warnx("cannot set auth-type to \"%s\" for %s; "
+		    "already has a different type", str, ag->ag_label);
 		return (false);
 	}
 
@@ -531,10 +519,9 @@ target_add_chap(const char *user, const char *secret)
 			return (false);
 		}
 	} else {
-		target->t_auth_group = auth_group_new(conf, NULL);
+		target->t_auth_group = auth_group_new(conf, target);
 		if (target->t_auth_group == NULL)
 			return (false);
-		target->t_auth_group->ag_target = target;
 	}
 	return (auth_new_chap(target->t_auth_group, user, secret));
 }
@@ -550,10 +537,9 @@ target_add_chap_mutual(const char *user, const char *secret,
 			return (false);
 		}
 	} else {
-		target->t_auth_group = auth_group_new(conf, NULL);
+		target->t_auth_group = auth_group_new(conf, target);
 		if (target->t_auth_group == NULL)
 			return (false);
-		target->t_auth_group->ag_target = target;
 	}
 	return (auth_new_chap_mutual(target->t_auth_group, user, secret, user2,
 	    secret2));
@@ -569,10 +555,9 @@ target_add_initiator_name(const char *name)
 			return (false);
 		}
 	} else {
-		target->t_auth_group = auth_group_new(conf, NULL);
+		target->t_auth_group = auth_group_new(conf, target);
 		if (target->t_auth_group == NULL)
 			return (false);
-		target->t_auth_group->ag_target = target;
 	}
 	return (auth_name_new(target->t_auth_group, name));
 }
@@ -588,10 +573,9 @@ target_add_initiator_portal(const char *addr)
 			return (false);
 		}
 	} else {
-		target->t_auth_group = auth_group_new(conf, NULL);
+		target->t_auth_group = auth_group_new(conf, target);
 		if (target->t_auth_group == NULL)
 			return (false);
-		target->t_auth_group->ag_target = target;
 	}
 	return (auth_portal_new(target->t_auth_group, addr));
 }
@@ -701,10 +685,9 @@ target_set_auth_type(const char *type)
 			return (false);
 		}
 	} else {
-		target->t_auth_group = auth_group_new(conf, NULL);
+		target->t_auth_group = auth_group_new(conf, target);
 		if (target->t_auth_group == NULL)
 			return (false);
-		target->t_auth_group->ag_target = target;
 	}
 	return (_auth_group_set_type(target->t_auth_group, type));
 }
