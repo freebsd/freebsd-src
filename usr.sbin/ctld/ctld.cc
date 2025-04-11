@@ -320,14 +320,17 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 	ap->ap_initiator_portal = checked_strdup(portal);
 	mask = str = checked_strdup(portal);
 	net = strsep(&mask, "/");
-	if (net[0] == '[')
+	if (net[0] == '[') {
 		net++;
-	len = strlen(net);
-	if (len == 0)
-		goto error;
-	if (net[len - 1] == ']')
+		len = strlen(net);
+		if (len < 2)
+			goto error;
+		if (net[len - 1] != ']')
+			goto error;
 		net[len - 1] = 0;
-	if (strchr(net, ':') != NULL) {
+	} else if (net[0] == '\0')
+		goto error;
+	if (str[0] == '[' || strchr(net, ':') != NULL) {
 		struct sockaddr_in6 *sin6 =
 		    (struct sockaddr_in6 *)&ap->ap_sa;
 
