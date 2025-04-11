@@ -172,8 +172,4 @@ snl_get_genl_mcast_group(struct snl_state *ss, const char *family_name,
 	return (0);
 }
 
-static const struct snl_hdr_parser *snl_all_genl_parsers[] = {
-	&_genl_ctrl_getfam_parser, &_genl_ctrl_mc_parser,
-};
-
 #endif

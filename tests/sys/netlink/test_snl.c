@@ -13,6 +13,18 @@
 
 #include <atf-c.h>
 
+static const struct snl_hdr_parser *snl_all_core_parsers[] = {
+	&snl_errmsg_parser, &snl_donemsg_parser,
+	&_nla_bit_parser, &_nla_bitset_parser,
+};
+
+static const struct snl_hdr_parser *snl_all_route_parsers[] = {
+	&_metrics_mp_nh_parser, &_mpath_nh_parser, &_metrics_parser, &snl_rtm_route_parser,
+	&_link_fbsd_parser, &snl_rtm_link_parser, &snl_rtm_link_parser_simple,
+	&_neigh_fbsd_parser, &snl_rtm_neigh_parser,
+	&_addr_fbsd_parser, &snl_rtm_addr_parser, &_nh_fbsd_parser, &snl_nhmsg_parser,
+};
+
 static void
 require_netlink(void)
 {

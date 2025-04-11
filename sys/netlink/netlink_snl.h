@@ -1327,9 +1327,4 @@ snl_send_msgs(struct snl_writer *nw)
 	return (snl_send(nw->ss, nw->base, offset));
 }
 
-static const struct snl_hdr_parser *snl_all_core_parsers[] = {
-	&snl_errmsg_parser, &snl_donemsg_parser,
-	&_nla_bit_parser, &_nla_bitset_parser,
-};
-
 #endif
