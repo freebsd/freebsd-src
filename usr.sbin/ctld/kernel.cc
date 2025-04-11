@@ -40,6 +40,7 @@
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/callout.h>
+#include <sys/cnv.h>
 #include <sys/ioctl.h>
 #include <sys/linker.h>
 #include <sys/module.h>
@@ -635,12 +636,12 @@ retry_port:
 		    NULL) {
 			if (strcmp(key, "file") == 0 ||
 			    strcmp(key, "dev") == 0) {
-				cl->l_path = nvlist_take_string(lun->attr_list,
-				    key);
+				cl->l_path = checked_strdup(
+				    cnvlist_get_string(cookie));
 				continue;
 			}
 			nvlist_add_string(cl->l_options, key,
-			    nvlist_get_string(lun->attr_list, key));
+			    cnvlist_get_string(cookie));
 			error = nvlist_error(cl->l_options);
 			if (error != 0)
 				log_warnc(error, "unable to add CTL lun option "
