@@ -187,6 +187,7 @@ struct lkpi_vif {
 
 	struct lkpi_sta		*lvif_bss;
 
+	int			ic_unlocked;			/* Count of ic unlocks pending (*mo_set_key) */
 	int			nt_unlocked;			/* Count of nt unlocks pending (*mo_set_key) */
 	bool			lvif_bss_synched;
 	bool			added_to_drv;			/* Driver knows; i.e. we called add_interface(). */
