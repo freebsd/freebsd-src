@@ -570,9 +570,6 @@ uclparse_dscp(const char *group_type, const char *pg_name,
 		return (portal_group_set_dscp(ucl_object_toint(obj)));
 
 	key = ucl_object_tostring(obj);
-	if (strcmp(key, "0x") == 0)
-		return (portal_group_set_dscp(strtol(key + 2, NULL, 16)));
-
 	if (strcmp(key, "be") == 0 || strcmp(key, "cs0") == 0)
 		portal_group_set_dscp(IPTOS_DSCP_CS0 >> 2);
 	else if (strcmp(key, "ef") == 0)
