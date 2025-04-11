@@ -1348,68 +1348,6 @@ connection_new(struct portal *portal, int fd, const char *host,
 	return (conn);
 }
 
-#if 0
-static void
-options_print(const char *prefix, nvlist_t *nvl)
-{
-	const char *name;
-	void *cookie;
-
-	cookie = NULL;
-	while ((name = nvlist_next(nvl, NULL, &cookie)) != NULL) {
-		fprintf(stderr, "%soption %s %s\n", prefix, name,
-		    nvlist_get_string(nvl, name));
-	}
-}
-
-static void
-conf_print(struct conf *conf)
-{
-	struct auth_group *ag;
-	struct auth *auth;
-	struct auth_name *auth_name;
-	struct auth_portal *auth_portal;
-	struct portal_group *pg;
-	struct portal *portal;
-	struct target *targ;
-	struct lun *lun;
-
-	TAILQ_FOREACH(ag, &conf->conf_auth_groups, ag_next) {
-		fprintf(stderr, "auth-group %s {\n", ag->ag_name);
-		TAILQ_FOREACH(auth, &ag->ag_auths, a_next)
-			fprintf(stderr, "\t chap-mutual %s %s %s %s\n",
-			    auth->a_user, auth->a_secret,
-			    auth->a_mutual_user, auth->a_mutual_secret);
-		TAILQ_FOREACH(auth_name, &ag->ag_names, an_next)
-			fprintf(stderr, "\t initiator-name %s\n",
-			    auth_name->an_initiator_name);
-		TAILQ_FOREACH(auth_portal, &ag->ag_portals, ap_next)
-			fprintf(stderr, "\t initiator-portal %s\n",
-			    auth_portal->ap_initiator_portal);
-		fprintf(stderr, "}\n");
-	}
-	TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
-		fprintf(stderr, "portal-group %s {\n", pg->pg_name);
-		TAILQ_FOREACH(portal, &pg->pg_portals, p_next)
-			fprintf(stderr, "\t listen %s\n", portal->p_listen);
-		options_print("\t", pg->pg_options);
-		fprintf(stderr, "}\n");
-	}
-	TAILQ_FOREACH(lun, &conf->conf_luns, l_next) {
-		fprintf(stderr, "\tlun %s {\n", lun->l_name);
-		fprintf(stderr, "\t\tpath %s\n", lun->l_path);
-		options_print("\t\t", lun->l_options);
-		fprintf(stderr, "\t}\n");
-	}
-	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
-		fprintf(stderr, "target %s {\n", targ->t_name);
-		if (targ->t_alias != NULL)
-			fprintf(stderr, "\t alias %s\n", targ->t_alias);
-		fprintf(stderr, "}\n");
-	}
-}
-#endif
-
 static bool
 conf_verify_lun(struct lun *lun)
 {
