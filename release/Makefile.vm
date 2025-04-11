@@ -132,7 +132,7 @@ cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT}
 		${NO_ROOT:DNO_ROOT=true} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${_FS} \
-		-i ${.OBJDIR}/${_CW:tl}.${_FS}.${_FMT}.img -s ${VMSIZE} -f ${_FMT} \
+		-i ${.OBJDIR}/${_CW:tl}.${_FS}.${_FMT}.img -K -s ${VMSIZE} -f ${_FMT} \
 		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW:tu}${_FS:tu}${_FMT:tu}IMAGE} -c ${${_CW:tu}CONF}
 	touch ${.TARGET}
 .   endfor
@@ -185,7 +185,7 @@ vm-image:	${QEMUTGT}
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr \
 		-d ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS} -F ${FS} \
-		-i ${.OBJDIR}/${FORMAT}.${FS}.img -s ${VMSIZE} -f ${FORMAT} \
+		-i ${.OBJDIR}/${FORMAT}.${FS}.img -K -s ${VMSIZE} -f ${FORMAT} \
 		-S ${WORLDDIR} -o ${.OBJDIR}/${VMBASE}.${FS}.${FORMAT}
 .  endfor
 . endfor
