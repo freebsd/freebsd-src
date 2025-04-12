@@ -24,7 +24,6 @@
 # -E (detect ECN bleaching)
 # -g (source routing)
 # -n (or rather, we enable -n by default and don't test without it)
-# -p (specify base port number)
 # -P (for UDP-lite and GRE)
 # -r (set SO_DONTROUTE)
 # -S (print per-hop packet loss)
@@ -549,6 +548,44 @@ ipv4_nprobes_cleanup()
 }
 
 ##
+# test: ipv4_baseport
+#
+
+atf_test_case "ipv4_baseport" "cleanup"
+ipv4_baseport_head()
+{
+	atf_set descr "IPv4 traceroute with non-default base port"
+	atf_set require.user root
+}
+
+ipv4_baseport_body()
+{
+	setup_network
+
+	start_tcpdump
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS -p 40000		\
+	    ${LINK_TRDST_TRDST}
+
+	stop_tcpdump
+
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto UDP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.40001: UDP" \
+	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto UDP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.40002: UDP" \
+	    cat tcpdump.output
+}
+
+ipv4_baseport_cleanup()
+{
+	vnet_cleanup
+}
+
+##
 # test case declarations
 
 atf_init_test_cases()
@@ -564,4 +601,5 @@ atf_init_test_cases()
 	atf_add_test_case ipv4_hugepacket
 	atf_add_test_case ipv4_firsthop
 	atf_add_test_case ipv4_nprobes
+	atf_add_test_case ipv4_baseport
 }
