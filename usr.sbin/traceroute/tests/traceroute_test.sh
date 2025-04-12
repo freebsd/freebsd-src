@@ -125,9 +125,8 @@ start_tcpdump()
 		interface="${epsrc}b"
 	fi
 
-	dir="$(pwd)"
-	jexec trrtr daemon -p "${dir}/tcpdump.pid" \
-	    tcpdump --immediate-mode -w "${dir}/traceroute.pcap" -nv \
+	jexec trrtr daemon -p "${PWD}/tcpdump.pid" \
+	    tcpdump --immediate-mode -w "${PWD}/traceroute.pcap" -nv \
 	    -i $interface
 
 	# Give tcpdump time to start
@@ -137,14 +136,14 @@ start_tcpdump()
 stop_tcpdump()
 {
 	# Sleep to give tcpdump a chance to finish flushing
-	jexec trrtr kill -USR2 $(cat "${dir}/tcpdump.pid")
+	jexec trrtr kill -USR2 $(cat "${PWD}/tcpdump.pid")
 	sleep 1
-	jexec trrtr kill $(cat "${dir}/tcpdump.pid")
+	jexec trrtr kill $(cat "${PWD}/tcpdump.pid")
 
 	# Format the packet capture and merge continued lines (starting with
 	# whitespace) into a single line; this makes it easier to match in
 	# atf_check.  Append a blank line since the N command exits on EOF.
-	(tcpdump -nv -r "${dir}/traceroute.pcap"; echo) | \
+	(tcpdump -nv -r "${PWD}/traceroute.pcap"; echo) | \
 	    sed -E -e :a -e N -e 's/\n +/ /' -e ta -e P -e D \
 	    > tcpdump.output
 }
