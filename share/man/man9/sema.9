@@ -106,13 +106,13 @@ returns the current value of the semaphore.
 If decrementing the semaphore would result in its value being negative,
 .Fn sema_trywait
 returns 0 to indicate failure.
-Otherwise, a non-zero value is returned to indicate success.
+Otherwise, a nonzero value is returned to indicate success.
 .Pp
 The
 .Fn sema_timedwait
 function
 returns 0 if waiting on the semaphore succeeded; otherwise a
-non-zero error code is returned.
+nonzero error code is returned.
 .Sh ERRORS
 The
 .Fn sema_timedwait

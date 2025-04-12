@@ -84,25 +84,25 @@ This variable controls the default version of IGMP to be used on all links.
 This sysctl is normally set to 3 by default.
 .\"
 .It net.inet.igmp.legacysupp
-If this variable is non-zero, then IGMP v1 and v2 membership reports
+If this variable is nonzero, then IGMP v1 and v2 membership reports
 received on a link will be allowed to suppress the IGMP v3 state-change
 reports which would otherwise be issued by this host.
 This sysctl is normally enabled by default.
 .\"
 .It net.inet.igmp.v2enable
-If this variable is non-zero, then IGMP v2 membership queries will be
+If this variable is nonzero, then IGMP v2 membership queries will be
 processed by this host, and backwards compatibility will be enabled
 until the v2 'Old Querier Present' timer expires.
 This sysctl is normally enabled by default.
 .\"
 .It net.inet.igmp.v1enable
-If this variable is non-zero, then IGMP v1 membership queries will be
+If this variable is nonzero, then IGMP v1 membership queries will be
 processed by this host, and backwards compatibility will be enabled
 until the v1 'Old Querier Present' timer expires.
 This sysctl is normally enabled by default.
 .\"
 .It net.inet.igmp.sendlocal
-If this variable is non-zero, then IGMP state-changes for groups in
+If this variable is nonzero, then IGMP state-changes for groups in
 the 224.0.0.0/24 link-scope prefix will be issued.
 This behaviour is recommended if deploying
 .Fx
@@ -111,12 +111,12 @@ to mitigate multicast propagation throughout the network.
 This sysctl is normally enabled by default.
 .\"
 .It net.inet.igmp.sendra
-If this variable is non-zero, then IGMP v2 and v3 reports will contain
+If this variable is nonzero, then IGMP v2 and v3 reports will contain
 the IP Router Alert option.
 This sysctl is normally enabled by default.
 .\"
 .It net.inet.igmp.recvifkludge
-If this variable is non-zero, then received IGMP reports which contain
+If this variable is nonzero, then received IGMP reports which contain
 0.0.0.0 as their source will be rewritten to contain the subnet address.
 This is useful when there are hosts on-link which have not yet been
 configured with a primary IPv4 address.
