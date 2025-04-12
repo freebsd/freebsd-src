@@ -111,6 +111,45 @@ setup_network()
 }
 
 ##
+#
+# start_tcpdump, stop_tcpdump: used to capture packets during the test so we
+# can verify we actually sent the expected packets.
+
+start_tcpdump()
+{
+	# Run tcpdump on trrtr, either on the given interface or on
+	# ${epsrc}b, which is trsrc's default route interface.
+
+	interface="$1"
+	if [ -z "$interface" ]; then
+		interface="${epsrc}b"
+	fi
+
+	dir="$(pwd)"
+	jexec trrtr daemon -p "${dir}/tcpdump.pid" \
+	    tcpdump --immediate-mode -w "${dir}/traceroute.pcap" -nv \
+	    -i $interface
+
+	# Give tcpdump time to start
+	sleep 1
+}
+
+stop_tcpdump()
+{
+	# Sleep to give tcpdump a chance to finish flushing
+	jexec trrtr kill -USR2 $(cat "${dir}/tcpdump.pid")
+	sleep 1
+	jexec trrtr kill $(cat "${dir}/tcpdump.pid")
+
+	# Format the packet capture and merge continued lines (starting with
+	# whitespace) into a single line; this makes it easier to match in
+	# atf_check.  Append a blank line since the N command exits on EOF.
+	(tcpdump -nv -r "${dir}/traceroute.pcap"; echo) | \
+	    sed -E -e :a -e N -e 's/\n +/ /' -e ta -e P -e D \
+	    > tcpdump.output
+}
+
+##
 # test: ipv4_basic
 #
 
@@ -157,19 +196,24 @@ ipv4_icmp_body()
 
 	# -I and -Picmp should mean the same thing, so test both.
 
-	atf_check -s exit:0					\
-	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
-	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
-	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
-	    -o not-match:"^ 3"					\
-	    jexec trsrc traceroute $TR_FLAGS -I ${LINK_TRDST_TRDST}
+	for icmp_flag in -Picmp -I; do
+		start_tcpdump
 
-	atf_check -s exit:0					\
-	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
-	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
-	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
-	    -o not-match:"^ 3"					\
-	    jexec trsrc traceroute $TR_FLAGS -Picmp ${LINK_TRDST_TRDST}
+		atf_check -s exit:0					\
+		    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+		    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+		    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
+		    -o not-match:"^ 3"					\
+		    jexec trsrc traceroute $TR_FLAGS $icmp_flag		\
+		    ${LINK_TRDST_TRDST}
+
+		stop_tcpdump
+
+		atf_check -s exit:0 -e ignore 				\
+		    -o match:"IP \\(tos 0x0, ttl 1, .*, proto ICMP.*\\).* ${LINK_TRSRC_TRSRC} > ${LINK_TRDST_TRDST}: ICMP echo request" \
+		    -o match:"IP \\(tos 0x0, ttl 2, .*, proto ICMP.*\\).* ${LINK_TRSRC_TRSRC} > ${LINK_TRDST_TRDST}: ICMP echo request" \
+		    cat tcpdump.output
+	done
 }
 
 ipv4_icmp_cleanup()
