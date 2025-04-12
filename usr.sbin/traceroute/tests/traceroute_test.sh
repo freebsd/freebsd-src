@@ -22,11 +22,9 @@
 # -D (print the diff between our packet and the quote in the ICMP error)
 # -e (use a fixed port; 'firewall evasion mode')
 # -E (detect ECN bleaching)
-# -g (source routing)
 # -n (or rather, we enable -n by default and don't test without it)
 # -r (set SO_DONTROUTE)
 # -S (print per-hop packet loss)
-# -t (set outgoing IP ToS)
 # -v (verbose output)
 # -w (how long to wait for an error response)
 # -x (toggle IP checksums)
@@ -694,6 +692,48 @@ ipv4_iptos_cleanup()
 }
 
 ##
+# test: ipv4_srcroute
+#
+
+atf_test_case "ipv4_srcroute" "cleanup"
+ipv4_srcroute_head()
+{
+	atf_set descr "IPv4 traceroute with explicit source routing"
+	atf_set require.user root
+}
+
+ipv4_srcroute_body()
+{
+	setup_network
+	jexec trsrc sysctl net.inet.ip.sourceroute=1
+	jexec trsrc sysctl net.inet.ip.accept_sourceroute=1
+	jexec trrtr sysctl net.inet.ip.sourceroute=1
+
+	start_tcpdump
+
+	# As we don't enable source routing on trdst, we should get an ICMP
+	# source routing failed error (!S).
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}  [0-9.]+ ms !S"	\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS			\
+	        -g ${LINK_TRSRC_TRRTR} ${LINK_TRDST_TRDST}
+
+	stop_tcpdump
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto UDP .*, options \\(NOP,LSRR ${LINK_TRDST_TRDST}\\)\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRSRC_TRRTR}.33435: UDP" \
+	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto UDP .*, options \\(NOP,LSRR ${LINK_TRDST_TRDST}\\)\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRSRC_TRRTR}.33436: UDP" \
+	    cat tcpdump.output
+}
+
+ipv4_srcroute_cleanup()
+{
+	vnet_cleanup
+}
+
+##
 # test case declarations
 
 atf_init_test_cases()
@@ -713,4 +753,5 @@ atf_init_test_cases()
 	atf_add_test_case ipv4_nprobes
 	atf_add_test_case ipv4_baseport
 	atf_add_test_case ipv4_iptos
+	atf_add_test_case ipv4_srcroute
 }
