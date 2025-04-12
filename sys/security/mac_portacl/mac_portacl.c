@@ -452,7 +452,7 @@ socket_check_bind(struct ucred *cred, struct socket *so,
 		return (0);
 
 	/* Reject addresses we don't understand; fail closed. */
-	if (sa->sa_family != AF_INET && sa->sa_family != AF_INET6)
+	if (sa->sa_family != AF_UNSPEC && sa->sa_family != AF_INET && sa->sa_family != AF_INET6)
 		return (EINVAL);
 
 	family = so->so_proto->pr_domain->dom_family;
