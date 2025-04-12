@@ -64,11 +64,11 @@ ATF_TC_BODY(snl_parse_errmsg_capped, tc)
 	if (!snl_init(&ss, NETLINK_ROUTE))
 		atf_tc_fail("snl_init() failed");
 
-	atf_tc_skip("does not work");
-
 	int optval = 1;
 	ATF_CHECK(setsockopt(ss.fd, SOL_NETLINK, NETLINK_CAP_ACK, &optval, sizeof(optval)) == 0);
 
+	optval = 0;
+	ATF_CHECK(setsockopt(ss.fd, SOL_NETLINK, NETLINK_EXT_ACK, &optval, sizeof(optval)) == 0);
 	snl_init_writer(&ss, &nw);
 
 	struct nlmsghdr *hdr = snl_create_msg_request(&nw, 255);
