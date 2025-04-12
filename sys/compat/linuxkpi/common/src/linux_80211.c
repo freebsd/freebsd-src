@@ -5759,6 +5759,10 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 		lhw->scan_flags |= LKPI_LHW_SCAN_HW;
 	}
 
+	/* Does HW support Fragmentation offload? */
+	if (ieee80211_hw_check(hw, SUPPORTS_TX_FRAG))
+		ic->ic_flags_ext |= IEEE80211_FEXT_FRAG_OFFLOAD;
+
 	/*
 	 * The wiphy variables report bitmasks of avail antennas.
 	 * (*get_antenna) get the current bitmask sets which can be
