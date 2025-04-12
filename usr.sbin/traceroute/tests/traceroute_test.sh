@@ -20,7 +20,6 @@
 # -A (specify ASN lookup server)
 # -d (enable SO_DEBUG)
 # -D (print the diff between our packet and the quote in the ICMP error)
-# -e (use a fixed port; 'firewall evasion mode')
 # -E (detect ECN bleaching)
 # -n (or rather, we enable -n by default and don't test without it)
 # -r (set SO_DONTROUTE)
@@ -219,6 +218,61 @@ ipv4_icmp_cleanup()
 }
 
 ##
+# test: ipv4_udp
+#
+
+atf_test_case "ipv4_udp" "cleanup"
+ipv4_udp_head()
+{
+	atf_set descr "IPv4 UDP traceroute"
+	atf_set require.user root
+}
+
+ipv4_udp_body()
+{
+	setup_network
+
+	start_tcpdump
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS -Pudp ${LINK_TRDST_TRDST}
+
+	stop_tcpdump
+
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto UDP .*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33435: UDP" \
+	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto UDP .*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33436: UDP" \
+	    cat tcpdump.output
+
+	# Test with -e, the destination port should not increment.
+
+	start_tcpdump
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS -Pudp -e -p 40000 ${LINK_TRDST_TRDST}
+
+	stop_tcpdump
+
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto UDP .*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.40000: UDP" \
+	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto UDP .*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.40000: UDP" \
+	    cat tcpdump.output
+}
+
+ipv4_udp_cleanup()
+{
+	vnet_cleanup
+}
+
+##
 # test: ipv4_sctp
 #
 
@@ -266,6 +320,23 @@ ipv4_sctp_body()
 	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto SCTP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33435: sctp \(1\) \[INIT\]" \
 	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto SCTP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33436: sctp \(1\) \[INIT\]" \
 	    cat tcpdump.output
+
+	# Test with -e, the destination port should not increment.
+
+	start_tcpdump
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST} .* !P"		\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS -Psctp -e -p 40000 ${LINK_TRDST_TRDST}
+
+	stop_tcpdump
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto SCTP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.40000: sctp \(1\) \[SHUTDOWN ACK\]" \
+	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto SCTP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.40000: sctp \(1\) \[SHUTDOWN ACK\]" \
+	    cat tcpdump.output
 }
 
 ipv4_sctp_cleanup()
@@ -302,6 +373,21 @@ ipv4_tcp_body()
 	atf_check -s exit:0 -e ignore 				\
 	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto TCP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33435: Flags \[S\]" \
 	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto TCP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33436: Flags \[S\]" \
+	    cat tcpdump.output
+
+	# Test with -e, the destination port should not increment.
+	start_tcpdump
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  \\*"					\
+	    jexec trsrc traceroute $TR_FLAGS -Ptcp -e -p 40000 ${LINK_TRDST_TRDST}
+
+	stop_tcpdump
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto TCP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.40000: Flags \[S\]" \
+	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto TCP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.40000: Flags \[S\]" \
 	    cat tcpdump.output
 }
 
@@ -739,6 +825,7 @@ ipv4_srcroute_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case ipv4_basic
+	atf_add_test_case ipv4_udp
 	atf_add_test_case ipv4_icmp
 	atf_add_test_case ipv4_tcp
 	atf_add_test_case ipv4_sctp
