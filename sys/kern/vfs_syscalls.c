@@ -1151,6 +1151,61 @@ sys_openat(struct thread *td, struct openat_args *uap)
 }
 
 /*
+ * Validate open(2) flags and convert access mode flags (O_RDONLY etc.) to their
+ * in-kernel representations (FREAD etc.).
+ */
+static int
+openflags(int *flagsp)
+{
+	int flags;
+
+	/*
+	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR flags
+	 * may be specified.  On the other hand, for O_PATH any mode
+	 * except O_EXEC is ignored.
+	 */
+	flags = *flagsp;
+	if ((flags & O_PATH) != 0) {
+		flags &= ~O_ACCMODE;
+	} else if ((flags & O_EXEC) != 0) {
+		if ((flags & O_ACCMODE) != 0)
+			return (EINVAL);
+	} else if ((flags & O_ACCMODE) == O_ACCMODE) {
+		return (EINVAL);
+	} else {
+		flags = FFLAGS(flags);
+	}
+	*flagsp = flags;
+	return (0);
+}
+
+static void
+finit_open(struct file *fp, struct vnode *vp, int flags)
+{
+	/*
+	 * Store the vnode, for any f_type. Typically, the vnode use count is
+	 * decremented by a direct call to vnops.fo_close() for files that
+	 * switched type.
+	 */
+	fp->f_vnode = vp;
+
+	/*
+	 * If the file wasn't claimed by devfs or fifofs, bind it to the normal
+	 * vnode operations here.
+	 */
+	if (fp->f_ops == &badfileops) {
+		KASSERT(vp->v_type != VFIFO || (flags & O_PATH) != 0,
+		    ("Unexpected fifo fp %p vp %p", fp, vp));
+		if ((flags & O_PATH) != 0) {
+			finit(fp, (flags & FMASK) | (fp->f_flag & FKQALLOWED),
+			    DTYPE_VNODE, NULL, &path_fileops);
+		} else {
+			finit_vnode(fp, flags, NULL, &vnops);
+		}
+	}
+}
+
+/*
  * If fpp != NULL, opened file is not installed into the file
  * descriptor table, instead it is returned in *fpp.  This is
  * incompatible with fdopen(), in which case we return EINVAL.
@@ -1179,21 +1234,9 @@ openatfp(struct thread *td, int dirfd, const char *path,
 	cap_rights_init_one(&rights, CAP_LOOKUP);
 	flags_to_rights(flags, &rights);
 
-	/*
-	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR flags
-	 * may be specified.  On the other hand, for O_PATH any mode
-	 * except O_EXEC is ignored.
-	 */
-	if ((flags & O_PATH) != 0) {
-		flags &= ~O_ACCMODE;
-	} else if ((flags & O_EXEC) != 0) {
-		if (flags & O_ACCMODE)
-			return (EINVAL);
-	} else if ((flags & O_ACCMODE) == O_ACCMODE) {
-		return (EINVAL);
-	} else {
-		flags = FFLAGS(flags);
-	}
+	error = openflags(&flags);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Allocate a file structure. The descriptor to reference it
@@ -1244,28 +1287,7 @@ openatfp(struct thread *td, int dirfd, const char *path,
 	NDFREE_PNBUF(&nd);
 	vp = nd.ni_vp;
 
-	/*
-	 * Store the vnode, for any f_type. Typically, the vnode use
-	 * count is decremented by direct call to vn_closefile() for
-	 * files that switched type in the cdevsw fdopen() method.
-	 */
-	fp->f_vnode = vp;
-
-	/*
-	 * If the file wasn't claimed by devfs bind it to the normal
-	 * vnode operations here.
-	 */
-	if (fp->f_ops == &badfileops) {
-		KASSERT(vp->v_type != VFIFO || (flags & O_PATH) != 0,
-		    ("Unexpected fifo fp %p vp %p", fp, vp));
-		if ((flags & O_PATH) != 0) {
-			finit(fp, (flags & FMASK) | (fp->f_flag & FKQALLOWED),
-			    DTYPE_VNODE, NULL, &path_fileops);
-		} else {
-			finit_vnode(fp, flags, NULL, &vnops);
-		}
-	}
-
+	finit_open(fp, vp, flags);
 	VOP_UNLOCK(vp);
 	if (flags & O_TRUNC) {
 		error = fo_truncate(fp, 0, td->td_ucred, td);
@@ -4653,21 +4675,20 @@ kern_fhopen(struct thread *td, const struct fhandle *u_fhp, int flags)
 	struct vnode *vp;
 	struct fhandle fhp;
 	struct file *fp;
-	int fmode, error;
-	int indx;
+	int error, indx;
 	bool named_attr;
 
 	error = priv_check(td, PRIV_VFS_FHOPEN);
 	if (error != 0)
 		return (error);
+
 	indx = -1;
-	fmode = FFLAGS(flags);
-	/* why not allow a non-read/write open for our lockd? */
-	if (((fmode & (FREAD | FWRITE)) == 0) || (fmode & O_CREAT))
-		return (EINVAL);
+	error = openflags(&flags);
+	if (error != 0)
+		return (error);
 	error = copyin(u_fhp, &fhp, sizeof(fhp));
 	if (error != 0)
-		return(error);
+		return (error);
 	/* find the mount point */
 	mp = vfs_busyfs(&fhp.fh_fsid);
 	if (mp == NULL)
@@ -4685,8 +4706,8 @@ kern_fhopen(struct thread *td, const struct fhandle *u_fhp, int flags)
 	 */
 	named_attr = (vn_irflag_read(vp) &
 	    (VIRF_NAMEDDIR | VIRF_NAMEDATTR)) != 0;
-	if ((named_attr && (fmode & O_NAMEDATTR) == 0) ||
-	    (!named_attr && (fmode & O_NAMEDATTR) != 0)) {
+	if ((named_attr && (flags & O_NAMEDATTR) == 0) ||
+	    (!named_attr && (flags & O_NAMEDATTR) != 0)) {
 		vput(vp);
 		return (ENOATTR);
 	}
@@ -4696,15 +4717,13 @@ kern_fhopen(struct thread *td, const struct fhandle *u_fhp, int flags)
 		vput(vp);
 		return (error);
 	}
-	/*
-	 * An extra reference on `fp' has been held for us by
-	 * falloc_noinstall().
-	 */
+	/* Set the flags early so the finit in devfs can pick them up. */
+	fp->f_flag = flags & FMASK;
 
 #ifdef INVARIANTS
 	td->td_dupfd = -1;
 #endif
-	error = vn_open_vnode(vp, fmode, td->td_ucred, td, fp);
+	error = vn_open_vnode(vp, flags, td->td_ucred, td, fp);
 	if (error != 0) {
 		KASSERT(fp->f_ops == &badfileops,
 		    ("VOP_OPEN in fhopen() set f_ops"));
@@ -4717,16 +4736,15 @@ kern_fhopen(struct thread *td, const struct fhandle *u_fhp, int flags)
 #ifdef INVARIANTS
 	td->td_dupfd = 0;
 #endif
-	fp->f_vnode = vp;
-	finit_vnode(fp, fmode, NULL, &vnops);
+	finit_open(fp, vp, flags);
 	VOP_UNLOCK(vp);
-	if ((fmode & O_TRUNC) != 0) {
+	if ((flags & O_TRUNC) != 0) {
 		error = fo_truncate(fp, 0, td->td_ucred, td);
 		if (error != 0)
 			goto bad;
 	}
 
-	error = finstall(td, fp, &indx, fmode, NULL);
+	error = finstall(td, fp, &indx, flags, NULL);
 bad:
 	fdrop(fp, td);
 	td->td_retval[0] = indx;
