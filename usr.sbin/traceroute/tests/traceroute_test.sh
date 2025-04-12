@@ -125,6 +125,8 @@ start_tcpdump()
 		interface="${epsrc}b"
 	fi
 
+	rm -f "${PWD}/traceroute.pcap"
+
 	jexec trrtr daemon -p "${PWD}/tcpdump.pid" \
 	    tcpdump --immediate-mode -w "${PWD}/traceroute.pcap" -nv \
 	    -i $interface
@@ -290,6 +292,8 @@ ipv4_tcp_body()
 {
 	setup_network
 
+	start_tcpdump
+
 	# We expect the second hop to be a failure since traceroute doesn't
 	# know how to capture the RST packet.
 	atf_check -s exit:0					\
@@ -297,6 +301,12 @@ ipv4_tcp_body()
 	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
 	    -o match:"^ 2  \\*"					\
 	    jexec trsrc traceroute $TR_FLAGS -Ptcp ${LINK_TRDST_TRDST}
+
+	stop_tcpdump
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto TCP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33435: Flags \[S\]" \
+	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto TCP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33436: Flags \[S\]" \
+	    cat tcpdump.output
 }
 
 ipv4_tcp_cleanup()
@@ -319,6 +329,8 @@ ipv4_srcaddr_body()
 {
 	setup_network
 
+	start_tcpdump
+
 	atf_check -s exit:0				\
 	    -e match:"^traceroute to ${LINK_TRDST_TRDST} \\($LINK_TRDST_TRDST\\) from ${LINK_TRSRC2_TRSRC}" \
 	    -o match:"^ 1  ${LINK_TRSRC2_TRRTR}"	\
@@ -326,6 +338,12 @@ ipv4_srcaddr_body()
 	    -o not-match:"^ 3"				\
 	    jexec trsrc traceroute $TR_FLAGS		\
 	        -s ${LINK_TRSRC2_TRSRC} ${LINK_TRDST_TRDST}
+
+	stop_tcpdump
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto UDP.*\\).* ${LINK_TRSRC2_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33435: UDP" \
+	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto UDP.*\\).* ${LINK_TRSRC2_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33436: UDP" \
+	    cat tcpdump.output
 }
 
 ipv4_srcaddr_cleanup()
@@ -348,6 +366,8 @@ ipv4_srcinterface_body()
 {
 	setup_network
 
+	start_tcpdump
+
 	# Unlike -s, traceroute doesn't print 'from ...' when using -i.
 	atf_check -s exit:0					\
 	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
@@ -356,6 +376,12 @@ ipv4_srcinterface_body()
 	    -o not-match:"^ 3"					\
 	    jexec trsrc traceroute $TR_FLAGS			\
 	        -i ${epsrc2}a ${LINK_TRDST_TRDST}
+
+	stop_tcpdump
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto UDP.*\\).* ${LINK_TRSRC2_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33435: UDP" \
+	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto UDP.*\\).* ${LINK_TRSRC2_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33436: UDP" \
+	    cat tcpdump.output
 }
 
 ipv4_srcinterface_cleanup()
@@ -463,21 +489,25 @@ ipv4_firsthop_body()
 {
 	setup_network
 
-	# -f 2 means we skip the first hop
-	atf_check -s exit:0					\
-	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
-	    -o not-match:"^ 1"					\
-	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
-	    -o not-match:"^ 3"					\
-	    jexec trsrc traceroute -f2 $TR_FLAGS ${LINK_TRDST_TRDST}
+	# -f 2 means we skip the first hop.  For backward compatibility, -M is
+	# the same as -f, so test that too.
 
-	# For backward compatibility, -M is the same as -f, so test that too.
-	atf_check -s exit:0					\
-	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
-	    -o not-match:"^ 1"					\
-	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
-	    -o not-match:"^ 3"					\
-	    jexec trsrc traceroute -M2 $TR_FLAGS ${LINK_TRDST_TRDST}
+	for flag in -f2 -M2; do
+		start_tcpdump
+
+		atf_check -s exit:0					\
+		    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+		    -o not-match:"^ 1"					\
+		    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
+		    -o not-match:"^ 3"					\
+		    jexec trsrc traceroute $flag $TR_FLAGS ${LINK_TRDST_TRDST}
+
+		stop_tcpdump
+		atf_check -s exit:0 -e ignore 				\
+		    -o not-match:"^..:..:..\....... IP \\(tos 0x0, ttl 1, .*, proto UDP.*\\)" \
+		    -o match:"IP \\(tos 0x0, ttl 2, .*, proto UDP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33435: UDP" \
+		    cat tcpdump.output
+	done
 }
 
 ipv4_firsthop_cleanup()
