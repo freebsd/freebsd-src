@@ -24,7 +24,6 @@
 # -E (detect ECN bleaching)
 # -g (source routing)
 # -n (or rather, we enable -n by default and don't test without it)
-# -P (for UDP-lite)
 # -r (set SO_DONTROUTE)
 # -S (print per-hop packet loss)
 # -t (set outgoing IP ToS)
@@ -623,6 +622,42 @@ ipv4_gre_cleanup()
 }
 
 ##
+# test: ipv4_udplite
+#
+
+atf_test_case "ipv4_udplite" "cleanup"
+ipv4_udplite_head()
+{
+	atf_set descr "IPv4 UDP-Lite traceroute"
+	atf_set require.user root
+}
+
+ipv4_udplite_body()
+{
+	setup_network
+
+	start_tcpdump
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS -Pudplite ${LINK_TRDST_TRDST}
+
+	stop_tcpdump
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto unknown \(136\), .*\\).* ${LINK_TRSRC_TRSRC} > ${LINK_TRDST_TRDST}:  ip-proto-136" \
+	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto unknown \(136\), .*\\).* ${LINK_TRSRC_TRSRC} > ${LINK_TRDST_TRDST}:  ip-proto-136" \
+	    cat tcpdump.output
+}
+
+ipv4_udplite_cleanup()
+{
+	vnet_cleanup
+}
+
+##
 # test case declarations
 
 atf_init_test_cases()
@@ -632,6 +667,7 @@ atf_init_test_cases()
 	atf_add_test_case ipv4_tcp
 	atf_add_test_case ipv4_sctp
 	atf_add_test_case ipv4_gre
+	atf_add_test_case ipv4_udplite
 	atf_add_test_case ipv4_srcaddr
 	atf_add_test_case ipv4_srcinterface
 	atf_add_test_case ipv4_maxhops
