@@ -1,9 +1,11 @@
 PACKAGE=	tests
 
 TESTSDIR=	${TESTSBASE}/sys/mac/portacl
+BINDIR= 	${TESTSDIR}
 
 ${PACKAGE}FILES+=	misc.sh
 
+PROGS+=   bind
 TAP_TESTS_SH+=	nobody_test
 TAP_TESTS_SH+=	root_test
 
