@@ -658,6 +658,42 @@ ipv4_udplite_cleanup()
 }
 
 ##
+# test: ipv4_iptos
+#
+
+atf_test_case "ipv4_iptos" "cleanup"
+ipv4_iptos_head()
+{
+	atf_set descr "IPv4 traceroute with explicit ToS"
+	atf_set require.user root
+}
+
+ipv4_iptos_body()
+{
+	setup_network
+
+	start_tcpdump
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST}"			\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS -t 4 ${LINK_TRDST_TRDST}
+
+	stop_tcpdump
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x4, ttl 1, .*, proto UDP .*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33435: UDP" \
+	    -o match:"IP \\(tos 0x4, ttl 2, .*, proto UDP .*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33436: UDP" \
+	    cat tcpdump.output
+}
+
+ipv4_iptos_cleanup()
+{
+	vnet_cleanup
+}
+
+##
 # test case declarations
 
 atf_init_test_cases()
@@ -676,4 +712,5 @@ atf_init_test_cases()
 	atf_add_test_case ipv4_firsthop
 	atf_add_test_case ipv4_nprobes
 	atf_add_test_case ipv4_baseport
+	atf_add_test_case ipv4_iptos
 }
