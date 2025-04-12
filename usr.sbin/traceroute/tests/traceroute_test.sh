@@ -22,7 +22,6 @@
 # -D (print the diff between our packet and the quote in the ICMP error)
 # -E (detect ECN bleaching)
 # -n (or rather, we enable -n by default and don't test without it)
-# -r (set SO_DONTROUTE)
 # -S (print per-hop packet loss)
 # -v (verbose output)
 # -w (how long to wait for an error response)
@@ -820,6 +819,42 @@ ipv4_srcroute_cleanup()
 }
 
 ##
+# test: ipv4_dontroute
+#
+
+atf_test_case "ipv4_dontroute" "cleanup"
+ipv4_dontroute_head()
+{
+	atf_set descr "IPv4 traceroute with -r"
+	atf_set require.user root
+}
+
+ipv4_dontroute_body()
+{
+	setup_network
+
+	# This one should work as trrtr is directly connected.
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRSRC_TRRTR}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}  [0-9.]+ ms$"	\
+	    -o not-match:"^ 2"					\
+	    jexec trsrc traceroute -r $TR_FLAGS ${LINK_TRSRC_TRRTR}
+
+	# This one should fail.
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1 traceroute: wrote ${LINK_TRDST_TRDST} 40 chars, ret=-1" \
+	    jexec trsrc traceroute -r $TR_FLAGS ${LINK_TRDST_TRDST}
+}
+
+ipv4_dontroute_cleanup()
+{
+	vnet_cleanup
+}
+
+##
 # test case declarations
 
 atf_init_test_cases()
@@ -841,4 +876,5 @@ atf_init_test_cases()
 	atf_add_test_case ipv4_baseport
 	atf_add_test_case ipv4_iptos
 	atf_add_test_case ipv4_srcroute
+	atf_add_test_case ipv4_dontroute
 }
