@@ -432,6 +432,9 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 	accmode_t accmode;
 	int error;
 
+	KASSERT((fmode & O_PATH) == 0 || (fmode & O_ACCMODE) == 0,
+	    ("%s: O_PATH and O_ACCMODE are mutually exclusive", __func__));
+
 	if (vp->v_type == VLNK) {
 		if ((fmode & O_PATH) == 0 || (fmode & FEXEC) != 0)
 			return (EMLINK);
