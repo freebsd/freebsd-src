@@ -235,12 +235,39 @@ ipv4_sctp_body()
 {
 	setup_network
 
+	# For the default packet size, we should sent a SHUTDOWN ACK packet.
+
+	start_tcpdump
+
 	atf_check -s exit:0					\
 	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
 	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
 	    -o match:"^ 2  ${LINK_TRDST_TRDST} .* !P"		\
 	    -o not-match:"^ 3"					\
 	    jexec trsrc traceroute $TR_FLAGS -Psctp ${LINK_TRDST_TRDST}
+
+	stop_tcpdump
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto SCTP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33435: sctp \(1\) \[SHUTDOWN ACK\]" \
+	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto SCTP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33436: sctp \(1\) \[SHUTDOWN ACK\]" \
+	    cat tcpdump.output
+
+	# For a larger packet size we should send INIT packets.
+
+	start_tcpdump
+
+	atf_check -s exit:0					\
+	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
+	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
+	    -o match:"^ 2  ${LINK_TRDST_TRDST} .* !P"		\
+	    -o not-match:"^ 3"					\
+	    jexec trsrc traceroute $TR_FLAGS -Psctp ${LINK_TRDST_TRDST} 128
+
+	stop_tcpdump
+	atf_check -s exit:0 -e ignore 				\
+	    -o match:"IP \\(tos 0x0, ttl 1, .*, proto SCTP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33435: sctp \(1\) \[INIT\]" \
+	    -o match:"IP \\(tos 0x0, ttl 2, .*, proto SCTP.*\\).* ${LINK_TRSRC_TRSRC}.[0-9]+ > ${LINK_TRDST_TRDST}.33436: sctp \(1\) \[INIT\]" \
+	    cat tcpdump.output
 }
 
 ipv4_sctp_cleanup()
