@@ -1142,6 +1142,9 @@ malloc_usable_size(const void *addr)
 	case SLAB_COOKIE_MALLOC_LARGE:
 		size = malloc_large_size(slab);
 		break;
+	case SLAB_COOKIE_CONTIG_MALLOC:
+		size = round_page(contigmalloc_size(slab));
+		break;
 	default:
 		__assert_unreachable();
 		size = 0;
