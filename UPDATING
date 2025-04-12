@@ -13,6 +13,12 @@ Items affecting the ports and packages system can be found in
 and/or ports.
 
 20250419:
+	LinuxKPI alloc routines were changed to return physically contiguous
+	memory where expected. These changes may require out-of-tree drivers
+	to be recompiled.
+	Bump __FreeBSD_version to 1402505 to be able to detect this change.
+
+20250419:
 	Intel iwlwifi firmware has been removed from the src repository.
 	Before updating their system, users of iwlwifi(4) or iwx(4) must
 	install the appropriate firmware for their chipset using fwget(8) or
