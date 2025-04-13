@@ -83,7 +83,7 @@ si_meminfo(struct sysinfo *si)
 }
 
 void *
-linux_page_address(struct page *page)
+linux_page_address(const struct page *page)
 {
 
 	if (page->object != kernel_object) {
