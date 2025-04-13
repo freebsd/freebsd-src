@@ -165,8 +165,24 @@ linux_free_pages(struct page *page, unsigned int order)
 		for (x = 0; x != npages; x++) {
 			vm_page_t pgo = page + x;
 
-			if (vm_page_unwire_noq(pgo))
-				vm_page_free(pgo);
+			/*
+			 * The "free page" function is used in several
+			 * contexts.
+			 *
+			 * Some pages are allocated by `linux_alloc_pages()`
+			 * above, but not all of them are. For instance in the
+			 * DRM drivers, some pages come from
+			 * `shmem_read_mapping_page_gfp()`.
+			 *
+			 * That's why we need to check if the page is managed
+			 * or not here.
+			 */
+			if ((pgo->oflags & VPO_UNMANAGED) == 0) {
+				vm_page_unwire(pgo, PQ_ACTIVE);
+			} else {
+				if (vm_page_unwire_noq(pgo))
+					vm_page_free(pgo);
+			}
 		}
 	} else {
 		vm_offset_t vaddr;
@@ -183,7 +199,7 @@ linux_release_pages(struct page **pages, int nr)
 	int i;
 
 	for (i = 0; i < nr; i++)
-		put_page(pages[i]);
+		__free_page(pages[i]);
 }
 
 vm_offset_t
