@@ -86,6 +86,7 @@
 
 #define	MTAG_ABI_LKPI80211	1707696513	/* LinuxKPI 802.11 KBI */
 
+#ifdef LKPI_80211_USE_MTAG
 /*
  * Deferred RX path.
  * We need to pass *ni along (and possibly more in the future so
@@ -95,6 +96,7 @@
 struct lkpi_80211_tag_rxni {
 	struct ieee80211_node	*ni;		/* MUST hold a reference to it. */
 };
+#endif
 
 struct lkpi_radiotap_tx_hdr {
 	struct ieee80211_radiotap_header wt_ihdr;
