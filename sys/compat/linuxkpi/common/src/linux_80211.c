@@ -5650,6 +5650,7 @@ linuxkpi_ieee80211_iffree(struct ieee80211_hw *hw)
 	/* Flush mbufq (make sure to release ni refs!). */
 	m = mbufq_dequeue(&lhw->rxq);
 	while (m != NULL) {
+#ifdef LKPI_80211_USE_MTAG
 		struct m_tag *mtag;
 
 		mtag = m_tag_locate(m, MTAG_ABI_LKPI80211, LKPI80211_TAG_RXNI, NULL);
@@ -5659,6 +5660,14 @@ linuxkpi_ieee80211_iffree(struct ieee80211_hw *hw)
 			rxni = (struct lkpi_80211_tag_rxni *)(mtag + 1);
 			ieee80211_free_node(rxni->ni);
 		}
+#else
+		if (m->m_pkthdr.PH_loc.ptr != NULL) {
+			struct ieee80211_node *ni;
+
+			ni = m->m_pkthdr.PH_loc.ptr;
+			ieee80211_free_node(ni);
+		}
+#endif
 		m_freem(m);
 		m = mbufq_dequeue(&lhw->rxq);
 	}
@@ -6226,10 +6235,13 @@ static void
 lkpi_80211_lhw_rxq_rx_one(struct lkpi_hw *lhw, struct mbuf *m)
 {
 	struct ieee80211_node *ni;
+#ifdef LKPI_80211_USE_MTAG
 	struct m_tag *mtag;
+#endif
 	int ok;
 
 	ni = NULL;
+#ifdef LKPI_80211_USE_MTAG
         mtag = m_tag_locate(m, MTAG_ABI_LKPI80211, LKPI80211_TAG_RXNI, NULL);
 	if (mtag != NULL) {
 		struct lkpi_80211_tag_rxni *rxni;
@@ -6237,6 +6249,12 @@ lkpi_80211_lhw_rxq_rx_one(struct lkpi_hw *lhw, struct mbuf *m)
 		rxni = (struct lkpi_80211_tag_rxni *)(mtag + 1);
 		ni = rxni->ni;
 	}
+#else
+	if (m->m_pkthdr.PH_loc.ptr != NULL) {
+		ni = m->m_pkthdr.PH_loc.ptr;
+		m->m_pkthdr.PH_loc.ptr = NULL;
+	}
+#endif
 
 	if (ni != NULL) {
 		ok = ieee80211_input_mimo(ni, m);
@@ -6674,6 +6692,7 @@ skip_device_ts:
 
 	/* Attach meta-information to the mbuf for the deferred RX path. */
 	if (ni != NULL) {
+#ifdef LKPI_80211_USE_MTAG
 		struct m_tag *mtag;
 		struct lkpi_80211_tag_rxni *rxni;
 
@@ -6687,6 +6706,9 @@ skip_device_ts:
 		rxni = (struct lkpi_80211_tag_rxni *)(mtag + 1);
 		rxni->ni = ni;		/* We hold a reference. */
 		m_tag_prepend(m, mtag);
+#else
+		m->m_pkthdr.PH_loc.ptr = ni;	/* We hold a reference. */
+#endif
 	}
 
 	LKPI_80211_LHW_RXQ_LOCK(lhw);
