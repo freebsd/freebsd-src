@@ -4519,6 +4519,7 @@ lkpi_ic_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
         const struct ieee80211_bpf_params *params __unused)
 {
 	struct lkpi_sta *lsta;
+	int error;
 
 	lsta = ni->ni_drv_data;
 	LKPI_80211_LSTA_TXQ_LOCK(lsta);
@@ -4542,7 +4543,21 @@ lkpi_ic_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	}
 
 	/* Queue the packet and enqueue the task to handle it. */
-	mbufq_enqueue(&lsta->txq, m);
+	error = mbufq_enqueue(&lsta->txq, m);
+	if (error != 0) {
+		LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
+		/*
+		 * Free the mbuf (do NOT release ni ref for the m_pkthdr.rcvif!
+		 * ieee80211_raw_output() does that in case of error).
+		 */
+		m_free(m);
+#ifdef LINUXKPI_DEBUG_80211
+		if (linuxkpi_debug_80211 & D80211_TRACE_TX)
+			ic_printf(ni->ni_ic, "%s: mbufq_enqueue failed: %d\n",
+			    __func__, error);
+#endif
+		return (ENETDOWN);
+	}
 	taskqueue_enqueue(taskqueue_thread, &lsta->txq_task);
 	LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
 
@@ -6416,7 +6431,7 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211vap *vap;
 	struct ieee80211_hdr *hdr;
 	struct lkpi_sta *lsta;
-	int i, offset, ok;
+	int i, offset, ok, error;
 	uint8_t rssi;
 	bool is_beacon;
 
@@ -6627,7 +6642,18 @@ skip_device_ts:
 		goto err;
 	}
 
-	mbufq_enqueue(&lhw->rxq, m);
+	error = mbufq_enqueue(&lhw->rxq, m);
+	if (error != 0) {
+		LKPI_80211_LHW_RXQ_UNLOCK(lhw);
+		m_freem(m);
+		counter_u64_add(ic->ic_ierrors, 1);
+#ifdef LINUXKPI_DEBUG_80211
+		if (linuxkpi_debug_80211 & D80211_TRACE_RX)
+			ic_printf(ni->ni_ic, "%s: mbufq_enqueue failed: %d\n",
+			    __func__, error);
+#endif
+		goto err;
+	}
 	taskqueue_enqueue(taskqueue_thread, &lhw->rxq_task);
 	LKPI_80211_LHW_RXQ_UNLOCK(lhw);
 
