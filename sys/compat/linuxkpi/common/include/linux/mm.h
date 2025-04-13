@@ -184,7 +184,7 @@ get_order(unsigned long size)
  *
  * NOTE: This function only works for pages allocated by the kernel.
  */
-void *linux_page_address(struct page *);
+void *linux_page_address(const struct page *);
 #define	page_address(page) linux_page_address(page)
 
 static inline void *
