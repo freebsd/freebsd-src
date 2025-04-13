@@ -4514,9 +4514,20 @@ lkpi_ic_node_free(struct ieee80211_node *ni)
 		lhw->ic_node_free(ni);
 }
 
+/*
+ * lkpi_xmit() called from both the (*ic_raw_xmit) as well as the (*ic_transmit)
+ * call path.
+ * Unfortunately they have slightly different invariants.  See
+ * ieee80211_raw_output() and ieee80211_parent_xmitpkt().
+ * Both take care of the ni reference in case of error, and otherwise during
+ * the callback after transmit.
+ * The difference is that in case of error (*ic_raw_xmit) needs us to release
+ * the mbuf, while (*ic_transmit) will free the mbuf itself.
+ */
 static int
-lkpi_ic_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
-        const struct ieee80211_bpf_params *params __unused)
+lkpi_xmit(struct ieee80211_node *ni, struct mbuf *m,
+    const struct ieee80211_bpf_params *params __unused,
+    bool freem)
 {
 	struct lkpi_sta *lsta;
 
@@ -4533,16 +4544,24 @@ lkpi_ic_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (!lsta->txq_ready) {
 #endif
 		LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
-		/*
-		 * Free the mbuf (do NOT release ni ref for the m_pkthdr.rcvif!
-		 * ieee80211_raw_output() does that in case of error).
-		 */
-		m_free(m);
+		if (freem)
+			m_free(m);
 		return (ENETDOWN);
 	}
 
 	/* Queue the packet and enqueue the task to handle it. */
-	mbufq_enqueue(&lsta->txq, m);
+	error = mbufq_enqueue(&lsta->txq, m);
+	if (error != 0) {
+		LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
+		if (freem)
+			m_free(m);
+#ifdef LINUXKPI_DEBUG_80211
+		if (linuxkpi_debug_80211 & D80211_TRACE_TX)
+			ic_printf(ni->ni_ic, "%s: mbufq_enqueue failed: %d\n",
+			    __func__, error);
+#endif
+		return (ENETDOWN);
+	}
 	taskqueue_enqueue(taskqueue_thread, &lsta->txq_task);
 	LKPI_80211_LSTA_TXQ_UNLOCK(lsta);
 
@@ -4554,6 +4573,13 @@ lkpi_ic_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 #endif
 
 	return (0);
+}
+
+static int
+lkpi_ic_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
+        const struct ieee80211_bpf_params *params __unused)
+{
+	return (lkpi_xmit(ni, m, NULL, true));
 }
 
 #ifdef LKPI_80211_HW_CRYPTO
@@ -4914,7 +4940,7 @@ lkpi_ic_transmit(struct ieee80211com *ic, struct mbuf *m)
 	struct ieee80211_node *ni;
 
 	ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
-	return (lkpi_ic_raw_xmit(ni, m, NULL));
+	return (lkpi_xmit(ni, m, NULL, false));
 }
 
 #ifdef LKPI_80211_HT
