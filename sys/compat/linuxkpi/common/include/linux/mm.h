@@ -275,6 +275,9 @@ get_page(struct page *page)
 	vm_page_wire(page);
 }
 
+void linux_release_pages(struct page **pages, int nr);
+#define	release_pages(pages, nr) linux_release_pages((pages), (nr))
+
 extern long
 lkpi_get_user_pages(unsigned long start, unsigned long nr_pages,
     unsigned int gup_flags, struct page **);
