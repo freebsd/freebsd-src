@@ -1050,14 +1050,14 @@ vm_fault_cow(struct faultstate *fs)
 		 * Oh, well, lets copy it.
 		 */
 		pmap_copy_page(fs->m, fs->first_m);
-		vm_page_valid(fs->first_m);
 		if (fs->wired && (fs->fault_flags & VM_FAULT_WIRE) == 0) {
 			vm_page_wire(fs->first_m);
 			vm_page_unwire(fs->m, PQ_INACTIVE);
 		}
 		/*
-		 * Save the cow page to be released after
-		 * pmap_enter is complete.
+		 * Save the COW page to be released after pmap_enter is
+		 * complete.  The new copy will be marked valid when we're ready
+		 * to map it.
 		 */
 		fs->m_cow = fs->m;
 		fs->m = NULL;
@@ -1739,6 +1739,19 @@ found:
 	 */
 	if (hardfault)
 		fs.entry->next_read = vaddr + ptoa(ahead) + PAGE_SIZE;
+
+	/*
+	 * If the page to be mapped was copied from a backing object, we defer
+	 * marking it valid until here, where the fault handler is guaranteed to
+	 * succeed.  Otherwise we can end up with a shadowed, mapped page in the
+	 * backing object, which violates an invariant of vm_object_collapse()
+	 * that shadowed pages are not mapped.
+	 */
+	if (fs.m_cow != NULL) {
+		KASSERT(vm_page_none_valid(fs.m),
+		    ("vm_fault: page %p is already valid", fs.m_cow));
+		vm_page_valid(fs.m);
+	}
 
 	/*
 	 * Page must be completely valid or it is not fit to
