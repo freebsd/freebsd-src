@@ -161,6 +161,8 @@ struct lkpi_sta {
 	bool			added_to_drv;			/* Driver knows; i.e. we called ...(). */
 	bool			in_mgd;				/* XXX-BZ should this be per-vif? */
 
+	struct station_info	sinfo;				/* statistics */
+
 	/* Must be last! */
 	struct ieee80211_sta	sta __aligned(CACHE_LINE_SIZE);
 };

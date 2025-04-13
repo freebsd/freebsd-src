@@ -314,6 +314,13 @@ lkpi_80211_dump_stas(SYSCTL_HANDLER_ARGS)
 			continue;
 		}
 
+		/* If no RX_BITRATE is reported, try to fill it in from the lsta sinfo. */
+		if ((sinfo.filled & BIT_ULL(NL80211_STA_INFO_RX_BITRATE)) == 0 &&
+		    (lsta->sinfo.filled & BIT_ULL(NL80211_STA_INFO_RX_BITRATE)) != 0) {
+			memcpy(&sinfo.rxrate, &lsta->sinfo.rxrate, sizeof(sinfo.rxrate));
+			sinfo.filled |= BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
+		}
+
 		lkpi_nl80211_sta_info_to_str(&s, " nl80211_sta_info (valid fields)", sinfo.filled);
 		sbuf_printf(&s, " connected_time %u inactive_time %u\n",
 		    sinfo.connected_time, sinfo.inactive_time);
@@ -6276,15 +6283,17 @@ lkpi_80211_lhw_rxq_task(void *ctx, int pending)
 }
 
 static void
-lkpi_convert_rx_status(struct ieee80211_hw *hw,
+lkpi_convert_rx_status(struct ieee80211_hw *hw, struct lkpi_sta *lsta,
     struct ieee80211_rx_status *rx_status,
     struct ieee80211_rx_stats *rx_stats,
     uint8_t *rssip)
 {
 	struct ieee80211_supported_band *supband;
+	struct rate_info rxrate;
 	int i;
 	uint8_t rssi;
 
+	memset(&rxrate, 0, sizeof(rxrate));
 	memset(rx_stats, 0, sizeof(*rx_stats));
 	rx_stats->r_flags = IEEE80211_R_NF | IEEE80211_R_RSSI;
 	/* XXX-BZ correct hardcoded noise floor, survey data? */
@@ -6351,30 +6360,56 @@ lkpi_convert_rx_status(struct ieee80211_hw *hw,
 
 	switch (rx_status->encoding) {
 	case RX_ENC_LEGACY:
+	{
+		uint32_t legacy = 0;
+
 		supband = hw->wiphy->bands[rx_status->band];
 		if (supband != NULL)
-			rx_stats->c_rate = supband->bitrates[rx_status->rate_idx].bitrate;
+			legacy = supband->bitrates[rx_status->rate_idx].bitrate;
+		rx_stats->c_rate = legacy;
+		rxrate.legacy = legacy;
 		/* Is there a LinuxKPI way of reporting IEEE80211_RX_F_CCK / _OFDM? */
 		break;
+	}
 	case RX_ENC_HT:
 		rx_stats->c_pktflags |= IEEE80211_RX_F_HT;
-		if ((rx_status->enc_flags & RX_ENC_FLAG_SHORT_GI) != 0)
-			rx_stats->c_pktflags |= IEEE80211_RX_F_SHORTGI;
 		rx_stats->c_rate = rx_status->rate_idx;		/* mcs */
+		rxrate.flags |= RATE_INFO_FLAGS_MCS;
+		rxrate.mcs = rx_status->rate_idx;
+		if ((rx_status->enc_flags & RX_ENC_FLAG_SHORT_GI) != 0) {
+			rx_stats->c_pktflags |= IEEE80211_RX_F_SHORTGI;
+			rxrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+		}
 		break;
 	case RX_ENC_VHT:
 		rx_stats->c_pktflags |= IEEE80211_RX_F_VHT;
-		if ((rx_status->enc_flags & RX_ENC_FLAG_SHORT_GI) != 0)
-			rx_stats->c_pktflags |= IEEE80211_RX_F_SHORTGI;
 		rx_stats->c_rate = rx_status->rate_idx;		/* mcs */
 		rx_stats->c_vhtnss = rx_status->nss;
+		rxrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
+		rxrate.mcs = rx_status->rate_idx;
+		rxrate.nss = rx_status->nss;
+		if ((rx_status->enc_flags & RX_ENC_FLAG_SHORT_GI) != 0) {
+			rx_stats->c_pktflags |= IEEE80211_RX_F_SHORTGI;
+			rxrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+		}
 		break;
 	case RX_ENC_HE:
+		rxrate.flags |= RATE_INFO_FLAGS_HE_MCS;
+		rxrate.mcs = rx_status->rate_idx;
+		rxrate.nss = rx_status->nss;
+		/* XXX TODO */
+		TODO("net80211 has not matching encoding for %u", rx_status->encoding);
+		break;
 	case RX_ENC_EHT:
+		rxrate.flags |= RATE_INFO_FLAGS_EHT_MCS;
+		rxrate.mcs = rx_status->rate_idx;
+		rxrate.nss = rx_status->nss;
+		/* XXX TODO */
 		TODO("net80211 has not matching encoding for %u", rx_status->encoding);
 		break;
 	}
 
+	rxrate.bw = rx_status->bw;
 	switch (rx_status->bw) {
 	case RATE_INFO_BW_20:
 		rx_stats->c_width = IEEE80211_RX_FW_20MHZ;
@@ -6425,6 +6460,11 @@ lkpi_convert_rx_status(struct ieee80211_hw *hw,
 	if (rx_status->flag & RX_FLAG_FAILED_FCS_CRC)
 		rx_stats->c_pktflags |= IEEE80211_RX_F_FAIL_FCSCRC;
 #endif
+
+	if (lsta != NULL) {
+		memcpy(&lsta->sinfo.rxrate, &rxrate, sizeof(rxrate));
+		lsta->sinfo.filled |= BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
+	}
 }
 
 /* For %list see comment towards the end of the function. */
@@ -6527,16 +6567,6 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 no_trace_beacons:
 #endif
 
-	rssi = 0;
-	lkpi_convert_rx_status(hw, rx_status, &rx_stats, &rssi);
-
-	ok = ieee80211_add_rx_params(m, &rx_stats);
-	if (ok == 0) {
-		m_freem(m);
-		counter_u64_add(ic->ic_ierrors, 1);
-		goto err;
-	}
-
 	lsta = NULL;
 	if (sta != NULL) {
 		lsta = STA_TO_LSTA(sta);
@@ -6548,6 +6578,16 @@ no_trace_beacons:
 		ni = ieee80211_find_rxnode(ic, wh);
 		if (ni != NULL)
 			lsta = ni->ni_drv_data;
+	}
+
+	rssi = 0;
+	lkpi_convert_rx_status(hw, lsta, rx_status, &rx_stats, &rssi);
+
+	ok = ieee80211_add_rx_params(m, &rx_stats);
+	if (ok == 0) {
+		m_freem(m);
+		counter_u64_add(ic->ic_ierrors, 1);
+		goto err;
 	}
 
 	if (ni != NULL)
