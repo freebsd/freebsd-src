@@ -194,12 +194,14 @@ linux_free_pages(struct page *page, unsigned int order)
 }
 
 void
-linux_release_pages(struct page **pages, int nr)
+linux_release_pages(release_pages_arg arg, int nr)
 {
 	int i;
 
+	CTASSERT(offsetof(struct folio, page) == 0);
+
 	for (i = 0; i < nr; i++)
-		__free_page(pages[i]);
+		__free_page(arg.pages[i]);
 }
 
 vm_offset_t

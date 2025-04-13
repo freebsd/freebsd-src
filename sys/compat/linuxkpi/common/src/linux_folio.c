@@ -1,15 +1,18 @@
 /*-
- * Copyright (c) 2018 Intel Corporation
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ * Copyright (c) 2024-2025 Jean-Sébastien Pédron
+ *
+ * This software was developed by Jean-Sébastien Pédron under sponsorship
+ * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
+ * modification, are permitted provided that the following conditions
+ * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
- *    the documentation and/or other materials provided with the
- *    distribution.
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -24,48 +27,32 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_LINUXKPI_LINUX_SWAP_H_
-#define	_LINUXKPI_LINUX_SWAP_H_
+#include <linux/gfp.h>
+#include <linux/mm.h>
+#include <linux/mm_types.h>
+#include <linux/page.h>
+#include <linux/pagevec.h>
 
-#include <sys/param.h>
-#include <sys/domainset.h>
-#include <sys/queue.h>
-#include <sys/proc.h>
-#include <sys/pcpu.h>
-
-#include <vm/vm.h>
-#include <vm/swap_pager.h>
-#include <vm/vm_pageout.h>
-
-#include <linux/pagemap.h>
-#include <linux/page-flags.h>
-
-static inline long
-get_nr_swap_pages(void)
+struct folio *
+folio_alloc(gfp_t gfp, unsigned int order)
 {
-	int i, j;
+	struct page *page;
+	struct folio *folio;
 
-	/* NB: This could be done cheaply by obtaining swap_total directly */
-	swap_pager_status(&i, &j);
-	return i - j;
+	/*
+	 * Allocated pages are wired already. There is no need to increase a
+	 * refcount here.
+	 */
+	page = alloc_pages(gfp | __GFP_COMP, order);
+	folio = (struct folio *)page;
+
+	return (folio);
 }
 
-static inline int
-current_is_kswapd(void)
+void
+__folio_batch_release(struct folio_batch *fbatch)
 {
+	release_pages(fbatch->folios, folio_batch_count(fbatch));
 
-	return (curproc == pageproc);
+	folio_batch_reinit(fbatch);
 }
-
-static inline void
-folio_mark_accessed(struct folio *folio)
-{
-	mark_page_accessed(&folio->page);
-}
-
-static inline void
-check_move_unevictable_folios(struct folio_batch *fbatch)
-{
-}
-
-#endif
