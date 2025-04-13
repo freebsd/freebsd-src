@@ -278,7 +278,8 @@ get_page(struct page *page)
 static inline void
 put_page(struct page *page)
 {
-	vm_page_unwire(page, PQ_ACTIVE);
+	/* `__free_page()` takes care of the refcounting (unwire). */
+	__free_page(page);
 }
 
 void linux_release_pages(struct page **pages, int nr);
