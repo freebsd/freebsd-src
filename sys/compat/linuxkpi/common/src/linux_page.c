@@ -177,6 +177,15 @@ linux_free_pages(struct page *page, unsigned int order)
 	}
 }
 
+void
+linux_release_pages(struct page **pages, int nr)
+{
+	int i;
+
+	for (i = 0; i < nr; i++)
+		put_page(pages[i]);
+}
+
 vm_offset_t
 linux_alloc_kmem(gfp_t flags, unsigned int order)
 {
