@@ -439,7 +439,7 @@ ipv4_srcaddr_cleanup()
 atf_test_case "ipv4_srcinterface" "cleanup"
 ipv4_srcinterface_head()
 {
-	atf_set descr "IPv4 traceroute with explicit source address"
+	atf_set descr "IPv4 traceroute with explicit source interface"
 	atf_set require.user root
 }
 
