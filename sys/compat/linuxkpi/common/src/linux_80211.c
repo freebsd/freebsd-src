@@ -6447,8 +6447,12 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	uint8_t rssi;
 	bool is_beacon;
 
+	lhw = HW_TO_LHW(hw);
+	ic = lhw->ic;
+
 	if (skb->len < 2) {
 		/* Need 80211 stats here. */
+		counter_u64_add(ic->ic_ierrors, 1);
 		IMPROVE();
 		goto err;
 	}
@@ -6458,8 +6462,10 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * have an mbuf backing the skb data then?
 	 */
 	m = m_get2(skb->len, M_NOWAIT, MT_DATA, M_PKTHDR);
-	if (m == NULL)
+	if (m == NULL) {
+		counter_u64_add(ic->ic_ierrors, 1);
 		goto err;
+	}
 	m_copyback(m, 0, skb->tail - skb->data, skb->data);
 
 	shinfo = skb_shinfo(skb);
@@ -6523,9 +6529,6 @@ no_trace_beacons:
 
 	rssi = 0;
 	lkpi_convert_rx_status(hw, rx_status, &rx_stats, &rssi);
-
-	lhw = HW_TO_LHW(hw);
-	ic = lhw->ic;
 
 	ok = ieee80211_add_rx_params(m, &rx_stats);
 	if (ok == 0) {
@@ -6629,28 +6632,28 @@ skip_device_ts:
 	}
 #endif
 
-	/*
-	 * Attach meta-information to the mbuf for the deferred RX path.
-	 * Currently this is best-effort.  Should we need to be hard,
-	 * drop the frame and goto err;
-	 */
+	/* Attach meta-information to the mbuf for the deferred RX path. */
 	if (ni != NULL) {
 		struct m_tag *mtag;
 		struct lkpi_80211_tag_rxni *rxni;
 
 		mtag = m_tag_alloc(MTAG_ABI_LKPI80211, LKPI80211_TAG_RXNI,
 		    sizeof(*rxni), IEEE80211_M_NOWAIT);
-		if (mtag != NULL) {
-			rxni = (struct lkpi_80211_tag_rxni *)(mtag + 1);
-			rxni->ni = ni;		/* We hold a reference. */
-			m_tag_prepend(m, mtag);
+		if (mtag == NULL) {
+			m_freem(m);
+			counter_u64_add(ic->ic_ierrors, 1);
+			goto err;
 		}
+		rxni = (struct lkpi_80211_tag_rxni *)(mtag + 1);
+		rxni->ni = ni;		/* We hold a reference. */
+		m_tag_prepend(m, mtag);
 	}
 
 	LKPI_80211_LHW_RXQ_LOCK(lhw);
 	if (lhw->rxq_stopped) {
 		LKPI_80211_LHW_RXQ_UNLOCK(lhw);
 		m_freem(m);
+		counter_u64_add(ic->ic_ierrors, 1);
 		goto err;
 	}
 
