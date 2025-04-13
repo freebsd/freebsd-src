@@ -54,4 +54,14 @@ void linux_shmem_truncate_range(vm_object_t obj, loff_t lstart,
 #define	shmem_truncate_range(...) \
   linux_shmem_truncate_range(__VA_ARGS__)
 
+static inline struct folio *
+shmem_read_folio_gfp(vm_object_t obj, int pindex, gfp_t gfp)
+{
+	struct page *page;
+
+	page = shmem_read_mapping_page_gfp(obj, pindex, gfp);
+
+	return (page_folio(page));
+}
+
 #endif /* _LINUXKPI_LINUX_SHMEM_FS_H_ */

@@ -33,6 +33,8 @@
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
 
+struct folio_batch;
+
 #define	invalidate_mapping_pages(...) \
   linux_invalidate_mapping_pages(__VA_ARGS__)
 
