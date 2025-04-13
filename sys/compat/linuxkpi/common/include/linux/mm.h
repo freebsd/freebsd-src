@@ -275,6 +275,12 @@ get_page(struct page *page)
 	vm_page_wire(page);
 }
 
+static inline void
+put_page(struct page *page)
+{
+	vm_page_unwire(page, PQ_ACTIVE);
+}
+
 void linux_release_pages(struct page **pages, int nr);
 #define	release_pages(pages, nr) linux_release_pages((pages), (nr))
 
@@ -332,12 +338,6 @@ pin_user_pages_remote(struct task_struct *task, struct mm_struct *mm,
 {
 	return get_user_pages_remote(
 	    task, mm, start, nr_pages, gup_flags, pages, vmas);
-}
-
-static inline void
-put_page(struct page *page)
-{
-	vm_page_unwire(page, PQ_ACTIVE);
 }
 
 #define	unpin_user_page(page) put_page(page)
