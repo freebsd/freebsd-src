@@ -2725,8 +2725,9 @@ DB_SHOW_COMMAND_FLAGS(vmochk, vm_object_check, DB_CMD_MEMSAFE)
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
 		if ((object->flags & OBJ_ANON) != 0) {
 			if (object->ref_count == 0) {
-				db_printf("vmochk: internal obj has zero ref count: %ld\n",
-					(long)object->size);
+				db_printf(
+			"vmochk: internal obj has zero ref count: %lu\n",
+				    (u_long)object->size);
 			}
 			if (!vm_object_in_map(object)) {
 				db_printf(
@@ -2761,11 +2762,12 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 	if (object == NULL)
 		return;
 
-	db_iprintf(
-	    "Object %p: type=%d, size=0x%jx, res=%d, ref=%d, flags=0x%x ruid %d charge %jx\n",
+	db_iprintf("Object %p: type=%d, size=0x%jx, res=%d, ref=%d, flags=0x%x",
 	    object, (int)object->type, (uintmax_t)object->size,
-	    object->resident_page_count, object->ref_count, object->flags,
-	    object->cred ? object->cred->cr_ruid : -1, (uintmax_t)object->charge);
+	    object->resident_page_count, object->ref_count, object->flags);
+	db_iprintf(" ruid %d charge %jx\n",
+	    object->cred ? object->cred->cr_ruid : -1,
+	    (uintmax_t)object->charge);
 	db_iprintf(" sref=%d, backing_object(%d)=(%p)+0x%jx\n",
 	    atomic_load_int(&object->shadow_count),
 	    object->backing_object ? object->backing_object->ref_count : 0,
