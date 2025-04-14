@@ -1292,7 +1292,7 @@ vm_fault_allocate(struct faultstate *fs, struct pctrie_iter *pages)
 			vm_fault_unlock_and_deallocate(fs);
 			return (FAULT_FAILURE);
 		}
-		fs->m = vm_page_alloc_after(fs->object, fs->pindex,
+		fs->m = vm_page_alloc_after(fs->object, pages, fs->pindex,
 		    P_KILLED(curproc) ? VM_ALLOC_SYSTEM : 0,
 		    vm_radix_iter_lookup_lt(pages, fs->pindex));
 	}
@@ -2100,6 +2100,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map __unused,
     vm_map_entry_t dst_entry, vm_map_entry_t src_entry,
     vm_ooffset_t *fork_charge)
 {
+	struct pctrie_iter pages;
 	vm_object_t backing_object, dst_object, object, src_object;
 	vm_pindex_t dst_pindex, pindex, src_pindex;
 	vm_prot_t access, prot;
@@ -2176,6 +2177,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map __unused,
 	 * with the source object, all of its pages must be dirtied,
 	 * regardless of whether they can be written.
 	 */
+	vm_page_iter_init(&pages, dst_object);
 	mpred = (src_object == dst_object) ?
 	   vm_page_mpred(src_object, src_pindex) : NULL;
 	for (vaddr = dst_entry->start, dst_pindex = 0;
@@ -2220,14 +2222,15 @@ again:
 			 */
 			pindex = (src_object == dst_object ? src_pindex : 0) +
 			    dst_pindex;
-			dst_m = vm_page_alloc_after(dst_object, pindex,
+			dst_m = vm_page_alloc_after(dst_object, &pages, pindex,
 			    VM_ALLOC_NORMAL, mpred);
 			if (dst_m == NULL) {
 				VM_OBJECT_WUNLOCK(dst_object);
 				VM_OBJECT_RUNLOCK(object);
 				vm_wait(dst_object);
 				VM_OBJECT_WLOCK(dst_object);
-				mpred = vm_page_mpred(dst_object, pindex);
+				pctrie_iter_reset(&pages);
+				mpred = vm_radix_iter_lookup_lt(&pages, pindex);
 				goto again;
 			}
 
@@ -2249,8 +2252,11 @@ again:
 			VM_OBJECT_RUNLOCK(object);
 		} else {
 			dst_m = src_m;
-			if (vm_page_busy_acquire(dst_m, VM_ALLOC_WAITFAIL) == 0)
+			if (vm_page_busy_acquire(
+			    dst_m, VM_ALLOC_WAITFAIL) == 0) {
+				pctrie_iter_reset(&pages);
 				goto again;
+			}
 			if (dst_m->pindex >= dst_object->size) {
 				/*
 				 * We are upgrading.  Index can occur

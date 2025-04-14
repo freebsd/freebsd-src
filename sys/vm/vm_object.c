@@ -2275,19 +2275,21 @@ void
 vm_object_prepare_buf_pages(vm_object_t object, vm_page_t *ma_dst, int count,
     int *rbehind, int *rahead, vm_page_t *ma_src)
 {
+	struct pctrie_iter pages;
 	vm_pindex_t pindex;
 	vm_page_t m, mpred, msucc;
 
+	vm_page_iter_init(&pages, object);
 	VM_OBJECT_ASSERT_LOCKED(object);
 	if (*rbehind != 0) {
 		m = ma_src[0];
 		pindex = m->pindex;
-		mpred = TAILQ_PREV(m, pglist, listq);
+		mpred = vm_radix_iter_lookup_lt(&pages, pindex);
 		*rbehind = MIN(*rbehind,
 		    pindex - (mpred != NULL ? mpred->pindex + 1 : 0));
 		/* Stepping backward from pindex, mpred doesn't change. */
 		for (int i = 0; i < *rbehind; i++) {
-			m = vm_page_alloc_after(object, pindex - i - 1,
+			m = vm_page_alloc_after(object, &pages, pindex - i - 1,
 			    VM_ALLOC_NORMAL, mpred);
 			if (m == NULL) {
 				/* Shift the array. */
@@ -2305,12 +2307,12 @@ vm_object_prepare_buf_pages(vm_object_t object, vm_page_t *ma_dst, int count,
 	if (*rahead != 0) {
 		m = ma_src[count - 1];
 		pindex = m->pindex + 1;
-		msucc = TAILQ_NEXT(m, listq);
+		msucc = vm_radix_iter_lookup_ge(&pages, pindex);
 		*rahead = MIN(*rahead,
 		    (msucc != NULL ? msucc->pindex : object->size) - pindex);
 		mpred = m;
 		for (int i = 0; i < *rahead; i++) {
-			m = vm_page_alloc_after(object, pindex + i,
+			m = vm_page_alloc_after(object, &pages, pindex + i,
 			    VM_ALLOC_NORMAL, mpred);
 			if (m == NULL) {
 				*rahead = i;

@@ -1935,9 +1935,10 @@ swap_pager_swapoff_object(struct swdevt *sp, vm_object_t object,
 				if (!vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL))
 					break;
 			} else {
-				m = vm_radix_iter_lookup_le(&pages,
+				m = vm_radix_iter_lookup_lt(&pages,
 				    blks.index + i);
-				m = vm_page_alloc_after(object, blks.index + i,
+				m = vm_page_alloc_after(
+				    object, &pages, blks.index + i,
 				    VM_ALLOC_NORMAL | VM_ALLOC_WAITFAIL, m);
 				if (m == NULL)
 					break;
