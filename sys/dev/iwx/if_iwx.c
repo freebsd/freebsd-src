@@ -10022,12 +10022,11 @@ out:
 const struct iwx_device_cfg *
 iwx_find_device_cfg(struct iwx_softc *sc)
 {
-	uint16_t mac_type, rf_type;
+	uint16_t sdev_id, mac_type, rf_type;
 	uint8_t mac_step, cdb, jacket, rf_id, no_160, cores;
 	int i;
-	uint16_t sdev_id;
 
-	sdev_id = pci_get_device(sc->sc_dev);
+	sdev_id = pci_get_subdevice(sc->sc_dev);
 	mac_type = IWX_CSR_HW_REV_TYPE(sc->sc_hw_rev);
 	mac_step = IWX_CSR_HW_REV_STEP(sc->sc_hw_rev << 2);
 	rf_type = IWX_CSR_HW_RFID_TYPE(sc->sc_hw_rf_id);
