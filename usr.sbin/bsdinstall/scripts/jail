@@ -53,6 +53,64 @@ error() {
 	fi
 }
 
+distbase() {
+	test ! -d $BSDINSTALL_DISTDIR && mkdir -p $BSDINSTALL_DISTDIR
+
+	if [ ! -f $BSDINSTALL_DISTDIR/MANIFEST -a -z "$BSDINSTALL_DISTSITE" ]; then
+		exec 5>&1
+		BSDINSTALL_DISTSITE=$(`dirname $0`/mirrorselect 2>&1 1>&5)
+		MIRROR_BUTTON=$?
+		exec 5>&-
+		test $MIRROR_BUTTON -eq 0 || error "No mirror selected"
+		export BSDINSTALL_DISTSITE
+		fetch -o $BSDINSTALL_DISTDIR/MANIFEST $BSDINSTALL_DISTSITE/MANIFEST || error "Could not download $BSDINSTALL_DISTSITE/MANIFEST"
+	fi
+
+	: ${DISTRIBUTIONS="base.txz"}; export DISTRIBUTIONS
+	if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
+		DISTMENU=`cut -f 4,5,6 $BSDINSTALL_DISTDIR/MANIFEST | grep -v -e ^kernel -e ^base`
+
+		if [ ! "$nonInteractive" == "YES" ]
+		then
+			exec 5>&1
+			EXTRA_DISTS=$(echo $DISTMENU | xargs -o bsddialog \
+			    --backtitle "$OSNAME Installer" \
+			    --title "Distribution Select" --no-cancel \
+			    --separate-output \
+			    --checklist "Choose optional system components to install:" \
+			    0 0 0 \
+			    2>&1 1>&5)
+			for dist in $EXTRA_DISTS; do
+				export DISTRIBUTIONS="$DISTRIBUTIONS $dist.txz"
+			done
+		fi
+	fi
+
+	FETCH_DISTRIBUTIONS=""
+	for dist in $DISTRIBUTIONS; do
+		if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
+			FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
+		fi
+	done
+	FETCH_DISTRIBUTIONS=`echo $FETCH_DISTRIBUTIONS`	# Trim white space
+
+	if [ -n "$FETCH_DISTRIBUTIONS" -a -z "$BSDINSTALL_DISTSITE" ]; then
+		exec 5>&1
+		BSDINSTALL_DISTSITE=$(`dirname $0`/mirrorselect 2>&1 1>&5)
+		MIRROR_BUTTON=$?
+		exec 5>&-
+		test $MIRROR_BUTTON -eq 0 || error "No mirror selected"
+		export BSDINSTALL_DISTSITE
+	fi
+
+	if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
+		bsdinstall distfetch || error "Failed to fetch distribution"
+	fi
+
+	bsdinstall checksum || error "Distribution checksum failed"
+	bsdinstall distextract || error "Distribution extract failed"
+}
+
 if [ -z "$1" ]; then
 	error "Directory can not be empty\n\nUsage:\nbsdinstall jail directory"
 fi
@@ -73,60 +131,20 @@ if [ -n "$SCRIPT" ]; then
 	. $TMPDIR/bsdinstall-installscript-preamble
 fi
 
-test ! -d $BSDINSTALL_DISTDIR && mkdir -p $BSDINSTALL_DISTDIR
-
-if [ ! -f $BSDINSTALL_DISTDIR/MANIFEST -a -z "$BSDINSTALL_DISTSITE" ]; then
-	exec 5>&1
-	BSDINSTALL_DISTSITE=$(`dirname $0`/mirrorselect 2>&1 1>&5)
-	MIRROR_BUTTON=$?
-	exec 5>&-
-	test $MIRROR_BUTTON -eq 0 || error "No mirror selected"
-	export BSDINSTALL_DISTSITE
-	fetch -o $BSDINSTALL_DISTDIR/MANIFEST $BSDINSTALL_DISTSITE/MANIFEST || error "Could not download $BSDINSTALL_DISTSITE/MANIFEST"
-fi
-
-: ${DISTRIBUTIONS="base.txz"}; export DISTRIBUTIONS
-if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
-	DISTMENU=`cut -f 4,5,6 $BSDINSTALL_DISTDIR/MANIFEST | grep -v -e ^kernel -e ^base`
-
-    if [ ! "$nonInteractive" == "YES" ]
-    then
-	    exec 5>&1
-	    EXTRA_DISTS=$(echo $DISTMENU | xargs -o bsddialog \
-	        --backtitle "$OSNAME Installer" \
-	        --title "Distribution Select" --no-cancel --separate-output \
-	        --checklist "Choose optional system components to install:" \
-	        0 0 0 \
-	    2>&1 1>&5)
-	    for dist in $EXTRA_DISTS; do
-	    	export DISTRIBUTIONS="$DISTRIBUTIONS $dist.txz"
-	    done
-    fi
-fi
-
-FETCH_DISTRIBUTIONS=""
-for dist in $DISTRIBUTIONS; do
-	if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
-		FETCH_DISTRIBUTIONS="$FETCH_DISTRIBUTIONS $dist"
+if [ ! "$nonInteractive" == "YES" ]; then
+	bsddialog --backtitle "$OSNAME Installer" --title "Select Installation Type" \
+	    --yes-label "Traditional" --no-label "Packages (Experimental)" --yesno \
+	    "Would you like to install the base system using traditional distribution sets or packages (experimental)?" 0 0
+	if [ $? -eq 1 ]; then
+		PKGBASE=yes
 	fi
-done
-FETCH_DISTRIBUTIONS=`echo $FETCH_DISTRIBUTIONS`	# Trim white space
-
-if [ -n "$FETCH_DISTRIBUTIONS" -a -z "$BSDINSTALL_DISTSITE" ]; then
-	exec 5>&1
-	BSDINSTALL_DISTSITE=$(`dirname $0`/mirrorselect 2>&1 1>&5)
-	MIRROR_BUTTON=$?
-	exec 5>&-
-	test $MIRROR_BUTTON -eq 0 || error "No mirror selected"
-	export BSDINSTALL_DISTSITE
 fi
 
-if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
-	bsdinstall distfetch || error "Failed to fetch distribution"
+if [ "$PKGBASE" == yes ]; then
+	bsdinstall pkgbase --no-kernel || error "Installation of base system packages failed"
+else
+	distbase
 fi
-
-bsdinstall checksum || error "Distribution checksum failed"
-bsdinstall distextract || error "Distribution extract failed"
 
 if [ ! "$nonInteractive" == "YES" ]
 then
