@@ -765,33 +765,6 @@ while [ $# -gt 0 ]; do
 		fi
 
 		#
-		# If `-c' is passed, simply compare and move on
-		#
-		if [ "$CHECK_ONLY" ]; then
-			if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
-				status=$FAILURE
-				[ "$VERBOSE" ] &&
-					echo "$NAME: not currently set"
-				shift 1
-				continue
-			fi
-			value=$( f_sysrc_get "$NAME" )
-			if [ "$value" != "${1#*=}" ]; then
-				status=$FAILURE
-				if [ "$VERBOSE" ]; then
-					echo -n "$( f_sysrc_find "$NAME" ): "
-					echo -n "$NAME: would change from "
-					echo "\`$value' to \`${1#*=}'"
-				fi
-			elif [ "$VERBOSE" ]; then
-				echo -n "$( f_sysrc_find "$NAME" ): "
-				echo "$NAME: already set to \`$value'"
-			fi
-			shift 1
-			continue
-		fi
-
-		#
 		# Determine both `before' value and appropriate `new' value
 		#
 		case "$mode" in
@@ -847,6 +820,31 @@ while [ $# -gt 0 ]; do
 			fi
 			new="${1#*=}"
 		esac
+
+		#
+		# If `-c' is passed, simply compare and move on
+		#
+		if [ "$CHECK_ONLY" ]; then
+			if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
+				status=$FAILURE
+				[ "$VERBOSE" ] &&
+					echo "$NAME: not currently set"
+				shift 1
+				continue
+			elif [ "$new" != "$before" ]; then
+				status=$FAILURE
+				if [ "$VERBOSE" ]; then
+					echo -n "$( f_sysrc_find "$NAME" ): "
+					echo -n "$NAME: would change from "
+					echo "\`$before' to \`$new'"
+				fi
+			elif [ "$VERBOSE" ]; then
+				echo -n "$( f_sysrc_find "$NAME" ): "
+				echo "$NAME: already set to \`$before'"
+			fi
+			shift 1
+			continue
+		fi
 
 		#
 		# If `-N' is passed, simplify the output
