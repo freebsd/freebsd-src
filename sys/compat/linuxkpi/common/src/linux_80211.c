@@ -4059,12 +4059,8 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	 * Modern chipset/fw/drv will do A-MPDU in drv/fw and fail
 	 * to do so if they cannot do the crypto too.
 	 */
-	if (!lkpi_hwcrypto && ieee80211_hw_check(hw, AMPDU_AGGREGATION))
+	if (!lkpi_hwcrypto && IEEE80211_CONF_AMPDU_OFFLOAD(ic))
 		vap->iv_flags_ht &= ~IEEE80211_FHT_AMPDU_RX;
-#endif
-#if defined(LKPI_80211_HT)
-	/* 20250125-BZ Keep A-MPDU TX cleared until we sorted out AddBA for all drivers. */
-	vap->iv_flags_ht &= ~IEEE80211_FHT_AMPDU_TX;
 #endif
 
 	if (hw->max_listen_interval == 0)
@@ -6608,6 +6604,14 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	/* Does HW support Fragmentation offload? */
 	if (ieee80211_hw_check(hw, SUPPORTS_TX_FRAG))
 		ic->ic_flags_ext |= IEEE80211_FEXT_FRAG_OFFLOAD;
+
+	/* Does HW support full AMPDU[-TX] offload? */
+	if (ieee80211_hw_check(hw, AMPDU_AGGREGATION))
+		ic->ic_flags_ext |= IEEE80211_FEXT_AMPDU_OFFLOAD;
+#ifdef __notyet__
+	if (ieee80211_hw_check(hw, TX_AMSDU))
+	if (ieee80211_hw_check(hw, SUPPORTS_AMSDU_IN_AMPDU))
+#endif
 
 	/*
 	 * The wiphy variables report bitmasks of avail antennas.
