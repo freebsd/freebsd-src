@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 17, 2021
+.Dd April 13, 2025
 .Dt AHCI 4
 .Os
 .Sh NAME
@@ -149,12 +149,21 @@ statuses in some way (IBPI standard) to report them using present indicators.
 .Sh HARDWARE
 The
 .Nm
-driver supports AHCI compatible controllers having PCI class 1 (mass storage),
-subclass 6 (SATA) and programming interface 1 (AHCI).
+driver supports the following AHCI compatible controllers:
+.Bl -column "Legacy-PATA + AHCI-SATA via ata(4)" "Programming Interface 0x01"
+.It Type: Ta Code:
+.It Mass Storage Ta PCI Class 0x01
+.It SATA Ta Subclass 0x06
+.It AHCI Ta Programming Interface 0x01
+.It Legacy-PATA + AHCI-SATA via ata(4) Ta Programming Interface 0x01
+.El
 .Pp
-Also, in cooperation with atamarvell and atajmicron drivers of ata(4),
-it supports AHCI part of legacy-PATA + AHCI-SATA combined controllers,
-such as JMicron JMB36x and Marvell 88SE61xx.
+Examples of supported legacy-PATA + AHCI-SATA combined controllers via ata(4):
+.Bl -column "Marvell 88SE61XX" "atamarvell"
+.It Models: Ta Driver:
+.It JMicron JMB36X  Ta atajmicron
+.It Marvell 88SE61XX Ta atamarvell
+.El
 .Pp
 The
 .Nm
