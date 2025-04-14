@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 2009-2020 Alexander Motin <mav@FreeBSD.org>
 .\" Copyright (c) 2006 Marcus Alves Grando
 .\" Copyright (c) 1998-2001 Matthew Jacob, for NASA/Ames Research Center
@@ -24,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 10, 2024
+.Dd April 8, 2025
 .Dt ISP 4
 .Os
 .Sh NAME
@@ -79,6 +82,23 @@ the tape drive.
 FC-Tape is automatically enabled when connecting controller that supports
 it to a target that supports it.
 It may be disabled using configuration and hint options described below.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following optical Fibre Chanel adapters:
+.Bl -column "Qlogic 2690/2692/2694 (2684/2692)" "Speed" "PCI-X"
+.It Model: Ta Speed: Ta Bus:
+.It Qlogic QLE2874 (2814) Ta 64Gb Ta PCIe
+.It Qlogic QLE2870/QLE2872 (2812) Ta 64Gb Ta PCIe
+.It Qlogic QLE2774 (2814) Ta 32Gb Ta PCIe
+.It Qlogic QLE2770/QLE2772 (2812) Ta 32Gb Ta PCIe
+.It Qlogic 2740/2742/2764 (2722/2714) Ta 32Gb Ta PCIe
+.It Qlogic 2690/2692/2694 (2684/2692) Ta 16Gb Ta PCIe
+.It Qlogic 267x/836x (2031/8031) FCoE Ta 16Gb Ta PCIe
+.It Qlogic 256x (2532) Ta 8Gb Ta PCIe
+.It Qlogic 246x (2432) Ta 4Gb Ta PCIe
+.It Qlogic 2422 Ta 4Gb Ta PCI-X
+.El
 .Sh FIRMWARE
 Firmware loading is supported and handled by
 .Xr firmware 9 .
@@ -89,32 +109,6 @@ module.
 It is strongly recommended that you use the firmware available from
 .Xr ispfw 4
 as it is the one that most likely has been tested with this driver.
-.Sh HARDWARE
-Cards supported by the
-.Nm
-driver include:
-.Bl -tag -width xxxxxx -offset indent
-.It Qlogic 2422
-Optical 4Gb Fibre Channel PCI-X cards.
-.It Qlogic 246x (aka 2432)
-Optical 4Gb Fibre Channel PCIe cards.
-.It Qlogic 256x (aka 2532)
-Optical 8Gb Fibre Channel PCIe cards.
-.It Qlogic 267x/836x (aka 2031/8031)
-Optical 16Gb FC/FCoE PCIe cards.
-.It Qlogic 2690/2692/2694 (aka 2684/2692)
-Optical 16Gb Fibre Channel PCIe cards.
-.It Qlogic 2740/2742/2764 (aka 2722/2714)
-Optical 32Gb Fibre Channel PCIe cards.
-.It Qlogic QLE2770/QLE2772 (aka 2812)
-Optical 32Gb Fibre Channel PCIe cards.
-.It Qlogic QLE2774 (aka 2814)
-Optical 32Gb Fibre Channel PCIe cards.
-.It Qlogic QLE2870/QLE2872 (aka 2812)
-Optical 64Gb Fibre Channel PCIe cards.
-.It Qlogic QLE2874 (aka 2814)
-Optical 64Gb Fibre Channel PCIe cards.
-.El
 .Sh CONFIGURATION OPTIONS
 Target mode support for Fibre Channel adapters may be enabled with the
 .Pp
