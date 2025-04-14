@@ -330,6 +330,7 @@ MALLOC_DECLARE(M_PFHASH);
 MALLOC_DECLARE(M_PF_RULE_ITEM);
 
 SDT_PROVIDER_DECLARE(pf);
+SDT_PROBE_DECLARE(pf, , test, reason_set);
 
 struct pfi_dynaddr {
 	TAILQ_ENTRY(pfi_dynaddr)	 entry;
@@ -1759,6 +1760,7 @@ struct pf_sctp_multihome_job {
 
 #define REASON_SET(a, x) \
 	do { \
+		SDT_PROBE2(pf, , test, reason_set, x, __LINE__); \
 		if ((a) != NULL) \
 			*(a) = (x); \
 		if (x < PFRES_MAX) \
