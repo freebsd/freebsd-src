@@ -1219,6 +1219,8 @@
         ..
         syslogd
         ..
+        sysrc
+        ..
         traceroute
         ..
     ..
