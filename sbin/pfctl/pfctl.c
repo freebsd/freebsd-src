@@ -1452,7 +1452,6 @@ pfctl_show_nat(int dev, const char *path, int opts, char *anchorname, int depth,
 		}
 		mnr = prs.nr;
 
-		pfctl_print_rule_counters(&rule, opts);
 		for (nr = 0; nr < mnr; ++nr) {
 			prs.nr = nr;
 			if (ioctl(dev, DIOCGETRULESET, &prs))
