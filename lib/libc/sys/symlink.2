@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)symlink.2	8.1 (Berkeley) 6/4/93
 .\"
-.Dd March 30, 2020
+.Dd April 15, 2025
 .Dt SYMLINK 2
 .Os
 .Sh NAME
@@ -94,6 +94,10 @@ or the entire length of either path name exceeded 1023 characters.
 A component of the
 .Fa name2
 path prefix does not exist.
+.It Bq Er EOPNOTSUPP
+The file system containing the file named by
+.Fa name2
+does not support symbolic links.
 .It Bq Er EACCES
 A component of the
 .Fa name2
