@@ -120,6 +120,7 @@
 #define	DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
 
 SDT_PROVIDER_DEFINE(pf);
+SDT_PROBE_DEFINE2(pf, , test, reason_set, "int", "int");
 SDT_PROBE_DEFINE4(pf, ip, test, done, "int", "int", "struct pf_krule *",
     "struct pf_kstate *");
 SDT_PROBE_DEFINE5(pf, ip, state, lookup, "struct pfi_kkif *",
