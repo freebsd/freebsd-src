@@ -541,6 +541,7 @@ end
 function menu.autoboot(delay)
 	local x = loader.getenv("loader_menu_timeout_x") or 4
 	local y = loader.getenv("loader_menu_timeout_y") or 24
+	local autoboot_show = loader.getenv("loader_autoboot_show") or "yes"
 	local endtime = loader.time() + delay
 	local time
 	local last
@@ -548,10 +549,12 @@ function menu.autoboot(delay)
 		time = endtime - loader.time()
 		if last == nil or last ~= time then
 			last = time
-			screen.setcursor(x, y)
-			printc("Autoboot in " .. time ..
-			    " seconds. [Space] to pause ")
-			screen.defcursor()
+			if autoboot_show == "yes" then
+			   screen.setcursor(x, y)
+			   printc("Autoboot in " .. time ..
+				  " seconds. [Space] to pause ")
+			   screen.defcursor()
+			end
 		end
 		if io.ischar() then
 			local ch = io.getchar()
