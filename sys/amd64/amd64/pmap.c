@@ -295,7 +295,7 @@ ptpage_radix_is_empty(struct ptpage_radix *rtree)
 	return (vm_radix_is_empty((struct vm_radix *)rtree));
 }
 
-#if 0
+#if 1
 static __inline pt_entry_t
 pte_load_datapg(pt_entry_t *ptep)
 {
@@ -377,8 +377,7 @@ pmap_pt_page_array_mark(void)
 	    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);
 }
 
-#if 0
-  unused
+#if 1
 static __inline pt_entry_t
 pte_load_datapg(pt_entry_t *ptep)
 {
@@ -1924,24 +1923,18 @@ pmap_resident_count_adj(pmap_t pmap, int count)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-/* CHUQ fix resident_count later. */
-#if 0
 	KASSERT(pmap->pm_stats.resident_count + count >= 0,
 	    ("pmap %p resident count underflow %ld %d", pmap,
 	    pmap->pm_stats.resident_count, count));
-#endif
 	pmap->pm_stats.resident_count += count;
 }
 
 static __inline void
 pmap_pt_page_count_pinit(pmap_t pmap, int count)
 {
-/* CHUQ fix resident_count later. */
-#if 0
 	KASSERT(pmap->pm_stats.resident_count + count >= 0,
 	    ("pmap %p resident count underflow %ld %d", pmap,
 	    pmap->pm_stats.resident_count, count));
-#endif
 	pmap->pm_stats.resident_count += count;
 }
 
@@ -1951,8 +1944,20 @@ pmap_pt_page_count_adj(pmap_t pmap, int count)
 	if (pmap == kernel_pmap)
 		counter_u64_add(kernel_pt_page_count, count);
 	else {
+#if 0
+		/*
+		 * XXX CHUQ do not include pt pages in resident count for now.
+		 * I changed the code to always free pt pages via
+		 * pmap_free_pt_page() and never by calling vm_page_free()
+		 * directly, but that doesn't work due to locking
+		 * which is why the previous code called this function
+		 * separately and freeing pt pages via vm_page_free_pages_toq().
+		 * sort all this out later and just don't count pt pages
+		 * toward resident_count for now.
+		 */
 		if (pmap != NULL)
 			pmap_resident_count_adj(pmap, count);
+#endif
 		counter_u64_add(user_pt_page_count, count);
 	}
 }
@@ -4883,6 +4888,7 @@ pmap_alloc_pt_page(pmap_t pmap, vm_pindex_t pindex, int flags)
 	vm_page_t m;
 	int i;
 
+/* CHUQ for now just use a whole vm_page for a ptpage */
 #define PTPAGE_WHOLE_PAGE 1
 
 #ifdef PTPAGE_WHOLE_PAGE
@@ -5122,8 +5128,10 @@ pmap_ptpage_slist_free(struct ptpglist *ptpgl, bool update_wire_count)
 	ptpage_t ptp;
 	pmap_t pmap;
 
-	/* CHUQ XXX can't take PMAP_LOCK here, it's already held in
-	   pmap_enter_pde() and pmap_enter_2mpage(). */
+	/*
+	 * XXX CHUQ we can't take PMAP_LOCK here, it's already held in
+	 * pmap_enter_pde() and pmap_enter_2mpage().
+	 */
 	while ((ptp = SLIST_FIRST(ptpgl)) != NULL) {
 		SLIST_REMOVE_HEAD(ptpgl, ss);
 		pmap = ptp->pmap;
@@ -5710,12 +5718,9 @@ pmap_release(pmap_t pmap)
 	    (cpu_stdext_feature2 & CPUID_STDEXT2_PKU) != 0)
 		rangeset_fini(&pmap->pm_pkru);
 
-/* CHUQ fix resident_count later. */
-#if 0
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap %p resident count %ld != 0",
 	    pmap, pmap->pm_stats.resident_count));
-#endif
 }
 
 static int
@@ -7261,8 +7266,6 @@ pmap_remove1(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, bool map_delete)
 	PG_G = pmap_global_bit(pmap);
 	PG_V = pmap_valid_bit(pmap);
 
-#if 0
-	/* CHUQ XXX disable this until I fix resident_count. aaaaaaaaaaa */
 	/*
 	 * If there are no resident pages besides the top level page
 	 * table page(s), there is nothing to do.  Kernel pmap always
@@ -7273,7 +7276,6 @@ pmap_remove1(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, bool map_delete)
 	if (pmap->pm_stats.resident_count <= 1 + (pmap->pm_pmltopu != NULL ?
 	    1 : 0))
 		return;
-#endif
 
 	anyvalid = 0;
 	SLIST_INIT(&free);
@@ -7298,11 +7300,8 @@ pmap_remove1(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, bool map_delete)
 
 	lock = NULL;
 	for (; sva < eva; sva = va_next) {
-#if 0
-	/* CHUQ XXX disable this until I fix resident_count. aaaaaaaaaaa */
 		if (pmap->pm_stats.resident_count == 0)
 			break;
-#endif
 
 		if (pmap_is_la57(pmap)) {
 			pml5e = pmap_pml5e(pmap, sva);
@@ -9120,7 +9119,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	printf("CHUQ %d %s dp %p sp %p dva 0x%lx sva 0x%lx len 0x%lx\n",
 	       TID, __func__, dst_pmap, src_pmap, dst_addr, src_addr, len);
 
-	/* CHUQ XXX this function is allowed to be a nop so put off fixing the bug here. */
+	/* XXX CHUQ this function is allowed to be a nop so put off fixing the bug here. */
 	if (chuq_skipcopy)
 		return;
 
@@ -9692,7 +9691,7 @@ pmap_remove_pages(pmap_t pmap)
 				 * processors, the dirty bit cannot have
 				 * changed state since we last loaded pte.
 				 */
-				/* CHUQ XXX this is a data page if !superpage. */
+				/* CHUQ this is a data page if !superpage. */
 				if (superpage) {
 					pte_clear(pte);
 					pa = tpte & PG_PS_FRAME;
@@ -10338,7 +10337,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 			 * underlying page table page is fully populated, this
 			 * removal never frees a page table page.
 			 */
-			/* CHUQ XXX this should remove all ptes for the datapg */
+			/* XXX CHUQ this should remove all ptes for the datapg */
 			if ((oldpde & PG_W) == 0) {
 				va = eva;
 				if (va > va_next)
@@ -10359,7 +10358,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 		if (va_next > eva)
 			va_next = eva;
 		va = va_next;
-		/* CHUQ XXX this should look at all the ptes, not just the first in a datapg */
+		/* XXX CHUQ this should look at all the ptes, not just the first in a datapg */
 		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next;
 		    pte += PAGE_SIZE_PTES, sva += PAGE_SIZE) {
 			if ((*pte & (PG_MANAGED | PG_V)) != (PG_MANAGED | PG_V))
@@ -10481,8 +10480,7 @@ restart:
 		KASSERT((*pde & PG_PS) == 0, ("pmap_clear_modify: found"
 		    " a 2mpage in page %p's pv list", m));
 		pte = pmap_pde_to_pte(pde, pv->pv_va);
-		/* CHUQ XXX this should look at all the ptes, not just the first in a datapg */
-		if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+		if ((pte_load_datapg(pte) & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 			atomic_clear_long_datapg(pte, PG_M);
 			pmap_invalidate_page_datapg(pmap, pv->pv_va);
 		}
@@ -11195,8 +11193,13 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 					    PDRMASK)) & PG_FRAME;
 					val = MINCORE_PSIND(1);
 				} else {
-					/* CHUQ XXX need to load M/A/RW bits from all ptes */
+					/* XXX CHUQ need to load M/A/RW bits from all ptes */
+#if 0
+					/* CHUQ this should be right but trips over a different XXX */
+					pte = pte_load_datapg(pmap_pde_to_pte(pdep, addr));
+#else
 					pte = *pmap_pde_to_pte(pdep, addr);
+#endif
 					pa = pte & PG_FRAME;
 					val = 0;
 				}
