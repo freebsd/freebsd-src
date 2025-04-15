@@ -214,7 +214,7 @@ main(int argc, char *argv[])
 		 * Case (1).  Target is not a directory.
 		 */
 		if (argc > 1)
-			errx(1, "%s is not a directory", to.p_path);
+			errc(1, ENOTDIR, "%s", to.p_path);
 
 		/*
 		 * Need to detect the case:
@@ -237,17 +237,17 @@ main(int argc, char *argv[])
 			type = FILE_TO_FILE;
 
 		if (have_trailing_slash && type == FILE_TO_FILE) {
-			if (r == -1) {
-				errx(1, "directory %s does not exist",
-				    to.p_path);
-			} else
-				errx(1, "%s is not a directory", to.p_path);
+			if (r == -1)
+				errc(1, ENOENT, "%s", to.p_path);
+			else
+				errc(1, ENOTDIR, "%s", to.p_path);
 		}
-	} else
+	} else {
 		/*
 		 * Case (2).  Target is a directory.
 		 */
 		type = FILE_TO_DIR;
+	}
 
 	/*
 	 * For DIR_TO_DNE, we could provide copy() with the to_stat we've
@@ -339,8 +339,8 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 					base = (p == NULL) ? 0 :
 					    (int)(p - curr->fts_path + 1);
 
-					if (!strcmp(&curr->fts_path[base],
-					    ".."))
+					if (strcmp(curr->fts_path + base, "..")
+					    == 0)
 						base += 1;
 				} else
 					base = curr->fts_pathlen;
