@@ -406,8 +406,7 @@ pfr_buf_clear(struct pfr_buffer *b)
 {
 	if (b == NULL)
 		return;
-	if (b->pfrb_caddr != NULL)
-		free(b->pfrb_caddr);
+	free(b->pfrb_caddr);
 	b->pfrb_caddr = NULL;
 	b->pfrb_size = b->pfrb_msize = 0;
 }
