@@ -361,6 +361,46 @@ nat_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "include" "cleanup"
+include_head()
+{
+	atf_set descr 'Test including inside anchors'
+	atf_set require.user root
+}
+
+include_body()
+{
+	pft_init
+
+	wd=`pwd`
+
+	epair=$(vnet_mkepair)
+	vnet_mkjail alcatraz ${epair}a
+
+	ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+
+	echo "pass" > ${wd}/extra.conf
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "block" \
+	    "anchor \"foo\" {\n\
+	        include \"${wd}/extra.conf\"\n\
+	    }"
+
+	jexec alcatraz pfctl -sr
+
+	atf_check -s exit:0 -o ignore ping -c 1 192.0.2.1
+}
+
+include_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "pr183198"
@@ -372,4 +412,5 @@ atf_init_test_cases()
 	atf_add_test_case "quick_nested"
 	atf_add_test_case "counter"
 	atf_add_test_case "nat"
+	atf_add_test_case "include"
 }
