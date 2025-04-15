@@ -541,6 +541,11 @@ enum ieee802111_key_flag {
 	IEEE80211_KEY_FLAG_SPP_AMSDU		= BIT(9),
 };
 
+#define	IEEE80211_KEY_FLAG_BITS						\
+	"\20\1GENERATE_IV\2GENERATE_MMIC\3PAIRWISE\4PUT_IV_SPACE"	\
+	"\5PUT_MIC_SPACE\6SW_MGMT_TX\7GENERATE_IV_MGMT\10GENERATE_MMIE"	\
+	"\11RESERVE_TAILROOM\12SPP_AMSDU"
+
 struct ieee80211_key_conf {
 #if defined(__FreeBSD__)
 	const struct ieee80211_key	*_k;		/* backpointer to net80211 */
