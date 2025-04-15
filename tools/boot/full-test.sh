@@ -160,8 +160,7 @@ make_minimal_freebsd_tree()
     ln -s . ${dir}/usr
     # snag the binaries for my simple /etc/rc file
     tar -C ${dir} -xf ${CACHE}/$file sbin/fastboot sbin/reboot sbin/halt sbin/init bin/sh sbin/sysctl \
-	lib/libncursesw.so.9 lib/libc.so.7 lib/libedit.so.8 libexec/ld-elf.so.1
-
+	lib/libtinfow.so.9 lib/libncursesw.so.9 lib/libc.so.7 lib/libedit.so.8 libexec/ld-elf.so.1
     # My simple etc/rc
     cat > ${dir}/etc/rc <<EOF
 #!/bin/sh
