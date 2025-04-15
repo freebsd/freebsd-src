@@ -1721,6 +1721,8 @@ so_splice(struct socket *so, struct socket *so2, struct splice *splice)
 	/*
 	 * Transfer any data already present in the socket buffer.
 	 */
+	KASSERT(sp->state == SPLICE_INIT,
+	    ("so_splice: splice %p state %d", sp, sp->state));
 	sp->state = SPLICE_QUEUED;
 	so_splice_xfer(sp);
 	return (0);
@@ -1749,8 +1751,19 @@ so_unsplice(struct socket *so, bool timeout)
 		SOCK_UNLOCK(so);
 		return (ENOTCONN);
 	}
-	so->so_rcv.sb_flags &= ~SB_SPLICED;
 	sp = so->so_splice;
+	mtx_lock(&sp->mtx);
+	if (sp->state == SPLICE_INIT) {
+		/*
+		 * A splice is in the middle of being set up.
+		 */
+		mtx_unlock(&sp->mtx);
+		SOCK_RECVBUF_UNLOCK(so);
+		SOCK_UNLOCK(so);
+		return (ENOTCONN);
+	}
+	mtx_unlock(&sp->mtx);
+	so->so_rcv.sb_flags &= ~SB_SPLICED;
 	so->so_splice = NULL;
 	SOCK_RECVBUF_UNLOCK(so);
 	SOCK_UNLOCK(so);
