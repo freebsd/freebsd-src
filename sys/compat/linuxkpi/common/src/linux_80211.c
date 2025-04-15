@@ -961,68 +961,68 @@ lkpi_opmode_to_vif_type(enum ieee80211_opmode opmode)
 static const char *
 lkpi_cipher_suite_to_name(uint32_t wlan_cipher_suite)
 {
-
 	switch (wlan_cipher_suite) {
 	case WLAN_CIPHER_SUITE_WEP40:
 		return ("WEP40");
+	case WLAN_CIPHER_SUITE_WEP104:
+		return ("WEP104");
 	case WLAN_CIPHER_SUITE_TKIP:
 		return ("TKIP");
 	case WLAN_CIPHER_SUITE_CCMP:
 		return ("CCMP");
-	case WLAN_CIPHER_SUITE_WEP104:
-		return ("WEP104");
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-		return ("AES_CMAC");
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		return ("CCMP_256");
 	case WLAN_CIPHER_SUITE_GCMP:
 		return ("GCMP");
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		return ("GCMP_256");
-	case WLAN_CIPHER_SUITE_CCMP_256:
-		return ("CCMP_256");
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		return ("AES_CMAC");
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		return ("BIP_CMAC_256");
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 		return ("BIP_GMAC_128");
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
 		return ("BIP_GMAC_256");
-	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		return ("BIP_CMAC_256");
 	default:
 		return ("??");
 	}
 }
 
 static uint32_t
-lkpi_l80211_to_net80211_cyphers(uint32_t wlan_cipher_suite)
+lkpi_l80211_to_net80211_cyphers(struct ieee80211com *ic,
+    uint32_t wlan_cipher_suite)
 {
-
 	switch (wlan_cipher_suite) {
 	case WLAN_CIPHER_SUITE_WEP40:
+		return (IEEE80211_CRYPTO_WEP);
+	case WLAN_CIPHER_SUITE_WEP104:
 		return (IEEE80211_CRYPTO_WEP);
 	case WLAN_CIPHER_SUITE_TKIP:
 		return (IEEE80211_CRYPTO_TKIP);
 	case WLAN_CIPHER_SUITE_CCMP:
 		return (IEEE80211_CRYPTO_AES_CCM);
-	case WLAN_CIPHER_SUITE_WEP104:
-		return (IEEE80211_CRYPTO_WEP);
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-	case WLAN_CIPHER_SUITE_GCMP:
-	case WLAN_CIPHER_SUITE_GCMP_256:
 	case WLAN_CIPHER_SUITE_CCMP_256:
-	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
-	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		return (IEEE80211_CRYPTO_AES_CCM_256);
+	case WLAN_CIPHER_SUITE_GCMP:
+		return (IEEE80211_CRYPTO_AES_GCM_128);
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		return (IEEE80211_CRYPTO_AES_GCM_256);
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		return (IEEE80211_CRYPTO_BIP_CMAC_128);
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-		printf("%s: unsupported WLAN Cipher Suite %#08x | %u (%s)\n",
-		    __func__,
-		    wlan_cipher_suite >> 8, wlan_cipher_suite & 0xff,
-		    lkpi_cipher_suite_to_name(wlan_cipher_suite));
-		break;
+		return (IEEE80211_CRYPTO_BIP_CMAC_256);
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+		return (IEEE80211_CRYPTO_BIP_GMAC_128);
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		return (IEEE80211_CRYPTO_BIP_GMAC_256);
 	default:
-		printf("%s: unknown WLAN Cipher Suite %#08x | %u (%s)\n",
+		ic_printf(ic, "%s: unknown WLAN Cipher Suite %#08x | %u (%s)\n",
 		    __func__,
 		    wlan_cipher_suite >> 8, wlan_cipher_suite & 0xff,
 		    lkpi_cipher_suite_to_name(wlan_cipher_suite));
+		return (0);
 	}
-
-	return (0);
 }
 
 static uint32_t
@@ -1030,18 +1030,37 @@ lkpi_net80211_to_l80211_cipher_suite(uint32_t cipher, uint8_t keylen)
 {
 
 	switch (cipher) {
-	case IEEE80211_CIPHER_TKIP:
-		return (WLAN_CIPHER_SUITE_TKIP);
-	case IEEE80211_CIPHER_AES_CCM:
-		return (WLAN_CIPHER_SUITE_CCMP);
 	case IEEE80211_CIPHER_WEP:
 		if (keylen < 8)
 			return (WLAN_CIPHER_SUITE_WEP40);
 		else
 			return (WLAN_CIPHER_SUITE_WEP104);
 		break;
+	case IEEE80211_CIPHER_TKIP:
+		return (WLAN_CIPHER_SUITE_TKIP);
+	case IEEE80211_CIPHER_AES_CCM:
+		return (WLAN_CIPHER_SUITE_CCMP);
+	case IEEE80211_CIPHER_AES_CCM_256:
+		return (WLAN_CIPHER_SUITE_CCMP_256);
+	case IEEE80211_CIPHER_AES_GCM_128:
+		return (WLAN_CIPHER_SUITE_GCMP);
+	case IEEE80211_CIPHER_AES_GCM_256:
+		return (WLAN_CIPHER_SUITE_GCMP_256);
+	case IEEE80211_CIPHER_BIP_CMAC_128:
+		return (WLAN_CIPHER_SUITE_AES_CMAC);
+	case IEEE80211_CIPHER_BIP_CMAC_256:
+		return (WLAN_CIPHER_SUITE_BIP_CMAC_256);
+	case IEEE80211_CIPHER_BIP_GMAC_128:
+		return (WLAN_CIPHER_SUITE_BIP_GMAC_128);
+	case IEEE80211_CIPHER_BIP_GMAC_256:
+		return (WLAN_CIPHER_SUITE_BIP_GMAC_256);
+
 	case IEEE80211_CIPHER_AES_OCB:
 	case IEEE80211_CIPHER_TKIPMIC:
+		/*
+		 * TKIP w/ hw MIC support
+		 * (gone wrong; should really be a crypto flag in net80211).
+		 */
 	case IEEE80211_CIPHER_CKIP:
 	case IEEE80211_CIPHER_NONE:
 		printf("%s: unsupported cipher %#010x\n", __func__, cipher);
@@ -5934,9 +5953,23 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 	ic->ic_cryptocaps = 0;
 #ifdef LKPI_80211_HW_CRYPTO
 	if (lkpi_hwcrypto && hw->wiphy->n_cipher_suites > 0) {
+		uint32_t hwciphers;
+
+		hwciphers = 0;
 		for (i = 0; i < hw->wiphy->n_cipher_suites; i++)
-			ic->ic_cryptocaps |= lkpi_l80211_to_net80211_cyphers(
-			    hw->wiphy->cipher_suites[i]);
+			hwciphers |= lkpi_l80211_to_net80211_cyphers(
+			    ic, hw->wiphy->cipher_suites[i]);
+		/*
+		 * (20250415) nothing anywhere in the path checks we actually
+		 * support all these in net80211.
+		 * net80211 supports _256 variants but the ioctl does not.
+		 */
+		IMPROVE("as net80211 grows more support, enable them");
+		hwciphers &= (IEEE80211_CRYPTO_WEP | IEEE80211_CRYPTO_TKIP |
+		    IEEE80211_CRYPTO_AES_CCM | IEEE80211_CRYPTO_AES_GCM_128);
+		/* We only support CCMP here, so further filter. */
+		hwciphers &= IEEE80211_CRYPTO_AES_CCM;
+		ieee80211_set_hardware_ciphers(ic, hwciphers);
 	}
 #endif
 
