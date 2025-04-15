@@ -1241,8 +1241,10 @@ lkpi_sta_del_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return (error);
 }
 
+/* XXX-BZ one day we should replace this iterating over VIFs, or node list? */
+/* See also lkpi_sta_del_keys() these days. */
 static int
-_lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
+lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	struct ieee80211com *ic;
 	struct lkpi_hw *lhw;
@@ -1338,16 +1340,7 @@ out:
 }
 
 static int
-lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
-{
-
-	/* XXX-BZ one day we should replace this iterating over VIFs, or node list? */
-	/* See also lkpi_sta_del_keys() these days. */
-	return (_lkpi_iv_key_delete(vap, k));
-}
-
-static int
-_lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
+lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	struct ieee80211com *ic;
 	struct lkpi_hw *lhw;
@@ -1469,13 +1462,6 @@ _lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 
 	ieee80211_free_node(ni);
 	return (1);
-}
-
-static  int
-lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
-{
-
-	return (_lkpi_iv_key_set(vap, k));
 }
 
 static void
