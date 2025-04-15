@@ -1352,6 +1352,7 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	struct ieee80211_node *ni;
 	struct ieee80211_key_conf *kc;
 	uint32_t lcipher;
+	uint16_t exp_flags;
 	int error;
 
 	ic = vap->iv_ic;
@@ -1390,8 +1391,8 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	    k->wk_cipher->ic_cipher, k->wk_keylen);
 	switch (lcipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
-		break;
 	case WLAN_CIPHER_SUITE_TKIP:
+		break;
 	default:
 		ic_printf(ic, "%s: CIPHER SUITE %#x (%s) not supported\n",
 		    __func__, lcipher, lkpi_cipher_suite_to_name(lcipher));
@@ -1423,6 +1424,9 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		kc->icv_len = k->wk_cipher->ic_trailer;
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
+		kc->iv_len = k->wk_cipher->ic_header;
+		kc->icv_len = k->wk_cipher->ic_trailer;
+		break;
 	default:
 		/* currently UNREACH */
 		IMPROVE();
@@ -1458,6 +1462,52 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		    "kc %p keyidx %u hw_key_idx %u flags %b\n", __func__,
 		    SET_KEY, "SET", sta->addr, ":",
 		    kc, kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
+#endif
+
+	exp_flags = 0;
+	switch (kc->cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		exp_flags = (IEEE80211_KEY_FLAG_PAIRWISE |
+			IEEE80211_KEY_FLAG_PUT_IV_SPACE |
+			IEEE80211_KEY_FLAG_GENERATE_MMIC |
+			IEEE80211_KEY_FLAG_PUT_MIC_SPACE);
+#define	TKIP_INVAL_COMBINATION						\
+     (IEEE80211_KEY_FLAG_PUT_MIC_SPACE|IEEE80211_KEY_FLAG_GENERATE_MMIC)
+		if ((kc->flags & TKIP_INVAL_COMBINATION) == TKIP_INVAL_COMBINATION) {
+			ic_printf(ic, "%s: SET_KEY for %s returned invalid "
+			    "combination %b\n", __func__,
+			    lkpi_cipher_suite_to_name(kc->cipher),
+			    kc->flags, IEEE80211_KEY_FLAG_BITS);
+		}
+#undef	TKIP_INVAL_COMBINATION
+#ifdef __notyet__
+		/* Do flags surgery; special see linuxkpi_ieee80211_ifattach(). */
+		if ((kc->flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) != 0) {
+			k->wk_flags &= ~(IEEE80211_KEY_NOMICMGT|IEEE80211_KEY_NOMIC);
+			k->wk_flags |= IEEE80211_KEY_SWMIC;
+			ic->ic_cryptocaps &= ~IEEE80211_CRYPTO_TKIPMIC
+		}
+#endif
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		exp_flags = (IEEE80211_KEY_FLAG_PAIRWISE |
+		    IEEE80211_KEY_FLAG_PUT_IV_SPACE |
+		    IEEE80211_KEY_FLAG_GENERATE_IV |
+		    IEEE80211_KEY_FLAG_GENERATE_IV_MGMT);	/* Only needs IV geeration for MGMT frames. */
+		break;
+	}
+	if ((kc->flags & ~exp_flags) != 0)
+		ic_printf(ic, "%s: SET_KEY for %s returned unexpected key flags: "
+		    " %#06x & ~%#06x = %b\n", __func__,
+		    lkpi_cipher_suite_to_name(kc->cipher), kc->flags, exp_flags,
+		    (kc->flags & ~exp_flags), IEEE80211_KEY_FLAG_BITS);
+
+#ifdef __notyet__
+	/* Do flags surgery. */
+	if ((kc->flags & IEEE80211_KEY_FLAG_GENERATE_IV_MGMT) == 0)
+		k->wk_flags |= IEEE80211_KEY_NOIVMGT;
+	if ((kc->flags & IEEE80211_KEY_FLAG_GENERATE_IV) == 0)
+		k->wk_flags |= IEEE80211_KEY_NOIV;
 #endif
 
 	ieee80211_free_node(ni);
@@ -5956,16 +6006,32 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 		uint32_t hwciphers;
 
 		hwciphers = 0;
-		for (i = 0; i < hw->wiphy->n_cipher_suites; i++)
-			hwciphers |= lkpi_l80211_to_net80211_cyphers(
+		for (i = 0; i < hw->wiphy->n_cipher_suites; i++) {
+			uint32_t cs;
+
+			cs = lkpi_l80211_to_net80211_cyphers(
 			    ic, hw->wiphy->cipher_suites[i]);
+			if (cs == IEEE80211_CRYPTO_TKIP) {
+				/*
+				 * We do set this here.  We will only find out
+				 * when doing a SET_KEY operation depending on
+				 * what the driver returns.
+				 * net80211::ieee80211_crypto_newkey()
+				 * checks this so we will have to do flags
+				 * surgery later.
+				 */
+				cs |= IEEE80211_CRYPTO_TKIPMIC;
+			}
+			hwciphers |= cs;
+		}
 		/*
 		 * (20250415) nothing anywhere in the path checks we actually
 		 * support all these in net80211.
 		 * net80211 supports _256 variants but the ioctl does not.
 		 */
 		IMPROVE("as net80211 grows more support, enable them");
-		hwciphers &= (IEEE80211_CRYPTO_WEP | IEEE80211_CRYPTO_TKIP |
+		hwciphers &= (IEEE80211_CRYPTO_WEP |
+		    IEEE80211_CRYPTO_TKIP | IEEE80211_CRYPTO_TKIPMIC |
 		    IEEE80211_CRYPTO_AES_CCM | IEEE80211_CRYPTO_AES_GCM_128);
 		/* We only support CCMP here, so further filter. */
 		hwciphers &= IEEE80211_CRYPTO_AES_CCM;
