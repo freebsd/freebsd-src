@@ -650,8 +650,8 @@ _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	pmap_remove(kernel_pmap, addr, addr + size);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	end = offset + size;
-	VM_OBJECT_WLOCK(object);
 	vm_page_iter_init(&pages, object);
+	VM_OBJECT_WLOCK(object);
 	m = vm_radix_iter_lookup(&pages, atop(offset)); 
 	domain = vm_page_domain(m);
 	if (__predict_true((m->oflags & VPO_KMEM_EXEC) == 0))
