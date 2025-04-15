@@ -1705,26 +1705,6 @@ ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw, const uint8_t *addr,
 	return (linuxkpi_ieee80211_find_sta_by_ifaddr(hw, addr, ourvifaddr));
 }
 
-
-static __inline void
-ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
-    struct sk_buff *skb_frag, u8 *key)
-{
-	TODO();
-}
-
-static __inline void
-ieee80211_get_tkip_rx_p1k(struct ieee80211_key_conf *keyconf,
-    const u8 *addr, uint32_t iv32, u16 *p1k)
-{
-
-	KASSERT(keyconf != NULL && addr != NULL && p1k != NULL,
-	    ("%s: keyconf %p addr %p p1k %p\n", __func__, keyconf, addr, p1k));
-
-	TODO();
-	memset(p1k, 0xfa, 5 * sizeof(*p1k));	/* Just initializing. */
-}
-
 static __inline size_t
 ieee80211_ie_split(const u8 *ies, size_t ies_len,
     const u8 *ie_ids, size_t ie_ids_len, size_t start)
@@ -2052,13 +2032,6 @@ ieee80211_sta_uapsd_trigger(struct ieee80211_sta *sta, int ntids)
 	TODO();
 }
 
-static __inline void
-ieee80211_tkip_add_iv(u8 *crypto_hdr, struct ieee80211_key_conf *keyconf,
-    uint64_t pn)
-{
-	TODO();
-}
-
 static inline struct sk_buff *
 ieee80211_tx_dequeue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 {
@@ -2338,18 +2311,6 @@ ieee80211_channel_switch_disconnect(struct ieee80211_vif *vif, bool _x)
 	TODO();
 }
 
-static __inline void
-ieee80211_key_mic_failure(struct ieee80211_key_conf *key)
-{
-	TODO();
-}
-
-static __inline void
-ieee80211_key_replay(struct ieee80211_key_conf *key)
-{
-	TODO();
-}
-
 static __inline uint32_t
 ieee80211_calc_rx_airtime(struct ieee80211_hw *hw,
     struct ieee80211_rx_status *rxstat, int len)
@@ -2408,9 +2369,22 @@ ieee80211_data_to_8023(struct sk_buff *skb, const uint8_t *addr,
         return (-1);
 }
 
+/* -------------------------------------------------------------------------- */
+
 static __inline void
-ieee80211_get_tkip_p1k_iv(struct ieee80211_key_conf *key,
-    uint32_t iv32, uint16_t *p1k)
+ieee80211_key_mic_failure(struct ieee80211_key_conf *key)
+{
+	TODO();
+}
+
+static __inline void
+ieee80211_key_replay(struct ieee80211_key_conf *key)
+{
+	TODO();
+}
+
+static __inline void
+ieee80211_remove_key(struct ieee80211_key_conf *key)
 {
         TODO();
 }
@@ -2431,9 +2405,36 @@ ieee80211_gtk_rekey_notify(struct ieee80211_vif *vif, const uint8_t *bssid,
 }
 
 static __inline void
-ieee80211_remove_key(struct ieee80211_key_conf *key)
+ieee80211_tkip_add_iv(u8 *crypto_hdr, struct ieee80211_key_conf *keyconf,
+    uint64_t pn)
+{
+	TODO();
+}
+
+static __inline void
+ieee80211_get_tkip_rx_p1k(struct ieee80211_key_conf *keyconf,
+    const u8 *addr, uint32_t iv32, u16 *p1k)
+{
+
+	KASSERT(keyconf != NULL && addr != NULL && p1k != NULL,
+	    ("%s: keyconf %p addr %p p1k %p\n", __func__, keyconf, addr, p1k));
+
+	TODO();
+	memset(p1k, 0xfa, 5 * sizeof(*p1k));	/* Just initializing. */
+}
+
+static __inline void
+ieee80211_get_tkip_p1k_iv(struct ieee80211_key_conf *key,
+    uint32_t iv32, uint16_t *p1k)
 {
         TODO();
+}
+
+static __inline void
+ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
+    struct sk_buff *skb_frag, u8 *key)
+{
+	TODO();
 }
 
 static inline void
@@ -2480,6 +2481,8 @@ ieee80211_set_key_rx_seq(struct ieee80211_key_conf *key, int tid,
 {
         TODO();
 }
+
+/* -------------------------------------------------------------------------- */
 
 static __inline void
 ieee80211_report_wowlan_wakeup(struct ieee80211_vif *vif,
