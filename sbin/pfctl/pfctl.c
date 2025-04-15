@@ -1077,7 +1077,6 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		}
 		mnr = prs.nr;
 
-		pfctl_print_rule_counters(&rule, opts);
 		for (nr = 0; nr < mnr; ++nr) {
 			prs.nr = nr;
 			if (ioctl(dev, DIOCGETRULESET, &prs))
