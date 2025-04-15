@@ -1203,6 +1203,14 @@ lkpi_sta_del_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			continue;
 		kc = lsta->kc[keyix];
 
+#ifdef LINUXKPI_DEBUG_80211
+		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
+			ic_printf(lsta->ni->ni_ic, "%s: running set_key cmd %d(%s) for "
+			    "sta %6D: keyidx %u hw_key_idx %u flags %b\n",
+			    __func__, DISABLE_KEY, "DISABLE", lsta->sta.addr, ":",
+			    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
+#endif
+
 		err = lkpi_80211_mo_set_key(hw, DISABLE_KEY, vif,
 		    LSTA_TO_STA(lsta), kc);
 		if (err != 0) {
@@ -1221,9 +1229,9 @@ lkpi_sta_del_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 #ifdef LINUXKPI_DEBUG_80211
 		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
 			ic_printf(lsta->ni->ni_ic, "%s: set_key cmd %d(%s) for "
-			    "sta %6D succeeded: keyidx %u hw_key_idx %u flags %#10x\n",
+			    "sta %6D succeeded: keyidx %u hw_key_idx %u flags %b\n",
 			    __func__, DISABLE_KEY, "DISABLE", lsta->sta.addr, ":",
-			    kc->keyidx, kc->hw_key_idx, kc->flags);
+			    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
 		lsta->kc[keyix] = NULL;
@@ -1248,16 +1256,18 @@ _lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	int error;
 
 	ic = vap->iv_ic;
-	lhw = ic->ic_softc;
-	hw = LHW_TO_HW(lhw);
-	lvif = VAP_TO_LVIF(vap);
-	vif = LVIF_TO_VIF(lvif);
+	if (IEEE80211_KEY_UNDEFINED(k)) {
+		ic_printf(ic, "%s: vap %p key %p is undefined: %p %u\n",
+		    __func__, vap, k, k->wk_cipher, k->wk_keyix);
+		return (0);
+	}
 
 	if (vap->iv_bss == NULL) {
 		ic_printf(ic, "%s: iv_bss %p for vap %p is NULL\n",
 		    __func__, vap->iv_bss, vap);
 		return (0);
 	}
+
 	ni = ieee80211_ref_node(vap->iv_bss);
 	lsta = ni->ni_drv_data;
 	if (lsta == NULL) {
@@ -1292,6 +1302,18 @@ _lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		goto out;
 	}
 
+#ifdef LINUXKPI_DEBUG_80211
+	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
+		ic_printf(ic, "%s: running  set_key cmd %d(%s) for sta %6D: "
+		    "keyidx %u hw_key_idx %u flags %b\n", __func__,
+		    DISABLE_KEY, "DISABLE", sta->addr, ":",
+		    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
+#endif
+
+	lhw = ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
 	error = lkpi_80211_mo_set_key(hw, DISABLE_KEY, vif, sta, kc);
 	if (error != 0) {
 		ic_printf(ic, "%s: set_key cmd %d(%s) for sta %6D failed: %d\n",
@@ -1303,9 +1325,9 @@ _lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
 		ic_printf(ic, "%s: set_key cmd %d(%s) for sta %6D succeeded: "
-		    "keyidx %u hw_key_idx %u flags %#10x\n", __func__,
+		    "keyidx %u hw_key_idx %u flags %b\n", __func__,
 		    DISABLE_KEY, "DISABLE", sta->addr, ":",
-		    kc->keyidx, kc->hw_key_idx, kc->flags);
+		    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 	lsta->kc[k->wk_keyix] = NULL;
 	free(kc, M_LKPI80211);
@@ -1340,10 +1362,11 @@ _lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	int error;
 
 	ic = vap->iv_ic;
-	lhw = ic->ic_softc;
-	hw = LHW_TO_HW(lhw);
-	lvif = VAP_TO_LVIF(vap);
-	vif = LVIF_TO_VIF(lvif);
+	if (IEEE80211_KEY_UNDEFINED(k)) {
+		ic_printf(ic, "%s: vap %p key %p is undefined: %p %u\n",
+		    __func__, vap, k, k->wk_cipher, k->wk_keyix);
+		return (0);
+	}
 
 	if (vap->iv_bss == NULL) {
 		ic_printf(ic, "%s: iv_bss %p for vap %p is NULL\n",
@@ -1414,6 +1437,18 @@ _lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	};
 	lsta->kc[k->wk_keyix] = kc;
 
+#ifdef LINUXKPI_DEBUG_80211
+	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
+		ic_printf(ic, "%s: running set_key cmd %d(%s) for sta %6D: "
+		    "kc %p keyidx %u hw_key_idx %u flags %b\n", __func__,
+		    SET_KEY, "SET", sta->addr, ":",
+		    kc, kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
+#endif
+
+	lhw = ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
 	error = lkpi_80211_mo_set_key(hw, SET_KEY, vif, sta, kc);
 	if (error != 0) {
 		ic_printf(ic, "%s: set_key cmd %d(%s) for sta %6D failed: %d\n",
@@ -1427,9 +1462,9 @@ _lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
 		ic_printf(ic, "%s: set_key cmd %d(%s) for sta %6D succeeded: "
-		    "kc %p keyidx %u hw_key_idx %u flags %#010x\n", __func__,
+		    "kc %p keyidx %u hw_key_idx %u flags %b\n", __func__,
 		    SET_KEY, "SET", sta->addr, ":",
-		    kc, kc->keyidx, kc->hw_key_idx, kc->flags);
+		    kc, kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
 	ieee80211_free_node(ni);
