@@ -2446,28 +2446,46 @@ ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf, int8_t tid,
 
 	KASSERT(keyconf != NULL && seq != NULL, ("%s: keyconf %p seq %p\n",
 	    __func__, keyconf, seq));
-	KASSERT(tid <= IEEE80211_NUM_TIDS, ("%s: tid out of bounds %d\n",
-	    __func__, tid));
 	k = keyconf->_k;
 	KASSERT(k != NULL, ("%s: keyconf %p ieee80211_key is NULL\n", __func__, keyconf));
 
 	switch (keyconf->cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		if (tid < 0 || tid >= IEEE80211_NUM_TIDS)
+			return;
+		/* See net80211::tkip_decrypt() */
+		seq->tkip.iv32 = TKIP_PN_TO_IV32(k->wk_keyrsc[tid]);
+		seq->tkip.iv16 = TKIP_PN_TO_IV16(k->wk_keyrsc[tid]);
+		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
-		if (tid < 0)
+		if (tid < -1 || tid >= IEEE80211_NUM_TIDS)
+			return;
+		if (tid == -1)
 			p = (const uint8_t *)&k->wk_keyrsc[IEEE80211_NUM_TIDS];	/* IEEE80211_NONQOS_TID */
 		else
 			p = (const uint8_t *)&k->wk_keyrsc[tid];
 		memcpy(seq->ccmp.pn, p, sizeof(seq->ccmp.pn));
 		break;
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		if (tid < -1 || tid >= IEEE80211_NUM_TIDS)
+			return;
+		if (tid == -1)
+			p = (const uint8_t *)&k->wk_keyrsc[IEEE80211_NUM_TIDS];	/* IEEE80211_NONQOS_TID */
+		else
+			p = (const uint8_t *)&k->wk_keyrsc[tid];
+		memcpy(seq->gcmp.pn, p, sizeof(seq->gcmp.pn));
+		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 		TODO();
 		memset(seq->aes_cmac.pn, 0xfa, sizeof(seq->aes_cmac.pn));	/* XXX TODO */
 		break;
-	case WLAN_CIPHER_SUITE_TKIP:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
 		TODO();
-		seq->tkip.iv32 = 0xfa;		/* XXX TODO */
-		seq->tkip.iv16 = 0xfa;		/* XXX TODO */
+		memset(seq->aes_gmac.pn, 0xfa, sizeof(seq->aes_gmac.pn));	/* XXX TODO */
 		break;
 	default:
 		pr_debug("%s: unsupported cipher suite %d\n", __func__, keyconf->cipher);
