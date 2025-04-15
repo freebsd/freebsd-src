@@ -429,6 +429,10 @@ SYSCTL_BOOL(_hw_pci, OID_AUTO, enable_mps_tune, CTLFLAG_RWTUN,
     &pci_enable_mps_tune, 1,
     "Enable tuning of MPS(maximum payload size)." );
 
+static bool pci_intx_reroute = true;
+SYSCTL_BOOL(_hw_pci, OID_AUTO, intx_reroute, CTLFLAG_RWTUN,
+    &pci_intx_reroute, 0, "Re-route INTx interrupts when scanning devices");
+
 static int
 pci_has_quirk(uint32_t devid, int quirk)
 {
@@ -4175,7 +4179,8 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 		if (q->devid == devid && q->type == PCI_QUIRK_MAP_REG)
 			pci_add_map(bus, dev, q->arg1, rl, force, 0);
 
-	if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
+	if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline) &&
+	    pci_intx_reroute) {
 		/*
 		 * Try to re-route interrupts. Sometimes the BIOS or
 		 * firmware may leave bogus values in these registers.
