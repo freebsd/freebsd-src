@@ -1493,7 +1493,7 @@ pf_normalize_tcp_init(struct pf_pdesc *pd, struct tcphdr *th,
 					src->scrub->pfss_flags |=
 					    PFSS_TIMESTAMP;
 					src->scrub->pfss_ts_mod =
-					    htonl(arc4random());
+					    arc4random();
 
 					/* note PFSS_PAWS not set yet */
 					memcpy(&tsval, &opt[2],

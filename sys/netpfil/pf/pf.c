@@ -6257,7 +6257,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	    TH_SYN && r->keep_state == PF_STATE_SYNPROXY) {
 		pf_set_protostate(s, PF_PEER_SRC, PF_TCPS_PROXY_SRC);
 		pf_undo_nat(nr, pd, bip_sum);
-		s->src.seqhi = htonl(arc4random());
+		s->src.seqhi = arc4random();
 		/* Find mss option */
 		int rtid = M_GETFIB(pd->m);
 		mss = pf_get_mss(pd);
@@ -6869,7 +6869,7 @@ pf_synproxy(struct pf_pdesc *pd, struct pf_kstate *state, u_short *reason)
 			}
 			state->src.max_win = MAX(ntohs(th->th_win), 1);
 			if (state->dst.seqhi == 1)
-				state->dst.seqhi = htonl(arc4random());
+				state->dst.seqhi = arc4random();
 			pf_send_tcp(state->rule, pd->af,
 			    &sk->addr[pd->sidx], &sk->addr[pd->didx],
 			    sk->port[pd->sidx], sk->port[pd->didx],
