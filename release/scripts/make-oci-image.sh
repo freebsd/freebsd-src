@@ -95,8 +95,13 @@ commit_container() {
 	local image=$1; shift
 	local output=$1; shift
 
-	# Note: the diff_id (needed for image config) is the hash of the uncompressed tar
-	tar -C ${workdir}/rootfs --strip-components 1 -cf ${workdir}/rootfs.tar .
+	# Note: the diff_id (needed for image config) is the hash of the
+	# uncompressed tar.
+	#
+	# For compatibility with Podman, we must disable sparse-file
+	# handling. See https://github.com/containers/podman/issues/25270 for
+	# more details.
+	tar -C ${workdir}/rootfs --strip-components 1 --no-read-sparse -cf ${workdir}/rootfs.tar .
 	local diff_id=$(sha256 -q < ${workdir}/rootfs.tar)
 	gzip -f ${workdir}/rootfs.tar
 	local create_time=$(date -u +%Y-%m-%dT%TZ)
