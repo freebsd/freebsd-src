@@ -3678,10 +3678,13 @@ nextepid:
 	 */
 	buf->dtbd_drops = 0;
 
-	xo_open_instance("probes");
-	dt_oformat_drop(dtp, cpu);
+	if (dtp->dt_oformat) {
+		xo_open_instance("probes");
+		dt_oformat_drop(dtp, cpu);
+	}
 	rval = dt_handle_cpudrop(dtp, cpu, DTRACEDROP_PRINCIPAL, drops);
-	xo_close_instance("probes");
+	if (dtp->dt_oformat)
+		xo_close_instance("probes");
 
 	return (rval);
 }
@@ -4187,11 +4190,15 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 		for (i = 0; i < max_ncpus; i++) {
 			if (drops[i] != 0) {
 				int error;
-				xo_open_instance("probes");
-				dt_oformat_drop(dtp, i);
+
+				if (dtp->dt_oformat) {
+					xo_open_instance("probes");
+					dt_oformat_drop(dtp, i);
+				}
 				error = dt_handle_cpudrop(dtp, i,
 				    DTRACEDROP_PRINCIPAL, drops[i]);
-				xo_close_instance("probes");
+				if (dtp->dt_oformat)
+					xo_close_instance("probes");
 				if (error != 0)
 					return (error);
 			}
