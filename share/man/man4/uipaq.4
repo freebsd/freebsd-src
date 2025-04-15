@@ -50,6 +50,16 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 uipaq_load="YES"
 .Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the USB serial emulation provided
+by the iPAQ devices.
+.Pp
+The device is accessed through the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
 .Sh HARDWARE
 The
 .Nm
@@ -77,16 +87,6 @@ Sharp W-ZERO3 ES Spart Phone
 .It
 Most Windows CE based phones
 .El
-.Sh DESCRIPTION
-The
-.Nm
-driver provides support for the USB serial emulation provided
-by the iPAQ devices.
-.Pp
-The device is accessed through the
-.Xr ucom 4
-driver which makes it behave like a
-.Xr tty 4 .
 .Sh FILES
 .Bl -tag -width "/dev/ttyU*.init" -compact
 .It Pa /dev/ttyU*
