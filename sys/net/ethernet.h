@@ -81,6 +81,11 @@ struct ether_addr {
 	  (addr)[3] | (addr)[4] | (addr)[5]) == 0x00)
 
 /*
+ * This is the type of the VLAN ID inside the tag, not the tag itself.
+ */
+typedef uint16_t ether_vlanid_t;
+
+/*
  * 802.1q Virtual LAN header.
  */
 struct ether_vlan_header {
