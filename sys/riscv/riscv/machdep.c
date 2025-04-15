@@ -541,6 +541,22 @@ fdt_physmem_exclude_region_cb(const struct mem_region *mr, void *arg __unused)
 }
 #endif
 
+static void
+efi_exclude_sbi_pmp_cb(struct efi_md *p, void *argp)
+{
+	bool *first = (bool *)argp;
+
+	if (!*first)
+		return;
+
+	*first = false;
+	if (p->md_type == EFI_MD_TYPE_BS_DATA) {
+		physmem_exclude_region(p->md_phys,
+		    min(p->md_pages * EFI_PAGE_SIZE, L2_SIZE),
+		    EXFLAG_NOALLOC);
+	}
+}
+
 void
 initriscv(struct riscv_bootparams *rvbp)
 {
@@ -548,6 +564,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	struct pcpu *pcpup;
 	vm_offset_t lastaddr;
 	vm_size_t kernlen;
+	bool first;
 	char *env;
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
@@ -577,11 +594,22 @@ initriscv(struct riscv_bootparams *rvbp)
 	if (efihdr != NULL) {
 		efi_map_add_entries(efihdr);
 		efi_map_exclude_entries(efihdr);
+
+		/*
+		 * OpenSBI uses the first PMP entry to prevent buggy supervisor
+		 * software from overwriting the firmware. However, this
+		 * region may not be properly marked as reserved, leading
+		 * to an access violation exception whenever the kernel
+		 * attempts to write to a page from that region.
+		 *
+		 * Fix this by excluding first EFI memory map entry
+		 * if it is marked as "BootServicesData".
+		 */
+		first = true;
+		efi_map_foreach_entry(efihdr, efi_exclude_sbi_pmp_cb, &first);
 	}
 #ifdef FDT
 	else {
-		bool first;
-
 		/* Exclude reserved memory specified by the device tree. */
 		fdt_foreach_reserved_mem(fdt_physmem_exclude_region_cb, NULL);
 
