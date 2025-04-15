@@ -4590,34 +4590,56 @@ lkpi_ic_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 #ifdef LKPI_80211_HW_CRYPTO
 static int
-lkpi_hw_crypto_prepare(struct lkpi_sta *lsta, struct ieee80211_key *k,
-    struct sk_buff *skb)
+lkpi_hw_crypto_prepare_tkip(struct ieee80211_key *k,
+    struct ieee80211_key_conf *kc, struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *info;
-	struct ieee80211_key_conf *kc;
+	struct ieee80211_hdr *hdr;
+	uint32_t hlen, hdrlen;
+	uint8_t *p, *m;
+
+	/*
+	 * Check if we have anythig to do as requested by driver
+	 * or if we are done?
+	 */
+	if ((kc->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE) == 0 &&
+	    (kc->flags & IEEE80211_KEY_FLAG_GENERATE_IV) == 0)
+			return (0);
+
+	hlen = k->wk_cipher->ic_header;
+	if (skb_headroom(skb) < hlen)
+		return (ENOSPC);
+
+	hdr = (void *)skb->data;
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	p = skb_push(skb, hlen);
+	memmove(p, p + hlen, hdrlen);
+
+	/*
+	 * Put in zeroed space for the MMIC if requested.
+	 * XXX-BZ in theory this is not the right place but given we
+	 * are here we know we do hw_crypto so not much missing.
+	 */
+	if ((kc->flags & IEEE80211_KEY_FLAG_PUT_MIC_SPACE) != 0) {
+		m = skb_put(skb, 8);
+		memset(m, 0, 8);
+	}
+
+	/* If driver request space only we are done. */
+	if ((kc->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE) != 0)
+		return (0);
+
+	p += hdrlen;
+	k->wk_cipher->ic_setiv(k, p);
+
+	return (ENXIO);
+}
+static int
+lkpi_hw_crypto_prepare_ccmp(struct ieee80211_key *k,
+    struct ieee80211_key_conf *kc, struct sk_buff *skb)
+{
 	struct ieee80211_hdr *hdr;
 	uint32_t hlen, hdrlen;
 	uint8_t *p;
-
-	KASSERT(lsta != NULL, ("%s: lsta is NULL", __func__));
-	KASSERT(k != NULL, ("%s: key is NULL", __func__));
-	KASSERT(skb != NULL, ("%s: skb is NULL", __func__));
-
-	kc = lsta->kc[k->wk_keyix];
-
-	info = IEEE80211_SKB_CB(skb);
-	info->control.hw_key = kc;
-
-	/* MUST NOT happen. KASSERT? */
-	if (kc == NULL) {
-		ic_printf(lsta->ni->ni_ic, "%s: lsta %p k %p skb %p, "
-		    "kc is NULL on hw crypto offload\n", __func__, lsta, k, skb);
-		return (ENXIO);
-	}
-
-
-	IMPROVE("the following should be WLAN_CIPHER_SUITE specific");
-	/* We currently only support CCMP so we hardcode things here. */
 
 	hdr = (void *)skb->data;
 
@@ -4649,6 +4671,67 @@ lkpi_hw_crypto_prepare(struct lkpi_sta *lsta, struct ieee80211_key *k,
 
 	return (0);
 }
+
+static int
+lkpi_hw_crypto_prepare(struct lkpi_sta *lsta, struct ieee80211_key *k,
+    struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info;
+	struct ieee80211_key_conf *kc;
+
+	KASSERT(lsta != NULL, ("%s: lsta is NULL", __func__));
+	KASSERT(k != NULL, ("%s: key is NULL", __func__));
+	KASSERT(skb != NULL, ("%s: skb is NULL", __func__));
+
+	kc = lsta->kc[k->wk_keyix];
+
+	info = IEEE80211_SKB_CB(skb);
+	info->control.hw_key = kc;
+
+	/* MUST NOT happen. KASSERT? */
+	if (kc == NULL) {
+		ic_printf(lsta->ni->ni_ic, "%s: lsta %p k %p skb %p, "
+		    "kc is NULL on hw crypto offload\n", __func__, lsta, k, skb);
+		return (ENXIO);
+	}
+
+	switch (kc->cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		return (lkpi_hw_crypto_prepare_tkip(k, kc, skb));
+	case WLAN_CIPHER_SUITE_CCMP:
+		return (lkpi_hw_crypto_prepare_ccmp(k, kc, skb));
+	case WLAN_CIPHER_SUITE_WEP40:
+	case WLAN_CIPHER_SUITE_WEP104:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+	default:
+		ic_printf(lsta->ni->ni_ic, "%s: lsta %p k %p kc %p skb %p, "
+		    "unsupported cipher suite %u (%s)\n", __func__, lsta, k, kc,
+		    skb, kc->cipher, lkpi_cipher_suite_to_name(kc->cipher));
+		return (EOPNOTSUPP);
+	}
+}
+
+static uint8_t
+lkpi_hw_crypto_tailroom(struct lkpi_sta *lsta, struct ieee80211_key *k)
+{
+	struct ieee80211_key_conf *kc;
+
+	kc = lsta->kc[k->wk_keyix];
+	if (kc == NULL)
+		return (0);
+
+	IMPROVE("which other flags need tailroom?");
+	if (kc->flags & (IEEE80211_KEY_FLAG_PUT_MIC_SPACE))
+		return (32);	/* Large enough to hold everything and pow2. */
+
+	return (0);
+}
 #endif
 
 static void
@@ -4671,7 +4754,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	struct lkpi_txq *ltxq;
 	void *buf;
 	ieee80211_keyix keyix;
-	uint8_t ac, tid;
+	uint8_t ac, tid, tailroom;
 
 	M_ASSERTPKTHDR(m);
 #ifdef LINUXKPI_DEBUG_80211
@@ -4729,13 +4812,20 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 		ieee80211_radiotap_tx(ni->ni_vap, m);
 	}
 
+#ifdef LKPI_80211_HW_CRYPTO
+	if (lkpi_hwcrypto && keyix != IEEE80211_KEYIX_NONE)
+		tailroom = lkpi_hw_crypto_tailroom(lsta, k);
+	else
+#endif
+		tailroom = 0;
+
 	/*
 	 * net80211 should handle hw->extra_tx_headroom.
 	 * Though for as long as we are copying we don't mind.
 	 * XXX-BZ rtw88 asks for too much headroom for ipv6+tcp:
 	 * https://lists.freebsd.org/archives/freebsd-transport/2022-February/000012.html
 	 */
-	skb = dev_alloc_skb(hw->extra_tx_headroom + m->m_pkthdr.len);
+	skb = dev_alloc_skb(hw->extra_tx_headroom + tailroom + m->m_pkthdr.len);
 	if (skb == NULL) {
 		static uint8_t skb_alloc_failures = 0;
 
