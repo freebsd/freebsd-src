@@ -1,4 +1,4 @@
-/*	$NetBSD: eln.c,v 1.37 2022/01/11 18:30:15 christos Exp $	*/
+/*	$NetBSD: eln.c,v 1.38 2024/05/17 02:59:08 christos Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -27,7 +27,7 @@
  */
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: eln.c,v 1.37 2022/01/11 18:30:15 christos Exp $");
+__RCSID("$NetBSD: eln.c,v 1.38 2024/05/17 02:59:08 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <errno.h>
@@ -365,6 +365,10 @@ el_line(EditLine *el)
 	size_t offset;
 	const wchar_t *p;
 
+	if (el->el_flags & FROM_ELLINE)
+		return info;
+
+	el->el_flags |= FROM_ELLINE;
 	info->buffer   = ct_encode_string(winfo->buffer, &el->el_lgcyconv);
 
 	offset = 0;
@@ -376,6 +380,10 @@ el_line(EditLine *el)
 	for (p = winfo->buffer; p < winfo->lastchar; p++)
 		offset += ct_enc_width(*p);
 	info->lastchar = info->buffer + offset;
+
+	if (el->el_chared.c_resizefun)  
+		(*el->el_chared.c_resizefun)(el, el->el_chared.c_resizearg);
+	el->el_flags &= ~FROM_ELLINE;
 
 	return info;
 }

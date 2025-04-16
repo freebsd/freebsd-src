@@ -1,4 +1,4 @@
-/*	$NetBSD: map.c,v 1.55 2022/10/30 19:11:31 christos Exp $	*/
+/*	$NetBSD: map.c,v 1.56 2025/01/03 00:40:08 rillig Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: map.c,v 1.55 2022/10/30 19:11:31 christos Exp $");
+__RCSID("$NetBSD: map.c,v 1.56 2025/01/03 00:40:08 rillig Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -1390,7 +1390,6 @@ map_bind(EditLine *el, int argc, const wchar_t **argv)
 	/* coverity[dead_error_begin] */
 	default:
 		EL_ABORT((el->el_errfile, "Bad XK_ type %d\n", ntype));
-		break;
 	}
 	return 0;
 }

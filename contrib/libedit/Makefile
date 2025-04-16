@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.66 2019/10/13 07:28:10 mrg Exp $
+#	$NetBSD: Makefile,v 1.70 2023/08/03 14:56:36 rin Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 USE_SHLIBDIR=	yes
@@ -20,6 +20,12 @@ SRCS =	chared.c chartype.c common.c el.c eln.c emacs.c filecomplete.c \
 	terminal.c tokenizer.c tokenizern.c tty.c vi.c
 
 MAN=	editline.3 editrc.5 editline.7
+
+FILES+=			libedit.pc
+FILESOWN_libedit.pc=	${BINOWN}
+FILESGRP_libedit.pc=	${BINGRP}
+FILESMODE_libedit.pc=	${NONBINMODE}
+FILESDIR_libedit.pc=	/usr/lib/pkgconfig
 
 MLINKS= \
 editline.3 el_deletestr.3 \
@@ -138,6 +144,6 @@ COPTS.tokenizer.c+=	-Wno-cast-qual
 COPTS.tokenizern.c+=	-Wno-cast-qual
 .endif
 
-COPTS.history.c+=	${GCC_NO_STRINGOP_OVERFLOW}
-COPTS.historyn.c+=	${GCC_NO_STRINGOP_OVERFLOW}
-COPTS.readline.c+=	${GCC_NO_STRINGOP_TRUNCATION} ${GCC_NO_STRINGOP_OVERFLOW}
+COPTS.history.c+=	${CC_WNO_STRINGOP_OVERFLOW}
+COPTS.historyn.c+=	${CC_WNO_STRINGOP_OVERFLOW}
+COPTS.readline.c+=	${CC_WNO_STRINGOP_TRUNCATION} ${CC_WNO_STRINGOP_OVERFLOW}

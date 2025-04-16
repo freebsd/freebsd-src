@@ -1,0 +1,12 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libedit
+Description: command line editor library providing generic line editing, history, and tokenization functions.
+Version: 3.1
+Requires:
+Libs: -Wl,-R${libdir} -L${libdir} -ledit
+Libs.private: -ltermcap 
+Cflags: -I${includedir} -I${includedir}/readline

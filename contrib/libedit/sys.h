@@ -1,4 +1,4 @@
-/*	$NetBSD: sys.h,v 1.28 2023/02/04 14:34:28 christos Exp $	*/
+/*	$NetBSD: sys.h,v 1.29 2023/04/25 17:51:32 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -44,7 +44,7 @@
 #include <sys/cdefs.h>
 #endif
 
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
+#if !defined(__attribute__) && !defined(__lint__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8) 
 # define __attribute__(A)
 #endif
 
