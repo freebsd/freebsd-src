@@ -347,14 +347,6 @@ struct pfi_dynaddr {
 	u_int8_t			 pfid_iflags;	/* PFI_AFLAG_* */
 };
 
-/*
- * Address manipulation macros
- */
-#define	HTONL(x)	(x) = htonl((__uint32_t)(x))
-#define	HTONS(x)	(x) = htons((__uint16_t)(x))
-#define	NTOHL(x)	(x) = ntohl((__uint32_t)(x))
-#define	NTOHS(x)	(x) = ntohs((__uint16_t)(x))
-
 #define	PF_NAME		"pf"
 
 #define	PF_HASHROW_ASSERT(h)	mtx_assert(&(h)->lock, MA_OWNED)
