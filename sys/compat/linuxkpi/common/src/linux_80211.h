@@ -191,6 +191,7 @@ struct lkpi_vif {
 
 	struct lkpi_sta		*lvif_bss;
 
+	struct ieee80211_node	*key_update_iv_bss;
 	int			ic_unlocked;			/* Count of ic unlocks pending (*mo_set_key) */
 	int			nt_unlocked;			/* Count of nt unlocks pending (*mo_set_key) */
 	bool			lvif_bss_synched;
