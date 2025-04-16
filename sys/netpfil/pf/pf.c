@@ -1467,9 +1467,35 @@ keyattach:
 			    si->key[PF_SK_STACK]->af &&
 			    sk->af == si->key[PF_SK_STACK]->af &&
 			    si->direction != s->direction))) {
+				bool reuse = false;
+
 				if (sk->proto == IPPROTO_TCP &&
 				    si->src.state >= TCPS_FIN_WAIT_2 &&
-				    si->dst.state >= TCPS_FIN_WAIT_2) {
+				    si->dst.state >= TCPS_FIN_WAIT_2)
+					reuse = true;
+
+				if (V_pf_status.debug >= PF_DEBUG_MISC) {
+					printf("pf: %s key attach "
+					    "%s on %s: ",
+					    (idx == PF_SK_WIRE) ?
+					    "wire" : "stack",
+					    reuse ? "reuse" : "failed",
+					    s->kif->pfik_name);
+					pf_print_state_parts(s,
+					    (idx == PF_SK_WIRE) ?
+					    sk : NULL,
+					    (idx == PF_SK_STACK) ?
+					    sk : NULL);
+					printf(", existing: ");
+					pf_print_state_parts(si,
+					    (idx == PF_SK_WIRE) ?
+					    sk : NULL,
+					    (idx == PF_SK_STACK) ?
+					    sk : NULL);
+					printf("\n");
+				}
+
+				if (reuse) {
 					/*
 					 * New state matches an old >FIN_WAIT_2
 					 * state. We can't drop key hash locks,
@@ -1486,25 +1512,6 @@ keyattach:
 					si->timeout = PFTM_PURGE;
 					olds = si;
 				} else {
-					if (V_pf_status.debug >= PF_DEBUG_MISC) {
-						printf("pf: %s key attach "
-						    "failed on %s: ",
-						    (idx == PF_SK_WIRE) ?
-						    "wire" : "stack",
-						    s->kif->pfik_name);
-						pf_print_state_parts(s,
-						    (idx == PF_SK_WIRE) ?
-						    sk : NULL,
-						    (idx == PF_SK_STACK) ?
-						    sk : NULL);
-						printf(", existing: ");
-						pf_print_state_parts(si,
-						    (idx == PF_SK_WIRE) ?
-						    sk : NULL,
-						    (idx == PF_SK_STACK) ?
-						    sk : NULL);
-						printf("\n");
-					}
 					s->timeout = PFTM_UNLINKED;
 					if (idx == PF_SK_STACK)
 						/*
