@@ -1,4 +1,4 @@
-/*	$NetBSD: filecomplete.h,v 1.14 2021/09/26 13:45:54 christos Exp $	*/
+/*	$NetBSD: filecomplete.h,v 1.15 2023/04/25 17:51:32 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -47,5 +47,8 @@ void fn_display_match_list(EditLine *, char **, size_t, size_t,
 	const char *(*)(const char *));
 char *fn_tilde_expand(const char *);
 char *fn_filename_completion_function(const char *, int);
+
+/* XXX: readline */
+char **completion_matches(const char *, char *(*)(const char *, int));
 
 #endif

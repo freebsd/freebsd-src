@@ -1,4 +1,4 @@
-/*	$NetBSD: tokenizer.c,v 1.28 2016/04/11 18:56:31 christos Exp $	*/
+/*	$NetBSD: tokenizer.c,v 1.29 2023/05/30 11:53:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)tokenizer.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tokenizer.c,v 1.28 2016/04/11 18:56:31 christos Exp $");
+__RCSID("$NetBSD: tokenizer.c,v 1.29 2023/05/30 11:53:40 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -85,7 +85,7 @@ typedef enum {
 struct TYPE(tokenizer) {
 	Char	*ifs;		/* In field separator			 */
 	size_t	 argc, amax;	/* Current and maximum number of args	 */
-	Char   **argv;		/* Argument list			 */
+	const Char   **argv;	/* Argument list			 */
 	Char	*wptr, *wmax;	/* Space and limit on the word buffer	 */
 	Char	*wstart;	/* Beginning of next word		 */
 	Char	*wspace;	/* Space of word buffer			 */
@@ -424,7 +424,7 @@ FUN(tok,line)(TYPE(Tokenizer) *tok, const TYPE(LineInfo) *line,
 			tok->wmax = s + size;
 		}
 		if (tok->argc >= tok->amax - 4) {
-			Char **p;
+			const Char **p;
 			tok->amax += AINCR;
 			p = tok_realloc(tok->argv, tok->amax * sizeof(*p));
 			if (p == NULL) {
@@ -444,7 +444,7 @@ FUN(tok,line)(TYPE(Tokenizer) *tok, const TYPE(LineInfo) *line,
 	if (cursoro != NULL)
 		*cursoro = co;
 	FUN(tok,finish)(tok);
-	*argv = (const Char **)tok->argv;
+	*argv = tok->argv;
 	*argc = (int)tok->argc;
 	return 0;
 }

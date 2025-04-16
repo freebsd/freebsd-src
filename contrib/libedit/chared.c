@@ -1,4 +1,4 @@
-/*	$NetBSD: chared.c,v 1.63 2022/10/30 19:11:31 christos Exp $	*/
+/*	$NetBSD: chared.c,v 1.64 2024/06/29 14:13:14 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)chared.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: chared.c,v 1.63 2022/10/30 19:11:31 christos Exp $");
+__RCSID("$NetBSD: chared.c,v 1.64 2024/06/29 14:13:14 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -319,6 +319,8 @@ cv_prev_word(wchar_t *p, wchar_t *low, int n, int (*wtest)(wint_t))
 		test = (*wtest)(*p);
 		while ((p >= low) && (*wtest)(*p) == test)
 			p--;
+		if (p < low)
+			return low;
 	}
 	p++;
 
