@@ -71,7 +71,7 @@ class check_result {
     check_result(const atf_check_result_t* result);
 
     friend check_result test_constructor(const char* const*);
-    friend std::auto_ptr< check_result > exec(const atf::process::argv_array&);
+    friend std::unique_ptr< check_result > exec(const atf::process::argv_array&);
 
 public:
     //!
@@ -120,7 +120,7 @@ bool build_cpp(const std::string&, const std::string&,
                const atf::process::argv_array&);
 bool build_cxx_o(const std::string&, const std::string&,
                  const atf::process::argv_array&);
-std::auto_ptr< check_result > exec(const atf::process::argv_array&);
+std::unique_ptr< check_result > exec(const atf::process::argv_array&);
 
 // Useful for testing only.
 check_result test_constructor(void);
