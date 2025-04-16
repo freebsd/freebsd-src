@@ -1527,6 +1527,7 @@ lkpi_iv_key_update_begin(struct ieee80211vap *vap)
 	struct lkpi_hw *lhw;
 	struct ieee80211_hw *hw;
 	struct lkpi_vif *lvif;
+	struct ieee80211_node *ni;
 	bool icislocked, ntislocked;
 
 	ic = vap->iv_ic;
@@ -1547,13 +1548,26 @@ lkpi_iv_key_update_begin(struct ieee80211vap *vap)
 		    lvif->ic_unlocked, lvif->nt_unlocked);
 #endif
 
-	/* This is inconsistent net80211 locking to be fixed one day. */
+	/*
+	 * This is inconsistent net80211 locking to be fixed one day.
+	 */
+	/* Try to make sure the node does not go away while possibly unlocked. */
+	ni = NULL;
+	if (icislocked || ntislocked) {
+		if (vap->iv_bss != NULL)
+			ni = ieee80211_ref_node(vap->iv_bss);
+	}
+
 	if (icislocked)
 		IEEE80211_UNLOCK(ic);
 	if (ntislocked)
 		IEEE80211_NODE_UNLOCK(nt);
 
 	wiphy_lock(hw->wiphy);
+
+	KASSERT(lvif->key_update_iv_bss == NULL, ("%s: key_update_iv_bss not NULL %p",
+	    __func__, lvif->key_update_iv_bss));
+	lvif->key_update_iv_bss = ni;
 
 	/*
 	 * ic/nt_unlocked could be a bool given we are under the lock and there
@@ -1604,6 +1618,12 @@ lkpi_iv_key_update_end(struct ieee80211vap *vap)
 	 */
 	icislocked = refcount_release_if_last(&lvif->ic_unlocked);
 	ntislocked = refcount_release_if_last(&lvif->nt_unlocked);
+
+	if (lvif->key_update_iv_bss != NULL) {
+		ieee80211_free_node(lvif->key_update_iv_bss);
+		lvif->key_update_iv_bss = NULL;
+	}
+
 	wiphy_unlock(hw->wiphy);
 
 	/*
