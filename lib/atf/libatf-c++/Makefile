@@ -48,9 +48,6 @@ CFLAGS+=	-I.
 
 CFLAGS+=	-DHAVE_CONFIG_H
 
-# Silence warnings about usage of deprecated std::auto_ptr
-CXXWARNFLAGS+=	-Wno-deprecated-declarations
-
 SRCS=		application.cpp \
 		build.cpp \
 		check.cpp \

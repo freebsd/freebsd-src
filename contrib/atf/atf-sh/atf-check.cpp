@@ -108,7 +108,7 @@ struct output_check {
 };
 
 class temp_file : public std::ostream {
-    std::auto_ptr< atf::fs::path > m_path;
+    std::unique_ptr< atf::fs::path > m_path;
     int m_fd;
 
 public:
@@ -414,7 +414,7 @@ flatten_argv(char* const* argv)
 }
 
 static
-std::auto_ptr< atf::check::check_result >
+std::unique_ptr< atf::check::check_result >
 execute(const char* const* argv)
 {
     // TODO: This should go to stderr... but fixing it now may be hard as test
@@ -430,7 +430,7 @@ execute(const char* const* argv)
 }
 
 static
-std::auto_ptr< atf::check::check_result >
+std::unique_ptr< atf::check::check_result >
 execute_with_shell(char* const* argv)
 {
     const std::string cmd = flatten_argv(argv);
@@ -916,7 +916,7 @@ atf_check::main(void)
         m_stderr_checks.push_back(output_check(oc_empty, false, ""));
 
     do {
-        std::auto_ptr< atf::check::check_result > r =
+        std::unique_ptr< atf::check::check_result > r =
             m_xflag ? execute_with_shell(m_argv) : execute(m_argv);
 
         if ((run_status_checks(m_status_checks, *r) == false) ||
