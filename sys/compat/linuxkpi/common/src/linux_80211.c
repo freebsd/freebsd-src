@@ -2981,6 +2981,12 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	IMPROVE("Is this the right spot, has net80211 done all updates already?");
 	lkpi_sta_sync_from_ni(hw, vif, sta, ni, true);
 
+	/* Update thresholds. */
+	hw->wiphy->frag_threshold = vap->iv_fragthreshold;
+	lkpi_80211_mo_set_frag_threshold(hw, vap->iv_fragthreshold);
+	hw->wiphy->rts_threshold = vap->iv_rtsthreshold;
+	lkpi_80211_mo_set_rts_threshold(hw, vap->iv_rtsthreshold);
+
 	/* Update sta_state (ASSOC to AUTHORIZED). */
 	KASSERT(lsta != NULL, ("%s: ni %p lsta is NULL\n", __func__, ni));
 	KASSERT(lsta->state == IEEE80211_STA_ASSOC, ("%s: lsta %p state not "
