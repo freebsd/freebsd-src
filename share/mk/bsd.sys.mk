@@ -293,12 +293,6 @@ CLANG_OPT_SMALL+= -mllvm -simplifycfg-dup-ret
 .endif
 CLANG_OPT_SMALL+= -mllvm -enable-load-pre=false
 CFLAGS.clang+=	 -Qunused-arguments
-# The libc++ headers use c++11 extensions.  These are normally silenced because
-# they are treated as system headers, but we explicitly disable that warning
-# suppression when building the base system to catch bugs in our headers.
-# Eventually we'll want to start building the base system C++ code as C++11,
-# but not yet.
-CXXFLAGS.clang+=	 -Wno-c++11-extensions
 
 # XXX This should be defaulted to 2 when WITH_SSP is in use after further
 # testing and soak time.
