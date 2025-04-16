@@ -86,7 +86,7 @@ exit_numbers_body()
 	atf_check \
 		-o empty \
 		-e empty \
-		-s exit:143 \
+		-s signal:15 \
 		timeout --preserve-status .1 sleep 10
 
 	atf_check \
