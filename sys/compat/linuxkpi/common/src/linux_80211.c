@@ -1353,6 +1353,7 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	struct ieee80211_key_conf *kc;
 	uint32_t lcipher;
 	uint16_t exp_flags;
+	uint8_t keylen;
 	int error;
 
 	ic = vap->iv_ic;
@@ -1377,6 +1378,23 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	}
 	sta = LSTA_TO_STA(lsta);
 
+	keylen = k->wk_keylen;
+	lcipher = lkpi_net80211_to_l80211_cipher_suite(
+	    k->wk_cipher->ic_cipher, k->wk_keylen);
+	switch (lcipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		keylen += 2 * k->wk_cipher->ic_miclen;
+		break;
+	default:
+		ic_printf(ic, "%s: CIPHER SUITE %#x (%s) not supported\n",
+		    __func__, lcipher, lkpi_cipher_suite_to_name(lcipher));
+		IMPROVE();
+		ieee80211_free_node(ni);
+		return (0);
+	}
+
 	if (lsta->kc[k->wk_keyix] != NULL) {
 		IMPROVE("Still in firmware? Del first. Can we assert this cannot happen?");
 		ic_printf(ic, "%s: sta %6D found with key information\n",
@@ -1387,23 +1405,8 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		kc = NULL;	/* safeguard */
 	}
 
-	lcipher = lkpi_net80211_to_l80211_cipher_suite(
-	    k->wk_cipher->ic_cipher, k->wk_keylen);
-	switch (lcipher) {
-	case WLAN_CIPHER_SUITE_CCMP:
-	case WLAN_CIPHER_SUITE_TKIP:
-		break;
-	default:
-		ic_printf(ic, "%s: CIPHER SUITE %#x (%s) not supported\n",
-		    __func__, lcipher, lkpi_cipher_suite_to_name(lcipher));
-		IMPROVE();
-		ieee80211_free_node(ni);
-		return (0);
-	}
-
-	kc = malloc(sizeof(*kc) + k->wk_keylen, M_LKPI80211, M_WAITOK | M_ZERO);
+	kc = malloc(sizeof(*kc) + keylen, M_LKPI80211, M_WAITOK | M_ZERO);
 	kc->_k = k;		/* Save the pointer to net80211. */
-	atomic64_set(&kc->tx_pn, k->wk_keytsc);
 	kc->cipher = lcipher;
 	kc->keyidx = k->wk_keyix;
 #if 0
@@ -1424,6 +1427,8 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		kc->icv_len = k->wk_cipher->ic_trailer;
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
+		memcpy(kc->key + NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY, k->wk_txmic, k->wk_cipher->ic_miclen);
+		memcpy(kc->key + NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY, k->wk_rxmic, k->wk_cipher->ic_miclen);
 		kc->iv_len = k->wk_cipher->ic_header;
 		kc->icv_len = k->wk_cipher->ic_trailer;
 		break;
@@ -1437,9 +1442,9 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
 		ic_printf(ic, "%s: running set_key cmd %d(%s) for sta %6D: "
-		    "kc %p keyidx %u hw_key_idx %u flags %b\n", __func__,
-		    SET_KEY, "SET", sta->addr, ":",
-		    kc, kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
+		    "kc %p keyidx %u hw_key_idx %u keylen %u flags %b\n", __func__,
+		    SET_KEY, "SET", sta->addr, ":", kc, kc->keyidx, kc->hw_key_idx,
+		    kc->keylen, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
 	lhw = ic->ic_softc;
@@ -4680,16 +4685,51 @@ lkpi_ic_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 }
 
 #ifdef LKPI_80211_HW_CRYPTO
+/*
+ * This is a bit of a hack given we know we are operating on a
+ * single frame and we know that hardware will deal with it.
+ * But otherwise the enmic bit and the encrypt bit need to be
+ * decoupled.
+ */
 static int
 lkpi_hw_crypto_prepare_tkip(struct ieee80211_key *k,
     struct ieee80211_key_conf *kc, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 	uint32_t hlen, hdrlen;
-	uint8_t *p, *m;
+	uint8_t *p;
 
 	/*
-	 * Check if we have anythig to do as requested by driver
+	 * TKIP only happens on data.
+	 */
+	hdr = (void *)skb->data;
+	if (!ieee80211_is_data_present(hdr->frame_control))
+		return (0);
+
+	/*
+	 * "enmic" (though we do not do that).
+	 */
+	/* any conditions to not apply this? */
+	if (skb_tailroom(skb) < k->wk_cipher->ic_miclen)
+		return (ENOBUFS);
+
+	p = skb_put(skb, k->wk_cipher->ic_miclen);
+	if ((kc->flags & IEEE80211_KEY_FLAG_PUT_MIC_SPACE) != 0)
+		goto encrypt;
+
+	/*
+	 * (*enmic) which we hopefully do not have to do with hw accel.
+	 * That means if we make it here we have a problem.
+	 */
+	TODO("(*enmic)");
+	return (ENXIO);
+
+encrypt:
+	/*
+	 * "encrypt" (though we do not do that).
+	 */
+	/*
+	 * Check if we have anything to do as requested by driver
 	 * or if we are done?
 	 */
 	if ((kc->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE) == 0 &&
@@ -4698,22 +4738,12 @@ lkpi_hw_crypto_prepare_tkip(struct ieee80211_key *k,
 
 	hlen = k->wk_cipher->ic_header;
 	if (skb_headroom(skb) < hlen)
-		return (ENOSPC);
+		return (ENOBUFS);
 
 	hdr = (void *)skb->data;
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	p = skb_push(skb, hlen);
 	memmove(p, p + hlen, hdrlen);
-
-	/*
-	 * Put in zeroed space for the MMIC if requested.
-	 * XXX-BZ in theory this is not the right place but given we
-	 * are here we know we do hw_crypto so not much missing.
-	 */
-	if ((kc->flags & IEEE80211_KEY_FLAG_PUT_MIC_SPACE) != 0) {
-		m = skb_put(skb, 8);
-		memset(m, 0, 8);
-	}
 
 	/* If driver request space only we are done. */
 	if ((kc->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE) != 0)
@@ -4722,6 +4752,8 @@ lkpi_hw_crypto_prepare_tkip(struct ieee80211_key *k,
 	p += hdrlen;
 	k->wk_cipher->ic_setiv(k, p);
 
+	/* If we make it hear we do sw encryption. */
+	TODO("sw encrypt");
 	return (ENXIO);
 }
 static int
@@ -4747,7 +4779,7 @@ lkpi_hw_crypto_prepare_ccmp(struct ieee80211_key *k,
 
 	hlen = k->wk_cipher->ic_header;
 	if (skb_headroom(skb) < hlen)
-		return (ENOSPC);
+		return (ENOBUFS);
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	p = skb_push(skb, hlen);
