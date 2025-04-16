@@ -18,8 +18,4 @@ CFLAGS+=	-I${SRCTOP}/contrib/lutok/include \
 WARNS?=	3
 SHLIB_MAJOR=	0
 
-# lutok uses auto_ptr
-CFLAGS+=	-Wno-deprecated-declarations
-CXXSTD=		c++11
-
 .include <bsd.lib.mk>
