@@ -10064,6 +10064,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			REASON_SET(reason, PFRES_SHORT);
 			return (-1);
 		}
+		pd->pcksum = &pd->hdr.icmp.icmp_cksum;
 		pd->hdrlen = ICMP_MINLEN;
 		break;
 	}
@@ -10096,7 +10097,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 			return (-1);
 		}
 		pd->hdrlen = icmp_hlen;
-		pd->pcksum = &pd->hdr.icmp.icmp_cksum;
+		pd->pcksum = &pd->hdr.icmp6.icmp6_cksum;
 		break;
 	}
 #endif /* INET6 */
