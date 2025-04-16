@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.c,v 1.178 2022/12/02 19:23:15 christos Exp $	*/
+/*	$NetBSD: readline.c,v 1.182 2024/03/26 18:02:04 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: readline.c,v 1.178 2022/12/02 19:23:15 christos Exp $");
+__RCSID("$NetBSD: readline.c,v 1.182 2024/03/26 18:02:04 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <sys/types.h>
@@ -51,7 +51,9 @@ __RCSID("$NetBSD: readline.c,v 1.178 2022/12/02 19:23:15 christos Exp $");
 #include <unistd.h>
 #include <vis.h>
 
+#define completion_matches xxx_completion_matches
 #include "readline/readline.h"
+#undef completion_matches
 #include "el.h"
 #include "fcns.h"
 #include "filecomplete.h"
@@ -101,7 +103,7 @@ int max_input_history = 0;
 char history_expansion_char = '!';
 char history_subst_char = '^';
 char *history_no_expand_chars = expand_chars;
-Function *history_inhibit_expansion_function = NULL;
+rl_linebuf_func_t *history_inhibit_expansion_function = NULL;
 char *history_arg_extract(int start, int end, const char *str);
 
 int rl_inhibit_completion = 0;
@@ -122,11 +124,11 @@ int rl_filename_completion_desired = 0;
 int rl_ignore_completion_duplicates = 0;
 int readline_echoing_p = 1;
 int _rl_print_completions_horizontally = 0;
-VFunction *rl_redisplay_function = NULL;
+rl_voidfunc_t *rl_redisplay_function = NULL;
 rl_hook_func_t *rl_startup_hook = NULL;
-VFunction *rl_completion_display_matches_hook = NULL;
-VFunction *rl_prep_term_function = (VFunction *)rl_prep_terminal;
-VFunction *rl_deprep_term_function = (VFunction *)rl_deprep_terminal;
+rl_compdisp_func_t *rl_completion_display_matches_hook = NULL;
+rl_vintfunc_t *rl_prep_term_function = (rl_vintfunc_t *)rl_prep_terminal;
+rl_voidfunc_t *rl_deprep_term_function = (rl_voidfunc_t *)rl_deprep_terminal;
 KEYMAP_ENTRY_ARRAY emacs_meta_keymap;
 unsigned long rl_readline_state = RL_STATE_NONE;
 int _rl_complete_mark_directories;
@@ -400,7 +402,7 @@ rl_initialize(void)
 	 * Allow the use of the Delete/Insert keys.
 	 */
 	el_set(e, EL_BIND, "\\e[3~", "ed-delete-next-char", NULL);
-	el_set(e, EL_BIND, "\\e[2~", "ed-quoted-insert", NULL);
+	el_set(e, EL_BIND, "\\e[2~", "em-toggle-overwrite", NULL);
 
 	/*
 	 * Ctrl-left-arrow and Ctrl-right-arrow for word moving.
@@ -1978,7 +1980,7 @@ rl_complete(int ignore __attribute__((__unused__)), int invoking_key)
 	_rl_update_pos();
 
 	/* Just look at how many global variables modify this operation! */
-	return fn_complete(e,
+	return fn_complete2(e,
 	    (rl_compentry_func_t *)rl_completion_entry_function,
 	    rl_attempted_completion_function,
 	    ct_decode_string(rl_basic_word_break_characters, &wbreak_conv),
@@ -1986,7 +1988,7 @@ rl_complete(int ignore __attribute__((__unused__)), int invoking_key)
 	    _rl_completion_append_character_function,
 	    (size_t)rl_completion_query_items,
 	    &rl_completion_type, &rl_attempted_completion_over,
-	    &rl_point, &rl_end);
+	    &rl_point, &rl_end, 0);
 
 
 }
@@ -2573,7 +2575,7 @@ void
 rl_reset_after_signal(void)
 {
 	if (rl_prep_term_function)
-		(*rl_prep_term_function)();
+		(*rl_prep_term_function)(1);
 }
 
 void
