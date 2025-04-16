@@ -2361,6 +2361,15 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	if (prop & SIGPROP_CONT)
 		sigqueue_delete_stopmask_proc(p);
 	else if (prop & SIGPROP_STOP) {
+		if ((p->p_flag & P_TRACED) != 0 &&
+		    (p->p_flag2 & P2_PTRACE_FSTP) != 0) {
+			td->td_dbgflags |= TDB_FSTP;
+			PROC_SLOCK(p);
+			sig_handle_first_stop(td, p, sig, true);
+			PROC_SUNLOCK(p);
+			return (0);
+		}
+
 		/*
 		 * If sending a tty stop signal to a member of an orphaned
 		 * process group, discard the signal here if the action
@@ -3355,7 +3364,8 @@ issignal(struct thread *td)
 			}
 		}
 
-		if ((p->p_flag & (P_TRACED | P_PPTRACE)) == P_TRACED &&
+		if (false &&
+		    (p->p_flag & (P_TRACED | P_PPTRACE)) == P_TRACED &&
 		    (p->p_flag2 & P2_PTRACE_FSTP) != 0 &&
 		    SIGISMEMBER(sigpending, SIGSTOP)) {
 			/*
