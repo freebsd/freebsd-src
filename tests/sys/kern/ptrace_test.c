@@ -4379,7 +4379,10 @@ ATF_TC_BODY(ptrace__PT_SC_REMOTE_getpid, tc)
 		exit(0);
 	}
 
-	attach_child(fpid);
+	wpid = waitpid(fpid, &status, 0);
+	REQUIRE_EQ(wpid, fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
 
 	pscr.pscr_syscall = SYS_getpid;
 	pscr.pscr_nargs = 0;
