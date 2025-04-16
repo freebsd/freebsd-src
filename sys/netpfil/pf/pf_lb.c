@@ -226,6 +226,9 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 {
 	struct pf_state_key_cmp	key;
 	struct pf_addr		init_addr;
+	int			dir = (pd->dir == PF_IN) ? PF_OUT : PF_IN;
+	int			sidx = pd->sidx;
+	int			didx = pd->didx;
 
 	bzero(&init_addr, sizeof(init_addr));
 
@@ -291,11 +294,12 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 	bzero(&key, sizeof(key));
 	key.af = pd->naf;
 	key.proto = pd->proto;
-	key.port[0] = pd->ndport;
-	PF_ACPY(&key.addr[0], &pd->ndaddr, key.af);
 
 	do {
-		PF_ACPY(&key.addr[1], naddr, key.af);
+		PF_ACPY(&key.addr[didx], &pd->ndaddr, key.af);
+		PF_ACPY(&key.addr[sidx], naddr, key.af);
+		key.port[didx] = pd->ndport;
+
 		if (udp_mapping && *udp_mapping)
 			PF_ACPY(&(*udp_mapping)->endpoints[1].addr, naddr, pd->af);
 
@@ -304,8 +308,8 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 		 * similar 2 portloop in in_pcbbind
 		 */
 		if (pd->proto == IPPROTO_SCTP) {
-			key.port[1] = pd->nsport;
-			if (!pf_find_state_all_exists(&key, PF_IN)) {
+			key.port[sidx] = pd->nsport;
+			if (!pf_find_state_all_exists(&key, dir)) {
 				*nport = pd->nsport;
 				return (0);
 			} else {
@@ -317,14 +321,14 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 			 * XXX bug: icmp states don't use the id on both sides.
 			 * (traceroute -I through nat)
 			 */
-			key.port[1] = pd->nsport;
-			if (!pf_find_state_all_exists(&key, PF_IN)) {
+			key.port[sidx] = pd->nsport;
+			if (!pf_find_state_all_exists(&key, dir)) {
 				*nport = pd->nsport;
 				return (0);
 			}
 		} else if (low == high) {
-			key.port[1] = htons(low);
-			if (!pf_find_state_all_exists(&key, PF_IN)) {
+			key.port[sidx] = htons(low);
+			if (!pf_find_state_all_exists(&key, dir)) {
 				if (udp_mapping && *udp_mapping != NULL) {
 					(*udp_mapping)->endpoints[1].port = htons(low);
 					if (pf_udp_mapping_insert(*udp_mapping) == 0) {
@@ -350,14 +354,14 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 			/* low <= cut <= high */
 			for (tmp = cut; tmp <= high && tmp <= 0xffff; ++tmp) {
 				if (udp_mapping && *udp_mapping != NULL) {
-					(*udp_mapping)->endpoints[1].port = htons(tmp);
+					(*udp_mapping)->endpoints[sidx].port = htons(tmp);
 					if (pf_udp_mapping_insert(*udp_mapping) == 0) {
 						*nport = htons(tmp);
 						return (0);
 					}
 				} else {
-					key.port[1] = htons(tmp);
-					if (!pf_find_state_all_exists(&key, PF_IN)) {
+					key.port[sidx] = htons(tmp);
+					if (!pf_find_state_all_exists(&key, dir)) {
 						*nport = htons(tmp);
 						return (0);
 					}
@@ -374,8 +378,8 @@ pf_get_sport(struct pf_pdesc *pd, struct pf_krule *r,
 						return (0);
 					}
 				} else {
-					key.port[1] = htons(tmp);
-					if (!pf_find_state_all_exists(&key, PF_IN)) {
+					key.port[sidx] = htons(tmp);
+					if (!pf_find_state_all_exists(&key, dir)) {
 						*nport = htons(tmp);
 						return (0);
 					}
