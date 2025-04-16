@@ -921,6 +921,13 @@ g_raid_md_taste_sii(struct g_raid_md_object *md, struct g_class *mp,
 	mdi = (struct g_raid_md_sii_object *)md;
 	pp = cp->provider;
 
+	/* Explicitly reject providers with too small sector size */
+	if (pp->sectorsize < sizeof(struct sii_raid_conf)) {
+		G_RAID_DEBUG(1, "SiI sector size too small on %s: %u < %zu",
+		    pp->name, pp->sectorsize, sizeof(struct sii_raid_conf));
+		return (G_RAID_MD_TASTE_FAIL);
+	}
+
 	/* Read metadata from device. */
 	meta = NULL;
 	g_topology_unlock();
