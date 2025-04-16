@@ -381,8 +381,8 @@ static int		 pf_walk_header6(struct pf_pdesc *, struct ip6_hdr *,
 			    u_short *);
 static void		 pf_print_state_parts(struct pf_kstate *,
 			    struct pf_state_key *, struct pf_state_key *);
-static void		 pf_patch_8(struct mbuf *, u_int16_t *, u_int8_t *, u_int8_t,
-			    bool, u_int8_t);
+static void		 pf_patch_8(struct pf_pdesc *, u_int8_t *, u_int8_t,
+			    bool);
 static struct pf_kstate	*pf_find_state(struct pfi_kkif *,
 			    const struct pf_state_key_cmp *, u_int);
 static bool		 pf_src_connlimit(struct pf_kstate *);
@@ -3216,8 +3216,7 @@ pf_cksum_fixup(u_int16_t cksum, u_int16_t old, u_int16_t new, u_int8_t udp)
 }
 
 static void
-pf_patch_8(struct mbuf *m, u_int16_t *cksum, u_int8_t *f, u_int8_t v, bool hi,
-    u_int8_t udp)
+pf_patch_8(struct pf_pdesc *pd, u_int8_t *f, u_int8_t v, bool hi)
 {
 	u_int16_t old = htons(hi ? (*f << 8) : *f);
 	u_int16_t new = htons(hi ? ( v << 8) :  v);
@@ -3227,34 +3226,33 @@ pf_patch_8(struct mbuf *m, u_int16_t *cksum, u_int8_t *f, u_int8_t v, bool hi,
 
 	*f = v;
 
-	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6))
+	if (pd->m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6))
 		return;
 
-	*cksum = pf_cksum_fixup(*cksum, old, new, udp);
+	*pd->pcksum = pf_cksum_fixup(*pd->pcksum, old, new,
+	    pd->proto == IPPROTO_UDP);
 }
 
 void
-pf_patch_16_unaligned(struct mbuf *m, u_int16_t *cksum, void *f, u_int16_t v,
-    bool hi, u_int8_t udp)
+pf_patch_16_unaligned(struct pf_pdesc *pd, void *f, u_int16_t v, bool hi)
 {
 	u_int8_t *fb = (u_int8_t *)f;
 	u_int8_t *vb = (u_int8_t *)&v;
 
-	pf_patch_8(m, cksum, fb++, *vb++, hi, udp);
-	pf_patch_8(m, cksum, fb++, *vb++, !hi, udp);
+	pf_patch_8(pd, fb++, *vb++, hi);
+	pf_patch_8(pd, fb++, *vb++, !hi);
 }
 
 void
-pf_patch_32_unaligned(struct mbuf *m, u_int16_t *cksum, void *f, u_int32_t v,
-    bool hi, u_int8_t udp)
+pf_patch_32_unaligned(struct pf_pdesc *pd, void *f, u_int32_t v, bool hi)
 {
 	u_int8_t *fb = (u_int8_t *)f;
 	u_int8_t *vb = (u_int8_t *)&v;
 
-	pf_patch_8(m, cksum, fb++, *vb++, hi, udp);
-	pf_patch_8(m, cksum, fb++, *vb++, !hi, udp);
-	pf_patch_8(m, cksum, fb++, *vb++, hi, udp);
-	pf_patch_8(m, cksum, fb++, *vb++, !hi, udp);
+	pf_patch_8(pd, fb++, *vb++, hi);
+	pf_patch_8(pd, fb++, *vb++, !hi);
+	pf_patch_8(pd, fb++, *vb++, hi);
+	pf_patch_8(pd, fb++, *vb++, !hi);
 }
 
 u_int16_t
@@ -3952,16 +3950,14 @@ pf_modulate_sack(struct pf_pdesc *pd, struct tcphdr *th,
 				for (i = 2; i + TCPOLEN_SACK <= olen;
 				    i += TCPOLEN_SACK) {
 					memcpy(&sack, &opt[i], sizeof(sack));
-					pf_patch_32_unaligned(pd->m,
-					    &th->th_sum, &sack.start,
+					pf_patch_32_unaligned(pd,
+					    &sack.start,
 					    htonl(ntohl(sack.start) - dst->seqdiff),
-					    PF_ALGNMNT(startoff),
-					    0);
-					pf_patch_32_unaligned(pd->m, &th->th_sum,
+					    PF_ALGNMNT(startoff));
+					pf_patch_32_unaligned(pd,
 					    &sack.end,
 					    htonl(ntohl(sack.end) - dst->seqdiff),
-					    PF_ALGNMNT(startoff),
-					    0);
+					    PF_ALGNMNT(startoff));
 					memcpy(&opt[i], &sack, sizeof(sack));
 				}
 				copyback = 1;
