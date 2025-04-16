@@ -2453,8 +2453,8 @@ void	pf_change_a(void *, u_int16_t *, u_int32_t, u_int8_t);
 void	pf_change_proto_a(struct mbuf *, void *, u_int16_t *, u_int32_t,
 	    u_int8_t);
 void	pf_change_tcp_a(struct mbuf *, void *, u_int16_t *, u_int32_t);
-void	pf_patch_16_unaligned(struct pf_pdesc *, void *, u_int16_t, bool);
-void	pf_patch_32_unaligned(struct pf_pdesc *, void *, u_int32_t, bool);
+void	pf_patch_16(struct pf_pdesc *, void *, u_int16_t, bool);
+void	pf_patch_32(struct pf_pdesc *, void *, u_int32_t, bool);
 void	pf_send_deferred_syn(struct pf_kstate *);
 int	pf_match_addr(u_int8_t, const struct pf_addr *,
 	    const struct pf_addr *, const struct pf_addr *, sa_family_t);

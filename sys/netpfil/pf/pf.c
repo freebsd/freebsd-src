@@ -3234,7 +3234,7 @@ pf_patch_8(struct pf_pdesc *pd, u_int8_t *f, u_int8_t v, bool hi)
 }
 
 void
-pf_patch_16_unaligned(struct pf_pdesc *pd, void *f, u_int16_t v, bool hi)
+pf_patch_16(struct pf_pdesc *pd, void *f, u_int16_t v, bool hi)
 {
 	u_int8_t *fb = (u_int8_t *)f;
 	u_int8_t *vb = (u_int8_t *)&v;
@@ -3244,7 +3244,7 @@ pf_patch_16_unaligned(struct pf_pdesc *pd, void *f, u_int16_t v, bool hi)
 }
 
 void
-pf_patch_32_unaligned(struct pf_pdesc *pd, void *f, u_int32_t v, bool hi)
+pf_patch_32(struct pf_pdesc *pd, void *f, u_int32_t v, bool hi)
 {
 	u_int8_t *fb = (u_int8_t *)f;
 	u_int8_t *vb = (u_int8_t *)&v;
@@ -3950,11 +3950,11 @@ pf_modulate_sack(struct pf_pdesc *pd, struct tcphdr *th,
 				for (i = 2; i + TCPOLEN_SACK <= olen;
 				    i += TCPOLEN_SACK) {
 					memcpy(&sack, &opt[i], sizeof(sack));
-					pf_patch_32_unaligned(pd,
+					pf_patch_32(pd,
 					    &sack.start,
 					    htonl(ntohl(sack.start) - dst->seqdiff),
 					    PF_ALGNMNT(startoff));
-					pf_patch_32_unaligned(pd,
+					pf_patch_32(pd,
 					    &sack.end,
 					    htonl(ntohl(sack.end) - dst->seqdiff),
 					    PF_ALGNMNT(startoff));

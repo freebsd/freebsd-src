@@ -1633,7 +1633,7 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 					    (src->scrub->pfss_flags &
 					    PFSS_TIMESTAMP)) {
 						tsval = ntohl(tsval);
-						pf_patch_32_unaligned(pd,
+						pf_patch_32(pd,
 						    &opt[2],
 						    htonl(tsval +
 						    src->scrub->pfss_ts_mod),
@@ -1649,7 +1649,7 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 					    PFSS_TIMESTAMP)) {
 						tsecr = ntohl(tsecr)
 						    - dst->scrub->pfss_ts_mod;
-						pf_patch_32_unaligned(pd,
+						pf_patch_32(pd,
 						    &opt[6],
 						    htonl(tsecr),
 						    PF_ALGNMNT(startoff));
@@ -1974,7 +1974,7 @@ pf_normalize_mss(struct pf_pdesc *pd)
 		case TCPOPT_MAXSEG:
 			mss = (u_int16_t *)(optp + 2);
 			if ((ntohs(*mss)) > pd->act.max_mss) {
-				pf_patch_16_unaligned(pd,
+				pf_patch_16(pd,
 				    mss, htons(pd->act.max_mss),
 				    PF_ALGNMNT(startoff));
 				m_copyback(pd->m, pd->off + sizeof(*th),
