@@ -502,10 +502,12 @@ efi_early_map(vm_offset_t va)
 
 
 /*
- * When booted via kboot, the prior kernel will pass in reserved memory areas in
- * a EFI config table. We need to find that table and walk through it excluding
- * the memory ranges in it. btw, this is called too early for the printf to do
- * anything since msgbufp isn't initialized, let alone a console...
+ * When booted via kexec from Linux, the prior kernel will pass in reserved
+ * memory areas in an EFI config table. We need to find that table and walk
+ * through it excluding the memory ranges in it. btw, this is called too early
+ * for the printf to do anything (unless EARLY_PRINTF is defined) since msgbufp
+ * isn't initialized, let alone a console, but breakpoints in printf help
+ * diagnose rare failures.
  */
 static void
 exclude_efi_memreserve(vm_paddr_t efi_systbl_phys)
