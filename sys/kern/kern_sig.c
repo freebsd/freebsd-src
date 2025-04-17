@@ -176,6 +176,11 @@ SYSCTL_BOOL(_kern, OID_AUTO, sig_discard_ign, CTLFLAG_RWTUN,
     "Discard ignored signals on delivery, otherwise queue them to "
     "the target queue");
 
+static bool pt_attach_transparent = true;
+SYSCTL_BOOL(_debug, OID_AUTO, ptrace_attach_transparent, CTLFLAG_RWTUN,
+    &pt_attach_transparent, 0,
+    "Hide wakes from PT_ATTACH on interruptible sleeps");
+
 SYSINIT(signal, SI_SUB_P1003_1B, SI_ORDER_FIRST+3, sigqueue_start, NULL);
 
 /*
@@ -2361,7 +2366,8 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	if (prop & SIGPROP_CONT)
 		sigqueue_delete_stopmask_proc(p);
 	else if (prop & SIGPROP_STOP) {
-		if ((p->p_flag & P_TRACED) != 0 &&
+		if (pt_attach_transparent &&
+		    (p->p_flag & P_TRACED) != 0 &&
 		    (p->p_flag2 & P2_PTRACE_FSTP) != 0) {
 			td->td_dbgflags |= TDB_FSTP;
 			PROC_SLOCK(p);
@@ -3364,7 +3370,7 @@ issignal(struct thread *td)
 			}
 		}
 
-		if (false &&
+		if (!pt_attach_transparent &&
 		    (p->p_flag & (P_TRACED | P_PPTRACE)) == P_TRACED &&
 		    (p->p_flag2 & P2_PTRACE_FSTP) != 0 &&
 		    SIGISMEMBER(sigpending, SIGSTOP)) {
