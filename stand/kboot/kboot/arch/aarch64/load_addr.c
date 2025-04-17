@@ -11,30 +11,18 @@
 #include <libfdt.h>
 
 #include "kboot.h"
-#include "bootstrap.h"
 #include "efi.h"
-
-/*
- * Info from dtb about the EFI system
- */
-vm_paddr_t efi_systbl_phys;
-struct efi_map_header *efi_map_hdr;
-uint32_t efi_map_size;
-vm_paddr_t efi_map_phys_src;	/* From DTB */
-vm_paddr_t efi_map_phys_dst;	/* From our memory map metadata module */
 
 static bool
 do_memory_from_fdt(int fd)
 {
 	struct stat sb;
 	char *buf = NULL;
-	int len, offset, fd2 = -1;
-	uint32_t sz, ver, esz, efisz;
+	int len, offset;
+	uint32_t sz, ver, esz;
 	uint64_t mmap_pa;
 	const uint32_t *u32p;
 	const uint64_t *u64p;
-	struct efi_map_header *efihdr;
-	struct efi_md *map;
 
 	if (fstat(fd, &sb) < 0)
 		return false;
@@ -60,7 +48,7 @@ do_memory_from_fdt(int fd)
 	u64p = fdt_getprop(buf, offset, "linux,uefi-system-table", &len);
 	if (u64p == NULL)
 		goto errout;
-	efi_systbl_phys = fdt64_to_cpu(*u64p);
+	efi_set_systbl(fdt64_to_cpu(*u64p));
 	u32p = fdt_getprop(buf, offset, "linux,uefi-mmap-desc-ver", &len);
 	if (u32p == NULL)
 		goto errout;
@@ -82,62 +70,8 @@ do_memory_from_fdt(int fd)
 	printf("UEFI MMAP: Ver %d Ent Size %d Tot Size %d PA %#lx\n",
 	    ver, esz, sz, mmap_pa);
 
-	/*
-	 * We may have no ability to read the PA that this map is in, so pass
-	 * the address to FreeBSD via a rather odd flag entry as the first map
-	 * so early boot can copy the memory map into this space and have the
-	 * rest of the code cope.
-	 */
-	efisz = roundup2(sizeof(*efihdr), 16);
-	buf = malloc(sz + efisz);
-	if (buf == NULL)
-		return false;
-	efihdr = (struct efi_map_header *)buf;
-	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
-	bzero(map, sz);
-	efihdr->memory_size = sz;
-	efihdr->descriptor_size = esz;
-	efihdr->descriptor_version = ver;
-
-	/*
-	 * Save EFI table. Either this will be an empty table filled in by the trampoline,
-	 * or we'll read it below. Either way, set these two variables so we share the best
-	 * UEFI memory map with the kernel.
-	 */
-	efi_map_hdr = efihdr;
-	efi_map_size = sz + efisz;
-
-	/*
-	 * Try to read in the actual UEFI map.
-	 */
-	fd2 = open("host:/dev/mem", O_RDONLY);
-	if (fd2 < 0) {
-		printf("Will read UEFI mem map in tramp: no /dev/mem, need CONFIG_DEVMEM=y\n");
-		goto no_read;
-	}
-	if (lseek(fd2, mmap_pa, SEEK_SET) < 0) {
-		printf("Will read UEFI mem map in tramp: lseek failed\n");
-		goto no_read;
-	}
-	len = read(fd2, map, sz);
-	if (len != sz) {
-		if (len < 0 && errno == EPERM)
-			printf("Will read UEFI mem map in tramp: kernel needs CONFIG_STRICT_DEVMEM=n\n");
-		else
-			printf("Will read UEFI mem map in tramp: lean = %d errno = %d\n", len, errno);
-		goto no_read;
-	}
-	printf("Read UEFI mem map from physmem\n");
-	efi_map_phys_src = 0; /* Mark MODINFOMD_EFI_MAP as valid */
-	close(fd2);
-	printf("UEFI MAP:\n");
-	print_efi_map(efihdr);
-	return true;	/* OK, we really have the memory map */
-
-no_read:
-	efi_map_phys_src = mmap_pa;
-	close(fd2);
-	return true;	/* We can get it the trampoline */
+	efi_read_from_pa(mmap_pa, sz, esz, ver);
+	return true;
 
 errout:
 	free(buf);
@@ -150,22 +84,32 @@ enumerate_memory_arch(void)
 	int fd = -1;
 	bool rv = false;
 
+	/*
+	 * FDT publishes the parameters for the memory table in a series of
+	 * nodes in the DTB.  One of them is the physical address for the memory
+	 * table. Try to open the fdt nblob to find this information if we can
+	 * and try to grab things from memory. If we return rv == TRUE then
+	 * we found it. The global efi_map_phys_src is set != 0 when we know
+	 * the PA but can't read it.
+	 */
 	fd = open("host:/sys/firmware/fdt", O_RDONLY);
 	if (fd != -1) {
 		rv = do_memory_from_fdt(fd);
 		close(fd);
-		/*
-		 * So, we have physaddr to the memory table. However, we can't
-		 * open /dev/mem on some platforms to get the actual table. So
-		 * we have to fall through to get it from /proc/iomem.
-		 */
 	}
+
+	/*
+	 * One would think that one could use the raw EFI map to find memory
+	 * that's free to boot the kernel with. However, Linux reserves some
+	 * areas that it needs to properly. I'm not sure if the printf should be
+	 * a panic, but for now, so I can debug (maybe at the loader prompt),
+	 * I'm printing and carrying on.
+	 */
 	if (!rv) {
 		printf("Could not obtain UEFI memory tables, expect failure\n");
 	}
 
 	populate_avail_from_iomem();
-
 	print_avail();
 
 	return true;
@@ -181,32 +125,19 @@ kboot_get_phys_load_segment(void)
 	if (s != 0)
 		return (s);
 
+	print_avail();
 	s = first_avail(KERN_ALIGN, HOLE_SIZE, SYSTEM_RAM);
+	printf("KBOOT GET PHYS Using %#llx\n", (long long)s);
 	if (s != 0)
 		return (s);
 	s = 0x40000000 | 0x4200000;	/* should never get here */
-	printf("Falling back to crazy address %#lx\n", s);
+	/* XXX PANIC? XXX */
+	printf("Falling back to the crazy address %#lx which works in qemu\n", s);
 	return (s);
 }
 
 void
 bi_loadsmap(struct preloaded_file *kfp)
 {
-
-	/*
-	 * Make a note of a systbl. This is nearly mandatory on AARCH64.
-	 */
-	if (efi_systbl_phys)
-		file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof(efi_systbl_phys), &efi_systbl_phys);
-
-	/*
-	 * If we have efi_map_hdr, then it's a pointer to the PA where this
-	 * memory map lives. The trampoline code will copy it over. If we don't
-	 * have it, we use whatever we found in /proc/iomap.
-	 */
-	if (efi_map_hdr != NULL) {
-		file_addmetadata(kfp, MODINFOMD_EFI_MAP, efi_map_size, efi_map_hdr);
-		return;
-	}
-	panic("Can't get UEFI memory map, nor a pointer to it, can't proceed.\n");
+	efi_bi_loadsmap(kfp);
 }
