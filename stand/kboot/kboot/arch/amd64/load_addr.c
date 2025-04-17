@@ -43,23 +43,26 @@ enumerate_memory_arch(void)
 	return (true);
 }
 
+/* XXX refactor with aarch64 */
 uint64_t
 kboot_get_phys_load_segment(void)
 {
-	static uint64_t base_seg = BAD_SEG;
+#define HOLE_SIZE	(64ul << 20)
+#define KERN_ALIGN	(2ul << 20)
+	static uint64_t	s = 0;
 
-	if (base_seg != BAD_SEG)
-		return (base_seg);
+	if (s != 0)
+		return (s);
 
-	if (nr_seg > 0)
-		base_seg = find_ram(segs, nr_seg, 2ULL << 20, 2ULL << 20,
-		    64ULL << 20, 4ULL << 30);
-	if (base_seg == BAD_SEG) {
-		/* XXX Should fall back to using /proc/iomem maybe? */
-		/* XXX PUNT UNTIL I NEED SOMETHING BETTER */
-		base_seg = 300ULL * (1 << 20);
-	}
-	return (base_seg);
+	print_avail();
+	s = first_avail(KERN_ALIGN, HOLE_SIZE, SYSTEM_RAM);
+	printf("KBOOT GET PHYS Using %#llx\n", (long long)s);
+	if (s != 0)
+		return (s);
+	s = 0x40000000 | 0x4200000;	/* should never get here */
+	/* XXX PANIC? XXX */
+	printf("Falling back to the crazy address %#lx which works in qemu\n", s);
+	return (s);
 }
 
 void
