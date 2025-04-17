@@ -33,12 +33,78 @@
 #include "kboot.h"
 #include "bootstrap.h"
 
+/*
+ * Abbreviated x86 Linux struct boot_param for the so-called zero-page.
+ * We have to use this to get systab and memmap since neither of those
+ * are exposed in a sane way. We only define what we need and pad for
+ * everything else to minimize cross-coupling.
+ *
+ * Transcribed in FreeBSD-ese from Linux's asm/bootparam.h for x86 as of
+ * 6.15, but these details haven't changed in a long time.
+ */
+
+struct linux_efi_info {
+	uint32_t efi_loader_signature;	/* 0x00 */
+	uint32_t efi_systab;		/* 0x04 */
+	uint32_t efi_memdesc_size;	/* 0x08 */
+	uint32_t efi_memdesc_version;	/* 0x0c */
+	uint32_t efi_memmap;		/* 0x10 */
+	uint32_t efi_memmap_size;	/* 0x14 */
+	uint32_t efi_systab_hi;		/* 0x18 */
+	uint32_t efi_memmap_hi;		/* 0x1c */
+} __packed;
+
+struct linux_boot_params {
+	uint8_t _pad1[0x1c0];				/* 0x000 */
+	struct linux_efi_info efi_info;			/* 0x1c0 */
+	uint8_t _pad2[0x1000 - 0x1c0 - sizeof(struct linux_efi_info)]; /* 0x1e0 */
+} __packed;	/* Total size 4k, the page size on x86 */
+
 bool
 enumerate_memory_arch(void)
 {
-	efi_read_from_sysfs();
-	if (!populate_avail_from_iomem())
+	struct linux_boot_params bp;
+
+	/*
+	 * Sadly, there's no properly exported data for the EFI memory map nor
+	 * the system table. systab is passed in from the original boot loader.
+	 * memmap is obtained from boot time services (which are long gone) and
+	 * then modified and passed to SetVirtualAddressMap. Even though the
+	 * latter is in runtime services, it can only be called once and Linux
+	 * has already called it. So unless we can dig all this out from the
+	 * Linux kernel, there's no other wy to get it. A proper way would be to
+	 * publish these in /sys/firmware/efi, but that's not done yet. We can
+	 * only get the runtime subset and can't get systbl at all from today's
+	 * (6.15) Linux kernel. Linux's pandora boot loader will copy this same
+	 * information when it calls the new kernel, but since we don't use the
+	 * bzImage kexec vector, we have to harvest it here.
+	 */
+	if (data_from_kernel("boot_params", &bp, sizeof(bp))) {
+		uint64_t systbl, memmap;
+
+		systbl = (uint64_t)bp.efi_info.efi_systab_hi << 32 |
+		    bp.efi_info.efi_systab;
+		memmap = (uint64_t)bp.efi_info.efi_memmap_hi << 32 |
+		    bp.efi_info.efi_memmap;
+
+		efi_set_systbl(systbl);
+		efi_read_from_pa(memmap, bp.efi_info.efi_memmap_size,
+		    bp.efi_info.efi_memdesc_size, bp.efi_info.efi_memdesc_version);
+		printf("UEFI SYSTAB PA: %#lx\n", systbl);
+		printf("UEFI MMAP: Ver %d Ent Size %d Tot Size %d PA %#lx\n",
+		    bp.efi_info.efi_memdesc_version, bp.efi_info.efi_memdesc_size,
+		    bp.efi_info.efi_memmap_size, memmap);
+	}
+	/*
+	 * So, we can't use the EFI map for this, so we have to fall back to
+	 * the proc iomem stuff to at least get started...
+	 */
+	if (!populate_avail_from_iomem()) {
+		printf("Populate from avail also failed.\n");
 		return (false);
+	} else {
+		printf("Populate worked...\n");
+	}
 	print_avail();
 	return (true);
 }
