@@ -596,6 +596,7 @@ struct ieee80211_mimo_info {
 #define	IEEE80211_RX_F_VHT		0x00008000
 #define	IEEE80211_RX_F_PN_VALIDATED	0x00010000 /* Decrypted; PN validated */
 #define	IEEE80211_RX_F_MIC_STRIP	0x00020000 /* Decrypted; MIC stripped */
+#define	IEEE80211_RX_F_ICV_STRIP	0x00040000 /* Decrypted: ICV (ic_trailer) stripped */
 
 /* Channel width */
 #define	IEEE80211_RX_FW_20MHZ		1

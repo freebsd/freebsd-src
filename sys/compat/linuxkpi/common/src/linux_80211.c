@@ -6467,14 +6467,16 @@ lkpi_convert_rx_status(struct ieee80211_hw *hw, struct lkpi_sta *lsta,
 		if (rx_status->flag & RX_FLAG_PN_VALIDATED)
 			rx_stats->c_pktflags |= IEEE80211_RX_F_PN_VALIDATED;
 	}
+	if (rx_status->flag & RX_FLAG_IV_STRIPPED)
+		rx_stats->c_pktflags |= IEEE80211_RX_F_IV_STRIP;
+	if (rx_status->flag & RX_FLAG_ICV_STRIPPED)
+		rx_stats->c_pktflags |= IEEE80211_RX_F_ICV_STRIP;
+	if (rx_status->flag & RX_FLAG_MIC_STRIPPED)
+		rx_stats->c_pktflags |= IEEE80211_RX_F_MIC_STRIP;
 	if (rx_status->flag & RX_FLAG_MMIC_STRIPPED)
 		rx_stats->c_pktflags |= IEEE80211_RX_F_MMIC_STRIP;
 	if (rx_status->flag & RX_FLAG_MMIC_ERROR)
 		rx_stats->c_pktflags |= IEEE80211_RX_F_FAIL_MMIC;
-	if (rx_status->flag & RX_FLAG_MIC_STRIPPED)
-		rx_stats->c_pktflags |= IEEE80211_RX_F_MIC_STRIP;
-	if (rx_status->flag & RX_FLAG_IV_STRIPPED)
-		rx_stats->c_pktflags |= IEEE80211_RX_F_IV_STRIP;
 	if (rx_status->flag & RX_FLAG_FAILED_FCS_CRC)
 		rx_stats->c_pktflags |= IEEE80211_RX_F_FAIL_FCSCRC;
 #endif
