@@ -5,6 +5,7 @@ WARNS?= 4
 
 .PATH:	${.CURDIR}/arch/${MACHINE_ARCH}
 CFLAGS+=-I${.CURDIR} -I${.CURDIR}/arch/${MACHINE_ARCH}
+CFLAGS+=-I${LDRSRC}
 
 SRCS=	crt1.c
 SRCS+=	host_syscall.S
