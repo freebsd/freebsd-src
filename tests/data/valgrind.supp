@@ -1,0 +1,242 @@
+# -*- conf -*-
+#
+# This is a valgrind suppression file for analysis of test suite results.
+#
+# Suppress a variety of apparent memory leaks in various Kerberos
+# implementations due to one-time instantiation of data, and a few other
+# artifacts of the test suite for rra-c-util portability and utility code
+# and related software.
+#
+# The canonical version of this file is maintained in the rra-c-util package,
+# which can be found at <https://www.eyrie.org/~eagle/software/rra-c-util/>.
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2017-2018, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2011-2014
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+{
+   dlopen-dlerror
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+}
+{
+   fakeroot-msgsnd
+   Memcheck:Param
+   msgsnd(msgp->mtext)
+   fun:msgsnd
+   fun:send_fakem
+   fun:send_get_fakem
+   obj:*/libfakeroot-sysv.so
+}
+{
+   heimdal-base-once
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:heim_base_once_f
+}
+{
+   heimdal-gss-config
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:krb5_config_parse_debug
+}
+{
+   heimdal-gss-config-2
+   Memcheck:Leak
+   fun:*alloc
+   fun:_krb5_config_get_entry
+}
+{
+   heimdal-gss-cred
+   Memcheck:Leak
+   fun:calloc
+   obj:*libgssapi.so.*
+   obj:*libgssapi.so.*
+   fun:gss_acquire_cred
+}
+{
+   heimdal-gss-krb5-init
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:_gsskrb5_init
+}
+{
+   heimdal-gss-load-mech
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:_gss_load_mech
+}
+{
+   heimdal-krb5-init-context-once
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:init_context_once
+}
+{
+   heimdal-krb5-reg-plugins-once
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:krb5_plugin_register
+   fun:reg_def_plugins_once
+}
+{
+   heimdal-krb5-openssl-init
+   Memcheck:Leak
+   fun:*alloc
+   obj:*
+   fun:CRYPTO_*alloc
+}
+{
+   mit-gss-ccache
+   Memcheck:Leak
+   fun:*alloc
+   fun:krb5int_setspecific
+   fun:kg_set_ccache_name
+   fun:gss_krb5int_ccache_name
+}
+{
+   mit-gss-ccache-2
+   Memcheck:Leak
+   fun:*alloc
+   fun:strdup
+   fun:kg_set_ccache_name
+   fun:gss_krb5int_ccache_name
+}
+{
+   mit-gss-error
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:krb5_gss_save_error_string
+}
+{
+   mit-gss-mechs
+   Memcheck:Leak
+   fun:glob
+   fun:loadConfigFiles
+   fun:updateMechList
+   fun:build_mechSet
+   fun:gss_indicate_mechs
+}
+{
+   mit-kadmin-ovku-error
+   Memcheck:Leak
+   fun:*alloc*
+   fun:initialize_ovku_error_table_r
+}
+{
+   mit-krb5-changepw
+   Memcheck:Leak
+   fun:*alloc
+   fun:change_set_password
+   fun:krb5_change_password
+   fun:krb5_get_init_creds_password
+}
+{
+   mit-krb5-pkinit-openssl-init
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:krb5_init_preauth_context
+}
+{
+   mit-krb5-pkinit-openssl-request
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:krb5_preauth_request_context_init
+}
+{
+   mit-krb5-pkinit-openssl-request-2
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:k5_preauth_request_context_init
+}
+{
+   mit-krb5-plugin-dirs
+   Memcheck:Leak
+   fun:calloc
+   fun:krb5int_open_plugin_dirs
+}
+{
+   mit-krb5-plugin-dlerror
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   ...
+   fun:krb5int_open_plugin
+}
+{
+   mit-krb5-plugin-register
+   Memcheck:Leak
+   fun:malloc
+   fun:strdup
+   fun:register_module.isra.1
+}
+{
+   mit-krb5-preauth-init
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:k5_init_preauth_context
+}
+{
+   mit-krb5-preauth-init
+   Memcheck:Leak
+   fun:strdup
+   fun:add_to_list
+   fun:profile_get_values
+   ...
+   fun:clpreauth_prep_questions
+}
+{
+   mit-krb5-preauth-init-2
+   Memcheck:Leak
+   fun:*alloc
+   fun:init_list
+   fun:profile_get_values
+   ...
+   fun:clpreauth_prep_questions
+}
+{
+   mit-krb5-profile
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:profile_open_file
+}
+{
+   portable-setenv
+   Memcheck:Leak
+   fun:malloc
+   fun:test_setenv
+}

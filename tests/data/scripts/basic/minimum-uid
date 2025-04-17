@@ -1,0 +1,13 @@
+# Test account and session behavior for minimum UID.  -*- conf -*-
+#
+# Copyright 2020 Russ Allbery <eagle@eyrie.org>
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth     = minimum_uid=%1
+    password = minimum_uid=%1
+
+[run]
+    authenticate            = PAM_USER_UNKNOWN
+    chauthtok(PRELIM_CHECK) = PAM_IGNORE

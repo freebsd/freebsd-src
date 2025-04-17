@@ -1,0 +1,102 @@
+#!/bin/sh
+#
+# Build a Kerberos test realm for MIT Kerberos
+#
+# This script automates the process of setting up a Kerberos test realm from
+# scratch suitable for testing pam-krb5.  It is primarily intended to be run
+# from inside CI in a VM or container from the top of the pam-krb5 source
+# tree, and must be run as root.  It expects to be operating on the Debian
+# MIT Kerberos package.
+#
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+#
+# SPDX-License-Identifier: MIT
+
+set -eux
+
+# Install the KDC and the OpenSSL command line tool.
+apt-get install krb5-admin-server krb5-kdc krb5-pkinit openssl
+
+# Install its configuration files.
+cp ci/files/mit/extensions.client /etc/krb5kdc/extensions.client
+cp ci/files/mit/extensions.kdc /etc/krb5kdc/extensions.kdc
+cp ci/files/mit/kadm5.acl /etc/krb5kdc/kadm5.acl
+cp ci/files/mit/kdc.conf /etc/krb5kdc/kdc.conf
+cp ci/files/mit/krb5.conf /etc/krb5.conf
+
+# Add domain-realm mappings for the local host, since otherwise Heimdal and
+# MIT Kerberos may attempt to discover the realm of the local domain, and the
+# DNS server for GitHub Actions has a habit of just not responding and causing
+# the test to hang.
+cat <<EOF >>/etc/krb5.conf
+[domain_realm]
+    $(hostname -f) = MIT.TEST
+EOF
+
+# Create the basic KDC.
+kdb5_util create -s -P 'this is a test master database password'
+
+# Create and store the keytabs.
+kadmin.local -q 'add_principal +requires_preauth -randkey test/admin@MIT.TEST'
+kadmin.local -q 'ktadd -k tests/config/admin-keytab test/admin@MIT.TEST'
+kadmin.local -q 'add_principal +requires_preauth -randkey test/keytab@MIT.TEST'
+kadmin.local -q 'ktadd -k tests/config/keytab test/keytab@MIT.TEST'
+
+# Enable anonymous PKINIT.
+kadmin.local -q 'addprinc -randkey WELLKNOWN/ANONYMOUS'
+
+# Create a user principal with a known password.
+password="iceedKaicVevjunwiwyd"
+kadmin.local -q \
+    "add_principal +requires_preauth -pw $password testuser@MIT.TEST"
+echo 'testuser@MIT.TEST' >tests/config/password
+echo "$password" >>tests/config/password
+
+# Create the root CA for PKINIT.
+openssl genrsa -out /etc/krb5kdc/cakey.pem 2048
+openssl req -key /etc/krb5kdc/cakey.pem -new -x509 \
+    -out /etc/krb5kdc/cacert.pem -subj "/CN=MIT.TEST CA" -days 3650
+chmod 755 /etc/krb5kdc
+chmod 644 /etc/krb5kdc/cacert.pem
+
+# Create the certificate for the MIT Kerberos KDC.
+openssl genrsa -out /var/lib/krb5kdc/kdckey.pem 2048
+openssl req -new -out /var/lib/krb5kdc/kdc.req \
+    -key /var/lib/krb5kdc/kdckey.pem -subj "/CN=MIT.TEST"
+REALM=MIT.TEST openssl x509 -req -in /var/lib/krb5kdc/kdc.req   \
+    -CAkey /etc/krb5kdc/cakey.pem -CA /etc/krb5kdc/cacert.pem   \
+    -out /var/lib/krb5kdc/kdc.pem -days 365                     \
+    -extfile /etc/krb5kdc/extensions.kdc -extensions kdc_cert   \
+    -CAcreateserial
+rm /var/lib/krb5kdc/kdc.req
+
+# Create the certificate for the MIT Kerberos client.
+openssl genrsa -out clientkey.pem 2048
+openssl req -new -key clientkey.pem -out client.req \
+        -subj "/CN=testuser@MIT.TEST"
+REALM="MIT.TEST" CLIENT="testuser" openssl x509                         \
+    -CAkey /etc/krb5kdc/cakey.pem -CA /etc/krb5kdc/cacert.pem -req      \
+    -in client.req -extensions client_cert                              \
+    -extfile /etc/krb5kdc/extensions.client -days 365 -out client.pem
+cat client.pem clientkey.pem >tests/config/pkinit-cert
+rm clientkey.pem client.pem client.req
+echo 'testuser@MIT.TEST' >tests/config/pkinit-principal
+
+# Fix permissions on all the newly-created files.
+chmod 644 tests/config/*
+
+# Restart the MIT Kerberos KDC and services.
+systemctl stop krb5-kdc krb5-admin-server
+systemctl start krb5-kdc krb5-admin-server
+
+# Ensure that the KDC is running.
+for n in $(seq 1 5); do
+    if echo "$password" | kinit testuser@MIT.TEST; then
+        break
+    fi
+    sleep 1
+done
+klist
+kdestroy
+kinit -n @MIT.TEST
+kinit -X X509_user_identity=FILE:tests/config/pkinit-cert testuser@MIT.TEST

@@ -1,0 +1,38 @@
+# Test alternative authentication principal with debug logging.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth    = alt_auth_map=%%s/unknown-user no_ccache debug
+    account = alt_auth_map=%%s/unknown-user no_ccache debug
+    session = no_ccache debug
+
+[run]
+    authenticate  = PAM_SUCCESS
+    acct_mgmt     = PAM_SUCCESS
+    open_session  = PAM_SUCCESS
+    close_session = PAM_SUCCESS
+
+[prompts]
+    echo_off = Password: |%p
+
+[output]
+    DEBUG pam_sm_authenticate: entry
+    DEBUG (user %u) mapping %u to %0/unknown-user@%2
+    DEBUG /^\(user %u\) alternate authentication failed: /
+    DEBUG (user %u) attempting authentication as %u
+    DEBUG (user %u) mapped user %0/unknown-user@%2 does not match principal %u
+    INFO user %u authenticated as %u
+    DEBUG pam_sm_authenticate: exit (success)
+    DEBUG pam_sm_acct_mgmt: entry
+    DEBUG (user %u) mapped user %0/unknown-user@%2 does not match principal %u
+    DEBUG pam_sm_acct_mgmt: exit (success)
+    DEBUG pam_sm_open_session: entry
+    DEBUG pam_sm_open_session: exit (success)
+    DEBUG pam_sm_close_session: entry
+    DEBUG pam_sm_close_session: exit (success)

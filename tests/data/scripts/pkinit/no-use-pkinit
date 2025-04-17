@@ -1,0 +1,18 @@
+# Test for unsupported use_pkinit.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth = no_ccache use_pkinit
+
+[run]
+    authenticate = PAM_AUTHINFO_UNAVAIL
+
+[output]
+    ERR use_pkinit requested but PKINIT not available or cannot be enforced
+    NOTICE authentication failure; logname=%u uid=%i euid=%i tty= ruser= rhost=

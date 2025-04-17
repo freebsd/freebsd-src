@@ -1,0 +1,344 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Comment: This file documents the copyright statements and licenses for
+ every file in this package in a machine-readable format.  For a less
+ detailed, higher-level overview, see README.
+ .
+ For any copyright year range specified as YYYY-ZZZZ in this file, the
+ range specifies every single year in that closed interval.
+
+Files: *
+Copyright: 1999-2000 Frank Cusack <fcusack@fcusack.com>
+  2005 Andres Salomon <dilinger@debian.org>
+  2005-2010, 2014-2015, 2017, 2020-2021 Russ Allbery <eagle@eyrie.org>
+  2008-2014 The Board of Trustees of the Leland Stanford Junior University
+License: BSD-3-clause or GPL-1+
+
+Files: .clang-format docs/pam_krb5.5 docs/pam_krb5.pod pam-util/vector.c
+ pam-util/vector.h portable/asprintf.c portable/dummy.c
+ portable/issetugid.c portable/kadmin.h portable/krb5-extra.c
+ portable/krb5.h portable/macros.h portable/mkstemp.c portable/pam.h
+ portable/pam_syslog.c portable/pam_vsyslog.c portable/reallocarray.c
+ portable/stdbool.h portable/strndup.c portable/system.h tests/README
+ tests/TESTS tests/config/README tests/data/cppcheck.supp
+ tests/fakepam/README tests/pam-util/vector-t.c tests/portable/asprintf-t.c
+ tests/portable/mkstemp-t.c tests/portable/strndup-t.c
+Copyright: 2005-2012, 2014-2021 Russ Allbery <eagle@eyrie.org>
+  2006-2014 The Board of Trustees of the Leland Stanford Junior University
+License: all-permissive
+ Copying and distribution of this file, with or without modification, are
+ permitted in any medium without royalty provided the copyright notice and
+ this notice are preserved.  This file is offered as-is, without any
+ warranty.
+
+Files: Makefile.in
+Copyright: 1994-2021 Free Software Foundation, Inc.
+  1999-2000 Frank Cusack <fcusack@fcusack.com>
+  2005 Andres Salomon <dilinger@debian.org>
+  2005-2007, 2014, 2017, 2020-2021 Russ Allbery <eagle@eyrie.org>
+  2009, 2011-2012
+    The Board of Trustees of the Leland Stanford Junior University
+License: FSF-unlimited, and BSD-3-clause or GPL-1+
+
+Files: aclocal.m4 m4/ltoptions.m4 m4/ltsugar.m4 m4/ltversion.m4
+ m4/lt~obsolete.m4
+Copyright: 1996-2021 Free Software Foundation, Inc.
+License: FSF-unlimited
+
+Files: build-aux/ar-lib build-aux/compile build-aux/depcomp
+ build-aux/missing
+Copyright: 1996-2021 Free Software Foundation, Inc.
+License: GPL-2+ with Autoconf exception or BSD-3-clause or GPL-1+
+
+Files: build-aux/config.guess build-aux/config.sub
+Copyright: 1992-2018 Free Software Foundation, Inc.
+License: GPL-3+ with Autoconf exception or BSD-3-clause or GPL-1+
+
+Files: build-aux/install-sh
+Copyright: 1994 X Consortium
+License: X11
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the
+ "Software"), to deal in the Software without restriction, including
+ without limitation the rights to use, copy, modify, merge, publish,
+ distribute, sublicense, and/or sell copies of the Software, and to permit
+ persons to whom the Software is furnished to do so, subject to the
+ following conditions:
+ .
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE X CONSORTIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ OTHER DEALINGS IN THE SOFTWARE.
+ .
+ Except as contained in this notice, the name of the X Consortium shall
+ not be used in advertising or otherwise to promote the sale, use or other
+ dealings in this Software without prior written authorization from the X
+ Consortium.
+
+Files: build-aux/ltmain.sh
+Copyright: 1996-2015 Free Software Foundation, Inc.
+License: GPL-2+ with Libtool exception or BSD-3-clause or GPL-1+, and GPL-3+ with Libtool exception or BSD-3-clause or GPL-1+, and GPL-3+
+
+Files: ci/install ci/kdc-setup-heimdal ci/kdc-setup-mit ci/test
+ pam-util/args.c pam-util/args.h pam-util/logging.c pam-util/logging.h
+ pam-util/options.c pam-util/options.h tests/data/generate-krb5-conf
+ tests/data/valgrind.supp tests/docs/pod-spelling-t tests/docs/pod-t
+ tests/docs/spdx-license-t tests/fakepam/config.c tests/fakepam/data.c
+ tests/fakepam/general.c tests/fakepam/internal.h tests/fakepam/kuserok.c
+ tests/fakepam/logging.c tests/fakepam/pam.h tests/fakepam/script.c
+ tests/fakepam/script.h tests/pam-util/args-t.c tests/pam-util/fakepam-t.c
+ tests/pam-util/logging-t.c tests/pam-util/options-t.c tests/runtests.c
+ tests/style/obsolete-strings-t tests/tap/basic.c tests/tap/basic.h
+ tests/tap/kadmin.c tests/tap/kadmin.h tests/tap/kerberos.c
+ tests/tap/kerberos.h tests/tap/libtap.sh tests/tap/macros.h
+ tests/tap/perl/Test/RRA.pm tests/tap/perl/Test/RRA/Automake.pm
+ tests/tap/perl/Test/RRA/Config.pm tests/tap/process.c tests/tap/process.h
+ tests/tap/string.c tests/tap/string.h tests/valgrind/logs-t
+Copyright: 2000-2002, 2004-2021 Russ Allbery <eagle@eyrie.org>
+  2001-2002, 2004-2014
+    The Board of Trustees of the Leland Stanford Junior University
+License: Expat
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the
+ "Software"), to deal in the Software without restriction, including
+ without limitation the rights to use, copy, modify, merge, publish,
+ distribute, sublicense, and/or sell copies of the Software, and to permit
+ persons to whom the Software is furnished to do so, subject to the
+ following conditions:
+ .
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
+ OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+ THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Files: configure
+Copyright: 1992-1996, 1998-2017, 2020-2021 Free Software Foundation, Inc.
+License: FSF-configure, and GPL-2+ with Libtool exception or BSD-3-clause or GPL-1+
+
+Files: m4/cc-flags.m4
+Copyright: 2006, 2009, 2016 Internet Systems Consortium, Inc.
+  2016-2021 Russ Allbery <eagle@eyrie.org>
+License: ISC
+ Permission to use, copy, modify, and distribute this software for any
+ purpose with or without fee is hereby granted, provided that the above
+ copyright notice and this permission notice appear in all copies.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY
+ SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Files: m4/clang.m4 m4/kadm5clnt.m4 m4/krb5-config.m4 m4/krb5-pkinit.m4
+ m4/krb5.m4 m4/ld-version.m4 m4/lib-depends.m4 m4/lib-helper.m4
+ m4/lib-pathname.m4 m4/pam-const.m4
+Copyright: 2005-2014
+    The Board of Trustees of the Leland Stanford Junior University
+  2007, 2015, 2018, 2020-2021 Russ Allbery <eagle@eyrie.org>
+  2007-2008 Markus Moeller
+  2008-2010 Free Software Foundation, Inc.
+License: unlimited
+ This file is free software; the authors give unlimited permission to copy
+ and/or distribute it, with or without modifications, as long as this
+ notice is preserved.
+
+Files: m4/libtool.m4
+Copyright: 1996-2001, 2003-2015 Free Software Foundation, Inc.
+License: FSF-unlimited, and GPL-2+ with Libtool exception or BSD-3-clause or GPL-1+
+
+Files: portable/krb5-profile.c
+Copyright: 1985-2005 the Massachusetts Institute of Technology
+License: MIT-Kerberos
+ Export of this software from the United States of America may require
+ a specific license from the United States Government.  It is the
+ responsibility of any person or organization contemplating export to
+ obtain such a license before exporting.
+ .
+ WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
+ distribute this software and its documentation for any purpose and
+ without fee is hereby granted, provided that the above copyright
+ notice appear in all copies and that both that copyright notice and
+ this permission notice appear in supporting documentation, and that
+ the name of M.I.T. not be used in advertising or publicity pertaining
+ to distribution of the software without specific, written prior
+ permission.  Furthermore if you modify this software you must label
+ your software as modified software and not distribute it in such a
+ fashion that it might be confused with the original MIT software.
+ M.I.T. makes no representations about the suitability of this software
+ for any purpose.  It is provided "as is" without express or implied
+ warranty.
+ .
+ THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+ IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ .
+ Individual source code files are copyright MIT, Cygnus Support,
+ OpenVision, Oracle, Sun Soft, FundsXpress, and others.
+ .
+ Project Athena, Athena, Athena MUSE, Discuss, Hesiod, Kerberos, Moira,
+ and Zephyr are trademarks of the Massachusetts Institute of Technology
+ (MIT).  No commercial use of these trademarks may be made without
+ prior written permission of MIT.
+ .
+ "Commercial use" means use of a name in a product or other for-profit
+ manner.  It does NOT prevent a commercial firm from referring to the
+ MIT trademarks in order to convey information (although in doing so,
+ recognition of their trademark status should be given).
+
+License: BSD-3-clause or GPL-1+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ .
+ 1. Redistributions of source code must retain the above copyright
+    notice, and the entire permission notice in its entirety, including
+    the disclaimer of warranties.
+ .
+ 2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+ .
+ 3. The name of the author may not be used to endorse or promote products
+    derived from this software without specific prior written permission.
+ .
+ ALTERNATIVELY, this product may be distributed under the terms of the
+ GNU General Public License, in which case the provisions of the GPL
+ are required INSTEAD OF the above restrictions.  (This clause is
+ necessary due to a potential bad interaction between the GPL and the
+ restrictions contained in a BSD-style copyright.)
+ .
+ THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+ DAMAGE.
+
+License: FSF-configure
+ This script is free software; the Free Software Foundation gives unlimited
+ permission to copy, distribute and modify it.
+
+License: FSF-unlimited
+ This file is free software; the Free Software Foundation gives unlimited
+ permission to copy and/or distribute it, with or without modifications, as
+ long as this notice is preserved.
+ .
+ This program is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY, to the extent permitted by law; without even the
+ implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+License: GPL-2+ with Autoconf exception
+ This file is free software; you can redistribute it and/or modify it
+ under the terms of the GNU General Public License as published by the
+ Free Software Foundation; either version 2 of the License, or (at your
+ option) any later version.
+ .
+ This program is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+ Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License along
+ with this program.  If not, see <https://www.gnu.org/licenses/>.
+ .
+ As a special exception to the GNU General Public License, if you
+ distribute this file as part of a program that contains a configuration
+ script generated by Autoconf, you may include it under the same
+ distribution terms that you use for the rest of that program.
+Comment: The option described in the license has been accepted and these
+ files are distributed under the same terms as the package as a whole, as
+ described at the top of this file.
+
+License: GPL-2+ with Libtool exception
+ This file is part of GNU Libtool.
+ .
+ GNU Libtool is free software; you can redistribute it and/or modify it
+ under the terms of the GNU General Public License as published by the
+ Free Software Foundation; either version 2 of the License, or (at your
+ option) any later version.
+ .
+ As a special exception to the GNU General Public License, if you
+ distribute this file as part of a program or library that is built using
+ GNU Libtool, you may include this file under the same distribution terms
+ that you use for the rest of that program.
+ .
+ GNU Libtool is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+ Public License for more details.
+Comment: The option described in the license has been accepted and these
+ files are distributed under the same terms as the package as a whole, as
+ described at the top of this file.
+
+License: GPL-3+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+License: GPL-3+ with Autoconf exception
+ This file is free software; you can redistribute it and/or modify it
+ under the terms of the GNU General Public License as published by the
+ Free Software Foundation; either version 3 of the License, or (at your
+ option) any later version.
+ .
+ This program is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+ Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License along
+ with this program; if not, see <https://www.gnu.org/licenses/>.
+ .
+ As a special exception to the GNU General Public License, if you
+ distribute this file as part of a program that contains a configuration
+ script generated by Autoconf, you may include it under the same
+ distribution terms that you use for the rest of that program.  This
+ Exception is an additional permission under section 7 of the GNU General
+ Public License, version 3 ("GPLv3").
+Comment: The option described in the license has been accepted and these
+ files are distributed under the same terms as the package as a whole, as
+ described at the top of this file.
+
+License: GPL-3+ with Libtool exception
+ GNU Libtool is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ .
+ As a special exception to the GNU General Public License, if you
+ distribute this file as part of a program or library that is built
+ using GNU Libtool, you may include this file under the same
+ distribution terms that you use for the rest of that program.
+ .
+ GNU Libtool is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+Comment: The option described in the license has been accepted and these
+ files are distributed under the same terms as the package as a whole, as
+ described at the top of this file.
+

@@ -1,0 +1,9 @@
+# Heimdal KDC init script setup.  -*- sh -*-
+
+# KDC configuration.
+KDC_ENABLED=yes
+KDC_PARAMS='--config-file=/etc/heimdal-kdc/kdc.conf'
+
+# kpasswdd configuration.
+KPASSWDD_ENABLED=yes
+KPASSWDD_PARAMS='-r HEIMDAL.TEST'
