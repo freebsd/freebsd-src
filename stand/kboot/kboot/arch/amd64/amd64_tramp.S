@@ -105,3 +105,5 @@ tramp_size:
 tramp_data_offset:
 	.long	trampoline_data-tramp
 	.size	tramp_data_offset, 4
+
+	.section .note.GNU-stack,"",%progbits
