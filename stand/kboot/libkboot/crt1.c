@@ -57,6 +57,8 @@ extern int main(int, const char **, char **);
 
 #include "start_arch.h"
 
+void *stack_upper_limit;
+
 void
 _start_c(long *p)
 {
@@ -64,6 +66,7 @@ _start_c(long *p)
 	const char **argv;
 	char **envp;
 
+	stack_upper_limit = p;		/* Save the upper limit of call stack */
 	argc = p[0];
 	argv = (const char **)(p + 1);
 	envp = (char **)argv + argc + 1;
