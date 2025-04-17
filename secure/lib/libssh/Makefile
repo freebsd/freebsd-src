@@ -38,7 +38,6 @@ SRCS=	${LIBOPENSSH_SRCS} \
 	kexsntrup761x25519.c kexmlkem768x25519.c sntrup761.c kexgen.c \
 	sftp-realpath.c platform-pledge.c platform-tracing.c platform-misc.c \
 	sshbuf-io.c
-SRCS+=	ssh-sk-client.c
 
 PACKAGE=	ssh
 
