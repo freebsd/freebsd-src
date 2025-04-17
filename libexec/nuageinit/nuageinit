@@ -352,6 +352,13 @@ if line == "#cloud-config" then
 		network:close()
 		routing:close()
 	end
+	if obj.ssh_pwauth ~= nil then
+		local value = "no"
+		if obj.ssh_pwauth then
+			value = "yes"
+		end
+		nuage.update_sshd_config("PasswordAuthentication", value)
+	end
 else
 	local res, err = os.execute(path .. "/" .. ud)
 	if not res then
