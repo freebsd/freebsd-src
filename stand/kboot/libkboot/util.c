@@ -44,3 +44,16 @@ file2u64(const char *fn, uint64_t *val)
 	*val = v;
 	return true;
 }
+
+bool
+file2u32(const char *fn, uint32_t *val)
+{
+	unsigned long v;
+	char buffer[80];
+
+	if (!file2str(fn, buffer, sizeof(buffer)))
+		return false;
+	v = strtoul(buffer, NULL, 0);	/* XXX check return values? */
+	*val = v;
+	return true;
+}
