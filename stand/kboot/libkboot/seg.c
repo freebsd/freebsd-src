@@ -216,8 +216,7 @@ static struct kv
 	{ linux_code,		"Kernel code", KV_KEEPER },
 	{ linux_data,		"Kernel data", KV_KEEPER },
 	{ linux_bss,		"Kernel bss", KV_KEEPER },
-	{ firmware_reserved,	"reserved" },
-	{ 0, NULL },
+	{ firmware_reserved,	"Reserved" },
 };
 
 static const char *
