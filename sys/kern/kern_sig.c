@@ -117,6 +117,8 @@ static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, bool fast_sigblock);
 static void	sigqueue_start(void);
 static void	sigfastblock_setpend(struct thread *td, bool resched);
+static void	sig_handle_first_stop(struct thread *td, struct proc *p,
+    int sig, bool ext);
 
 static uma_zone_t	ksiginfo_zone = NULL;
 const struct filterops sig_filtops = {
@@ -2830,6 +2832,29 @@ sig_suspend_threads(struct thread *td, struct proc *p)
 	return (wakeup_swapper);
 }
 
+static void
+sig_handle_first_stop(struct thread *td, struct proc *p, int sig, bool ext)
+{
+	if ((td->td_dbgflags & TDB_FSTP) == 0 &&
+	    ((p->p_flag2 & P2_PTRACE_FSTP) != 0 ||
+	    p->p_xthread != NULL))
+		return;
+
+	p->p_xsig = sig;
+	p->p_xthread = td;
+
+	/*
+	 * If we are on sleepqueue already, let sleepqueue
+	 * code decide if it needs to go sleep after attach.
+	 */
+	if (ext || td->td_wchan == NULL)
+		td->td_dbgflags &= ~TDB_FSTP;
+
+	p->p_flag2 &= ~P2_PTRACE_FSTP;
+	p->p_flag |= P_STOPPED_SIG | P_STOPPED_TRACE;
+	sig_suspend_threads(td, p);
+}
+
 /*
  * Stop the process for an event deemed interesting to the debugger. If si is
  * non-NULL, this is a signal exchange; the new signal requested by the
@@ -2890,24 +2915,8 @@ ptracestop(struct thread *td, int sig, ksiginfo_t *si)
 			 * already set p_xthread, the current thread will get
 			 * a chance to report itself upon the next iteration.
 			 */
-			if ((td->td_dbgflags & TDB_FSTP) != 0 ||
-			    ((p->p_flag2 & P2_PTRACE_FSTP) == 0 &&
-			    p->p_xthread == NULL)) {
-				p->p_xsig = sig;
-				p->p_xthread = td;
+			sig_handle_first_stop(td, p, sig, false);
 
-				/*
-				 * If we are on sleepqueue already,
-				 * let sleepqueue code decide if it
-				 * needs to go sleep after attach.
-				 */
-				if (td->td_wchan == NULL)
-					td->td_dbgflags &= ~TDB_FSTP;
-
-				p->p_flag2 &= ~P2_PTRACE_FSTP;
-				p->p_flag |= P_STOPPED_SIG | P_STOPPED_TRACE;
-				sig_suspend_threads(td, p);
-			}
 			if ((td->td_dbgflags & TDB_STOPATFORK) != 0) {
 				td->td_dbgflags &= ~TDB_STOPATFORK;
 			}
