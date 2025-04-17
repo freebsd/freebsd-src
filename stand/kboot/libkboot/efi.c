@@ -7,6 +7,7 @@
 #include <sys/param.h>
 #include "stand.h"
 #include "efi.h"
+#include "seg.h"
 
 void
 foreach_efi_map_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb, void *argp)
@@ -32,6 +33,7 @@ foreach_efi_map_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb, void *
 	}
 }
 
+/* XXX REFACTOR WITH KERNEL */
 static void
 print_efi_map_entry(struct efi_md *p, void *argp __unused)
 {
@@ -94,4 +96,39 @@ print_efi_map(struct efi_map_header *efihdr)
 	    "Type", "Physical", "Virtual", "#Pages", "Attr");
 
 	foreach_efi_map_entry(efihdr, print_efi_map_entry, NULL);
+}
+
+static void
+efi_map_entry_add_avail(struct efi_md *p, void *argp)
+{
+	bool *retval = argp;
+
+	/*
+	 * The kernel itself uses a lot more types as memory it can use. Be
+	 * conservative here so we don't overwrite anything during the reboot
+	 * process which copies the new kernel (so we can't use the Linux kenrel
+	 * space for example). Anything that's not free, we simply don't add to
+	 * the system ram space. We just need to find a big enough place we can
+	 * land the kernel, and most of the other types we might use are
+	 * typically too small anyway, even if we could safely use them.
+	 */
+	if (p->md_type != EFI_MD_TYPE_FREE)
+		return;
+
+	/*
+	 * The memory map is always disjoint, so we never have to remove avail.
+	 */
+	add_avail(p->md_phys, p->md_phys + p->md_pages * EFI_PAGE_SIZE - 1,
+		SYSTEM_RAM);
+	*retval = true;
+}
+
+bool
+populate_avail_from_efi(struct efi_map_header *efihdr)
+{
+	bool retval = false;
+
+	init_avail();
+	foreach_efi_map_entry(efihdr, efi_map_entry_add_avail, &retval);
+	return retval;
 }

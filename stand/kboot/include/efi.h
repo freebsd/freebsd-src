@@ -15,3 +15,4 @@ typedef void (*efi_map_entry_cb)(struct efi_md *, void *argp);
 
 void foreach_efi_map_entry(struct efi_map_header *efihdr, efi_map_entry_cb cb, void *argp);
 void print_efi_map(struct efi_map_header *efihdr);
+bool populate_avail_from_efi(struct efi_map_header *efihdr);
