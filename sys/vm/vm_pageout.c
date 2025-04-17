@@ -108,6 +108,7 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_phys.h>
 #include <vm/vm_pagequeue.h>
+#include <vm/vm_radix.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
@@ -366,15 +367,16 @@ vm_pageout_flushable(vm_page_t m)
 static int
 vm_pageout_cluster(vm_page_t m)
 {
+	struct pctrie_iter pages;
 	vm_page_t mc[2 * vm_pageout_page_count - 1];
-	int alignment, num_ends, page_base, pageout_count;
+	int alignment, page_base, pageout_count;
 
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
 
 	vm_page_assert_xbusied(m);
 
+	vm_page_iter_init(&pages, m->object);
 	alignment = m->pindex % vm_pageout_page_count;
-	num_ends = 0;
 	page_base = nitems(mc) / 2;
 	pageout_count = 1;
 	mc[page_base] = m;
@@ -387,37 +389,37 @@ vm_pageout_cluster(vm_page_t m)
 	 * holes).  To solve this problem we do the reverse scan
 	 * first and attempt to align our cluster, then do a 
 	 * forward scan if room remains.
+	 *
+	 * If we are at an alignment boundary, stop here, and switch directions.
 	 */
-more:
-	m = mc[page_base];
-	while (pageout_count < vm_pageout_page_count) {
-		/*
-		 * If we are at an alignment boundary, and haven't reached the
-		 * last flushable page forward, stop here, and switch
-		 * directions.
-		 */
-		if (alignment == pageout_count - 1 && num_ends == 0)
-			break;
-
-		m = vm_page_prev(m);
-		if (m == NULL || !vm_pageout_flushable(m)) {
-			num_ends++;
-			break;
-		}
-		mc[--page_base] = m;
-		++pageout_count;
+	if (alignment > 0) {
+		pages.index = mc[page_base]->pindex;
+		do {
+			m = vm_radix_iter_prev(&pages);
+			if (m == NULL || !vm_pageout_flushable(m))
+				break;
+			mc[--page_base] = m;
+		} while (pageout_count++ < alignment);
 	}
-	m = mc[page_base + pageout_count - 1];
-	while (num_ends != 2 && pageout_count < vm_pageout_page_count) {
-		m = vm_page_next(m);
-		if (m == NULL || !vm_pageout_flushable(m)) {
-			if (num_ends++ == 0)
-				/* Resume the reverse scan. */
-				goto more;
-			break;
-		}
-		mc[page_base + pageout_count] = m;
-		++pageout_count;
+	if (pageout_count < vm_pageout_page_count) {
+		pages.index = mc[page_base + pageout_count - 1]->pindex;
+		do {
+			m = vm_radix_iter_next(&pages);
+			if (m == NULL || !vm_pageout_flushable(m))
+				break;
+			mc[page_base + pageout_count] = m;
+		} while (++pageout_count < vm_pageout_page_count);
+	}
+	if (pageout_count < vm_pageout_page_count &&
+	    alignment == nitems(mc) / 2 - page_base) {
+		/* Resume the reverse scan. */
+		pages.index = mc[page_base]->pindex;
+		do {
+			m = vm_radix_iter_prev(&pages);
+			if (m == NULL || !vm_pageout_flushable(m))
+				break;
+			mc[--page_base] = m;
+		} while (++pageout_count < vm_pageout_page_count);
 	}
 
 	return (vm_pageout_flush(&mc[page_base], pageout_count,
