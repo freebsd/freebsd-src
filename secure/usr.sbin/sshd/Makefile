@@ -6,7 +6,8 @@ CONFSDIR=	/etc/ssh
 PROG=	sshd
 SRCS=	sshd.c \
 	platform-listen.c \
-	servconf.c sshpty.c srclimit.c groupaccess.c auth2-methods.c
+	servconf.c sshpty.c srclimit.c groupaccess.c auth2-methods.c \
+	$(SKSRCS)
 PACKAGE=	ssh
 
 MAN=	sshd.8 sshd_config.5
