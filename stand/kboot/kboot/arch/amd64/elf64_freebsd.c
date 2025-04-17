@@ -44,6 +44,7 @@
 
 #include "bootstrap.h"
 #include "kboot.h"
+#include "efi.h"
 
 #include "platform/acfreebsd.h"
 #include "acconfig.h"
@@ -97,13 +98,19 @@ struct file_format *file_formats[] = {
 
 #ifndef	EFI
 /*
- * We create the stack that we want. We have the address of the page tables
- * we make on top (so we pop that off and set %cr3). We have the entry point
- * to the kernel (which retq pops off) This leaves the stack that the btext
- * wants: offset 4 is modulep and offset8 is kernend, with the filler bytes
- * to keep this aligned. This makes the trampoline very simple.
+ * We create the stack that we want. We store any memory map table that we have
+ * top copy (the metadata has already been filled in). We pop these args off and
+ * copy if neeed be. Then, we have the address of the page tables we make on top
+ * (so we pop that off and set %cr3). We have the entry point to the kernel
+ * (which retq pops off) This leaves the stack that the btext wants: offset 4 is
+ * modulep and offset8 is kernend, with the filler bytes to keep this
+ * aligned. This also makes the trampoline very simple: pop some args, maybe copy
+ * pop the page table and then return into btext as defined in the kernel.
  */
 struct trampoline_data {
+	uint64_t	memmap_src;		// Linux-provided memory map PA
+	uint64_t	memmap_dst;		// Module data copy PA
+	uint64_t	memmap_len;		// Length to copy
 	uint64_t	pt4;			// Page table address to pop
 	uint64_t	entry;			// return address to jump to kernel
 	uint32_t	fill1;			// 0
@@ -111,7 +118,7 @@ struct trampoline_data {
 	uint32_t	kernend;		// 8 kernel end
 	uint32_t	fill2;			// 12
 };
-_Static_assert(sizeof(struct trampoline_data) == 32, "Bad size for trampoline data");
+_Static_assert(sizeof(struct trampoline_data) == 56, "Bad size for trampoline data");
 #endif
 
 static pml4_entry_t *PT4;
@@ -420,8 +427,24 @@ elf64_exec(struct preloaded_file *fp)
 	    PT4, ehdr->e_entry);
 #else
 	trampoline_data = (void *)trampoline + tramp_data_offset;
-	trampoline_data->entry = ehdr->e_entry;
-	trampoline_data->pt4 = trampolinebase + LOADER_PAGE_SIZE;
+	trampoline_data->entry = ehdr->e_entry;	/* VA since we start MMU with KERNBASE, etc  */
+	if (efi_map_phys_src != 0) {
+		md = file_findmetadata(fp, MODINFOMD_EFI_MAP);
+		if (md == NULL || md->md_addr == 0) {
+			printf("Need to copy EFI MAP, but EFI MAP not found. %p\n", md);
+		} else {
+			printf("Metadata EFI map loaded at VA %lx\n", md->md_addr);
+			efi_map_phys_dst = md->md_addr + staging +	/* md_addr is taging relative */
+			    roundup2(sizeof(struct efi_map_header), 16); /* Skip header */
+			trampoline_data->memmap_src = efi_map_phys_src;
+			trampoline_data->memmap_dst = efi_map_phys_dst;
+			trampoline_data->memmap_len = efi_map_size - roundup2(sizeof(struct efi_map_header), 16);
+			printf("Copying UEFI Memory Map data from %#lx to %#lx %ld bytes\n",
+			    trampoline_data->memmap_src,
+			    trampoline_data->memmap_dst,
+			    trampoline_data->memmap_len);
+		}
+	}
 	/*
 	 * So we compute the VA of the module data by modulep + KERNBASE....
 	 * need to make sure that that address is mapped right. We calculate
@@ -429,6 +452,7 @@ elf64_exec(struct preloaded_file *fp)
 	 * calculated with a phyaddr of "kernend + PA(PT_u0[1])"), so we better
 	 * make sure we're not overwriting the last 2MB of the kernel :).
 	 */
+	trampoline_data->pt4 = trampolinebase + LOADER_PAGE_SIZE;
 	trampoline_data->modulep = modulep;	/* Offset from KERNBASE */
 	trampoline_data->kernend = kernend;	/* Offset from the load address */
 	trampoline_data->fill1 = trampoline_data->fill2 = 0;
