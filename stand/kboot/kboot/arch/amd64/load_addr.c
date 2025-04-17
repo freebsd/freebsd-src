@@ -68,18 +68,5 @@ kboot_get_phys_load_segment(void)
 void
 bi_loadsmap(struct preloaded_file *kfp)
 {
-	struct bios_smap smap[32], *sm;
-	struct memory_segments *s;
-	int smapnum, len;
-
-	for (smapnum = 0; smapnum < min(32, nr_seg); smapnum++) {
-		sm = &smap[smapnum];
-		s = &segs[smapnum];
-		sm->base = s->start;
-		sm->length = s->end - s->start + 1;
-		sm->type = SMAP_TYPE_MEMORY;
-	}
-
-        len = smapnum * sizeof(struct bios_smap);
-        file_addmetadata(kfp, MODINFOMD_SMAP, len, &smap[0]);
+	efi_bi_loadsmap(kfp);
 }
