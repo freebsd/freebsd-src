@@ -538,7 +538,7 @@ setup_nanobsd ( ) (
 	# are installed by this point, but are later in the process,
 	# the symlink not being here causes problems. It never hurts
 	# to have the symlink in error though.
-	ln -s ../../etc/local usr/local/etc
+	ln -sf ../../etc/local usr/local/etc
 
 	for d in var etc
 	do
