@@ -3315,6 +3315,8 @@ pf_change_ap(struct pf_pdesc *pd, struct pf_addr *a, u_int16_t *p,
 			    po, pn, u);
 			break;
 #endif /* INET6 */
+		default:
+			unhandled_af(pd->naf);
 		}
 		break;
 #endif /* INET */
@@ -3352,6 +3354,8 @@ pf_change_ap(struct pf_pdesc *pd, struct pf_addr *a, u_int16_t *p,
 
 			*pd->pcksum = pf_proto_cksum_fixup(pd->m, *pd->pcksum, po, pn, u);
 			break;
+		default:
+			unhandled_af(pd->naf);
 		}
 		break;
 #endif /* INET6 */
