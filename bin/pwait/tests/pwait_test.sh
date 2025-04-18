@@ -87,37 +87,37 @@ time_unit_body()
 	atf_check \
 		-o empty \
 		-e empty \
-		-s exit:143 \
+		-s signal:15 \
 		timeout --preserve-status 2 pwait -t 100000000 $init
 
 	atf_check \
 		-o empty \
 		-e empty \
-		-s exit:143 \
+		-s signal:15 \
 		timeout --preserve-status 2 pwait -t 1h $init
 
 	atf_check \
 		-o empty \
 		-e empty \
-		-s exit:143 \
+		-s signal:15 \
 		timeout --preserve-status 2 pwait -t 1.5h $init
 
 	atf_check \
 		-o empty \
 		-e empty \
-		-s exit:143 \
+		-s signal:15 \
 		timeout --preserve-status 2 pwait -t 1m $init
 
 	atf_check \
 		-o empty \
 		-e empty \
-		-s exit:143 \
+		-s signal:15 \
 		timeout --preserve-status 2 pwait -t 1.5m $init
 
 	atf_check \
 		-o empty \
 		-e empty \
-		-s exit:143 \
+		-s signal:15 \
 		timeout --preserve-status 2 pwait -t 0 $init
 
 	# The rest are fast enough that pwait -t is expected to trigger
