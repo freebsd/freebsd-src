@@ -315,7 +315,8 @@ static void wg_timers_run_persistent_keepalive(void *);
 static int wg_aip_add(struct wg_softc *, struct wg_peer *, sa_family_t, const void *, uint8_t);
 static struct wg_peer *wg_aip_lookup(struct wg_softc *, sa_family_t, void *);
 static void wg_aip_remove_all(struct wg_softc *, struct wg_peer *);
-static struct wg_peer *wg_peer_alloc(struct wg_softc *, const uint8_t [WG_KEY_SIZE]);
+static struct wg_peer *wg_peer_create(struct wg_softc *,
+    const uint8_t [WG_KEY_SIZE], int *);
 static void wg_peer_free_deferred(struct noise_remote *);
 static void wg_peer_destroy(struct wg_peer *);
 static void wg_peer_destroy_all(struct wg_softc *);
@@ -378,18 +379,26 @@ static void wg_module_deinit(void);
 
 /* TODO Peer */
 static struct wg_peer *
-wg_peer_alloc(struct wg_softc *sc, const uint8_t pub_key[WG_KEY_SIZE])
+wg_peer_create(struct wg_softc *sc, const uint8_t pub_key[WG_KEY_SIZE],
+    int *errp)
 {
 	struct wg_peer *peer;
 
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	peer = malloc(sizeof(*peer), M_WG, M_WAITOK | M_ZERO);
+
 	peer->p_remote = noise_remote_alloc(sc->sc_local, peer, pub_key);
-	peer->p_tx_bytes = counter_u64_alloc(M_WAITOK);
-	peer->p_rx_bytes = counter_u64_alloc(M_WAITOK);
+	if ((*errp = noise_remote_enable(peer->p_remote)) != 0) {
+		noise_remote_free(peer->p_remote, NULL);
+		free(peer, M_WG);
+		return (NULL);
+	}
+
 	peer->p_id = peer_counter++;
 	peer->p_sc = sc;
+	peer->p_tx_bytes = counter_u64_alloc(M_WAITOK);
+	peer->p_rx_bytes = counter_u64_alloc(M_WAITOK);
 
 	cookie_maker_init(&peer->p_cookie, pub_key);
 
@@ -420,6 +429,13 @@ wg_peer_alloc(struct wg_softc *sc, const uint8_t pub_key[WG_KEY_SIZE])
 	LIST_INIT(&peer->p_aips);
 	peer->p_aips_num = 0;
 
+	TAILQ_INSERT_TAIL(&sc->sc_peers, peer, p_entry);
+	sc->sc_peers_num++;
+
+	if (if_getlinkstate(sc->sc_ifp) == LINK_STATE_UP)
+		wg_timers_enable(peer);
+
+	DPRINTF(sc, "Peer %" PRIu64 " created\n", peer->p_id);
 	return (peer);
 }
 
@@ -2376,7 +2392,7 @@ wg_peer_add(struct wg_softc *sc, const nvlist_t *nvl)
 	size_t size;
 	struct noise_remote *remote;
 	struct wg_peer *peer = NULL;
-	bool need_insert = false;
+	bool need_cleanup = false;
 
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
@@ -2408,8 +2424,10 @@ wg_peer_add(struct wg_softc *sc, const nvlist_t *nvl)
 		wg_aip_remove_all(sc, peer);
 	}
 	if (peer == NULL) {
-		peer = wg_peer_alloc(sc, pub_key);
-		need_insert = true;
+		peer = wg_peer_create(sc, pub_key, &err);
+		if (peer == NULL)
+			goto out;
+		need_cleanup = true;
 	}
 	if (nvlist_exists_binary(nvl, "endpoint")) {
 		endpoint = nvlist_get_binary(nvl, "endpoint", &size);
@@ -2467,19 +2485,11 @@ wg_peer_add(struct wg_softc *sc, const nvlist_t *nvl)
 			}
 		}
 	}
-	if (need_insert) {
-		if ((err = noise_remote_enable(peer->p_remote)) != 0)
-			goto out;
-		TAILQ_INSERT_TAIL(&sc->sc_peers, peer, p_entry);
-		sc->sc_peers_num++;
-		if (if_getlinkstate(sc->sc_ifp) == LINK_STATE_UP)
-			wg_timers_enable(peer);
-	}
 	if (remote != NULL)
 		noise_remote_put(remote);
 	return (0);
 out:
-	if (need_insert) /* If we fail, only destroy if it was new. */
+	if (need_cleanup) /* If we fail, only destroy if it was new. */
 		wg_peer_destroy(peer);
 	if (remote != NULL)
 		noise_remote_put(remote);
