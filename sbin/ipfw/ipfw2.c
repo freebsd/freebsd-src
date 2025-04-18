@@ -2181,8 +2181,8 @@ print_action_instruction(struct buf_pr *bp, const struct format_opts *fo,
 		if (cmd->len == F_INSN_SIZE(ipfw_insn))
 			bprintf(bp, " %u", cmd->arg1);
 		else
-			bprintf(bp, " %lubytes",
-			    cmd->len * sizeof(uint32_t));
+			bprintf(bp, " %ubytes",
+			    (unsigned)(cmd->len * sizeof(uint32_t)));
 		break;
 	case O_SETDSCP:
 		if (cmd->arg1 == IP_FW_TARG) {
