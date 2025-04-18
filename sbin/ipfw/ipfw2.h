@@ -275,6 +275,7 @@ enum tokens {
 	TOK_UNLOCK,
 	TOK_VLIST,
 	TOK_OLIST,
+	TOK_MONITOR,
 	TOK_MISSING,
 	TOK_ORFLUSH,
 
@@ -347,7 +348,7 @@ struct buf_pr {
 int pr_u64(struct buf_pr *bp, void *pd, int width);
 int bp_alloc(struct buf_pr *b, size_t size);
 void bp_free(struct buf_pr *b);
-int bprintf(struct buf_pr *b, const char *format, ...);
+int bprintf(struct buf_pr *b, const char *format, ...) __printflike(2, 3);
 
 
 /* memory allocation support */
