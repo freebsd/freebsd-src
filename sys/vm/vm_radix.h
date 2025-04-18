@@ -258,6 +258,18 @@ vm_radix_iter_step(struct pctrie_iter *pages)
 }
 
 /*
+ * Iterate over each non-NULL page from page 'start' to the end of the object.
+ */
+#define VM_RADIX_FOREACH_FROM(m, pages, start)				\
+	for (m = vm_radix_iter_lookup_ge(&pages, start); m != NULL;	\
+	    m = vm_radix_iter_step(&pages))
+
+/*
+ * Iterate over each non-NULL page from the beginning to the end of the object.
+ */
+#define VM_RADIX_FOREACH(m, pages) VM_RADIX_FOREACH_FROM(m, pages, 0)
+
+/*
  * Initialize an iterator pointing to the page with the greatest pindex that is
  * less than or equal to the specified pindex, or NULL if there are no such
  * pages.  Return the page.
@@ -294,6 +306,20 @@ vm_radix_iter_next(struct pctrie_iter *pages)
 {
 	return (VM_RADIX_PCTRIE_ITER_NEXT(pages));
 }
+
+/*
+ * Iterate over consecutive non-NULL pages from position 'start' to first NULL
+ * page.
+ */
+#define VM_RADIX_FORALL_FROM(m, pages, start)				\
+	for (m = vm_radix_iter_lookup(&pages, start); m != NULL;	\
+	    m = vm_radix_iter_next(&pages))
+
+/*
+ * Iterate over consecutive non-NULL pages from the beginning to first NULL
+ * page.
+ */
+#define VM_RADIX_FORALL(m, pages) VM_RADIX_FORALL_FROM(m, pages, 0)
 
 /*
  * Update the iterator to point to the page with the pindex that is one less
