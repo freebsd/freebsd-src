@@ -506,11 +506,10 @@ ipfw_rtsocklog_fill_l3(struct ip_fw_args *args,
 }
 
 static struct sockaddr *
-ipfw_rtsocklog_handle_tablearg(struct ip_fw_chain *chain, ipfw_insn *cmd,
-    uint32_t tablearg, uint32_t *targ_value, char **buf)
+ipfw_rtsocklog_handle_tablearg(struct ip_fw_chain *chain,
+    struct ip_fw_args *args, ipfw_insn *cmd, uint32_t tablearg,
+    uint32_t *targ_value, char **buf)
 {
-	struct sockaddr_in *v4nh = NULL;
-
 	/* handle tablearg now */
 	switch (cmd->opcode) {
 	case O_DIVERT:
@@ -531,26 +530,47 @@ ipfw_rtsocklog_handle_tablearg(struct ip_fw_chain *chain, ipfw_insn *cmd,
 	case O_CALLRETURN:
 		if (cmd->opcode == O_CALLRETURN && (cmd->len & F_NOT))
 			break;
-		*targ_value = (TARG(insntod(cmd, u32)->d[0], skipto));
+		*targ_value = TARG(insntod(cmd, u32)->d[0], skipto);
 		break;
 	case O_PIPE:
 	case O_QUEUE:
 		*targ_value = TARG(cmd->arg1, pipe);
 		break;
-	case O_MARK:
-		*targ_value = TARG(cmd->arg1, mark);
+	case O_SETMARK:
+		if (cmd->arg1 == IP_FW_TARG)
+			*targ_value = TARG_VAL(chain, tablearg, mark);
 		break;
 	case O_FORWARD_IP:
-		v4nh = (struct sockaddr_in *)buf;
-		buf += sizeof(*v4nh);
-		*v4nh = ((ipfw_insn_sa *)cmd)->sa;
-		if (v4nh->sin_addr.s_addr == INADDR_ANY)
-			v4nh->sin_addr.s_addr = htonl(tablearg);
+		if (IS_IP4_FLOW_ID(&args->f_id)) {
+			struct sockaddr_in *nh = (struct sockaddr_in *)*buf;
 
-		return (struct sockaddr *)v4nh;
+			*buf += sizeof(*nh);
+			memcpy(nh, &insntod(cmd, sa)->sa, sizeof(*nh));
+			if (nh->sin_addr.s_addr == INADDR_ANY)
+				nh->sin_addr.s_addr = htonl(
+				    TARG_VAL(chain, tablearg, nh4));
+			return ((struct sockaddr *)nh);
+		}
+		/* FALLTHROUGH */
 #ifdef INET6
 	case O_FORWARD_IP6:
-		return (struct sockaddr *)&(((ipfw_insn_sa6 *)cmd)->sa);
+		if (IS_IP6_FLOW_ID(&args->f_id)) {
+			const struct sockaddr_in *sin = &insntod(cmd, sa)->sa;
+			struct sockaddr_in6 *nh = (struct sockaddr_in6 *)*buf;
+
+			*buf += sizeof(*nh);
+			if (cmd->opcode == O_FORWARD_IP &&
+			    sin->sin_addr.s_addr == INADDR_ANY) {
+				nh->sin6_family = AF_INET6;
+				nh->sin6_len = sizeof(*nh);
+				nh->sin6_addr = TARG_VAL(chain, tablearg, nh6);
+				nh->sin6_port = sin->sin_port;
+				nh->sin6_scope_id =
+				    TARG_VAL(chain, tablearg, zoneid);
+			} else
+				memcpy(nh, &insntod(cmd, sa6)->sa, sizeof(*nh));
+			return ((struct sockaddr *)nh);
+		}
 #endif
 	default:
 		break;
@@ -661,7 +681,7 @@ ipfw_log_rtsock(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 
 	/* handle tablearg */
 	info->rti_info[RTAX_GENMASK] = ipfw_rtsocklog_handle_tablearg(
-	    chain, cmd, tablearg, targ_value, &buf);
+	    chain, args, cmd, tablearg, targ_value, &buf);
 
 	/* L3 */
 	ipfw_rtsocklog_fill_l3(args, &buf,
