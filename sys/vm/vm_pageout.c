@@ -185,8 +185,23 @@ SYSCTL_INT(_vm, OID_AUTO, pageout_oom_seq,
     "back-to-back calls to oom detector to start OOM");
 
 static int act_scan_laundry_weight = 3;
-SYSCTL_INT(_vm, OID_AUTO, act_scan_laundry_weight, CTLFLAG_RWTUN,
-    &act_scan_laundry_weight, 0,
+
+static int
+sysctl_act_scan_laundry_weight(SYSCTL_HANDLER_ARGS)
+{
+	int error, newval;
+
+	newval = act_scan_laundry_weight;
+	error = sysctl_handle_int(oidp, &newval, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+	if (newval < 1)
+		return (EINVAL);
+	act_scan_laundry_weight = newval;
+	return (0);
+}
+SYSCTL_PROC(_vm, OID_AUTO, act_scan_laundry_weight, CTLFLAG_RWTUN | CTLTYPE_INT,
+    &act_scan_laundry_weight, 0, sysctl_act_scan_laundry_weight, "I",
     "weight given to clean vs. dirty pages in active queue scans");
 
 static u_int vm_background_launder_rate = 4096;
