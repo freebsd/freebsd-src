@@ -37,9 +37,13 @@
 
 #include_next <string.h>
 
+#include <Availability.h>
+
+#if __MAC_OS_X_VERSION_MAX_ALLOWED < 150400
 /*
- * strchrnul is not provided by macOS and the strchrnul.c implementation
- * can not be compiled on macOS so just provide it inline here
+ * strchrnul is not provided by macOS prior to 15.4 and the
+ * strchrnul.c implementation can not be compiled on macOS so just
+ * provide it inline here
  */
 static inline char *
 strchrnul(const char *p, int ch)
@@ -53,3 +57,4 @@ strchrnul(const char *p, int ch)
 	}
 	/* NOTREACHED */
 }
+#endif
