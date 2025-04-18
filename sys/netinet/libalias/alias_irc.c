@@ -360,9 +360,9 @@ AliasHandleIrcOut(struct libalias *la,
 			 * matter, and this would probably allow it through
 			 * at least _some_ firewalls.
 			 */
-			dcc_lnk = FindUdpTcpOut(la, true_addr, destaddr,
+			(void)FindUdpTcpOut(la, true_addr, destaddr,
 			    true_port, 0,
-			    IPPROTO_TCP, 1);
+			    IPPROTO_TCP, 1, &dcc_lnk);
 			DBprintf(("Got a DCC link\n"));
 			if (dcc_lnk) {
 				struct in_addr alias_address;	/* Address from aliasing */
