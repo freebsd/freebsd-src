@@ -171,6 +171,8 @@ in-kernel NAT.\&
 .Nm
 .Cm internal iflist
 .Nm
+.Cm internal monitor Op Ar filter-comment
+.Nm
 .Cm internal talist
 .Nm
 .Cm internal vlist
@@ -4332,6 +4334,15 @@ sub-options:
 Lists all interface which are currently tracked by
 .Nm
 with their in-kernel status.
+.It Cm monitor Op Ar filter-comment
+Capture messages from
+.Xr route 4
+socket, that were logged using rules with
+.Cm log Cm logdst Ar rtsock
+opcode. Optional
+.Ar filter-comment
+can be specified to show only those messages, that were logged
+by rules with specific rule comment.
 .It Cm talist
 List all table lookup algorithms currently available.
 .El

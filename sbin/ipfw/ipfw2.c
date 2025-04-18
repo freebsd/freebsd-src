@@ -47,6 +47,8 @@
 
 #include <net/ethernet.h>
 #include <net/if.h>		/* only IFNAMSIZ */
+#include <net/if_dl.h>
+#include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>	/* only n_short, n_long */
 #include <netinet/ip.h>
@@ -2009,7 +2011,7 @@ print_logdst(struct buf_pr *bp, uint16_t arg1)
 {
 	char const *comma = "";
 
-	bprintf(bp, " logdst ", arg1);
+	bprintf(bp, " logdst ");
 	if (arg1 & IPFW_LOG_SYSLOG) {
 		bprintf(bp, "%ssyslog", comma);
 		comma = ",";
@@ -2179,7 +2181,7 @@ print_action_instruction(struct buf_pr *bp, const struct format_opts *fo,
 		if (cmd->len == F_INSN_SIZE(ipfw_insn))
 			bprintf(bp, " %u", cmd->arg1);
 		else
-			bprintf(bp, " %ubytes",
+			bprintf(bp, " %lubytes",
 			    cmd->len * sizeof(uint32_t));
 		break;
 	case O_SETDSCP:
@@ -5956,6 +5958,7 @@ static struct _s_x intcmds[] = {
       { "iflist",	TOK_IFLIST },
       { "olist",	TOK_OLIST },
       { "vlist",	TOK_VLIST },
+      { "monitor",	TOK_MONITOR },
       { NULL, 0 }
 };
 
@@ -6030,6 +6033,132 @@ ipfw_list_objects(int ac __unused, char *av[] __unused)
 	free(olh);
 }
 
+static void
+bprint_sa(struct buf_pr *bp, const struct sockaddr *sa)
+{
+	struct sockaddr_storage ss;
+	char buf[INET6_ADDRSTRLEN];
+
+	memset(&ss, 0, sizeof(ss));
+	if (sa->sa_len == 0)
+		ss.ss_family = sa->sa_family;
+	else
+		memcpy(&ss, sa, sa->sa_len);
+
+	/* set ss_len in case it was shortened */
+	switch (sa->sa_family) {
+	case AF_INET:
+		ss.ss_len = sizeof(struct sockaddr_in);
+		break;
+	default:
+		ss.ss_len = sizeof(struct sockaddr_in6);
+	}
+	if (getnameinfo((const struct sockaddr *)&ss, ss.ss_len,
+	    buf, sizeof(buf), NULL, 0, NI_NUMERICHOST) != 0) {
+		bprintf(bp, "bad-addr");
+		return;
+	}
+	bprintf(bp, "%s", buf);
+}
+
+static void
+ipfw_rtsock_monitor(const char *filter)
+{
+	char msg[2048], buf[32];
+	struct timespec tp;
+	struct tm tm;
+	struct buf_pr bp;
+	struct rt_msghdr *hdr;
+	struct sockaddr *sa;
+	struct sockaddr_dl *sdl;
+	ipfwlog_rtsock_hdr_v2 *loghdr;
+	ssize_t msglen;
+	int rtsock;
+
+	rtsock = socket(PF_ROUTE, SOCK_RAW, AF_IPFWLOG);
+	if (rtsock < 0)
+		err(EX_UNAVAILABLE, "socket(AF_IPFWLOG)");
+	bp_alloc(&bp, 4096);
+	for (;;) {
+		msglen = read(rtsock, msg, sizeof(msg));
+		if (msglen < 0) {
+			warn("read()");
+			continue;
+		}
+		if (sizeof(*hdr) - msglen < 0)
+			continue;
+
+		hdr = (struct rt_msghdr *)msg;
+		if (hdr->rtm_version != RTM_VERSION ||
+		    hdr->rtm_type != RTM_IPFWLOG ||
+		    (hdr->rtm_addrs & (1 << RTAX_DST)) == 0 ||
+		    (hdr->rtm_addrs & (1 << RTAX_GATEWAY)) == 0 ||
+		    (hdr->rtm_addrs & (1 << RTAX_NETMASK)) == 0)
+			continue;
+
+		msglen -= sizeof(*hdr);
+		sdl = (struct sockaddr_dl *)(hdr + 1);
+		if (msglen - sizeof(*sdl) < 0 || msglen - SA_SIZE(sdl) < 0 ||
+		    sdl->sdl_family != AF_IPFWLOG ||
+		    sdl->sdl_type != 2 /* version */ ||
+		    sdl->sdl_alen != sizeof(*loghdr))
+			continue;
+
+		msglen -= SA_SIZE(sdl);
+		loghdr = (ipfwlog_rtsock_hdr_v2 *)sdl->sdl_data;
+		/* filter by rule comment. MAX_COMMENT_LEN = 80 */
+		if (filter != NULL &&
+		    strncmp(filter, loghdr->comment, 80) != 0)
+			continue;
+
+		sa = (struct sockaddr *)((char *)sdl + SA_SIZE(sdl));
+		if (msglen - SA_SIZE(sa) < 0)
+			continue;
+
+		msglen -= SA_SIZE(sa);
+		bp_flush(&bp);
+
+		clock_gettime(CLOCK_REALTIME, &tp);
+		localtime_r(&tp.tv_sec, &tm);
+		strftime(buf, sizeof(buf), "%T", &tm);
+		bprintf(&bp, "%s.%03ld AF %s", buf, tp.tv_nsec / 1000000,
+		    sa->sa_family == AF_INET ? "IPv4" : "IPv6");
+
+		bprintf(&bp, " %s >",
+		    ether_ntoa((const struct ether_addr *)loghdr->ether_shost));
+		bprintf(&bp, " %s, ",
+		    ether_ntoa((const struct ether_addr *)loghdr->ether_dhost));
+		bprint_sa(&bp, sa);
+
+		sa = (struct sockaddr *)((char *)sa + SA_SIZE(sa));
+		if (msglen - SA_SIZE(sa) < 0)
+			continue;
+
+		msglen -= SA_SIZE(sa);
+		bprintf(&bp, " > ");
+		bprint_sa(&bp, sa);
+		bprintf(&bp, ", set %u, rulenum %u, targ 0x%08x, "
+		    "%scmd[op %d, len %d, arg1 0x%04x], mark 0x%08x",
+		    sdl->sdl_index, loghdr->rulenum, loghdr->tablearg,
+		    (loghdr->cmd.len & F_NOT) ? "!": "",
+		    loghdr->cmd.opcode, F_LEN(&loghdr->cmd),
+		    loghdr->cmd.arg1, loghdr->mark);
+
+		sa = (struct sockaddr *)((char *)sa + SA_SIZE(sa));
+		if ((hdr->rtm_addrs & (1 << RTAX_GENMASK)) != 0 &&
+		    msglen - SA_SIZE(sa) >= 0) {
+			msglen -= SA_SIZE(sa);
+			bprintf(&bp, ", nh ");
+			bprint_sa(&bp, sa);
+		}
+		if (sdl->sdl_nlen > 0)
+			bprintf(&bp, " // %s", loghdr->comment);
+		printf("%s\n", bp.buf);
+	}
+	bp_free(&bp);
+	close(rtsock);
+}
+
 void
 ipfw_internal_handler(int ac, char *av[])
 {
@@ -6053,6 +6182,10 @@ ipfw_internal_handler(int ac, char *av[])
 		break;
 	case TOK_VLIST:
 		ipfw_list_values(ac, av);
+		break;
+	case TOK_MONITOR:
+		av++;
+		ipfw_rtsock_monitor(*av);
 		break;
 	}
 }
