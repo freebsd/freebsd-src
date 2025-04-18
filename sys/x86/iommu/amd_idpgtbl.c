@@ -54,6 +54,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_map.h>
 #include <dev/pci/pcireg.h>
 #include <machine/atomic.h>
@@ -103,6 +104,7 @@ amdiommu_domain_alloc_pgtbl(struct amdiommu_domain *domain)
 void
 amdiommu_domain_free_pgtbl(struct amdiommu_domain *domain)
 {
+	struct pctrie_iter pages;
 	vm_object_t obj;
 	vm_page_t m;
 
@@ -118,7 +120,8 @@ amdiommu_domain_free_pgtbl(struct amdiommu_domain *domain)
 
 	/* Obliterate ref_counts */
 	VM_OBJECT_ASSERT_WLOCKED(obj);
-	for (m = vm_page_lookup(obj, 0); m != NULL; m = vm_page_next(m))
+	vm_page_iter_init(&pages, obj);
+	VM_RADIX_FORALL(m, &pages)
 		vm_page_clearref(m);
 	VM_OBJECT_WUNLOCK(obj);
 	vm_object_deallocate(obj);
