@@ -348,7 +348,8 @@ static int		 pf_create_state(struct pf_krule *, struct pf_krule *,
 			    struct pf_krule *, struct pf_pdesc *,
 			    struct pf_state_key *, struct pf_state_key *, int *,
 			    struct pf_kstate **, int, u_int16_t, u_int16_t,
-			    struct pf_krule_slist *, struct pf_udp_mapping *);
+			    struct pf_krule_slist *, struct pf_udp_mapping *,
+			    u_short *);
 static int		 pf_state_key_addr_setup(struct pf_pdesc *,
 			    struct pf_state_key_cmp *, int);
 static int		 pf_tcp_track_full(struct pf_kstate *,
@@ -5972,11 +5973,13 @@ nextrule:
 
 		action = pf_create_state(r, nr, a, pd, nk, sk,
 		    &rewrite, sm, tag, bproto_sum, bip_sum,
-		    &match_rules, udp_mapping);
+		    &match_rules, udp_mapping, reason);
 		sk = nk = NULL;
 		if (action != PF_PASS) {
 			pf_udp_mapping_release(udp_mapping);
-			pd->act.log |= PF_LOG_FORCE;
+			if (r->log || (nr != NULL && nr->log) ||
+			    *reason == PFRES_MEMORY)
+				pd->act.log |= PF_LOG_FORCE;
 			if (action == PF_DROP &&
 			    (r->rule_flag & PFRULE_RETURN))
 				pf_return(r, nr, pd, th,
@@ -6061,7 +6064,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
     struct pf_pdesc *pd, struct pf_state_key *nk, struct pf_state_key *sk,
     int *rewrite, struct pf_kstate **sm, int tag, u_int16_t bproto_sum,
     u_int16_t bip_sum, struct pf_krule_slist *match_rules,
-    struct pf_udp_mapping *udp_mapping)
+    struct pf_udp_mapping *udp_mapping, u_short *reason)
 {
 	struct pf_kstate	*s = NULL;
 	struct pf_ksrc_node	*sns[PF_SN_MAX] = { NULL };
@@ -6073,7 +6076,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	struct pf_srchash	*snhs[PF_SN_MAX] = { NULL };
 	struct tcphdr		*th = &pd->hdr.tcp;
 	u_int16_t		 mss = V_tcp_mssdflt;
-	u_short			 reason, sn_reason;
+	u_short			 sn_reason;
 	struct pf_krule_item	*ri;
 	struct pf_kpool		*pool_route = &r->route;
 
@@ -6081,14 +6084,14 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if (r->max_states &&
 	    (counter_u64_fetch(r->states_cur) >= r->max_states)) {
 		counter_u64_add(V_pf_status.lcounters[LCNT_STATES], 1);
-		REASON_SET(&reason, PFRES_MAXSTATES);
+		REASON_SET(reason, PFRES_MAXSTATES);
 		goto csfailed;
 	}
 	/* src node for limits */
 	if ((r->rule_flag & PFRULE_SRCTRACK) &&
 	    (sn_reason = pf_insert_src_node(sns, snhs, r, pd->src, pd->af,
 	        NULL, NULL, PF_SN_LIMIT)) != 0) {
-	    REASON_SET(&reason, sn_reason);
+		REASON_SET(reason, sn_reason);
 		goto csfailed;
 	}
 	/* src node for route-to rule */
@@ -6097,19 +6100,19 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if ((pool_route->opts & PF_POOL_STICKYADDR) &&
 	    (sn_reason = pf_insert_src_node(sns, snhs, r, pd->src, pd->af,
 		 &pd->act.rt_addr, pd->act.rt_kif, PF_SN_ROUTE)) != 0) {
-		REASON_SET(&reason, sn_reason);
+		REASON_SET(reason, sn_reason);
 		goto csfailed;
 	}
 	/* src node for translation rule */
 	if (nr != NULL && (nr->rdr.opts & PF_POOL_STICKYADDR) &&
 	    (sn_reason = pf_insert_src_node(sns, snhs, nr, &sk->addr[pd->sidx],
 	    pd->af, &nk->addr[1], NULL, PF_SN_NAT)) != 0 ) {
-		REASON_SET(&reason, sn_reason);
+		REASON_SET(reason, sn_reason);
 		goto csfailed;
 	}
 	s = pf_alloc_state(M_NOWAIT);
 	if (s == NULL) {
-		REASON_SET(&reason, PFRES_MEMORY);
+		REASON_SET(reason, PFRES_MEMORY);
 		goto csfailed;
 	}
 	s->rule = r;
@@ -6197,11 +6200,11 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if (pd->proto == IPPROTO_TCP) {
 		if (s->state_flags & PFSTATE_SCRUB_TCP &&
 		    pf_normalize_tcp_init(pd, th, &s->src)) {
-			REASON_SET(&reason, PFRES_MEMORY);
+			REASON_SET(reason, PFRES_MEMORY);
 			goto csfailed;
 		}
 		if (s->state_flags & PFSTATE_SCRUB_TCP && s->src.scrub &&
-		    pf_normalize_tcp_stateful(pd, &reason, th, s,
+		    pf_normalize_tcp_stateful(pd, reason, th, s,
 		    &s->src, &s->dst, rewrite)) {
 			/* This really shouldn't happen!!! */
 			DPFPRINTF(PF_DEBUG_URGENT,
@@ -6236,7 +6239,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if (pf_state_insert(BOUND_IFACE(s, pd), pd->kif,
 	    (pd->dir == PF_IN) ? sk : nk,
 	    (pd->dir == PF_IN) ? nk : sk, s)) {
-		REASON_SET(&reason, PFRES_STATEINS);
+		REASON_SET(reason, PFRES_STATEINS);
 		goto drop;
 	} else
 		*sm = s;
@@ -6271,7 +6274,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		    th->th_sport, s->src.seqhi, ntohl(th->th_seq) + 1,
 		    TH_SYN|TH_ACK, 0, s->src.mss, 0, M_SKIP_FIREWALL, 0, 0,
 		    pd->act.rtableid);
-		REASON_SET(&reason, PFRES_SYNPROXY);
+		REASON_SET(reason, PFRES_SYNPROXY);
 		return (PF_SYNPROXY_DROP);
 	}
 
