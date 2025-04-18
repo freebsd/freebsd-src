@@ -261,8 +261,8 @@ vm_radix_iter_step(struct pctrie_iter *pages)
  * Iterate over each non-NULL page from page 'start' to the end of the object.
  */
 #define VM_RADIX_FOREACH_FROM(m, pages, start)				\
-	for (m = vm_radix_iter_lookup_ge(&pages, start); m != NULL;	\
-	    m = vm_radix_iter_step(&pages))
+	for (m = vm_radix_iter_lookup_ge(pages, start); m != NULL;	\
+	    m = vm_radix_iter_step(pages))
 
 /*
  * Iterate over each non-NULL page from the beginning to the end of the object.
@@ -312,8 +312,8 @@ vm_radix_iter_next(struct pctrie_iter *pages)
  * page.
  */
 #define VM_RADIX_FORALL_FROM(m, pages, start)				\
-	for (m = vm_radix_iter_lookup(&pages, start); m != NULL;	\
-	    m = vm_radix_iter_next(&pages))
+	for (m = vm_radix_iter_lookup(pages, start); m != NULL;		\
+	    m = vm_radix_iter_next(pages))
 
 /*
  * Iterate over consecutive non-NULL pages from the beginning to first NULL
