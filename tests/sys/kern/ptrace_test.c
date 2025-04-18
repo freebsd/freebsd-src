@@ -29,6 +29,7 @@
 #include <sys/elf.h>
 #include <sys/event.h>
 #include <sys/file.h>
+#include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/procctl.h>
 #include <sys/procdesc.h>
@@ -4465,6 +4466,65 @@ ATF_TC_BODY(ptrace__reap_kill_stopped, tc)
 	REQUIRE_EQ(-1, prk.rk_fpid);
 }
 
+struct child_res {
+	struct timespec sleep_time;
+	int nanosleep_res;
+	int nanosleep_errno;
+};
+
+static const long nsec = 1000000000L;
+static const struct timespec ten_sec = {
+	.tv_sec = 10,
+	.tv_nsec = 0,
+};
+static const struct timespec twelve_sec = {
+	.tv_sec = 12,
+	.tv_nsec = 0,
+};
+
+ATF_TC_WITHOUT_HEAD(ptrace__PT_ATTACH_no_EINTR);
+ATF_TC_BODY(ptrace__PT_ATTACH_no_EINTR, tc)
+{
+	struct child_res *shm;
+	struct timespec rqt, now, wake;
+	pid_t debuggee;
+	int status;
+
+	shm = mmap(NULL, sizeof(*shm), PROT_READ | PROT_WRITE,
+	    MAP_SHARED | MAP_ANON, -1, 0);
+	ATF_REQUIRE(shm != MAP_FAILED);
+
+	ATF_REQUIRE((debuggee = fork()) != -1);
+	if (debuggee == 0) {
+		rqt.tv_sec = 10;
+		rqt.tv_nsec = 0;
+		clock_gettime(CLOCK_MONOTONIC_PRECISE, &now);
+		errno = 0;
+		shm->nanosleep_res = nanosleep(&rqt, NULL);
+		shm->nanosleep_errno = errno;
+		clock_gettime(CLOCK_MONOTONIC_PRECISE, &wake);
+		timespecsub(&wake, &now, &shm->sleep_time);
+		_exit(0);
+	}
+
+	/* Give the debuggee some time to go to sleep. */
+	sleep(2);
+	REQUIRE_EQ(ptrace(PT_ATTACH, debuggee, 0, 0), 0);
+	REQUIRE_EQ(waitpid(debuggee, &status, 0), debuggee);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	REQUIRE_EQ(WSTOPSIG(status), SIGSTOP);
+
+	REQUIRE_EQ(ptrace(PT_DETACH, debuggee, 0, 0), 0);
+	REQUIRE_EQ(waitpid(debuggee, &status, 0), debuggee);
+	ATF_REQUIRE(WIFEXITED(status));
+	REQUIRE_EQ(WEXITSTATUS(status), 0);
+
+	ATF_REQUIRE(shm->nanosleep_res == 0);
+	ATF_REQUIRE(shm->nanosleep_errno == 0);
+	ATF_REQUIRE(timespeccmp(&shm->sleep_time, &ten_sec, >=));
+	ATF_REQUIRE(timespeccmp(&shm->sleep_time, &twelve_sec, <=));
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, ptrace__parent_wait_after_trace_me);
@@ -4533,6 +4593,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__procdesc_reparent_wait_child);
 	ATF_TP_ADD_TC(tp, ptrace__PT_SC_REMOTE_getpid);
 	ATF_TP_ADD_TC(tp, ptrace__reap_kill_stopped);
+	ATF_TP_ADD_TC(tp, ptrace__PT_ATTACH_no_EINTR);
 
 	return (atf_no_error());
 }
