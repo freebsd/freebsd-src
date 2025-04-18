@@ -224,39 +224,62 @@ ipfw_log_syslog(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 			snprintf(SNPARGS(action2, 0), "Queue %d",
 				TARG(cmd->arg1, pipe));
 			break;
-		case O_FORWARD_IP: {
-			char buf[INET_ADDRSTRLEN];
-			ipfw_insn_sa *sa = (ipfw_insn_sa *)cmd;
-			int len;
-			struct in_addr dummyaddr;
-			if (sa->sa.sin_addr.s_addr == INADDR_ANY)
-				dummyaddr.s_addr = htonl(tablearg);
-			else
-				dummyaddr.s_addr = sa->sa.sin_addr.s_addr;
+		case O_FORWARD_IP:
+			if (IS_IP4_FLOW_ID(&args->f_id)) {
+				char buf[INET_ADDRSTRLEN];
+				const struct sockaddr_in *sin = &insntod(cmd, sa)->sa;
+				int len;
 
-			len = snprintf(SNPARGS(action2, 0), "Forward to %s",
-				inet_ntoa_r(dummyaddr, buf));
+				/* handle fwd tablearg */
+				if (sin->sin_addr.s_addr == INADDR_ANY) {
+					struct in_addr tmp;
 
-			if (sa->sa.sin_port)
-				snprintf(SNPARGS(action2, len), ":%d",
-				    sa->sa.sin_port);
+					tmp.s_addr = htonl(
+					    TARG_VAL(chain, tablearg, nh4));
+					inet_ntoa_r(tmp, buf);
+				} else
+					inet_ntoa_r(sin->sin_addr, buf);
+				len = snprintf(SNPARGS(action2, 0),
+				    "Forward to %s", buf);
+				if (sin->sin_port != 0)
+					snprintf(SNPARGS(action2, len), ":%d",
+					    sin->sin_port);
 			}
-			break;
+			/* FALLTHROUGH */
 #ifdef INET6
-		case O_FORWARD_IP6: {
-			char buf[INET6_ADDRSTRLEN];
-			ipfw_insn_sa6 *sa = (ipfw_insn_sa6 *)cmd;
-			int len;
+		case O_FORWARD_IP6:
+			if (IS_IP6_FLOW_ID(&args->f_id)) {
+				char buf[INET6_ADDRSTRLEN];
+				struct sockaddr_in6 tmp;
+				const struct sockaddr_in *sin = &insntod(cmd, sa)->sa;
+				struct sockaddr_in6 *sin6 = &insntod(cmd, sa6)->sa;
+				int len;
 
-			len = snprintf(SNPARGS(action2, 0), "Forward to [%s]",
-			    ip6_sprintf(buf, &sa->sa.sin6_addr));
+				if (cmd->opcode == O_FORWARD_IP &&
+				    sin->sin_addr.s_addr == INADDR_ANY) {
+					sin6 = &tmp;
+					sin6->sin6_addr =
+					    TARG_VAL(chain, tablearg, nh6);
+					sin6->sin6_scope_id =
+					    TARG_VAL(chain, tablearg, zoneid);
+					sin6->sin6_port = sin->sin_port;
+				}
 
-			if (sa->sa.sin6_port)
-				snprintf(SNPARGS(action2, len), ":%u",
-				    sa->sa.sin6_port);
+				ip6_sprintf(buf, &sin6->sin6_addr);
+				if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) &&
+				    sin6->sin6_scope_id != 0)
+					len = snprintf(SNPARGS(action2, 0),
+					    "Forward to [%s%%%u]",
+					    buf, sin6->sin6_scope_id);
+				else
+					len = snprintf(SNPARGS(action2, 0),
+					    "Forward to [%s]", buf);
+				if (sin6->sin6_port != 0)
+					snprintf(SNPARGS(action2, len), ":%u",
+					    sin6->sin6_port);
 			}
-			break;
 #endif
+			break;
 		case O_NETGRAPH:
 			snprintf(SNPARGS(action2, 0), "Netgraph %d",
 				cmd->arg1);
