@@ -664,12 +664,10 @@ bool vm_page_iter_rename(struct pctrie_iter *old_pages, vm_page_t m,
 void vm_page_launder(vm_page_t m);
 vm_page_t vm_page_lookup(vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup_unlocked(vm_object_t, vm_pindex_t);
-vm_page_t vm_page_next(vm_page_t m);
 void vm_page_pqbatch_drain(void);
 void vm_page_pqbatch_submit(vm_page_t m, uint8_t queue);
 bool vm_page_pqstate_commit(vm_page_t m, vm_page_astate_t *old,
     vm_page_astate_t new);
-vm_page_t vm_page_prev(vm_page_t m);
 bool vm_page_ps_test(vm_page_t m, int psind, int flags, vm_page_t skip_m);
 void vm_page_putfake(vm_page_t m);
 void vm_page_readahead_finish(vm_page_t m);
