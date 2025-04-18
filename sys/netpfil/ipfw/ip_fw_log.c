@@ -605,10 +605,42 @@ ipfw_copy_rule_comment(struct ip_fw *f, char *dst)
 	return (rcomment_len);
 }
 
+/*
+ * Logs a packet matched by a rule as a route(4) socket message.
+ *
+ * While ipfw0 pseudo interface provides a way to observe full packet body,
+ * no metadata (rule number, action, mark, etc) is available.
+ * pflog(4) is not an option either as it's header is hardcoded and does not
+ * provide sufficient space for ipfw meta information.
+ *
+ * To be able to get a machine-readable event with all meta information needed
+ * for user-space daemons we construct a route(4) message and pack as much meta
+ * information as we can into it.
+ *
+ * RTAX_DST(0): (struct sockaddr_dl) carrying ipfwlog_rtsock_hdr_v2 in sdl_data
+ *		with general rule information (rule number, set, action, mark,
+ *		cmd, comment) and source/destination MAC addresses in case we're
+ *		logging in layer2 pass.
+ *
+ * RTAX_GATEWAY(1): (struct sockaddr) IP source address
+ *
+ * RTAX_NETMASK(2): (struct sockaddr) IP destination address
+ *
+ * RTAX_GENMASK(3): (struct sockaddr) IP address and port used in fwd action
+ *
+ * One SHOULD set an explicit logamount for any rule using rtsock as flooding
+ * route socket with such events could lead to various system-wide side effects.
+ * RTF_PROTO1 flag in (struct rt_addrinfo).rti_flags is set in all messages
+ * once half of logamount limit is crossed. This could be used by the software
+ * processing these logs to issue `ipfw resetlog` command to keep the event
+ * flow.
+ *
+ * TODO: convert ipfwlog_rtsock_hdr_v2 data into TLV to ease expansion.
+*/
+
 static void
 ipfw_log_rtsock(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
-    struct ip_fw_args *args, u_short offset, uint32_t tablearg,
-    void *_eh)
+    struct ip_fw_args *args, u_short offset, uint32_t tablearg, void *_eh)
 {
 	struct sockaddr_dl *sdl_ipfwcmd;
 	struct ether_header *eh = _eh;
@@ -626,6 +658,9 @@ ipfw_log_rtsock(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 	l = (ipfw_insn_log *)cmd;
 
 	if (l->max_log != 0 && l->log_left == 0)
+		return;
+
+	if (hlen == 0) /* non-ip */
 		return;
 
 	l->log_left--;
@@ -688,6 +723,9 @@ ipfw_log_rtsock(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 	    &info->rti_info[RTAX_GATEWAY],
 	    &info->rti_info[RTAX_NETMASK]);
 
+	KASSERT(buf <= (orig_buf + buflen),
+	    ("ipfw: buffer for logdst rtsock is not big enough"));
+
 	info->rti_ifp = args->ifp;
 	rtsock_routemsg_info(RTM_IPFWLOG, info, RT_ALL_FIBS);
 
@@ -704,13 +742,10 @@ ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
 {
 	ipfw_insn *cmd;
 
-	if (f == NULL || hlen == 0)
-		return;
-
-	/* O_LOG is the first action */
-	cmd = ACTION_PTR(f);
-
-	if (cmd->arg1 == IPFW_LOG_DEFAULT) {
+	/* Fallback to default logging if we're missing rule pointer */
+	if (f == NULL ||
+	    /* O_LOG is the first action */
+	    ((cmd = ACTION_PTR(f)) && cmd->arg1 == IPFW_LOG_DEFAULT)) {
 		if (V_fw_verbose == 0) {
 			ipfw_log_ipfw0(args, ip);
 			return;
