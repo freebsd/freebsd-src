@@ -56,6 +56,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_map.h>
+#include <vm/vm_radix.h>
 #include <dev/pci/pcireg.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
@@ -165,6 +166,7 @@ dmar_idmap_nextlvl(struct idpgtbl *tbl, int lvl, vm_pindex_t idx,
 vm_object_t
 dmar_get_idmap_pgtbl(struct dmar_domain *domain, iommu_gaddr_t maxaddr)
 {
+	struct pctrie_iter pages;
 	struct dmar_unit *unit;
 	struct idpgtbl *tbl;
 	vm_object_t res;
@@ -260,9 +262,9 @@ end:
 	 */
 	unit = domain->dmar;
 	if (!DMAR_IS_COHERENT(unit)) {
+		vm_page_iter_init(&pages, res);
 		VM_OBJECT_WLOCK(res);
-		for (m = vm_page_lookup(res, 0); m != NULL;
-		     m = vm_page_next(m))
+		VM_RADIX_FORALL(m, &pages)
 			pmap_invalidate_cache_pages(&m, 1);
 		VM_OBJECT_WUNLOCK(res);
 	}
@@ -707,6 +709,7 @@ dmar_domain_alloc_pgtbl(struct dmar_domain *domain)
 void
 dmar_domain_free_pgtbl(struct dmar_domain *domain)
 {
+	struct pctrie_iter pages;
 	vm_object_t obj;
 	vm_page_t m;
 
@@ -728,7 +731,8 @@ dmar_domain_free_pgtbl(struct dmar_domain *domain)
 
 	/* Obliterate ref_counts */
 	VM_OBJECT_ASSERT_WLOCKED(obj);
-	for (m = vm_page_lookup(obj, 0); m != NULL; m = vm_page_next(m)) {
+	vm_page_iter_init(&pages, obj);
+	VM_RADIX_FORALL(m, &pages) {
 		vm_page_clearref(m);
 		vm_wire_sub(1);
 	}
