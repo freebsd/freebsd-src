@@ -98,36 +98,3 @@ asm (
     ".popsection		\n"
 );
 #endif
-
-/*
- * Handler for gcj. These provide a _Jv_RegisterClasses function and fill
- * out the .jcr section. We just need to call this function with a pointer
- * to the appropriate section.
- */
-extern void _Jv_RegisterClasses(void *) __weak_symbol;
-static void register_classes(void) __used;
-
-static crt_func __JCR_LIST__[] __section(".jcr") __used = { };
-
-#ifndef CTORS_CONSTRUCTORS
-__attribute__((constructor))
-#endif
-static void
-register_classes(void)
-{
-
-	if (_Jv_RegisterClasses != NULL && __JCR_LIST__[0] != 0)
-		_Jv_RegisterClasses(__JCR_LIST__);
-}
-
-/*
- * We can't use constructors when they use the .ctors section as they may be
- * placed before __CTOR_LIST__.
- */
-#ifdef CTORS_CONSTRUCTORS
-asm (
-    ".pushsection .init		\n"
-    "\t" INIT_CALL_SEQ(register_classes) "\n"
-    ".popsection		\n"
-);
-#endif
