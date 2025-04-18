@@ -279,9 +279,9 @@ alias_skinny_opnrcvch_ack(struct libalias *la, struct OpenReceiveChannelAck *opn
 	*localIpAddr = (u_int32_t)opnrcvch_ack->ipAddr;
 
 	null_addr.s_addr = INADDR_ANY;
-	opnrcv_lnk = FindUdpTcpOut(la, pip->ip_src, null_addr,
+	(void)FindUdpTcpOut(la, pip->ip_src, null_addr,
 	    htons((u_short) opnrcvch_ack->port), 0,
-	    IPPROTO_UDP, 1);
+	    IPPROTO_UDP, 1, &opnrcv_lnk);
 	opnrcvch_ack->ipAddr = (u_int32_t)GetAliasAddress(opnrcv_lnk).s_addr;
 	opnrcvch_ack->port = (u_int32_t)ntohs(GetAliasPort(opnrcv_lnk));
 
