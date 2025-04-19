@@ -59,6 +59,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_radix.h>
 
 #include <machine/stdarg.h>
 
@@ -647,6 +648,7 @@ int
 zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
     unsigned long size)
 {
+	struct pctrie_iter pages;
 	vm_object_t obj;
 	vm_page_t m;
 
@@ -654,9 +656,8 @@ zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
 	if (obj == NULL || (obj->flags & OBJ_UNMANAGED) != 0)
 		return (-ENOTSUP);
 	VM_OBJECT_RLOCK(obj);
-	for (m = vm_page_find_least(obj, OFF_TO_IDX(address));
-	    m != NULL && m->pindex < OFF_TO_IDX(address + size);
-	    m = TAILQ_NEXT(m, listq))
+	vm_page_iter_limit_init(&pages, obj, OFF_TO_IDX(address + size));
+	VM_RADIX_FOREACH_FROM(m, &pages, OFF_TO_IDX(address))
 		pmap_remove_all(m);
 	VM_OBJECT_RUNLOCK(obj);
 	return (0);
