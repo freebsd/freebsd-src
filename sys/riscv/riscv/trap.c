@@ -239,7 +239,7 @@ page_fault_handler(struct trapframe *frame, int usermode)
 		 * Enable interrupts for the duration of the page fault. For
 		 * user faults this was done already in do_trap_user().
 		 */
-		if ((frame->tf_sstatus & SSTATUS_SIE) != 0)
+		if ((frame->tf_sstatus & SSTATUS_SPIE) != 0)
 			intr_enable();
 
 		if (stval >= VM_MIN_KERNEL_ADDRESS) {
