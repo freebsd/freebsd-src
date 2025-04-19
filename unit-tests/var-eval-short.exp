@@ -1,4 +1,4 @@
-make: "var-eval-short.mk" line 45: In the :@ modifier, the variable name "${FAIL}" must not contain a dollar
+make: var-eval-short.mk:45: In the :@ modifier, the variable name "${FAIL}" must not contain a dollar
 	while parsing "${:Uword:@${FAIL}@expr@}"
 Parsing var-eval-short.mk:158: .if 0 && ${0:?${FAIL}then:${FAIL}else}
 CondParser_Eval: 0 && ${0:?${FAIL}then:${FAIL}else}

@@ -1,4 +1,4 @@
-make: "directive-for-empty.mk" line 22: 2
+make: directive-for-empty.mk:22: 2
 For: end for 1
 For: loop body with i = value:
 # The identifier 'empty' can only be used in conditions such as .if, .ifdef or

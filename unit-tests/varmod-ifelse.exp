@@ -1,37 +1,37 @@
-make: "varmod-ifelse.mk" line 28: Bad condition
+make: varmod-ifelse.mk:28: Bad condition
 	while evaluating condition "bare words == "literal""
-make: "varmod-ifelse.mk" line 39: Bad condition
+make: varmod-ifelse.mk:39: Bad condition
 	while evaluating condition " == """
-make: "varmod-ifelse.mk" line 47: Bad condition
+make: varmod-ifelse.mk:47: Bad condition
 	while evaluating condition " == """
-make: "varmod-ifelse.mk" line 70: Bad condition
+make: varmod-ifelse.mk:70: Bad condition
 	while evaluating condition "1 == == 2"
 CondParser_Eval: "${1 == == 2:?yes:no}" != ""
 CondParser_Eval: 1 == == 2
 Comparing 1.000000 == 0.000000
-make: "varmod-ifelse.mk" line 94: Bad condition
+make: varmod-ifelse.mk:94: Bad condition
 	while evaluating condition "1 == == 2"
 Comparing "" != ""
-make: "varmod-ifelse.mk" line 98: warning: Oops, the parse error should have been propagated.
+make: varmod-ifelse.mk:98: warning: Oops, the parse error should have been propagated.
 CondParser_Eval: ${ ${:U\$}{VAR} == value:?ok:bad} != "ok"
 CondParser_Eval: ${VAR} == value
 Comparing "value" == "value"
 Comparing "ok" != "ok"
-make: "varmod-ifelse.mk" line 160: no.
-make: "varmod-ifelse.mk" line 163: Comparison with '>=' requires both operands 'no' and '10' to be numeric
+make: varmod-ifelse.mk:160: no.
+make: varmod-ifelse.mk:163: Comparison with '>=' requires both operands 'no' and '10' to be numeric
 	while evaluating condition "string == "literal" || no >= 10"
-make: "varmod-ifelse.mk" line 163: .
-make: "varmod-ifelse.mk" line 170: Bad condition
+make: varmod-ifelse.mk:163: .
+make: varmod-ifelse.mk:170: Bad condition
 	while evaluating condition "string == "literal" &&  >= 10"
-make: "varmod-ifelse.mk" line 170: .
-make: "varmod-ifelse.mk" line 173: Bad condition
+make: varmod-ifelse.mk:170: .
+make: varmod-ifelse.mk:173: Bad condition
 	while evaluating condition "string == "literal" ||  >= 10"
-make: "varmod-ifelse.mk" line 173: .
-make: "varmod-ifelse.mk" line 181: <true>
-make: "varmod-ifelse.mk" line 184: <false>
-make: "varmod-ifelse.mk" line 188: Bad condition
+make: varmod-ifelse.mk:173: .
+make: varmod-ifelse.mk:181: <true>
+make: varmod-ifelse.mk:184: <false>
+make: varmod-ifelse.mk:188: Bad condition
 	while evaluating condition "	"
-make: "varmod-ifelse.mk" line 188: <>
+make: varmod-ifelse.mk:188: <>
 CondParser_Eval: 0 && ${1:?${:Uthen0:S,}},,}:${:Uelse0:S,}},,}} != "not evaluated"
 CondParser_Eval: 1 && ${0:?${:Uthen1:S,}},,}:${:Uelse1:S,}},,}} != "else1"
 CondParser_Eval: 0
@@ -41,20 +41,20 @@ CondParser_Eval: 1
 Comparing "then2" != "then2"
 CondParser_Eval: ${DELAYED} == "one"
 Comparing "two" == "one"
-make: "varmod-ifelse.mk" line 284: no
+make: varmod-ifelse.mk:284: no
 CondParser_Eval: ${DELAYED} == "two"
 Comparing "two" == "two"
-make: "varmod-ifelse.mk" line 286: yes
+make: varmod-ifelse.mk:286: yes
 CondParser_Eval: ${DELAYED} == "one"
 Comparing "two" == "one"
-make: "varmod-ifelse.mk" line 289: no
+make: varmod-ifelse.mk:289: no
 CondParser_Eval: ${DELAYED} == "two"
 Comparing "two" == "two"
-make: "varmod-ifelse.mk" line 292: yes
-make: "varmod-ifelse.mk" line 314: Unknown modifier "X-then"
+make: varmod-ifelse.mk:292: yes
+make: varmod-ifelse.mk:314: Unknown modifier ":X-then"
 	while evaluating "${:X-then}:${:X-else}}" with value ""
 	while evaluating then-branch of condition "1"
-make: "varmod-ifelse.mk" line 314: Unknown modifier "X-else"
+make: varmod-ifelse.mk:314: Unknown modifier ":X-else"
 	while parsing "${:X-else}}"
 	while evaluating else-branch of condition "1"
 make: Fatal errors encountered -- cannot continue

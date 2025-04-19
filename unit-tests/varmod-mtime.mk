@@ -1,4 +1,4 @@
-# $NetBSD: varmod-mtime.mk,v 1.14 2025/01/11 20:54:46 rillig Exp $
+# $NetBSD: varmod-mtime.mk,v 1.15 2025/03/29 19:08:52 rillig Exp $
 #
 # Tests for the ':mtime' variable modifier, which maps each word of the
 # expression to that file's modification time.
@@ -106,7 +106,7 @@ end:=	${%s:L:gmtime}
 
 
 # If there is a typo in the modifier name, it does not match.
-# expect+1: Unknown modifier "mtim"
+# expect+1: Unknown modifier ":mtim"
 .if ${anything:L:mtim}
 .  error
 .else

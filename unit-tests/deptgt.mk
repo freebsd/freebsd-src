@@ -1,4 +1,4 @@
-# $NetBSD: deptgt.mk,v 1.22 2025/01/10 23:00:38 rillig Exp $
+# $NetBSD: deptgt.mk,v 1.23 2025/03/29 19:08:52 rillig Exp $
 #
 # Tests for special targets like .BEGIN or .SUFFIXES in dependency
 # declarations.
@@ -47,11 +47,11 @@ deptgt-${UNDEF}: depsrc-${UNDEF}
 
 # In a dependency declaration, the whole line is expanded before interpreting
 # the line.
-# expect+1: Unknown modifier "Z"
+# expect+1: Unknown modifier ":Z"
 ${:U:Z}:
 # After expanding the line as a whole, each target is parsed but not
 # evaluated, separately, in ParseDependencyTargetWord.
-# expect+1: Unknown modifier "Z"
+# expect+1: Unknown modifier ":Z"
 $${:U:Z}:
 
 # expect+1: warning: Extra target 'ordinary' ignored

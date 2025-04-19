@@ -1,4 +1,4 @@
-# $NetBSD: directive-include-guard.mk,v 1.18 2024/08/07 05:48:45 rillig Exp $
+# $NetBSD: directive-include-guard.mk,v 1.19 2025/04/11 17:21:31 rillig Exp $
 #
 # Tests for multiple-inclusion guards in makefiles.
 #
@@ -33,7 +33,7 @@ LINES.variable-ifndef= \
 	'.ifndef VARIABLE_IFNDEF' \
 	'VARIABLE_IFNDEF=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-ifndef.tmp, line 1
+# expect: Parse_PushInput: variable-ifndef.tmp:1
 # expect: Skipping 'variable-ifndef.tmp' because 'VARIABLE_IFNDEF' is defined
 
 # A file that reuses a guard from a previous file (or whose guard is defined
@@ -44,7 +44,7 @@ LINES.variable-ifndef-reuse= \
 	'.ifndef VARIABLE_IFNDEF' \
 	'syntax error' \
 	'.endif'
-# expect: Parse_PushInput: file variable-ifndef-reuse.tmp, line 1
+# expect: Parse_PushInput: variable-ifndef-reuse.tmp:1
 # expect: Skipping 'variable-ifndef-reuse.tmp' because 'VARIABLE_IFNDEF' is defined
 
 # The guard variable cannot be a number, as numbers are interpreted
@@ -54,8 +54,8 @@ LINES.variable-ifndef-zero= \
 	'.ifndef 0e0' \
 	'syntax error' \
 	'.endif'
-# expect: Parse_PushInput: file variable-ifndef-zero.tmp, line 1
-# expect: Parse_PushInput: file variable-ifndef-zero.tmp, line 1
+# expect: Parse_PushInput: variable-ifndef-zero.tmp:1
+# expect: Parse_PushInput: variable-ifndef-zero.tmp:1
 
 # The guard variable cannot be a number, as numbers are interpreted
 # differently from bare words.
@@ -63,8 +63,8 @@ CASES+=	variable-ifndef-one
 LINES.variable-ifndef-one= \
 	'.ifndef 1' \
 	'.endif'
-# expect: Parse_PushInput: file variable-ifndef-one.tmp, line 1
-# expect: Parse_PushInput: file variable-ifndef-one.tmp, line 1
+# expect: Parse_PushInput: variable-ifndef-one.tmp:1
+# expect: Parse_PushInput: variable-ifndef-one.tmp:1
 
 # Comments and empty lines do not affect the multiple-inclusion guard.
 CASES+=	comments
@@ -76,7 +76,7 @@ LINES.comments= \
 	'COMMENTS=\#comment' \
 	'.endif' \
 	'\# comment'
-# expect: Parse_PushInput: file comments.tmp, line 1
+# expect: Parse_PushInput: comments.tmp:1
 # expect: Skipping 'comments.tmp' because 'COMMENTS' is defined
 
 # An alternative form uses the 'defined' function.  It is more verbose than
@@ -87,7 +87,7 @@ LINES.variable-if= \
 	'.if !defined(VARIABLE_IF)' \
 	'VARIABLE_IF=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-if.tmp, line 1
+# expect: Parse_PushInput: variable-if.tmp:1
 # expect: Skipping 'variable-if.tmp' because 'VARIABLE_IF' is defined
 
 # A file that reuses a guard from a previous file (or whose guard is defined
@@ -98,7 +98,7 @@ LINES.variable-if-reuse= \
 	'.if !defined(VARIABLE_IF)' \
 	'syntax error' \
 	'.endif'
-# expect: Parse_PushInput: file variable-if-reuse.tmp, line 1
+# expect: Parse_PushInput: variable-if-reuse.tmp:1
 # expect: Skipping 'variable-if-reuse.tmp' because 'VARIABLE_IF' is defined
 
 # Triple negation is so uncommon that it's not recognized, even though it has
@@ -108,8 +108,8 @@ LINES.variable-if-triple-negation= \
 	'.if !!!defined(VARIABLE_IF_TRIPLE_NEGATION)' \
 	'VARIABLE_IF_TRIPLE_NEGATION=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-if-triple-negation.tmp, line 1
-# expect: Parse_PushInput: file variable-if-triple-negation.tmp, line 1
+# expect: Parse_PushInput: variable-if-triple-negation.tmp:1
+# expect: Parse_PushInput: variable-if-triple-negation.tmp:1
 
 # If the guard variable is enclosed in spaces, it does not have an effect, as
 # that form is not common in practice.
@@ -118,8 +118,8 @@ LINES.variable-if-spaced= \
 	'.if !defined( VARIABLE_IF_SPACED )' \
 	'VARIABLE_IF_SPACED=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-if-spaced.tmp, line 1
-# expect: Parse_PushInput: file variable-if-spaced.tmp, line 1
+# expect: Parse_PushInput: variable-if-spaced.tmp:1
+# expect: Parse_PushInput: variable-if-spaced.tmp:1
 
 # If the guard variable condition is enclosed in parentheses, it does not have
 # an effect, as that form is not common in practice.
@@ -128,8 +128,8 @@ LINES.variable-if-parenthesized= \
 	'.if (!defined(VARIABLE_IF_PARENTHESIZED))' \
 	'VARIABLE_IF_PARENTHESIZED=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-if-parenthesized.tmp, line 1
-# expect: Parse_PushInput: file variable-if-parenthesized.tmp, line 1
+# expect: Parse_PushInput: variable-if-parenthesized.tmp:1
+# expect: Parse_PushInput: variable-if-parenthesized.tmp:1
 
 # A conditional other than '.if' or '.ifndef' does not guard the file, even if
 # it is otherwise equivalent to the above accepted forms.
@@ -138,8 +138,8 @@ LINES.variable-ifdef-negated= \
 	'.ifdef !VARIABLE_IFDEF_NEGATED' \
 	'VARIABLE_IFDEF_NEGATED=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-ifdef-negated.tmp, line 1
-# expect: Parse_PushInput: file variable-ifdef-negated.tmp, line 1
+# expect: Parse_PushInput: variable-ifdef-negated.tmp:1
+# expect: Parse_PushInput: variable-ifdef-negated.tmp:1
 
 # The variable names in the '.if' and the assignment must be the same.
 CASES+=	variable-name-mismatch
@@ -147,8 +147,8 @@ LINES.variable-name-mismatch= \
 	'.ifndef VARIABLE_NAME_MISMATCH' \
 	'VARIABLE_NAME_DIFFERENT=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-name-mismatch.tmp, line 1
-# expect: Parse_PushInput: file variable-name-mismatch.tmp, line 1
+# expect: Parse_PushInput: variable-name-mismatch.tmp:1
+# expect: Parse_PushInput: variable-name-mismatch.tmp:1
 
 # If the guard variable condition is enclosed in parentheses, it does not have
 # an effect, as that form is not common in practice.
@@ -157,8 +157,8 @@ LINES.variable-ifndef-parenthesized= \
 	'.ifndef (VARIABLE_IFNDEF_PARENTHESIZED)' \
 	'VARIABLE_IFNDEF_PARENTHESIZED=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-ifndef-parenthesized.tmp, line 1
-# expect: Parse_PushInput: file variable-ifndef-parenthesized.tmp, line 1
+# expect: Parse_PushInput: variable-ifndef-parenthesized.tmp:1
+# expect: Parse_PushInput: variable-ifndef-parenthesized.tmp:1
 
 # The variable name '!VARNAME' cannot be used in an '.ifndef' directive, as
 # the '!' would be a negation.  It is syntactically valid in a '.if !defined'
@@ -171,8 +171,8 @@ LINES.variable-name-exclamation= \
 	'.if !defined(!VARIABLE_NAME_EXCLAMATION)' \
 	'${:U!}VARIABLE_NAME_EXCLAMATION=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-name-exclamation.tmp, line 1
-# expect: Parse_PushInput: file variable-name-exclamation.tmp, line 1
+# expect: Parse_PushInput: variable-name-exclamation.tmp:1
+# expect: Parse_PushInput: variable-name-exclamation.tmp:1
 
 # In general, a variable name can contain a '!' in the middle, as that
 # character is interpreted as an ordinary character in conditions as well as
@@ -183,8 +183,8 @@ LINES.variable-name-exclamation-middle= \
 	'.ifndef VARIABLE_NAME!MIDDLE' \
 	'VARIABLE_NAME!MIDDLE=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-name-exclamation-middle.tmp, line 1
-# expect: Parse_PushInput: file variable-name-exclamation-middle.tmp, line 1
+# expect: Parse_PushInput: variable-name-exclamation-middle.tmp:1
+# expect: Parse_PushInput: variable-name-exclamation-middle.tmp:1
 
 # A variable name can contain balanced parentheses, at least in conditions and
 # on the left side of a variable assignment.  There are enough places in make
@@ -196,8 +196,8 @@ LINES.variable-name-parentheses= \
 	'.ifndef VARIABLE_NAME(&)PARENTHESES' \
 	'VARIABLE_NAME(&)PARENTHESES=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-name-parentheses.tmp, line 1
-# expect: Parse_PushInput: file variable-name-parentheses.tmp, line 1
+# expect: Parse_PushInput: variable-name-parentheses.tmp:1
+# expect: Parse_PushInput: variable-name-parentheses.tmp:1
 
 # The guard condition must consist of only the guard variable, nothing else.
 CASES+=	variable-ifndef-plus
@@ -206,8 +206,8 @@ LINES.variable-ifndef-plus= \
 	'VARIABLE_IFNDEF_PLUS=' \
 	'VARIABLE_IFNDEF_SECOND=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-ifndef-plus.tmp, line 1
-# expect: Parse_PushInput: file variable-ifndef-plus.tmp, line 1
+# expect: Parse_PushInput: variable-ifndef-plus.tmp:1
+# expect: Parse_PushInput: variable-ifndef-plus.tmp:1
 
 # The guard condition must consist of only the guard variable, nothing else.
 CASES+=	variable-if-plus
@@ -216,8 +216,8 @@ LINES.variable-if-plus= \
 	'VARIABLE_IF_PLUS=' \
 	'VARIABLE_IF_SECOND=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-if-plus.tmp, line 1
-# expect: Parse_PushInput: file variable-if-plus.tmp, line 1
+# expect: Parse_PushInput: variable-if-plus.tmp:1
+# expect: Parse_PushInput: variable-if-plus.tmp:1
 
 # The variable name in an '.ifndef' guard must be given directly, it must not
 # contain any '$' expression.
@@ -226,8 +226,8 @@ LINES.variable-ifndef-indirect= \
 	'.ifndef $${VARIABLE_IFNDEF_INDIRECT:L}' \
 	'VARIABLE_IFNDEF_INDIRECT=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-ifndef-indirect.tmp, line 1
-# expect: Parse_PushInput: file variable-ifndef-indirect.tmp, line 1
+# expect: Parse_PushInput: variable-ifndef-indirect.tmp:1
+# expect: Parse_PushInput: variable-ifndef-indirect.tmp:1
 
 # The variable name in an '.if' guard must be given directly, it must not
 # contain any '$' expression.
@@ -236,8 +236,8 @@ LINES.variable-if-indirect= \
 	'.if !defined($${VARIABLE_IF_INDIRECT:L})' \
 	'VARIABLE_IF_INDIRECT=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-if-indirect.tmp, line 1
-# expect: Parse_PushInput: file variable-if-indirect.tmp, line 1
+# expect: Parse_PushInput: variable-if-indirect.tmp:1
+# expect: Parse_PushInput: variable-if-indirect.tmp:1
 
 # The variable name in the guard condition must only contain alphanumeric
 # characters and underscores.  The place where the guard variable is defined
@@ -248,7 +248,7 @@ LINES.variable-assign-indirect= \
 	'.ifndef VARIABLE_ASSIGN_INDIRECT' \
 	'$${VARIABLE_ASSIGN_INDIRECT:L}=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-assign-indirect.tmp, line 1
+# expect: Parse_PushInput: variable-assign-indirect.tmp:1
 # expect: Skipping 'variable-assign-indirect.tmp' because 'VARIABLE_ASSIGN_INDIRECT' is defined
 
 # The time at which the guard variable is defined doesn't matter, as long as
@@ -259,7 +259,7 @@ LINES.variable-assign-late= \
 	'VARIABLE_ASSIGN_LATE_OTHER=' \
 	'VARIABLE_ASSIGN_LATE=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-assign-late.tmp, line 1
+# expect: Parse_PushInput: variable-assign-late.tmp:1
 # expect: Skipping 'variable-assign-late.tmp' because 'VARIABLE_ASSIGN_LATE' is defined
 
 # The time at which the guard variable is defined doesn't matter, as long as
@@ -273,7 +273,7 @@ LINES.variable-assign-nested= \
 	'.    endfor' \
 	'.  endif' \
 	'.endif'
-# expect: Parse_PushInput: file variable-assign-nested.tmp, line 1
+# expect: Parse_PushInput: variable-assign-nested.tmp:1
 # expect: Skipping 'variable-assign-nested.tmp' because 'VARIABLE_ASSIGN_NESTED' is defined
 
 # If the guard variable is defined before the file is included for the first
@@ -287,7 +287,7 @@ LINES.variable-already-defined= \
 	'VARIABLE_ALREADY_DEFINED=' \
 	'.endif'
 VARIABLE_ALREADY_DEFINED=
-# expect: Parse_PushInput: file variable-already-defined.tmp, line 1
+# expect: Parse_PushInput: variable-already-defined.tmp:1
 # expect: Skipping 'variable-already-defined.tmp' because 'VARIABLE_ALREADY_DEFINED' is defined
 
 # If the guard variable is defined before the file is included the first time,
@@ -301,8 +301,8 @@ LINES.variable-defined-then-undefined= \
 VARIABLE_DEFINED_THEN_UNDEFINED=
 UNDEF_BETWEEN.variable-defined-then-undefined= \
 	VARIABLE_DEFINED_THEN_UNDEFINED
-# expect: Parse_PushInput: file variable-defined-then-undefined.tmp, line 1
-# expect: Parse_PushInput: file variable-defined-then-undefined.tmp, line 1
+# expect: Parse_PushInput: variable-defined-then-undefined.tmp:1
+# expect: Parse_PushInput: variable-defined-then-undefined.tmp:1
 
 # The whole file content must be guarded by a single '.if' conditional, not by
 # several, as each of these conditionals would require its separate guard.
@@ -316,8 +316,8 @@ LINES.variable-two-times= \
 	'.ifndef VARIABLE_TWO_TIMES_2' \
 	'VARIABLE_TWO_TIMES_2=' \
 	'.endif'
-# expect: Parse_PushInput: file variable-two-times.tmp, line 1
-# expect: Parse_PushInput: file variable-two-times.tmp, line 1
+# expect: Parse_PushInput: variable-two-times.tmp:1
+# expect: Parse_PushInput: variable-two-times.tmp:1
 
 # When multiple files use the same guard variable name, the optimization of
 # skipping the file affects each of these files.
@@ -328,7 +328,7 @@ LINES.variable-two-times= \
 CASES+=	variable-clash
 LINES.variable-clash= \
 	${LINES.variable-if}
-# expect: Parse_PushInput: file variable-clash.tmp, line 1
+# expect: Parse_PushInput: variable-clash.tmp:1
 # expect: Skipping 'variable-clash.tmp' because 'VARIABLE_IF' is defined
 
 # The conditional must come before the assignment, otherwise the conditional
@@ -339,8 +339,8 @@ LINES.variable-swapped= \
 	'.ifndef SWAPPED' \
 	'.  error' \
 	'.endif'
-# expect: Parse_PushInput: file variable-swapped.tmp, line 1
-# expect: Parse_PushInput: file variable-swapped.tmp, line 1
+# expect: Parse_PushInput: variable-swapped.tmp:1
+# expect: Parse_PushInput: variable-swapped.tmp:1
 
 # If the guard variable is undefined between the first and the second time the
 # file is included, the guarded file is included again.
@@ -351,8 +351,8 @@ LINES.variable-undef-between= \
 	'.endif'
 UNDEF_BETWEEN.variable-undef-between= \
 	VARIABLE_UNDEF_BETWEEN
-# expect: Parse_PushInput: file variable-undef-between.tmp, line 1
-# expect: Parse_PushInput: file variable-undef-between.tmp, line 1
+# expect: Parse_PushInput: variable-undef-between.tmp:1
+# expect: Parse_PushInput: variable-undef-between.tmp:1
 
 # If the guard variable is undefined while the file is included the first
 # time, the guard does not have an effect, and the file is included again.
@@ -362,8 +362,8 @@ LINES.variable-undef-inside= \
 	'VARIABLE_UNDEF_INSIDE=' \
 	'.undef VARIABLE_UNDEF_INSIDE' \
 	'.endif'
-# expect: Parse_PushInput: file variable-undef-inside.tmp, line 1
-# expect: Parse_PushInput: file variable-undef-inside.tmp, line 1
+# expect: Parse_PushInput: variable-undef-inside.tmp:1
+# expect: Parse_PushInput: variable-undef-inside.tmp:1
 
 # If the file does not define the guard variable, the guard does not have an
 # effect, and the file is included again.
@@ -371,8 +371,8 @@ CASES+=	variable-not-defined
 LINES.variable-not-defined= \
 	'.ifndef VARIABLE_NOT_DEFINED' \
 	'.endif'
-# expect: Parse_PushInput: file variable-not-defined.tmp, line 1
-# expect: Parse_PushInput: file variable-not-defined.tmp, line 1
+# expect: Parse_PushInput: variable-not-defined.tmp:1
+# expect: Parse_PushInput: variable-not-defined.tmp:1
 
 # The outermost '.if' must not have an '.elif' branch.
 CASES+=	elif
@@ -381,8 +381,8 @@ LINES.elif= \
 	'ELIF=' \
 	'.elif 1' \
 	'.endif'
-# expect: Parse_PushInput: file elif.tmp, line 1
-# expect: Parse_PushInput: file elif.tmp, line 1
+# expect: Parse_PushInput: elif.tmp:1
+# expect: Parse_PushInput: elif.tmp:1
 
 # When a file with an '.if/.elif/.endif' conditional at the top level is
 # included, it is never optimized, as one of its branches is taken.
@@ -392,8 +392,8 @@ LINES.elif-reuse= \
 	'syntax error' \
 	'.elif 1' \
 	'.endif'
-# expect: Parse_PushInput: file elif-reuse.tmp, line 1
-# expect: Parse_PushInput: file elif-reuse.tmp, line 1
+# expect: Parse_PushInput: elif-reuse.tmp:1
+# expect: Parse_PushInput: elif-reuse.tmp:1
 
 # The outermost '.if' must not have an '.else' branch.
 CASES+=	else
@@ -402,8 +402,8 @@ LINES.else= \
 	'ELSE=' \
 	'.else' \
 	'.endif'
-# expect: Parse_PushInput: file else.tmp, line 1
-# expect: Parse_PushInput: file else.tmp, line 1
+# expect: Parse_PushInput: else.tmp:1
+# expect: Parse_PushInput: else.tmp:1
 
 # When a file with an '.if/.else/.endif' conditional at the top level is
 # included, it is never optimized, as one of its branches is taken.
@@ -413,8 +413,8 @@ LINES.else-reuse= \
 	'syntax error' \
 	'.else' \
 	'.endif'
-# expect: Parse_PushInput: file else-reuse.tmp, line 1
-# expect: Parse_PushInput: file else-reuse.tmp, line 1
+# expect: Parse_PushInput: else-reuse.tmp:1
+# expect: Parse_PushInput: else-reuse.tmp:1
 
 # The inner '.if' directives may have an '.elif' or '.else', and it doesn't
 # matter which of their branches are taken.
@@ -435,7 +435,7 @@ LINES.inner-if-elif-else= \
 	'.  else' \
 	'.  endif' \
 	'.endif'
-# expect: Parse_PushInput: file inner-if-elif-else.tmp, line 1
+# expect: Parse_PushInput: inner-if-elif-else.tmp:1
 # expect: Skipping 'inner-if-elif-else.tmp' because 'INNER_IF_ELIF_ELSE' is defined
 
 # The guard can also be a target instead of a variable.  Using a target as a
@@ -449,7 +449,7 @@ LINES.target= \
 	'.if !target(__target.tmp__)' \
 	'__target.tmp__: .NOTMAIN' \
 	'.endif'
-# expect: Parse_PushInput: file target.tmp, line 1
+# expect: Parse_PushInput: target.tmp:1
 # expect: Skipping 'target.tmp' because '__target.tmp__' is defined
 
 # When used for system files, the target name may include '<' and '>', for
@@ -460,7 +460,7 @@ LINES.target-sys= \
 	'.if !target(__<target-sys.tmp>__)' \
 	'__<target-sys.tmp>__: .NOTMAIN' \
 	'.endif'
-# expect: Parse_PushInput: file target-sys.tmp, line 1
+# expect: Parse_PushInput: target-sys.tmp:1
 # expect: Skipping 'target-sys.tmp' because '__<target-sys.tmp>__' is defined
 
 # The target name may include variable references.  These references are
@@ -474,7 +474,7 @@ LINES.target-indirect= \
 	'.if !target($${target-indirect.tmp:L})' \
 	'target-indirect.tmp: .NOTMAIN' \
 	'.endif'
-# expect: Parse_PushInput: file target-indirect.tmp, line 1
+# expect: Parse_PushInput: target-indirect.tmp:1
 # expect: Skipping 'target-indirect.tmp' because 'target-indirect.tmp' is defined
 
 # A common form of guard target is __${.PARSEFILE}__.  This form can only be
@@ -487,7 +487,7 @@ LINES.target-indirect-PARSEFILE= \
 	'.if !target(__$${.PARSEFILE}__)' \
 	'__$${.PARSEFILE}__: .NOTMAIN' \
 	'.endif'
-# expect: Parse_PushInput: file target-indirect-PARSEFILE.tmp, line 1
+# expect: Parse_PushInput: target-indirect-PARSEFILE.tmp:1
 # expect: Skipping 'target-indirect-PARSEFILE.tmp' because '__target-indirect-PARSEFILE.tmp__' is defined
 
 # Two files with different basenames can both use the same syntactic pattern
@@ -497,7 +497,7 @@ LINES.target-indirect-PARSEFILE2= \
 	'.if !target(__$${.PARSEFILE}__)' \
 	'__$${.PARSEFILE}__: .NOTMAIN' \
 	'.endif'
-# expect: Parse_PushInput: file target-indirect-PARSEFILE2.tmp, line 1
+# expect: Parse_PushInput: target-indirect-PARSEFILE2.tmp:1
 # expect: Skipping 'target-indirect-PARSEFILE2.tmp' because '__target-indirect-PARSEFILE2.tmp__' is defined
 
 # Using plain .PARSEFILE without .PARSEDIR leads to name clashes.  The include
@@ -508,7 +508,7 @@ CASES+=	subdir/target-indirect-PARSEFILE
 LINES.subdir/target-indirect-PARSEFILE= \
 	'.if !target(__$${.PARSEFILE}__)' \
 	'.endif'
-# expect: Parse_PushInput: file subdir/target-indirect-PARSEFILE.tmp, line 1
+# expect: Parse_PushInput: subdir/target-indirect-PARSEFILE.tmp:1
 # expect: Skipping 'subdir/target-indirect-PARSEFILE.tmp' because '__target-indirect-PARSEFILE.tmp__' is defined
 
 # Another common form of guard target is __${.PARSEDIR}/${.PARSEFILE}__
@@ -518,7 +518,7 @@ LINES.target-indirect-PARSEDIR-PARSEFILE= \
 	'.if !target(__$${.PARSEDIR}/$${.PARSEFILE}__)' \
 	'__$${.PARSEDIR}/$${.PARSEFILE}__: .NOTMAIN' \
 	'.endif'
-# expect: Parse_PushInput: file target-indirect-PARSEDIR-PARSEFILE.tmp, line 1
+# expect: Parse_PushInput: target-indirect-PARSEDIR-PARSEFILE.tmp:1
 # expect: Skipping 'target-indirect-PARSEDIR-PARSEFILE.tmp' because '__target-indirect-PARSEDIR-PARSEFILE.tmp__' is defined
 # The actual target starts with '__${.OBJDIR}/', see the .rawout file, but the
 # string '${.OBJDIR}/' gets stripped in post processing.
@@ -530,7 +530,7 @@ LINES.subdir/target-indirect-PARSEDIR-PARSEFILE= \
 	'.if !target(__$${.PARSEDIR}/$${.PARSEFILE}__)' \
 	'__$${.PARSEDIR}/$${.PARSEFILE}__: .NOTMAIN' \
 	'.endif'
-# expect: Parse_PushInput: file subdir/target-indirect-PARSEDIR-PARSEFILE.tmp, line 1
+# expect: Parse_PushInput: subdir/target-indirect-PARSEDIR-PARSEFILE.tmp:1
 # expect: Skipping 'subdir/target-indirect-PARSEDIR-PARSEFILE.tmp' because '__subdir/target-indirect-PARSEDIR-PARSEFILE.tmp__' is defined
 # The actual target starts with '__${.OBJDIR}/', see the .rawout file, but the
 # string '${.OBJDIR}/' gets stripped in post processing.
@@ -541,8 +541,8 @@ CASES+=	target-unguarded
 LINES.target-unguarded= \
 	'.if !target(target-unguarded)' \
 	'.endif'
-# expect: Parse_PushInput: file target-unguarded.tmp, line 1
-# expect: Parse_PushInput: file target-unguarded.tmp, line 1
+# expect: Parse_PushInput: target-unguarded.tmp:1
+# expect: Parse_PushInput: target-unguarded.tmp:1
 
 # The guard condition must consist of only the guard target, nothing else.
 CASES+=	target-plus
@@ -550,8 +550,8 @@ LINES.target-plus= \
 	'.if !target(target-plus) && 1' \
 	'target-plus: .NOTMAIN' \
 	'.endif'
-# expect: Parse_PushInput: file target-plus.tmp, line 1
-# expect: Parse_PushInput: file target-plus.tmp, line 1
+# expect: Parse_PushInput: target-plus.tmp:1
+# expect: Parse_PushInput: target-plus.tmp:1
 
 # If the guard target is defined before the file is included the first time,
 # the file is read once and then considered guarded.
@@ -561,7 +561,7 @@ LINES.target-already-defined= \
 	'target-already-defined: .NOTMAIN' \
 	'.endif'
 target-already-defined: .NOTMAIN
-# expect: Parse_PushInput: file target-already-defined.tmp, line 1
+# expect: Parse_PushInput: target-already-defined.tmp:1
 # expect: Skipping 'target-already-defined.tmp' because 'target-already-defined' is defined
 
 # A target name cannot contain the character '!'.  In the condition, the '!'
@@ -578,8 +578,8 @@ LINES.target-name-exclamation= \
 	'.if !target(!target-name-exclamation)' \
 	'\!target-name-exclamation: .NOTMAIN' \
 	'.endif'
-# expect: Parse_PushInput: file target-name-exclamation.tmp, line 1
-# expect: Parse_PushInput: file target-name-exclamation.tmp, line 1
+# expect: Parse_PushInput: target-name-exclamation.tmp:1
+# expect: Parse_PushInput: target-name-exclamation.tmp:1
 
 # If the guard target name has leading spaces, it does not have an effect,
 # as that form is not common in practice.
@@ -588,8 +588,8 @@ LINES.target-name-leading-space= \
 	'.if !target( target-name-leading-space)' \
 	'target-name-leading-space: .NOTMAIN' \
 	'.endif'
-# expect: Parse_PushInput: file target-name-leading-space.tmp, line 1
-# expect: Parse_PushInput: file target-name-leading-space.tmp, line 1
+# expect: Parse_PushInput: target-name-leading-space.tmp:1
+# expect: Parse_PushInput: target-name-leading-space.tmp:1
 
 # If the guard target name has trailing spaces, it does not have an effect,
 # as that form is not common in practice.
@@ -598,8 +598,8 @@ LINES.target-name-trailing-space= \
 	'.if !target(target-name-trailing-space )' \
 	'target-name-trailing-space: .NOTMAIN' \
 	'.endif'
-# expect: Parse_PushInput: file target-name-trailing-space.tmp, line 1
-# expect: Parse_PushInput: file target-name-trailing-space.tmp, line 1
+# expect: Parse_PushInput: target-name-trailing-space.tmp:1
+# expect: Parse_PushInput: target-name-trailing-space.tmp:1
 
 # If the guard target condition is enclosed in parentheses, it does not have
 # an effect, as that form is not common in practice.
@@ -608,8 +608,8 @@ LINES.target-call-parenthesized= \
 	'.if (!target(target-call-parenthesized))' \
 	'target-call-parenthesized: .NOTMAIN' \
 	'.endif'
-# expect: Parse_PushInput: file target-call-parenthesized.tmp, line 1
-# expect: Parse_PushInput: file target-call-parenthesized.tmp, line 1
+# expect: Parse_PushInput: target-call-parenthesized.tmp:1
+# expect: Parse_PushInput: target-call-parenthesized.tmp:1
 
 # If the '.if' or '.ifndef' directive spans more than a single line, it is
 # still recognized as a guard condition.  This case is entirely uncommon, but
@@ -622,7 +622,7 @@ LINES.multiline= \
 	'  MULTILINE' \
 	'MULTILINE=' \
 	'.endif'
-# expect: Parse_PushInput: file multiline.tmp, line 1
+# expect: Parse_PushInput: multiline.tmp:1
 # expect: Skipping 'multiline.tmp' because 'MULTILINE' is defined
 
 
