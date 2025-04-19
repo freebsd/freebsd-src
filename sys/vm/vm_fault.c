@@ -108,6 +108,7 @@
 #include <vm/vm_radix.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_reserv.h>
+#include <vm/vm_radix.h>
 
 #define PFBAK 4
 #define PFFOR 4
@@ -480,19 +481,18 @@ static void
 vm_fault_populate_cleanup(vm_object_t object, vm_pindex_t first,
     vm_pindex_t last)
 {
+	struct pctrie_iter pages;
 	vm_page_t m;
-	vm_pindex_t pidx;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	MPASS(first <= last);
-	for (pidx = first, m = vm_page_lookup(object, pidx);
-	    pidx <= last; pidx++, m = TAILQ_NEXT(m, listq)) {
-		KASSERT(m != NULL && m->pindex == pidx,
-		    ("%s: pindex mismatch", __func__));
+	vm_page_iter_limit_init(&pages, object, last + 1);
+	VM_RADIX_FORALL_FROM(m, &pages, first) {
 		vm_fault_populate_check_page(m);
 		vm_page_deactivate(m);
 		vm_page_xunbusy(m);
 	}
+	KASSERT(pages.index == last, ("%s: pindex mismatch", __func__));
 }
 
 static enum fault_status
