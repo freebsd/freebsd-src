@@ -346,13 +346,17 @@ sgx_epc_page_remove(struct sgx_softc *sc,
 }
 
 static void
-sgx_page_remove(struct sgx_softc *sc, vm_page_t p)
+sgx_page_remove(struct sgx_softc *sc, vm_page_t p,
+    struct pctrie_iter *pages)
 {
 	struct epc_page *epc;
 	vm_paddr_t pa;
 	uint64_t offs;
 
-	(void)vm_page_remove(p);
+	if (pages != NULL)
+		(void)vm_page_iter_remove(pages, p);
+	else
+		(void) vm_page_remove(p);
 
 	dprintf("%s: p->pidx %ld\n", __func__, p->pindex);
 
@@ -369,8 +373,9 @@ static void
 sgx_enclave_remove(struct sgx_softc *sc,
     struct sgx_enclave *enclave)
 {
+	struct pctrie_iter pages;
 	vm_object_t object;
-	vm_page_t p, p_secs, p_next;
+	vm_page_t p, p_secs;
 
 	mtx_lock(&sc->mtx);
 	TAILQ_REMOVE(&sc->enclaves, enclave, next);
@@ -378,6 +383,7 @@ sgx_enclave_remove(struct sgx_softc *sc,
 
 	object = enclave->object;
 
+	vm_page_iter_init(&pages, object);
 	VM_OBJECT_WLOCK(object);
 
 	/*
@@ -385,20 +391,21 @@ sgx_enclave_remove(struct sgx_softc *sc,
 	 * then remove SECS page.
 	 */
 restart:
-	TAILQ_FOREACH_SAFE(p, &object->memq, listq, p_next) {
+	VM_RADIX_FOREACH(p, &pages) {
 		if (p->pindex == SGX_SECS_VM_OBJECT_INDEX)
 			continue;
-		if (vm_page_busy_acquire(p, VM_ALLOC_WAITFAIL) == 0)
+		if (vm_page_busy_acquire(p, VM_ALLOC_WAITFAIL) == 0) {
+			pctrie_iter_reset(&pages);
 			goto restart;
-		sgx_page_remove(sc, p);
+		}
+		sgx_page_remove(sc, p, &pages);
 	}
 	p_secs = vm_page_grab(object, SGX_SECS_VM_OBJECT_INDEX,
 	    VM_ALLOC_NOCREAT);
 	/* Now remove SECS page */
 	if (p_secs != NULL)
-		sgx_page_remove(sc, p_secs);
+		sgx_page_remove(sc, p_secs, NULL);
 
-	KASSERT(TAILQ_EMPTY(&object->memq) == 1, ("not empty"));
 	KASSERT(object->resident_page_count == 0, ("count"));
 
 	VM_OBJECT_WUNLOCK(object);
@@ -729,7 +736,7 @@ sgx_ioctl_create(struct sgx_softc *sc, struct sgx_enclave_create *param)
 		p = vm_page_grab(enclave->object,
 		    - SGX_VA_PAGES_OFFS - SGX_SECS_VM_OBJECT_INDEX,
 		    VM_ALLOC_NOCREAT);
-		sgx_page_remove(sc, p);
+		sgx_page_remove(sc, p, NULL);
 		VM_OBJECT_WUNLOCK(object);
 		goto error;
 	}
@@ -743,7 +750,7 @@ sgx_ioctl_create(struct sgx_softc *sc, struct sgx_enclave_create *param)
 		p = vm_page_grab(enclave->object,
 		    - SGX_VA_PAGES_OFFS - SGX_SECS_VM_OBJECT_INDEX,
 		    VM_ALLOC_NOCREAT);
-		sgx_page_remove(sc, p);
+		sgx_page_remove(sc, p, NULL);
 		VM_OBJECT_WUNLOCK(object);
 		goto error;
 	}
