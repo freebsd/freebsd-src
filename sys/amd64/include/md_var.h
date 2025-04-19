@@ -50,6 +50,7 @@ extern vm_paddr_t intel_graphics_stolen_base;
 extern vm_paddr_t intel_graphics_stolen_size;
 
 extern int la57;
+extern int prefer_uva_la48;
 
 extern vm_paddr_t kernphys;
 extern vm_paddr_t KERNend;
