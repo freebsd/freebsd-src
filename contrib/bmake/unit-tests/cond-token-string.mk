@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-string.mk,v 1.15 2025/01/11 20:54:45 rillig Exp $
+# $NetBSD: cond-token-string.mk,v 1.16 2025/03/29 19:08:52 rillig Exp $
 #
 # Tests for quoted string literals in .if conditions.
 #
@@ -10,7 +10,7 @@
 
 # Cover the code in CondParser_String that frees the memory after parsing
 # an expression based on an undefined variable.
-# expect+1: Unknown modifier "Z"
+# expect+1: Unknown modifier ":Z"
 .if "" != "${:Uvalue:Z}"
 .  error
 .else

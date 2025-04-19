@@ -1,9 +1,9 @@
 # This is a generated file, do NOT edit!
 # See contrib/bmake/bsd.after-import.mk
 #
-# $Id: Makefile,v 1.230 2025/01/30 18:04:20 sjg Exp $
+# $Id: Makefile,v 1.233 2025/04/14 16:02:33 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.355 2025/01/25 22:46:30 sjg Exp $
+# $NetBSD: Makefile,v 1.358 2025/04/13 09:29:32 rillig Exp $
 #
 # Unit tests for make(1)
 #
@@ -302,6 +302,9 @@ TESTS+=		parse
 TESTS+=		parse-var
 TESTS+=		phony-end
 TESTS+=		posix
+TESTS+=		posix-execution
+TESTS+=		posix-expansion
+TESTS+=		posix-varassign
 TESTS+=		# posix1	# broken by reverting POSIX changes
 TESTS+=		recursive
 TESTS+=		sh
@@ -612,7 +615,9 @@ SED_CMDS.opt-chdir=		-e 's,\(nonexistent\).[1-9][0-9]*,\1,' \
 	-e 's,Filename,File name,'
 
 # meta line numbers can vary based on filemon implementation
-SED_CMDS.meta-ignore= -e 's,\(\.meta:\) [1-9][0-9]*:,\1 <line>:,'
+SED_CMDS.meta-ignore= -e 's,\(\.meta:\)[1-9][0-9]*:,\1<line>:,'
+
+SED_CMDS.opt-chdir=		-e 's,\(nonexistent\).[1-9][0-9]*,\1,'
 SED_CMDS.opt-debug-graph1=	${STD_SED_CMDS.dg1}
 SED_CMDS.opt-debug-graph2=	${STD_SED_CMDS.dg2}
 SED_CMDS.opt-debug-graph3=	${STD_SED_CMDS.dg3}
@@ -650,8 +655,8 @@ SED_CMDS.varparse-errors+=	${STD_SED_CMDS.timestamp}
 SED_CMDS.varname-dot-make-meta-ignore_filter+= ${SED_CMDS.meta-ignore}
 SED_CMDS.varname-dot-make-meta-ignore_paths+= ${SED_CMDS.meta-ignore}
 SED_CMDS.varname-dot-make-meta-ignore_patterns+= ${SED_CMDS.meta-ignore}
-SED_CMDS.varname-dot-parsedir=	-e '/in some cases/ s,^make: "[^"]*,make: "<normalized>,'
-SED_CMDS.varname-dot-parsefile=	-e '/in some cases/ s,^make: "[^"]*,make: "<normalized>,'
+SED_CMDS.varname-dot-parsedir=	-e '/in some cases/ s,^make: [^:]*:,make: <normalized>:,'
+SED_CMDS.varname-dot-parsefile=	-e '/in some cases/ s,^make: [^:]*:,make: <normalized>:,'
 SED_CMDS.varname-dot-shell=	-e 's, = /[^ ]*, = (details omitted),g'
 SED_CMDS.varname-dot-shell+=	-e 's,"/[^" ]*","(details omitted)",g'
 SED_CMDS.varname-dot-shell+=	-e 's,\[/[^] ]*\],[(details omitted)],g'

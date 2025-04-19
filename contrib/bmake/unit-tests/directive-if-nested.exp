@@ -1,2 +1,2 @@
-make: "directive-if-nested.inc" line 1001: deeply nested .if directives
+make: directive-if-nested.inc:1001: deeply nested .if directives
 exit status 0

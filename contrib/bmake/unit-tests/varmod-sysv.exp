@@ -1,4 +1,4 @@
-make: "varmod-sysv.mk" line 215: Unfinished modifier ('=' missing)
+make: varmod-sysv.mk:215: Unfinished modifier after "from${:D=}to}", expecting "="
 	while evaluating variable "word216" with value "word216"
 word                     modifier                 result                  
 ''                       =                        ""
@@ -145,7 +145,7 @@ pre-middle-suffix        pre%ffix=NPre%           "NPre-middle-su"
 suffix                   pre%ffix=NPre%NS         "suffix"
 prefix                   pre%ffix=NPre%NS         "prefix"
 pre-middle-suffix        pre%ffix=NPre%NS         "NPre-middle-suNS"
-make: "varmod-sysv.mk" line 259: Unfinished modifier ('}' missing)
+make: varmod-sysv.mk:259: Unfinished modifier after "$(})", expecting "}"
 	while evaluating variable "error" with value "error"
 make: Fatal errors encountered -- cannot continue
 make: stopped making "all" in unit-tests

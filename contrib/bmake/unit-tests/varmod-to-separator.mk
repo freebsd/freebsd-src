@@ -1,4 +1,4 @@
-# $NetBSD: varmod-to-separator.mk,v 1.21 2025/01/11 20:54:46 rillig Exp $
+# $NetBSD: varmod-to-separator.mk,v 1.23 2025/03/30 00:35:52 rillig Exp $
 #
 # Tests for the :ts variable modifier, which joins the words of the variable
 # using an arbitrary character as word separator.
@@ -7,30 +7,30 @@ WORDS=	one two three four five six
 
 # The words are separated by a single space, just as usual.
 .if ${WORDS:ts } != "one two three four five six"
-.  warning Space as separator does not work.
+.  error
 .endif
 
 # The separator can be an arbitrary character, for example a comma.
 .if ${WORDS:ts,} != "one,two,three,four,five,six"
-.  warning Comma as separator does not work.
+.  error
 .endif
 
 # After the :ts modifier, other modifiers can follow.
 .if ${WORDS:ts/:tu} != "ONE/TWO/THREE/FOUR/FIVE/SIX"
-.  warning Chaining modifiers does not work.
+.  error
 .endif
 
 # To use the ':' as the separator, just write it normally.
 # The first colon is the separator, the second ends the modifier.
 .if ${WORDS:ts::tu} != "ONE:TWO:THREE:FOUR:FIVE:SIX"
-.  warning Colon as separator does not work.
+.  error
 .endif
 
 # When there is just a colon but no other character, the words are
 # "separated" by an empty string, that is, they are all squashed
 # together.
 .if ${WORDS:ts:tu} != "ONETWOTHREEFOURFIVESIX"
-.  warning Colon as separator does not work.
+.  error
 .endif
 
 # Applying the :tu modifier first and then the :ts modifier does not change
@@ -42,42 +42,42 @@ WORDS=	one two three four five six
 # as a separator, but as the closing delimiter of the whole
 # expression.
 .if ${WORDS:tu:ts} != "ONETWOTHREEFOURFIVESIX"
-.  warning Colon as separator does not work.
+.  error
 .endif
 
 # The '}' plays the same role as the ':' in the preceding examples.
 # Since there is a single character before it, that character is taken as
 # the separator.
 .if ${WORDS:tu:ts/} != "ONE/TWO/THREE/FOUR/FIVE/SIX"
-.  warning Colon as separator does not work.
+.  error
 .endif
 
 # Now it gets interesting and ambiguous:  The separator could either be empty
 # since it is followed by a colon.  Or it could be the colon since that
 # colon is followed by the closing brace.  It's the latter case.
 .if ${WORDS:ts:} != "one:two:three:four:five:six"
-.  warning Colon followed by closing brace does not work.
+.  error
 .endif
 
 # As in the ${WORDS:tu:ts} example above, the separator is empty.
 .if ${WORDS:ts} != "onetwothreefourfivesix"
-.  warning Empty separator before closing brace does not work.
+.  error
 .endif
 
 # The :ts modifier can be followed by other modifiers.
 .if ${WORDS:ts:S/two/2/} != "one2threefourfivesix"
-.  warning Separator followed by :S modifier does not work.
+.  error
 .endif
 
 # The :ts modifier can follow other modifiers.
 .if ${WORDS:S/two/2/:ts} != "one2threefourfivesix"
-.  warning :S modifier followed by :ts modifier does not work.
+.  error
 .endif
 
 # The :ts modifier with an actual separator can be followed by other
 # modifiers.
 .if ${WORDS:ts/:S/two/2/} != "one/2/three/four/five/six"
-.  warning The :ts modifier followed by an :S modifier does not work.
+.  error
 .endif
 
 # After the modifier ':ts/', the expression value is a single word since all
@@ -128,22 +128,22 @@ WORDS=	one two three four five six
 
 # The separator can be \n, which is a newline.
 .if ${WORDS:[1..3]:ts\n} != "one${.newline}two${.newline}three"
-.  warning The separator \n does not produce a newline.
+.  error
 .endif
 
 # The separator can be \t, which is a tab.
 .if ${WORDS:[1..3]:ts\t} != "one	two	three"
-.  warning The separator \t does not produce a tab.
+.  error
 .endif
 
 # The separator can be given as octal number.
 .if ${WORDS:[1..3]:ts\012:tu} != "ONE${.newline}TWO${.newline}THREE"
-.  warning The separator \012 is not interpreted in octal ASCII.
+.  error
 .endif
 
 # The octal number can have as many digits as it wants.
 .if ${WORDS:[1..2]:ts\000000000000000000000000012:tu} != "ONE${.newline}TWO"
-.  warning The separator \012 cannot have many leading zeroes.
+.  error
 .endif
 
 # The value of the separator character must not be outside the value space
@@ -152,14 +152,14 @@ WORDS=	one two three four five six
 # Since 2020-11-01, these out-of-bounds values are rejected.
 # expect+1: Invalid character number at "400:tu}"
 .if ${WORDS:[1..3]:ts\400:tu}
-.  warning The separator \400 is accepted even though it is out of bounds.
+.  error
 .else
-.  warning The separator \400 is accepted even though it is out of bounds.
+.  error
 .endif
 
 # The separator can be given as hexadecimal number.
 .if ${WORDS:[1..3]:ts\xa:tu} != "ONE${.newline}TWO${.newline}THREE"
-.  warning The separator \xa is not interpreted in hexadecimal ASCII.
+.  error
 .endif
 
 # The hexadecimal number must be in the range of an unsigned char.
@@ -167,9 +167,9 @@ WORDS=	one two three four five six
 # Since 2020-11-01, these out-of-bounds values are rejected.
 # expect+1: Invalid character number at "100:tu}"
 .if ${WORDS:[1..3]:ts\x100:tu}
-.  warning The separator \x100 is accepted even though it is out of bounds.
+.  error
 .else
-.  warning The separator \x100 is accepted even though it is out of bounds.
+.  error
 .endif
 
 # The number after ':ts\x' must be hexadecimal.
@@ -184,41 +184,41 @@ WORDS=	one two three four five six
 .endif
 
 # Negative numbers are not allowed for the separator character.
-# expect+1: Bad modifier ":ts\-300"
+# expect+1: Unknown modifier ":ts\-300"
 .if ${WORDS:[1..3]:ts\-300:tu}
-.  warning The separator \-300 is accepted even though it is negative.
+.  error
 .else
-.  warning The separator \-300 is accepted even though it is negative.
+.  error
 .endif
 
 # The character number is interpreted as octal number by default.
 # The digit '8' is not an octal digit though.
-# expect+1: Bad modifier ":ts\8"
+# expect+1: Unknown modifier ":ts\8"
 .if ${1 2 3:L:ts\8:tu}
-.  warning The separator \8 is accepted even though it is not octal.
+.  error
 .else
-.  warning The separator \8 is accepted even though it is not octal.
+.  error
 .endif
 
 # Trailing characters after the octal character number are rejected.
-# expect+1: Bad modifier ":ts\100L"
+# expect+1: Unknown modifier ":ts\100L"
 .if ${1 2 3:L:ts\100L}
-.  warning The separator \100L is accepted even though it contains an 'L'.
+.  error
 .else
-.  warning The separator \100L is accepted even though it contains an 'L'.
+.  error
 .endif
 
 # Trailing characters after the hexadecimal character number are rejected.
-# expect+1: Bad modifier ":ts\x40g"
+# expect+1: Unknown modifier ":ts\x40g"
 .if ${1 2 3:L:ts\x40g}
-.  warning The separator \x40g is accepted even though it contains a 'g'.
+.  error
 .else
-.  warning The separator \x40g is accepted even though it contains a 'g'.
+.  error
 .endif
 
 
 # In the :t modifier, the :t must be followed by any of A, l, s, u.
-# expect+1: Bad modifier ":tx"
+# expect+1: Unknown modifier ":tx"
 .if ${WORDS:tx}
 .  error
 .else
@@ -226,7 +226,7 @@ WORDS=	one two three four five six
 .endif
 
 # The word separator can only be a single character.
-# expect+1: Bad modifier ":ts\X"
+# expect+1: Unknown modifier ":ts\X"
 .if ${WORDS:ts\X}
 .  error
 .else
@@ -235,9 +235,9 @@ WORDS=	one two three four five six
 
 # After the backslash, only n, t, an octal number, or x and a hexadecimal
 # number are allowed.
-# expect+1: Bad modifier ":t\X"
-.if ${WORDS:t\X} != "anything"
-.  info This line is not reached.
+# expect+1: Unknown modifier ":ts\X"
+.if ${WORDS:ts\X} != "anything"
+.  error
 .endif
 
 
@@ -251,7 +251,7 @@ WORDS=	one two three four five six
 # happens for non-octal digits.  From 2003.07.23.18.06.46 to
 # 2016.02.27.16.20.06, the result was '1E2', since 2016.03.07.20.20.35 make no
 # longer accepts this escape and complains.
-# expect+1: Bad modifier ":ts\69"
+# expect+1: Unknown modifier ":ts\69"
 .if ${:Ua b:ts\69}
 .  error
 .else

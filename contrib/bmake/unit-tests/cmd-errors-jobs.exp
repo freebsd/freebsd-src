@@ -8,23 +8,29 @@ end undefined-indirect with status 0
 
 begin parse-error-direct
 make: Unclosed variable "UNCLOSED"
+	in command ": unexpected $@-${UNCLOSED"
 	in target "parse-error-unclosed-expression"
 make: Unclosed expression, expecting '}'
 	while evaluating variable "UNCLOSED" with value ""
+	in command ": unexpected $@-${UNCLOSED:"
 	in target "parse-error-unclosed-modifier"
-make: Unknown modifier "Z"
+make: Unknown modifier ":Z"
 	while evaluating variable "UNKNOWN" with value ""
+	in command ": unexpected $@-${UNKNOWN:Z}-eol"
 	in target "parse-error-unknown-modifier"
 end parse-error-direct with status 2
 
 begin parse-error-indirect
 make: Unclosed variable "UNCLOSED"
+	in command ": unexpected $@-${UNCLOSED"
 	in target "parse-error-unclosed-expression"
 make: Unclosed expression, expecting '}'
 	while evaluating variable "UNCLOSED" with value ""
+	in command ": unexpected $@-${UNCLOSED:"
 	in target "parse-error-unclosed-modifier"
-make: Unknown modifier "Z"
+make: Unknown modifier ":Z"
 	while evaluating variable "UNKNOWN" with value ""
+	in command ": unexpected $@-${UNKNOWN:Z}-eol"
 	in target "parse-error-unknown-modifier"
 end parse-error-indirect with status 2
 

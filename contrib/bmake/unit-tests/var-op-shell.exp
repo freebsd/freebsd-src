@@ -1,8 +1,8 @@
-make: "var-op-shell.mk" line 32: warning: Command "echo "failed"; (exit 13)" exited with status 13
-make: "var-op-shell.mk" line 39: warning: Command "exit 13" exited with status 13
-make: "var-op-shell.mk" line 62: warning: "kill $$" exited on a signal
+make: var-op-shell.mk:32: warning: Command "echo "failed"; (exit 13)" exited with status 13
+make: var-op-shell.mk:39: warning: Command "exit 13" exited with status 13
+make: var-op-shell.mk:62: warning: "kill $$" exited on a signal
 /bin/no/such/command: not found
-make: "var-op-shell.mk" line 69: warning: Command "/bin/no/such/command" exited with status 127
+make: var-op-shell.mk:69: warning: Command "/bin/no/such/command" exited with status 127
 stderr
 Capturing the output of command "echo '$$$$'"
 Global: OUTPUT = $$$$
