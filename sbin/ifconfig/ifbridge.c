@@ -211,6 +211,8 @@ bridge_status(if_ctx *ctx)
 			else
 				printf(" <unknown state %d>", state);
 		}
+		if (member->ifbr_pvid != 0)
+			printf(" pvid %u", (unsigned)member->ifbr_pvid);
 		printf("\n");
 	}
 
@@ -577,6 +579,24 @@ setbridge_ifpathcost(if_ctx *ctx, const char *ifn, const char *cost)
 }
 
 static void
+setbridge_ifpvid(if_ctx *ctx, const char *ifn, const char *vlanid)
+{
+	struct ifbreq req;
+	u_long val;
+
+	memset(&req, 0, sizeof(req));
+
+	if (get_val(vlanid, &val) < 0)
+		errx(1, "invalid value: %s", vlanid);
+
+	strlcpy(req.ifbr_ifsname, ifn, sizeof(req.ifbr_ifsname));
+	req.ifbr_pvid = val;
+
+	if (do_cmd(ctx, BRDGSIFPVID, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGSIFPVID %s", vlanid);
+}
+
+static void
 setbridge_ifmaxaddr(if_ctx *ctx, const char *ifn, const char *arg)
 {
 	struct ifbreq req;
@@ -659,6 +679,7 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG2("ifpriority",	setbridge_ifpriority),
 	DEF_CMD_ARG2("ifpathcost",	setbridge_ifpathcost),
 	DEF_CMD_ARG2("ifmaxaddr",	setbridge_ifmaxaddr),
+	DEF_CMD_ARG2("ifpvid",		setbridge_ifpvid),
 	DEF_CMD_ARG("timeout",		setbridge_timeout),
 	DEF_CMD_ARG("private",		setbridge_private),
 	DEF_CMD_ARG("-private",		unsetbridge_private),
