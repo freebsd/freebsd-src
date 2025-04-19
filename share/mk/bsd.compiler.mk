@@ -40,7 +40,7 @@
 #
 
 .if !target(__<bsd.compiler.mk>__)
-__<bsd.compiler.mk>__:
+__<bsd.compiler.mk>__:	.NOTMAIN
 
 .include <bsd.opts.mk>
 

@@ -21,5 +21,5 @@ SERVICES_MKDB_CMD?=	services_mkdb
 CAP_MKDB_CMD?=	cap_mkdb
 TIC_CMD?=	tic
 
-__<src.tools.mk>__:
+__<src.tools.mk>__:	.NOTMAIN
 .endif  # !target(__<tools>__)

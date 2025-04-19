@@ -5,7 +5,7 @@
 # system.
 
 .if !target(__<src.lua.mk>__)
-__<src.lua.mk>__:
+__<src.lua.mk>__:	.NOTMAIN
 
 .include <bsd.own.mk>
 

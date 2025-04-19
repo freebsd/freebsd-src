@@ -1,6 +1,6 @@
 
 .if !target(__<bsd.symver.mk>__)
-__<bsd.symver.mk>__:
+__<bsd.symver.mk>__:	.NOTMAIN
 
 .include <bsd.init.mk>
 
