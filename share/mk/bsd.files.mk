@@ -8,7 +8,7 @@
 .error bsd.dirs.mk must be included after bsd.files.mk.
 .endif
 
-__<bsd.files.mk>__:
+__<bsd.files.mk>__:	.NOTMAIN
 
 FILESGROUPS?=	FILES
 

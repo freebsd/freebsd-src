@@ -33,7 +33,7 @@
 #
 
 .if !target(__<bsd.subdir.mk>__)
-__<bsd.subdir.mk>__:
+__<bsd.subdir.mk>__:	.NOTMAIN
 
 .if ${MK_AUTO_OBJ} == "no"
 _obj=	obj

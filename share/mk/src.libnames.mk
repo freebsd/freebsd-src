@@ -7,7 +7,7 @@
 .endif
 
 .if !target(__<src.libnames.mk>__)
-__<src.libnames.mk>__:
+__<src.libnames.mk>__:	.NOTMAIN
 
 .include <src.opts.mk>
 

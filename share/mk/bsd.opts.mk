@@ -30,7 +30,7 @@
 #
 
 .if !target(__<bsd.opts.mk>__)
-__<bsd.opts.mk>__:
+__<bsd.opts.mk>__:	.NOTMAIN
 
 .if !defined(_WITHOUT_SRCCONF)
 #
