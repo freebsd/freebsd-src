@@ -79,6 +79,7 @@ gpio_aei_attach(device_t dev)
 {
 	struct gpio_aei_softc * sc = device_get_softc(dev);
 	gpio_pin_t pin;
+	uint32_t flags;
 	ACPI_HANDLE handle;
 	int err;
 
@@ -87,17 +88,19 @@ gpio_aei_attach(device_t dev)
 
 	/* Store parameters needed by gpio_aei_intr. */
 	handle = acpi_gpiobus_get_handle(dev);
-	if (gpio_pin_get_by_acpi_index(dev, 0, &pin) != 0) {
+	if (gpio_pin_get_by_child_index(dev, 0, &pin) != 0) {
 		device_printf(dev, "Unable to get the input pin\n");
 		return (ENXIO);
 	}
 
 	sc->type = ACPI_AEI_TYPE_UNKNOWN;
 	sc->pin = pin->pin;
+
+	flags = acpi_gpiobus_get_flags(dev);
 	if (pin->pin <= 255) {
 		char objname[5];	/* "_EXX" or "_LXX" */
 		sprintf(objname, "_%c%02X",
-		    (pin->flags & GPIO_INTR_EDGE_MASK) ? 'E' : 'L', pin->pin);
+		    (flags & GPIO_INTR_EDGE_MASK) ? 'E' : 'L', pin->pin);
 		if (ACPI_SUCCESS(AcpiGetHandle(handle, objname, &sc->handle)))
 			sc->type = ACPI_AEI_TYPE_ELX;
 	}
@@ -113,12 +116,13 @@ gpio_aei_attach(device_t dev)
 
 	/* Set up the interrupt. */
 	if ((sc->intr_res = gpio_alloc_intr_resource(dev, &sc->intr_rid,
-	    RF_ACTIVE, pin, pin->flags & GPIO_INTR_MASK)) == NULL) {
+	    RF_ACTIVE, pin, flags & GPIO_INTR_MASK)) == NULL) {
 		device_printf(dev, "Cannot allocate an IRQ\n");
 		return (ENOTSUP);
 	}
-	err = bus_setup_intr(dev, sc->intr_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, gpio_aei_intr, sc, &sc->intr_cookie);
+	err = bus_setup_intr(dev, sc->intr_res, INTR_TYPE_MISC | INTR_MPSAFE |
+	    INTR_EXCL | INTR_SLEEPABLE, NULL, gpio_aei_intr, sc,
+	    &sc->intr_cookie);
 	if (err != 0) {
 		device_printf(dev, "Cannot set up IRQ\n");
 		bus_release_resource(dev, SYS_RES_IRQ, sc->intr_rid,

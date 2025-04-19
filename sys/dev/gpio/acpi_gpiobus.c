@@ -203,7 +203,8 @@ acpi_gpiobus_enumerate_aei(ACPI_RESOURCE *res, void *context)
 	device_set_ivars(child, devi);
 
 	for (int i = 0; i < devi->gpiobus.npins; i++) {
-		if (GPIOBUS_PIN_SETFLAGS(bus, child, 0, devi->flags)) {
+		if (GPIOBUS_PIN_SETFLAGS(bus, child, 0, devi->flags &
+		    ~GPIO_INTR_MASK)) {
 			device_delete_child(bus, child);
 			return (AE_OK);
 		}
@@ -356,7 +357,7 @@ acpi_gpiobus_attach(device_t dev)
 	    &ctx);
 
 	if (ACPI_FAILURE(status))
-		device_printf(dev, "Failed to enumerate GPIO resources\n");
+		device_printf(dev, "Failed to enumerate AEI resources\n");
 
 	return (0);
 }
@@ -380,23 +381,6 @@ acpi_gpiobus_detach(device_t dev)
 	return (gpiobus_detach(dev));
 }
 
-int
-gpio_pin_get_by_acpi_index(device_t consumer, uint32_t idx,
-    gpio_pin_t *out_pin)
-{
-	struct acpi_gpiobus_ivar *devi;
-	int rv;
-
-	rv = gpio_pin_get_by_child_index(consumer, idx, out_pin);
-	if (rv != 0)
-		return (rv);
-
-	devi = device_get_ivars(consumer);
-	(*out_pin)->flags = devi->flags;
-
-	return (0);
-}
-
 static int
 acpi_gpiobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
@@ -405,6 +389,9 @@ acpi_gpiobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *resul
 	switch (which) {
 	case ACPI_GPIOBUS_IVAR_HANDLE:
 		*result = (uintptr_t)devi->dev_handle;
+		break;
+	case ACPI_GPIOBUS_IVAR_FLAGS:
+		*result = (uintptr_t)devi->flags;
 		break;
 	default:
 		return (gpiobus_read_ivar(dev, child, which, result));
