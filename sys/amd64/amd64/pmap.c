@@ -433,6 +433,15 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, la57, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &la57, 0,
     "5-level paging for host is enabled");
 
+/*
+ * The default value is needed in order to preserve compatibility with
+ * some userspace programs that put tags into sign-extended bits.
+ */
+int prefer_uva_la48 = 1;
+SYSCTL_INT(_vm_pmap, OID_AUTO, prefer_uva_la48, CTLFLAG_RDTUN,
+    &prefer_uva_la48, 0,
+    "Userspace maps are limited to LA48 unless otherwise configured");
+
 static bool
 pmap_is_la57(pmap_t pmap)
 {
