@@ -1,4 +1,4 @@
-# $NetBSD: directive-for-errors.mk,v 1.14 2024/08/29 20:20:36 rillig Exp $
+# $NetBSD: directive-for-errors.mk,v 1.16 2025/03/30 16:43:10 rillig Exp $
 #
 # Tests for error handling in .for loops.
 
@@ -81,14 +81,8 @@ ${:U\\}=	backslash	# see whether the "variable" '\' is local
 .endfor
 
 
-# A malformed modifier should be detected and skip the body of the loop.
-#
-# XXX: As of 2020-12-31, Var_Subst doesn't report any errors, therefore
-# the loop body is expanded as if no error had happened.
-# expect+1: Unknown modifier "Z"
+# An error in the items skips the body of the loop.
+# expect+1: Unknown modifier ":Z"
 .for i in 1 2 ${:U3:Z} 4
-# expect+3: warning: Should not be reached.
-# expect+2: warning: Should not be reached.
-# expect+1: warning: Should not be reached.
-.  warning Should not be reached.
+.  error
 .endfor

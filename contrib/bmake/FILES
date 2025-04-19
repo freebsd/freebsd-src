@@ -555,6 +555,12 @@ unit-tests/parse.exp
 unit-tests/parse.mk
 unit-tests/phony-end.exp
 unit-tests/phony-end.mk
+unit-tests/posix-execution.exp
+unit-tests/posix-execution.mk
+unit-tests/posix-expansion.exp
+unit-tests/posix-expansion.mk
+unit-tests/posix-varassign.exp
+unit-tests/posix-varassign.mk
 unit-tests/posix.exp
 unit-tests/posix.mk
 unit-tests/posix1.exp

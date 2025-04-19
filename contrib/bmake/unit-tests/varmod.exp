@@ -1,44 +1,47 @@
-make: "varmod.mk" line 101: To escape a dollar, use \$, not $$, at "$$:L} != """
-make: "varmod.mk" line 101: Invalid variable name ':', at "$:L} != """
-make: "varmod.mk" line 107: Dollar followed by nothing
+make: varmod.mk:111: To escape a dollar, use \$, not $$, at "$$:L} != """
+make: varmod.mk:111: Invalid variable name ':', at "$:L} != """
+make: varmod.mk:117: Dollar followed by nothing
 	while evaluating "${:Uword:@word@${word}$@} != "word"" with value "word"
-make: "varmod.mk" line 117: Missing delimiter ':' after modifier "P"
+make: varmod.mk:127: Missing delimiter ':' after modifier "P"
 	while evaluating variable "VAR" with value "VAR"
-make: "varmod.mk" line 119: Missing argument for ".error"
-make: "varmod.mk" line 125: Bad modifier ":[99333000222000111000]"
+make: varmod.mk:129: Missing argument for ".error"
+make: varmod.mk:135: Invalid modifier ":[99333000222000111000]"
 	while evaluating variable "word" with value "word"
-make: "varmod.mk" line 128: Bad modifier ":[2147483648]"
+make: varmod.mk:138: Invalid modifier ":[2147483648]"
 	while evaluating variable "word" with value "word"
-make: "varmod.mk" line 134: Invalid number "99333000222000111000}" for ':range' modifier
+make: varmod.mk:144: Invalid number "99333000222000111000}" for ':range' modifier
 	while evaluating variable "word" with value "word"
-make: "varmod.mk" line 141: Invalid time value "\"
+make: varmod.mk:151: Invalid time value "\"
+	while evaluating indirect modifiers "gmtime=\"
 	while evaluating "${:${:Ugmtime=\\}}" with value ""
-make: "varmod.mk" line 156: Dollar followed by nothing
+make: varmod.mk:166: Dollar followed by nothing
 	while evaluating variable "VAR" with value "value$"
-make: "varmod.mk" line 162: Dollar followed by nothing
+make: varmod.mk:172: Dollar followed by nothing
 	while evaluating variable "VAR" with value "value$"
-make: "varmod.mk" line 162: Dollar followed by nothing
+make: varmod.mk:172: Dollar followed by nothing
 	while evaluating variable "VAR" with value "value$ appended$"
-make: "varmod.mk" line 172: Dollar followed by nothing
+make: varmod.mk:182: Dollar followed by nothing
 	while evaluating variable "word" with value "word"
-make: "varmod.mk" line 176: Bad modifier ":[$]"
+make: varmod.mk:186: Invalid modifier ":[$]"
 	while evaluating variable "word" with value ""
-make: "varmod.mk" line 193: Dollar followed by nothing
+make: varmod.mk:203: Dollar followed by nothing
 	while evaluating variable "VAR" with value "value$ appended$"
-make: "varmod.mk" line 193: Invalid variable name '}', at "$} != "set""
+make: varmod.mk:203: Invalid variable name '}', at "$} != "set""
 	while evaluating variable "VAR" with value "value<space>appended"
-make: "varmod.mk" line 197: Invalid variable name '}', at "$} != "fallback""
+make: varmod.mk:207: Invalid variable name '}', at "$} != "fallback""
 	while evaluating "${:Ufallback$} != "fallback"" with value ""
-make: "varmod.mk" line 201: Invalid time value "1000$"
+make: varmod.mk:211: Invalid time value "1000$"
 	while evaluating variable "%y" with value "%y"
-make: "varmod.mk" line 207: Invalid time value "1000$"
+make: varmod.mk:217: Invalid time value "1000$"
 	while evaluating variable "%y" with value "%y"
-make: "varmod.mk" line 213: Dollar followed by nothing
+make: varmod.mk:223: Dollar followed by nothing
 	while evaluating variable "word" with value "word"
-make: "varmod.mk" line 217: Dollar followed by nothing
+make: varmod.mk:227: Dollar followed by nothing
 	while evaluating variable "word" with value "word"
-make: "varmod.mk" line 221: Invalid argument 'fallback$' for modifier ':mtime'
+make: varmod.mk:231: Invalid argument 'fallback$' for modifier ':mtime'
 	while evaluating variable "." with value "."
+make: varmod.mk:245: Missing delimiter ':' after modifier "L"
+	while evaluating variable "VAR" with value "VAR"
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

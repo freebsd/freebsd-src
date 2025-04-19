@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: genfiles.mk,v 1.3 2024/09/21 21:14:19 sjg Exp $
+# $Id: genfiles.mk,v 1.4 2025/04/18 00:04:41 sjg Exp $
 #
-#	@(#) Copyright (c) 2024, Simon J. Gerraty
+#	@(#) Copyright (c) 2024-2025, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -23,4 +23,5 @@ _GENFILES_USE:	.USE
 	@cat ${SRCS.${.TARGET}:U${.ALLSRC:u}} \
 	${EXCLUDES.${.TARGET}:D| ${EGREP:Uegrep} -v '${EXCLUDS.${.TARGET}:ts|}'} \
 	${SED_CMDS.${.TARGET}:D| ${SED:Used} ${SED_CMDS.${.TARGET}}} \
+	${FILTER.${.TARGET}:D| ${FILTER.${.TARGET}}} \
 	> ${.TARGET}

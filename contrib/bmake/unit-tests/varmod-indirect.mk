@@ -1,4 +1,4 @@
-# $NetBSD: varmod-indirect.mk,v 1.21 2024/08/29 20:20:36 rillig Exp $
+# $NetBSD: varmod-indirect.mk,v 1.24 2025/03/30 16:43:10 rillig Exp $
 #
 # Tests for indirect variable modifiers, such as in ${VAR:${M_modifiers}}.
 # These can be used for very basic purposes like converting a string to either
@@ -15,7 +15,7 @@
 # The following expression generates a parse error since its indirect
 # modifier contains more than a sole expression.
 #
-# expect+1: Unknown modifier "${"
+# expect+1: Unknown modifier ":${"
 .if ${value:L:${:US}${:U,value,replacement,}} != "S,value,replacement,}"
 .  warning unexpected
 .endif
@@ -44,16 +44,13 @@
 
 # If an expression for an indirect modifier evaluates to anything else than an
 # empty string and is neither followed by a ':' nor '}', this produces a parse
-# error.  Because of this parse error, this feature cannot be used reasonably
+# error.  Due to this parse error, this construct cannot be used reasonably
 # in practice.
 #
-# expect+2: Unknown modifier "${"
+# expect+2: Unknown modifier ":${"
 #.MAKEFLAGS: -dvc
-.if ${value:L:${:UM*}S,value,replaced,} == "M*S,value,replaced,}"
-# expect+1: warning: FIXME: this expression should have resulted in a parse error rather than returning the unparsed portion of the expression.
-.  warning	FIXME: this expression should have resulted in a parse $\
- 		error rather than returning the unparsed portion of the $\
- 		expression.
+.if ${value:L:${:UM*}S,value,replaced,} == "anything"
+.  error
 .else
 .  error
 .endif
@@ -160,11 +157,9 @@ M_NoPrimes=	${PRIMES:${M_ListToSkip}}
 .endfor
 
 # An error in an indirect modifier.
-# expect+1: Unknown modifier "Z"
+# expect+1: Unknown modifier ":Z"
 .for var in before ${UNDEF:${:UZ}} after
-# expect+2: before
-# expect+1: after
-.  info ${var}
+.  error
 .endfor
 
 
@@ -191,7 +186,7 @@ _:=	before ${UNDEF:${:U}} after
 # XXX: This expands to ${UNDEF:Z}, which will behave differently if the
 # variable '_' is used in a context where the expression ${_} is
 # parsed but not evaluated.
-# expect+1: Unknown modifier "Z"
+# expect+1: Unknown modifier ":Z"
 _:=	before ${UNDEF:${:UZ}} after
 
 .MAKEFLAGS: -d0

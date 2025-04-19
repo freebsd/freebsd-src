@@ -1,17 +1,17 @@
 The = assignment operator
-make: "cmdline-undefined.mk" line 31: From the command line: Undefined is .
-make: "cmdline-undefined.mk" line 34: From .MAKEFLAGS '=': Undefined is .
-make: "cmdline-undefined.mk" line 37: From .MAKEFLAGS ':=': Undefined is .
-make: "cmdline-undefined.mk" line 43: From the command line: Undefined is now defined.
-make: "cmdline-undefined.mk" line 46: From .MAKEFLAGS '=': Undefined is now defined.
-make: "cmdline-undefined.mk" line 49: From .MAKEFLAGS ':=': Undefined is now defined.
+make: cmdline-undefined.mk:31: From the command line: Undefined is .
+make: cmdline-undefined.mk:34: From .MAKEFLAGS '=': Undefined is .
+make: cmdline-undefined.mk:37: From .MAKEFLAGS ':=': Undefined is .
+make: cmdline-undefined.mk:43: From the command line: Undefined is now defined.
+make: cmdline-undefined.mk:46: From .MAKEFLAGS '=': Undefined is now defined.
+make: cmdline-undefined.mk:49: From .MAKEFLAGS ':=': Undefined is now defined.
 
 The := assignment operator
-make: "cmdline-undefined.mk" line 31: From the command line: Undefined is .
-make: "cmdline-undefined.mk" line 34: From .MAKEFLAGS '=': Undefined is .
-make: "cmdline-undefined.mk" line 37: From .MAKEFLAGS ':=': Undefined is .
-make: "cmdline-undefined.mk" line 43: From the command line: Undefined is now defined.
-make: "cmdline-undefined.mk" line 46: From .MAKEFLAGS '=': Undefined is now defined.
-make: "cmdline-undefined.mk" line 49: From .MAKEFLAGS ':=': Undefined is now defined.
+make: cmdline-undefined.mk:31: From the command line: Undefined is .
+make: cmdline-undefined.mk:34: From .MAKEFLAGS '=': Undefined is .
+make: cmdline-undefined.mk:37: From .MAKEFLAGS ':=': Undefined is .
+make: cmdline-undefined.mk:43: From the command line: Undefined is now defined.
+make: cmdline-undefined.mk:46: From .MAKEFLAGS '=': Undefined is now defined.
+make: cmdline-undefined.mk:49: From .MAKEFLAGS ':=': Undefined is now defined.
 
 exit status 0

@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.738 2025/01/14 21:34:09 rillig Exp $	*/
+/*	$NetBSD: parse.c,v 1.743 2025/04/13 09:34:43 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -110,7 +110,7 @@
 #include "pathnames.h"
 
 /*	"@(#)parse.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: parse.c,v 1.738 2025/01/14 21:34:09 rillig Exp $");
+MAKE_RCSID("$NetBSD: parse.c,v 1.743 2025/04/13 09:34:43 rillig Exp $");
 
 /* Detects a multiple-inclusion guard in a makefile. */
 typedef enum {
@@ -400,14 +400,15 @@ PrintStackTrace(bool includingInnermost)
 	const IncludedFile *entries;
 	size_t i, n;
 
-	EvalStack_PrintDetails();
+	bool hasDetails = EvalStack_PrintDetails();
 
 	n = includes.len;
 	if (n == 0)
 		return;
 
 	entries = GetInclude(0);
-	if (!includingInnermost && entries[n - 1].forLoop == NULL)
+	if (!includingInnermost && !(hasDetails && n > 1)
+	    && entries[n - 1].forLoop == NULL)
 		n--;		/* already in the diagnostic */
 
 	for (i = n; i-- > 0;) {
@@ -501,7 +502,7 @@ PrintLocation(FILE *f, bool useVars, const GNode *gn)
 		return;
 
 	if (!useVars || fname[0] == '/' || strcmp(fname, "(stdin)") == 0) {
-		(void)fprintf(f, "\"%s\" line %u: ", fname, lineno);
+		(void)fprintf(f, "%s:%u: ", fname, lineno);
 		return;
 	}
 
@@ -515,7 +516,7 @@ PrintLocation(FILE *f, bool useVars, const GNode *gn)
 	if (base.str == NULL)
 		base.str = str_basename(fname);
 
-	(void)fprintf(f, "\"%s/%s\" line %u: ", dir.str, base.str, lineno);
+	(void)fprintf(f, "%s/%s:%u: ", dir.str, base.str, lineno);
 
 	FStr_Done(&base);
 	FStr_Done(&dir);
@@ -1317,6 +1318,7 @@ HandleDependencySourcesEmpty(ParseSpecial special, SearchPathList *paths)
 			 * otherwise it is an extension.
 			 */
 			Global_Set("%POSIX", "1003.2");
+			posix_state = PS_SET;
 			IncludeFile("posix.mk", true, false, true);
 		}
 		break;
@@ -2161,8 +2163,8 @@ Parse_PushInput(const char *name, unsigned lineno, unsigned readLines,
 	else
 		TrackInput(name);
 
-	DEBUG3(PARSE, "Parse_PushInput: %s %s, line %u\n",
-	    forLoop != NULL ? ".for loop in": "file", name, lineno);
+	DEBUG3(PARSE, "Parse_PushInput: %s%s:%u\n",
+	    forLoop != NULL ? ".for loop in ": "", name, lineno);
 
 	curFile = Vector_Push(&includes);
 	curFile->name = FStr_InitOwn(bmake_strdup(name));
@@ -2340,7 +2342,7 @@ ParseEOF(void)
 	}
 
 	curFile = CurFile();
-	DEBUG2(PARSE, "ParseEOF: returning to file %s, line %u\n",
+	DEBUG2(PARSE, "ParseEOF: returning to %s:%u\n",
 	    curFile->name.str, curFile->readLines + 1);
 
 	SetParseFile(curFile->name.str);
@@ -2617,7 +2619,7 @@ ReadHighLevelLine(void)
 		line = ReadLowLevelLine(LK_NONEMPTY);
 		if (posix_state == PS_MAYBE_NEXT_LINE)
 			posix_state = PS_NOW_OR_NEVER;
-		else
+		else if (posix_state != PS_SET)
 			posix_state = PS_TOO_LATE;
 		if (line == NULL)
 			return NULL;

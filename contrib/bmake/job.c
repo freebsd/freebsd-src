@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.489 2025/03/08 20:15:03 rillig Exp $	*/
+/*	$NetBSD: job.c,v 1.492 2025/04/12 13:00:21 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -151,7 +151,7 @@
 #include "trace.h"
 
 /*	"@(#)job.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: job.c,v 1.489 2025/03/08 20:15:03 rillig Exp $");
+MAKE_RCSID("$NetBSD: job.c,v 1.492 2025/04/12 13:00:21 rillig Exp $");
 
 /*
  * A shell defines how the commands are run.  All commands for a target are
@@ -427,7 +427,7 @@ static char *shell_freeIt = NULL; /* Allocated memory for custom .SHELL */
 
 static Job *job_table;		/* The structures that describe them */
 static Job *job_table_end;	/* job_table + maxJobs */
-static unsigned int wantToken;
+static bool wantToken;
 static bool lurking_children = false;
 static bool make_suspended = false; /* Whether we've seen a SIGTSTP (etc) */
 
@@ -440,7 +440,6 @@ static Job **jobByFdIndex = NULL;
 static nfds_t fdsLen = 0;
 static void watchfd(Job *);
 static void clearfd(Job *);
-static bool readyfd(Job *);
 
 static char *targPrefix = NULL;	/* To identify a job change in the output. */
 static Job tokenWaitJob;	/* token wait pseudo-job */
@@ -1250,10 +1249,7 @@ JobFinish (Job *job, WAIT_T status)
 
 	if (aborting == ABORT_ERROR && jobTokensRunning == 0) {
 		if (shouldDieQuietly(NULL, -1)) {
-			/*
-			 * TODO: better clean up properly, to avoid killing
-			 *  child processes by SIGPIPE.
-			 */
+			Job_Wait();
 			exit(2);
 		}
 		Fatal("%d error%s", job_errors, job_errors == 1 ? "" : "s");
@@ -1387,7 +1383,7 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 	if (gn->flags.fromDepend) {
 		if (!Job_RunTarget(".STALE", gn->fname))
 			fprintf(stdout,
-			    "%s: %s, %u: ignoring stale %s for %s\n",
+			    "%s: %s:%u: ignoring stale %s for %s\n",
 			    progname, gn->fname, gn->lineno, makeDependfile,
 			    gn->name);
 		return true;
@@ -2046,17 +2042,17 @@ Job_CatchOutput(void)
 
 	(void)fflush(stdout);
 
-	/* Skip the first fd in the list, as it is the job token pipe. */
 	do {
-		nready = poll(fds + 1 - wantToken, fdsLen - 1 + wantToken,
-		    POLL_MSEC);
+		/* Maybe skip the job token pipe. */
+		nfds_t skip = wantToken ? 0 : 1;
+		nready = poll(fds + skip, fdsLen - skip, POLL_MSEC);
 	} while (nready < 0 && errno == EINTR);
 
 	if (nready < 0)
 		Punt("poll: %s", strerror(errno));
 
-	if (nready > 0 && readyfd(&childExitJob)) {
-		char token = 0;
+	if (nready > 0 && childExitJob.inPollfd->revents & POLLIN) {
+		char token;
 		ssize_t count = read(childExitJob.inPipe, &token, 1);
 		if (count == 1) {
 			if (token == DO_JOB_RESUME[0])
@@ -2180,7 +2176,7 @@ Job_Init(void)
 	job_table = bmake_malloc((size_t)opts.maxJobs * sizeof *job_table);
 	memset(job_table, 0, (size_t)opts.maxJobs * sizeof *job_table);
 	job_table_end = job_table + opts.maxJobs;
-	wantToken = 0;
+	wantToken = false;
 	caught_sigchld = 0;
 
 	aborting = ABORT_NONE;
@@ -2659,14 +2655,6 @@ clearfd(Job *job)
 	job->inPollfd = NULL;
 }
 
-static bool
-readyfd(Job *job)
-{
-	if (job->inPollfd == NULL)
-		Punt("Polling unwatched job");
-	return (job->inPollfd->revents & POLLIN) != 0;
-}
-
 /*
  * Put a token (back) into the job pipe.
  * This allows a make process to start a build job.
@@ -2768,7 +2756,7 @@ Job_TokenWithdraw(void)
 	char tok, tok1;
 	ssize_t count;
 
-	wantToken = 0;
+	wantToken = false;
 	DEBUG3(JOB, "Job_TokenWithdraw(%d): aborting %d, running %d\n",
 	    getpid(), aborting, jobTokensRunning);
 
@@ -2782,7 +2770,7 @@ Job_TokenWithdraw(void)
 		if (errno != EAGAIN)
 			Fatal("job pipe read: %s", strerror(errno));
 		DEBUG1(JOB, "(%d) blocked for token\n", getpid());
-		wantToken = 1;
+		wantToken = true;
 		return false;
 	}
 

@@ -1,4 +1,4 @@
-# $NetBSD: var-recursive.mk,v 1.10 2024/08/29 20:20:36 rillig Exp $
+# $NetBSD: var-recursive.mk,v 1.12 2025/04/13 09:29:33 rillig Exp $
 #
 # Tests for expressions that refer to themselves and thus cannot be
 # evaluated, as that would lead to an endless loop.
@@ -49,10 +49,10 @@ runtime:
 # expect: : before-recursive
 	: before-recursive
 # expect: make: Variable VAR is recursive.
-# expect-not: recursive-line-before
-# expect-not: recursive-line-after
+# expect-not-matches: ^: recursive%-line%-before
+# expect-not-matches: ^: recursive%-line%-after
 	: recursive-line-before <${VAR}> recursive-line-after
-# expect-not: after-recursive
+# expect-not-matches: ^: after%-recursive
 	: after-recursive
 
 .else

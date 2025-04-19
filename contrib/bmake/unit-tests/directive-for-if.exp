@@ -1,8 +1,8 @@
-make: "directive-for-if.mk" line 51: if-less endif
+make: directive-for-if.mk:51: if-less endif
 	in .for loop from directive-for-if.mk:46 with directive = if
-make: "directive-for-if.mk" line 51: if-less endif
+make: directive-for-if.mk:51: if-less endif
 	in .for loop from directive-for-if.mk:46 with directive = ifdef
-make: "directive-for-if.mk" line 51: if-less endif
+make: directive-for-if.mk:51: if-less endif
 	in .for loop from directive-for-if.mk:46 with directive = ifndef
 VAR1
 VAR3

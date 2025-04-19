@@ -1,3 +1,52 @@
+2025-04-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250414
+	Merge with NetBSD make, pick up
+	o job.c: clean up job and output handling
+	o parse.c: after entering POSIX mode, don't leave it again
+
+2025-04-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250411
+	Merge with NetBSD make, pick up
+	o convert more messages to file:line: format
+	o for.c: condense code for parsing variable names in .for loops
+
+2025-04-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250410
+	Merge with NetBSD make, pick up
+	o cond.c: remove redundant error counter when parsing a condition
+
+2025-04-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250404
+	Merge with NetBSD make, pick up
+	o make.1: better document meta mode.
+	o var.c: fix error message for undefined variable in conditional.
+
+2025-03-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250330
+	Merge with NetBSD make, pick up
+	o in POSIX compatability mode, give preference to sysV style modifiers.
+	o in stack trace with details and includes, list the current file
+	o parse.c: report file location in more common file:line: format.
+	o var.c: simplify error handling for unknown modifiers
+	let the ":O" and ":t" modifiers fall back to the ":from=to" modifier
+	stop parsing after seeing an unknown modifier in an expression
+	fix error message for unclosed expression and invalid :[...]
+	add details to errors about ::= modifier
+	add details about indirect modifiers to the stack traces
+	in stack traces from target commands, add the command level
+
+2025-03-23  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20250323
+	Merge with NetBSD make, pick up
+	o var.c: just ignore attempts to override a read-only global with
+	the same value.
+
 2025-03-08  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* bsd.after-import.mk: by default generate makefiles

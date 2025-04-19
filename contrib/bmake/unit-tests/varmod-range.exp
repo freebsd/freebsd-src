@@ -1,13 +1,14 @@
-make: "varmod-range.mk" line 43: Malformed conditional '${:range=5} != ""'
-make: "varmod-range.mk" line 66: Invalid number "x}Rest" != "Rest"" for ':range' modifier
+make: varmod-range.mk:43: Variable "" is undefined
+	while evaluating "${:range=5} != """ with value "1 2 3 4 5"
+make: varmod-range.mk:66: Invalid number "x}Rest" != "Rest"" for ':range' modifier
 	while evaluating "${:U:range=x}Rest" != "Rest"" with value ""
-make: "varmod-range.mk" line 76: Unknown modifier "x0"
+make: varmod-range.mk:76: Unknown modifier ":x0"
 	while evaluating "${:U:range=0x0}Rest" != "Rest"" with value "1"
-make: "varmod-range.mk" line 93: Unknown modifier "rang"
+make: varmod-range.mk:93: Unknown modifier ":rang"
 	while evaluating variable "a b c" with value "a b c"
-make: "varmod-range.mk" line 101: Unknown modifier "rango"
+make: varmod-range.mk:101: Unknown modifier ":rango"
 	while evaluating variable "a b c" with value "a b c"
-make: "varmod-range.mk" line 109: Unknown modifier "ranger"
+make: varmod-range.mk:109: Unknown modifier ":ranger"
 	while evaluating variable "a b c" with value "a b c"
 make: Fatal errors encountered -- cannot continue
 make: stopped making "all" in unit-tests

@@ -37,19 +37,27 @@ Global: .MAKEOVERRIDES =  FIRST LAST LAST LAST APPENDED RAN RAN RAN IT1 THEN1 IE
 Result of ${CMD_NEW_VAR::=new-value} is "" (eval, undefined)
 Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d
 Global: .MAKEFLAGS =  -r -k -d v -d 0 -d v -d 0
-make: Bad modifier ":"
+make: Invalid attempt to assign "value" to variable "" via modifier "::="
 	while evaluating "${::=value}" with value ""
+	in command "@echo $@: ${::=value}"
 	in target "mod-assign-empty-1"
-make: Bad modifier ":"
+make: Invalid attempt to assign "overwritten" to variable "" via modifier "::="
 	while evaluating "${:Uvalue::=overwritten}" with value "value"
+	in command "@echo $@: ${:Uvalue::=overwritten}"
 	in target "mod-assign-empty-2"
-mod-assign-empty-3: VAR=overwritten
-make: Unknown modifier ":x"
+make: Invalid attempt to assign "appended" to variable "" via modifier "::+="
+	while evaluating "${:Uvalue::+=appended}" with value "value"
+	in command "@echo $@: ${:Uvalue::+=appended}"
+	in target "mod-assign-empty-3"
+mod-assign-empty-4: VAR=overwritten
+make: Unknown modifier "::x"
 	while evaluating variable "ASSIGN" with value ""
+	in command "@echo ${ASSIGN::x}"
 	in target "mod-assign-parse-1"
 sysv:y
-make: Unfinished modifier ('}' missing)
+make: Unfinished modifier after "value	# missing closing brace", expecting "}"
 	while evaluating variable "ASSIGN" with value ""
+	in command "@echo ${ASSIGN::=value	# missing closing brace"
 	in target "mod-assign-parse-3"
 ok=word
 make: warning: Command " echo word; (exit 13) " exited with status 13

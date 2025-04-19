@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.371 2025/01/11 21:21:33 rillig Exp $	*/
+/*	$NetBSD: cond.c,v 1.372 2025/04/10 21:41:35 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -91,7 +91,7 @@
 #include "dir.h"
 
 /*	"@(#)cond.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: cond.c,v 1.371 2025/01/11 21:21:33 rillig Exp $");
+MAKE_RCSID("$NetBSD: cond.c,v 1.372 2025/04/10 21:41:35 rillig Exp $");
 
 /*
  * Conditional expressions conform to this grammar:
@@ -162,12 +162,6 @@ typedef struct CondParser {
 
 	const char *p;		/* The remaining condition to parse */
 	Token curr;		/* Single push-back token used in parsing */
-
-	/*
-	 * Whether an error message has already been printed for this
-	 * condition.
-	 */
-	bool printedError;
 } CondParser;
 
 static CondResult CondParser_Or(CondParser *, bool);
@@ -243,7 +237,7 @@ ParseWord(const char **pp, bool doEval)
 
 /* Parse the function argument, including the surrounding parentheses. */
 static char *
-ParseFuncArg(CondParser *par, const char **pp, bool doEval, const char *func)
+ParseFuncArg(const char **pp, bool doEval, const char *func)
 {
 	const char *p = *pp, *argStart, *argEnd;
 	char *res;
@@ -263,7 +257,6 @@ ParseFuncArg(CondParser *par, const char **pp, bool doEval, const char *func)
 		Parse_Error(PARSE_FATAL,
 		    "Missing ')' after argument '%.*s' for '%.*s'",
 		    (int)(argEnd - argStart), argStart, len, func);
-		par->printedError = true;
 		free(res);
 		return NULL;
 	}
@@ -531,15 +524,13 @@ EvalCompareNum(double lhs, ComparisonOp op, double rhs)
 }
 
 static Token
-EvalCompareStr(CondParser *par, const char *lhs,
-	       ComparisonOp op, const char *rhs)
+EvalCompareStr(const char *lhs, ComparisonOp op, const char *rhs)
 {
 	if (op != EQ && op != NE) {
 		Parse_Error(PARSE_FATAL,
 		    "Comparison with '%s' requires both operands "
 		    "'%s' and '%s' to be numeric",
 		    opname[op], lhs, rhs);
-		par->printedError = true;
 		return TOK_ERROR;
 	}
 
@@ -549,7 +540,7 @@ EvalCompareStr(CondParser *par, const char *lhs,
 
 /* Evaluate a comparison, such as "${VAR} == 12345". */
 static Token
-EvalCompare(CondParser *par, const char *lhs, bool lhsQuoted,
+EvalCompare(const char *lhs, bool lhsQuoted,
 	    ComparisonOp op, const char *rhs, bool rhsQuoted)
 {
 	double left, right;
@@ -558,7 +549,7 @@ EvalCompare(CondParser *par, const char *lhs, bool lhsQuoted,
 		if (TryParseNumber(lhs, &left) && TryParseNumber(rhs, &right))
 			return ToToken(EvalCompareNum(left, op, right));
 
-	return EvalCompareStr(par, lhs, op, rhs);
+	return EvalCompareStr(lhs, op, rhs);
 }
 
 static bool
@@ -613,14 +604,13 @@ CondParser_Comparison(CondParser *par, bool doEval)
 	if (par->p[0] == '\0') {
 		Parse_Error(PARSE_FATAL,
 		    "Missing right-hand side of operator '%s'", opname[op]);
-		par->printedError = true;
 		goto done_lhs;
 	}
 
 	rhs = CondParser_Leaf(par, doEval, true, &rhsQuoted);
 	t = rhs.str == NULL ? TOK_ERROR
 	    : !doEval ? TOK_FALSE
-	    : EvalCompare(par, lhs.str, lhsQuoted, op, rhs.str, rhsQuoted);
+	    : EvalCompare(lhs.str, lhsQuoted, op, rhs.str, rhsQuoted);
 	FStr_Done(&rhs);
 
 done_lhs:
@@ -689,7 +679,7 @@ CondParser_FuncCall(CondParser *par, bool doEval, Token *out_token)
 	if (*p != '(')
 		return false;
 
-	arg = ParseFuncArg(par, &p, doEval, fn_name);
+	arg = ParseFuncArg(&p, doEval, fn_name);
 	*out_token = ToToken(doEval &&
 	    arg != NULL && arg[0] != '\0' && fn(arg));
 	free(arg);
@@ -779,7 +769,6 @@ CondParser_Token(CondParser *par, bool doEval)
 			par->p++;
 		else {
 			Parse_Error(PARSE_FATAL, "Unknown operator '|'");
-			par->printedError = true;
 			return TOK_ERROR;
 		}
 		return TOK_OR;
@@ -790,7 +779,6 @@ CondParser_Token(CondParser *par, bool doEval)
 			par->p++;
 		else {
 			Parse_Error(PARSE_FATAL, "Unknown operator '&'");
-			par->printedError = true;
 			return TOK_ERROR;
 		}
 		return TOK_AND;
@@ -929,15 +917,13 @@ CondEvalExpression(const char *cond, bool plain,
 	par.leftUnquotedOK = leftUnquotedOK;
 	par.p = cond;
 	par.curr = TOK_NONE;
-	par.printedError = false;
 
 	DEBUG1(COND, "CondParser_Eval: %s\n", par.p);
 	rval = CondParser_Or(&par, true);
 	if (par.curr != TOK_EOF)
 		rval = CR_ERROR;
 
-	if (rval == CR_ERROR && eprint && !par.printedError
-	    && parseErrors == parseErrorsBefore)
+	if (rval == CR_ERROR && eprint && parseErrors == parseErrorsBefore)
 		Parse_Error(PARSE_FATAL, "Malformed conditional '%s'", cond);
 
 	return rval;

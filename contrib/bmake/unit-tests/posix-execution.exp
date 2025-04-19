@@ -1,0 +1,24 @@
+one-at-a-time: shell_variable is 'second'
+echo "prefixes: ignore errors"; exit 13
+prefixes: ignore errors
+*** Error code 13 (ignored)
+prefixes: no echo
+prefixes: always, no echo
+shell-e-option: before
+shell-e-option: after
+echo 'do-prefix-plus: a regular command'
+echo 'do-prefix-plus: prefixed by plus'
+do-prefix-plus: prefixed by plus
+echo 'do-prefix-plus: a regular command'
+{ echo 'do-prefix-plus: a regular command' 
+} || exit $?
+echo 'do-prefix-plus: prefixed by plus'
+do-prefix-plus: prefixed by plus
+{ echo 'do-prefix-plus: a regular command' 
+} || exit $?
+do-error-not-ignored: successful
+*** Error code 13 (continuing)
+
+Stop.
+make: stopped making "do-error-not-ignored" in unit-tests
+exit status 0

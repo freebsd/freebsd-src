@@ -709,10 +709,43 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
              ccoommppaatt  Like --BB, puts bbmmaakkee into "compat" mode.
 
              mmeettaa    Puts bbmmaakkee into "meta" mode, where meta files are created
-                     for each target to capture the command run, the output
+                     for each target to capture the commands run, the output
                      generated, and if filemon(4) is available, the system
                      calls which are of interest to bbmmaakkee.  The captured
                      output can be useful when diagnosing errors.
+
+                     bbmmaakkee will use the information in the meta file to help
+                     determine if a target is out-of-date when the normal
+                     dependency rules indicate it is not.
+
+                     First, the commands to be executed, will be compared to
+                     those captured previously, if any differ, the target is
+                     out-of-date.
+
+                     This allows for a huge improvement in the reliability and
+                     efficiency of update builds.  It is no longer necessary
+                     for targets to depend on makefiles just in-case they set
+                     a variable that might be relevant.  Mechanisms such as
+                     _._M_A_K_E_._M_E_T_A_._C_M_P___F_I_L_T_E_R and ..NNOOMMEETTAA__CCMMPP, allow limiting or
+                     disabling that comparison on a per target basis.  A
+                     reference to the variable _._O_O_D_A_T_E can be leveraged to
+                     block comparison of certain commands.  For example:
+                     `${.OODATE:M}' will expand to nothing and have no impact
+                     on the target, its side-effect though, will be to prevent
+                     comparison of any command line it appears on.  For
+                     documentation purposes `${.OODATE:MNOMETA_CMP}' is
+                     useful.
+
+                     If necessary, bbmmaakkee will then use the information
+                     captured by filemon(4), to check the modification time of
+                     any file used in generating the target, if any is newer,
+                     the target is out-of-date.
+
+                     Such deep inspection can easily lead to cases where a
+                     target is _a_l_w_a_y_s considered out-of-date, which is why
+                     _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___F_I_L_T_E_R, _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___P_A_T_H_S and
+                     _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___P_A_T_T_E_R_N_S, are provided to limit that
+                     inspection when necessary.
 
              ccuurrddiirrOOkk==_b_f
                      By default, bbmmaakkee does not create _._m_e_t_a files in
@@ -1618,7 +1651,9 @@ SSPPEECCIIAALL TTAARRGGEETTSS
               variable _%_P_O_S_I_X is set to the value `1003.2' and the makefile
               `<posix.mk>' is included if it exists, to provide POSIX-
               compatible default rules.  If bbmmaakkee is run with the --rr flag,
-              only `posix.mk' contributes to the default rules.
+              only `posix.mk' contributes to the default rules.  In POSIX-
+              compatible mode, the AT&T System V UNIX style substitution
+              modifier is checked first rather than as a fallback.
 
      ..PPRREECCIIOOUUSS
               Apply the ..PPRREECCIIOOUUSS attribute to any specified sources.  If no
@@ -1793,4 +1828,4 @@ BBUUGGSS
      attempt to suppress a cascade of unnecessary errors, can result in a
      seemingly unexplained `*** Error code 6'
 
-FreeBSD 14.1-RELEASE-p7        November 14, 2024       FreeBSD 14.1-RELEASE-p7
+FreeBSD 14.2-RELEASE-p1          April 4, 2025         FreeBSD 14.2-RELEASE-p1
