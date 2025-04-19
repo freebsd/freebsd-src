@@ -4677,12 +4677,13 @@ symlook_default(SymLook *req, const Obj_Entry *refobj)
 	 */
 	res = symlook_obj(&req1, refobj);
 	if (res == 0 && (refobj->symbolic ||
-	    ELF_ST_VISIBILITY(req1.sym_out->st_other) == STV_PROTECTED)) {
+	    ELF_ST_VISIBILITY(req1.sym_out->st_other) == STV_PROTECTED ||
+	    refobj->deepbind)) {
 		req->sym_out = req1.sym_out;
 		req->defobj_out = req1.defobj_out;
 		assert(req->defobj_out != NULL);
 	}
-	if (refobj->symbolic || req->defobj_out != NULL)
+	if (refobj->symbolic || req->defobj_out != NULL || refobj->deepbind)
 		donelist_check(&donelist, refobj);
 
 	if (!refobj->deepbind)
