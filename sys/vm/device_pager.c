@@ -307,8 +307,7 @@ cdev_mgtdev_pager_free_pages(vm_object_t object)
 retry:
 	KASSERT(pctrie_iter_is_reset(&pages),
 	    ("%s: pctrie_iter not reset for retry", __func__));
-	for (m = vm_radix_iter_lookup_ge(&pages, 0); m != NULL;
-	    m = vm_radix_iter_step(&pages)) {
+	VM_RADIX_FOREACH(m, &pages) {
 		if (!vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL)) {
 			pctrie_iter_reset(&pages);
 			goto retry;
