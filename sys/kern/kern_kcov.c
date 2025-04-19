@@ -60,6 +60,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
+#include <vm/vm_radix.h>
 
 MALLOC_DEFINE(M_KCOV_INFO, "kcovinfo", "KCOV info type");
 
