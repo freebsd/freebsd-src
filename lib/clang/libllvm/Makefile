@@ -139,7 +139,6 @@ SRCS_MIN+=	Analysis/RegionPass.cpp
 SRCS_MIN+=	Analysis/RegionPrinter.cpp
 SRCS_MIN+=	Analysis/ReplayInlineAdvisor.cpp
 SRCS_MIN+=	Analysis/ScalarEvolution.cpp
-SRCS_MIN+=	Analysis/ScalarEvolution.cpp
 SRCS_MIN+=	Analysis/ScalarEvolutionAliasAnalysis.cpp
 SRCS_MIN+=	Analysis/ScalarEvolutionDivision.cpp
 SRCS_MIN+=	Analysis/ScalarEvolutionNormalization.cpp
