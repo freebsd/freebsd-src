@@ -32,6 +32,7 @@
 #define	__LIBISCSIUTIL_H__
 
 #include <sys/types.h>
+#include <stdarg.h>
 #include <stdbool.h>
 
 struct connection_ops;
@@ -172,6 +173,7 @@ void			log_warn(const char *, ...) __printflike(1, 2);
 void			log_warnc(int, const char *, ...)
 			    __printflike(2, 3);
 void			log_warnx(const char *, ...) __printflike(1, 2);
+void			log_vwarnx(const char *, va_list);
 void			log_debugx(const char *, ...) __printflike(1, 2);
 
 char			*checked_strdup(const char *);

@@ -41,6 +41,14 @@
 #include <libiscsiutil.h>
 #include <libutil.h>
 
+#include <array>
+#include <list>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <libutil++>
+
 #define	DEFAULT_CONFIG_PATH		"/etc/ctl.conf"
 #define	DEFAULT_PIDFILE			"/var/run/ctld.pid"
 #define	DEFAULT_BLOCKSIZE		512
@@ -49,25 +57,34 @@
 #define	MAX_LUNS			1024
 #define	SOCKBUF_SIZE			1048576
 
-struct auth {
-	TAILQ_ENTRY(auth)		a_next;
-	struct auth_group		*a_auth_group;
-	char				*a_user;
-	char				*a_secret;
-	char				*a_mutual_user;
-	char				*a_mutual_secret;
-};
+struct isns_req;
+struct port;
 
-struct auth_name {
-	TAILQ_ENTRY(auth_name)		an_next;
-	struct auth_group		*an_auth_group;
-	char				*an_initiator_name;
+struct auth {
+	auth(const char *secret) : a_secret(secret) {}
+	auth(const char *secret, const char *mutual_user,
+	    const char *mutual_secret) : a_secret(secret),
+	    a_mutual_user(mutual_user), a_mutual_secret(mutual_secret) {}
+
+	bool mutual() const { return !a_mutual_user.empty(); }
+
+	const char *secret() const { return a_secret.c_str(); }
+	const char *mutual_user() const { return a_mutual_user.c_str(); }
+	const char *mutual_secret() const { return a_mutual_secret.c_str(); }
+
+private:
+	std::string			a_secret;
+	std::string			a_mutual_user;
+	std::string			a_mutual_secret;
 };
 
 struct auth_portal {
-	TAILQ_ENTRY(auth_portal)	ap_next;
-	struct auth_group		*ap_auth_group;
-	char				*ap_initiator_portal;
+	auth_portal(const struct sockaddr_storage *ss, int mask) : ap_sa(*ss),
+	    ap_mask(mask) {}
+
+	bool matches(const struct sockaddr_storage *ss) const;
+
+private:
 	struct sockaddr_storage		ap_sa;
 	int				ap_mask;
 };
@@ -79,29 +96,62 @@ struct auth_portal {
 #define	AG_TYPE_CHAP_MUTUAL		4
 
 struct auth_group {
-	TAILQ_ENTRY(auth_group)		ag_next;
-	struct conf			*ag_conf;
-	char				*ag_name;
-	char				*ag_label;
-	int				ag_type;
-	TAILQ_HEAD(, auth)		ag_auths;
-	TAILQ_HEAD(, auth_name)		ag_names;
-	TAILQ_HEAD(, auth_portal)	ag_portals;
+	auth_group(std::string label) : ag_label(label) {}
+
+	int type() const { return ag_type; }
+	bool set_type(const char *str);
+	void set_type(int type);
+
+	const char *label() const { return ag_label.c_str(); }
+
+	bool add_chap(const char *user, const char *secret);
+	bool add_chap_mutual(const char *user, const char *secret,
+	    const char *user2, const char *secret2);
+	const struct auth *find_auth(const char *user) const;
+
+	bool add_initiator_name(const char *initiator_name);
+	bool initiator_permitted(const char *initiator_name) const;
+
+	bool add_initiator_portal(const char *initiator_portal);
+	bool initiator_permitted(const struct sockaddr_storage *sa) const;
+
+private:
+	void check_secret_length(const char *user, const char *secret,
+	    const char *secret_type);
+
+	std::string			ag_label;
+	int				ag_type = AG_TYPE_UNKNOWN;
+	std::unordered_map<std::string, auth> ag_auths;
+	std::unordered_set<std::string> ag_names;
+	std::list<auth_portal>		ag_portals;
 };
+
+typedef std::shared_ptr<auth_group> auth_group_sp;
 
 struct portal {
-	TAILQ_ENTRY(portal)		p_next;
-	struct portal_group		*p_portal_group;
-	bool				p_iser;
-	char				*p_listen;
-	struct addrinfo			*p_ai;
-#ifdef ICL_KERNEL_PROXY
-	int				p_id;
-#endif
+	portal(struct portal_group *pg, const char *listen, bool iser,
+	    struct addrinfo *ai) : p_portal_group(pg), p_listen(listen),
+				   p_ai(ai), p_iser(iser) {}
 
-	TAILQ_HEAD(, target)		p_targets;
-	int				p_socket;
+	bool reuse_socket(portal &oldp);
+	bool init_socket();
+
+	portal_group *portal_group() { return p_portal_group; }
+	const char *listen() const { return p_listen.c_str(); }
+	const addrinfo *ai() const { return p_ai.get(); }
+	int socket() const { return p_socket; }
+	void close() { p_socket.reset(); }
+
+private:
+	struct portal_group		*p_portal_group;
+	std::string			p_listen;
+	freebsd::addrinfo_up		p_ai;
+	bool				p_iser;
+
+	freebsd::fd_up			p_socket;
 };
+
+typedef std::unique_ptr<portal> portal_up;
 
 #define	PG_FILTER_UNKNOWN		0
 #define	PG_FILTER_NONE			1
@@ -110,116 +160,362 @@ struct portal {
 #define	PG_FILTER_PORTAL_NAME_AUTH	4
 
 struct portal_group {
-	TAILQ_ENTRY(portal_group)	pg_next;
+	portal_group(struct conf *conf, const char *name);
+
+	struct conf *conf() const { return pg_conf; }
+	const char *name() const { return pg_name.c_str(); }
+	bool assigned() const { return pg_assigned; }
+	bool is_dummy() const;
+	bool is_redirecting() const { return !pg_redirection.empty(); }
+	struct auth_group *discovery_auth_group() const
+	{ return pg_discovery_auth_group.get(); }
+	int discovery_filter() const { return pg_discovery_filter; }
+	int dscp() const { return pg_dscp; }
+	const char *offload() const { return pg_offload.c_str(); }
+	const char *redirection() const { return pg_redirection.c_str(); }
+	int pcp() const { return pg_pcp; }
+	uint16_t tag() const { return pg_tag; }
+
+	freebsd::nvlist_up options() const;
+
+	const std::list<portal_up> &portals() const { return pg_portals; }
+	const std::unordered_map<std::string, port *> &ports() const
+	{ return pg_ports; }
+
+	bool add_portal(const char *value, bool iser);
+	bool add_option(const char *name, const char *value);
+	bool set_discovery_auth_group(const char *name);
+	bool set_dscp(u_int dscp);
+	bool set_filter(const char *str);
+	void set_foreign();
+	bool set_offload(const char *offload);
+	bool set_pcp(u_int pcp);
+	bool set_redirection(const char *addr);
+	void set_tag(uint16_t tag);
+
+	void add_port(struct portal_group_port *port);
+	const struct port *find_port(const char *target) const;
+	void remove_port(struct portal_group_port *port);
+	void verify(struct conf *conf);
+
+	bool reuse_socket(struct portal &newp);
+	int open_sockets(struct conf &oldconf);
+	void close_sockets();
+
+private:
 	struct conf			*pg_conf;
-	nvlist_t			*pg_options;
-	char				*pg_name;
-	struct auth_group		*pg_discovery_auth_group;
-	int				pg_discovery_filter;
-	bool				pg_foreign;
-	bool				pg_unassigned;
-	TAILQ_HEAD(, portal)		pg_portals;
-	TAILQ_HEAD(, port)		pg_ports;
-	char				*pg_offload;
-	char				*pg_redirection;
-	int				pg_dscp;
-	int				pg_pcp;
+	freebsd::nvlist_up		pg_options;
+	std::string			pg_name;
+	auth_group_sp			pg_discovery_auth_group;
+	int				pg_discovery_filter = PG_FILTER_UNKNOWN;
+	bool				pg_foreign = false;
+	bool				pg_assigned = false;
+	std::list<portal_up>	        pg_portals;
+	std::unordered_map<std::string, port *> pg_ports;
+	std::string			pg_offload;
+	std::string			pg_redirection;
+	int				pg_dscp = -1;
+	int				pg_pcp = -1;
 
-	uint16_t			pg_tag;
+	uint16_t			pg_tag = 0;
 };
 
-/* Ports created by the kernel.  Perhaps the "p" means "physical" ? */
-struct pport {
-	TAILQ_ENTRY(pport)		pp_next;
-	TAILQ_HEAD(, port)		pp_ports;
-	struct kports			*pp_kports;
-	char				*pp_name;
-
-	uint32_t			pp_ctl_port;
-};
+typedef std::unique_ptr<portal_group> portal_group_up;
 
 struct port {
-	TAILQ_ENTRY(port)		p_next;
-	TAILQ_ENTRY(port)		p_pgs;
-	TAILQ_ENTRY(port)		p_pps;
-	TAILQ_ENTRY(port)		p_ts;
-	struct conf			*p_conf;
-	char				*p_name;
-	struct auth_group		*p_auth_group;
-	struct portal_group		*p_portal_group;
-	struct pport			*p_pport;
+	port(struct target *target);
+	virtual ~port() = default;
+
+	struct target *target() const { return p_target; }
+	virtual struct auth_group *auth_group() const { return nullptr; }
+	virtual struct portal_group *portal_group() const { return nullptr; }
+
+	virtual bool is_dummy() const { return true; }
+
+	virtual void clear_references();
+
+	bool kernel_add();
+	bool kernel_update(const port *oport);
+	bool kernel_remove();
+
+	virtual bool kernel_create_port() = 0;
+	virtual bool kernel_remove_port() = 0;
+
+protected:
 	struct target			*p_target;
 
-	bool				p_ioctl_port;
+	uint32_t			p_ctl_port = 0;
+};
+
+struct portal_group_port final : public port {
+	portal_group_port(struct target *target, struct portal_group *pg,
+	    auth_group_sp ag, uint32_t ctl_port);
+	~portal_group_port() override = default;
+
+	struct auth_group *auth_group() const override
+	{ return p_auth_group.get(); }
+	struct portal_group *portal_group() const override
+	{ return p_portal_group; }
+
+	bool is_dummy() const override;
+
+	void clear_references() override;
+
+	bool kernel_create_port() override;
+	bool kernel_remove_port() override;
+
+private:
+	auth_group_sp			p_auth_group;
+	struct portal_group		*p_portal_group;
+};
+
+struct ioctl_port final : public port {
+	ioctl_port(struct target *target, int pp, int vp)
+	    : port(target), p_ioctl_pp(pp), p_ioctl_vp(vp) {}
+	~ioctl_port() override = default;
+
+	bool kernel_create_port() override;
+	bool kernel_remove_port() override;
+
+private:
 	int				p_ioctl_pp;
 	int				p_ioctl_vp;
-	uint32_t			p_ctl_port;
+};
+
+struct kernel_port final : public port {
+	kernel_port(struct target *target, struct pport *pp)
+	    : port(target), p_pport(pp) {}
+	~kernel_port() override = default;
+
+	bool kernel_create_port() override;
+	bool kernel_remove_port() override;
+
+private:
+	struct pport			*p_pport;
 };
 
 struct lun {
-	TAILQ_ENTRY(lun)		l_next;
-	struct conf			*l_conf;
-	nvlist_t			*l_options;
-	char				*l_name;
-	char				*l_backend;
-	uint8_t				l_device_type;
-	int				l_blocksize;
-	char				*l_device_id;
-	char				*l_path;
-	char				*l_scsiname;
-	char				*l_serial;
-	uint64_t			l_size;
+	lun(struct conf *conf, const char *name);
 
-	int				l_ctl_lun;
+	const char *name() const { return l_name.c_str(); }
+	const std::string &path() const { return l_path; }
+	int ctl_lun() const { return l_ctl_lun; }
+
+	freebsd::nvlist_up options() const;
+
+	bool add_option(const char *name, const char *value);
+	bool set_backend(const char *value);
+	bool set_blocksize(size_t value);
+	bool set_ctl_lun(uint32_t value);
+	bool set_device_type(uint8_t device_type);
+	bool set_device_type(const char *value);
+	bool set_device_id(const char *value);
+	bool set_path(const char *value);
+	void set_scsiname(const char *value);
+	bool set_serial(const char *value);
+	bool set_size(uint64_t value);
+
+	bool changed(const struct lun &old) const;
+	bool verify();
+
+	bool kernel_add();
+	bool kernel_modify() const;
+	bool kernel_remove() const;
+
+private:
+	struct conf			*l_conf;
+	freebsd::nvlist_up		l_options;
+	std::string			l_name;
+	std::string			l_backend;
+	uint8_t				l_device_type = 0;
+	int				l_blocksize = 0;
+	std::string			l_device_id;
+	std::string			l_path;
+	std::string			l_scsiname;
+	std::string			l_serial;
+	uint64_t			l_size = 0;
+
+	int				l_ctl_lun = -1;
 };
 
 struct target {
-	TAILQ_ENTRY(target)		t_next;
+	target(struct conf *conf, std::string &name)
+	    : t_conf(conf), t_name(name) {}
+
+	bool has_alias() const { return !t_alias.empty(); }
+	bool has_pport() const { return !t_pport.empty(); }
+	bool has_redirection() const { return !t_redirection.empty(); }
+	const char *alias() const { return t_alias.c_str(); }
+	const char *name() const { return t_name.c_str(); }
+	const char *pport() const { return t_pport.c_str(); }
+	bool private_auth() const { return t_private_auth; }
+	const char *redirection() const { return t_redirection.c_str(); }
+
+	struct auth_group *auth_group() const { return t_auth_group.get(); }
+	const std::list<port *> &ports() const { return t_ports; }
+	const struct lun *lun(int idx) const { return t_luns[idx]; }
+
+	bool add_chap(const char *user, const char *secret);
+	bool add_chap_mutual(const char *user, const char *secret,
+	    const char *user2, const char *secret2);
+	bool add_initiator_name(const char *name);
+	bool add_initiator_portal(const char *addr);
+	bool add_lun(u_int id, const char *lun_name);
+	bool add_portal_group(const char *pg_name, const char *ag_name);
+	bool set_alias(const char *alias);
+	bool set_auth_group(const char *ag_name);
+	bool set_auth_type(const char *type);
+	bool set_physical_port(const char *pport);
+	bool set_redirection(const char *addr);
+	struct lun *start_lun(u_int id);
+
+	void add_port(struct port *port);
+	void remove_lun(struct lun *lun);
+	void remove_port(struct port *port);
+	void verify();
+
+private:
+	bool use_private_auth(const char *keyword);
+
 	struct conf			*t_conf;
-	struct lun			*t_luns[MAX_LUNS];
-	struct auth_group		*t_auth_group;
-	TAILQ_HEAD(, port)		t_ports;
-	char				*t_name;
-	char				*t_alias;
-	char				*t_redirection;
+	std::array<struct lun *, MAX_LUNS> t_luns;
+	auth_group_sp			t_auth_group;
+	std::list<port *>		t_ports;
+	std::string			t_name;
+	std::string			t_alias;
+	std::string			t_redirection;
 	/* Name of this target's physical port, if any, i.e. "isp0" */
-	char				*t_pport;
+	std::string			t_pport;
+	bool				t_private_auth;
 };
 
 struct isns {
-	TAILQ_ENTRY(isns)		i_next;
-	struct conf			*i_conf;
-	char				*i_addr;
-	struct addrinfo			*i_ai;
+	isns(const char *addr, struct addrinfo *ai) : i_addr(addr), i_ai(ai) {}
+
+	const char *addr() const { return i_addr.c_str(); }
+
+	freebsd::fd_up connect();
+	bool send_request(int s, struct isns_req req);
+
+private:
+	std::string			i_addr;
+	freebsd::addrinfo_up		i_ai;
 };
 
 struct conf {
-	char				*conf_pidfile_path;
-	TAILQ_HEAD(, lun)		conf_luns;
-	TAILQ_HEAD(, target)		conf_targets;
-	TAILQ_HEAD(, auth_group)	conf_auth_groups;
-	TAILQ_HEAD(, port)		conf_ports;
-	TAILQ_HEAD(, portal_group)	conf_portal_groups;
-	TAILQ_HEAD(, isns)		conf_isns;
-	int				conf_isns_period;
-	int				conf_isns_timeout;
-	int				conf_debug;
-	int				conf_timeout;
-	int				conf_maxproc;
+	int maxproc() const { return conf_maxproc; }
+	int timeout() const { return conf_timeout; }
+
+	bool default_auth_group_defined() const
+	{ return conf_default_ag_defined; }
+	bool default_portal_group_defined() const
+	{ return conf_default_pg_defined; }
+
+	struct auth_group *add_auth_group(const char *ag_name);
+	struct auth_group *define_default_auth_group();
+	auth_group_sp find_auth_group(const char *ag_name);
+
+	struct portal_group *add_portal_group(const char *name);
+	struct portal_group *define_default_portal_group();
+	struct portal_group *find_portal_group(const char *name);
+
+	bool add_port(struct target *target, struct portal_group *pg,
+	    auth_group_sp ag);
+	bool add_port(struct target *target, struct portal_group *pg,
+	    uint32_t ctl_port);
+	bool add_port(struct target *target, struct pport *pp);
+	bool add_port(struct kports &kports, struct target *target, int pp,
+	    int vp);
+	bool add_pports(struct kports &kports);
+
+	struct target *add_target(const char *name);
+	struct target *find_target(const char *name);
+
+	struct lun *add_lun(const char *name);
+	struct lun *find_lun(const char *name);
+
+	void set_debug(int debug);
+	void set_isns_period(int period);
+	void set_isns_timeout(int timeout);
+	void set_maxproc(int maxproc);
+	bool set_pidfile_path(const char *path);
+	void set_timeout(int timeout);
+
+	void open_pidfile();
+	void write_pidfile();
+	void close_pidfile();
+
+	bool add_isns(const char *addr);
+	void isns_register_targets(struct isns *isns, struct conf *oldconf);
+	void isns_deregister_targets(struct isns *isns);
+	void isns_schedule_update();
+	void isns_update();
+
+	int apply(struct conf *oldconf);
+	void delete_target_luns(struct lun *lun);
+	bool reuse_portal_group_socket(struct portal &newp);
+	bool verify();
+
+private:
+	struct isns_req isns_register_request(const char *hostname);
+	struct isns_req isns_check_request(const char *hostname);
+	struct isns_req isns_deregister_request(const char *hostname);
+	void isns_check(struct isns *isns);
+
+	std::string			conf_pidfile_path;
+	std::unordered_map<std::string, std::unique_ptr<lun>> conf_luns;
+	std::unordered_map<std::string, std::unique_ptr<target>> conf_targets;
+	std::unordered_map<std::string, auth_group_sp> conf_auth_groups;
+	std::unordered_map<std::string, std::unique_ptr<port>> conf_ports;
+	std::unordered_map<std::string, portal_group_up> conf_portal_groups;
+	std::unordered_map<std::string, isns> conf_isns;
+	struct target			*conf_first_target = nullptr;
+	int				conf_isns_period = 900;
+	int				conf_isns_timeout = 5;
+	int				conf_debug = 0;
+	int				conf_timeout = 60;
+	int				conf_maxproc = 30;
+
+	freebsd::pidfile		conf_pidfile;
+
+	bool				conf_default_pg_defined = false;
+	bool				conf_default_ag_defined = false;
 
 #ifdef ICL_KERNEL_PROXY
-	int				conf_portal_id;
+public:
+	int add_proxy_portal(portal *);
+	portal *proxy_portal(int);
+private:
+	std::vector<portal *>		conf_proxy_portals;
 #endif
-	struct pidfh			*conf_pidfh;
-
-	bool				conf_default_pg_defined;
-	bool				conf_default_ag_defined;
-	bool				conf_kernel_port_on;
 };
 
+typedef std::unique_ptr<conf> conf_up;
+
 /* Physical ports exposed by the kernel */
+struct pport {
+	pport(std::string &name, uint32_t ctl_port) : pp_name(name),
+						      pp_ctl_port(ctl_port) {}
+
+	const char *name() const { return pp_name.c_str(); }
+	uint32_t ctl_port() const { return pp_ctl_port; }
+
+	bool linked() const { return pp_linked; }
+	void link() { pp_linked = true; }
+
+private:
+	std::string			pp_name;
+	uint32_t			pp_ctl_port;
+	bool				pp_linked;
+};
+
 struct kports {
-	TAILQ_HEAD(, pport)		pports;
+	bool add_port(std::string &name, uint32_t ctl_port);
+	bool has_port(std::string &name);
+	struct pport *find_port(const char *name);
+
+private:
+	std::unordered_map<std::string, struct pport> pports;
 };
 
 #define	CONN_SESSION_TYPE_NONE		0
@@ -229,7 +525,7 @@ struct kports {
 struct ctld_connection {
 	struct connection	conn;
 	struct portal		*conn_portal;
-	struct port		*conn_port;
+	const struct port	*conn_port;
 	struct target		*conn_target;
 	int			conn_session_type;
 	char			*conn_initiator_name;
@@ -247,100 +543,18 @@ struct ctld_connection {
 
 extern int ctl_fd;
 
+bool			parse_conf(const char *path);
 bool			uclparse_conf(const char *path);
 
-struct conf		*conf_new(void);
-struct conf		*conf_new_from_kernel(struct kports *kports);
-void			conf_delete(struct conf *conf);
+conf_up			conf_new_from_kernel(struct kports &kports);
 void			conf_finish(void);
 void			conf_start(struct conf *new_conf);
-bool			conf_verify(struct conf *conf);
-
-struct auth_group	*auth_group_new(struct conf *conf, const char *name);
-struct auth_group	*auth_group_new(struct conf *conf,
-			    struct target *target);
-void			auth_group_delete(struct auth_group *ag);
-struct auth_group	*auth_group_find(const struct conf *conf,
-			    const char *name);
-
-bool			auth_new_chap(struct auth_group *ag, const char *user,
-			    const char *secret);
-bool			auth_new_chap_mutual(struct auth_group *ag,
-			    const char *user, const char *secret,
-			    const char *user2, const char *secret2);
-const struct auth	*auth_find(const struct auth_group *ag,
-			    const char *user);
-
-bool			auth_name_new(struct auth_group *ag,
-			    const char *initiator_name);
-bool			auth_name_defined(const struct auth_group *ag);
-const struct auth_name	*auth_name_find(const struct auth_group *ag,
-			    const char *initiator_name);
-bool			auth_name_check(const struct auth_group *ag,
-			    const char *initiator_name);
-
-bool				auth_portal_new(struct auth_group *ag,
-				    const char *initiator_portal);
-bool			auth_portal_defined(const struct auth_group *ag);
-const struct auth_portal	*auth_portal_find(const struct auth_group *ag,
-				    const struct sockaddr_storage *sa);
-bool				auth_portal_check(const struct auth_group *ag,
-				    const struct sockaddr_storage *sa);
-
-struct portal_group	*portal_group_new(struct conf *conf, const char *name);
-void			portal_group_delete(struct portal_group *pg);
-struct portal_group	*portal_group_find(const struct conf *conf,
-			    const char *name);
-bool			portal_group_add_portal(struct portal_group *pg,
-			    const char *value, bool iser);
-
-bool			isns_new(struct conf *conf, const char *addr);
-void			isns_delete(struct isns *is);
-void			isns_register(struct isns *isns, struct isns *oldisns);
-void			isns_check(struct isns *isns);
-void			isns_deregister(struct isns *isns);
-
-struct pport		*pport_new(struct kports *kports, const char *name,
-			    uint32_t ctl_port);
-struct pport		*pport_find(const struct kports *kports,
-			    const char *name);
-struct pport		*pport_copy(struct pport *pp, struct kports *kports);
-void			pport_delete(struct pport *pport);
-
-struct port		*port_new(struct conf *conf, struct target *target,
-			    struct portal_group *pg);
-struct port		*port_new_ioctl(struct conf *conf,
-			    struct kports *kports, struct target *target,
-			    int pp, int vp);
-struct port		*port_new_pp(struct conf *conf, struct target *target,
-			    struct pport *pp);
-struct port		*port_find(const struct conf *conf, const char *name);
-struct port		*port_find_in_pg(const struct portal_group *pg,
-			    const char *target);
-void			port_delete(struct port *port);
-bool			port_is_dummy(struct port *port);
-
-struct target		*target_new(struct conf *conf, const char *name);
-void			target_delete(struct target *target);
-struct target		*target_find(struct conf *conf,
-			    const char *name);
-
-struct lun		*lun_new(struct conf *conf, const char *name);
-void			lun_delete(struct lun *lun);
-struct lun		*lun_find(const struct conf *conf, const char *name);
-void			lun_set_scsiname(struct lun *lun, const char *value);
 
 bool			option_new(nvlist_t *nvl,
 			    const char *name, const char *value);
 
 void			kernel_init(void);
-int			kernel_lun_add(struct lun *lun);
-int			kernel_lun_modify(struct lun *lun);
-int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct ctld_connection *conn);
-int			kernel_port_add(struct port *port);
-int			kernel_port_update(struct port *port, struct port *old);
-int			kernel_port_remove(struct port *port);
 void			kernel_capsicate(void);
 
 #ifdef ICL_KERNEL_PROXY
@@ -357,6 +571,7 @@ void			login(struct ctld_connection *conn);
 
 void			discovery(struct ctld_connection *conn);
 
-void			set_timeout(int timeout, int fatal);
+void			start_timer(int timeout, bool fatal = false);
+void			stop_timer();
 
 #endif /* !CTLD_H */

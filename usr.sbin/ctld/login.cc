@@ -60,9 +60,7 @@ kernel_limits(const char *offload, int s, int *max_recv_dsl, int *max_send_dsl,
 
 	req.type = CTL_ISCSI_LIMITS;
 	cilp = (struct ctl_iscsi_limits_params *)&(req.data.limits);
-	if (offload != NULL) {
-		strlcpy(cilp->offload, offload, sizeof(cilp->offload));
-	}
+	strlcpy(cilp->offload, offload, sizeof(cilp->offload));
 	cilp->socket = s;
 
 	if (ioctl(ctl_fd, CTL_ISCSI, &req) == -1) {
@@ -88,7 +86,7 @@ kernel_limits(const char *offload, int s, int *max_recv_dsl, int *max_send_dsl,
 	if (*max_burst_length < *first_burst_length)
 		*first_burst_length = *max_burst_length;
 
-	if (offload != NULL) {
+	if (offload[0] != '\0') {
 		log_debugx("Kernel limits for offload \"%s\" are "
 		    "MaxRecvDataSegment=%d, max_send_dsl=%d, "
 		    "MaxBurstLength=%d, FirstBurstLength=%d",
@@ -336,7 +334,7 @@ login_send_chap_c(struct pdu *request, struct chap *chap)
 
 static struct pdu *
 login_receive_chap_r(struct connection *conn, struct auth_group *ag,
-    struct chap *chap, const struct auth **authp)
+    struct chap *chap, const struct auth **authp, std::string &user)
 {
 	struct pdu *request;
 	struct keys *request_keys;
@@ -367,24 +365,21 @@ login_receive_chap_r(struct connection *conn, struct auth_group *ag,
 	/*
 	 * Verify the response.
 	 */
-	assert(ag->ag_type == AG_TYPE_CHAP ||
-	    ag->ag_type == AG_TYPE_CHAP_MUTUAL);
-	auth = auth_find(ag, chap_n);
+	assert(ag->type() == AG_TYPE_CHAP || ag->type() == AG_TYPE_CHAP_MUTUAL);
+	auth = ag->find_auth(chap_n);
 	if (auth == NULL) {
 		login_send_error(request, 0x02, 0x01);
 		log_errx(1, "received CHAP Login with invalid user \"%s\"",
 		    chap_n);
 	}
 
-	assert(auth->a_secret != NULL);
-	assert(strlen(auth->a_secret) > 0);
-
-	error = chap_authenticate(chap, auth->a_secret);
+	error = chap_authenticate(chap, auth->secret());
 	if (error != 0) {
 		login_send_error(request, 0x02, 0x01);
 		log_errx(1, "CHAP authentication failed for user \"%s\"",
-		    auth->a_user);
+		    chap_n);
 	}
+	user = chap_n;
 
 	keys_delete(request_keys);
 
@@ -394,7 +389,7 @@ login_receive_chap_r(struct connection *conn, struct auth_group *ag,
 
 static void
 login_send_chap_success(struct pdu *request,
-    const struct auth *auth)
+    const struct auth *auth, const std::string &user)
 {
 	struct pdu *response;
 	struct keys *request_keys, *response_keys;
@@ -424,17 +419,17 @@ login_send_chap_success(struct pdu *request,
 			log_errx(1, "initiator requested target "
 			    "authentication, but didn't send CHAP_C");
 		}
-		if (auth->a_auth_group->ag_type != AG_TYPE_CHAP_MUTUAL) {
+		if (!auth->mutual()) {
 			login_send_error(request, 0x02, 0x01);
 			log_errx(1, "initiator requests target authentication "
 			    "for user \"%s\", but mutual user/secret "
-			    "is not set", auth->a_user);
+			    "is not set", user.c_str());
 		}
 
 		log_debugx("performing mutual authentication as user \"%s\"",
-		    auth->a_mutual_user);
+		    auth->mutual_user());
 
-		rchap = rchap_new(auth->a_mutual_secret);
+		rchap = rchap_new(auth->mutual_secret());
 		error = rchap_receive(rchap, chap_i, chap_c);
 		if (error != 0) {
 			login_send_error(request, 0x02, 0x07);
@@ -444,7 +439,7 @@ login_send_chap_success(struct pdu *request,
 		chap_r = rchap_get_response(rchap);
 		rchap_delete(rchap);
 		response_keys = keys_new();
-		keys_add(response_keys, "CHAP_N", auth->a_mutual_user);
+		keys_add(response_keys, "CHAP_N", auth->mutual_user());
 		keys_add(response_keys, "CHAP_R", chap_r);
 		free(chap_r);
 		keys_save_pdu(response_keys, response);
@@ -461,6 +456,7 @@ login_send_chap_success(struct pdu *request,
 static void
 login_chap(struct ctld_connection *conn, struct auth_group *ag)
 {
+	std::string user;
 	const struct auth *auth;
 	struct chap *chap;
 	struct pdu *request;
@@ -488,20 +484,20 @@ login_chap(struct ctld_connection *conn, struct auth_group *ag)
 	 * Receive CHAP_N/CHAP_R PDU and authenticate.
 	 */
 	log_debugx("waiting for CHAP_N/CHAP_R");
-	request = login_receive_chap_r(&conn->conn, ag, chap, &auth);
+	request = login_receive_chap_r(&conn->conn, ag, chap, &auth, user);
 
 	/*
 	 * Yay, authentication succeeded!
 	 */
 	log_debugx("authentication succeeded for user \"%s\"; "
-	    "transitioning to operational parameter negotiation", auth->a_user);
-	login_send_chap_success(request, auth);
+	    "transitioning to operational parameter negotiation", user.c_str());
+	login_send_chap_success(request, auth, user);
 	pdu_delete(request);
 
 	/*
 	 * Leave username and CHAP information for discovery().
 	 */
-	conn->conn_user = auth->a_user;
+	conn->conn_user = checked_strdup(user.c_str());
 	conn->conn_chap = chap;
 }
 
@@ -704,13 +700,13 @@ login_portal_redirect(struct ctld_connection *conn, struct pdu *request)
 {
 	const struct portal_group *pg;
 
-	pg = conn->conn_portal->p_portal_group;
-	if (pg->pg_redirection == NULL)
+	pg = conn->conn_portal->portal_group();
+	if (!pg->is_redirecting())
 		return (false);
 
 	log_debugx("portal-group \"%s\" configured to redirect to %s",
-	    pg->pg_name, pg->pg_redirection);
-	login_redirect(request, pg->pg_redirection);
+	    pg->name(), pg->redirection());
+	login_redirect(request, pg->redirection());
 
 	return (true);
 }
@@ -720,17 +716,17 @@ login_target_redirect(struct ctld_connection *conn, struct pdu *request)
 {
 	const char *target_address;
 
-	assert(conn->conn_portal->p_portal_group->pg_redirection == NULL);
+	assert(!conn->conn_portal->portal_group()->is_redirecting());
 
 	if (conn->conn_target == NULL)
 		return (false);
 
-	target_address = conn->conn_target->t_redirection;
-	if (target_address == NULL)
+	if (!conn->conn_target->has_redirection())
 		return (false);
 
+	target_address = conn->conn_target->redirection();
 	log_debugx("target \"%s\" configured to redirect to %s",
-	  conn->conn_target->t_name, target_address);
+	  conn->conn_target->name(), target_address);
 	login_redirect(request, target_address);
 
 	return (true);
@@ -739,6 +735,7 @@ login_target_redirect(struct ctld_connection *conn, struct pdu *request)
 static void
 login_negotiate(struct ctld_connection *conn, struct pdu *request)
 {
+	struct portal_group *pg = conn->conn_portal->portal_group();
 	struct pdu *response;
 	struct iscsi_bhs_login_response *bhslr2;
 	struct keys *request_keys, *response_keys;
@@ -755,7 +752,7 @@ login_negotiate(struct ctld_connection *conn, struct pdu *request)
 		conn->conn_max_send_data_segment_limit = (1 << 24) - 1;
 		conn->conn_max_burst_limit = (1 << 24) - 1;
 		conn->conn_first_burst_limit = (1 << 24) - 1;
-		kernel_limits(conn->conn_portal->p_portal_group->pg_offload,
+		kernel_limits(pg->offload(),
 		    conn->conn.conn_socket,
 		    &conn->conn_max_recv_data_segment_limit,
 		    &conn->conn_max_send_data_segment_limit,
@@ -823,11 +820,11 @@ login_negotiate(struct ctld_connection *conn, struct pdu *request)
 
 	if (skipped_security &&
 	    conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-		if (conn->conn_target->t_alias != NULL)
+		if (conn->conn_target->has_alias())
 			keys_add(response_keys,
-			    "TargetAlias", conn->conn_target->t_alias);
+			    "TargetAlias", conn->conn_target->alias());
 		keys_add_int(response_keys, "TargetPortalGroupTag",
-		    conn->conn_portal->p_portal_group->pg_tag);
+		    pg->tag());
 	}
 
 	for (i = 0; i < KEYS_MAX; i++) {
@@ -917,7 +914,7 @@ login(struct ctld_connection *conn)
 		log_errx(1, "received Login PDU with non-zero TSIH");
 	}
 
-	pg = conn->conn_portal->p_portal_group;
+	pg = conn->conn_portal->portal_group();
 
 	memcpy(conn->conn_initiator_isid, bhslr->bhslr_isid,
 	    sizeof(conn->conn_initiator_isid));
@@ -975,44 +972,44 @@ login(struct ctld_connection *conn)
 			log_errx(1, "received Login PDU without TargetName");
 		}
 
-		conn->conn_port = port_find_in_pg(pg, target_name);
+		conn->conn_port = pg->find_port(target_name);
 		if (conn->conn_port == NULL) {
 			login_send_error(request, 0x02, 0x03);
 			log_errx(1, "requested target \"%s\" not found",
 			    target_name);
 		}
-		conn->conn_target = conn->conn_port->p_target;
+		conn->conn_target = conn->conn_port->target();
 	}
 
 	/*
 	 * At this point we know what kind of authentication we need.
 	 */
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-		ag = conn->conn_port->p_auth_group;
-		if (ag == NULL)
-			ag = conn->conn_target->t_auth_group;
-		if (ag->ag_name != NULL) {
+		ag = conn->conn_port->auth_group();
+		if (ag == nullptr)
+			ag = conn->conn_target->auth_group();
+		if (conn->conn_port->auth_group() == nullptr &&
+		    conn->conn_target->private_auth()) {
 			log_debugx("initiator requests to connect "
-			    "to target \"%s\"; auth-group \"%s\"",
-			    conn->conn_target->t_name,
-			    ag->ag_name);
+			    "to target \"%s\"", conn->conn_target->name());
 		} else {
 			log_debugx("initiator requests to connect "
-			    "to target \"%s\"", conn->conn_target->t_name);
+			    "to target \"%s\"; %s",
+			    conn->conn_target->name(), ag->label());
 		}
 	} else {
 		assert(conn->conn_session_type == CONN_SESSION_TYPE_DISCOVERY);
-		ag = pg->pg_discovery_auth_group;
+		ag = pg->discovery_auth_group();
 		log_debugx("initiator requests discovery session; %s",
-		    ag->ag_label);
+		    ag->label());
 	}
 
-	if (ag->ag_type == AG_TYPE_DENY) {
+	if (ag->type() == AG_TYPE_DENY) {
 		login_send_error(request, 0x02, 0x01);
 		log_errx(1, "auth-type is \"deny\"");
 	}
 
-	if (ag->ag_type == AG_TYPE_UNKNOWN) {
+	if (ag->type() == AG_TYPE_UNKNOWN) {
 		/*
 		 * This can happen with empty auth-group.
 		 */
@@ -1023,12 +1020,12 @@ login(struct ctld_connection *conn)
 	/*
 	 * Enforce initiator-name and initiator-portal.
 	 */
-	if (!auth_name_check(ag, initiator_name)) {
+	if (!ag->initiator_permitted(initiator_name)) {
 		login_send_error(request, 0x02, 0x02);
 		log_errx(1, "initiator does not match allowed initiator names");
 	}
 
-	if (!auth_portal_check(ag, &conn->conn_initiator_sa)) {
+	if (!ag->initiator_permitted(&conn->conn_initiator_sa)) {
 		login_send_error(request, 0x02, 0x02);
 		log_errx(1, "initiator does not match allowed "
 		    "initiator portals");
@@ -1039,7 +1036,7 @@ login(struct ctld_connection *conn)
 	 * at all.
 	 */
 	if (login_csg(request) == BHSLR_STAGE_OPERATIONAL_NEGOTIATION) {
-		if (ag->ag_type != AG_TYPE_NO_AUTHENTICATION) {
+		if (ag->type() != AG_TYPE_NO_AUTHENTICATION) {
 			login_send_error(request, 0x02, 0x01);
 			log_errx(1, "initiator skipped the authentication, "
 			    "but authentication is required");
@@ -1058,7 +1055,7 @@ login(struct ctld_connection *conn)
 	response_keys = keys_new();
 	trans = (bhslr->bhslr_flags & BHSLR_FLAGS_TRANSIT) != 0;
 	auth_method = keys_find(request_keys, "AuthMethod");
-	if (ag->ag_type == AG_TYPE_NO_AUTHENTICATION) {
+	if (ag->type() == AG_TYPE_NO_AUTHENTICATION) {
 		log_debugx("authentication not required");
 		if (auth_method == NULL ||
 		    login_list_contains(auth_method, "None")) {
@@ -1085,11 +1082,11 @@ login(struct ctld_connection *conn)
 		}
 	}
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-		if (conn->conn_target->t_alias != NULL)
+		if (conn->conn_target->has_alias())
 			keys_add(response_keys,
-			    "TargetAlias", conn->conn_target->t_alias);
+			    "TargetAlias", conn->conn_target->alias());
 		keys_add_int(response_keys,
-		    "TargetPortalGroupTag", pg->pg_tag);
+		    "TargetPortalGroupTag", pg->tag());
 	}
 	keys_save_pdu(response_keys, response);
 
@@ -1104,7 +1101,7 @@ login(struct ctld_connection *conn)
 		exit(1);
 	}
 
-	if (ag->ag_type != AG_TYPE_NO_AUTHENTICATION) {
+	if (ag->type() != AG_TYPE_NO_AUTHENTICATION) {
 		login_chap(conn, ag);
 		login_negotiate(conn, NULL);
 	} else if (trans) {

@@ -396,6 +396,11 @@ public:
 		return default_val;
 	}
 
+	std::string forced_string_value () const
+	{
+		return ucl_object_tostring_forced(obj.get());
+	}
+
 	size_t size () const
 	{
 		if (type () == UCL_ARRAY) {

@@ -97,7 +97,7 @@ bool	lun_set_path(const char *value);
 bool	lun_set_serial(const char *value);
 bool	lun_set_size(uint64_t value);
 
-bool	parse_conf(const char *path);
+bool	yyparse_conf(FILE *fp);
 
 __END_DECLS
 
