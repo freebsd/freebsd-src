@@ -28,7 +28,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 26, 2017
+.Dd April 14, 2025
 .Dt UIPAQ 4
 .Os
 .Sh NAME
@@ -50,23 +50,6 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 uipaq_load="YES"
 .Ed
-.Sh HARDWARE
-The
-.Nm
-driver supports the following adapters:
-.Pp
-.Bl -tag -width Ds -offset indent -compact
-.It ASUS P535 PDA
-.It Casio BE300 PDA
-.It Compaq IPaq PocketPC
-.It HP Jornada 568
-.It HP iPAQ 22xx/Jornada 548
-.It HTC PPC6700 Modem
-.It HTC Smart Phone
-.It HTC Winmobile
-.It Sharp W-ZERO3 ES Spart Phone
-.It Most Windows CE based phones
-.El
 .Sh DESCRIPTION
 The
 .Nm
@@ -77,6 +60,33 @@ The device is accessed through the
 .Xr ucom 4
 driver which makes it behave like a
 .Xr tty 4 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following iPAQ devices:
+.Pp
+.Bl -bullet -compact
+.It
+ASUS P535 PDA
+.It
+Casio BE300 PDA
+.It
+Compaq IPaq PocketPC
+.It
+HP Jornada 568
+.It
+HP iPAQ 22xx/Jornada 548
+.It
+HTC PPC6700 Modem
+.It
+HTC Smart Phone
+.It
+HTC Winmobile
+.It
+Sharp W-ZERO3 ES Spart Phone
+.It
+Most Windows CE based phones
+.El
 .Sh FILES
 .Bl -tag -width "/dev/ttyU*.init" -compact
 .It Pa /dev/ttyU*
