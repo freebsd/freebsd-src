@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 24, 2008
+.Dd April 13, 2025
 .Dt PUC 4
 .Os
 .Sh NAME
@@ -36,7 +36,10 @@ Communications driver
 .Cd "device uart"
 .Cd "device ppc"
 .Sh DESCRIPTION
-This driver acts as a shim to connect PCI serial and parallel ports to the
+The
+.Nm
+driver acts as a shim to connect
+PCI multi-port serial and parallel adapters to the
 .Xr uart 4
 and
 .Xr ppc 4
@@ -45,6 +48,58 @@ driver.
 The list of supported devices is in
 .Pa sys/dev/puc/pucdata.c .
 Support for new cards should be added there.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following
+PCI multi-port serial and parallel adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Actiontech 56K PCI
+.It
+Avlab Technology, PCI IO 2S and PCI IO 4S
+.It
+Comtrol RocketPort 550
+.It
+Decision Computers PCCOM 4-port serial and dual port RS232/422/485
+.It
+Dolphin Peripherals 4025/4035/4036
+.It
+IC Book Labs Dreadnought 16x Lite and Pro
+.It
+Lava Computers 2SP-PCI/DSerial-PCI/Quattro-PCI/Octopus-550
+.It
+Middle Digital, Weasle serial adapter
+.It
+Moxa Industio CP-114, Smartio C104H-PCI and C168H/PCI
+.It
+NEC PK-UG-X001 and PK-UG-X008
+.It
+Netmos NM9835 PCI-2S-550
+.It
+Oxford Semiconductor OX16PCI954 PCI UART
+.It
+Syba Tech SD-LAB PCI-4S2P-550-ECP
+.It
+SIIG Cyber I/O PCI 16C550/16C650/16C850
+.It
+SIIG Cyber 2P1S PCI 16C550/16C650/16C850
+.It
+SIIG Cyber 2S1P PCI 16C550/16C650/16C850
+.It
+SIIG Cyber 4S PCI 16C550/16C650/16C850
+.It
+SIIG Cyber Serial (Single and Dual) PCI 16C550/16C650/16C850
+.It
+Syba Tech Ltd PCI-4S2P-550-ECP
+.It
+Titan PCI-200H and PCI-800H
+.It
+US Robotics (3Com) 3CP5609 modem
+.It
+VScom PCI-400 and PCI-800
+.El
 .Sh SEE ALSO
 .Xr ppc 4 ,
 .Xr uart 4
