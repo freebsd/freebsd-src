@@ -67,7 +67,10 @@ static struct ControlFeatures featurelist[] = {
 	    "Disable implicit PROT_MAX" },
 	{ "nostackgap",	NT_FREEBSD_FCTL_STKGAP_DISABLE, "Disable stack gap" },
 	{ "wxneeded",	NT_FREEBSD_FCTL_WXNEEDED, "Requires W+X mappings" },
-	{ "la48",	NT_FREEBSD_FCTL_LA48, "amd64: Limit user VA to 48bit" },
+	{ "la48",	NT_FREEBSD_FCTL_LA48,
+	    "amd64: Limit user virtual addresses to 48 bits" },
+	{ "la57",	NT_FREEBSD_FCTL_LA57,
+	    "amd64: Allow the use of 57-bit virtual addresses when available" },
 };
 
 static struct option long_opts[] = {

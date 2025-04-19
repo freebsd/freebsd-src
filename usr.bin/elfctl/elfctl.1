@@ -95,6 +95,20 @@ Features may also be specified as a single combined value:
 .Bd -literal -offset indent
 elfctl -e =0x5 file
 .Ed
+.Sh NOTES
+On amd64, on a machine with LA57 (5-level paging) mode supported and
+enabled, if both
+.Va la57
+and
+.Va la48
+feature flags are specified, the
+.Va la57
+feature has priority over
+.Va la48 .
+The
+.Va vm.pmap.prefer_uva_la48
+sysctl MIB defines the default user address space size for binaries
+which do not set either of these flags.
 .Sh SEE ALSO
 .Xr mitigations 7
 .Sh HISTORY
