@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.381 2024/11/14 19:30:13 sjg Exp $
+.\"	$NetBSD: make.1,v 1.384 2025/04/04 18:36:47 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd November 14, 2024
+.Dd April  4, 2025
 .Dt BMAKE 1
 .Os
 .Sh NAME
@@ -1087,11 +1087,61 @@ Puts
 into
 .Dq meta
 mode, where meta files are created for each target
-to capture the command run, the output generated, and if
+to capture the commands run, the output generated, and if
 .Xr filemon 4
 is available, the system calls which are of interest to
 .Nm .
 The captured output can be useful when diagnosing errors.
+.Pp
+.Nm
+will use the information in the meta file to help determine if
+a target is out-of-date when the normal dependency rules
+indicate it is not.
+.Pp
+First,
+the commands to be executed,
+will be compared to those captured previously,
+if any differ,
+the target is out-of-date.
+.Pp
+This allows for a huge improvement in the reliability
+and efficiency of update builds.
+It is no longer necessary for targets to depend on makefiles
+just in-case they set a variable that might be relevant.
+Mechanisms such as
+.Va .MAKE.META.CMP_FILTER
+and
+.Ic .NOMETA_CMP ,
+allow limiting or disabling that comparison on a per target basis.
+A reference to the variable
+.Va .OODATE
+can be leveraged to block comparison of certain commands.
+For example:
+.Ql ${.OODATE:M}
+will expand to nothing and have no impact on the target,
+its side-effect though,
+will be to prevent comparison of any command line it appears on.
+For documentation purposes
+.Ql ${.OODATE:MNOMETA_CMP}
+is useful.
+.Pp
+If necessary,
+.Nm
+will then use the information captured by
+.Xr filemon 4 ,
+to check the modification time of any file used in generating
+the target,
+if any is newer,
+the target is out-of-date.
+.Pp
+Such deep inspection can easily lead to cases where a target is
+.Em always
+considered out-of-date, which is why
+.Va .MAKE.META.IGNORE_FILTER ,
+.Va .MAKE.META.IGNORE_PATHS
+and
+.Va .MAKE.META.IGNORE_PATTERNS ,
+are provided to limit that inspection when necessary.
 .It Cm curdirOk= Ns Ar bf
 By default,
 .Nm
@@ -2536,6 +2586,8 @@ is run with the
 flag, only
 .Ql posix.mk
 contributes to the default rules.
+In POSIX-compatible mode, the AT&T System V UNIX style substitution
+modifier is checked first rather than as a fallback.
 .It Ic .PRECIOUS
 Apply the
 .Ic .PRECIOUS

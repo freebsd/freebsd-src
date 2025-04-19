@@ -1,3 +1,25 @@
+2025-04-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* init.mk: include Skipping ${RELDIR} when _SKIP_BUILD is not empty.
+
+2025-04-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20250414
+
+	* init.mk: check ONLY_*_LIST and NOT_*_LIST for SKIP_BUILD_VAR_LIST
+	to set _SKIP_BUILD
+
+	* genfiles.mk: add FILTER support
+
+	* rst2htm.mk: latest docutils drops .py extensions
+
+2025-03-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20250326
+
+	* auto.obj.mk: fix and simplify handling of relative __objdir,
+	convert it to absolute before checking against .OBJDIR
+
 2025-03-14  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20250314

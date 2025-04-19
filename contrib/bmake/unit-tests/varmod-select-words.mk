@@ -1,4 +1,4 @@
-# $NetBSD: varmod-select-words.mk,v 1.6 2024/08/29 20:20:36 rillig Exp $
+# $NetBSD: varmod-select-words.mk,v 1.7 2025/03/30 01:27:13 rillig Exp $
 #
 # Tests for the :[...] variable modifier, which selects a single word
 # or a range of words from a variable.
@@ -50,7 +50,7 @@ mod-squarebrackets: \
 	mod-squarebrackets-space
 
 mod-squarebrackets-empty:
-# expect: make: Bad modifier ":[]"
+# expect: make: Invalid modifier ":[]"
 	@echo 'LIST:[]="${LIST:[]}" is an error'
 
 mod-squarebrackets-0-star-at:
@@ -96,10 +96,10 @@ mod-squarebrackets-n-ok-1:
 	@echo 'REALLYSPACE:[*]:[1]="${REALLYSPACE:[*]:[1]}" == " " ?'
 	@echo 'LIST:[1]="${LIST:[1]}"'
 mod-squarebrackets-n-error-1:
-# expect: make: Bad modifier ":[1.]"
+# expect: make: Invalid modifier ":[1.]"
 	@echo 'LIST:[1.]="${LIST:[1.]}" is an error'
 mod-squarebrackets-n-error-2:
-# expect: make: Bad modifier ":[1]."
+# expect: make: Extra text after "[1]"
 	@echo 'LIST:[1].="${LIST:[1].}" is an error'
 mod-squarebrackets-n-ok-2:
 	@echo 'LIST:[2]="${LIST:[2]}"'
@@ -107,10 +107,10 @@ mod-squarebrackets-n-ok-2:
 	@echo 'LIST:[7]="${LIST:[7]}"'
 	@echo 'LIST:[999]="${LIST:[999]}"'
 mod-squarebrackets-n-error-3:
-# expect: make: Bad modifier ":[-]"
+# expect: make: Invalid modifier ":[-]"
 	@echo 'LIST:[-]="${LIST:[-]}" is an error'
 mod-squarebrackets-n-error-4:
-# expect: make: Bad modifier ":[--]"
+# expect: make: Invalid modifier ":[--]"
 	@echo 'LIST:[--]="${LIST:[--]}" is an error'
 mod-squarebrackets-n-ok-3:
 	@echo 'LIST:[-1]="${LIST:[-1]}"'
@@ -133,18 +133,18 @@ mod-squarebrackets-n-ok-3:
 	@echo 'LONGLIST:[012..0x12]="${LONGLIST:[012..0x12]}"'
 
 mod-squarebrackets-start-end-error-1:
-# expect: make: Bad modifier ":[1.]"
+# expect: make: Invalid modifier ":[1.]"
 	@echo 'LIST:[1.]="${LIST:[1.]}" is an error'
 mod-squarebrackets-start-end-error-2:
-# expect: make: Bad modifier ":[1..]"
+# expect: make: Invalid modifier ":[1..]"
 	@echo 'LIST:[1..]="${LIST:[1..]}" is an error'
 mod-squarebrackets-start-end-error-3:
-# expect: make: Bad modifier ":[1.. ]"
+# expect: make: Invalid modifier ":[1.. ]"
 	@echo 'LIST:[1.. ]="${LIST:[1.. ]}" is an error'
 mod-squarebrackets-start-end-ok-1:
 	@echo 'LIST:[1..1]="${LIST:[1..1]}"'
 mod-squarebrackets-start-end-error-4:
-# expect: make: Bad modifier ":[1..1.]"
+# expect: make: Invalid modifier ":[1..1.]"
 	@echo 'LIST:[1..1.]="${LIST:[1..1.]}" is an error'
 mod-squarebrackets-start-end-ok-2:
 	@echo 'LIST:[1..2]="${LIST:[1..2]}"'
@@ -152,10 +152,10 @@ mod-squarebrackets-start-end-ok-2:
 	@echo 'LIST:[3..-2]="${LIST:[3..-2]}"'
 	@echo 'LIST:[-4..4]="${LIST:[-4..4]}"'
 mod-squarebrackets-start-end-error-5:
-# expect: make: Bad modifier ":[0..1]"
+# expect: make: Invalid modifier ":[0..1]"
 	@echo 'LIST:[0..1]="${LIST:[0..1]}" is an error'
 mod-squarebrackets-start-end-error-6:
-# expect: make: Bad modifier ":[-1..0]"
+# expect: make: Invalid modifier ":[-1..0]"
 	@echo 'LIST:[-1..0]="${LIST:[-1..0]}" is an error'
 mod-squarebrackets-start-end-ok-3:
 	@echo 'LIST:[-1..1]="${LIST:[-1..1]}"'
@@ -174,7 +174,7 @@ mod-squarebrackets-nested-ok-1:
 	@echo 'LIST:[$${STAR}]="${LIST:[${STAR}]}"'
 	@echo 'LIST:[$${AT}]="${LIST:[${AT}]}"'
 mod-squarebrackets-nested-error-1:
-# expect: make: Bad modifier ":[${EMPTY"
+# expect: make: Invalid modifier ":[]"
 	@echo 'LIST:[$${EMPTY}]="${LIST:[${EMPTY}]}" is an error'
 mod-squarebrackets-nested-ok-2:
 	@echo 'LIST:[$${LONGLIST:[21]:S/2//}]="${LIST:[${LONGLIST:[21]:S/2//}]}"'

@@ -1,4 +1,4 @@
-# $NetBSD: varparse-errors.mk,v 1.19 2024/08/29 20:20:37 rillig Exp $
+# $NetBSD: varparse-errors.mk,v 1.24 2025/03/30 09:51:51 rillig Exp $
 
 # Tests for parsing and evaluating all kinds of expressions.
 #
@@ -34,7 +34,7 @@ ERR_EVAL=	An evaluation error ${:Uvalue:C,.,\3,}.
 # As of 2020-12-01, errors in the variable name are silently ignored.
 # Since var.c 1.754 from 2020-12-20, unknown modifiers at parse time result
 # in an error message and a non-zero exit status.
-# expect+1: Unknown modifier "Z"
+# expect+1: Unknown modifier ":Z"
 VAR.${:U:Z}=	unknown modifier in the variable name
 .if ${VAR.} != "unknown modifier in the variable name"
 .  error
@@ -43,7 +43,7 @@ VAR.${:U:Z}=	unknown modifier in the variable name
 # As of 2020-12-01, errors in the variable name are silently ignored.
 # Since var.c 1.754 from 2020-12-20, unknown modifiers at parse time result
 # in an error message and a non-zero exit status.
-# expect+1: Unknown modifier "Z"
+# expect+1: Unknown modifier ":Z"
 VAR.${:U:Z}post=	unknown modifier with text in the variable name
 .if ${VAR.post} != "unknown modifier with text in the variable name"
 .  error
@@ -66,10 +66,10 @@ VAR.${:U:Z}post=	unknown modifier with text in the variable name
 #
 #.MAKEFLAGS: -dv
 IND=	${:OX}
-# expect+4: Bad modifier ":OX"
-# expect+3: Bad modifier ":OX"
-# expect+2: Bad modifier ":OX"
-# expect+1: Bad modifier ":OX"
+# expect+4: Unknown modifier ":OX"
+# expect+3: Unknown modifier ":OX"
+# expect+2: Unknown modifier ":OX"
+# expect+1: Unknown modifier ":OX"
 _:=	${:U:OX:U${IND}} ${:U:OX:U${IND}}
 #.MAKEFLAGS: -d0
 
@@ -105,3 +105,23 @@ UNCLOSED:=	${:U:_
 UNCLOSED:=	${:U:gmtime
 # expect+1: Unclosed expression, expecting '}' for modifier "localtime"
 UNCLOSED:=	${:U:localtime
+
+
+# In a stack trace that has both evaluation details and included files, list
+# the current file twice: Once in the first line and once in the call
+# hierarchy. While this is redundant, omitting the current file from the
+# call hierarchy is more confusing, as the '.include' line does not contain
+# the faulty expression.
+#
+# expect: make: varparse-errors.tmp:1: Unknown modifier ":Z"
+# expect:	while evaluating "${:Z}" with value ""
+# expect:	while evaluating variable "INDIRECT" with value "${:Z}"
+# expect:	while evaluating variable "VALUE" with value "${INDIRECT}"
+# expect:	in varparse-errors.tmp:1
+# expect:	in varparse-errors.mk:126
+_!=	echo '.info $${VALUE}' > varparse-errors.tmp
+VALUE=	${INDIRECT}
+INDIRECT=	${:Z}
+# The "${.OBJDIR}/" is necessary to skip the directory cache.
+.include "${.OBJDIR}/varparse-errors.tmp"
+_!=	rm -f varparse-errors.tmp

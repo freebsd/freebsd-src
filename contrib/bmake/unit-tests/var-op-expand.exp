@@ -1,11 +1,11 @@
-make: "var-op-expand.mk" line 274: Unknown modifier "s,value,replaced,"
+make: var-op-expand.mk:274: Unknown modifier ":s,value,replaced,"
 	while evaluating variable "later" with value ""
 	while evaluating variable "indirect" with value "${later:s,value,replaced,} ok ${later:value=sysv}"
-make: "var-op-expand.mk" line 278: warning: XXX Neither branch should be taken.
-make: "var-op-expand.mk" line 283: Unknown modifier "s,value,replaced,"
+make: var-op-expand.mk:278: warning: XXX Neither branch should be taken.
+make: var-op-expand.mk:283: Unknown modifier ":s,value,replaced,"
 	while evaluating variable "later" with value "lowercase-value"
 	while evaluating variable "indirect" with value "${later:s,value,replaced,} ok ${later:value=sysv}"
-make: "var-op-expand.mk" line 285: warning: XXX Neither branch should be taken.
+make: var-op-expand.mk:285: warning: XXX Neither branch should be taken.
 make: Fatal errors encountered -- cannot continue
 make: stopped making "all" in unit-tests
 exit status 1

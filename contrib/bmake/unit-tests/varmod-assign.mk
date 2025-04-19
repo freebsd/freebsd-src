@@ -1,11 +1,11 @@
-# $NetBSD: varmod-assign.mk,v 1.25 2024/08/29 20:20:36 rillig Exp $
+# $NetBSD: varmod-assign.mk,v 1.28 2025/03/30 01:09:41 rillig Exp $
 #
 # Tests for the obscure ::= variable modifiers, which perform variable
 # assignments during evaluation, just like the = operator in C.
 
 .if !make(target)
 
-all:	mod-assign-empty-{1,2,3}
+all:	mod-assign-empty-{1,2,3,4}
 all:	mod-assign-parse-{1,2,3}
 all:	mod-assign-shell-error
 
@@ -74,26 +74,32 @@ SINK4:=	${0:?${THEN4::=then4${IT4::=t4}}:${ELSE4::=else4${IE4::=e4}}} ${THEN4}${
 mod-assign-empty-1:
 	# Assigning to the empty variable would obviously not work since that
 	# variable is write-protected.
-# expect: make: Bad modifier ":"
+# expect: make: Invalid attempt to assign "value" to variable "" via modifier "::="
 	@echo $@: ${::=value}
 
 mod-assign-empty-2:
 	# In this variant, it is not as obvious that the name of the
 	# expression is empty.
-# expect: make: Bad modifier ":"
+# expect: make: Invalid attempt to assign "overwritten" to variable "" via modifier "::="
 	@echo $@: ${:Uvalue::=overwritten}
 
 mod-assign-empty-3:
+	# In this variant, it is not as obvious that the name of the
+	# expression is empty.
+# expect: make: Invalid attempt to assign "appended" to variable "" via modifier "::+="
+	@echo $@: ${:Uvalue::+=appended}
+
+mod-assign-empty-4:
 	# The :L modifier sets the value of the expression to its variable
 	# name.  The name of the expression is "VAR", therefore assigning to
 	# that variable works.
-# expect: mod-assign-empty-3: VAR=overwritten
+# expect: mod-assign-empty-4: VAR=overwritten
 	@echo $@: ${VAR:L::=overwritten} VAR=${VAR}
 
 mod-assign-parse-1:
 	# The modifier for assignment operators starts with a ':'.
 	# An 'x' after that is an invalid modifier.
-# expect: make: Unknown modifier ":x"
+# expect: make: Unknown modifier "::x"
 	@echo ${ASSIGN::x}
 
 mod-assign-parse-2:
@@ -102,7 +108,7 @@ mod-assign-parse-2:
 	@echo ${SYSV::=sysv\:x}${SYSV::x=:y}
 
 mod-assign-parse-3:
-# expect: make: Unfinished modifier ('}' missing)
+# expect: make: Unfinished modifier after "value	# missing closing brace", expecting "}"
 	@echo ${ASSIGN::=value	# missing closing brace
 
 mod-assign-shell-error:

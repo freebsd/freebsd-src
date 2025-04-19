@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.295 2024/07/07 07:50:57 rillig Exp $	*/
+/*	$NetBSD: dir.c,v 1.296 2025/04/11 17:21:31 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -132,7 +132,7 @@
 #include "job.h"
 
 /*	"@(#)dir.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: dir.c,v 1.295 2024/07/07 07:50:57 rillig Exp $");
+MAKE_RCSID("$NetBSD: dir.c,v 1.296 2025/04/11 17:21:31 rillig Exp $");
 
 /*
  * A search path is a list of CachedDir structures. A CachedDir has in it the
@@ -1365,7 +1365,7 @@ ResolveMovedDepends(GNode *gn)
 	gn->path = bmake_strdup(fullName);
 	if (!Job_RunTarget(".STALE", gn->fname))
 		fprintf(stdout,	/* XXX: Why stdout? */
-		    "%s: %s, %u: ignoring stale %s for %s, found %s\n",
+		    "%s: %s:%u: ignoring stale %s for %s, found %s\n",
 		    progname, gn->fname, gn->lineno,
 		    makeDependfile, gn->name, fullName);
 

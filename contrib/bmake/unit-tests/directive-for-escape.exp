@@ -1,49 +1,49 @@
 For: end for 1
 For: loop body with chars = !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~:
 .  info ${:U!"#$%&'()*+,-./0-9\:;<=>?@A-Z[\\]_^a-z{|\}~}
-make: "directive-for-escape.mk" line 21: Unclosed expression, expecting '}' for modifier "U!""
+make: directive-for-escape.mk:21: Unclosed expression, expecting '}' for modifier "U!""
 	while evaluating "${:U!"" with value "!""
 	in .for loop from directive-for-escape.mk:20 with chars = !"#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~
-make: "directive-for-escape.mk" line 21: !"
+make: directive-for-escape.mk:21: !"
 For: end for 1
 For: loop body with chars = !"\\#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~:
 .  info ${:U!"\\\\#$%&'()*+,-./0-9\:;<=>?@A-Z[\\]_^a-z{|\}~}
-make: "directive-for-escape.mk" line 33: Unclosed expression, expecting '}' for modifier "U!"\\\\"
+make: directive-for-escape.mk:33: Unclosed expression, expecting '}' for modifier "U!"\\\\"
 	while evaluating "${:U!"\\\\" with value "!"\\"
 	in .for loop from directive-for-escape.mk:32 with chars = !"\\#$%&'()*+,-./0-9:;<=>?@A-Z[\]_^a-z{|}~
-make: "directive-for-escape.mk" line 33: !"\\
+make: directive-for-escape.mk:33: !"\\
 For: end for 1
 For: loop body with i = $:
 .  info ${:U\$}
-make: "directive-for-escape.mk" line 57: $
+make: directive-for-escape.mk:57: $
 For: loop body with i = ${V}:
 .  info ${:U${V}}
-make: "directive-for-escape.mk" line 57: value
+make: directive-for-escape.mk:57: value
 For: loop body with i = ${V:=-with-modifier}:
 .  info ${:U${V:=-with-modifier}}
-make: "directive-for-escape.mk" line 57: value-with-modifier
+make: directive-for-escape.mk:57: value-with-modifier
 For: loop body with i = $(V):
 .  info ${:U$(V)}
-make: "directive-for-escape.mk" line 57: value
+make: directive-for-escape.mk:57: value
 For: loop body with i = $(V:=-with-modifier):
 .  info ${:U$(V:=-with-modifier)}
-make: "directive-for-escape.mk" line 57: value-with-modifier
+make: directive-for-escape.mk:57: value-with-modifier
 For: end for 1
 For: loop body with i = $:
 .  info ${:U\$}
-make: "directive-for-escape.mk" line 69: $
+make: directive-for-escape.mk:69: $
 For: loop body with i = ${V}:
 .  info ${:U${V}}
-make: "directive-for-escape.mk" line 69: value
+make: directive-for-escape.mk:69: value
 For: loop body with i = ${V:=-with-modifier}:
 .  info ${:U${V:=-with-modifier}}
-make: "directive-for-escape.mk" line 69: value-with-modifier
+make: directive-for-escape.mk:69: value-with-modifier
 For: loop body with i = $(V):
 .  info ${:U$(V)}
-make: "directive-for-escape.mk" line 69: value
+make: directive-for-escape.mk:69: value
 For: loop body with i = $(V:=-with-modifier):
 .  info ${:U$(V:=-with-modifier)}
-make: "directive-for-escape.mk" line 69: value-with-modifier
+make: directive-for-escape.mk:69: value-with-modifier
 For: end for 1
 For: loop body with i = ${UNDEF:U\$\$:
 # ${:U\${UNDEF\:U\\$\\$}
@@ -54,62 +54,62 @@ For: loop body with i = end}:
 For: end for 1
 For: loop body with i = ${UNDEF:U\$\$:
 .  info ${:U\${UNDEF\:U\\$\\$}
-make: "directive-for-escape.mk" line 120: ${UNDEF:U\backslash$
+make: directive-for-escape.mk:120: ${UNDEF:U\backslash$
 For: loop body with i = {{}}:
 .  info ${:U{{\}\}}
-make: "directive-for-escape.mk" line 120: {{}}
+make: directive-for-escape.mk:120: {{}}
 For: loop body with i = end}:
 .  info ${:Uend\}}
-make: "directive-for-escape.mk" line 120: end}
+make: directive-for-escape.mk:120: end}
 For: end for 1
 For: loop body with i = begin<${UNDEF:Ufallback:N{{{}}}}>end:
 .  info ${:Ubegin<${UNDEF:Ufallback:N{{{}}}}>end}
-make: "directive-for-escape.mk" line 138: begin<fallback>end
+make: directive-for-escape.mk:138: begin<fallback>end
 For: end for 1
 For: loop body with i = $:
 .  info ${:U\$}
-make: "directive-for-escape.mk" line 147: $
-make: "directive-for-escape.mk" line 155: invalid character ':' in .for loop variable name
+make: directive-for-escape.mk:147: $
+make: directive-for-escape.mk:155: invalid character ':' in .for loop variable name
 For: end for 1
-make: "directive-for-escape.mk" line 165: invalid character '}' in .for loop variable name
+make: directive-for-escape.mk:165: invalid character '}' in .for loop variable name
 For: end for 1
 For: end for 1
 For: loop body with i = inner:
 .  info ${:Uinner} ${:Uinner} ${:Uinner:M*} $(:Uinner) $(:Uinner:M*)
-make: "directive-for-escape.mk" line 175: inner inner inner inner inner
+make: directive-for-escape.mk:175: inner inner inner inner inner
 For: end for 1
 For: loop body with i = inner:
 .  info ${i${:U}}
-make: "directive-for-escape.mk" line 179: outer
+make: directive-for-escape.mk:179: outer
 For: end for 1
 For: loop body with i = inner:
 .  info ${:Uinner\}}	# XXX: unclear why ForLoop_SubstVarLong needs this
-make: "directive-for-escape.mk" line 183: inner}
+make: directive-for-escape.mk:183: inner}
 For: end for 1
 For: loop body with i = inner:
 .  info ${i2} ${i,} ${:Uinner}${:Uinner}${:Uinner:M*}${:Uinner}
-make: "directive-for-escape.mk" line 187: two comma innerinnerinnerinner
-make: "directive-for-escape.mk" line 196: invalid character '$' in .for loop variable name
+make: directive-for-escape.mk:187: two comma innerinnerinnerinner
+make: directive-for-escape.mk:196: invalid character '$' in .for loop variable name
 For: end for 1
-make: "directive-for-escape.mk" line 208: eight  and no cents.
+make: directive-for-escape.mk:208: eight  and no cents.
 For: end for 1
-make: "directive-for-escape.mk" line 222: newline in .for value
+make: directive-for-escape.mk:222: newline in .for value
 	in .for loop from directive-for-escape.mk:222 with i = "
 "
-make: "directive-for-escape.mk" line 222: newline in .for value
+make: directive-for-escape.mk:222: newline in .for value
 	in .for loop from directive-for-escape.mk:222 with i = "
 "
 For: loop body with i = "
 ":
 .  info short: ${:U" "}, long: ${:U" "}
-make: "directive-for-escape.mk" line 223: short: " ", long: " "
+make: directive-for-escape.mk:223: short: " ", long: " "
 For: end for 1
 For: loop body with i = "
 ":
 Parsing directive-for-escape.mk:236: .for i in "${.newline}"
 For: end for 1
-Parse_PushInput: .for loop in directive-for-escape.mk, line 236
-make: "directive-for-escape.mk" line 236: newline in .for value
+Parse_PushInput: .for loop in directive-for-escape.mk:236
+make: directive-for-escape.mk:236: newline in .for value
 	in .for loop from directive-for-escape.mk:236 with i = "
 "
 For: loop body with i = "
@@ -118,7 +118,7 @@ For: loop body with i = "
 SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `directive-for-escape.mk'
 Parsing directive-for-escape.mk:237: : ${:U" "}
 ParseDependency(: " ")
-ParseEOF: returning to file directive-for-escape.mk, line 239
+ParseEOF: returning to directive-for-escape.mk:239
 SetFilenameVars: ${.PARSEDIR} = <some-dir> ${.PARSEFILE} = `directive-for-escape.mk'
 Parsing directive-for-escape.mk:239: .MAKEFLAGS: -d0
 ParseDependency(.MAKEFLAGS: -d0)

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: init.mk,v 1.39 2024/12/12 19:56:36 sjg Exp $
+# $Id: init.mk,v 1.41 2025/04/18 20:49:54 sjg Exp $
 #
 #	@(#) Copyright (c) 2002-2024, Simon J. Gerraty
 #
@@ -112,6 +112,23 @@ _SKIP_BUILD = not building at level 0
 .WAIT:
 .endif
 
+# allow makefiles to set ONLY_*_LIST and NOT_*_LIST
+# to control _SKIP_BUILD
+SKIP_BUILD_VAR_LIST += TARGET_SPEC ${TARGET_SPEC_VARS:UMACHINE}
+.for v in ${SKIP_BUILD_VAR_LIST}
+.if !empty(ONLY_$v_LIST) && ${ONLY_$v_LIST:Uno:M${$v}} == ""
+_SKIP_BUILD ?= ${$v} not in ONLY_$v_LIST (${ONLY_$v_LIST})
+.if ${MAKE_VERSION} > 20220924
+.break
+.endif
+.elif !empty(NOT_$v_LIST) && ${NOT_$v_LIST:U:M${$v}} != ""
+_SKIP_BUILD ?= ${$v} in NOT_$v_LIST (${NOT_$v_LIST})
+.if ${MAKE_VERSION} > 20220924
+.break
+.endif
+.endif
+.endfor
+
 # define this once for consistency
 .if !defined(_SKIP_BUILD)
 # beforebuild is a hook for things that must be done early
@@ -119,7 +136,7 @@ all: beforebuild .WAIT realbuild
 .else
 all: .PHONY
 .if !empty(_SKIP_BUILD) && ${.MAKEFLAGS:M-V} == ""
-.warning ${_SKIP_BUILD}
+.warning Skipping ${RELDIR} ${_SKIP_BUILD}
 .endif
 .endif
 beforebuild:

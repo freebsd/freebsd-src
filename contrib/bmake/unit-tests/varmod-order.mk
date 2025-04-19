@@ -1,4 +1,4 @@
-# $NetBSD: varmod-order.mk,v 1.18 2025/01/11 20:54:46 rillig Exp $
+# $NetBSD: varmod-order.mk,v 1.19 2025/03/29 23:50:07 rillig Exp $
 #
 # Tests for the :O variable modifier and its variants, which either sort the
 # words of the value or shuffle them.
@@ -10,10 +10,10 @@ NUMBERS=	8 5 4 9 1 7 6 10 3 2	# in English alphabetical order
 .  error ${WORDS:O}
 .endif
 
-# expect+1: Bad modifier ":OX"
+# expect+1: Unknown modifier ":OX"
 _:=	${WORDS:OX}
 
-# expect+1: Bad modifier ":OxXX"
+# expect+1: Unknown modifier ":OxXX"
 _:=	${WORDS:OxXX}
 
 # expect+1: Unclosed expression, expecting '}' for modifier "O"
@@ -26,7 +26,7 @@ _:=	${NUMBERS:Onr
 # Shuffling numerically doesn't make sense, so don't allow 'x' and 'n' to be
 # combined.
 #
-# expect+1: Bad modifier ":Oxn"
+# expect+1: Unknown modifier ":Oxn"
 .if ${NUMBERS:Oxn}
 .  error
 .else
@@ -35,7 +35,7 @@ _:=	${NUMBERS:Onr
 
 # Extra characters after ':On' are detected and diagnosed.
 #
-# expect+1: Bad modifier ":On_typo"
+# expect+1: Unknown modifier ":On_typo"
 .if ${NUMBERS:On_typo}
 .  error
 .else
@@ -44,7 +44,7 @@ _:=	${NUMBERS:Onr
 
 # Extra characters after ':Onr' are detected and diagnosed.
 #
-# expect+1: Bad modifier ":Onr_typo"
+# expect+1: Unknown modifier ":Onr_typo"
 .if ${NUMBERS:Onr_typo}
 .  error
 .else
@@ -53,7 +53,7 @@ _:=	${NUMBERS:Onr
 
 # Extra characters after ':Orn' are detected and diagnosed.
 #
-# expect+1: Bad modifier ":Orn_typo"
+# expect+1: Unknown modifier ":Orn_typo"
 .if ${NUMBERS:Orn_typo}
 .  error
 .else
@@ -64,7 +64,7 @@ _:=	${NUMBERS:Onr
 # criteria are fixed, not computed, therefore allowing this redundancy does
 # not make sense.
 #
-# expect+1: Bad modifier ":Onn"
+# expect+1: Unknown modifier ":Onn"
 .if ${NUMBERS:Onn}
 .  error
 .else
@@ -73,7 +73,7 @@ _:=	${NUMBERS:Onr
 
 # Repeating the 'r' is not supported as well, for the same reasons as above.
 #
-# expect+1: Bad modifier ":Onrr"
+# expect+1: Unknown modifier ":Onrr"
 .if ${NUMBERS:Onrr}
 .  error
 .else
@@ -82,7 +82,7 @@ _:=	${NUMBERS:Onr
 
 # Repeating the 'r' is not supported as well, for the same reasons as above.
 #
-# expect+1: Bad modifier ":Orrn"
+# expect+1: Unknown modifier ":Orrn"
 .if ${NUMBERS:Orrn}
 .  error
 .else
@@ -91,15 +91,9 @@ _:=	${NUMBERS:Onr
 
 
 # If a modifier that starts with ':O' is not one of the known sort or shuffle
-# forms, it is a parse error.  Several other modifiers such as ':H' or ':u'
-# fall back to the SysV modifier, for example, ':H=new' is not the standard
-# ':H' modifier but instead replaces a trailing 'H' with 'new' in each word.
-# There is no such fallback for the ':O' modifiers.
+# forms, fall back to the SysV modifier.
 SWITCH=	On
-# expect+1: Bad modifier ":On=Off"
 .if ${SWITCH:On=Off} != "Off"
-.  error
-.else
 .  error
 .endif
 

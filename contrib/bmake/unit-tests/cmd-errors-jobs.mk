@@ -1,4 +1,4 @@
-# $NetBSD: cmd-errors-jobs.mk,v 1.13 2024/08/29 20:20:35 rillig Exp $
+# $NetBSD: cmd-errors-jobs.mk,v 1.15 2025/03/29 19:08:52 rillig Exp $
 #
 # Demonstrate how errors in expressions affect whether the commands
 # are actually executed in jobs mode.
@@ -47,14 +47,15 @@ parse-error-unclosed-modifier:
 parse-error-unknown-modifier:
 	: unexpected $@-${UNKNOWN:Z}-eol
 
-# expect-not: : unexpected
+# expect-not-matches: ^: unexpected
 # expect: make: Unclosed variable "UNCLOSED"
+# expect: in command ": unexpected $@-${UNCLOSED"
 # expect: make: Unclosed expression, expecting '}'
-# expect: make: Unknown modifier "Z"
+# expect: make: Unknown modifier ":Z"
 # expect: end parse-error-direct with status 2
 # expect: make: Unclosed variable "UNCLOSED"
 # expect: make: Unclosed expression, expecting '}'
-# expect: make: Unknown modifier "Z"
+# expect: make: Unknown modifier ":Z"
 # expect: end parse-error-indirect with status 2
 
 

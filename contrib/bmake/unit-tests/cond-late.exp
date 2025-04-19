@@ -1,4 +1,4 @@
-make: "cond-late.mk" line 38: Bad condition
+make: cond-late.mk:38: Bad condition
 	while evaluating condition " != "no""
 	while evaluating variable "VAR" with value "${${UNDEF} != "no":?:}"
 	in directory <curdir>
