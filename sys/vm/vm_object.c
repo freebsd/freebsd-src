@@ -1065,11 +1065,10 @@ rescan:
 			continue;
 		}
 		if (!vm_page_busy_acquire(p, VM_ALLOC_WAITFAIL)) {
+			pctrie_iter_reset(&pages);
 			if (object->generation != curgeneration &&
-			    (flags & OBJPC_SYNC) != 0) {
-				pctrie_iter_reset(&pages);
+			    (flags & OBJPC_SYNC) != 0)
 				goto rescan;
-			}
 			np = vm_radix_iter_lookup_ge(&pages, pi);
 			continue;
 		}
