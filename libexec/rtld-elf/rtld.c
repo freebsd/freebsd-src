@@ -3824,27 +3824,25 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 			if ((lo_flags & (RTLD_LO_EARLY | RTLD_LO_IGNSTLS)) ==
 				0 &&
 			    obj->static_tls && !allocate_tls_offset(obj)) {
-				_rtld_error("%s: No space available "
-					    "for static Thread Local Storage",
+				_rtld_error(
+		    "%s: No space available for static Thread Local Storage",
 				    obj->path);
 				result = -1;
 			}
 			if (result != -1)
 				result = load_needed_objects(obj,
-				    lo_flags &
-					(RTLD_LO_DLOPEN | RTLD_LO_EARLY |
-					    RTLD_LO_IGNSTLS | RTLD_LO_TRACE));
+				    lo_flags & (RTLD_LO_DLOPEN | RTLD_LO_EARLY |
+				    RTLD_LO_IGNSTLS | RTLD_LO_TRACE));
 			init_dag(obj);
 			ref_dag(obj);
 			if (result != -1)
 				result = rtld_verify_versions(&obj->dagmembers);
 			if (result != -1 && ld_tracing)
 				goto trace;
-			if (result == -1 ||
-			    relocate_object_dag(obj,
-				(mode & RTLD_MODEMASK) == RTLD_NOW, &obj_rtld,
-				(lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
-				lockstate) == -1) {
+			if (result == -1 || relocate_object_dag(obj,
+			    (mode & RTLD_MODEMASK) == RTLD_NOW, &obj_rtld,
+			    (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
+			    lockstate) == -1) {
 				dlopen_cleanup(obj, lockstate);
 				obj = NULL;
 			} else if (lo_flags & RTLD_LO_EARLY) {
