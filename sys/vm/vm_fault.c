@@ -108,7 +108,6 @@
 #include <vm/vm_radix.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_reserv.h>
-#include <vm/vm_radix.h>
 
 #define PFBAK 4
 #define PFFOR 4
