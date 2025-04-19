@@ -137,3 +137,6 @@ setenv CLICOLOR 1
 
 # other autolist options
 set		autolist = TAB
+
+# Case insensitive search in pager and man
+setenv PAGER less -I
