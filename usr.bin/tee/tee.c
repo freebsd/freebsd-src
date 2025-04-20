@@ -57,11 +57,9 @@ static void usage(void) __dead2;
 int
 main(int argc, char *argv[])
 {
+	char *bp, *buf;
 	struct entry *p;
-	int n, fd, rval, wval;
-	char *bp;
-	int append, ch, exitval;
-	char *buf;
+	int append, ch, exitval, fd, n, oflags, rval, wval;
 #define	BSIZE (8 * 1024)
 
 	append = 0;
@@ -88,13 +86,20 @@ main(int argc, char *argv[])
 
 	add(STDOUT_FILENO, "stdout");
 
-	for (exitval = 0; *argv; ++argv)
-		if ((fd = open(*argv, append ? O_WRONLY|O_CREAT|O_APPEND :
-		    O_WRONLY|O_CREAT|O_TRUNC, DEFFILEMODE)) < 0) {
+	oflags = O_WRONLY | O_CREAT;
+	if (append)
+		oflags |= O_APPEND;
+	else
+		oflags |= O_TRUNC;
+
+	for (exitval = 0; *argv; ++argv) {
+		if ((fd = open(*argv, oflags, DEFFILEMODE)) < 0) {
 			warn("%s", *argv);
 			exitval = 1;
-		} else
+		} else {
 			add(fd, *argv);
+		}
+	}
 
 	if (caph_enter() < 0)
 		err(EXIT_FAILURE, "unable to enter capability mode");
