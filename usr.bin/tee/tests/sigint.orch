@@ -1,0 +1,14 @@
+-- We expect the caller to have spawned the appropriate application
+write "text\r"
+match "text"
+
+write "^C"
+
+-- If SIGINT isn't being ignored, we'll bail out somewhere in the process of
+-- writing to the pty or trying to read from it to perform the following match.
+write "text\r"
+match "text"
+
+-- Finally, just close it out cleanly.
+write "^D"
+eof()
