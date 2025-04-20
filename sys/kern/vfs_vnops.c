@@ -223,6 +223,25 @@ open2nameif(int fmode, u_int vn_open_flags)
 }
 
 /*
+ * For the O_NAMEDATTR case, check for a valid use of it.
+ */
+static int
+vfs_check_namedattr(struct vnode *vp)
+{
+	int error;
+	short irflag;
+
+	error = 0;
+	irflag = vn_irflag_read(vp);
+	if ((vp->v_mount->mnt_flag & MNT_NAMEDATTR) == 0 ||
+	    ((irflag & VIRF_NAMEDATTR) != 0 && vp->v_type != VREG))
+		error = EINVAL;
+	else if ((irflag & (VIRF_NAMEDDIR | VIRF_NAMEDATTR)) == 0)
+		error = ENOATTR;
+	return (error);
+}
+
+/*
  * Common code for vnode open operations via a name lookup.
  * Lookup the vnode and invoke VOP_CREATE if needed.
  * Check permissions, and call the VOP_OPEN or VOP_CREATE routine.
@@ -334,17 +353,7 @@ restart:
 				goto bad;
 			}
 			if ((fmode & O_NAMEDATTR) != 0) {
-				short irflag;
-
-				irflag = vn_irflag_read(vp);
-				if ((vp->v_mount->mnt_flag &
-				     MNT_NAMEDATTR) == 0 ||
-				    ((irflag & VIRF_NAMEDATTR) != 0 &&
-				    vp->v_type != VREG))
-					error = EINVAL;
-				else if ((irflag & (VIRF_NAMEDDIR |
-				    VIRF_NAMEDATTR)) == 0)
-					error = ENOATTR;
+				error = vfs_check_namedattr(vp);
 				if (error != 0)
 					goto bad;
 			} else if (vp->v_type == VDIR) {
@@ -363,10 +372,10 @@ restart:
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		vp = ndp->ni_vp;
-		if ((fmode & O_NAMEDATTR) != 0 && (vp->v_mount->mnt_flag &
-		     MNT_NAMEDATTR) == 0) {
-			error = EINVAL;
-			goto bad;
+		if ((fmode & O_NAMEDATTR) != 0) {
+			error = vfs_check_namedattr(vp);
+			if (error != 0)
+				goto bad;
 		}
 	}
 	error = vn_open_vnode(vp, fmode, cred, curthread, fp);
