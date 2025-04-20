@@ -593,7 +593,14 @@ uether_rxmbuf(struct usb_ether *ue, struct mbuf *m,
 	/* finalize mbuf */
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	m->m_pkthdr.rcvif = ifp;
-	m->m_pkthdr.len = m->m_len = len;
+	if (len != 0) {
+		/*
+		 * This is going to get it wrong for an mbuf chain, so let's
+		 * make sure we're not doing that.
+		 */
+		MPASS(m->m_next == NULL);
+		m->m_pkthdr.len = m->m_len = len;
+	}
 
 	/* enqueue for later when the lock can be released */
 	(void)mbufq_enqueue(&ue->ue_rxq, m);
