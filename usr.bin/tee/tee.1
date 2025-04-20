@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 30, 2022
+.Dd December 25, 2024
 .Dt TEE 1
 .Os
 .Sh NAME
@@ -69,6 +69,12 @@ utility takes the default action for all signals,
 except in the event of the
 .Fl i
 option.
+.Pp
+This implementation of the
+.Nm
+utility may also write to
+.Xr unix 4
+sockets.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
