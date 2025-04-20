@@ -4217,6 +4217,7 @@ prison_priv_check(struct ucred *cred, int priv)
 		 * Conditionally allow privileged process in the jail set
 		 * machine time.
 		 */
+	case PRIV_SETTIMEOFDAY:
 	case PRIV_CLOCK_SETTIME:
 		if (cred->cr_prison->pr_allow & PR_ALLOW_SETTIME)
 			return (0);
