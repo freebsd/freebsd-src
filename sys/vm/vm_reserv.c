@@ -510,12 +510,13 @@ vm_reserv_from_page(vm_page_t m)
  * successor pointer.
  */
 static vm_reserv_t
-vm_reserv_from_object(vm_object_t object, vm_pindex_t pindex,
-    vm_page_t mpred, vm_page_t *msuccp)
+vm_reserv_from_object(vm_object_t object, struct pctrie_iter *pages,
+    vm_pindex_t pindex, vm_page_t *mpredp, vm_page_t *msuccp)
 {
 	vm_reserv_t rv;
-	vm_page_t msucc;
+	vm_page_t mpred, msucc;
 
+	mpred = vm_radix_iter_lookup_lt(pages, pindex);
 	if (mpred != NULL) {
 		KASSERT(mpred->object == object,
 		    ("vm_reserv_from_object: object doesn't contain mpred"));
@@ -524,9 +525,9 @@ vm_reserv_from_object(vm_object_t object, vm_pindex_t pindex,
 		rv = vm_reserv_from_page(mpred);
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			return (rv);
-		msucc = TAILQ_NEXT(mpred, listq);
-	} else
-		msucc = TAILQ_FIRST(&object->memq);
+	}
+
+	msucc = vm_radix_iter_lookup_ge(pages, pindex);
 	if (msucc != NULL) {
 		KASSERT(msucc->pindex > pindex,
 		    ("vm_reserv_from_object: msucc doesn't succeed pindex"));
@@ -534,6 +535,7 @@ vm_reserv_from_object(vm_object_t object, vm_pindex_t pindex,
 		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
 			return (rv);
 	}
+	*mpredp = mpred;
 	*msuccp = msucc;
 	return (NULL);
 }
@@ -683,13 +685,13 @@ vm_reserv_populate(vm_reserv_t rv, int index)
  * The object must be locked.
  */
 vm_page_t
-vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
-    int req, vm_page_t mpred, u_long npages, vm_paddr_t low, vm_paddr_t high,
-    u_long alignment, vm_paddr_t boundary)
+vm_reserv_alloc_contig(vm_object_t object, struct pctrie_iter *pages,
+    vm_pindex_t pindex, int domain, int req, u_long npages, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
 {
 	struct vm_domain *vmd;
 	vm_paddr_t pa, size;
-	vm_page_t m, m_ret, msucc;
+	vm_page_t m, m_ret, mpred, msucc;
 	vm_pindex_t first;
 	vm_reserv_t rv;
 	u_long allocpages;
@@ -723,7 +725,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
 	/*
 	 * Look for an existing reservation.
 	 */
-	rv = vm_reserv_from_object(object, pindex, mpred, &msucc);
+	rv = vm_reserv_from_object(object, pages, pindex, &mpred, &msucc);
 	if (rv != NULL) {
 		KASSERT(object != kernel_object || rv->domain == domain,
 		    ("vm_reserv_alloc_contig: domain mismatch"));
@@ -830,11 +832,11 @@ out:
  * The object must be locked.
  */
 vm_page_t
-vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
-    int req, vm_page_t mpred)
+vm_reserv_alloc_page(vm_object_t object, struct pctrie_iter *pages,
+    vm_pindex_t pindex, int domain, int req)
 {
 	struct vm_domain *vmd;
-	vm_page_t m, msucc;
+	vm_page_t m, mpred, msucc;
 	vm_pindex_t first;
 	vm_reserv_t rv;
 	int index;
@@ -851,7 +853,7 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
 	/*
 	 * Look for an existing reservation.
 	 */
-	rv = vm_reserv_from_object(object, pindex, mpred, &msucc);
+	rv = vm_reserv_from_object(object, pages, pindex, &mpred, &msucc);
 	if (rv != NULL) {
 		KASSERT(object != kernel_object || rv->domain == domain,
 		    ("vm_reserv_alloc_page: domain mismatch"));
