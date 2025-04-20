@@ -455,17 +455,10 @@ main(int argc, char *argv[])
 	}
 #endif
 
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
 	live = (nlistf == NULL && memf == NULL);
-	if (!live) {
-		if (setgid(getgid()) != 0)
-			xo_err(EX_OSERR, "setgid");
-		/* Load all necessary kvm symbols */
+	/* Load all necessary kvm symbols */
+	if (!live)
 		kresolve_list(nl);
-	}
 
 	if (xflag && Tflag)
 		xo_errx(EX_USAGE, "-x and -T are incompatible, pick one.");
@@ -739,9 +732,6 @@ kvmd_init(void)
 		return (0);
 
 	kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
-	if (setgid(getgid()) != 0)
-		xo_err(EX_OSERR, "setgid");
-
 	if (kvmd == NULL) {
 		xo_warnx("kvm not available: %s", errbuf);
 		return (-1);
