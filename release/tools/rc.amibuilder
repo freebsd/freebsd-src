@@ -1,0 +1,74 @@
+#!/bin/sh
+#
+# Copyright (c) 2025 Colin Percival
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# rc.amibuilder: Juggle disks to reroot into a memory disk and install a clean
+# copy of FreeBSD onto the root disk.
+#
+
+# Do nothing if init(8) is in the middle of rerooting
+if ps -p 1 -o command | grep -q reroot; then
+	exit 0
+fi
+
+# Figure out which partition we boot from
+BOOTPART=$(sysctl -n kern.geom.conftxt |
+    grep -E 'PART|gpt/rootfs' |
+    grep -B 1 gpt/rootfs |
+    awk '{ print $3 }' |
+    head -1)
+BOOTDISK=${BOOTPART%%p*}
+BOOTPARTNUM=${BOOTPART##*p}
+
+# First pass: Copy ourselves into a memory disk and reroot into it
+if ! [ -c /dev/md0 ]; then
+	# Create a memory disk of appropriate size and copy the disk
+	echo "Copying FreeBSD into memory disk..."
+	DISKBYTES=$(diskinfo ${BOOTDISK} | awk '{print $3}')
+	mdconfig -a -t swap -s ${DISKBYTES}b -u 0
+	dd if=/dev/${BOOTDISK} of=/dev/md0 bs=1M
+
+	# Reboot into the memory disk we just created
+	echo "Rebooting into memory disk..."
+	kenv vfs.root.mountfrom="ufs:/dev/md0p${BOOTPARTNUM}"
+	reboot -r
+
+	# Lose a race against init
+	sleep 10
+	exit 1
+fi
+
+# Second pass: Extract a clean copy of FreeBSD onto the physical disk
+echo "Installing base FreeBSD image..."
+sysctl kern.geom.debugflags=16
+zstdcat < /image.zst | dd bs=1M of=/dev/${BOOTDISK}
+
+# Mount the clean image
+if gpart show ${BOOTDISK} | grep -q freebsd-ufs; then
+	mount /dev/${BOOTPART} /mnt
+else
+	zpool import -aNR /mnt
+	zfs mount zroot/ROOT/default
+	zfs mount -a
+fi
+
+# Provide instructions for when the user logs in
+mount -w /
+cat >/etc/motd.template <<EOF
+Welcome to the FreeBSD AMI builder!
+
+FreeBSD `uname -r` is now installed onto the disk /dev/${BOOTDISK},
+and mounted at /mnt. Make any further changes you wish, then run
+
+# mkami <AMI name> [<AMI description>]
+
+to create the AMI. Don't forget to shut down this instance when
+you're done!
+
+EOF
+mount -o ro /
+
+# After we exit, the boot proceeds with init spawning /etc/rc normally
+exit 0

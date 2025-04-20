@@ -42,8 +42,9 @@ BASIC-CLOUDINIT_FSLIST?=	ufs zfs
 BASIC-CLOUDINIT_DESC?=	Images for VM with cloudinit disk config support
 EC2_FORMAT=	raw
 EC2_FSLIST?=	ufs zfs
-EC2_FLAVOURS?=	BASE CLOUD-INIT SMALL
+EC2_FLAVOURS?=	BASE BUILDER CLOUD-INIT SMALL
 EC2-BASE_DESC=	Amazon EC2 image
+EC2-BUILDER_DESC=	Amazon EC2 AMI Builder image
 EC2-CLOUD-INIT_DESC=	Amazon EC2 Cloud-Init image
 EC2-SMALL_DESC=	Amazon EC2 small image
 GCE_FORMAT=	raw
@@ -124,14 +125,22 @@ CLEANFILES+=	${_CW:tl}.${_FS}.${_FMT}.img \
 		${_CW:tl}.${_FS}.${_FMT}.raw
 ${_CW:tu}${_FS:tu}${_FMT:tu}IMAGE=	${_CW:tl}.${_FS}.${_FMT}
 
+# Special handling: EC2 "AMI Builder" images need a copy of the "base" disk
+# built first.
+.if ${_CW} == EC2-BUILDER
+cw-${_CW:tl}-${_FS}-${_FMT}: cw-ec2-base-${_FS}-${_FMT}
+.endif
+
 cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT}
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
+		EC2BASEIMG=${.OBJDIR}/${EC2-BASE${_FS:tu}${_FMT:tu}IMAGE} \
 		${WITHOUT_QEMU:DWITHOUT_QEMU=true} \
 		${NO_ROOT:DNO_ROOT=true} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
-		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${_FS} \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
+		-F ${"${_CW:MEC2-BUILDER}" != "":?ufs:${_FS}} \
 		-i ${.OBJDIR}/${_CW:tl}.${_FS}.${_FMT}.img -s ${VMSIZE} -f ${_FMT} \
 		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW:tu}${_FS:tu}${_FMT:tu}IMAGE} -c ${${_CW:tu}CONF}
 	touch ${.TARGET}
