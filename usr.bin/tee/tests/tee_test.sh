@@ -64,6 +64,37 @@ sigint_ignored_body()
 	atf_check -o inline:"text\ntext\n" cat file
 }
 
+atf_test_case unixsock "cleanup"
+unixsock_pidfile="nc.pid"
+
+unixsock_body()
+{
+	outfile=out.log
+
+	nc -lU logger.sock > "$outfile" &
+	npid=$!
+
+	atf_check -o save:"$unixsock_pidfile" echo "$npid"
+
+	# Wait for the socket to come online, just in case.
+	while [ ! -S logger.sock ]; do
+		sleep 0.1
+	done
+
+	atf_check -o inline:"text over socket\n" -x \
+	    'echo "text over socket" | tee logger.sock'
+
+	atf_check rm "$unixsock_pidfile"
+	atf_check -o inline:"text over socket\n" cat "$outfile"
+}
+unixsock_cleanup()
+{
+	if [ -s "$unixsock_pidfile" ]; then
+		read npid < "$unixsock_pidfile"
+		kill "$npid"
+	fi
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case single_file
@@ -71,4 +102,5 @@ atf_init_test_cases()
 	atf_add_test_case multiple_file
 	atf_add_test_case append
 	atf_add_test_case sigint_ignored
+	atf_add_test_case unixsock
 }
