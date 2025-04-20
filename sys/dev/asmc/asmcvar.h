@@ -564,6 +564,68 @@ struct asmc_softc {
 				  "Power Supply Temperature", \
 				  "Wireless Module Proximity Temperature", }
 
+#define ASMC_MM61_TEMPS		{ "TA0P", "TA1P", \
+				  "TC0D", "TC0G", "TC0P", "TCPG", \
+				  "TI0P", \
+				  "TM0S", "TMBS", "TM0P", \
+				  "TP0P", "TPCD", \
+				  "Tp0C", \
+				  "TW0P", NULL }
+
+#define ASMC_MM61_TEMPNAMES	{ "ambient_air_proximity", "ambient_cpu_pch_wireless_dimm", \
+				  "cpu_die", "TC0G", "cpu_proximity", "TCPG", \
+				  "thunderbolt_proximity", \
+				  "memory_slot1", "memory_slot2", "memory_proximity", \
+				  "pch_controller_proximity", "pch_controller_die", \
+				  "pwr_supply", \
+				  "wireless_proximity", NULL }
+
+#define ASMC_MM61_TEMPDESCS	{ "Ambient Air Proximity Temperature", \
+				  "Combo Ambient CPU PCH Wireless DIMM Temperature", \
+				  "CPU Die Temperature", \
+				  NULL, \
+				  "CPU Proximity Temperature", \
+				  NULL, \
+				  "Thunderbolt Proximity Temperature", \
+				  "Memory Slot 1 Temperature", \
+				  "Memory Slot 2 Temperature", \
+				  "Memory Slots Proximity Temperature", \
+				  "Platform Controller Hub Proximity Temperature", \
+				  "Platform Controller Hub Die Temperature", \
+				  "Power Supply Temperature", \
+				  "Wireless Module Proximity Temperature", NULL }
+
+#define ASMC_MM62_TEMPS		{ "TA0P", "TA1P", \
+				  "TC0D", "TC0G", "TC0P", "TCPG", \
+				  "TI0P", \
+				  "TM0S", "TMBS", "TM0P", \
+				  "TP0P", "TPCD", \
+				  "Tp0C", \
+				  "TW0P", NULL }
+
+#define ASMC_MM62_TEMPNAMES	{ "ambient_air_proximity", "ambient_cpu_pch_wireless_dimm", \
+				  "cpu_die", "TC0G", "cpu_proximity", "TCPG", \
+				  "thunderbolt_proximity", \
+				  "memory_slot1", "memory_slot2", "memory_proximity", \
+				  "pch_controller_proximity", "pch_controller_die", \
+				  "pwr_supply", \
+				  "wireless_proximity", NULL }
+
+#define ASMC_MM62_TEMPDESCS	{ "Ambient Air Proximity Temperature", \
+				  "Combo Ambient CPU PCH Wireless DIMM Temperature", \
+				  "CPU Die Temperature", \
+				  NULL, \
+				  "CPU Proximity Temperature", \
+				  NULL, \
+				  "Thunderbolt Proximity Temperature", \
+				  "Memory Slot 1 Temperature", \
+				  "Memory Slot 2 Temperature", \
+				  "Memory Slots Proximity Temperature", \
+				  "Platform Controller Hub Proximity Temperature", \
+				  "Platform Controller Hub Die Temperature", \
+				  "Power Supply Temperature", \
+				  "Wireless Module Proximity Temperature", NULL }
+
 #define ASMC_MM71_TEMPS		{ "TA0p", "TA1p", \
 				  "TA2p", "TC0c", \
 				  "TC0p", "TC1c", \
