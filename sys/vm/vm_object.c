@@ -1332,6 +1332,7 @@ void
 vm_object_madvise(vm_object_t object, vm_pindex_t pindex, vm_pindex_t end,
     int advice)
 {
+	struct pctrie_iter pages;
 	vm_pindex_t tpindex;
 	vm_object_t backing_object, tobject;
 	vm_page_t m, tm;
@@ -1339,13 +1340,15 @@ vm_object_madvise(vm_object_t object, vm_pindex_t pindex, vm_pindex_t end,
 	if (object == NULL)
 		return;
 
+	vm_page_iter_init(&pages, object);
 relookup:
 	VM_OBJECT_WLOCK(object);
 	if (!vm_object_advice_applies(object, advice)) {
 		VM_OBJECT_WUNLOCK(object);
 		return;
 	}
-	for (m = vm_page_find_least(object, pindex); pindex < end; pindex++) {
+	for (m = vm_radix_iter_lookup_ge(&pages, pindex); pindex < end;
+	    pindex++) {
 		tobject = object;
 
 		/*
@@ -1394,7 +1397,7 @@ relookup:
 		} else {
 next_page:
 			tm = m;
-			m = TAILQ_NEXT(m, listq);
+			m = vm_radix_iter_step(&pages);
 		}
 
 		/*
@@ -1420,6 +1423,7 @@ next_page:
 			}
 			if (!vm_page_busy_sleep(tm, "madvpo", 0))
 				VM_OBJECT_WUNLOCK(tobject);
+			pctrie_iter_reset(&pages);
   			goto relookup;
 		}
 		vm_page_advise(tm, advice);
