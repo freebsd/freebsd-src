@@ -285,18 +285,13 @@ restart:
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		if (ndp->ni_vp == NULL) {
-			if ((fmode & O_NAMEDATTR) != 0) {
-				if ((ndp->ni_dvp->v_mount->mnt_flag &
-				     MNT_NAMEDATTR) == 0)
-					error = EINVAL;
-				else if ((vn_irflag_read(ndp->ni_dvp) &
-				     VIRF_NAMEDDIR) == 0)
-					error = ENOENT;
-				if (error != 0) {
-					vp = ndp->ni_dvp;
-					ndp->ni_dvp = NULL;
-					goto bad;
-				}
+			if ((fmode & O_NAMEDATTR) != 0 &&
+			    (ndp->ni_dvp->v_mount->mnt_flag & MNT_NAMEDATTR) ==
+			    0) {
+				error = EINVAL;
+				vp = ndp->ni_dvp;
+				ndp->ni_dvp = NULL;
+				goto bad;
 			}
 			VATTR_NULL(vap);
 			vap->va_type = VREG;
