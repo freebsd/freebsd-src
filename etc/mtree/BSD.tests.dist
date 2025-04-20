@@ -1207,6 +1207,8 @@
         ..
         tar
         ..
+        tee
+        ..
         tftp
         ..
         touch
