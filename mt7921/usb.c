@@ -21,6 +21,9 @@ static const struct usb_device_id mt7921u_device_table[] = {
 	/* Netgear, Inc. [A8000,AXE3000] */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x0846, 0x9060, 0xff, 0xff, 0xff),
 		.driver_info = (kernel_ulong_t)MT7921_FIRMWARE_WM },
+	/* TP-Link TXE50UH */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x35bc, 0x0107, 0xff, 0xff, 0xff),
+		.driver_info = (kernel_ulong_t)MT7921_FIRMWARE_WM },
 	{ },
 };
 
@@ -43,7 +46,7 @@ mt7921u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	else
 		ep = MT_EP_OUT_AC_BE;
 
-	mt7921_skb_add_usb_sdio_hdr(dev, skb, 0);
+	mt792x_skb_add_usb_sdio_hdr(dev, skb, 0);
 	pad = round_up(skb->len, 4) + 4 - skb->len;
 	__skb_put_zero(skb, pad);
 
@@ -135,14 +138,6 @@ out:
 	return err;
 }
 
-static void mt7921u_stop(struct ieee80211_hw *hw)
-{
-	struct mt792x_dev *dev = mt792x_hw_dev(hw);
-
-	mt76u_stop_tx(&dev->mt76);
-	mt7921_stop(hw);
-}
-
 static int mt7921u_probe(struct usb_interface *usb_intf,
 			 const struct usb_device_id *id)
 {
@@ -159,9 +154,10 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 		.rx_skb = mt7921_queue_rx_skb,
 		.rx_check = mt7921_rx_check,
 		.sta_add = mt7921_mac_sta_add,
-		.sta_assoc = mt7921_mac_sta_assoc,
+		.sta_event = mt7921_mac_sta_event,
 		.sta_remove = mt7921_mac_sta_remove,
 		.update_survey = mt792x_update_channel,
+		.set_channel = mt7921_set_channel,
 	};
 	static const struct mt792x_hif_ops hif_ops = {
 		.mcu_init = mt7921u_mcu_init,
@@ -189,7 +185,7 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 	if (!ops)
 		return -ENOMEM;
 
-	ops->stop = mt7921u_stop;
+	ops->stop = mt792xu_stop;
 	mdev = mt76_alloc_device(&usb_intf->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)
 		return -ENOMEM;
@@ -264,7 +260,7 @@ static int mt7921u_suspend(struct usb_interface *intf, pm_message_t state)
 	pm->suspended = true;
 	flush_work(&dev->reset_work);
 
-	err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, true);
+	err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, true, true);
 	if (err)
 		goto failed;
 
@@ -314,7 +310,7 @@ static int mt7921u_resume(struct usb_interface *intf)
 	if (err < 0)
 		goto failed;
 
-	err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, false);
+	err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, false, true);
 failed:
 	pm->suspended = false;
 
@@ -344,5 +340,6 @@ static struct usb_driver mt7921u_driver = {
 };
 module_usb_driver(mt7921u_driver);
 
+MODULE_DESCRIPTION("MediaTek MT7921U (USB) wireless driver");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 MODULE_LICENSE("Dual BSD/GPL");
