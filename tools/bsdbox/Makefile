@@ -94,7 +94,7 @@ CRUNCH_LIBS+= -lm
 
 .include "Makefile.base"
 .include "Makefile.net"
-#.include "Makefile.hostapd"
+.include "Makefile.hostapd"
 #.include "Makefile.textproc"
 .include "Makefile.login"
 .include "Makefile.kld"
