@@ -6328,19 +6328,8 @@ pf_translate(struct pf_pdesc *pd, struct pf_addr *saddr, u_int16_t sport,
 
 	switch (pd->proto) {
 	case IPPROTO_TCP:
-		if (afto || *pd->sport != sport) {
-			pf_change_ap(pd, pd->src, pd->sport,
-			    saddr, sport);
-			rewrite = 1;
-		}
-		if (afto || *pd->dport != dport) {
-			pf_change_ap(pd, pd->dst, pd->dport,
-			    daddr, dport);
-			rewrite = 1;
-		}
-		break;
-
 	case IPPROTO_UDP:
+	case IPPROTO_SCTP:
 		if (afto || *pd->sport != sport) {
 			pf_change_ap(pd, pd->src, pd->sport,
 			    saddr, sport);
@@ -6352,20 +6341,6 @@ pf_translate(struct pf_pdesc *pd, struct pf_addr *saddr, u_int16_t sport,
 			rewrite = 1;
 		}
 		break;
-
-	case IPPROTO_SCTP: {
-		if (afto || *pd->sport != sport) {
-			pf_change_ap(pd, pd->src, pd->sport,
-			    saddr, sport);
-			rewrite = 1;
-		}
-		if (afto || *pd->dport != dport) {
-			pf_change_ap(pd, pd->dst, pd->dport,
-			    daddr, dport);
-			rewrite = 1;
-		}
-		break;
-	}
 
 #ifdef INET
 	case IPPROTO_ICMP:
