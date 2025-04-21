@@ -25,7 +25,7 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 19, 2020
+.Dd April 1, 2025
 .Dt TESTS 7
 .Os
 .Sh NAME
@@ -157,7 +157,7 @@ The following configuration variables are available in the
 .Fx
 Test Suite:
 .Bl -tag -width "allow_sysctl_side_effects"
-.It allow_devfs_side_effects
+.It Va allow_devfs_side_effects
 If defined, enables tests that may destroy and recreate semipermanent device
 nodes, like disk devices.
 Without this variable, tests may still create and destroy devices nodes that
@@ -166,19 +166,19 @@ them up afterwards.
 However, tests that require this variable have a relaxed cleanup requirement;
 they must recreate any devices that they destroyed, but not necessarily with
 the same devnames.
-.It allow_sysctl_side_effects
+.It Va allow_sysctl_side_effects
 Enables tests that change globally significant
 .Xr sysctl 8
 variables.
 The tests will undo any changes in their cleanup phases.
-.It allow_network_access
+.It Va allow_network_access
 Enables tests that need to access the network the test host is connected to.
 Such tests may require properly configured Internet access.
-.It disks
+.It Va disks
 Must be set to a space delimited list of disk device nodes.
 Tests that need destructive access to disks must use these devices.
 Tests are not required to preserve any data present on these disks.
-.It fibs
+.It Va fibs
 Must be set to a space delimited list of FIBs (routing tables).
 Tests that need to modify a routing table may use any of these.
 Tests will cleanup any new routes that they create.
