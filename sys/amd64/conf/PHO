@@ -1,0 +1,13 @@
+include GENERIC
+ident		PHO-GENERIC
+options		ALT_BREAK_TO_DEBUGGER
+options		SW_WATCHDOG
+options		WITNESS
+options		INVARIANTS		# Enable calls of extra sanity checking
+options		INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+options		DEBUG_LOCKS
+options		DEBUG_VFS_LOCKS
+options		DIAGNOSTIC
+nooptions	  DEADLKRES		# watchdogd handles this
+options		UFS_EXTATTR
+options		UFS_EXTATTR_AUTOSTART
