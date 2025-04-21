@@ -266,7 +266,15 @@ cleanup:
 		errno = serrno;
 		return (error);
 	}
-	if (wpid < 0 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+	/*
+	 * Check process exit status, but ignore ECHILD as the child may have
+	 * been automatically reaped if the process had set SIG_IGN or
+	 * SA_NOCLDWAIT for SIGCHLD, and our reason for waitpid was just to
+	 * reap our own child on behalf of the calling process.
+	 */
+	if (wpid < 0 && errno != ECHILD)
+		return (WRDE_NOSPACE); /* abort for unknown reason */
+	if (wpid >= 0 && (!WIFEXITED(status) || WEXITSTATUS(status) != 0))
 		return (WRDE_NOSPACE); /* abort for unknown reason */
 
 	/*
