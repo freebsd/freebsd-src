@@ -16,7 +16,7 @@
  */
 
 #include <linux/export.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/mac80211.h>
 
 #include "ath.h"
@@ -104,7 +104,7 @@ bool ath_hw_keysetmac(struct ath_common *common, u16 entry, const u8 *mac)
 		 * Not setting this bit allows the hardware to use the key
 		 * for multicast frame decryption.
 		 */
-		if (mac[0] & 0x01)
+		if (is_multicast_ether_addr(mac))
 			unicast_flag = 0;
 
 		macLo = get_unaligned_le32(mac);
