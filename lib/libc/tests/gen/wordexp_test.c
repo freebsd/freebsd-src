@@ -292,6 +292,31 @@ ATF_TC_BODY(with_SIGCHILD_handler_test, tc)
 	ATF_REQUIRE(r == 0);
 }
 
+ATF_TC_WITHOUT_HEAD(with_SIGCHILD_ignore_test);
+ATF_TC_BODY(with_SIGCHILD_ignore_test, tc)
+{
+	struct sigaction sa;
+	wordexp_t we;
+	int r;
+
+	/* With SIGCHLD set to ignore so that the kernel auto-reaps zombies. */
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = SIG_IGN;
+	r = sigaction(SIGCHLD, &sa, NULL);
+	ATF_REQUIRE(r == 0);
+	r = wordexp("hello world", &we, 0);
+	ATF_REQUIRE(r == 0);
+	ATF_REQUIRE(we.we_wordc == 2);
+	ATF_REQUIRE(strcmp(we.we_wordv[0], "hello") == 0);
+	ATF_REQUIRE(strcmp(we.we_wordv[1], "world") == 0);
+	ATF_REQUIRE(we.we_wordv[2] == NULL);
+	wordfree(&we);
+	sa.sa_handler = SIG_DFL;
+	r = sigaction(SIGCHLD, &sa, NULL);
+	ATF_REQUIRE(r == 0);
+}
+
 ATF_TC_WITHOUT_HEAD(with_unused_non_default_IFS_test);
 ATF_TC_BODY(with_unused_non_default_IFS_test, tc)
 {
@@ -350,6 +375,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, WRDE_BADCHAR_test);
 	ATF_TP_ADD_TC(tp, WRDE_SYNTAX_test);
 	ATF_TP_ADD_TC(tp, with_SIGCHILD_handler_test);
+	ATF_TP_ADD_TC(tp, with_SIGCHILD_ignore_test);
 	ATF_TP_ADD_TC(tp, with_unused_non_default_IFS_test);
 	ATF_TP_ADD_TC(tp, with_used_non_default_IFS_test);
 
