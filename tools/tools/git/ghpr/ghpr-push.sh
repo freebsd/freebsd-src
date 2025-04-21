@@ -41,7 +41,7 @@ git pull --rebase
 # try to cleanup
 for pr in $(git config --get-all branch.${staging}.opabinia.prs); do
     if ! $do_pr_branch_push; then
-	gh pr edit $pr --edit --add-label merged
+	gh pr edit $pr --add-label merged
     fi
     git branch -D PR-${pr}
     git config --remove-section branch.${staging}.opabinia.${pr}
