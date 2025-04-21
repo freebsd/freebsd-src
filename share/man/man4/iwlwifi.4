@@ -1,7 +1,7 @@
-.\"-
+.\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2021-2024 The FreeBSD Foundation
+.\" Copyright (c) 2021-2025 The FreeBSD Foundation
 .\"
 .\" This documentation was written by Bj\xc3\xb6rn Zeeb under sponsorship from
 .\" the FreeBSD Foundation.
@@ -27,12 +27,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 10, 2024
+.Dd May 12, 2025
 .Dt IWLWIFI 4
 .Os
 .Sh NAME
 .Nm iwlwifi
-.Nd Intel IEEE 802.11a/b/g/n/ac/ax wireless network driver
+.Nd Intel IEEE 802.11a/b/g/n/ac/ax/be wireless network driver
 .Sh SYNOPSIS
 The driver will auto-load without any user interaction using
 .Xr devmatch 8
@@ -50,6 +50,9 @@ kld_list="${kld_list} if_iwlwifi"
 The driver should automatically load any
 .Xr iwlwififw 4
 firmware needed for the particular chipset.
+See section
+.Sx "FILES"
+below for how to install the firmware.
 .Pp
 It is discouraged to load the driver from
 .Xr loader 8 .
@@ -59,12 +62,25 @@ The
 driver provides support for Intel Wireless network devices.
 .Pp
 .Nm
-is derived from Intel's Linux iwlwifi driver, will be a successor to
-.Xr iwm 4 ,
-and may supersede that driver in the future.
-It still complements the
+is derived from Intel's Linux iwlwifi driver.
+The
+.Xr iwm 4
+and
+.Xr iwx 4
+drivers together are approximately equivalent to Intel's Linux iwlwifi/mvm
+driver.
+.Pp
+In addition
+.Nm
+already supports Intel's Linux iwlwifi/mld chipsets.
+.Pp
+.Nm
+still complements the
 .Xr iwn 4
-driver which supports older chipsets.
+driver which supports older chipsets and would be equivalent to
+Intel's Linux iwlwifi/dvm, which
+.Nm
+does not support.
 .Pp
 The driver uses the
 .\" No LinuxKPI man pages so no .Xr here.
@@ -98,6 +114,15 @@ sub-driver with the following chipset generations:
 22000
 .It
 AX210
+.El
+.Pp
+The
+.Nm
+driver supports PCIe devices from the
+.Sy mld
+sub-driver with the following chipset generations:
+.Pp
+.Bl -bullet -compact
 .It
 BZ
 .It
@@ -235,10 +260,53 @@ Intel(R) TBD Sc2 device
 Intel(R) TBD Sc2f device
 .\" --------------------------------------------------------------------
 .El
+.Sh LOADER TUNABLES
+The
+.Nm
+driver supports the following
+.Xr loader 8
+tunable and read-only
+.Xr sysctl 8
+variables:
+.Bl -tag -width "compat.linuxkpi.iwlwifi_disable_11ac"
+.It Va compat.linuxkpi.iwlwifi_11n_disable
+Turn off 802.11n support in the driver.
+Default
+.Ql 1 .
+.It Va compat.linuxkpi.iwlwifi_disable_11ac
+Turn off 802.11ac support in the driver.
+Default
+.Ql 1 .
+.El
+.Pp
+The names of the tunables are derived from the Linux iwlwifi driver
+module parameters and are mapped automatically by
+.Sy linuxkpi .
+They were not adjusted so that they stay consistent with upstream
+Linux, e.g., for documentation available and problem investigations.
+This left their names inconsistent between themselves and incosistent to
+.Fx
+style.
+.Pp
+The tunables are automatically adjusted by the firmware package for
+chipsets which can enable 11n and 11ac.
+In case of problems a user may want to override the provided values
+in
+.Pa /boot/loader.conf.local
+with the above defaults.
+.Sh FILES
+The
+.Nm
+driver requires firmware from
+.Pa ports/net/wifi-firmware-iwlwifi-kmod .
+This firmware package will be installed automatically with
+.Xr fwget 8
+if the appropriate hardware is detected at installation or runtime.
 .Sh SEE ALSO
 .Xr iwlwififw 4 ,
 .Xr iwm 4 ,
 .Xr iwn 4 ,
+.Xr iwx 4 ,
 .Xr wlan 4 ,
 .Xr networking 7 ,
 .Xr fwget 8 ,
@@ -249,12 +317,14 @@ The
 .Nm
 driver first appeared in
 .Fx 13.1 .
+802.11n and 802.11ac support for the 22000 and later chipsets first appeared in
+.Fx 14.3 .
 .Sh BUGS
 Certainly.
 .Pp
 While
 .Nm
-supports 802.11a/b/g/n/ac/ax modes,
-the compatibility code currently only supports 802.11a/b/g modes.
-Support for 802.11n/ac/ax is yet to come.
-802.11ax and 6Ghz support are planned.
+supports 802.11a/b/g/n/ac/ax/be modes,
+the compatibility code currently only supports 802.11a/b/g/n/ac modes.
+802.11n/ac is only available on the 22000 and later chipset generations.
+802.11ax/be and 6Ghz support are planned.
