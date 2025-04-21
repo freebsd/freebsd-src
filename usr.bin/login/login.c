@@ -95,7 +95,7 @@ static void		 usage(void);
 #define	DEFAULT_BACKOFF		3
 #define	DEFAULT_RETRIES		10
 #define	DEFAULT_PROMPT		"login: "
-#define	DEFAULT_PASSWD_PROMPT	"Password:"
+#define	DEFAULT_PASSWD_PROMPT	"Password: "
 #define	TERM_UNKNOWN		"su"
 #define	DEFAULT_WARN		(2L * 7L * 86400L)	/* Two weeks */
 #define	NO_SLEEP_EXIT		0
