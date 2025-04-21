@@ -3334,33 +3334,34 @@ void
 mmu_radix_enter_object(pmap_t pmap, vm_offset_t start,
     vm_offset_t end, vm_page_t m_start, vm_prot_t prot)
 {
-
+	struct pctrie_iter pages;
 	struct rwlock *lock;
 	vm_offset_t va;
 	vm_page_t m, mpte;
-	vm_pindex_t diff, psize;
 	bool invalidate;
+
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
 	CTR6(KTR_PMAP, "%s(%p, %#x, %#x, %p, %#x)", __func__, pmap, start,
 	    end, m_start, prot);
-
 	invalidate = false;
-	psize = atop(end - start);
 	mpte = NULL;
-	m = m_start;
+	vm_page_iter_limit_init(&pages, m_start->object,
+	    m_start->pindex + atop(end - start));
+	m = vm_radix_iter_lookup(&pages, m_start->pindex);
 	lock = NULL;
 	PMAP_LOCK(pmap);
-	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
-		va = start + ptoa(diff);
+	while (m != NULL) {
+		va = start + ptoa(m->pindex - m_start->pindex);
 		if ((va & L3_PAGE_MASK) == 0 && va + L3_PAGE_SIZE <= end &&
 		    m->psind == 1 && mmu_radix_ps_enabled(pmap) &&
-		    pmap_enter_2mpage(pmap, va, m, prot, &lock))
-			m = &m[L3_PAGE_SIZE / PAGE_SIZE - 1];
-		else
+		    pmap_enter_2mpage(pmap, va, m, prot, &lock)) {
+			m = vm_radix_iter_jump(&pages, L3_PAGE_SIZE / PAGE_SIZE);
+		} else {
 			mpte = mmu_radix_enter_quick_locked(pmap, va, m, prot,
 			    mpte, &lock, &invalidate);
-		m = TAILQ_NEXT(m, listq);
+			m = vm_radix_iter_step(&pages);
+		}
 	}
 	ptesync();
 	if (lock != NULL)
@@ -4043,6 +4044,7 @@ void
 mmu_radix_object_init_pt(pmap_t pmap, vm_offset_t addr,
     vm_object_t object, vm_pindex_t pindex, vm_size_t size)
 {
+	struct pctrie_iter pages;
 	pml3_entry_t *l3e;
 	vm_paddr_t pa, ptepa;
 	vm_page_t p, pdpg;
@@ -4059,7 +4061,9 @@ mmu_radix_object_init_pt(pmap_t pmap, vm_offset_t addr,
 			return;
 		if (!vm_object_populate(object, pindex, pindex + atop(size)))
 			return;
-		p = vm_page_lookup(object, pindex);
+		vm_page_iter_init(&pages, object);
+		p = vm_radix_iter_lookup(&pages, pindex);
+		
 		KASSERT(p->valid == VM_PAGE_BITS_ALL,
 		    ("pmap_object_init_pt: invalid page %p", p));
 		ma = p->md.mdpg_cache_attrs;
@@ -4077,15 +4081,14 @@ mmu_radix_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		 * the pages are not physically contiguous or have differing
 		 * memory attributes.
 		 */
-		p = TAILQ_NEXT(p, listq);
 		for (pa = ptepa + PAGE_SIZE; pa < ptepa + size;
 		    pa += PAGE_SIZE) {
+			p = vm_radix_iter_next(&pages);
 			KASSERT(p->valid == VM_PAGE_BITS_ALL,
 			    ("pmap_object_init_pt: invalid page %p", p));
 			if (pa != VM_PAGE_TO_PHYS(p) ||
 			    ma != p->md.mdpg_cache_attrs)
 				return;
-			p = TAILQ_NEXT(p, listq);
 		}
 
 		PMAP_LOCK(pmap);
