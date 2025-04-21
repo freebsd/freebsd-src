@@ -37,6 +37,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
 #include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -45,6 +46,14 @@
 #include <unistd.h>
 
 static int more_than_one = 0;
+
+static const struct option long_options[] =
+{
+	{ "default",		no_argument,	NULL,	'd' },
+	{ "numeric",		no_argument,	NULL,	'n' },
+	{ "omit-header",	no_argument,	NULL,	'q' },
+	{ NULL,			no_argument,	NULL,	0 },
+};
 
 static void
 usage(void)
@@ -197,7 +206,8 @@ main(int argc, char *argv[])
 	qflag = 0;
 	nflag = 0;
 	vflag = 0;
-	while ((ch = getopt(argc, argv, "dhinqv")) != -1)
+	while ((ch = getopt_long(argc, argv, "+dhinqv", long_options,
+	    NULL)) != -1)
 		switch(ch) {
 		case 'd':
 			type = ACL_TYPE_DEFAULT;
