@@ -6009,32 +6009,33 @@ void
 pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
     vm_page_t m_start, vm_prot_t prot)
 {
+	struct pctrie_iter pages;
 	struct rwlock *lock;
 	vm_offset_t va;
 	vm_page_t m, mpte;
-	vm_pindex_t diff, psize;
 	int rv;
 
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
-	psize = atop(end - start);
 	mpte = NULL;
-	m = m_start;
+	vm_page_iter_limit_init(&pages, m_start->object,
+	    m_start->pindex + atop(end - start));
+	m = vm_radix_iter_lookup(&pages, m_start->pindex);
 	lock = NULL;
 	PMAP_LOCK(pmap);
-	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
-		va = start + ptoa(diff);
+	while (m != NULL) {
+		va = start + ptoa(m->pindex - m_start->pindex);
 		if ((va & L2_OFFSET) == 0 && va + L2_SIZE <= end &&
 		    m->psind == 2 && pmap_ps_enabled(pmap) &&
 		    ((rv = pmap_enter_l2_rx(pmap, va, m, prot, &lock)) ==
-		    KERN_SUCCESS || rv == KERN_NO_SPACE))
-			m = &m[L2_SIZE / PAGE_SIZE - 1];
-		else if ((va & L3C_OFFSET) == 0 && va + L3C_SIZE <= end &&
+		    KERN_SUCCESS || rv == KERN_NO_SPACE)) {
+			m = vm_radix_iter_jump(&pages, L2_SIZE / PAGE_SIZE);
+		} else if ((va & L3C_OFFSET) == 0 && va + L3C_SIZE <= end &&
 		    m->psind >= 1 && pmap_ps_enabled(pmap) &&
 		    ((rv = pmap_enter_l3c_rx(pmap, va, m, &mpte, prot,
-		    &lock)) == KERN_SUCCESS || rv == KERN_NO_SPACE))
-			m = &m[L3C_ENTRIES - 1];
-		else {
+		    &lock)) == KERN_SUCCESS || rv == KERN_NO_SPACE)) {
+			m = vm_radix_iter_jump(&pages, L3C_ENTRIES);
+		} else {
 			/*
 			 * In general, if a superpage mapping were possible,
 			 * it would have been created above.  That said, if
@@ -6046,8 +6047,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 			 */
 			mpte = pmap_enter_quick_locked(pmap, va, m, prot |
 			    VM_PROT_NO_PROMOTE, mpte, &lock);
+			m = vm_radix_iter_step(&pages);
 		}
-		m = TAILQ_NEXT(m, listq);
 	}
 	if (lock != NULL)
 		rw_wunlock(lock);
