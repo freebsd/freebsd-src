@@ -1657,7 +1657,7 @@ retry:
 	 */
 	swap_pager_copy(orig_object, new_object, offidxstart, 0);
 	vm_page_iter_init(&pages, new_object);
-	VM_RADIX_FOREACH(m, pages)
+	VM_RADIX_FOREACH(m, &pages)
 		vm_page_xunbusy(m);
 
 	vm_object_clear_flag(orig_object, OBJ_SPLIT);
