@@ -57,6 +57,7 @@ GTESTS+=	xattr
 .for p in ${GTESTS}
 SRCS.$p+=	${p}.cc
 SRCS.$p+=	getmntopts.c
+SRCS.$p+=	mntopts.h
 SRCS.$p+=	mockfs.cc
 SRCS.$p+=	utils.cc
 .endfor
@@ -89,8 +90,13 @@ CXXWARNFLAGS+=	-Wno-vla-cxx-extension
 CXXFLAGS+=	-I${SRCTOP}/tests
 CXXFLAGS+=	-I${FUSEFS}
 CXXFLAGS+=	-I${MOUNT}
-.PATH:		${MOUNT}
 CXXSTD=		c++14
+
+.for f in getmntopts.c mntopts.h
+CLEANFILES+=	${f}
+${f}: ${MOUNT}/${f} .NOMETA
+	ln -sf ${.ALLSRC} ${.TARGET}
+.endfor
 
 LIBADD+=	pthread
 LIBADD+=	gmock gtest
