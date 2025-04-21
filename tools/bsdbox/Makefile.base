@@ -9,6 +9,8 @@ CRUNCH_PROGS_bin+=	ln rm kenv mv expr
 CRUNCH_PROGS_usr.bin+=	true false hexdump tail nc w head uname tset
 CRUNCH_PROGS_usr.sbin+=	gpioctl
 CRUNCH_ALIAS_w=		uptime
+
+CRUNCH_SRCDIR_tset=	${SRCTOP}/usr.bin/ncurses
 CRUNCH_ALIAS_tset=	reset
 
 CRUNCH_PROGS_usr.bin+=	vmstat
@@ -23,6 +25,7 @@ CRUNCH_LIBS+=		-lprivatezstd -lthr
 
 # Clear requires tput, and it's a shell script so it won't be crunched
 CRUNCH_PROGS_usr.bin+=	tput
+CRUNCH_SRCDIR_tput=	${SRCTOP}/usr.bin/ncurses
 
 # sh
 CRUNCH_PROGS_bin+=	sh

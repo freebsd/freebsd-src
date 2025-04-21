@@ -20,6 +20,7 @@ CRUNCH_LIBS+=	-lmemstat -lnetgraph
 
 # ifconfig
 CRUNCH_PROGS_sbin+=	ifconfig
+CRUNCH_LIBS_ifconfig+=	${LIBNV}
 CRUNCH_SHLIBS+=	-l80211
 
 # wlan stuff
