@@ -118,7 +118,7 @@ static struct thread *sigtd(struct proc *p, int sig, bool fast_sigblock);
 static void	sigqueue_start(void);
 static void	sigfastblock_setpend(struct thread *td, bool resched);
 static void	sig_handle_first_stop(struct thread *td, struct proc *p,
-    int sig, bool ext);
+    int sig);
 
 static uma_zone_t	ksiginfo_zone = NULL;
 const struct filterops sig_filtops = {
@@ -2369,9 +2369,8 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		if (pt_attach_transparent &&
 		    (p->p_flag & P_TRACED) != 0 &&
 		    (p->p_flag2 & P2_PTRACE_FSTP) != 0) {
-			td->td_dbgflags |= TDB_FSTP;
 			PROC_SLOCK(p);
-			sig_handle_first_stop(td, p, sig, true);
+			sig_handle_first_stop(NULL, p, sig);
 			PROC_SUNLOCK(p);
 			return (0);
 		}
@@ -2848,11 +2847,10 @@ sig_suspend_threads(struct thread *td, struct proc *p)
 }
 
 static void
-sig_handle_first_stop(struct thread *td, struct proc *p, int sig, bool ext)
+sig_handle_first_stop(struct thread *td, struct proc *p, int sig)
 {
-	if ((td->td_dbgflags & TDB_FSTP) == 0 &&
-	    ((p->p_flag2 & P2_PTRACE_FSTP) != 0 ||
-	    p->p_xthread != NULL))
+	if (td != NULL && (td->td_dbgflags & TDB_FSTP) == 0 &&
+	    ((p->p_flag2 & P2_PTRACE_FSTP) != 0 || p->p_xthread != NULL))
 		return;
 
 	p->p_xsig = sig;
@@ -2862,7 +2860,7 @@ sig_handle_first_stop(struct thread *td, struct proc *p, int sig, bool ext)
 	 * If we are on sleepqueue already, let sleepqueue
 	 * code decide if it needs to go sleep after attach.
 	 */
-	if (ext || td->td_wchan == NULL)
+	if (td != NULL && td->td_wchan == NULL)
 		td->td_dbgflags &= ~TDB_FSTP;
 
 	p->p_flag2 &= ~P2_PTRACE_FSTP;
@@ -2930,7 +2928,7 @@ ptracestop(struct thread *td, int sig, ksiginfo_t *si)
 			 * already set p_xthread, the current thread will get
 			 * a chance to report itself upon the next iteration.
 			 */
-			sig_handle_first_stop(td, p, sig, false);
+			sig_handle_first_stop(td, p, sig);
 
 			if ((td->td_dbgflags & TDB_STOPATFORK) != 0) {
 				td->td_dbgflags &= ~TDB_STOPATFORK;
