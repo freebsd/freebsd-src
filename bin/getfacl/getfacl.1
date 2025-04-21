@@ -75,6 +75,11 @@ Ignored for POSIX.1e ACLs.
 Do not write commented information about file name and ownership.
 This is
 useful when dealing with filenames with unprintable characters.
+.It Fl s , Fl -skip-base
+Skip files that only have a trivial ACL, as defined by
+.Xr acl_is_trivial_np 3 .
+Notably, files with POSIX.1e ACLs that only represent the owner, group and other
+to match the mode of the file will be skipped.
 .It Fl v
 For NFSv4 ACLs, display access mask and flags in a verbose form.
 Ignored for POSIX.1e ACLs.
