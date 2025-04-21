@@ -29,7 +29,7 @@
 #ifndef _IF_VTNETVAR_H
 #define _IF_VTNETVAR_H
 
-#ifdef ALTQ
+#if defined(ALTQ) && !defined(VTNET_NO_ALTQ)
 #define	VTNET_LEGACY_TX
 #endif
 

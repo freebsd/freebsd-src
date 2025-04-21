@@ -680,6 +680,9 @@ UVSCOM_INTR_INTERVAL	opt_uvscom.h
 RTWN_DEBUG		opt_rtwn.h
 RTWN_WITHOUT_UCODE	opt_rtwn.h
 
+# options for VTNET (VirtIO Networking) Driver
+VTNET_NO_ALTQ		opt_global.h
+
 # Embedded system options
 INIT_PATH
 
