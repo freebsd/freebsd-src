@@ -1633,12 +1633,11 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 					    (src->scrub->pfss_flags &
 					    PFSS_TIMESTAMP)) {
 						tsval = ntohl(tsval);
-						pf_patch_32(pd,
+						copyback += pf_patch_32(pd,
 						    &opt[2],
 						    htonl(tsval +
 						    src->scrub->pfss_ts_mod),
 						    PF_ALGNMNT(startoff));
-						copyback = 1;
 					}
 
 					/* Modulate TS reply iff valid (!0) */
@@ -1649,11 +1648,10 @@ pf_normalize_tcp_stateful(struct pf_pdesc *pd,
 					    PFSS_TIMESTAMP)) {
 						tsecr = ntohl(tsecr)
 						    - dst->scrub->pfss_ts_mod;
-						pf_patch_32(pd,
+						copyback += pf_patch_32(pd,
 						    &opt[6],
 						    htonl(tsecr),
 						    PF_ALGNMNT(startoff));
-						copyback = 1;
 					}
 					got_ts = 1;
 				}

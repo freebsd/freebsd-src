@@ -381,7 +381,7 @@ static int		 pf_walk_header6(struct pf_pdesc *, struct ip6_hdr *,
 			    u_short *);
 static void		 pf_print_state_parts(struct pf_kstate *,
 			    struct pf_state_key *, struct pf_state_key *);
-static void		 pf_patch_8(struct pf_pdesc *, u_int8_t *, u_int8_t,
+static int		 pf_patch_8(struct pf_pdesc *, u_int8_t *, u_int8_t,
 			    bool);
 static struct pf_kstate	*pf_find_state(struct pfi_kkif *,
 			    const struct pf_state_key_cmp *, u_int);
@@ -3208,44 +3208,54 @@ pf_cksum_fixup(u_int16_t cksum, u_int16_t old, u_int16_t new, u_int8_t udp)
 	return (u_int16_t)(x);
 }
 
-static void
+static int
 pf_patch_8(struct pf_pdesc *pd, u_int8_t *f, u_int8_t v, bool hi)
 {
-	u_int16_t old = htons(hi ? (*f << 8) : *f);
-	u_int16_t new = htons(hi ? ( v << 8) :  v);
+	int	 rewrite = 0;
 
-	if (*f == v)
-		return;
+	if (*f != v) {
+		uint16_t old = htons(hi ? (*f << 8) : *f);
+		uint16_t new = htons(hi ? ( v << 8) :  v);
 
-	*f = v;
+		*f = v;
 
-	if (pd->m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6))
-		return;
+		if (! (pd->m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA |
+		    CSUM_DELAY_DATA_IPV6)))
+			*pd->pcksum = pf_cksum_fixup(*pd->pcksum, old, new,
+			    pd->proto == IPPROTO_UDP);
 
-	*pd->pcksum = pf_cksum_fixup(*pd->pcksum, old, new,
-	    pd->proto == IPPROTO_UDP);
+		rewrite = 1;
+	}
+
+	return (rewrite);
 }
 
-void
+int
 pf_patch_16(struct pf_pdesc *pd, void *f, u_int16_t v, bool hi)
 {
+	int rewrite = 0;
 	u_int8_t *fb = (u_int8_t *)f;
 	u_int8_t *vb = (u_int8_t *)&v;
 
-	pf_patch_8(pd, fb++, *vb++, hi);
-	pf_patch_8(pd, fb++, *vb++, !hi);
+	rewrite += pf_patch_8(pd, fb++, *vb++, hi);
+	rewrite += pf_patch_8(pd, fb++, *vb++, !hi);
+
+	return (rewrite);
 }
 
-void
+int
 pf_patch_32(struct pf_pdesc *pd, void *f, u_int32_t v, bool hi)
 {
+	int rewrite = 0;
 	u_int8_t *fb = (u_int8_t *)f;
 	u_int8_t *vb = (u_int8_t *)&v;
 
-	pf_patch_8(pd, fb++, *vb++, hi);
-	pf_patch_8(pd, fb++, *vb++, !hi);
-	pf_patch_8(pd, fb++, *vb++, hi);
-	pf_patch_8(pd, fb++, *vb++, !hi);
+	rewrite += pf_patch_8(pd, fb++, *vb++, hi);
+	rewrite += pf_patch_8(pd, fb++, *vb++, !hi);
+	rewrite += pf_patch_8(pd, fb++, *vb++, hi);
+	rewrite += pf_patch_8(pd, fb++, *vb++, !hi);
+
+	return (rewrite);
 }
 
 u_int16_t
@@ -3958,8 +3968,8 @@ pf_modulate_sack(struct pf_pdesc *pd, struct tcphdr *th,
 					    htonl(ntohl(sack.end) - dst->seqdiff),
 					    PF_ALGNMNT(startoff));
 					memcpy(&opt[i], &sack, sizeof(sack));
+					copyback = 1;
 				}
-				copyback = 1;
 			}
 			/* FALLTHROUGH */
 		default:
@@ -4434,41 +4444,29 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 }
 
 /*
- * Return 1 if the addresses a and b match (with mask m), otherwise return 0.
- * If n is 0, they match if they are equal. If n is != 0, they match if they
- * are different.
+ * Return ((n = 0) == (a = b [with mask m]))
+ * Note: n != 0 => returns (a != b [with mask m])
  */
 int
 pf_match_addr(u_int8_t n, const struct pf_addr *a, const struct pf_addr *m,
     const struct pf_addr *b, sa_family_t af)
 {
-	int	match = 0;
-
 	switch (af) {
 #ifdef INET
 	case AF_INET:
 		if (IN_ARE_MASKED_ADDR_EQUAL(a->v4, b->v4, m->v4))
-			match++;
+			return (n == 0);
 		break;
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&a->v6, &b->v6, &m->v6))
-			match++;
+			return (n == 0);
 		break;
 #endif /* INET6 */
 	}
-	if (match) {
-		if (n)
-			return (0);
-		else
-			return (1);
-	} else {
-		if (n)
-			return (1);
-		else
-			return (0);
-	}
+
+	return (n != 0);
 }
 
 /*
