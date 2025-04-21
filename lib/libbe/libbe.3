@@ -392,6 +392,13 @@ This list of properties matches the properties collected by
 The
 .Fn be_unmount
 function will unmount the given boot environment.
+If the mount point looks like it was created by
+.Fn be_mount ,
+then
+.Fn be_unmount
+will attempt to
+.Xr rmdir 2
+the mountpoint after a successful unmount.
 Setting the
 .Dv BE_MNT_FORCE
 flag will pass
