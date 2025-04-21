@@ -364,7 +364,9 @@ static int moea64_sp_enter(pmap_t pmap, vm_offset_t va,
 static struct pvo_entry *moea64_sp_remove(struct pvo_entry *sp,
     struct pvo_dlist *tofree);
 
+#if VM_NRESERVLEVEL > 0
 static void moea64_sp_promote(pmap_t pmap, vm_offset_t va, vm_page_t m);
+#endif
 static void moea64_sp_demote_aligned(struct pvo_entry *sp);
 static void moea64_sp_demote(struct pvo_entry *pvo);
 
@@ -3794,6 +3796,7 @@ moea64_sp_enter(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	return (KERN_SUCCESS);
 }
 
+#if VM_NRESERVLEVEL > 0
 static void
 moea64_sp_promote(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
@@ -3920,6 +3923,7 @@ error:
 	atomic_add_long(&sp_p_failures, 1);
 	PMAP_UNLOCK(pmap);
 }
+#endif
 
 static void
 moea64_sp_demote_aligned(struct pvo_entry *sp)
