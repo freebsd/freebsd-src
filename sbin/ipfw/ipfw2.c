@@ -6072,7 +6072,8 @@ ipfw_rtsock_monitor(const char *filter)
 	struct sockaddr *sa;
 	struct sockaddr_dl *sdl;
 	ipfwlog_rtsock_hdr_v2 *loghdr;
-	ssize_t msglen;
+	ssize_t nread;
+	size_t msglen;
 	int rtsock;
 
 	rtsock = socket(PF_ROUTE, SOCK_RAW, AF_IPFWLOG);
@@ -6080,12 +6081,13 @@ ipfw_rtsock_monitor(const char *filter)
 		err(EX_UNAVAILABLE, "socket(AF_IPFWLOG)");
 	bp_alloc(&bp, 4096);
 	for (;;) {
-		msglen = read(rtsock, msg, sizeof(msg));
-		if (msglen < 0) {
+		nread = read(rtsock, msg, sizeof(msg));
+		if (nread < 0) {
 			warn("read()");
 			continue;
 		}
-		if (sizeof(*hdr) - msglen < 0)
+		msglen = nread;
+		if (msglen < sizeof(*hdr))
 			continue;
 
 		hdr = (struct rt_msghdr *)msg;
@@ -6098,7 +6100,7 @@ ipfw_rtsock_monitor(const char *filter)
 
 		msglen -= sizeof(*hdr);
 		sdl = (struct sockaddr_dl *)(hdr + 1);
-		if (msglen - sizeof(*sdl) < 0 || msglen - SA_SIZE(sdl) < 0 ||
+		if (msglen < sizeof(*sdl) || msglen < SA_SIZE(sdl) ||
 		    sdl->sdl_family != AF_IPFWLOG ||
 		    sdl->sdl_type != 2 /* version */ ||
 		    sdl->sdl_alen != sizeof(*loghdr))
@@ -6112,7 +6114,7 @@ ipfw_rtsock_monitor(const char *filter)
 			continue;
 
 		sa = (struct sockaddr *)((char *)sdl + SA_SIZE(sdl));
-		if (msglen - SA_SIZE(sa) < 0)
+		if (msglen < SA_SIZE(sa))
 			continue;
 
 		msglen -= SA_SIZE(sa);
@@ -6131,7 +6133,7 @@ ipfw_rtsock_monitor(const char *filter)
 		bprint_sa(&bp, sa);
 
 		sa = (struct sockaddr *)((char *)sa + SA_SIZE(sa));
-		if (msglen - SA_SIZE(sa) < 0)
+		if (msglen < SA_SIZE(sa))
 			continue;
 
 		msglen -= SA_SIZE(sa);
@@ -6146,7 +6148,7 @@ ipfw_rtsock_monitor(const char *filter)
 
 		sa = (struct sockaddr *)((char *)sa + SA_SIZE(sa));
 		if ((hdr->rtm_addrs & (1 << RTAX_GENMASK)) != 0 &&
-		    msglen - SA_SIZE(sa) >= 0) {
+		    msglen >= SA_SIZE(sa)) {
 			msglen -= SA_SIZE(sa);
 			bprintf(&bp, ", nh ");
 			bprint_sa(&bp, sa);
