@@ -502,7 +502,6 @@ specifies the current process.
 .It Dv KERN_PROC_ENV Ta "Set of strings"
 .It Dv KERN_PROC_AUXV Ta "Elf_Auxinfo []"
 .It Dv KERN_PROC_RLIMIT Ta "Integer"
-.It Dv KERN_PROC_RLIMIT_USAGE Ta "rlim_t []"
 .It Dv KERN_PROC_PS_STRINGS Ta "Integer"
 .It Dv KERN_PROC_UMASK Ta "Integer/short"
 .It Dv KERN_PROC_OSREL Ta "Integer"
@@ -511,6 +510,7 @@ specifies the current process.
 .It Dv KERN_PROC_NFDS Ta "Integer"
 .It Dv KERN_PROC_SIGFASTBLK Ta "Integer"
 .It Dv KERN_PROC_VM_LAYOUT Ta "struct kinfo_vm_layout"
+.It Dv KERN_PROC_RLIMIT_USAGE Ta "rlim_t []"
 .It Dv KERN_PROC_KQUEUE Ta "struct kinfo_knote []"
 .El
 .Pp
@@ -549,13 +549,6 @@ Additinal OID name element must be supplied, specifiing the resource name
 as in
 .Xr getrlimit 2 .
 The call returns the given resource limit for the process.
-.It Dv KERN_PROC_RLIMIT_USAGE
-Like
-.Dv KERN_PROC_RLIMIT ,
-but instead of the limit, returns the accounted resource usage.
-For resources which do not have a meaningful current value,
-.Li \-1
-is returned.
 .It Dv KERN_PROC_PS_STRINGS
 Returns the location of the
 .Vt ps_strings
@@ -585,6 +578,13 @@ Returns the address of the
 location, if active.
 .It Dv KERN_PROC_VM_LAYOUT
 Fills a structure describing process virtual address space layout.
+.It Dv KERN_PROC_RLIMIT_USAGE
+Like
+.Dv KERN_PROC_RLIMIT ,
+but instead of the limit, returns the accounted resource usage.
+For resources which do not have a meaningful current value,
+.Li \-1
+is returned.
 .It Dv KERN_PROC_KQUEUE
 Fills an array of structures describing events registered with
 the specified kqueue.
