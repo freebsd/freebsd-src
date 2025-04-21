@@ -107,6 +107,7 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_phys.h>
 #include <vm/vm_pagequeue.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_dumpset.h>
 #include <vm/uma.h>
 
