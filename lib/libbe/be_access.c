@@ -33,7 +33,7 @@
 #include "be.h"
 #include "be_impl.h"
 
-#define	LIBBE_MOUNT_PREFIX	"be_mount."	/* XXX */
+#define	LIBBE_MOUNT_PREFIX	"be_mount."
 
 struct be_mountcheck_info {
 	const char *path;
@@ -261,7 +261,17 @@ be_mount(libbe_handle_t *lbh, const char *bootenv, const char *mountpoint,
 
 	/* Create mountpoint if it is not specified */
 	if (mountpoint == NULL) {
-		strlcpy(mnt_temp, "/tmp/be_mount.XXXX", sizeof(mnt_temp));
+		const char *tmpdir;
+
+		tmpdir = getenv("TMPDIR");
+		if (tmpdir == NULL)
+			tmpdir = _PATH_TMP;
+
+		if (snprintf(mnt_temp, sizeof(mnt_temp), "%s%s%sXXXX", tmpdir,
+		    tmpdir[strlen(tmpdir) - 1] == '/' ? "" : "/",
+		     LIBBE_MOUNT_PREFIX) >= (int)sizeof(mnt_temp))
+			return (set_error(lbh, BE_ERR_PATHLEN));
+
 		if (mkdtemp(mnt_temp) == NULL)
 			return (set_error(lbh, BE_ERR_IO));
 	}
