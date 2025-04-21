@@ -15,7 +15,7 @@ static int get_dgram_socket(void)
 {
 	static int sock = -1;
 	if (sock < 0)
-		sock = socket(AF_INET, SOCK_DGRAM, 0);
+		sock = socket(AF_LOCAL, SOCK_DGRAM, 0);
 	return sock;
 }
 
