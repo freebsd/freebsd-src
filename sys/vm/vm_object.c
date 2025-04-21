@@ -2106,23 +2106,18 @@ wired:
 void
 vm_object_page_noreuse(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 {
-	vm_page_t p, next;
+	struct pctrie_iter pages;
+	vm_page_t p;
 
 	VM_OBJECT_ASSERT_LOCKED(object);
 	KASSERT((object->flags & (OBJ_FICTITIOUS | OBJ_UNMANAGED)) == 0,
 	    ("vm_object_page_noreuse: illegal object %p", object));
 	if (object->resident_page_count == 0)
 		return;
-	p = vm_page_find_least(object, start);
 
-	/*
-	 * Here, the variable "p" is either (1) the page with the least pindex
-	 * greater than or equal to the parameter "start" or (2) NULL. 
-	 */
-	for (; p != NULL && (p->pindex < end || end == 0); p = next) {
-		next = TAILQ_NEXT(p, listq);
+	vm_page_iter_limit_init(&pages, object, end);
+	VM_RADIX_FOREACH_FROM(p, &pages, start)
 		vm_page_deactivate_noreuse(p);
-	}
 }
 
 /*
