@@ -33,10 +33,6 @@ while true; do
       fi
       break
 done
-else
-
-fi
-
 
 # OK, pull and rebase to catchup to these changes...
 git checkout main;
