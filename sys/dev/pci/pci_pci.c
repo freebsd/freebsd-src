@@ -1449,6 +1449,7 @@ pcib_setup_hotplug(struct pcib_softc *sc)
 
 	/* Clear any events previously pending. */
 	pcie_write_config(dev, PCIER_SLOT_STA, sc->pcie_slot_sta, 2);
+	sc->pcie_slot_sta = pcie_read_config(dev, PCIER_SLOT_STA, 2);
 
 	/* Enable HotPlug events. */
 	mask = PCIEM_SLOT_CTL_DLLSCE | PCIEM_SLOT_CTL_HPIE |
