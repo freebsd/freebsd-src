@@ -44,6 +44,7 @@
 #include <errno.h>
 #include <grp.h>
 #include <locale.h>
+#include <mntopts.h>
 #include <pwd.h>
 #include <stdio.h>
 /* must be after stdio to declare fparseln */
@@ -52,8 +53,6 @@
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
-#include "mntopts.h"
 
 static gid_t	a_gid(char *);
 static uid_t	a_uid(char *);

@@ -36,13 +36,12 @@
 
 #include <err.h>
 #include <errno.h>
+#include <mntopts.h>
 #include <paths.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "mntopts.h"
 
 int getmnt_silent = 0;
 

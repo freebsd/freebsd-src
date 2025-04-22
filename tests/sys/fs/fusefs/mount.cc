@@ -33,7 +33,7 @@ extern "C" {
 #include <sys/mount.h>
 #include <sys/uio.h>
 
-#include "mntopts.h"	// for build_iovec
+#include <mntopts.h>	// for build_iovec
 }
 
 #include "mockfs.hh"

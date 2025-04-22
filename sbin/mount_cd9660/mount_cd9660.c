@@ -48,14 +48,13 @@
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
+#include <mntopts.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
-#include "mntopts.h"
 
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,

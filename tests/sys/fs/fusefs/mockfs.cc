@@ -39,13 +39,12 @@ extern "C" {
 
 #include <fcntl.h>
 #include <libutil.h>
+#include <mntopts.h>	// for build_iovec
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#include "mntopts.h"	// for build_iovec
 }
 
 #include <cinttypes>

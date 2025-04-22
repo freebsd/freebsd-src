@@ -64,6 +64,7 @@
 #include <grp.h>
 #include <libutil.h>
 #include <limits.h>
+#include <mntopts.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
@@ -73,7 +74,6 @@
 #include <unistd.h>
 #include <vis.h>
 #include "pathnames.h"
-#include "mntopts.h"
 
 #ifdef DEBUG
 #include <stdarg.h>
