@@ -10,6 +10,13 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+1aabbb25c9f9:
+	ps(1)'s default list of processes now comes from matching its effective
+	user ID instead of its real user ID with the effective user ID of all
+	processes, in accordance with POSIX.  As ps(1) itself is not installed
+	setuid, this only affects processes having different real and effective
+	user IDs that launch ps(1) processes.
+
 f0600c41e754-de701f9bdbe0, bc201841d139:
 	mac_do(4) is now considered production-ready and its functionality has
 	been considerably extended at the price of breaking credentials
