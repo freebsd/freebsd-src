@@ -210,7 +210,7 @@ struct qm_trace {
 
 #ifndef QMD_ASSERT
 #define QMD_ASSERT(expression, fmt, ...) do {				\
-	if (!(expression))						\
+	if (__predict_false(!(expression)))				\
 		QMD_PANIC("%s:%u: %s: " fmt,				\
 		    __FILE__, __LINE__, __func__,  ##__VA_ARGS__);	\
 } while (0)
