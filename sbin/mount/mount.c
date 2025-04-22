@@ -39,6 +39,7 @@
 
 #include <errno.h>
 #include <fstab.h>
+#include <mntopts.h>
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
@@ -51,7 +52,6 @@
 #include <libxo/xo.h>
 
 #include "extern.h"
-#include "mntopts.h"
 #include "pathnames.h"
 
 #define EXIT(a) {			\
