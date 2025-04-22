@@ -42,6 +42,7 @@ git pull --rebase
 for pr in $(git config --get-all branch.${staging}.opabinia.prs); do
     if ! $do_pr_branch_push; then
 	gh pr edit $pr --add-label merged
+	gh pr close $pr --comment "ghpr helper script closed this after push to source of truth."
     fi
     git branch -D PR-${pr}
     git config --remove-section branch.${staging}.opabinia.${pr}
