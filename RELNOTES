@@ -10,6 +10,16 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+a2132d91739d:
+	ps(1)'s '-U' option has been changed to select processes by their real
+	user IDs instead of their effective one, in accordance with POSIX and
+	the use case of wanting to list processes launched by some user, which
+	is expected to be more frequent than listing processes having the rights
+	of some user.  This only affects the selection of processes whose real
+	and effective user IDs differ.	After this change, ps(1)'s '-U' flag
+	behaves differently then in other BSDs but identically to that of
+	Linux's procps and illumos.
+
 1e8dc267ca91:
 	ps(1)'s default list of processes now comes from matching its effective
 	user ID instead of its real user ID with the effective user ID of all
