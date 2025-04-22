@@ -2087,6 +2087,12 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	hlim = 0;
 	srcp = NULL;
 
+	if (__predict_false(IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src))) {
+		nd6log((LOG_DEBUG,
+		    "icmp6_reflect: source address is unspecified\n"));
+		goto bad;
+	}
+
 	/*
 	 * If the incoming packet was addressed directly to us (i.e. unicast),
 	 * use dst as the src for the reply.
