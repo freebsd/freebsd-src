@@ -1332,6 +1332,7 @@ pmap_bootstrap(void)
 {
 	vm_offset_t dpcpu, msgbufpv;
 	vm_paddr_t start_pa, pa;
+	size_t largest_phys_size;
 
 	/* Set this early so we can use the pagetable walking functions */
 	kernel_pmap_store.pm_l0 = pagetable_l0_ttbr1;
@@ -1346,11 +1347,40 @@ pmap_bootstrap(void)
 	kernel_pmap->pm_ttbr = kernel_pmap->pm_l0_paddr;
 	kernel_pmap->pm_asid_set = &asids;
 
+	/* Reserve some VA space for early BIOS/ACPI mapping */
+	preinit_map_va = roundup2(bs_state.freemempos, L2_SIZE);
+
+	virtual_avail = preinit_map_va + PMAP_PREINIT_MAPPING_SIZE;
+	virtual_avail = roundup2(virtual_avail, L1_SIZE);
+	virtual_end = VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE;
+	kernel_vm_end = virtual_avail;
+
 	/*
 	 * We only use PXN when we know nothing will be executed from it, e.g.
 	 * the DMAP region.
 	 */
 	bs_state.table_attrs &= ~TATTR_PXN_TABLE;
+
+	/*
+	 * Find the physical memory we could use. This needs to be after we
+	 * exclude any memory that is mapped into the DMAP region but should
+	 * not be used by the kernel, e.g. some UEFI memory types.
+	 */
+	physmap_idx = physmem_avail(physmap, nitems(physmap));
+
+	/*
+	 * Find space for early allocations. We search for the largest
+	 * region. This is because the user may choose a large msgbuf.
+	 * This could be smarter, e.g. to allow multiple regions to be
+	 * used & switch to the next when one is full.
+	 */
+	largest_phys_size = 0;
+	for (int i = 0; i < physmap_idx; i += 2) {
+		if ((physmap[i + 1] - physmap[i]) > largest_phys_size) {
+			largest_phys_size = physmap[i + 1] - physmap[i];
+			bs_state.freemempos = PHYS_TO_DMAP(physmap[i]);
+		}
+	}
 
 	start_pa = pmap_early_vtophys(bs_state.freemempos);
 
@@ -1378,19 +1408,9 @@ pmap_bootstrap(void)
 	alloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 	msgbufp = (void *)msgbufpv;
 
-	/* Reserve some VA space for early BIOS/ACPI mapping */
-	preinit_map_va = roundup2(bs_state.freemempos, L2_SIZE);
-
-	virtual_avail = preinit_map_va + PMAP_PREINIT_MAPPING_SIZE;
-	virtual_avail = roundup2(virtual_avail, L1_SIZE);
-	virtual_end = VM_MAX_KERNEL_ADDRESS - (PMAP_MAPDEV_EARLY_SIZE);
-	kernel_vm_end = virtual_avail;
-
 	pa = pmap_early_vtophys(bs_state.freemempos);
 
 	physmem_exclude_region(start_pa, pa - start_pa, EXFLAG_NOALLOC);
-
-	cpu_tlb_flushID();
 }
 
 #if defined(KASAN) || defined(KMSAN)
