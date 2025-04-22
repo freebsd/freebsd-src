@@ -154,7 +154,6 @@ struct sk_buff {
 		};
 		struct list_head	list;
 	};
-	uint32_t		_alloc_len;	/* Length of alloc data-buf. XXX-BZ give up for truesize? */
 	uint32_t		len;		/* ? */
 	uint32_t		data_len;	/* ? If we have frags? */
 	uint32_t		truesize;	/* The total size of all buffers, incl. frags. */

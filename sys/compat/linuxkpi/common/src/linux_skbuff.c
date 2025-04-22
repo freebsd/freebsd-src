@@ -115,7 +115,6 @@ linuxkpi_alloc_skb(size_t size, gfp_t gfp)
 #endif
 	if (skb == NULL)
 		return (skb);
-	skb->_alloc_len = len;
 	skb->truesize = size;
 
 	skb->head = skb->data = skb->tail = (uint8_t *)(skb+1);
@@ -258,14 +257,7 @@ linuxkpi_kfree_skb(struct sk_buff *skb)
 		skb_free_frag(p);
 	}
 
-#ifdef __LP64__
-	if (__predict_true(linuxkpi_skb_memlimit == 0))
-		free(skb, M_LKPISKB);
-	else
-		contigfree(skb, skb->_alloc_len, M_LKPISKB);
-#else
 	free(skb, M_LKPISKB);
-#endif
 }
 
 #ifdef DDB
@@ -284,9 +276,8 @@ DB_SHOW_COMMAND(skb, db_show_skb)
 	db_printf("skb %p\n", skb);
 	db_printf("\tnext %p prev %p\n", skb->next, skb->prev);
 	db_printf("\tlist %p\n", &skb->list);
-	db_printf("\t_alloc_len %u len %u data_len %u truesize %u mac_len %u\n",
-	    skb->_alloc_len, skb->len, skb->data_len, skb->truesize,
-	    skb->mac_len);
+	db_printf("\tlen %u data_len %u truesize %u mac_len %u\n",
+	    skb->len, skb->data_len, skb->truesize, skb->mac_len);
 	db_printf("\tcsum %#06x l3hdroff %u l4hdroff %u priority %u qmap %u\n",
 	    skb->csum, skb->l3hdroff, skb->l4hdroff, skb->priority, skb->qmap);
 	db_printf("\tpkt_type %d dev %p sk %p\n",
