@@ -67,22 +67,26 @@ SYSCTL_INT(_compat_linuxkpi_skb, OID_AUTO, debug, CTLFLAG_RWTUN,
 
 static uma_zone_t skbzone;
 
-#ifdef __LP64__
+#define	SKB_DMA32_MALLOC
+#ifdef	SKB_DMA32_MALLOC
 /*
  * Realtek wireless drivers (e.g., rtw88) require 32bit DMA in a single segment.
  * busdma(9) has a hard time providing this currently for 3-ish pages at large
  * quantities (see lkpi_pci_nseg1_fail in linux_pci.c).
  * Work around this for now by allowing a tunable to enforce physical addresses
- * allocation limits on 64bit platforms using "old-school" contigmalloc(9) to
- * avoid bouncing.
+ * allocation limits using "old-school" contigmalloc(9) to avoid bouncing.
+ * Note: with the malloc/contigmalloc + kmalloc changes also providing physical
+ * contiguous memory, and the nseg=1 limit for bouncing we should in theory be
+ * fine now and not need any of this anymore, however busdma still has troubles
+ * boncing three contiguous pages so for now this stays.
  */
 static int linuxkpi_skb_memlimit;
 SYSCTL_INT(_compat_linuxkpi_skb, OID_AUTO, mem_limit, CTLFLAG_RDTUN,
     &linuxkpi_skb_memlimit, 0, "SKB memory limit: 0=no limit, "
     "1=32bit, 2=36bit, other=undef (currently 32bit)");
-#endif
 
 static MALLOC_DEFINE(M_LKPISKB, "lkpiskb", "Linux KPI skbuff compat");
+#endif
 
 struct sk_buff *
 linuxkpi_alloc_skb(size_t size, gfp_t gfp)
@@ -103,20 +107,20 @@ linuxkpi_alloc_skb(size_t size, gfp_t gfp)
 		return (skb);
 
 	len = size;
+#ifdef	SKB_DMA32_MALLOC
 	/*
 	 * Using our own type here not backing my kmalloc.
 	 * We assume no one calls kfree directly on the skb.
 	 */
-#ifdef __LP64__
-	if (__predict_true(linuxkpi_skb_memlimit == 0)) {
-		p = malloc(len, M_LKPISKB, linux_check_m_flags(gfp) | M_ZERO);
-	} else {
+	if (__predict_false(linuxkpi_skb_memlimit != 0)) {
 		vm_paddr_t high;
 
 		switch (linuxkpi_skb_memlimit) {
+#ifdef __LP64__
 		case 2:
 			high = (0xfffffffff);	/* 1<<36 really. */
 			break;
+#endif
 		case 1:
 		default:
 			high = (0xffffffff);	/* 1<<32 really. */
@@ -125,10 +129,9 @@ linuxkpi_alloc_skb(size_t size, gfp_t gfp)
 		len = roundup_pow_of_two(len);
 		p = contigmalloc(len, M_LKPISKB,
 		    linux_check_m_flags(gfp) | M_ZERO, 0, high, PAGE_SIZE, 0);
-	}
-#else
-	p = malloc(len, M_LKPISKB, linux_check_m_flags(gfp) | M_ZERO);
+	} else
 #endif
+	p = __kmalloc(len, linux_check_m_flags(gfp) | M_ZERO);
 	if (p == NULL) {
 		uma_zfree(skbzone, skb);
 		return (NULL);
@@ -272,7 +275,12 @@ linuxkpi_kfree_skb(struct sk_buff *skb)
 		skb->head = NULL;
 	}
 
-	free(skb->head, M_LKPISKB);
+#ifdef	SKB_DMA32_MALLOC
+	if (__predict_false(linuxkpi_skb_memlimit != 0))
+		free(skb->head, M_LKPISKB);
+	else
+#endif
+	kfree(skb->head);
 	uma_zfree(skbzone, skb);
 }
 
