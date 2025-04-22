@@ -1404,8 +1404,10 @@ translated to 2001:db8::c633:6464.
 .Pp
 In the reverse case the following rules are identical:
 .Bd -literal -offset indent
-pass in inet6 af-to inet from 198.51.100.1 to 0.0.0.0/0
-pass in inet6 af-to inet from 198.51.100.1
+pass in inet6 from any to 64:ff9b::/96 af-to inet \e
+       from 198.51.100.1 to 0.0.0.0/0
+pass in inet6 from any to 64:ff9b::/96 af-to inet \e
+       from 198.51.100.1
 .Ed
 .Pp
 The destination IPv4 address is assumed to be embedded inside the
