@@ -168,6 +168,10 @@ SRCS+= \
 	valloc.c \
 	wordexp.c
 
+.if ${COMPILER_TYPE} == "clang"
+CFLAGS.fts.c= -fblocks
+.endif
+
 CFLAGS.arc4random.c= -I${SRCTOP}/sys -I${SRCTOP}/sys/crypto/chacha20
 
 CFLAGS.sysconf.c= -I${SRCTOP}/contrib/tzcode
