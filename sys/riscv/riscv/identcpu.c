@@ -126,6 +126,7 @@ static const struct marchid_entry global_marchids[] = {
 
 static const struct marchid_entry sifive_marchids[] = {
 	{ MARCHID_SIFIVE_U7,	"6/7/P200/X200-Series Processor" },
+	{ MARCHID_SIFIVE_P5,	"P550/P650 Processor" },
 	MARCHID_END
 };
 

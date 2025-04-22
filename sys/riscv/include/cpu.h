@@ -80,6 +80,7 @@
 
 /* SiFive marchid values */
 #define	MARCHID_SIFIVE_U7	MARCHID_COMMERCIAL(7)
+#define	MARCHID_SIFIVE_P5	MARCHID_COMMERCIAL(8)
 
 /*
  * MMU virtual-addressing modes. Support for each level implies the previous,
