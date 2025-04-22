@@ -61,7 +61,7 @@ CFLAGS+=	-I${.CURDIR}
 
 LIBADD.cxa_thread_atexit_test+=		pthread
 
-# Tests that requires Blocks feature
+# Tests that require blocks support
 .for t in qsort_b_test
 CFLAGS.${t}.c+=		-fblocks
 LIBADD.${t}+=		BlocksRuntime

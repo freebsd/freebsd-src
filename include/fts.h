@@ -34,17 +34,27 @@
 
 #include <sys/_types.h>
 
+typedef struct _ftsent FTSENT;
+
 typedef struct {
-	struct _ftsent *fts_cur;	/* current node */
-	struct _ftsent *fts_child;	/* linked list of children */
-	struct _ftsent **fts_array;	/* sort array */
+	FTSENT *fts_cur;		/* current node */
+	FTSENT *fts_child;		/* linked list of children */
+	FTSENT **fts_array;		/* sort array */
 	__dev_t fts_dev;		/* starting device # */
 	char *fts_path;			/* path for this descent */
 	int fts_rfd;			/* fd for root */
 	__size_t fts_pathlen;		/* sizeof(path) */
 	__size_t fts_nitems;		/* elements in the sort array */
-	int (*fts_compar)		/* compare function */
-	    (const struct _ftsent * const *, const struct _ftsent * const *);
+	union {
+		int (*fts_compar)	/* compare function */
+		    (const FTSENT * const *, const FTSENT * const *);
+#ifdef __BLOCKS__
+		int (^fts_compar_b)
+		    (const FTSENT * const *, const FTSENT * const *);
+#else
+		void *fts_compar_b;
+#endif /* __BLOCKS__ */
+	};
 
 /* valid for fts_open() */
 #define	FTS_COMFOLLOW	0x000001	/* follow command line symlinks */
@@ -62,11 +72,12 @@ typedef struct {
 
 /* internal use only */
 #define	FTS_STOP	0x010000	/* unrecoverable error */
+#define	FTS_COMPAR_B	0x020000	/* compare function is a block */
 	int fts_options;		/* fts_open options, global flags */
 	void *fts_clientptr;		/* thunk for sort function */
 } FTS;
 
-typedef struct _ftsent {
+struct _ftsent {
 	struct _ftsent *fts_cycle;	/* cycle node */
 	struct _ftsent *fts_parent;	/* parent directory */
 	struct _ftsent *fts_link;	/* next file in directory */
@@ -118,7 +129,7 @@ typedef struct _ftsent {
 	struct stat *fts_statp;		/* stat(2) information */
 	char *fts_name;			/* file name */
 	FTS *fts_fts;			/* back pointer to main FTS */
-} FTSENT;
+};
 
 #include <sys/cdefs.h>
 
@@ -131,6 +142,10 @@ FTS	*fts_get_stream(FTSENT *);
 #define	 fts_get_stream(ftsent)	((ftsent)->fts_fts)
 FTS	*fts_open(char * const *, int,
 	    int (*)(const FTSENT * const *, const FTSENT * const *));
+#ifdef __BLOCKS__
+FTS	*fts_open_b(char * const *, int,
+	    int (^)(const FTSENT * const *, const FTSENT * const *));
+#endif /* __BLOCKS__ */
 FTSENT	*fts_read(FTS *);
 int	 fts_set(FTS *, FTSENT *, int);
 void	 fts_set_clientptr(FTS *, void *);
