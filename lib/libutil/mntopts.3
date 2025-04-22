@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 19, 2023
+.Dd April 21, 2025
 .Dt MNTOPTS 3
 .Os
 .Sh NAME
@@ -35,6 +35,8 @@
 .Nm checkpath ,
 .Nm rmslashes
 .Nd "mount point operations"
+.Sh LIBRARY
+.Lb libutil
 .Sh SYNOPSIS
 .In mntopts.h
 .Ft void
@@ -69,18 +71,6 @@
 The
 .Nm mntopts
 functions support operations associated with a mount point.
-For historic reasons are in a file in the sources for the
-.Xr mount 8
-program.
-Thus, to access them the following lines need to be added to the
-.Nm Makefile
-of the program wanting to use them:
-.Bd -literal
-SRCS+=	getmntopts.c
-MOUNT=  ${SRCTOP}/sbin/mount
-CFLAGS+= -I${MOUNT}
-\&.PATH: ${MOUNT}
-.Ed
 .Pp
 The
 .Fn getmntopts
@@ -326,7 +316,7 @@ flag, would also have an
 entry.
 This can be declared and used as follows:
 .Bd -literal
-#include "mntopts.h"
+#include <mntopts.h>
 
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
@@ -377,3 +367,11 @@ and
 .Fn chkdoreload
 functions were added in
 .Fx 13.2 .
+.Pp
+Historically, these functions were found in getmntopts.c in the sources for the
+.Xr mount 8
+program.
+As of
+.Fx 15.0
+they are part of
+.Nm libutil .

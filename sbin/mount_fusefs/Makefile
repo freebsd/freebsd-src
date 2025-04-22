@@ -20,12 +20,7 @@ DEBUG_FLAGS+= -DFUSE4BSD_VERSION="\"${F4BVERS}\""
 
 PACKAGE=runtime
 PROG=	mount_fusefs
-SRCS=	mount_fusefs.c getmntopts.c
 MAN8=	mount_fusefs.8
-
-MOUNT=	${.CURDIR:H}/mount
-CFLAGS+=	-I${MOUNT}
-
-.PATH: ${MOUNT}
+LIBADD=	util
 
 .include <bsd.prog.mk>
