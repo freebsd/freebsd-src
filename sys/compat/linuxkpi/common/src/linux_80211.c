@@ -6545,9 +6545,9 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		goto no_trace_beacons;
 
 	if (linuxkpi_debug_80211 & D80211_TRACE_RX)
-		printf("TRACE-RX: %s: skb %p a/l/d/t-len (%u/%u/%u/%u) "
+		printf("TRACE-RX: %s: skb %p l/d/t-len (%u/%u/%u) "
 		    "h %p d %p t %p e %p sh %p (%u) m %p plen %u len %u%s\n",
-		    __func__, skb, skb->_alloc_len, skb->len, skb->data_len,
+		    __func__, skb, skb->len, skb->data_len,
 		    skb->truesize, skb->head, skb->data, skb->tail, skb->end,
 		    shinfo, shinfo->nr_frags,
 		    m, m->m_pkthdr.len, m->m_len, is_beacon ? " beacon" : "");
