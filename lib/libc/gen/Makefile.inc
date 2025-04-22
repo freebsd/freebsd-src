@@ -168,7 +168,7 @@ SRCS+= \
 	valloc.c \
 	wordexp.c
 
-.if ${COMPILER_TYPE} == "clang"
+.if ${COMPILER_FEATURES:Mblocks}
 CFLAGS.fts.c= -fblocks
 .endif
 
