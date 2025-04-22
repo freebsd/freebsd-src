@@ -46,6 +46,7 @@ riscv/riscv/bus_space_asm.S	standard
 riscv/riscv/busdma_bounce.c	standard
 riscv/riscv/busdma_machdep.c	standard
 riscv/riscv/cache.c		standard
+riscv/riscv/cbo.c		standard
 riscv/riscv/clock.c		standard
 riscv/riscv/copyinout.S		standard
 riscv/riscv/cpufunc_asm.S	standard
