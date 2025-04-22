@@ -1678,10 +1678,16 @@ so_splice(struct socket *so, struct socket *so2, struct splice *splice)
 		uma_zfree(splice_zone, sp);
 		return (error);
 	}
-	soref(so);
-	so->so_splice = sp;
 	SOCK_RECVBUF_LOCK(so);
+	if (so->so_rcv.sb_tls_info != NULL) {
+		SOCK_RECVBUF_UNLOCK(so);
+		SOCK_UNLOCK(so);
+		uma_zfree(splice_zone, sp);
+		return (EINVAL);
+	}
 	so->so_rcv.sb_flags |= SB_SPLICED;
+	so->so_splice = sp;
+	soref(so);
 	SOCK_RECVBUF_UNLOCK(so);
 	SOCK_UNLOCK(so);
 
@@ -1695,20 +1701,19 @@ so_splice(struct socket *so, struct socket *so2, struct splice *splice)
 		error = EBUSY;
 	if (error != 0) {
 		SOCK_UNLOCK(so2);
-		SOCK_LOCK(so);
-		so->so_splice = NULL;
-		SOCK_RECVBUF_LOCK(so);
-		so->so_rcv.sb_flags &= ~SB_SPLICED;
-		SOCK_RECVBUF_UNLOCK(so);
-		SOCK_UNLOCK(so);
-		sorele(so);
-		uma_zfree(splice_zone, sp);
+		so_unsplice(so, false);
 		return (error);
 	}
-	soref(so2);
-	so2->so_splice_back = sp;
 	SOCK_SENDBUF_LOCK(so2);
+	if (so->so_snd.sb_tls_info != NULL) {
+		SOCK_SENDBUF_UNLOCK(so2);
+		SOCK_UNLOCK(so2);
+		so_unsplice(so, false);
+		return (EINVAL);
+	}
 	so2->so_snd.sb_flags |= SB_SPLICED;
+	so2->so_splice_back = sp;
+	soref(so2);
 	mtx_lock(&sp->mtx);
 	SOCK_SENDBUF_UNLOCK(so2);
 	SOCK_UNLOCK(so2);
@@ -1733,7 +1738,7 @@ so_unsplice(struct socket *so, bool timeout)
 {
 	struct socket *so2;
 	struct so_splice *sp;
-	bool drain;
+	bool drain, so2rele;
 
 	/*
 	 * First unset SB_SPLICED and hide the splice structure so that
@@ -1772,11 +1777,14 @@ so_unsplice(struct socket *so, bool timeout)
 	SOCK_LOCK(so2);
 	KASSERT(!SOLISTENING(so2), ("%s: so2 is listening", __func__));
 	SOCK_SENDBUF_LOCK(so2);
-	KASSERT((so2->so_snd.sb_flags & SB_SPLICED) != 0,
+	KASSERT(sp->state == SPLICE_INIT ||
+	    (so2->so_snd.sb_flags & SB_SPLICED) != 0,
 	    ("%s: so2 is not spliced", __func__));
-	KASSERT(so2->so_splice_back == sp,
+	KASSERT(sp->state == SPLICE_INIT ||
+	    so2->so_splice_back == sp,
 	    ("%s: so_splice_back != sp", __func__));
 	so2->so_snd.sb_flags &= ~SB_SPLICED;
+	so2rele = so2->so_splice_back != NULL;
 	so2->so_splice_back = NULL;
 	SOCK_SENDBUF_UNLOCK(so2);
 	SOCK_UNLOCK(so2);
@@ -1794,6 +1802,7 @@ so_unsplice(struct socket *so, bool timeout)
 		while (sp->state == SPLICE_CLOSING)
 			msleep(sp, &sp->mtx, PSOCK, "unsplice", 0);
 		break;
+	case SPLICE_INIT:
 	case SPLICE_IDLE:
 	case SPLICE_EXCEPTION:
 		sp->state = SPLICE_CLOSED;
@@ -1819,7 +1828,8 @@ so_unsplice(struct socket *so, bool timeout)
 	CURVNET_SET(so->so_vnet);
 	sorele(so);
 	sowwakeup(so2);
-	sorele(so2);
+	if (so2rele)
+		sorele(so2);
 	CURVNET_RESTORE();
 	so_splice_free(sp);
 	return (0);
