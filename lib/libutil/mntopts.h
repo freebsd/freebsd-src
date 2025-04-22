@@ -29,6 +29,9 @@
  * SUCH DAMAGE.
  */
 
+#ifndef _MNTOPTS_H_
+#define _MNTOPTS_H_
+
 struct mntopt {
 	const char *m_option;	/* option name */
 	int m_inverse;		/* if a negative option, e.g. "atime" */
@@ -107,3 +110,5 @@ extern int getmnt_silent;
 void build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val, size_t len);
 void build_iovec_argf(struct iovec **iov, int *iovlen, const char *name, const char *fmt, ...);
 void free_iovec(struct iovec **iovec, int *iovlen);
+
+#endif /* !_MNTOPTS_H_ */
