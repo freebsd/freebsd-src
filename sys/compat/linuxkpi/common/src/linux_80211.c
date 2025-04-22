@@ -777,9 +777,7 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
 	sta->deflink.rx_nss = 1;
 
-	wiphy_lock(hw->wiphy);
 	lkpi_sta_sync_from_ni(hw, vif, sta, ni, false);
-	wiphy_unlock(hw->wiphy);
 
 	IMPROVE("he, eht, bw_320, ... smps_mode, ..");
 
