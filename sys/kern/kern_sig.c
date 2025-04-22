@@ -2868,7 +2868,8 @@ sig_handle_first_stop(struct thread *td, struct proc *p, int sig)
 
 	p->p_flag2 &= ~P2_PTRACE_FSTP;
 	p->p_flag |= P_STOPPED_SIG | P_STOPPED_TRACE;
-	sig_suspend_threads(td, p);
+	if (sig_suspend_threads(td, p) && td == NULL)
+		thread_stopped(p);
 }
 
 /*
