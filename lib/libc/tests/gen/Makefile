@@ -7,7 +7,7 @@ ATF_TESTS_C+=		fmtcheck2_test
 ATF_TESTS_C+=		fmtmsg_test
 ATF_TESTS_C+=		fnmatch2_test
 ATF_TESTS_C+=		fpclassify2_test
-.if ${COMPILER_TYPE} == "clang"
+.if ${COMPILER_FEATURES:Mblocks}
 ATF_TESTS_C+=		fts_blocks_test
 .endif
 ATF_TESTS_C+=		ftw_test

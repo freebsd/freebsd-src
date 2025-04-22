@@ -245,6 +245,7 @@ ${X_}COMPILER_FEATURES+=	c++20
 ${X_}COMPILER_FEATURES+=	init-all
 .endif
 .if ${${X_}COMPILER_TYPE} == "clang"
+${X_}COMPILER_FEATURES+=	blocks
 ${X_}COMPILER_FEATURES+=	retpoline
 # PR257638 lld fails with BE compressed debug.  Fixed in main but external tool
 # chains will initially not have the fix.  For now limit the feature to LE

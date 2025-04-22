@@ -7,7 +7,7 @@ ATF_TESTS_C+=		heapsort_test
 ATF_TESTS_C+=		libc_exit_test
 ATF_TESTS_C+=		mergesort_test
 ATF_TESTS_C+=		qsort_test
-.if ${COMPILER_TYPE} == "clang"
+.if ${COMPILER_FEATURES:Mblocks}
 ATF_TESTS_C+=		qsort_b_test
 .endif
 ATF_TESTS_C+=		qsort_r_compat_test
