@@ -7987,6 +7987,11 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					m_copyback(pd->m, pd->off,
 					    sizeof(struct icmp6_hdr),
 					    (c_caddr_t)&pd->hdr.icmp6);
+					if (pf_change_icmp_af(pd->m, ipoff2, pd,
+					    &pd2, &nk->addr[sidx],
+					    &nk->addr[didx], pd->af,
+					    nk->af))
+						return (PF_DROP);
 					PF_ACPY(&pd->nsaddr, &nk->addr[pd2.sidx],
 					    nk->af);
 					PF_ACPY(&pd->ndaddr,
@@ -8006,11 +8011,6 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 						    pd->src->addr32[0];
 					}
 					pd->naf = pd2.naf = nk->af;
-					if (pf_change_icmp_af(pd->m, ipoff2, pd,
-					    &pd2, &nk->addr[sidx],
-					    &nk->addr[didx], pd->af,
-					    nk->af))
-						return (PF_DROP);
 					pf_change_ap(&pd2, pd2.src, &th->th_sport,
 					    &nk->addr[pd2.sidx], nk->port[sidx]);
 					pf_change_ap(&pd2, pd2.dst, &th->th_dport,
@@ -8119,6 +8119,11 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 					m_copyback(pd->m, pd->off,
 					    sizeof(struct icmp6_hdr),
 					    (c_caddr_t)&pd->hdr.icmp6);
+					if (pf_change_icmp_af(pd->m, ipoff2, pd,
+					    &pd2, &nk->addr[sidx],
+					    &nk->addr[didx], pd->af,
+					    nk->af))
+						return (PF_DROP);
 					PF_ACPY(&pd->nsaddr,
 					    &nk->addr[pd2.sidx], nk->af);
 					PF_ACPY(&pd->ndaddr,
@@ -8138,11 +8143,6 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 						    pd->src->addr32[0];
 					}
 					pd->naf = pd2.naf = nk->af;
-					if (pf_change_icmp_af(pd->m, ipoff2, pd,
-					    &pd2, &nk->addr[sidx],
-					    &nk->addr[didx], pd->af,
-					    nk->af))
-						return (PF_DROP);
 					pf_change_ap(&pd2, pd2.src, &uh->uh_sport,
 					    &nk->addr[pd2.sidx], nk->port[sidx]);
 					pf_change_ap(&pd2, pd2.dst, &uh->uh_dport,
