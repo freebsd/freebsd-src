@@ -2759,22 +2759,41 @@ static inline void
 ena_set_llq_configurations(struct ena_llq_configurations *llq_config,
     struct ena_admin_feature_llq_desc *llq, struct ena_adapter *adapter)
 {
+	bool use_large_llq;
+
 	llq_config->llq_header_location = ENA_ADMIN_INLINE_HEADER;
 	llq_config->llq_stride_ctrl = ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY;
 	llq_config->llq_num_decs_before_header =
 	    ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_2;
-	if ((llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B) != 0) {
-		if ((ena_force_large_llq_header == ENA_LLQ_HEADER_SIZE_POLICY_LARGE) ||
-		    (ena_force_large_llq_header == ENA_LLQ_HEADER_SIZE_POLICY_DEFAULT &&
-		    llq->entry_size_recommended == ENA_ADMIN_LIST_ENTRY_SIZE_256B)) {
-			llq_config->llq_ring_entry_size =
-			    ENA_ADMIN_LIST_ENTRY_SIZE_256B;
-			llq_config->llq_ring_entry_size_value = 256;
-			adapter->llq_policy = ENA_ADMIN_LIST_ENTRY_SIZE_256B;
-		}
+
+	switch (ena_force_large_llq_header)
+	{
+	case ENA_LLQ_HEADER_SIZE_POLICY_REGULAR:
+		use_large_llq = false;
+		break;
+	case ENA_LLQ_HEADER_SIZE_POLICY_LARGE:
+		use_large_llq = true;
+		break;
+	case ENA_LLQ_HEADER_SIZE_POLICY_DEFAULT:
+		use_large_llq =
+		    (llq->entry_size_recommended == ENA_ADMIN_LIST_ENTRY_SIZE_256B);
+		break;
+	default:
+		use_large_llq = false;
+		ena_log(adapter->pdev, WARN,
+		    "force_large_llq_header should have values [0-2]\n");
+		break;
+	}
+
+	if (!(llq->entry_size_ctrl_supported & ENA_ADMIN_LIST_ENTRY_SIZE_256B))
+		use_large_llq = false;
+
+	if (use_large_llq) {
+		llq_config->llq_ring_entry_size = ENA_ADMIN_LIST_ENTRY_SIZE_256B;
+		llq_config->llq_ring_entry_size_value = 256;
+		adapter->llq_policy = ENA_ADMIN_LIST_ENTRY_SIZE_256B;
 	} else {
-		llq_config->llq_ring_entry_size =
-		    ENA_ADMIN_LIST_ENTRY_SIZE_128B;
+		llq_config->llq_ring_entry_size = ENA_ADMIN_LIST_ENTRY_SIZE_128B;
 		llq_config->llq_ring_entry_size_value = 128;
 		adapter->llq_policy = ENA_ADMIN_LIST_ENTRY_SIZE_128B;
 	}
