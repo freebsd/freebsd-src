@@ -815,14 +815,29 @@ initarm(struct arm64_bootparams *abp)
 
 	cache_setup();
 
-	/* Bootstrap enough of pmap  to enter the kernel proper */
-	pmap_bootstrap(lastaddr - KERNBASE);
-	/* Exclude entries needed in the DMAP region, but not phys_avail */
+	/*
+	 * Perform a staged bootstrap of virtual memory.
+	 *
+	 * - First we create the DMAP region. This allows it to be used in
+	 *   later bootstrapping.
+	 * - Next exclude memory that is needed in the DMAP region, but must
+	 *   not be used by FreeBSD.
+	 * - Lastly complete the bootstrapping. It may use the physical
+	 *   memory map so any excluded memory must be marked as such before
+	 *   pmap_bootstrap() is called.
+	 */
+	pmap_bootstrap_dmap(lastaddr - KERNBASE);
+	/*
+	 * Exclude EFI entries needed in the DMAP, e.g. EFI_MD_TYPE_RECLAIM
+	 * may contain the ACPI tables but shouldn't be used by the kernel
+	 */
 	if (efihdr != NULL)
 		efi_map_exclude_entries(efihdr);
 	/*  Do the same for reserve entries in the EFI MEMRESERVE table */
 	if (efi_systbl_phys != 0)
 		exclude_efi_memreserve(efi_systbl_phys);
+	/* Continue bootstrapping pmap */
+	pmap_bootstrap();
 
 	/*
 	 * We carefully bootstrap the sanitizer map after we've excluded

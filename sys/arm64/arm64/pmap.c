@@ -1211,10 +1211,27 @@ pmap_bootstrap_l3_page(struct pmap_bootstrap_state *state, int i)
 	MPASS(state->va == (state->pa - dmap_phys_base + DMAP_MIN_ADDRESS));
 }
 
-static void
-pmap_bootstrap_dmap(void)
+void
+pmap_bootstrap_dmap(vm_size_t kernlen)
 {
+	vm_paddr_t start_pa, pa;
+	uint64_t tcr;
 	int i;
+
+	tcr = READ_SPECIALREG(tcr_el1);
+
+	/* Verify that the ASID is set through TTBR0. */
+	KASSERT((tcr & TCR_A1) == 0, ("pmap_bootstrap: TCR_EL1.A1 != 0"));
+
+	if ((tcr & TCR_DS) != 0)
+		pmap_lpa_enabled = true;
+
+	pmap_l1_supported = L1_BLOCKS_SUPPORTED;
+
+	start_pa = pmap_early_vtophys(KERNBASE);
+
+	bs_state.freemempos = KERNBASE + kernlen;
+	bs_state.freemempos = roundup2(bs_state.freemempos, PAGE_SIZE);
 
 	/* Fill in physmap array. */
 	physmap_idx = physmem_avail(physmap, nitems(physmap));
@@ -1275,6 +1292,12 @@ pmap_bootstrap_dmap(void)
 	}
 
 	cpu_tlb_flushID();
+
+	bs_state.dmap_valid = true;
+
+	/* Exclude the kernel and DMAP region */
+	pa = pmap_early_vtophys(bs_state.freemempos);
+	physmem_exclude_region(start_pa, pa - start_pa, EXFLAG_NOALLOC);
 }
 
 static void
@@ -1305,21 +1328,10 @@ pmap_bootstrap_l3(vm_offset_t va)
  *	Bootstrap the system enough to run with virtual memory.
  */
 void
-pmap_bootstrap(vm_size_t kernlen)
+pmap_bootstrap(void)
 {
 	vm_offset_t dpcpu, msgbufpv;
 	vm_paddr_t start_pa, pa;
-	uint64_t tcr;
-
-	tcr = READ_SPECIALREG(tcr_el1);
-
-	/* Verify that the ASID is set through TTBR0. */
-	KASSERT((tcr & TCR_A1) == 0, ("pmap_bootstrap: TCR_EL1.A1 != 0"));
-
-	if ((tcr & TCR_DS) != 0)
-		pmap_lpa_enabled = true;
-
-	pmap_l1_supported = L1_BLOCKS_SUPPORTED;
 
 	/* Set this early so we can use the pagetable walking functions */
 	kernel_pmap_store.pm_l0 = pagetable_l0_ttbr1;
@@ -1334,20 +1346,13 @@ pmap_bootstrap(vm_size_t kernlen)
 	kernel_pmap->pm_ttbr = kernel_pmap->pm_l0_paddr;
 	kernel_pmap->pm_asid_set = &asids;
 
-	bs_state.freemempos = KERNBASE + kernlen;
-	bs_state.freemempos = roundup2(bs_state.freemempos, PAGE_SIZE);
-
-	/* Create a direct map region early so we can use it for pa -> va */
-	pmap_bootstrap_dmap();
-	bs_state.dmap_valid = true;
-
 	/*
 	 * We only use PXN when we know nothing will be executed from it, e.g.
 	 * the DMAP region.
 	 */
 	bs_state.table_attrs &= ~TATTR_PXN_TABLE;
 
-	start_pa = pa = pmap_early_vtophys(KERNBASE);
+	start_pa = pmap_early_vtophys(bs_state.freemempos);
 
 	/*
 	 * Create the l2 tables up to VM_MAX_KERNEL_ADDRESS.  We assume that the
