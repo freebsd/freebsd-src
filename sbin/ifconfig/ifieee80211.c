@@ -3202,6 +3202,33 @@ printrsnie(if_ctx *ctx, const char *tag, const u_int8_t *ie, size_t ielen)
 	}
 }
 
+static void
+printrsnxe(if_ctx *ctx, const char *tag, const u_int8_t *ie, size_t ielen)
+{
+	size_t n;
+
+	printf("%s", tag);
+	if (!ctx->args->verbose)
+		return;
+
+	ie += 2, ielen -= 2;
+
+	n = (*ie & 0x0f);
+	printf("<%zu", n + 1);
+
+	/* We do not yet know about more than n=1 (0). */
+	if (n != 0)
+		goto end;
+
+	if (*ie & 0x10)
+		printf(" PTWTOPS");
+	if (*ie & 0x20)
+		printf(" SAE h-t-e");
+
+end:
+	printf(">");
+}
+
 #define BE_READ_2(p)					\
 	((u_int16_t)					\
 	 ((((const u_int8_t *)(p))[1]      ) |		\
@@ -3610,6 +3637,7 @@ iename(int elemid)
 	case IEEE80211_ELEMID_TPC:	return " TPC";
 	case IEEE80211_ELEMID_CCKM:	return " CCKM";
 	case IEEE80211_ELEMID_EXTCAP:	return " EXTCAP";
+	case IEEE80211_ELEMID_RSN_EXT:	return " RSNXE";
 	}
 	snprintf(iename_buf, sizeof(iename_buf), " UNKNOWN_ELEMID_%d",
 	    elemid);
@@ -3692,6 +3720,9 @@ printies(if_ctx *ctx, const u_int8_t *vp, int ielen, unsigned int maxcols)
 			break;
 		case IEEE80211_ELEMID_APCHANREP:
 			printapchanrep(ctx, " APCHANREP", vp, 2+vp[1]);
+			break;
+		case IEEE80211_ELEMID_RSN_EXT:
+			printrsnxe(ctx, " RSNXE", vp, 2+vp[1]);
 			break;
 		default:
 			if (verbose)
