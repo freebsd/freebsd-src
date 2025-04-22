@@ -1415,10 +1415,11 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	lcipher = lkpi_net80211_to_l80211_cipher_suite(
 	    k->wk_cipher->ic_cipher, k->wk_keylen);
 	switch (lcipher) {
-	case WLAN_CIPHER_SUITE_CCMP:
-		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		keylen += 2 * k->wk_cipher->ic_miclen;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
 		break;
 	default:
 		ic_printf(ic, "%s: CIPHER SUITE %#x (%s) not supported\n",
@@ -1454,16 +1455,16 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	if (k->wk_flags & IEEE80211_KEY_GROUP)
 		kc->flags &= ~IEEE80211_KEY_FLAG_PAIRWISE;
 
+	kc->iv_len = k->wk_cipher->ic_header;
+	kc->icv_len = k->wk_cipher->ic_trailer;
+
 	switch (kc->cipher) {
-	case WLAN_CIPHER_SUITE_CCMP:
-		kc->iv_len = k->wk_cipher->ic_header;
-		kc->icv_len = k->wk_cipher->ic_trailer;
-		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		memcpy(kc->key + NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY, k->wk_txmic, k->wk_cipher->ic_miclen);
 		memcpy(kc->key + NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY, k->wk_rxmic, k->wk_cipher->ic_miclen);
-		kc->iv_len = k->wk_cipher->ic_header;
-		kc->icv_len = k->wk_cipher->ic_trailer;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
 		break;
 	default:
 		/* currently UNREACH */
@@ -1528,6 +1529,7 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 #endif
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
 		exp_flags = (IEEE80211_KEY_FLAG_PAIRWISE |
 		    IEEE80211_KEY_FLAG_PUT_IV_SPACE |
 		    IEEE80211_KEY_FLAG_GENERATE_IV |
@@ -4809,6 +4811,7 @@ encrypt:
 	TODO("sw encrypt");
 	return (ENXIO);
 }
+
 static int
 lkpi_hw_crypto_prepare_ccmp(struct ieee80211_key *k,
     struct ieee80211_key_conf *kc, struct sk_buff *skb)
@@ -4876,10 +4879,11 @@ lkpi_hw_crypto_prepare(struct lkpi_sta *lsta, struct ieee80211_key *k,
 		return (lkpi_hw_crypto_prepare_tkip(k, kc, skb));
 	case WLAN_CIPHER_SUITE_CCMP:
 		return (lkpi_hw_crypto_prepare_ccmp(k, kc, skb));
+	case WLAN_CIPHER_SUITE_GCMP:
+		return (lkpi_hw_crypto_prepare_ccmp(k, kc, skb));
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 	case WLAN_CIPHER_SUITE_CCMP_256:
-	case WLAN_CIPHER_SUITE_GCMP:
 	case WLAN_CIPHER_SUITE_GCMP_256:
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
@@ -6124,6 +6128,7 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 		 * Also permit TKIP if turned on.
 		 */
 		hwciphers &= (IEEE80211_CRYPTO_AES_CCM |
+		    IEEE80211_CRYPTO_AES_GCM_128 |
 		    (lkpi_hwcrypto_tkip ? (IEEE80211_CRYPTO_TKIP |
 		    IEEE80211_CRYPTO_TKIPMIC) : 0));
 		ieee80211_set_hardware_ciphers(ic, hwciphers);
