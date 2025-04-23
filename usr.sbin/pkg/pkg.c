@@ -942,10 +942,6 @@ static const char args_bootstrap_message[] =
 "Too many arguments\n"
 "Usage: pkg [-4|-6] bootstrap [-f] [-y]\n";
 
-static const char args_add_message[] =
-"Too many arguments\n"
-"Usage: pkg add [-f] [-y] {pkg.pkg}\n";
-
 static int
 pkg_query_yes_no(void)
 {
@@ -1072,47 +1068,39 @@ int
 main(int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
+	char **original_argv;
 	const char *pkgarg, *repo_name;
 	bool activation_test, add_pkg, bootstrap_only, force, yes;
 	signed char ch;
 	const char *fetchOpts;
-	char *command;
 	struct repositories *repositories;
 
 	activation_test = false;
 	add_pkg = false;
 	bootstrap_only = false;
-	command = NULL;
 	fetchOpts = "";
 	force = false;
+	original_argv = argv;
 	pkgarg = NULL;
 	repo_name = NULL;
 	yes = false;
 
 	struct option longopts[] = {
 		{ "debug",		no_argument,		NULL,	'd' },
-		{ "force",		no_argument,		NULL,	'f' },
 		{ "only-ipv4",		no_argument,		NULL,	'4' },
 		{ "only-ipv6",		no_argument,		NULL,	'6' },
-		{ "yes",		no_argument,		NULL,	'y' },
 		{ NULL,			0,			NULL,	0   },
 	};
 
 	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg", getlocalbase());
 
-	while ((ch = getopt_long(argc, argv, "-:dfr::yN46", longopts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "+:dN46", longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'd':
 			debug++;
 			break;
-		case 'f':
-			force = true;
-			break;
 		case 'N':
 			activation_test = true;
-			break;
-		case 'y':
-			yes = true;
 			break;
 		case '4':
 			fetchOpts = "4";
@@ -1120,89 +1108,98 @@ main(int argc, char *argv[])
 		case '6':
 			fetchOpts = "6";
 			break;
-		case 'r':
-			/*
-			 * The repository can only be specified for an explicit
-			 * bootstrap request at this time, so that we don't
-			 * confuse the user if they're trying to use a verb that
-			 * has some other conflicting meaning but we need to
-			 * bootstrap.
-			 *
-			 * For that reason, we specify that -r has an optional
-			 * argument above and process the next index ourselves.
-			 * This is mostly significant because getopt(3) will
-			 * otherwise eat the next argument, which could be
-			 * something we need to try and make sense of.
-			 *
-			 * At worst this gets us false positives that we ignore
-			 * in other contexts, and we have to do a little fudging
-			 * in order to support separating -r from the reponame
-			 * with a space since it's not actually optional in
-			 * the bootstrap/add sense.
-			 */
-			if (add_pkg || bootstrap_only) {
-				if (optarg != NULL) {
-					repo_name = optarg;
-				} else if (optind < argc) {
-					repo_name = argv[optind];
-				}
-
-				if (repo_name == NULL || *repo_name == '\0') {
-					fprintf(stderr,
-					    "Must specify a repository with -r!\n");
-					exit(EXIT_FAILURE);
-				}
-
-				if (optarg == NULL) {
-					/* Advance past repo name. */
-					optreset = 1;
-					optind++;
-				}
-			}
-			break;
-		case 1:
-			// Non-option arguments, first one is the command
-			if (command == NULL) {
-				command = argv[optind-1];
-				if (strcmp(command, "add") == 0) {
-					add_pkg = true;
-				}
-				else if (strcmp(command, "bootstrap") == 0) {
-					bootstrap_only = true;
-				}
-			}
-			// bootstrap doesn't accept other arguments
-			else if (bootstrap_only) {
-				fprintf(stderr, args_bootstrap_message);
-				exit(EXIT_FAILURE);
-			}
-			else if (add_pkg && pkgarg != NULL) {
-				/*
-				 * Additional arguments also means it's not a
-				 * local bootstrap request.
-				 */
-				add_pkg = false;
-			}
-			else if (add_pkg) {
-				/*
-				 * If it's not a request for pkg or pkg-devel,
-				 * then we must assume they were trying to
-				 * install some other local package and we
-				 * should try to bootstrap from the repo.
-				 */
-				if (!pkg_is_pkg_pkg(argv[optind-1])) {
-					add_pkg = false;
-				} else {
-					pkgarg = argv[optind-1];
-				}
-			}
-			break;
 		default:
 			break;
 		}
 	}
 	if (debug > 1)
 		fetchDebug = 1;
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc >= 1) {
+		if (strcmp(argv[0], "bootstrap") == 0) {
+			bootstrap_only = true;
+		} else if (strcmp(argv[0], "add") == 0) {
+			add_pkg = true;
+		}
+
+		optreset = 1;
+		optind = 1;
+		if (bootstrap_only || add_pkg) {
+			struct option sub_longopts[] = {
+				{ "force",	no_argument,	NULL,	'f' },
+				{ "yes",	no_argument,	NULL,	'y' },
+				{ NULL,		0,		NULL,	0   },
+			};
+			while ((ch = getopt_long(argc, argv, "+:fr:y",
+			    sub_longopts, NULL)) != -1) {
+				switch (ch) {
+				case 'f':
+					force = true;
+					break;
+				case 'r':
+					repo_name = optarg;
+					break;
+				case 'y':
+					yes = true;
+					break;
+				case ':':
+					fprintf(stderr, "Option -%c requires an argument\n", optopt);
+					exit(EXIT_FAILURE);
+					break;
+				default:
+					break;
+				}
+			}
+		} else {
+			/*
+			 * Parse -y and --yes regardless of the pkg subcommand
+			 * specified. This is necessary to make, for example,
+			 * `pkg install -y foobar` work as expected when pkg is
+			 * not yet bootstrapped.
+			 */
+			struct option sub_longopts[] = {
+				{ "yes",	no_argument,	NULL,	'y' },
+				{ NULL,		0,		NULL,	0   },
+			};
+			while ((ch = getopt_long(argc, argv, "+y",
+			    sub_longopts, NULL)) != -1) {
+				switch (ch) {
+				case 'y':
+					yes = true;
+					break;
+				default:
+					break;
+				}
+			}
+
+		}
+		argc -= optind;
+		argv += optind;
+
+		if (bootstrap_only && argc > 0) {
+			fprintf(stderr, args_bootstrap_message);
+			exit(EXIT_FAILURE);
+		}
+
+		if (add_pkg) {
+			if (argc < 1) {
+				fprintf(stderr, "Path to pkg.pkg required\n");
+				exit(EXIT_FAILURE);
+			} else if (argc == 1 && pkg_is_pkg_pkg(argv[0])) {
+				pkgarg = argv[0];
+			} else {
+				/*
+				 * If the target package is not pkg.pkg
+				 * or there is more than one target package,
+				 * this is not a local bootstrap request.
+				 */
+				add_pkg = false;
+			}
+		}
+	}
 
 	if ((bootstrap_only && force) || access(pkgpath, X_OK) == -1) {
 		struct repository *repo;
@@ -1218,10 +1215,7 @@ main(int argc, char *argv[])
 		config_init(repo_name);
 
 		if (add_pkg) {
-			if (pkgarg == NULL) {
-				fprintf(stderr, "Path to pkg.pkg required\n");
-				exit(EXIT_FAILURE);
-			}
+			assert(pkgarg != NULL);
 			if (access(pkgarg, R_OK) == -1) {
 				fprintf(stderr, "No such file: %s\n", pkgarg);
 				exit(EXIT_FAILURE);
@@ -1263,7 +1257,7 @@ main(int argc, char *argv[])
 		exit(EXIT_SUCCESS);
 	}
 
-	execv(pkgpath, argv);
+	execv(pkgpath, original_argv);
 
 	/* NOT REACHED */
 	return (EXIT_FAILURE);
