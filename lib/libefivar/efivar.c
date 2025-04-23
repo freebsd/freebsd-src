@@ -37,7 +37,7 @@
 
 static int efi_fd = -2;
 
-#define Z { 0, 0, 0, 0, 0, { 0 } }
+#define Z { 0 }
 
 const efi_guid_t efi_guid_empty = Z;
 
