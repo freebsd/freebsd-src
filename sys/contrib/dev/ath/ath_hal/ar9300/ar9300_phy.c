@@ -848,7 +848,6 @@ ar9300_init_rate_txpower_stbc(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
     struct ath_hal_9300 *ahp = AH9300(ah);
     int i;
     int16_t twice_array_gain, stbc_power = 0;
-    u_int8_t mcs_index = 0;
 
     /* Upper Limit with STBC */
     switch (chainmask) {
@@ -900,7 +899,6 @@ ar9300_init_rate_txpower_stbc(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
                      __func__, chainmask);
             break;
         }
-        mcs_index++;
     }
 
     for (i = rt_ds_offset; i < rt_ds_offset + AR9300_NUM_HT_DS_RATES; i++) {
@@ -924,7 +922,6 @@ ar9300_init_rate_txpower_stbc(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
                      __func__, chainmask);
             break;
         }
-        mcs_index++;
     }
 
     for (i = rt_ts_offset; i < rt_ts_offset + AR9300_NUM_HT_TS_RATES; i++) {
@@ -944,7 +941,6 @@ ar9300_init_rate_txpower_stbc(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
                      __func__, chainmask);
             break;
         }
-        mcs_index++;
     }
 
     return;

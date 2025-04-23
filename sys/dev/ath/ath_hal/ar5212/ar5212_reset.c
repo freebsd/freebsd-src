@@ -732,12 +732,11 @@ ar5212ChannelChange(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	uint32_t   data, synthDelay, qnum;
 	uint16_t   rfXpdGain[MAX_NUM_PDGAINS_PER_CHANNEL];
 	HAL_BOOL    txStopped = AH_TRUE;
-	HAL_CHANNEL_INTERNAL *ichan;
 
 	/*
 	 * Map public channel to private.
 	 */
-	ichan = ath_hal_checkchannel(ah, chan);
+	(void)ath_hal_checkchannel(ah, chan);
 
 	/* TX must be stopped or RF Bus grant will not work */
 	for (qnum = 0; qnum < AH_PRIVATE(ah)->ah_caps.halTotalQueues; qnum++) {

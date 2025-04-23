@@ -1046,8 +1046,6 @@ ar9300_spur_mitigate_ofdm(struct ath_hal *ah, struct ieee80211_channel *chan)
     int i;
     int mode;
     u_int8_t* spur_chans_ptr;
-    struct ath_hal_9300 *ahp;
-    ahp = AH9300(ah);
     HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
 
     if (IS_CHAN_5GHZ(ichan)) {
@@ -3425,14 +3423,12 @@ ar9300_run_init_cals(struct ath_hal *ah, int init_cal_count)
     HAL_CHANNEL_INTERNAL ichan; /* bogus */
     HAL_BOOL is_cal_done;
     HAL_CAL_LIST *curr_cal;
-    const HAL_PERCAL_DATA *cal_data;
     int i;
 
     curr_cal = ahp->ah_cal_list_curr;
     if (curr_cal == AH_NULL) {
         return AH_FALSE;
     }
-    cal_data = curr_cal->cal_data;
     ichan.calValid = 0;
 
     for (i = 0; i < init_cal_count; i++) {

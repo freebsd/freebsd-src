@@ -573,7 +573,6 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
     int16_t  tMinCalPower;
     uint16_t numXpdGain, xpdMask;
     uint16_t xpdGainValues[4];	/* v4k eeprom has 2; the other two stay 0 */
-    uint32_t regChainOffset;
 
     OS_MEMZERO(xpdGainValues, sizeof(xpdGainValues));
     
@@ -605,7 +604,6 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
     ar5416WriteDetectorGainBiases(ah, numXpdGain, xpdGainValues);
 
     for (i = 0; i < AR5416_MAX_CHAINS; i++) {
-	regChainOffset = ar5416GetRegChainOffset(ah, i);
         if (pEepData->baseEepHeader.txMask & (1 << i)) {
             pRawDataset = pEepData->calPierData2G[i];
 

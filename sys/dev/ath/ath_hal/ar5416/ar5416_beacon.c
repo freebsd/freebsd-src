@@ -150,7 +150,7 @@ ar5416ResetStaBeaconTimers(struct ath_hal *ah)
 void
 ar5416SetStaBeaconTimers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
 {
-	uint32_t nextTbtt, nextdtim,beaconintval, dtimperiod;
+	uint32_t nextTbtt, beaconintval, dtimperiod;
 
 	HALASSERT(bs->bs_intval != 0);
 
@@ -245,7 +245,6 @@ ar5416SetStaBeaconTimers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
 		nextTbtt = bs->bs_nextdtim;
 	else
 		nextTbtt = bs->bs_nexttbtt;
-	nextdtim = bs->bs_nextdtim;
 
 	OS_REG_WRITE(ah, AR_NEXT_DTIM,
 		TU_TO_USEC(bs->bs_nextdtim - SLEEP_SLOP));
