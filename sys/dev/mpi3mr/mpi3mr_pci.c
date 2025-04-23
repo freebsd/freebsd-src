@@ -178,12 +178,15 @@ mpi3mr_get_tunables(struct mpi3mr_softc *sc)
 	sc->reset_in_progress = 0;
 	sc->reset.type = 0;
 	sc->iot_enable = 1;
+	sc->max_sgl_entries = maxphys / PAGE_SIZE;
+
 	/*
 	 * Grab the global variables.
 	 */
 	TUNABLE_INT_FETCH("hw.mpi3mr.debug_level", &sc->mpi3mr_debug);
 	TUNABLE_INT_FETCH("hw.mpi3mr.ctrl_reset", &sc->reset.type);
 	TUNABLE_INT_FETCH("hw.mpi3mr.iot_enable", &sc->iot_enable);
+	TUNABLE_INT_FETCH("hw.mpi3mr.max_sgl_entries", &sc->max_sgl_entries);
 
 	/* Grab the unit-instance variables */
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpi3mr.%d.debug_level",
@@ -197,6 +200,10 @@ mpi3mr_get_tunables(struct mpi3mr_softc *sc)
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpi3mr.%d.iot_enable",
 	    device_get_unit(sc->mpi3mr_dev));
 	TUNABLE_INT_FETCH(tmpstr, &sc->iot_enable);
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mpi3mr.%d.max_sgl_entries",
+	    device_get_unit(sc->mpi3mr_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->max_sgl_entries);
 }
 
 static struct mpi3mr_ident *
@@ -443,7 +450,16 @@ mpi3mr_pci_attach(device_t dev)
 
 	sc->mpi3mr_dev = dev;
 	mpi3mr_get_tunables(sc);
-	
+
+	if (sc->max_sgl_entries > MPI3MR_MAX_SGL_ENTRIES)
+		sc->max_sgl_entries = MPI3MR_MAX_SGL_ENTRIES;
+	else if (sc->max_sgl_entries < MPI3MR_DEFAULT_SGL_ENTRIES)
+		sc->max_sgl_entries = MPI3MR_DEFAULT_SGL_ENTRIES;
+	else {
+		sc->max_sgl_entries /= MPI3MR_DEFAULT_SGL_ENTRIES;
+		sc->max_sgl_entries *= MPI3MR_DEFAULT_SGL_ENTRIES;
+	}
+
 	if ((error = mpi3mr_initialize_ioc(sc, MPI3MR_INIT_TYPE_INIT)) != 0) {
 		mpi3mr_dprint(sc, MPI3MR_ERROR, "FW initialization failed\n");
 		goto load_failed;
