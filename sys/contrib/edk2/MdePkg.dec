@@ -4,9 +4,14 @@
 # It also provides the definitions(including PPIs/PROTOCOLs/GUIDs) of
 # EFI1.10/UEFI2.7/PI1.7 and some Industry Standards.
 #
-# Copyright (c) 2007 - 2019, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2007 - 2024, Intel Corporation. All rights reserved.<BR>
 # Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
-# (C) Copyright 2016 - 2020 Hewlett Packard Enterprise Development LP<BR>
+# (C) Copyright 2016 - 2021 Hewlett Packard Enterprise Development LP<BR>
+# Copyright (c) 2022, Loongson Technology Corporation Limited. All rights reserved.<BR>
+# Copyright (c) 2021 - 2022, Arm Limited. All rights reserved.<BR>
+# Copyright (C) 2023 Advanced Micro Devices, Inc. All rights reserved.<BR>
+# Copyright (c) 2023, Ampere Computing LLC. All rights reserved.<BR>
+# Copyright (c) Microsoft Corporation.<BR>
 #
 # SPDX-License-Identifier: BSD-2-Clause-Patent
 #
@@ -23,6 +28,9 @@
 
 [Includes]
   Include
+  Test/UnitTest/Include
+  Test/Mock/Include
+  Library/MipiSysTLib/mipisyst/library/include
 
 [Includes.IA32]
   Include/Ia32
@@ -41,6 +49,9 @@
 
 [Includes.RISCV64]
   Include/RiscV64
+
+[Includes.LOONGARCH64]
+  Include/LoongArch64
 
 [LibraryClasses]
   ##  @libraryclass  Provides most usb APIs to support the Hid requests defined in Usb Hid 1.1 spec
@@ -251,6 +262,61 @@
   #
   UnitTestLib|Include/Library/UnitTestLib.h
 
+  ## @libraryclass Provides service to get the manufacturer given JEP106 bytes.
+  JedecJep106Lib|Include/Library/JedecJep106Lib.h
+
+  ## @libraryclass Extension to BaseLib for host based unit tests that allows a
+  #                subset of BaseLib services to be hooked for emulation.
+  #
+  UnitTestHostBaseLib|Test/UnitTest/Include/Library/UnitTestHostBaseLib.h
+
+  ##  @libraryclass  This library provides an interface to request non-MMRAM pages to be mapped
+  #                  or unblocked from inside MM environment.
+  #
+  MmUnblockMemoryLib|Include/Library/MmUnblockMemoryLib.h
+
+  ##  @libraryclass  This library provides interfances to filter and trace port IO/MMIO/MSR access.
+  #
+  #
+  RegisterFilterLib|Include/Library/RegisterFilterLib.h
+
+  ##  @libraryclass  This library provides interfances to probe ConfidentialComputing guest type.
+  #
+  #
+  CcProbeLib|Include/Library/CcProbeLib.h
+
+  ## @libraryclass  Provides function for SMM CPU Rendezvous Library.
+  SmmCpuRendezvousLib|Include/Library/SmmCpuRendezvousLib.h
+
+  ##  @libraryclass  Provides services to generate Entropy using a TRNG.
+  #
+  ArmTrngLib|Include/Library/ArmTrngLib.h
+
+  ##  @libraryclass  Provides APIs for third-party library libfdt.
+  #
+  FdtLib|Include/Library/FdtLib.h
+
+  ##  @libraryclass  Provides general mipi sys-T services.
+  #
+  MipiSysTLib|Include/Library/MipiSysTLib.h
+
+  ##  @libraryclass  Provides API to output Trace Hub debug message.
+  #
+  TraceHubDebugSysTLib|Include/Library/TraceHubDebugSysTLib.h
+
+  ##  @libraryclass  Provides a hook called when a stack cookie check fails.
+  #
+  StackCheckFailureHookLib|Include/Library/StackCheckFailureHookLib.h
+
+  ##  @libraryclass  Provides stack cookie checking functionality
+  #
+  StackCheckLib|Include/Library/StackCheckLib.h
+
+[LibraryClasses.IA32, LibraryClasses.X64, LibraryClasses.AARCH64]
+  ##  @libraryclass  Provides services to generate random number.
+  #
+  RngLib|Include/Library/RngLib.h
+
 [LibraryClasses.IA32, LibraryClasses.X64]
   ##  @libraryclass  Abstracts both S/W SMI generation and detection.
   ##
@@ -272,12 +338,25 @@
   #
   SmmPeriodicSmiLib|Include/Library/SmmPeriodicSmiLib.h
 
-  ##  @libraryclass  Provides services to generate random number.
-  #
-  RngLib|Include/Library/RngLib.h
-
   ##  @libraryclass  Provides services to log the SMI handler registration.
   SmiHandlerProfileLib|Include/Library/SmiHandlerProfileLib.h
+
+  ##  @libraryclass  Provides function to support TDX processing.
+  TdxLib|Include/Library/TdxLib.h
+
+[LibraryClasses.X64]
+  ##  @libraryclass  Defines a set of interfaces for the MM core entrypoint. The ARM/AARCH64 version lives in ArmPkg
+  #
+  StandaloneMmCoreEntryPoint|Include/Library/StandaloneMmCoreEntryPoint.h
+
+[LibraryClasses.RISCV64]
+  ##  @libraryclass  Provides function to make ecalls to SBI
+  BaseRiscVSbiLib|Include/Library/BaseRiscVSbiLib.h
+
+[LibraryClasses.ARM, LibraryClasses.AARCH64]
+  ##  @libraryclass  Provides an interface to Arm registers.
+  #
+  ArmLib|Include/Library/ArmLib.h
 
 [Guids]
   #
@@ -377,10 +456,16 @@
   gEfiEventReadyToBootGuid       = { 0x7CE88FB3, 0x4BD7, 0x4679, { 0x87, 0xA8, 0xA8, 0xD8, 0xDE, 0xE5, 0x0D, 0x2B }}
 
   ## Include/Guid/EventGroup.h
+  gEfiEventAfterReadyToBootGuid  = { 0x3a2a00ad, 0x98b9, 0x4cdf, { 0xa4, 0x78, 0x70, 0x27, 0x77, 0xf1, 0xc1, 0x0b }}
+
+  ## Include/Guid/EventGroup.h
   gEfiEventMemoryMapChangeGuid   = { 0x78BEE926, 0x692F, 0x48FD, { 0x9E, 0xDB, 0x01, 0x42, 0x2E, 0xF0, 0xD7, 0xAB }}
 
   ## Include/Guid/EventGroup.h
-  gEfiEventVirtualAddressChangeGuid = { 0x13FA7698, 0xC831, 0x49C7, { 0x87, 0xEA, 0x8F, 0x43, 0xFC, 0xC2, 0x51, 0x96 }}
+  gEfiEventVirtualAddressChangeGuid   = { 0x13FA7698, 0xC831, 0x49C7, { 0x87, 0xEA, 0x8F, 0x43, 0xFC, 0xC2, 0x51, 0x96 }}
+
+  ## Include/Guid/EventGroup.h
+  gEfiEventBeforeExitBootServicesGuid = { 0x8BE0E274, 0x3970, 0x4B44, { 0x80, 0xC5, 0x1A, 0xB9, 0x50, 0x2F, 0x3B, 0xFC }}
 
   ## Include/Guid/EventGroup.h
   gEfiEventExitBootServicesGuid  = { 0x27ABF055, 0xB1B8, 0x4C26, { 0x80, 0x48, 0x74, 0x8F, 0x37, 0xBA, 0xA2, 0xDF }}
@@ -554,6 +639,7 @@
   gEfiCertSha384Guid             = { 0xff3e5307, 0x9fd0, 0x48c9, {0x85, 0xf1, 0x8a, 0xd5, 0x6c, 0x70, 0x1e,  0x1 }}
   gEfiCertSha512Guid             = { 0x93e0fae,  0xa6c4, 0x4f50, {0x9f, 0x1b, 0xd4, 0x1e, 0x2b, 0x89, 0xc1, 0x9a }}
   gEfiCertPkcs7Guid              = { 0x4aafd29d, 0x68df, 0x49ee, {0x8a, 0xa9, 0x34, 0x7d, 0x37, 0x56, 0x65, 0xa7 }}
+  gEfiCertSm3Guid                = { 0x57347f87, 0x7a9b, 0x403a, {0xb9, 0x3c, 0xdc, 0x4a, 0xfb, 0x7a, 0x0e, 0xbc }}
 
   ## Include/Protocol/Hash.h
   gEfiHashAlgorithmSha1NoPadGuid = { 0x24c5dc2f, 0x53e2, 0x40ca, { 0x9e, 0xd6, 0xa5, 0xd9, 0xa4, 0x9f, 0x46, 0x3b }}
@@ -569,6 +655,7 @@
   gEfiCertX509Sha256Guid         = { 0x3bd2a492, 0x96c0, 0x4079, {0xb4, 0x20, 0xfc, 0xf9, 0x8e, 0xf1, 0x03, 0xed }}
   gEfiCertX509Sha384Guid         = { 0x7076876e, 0x80c2, 0x4ee6, {0xaa, 0xd2, 0x28, 0xb3, 0x49, 0xa6, 0x86, 0x5b }}
   gEfiCertX509Sha512Guid         = { 0x446dbf63, 0x2502, 0x4cda, {0xbc, 0xfa, 0x24, 0x65, 0xd2, 0xb0, 0xfe, 0x9d }}
+  gEfiCertX509Sm3Guid            = { 0x60d807e5, 0x10b4, 0x49a9, {0x93, 0x31, 0xe4, 0x04, 0x37, 0x88, 0x8d, 0x37 }}
 
   ## Include/Protocol/Rng.h
   gEfiRngAlgorithmSp80090Hash256Guid = { 0xa7af67cb, 0x603b, 0x4d42, {0xba, 0x21, 0x70, 0xbf, 0xb6, 0x29, 0x3f, 0x96 }}
@@ -577,6 +664,7 @@
   gEfiRngAlgorithmX9313DesGuid       = { 0x63c4785a, 0xca34, 0x4012, {0xa3, 0xc8, 0x0b, 0x6a, 0x32, 0x4f, 0x55, 0x46 }}
   gEfiRngAlgorithmX931AesGuid        = { 0xacd03321, 0x777e, 0x4d3d, {0xb1, 0xc8, 0x20, 0xcf, 0xd8, 0x88, 0x20, 0xc9 }}
   gEfiRngAlgorithmRaw                = { 0xe43176d7, 0xb6e8, 0x4827, {0xb7, 0x84, 0x7f, 0xfd, 0xc4, 0xb6, 0x85, 0x61 }}
+  gEfiRngAlgorithmArmRndr            = { 0x43d2fde3, 0x9d4e, 0x4d79, {0x02, 0x96, 0xa8, 0x9b, 0xca, 0x78, 0x08, 0x41 }}
 
   ## Include/Protocol/AdapterInformation.h
   gEfiAdapterInfoMediaStateGuid       = { 0xD7C74207, 0xA831, 0x4A26, {0xB1, 0xF5, 0xD1, 0x93, 0x06, 0x5C, 0xE8, 0xB6 }}
@@ -626,6 +714,7 @@
   gEfiBootManagerPolicyConsoleGuid    = { 0xCAB0E94C, 0xE15F, 0x11E3, { 0x91, 0x8D, 0xB8, 0xE8, 0x56, 0x2C, 0xBA, 0xFA }}
   gEfiBootManagerPolicyNetworkGuid    = { 0xD04159DC, 0xE15F, 0x11E3, { 0xB2, 0x61, 0xB8, 0xE8, 0x56, 0x2C, 0xBA, 0xFA }}
   gEfiBootManagerPolicyConnectAllGuid = { 0x113B2126, 0xFC8A, 0x11E3, { 0xBD, 0x6C, 0xB8, 0xE8, 0x56, 0x2C, 0xBA, 0xFA }}
+  gEfiBootManagerPolicyStorageGuid    = { 0xCD68FE79, 0xD3CB, 0x436E, { 0xA8, 0x50, 0xF4, 0x43, 0xC8, 0x8C, 0xFB, 0x49 }}
 
   ## Include/Protocol/DevicePath.h
   gEfiVirtualDiskGuid            = { 0x77AB535A, 0x45FC, 0x624B, {0x55, 0x60, 0xF7, 0xB2, 0x81, 0xD1, 0xF9, 0x6E }}
@@ -663,12 +752,31 @@
   gEfiJsonCapsuleIdGuid            = { 0x67d6f4cd, 0xd6b8, 0x4573, { 0xbf, 0x4a, 0xde, 0x5e, 0x25, 0x2d, 0x61, 0xae }}
 
   ## Include/Guid/HiiPlatformSetupFormset.h
-  gEfiHiiResetStyleFormsetGuid     = { 0x790217bd, 0xbecf, 0x485b, { 0x91, 0x70, 0x5f, 0xf7, 0x11, 0x31, 0x8b, 0x27 }}
+  gEfiHiiRestStyleFormsetGuid      = { 0x790217bd, 0xbecf, 0x485b, { 0x91, 0x70, 0x5f, 0xf7, 0x11, 0x31, 0x8b, 0x27 }}
 
   # GUIDs defined in UEFI2.8a
   #
   ## Include/Guid/RtPropertiesTable.h
   gEfiRtPropertiesTableGuid      = { 0xeb66918a, 0x7eef, 0x402a, { 0x84, 0x2e, 0x93, 0x1d, 0x21, 0xc3, 0x8a, 0xe9 }}
+
+  ## Include/Protocol/SerilaIo.h
+  gEfiSerialTerminalDeviceTypeGuid = { 0x6AD9A60F, 0x5815, 0x4C7C, { 0x8A, 0x10, 0x50, 0x53, 0xD2, 0xBF, 0x7A, 0x1B }}
+
+  # GUIDs defined in UEFI2.10
+  #
+  ## GUID used to specify section with devdb content
+  ## Include/Guid/DeviceAuthentication.h
+  gEfiDeviceSignatureDatabaseGuid  = { 0xb9c2b4f4, 0xbf5f, 0x462d, {0x8a, 0xdf, 0xc5, 0xc7, 0xa, 0xc3, 0x5d, 0xad }}
+
+  ## Include/Guid/ConformanceProfiles.h
+  gEfiConfProfilesTableGuid        = { 0x36122546, 0xf7e7, 0x4c8f, { 0xbd, 0x9b, 0xeb, 0x85, 0x25, 0xb5, 0x0c, 0x0b }}
+  gEfiConfProfilesUefiSpecGuid     = { 0x523c91af, 0xa195, 0x4382, { 0x81, 0x8d, 0x29, 0x5f, 0xe4, 0x00, 0x64, 0x65 }}
+
+  # GUIDs defined in EBBR
+  #
+  ## Include/Guid/ConformanceProfiles.h
+  gEfiConfProfilesEbbrSpec21Guid     = { 0xcce33c35, 0x74ac, 0x4087, { 0xbc, 0xe7, 0x8b, 0x29, 0xb0, 0x2e, 0xeb, 0x27 }}
+  gEfiConfProfilesEbbrSpec22Guid     = { 0x9073eed4, 0xe50d, 0x11ee, { 0xb8, 0xb0, 0x8b, 0x68, 0xda, 0x62, 0xfc, 0x80 }}
 
   #
   # GUID defined in PI1.0
@@ -797,6 +905,14 @@
   # GUID indicates the tiano custom compress/decompress algorithm.
   #
   gTianoCustomDecompressGuid     = { 0xA31280AD, 0x481E, 0x41B6, { 0x95, 0xE8, 0x12, 0x7F, 0x4C, 0x98, 0x47, 0x79 }}
+
+  #
+  # GUID used to provide initrd to linux via LoadFile2 protocol
+  #
+  gLinuxEfiInitrdMediaGuid       = {0x5568e427, 0x68fc, 0x4f3d, {0xac, 0x74, 0xca, 0x55, 0x52, 0x31, 0xcc, 0x68}}
+
+  ## Include/Protocol/CcMeasurement.h
+  gEfiCcFinalEventsTableGuid     = { 0xdd4a4648, 0x2de7, 0x4665, { 0x96, 0x4d, 0x21, 0xd9, 0xef, 0x5f, 0xb4, 0x46 }}
 
 [Guids.IA32, Guids.X64]
   ## Include/Guid/Cper.h
@@ -963,6 +1079,12 @@
   ## Include/Ppi/MmControl.h
   gEfiPeiMmControlPpiGuid         =  { 0x61c68702, 0x4d7e, 0x4f43, { 0x8d, 0xef, 0xa7, 0x43, 0x5, 0xce, 0x74, 0xc5 }}
 
+  ## Include/Ppi/MmConfiguration.h
+  gEfiPeiMmConfigurationPpi       =  { 0xc109319, 0xc149, 0x450e, { 0xa3, 0xe3, 0xb9, 0xba, 0xdd, 0x9d, 0xc3, 0xa4 } }
+
+  ## Include/Ppi/MmCommunication.h
+  gEfiPeiMmCommunicationPpiGuid   =  { 0xae933e1c, 0xcc47, 0x4e38, { 0x8f, 0xe, 0xe2, 0xf6, 0x1d, 0x26, 0x5, 0xdf } }
+
   #
   # PPIs defined in PI 1.7.
   #
@@ -973,12 +1095,21 @@
   ## Include/Ppi/DelayedDispatch.h
   gEfiPeiDelayedDispatchPpiGuid  = { 0x869c711d, 0x649c, 0x44fe, { 0x8b, 0x9e, 0x2c, 0xbb, 0x29, 0x11, 0xc3, 0xe6 }}
 
+  ## Include/Ppi/Rng.h
+  gEfiRngPpiGuid                 = { 0xeaed0a7e, 0x1a70, 0x4c2b, { 0x85, 0x58, 0x37, 0x17, 0x74, 0x56, 0xd8, 0x06 }}
+
 [Protocols]
+  ## Include/Protocol/MemoryAccept.h
+  gEdkiiMemoryAcceptProtocolGuid = { 0x38c74800, 0x5590, 0x4db4, { 0xa0, 0xf3, 0x67, 0x5d, 0x9b, 0x8e, 0x80, 0x26 }}
+
   ## Include/Protocol/Pcd.h
   gPcdProtocolGuid               = { 0x11B34006, 0xD85B, 0x4D0A, { 0xA2, 0x90, 0xD5, 0xA5, 0x71, 0x31, 0x0E, 0xF7 }}
 
   ## Include/Protocol/PcdInfo.h
   gGetPcdInfoProtocolGuid        = { 0x5be40f57, 0xfa68, 0x4610, { 0xbb, 0xbf, 0xe9, 0xc5, 0xfc, 0xda, 0xd3, 0x65 } }
+
+  ## Include/Protocol/CcMeasurement.h
+  gEfiCcMeasurementProtocolGuid  = { 0x96751a3d, 0x72f4, 0x41a6, { 0xa7, 0x94, 0xed, 0x5d, 0x0e, 0x67, 0xae, 0x6b }}
 
   #
   # Protocols defined in PI1.0.
@@ -1273,6 +1404,10 @@
 
   ## Include/Protocol/MmCommunication.h
   gEfiMmCommunicationProtocolGuid  = { 0xc68ed8e2, 0x9dc6, 0x4cbd, { 0x9d, 0x94, 0xdb, 0x65, 0xac, 0xc5, 0xc3, 0x32 }}
+
+  ## This protocol is a MM protocol published by a standalone MM Foundation code if MM Foundation is loaded in PEI phase.
+  ## This protocol should be installed immediately after DXE IPL installs EFI_PEI_END_OF_PEI_PHASE_PPI
+  gEfiMmEndOfPeiProtocol           = { 0xf33e1bf3, 0x980b, 0x4bfb, { 0xa2, 0x9a, 0xb2, 0x9c, 0x86, 0x45, 0x37, 0x32 }}
 
   #
   # Protocols defined in PI 1.6.
@@ -1840,6 +1975,22 @@
   gEfiNvdimmLabelProtocolGuid               = { 0xd40b6b80, 0x97d5, 0x4282, { 0xbb, 0x1d, 0x22, 0x3a, 0x16, 0x91, 0x80, 0x58 }}
 
   #
+  # Protocols defined in UEFI2.8
+  #
+  ## Include/Protocol/RestEx.h
+  gEfiRestExProtocolGuid               = { 0x55648b91, 0xe7d, 0x40a3, { 0xa9, 0xb3, 0xa8, 0x15, 0xd7, 0xea, 0xdf, 0x97 }}
+  gEfiRestExServiceBindingProtocolGuid = { 0x456bbe01, 0x99d0, 0x45ea, { 0xbb, 0x5f, 0x16, 0xd8, 0x4b, 0xed, 0xc5, 0x59 }}
+
+  ## Include/Protocol/RestJsonStructure.h
+  gEfiRestJsonStructureProtocolGuid  = { 0xa9a048f6, 0x48a0, 0x4714, {0xb7, 0xda, 0xa9, 0xad,0x87, 0xd4, 0xda, 0xc9 }}
+
+  ## Include/Protocol/RedfishDiscover.h
+  gEfiRedfishDiscoverProtocolGuid      = { 0x5db12509, 0x4550, 0x4347, { 0x96, 0xb3, 0x73, 0xc0, 0xff, 0x6e, 0x86, 0x9f }}
+
+  ## Include/Protocol/MemoryAttribute.h
+  gEfiMemoryAttributeProtocolGuid = { 0xf4560cf6, 0x40ec, 0x4b4a, { 0xa1, 0x92, 0xbf, 0x1d, 0x57, 0xd0, 0xb1, 0x89 }}
+
+  #
   # Protocols defined in Shell2.0
   #
   ## Include/Protocol/Shell.h
@@ -2087,8 +2238,15 @@
   # @ValidList  0x80000003 | 0x3040003
   gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueDxeDriverEnd|0x3040003|UINT32|0x30001014
 
-  ## This flag is used to control build time optimization based on debug print level.
-  #  Its default value is 0xFFFFFFFF to expose all debug print level.
+  ## This flag is used to control fixed-at-build optimization of DEBUG_PRINT macros.<BR><BR>
+  #  The default value is 0xFFFFFFFF, meaning that DEBUG_PRINT (...) always evaluates
+  #  the macro arguments and always invokes DebugPrint (...). If you want to optimize
+  #  messages, you might set this to a more restrictive value like 0x80000002 (optimize-out
+  #  everything except errors and warnings).<BR><BR>
+  #  This flag is consumed by DebugLib's DebugPrintLevelEnabled (Level) function. The
+  #  DEBUG_PRINT (Level, Format, ...) macro in DebugLib.h calls DebugPrintLevelEnabled (Level)
+  #  to filter the output, and most implementations of DebugPrintLevelEnabled (Level) simply
+  #  return (Level & PcdFixedDebugPrintErrorLevel) != 0.<BR><BR>
   #  BIT0  - Initialization message.<BR>
   #  BIT1  - Warning message.<BR>
   #  BIT2  - Load Event message.<BR>
@@ -2107,6 +2265,7 @@
   #  BIT20 - Global Coherency Database changes message.<BR>
   #  BIT21 - Memory range cachability changes message.<BR>
   #  BIT22 - Detailed debug message.<BR>
+  #  BIT23 - Manageability debug message.<BR>
   #  BIT31 - Error message.<BR>
   # @Prompt Fixed Debug Message Print Level.
   gEfiMdePkgTokenSpaceGuid.PcdFixedDebugPrintErrorLevel|0xFFFFFFFF|UINT32|0x30001016
@@ -2126,6 +2285,15 @@
   #   Other - reserved
   # @Prompt Speculation Barrier Type.
   gEfiMdePkgTokenSpaceGuid.PcdSpeculationBarrierType|0x01|UINT8|0x30001018
+
+  ## This PCD specifies the interrupt vector for stack cookie check failures
+  gEfiMdePkgTokenSpaceGuid.PcdStackCookieExceptionVector|0x42|UINT8|0x30001019
+
+  ## Enforces the use of Secure UEFI spec defined RNG algorithms.
+  # TRUE  - Enforce the use of Secure UEFI spec defined RNG algorithms.
+  # FALSE - Do not enforce and depend on the default implementation of RNG algorithm from the provider.
+  # @Prompt Enforce the use of Secure UEFI spec defined RNG algorithms.
+  gEfiMdePkgTokenSpaceGuid.PcdEnforceSecureRngAlgorithms|TRUE|BOOLEAN|0x1000000D
 
 [PcdsFixedAtBuild,PcdsPatchableInModule]
   ## Indicates the maximum length of unicode string used in the following
@@ -2162,17 +2330,30 @@
   gEfiMdePkgTokenSpaceGuid.PcdSpinLockTimeout|10000000|UINT32|0x00000004
 
   ## The mask is used to control DebugLib behavior.<BR><BR>
-  #  BIT0 - Enable Debug Assert.<BR>
-  #  BIT1 - Enable Debug Print.<BR>
-  #  BIT2 - Enable Debug Code.<BR>
-  #  BIT3 - Enable Clear Memory.<BR>
-  #  BIT4 - Enable BreakPoint as ASSERT.<BR>
-  #  BIT5 - Enable DeadLoop as ASSERT.<BR>
+  #  Note that if the MDEPKG_NDEBUG macro is defined, the ASSERT***, CR, and DEBUG macros will be
+  #  no-ops regardless of this value.<BR>
+  #  Note that MDEPKG_NDEBUG does not affect DEBUG_PRINT.<BR><BR>
+  #  BIT0 - ASSERT_ENABLED: Enable the ASSERT*** and CR macros.<BR>
+  #  BIT1 - PRINT_ENABLED: Enable the DEBUG macro (does not affect the DEBUG_PRINT macro).<BR>
+  #  BIT2 - CODE_ENABLED: Enable the DEBUG_CODE_BEGIN macro.<BR>
+  #  BIT3 - CLEAR_MEMORY_ENABLED: Enable the DEBUG_CLEAR_MEMORY macro.<BR>
+  #  BIT4 - ASSERT_BREAKPOINT_ENABLED: Enable BreakPoint for failed ASSERT.<BR>
+  #  BIT5 - ASSERT_DEADLOOP_ENABLED: Enable DeadLoop for failed ASSERT.<BR>
   # @Prompt Debug Property.
   # @Expression  0x80000002 | (gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask & 0xC0) == 0
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0|UINT8|0x00000005
 
-  ## This flag is used to control the print out Debug message.<BR><BR>
+  ## This flag is used to filter the output of the DEBUG_PRINT macro and DebugPrint functions.<BR><BR>
+  #  The default value is 0x80000000, meaning that DebugPrint returns immediately for anything
+  #  except errors. You might set this to a value like 0x80000002 to also enable warnings.<BR><BR>
+  #  This flag is consumed by the BaseDebugPrintErrorLevelLib implementation of
+  #  GetDebugPrintErrorLevel (). DebugLib's DebugPrint (Level, ...) functions return immediately if
+  #  (GetDebugPrintErrorLevel() & Level) == 0. Other implementations of DebugPrintErrorLevelLib
+  #  may provide different definitions of GetDebugPrintErrorLevel  ().<BR><BR>
+  #  Note that the DEBUG_PRINT macro also uses PcdFixedDebugPrintErrorLevel to determine whether
+  #  or not it calls the DebugPrint function, so your message level needs to be enabled in both
+  #  PcdFixedDebugPrintErrorLevel and PcdDebugPrintErrorLevel settings for the DEBUG_PRINT macro
+  #  to work.<BR><BR>
   #  BIT0  - Initialization message.<BR>
   #  BIT1  - Warning message.<BR>
   #  BIT2  - Load Event message.<BR>
@@ -2191,6 +2372,7 @@
   #  BIT20 - Global Coherency Database changes message.<BR>
   #  BIT21 - Memory range cachability changes message.<BR>
   #  BIT22 - Detailed debug message.<BR>
+  #  BIT23 - Manageability messages.<BR>
   #  BIT31 - Error message.<BR>
   # @Prompt Debug Message Print Level.
   # @Expression  0x80000002 | (gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel & 0x7F84AA00) == 0
@@ -2233,10 +2415,6 @@
   # @ValidList  0x80000001 | 8, 16, 32
   gEfiMdePkgTokenSpaceGuid.PcdPort80DataWidth|8|UINT8|0x0000002d
 
-  ## This value is used to configure X86 Processor FSB clock.
-  # @Prompt FSB Clock.
-  gEfiMdePkgTokenSpaceGuid.PcdFSBClock|200000000|UINT32|0x0000000c
-
   ## The maximum printable number of characters. UefLib functions: AsciiPrint(), AsciiErrorPrint(),
   #  PrintXY(), AsciiPrintXY(), Print(), ErrorPrint() base on this PCD value to print characters.
   # @Prompt Maximum Printable Number of Characters.
@@ -2260,10 +2438,104 @@
   # @Prompt Memory Address of GuidedExtractHandler Table.
   gEfiMdePkgTokenSpaceGuid.PcdGuidedExtractHandlerTableAddress|0x1000000|UINT64|0x30001015
 
+  ## This value is the IPMI KCS Interface I/O base address used to transmit IPMI commands.
+  #  The value of 0xca2 is the default I/O base address defined in IPMI specification.
+  # @Prompt IPMI KCS Interface I/O Base Address
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiKcsIoBaseAddress|0xca2|UINT16|0x00000031
+
+  ## This is SMBus slave address for the SSIF to the BMC.
+  #  The recommended value defined by IPMI specification is 0x20 (section 12.12).
+  # @Prompt IPMI SSIF SMBus slave address
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSsifSmbusSlaveAddr|0x20|UINT8|0x00000032
+
+  ## This is the maximum number of IPMI SSIF request retries.
+  #  The IPMI specification specified min value is 5 (section 12.17).
+  # @Prompt Number of IPMI SSIF request retries.
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSsifRequestRetryCount|0x05|UINT8|0x00000033
+
+  ## This is the required interval for each IPMI request retry.
+  #  The IPMI specification specified a time range of 60ms to 250ms (section 12.17).
+  #  The default setting is min.
+  # @Prompt Time between IPMI SSIF request retries.
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSsifRequestRetryIntervalMicrosecond|60000|UINT32|0x00000034
+
+  ## This value is the maximum retries of an IPMI SSIF response
+  #  The default value is the same as the Linux Kernel ipmi_ssif driver.
+  # @Prompt Number of IPMI SSIF response retries.
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSsifResponseRetryCount|250|UINT8|0x00000035
+
+  ## This is the required interval for each IPMI response retry.
+  #  The IPMI specification specified min value is 60ms (section 12.17).
+  # @Prompt Time-out for a response, internal
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSsifResponseRetryIntervalMicrosecond|60000|UINT32|0x00000036
+
+  ## This is requester's Software IDs for IPMI Serial.
+  #  This byte is 20h when the BMC is the requester (section 14.4.3).
+  # @Prompt IPMI Serial requester Software ID
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSerialRequesterAddress|0x20|UINT8|0x00000050
+
+  ## This is responder's Software IDs for IPMI Serial.
+  #  This byte is 20h when the BMC is the responder (section 14.4.3).
+  # @Prompt IPMI Serial responder Software ID
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSerialResponderAddress|0x20|UINT8|0x00000051
+
+  ## This is requester's LUN for IPMI Serial.
+  # @Prompt IPMI Serial requester LUN
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSerialRequesterLun|0x0|UINT8|0x00000052
+
+  ## This is responder's LUN for IPMI Serial.
+  # @Prompt IPMI Serial responder LUN
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSerialResponderLun|0x0|UINT8|0x00000053
+
+  ## This is the maximum number of IPMI Serial request retries.
+  #  The IPMB specification specified min value is 5 (section 4).
+  # @Prompt Number of IPMI Serial request retries.
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSerialRequestRetryCount|5|UINT8|0x00000054
+
+  ## This is the required interval for each IPMI request retry.
+  #  The IPMB specification specified min value is 60ms (section 4).
+  # @Prompt Time-out for a request, internal
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSerialRequestRetryInterval|60000|UINT32|0x00000055
+
+[PcdsFixedAtBuild.AARCH64, PcdsPatchableInModule.AARCH64]
+  ## GUID identifying the Rng algorithm implemented by CPU instruction.
+  # @Prompt CPU Rng algorithm's GUID.
+  gEfiMdePkgTokenSpaceGuid.PcdCpuRngSupportedAlgorithm|{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}|VOID*|0x00000037
+
+[PcdsFixedAtBuild.RISCV64, PcdsPatchableInModule.RISCV64]
+  #
+  # Configurability to override RISC-V CPU Features
+  # BIT 0 = Cache Management Operations. This bit is relevant only if
+  # previous stage has feature enabled and user wants to disable it.
+  # BIT 1 = Supervisor Time Compare (Sstc). This bit is relevant only if
+  # previous stage has feature enabled and user wants to disable it.
+  # BIT 2 = Page-Based Memory Types (Pbmt). This bit is relevant only if
+  # previous stage has feature enabled and user wants to disable it.
+  # BIT 3 = Zkr extension.This bit is relevant only if
+  # previous stage has feature enabled and user wants to disable it.
+  #
+  gEfiMdePkgTokenSpaceGuid.PcdRiscVFeatureOverride|0xFFFFFFFFFFFFFFFF|UINT64|0x69
+
 [PcdsFixedAtBuild, PcdsPatchableInModule, PcdsDynamic, PcdsDynamicEx]
   ## This value is used to set the base address of PCI express hierarchy.
   # @Prompt PCI Express Base Address.
   gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress|0xE0000000|UINT64|0x0000000a
+
+  ## This value is used to set the base address of PCI MMIO window that provides I/O access.
+  # @Prompt PCI I/O Memory Map Window Base Address.
+  gEfiMdePkgTokenSpaceGuid.PcdPciIoTranslation|0x0|UINT64|0x00000040
+
+  ## This value is used for the 32-bit PCI memory map I/O base address translation.
+  # @Prompt 32-bit PCI Memory Map I/O Base Address translation.
+  gEfiMdePkgTokenSpaceGuid.PcdPciMmio32Translation|0x0|UINT64|0x00000041
+
+  ## This value is used for the 64-bit PCI memory map I/O base address translation.
+  # @Prompt 64-bit PCI Memory Map I/O Base Address translation.
+  gEfiMdePkgTokenSpaceGuid.PcdPciMmio64Translation|0x0|UINT64|0x00000042
+
+  ## This value is used to set the size of PCI express hierarchy. The default is 256 MB.
+  # @Prompt PCI Express Base Size.
+  gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseSize|0x10000000|UINT64|0x0000000f
 
   ## Default current ISO 639-2 language: English & French.
   # @Prompt Default Value of LangCodes Variable.
@@ -2335,6 +2607,14 @@
   #  The value of 0xFFFF then firmware will wait for user input before booting.
   # @Prompt Boot Timeout (s)
   gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|0xffff|UINT16|0x0000002c
+
+  ## This value is used to configure X86 Processor FSB clock.
+  # @Prompt FSB Clock.
+  gEfiMdePkgTokenSpaceGuid.PcdFSBClock|200000000|UINT32|0x0000000c
+
+  ## This dynamic PCD indicates the memory encryption attribute of the guest.
+  # @Prompt Memory encryption attribute
+  gEfiMdePkgTokenSpaceGuid.PcdConfidentialComputingGuestAttr|0|UINT64|0x0000002e
 
 [UserExtensions.TianoCore."ExtraFiles"]
   MdePkgExtra.uni
