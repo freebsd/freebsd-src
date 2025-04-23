@@ -186,7 +186,10 @@ _libclang_rt=	libclang_rt
 .error Requested build with sanitizers but cannot build runtime libraries!
 .endif
 
+# This construct disables libefivar for 32-bit build.
+.if ${MACHINE_CPUARCH} != "i386"
 SUBDIR.${MK_EFI}+=	libefivar
+.endif
 SUBDIR.${MK_GOOGLETEST}+=	googletest
 SUBDIR.${MK_NETGRAPH}+=	libnetgraph
 SUBDIR.${MK_NIS}+=	libypclnt
