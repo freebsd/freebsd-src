@@ -105,8 +105,6 @@ static struct ofw_compat_data compat_data[] = {
  * access, and the various per-SoC offsets.  The SDHCI_REG_OFFSET is how far
  * beyond the MMCHS block the SDHCI block is found; it's the same on all SoCs.
  */
-#define	OMAP3_MMCHS_REG_OFFSET		0x000
-#define	OMAP4_MMCHS_REG_OFFSET		0x100
 #define	AM335X_MMCHS_REG_OFFSET		0x100
 #define	SDHCI_REG_OFFSET		0x100
 
@@ -542,12 +540,6 @@ ti_sdhci_attach(device_t dev)
 	 * Also for OMAP4 disable high speed mode due to erratum ID i626.
 	 */
 	switch (ti_chip()) {
-#ifdef SOC_OMAP4
-	case CHIP_OMAP_4:
-		sc->mmchs_reg_off = OMAP4_MMCHS_REG_OFFSET;
-		sc->disable_highspeed = true;
-		break;
-#endif
 #ifdef SOC_TI_AM335X
 	case CHIP_AM335X:
 		sc->mmchs_reg_off = AM335X_MMCHS_REG_OFFSET;
