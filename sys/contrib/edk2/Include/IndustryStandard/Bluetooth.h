@@ -19,17 +19,17 @@ typedef struct {
   ///
   /// 48bit Bluetooth device address.
   ///
-  UINT8      Address[6];
+  UINT8    Address[6];
 } BLUETOOTH_ADDRESS;
 
 ///
 /// BLUETOOTH_CLASS_OF_DEVICE. See Bluetooth specification for detail.
 ///
 typedef struct {
-  UINT8      FormatType:2;
-  UINT8      MinorDeviceClass: 6;
-  UINT16     MajorDeviceClass: 5;
-  UINT16     MajorServiceClass:11;
+  UINT8     FormatType        : 2;
+  UINT8     MinorDeviceClass  : 6;
+  UINT16    MajorDeviceClass  : 5;
+  UINT16    MajorServiceClass : 11;
 } BLUETOOTH_CLASS_OF_DEVICE;
 
 ///
@@ -39,18 +39,18 @@ typedef struct {
   ///
   /// 48-bit Bluetooth device address
   ///
-  UINT8      Address[6];
+  UINT8    Address[6];
   ///
   /// 0x00 - Public Device Address
   /// 0x01 - Random Device Address
   ///
-  UINT8      Type;
+  UINT8    Type;
 } BLUETOOTH_LE_ADDRESS;
 
 #pragma pack()
 
-#define BLUETOOTH_HCI_COMMAND_LOCAL_READABLE_NAME_MAX_SIZE    248
+#define BLUETOOTH_HCI_COMMAND_LOCAL_READABLE_NAME_MAX_SIZE  248
 
-#define BLUETOOTH_HCI_LINK_KEY_SIZE                           16
+#define BLUETOOTH_HCI_LINK_KEY_SIZE  16
 
 #endif

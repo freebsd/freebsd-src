@@ -22,7 +22,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #ifndef __PCD_LIB_H__
 #define __PCD_LIB_H__
 
-
 /**
   Retrieves a token number based on a token name.
 
@@ -34,8 +33,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  The token number associated with the PCD.
 
 **/
-#define PcdToken(TokenName)                 _PCD_TOKEN_##TokenName
-
+#define PcdToken(TokenName)  _PCD_TOKEN_##TokenName
 
 /**
   Retrieves a Boolean PCD feature flag based on a token name.
@@ -49,8 +47,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  Boolean value for the PCD feature flag.
 
 **/
-#define FeaturePcdGet(TokenName)            _PCD_GET_MODE_BOOL_##TokenName
-
+#define FeaturePcdGet(TokenName)  _PCD_GET_MODE_BOOL_##TokenName
 
 /**
   Retrieves an 8-bit fixed PCD token value based on a token name.
@@ -64,8 +61,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  8-bit value for the token specified by TokenName.
 
 **/
-#define FixedPcdGet8(TokenName)             _PCD_VALUE_##TokenName
-
+#define FixedPcdGet8(TokenName)  _PCD_VALUE_##TokenName
 
 /**
   Retrieves a 16-bit fixed PCD token value based on a token name.
@@ -79,8 +75,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  16-bit value for the token specified by TokenName.
 
 **/
-#define FixedPcdGet16(TokenName)            _PCD_VALUE_##TokenName
-
+#define FixedPcdGet16(TokenName)  _PCD_VALUE_##TokenName
 
 /**
   Retrieves a 32-bit fixed PCD token value based on a token name.
@@ -94,8 +89,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  32-bit value for the token specified by TokenName.
 
 **/
-#define FixedPcdGet32(TokenName)            _PCD_VALUE_##TokenName
-
+#define FixedPcdGet32(TokenName)  _PCD_VALUE_##TokenName
 
 /**
   Retrieves a 64-bit fixed PCD token value based on a token name.
@@ -109,8 +103,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  64-bit value for the token specified by TokenName.
 
 **/
-#define FixedPcdGet64(TokenName)            _PCD_VALUE_##TokenName
-
+#define FixedPcdGet64(TokenName)  _PCD_VALUE_##TokenName
 
 /**
   Retrieves a Boolean fixed PCD token value based on a token name.
@@ -124,8 +117,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  The Boolean value for the token.
 
 **/
-#define FixedPcdGetBool(TokenName)          _PCD_VALUE_##TokenName
-
+#define FixedPcdGetBool(TokenName)  _PCD_VALUE_##TokenName
 
 /**
   Retrieves a pointer to a fixed PCD token buffer based on a token name.
@@ -139,8 +131,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  A pointer to the buffer.
 
 **/
-#define FixedPcdGetPtr(TokenName)           ((VOID *)_PCD_VALUE_##TokenName)
-
+#define FixedPcdGetPtr(TokenName)  ((VOID *)_PCD_VALUE_##TokenName)
 
 /**
   Retrieves an 8-bit binary patchable PCD token value based on a token name.
@@ -154,7 +145,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  An 8-bit binary patchable PCD token value.
 
 **/
-#define PatchPcdGet8(TokenName)             _gPcd_BinaryPatch_##TokenName
+#define PatchPcdGet8(TokenName)  _gPcd_BinaryPatch_##TokenName
 
 /**
   Retrieves a 16-bit binary patchable PCD token value based on a token name.
@@ -168,8 +159,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  A 16-bit binary patchable PCD token value.
 
 **/
-#define PatchPcdGet16(TokenName)            _gPcd_BinaryPatch_##TokenName
-
+#define PatchPcdGet16(TokenName)  _gPcd_BinaryPatch_##TokenName
 
 /**
   Retrieves a 32-bit binary patchable PCD token value based on a token name.
@@ -183,8 +173,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  A 32-bit binary patchable PCD token value.
 
 **/
-#define PatchPcdGet32(TokenName)            _gPcd_BinaryPatch_##TokenName
-
+#define PatchPcdGet32(TokenName)  _gPcd_BinaryPatch_##TokenName
 
 /**
   Retrieves a 64-bit binary patchable PCD token value based on a token name.
@@ -198,8 +187,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  A 64-bit binary patchable PCD token value.
 
 **/
-#define PatchPcdGet64(TokenName)            _gPcd_BinaryPatch_##TokenName
-
+#define PatchPcdGet64(TokenName)  _gPcd_BinaryPatch_##TokenName
 
 /**
   Retrieves a Boolean binary patchable PCD token value based on a token name.
@@ -213,8 +201,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  The Boolean value for the token.
 
 **/
-#define PatchPcdGetBool(TokenName)          _gPcd_BinaryPatch_##TokenName
-
+#define PatchPcdGetBool(TokenName)  _gPcd_BinaryPatch_##TokenName
 
 /**
   Retrieves a pointer to a binary patchable PCD token buffer based on a token name.
@@ -228,8 +215,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  A pointer to the buffer for the token.
 
 **/
-#define PatchPcdGetPtr(TokenName)           ((VOID *)_gPcd_BinaryPatch_##TokenName)
-
+#define PatchPcdGetPtr(TokenName)  ((VOID *)_gPcd_BinaryPatch_##TokenName)
 
 /**
   Sets an 8-bit binary patchable PCD token value based on a token name.
@@ -244,8 +230,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return Return the Value that was set.
 
 **/
-#define PatchPcdSet8(TokenName, Value)      (_gPcd_BinaryPatch_##TokenName = (Value))
-
+#define PatchPcdSet8(TokenName, Value)  (_gPcd_BinaryPatch_##TokenName = (Value))
 
 /**
   Sets a 16-bit binary patchable PCD token value based on a token name.
@@ -260,8 +245,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return Return the Value that was set.
 
 **/
-#define PatchPcdSet16(TokenName, Value)     (_gPcd_BinaryPatch_##TokenName = (Value))
-
+#define PatchPcdSet16(TokenName, Value)  (_gPcd_BinaryPatch_##TokenName = (Value))
 
 /**
   Sets a 32-bit binary patchable PCD token value based on a token name.
@@ -276,8 +260,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return Return the Value that was set.
 
 **/
-#define PatchPcdSet32(TokenName, Value)     (_gPcd_BinaryPatch_##TokenName = (Value))
-
+#define PatchPcdSet32(TokenName, Value)  (_gPcd_BinaryPatch_##TokenName = (Value))
 
 /**
   Sets a 64-bit binary patchable PCD token value based on a token name.
@@ -292,8 +275,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return Return the Value that was set.
 
 **/
-#define PatchPcdSet64(TokenName, Value)     (_gPcd_BinaryPatch_##TokenName = (Value))
-
+#define PatchPcdSet64(TokenName, Value)  (_gPcd_BinaryPatch_##TokenName = (Value))
 
 /**
   Sets a Boolean binary patchable PCD token value based on a token name.
@@ -308,8 +290,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return Return the Value that was set.
 
 **/
-#define PatchPcdSetBool(TokenName, Value)   (_gPcd_BinaryPatch_##TokenName = (Value))
-
+#define PatchPcdSetBool(TokenName, Value)  (_gPcd_BinaryPatch_##TokenName = (Value))
 
 /**
   Sets a pointer to a binary patchable PCD token buffer based on a token name.
@@ -340,6 +321,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
                                               (Size),                                  \
                                               (Buffer)                                 \
                                               )
+
 /**
   Retrieves an 8-bit PCD token value based on a token name.
 
@@ -351,8 +333,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  8-bit value for the token specified by TokenName.
 
 **/
-#define PcdGet8(TokenName)                  _PCD_GET_MODE_8_##TokenName
-
+#define PcdGet8(TokenName)  _PCD_GET_MODE_8_##TokenName
 
 /**
   Retrieves a 16-bit PCD token value based on a token name.
@@ -365,8 +346,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  16-bit value for the token specified by TokenName.
 
 **/
-#define PcdGet16(TokenName)                 _PCD_GET_MODE_16_##TokenName
-
+#define PcdGet16(TokenName)  _PCD_GET_MODE_16_##TokenName
 
 /**
   Retrieves a 32-bit PCD token value based on a token name.
@@ -379,8 +359,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  32-bit value for the token specified by TokenName.
 
 **/
-#define PcdGet32(TokenName)                 _PCD_GET_MODE_32_##TokenName
-
+#define PcdGet32(TokenName)  _PCD_GET_MODE_32_##TokenName
 
 /**
   Retrieves a 64-bit PCD token value based on a token name.
@@ -393,8 +372,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  64-bit value for the token specified by TokenName.
 
 **/
-#define PcdGet64(TokenName)                 _PCD_GET_MODE_64_##TokenName
-
+#define PcdGet64(TokenName)  _PCD_GET_MODE_64_##TokenName
 
 /**
   Retrieves a pointer to a PCD token buffer based on a token name.
@@ -407,8 +385,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  A pointer to the buffer.
 
 **/
-#define PcdGetPtr(TokenName)                _PCD_GET_MODE_PTR_##TokenName
-
+#define PcdGetPtr(TokenName)  _PCD_GET_MODE_PTR_##TokenName
 
 /**
   Retrieves a Boolean PCD token value based on a token name.
@@ -421,8 +398,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  A Boolean PCD token value.
 
 **/
-#define PcdGetBool(TokenName)               _PCD_GET_MODE_BOOL_##TokenName
-
+#define PcdGetBool(TokenName)  _PCD_GET_MODE_BOOL_##TokenName
 
 /**
   Retrieves the size of a fixed PCD token based on a token name.
@@ -435,8 +411,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return     Return the size
 
 **/
-#define FixedPcdGetSize(TokenName)    _PCD_SIZE_##TokenName
-
+#define FixedPcdGetSize(TokenName)  _PCD_SIZE_##TokenName
 
 /**
   Retrieves the size of a binary patchable PCD token based on a token name.
@@ -449,8 +424,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return     Return the size
 
 **/
-#define PatchPcdGetSize(TokenName)    _gPcd_BinaryPatch_Size_##TokenName
-
+#define PatchPcdGetSize(TokenName)  _gPcd_BinaryPatch_Size_##TokenName
 
 /**
   Retrieves the size of the PCD token based on a token name.
@@ -463,8 +437,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return      Return the size
 
 **/
-#define PcdGetSize(TokenName)         _PCD_GET_MODE_SIZE_##TokenName
-
+#define PcdGetSize(TokenName)  _PCD_GET_MODE_SIZE_##TokenName
 
 /**
   Retrieve the size of a given PCD token.
@@ -479,107 +452,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return     Return the size.
 
 **/
-#define PcdGetExSize(Guid, TokenName) LibPcdGetExSize ((Guid), PcdTokenEx(Guid,TokenName))
-
-#ifndef DISABLE_NEW_DEPRECATED_INTERFACES
-/**
-  Sets an 8-bit PCD token value based on a token name.
-
-  Sets the 8-bit value for the token specified by TokenName. Value is returned.
-  If TokenName is not a valid token in the token space, then the module will not build.
-
-  @param   TokenName  The name of the PCD token to retrieve a current value for.
-  @param   Value      The 8-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-#define PcdSet8(TokenName, Value)           _PCD_SET_MODE_8_##TokenName     ((Value))
-
-
-/**
-  Sets a 16-bit PCD token value based on a token name.
-
-  Sets the 16-bit value for the token specified by TokenName. Value is returned.
-  If TokenName is not a valid token in the token space, then the module will not build.
-
-  @param   TokenName  The name of the PCD token to retrieve a current value for.
-  @param   Value      The 16-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-#define PcdSet16(TokenName, Value)          _PCD_SET_MODE_16_##TokenName    ((Value))
-
-
-/**
-  Sets a 32-bit PCD token value based on a token name.
-
-  Sets the 32-bit value for the token specified by TokenName. Value is returned.
-  If TokenName is not a valid token in the token space, then the module will not build.
-
-  @param   TokenName  The name of the PCD token to retrieve a current value for.
-  @param   Value      The 32-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-#define PcdSet32(TokenName, Value)          _PCD_SET_MODE_32_##TokenName    ((Value))
-
-
-/**
-  Sets a 64-bit PCD token value based on a token name.
-
-  Sets the 64-bit value for the token specified by TokenName. Value is returned.
-  If TokenName is not a valid token in the token space, then the module will not build.
-
-  @param   TokenName  The name of the PCD token to retrieve a current value for.
-  @param   Value      The 64-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-#define PcdSet64(TokenName, Value)          _PCD_SET_MODE_64_##TokenName    ((Value))
-
-
-/**
-  Sets a pointer to a PCD token buffer based on a token name.
-
-  Sets the buffer for the token specified by TokenName. Buffer is returned.
-  If SizeOfBuffer is greater than the maximum size supported by TokenName,
-  then set SizeOfBuffer to the maximum size supported by TokenName and return NULL
-  to indicate that the set operation was not actually performed.  If SizeOfBuffer
-  is set to MAX_ADDRESS, then SizeOfBuffer must be set to the maximum size supported
-  by TokenName and NULL must be returned.
-  If TokenName is not a valid token in the token space, then the module will not build.
-
-  If SizeOfBuffer is NULL, then ASSERT().
-  If SizeOfBuffer > 0 and Buffer is NULL, then ASSERT().
-
-  @param   TokenName      The name of the PCD token to set the current value for.
-  @param   SizeOfBuffer   A pointer to the size, in bytes, of Buffer.
-  @param   Buffer         A pointer to the buffer to set.
-
-  @return Return the pointer to the Buffer that was set.
-
-**/
-#define PcdSetPtr(TokenName, SizeOfBuffer, Buffer) \
-                                            _PCD_SET_MODE_PTR_##TokenName   ((SizeOfBuffer), (Buffer))
-
-/**
-  Sets a Boolean PCD token value based on a token name.
-
-  Sets the Boolean value for the token specified by TokenName. Value is returned.
-  If TokenName is not a valid token in the token space, then the module will not build.
-
-  @param   TokenName      The name of the PCD token to set the current value for.
-  @param   Buffer         The Boolean value to set.
-
-  @return Return the Value that was set.
-
-**/
-#define PcdSetBool(TokenName, Value)        _PCD_SET_MODE_BOOL_##TokenName  ((Value))
-#endif
+#define PcdGetExSize(Guid, TokenName)  LibPcdGetExSize ((Guid), PcdTokenEx(Guid,TokenName))
 
 /**
   Sets a 8-bit PCD token value based on a token name.
@@ -593,7 +466,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return The status of the set operation.
 
 **/
-#define PcdSet8S(TokenName, Value)          _PCD_SET_MODE_8_S_##TokenName    ((Value))
+#define PcdSet8S(TokenName, Value)  _PCD_SET_MODE_8_S_##TokenName    ((Value))
 
 /**
   Sets a 16-bit PCD token value based on a token name.
@@ -607,7 +480,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return The status of the set operation.
 
 **/
-#define PcdSet16S(TokenName, Value)         _PCD_SET_MODE_16_S_##TokenName    ((Value))
+#define PcdSet16S(TokenName, Value)  _PCD_SET_MODE_16_S_##TokenName    ((Value))
 
 /**
   Sets a 32-bit PCD token value based on a token name.
@@ -621,7 +494,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return The status of the set operation.
 
 **/
-#define PcdSet32S(TokenName, Value)         _PCD_SET_MODE_32_S_##TokenName    ((Value))
+#define PcdSet32S(TokenName, Value)  _PCD_SET_MODE_32_S_##TokenName    ((Value))
 
 /**
   Sets a 64-bit PCD token value based on a token name.
@@ -635,7 +508,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return The status of the set operation.
 
 **/
-#define PcdSet64S(TokenName, Value)         _PCD_SET_MODE_64_S_##TokenName    ((Value))
+#define PcdSet64S(TokenName, Value)  _PCD_SET_MODE_64_S_##TokenName    ((Value))
 
 /**
   Sets a pointer to a PCD token buffer based on a token name.
@@ -661,8 +534,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #define PcdSetPtrS(TokenName, SizeOfBuffer, Buffer) \
                                             _PCD_SET_MODE_PTR_S_##TokenName   ((SizeOfBuffer), (Buffer))
 
-
-
 /**
   Sets a boolean PCD token value based on a token name.
 
@@ -675,7 +546,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return The status of the set operation.
 
 **/
-#define PcdSetBoolS(TokenName, Value)       _PCD_SET_MODE_BOOL_S_##TokenName    ((Value))
+#define PcdSetBoolS(TokenName, Value)  _PCD_SET_MODE_BOOL_S_##TokenName    ((Value))
 
 /**
   Retrieves a token number based on a GUID and a token name.
@@ -690,7 +561,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  Return the token number.
 
 **/
-#define PcdTokenEx(Guid,TokenName)  _PCD_TOKEN_EX_##TokenName(Guid)
+#define PcdTokenEx(Guid, TokenName)  _PCD_TOKEN_EX_##TokenName(Guid)
 
 /**
   Retrieves an 8-bit PCD token value based on a GUID and a token name.
@@ -708,7 +579,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  An 8-bit PCD token value.
 
 **/
-#define PcdGetEx8(Guid, TokenName)          LibPcdGetEx8 ((Guid), PcdTokenEx(Guid,TokenName))
+#define PcdGetEx8(Guid, TokenName)  LibPcdGetEx8 ((Guid), PcdTokenEx(Guid,TokenName))
 
 /**
   Retrieves a 16-bit PCD token value based on a GUID and a token name.
@@ -726,8 +597,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  A 16-bit PCD token value.
 
 **/
-#define PcdGetEx16(Guid, TokenName)         LibPcdGetEx16 ((Guid), PcdTokenEx(Guid,TokenName))
-
+#define PcdGetEx16(Guid, TokenName)  LibPcdGetEx16 ((Guid), PcdTokenEx(Guid,TokenName))
 
 /**
   Retrieves a 32-bit PCD token value based on a GUID and a token name.
@@ -745,8 +615,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  A 32-bit PCD token value.
 
 **/
-#define PcdGetEx32(Guid, TokenName)         LibPcdGetEx32 ((Guid), PcdTokenEx(Guid,TokenName))
-
+#define PcdGetEx32(Guid, TokenName)  LibPcdGetEx32 ((Guid), PcdTokenEx(Guid,TokenName))
 
 /**
   Retrieves a 64-bit PCD token value based on a GUID and a token name.
@@ -764,8 +633,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  A 64-bit PCD token value.
 
 **/
-#define PcdGetEx64(Guid, TokenName)         LibPcdGetEx64 ((Guid), PcdTokenEx(Guid,TokenName))
-
+#define PcdGetEx64(Guid, TokenName)  LibPcdGetEx64 ((Guid), PcdTokenEx(Guid,TokenName))
 
 /**
   Retrieves a pointer to a PCD token buffer based on a GUID and a token name.
@@ -783,8 +651,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  A pointer to a PCD token buffer.
 
 **/
-#define PcdGetExPtr(Guid, TokenName)        LibPcdGetExPtr ((Guid), PcdTokenEx(Guid,TokenName))
-
+#define PcdGetExPtr(Guid, TokenName)  LibPcdGetExPtr ((Guid), PcdTokenEx(Guid,TokenName))
 
 /**
   Retrieves a Boolean PCD token value based on a GUID and a token name.
@@ -802,140 +669,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return  A Boolean PCD token value.
 
 **/
-#define PcdGetExBool(Guid, TokenName)       LibPcdGetExBool  ((Guid), PcdTokenEx(Guid,TokenName))
-
-
-
-#ifndef DISABLE_NEW_DEPRECATED_INTERFACES
-/**
-  Sets an 8-bit PCD token value based on a GUID and a token name.
-
-  Sets the 8-bit value for the token specified by Guid and TokenName. Value is returned.
-  If TokenName is not a valid token in the token space specified by Guid,
-  then the module will not build.
-
-  If Guid is NULL, then ASSERT().
-
-  @param   Guid        Pointer to a 128-bit unique value that designates
-                       which namespace to retrieve a value from.
-  @param   TokenName   The name of the PCD token to set the current value for.
-  @param   Value       The 8-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-#define PcdSetEx8(Guid, TokenName, Value)   LibPcdSetEx8   ((Guid), PcdTokenEx(Guid,TokenName), (Value))
-
-
-/**
-  Sets a 16-bit PCD token value based on a GUID and a token name.
-
-  Sets the 16-bit value for the token specified by Guid and TokenName. Value is returned.
-  If TokenName is not a valid token in the token space specified by Guid,
-  then the module will not build.
-
-  If Guid is NULL, then ASSERT().
-
-  @param   Guid        Pointer to a 128-bit unique value that designates
-                       which namespace to retrieve a value from.
-  @param   TokenName   The name of the PCD token to set the current value for.
-  @param   Value       The 16-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-#define PcdSetEx16(Guid, TokenName, Value)  LibPcdSetEx16  ((Guid), PcdTokenEx(Guid,TokenName), (Value))
-
-
-/**
-  Sets a 32-bit PCD token value based on a GUID and a token name.
-
-  Sets the 32-bit value for the token specified by Guid and TokenName. Value is returned.
-  If TokenName is not a valid token in the token space specified by Guid,
-  then the module will not build.
-
-  If Guid is NULL, then ASSERT().
-
-  @param   Guid        Pointer to a 128-bit unique value that designates
-                       which namespace to retrieve a value from.
-  @param   TokenName   The name of the PCD token to set the current value for.
-  @param   Value       The 32-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-#define PcdSetEx32(Guid, TokenName, Value)  LibPcdSetEx32  ((Guid), PcdTokenEx(Guid,TokenName), (Value))
-
-
-/**
-  Sets a 64-bit PCD token value based on a GUID and a token name.
-
-  Sets the 64-bit value for the token specified by Guid and TokenName. Value is returned.
-  If TokenName is not a valid token in the token space specified by Guid,
-  then the module will not build.
-
-  If Guid is NULL, then ASSERT().
-
-  @param   Guid        Pointer to a 128-bit unique value that designates
-  which namespace to retrieve a value from.
-  @param   TokenName   The name of the PCD token to set the current value for.
-  @param   Value       The 64-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-#define PcdSetEx64(Guid, TokenName, Value)  LibPcdSetEx64  ((Guid), PcdTokenEx(Guid,TokenName), (Value))
-
-
-/**
-  Sets a pointer to a PCD token buffer based on a GUID and a token name.
-
-  Sets the buffer for the token specified by Guid and TokenName. Buffer is returned.
-  If SizeOfBuffer is greater than the maximum size supported by Guid and TokenName,
-  then set SizeOfBuffer to the maximum size supported by Guid and TokenName and return
-  NULL to indicate that the set operation was not actually performed. If SizeOfBuffer
-  is set to MAX_ADDRESS, then SizeOfBuffer must be set to the maximum size supported by
-  Guid and TokenName and NULL must be returned.
-  If TokenName is not a valid token in the token space specified by Guid,
-  then the module will not build.
-
-  If Guid is NULL, then ASSERT().
-  If SizeOfBuffer is NULL, then ASSERT().
-  If SizeOfBuffer > 0 and Buffer is NULL, then ASSERT().
-
-  @param   Guid           Pointer to a 128-bit unique value that designates
-                          which namespace to retrieve a value from.
-  @param   TokenName      The name of the PCD token to set the current value for.
-  @param   SizeOfBuffer   A pointer to the size, in bytes, of Buffer.
-  @param   Buffer         Pointer to the buffer to set.
-
-  @return Return the pointer to the Buffer that was set.
-
-**/
-#define PcdSetExPtr(Guid, TokenName, SizeOfBuffer, Buffer) \
-                                            LibPcdSetExPtr ((Guid), PcdTokenEx(Guid,TokenName), (SizeOfBuffer), (Buffer))
-
-
-/**
-  Sets a Boolean PCD token value based on a GUID and a token name.
-
-  Sets the Boolean value for the token specified by Guid and TokenName. Value is returned.
-  If TokenName is not a valid token in the token space specified by Guid,
-  then the module will not build.
-
-  If Guid is NULL, then ASSERT().
-
-  @param   Guid           Pointer to a 128-bit unique value that designates
-                          which namespace to retrieve a value from.
-  @param   TokenName      The name of the PCD token to set the current value for.
-  @param   Value          The Boolean value to set.
-
-  @return Return the Value that was set.
-
-**/
-#define PcdSetExBool(Guid, TokenName, Value) \
-                                            LibPcdSetExBool((Guid), PcdTokenEx(Guid,TokenName), (Value))
-#endif
+#define PcdGetExBool(Guid, TokenName)  LibPcdGetExBool  ((Guid), PcdTokenEx(Guid,TokenName))
 
 /**
   Sets an 8-bit PCD token value based on a GUID and a token name.
@@ -954,7 +688,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return The status of the set operation.
 
 **/
-#define PcdSetEx8S(Guid, TokenName, Value)     LibPcdSetEx8S ((Guid), PcdTokenEx(Guid,TokenName), (Value))
+#define PcdSetEx8S(Guid, TokenName, Value)  LibPcdSetEx8S ((Guid), PcdTokenEx(Guid,TokenName), (Value))
 
 /**
   Sets an 16-bit PCD token value based on a GUID and a token name.
@@ -973,7 +707,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return The status of the set operation.
 
 **/
-#define PcdSetEx16S(Guid, TokenName, Value)    LibPcdSetEx16S ((Guid), PcdTokenEx(Guid,TokenName), (Value))
+#define PcdSetEx16S(Guid, TokenName, Value)  LibPcdSetEx16S ((Guid), PcdTokenEx(Guid,TokenName), (Value))
 
 /**
   Sets an 32-bit PCD token value based on a GUID and a token name.
@@ -992,7 +726,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return The status of the set operation.
 
 **/
-#define PcdSetEx32S(Guid, TokenName, Value)    LibPcdSetEx32S ((Guid), PcdTokenEx(Guid,TokenName), (Value))
+#define PcdSetEx32S(Guid, TokenName, Value)  LibPcdSetEx32S ((Guid), PcdTokenEx(Guid,TokenName), (Value))
 
 /**
   Sets an 64-bit PCD token value based on a GUID and a token name.
@@ -1011,7 +745,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
   @return The status of the set operation.
 
 **/
-#define PcdSetEx64S(Guid, TokenName, Value)    LibPcdSetEx64S ((Guid), PcdTokenEx(Guid,TokenName), (Value))
+#define PcdSetEx64S(Guid, TokenName, Value)  LibPcdSetEx64S ((Guid), PcdTokenEx(Guid,TokenName), (Value))
 
 /**
   Sets a pointer to a PCD token buffer based on a GUID and a token name.
@@ -1040,7 +774,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 #define PcdSetExPtrS(Guid, TokenName, SizeOfBuffer, Buffer) \
                                             LibPcdSetExPtrS ((Guid), PcdTokenEx(Guid,TokenName), (SizeOfBuffer), (Buffer))
-
 
 /**
   Sets an boolean PCD token value based on a GUID and a token name.
@@ -1076,9 +809,8 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 UINTN
 EFIAPI
 LibPcdSetSku (
-  IN UINTN   SkuId
+  IN UINTN  SkuId
   );
-
 
 /**
   This function provides a means by which to retrieve a value for a given PCD token.
@@ -1093,9 +825,8 @@ LibPcdSetSku (
 UINT8
 EFIAPI
 LibPcdGet8 (
-  IN UINTN             TokenNumber
+  IN UINTN  TokenNumber
   );
-
 
 /**
   This function provides a means by which to retrieve a value for a given PCD token.
@@ -1110,9 +841,8 @@ LibPcdGet8 (
 UINT16
 EFIAPI
 LibPcdGet16 (
-  IN UINTN             TokenNumber
+  IN UINTN  TokenNumber
   );
-
 
 /**
   This function provides a means by which to retrieve a value for a given PCD token.
@@ -1127,9 +857,8 @@ LibPcdGet16 (
 UINT32
 EFIAPI
 LibPcdGet32 (
-  IN UINTN             TokenNumber
+  IN UINTN  TokenNumber
   );
-
 
 /**
   This function provides a means by which to retrieve a value for a given PCD token.
@@ -1144,9 +873,8 @@ LibPcdGet32 (
 UINT64
 EFIAPI
 LibPcdGet64 (
-  IN UINTN             TokenNumber
+  IN UINTN  TokenNumber
   );
-
 
 /**
   This function provides a means by which to retrieve a value for a given PCD token.
@@ -1161,9 +889,8 @@ LibPcdGet64 (
 VOID *
 EFIAPI
 LibPcdGetPtr (
-  IN UINTN             TokenNumber
+  IN UINTN  TokenNumber
   );
-
 
 /**
   This function provides a means by which to retrieve a value for a given PCD token.
@@ -1178,9 +905,8 @@ LibPcdGetPtr (
 BOOLEAN
 EFIAPI
 LibPcdGetBool (
-  IN UINTN             TokenNumber
+  IN UINTN  TokenNumber
   );
-
 
 /**
   This function provides a means by which to retrieve the size of a given PCD token.
@@ -1193,9 +919,8 @@ LibPcdGetBool (
 UINTN
 EFIAPI
 LibPcdGetSize (
-  IN UINTN             TokenNumber
+  IN UINTN  TokenNumber
   );
-
 
 /**
   This function provides a means by which to retrieve a value for a given PCD token.
@@ -1214,10 +939,9 @@ LibPcdGetSize (
 UINT8
 EFIAPI
 LibPcdGetEx8 (
-  IN CONST GUID        *Guid,
-  IN UINTN             TokenNumber
+  IN CONST GUID  *Guid,
+  IN UINTN       TokenNumber
   );
-
 
 /**
   This function provides a means by which to retrieve a value for a given PCD token.
@@ -1236,10 +960,9 @@ LibPcdGetEx8 (
 UINT16
 EFIAPI
 LibPcdGetEx16 (
-  IN CONST GUID        *Guid,
-  IN UINTN             TokenNumber
+  IN CONST GUID  *Guid,
+  IN UINTN       TokenNumber
   );
-
 
 /**
   Returns the 32-bit value for the token specified by TokenNumber and Guid.
@@ -1255,10 +978,9 @@ LibPcdGetEx16 (
 UINT32
 EFIAPI
 LibPcdGetEx32 (
-  IN CONST GUID        *Guid,
-  IN UINTN             TokenNumber
+  IN CONST GUID  *Guid,
+  IN UINTN       TokenNumber
   );
-
 
 /**
   This function provides a means by which to retrieve a value for a given PCD token.
@@ -1277,10 +999,9 @@ LibPcdGetEx32 (
 UINT64
 EFIAPI
 LibPcdGetEx64 (
-  IN CONST GUID        *Guid,
-  IN UINTN             TokenNumber
+  IN CONST GUID  *Guid,
+  IN UINTN       TokenNumber
   );
-
 
 /**
   This function provides a means by which to retrieve a value for a given PCD token.
@@ -1299,10 +1020,9 @@ LibPcdGetEx64 (
 VOID *
 EFIAPI
 LibPcdGetExPtr (
-  IN CONST GUID        *Guid,
-  IN UINTN             TokenNumber
+  IN CONST GUID  *Guid,
+  IN UINTN       TokenNumber
   );
-
 
 /**
   This function provides a means by which to retrieve a value for a given PCD token.
@@ -1321,10 +1041,9 @@ LibPcdGetExPtr (
 BOOLEAN
 EFIAPI
 LibPcdGetExBool (
-  IN CONST GUID        *Guid,
-  IN UINTN             TokenNumber
+  IN CONST GUID  *Guid,
+  IN UINTN       TokenNumber
   );
-
 
 /**
   This function provides a means by which to retrieve the size of a given PCD token.
@@ -1343,299 +1062,9 @@ LibPcdGetExBool (
 UINTN
 EFIAPI
 LibPcdGetExSize (
-  IN CONST GUID        *Guid,
-  IN UINTN             TokenNumber
+  IN CONST GUID  *Guid,
+  IN UINTN       TokenNumber
   );
-
-
-#ifndef DISABLE_NEW_DEPRECATED_INTERFACES
-/**
-  This function provides a means by which to set a value for a given PCD token.
-
-  Sets the 8-bit value for the token specified by TokenNumber
-  to the value specified by Value.  Value is returned.
-
-  @param[in]  TokenNumber   The PCD token number to set a current value for.
-  @param[in]  Value         The 8-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-UINT8
-EFIAPI
-LibPcdSet8 (
-  IN UINTN             TokenNumber,
-  IN UINT8             Value
-  );
-
-
-/**
-  This function provides a means by which to set a value for a given PCD token.
-
-  Sets the 16-bit value for the token specified by TokenNumber
-  to the value specified by Value.  Value is returned.
-
-  @param[in]  TokenNumber   The PCD token number to set a current value for.
-  @param[in]  Value         The 16-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-UINT16
-EFIAPI
-LibPcdSet16 (
-  IN UINTN             TokenNumber,
-  IN UINT16            Value
-  );
-
-
-/**
-  This function provides a means by which to set a value for a given PCD token.
-
-  Sets the 32-bit value for the token specified by TokenNumber
-  to the value specified by Value.  Value is returned.
-
-  @param[in]  TokenNumber   The PCD token number to set a current value for.
-  @param[in]  Value         The 32-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-UINT32
-EFIAPI
-LibPcdSet32 (
-  IN UINTN             TokenNumber,
-  IN UINT32            Value
-  );
-
-
-/**
-  This function provides a means by which to set a value for a given PCD token.
-
-  Sets the 64-bit value for the token specified by TokenNumber
-  to the value specified by Value.  Value is returned.
-
-  @param[in]  TokenNumber   The PCD token number to set a current value for.
-  @param[in]  Value         The 64-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-UINT64
-EFIAPI
-LibPcdSet64 (
-  IN UINTN             TokenNumber,
-  IN UINT64            Value
-  );
-
-
-/**
-  This function provides a means by which to set a value for a given PCD token.
-
-  Sets a buffer for the token specified by TokenNumber to the value
-  specified by Buffer and SizeOfBuffer.  Buffer is returned.
-  If SizeOfBuffer is greater than the maximum size support by TokenNumber,
-  then set SizeOfBuffer to the maximum size supported by TokenNumber and
-  return NULL to indicate that the set operation was not actually performed.
-
-  If SizeOfBuffer is set to MAX_ADDRESS, then SizeOfBuffer must be set to the
-  maximum size supported by TokenName and NULL must be returned.
-
-  If SizeOfBuffer is NULL, then ASSERT().
-  If SizeOfBuffer > 0 and Buffer is NULL, then ASSERT().
-
-  @param[in]      TokenNumber   The PCD token number to set a current value for.
-  @param[in, out] SizeOfBuffer  The size, in bytes, of Buffer.
-  @param[in]      Buffer        A pointer to the buffer to set.
-
-  @return Return the pointer for the Buffer that was set.
-
-**/
-VOID *
-EFIAPI
-LibPcdSetPtr (
-  IN        UINTN             TokenNumber,
-  IN OUT    UINTN             *SizeOfBuffer,
-  IN CONST  VOID              *Buffer
-  );
-
-
-/**
-  This function provides a means by which to set a value for a given PCD token.
-
-  Sets the Boolean value for the token specified by TokenNumber
-  to the value specified by Value.  Value is returned.
-
-  @param[in]  TokenNumber   The PCD token number to set a current value for.
-  @param[in]  Value         The boolean value to set.
-
-  @return Return the Value that was set.
-
-**/
-BOOLEAN
-EFIAPI
-LibPcdSetBool (
-  IN UINTN             TokenNumber,
-  IN BOOLEAN           Value
-  );
-
-
-/**
-  This function provides a means by which to set a value for a given PCD token.
-
-  Sets the 8-bit value for the token specified by TokenNumber and
-  Guid to the value specified by Value. Value is returned.
-
-  If Guid is NULL, then ASSERT().
-
-  @param[in]  Guid          Pointer to a 128-bit unique value that
-                            designates which namespace to set a value from.
-  @param[in]  TokenNumber   The PCD token number to set a current value for.
-  @param[in]  Value         The 8-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-UINT8
-EFIAPI
-LibPcdSetEx8 (
-  IN CONST GUID        *Guid,
-  IN UINTN             TokenNumber,
-  IN UINT8             Value
-  );
-
-
-/**
-  This function provides a means by which to set a value for a given PCD token.
-
-  Sets the 16-bit value for the token specified by TokenNumber and
-  Guid to the value specified by Value. Value is returned.
-
-  If Guid is NULL, then ASSERT().
-
-  @param[in]  Guid          Pointer to a 128-bit unique value that
-                            designates which namespace to set a value from.
-  @param[in]  TokenNumber   The PCD token number to set a current value for.
-  @param[in]  Value         The 16-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-UINT16
-EFIAPI
-LibPcdSetEx16 (
-  IN CONST GUID        *Guid,
-  IN UINTN             TokenNumber,
-  IN UINT16            Value
-  );
-
-
-/**
-  This function provides a means by which to set a value for a given PCD token.
-
-  Sets the 32-bit value for the token specified by TokenNumber and
-  Guid to the value specified by Value. Value is returned.
-
-  If Guid is NULL, then ASSERT().
-
-  @param[in]  Guid          Pointer to a 128-bit unique value that
-                            designates which namespace to set a value from.
-  @param[in]  TokenNumber   The PCD token number to set a current value for.
-  @param[in]  Value         The 32-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-UINT32
-EFIAPI
-LibPcdSetEx32 (
-  IN CONST GUID        *Guid,
-  IN UINTN             TokenNumber,
-  IN UINT32            Value
-  );
-
-
-/**
-  This function provides a means by which to set a value for a given PCD token.
-
-  Sets the 64-bit value for the token specified by TokenNumber and
-  Guid to the value specified by Value. Value is returned.
-
-  If Guid is NULL, then ASSERT().
-
-  @param[in]  Guid          Pointer to a 128-bit unique value that
-                            designates which namespace to set a value from.
-  @param[in]  TokenNumber   The PCD token number to set a current value for.
-  @param[in]  Value         The 64-bit value to set.
-
-  @return Return the Value that was set.
-
-**/
-UINT64
-EFIAPI
-LibPcdSetEx64 (
-  IN CONST GUID        *Guid,
-  IN UINTN             TokenNumber,
-  IN UINT64            Value
-  );
-
-
-/**
-  This function provides a means by which to set a value for a given PCD token.
-
-  Sets a buffer for the token specified by TokenNumber to the value specified by
-  Buffer and SizeOfBuffer.  Buffer is returned.  If SizeOfBuffer is greater than
-  the maximum size support by TokenNumber, then set SizeOfBuffer to the maximum size
-  supported by TokenNumber and return NULL to indicate that the set operation
-  was not actually performed.
-
-  If Guid is NULL, then ASSERT().
-  If SizeOfBuffer is NULL, then ASSERT().
-  If SizeOfBuffer > 0 and Buffer is NULL, then ASSERT().
-
-  @param[in]  Guid              Pointer to a 128-bit unique value that
-                                designates which namespace to set a value from.
-  @param[in]  TokenNumber       The PCD token number to set a current value for.
-  @param[in, out] SizeOfBuffer  The size, in bytes, of Buffer.
-  @param[in]  Buffer            A pointer to the buffer to set.
-
-  @return Return the pointer to the Buffer that was set.
-
-**/
-VOID *
-EFIAPI
-LibPcdSetExPtr (
-  IN      CONST GUID        *Guid,
-  IN      UINTN             TokenNumber,
-  IN OUT  UINTN             *SizeOfBuffer,
-  IN      VOID              *Buffer
-  );
-
-
-/**
-  This function provides a means by which to set a value for a given PCD token.
-
-  Sets the Boolean value for the token specified by TokenNumber and
-  Guid to the value specified by Value. Value is returned.
-
-  If Guid is NULL, then ASSERT().
-
-  @param[in]  Guid          Pointer to a 128-bit unique value that
-                            designates which namespace to set a value from.
-  @param[in]  TokenNumber   The PCD token number to set a current value for.
-  @param[in]  Value         The Boolean value to set.
-
-  @return Return the Value that was set.
-
-**/
-BOOLEAN
-EFIAPI
-LibPcdSetExBool (
-  IN CONST GUID        *Guid,
-  IN UINTN             TokenNumber,
-  IN BOOLEAN           Value
-  );
-#endif
 
 /**
   This function provides a means by which to set a value for a given PCD token.
@@ -1652,8 +1081,8 @@ LibPcdSetExBool (
 RETURN_STATUS
 EFIAPI
 LibPcdSet8S (
-  IN UINTN          TokenNumber,
-  IN UINT8          Value
+  IN UINTN  TokenNumber,
+  IN UINT8  Value
   );
 
 /**
@@ -1671,8 +1100,8 @@ LibPcdSet8S (
 RETURN_STATUS
 EFIAPI
 LibPcdSet16S (
-  IN UINTN          TokenNumber,
-  IN UINT16         Value
+  IN UINTN   TokenNumber,
+  IN UINT16  Value
   );
 
 /**
@@ -1690,8 +1119,8 @@ LibPcdSet16S (
 RETURN_STATUS
 EFIAPI
 LibPcdSet32S (
-  IN UINTN          TokenNumber,
-  IN UINT32         Value
+  IN UINTN   TokenNumber,
+  IN UINT32  Value
   );
 
 /**
@@ -1709,8 +1138,8 @@ LibPcdSet32S (
 RETURN_STATUS
 EFIAPI
 LibPcdSet64S (
-  IN UINTN          TokenNumber,
-  IN UINT64         Value
+  IN UINTN   TokenNumber,
+  IN UINT64  Value
   );
 
 /**
@@ -1738,9 +1167,9 @@ LibPcdSet64S (
 RETURN_STATUS
 EFIAPI
 LibPcdSetPtrS (
-  IN       UINTN    TokenNumber,
-  IN OUT   UINTN    *SizeOfBuffer,
-  IN CONST VOID     *Buffer
+  IN       UINTN  TokenNumber,
+  IN OUT   UINTN  *SizeOfBuffer,
+  IN CONST VOID   *Buffer
   );
 
 /**
@@ -1758,8 +1187,8 @@ LibPcdSetPtrS (
 RETURN_STATUS
 EFIAPI
 LibPcdSetBoolS (
-  IN UINTN          TokenNumber,
-  IN BOOLEAN        Value
+  IN UINTN    TokenNumber,
+  IN BOOLEAN  Value
   );
 
 /**
@@ -1781,9 +1210,9 @@ LibPcdSetBoolS (
 RETURN_STATUS
 EFIAPI
 LibPcdSetEx8S (
-  IN CONST GUID     *Guid,
-  IN UINTN          TokenNumber,
-  IN UINT8          Value
+  IN CONST GUID  *Guid,
+  IN UINTN       TokenNumber,
+  IN UINT8       Value
   );
 
 /**
@@ -1805,9 +1234,9 @@ LibPcdSetEx8S (
 RETURN_STATUS
 EFIAPI
 LibPcdSetEx16S (
-  IN CONST GUID     *Guid,
-  IN UINTN          TokenNumber,
-  IN UINT16         Value
+  IN CONST GUID  *Guid,
+  IN UINTN       TokenNumber,
+  IN UINT16      Value
   );
 
 /**
@@ -1829,9 +1258,9 @@ LibPcdSetEx16S (
 RETURN_STATUS
 EFIAPI
 LibPcdSetEx32S (
-  IN CONST GUID     *Guid,
-  IN UINTN          TokenNumber,
-  IN UINT32         Value
+  IN CONST GUID  *Guid,
+  IN UINTN       TokenNumber,
+  IN UINT32      Value
   );
 
 /**
@@ -1853,9 +1282,9 @@ LibPcdSetEx32S (
 RETURN_STATUS
 EFIAPI
 LibPcdSetEx64S (
-  IN CONST GUID     *Guid,
-  IN UINTN          TokenNumber,
-  IN UINT64         Value
+  IN CONST GUID  *Guid,
+  IN UINTN       TokenNumber,
+  IN UINT64      Value
   );
 
 /**
@@ -1883,10 +1312,10 @@ LibPcdSetEx64S (
 RETURN_STATUS
 EFIAPI
 LibPcdSetExPtrS (
-  IN CONST GUID     *Guid,
-  IN       UINTN    TokenNumber,
-  IN OUT   UINTN    *SizeOfBuffer,
-  IN       VOID     *Buffer
+  IN CONST GUID   *Guid,
+  IN       UINTN  TokenNumber,
+  IN OUT   UINTN  *SizeOfBuffer,
+  IN       VOID   *Buffer
   );
 
 /**
@@ -1908,9 +1337,9 @@ LibPcdSetExPtrS (
 RETURN_STATUS
 EFIAPI
 LibPcdSetExBoolS (
-  IN CONST GUID     *Guid,
-  IN UINTN          TokenNumber,
-  IN BOOLEAN        Value
+  IN CONST GUID  *Guid,
+  IN UINTN       TokenNumber,
+  IN BOOLEAN     Value
   );
 
 /**
@@ -1932,12 +1361,11 @@ LibPcdSetExBoolS (
 typedef
 VOID
 (EFIAPI *PCD_CALLBACK)(
-  IN        CONST GUID        *CallBackGuid, OPTIONAL
+  IN        CONST GUID        *CallBackGuid  OPTIONAL,
   IN        UINTN             CallBackToken,
   IN  OUT   VOID              *TokenData,
   IN        UINTN             TokenDataSize
   );
-
 
 /**
   Set up a notification function that is called when a specified token is set.
@@ -1958,11 +1386,10 @@ VOID
 VOID
 EFIAPI
 LibPcdCallbackOnSet (
-  IN CONST GUID               *Guid,       OPTIONAL
-  IN UINTN                    TokenNumber,
-  IN PCD_CALLBACK             NotificationFunction
+  IN CONST GUID    *Guid        OPTIONAL,
+  IN UINTN         TokenNumber,
+  IN PCD_CALLBACK  NotificationFunction
   );
-
 
 /**
   Disable a notification function that was established with LibPcdCallbackonSet().
@@ -1980,11 +1407,10 @@ LibPcdCallbackOnSet (
 VOID
 EFIAPI
 LibPcdCancelCallback (
-  IN CONST GUID               *Guid,       OPTIONAL
-  IN UINTN                    TokenNumber,
-  IN PCD_CALLBACK             NotificationFunction
+  IN CONST GUID    *Guid        OPTIONAL,
+  IN UINTN         TokenNumber,
+  IN PCD_CALLBACK  NotificationFunction
   );
-
 
 /**
   Retrieves the next token in a token space.
@@ -2008,11 +1434,9 @@ LibPcdCancelCallback (
 UINTN
 EFIAPI
 LibPcdGetNextToken (
-  IN CONST GUID               *Guid,       OPTIONAL
-  IN UINTN                    TokenNumber
+  IN CONST GUID  *Guid        OPTIONAL,
+  IN UINTN       TokenNumber
   );
-
-
 
 /**
   Used to retrieve the list of available PCD token space GUIDs.
@@ -2032,7 +1456,6 @@ EFIAPI
 LibPcdGetNextTokenSpace (
   IN CONST GUID  *TokenSpaceGuid
   );
-
 
 /**
   Sets a value of a patchable PCD entry that is type pointer.
@@ -2060,10 +1483,10 @@ LibPcdGetNextTokenSpace (
 VOID *
 EFIAPI
 LibPatchPcdSetPtr (
-  OUT        VOID       *PatchVariable,
-  IN        UINTN       MaximumDatumSize,
-  IN OUT    UINTN       *SizeOfBuffer,
-  IN CONST  VOID        *Buffer
+  OUT        VOID  *PatchVariable,
+  IN        UINTN  MaximumDatumSize,
+  IN OUT    UINTN  *SizeOfBuffer,
+  IN CONST  VOID   *Buffer
   );
 
 /**
@@ -2092,10 +1515,10 @@ LibPatchPcdSetPtr (
 RETURN_STATUS
 EFIAPI
 LibPatchPcdSetPtrS (
-  OUT      VOID     *PatchVariable,
-  IN       UINTN    MaximumDatumSize,
-  IN OUT   UINTN    *SizeOfBuffer,
-  IN CONST VOID     *Buffer
+  OUT      VOID   *PatchVariable,
+  IN       UINTN  MaximumDatumSize,
+  IN OUT   UINTN  *SizeOfBuffer,
+  IN CONST VOID   *Buffer
   );
 
 /**
@@ -2126,11 +1549,11 @@ LibPatchPcdSetPtrS (
 VOID *
 EFIAPI
 LibPatchPcdSetPtrAndSize (
-  OUT       VOID        *PatchVariable,
-  OUT       UINTN       *SizeOfPatchVariable,
-  IN        UINTN       MaximumDatumSize,
-  IN OUT    UINTN       *SizeOfBuffer,
-  IN CONST  VOID        *Buffer
+  OUT       VOID   *PatchVariable,
+  OUT       UINTN  *SizeOfPatchVariable,
+  IN        UINTN  MaximumDatumSize,
+  IN OUT    UINTN  *SizeOfBuffer,
+  IN CONST  VOID   *Buffer
   );
 
 /**
@@ -2161,11 +1584,11 @@ LibPatchPcdSetPtrAndSize (
 RETURN_STATUS
 EFIAPI
 LibPatchPcdSetPtrAndSizeS (
-  OUT      VOID     *PatchVariable,
-  OUT      UINTN    *SizeOfPatchVariable,
-  IN       UINTN    MaximumDatumSize,
-  IN OUT   UINTN    *SizeOfBuffer,
-  IN CONST VOID     *Buffer
+  OUT      VOID   *PatchVariable,
+  OUT      UINTN  *SizeOfPatchVariable,
+  IN       UINTN  MaximumDatumSize,
+  IN OUT   UINTN  *SizeOfBuffer,
+  IN CONST VOID   *Buffer
   );
 
 typedef enum {
@@ -2182,21 +1605,20 @@ typedef struct {
   /// The returned information associated with the requested TokenNumber. If
   /// TokenNumber is 0, then PcdType is set to PCD_TYPE_8.
   ///
-  PCD_TYPE          PcdType;
+  PCD_TYPE    PcdType;
   ///
   /// The size of the data in bytes associated with the TokenNumber specified. If
   /// TokenNumber is 0, then PcdSize is set 0.
   ///
-  UINTN             PcdSize;
+  UINTN       PcdSize;
   ///
   /// The null-terminated ASCII string associated with a given token. If the
   /// TokenNumber specified was 0, then this field corresponds to the null-terminated
   /// ASCII string associated with the token's namespace Guid. If NULL, there is no
   /// name associated with this request.
   ///
-  CHAR8             *PcdName;
+  CHAR8       *PcdName;
 } PCD_INFO;
-
 
 /**
   Retrieve additional information associated with a PCD token.
@@ -2213,8 +1635,8 @@ typedef struct {
 VOID
 EFIAPI
 LibPcdGetInfo (
-  IN        UINTN           TokenNumber,
-  OUT       PCD_INFO        *PcdInfo
+  IN        UINTN     TokenNumber,
+  OUT       PCD_INFO  *PcdInfo
   );
 
 /**
@@ -2233,9 +1655,9 @@ LibPcdGetInfo (
 VOID
 EFIAPI
 LibPcdGetInfoEx (
-  IN CONST  GUID            *Guid,
-  IN        UINTN           TokenNumber,
-  OUT       PCD_INFO        *PcdInfo
+  IN CONST  GUID      *Guid,
+  IN        UINTN     TokenNumber,
+  OUT       PCD_INFO  *PcdInfo
   );
 
 /**
