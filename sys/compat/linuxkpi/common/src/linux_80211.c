@@ -107,6 +107,10 @@ SYSCTL_NODE(_compat_linuxkpi, OID_AUTO, 80211, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 static bool lkpi_hwcrypto = false;
 SYSCTL_BOOL(_compat_linuxkpi_80211, OID_AUTO, hw_crypto, CTLFLAG_RDTUN,
     &lkpi_hwcrypto, 0, "Enable LinuxKPI 802.11 hardware crypto offload");
+
+static bool lkpi_hwcrypto_tkip = false;
+SYSCTL_BOOL(_compat_linuxkpi_80211, OID_AUTO, tkip, CTLFLAG_RDTUN,
+    &lkpi_hwcrypto_tkip, 0, "Enable LinuxKPI 802.11 TKIP crypto offload");
 #endif
 
 /* Keep public for as long as header files are using it too. */
@@ -6086,8 +6090,13 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 		hwciphers &= (IEEE80211_CRYPTO_WEP |
 		    IEEE80211_CRYPTO_TKIP | IEEE80211_CRYPTO_TKIPMIC |
 		    IEEE80211_CRYPTO_AES_CCM | IEEE80211_CRYPTO_AES_GCM_128);
-		/* We only support CCMP here, so further filter. */
-		hwciphers &= IEEE80211_CRYPTO_AES_CCM;
+		/*
+		 * We only support CCMP here, so further filter.
+		 * Also permit TKIP if turned on.
+		 */
+		hwciphers &= (IEEE80211_CRYPTO_AES_CCM |
+		    (lkpi_hwcrypto_tkip ? (IEEE80211_CRYPTO_TKIP |
+		    IEEE80211_CRYPTO_TKIPMIC) : 0));
 		ieee80211_set_hardware_ciphers(ic, hwciphers);
 	}
 #endif
