@@ -135,7 +135,7 @@ local function adduser(pwd)
 	cmd = cmd .. extraargs .. " -c '" .. pwd.gecos
 	cmd = cmd .. "' -d '" .. pwd.homedir .. "' -s " .. pwd.shell .. postcmd
 
-	local f = io.popen(cmd, "w")
+	f = io.popen(cmd, "w")
 	if input then
 		f:write(input)
 	end
