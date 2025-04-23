@@ -10,6 +10,7 @@
 
 #include <Library/DebugLib.h>
 #include <Library/BaseLib.h>
+#include <Library/StackCheckLib.h>
 #include <Library/StackCheckFailureHookLib.h>
 
 /**
@@ -28,6 +29,7 @@ VOID  *__stack_chk_guard = (VOID *)(UINTN)STACK_COOKIE_VALUE;
 
 **/
 VOID
+EFIAPI
 __stack_chk_fail (
   VOID
   )

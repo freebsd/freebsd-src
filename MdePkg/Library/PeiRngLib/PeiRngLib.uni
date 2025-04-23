@@ -1,0 +1,12 @@
+// @file
+// PEI Instance of the RNG (Random Number Generator) Library.
+//
+// A RngLib instance that uses the RNG PPI to provide random numbers.
+//
+// Copyright (c) Microsoft Corporation.
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+
+#string STR_MODULE_ABSTRACT     #language en-US "Instance of the RNG Library for PEI"
+
+#string STR_MODULE_DESCRIPTION  #language en-US "A library that uses the RNG PPI to provide random numbers"

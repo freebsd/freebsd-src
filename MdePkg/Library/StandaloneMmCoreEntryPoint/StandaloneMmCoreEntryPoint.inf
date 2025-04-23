@@ -1,0 +1,33 @@
+## @file
+# Module entry point library for Standalone MM core.
+#
+# Copyright (c) 2017 - 2021, Arm Ltd. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001A
+  BASE_NAME                      = StandaloneMmCoreEntryPoint
+  FILE_GUID                      = 6D1B60B2-5DD1-4523-8F0A-607DB4D6B0CE
+  MODULE_TYPE                    = MM_CORE_STANDALONE
+  VERSION_STRING                 = 1.0
+  PI_SPECIFICATION_VERSION       = 0x00010032
+  LIBRARY_CLASS                  = StandaloneMmCoreEntryPoint|MM_CORE_STANDALONE
+
+#
+#  VALID_ARCHITECTURES           = X64
+#
+
+[Sources.X64]
+  X64/StandaloneMmCoreEntryPoint.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  StackCheckLib

@@ -2,6 +2,7 @@
   StatusCode related definitions in PI.
 
 Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
@@ -140,6 +141,7 @@ typedef struct {
 #define EFI_COMPUTING_UNIT_CACHE               (EFI_COMPUTING_UNIT | 0x00040000)
 #define EFI_COMPUTING_UNIT_MEMORY              (EFI_COMPUTING_UNIT | 0x00050000)
 #define EFI_COMPUTING_UNIT_CHIPSET             (EFI_COMPUTING_UNIT | 0x00060000)
+#define EFI_COMPUTING_UNIT_MANAGEABILITY       (EFI_COMPUTING_UNIT | 0x00070000)
 ///@}
 
 ///
@@ -341,6 +343,16 @@ typedef struct {
 #define EFI_CHIPSET_EC_DXE_NB_ERROR     (EFI_SUBCLASS_SPECIFIC | 0x00000001)
 #define EFI_CHIPSET_EC_DXE_SB_ERROR     (EFI_SUBCLASS_SPECIFIC | 0x00000002)
 #define EFI_CHIPSET_EC_INTRUDER_DETECT  (EFI_SUBCLASS_SPECIFIC | 0x00000003)
+///@}
+
+///
+/// Computing Unit Manageability Subclass Error Code definitions.
+/// The detail information is reported by REPORT_STATUS_CODE_WITH_EXTENDED_DATA
+//  with ASCII string in EFI_STATUS_CODE_STRING_DATA.
+///@{
+#define EFI_MANAGEABILITY_EC_REDFISH_COMMUNICATION_ERROR         (EFI_SUBCLASS_SPECIFIC | 0x00000000)
+#define EFI_MANAGEABILITY_EC_REDFISH_HOST_INTERFACE_ERROR        (EFI_SUBCLASS_SPECIFIC | 0x00000001)
+#define EFI_MANAGEABILITY_EC_REDFISH_BOOTSTRAP_CREDENTIAL_ERROR  (EFI_SUBCLASS_SPECIFIC | 0x00000002)
 ///@}
 
 ///

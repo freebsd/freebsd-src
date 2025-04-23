@@ -1,0 +1,41 @@
+## @file
+# PPI-based Instance of RNG (Random Number Generator) Library.
+#
+# This library instance requires a RNG PPI to be produced so that the module may use
+# it for RNG operations. A RNG PPI DEPEX will be placed on the module.
+#
+# Copyright (c) Microsoft Corporation.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION           = 0x0001001B
+  BASE_NAME             = PeiRngLib
+  MODULE_UNI_FILE       = PeiRngLib.uni
+  FILE_GUID             = FF240232-C25D-4277-AB81-D6B0C51F2D25
+  VERSION_STRING        = 1.0
+  MODULE_TYPE           = PEIM
+  LIBRARY_CLASS         = RngLib | PEIM
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  PeiServicesLib
+
+[Guids]
+  gEfiRngAlgorithmSp80090Ctr256Guid
+  gEfiRngAlgorithmSp80090Hash256Guid
+  gEfiRngAlgorithmSp80090Hmac256Guid
+  gEfiRngAlgorithmRaw
+
+[Sources]
+  PeiRngLib.c
+
+[Ppis]
+  gEfiRngPpiGuid  ## CONSUMES
+
+[Depex]
+  gEfiRngPpiGuid

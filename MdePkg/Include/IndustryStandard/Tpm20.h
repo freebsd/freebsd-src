@@ -1248,7 +1248,7 @@ typedef union {
   TPMI_AES_KEY_BITS    aes;
   TPMI_SM4_KEY_BITS    SM4;
   TPM_KEY_BITS         sym;
-  TPMI_ALG_HASH     xor;
+  TPMI_ALG_HASH        xor_;
 } TPMU_SYM_KEY_BITS;
 
 // Table 123 - TPMU_SYM_MODE Union
@@ -1321,7 +1321,7 @@ typedef struct {
 // Table 136 - TPMU_SCHEME_KEYEDHASH Union
 typedef union {
   TPMS_SCHEME_HMAC    hmac;
-  TPMS_SCHEME_XOR  xor;
+  TPMS_SCHEME_XOR     xor_;
 } TPMU_SCHEME_KEYEDHASH;
 
 // Table 137 - TPMT_KEYEDHASH_SCHEME Structure

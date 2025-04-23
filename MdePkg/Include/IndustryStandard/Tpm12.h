@@ -744,8 +744,8 @@ typedef struct tdTPM_PERMANENT_FLAGS {
   BOOLEAN              TPMpost;
   BOOLEAN              TPMpostLock;
   BOOLEAN              FIPS;
-  BOOLEAN                           operator;
-  BOOLEAN                           enableRevokeEK;
+  BOOLEAN              operator_;
+  BOOLEAN              enableRevokeEK;
   BOOLEAN              nvLocked;
   BOOLEAN              readSRKPub;
   BOOLEAN              tpmEstablished;

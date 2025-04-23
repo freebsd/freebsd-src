@@ -34,7 +34,7 @@ typedef EFI_PXE_BASE_CODE_PROTOCOL EFI_PXE_BASE_CODE;
 ///
 /// Default IP TTL and ToS.
 ///
-#define DEFAULT_TTL  16
+#define DEFAULT_TTL  64
 #define DEFAULT_ToS  0
 
 ///

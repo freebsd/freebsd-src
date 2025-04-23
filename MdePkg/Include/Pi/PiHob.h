@@ -5,7 +5,7 @@ Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
-  PI Version 1.6
+  PI Version 1.9
 
 **/
 
@@ -291,6 +291,7 @@ typedef UINT32 EFI_RESOURCE_ATTRIBUTE_TYPE;
 
 #define EFI_RESOURCE_ATTRIBUTE_ENCRYPTED        0x04000000
 #define EFI_RESOURCE_ATTRIBUTE_SPECIAL_PURPOSE  0x08000000
+#define EFI_RESOURCE_ATTRIBUTE_HOT_PLUGGABLE    0x10000000
 //
 // Physical memory relative reliability attribute. This
 // memory provides higher reliability relative to other

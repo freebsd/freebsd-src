@@ -1,0 +1,53 @@
+## @file
+# Module entry point library for Standalone MM drivers that dynamically updates the stack cookie.
+#
+# Copyright (c) 2015 - 2021, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2016-2018, ARM Ltd. All rights reserved.<BR>
+# Copyright (c) 2018, Linaro, Limited. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = StandaloneMmDriverEntryPointDynamicInit
+  MODULE_UNI_FILE                = StandaloneMmDriver/StandaloneMmDriverEntryPoint.uni
+  FILE_GUID                      = 28CBCD87-2FEE-4D46-BB5C-B37732BBEEB1
+  MODULE_TYPE                    = MM_STANDALONE
+  VERSION_STRING                 = 1.0
+  PI_SPECIFICATION_VERSION       = 0x00010032
+  LIBRARY_CLASS                  = StandaloneMmDriverEntryPoint|MM_STANDALONE
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = X64 AARCH64
+#
+
+[Sources]
+  StandaloneMmDriver/StandaloneMmDriverEntryPoint.c
+
+[Sources.IA32]
+  IA32/DynamicCookieGcc.nasm  | GCC
+  IA32/DynamicCookieMsvc.nasm | MSFT
+
+[Sources.X64]
+  X64/DynamicCookieGcc.nasm   | GCC
+  X64/DynamicCookieMsvc.nasm  | MSFT
+
+[Sources.AARCH64]
+  AArch64/DynamicCookieGcc.S | GCC
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  MmServicesTableLib
+  StackCheckLib
+
+[Protocols]
+  gEfiLoadedImageProtocolGuid      ## SOMETIMES_CONSUMES

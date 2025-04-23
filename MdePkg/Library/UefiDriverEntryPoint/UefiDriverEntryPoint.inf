@@ -36,6 +36,7 @@
   UefiBootServicesTableLib
   DebugLib
   BaseLib
+  StackCheckLib
 
 
 [Protocols]

@@ -104,7 +104,15 @@ PeCoffLoaderImageFormatSupported (
   IN  UINT16  Machine
   )
 {
-  if (Machine == IMAGE_FILE_MACHINE_LOONGARCH64) {
+  /*
+   * ARM64 and X64 may allow such foreign images to be used when
+   * a driver implementing EDKII_PECOFF_IMAGE_EMULATOR_PROTOCOL is
+   * present.
+   */
+  if ((Machine == IMAGE_FILE_MACHINE_LOONGARCH64) ||
+      (Machine == IMAGE_FILE_MACHINE_ARM64) ||
+      (Machine == IMAGE_FILE_MACHINE_X64))
+  {
     return TRUE;
   }
 

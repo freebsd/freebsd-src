@@ -156,7 +156,7 @@ ArmInstructionCacheLineLength (
   VOID
   );
 
-UINTN
+UINT32
 EFIAPI
 ArmCacheWritebackGranule (
   VOID

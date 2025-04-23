@@ -24,6 +24,7 @@
 **/
 
 #include "BasePeCoffLibInternals.h"
+#include <Library/SafeIntLib.h>
 
 /**
   Adjust some fields in section header for TE image.
@@ -975,6 +976,7 @@ PeCoffLoaderRelocateImage (
   PHYSICAL_ADDRESS                     BaseAddress;
   UINT32                               NumberOfRvaAndSizes;
   UINT32                               TeStrippedOffset;
+  UINT32                               EndAddress;
 
   ASSERT (ImageContext != NULL);
 
@@ -1054,22 +1056,24 @@ PeCoffLoaderRelocateImage (
     RelocDir = &Hdr.Te->DataDirectory[0];
   }
 
-  if ((RelocDir != NULL) && (RelocDir->Size > 0) && ((RelocDir->Size - 1) < (MAX_UINT32 - RelocDir->VirtualAddress))) {
-    RelocBase    = (EFI_IMAGE_BASE_RELOCATION *)PeCoffLoaderImageAddress (ImageContext, RelocDir->VirtualAddress, TeStrippedOffset);
-    RelocBaseEnd = (EFI_IMAGE_BASE_RELOCATION *)PeCoffLoaderImageAddress (
-                                                  ImageContext,
-                                                  RelocDir->VirtualAddress + RelocDir->Size - 1,
-                                                  TeStrippedOffset
-                                                  );
+  RelocBase    = NULL;
+  RelocBaseEnd = NULL;
+  if ((RelocDir != NULL) && (RelocDir->Size > 0)) {
+    Status = SafeUint32Add (RelocDir->VirtualAddress, (RelocDir->Size - 1), &EndAddress);
+    if (!RETURN_ERROR (Status)) {
+      RelocBase    = (EFI_IMAGE_BASE_RELOCATION *)PeCoffLoaderImageAddress (ImageContext, RelocDir->VirtualAddress, TeStrippedOffset);
+      RelocBaseEnd = (EFI_IMAGE_BASE_RELOCATION *)PeCoffLoaderImageAddress (
+                                                    ImageContext,
+                                                    EndAddress,
+                                                    TeStrippedOffset
+                                                    );
+    }
+
     if ((RelocBase == NULL) || (RelocBaseEnd == NULL) || ((UINTN)RelocBaseEnd < (UINTN)RelocBase)) {
       ImageContext->ImageError = IMAGE_ERROR_FAILED_RELOCATION;
+      DEBUG ((DEBUG_ERROR, "Relocation block is not valid\n"));
       return RETURN_LOAD_ERROR;
     }
-  } else {
-    //
-    // Set base and end to bypass processing below.
-    //
-    RelocBase = RelocBaseEnd = NULL;
   }
 
   RelocBaseOrg = RelocBase;
@@ -1767,6 +1771,7 @@ PeCoffLoaderRelocateImageForRuntime (
   UINTN                                Adjust;
   RETURN_STATUS                        Status;
   PE_COFF_LOADER_IMAGE_CONTEXT         ImageContext;
+  UINT32                               EndAddress;
 
   if ((RelocationData == NULL) || (ImageBase == 0x0) || (VirtImageBase == 0x0)) {
     return;
@@ -1828,12 +1833,15 @@ PeCoffLoaderRelocateImageForRuntime (
   if (NumberOfRvaAndSizes > EFI_IMAGE_DIRECTORY_ENTRY_BASERELOC) {
     RelocDir = DataDirectory + EFI_IMAGE_DIRECTORY_ENTRY_BASERELOC;
     if ((RelocDir != NULL) && (RelocDir->Size > 0)) {
-      RelocBase    = (EFI_IMAGE_BASE_RELOCATION *)PeCoffLoaderImageAddress (&ImageContext, RelocDir->VirtualAddress, 0);
-      RelocBaseEnd = (EFI_IMAGE_BASE_RELOCATION *)PeCoffLoaderImageAddress (
-                                                    &ImageContext,
-                                                    RelocDir->VirtualAddress + RelocDir->Size - 1,
-                                                    0
-                                                    );
+      Status = SafeUint32Add (RelocDir->VirtualAddress, (RelocDir->Size - 1), &EndAddress);
+      if (!RETURN_ERROR (Status)) {
+        RelocBase    = (EFI_IMAGE_BASE_RELOCATION *)PeCoffLoaderImageAddress (&ImageContext, RelocDir->VirtualAddress, 0);
+        RelocBaseEnd = (EFI_IMAGE_BASE_RELOCATION *)PeCoffLoaderImageAddress (
+                                                      &ImageContext,
+                                                      EndAddress,
+                                                      0
+                                                      );
+      }
     }
 
     if ((RelocBase == NULL) || (RelocBaseEnd == NULL) || ((UINTN)RelocBaseEnd < (UINTN)RelocBase)) {

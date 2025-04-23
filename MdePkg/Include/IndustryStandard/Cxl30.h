@@ -46,6 +46,14 @@
 #define CXL_HDM_12_WAY_INTERLEAVING  0xA
 
 //
+// "CEDT" CXL Early Discovery Table
+// Compute Express Link Specification Revision 3.0  - Chapter 9.17.1
+//
+#define CEDT_TYPE_CFMWS  0x1
+#define CEDT_TYPE_CXIMS  0x2
+#define CEDT_TYPE_RDPAS  0x3
+
+//
 // Ensure proper structure formats
 //
 #pragma pack(1)
@@ -310,6 +318,57 @@ typedef struct {
   CXL_3_0_CXL_TIMEOUT_AND_ISOLATION_CONTROL       TimeoutAndIsolationControl;
   CXL_3_0_CXL_TIMEOUT_AND_ISOLATION_STATUS        TimeoutAndIsolationStatus;
 } CXL_3_0_CXL_TIMEOUT_AND_ISOLATION_CAPABILITY_STRUCTURE;
+
+//
+// Definition for CXL Fixed Memory Window Structure (CFMWS)
+// Compute Express Link Specification Revision 3.0  - Chapter 9.17.1.3
+//
+// The number of entries in TargetList (Interleave Target List) shall
+// match the Number of Interleave Ways (NIW). The current maximum is 16.
+//
+typedef struct {
+  CEDT_STRUCTURE    Header;
+  UINT32            Reserved;
+  UINT64            BaseHpa;
+  UINT64            WindowSize;
+  UINT8             EncodedInterleaveWays;
+  UINT8             InterleaveArithmetic;
+  UINT16            Reserved1;
+  UINT32            Granularity;
+  UINT16            Restrictions;
+  UINT16            QtgId;
+  UINT32            TargetList[16];
+} CXL_FIXED_MEMORY_WINDOW_STRUCTURE;
+
+//
+// Definition for CXL XOR Interleave Math Structure (CXIMS)
+// Compute Express Link Specification Revision 3.0  - Chapter 9.17.1.4
+//
+// The number of entries in XORMAPList depends on NIB. 4 is the current
+// maximum for 16-way interleaving.
+//
+typedef struct {
+  CEDT_STRUCTURE    Header;
+  UINT16            Reserved;
+  UINT8             HBIG;
+  UINT8             NIB;
+  UINT64            XORMAPList[4];
+} CXL_XOR_INTERLEAVE_MATH_STRUCTURE;
+
+//
+// Definition for RCEC Downstream Port Association Structure (RDPAS)
+// Compute Express Link Specification Revision 3.0  - Chapter 9.17.1.5
+//
+// The errata released at CXL 3.2 fixed that RCEC BDF field overlaps
+// Protocol Type field.
+//
+typedef struct {
+  CEDT_STRUCTURE    Header;
+  UINT16            SegmentNumber;
+  UINT16            Bdf;
+  UINT64            BaseAddress;
+  UINT8             ProtocolType;
+} RCEC_DOWNSTREAM_PORT_ASSOCIATION_STRUCTURE;
 
 #pragma pack()
 

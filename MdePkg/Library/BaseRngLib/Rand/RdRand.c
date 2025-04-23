@@ -2,6 +2,7 @@
   Random number generator services that uses RdRand instruction access
   to provide high-quality random numbers.
 
+Copyright (C) 2024 Advanced Micro Devices, Inc. All rights reserved.<BR>
 Copyright (c) 2023, Arm Limited. All rights reserved.<BR>
 Copyright (c) 2022, Pedro Falcato. All rights reserved.<BR>
 Copyright (c) 2021, NUVIA Inc. All rights reserved.<BR>
@@ -22,8 +23,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 // Bit mask used to determine if RdRand instruction is supported.
 //
 #define RDRAND_MASK  BIT30
-
-STATIC BOOLEAN  mRdRandSupported;
 
 //
 // Intel SDM says 10 tries is good enough for reliable RDRAND usage.
@@ -124,20 +123,6 @@ BaseRngLibConstructor (
   VOID
   )
 {
-  UINT32  RegEcx;
-
-  //
-  // Determine RDRAND support by examining bit 30 of the ECX register returned by
-  // CPUID. A value of 1 indicates that processor support RDRAND instruction.
-  //
-  AsmCpuid (1, 0, 0, &RegEcx, 0);
-
-  mRdRandSupported = ((RegEcx & RDRAND_MASK) == RDRAND_MASK);
-
-  if (mRdRandSupported) {
-    mRdRandSupported = TestRdRand ();
-  }
-
   return EFI_SUCCESS;
 }
 
@@ -156,7 +141,6 @@ ArchGetRandomNumber16 (
   OUT     UINT16  *Rand
   )
 {
-  ASSERT (mRdRandSupported);
   return AsmRdRand16 (Rand);
 }
 
@@ -175,7 +159,6 @@ ArchGetRandomNumber32 (
   OUT     UINT32  *Rand
   )
 {
-  ASSERT (mRdRandSupported);
   return AsmRdRand32 (Rand);
 }
 
@@ -194,7 +177,6 @@ ArchGetRandomNumber64 (
   OUT     UINT64  *Rand
   )
 {
-  ASSERT (mRdRandSupported);
   return AsmRdRand64 (Rand);
 }
 
@@ -211,7 +193,22 @@ ArchIsRngSupported (
   VOID
   )
 {
-  return mRdRandSupported;
+  BOOLEAN  RdRandSupported;
+  UINT32   RegEcx;
+
+  //
+  // Determine RDRAND support by examining bit 30 of the ECX register returned by
+  // CPUID. A value of 1 indicates that processor support RDRAND instruction.
+  //
+  AsmCpuid (1, 0, 0, &RegEcx, 0);
+
+  RdRandSupported = ((RegEcx & RDRAND_MASK) == RDRAND_MASK);
+
+  if (RdRandSupported) {
+    RdRandSupported = TestRdRand ();
+  }
+
+  return RdRandSupported;
 }
 
 /**

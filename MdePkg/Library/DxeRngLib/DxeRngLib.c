@@ -32,7 +32,7 @@ typedef struct {
 // These represent UEFI SPEC defined algorithms that should be supported by
 // the RNG protocol and are generally considered secure.
 //
-static GLOBAL_REMOVE_IF_UNREFERENCED SECURE_RNG_ALGO_ARRAY  mSecureHashAlgorithms[] = {
+static SECURE_RNG_ALGO_ARRAY  mSecureHashAlgorithms[] = {
  #ifdef MDE_CPU_AARCH64
   {
     &gEfiRngAlgorithmArmRndr, // unspecified SP800-90A DRBG (through RNDR instr.)
@@ -204,7 +204,10 @@ GenerateRandomNumberViaNist800Algorithm (
     }
   }
 
-  if (!PcdGetBool (PcdEnforceSecureRngAlgorithms)) {
+  if (PcdGetBool (PcdEnforceSecureRngAlgorithms)) {
+    // Platform does not permit the use of the default (insecure) algorithm.
+    Status = EFI_SECURITY_VIOLATION;
+  } else {
     // If all the other methods have failed, use the default method from the RngProtocol
     Status = mRngProtocol->GetRNG (mRngProtocol, NULL, BufferSize, Buffer);
     DEBUG ((DEBUG_INFO, "%a: GetRNG algorithm default - Status = %r\n", __func__, Status));

@@ -11,6 +11,7 @@
 # Copyright (c) 2021 - 2022, Arm Limited. All rights reserved.<BR>
 # Copyright (C) 2023 Advanced Micro Devices, Inc. All rights reserved.<BR>
 # Copyright (c) 2023, Ampere Computing LLC. All rights reserved.<BR>
+# Copyright (c) Microsoft Corporation.<BR>
 #
 # SPDX-License-Identifier: BSD-2-Clause-Patent
 #
@@ -307,6 +308,10 @@
   #
   StackCheckFailureHookLib|Include/Library/StackCheckFailureHookLib.h
 
+  ##  @libraryclass  Provides stack cookie checking functionality
+  #
+  StackCheckLib|Include/Library/StackCheckLib.h
+
 [LibraryClasses.IA32, LibraryClasses.X64, LibraryClasses.AARCH64]
   ##  @libraryclass  Provides services to generate random number.
   #
@@ -338,6 +343,11 @@
 
   ##  @libraryclass  Provides function to support TDX processing.
   TdxLib|Include/Library/TdxLib.h
+
+[LibraryClasses.X64]
+  ##  @libraryclass  Defines a set of interfaces for the MM core entrypoint. The ARM/AARCH64 version lives in ArmPkg
+  #
+  StandaloneMmCoreEntryPoint|Include/Library/StandaloneMmCoreEntryPoint.h
 
 [LibraryClasses.RISCV64]
   ##  @libraryclass  Provides function to make ecalls to SBI
@@ -629,6 +639,7 @@
   gEfiCertSha384Guid             = { 0xff3e5307, 0x9fd0, 0x48c9, {0x85, 0xf1, 0x8a, 0xd5, 0x6c, 0x70, 0x1e,  0x1 }}
   gEfiCertSha512Guid             = { 0x93e0fae,  0xa6c4, 0x4f50, {0x9f, 0x1b, 0xd4, 0x1e, 0x2b, 0x89, 0xc1, 0x9a }}
   gEfiCertPkcs7Guid              = { 0x4aafd29d, 0x68df, 0x49ee, {0x8a, 0xa9, 0x34, 0x7d, 0x37, 0x56, 0x65, 0xa7 }}
+  gEfiCertSm3Guid                = { 0x57347f87, 0x7a9b, 0x403a, {0xb9, 0x3c, 0xdc, 0x4a, 0xfb, 0x7a, 0x0e, 0xbc }}
 
   ## Include/Protocol/Hash.h
   gEfiHashAlgorithmSha1NoPadGuid = { 0x24c5dc2f, 0x53e2, 0x40ca, { 0x9e, 0xd6, 0xa5, 0xd9, 0xa4, 0x9f, 0x46, 0x3b }}
@@ -644,6 +655,7 @@
   gEfiCertX509Sha256Guid         = { 0x3bd2a492, 0x96c0, 0x4079, {0xb4, 0x20, 0xfc, 0xf9, 0x8e, 0xf1, 0x03, 0xed }}
   gEfiCertX509Sha384Guid         = { 0x7076876e, 0x80c2, 0x4ee6, {0xaa, 0xd2, 0x28, 0xb3, 0x49, 0xa6, 0x86, 0x5b }}
   gEfiCertX509Sha512Guid         = { 0x446dbf63, 0x2502, 0x4cda, {0xbc, 0xfa, 0x24, 0x65, 0xd2, 0xb0, 0xfe, 0x9d }}
+  gEfiCertX509Sm3Guid            = { 0x60d807e5, 0x10b4, 0x49a9, {0x93, 0x31, 0xe4, 0x04, 0x37, 0x88, 0x8d, 0x37 }}
 
   ## Include/Protocol/Rng.h
   gEfiRngAlgorithmSp80090Hash256Guid = { 0xa7af67cb, 0x603b, 0x4d42, {0xba, 0x21, 0x70, 0xbf, 0xb6, 0x29, 0x3f, 0x96 }}
@@ -702,6 +714,7 @@
   gEfiBootManagerPolicyConsoleGuid    = { 0xCAB0E94C, 0xE15F, 0x11E3, { 0x91, 0x8D, 0xB8, 0xE8, 0x56, 0x2C, 0xBA, 0xFA }}
   gEfiBootManagerPolicyNetworkGuid    = { 0xD04159DC, 0xE15F, 0x11E3, { 0xB2, 0x61, 0xB8, 0xE8, 0x56, 0x2C, 0xBA, 0xFA }}
   gEfiBootManagerPolicyConnectAllGuid = { 0x113B2126, 0xFC8A, 0x11E3, { 0xBD, 0x6C, 0xB8, 0xE8, 0x56, 0x2C, 0xBA, 0xFA }}
+  gEfiBootManagerPolicyStorageGuid    = { 0xCD68FE79, 0xD3CB, 0x436E, { 0xA8, 0x50, 0xF4, 0x43, 0xC8, 0x8C, 0xFB, 0x49 }}
 
   ## Include/Protocol/DevicePath.h
   gEfiVirtualDiskGuid            = { 0x77AB535A, 0x45FC, 0x624B, {0x55, 0x60, 0xF7, 0xB2, 0x81, 0xD1, 0xF9, 0x6E }}
@@ -1081,6 +1094,9 @@
 
   ## Include/Ppi/DelayedDispatch.h
   gEfiPeiDelayedDispatchPpiGuid  = { 0x869c711d, 0x649c, 0x44fe, { 0x8b, 0x9e, 0x2c, 0xbb, 0x29, 0x11, 0xc3, 0xe6 }}
+
+  ## Include/Ppi/Rng.h
+  gEfiRngPpiGuid                 = { 0xeaed0a7e, 0x1a70, 0x4c2b, { 0x85, 0x58, 0x37, 0x17, 0x74, 0x56, 0xd8, 0x06 }}
 
 [Protocols]
   ## Include/Protocol/MemoryAccept.h
@@ -2222,8 +2238,15 @@
   # @ValidList  0x80000003 | 0x3040003
   gEfiMdePkgTokenSpaceGuid.PcdStatusCodeValueDxeDriverEnd|0x3040003|UINT32|0x30001014
 
-  ## This flag is used to control build time optimization based on debug print level.
-  #  Its default value is 0xFFFFFFFF to expose all debug print level.
+  ## This flag is used to control fixed-at-build optimization of DEBUG_PRINT macros.<BR><BR>
+  #  The default value is 0xFFFFFFFF, meaning that DEBUG_PRINT (...) always evaluates
+  #  the macro arguments and always invokes DebugPrint (...). If you want to optimize
+  #  messages, you might set this to a more restrictive value like 0x80000002 (optimize-out
+  #  everything except errors and warnings).<BR><BR>
+  #  This flag is consumed by DebugLib's DebugPrintLevelEnabled (Level) function. The
+  #  DEBUG_PRINT (Level, Format, ...) macro in DebugLib.h calls DebugPrintLevelEnabled (Level)
+  #  to filter the output, and most implementations of DebugPrintLevelEnabled (Level) simply
+  #  return (Level & PcdFixedDebugPrintErrorLevel) != 0.<BR><BR>
   #  BIT0  - Initialization message.<BR>
   #  BIT1  - Warning message.<BR>
   #  BIT2  - Load Event message.<BR>
@@ -2307,17 +2330,30 @@
   gEfiMdePkgTokenSpaceGuid.PcdSpinLockTimeout|10000000|UINT32|0x00000004
 
   ## The mask is used to control DebugLib behavior.<BR><BR>
-  #  BIT0 - Enable Debug Assert.<BR>
-  #  BIT1 - Enable Debug Print.<BR>
-  #  BIT2 - Enable Debug Code.<BR>
-  #  BIT3 - Enable Clear Memory.<BR>
-  #  BIT4 - Enable BreakPoint as ASSERT.<BR>
-  #  BIT5 - Enable DeadLoop as ASSERT.<BR>
+  #  Note that if the MDEPKG_NDEBUG macro is defined, the ASSERT***, CR, and DEBUG macros will be
+  #  no-ops regardless of this value.<BR>
+  #  Note that MDEPKG_NDEBUG does not affect DEBUG_PRINT.<BR><BR>
+  #  BIT0 - ASSERT_ENABLED: Enable the ASSERT*** and CR macros.<BR>
+  #  BIT1 - PRINT_ENABLED: Enable the DEBUG macro (does not affect the DEBUG_PRINT macro).<BR>
+  #  BIT2 - CODE_ENABLED: Enable the DEBUG_CODE_BEGIN macro.<BR>
+  #  BIT3 - CLEAR_MEMORY_ENABLED: Enable the DEBUG_CLEAR_MEMORY macro.<BR>
+  #  BIT4 - ASSERT_BREAKPOINT_ENABLED: Enable BreakPoint for failed ASSERT.<BR>
+  #  BIT5 - ASSERT_DEADLOOP_ENABLED: Enable DeadLoop for failed ASSERT.<BR>
   # @Prompt Debug Property.
   # @Expression  0x80000002 | (gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask & 0xC0) == 0
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0|UINT8|0x00000005
 
-  ## This flag is used to control the print out Debug message.<BR><BR>
+  ## This flag is used to filter the output of the DEBUG_PRINT macro and DebugPrint functions.<BR><BR>
+  #  The default value is 0x80000000, meaning that DebugPrint returns immediately for anything
+  #  except errors. You might set this to a value like 0x80000002 to also enable warnings.<BR><BR>
+  #  This flag is consumed by the BaseDebugPrintErrorLevelLib implementation of
+  #  GetDebugPrintErrorLevel (). DebugLib's DebugPrint (Level, ...) functions return immediately if
+  #  (GetDebugPrintErrorLevel() & Level) == 0. Other implementations of DebugPrintErrorLevelLib
+  #  may provide different definitions of GetDebugPrintErrorLevel  ().<BR><BR>
+  #  Note that the DEBUG_PRINT macro also uses PcdFixedDebugPrintErrorLevel to determine whether
+  #  or not it calls the DebugPrint function, so your message level needs to be enabled in both
+  #  PcdFixedDebugPrintErrorLevel and PcdDebugPrintErrorLevel settings for the DEBUG_PRINT macro
+  #  to work.<BR><BR>
   #  BIT0  - Initialization message.<BR>
   #  BIT1  - Warning message.<BR>
   #  BIT2  - Load Event message.<BR>
@@ -2432,6 +2468,34 @@
   #  The IPMI specification specified min value is 60ms (section 12.17).
   # @Prompt Time-out for a response, internal
   gEfiMdePkgTokenSpaceGuid.PcdIpmiSsifResponseRetryIntervalMicrosecond|60000|UINT32|0x00000036
+
+  ## This is requester's Software IDs for IPMI Serial.
+  #  This byte is 20h when the BMC is the requester (section 14.4.3).
+  # @Prompt IPMI Serial requester Software ID
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSerialRequesterAddress|0x20|UINT8|0x00000050
+
+  ## This is responder's Software IDs for IPMI Serial.
+  #  This byte is 20h when the BMC is the responder (section 14.4.3).
+  # @Prompt IPMI Serial responder Software ID
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSerialResponderAddress|0x20|UINT8|0x00000051
+
+  ## This is requester's LUN for IPMI Serial.
+  # @Prompt IPMI Serial requester LUN
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSerialRequesterLun|0x0|UINT8|0x00000052
+
+  ## This is responder's LUN for IPMI Serial.
+  # @Prompt IPMI Serial responder LUN
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSerialResponderLun|0x0|UINT8|0x00000053
+
+  ## This is the maximum number of IPMI Serial request retries.
+  #  The IPMB specification specified min value is 5 (section 4).
+  # @Prompt Number of IPMI Serial request retries.
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSerialRequestRetryCount|5|UINT8|0x00000054
+
+  ## This is the required interval for each IPMI request retry.
+  #  The IPMB specification specified min value is 60ms (section 4).
+  # @Prompt Time-out for a request, internal
+  gEfiMdePkgTokenSpaceGuid.PcdIpmiSerialRequestRetryInterval|60000|UINT32|0x00000055
 
 [PcdsFixedAtBuild.AARCH64, PcdsPatchableInModule.AARCH64]
   ## GUID identifying the Rng algorithm implemented by CPU instruction.

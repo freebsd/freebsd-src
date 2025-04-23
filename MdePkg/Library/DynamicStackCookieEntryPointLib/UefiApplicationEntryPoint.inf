@@ -1,0 +1,45 @@
+## @file
+# Module entry point library for UEFI Application that dynamically updates the stack cookie.
+#
+# Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiApplicationEntryPointDynamicInit
+  MODULE_UNI_FILE                = UefiApplication/UefiApplicationEntryPoint.uni
+  FILE_GUID                      = 755B9094-E5AF-4E5B-BE33-D430CDE2C5D2
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = UefiApplicationEntryPoint|UEFI_APPLICATION
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 AARCH64
+#
+
+[Sources]
+  UefiApplication/ApplicationEntryPoint.c
+
+[Sources.IA32]
+  IA32/DynamicCookieGcc.nasm  | GCC
+  IA32/DynamicCookieMsvc.nasm | MSFT
+
+[Sources.X64]
+  X64/DynamicCookieGcc.nasm   | GCC
+  X64/DynamicCookieMsvc.nasm  | MSFT
+
+[Sources.AARCH64]
+  AArch64/DynamicCookieGcc.S | GCC
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  UefiBootServicesTableLib
+  DebugLib
+  BaseLib
+  StackCheckLib

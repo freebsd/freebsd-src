@@ -33,9 +33,10 @@ typedef struct {
 //
 // EFI_CC Type/SubType definition
 //
-#define EFI_CC_TYPE_NONE  0
-#define EFI_CC_TYPE_SEV   1
-#define EFI_CC_TYPE_TDX   2
+#define EFI_CC_TYPE_NONE   0
+#define EFI_CC_TYPE_SEV    1
+#define EFI_CC_TYPE_TDX    2
+#define EFI_CC_TYPE_APTEE  3
 
 typedef struct {
   UINT8    Type;

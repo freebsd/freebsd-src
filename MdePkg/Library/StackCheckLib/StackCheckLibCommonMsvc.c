@@ -10,6 +10,7 @@
 
 #include <Library/DebugLib.h>
 #include <Library/BaseLib.h>
+#include <Library/StackCheckLib.h>
 #include <Library/StackCheckFailureHookLib.h>
 
 /**

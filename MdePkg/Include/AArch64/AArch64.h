@@ -66,6 +66,7 @@
 #define ARM_HCR_AMO  BIT5
 #define ARM_HCR_TSC  BIT19
 #define ARM_HCR_TGE  BIT27
+#define ARM_HCR_E2H  BIT34
 
 // Exception Syndrome Register
 #define AARCH64_ESR_EC(Ecr)   ((0x3F << 26) & (Ecr))
@@ -128,6 +129,10 @@
 // The ID_AA64MMFR2_EL1 register was added in ARMv8.2. Since we
 // build for ARMv8.0, we need to define the register here.
 #define ID_AA64MMFR2_EL1  S3_0_C0_C7_2
+
+// The RNDR register is not recognized by older assemblers,
+// so we need to define it here
+#define RNDR  S3_3_C2_C4_0
 
 #define VECTOR_BASE(tbl)          \
   .section .text.##tbl##,"ax";    \

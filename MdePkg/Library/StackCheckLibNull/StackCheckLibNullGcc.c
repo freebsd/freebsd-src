@@ -6,6 +6,7 @@
 **/
 
 #include <Uefi.h>
+#include <Library/StackCheckLib.h>
 
 VOID  *__stack_chk_guard = (VOID *)(UINTN)0x0;
 

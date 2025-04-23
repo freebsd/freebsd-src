@@ -32,4 +32,5 @@
   UefiBootServicesTableLib
   DebugLib
   BaseLib
+  StackCheckLib
 

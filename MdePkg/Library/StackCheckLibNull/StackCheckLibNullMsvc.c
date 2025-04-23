@@ -6,5 +6,6 @@
 **/
 
 #include <Uefi.h>
+#include <Library/StackCheckLib.h>
 
 VOID  *__security_cookie = (VOID *)(UINTN)0x0;

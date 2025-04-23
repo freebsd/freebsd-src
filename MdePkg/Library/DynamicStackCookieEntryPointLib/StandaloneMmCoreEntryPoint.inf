@@ -1,0 +1,38 @@
+## @file
+# Module entry point library for StandaloneMm core that dynamically updates the stack cookie.
+# The AARCH64 version of this library lives in ArmPkg.
+#
+# Copyright (c) 2017 - 2021, Arm Ltd. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001A
+  BASE_NAME                      = StandaloneMmCoreEntryPointDynamicInit
+  FILE_GUID                      = 490073A1-4DBC-4E9E-B30D-A4204139FC5F
+  MODULE_TYPE                    = MM_CORE_STANDALONE
+  VERSION_STRING                 = 1.0
+  PI_SPECIFICATION_VERSION       = 0x00010032
+  LIBRARY_CLASS                  = StandaloneMmCoreEntryPoint|MM_CORE_STANDALONE
+
+#
+#  VALID_ARCHITECTURES           = X64
+#
+
+[Sources.X64]
+  StandaloneMmCore/X64/StandaloneMmCoreEntryPoint.c
+
+[Sources.X64]
+  X64/DynamicCookieGcc.nasm   | GCC
+  X64/DynamicCookieMsvc.nasm  | MSFT
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  StackCheckLib

@@ -11,6 +11,8 @@
 #ifndef ARM_RNG_H_
 #define ARM_RNG_H_
 
+#include <AArch64/AArch64.h>
+
 /**
   Generates a random number using RNDR.
   Returns TRUE on success; FALSE on failure.

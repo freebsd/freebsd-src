@@ -1,0 +1,45 @@
+## @file
+# Module entry point library for DXE core that dynamically updates the stack cookie.
+#
+# Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = DxeCoreEntryPointDynamicInit
+  MODULE_UNI_FILE                = DxeCore/DxeCoreEntryPoint.uni
+  FILE_GUID                      = FD044D85-1407-4043-B527-471F16ABD8C6
+  MODULE_TYPE                    = DXE_CORE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = DxeCoreEntryPoint|DXE_CORE
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 AARCH64
+#
+
+[Sources]
+  DxeCore/DxeCoreEntryPoint.c
+
+[Sources.IA32]
+  IA32/DynamicCookieGcc.nasm  | GCC
+  IA32/DynamicCookieMsvc.nasm | MSFT
+
+[Sources.X64]
+  X64/DynamicCookieGcc.nasm   | GCC
+  X64/DynamicCookieMsvc.nasm  | MSFT
+
+[Sources.AARCH64]
+  AArch64/DynamicCookieGcc.S | GCC
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  StackCheckLib

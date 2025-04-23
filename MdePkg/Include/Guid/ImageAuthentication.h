@@ -123,6 +123,19 @@ typedef struct {
   EFI_TIME           TimeOfRevocation;
 } EFI_CERT_X509_SHA512;
 
+typedef UINT8 EFI_SM3_HASH[32];
+
+typedef struct {
+  ///
+  /// The SM3 hash of an X.509 certificate's To-Be-Signed contents.
+  ///
+  EFI_SM3_HASH    ToBeSignedHash;
+  ///
+  /// The time that the certificate shall be considered to be revoked.
+  ///
+  EFI_TIME        TimeOfRevocation;
+} EFI_CERT_X509_SM3;
+
 #pragma pack()
 
 ///
@@ -167,6 +180,15 @@ typedef struct {
   }
 
 ///
+/// This identifies a signature containing a SM3 hash.  The SignatureSize shall always
+/// be 16 (size of SignatureOwner component) + 32 bytes.
+///
+#define EFI_CERT_SM3_GUID \
+  { \
+    0x57347f87, 0x7a9b, 0x403a, { 0xb9, 0x3c, 0xdc, 0x4a, 0xfb, 0x7a, 0xe, 0xbc } \
+  }
+
+///
 /// TThis identifies a signature containing a RSA-2048 signature of a SHA-1 hash.  The
 /// SignatureHeader size shall always be 0. The SignatureSize shall always be 16 (size of
 /// SignatureOwner component) + 256 bytes.
@@ -188,6 +210,19 @@ typedef struct {
 #define EFI_CERT_X509_GUID \
   { \
     0xa5c059a1, 0x94e4, 0x4aa7, {0x87, 0xb5, 0xab, 0x15, 0x5c, 0x2b, 0xf0, 0x72} \
+  }
+
+///
+/// This identifies a signature containing the SM3 hash of an X.509 certificate's To-Be-Signed
+/// contents, and a time of revocation. The SignatureHeader size shall always be 0. The
+/// SignatureSize shall always be 16 (size of the SignatureOwner component) + 32 bytes for
+/// an EFI_CERT_X509_SM3 structure. If the TimeOfRevocation is non-zero, the certificate should
+/// be considered to be revoked from that time and onwards, and otherwise the certificate shall
+/// be considered to always be revoked.
+///
+#define EFI_CERT_X509_SM3_GUID \
+  { \
+    0x60d807e5, 0x10b4, 0x49a9, {0x93, 0x31, 0xe4, 0x4, 0x37, 0x88, 0x8d, 0x37 } \
   }
 
 ///
@@ -344,5 +379,7 @@ extern EFI_GUID  gEfiCertX509Sha256Guid;
 extern EFI_GUID  gEfiCertX509Sha384Guid;
 extern EFI_GUID  gEfiCertX509Sha512Guid;
 extern EFI_GUID  gEfiCertPkcs7Guid;
+extern EFI_GUID  gEfiCertSm3Guid;
+extern EFI_GUID  gEfiCertX509Sm3Guid;
 
 #endif

@@ -8,7 +8,7 @@
 #
 #------------------------------------------------------------------------------
 
-#include "BaseRngLibInternals.h"
+#include "ArmRng.h"
 
 .text
 .p2align 2

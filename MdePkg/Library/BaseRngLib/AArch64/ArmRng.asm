@@ -8,7 +8,7 @@
 ;
 ;------------------------------------------------------------------------------
 
-#include "BaseRngLibInternals.h"
+#include "ArmRng.h"
 
   EXPORT ArmRndr
   AREA BaseLib_LowLevel, CODE, READONLY

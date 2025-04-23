@@ -67,6 +67,7 @@
 
 #define TT_NS  BIT5
 #define TT_AF  BIT10
+#define TT_NG  BIT11
 
 #define TT_SH_NON_SHAREABLE    (0x0 << 8)
 #define TT_SH_OUTER_SHAREABLE  (0x2 << 8)

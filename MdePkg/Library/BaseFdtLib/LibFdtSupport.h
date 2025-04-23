@@ -14,17 +14,21 @@
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
 
-typedef UINT8    uint8_t;
-typedef UINT16   uint16_t;
-typedef INT32    int32_t;
-typedef UINT32   uint32_t;
-typedef UINT64   uint64_t;
-typedef UINTN    uintptr_t;
-typedef UINTN    size_t;
-typedef BOOLEAN  bool;
+typedef UINT8   uint8_t;
+typedef UINT16  uint16_t;
+typedef INT32   int32_t;
+typedef UINT32  uint32_t;
+typedef UINT64  uint64_t;
+typedef UINTN   uintptr_t;
+typedef UINTN   size_t;
 
+#if defined __STDC_VERSION__ && __STDC_VERSION__ > 201710L
+/* bool, true and false are keywords.  */
+#else
+typedef BOOLEAN bool;
 #define true   (1 == 1)
 #define false  (1 == 0)
+#endif
 
 //
 // Definitions for global constants used by libfdt library routines
