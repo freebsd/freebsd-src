@@ -108,7 +108,7 @@ static int	issignal(struct thread *td);
 static void	reschedule_signals(struct proc *p, sigset_t block, int flags);
 static int	sigprop(int sig);
 static void	tdsigwakeup(struct thread *, int, sig_t, int);
-static void	sig_suspend_threads(struct thread *, struct proc *);
+static bool	sig_suspend_threads(struct thread *, struct proc *);
 static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
@@ -2799,14 +2799,24 @@ ptrace_remotereq(struct thread *td, int flag)
 	wakeup(p);
 }
 
-static void
+/*
+ * Suspend threads of the process p, either by directly setting the
+ * inhibitor for the thread sleeping interruptibly, or by making the
+ * thread suspend at the userspace boundary by scheduling a suspend AST.
+ *
+ * Returns true if some threads were suspended directly from the
+ * sleeping state, and false if all threads are forced to process AST.
+ */
+static bool
 sig_suspend_threads(struct thread *td, struct proc *p)
 {
 	struct thread *td2;
+	bool res;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
 
+	res = false;
 	FOREACH_THREAD_IN_PROC(p, td2) {
 		thread_lock(td2);
 		ast_sched_locked(td2, TDA_SUSPEND);
@@ -2824,8 +2834,10 @@ sig_suspend_threads(struct thread *td, struct proc *p)
 					sleepq_abort(td2, TD_SBDRY_ERRNO(td2));
 					continue;
 				}
-			} else if (!TD_IS_SUSPENDED(td2))
+			} else if (!TD_IS_SUSPENDED(td2)) {
 				thread_suspend_one(td2);
+				res = true;
+			}
 		} else if (!TD_IS_SUSPENDED(td2)) {
 #ifdef SMP
 			if (TD_IS_RUNNING(td2) && td2 != td)
@@ -2834,6 +2846,7 @@ sig_suspend_threads(struct thread *td, struct proc *p)
 		}
 		thread_unlock(td2);
 	}
+	return (res);
 }
 
 static void
