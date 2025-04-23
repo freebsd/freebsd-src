@@ -522,6 +522,7 @@ static void
 lkpi_sta_sync_vht_from_ni(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
     struct ieee80211_node *ni)
 {
+	enum ieee80211_sta_rx_bw bw;
 	uint32_t width;
 	int rx_nss;
 	uint16_t rx_mcs_map;
@@ -545,19 +546,38 @@ lkpi_sta_sync_vht_from_ni(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 	if (ni->ni_vht_chanwidth == IEEE80211_VHT_CHANWIDTH_USE_HT)
 		goto skip_bw;
 
+	bw = sta->deflink.bandwidth;
 	width = (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK);
 	switch (width) {
+	/* Deprecated. */
 	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ:
 	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ:
-		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_160;
+		bw = IEEE80211_STA_RX_BW_160;
 		break;
 	default:
 		/* Check if we do support 160Mhz somehow after all. */
 		if ((sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_EXT_NSS_BW_MASK) != 0)
-			sta->deflink.bandwidth = IEEE80211_STA_RX_BW_160;
+			bw = IEEE80211_STA_RX_BW_160;
 		else
-			sta->deflink.bandwidth = IEEE80211_STA_RX_BW_80;
+			bw = IEEE80211_STA_RX_BW_80;
 	}
+	/*
+	 * While we can set what is possibly supported we also need to be
+	 * on a channel which supports that bandwidth; e.g., we can support
+	 * VHT160 but the AP only does VHT80.
+	 * Further ni_chan will also have filtered out what we disabled
+	 * by configuration.
+	 * Once net80211 channel selection is fixed for 802.11-2020 and
+	 * VHT160 we can possibly spare ourselves the above.
+	 */
+	if (bw == IEEE80211_STA_RX_BW_160 &&
+	    !IEEE80211_IS_CHAN_VHT160(ni->ni_chan) &&
+	    !IEEE80211_IS_CHAN_VHT80P80(ni->ni_chan))
+		bw = IEEE80211_STA_RX_BW_80;
+	if (bw == IEEE80211_STA_RX_BW_80 &&
+	    !IEEE80211_IS_CHAN_VHT80(ni->ni_chan))
+		bw = sta->deflink.bandwidth;
+	sta->deflink.bandwidth = bw;
 skip_bw:
 
 	rx_nss = 0;
