@@ -231,7 +231,7 @@ ZFS_RPC_C=	${CC} -c ${ZFS_CFLAGS} -DHAVE_RPC_TYPES ${WERROR} ${.IMPSRC}
 ZFS_S=		${CC} -c ${ZFS_ASM_CFLAGS} ${WERROR} ${.IMPSRC}
 
 # ATH driver
-ATH_CFLAGS=	-I${SRCTOP}/sys/dev/ath ${NO_WUNUSED_BUT_SET_VARIABLE}
+ATH_CFLAGS=	-I${SRCTOP}/sys/dev/ath
 ATH_C=		${CC} -c ${CFLAGS} ${WERROR} ${ATH_CFLAGS} ${.IMPSRC}
 
 # Special flags for managing the compat compiles for DTrace
