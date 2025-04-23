@@ -95,10 +95,11 @@
 #define MPI3MR_NAME_LENGTH	32
 #define IOCNAME			"%s: "
 
+#define MPI3MR_DEFAULT_MAX_IO_SIZE	(1 * 1024 * 1024)
+
 #define SAS4116_CHIP_REV_A0	0
 #define SAS4116_CHIP_REV_B0	1
 
-#define MPI3MR_SG_DEPTH		(MPI3MR_4K_PGSZ/sizeof(Mpi3SGESimple_t))
 #define MPI3MR_MAX_SECTORS	2048
 #define MPI3MR_MAX_CMDS_LUN	7
 #define MPI3MR_MAX_CDB_LENGTH	16
@@ -109,7 +110,12 @@
 #define MPI3MR_RAID_QDEPTH	128
 #define MPI3MR_NVME_QDEPTH	128
 
+/* Definitions for internal SGL and Chain SGL buffers */
 #define MPI3MR_4K_PGSZ 		4096
+#define MPI3MR_PAGE_SIZE_4K		4096
+#define MPI3MR_DEFAULT_SGL_ENTRIES	256
+#define MPI3MR_MAX_SGL_ENTRIES		2048
+
 #define MPI3MR_AREQQ_SIZE	(2 * MPI3MR_4K_PGSZ)
 #define MPI3MR_AREPQ_SIZE	(4 * MPI3MR_4K_PGSZ)
 #define MPI3MR_AREQ_FRAME_SZ	128
@@ -124,8 +130,6 @@
 #define MPI3MR_OP_REP_Q_QD_A0		4096
 
 #define MPI3MR_THRESHOLD_REPLY_COUNT	100
-
-#define MPI3MR_CHAINSGE_SIZE	MPI3MR_4K_PGSZ
 
 #define MPI3MR_SGEFLAGS_SYSTEM_SIMPLE_END_OF_LIST	\
 	(MPI3_SGE_FLAGS_ELEMENT_TYPE_SIMPLE | MPI3_SGE_FLAGS_DLAS_SYSTEM | \
@@ -335,6 +339,7 @@ struct mpi3mr_ioc_facts
         U16 max_perids;
         U16 max_pds;
         U16 max_sasexpanders;
+        U32 max_data_length;
         U16 max_sasinitiators;
         U16 max_enclosures;
         U16 max_pcieswitches;
@@ -671,6 +676,7 @@ struct mpi3mr_softc {
 	struct mtx target_lock;
 	
 	U16 max_host_ios;
+	U32 max_sgl_entries;
 	bus_dma_tag_t	chain_sgl_list_tag;
 	struct mpi3mr_chain *chain_sgl_list;
 	U16  chain_bitmap_sz;
