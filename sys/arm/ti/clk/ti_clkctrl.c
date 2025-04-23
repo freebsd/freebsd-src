@@ -167,12 +167,6 @@ ti_clkctrl_attach(device_t dev)
 
 	/* Check if this is a clkctrl with special registers like gpio */
 	switch (ti_chip()) {
-#ifdef SOC_OMAP4
-	case CHIP_OMAP_4:
-		/* FIXME: Todo */
-		break;
-
-#endif /* SOC_OMAP4 */
 #ifdef SOC_TI_AM335X
 	/* Checkout TRM 8.1.12.1.29 - 8.1.12.31 and 8.1.12.2.3
 	 * and the DTS.

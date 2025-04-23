@@ -52,7 +52,6 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/fdt/fdt_pinctrl.h>
 
-#include <arm/ti/omap4/omap4_scm_padconf.h>
 #include <arm/ti/am335x/am335x_scm_padconf.h>
 #include <arm/ti/ti_cpuid.h>
 #include "ti_pinmux.h"
@@ -381,11 +380,6 @@ ti_pinmux_probe(device_t dev)
 		return (EEXIST);
 	}
 	switch (ti_chip()) {
-#ifdef SOC_OMAP4
-	case CHIP_OMAP_4:
-		ti_pinmux_dev = &omap4_pinmux_dev;
-		break;
-#endif
 #ifdef SOC_TI_AM335X
 	case CHIP_AM335X:
 		ti_pinmux_dev = &ti_am335x_pinmux_dev;

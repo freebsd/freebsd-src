@@ -73,7 +73,6 @@ struct ti_prcm_softc {
 };
 
 static struct ti_prcm_softc *ti_prcm_sc = NULL;
-static void omap4_prcm_reset(void);
 static void am335x_prcm_reset(void);
 
 #define TI_AM3_PRCM		18
@@ -176,11 +175,6 @@ ti_prcm_attach(device_t dev)
 	ti_prcm_sc = sc;
 
 	switch(ti_chip()) {
-#ifdef SOC_OMAP4
-	case CHIP_OMAP_4:
-		ti_cpu_reset = omap4_prcm_reset;
-		break;
-#endif
 #ifdef SOC_TI_AM335X
 	case CHIP_AM335X:
 		ti_cpu_reset = am335x_prcm_reset;
@@ -286,51 +280,4 @@ static void
 am335x_prcm_reset(void)
 {
 	ti_prcm_write_4(ti_prcm_sc->dev, AM335x_PRM_RSTCTRL, (1<<1));
-}
-
-/* FIXME: Is this correct - or should the license part be ontop? */
-
-/* From sys/arm/ti/omap4/omap4_prcm_clks.c */
-/*-
- * SPDX-License-Identifier: BSD-3-Clause
- *
- * Copyright (c) 2011
- *      Ben Gray <ben.r.gray@gmail.com>.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the company nor the name of the author may be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY BEN GRAY ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL BEN GRAY BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-#define PRM_RSTCTRL		0x1b00
-#define PRM_RSTCTRL_RESET	0x2
-
-static void
-omap4_prcm_reset(void)
-{
-	uint32_t reg;
-
-	ti_prcm_read_4(ti_prcm_sc->dev, PRM_RSTCTRL, &reg);
-	reg = reg | PRM_RSTCTRL_RESET;
-	ti_prcm_write_4(ti_prcm_sc->dev, PRM_RSTCTRL, reg);
-	ti_prcm_read_4(ti_prcm_sc->dev, PRM_RSTCTRL, &reg);
 }
