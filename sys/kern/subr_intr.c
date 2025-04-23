@@ -320,7 +320,18 @@ isrc_release_counters(struct intr_irqsrc *isrc)
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
+	if (isrc->isrc_count == NULL || isrc->isrc_index > nintrcnt) {
+		/* already cleared */
+		printf("WARNING: %s(): counter release called for \"%.*s\" with"
+		    " invalid counters\n", __func__,
+		    (int)sizeof(isrc->isrc_name), isrc->isrc_name);
+		return;
+	}
+
 	bit_nclear(intrcnt_bitmap, idx, idx + 1);
+
+	isrc->isrc_index = ~0;
+	isrc->isrc_count = NULL;
 }
 
 /*
