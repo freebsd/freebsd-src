@@ -710,27 +710,11 @@ ath_lna_rx_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs,
 	int curr_main_set, curr_bias;
 	int main_rssi = rs->rs_rssi_ctl[0];
 	int alt_rssi = rs->rs_rssi_ctl[1];
-	int rx_ant_conf, main_ant_conf, alt_ant_conf;
+	int rx_ant_conf, main_ant_conf;
 	HAL_BOOL short_scan = AH_FALSE;
 
 	rx_ant_conf = (rs->rs_rssi_ctl[2] >> 4) & ATH_ANT_RX_MASK;
 	main_ant_conf = (rs->rs_rssi_ctl[2] >> 2) & ATH_ANT_RX_MASK;
-	alt_ant_conf = (rs->rs_rssi_ctl[2] >> 0) & ATH_ANT_RX_MASK;
-
-#if 0
-	DPRINTF(sc, ATH_DEBUG_DIVERSITY,
-	    "%s: RSSI %d/%d, conf %x/%x, rxconf %x, LNA: %d; ANT: %d; "
-	    "FastDiv: %d\n",
-	    __func__,
-	    main_rssi,
-	    alt_rssi,
-	    main_ant_conf,
-	    alt_ant_conf,
-	    rx_ant_conf,
-	    !!(rs->rs_rssi_ctl[2] & 0x80),
-	    !!(rs->rs_rssi_ctl[2] & 0x40),
-	    !!(rs->rs_rssi_ext[2] & 0x40));
-#endif
 
 	/*
 	 * If LNA diversity combining isn't enabled, don't run this.
