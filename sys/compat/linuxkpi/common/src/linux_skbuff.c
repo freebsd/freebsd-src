@@ -116,9 +116,11 @@ linuxkpi_alloc_skb(size_t size, gfp_t gfp)
 		vm_paddr_t high;
 
 		switch (linuxkpi_skb_memlimit) {
+#ifdef __LP64__
 		case 2:
 			high = (0xfffffffff);	/* 1<<36 really. */
 			break;
+#endif
 		case 1:
 		default:
 			high = (0xffffffff);	/* 1<<32 really. */
