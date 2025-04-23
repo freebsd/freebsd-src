@@ -1617,6 +1617,7 @@ static int mpi3mr_process_factsdata(struct mpi3mr_softc *sc,
                 (facts_data->MaxPCIeSwitches);
         sc->facts.max_sasexpanders =
                 (facts_data->MaxSASExpanders);
+        sc->facts.max_data_length = facts_data->MaxDataLength;
         sc->facts.max_sasinitiators =
                 (facts_data->MaxSASInitiators);
         sc->facts.max_enclosures = (facts_data->MaxEnclosures);
@@ -1651,6 +1652,10 @@ static int mpi3mr_process_factsdata(struct mpi3mr_softc *sc,
 	sc->facts.io_throttle_low = facts_data->IOThrottleLow;
 	sc->facts.io_throttle_high = facts_data->IOThrottleHigh;
 
+	if (sc->facts.max_data_length == MPI3_IOCFACTS_MAX_DATA_LENGTH_NOT_REPORTED)
+		sc->facts.max_data_length = MPI3MR_DEFAULT_MAX_IO_SIZE;
+	else
+		sc->facts.max_data_length *= MPI3MR_PAGE_SIZE_4K;
 	/*Store in 512b block count*/
 	if (sc->facts.io_throttle_data_length)
 		sc->io_throttle_data_length =
@@ -2511,7 +2516,9 @@ static int mpi3mr_alloc_chain_bufs(struct mpi3mr_softc *sc)
 		goto out_failed;
 	}
 
-	sz = MPI3MR_CHAINSGE_SIZE;
+	if (sc->max_sgl_entries > sc->facts.max_data_length / PAGE_SIZE)
+		sc->max_sgl_entries = sc->facts.max_data_length / PAGE_SIZE;
+	sz = sc->max_sgl_entries * sizeof(Mpi3SGESimple_t);
 
         if (bus_dma_tag_create(sc->mpi3mr_parent_dmat,  /* parent */
 				4096, 0,		/* algnmnt, boundary */
@@ -4961,7 +4968,7 @@ mpi3mr_alloc_requests(struct mpi3mr_softc *sc)
 	struct mpi3mr_cmd *cmd;
 	int i, j, nsegs, ret;
 	
-	nsegs = MPI3MR_SG_DEPTH;
+	nsegs = sc->max_sgl_entries;
 	ret = bus_dma_tag_create( sc->mpi3mr_parent_dmat,    /* parent */
 				1, 0,			/* algnmnt, boundary */
 				sc->dma_loaddr,		/* lowaddr */
