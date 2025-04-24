@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020 The FreeBSD Foundation
+ * Copyright (c) 2020-2025 The FreeBSD Foundation
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -67,6 +67,13 @@ dev_coredumpsg(struct device *dev __unused, struct scatterlist *table,
     size_t datalen __unused, gfp_t gfp __unused)
 {
 
+	/* UNIMPLEMENTED */
+	_lkpi_dev_coredumpsg_free(table);
+}
+
+static inline void
+_devcd_free_sgtable(struct scatterlist *table)
+{
 	/* UNIMPLEMENTED */
 	_lkpi_dev_coredumpsg_free(table);
 }
