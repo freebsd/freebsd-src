@@ -349,6 +349,7 @@ enum ieee80211_chanctx_change_flags {
 	IEEE80211_CHANCTX_CHANGE_WIDTH		= BIT(3),
 	IEEE80211_CHANCTX_CHANGE_CHANNEL	= BIT(4),
 	IEEE80211_CHANCTX_CHANGE_PUNCTURING	= BIT(5),
+	IEEE80211_CHANCTX_CHANGE_MIN_DEF	= BIT(6),
 };
 
 enum ieee80211_frame_release_type {
@@ -782,6 +783,20 @@ struct ieee80211_bss_load_elem {
 	uint8_t					channel_util;
 	uint16_t				avail_adm_capa;
 };
+
+struct ieee80211_p2p_noa_desc {
+	uint32_t				count;		/* uint8_t ? */
+	uint32_t				duration;
+	uint32_t				interval;
+	uint32_t				start_time;
+};
+
+struct ieee80211_p2p_noa_attr {
+	uint8_t					index;
+	uint8_t					oppps_ctwindow;
+	struct ieee80211_p2p_noa_desc		desc[4];
+};
+
 
 /* net80211: IEEE80211_IS_CTL() */
 static __inline bool
@@ -1224,6 +1239,5 @@ ieee80211_get_qos_ctl(struct ieee80211_hdr *hdr)
         else
                 return (u8 *)hdr + 24;
 }
-
 
 #endif	/* _LINUXKPI_LINUX_IEEE80211_H */
