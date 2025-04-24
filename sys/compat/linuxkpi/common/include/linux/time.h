@@ -42,6 +42,8 @@
 
 #include <linux/math64.h>
 
+typedef int64_t time64_t;
+
 static inline struct timeval
 ns_to_timeval(const int64_t nsec)
 {
