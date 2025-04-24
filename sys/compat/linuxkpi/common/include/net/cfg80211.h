@@ -1458,6 +1458,18 @@ rfkill_soft_blocked(int rfkill)
 	return (false);
 }
 
+static __inline void
+wiphy_rfkill_start_polling(struct wiphy *wiphy)
+{
+	TODO();
+}
+
+static __inline void
+wiphy_rfkill_stop_polling(struct wiphy *wiphy)
+{
+	TODO();
+}
+
 static __inline int
 reg_query_regdb_wmm(uint8_t *alpha2, uint32_t center_freq,
     struct ieee80211_reg_rule *rule)
@@ -1994,7 +2006,7 @@ cfg80211_channel_is_psc(struct linuxkpi_ieee80211_channel *channel)
 
 static inline int
 cfg80211_get_ies_channel_number(const uint8_t *ie, size_t len,
-    enum nl80211_band band, enum cfg80211_bss_frame_type ftype)
+    enum nl80211_band band)
 {
 	const struct element *elem;
 
@@ -2205,6 +2217,16 @@ nl80211_chan_width_to_mhz(enum nl80211_chan_width width)
 		return (320);
 		break;
 	}
+}
+
+static __inline ssize_t
+wiphy_locked_debugfs_write(struct wiphy *wiphy, struct file *file,
+    char *buf, size_t bufsize, const char __user *userbuf, size_t count,
+    ssize_t (*handler)(struct wiphy *, struct file *, char *, size_t, void *),
+    void *data)
+{
+	TODO();
+	return (-ENXIO);
 }
 
 /* -------------------------------------------------------------------------- */
