@@ -252,6 +252,7 @@ SUBDIR=	\
 	mem \
 	mfi \
 	mii \
+	miiproxy \
 	mlx \
 	mlxfw \
 	${_mlx4} \
