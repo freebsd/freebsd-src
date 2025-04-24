@@ -1258,6 +1258,7 @@ vm_fault_allocate(struct faultstate *fs, struct pctrie_iter *pages)
 			vm_fault_unlock_and_deallocate(fs);
 			return (res);
 		case FAULT_CONTINUE:
+			pctrie_iter_reset(pages);
 			/*
 			 * Pager's populate() method
 			 * returned VM_PAGER_BAD.
