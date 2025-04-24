@@ -3224,12 +3224,9 @@ ipf_nat_finalise(fr_info_t *fin, nat_t *nat)
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	u_32_t sum1, sum2, sumd;
 	frentry_t *fr;
-	u_32_t flags;
 #if SOLARIS && defined(_KERNEL) && defined(ICK_M_CTL_MAGIC)
 	qpktinfo_t *qpi = fin->fin_qpi;
 #endif
-
-	flags = nat->nat_flags;
 
 	switch (nat->nat_pr[0])
 	{
@@ -3538,8 +3535,8 @@ ipf_nat_icmperrorlookup(fr_info_t *fin, int dir)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
-	int flags = 0, type, minlen;
-	icmphdr_t *icmp, *orgicmp;
+	int flags = 0, minlen;
+	icmphdr_t *orgicmp;
 	nat_stat_side_t *nside;
 	tcphdr_t *tcp = NULL;
 	u_short data[2];
@@ -3547,8 +3544,6 @@ ipf_nat_icmperrorlookup(fr_info_t *fin, int dir)
 	ip_t *oip;
 	u_int p;
 
-	icmp = fin->fin_dp;
-	type = icmp->icmp_type;
 	nside = &softn->ipf_nat_stats.ns_side[fin->fin_out];
 	/*
 	 * Does it at least have the return (basic) IP header ?
@@ -3999,9 +3994,7 @@ ipf_nat_inlookup(fr_info_t *fin, u_int flags, u_int p,
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	u_short sport, dport;
-	grehdr_t *gre;
 	ipnat_t *ipn;
-	u_int sflags;
 	nat_t *nat;
 	int nflags;
 	u_32_t dst;
@@ -4009,9 +4002,7 @@ ipf_nat_inlookup(fr_info_t *fin, u_int flags, u_int p,
 	u_int hv, rhv;
 
 	ifp = fin->fin_ifp;
-	gre = NULL;
 	dst = mapdst.s_addr;
-	sflags = flags & NAT_TCPUDPICMP;
 
 	switch (p)
 	{
@@ -4330,14 +4321,12 @@ ipf_nat_outlookup(fr_info_t *fin, u_int flags, u_int p,
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	u_short sport, dport;
-	u_int sflags;
 	ipnat_t *ipn;
 	nat_t *nat;
 	void *ifp;
 	u_int hv;
 
 	ifp = fin->fin_ifp;
-	sflags = flags & IPN_TCPUDPICMP;
 
 	switch (p)
 	{
@@ -4756,7 +4745,6 @@ ipf_nat_checkout(fr_info_t *fin, u_32_t *passp)
 	struct ifnet *ifp, *sifp;
 	ipf_main_softc_t *softc;
 	ipf_nat_softc_t *softn;
-	icmphdr_t *icmp = NULL;
 	tcphdr_t *tcp = NULL;
 	int rval, natfailed;
 	u_int nflags = 0;
@@ -4802,8 +4790,6 @@ ipf_nat_checkout(fr_info_t *fin, u_32_t *passp)
 			nflags = IPN_UDP;
 			break;
 		case IPPROTO_ICMP :
-			icmp = fin->fin_dp;
-
 			/*
 			 * This is an incoming packet, so the destination is
 			 * the icmp_id and the source port equals 0
@@ -5463,7 +5449,10 @@ ipf_nat_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
-	u_32_t sumd, ipsumd, sum1, sum2;
+	u_32_t sumd, sum1, sum2;
+#if !defined(_KERNEL) || SOLARIS
+	u_32_t ipsumd;
+#endif
 	icmphdr_t *icmp;
 	tcphdr_t *tcp;
 	ipnat_t *np;
@@ -5499,7 +5488,9 @@ ipf_nat_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 
 	ipf_sync_update(softc, SMC_NAT, fin, nat->nat_sync);
 
+#if !defined(_KERNEL) || SOLARIS
 	ipsumd = nat->nat_ipsumd;
+#endif
 	/*
 	 * Fix up checksums, not by recalculating them, but
 	 * simply computing adjustments.
@@ -5521,7 +5512,9 @@ ipf_nat_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 			sum1 = nat->nat_osrcaddr;
 			sum2 = nat->nat_nsrcaddr;
 			CALC_SUMD(sum1, sum2, sumd);
+#if !defined(_KERNEL) || SOLARIS
 			ipsumd -= sumd;
+#endif
 		}
 		fin->fin_ip->ip_dst = nat->nat_ndstip;
 		fin->fin_daddr = nat->nat_ndstaddr;
@@ -5538,7 +5531,9 @@ ipf_nat_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 			sum1 = nat->nat_odstaddr;
 			sum2 = nat->nat_ndstaddr;
 			CALC_SUMD(sum1, sum2, sumd);
+#if !defined(_KERNEL) || SOLARIS
 			ipsumd -= sumd;
+#endif
 		}
 		fin->fin_ip->ip_dst = nat->nat_osrcip;
 		fin->fin_daddr = nat->nat_osrcaddr;
@@ -7352,30 +7347,18 @@ ipf_nat_nextaddr(fr_info_t *fin, nat_addr_t *na, u_32_t *old, u_32_t *dst)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
-	u_32_t amin, amax, new;
+	u_32_t new;
 	i6addr_t newip;
 	int error;
 
 	new = 0;
-	amin = na->na_addr[0].in4.s_addr;
 
 	switch (na->na_atype)
 	{
 	case FRI_RANGE :
-		amax = na->na_addr[1].in4.s_addr;
-		break;
-
 	case FRI_NETMASKED :
 	case FRI_DYNAMIC :
 	case FRI_NORMAL :
-		/*
-		 * Compute the maximum address by adding the inverse of the
-		 * netmask to the minimum address.
-		 */
-		amax = ~na->na_addr[1].in4.s_addr;
-		amax |= amin;
-		break;
-
 	case FRI_LOOKUP :
 		break;
 
