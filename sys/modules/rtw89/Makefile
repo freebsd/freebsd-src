@@ -21,7 +21,8 @@ SRCS+=	rtw8851be.c
 SRCS+=	rtw8852b_common.c
 SRCS+=	rtw8852b.c rtw8852b_rfk.c rtw8852b_rfk_table.c rtw8852b_table.c
 SRCS+=	rtw8852be.c
-#SRCS+=	rtw8852bt_rfk.c rtw8852bt_rfk_table.c
+SRCS+=	rtw8852bt.c rtw8852bt_rfk.c rtw8852bt_rfk_table.c
+SRCS+=	rtw8852bte.c
 SRCS+=	rtw8922a.c rtw8922a_rfk.c
 SRCS+=	rtw8922ae.c
 
@@ -38,7 +39,6 @@ SRCS+=	${LINUXKPI_GENSRCS}
 SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h opt_acpi.h
 
 CFLAGS+=	-DKBUILD_MODNAME='"rtw89"'
-CFLAGS+=	-DLINUXKPI_VERSION=60800
 
 CFLAGS+=	-I${DEVRTW89DIR}
 CFLAGS+=	${LINUXKPI_INCLUDES}
