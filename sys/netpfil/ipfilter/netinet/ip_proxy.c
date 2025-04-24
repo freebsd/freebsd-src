@@ -679,13 +679,11 @@ ipf_proxy_ok(fr_info_t *fin, tcphdr_t *tcp, ipnat_t *np)
 /* ------------------------------------------------------------------------ */
 int
 ipf_proxy_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
-	int mode, void *ctx)
+	int mode __unused, void *ctx)
 {
 	ap_ctl_t ctl;
 	caddr_t ptr;
 	int error;
-
-	mode = mode;	/* LINT */
 
 	switch (cmd)
 	{

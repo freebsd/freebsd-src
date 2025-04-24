@@ -151,15 +151,13 @@ ipf_p_tftp_in(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 
 
 int
-ipf_p_tftp_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
+ipf_p_tftp_new(void *arg, fr_info_t *fin __unused, ap_session_t *aps, nat_t *nat)
 {
 	udphdr_t *udp;
 	tftpinfo_t *ti;
 	ipnat_t *ipn;
 	ipnat_t *np;
 	int size;
-
-	fin = fin;	/* LINT */
 
 	np = nat->nat_ptr;
 	size = np->in_size;
