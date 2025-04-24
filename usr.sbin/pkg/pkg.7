@@ -36,7 +36,7 @@
 .Cm add
 .Op Fl dfy
 .Op Fl r Ar reponame
-.Ar pkg.txz
+.Ar pkg.pkg
 .Nm
 .Fl N
 .Nm
@@ -67,7 +67,7 @@ is not installed yet, it will be fetched, have its signature verified,
 installed, and then have the original command forwarded to it.
 If already installed, the command requested will be forwarded to the real
 .Xr pkg 8 .
-.It Nm Cm add Oo Fl fy Oc Oo Fl r Ar reponame Oc Ar pkg.txz
+.It Nm Cm add Oo Fl fy Oc Oo Fl r Ar reponame Oc Ar pkg.pkg
 Install
 .Xr pkg 8
 from a local package instead of fetching from remote.
