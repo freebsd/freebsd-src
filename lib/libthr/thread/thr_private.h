@@ -1014,6 +1014,7 @@ void __thr_pshared_destroy(void *key) __hidden;
 void __thr_pshared_atfork_pre(void) __hidden;
 void __thr_pshared_atfork_post(void) __hidden;
 
+void *__thr_aligned_alloc_offset(size_t align, size_t size, size_t offset);
 void *__thr_calloc(size_t num, size_t size);
 void __thr_free(void *cp);
 void *__thr_malloc(size_t nbytes);
