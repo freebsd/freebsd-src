@@ -33,3 +33,4 @@ CXXFLAGS+=	-fvisibility-inlines-hidden
 CXXFLAGS+=	-fvisibility=hidden
 CFLAGS+=	-I${CRTSRC}/include
 CFLAGS+=	-I${CRTSRC}/lib
+CXXSTD=		c++17
