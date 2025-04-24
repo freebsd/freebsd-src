@@ -232,7 +232,7 @@ ipf_p_irc_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	if (irc == NULL)
 		return (-1);
 
-	nat = nat;	/* LINT */
+	(void)nat;	/* UNUSED */
 
 	aps->aps_data = irc;
 	aps->aps_psiz = sizeof(ircinfo_t);
@@ -424,6 +424,6 @@ ipf_p_irc_send(fr_info_t *fin, nat_t *nat)
 int
 ipf_p_irc_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
-	aps = aps;	/* LINT */
+	(void)aps;	/* UNUSED */
 	return (ipf_p_irc_send(fin, nat));
 }

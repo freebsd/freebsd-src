@@ -75,8 +75,8 @@ ipf_p_netbios_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	ip_t *ip;
 	mb_t *m;
 
-	aps = aps;	/* LINT */
-	nat = nat;	/* LINT */
+	(void)aps;	/* UNUSED */
+	(void)nat;	/* UNUSED */
 
 	m = fin->fin_m;
 	dlen = fin->fin_dlen - sizeof(*udp);

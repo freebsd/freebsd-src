@@ -53,7 +53,7 @@ ipf_p_raudio_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	raudio_t *rap;
 
-	nat = nat;	/* LINT */
+	(void)nat;	/* UNUSED */
 
 	if (fin->fin_v != 4)
 		return (-1);
@@ -82,7 +82,7 @@ ipf_p_raudio_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	int len = 0;
 	mb_t *m;
 
-	nat = nat;	/* LINT */
+	(void)nat;	/* UNUSED */
 
 	/*
 	 * If we've already processed the start messages, then nothing left

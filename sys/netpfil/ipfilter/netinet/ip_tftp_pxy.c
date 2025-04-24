@@ -159,7 +159,7 @@ ipf_p_tftp_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	ipnat_t *np;
 	int size;
 
-	fin = fin;	/* LINT */
+	(void)fin;	/* UNUSED */
 
 	np = nat->nat_ptr;
 	size = np->in_size;

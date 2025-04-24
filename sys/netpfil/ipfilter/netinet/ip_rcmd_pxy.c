@@ -68,13 +68,9 @@ ipf_p_rcmd_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	tcphdr_t *tcp = (tcphdr_t *)fin->fin_dp;
 	rcmdinfo_t *rc;
 	ipnat_t *ipn;
-	ipnat_t *np;
-	int size;
 
-	fin = fin;	/* LINT */
+	(void)fin;	/* UNUSED */
 
-	np = nat->nat_ptr;
-	size = np->in_size;
 	KMALLOC(rc, rcmdinfo_t *);
 	if (rc == NULL) {
 #ifdef IP_RCMD_PROXY_DEBUG

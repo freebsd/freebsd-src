@@ -348,7 +348,7 @@ ipf_p_ipsec_match(fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	mb_t *m;
 	int off;
 
-	nat = nat;	/* LINT */
+	(void)nat;	/* UNUSED */
 
 	if ((fin->fin_dlen < sizeof(cookies)) || (fin->fin_flx & FI_FRAG))
 		return (-1);
