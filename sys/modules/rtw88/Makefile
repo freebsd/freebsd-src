@@ -4,6 +4,7 @@ DEVRTW88DIR=	${SRCTOP}/sys/contrib/dev/rtw88
 
 WITH_CONFIG_PM=	0
 WITH_DEBUGFS=	1
+WITH_LEDS=	0
 
 KMOD=	if_rtw88
 
@@ -27,15 +28,21 @@ SRCS+=	rtw8821c.c rtw8821c_table.c rtw8821ce.c		# 11ac
 SRCS+=	rtw8822b.c rtw8822b_table.c rtw8822be.c		# 11ac
 SRCS+=	rtw8822c.c rtw8822c_table.c rtw8822ce.c		# 11ac
 
+# USB parts
+#SRCS+=	rtw88xxa.c					# 88xxa common
+#SRCS+=	rtw8812a.c rtw8812a_table.c rtw8812au.c
+#SRCS+=	rtw8821a.c rtw8821a_table.c rtw8821au.c
+
+.if defined(WITH_LEDS) && ${WITH_LEDS} > 0
+CFLAGS+=	-DCONFIG_RTW88_LEDS
+SRCS+=		led.c
+.endif
+
 # Other
 SRCS+=	${LINUXKPI_GENSRCS}
 SRCS+=	opt_wlan.h opt_inet6.h opt_inet.h
 
-# Helpful after fresh imports.
-#CFLAGS+=	-ferror-limit=0
-
 CFLAGS+=	-DKBUILD_MODNAME='"rtw88"'
-CFLAGS+=	-DLINUXKPI_VERSION=60800
 
 CFLAGS+=	-I${DEVRTW88DIR}
 CFLAGS+=	${LINUXKPI_INCLUDES}
@@ -43,5 +50,8 @@ CFLAGS+=	-DCONFIG_RTW88_DEBUG
 .if defined(WITH_DEBUGFS) && ${WITH_DEBUGFS} > 0
 CFLAGS+=	-DCONFIG_RTW88_DEBUGFS
 .endif
+
+# Helpful after fresh imports.
+#CFLAGS+=	-ferror-limit=0
 
 .include <bsd.kmod.mk>
