@@ -110,6 +110,7 @@ SUBDIR=	\
 	${_enic} \
 	${_enetc} \
 	${_et} \
+	etherswitch \
 	evdev \
 	${_exca} \
 	ext2fs \
