@@ -2352,6 +2352,7 @@ void
 vm_object_unwire(vm_object_t object, vm_ooffset_t offset, vm_size_t length,
     uint8_t queue)
 {
+	struct pctrie_iter pages;
 	vm_object_t tobject, t1object;
 	vm_page_t m, tm;
 	vm_pindex_t end_pindex, pindex, tpindex;
@@ -2366,10 +2367,11 @@ vm_object_unwire(vm_object_t object, vm_ooffset_t offset, vm_size_t length,
 		return;
 	pindex = OFF_TO_IDX(offset);
 	end_pindex = pindex + atop(length);
+	vm_page_iter_init(&pages, object);
 again:
 	locked_depth = 1;
 	VM_OBJECT_RLOCK(object);
-	m = vm_page_find_least(object, pindex);
+	m = vm_radix_iter_lookup_ge(&pages, pindex);
 	while (pindex < end_pindex) {
 		if (m == NULL || pindex < m->pindex) {
 			/*
@@ -2397,7 +2399,7 @@ again:
 			    NULL);
 		} else {
 			tm = m;
-			m = TAILQ_NEXT(m, listq);
+			m = vm_radix_iter_step(&pages);
 		}
 		if (vm_page_trysbusy(tm) == 0) {
 			for (tobject = object; locked_depth >= 1;
@@ -2411,6 +2413,7 @@ again:
 			if (!vm_page_busy_sleep(tm, "unwbo",
 			    VM_ALLOC_IGN_SBUSY))
 				VM_OBJECT_RUNLOCK(tobject);
+			pctrie_iter_reset(&pages);
 			goto again;
 		}
 		vm_page_unwire(tm, queue);
