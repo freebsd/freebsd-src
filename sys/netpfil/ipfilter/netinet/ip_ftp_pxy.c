@@ -219,7 +219,7 @@ ipf_p_ftp_soft_destroy(ipf_main_softc_t *softc, void *arg)
 
 
 int
-ipf_p_ftp_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
+ipf_p_ftp_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat __unused)
 {
 	ftpinfo_t *ftp;
 	ftpside_t *f;
@@ -227,8 +227,6 @@ ipf_p_ftp_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	KMALLOC(ftp, ftpinfo_t *);
 	if (ftp == NULL)
 		return (-1);
-
-	nat = nat;	/* LINT */
 
 	aps->aps_data = ftp;
 	aps->aps_psiz = sizeof(ftpinfo_t);
@@ -1717,7 +1715,9 @@ ipf_p_ftp_eprt4(ipf_ftp_softc_t *softf, fr_info_t *fin, ip_t *ip, nat_t *nat,
 		return (0);
 	if (c != delim)
 		return (0);
-	addr |= addr;
+#if 0
+	addr |= (addr << 0);
+#endif
 
 	/*
 	 * Get the port number
