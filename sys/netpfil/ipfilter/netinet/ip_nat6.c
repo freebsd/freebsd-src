@@ -1130,9 +1130,6 @@ ipf_nat6_finalise(fr_info_t *fin, nat_t *nat)
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	u_32_t sum1, sum2, sumd;
 	frentry_t *fr;
-	u_32_t flags;
-
-	flags = nat->nat_flags;
 
 	switch (fin->fin_p)
 	{
@@ -1355,8 +1352,8 @@ ipf_nat6_icmperrorlookup(fr_info_t *fin, int dir)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
-	struct icmp6_hdr *icmp6, *orgicmp;
-	int flags = 0, type, minlen;
+	struct icmp6_hdr *orgicmp;
+	int flags = 0, minlen;
 	nat_stat_side_t *nside;
 	tcphdr_t *tcp = NULL;
 	u_short data[2];
@@ -1365,8 +1362,6 @@ ipf_nat6_icmperrorlookup(fr_info_t *fin, int dir)
 	u_int p;
 
 	minlen = 40;
-	icmp6 = fin->fin_dp;
-	type = icmp6->icmp6_type;
 	nside = &softn->ipf_nat_stats.ns_side6[fin->fin_out];
 	/*
 	 * Does it at least have the return (basic) IP header ?
@@ -1500,9 +1495,8 @@ ipf_nat6_ip6subtract(i6addr_t *ip1, i6addr_t *ip2)
 	i6addr_t l1, l2, d;
 	u_short *s1, *s2, *ds;
 	u_32_t r;
-	int i, neg;
+	int i;
 
-	neg = 0;
 	l1 = *ip1;
 	l2 = *ip2;
 	s1 = (u_short *)&l1;
@@ -1519,7 +1513,6 @@ ipf_nat6_ip6subtract(i6addr_t *ip1, i6addr_t *ip2)
 	}
 	if (s2[0] > s1[0]) {
 		ds[0] = s2[0] + 0x10000 - s1[0];
-		neg = 1;
 	} else {
 		ds[0] = s2[0] - s1[0];
 	}
@@ -1869,9 +1862,9 @@ ipf_nat6_inlookup(fr_info_t *fin, u_int flags, u_int p,
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	u_short sport, dport;
-	grehdr_t *gre;
+#ifdef IPF_V6_PROXIES
 	ipnat_t *ipn;
-	u_int sflags;
+#endif
 	nat_t *nat;
 	int nflags;
 	i6addr_t dst;
@@ -1881,10 +1874,7 @@ ipf_nat6_inlookup(fr_info_t *fin, u_int flags, u_int p,
 	ifp = fin->fin_ifp;
 	sport = 0;
 	dport = 0;
-	gre = NULL;
 	dst.in6 = *mapdst;
-	sflags = flags & NAT_TCPUDPICMP;
-
 	switch (p)
 	{
 	case IPPROTO_TCP :
@@ -1962,8 +1952,8 @@ ipf_nat6_inlookup(fr_info_t *fin, u_int flags, u_int p,
 
 
 		if ((nat->nat_flags & IPN_TCPUDP) != 0) {
-			ipn = nat->nat_ptr;
 #ifdef IPF_V6_PROXIES
+			ipn = nat->nat_ptr;
 			if ((ipn != NULL) && (nat->nat_aps != NULL))
 				if (appr_match(fin, nat) != 0)
 					continue;
@@ -2192,14 +2182,14 @@ ipf_nat6_outlookup(fr_info_t *fin, u_int flags, u_int p,
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	u_short sport, dport;
-	u_int sflags;
+#ifdef IPF_V6_PROXIES
 	ipnat_t *ipn;
+#endif
 	nat_t *nat;
 	void *ifp;
 	u_int hv;
 
 	ifp = fin->fin_ifp;
-	sflags = flags & IPN_TCPUDPICMP;
 	sport = 0;
 	dport = 0;
 
@@ -2280,8 +2270,8 @@ ipf_nat6_outlookup(fr_info_t *fin, u_int flags, u_int p,
 			break;
 		}
 
-		ipn = nat->nat_ptr;
 #ifdef IPF_V6_PROXIES
+		ipn = nat->nat_ptr;
 		if ((ipn != NULL) && (nat->nat_aps != NULL))
 			if (appr_match(fin, nat) != 0)
 				continue;
@@ -2568,7 +2558,6 @@ ipf_nat6_checkout(fr_info_t *fin, u_32_t *passp)
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	struct icmp6_hdr *icmp6 = NULL;
 	struct ifnet *ifp, *sifp;
-	tcphdr_t *tcp = NULL;
 	int rval, natfailed;
 	ipnat_t *np = NULL;
 	u_int nflags = 0;
@@ -2621,9 +2610,6 @@ ipf_nat6_checkout(fr_info_t *fin, u_32_t *passp)
 		default :
 			break;
 		}
-
-		if ((nflags & IPN_TCPUDP))
-			tcp = fin->fin_dp;
 	}
 
 	ipa = fin->fin_src6;
@@ -2965,7 +2951,9 @@ ipf_nat6_checkin(fr_info_t *fin, u_32_t *passp)
 	int rval, natfailed;
 	struct ifnet *ifp;
 	i6addr_t ipa, iph;
-	tcphdr_t *tcp;
+#ifdef IPF_V6_PROXIES
+	tcphdr_t *tcp = NULL;
+#endif
 	u_short dport;
 	ipnat_t *np;
 	nat_t *nat;
@@ -2973,7 +2961,6 @@ ipf_nat6_checkin(fr_info_t *fin, u_32_t *passp)
 	if (softn->ipf_nat_stats.ns_rules == 0 || softn->ipf_nat_lock != 0)
 		return (0);
 
-	tcp = NULL;
 	icmp6 = NULL;
 	dport = 0;
 	natadd = 1;
@@ -3014,7 +3001,9 @@ ipf_nat6_checkin(fr_info_t *fin, u_32_t *passp)
 		}
 
 		if ((nflags & IPN_TCPUDP)) {
+#ifdef IPF_V6_PROXIES
 			tcp = fin->fin_dp;
+#endif
 			dport = fin->fin_data[1];
 		}
 	}
@@ -3802,32 +3791,19 @@ ipf_nat6_nextaddr(fr_info_t *fin, nat_addr_t *na, i6addr_t *old, i6addr_t *dst)
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_nat_softc_t *softn = softc->ipf_nat_soft;
 	i6addr_t newip, new;
-	u_32_t amin, amax;
 	int error;
 
 	new.i6[0] = 0;
 	new.i6[1] = 0;
 	new.i6[2] = 0;
 	new.i6[3] = 0;
-	amin = na->na_addr[0].in4.s_addr;
 
 	switch (na->na_atype)
 	{
 	case FRI_RANGE :
-		amax = na->na_addr[1].in4.s_addr;
-		break;
-
 	case FRI_NETMASKED :
 	case FRI_DYNAMIC :
 	case FRI_NORMAL :
-		/*
-		 * Compute the maximum address by adding the inverse of the
-		 * netmask to the minimum address.
-		 */
-		amax = ~na->na_addr[1].in4.s_addr;
-		amax |= amin;
-		break;
-
 	case FRI_LOOKUP :
 		break;
 
