@@ -641,6 +641,8 @@ int vm_page_grab_pages_unlocked(vm_object_t object, vm_pindex_t pindex,
     int allocflags, vm_page_t *ma, int count);
 int vm_page_grab_valid(vm_page_t *mp, vm_object_t object, vm_pindex_t pindex,
     int allocflags);
+int vm_page_grab_valid_iter(vm_page_t *mp, vm_object_t object,
+    struct pctrie_iter *, vm_pindex_t pindex, int allocflags);
 int vm_page_grab_valid_unlocked(vm_page_t *mp, vm_object_t object,
     vm_pindex_t pindex, int allocflags);
 void vm_page_deactivate(vm_page_t);

@@ -4946,17 +4946,17 @@ vm_page_grab_unlocked(vm_object_t object, vm_pindex_t pindex, int allocflags)
 }
 
 /*
- * Grab a page and make it valid, paging in if necessary.  Pages missing from
- * their pager are zero filled and validated.  If a VM_ALLOC_COUNT is supplied
- * and the page is not valid as many as VM_INITIAL_PAGEIN pages can be brought
- * in simultaneously.  Additional pages will be left on a paging queue but
- * will neither be wired nor busy regardless of allocflags.
+ * Grab a page and make it valid, paging in if necessary.  Use an iterator
+ * parameter. Pages missing from their pager are zero filled and validated.  If
+ * a VM_ALLOC_COUNT is supplied and the page is not valid as many as
+ * VM_INITIAL_PAGEIN pages can be brought in simultaneously.  Additional pages
+ * will be left on a paging queue but will neither be wired nor busy regardless
+ * of allocflags.
  */
 int
-vm_page_grab_valid(vm_page_t *mp, vm_object_t object, vm_pindex_t pindex,
-    int allocflags)
+vm_page_grab_valid_iter(vm_page_t *mp, vm_object_t object,
+    struct pctrie_iter *pages, vm_pindex_t pindex, int allocflags)
 {
-	struct pctrie_iter pages;
 	vm_page_t m, mpred;
 	vm_page_t ma[VM_INITIAL_PAGEIN];
 	int after, i, pflags, rv;
@@ -4971,10 +4971,9 @@ vm_page_grab_valid(vm_page_t *mp, vm_object_t object, vm_pindex_t pindex,
 	pflags = allocflags & ~(VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY |
 	    VM_ALLOC_WIRED | VM_ALLOC_IGN_SBUSY);
 	pflags |= VM_ALLOC_WAITFAIL;
-	vm_page_iter_init(&pages, object);
 
 retrylookup:
-	if ((m = vm_radix_iter_lookup(&pages, pindex)) != NULL) {
+	if ((m = vm_radix_iter_lookup(pages, pindex)) != NULL) {
 		/*
 		 * If the page is fully valid it can only become invalid
 		 * with the object lock held.  If it is not valid it can
@@ -4988,7 +4987,7 @@ retrylookup:
 		    vm_page_all_valid(m) ? allocflags : 0)) {
 			(void)vm_page_grab_sleep(object, m, pindex, "pgrbwt",
 			    allocflags, true);
-			pctrie_iter_reset(&pages);
+			pctrie_iter_reset(pages);
 			goto retrylookup;
 		}
 		if (vm_page_all_valid(m))
@@ -5002,13 +5001,14 @@ retrylookup:
 		*mp = NULL;
 		return (VM_PAGER_FAIL);
 	} else {
-		mpred = vm_radix_iter_lookup_lt(&pages, pindex);
-		m = vm_page_alloc_after(object, &pages, pindex, pflags, mpred);
+		mpred = vm_radix_iter_lookup_lt(pages, pindex);
+		m = vm_page_alloc_after(object, pages, pindex, pflags, mpred);
 		if (m == NULL) {
 			if (!vm_pager_can_alloc_page(object, pindex)) {
 				*mp = NULL;
 				return (VM_PAGER_AGAIN);
 			}
+			pctrie_iter_reset(pages);
 			goto retrylookup;
 		}
 	}
@@ -5019,10 +5019,11 @@ retrylookup:
 		after = MIN(after, allocflags >> VM_ALLOC_COUNT_SHIFT);
 		after = MAX(after, 1);
 		ma[0] = mpred = m;
+		pctrie_iter_reset(pages);
 		for (i = 1; i < after; i++) {
-			m = vm_radix_iter_lookup(&pages, pindex + i);
+			m = vm_radix_iter_lookup(pages, pindex + i);
 			if (m == NULL) {
-				m = vm_page_alloc_after(object, &pages,
+				m = vm_page_alloc_after(object, pages,
 				    pindex + i, VM_ALLOC_NORMAL, mpred);
 				if (m == NULL)
 					break;
@@ -5054,6 +5055,7 @@ retrylookup:
 	} else {
 		vm_page_zero_invalid(m, TRUE);
 	}
+	pctrie_iter_reset(pages);
 out:
 	if ((allocflags & VM_ALLOC_WIRED) != 0)
 		vm_page_wire(m);
@@ -5063,6 +5065,25 @@ out:
 		vm_page_busy_release(m);
 	*mp = m;
 	return (VM_PAGER_OK);
+}
+
+/*
+ * Grab a page and make it valid, paging in if necessary.  Pages missing from
+ * their pager are zero filled and validated.  If a VM_ALLOC_COUNT is supplied
+ * and the page is not valid as many as VM_INITIAL_PAGEIN pages can be brought
+ * in simultaneously.  Additional pages will be left on a paging queue but
+ * will neither be wired nor busy regardless of allocflags.
+ */
+int
+vm_page_grab_valid(vm_page_t *mp, vm_object_t object, vm_pindex_t pindex,
+    int allocflags)
+{
+	struct pctrie_iter pages;
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	vm_page_iter_init(&pages, object);
+	return (vm_page_grab_valid_iter(mp, object, &pages, pindex,
+	    allocflags));
 }
 
 /*
