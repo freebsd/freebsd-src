@@ -336,7 +336,7 @@ vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr)
 
 	if (object->type == OBJT_DEAD)
 		return (KERN_INVALID_ARGUMENT);
-	if (!TAILQ_EMPTY(&object->memq))
+	if (!vm_radix_is_empty(&object->rtree))
 		return (KERN_FAILURE);
 
 	object->memattr = memattr;
