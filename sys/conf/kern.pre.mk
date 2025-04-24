@@ -341,6 +341,10 @@ BNXT_CFLAGS=	-I$S/dev/bnxt/bnxt_en ${OFEDCFLAGS}
 BNXT_C_NOIMP=	${CC} -c -o ${.TARGET} ${BNXT_CFLAGS} ${WERROR}
 BNXT_C=		${BNXT_C_NOIMP} ${.IMPSRC}
 
+# IP Filter
+IPFILTER_CFLAGS=	-I$S/netpfil/ipfilter
+IPFILTER_C=		${NORMAL_C} ${IPFILTER_CFLAGS}
+
 GEN_CFILES= $S/$M/$M/genassym.c ${MFILES:T:S/.m$/.c/}
 SYSTEM_CFILES= config.c env.c hints.c vnode_if.c
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
