@@ -606,7 +606,7 @@ ipf_htent_remove(ipf_main_softc_t *softc, void *arg, iphtable_t *iph,
 	switch (iph->iph_type & ~IPHASH_ANON)
 	{
 	case IPHASH_GROUPMAP :
-		if (ipe->ipe_group != NULL)
+		if (ipe->ipe_ptr != NULL)
 			ipf_group_del(softc, ipe->ipe_ptr, NULL);
 		break;
 
@@ -976,7 +976,6 @@ ipf_htent_find(iphtable_t *iph, iphtent_t *ipeo)
 {
 	iphtent_t ipe, *ent;
 	u_int hv;
-	int bits;
 
 	bcopy((char *)ipeo, (char *)&ipe, sizeof(ipe));
 	ipe.ipe_addr.i6[0] &= ipe.ipe_mask.i6[0];
@@ -984,7 +983,6 @@ ipf_htent_find(iphtable_t *iph, iphtent_t *ipeo)
 	ipe.ipe_addr.i6[2] &= ipe.ipe_mask.i6[2];
 	ipe.ipe_addr.i6[3] &= ipe.ipe_mask.i6[3];
 	if (ipe.ipe_family == AF_INET) {
-		bits = count4bits(ipe.ipe_mask.in4_addr);
 		ipe.ipe_addr.i6[1] = 0;
 		ipe.ipe_addr.i6[2] = 0;
 		ipe.ipe_addr.i6[3] = 0;
@@ -996,7 +994,6 @@ ipf_htent_find(iphtable_t *iph, iphtent_t *ipeo)
 	} else
 #ifdef USE_INET6
 	if (ipe.ipe_family == AF_INET6) {
-		bits = count6bits(ipe.ipe_mask.i6);
 		hv = IPE_V6_HASH_FN(ipe.ipe_addr.i6,
 				    ipe.ipe_mask.i6, iph->iph_size);
 	} else
