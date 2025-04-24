@@ -763,6 +763,7 @@ struct ieee80211_sta {
 	uint8_t					addr[ETH_ALEN];
 	uint16_t				aid;
 	bool					wme;
+	bool					mlo;
 	uint8_t					max_sp;
 	uint8_t					uapsd_queues;
 	uint16_t				valid_links;
