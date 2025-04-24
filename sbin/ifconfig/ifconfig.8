@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 6, 2024
+.Dd April 24, 2025
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -448,11 +448,10 @@ of specifying the host portion, removing all NS addresses will
 allow you to respecify the host portion.
 .It Cm anycast
 (Inet6 only.)
-Specify that the address configured is an anycast address.
-Based on the current specification,
-only routers may configure anycast addresses.
-Anycast address will not be used as source address of any of outgoing
-IPv6 packets.
+Specify that the address configured is an anycast address,
+as described in RFC 4291 section 2.6.
+Anycast addresses will not be used as source address of any outgoing
+IPv6 packets unless an application explicitly binds to the address.
 .It Cm arp
 Enable the use of the Address Resolution Protocol
 .Pq Xr arp 4
@@ -3326,6 +3325,16 @@ tried to alter an interface's configuration.
 .Xr rc 8 ,
 .Xr routed 8 ,
 .Xr sysctl 8
+.Rs
+.%R RFC 3484
+.%D February 2003
+.%T "Default Address Selection for Internet Protocol version 6 (IPv6)"
+.Re
+.Rs
+.%R RFC 4291
+.%D February 2006
+.%T "IP Version 6 Addressing Architecture"
+.Re
 .Sh HISTORY
 The
 .Nm
