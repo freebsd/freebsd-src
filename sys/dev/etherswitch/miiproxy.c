@@ -431,3 +431,4 @@ DRIVER_MODULE(mdioproxy, mdio, mdioproxy_driver, 0, 0);
 DRIVER_MODULE(miibus, miiproxy, miibus_driver, 0, 0);
 MODULE_VERSION(miiproxy, 1);
 MODULE_DEPEND(miiproxy, miibus, 1, 1, 1);
+MODULE_DEPEND(miiproxy, mdio, 1, 1, 1);
