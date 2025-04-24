@@ -232,6 +232,13 @@ ktime_get_boottime_ns(void)
 	return (ktime_to_ns(ktime_get_boottime()));
 }
 
+static inline uint64_t
+ktime_get_boottime_seconds(void)
+{
+
+	return (ktime_divns(ktime_get_boottime(), NSEC_PER_SEC));
+}
+
 static inline ktime_t
 ktime_get_real(void)
 {
