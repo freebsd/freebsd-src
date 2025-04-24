@@ -217,7 +217,8 @@ e6000sw_probe(device_t dev)
 #ifdef FDT
 	phandle_t switch_node;
 #else
-	int is_6190;
+	int is_6190 = 0;
+	int is_6190x = 0;
 #endif
 
 	sc = device_get_softc(dev);
@@ -253,15 +254,25 @@ e6000sw_probe(device_t dev)
 	    device_get_unit(sc->dev), "addr", &sc->sw_addr) != 0)
 		return (ENXIO);
 	if (resource_int_value(device_get_name(sc->dev),
-	    device_get_unit(sc->dev), "is6190", &is_6190) != 0)
+	    device_get_unit(sc->dev), "is6190", &is_6190) != 0) {
 		/*
 		 * Check "is8190" to keep backward compatibility with
 		 * older setups.
 		 */
 		resource_int_value(device_get_name(sc->dev),
 		    device_get_unit(sc->dev), "is8190", &is_6190);
+	}
+	resource_int_value(device_get_name(sc->dev),
+	    device_get_unit(sc->dev), "is6190x", &is_6190x);
+		if (is_6190 != 0 && is_6190x != 0) {
+			device_printf(dev,
+			    "Cannot configure conflicting variants (6190 / 6190x)\n");
+			return (ENXIO);
+		}
 	if (is_6190 != 0)
 		sc->swid = MV88E6190;
+	else if (is_6190x != 0)
+		sc->swid = MV88E6190X;
 #endif
 	if (sc->sw_addr < 0 || sc->sw_addr > 32)
 		return (ENXIO);
@@ -303,6 +314,10 @@ e6000sw_probe(device_t dev)
 		description = "Marvell 88E6190";
 		sc->num_ports = 11;
 		break;
+	case MV88E6190X:
+		description = "Marvell 88E6190X";
+		sc->num_ports = 11;
+		break;
 	default:
 		device_printf(dev, "Unrecognized device, id 0x%x.\n", sc->swid);
 		return (ENXIO);
@@ -333,7 +348,7 @@ e6000sw_parse_fixed_link(e6000sw_softc_t *sc, phandle_t node, uint32_t port)
 			return (ENXIO);
 		}
 		if (speed == 2500 && (MVSWITCH(sc, MV88E6141) ||
-		     MVSWITCH(sc, MV88E6341) || MVSWITCH(sc, MV88E6190)))
+		     MVSWITCH(sc, MV88E6341) || MVSWITCH(sc, MV88E6190) || MVSWITCH(sc, MV88E6190X)))
 			sc->fixed25_mask |= (1 << port);
 	}
 
@@ -597,22 +612,26 @@ e6000sw_attach(device_t dev)
 				reg |= PSC_CONTROL_SPD2500;
 			else
 				reg |= PSC_CONTROL_SPD1000;
-			if (MVSWITCH(sc, MV88E6190) &&
+			if ((MVSWITCH(sc, MV88E6190) ||
+			    MVSWITCH(sc, MV88E6190X)) &&
 			    e6000sw_is_fixed25port(sc, port))
 				reg |= PSC_CONTROL_ALT_SPD;
 			reg |= PSC_CONTROL_FORCED_DPX | PSC_CONTROL_FULLDPX |
 			    PSC_CONTROL_FORCED_LINK | PSC_CONTROL_LINK_UP |
 			    PSC_CONTROL_FORCED_SPD;
-			if (!MVSWITCH(sc, MV88E6190))
+			if (!MVSWITCH(sc, MV88E6190) &&
+			    !MVSWITCH(sc, MV88E6190X))
 				reg |= PSC_CONTROL_FORCED_FC | PSC_CONTROL_FC_ON;
 			if (MVSWITCH(sc, MV88E6141) ||
 			    MVSWITCH(sc, MV88E6341) ||
-			    MVSWITCH(sc, MV88E6190))
+			    MVSWITCH(sc, MV88E6190) ||
+			    MVSWITCH(sc, MV88E6190X))
 				reg |= PSC_CONTROL_FORCED_EEE;
 			e6000sw_writereg(sc, REG_PORT(sc, port), PSC_CONTROL,
 			    reg);
 			/* Power on the SERDES interfaces. */
-			if (MVSWITCH(sc, MV88E6190) &&
+			if ((MVSWITCH(sc, MV88E6190) ||
+			    MVSWITCH(sc, MV88E6190X)) &&
 			    (port == 9 || port == 10)) {
 				if (e6000sw_is_fixed25port(sc, port))
 					sgmii = false;
