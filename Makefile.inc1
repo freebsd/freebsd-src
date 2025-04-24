@@ -1674,8 +1674,8 @@ buildetc: .MAKE .PHONY
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 _legacy
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 _bootstrap-tools \
 	    MK_CROSS_COMPILER=no MK_TOOLCHAIN=no
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 _obj \
-	    SUBDIR_OVERRIDE=etc
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 _obj
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 buildconfig
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 everything \
 	    SUBDIR_OVERRIDE=etc
 
