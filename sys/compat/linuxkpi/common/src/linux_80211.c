@@ -791,6 +791,8 @@ lkpi_lsta_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	for (i = 1; i < nitems(sta->link); i++) {
 		IMPROVE("more links; only link[0] = deflink currently.");
 	}
+	IMPROVE("11be");
+	sta->mlo = false;
 
 	/* Deferred TX path. */
 	LKPI_80211_LSTA_TXQ_LOCK_INIT(lsta);
