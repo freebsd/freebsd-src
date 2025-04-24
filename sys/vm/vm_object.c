@@ -2758,6 +2758,7 @@ DB_SHOW_COMMAND_FLAGS(vmochk, vm_object_check, DB_CMD_MEMSAFE)
  */
 DB_SHOW_COMMAND(object, vm_object_print_static)
 {
+	struct pctrie_iter pages;
 	/* XXX convert args. */
 	vm_object_t object = (vm_object_t)addr;
 	boolean_t full = have_addr;
@@ -2788,7 +2789,8 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 
 	db_indent += 2;
 	count = 0;
-	TAILQ_FOREACH(p, &object->memq, listq) {
+	vm_page_iter_init(&pages, object);
+	VM_RADIX_FOREACH(p, &pages) {
 		if (count == 0)
 			db_iprintf("memory:=");
 		else if (count == 6) {
@@ -2826,49 +2828,38 @@ vm_object_print(
 
 DB_SHOW_COMMAND_FLAGS(vmopag, vm_object_print_pages, DB_CMD_MEMSAFE)
 {
+	struct pctrie_iter pages;
 	vm_object_t object;
-	vm_pindex_t fidx;
-	vm_paddr_t pa;
-	vm_page_t m, prev_m;
+	vm_page_t m, start_m;
 	int rcount;
 
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
 		db_printf("new object: %p\n", (void *)object);
 		if (db_pager_quit)
 			return;
-
-		rcount = 0;
-		fidx = 0;
-		pa = -1;
-		TAILQ_FOREACH(m, &object->memq, listq) {
-			if ((prev_m = TAILQ_PREV(m, pglist, listq)) != NULL &&
-			    prev_m->pindex + 1 != m->pindex) {
-				if (rcount) {
-					db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
-						(long)fidx, rcount, (long)pa);
-					if (db_pager_quit)
-						return;
-					rcount = 0;
-				}
-			}				
-			if (rcount &&
-				(VM_PAGE_TO_PHYS(m) == pa + rcount * PAGE_SIZE)) {
-				++rcount;
-				continue;
-			}
-			if (rcount) {
+		start_m = NULL;
+		vm_page_iter_init(&pages, object);
+		VM_RADIX_FOREACH(m, &pages) {
+			if (start_m == NULL) {
+				start_m = m;
+				rcount = 0;
+			} else if (start_m->pindex + rcount != m->pindex ||
+			    VM_PAGE_TO_PHYS(start_m)  + ptoa(rcount) !=
+			    VM_PAGE_TO_PHYS(m)) {
 				db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
-					(long)fidx, rcount, (long)pa);
+				    (long)start_m->pindex, rcount,
+				    (long)VM_PAGE_TO_PHYS(start_m));
 				if (db_pager_quit)
 					return;
+				start_m = m;
+				rcount = 0;
 			}
-			fidx = m->pindex;
-			pa = VM_PAGE_TO_PHYS(m);
-			rcount = 1;
+			rcount++;
 		}
-		if (rcount) {
+		if (start_m != NULL) {
 			db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
-				(long)fidx, rcount, (long)pa);
+			    (long)start_m->pindex, rcount,
+			    (long)VM_PAGE_TO_PHYS(start_m));
 			if (db_pager_quit)
 				return;
 		}
