@@ -103,7 +103,7 @@ SUBDIR=	\
 	dummymbuf \
 	dummynet \
 	${_dwwdt} \
-	${_e6000sw} \
+	e6000sw \
 	${_efirt} \
 	${_em} \
 	${_ena} \
@@ -715,7 +715,6 @@ _rockchip=	rockchip
 .if !empty(OPT_FDT)
 _sdhci_fdt=	sdhci_fdt
 .endif
-_e6000sw=	e6000sw
 _neta=		neta
 .endif
 
