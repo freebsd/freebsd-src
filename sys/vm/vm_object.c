@@ -2494,6 +2494,7 @@ vm_object_is_active(vm_object_t obj)
 static int
 vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 {
+	struct pctrie_iter pages;
 	struct kinfo_vmobject *kvo;
 	char *fullpath, *freepath;
 	struct vnode *vp;
@@ -2553,7 +2554,8 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		kvo->kvo_inactive = 0;
 		kvo->kvo_flags = 0;
 		if (!swap_only) {
-			TAILQ_FOREACH(m, &obj->memq, listq) {
+			vm_page_iter_init(&pages, obj);
+			VM_RADIX_FOREACH(m, &pages) {
 				/*
 				 * A page may belong to the object but be
 				 * dequeued and set to PQ_NONE while the
