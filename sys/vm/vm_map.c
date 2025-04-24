@@ -2678,7 +2678,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	struct pctrie_iter pages;
 	vm_offset_t start;
 	vm_page_t p, p_start;
-	vm_pindex_t mask, psize, threshold, tmpidx;
+	vm_pindex_t jump, mask, psize, threshold, tmpidx;
 	int psind;
 
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
@@ -2710,7 +2710,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 
 	vm_page_iter_limit_init(&pages, object, pindex + psize);
 	for (p = vm_radix_iter_lookup_ge(&pages, pindex); p != NULL;
-	    p = vm_radix_iter_jump(&pages, mask + 1)) {
+	    p = vm_radix_iter_jump(&pages, jump)) {
 		/*
 		 * don't allow an madvise to blow away our really
 		 * free pages allocating pv entries.
@@ -2723,7 +2723,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 			psize = tmpidx;
 			break;
 		}
-		mask = 0;
+		jump = 1;
 		if (vm_page_all_valid(p)) {
 			if (p_start == NULL) {
 				start = addr + ptoa(tmpidx);
@@ -2737,6 +2737,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 					if (tmpidx + mask < psize &&
 					    vm_page_ps_test(p, psind,
 					    PS_ALL_VALID, NULL)) {
+						jump += mask;
 						threshold += mask;
 						break;
 					}
