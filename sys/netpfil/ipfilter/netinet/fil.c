@@ -441,7 +441,7 @@ static inline void
 ipf_pr_ipv6hdr(fr_info_t *fin)
 {
 	ip6_t *ip6 = (ip6_t *)fin->fin_ip;
-	int p, go = 1, i, hdrcount;
+	int p, go = 1, i;
 	fr_ip_t *fi = &fin->fin_fi;
 
 	fin->fin_off = 0;
@@ -468,7 +468,6 @@ ipf_pr_ipv6hdr(fr_info_t *fin)
 	if (IN6_IS_ADDR_MULTICAST(&fi->fi_dst.in6))
 		fin->fin_flx |= FI_MULTICAST|FI_MBCAST;
 
-	hdrcount = 0;
 	while (go && !(fin->fin_flx & FI_SHORT)) {
 		switch (p)
 		{
@@ -546,7 +545,6 @@ ipf_pr_ipv6hdr(fr_info_t *fin)
 			go = 0;
 			break;
 		}
-		hdrcount++;
 
 		/*
 		 * It is important to note that at this point, for the
@@ -2594,14 +2592,13 @@ ipf_scanlist(fr_info_t *fin, u_32_t pass)
 /* functions called from the IPFilter "mainline" in ipf_check().            */
 /* ------------------------------------------------------------------------ */
 frentry_t *
-ipf_acctpkt(fr_info_t *fin, u_32_t *passp)
+ipf_acctpkt(fr_info_t *fin, u_32_t *passp __unused)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	char group[FR_GROUPLEN];
 	frentry_t *fr, *frsave;
 	u_32_t pass, rulen;
 
-	passp = passp;
 	fr = softc->ipf_acct[fin->fin_out][softc->ipf_active];
 
 	if (fr != NULL) {
@@ -4204,7 +4201,7 @@ ipf_getstat(ipf_main_softc_t *softc, friostat_t *fiop, int rev)
 		(rev / 10000) % 100,
 		(rev / 100) % 100);
 #else
-	rev = rev;
+	(void)rev; /* UNUSED */
 	(void) strncpy(fiop->f_version, ipfilter_version,
 		       sizeof(fiop->f_version));
 #endif
@@ -4412,13 +4409,12 @@ frrequest(ipf_main_softc_t *softc, int unit, ioctlcmd_t req, caddr_t data,
 		OP_ZERO 	/* zero statistics and counters */ }
 		addrem = OP_ADD;
 	frentry_t frd, *fp, *f, **fprev, **ftail;
-	void *ptr, *uptr, *cptr;
+	void *ptr, *uptr;
 	u_int *p, *pp;
 	frgroup_t *fg;
 	char *group;
 
 	ptr = NULL;
-	cptr = NULL;
 	fg = NULL;
 	fp = &frd;
 	if (makecopy != 0) {
@@ -4536,7 +4532,6 @@ frrequest(ipf_main_softc_t *softc, int unit, ioctlcmd_t req, caddr_t data,
 	}
 
 	ptr = NULL;
-	cptr = NULL;
 
 	if (FR_ISACCOUNT(fp->fr_flags))
 		unit = IPL_LOGCOUNT;
@@ -7318,11 +7313,10 @@ ipf_resolvedest(ipf_main_softc_t *softc, char *base, frdest_t *fdp, int v)
 /* for both IPv4 and IPv6 on the same physical NIC.                         */
 /* ------------------------------------------------------------------------ */
 void *
-ipf_resolvenic(ipf_main_softc_t *softc, char *name, int v)
+ipf_resolvenic(ipf_main_softc_t *softc __unused, char *name, int v)
 {
 	void *nic;
 
-	softc = softc;	/* gcc -Wextra */
 	if (name[0] == '\0')
 		return (NULL);
 

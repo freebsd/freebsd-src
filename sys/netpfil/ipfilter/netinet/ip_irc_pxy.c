@@ -221,7 +221,7 @@ ipf_p_irc_complete(ircinfo_t *ircp, char *buf, size_t len)
 
 
 int
-ipf_p_irc_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
+ipf_p_irc_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat __unused)
 {
 	ircinfo_t *irc;
 
@@ -231,8 +231,6 @@ ipf_p_irc_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	KMALLOC(irc, ircinfo_t *);
 	if (irc == NULL)
 		return (-1);
-
-	nat = nat;	/* LINT */
 
 	aps->aps_data = irc;
 	aps->aps_psiz = sizeof(ircinfo_t);
@@ -422,8 +420,7 @@ ipf_p_irc_send(fr_info_t *fin, nat_t *nat)
 
 
 int
-ipf_p_irc_out(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
+ipf_p_irc_out(void *arg, fr_info_t *fin, ap_session_t *aps __unused, nat_t *nat)
 {
-	aps = aps;	/* LINT */
 	return (ipf_p_irc_send(fin, nat));
 }
