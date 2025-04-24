@@ -120,6 +120,19 @@ __thr_malloc(size_t nbytes)
 }
 
 void *
+__thr_aligned_alloc_offset(size_t align, size_t size, size_t offset)
+{
+	struct pthread *curthread;
+	void *res;
+
+	curthread = _get_curthread();
+	thr_malloc_lock(curthread);
+	res = __crt_aligned_alloc_offset(align, size, offset);
+	thr_malloc_unlock(curthread);
+	return (res);
+}
+
+void *
 __thr_realloc(void *cp, size_t nbytes)
 {
 	struct pthread *curthread;
