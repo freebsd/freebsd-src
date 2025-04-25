@@ -60,6 +60,8 @@ struct respip_set;
 struct shm_main_info;
 struct doq_table;
 struct cookie_secrets;
+struct fast_reload_thread;
+struct fast_reload_printq;
 
 #include "dnstap/dnstap_config.h"
 #ifdef USE_DNSTAP
@@ -97,8 +99,14 @@ struct daemon {
 	struct listen_port* rc_ports;
 	/** remote control connections management (for first worker) */
 	struct daemon_remote* rc;
-	/** ssl context for listening to dnstcp over ssl, and connecting ssl */
-	void* listen_sslctx, *connect_sslctx;
+	/** ssl context for listening to dnstcp over ssl */
+	void* listen_dot_sslctx;
+	/** ssl context for connecting to dnstcp over ssl */
+	void* connect_dot_sslctx;
+	/** ssl context for listening to DoH */
+	void* listen_doh_sslctx;
+	/** ssl context for listening to quic */
+	void* listen_quic_sslctx;
 	/** num threads allocated */
 	int num;
 	/** num threads allocated in the previous config or 0 at first */
@@ -131,15 +139,11 @@ struct daemon {
 	struct timeval time_last_stat;
 	/** time when daemon started */
 	struct timeval time_boot;
-	/** views structure containing view tree */
-	struct views* views;
 #ifdef USE_DNSTAP
 	/** the dnstap environment master value, copied and changed by threads*/
 	struct dt_env* dtenv;
 #endif
 	struct shm_main_info* shm_info;
-	/** response-ip set with associated actions and tags. */
-	struct respip_set* respip_set;
 	/** some response-ip tags or actions are configured if true */
 	int use_response_ip;
 	/** some RPZ policies are configured */
@@ -154,6 +158,17 @@ struct daemon {
 	int reuse_cache;
 	/** the EDNS cookie secrets from the cookie-secret-file */
 	struct cookie_secrets* cookie_secrets;
+	/** the fast reload thread, or NULL */
+	struct fast_reload_thread* fast_reload_thread;
+	/** the fast reload printq list */
+	struct fast_reload_printq* fast_reload_printq_list;
+	/** the fast reload option to drop mesh queries, true if so. */
+	int fast_reload_drop_mesh;
+	/** for fast reload, if the tcl, tcp connection limits, has
+	 * changes for workers */
+	int fast_reload_tcl_has_changes;
+	/** config file name */
+	char* cfgfile;
 };
 
 /**
@@ -205,5 +220,13 @@ void daemon_delete(struct daemon* daemon);
  * @param cfg: new config settings.
  */
 void daemon_apply_cfg(struct daemon* daemon, struct config_file* cfg);
+
+/**
+ * Setup acl list to have entries for the port list.
+ * @param list: the acl interface
+ * @param port_list: list of open ports, or none.
+ * @return false on failure
+ */
+int setup_acl_for_ports(struct acl_list* list, struct listen_port* port_list);
 
 #endif /* DAEMON_H */

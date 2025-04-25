@@ -43,6 +43,7 @@
 #include "services/view.h"
 #include "services/localzone.h"
 #include "util/config_file.h"
+#include "respip/respip.h"
 
 int 
 view_cmp(const void* v1, const void* v2)
@@ -65,11 +66,6 @@ views_create(void)
 	lock_protect(&v->lock, &v->vtree, sizeof(v->vtree));
 	return v;
 }
-
-/* \noop (ignore this comment for doxygen)
- * This prototype is defined in in respip.h, but we want to avoid
- * unnecessary dependencies */
-void respip_set_delete(struct respip_set *set);
 
 void 
 view_delete(struct view* v)
@@ -246,4 +242,39 @@ void views_print(struct views* v)
 {
 	/* TODO implement print */
 	(void)v;
+}
+
+size_t views_get_mem(struct views* vs)
+{
+	struct view* v;
+	size_t m;
+	if(!vs) return 0;
+	m = sizeof(struct views);
+	lock_rw_rdlock(&vs->lock);
+	RBTREE_FOR(v, struct view*, &vs->vtree) {
+		m += view_get_mem(v);
+	}
+	lock_rw_unlock(&vs->lock);
+	return m;
+}
+
+size_t view_get_mem(struct view* v)
+{
+	size_t m = sizeof(*v);
+	lock_rw_rdlock(&v->lock);
+	m += getmem_str(v->name);
+	m += local_zones_get_mem(v->local_zones);
+	m += respip_set_get_mem(v->respip_set);
+	lock_rw_unlock(&v->lock);
+	return m;
+}
+
+void views_swap_tree(struct views* vs, struct views* data)
+{
+	rbnode_type* oldroot = vs->vtree.root;
+	size_t oldcount = vs->vtree.count;
+	vs->vtree.root = data->vtree.root;
+	vs->vtree.count = data->vtree.count;
+	data->vtree.root = oldroot;
+	data->vtree.count = oldcount;
 }

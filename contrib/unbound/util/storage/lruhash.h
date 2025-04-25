@@ -314,6 +314,16 @@ void lruhash_setmarkdel(struct lruhash* table, lruhash_markdelfunc_type md);
 void lruhash_update_space_used(struct lruhash* table, void* cb_override,
 	int diff_size);
 
+/**
+ * Update the max space for the hashtable.
+ *
+ * @param table: hash table.
+ * @param cb_override: if not NULL overrides the cb_arg for deletefunc.
+ * @param max: the new max.
+ */
+void lruhash_update_space_max(struct lruhash* table, void* cb_override,
+	size_t max);
+
 /************************* getdns functions ************************/
 /*** these are used by getdns only and not by unbound. ***/
 

@@ -1,0 +1,285 @@
+; match A records and return a reply indicating it is this server.
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example1.org. IN A
+SECTION ANSWER
+www.example1.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example2.org. IN A
+SECTION ANSWER
+www.example2.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example3.org. IN A
+SECTION ANSWER
+www.example3.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example4.org. IN A
+SECTION ANSWER
+www.example4.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example5.org. IN A
+SECTION ANSWER
+www.example5.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example6.org. IN A
+SECTION ANSWER
+www.example6.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.example1.org. IN A
+SECTION ANSWER
+www2.example1.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.example2.org. IN A
+SECTION ANSWER
+www2.example2.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.example3.org. IN A
+SECTION ANSWER
+www2.example3.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.example4.org. IN A
+SECTION ANSWER
+www2.example4.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.example5.org. IN A
+SECTION ANSWER
+www2.example5.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.example6.org. IN A
+SECTION ANSWER
+www2.example6.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.stub1.org. IN A
+SECTION ANSWER
+www.stub1.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.stub2.org. IN A
+SECTION ANSWER
+www.stub2.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.stub3.org. IN A
+SECTION ANSWER
+www.stub3.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.stub4.org. IN A
+SECTION ANSWER
+www.stub4.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.stub5.org. IN A
+SECTION ANSWER
+www.stub5.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.stub6.org. IN A
+SECTION ANSWER
+www.stub6.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.stub1.org. IN A
+SECTION ANSWER
+www2.stub1.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.stub2.org. IN A
+SECTION ANSWER
+www2.stub2.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.stub3.org. IN A
+SECTION ANSWER
+www2.stub3.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.stub4.org. IN A
+SECTION ANSWER
+www2.stub4.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.stub5.org. IN A
+SECTION ANSWER
+www2.stub5.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.stub6.org. IN A
+SECTION ANSWER
+www2.stub6.org. IN A 1.2.3.2
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+auth7.org. IN SOA
+SECTION ANSWER
+auth7.org. SOA ns root 2 3600 300 7200 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+auth7.org. IN AXFR
+SECTION ANSWER
+auth7.org. SOA ns root 2 3600 300 7200 3600
+www.auth7.org. A 1.2.3.5
+auth7.org. SOA ns root 2 3600 300 7200 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+auth7.org. IN IXFR
+SECTION ANSWER
+auth7.org. SOA ns root 2 3600 300 7200 3600
+www.auth7.org. A 1.2.3.5
+auth7.org. SOA ns root 2 3600 300 7200 3600
+ENTRY_END
+
+; match anything and return a reply
+ENTRY_BEGIN
+MATCH opcode
+ADJUST copy_id copy_query
+REPLY QR AA NOERROR
+SECTION QUESTION
+example.org. IN SOA
+SECTION AUTHORITY
+example.org. IN SOA ns1.example.org. hostmaster.example.org. 1 3600 900 86400 3600
+ENTRY_END

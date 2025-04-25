@@ -658,7 +658,8 @@ handle_event_moddone(struct module_qstate* qstate, int id)
 		!dns_cache_store(
 			qstate->env, &qstate->qinfo, qstate->return_msg->rep,
 			0, qstate->prefetch_leeway, 0, NULL,
-			qstate->query_flags, qstate->qstarttime))
+			qstate->query_flags, qstate->qstarttime,
+			qstate->is_valrec))
 		log_err("out of memory");
 
 	/* do nothing */
@@ -1008,7 +1009,8 @@ dns64_inform_super(struct module_qstate* qstate, int id,
 	/* Store the generated response in cache. */
 	if ( (!super_dq || !super_dq->started_no_cache_store) &&
 		!dns_cache_store(super->env, &super->qinfo, super->return_msg->rep,
-		0, super->prefetch_leeway, 0, NULL, super->query_flags, qstate->qstarttime))
+		0, super->prefetch_leeway, 0, NULL, super->query_flags,
+		qstate->qstarttime, qstate->is_valrec))
 		log_err("out of memory");
 }
 

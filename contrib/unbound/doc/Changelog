@@ -1,9 +1,273 @@
+11 April 2025: Yorgos
+	- Merge #1265: Fix WSAPoll.
+
+10 April 2025: Wouter
+	- Fix for print of connection type in log-replies for dot and doh.
+
+9 April 2025: Wouter
+	- Fix to detect if atomic_store links in configure.
+	- Fix #1264: unbound 1.22.0 leaks memory when doing DoH.
+
+8 April 2025: Wouter
+	- Tag for 1.23.0rc1.
+	- Fix fast_reload to print chroot with config file name.
+
+7 April 2025: Yorgos
+	- Merge #902: DNS Error Reporting (RFC 9567). Introduces new
+	  configuration option 'dns-error-reporting' and new statistics for
+	  'num.dns_error_reports'.
+
+4 April 2025: Wouter
+	- Fix mesh_copy_client_info to omit null contents from copy.
+	- Fix comment name in the rpz nsdname test.
+	- Fix nettle compile for warnings and ticket keys.
+	- Fix redis_replica test for unused option defaults and log printout.
+	- Fix test to speed up common.sh script kill_pid.
+	- Fix to update common.sh for speed of kill_pid.
+
+4 April 2025: Yorgos
+	- Merge #1019: Redis read-only replica support.
+	  Introduces new 'redis-replica-*' options for the Redis cache backend.
+
+3 April 2025: Wouter
+	- Fix #1263: Exempt loopback addresses from wait-limit.
+	- Fix wait-limit-netblock and wait-limit-cookie-netblock config parse
+	  to allow two arguments.
+	- Fix ub_event and include dnstap and win_svc headers.
+	- Fix test for stat_values for wait limit defaults for localhost.
+	- Fix parameter unused warning in net_help.c.
+
+2 April 2025: Yorgos
+	- Merge #1262 from markyang92, fix build with
+	  'gcc-15 -Wbuiltin-declaration-mismatch' error in compat/malloc.c.
+	- For #1262, ifdef is no longer needed.
+
+2 April 2025: Wouter
+	- Fix unbound-control test so it counts the new flush_negative output,
+	  also answers the _ta probe from testns and prints command output
+	  and skip a thread specific test when no threads are available.
+	- Fix that ub_event has the facility to deal with callbacks for
+	  fast reload, doq, windows-stop and dnstap.
+	- Fix fast reload test to check if pid exists before acting on it.
+
+1 April 2025: Wouter
+	- Fix escape more characters when printing an RR type with an unquoted
+	  string.
+	- Enable the auth_tls.tdir and auth_tls_failcert.tdir tests.
+
+31 March 2025: Wouter
+	- iana portlist update.
+	- Merge #1042: Fast Reload. The unbound-control fast_reload is added.
+	  It reads changed config in a thread, then only briefly pauses the
+	  service threads, that keep running. DNS service is only interrupted
+	  briefly, less than a second.
+	- Skip the unit tests for auth_tls.tdir and auth_tls_failcert.tdir.
+
+27 March 2025: Wouter
+	- Fix unit test dname log printout typecast.
+	- Fix for ci test, expat is installed on the osx image.
+
+26 March 2025: Yorgos
+	- Fix #1255: Multiple pinnings to vulnerable copies of libexpat.
+	- For #1255, for ios use an older expat version that does not require
+	  C++11 language features.
+	- For #1255, for ios disable building tests that require C++11.
+	- For #1255, for ios try the latest expat version again.
+
+24 March 2025: Wouter
+	- Fix #1254: `send failed: Socket is not connected` and
+	  `remote address is 0.0.0.0 port 53`.
+
+21 March 2025: Wouter
+	- Fix #1253: Cache entries fail to be removed from Redis cachedb
+	  backend with unbound-control flush* +c.
+	- Fix for #1253: Fix for redis cachedb backend to expect an integer
+	  reply for the EXPIRE command.
+
+20 March 2025: Wouter
+	- Fix print of RR type NSAP-PTR, it is an unquoted string.
+
+18 March 2025: Wouter
+	- Fix #1251: WSAPoll first argument cannot be NULL.
+	- Fix for windows compile create ssl contexts.
+
+17 March 2025: Wouter
+	- Fix representation of types GPOS and RESINFO, add rdf type for
+	  unquoted str.
+
+16 March 2025: Yorgos
+	- Fix 'unbound-control flush_negative' when reporting removed data;
+	  reported by David 'eqvinox' Lamparter.
+
+28 February 2025: Wouter
+	- Merge #1238: Prefer SOURCE_DATE_EPOCH over actual time.
+	  Add --help output description for the SOURCE_DATE_EPOCH variable.
+
+25 February 2025: Wouter
+	- Merge #1243: Do not shadow tm on line 236.
+
+24 February 2025: Yorgos
+	- Fix hash calculation for cachedb to ignore case. Previously, cached
+	  records there were only relevant for same case queries (if not
+	  already in Unbound's internal cache).
+
+19 February 2025: Yorgos
+	- Fix static analysis report about unhandled EOF on error conditions
+	  when reading anchor key files.
+	- Merge #1241: Fix infra-keep-probing for low infra-cache-max-rtt
+	  values.
+
+17 February 2025: Yorgos
+	- Consider reconfigurations when calculating the still_useful_timeout
+	  for servers in the infrastructure cache.
+
+30 January 2025: Wouter
+	- Fix #986: Resolving sas.com with dnssec-validation fails though
+	  signed delegations seem to be (mostly) correct.
+
+29 January 2025: Yorgos
+	- Make the default value of module-config "validator iterator"
+	  regardless of compilation options. --enable-subnet would implicitly
+	  change the value to enable the subnetcache module by default in the
+	  past.
+
+24 January 2025: Yorgos
+	- Merge #1220 from Petr Menšík, Add unbound members group access to
+	  control key.
+
+21 January 2025: Yorgos
+	- Use the same interface listening port discovery code for all needed
+	  protocols.
+	- Port to string only when needed before getaddrinfo().
+	- Do not open unencrypted channels next to encrypted ones on the same
+	  port.
+	- Merge #1224 from Theo Buehler: Do not use DSA API unless USE_DSA is
+	  set.
+
+21 January 2025: Wouter
+	- Fix compile of interface check code when dnscrypt or quic is
+	  disabled.
+	- Fix encoding of RR type ATMA.
+	- Fix to check length in ATMA string to wire.
+	- Merge #1229: check before use daemon->shm_info.
+
+20 January 2025: Yorgos
+	- Merge #1222: Unique DoT and DoH SSL contexts to allow for different
+	  ALPN.
+	- Create the quic SSL listening context only when needed.
+
+15 January 2025: Yorgos
+	- Merge #1221: Consider auth zones when checking for forwarders.
+
+14 January 2025: Yorgos
+	- Add resolver.arpa and service.arpa to the default locally served
+	  zones.
+
+13 January 2025: Yorgos
+	- Fix #1213: Misleading error message on default access control causing
+	  refuse.
+
+10 January 2025: Yorgos
+	- Merge #1214: Use TCP_NODELAY on TLS sockets to speed up the TLS
+	  handshake.
+
+31 December 2024: Yorgos
+	- Merge #1174: Serve expired cache update fixes. Fixes a regression bug
+	  with serve-expired that appeared in 1.22.0 and would not allow the
+	  iterator to update the cache with not-yet-validated entries resulting
+	  in increased outgoing traffic.
+
+20 December 2024: Yorgos
+	- For #1207: [FR] Support for RESINFO RRType 261 (RFC9606), add
+	  LDNS_RR_TYPE_RESINFO similar to LDNS_RR_TYPE_TXT.
+
+13 December 2024: Yorgos
+	- Merge #1204: ci: set persist-credentials: false for actions/checkout
+	  per zizmor suggestion.
+
+3 December 2024: Yorgos
+	- Merge #1189: Fix the dname_str method to cause conversion errors
+	  when the domain name length is 255.
+	- Merge #1197: dname_str() fixes.
+	- For #1175, the default value of serve-expired-ttl is set to 86400
+	  (1 day) as suggested by RFC8767.
+	- Merge #1198: Fix log-servfail with serve expired and no useful cache
+	  contents.
+	- Safeguard alias loop while looking in the cache for expired answers.
+	- Merge #1187: Create the SSL_CTX for QUIC before chroot and privilege
+	  drop.
+	- Fix typo in log_servfail.tdir test.
+
+22 November 2024: Yorgos
+	- Fix #1175: serve-expired does not adhere to secure-by-default
+	  principle. The default value of serve-expired-client-timeout
+	  is set to 1800 as suggested by RFC8767.
+	- For #1175, update serve-expired tests.
+
+20 November 2024: Yorgos
+	- Fix comparison to help static analyzer.
+
+19 November 2024: Yorgos
+	- Merge #1169 from Sergey Kacheev, fix: lock-free counters for
+	  auth_zone up/down queries.
+
+15 November 2024: Wouter
+	- Fix #1183: the data being used is released in method
+	  nsec3_hash_test_entry.
+	- Fix for #1183: release nsec3 hashes per test file.
+
+8 November 2024: Yorgos
+	- More descriptive text for 'harden-algo-downgrade'.
+	- Complete fix for max-global-quota to 200.
+
+6 November 2024: Yorgos
+	- Increase the default of max-global-quota to 200 from 128 after
+	  operational feedback. Still keeping the possible amplification
+	  factor (CAMP related issues) in the hundreds.
+
+5 November 2024: Wouter
+	- Fix for the serve expired DNSSEC information fix, it would not allow
+	  current delegation information be updated in cache. The fix allows
+	  current delegation and validation recursion information to be
+	  updated, but as a consequence no longer has certain expired
+	  information around for later dnssec valid expired responses.
+	- Fix to log redis timeout error string on failure.
+
+5 November 2024: Yorgos
+	- Fix SETEX check during Redis (re)initialization.
+
+4 November 2024: Wouter
+	- Fix redis that during a reload it does not fail if the redis
+	  server does not connect or does not respond. It still logs the
+	  errors and if the server is up checks expiration features.
+	- Merge #1167: Makefile.in: fix occasional parallel build failures
+	  around bison rule.
+
+1 November 2024: Yorgos
+	- Merge #1159: Stats for discard-timeout and wait-limit.
+	- Add test case for #1159.
+	- Some clean up for stat_values.test.
+	- Merge #1170 from Melroy van den Berg, Fix chroot manpage
+	  description.
+	- Merge #1157 from Liang Zhu, Fix heap corruption when calling
+	  ub_ctx_delete in Windows.
+
+25 October 2024: Yorgos
+	- Fix #1163: Typos in unbound.conf documentation.
+
+17 October 2024: Wouter
+	- Tag for 1.22.0 release. This did not contain the 1154 fix
+	  from 16 oct. The code repository continues with
+	  version 1.22.1 in development.
+
 16 October 2024: Yorgos
 	- Fix for dnsoverquic and dnstap to use the correct dnstap
 	  environment.
 
 16 October 2024: Wouter
 	- Fix for dnstap with dnscrypt and dnstap without dnsoverquic.
+	- Fix #1154: Tag Incorrectly Applying for Other Interfaces
+	  Using the Same IP. This fix is not for 1.22.0.
 
 14 October 2024: Wouter
 	- Fix to display warning if quic-port is set but dnsoverquic is not
@@ -23,6 +287,7 @@
 	- Fix add reallocarray to alloc stats unit test, and disable
 	  override of strdup in unbound-host, and the result of config
 	  get option is freed properly.
+	- Tag for 1.22.0rc1.
 
 9 October 2024: Wouter
 	- Merge #871: DNS over QUIC. This adds `quic-port: 853` and

@@ -192,3 +192,14 @@ tcl_list_get_mem(struct tcl_list* tcl)
 	if(!tcl) return 0;
 	return sizeof(*tcl) + regional_get_mem(tcl->region);
 }
+
+void tcl_list_swap_tree(struct tcl_list* tcl, struct tcl_list* data)
+{
+	/* swap tree and region */
+	rbtree_type oldtree = tcl->tree;
+	struct regional* oldregion = tcl->region;
+	tcl->tree = data->tree;
+	tcl->region = data->region;
+	data->tree = oldtree;
+	data->region = oldregion;
+}

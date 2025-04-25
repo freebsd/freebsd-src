@@ -109,6 +109,16 @@ usage(void)
 	printf("  				That means the caches sizes and\n");
 	printf("  				the number of threads must not\n");
 	printf("  				change between reloads.\n");
+	printf("  fast_reload [+dpv]		reloads the server but only briefly stops\n");
+	printf("  				server processing, keeps cache, and changes\n");
+	printf("  				most options; check unbound-control(8).\n");
+	printf("  		+d		drops running queries to keep consistency\n");
+	printf("  				on changed options while reloading.\n");
+	printf("  		+p		does not pause threads for even faster\n");
+	printf("  				reload but less options are supported\n");
+	printf("  				; check unbound-control(8).\n");
+	printf("  		+v		verbose output, it will include duration needed.\n");
+	printf("  		+vv		more verbose output, it will include memory needed.\n");
 	printf("  stats				print statistics\n");
 	printf("  stats_noreset			peek at statistics\n");
 #ifdef HAVE_SHMGET
@@ -222,6 +232,9 @@ static void pr_stats(const char* nm, struct ub_stats_info* s)
 		s->svr.num_queries_cookie_client);
 	PR_UL_NM("num.queries_cookie_invalid",
 		s->svr.num_queries_cookie_invalid);
+	PR_UL_NM("num.queries_discard_timeout",
+		s->svr.num_queries_discard_timeout);
+	PR_UL_NM("num.queries_wait_limit", s->svr.num_queries_wait_limit);
 	PR_UL_NM("num.cachehits",
 		s->svr.num_queries - s->svr.num_queries_missed_cache);
 	PR_UL_NM("num.cachemiss", s->svr.num_queries_missed_cache);
@@ -231,12 +244,13 @@ static void pr_stats(const char* nm, struct ub_stats_info* s)
 	PR_UL_NM("num.expired", s->svr.ans_expired);
 	PR_UL_NM("num.recursivereplies", s->mesh_replies_sent);
 #ifdef USE_DNSCRYPT
-    PR_UL_NM("num.dnscrypt.crypted", s->svr.num_query_dnscrypt_crypted);
-    PR_UL_NM("num.dnscrypt.cert", s->svr.num_query_dnscrypt_cert);
-    PR_UL_NM("num.dnscrypt.cleartext", s->svr.num_query_dnscrypt_cleartext);
-    PR_UL_NM("num.dnscrypt.malformed",
-             s->svr.num_query_dnscrypt_crypted_malformed);
+	PR_UL_NM("num.dnscrypt.crypted", s->svr.num_query_dnscrypt_crypted);
+	PR_UL_NM("num.dnscrypt.cert", s->svr.num_query_dnscrypt_cert);
+	PR_UL_NM("num.dnscrypt.cleartext", s->svr.num_query_dnscrypt_cleartext);
+	PR_UL_NM("num.dnscrypt.malformed",
+		s->svr.num_query_dnscrypt_crypted_malformed);
 #endif /* USE_DNSCRYPT */
+	PR_UL_NM("num.dns_error_reports", s->svr.num_dns_error_reports);
 	printf("%s.requestlist.avg"SQ"%g\n", nm,
 		(s->svr.num_queries_missed_cache+s->svr.num_queries_prefetch)?
 			(double)s->svr.sum_query_list_size/

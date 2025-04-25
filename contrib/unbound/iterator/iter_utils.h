@@ -61,6 +61,7 @@ struct sock_list;
 struct ub_packed_rrset_key;
 struct module_stack;
 struct outside_network;
+struct iter_nat64;
 
 /* max number of lookups in the cache for target nameserver names.
  * This stops, for large delegations, N*N lookups in the cache. */
@@ -142,6 +143,7 @@ struct dns_msg* dns_copy_msg(struct dns_msg* from, struct regional* regional);
  * @param region: to copy modified (cache is better) rrs back to.
  * @param flags: with BIT_CD for dns64 AAAA translated queries.
  * @param qstarttime: time of query start.
+ * @param is_valrec: if the query is validation recursion and does not get
  * return void, because we are not interested in alloc errors,
  * 	the iterator and validator can operate on the results in their
  * 	scratch space (the qstate.region) and are not dependent on the cache.
@@ -150,7 +152,8 @@ struct dns_msg* dns_copy_msg(struct dns_msg* from, struct regional* regional);
  */
 void iter_dns_store(struct module_env* env, struct query_info* qinf,
 	struct reply_info* rep, int is_referral, time_t leeway, int pside,
-	struct regional* region, uint16_t flags, time_t qstarttime);
+	struct regional* region, uint16_t flags, time_t qstarttime,
+	int is_valrec);
 
 /**
  * Select randomly with n/m probability.
@@ -429,10 +432,54 @@ void iterator_set_ip46_support(struct module_stack* mods,
 	struct module_env* env, struct outside_network* outnet);
 
 /**
+ * Read config string that represents the target fetch policy.
+ * @param target_fetch_policy: alloced on return.
+ * @param max_dependency_depth: set on return.
+ * @param str: the config string
+ * @return false on failure.
+ */
+int read_fetch_policy(int** target_fetch_policy, int* max_dependency_depth,
+	const char* str);
+
+/**
+ * Create caps exempt data structure.
+ * @return NULL on failure.
+ */
+struct rbtree_type* caps_white_create(void);
+
+/**
+ * Delete caps exempt data structure.
+ * @param caps_white: caps exempt tree.
+ */
+void caps_white_delete(struct rbtree_type* caps_white);
+
+/**
+ * Apply config caps whitelist items to name tree
+ * @param ntree: caps exempt tree.
+ * @param cfg: config with options.
+ */
+int caps_white_apply_cfg(struct rbtree_type* ntree, struct config_file* cfg);
+
+/**
+ * Apply config for nat64
+ * @param nat64: the nat64 state.
+ * @param cfg: config with options.
+ * @return false on failure.
+ */
+int nat64_apply_cfg(struct iter_nat64* nat64, struct config_file* cfg);
+
+/**
  * Limit NSEC and NSEC3 TTL in response, RFC9077
  * @param msg: dns message, the SOA record ttl is used to restrict ttls
  *	of NSEC and NSEC3 RRsets. If no SOA record, nothing happens.
  */
 void limit_nsec_ttl(struct dns_msg* msg);
+
+/**
+ * Make the response minimal. Removed authority and additional section,
+ * that works when there is an answer in the answer section.
+ * @param rep: reply to modify.
+ */
+void iter_make_minimal(struct reply_info* rep);
 
 #endif /* ITERATOR_ITER_UTILS_H */

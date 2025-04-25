@@ -562,6 +562,36 @@ lruhash_update_space_used(struct lruhash* table, void* cb_arg, int diff_size)
 	}
 }
 
+void lruhash_update_space_max(struct lruhash* table, void* cb_arg, size_t max)
+{
+	struct lruhash_entry *reclaimlist = NULL;
+
+	fptr_ok(fptr_whitelist_hash_sizefunc(table->sizefunc));
+	fptr_ok(fptr_whitelist_hash_delkeyfunc(table->delkeyfunc));
+	fptr_ok(fptr_whitelist_hash_deldatafunc(table->deldatafunc));
+	fptr_ok(fptr_whitelist_hash_markdelfunc(table->markdelfunc));
+
+	if(cb_arg == NULL) cb_arg = table->cb_arg;
+
+	/* update space max */
+	lock_quick_lock(&table->lock);
+	table->space_max = max;
+
+	if(table->space_used > table->space_max)
+		reclaim_space(table, &reclaimlist);
+
+	lock_quick_unlock(&table->lock);
+
+	/* finish reclaim if any (outside of critical region) */
+	while(reclaimlist) {
+		struct lruhash_entry* n = reclaimlist->overflow_next;
+		void* d = reclaimlist->data;
+		(*table->delkeyfunc)(reclaimlist->key, cb_arg);
+		(*table->deldatafunc)(d, cb_arg);
+		reclaimlist = n;
+	}
+}
+
 void 
 lruhash_traverse(struct lruhash* h, int wr, 
 	void (*func)(struct lruhash_entry*, void*), void* arg)
