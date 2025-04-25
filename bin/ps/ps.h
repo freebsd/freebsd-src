@@ -34,7 +34,8 @@
 #include <sys/queue.h>
 
 #define	UNLIMITED	0	/* unlimited terminal width */
-enum type { CHAR, UCHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, KPTR, PGTOK };
+enum type { UNSPEC, /* For output routines that don't care and aliases. */
+	    CHAR, UCHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, KPTR, PGTOK };
 
 typedef struct kinfo_str {
 	STAILQ_ENTRY(kinfo_str) ks_next;
@@ -67,8 +68,10 @@ STAILQ_HEAD(velisthead, varent);
 /* Structure representing one available keyword. */
 typedef struct var {
 	const char *name;	/* name(s) of variable */
+	union {
+		const char	*aliased; /* keyword this one is an alias to */
+	};
 	const char *header;	/* default header */
-	const char *alias;	/* aliases */
 	const char *field;	/* xo field name */
 #define	COMM	0x01		/* needs exec arguments and environment (XXX) */
 #define	LJUST	0x02		/* left adjust on output (trailing blanks) */
@@ -84,7 +87,7 @@ typedef struct var {
 	 */
 	size_t	off;		/* offset in structure */
 	enum	type type;	/* type of element */
-	const char *fmt;	/* printf format */
+	const char *fmt;	/* printf format (depends on output routine) */
 } VAR;
 
 #include "extern.h"

@@ -758,6 +758,10 @@ printval(void *bp, const VAR *v)
 #define	CHKINF127(n)	(((n) > 127) && (v->flag & INF127) ? 127 : (n))
 
 	switch (v->type) {
+	case UNSPEC:
+		xo_errx(1, "cannot print value of unspecified type "
+		    "(internal error)");
+		break;
 	case CHAR:
 		(void)asprintf(&str, ofmt, *(char *)bp);
 		break;
@@ -787,6 +791,9 @@ printval(void *bp, const VAR *v)
 		break;
 	case PGTOK:
 		(void)asprintf(&str, ofmt, ps_pgtok(*(u_long *)bp));
+		break;
+	default:
+		xo_errx(1, "unknown type (internal error)");
 		break;
 	}
 
