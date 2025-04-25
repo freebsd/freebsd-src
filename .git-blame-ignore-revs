@@ -8,6 +8,8 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# queue(3) single space after all #define
+49066283a4c1fc5c9d6c4cbee00cc941f4b09792
 # bin/ps whitespace cleanup
 ad94fb48d8bda7cfaec68b3c7897594991b474bc
 # sort OptionalObsoleteFiles.inc blocks
