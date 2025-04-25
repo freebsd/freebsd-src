@@ -188,7 +188,9 @@ static_body() {
 
 	ipa=198.51.100.1
 	ipb=198.51.100.2
+	ipb_re=$(echo ${ipb} | sed 's/\./\\./g')
 	max_age=$(sysctl -n net.link.ether.inet.max_age)
+	max_age="(${max_age}|$((${max_age} - 1)))"
 
 	atf_check ifconfig -j ${jname}a ${epair0}a inet ${ipa}/24
 	eth="$(ifconfig -j ${jname}b ${epair0}b |
@@ -197,8 +199,8 @@ static_body() {
 	# Expected outputs
 	permanent=\
 "? (${ipb}) at 00:00:00:00:00:00 on ${epair0}a permanent [ethernet]\n"
-	temporary=\
-"? (${ipb}) at ${eth} on ${epair0}a expires in ${max_age} seconds [ethernet]\n"
+	temporary_re=\
+"\? \(${ipb_re}\) at ${eth} on ${epair0}a expires in ${max_age} seconds \[ethernet\]"
 	deleted=\
 "${ipb} (${ipb}) deleted\n"
 
@@ -217,7 +219,7 @@ static_body() {
 	# then check -S
 	atf_check -o "inline:${deleted}" jexec ${jname}a arp -nd ${ipb}
 	atf_check -o ignore jexec ${jname}b ping -c1 ${ipa}
-	atf_check -o "inline:${temporary}" jexec ${jname}a arp -n ${ipb}
+	atf_check -o "match:${temporary_re}" jexec ${jname}a arp -n ${ipb}
 	# Note: this doesn't fail, tracked all the way down to FreeBSD 8
 	# atf_check -s not-exit:0 jexec ${jname}a arp -s ${ipb} 0:0:0:0:0:0
 	atf_check -o "inline:${deleted}" \
