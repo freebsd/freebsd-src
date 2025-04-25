@@ -36,6 +36,8 @@
 #include <sys/sysctl.h>
 #include <sys/user.h>
 
+#include <assert.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,7 +46,6 @@
 
 #include "ps.h"
 
-static VAR *findvar(char *, struct velisthead *, int, char **header);
 static int  vcmp(const void *, const void *);
 
 /* Compute offset in common structures. */
@@ -229,6 +230,120 @@ static VAR keywords[] = {
 
 static const size_t known_keywords_nb = nitems(keywords);
 
+/*
+ * Sanity checks on declared keywords.
+ *
+ * Checks specific to aliases are done in resolve_alias() instead.
+ *
+ * Currently, only checks that keywords are alphabetically ordered by their
+ * names.  More checks could be added, such as the absence of type (UNSPEC),
+ * 'fmt' (NULL) when the output routine is not kval()/rval().
+ *
+ * Called from main() on PS_CHECK_KEYWORDS, else available when debugging.
+ */
+void
+check_keywords(void)
+{
+	const VAR *k, *next_k;
+	bool order_violated = false;
+
+	k = &keywords[0];
+	for (size_t i = 1; i < known_keywords_nb; ++i) {
+		next_k = &keywords[i];
+		if (vcmp(k, next_k) >= 0) {
+			xo_warnx("keywords bad order: '%s' followed by '%s'",
+			    k->name, next_k->name);
+			order_violated = true;
+		}
+		k = next_k;
+	}
+	if (order_violated)
+		/* Must be the case as we rely on bsearch() + vcmp(). */
+		xo_errx(2, "keywords are not in ascending order "
+		    "(internal error)");
+}
+
+static void
+alias_errx(const char *const name, const char *const what)
+{
+	xo_errx(2, "alias keyword '%s' specifies %s (internal error)",
+	    name, what);
+}
+
+static void
+merge_alias(VAR *const k, VAR *const tgt)
+{
+	if ((tgt->flag & RESOLVED_ALIAS) != 0)
+		k->final_kw = tgt->final_kw;
+	else {
+		k->final_kw = tgt;
+		assert(tgt->aliased == NULL);
+	}
+
+#define MERGE_IF_SENTINEL(field, sentinel) do {				\
+	if (k->field == sentinel)					\
+		k->field = tgt->field;					\
+} while (0)
+
+	MERGE_IF_SENTINEL(header, NULL);
+	MERGE_IF_SENTINEL(field, NULL);
+	/* If NOINHERIT is present, no merge occurs. */
+	MERGE_IF_SENTINEL(flag, 0);
+
+#undef MERGE_IF_SENTINEL
+
+	/* We also check that aliases don't specify things they should not. */
+#define MERGE_CHECK_SENTINEL(field, sentinel, field_descr) do {		\
+	if (k->field != sentinel)					\
+		alias_errx(k->name, field_descr);			\
+	k->field = tgt->field;						\
+} while (0);
+
+	MERGE_CHECK_SENTINEL(oproc, NULL, "an output routine");
+	MERGE_CHECK_SENTINEL(off, 0, "a structure offset");
+	MERGE_CHECK_SENTINEL(type, UNSPEC, "a different type than UNSPEC");
+	MERGE_CHECK_SENTINEL(fmt, NULL, "a printf format");
+
+#undef MERGE_CHECK_SENTINEL
+}
+
+static void
+resolve_alias(VAR *const k)
+{
+	VAR *t, key;
+
+	if ((k->flag & RESOLVED_ALIAS) != 0 || k->aliased == NULL)
+		return;
+
+	if ((k->flag & RESOLVING_ALIAS) != 0)
+		xo_errx(2, "cycle when resolving alias keyword '%s'", k->name);
+	k->flag |= RESOLVING_ALIAS;
+
+	key.name = k->aliased;
+	t = bsearch(&key, keywords, known_keywords_nb, sizeof(VAR), vcmp);
+	if (t == NULL)
+		xo_errx(2, "unknown target '%s' for keyword alias '%s'",
+		    k->aliased, k->name);
+
+	resolve_alias(t);
+	merge_alias(k, t);
+
+	k->flag &= ~RESOLVING_ALIAS;
+	k->flag |= RESOLVED_ALIAS;
+}
+
+/*
+ * Resolve all aliases immediately.
+ *
+ * Called from main() on PS_CHECK_KEYWORDS, else available when debugging.
+ */
+void
+resolve_aliases(void)
+{
+	for (size_t i = 0; i < known_keywords_nb; ++i)
+		resolve_alias(&keywords[i]);
+}
+
 void
 showkey(void)
 {
@@ -261,30 +376,56 @@ void
 parsefmt(const char *p, struct velisthead *const var_list,
     const int user)
 {
-	char *tempstr, *tempstr1;
+	char *copy, *cp;
+	char *hdr_p, sep;
+	size_t sep_idx;
+	VAR *v, key;
+	struct varent *vent;
 
-#define		FMTSEP	" \t,\n"
-	tempstr1 = tempstr = strdup(p);
-	while (tempstr && *tempstr) {
-		char *cp, *hp;
-		VAR *v;
-		struct varent *vent;
+	cp = copy = strdup(p);
+	if (copy == NULL)
+		xo_err(1, "strdup");
+
+	sep = cp[0]; /* We only care if it's 0 or not here. */
+	sep_idx = -1;
+	while (sep != '\0') {
+		cp += sep_idx + 1;
 
 		/*
 		 * If an item contains an equals sign, it specifies a column
 		 * header, may contain embedded separator characters and
 		 * is always the last item.
 		 */
-		if (tempstr[strcspn(tempstr, "="FMTSEP)] != '=')
-			while ((cp = strsep(&tempstr, FMTSEP)) != NULL &&
-			    *cp == '\0')
-				/* void */;
-		else {
-			cp = tempstr;
-			tempstr = NULL;
-		}
-		if (cp == NULL || !(v = findvar(cp, var_list, user, &hp)))
+		sep_idx = strcspn(cp, "= \t,\n");
+		sep = cp[sep_idx];
+		cp[sep_idx] = 0;
+		if (sep == '=') {
+			hdr_p = cp + sep_idx + 1;
+			sep = '\0'; /* No more keywords. */
+		} else
+			hdr_p = NULL;
+
+		/* At this point, '*cp' is '\0' iff 'sep_idx' is 0. */
+		if (*cp == '\0') {
+			/*
+			 * Empty keyword.  Skip it, and silently unless some
+			 * header has been specified.
+			 */
+			if (hdr_p != NULL)
+				xo_warnx("empty keyword with header '%s'",
+				    hdr_p);
 			continue;
+		}
+
+		/* Find the keyword. */
+		key.name = cp;
+		v = bsearch(&key, keywords,
+		    known_keywords_nb, sizeof(VAR), vcmp);
+		if (v == NULL) {
+			xo_warnx("%s: keyword not found", cp);
+			eval = 1;
+			continue;
+		}
 		if (!user) {
 			/*
 			 * If the user is NOT adding this field manually,
@@ -295,73 +436,36 @@ parsefmt(const char *p, struct velisthead *const var_list,
 			if (vent != NULL)
 				continue;
 		}
+
+#ifndef PS_CHECK_KEYWORDS
+		/*
+		 * On PS_CHECK_KEYWORDS, this is not necessary as all aliases
+		 * are resolved at startup in main() by calling
+		 * resolve_aliases().
+		 */
+		resolve_alias(v);
+#endif
+
 		if ((vent = malloc(sizeof(struct varent))) == NULL)
 			xo_errx(1, "malloc failed");
 		vent->header = v->header;
-		if (hp) {
-			hp = strdup(hp);
-			if (hp)
-				vent->header = hp;
+		if (hdr_p) {
+			hdr_p = strdup(hdr_p);
+			if (hdr_p)
+				vent->header = hdr_p;
 		}
 		vent->width = strlen(vent->header);
 		vent->var = v;
 		STAILQ_INSERT_TAIL(var_list, vent, next_ve);
 	}
-	free(tempstr1);
+
+	free(copy);
+
 	if (STAILQ_EMPTY(var_list)) {
 		xo_warnx("no valid keywords; valid keywords:");
 		showkey();
 		exit(1);
 	}
-}
-
-static VAR *
-findvar(char *p, struct velisthead *const var_list, int user, char **header)
-{
-	size_t rflen;
-	VAR *v, key;
-	char *hp, *realfmt;
-
-	hp = strchr(p, '=');
-	if (hp)
-		*hp++ = '\0';
-
-	key.name = p;
-	v = bsearch(&key, keywords, known_keywords_nb, sizeof(VAR), vcmp);
-
-	if (v && v->aliased) {
-		/*
-		 * If the user specified an alternate-header for this
-		 * (aliased) format-name, then we need to copy that
-		 * alternate-header when making the recursive call to
-		 * process the alias.
-		 */
-		if (hp == NULL)
-			parsefmt(v->aliased, var_list, user);
-		else {
-			/*
-			 * XXX - This processing will not be correct for
-			 * any alias which expands into a list of format
-			 * keywords.  Presently there are no aliases
-			 * which do that.
-			 */
-			rflen = strlen(v->aliased) + strlen(hp) + 2;
-			realfmt = malloc(rflen);
-			if (realfmt == NULL)
-				xo_errx(1, "malloc failed");
-			snprintf(realfmt, rflen, "%s=%s", v->aliased, hp);
-			parsefmt(realfmt, var_list, user);
-			free(realfmt);
-		}
-		return ((VAR *)NULL);
-	}
-	if (!v) {
-		xo_warnx("%s: keyword not found", p);
-		eval = 1;
-	}
-	if (header)
-		*header = hp;
-	return (v);
 }
 
 static int

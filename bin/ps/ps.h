@@ -63,20 +63,27 @@ typedef struct varent {
 } VARENT;
 STAILQ_HEAD(velisthead, varent);
 
+struct var;
+typedef struct var VAR;
 /* Structure representing one available keyword. */
-typedef struct var {
+struct var {
 	const char *name;	/* name(s) of variable */
 	union {
+		/* Valid field depends on RESOLVED_ALIAS' presence. */
 		const char	*aliased; /* keyword this one is an alias to */
+		const VAR	*final_kw; /* final aliased keyword */
 	};
 	const char *header;	/* default header */
 	const char *field;	/* xo field name */
-#define	COMM	0x01		/* needs exec arguments and environment (XXX) */
-#define	LJUST	0x02		/* left adjust on output (trailing blanks) */
-#define	USER	0x04		/* needs user structure */
-#define	INF127	0x10		/* values >127 displayed as 127 */
+#define COMM		0x01	/* needs exec arguments and environment (XXX) */
+#define LJUST		0x02	/* left adjust on output (trailing blanks) */
+#define USER		0x04	/* needs user structure */
+#define INF127		0x10	/* values >127 displayed as 127 */
+#define NOINHERIT	0x1000	/* Don't inherit flags from aliased keyword. */
+#define RESOLVING_ALIAS	0x10000	/* Used transiently to resolve aliases. */
+#define RESOLVED_ALIAS	0x20000	/* Mark that an alias has been resolved. */
 	u_int	flag;
-				/* output routine */
+	/* output routine */
 	char	*(*oproc)(struct kinfo *, struct varent *);
 	/*
 	 * The following (optional) elements are hooks for passing information
@@ -86,6 +93,6 @@ typedef struct var {
 	size_t	off;		/* offset in structure */
 	enum	type type;	/* type of element */
 	const char *fmt;	/* printf format (depends on output routine) */
-} VAR;
+};
 
 #include "extern.h"
