@@ -97,7 +97,6 @@ struct cdevsw dsp_cdevsw = {
 
 static eventhandler_tag dsp_ehtag = NULL;
 
-static void dsp_close_chan(struct pcm_channel *c);
 static int dsp_oss_syncgroup(struct pcm_channel *wrch, struct pcm_channel *rdch, oss_syncgroup *group);
 static int dsp_oss_syncstart(int sg_id);
 static int dsp_oss_policy(struct pcm_channel *wrch, struct pcm_channel *rdch, int policy);
@@ -242,19 +241,20 @@ dsp_chn_alloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
 }
 
 static void
-dsp_close_chan(struct pcm_channel *c)
+dsp_close(void *data)
 {
+	struct dsp_cdevpriv *priv = data;
+	struct pcm_channel *rdch, *wrch, *parent;
 	struct snddev_info *d;
-	struct pcm_channel *parent;
 	int sg_ids;
 
-	if (c == NULL)
+	if (priv == NULL)
 		return;
 
-	d = c->parentsnddev;
+	d = priv->sc;
 	/* At this point pcm_unregister() will destroy all channels anyway. */
 	if (!DSP_REGISTERED(d))
-		return;
+		goto skip;
 
 	PCM_GIANT_ENTER(d);
 
@@ -262,63 +262,82 @@ dsp_close_chan(struct pcm_channel *c)
 	PCM_WAIT(d);
 	PCM_ACQUIRE(d);
 
-	CHN_REMOVE(d, c, channels.pcm.opened);
+	rdch = priv->rdch;
+	wrch = priv->wrch;
 
-	PCM_UNLOCK(d);
+	if (rdch != NULL)
+		CHN_REMOVE(d, rdch, channels.pcm.opened);
+	if (wrch != NULL)
+		CHN_REMOVE(d, wrch, channels.pcm.opened);
 
-	/*
-	 * The channel itself need not be locked because:
-	 *   a)  Adding a channel to a syncgroup happens only in dsp_ioctl(),
-	 *       which cannot run concurrently to dsp_close_chan().
-	 *   b)  The syncmember pointer (sm) is protected by the global
-	 *       syncgroup list lock.
-	 *   c)  A channel can't just disappear, invalidating pointers, unless
-	 *       it's closed/dereferenced first.
-	 */
-	PCM_SG_LOCK();
-	sg_ids = chn_syncdestroy(c);
-	PCM_SG_UNLOCK();
-	if (sg_ids != 0)
-		free_unr(pcmsg_unrhdr, sg_ids);
+	if (rdch != NULL || wrch != NULL) {
+		PCM_UNLOCK(d);
+		if (rdch != NULL) {
+			/*
+			 * The channel itself need not be locked because:
+			 *   a)  Adding a channel to a syncgroup happens only
+			 *       in dsp_ioctl(), which cannot run concurrently
+			 *       to dsp_close().
+			 *   b)  The syncmember pointer (sm) is protected by
+			 *       the global syncgroup list lock.
+			 *   c)  A channel can't just disappear, invalidating
+			 *       pointers, unless it's closed/dereferenced
+			 *       first.
+			 */
+			PCM_SG_LOCK();
+			sg_ids = chn_syncdestroy(rdch);
+			PCM_SG_UNLOCK();
+			if (sg_ids != 0)
+				free_unr(pcmsg_unrhdr, sg_ids);
 
-	if (c->flags & CHN_F_VIRTUAL) {
-		parent = c->parentchannel;
-		CHN_LOCK(parent);
-		CHN_LOCK(c);
-		vchan_destroy(c);
-		CHN_UNLOCK(parent);
-	} else {
-		CHN_LOCK(c);
-		if (c->direction == PCMDIR_REC)
-			chn_abort(c); /* won't sleep */
-		else
-			chn_flush(c); /* may sleep */
-		c->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP | CHN_F_DEAD |
-		    CHN_F_EXCLUSIVE);
-		chn_reset(c, 0, 0);
-		chn_release(c);
+			if (rdch->flags & CHN_F_VIRTUAL) {
+				parent = rdch->parentchannel;
+				CHN_LOCK(parent);
+				CHN_LOCK(rdch);
+				vchan_destroy(rdch);
+				CHN_UNLOCK(parent);
+			} else {
+				CHN_LOCK(rdch);
+				chn_abort(rdch); /* won't sleep */
+				rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
+				    CHN_F_DEAD | CHN_F_EXCLUSIVE);
+				chn_reset(rdch, 0, 0);
+				chn_release(rdch);
+			}
+		}
+		if (wrch != NULL) {
+			/*
+			 * Please see block above.
+			 */
+			PCM_SG_LOCK();
+			sg_ids = chn_syncdestroy(wrch);
+			PCM_SG_UNLOCK();
+			if (sg_ids != 0)
+				free_unr(pcmsg_unrhdr, sg_ids);
+
+			if (wrch->flags & CHN_F_VIRTUAL) {
+				parent = wrch->parentchannel;
+				CHN_LOCK(parent);
+				CHN_LOCK(wrch);
+				vchan_destroy(wrch);
+				CHN_UNLOCK(parent);
+			} else {
+				CHN_LOCK(wrch);
+				chn_flush(wrch); /* may sleep */
+				wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
+				    CHN_F_DEAD | CHN_F_EXCLUSIVE);
+				chn_reset(wrch, 0, 0);
+				chn_release(wrch);
+			}
+		}
+		PCM_LOCK(d);
 	}
-
-	PCM_LOCK(d);
 
 	PCM_RELEASE(d);
 	PCM_UNLOCK(d);
 
 	PCM_GIANT_LEAVE(d);
-}
-
-
-static void
-dsp_close(void *data)
-{
-	struct dsp_cdevpriv *priv = data;
-
-	if (priv == NULL)
-		return;
-
-	dsp_close_chan(priv->rdch);
-	dsp_close_chan(priv->wrch);
-
+skip:
 	free(priv, M_DEVBUF);
 	priv = NULL;
 }
