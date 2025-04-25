@@ -203,6 +203,13 @@ main(int argc, char *argv[])
 
 	pidmax_init();
 
+#ifdef PS_CHECK_KEYWORDS
+	/* Check for obvious problems in the keywords array. */
+	check_keywords();
+	/* Resolve all aliases at start to spot errors. */
+	resolve_aliases();
+#endif
+
 	all = descendancy = _fmt = nselectors = optfatal = 0;
 	prtheader = showthreads = wflag = xkeep_implied = 0;
 	xkeep = -1;			/* Neither -x nor -X. */

@@ -43,6 +43,7 @@ extern struct velisthead varlist;
 
 __BEGIN_DECLS
 char	 *arguments(KINFO *, VARENT *);
+void	 check_keywords(void);
 char	 *command(KINFO *, VARENT *);
 char	 *cputime(KINFO *, VARENT *);
 char	 *cpunum(KINFO *, VARENT *);
@@ -73,6 +74,7 @@ void	 printheader(void);
 char	 *priorityr(KINFO *, VARENT *);
 char	 *egroupname(KINFO *, VARENT *);
 char	 *rgroupname(KINFO *, VARENT *);
+void	 resolve_aliases(void);
 char	 *runame(KINFO *, VARENT *);
 char	 *rvar(KINFO *, VARENT *);
 void	 showkey(void);
