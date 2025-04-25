@@ -1,0 +1,27 @@
+# #-- fast_reload_fwd.post --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# source the test var file when it's there
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+#
+# do your teardown here
+PRE="../.."
+. ../common.sh
+kill_pid $NS1_PID
+kill_pid $NS2_PID
+if test -f unbound.pid; then
+	if kill -0 $UNBOUND_PID >/dev/null 2>&1; then
+		kill_pid $UNBOUND_PID
+	fi
+fi
+rm -f $CONTROL_PATH/controlpipe.$CONTROL_PID
+echo
+echo "> ns1.log"
+cat ns1.log
+echo
+echo "> ns2.log"
+cat ns2.log
+echo
+echo "> unbound.log"
+cat unbound.log
+exit 0

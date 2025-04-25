@@ -2,6 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.56])
 sinclude(acx_nlnetlabs.m4)
+sinclude(ax_build_date_epoch.m4)
 sinclude(ax_pthread.m4)
 sinclude(acx_python.m4)
 sinclude(ax_pkg_swig.m4)
@@ -10,7 +11,7 @@ sinclude(dnscrypt/dnscrypt.m4)
 
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
-m4_define([VERSION_MINOR],[22])
+m4_define([VERSION_MINOR],[23])
 m4_define([VERSION_MICRO],[0])
 AC_INIT([unbound],m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]),[unbound-bugs@nlnetlabs.nl or https://github.com/NLnetLabs/unbound/issues],[unbound])
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
@@ -18,7 +19,7 @@ AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=9
-LIBUNBOUND_REVISION=30
+LIBUNBOUND_REVISION=31
 LIBUNBOUND_AGE=1
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -116,6 +117,7 @@ LIBUNBOUND_AGE=1
 # 1.21.0 had 9:28:1
 # 1.21.1 had 9:29:1
 # 1.22.0 had 9:30:1
+# 1.23.0 had 9:31:1
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -522,6 +524,7 @@ AC_CHECK_HEADERS([netioapi.h],,, [AC_INCLUDES_DEFAULT
 
 # Check for Linux timestamping headers
 AC_CHECK_HEADERS([linux/net_tstamp.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([stdatomic.h],,, [AC_INCLUDES_DEFAULT])
 
 # check for types.  
 # Using own tests for int64* because autoconf builtin only give 32bit.
@@ -907,7 +910,8 @@ if test "`uname`" = "Linux"; then
 	GCC_DOCKER_LINTFLAGS='-syntax'
 	AC_SUBST(GCC_DOCKER_LINTFLAGS)
 fi
-CONFIG_DATE=`date +%Y%m%d`
+AX_BUILD_DATE_EPOCH(CONFIG_DATE, [%Y%m%d])
+AC_ARG_VAR(SOURCE_DATE_EPOCH, [If it is set, it uses the value of that variable instead of the current time as the build timestamp. The format is a unix timestamp. This enables reproducible build output.])
 AC_SUBST(CONFIG_DATE)
 
 # Checks for libraries.
@@ -1814,6 +1818,25 @@ AC_CHECK_FUNCS([setresgid],,[AC_CHECK_FUNCS([setregid])])
 if echo $host_os | grep darwin8 > /dev/null; then
 	AC_DEFINE(DARWIN_BROKEN_SETREUID, 1, [Define this if on macOSX10.4-darwin8 and setreuid and setregid do not work])
 fi
+
+AC_MSG_CHECKING([for atomic_store])
+AC_LINK_IFELSE([AC_LANG_PROGRAM(AC_INCLUDES_DEFAULT [[
+#ifdef HAVE_STDATOMIC_H
+#include <stdatomic.h>
+#endif
+]], [[
+	int newvar = 5, var = 0;
+	atomic_store((_Atomic int*)&var, newvar);
+	newvar = 0;
+	/* condition to use the variables. */
+	if(var == newvar) return 1;
+]])], [
+	AC_MSG_RESULT(yes)
+	AC_DEFINE(HAVE_LINK_ATOMIC_STORE, 1, [If we have atomic_store])
+], [
+	AC_MSG_RESULT([no])
+])
+
 AC_CHECK_DECLS([inet_pton,inet_ntop], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_NETINET_IN_H
@@ -2434,7 +2457,8 @@ char *unbound_stat_strdup_log(const char *s, const char* file, int line,
 dnl if we build from source tree, the man pages need @date@ and @version@
 dnl if this is a distro tarball, that was already done by makedist.sh
 AC_SUBST(version, [VERSION_MAJOR.VERSION_MINOR.VERSION_MICRO])
-AC_SUBST(date, [`date +'%b %e, %Y'`])
+AX_BUILD_DATE_EPOCH(date, [[%b %e, %Y]])
+AC_SUBST(date)
 
 AC_CONFIG_FILES([Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8 doc/unbound-host.1 smallapp/unbound-control-setup.sh dnstap/dnstap_config.h dnscrypt/dnscrypt_config.h contrib/libunbound.pc contrib/unbound.socket contrib/unbound.service contrib/unbound_portable.service])
 AC_CONFIG_HEADERS([config.h])

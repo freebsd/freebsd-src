@@ -198,4 +198,13 @@ int hints_add_stub(struct iter_hints* hints, uint16_t c, struct delegpt* dp,
 void hints_delete_stub(struct iter_hints* hints, uint16_t c,
 	uint8_t* nm, int nolock);
 
+/**
+ * Swap internal tree with preallocated entries. Caller should manage
+ * the locks.
+ * @param hints: the hints data structure.
+ * @param data: the data structure used to take elements from. This contains
+ * 	the old elements on return.
+ */
+void hints_swap_tree(struct iter_hints* hints, struct iter_hints* data);
+
 #endif /* ITERATOR_ITER_HINTS_H */

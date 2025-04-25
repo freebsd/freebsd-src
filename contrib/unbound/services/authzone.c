@@ -107,7 +107,7 @@ static void xfr_probe_send_or_end(struct auth_xfer* xfr,
 static int xfr_start_probe(struct auth_xfer* xfr, struct module_env* env,
 	struct auth_master* spec);
 /** delete xfer structure (not its tree entry) */
-static void auth_xfer_delete(struct auth_xfer* xfr);
+void auth_xfer_delete(struct auth_xfer* xfr);
 
 /** create new dns_msg */
 static struct dns_msg*
@@ -1578,7 +1578,7 @@ auth_zone_read_zonefile(struct auth_zone* z, struct config_file* cfg)
 		cfg->chrootdir, strlen(cfg->chrootdir)) == 0)
 		zfilename += strlen(cfg->chrootdir);
 	if(verbosity >= VERB_ALGO) {
-		char nm[255+1];
+		char nm[LDNS_MAX_DOMAINLEN];
 		dname_str(z->name, nm);
 		verbose(VERB_ALGO, "read zonefile %s for %s", zfilename, nm);
 	}
@@ -1942,7 +1942,7 @@ static int auth_zone_zonemd_check_hash(struct auth_zone* z,
 					unsupported_reason = *reason;
 				/* continue to check for valid ZONEMD */
 				if(verbosity >= VERB_ALGO) {
-					char zstr[255+1];
+					char zstr[LDNS_MAX_DOMAINLEN];
 					dname_str(z->name, zstr);
 					verbose(VERB_ALGO, "auth-zone %s ZONEMD %d %d is unsupported: %s", zstr, (int)scheme, (int)hashalgo, *reason);
 				}
@@ -1950,7 +1950,7 @@ static int auth_zone_zonemd_check_hash(struct auth_zone* z,
 				continue;
 			}
 			if(verbosity >= VERB_ALGO) {
-				char zstr[255+1];
+				char zstr[LDNS_MAX_DOMAINLEN];
 				dname_str(z->name, zstr);
 				if(!*reason)
 					verbose(VERB_ALGO, "auth-zone %s ZONEMD hash is correct", zstr);
@@ -1973,7 +1973,7 @@ static int auth_zone_zonemd_check_hash(struct auth_zone* z,
 	if(!*reason)
 		*reason = "no ZONEMD records found";
 	if(verbosity >= VERB_ALGO) {
-		char zstr[255+1];
+		char zstr[LDNS_MAX_DOMAINLEN];
 		dname_str(z->name, zstr);
 		verbose(VERB_ALGO, "auth-zone %s ZONEMD failed: %s", zstr, *reason);
 	}
@@ -2317,10 +2317,7 @@ auth_free_masters(struct auth_master* list)
 	}
 }
 
-/** delete auth xfer structure
- * @param xfr: delete this xfer and its tasks.
- */
-static void
+void
 auth_xfer_delete(struct auth_xfer* xfr)
 {
 	if(!xfr) return;
@@ -3610,9 +3607,7 @@ int auth_zones_answer(struct auth_zones* az, struct module_env* env,
 			return 0;
 		}
 		lock_rw_unlock(&z->lock);
-		lock_rw_wrlock(&az->lock);
-		az->num_query_down++;
-		lock_rw_unlock(&az->lock);
+		env->mesh->num_query_authzone_down++;
 		auth_error_encode(qinfo, env, edns, repinfo, buf, temp,
 			LDNS_RCODE_SERVFAIL);
 		return 1;
@@ -3625,9 +3620,7 @@ int auth_zones_answer(struct auth_zones* az, struct module_env* env,
 		/* fallback to regular answering (recursive) */
 		return 0;
 	}
-	lock_rw_wrlock(&az->lock);
-	az->num_query_down++;
-	lock_rw_unlock(&az->lock);
+	env->mesh->num_query_authzone_down++;
 
 	/* encode answer */
 	if(!r)
@@ -4803,8 +4796,8 @@ log_rrlist_position(const char* label, struct auth_chunk* rr_chunk,
 {
 	sldns_buffer pkt;
 	size_t dlen;
-	uint8_t buf[256];
-	char str[256];
+	uint8_t buf[LDNS_MAX_DOMAINLEN];
+	char str[LDNS_MAX_DOMAINLEN];
 	char typestr[32];
 	sldns_buffer_init_frm_data(&pkt, rr_chunk->data, rr_chunk->len);
 	sldns_buffer_set_position(&pkt, (size_t)(rr_dname -
@@ -5231,7 +5224,7 @@ xfr_write_after_update(struct auth_xfer* xfr, struct module_env* env)
 		cfg->chrootdir, strlen(cfg->chrootdir)) == 0)
 		zfilename += strlen(cfg->chrootdir);
 	if(verbosity >= VERB_ALGO) {
-		char nm[255+1];
+		char nm[LDNS_MAX_DOMAINLEN];
 		dname_str(z->name, nm);
 		verbose(VERB_ALGO, "write zonefile %s for %s", zfilename, nm);
 	}
@@ -5348,7 +5341,7 @@ xfr_process_chunk_list(struct auth_xfer* xfr, struct module_env* env,
 	/* holding z lock */
 	auth_zone_verify_zonemd(z, env, &env->mesh->mods, NULL, 0, 0);
 	if(z->zone_expired) {
-		char zname[256];
+		char zname[LDNS_MAX_DOMAINLEN];
 		/* ZONEMD must have failed */
 		/* reacquire locks, so we hold xfr lock on exit of routine,
 		 * and both xfr and z again after releasing xfr for potential
@@ -5380,7 +5373,7 @@ xfr_process_chunk_list(struct auth_xfer* xfr, struct module_env* env,
 	lock_rw_unlock(&z->lock);
 
 	if(verbosity >= VERB_QUERY && xfr->have_zone) {
-		char zname[256];
+		char zname[LDNS_MAX_DOMAINLEN];
 		dname_str(xfr->name, zname);
 		verbose(VERB_QUERY, "auth zone %s updated to serial %u", zname,
 			(unsigned)xfr->serial);
@@ -5442,7 +5435,7 @@ xfr_transfer_lookup_host(struct auth_xfer* xfr, struct module_env* env)
 	qinfo.local_alias = NULL;
 	if(verbosity >= VERB_ALGO) {
 		char buf1[512];
-		char buf2[LDNS_MAX_DOMAINLEN+1];
+		char buf2[LDNS_MAX_DOMAINLEN];
 		dname_str(xfr->name, buf2);
 		snprintf(buf1, sizeof(buf1), "auth zone %s: master lookup"
 			" for task_transfer", buf2);
@@ -5498,7 +5491,7 @@ xfr_transfer_init_fetch(struct auth_xfer* xfr, struct module_env* env)
 			/* the ones that are not in addr format are supposed
 			 * to be looked up.  The lookup has failed however,
 			 * so skip them */
-			char zname[255+1];
+			char zname[LDNS_MAX_DOMAINLEN];
 			dname_str(xfr->name, zname);
 			log_err("%s: failed lookup, cannot transfer from master %s",
 				zname, master->host);
@@ -5537,7 +5530,7 @@ xfr_transfer_init_fetch(struct auth_xfer* xfr, struct module_env* env)
 			&addr, addrlen, -1, master->ssl, master->host,
 			master->file, env->cfg);
 		if(!xfr->task_transfer->cp) {
-			char zname[255+1], as[256];
+			char zname[LDNS_MAX_DOMAINLEN], as[256];
 			dname_str(xfr->name, zname);
 			addr_port_to_str(&addr, addrlen, as, sizeof(as));
 			verbose(VERB_ALGO, "cannot create http cp "
@@ -5546,7 +5539,7 @@ xfr_transfer_init_fetch(struct auth_xfer* xfr, struct module_env* env)
 		}
 		comm_timer_set(xfr->task_transfer->timer, &t);
 		if(verbosity >= VERB_ALGO) {
-			char zname[255+1], as[256];
+			char zname[LDNS_MAX_DOMAINLEN], as[256];
 			dname_str(xfr->name, zname);
 			addr_port_to_str(&addr, addrlen, as, sizeof(as));
 			verbose(VERB_ALGO, "auth zone %s transfer next HTTP fetch from %s started", zname, as);
@@ -5569,7 +5562,7 @@ xfr_transfer_init_fetch(struct auth_xfer* xfr, struct module_env* env)
 		env->scratch_buffer, -1,
 		auth_name != NULL, auth_name);
 	if(!xfr->task_transfer->cp) {
-		char zname[255+1], as[256];
+		char zname[LDNS_MAX_DOMAINLEN], as[256];
  		dname_str(xfr->name, zname);
 		addr_port_to_str(&addr, addrlen, as, sizeof(as));
 		verbose(VERB_ALGO, "cannot create tcp cp connection for "
@@ -5578,7 +5571,7 @@ xfr_transfer_init_fetch(struct auth_xfer* xfr, struct module_env* env)
 	}
 	comm_timer_set(xfr->task_transfer->timer, &t);
 	if(verbosity >= VERB_ALGO) {
-		char zname[255+1], as[256];
+		char zname[LDNS_MAX_DOMAINLEN], as[256];
  		dname_str(xfr->name, zname);
 		addr_port_to_str(&addr, addrlen, as, sizeof(as));
 		verbose(VERB_ALGO, "auth zone %s transfer next %s fetch from %s started", zname, 
@@ -5602,7 +5595,7 @@ xfr_transfer_nexttarget_or_end(struct auth_xfer* xfr, struct module_env* env)
 			 * and that calls the callback just like a full
 			 * lookup and lookup failures also call callback */
 			if(verbosity >= VERB_ALGO) {
-				char zname[255+1];
+				char zname[LDNS_MAX_DOMAINLEN];
 				dname_str(xfr->name, zname);
 				verbose(VERB_ALGO, "auth zone %s transfer next target lookup", zname);
 			}
@@ -5625,7 +5618,7 @@ xfr_transfer_nexttarget_or_end(struct auth_xfer* xfr, struct module_env* env)
 		xfr_transfer_nextmaster(xfr);
 	}
 	if(verbosity >= VERB_ALGO) {
-		char zname[255+1];
+		char zname[LDNS_MAX_DOMAINLEN];
 		dname_str(xfr->name, zname);
 		verbose(VERB_ALGO, "auth zone %s transfer failed, wait", zname);
 	}
@@ -5728,14 +5721,14 @@ void auth_xfer_transfer_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
 					lookup_target, answer, wanted_qtype);
 			} else {
 				if(verbosity >= VERB_ALGO) {
-					char zname[255+1];
+					char zname[LDNS_MAX_DOMAINLEN];
 					dname_str(xfr->name, zname);
 					verbose(VERB_ALGO, "auth zone %s host %s type %s transfer lookup has nodata", zname, xfr->task_transfer->lookup_target->host, (xfr->task_transfer->lookup_aaaa?"AAAA":"A"));
 				}
 			}
 		} else {
 			if(verbosity >= VERB_ALGO) {
-				char zname[255+1];
+				char zname[LDNS_MAX_DOMAINLEN];
 				dname_str(xfr->name, zname);
 				verbose(VERB_ALGO, "auth zone %s host %s type %s transfer lookup has no answer", zname, xfr->task_transfer->lookup_target->host, (xfr->task_transfer->lookup_aaaa?"AAAA":"A"));
 			}
@@ -5743,7 +5736,7 @@ void auth_xfer_transfer_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
 		regional_free_all(temp);
 	} else {
 		if(verbosity >= VERB_ALGO) {
-			char zname[255+1];
+			char zname[LDNS_MAX_DOMAINLEN];
 			dname_str(xfr->name, zname);
 			verbose(VERB_ALGO, "auth zone %s host %s type %s transfer lookup failed", zname, xfr->task_transfer->lookup_target->host, (xfr->task_transfer->lookup_aaaa?"AAAA":"A"));
 		}
@@ -6385,7 +6378,7 @@ xfr_probe_send_probe(struct auth_xfer* xfr, struct module_env* env,
 			/* the ones that are not in addr format are supposed
 			 * to be looked up.  The lookup has failed however,
 			 * so skip them */
-			char zname[255+1];
+			char zname[LDNS_MAX_DOMAINLEN];
 			dname_str(xfr->name, zname);
 			log_err("%s: failed lookup, cannot probe to master %s",
 				zname, master->host);
@@ -6427,7 +6420,7 @@ xfr_probe_send_probe(struct auth_xfer* xfr, struct module_env* env,
 		xfr->task_probe->cp = outnet_comm_point_for_udp(env->outnet,
 			auth_xfer_probe_udp_callback, xfr, &addr, addrlen);
 		if(!xfr->task_probe->cp) {
-			char zname[255+1], as[256];
+			char zname[LDNS_MAX_DOMAINLEN], as[256];
 			dname_str(xfr->name, zname);
 			addr_port_to_str(&addr, addrlen, as, sizeof(as));
 			verbose(VERB_ALGO, "cannot create udp cp for "
@@ -6447,7 +6440,7 @@ xfr_probe_send_probe(struct auth_xfer* xfr, struct module_env* env,
 	/* send udp packet */
 	if(!comm_point_send_udp_msg(xfr->task_probe->cp, env->scratch_buffer,
 		(struct sockaddr*)&addr, addrlen, 0)) {
-		char zname[255+1], as[256];
+		char zname[LDNS_MAX_DOMAINLEN], as[256];
 		dname_str(xfr->name, zname);
 		addr_port_to_str(&addr, addrlen, as, sizeof(as));
 		verbose(VERB_ALGO, "failed to send soa probe for %s to %s",
@@ -6455,7 +6448,7 @@ xfr_probe_send_probe(struct auth_xfer* xfr, struct module_env* env,
 		return 0;
 	}
 	if(verbosity >= VERB_ALGO) {
-		char zname[255+1], as[256];
+		char zname[LDNS_MAX_DOMAINLEN], as[256];
 		dname_str(xfr->name, zname);
 		addr_port_to_str(&addr, addrlen, as, sizeof(as));
 		verbose(VERB_ALGO, "auth zone %s soa probe sent to %s", zname,
@@ -6486,7 +6479,7 @@ auth_xfer_probe_timer_callback(void* arg)
 	}
 
 	if(verbosity >= VERB_ALGO) {
-		char zname[255+1];
+		char zname[LDNS_MAX_DOMAINLEN];
 		dname_str(xfr->name, zname);
 		verbose(VERB_ALGO, "auth zone %s soa probe timeout", zname);
 	}
@@ -6534,7 +6527,7 @@ auth_xfer_probe_udp_callback(struct comm_point* c, void* arg, int err,
 			&serial)) {
 			/* successful lookup */
 			if(verbosity >= VERB_ALGO) {
-				char buf[256];
+				char buf[LDNS_MAX_DOMAINLEN];
 				dname_str(xfr->name, buf);
 				verbose(VERB_ALGO, "auth zone %s: soa probe "
 					"serial is %u", buf, (unsigned)serial);
@@ -6573,14 +6566,14 @@ auth_xfer_probe_udp_callback(struct comm_point* c, void* arg, int err,
 			}
 		} else {
 			if(verbosity >= VERB_ALGO) {
-				char buf[256];
+				char buf[LDNS_MAX_DOMAINLEN];
 				dname_str(xfr->name, buf);
 				verbose(VERB_ALGO, "auth zone %s: bad reply to soa probe", buf);
 			}
 		}
 	} else {
 		if(verbosity >= VERB_ALGO) {
-			char buf[256];
+			char buf[LDNS_MAX_DOMAINLEN];
 			dname_str(xfr->name, buf);
 			verbose(VERB_ALGO, "auth zone %s: soa probe failed", buf);
 		}
@@ -6637,7 +6630,7 @@ xfr_probe_lookup_host(struct auth_xfer* xfr, struct module_env* env)
 	qinfo.local_alias = NULL;
 	if(verbosity >= VERB_ALGO) {
 		char buf1[512];
-		char buf2[LDNS_MAX_DOMAINLEN+1];
+		char buf2[LDNS_MAX_DOMAINLEN];
 		dname_str(xfr->name, buf2);
 		snprintf(buf1, sizeof(buf1), "auth zone %s: master lookup"
 			" for task_probe", buf2);
@@ -6683,7 +6676,7 @@ xfr_probe_send_or_end(struct auth_xfer* xfr, struct module_env* env)
 			 * and that calls the callback just like a full
 			 * lookup and lookup failures also call callback */
 			if(verbosity >= VERB_ALGO) {
-				char zname[255+1];
+				char zname[LDNS_MAX_DOMAINLEN];
 				dname_str(xfr->name, zname);
 				verbose(VERB_ALGO, "auth zone %s probe next target lookup", zname);
 			}
@@ -6696,7 +6689,7 @@ xfr_probe_send_or_end(struct auth_xfer* xfr, struct module_env* env)
 	 * allow_notify addrs */
 	probe_copy_masters_for_allow_notify(xfr);
 	if(verbosity >= VERB_ALGO) {
-		char zname[255+1];
+		char zname[LDNS_MAX_DOMAINLEN];
 		dname_str(xfr->name, zname);
 		verbose(VERB_ALGO, "auth zone %s probe: notify addrs updated", zname);
 	}
@@ -6704,7 +6697,7 @@ xfr_probe_send_or_end(struct auth_xfer* xfr, struct module_env* env)
 		/* only wanted lookups for copy, stop probe and start wait */
 		xfr->task_probe->only_lookup = 0;
 		if(verbosity >= VERB_ALGO) {
-			char zname[255+1];
+			char zname[LDNS_MAX_DOMAINLEN];
 			dname_str(xfr->name, zname);
 			verbose(VERB_ALGO, "auth zone %s probe: finished only_lookup", zname);
 		}
@@ -6730,7 +6723,7 @@ xfr_probe_send_or_end(struct auth_xfer* xfr, struct module_env* env)
 	if(xfr->task_probe->have_new_lease) {
 		/* if zone not updated, start the wait timer again */
 		if(verbosity >= VERB_ALGO) {
-			char zname[255+1];
+			char zname[LDNS_MAX_DOMAINLEN];
 			dname_str(xfr->name, zname);
 			verbose(VERB_ALGO, "auth_zone %s unchanged, new lease, wait", zname);
 		}
@@ -6741,7 +6734,7 @@ xfr_probe_send_or_end(struct auth_xfer* xfr, struct module_env* env)
 			xfr_set_timeout(xfr, env, 0, 0);
 	} else {
 		if(verbosity >= VERB_ALGO) {
-			char zname[255+1];
+			char zname[LDNS_MAX_DOMAINLEN];
 			dname_str(xfr->name, zname);
 			verbose(VERB_ALGO, "auth zone %s soa probe failed, wait to retry", zname);
 		}
@@ -6791,14 +6784,14 @@ void auth_xfer_probe_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
 					lookup_target, answer, wanted_qtype);
 			} else {
 				if(verbosity >= VERB_ALGO) {
-					char zname[255+1];
+					char zname[LDNS_MAX_DOMAINLEN];
 					dname_str(xfr->name, zname);
 					verbose(VERB_ALGO, "auth zone %s host %s type %s probe lookup has nodata", zname, xfr->task_probe->lookup_target->host, (xfr->task_probe->lookup_aaaa?"AAAA":"A"));
 				}
 			}
 		} else {
 			if(verbosity >= VERB_ALGO) {
-				char zname[255+1];
+				char zname[LDNS_MAX_DOMAINLEN];
 				dname_str(xfr->name, zname);
 				verbose(VERB_ALGO, "auth zone %s host %s type %s probe lookup has no address", zname, xfr->task_probe->lookup_target->host, (xfr->task_probe->lookup_aaaa?"AAAA":"A"));
 			}
@@ -6806,7 +6799,7 @@ void auth_xfer_probe_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
 		regional_free_all(temp);
 	} else {
 		if(verbosity >= VERB_ALGO) {
-			char zname[255+1];
+			char zname[LDNS_MAX_DOMAINLEN];
 			dname_str(xfr->name, zname);
 			verbose(VERB_ALGO, "auth zone %s host %s type %s probe lookup failed", zname, xfr->task_probe->lookup_target->host, (xfr->task_probe->lookup_aaaa?"AAAA":"A"));
 		}
@@ -6980,7 +6973,7 @@ xfr_set_timeout(struct auth_xfer* xfr, struct module_env* env,
 		if(!xfr->task_nextprobe->timer) {
 			/* failed to malloc memory. likely zone transfer
 			 * also fails for that. skip the timeout */
-			char zname[255+1];
+			char zname[LDNS_MAX_DOMAINLEN];
 			dname_str(xfr->name, zname);
 			log_err("cannot allocate timer, no refresh for %s",
 				zname);
@@ -7001,13 +6994,25 @@ xfr_set_timeout(struct auth_xfer* xfr, struct module_env* env,
 			xfr->task_probe->only_lookup = 1;
 	}
 	if(verbosity >= VERB_ALGO) {
-		char zname[255+1];
+		char zname[LDNS_MAX_DOMAINLEN];
 		dname_str(xfr->name, zname);
 		verbose(VERB_ALGO, "auth zone %s timeout in %d seconds",
 			zname, (int)tv.tv_sec);
 	}
 	tv.tv_usec = 0;
 	comm_timer_set(xfr->task_nextprobe->timer, &tv);
+}
+
+void auth_xfer_pickup_initial_zone(struct auth_xfer* x, struct module_env* env)
+{
+	/* set lease_time, because we now have timestamp in env,
+	 * (not earlier during startup and apply_cfg), and this
+	 * notes the start time when the data was acquired */
+	if(x->have_zone)
+		x->lease_time = *env->now;
+	if(x->task_nextprobe && x->task_nextprobe->worker == NULL) {
+		xfr_set_timeout(x, env, 0, 1);
+	}
 }
 
 /** initial pick up of worker timeouts, ties events to worker event loop */
@@ -7018,14 +7023,7 @@ auth_xfer_pickup_initial(struct auth_zones* az, struct module_env* env)
 	lock_rw_wrlock(&az->lock);
 	RBTREE_FOR(x, struct auth_xfer*, &az->xtree) {
 		lock_basic_lock(&x->lock);
-		/* set lease_time, because we now have timestamp in env,
-		 * (not earlier during startup and apply_cfg), and this
-		 * notes the start time when the data was acquired */
-		if(x->have_zone)
-			x->lease_time = *env->now;
-		if(x->task_nextprobe && x->task_nextprobe->worker == NULL) {
-			xfr_set_timeout(x, env, 0, 1);
-		}
+		auth_xfer_pickup_initial_zone(x, env);
 		lock_basic_unlock(&x->lock);
 	}
 	lock_rw_unlock(&az->lock);
@@ -7788,7 +7786,7 @@ static void auth_zone_log(uint8_t* name, enum verbosity_value level,
 	va_list args;
 	va_start(args, format);
 	if(verbosity >= level) {
-		char str[255+1];
+		char str[LDNS_MAX_DOMAINLEN];
 		char msg[MAXSYSLOGMSGLEN];
 		dname_str(name, str);
 		vsnprintf(msg, sizeof(msg), format, args);
@@ -7990,7 +7988,7 @@ static int zonemd_check_dnssec_soazonemd(struct auth_zone* z,
 static void auth_zone_zonemd_fail(struct auth_zone* z, struct module_env* env,
 	char* reason, char* why_bogus, char** result)
 {
-	char zstr[255+1];
+	char zstr[LDNS_MAX_DOMAINLEN];
 	/* if fail: log reason, and depending on config also take action
 	 * and drop the zone, eg. it is gone from memory, set zone_expired */
 	dname_str(z->name, zstr);
@@ -8436,7 +8434,7 @@ zonemd_lookup_dnskey(struct auth_zone* z, struct module_env* env)
 	qinfo.local_alias = NULL;
 	if(verbosity >= VERB_ALGO) {
 		char buf1[512];
-		char buf2[LDNS_MAX_DOMAINLEN+1];
+		char buf2[LDNS_MAX_DOMAINLEN];
 		dname_str(z->name, buf2);
 		snprintf(buf1, sizeof(buf1), "auth zone %s: lookup %s "
 			"for zonemd verification", buf2,
@@ -8583,4 +8581,162 @@ void auth_zones_pickup_zonemd_verify(struct auth_zones* az,
 			break;
 	}
 	lock_rw_unlock(&az->lock);
+}
+
+/** Get memory usage of auth rrset */
+static size_t
+auth_rrset_get_mem(struct auth_rrset* rrset)
+{
+	size_t m = sizeof(*rrset) + packed_rrset_sizeof(rrset->data);
+	return m;
+}
+
+/** Get memory usage of auth data */
+static size_t
+auth_data_get_mem(struct auth_data* node)
+{
+	size_t m = sizeof(*node) + node->namelen;
+	struct auth_rrset* rrset;
+	for(rrset = node->rrsets; rrset; rrset = rrset->next) {
+		m += auth_rrset_get_mem(rrset);
+	}
+	return m;
+}
+
+/** Get memory usage of auth zone */
+static size_t
+auth_zone_get_mem(struct auth_zone* z)
+{
+	size_t m = sizeof(*z) + z->namelen;
+	struct auth_data* node;
+	if(z->zonefile)
+		m += strlen(z->zonefile)+1;
+	RBTREE_FOR(node, struct auth_data*, &z->data) {
+		m += auth_data_get_mem(node);
+	}
+	if(z->rpz)
+		m += rpz_get_mem(z->rpz);
+	return m;
+}
+
+/** Get memory usage of list of auth addr */
+static size_t
+auth_addrs_get_mem(struct auth_addr* list)
+{
+	size_t m = 0;
+	struct auth_addr* a;
+	for(a = list; a; a = a->next) {
+		m += sizeof(*a);
+	}
+	return m;
+}
+
+/** Get memory usage of list of primaries for auth xfer */
+static size_t
+auth_primaries_get_mem(struct auth_master* list)
+{
+	size_t m = 0;
+	struct auth_master* n;
+	for(n = list; n; n = n->next) {
+		m += sizeof(*n);
+		m += auth_addrs_get_mem(n->list);
+		if(n->host)
+			m += strlen(n->host)+1;
+		if(n->file)
+			m += strlen(n->file)+1;
+	}
+	return m;
+}
+
+/** Get memory usage or list of auth chunks */
+static size_t
+auth_chunks_get_mem(struct auth_chunk* list)
+{
+	size_t m = 0;
+	struct auth_chunk* chunk;
+	for(chunk = list; chunk; chunk = chunk->next) {
+		m += sizeof(*chunk) + chunk->len;
+	}
+	return m;
+}
+
+/** Get memory usage of auth xfer */
+static size_t
+auth_xfer_get_mem(struct auth_xfer* xfr)
+{
+	size_t m = sizeof(*xfr) + xfr->namelen;
+
+	/* auth_nextprobe */
+	m += comm_timer_get_mem(xfr->task_nextprobe->timer);
+
+	/* auth_probe */
+	m += auth_primaries_get_mem(xfr->task_probe->masters);
+	m += comm_point_get_mem(xfr->task_probe->cp);
+	m += comm_timer_get_mem(xfr->task_probe->timer);
+
+	/* auth_transfer */
+	m += auth_chunks_get_mem(xfr->task_transfer->chunks_first);
+	m += auth_primaries_get_mem(xfr->task_transfer->masters);
+	m += comm_point_get_mem(xfr->task_transfer->cp);
+	m += comm_timer_get_mem(xfr->task_transfer->timer);
+
+	/* allow_notify_list */
+	m += auth_primaries_get_mem(xfr->allow_notify_list);
+
+	return m;
+}
+
+/** Get memory usage of auth zones ztree */
+static size_t
+az_ztree_get_mem(struct auth_zones* az)
+{
+	size_t m = 0;
+	struct auth_zone* z;
+	RBTREE_FOR(z, struct auth_zone*, &az->ztree) {
+		lock_rw_rdlock(&z->lock);
+		m += auth_zone_get_mem(z);
+		lock_rw_unlock(&z->lock);
+	}
+	return m;
+}
+
+/** Get memory usage of auth zones xtree */
+static size_t
+az_xtree_get_mem(struct auth_zones* az)
+{
+	size_t m = 0;
+	struct auth_xfer* xfr;
+	RBTREE_FOR(xfr, struct auth_xfer*, &az->xtree) {
+		lock_basic_lock(&xfr->lock);
+		m += auth_xfer_get_mem(xfr);
+		lock_basic_unlock(&xfr->lock);
+	}
+	return m;
+}
+
+size_t auth_zones_get_mem(struct auth_zones* zones)
+{
+	size_t m;
+	if(!zones) return 0;
+	m = sizeof(*zones);
+	lock_rw_rdlock(&zones->rpz_lock);
+	lock_rw_rdlock(&zones->lock);
+	m += az_ztree_get_mem(zones);
+	m += az_xtree_get_mem(zones);
+	lock_rw_unlock(&zones->lock);
+	lock_rw_unlock(&zones->rpz_lock);
+	return m;
+}
+
+void xfr_disown_tasks(struct auth_xfer* xfr, struct worker* worker)
+{
+	if(xfr->task_nextprobe->worker == worker) {
+		xfr_nextprobe_disown(xfr);
+	}
+	if(xfr->task_probe->worker == worker) {
+		xfr_probe_disown(xfr);
+	}
+	if(xfr->task_transfer->worker == worker) {
+		xfr_transfer_disown(xfr);
+	}
 }

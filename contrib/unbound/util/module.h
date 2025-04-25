@@ -177,6 +177,7 @@ struct val_anchors;
 struct val_neg_cache;
 struct iter_forwards;
 struct iter_hints;
+struct views;
 struct respip_set;
 struct respip_client_info;
 struct respip_addr_info;
@@ -524,6 +525,10 @@ struct module_env {
 	 * data structure. 
 	 */
 	struct iter_hints* hints;
+	/** views structure containing view tree */
+	struct views* views;
+	/** response-ip set with associated actions and tags. */
+	struct respip_set* respip_set;
 	/** module specific data. indexed by module id. */
 	void* modinfo[MAX_MODULE];
 

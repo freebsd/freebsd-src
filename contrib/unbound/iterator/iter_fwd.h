@@ -234,4 +234,13 @@ int forwards_add_stub_hole(struct iter_forwards* fwd, uint16_t c,
 void forwards_delete_stub_hole(struct iter_forwards* fwd, uint16_t c,
 	uint8_t* nm, int nolock);
 
+/**
+ * Swap internal tree with preallocated entries. Caller should manage
+ * the locks.
+ * @param fwd: the forward data structure.
+ * @param data: the data structure used to take elements from. This contains
+ * 	the old elements on return.
+ */
+void forwards_swap_tree(struct iter_forwards* fwd, struct iter_forwards* data);
+
 #endif /* ITERATOR_ITER_FWD_H */

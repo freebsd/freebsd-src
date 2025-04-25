@@ -136,6 +136,29 @@ edns_string_addr_lookup(rbtree_type* tree, struct sockaddr_storage* addr,
 	return (struct edns_string_addr*)addr_tree_lookup(tree, addr, addrlen);
 }
 
+size_t
+edns_strings_get_mem(struct edns_strings* edns_strings)
+{
+	if(!edns_strings) return 0;
+	return regional_get_mem(edns_strings->region) + sizeof(*edns_strings);
+}
+
+void
+edns_strings_swap_tree(struct edns_strings* edns_strings,
+	struct edns_strings* data)
+{
+	rbtree_type tree = edns_strings->client_strings;
+	uint16_t opcode = edns_strings->client_string_opcode;
+	struct regional* region = edns_strings->region;
+
+	edns_strings->client_strings = data->client_strings;
+	edns_strings->client_string_opcode = data->client_string_opcode;
+	edns_strings->region = data->region;
+	data->client_strings = tree;
+	data->client_string_opcode = opcode;
+	data->region = region;
+}
+
 uint8_t*
 edns_cookie_server_hash(const uint8_t* in, const uint8_t* secret, int v4,
 	uint8_t* hash)

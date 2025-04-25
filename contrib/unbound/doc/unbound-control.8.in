@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Oct 17, 2024" "NLnet Labs" "unbound 1.22.0"
+.TH "unbound-control" "8" "Apr 24, 2025" "NLnet Labs" "unbound 1.23.0"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -59,6 +59,155 @@ Reload the server but try to keep the RRset and message cache if
 (re)configuration allows for it.
 That means the caches sizes and the number of threads must not change between
 reloads.
+.TP
+.B fast_reload \fR[\fI+dpv\fR]
+Reload the server, but keep downtime to a minimum, so that user queries
+keep seeing service. This needs the code compiled with threads. The config
+is loaded in a thread, and prepared, then it briefly pauses the existing
+server and updates config options. The intent is that the pause does not
+impact the service of user queries. The cache is kept. Also user queries
+worked on are kept and continue, but with the new config options.
+.IP
+This command is experimental at this time.
+.IP
+The amount of temporal memory needed during a fast_reload is twice the
+amount needed for configuration.
+This is because Unbound temporarily needs to store both current configuration
+values and new ones while trying to fast_reload.
+Zones loaded from disk (authority zones and RPZ zones) are included in such
+memory needs.
+.IP
+Options that can be changed are for
+forwards,
+stubs,
+views,
+authority zones,
+RPZ zones and
+local zones.
+.IP
+Also
+access-control and similar options,
+interface-action and similar options and
+tcp-connection-limit.
+It can reload some
+define-tag
+changes, more on that below.
+Further options include
+insecure-lan-zones,
+domain-insecure,
+trust-anchor-file,
+trust-anchor,
+trusted-keys-file,
+auto-trust-anchor-file,
+edns-client-string,
+ipset,
+log-identity,
+infra-cache-numhosts,
+msg-cache-size,
+rrset-cache-size,
+key-cache-size,
+ratelimit-size,
+neg-cache-size,
+num-queries-per-thread,
+jostle-timeout,
+use-caps-for-id,
+unwanted-reply-threshold,
+tls-use-sni,
+outgoing-tcp-mss,
+ip-dscp,
+max-reuse-tcp-queries,
+tcp-reuse-timeout,
+tcp-auth-query-timeout,
+delay-close.
+.IP
+It does not work with
+interface and
+outgoing-interface changes,
+also not with
+remote control,
+outgoing-port-permit,
+outgoing-port-avoid,
+msg-buffer-size,
+any **\*-slabs** options and
+statistics-interval changes.
+.IP
+For dnstap these options can be changed:
+dnstap-log-resolver-query-messages,
+dnstap-log-resolver-response-messages,
+dnstap-log-client-query-messages,
+dnstap-log-client-response-messages,
+dnstap-log-forwarder-query-messages and
+dnstap-log-forwarder-response-messages.
+.IP
+It does not work with these options:
+dnstap-enable,
+dnstap-bidirectional,
+dnstap-socket-path,
+dnstap-ip,
+dnstap-tls,
+dnstap-tls-server-name,
+dnstap-tls-cert-bundle,
+dnstap-tls-client-key-file and
+dnstap-tls-client-cert-file.
+.IP
+The options
+dnstap-send-identity,
+dnstap-send-version,
+dnstap-identity, and
+dnstap-version can be loaded
+when ``+p`` is not used.
+.IP
+The '+v' option makes the output verbose which includes the time it took to do
+the reload.
+With '+vv' it is more verbose which includes the amount of memory that was
+allocated temporarily to perform the reload; this amount of memory can be big
+if the config has large contents.
+In the timing output the 'reload' time is the time during which the server was
+paused.
+.IP
+The '+p' option makes the reload not pause threads, they keep running.
+Locks are acquired, but items are updated in sequence, so it is possible
+for threads to see an inconsistent state with some options from the old
+and some options from the new config, such as cache TTL parameters from the
+old config and forwards from the new config. The stubs and forwards are
+updated at the same time, so that they are viewed consistently, either old
+or new values together. The option makes the reload time take eg. 3
+microseconds instead of 0.3 milliseconds during which the worker threads are
+interrupted. So, the interruption is much shorter, at the expense of some
+inconsistency. After the reload itself, every worker thread is briefly
+contacted to make them release resources, this makes the delete timing
+a little longer, and takes up time from the remote control servicing
+worker thread.
+.IP
+With the nopause option, the reload does not work to reload some options,
+that fast reload works on without the nopause option: val-bogus-ttl,
+val-override-date, val-sig-skew-min, val-sig-skew-max, val-max-restart,
+val-nsec3-keysize-iterations, target-fetch-policy, outbound-msg-retry,
+max-sent-count, max-query-restarts, do-not-query-address,
+do-not-query-localhost, private-address, private-domain, caps-exempt,
+nat64-prefix, do-nat64, infra-host-ttl, infra-keep-probing, ratelimit,
+ip-ratelimit, ip-ratelimit-cookie, wait-limit-netblock,
+wait-limit-cookie-netblock, ratelimit-below-domain, ratelimit-for-domain.
+.IP
+The '+d' option makes the reload drop queries that the worker threads are
+working on. This is like flush_requestlist. Without it the queries are kept
+so that users keep getting answers for those queries that are currently
+processed. The drop makes it so that queries during the life time of the
+query processing see only old, or only new config options.
+.IP
+When there are changes to the config tags, from the \fBdefine\-tag\fR option,
+then the '+d' option is implicitly turned on with a warning printout, and
+queries are dropped.
+This is to stop references to the old tag information, by the old
+queries. If the number of tags is increased in the newly loaded config, by
+adding tags at the end, then the implicit '+d' option is not needed.
+.IP
+For response ip, that is actions associated with IP addresses, and perhaps
+intersected with access control tag and action information, those settings
+are stored with a query when it comes in based on its source IP address.
+The old information is kept with the query until the queries are done.
+This is gone when those queries are resolved and finished, or it is possible
+to flush the requestlist with '+d'.
 .TP
 .B verbosity \fInumber
 Change verbosity value for logging. Same values as \fBverbosity\fR keyword in
@@ -422,6 +571,12 @@ number of queries with a client part only DNS Cookie by thread
 .I threadX.num.queries_cookie_invalid
 number of queries with an invalid DNS Cookie by thread
 .TP
+.I threadX.num.queries_discard_timeout
+number of queries removed due to discard-timeout by thread
+.TP
+.I threadX.num.queries_wait_limit
+number of queries removed due to wait-limit by thread
+.TP
 .I threadX.num.cachehits
 number of queries that were successfully answered using a cache lookup
 .TP
@@ -440,6 +595,9 @@ request for certificates.
 .TP
 .I threadX.num.dnscrypt.malformed
 number of request that were neither cleartext, not valid dnscrypt messages.
+.TP
+.I threadX.num.dns_error_reports
+number of DNS Error Reports generated by thread
 .TP
 .I threadX.num.prefetch
 number of cache prefetches performed.  This number is included in
@@ -511,6 +669,12 @@ summed over threads.
 .I total.num.queries_cookie_invalid
 summed over threads.
 .TP
+.I total.num.queries_discard_timeout
+summed over threads.
+.TP
+.I total.num.queries_wait_limit
+summed over threads.
+.TP
 .I total.num.cachehits
 summed over threads.
 .TP
@@ -527,6 +691,9 @@ summed over threads.
 summed over threads.
 .TP
 .I total.num.dnscrypt.malformed
+summed over threads.
+.TP
+.I total.num.dns_error_reports
 summed over threads.
 .TP
 .I total.num.prefetch

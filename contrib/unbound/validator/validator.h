@@ -52,6 +52,7 @@ struct key_entry_key;
 struct val_neg_cache;
 struct config_strlist;
 struct comm_timer;
+struct config_file;
 
 /**
  * This is the TTL to use when a trust anchor fails to prime. A trust anchor
@@ -279,5 +280,27 @@ size_t val_get_mem(struct module_env* env, int id);
 
 /** Timer callback for msg signatures continue timer */
 void validate_suspend_timer_cb(void* arg);
+
+/**
+ * Parse the val_nsec3_key_iterations string.
+ * @param val_nsec3_key_iterations: the string with nsec3 iterations config.
+ * @param keysize: returns malloced key size array on success.
+ * @param maxiter: returns malloced max iterations array on success.
+ * @param keyiter_count: returns size of keysize and maxiter arrays.
+ * @return false if it does not parse correctly.
+ */
+int val_env_parse_key_iter(char* val_nsec3_key_iterations, size_t** keysize,
+	size_t** maxiter, int* keyiter_count);
+
+/**
+ * Apply config to validator env
+ * @param val_env: validator env.
+ * @param cfg: config
+ * @param keysize: nsec3 key size array.
+ * @param maxiter: nsec3 max iterations array.
+ * @param keyiter_count: size of keysize and maxiter arrays.
+ */
+void val_env_apply_cfg(struct val_env* val_env, struct config_file* cfg,
+	size_t* keysize, size_t* maxiter, int keyiter_count);
 
 #endif /* VALIDATOR_VALIDATOR_H */

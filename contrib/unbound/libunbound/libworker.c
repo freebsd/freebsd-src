@@ -423,7 +423,7 @@ int libworker_bg(struct ub_ctx* ctx)
 static int
 fill_canon(struct ub_result* res, uint8_t* s)
 {
-	char buf[255+2];
+	char buf[LDNS_MAX_DOMAINLEN];
 	dname_str(s, buf);
 	res->canonname = strdup(buf);
 	return res->canonname != 0;
@@ -1058,6 +1058,20 @@ void dtio_mainfdcallback(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
 	log_assert(0);
 }
 #endif
+
+void fast_reload_service_cb(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
+	void* ATTR_UNUSED(arg))
+{
+	log_assert(0);
+}
+
+int fast_reload_client_callback(struct comm_point* ATTR_UNUSED(c),
+	void* ATTR_UNUSED(arg), int ATTR_UNUSED(error),
+        struct comm_reply* ATTR_UNUSED(repinfo))
+{
+	log_assert(0);
+	return 0;
+}
 
 #ifdef HAVE_NGTCP2
 void doq_client_event_cb(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
