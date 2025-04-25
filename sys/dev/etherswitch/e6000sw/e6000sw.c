@@ -89,6 +89,7 @@ typedef struct e6000sw_softc {
 	device_t		miibus[E6000SW_MAX_PORTS];
 	struct taskqueue	*sc_tq;
 	struct timeout_task	sc_tt;
+	bool			is_shutdown;
 
 	int			vlans[E6000SW_NUM_VLANS];
 	uint32_t		swid;
@@ -851,12 +852,17 @@ e6000sw_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	E6000SW_LOCK(sc);
+	sc->is_shutdown = true;
+	if (sc->sc_tq != NULL) {
+		while (taskqueue_cancel_timeout(sc->sc_tq, &sc->sc_tt, NULL) != 0)
+			taskqueue_drain_timeout(sc->sc_tq, &sc->sc_tt);
+	}
+	E6000SW_UNLOCK(sc);
+
 	error = bus_generic_detach(dev);
 	if (error != 0)
 		return (error);
-
-	if (device_is_attached(dev))
-		taskqueue_drain_timeout(sc->sc_tq, &sc->sc_tt);
 
 	if (sc->sc_tq != NULL)
 		taskqueue_free(sc->sc_tq);
@@ -1584,6 +1590,12 @@ e6000sw_tick(void *arg, int p __unused)
 	E6000SW_LOCK_ASSERT(sc, SA_UNLOCKED);
 
 	E6000SW_LOCK(sc);
+
+	if (sc->is_shutdown) {
+		E6000SW_UNLOCK(sc);
+		return;
+	}
+
 	for (port = 0; port < sc->num_ports; port++) {
 		/* Tick only on PHY ports */
 		if (!e6000sw_is_portenabled(sc, port) ||
