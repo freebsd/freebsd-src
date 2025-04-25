@@ -171,3 +171,17 @@ if [ -e "$f" ]; then
 		run rm -f "$p"/*.inc
 	fi
 fi
+
+# 20250425  2e47f35be5dc    libllvm, libclang and liblldb became shared libraries
+if [ -f "$OBJTOP"/lib/clang/libllvm/libllvm.a ]; then
+	echo "Removing old static libllvm library"
+        run rm -f "$OBJTOP"/lib/clang/libllvm/libllvm.a
+fi
+if [ -f "$OBJTOP"/lib/clang/libclang/libclang.a ]; then
+	echo "Removing old static libclang library"
+        run rm -f "$OBJTOP"/lib/clang/libclang/libclang.a
+fi
+if [ -f "$OBJTOP"/lib/clang/liblldb/liblldb.a ]; then
+	echo "Removing old static liblldb library"
+        run rm -f "$OBJTOP"/lib/clang/liblldb/liblldb.a
+fi
