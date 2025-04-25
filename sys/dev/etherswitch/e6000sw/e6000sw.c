@@ -1613,6 +1613,17 @@ e6000sw_tick(void *arg, int p __unused)
 		    &mii->mii_media_status, &mii->mii_media_active);
 
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
+			/*
+			 * Note: this is sometimes NULL during PHY
+			 * enumeration, although that shouldn't be
+			 * happening /after/ tick runs. To work
+			 * around this whilst the problem is being
+			 * debugged, just do a NULL check here and
+			 * continue.
+			 */
+			if (mii->mii_media.ifm_cur == NULL)
+				continue;
+
 			if (IFM_INST(mii->mii_media.ifm_cur->ifm_media)
 			    != miisc->mii_inst)
 				continue;
@@ -1620,6 +1631,7 @@ e6000sw_tick(void *arg, int p __unused)
 		}
 	}
 	E6000SW_UNLOCK(sc);
+	taskqueue_enqueue_timeout(sc->sc_tq, &sc->sc_tt, hz);
 }
 
 static void
