@@ -76,10 +76,10 @@ dsps (NVLIST ARRAY): 1
 		unit (NUMBER): 0
 		status (STRING): on hdaa0
 		bitperfect (BOOL): FALSE
-		pvchan (NUMBER): 1
+		pvchan (BOOL): TRUE
 		pvchanrate (NUMBER): 48000
 		pvchanformat (NUMBER): 0x00000010
-		rvchan (NUMBER): 0
+		rvchan (BOOL): TRUE
 		rvchanrate (NUMBER): 48000
 		rvchanformat (NUMBER): 0x00000010
 		channel_info (NVLIST_ARRAY): 1
@@ -181,13 +181,13 @@ Usually reports the driver the device is attached on.
 .It Dv bitperfect
 Whether the sound card has bit-perfect mode enabled.
 .It Dv pvchan
-Number of playback virtual channels.
+Playback virtual channels enabled.
 .It Dv pvchanrate
 Playback virtual channel sample rate.
 .It Dv pvchanformat
 Playback virtual channel format.
 .It Dv rvchan
-Number of recording virtual channels.
+Recording virtual channels enabled.
 .It Dv rvchanrate
 Recording virtual channel sample rate.
 .It Dv rvchanformat
