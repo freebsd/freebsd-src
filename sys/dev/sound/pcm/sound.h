@@ -121,9 +121,6 @@ struct snd_mixer;
 #define SD_F_EQ_MASK		(SD_F_EQ | SD_F_EQ_ENABLED |		\
 				 SD_F_EQ_BYPASSED | SD_F_EQ_PC)
 
-#define SD_F_PRIO_RD		0x10000000
-#define SD_F_PRIO_WR		0x20000000
-
 #define SD_F_BITS		"\020"					\
 				"\001SIMPLEX"				\
 				/* "\002 */				\
@@ -138,9 +135,7 @@ struct snd_mixer;
 				"\013EQ_BYPASSED"			\
 				"\014EQ_PC"				\
 				"\015PVCHANS"				\
-				"\016RVCHANS"				\
-				"\035PRIO_RD"				\
-				"\036PRIO_WR"
+				"\016RVCHANS"
 
 #define PCM_ALIVE(x)		((x) != NULL && (x)->lock != NULL)
 #define PCM_REGISTERED(x)	(PCM_ALIVE(x) && ((x)->flags & SD_F_REGISTERED))
