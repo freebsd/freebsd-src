@@ -634,10 +634,10 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 		 * XXX process data frames whilst scanning.
 		 */
 		if ((! IEEE80211_IS_MULTICAST(wh->i_addr1))
-		    && (! IEEE80211_ADDR_EQ(wh->i_addr1, IF_LLADDR(ifp)))) {
+		    && (! IEEE80211_ADDR_EQ(wh->i_addr1, vap->iv_myaddr))) {
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 			    bssid, NULL, "not to cur sta: lladdr=%6D, addr1=%6D",
-			    IF_LLADDR(ifp), ":", wh->i_addr1, ":");
+			    vap->iv_myaddr, ":", wh->i_addr1, ":");
 			vap->iv_stats.is_rx_wrongbss++;
 			goto out;
 		}
