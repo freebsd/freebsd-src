@@ -2,7 +2,7 @@
 ---
 -- SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 --
--- Copyright(c) 2022 Baptiste Daroussin <bapt@FreeBSD.org>
+-- Copyright(c) 2022-2025 Baptiste Daroussin <bapt@FreeBSD.org>
 
 local nuage = require("nuage")
 local ucl = require("ucl")
@@ -359,6 +359,10 @@ if line == "#cloud-config" then
 		end
 		nuage.update_sshd_config("PasswordAuthentication", value)
 	end
+	if obj.chpasswd ~= nil then
+		nuage.chpasswd(obj.chpasswd)
+	end
+
 else
 	local res, err = os.execute(path .. "/" .. ud)
 	if not res then

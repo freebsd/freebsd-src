@@ -20,6 +20,9 @@ atf_test_case config2_network
 atf_test_case config2_network_static_v4
 atf_test_case config2_ssh_keys
 atf_test_case nocloud_userdata_cloudconfig_ssh_pwauth
+atf_test_case nocloud_userdata_cloudconfig_chpasswd
+atf_test_case nocloud_userdata_cloudconfig_chpasswd_list_string
+atf_test_case nocloud_userdata_cloudconfig_chpasswd_list_list
 
 args_body()
 {
@@ -512,6 +515,175 @@ EOF
 	atf_check -o inline:"PasswordAuthentication no\n" cat etc/ssh/sshd_config
 }
 
+nocloud_userdata_cloudconfig_chpasswd_head()
+{
+	atf_set "require.user" root
+}
+nocloud_userdata_cloudconfig_chpasswd_body()
+{
+	mkdir -p etc
+	cat > etc/master.passwd << EOF
+root:*:0:0::0:0:Charlie &:/root:/bin/sh
+sys:*:1:0::0:0:Sys:/home/sys:/bin/sh
+user:*:1:0::0:0:Sys:/home/sys:/bin/sh
+EOF
+	pwd_mkdb -d etc "${PWD}"/etc/master.passwd
+	cat > etc/group << EOF
+wheel:*:0:root
+users:*:1:
+EOF
+	mkdir -p media/nuageinit
+	printf "instance-id: iid-local01\n" > "${PWD}"/media/nuageinit/meta-data
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+chpasswd:
+  expire: true
+  users:
+  - { user: "sys", password: RANDOM }
+EOF
+
+	atf_check -o empty -e inline:"nuageinit: Invalid entry for chpasswd.users: missing 'name'\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	# nothing modified
+	atf_check -o inline:"sys:*:1:0::0:0:Sys:/home/sys:/bin/sh\n" pw -R $(pwd) usershow sys
+
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+chpasswd:
+  expire: true
+  users:
+  - { name: "sys", pwd: RANDOM }
+EOF
+	atf_check -o empty -e inline:"nuageinit: Invalid entry for chpasswd.users: missing 'password'\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	# nothing modified
+	atf_check -o inline:"sys:*:1:0::0:0:Sys:/home/sys:/bin/sh\n" pw -R $(pwd) usershow sys
+
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+chpasswd:
+  expire: false
+  users:
+  - { name: "sys", password: RANDOM }
+EOF
+	# not empty because the password is printed to stdout
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o match:'sys:\$.*:1:0::0:0:Sys:/home/sys:/bin/sh$' pw -R $(pwd) usershow sys
+
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+chpasswd:
+  expire: true
+  users:
+  - { name: "sys", password: RANDOM }
+EOF
+	# not empty because the password is printed to stdout
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o match:'sys:\$.*:1:0::1:0:Sys:/home/sys:/bin/sh$' pw -R $(pwd) usershow sys
+
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+chpasswd:
+  expire: true
+  users:
+  - { name: "user", password: "$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/" }
+EOF
+	# not empty because the password is printed to stdout
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o inline:'user:$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/:1:0::1:0:Sys:/home/sys:/bin/sh\n' pw -R $(pwd) usershow user
+}
+
+
+nocloud_userdata_cloudconfig_chpasswd_list_string_head()
+{
+	atf_set "require.user" root
+}
+nocloud_userdata_cloudconfig_chpasswd_list_string_body()
+{
+	mkdir -p etc
+	cat > etc/master.passwd << EOF
+root:*:0:0::0:0:Charlie &:/root:/bin/sh
+sys:*:1:0::0:0:Sys:/home/sys:/bin/sh
+user:*:1:0::0:0:Sys:/home/sys:/bin/sh
+EOF
+	pwd_mkdb -d etc "${PWD}"/etc/master.passwd
+	cat > etc/group << EOF
+wheel:*:0:root
+users:*:1:
+EOF
+	mkdir -p media/nuageinit
+	printf "instance-id: iid-local01\n" > "${PWD}"/media/nuageinit/meta-data
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+chpasswd:
+  expire: true
+  list: |
+     sys:RANDOM
+EOF
+
+	atf_check -o empty -e inline:"nuageinit: chpasswd.list is deprecated consider using chpasswd.users\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o match:'sys:\$.*:1:0::1:0:Sys:/home/sys:/bin/sh$' pw -R $(pwd) usershow sys
+
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+chpasswd:
+  expire: false
+  list: |
+     sys:plop
+     user:$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
+     root:R
+EOF
+
+	atf_check -o empty -e ignore /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o match:'sys:\$.*:1:0::0:0:Sys:/home/sys:/bin/sh$' pw -R $(pwd) usershow sys
+	atf_check -o inline:'user:$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/:1:0::0:0:Sys:/home/sys:/bin/sh\n' pw -R $(pwd) usershow user
+	atf_check -o match:'root:\$.*:0:0::0:0:Charlie &:/root:/bin/sh$' pw -R $(pwd) usershow root
+}
+
+nocloud_userdata_cloudconfig_chpasswd_list_list_head()
+{
+	atf_set "require.user" root
+}
+nocloud_userdata_cloudconfig_chpasswd_list_list_body()
+{
+	mkdir -p etc
+	cat > etc/master.passwd << EOF
+root:*:0:0::0:0:Charlie &:/root:/bin/sh
+sys:*:1:0::0:0:Sys:/home/sys:/bin/sh
+user:*:1:0::0:0:Sys:/home/sys:/bin/sh
+EOF
+	pwd_mkdb -d etc "${PWD}"/etc/master.passwd
+	cat > etc/group << EOF
+wheel:*:0:root
+users:*:1:
+EOF
+	mkdir -p media/nuageinit
+	printf "instance-id: iid-local01\n" > "${PWD}"/media/nuageinit/meta-data
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+chpasswd:
+  expire: true
+  list:
+  - sys:RANDOM
+EOF
+
+	atf_check -o empty -e inline:"nuageinit: chpasswd.list is deprecated consider using chpasswd.users\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o match:'sys:\$.*:1:0::1:0:Sys:/home/sys:/bin/sh$' pw -R $(pwd) usershow sys
+
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+chpasswd:
+  expire: false
+  list:
+  - sys:plop
+  - user:$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
+  - root:R
+EOF
+
+	atf_check -o empty -e ignore /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o match:'sys:\$.*:1:0::0:0:Sys:/home/sys:/bin/sh$' pw -R $(pwd) usershow sys
+	atf_check -o inline:'user:$6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/:1:0::0:0:Sys:/home/sys:/bin/sh\n' pw -R $(pwd) usershow user
+	atf_check -o match:'root:\$.*:0:0::0:0:Charlie &:/root:/bin/sh$' pw -R $(pwd) usershow root
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case args
@@ -528,4 +700,7 @@ atf_init_test_cases()
 	atf_add_test_case config2_network_static_v4
 	atf_add_test_case config2_ssh_keys
 	atf_add_test_case nocloud_userdata_cloudconfig_ssh_pwauth
+	atf_add_test_case nocloud_userdata_cloudconfig_chpasswd
+	atf_add_test_case nocloud_userdata_cloudconfig_chpasswd_list_string
+	atf_add_test_case nocloud_userdata_cloudconfig_chpasswd_list_list
 }
