@@ -98,12 +98,14 @@ dsps (NVLIST ARRAY): 1
 			left_volume (NUMBER): 45
 			right_volume (NUMBER): 45
 			hwbuf_fmt (NUMBER): 0x200010
+			hwbuf_rate (NUMBER): 48000
 			hwbuf_size (NUMBER): 0
 			hwbuf_blksz (NUMBER): 0
 			hwbuf_blkcnt (NUMBER): 0
 			hwbuf_free (NUMBER): 0
 			hwbuf_ready (NUMBER): 0
 			swbuf_fmt (NUMBER): 0x201000
+			swbuf_rate (NUMBER): 48000
 			swbuf_size (NUMBER): 16384
 			swbuf_blksz (NUMBER): 2048
 			swbuf_blkcnt (NUMBER): 8
@@ -226,6 +228,8 @@ Left volume.
 Right volume.
 .It Dv hwbuf_format
 Hardware buffer format.
+.It Dv hwbuf_rate
+Hardware buffer sample rate;
 .It Dv hwbuf_size
 Hardware buffer size.
 .It Dv hwbuf_blksz
@@ -238,6 +242,8 @@ Free space in hardware buffer (in bytes).
 Number of bytes ready to be read/written from hardware buffer.
 .It Dv swbuf_format
 Software buffer format.
+.It Dv swbuf_rate
+Software buffer sample rate;
 .It Dv swbuf_size
 Software buffer size.
 .It Dv swbuf_blksz
