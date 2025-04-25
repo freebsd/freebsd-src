@@ -46,6 +46,13 @@
 #include "util/log.h"
 #include "util/netevent.h"
 #include "util/tube.h"
+#include "daemon/remote.h"
+#ifdef USE_DNSTAP
+#include "dnstap/dtstream.h"
+#endif
+#ifdef UB_ON_WINDOWS
+#include "winrc/win_svc.h"
+#endif
 
 /* We define libevent structures here to hide the libevent stuff. */
 
@@ -95,9 +102,29 @@ UB_EV_BITS_CB(comm_timer_callback)
 UB_EV_BITS_CB(comm_signal_callback)
 UB_EV_BITS_CB(comm_point_local_handle_callback)
 UB_EV_BITS_CB(comm_point_raw_handle_callback)
-UB_EV_BITS_CB(comm_point_http_handle_callback)
 UB_EV_BITS_CB(tube_handle_signal)
 UB_EV_BITS_CB(comm_base_handle_slow_accept)
+UB_EV_BITS_CB(comm_point_http_handle_callback)
+#ifdef HAVE_NGTCP2
+UB_EV_BITS_CB(comm_point_doq_callback)
+#endif
+UB_EV_BITS_CB(fast_reload_service_cb)
+#ifdef USE_DNSTAP
+UB_EV_BITS_CB(dtio_output_cb)
+UB_EV_BITS_CB(dtio_cmd_cb)
+UB_EV_BITS_CB(dtio_reconnect_timeout_cb)
+UB_EV_BITS_CB(dtio_stop_timer_cb)
+UB_EV_BITS_CB(dtio_stop_ev_cb)
+UB_EV_BITS_CB(dtio_tap_callback)
+UB_EV_BITS_CB(dtio_mainfdcallback)
+#endif
+#ifdef HAVE_NGTCP2
+UB_EV_BITS_CB(doq_client_event_cb)
+UB_EV_BITS_CB(doq_client_timer_cb)
+#endif
+#ifdef UB_ON_WINDOWS
+UB_EV_BITS_CB(worker_win_stop_cb)
+#endif
 
 static void (*NATIVE_BITS_CB(void (*cb)(int, short, void*)))(int, short, void*)
 {
@@ -123,6 +150,38 @@ static void (*NATIVE_BITS_CB(void (*cb)(int, short, void*)))(int, short, void*)
 		return my_tube_handle_signal;
 	else if(cb == comm_base_handle_slow_accept)
 		return my_comm_base_handle_slow_accept;
+#ifdef HAVE_NGTCP2
+	else if(cb == comm_point_doq_callback)
+		return my_comm_point_doq_callback;
+#endif
+	else if(cb == fast_reload_service_cb)
+		return my_fast_reload_service_cb;
+#ifdef USE_DNSTAP
+	else if(cb == dtio_output_cb)
+		return my_dtio_output_cb;
+	else if(cb == dtio_cmd_cb)
+		return my_dtio_cmd_cb;
+	else if(cb == dtio_reconnect_timeout_cb)
+		return my_dtio_reconnect_timeout_cb;
+	else if(cb == dtio_stop_timer_cb)
+		return my_dtio_stop_timer_cb;
+	else if(cb == dtio_stop_ev_cb)
+		return my_dtio_stop_ev_cb;
+	else if(cb == dtio_tap_callback)
+		return my_dtio_tap_callback;
+	else if(cb == dtio_mainfdcallback)
+		return my_dtio_mainfdcallback;
+#endif
+#ifdef HAVE_NGTCP2
+	else if(cb == doq_client_event_cb)
+		return my_doq_client_event_cb;
+	else if(cb == doq_client_timer_cb)
+		return my_doq_client_timer_cb;
+#endif
+#ifdef UB_ON_WINDOWS
+	else if(cb == worker_win_stop_cb)
+		return my_worker_win_stop_cb;
+#endif
 	else {
 		log_assert(0); /* this NULL callback pointer should not happen,
 			we should have the necessary routine listed above */

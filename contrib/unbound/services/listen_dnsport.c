@@ -703,7 +703,10 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 {
 	int s = -1;
 	char* err;
-#if defined(SO_REUSEADDR) || defined(SO_REUSEPORT) || defined(IPV6_V6ONLY) || defined(IP_TRANSPARENT) || defined(IP_BINDANY) || defined(IP_FREEBIND) || defined(SO_BINDANY)
+#if defined(SO_REUSEADDR) || defined(SO_REUSEPORT)		\
+	|| defined(IPV6_V6ONLY) || defined(IP_TRANSPARENT)	\
+	|| defined(IP_BINDANY) || defined(IP_FREEBIND)		\
+	|| defined(SO_BINDANY) || defined(TCP_NODELAY)
 	int on = 1;
 #endif
 #ifdef HAVE_SYSTEMD
@@ -1031,7 +1034,7 @@ err:
  * Create socket from getaddrinfo results
  */
 static int
-make_sock(int stype, const char* ifname, const char* port,
+make_sock(int stype, const char* ifname, int port,
 	struct addrinfo *hints, int v6only, int* noip6, size_t rcv, size_t snd,
 	int* reuseport, int transparent, int tcp_mss, int nodelay, int freebind,
 	int use_systemd, int dscp, struct unbound_socket* ub_sock,
@@ -1039,9 +1042,11 @@ make_sock(int stype, const char* ifname, const char* port,
 {
 	struct addrinfo *res = NULL;
 	int r, s, inuse, noproto;
+	char portbuf[32];
+	snprintf(portbuf, sizeof(portbuf), "%d", port);
 	hints->ai_socktype = stype;
 	*noip6 = 0;
-	if((r=getaddrinfo(ifname, port, hints, &res)) != 0 || !res) {
+	if((r=getaddrinfo(ifname, portbuf, hints, &res)) != 0 || !res) {
 #ifdef USE_WINSOCK
 		if(r == EAI_NONAME && hints->ai_family == AF_INET6){
 			*noip6 = 1; /* 'Host not found' for IP6 on winXP */
@@ -1049,7 +1054,7 @@ make_sock(int stype, const char* ifname, const char* port,
 		}
 #endif
 		log_err("node %s:%s getaddrinfo: %s %s",
-			ifname?ifname:"default", port, gai_strerror(r),
+			ifname?ifname:"default", portbuf, gai_strerror(r),
 #ifdef EAI_SYSTEM
 			(r==EAI_SYSTEM?(char*)strerror(errno):"")
 #else
@@ -1103,7 +1108,7 @@ make_sock(int stype, const char* ifname, const char* port,
 
 /** make socket and first see if ifname contains port override info */
 static int
-make_sock_port(int stype, const char* ifname, const char* port,
+make_sock_port(int stype, const char* ifname, int port,
 	struct addrinfo *hints, int v6only, int* noip6, size_t rcv, size_t snd,
 	int* reuseport, int transparent, int tcp_mss, int nodelay, int freebind,
 	int use_systemd, int dscp, struct unbound_socket* ub_sock,
@@ -1112,23 +1117,22 @@ make_sock_port(int stype, const char* ifname, const char* port,
 	char* s = strchr(ifname, '@');
 	if(s) {
 		/* override port with ifspec@port */
-		char p[16];
+		int port;
 		char newif[128];
 		if((size_t)(s-ifname) >= sizeof(newif)) {
 			log_err("ifname too long: %s", ifname);
 			*noip6 = 0;
 			return -1;
 		}
-		if(strlen(s+1) >= sizeof(p)) {
-			log_err("portnumber too long: %s", ifname);
+		port = atoi(s+1);
+		if(port < 0 || 0 == port || port > 65535) {
+			log_err("invalid portnumber in interface: %s", ifname);
 			*noip6 = 0;
 			return -1;
 		}
 		(void)strlcpy(newif, ifname, sizeof(newif));
 		newif[s-ifname] = 0;
-		(void)strlcpy(p, s+1, sizeof(p));
-		p[strlen(s+1)]=0;
-		return make_sock(stype, newif, p, hints, v6only, noip6, rcv,
+		return make_sock(stype, newif, port, hints, v6only, noip6, rcv,
 			snd, reuseport, transparent, tcp_mss, nodelay, freebind,
 			use_systemd, dscp, ub_sock, additional);
 	}
@@ -1237,26 +1241,6 @@ set_recvpktinfo(int s, int family)
 	return 1;
 }
 
-/** see if interface is ssl, its port number == the ssl port number */
-static int
-if_is_ssl(const char* ifname, const char* port, int ssl_port,
-	struct config_strlist* tls_additional_port)
-{
-	struct config_strlist* s;
-	char* p = strchr(ifname, '@');
-	if(!p && atoi(port) == ssl_port)
-		return 1;
-	if(p && atoi(p+1) == ssl_port)
-		return 1;
-	for(s = tls_additional_port; s; s = s->next) {
-		if(p && atoi(p+1) == atoi(s->str))
-			return 1;
-		if(!p && atoi(port) == atoi(s->str))
-			return 1;
-	}
-	return 0;
-}
-
 /**
  * Helper for ports_open. Creates one interface (or NULL for default).
  * @param ifname: The interface ip address.
@@ -1265,7 +1249,7 @@ if_is_ssl(const char* ifname, const char* port, int ssl_port,
  * @param do_udp: if udp should be used.
  * @param do_tcp: if tcp should be used.
  * @param hints: for getaddrinfo. family and flags have to be set by caller.
- * @param port: Port number to use (as string).
+ * @param port: Port number to use.
  * @param list: list of open ports, appended to, changed to point to list head.
  * @param rcv: receive buffer size for UDP
  * @param snd: send buffer size for UDP
@@ -1291,7 +1275,7 @@ if_is_ssl(const char* ifname, const char* port, int ssl_port,
  */
 static int
 ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
-	struct addrinfo *hints, const char* port, struct listen_port** list,
+	struct addrinfo *hints, int port, struct listen_port** list,
 	size_t rcv, size_t snd, int ssl_port,
 	struct config_strlist* tls_additional_port, int https_port,
 	struct config_strlist* proxy_protocol_port,
@@ -1300,12 +1284,18 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 	int quic_port, int http_notls_downstream, int sock_queue_timeout)
 {
 	int s, noip6=0;
+	int is_ssl = if_is_ssl(ifname, port, ssl_port, tls_additional_port);
 	int is_https = if_is_https(ifname, port, https_port);
 	int is_dnscrypt = if_is_dnscrypt(ifname, port, dnscrypt_port);
 	int is_pp2 = if_is_pp2(ifname, port, proxy_protocol_port);
-	int nodelay = is_https && http2_nodelay;
-	struct unbound_socket* ub_sock;
 	int is_doq = if_is_quic(ifname, port, quic_port);
+	/* Always set TCP_NODELAY on TLS connection as it speeds up the TLS
+	 * handshake. DoH had already such option so we respect it.
+	 * Otherwise the server waits before sending more handshake data for
+	 * the client ACK (Nagle's algorithm), which is delayed because the
+	 * client waits for more data before ACKing (delayed ACK). */
+	int nodelay = is_https?http2_nodelay:is_ssl; 
+	struct unbound_socket* ub_sock;
 	const char* add = NULL;
 
 	if(!do_udp && !do_tcp)
@@ -1323,6 +1313,12 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 				"supported!");
 		}
 	}
+
+	/* Check if both UDP and TCP ports should be open.
+	 * In the case of encrypted channels, probably an unencrypted channel
+	 * at the same port is not desired. */
+	if((is_ssl || is_https) && !is_doq) do_udp = do_auto = 0;
+	if((is_doq) && !(is_https || is_ssl)) do_tcp = 0;
 
 	if(do_auto) {
 		ub_sock = calloc(1, sizeof(struct unbound_socket));
@@ -1369,13 +1365,11 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		} else if(is_doq) {
 			udp_port_type = listen_type_doq;
 			add = "doq";
-			if(((strchr(ifname, '@') &&
-				atoi(strchr(ifname, '@')+1) == 53) ||
-				(!strchr(ifname, '@') && atoi(port) == 53))) {
-				log_err("DNS over QUIC is not allowed on "
-					"port 53. Port 53 is for DNS "
-					"datagrams. Error for "
-					"interface '%s'.", ifname);
+			if(if_listens_on(ifname, port, 53, NULL)) {
+				log_err("DNS over QUIC is strictly not "
+					"allowed on port 53 as per RFC 9250. "
+					"Port 53 is for DNS datagrams. Error "
+					"for interface '%s'.", ifname);
 				free(ub_sock->addr);
 				free(ub_sock);
 				return 0;
@@ -1423,8 +1417,6 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		}
 	}
 	if(do_tcp) {
-		int is_ssl = if_is_ssl(ifname, port, ssl_port,
-			tls_additional_port);
 		enum listen_type port_type;
 		ub_sock = calloc(1, sizeof(struct unbound_socket));
 		if(!ub_sock)
@@ -1523,9 +1515,10 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 	size_t bufsize, int tcp_accept_count, int tcp_idle_timeout,
 	int harden_large_queries, uint32_t http_max_streams,
 	char* http_endpoint, int http_notls, struct tcl_list* tcp_conn_limit,
-	void* sslctx, struct dt_env* dtenv, struct doq_table* doq_table,
-	struct ub_randstate* rnd, const char* ssl_service_key,
-	const char* ssl_service_pem, struct config_file* cfg,
+	void* dot_sslctx, void* doh_sslctx, void* quic_sslctx,
+	struct dt_env* dtenv,
+	struct doq_table* doq_table,
+	struct ub_randstate* rnd,struct config_file* cfg,
 	comm_point_callback_type* cb, void *cb_arg)
 {
 	struct listen_dnsport* front = (struct listen_dnsport*)
@@ -1558,8 +1551,7 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 #endif
 			cp = comm_point_create_doq(base, ports->fd,
 				front->udp_buff, cb, cb_arg, ports->socket,
-				doq_table, rnd, ssl_service_key,
-				ssl_service_pem, cfg);
+				doq_table, rnd, quic_sslctx, cfg);
 		} else if(ports->ftype == listen_type_tcp ||
 				ports->ftype == listen_type_tcp_dnscrypt) {
 			cp = comm_point_create_tcp(base, ports->fd,
@@ -1578,7 +1570,7 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 				ports->ftype, ports->pp2_enabled, cb, cb_arg,
 				ports->socket);
 			if(ports->ftype == listen_type_http) {
-				if(!sslctx && !http_notls) {
+				if(!doh_sslctx && !http_notls) {
 					log_warn("HTTPS port configured, but "
 						"no TLS tls-service-key or "
 						"tls-service-pem set");
@@ -1620,10 +1612,15 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 			(ports->ftype == listen_type_udpancil) ||
 			(ports->ftype == listen_type_tcp_dnscrypt) ||
 			(ports->ftype == listen_type_udp_dnscrypt) ||
-			(ports->ftype == listen_type_udpancil_dnscrypt))
+			(ports->ftype == listen_type_udpancil_dnscrypt)) {
 			cp->ssl = NULL;
-		else
-			cp->ssl = sslctx;
+		} else if(ports->ftype == listen_type_doq) {
+			cp->ssl = quic_sslctx;
+		} else if(ports->ftype == listen_type_http) {
+			cp->ssl = doh_sslctx;
+		} else {
+			cp->ssl = dot_sslctx;
+		}
 		cp->dtenv = dtenv;
 		cp->do_not_close = 1;
 #ifdef USE_DNSCRYPT
@@ -1887,8 +1884,6 @@ listening_ports_open(struct config_file* cfg, char** ifs, int num_ifs,
 	struct addrinfo hints;
 	int i, do_ip4, do_ip6;
 	int do_tcp, do_auto;
-	char portbuf[32];
-	snprintf(portbuf, sizeof(portbuf), "%d", cfg->port);
 	do_ip4 = cfg->do_ip4;
 	do_ip6 = cfg->do_ip6;
 	do_tcp = cfg->do_tcp;
@@ -1934,12 +1929,11 @@ listening_ports_open(struct config_file* cfg, char** ifs, int num_ifs,
 					return NULL;
 				}
 				now = after;
-				snprintf(portbuf, sizeof(portbuf), "%d", extraport);
 				if(do_ip6) {
 					hints.ai_family = AF_INET6;
 					if(!ports_create_if("::0",
 						do_auto, cfg->do_udp, do_tcp,
-						&hints, portbuf, &list,
+						&hints, extraport, &list,
 						cfg->so_rcvbuf, cfg->so_sndbuf,
 						cfg->ssl_port, cfg->tls_additional_port,
 						cfg->https_port,
@@ -1958,7 +1952,7 @@ listening_ports_open(struct config_file* cfg, char** ifs, int num_ifs,
 					hints.ai_family = AF_INET;
 					if(!ports_create_if("0.0.0.0",
 						do_auto, cfg->do_udp, do_tcp,
-						&hints, portbuf, &list,
+						&hints, extraport, &list,
 						cfg->so_rcvbuf, cfg->so_sndbuf,
 						cfg->ssl_port, cfg->tls_additional_port,
 						cfg->https_port,
@@ -1980,7 +1974,7 @@ listening_ports_open(struct config_file* cfg, char** ifs, int num_ifs,
 			hints.ai_family = AF_INET6;
 			if(!ports_create_if(do_auto?"::0":"::1",
 				do_auto, cfg->do_udp, do_tcp,
-				&hints, portbuf, &list,
+				&hints, cfg->port, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, cfg->tls_additional_port,
 				cfg->https_port, cfg->proxy_protocol_port,
@@ -1998,7 +1992,7 @@ listening_ports_open(struct config_file* cfg, char** ifs, int num_ifs,
 			hints.ai_family = AF_INET;
 			if(!ports_create_if(do_auto?"0.0.0.0":"127.0.0.1",
 				do_auto, cfg->do_udp, do_tcp,
-				&hints, portbuf, &list,
+				&hints, cfg->port, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, cfg->tls_additional_port,
 				cfg->https_port, cfg->proxy_protocol_port,
@@ -2018,7 +2012,7 @@ listening_ports_open(struct config_file* cfg, char** ifs, int num_ifs,
 				continue;
 			hints.ai_family = AF_INET6;
 			if(!ports_create_if(ifs[i], 0, cfg->do_udp,
-				do_tcp, &hints, portbuf, &list,
+				do_tcp, &hints, cfg->port, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, cfg->tls_additional_port,
 				cfg->https_port, cfg->proxy_protocol_port,
@@ -2036,7 +2030,7 @@ listening_ports_open(struct config_file* cfg, char** ifs, int num_ifs,
 				continue;
 			hints.ai_family = AF_INET;
 			if(!ports_create_if(ifs[i], 0, cfg->do_udp,
-				do_tcp, &hints, portbuf, &list,
+				do_tcp, &hints, cfg->port, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, cfg->tls_additional_port,
 				cfg->https_port, cfg->proxy_protocol_port,
@@ -4598,10 +4592,9 @@ doq_alpn_select_cb(SSL* ATTR_UNUSED(ssl), const unsigned char** out,
 	return SSL_TLSEXT_ERR_ALERT_FATAL;
 }
 
-/** create new tls session for server doq connection */
-static SSL_CTX*
-doq_ctx_server_setup(struct doq_server_socket* doq_socket)
+void* quic_sslctx_create(char* key, char* pem, char* verifypem)
 {
+#ifdef HAVE_NGTCP2
 	char* sid_ctx = "unbound server";
 #ifndef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_SERVER_CONTEXT
 	SSL_QUIC_METHOD* quic_method;
@@ -4609,6 +4602,16 @@ doq_ctx_server_setup(struct doq_server_socket* doq_socket)
 	SSL_CTX* ctx = SSL_CTX_new(TLS_server_method());
 	if(!ctx) {
 		log_crypto_err("Could not SSL_CTX_new");
+		return NULL;
+	}
+	if(!key || key[0] == 0) {
+		log_err("doq: error, no tls-service-key file specified");
+		SSL_CTX_free(ctx);
+		return NULL;
+	}
+	if(!pem || pem[0] == 0) {
+		log_err("doq: error, no tls-service-pem file specified");
+		SSL_CTX_free(ctx);
 		return NULL;
 	}
 	SSL_CTX_set_options(ctx,
@@ -4623,43 +4626,37 @@ doq_ctx_server_setup(struct doq_server_socket* doq_socket)
 	SSL_CTX_set_alpn_select_cb(ctx, doq_alpn_select_cb, NULL);
 #endif
 	SSL_CTX_set_default_verify_paths(ctx);
-	if(!SSL_CTX_use_certificate_chain_file(ctx,
-		doq_socket->ssl_service_pem)) {
-		log_err("doq: error for cert file: %s",
-			doq_socket->ssl_service_pem);
+	if(!SSL_CTX_use_certificate_chain_file(ctx, pem)) {
+		log_err("doq: error for cert file: %s", pem);
 		log_crypto_err("doq: error in "
 			"SSL_CTX_use_certificate_chain_file");
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
-	if(!SSL_CTX_use_PrivateKey_file(ctx, doq_socket->ssl_service_key,
-		SSL_FILETYPE_PEM)) {
-		log_err("doq: error for private key file: %s",
-			doq_socket->ssl_service_key);
+	if(!SSL_CTX_use_PrivateKey_file(ctx, key, SSL_FILETYPE_PEM)) {
+		log_err("doq: error for private key file: %s", key);
 		log_crypto_err("doq: error in SSL_CTX_use_PrivateKey_file");
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
 	if(!SSL_CTX_check_private_key(ctx)) {
-		log_err("doq: error for key file: %s",
-			doq_socket->ssl_service_key);
+		log_err("doq: error for key file: %s", key);
 		log_crypto_err("doq: error in SSL_CTX_check_private_key");
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
 	SSL_CTX_set_session_id_context(ctx, (void*)sid_ctx, strlen(sid_ctx));
-	if(doq_socket->ssl_verify_pem && doq_socket->ssl_verify_pem[0]) {
-		if(!SSL_CTX_load_verify_locations(ctx,
-			doq_socket->ssl_verify_pem, NULL)) {
+	if(verifypem && verifypem[0]) {
+		if(!SSL_CTX_load_verify_locations(ctx, verifypem, NULL)) {
 			log_err("doq: error for verify pem file: %s",
-				doq_socket->ssl_verify_pem);
+				verifypem);
 			log_crypto_err("doq: error in "
 				"SSL_CTX_load_verify_locations");
 			SSL_CTX_free(ctx);
 			return NULL;
 		}
 		SSL_CTX_set_client_CA_list(ctx, SSL_load_client_CA_file(
-			doq_socket->ssl_verify_pem));
+			verifypem));
 		SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER|
 			SSL_VERIFY_CLIENT_ONCE|
 			SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
@@ -4672,7 +4669,7 @@ doq_ctx_server_setup(struct doq_server_socket* doq_socket)
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
-#else
+#else /* HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_SERVER_CONTEXT */
 	/* The quic_method needs to remain valid during the SSL_CTX
 	 * lifetime, so we allocate it. It is freed with the
 	 * doq_server_socket. */
@@ -4690,6 +4687,10 @@ doq_ctx_server_setup(struct doq_server_socket* doq_socket)
 	SSL_CTX_set_quic_method(ctx, doq_socket->quic_method);
 #endif
 	return ctx;
+#else /* HAVE_NGTCP2 */
+	(void)key; (void)pem; (void)verifypem;
+	return NULL;
+#endif /* HAVE_NGTCP2 */
 }
 
 /** Get the ngtcp2_conn from ssl userdata of type ngtcp2_conn_ref */
@@ -4718,16 +4719,6 @@ doq_ssl_server_setup(SSL_CTX* ctx, struct doq_conn* conn)
 	SSL_set_accept_state(ssl);
 	SSL_set_quic_early_data_enabled(ssl, 1);
 	return ssl;
-}
-
-/** setup the doq_socket server tls context */
-int
-doq_socket_setup_ctx(struct doq_server_socket* doq_socket)
-{
-	doq_socket->ctx = doq_ctx_server_setup(doq_socket);
-	if(!doq_socket->ctx)
-		return 0;
-	return 1;
 }
 
 int

@@ -346,7 +346,8 @@ static struct tap_socket* tap_socket_new_tlsaccept(char* ip,
 	s->fd = -1;
 	s->ev_cb = ev_cb;
 	s->data = data;
-	s->sslctx = listen_sslctx_create(server_key, server_cert, verifypem);
+	s->sslctx = listen_sslctx_create(server_key, server_cert, verifypem,
+		NULL, NULL, 0, 0, 0);
 	if(!s->sslctx) {
 		log_err("could not create ssl context");
 		free(s->ip);
@@ -1784,6 +1785,20 @@ int replay_var_compare(const void* ATTR_UNUSED(a), const void* ATTR_UNUSED(b))
 void remote_get_opt_ssl(char* ATTR_UNUSED(str), void* ATTR_UNUSED(arg))
 {
         log_assert(0);
+}
+
+void fast_reload_service_cb(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
+	void* ATTR_UNUSED(arg))
+{
+	log_assert(0);
+}
+
+int fast_reload_client_callback(struct comm_point* ATTR_UNUSED(c),
+	void* ATTR_UNUSED(arg), int ATTR_UNUSED(error),
+        struct comm_reply* ATTR_UNUSED(repinfo))
+{
+	log_assert(0);
+	return 0;
 }
 
 #ifdef HAVE_NGTCP2

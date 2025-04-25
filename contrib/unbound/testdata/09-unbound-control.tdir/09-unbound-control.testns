@@ -1,0 +1,44 @@
+; nameserver test file
+$TTL 3600
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+www.example.com.	IN	A
+SECTION ANSWER
+www.example.com.	IN	A	10.20.30.40
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA SERVFAIL
+ADJUST copy_id
+SECTION QUESTION
+www.example.net.	IN	A
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+always.empty.	IN	A
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+always.empty.	IN	DNSKEY
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+_ta-c5aa.always.empty.	IN	NULL
+ENTRY_END

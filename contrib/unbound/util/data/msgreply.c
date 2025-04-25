@@ -66,7 +66,7 @@ time_t MIN_NEG_TTL = 0;
 /** If we serve expired entries and prefetch them */
 int SERVE_EXPIRED = 0;
 /** Time to serve records after expiration */
-time_t SERVE_EXPIRED_TTL = 0;
+time_t SERVE_EXPIRED_TTL = 86400;
 /** Reset serve expired TTL after failed update attempt */
 time_t SERVE_EXPIRED_TTL_RESET = 0;
 /** TTL to use for expired records */
@@ -965,15 +965,11 @@ void
 log_reply_info(enum verbosity_value v, struct query_info *qinf,
 	struct sockaddr_storage *addr, socklen_t addrlen, struct timeval dur,
 	int cached, struct sldns_buffer *rmsg, struct sockaddr_storage* daddr,
-	enum comm_point_type tp)
+	enum comm_point_type tp, void* ssl)
 {
-	char qname_buf[LDNS_MAX_DOMAINLEN+1];
 	char clientip_buf[128];
 	char rcode_buf[16];
-	char type_buf[16];
-	char class_buf[16];
 	char dest_buf[160];
-	size_t pktlen;
 	uint16_t rcode = FLAGS_GET_RCODE(sldns_buffer_read_u16_at(rmsg, 2));
 
 	if(verbosity < v)
@@ -1004,9 +1000,9 @@ log_reply_info(enum verbosity_value v, struct query_info *qinf,
 				(int)daddr->ss_family);
 		}
 		comm = "udp";
-		if(tp == comm_tcp) comm = "tcp";
-		else if(tp == comm_tcp_accept) comm = "tcp";
-		else if(tp == comm_http) comm = "dot";
+		if(tp == comm_tcp) comm = (ssl?"dot":"tcp");
+		else if(tp == comm_tcp_accept) comm = (ssl?"dot":"tcp");
+		else if(tp == comm_http) comm = "doh";
 		else if(tp == comm_local) comm = "unix";
 		else if(tp == comm_raw) comm = "raw";
 		snprintf(dest_buf, sizeof(dest_buf), " on %s %s %d",
@@ -1022,6 +1018,10 @@ log_reply_info(enum verbosity_value v, struct query_info *qinf,
 		else	log_info("%s - - - %s - - -%s", clientip_buf,
 				rcode_buf, dest_buf);
 	} else {
+		char qname_buf[LDNS_MAX_DOMAINLEN];
+		char type_buf[16];
+		char class_buf[16];
+		size_t pktlen;
 		if(qinf->qname)
 			dname_str(qinf->qname, qname_buf);
 		else	snprintf(qname_buf, sizeof(qname_buf), "null");

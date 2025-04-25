@@ -314,6 +314,11 @@ struct ub_event_base* comm_base_internal(struct comm_base* b)
 	return b->eb->base;
 }
 
+struct ub_event* comm_point_internal(struct comm_point* c)
+{
+	return c->ev->ev;
+}
+
 /** see if errno for udp has to be logged or not uses globals */
 static int
 udp_send_errno_needs_log(struct sockaddr* addr, socklen_t addrlen)
@@ -369,6 +374,15 @@ udp_send_errno_needs_log(struct sockaddr* addr, socklen_t addrlen)
 		(struct sockaddr_storage*)addr, addrlen) &&
 		verbosity < VERB_DETAIL)
 		return 0;
+#  ifdef ENOTCONN
+	/* For 0.0.0.0, ::0 targets it can return that socket is not connected.
+	 * This can be ignored, and the address skipped. It remains
+	 * possible to send there for completeness in configuration. */
+	if(errno == ENOTCONN && addr_is_any(
+		(struct sockaddr_storage*)addr, addrlen) &&
+		verbosity < VERB_DETAIL)
+		return 0;
+#  endif
 	return 1;
 }
 
@@ -442,7 +456,11 @@ comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
 				int pret;
 				memset(&p, 0, sizeof(p));
 				p.fd = c->fd;
-				p.events = POLLOUT | POLLERR | POLLHUP;
+				p.events = POLLOUT
+#ifndef USE_WINSOCK
+					| POLLERR | POLLHUP
+#endif
+					;
 #  ifndef USE_WINSOCK
 				pret = poll(&p, 1, SEND_BLOCKED_WAIT_TIMEOUT);
 #  else
@@ -465,7 +483,7 @@ comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
 #  ifdef EWOULDBLOCK
 					errno != EWOULDBLOCK &&
 #  endif
-					errno != ENOBUFS
+					errno != ENOMEM && errno != ENOBUFS
 #else
 					WSAGetLastError() != WSAEINPROGRESS &&
 					WSAGetLastError() != WSAEINTR &&
@@ -478,15 +496,19 @@ comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
 					return 0;
 				} else if((pret < 0 &&
 #ifndef USE_WINSOCK
-					errno == ENOBUFS
+					( errno == ENOBUFS  /* Maybe some systems */
+					|| errno == ENOMEM  /* Linux */
+					|| errno == EAGAIN)  /* Macos, solaris, openbsd */
 #else
 					WSAGetLastError() == WSAENOBUFS
 #endif
 					) || (send_nobufs && retries > 0)) {
-					/* ENOBUFS, and poll returned without
+					/* ENOBUFS/ENOMEM/EAGAIN, and poll
+					 * returned without
 					 * a timeout. Or the retried send call
-					 * returned ENOBUFS. It is good to
-					 * wait a bit for the error to clear. */
+					 * returned ENOBUFS/ENOMEM/EAGAIN.
+					 * It is good to wait a bit for the
+					 * error to clear. */
 					/* The timeout is 20*(2^(retries+1)),
 					 * it increases exponentially, starting
 					 * at 40 msec. After 5 tries, 1240 msec
@@ -496,20 +518,18 @@ comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
 #ifndef USE_WINSOCK
 					pret = poll(NULL, 0, (SEND_BLOCKED_WAIT_TIMEOUT/10)<<(retries+1));
 #else
-					pret = WSAPoll(NULL, 0, (SEND_BLOCKED_WAIT_TIMEOUT/10)<<(retries+1));
+					Sleep((SEND_BLOCKED_WAIT_TIMEOUT/10)<<(retries+1));
+					pret = 0;
 #endif
-					if(pret < 0 &&
+					if(pret < 0
 #ifndef USE_WINSOCK
-						errno != EAGAIN && errno != EINTR &&
+						&& errno != EAGAIN && errno != EINTR &&
 #  ifdef EWOULDBLOCK
 						errno != EWOULDBLOCK &&
 #  endif
-						errno != ENOBUFS
+						errno != ENOMEM && errno != ENOBUFS
 #else
-						WSAGetLastError() != WSAEINPROGRESS &&
-						WSAGetLastError() != WSAEINTR &&
-						WSAGetLastError() != WSAENOBUFS &&
-						WSAGetLastError() != WSAEWOULDBLOCK
+						/* Sleep does not error */
 #endif
 					) {
 						log_err("poll udp out timer failed: %s",
@@ -751,7 +771,11 @@ comm_point_send_udp_msg_if(struct comm_point *c, sldns_buffer* packet,
 				int pret;
 				memset(&p, 0, sizeof(p));
 				p.fd = c->fd;
-				p.events = POLLOUT | POLLERR | POLLHUP;
+				p.events = POLLOUT
+#ifndef USE_WINSOCK
+					| POLLERR | POLLHUP
+#endif
+					;
 #  ifndef USE_WINSOCK
 				pret = poll(&p, 1, SEND_BLOCKED_WAIT_TIMEOUT);
 #  else
@@ -774,7 +798,7 @@ comm_point_send_udp_msg_if(struct comm_point *c, sldns_buffer* packet,
 #  ifdef EWOULDBLOCK
 					errno != EWOULDBLOCK &&
 #  endif
-					errno != ENOBUFS
+					errno != ENOMEM && errno != ENOBUFS
 #else
 					WSAGetLastError() != WSAEINPROGRESS &&
 					WSAGetLastError() != WSAEINTR &&
@@ -787,15 +811,19 @@ comm_point_send_udp_msg_if(struct comm_point *c, sldns_buffer* packet,
 					return 0;
 				} else if((pret < 0 &&
 #ifndef USE_WINSOCK
-					errno == ENOBUFS
+					( errno == ENOBUFS  /* Maybe some systems */
+					|| errno == ENOMEM  /* Linux */
+					|| errno == EAGAIN)  /* Macos, solaris, openbsd */
 #else
 					WSAGetLastError() == WSAENOBUFS
 #endif
 					) || (send_nobufs && retries > 0)) {
-					/* ENOBUFS, and poll returned without
+					/* ENOBUFS/ENOMEM/EAGAIN, and poll
+					 * returned without
 					 * a timeout. Or the retried send call
-					 * returned ENOBUFS. It is good to
-					 * wait a bit for the error to clear. */
+					 * returned ENOBUFS/ENOMEM/EAGAIN.
+					 * It is good to wait a bit for the
+					 * error to clear. */
 					/* The timeout is 20*(2^(retries+1)),
 					 * it increases exponentially, starting
 					 * at 40 msec. After 5 tries, 1240 msec
@@ -805,20 +833,18 @@ comm_point_send_udp_msg_if(struct comm_point *c, sldns_buffer* packet,
 #ifndef USE_WINSOCK
 					pret = poll(NULL, 0, (SEND_BLOCKED_WAIT_TIMEOUT/10)<<(retries+1));
 #else
-					pret = WSAPoll(NULL, 0, (SEND_BLOCKED_WAIT_TIMEOUT/10)<<(retries+1));
+					Sleep((SEND_BLOCKED_WAIT_TIMEOUT/10)<<(retries+1));
+					pret = 0;
 #endif
-					if(pret < 0 &&
+					if(pret < 0
 #ifndef USE_WINSOCK
-						errno != EAGAIN && errno != EINTR &&
+						&& errno != EAGAIN && errno != EINTR &&
 #  ifdef EWOULDBLOCK
 						errno != EWOULDBLOCK &&
 #  endif
-						errno != ENOBUFS
-#else
-						WSAGetLastError() != WSAEINPROGRESS &&
-						WSAGetLastError() != WSAEINTR &&
-						WSAGetLastError() != WSAENOBUFS &&
-						WSAGetLastError() != WSAEWOULDBLOCK
+						errno != ENOMEM && errno != ENOBUFS
+#else  /* USE_WINSOCK */
+						/* Sleep does not error */
 #endif
 					) {
 						log_err("poll udp out timer failed: %s",
@@ -2687,8 +2713,8 @@ comm_point_doq_callback(int fd, short event, void* arg)
 /** create new doq server socket structure */
 static struct doq_server_socket*
 doq_server_socket_create(struct doq_table* table, struct ub_randstate* rnd,
-	const char* ssl_service_key, const char* ssl_service_pem,
-	struct comm_point* c, struct comm_base* base, struct config_file* cfg)
+	const void* quic_sslctx, struct comm_point* c, struct comm_base* base,
+	struct config_file* cfg)
 {
 	size_t doq_buffer_size = 4096; /* bytes buffer size, for one packet. */
 	struct doq_server_socket* doq_socket;
@@ -2699,69 +2725,29 @@ doq_server_socket_create(struct doq_table* table, struct ub_randstate* rnd,
 	doq_socket->table = table;
 	doq_socket->rnd = rnd;
 	doq_socket->validate_addr = 1;
-	if(ssl_service_key == NULL || ssl_service_key[0]==0) {
-		log_err("doq server socket create: no tls-service-key");
-		free(doq_socket);
-		return NULL;
-	}
-	if(ssl_service_pem == NULL || ssl_service_pem[0]==0) {
-		log_err("doq server socket create: no tls-service-pem");
-		free(doq_socket);
-		return NULL;
-	}
-	doq_socket->ssl_service_key = strdup(ssl_service_key);
-	if(!doq_socket->ssl_service_key) {
-		free(doq_socket);
-		return NULL;
-	}
-	doq_socket->ssl_service_pem = strdup(ssl_service_pem);
-	if(!doq_socket->ssl_service_pem) {
-		free(doq_socket->ssl_service_key);
-		free(doq_socket);
-		return NULL;
-	}
-	doq_socket->ssl_verify_pem = NULL;
 	/* the doq_socket has its own copy of the static secret, as
 	 * well as other config values, so that they do not need table.lock */
 	doq_socket->static_secret_len = table->static_secret_len;
 	doq_socket->static_secret = memdup(table->static_secret,
 		table->static_secret_len);
 	if(!doq_socket->static_secret) {
-		free(doq_socket->ssl_service_key);
-		free(doq_socket->ssl_service_pem);
-		free(doq_socket->ssl_verify_pem);
 		free(doq_socket);
 		return NULL;
 	}
-	if(!doq_socket_setup_ctx(doq_socket)) {
-		free(doq_socket->ssl_service_key);
-		free(doq_socket->ssl_service_pem);
-		free(doq_socket->ssl_verify_pem);
-		free(doq_socket->static_secret);
-		free(doq_socket);
-		return NULL;
-	}
+	doq_socket->ctx = (SSL_CTX*)quic_sslctx;
 	doq_socket->idle_timeout = table->idle_timeout;
 	doq_socket->sv_scidlen = table->sv_scidlen;
 	doq_socket->cp = c;
 	doq_socket->pkt_buf = sldns_buffer_new(doq_buffer_size);
 	if(!doq_socket->pkt_buf) {
-		free(doq_socket->ssl_service_key);
-		free(doq_socket->ssl_service_pem);
-		free(doq_socket->ssl_verify_pem);
 		free(doq_socket->static_secret);
-		SSL_CTX_free(doq_socket->ctx);
 		free(doq_socket);
 		return NULL;
 	}
 	doq_socket->blocked_pkt = sldns_buffer_new(
 		sldns_buffer_capacity(doq_socket->pkt_buf));
 	if(!doq_socket->pkt_buf) {
-		free(doq_socket->ssl_service_key);
-		free(doq_socket->ssl_service_pem);
-		free(doq_socket->ssl_verify_pem);
 		free(doq_socket->static_secret);
-		SSL_CTX_free(doq_socket->ctx);
 		sldns_buffer_free(doq_socket->pkt_buf);
 		free(doq_socket);
 		return NULL;
@@ -2769,11 +2755,7 @@ doq_server_socket_create(struct doq_table* table, struct ub_randstate* rnd,
 	doq_socket->blocked_paddr = calloc(1,
 		sizeof(*doq_socket->blocked_paddr));
 	if(!doq_socket->blocked_paddr) {
-		free(doq_socket->ssl_service_key);
-		free(doq_socket->ssl_service_pem);
-		free(doq_socket->ssl_verify_pem);
 		free(doq_socket->static_secret);
-		SSL_CTX_free(doq_socket->ctx);
 		sldns_buffer_free(doq_socket->pkt_buf);
 		sldns_buffer_free(doq_socket->blocked_pkt);
 		free(doq_socket);
@@ -2781,11 +2763,7 @@ doq_server_socket_create(struct doq_table* table, struct ub_randstate* rnd,
 	}
 	doq_socket->timer = comm_timer_create(base, doq_timer_cb, doq_socket);
 	if(!doq_socket->timer) {
-		free(doq_socket->ssl_service_key);
-		free(doq_socket->ssl_service_pem);
-		free(doq_socket->ssl_verify_pem);
 		free(doq_socket->static_secret);
-		SSL_CTX_free(doq_socket->ctx);
 		sldns_buffer_free(doq_socket->pkt_buf);
 		sldns_buffer_free(doq_socket->blocked_pkt);
 		free(doq_socket->blocked_paddr);
@@ -2805,13 +2783,9 @@ doq_server_socket_delete(struct doq_server_socket* doq_socket)
 	if(!doq_socket)
 		return;
 	free(doq_socket->static_secret);
-	SSL_CTX_free(doq_socket->ctx);
 #ifndef HAVE_NGTCP2_CRYPTO_QUICTLS_CONFIGURE_SERVER_CONTEXT
 	free(doq_socket->quic_method);
 #endif
-	free(doq_socket->ssl_service_key);
-	free(doq_socket->ssl_service_pem);
-	free(doq_socket->ssl_verify_pem);
 	sldns_buffer_free(doq_socket->pkt_buf);
 	sldns_buffer_free(doq_socket->blocked_pkt);
 	free(doq_socket->blocked_paddr);
@@ -2845,6 +2819,7 @@ static int
 doq_lookup_conn_stream(struct comm_reply* repinfo, struct comm_point* c,
 	struct doq_conn** conn, struct doq_stream** stream)
 {
+	log_assert(c->doq_socket);
 	if(c->doq_socket->current_conn) {
 		*conn = c->doq_socket->current_conn;
 	} else {
@@ -3084,7 +3059,7 @@ int comm_point_perform_accept(struct comm_point* c,
 			if(verbosity >= 3)
 				log_err_addr("accept rejected",
 				"connection limit exceeded", addr, *addrlen);
-			close(new_fd);
+			sock_close(new_fd);
 			return -1;
 		}
 	}
@@ -3185,6 +3160,40 @@ static int http2_submit_settings(struct http2_session* h2_session)
 }
 #endif /* HAVE_NGHTTP2 */
 
+#ifdef HAVE_NGHTTP2
+/** Delete http2 stream. After session delete or stream close callback */
+static void http2_stream_delete(struct http2_session* h2_session,
+	struct http2_stream* h2_stream)
+{
+	if(h2_stream->mesh_state) {
+		mesh_state_remove_reply(h2_stream->mesh, h2_stream->mesh_state,
+			h2_session->c);
+		h2_stream->mesh_state = NULL;
+	}
+	http2_req_stream_clear(h2_stream);
+	free(h2_stream);
+}
+#endif /* HAVE_NGHTTP2 */
+
+/** delete http2 session server. After closing connection. */
+static void http2_session_server_delete(struct http2_session* h2_session)
+{
+#ifdef HAVE_NGHTTP2
+	struct http2_stream* h2_stream, *next;
+	nghttp2_session_del(h2_session->session); /* NULL input is fine */
+	h2_session->session = NULL;
+	for(h2_stream = h2_session->first_stream; h2_stream;) {
+		next = h2_stream->next;
+		http2_stream_delete(h2_session, h2_stream);
+		h2_stream = next;
+	}
+	h2_session->first_stream = NULL;
+	h2_session->is_drop = 0;
+	h2_session->postpone_drop = 0;
+	h2_session->c->h2_stream = NULL;
+#endif
+	(void)h2_session;
+}
 
 void
 comm_point_tcp_accept_callback(int fd, short event, void* arg)
@@ -3223,6 +3232,8 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 		if(!c_hdl->h2_session ||
 			!http2_submit_settings(c_hdl->h2_session)) {
 			log_warn("failed to submit http2 settings");
+			if(c_hdl->h2_session)
+				http2_session_server_delete(c_hdl->h2_session);
 			return;
 		}
 		if(!c->ssl) {
@@ -3240,14 +3251,23 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 	}
 	if(!c_hdl->ev->ev) {
 		log_warn("could not ub_event_new, dropped tcp");
+#ifdef HAVE_NGHTTP2
+		if(c_hdl->type == comm_http && c_hdl->h2_session)
+			http2_session_server_delete(c_hdl->h2_session);
+#endif
 		return;
 	}
 	log_assert(fd != -1);
 	(void)fd;
 	new_fd = comm_point_perform_accept(c, &c_hdl->repinfo.remote_addr,
 		&c_hdl->repinfo.remote_addrlen);
-	if(new_fd == -1)
+	if(new_fd == -1) {
+#ifdef HAVE_NGHTTP2
+		if(c_hdl->type == comm_http && c_hdl->h2_session)
+			http2_session_server_delete(c_hdl->h2_session);
+#endif
 		return;
+	}
 	/* Copy remote_address to client_address.
 	 * Simplest way/time for streams to do that. */
 	c_hdl->repinfo.client_addrlen = c_hdl->repinfo.remote_addrlen;
@@ -5062,19 +5082,6 @@ struct http2_stream* http2_stream_create(int32_t stream_id)
 	h2_stream->stream_id = stream_id;
 	return h2_stream;
 }
-
-/** Delete http2 stream. After session delete or stream close callback */
-static void http2_stream_delete(struct http2_session* h2_session,
-	struct http2_stream* h2_stream)
-{
-	if(h2_stream->mesh_state) {
-		mesh_state_remove_reply(h2_stream->mesh, h2_stream->mesh_state,
-			h2_session->c);
-		h2_stream->mesh_state = NULL;
-	}
-	http2_req_stream_clear(h2_stream);
-	free(h2_stream);
-}
 #endif
 
 void http2_stream_add_meshstate(struct http2_stream* h2_stream,
@@ -5089,26 +5096,6 @@ void http2_stream_remove_mesh_state(struct http2_stream* h2_stream)
 	if(!h2_stream)
 		return;
 	h2_stream->mesh_state = NULL;
-}
-
-/** delete http2 session server. After closing connection. */
-static void http2_session_server_delete(struct http2_session* h2_session)
-{
-#ifdef HAVE_NGHTTP2
-	struct http2_stream* h2_stream, *next;
-	nghttp2_session_del(h2_session->session); /* NULL input is fine */
-	h2_session->session = NULL;
-	for(h2_stream = h2_session->first_stream; h2_stream;) {
-		next = h2_stream->next;
-		http2_stream_delete(h2_session, h2_stream);
-		h2_stream = next;
-	}
-	h2_session->first_stream = NULL;
-	h2_session->is_drop = 0;
-	h2_session->postpone_drop = 0;
-	h2_session->c->h2_stream = NULL;
-#endif
-	(void)h2_session;
 }
 
 #ifdef HAVE_NGHTTP2
@@ -5861,8 +5848,8 @@ struct comm_point*
 comm_point_create_doq(struct comm_base *base, int fd, sldns_buffer* buffer,
 	comm_point_callback_type* callback, void* callback_arg,
 	struct unbound_socket* socket, struct doq_table* table,
-	struct ub_randstate* rnd, const char* ssl_service_key,
-	const char* ssl_service_pem, struct config_file* cfg)
+	struct ub_randstate* rnd, const void* quic_sslctx,
+	struct config_file* cfg)
 {
 #ifdef HAVE_NGTCP2
 	struct comm_point* c = (struct comm_point*)calloc(1,
@@ -5899,15 +5886,13 @@ comm_point_create_doq(struct comm_base *base, int fd, sldns_buffer* buffer,
 	c->dnscrypt = 0;
 	c->dnscrypt_buffer = NULL;
 #endif
-#ifdef HAVE_NGTCP2
-	c->doq_socket = doq_server_socket_create(table, rnd, ssl_service_key,
-		ssl_service_pem, c, base, cfg);
+	c->doq_socket = doq_server_socket_create(table, rnd, quic_sslctx, c,
+		base, cfg);
 	if(!c->doq_socket) {
 		log_err("could not create doq comm_point");
 		comm_point_delete(c);
 		return NULL;
 	}
-#endif
 	c->inuse = 0;
 	c->callback = callback;
 	c->cb_arg = callback_arg;
@@ -5939,8 +5924,7 @@ comm_point_create_doq(struct comm_base *base, int fd, sldns_buffer* buffer,
 	(void)socket;
 	(void)rnd;
 	(void)table;
-	(void)ssl_service_key;
-	(void)ssl_service_pem;
+	(void)quic_sslctx;
 	(void)cfg;
 	sock_close(fd);
 	return NULL;
@@ -6747,7 +6731,7 @@ comm_point_drop_reply(struct comm_reply* repinfo)
 		reclaim_http_handler(repinfo->c);
 		return;
 #ifdef HAVE_NGTCP2
-	} else if(repinfo->c->type == comm_doq) {
+	} else if(repinfo->c->doq_socket) {
 		doq_socket_drop_reply(repinfo);
 		return;
 #endif
@@ -6952,8 +6936,9 @@ comm_timer_is_set(struct comm_timer* timer)
 }
 
 size_t
-comm_timer_get_mem(struct comm_timer* ATTR_UNUSED(timer))
+comm_timer_get_mem(struct comm_timer* timer)
 {
+	if(!timer) return 0;
 	return sizeof(struct internal_timer);
 }
 

@@ -281,6 +281,12 @@ server_stats_compile(struct worker* worker, struct ub_stats_info* s, int reset)
 		s->svr.rpz_action[i] += (long long)worker->env.mesh->rpz_action[i];
 	timehist_export(worker->env.mesh->histogram, s->svr.hist,
 		NUM_BUCKETS_HIST);
+	s->svr.num_queries_discard_timeout +=
+		(long long)worker->env.mesh->num_queries_discard_timeout;
+	s->svr.num_queries_wait_limit +=
+		(long long)worker->env.mesh->num_queries_wait_limit;
+	s->svr.num_dns_error_reports +=
+		(long long)worker->env.mesh->num_dns_error_reports;
 	/* values from outside network */
 	s->svr.unwanted_replies = (long long)worker->back->unwanted_replies;
 	s->svr.qtcp_outgoing = (long long)worker->back->num_tcp_outgoing;
@@ -325,20 +331,8 @@ server_stats_compile(struct worker* worker, struct ub_stats_info* s, int reset)
 	s->svr.num_query_dnscrypt_replay = 0;
 #endif /* USE_DNSCRYPT */
 	if(worker->env.auth_zones) {
-		if(reset && !worker->env.cfg->stat_cumulative) {
-			lock_rw_wrlock(&worker->env.auth_zones->lock);
-		} else {
-			lock_rw_rdlock(&worker->env.auth_zones->lock);
-		}
-		s->svr.num_query_authzone_up = (long long)worker->env.
-			auth_zones->num_query_up;
-		s->svr.num_query_authzone_down = (long long)worker->env.
-			auth_zones->num_query_down;
-		if(reset && !worker->env.cfg->stat_cumulative) {
-			worker->env.auth_zones->num_query_up = 0;
-			worker->env.auth_zones->num_query_down = 0;
-		}
-		lock_rw_unlock(&worker->env.auth_zones->lock);
+		s->svr.num_query_authzone_up += (long long)worker->env.mesh->num_query_authzone_up;
+		s->svr.num_query_authzone_down += (long long)worker->env.mesh->num_query_authzone_down;
 	}
 	s->svr.mem_stream_wait =
 		(long long)tcp_req_info_get_stream_buffer_size();
@@ -451,9 +445,15 @@ void server_stats_add(struct ub_stats_info* total, struct ub_stats_info* a)
 	total->svr.num_queries_cookie_valid += a->svr.num_queries_cookie_valid;
 	total->svr.num_queries_cookie_client += a->svr.num_queries_cookie_client;
 	total->svr.num_queries_cookie_invalid += a->svr.num_queries_cookie_invalid;
+	total->svr.num_queries_discard_timeout +=
+		a->svr.num_queries_discard_timeout;
+	total->svr.num_queries_wait_limit += a->svr.num_queries_wait_limit;
+	total->svr.num_dns_error_reports += a->svr.num_dns_error_reports;
 	total->svr.num_queries_missed_cache += a->svr.num_queries_missed_cache;
 	total->svr.num_queries_prefetch += a->svr.num_queries_prefetch;
 	total->svr.num_queries_timed_out += a->svr.num_queries_timed_out;
+	total->svr.num_query_authzone_up += a->svr.num_query_authzone_up;
+	total->svr.num_query_authzone_down += a->svr.num_query_authzone_down;
 	if (total->svr.max_query_time_us < a->svr.max_query_time_us)
 		total->svr.max_query_time_us = a->svr.max_query_time_us;
 	total->svr.sum_query_list_size += a->svr.sum_query_list_size;
@@ -461,9 +461,9 @@ void server_stats_add(struct ub_stats_info* total, struct ub_stats_info* a)
 #ifdef USE_DNSCRYPT
 	total->svr.num_query_dnscrypt_crypted += a->svr.num_query_dnscrypt_crypted;
 	total->svr.num_query_dnscrypt_cert += a->svr.num_query_dnscrypt_cert;
-	total->svr.num_query_dnscrypt_cleartext += \
+	total->svr.num_query_dnscrypt_cleartext +=
 		a->svr.num_query_dnscrypt_cleartext;
-	total->svr.num_query_dnscrypt_crypted_malformed += \
+	total->svr.num_query_dnscrypt_crypted_malformed +=
 		a->svr.num_query_dnscrypt_crypted_malformed;
 #endif /* USE_DNSCRYPT */
 	/* the max size reached is upped to higher of both */

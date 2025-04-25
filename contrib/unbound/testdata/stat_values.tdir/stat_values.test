@@ -1,0 +1,680 @@
+# #-- stat_values.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+. ../common.sh
+
+PRE="../.."
+
+# Individual thread stats.
+STATS_IGNORE_THREAD="\
+^thread"
+
+# Histogram stats.
+STATS_IGNORE_HISTOGRAM="\
+^histogram"
+
+# Time dependent stats.
+STATS_IGNORE_TIME_SPECIFIC="\
+^total.recursion.time.avg=
+^total.recursion.time.median=
+^time.now=
+^time.up=
+^time.elapsed="
+
+# Usage dependent stats.
+STATS_IGNORE_USAGE_SPECIFIC="\
+^total.requestlist.avg=
+^total.requestlist.max=
+^total.requestlist.overwritten=
+^total.requestlist.exceeded=
+^total.requestlist.current.all=
+^total.requestlist.current.user=
+^total.tcpusage=
+^mem\."
+
+# Stats to ignore by default.
+STATS_IGNORE_DEFAULT="\
+$STATS_IGNORE_THREAD
+$STATS_IGNORE_HISTOGRAM
+$STATS_IGNORE_TIME_SPECIFIC
+$STATS_IGNORE_USAGE_SPECIFIC"
+
+# Various files to be used while testing.
+STATS_FILE=stats.$$
+EXPECTED_STATS_FILE=expected_stats.$$
+IGNORE_REGEX_FILE=ignore_regex.$$
+FILTERED_STATS_FILE=filtered_stats.$$
+FOUND_STATS_FILE=found_stats.$$
+REST_STATS_FILE=rest_stats.$$
+
+DEBUG=0
+
+if dig -h 2>&1 | grep "cookie" >/dev/null; then
+	nocookie="+nocookie"
+else
+	nocookie=""
+fi
+
+# Write stats to $STATS_FILE.
+# Call this when you want to get stats from unbound.
+get_stats () {
+	echo "> Getting stats"
+	echo "$PRE/unbound-control -c ub.conf stats"
+	$PRE/unbound-control -c ub.conf stats > $STATS_FILE
+	if test $? -ne 0; then
+		echo "wrong exit value after success"
+		exit 1
+	fi
+}
+
+# Set the expected stat values by writing to $EXPECTED_STATS_FILE.
+# sort is used for proper diff later.
+set_expected_stats () {
+	echo "$1" | sort > $EXPECTED_STATS_FILE
+}
+
+# Set the regex to ignore stats by writing to $IGNORE_REGEX_FILE.
+set_ignore_regex_stats () {
+	echo "$1" > $IGNORE_REGEX_FILE
+}
+
+# Filter the stats by removing any matched regex from $IGNORE_REGEX_FILE,
+# sorts and writes the left over stats to $FILTERED_STATS_FILE.
+filter_stats () {
+	grep -v -f $IGNORE_REGEX_FILE $STATS_FILE | sort > $FILTERED_STATS_FILE
+}
+
+# Check that the stats in $FILTERED_STATS_FILE include the expected stats in
+# $EXPECTED_STATS_FILE.
+check_expected_stats () {
+	echo "> Checking expected stats"
+	grep -F -x -f $EXPECTED_STATS_FILE $FILTERED_STATS_FILE > $FOUND_STATS_FILE
+	if test $DEBUG -ne 0; then
+		echo "Found:"
+		cat $FOUND_STATS_FILE
+	fi
+	if diff $EXPECTED_STATS_FILE $FOUND_STATS_FILE; then
+		echo "OK"
+	else
+		echo "! bad expected stats:"
+        cat $FILTERED_STATS_FILE
+		end 1
+	fi
+}
+
+# Check that the rest (unspecified) stats are all 0 (no surprises).
+check_rest_stats () {
+	echo "> Checking rest stats"
+	grep -F -x -v -f $EXPECTED_STATS_FILE $FILTERED_STATS_FILE > $REST_STATS_FILE
+	if test $DEBUG -ne 0; then
+		echo "Rest:"
+		cat $REST_STATS_FILE
+	fi
+	if grep -v "=0$" $REST_STATS_FILE; then
+		echo "! bad rest stats"
+		end 1
+	else
+		echo "OK"
+	fi
+}
+
+# Main function to check stats by:
+# - Getting stats from unbound
+# - Filtering out the stats we are not interested in
+# - Checking that the expected stats are part of the filtered stats
+# - The rest of the stats have 0 values.
+check_stats () {
+	set_expected_stats "$1"
+	if test $DEBUG -ne 0; then
+		echo "Expected:"
+		cat $EXPECTED_STATS_FILE
+	fi
+	get_stats
+	filter_stats
+	if test $DEBUG -ne 0; then
+		echo "Filtered:"
+		cat $FILTERED_STATS_FILE
+	fi
+	check_expected_stats
+	check_rest_stats
+}
+
+# Convenient function to set an option through unbound-control.
+set_ub_option () {
+	name=$1
+	value=$2
+	echo "$PRE/unbound-control -c ub.conf set_option $name: $value"
+	$PRE/unbound-control -c ub.conf set_option $name: $value
+	if test $? -ne 0; then
+		echo "wrong exit value after success"
+		exit 1
+	fi
+}
+
+# Convenient function to kill current Unbound and bring up one with an alternate configuration.
+bring_up_alternate_configuration () {
+	conf_file=$1
+	kill_pid $UNBOUND_PID  # kill current Unbound
+	echo ""
+	cat unbound.log
+	echo ""
+	$PRE/unbound -d -c $conf_file >unbound.log 2>&1 &
+	UNBOUND_PID=$!
+	echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+	wait_unbound_up unbound.log
+}
+
+# Convenient function to exit the test.
+end () {
+	echo "> cat logfiles"
+	cat fwd.log
+	cat unbound.log
+	if test $1 -eq 1; then
+		echo "Not OK"
+	else
+		echo "> OK"
+	fi
+	exit $1
+}
+
+# Ignore all run specific stats.
+set_ignore_regex_stats "$STATS_IGNORE_DEFAULT"
+
+# Check if the server is up.
+echo "> dig 1ttl.example.com."
+dig @127.0.0.1 -p $UNBOUND_PORT 1ttl.example.com. | tee outfile
+echo "> check answer"
+if grep "1.1.1.1" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+
+
+teststep "Check initial stats based on first query."
+check_stats "\
+total.num.queries=1
+total.num.cachemiss=1
+total.num.recursivereplies=1
+num.query.type.A=1
+num.query.class.IN=1
+num.query.opcode.QUERY=1
+num.query.flags.RD=1
+num.query.flags.AD=1
+num.query.edns.present=1
+num.query.udpout=1
+msg.cache.count=1
+rrset.cache.count=1
+infra.cache.count=1
+num.answer.rcode.NOERROR=1"
+
+
+teststep "Check stat reset."
+check_stats "\
+msg.cache.count=1
+rrset.cache.count=1
+infra.cache.count=1"
+
+
+teststep "Enable serve-expired and check."
+set_ub_option serve-expired yes
+sleep 2  # make sure the TTL has expired.
+echo "> dig 1ttl.example.com."
+dig @127.0.0.1 -p $UNBOUND_PORT 1ttl.example.com. | tee outfile
+echo "> check answer"
+if grep "1.1.1.1" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+total.num.queries=1
+total.num.expired=1
+total.num.cachehits=1
+total.num.prefetch=1
+num.answer.rcode.NOERROR=1
+num.query.class.IN=1
+num.query.edns.present=1
+num.query.flags.AD=1
+num.query.flags.RD=1
+num.query.opcode.QUERY=1
+num.query.type.A=1
+num.query.udpout=1
+msg.cache.count=1
+rrset.cache.count=1
+infra.cache.count=1"
+
+
+teststep "Enable serve-expired-client-timeout and check."
+set_ub_option serve-expired-client-timeout 1
+echo "> dig servfail.expired."
+dig @127.0.0.1 -p $UNBOUND_PORT servfail.expired. | tee outfile
+echo "> check answer"
+if grep "192.0.2.1" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+total.num.queries=1
+total.num.cachemiss=1
+total.num.recursivereplies=1
+num.query.type.A=1
+num.query.class.IN=1
+num.query.opcode.QUERY=1
+num.query.flags.RD=1
+num.query.flags.AD=1
+num.query.edns.present=1
+num.query.udpout=1
+msg.cache.count=2
+rrset.cache.count=2
+infra.cache.count=2
+num.answer.rcode.NOERROR=1"
+kill_pid $FWD_EXPIRED_PID  # kill the expired forwarder to force a servfail from upstream.
+sleep 2  # make sure the TTL has expired.
+echo "> dig servfail.expired."
+dig @127.0.0.1 -p $UNBOUND_PORT servfail.expired. | tee outfile
+echo "> check answer"
+if grep "192.0.2.1" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+sleep 1  # make sure the outgoing UDP (and no edns1xx0 retry because not a smaller buffer size) are accounted for.
+check_stats "\
+total.num.queries=1
+total.num.expired=1
+total.num.recursivereplies=1
+num.answer.rcode.NOERROR=1
+num.query.class.IN=1
+num.query.edns.present=1
+num.query.flags.AD=1
+num.query.flags.RD=1
+num.query.opcode.QUERY=1
+num.query.type.A=1
+num.query.udpout=1
+total.num.cachemiss=1
+msg.cache.count=2
+rrset.cache.count=2
+infra.cache.count=2"
+
+
+# Disable serve-expired
+set_ub_option serve-expired no
+
+
+teststep "Check REFUSED; try without RD flag."
+echo "> dig somethingelse.example.com."
+dig @127.0.0.1 -p $UNBOUND_PORT +nordflag somethingelse.example.com. | tee outfile
+echo "> check answer"
+if grep "REFUSED" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+num.answer.rcode.REFUSED=1
+total.num.cachehits=1
+num.query.class.IN=1
+num.query.edns.present=1
+num.query.flags.AD=1
+num.query.opcode.QUERY=1
+num.query.type.A=1
+total.num.queries=1
+msg.cache.count=2
+rrset.cache.count=2
+infra.cache.count=2"
+
+
+teststep "Check the AD flag."
+echo "> dig www.example.com."
+dig @127.0.0.1 -p $UNBOUND_PORT +noadflag www.example.com. | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+num.query.flags.AD=0
+total.num.cachemiss=1
+num.answer.rcode.NOERROR=1
+num.query.class.IN=1
+num.query.edns.present=1
+num.query.flags.RD=1
+num.query.opcode.QUERY=1
+num.query.type.A=1
+num.query.udpout=1
+total.num.queries=1
+total.num.recursivereplies=1
+msg.cache.count=3
+rrset.cache.count=3
+infra.cache.count=2"
+
+
+teststep "Check local zone."
+echo "> dig www.local.zone."
+dig @127.0.0.1 -p $UNBOUND_PORT www.local.zone. | tee outfile
+echo "> check answer"
+if grep "192.0.2.1" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+num.answer.rcode.NOERROR=1
+total.num.cachehits=1
+num.query.class.IN=1
+num.query.edns.present=1
+num.query.flags.AD=1
+num.query.flags.RD=1
+num.query.opcode.QUERY=1
+num.query.type.A=1
+total.num.queries=1
+msg.cache.count=3
+rrset.cache.count=3
+infra.cache.count=2"
+
+
+teststep "Check NXDOMAIN (with local data)."
+echo "> dig mail.local.zone."
+dig @127.0.0.1 -p $UNBOUND_PORT mail.local.zone. | tee outfile
+echo "> check answer"
+if grep "NXDOMAIN" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+num.answer.rcode.NXDOMAIN=1
+total.num.cachehits=1
+num.query.class.IN=1
+num.query.edns.present=1
+num.query.flags.AD=1
+num.query.flags.RD=1
+num.query.opcode.QUERY=1
+num.query.type.A=1
+total.num.queries=1
+msg.cache.count=3
+rrset.cache.count=3
+infra.cache.count=2"
+
+
+teststep "Check CHAOS."
+echo "> dig id.server. ch txt"
+dig @127.0.0.1 -p $UNBOUND_PORT id.server. ch txt | tee outfile
+echo "> check answer"
+if grep "stat_values" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+num.query.class.CH=1
+total.num.cachehits=1
+num.answer.rcode.NOERROR=1
+num.query.edns.present=1
+num.query.flags.AD=1
+num.query.flags.RD=1
+num.query.opcode.QUERY=1
+num.query.type.TXT=1
+total.num.queries=1
+msg.cache.count=3
+rrset.cache.count=3
+infra.cache.count=2"
+
+
+teststep "Check dns-error-reporting."
+echo "> dig www.bogusdnssec."
+dig @127.0.0.1 -p $UNBOUND_PORT www.bogusdnssec. | tee outfile
+echo "> check answer"
+if grep "SERVFAIL" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+infra.cache.count=4
+key.cache.count=1
+msg.cache.count=7
+num.answer.bogus=1
+num.answer.rcode.SERVFAIL=1
+num.query.class.IN=1
+num.query.edns.present=1
+num.query.flags.AD=1
+num.query.flags.RD=1
+num.query.opcode.QUERY=1
+num.query.type.A=1
+num.query.udpout=9
+rrset.cache.count=4
+total.num.cachemiss=1
+total.num.dns_error_reports=1
+total.num.queries=1
+total.num.recursivereplies=1"
+
+
+###
+#
+# Bring the discard-timeout, wait-limit configured Unbound up
+#
+bring_up_alternate_configuration ub_discard_wait_limit.conf
+#
+###
+
+
+teststep "Check discard-timeout and wait-limit"
+echo "> dig www.unresponsive"
+dig @127.0.0.1 -p $UNBOUND_PORT +retry=2 +timeout=1 www.unresponsive. | tee outfile
+echo "> check answer"
+if grep "no servers could be reached" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+infra.cache.count=1
+msg.cache.count=1
+num.query.class.IN=3
+num.query.edns.present=3
+num.query.flags.AD=3
+num.query.flags.RD=3
+num.query.opcode.QUERY=3
+num.query.type.A=3
+num.query.udpout=1
+total.num.cachemiss=3
+total.num.queries=3
+total.num.queries_discard_timeout=2
+total.num.queries_wait_limit=1"
+
+
+###
+#
+# Bring the downstream DNS Cookies configured Unbound up
+#
+bring_up_alternate_configuration ub_downstream_cookies.conf
+#
+###
+
+
+teststep "Get a DNS Cookie."
+echo "> dig www.local.zone +tcp $nocookie +ednsopt=10:0102030405060708"
+dig @127.0.0.1 -p $UNBOUND_PORT +tcp $nocookie +ednsopt=10:0102030405060708 +retry=0 +time=1 www.local.zone. | tee outfile
+echo "> check answer"
+if grep "192.0.2.1" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+# Save valid cookie
+valid_cookie=`grep "COOKIE: " outfile | cut -d ' ' -f 3`
+invalid_cookie=`echo $valid_cookie | tr '0' '4'`
+check_stats "\
+total.num.queries=1
+total.num.queries_cookie_client=1
+total.num.cachehits=1
+num.query.type.A=1
+num.query.class.IN=1
+num.query.opcode.QUERY=1
+num.query.flags.RD=1
+num.query.flags.AD=1
+num.query.edns.present=1
+num.query.tcp=1
+num.answer.rcode.NOERROR=1"
+
+
+teststep "Present the valid DNS Cookie."
+echo "> dig www.local.zone $nocookie +ednsopt=10:valid_cookie"
+dig @127.0.0.1 -p $UNBOUND_PORT $nocookie +ednsopt=10:$valid_cookie +retry=0 +time=1 www.local.zone. | tee outfile
+echo "> check answer"
+if grep "192.0.2.1" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+total.num.queries=1
+total.num.queries_cookie_valid=1
+total.num.cachehits=1
+num.query.type.A=1
+num.query.class.IN=1
+num.query.opcode.QUERY=1
+num.query.flags.RD=1
+num.query.flags.AD=1
+num.query.edns.present=1
+num.answer.rcode.NOERROR=1"
+
+
+teststep "Present an invalid DNS Cookie."
+echo "> dig www.local.zone $nocookie +ednsopt=10:invalid_cookie"
+dig @127.0.0.1 -p $UNBOUND_PORT $nocookie +ednsopt=10:$invalid_cookie +retry=0 +time=1 www.local.zone. | tee outfile
+echo "> check answer"
+if grep "192.0.2.1" outfile; then
+	end 1
+else
+	echo "OK"
+fi
+# A lot of stats are missing since BADCOOKIE error response is before
+# those stat calculations.
+# BADCOOKIE is an extended error code; we record YXRRSET below.
+check_stats "\
+total.num.queries=1
+total.num.queries_cookie_invalid=1
+total.num.cachehits=1
+num.answer.rcode.YXRRSET=1"
+
+
+teststep "Present no DNS Cookie."
+echo "> dig www.local.zone +ignore"
+dig @127.0.0.1 -p $UNBOUND_PORT +ignore $nocookie +retry=0 +time=1 www.local.zone. | tee outfile
+echo "> check answer"
+if grep "192.0.2.1" outfile; then
+	end 1
+else
+	echo "OK"
+fi
+# A lot of stats are missing since REFUSED error response because of no DNS
+# Cookie is before those stat calculations.
+check_stats "\
+total.num.queries=1
+total.num.cachehits=1
+num.answer.rcode.REFUSED=1"
+
+if test x$USE_CACHEDB = "x1"; then
+
+
+###
+#
+# Bring the cachedb configured Unbound up
+#
+bring_up_alternate_configuration ub_cachedb.conf
+#
+###
+
+
+teststep "Check cachedb cache miss."
+echo "> dig www.example.com."
+dig @127.0.0.1 +ednsopt=65534 -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+total.num.queries=1
+total.num.cachemiss=1
+total.num.cachehits=0
+total.num.recursivereplies=1
+num.query.type.A=1
+num.query.class.IN=1
+num.query.opcode.QUERY=1
+num.query.flags.RD=1
+num.query.flags.AD=1
+num.query.edns.present=1
+num.query.udpout=1
+num.query.cachedb=0
+msg.cache.count=1
+rrset.cache.count=1
+infra.cache.count=1
+num.answer.rcode.NOERROR=1"
+
+
+teststep "Check cachedb cache hit."
+echo "> dig www.example.com."
+dig @127.0.0.1 +ednsopt=65534 -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+total.num.queries=1
+total.num.cachemiss=1
+total.num.cachehits=0
+total.num.recursivereplies=1
+num.query.type.A=1
+num.query.class.IN=1
+num.query.opcode.QUERY=1
+num.query.flags.RD=1
+num.query.flags.AD=1
+num.query.edns.present=1
+num.query.udpout=0
+num.query.cachedb=1
+msg.cache.count=1
+rrset.cache.count=1
+infra.cache.count=1
+num.answer.rcode.NOERROR=1"
+
+
+teststep "Check cachedb cache hit with stat reset."
+echo "> dig www.example.com."
+dig @127.0.0.1 +ednsopt=65534 -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	end 1
+fi
+check_stats "\
+total.num.queries=1
+total.num.cachemiss=1
+total.num.cachehits=0
+total.num.recursivereplies=1
+num.query.type.A=1
+num.query.class.IN=1
+num.query.opcode.QUERY=1
+num.query.flags.RD=1
+num.query.flags.AD=1
+num.query.edns.present=1
+num.query.cachedb=1
+msg.cache.count=1
+rrset.cache.count=1
+infra.cache.count=1
+num.answer.rcode.NOERROR=1"
+
+fi  # USE_CACHEDB
+
+end 0

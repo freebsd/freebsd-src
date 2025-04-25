@@ -90,6 +90,11 @@ struct mesh_area {
 	/** rbtree of all current queries (mesh_state.node)*/
 	rbtree_type all;
 
+	/** number of queries for unbound's auth_zones, upstream query */
+	size_t num_query_authzone_up;
+	/** number of queries for unbound's auth_zones, downstream answers */
+	size_t num_query_authzone_down;
+
 	/** count of the total number of mesh_reply entries */
 	size_t num_reply_addrs;
 	/** count of the number of mesh_states that have mesh_replies 
@@ -132,6 +137,12 @@ struct mesh_area {
 	size_t ans_nodata;
 	/** (extended stats) type of applied RPZ action */
 	size_t rpz_action[UB_STATS_RPZ_ACTION_NUM];
+	/** stats, number of queries removed due to discard-timeout */
+	size_t num_queries_discard_timeout;
+	/** stats, number of queries removed due to wait-limit */
+	size_t num_queries_wait_limit;
+	/** stats, number of dns error reports generated */
+	size_t num_dns_error_reports;
 
 	/** backup of query if other operations recurse and need the
 	 * network buffers */
@@ -696,5 +707,18 @@ int mesh_jostle_exceeded(struct mesh_area* mesh);
  * @param mstate: mesh state for query that has serve_expired_data.
  */
 void mesh_respond_serve_expired(struct mesh_state* mstate);
+
+/**
+ * Remove callback from mesh. Removes the callback from the state.
+ * The state itself is left to run. Searches for the pointer values.
+ *
+ * @param mesh: the mesh.
+ * @param qinfo: query from client.
+ * @param qflags: flags from client query.
+ * @param cb: callback function.
+ * @param cb_arg: callback user arg.
+ */
+void mesh_remove_callback(struct mesh_area* mesh, struct query_info* qinfo,
+	uint16_t qflags, mesh_cb_func_type cb, void* cb_arg);
 
 #endif /* SERVICES_MESH_H */
