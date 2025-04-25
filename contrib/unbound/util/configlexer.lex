@@ -472,8 +472,8 @@ unknown-server-time-limit{COLON} { YDVAR(1, VAR_UNKNOWN_SERVER_TIME_LIMIT) }
 discard-timeout{COLON}		{ YDVAR(1, VAR_DISCARD_TIMEOUT) }
 wait-limit{COLON}		{ YDVAR(1, VAR_WAIT_LIMIT) }
 wait-limit-cookie{COLON}	{ YDVAR(1, VAR_WAIT_LIMIT_COOKIE) }
-wait-limit-netblock{COLON}	{ YDVAR(1, VAR_WAIT_LIMIT_NETBLOCK) }
-wait-limit-cookie-netblock{COLON} { YDVAR(1, VAR_WAIT_LIMIT_COOKIE_NETBLOCK) }
+wait-limit-netblock{COLON}	{ YDVAR(2, VAR_WAIT_LIMIT_NETBLOCK) }
+wait-limit-cookie-netblock{COLON} { YDVAR(2, VAR_WAIT_LIMIT_COOKIE_NETBLOCK) }
 max-udp-size{COLON}		{ YDVAR(1, VAR_MAX_UDP_SIZE) }
 dns64-prefix{COLON}		{ YDVAR(1, VAR_DNS64_PREFIX) }
 dns64-synthall{COLON}		{ YDVAR(1, VAR_DNS64_SYNTHALL) }
@@ -573,15 +573,23 @@ backend{COLON}			{ YDVAR(1, VAR_CACHEDB_BACKEND) }
 secret-seed{COLON}		{ YDVAR(1, VAR_CACHEDB_SECRETSEED) }
 cachedb-no-store{COLON}		{ YDVAR(1, VAR_CACHEDB_NO_STORE) }
 cachedb-check-when-serve-expired{COLON}		{ YDVAR(1, VAR_CACHEDB_CHECK_WHEN_SERVE_EXPIRED) }
-redis-server-host{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISHOST) }
-redis-server-port{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISPORT) }
-redis-server-path{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISPATH) }
-redis-server-password{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISPASSWORD) }
-redis-timeout{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISTIMEOUT) }
+redis-server-host{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISHOST) }
+redis-replica-server-host{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISREPLICAHOST) }
+redis-server-port{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISPORT) }
+redis-replica-server-port{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISREPLICAPORT) }
+redis-server-path{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISPATH) }
+redis-replica-server-path{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISREPLICAPATH) }
+redis-server-password{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISPASSWORD) }
+redis-replica-server-password{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISREPLICAPASSWORD) }
+redis-timeout{COLON}			{ YDVAR(1, VAR_CACHEDB_REDISTIMEOUT) }
+redis-replica-timeout{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISREPLICATIMEOUT) }
 redis-command-timeout{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISCOMMANDTIMEOUT) }
+redis-replica-command-timeout{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISREPLICACOMMANDTIMEOUT) }
 redis-connect-timeout{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISCONNECTTIMEOUT) }
+redis-replica-connect-timeout{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISREPLICACONNECTTIMEOUT) }
 redis-expire-records{COLON}	{ YDVAR(1, VAR_CACHEDB_REDISEXPIRERECORDS) }
-redis-logical-db{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISLOGICALDB) }
+redis-logical-db{COLON}			{ YDVAR(1, VAR_CACHEDB_REDISLOGICALDB) }
+redis-replica-logical-db{COLON}		{ YDVAR(1, VAR_CACHEDB_REDISREPLICALOGICALDB) }
 ipset{COLON}			{ YDVAR(0, VAR_IPSET) }
 name-v4{COLON}			{ YDVAR(1, VAR_IPSET_NAME_V4) }
 name-v6{COLON}			{ YDVAR(1, VAR_IPSET_NAME_V6) }
@@ -594,6 +602,7 @@ edns-client-string{COLON}	{ YDVAR(2, VAR_EDNS_CLIENT_STRING) }
 edns-client-string-opcode{COLON} { YDVAR(1, VAR_EDNS_CLIENT_STRING_OPCODE) }
 nsid{COLON}			{ YDVAR(1, VAR_NSID ) }
 ede{COLON}			{ YDVAR(1, VAR_EDE ) }
+dns-error-reporting{COLON}	{ YDVAR(1, VAR_DNS_ERROR_REPORTING ) }
 proxy-protocol-port{COLON}	{ YDVAR(1, VAR_PROXY_PROTOCOL_PORT) }
 iter-scrub-ns{COLON}		{ YDVAR(1, VAR_ITER_SCRUB_NS) }
 iter-scrub-cname{COLON}		{ YDVAR(1, VAR_ITER_SCRUB_CNAME) }

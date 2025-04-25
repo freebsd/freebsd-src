@@ -221,6 +221,13 @@ size_t count_slabhash_entries(struct slabhash* table);
 void get_slabhash_stats(struct slabhash* table,
 	long long* entries_count, long long* max_collisions);
 
+/**
+ * Adjust size of slabhash memory max
+ * @param table: slabbed hash table
+ * @param max: new max memory
+ */
+void slabhash_adjust_size(struct slabhash* table, size_t max);
+
 /* --- test representation --- */
 /** test structure contains test key */
 struct slabhash_testkey {

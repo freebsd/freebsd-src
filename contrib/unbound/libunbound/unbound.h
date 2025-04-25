@@ -849,6 +849,12 @@ struct ub_server_stats {
 	long long mem_quic;
 	/** number of queries over (DNS over) QUIC */
 	long long qquic;
+	/** number of queries removed due to discard-timeout */
+	long long num_queries_discard_timeout;
+	/** number of queries removed due to wait-limit */
+	long long num_queries_wait_limit;
+	/** number of dns error reports generated */
+	long long num_dns_error_reports;
 };
 
 /**

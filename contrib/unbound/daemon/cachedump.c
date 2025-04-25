@@ -692,7 +692,7 @@ load_msg(RES* ssl, sldns_buffer* buf, struct worker* worker)
 		return 1; /* skip this one, not all references satisfied */
 
 	if(!dns_cache_store(&worker->env, &qinf, &rep, 0, 0, 0, NULL, flags,
-		*worker->env.now)) {
+		*worker->env.now, 1)) {
 		log_warn("error out of memory");
 		return 0;
 	}
@@ -836,7 +836,7 @@ int print_deleg_lookup(RES* ssl, struct worker* worker, uint8_t* nm,
 	struct delegpt* dp;
 	struct dns_msg* msg;
 	struct regional* region = worker->scratchpad;
-	char b[260];
+	char b[LDNS_MAX_DOMAINLEN];
 	struct query_info qinfo;
 	struct iter_hints_stub* stub;
 	int nolock = 0;

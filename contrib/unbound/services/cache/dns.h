@@ -90,11 +90,14 @@ struct dns_msg {
  *   (See DNSCACHE_STORE_xxx flags).
  * @param qstarttime: time when the query was started, and thus when the
  * 	delegations were looked up.
+ * @param is_valrec: if the query is validation recursion and does not get
+ *	dnssec validation itself.
  * @return 0 on alloc error (out of memory).
  */
 int dns_cache_store(struct module_env* env, struct query_info* qinf,
         struct reply_info* rep, int is_referral, time_t leeway, int pside,
-	struct regional* region, uint32_t flags, time_t qstarttime);
+	struct regional* region, uint32_t flags, time_t qstarttime,
+	int is_valrec);
 
 /**
  * Store message in the cache. Stores in message cache and rrset cache.

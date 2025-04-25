@@ -1,0 +1,3 @@
+$ORIGIN auth.nlnetlabs.nl.
+$TTL 60
+@ IN SOA a b 1 2 3 4 5

@@ -323,8 +323,7 @@ daemon_init(void)
 	return daemon;	
 }
 
-static int setup_acl_for_ports(struct acl_list* list,
-	struct listen_port* port_list)
+int setup_acl_for_ports(struct acl_list* list, struct listen_port* port_list)
 {
 	struct acl_addr* acl_node;
 	for(; port_list; port_list=port_list->next) {
@@ -717,16 +716,16 @@ daemon_fork(struct daemon* daemon)
 #endif
 
 	log_assert(daemon);
-	if(!(daemon->views = views_create()))
+	if(!(daemon->env->views = views_create()))
 		fatal_exit("Could not create views: out of memory");
 	/* create individual views and their localzone/data trees */
-	if(!views_apply_cfg(daemon->views, daemon->cfg))
+	if(!views_apply_cfg(daemon->env->views, daemon->cfg))
 		fatal_exit("Could not set up views");
 
-	if(!acl_list_apply_cfg(daemon->acl, daemon->cfg, daemon->views))
+	if(!acl_list_apply_cfg(daemon->acl, daemon->cfg, daemon->env->views))
 		fatal_exit("Could not setup access control list");
 	if(!acl_interface_apply_cfg(daemon->acl_interface, daemon->cfg,
-		daemon->views))
+		daemon->env->views))
 		fatal_exit("Could not setup interface control list");
 	if(!tcl_list_apply_cfg(daemon->tcl, daemon->cfg))
 		fatal_exit("Could not setup TCP connection limits");
@@ -762,15 +761,15 @@ daemon_fork(struct daemon* daemon)
 		fatal_exit("Could not set root or stub hints");
 
 	/* process raw response-ip configuration data */
-	if(!(daemon->respip_set = respip_set_create()))
+	if(!(daemon->env->respip_set = respip_set_create()))
 		fatal_exit("Could not create response IP set");
-	if(!respip_global_apply_cfg(daemon->respip_set, daemon->cfg))
+	if(!respip_global_apply_cfg(daemon->env->respip_set, daemon->cfg))
 		fatal_exit("Could not set up response IP set");
-	if(!respip_views_apply_cfg(daemon->views, daemon->cfg,
+	if(!respip_views_apply_cfg(daemon->env->views, daemon->cfg,
 		&have_view_respip_cfg))
 		fatal_exit("Could not set up per-view response IP sets");
-	daemon->use_response_ip = !respip_set_is_empty(daemon->respip_set) ||
-		have_view_respip_cfg;
+	daemon->use_response_ip = !respip_set_is_empty(
+		daemon->env->respip_set) || have_view_respip_cfg;
 
 	/* setup modules */
 	daemon_setup_modules(daemon);
@@ -886,14 +885,18 @@ daemon_cleanup(struct daemon* daemon)
 	daemon->env->hints = NULL;
 	local_zones_delete(daemon->local_zones);
 	daemon->local_zones = NULL;
-	respip_set_delete(daemon->respip_set);
-	daemon->respip_set = NULL;
-	views_delete(daemon->views);
-	daemon->views = NULL;
+	respip_set_delete(daemon->env->respip_set);
+	daemon->env->respip_set = NULL;
+	views_delete(daemon->env->views);
+	daemon->env->views = NULL;
 	if(daemon->env->auth_zones)
 		auth_zones_cleanup(daemon->env->auth_zones);
 	/* key cache is cleared by module deinit during next daemon_fork() */
 	daemon_remote_clear(daemon->rc);
+	if(daemon->fast_reload_thread)
+		fast_reload_thread_stop(daemon->fast_reload_thread);
+	if(daemon->fast_reload_printq_list)
+		fast_reload_printq_list_delete(daemon->fast_reload_printq_list);
 	for(i=0; i<daemon->num; i++)
 		worker_delete(daemon->workers[i]);
 	free(daemon->workers);
@@ -951,11 +954,16 @@ daemon_delete(struct daemon* daemon)
 	listen_desetup_locks();
 	free(daemon->chroot);
 	free(daemon->pidfile);
+	free(daemon->cfgfile);
 	free(daemon->env);
 #ifdef HAVE_SSL
 	listen_sslctx_delete_ticket_keys();
-	SSL_CTX_free((SSL_CTX*)daemon->listen_sslctx);
-	SSL_CTX_free((SSL_CTX*)daemon->connect_sslctx);
+	SSL_CTX_free((SSL_CTX*)daemon->listen_dot_sslctx);
+	SSL_CTX_free((SSL_CTX*)daemon->listen_doh_sslctx);
+	SSL_CTX_free((SSL_CTX*)daemon->connect_dot_sslctx);
+#endif
+#ifdef HAVE_NGTCP2
+	SSL_CTX_free((SSL_CTX*)daemon->listen_quic_sslctx);
 #endif
 	free(daemon);
 	/* lex cleanup */

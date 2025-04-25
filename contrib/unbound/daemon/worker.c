@@ -371,6 +371,84 @@ worker_check_request(sldns_buffer* pkt, struct worker* worker,
 	return;
 }
 
+/**
+ * Send fast-reload acknowledgement to the mainthread in one byte.
+ * This signals that this worker has received the previous command.
+ * The worker is waiting if that is after a reload_stop command.
+ * Or the worker has briefly processed the event itself, and in doing so
+ * released data pointers to old config, after a reload_poll command.
+ */
+static void
+worker_send_reload_ack(struct worker* worker)
+{
+	/* If this is clipped to 8 bits because thread_num>255, then that
+	 * is not a problem, the receiver counts the number of bytes received.
+	 * The number is informative only. */
+	uint8_t c = (uint8_t)worker->thread_num;
+	ssize_t ret;
+	while(1) {
+		ret = send(worker->daemon->fast_reload_thread->commreload[1],
+			(void*)&c, 1, 0);
+		if(ret == -1) {
+			if(
+#ifndef USE_WINSOCK
+				errno == EINTR || errno == EAGAIN
+#  ifdef EWOULDBLOCK
+				|| errno == EWOULDBLOCK
+#  endif
+#else
+				WSAGetLastError() == WSAEINTR ||
+				WSAGetLastError() == WSAEINPROGRESS ||
+				WSAGetLastError() == WSAEWOULDBLOCK
+#endif
+				)
+				continue; /* Try again. */
+			log_err("worker reload ack reply: send failed: %s",
+				sock_strerror(errno));
+			break;
+		}
+		break;
+	}
+}
+
+/** stop and wait to resume the worker */
+static void
+worker_stop_and_wait(struct worker* worker)
+{
+	uint8_t* buf = NULL;
+	uint32_t len = 0, cmd;
+	worker_send_reload_ack(worker);
+	/* wait for reload */
+	if(!tube_read_msg(worker->cmd, &buf, &len, 0)) {
+		log_err("worker reload read reply failed");
+		return;
+	}
+	if(len != sizeof(uint32_t)) {
+		log_err("worker reload reply, bad control msg length %d",
+			(int)len);
+		free(buf);
+		return;
+	}
+	cmd = sldns_read_uint32(buf);
+	free(buf);
+	if(cmd == worker_cmd_quit) {
+		/* quit anyway */
+		verbose(VERB_ALGO, "reload reply, control cmd quit");
+		comm_base_exit(worker->base);
+		return;
+	}
+	if(cmd != worker_cmd_reload_start) {
+		log_err("worker reload reply, wrong reply command");
+	}
+	if(worker->daemon->fast_reload_drop_mesh) {
+		verbose(VERB_ALGO, "worker: drop mesh queries after reload");
+		mesh_delete_all(worker->env.mesh);
+	}
+	fast_reload_worker_pickup_changes(worker);
+	worker_send_reload_ack(worker);
+	verbose(VERB_ALGO, "worker resume after reload");
+}
+
 void
 worker_handle_control_cmd(struct tube* ATTR_UNUSED(tube), uint8_t* msg,
 	size_t len, int error, void* arg)
@@ -405,6 +483,15 @@ worker_handle_control_cmd(struct tube* ATTR_UNUSED(tube), uint8_t* msg,
 	case worker_cmd_remote:
 		verbose(VERB_ALGO, "got control cmd remote");
 		daemon_remote_exec(worker);
+		break;
+	case worker_cmd_reload_stop:
+		verbose(VERB_ALGO, "got control cmd reload_stop");
+		worker_stop_and_wait(worker);
+		break;
+	case worker_cmd_reload_poll:
+		verbose(VERB_ALGO, "got control cmd reload_poll");
+		fast_reload_worker_pickup_changes(worker);
+		worker_send_reload_ack(worker);
 		break;
 	default:
 		log_err("bad command %d", (int)cmd);
@@ -600,7 +687,8 @@ apply_respip_action(struct worker* worker, const struct query_info* qinfo,
 		return 1;
 
 	if(!respip_rewrite_reply(qinfo, cinfo, rep, encode_repp, &actinfo,
-		alias_rrset, 0, worker->scratchpad, az, NULL))
+		alias_rrset, 0, worker->scratchpad, az, NULL,
+		worker->env.views, worker->env.respip_set))
 		return 0;
 
 	/* xxx_deny actions mean dropping the reply, unless the original reply
@@ -761,7 +849,8 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	} else if(partial_rep &&
 		!respip_merge_cname(partial_rep, qinfo, rep, cinfo,
 		must_validate, &encode_rep, worker->scratchpad,
-		worker->env.auth_zones)) {
+		worker->env.auth_zones, worker->env.views,
+		worker->env.respip_set)) {
 		goto bail_out;
 	}
 	if(encode_rep != rep) {
@@ -1082,7 +1171,7 @@ answer_notify(struct worker* w, struct query_info* qinfo,
 
 	if(verbosity >= VERB_DETAIL) {
 		char buf[380];
-		char zname[255+1];
+		char zname[LDNS_MAX_DOMAINLEN];
 		char sr[25];
 		dname_str(qinfo->qname, zname);
 		sr[0]=0;
@@ -1413,7 +1502,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		return 0;
 	}
 	if(c->dnscrypt && !repinfo->is_dnscrypted) {
-		char buf[LDNS_MAX_DOMAINLEN+1];
+		char buf[LDNS_MAX_DOMAINLEN];
 		/* Check if this is unencrypted and asking for certs */
 		worker_check_request(c->buffer, worker, &check_result);
 		if(check_result.value != 0) {
@@ -1813,7 +1902,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		cinfo_tmp.tag_datas = acladdr->tag_datas;
 		cinfo_tmp.tag_datas_size = acladdr->tag_datas_size;
 		cinfo_tmp.view = acladdr->view;
-		cinfo_tmp.respip_set = worker->daemon->respip_set;
+		cinfo_tmp.view_name = NULL;
 		cinfo = &cinfo_tmp;
 	}
 
@@ -1845,10 +1934,10 @@ lookup_cache:
 				 * its qname must be that used for cache
 				 * lookup. */
 				if((worker->env.cfg->prefetch &&
-					*worker->env.now >= rep->prefetch_ttl) ||
+					rep->prefetch_ttl <= *worker->env.now) ||
 					(worker->env.cfg->serve_expired &&
-					*worker->env.now > rep->ttl)) {
-
+					rep->ttl < *worker->env.now  &&
+					!(*worker->env.now < rep->serve_expired_norec_ttl))) {
 					time_t leeway = rep->ttl - *worker->env.now;
 					if(rep->ttl < *worker->env.now)
 						leeway = 0;
@@ -1966,13 +2055,13 @@ send_reply_rc:
 				&repinfo->client_addr, repinfo->client_addrlen,
 				tv, 1, c->buffer,
 				(worker->env.cfg->log_destaddr?(void*)repinfo->c->socket->addr:NULL),
-				c->type);
+				c->type, c->ssl);
 		} else {
 			log_reply_info(NO_VERBOSE, &qinfo,
 				&repinfo->client_addr, repinfo->client_addrlen,
 				tv, 1, c->buffer,
 				(worker->env.cfg->log_destaddr?(void*)repinfo->c->socket->addr:NULL),
-				c->type);
+				c->type, c->ssl);
 		}
 	}
 #ifdef USE_DNSCRYPT
@@ -2173,10 +2262,11 @@ worker_init(struct worker* worker, struct config_file *cfg,
 			: cfg->tcp_idle_timeout,
 		cfg->harden_large_queries, cfg->http_max_streams,
 		cfg->http_endpoint, cfg->http_notls_downstream,
-		worker->daemon->tcl, worker->daemon->listen_sslctx,
+		worker->daemon->tcl, worker->daemon->listen_dot_sslctx,
+		worker->daemon->listen_doh_sslctx,
+		worker->daemon->listen_quic_sslctx,
 		dtenv, worker->daemon->doq_table, worker->env.rnd,
-		cfg->ssl_service_key, cfg->ssl_service_pem, cfg,
-		worker_handle_request, worker);
+		cfg, worker_handle_request, worker);
 	if(!worker->front) {
 		log_err("could not create listening sockets");
 		worker_delete(worker);
@@ -2191,7 +2281,7 @@ worker_init(struct worker* worker, struct config_file *cfg,
 		cfg->unwanted_threshold, cfg->outgoing_tcp_mss,
 		&worker_alloc_cleanup, worker,
 		cfg->do_udp || cfg->udp_upstream_without_downstream,
-		worker->daemon->connect_sslctx, cfg->delay_close,
+		worker->daemon->connect_dot_sslctx, cfg->delay_close,
 		cfg->tls_use_sni, dtenv, cfg->udp_connect,
 		cfg->max_reuse_tcp_queries, cfg->tcp_reuse_timeout,
 		cfg->tcp_auth_query_timeout);

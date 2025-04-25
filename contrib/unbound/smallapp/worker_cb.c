@@ -256,6 +256,20 @@ void dtio_mainfdcallback(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
 }
 #endif
 
+void fast_reload_service_cb(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
+	void* ATTR_UNUSED(arg))
+{
+	log_assert(0);
+}
+
+int fast_reload_client_callback(struct comm_point* ATTR_UNUSED(c),
+	void* ATTR_UNUSED(arg), int ATTR_UNUSED(error),
+        struct comm_reply* ATTR_UNUSED(repinfo))
+{
+	log_assert(0);
+	return 0;
+}
+
 #ifdef HAVE_NGTCP2
 void doq_client_event_cb(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
 	void* ATTR_UNUSED(arg))

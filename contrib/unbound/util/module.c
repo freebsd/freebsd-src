@@ -135,7 +135,7 @@ char* errinf_to_str_bogus(struct module_qstate* qstate, struct regional* region)
 	char* p = buf;
 	size_t left = sizeof(buf);
 	struct errinf_strlist* s;
-	char dname[LDNS_MAX_DOMAINLEN+1];
+	char dname[LDNS_MAX_DOMAINLEN];
 	char t[16], c[16];
 	sldns_wire2str_type_buf(qstate->qinfo.qtype, t, sizeof(t));
 	sldns_wire2str_class_buf(qstate->qinfo.qclass, c, sizeof(c));
@@ -178,7 +178,7 @@ char* errinf_to_str_servfail(struct module_qstate* qstate)
 	char* p = buf;
 	size_t left = sizeof(buf);
 	struct errinf_strlist* s;
-	char dname[LDNS_MAX_DOMAINLEN+1];
+	char dname[LDNS_MAX_DOMAINLEN];
 	char t[16], c[16];
 	sldns_wire2str_type_buf(qstate->qinfo.qtype, t, sizeof(t));
 	sldns_wire2str_class_buf(qstate->qinfo.qclass, c, sizeof(c));
@@ -218,7 +218,7 @@ char* errinf_to_str_misc(struct module_qstate* qstate)
 void errinf_rrset(struct module_qstate* qstate, struct ub_packed_rrset_key *rr)
 {
 	char buf[1024];
-	char dname[LDNS_MAX_DOMAINLEN+1];
+	char dname[LDNS_MAX_DOMAINLEN];
 	char t[16], c[16];
 	if((qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail) || !rr)
 		return;
@@ -232,7 +232,7 @@ void errinf_rrset(struct module_qstate* qstate, struct ub_packed_rrset_key *rr)
 void errinf_dname(struct module_qstate* qstate, const char* str, uint8_t* dname)
 {
 	char b[1024];
-	char buf[LDNS_MAX_DOMAINLEN+1];
+	char buf[LDNS_MAX_DOMAINLEN];
 	if((qstate->env->cfg->val_log_level < 2 && !qstate->env->cfg->log_servfail) || !str || !dname)
 		return;
 	dname_str(dname, buf);

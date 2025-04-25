@@ -1554,3 +1554,12 @@ val_neg_getmsg(struct val_neg_cache* neg, struct query_info* qinfo,
 	lock_basic_unlock(&neg->lock);
 	return msg;
 }
+
+void
+val_neg_adjust_size(struct val_neg_cache* neg, size_t max)
+{
+	lock_basic_lock(&neg->lock);
+	neg->max = max;
+	neg_make_space(neg, 0);
+	lock_basic_unlock(&neg->lock);
+}

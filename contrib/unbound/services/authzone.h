@@ -70,7 +70,8 @@ struct auth_chunk;
  * Authoritative zones, shared.
  */
 struct auth_zones {
-	/** lock on the authzone trees */
+	/** lock on the authzone trees. It is locked after views, respip,
+	 * local_zones and before fwds and stubs. */
 	lock_rw_type lock;
 	/** rbtree of struct auth_zone */
 	rbtree_type ztree;
@@ -78,10 +79,6 @@ struct auth_zones {
 	rbtree_type xtree;
 	/** do we have downstream enabled */
 	int have_downstream;
-	/** number of queries upstream */
-	size_t num_query_up;
-	/** number of queries downstream */
-	size_t num_query_down;
 	/** first auth zone containing rpz item in linked list */
 	struct auth_zone* rpz_first;
 	/** rw lock for rpz linked list, needed when iterating or editing linked
@@ -211,7 +208,9 @@ struct auth_xfer {
 	 * one of the tasks. 
 	 * Once it has the task assigned to it, the worker can access the
 	 * other elements of the task structure without a lock, because that
-	 * is necessary for the eventloop and callbacks from that. */
+	 * is necessary for the eventloop and callbacks from that.
+	 * The auth_zone->lock is locked before this lock.
+	 */
 	lock_basic_type lock;
 
 	/** zone name, in uncompressed wireformat */
@@ -786,5 +785,34 @@ void auth_zonemd_dnskey_lookup_callback(void* arg, int rcode,
  */
 void auth_zones_pickup_zonemd_verify(struct auth_zones* az,
 	struct module_env* env);
+
+/** Get memory usage for auth zones. The routine locks and unlocks
+ * for reading. */
+size_t auth_zones_get_mem(struct auth_zones* zones);
+
+/**
+ * Initial pick up of the auth zone nextprobe timeout and that turns
+ * into further zone transfer work, if any. Also sets the lease time.
+ * @param x: xfer structure, locked by caller.
+ * @param env: environment of the worker that picks up the task.
+ */
+void auth_xfer_pickup_initial_zone(struct auth_xfer* x,
+	struct module_env* env);
+
+/**
+ * Delete auth xfer structure
+ * @param xfr: delete this xfer and its tasks.
+ */
+void auth_xfer_delete(struct auth_xfer* xfr);
+
+/**
+ * Disown tasks from the xfr that belong to this worker.
+ * Only tasks for the worker in question, the comm point and timer
+ * delete functions need to run in the thread of that worker to be
+ * able to delete the callback from the event base.
+ * @param xfr: xfr structure
+ * @param worker: the worker for which to stop tasks.
+ */
+void xfr_disown_tasks(struct auth_xfer* xfr, struct worker* worker);
 
 #endif /* SERVICES_AUTHZONE_H */

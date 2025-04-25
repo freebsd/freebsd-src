@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Oct 17, 2024" "NLnet Labs" "unbound 1.22.0"
+.TH "unbound.conf" "5" "Apr 24, 2025" "NLnet Labs" "unbound 1.23.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -326,11 +326,15 @@ The wait limit for the netblock. If not given the wait\-limit value is
 used. The most specific netblock is used to determine the limit. Useful for
 overriding the default for a specific, group or individual, server.
 The value -1 disables wait limits for the netblock.
+By default the loopback has a wait limit netblock of -1, it is not limited,
+because it is separated from the rest of network for spoofed packets.
+The loopback addresses 127.0.0.0/8 and ::1/128 are default at -1.
 .TP
 .B wait\-limit\-cookie\-netblock: \fI<netblock> <number>
 The wait limit for the netblock, when the query has a DNS cookie.
 If not given, the wait\-limit\-cookie value is used.
 The value -1 disables wait limits for the netblock.
+The loopback addresses 127.0.0.0/8 and ::1/128 are default at -1.
 .TP
 .B so\-rcvbuf: \fI<number>
 If not 0, then set the SO_RCVBUF socket option to get more buffer
@@ -716,7 +720,7 @@ and initial ACL (check if the proxy itself is denied/refused by configuration).
 The proxied address (if any) will then be used as the true client address and
 will be used where applicable for logging, ACL, DNSTAP, RPZ and IP ratelimiting.
 PROXYv2 is supported for UDP and TCP/TLS listening interfaces.
-There is no support for PROXYv2 on a DoH or DNSCrypt listening interface.
+There is no support for PROXYv2 on a DoH, DoQ or DNSCrypt listening interface.
 Can list multiple, each on a new statement.
 .TP
 .B quic\-port: \fI<number>
@@ -902,9 +906,8 @@ outside of the chroot directory.
 Additionally, Unbound may need to access /dev/urandom (for entropy)
 from inside the chroot.
 .IP
-If given a chroot is done to the given directory. By default chroot is
-enabled and the default is "@UNBOUND_CHROOT_DIR@". If you give "" no
-chroot is performed.
+If given a chroot is done to the given directory. The chroot is by default 
+set to "@UNBOUND_CHROOT_DIR@". If you give "" no chroot is performed.
 .TP
 .B username: \fI<name>
 If given, after binding the port the user privileges are dropped. Default is
@@ -1056,11 +1059,11 @@ closer to that of BIND 9, while setting "\-1 \-1 \-1 \-1 \-1" gives behaviour
 rumoured to be closer to that of BIND 8.
 .TP
 .B harden\-short\-bufsize: \fI<yes or no>
-Very small EDNS buffer sizes from queries are ignored. Default is on, as
+Very small EDNS buffer sizes from queries are ignored. Default is yes, as
 described in the standard.
 .TP
 .B harden\-large\-queries: \fI<yes or no>
-Very large queries are ignored. Default is off, since it is legal protocol
+Very large queries are ignored. Default is no, since it is legal protocol
 wise to send these, and could be necessary for operation if TSIG or EDNS
 payload is very large.
 .TP
@@ -1107,10 +1110,23 @@ to increase the max depth that is checked to.
 .TP
 .B harden\-algo\-downgrade: \fI<yes or no>
 Harden against algorithm downgrade when multiple algorithms are
-advertised in the DS record.  If no, allows the weakest algorithm to
-validate the zone.  Default is no.  Zone signers must produce zones
-that allow this feature to work, but sometimes they do not, and turning
-this option off avoids that validation failure.
+advertised in the DS record.
+This works by first choosing only the strongest DS digest type as per RFC 4509
+(Unbound treats the highest algorithm as the strongest) and then
+expecting signatures from all the advertised signing algorithms from the chosen
+DS(es) to be present.
+If no, allows any one supported algorithm to validate the zone, even if other advertised algorithms are broken.
+Default is no.
+RFC 6840 mandates that zone signers must produce zones signed with all
+advertised algorithms, but sometimes they do not.
+RFC 6840 also clarifies that this requirement is not for validators and
+validators should accept any single valid path.
+It should thus be explicitly noted that this option violates RFC 6840 for
+DNSSEC validation and should only be used to perform a signature
+completeness test to support troubleshooting.
+Using this option may break DNSSEC resolution with non-RFC6840-conforming
+signers and/or in multi-signer configurations that don't send all the
+advertised signatures.
 .TP
 .B harden\-unknown\-additional: \fI<yes or no>
 Harden against unknown records in the authority section and additional
@@ -1131,7 +1147,7 @@ queries.  For domains that do not support 0x20 and also fail with fallback
 because they keep sending different answers, like some load balancers.
 Can be given multiple times, for different domains.
 .TP
-.B caps\-whitelist: \fI<yes or no>
+.B caps\-whitelist: \fI<domain>
 Alternate syntax for \fBcaps\-exempt\fR.
 .TP
 .B qname\-minimisation: \fI<yes or no>
@@ -1248,9 +1264,6 @@ Adding \fIrespip\fR to the front will cause RPZ processing to be done on
 all queries.
 The default is "\fIvalidator iterator\fR".
 .IP
-When the server is built with
-EDNS client subnet support the default is "\fIsubnetcache validator
-iterator\fR".
 Most modules that need to be listed here have to be listed at the beginning
 of the line.  The subnetcachedb module has to be listed just before
 the iterator.
@@ -1390,15 +1403,17 @@ Default is no.
 .TP
 .B serve\-expired: \fI<yes or no>
 If enabled, Unbound attempts to serve old responses from cache with a
-TTL of \fBserve\-expired\-reply\-ttl\fR in the response without waiting for the
-actual resolution to finish.  The actual resolution answer ends up in the cache
-later on.  Default is "no".
+TTL of \fBserve\-expired\-reply\-ttl\fR in the response.
+By default the expired answer will be used after a resolution attempt errored
+out or is taking more than serve\-expired\-client\-timeout to resolve.
+Default is "no".
 .TP
 .B serve\-expired\-ttl: \fI<seconds>
-Limit serving of expired responses to configured seconds after expiration. 0
-disables the limit.  This option only applies when \fBserve\-expired\fR is
-enabled.  A suggested value per RFC 8767 is between
-86400 (1 day) and 259200 (3 days).  The default is 0.
+Limit serving of expired responses to configured seconds after expiration.
+0 disables the limit.
+This option only applies when \fBserve\-expired\fR is enabled.
+A suggested value per RFC 8767 is between 86400 (1 day) and 259200 (3 days).
+The default is 86400.
 .TP
 .B serve\-expired\-ttl\-reset: \fI<yes or no>
 Set the TTL of expired records to the \fBserve\-expired\-ttl\fR value after a
@@ -1412,12 +1427,14 @@ TTL value to use when replying with expired data.  If
 use 30 as the value (RFC 8767).  The default is 30.
 .TP
 .B serve\-expired\-client\-timeout: \fI<msec>
-Time in milliseconds before replying to the client with expired data.  This
-essentially enables the serve-stale behavior as specified in
+Time in milliseconds before replying to the client with expired data.
+This essentially enables the serve-stale behavior as specified in
 RFC 8767 that first tries to resolve before immediately
-responding with expired data.  A recommended value per
-RFC 8767 is 1800.  Setting this to 0 will disable this
-behavior.  Default is 0.
+responding with expired data.
+Setting this to 0 will disable this behavior and instead serve the expired
+record immediately from the cache before attempting to refresh it via
+resolution.
+Default is 1800.
 .TP
 .B serve\-original\-ttl: \fI<yes or no>
 If enabled, Unbound will always return the original TTL as received from
@@ -1622,6 +1639,7 @@ given zone.  Use \fInodefault\fR if you use exactly that zone, if you want to
 use a subzone, use \fItransparent\fR.
 .P
 The default zones are localhost, reverse 127.0.0.1 and ::1, the home.arpa,
+the resolver.arpa, the service.arpa,
 the onion, test, invalid and the AS112 zones. The AS112 zones are reverse
 DNS zones for private use and reserved IP addresses for which the servers
 on the internet cannot provide correct answers. They are configured by
@@ -1674,6 +1692,24 @@ Default content:
 local\-zone: "home.arpa." static
 local\-data: "home.arpa. 10800 IN NS localhost."
 local\-data: "home.arpa. 10800 IN
+    SOA localhost. nobody.invalid. 1 3600 1200 604800 10800"
+.fi
+.TP 10
+\h'5'\fIresolver.arpa (RFC 9462)\fR
+Default content:
+.nf
+local\-zone: "resolver.arpa." static
+local\-data: "resolver.arpa. 10800 IN NS localhost."
+local\-data: "resolver.arpa. 10800 IN
+    SOA localhost. nobody.invalid. 1 3600 1200 604800 10800"
+.fi
+.TP 10
+\h'5'\fIservice.arpa (draft-ietf-dnssd-srp-25)\fR
+Default content:
+.nf
+local\-zone: "service.arpa." static
+local\-data: "service.arpa. 10800 IN NS localhost."
+local\-data: "service.arpa. 10800 IN
     SOA localhost. nobody.invalid. 1 3600 1200 604800 10800"
 .fi
 .TP 10
@@ -1998,7 +2034,7 @@ Default is 11.
 Limit on the number of upstream queries sent out for an incoming query and
 its subqueries from recursion. It is not reset during the resolution. When
 it is exceeded the query is failed and the lookup process stops.
-Default is 128.
+Default is 200.
 .TP 5
 .B fast\-server\-permil: \fI<number>
 Specify how many times out of 1000 to pick from the set of fastest servers.
@@ -2053,17 +2089,30 @@ be used.  Default is 65001.
 .TP 5
 .B ede: \fI<yes or no>
 If enabled, Unbound will respond with Extended DNS Error codes (RFC8914).
-These EDEs attach informative error messages to a response for various
-errors. Default is "no".
+These EDEs provide additional information with a response mainly for, but not
+limited to, DNS and DNSSEC errors.
 
 When the \fBval-log-level\fR option is also set to \fB2\fR, responses with
-Extended DNS Errors concerning DNSSEC failures that are not served from cache,
-will also contain a descriptive text message about the reason for the failure.
+Extended DNS Errors concerning DNSSEC failures will also contain a descriptive
+text message about the reason for the failure.
+Default is "no".
 .TP 5
 .B ede\-serve\-expired: \fI<yes or no>
 If enabled, Unbound will attach an Extended DNS Error (RFC8914) Code 3 - Stale
-Answer as EDNS0 option to the expired response. Note that this will not attach
-the EDE code without setting the global \fBede\fR option to "yes" as well.
+Answer as EDNS0 option to the expired response.
+The \fBede\fR option needs to be enabled as well for this to work.
+Default is "no".
+.TP 5
+.B dns\-error\-reporting: \fI<yes or no>
+If enabled, Unbound will send DNS Error Reports (RFC9567).
+The name servers need to express support by attaching the Report-Channel EDNS0
+option on their replies specifying the reporting agent for the zone.
+Any errors encountered during resolution that would result in Unbound
+generating an Extended DNS Error (RFC8914) will be reported to the zone's
+reporting agent.
+The \fBede\fR option does not need to be enabled for this to work.
+It is advised that the \fBqname\-minimisation\fR option is also enabled to
+increase privacy on the outgoing reports.
 Default is "no".
 .SS "Remote Control Options"
 In the
@@ -2476,8 +2525,8 @@ The dynamic library file to load. Repeat this option for every dynlib module
 instance added to the \fBmodule\-config:\fR option.
 .SS "DNS64 Module Options"
 .LP
-The dns64 module must be configured in the \fBmodule\-config:\fR "dns64
-validator iterator" directive and be compiled into the daemon to be
+The dns64 module must be configured in the \fBmodule\-config:\fR directive
+e.g., "dns64 validator iterator" and be compiled into the daemon to be
 enabled.  These settings go in the \fBserver:\fR section.
 .TP
 .B dns64\-prefix: \fI<IPv6 prefix>\fR
@@ -2577,8 +2626,8 @@ in the dnscrypt nonce cache.  Close to the number of cpus is
 a fairly good setting.
 .SS "EDNS Client Subnet Module Options"
 .LP
-The ECS module must be configured in the \fBmodule\-config:\fR "subnetcache
-validator iterator" directive and be compiled into the daemon to be
+The ECS module must be configured in the \fBmodule\-config:\fR directive e.g.,
+"subnetcache validator iterator" and be compiled into the daemon to be
 enabled.  These settings go in the \fBserver:\fR section.
 .LP
 If the destination address is allowed in the configuration Unbound will add the
@@ -2598,6 +2647,15 @@ The maximum size of the ECS cache is controlled by 'msg-cache-size' in the
 configuration file. On top of that, for each query only 100 different subnets
 are allowed to be stored for each address family. Exceeding that number, older
 entries will be purged from cache.
+.LP
+Note that due to the nature of how EDNS Client Subnet works, by segregating the
+client IP space in order to try and have tailored responses for prefixes of
+unknown sizes, resolution and cache response performance are impacted as a
+result.
+Usage of the subnetcache module should only be enabled in installations that
+require such functionality where the resolver and the clients belong to
+different networks.
+An example of that is an open resolver installation.
 .LP
 This module does not interact with the \fBserve\-expired*\fR and
 \fBprefetch:\fR options.
@@ -2649,8 +2707,8 @@ Specifies the maximum number of subnets ECS answers kept in the ECS radix tree.
 This number applies for each qname/qclass/qtype tuple. Defaults to 100.
 .SS "Opportunistic IPsec Support Module Options"
 .LP
-The IPsec module must be configured in the \fBmodule\-config:\fR "ipsecmod
-validator iterator" directive and be compiled into Unbound by using
+The IPsec module must be configured in the \fBmodule\-config:\fR directive
+e.g., "ipsecmod validator iterator" and be compiled into Unbound by using
 \fB\-\-enable\-ipsecmod\fR to be enabled.
 These settings go in the \fBserver:\fR section.
 .LP
@@ -2715,12 +2773,12 @@ Allow the ipsecmod functionality for the domain so that the module logic will be
 executed.  Can be given multiple times, for different domains.  If the option is
 not specified, all domains are treated as being allowed (default).
 .TP
-.B ipsecmod\-whitelist: \fI<yes or no>
+.B ipsecmod\-whitelist: \fI<domain>
 Alternate syntax for \fBipsecmod\-allow\fR.
 .SS "Cache DB Module Options"
 .LP
-The Cache DB module must be configured in the \fBmodule\-config:\fR
-"validator cachedb iterator" directive and be compiled into the daemon
+The Cache DB module must be configured in the \fBmodule\-config:\fR directive
+e.g., "validator cachedb iterator" and be compiled into the daemon
 with \fB\-\-enable\-cachedb\fR.
 If this module is enabled and configured, the specified backend database
 works as a second level cache:
@@ -2815,12 +2873,12 @@ The TCP port number of the Redis server.
 This option defaults to 6379.
 .TP
 .B redis-server-path: \fI<unix socket path>\fR
-The unix socket path to connect to the redis server. Off by default, and it
+The unix socket path to connect to the Redis server. Off by default, and it
 can be set to "" to turn this off. Unix sockets may have better throughput
 than the IP address option.
 .TP
 .B redis-server-password: \fI"<password>"\fR
-The Redis AUTH password to use for the redis server.
+The Redis AUTH password to use for the Redis server.
 Only relevant if Redis is configured for client password authorisation.
 Off by default, and it can be set to "" to turn this off.
 .TP
@@ -2832,12 +2890,14 @@ re-establish a new connection later.
 This option defaults to 100 milliseconds.
 .TP
 .B redis-command-timeout: \fI<msec>\fR
-The timeout to use for redis commands, in milliseconds. If 0, it uses the
-redis\-timeout value. The default is 0.
+The timeout to use for Redis commands, in milliseconds.
+If 0, it uses the \fBredis\-timeout\fR value.
+The default is 0.
 .TP
 .B redis-connect-timeout: \fI<msec>\fR
-The timeout to use for redis connection set up, in milliseconds. If 0, it
-uses the redis\-timeout value. The default is 0.
+The timeout to use for Redis connection set up, in milliseconds.
+If 0, it uses the \fBredis\-timeout\fR value.
+The default is 0.
 .TP
 .B redis-expire-records: \fI<yes or no>
 If Redis record expiration is enabled.  If yes, Unbound sets timeout for Redis
@@ -2856,6 +2916,52 @@ If unsure about using this option, Redis documentation
 for multiple unrelated applications.
 The default database in Redis is 0 while other logical databases need to be
 explicitly SELECT'ed upon connecting.
+This option defaults to 0.
+.TP
+.B redis-replica-server-host: \fI<server address or name>\fR
+The IP (either v6 or v4) address or domain name of the Redis replica server.
+In general an IP address should be specified as otherwise Unbound will have to
+resolve the name of the server every time it establishes a connection
+to the server.
+This server is treated as a read-only replica server
+(https://redis.io/docs/management/replication/#read-only-replica).
+If specified, all Redis read commands will go to this replica server, while
+the write commands will go to the \fBredis-server-host\fR.
+This option defaults to "" (disabled).
+.TP
+.B redis-replica-server-port: \fI<port number>\fR
+The TCP port number of the Redis replica server.
+This option defaults to 6379.
+.TP
+.B redis-replica-server-path: \fI<unix socket path>\fR
+The unix socket path to connect to the Redis server. Off by default, and it
+can be set to "" to turn this off. Unix sockets may have better throughput
+than the IP address option.
+.TP
+.B redis-replica-server-password: \fI"<password>"\fR
+The Redis AUTH password to use for the Redis replica server.
+Only relevant if Redis is configured for client password authorisation.
+Off by default, and it can be set to "" to turn this off.
+.TP
+.B redis-replica-timeout: \fI<msec>\fR
+The period until when Unbound waits for a response from the Redis replica sever.
+If this timeout expires Unbound closes the connection, treats it as
+if the Redis replica server does not have the requested data, and will try to
+re-establish a new connection later.
+This option defaults to 100 milliseconds.
+.TP
+.B redis-replica-command-timeout: \fI<msec>\fR
+The timeout to use for Redis replica commands, in milliseconds.
+If 0, it uses the \fBredis\-replica\-timeout\fR value.
+The default is 0.
+.TP
+.B redis-replica-connect-timeout: \fI<msec>\fR
+The timeout to use for Redis replica connection set up, in milliseconds.
+If 0, it uses the \fBredis\-replica\-timeout\fR value.
+The default is 0.
+.TP
+.B redis-replica-logical-db: \fI<logical database index>
+Same as \fBredis-logical-db\fR but for the Redis replica server.
 This option defaults to 0.
 .SS DNSTAP Logging Options
 DNSTAP support, when compiled in by using \fB\-\-enable\-dnstap\fR, is enabled

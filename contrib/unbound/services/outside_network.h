@@ -743,9 +743,11 @@ void reuse_write_wait_remove(struct reuse_tcp* reuse, struct waiting_tcp* w);
 void reuse_write_wait_push_back(struct reuse_tcp* reuse, struct waiting_tcp* w);
 
 /** get TCP file descriptor for address, returns -1 on failure,
- * tcp_mss is 0 or maxseg size to set for TCP packets. */
+ * tcp_mss is 0 or maxseg size to set for TCP packets,
+ * nodelay (TCP_NODELAY) should be set for TLS connections to speed up the TLS
+ * handshake.*/
 int outnet_get_tcp_fd(struct sockaddr_storage* addr, socklen_t addrlen,
-	int tcp_mss, int dscp);
+	int tcp_mss, int dscp, int nodelay);
 
 /**
  * Create udp commpoint suitable for sending packets to the destination.

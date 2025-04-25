@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.22.0.
+# See unbound.conf(5) man page, version 1.23.0.
 #
 # this is a comment.
 
@@ -194,7 +194,7 @@ server:
 	# iter-scrub-cname: 11
 
 	# Limit on upstream queries for an incoming query and its recursion.
-	# max-global-quota: 128
+	# max-global-quota: 200
 
 	# msec for waiting for an unknown server to reply.  Increase if you
 	# are behind a slow satellite link, to eg. 1128.
@@ -214,6 +214,12 @@ server:
 
 	# Apart from the default, the wait limit with cookie can be adjusted.
 	# wait-limit-cookie-netblock: 192.0.2.0/24 50000
+
+	# Defaults for loopback, it has no wait limit.
+	# wait-limit-netblock: 127.0.0.0/8 -1
+	# wait-limit-netblock: ::1/128 -1
+	# wait-limit-cookie-netblock: 127.0.0.0/8 -1
+	# wait-limit-cookie-netblock: ::1/128 -1
 
 	# the amount of memory to use for the RRset cache.
 	# plain value in bytes or you can append k, m or G. default is "4Mb".
@@ -556,8 +562,9 @@ server:
 	# harden-referral-path: no
 
 	# Harden against algorithm downgrade when multiple algorithms are
-	# advertised in the DS record.  If no, allows the weakest algorithm
-	# to validate the zone.
+	# advertised in the DS record.  If no, allows any algorithm
+	# to validate the zone which is the standard behavior for validators.
+	# Check the manpage for detailed information.
 	# harden-algo-downgrade: no
 
 	# Harden against unknown records in the authority section and the
@@ -730,12 +737,13 @@ server:
 	# disable-edns-do: no
 
 	# Serve expired responses from cache, with serve-expired-reply-ttl in
-	# the response, and then attempt to fetch the data afresh.
+	# the response. By default it first tries to refresh an expired answer.
+	# Can be configured with serve-expired-client-timeout.
 	# serve-expired: no
 	#
 	# Limit serving of expired responses to configured seconds after
 	# expiration. 0 disables the limit.
-	# serve-expired-ttl: 0
+	# serve-expired-ttl: 86400
 	#
 	# Set the TTL of expired records to the serve-expired-ttl value after a
 	# failed attempt to retrieve the record from upstream. This makes sure
@@ -748,10 +756,9 @@ server:
 	#
 	# Time in milliseconds before replying to the client with expired data.
 	# This essentially enables the serve-stale behavior as specified in
-	# RFC 8767 that first tries to resolve before
-	# immediately responding with expired data.  0 disables this behavior.
-	# A recommended value is 1800.
-	# serve-expired-client-timeout: 0
+	# RFC 8767 that first tries to resolve before immediately responding
+	# with expired data.  0 disables this behavior.
+	# serve-expired-client-timeout: 1800
 
 	# Return the original TTL as received from the upstream name server rather
 	# than the decrementing TTL as stored in the cache.  Enabling this feature
@@ -810,6 +817,8 @@ server:
 	# local-zone: "127.in-addr.arpa." nodefault
 	# local-zone: "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa." nodefault
 	# local-zone: "home.arpa." nodefault
+	# local-zone: "resolver.arpa." nodefault
+	# local-zone: "service.arpa." nodefault
 	# local-zone: "onion." nodefault
 	# local-zone: "test." nodefault
 	# local-zone: "invalid." nodefault
@@ -1077,6 +1086,11 @@ server:
 	# Note that the ede option above needs to be enabled for this to work.
 	# ede-serve-expired: no
 
+	# Enable DNS Error Reporting (RFC9567).
+	# qname-minimisation is advised to be turned on as well to increase
+	# privacy on the outgoing reports.
+	# dns-error-reporting: no
+
 	# Specific options for ipsecmod. Unbound needs to be configured with
 	# --enable-ipsecmod for these to take effect.
 	#
@@ -1304,9 +1318,9 @@ remote-control:
 #     # redis server's TCP port
 #     redis-server-port: 6379
 #     # if the server uses a unix socket, set its path, or "" when not used.
-#     # redis-server-path: "/var/lib/redis/redis-server.sock"
+#     redis-server-path: "/var/lib/redis/redis-server.sock"
 #     # if the server uses an AUTH password, specify here, or "" when not used.
-#     # redis-server-password: ""
+#     redis-server-password: ""
 #     # timeout (in ms) for communication with the redis server
 #     redis-timeout: 100
 #     # timeout (in ms) for commands, if 0, uses redis-timeout.
@@ -1317,6 +1331,22 @@ remote-control:
 #     redis-expire-records: no
 #     # redis logical database to use, 0 is the default database.
 #     redis-logical-db: 0
+#     # redis replica server's IP address or host name
+#     redis-replica-server-host: 127.0.0.1
+#     # redis replica server's TCP port
+#     redis-replica-server-port: 6379
+#     # if the replica server uses a unix socket, set its path, or "" when not used.
+#     redis-replica-server-path: "/var/lib/redis/redis-server.sock"
+#     # if the replica server uses an AUTH password, specify here, or "" when not used.
+#     redis-replica-server-password: ""
+#     # timeout (in ms) for communication with the redis replica server
+#     redis-replica-timeout: 100
+#     # timeout (in ms) for redis replica commands, if 0, uses redis-replica-timeout.
+#     redis-replica-command-timeout: 0
+#     # timeout (in ms) for redis replica connection set up, if 0, uses redis-replica-timeout.
+#     redis-replica-connect-timeout: 0
+#     # redis logical database to use for the replica server, 0 is the default database.
+#     redis-replica-logical-db: 0
 
 # IPSet
 # Add specify domain into set via ipset.

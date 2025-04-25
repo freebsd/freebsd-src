@@ -920,6 +920,19 @@ int sldns_wire2str_eui64_scan(uint8_t** data, size_t* data_len, char** str,
 	size_t* str_len);
 
 /**
+ * Scan wireformat UNQUOTED field to string, with user buffers.
+ * It shifts the arguments to move along (see sldns_wire2str_pkt_scan).
+ * @param data: wireformat data.
+ * @param data_len: length of data buffer.
+ * @param str: string buffer.
+ * @param str_len: length of string buffer.
+ * @return number of characters (except null) needed to print.
+ * 	Can return -1 on failure.
+ */
+int sldns_wire2str_unquoted_scan(uint8_t** data, size_t* data_len, char** str,
+	size_t* str_len);
+
+/**
  * Scan wireformat TAG field to string, with user buffers.
  * It shifts the arguments to move along (see sldns_wire2str_pkt_scan).
  * @param data: wireformat data.

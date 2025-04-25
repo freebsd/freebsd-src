@@ -267,3 +267,12 @@ void get_slabhash_stats(struct slabhash* sh, long long* num, long long* collisio
 	if (collisions != NULL)
 		*collisions = max_collisions;
 }
+
+void slabhash_adjust_size(struct slabhash* sl, size_t max)
+{
+	size_t space_max = max / sl->size;
+	size_t i;
+	for(i=0; i<sl->size; i++) {
+		lruhash_update_space_max(sl->array[i], NULL, space_max);
+	}
+}
