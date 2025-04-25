@@ -67,6 +67,12 @@ SYSCTL_INT(_hw_snd, OID_AUTO, basename_clone, CTLFLAG_RWTUN,
 
 #define DSP_REGISTERED(x)	(PCM_REGISTERED(x) && (x)->dsp_dev != NULL)
 
+#define DSP_F_VALID(x)		((x) & (FREAD | FWRITE))
+#define DSP_F_DUPLEX(x)		(((x) & (FREAD | FWRITE)) == (FREAD | FWRITE))
+#define DSP_F_SIMPLEX(x)	(!DSP_F_DUPLEX(x))
+#define DSP_F_READ(x)		((x) & FREAD)
+#define DSP_F_WRITE(x)		((x) & FWRITE)
+
 #define OLDPCM_IOCTL
 
 static d_open_t dsp_open;
@@ -144,18 +150,18 @@ dsp_destroy_dev(device_t dev)
 static void
 dsp_lock_chans(struct dsp_cdevpriv *priv, uint32_t prio)
 {
-	if (priv->rdch != NULL && (prio & SD_F_PRIO_RD))
+	if (priv->rdch != NULL && DSP_F_READ(prio))
 		CHN_LOCK(priv->rdch);
-	if (priv->wrch != NULL && (prio & SD_F_PRIO_WR))
+	if (priv->wrch != NULL && DSP_F_WRITE(prio))
 		CHN_LOCK(priv->wrch);
 }
 
 static void
 dsp_unlock_chans(struct dsp_cdevpriv *priv, uint32_t prio)
 {
-	if (priv->rdch != NULL && (prio & SD_F_PRIO_RD))
+	if (priv->rdch != NULL && DSP_F_READ(prio))
 		CHN_UNLOCK(priv->rdch);
-	if (priv->wrch != NULL && (prio & SD_F_PRIO_WR))
+	if (priv->wrch != NULL && DSP_F_WRITE(prio))
 		CHN_UNLOCK(priv->wrch);
 }
 
@@ -233,12 +239,6 @@ dsp_chn_alloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
 
 	return (0);
 }
-
-#define DSP_F_VALID(x)		((x) & (FREAD | FWRITE))
-#define DSP_F_DUPLEX(x)		(((x) & (FREAD | FWRITE)) == (FREAD | FWRITE))
-#define DSP_F_SIMPLEX(x)	(!DSP_F_DUPLEX(x))
-#define DSP_F_READ(x)		((x) & FREAD)
-#define DSP_F_WRITE(x)		((x) & FWRITE)
 
 static void
 dsp_close(void *data)
@@ -475,12 +475,12 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 
 	switch (buf->uio_rw) {
 	case UIO_READ:
-		prio = SD_F_PRIO_RD;
+		prio = FREAD;
 		ch = &priv->rdch;
 		chn_io = chn_read;
 		break;
 	case UIO_WRITE:
-		prio = SD_F_PRIO_WR;
+		prio = FWRITE;
 		ch = &priv->wrch;
 		chn_io = chn_write;
 		break;
@@ -1793,7 +1793,7 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 
 	ret = 0;
 
-	dsp_lock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	dsp_lock_chans(priv, FREAD | FWRITE);
 	wrch = priv->wrch;
 	rdch = priv->rdch;
 
@@ -1809,7 +1809,7 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 			ret |= chn_poll(rdch, e, td);
 	}
 
-	dsp_unlock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	dsp_unlock_chans(priv, FREAD | FWRITE);
 
 	PCM_GIANT_LEAVE(d);
 
@@ -1871,7 +1871,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 
 	PCM_GIANT_ENTER(d);
 
-	dsp_lock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	dsp_lock_chans(priv, FREAD | FWRITE);
 	wrch = priv->wrch;
 	rdch = priv->rdch;
 
@@ -1880,7 +1880,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 	    (*offset  + size) > sndbuf_getallocsize(c->bufsoft) ||
 	    (wrch != NULL && (wrch->flags & CHN_F_MMAP_INVALID)) ||
 	    (rdch != NULL && (rdch->flags & CHN_F_MMAP_INVALID))) {
-		dsp_unlock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+		dsp_unlock_chans(priv, FREAD | FWRITE);
 		PCM_GIANT_EXIT(d);
 		return (EINVAL);
 	}
@@ -1891,7 +1891,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 		rdch->flags |= CHN_F_MMAP;
 
 	*offset = (uintptr_t)sndbuf_getbufofs(c->bufsoft, *offset);
-	dsp_unlock_chans(priv, SD_F_PRIO_RD | SD_F_PRIO_WR);
+	dsp_unlock_chans(priv, FREAD | FWRITE);
 	*object = vm_pager_allocate(OBJT_DEVICE, i_dev,
 	    size, nprot, *offset, curthread->td_ucred);
 
