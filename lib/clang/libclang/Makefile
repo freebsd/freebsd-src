@@ -1,7 +1,22 @@
 .include <bsd.init.mk>
 .include "../clang.pre.mk"
 
+.if defined(TOOLS_PREFIX)
+# Build static library during cross-tools stage
 LIB=		clang
+INTERNALLIB=
+.else
+PACKAGE=	clang
+SHLIB_CXX=	clang
+SHLIB_MAJOR=	19
+PRIVATELIB=
+.if ${MACHINE} == "powerpc"
+# Work around "relocation R_PPC_GOT16 out of range" errors
+PICFLAG=        -fPIC
+.endif
+.endif
+
+SHARED_CXXFLAGS+=	-UPIC # To avoid compile errors
 
 CFLAGS+=	-I${.OBJDIR}
 CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
@@ -70,7 +85,7 @@ SRCS_MIN+=	AST/CommentParser.cpp
 SRCS_MIN+=	AST/CommentSema.cpp
 SRCS_MIN+=	AST/ComparisonCategories.cpp
 SRCS_MIN+=	AST/ComputeDependence.cpp
-SRCS_FUL+=	AST/DataCollection.cpp
+SRCS_MIN+=	AST/DataCollection.cpp
 SRCS_MIN+=	AST/Decl.cpp
 SRCS_MIN+=	AST/DeclBase.cpp
 SRCS_MIN+=	AST/DeclCXX.cpp
@@ -158,7 +173,9 @@ SRCS_MIN+=	AST/VTableBuilder.cpp
 SRCS_MIN+=	ASTMatchers/ASTMatchFinder.cpp
 SRCS_MIN+=	ASTMatchers/ASTMatchersInternal.cpp
 SRCS_MIN+=	ASTMatchers/Dynamic/Diagnostics.cpp
+SRCS_MIN+=	ASTMatchers/Dynamic/Marshallers.cpp
 SRCS_MIN+=	ASTMatchers/Dynamic/Registry.cpp
+SRCS_MIN+=	ASTMatchers/Dynamic/VariantValue.cpp
 SRCS_MIN+=	Analysis/AnalysisDeclContext.cpp
 SRCS_MIN+=	Analysis/BodyFarm.cpp
 SRCS_MIN+=	Analysis/CFG.cpp
@@ -424,27 +441,27 @@ SRCS_MIN+=	ExtractAPI/DeclarationFragments.cpp
 SRCS_MIN+=	ExtractAPI/ExtractAPIConsumer.cpp
 SRCS_MIN+=	ExtractAPI/Serialization/SymbolGraphSerializer.cpp
 SRCS_MIN+=	ExtractAPI/TypedefUnderlyingTypeResolver.cpp
-SRCS_EXT+=	Format/AffectedRangeManager.cpp
-SRCS_EXT+=	Format/BreakableToken.cpp
-SRCS_EXT+=	Format/ContinuationIndenter.cpp
-SRCS_EXT+=	Format/DefinitionBlockSeparator.cpp
-SRCS_EXT+=	Format/Format.cpp
-SRCS_EXT+=	Format/FormatToken.cpp
-SRCS_EXT+=	Format/FormatTokenLexer.cpp
-SRCS_EXT+=	Format/IntegerLiteralSeparatorFixer.cpp
-SRCS_EXT+=	Format/MacroCallReconstructor.cpp
-SRCS_EXT+=	Format/MacroExpander.cpp
+SRCS_MIN+=	Format/AffectedRangeManager.cpp
+SRCS_MIN+=	Format/BreakableToken.cpp
+SRCS_MIN+=	Format/ContinuationIndenter.cpp
+SRCS_MIN+=	Format/DefinitionBlockSeparator.cpp
+SRCS_MIN+=	Format/Format.cpp
+SRCS_MIN+=	Format/FormatToken.cpp
+SRCS_MIN+=	Format/FormatTokenLexer.cpp
+SRCS_MIN+=	Format/IntegerLiteralSeparatorFixer.cpp
+SRCS_MIN+=	Format/MacroCallReconstructor.cpp
+SRCS_MIN+=	Format/MacroExpander.cpp
 SRCS_EXT+=	Format/MatchFilePath.cpp
-SRCS_EXT+=	Format/NamespaceEndCommentsFixer.cpp
-SRCS_EXT+=	Format/ObjCPropertyAttributeOrderFixer.cpp
-SRCS_EXT+=	Format/QualifierAlignmentFixer.cpp
-SRCS_EXT+=	Format/SortJavaScriptImports.cpp
-SRCS_EXT+=	Format/TokenAnalyzer.cpp
-SRCS_EXT+=	Format/TokenAnnotator.cpp
-SRCS_EXT+=	Format/UnwrappedLineFormatter.cpp
-SRCS_EXT+=	Format/UnwrappedLineParser.cpp
-SRCS_EXT+=	Format/UsingDeclarationsSorter.cpp
-SRCS_EXT+=	Format/WhitespaceManager.cpp
+SRCS_MIN+=	Format/NamespaceEndCommentsFixer.cpp
+SRCS_MIN+=	Format/ObjCPropertyAttributeOrderFixer.cpp
+SRCS_MIN+=	Format/QualifierAlignmentFixer.cpp
+SRCS_MIN+=	Format/SortJavaScriptImports.cpp
+SRCS_MIN+=	Format/TokenAnalyzer.cpp
+SRCS_MIN+=	Format/TokenAnnotator.cpp
+SRCS_MIN+=	Format/UnwrappedLineFormatter.cpp
+SRCS_MIN+=	Format/UnwrappedLineParser.cpp
+SRCS_MIN+=	Format/UsingDeclarationsSorter.cpp
+SRCS_MIN+=	Format/WhitespaceManager.cpp
 SRCS_MIN+=	Frontend/ASTConsumers.cpp
 SRCS_MIN+=	Frontend/ASTMerge.cpp
 SRCS_MIN+=	Frontend/ASTUnit.cpp
@@ -824,9 +841,12 @@ SRCS_MIN+=	Tooling/ArgumentsAdjusters.cpp
 SRCS_MIN+=	Tooling/CommonOptionsParser.cpp
 SRCS_MIN+=	Tooling/CompilationDatabase.cpp
 SRCS_MIN+=	Tooling/Core/Replacement.cpp
+SRCS_MIN+=	Tooling/ExpandResponseFilesCompilationDatabase.cpp
 SRCS_MIN+=	Tooling/FileMatchTrie.cpp
-SRCS_EXT+=	Tooling/Inclusions/HeaderIncludes.cpp
-SRCS_EXT+=	Tooling/Inclusions/IncludeStyle.cpp
+SRCS_MIN+=	Tooling/GuessTargetAndModeCompilationDatabase.cpp
+SRCS_MIN+=	Tooling/Inclusions/HeaderIncludes.cpp
+SRCS_MIN+=	Tooling/Inclusions/IncludeStyle.cpp
+SRCS_MIN+=	Tooling/InterpolatingCompilationDatabase.cpp
 SRCS_MIN+=	Tooling/JSONCompilationDatabase.cpp
 SRCS_MIN+=	Tooling/Refactoring.cpp
 SRCS_MIN+=	Tooling/RefactoringCallbacks.cpp
@@ -843,6 +863,21 @@ SRCS_ALL+=	${SRCS_FUL}
 SRCS_ALL+=	${SRCS_LDB}
 .endif
 SRCS+=		${SRCS_ALL:O}
+
+LIBDEPS+=	llvm
+
+.if defined(TOOLS_PREFIX)
+LIBPRIV=
+LIBEXT=		a
+.else
+LIBPRIV=	private
+LIBEXT=		so
+.endif
+
+.for lib in ${LIBDEPS}
+DPADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${LIBPRIV}${lib}.${LIBEXT}
+LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${LIBPRIV}${lib}.${LIBEXT}
+.endfor
 
 clang/AST/AbstractBasicReader.inc: \
 	${CLANG_SRCS}/include/clang/AST/PropertiesBase.td
@@ -1298,7 +1333,5 @@ DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 
 .include "../clang.build.mk"
-
-INTERNALLIB=
 
 .include <bsd.lib.mk>
