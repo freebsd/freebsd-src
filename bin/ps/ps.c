@@ -1343,7 +1343,7 @@ saveuser(KINFO *ki)
 /* A macro used to improve the readability of pscomp(). */
 #define	DIFF_RETURN(a, b, field) do {	\
 	if ((a)->field != (b)->field)	\
-		return (((a)->field < (b)->field) ? -1 : 1); 	\
+		return (((a)->field < (b)->field) ? -1 : 1);	\
 } while (0)
 
 static int
