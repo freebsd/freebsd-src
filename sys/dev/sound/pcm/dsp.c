@@ -455,7 +455,7 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 }
 
 static __inline int
-dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
+dsp_io_ops(struct cdev *i_dev, struct uio *buf, struct dsp_cdevpriv *priv)
 {
 	struct snddev_info *d;
 	struct pcm_channel **ch;
@@ -467,7 +467,7 @@ dsp_io_ops(struct dsp_cdevpriv *priv, struct uio *buf)
 	    (buf->uio_rw == UIO_READ || buf->uio_rw == UIO_WRITE),
 	    ("%s(): io train wreck!", __func__));
 
-	d = priv->sc;
+	d = i_dev->si_drv1;
 	if (!DSP_REGISTERED(d))
 		return (EBADF);
 
@@ -536,7 +536,7 @@ dsp_read(struct cdev *i_dev, struct uio *buf, int flag)
 
 	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
 		return (err);
-	return (dsp_io_ops(priv, buf));
+	return (dsp_io_ops(i_dev, buf, priv));
 }
 
 static int
@@ -547,18 +547,16 @@ dsp_write(struct cdev *i_dev, struct uio *buf, int flag)
 
 	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
 		return (err);
-	return (dsp_io_ops(priv, buf));
+	return (dsp_io_ops(i_dev, buf, priv));
 }
 
 static int
-dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *volch,
-    u_long cmd, caddr_t arg)
+dsp_ioctl_channel(struct snddev_info *d, struct dsp_cdevpriv *priv,
+    struct pcm_channel *volch, u_long cmd, caddr_t arg)
 {
-	struct snddev_info *d;
 	struct pcm_channel *rdch, *wrch;
 	int j, left, right, center, mute;
 
-	d = priv->sc;
 	if (!PCM_REGISTERED(d) || !(pcm_getflags(d->dev) & SD_F_VPC))
 		return (-1);
 
@@ -686,7 +684,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
 		return (err);
 
-	d = priv->sc;
+	d = i_dev->si_drv1;
 	if (!DSP_REGISTERED(d))
 		return (EBADF);
 
@@ -703,7 +701,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			PCM_GIANT_EXIT(d);
 			return (0);
 		}
-		ret = dsp_ioctl_channel(priv, priv->volch, cmd, arg);
+		ret = dsp_ioctl_channel(d, priv, priv->volch, cmd, arg);
 		if (ret != -1) {
 			PCM_GIANT_EXIT(d);
 			return (ret);
@@ -1460,7 +1458,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			chn = wrch;
 		}
 
-		ret = dsp_ioctl_channel(priv, chn, xcmd, arg);
+		ret = dsp_ioctl_channel(d, priv, chn, xcmd, arg);
 		if (ret != -1) {
 			PCM_GIANT_EXIT(d);
 			return (ret);
@@ -1783,7 +1781,7 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 
 	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
 		return (err);
-	d = priv->sc;
+	d = i_dev->si_drv1;
 	if (!DSP_REGISTERED(d)) {
 		/* XXX many clients don't understand POLLNVAL */
 		return (events & (POLLHUP | POLLPRI | POLLIN |
@@ -1865,7 +1863,7 @@ dsp_mmap_single(struct cdev *i_dev, vm_ooffset_t *offset,
 
 	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)
 		return (err);
-	d = priv->sc;
+	d = i_dev->si_drv1;
 	if (!DSP_REGISTERED(d))
 		return (EINVAL);
 
