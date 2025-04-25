@@ -2099,19 +2099,7 @@ get_exportlist(int passno)
 			syslog(LOG_ERR, "NFSv4 requires at least one V4: line");
 	}
 
-	if (iov != NULL) {
-		/* Free strings allocated by strdup() in getmntopts.c */
-		free(iov[0].iov_base); /* fstype */
-		free(iov[2].iov_base); /* fspath */
-		free(iov[4].iov_base); /* from */
-		free(iov[6].iov_base); /* update */
-		free(iov[8].iov_base); /* export */
-		free(iov[10].iov_base); /* errmsg */
-
-		/* free iov, allocated by realloc() */
-		free(iov);
-		iovlen = 0;
-	}
+	free_iovec(&iov, &iovlen);
 
 	/*
 	 * If there was no public fh, clear any previous one set.
@@ -3409,18 +3397,7 @@ skip:
 	if (cp)
 		*cp = savedc;
 error_exit:
-	/* free strings allocated by strdup() in getmntopts.c */
-	if (iov != NULL) {
-		free(iov[0].iov_base); /* fstype */
-		free(iov[2].iov_base); /* fspath */
-		free(iov[4].iov_base); /* from */
-		free(iov[6].iov_base); /* update */
-		free(iov[8].iov_base); /* export */
-		free(iov[10].iov_base); /* errmsg */
-
-		/* free iov, allocated by realloc() */
-		free(iov);
-	}
+	free_iovec(&iov, &iovlen);
 	return (ret);
 }
 
