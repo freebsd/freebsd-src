@@ -650,6 +650,7 @@ e6000sw_attach(device_t dev)
 	return (0);
 
 out_fail:
+	E6000SW_UNLOCK(sc);
 	e6000sw_detach(dev);
 
 	return (err);
