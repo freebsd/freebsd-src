@@ -2133,13 +2133,16 @@ vm_object_page_noreuse(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 boolean_t
 vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 {
+	struct pctrie_iter pages;
 	vm_page_t m;
 	vm_pindex_t pindex;
 	int rv;
 
+	vm_page_iter_init(&pages, object);
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	for (pindex = start; pindex < end; pindex++) {
-		rv = vm_page_grab_valid(&m, object, pindex, VM_ALLOC_NORMAL);
+		rv = vm_page_grab_valid_iter(&m, object, &pages, pindex,
+		    VM_ALLOC_NORMAL);
 		if (rv != VM_PAGER_OK)
 			break;
 
@@ -2149,11 +2152,9 @@ vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 		 */
 	}
 	if (pindex > start) {
-		m = vm_page_lookup(object, start);
-		while (m != NULL && m->pindex < pindex) {
+		pages.limit = pindex;
+		VM_RADIX_FORALL_FROM(m, &pages, start)
 			vm_page_xunbusy(m);
-			m = TAILQ_NEXT(m, listq);
-		}
 	}
 	return (pindex == end);
 }
