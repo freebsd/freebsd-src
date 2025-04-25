@@ -1344,6 +1344,8 @@ int sldns_wire2str_rdf_scan(uint8_t** d, size_t* dlen, char** s, size_t* slen,
 		return sldns_wire2str_eui48_scan(d, dlen, s, slen);
 	case LDNS_RDF_TYPE_EUI64:
 		return sldns_wire2str_eui64_scan(d, dlen, s, slen);
+	case LDNS_RDF_TYPE_UNQUOTED:
+		return sldns_wire2str_unquoted_scan(d, dlen, s, slen);
 	case LDNS_RDF_TYPE_TAG:
 		return sldns_wire2str_tag_scan(d, dlen, s, slen);
 	case LDNS_RDF_TYPE_LONG_STR:
@@ -1870,7 +1872,33 @@ int sldns_wire2str_nsap_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 
 int sldns_wire2str_atma_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 {
-	return print_remainder_hex("", d, dl, s, sl);
+	uint8_t format;
+	int w = 0;
+	size_t i;
+
+	if(*dl < 1) return -1;
+	format = (*d)[0];
+	(*d)+=1;
+	(*dl)-=1;
+
+	if(format == 0) {
+		/* AESA format (ATM End System Address). */
+		return print_remainder_hex("", d, dl, s, sl);
+	} else if(format == 1) {
+		/* E.164 format. */
+		w += sldns_str_print(s, sl, "+");
+		for(i=0; i<*dl; i++) {
+			if((*d)[i] < '0' || (*d)[0] > '9')
+				return -1;
+			w += sldns_str_print(s, sl, "%c", (*d)[i]);
+		}
+		(*d) += *dl;
+		(*dl) = 0;
+	} else {
+		/* Unknown format. */
+		return -1;
+	}
+	return w;
 }
 
 /* internal scan routine that can modify arguments on failure */
@@ -2018,6 +2046,26 @@ int sldns_wire2str_eui64_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 		(*d)[6], (*d)[7]);
 	(*d)+=8;
 	(*dl)-=8;
+	return w;
+}
+
+int sldns_wire2str_unquoted_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
+{
+	int w = 0;
+	size_t i, len;
+	if(*dl < 1) return -1;
+	len = **d;
+	if(*dl < 1+len) return -1;
+	(*d)++;
+	(*dl)--;
+	for(i=0; i<len; i++) {
+		if(isspace((unsigned char)(*d)[i]) || (*d)[i] == '(' ||
+			(*d)[i] == ')' || (*d)[i] == '\'')
+			w += sldns_str_print(s, sl, "\\%c", (char)(*d)[i]);
+		else	w += str_char_print(s, sl, (*d)[i]);
+	}
+	(*d)+=len;
+	(*dl)-=len;
 	return w;
 }
 

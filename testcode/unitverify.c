@@ -425,7 +425,7 @@ nsec3_hash_test_entry(struct entry* e, rbtree_type* ct,
 {
 	struct query_info qinfo;
 	struct reply_info* rep = NULL;
-	struct ub_packed_rrset_key* answer, *nsec3;
+	struct ub_packed_rrset_key* answer, *nsec3, *nsec3_region;
 	struct nsec3_cached_hash* hash = NULL;
 	int ret;
 	uint8_t* qname;
@@ -443,7 +443,11 @@ nsec3_hash_test_entry(struct entry* e, rbtree_type* ct,
 	/* check test is OK */
 	unit_assert(nsec3 && answer && qname);
 
-	ret = nsec3_hash_name(ct, region, buf, nsec3, 0, qname,
+	/* Copy the nsec3 to the region, so it can stay referenced by the
+	 * ct tree entry. The region is freed when the file is done. */
+	nsec3_region = packed_rrset_copy_region(nsec3, region, 0);
+
+	ret = nsec3_hash_name(ct, region, buf, nsec3_region, 0, qname,
 		qinfo.qname_len, &hash);
 	if(ret < 1) {
 		printf("Bad nsec3_hash_name retcode %d\n", ret);

@@ -111,7 +111,7 @@ static void zonemd_generate_test(const char* zname, char* zfile,
 		digestdup[i] = toupper((unsigned char)digestdup[i]);
 	}
 	if(verbosity >= VERB_ALGO) {
-		char zname[255+1];
+		char zname[LDNS_MAX_DOMAINLEN];
 		dname_str(z->name, zname);
 		printf("zonemd generated for %s in %s with "
 			"scheme=%d hashalgo=%d\n", zname, z->zonefile,

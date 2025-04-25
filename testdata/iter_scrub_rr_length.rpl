@@ -5,7 +5,6 @@ server:
 	minimal-responses: no
 	rrset-roundrobin: no
 	ede: yes
-	log-servfail: yes
 
 stub-zone:
 	name: "."

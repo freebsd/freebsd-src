@@ -2,6 +2,7 @@
 ; config options go here.
 server:
 	serve-expired: yes
+	serve-expired-client-timeout: 0
 	prefetch: yes
 forward-zone: name: "." forward-addr: 216.0.0.1
 CONFIG_END

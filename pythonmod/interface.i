@@ -204,7 +204,7 @@ struct query_info {
 
 %inline %{
    PyObject* dnameAsStr(PyObject* dname) {
-       char buf[LDNS_MAX_DOMAINLEN+1];
+       char buf[LDNS_MAX_DOMAINLEN];
        buf[0] = '\0';
        dname_str((uint8_t*)PyBytes_AsString(dname), buf);
        return PyString_FromString(buf);

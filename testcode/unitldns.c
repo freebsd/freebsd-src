@@ -172,10 +172,14 @@ rr_test_file(const char* input, const char* check)
 		if(txt_in[0] == 0 || txt_in[0] == '\n' || txt_in[0] == ';')
 			continue;
 		/* read check lines */
-		if(!fgets(wire_chk, (int)bufs, chf))
+		if(!fgets(wire_chk, (int)bufs, chf)) {
 			printf("%s too short\n", check);
-		if(!fgets(txt_chk, (int)bufs, chf))
+			unit_assert(0);
+		}
+		if(!fgets(txt_chk, (int)bufs, chf)) {
 			printf("%s too short\n", check);
+			unit_assert(0);
+		}
 		chlineno += 2;
 		if(vbmp) printf("%s:%d %s", check, chlineno-1, wire_chk);
 		if(vbmp) printf("%s:%d %s", check, chlineno, txt_chk);

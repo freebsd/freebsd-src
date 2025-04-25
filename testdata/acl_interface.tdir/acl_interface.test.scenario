@@ -17,6 +17,15 @@ ip addr add $INTERFACE_ADDR_3 dev $INTERFACE
 ip addr add $INTERFACE_ADDR_4 dev $INTERFACE
 ip link set $INTERFACE up
 
+ip link add ${INTERFACE}vlan50 type dummy
+ip addr add fe80::2/64 dev ${INTERFACE}vlan50
+ip link add ${INTERFACE}vlan51 type dummy
+ip addr add fe80::2/64 dev ${INTERFACE}vlan51
+ip link set ${INTERFACE}vlan50 up
+ip link set ${INTERFACE}vlan51 up
+
+ip addr show
+
 # start the forwarder in the background
 get_ldns_testns
 $LDNS_TESTNS -p $FORWARD_PORT acl_interface.testns >fwd.log 2>&1 &
@@ -249,5 +258,11 @@ for addr in $INTERFACE_ADDR_1 $INTERFACE_ADDR_2 $INTERFACE_ADDR_3 $INTERFACE_ADD
 	query_addr $addr $PORT_VIEW_INTEXT "www.external"
 	expect_external_answer
 done
+
+query_addr fe80::2%${INTERFACE}vlan50 $PORT_ALLOW "one.vtest."
+expect_tag_one_answer
+
+query_addr fe80::2%${INTERFACE}vlan51 $PORT_ALLOW "two.vtest."
+expect_tag_two_answer
 
 end 0

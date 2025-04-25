@@ -39,6 +39,7 @@
  */
 
 #include "config.h"
+#include <ctype.h>
 #include "util/log.h"
 #include "testcode/unitmain.h"
 #include "util/data/dname.h"
@@ -858,6 +859,151 @@ dname_setup_bufs(sldns_buffer* loopbuf, sldns_buffer* boundbuf)
 	sldns_buffer_flip(boundbuf);
 }
 
+static void
+dname_test_str(sldns_buffer* buff)
+{
+	char result[LDNS_MAX_DOMAINLEN], expect[LDNS_MAX_DOMAINLEN], *e;
+	size_t i;
+	unit_show_func("util/data/dname.c", "dname_str");
+
+	/* root ; expected OK */
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff, "\000", 1);
+	sldns_buffer_flip(buff);
+	unit_assert( sldns_buffer_limit(buff) == 1 );
+	unit_assert( pkt_dname_len(buff) == 1 );
+	dname_str(sldns_buffer_begin(buff), result);
+	unit_assert( strcmp( ".", result) == 0 );
+
+	/* LDNS_MAX_DOMAINLEN - 1 ; expected OK */
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff,
+		"\077abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"  /*  64 up to here */
+		"\077abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"  /* 128 up to here */
+		"\077abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"  /* 192 up to here */
+		"\074abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567"     /* 253 up to here */
+		"\000"                                                                 /* 254 up to here */
+		, 254);
+	sldns_buffer_flip(buff);
+	unit_assert( sldns_buffer_limit(buff) == 254 );
+	unit_assert( pkt_dname_len(buff) == 254 );
+	dname_str(sldns_buffer_begin(buff), result);
+	unit_assert( strcmp(
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890."
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890."
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890."
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567"
+		".", result) == 0 );
+
+	/* LDNS_MAX_DOMAINLEN ; expected OK */
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff,
+		"\077abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"  /*  64 up to here */
+		"\077abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"  /* 128 up to here */
+		"\077abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"  /* 192 up to here */
+		"\075abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345678"    /* 254 up to here */
+		"\000"                                                                 /* 255 up to here */
+		, 255);
+	sldns_buffer_flip(buff);
+	unit_assert( sldns_buffer_limit(buff) == 255 );
+	unit_assert( pkt_dname_len(buff) == 255 );
+	dname_str(sldns_buffer_begin(buff), result);
+	unit_assert( strcmp(
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890."
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890."
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890."
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345678"
+		".", result) == 0 );
+
+	/* LDNS_MAX_DOMAINLEN + 1 ; expected to fail, output uses '&' on the latest label */
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff,
+		"\077abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"  /*  64 up to here */
+		"\077abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"  /* 128 up to here */
+		"\077abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"  /* 192 up to here */
+		"\076abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"   /* 255 up to here */
+		"\000"                                                                 /* 256 up to here */
+		, 256);
+	sldns_buffer_flip(buff);
+	unit_assert( sldns_buffer_limit(buff) == 256 );
+	unit_assert( pkt_dname_len(buff) == 0 );
+	dname_str(sldns_buffer_begin(buff), result);
+	unit_assert( strcmp(
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890."
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890."
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890."
+		"&", result) == 0 );
+
+	/* LDNS_MAX_LABELLEN + 1 ; expected to fail, output uses '#' on the offending label */
+	sldns_buffer_clear(buff);
+	sldns_buffer_write(buff,
+		"\077abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890"  /*  64 up to here */
+		"\100abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890a" /* 129 up to here */
+		"\000"                                                                 /* 130 up to here */
+		, 130);
+	sldns_buffer_flip(buff);
+	unit_assert( sldns_buffer_limit(buff) == 130 );
+	unit_assert( pkt_dname_len(buff) == 0 );
+	dname_str(sldns_buffer_begin(buff), result);
+	unit_assert( strcmp(
+		"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890."
+		"#", result) == 0 );
+
+	/* LDNS_MAX_DOMAINLEN with single labels; expected OK */
+	sldns_buffer_clear(buff);
+	for(i=0; i<=252; i+=2)
+		sldns_buffer_write(buff, "\001a", 2);
+	sldns_buffer_write_u8(buff, 0);
+	sldns_buffer_flip(buff);
+	unit_assert( sldns_buffer_limit(buff) == 255 );
+	unit_assert( pkt_dname_len(buff) == 255 );
+	dname_str(sldns_buffer_begin(buff), result);
+	e = expect;
+	for(i=0; i<=252; i+=2) {
+		*e++ = 'a';
+		*e++ = '.';
+	}
+	*e = '\0';
+	unit_assert( strcmp(expect, result) == 0 );
+
+	/* LDNS_MAX_DOMAINLEN + 1 with single labels; expected to fail, output uses '&' on the latest label */
+	sldns_buffer_clear(buff);
+	for(i=0; i<=250; i+=2)
+		sldns_buffer_write(buff, "\001a", 2);
+	sldns_buffer_write(buff, "\002ab", 3);
+	sldns_buffer_write_u8(buff, 0);
+	sldns_buffer_flip(buff);
+	unit_assert( sldns_buffer_limit(buff) == 256 );
+	unit_assert( pkt_dname_len(buff) == 0 );
+	dname_str(sldns_buffer_begin(buff), result);
+	e = expect;
+	for(i=0; i<=250; i+=2) {
+		*e++ = 'a';
+		*e++ = '.';
+	}
+	*e++ = '&';
+	*e = '\0';
+	unit_assert( strcmp(expect, result) == 0 );
+
+	/* Only alphas, numericals and '-', '_' and '*' are allowed in the output */
+	for(i=1; i<=255; i++) {
+		if(isalnum(i) || i == '-' || i == '_' || i == '*')
+			continue;
+		sldns_buffer_clear(buff);
+		sldns_buffer_write_u8(buff, 1);
+		sldns_buffer_write_u8(buff, (uint8_t)i);
+		sldns_buffer_write_u8(buff, 0);
+		sldns_buffer_flip(buff);
+		unit_assert( sldns_buffer_limit(buff) == 3 );
+		unit_assert( pkt_dname_len(buff) == 3);
+		dname_str(sldns_buffer_begin(buff), result);
+		if(strcmp( "?.", result) != 0 ) {
+			log_err("ASCII value '0x%lX' allowed in string output", (unsigned long)i);
+			unit_assert(0);
+		}
+	}
+}
+
 void dname_test(void)
 {
 	sldns_buffer* loopbuf = sldns_buffer_new(14);
@@ -884,6 +1030,7 @@ void dname_test(void)
 	dname_test_topdomain();
 	dname_test_valid();
 	dname_test_has_label();
+	dname_test_str(buff);
 	sldns_buffer_free(buff);
 	sldns_buffer_free(loopbuf);
 	sldns_buffer_free(boundbuf);

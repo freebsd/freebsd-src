@@ -17,6 +17,7 @@ NEED_IPV6='fwd_ancil.tdir fwd_tcp_tc6.tdir stub_udp6.tdir edns_cache.tdir'
 NEED_NOMINGW='tcp_sigpipe.tdir 07-confroot.tdir 08-host-lib.tdir fwd_ancil.tdir'
 NEED_DNSCRYPT_PROXY='dnscrypt_queries.tdir dnscrypt_queries_chacha.tdir'
 NEED_UNSHARE='acl_interface.tdir proxy_protocol.tdir'
+NEED_REDIS_SERVER='redis_replica.tdir'
 
 # test if dig and ldns-testns are available.
 test_tool_avail "dig"
@@ -52,6 +53,7 @@ for test in `ls -d *.tdir`; do
 	skip_if_in_list $test "$NEED_WHOAMI" "whoami"
 	skip_if_in_list $test "$NEED_DNSCRYPT_PROXY" "dnscrypt-proxy"
 	skip_if_in_list $test "$NEED_UNSHARE" "unshare"
+	skip_if_in_list $test "$NEED_REDIS_SERVER" "redis-server"
 
 	if echo $NEED_IPV6 | grep $test >/dev/null; then
 		if test "$HAVE_IPV6" = no; then

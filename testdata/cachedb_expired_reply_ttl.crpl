@@ -4,6 +4,7 @@ server:
 	qname-minimisation: no
 	minimal-responses: no
 	serve-expired: yes
+	serve-expired-client-timeout: 0
 	serve-expired-reply-ttl: 30
 	module-config: "cachedb iterator"
 

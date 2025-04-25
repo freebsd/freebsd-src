@@ -6,6 +6,7 @@ server:
 	trust-anchor-signaling: no
 	target-fetch-policy: "0 0 0 0 0"
 	serve-expired: yes
+	serve-expired-client-timeout: 0
 	client-subnet-always-forward: yes
 	module-config: "subnetcache iterator"
 	verbosity: 3

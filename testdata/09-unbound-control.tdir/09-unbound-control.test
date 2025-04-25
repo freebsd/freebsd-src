@@ -68,9 +68,12 @@ fail_answer () {
 
 # Issue an unbound-control command
 # $@: command arguments
-control_command () {
+control_command() {
 	echo "$PRE/unbound-control $@"
 	$PRE/unbound-control $@ > outfile
+	exitstatus=$?
+	cat outfile
+	return $exitstatus
 }
 
 # Reload the server and check the reload has finished processing
@@ -248,6 +251,25 @@ expect_exit_value 1
 
 teststep "clean reload"
 clean_reload
+
+# The flush negative only works if the server is either on 1 thread,
+# or there is threading enabled. Multiple processes does not work for the
+# test, since the printout does not have the stats of a global cache.
+if test $num_threads -le 1 -o "$have_threads" = "yes"; then
+teststep "Check negative flushing"
+query always.empty.
+expect_answer "SERVFAIL"
+query always.empty. DNSKEY
+expect_answer "SERVFAIL"
+control_command -c ub.conf flush_negative
+expect_exit_value 0
+expect_answer "^ok removed .*, 3 messages and 1 key entries"
+control_command -c ub.conf flush_negative
+expect_exit_value 0
+expect_answer "^ok removed .*, 0 messages and 0 key entries"
+else
+	echo "> skip Check negative flushing, because no threads"
+fi
 
 teststep "create a new local zone"
 control_command -c ub.conf local_zone example.net static

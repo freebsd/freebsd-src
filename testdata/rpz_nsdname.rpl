@@ -32,7 +32,7 @@ stub-zone:
 	stub-addr: 1.1.1.1
 CONFIG_END
 
-SCENARIO_BEGIN Test RPZ nsip triggers
+SCENARIO_BEGIN Test RPZ nsdname triggers
 
 ; . --------------------------------------------------------------------------
 RANGE_BEGIN 0 100

@@ -53,7 +53,7 @@ static int negverbose = 0;
 /** debug printout of neg cache */
 static void print_neg_cache(struct val_neg_cache* neg)
 {
-	char buf[1024];
+	char buf[LDNS_MAX_DOMAINLEN];
 	struct val_neg_zone* z;
 	struct val_neg_data* d;
 	printf("neg_cache print\n");

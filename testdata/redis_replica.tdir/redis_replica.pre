@@ -1,0 +1,46 @@
+# #-- redis_replica.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+
+if grep "define USE_REDIS 1" $PRE/config.h; then echo test enabled; else skip_test "test skipped"; fi
+
+get_random_port 2
+UNBOUND_PORT=$RND_PORT
+CONTROL_PORT=$(($RND_PORT + 1))
+echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test
+echo "CONTROL_PORT=$CONTROL_PORT" >> .tpkg.var.test
+
+REDIS_SOCKET=server.sock
+REDIS_REPLICA_SOCKET=replica.sock
+echo "REDIS_SOCKET=$REDIS_SOCKET" >> .tpkg.var.test
+echo "REDIS_REPLICA_SOCKET=$REDIS_REPLICA_SOCKET" >> .tpkg.var.test
+
+# start redis
+sed -e 's/@SOCKET\@/'$REDIS_SOCKET'/' -e 's/@LOGFILE\@/server.log/' < redis.conf > server.conf
+redis-server server.conf &
+REDIS_PID=$!
+echo "REDIS_PID=$REDIS_PID" >> .tpkg.var.test
+
+# start redis replica
+sed -e 's/@SOCKET\@/'$REDIS_REPLICA_SOCKET'/' -e 's/@LOGFILE\@/replica.log/' < redis.conf > replica.conf
+redis-server replica.conf &
+REDIS_REPLICA_PID=$!
+echo "REDIS_REPLICA_PID=$REDIS_REPLICA_PID" >> .tpkg.var.test
+
+# Copy initial zonefile
+cp before.zone redis.zone
+
+# make config file
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@REDIS_SOCKET\@/'$REDIS_SOCKET'/' -e 's/@REDIS_REPLICA_SOCKET\@/'$REDIS_REPLICA_SOCKET'/' -e 's/@CONTROL_PORT\@/'$CONTROL_PORT'/' < redis_replica.conf > ub.conf
+# start unbound in the background
+$PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+
+cat .tpkg.var.test
+wait_unbound_up unbound.log

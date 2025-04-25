@@ -9,7 +9,6 @@ server:
 	fake-sha1: yes
 	trust-anchor-signaling: no
 	minimal-responses: no
-	log-servfail: yes
 	val-log-level: 2
 	ede: yes
 

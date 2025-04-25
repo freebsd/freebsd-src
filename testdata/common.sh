@@ -1,7 +1,8 @@
 # common.sh - an include file for commonly used functions for test code.
 # BSD licensed (see LICENSE file).
 #
-# Version 6
+# Version 7
+# 2025-04-04: speed up kill_pid.
 # 2023-12-06: list wait_for_soa_serial in overview
 # 2023-12-06: get_ldns_notify, skip_test and teststep, and previous changes
 # also included are wait_logfile, cpu_count, process_cpu_list, and
@@ -309,6 +310,7 @@ kill_pid () {
 	local WAIT_THRES=30
 	local try
 	kill $1
+	sleep .001
 	for (( try=0 ; try <= $MAX_DOWN_TRY ; try++ )) ; do
 		if kill -0 $1 >/dev/null 2>&1; then
 			:
@@ -322,6 +324,8 @@ kill_pid () {
 		fi
 		if test $try -ge $WAIT_THRES; then
 			sleep 1
+		else
+			sleep .01
 		fi
 		# re-send the signal
 		kill $1 >/dev/null 2>&1

@@ -5,6 +5,7 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 . ../common.sh
+#skip_test "Skip test due to no UDP service for SOA query"
 PRE="../.."
 if test -n "$NSD"; then
 	:

@@ -8,6 +8,7 @@ server:
 	cache-max-ttl: 1000
 	cache-min-ttl: 20
 	serve-expired: yes
+	serve-expired-client-timeout: 0
 	serve-expired-reply-ttl: 123
 	ede: yes
 	ede-serve-expired: yes

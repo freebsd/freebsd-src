@@ -64,6 +64,9 @@ static int key_deleted = 0;
 static ub_thread_key_type thr_debug_key;
 /** the list of threads, so all threads can be examined. NULL if unused. */
 static struct thr_check* thread_infos[THRDEBUG_MAX_THREADS];
+/** stored maximum lock number for threads, when a thread is restarted the
+ * number is kept track of, because the new locks get new id numbers. */
+static int thread_lockcount[THRDEBUG_MAX_THREADS];
 /** do we check locking order */
 int check_locking_order = 1;
 /** the pid of this runset, reasonably unique. */
@@ -698,10 +701,20 @@ open_lockorder(struct thr_check* thr)
 	char buf[24];
 	time_t t;
 	snprintf(buf, sizeof(buf), "%s.%d", output_name, thr->num);
-	thr->order_info = fopen(buf, "w");
-	if(!thr->order_info)
-		fatal_exit("could not open %s: %s", buf, strerror(errno));
-	thr->locks_created = 0;
+	thr->locks_created = thread_lockcount[thr->num];
+	if(thr->locks_created == 0) {
+		thr->order_info = fopen(buf, "w");
+		if(!thr->order_info)
+			fatal_exit("could not open %s: %s", buf, strerror(errno));
+	} else {
+		/* There is already a file to append on with the previous
+		 * thread information. */
+		thr->order_info = fopen(buf, "a");
+		if(!thr->order_info)
+			fatal_exit("could not open for append %s: %s", buf, strerror(errno));
+		return;
+	}
+
 	t = time(NULL);
 	/* write: <time_stamp> <runpid> <thread_num> */
 	if(fwrite(&t, sizeof(t), 1, thr->order_info) != 1 ||
@@ -728,6 +741,7 @@ static void* checklock_main(void* arg)
 	if(check_locking_order)
 		open_lockorder(thr);
 	ret = thr->func(thr->arg);
+	thread_lockcount[thr->num] = thr->locks_created;
 	thread_infos[thr->num] = NULL;
 	if(check_locking_order)
 		fclose(thr->order_info);

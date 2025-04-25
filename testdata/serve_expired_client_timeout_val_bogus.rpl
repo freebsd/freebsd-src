@@ -30,13 +30,22 @@ SCENARIO_BEGIN Test serve-expired with client-timeout and bogus answer
 ; - wait for the record to expire
 ; - (upstream now has a bogus response)
 ; - query again for www.example.com. IN A
-; - check that we get the expired valid response instead
-; - query once more
+; - check that we get the expired valid response instead; recursion is blocked for NORR_TTL(5) because of the failure
 ; - (upstream has the valid response again)
+; - query once more
 ; - check that we get the immediate expired valid response
-; - (the prefetch query updates the cache with the valid response)
+; - let NORR_TTL(5) expire
 ; - query one last time
-; - check that we get the immediate valid cache response; upstream does not have an answer at this moment
+; - check that we get the immediate valid cache response
+
+; The example.com NS and ns.example.com A record are commented out.
+; This to make the test succeed. It then keeps the dnssec valid lookup.
+; Otherwise, the relookup of the referral would overwrite the example.com NS
+; the serve expired response would no longer be valid. But this record must
+; be cached, for keeping the current delegation information.
+; Also the DNSKEY lookup authority and additional are cleaned to stop overwrite
+; of the NS and A record. This is more likely to keep the serve expired
+; information intact.
 
 ;;
 ;; K.ROOT-SERVERS.NET.
@@ -150,12 +159,12 @@ RANGE_BEGIN 0 10
     www.example.com. IN A
     SECTION ANSWER
     www.example.com. IN A	10.20.30.40
-    ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
+    ;ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
     SECTION AUTHORITY
-    example.com.	IN NS	ns.example.com.
-    example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
+    ;example.com.	IN NS	ns.example.com.
+    ;example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
     SECTION ADDITIONAL
-    ns.example.com.		IN 	A	1.2.3.4
+    ;ns.example.com.		IN 	A	1.2.3.4
     www.example.com.        3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFC99iE9K5y2WNgI0gFvBWaTi9wm6AhUAoUqOpDtG5Zct+Qr9F3mSdnbc6V4= ;{id = 2854}
     ENTRY_END
 RANGE_END
@@ -174,12 +183,12 @@ RANGE_BEGIN 20 30
     www.example.com. IN A
     SECTION ANSWER
     www.example.com. IN A	10.20.30.40
-    ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
+    ;ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
     SECTION AUTHORITY
-    example.com.	IN NS	ns.example.com.
-    example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
+    ;example.com.	IN NS	ns.example.com.
+    ;example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
     SECTION ADDITIONAL
-    ns.example.com.		IN 	A	1.2.3.4
+    ;ns.example.com.		IN 	A	1.2.3.4
     ;; (valid signature)
     ;; www.example.com.        3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFC99iE9K5y2WNgI0gFvBWaTi9wm6AhUAoUqOpDtG5Zct+Qr9F3mSdnbc6V4= ;{id = 2854}
     ;; (bogus signature)
@@ -190,7 +199,7 @@ RANGE_END
 ;;
 ;; ns.example.com. with valid data again
 ;;
-RANGE_BEGIN 40 60
+RANGE_BEGIN 40 70
 	ADDRESS 1.2.3.4
     ; response to query of interest
     ENTRY_BEGIN
@@ -201,12 +210,12 @@ RANGE_BEGIN 40 60
     www.example.com. IN A
     SECTION ANSWER
     www.example.com. IN A	10.20.30.40
-    ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
+    ;ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
     SECTION AUTHORITY
-    example.com.	IN NS	ns.example.com.
-    example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
+    ;example.com.	IN NS	ns.example.com.
+    ;example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
     SECTION ADDITIONAL
-    ns.example.com.		IN 	A	1.2.3.4
+    ;ns.example.com.		IN 	A	1.2.3.4
     www.example.com.        3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFC99iE9K5y2WNgI0gFvBWaTi9wm6AhUAoUqOpDtG5Zct+Qr9F3mSdnbc6V4= ;{id = 2854}
     ENTRY_END
 RANGE_END
@@ -229,11 +238,11 @@ SECTION ANSWER
 www.example.com. IN A	10.20.30.40
 www.example.com.        3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFC99iE9K5y2WNgI0gFvBWaTi9wm6AhUAoUqOpDtG5Zct+Qr9F3mSdnbc6V4= ;{id = 2854}
 SECTION AUTHORITY
-example.com.	IN NS	ns.example.com.
-example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
+;example.com.	IN NS	ns.example.com.
+;example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
 SECTION ADDITIONAL
-ns.example.com.		IN 	A	1.2.3.4
-ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
+;ns.example.com.		IN 	A	1.2.3.4
+;ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
 ENTRY_END
 
 STEP 11 TIME_PASSES ELAPSE 3601
@@ -256,11 +265,11 @@ SECTION ANSWER
 www.example.com. 123 IN A	10.20.30.40
 www.example.com.        123    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFC99iE9K5y2WNgI0gFvBWaTi9wm6AhUAoUqOpDtG5Zct+Qr9F3mSdnbc6V4= ;{id = 2854}
 SECTION AUTHORITY
-example.com.	123 IN NS	ns.example.com.
-example.com.    123    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
+;example.com.	123 IN NS	ns.example.com.
+;example.com.    123    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
 SECTION ADDITIONAL
-ns.example.com.	123	IN 	A	1.2.3.4
-ns.example.com. 123    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
+;ns.example.com.	123	IN 	A	1.2.3.4
+;ns.example.com. 123    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
 ENTRY_END
 
 STEP 40 QUERY
@@ -270,7 +279,7 @@ SECTION QUESTION
 www.example.com. IN A
 ENTRY_END
 
-; immediate cached answer because upstream is valid again
+; immediate cached answer; although upstream is valid again
 STEP 50 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all ttl ede=3
@@ -281,14 +290,16 @@ SECTION ANSWER
 www.example.com. 123 IN A	10.20.30.40
 www.example.com.        123    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFC99iE9K5y2WNgI0gFvBWaTi9wm6AhUAoUqOpDtG5Zct+Qr9F3mSdnbc6V4= ;{id = 2854}
 SECTION AUTHORITY
-example.com.	123 IN NS	ns.example.com.
-example.com.    123    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
+;example.com.	123 IN NS	ns.example.com.
+;example.com.    123    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
 SECTION ADDITIONAL
-ns.example.com.	123	IN 	A	1.2.3.4
-ns.example.com. 123    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
+;ns.example.com.	123	IN 	A	1.2.3.4
+;ns.example.com. 123    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
 ENTRY_END
 
-; upstream query is resolved before this query comes in
+STEP 51 TIME_PASSES ELAPSE 5
+
+; query one last time
 STEP 60 QUERY
 ENTRY_BEGIN
 REPLY RD DO
@@ -296,7 +307,7 @@ SECTION QUESTION
 www.example.com. IN A
 ENTRY_END
 
-; prefetch query updated the cache, since there is no upstream response in this range
+; this is the fresh valid response
 STEP 70 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all ttl
@@ -307,11 +318,11 @@ SECTION ANSWER
 www.example.com. IN A	10.20.30.40
 www.example.com.        3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFC99iE9K5y2WNgI0gFvBWaTi9wm6AhUAoUqOpDtG5Zct+Qr9F3mSdnbc6V4= ;{id = 2854}
 SECTION AUTHORITY
-example.com.	IN NS	ns.example.com.
-example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
+;example.com.	IN NS	ns.example.com.
+;example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
 SECTION ADDITIONAL
-ns.example.com.		IN 	A	1.2.3.4
-ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
+;ns.example.com.		IN 	A	1.2.3.4
+;ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCQMyTjn7WWwpwAR1LlVeLpRgZGuQIUCcJDEkwAuzytTDRlYK7nIMwH1CM= ;{id = 2854}
 ENTRY_END
 
 SCENARIO_END

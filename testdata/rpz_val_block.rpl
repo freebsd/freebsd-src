@@ -6,7 +6,6 @@ server:
 	trust-anchor: "org. DS 1444 8 2 5224fb17d630a2e3efdc863a05a4032c5db415b5de3f32472ee9abed42e10146"
 	val-override-date: "20070916134226"
 	trust-anchor-signaling: no
-	log-servfail: yes
 	val-log-level: 2
 	ede: yes
 

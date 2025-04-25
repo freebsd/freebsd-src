@@ -6,10 +6,8 @@ server:
 	serve-expired: yes
 	serve-expired-client-timeout: 1
 	serve-expired-reply-ttl: 123
-	log-servfail: yes
 	ede: yes
 	ede-serve-expired: yes
-
 
 stub-zone:
 	name: "example.com"
@@ -26,8 +24,10 @@ SCENARIO_BEGIN Test serve-expired with client-timeout and a SERVFAIL upstream re
 ; - check that we get the expired cached answer
 ; - query again (the answer is available on the upstream server now)
 ; - check that we get the immediate expired answer back instead
-; - (the upstream query does happen after the expired reply and updates the cache)
-; - query again (the upstream has no answer)
+; - query again (the answer is available on the upstream server now)
+; - check that we *still* get the immediate expired answer back instead, recursion is blocked for NORR_TTL(5)
+; - wait for NORR_TTL(5) to expire
+; - query again
 ; - check that we get the freshly cached answer
 
 ; ns.example.com.
@@ -74,7 +74,7 @@ RANGE_BEGIN 30 40
 RANGE_END
 
 ; ns.example.com.
-RANGE_BEGIN 50 60
+RANGE_BEGIN 50 100
 	ADDRESS 1.2.3.4
 	; response to A query
 	ENTRY_BEGIN
@@ -149,12 +149,8 @@ ENTRY_BEGIN
 		example.com. IN A
 ENTRY_END
 
-; Allow for upstream query to resolve.
-STEP 51 TRAFFIC
-
 ; Check that we got an immediate stale answer because of the previous failure,
-; regardless if upstream has the answer already in this range. The query will
-; be resolved after the immediate cached answer and will cache the result.
+; regardless if upstream has the answer already in this range.
 STEP 60 CHECK_ANSWER
 ENTRY_BEGIN
 	MATCH all ttl ede=3
@@ -172,14 +168,41 @@ ENTRY_END
 ; Query again
 STEP 70 QUERY
 ENTRY_BEGIN
+	REPLY RD DO
+	SECTION QUESTION
+		example.com. IN A
+ENTRY_END
+
+; Check that we still get the immediate stale answer because of the previous failure,
+; regardless if upstream has the answer already in this range. NORR_TTL(5) blocks us from
+; recursion.
+STEP 80 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ttl ede=3
+	REPLY QR RD RA DO NOERROR
+	SECTION QUESTION
+		example.com. IN A
+	SECTION ANSWER
+		example.com.  123 IN A 5.6.7.8
+	SECTION AUTHORITY
+		example.com. 123 IN NS ns.example.com.
+	SECTION ADDITIONAL
+		ns.example.com. 123 IN A 1.2.3.4
+ENTRY_END
+
+; Let NORR_TTL(5) expire
+STEP 81 TIME_PASSES ELAPSE 5
+
+; Query again
+STEP 90 QUERY
+ENTRY_BEGIN
 	REPLY RD
 	SECTION QUESTION
 		example.com. IN A
 ENTRY_END
 
-; Check that we got the cached updated answer from the previous step since
-; there is no upstream in this range.
-STEP 80 CHECK_ANSWER
+; Check fresh reply
+STEP 100 CHECK_ANSWER
 ENTRY_BEGIN
 	MATCH all ttl
 	REPLY QR RD RA NOERROR

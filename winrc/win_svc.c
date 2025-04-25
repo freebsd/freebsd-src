@@ -363,11 +363,36 @@ service_init(int r, struct daemon** d, struct config_file** c)
 		return 0;
 	}
 	if(cfg->ssl_service_key && cfg->ssl_service_key[0]) {
-		if(!(daemon->listen_sslctx = listen_sslctx_create(
-			cfg->ssl_service_key, cfg->ssl_service_pem, NULL)))
+		if(!(daemon->listen_dot_sslctx = listen_sslctx_create(
+			cfg->ssl_service_key, cfg->ssl_service_pem, NULL,
+			cfg->tls_ciphers, cfg->tls_ciphersuites,
+			(cfg->tls_session_ticket_keys.first &&
+			cfg->tls_session_ticket_keys.first->str[0] != 0),
+			1, 0))) {
 			fatal_exit("could not set up listen SSL_CTX");
+		}
+#ifdef HAVE_NGHTTP2_NGHTTP2_H
+		if(cfg_has_https(cfg)) {
+			if(!(daemon->listen_doh_sslctx = listen_sslctx_create(
+				cfg->ssl_service_key, cfg->ssl_service_pem, NULL,
+				cfg->tls_ciphers, cfg->tls_ciphersuites,
+				(cfg->tls_session_ticket_keys.first &&
+				cfg->tls_session_ticket_keys.first->str[0] != 0),
+				0, 1))) {
+				fatal_exit("could not set up listen doh SSL_CTX");
+			}
+		}
+#endif
+#ifdef HAVE_NGTCP2
+		if(cfg_has_quic(cfg)) {
+			if(!(daemon->listen_quic_sslctx = quic_sslctx_create(
+				cfg->ssl_service_key, cfg->ssl_service_pem, NULL))) {
+				fatal_exit("could not set up quic SSL_CTX");
+			}
+		}
+#endif /* HAVE_NGTCP2 */
 	}
-	if(!(daemon->connect_sslctx = connect_sslctx_create(NULL, NULL,
+	if(!(daemon->connect_dot_sslctx = connect_sslctx_create(NULL, NULL,
 		cfg->tls_cert_bundle, cfg->tls_win_cert)))
 		fatal_exit("could not set up connect SSL_CTX");
 
