@@ -623,9 +623,8 @@ vm_fault_populate(struct faultstate *fs)
 		    pager_last);
 		pager_last = map_last;
 	}
-	for (pidx = pager_first, m = vm_page_lookup(fs->first_object, pidx);
-	    pidx <= pager_last;
-	    pidx += npages, m = TAILQ_NEXT(&m[npages - 1], listq)) {
+	for (pidx = pager_first; pidx <= pager_last; pidx += npages) {
+		m = vm_page_lookup(fs->first_object, pidx);
 		vaddr = fs->entry->start + IDX_TO_OFF(pidx) - fs->entry->offset;
 		KASSERT(m != NULL && m->pindex == pidx,
 		    ("%s: pindex mismatch", __func__));
