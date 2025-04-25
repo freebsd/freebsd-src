@@ -1,7 +1,7 @@
 ---
 -- SPDX-License-Identifier: BSD-2-Clause
 --
--- Copyright(c) 2022 Baptiste Daroussin <bapt@FreeBSD.org>
+-- Copyright(c) 2022-2025 Baptiste Daroussin <bapt@FreeBSD.org>
 
 local unistd = require("posix.unistd")
 local sys_stat = require("posix.sys.stat")
@@ -261,6 +261,106 @@ local function update_sshd_config(key, value)
 	os.rename(sshd_config .. ".nuageinit", sshd_config)
 end
 
+local function exec_change_password(user, password, type, expire)
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	local cmd = "pw "
+	if root then
+		cmd = cmd .. "-R " .. root .. " "
+	end
+	local postcmd = " -H 0"
+	local input = password
+	if type ~= nil and type == "text" then
+		postcmd = " -h 0"
+	else
+		if password == "RANDOM" then
+			input = nil
+			postcmd = " -w random"
+		end
+	end
+	cmd = cmd .. "usermod " .. user .. postcmd
+	if expire then
+		cmd = cmd .. " -p 1"
+	else
+		cmd = cmd .. " -p 0"
+	end
+	local f = io.popen(cmd .. " >/dev/null", "w")
+	if input then
+		f:write(input)
+	end
+	-- ignore stdout to avoid printing the password in case of random password
+	local r = f:close(cmd)
+	if not r then
+		warnmsg("fail to change user password ".. user)
+		warnmsg(cmd)
+	end
+end
+
+local function change_password_from_line(line, expire)
+	local user, password = line:match("%s*(%w+):(%S+)%s*")
+	local type = nil
+	if user and password then
+		if password == "R" then
+			password = "RANDOM"
+		end
+		if not password:match("^%$%d+%$%w+%$") then
+			if password ~= "RANDOM" then
+				type = "text"
+			end
+		end
+		exec_change_password(user, password, type, expire)
+	end
+end
+
+local function chpasswd(obj)
+	if type(obj) ~= "table" then
+		warnmsg("Invalid chpasswd entry, expecting an object")
+		return
+	end
+	local expire = false
+	if obj.expire ~= nil then
+		if type(obj.expire) == "boolean" then
+			expire = obj.expire
+		else
+			warnmsg("Invalid type for chpasswd.expire, expecting a boolean, got a ".. type(obj.expire))
+		end
+	end
+	if obj.users ~= nil then
+		if type(obj.users) ~= "table" then
+			warnmsg("Invalid type for chpasswd.users, expecting a list, got a ".. type(obj.users))
+			goto list
+		end
+		for _, u in ipairs(obj.users) do
+			if type(u) ~= "table" then
+				warnmsg("Invalid chpasswd.users entry, expecting an object, got a " .. type(u))
+				goto next
+			end
+			if not u.name then
+				warnmsg("Invalid entry for chpasswd.users: missing 'name'")
+				goto next
+			end
+			if not u.password then
+				warnmsg("Invalid entry for chpasswd.users: missing 'password'")
+				goto next
+			end
+			exec_change_password(u.name, u.password, u.type, expire)
+			::next::
+		end
+	end
+	::list::
+	if obj.list ~= nil then
+		warnmsg("chpasswd.list is deprecated consider using chpasswd.users")
+		if type(obj.list) == "string" then
+			for line in obj.list:gmatch("[^\n]+") do
+				change_password_from_line(line, expire)
+			end
+		elseif type(obj.list) == "table" then
+			for _, u in ipairs(obj.list) do
+				change_password_from_line(u, expire)
+			end
+		end
+	end
+end
+
 local n = {
 	warn = warnmsg,
 	err = errmsg,
@@ -270,7 +370,8 @@ local n = {
 	adduser = adduser,
 	addgroup = addgroup,
 	addsshkey = addsshkey,
-	update_sshd_config = update_sshd_config
+	update_sshd_config = update_sshd_config,
+	chpasswd = chpasswd
 }
 
 return n
