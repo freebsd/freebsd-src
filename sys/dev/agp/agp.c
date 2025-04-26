@@ -611,7 +611,6 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 				 */
 				for (k = 0; k < i + j; k += AGP_PAGE_SIZE)
 					AGP_UNBIND_PAGE(dev, offset + k);
-				pctrie_iter_reset(&pages);
 				goto bad;
 			}
 		}
