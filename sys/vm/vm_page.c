@@ -1876,25 +1876,6 @@ vm_page_busy_release(vm_page_t m)
 }
 
 /*
- *	vm_page_find_least:
- *
- *	Returns the page associated with the object with least pindex
- *	greater than or equal to the parameter pindex, or NULL.
- *
- *	The object must be locked.
- */
-vm_page_t
-vm_page_find_least(vm_object_t object, vm_pindex_t pindex)
-{
-	vm_page_t m;
-
-	VM_OBJECT_ASSERT_LOCKED(object);
-	if ((m = TAILQ_FIRST(&object->memq)) != NULL && m->pindex < pindex)
-		m = vm_radix_lookup_ge(&object->rtree, pindex);
-	return (m);
-}
-
-/*
  * Uses the page mnew as a replacement for an existing page at index
  * pindex which must be already present in the object.
  *
