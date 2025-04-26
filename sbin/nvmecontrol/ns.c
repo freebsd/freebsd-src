@@ -333,7 +333,7 @@ static struct identify_options {
 
 static const struct opts identify_opts[] = {
 	OPT("hex", 'x', arg_none, identify_opt, hex,
-	    "Print identiy information in hex"),
+	    "Print identity information in hex"),
 	OPT("verbose", 'v', arg_none, identify_opt, verbose,
 	    "More verbosity: print entire identify table"),
 	OPT("nsid", 'n', arg_uint32, identify_opt, nsid,
