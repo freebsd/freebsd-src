@@ -148,10 +148,10 @@ ATF_TC_BODY(sndstat_nv, tc)
 		NV(number, UNIT);
 		NV(string, STATUS);
 		NV(bool, BITPERFECT);
-		NV(number, PVCHAN);
+		NV(bool, PVCHAN);
 		NV(number, PVCHANRATE);
 		NV(number, PVCHANFORMAT);
-		NV(number, RVCHAN);
+		NV(bool, RVCHAN);
 		NV(number, PVCHANRATE);
 		NV(number, PVCHANFORMAT);
 #undef NV
