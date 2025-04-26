@@ -1853,11 +1853,11 @@ found:
 static void
 vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
 {
+	struct pctrie_iter pages;
 	vm_map_entry_t entry;
 	vm_object_t first_object;
 	vm_offset_t end, start;
-	vm_page_t m, m_next;
-	vm_pindex_t pend, pstart;
+	vm_page_t m;
 	vm_size_t size;
 
 	VM_OBJECT_ASSERT_UNLOCKED(fs->object);
@@ -1876,13 +1876,12 @@ vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
 			else
 				start = end - size;
 			pmap_advise(fs->map->pmap, start, end, MADV_DONTNEED);
-			pstart = OFF_TO_IDX(entry->offset) + atop(start -
-			    entry->start);
-			m_next = vm_page_find_least(first_object, pstart);
-			pend = OFF_TO_IDX(entry->offset) + atop(end -
-			    entry->start);
-			while ((m = m_next) != NULL && m->pindex < pend) {
-				m_next = TAILQ_NEXT(m, listq);
+			vm_page_iter_limit_init(&pages, first_object,
+			    OFF_TO_IDX(entry->offset) +
+			    atop(end - entry->start));
+			VM_RADIX_FOREACH_FROM(m, &pages,
+			    OFF_TO_IDX(entry->offset) +
+			    atop(start - entry->start)) {
 				if (!vm_page_all_valid(m) ||
 				    vm_page_busied(m))
 					continue;
