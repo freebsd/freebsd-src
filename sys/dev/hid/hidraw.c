@@ -829,6 +829,9 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		 */
 		if (size >= HID_MAX_DESCRIPTOR_SIZE)
 			return (EINVAL);
+		mtx_lock(&sc->sc_mtx);
+		sc->sc_state.uhid = false;
+		mtx_unlock(&sc->sc_mtx);
 		buf = HIDRAW_LOCAL_ALLOC(local_buf, size);
 		error = hid_get_rdesc(sc->sc_dev, buf, size);
 		if (error == 0) {
