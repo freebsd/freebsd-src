@@ -1504,7 +1504,8 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		exp_flags = (IEEE80211_KEY_FLAG_PAIRWISE |
 		    IEEE80211_KEY_FLAG_PUT_IV_SPACE |
 		    IEEE80211_KEY_FLAG_GENERATE_IV |
-		    IEEE80211_KEY_FLAG_GENERATE_IV_MGMT);	/* Only needs IV geeration for MGMT frames. */
+		    IEEE80211_KEY_FLAG_GENERATE_IV_MGMT |	/* Only needs IV geeration for MGMT frames. */
+		    IEEE80211_KEY_FLAG_SW_MGMT_TX);		/* MFP in software */
 		break;
 	}
 	if ((kc->flags & ~exp_flags) != 0)
