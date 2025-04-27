@@ -6214,6 +6214,9 @@ static int mpi3mr_issue_reset(struct mpi3mr_softc *sc, U16 reset_type,
 		    unlock_retry_count, host_diagnostic);
 	} while (!(host_diagnostic & MPI3_SYSIF_HOST_DIAG_DIAG_WRITE_ENABLE));
 
+	if (reset_type == MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT)
+		mpi3mr_set_diagsave(sc);
+
 	scratch_pad0 = ((MPI3MR_RESET_REASON_OSTYPE_FREEBSD <<
 			MPI3MR_RESET_REASON_OSTYPE_SHIFT) |
 			(sc->facts.ioc_num <<
@@ -6407,10 +6410,14 @@ out:
 			mpi3mr_app_send_aen(sc);
 		}
 	} else {
-		mpi3mr_issue_reset(sc,
-		    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT, reset_reason);
+		ioc_state = mpi3mr_get_iocstate(sc);
+		if (ioc_state != MRIOC_STATE_FAULT)
+			mpi3mr_issue_reset(sc,
+			    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT, reset_reason);
+
 		sc->unrecoverable = 1;
 		sc->reset_in_progress = 0;
+		sc->block_ioctls = 0;
 	}
 
 	mpi3mr_dprint(sc, MPI3MR_INFO, "Soft Reset: %s\n", ((retval == 0) ? "SUCCESS" : "FAILED"));
