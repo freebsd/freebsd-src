@@ -1675,14 +1675,6 @@ mpi3mr_process_sastopochg_evt(struct mpi3mr_softc *sc, struct mpi3mr_fw_event_wo
 	return;
 }
 
-static inline void
-mpi3mr_logdata_evt_bh(struct mpi3mr_softc *sc,
-		      struct mpi3mr_fw_event_work *fwevt)
-{
-	mpi3mr_app_save_logdata(sc, fwevt->event_data,
-				fwevt->event_data_size);
-}
-
 static void
 mpi3mr_pcietopochg_evt_debug(struct mpi3mr_softc *sc,
 	Mpi3EventDataPcieTopologyChangeList_t *event_data)
@@ -2033,11 +2025,6 @@ mpi3mr_fw_work(struct mpi3mr_softc *sc, struct mpi3mr_fw_event_work *fw_event)
 	case MPI3_EVENT_PCIE_TOPOLOGY_CHANGE_LIST:
 	{
 		mpi3mr_process_pcietopochg_evt(sc, fw_event);
-		break;
-	}
-	case MPI3_EVENT_LOG_DATA:
-	{
-		mpi3mr_logdata_evt_bh(sc, fw_event);
 		break;
 	}
 	default:
