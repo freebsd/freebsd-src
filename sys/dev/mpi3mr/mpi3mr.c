@@ -2784,18 +2784,37 @@ retry_init:
         }
 
         if (ioc_state != MRIOC_STATE_RESET) {
-                mpi3mr_print_fault_info(sc);
-		 mpi3mr_dprint(sc, MPI3MR_ERROR, "issuing soft reset to bring to reset state\n");
-                 retval = mpi3mr_issue_reset(sc,
-                     MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET,
-                     MPI3MR_RESET_FROM_BRINGUP);
-                if (retval) {
-                        mpi3mr_dprint(sc, MPI3MR_ERROR,
-                            "%s :Failed to soft reset IOC, error 0x%d\n",
-                            __func__, retval);
+		if (ioc_state == MRIOC_STATE_FAULT) {
+			mpi3mr_print_fault_info(sc);
+
+			U32 fault = mpi3mr_regread(sc, MPI3_SYSIF_FAULT_OFFSET) &
+						   MPI3_SYSIF_FAULT_CODE_MASK;
+			if (fault == MPI3_SYSIF_FAULT_CODE_INSUFFICIENT_PCI_SLOT_POWER)
+				mpi3mr_dprint(sc, MPI3MR_INFO,
+					      "controller faulted due to insufficient power. "
+					      "try by connecting it in a different slot\n");
+				goto err;
+
+			U32 host_diagnostic;
+			timeout = MPI3_SYSIF_DIAG_SAVE_TIMEOUT * 10;
+			do {
+				host_diagnostic = mpi3mr_regread(sc, MPI3_SYSIF_HOST_DIAG_OFFSET);
+				if (!(host_diagnostic & MPI3_SYSIF_HOST_DIAG_SAVE_IN_PROGRESS))
+					break;
+				DELAY(100 * 1000);
+			} while (--timeout);
+		}
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "issuing soft reset to bring to reset state\n");
+		retval = mpi3mr_issue_reset(sc,
+		     MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET,
+		     MPI3MR_RESET_FROM_BRINGUP);
+		if (retval) {
+			mpi3mr_dprint(sc, MPI3MR_ERROR,
+			    "%s :Failed to soft reset IOC, error 0x%d\n",
+			    __func__, retval);
 			goto err_retry;
-                }
-        }
+		}
+	}
 
 	ioc_state = mpi3mr_get_iocstate(sc);
 
@@ -3165,6 +3184,15 @@ mpi3mr_watchdog_thread(void *arg)
 				sc->unrecoverable = 1;
 				break;
 			}
+
+			if (fault == MPI3_SYSIF_FAULT_CODE_INSUFFICIENT_PCI_SLOT_POWER) {
+				mpi3mr_dprint(sc, MPI3MR_INFO,
+					      "controller faulted due to insufficient power, marking"
+					      " controller as unrecoverable\n");
+				sc->unrecoverable = 1;
+				break;
+			}
+
 			if ((fault == MPI3_SYSIF_FAULT_CODE_DIAG_FAULT_RESET)
 			    || (fault == MPI3_SYSIF_FAULT_CODE_SOFT_RESET_IN_PROGRESS)
 			    || (sc->reset_in_progress))
