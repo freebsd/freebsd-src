@@ -2146,7 +2146,7 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_softc *sc)
 	strcpy(drvr_info->DriverName, MPI3MR_DRIVER_NAME);
 	strcpy(drvr_info->DriverVersion, MPI3MR_DRIVER_VERSION);
 	strcpy(drvr_info->DriverReleaseDate, MPI3MR_DRIVER_RELDATE);
-	drvr_info->DriverCapabilities = 0;
+	drvr_info->DriverCapabilities = MPI3_IOCINIT_DRIVERCAP_OSEXPOSURE_NO_SPECIAL;
 	memcpy((U8 *)&sc->driver_info, (U8 *)drvr_info, sizeof(sc->driver_info));
 
 	memset(&iocinit_req, 0, sizeof(iocinit_req));
