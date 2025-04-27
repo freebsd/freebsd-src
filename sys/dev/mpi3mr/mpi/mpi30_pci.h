@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2016-2024, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2016-2025, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Broadcom Inc. (Broadcom) MPI3MR Adapter FreeBSD
  *
  */
+
 #ifndef MPI30_PCI_H
 #define MPI30_PCI_H     1
 
@@ -68,9 +69,11 @@ typedef struct _MPI3_NVME_ENCAPSULATED_REQUEST
 
 /**** Defines for the Flags field ****/
 #define MPI3_NVME_FLAGS_FORCE_ADMIN_ERR_REPLY_MASK      (0x0002)
+#define MPI3_NVME_FLAGS_FORCE_ADMIN_ERR_REPLY_SHIFT     (1)
 #define MPI3_NVME_FLAGS_FORCE_ADMIN_ERR_REPLY_FAIL_ONLY (0x0000)
 #define MPI3_NVME_FLAGS_FORCE_ADMIN_ERR_REPLY_ALL       (0x0002)
 #define MPI3_NVME_FLAGS_SUBMISSIONQ_MASK                (0x0001)
+#define MPI3_NVME_FLAGS_SUBMISSIONQ_SHIFT               (0)
 #define MPI3_NVME_FLAGS_SUBMISSIONQ_IO                  (0x0000)
 #define MPI3_NVME_FLAGS_SUBMISSIONQ_ADMIN               (0x0001)
 
