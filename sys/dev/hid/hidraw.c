@@ -885,7 +885,10 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			default:
 				panic("Invalid report type");
 		}
-		return (hid_set_report(sc->sc_dev, addr, len, reptype, id));
+		error = hid_set_report(sc->sc_dev, addr, len, reptype, id);
+		if (error == 0)
+			td->td_retval[0] = IOCPARM_LEN(cmd);
+		return (error);
 
 	case HIDIOCGFEATURE(0):
 	case HIDIOCGINPUT(0):
