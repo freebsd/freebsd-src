@@ -4385,9 +4385,14 @@ static void mpi3mr_process_events(struct mpi3mr_softc *sc,
 		break;
 	}
 	case MPI3_EVENT_DEVICE_INFO_CHANGED:
-	case MPI3_EVENT_LOG_DATA:
 	{
 		process_evt_bh = 1;
+		break;
+	}
+	case MPI3_EVENT_LOG_DATA:
+	{
+		mpi3mr_app_save_logdata(sc, (char*)event_reply->EventData,
+					le16toh(event_reply->EventDataLength) * 4);
 		break;
 	}
 	case MPI3_EVENT_ENERGY_PACK_CHANGE:
