@@ -1,4 +1,4 @@
-This example Containerfile shows how to add packages to freebsd-minimal while
+This example Containerfile shows how to add packages to freebsd-runtime while
 minimising the package metadata overhead.
 
 For instance, To build a new image called 'my-new-image:latest' containing the
