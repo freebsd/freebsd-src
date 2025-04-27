@@ -332,6 +332,13 @@ mpi3mr_ich_startup(void *arg)
 
 	mtx_unlock(&sc->mpi3mr_mtx);
 
+	error = mpi3mr_kproc_create(mpi3mr_timestamp_thread, sc,
+				    &sc->timestamp_thread_proc, 0, 0,
+				    "mpi3mr_timestamp_thread%d",
+				    device_get_unit(sc->mpi3mr_dev));
+	if (error)
+		device_printf(sc->mpi3mr_dev, "Error %d starting timestamp thread\n", error);
+
 	error = mpi3mr_kproc_create(mpi3mr_watchdog_thread, sc,
 	    &sc->watchdog_thread, 0, 0, "mpi3mr_watchdog%d",
 	    device_get_unit(sc->mpi3mr_dev));
@@ -474,7 +481,7 @@ mpi3mr_pci_attach(device_t dev)
 		mpi3mr_dprint(sc, MPI3MR_ERROR, "CAM attach failed\n");
 		goto load_failed;
 	}
-	
+
 	sc->mpi3mr_ich.ich_func = mpi3mr_ich_startup;
 	sc->mpi3mr_ich.ich_arg = sc;
 	if (config_intrhook_establish(&sc->mpi3mr_ich) != 0) {
@@ -664,10 +671,26 @@ mpi3mr_pci_detach(device_t dev)
 	
 	mtx_lock(&sc->reset_mutex);
 	sc->mpi3mr_flags |= MPI3MR_FLAGS_SHUTDOWN;
+	if (sc->timestamp_thread_active)
+		wakeup(&sc->timestamp_chan);
+
 	if (sc->watchdog_thread_active)
 		wakeup(&sc->watchdog_chan);
 	mtx_unlock(&sc->reset_mutex);
 	
+	i = 0;
+	while (sc->timestamp_thread_active && (i < 180)) {
+		i++;
+		if (!(i % 5)) {
+			mpi3mr_dprint(sc, MPI3MR_INFO,
+			    "[%2d]waiting for "
+			    "timestamp thread to quit reset %d\n", i,
+			    sc->timestamp_thread_active);
+		}
+		pause("mpi3mr_shutdown", hz);
+	}
+
+	i = 0;
 	while (sc->reset_in_progress && (i < PEND_IOCTLS_COMP_WAIT_TIME)) {
 		i++;
 		if (!(i % 5)) {
