@@ -127,6 +127,10 @@ FBSD_1.7 {
 	secure_getenv;
 };
 
+FBSD_1.8 {
+	getenv_r;
+};
+
 FBSDprivate_1.0 {
 	__system;
 	_system;

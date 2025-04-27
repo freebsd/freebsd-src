@@ -95,6 +95,9 @@ div_t	 div(int, int) __pure2;
 _Noreturn void	 exit(int);
 void	 free(void *);
 char	*getenv(const char *);
+#if __BSD_VISIBLE
+int	 getenv_r(const char *, char * _Nonnull, size_t);
+#endif
 long	 labs(long) __pure2;
 ldiv_t	 ldiv(long, long) __pure2;
 void	*malloc(size_t) __malloc_like __result_use_check __alloc_size(1);
