@@ -124,10 +124,15 @@ rtwn_rx_copy_to_mbuf(struct rtwn_softc *sc, struct rtwn_rx_stat_common *stat,
 	if (rtwn_rx_check_pre_alloc(sc, stat) != 0)
 		goto fail;
 
-	m = m_get2(totlen, M_NOWAIT, MT_DATA, M_PKTHDR);
+	/*
+	 * Note: this can require >4 KiB (eg de-aggregating an A-MSDU
+	 * from an USB frame.  See kern/286366 for more information.
+	 */
+	m = m_get3(totlen, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL)) {
-		device_printf(sc->sc_dev, "%s: could not allocate RX mbuf\n",
-		    __func__);
+		device_printf(sc->sc_dev,
+		    "%s: could not allocate RX mbuf (%d bytes)\n",
+		    __func__, totlen);
 		goto fail;
 	}
 
