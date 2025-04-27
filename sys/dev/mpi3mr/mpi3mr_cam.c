@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020-2024, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2020-2025, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Authors: Sumit Saxena <sumit.saxena@broadcom.com>
