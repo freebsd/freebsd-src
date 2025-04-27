@@ -2802,8 +2802,7 @@ retry_init:
 						   MPI3_SYSIF_FAULT_CODE_MASK;
 			if (fault == MPI3_SYSIF_FAULT_CODE_INSUFFICIENT_PCI_SLOT_POWER)
 				mpi3mr_dprint(sc, MPI3MR_INFO,
-					      "controller faulted due to insufficient power. "
-					      "try by connecting it in a different slot\n");
+					      "controller faulted due to insufficient power, try by connecting it in a different slot\n");
 				goto err;
 
 			U32 host_diagnostic;
@@ -3187,9 +3186,8 @@ static int mpi3mr_timestamp_sync(struct mpi3mr_softc *sc)
 
 	if (((sc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK) != MPI3_IOCSTATUS_SUCCESS) &&
 	     (sc->init_cmds.ioc_status != MPI3_IOCSTATUS_SUPERVISOR_ONLY)) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "Issue timestamp sync: Failed IOCStatus(0x%04x) "
-			      " Loginfo(0x%08x) \n", (sc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK),
-			      sc->init_cmds.ioc_loginfo);
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "Issue timestamp sync: Failed IOCStatus(0x%04x) Loginfo(0x%08x)\n",
+			      (sc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK), sc->init_cmds.ioc_loginfo);
 		retval = -1;
 	}
 
@@ -3317,8 +3315,7 @@ mpi3mr_watchdog_thread(void *arg)
 
 			if (fault == MPI3_SYSIF_FAULT_CODE_INSUFFICIENT_PCI_SLOT_POWER) {
 				mpi3mr_dprint(sc, MPI3MR_INFO,
-					      "controller faulted due to insufficient power, marking"
-					      " controller as unrecoverable\n");
+					      "controller faulted due to insufficient power, marking controller as unrecoverable\n");
 				sc->unrecoverable = 1;
 				break;
 			}
