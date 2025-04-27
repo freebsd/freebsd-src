@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2016-2024, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2016-2025, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Broadcom Inc. (Broadcom) MPI3MR Adapter FreeBSD
  *
  */
+
 #ifndef MPI30_SAS_H
 #define MPI30_SAS_H     1
 
@@ -51,6 +52,7 @@
 #define MPI3_SAS_DEVICE_INFO_STP_INITIATOR          (0x00000010)
 #define MPI3_SAS_DEVICE_INFO_SMP_INITIATOR          (0x00000008)
 #define MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_MASK       (0x00000007)
+#define MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_SHIFT      (0)
 #define MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_NO_DEVICE  (0x00000000)
 #define MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_END_DEVICE (0x00000001)
 #define MPI3_SAS_DEVICE_INFO_DEVICE_TYPE_EXPANDER   (0x00000002)
