@@ -585,6 +585,15 @@ local all_tests = {
 			exclude = excludes_stack_overflow,
 		},
 		{
+			func = "getenv_r",
+			arguments = {
+				"\"PATH\"",
+				"__buf",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+		},
+		{
 			func = "realpath",
 			bufsize = "PATH_MAX",
 			arguments = {

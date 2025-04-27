@@ -3,6 +3,7 @@
 ATF_TESTS_C+=		clearenv_test
 ATF_TESTS_C+=		cxa_atexit_test
 ATF_TESTS_C+=		dynthr_test
+ATF_TESTS_C+=		getenv_r_test
 ATF_TESTS_C+=		heapsort_test
 ATF_TESTS_C+=		libc_exit_test
 ATF_TESTS_C+=		mergesort_test
