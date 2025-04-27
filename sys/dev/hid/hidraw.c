@@ -915,8 +915,14 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			default:
 				panic("Invalid report type");
 		}
-		return (hid_get_report(sc->sc_dev, addr, len, NULL,
-		    reptype, id));
+		error = hid_get_report(sc->sc_dev, addr, len, &actsize,
+		    reptype, id);
+		if (error == 0) {
+			if (id == 0)
+				actsize++;
+			td->td_retval[0] = actsize;
+		}
+		return (error);
 
 	case HIDIOCGRAWUNIQ(0):
 		strlcpy(addr, sc->sc_hw->serial, len);
