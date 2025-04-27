@@ -1148,7 +1148,7 @@ enum mpi3mr_iocstate mpi3mr_get_iocstate(struct mpi3mr_softc *sc)
 	return MRIOC_STATE_RESET_REQUESTED;
 }
 
-static inline void mpi3mr_clear_resethistory(struct mpi3mr_softc *sc)
+static inline void mpi3mr_clear_reset_history(struct mpi3mr_softc *sc)
 {
         U32 ioc_status;
 
@@ -1178,7 +1178,7 @@ static int mpi3mr_mur_ioc(struct mpi3mr_softc *sc, U16 reset_reason)
                 mpi3mr_dprint(sc, MPI3MR_ERROR, "IOC is unrecoverable MUR not issued\n");
                 return retval;
         }
-        mpi3mr_clear_resethistory(sc);
+	mpi3mr_clear_reset_history(sc);
 
 	scratch_pad0 = ((MPI3MR_RESET_REASON_OSTYPE_FREEBSD <<
 			MPI3MR_RESET_REASON_OSTYPE_SHIFT) |
@@ -1193,7 +1193,7 @@ static int mpi3mr_mur_ioc(struct mpi3mr_softc *sc, U16 reset_reason)
         do {
 		ioc_status = mpi3mr_regread(sc, MPI3_SYSIF_IOC_STATUS_OFFSET);
                 if ((ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY)) {
-                        mpi3mr_clear_resethistory(sc);
+			mpi3mr_clear_reset_history(sc);
 			ioc_config =
 				mpi3mr_regread(sc, MPI3_SYSIF_IOC_CONFIG_OFFSET);
                         if (!((ioc_status & MPI3_SYSIF_IOC_STATUS_READY) ||
@@ -1223,24 +1223,44 @@ static int mpi3mr_mur_ioc(struct mpi3mr_softc *sc, U16 reset_reason)
  *
  * Return: 0 on success, appropriate error on failure.
  */
-static int mpi3mr_bring_ioc_ready(struct mpi3mr_softc *sc)
+static int mpi3mr_bring_ioc_ready(struct mpi3mr_softc *sc,
+				  U64 *start_time)
 {
-        U32 ioc_config, timeout;
-        enum mpi3mr_iocstate current_state;
+	enum mpi3mr_iocstate current_state;
+	U32 ioc_status;
+	int retval;
 
-	ioc_config = mpi3mr_regread(sc, MPI3_SYSIF_IOC_CONFIG_OFFSET);
-        ioc_config |= MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC;
+	U32 ioc_config = mpi3mr_regread(sc, MPI3_SYSIF_IOC_CONFIG_OFFSET);
+	ioc_config |= MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC;
 	mpi3mr_regwrite(sc, MPI3_SYSIF_IOC_CONFIG_OFFSET, ioc_config);
 
-        timeout = sc->ready_timeout * 10;
-        do {
-                current_state = mpi3mr_get_iocstate(sc);
-                if (current_state == MRIOC_STATE_READY)
-                        return 0;
-                DELAY(100 * 1000);
-        } while (--timeout);
+	if (*start_time == 0)
+		*start_time = ticks;
 
-        return -1;
+	do {
+		ioc_status = mpi3mr_regread(sc, MPI3_SYSIF_IOC_STATUS_OFFSET);
+		if (ioc_status & (MPI3_SYSIF_IOC_STATUS_FAULT | MPI3_SYSIF_IOC_STATUS_RESET_HISTORY)) {
+		    if (ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT) {
+			    mpi3mr_print_fault_info(sc);
+			    retval = mpi3mr_issue_reset(sc, MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET, MPI3MR_RESET_FROM_BRINGUP);
+			    if (retval) {
+				    mpi3mr_dprint(sc, MPI3MR_ERROR, "%s: Failed to soft reset the IOC, error 0x%d\n", __func__, retval);
+				    return -1;
+			    }
+		    }
+		    mpi3mr_clear_reset_history(sc);
+		    return EAGAIN;
+		}
+
+		current_state = mpi3mr_get_iocstate(sc);
+		if (current_state == MRIOC_STATE_READY)
+			return 0;
+
+		DELAY(100 * 1000);
+
+	} while (((ticks - *start_time) / hz) < sc->ready_timeout);
+
+	return -1;
 }
 
 static const struct {
@@ -2718,14 +2738,16 @@ int mpi3mr_initialize_ioc(struct mpi3mr_softc *sc, U8 init_type)
 {
 	int retval = 0;
 	enum mpi3mr_iocstate ioc_state;
-	U64 ioc_info;
+	U64 ioc_info, start_ticks = 0;
 	U32 ioc_status, ioc_control, i, timeout;
 	Mpi3IOCFactsData_t facts_data;
 	char str[32];
 	U32 size;
+	U8 retry = 0;
 
 	sc->cpu_count = mp_ncpus;
 
+retry_init:
 	ioc_status = mpi3mr_regread(sc, MPI3_SYSIF_IOC_STATUS_OFFSET);
 	ioc_control = mpi3mr_regread(sc, MPI3_SYSIF_IOC_CONFIG_OFFSET);
 	ioc_info = mpi3mr_regread64(sc, MPI3_SYSIF_IOC_INFO_LOW_OFFSET);
@@ -2733,28 +2755,25 @@ int mpi3mr_initialize_ioc(struct mpi3mr_softc *sc, U8 init_type)
 	mpi3mr_dprint(sc, MPI3MR_INFO, "SOD ioc_status: 0x%x ioc_control: 0x%x "
 	    "ioc_info: 0x%lx\n", ioc_status, ioc_control, ioc_info);
 
-        /*The timeout value is in 2sec unit, changing it to seconds*/
+	/*The timeout value is in 2sec unit, changing it to seconds*/
 	sc->ready_timeout =
                 ((ioc_info & MPI3_SYSIF_IOC_INFO_LOW_TIMEOUT_MASK) >>
                     MPI3_SYSIF_IOC_INFO_LOW_TIMEOUT_SHIFT) * 2;
 
 	ioc_state = mpi3mr_get_iocstate(sc);
-	
 	mpi3mr_dprint(sc, MPI3MR_INFO, "IOC state: %s   IOC ready timeout: %d\n",
 	    mpi3mr_iocstate_name(ioc_state), sc->ready_timeout);
 
-	if (ioc_state == MRIOC_STATE_BECOMING_READY ||
-	    ioc_state == MRIOC_STATE_RESET_REQUESTED) {
-		timeout = sc->ready_timeout * 10;
-		do {
-			DELAY(1000 * 100);
-		} while (--timeout);
-
+	timeout = sc->ready_timeout * 10;
+	do {
 		ioc_state = mpi3mr_get_iocstate(sc);
-		mpi3mr_dprint(sc, MPI3MR_INFO,
-			"IOC in %s state after waiting for reset time\n",
-			mpi3mr_iocstate_name(ioc_state));
-	}
+
+		if (ioc_state != MRIOC_STATE_BECOMING_READY &&
+		    ioc_state != MRIOC_STATE_RESET_REQUESTED)
+			break;
+
+		DELAY(1000 * 100);
+	} while (--timeout);
 
 	if (ioc_state == MRIOC_STATE_READY) {
                 retval = mpi3mr_mur_ioc(sc, MPI3MR_RESET_FROM_BRINGUP);
@@ -2775,44 +2794,48 @@ int mpi3mr_initialize_ioc(struct mpi3mr_softc *sc, U8 init_type)
                         mpi3mr_dprint(sc, MPI3MR_ERROR,
                             "%s :Failed to soft reset IOC, error 0x%d\n",
                             __func__, retval);
-                        goto out_failed;
+			goto err_retry;
                 }
         }
-        
+
 	ioc_state = mpi3mr_get_iocstate(sc);
 
         if (ioc_state != MRIOC_STATE_RESET) {
 		mpi3mr_dprint(sc, MPI3MR_ERROR, "Cannot bring IOC to reset state\n");
-		goto out_failed;
+		goto err_retry;
         }
 
 	retval = mpi3mr_setup_admin_qpair(sc);
 	if (retval) {
 		mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to setup Admin queues, error 0x%x\n",
 		    retval);
-		goto out_failed;
+		if (retval == ENOMEM)
+			goto err;
+		goto err_retry;
 	}
-	
-	retval = mpi3mr_bring_ioc_ready(sc);
+
+	retval = mpi3mr_bring_ioc_ready(sc, &start_ticks);
 	if (retval) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to bring IOC ready, error 0x%x\n",
-		    retval);
-		goto out_failed;
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to bring IOC ready, error 0x%x\n", retval);
+		if (retval == EAGAIN)
+			goto err_retry;
+		goto err;
 	}
+
 
 	if (init_type == MPI3MR_INIT_TYPE_INIT) {
 		retval = mpi3mr_alloc_interrupts(sc, 1);
 		if (retval) {
 			mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to allocate interrupts, error 0x%x\n",
 			    retval);
-			goto out_failed;
+			goto err;
 		}
-	
+
 		retval = mpi3mr_setup_irqs(sc);
 		if (retval) {
 			mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to setup ISR, error 0x%x\n",
 			    retval);
-			goto out_failed;
+			goto err;
 		}
 	}
 
@@ -2872,25 +2895,30 @@ int mpi3mr_initialize_ioc(struct mpi3mr_softc *sc, U8 init_type)
 
 	retval = mpi3mr_issue_iocfacts(sc, &facts_data);
 	if (retval) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to Issue IOC Facts, retval: 0x%x\n",
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to Issue IOC Facts, error: 0x%x\n",
 		    retval);
-		goto out_failed;
+		if (retval == ENOMEM)
+			goto err;
+		goto err_retry;
 	}
 
 	retval = mpi3mr_process_factsdata(sc, &facts_data);
 	if (retval) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "IOC Facts data processing failedi, retval: 0x%x\n",
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "IOC Facts data processing failed, error: 0x%x\n",
 		    retval);
-		goto out_failed;
+		goto err_retry;
 	}
 
 	sc->num_io_throttle_group = sc->facts.max_io_throttle_group;
 	mpi3mr_atomic_set(&sc->pend_large_data_sz, 0);
-	
+
 	if (init_type == MPI3MR_INIT_TYPE_RESET) {
 		retval = mpi3mr_validate_fw_update(sc);
-		if (retval)
-			goto out_failed;
+		if (retval) {
+			if (retval == ENOMEM)
+				goto err;
+			goto err_retry;
+		}
 	} else {
 		sc->reply_sz = sc->facts.reply_sz;
 	}
@@ -2899,25 +2927,27 @@ int mpi3mr_initialize_ioc(struct mpi3mr_softc *sc, U8 init_type)
 
 	retval = mpi3mr_reply_alloc(sc);
 	if (retval) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to allocated reply and sense buffers, retval: 0x%x\n",
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to allocated reply and sense buffers, error: 0x%x\n",
 		    retval);
-		goto out_failed;
+		goto err;
 	}
-	
+
 	if (init_type == MPI3MR_INIT_TYPE_INIT) {
 		retval = mpi3mr_alloc_chain_bufs(sc);
 		if (retval) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to allocated chain buffers, retval: 0x%x\n",
-			    retval);
-			goto out_failed;
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to allocated chain buffers, error: 0x%x\n",
+				      retval);
+			goto err;
 		}
 	}
-	
+
 	retval = mpi3mr_issue_iocinit(sc);
 	if (retval) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to Issue IOC Init, retval: 0x%x\n",
-		    retval);
-		goto out_failed;
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to Issue IOC Init, error: 0x%x\n",
+			      retval);
+		if (retval == ENOMEM)
+			goto err;
+		goto err_retry;
 	}
 
 	mpi3mr_print_fw_pkg_ver(sc);
@@ -2925,77 +2955,84 @@ int mpi3mr_initialize_ioc(struct mpi3mr_softc *sc, U8 init_type)
 	sc->reply_free_q_host_index = sc->num_reply_bufs;
 	mpi3mr_regwrite(sc, MPI3_SYSIF_REPLY_FREE_HOST_INDEX_OFFSET,
 		sc->reply_free_q_host_index);
-	
+
 	sc->sense_buf_q_host_index = sc->num_sense_bufs;
-	
+
 	mpi3mr_regwrite(sc, MPI3_SYSIF_SENSE_BUF_FREE_HOST_INDEX_OFFSET,
 		sc->sense_buf_q_host_index);
 
 	if (init_type == MPI3MR_INIT_TYPE_INIT) {
 		retval = mpi3mr_alloc_interrupts(sc, 0);
 		if (retval) {
-			mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to allocate interrupts, retval: 0x%x\n",
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to allocate interrupts, error: 0x%x\n",
 			    retval);
-			goto out_failed;
+			goto err;
 		}
 
 		retval = mpi3mr_setup_irqs(sc);
 		if (retval) {
-			printf(IOCNAME "Failed to setup ISR, error: 0x%x\n",
-			    sc->name, retval);
-			goto out_failed;
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to setup ISR, error: 0x%x\n", retval);
+			goto err;
 		}
 
 		mpi3mr_enable_interrupts(sc);
 
 	} else
 		mpi3mr_enable_interrupts(sc);
-	
-	retval = mpi3mr_create_op_queues(sc);
 
+	retval = mpi3mr_create_op_queues(sc);
 	if (retval) {
 		mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to create operational queues, error: %d\n",
 		    retval);
-		goto out_failed;
+		if (retval == ENOMEM)
+			goto err;
+		goto err_retry;
 	}
 
 	if (!sc->throttle_groups && sc->num_io_throttle_group) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "allocating memory for throttle groups\n");
 		size = sizeof(struct mpi3mr_throttle_group_info);
 		sc->throttle_groups = (struct mpi3mr_throttle_group_info *)
 					  malloc(sc->num_io_throttle_group *
 					      size, M_MPI3MR, M_NOWAIT | M_ZERO);
-		if (!sc->throttle_groups)
-			goto out_failed;
+		if (!sc->throttle_groups) {
+			mpi3mr_dprint(sc, MPI3MR_ERROR, "throttle groups memory allocation failed\n");
+			goto err;
+		}
 	}
 
 	if (init_type == MPI3MR_INIT_TYPE_RESET) {
-		mpi3mr_dprint(sc, MPI3MR_INFO, "Re-register events\n");
+		mpi3mr_dprint(sc, MPI3MR_XINFO, "Re-register events\n");
 		retval = mpi3mr_register_events(sc);
 		if (retval) {
-			mpi3mr_dprint(sc, MPI3MR_INFO, "Failed to re-register events, retval: 0x%x\n",
+			mpi3mr_dprint(sc, MPI3MR_INFO, "Failed to re-register events, error: 0x%x\n",
 			    retval);
-			goto out_failed;
+			goto err_retry;
 		}
 
 		mpi3mr_dprint(sc, MPI3MR_INFO, "Issuing Port Enable\n");
 		retval = mpi3mr_issue_port_enable(sc, 0);
 		if (retval) {
-			mpi3mr_dprint(sc, MPI3MR_INFO, "Failed to issue port enable, retval: 0x%x\n",
+			mpi3mr_dprint(sc, MPI3MR_INFO, "Failed to issue port enable, error: 0x%x\n",
 			    retval);
-			goto out_failed;
+			goto err_retry;
 		}
 	}
 	retval = mpi3mr_pel_alloc(sc);
 	if (retval) {
-		mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to allocate memory for PEL, retval: 0x%x\n",
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "Failed to allocate memory for PEL, error: 0x%x\n",
 		    retval);
-		goto out_failed;
+		goto err;
 	}
-	
+
 	return retval;
 
-out_failed:
+err_retry:
+	if ((retry++ < 2) && (((ticks - start_ticks) / hz) < (sc->ready_timeout - 60))) {
+		mpi3mr_dprint(sc, MPI3MR_ERROR, "Retrying controller initialization,"
+			      "retry_count: %d\n", retry);
+		goto retry_init;
+	}
+err:
 	retval = -1;
 	return retval;
 }
@@ -5734,23 +5771,6 @@ static void mpi3mr_flush_io(struct mpi3mr_softc *sc)
 			}
 		}
 	}
-}
-/**
- * mpi3mr_clear_reset_history - Clear reset history
- * @sc: Adapter instance reference
- *
- * Write the reset history bit in IOC Status to clear the bit,
- * if it is already set.
- *
- * Return: Nothing.
- */
-static inline void mpi3mr_clear_reset_history(struct mpi3mr_softc *sc)
-{
-	U32 ioc_status;
-
-	ioc_status = mpi3mr_regread(sc, MPI3_SYSIF_IOC_STATUS_OFFSET);
-	if (ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY)
-		mpi3mr_regwrite(sc, MPI3_SYSIF_IOC_STATUS_OFFSET, ioc_status);
 }
 
 /**
