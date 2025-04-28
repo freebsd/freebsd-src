@@ -374,7 +374,7 @@ CTASSERT(((VTNET_TX_SEGS_MAX - 1) * MCLBYTES) >= VTNET_MAX_MTU);
  */
 #define VTNET_DEFAULT_BUFRING_SIZE	4096
 
-#define VTNET_CORE_MTX(_sc)		&(_sc)->vtnet_mtx
+#define VTNET_CORE_MTX(_sc)		(&(_sc)->vtnet_mtx)
 #define VTNET_CORE_LOCK(_sc)		mtx_lock(VTNET_CORE_MTX((_sc)))
 #define VTNET_CORE_UNLOCK(_sc)		mtx_unlock(VTNET_CORE_MTX((_sc)))
 #define VTNET_CORE_LOCK_DESTROY(_sc)	mtx_destroy(VTNET_CORE_MTX((_sc)))
