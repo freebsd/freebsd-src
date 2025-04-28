@@ -68,6 +68,9 @@ device		tdfx			# Enable 3Dfx Voodoo support
 #
 device		smartpqi
 
+# Broadcom MPT Fusion, version 4, is 64-bit only
+device		mpi3mr			# LSI-Logic MPT-Fusion 4
+
 #
 # Network interfaces:
 #
