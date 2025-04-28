@@ -65,7 +65,7 @@ struct child::impl : utils::noncopyable {
     pid_t _pid;
 
     /// The input stream for the process' stdout and stderr.  May be NULL.
-    std::auto_ptr< process::ifdstream > _output;
+    std::unique_ptr< process::ifdstream > _output;
 
     /// Initializes private implementation data.
     ///
@@ -192,7 +192,7 @@ process::child::~child(void)
 /// noncopyable.  In the case of the child, a NULL pointer.
 ///
 /// \throw process::system_error If the calls to pipe(2) or fork(2) fail.
-std::auto_ptr< process::child >
+std::unique_ptr< process::child >
 process::child::fork_capture_aux(void)
 {
     std::cout.flush();
@@ -202,7 +202,7 @@ process::child::fork_capture_aux(void)
     if (detail::syscall_pipe(fds) == -1)
         throw process::system_error("pipe(2) failed", errno);
 
-    std::auto_ptr< signals::interrupts_inhibiter > inhibiter(
+    std::unique_ptr< signals::interrupts_inhibiter > inhibiter(
         new signals::interrupts_inhibiter);
     pid_t pid = detail::syscall_fork();
     if (pid == -1) {
@@ -223,13 +223,13 @@ process::child::fork_capture_aux(void)
             std::cerr << F("Failed to set up subprocess: %s\n") % e.what();
             std::abort();
         }
-        return std::auto_ptr< process::child >(NULL);
+        return std::unique_ptr< process::child >(NULL);
     } else {
         ::close(fds[1]);
         LD(F("Spawned process %s: stdout and stderr inherited") % pid);
         signals::add_pid_to_kill(pid);
         inhibiter.reset(NULL);  // Unblock signals.
-        return std::auto_ptr< process::child >(
+        return std::unique_ptr< process::child >(
             new process::child(new impl(pid, new process::ifdstream(fds[0]))));
     }
 }
@@ -252,14 +252,14 @@ process::child::fork_capture_aux(void)
 /// noncopyable.  In the case of the child, a NULL pointer.
 ///
 /// \throw process::system_error If the call to fork(2) fails.
-std::auto_ptr< process::child >
+std::unique_ptr< process::child >
 process::child::fork_files_aux(const fs::path& stdout_file,
                                const fs::path& stderr_file)
 {
     std::cout.flush();
     std::cerr.flush();
 
-    std::auto_ptr< signals::interrupts_inhibiter > inhibiter(
+    std::unique_ptr< signals::interrupts_inhibiter > inhibiter(
         new signals::interrupts_inhibiter);
     pid_t pid = detail::syscall_fork();
     if (pid == -1) {
@@ -284,13 +284,13 @@ process::child::fork_files_aux(const fs::path& stdout_file,
             std::cerr << F("Failed to set up subprocess: %s\n") % e.what();
             std::abort();
         }
-        return std::auto_ptr< process::child >(NULL);
+        return std::unique_ptr< process::child >(NULL);
     } else {
         LD(F("Spawned process %s: stdout=%s, stderr=%s") % pid % stdout_file %
            stderr_file);
         signals::add_pid_to_kill(pid);
         inhibiter.reset(NULL);  // Unblock signals.
-        return std::auto_ptr< process::child >(
+        return std::unique_ptr< process::child >(
             new process::child(new impl(pid, NULL)));
     }
 }
@@ -309,10 +309,10 @@ process::child::fork_files_aux(const fs::path& stdout_file,
 ///
 /// \throw process::system_error If the process cannot be spawned due to a
 ///     system call error.
-std::auto_ptr< process::child >
+std::unique_ptr< process::child >
 process::child::spawn_capture(const fs::path& program, const args_vector& args)
 {
-    std::auto_ptr< child > child = fork_capture_aux();
+    std::unique_ptr< child > child = fork_capture_aux();
     if (child.get() == NULL)
         exec(program, args);
     log_exec(program, args);
@@ -335,13 +335,13 @@ process::child::spawn_capture(const fs::path& program, const args_vector& args)
 ///
 /// \throw process::system_error If the process cannot be spawned due to a
 ///     system call error.
-std::auto_ptr< process::child >
+std::unique_ptr< process::child >
 process::child::spawn_files(const fs::path& program,
                             const args_vector& args,
                             const fs::path& stdout_file,
                             const fs::path& stderr_file)
 {
-    std::auto_ptr< child > child = fork_files_aux(stdout_file, stderr_file);
+    std::unique_ptr< child > child = fork_files_aux(stdout_file, stderr_file);
     if (child.get() == NULL)
         exec(program, args);
     log_exec(program, args);

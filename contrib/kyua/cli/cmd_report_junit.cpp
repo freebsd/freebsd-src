@@ -77,7 +77,7 @@ cmd_report_junit::run(cmdline::ui* /* ui */,
     const fs::path results_file = layout::find_results(
         results_file_open(cmdline));
 
-    std::auto_ptr< std::ostream > output = utils::open_ostream(
+    std::unique_ptr< std::ostream > output = utils::open_ostream(
         cmdline.get_option< cmdline::path_option >("output"));
 
     drivers::report_junit_hooks hooks(*output.get());

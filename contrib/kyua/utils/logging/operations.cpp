@@ -105,7 +105,7 @@ struct global_state {
     std::vector< std::pair< logging::level, std::string > > backlog;
 
     /// Stream to the currently open log file.
-    std::auto_ptr< std::ostream > logfile;
+    std::unique_ptr< std::ostream > logfile;
 
     global_state() :
         log_level(logging::level_debug),

@@ -129,7 +129,7 @@ executor::executor_handle::spawn(
     const fs::path stderr_path = stderr_target ?
         stderr_target.get() : (unique_work_directory / detail::stderr_name);
 
-    std::auto_ptr< process::child > child = process::child::fork_files(
+    std::unique_ptr< process::child > child = process::child::fork_files(
         detail::run_child< Hook >(hook,
                                   unique_work_directory,
                                   unique_work_directory / detail::work_subdir,
@@ -137,7 +137,7 @@ executor::executor_handle::spawn(
         stdout_path, stderr_path);
 
     return spawn_post(unique_work_directory, stdout_path, stderr_path,
-                      timeout, unprivileged_user, child);
+                      timeout, unprivileged_user, std::move(child));
 }
 
 
@@ -165,14 +165,14 @@ executor::executor_handle::spawn_followup(Hook hook,
 {
     spawn_followup_pre();
 
-    std::auto_ptr< process::child > child = process::child::fork_files(
+    std::unique_ptr< process::child > child = process::child::fork_files(
         detail::run_child< Hook >(hook,
                                   base.control_directory(),
                                   base.work_directory(),
                                   base.unprivileged_user()),
         base.stdout_file(), base.stderr_file());
 
-    return spawn_followup_post(base, timeout, child);
+    return spawn_followup_post(base, timeout, std::move(child));
 }
 
 

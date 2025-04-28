@@ -52,11 +52,11 @@ namespace process {
 /// \throw process::system_error If the process cannot be spawned due to a
 ///     system call error.
 template< typename Hook >
-std::auto_ptr< child >
+std::unique_ptr< child >
 child::fork_files(Hook hook, const fs::path& stdout_file,
                   const fs::path& stderr_file)
 {
-    std::auto_ptr< child > child = fork_files_aux(stdout_file, stderr_file);
+    std::unique_ptr< child > child = fork_files_aux(stdout_file, stderr_file);
     if (child.get() == NULL) {
         try {
             hook();
@@ -85,10 +85,10 @@ child::fork_files(Hook hook, const fs::path& stdout_file,
 /// \throw process::system_error If the process cannot be spawned due to a
 ///     system call error.
 template< typename Hook >
-std::auto_ptr< child >
+std::unique_ptr< child >
 child::fork_capture(Hook hook)
 {
-    std::auto_ptr< child > child = fork_capture_aux();
+    std::unique_ptr< child > child = fork_capture_aux();
     if (child.get() == NULL) {
         try {
             hook();

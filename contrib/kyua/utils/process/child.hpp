@@ -76,11 +76,11 @@ class child : noncopyable {
     struct impl;
 
     /// Pointer to the shared internal implementation.
-    std::auto_ptr< impl > _pimpl;
+    std::unique_ptr< impl > _pimpl;
 
-    static std::auto_ptr< child > fork_capture_aux(void);
+    static std::unique_ptr< child > fork_capture_aux(void);
 
-    static std::auto_ptr< child > fork_files_aux(const fs::path&,
+    static std::unique_ptr< child > fork_files_aux(const fs::path&,
                                                  const fs::path&);
 
     explicit child(impl *);
@@ -89,16 +89,16 @@ public:
     ~child(void);
 
     template< typename Hook >
-    static std::auto_ptr< child > fork_capture(Hook);
+    static std::unique_ptr< child > fork_capture(Hook);
     std::istream& output(void);
 
     template< typename Hook >
-    static std::auto_ptr< child > fork_files(Hook, const fs::path&,
+    static std::unique_ptr< child > fork_files(Hook, const fs::path&,
                                              const fs::path&);
 
-    static std::auto_ptr< child > spawn_capture(
+    static std::unique_ptr< child > spawn_capture(
         const fs::path&, const args_vector&);
-    static std::auto_ptr< child > spawn_files(
+    static std::unique_ptr< child > spawn_files(
         const fs::path&, const args_vector&, const fs::path&, const fs::path&);
 
     int pid(void) const;

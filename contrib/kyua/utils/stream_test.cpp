@@ -43,7 +43,7 @@ ATF_TEST_CASE_BODY(open_ostream__stdout)
 {
     const pid_t pid = atf::utils::fork();
     if (pid == 0) {
-        std::auto_ptr< std::ostream > output = utils::open_ostream(
+        std::unique_ptr< std::ostream > output = utils::open_ostream(
             fs::path("/dev/stdout"));
         (*output) << "Message to stdout\n";
         output.reset();
@@ -58,7 +58,7 @@ ATF_TEST_CASE_BODY(open_ostream__stderr)
 {
     const pid_t pid = atf::utils::fork();
     if (pid == 0) {
-        std::auto_ptr< std::ostream > output = utils::open_ostream(
+        std::unique_ptr< std::ostream > output = utils::open_ostream(
             fs::path("/dev/stderr"));
         (*output) << "Message to stderr\n";
         output.reset();
@@ -73,7 +73,7 @@ ATF_TEST_CASE_BODY(open_ostream__other)
 {
     const pid_t pid = atf::utils::fork();
     if (pid == 0) {
-        std::auto_ptr< std::ostream > output = utils::open_ostream(
+        std::unique_ptr< std::ostream > output = utils::open_ostream(
             fs::path("some-file.txt"));
         (*output) << "Message to other file\n";
         output.reset();

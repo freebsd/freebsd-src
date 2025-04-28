@@ -202,9 +202,9 @@ ATF_TEST_CASE_HEAD(interrupts_handler__kill_children)
 }
 ATF_TEST_CASE_BODY(interrupts_handler__kill_children)
 {
-    std::auto_ptr< process::child > child1(process::child::fork_files(
+    std::unique_ptr< process::child > child1(process::child::fork_files(
          pause_child, fs::path("/dev/stdout"), fs::path("/dev/stderr")));
-    std::auto_ptr< process::child > child2(process::child::fork_files(
+    std::unique_ptr< process::child > child2(process::child::fork_files(
          pause_child, fs::path("/dev/stdout"), fs::path("/dev/stderr")));
 
     signals::interrupts_handler interrupts;

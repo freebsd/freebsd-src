@@ -95,7 +95,7 @@ class metadata_builder : utils::noncopyable {
     struct impl;
 
     /// Pointer to the shared internal implementation.
-    std::auto_ptr< impl > _pimpl;
+    std::unique_ptr< impl > _pimpl;
 
 public:
     metadata_builder(void);

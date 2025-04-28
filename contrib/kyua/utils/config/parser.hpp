@@ -66,7 +66,7 @@ public:
 
 private:
     /// Pointer to the internal implementation.
-    std::auto_ptr< impl > _pimpl;
+    std::unique_ptr< impl > _pimpl;
 
     /// Hook to initialize the tree keys before reading the file.
     ///

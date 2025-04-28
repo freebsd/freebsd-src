@@ -60,7 +60,7 @@ class timer : noncopyable {
     struct impl;
 
     /// Pointer to the shared internal implementation.
-    std::auto_ptr< impl > _pimpl;
+    std::unique_ptr< impl > _pimpl;
 
     friend void detail::invoke_do_fired(timer*);
     void do_fired(void);

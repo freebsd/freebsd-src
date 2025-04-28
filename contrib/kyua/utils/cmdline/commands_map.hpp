@@ -72,7 +72,7 @@ public:
     ~commands_map(void);
 
     /// Scoped, strictly-owned pointer to a command from this map.
-    typedef typename std::auto_ptr< BaseCommand > command_ptr;
+    typedef typename std::unique_ptr< BaseCommand > command_ptr;
     void insert(command_ptr, const std::string& = "");
     void insert(BaseCommand*, const std::string& = "");
 

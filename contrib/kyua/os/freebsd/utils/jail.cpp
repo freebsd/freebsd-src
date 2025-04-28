@@ -213,7 +213,7 @@ jail::create(const std::string& jail_name,
     av.push_back("persist");
 
     // invoke jail
-    std::auto_ptr< process::child > child = child::fork_capture(
+    std::unique_ptr< process::child > child = child::fork_capture(
         run(fs::path("/usr/sbin/jail"), av));
     process::status status = child->wait();
 
@@ -288,7 +288,7 @@ jail::remove(const std::string& jail_name)
     av.push_back(jail_name);
 
     // invoke jail
-    std::auto_ptr< process::child > child = child::fork_capture(
+    std::unique_ptr< process::child > child = child::fork_capture(
         run(fs::path("/usr/sbin/jail"), av));
     process::status status = child->wait();
 
