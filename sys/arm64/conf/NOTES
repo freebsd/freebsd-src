@@ -97,6 +97,10 @@ device		ice_ddp		# Intel 800 Series DDP Package
 # Etherswitch devices
 device		e6000sw		# Marvell mv88e6085 based switches
 
+# Storage
+# Broadcom MPT Fusion, version 4, is 64-bit only
+device		mpi3mr			# LSI-Logic MPT-Fusion 4
+
 # MMC/SD/SDIO Card slot support
 device		sdhci_xenon		# Marvell Xenon SD/MMC controller
 device		aw_mmc			# Allwinner SD/MMC controller
