@@ -29,8 +29,10 @@
 #ifndef _IF_VTNETVAR_H
 #define _IF_VTNETVAR_H
 
+#define VTNET_ALTQ_CAPABLE (0)
 #ifdef ALTQ
-#define	VTNET_LEGACY_TX
+#undef VTNET_ALTQ_CAPABLE
+#define	VTNET_ALTQ_CAPABLE (1)
 #endif
 
 struct vtnet_softc;
