@@ -657,7 +657,7 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 
 		mtu = virtio_read_dev_config_2(dev,
 		    offsetof(struct virtio_net_config, mtu));
-		if (mtu < VTNET_MIN_MTU /* || mtu > VTNET_MAX_MTU */) {
+		if (mtu < VTNET_MIN_MTU) {
 			device_printf(dev, "Invalid MTU value: %d. "
 			    "MTU feature disabled.\n", mtu);
 			features &= ~VIRTIO_NET_F_MTU;
@@ -1037,19 +1037,19 @@ vtnet_alloc_virtqueues(struct vtnet_softc *sc)
 		    "%s-rx%d", device_get_nameunit(dev), rxq->vtnrx_id);
 
 		txq = &sc->vtnet_txqs[i];
-		VQ_ALLOC_INFO_INIT(&info[idx+1], sc->vtnet_tx_nsegs,
+		VQ_ALLOC_INFO_INIT(&info[idx + 1], sc->vtnet_tx_nsegs,
 		    vtnet_tx_vq_intr, txq, &txq->vtntx_vq,
 		    "%s-tx%d", device_get_nameunit(dev), txq->vtntx_id);
 	}
 
 	/* These queues will not be used so allocate the minimum resources. */
-	for (/**/; i < sc->vtnet_max_vq_pairs; i++, idx += 2) {
+	for (; i < sc->vtnet_max_vq_pairs; i++, idx += 2) {
 		rxq = &sc->vtnet_rxqs[i];
 		VQ_ALLOC_INFO_INIT(&info[idx], 0, NULL, rxq, &rxq->vtnrx_vq,
 		    "%s-rx%d", device_get_nameunit(dev), rxq->vtnrx_id);
 
 		txq = &sc->vtnet_txqs[i];
-		VQ_ALLOC_INFO_INIT(&info[idx+1], 0, NULL, txq, &txq->vtntx_vq,
+		VQ_ALLOC_INFO_INIT(&info[idx + 1], 0, NULL, txq, &txq->vtntx_vq,
 		    "%s-tx%d", device_get_nameunit(dev), txq->vtntx_id);
 	}
 
