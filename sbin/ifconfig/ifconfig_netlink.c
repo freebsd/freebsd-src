@@ -25,6 +25,8 @@
  * SUCH DAMAGE.
  */
 
+#define _WANT_IFCAP_BIT_NAMES
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
