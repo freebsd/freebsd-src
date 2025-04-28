@@ -76,7 +76,7 @@ public:
     virtual base_node*
     deep_copy(void) const
     {
-        std::auto_ptr< bytes_node > new_node(new bytes_node());
+        std::unique_ptr< bytes_node > new_node(new bytes_node());
         new_node->_value = _value;
         return new_node.release();
     }
@@ -106,7 +106,7 @@ public:
     virtual base_node*
     deep_copy(void) const
     {
-        std::auto_ptr< delta_node > new_node(new delta_node());
+        std::unique_ptr< delta_node > new_node(new delta_node());
         new_node->_value = _value;
         return new_node.release();
     }
@@ -166,7 +166,7 @@ class user_node : public config::string_node {
     virtual base_node*
     deep_copy(void) const
     {
-        std::auto_ptr< user_node > new_node(new user_node());
+        std::unique_ptr< user_node > new_node(new user_node());
         new_node->_value = _value;
         return new_node.release();
     }
@@ -197,7 +197,7 @@ class paths_set_node : public config::base_set_node< fs::path > {
     virtual base_node*
     deep_copy(void) const
     {
-        std::auto_ptr< paths_set_node > new_node(new paths_set_node());
+        std::unique_ptr< paths_set_node > new_node(new paths_set_node());
         new_node->_value = _value;
         return new_node.release();
     }

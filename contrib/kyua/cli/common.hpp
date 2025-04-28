@@ -68,7 +68,7 @@ typedef utils::cmdline::base_command< utils::config::tree > cli_command;
 
 
 /// Scoped, strictly owned pointer to a cli_command.
-typedef std::auto_ptr< cli_command > cli_command_ptr;
+typedef std::unique_ptr< cli_command > cli_command_ptr;
 
 
 /// Collection of result types.

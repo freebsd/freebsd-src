@@ -78,7 +78,7 @@ template< typename Hook >
 static process::status
 fork_and_run(Hook hook)
 {
-    std::auto_ptr< process::child > child = process::child::fork_files(
+    std::unique_ptr< process::child > child = process::child::fork_files(
         hook, fs::path("subprocess.stdout"), fs::path("subprocess.stderr"));
     const process::status status = child->wait();
 

@@ -161,7 +161,7 @@ write_loop(const int fd)
 static void
 check_exec_no_args(const atf::tests::tc* tc, const exec_function do_exec)
 {
-    std::auto_ptr< process::child > child = process::child::fork_files(
+    std::unique_ptr< process::child > child = process::child::fork_files(
         child_exec(do_exec, get_helpers(tc), process::args_vector()),
         fs::path("stdout"), fs::path("stderr"));
     const process::status status = child->wait();
@@ -183,7 +183,7 @@ check_exec_some_args(const atf::tests::tc* tc, const exec_function do_exec)
     args.push_back("foo");
     args.push_back("bar");
 
-    std::auto_ptr< process::child > child = process::child::fork_files(
+    std::unique_ptr< process::child > child = process::child::fork_files(
         child_exec(do_exec, get_helpers(tc), args),
         fs::path("stdout"), fs::path("stderr"));
     const process::status status = child->wait();
@@ -214,7 +214,7 @@ ATF_TEST_CASE_BODY(exec__fail)
 {
     utils::avoid_coredump_on_crash();
 
-    std::auto_ptr< process::child > child = process::child::fork_files(
+    std::unique_ptr< process::child > child = process::child::fork_files(
         child_exec(process::exec, fs::path("non-existent"),
                    process::args_vector()),
         fs::path("stdout"), fs::path("stderr"));
@@ -381,7 +381,7 @@ ATF_TEST_CASE_BODY(terminate_self_with__termsig_and_core)
 ATF_TEST_CASE_WITHOUT_HEAD(wait__ok);
 ATF_TEST_CASE_BODY(wait__ok)
 {
-    std::auto_ptr< process::child > child = process::child::fork_capture(
+    std::unique_ptr< process::child > child = process::child::fork_capture(
         child_exit< 15 >);
     const pid_t pid = child->pid();
     child.reset();  // Ensure there is no conflict between destructor and wait.
