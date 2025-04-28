@@ -41,6 +41,12 @@ and/or ports.
 	file systems has changed.  An NFS server that exports any of these file
 	systems will need its clients to unmount and remount the exports.
 
+20241222:
+	The ng_ubt(4) driver now requires firmwares to be loaded on Realtek
+	adaptors with rtlbtfw(8) utility. It no longer attaches to devices
+	standing in bootloader mode. Firmware files are available in the
+	comms/rtlbt-firmware port.
+
 20240419:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
 	been upgraded to 18.1.6. It is important that you run `make delete-old`
