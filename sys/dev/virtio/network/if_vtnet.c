@@ -309,6 +309,19 @@ static int vtnet_lro_mbufq_depth = 0;
 SYSCTL_UINT(_hw_vtnet, OID_AUTO, lro_mbufq_depth, CTLFLAG_RDTUN,
     &vtnet_lro_mbufq_depth, 0, "Depth of software LRO mbuf queue");
 
+/* Deactivate ALTQ Support */
+static int vtnet_altq_disable = 0;
+SYSCTL_INT(_hw_vtnet, OID_AUTO, altq_disable, CTLFLAG_RDTUN,
+    &vtnet_altq_disable, 0, "Disables ALTQ Support");
+
+/*
+ * For the driver to be considered as having altq enabled,
+ * it must be compiled with an ALTQ capable kernel,
+ * and the tunable hw.vtnet.altq_disable must be zero
+ */
+#define VTNET_ALTQ_ENABLED (VTNET_ALTQ_CAPABLE && (!vtnet_altq_disable))
+
+
 static uma_zone_t vtnet_tx_header_zone;
 
 static struct virtio_feature_desc vtnet_feature_desc[] = {
