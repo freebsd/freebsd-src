@@ -96,6 +96,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	option that allowed building them instead of the advanced version
 	imported more than 4 years ago have been removed.
 
+20241107:
+	The ng_ubt(4) driver now requires firmwares to be loaded on Realtek
+	adaptors with rtlbtfw(8) utility. It no longer attaches to devices
+	standing in bootloader mode. Firmware files are available in the
+	comms/rtlbt-firmware port.
+
 20241025:
 	The support for the rc_fast_and_loose variable has been removed from
 	rc.subr(8). Users setting rc_fast_and_loose on their systems are
