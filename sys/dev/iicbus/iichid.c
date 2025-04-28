@@ -630,7 +630,7 @@ iichid_intr(void *context)
 	error = iichid_cmd_read(sc, sc->intr_buf, sc->intr_bufsize, &actual);
 	THREAD_NO_SLEEPING();
 	if (error == 0) {
-		if (sc->power_on) {
+		if (sc->power_on && sc->open) {
 			if (actual != 0)
 				sc->intr_handler(sc->intr_ctx, sc->intr_buf,
 				    actual);
