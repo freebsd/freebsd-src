@@ -26,6 +26,9 @@
  * SUCH DAMAGE.
  */
 
+#ifndef _NET_SFF8472_H_
+#define _NET_SFF8472_H_
+
 /*
  * The following set of constants are from Document SFF-8472
  * "Diagnostic Monitoring Interface for Optical Transceivers" revision
@@ -524,3 +527,5 @@ static const char *sff_8024_id[SFF_8024_ID_LAST + 1] = {
  */
 
 #define SFF_8472_POWER_FACTOR 10000.0
+
+#endif
