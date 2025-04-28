@@ -1769,9 +1769,19 @@ bsd_global_init(void *ctx)
 
 	global->sock = socket(PF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (global->sock < 0) {
+	    if (errno == EAFNOSUPPORT) {
+		wpa_printf(MSG_INFO, "INET not supported, trying INET6...");
+		global->sock = socket(PF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+		if (global->sock < 0) {
+		    wpa_printf(MSG_ERROR, "socket[PF_INET6,SOCK_DGRAM]: %s",
+			       strerror(errno));
+		    goto fail1;
+		}
+	    } else {
 		wpa_printf(MSG_ERROR, "socket[PF_INET,SOCK_DGRAM]: %s",
 			   strerror(errno));
 		goto fail1;
+	    }
 	}
 
 	global->route = socket(PF_ROUTE,
