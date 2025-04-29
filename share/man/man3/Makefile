@@ -1,6 +1,7 @@
 .include <src.opts.mk>
 
-MAN=		arb.3 \
+MAN=		alloca.3 \
+		arb.3 \
 		assert.3 \
 		ATOMIC_VAR_INIT.3 \
 		bitstring.3 \
