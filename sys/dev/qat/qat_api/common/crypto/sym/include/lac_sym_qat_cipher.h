@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  *****************************************************************************
@@ -172,7 +172,7 @@ void LacSymQat_CipherXTSModeUpdateKeyLen(lac_session_desc_t *pSessionDesc,
  *      LacSymQat_CipherCtrlBlockInitialize()
  *
  * @description
- *      intialize the cipher control block with all zeros
+ *      initialize the cipher control block with all zeros
  *
  * @param[in]  pMsg                     Pointer to the common request message
  *

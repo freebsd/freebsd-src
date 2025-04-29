@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  *****************************************************************************
  * @file lac_sal.h
@@ -57,7 +57,7 @@ CpaStatus SalCtrl_ServiceCreate(sal_service_type_t service,
  * @ingroup SalCtl
  * @description
  *      This macro goes through the 'list' passed in as a parameter. For each
- *      element found in the list, it peforms a cast to the type of the element
+ *      element found in the list, it performs a cast to the type of the element
  *      given by the 'type' parameter. Finally, it calls the function given by
  *      the 'function' parameter, passing itself and the device as parameters.
  *
@@ -114,7 +114,7 @@ CpaStatus SalCtrl_ServiceCreate(sal_service_type_t service,
  * @ingroup SalCtl
  * @description
  *      This macro goes through the 'list' passed in as a parameter. For each
- *      element found in the list, it peforms a cast to the type of the element
+ *      element found in the list, it performs a cast to the type of the element
  *      given by the 'type' parameter. Finally, it checks the state of the
  *      element and if it is in state 'state_check' then it calls the
  *      function given by the 'function' parameter, passing itself
@@ -212,7 +212,7 @@ CpaStatus SalCtrl_CryptoStart(icp_accel_dev_t *device, sal_service_t *service);
  * @ingroup SalCtrl
  * @description
  *      This function is used to stop an instance of crypto service.
- *  It checks for inflight messages to the FW. If no messages are pending
+ *  It checks for in-flight messages to the FW. If no messages are pending
  * it returns success. If messages are pending it returns retry.
  *
  * @context
@@ -340,7 +340,7 @@ CpaStatus SalCtrl_CompressionStart(icp_accel_dev_t *device,
  * @ingroup SalCtrl
  * @description
  *      This function is used to stop an instance of compression service.
- *  It checks for inflight messages to the FW. If no messages are pending
+ *  It checks for in-flight messages to the FW. If no messages are pending
  * it returns success. If messages are pending it returns retry.
  *
  * @context

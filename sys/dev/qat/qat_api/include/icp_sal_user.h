@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  ***************************************************************************
  * @file icp_sal_user.h
@@ -75,7 +75,7 @@ CpaStatus icp_sal_userStart(const char *pProcessName);
   *
   * @param[in] limitDevAccess         Specifies if the address space is limited
   *                                   to one device (true) or if it spans
-  *                                   accross multiple devices.
+  *                                   across multiple devices.
   *
   * @retval CPA_STATUS_SUCCESS        No error
   * @retval CPA_STATUS_FAIL           Operation failed. In this case user
@@ -478,7 +478,7 @@ CpaStatus icp_sal_find_new_devices(void);
  * @assumptions
  *      None
  * @sideEffects
- *      In case a device has beed stoped or restarted the application
+ *      In case a device has been stopped or restarted the application
  *      will get restarting/stop/shutdown events
  * @reentrant
  *      No

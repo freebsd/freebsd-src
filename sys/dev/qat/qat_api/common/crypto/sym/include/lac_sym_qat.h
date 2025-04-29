@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  *****************************************************************************
@@ -24,7 +24,7 @@
  * - \ref LacMem "Memory" - Inline memory functions
  *
  * @lld_initialisation
- * This component is initialied during the LAC initialisation sequence. It
+ * This component is initialized during the LAC initialisation sequence. It
  * is called by the Symmetric Initialisation function.
  *
  * @lld_module_algorithms

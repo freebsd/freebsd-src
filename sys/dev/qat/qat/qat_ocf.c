@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /* System headers */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1279,7 +1279,6 @@ static driver_t qat_ocf_driver = {
 	.methods = qat_ocf_methods,
 	.size = sizeof(struct qat_ocf_softc),
 };
-
 
 DRIVER_MODULE_ORDERED(qat,
 		      nexus,

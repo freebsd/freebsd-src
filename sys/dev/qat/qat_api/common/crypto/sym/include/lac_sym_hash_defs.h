@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -313,7 +313,7 @@
 /**< @ingroup LacSymQatHash
  * Macro to check for qat hash mode is set to 2 and the hash mode is
  * Auth. This applies to HMAC algorithms (no pre compute). This is used
- * to differntiate between TLS and HMAC */
+ * to differentiate between TLS and HMAC */
 
 #define IS_HASH_MODE_2_NESTED(qatHashMode, hashMode)                           \
 	((IS_HASH_MODE_2(qatHashMode)) &&                                      \

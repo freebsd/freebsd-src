@@ -1,14 +1,14 @@
 /***************************************************************************
  *
  *   BSD LICENSE
- * 
- *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
+ *
+ *   Copyright(c) 2007-2025 Intel Corporation. All rights reserved.
  *   All rights reserved.
- * 
+ *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
  *   are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -18,7 +18,7 @@
  *     * Neither the name of Intel Corporation nor the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
- * 
+ *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -30,7 +30,7 @@
  *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  *
  ***************************************************************************/
 
@@ -266,7 +266,7 @@ typedef struct _CpaCyEcCurveParametersWeierstrass
  *
  * @description
  *      This union allows for the characterisation of different curve types
- *      encapsulted in one data type. The intention is that new curve types
+ *      encapsulated in one data type. The intention is that new curve types
  *      will be added in the future.
  *
  * @note
@@ -451,7 +451,7 @@ typedef struct _CpaCyEcGenericPointVerifyOpData {
  *****************************************************************************
  * @ingroup cpaCyEc
  *      EC Point Multiplication Operation Data for Edwards or
- *      Montgomery curves as specificied in RFC#7748.
+ *      Montgomery curves as specified in RFC#7748.
  *
  * @description
  *      This structure contains the operation data for the
@@ -486,11 +486,11 @@ typedef struct _CpaCyEcMontEdwdsPointMultiplyOpData {
     /**< field type for the operation */
     CpaBoolean  generator;
     /**< True if the operation is a generator multiplication (kG)
-     *   False if it is a variable point multiplcation (kP). */
+     *   False if it is a variable point multiplication (kP). */
     CpaFlatBuffer  k;
     /**< k scalar multiplier for the operation */
     CpaFlatBuffer  x;
-    /**< x value.  Used in scalar varable point multiplication operations.
+    /**< x value.  Used in scalar variable point multiplication operations.
      * Not required if the generator is True. Must be NULL if not required.
      * The size of the buffer MUST be 32B for 25519 curves and 64B for 448
      * curves */

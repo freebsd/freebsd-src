@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -42,7 +42,7 @@ typedef struct lac_sym_qat_hash_def_map_s {
 	CpaCySymHashAlgorithm hashAlgorithm;
 	/* hash algorithm */
 	lac_sym_qat_hash_defs_t hashDefs;
-	/* hash defintions pointers */
+	/* hash definitions pointers */
 } lac_sym_qat_hash_def_map_t;
 
 /*
@@ -219,7 +219,7 @@ static lac_sym_qat_hash_alg_info_t sm3Info = { LAC_HASH_SM3_DIGEST_SIZE,
 
 static lac_sym_qat_hash_alg_info_t polyInfo = { LAC_HASH_POLY_DIGEST_SIZE,
 						LAC_HASH_POLY_BLOCK_SIZE,
-						NULL, /* intial state */
+						NULL, /* initial state */
 						LAC_HASH_POLY_STATE_SIZE };
 
 static lac_sym_qat_hash_alg_info_t xcbcMacInfo = {
@@ -239,7 +239,7 @@ static lac_sym_qat_hash_alg_info_t aesCmacInfo = {
 static lac_sym_qat_hash_alg_info_t aesCcmInfo = {
 	LAC_HASH_AES_CCM_DIGEST_SIZE,
 	LAC_HASH_AES_CCM_BLOCK_SIZE,
-	NULL, /* intial state */
+	NULL, /* initial state */
 	0     /* state size */
 };
 
