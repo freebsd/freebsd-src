@@ -352,7 +352,8 @@ fts_close(FTS *sp)
 #ifdef __BLOCKS__
 		Block_release(sp->fts_compar_b);
 #else
-		if (sp->fts_compar_b->isa != &_NSConcreteGlobalBlock)
+		if (((fts_block)(sp->fts_compar_b))->isa !=
+		    &_NSConcreteGlobalBlock)
 			_Block_release(sp->fts_compar_b);
 #endif /* __BLOCKS__ */
 	}
