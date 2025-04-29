@@ -189,19 +189,18 @@ rtlbt_load_fwfile(struct libusb_device_handle *hdl,
 	uint8_t *data = fw->buf;
 	int frag_num = fw->len / RTLBT_MAX_CMD_DATA_LEN + 1;
 	int frag_len = RTLBT_MAX_CMD_DATA_LEN;
-	int i;
+	int i, j;
 	int ret, transferred;
 
-	for (i = 0; i < frag_num; i++) {
+	for (i = 0, j = 0; i < frag_num; i++, j++) {
 
 		rtlbt_debug("download fw (%d/%d)", i + 1, frag_num);
 
 		memset(cmd_buf, 0, sizeof(cmd_buf));
 		cmd->opcode = htole16(0xfc20);
-		if (i > 0x7f)
-			dl_cmd->index = (i & 0x7f) + 1;
-		else
-			dl_cmd->index = i;
+		if (j > 0x7f)
+			j = 1;
+		dl_cmd->index = j;
 
 		if (i == (frag_num - 1)) {
 			dl_cmd->index |= 0x80; /* data end */
