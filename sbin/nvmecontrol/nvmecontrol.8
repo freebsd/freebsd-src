@@ -33,7 +33,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd May 10, 2024
+.Dd April 29, 2025
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -739,10 +739,10 @@ List the remote controllers advertised by a remote Discovery Controller:
 .It Fl t Ar transport
 Transport to use.
 The default is
+.Ar tcp .
 .It Fl q Ar HostNQN
 NVMe Qualified Name to use for this host.
 By default an NQN is auto-generated from the current host's UUID.
-.Ar tcp .
 .It Fl v
 Display the
 .Dv IDENTIFY_CONTROLLER
