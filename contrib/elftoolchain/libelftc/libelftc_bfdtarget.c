@@ -341,6 +341,31 @@ struct _Elftc_Bfd_Target _libelftc_targets[] = {
 	},
 
 	{
+		.bt_name      = "elf32-loongarch",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2LSB,
+		.bt_elfclass  = ELFCLASS32,
+		.bt_machine   = EM_LOONGARCH,
+	},
+
+	{
+		.bt_name      = "elf64-loongarch",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2LSB,
+		.bt_elfclass  = ELFCLASS64,
+		.bt_machine   = EM_LOONGARCH,
+	},
+
+	{
+		.bt_name      = "elf64-loongarch-freebsd",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2LSB,
+		.bt_elfclass  = ELFCLASS64,
+		.bt_machine   = EM_LOONGARCH,
+		.bt_osabi     = ELFOSABI_FREEBSD,
+	},
+
+	{
 		.bt_name      = "elf64-sh64",
 		.bt_type      = ETF_ELF,
 		.bt_byteorder = ELFDATA2MSB,
@@ -467,6 +492,12 @@ struct _Elftc_Bfd_Target _libelftc_targets[] = {
 		.bt_name    = "efi-app-x86_64",
 		.bt_type    = ETF_EFI,
 		.bt_machine = EM_X86_64,
+	},
+
+	{
+		.bt_name    = "efi-app-loongarch64",
+		.bt_type    = ETF_EFI,
+		.bt_machine = EM_LOONGARCH,
 	},
 
 	{
