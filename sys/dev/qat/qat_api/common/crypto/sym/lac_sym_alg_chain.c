@@ -1,8 +1,5 @@
-/***************************************************************************
- *
- * <COPYRIGHT_TAG>
- *
- ***************************************************************************/
+/* SPDX-License-Identifier: BSD-3-Clause */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -403,7 +400,6 @@ LacAlgChain_HashCDBuild(
 					      &sizeInBytes);
 	}
 }
-
 static Cpa16U
 LacAlgChain_GetCipherConfigSize(lac_session_desc_t *pSessionDesc)
 {
@@ -1178,7 +1174,7 @@ LacAlgChain_SessionInit(const CpaInstanceHandle instanceHandle,
 				&cipherOffsetInConstantsTable,
 				&hashOffsetInConstantsTable);
 
-		/* for a certain combination of Algorthm Chaining we want to
+		/* for a certain combination of Algorithm Chaining we want to
 		   use an optimised cd block */
 
 		if (pSessionDesc->symOperation ==

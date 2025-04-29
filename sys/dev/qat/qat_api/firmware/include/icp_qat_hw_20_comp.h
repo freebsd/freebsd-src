@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  *****************************************************************************
  * @file icp_qat_hw_2x_comp.h
@@ -16,7 +16,6 @@
 
 #include "icp_qat_hw_20_comp_defs.h" /* For HW definitions */
 #include "icp_qat_fw.h"		     /* For Set Field Macros. */
-
 
 #define BYTE_SWAP_32 __builtin_bswap32
 

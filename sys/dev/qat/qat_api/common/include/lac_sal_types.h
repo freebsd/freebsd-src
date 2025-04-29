@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  ***************************************************************************
  * @file lac_sal_types.h
@@ -195,8 +195,8 @@ typedef struct sal_service_debug_s {
  * @param[in] pService         pointer to service instance
  * @param[in] service_type     service type to check againstx.
  *
- * @return CPA_STATUS_FAIL      Parameter is incorrect type
-  *
+ * @return CPA_STATUS_FAIL     Parameter is incorrect type
+ *
  ******************************************************************************/
 #define SAL_CHECK_INSTANCE_TYPE(pService, service_type)                        \
 	do {                                                                   \

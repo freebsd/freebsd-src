@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2023 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #ifndef QAT_UIO_CONTROL_H
 #define QAT_UIO_CONTROL_H
 #include <sys/condvar.h>
@@ -37,6 +37,5 @@ struct adf_uio_control_accel {
 	struct adf_uio_control_bundle bundle[0];
 
 };
-
 
 #endif /* end of include guard: QAT_UIO_CONTROL_H */

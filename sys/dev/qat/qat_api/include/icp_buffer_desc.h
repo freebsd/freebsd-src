@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
+
 /**
  *****************************************************************************
  * @file icp_buffer_desc.h
@@ -20,7 +21,7 @@
 
 typedef Cpa64U icp_qat_addr_width_t; // hi32 first, lo32 second
 
-// Alignement constraint of the buffer list.
+/* Alignment constraint of the buffer list. */
 #define ICP_DESCRIPTOR_ALIGNMENT_BYTES 8
 
 /**
@@ -31,7 +32,7 @@ typedef Cpa64U icp_qat_addr_width_t; // hi32 first, lo32 second
  *
  * @description
  *      A QAT friendly buffer descriptor.
- *      All buffer descriptor described in this structure are physcial
+ *      All buffer descriptor described in this structure are physical
  *      and are 64 bit wide.
  *
  *      Updates in the CpaFlatBuffer should be also reflected in this
@@ -55,7 +56,7 @@ typedef struct icp_flat_buffer_desc_s {
  *
  * @description
  *      A QAT friendly buffer descriptor.
- *      All buffer descriptor described in this structure are physcial
+ *      All buffer descriptor described in this structure are physical
  *      and are 64 bit wide.
  *
  *      Updates in the CpaBufferList should be also reflected in this structure

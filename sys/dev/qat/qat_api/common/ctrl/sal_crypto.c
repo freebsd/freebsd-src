@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -88,7 +88,6 @@ Lac_CryptoGetFirstHandle(void)
 	return instHandle;
 }
 
-
 /* Function to release the sym handles. */
 static CpaStatus
 SalCtrl_SymReleaseTransHandle(sal_service_t *service)
@@ -115,7 +114,6 @@ SalCtrl_SymReleaseTransHandle(sal_service_t *service)
 
 	return ret_status;
 }
-
 
 /*
  * @ingroup sal_crypto
@@ -153,7 +151,6 @@ SalCtrl_SymFreeResources(sal_crypto_service_t *pCryptoService)
 	return status;
 }
 
-
 /**
  ***********************************************************************
  * @ingroup SalCtrl
@@ -174,7 +171,6 @@ SalCtrl_SymFreeResources(sal_crypto_service_t *pCryptoService)
 			return status;                                         \
 		}                                                              \
 	} while (0)
-
 
 /* Function that creates the Sym Handles. */
 static CpaStatus
@@ -325,7 +321,6 @@ SalCtrl_CryptoDebug(void *private_data, char *data, int size, int offset)
 	return ++offset;
 }
 
-
 static CpaStatus
 SalCtrl_SymInit(icp_accel_dev_t *device, sal_service_t *service)
 {
@@ -341,7 +336,6 @@ SalCtrl_SymInit(icp_accel_dev_t *device, sal_service_t *service)
 	if (CPA_FALSE == pCryptoService->generic_service_info.is_dyn) {
 		section = icpGetProcessName();
 	}
-
 
 	/* Register callbacks for the symmetric services
 	* (Hash, Cipher, Algorithm-Chaining) (returns void)*/
@@ -580,7 +574,6 @@ SalCtr_InstInit(icp_accel_dev_t *device, sal_service_t *service)
 	if (CPA_FALSE == pCryptoService->generic_service_info.is_dyn) {
 		section = icpGetProcessName();
 	}
-
 
 	/* Get Config Info: Accel Num, bank Num, packageID,
 				coreAffinity, nodeAffinity and response mode */
@@ -847,7 +840,6 @@ SalCtrl_CryptoShutdown(icp_accel_dev_t *device, sal_service_t *service)
 		return CPA_STATUS_FAIL;
 	}
 
-
 	/* Free memory and transhandles */
 	switch (svc_type) {
 	case SAL_SERVICE_TYPE_CRYPTO_ASYM:
@@ -885,7 +877,6 @@ cpaCyGetStatusText(const CpaInstanceHandle instanceHandle,
 		   Cpa8S *pStatusText)
 {
 	CpaStatus status = CPA_STATUS_SUCCESS;
-
 
 	LAC_CHECK_NULL_PARAM(pStatusText);
 
@@ -969,7 +960,6 @@ cpaCyStartInstance(CpaInstanceHandle instanceHandle_in)
 	CpaStatus status = CPA_STATUS_SUCCESS;
 	sal_crypto_service_t *pService = NULL;
 
-
 	if (CPA_INSTANCE_HANDLE_SINGLE == instanceHandle_in) {
 		instanceHandle = Lac_GetFirstHandle(SAL_SERVICE_TYPE_CRYPTO);
 		if (!instanceHandle) {
@@ -1021,7 +1011,6 @@ cpaCyStopInstance(CpaInstanceHandle instanceHandle_in)
 	CpaStatus status = CPA_STATUS_SUCCESS;
 	sal_crypto_service_t *pService = NULL;
 
-
 	if (CPA_INSTANCE_HANDLE_SINGLE == instanceHandle_in) {
 		instanceHandle = Lac_CryptoGetFirstHandle();
 	} else {
@@ -1065,7 +1054,6 @@ cpaCyInstanceSetNotificationCb(
 {
 	CpaStatus status = CPA_STATUS_SUCCESS;
 	sal_service_t *gen_handle = instanceHandle;
-
 
 	LAC_CHECK_NULL_PARAM(gen_handle);
 	gen_handle->notification_cb = pInstanceNotificationCb;
@@ -1359,7 +1347,6 @@ cpaCyInstanceGetInfo2(const CpaInstanceHandle instanceHandle_in,
 	char valStr[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = { 0 };
 	char *section = DYN_SEC;
 
-
 	if (CPA_INSTANCE_HANDLE_SINGLE == instanceHandle_in) {
 		instanceHandle = Lac_CryptoGetFirstHandle();
 	} else {
@@ -1423,7 +1410,7 @@ cpaCyInstanceGetInfo2(const CpaInstanceHandle instanceHandle_in,
 	}
 	pInstanceInfo2->isOffloaded = CPA_TRUE;
 
-	/* Get the instance name and part name*/
+	/* Get the instance name and part name */
 	dev = icp_adf_getAccelDevByAccelId(pCryptoService->pkgID);
 	if (NULL == dev) {
 		LAC_LOG_ERROR("Can not find device for the instance\n");
@@ -1473,7 +1460,6 @@ cpaCyQueryCapabilities(const CpaInstanceHandle instanceHandle_in,
 {
 	/* Verify Instance exists */
 	CpaInstanceHandle instanceHandle = NULL;
-
 
 	if (CPA_INSTANCE_HANDLE_SINGLE == instanceHandle_in) {
 		instanceHandle = Lac_CryptoGetFirstHandle();
@@ -1634,7 +1620,6 @@ cpaCySetAddressTranslation(const CpaInstanceHandle instanceHandle_in,
 	CpaInstanceHandle instanceHandle = NULL;
 	sal_service_t *pService = NULL;
 
-
 	if (CPA_INSTANCE_HANDLE_SINGLE == instanceHandle_in) {
 		instanceHandle = Lac_CryptoGetFirstHandle();
 	} else {
@@ -1755,7 +1740,6 @@ icp_sal_CyPollSymRing(CpaInstanceHandle instanceHandle_in,
 				      response_quota);
 	return status;
 }
-
 
 /**
  ******************************************************************************
@@ -1978,7 +1962,6 @@ icp_sal_SymGetInflightRequests(CpaInstanceHandle instanceHandle,
 					   numInflightRequests);
 }
 
-
 CpaStatus
 icp_sal_dp_SymGetInflightRequests(CpaInstanceHandle instanceHandle,
 				  Cpa32U *maxInflightRequests,
@@ -1993,7 +1976,6 @@ icp_sal_dp_SymGetInflightRequests(CpaInstanceHandle instanceHandle,
 	    maxInflightRequests,
 	    numInflightRequests);
 }
-
 
 CpaStatus
 icp_sal_setForceAEADMACVerify(CpaInstanceHandle instanceHandle,

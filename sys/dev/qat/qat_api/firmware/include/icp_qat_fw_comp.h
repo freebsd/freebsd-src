@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  *****************************************************************************
  * @file icp_qat_fw_comp.h
@@ -47,7 +47,6 @@ typedef enum {
 
 } icp_qat_fw_comp_cmd_id_t;
 
-
 /*
  *  REQUEST FLAGS IN COMMON COMPRESSION
  *  In common message it is named as SERVICE SPECIFIC FLAGS.
@@ -64,7 +63,6 @@ typedef enum {
  * Note: For QAT 2.0 Disable Secure Ram, DisType0 Header and Enhanced ASB bits
  * are don't care. i.e., these features are removed from QAT 2.0.
  */
-
 
 /**< Flag usage */
 
@@ -410,7 +408,6 @@ typedef struct icp_qat_fw_comp_req_params_s {
 	 ((crc & ICP_QAT_FW_COMP_CRC_MODE_MASK)                                \
 	  << ICP_QAT_FW_COMP_CRC_MODE_BITPOS))
 
-
 /*
  * REQUEST FLAGS IN REQUEST PARAMETERS COMPRESSION
  *
@@ -422,7 +419,6 @@ typedef struct icp_qat_fw_comp_req_params_s {
  * |     |     |      |     |     |     |     |       |     |      |    |    |
  * +=====+-----+----- + --- + ----+-----+ --- + ----- + --- + ---- + -- + -- +
  */
-
 
 /**
 *****************************************************************************
@@ -446,17 +442,16 @@ typedef enum {
 	ICP_QAT_FW_COMP_20_CMD_LZ4S_DECOMPRESS = 6,
 	/*!< LZ4S Decompress Request */
 
-	ICP_QAT_FW_COMP_20_CMD_XP10_COMPRESS = 7,
-	/*!< XP10 Compress Request -- Placeholder */
+	ICP_QAT_FW_COMP_20_CMD_RESERVED_1 = 7,
+	/*!< Placeholder */
 
-	ICP_QAT_FW_COMP_20_CMD_XP10_DECOMPRESS = 8,
-	/*!< XP10 Decompress Request -- Placeholder */
+	ICP_QAT_FW_COMP_20_CMD_RESERVED_2 = 8,
+	/*!<  Placeholder */
 
 	ICP_QAT_FW_COMP_20_CMD_DELIMITER
 	/**< Delimiter type */
 
 } icp_qat_fw_comp_20_cmd_id_t;
-
 
 /*
  *  REQUEST FLAGS IN REQUEST PARAMETERS COMPRESSION

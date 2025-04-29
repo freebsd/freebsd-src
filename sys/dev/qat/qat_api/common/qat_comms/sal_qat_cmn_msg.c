@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  *****************************************************************************
  * @file sal_qat_cmn_msg.h
@@ -145,7 +145,7 @@ void inline SalQatMsg_CmnMidWrite(icp_qat_fw_la_bulk_req_t *pReq,
  *      icp_qat_fw_comn_req_hdr_cd_pars_t section of the Request Msg.
  *
  * @param[in]   pMsg             Pointer to 128B Request Msg buffer.
- * @param[in]   pContentDescInfo content descripter info.
+ * @param[in]   pContentDescInfo content descriptor info.
  *
  * @return
  *      none

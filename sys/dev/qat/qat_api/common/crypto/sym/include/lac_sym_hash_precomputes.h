@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -34,7 +34,7 @@
 /**< maximum size of the working data for the HMAC precompute operations
  *
  * Maximum size of lac_sym_hash_precomp_op_data_t is 264 bytes. For hash
- * precomputes there are 2 of these structrues and a further
+ * precomputes there are 2 of these structures and a further
  * lac_sym_hash_precomp_op_t structure required. This comes to a total of 536
  * bytes.
  * For the asynchronous version of the precomputes, the memory for the hash
@@ -122,7 +122,7 @@ typedef struct lac_sym_hash_aes_precomp_qat_s {
 	Cpa8U contentDesc[LAC_SYM_QAT_MAX_CIPHER_SETUP_BLK_SZ];
 	/**< Content descriptor for a cipher operation */
 	Cpa8U data[LAC_SYM_HASH_PRECOMP_MAX_AES_ECB_DATA];
-	/**< The data to be ciphered is conatined here and the result is
+	/**< The data to be ciphered is contained here and the result is
 	 * written in place back into this buffer */
 	icp_qat_fw_la_cipher_req_params_t cipherReqParams;
 	/**< Request parameters as read in by the QAT */

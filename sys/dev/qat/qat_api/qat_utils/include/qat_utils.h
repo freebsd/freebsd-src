@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #ifndef QAT_UTILS_H
 #define QAT_UTILS_H
-
 
 #include <sys/param.h>
 #include <sys/ctype.h>
@@ -830,7 +829,7 @@ CpaStatus qatUtilsHashSHA512Full(uint8_t *in, uint8_t *out, uint32_t len);
  *
  * @brief  Single block AES encrypt
  *
- * @param  key - pointer to symetric key.
+ * @param  key - pointer to symmetric key.
  *         keyLenInBytes - key length
  *         in - pointer to data to encrypt
  *         out - pointer to output buffer for encrypted text
@@ -853,7 +852,7 @@ CpaStatus qatUtilsAESEncrypt(uint8_t *key,
  *
  * @brief  Converts AES forward key to reverse key
  *
- * @param  key - pointer to symetric key.
+ * @param  key - pointer to symmetric key.
  *         keyLenInBytes - key length
  *         out - pointer to output buffer for reversed key
  *         The in and out buffers need to be at least AES block size long

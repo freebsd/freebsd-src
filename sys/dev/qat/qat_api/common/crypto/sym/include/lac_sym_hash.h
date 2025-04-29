@@ -1,8 +1,5 @@
-/***************************************************************************
- *
- * <COPYRIGHT_TAG>
- *
- ***************************************************************************/
+/* SPDX-License-Identifier: BSD-3-Clause */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  *****************************************************************************
@@ -24,7 +21,7 @@
  *
  * The hash component supports hashing in 3 modes. PLAIN, AUTH and NESTED.
  * Plain mode is used to provide data integrity while auth mode is used to
- * provide integrity as well as its authenticity. Nested mode is inteded
+ * provide integrity as well as its authenticity. Nested mode is intended
  * for use by non standard HMAC like algorithms such as for the SSL master
  * key secret. Partial packets is supported for both plain and auth modes.
  * In-place and out-of-place processing is supported for all modes. The
@@ -33,7 +30,7 @@
  * The hash component is responsible for implementing the hash specific
  * functionality for initialising a session and for a perform operation.
  * Statistics are maintained in the symmetric \ref CpaCySymStats64 "stats"
- * structure. This module has been seperated out into two. The hash QAT module
+ * structure. This module has been separated out into two. The hash QAT module
  * deals entirely with QAT data structures. The hash module itself has minimal
  * exposure to the QAT data structures.
  *
@@ -62,7 +59,7 @@
  * the data path by the length of time it takes to do two hashes on a block
  * size of data. Note: a partial packet operation generates an intermediate
  * state. The final operation on a partial packet or when a full packet is
- * used applies padding and gives the final hash result. Esentially for the
+ * used applies padding and gives the final hash result. Essentially for the
  * inner hash, a partial packet final is issued on the data, using the
  * precomputed intermediate state and returns the digest.
  *

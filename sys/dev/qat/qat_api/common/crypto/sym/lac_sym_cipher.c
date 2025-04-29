@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -143,7 +143,7 @@ LacCipher_PerformIvCheck(sal_service_t *pService,
 					    CPA_TRUE;
 				}
 				/* For subsequent partials in a sequence, we'll
-				 * re-use the IV that was written back by the
+				 * reuse the IV that was written back by the
 				 * QAT, using internal request queueing if
 				 * necessary to ensure that the next partial
 				 * request isn't issued to the QAT until the
@@ -214,7 +214,6 @@ LacCipher_PerformIvCheck(sal_service_t *pService,
 
 	return CPA_STATUS_SUCCESS;
 }
-
 
 CpaStatus
 LacCipher_SessionSetupDataCheck(const CpaCySymCipherSetupData *pCipherSetupData,
@@ -440,7 +439,7 @@ LacCipher_GetCipherSliceType(sal_crypto_service_t *pService,
 	Cpa32U capabilitiesMask =
 	    pService->generic_service_info.capabilitiesMask;
 
-	/* UCS Slice is supproted only in Gen4 */
+	/* UCS Slice is supported only in Gen4 */
 	if (isCyGen4x(pService)) {
 		if (LAC_CIPHER_IS_XTS_MODE(cipherAlgorithm) ||
 		    LAC_CIPHER_IS_CHACHA(cipherAlgorithm) ||

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -21,7 +21,7 @@
  *      Dequeue pending requests
  * @description
  *      This function is called by a callback function of a blocking
- *      operation (either a partial packet or a hash precompute operaion)
+ *      operation (either a partial packet or a hash precompute operation)
  *      in softIRQ context. It dequeues requests for the following reasons:
  *          1. All pre-computes that happened when initialising a session
  *             have completed. Dequeue any requests that were queued on the
@@ -40,7 +40,7 @@ CpaStatus LacSymCb_PendingReqsDequeue(lac_session_desc_t *pSessionDesc);
 /**
  *****************************************************************************
  * @ingroup LacSym
- *      Register symmetric callback funcion handlers
+ *      Register symmetric callback function handlers
  *
  * @description
  *      This function registers the symmetric callback handler functions with

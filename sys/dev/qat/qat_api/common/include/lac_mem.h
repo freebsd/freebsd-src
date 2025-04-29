@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  ***************************************************************************
  * @file lac_mem.h
@@ -351,7 +351,7 @@ LacMem_OsContigAlignMemAlloc(void **ppMemAddr,
  *   results in following entry:
  *     static const unsigned int highest_bit_of_lac_mem_blk_t = 3
  *
- *   CAUTION!!
+ *   CAUTION!
  *      Macro is prepared only for type names NOT-containing ANY
  *  special characters. Types as amongst others:
  *  - void *
@@ -481,7 +481,7 @@ LacMem_OsContigAlignMemFree(void **ppMemAddr)
  *      This is because pInternalMem describes the memory that will be sent to
  *      QAT.
  *
- *      The caller must keep the original buffer pointer. The alllocated buffer
+ *      The caller must keep the original buffer pointer. The allocated buffer
 *is
  *      freed (as necessary) using icp_LacBufferRestore().
  *
