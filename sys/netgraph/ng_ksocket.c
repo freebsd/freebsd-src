@@ -44,6 +44,8 @@
  * version of a socket... kindof like the reverse of the socket node type.
  */
 
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -58,6 +60,9 @@
 #include <sys/uio.h>
 #include <sys/un.h>
 
+#include <net/if.h>
+#include <net/if_var.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
@@ -65,6 +70,8 @@
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
+
+#include <netinet6/scope6_var.h>
 
 #ifdef NG_SEPARATE_MALLOC
 static MALLOC_DEFINE(M_NETGRAPH_KSOCKET, "netgraph_ksock",
@@ -147,6 +154,19 @@ static const struct ng_ksocket_alias ng_ksocket_protos[] = {
 	{ "swipe",	IPPROTO_SWIPE,		PF_INET		},
 	{ "encap",	IPPROTO_ENCAP,		PF_INET		},
 	{ "pim",	IPPROTO_PIM,		PF_INET		},
+	{ "ip6",	IPPROTO_IPV6,		PF_INET6	},
+	{ "raw6",	IPPROTO_RAW,		PF_INET6	},
+	{ "icmp6",	IPPROTO_ICMPV6,		PF_INET6	},
+	{ "igmp6",	IPPROTO_IGMP,		PF_INET6	},
+	{ "tcp6",	IPPROTO_TCP,		PF_INET6	},
+	{ "udp6",	IPPROTO_UDP,		PF_INET6	},
+	{ "gre6",	IPPROTO_GRE,		PF_INET6	},
+	{ "esp6",	IPPROTO_ESP,		PF_INET6	},
+	{ "ah6",	IPPROTO_AH,		PF_INET6	},
+	{ "swipe6",	IPPROTO_SWIPE,		PF_INET6	},
+	{ "encap6",	IPPROTO_ENCAP,		PF_INET6	},
+	{ "divert6",	IPPROTO_DIVERT,		PF_INET6	},
+	{ "pim6",	IPPROTO_PIM,		PF_INET6	},
 	{ NULL,		-1					},
 };
 
@@ -295,11 +315,60 @@ ng_ksocket_sockaddr_parse(const struct ng_parse_type *type,
 		sin->sin_len = sizeof(*sin);
 		break;
 	    }
+#ifdef INET6
+	case PF_INET6:
+	    {
+		struct sockaddr_in6 *const sin6 = (struct sockaddr_in6 *)sa;
+		char *eptr;
+		char addr[INET6_ADDRSTRLEN];
+		char ifname[16];
+		u_long port;
+		bool hasifname = true;
 
-#if 0
-	case PF_INET6:	/* XXX implement this someday */
-#endif
+		/* RFC 3986 Section 3.2.2, Validate IP literal within square brackets. */
+		if (s[*off] == '[' && (strstr(&s[*off], "]")))
+			(*off)++;
+		else
+			return (EINVAL);
+		if ((eptr = strstr(&s[*off], "%")) == NULL) {
+			hasifname = false;
+			eptr = strstr(&s[*off], "]");
+		}
+		snprintf(addr, eptr - (s + *off) + 1, "%s", &s[*off]);
+		*off += (eptr - (s + *off));
+		if (!inet_pton(AF_INET6, addr, &sin6->sin6_addr))
+			return (EINVAL);
 
+		if (hasifname) {
+			uint16_t scope;
+
+			eptr = strstr(&s[*off], "]");
+			(*off)++;
+			snprintf(ifname, eptr - (s + *off) + 1, "%s", &s[*off]);
+			*off += (eptr - (s + *off));
+
+			if (sin6->sin6_addr.s6_addr16[0] != IPV6_ADDR_INT16_ULL)
+				return (EINVAL);
+			scope = in6_getscope(&sin6->sin6_addr);
+			sin6->sin6_scope_id =
+			    in6_getscopezone(ifunit(ifname), scope);
+		}
+
+		(*off)++;
+		if (s[*off] == ':') {
+			(*off)++;
+			port = strtoul(s + *off, &eptr, 10);
+			if (port > 0xffff || eptr == s + *off)
+				return (EINVAL);
+			*off += (eptr - (s + *off));
+			sin6->sin6_port = htons(port);
+		} else
+			sin6->sin6_port = 0;
+
+		sin6->sin6_len = sizeof(*sin6);
+		break;
+	    }
+#endif	/* INET6 */
 	default:
 		return (EINVAL);
 	}
@@ -357,11 +426,26 @@ ng_ksocket_sockaddr_unparse(const struct ng_parse_type *type,
 		*off += sizeof(*sin);
 		return(0);
 	    }
+#ifdef INET6
+	case PF_INET6:
+	    {
+		const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)sa;
+		char addr[INET6_ADDRSTRLEN];
 
-#if 0
-	case PF_INET6:	/* XXX implement this someday */
-#endif
+		inet_ntop(AF_INET6, &sin6->sin6_addr, addr, INET6_ADDRSTRLEN);
+		slen += snprintf(cbuf, cbuflen, "inet6/[%s]", addr);
 
+		if (sin6->sin6_port != 0) {
+			slen += snprintf(cbuf + strlen(cbuf),
+			    cbuflen - strlen(cbuf), ":%d",
+			    (u_int)ntohs(sin6->sin6_port));
+		}
+		if (slen >= cbuflen)
+			return (ERANGE);
+		*off += sizeof(*sin6);
+		return(0);
+	    }
+#endif	/* INET6 */
 	default:
 		return (*ng_ksocket_generic_sockaddr_type.supertype->unparse)
 		    (&ng_ksocket_generic_sockaddr_type,

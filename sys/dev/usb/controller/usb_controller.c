@@ -438,7 +438,7 @@ usb_bus_detach(struct usb_proc_msg *pm)
 
 	/* detach children first */
 	bus_topo_lock();
-	bus_generic_detach(dev);
+	bus_detach_children(dev);
 	bus_topo_unlock();
 
 	/*

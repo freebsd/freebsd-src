@@ -91,6 +91,14 @@ vm_device_open(const char *name)
 }
 
 static int
+vm_ctl_open(void)
+{
+	if (modfind("vmm") < 0)
+		(void)kldload("vmm");
+	return (open("/dev/vmmctl", O_RDWR, 0));
+}
+
+static int
 vm_ctl_create(const char *name, int ctlfd)
 {
 	struct vmmctl_vm_create vmc;
@@ -108,16 +116,10 @@ vm_create(const char *name)
 {
 	int error, fd;
 
-	/* Try to load vmm(4) module before creating a guest. */
-	if (modfind("vmm") < 0) {
-		error = kldload("vmm");
-		if (error != 0)
-			return (-1);
-	}
-
-	fd = open("/dev/vmmctl", O_RDWR, 0);
+	fd = vm_ctl_open();
 	if (fd < 0)
-		return (fd);
+		return (-1);
+
 	error = vm_ctl_create(name, fd);
 	if (error != 0) {
 		error = errno;
@@ -153,7 +155,7 @@ vm_openf(const char *name, int flags)
 	strcpy(vm->name, name);
 	memset(vm->memsegs, 0, sizeof(vm->memsegs));
 
-	if ((vm->ctlfd = open("/dev/vmmctl", O_RDWR, 0)) < 0)
+	if ((vm->ctlfd = vm_ctl_open()) < 0)
 		goto err;
 
 	vm->fd = vm_device_open(vm->name);

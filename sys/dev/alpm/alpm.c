@@ -232,11 +232,12 @@ static int
 alpm_detach(device_t dev)
 {
 	struct alpm_softc *alpm = device_get_softc(dev);
+	int error;
 
-	if (alpm->smbus) {
-		device_delete_child(dev, alpm->smbus);
-		alpm->smbus = NULL;
-	}
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
+
 	mtx_destroy(&alpm->lock);
 
 	if (alpm->res)

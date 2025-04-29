@@ -2,17 +2,10 @@
 .include "${SRCTOP}/secure/ssh.mk"
 
 PROG=	sftp
-SRCS=   sftp.c sftp-client.c sftp-common.c sftp-glob.c sftp-usergroup.c \
-	progressmeter.c
+SRCS=	sftp.c sftp-usergroup.c progressmeter.c $(SFTP_CLIENT_SRCS) $(SKSRCS)
 PACKAGE=	ssh
 
 LIBADD=	ssh edit
-
-.if ${MK_LDNS} != "no"
-CFLAGS+=	-DHAVE_LDNS=1
-#DPADD+=	${LIBLDNS}
-#LDADD+=	-lldns
-.endif
 
 .include <bsd.prog.mk>
 

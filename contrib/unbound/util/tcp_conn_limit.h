@@ -127,4 +127,13 @@ tcl_addr_lookup(struct tcl_list* tcl, struct sockaddr_storage* addr,
  */
 size_t tcl_list_get_mem(struct tcl_list* tcl);
 
+/**
+ * Swap internal tree with preallocated entries. Caller should manage
+ * tcl_addr item locks.
+ * @param tcl: the tcp connection list structure.
+ * @param data: the data structure used to take elements from. This contains
+ * 	the old elements on return.
+ */
+void tcl_list_swap_tree(struct tcl_list* tcl, struct tcl_list* data);
+
 #endif /* DAEMON_TCP_CONN_LIMIT_H */

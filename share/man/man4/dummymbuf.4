@@ -26,7 +26,7 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd August 2, 2024
+.Dd January 6, 2025
 .Dt DUMMYMBUF 4
 .Os
 .Sh NAME
@@ -121,6 +121,8 @@ tail mbuf(s) left empty.
 .Pp
 As a result, only the layout of a mbuf chain is altered, its content logically
 is left intact.
+.It enlarge <number-of-bytes>
+Unconditionally replace the mbuf with an mbuf of the specified size.
 .El
 .Sh SYSCTL VARIABLES
 The following variables are available:

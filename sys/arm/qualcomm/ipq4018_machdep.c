@@ -64,7 +64,7 @@ ipq4018_late_init(platform_t plat)
 	 * XXX FIXME This is needed because we're not parsing
 	 * the fdt reserved memory regions in a consistent way
 	 * between arm/arm64.  Once the reserved region parsing
-	 * is fixed up this will become unneccessary.
+	 * is fixed up this will become unnecessary.
 	 *
 	 * These cover the SRAM/TZ regions that are not fully
 	 * accessible from the OS.  They're in the ipq4018.dtsi

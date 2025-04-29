@@ -55,4 +55,52 @@ void	nat64lsn_uninit(struct ip_fw_chain *ch, int last);
 int	nat64clat_init(struct ip_fw_chain *ch, int first);
 void	nat64clat_uninit(struct ip_fw_chain *ch, int last);
 
+#define	NAT64_DEFINE_OPCODE_REWRITER(mod, name, ops)			\
+static int								\
+mod ## _classify(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)	\
+{									\
+	ipfw_insn *icmd;						\
+	icmd = cmd0 - F_LEN(cmd0);					\
+	if (icmd->opcode != O_EXTERNAL_ACTION ||			\
+	    insntod(icmd, kidx)->kidx != V_ ## mod ## _eid)		\
+		return (1);						\
+	*puidx = insntod(cmd0, kidx)->kidx;				\
+	*ptype = 0;							\
+	return (0);							\
+}									\
+static void								\
+mod ## _update_kidx(ipfw_insn *cmd0, uint32_t idx)			\
+{									\
+	insntod(cmd0, kidx)->kidx = idx;				\
+}									\
+static int								\
+mod ## _findbyname(struct ip_fw_chain *ch, struct tid_info *ti,		\
+    struct named_object **pno)						\
+{									\
+	return (ipfw_objhash_find_type(CHAIN_TO_SRV(ch), ti,		\
+	    IPFW_TLV_## name ## _NAME, pno));				\
+}									\
+static struct named_object *						\
+mod ## _findbykidx(struct ip_fw_chain *ch, uint32_t idx)		\
+{									\
+	struct namedobj_instance *ni;					\
+	struct named_object *no;					\
+	IPFW_UH_WLOCK_ASSERT(ch);					\
+	ni = CHAIN_TO_SRV(ch);						\
+	no = ipfw_objhash_lookup_kidx(ni, idx);				\
+	KASSERT(no != NULL, ("NAT with index %u not found", idx));	\
+	return (no);							\
+}									\
+static struct opcode_obj_rewrite ops[] = {				\
+	{								\
+		.opcode = O_EXTERNAL_INSTANCE,				\
+		.etlv = IPFW_TLV_EACTION /* just show it isn't table */,\
+		.classifier = mod ## _classify,				\
+		.update = mod ## _update_kidx,				\
+		.find_byname = mod ## _findbyname,			\
+		.find_bykidx = mod ## _findbykidx,			\
+		.manage_sets = mod ## _manage_sets,			\
+	},								\
+}
+
 #endif /* _IP_FW_NAT64_H_ */

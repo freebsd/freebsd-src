@@ -1,0 +1,48 @@
+// polynomial for approximating tanpi/f(x)
+//
+// Copyright (c) 2024, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+// 0 for tanpi/f [0,0.25], 1 for tanpi/f [0.25,1]
+method = 0;
+dtype = double;
+
+if (dtype == single) then {
+    if (method == 0) then { deg = 5; }
+    else if (method == 1) then { deg = 3; };
+} else if (dtype == double) then {
+    if (method == 0) then { deg = 13; }
+    else if (method == 1) then { deg = 8; };
+};
+
+a = 0x1.0p-126;
+b = 1/4;
+
+if (method == 0) then {
+    g = tan(pi * x);
+    F = proc(P) { return pi * x + x^3 * P(x^2); };
+    f = (g(sqrt(x)) - pi * sqrt(x))/(x^(3/2));
+} else if (method == 1) then {
+    g = 1/tan(pi * x);
+    F = proc(P) { return 1/(pi * x) + x * P(x^2); };
+    f = (g(sqrt(x)) / sqrt(x)) - 1/(pi * x);
+};
+
+poly = fpminimax(f, deg, [|dtype ...|], [a*a;b*b]);
+
+//
+// Display coefficients in Sollya
+//
+display = hexadecimal!;
+if (dtype==double) then { prec = 53!; }
+else if (dtype==single) then { prec = 23!; };
+print("_coeffs :_ hex");
+for i from 0 to deg do coeff(poly, i);
+
+// Compute errors
+//display = hexadecimal!;
+d_rel_err = dirtyinfnorm(1-F(poly)/g(x), [a;b]);
+d_abs_err = dirtyinfnorm(g(x)-F(poly), [a;b]);
+print("dirty rel error:", d_rel_err);
+print("dirty abs error:", d_abs_err);
+print("in [",a,b,"]");

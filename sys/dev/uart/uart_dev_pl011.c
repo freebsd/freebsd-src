@@ -172,6 +172,27 @@ static int
 uart_pl011_probe(struct uart_bas *bas)
 {
 
+	/*
+	 * Versions of QEMU before 41f7b58b634e (8.3) reported bogus values for
+	 * this tabel. The PL011 IP is always 32-bits wide and should be shifted
+	 * 2 to match the 4-byte size of the data. QEMU reported these values
+	 * incorrectly before that.
+	 * https://github.com/qemu/qemu/commit/41f7b58b634ec3b60ae874375d2bbb61d790971e
+	 *
+	 * In additon, other hardware vendors also reported this value
+	 * incorrectly. It's not tied to what the ACPI device node is, but was a
+	 * misunderstanding coupled with a Linux driver that didn't need the
+	 * right values. Quirks used to be used to ignore the bad values, now we
+	 * detect the historic mistake and override (to allow for a future where
+	 * we may need to override these values).
+	 *
+	 * PL011 Docs: https://developer.arm.com/documentation/ddi0183/latest/
+	 */
+	if (bas->regshft == 0 || bas->regiowidth == 1) {
+		bas->regshft = 2;
+		bas->regiowidth = 4;
+	}
+
 	return (0);
 }
 
@@ -356,7 +377,8 @@ static struct uart_class uart_pl011_class = {
 	.uc_ops = &uart_pl011_ops,
 	.uc_range = 0x48,
 	.uc_rclk = 0,
-	.uc_rshift = 2
+	.uc_rshift = 2,
+	.uc_riowidth = 4,
 };
 UART_CLASS(uart_pl011_class);
 
@@ -370,9 +392,9 @@ UART_FDT_CLASS_AND_DEVICE(fdt_compat_data);
 
 #ifdef DEV_ACPI
 static struct acpi_uart_compat_data acpi_compat_data[] = {
-	{"ARMH0011", &uart_pl011_class, ACPI_DBG2_ARM_PL011, 2, 0, 0, UART_F_IGNORE_SPCR_REGSHFT, "uart pl011"},
-	{"ARMHB000", &uart_pl011_class, ACPI_DBG2_ARM_SBSA_GENERIC, 2, 0, 0, UART_F_IGNORE_SPCR_REGSHFT, "uart pl011"},
-	{"ARMHB000", &uart_pl011_class, ACPI_DBG2_ARM_SBSA_32BIT, 2, 0, 0, UART_F_IGNORE_SPCR_REGSHFT, "uart pl011"},
+	{"ARMH0011", &uart_pl011_class, ACPI_DBG2_ARM_PL011, 2, 0, 0, 0, "uart pl011"},
+	{"ARMHB000", &uart_pl011_class, ACPI_DBG2_ARM_SBSA_GENERIC, 2, 0, 0, 0, "uart pl011"},
+	{"ARMHB000", &uart_pl011_class, ACPI_DBG2_ARM_SBSA_32BIT, 2, 0, 0, 0, "uart pl011"},
 	{NULL, NULL, 0, 0, 0, 0, 0, NULL},
 };
 UART_ACPI_CLASS_AND_DEVICE(acpi_compat_data);

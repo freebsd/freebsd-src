@@ -476,6 +476,7 @@ tmpfs_stat(struct vop_stat_args *v)
 	sb->st_blksize = PAGE_SIZE;
 	sb->st_flags = node->tn_flags;
 	sb->st_gen = node->tn_gen;
+	sb->st_filerev = 0;
 	if (vp->v_type == VREG) {
 #ifdef __ILP32__
 		vm_object_t obj = node->tn_reg.tn_aobj;
@@ -1706,23 +1707,15 @@ vop_vptofh {
 };
 */
 {
-	struct tmpfs_fid_data tfd;
+	struct tmpfs_fid_data *const tfd = (struct tmpfs_fid_data *)ap->a_fhp;
 	struct tmpfs_node *node;
-	struct fid *fhp;
 	_Static_assert(sizeof(struct tmpfs_fid_data) <= sizeof(struct fid),
 	    "struct tmpfs_fid_data cannot be larger than struct fid");
 
 	node = VP_TO_TMPFS_NODE(ap->a_vp);
-	fhp = ap->a_fhp;
-	fhp->fid_len = sizeof(tfd);
-
-	/*
-	 * Copy into fid_data from the stack to avoid unaligned pointer use.
-	 * See the comment in sys/mount.h on struct fid for details.
-	 */
-	tfd.tfd_id = node->tn_id;
-	tfd.tfd_gen = node->tn_gen;
-	memcpy(fhp->fid_data, &tfd, fhp->fid_len);
+	tfd->tfd_len = sizeof(*tfd);
+	tfd->tfd_gen = node->tn_gen;
+	tfd->tfd_id = node->tn_id;
 
 	return (0);
 }

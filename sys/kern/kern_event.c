@@ -58,12 +58,14 @@
 #include <sys/poll.h>
 #include <sys/protosw.h>
 #include <sys/resourcevar.h>
+#include <sys/sbuf.h>
 #include <sys/sigio.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/syscallsubr.h>
 #include <sys/taskqueue.h>
@@ -73,6 +75,10 @@
 #include <sys/ktrace.h>
 #endif
 #include <machine/atomic.h>
+#ifdef COMPAT_FREEBSD32
+#include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_util.h>
+#endif
 
 #include <vm/uma.h>
 
@@ -2730,8 +2736,15 @@ knote_drop_detached(struct knote *kn, struct thread *td)
 	KQ_NOTOWNED(kq);
 
 	KQ_LOCK(kq);
-	KASSERT(kn->kn_influx == 1,
-	    ("knote_drop called on %p with influx %d", kn, kn->kn_influx));
+	for (;;) {
+		KASSERT(kn->kn_influx >= 1,
+		    ("knote_drop called on %p with influx %d",
+		    kn, kn->kn_influx));
+		if (kn->kn_influx == 1)
+			break;
+		kq->kq_state |= KQ_FLUXWAIT;
+		msleep(kq, &kq->kq_lock, PSOCK, "kqflxwt", 0);
+	}
 
 	if (kn->kn_fop->f_isfd)
 		list = &kq->kq_knlist[kn->kn_id];
@@ -2829,3 +2842,227 @@ noacquire:
 	fdrop(fp, td);
 	return (error);
 }
+
+struct knote_status_export_bit {
+	int kn_status_bit;
+	int knt_status_bit;
+};
+
+#define	ST(name) \
+    { .kn_status_bit = KN_##name, .knt_status_bit = KNOTE_STATUS_##name }
+static const struct knote_status_export_bit knote_status_export_bits[] = {
+	ST(ACTIVE),
+	ST(QUEUED),
+	ST(DISABLED),
+	ST(DETACHED),
+	ST(KQUEUE),
+};
+#undef ST
+
+static int
+knote_status_export(int kn_status)
+{
+	const struct knote_status_export_bit *b;
+	unsigned i;
+	int res;
+
+	res = 0;
+	for (i = 0; i < nitems(knote_status_export_bits); i++) {
+		b = &knote_status_export_bits[i];
+		if ((kn_status & b->kn_status_bit) != 0)
+			res |= b->knt_status_bit;
+	}
+	return (res);
+}
+
+static int
+kern_proc_kqueue_report_one(struct sbuf *s, struct proc *p,
+    int kq_fd, struct kqueue *kq, struct knote *kn, bool compat32 __unused)
+{
+	struct kinfo_knote kin;
+#ifdef COMPAT_FREEBSD32
+	struct kinfo_knote32 kin32;
+#endif
+	int error;
+
+	if (kn->kn_status == KN_MARKER)
+		return (0);
+
+	memset(&kin, 0, sizeof(kin));
+	kin.knt_kq_fd = kq_fd;
+	memcpy(&kin.knt_event, &kn->kn_kevent, sizeof(struct kevent));
+	kin.knt_status = knote_status_export(kn->kn_status);
+	kn_enter_flux(kn);
+	KQ_UNLOCK_FLUX(kq);
+	if (kn->kn_fop->f_userdump != NULL)
+		(void)kn->kn_fop->f_userdump(p, kn, &kin);
+#ifdef COMPAT_FREEBSD32
+	if (compat32) {
+		freebsd32_kinfo_knote_to_32(&kin, &kin32);
+		error = sbuf_bcat(s, &kin32, sizeof(kin32));
+	} else
+#endif
+		error = sbuf_bcat(s, &kin, sizeof(kin));
+	KQ_LOCK(kq);
+	kn_leave_flux(kn);
+	return (error);
+}
+
+static int
+kern_proc_kqueue_report(struct sbuf *s, struct proc *p, int kq_fd,
+    struct kqueue *kq, bool compat32)
+{
+	struct knote *kn;
+	int error, i;
+
+	error = 0;
+	KQ_LOCK(kq);
+	for (i = 0; i < kq->kq_knlistsize; i++) {
+		SLIST_FOREACH(kn, &kq->kq_knlist[i], kn_link) {
+			error = kern_proc_kqueue_report_one(s, p, kq_fd,
+			    kq, kn, compat32);
+			if (error != 0)
+				goto out;
+		}
+	}
+	if (kq->kq_knhashmask == 0)
+		goto out;
+	for (i = 0; i <= kq->kq_knhashmask; i++) {
+		SLIST_FOREACH(kn, &kq->kq_knhash[i], kn_link) {
+			error = kern_proc_kqueue_report_one(s, p, kq_fd,
+			    kq, kn, compat32);
+			if (error != 0)
+				goto out;
+		}
+	}
+out:
+	KQ_UNLOCK_FLUX(kq);
+	return (error);
+}
+
+struct kern_proc_kqueues_out1_cb_args {
+	struct sbuf *s;
+	bool compat32;
+};
+
+static int
+kern_proc_kqueues_out1_cb(struct proc *p, int fd, struct file *fp, void *arg)
+{
+	struct kqueue *kq;
+	struct kern_proc_kqueues_out1_cb_args *a;
+
+	if (fp->f_type != DTYPE_KQUEUE)
+		return (0);
+	a = arg;
+	kq = fp->f_data;
+	return (kern_proc_kqueue_report(a->s, p, fd, kq, a->compat32));
+}
+
+static int
+kern_proc_kqueues_out1(struct thread *td, struct proc *p, struct sbuf *s,
+    bool compat32)
+{
+	struct kern_proc_kqueues_out1_cb_args a;
+
+	a.s = s;
+	a.compat32 = compat32;
+	return (fget_remote_foreach(td, p, kern_proc_kqueues_out1_cb, &a));
+}
+
+int
+kern_proc_kqueues_out(struct proc *p, struct sbuf *sb, size_t maxlen,
+    bool compat32)
+{
+	struct sbuf *s, sm;
+	size_t sb_len;
+	int error;
+
+	if (maxlen == -1 || maxlen == 0)
+		sb_len = 128;
+	else
+		sb_len = maxlen;
+	s = sbuf_new(&sm, NULL, sb_len, maxlen == -1 ? SBUF_AUTOEXTEND :
+	    SBUF_FIXEDLEN);
+	error = kern_proc_kqueues_out1(curthread, p, s, compat32);
+	sbuf_finish(s);
+	if (error == 0) {
+		sbuf_bcat(sb, sbuf_data(s), MIN(sbuf_len(s), maxlen == -1 ?
+		    SIZE_T_MAX : maxlen));
+	}
+	sbuf_delete(s);
+	return (error);
+}
+
+static int
+sysctl_kern_proc_kqueue_one(struct thread *td, struct sbuf *s, struct proc *p,
+    int kq_fd, bool compat32)
+{
+	struct file *fp;
+	struct kqueue *kq;
+	int error;
+
+	error = fget_remote(td, p, kq_fd, &fp);
+	if (error == 0) {
+		if (fp->f_type != DTYPE_KQUEUE) {
+			error = EINVAL;
+		} else {
+			kq = fp->f_data;
+			error = kern_proc_kqueue_report(s, p, kq_fd, kq,
+			    compat32);
+		}
+		fdrop(fp, td);
+	}
+	return (error);
+}
+
+static int
+sysctl_kern_proc_kqueue(SYSCTL_HANDLER_ARGS)
+{
+	struct thread *td;
+	struct proc *p;
+	struct sbuf *s, sm;
+	int error, error1, *name;
+	bool compat32;
+
+	name = (int *)arg1;
+	if ((u_int)arg2 > 2 || (u_int)arg2 == 0)
+		return (EINVAL);
+
+	error = pget((pid_t)name[0], PGET_HOLD | PGET_CANDEBUG, &p);
+	if (error != 0)
+		return (error);
+
+	td = curthread;
+#ifdef FREEBSD_COMPAT32
+	compat32 = SV_CURPROC_FLAG(SV_ILP32);
+#else
+	compat32 = false;
+#endif
+
+	s = sbuf_new_for_sysctl(&sm, NULL, 0, req);
+	if (s == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+	sbuf_clear_flags(s, SBUF_INCLUDENUL);
+
+	if ((u_int)arg2 == 1) {
+		error = kern_proc_kqueues_out1(td, p, s, compat32);
+	} else {
+		error = sysctl_kern_proc_kqueue_one(td, s, p,
+		    name[1] /* kq_fd */, compat32);
+	}
+
+	error1 = sbuf_finish(s);
+	if (error == 0)
+		error = error1;
+	sbuf_delete(s);
+
+out:
+	PRELE(p);
+	return (error);
+}
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_KQUEUE, kq,
+    CTLFLAG_RD | CTLFLAG_MPSAFE,
+    sysctl_kern_proc_kqueue, "KQueue events");

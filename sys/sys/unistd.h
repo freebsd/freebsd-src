@@ -154,6 +154,7 @@
 #define	_PC_MAC_PRESENT		63
 #define	_PC_ACL_NFS4		64
 #define	_PC_DEALLOC_PRESENT	65
+#define	_PC_NAMEDATTR_ENABLED	66
 #endif
 
 /* From OpenSolaris, used by SEEK_DATA/SEEK_HOLE. */

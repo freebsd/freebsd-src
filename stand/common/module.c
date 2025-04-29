@@ -652,7 +652,7 @@ file_load_dependencies(struct preloaded_file *base_file)
  * no arguments or anything.
  */
 struct preloaded_file *
-file_loadraw(const char *fname, char *type, int insert)
+file_loadraw(const char *fname, const char *type, int insert)
 {
 	struct preloaded_file	*fp;
 	char			*name;

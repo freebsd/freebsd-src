@@ -195,7 +195,7 @@ void shm_main_shutdown(struct daemon* daemon)
 {
 #ifdef HAVE_SHMGET
 	/* web are OK, just disabled */
-	if(!daemon->cfg->shm_enable)
+	if(!daemon->cfg->shm_enable || !daemon->shm_info)
 		return;
 
 	verbose(VERB_DETAIL, "SHM shutdown - KEY [%d] - ID CTL [%d] ARR [%d] - PTR CTL [%p] ARR [%p]",

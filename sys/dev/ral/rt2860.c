@@ -1493,7 +1493,7 @@ rt2860_tx(struct rt2860_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		rate = tp->ucastrate;
 	} else {
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
-		rate = ni->ni_txrate;
+		rate = ieee80211_node_get_txrate_dot11rate(ni);
 	}
 	rate &= IEEE80211_RATE_VAL;
 

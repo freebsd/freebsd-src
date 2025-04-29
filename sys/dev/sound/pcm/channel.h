@@ -5,6 +5,10 @@
  * Portions Copyright (c) Ryan Beasley <ryan.beasley@gmail.com> - GSoC 2006
  * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -160,6 +164,9 @@ struct pcm_channel {
 			struct {
 				SLIST_ENTRY(pcm_channel) link;
 			} opened;
+			struct {
+				SLIST_ENTRY(pcm_channel) link;
+			} primary;
 		} pcm;
 	} channels;
 
@@ -175,6 +182,7 @@ struct pcm_channel {
 #define CHN_LINK(y)			y.link
 #define CHN_EMPTY(x, y)			SLIST_EMPTY(CHN_HEAD(x, y))
 #define CHN_FIRST(x, y)			SLIST_FIRST(CHN_HEAD(x, y))
+#define CHN_NEXT(elm, list)		SLIST_NEXT((elm), CHN_LINK(list))
 
 #define CHN_FOREACH(x, y, z)						\
 	SLIST_FOREACH(x, CHN_HEAD(y, z), CHN_LINK(z))
@@ -187,9 +195,6 @@ struct pcm_channel {
 
 #define CHN_INSERT_AFTER(x, y, z)					\
 	SLIST_INSERT_AFTER(x, y, CHN_LINK(z))
-
-#define CHN_REMOVE(x, y, z)						\
-	SLIST_REMOVE(CHN_HEAD(x, z), y, pcm_channel, CHN_LINK(z))
 
 #define CHN_INSERT_HEAD_SAFE(x, y, z)		do {			\
 	struct pcm_channel *t = NULL;					\
@@ -211,14 +216,18 @@ struct pcm_channel {
 		CHN_INSERT_AFTER(x, y, z);				\
 } while (0)
 
-#define CHN_REMOVE_SAFE(x, y, z)		do {			\
-	struct pcm_channel *t = NULL;					\
-	CHN_FOREACH(t, x, z) {						\
-		if (t == y)						\
-			break;						\
-	} 								\
-	if (t == y)							\
-		CHN_REMOVE(x, y, z);					\
+#define CHN_REMOVE(holder, elm, list)		do {			\
+	if (CHN_FIRST(holder, list) == (elm)) {				\
+		SLIST_REMOVE_HEAD(CHN_HEAD(holder, list), CHN_LINK(list)); \
+	} else {							\
+		struct pcm_channel *t = NULL;				\
+		CHN_FOREACH(t, holder, list) {				\
+			if (CHN_NEXT(t, list) == (elm)) {		\
+				SLIST_REMOVE_AFTER(t, CHN_LINK(list));	\
+				break;					\
+			}						\
+		}							\
+	}								\
 } while (0)
 
 #define CHN_INSERT_SORT(w, x, y, z)		do {			\

@@ -53,7 +53,7 @@
 
 #include <machine/in_cksum.h>
 
-VNET_DEFINE_STATIC(uint16_t, tcpmod_setmss_eid) = 0;
+VNET_DEFINE_STATIC(uint32_t, tcpmod_setmss_eid) = 0;
 #define	V_tcpmod_setmss_eid	VNET(tcpmod_setmss_eid)
 
 static int
@@ -178,9 +178,9 @@ ipfw_tcpmod(struct ip_fw_chain *chain, struct ip_fw_args *args,
 
 	*done = 0; /* try next rule if not matched */
 	ret = IP_FW_DENY;
-	icmd = cmd + 1;
+	icmd = cmd + F_LEN(cmd);
 	if (cmd->opcode != O_EXTERNAL_ACTION ||
-	    cmd->arg1 != V_tcpmod_setmss_eid ||
+	    insntod(cmd, kidx)->kidx != V_tcpmod_setmss_eid ||
 	    icmd->opcode != O_EXTERNAL_DATA ||
 	    icmd->len != F_INSN_SIZE(ipfw_insn))
 		return (ret);

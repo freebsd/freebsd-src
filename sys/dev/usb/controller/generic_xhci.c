@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -152,7 +151,9 @@ generic_xhci_detach(device_t dev)
 	int err;
 
 	/* during module unload there are lots of children leftover */
-	device_delete_children(dev);
+	err = bus_generic_detach(dev);
+	if (err != 0)
+		return (err);
 
 	if (sc->sc_irq_res != NULL && sc->sc_intr_hdl != NULL) {
 		err = bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_intr_hdl);

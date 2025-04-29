@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -5342,7 +5343,8 @@ zpool_get_vdev_prop_value(nvlist_t *nvprop, vdev_prop_t prop, char *prop_name,
 			strval = fnvlist_lookup_string(nv, ZPROP_VALUE);
 		} else {
 			/* user prop not found */
-			return (-1);
+			src = ZPROP_SRC_DEFAULT;
+			strval = "-";
 		}
 		(void) strlcpy(buf, strval, len);
 		if (srctype)

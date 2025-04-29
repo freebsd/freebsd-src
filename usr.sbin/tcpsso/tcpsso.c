@@ -193,8 +193,6 @@ static struct so_name so_names[] = {
 	tcp_entry(TCP_KEEPINTVL),		/* unsigned int */
 	tcp_entry(TCP_KEEPINIT),		/* unsigned int */
 	tcp_entry(TCP_KEEPCNT),			/* unsigned int */
-	tcp_entry(TCP_PCAP_OUT),		/* int */
-	tcp_entry(TCP_PCAP_IN),			/* int */
 	tcp_entry(TCP_LOG),			/* int */
 	tcp_entry(TCP_LOGID),			/* char * */
 	tcp_entry(TCP_LOGDUMP),			/* char * */

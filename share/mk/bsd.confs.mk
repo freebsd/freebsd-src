@@ -8,7 +8,7 @@
 .    error bsd.dirs.mk must be included after bsd.confs.mk.
 .  endif
 
-__<bsd.confs.mk>__:
+__<bsd.confs.mk>__:	.NOTMAIN
 
 CONFGROUPS?=	CONFS
 

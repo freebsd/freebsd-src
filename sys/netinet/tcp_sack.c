@@ -653,8 +653,6 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		 * scoreboard).
 		 */
 		tp->snd_fack = SEQ_MAX(tp->snd_una, th_ack);
-		tp->sackhint.sacked_bytes = 0;	/* reset */
-		tp->sackhint.hole_bytes = 0;
 	}
 	/*
 	 * In the while-loop below, incoming SACK blocks (sack_blocks[]) and
@@ -870,11 +868,25 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		}
 	}
 
-	KASSERT(!(TAILQ_EMPTY(&tp->snd_holes) && (tp->sackhint.hole_bytes != 0)),
-	    ("SACK scoreboard empty, but accounting non-zero\n"));
-
+	KASSERT(delivered_data >= 0, ("delivered_data < 0"));
 	KASSERT(notlost_bytes <= tp->sackhint.hole_bytes,
 	    ("SACK: more bytes marked notlost than in scoreboard holes"));
+
+	if (TAILQ_EMPTY(&tp->snd_holes)) {
+		KASSERT(tp->sackhint.hole_bytes == 0,
+		    ("SACK scoreboard empty, but accounting non-zero\n"));
+		tp->sackhint.sack_bytes_rexmit = 0;
+		tp->sackhint.sacked_bytes = 0;
+		tp->sackhint.lost_bytes = 0;
+	} else {
+		KASSERT(tp->sackhint.hole_bytes > 0,
+		    ("SACK scoreboard not empty, but has no bytes\n"));
+		tp->sackhint.delivered_data = delivered_data;
+		tp->sackhint.sacked_bytes += delivered_data - left_edge_delta;
+		KASSERT((tp->sackhint.sacked_bytes >= 0), ("sacked_bytes < 0"));
+		tp->sackhint.lost_bytes = tp->sackhint.hole_bytes -
+		    notlost_bytes;
+	}
 
 	if (!(to->to_flags & TOF_SACK))
 		/*
@@ -886,11 +898,6 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 		 * for RFC6675 rescue retransmission.
 		 */
 		sack_changed = SACK_NOCHANGE;
-	tp->sackhint.delivered_data = delivered_data;
-	tp->sackhint.sacked_bytes += delivered_data - left_edge_delta;
-	tp->sackhint.lost_bytes = tp->sackhint.hole_bytes - notlost_bytes;
-	KASSERT((delivered_data >= 0), ("delivered_data < 0"));
-	KASSERT((tp->sackhint.sacked_bytes >= 0), ("sacked_bytes < 0"));
 	return (sack_changed);
 }
 

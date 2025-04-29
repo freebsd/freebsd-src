@@ -95,6 +95,8 @@ struct rchap {
 	size_t		rchap_challenge_len;
 };
 
+__BEGIN_DECLS
+
 struct chap		*chap_new(void);
 char			*chap_get_id(const struct chap *chap);
 char			*chap_get_challenge(const struct chap *chap);
@@ -154,17 +156,26 @@ void			text_send_response(struct pdu *request,
 void			connection_init(struct connection *conn,
 			    const struct connection_ops *ops, bool use_proxy);
 
+bool			valid_iscsi_name(const char *name,
+			    void (*warn_fn)(const char *, ...));
+
 void			log_init(int level);
 void			log_set_peer_name(const char *name);
 void			log_set_peer_addr(const char *addr);
 void			log_err(int, const char *, ...)
 			    __dead2 __printflike(2, 3);
+void			log_errc(int, int, const char *, ...)
+			    __dead2 __printflike(3, 4);
 void			log_errx(int, const char *, ...)
 			    __dead2 __printflike(2, 3);
 void			log_warn(const char *, ...) __printflike(1, 2);
+void			log_warnc(int, const char *, ...)
+			    __printflike(2, 3);
 void			log_warnx(const char *, ...) __printflike(1, 2);
 void			log_debugx(const char *, ...) __printflike(1, 2);
 
 char			*checked_strdup(const char *);
+
+__END_DECLS
 
 #endif /* !__LIBISCSIUTIL_H__ */

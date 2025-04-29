@@ -584,7 +584,6 @@ MAN=	aac.4 \
 	tslog.4 \
 	tty.4 \
 	tun.4 \
-	twe.4 \
 	tws.4 \
 	udp.4 \
 	udplite.4 \
@@ -765,7 +764,9 @@ MLINKS+=ptnet.4 if_ptnet.4
 MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
-MLINKS+=rtwn_pci.4 if_rtwn_pci.4
+MLINKS+=rtw88.4 if_rtw88.4
+MLINKS+=rtw89.4 if_rtw89.4
+MLINKS+=rtwn.4 if_rtwn.4
 MLINKS+=rue.4 if_rue.4
 MLINKS+=scsi.4 cam.4
 MLINKS+=scsi.4 scbus.4
@@ -1008,6 +1009,7 @@ _pfsync.4=	pfsync.4
 
 .if ${MK_USB} != "no"
 MAN+=	\
+	mtw.4 \
 	otus.4 \
 	otusfw.4 \
 	rsu.4 \
@@ -1042,6 +1044,7 @@ MAN+=	\
 	uled.4 \
 	ulpt.4 \
 	umass.4 \
+	umb.4 \
 	umcs.4 \
 	umct.4 \
 	umodem.4 \
@@ -1065,6 +1068,7 @@ MAN+=	\
 	veriexec.4 \
 	zyd.4
 
+MLINKS+=mtw.4 if_mtw.4
 MLINKS+=otus.4 if_otus.4
 MLINKS+=rsu.4 if_rsu.4
 MLINKS+=rtwn_usb.4 if_rtwn_usb.4

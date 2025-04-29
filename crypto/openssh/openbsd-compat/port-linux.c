@@ -21,16 +21,24 @@
 
 #include "includes.h"
 
-#if defined(WITH_SELINUX) || defined(LINUX_OOM_ADJUST)
+#if defined(WITH_SELINUX) || defined(LINUX_OOM_ADJUST) || \
+    defined(SYSTEMD_NOTIFY)
+#include <sys/socket.h>
+#include <sys/un.h>
+
 #include <errno.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "log.h"
 #include "xmalloc.h"
 #include "port-linux.h"
+#include "misc.h"
 
 #ifdef WITH_SELINUX
 #include <selinux/selinux.h>
@@ -310,4 +318,90 @@ oom_adjust_restore(void)
 	return;
 }
 #endif /* LINUX_OOM_ADJUST */
-#endif /* WITH_SELINUX || LINUX_OOM_ADJUST */
+
+#ifdef SYSTEMD_NOTIFY
+
+static void ssh_systemd_notify(const char *, ...)
+    __attribute__((__format__ (printf, 1, 2))) __attribute__((__nonnull__ (1)));
+
+static void
+ssh_systemd_notify(const char *fmt, ...)
+{
+	char *s = NULL;
+	const char *path;
+	struct stat sb;
+	struct sockaddr_un addr;
+	int fd = -1;
+	va_list ap;
+
+	if ((path = getenv("NOTIFY_SOCKET")) == NULL || strlen(path) == 0)
+		return;
+
+	va_start(ap, fmt);
+	xvasprintf(&s, fmt, ap);
+	va_end(ap);
+
+	/* Only AF_UNIX is supported, with path or abstract sockets */
+	if (path[0] != '/' && path[0] != '@') {
+		error_f("socket \"%s\" is not compatible with AF_UNIX", path);
+		goto out;
+	}
+
+	if (path[0] == '/' && stat(path, &sb) != 0) {
+		error_f("socket \"%s\" stat: %s", path, strerror(errno));
+		goto out;
+	}
+
+	memset(&addr, 0, sizeof(addr));
+	addr.sun_family = AF_UNIX;
+	if (strlcpy(addr.sun_path, path,
+	    sizeof(addr.sun_path)) >= sizeof(addr.sun_path)) {
+		error_f("socket path \"%s\" too long", path);
+		goto out;
+	}
+	/* Support for abstract socket */
+	if (addr.sun_path[0] == '@')
+		addr.sun_path[0] = 0;
+	if ((fd = socket(PF_UNIX, SOCK_DGRAM, 0)) == -1) {
+		error_f("socket \"%s\": %s", path, strerror(errno));
+		goto out;
+	}
+	if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+		error_f("socket \"%s\" connect: %s", path, strerror(errno));
+		goto out;
+	}
+	if (write(fd, s, strlen(s)) != (ssize_t)strlen(s)) {
+		error_f("socket \"%s\" write: %s", path, strerror(errno));
+		goto out;
+	}
+	debug_f("socket \"%s\" notified %s", path, s);
+ out:
+	if (fd != -1)
+		close(fd);
+	free(s);
+}
+
+void
+ssh_systemd_notify_ready(void)
+{
+	ssh_systemd_notify("READY=1");
+}
+
+void
+ssh_systemd_notify_reload(void)
+{
+	struct timespec now;
+
+	monotime_ts(&now);
+	if (now.tv_sec < 0 || now.tv_nsec < 0) {
+		error_f("monotime returned negative value");
+		ssh_systemd_notify("RELOADING=1");
+	} else {
+		ssh_systemd_notify("RELOADING=1\nMONOTONIC_USEC=%llu",
+		    ((uint64_t)now.tv_sec * 1000000ULL) +
+		    ((uint64_t)now.tv_nsec / 1000ULL));
+	}
+}
+#endif /* SYSTEMD_NOTIFY */
+
+#endif /* WITH_SELINUX || LINUX_OOM_ADJUST || SYSTEMD_NOTIFY */

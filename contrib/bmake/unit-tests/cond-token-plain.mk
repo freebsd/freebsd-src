@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-plain.mk,v 1.19 2023/11/19 21:47:52 rillig Exp $
+# $NetBSD: cond-token-plain.mk,v 1.20 2024/08/06 18:00:17 rillig Exp $
 #
 # Tests for plain tokens (that is, string literals without quotes)
 # in .if conditions.  These are also called bare words.
@@ -156,7 +156,7 @@ VAR=	defined
 
 # If the left-hand side is missing, it's a parse error as well, but without
 # a specific error message.
-# expect+1: Malformed conditional (== "")
+# expect+1: Malformed conditional '== ""'
 .if == ""
 .  error
 .else
@@ -193,7 +193,7 @@ ${:U\\\\}=	backslash
 
 # FIXME: In CondParser_String, Var_Parse returns var_Error without a
 # corresponding error message.
-# expect+1: Malformed conditional ($$$$$$$$ != "")
+# expect+1: Malformed conditional '$$$$$$$$ != ""'
 .if $$$$$$$$ != ""
 .  error
 .else
@@ -202,18 +202,18 @@ ${:U\\\\}=	backslash
 
 # In a condition in an .if directive, the left-hand side must not be an
 # unquoted string literal.
-# expect+1: Malformed conditional (left == right)
+# expect+1: Malformed conditional 'left == right'
 .if left == right
 .endif
 # Before cond.c 1.276 from 2021-09-21, an expression containing the
 # modifier ':?:' allowed unquoted string literals for the rest of the
 # condition.  This was an unintended implementation mistake.
-# expect+1: Malformed conditional (${0:?:} || left == right)
+# expect+1: Malformed conditional '${0:?:} || left == right'
 .if ${0:?:} || left == right
 .endif
 # This affected only the comparisons after the expression, so the following
 # was still a syntax error.
-# expect+1: Malformed conditional (left == right || ${0:?:})
+# expect+1: Malformed conditional 'left == right || ${0:?:}'
 .if left == right || ${0:?:}
 .endif
 
@@ -232,7 +232,7 @@ ${:U\\\\}=	backslash
 # for the second time.  The right-hand side of a comparison may be a bare
 # word, but that side has no risk of being parsed more than once.
 #
-# expect+1: Malformed conditional (VAR.${IF_COUNT::+=1} != "")
+# expect+1: Malformed conditional 'VAR.${IF_COUNT::+=1} != ""'
 .if VAR.${IF_COUNT::+=1} != ""
 .  error
 .else

@@ -41,6 +41,7 @@
 #include <machine/metadata.h>
 
 #include "bootstrap.h"
+#include "efi.h"
 #include "kboot.h"
 
 #include "platform/acfreebsd.h"
@@ -65,11 +66,7 @@ static int elf64_obj_exec(struct preloaded_file *amp);
 
 bool do_mem_map = false;
 
-extern uint32_t efi_map_size;
-extern vm_paddr_t efi_map_phys_src;	/* From DTB */
-extern vm_paddr_t efi_map_phys_dst;	/* From our memory map metadata module */
-
-/* Usually provided by loader_efi.h */
+/* Usually provided by loader_efi.h -- maybe just delete? */
 #ifndef EFI
 int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
     bool exit_bs);
@@ -290,4 +287,3 @@ elf64_obj_exec(struct preloaded_file *fp)
 	    fp->f_name);
 	return (ENOSYS);
 }
-

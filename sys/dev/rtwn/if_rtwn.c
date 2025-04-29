@@ -298,6 +298,11 @@ rtwn_attach(struct rtwn_softc *sc)
 	sc->sc_node_free = ic->ic_node_free;
 	ic->ic_node_free = rtwn_node_free;
 
+	/* Note: this has to happen AFTER ieee80211_ifattach() */
+	ieee80211_set_software_ciphers(ic, IEEE80211_CRYPTO_WEP |
+	    IEEE80211_CRYPTO_TKIP | IEEE80211_CRYPTO_AES_CCM |
+	    IEEE80211_CRYPTO_AES_GCM_128);
+
 	rtwn_postattach(sc);
 	rtwn_radiotap_attach(sc);
 
@@ -321,11 +326,45 @@ rtwn_radiotap_attach(struct rtwn_softc *sc)
 	    &rxtap->wr_ihdr, sizeof(*rxtap), RTWN_RX_RADIOTAP_PRESENT);
 }
 
+#ifdef	RTWN_DEBUG
+static int
+rtwn_sysctl_reg_readwrite(SYSCTL_HANDLER_ARGS)
+{
+	struct rtwn_softc *sc = arg1;
+	int error;
+	uint32_t val;
+
+	if (sc->sc_reg_addr > 0xffff)
+		return (EINVAL);
+
+	RTWN_LOCK(sc);
+	val = rtwn_read_4(sc, sc->sc_reg_addr);
+	RTWN_UNLOCK(sc);
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	RTWN_LOCK(sc);
+	rtwn_write_4(sc, sc->sc_reg_addr, val);
+	RTWN_UNLOCK(sc);
+	return (0);
+}
+#endif	/* RTWN_DEBUG */
+
 void
 rtwn_sysctlattach(struct rtwn_softc *sc)
 {
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+
+	sc->sc_reg_addr = 0;
+#ifdef	RTWN_DEBUG
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "reg_addr", CTLFLAG_RW, &sc->sc_reg_addr,
+	    sc->sc_reg_addr, "debug register address");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	   "reg_val", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+	    rtwn_sysctl_reg_readwrite, "I", "debug register read/write");
+#endif	/* RTWN_DEBUG */
 
 	sc->sc_ht40 = 0;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
@@ -400,6 +439,29 @@ rtwn_resume(struct rtwn_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 
 	ieee80211_resume_all(ic);
+}
+
+void
+rtwn_attach_vht_cap_info_mcs(struct rtwn_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint32_t rx_mcs = 0, tx_mcs = 0;
+
+	for (int i = 0 ; i < 8; i++) {
+		if (i < sc->ntxchains)
+			tx_mcs |= (IEEE80211_VHT_MCS_SUPPORT_0_9 << (i*2));
+		else
+			tx_mcs |= (IEEE80211_VHT_MCS_NOT_SUPPORTED << (i*2));
+
+		if (i < sc->nrxchains)
+			rx_mcs |= (IEEE80211_VHT_MCS_SUPPORT_0_9 << (i*2));
+		else
+			rx_mcs |= (IEEE80211_VHT_MCS_NOT_SUPPORTED << (i*2));
+	}
+	ic->ic_vht_cap.supp_mcs.rx_mcs_map = rx_mcs;
+	ic->ic_vht_cap.supp_mcs.rx_highest = 0;
+	ic->ic_vht_cap.supp_mcs.tx_mcs_map = tx_mcs;
+	ic->ic_vht_cap.supp_mcs.tx_highest = 0;
 }
 
 static void
@@ -968,6 +1030,8 @@ rtwn_tsf_sync_enable(struct rtwn_softc *sc, struct ieee80211vap *vap)
 		/* Enable TSF synchronization. */
 		rtwn_setbits_1(sc, R92C_BCN_CTRL(uvp->id),
 		    R92C_BCN_CTRL_DIS_TSF_UDT0, 0);
+		/* Enable TSF beacon handling, needed for RA */
+		rtwn_sta_beacon_enable(sc, uvp->id, true);
 		break;
 	case IEEE80211_M_IBSS:
 		ieee80211_runtask(ic, &uvp->tsf_sync_adhoc_task);
@@ -1109,6 +1173,7 @@ rtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		/* Disable TSF synchronization / beaconing. */
 		rtwn_beacon_enable(sc, uvp->id, 0);
+		rtwn_sta_beacon_enable(sc, uvp->id, false);
 		rtwn_setbits_1(sc, R92C_BCN_CTRL(uvp->id),
 		    0, R92C_BCN_CTRL_DIS_TSF_UDT0);
 
@@ -1137,6 +1202,9 @@ rtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 			/* Stop Rx of data frames. */
 			rtwn_write_2(sc, R92C_RXFLTMAP2, 0);
+
+			/* Stop Rx of control frames. */
+			rtwn_write_2(sc, R92C_RXFLTMAP1, 0);
 
 			/* Reset EDCA parameters. */
 			rtwn_write_4(sc, R92C_EDCA_VO_PARAM, 0x002f3217);
@@ -1248,12 +1316,14 @@ rtwn_calc_basicrates(struct rtwn_softc *sc)
 		ieee80211_free_node(ni);
 	}
 
-
-	if (basicrates == 0)
+	if (basicrates == 0) {
+		device_printf(sc->sc_dev,
+		    "WARNING: no configured basic rates!\n");
 		return;
+	}
 
-	/* XXX also set initial RTS rate? */
 	rtwn_set_basicrates(sc, basicrates);
+	rtwn_set_rts_rate(sc, basicrates);
 }
 
 static int
@@ -1307,6 +1377,11 @@ rtwn_run(struct rtwn_softc *sc, struct ieee80211vap *vap)
 	rtwn_write_2(sc, R92C_BCN_INTERVAL(uvp->id), ni->ni_intval);
 
 	if (sc->vaps_running == sc->monvaps_running) {
+		/* Enable Rx of BAR control frames. */
+		rtwn_write_2(sc, R92C_RXFLTMAP1,
+		    1 << (IEEE80211_FC0_SUBTYPE_BAR >>
+		    IEEE80211_FC0_SUBTYPE_SHIFT));
+
 		/* Enable Rx of data frames. */
 		rtwn_write_2(sc, R92C_RXFLTMAP2, 0xffff);
 
@@ -1584,6 +1659,14 @@ rtwn_getradiocaps(struct ieee80211com *ic,
 	/* XXX workaround add_channel_list() limitations */
 	setbit(bands, IEEE80211_MODE_11A);
 	setbit(bands, IEEE80211_MODE_11NA);
+
+	if (IEEE80211_CONF_VHT(ic)) {
+		setbit(bands, IEEE80211_MODE_VHT_5GHZ);
+		/* Only enable VHT80 if HT40/VHT40 is available */
+		if (sc->sc_ht40)
+			cbw_flags |= NET80211_CBW_FLAG_VHT80;
+	}
+
 	for (i = 0; i < nitems(sc->chan_num_5ghz); i++) {
 		if (sc->chan_num_5ghz[i] == 0)
 			continue;

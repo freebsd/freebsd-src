@@ -315,11 +315,9 @@ uether_ifdetach(struct usb_ether *ue)
 		ether_ifdetach(ifp);
 
 		/* detach miibus */
-		if (ue->ue_miibus != NULL) {
-			bus_topo_lock();
-			device_delete_child(ue->ue_dev, ue->ue_miibus);
-			bus_topo_unlock();
-		}
+		bus_topo_lock();
+		bus_generic_detach(ue->ue_dev);
+		bus_topo_unlock();
 
 		/* free interface instance */
 		if_free(ifp);
@@ -595,7 +593,14 @@ uether_rxmbuf(struct usb_ether *ue, struct mbuf *m,
 	/* finalize mbuf */
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	m->m_pkthdr.rcvif = ifp;
-	m->m_pkthdr.len = m->m_len = len;
+	if (len != 0) {
+		/*
+		 * This is going to get it wrong for an mbuf chain, so let's
+		 * make sure we're not doing that.
+		 */
+		MPASS(m->m_next == NULL);
+		m->m_pkthdr.len = m->m_len = len;
+	}
 
 	/* enqueue for later when the lock can be released */
 	(void)mbufq_enqueue(&ue->ue_rxq, m);

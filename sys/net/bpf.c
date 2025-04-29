@@ -182,7 +182,7 @@ struct bpf_dltlist32 {
  * frames, ethernet frames, etc).
  */
 CK_LIST_HEAD(bpf_iflist, bpf_if);
-static struct bpf_iflist bpf_iflist;
+static struct bpf_iflist bpf_iflist = CK_LIST_HEAD_INITIALIZER();
 static struct sx	bpf_sx;		/* bpf global lock */
 static int		bpf_bpfd_cnt;
 
@@ -1110,13 +1110,15 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	error = bpf_uiomove(d, d->bd_hbuf, d->bd_hlen, uio);
 
 	BPFD_LOCK(d);
-	KASSERT(d->bd_hbuf != NULL, ("bpfread: lost bd_hbuf"));
-	d->bd_fbuf = d->bd_hbuf;
-	d->bd_hbuf = NULL;
-	d->bd_hlen = 0;
-	bpf_buf_reclaimed(d);
-	d->bd_hbuf_in_use = 0;
-	wakeup(&d->bd_hbuf_in_use);
+	if (d->bd_hbuf_in_use) {
+		KASSERT(d->bd_hbuf != NULL, ("bpfread: lost bd_hbuf"));
+		d->bd_fbuf = d->bd_hbuf;
+		d->bd_hbuf = NULL;
+		d->bd_hlen = 0;
+		bpf_buf_reclaimed(d);
+		d->bd_hbuf_in_use = 0;
+		wakeup(&d->bd_hbuf_in_use);
+	}
 	BPFD_UNLOCK(d);
 
 	return (error);
@@ -2090,10 +2092,20 @@ bpf_setif(struct bpf_d *d, struct ifreq *ifr)
 	BPF_LOCK_ASSERT();
 
 	theywant = ifunit(ifr->ifr_name);
-	if (theywant == NULL || theywant->if_bpf == NULL)
+	if (theywant == NULL)
+		return (ENXIO);
+	/*
+	 * Look through attached interfaces for the named one.
+	 */
+	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		if (bp->bif_ifp == theywant &&
+		    bp->bif_bpf == &theywant->if_bpf)
+			break;
+	}
+	if (bp == NULL)
 		return (ENXIO);
 
-	bp = theywant->if_bpf;
+	MPASS(bp == theywant->if_bpf);
 	/*
 	 * At this point, we expect the buffer is already allocated.  If not,
 	 * return an error.
@@ -2837,6 +2849,33 @@ bpf_get_bp_params(struct bpf_if *bp, u_int *bif_dlt, u_int *bif_hdrlen)
 
 	return (0);
 }
+
+/*
+ * Detach descriptors on interface's vmove event.
+ */
+void
+bpf_ifdetach(struct ifnet *ifp)
+{
+	struct bpf_if *bp;
+	struct bpf_d *d;
+
+	BPF_LOCK();
+	CK_LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		if (bp->bif_ifp != ifp)
+			continue;
+
+		/* Detach common descriptors */
+		while ((d = CK_LIST_FIRST(&bp->bif_dlist)) != NULL) {
+			bpf_detachd_locked(d, true);
+		}
+
+		/* Detach writer-only descriptors */
+		while ((d = CK_LIST_FIRST(&bp->bif_wlist)) != NULL) {
+			bpf_detachd_locked(d, true);
+		}
+	}
+	BPF_UNLOCK();
+}
 #endif
 
 /*
@@ -2969,8 +3008,6 @@ bpf_drvinit(void *unused)
 	struct cdev *dev;
 
 	sx_init(&bpf_sx, "bpf global lock");
-	CK_LIST_INIT(&bpf_iflist);
-
 	dev = make_dev(&bpf_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "bpf");
 	/* For compatibility */
 	make_dev_alias(dev, "bpf0");

@@ -26,14 +26,15 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/socket.h>
+#include <sys/event.h>
+#include <sys/sysctl.h>
+#include <sys/un.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <pthread.h>
-#include <signal.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-
 #include <stdio.h>
+#include <stdlib.h>
+#include <poll.h>
 
 #include <atf-c.h>
 
@@ -47,6 +48,18 @@ do_socketpair(int *sv)
 	ATF_REQUIRE(sv[0] >= 0);
 	ATF_REQUIRE(sv[1] >= 0);
 	ATF_REQUIRE(sv[0] != sv[1]);
+}
+
+static u_long
+getsendspace(void)
+{
+	u_long sendspace;
+
+	ATF_REQUIRE_MSG(sysctlbyname("net.local.stream.sendspace", &sendspace,
+	    &(size_t){sizeof(u_long)}, NULL, 0) != -1,
+	    "sysctl net.local.stream.sendspace failed: %s", strerror(errno));
+
+	return (sendspace);
 }
 
 /* getpeereid(3) should work with stream sockets created via socketpair(2) */
@@ -86,11 +99,74 @@ ATF_TC_BODY(send_0, tc)
 	close(sv[1]);
 }
 
+static void
+check_writable(int fd, int expect)
+{
+	fd_set wrfds;
+	struct pollfd pfd[1];
+	struct kevent kev;
+	int nfds, kq;
+
+	FD_ZERO(&wrfds);
+	FD_SET(fd, &wrfds);
+	nfds = select(fd + 1, NULL, &wrfds, NULL,
+	    &(struct timeval){.tv_usec = 1000});
+	ATF_REQUIRE_MSG(nfds == expect,
+	    "select() returns %d errno %d", nfds, errno);
+
+	pfd[0] = (struct pollfd){
+		.fd = fd,
+		.events = POLLOUT | POLLWRNORM,
+	};
+	nfds = poll(pfd, 1, 1);
+	ATF_REQUIRE_MSG(nfds == expect,
+	    "poll() returns %d errno %d", nfds, errno);
+
+	ATF_REQUIRE(kq = kqueue());
+	EV_SET(&kev, fd, EVFILT_WRITE, EV_ADD, 0, 0, NULL);
+	ATF_REQUIRE(kevent(kq, &kev, 1, NULL, 0, NULL) == 0);
+	nfds = kevent(kq, NULL, 0, &kev, 1,
+	    &(struct timespec){.tv_nsec = 1000000});
+	ATF_REQUIRE_MSG(nfds == expect,
+		"kevent() returns %d errno %d", nfds, errno);
+	close(kq);
+}
+
+/*
+ * Make sure that a full socket is not reported as writable by event APIs.
+ */
+ATF_TC_WITHOUT_HEAD(full_not_writable);
+ATF_TC_BODY(full_not_writable, tc)
+{
+	void *buf;
+	u_long sendspace;
+	int sv[2];
+
+	sendspace = getsendspace();
+	ATF_REQUIRE((buf = malloc(sendspace)) != NULL);
+	do_socketpair(sv);
+	ATF_REQUIRE(fcntl(sv[0], F_SETFL, O_NONBLOCK) != -1);
+	do {} while (send(sv[0], buf, sendspace, 0) == (ssize_t)sendspace);
+	ATF_REQUIRE(errno == EAGAIN);
+	ATF_REQUIRE(fcntl(sv[0], F_SETFL, 0) != -1);
+
+	check_writable(sv[0], 0);
+
+	/* Read some data and re-check. */
+	ATF_REQUIRE(read(sv[1], buf, sendspace / 2) == (ssize_t)sendspace / 2);
+
+	check_writable(sv[0], 1);
+
+	free(buf);
+	close(sv[0]);
+	close(sv[1]);
+}
 
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, getpeereid);
 	ATF_TP_ADD_TC(tp, send_0);
+	ATF_TP_ADD_TC(tp, full_not_writable);
 
 	return atf_no_error();
 }

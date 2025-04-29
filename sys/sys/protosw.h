@@ -31,19 +31,7 @@
 
 #ifndef _SYS_PROTOSW_H_
 #define _SYS_PROTOSW_H_
-
-#include <sys/_types.h>
-
-/* Forward declare these structures referenced from prototypes below. */
-struct kaiocb;
-struct mbuf;
-struct thread;
-struct sockaddr;
-struct socket;
-struct sockopt;
-enum shutdown_how;
-
-/*#ifdef _KERNEL*/
+#if defined(_KERNEL) || defined(_WANT_PROTOSW)
 /*
  * Protocol switch table.
  *
@@ -53,10 +41,17 @@ enum shutdown_how;
  * In retrospect, it would be a lot nicer to use an interface
  * similar to the vnode VOP interface.
  */
+struct socket;
+struct sockopt;
+struct thread;
+struct sockaddr;
 struct ifnet;
+struct mbuf;
 struct stat;
 struct ucred;
 struct uio;
+struct kaiocb;
+enum shutdown_how;
 
 /* USE THESE FOR YOUR PROTOTYPES ! */
 typedef int	pr_ctloutput_t(struct socket *, struct sockopt *);
@@ -93,8 +88,7 @@ typedef int	pr_sosend_t(struct socket *, struct sockaddr *, struct uio *,
 		    struct mbuf *, struct mbuf *, int, struct thread *);
 typedef int	pr_soreceive_t(struct socket *, struct sockaddr **,
 		    struct uio *, struct mbuf **, struct mbuf **, int *);
-typedef int	pr_sopoll_t(struct socket *, int, struct ucred *,
-		    struct thread *);
+typedef int	pr_sopoll_t(struct socket *, int, struct thread *);
 typedef void	pr_sosetlabel_t(struct socket *);
 typedef void	pr_close_t(struct socket *);
 typedef int	pr_bindat_t(int, struct socket *, struct sockaddr *,
@@ -145,7 +139,8 @@ struct protosw {
 	pr_setsbopt_t	*pr_setsbopt;	/* Socket buffer ioctls */
 	pr_chmod_t	*pr_chmod;	/* fchmod(2) */
 };
-/*#endif*/
+#endif	/* defined(_KERNEL) || defined(_WANT_PROTOSW) */
+#ifdef _KERNEL
 
 /*
  * Values for pr_flags.
@@ -168,7 +163,6 @@ struct protosw {
 #define	PR_CAPATTACH	0x80		/* socket can attach in cap mode */
 #define	PR_SOCKBUF	0x100		/* private implementation of buffers */
 
-#ifdef _KERNEL
 struct domain *pffinddomain(int family);
 struct protosw *pffindproto(int family, int type, int proto);
 int protosw_register(struct domain *, struct protosw *);
@@ -178,5 +172,4 @@ int protosw_unregister(struct protosw *);
 extern struct domain inetdomain;
 extern struct domain inet6domain;
 #endif
-
 #endif

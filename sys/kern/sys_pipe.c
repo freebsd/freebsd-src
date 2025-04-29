@@ -175,21 +175,26 @@ static void	filt_pipedetach_notsup(struct knote *kn);
 static int	filt_pipenotsup(struct knote *kn, long hint);
 static int	filt_piperead(struct knote *kn, long hint);
 static int	filt_pipewrite(struct knote *kn, long hint);
+static int	filt_pipedump(struct proc *p, struct knote *kn,
+    struct kinfo_knote *kin);
 
 static const struct filterops pipe_nfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_pipedetach_notsup,
 	.f_event = filt_pipenotsup
+	/* no userdump */
 };
 static const struct filterops pipe_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_pipedetach,
-	.f_event = filt_piperead
+	.f_event = filt_piperead,
+	.f_userdump = filt_pipedump,
 };
 static const struct filterops pipe_wfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_pipedetach,
-	.f_event = filt_pipewrite
+	.f_event = filt_pipewrite,
+	.f_userdump = filt_pipedump,
 };
 
 /*
@@ -1898,5 +1903,16 @@ static int
 filt_pipenotsup(struct knote *kn, long hint)
 {
 
+	return (0);
+}
+
+static int
+filt_pipedump(struct proc *p, struct knote *kn,
+    struct kinfo_knote *kin)
+{
+	struct pipe *pipe = kn->kn_hook;
+
+	kin->knt_extdata = KNOTE_EXTDATA_PIPE;
+	kin->knt_pipe.knt_pipe_ino = pipe->pipe_ino;
 	return (0);
 }

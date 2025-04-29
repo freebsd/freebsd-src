@@ -107,6 +107,8 @@ struct acl_addr {
 	struct config_strlist** tag_datas;
 	/** size of the tag_datas array */
 	size_t tag_datas_size;
+	/* If the acl node is for an interface */
+	int is_interface;
 	/* view element, NULL if none */
 	struct view* view;
 };
@@ -146,9 +148,6 @@ acl_interface_insert(struct acl_list* acl_interface,
  */
 int acl_list_apply_cfg(struct acl_list* acl, struct config_file* cfg,
 	struct views* v);
-
-/** compare ACL interface "addr_tree" nodes (+port) */
-int acl_interface_compare(const void* k1, const void* k2);
 
 /**
  * Initialise (also clean) the acl_interface struct.
@@ -201,5 +200,13 @@ const char* acl_access_to_str(enum acl_access acl);
 /* log acl and addr for action */
 void log_acl_action(const char* action, struct sockaddr_storage* addr,
 	socklen_t addrlen, enum acl_access acl, struct acl_addr* acladdr);
+
+/**
+ * Swap internal tree with preallocated entries.
+ * @param acl: the acl structure.
+ * @param data: the data structure used to take elements from. This contains
+ * 	the old elements on return.
+ */
+void acl_list_swap_tree(struct acl_list* acl, struct acl_list* data);
 
 #endif /* DAEMON_ACL_LIST_H */

@@ -3,6 +3,10 @@
  *
  * Copyright (c) 2008-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -101,10 +105,6 @@ SYSCTL_INT(_hw_snd, OID_AUTO, feeder_eq_exact_rate, CTLFLAG_RWTUN,
     &feeder_eq_exact_rate, 0, "force exact rate validation");
 #endif
 
-struct feed_eq_info;
-
-typedef void (*feed_eq_t)(struct feed_eq_info *, uint8_t *, uint32_t);
-
 struct feed_eq_tone {
 	intpcm_t o1[SND_CHN_MAX];
 	intpcm_t o2[SND_CHN_MAX];
@@ -117,7 +117,7 @@ struct feed_eq_info {
 	struct feed_eq_tone treble;
 	struct feed_eq_tone bass;
 	struct feed_eq_coeff *coeff;
-	feed_eq_t biquad;
+	uint32_t fmt;
 	uint32_t channels;
 	uint32_t rate;
 	uint32_t align;
@@ -135,137 +135,74 @@ struct feed_eq_info {
 #define FEEDEQ_ERR_CLIP_CHECK(...)
 #endif
 
-#define FEEDEQ_CLAMP(v)		(((v) > PCM_S32_MAX) ? PCM_S32_MAX :	\
-				(((v) < PCM_S32_MIN) ? PCM_S32_MIN :	\
-				  (v)))
+__always_inline static void
+feed_eq_biquad(struct feed_eq_info *info, uint8_t *dst, uint32_t count,
+    const uint32_t fmt)
+{
+	struct feed_eq_coeff_tone *treble, *bass;
+	intpcm64_t w;
+	intpcm_t v;
+	uint32_t i, j;
+	int32_t pmul, pshift;
 
-#define FEEDEQ_DECLARE(SIGN, BIT, ENDIAN)					\
-static void									\
-feed_eq_biquad_##SIGN##BIT##ENDIAN(struct feed_eq_info *info,			\
-    uint8_t *dst, uint32_t count)						\
-{										\
-	struct feed_eq_coeff_tone *treble, *bass;				\
-	intpcm64_t w;								\
-	intpcm_t v;								\
-	uint32_t i, j;								\
-	int32_t pmul, pshift;							\
-										\
-	pmul = feed_eq_preamp[info->preamp].mul;				\
-	pshift = feed_eq_preamp[info->preamp].shift;				\
-										\
-	if (info->state == FEEDEQ_DISABLE) {					\
-		j = count * info->channels;					\
-		dst += j * PCM_##BIT##_BPS;					\
-		do {								\
-			dst -= PCM_##BIT##_BPS;					\
-			v = _PCM_READ_##SIGN##BIT##_##ENDIAN(dst);		\
-			v = ((intpcm64_t)pmul * v) >> pshift;			\
-			_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, v);		\
-		} while (--j != 0);						\
-										\
-		return;								\
-	}									\
-										\
-	treble = &(info->coeff[info->treble.gain].treble);			\
-	bass   = &(info->coeff[info->bass.gain].bass);				\
-										\
-	do {									\
-		i = 0;								\
-		j = info->channels;						\
-		do {								\
-			v = _PCM_READ_##SIGN##BIT##_##ENDIAN(dst);		\
-			v <<= 32 - BIT;						\
-			v = ((intpcm64_t)pmul * v) >> pshift;			\
-										\
-			w  = (intpcm64_t)v * treble->b0;			\
-			w += (intpcm64_t)info->treble.i1[i] * treble->b1;	\
-			w += (intpcm64_t)info->treble.i2[i] * treble->b2;	\
-			w -= (intpcm64_t)info->treble.o1[i] * treble->a1;	\
-			w -= (intpcm64_t)info->treble.o2[i] * treble->a2;	\
-			info->treble.i2[i] = info->treble.i1[i];		\
-			info->treble.i1[i] = v;					\
-			info->treble.o2[i] = info->treble.o1[i];		\
-			w >>= FEEDEQ_COEFF_SHIFT;				\
-			FEEDEQ_ERR_CLIP_CHECK(treble, w);			\
-			v = FEEDEQ_CLAMP(w);					\
-			info->treble.o1[i] = v;					\
-										\
-			w  = (intpcm64_t)v * bass->b0;				\
-			w += (intpcm64_t)info->bass.i1[i] * bass->b1;		\
-			w += (intpcm64_t)info->bass.i2[i] * bass->b2;		\
-			w -= (intpcm64_t)info->bass.o1[i] * bass->a1;		\
-			w -= (intpcm64_t)info->bass.o2[i] * bass->a2;		\
-			info->bass.i2[i] = info->bass.i1[i];			\
-			info->bass.i1[i] = v;					\
-			info->bass.o2[i] = info->bass.o1[i];			\
-			w >>= FEEDEQ_COEFF_SHIFT;				\
-			FEEDEQ_ERR_CLIP_CHECK(bass, w);				\
-			v = FEEDEQ_CLAMP(w);					\
-			info->bass.o1[i] = v;					\
-										\
-			v >>= 32 - BIT;						\
-			_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, v);		\
-			dst += PCM_##BIT##_BPS;					\
-			i++;							\
-		} while (--j != 0);						\
-	} while (--count != 0);							\
-}
+	pmul = feed_eq_preamp[info->preamp].mul;
+	pshift = feed_eq_preamp[info->preamp].shift;
 
-#if BYTE_ORDER == LITTLE_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
-FEEDEQ_DECLARE(S, 16, LE)
-FEEDEQ_DECLARE(S, 32, LE)
-#endif
-#if BYTE_ORDER == BIG_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
-FEEDEQ_DECLARE(S, 16, BE)
-FEEDEQ_DECLARE(S, 32, BE)
-#endif
-#ifdef SND_FEEDER_MULTIFORMAT
-FEEDEQ_DECLARE(S,  8, NE)
-FEEDEQ_DECLARE(S, 24, LE)
-FEEDEQ_DECLARE(S, 24, BE)
-FEEDEQ_DECLARE(U,  8, NE)
-FEEDEQ_DECLARE(U, 16, LE)
-FEEDEQ_DECLARE(U, 24, LE)
-FEEDEQ_DECLARE(U, 32, LE)
-FEEDEQ_DECLARE(U, 16, BE)
-FEEDEQ_DECLARE(U, 24, BE)
-FEEDEQ_DECLARE(U, 32, BE)
-#endif
+	if (info->state == FEEDEQ_DISABLE) {
+		j = count * info->channels;
+		dst += j * AFMT_BPS(fmt);
+		do {
+			dst -= AFMT_BPS(fmt);
+			v = pcm_sample_read(dst, fmt);
+			v = ((intpcm64_t)pmul * v) >> pshift;
+			pcm_sample_write(dst, v, fmt);
+		} while (--j != 0);
 
-#define FEEDEQ_ENTRY(SIGN, BIT, ENDIAN)					\
-	{								\
-		AFMT_##SIGN##BIT##_##ENDIAN,				\
-		feed_eq_biquad_##SIGN##BIT##ENDIAN			\
+		return;
 	}
 
-static const struct {
-	uint32_t format;
-	feed_eq_t biquad;
-} feed_eq_biquad_tab[] = {
-#if BYTE_ORDER == LITTLE_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
-	FEEDEQ_ENTRY(S, 16, LE),
-	FEEDEQ_ENTRY(S, 32, LE),
-#endif
-#if BYTE_ORDER == BIG_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
-	FEEDEQ_ENTRY(S, 16, BE),
-	FEEDEQ_ENTRY(S, 32, BE),
-#endif
-#ifdef SND_FEEDER_MULTIFORMAT
-	FEEDEQ_ENTRY(S,  8, NE),
-	FEEDEQ_ENTRY(S, 24, LE),
-	FEEDEQ_ENTRY(S, 24, BE),
-	FEEDEQ_ENTRY(U,  8, NE),
-	FEEDEQ_ENTRY(U, 16, LE),
-	FEEDEQ_ENTRY(U, 24, LE),
-	FEEDEQ_ENTRY(U, 32, LE),
-	FEEDEQ_ENTRY(U, 16, BE),
-	FEEDEQ_ENTRY(U, 24, BE),
-	FEEDEQ_ENTRY(U, 32, BE)
-#endif
-};
+	treble = &(info->coeff[info->treble.gain].treble);
+	bass   = &(info->coeff[info->bass.gain].bass);
 
-#define FEEDEQ_BIQUAD_TAB_SIZE						\
-	((int32_t)(sizeof(feed_eq_biquad_tab) / sizeof(feed_eq_biquad_tab[0])))
+	do {
+		i = 0;
+		j = info->channels;
+		do {
+			v = pcm_sample_read_norm(dst, fmt);
+			v = ((intpcm64_t)pmul * v) >> pshift;
+
+			w  = (intpcm64_t)v * treble->b0;
+			w += (intpcm64_t)info->treble.i1[i] * treble->b1;
+			w += (intpcm64_t)info->treble.i2[i] * treble->b2;
+			w -= (intpcm64_t)info->treble.o1[i] * treble->a1;
+			w -= (intpcm64_t)info->treble.o2[i] * treble->a2;
+			info->treble.i2[i] = info->treble.i1[i];
+			info->treble.i1[i] = v;
+			info->treble.o2[i] = info->treble.o1[i];
+			w >>= FEEDEQ_COEFF_SHIFT;
+			FEEDEQ_ERR_CLIP_CHECK(treble, w);
+			v = pcm_clamp(w, AFMT_S32_NE);
+			info->treble.o1[i] = v;
+
+			w  = (intpcm64_t)v * bass->b0;
+			w += (intpcm64_t)info->bass.i1[i] * bass->b1;
+			w += (intpcm64_t)info->bass.i2[i] * bass->b2;
+			w -= (intpcm64_t)info->bass.o1[i] * bass->a1;
+			w -= (intpcm64_t)info->bass.o2[i] * bass->a2;
+			info->bass.i2[i] = info->bass.i1[i];
+			info->bass.i1[i] = v;
+			info->bass.o2[i] = info->bass.o1[i];
+			w >>= FEEDEQ_COEFF_SHIFT;
+			FEEDEQ_ERR_CLIP_CHECK(bass, w);
+			v = pcm_clamp(w, AFMT_S32_NE);
+			info->bass.o1[i] = v;
+
+			pcm_sample_write_norm(dst, v, fmt);
+			dst += AFMT_BPS(fmt);
+			i++;
+		} while (--j != 0);
+	} while (--count != 0);
+}
 
 static struct feed_eq_coeff *
 feed_eq_coeff_rate(uint32_t rate)
@@ -337,26 +274,15 @@ static int
 feed_eq_init(struct pcm_feeder *f)
 {
 	struct feed_eq_info *info;
-	feed_eq_t biquad_op;
-	int i;
 
 	if (f->desc->in != f->desc->out)
-		return (EINVAL);
-
-	biquad_op = NULL;
-
-	for (i = 0; i < FEEDEQ_BIQUAD_TAB_SIZE && biquad_op == NULL; i++) {
-		if (AFMT_ENCODING(f->desc->in) == feed_eq_biquad_tab[i].format)
-			biquad_op = feed_eq_biquad_tab[i].biquad;
-	}
-
-	if (biquad_op == NULL)
 		return (EINVAL);
 
 	info = malloc(sizeof(*info), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (info == NULL)
 		return (ENOMEM);
 
+	info->fmt = AFMT_ENCODING(f->desc->in);
 	info->channels = AFMT_CHANNEL(f->desc->in);
 	info->align = info->channels * AFMT_BPS(f->desc->in);
 
@@ -365,8 +291,6 @@ feed_eq_init(struct pcm_feeder *f)
 	info->bass.gain = FEEDEQ_L2GAIN(50);
 	info->preamp = FEEDEQ_PREAMP2IDX(FEEDEQ_PREAMP_DEFAULT);
 	info->state = FEEDEQ_UNKNOWN;
-
-	info->biquad = biquad_op;
 
 	f->data = info;
 
@@ -470,7 +394,21 @@ feed_eq_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 		if (j == 0)
 			break;
 
-		info->biquad(info, dst, j);
+		/* Optimize some common formats. */
+		switch (info->fmt) {
+		case AFMT_S16_NE:
+			feed_eq_biquad(info, dst, j, AFMT_S16_NE);
+			break;
+		case AFMT_S24_NE:
+			feed_eq_biquad(info, dst, j, AFMT_S24_NE);
+			break;
+		case AFMT_S32_NE:
+			feed_eq_biquad(info, dst, j, AFMT_S32_NE);
+			break;
+		default:
+			feed_eq_biquad(info, dst, j, info->fmt);
+			break;
+		}
 
 		j *= info->align;
 		dst += j;

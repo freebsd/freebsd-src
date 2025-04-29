@@ -308,7 +308,22 @@ main(int argc, char *argv[])
 		errx(1, "-r and -k cannot be used together, there is no next kernel");
 
 	if (Dflag) {
-		if (unlink(PATH_NEXTBOOT) != 0 && errno != ENOENT)
+		struct stat sb;
+
+		/*
+		 * Break the rule about stat then doing
+		 * something. When we're booting, there's no
+		 * race. When we're a read-only root, though, the
+		 * read-only error takes priority over the file not
+		 * there error in unlink. So stat it first and exit
+		 * with success if it isn't there. Otherwise, let
+		 * unlink sort error reporting. POSIX-1.2024 suggests
+		 * ENOENT should be preferred to EROFS for unlink,
+		 * but FreeBSD historically has preferred EROFS.
+		 */
+		if (stat(PATH_NEXTBOOT, &sb) != 0 && errno == ENOENT)
+			exit(0);
+		if (unlink(PATH_NEXTBOOT) != 0)
 			warn("unlink " PATH_NEXTBOOT);
 		exit(0);
 	}

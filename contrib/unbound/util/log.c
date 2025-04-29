@@ -281,7 +281,7 @@ log_vmsg(int pri, const char* type,
 	if(log_time_iso && log_time_asc) {
 		char tzbuf[16];
 		struct timeval tv;
-		struct tm tm, *tm_p;
+		struct tm *tm_p;
 		if(gettimeofday(&tv, NULL) < 0)
 			memset(&tv, 0, sizeof(tv));
 		now = (time_t)tv.tv_sec;

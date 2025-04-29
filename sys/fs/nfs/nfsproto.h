@@ -275,6 +275,8 @@
 #define	NFSX_V4SESSIONID	16
 #define	NFSX_V4DEVICEID		16
 #define	NFSX_V4PNFSFH		(sizeof(fhandle_t) + 1)
+#define	NFSX_V4NAMEDDIRFH	2
+#define	NFSX_V4NAMEDATTRFH	3
 #define	NFSX_V4FILELAYOUT	(4 * NFSX_UNSIGNED + NFSX_V4DEVICEID +	\
 				 NFSX_HYPER + NFSM_RNDUP(NFSX_V4PNFSFH))
 #define	NFSX_V4FLEXLAYOUT(m)	(NFSX_HYPER + 3 * NFSX_UNSIGNED +		\
@@ -406,10 +408,13 @@
 /* Do an NFSv4 Verify+Write. */
 #define	NFSPROC_APPENDWRITE	69
 
+/* Do a NFSv4 Openattr. */
+#define	NFSPROC_OPENATTR	70
+
 /*
  * Must be defined as one higher than the last NFSv4.2 Proc# above.
  */
-#define	NFSV42_NPROCS		70
+#define	NFSV42_NPROCS		71
 
 /* Value of NFSV42_NPROCS for old nfsstats structure. (Always 69) */
 #define	NFSV42_OLDNPROCS	69
@@ -743,6 +748,17 @@
 /* Enum values for Secinfo_no_name. */
 #define	NFSSECINFONONAME_CURFH	0
 #define	NFSSECINFONONAME_PARENT	1
+
+/* Bits for CB_RECALL_ANY. */
+#define	NFSRCA4_RDATA_DLG	0x00000001
+#define	NFSRCA4_WDATA_DLG	0x00000002
+#define	NFSRCA4_DIR_DLG		0x00000004
+#define	NFSRCA4_FILE_LAYOUT	0x00000008
+#define	NFSRCA4_BLK_LAYOUT	0x00000010
+#define	NFSRCA4_OBJ_LAYOUT_MIN	0x00000100
+#define	NFSRCA4_OBJ_LAYOUT_MAX	0x00000200
+#define	NFSRCA4_FF_LAYOUT_READ	0x00010000
+#define	NFSRCA4_FF_LAYOUT_RW	0x00020000
 
 #if defined(_KERNEL) || defined(KERNEL)
 /* Conversion macros */
@@ -1176,6 +1192,7 @@ struct nfsv3_sattr {
 	NFSATTRBM_LAYOUTBLKSIZE |					\
 	NFSATTRBM_LAYOUTALIGNMENT |					\
 	NFSATTRBM_SUPPATTREXCLCREAT |					\
+	NFSATTRBM_CHANGEATTRTYPE |					\
 	NFSATTRBM_XATTRSUPPORT)
 
 /*
@@ -1221,7 +1238,8 @@ struct nfsv3_sattr {
  * NFSATTRBIT_NFSV42 - Attributes only supported by NFSv4.2.
  */
 #define	NFSATTRBIT_NFSV42_2						\
-	(NFSATTRBM_XATTRSUPPORT |					\
+	(NFSATTRBM_CHANGEATTRTYPE |					\
+	NFSATTRBM_XATTRSUPPORT |					\
 	NFSATTRBM_MODEUMASK)
 
 /*
@@ -1656,5 +1674,12 @@ typedef struct nfsv4stateid nfsv4stateid_t;
 #define	NFSV4SXATTR_EITHER	0
 #define	NFSV4SXATTR_CREATE	1
 #define	NFSV4SXATTR_REPLACE	2
+
+/* Values for ChangeAttrType (RFC-7862). */
+#define	NFSV4CHANGETYPE_MONOTONIC_INCR		0
+#define	NFSV4CHANGETYPE_VERS_COUNTER		1
+#define	NFSV4CHANGETYPE_VERS_COUNTER_NOPNFS	2
+#define	NFSV4CHANGETYPE_TIME_METADATA		3
+#define	NFSV4CHANGETYPE_UNDEFINED		4
 
 #endif	/* _NFS_NFSPROTO_H_ */

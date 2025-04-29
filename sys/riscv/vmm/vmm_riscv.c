@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2024 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2024-2025 Ruslan Bukin <br@bsdpad.com>
  *
  * This software was developed by the University of Cambridge Computer
  * Laboratory (Department of Computer Science and Technology) under Innovate
@@ -66,8 +66,11 @@
 #include <machine/encoding.h>
 #include <machine/db_machdep.h>
 
+#include <dev/vmm/vmm_mem.h>
+
 #include "riscv.h"
 #include "vmm_aplic.h"
+#include "vmm_fence.h"
 #include "vmm_stat.h"
 
 MALLOC_DEFINE(M_HYP, "RISC-V VMM HYP", "RISC-V VMM HYP");
@@ -104,11 +107,6 @@ vmmops_modinit(void)
 
 	if (!has_hyp) {
 		printf("vmm: riscv hart doesn't support H-extension.\n");
-		return (ENXIO);
-	}
-
-	if (!has_sstc) {
-		printf("vmm: riscv hart doesn't support SSTC extension.\n");
 		return (ENXIO);
 	}
 
@@ -217,6 +215,11 @@ vmmops_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 	hypctx->vcpu = vcpu1;
 	hypctx->guest_scounteren = HCOUNTEREN_CY | HCOUNTEREN_TM;
 
+	/* Fence queue. */
+	hypctx->fence_queue = mallocarray(VMM_FENCE_QUEUE_SIZE,
+	    sizeof(struct vmm_fence), M_HYP, M_WAITOK | M_ZERO);
+	mtx_init(&hypctx->fence_queue_mtx, "fence queue", NULL, MTX_SPIN);
+
 	/* sstatus */
 	hypctx->guest_regs.hyp_sstatus = SSTATUS_SPP | SSTATUS_SPIE;
 	hypctx->guest_regs.hyp_sstatus |= SSTATUS_FS_INITIAL;
@@ -229,6 +232,7 @@ vmmops_vcpu_init(void *vmi, struct vcpu *vcpu1, int vcpuid)
 	hyp->ctx[vcpuid] = hypctx;
 
 	aplic_cpuinit(hypctx);
+	vtimer_cpuinit(hypctx);
 
 	return (hypctx);
 }
@@ -448,7 +452,6 @@ riscv_handle_world_switch(struct hypctx *hypctx, struct vm_exit *vme,
 	uint64_t insn;
 	uint64_t gpa;
 	bool handled;
-	bool retu;
 	int ret;
 	int i;
 
@@ -494,16 +497,12 @@ riscv_handle_world_switch(struct hypctx *hypctx, struct vm_exit *vme,
 		handled = false;
 		break;
 	case SCAUSE_VIRTUAL_SUPERVISOR_ECALL:
-		retu = false;
-		vmm_sbi_ecall(hypctx->vcpu, &retu);
-		if (retu == false) {
-			handled = true;
+		handled = vmm_sbi_ecall(hypctx->vcpu);
+		if (handled == true)
 			break;
-		}
 		for (i = 0; i < nitems(vme->u.ecall.args); i++)
 			vme->u.ecall.args[i] = hypctx->guest_regs.hyp_a[i];
 		vme->exitcode = VM_EXITCODE_ECALL;
-		handled = false;
 		break;
 	case SCAUSE_VIRTUAL_INSTRUCTION:
 		insn = vme->stval;
@@ -535,17 +534,23 @@ vmmops_gla2gpa(void *vcpui, struct vm_guest_paging *paging, uint64_t gla,
 }
 
 void
-riscv_send_ipi(struct hypctx *hypctx, int hart_id)
+riscv_send_ipi(struct hyp *hyp, cpuset_t *cpus)
 {
-	struct hyp *hyp;
+	struct hypctx *hypctx;
 	struct vm *vm;
+	uint16_t maxcpus;
+	int i;
 
-	hyp = hypctx->hyp;
 	vm = hyp->vm;
 
-	atomic_set_32(&hypctx->ipi_pending, 1);
-
-	vcpu_notify_event(vm_vcpu(vm, hart_id));
+	maxcpus = vm_get_maxcpus(hyp->vm);
+	for (i = 0; i < maxcpus; i++) {
+		if (!CPU_ISSET(i, cpus))
+			continue;
+		hypctx = hyp->ctx[i];
+		atomic_set_32(&hypctx->ipi_pending, 1);
+		vcpu_notify_event(vm_vcpu(vm, i));
+	}
 }
 
 int
@@ -561,28 +566,35 @@ riscv_check_ipi(struct hypctx *hypctx, bool clear)
 	return (val);
 }
 
+bool
+riscv_check_interrupts_pending(struct hypctx *hypctx)
+{
+
+	if (hypctx->interrupts_pending)
+		return (true);
+
+	return (false);
+}
+
 static void
 riscv_sync_interrupts(struct hypctx *hypctx)
 {
 	int pending;
 
 	pending = aplic_check_pending(hypctx);
-
 	if (pending)
 		hypctx->guest_csrs.hvip |= HVIP_VSEIP;
 	else
 		hypctx->guest_csrs.hvip &= ~HVIP_VSEIP;
 
-	csr_write(hvip, hypctx->guest_csrs.hvip);
-}
-
-static void
-riscv_sync_ipi(struct hypctx *hypctx)
-{
-
 	/* Guest clears VSSIP bit manually. */
 	if (riscv_check_ipi(hypctx, true))
 		hypctx->guest_csrs.hvip |= HVIP_VSSIP;
+
+	if (riscv_check_interrupts_pending(hypctx))
+		hypctx->guest_csrs.hvip |= HVIP_VSTIP;
+	else
+		hypctx->guest_csrs.hvip &= ~HVIP_VSTIP;
 
 	csr_write(hvip, hypctx->guest_csrs.hvip);
 }
@@ -594,6 +606,7 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 	struct vm_exit *vme;
 	struct vcpu *vcpu;
 	register_t val;
+	uint64_t hvip;
 	bool handled;
 
 	hypctx = (struct hypctx *)vcpui;
@@ -615,7 +628,8 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 	__asm __volatile("hfence.gvma" ::: "memory");
 
 	csr_write(hgatp, pmap->pm_satp);
-	csr_write(henvcfg, HENVCFG_STCE);
+	if (has_sstc)
+		csr_write(henvcfg, HENVCFG_STCE);
 	csr_write(hie, HIE_VSEIE | HIE_VSSIE | HIE_SGEIE);
 	/* TODO: should we trap rdcycle / rdtime? */
 	csr_write(hcounteren, HCOUNTEREN_CY | HCOUNTEREN_TM);
@@ -653,9 +667,8 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 		 */
 		riscv_set_active_vcpu(hypctx);
 		aplic_flush_hwstate(hypctx);
-
 		riscv_sync_interrupts(hypctx);
-		riscv_sync_ipi(hypctx);
+		vmm_fence_process(hypctx);
 
 		dprintf("%s: Entering guest VM, vsatp %lx, ss %lx hs %lx\n",
 		    __func__, csr_read(vsatp), hypctx->guest_regs.hyp_sstatus,
@@ -666,8 +679,18 @@ vmmops_run(void *vcpui, register_t pc, pmap_t pmap, struct vm_eventinfo *evinfo)
 		dprintf("%s: Leaving guest VM, hstatus %lx\n", __func__,
 		    hypctx->guest_regs.hyp_hstatus);
 
+		/* Guest can clear VSSIP. It can't clear VSTIP or VSEIP. */
+		hvip = csr_read(hvip);
+		if ((hypctx->guest_csrs.hvip ^ hvip) & HVIP_VSSIP) {
+			if (hvip & HVIP_VSSIP) {
+				/* TODO: VSSIP was set by guest. */
+			} else {
+				/* VSSIP was cleared by guest. */
+				hypctx->guest_csrs.hvip &= ~HVIP_VSSIP;
+			}
+		}
+
 		aplic_sync_hwstate(hypctx);
-		riscv_sync_interrupts(hypctx);
 
 		/*
 		 * TODO: deactivate stage 2 pmap here if needed.
@@ -727,6 +750,8 @@ vmmops_vcpu_cleanup(void *vcpui)
 
 	aplic_cpucleanup(hypctx);
 
+	mtx_destroy(&hypctx->fence_queue_mtx);
+	free(hypctx->fence_queue, M_HYP);
 	free(hypctx, M_HYP);
 }
 

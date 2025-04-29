@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
- * Copyright (c) 2014 Yandex LLC
+ * Copyright (c) 2014-2025 Yandex LLC
  * Copyright (c) 2014 Alexander V. Chernikov
  *
  * Supported by: Valeria Paoli
@@ -74,17 +74,20 @@
 #include <security/mac/mac_framework.h>
 #endif
 
-static int ipfw_ctl(struct sockopt *sopt);
+static enum ipfw_opcheck_result
+check_opcode_compat_nop(ipfw_insn **pcmd, int *plen,
+    struct rule_check_info *ci)
+{
+	/* Compatibility code is not registered */
+	return (FAILED);
+}
+
+static ipfw_check_opcode_t check_opcode_f = check_opcode_compat_nop;
+
 static int check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len,
-    struct rule_check_info *ci);
-static int check_ipfw_rule1(struct ip_fw_rule *rule, int size,
-    struct rule_check_info *ci);
-static int check_ipfw_rule0(struct ip_fw_rule0 *rule, int size,
     struct rule_check_info *ci);
 static int rewrite_rule_uidx(struct ip_fw_chain *chain,
     struct rule_check_info *ci);
-
-#define	NAMEDOBJ_HASH_SIZE	32
 
 struct namedobj_instance {
 	struct namedobjects_head	*names;
@@ -108,25 +111,8 @@ static int objhash_cmp_name(struct named_object *no, const void *name,
 
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 
-static int dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-static int add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-static int del_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-static int clear_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-static int move_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-static int manage_sets(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-static int dump_soptcodes(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-static int dump_srvobjects(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-
 /* ctl3 handler data */
-struct mtx ctl3_lock;
+static struct mtx ctl3_lock;
 #define	CTL3_LOCK_INIT()	mtx_init(&ctl3_lock, "ctl3_lock", NULL, MTX_DEF)
 #define	CTL3_LOCK_DESTROY()	mtx_destroy(&ctl3_lock)
 #define	CTL3_LOCK()		mtx_lock(&ctl3_lock)
@@ -136,28 +122,31 @@ static struct ipfw_sopt_handler *ctl3_handlers;
 static size_t ctl3_hsize;
 static uint64_t ctl3_refct, ctl3_gencnt;
 #define	CTL3_SMALLBUF	4096			/* small page-size write buffer */
-#define	CTL3_LARGEBUF	16 * 1024 * 1024	/* handle large rulesets */
+#define	CTL3_LARGEBUF	(16 * 1024 * 1024)	/* handle large rulesets */
 
 static int ipfw_flush_sopt_data(struct sockopt_data *sd);
 
-static struct ipfw_sopt_handler	scodes[] = {
-	{ IP_FW_XGET,		0,	HDIR_GET,	dump_config },
-	{ IP_FW_XADD,		0,	HDIR_BOTH,	add_rules },
-	{ IP_FW_XDEL,		0,	HDIR_BOTH,	del_rules },
-	{ IP_FW_XZERO,		0,	HDIR_SET,	clear_rules },
-	{ IP_FW_XRESETLOG,	0,	HDIR_SET,	clear_rules },
-	{ IP_FW_XMOVE,		0,	HDIR_SET,	move_rules },
-	{ IP_FW_SET_SWAP,	0,	HDIR_SET,	manage_sets },
-	{ IP_FW_SET_MOVE,	0,	HDIR_SET,	manage_sets },
-	{ IP_FW_SET_ENABLE,	0,	HDIR_SET,	manage_sets },
-	{ IP_FW_DUMP_SOPTCODES,	0,	HDIR_GET,	dump_soptcodes },
-	{ IP_FW_DUMP_SRVOBJECTS,0,	HDIR_GET,	dump_srvobjects },
+static sopt_handler_f dump_config, add_rules, del_rules, clear_rules,
+    move_rules, manage_sets, dump_soptcodes, dump_srvobjects,
+    manage_skiptocache;
+
+static struct ipfw_sopt_handler scodes[] = {
+    { IP_FW_XGET,		IP_FW3_OPVER, HDIR_GET, dump_config },
+    { IP_FW_XADD,		IP_FW3_OPVER, HDIR_BOTH, add_rules },
+    { IP_FW_XDEL,		IP_FW3_OPVER, HDIR_BOTH, del_rules },
+    { IP_FW_XZERO,		IP_FW3_OPVER, HDIR_SET, clear_rules },
+    { IP_FW_XRESETLOG,		IP_FW3_OPVER, HDIR_SET, clear_rules },
+    { IP_FW_XMOVE,		IP_FW3_OPVER, HDIR_SET, move_rules },
+    { IP_FW_SET_SWAP,		IP_FW3_OPVER, HDIR_SET, manage_sets },
+    { IP_FW_SET_MOVE,		IP_FW3_OPVER, HDIR_SET, manage_sets },
+    { IP_FW_SET_ENABLE,		IP_FW3_OPVER, HDIR_SET, manage_sets },
+    { IP_FW_DUMP_SOPTCODES,	IP_FW3_OPVER, HDIR_GET, dump_soptcodes },
+    { IP_FW_DUMP_SRVOBJECTS,	IP_FW3_OPVER, HDIR_GET, dump_srvobjects },
+    { IP_FW_SKIPTO_CACHE,	IP_FW3_OPVER, HDIR_BOTH, manage_skiptocache },
 };
 
-static int
-set_legacy_obj_kidx(struct ip_fw_chain *ch, struct ip_fw_rule0 *rule);
 static struct opcode_obj_rewrite *find_op_rw(ipfw_insn *cmd,
-    uint16_t *puidx, uint8_t *ptype);
+    uint32_t *puidx, uint8_t *ptype);
 static int ref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule,
     struct rule_check_info *ci, struct obj_idx *oib, struct tid_info *ti);
 static int ref_opcode_object(struct ip_fw_chain *ch, ipfw_insn *cmd,
@@ -165,7 +154,7 @@ static int ref_opcode_object(struct ip_fw_chain *ch, ipfw_insn *cmd,
 static void unref_rule_objects(struct ip_fw_chain *chain, struct ip_fw *rule);
 static void unref_oib_objects(struct ip_fw_chain *ch, ipfw_insn *cmd,
     struct obj_idx *oib, struct obj_idx *end);
-static int export_objhash_ntlv(struct namedobj_instance *ni, uint16_t kidx,
+static int export_objhash_ntlv(struct namedobj_instance *ni, uint32_t kidx,
     struct sockopt_data *sd);
 
 /*
@@ -256,7 +245,7 @@ ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id)
 static void
 update_skipto_cache(struct ip_fw_chain *chain, struct ip_fw **map)
 {
-	int *smap, rulenum;
+	uint32_t *smap, rulenum;
 	int i, mi;
 
 	IPFW_UH_WLOCK_ASSERT(chain);
@@ -268,10 +257,10 @@ update_skipto_cache(struct ip_fw_chain *chain, struct ip_fw **map)
 	if (smap == NULL)
 		return;
 
-	for (i = 0; i < 65536; i++) {
+	for (i = 0; i <= IPFW_DEFAULT_RULE; i++) {
 		smap[i] = mi;
 		/* Use the same rule index until i < rulenum */
-		if (i != rulenum || i == 65535)
+		if (i != rulenum || i == IPFW_DEFAULT_RULE)
 			continue;
 		/* Find next rule with num > i */
 		rulenum = map[++mi]->rulenum;
@@ -286,7 +275,7 @@ update_skipto_cache(struct ip_fw_chain *chain, struct ip_fw **map)
 static void
 swap_skipto_cache(struct ip_fw_chain *chain)
 {
-	int *map;
+	uint32_t *map;
 
 	IPFW_UH_WLOCK_ASSERT(chain);
 	IPFW_WLOCK_ASSERT(chain);
@@ -302,10 +291,12 @@ swap_skipto_cache(struct ip_fw_chain *chain)
 void
 ipfw_init_skipto_cache(struct ip_fw_chain *chain)
 {
-	int *idxmap, *idxmap_back;
+	uint32_t *idxmap, *idxmap_back;
 
-	idxmap = malloc(65536 * sizeof(int), M_IPFW, M_WAITOK | M_ZERO);
-	idxmap_back = malloc(65536 * sizeof(int), M_IPFW, M_WAITOK);
+	idxmap = malloc((IPFW_DEFAULT_RULE + 1) * sizeof(uint32_t),
+	    M_IPFW, M_WAITOK | M_ZERO);
+	idxmap_back = malloc((IPFW_DEFAULT_RULE + 1) * sizeof(uint32_t),
+	    M_IPFW, M_WAITOK | M_ZERO);
 
 	/*
 	 * Note we may be called at any time after initialization,
@@ -323,7 +314,8 @@ ipfw_init_skipto_cache(struct ip_fw_chain *chain)
 
 	/* Set backup pointer first to permit building cache */
 	chain->idxmap_back = idxmap_back;
-	update_skipto_cache(chain, chain->map);
+	if (V_skipto_cache != 0)
+		update_skipto_cache(chain, chain->map);
 	IPFW_WLOCK(chain);
 	/* It is now safe to set chain->idxmap ptr */
 	chain->idxmap = idxmap;
@@ -338,11 +330,8 @@ ipfw_init_skipto_cache(struct ip_fw_chain *chain)
 void
 ipfw_destroy_skipto_cache(struct ip_fw_chain *chain)
 {
-
-	if (chain->idxmap != NULL)
-		free(chain->idxmap, M_IPFW);
-	if (chain->idxmap != NULL)
-		free(chain->idxmap_back, M_IPFW);
+	free(chain->idxmap, M_IPFW);
+	free(chain->idxmap_back, M_IPFW);
 }
 
 /*
@@ -412,50 +401,6 @@ export_cntr1_base(struct ip_fw *krule, struct ip_fw_bcounter *cntr)
 	}
 }
 
-static void
-export_cntr0_base(struct ip_fw *krule, struct ip_fw_bcounter0 *cntr)
-{
-	struct timeval boottime;
-
-	if (krule->cntr != NULL) {
-		cntr->pcnt = counter_u64_fetch(krule->cntr);
-		cntr->bcnt = counter_u64_fetch(krule->cntr + 1);
-		cntr->timestamp = krule->timestamp;
-	}
-	if (cntr->timestamp > 0) {
-		getboottime(&boottime);
-		cntr->timestamp += boottime.tv_sec;
-	}
-}
-
-/*
- * Copies rule @urule from v1 userland format (current).
- * to kernel @krule.
- * Assume @krule is zeroed.
- */
-static void
-import_rule1(struct rule_check_info *ci)
-{
-	struct ip_fw_rule *urule;
-	struct ip_fw *krule;
-
-	urule = (struct ip_fw_rule *)ci->urule;
-	krule = (struct ip_fw *)ci->krule;
-
-	/* copy header */
-	krule->act_ofs = urule->act_ofs;
-	krule->cmd_len = urule->cmd_len;
-	krule->rulenum = urule->rulenum;
-	krule->set = urule->set;
-	krule->flags = urule->flags;
-
-	/* Save rulenum offset */
-	ci->urule_numoff = offsetof(struct ip_fw_rule, rulenum);
-
-	/* Copy opcodes */
-	memcpy(krule->cmd, urule->cmd, krule->cmd_len * sizeof(uint32_t));
-}
-
 /*
  * Export rule into v1 format (Current).
  * Layout:
@@ -498,195 +443,16 @@ export_rule1(struct ip_fw *krule, caddr_t data, int len, int rcntrs)
 }
 
 /*
- * Copies rule @urule from FreeBSD8 userland format (v0)
- * to kernel @krule.
- * Assume @krule is zeroed.
- */
-static void
-import_rule0(struct rule_check_info *ci)
-{
-	struct ip_fw_rule0 *urule;
-	struct ip_fw *krule;
-	int cmdlen, l;
-	ipfw_insn *cmd;
-	ipfw_insn_limit *lcmd;
-	ipfw_insn_if *cmdif;
-
-	urule = (struct ip_fw_rule0 *)ci->urule;
-	krule = (struct ip_fw *)ci->krule;
-
-	/* copy header */
-	krule->act_ofs = urule->act_ofs;
-	krule->cmd_len = urule->cmd_len;
-	krule->rulenum = urule->rulenum;
-	krule->set = urule->set;
-	if ((urule->_pad & 1) != 0)
-		krule->flags |= IPFW_RULE_NOOPT;
-
-	/* Save rulenum offset */
-	ci->urule_numoff = offsetof(struct ip_fw_rule0, rulenum);
-
-	/* Copy opcodes */
-	memcpy(krule->cmd, urule->cmd, krule->cmd_len * sizeof(uint32_t));
-
-	/*
-	 * Alter opcodes:
-	 * 1) convert tablearg value from 65535 to 0
-	 * 2) Add high bit to O_SETFIB/O_SETDSCP values (to make room
-	 *    for targ).
-	 * 3) convert table number in iface opcodes to u16
-	 * 4) convert old `nat global` into new 65535
-	 */
-	l = krule->cmd_len;
-	cmd = krule->cmd;
-	cmdlen = 0;
-
-	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
-		cmdlen = F_LEN(cmd);
-
-		switch (cmd->opcode) {
-		/* Opcodes supporting tablearg */
-		case O_TAG:
-		case O_TAGGED:
-		case O_PIPE:
-		case O_QUEUE:
-		case O_DIVERT:
-		case O_TEE:
-		case O_SKIPTO:
-		case O_CALLRETURN:
-		case O_NETGRAPH:
-		case O_NGTEE:
-		case O_NAT:
-			if (cmd->arg1 == IP_FW_TABLEARG)
-				cmd->arg1 = IP_FW_TARG;
-			else if (cmd->arg1 == 0)
-				cmd->arg1 = IP_FW_NAT44_GLOBAL;
-			break;
-		case O_SETFIB:
-		case O_SETDSCP:
-		case O_SETMARK:
-		case O_MARK:
-			if (cmd->arg1 == IP_FW_TABLEARG)
-				cmd->arg1 = IP_FW_TARG;
-			else
-				cmd->arg1 |= 0x8000;
-			break;
-		case O_LIMIT:
-			lcmd = (ipfw_insn_limit *)cmd;
-			if (lcmd->conn_limit == IP_FW_TABLEARG)
-				lcmd->conn_limit = IP_FW_TARG;
-			break;
-		/* Interface tables */
-		case O_XMIT:
-		case O_RECV:
-		case O_VIA:
-			/* Interface table, possibly */
-			cmdif = (ipfw_insn_if *)cmd;
-			if (cmdif->name[0] != '\1')
-				break;
-
-			cmdif->p.kidx = (uint16_t)cmdif->p.glob;
-			break;
-		}
-	}
-}
-
-/*
- * Copies rule @krule from kernel to FreeBSD8 userland format (v0)
- */
-static void
-export_rule0(struct ip_fw *krule, struct ip_fw_rule0 *urule, int len)
-{
-	int cmdlen, l;
-	ipfw_insn *cmd;
-	ipfw_insn_limit *lcmd;
-	ipfw_insn_if *cmdif;
-
-	/* copy header */
-	memset(urule, 0, len);
-	urule->act_ofs = krule->act_ofs;
-	urule->cmd_len = krule->cmd_len;
-	urule->rulenum = krule->rulenum;
-	urule->set = krule->set;
-	if ((krule->flags & IPFW_RULE_NOOPT) != 0)
-		urule->_pad |= 1;
-
-	/* Copy opcodes */
-	memcpy(urule->cmd, krule->cmd, krule->cmd_len * sizeof(uint32_t));
-
-	/* Export counters */
-	export_cntr0_base(krule, (struct ip_fw_bcounter0 *)&urule->pcnt);
-
-	/*
-	 * Alter opcodes:
-	 * 1) convert tablearg value from 0 to 65535
-	 * 2) Remove highest bit from O_SETFIB/O_SETDSCP values.
-	 * 3) convert table number in iface opcodes to int
-	 */
-	l = urule->cmd_len;
-	cmd = urule->cmd;
-	cmdlen = 0;
-
-	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
-		cmdlen = F_LEN(cmd);
-
-		switch (cmd->opcode) {
-		/* Opcodes supporting tablearg */
-		case O_TAG:
-		case O_TAGGED:
-		case O_PIPE:
-		case O_QUEUE:
-		case O_DIVERT:
-		case O_TEE:
-		case O_SKIPTO:
-		case O_CALLRETURN:
-		case O_NETGRAPH:
-		case O_NGTEE:
-		case O_NAT:
-			if (cmd->arg1 == IP_FW_TARG)
-				cmd->arg1 = IP_FW_TABLEARG;
-			else if (cmd->arg1 == IP_FW_NAT44_GLOBAL)
-				cmd->arg1 = 0;
-			break;
-		case O_SETFIB:
-		case O_SETDSCP:
-		case O_SETMARK:
-		case O_MARK:
-			if (cmd->arg1 == IP_FW_TARG)
-				cmd->arg1 = IP_FW_TABLEARG;
-			else
-				cmd->arg1 &= ~0x8000;
-			break;
-		case O_LIMIT:
-			lcmd = (ipfw_insn_limit *)cmd;
-			if (lcmd->conn_limit == IP_FW_TARG)
-				lcmd->conn_limit = IP_FW_TABLEARG;
-			break;
-		/* Interface tables */
-		case O_XMIT:
-		case O_RECV:
-		case O_VIA:
-			/* Interface table, possibly */
-			cmdif = (ipfw_insn_if *)cmd;
-			if (cmdif->name[0] != '\1')
-				break;
-
-			cmdif->p.glob = cmdif->p.kidx;
-			break;
-		}
-	}
-}
-
-/*
  * Add new rule(s) to the list possibly creating rule number for each.
  * Update the rule_number in the input struct so the caller knows it as well.
  * Must be called without IPFW_UH held
  */
-static int
-commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
+int
+ipfw_commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci,
+    int count)
 {
-	int error, i, insert_before, tcount;
-	uint16_t rulenum, *pnum;
+	int error, i, insert_before, tcount, rule_idx, last_rule_idx;
+	uint32_t rulenum;
 	struct rule_check_info *ci;
 	struct ip_fw *krule;
 	struct ip_fw **map;	/* the new array of pointers */
@@ -704,12 +470,14 @@ commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 		 */
 		error = rewrite_rule_uidx(chain, ci);
 		if (error != 0) {
+
 			/*
 			 * rewrite failed, state for current rule
 			 * has been reverted. Check if we need to
 			 * revert more.
 			 */
 			if (tcount > 0) {
+
 				/*
 				 * We have some more table rules
 				 * we need to rollback.
@@ -721,8 +489,10 @@ commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 					if (ci->object_opcodes == 0)
 						continue;
 					unref_rule_objects(chain,ci->krule);
+
 				}
 				IPFW_UH_WUNLOCK(chain);
+
 			}
 
 			return (error);
@@ -754,36 +524,41 @@ commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 	else if (V_autoinc_step > 1000)
 		V_autoinc_step = 1000;
 
-	/* FIXME: Handle count > 1 */
-	ci = rci;
-	krule = ci->krule;
-	rulenum = krule->rulenum;
+	last_rule_idx = 0;
+	for (ci = rci, i = 0; i < count; ci++, i++) {
+		krule = ci->krule;
+		rulenum = krule->rulenum;
 
-	/* find the insertion point, we will insert before */
-	insert_before = rulenum ? rulenum + 1 : IPFW_DEFAULT_RULE;
-	i = ipfw_find_rule(chain, insert_before, 0);
-	/* duplicate first part */
-	if (i > 0)
-		bcopy(chain->map, map, i * sizeof(struct ip_fw *));
-	map[i] = krule;
-	/* duplicate remaining part, we always have the default rule */
-	bcopy(chain->map + i, map + i + 1,
-		sizeof(struct ip_fw *) *(chain->n_rules - i));
-	if (rulenum == 0) {
-		/* Compute rule number and write it back */
-		rulenum = i > 0 ? map[i-1]->rulenum : 0;
-		if (rulenum < IPFW_DEFAULT_RULE - V_autoinc_step)
-			rulenum += V_autoinc_step;
-		krule->rulenum = rulenum;
-		/* Save number to userland rule */
-		pnum = (uint16_t *)((caddr_t)ci->urule + ci->urule_numoff);
-		*pnum = rulenum;
+		krule->id = chain->id + 1;
+
+		/* find the insertion point, we will insert before */
+		insert_before = rulenum ? rulenum + 1 : IPFW_DEFAULT_RULE;
+		rule_idx = ipfw_find_rule(chain, insert_before, 0);
+		/* duplicate the previous part */
+		if (last_rule_idx < rule_idx)
+			bcopy(chain->map + last_rule_idx, map + last_rule_idx + i,
+			    (rule_idx - last_rule_idx) * sizeof(struct ip_fw *));
+		last_rule_idx = rule_idx;
+		map[rule_idx + i] = krule;
+		if (rulenum == 0) {
+			/* Compute rule number and write it back */
+			rulenum = rule_idx + i > 0 ? map[rule_idx + i - 1]->rulenum : 0;
+			if (rulenum < IPFW_DEFAULT_RULE - V_autoinc_step)
+				rulenum += V_autoinc_step;
+			krule->rulenum = rulenum;
+			/* Save number to userland rule */
+			memcpy((char *)ci->urule + ci->urule_numoff, &rulenum,
+			    sizeof(rulenum));
+		}
 	}
 
-	krule->id = chain->id + 1;
-	update_skipto_cache(chain, map);
-	map = swap_map(chain, map, chain->n_rules + 1);
-	chain->static_len += RULEUSIZE0(krule);
+	/* duplicate the remaining part, we always have the default rule */
+	bcopy(chain->map + last_rule_idx, map + last_rule_idx + count,
+	    (chain->n_rules - last_rule_idx) * sizeof(struct ip_fw *));
+
+	if (V_skipto_cache != 0)
+		update_skipto_cache(chain, map);
+	map = swap_map(chain, map, chain->n_rules + count);
 	IPFW_UH_WUNLOCK(chain);
 	if (map)
 		free(map, M_IPFW);
@@ -808,7 +583,6 @@ ipfw_add_protected_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
 	rule->id = chain->id + 1;
 	/* We add rule in the end of chain, no need to update skipto cache */
 	map = swap_map(chain, map, chain->n_rules + 1);
-	chain->static_len += RULEUSIZE0(rule);
 	IPFW_UH_WUNLOCK(chain);
 	free(map, M_IPFW);
 	return (0);
@@ -889,7 +663,7 @@ ipfw_match_range(struct ip_fw *rule, ipfw_range_tlv *rt)
 }
 
 struct manage_sets_args {
-	uint16_t	set;
+	uint32_t	set;
 	uint8_t		new_set;
 };
 
@@ -939,7 +713,7 @@ test_sets_cb(struct namedobj_instance *ni, struct named_object *no,
  */
 int
 ipfw_obj_manage_sets(struct namedobj_instance *ni, uint16_t type,
-    uint16_t set, uint8_t new_set, enum ipfw_sets_cmd cmd)
+    uint32_t set, uint8_t new_set, enum ipfw_sets_cmd cmd)
 {
 	struct manage_sets_args args;
 	struct named_object *no;
@@ -1001,11 +775,11 @@ ipfw_obj_manage_sets(struct namedobj_instance *ni, uint16_t type,
  *
  * Returns 0 on success.
  */
-static int
+int
 delete_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int *ndel)
 {
 	struct ip_fw *reap, *rule, **map;
-	int end, start;
+	uint32_t end, start;
 	int i, n, ndyn, ofs;
 
 	reap = NULL;
@@ -1076,7 +850,6 @@ delete_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int *ndel)
 		rule = map[i];
 		if (ipfw_match_range(rule, rt) == 0)
 			continue;
-		chain->static_len -= RULEUSIZE0(rule);
 		ipfw_reap_add(chain, &reap, rule);
 	}
 	IPFW_UH_WUNLOCK(chain);
@@ -1094,8 +867,8 @@ move_objects(struct ip_fw_chain *ch, ipfw_range_tlv *rt)
 	struct opcode_obj_rewrite *rw;
 	struct ip_fw *rule;
 	ipfw_insn *cmd;
+	uint32_t kidx;
 	int cmdlen, i, l, c;
-	uint16_t kidx;
 
 	IPFW_UH_WLOCK_ASSERT(ch);
 
@@ -1508,173 +1281,9 @@ manage_sets(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	return (ret);
 }
 
-/**
- * Remove all rules with given number, or do set manipulation.
- * Assumes chain != NULL && *chain != NULL.
- *
- * The argument is an uint32_t. The low 16 bit are the rule or set number;
- * the next 8 bits are the new set; the top 8 bits indicate the command:
- *
- *	0	delete rules numbered "rulenum"
- *	1	delete rules in set "rulenum"
- *	2	move rules "rulenum" to set "new_set"
- *	3	move rules from set "rulenum" to set "new_set"
- *	4	swap sets "rulenum" and "new_set"
- *	5	delete rules "rulenum" and set "new_set"
- */
-static int
-del_entry(struct ip_fw_chain *chain, uint32_t arg)
-{
-	uint32_t num;	/* rule number or old_set */
-	uint8_t cmd, new_set;
-	int do_del, ndel;
-	int error = 0;
-	ipfw_range_tlv rt;
-
-	num = arg & 0xffff;
-	cmd = (arg >> 24) & 0xff;
-	new_set = (arg >> 16) & 0xff;
-
-	if (cmd > 5 || new_set > RESVD_SET)
-		return EINVAL;
-	if (cmd == 0 || cmd == 2 || cmd == 5) {
-		if (num >= IPFW_DEFAULT_RULE)
-			return EINVAL;
-	} else {
-		if (num > RESVD_SET)	/* old_set */
-			return EINVAL;
-	}
-
-	/* Convert old requests into new representation */
-	memset(&rt, 0, sizeof(rt));
-	rt.start_rule = num;
-	rt.end_rule = num;
-	rt.set = num;
-	rt.new_set = new_set;
-	do_del = 0;
-
-	switch (cmd) {
-	case 0: /* delete rules numbered "rulenum" */
-		if (num == 0)
-			rt.flags |= IPFW_RCFLAG_ALL;
-		else
-			rt.flags |= IPFW_RCFLAG_RANGE;
-		do_del = 1;
-		break;
-	case 1: /* delete rules in set "rulenum" */
-		rt.flags |= IPFW_RCFLAG_SET;
-		do_del = 1;
-		break;
-	case 5: /* delete rules "rulenum" and set "new_set" */
-		rt.flags |= IPFW_RCFLAG_RANGE | IPFW_RCFLAG_SET;
-		rt.set = new_set;
-		rt.new_set = 0;
-		do_del = 1;
-		break;
-	case 2: /* move rules "rulenum" to set "new_set" */
-		rt.flags |= IPFW_RCFLAG_RANGE;
-		break;
-	case 3: /* move rules from set "rulenum" to set "new_set" */
-		IPFW_UH_WLOCK(chain);
-		error = swap_sets(chain, &rt, 1);
-		IPFW_UH_WUNLOCK(chain);
-		return (error);
-	case 4: /* swap sets "rulenum" and "new_set" */
-		IPFW_UH_WLOCK(chain);
-		error = swap_sets(chain, &rt, 0);
-		IPFW_UH_WUNLOCK(chain);
-		return (error);
-	default:
-		return (ENOTSUP);
-	}
-
-	if (do_del != 0) {
-		if ((error = delete_range(chain, &rt, &ndel)) != 0)
-			return (error);
-
-		if (ndel == 0 && (cmd != 1 && num != 0))
-			return (EINVAL);
-
-		return (0);
-	}
-
-	return (move_range(chain, &rt));
-}
-
-/**
- * Reset some or all counters on firewall rules.
- * The argument `arg' is an u_int32_t. The low 16 bit are the rule number,
- * the next 8 bits are the set number, the top 8 bits are the command:
- *	0	work with rules from all set's;
- *	1	work with rules only from specified set.
- * Specified rule number is zero if we want to clear all entries.
- * log_only is 1 if we only want to reset logs, zero otherwise.
- */
-static int
-zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
-{
-	struct ip_fw *rule;
-	char *msg;
-	int i;
-
-	uint16_t rulenum = arg & 0xffff;
-	uint8_t set = (arg >> 16) & 0xff;
-	uint8_t cmd = (arg >> 24) & 0xff;
-
-	if (cmd > 1)
-		return (EINVAL);
-	if (cmd == 1 && set > RESVD_SET)
-		return (EINVAL);
-
-	IPFW_UH_RLOCK(chain);
-	if (rulenum == 0) {
-		V_norule_counter = 0;
-		for (i = 0; i < chain->n_rules; i++) {
-			rule = chain->map[i];
-			/* Skip rules not in our set. */
-			if (cmd == 1 && rule->set != set)
-				continue;
-			clear_counters(rule, log_only);
-		}
-		msg = log_only ? "All logging counts reset" :
-		    "Accounting cleared";
-	} else {
-		int cleared = 0;
-		for (i = 0; i < chain->n_rules; i++) {
-			rule = chain->map[i];
-			if (rule->rulenum == rulenum) {
-				if (cmd == 0 || rule->set == set)
-					clear_counters(rule, log_only);
-				cleared = 1;
-			}
-			if (rule->rulenum > rulenum)
-				break;
-		}
-		if (!cleared) {	/* we did not find any matching rules */
-			IPFW_UH_RUNLOCK(chain);
-			return (EINVAL);
-		}
-		msg = log_only ? "logging count reset" : "cleared";
-	}
-	IPFW_UH_RUNLOCK(chain);
-
-	if (V_fw_verbose) {
-		int lev = LOG_SECURITY | LOG_NOTICE;
-
-		if (rulenum)
-			log(lev, "ipfw: Entry %d %s.\n", rulenum, msg);
-		else
-			log(lev, "ipfw: %s.\n", msg);
-	}
-	return (0);
-}
-
-/*
- * Check rule head in FreeBSD11 format
- *
- */
-static int
-check_ipfw_rule1(struct ip_fw_rule *rule, int size,
+/* Check rule format */
+int
+ipfw_check_rule(struct ip_fw_rule *rule, size_t size,
     struct rule_check_info *ci)
 {
 	int l;
@@ -1687,7 +1296,7 @@ check_ipfw_rule1(struct ip_fw_rule *rule, int size,
 	/* Check for valid cmd_len */
 	l = roundup2(RULESIZE(rule), sizeof(uint64_t));
 	if (l != size) {
-		printf("ipfw: size mismatch (have %d want %d)\n", size, l);
+		printf("ipfw: size mismatch (have %zu want %d)\n", size, l);
 		return (EINVAL);
 	}
 	if (rule->act_ofs >= rule->cmd_len) {
@@ -1702,532 +1311,377 @@ check_ipfw_rule1(struct ip_fw_rule *rule, int size,
 	return (check_ipfw_rule_body(rule->cmd, rule->cmd_len, ci));
 }
 
-/*
- * Check rule head in FreeBSD8 format
- *
- */
-static int
-check_ipfw_rule0(struct ip_fw_rule0 *rule, int size,
-    struct rule_check_info *ci)
+enum ipfw_opcheck_result
+ipfw_check_opcode(ipfw_insn **pcmd, int *plen, struct rule_check_info *ci)
 {
-	int l;
+	ipfw_insn *cmd;
+	size_t cmdlen;
 
-	if (size < sizeof(*rule)) {
-		printf("ipfw: rule too short\n");
-		return (EINVAL);
+	cmd = *pcmd;
+	cmdlen = F_LEN(cmd);
+
+	switch (cmd->opcode) {
+	case O_PROBE_STATE:
+	case O_KEEP_STATE:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_kidx))
+			return (BAD_SIZE);
+		ci->object_opcodes++;
+		break;
+	case O_PROTO:
+	case O_IP_SRC_ME:
+	case O_IP_DST_ME:
+	case O_LAYER2:
+	case O_IN:
+	case O_FRAG:
+	case O_DIVERTED:
+	case O_IPOPT:
+	case O_IPTOS:
+	case O_IPPRECEDENCE:
+	case O_IPVER:
+	case O_SOCKARG:
+	case O_TCPFLAGS:
+	case O_TCPOPTS:
+	case O_ESTAB:
+	case O_VERREVPATH:
+	case O_VERSRCREACH:
+	case O_ANTISPOOF:
+	case O_IPSEC:
+#ifdef INET6
+	case O_IP6_SRC_ME:
+	case O_IP6_DST_ME:
+	case O_EXT_HDR:
+	case O_IP6:
+#endif
+	case O_IP4:
+	case O_TAG:
+	case O_SKIP_ACTION:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn))
+			return (BAD_SIZE);
+		break;
+
+	case O_EXTERNAL_ACTION:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_kidx))
+			return (BAD_SIZE);
+
+		if (insntod(cmd, kidx)->kidx == 0)
+			return (FAILED);
+		ci->object_opcodes++;
+		/*
+		 * Do we have O_EXTERNAL_INSTANCE or O_EXTERNAL_DATA
+		 * opcode?
+		 */
+		if (*plen != cmdlen) {
+			*plen -= cmdlen;
+			cmd += cmdlen;
+			*pcmd = cmd;
+			cmdlen = F_LEN(cmd);
+			if (cmd->opcode == O_EXTERNAL_DATA)
+				return (CHECK_ACTION);
+			if (cmd->opcode != O_EXTERNAL_INSTANCE) {
+				printf("ipfw: invalid opcode "
+				    "next to external action %u\n",
+				    cmd->opcode);
+				return (FAILED);
+			}
+			if (cmdlen != F_INSN_SIZE(ipfw_insn_kidx))
+				return (BAD_SIZE);
+			if (insntod(cmd, kidx)->kidx == 0)
+				return (FAILED);
+			ci->object_opcodes++;
+		}
+		return (CHECK_ACTION);
+
+	case O_FIB:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn))
+			return (BAD_SIZE);
+		if (cmd->arg1 >= rt_numfibs) {
+			printf("ipfw: invalid fib number %d\n",
+				cmd->arg1);
+			return (FAILED);
+		}
+		break;
+
+	case O_SETFIB:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn))
+			return (BAD_SIZE);
+		if ((cmd->arg1 != IP_FW_TARG) &&
+		    ((cmd->arg1 & 0x7FFF) >= rt_numfibs)) {
+			printf("ipfw: invalid fib number %d\n",
+				cmd->arg1 & 0x7FFF);
+			return (FAILED);
+		}
+		return (CHECK_ACTION);
+
+	case O_UID:
+	case O_GID:
+	case O_JAIL:
+	case O_IP_SRC:
+	case O_IP_DST:
+	case O_TCPSEQ:
+	case O_TCPACK:
+	case O_PROB:
+	case O_ICMPTYPE:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_u32))
+			return (BAD_SIZE);
+		break;
+
+	case O_LIMIT:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_limit))
+			return (BAD_SIZE);
+		ci->object_opcodes++;
+		break;
+
+	case O_LOG:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_log))
+			return (BAD_SIZE);
+		insntod(cmd, log)->log_left = insntod(cmd, log)->max_log;
+		break;
+
+	case O_IP_SRC_MASK:
+	case O_IP_DST_MASK:
+		/* only odd command lengths */
+		if ((cmdlen & 1) == 0)
+			return (BAD_SIZE);
+		break;
+
+	case O_IP_SRC_SET:
+	case O_IP_DST_SET:
+		if (cmd->arg1 == 0 || cmd->arg1 > 256) {
+			printf("ipfw: invalid set size %d\n",
+				cmd->arg1);
+			return (FAILED);
+		}
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_u32) +
+		    (cmd->arg1+31)/32 )
+			return (BAD_SIZE);
+		break;
+
+	case O_IP_SRC_LOOKUP:
+	case O_IP_DST_LOOKUP:
+	case O_IP_FLOW_LOOKUP:
+	case O_MAC_SRC_LOOKUP:
+	case O_MAC_DST_LOOKUP:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_kidx) &&
+		    cmdlen != F_INSN_SIZE(ipfw_insn_table))
+			return (BAD_SIZE);
+		if (insntod(cmd, kidx)->kidx >= V_fw_tables_max) {
+			printf("ipfw: invalid table index %u\n",
+			    insntod(cmd, kidx)->kidx);
+			return (FAILED);
+		}
+		ci->object_opcodes++;
+		break;
+	case O_MACADDR2:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_mac))
+			return (BAD_SIZE);
+		break;
+
+	case O_NOP:
+	case O_IPID:
+	case O_IPTTL:
+	case O_IPLEN:
+	case O_TCPDATALEN:
+	case O_TCPMSS:
+	case O_TCPWIN:
+	case O_TAGGED:
+		if (cmdlen < 1 || cmdlen > 31)
+			return (BAD_SIZE);
+		break;
+
+	case O_DSCP:
+	case O_MARK:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_u32) + 1)
+			return (BAD_SIZE);
+		break;
+
+	case O_MAC_TYPE:
+	case O_IP_SRCPORT:
+	case O_IP_DSTPORT: /* XXX artificial limit, 30 port pairs */
+		if (cmdlen < 2 || cmdlen > 31)
+			return (BAD_SIZE);
+		break;
+
+	case O_RECV:
+	case O_XMIT:
+	case O_VIA:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_if))
+			return (BAD_SIZE);
+		ci->object_opcodes++;
+		break;
+
+	case O_ALTQ:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_altq))
+			return (BAD_SIZE);
+		break;
+
+	case O_PIPE:
+	case O_QUEUE:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn))
+			return (BAD_SIZE);
+		return (CHECK_ACTION);
+
+	case O_FORWARD_IP:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_sa))
+			return (BAD_SIZE);
+		return (CHECK_ACTION);
+#ifdef INET6
+	case O_FORWARD_IP6:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_sa6))
+			return (BAD_SIZE);
+		return (CHECK_ACTION);
+#endif /* INET6 */
+
+	case O_DIVERT:
+	case O_TEE:
+		if (ip_divert_ptr == NULL)
+			return (FAILED);
+		if (cmdlen != F_INSN_SIZE(ipfw_insn))
+			return (BAD_SIZE);
+		return (CHECK_ACTION);
+	case O_NETGRAPH:
+	case O_NGTEE:
+		if (ng_ipfw_input_p == NULL)
+			return (FAILED);
+		if (cmdlen != F_INSN_SIZE(ipfw_insn))
+			return (BAD_SIZE);
+		return (CHECK_ACTION);
+	case O_NAT:
+		if (!IPFW_NAT_LOADED)
+			return (FAILED);
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_nat))
+			return (BAD_SIZE);
+		return (CHECK_ACTION);
+
+	case O_SKIPTO:
+	case O_CALLRETURN:
+	case O_SETMARK:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_u32))
+			return (BAD_SIZE);
+		return (CHECK_ACTION);
+
+	case O_CHECK_STATE:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_kidx))
+			return (BAD_SIZE);
+		ci->object_opcodes++;
+		return (CHECK_ACTION);
+
+	case O_FORWARD_MAC: /* XXX not implemented yet */
+	case O_COUNT:
+	case O_ACCEPT:
+	case O_DENY:
+	case O_REJECT:
+	case O_SETDSCP:
+#ifdef INET6
+	case O_UNREACH6:
+#endif
+	case O_REASS:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn))
+			return (BAD_SIZE);
+		return (CHECK_ACTION);
+#ifdef INET6
+	case O_IP6_SRC:
+	case O_IP6_DST:
+		if (cmdlen != F_INSN_SIZE(struct in6_addr) +
+		    F_INSN_SIZE(ipfw_insn))
+			return (BAD_SIZE);
+		break;
+
+	case O_FLOW6ID:
+		if (cmdlen != F_INSN_SIZE(ipfw_insn_u32) +
+		    ((ipfw_insn_u32 *)cmd)->o.arg1)
+			return (BAD_SIZE);
+		break;
+
+	case O_IP6_SRC_MASK:
+	case O_IP6_DST_MASK:
+		if ( !(cmdlen & 1) || cmdlen > 127)
+			return (BAD_SIZE);
+		break;
+	case O_ICMP6TYPE:
+		if( cmdlen != F_INSN_SIZE( ipfw_insn_icmp6 ) )
+			return (BAD_SIZE);
+		break;
+#endif
+
+	default:
+		switch (cmd->opcode) {
+#ifndef INET6
+		case O_IP6_SRC_ME:
+		case O_IP6_DST_ME:
+		case O_EXT_HDR:
+		case O_IP6:
+		case O_UNREACH6:
+		case O_IP6_SRC:
+		case O_IP6_DST:
+		case O_FLOW6ID:
+		case O_IP6_SRC_MASK:
+		case O_IP6_DST_MASK:
+		case O_ICMP6TYPE:
+			printf("ipfw: no IPv6 support in kernel\n");
+			return (FAILED);
+#endif
+		default:
+			printf("ipfw: opcode %d: unknown opcode\n",
+				cmd->opcode);
+			return (FAILED);
+		}
 	}
-
-	/* Check for valid cmd_len */
-	l = sizeof(*rule) + rule->cmd_len * 4 - 4;
-	if (l != size) {
-		printf("ipfw: size mismatch (have %d want %d)\n", size, l);
-		return (EINVAL);
-	}
-	if (rule->act_ofs >= rule->cmd_len) {
-		printf("ipfw: bogus action offset (%u > %u)\n",
-		    rule->act_ofs, rule->cmd_len - 1);
-		return (EINVAL);
-	}
-
-	if (rule->rulenum > IPFW_DEFAULT_RULE - 1)
-		return (EINVAL);
-
-	return (check_ipfw_rule_body(rule->cmd, rule->cmd_len, ci));
+	return (SUCCESS);
 }
 
-static int
+static __noinline int
 check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 {
 	int cmdlen, l;
-	int have_action;
-
-	have_action = 0;
+	int have_action, ret;
 
 	/*
 	 * Now go for the individual checks. Very simple ones, basically only
 	 * instruction sizes.
 	 */
+	have_action = 0;
 	for (l = cmd_len; l > 0 ; l -= cmdlen, cmd += cmdlen) {
 		cmdlen = F_LEN(cmd);
 		if (cmdlen > l) {
-			printf("ipfw: opcode %d size truncated\n",
+			printf("ipfw: opcode %d: size truncated\n",
 			    cmd->opcode);
-			return EINVAL;
+			return (EINVAL);
 		}
-		switch (cmd->opcode) {
-		case O_PROBE_STATE:
-		case O_KEEP_STATE:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn))
-				goto bad_size;
-			ci->object_opcodes++;
-			break;
-		case O_PROTO:
-		case O_IP_SRC_ME:
-		case O_IP_DST_ME:
-		case O_LAYER2:
-		case O_IN:
-		case O_FRAG:
-		case O_DIVERTED:
-		case O_IPOPT:
-		case O_IPTOS:
-		case O_IPPRECEDENCE:
-		case O_IPVER:
-		case O_SOCKARG:
-		case O_TCPFLAGS:
-		case O_TCPOPTS:
-		case O_ESTAB:
-		case O_VERREVPATH:
-		case O_VERSRCREACH:
-		case O_ANTISPOOF:
-		case O_IPSEC:
-#ifdef INET6
-		case O_IP6_SRC_ME:
-		case O_IP6_DST_ME:
-		case O_EXT_HDR:
-		case O_IP6:
-#endif
-		case O_IP4:
-		case O_TAG:
-		case O_SKIP_ACTION:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn))
-				goto bad_size;
-			break;
+		if (ci->version != IP_FW3_OPVER)
+			ret = (*check_opcode_f)(&cmd, &l, ci);
+		else
+			ret = ipfw_check_opcode(&cmd, &l, ci);
 
-		case O_EXTERNAL_ACTION:
-			if (cmd->arg1 == 0 ||
-			    cmdlen != F_INSN_SIZE(ipfw_insn)) {
-				printf("ipfw: invalid external "
-				    "action opcode\n");
-				return (EINVAL);
+		if (ret == CHECK_ACTION) {
+			if (have_action != 0) {
+				printf("ipfw: opcode %d: multiple actions"
+				    " not allowed\n", cmd->opcode);
+				ret = FAILED;
+			} else
+				have_action = 1;
+
+			if (l != F_LEN(cmd)) {
+				printf("ipfw: opcode %d: action must be"
+				    " last opcode\n", cmd->opcode);
+				ret = FAILED;
 			}
-			ci->object_opcodes++;
-			/*
-			 * Do we have O_EXTERNAL_INSTANCE or O_EXTERNAL_DATA
-			 * opcode?
-			 */
-			if (l != cmdlen) {
-				l -= cmdlen;
-				cmd += cmdlen;
-				cmdlen = F_LEN(cmd);
-				if (cmd->opcode == O_EXTERNAL_DATA)
-					goto check_action;
-				if (cmd->opcode != O_EXTERNAL_INSTANCE) {
-					printf("ipfw: invalid opcode "
-					    "next to external action %u\n",
-					    cmd->opcode);
-					return (EINVAL);
-				}
-				if (cmd->arg1 == 0 ||
-				    cmdlen != F_INSN_SIZE(ipfw_insn)) {
-					printf("ipfw: invalid external "
-					    "action instance opcode\n");
-					return (EINVAL);
-				}
-				ci->object_opcodes++;
-			}
-			goto check_action;
-
-		case O_FIB:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn))
-				goto bad_size;
-			if (cmd->arg1 >= rt_numfibs) {
-				printf("ipfw: invalid fib number %d\n",
-					cmd->arg1);
-				return EINVAL;
-			}
-			break;
-
-		case O_SETFIB:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn))
-				goto bad_size;
-			if ((cmd->arg1 != IP_FW_TARG) &&
-			    ((cmd->arg1 & 0x7FFF) >= rt_numfibs)) {
-				printf("ipfw: invalid fib number %d\n",
-					cmd->arg1 & 0x7FFF);
-				return EINVAL;
-			}
-			goto check_action;
-
-		case O_UID:
-		case O_GID:
-		case O_JAIL:
-		case O_IP_SRC:
-		case O_IP_DST:
-		case O_TCPSEQ:
-		case O_TCPACK:
-		case O_PROB:
-		case O_ICMPTYPE:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_u32))
-				goto bad_size;
-			break;
-
-		case O_LIMIT:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_limit))
-				goto bad_size;
-			ci->object_opcodes++;
-			break;
-
-		case O_LOG:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_log))
-				goto bad_size;
-
-			((ipfw_insn_log *)cmd)->log_left =
-			    ((ipfw_insn_log *)cmd)->max_log;
-
-			break;
-
-		case O_IP_SRC_MASK:
-		case O_IP_DST_MASK:
-			/* only odd command lengths */
-			if ((cmdlen & 1) == 0)
-				goto bad_size;
-			break;
-
-		case O_IP_SRC_SET:
-		case O_IP_DST_SET:
-			if (cmd->arg1 == 0 || cmd->arg1 > 256) {
-				printf("ipfw: invalid set size %d\n",
-					cmd->arg1);
-				return EINVAL;
-			}
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_u32) +
-			    (cmd->arg1+31)/32 )
-				goto bad_size;
-			break;
-
-		case O_IP_SRC_LOOKUP:
-			if (cmdlen > F_INSN_SIZE(ipfw_insn_u32))
-				goto bad_size;
-		case O_IP_DST_LOOKUP:
-			if (cmd->arg1 >= V_fw_tables_max) {
-				printf("ipfw: invalid table number %d\n",
-				    cmd->arg1);
-				return (EINVAL);
-			}
-			if (cmdlen != F_INSN_SIZE(ipfw_insn) &&
-			    cmdlen != F_INSN_SIZE(ipfw_insn_u32) + 1 &&
-			    cmdlen != F_INSN_SIZE(ipfw_insn_u32))
-				goto bad_size;
-			ci->object_opcodes++;
-			break;
-		case O_IP_FLOW_LOOKUP:
-		case O_MAC_DST_LOOKUP:
-		case O_MAC_SRC_LOOKUP:
-			if (cmd->arg1 >= V_fw_tables_max) {
-				printf("ipfw: invalid table number %d\n",
-				    cmd->arg1);
-				return (EINVAL);
-			}
-			if (cmdlen != F_INSN_SIZE(ipfw_insn) &&
-			    cmdlen != F_INSN_SIZE(ipfw_insn_u32))
-				goto bad_size;
-			ci->object_opcodes++;
-			break;
-		case O_MACADDR2:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_mac))
-				goto bad_size;
-			break;
-
-		case O_NOP:
-		case O_IPID:
-		case O_IPTTL:
-		case O_IPLEN:
-		case O_TCPDATALEN:
-		case O_TCPMSS:
-		case O_TCPWIN:
-		case O_TAGGED:
-			if (cmdlen < 1 || cmdlen > 31)
-				goto bad_size;
-			break;
-
-		case O_DSCP:
-		case O_MARK:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_u32) + 1)
-				goto bad_size;
-			break;
-
-		case O_MAC_TYPE:
-		case O_IP_SRCPORT:
-		case O_IP_DSTPORT: /* XXX artificial limit, 30 port pairs */
-			if (cmdlen < 2 || cmdlen > 31)
-				goto bad_size;
-			break;
-
-		case O_RECV:
-		case O_XMIT:
-		case O_VIA:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_if))
-				goto bad_size;
-			ci->object_opcodes++;
-			break;
-
-		case O_ALTQ:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_altq))
-				goto bad_size;
-			break;
-
-		case O_PIPE:
-		case O_QUEUE:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn))
-				goto bad_size;
-			goto check_action;
-
-		case O_FORWARD_IP:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_sa))
-				goto bad_size;
-			goto check_action;
-#ifdef INET6
-		case O_FORWARD_IP6:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_sa6))
-				goto bad_size;
-			goto check_action;
-#endif /* INET6 */
-
-		case O_DIVERT:
-		case O_TEE:
-			if (ip_divert_ptr == NULL)
-				return EINVAL;
-			else
-				goto check_size;
-		case O_NETGRAPH:
-		case O_NGTEE:
-			if (ng_ipfw_input_p == NULL)
-				return EINVAL;
-			else
-				goto check_size;
-		case O_NAT:
-			if (!IPFW_NAT_LOADED)
-				return EINVAL;
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_nat))
- 				goto bad_size;		
- 			goto check_action;
-		case O_CHECK_STATE:
-			ci->object_opcodes++;
-			goto check_size;
-		case O_SETMARK:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_u32))
-				goto bad_size;
-			goto check_action;
-		case O_REJECT:
-			/* "unreach needfrag" has variable len. */
-			if ((cmdlen == F_INSN_SIZE(ipfw_insn) ||
-			    cmdlen == F_INSN_SIZE(ipfw_insn_u16)))
-				goto check_action;
+		}
+		switch (ret) {
+		case SUCCESS:
+			continue;
+		case BAD_SIZE:
+			printf("ipfw: opcode %d: wrong size %d\n",
+			    cmd->opcode, cmdlen);
 			/* FALLTHROUGH */
-		case O_FORWARD_MAC: /* XXX not implemented yet */
-		case O_COUNT:
-		case O_ACCEPT:
-		case O_DENY:
-		case O_SETDSCP:
-#ifdef INET6
-		case O_UNREACH6:
-#endif
-		case O_SKIPTO:
-		case O_REASS:
-		case O_CALLRETURN:
-check_size:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn))
-				goto bad_size;
-check_action:
-			if (have_action) {
-				printf("ipfw: opcode %d, multiple actions"
-					" not allowed\n",
-					cmd->opcode);
-				return (EINVAL);
-			}
-			have_action = 1;
-			if (l != cmdlen) {
-				printf("ipfw: opcode %d, action must be"
-					" last opcode\n",
-					cmd->opcode);
-				return (EINVAL);
-			}
-			break;
-#ifdef INET6
-		case O_IP6_SRC:
-		case O_IP6_DST:
-			if (cmdlen != F_INSN_SIZE(struct in6_addr) +
-			    F_INSN_SIZE(ipfw_insn))
-				goto bad_size;
-			break;
-
-		case O_FLOW6ID:
-			if (cmdlen != F_INSN_SIZE(ipfw_insn_u32) +
-			    ((ipfw_insn_u32 *)cmd)->o.arg1)
-				goto bad_size;
-			break;
-
-		case O_IP6_SRC_MASK:
-		case O_IP6_DST_MASK:
-			if ( !(cmdlen & 1) || cmdlen > 127)
-				goto bad_size;
-			break;
-		case O_ICMP6TYPE:
-			if( cmdlen != F_INSN_SIZE( ipfw_insn_icmp6 ) )
-				goto bad_size;
-			break;
-#endif
-
-		default:
-			switch (cmd->opcode) {
-#ifndef INET6
-			case O_IP6_SRC_ME:
-			case O_IP6_DST_ME:
-			case O_EXT_HDR:
-			case O_IP6:
-			case O_UNREACH6:
-			case O_IP6_SRC:
-			case O_IP6_DST:
-			case O_FLOW6ID:
-			case O_IP6_SRC_MASK:
-			case O_IP6_DST_MASK:
-			case O_ICMP6TYPE:
-				printf("ipfw: no IPv6 support in kernel\n");
-				return (EPROTONOSUPPORT);
-#endif
-			default:
-				printf("ipfw: opcode %d, unknown opcode\n",
-					cmd->opcode);
-				return (EINVAL);
-			}
+		case FAILED:
+			return (EINVAL);
 		}
 	}
 	if (have_action == 0) {
 		printf("ipfw: missing action\n");
 		return (EINVAL);
 	}
-	return 0;
-
-bad_size:
-	printf("ipfw: opcode %d size %d wrong\n",
-		cmd->opcode, cmdlen);
-	return (EINVAL);
-}
-
-/*
- * Translation of requests for compatibility with FreeBSD 7.2/8.
- * a static variable tells us if we have an old client from userland,
- * and if necessary we translate requests and responses between the
- * two formats.
- */
-static int is7 = 0;
-
-struct ip_fw7 {
-	struct ip_fw7	*next;		/* linked list of rules     */
-	struct ip_fw7	*next_rule;	/* ptr to next [skipto] rule    */
-	/* 'next_rule' is used to pass up 'set_disable' status      */
-
-	uint16_t	act_ofs;	/* offset of action in 32-bit units */
-	uint16_t	cmd_len;	/* # of 32-bit words in cmd */
-	uint16_t	rulenum;	/* rule number          */
-	uint8_t		set;		/* rule set (0..31)     */
-	// #define RESVD_SET   31  /* set for default and persistent rules */
-	uint8_t		_pad;		/* padding          */
-	// uint32_t        id;             /* rule id, only in v.8 */
-	/* These fields are present in all rules.           */
-	uint64_t	pcnt;		/* Packet counter       */
-	uint64_t	bcnt;		/* Byte counter         */
-	uint32_t	timestamp;	/* tv_sec of last match     */
-
-	ipfw_insn	cmd[1];		/* storage for commands     */
-};
-
-static int convert_rule_to_7(struct ip_fw_rule0 *rule);
-static int convert_rule_to_8(struct ip_fw_rule0 *rule);
-
-#ifndef RULESIZE7
-#define RULESIZE7(rule)  (sizeof(struct ip_fw7) + \
-	((struct ip_fw7 *)(rule))->cmd_len * 4 - 4)
-#endif
-
-/*
- * Copy the static and dynamic rules to the supplied buffer
- * and return the amount of space actually used.
- * Must be run under IPFW_UH_RLOCK
- */
-static size_t
-ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
-{
-	char *bp = buf;
-	char *ep = bp + space;
-	struct ip_fw *rule;
-	struct ip_fw_rule0 *dst;
-	struct timeval boottime;
-	int error, i, l, warnflag;
-	time_t	boot_seconds;
-
-	warnflag = 0;
-
-	getboottime(&boottime);
-        boot_seconds = boottime.tv_sec;
-	for (i = 0; i < chain->n_rules; i++) {
-		rule = chain->map[i];
-
-		if (is7) {
-		    /* Convert rule to FreeBSd 7.2 format */
-		    l = RULESIZE7(rule);
-		    if (bp + l + sizeof(uint32_t) <= ep) {
-			bcopy(rule, bp, l + sizeof(uint32_t));
-			error = set_legacy_obj_kidx(chain,
-			    (struct ip_fw_rule0 *)bp);
-			if (error != 0)
-				return (0);
-			error = convert_rule_to_7((struct ip_fw_rule0 *) bp);
-			if (error)
-				return 0; /*XXX correct? */
-			/*
-			 * XXX HACK. Store the disable mask in the "next"
-			 * pointer in a wild attempt to keep the ABI the same.
-			 * Why do we do this on EVERY rule?
-			 */
-			bcopy(&V_set_disable,
-				&(((struct ip_fw7 *)bp)->next_rule),
-				sizeof(V_set_disable));
-			if (((struct ip_fw7 *)bp)->timestamp)
-			    ((struct ip_fw7 *)bp)->timestamp += boot_seconds;
-			bp += l;
-		    }
-		    continue; /* go to next rule */
-		}
-
-		l = RULEUSIZE0(rule);
-		if (bp + l > ep) { /* should not happen */
-			printf("overflow dumping static rules\n");
-			break;
-		}
-		dst = (struct ip_fw_rule0 *)bp;
-		export_rule0(rule, dst, l);
-		error = set_legacy_obj_kidx(chain, dst);
-
-		/*
-		 * XXX HACK. Store the disable mask in the "next"
-		 * pointer in a wild attempt to keep the ABI the same.
-		 * Why do we do this on EVERY rule?
-		 *
-		 * XXX: "ipfw set show" (ab)uses IP_FW_GET to read disabled mask
-		 * so we need to fail _after_ saving at least one mask.
-		 */
-		bcopy(&V_set_disable, &dst->next_rule, sizeof(V_set_disable));
-		if (dst->timestamp)
-			dst->timestamp += boot_seconds;
-		bp += l;
-
-		if (error != 0) {
-			if (error == 2) {
-				/* Non-fatal table rewrite error. */
-				warnflag = 1;
-				continue;
-			}
-			printf("Stop on rule %d. Fail to convert table\n",
-			    rule->rulenum);
-			break;
-		}
-	}
-	if (warnflag != 0)
-		printf("ipfw: process %s is using legacy interfaces,"
-		    " consider rebuilding\n", "");
-	ipfw_get_dynamic(chain, &bp, ep); /* protected by the dynamic lock */
-	return (bp - (char *)buf);
+	return (0);
 }
 
 struct dump_args {
@@ -2257,7 +1711,7 @@ ipfw_export_obj_ntlv(struct named_object *no, ipfw_obj_ntlv *ntlv)
  * Returns 0 on success.
  */
 static int
-export_objhash_ntlv(struct namedobj_instance *ni, uint16_t kidx,
+export_objhash_ntlv(struct namedobj_instance *ni, uint32_t kidx,
     struct sockopt_data *sd)
 {
 	struct named_object *no;
@@ -2278,7 +1732,8 @@ static int
 export_named_objects(struct namedobj_instance *ni, struct dump_args *da,
     struct sockopt_data *sd)
 {
-	int error, i;
+	uint32_t i;
+	int error;
 
 	for (i = 0; i < IPFW_TABLES_MAX && da->tcount > 0; i++) {
 		if ((da->bmask[i / 32] & (1 << (i % 32))) == 0)
@@ -2356,7 +1811,7 @@ dump_static_rules(struct ip_fw_chain *chain, struct dump_args *da,
 }
 
 int
-ipfw_mark_object_kidx(uint32_t *bmask, uint16_t etlv, uint16_t kidx)
+ipfw_mark_object_kidx(uint32_t *bmask, uint16_t etlv, uint32_t kidx)
 {
 	uint32_t bidx;
 
@@ -2383,8 +1838,8 @@ mark_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule,
 {
 	struct opcode_obj_rewrite *rw;
 	ipfw_insn *cmd;
+	uint32_t kidx;
 	int cmdlen, l;
-	uint16_t kidx;
 	uint8_t subtype;
 
 	l = rule->cmd_len;
@@ -2554,7 +2009,7 @@ create_objects_compat(struct ip_fw_chain *ch, ipfw_insn *cmd,
 {
 	struct opcode_obj_rewrite *rw;
 	struct obj_idx *p;
-	uint16_t kidx;
+	uint32_t kidx;
 	int error;
 
 	/*
@@ -2594,63 +2049,6 @@ create_objects_compat(struct ip_fw_chain *ch, ipfw_insn *cmd,
 	}
 
 	return (0);
-}
-
-/*
- * Compatibility function for old ipfw(8) binaries.
- * Rewrites table/nat kernel indices with userland ones.
- * Convert tables matching '/^\d+$/' to their atoi() value.
- * Use number 65535 for other tables.
- *
- * Returns 0 on success.
- */
-static int
-set_legacy_obj_kidx(struct ip_fw_chain *ch, struct ip_fw_rule0 *rule)
-{
-	struct opcode_obj_rewrite *rw;
-	struct named_object *no;
-	ipfw_insn *cmd;
-	char *end;
-	long val;
-	int cmdlen, error, l;
-	uint16_t kidx, uidx;
-	uint8_t subtype;
-
-	error = 0;
-
-	l = rule->cmd_len;
-	cmd = rule->cmd;
-	cmdlen = 0;
-	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
-		cmdlen = F_LEN(cmd);
-
-		/* Check if is index in given opcode */
-		rw = find_op_rw(cmd, &kidx, &subtype);
-		if (rw == NULL)
-			continue;
-
-		/* Try to find referenced kernel object */
-		no = rw->find_bykidx(ch, kidx);
-		if (no == NULL)
-			continue;
-
-		val = strtol(no->name, &end, 10);
-		if (*end == '\0' && val < 65535) {
-			uidx = val;
-		} else {
-			/*
-			 * We are called via legacy opcode.
-			 * Save error and show table as fake number
-			 * not to make ipfw(8) hang.
-			 */
-			uidx = 65535;
-			error = 2;
-		}
-
-		rw->update(cmd, uidx);
-	}
-
-	return (error);
 }
 
 /*
@@ -2694,8 +2092,8 @@ unref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule)
 	struct opcode_obj_rewrite *rw;
 	struct named_object *no;
 	ipfw_insn *cmd;
+	uint32_t kidx;
 	int cmdlen, l;
-	uint16_t kidx;
 	uint8_t subtype;
 
 	IPFW_UH_WLOCK_ASSERT(ch);
@@ -2897,8 +2295,8 @@ free:
 }
 
 /*
- * Adds one or more rules to ipfw @chain.
- * Data layout (version 0)(current):
+ * Parses one or more rules from userland.
+ * Data layout (version 1)(current):
  * Request:
  * [
  *   ip_fw3_opheader
@@ -2921,52 +2319,45 @@ free:
  *
  * Returns 0 on success.
  */
-static int
-add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
+static __noinline int
+parse_rules_v1(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd, ipfw_obj_ctlv **prtlv,
+    struct rule_check_info **pci)
 {
 	ipfw_obj_ctlv *ctlv, *rtlv, *tstate;
 	ipfw_obj_ntlv *ntlv;
-	int clen, error, idx;
-	uint32_t count, read;
+	struct rule_check_info *ci, *cbuf;
 	struct ip_fw_rule *r;
-	struct rule_check_info rci, *ci, *cbuf;
-	int i, rsize;
+	size_t count, clen, read, rsize;
+	uint32_t idx, rulenum;
+	int error;
 
 	op3 = (ip_fw3_opheader *)ipfw_get_sopt_space(sd, sd->valsize);
 	ctlv = (ipfw_obj_ctlv *)(op3 + 1);
-
 	read = sizeof(ip_fw3_opheader);
-	rtlv = NULL;
-	tstate = NULL;
-	cbuf = NULL;
-	memset(&rci, 0, sizeof(struct rule_check_info));
-
 	if (read + sizeof(*ctlv) > sd->valsize)
 		return (EINVAL);
 
+	rtlv = NULL;
+	tstate = NULL;
+	cbuf = NULL;
+	/* Table names or other named objects. */
 	if (ctlv->head.type == IPFW_TLV_TBLNAME_LIST) {
+		/* Check size and alignment. */
 		clen = ctlv->head.length;
-		/* Check size and alignment */
-		if (clen > sd->valsize || clen < sizeof(*ctlv))
+		if (read + clen > sd->valsize || clen < sizeof(*ctlv) ||
+		    (clen % sizeof(uint64_t)) != 0)
 			return (EINVAL);
-		if ((clen % sizeof(uint64_t)) != 0)
-			return (EINVAL);
-
-		/*
-		 * Some table names or other named objects.
-		 * Check for validness.
-		 */
+		/* Check for validness. */
 		count = (ctlv->head.length - sizeof(*ctlv)) / sizeof(*ntlv);
 		if (ctlv->count != count || ctlv->objsize != sizeof(*ntlv))
 			return (EINVAL);
-
 		/*
 		 * Check each TLV.
 		 * Ensure TLVs are sorted ascending and
 		 * there are no duplicates.
 		 */
-		idx = -1;
+		idx = 0;
 		ntlv = (ipfw_obj_ntlv *)(ctlv + 1);
 		while (count > 0) {
 			if (ntlv->head.length != sizeof(ipfw_obj_ntlv))
@@ -2987,70 +2378,59 @@ add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 		tstate = ctlv;
 		read += ctlv->head.length;
 		ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv + ctlv->head.length);
+
+		if (read + sizeof(*ctlv) > sd->valsize)
+			return (EINVAL);
 	}
 
-	if (read + sizeof(*ctlv) > sd->valsize)
-		return (EINVAL);
-
+	/* List of rules. */
 	if (ctlv->head.type == IPFW_TLV_RULE_LIST) {
 		clen = ctlv->head.length;
-		if (clen + read > sd->valsize || clen < sizeof(*ctlv))
+		if (read + clen > sd->valsize || clen < sizeof(*ctlv) ||
+		    (clen % sizeof(uint64_t)) != 0)
 			return (EINVAL);
-		if ((clen % sizeof(uint64_t)) != 0)
-			return (EINVAL);
-
-		/*
-		 * TODO: Permit adding multiple rules at once
-		 */
-		if (ctlv->count != 1)
-			return (ENOTSUP);
 
 		clen -= sizeof(*ctlv);
-
-		if (ctlv->count > clen / sizeof(struct ip_fw_rule))
+		if (ctlv->count == 0 ||
+		    ctlv->count > clen / sizeof(struct ip_fw_rule))
 			return (EINVAL);
 
-		/* Allocate state for each rule or use stack */
-		if (ctlv->count == 1) {
-			memset(&rci, 0, sizeof(struct rule_check_info));
-			cbuf = &rci;
-		} else
-			cbuf = malloc(ctlv->count * sizeof(*ci), M_TEMP,
-			    M_WAITOK | M_ZERO);
-		ci = cbuf;
+		/* Allocate state for each rule */
+		cbuf = malloc(ctlv->count * sizeof(struct rule_check_info),
+		    M_TEMP, M_WAITOK | M_ZERO);
 
 		/*
 		 * Check each rule for validness.
 		 * Ensure numbered rules are sorted ascending
 		 * and properly aligned
 		 */
-		idx = 0;
-		r = (struct ip_fw_rule *)(ctlv + 1);
+		rulenum = 0;
 		count = 0;
 		error = 0;
+		ci = cbuf;
+		r = (struct ip_fw_rule *)(ctlv + 1);
 		while (clen > 0) {
-			rsize = roundup2(RULESIZE(r), sizeof(uint64_t));
-			if (rsize > clen || ctlv->count <= count) {
+			rsize = RULEUSIZE1(r);
+			if (rsize > clen || count > ctlv->count) {
 				error = EINVAL;
 				break;
 			}
-
 			ci->ctlv = tstate;
-			error = check_ipfw_rule1(r, rsize, ci);
+			ci->version = IP_FW3_OPVER;
+			error = ipfw_check_rule(r, rsize, ci);
 			if (error != 0)
 				break;
 
 			/* Check sorting */
-			if (r->rulenum != 0 && r->rulenum < idx) {
-				printf("rulenum %d idx %d\n", r->rulenum, idx);
+			if (count != 0 && ((rulenum == 0) != (r->rulenum == 0) ||
+			    r->rulenum < rulenum)) {
+				printf("ipfw: wrong order: rulenum %u"
+				    " vs %u\n", r->rulenum, rulenum);
 				error = EINVAL;
 				break;
 			}
-			idx = r->rulenum;
-
+			rulenum = r->rulenum;
 			ci->urule = (caddr_t)r;
-
-			rsize = roundup2(rsize, sizeof(uint64_t));
 			clen -= rsize;
 			r = (struct ip_fw_rule *)((caddr_t)r + rsize);
 			count++;
@@ -3058,8 +2438,7 @@ add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 		}
 
 		if (ctlv->count != count || error != 0) {
-			if (cbuf != &rci)
-				free(cbuf, M_TEMP);
+			free(cbuf, M_TEMP);
 			return (EINVAL);
 		}
 
@@ -3068,37 +2447,78 @@ add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 		ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv + ctlv->head.length);
 	}
 
-	if (read != sd->valsize || rtlv == NULL || rtlv->count == 0) {
-		if (cbuf != NULL && cbuf != &rci)
-			free(cbuf, M_TEMP);
+	if (read != sd->valsize || rtlv == NULL) {
+		free(cbuf, M_TEMP);
 		return (EINVAL);
 	}
 
-	/*
-	 * Passed rules seems to be valid.
-	 * Allocate storage and try to add them to chain.
-	 */
-	for (i = 0, ci = cbuf; i < rtlv->count; i++, ci++) {
-		clen = RULEKSIZE1((struct ip_fw_rule *)ci->urule);
-		ci->krule = ipfw_alloc_rule(chain, clen);
-		import_rule1(ci);
-	}
+	*prtlv = rtlv;
+	*pci = cbuf;
+	return (0);
+}
 
-	if ((error = commit_rules(chain, cbuf, rtlv->count)) != 0) {
-		/* Free allocate krules */
-		for (i = 0, ci = cbuf; i < rtlv->count; i++, ci++)
+/*
+ * Copy rule @urule from v1 userland format (current) to kernel @krule.
+ */
+static void
+import_rule_v1(struct ip_fw_chain *chain, struct rule_check_info *ci)
+{
+	struct ip_fw_rule *urule;
+	struct ip_fw *krule;
+
+	urule = (struct ip_fw_rule *)ci->urule;
+	krule = ci->krule = ipfw_alloc_rule(chain, RULEKSIZE1(urule));
+
+	krule->act_ofs = urule->act_ofs;
+	krule->cmd_len = urule->cmd_len;
+	krule->rulenum = urule->rulenum;
+	krule->set = urule->set;
+	krule->flags = urule->flags;
+
+	/* Save rulenum offset */
+	ci->urule_numoff = offsetof(struct ip_fw_rule, rulenum);
+
+	/* Copy opcodes */
+	memcpy(krule->cmd, urule->cmd, krule->cmd_len * sizeof(uint32_t));
+}
+
+/*
+ * Adds one or more rules to ipfw @chain.
+ */
+static int
+add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	ipfw_obj_ctlv *rtlv;
+	struct rule_check_info *ci, *nci;
+	int i, ret;
+
+	/*
+	 * Check rules buffer for validness.
+	 */
+	ret = parse_rules_v1(chain, op3, sd, &rtlv, &nci);
+	if (ret != 0)
+		return (ret);
+	/*
+	 * Allocate storage for the kernel representation of rules.
+	 */
+	for (i = 0, ci = nci; i < rtlv->count; i++, ci++)
+		import_rule_v1(chain, ci);
+	/*
+	 * Try to add new rules to the chain.
+	 */
+	if ((ret = ipfw_commit_rules(chain, nci, rtlv->count)) != 0) {
+		for (i = 0, ci = nci; i < rtlv->count; i++, ci++)
 			ipfw_free_rule(ci->krule);
 	}
-
-	if (cbuf != NULL && cbuf != &rci)
-		free(cbuf, M_TEMP);
-
-	return (error);
+	/* Cleanup after parse_rules() */
+	free(nci, M_TEMP);
+	return (ret);
 }
 
 /*
  * Lists all sopts currently registered.
- * Data layout (v0)(current):
+ * Data layout (v1)(current):
  * Request: [ ipfw_obj_lheader ], size = ipfw_obj_lheader.size
  * Reply: [ ipfw_obj_lheader ipfw_sopt_info x N ]
  *
@@ -3113,7 +2533,8 @@ dump_soptcodes(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	struct ipfw_sopt_handler *sh;
 	uint32_t count, n, size;
 
-	olh = (struct _ipfw_obj_lheader *)ipfw_get_sopt_header(sd,sizeof(*olh));
+	olh = (struct _ipfw_obj_lheader *)ipfw_get_sopt_header(sd,
+	    sizeof(*olh));
 	if (olh == NULL)
 		return (EINVAL);
 	if (sd->valsize < olh->size)
@@ -3134,7 +2555,7 @@ dump_soptcodes(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	}
 	olh->size = size;
 
-	for (n = 1; n <= count; n++) {
+	for (n = 0; n < count; n++) {
 		i = (ipfw_sopt_info *)ipfw_get_sopt_space(sd, sizeof(*i));
 		KASSERT(i != NULL, ("previously checked buffer is not enough"));
 		sh = &ctl3_handlers[n];
@@ -3209,10 +2630,10 @@ find_op_rw_range(uint16_t op, struct opcode_obj_rewrite **plo,
  * Returns pointer to handler or NULL.
  */
 static struct opcode_obj_rewrite *
-find_op_rw(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
+find_op_rw(ipfw_insn *cmd, uint32_t *puidx, uint8_t *ptype)
 {
 	struct opcode_obj_rewrite *rw, *lo, *hi;
-	uint16_t uidx;
+	uint32_t uidx;
 	uint8_t subtype;
 
 	if (find_op_rw_range(cmd->opcode, &lo, &hi) != 0)
@@ -3231,7 +2652,7 @@ find_op_rw(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
 	return (NULL);
 }
 int
-classify_opcode_kidx(ipfw_insn *cmd, uint16_t *puidx)
+classify_opcode_kidx(ipfw_insn *cmd, uint32_t *puidx)
 {
 
 	if (find_op_rw(cmd, puidx, NULL) == NULL)
@@ -3240,7 +2661,7 @@ classify_opcode_kidx(ipfw_insn *cmd, uint16_t *puidx)
 }
 
 void
-update_opcode_kidx(ipfw_insn *cmd, uint16_t idx)
+update_opcode_kidx(ipfw_insn *cmd, uint32_t idx)
 {
 	struct opcode_obj_rewrite *rw;
 
@@ -3252,7 +2673,6 @@ update_opcode_kidx(ipfw_insn *cmd, uint16_t idx)
 void
 ipfw_init_obj_rewriter(void)
 {
-
 	ctl3_rewriters = NULL;
 	ctl3_rsize = 0;
 }
@@ -3260,7 +2680,6 @@ ipfw_init_obj_rewriter(void)
 void
 ipfw_destroy_obj_rewriter(void)
 {
-
 	if (ctl3_rewriters != NULL)
 		free(ctl3_rewriters, M_IPFW);
 	ctl3_rewriters = NULL;
@@ -3393,6 +2812,49 @@ dump_srvobjects(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	return (0);
 }
 
+void
+ipfw_enable_skipto_cache(struct ip_fw_chain *chain)
+{
+
+	IPFW_UH_WLOCK_ASSERT(chain);
+	update_skipto_cache(chain, chain->map);
+
+	IPFW_WLOCK(chain);
+	swap_skipto_cache(chain);
+	V_skipto_cache = 1;
+	IPFW_WUNLOCK(chain);
+}
+
+/*
+ * Enables or disable skipto cache.
+ * Request: [ ipfw_cmd_header ] size = ipfw_cmd_header.size
+ * Reply: [ ipfw_cmd_header ]
+ * Returns 0 on success
+ */
+static int
+manage_skiptocache(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	ipfw_cmd_header *hdr;
+
+	if (sd->valsize != sizeof(*hdr))
+		return (EINVAL);
+
+	hdr = (ipfw_cmd_header *)ipfw_get_sopt_space(sd, sd->valsize);
+	if (hdr->cmd != SKIPTO_CACHE_DISABLE &&
+	    hdr->cmd != SKIPTO_CACHE_ENABLE)
+		return (EOPNOTSUPP);
+
+	IPFW_UH_WLOCK(chain);
+	if (hdr->cmd != V_skipto_cache) {
+		if (hdr->cmd == SKIPTO_CACHE_ENABLE)
+			ipfw_enable_skipto_cache(chain);
+		V_skipto_cache = hdr->cmd;
+	}
+	IPFW_UH_WUNLOCK(chain);
+	return (0);
+}
+
 /*
  * Compares two sopt handlers (code, version and handler ptr).
  * Used both as qsort() and bsearch().
@@ -3488,7 +2950,6 @@ find_unref_sh(struct ipfw_sopt_handler *psh)
 void
 ipfw_init_sopt_handler(void)
 {
-
 	CTL3_LOCK_INIT();
 	IPFW_ADD_SOPT_HANDLER(1, scodes);
 }
@@ -3496,9 +2957,20 @@ ipfw_init_sopt_handler(void)
 void
 ipfw_destroy_sopt_handler(void)
 {
-
 	IPFW_DEL_SOPT_HANDLER(1, scodes);
 	CTL3_LOCK_DESTROY();
+}
+
+void
+ipfw_register_compat(ipfw_check_opcode_t f)
+{
+	check_opcode_f = f;
+}
+
+void
+ipfw_unregister_compat(void)
+{
+	check_opcode_f = check_opcode_compat_nop;
 }
 
 /*
@@ -3683,7 +3155,7 @@ ipfw_ctl3(struct sockopt *sopt)
 		return (error);
 
 	if (sopt->sopt_name != IP_FW3)
-		return (ipfw_ctl(sopt));
+		return (EOPNOTSUPP);
 
 	chain = &V_layer3_chain;
 	error = 0;
@@ -3796,432 +3268,6 @@ ipfw_ctl3(struct sockopt *sopt)
 	return (error);
 }
 
-/**
- * {set|get}sockopt parser.
- */
-int
-ipfw_ctl(struct sockopt *sopt)
-{
-#define	RULE_MAXSIZE	(512*sizeof(u_int32_t))
-	int error;
-	size_t size;
-	struct ip_fw *buf;
-	struct ip_fw_rule0 *rule;
-	struct ip_fw_chain *chain;
-	u_int32_t rulenum[2];
-	uint32_t opt;
-	struct rule_check_info ci;
-	IPFW_RLOCK_TRACKER;
-
-	chain = &V_layer3_chain;
-	error = 0;
-
-	opt = sopt->sopt_name;
-
-	/*
-	 * Disallow modifications in really-really secure mode, but still allow
-	 * the logging counters to be reset.
-	 */
-	if (opt == IP_FW_ADD ||
-	    (sopt->sopt_dir == SOPT_SET && opt != IP_FW_RESETLOG)) {
-		error = securelevel_ge(sopt->sopt_td->td_ucred, 3);
-		if (error != 0)
-			return (error);
-	}
-
-	switch (opt) {
-	case IP_FW_GET:
-		/*
-		 * pass up a copy of the current rules. Static rules
-		 * come first (the last of which has number IPFW_DEFAULT_RULE),
-		 * followed by a possibly empty list of dynamic rule.
-		 * The last dynamic rule has NULL in the "next" field.
-		 *
-		 * Note that the calculated size is used to bound the
-		 * amount of data returned to the user.  The rule set may
-		 * change between calculating the size and returning the
-		 * data in which case we'll just return what fits.
-		 */
-		for (;;) {
-			int len = 0, want;
-
-			size = chain->static_len;
-			size += ipfw_dyn_len();
-			if (size >= sopt->sopt_valsize)
-				break;
-			buf = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
-			IPFW_UH_RLOCK(chain);
-			/* check again how much space we need */
-			want = chain->static_len + ipfw_dyn_len();
-			if (size >= want)
-				len = ipfw_getrules(chain, buf, size);
-			IPFW_UH_RUNLOCK(chain);
-			if (size >= want)
-				error = sooptcopyout(sopt, buf, len);
-			free(buf, M_TEMP);
-			if (size >= want)
-				break;
-		}
-		break;
-
-	case IP_FW_FLUSH:
-		/* locking is done within del_entry() */
-		error = del_entry(chain, 0); /* special case, rule=0, cmd=0 means all */
-		break;
-
-	case IP_FW_ADD:
-		rule = malloc(RULE_MAXSIZE, M_TEMP, M_WAITOK);
-		error = sooptcopyin(sopt, rule, RULE_MAXSIZE,
-			sizeof(struct ip_fw7) );
-
-		memset(&ci, 0, sizeof(struct rule_check_info));
-
-		/*
-		 * If the size of commands equals RULESIZE7 then we assume
-		 * a FreeBSD7.2 binary is talking to us (set is7=1).
-		 * is7 is persistent so the next 'ipfw list' command
-		 * will use this format.
-		 * NOTE: If wrong version is guessed (this can happen if
-		 *       the first ipfw command is 'ipfw [pipe] list')
-		 *       the ipfw binary may crash or loop infinitly...
-		 */
-		size = sopt->sopt_valsize;
-		if (size == RULESIZE7(rule)) {
-		    is7 = 1;
-		    error = convert_rule_to_8(rule);
-		    if (error) {
-			free(rule, M_TEMP);
-			return error;
-		    }
-		    size = RULESIZE(rule);
-		} else
-		    is7 = 0;
-		if (error == 0)
-			error = check_ipfw_rule0(rule, size, &ci);
-		if (error == 0) {
-			/* locking is done within add_rule() */
-			struct ip_fw *krule;
-			krule = ipfw_alloc_rule(chain, RULEKSIZE0(rule));
-			ci.urule = (caddr_t)rule;
-			ci.krule = krule;
-			import_rule0(&ci);
-			error = commit_rules(chain, &ci, 1);
-			if (error != 0)
-				ipfw_free_rule(ci.krule);
-			else if (sopt->sopt_dir == SOPT_GET) {
-				if (is7) {
-					error = convert_rule_to_7(rule);
-					size = RULESIZE7(rule);
-					if (error) {
-						free(rule, M_TEMP);
-						return error;
-					}
-				}
-				error = sooptcopyout(sopt, rule, size);
-			}
-		}
-		free(rule, M_TEMP);
-		break;
-
-	case IP_FW_DEL:
-		/*
-		 * IP_FW_DEL is used for deleting single rules or sets,
-		 * and (ab)used to atomically manipulate sets. Argument size
-		 * is used to distinguish between the two:
-		 *    sizeof(u_int32_t)
-		 *	delete single rule or set of rules,
-		 *	or reassign rules (or sets) to a different set.
-		 *    2*sizeof(u_int32_t)
-		 *	atomic disable/enable sets.
-		 *	first u_int32_t contains sets to be disabled,
-		 *	second u_int32_t contains sets to be enabled.
-		 */
-		error = sooptcopyin(sopt, rulenum,
-			2*sizeof(u_int32_t), sizeof(u_int32_t));
-		if (error)
-			break;
-		size = sopt->sopt_valsize;
-		if (size == sizeof(u_int32_t) && rulenum[0] != 0) {
-			/* delete or reassign, locking done in del_entry() */
-			error = del_entry(chain, rulenum[0]);
-		} else if (size == 2*sizeof(u_int32_t)) { /* set enable/disable */
-			IPFW_UH_WLOCK(chain);
-			V_set_disable =
-			    (V_set_disable | rulenum[0]) & ~rulenum[1] &
-			    ~(1<<RESVD_SET); /* set RESVD_SET always enabled */
-			IPFW_UH_WUNLOCK(chain);
-		} else
-			error = EINVAL;
-		break;
-
-	case IP_FW_ZERO:
-	case IP_FW_RESETLOG: /* argument is an u_int_32, the rule number */
-		rulenum[0] = 0;
-		if (sopt->sopt_val != 0) {
-		    error = sooptcopyin(sopt, rulenum,
-			    sizeof(u_int32_t), sizeof(u_int32_t));
-		    if (error)
-			break;
-		}
-		error = zero_entry(chain, rulenum[0],
-			sopt->sopt_name == IP_FW_RESETLOG);
-		break;
-
-	/*--- TABLE opcodes ---*/
-	case IP_FW_TABLE_ADD:
-	case IP_FW_TABLE_DEL:
-		{
-			ipfw_table_entry ent;
-			struct tentry_info tei;
-			struct tid_info ti;
-			struct table_value v;
-
-			error = sooptcopyin(sopt, &ent,
-			    sizeof(ent), sizeof(ent));
-			if (error)
-				break;
-
-			memset(&tei, 0, sizeof(tei));
-			tei.paddr = &ent.addr;
-			tei.subtype = AF_INET;
-			tei.masklen = ent.masklen;
-			ipfw_import_table_value_legacy(ent.value, &v);
-			tei.pvalue = &v;
-			memset(&ti, 0, sizeof(ti));
-			ti.uidx = ent.tbl;
-			ti.type = IPFW_TABLE_CIDR;
-
-			error = (opt == IP_FW_TABLE_ADD) ?
-			    add_table_entry(chain, &ti, &tei, 0, 1) :
-			    del_table_entry(chain, &ti, &tei, 0, 1);
-		}
-		break;
-
-	case IP_FW_TABLE_FLUSH:
-		{
-			u_int16_t tbl;
-			struct tid_info ti;
-
-			error = sooptcopyin(sopt, &tbl,
-			    sizeof(tbl), sizeof(tbl));
-			if (error)
-				break;
-			memset(&ti, 0, sizeof(ti));
-			ti.uidx = tbl;
-			error = flush_table(chain, &ti);
-		}
-		break;
-
-	case IP_FW_TABLE_GETSIZE:
-		{
-			u_int32_t tbl, cnt;
-			struct tid_info ti;
-
-			if ((error = sooptcopyin(sopt, &tbl, sizeof(tbl),
-			    sizeof(tbl))))
-				break;
-			memset(&ti, 0, sizeof(ti));
-			ti.uidx = tbl;
-			IPFW_RLOCK(chain);
-			error = ipfw_count_table(chain, &ti, &cnt);
-			IPFW_RUNLOCK(chain);
-			if (error)
-				break;
-			error = sooptcopyout(sopt, &cnt, sizeof(cnt));
-		}
-		break;
-
-	case IP_FW_TABLE_LIST:
-		{
-			ipfw_table *tbl;
-			struct tid_info ti;
-
-			if (sopt->sopt_valsize < sizeof(*tbl)) {
-				error = EINVAL;
-				break;
-			}
-			size = sopt->sopt_valsize;
-			tbl = malloc(size, M_TEMP, M_WAITOK);
-			error = sooptcopyin(sopt, tbl, size, sizeof(*tbl));
-			if (error) {
-				free(tbl, M_TEMP);
-				break;
-			}
-			tbl->size = (size - sizeof(*tbl)) /
-			    sizeof(ipfw_table_entry);
-			memset(&ti, 0, sizeof(ti));
-			ti.uidx = tbl->tbl;
-			IPFW_RLOCK(chain);
-			error = ipfw_dump_table_legacy(chain, &ti, tbl);
-			IPFW_RUNLOCK(chain);
-			if (error) {
-				free(tbl, M_TEMP);
-				break;
-			}
-			error = sooptcopyout(sopt, tbl, size);
-			free(tbl, M_TEMP);
-		}
-		break;
-
-	/*--- NAT operations are protected by the IPFW_LOCK ---*/
-	case IP_FW_NAT_CFG:
-		if (IPFW_NAT_LOADED)
-			error = ipfw_nat_cfg_ptr(sopt);
-		else {
-			printf("IP_FW_NAT_CFG: %s\n",
-			    "ipfw_nat not present, please load it");
-			error = EINVAL;
-		}
-		break;
-
-	case IP_FW_NAT_DEL:
-		if (IPFW_NAT_LOADED)
-			error = ipfw_nat_del_ptr(sopt);
-		else {
-			printf("IP_FW_NAT_DEL: %s\n",
-			    "ipfw_nat not present, please load it");
-			error = EINVAL;
-		}
-		break;
-
-	case IP_FW_NAT_GET_CONFIG:
-		if (IPFW_NAT_LOADED)
-			error = ipfw_nat_get_cfg_ptr(sopt);
-		else {
-			printf("IP_FW_NAT_GET_CFG: %s\n",
-			    "ipfw_nat not present, please load it");
-			error = EINVAL;
-		}
-		break;
-
-	case IP_FW_NAT_GET_LOG:
-		if (IPFW_NAT_LOADED)
-			error = ipfw_nat_get_log_ptr(sopt);
-		else {
-			printf("IP_FW_NAT_GET_LOG: %s\n",
-			    "ipfw_nat not present, please load it");
-			error = EINVAL;
-		}
-		break;
-
-	default:
-		printf("ipfw: ipfw_ctl invalid option %d\n", sopt->sopt_name);
-		error = EINVAL;
-	}
-
-	return (error);
-#undef RULE_MAXSIZE
-}
-#define	RULE_MAXSIZE	(256*sizeof(u_int32_t))
-
-/* Functions to convert rules 7.2 <==> 8.0 */
-static int
-convert_rule_to_7(struct ip_fw_rule0 *rule)
-{
-	/* Used to modify original rule */
-	struct ip_fw7 *rule7 = (struct ip_fw7 *)rule;
-	/* copy of original rule, version 8 */
-	struct ip_fw_rule0 *tmp;
-
-	/* Used to copy commands */
-	ipfw_insn *ccmd, *dst;
-	int ll = 0, ccmdlen = 0;
-
-	tmp = malloc(RULE_MAXSIZE, M_TEMP, M_NOWAIT | M_ZERO);
-	if (tmp == NULL) {
-		return 1; //XXX error
-	}
-	bcopy(rule, tmp, RULE_MAXSIZE);
-
-	/* Copy fields */
-	//rule7->_pad = tmp->_pad;
-	rule7->set = tmp->set;
-	rule7->rulenum = tmp->rulenum;
-	rule7->cmd_len = tmp->cmd_len;
-	rule7->act_ofs = tmp->act_ofs;
-	rule7->next_rule = (struct ip_fw7 *)tmp->next_rule;
-	rule7->cmd_len = tmp->cmd_len;
-	rule7->pcnt = tmp->pcnt;
-	rule7->bcnt = tmp->bcnt;
-	rule7->timestamp = tmp->timestamp;
-
-	/* Copy commands */
-	for (ll = tmp->cmd_len, ccmd = tmp->cmd, dst = rule7->cmd ;
-			ll > 0 ; ll -= ccmdlen, ccmd += ccmdlen, dst += ccmdlen) {
-		ccmdlen = F_LEN(ccmd);
-
-		bcopy(ccmd, dst, F_LEN(ccmd)*sizeof(uint32_t));
-
-		if (dst->opcode > O_NAT)
-			/* O_REASS doesn't exists in 7.2 version, so
-			 * decrement opcode if it is after O_REASS
-			 */
-			dst->opcode--;
-
-		if (ccmdlen > ll) {
-			printf("ipfw: opcode %d size truncated\n",
-				ccmd->opcode);
-			return EINVAL;
-		}
-	}
-	free(tmp, M_TEMP);
-
-	return 0;
-}
-
-static int
-convert_rule_to_8(struct ip_fw_rule0 *rule)
-{
-	/* Used to modify original rule */
-	struct ip_fw7 *rule7 = (struct ip_fw7 *) rule;
-
-	/* Used to copy commands */
-	ipfw_insn *ccmd, *dst;
-	int ll = 0, ccmdlen = 0;
-
-	/* Copy of original rule */
-	struct ip_fw7 *tmp = malloc(RULE_MAXSIZE, M_TEMP, M_NOWAIT | M_ZERO);
-	if (tmp == NULL) {
-		return 1; //XXX error
-	}
-
-	bcopy(rule7, tmp, RULE_MAXSIZE);
-
-	for (ll = tmp->cmd_len, ccmd = tmp->cmd, dst = rule->cmd ;
-			ll > 0 ; ll -= ccmdlen, ccmd += ccmdlen, dst += ccmdlen) {
-		ccmdlen = F_LEN(ccmd);
-		
-		bcopy(ccmd, dst, F_LEN(ccmd)*sizeof(uint32_t));
-
-		if (dst->opcode > O_NAT)
-			/* O_REASS doesn't exists in 7.2 version, so
-			 * increment opcode if it is after O_REASS
-			 */
-			dst->opcode++;
-
-		if (ccmdlen > ll) {
-			printf("ipfw: opcode %d size truncated\n",
-			    ccmd->opcode);
-			return EINVAL;
-		}
-	}
-
-	rule->_pad = tmp->_pad;
-	rule->set = tmp->set;
-	rule->rulenum = tmp->rulenum;
-	rule->cmd_len = tmp->cmd_len;
-	rule->act_ofs = tmp->act_ofs;
-	rule->next_rule = (struct ip_fw *)tmp->next_rule;
-	rule->cmd_len = tmp->cmd_len;
-	rule->id = 0; /* XXX see if is ok = 0 */
-	rule->pcnt = tmp->pcnt;
-	rule->bcnt = tmp->bcnt;
-	rule->timestamp = tmp->timestamp;
-
-	free (tmp, M_TEMP);
-	return 0;
-}
-
 /*
  * Named object api
  *
@@ -4230,8 +3276,8 @@ convert_rule_to_8(struct ip_fw_rule0 *rule)
 void
 ipfw_init_srv(struct ip_fw_chain *ch)
 {
-
-	ch->srvmap = ipfw_objhash_create(IPFW_OBJECTS_DEFAULT);
+	ch->srvmap = ipfw_objhash_create(IPFW_OBJECTS_DEFAULT,
+	    DEFAULT_OBJHASH_SIZE);
 	ch->srvstate = malloc(sizeof(void *) * IPFW_OBJECTS_DEFAULT,
 	    M_IPFW, M_WAITOK | M_ZERO);
 }
@@ -4239,7 +3285,6 @@ ipfw_init_srv(struct ip_fw_chain *ch)
 void
 ipfw_destroy_srv(struct ip_fw_chain *ch)
 {
-
 	free(ch->srvstate, M_IPFW);
 	ipfw_objhash_destroy(ch->srvmap);
 }
@@ -4314,7 +3359,6 @@ ipfw_objhash_bitmap_swap(struct namedobj_instance *ni, void **idx, int *blocks)
 void
 ipfw_objhash_bitmap_free(void *idx, int blocks)
 {
-
 	free(idx, M_IPFW);
 }
 
@@ -4324,19 +3368,19 @@ ipfw_objhash_bitmap_free(void *idx, int blocks)
  * Return pointer to new instance.
  */
 struct namedobj_instance *
-ipfw_objhash_create(uint32_t items)
+ipfw_objhash_create(uint32_t items, size_t hash_size)
 {
 	struct namedobj_instance *ni;
 	int i;
 	size_t size;
 
 	size = sizeof(struct namedobj_instance) +
-	    sizeof(struct namedobjects_head) * NAMEDOBJ_HASH_SIZE +
-	    sizeof(struct namedobjects_head) * NAMEDOBJ_HASH_SIZE;
+	    sizeof(struct namedobjects_head) * hash_size +
+	    sizeof(struct namedobjects_head) * hash_size;
 
 	ni = malloc(size, M_IPFW, M_WAITOK | M_ZERO);
-	ni->nn_size = NAMEDOBJ_HASH_SIZE;
-	ni->nv_size = NAMEDOBJ_HASH_SIZE;
+	ni->nn_size = hash_size;
+	ni->nv_size = hash_size;
 
 	ni->names = (struct namedobjects_head *)(ni +1);
 	ni->values = &ni->names[ni->nn_size];
@@ -4360,7 +3404,6 @@ ipfw_objhash_create(uint32_t items)
 void
 ipfw_objhash_destroy(struct namedobj_instance *ni)
 {
-
 	free(ni->idx_mask, M_IPFW);
 	free(ni, M_IPFW);
 }
@@ -4425,7 +3468,7 @@ ipfw_objhash_lookup_name(struct namedobj_instance *ni, uint32_t set,
  * Returns pointer to found TLV or NULL.
  */
 ipfw_obj_ntlv *
-ipfw_find_name_tlv_type(void *tlvs, int len, uint16_t uidx, uint32_t etlv)
+ipfw_find_name_tlv_type(void *tlvs, int len, uint32_t uidx, uint32_t etlv)
 {
 	ipfw_obj_ntlv *ntlv;
 	uintptr_t pa, pe;
@@ -4519,7 +3562,7 @@ ipfw_objhash_lookup_name_type(struct namedobj_instance *ni, uint32_t set,
 }
 
 struct named_object *
-ipfw_objhash_lookup_kidx(struct namedobj_instance *ni, uint16_t kidx)
+ipfw_objhash_lookup_kidx(struct namedobj_instance *ni, uint32_t kidx)
 {
 	struct named_object *no;
 	uint32_t hash;
@@ -4645,7 +3688,7 @@ ipfw_objhash_foreach_type(struct namedobj_instance *ni, objhash_cb_t *f,
  * Returns 0 on success.
  */
 int
-ipfw_objhash_free_idx(struct namedobj_instance *ni, uint16_t idx)
+ipfw_objhash_free_idx(struct namedobj_instance *ni, uint32_t idx)
 {
 	u_long *mask;
 	int i, v;
@@ -4676,7 +3719,7 @@ ipfw_objhash_free_idx(struct namedobj_instance *ni, uint16_t idx)
  * Returns 0 on success.
  */
 int
-ipfw_objhash_alloc_idx(void *n, uint16_t *pidx)
+ipfw_objhash_alloc_idx(void *n, uint32_t *pidx)
 {
 	struct namedobj_instance *ni;
 	u_long *mask;

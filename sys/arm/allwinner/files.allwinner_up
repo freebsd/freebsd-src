@@ -1,2 +1,2 @@
 
-arm/allwinner/a10_timer.c		standard
+arm/allwinner/aw_timer.c		standard

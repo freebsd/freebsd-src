@@ -416,6 +416,9 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 			    device_get_nameunit(child), error);
 			return;
 		}
+		if ((acpi_quirks & ACPI_Q_CLEAR_PME_ON_DETACH) &&
+		    pci_has_pm(child))
+			pci_clear_pme(child);
 		status = acpi_SetInteger(h, "_EJ0", 1);
 		if (ACPI_FAILURE(status)) {
 			bus_topo_unlock();
@@ -423,6 +426,8 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 			    acpi_name(h), AcpiFormatException(status));
 			return;
 		}
+		if (acpi_quirks & ACPI_Q_DELAY_BEFORE_EJECT_RESCAN)
+			DELAY(10 * 1000);
 		BUS_RESCAN(dev);
 		bus_topo_unlock();
 		break;

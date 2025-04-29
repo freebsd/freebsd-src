@@ -15,7 +15,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <sys/cdefs.h>
 /*
  * Driver for Realtek RTL8188SU/RTL8191SU/RTL8192SU.
  *
@@ -145,6 +144,7 @@ static const STRUCT_USB_HOST_ID rsu_devs[] = {
 	RSU_DEV_HT(SENAO,		RTL8192SU_2),
 	RSU_DEV_HT(SITECOMEU,		WL349V1),
 	RSU_DEV_HT(SITECOMEU,		WL353),
+	RSU_DEV_HT(SITECOMEU,		RTL8188S),
 	RSU_DEV_HT(SWEEX2,		LW154),
 	RSU_DEV_HT(TRENDNET,		TEW646UBH),
 #undef RSU_DEV_HT
@@ -1500,7 +1500,8 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ni = ieee80211_ref_node(vap->iv_bss);
 		rs = &ni->ni_rates;
 		/* Indicate highest supported rate. */
-		ni->ni_txrate = rs->rs_rates[rs->rs_nrates - 1];
+		ieee80211_node_set_txrate_dot11rate(ni,
+		    rs->rs_rates[rs->rs_nrates - 1]);
 		(void) rsu_set_fw_power_state(sc, RSU_PWR_SLEEP);
 		ieee80211_free_node(ni);
 		startcal = 1;

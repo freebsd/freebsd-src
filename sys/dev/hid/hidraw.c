@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
- * Copyright (c) 2020 Vladimir Kondratyev <wulf@FreeBSD.org>
+ * Copyright (c) 2020, 2025 Vladimir Kondratyev <wulf@FreeBSD.org>
  *
  * This code is derived from software contributed to The NetBSD Foundation
  * by Lennart Augustsson (lennart@augustsson.net) at
@@ -573,6 +573,7 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	hid_size_t actsize;
 	int id, len;
 	int error = 0;
+	uint8_t reptype;
 
 	DPRINTFN(2, "cmd=%lx\n", cmd);
 
@@ -828,6 +829,9 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		 */
 		if (size >= HID_MAX_DESCRIPTOR_SIZE)
 			return (EINVAL);
+		mtx_lock(&sc->sc_mtx);
+		sc->sc_state.uhid = false;
+		mtx_unlock(&sc->sc_mtx);
 		buf = HIDRAW_LOCAL_ALLOC(local_buf, size);
 		error = hid_get_rdesc(sc->sc_dev, buf, size);
 		if (error == 0) {
@@ -860,6 +864,8 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		return (0);
 
 	case HIDIOCSFEATURE(0):
+	case HIDIOCSINPUT(0):
+	case HIDIOCSOUTPUT(0):
 		if (!(sc->sc_fflags & FWRITE))
 			return (EPERM);
 		if (len < 2)
@@ -869,10 +875,27 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			addr = (uint8_t *)addr + 1;
 			len--;
 		}
-		return (hid_set_report(sc->sc_dev, addr, len,
-		    HID_FEATURE_REPORT, id));
+		switch (IOCBASECMD(cmd)) {
+			case HIDIOCSFEATURE(0):
+				reptype = HID_FEATURE_REPORT;
+				break;
+			case HIDIOCSINPUT(0):
+				reptype = HID_INPUT_REPORT;
+				break;
+			case HIDIOCSOUTPUT(0):
+				reptype = HID_OUTPUT_REPORT;
+				break;
+			default:
+				panic("Invalid report type");
+		}
+		error = hid_set_report(sc->sc_dev, addr, len, reptype, id);
+		if (error == 0)
+			td->td_retval[0] = IOCPARM_LEN(cmd);
+		return (error);
 
 	case HIDIOCGFEATURE(0):
+	case HIDIOCGINPUT(0):
+	case HIDIOCGOUTPUT(0):
 		if (!(sc->sc_fflags & FREAD))
 			return (EPERM);
 		if (len < 2)
@@ -882,8 +905,27 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			addr = (uint8_t *)addr + 1;
 			len--;
 		}
-		return (hid_get_report(sc->sc_dev, addr, len, NULL,
-		    HID_FEATURE_REPORT, id));
+		switch (IOCBASECMD(cmd)) {
+			case HIDIOCGFEATURE(0):
+				reptype = HID_FEATURE_REPORT;
+				break;
+			case HIDIOCGINPUT(0):
+				reptype = HID_INPUT_REPORT;
+				break;
+			case HIDIOCGOUTPUT(0):
+				reptype = HID_OUTPUT_REPORT;
+				break;
+			default:
+				panic("Invalid report type");
+		}
+		error = hid_get_report(sc->sc_dev, addr, len, &actsize,
+		    reptype, id);
+		if (error == 0) {
+			if (id == 0)
+				actsize++;
+			td->td_retval[0] = actsize;
+		}
+		return (error);
 
 	case HIDIOCGRAWUNIQ(0):
 		strlcpy(addr, sc->sc_hw->serial, len);

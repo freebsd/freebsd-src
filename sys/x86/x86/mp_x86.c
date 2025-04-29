@@ -1425,6 +1425,9 @@ ipi_all_but_self(u_int ipi)
 	cpuset_t other_cpus;
 	int cpu, c;
 
+	if (mp_ncpus == 1)
+		return;
+
 	/*
 	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
 	 * of help in order to understand what is the source.

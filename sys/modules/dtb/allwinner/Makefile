@@ -13,7 +13,6 @@ DTS=	\
 	allwinner/sun7i-a20-olimex-som-evb.dts \
 	allwinner/sun7i-a20-pcduino3.dts \
 	allwinner/sun8i-a83t-bananapi-m3.dts \
-	allwinner/sun8i-h2-plus-orangepi-r1.dts \
 	allwinner/sun8i-h2-plus-orangepi-zero.dts \
 	allwinner/sun8i-h3-nanopi-m1.dts \
 	allwinner/sun8i-h3-nanopi-m1-plus.dts \

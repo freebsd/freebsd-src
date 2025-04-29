@@ -206,7 +206,6 @@ nvdimm_root_detach(device_t dev)
 {
 	struct nvdimm_root_dev *root;
 	struct SPA_mapping *spa, *next;
-	int error;
 
 	root = device_get_softc(dev);
 	SLIST_FOREACH_SAFE(spa, &root->spas, link, next) {
@@ -215,11 +214,7 @@ nvdimm_root_detach(device_t dev)
 		SLIST_REMOVE_HEAD(&root->spas, link);
 		free(spa, M_NVDIMM_ACPI);
 	}
-	error = bus_generic_detach(dev);
-	if (error != 0)
-		return (error);
-	error = device_delete_children(dev);
-	return (error);
+	return (bus_generic_detach(dev));
 }
 
 static int

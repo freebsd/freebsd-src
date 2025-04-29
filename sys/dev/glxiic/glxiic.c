@@ -451,11 +451,8 @@ glxiic_detach(device_t dev)
 
 	error = bus_generic_detach(dev);
 	if (error != 0)
-		goto out;
-	if (sc->iicbus != NULL)
-		error = device_delete_child(dev, sc->iicbus);
+		return (error);
 
-out:
 	callout_drain(&sc->callout);
 
 	if (sc->smb_res != NULL) {
@@ -479,7 +476,7 @@ out:
 
 	GLXIIC_LOCK_DESTROY(sc);
 
-	return (error);
+	return (0);
 }
 
 static uint8_t

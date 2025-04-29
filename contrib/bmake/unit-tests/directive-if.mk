@@ -1,4 +1,4 @@
-# $NetBSD: directive-if.mk,v 1.12 2023/06/01 20:56:35 rillig Exp $
+# $NetBSD: directive-if.mk,v 1.13 2024/08/06 18:00:17 rillig Exp $
 #
 # Tests for the .if directive.
 #
@@ -51,7 +51,7 @@
 .endif
 
 # Missing condition.
-# expect+1: Malformed conditional ()
+# expect+1: Malformed conditional ''
 .if
 .  error
 .else

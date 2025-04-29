@@ -1,0 +1,50 @@
+# #-- stat_values.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+
+PRE="../.."
+if grep "define USE_CACHEDB 1" $PRE/config.h; then
+    USE_CACHEDB=1
+    echo "USE_CACHEDB=1" >> .tpkg.var.test
+fi
+
+get_random_port 4
+UNBOUND_PORT=$RND_PORT
+FWD_PORT=$(($RND_PORT + 1))
+FWD_EXPIRED_PORT=$(($RND_PORT + 2))
+CONTROL_PORT=$(($RND_PORT + 3))
+FWD_EXPIRED_PORT=$(($RND_PORT + 4))
+echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test
+echo "FWD_PORT=$FWD_PORT" >> .tpkg.var.test
+echo "FWD_EXPIRED_PORT=$FWD_EXPIRED_PORT" >> .tpkg.var.test
+echo "CONTROL_PORT=$CONTROL_PORT" >> .tpkg.var.test
+
+# start forwarder
+get_ldns_testns
+$LDNS_TESTNS -p $FWD_PORT stat_values.testns >fwd.log 2>&1 &
+FWD_PID=$!
+echo "FWD_PID=$FWD_PID" >> .tpkg.var.test
+
+# start expired forwarder
+$LDNS_TESTNS -p $FWD_EXPIRED_PORT stat_values.testexpiredns >fwd_expired.log 2>&1 &
+FWD_EXPIRED_PID=$!
+echo "FWD_EXPIRED_PID=$FWD_EXPIRED_PID" >> .tpkg.var.test
+
+# make config file
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/' -e 's/@EXPIREDPORT\@/'$FWD_EXPIRED_PORT'/' -e 's/@CONTROL_PORT\@/'$CONTROL_PORT'/' < stat_values.conf > ub.conf
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/' -e 's/@EXPIREDPORT\@/'$FWD_EXPIRED_PORT'/' -e 's/@CONTROL_PORT\@/'$CONTROL_PORT'/' < stat_values_cachedb.conf > ub_cachedb.conf
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/'                                                                          -e 's/@CONTROL_PORT\@/'$CONTROL_PORT'/' < stat_values_downstream_cookies.conf > ub_downstream_cookies.conf
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/'                                            -e 's/@CONTROL_PORT\@/'$CONTROL_PORT'/' < stat_values_discard_wait_limit.conf > ub_discard_wait_limit.conf
+# start unbound in the background
+$PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+
+cat .tpkg.var.test
+wait_ldns_testns_up fwd.log
+wait_ldns_testns_up fwd_expired.log
+wait_unbound_up unbound.log

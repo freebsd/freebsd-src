@@ -17,24 +17,24 @@
     0x387477c1, 0x69c7, 0x11d2, {0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b } \
   }
 
-typedef struct _EFI_SIMPLE_TEXT_INPUT_PROTOCOL  EFI_SIMPLE_TEXT_INPUT_PROTOCOL;
+typedef struct _EFI_SIMPLE_TEXT_INPUT_PROTOCOL EFI_SIMPLE_TEXT_INPUT_PROTOCOL;
 
 ///
 /// Protocol GUID name defined in EFI1.1.
 ///
-#define SIMPLE_INPUT_PROTOCOL   EFI_SIMPLE_TEXT_INPUT_PROTOCOL_GUID
+#define SIMPLE_INPUT_PROTOCOL  EFI_SIMPLE_TEXT_INPUT_PROTOCOL_GUID
 
 ///
 /// Protocol name in EFI1.1 for backward-compatible.
 ///
-typedef struct _EFI_SIMPLE_TEXT_INPUT_PROTOCOL  SIMPLE_INPUT_INTERFACE;
+typedef struct _EFI_SIMPLE_TEXT_INPUT_PROTOCOL SIMPLE_INPUT_INTERFACE;
 
 ///
 /// The keystroke information for the key that was pressed.
 ///
 typedef struct {
-  UINT16  ScanCode;
-  CHAR16  UnicodeChar;
+  UINT16    ScanCode;
+  CHAR16    UnicodeChar;
 } EFI_INPUT_KEY;
 
 //
@@ -100,6 +100,7 @@ EFI_STATUS
   @retval EFI_NOT_READY    There was no keystroke data available.
   @retval EFI_DEVICE_ERROR The keystroke information was not returned due to
                            hardware errors.
+  @retval EFI_UNSUPPORTED  The device does not support the ability to read keystroke data.
 
 **/
 typedef
@@ -114,14 +115,14 @@ EFI_STATUS
 /// It is the minimum required protocol for ConsoleIn.
 ///
 struct _EFI_SIMPLE_TEXT_INPUT_PROTOCOL {
-  EFI_INPUT_RESET     Reset;
-  EFI_INPUT_READ_KEY  ReadKeyStroke;
+  EFI_INPUT_RESET       Reset;
+  EFI_INPUT_READ_KEY    ReadKeyStroke;
   ///
   /// Event to use with WaitForEvent() to wait for a key to be available
   ///
-  EFI_EVENT           WaitForKey;
+  EFI_EVENT             WaitForKey;
 };
 
-extern EFI_GUID gEfiSimpleTextInProtocolGuid;
+extern EFI_GUID  gEfiSimpleTextInProtocolGuid;
 
 #endif

@@ -47,6 +47,7 @@
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_radiotap.h>
+#include <net80211/ieee80211_vht.h>
 
 #include <dev/rtwn/if_rtwnreg.h>
 #include <dev/rtwn/if_rtwnvar.h>
@@ -56,22 +57,73 @@
 #include <dev/rtwn/rtl8812a/r12a.h>
 #include <dev/rtwn/rtl8812a/r12a_tx_desc.h>
 
+/*
+ * This function actually handles the secondary channel mapping,
+ * not the primary channel mapping.  It hints to the MAC where
+ * to handle duplicate transmission of the RTS/CTS and payload
+ * frames when the requested transmit channel width is less than
+ * the configured channel width.
+ *
+ * Note: the vendor driver and linux rtw88 driver both leave this
+ * field currently set to 0.
+ *
+ * See the rtl8812au vendor driver, hal/rtl8812a_xmit.c:SCMapping_8812()
+ * and where it's used (and ignored.)
+ */
 static int
 r12a_get_primary_channel(struct rtwn_softc *sc, struct ieee80211_channel *c)
 {
+#if 0
 	/* XXX VHT80; VHT40 */
 	if (IEEE80211_IS_CHAN_HT40U(c))
 		return (R12A_TXDW5_PRIM_CHAN_20_80_2);
 	else
 		return (R12A_TXDW5_PRIM_CHAN_20_80_3);
+#endif
+
+	/*
+	 * For now just return the VHT_DATA_SC_DONOT_CARE value
+	 * from the reference driver.
+	 */
+	return (0);
 }
 
+/*
+ * Configure VHT20/VHT40/VHT80 as appropriate.
+ *
+ * This is only called for VHT, not for HT.
+ */
+static void
+r12a_tx_set_vht_bw(struct rtwn_softc *sc, void *buf, struct ieee80211_node *ni)
+{
+	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
+	int prim_chan;
+
+	prim_chan = r12a_get_primary_channel(sc, ni->ni_chan);
+
+	if (ieee80211_vht_check_tx_bw(ni, IEEE80211_STA_RX_BW_80)) {
+		txd->txdw5 |= htole32(SM(R12A_TXDW5_DATA_BW,
+		    R12A_TXDW5_DATA_BW80));
+		txd->txdw5 |= htole32(SM(R12A_TXDW5_DATA_PRIM_CHAN,
+		    prim_chan));
+	} else if (ieee80211_vht_check_tx_bw(ni, IEEE80211_STA_RX_BW_40)) {
+		txd->txdw5 |= htole32(SM(R12A_TXDW5_DATA_BW,
+		    R12A_TXDW5_DATA_BW40));
+		txd->txdw5 |= htole32(SM(R12A_TXDW5_DATA_PRIM_CHAN,
+		    prim_chan));
+	}
+}
+
+/*
+ * Configure HT20/HT40 as appropriate.
+ *
+ * This is only called for HT, not for VHT.
+ */
 static void
 r12a_tx_set_ht40(struct rtwn_softc *sc, void *buf, struct ieee80211_node *ni)
 {
 	struct r12a_tx_desc *txd = (struct r12a_tx_desc *)buf;
 
-	/* XXX VHT80; VHT40; VHT20 */
 	if (ieee80211_ht_check_tx_ht40(ni)) {
 		int prim_chan;
 
@@ -103,11 +155,17 @@ r12a_tx_protection(struct rtwn_softc *sc, struct r12a_tx_desc *txd,
 
 	if (mode == IEEE80211_PROT_CTSONLY ||
 	    mode == IEEE80211_PROT_RTSCTS) {
-		/* TODO: VHT */
-		if (RTWN_RATE_IS_HT(ridx))
+		/*
+		 * Note: this code assumes basic rates for protection for
+		 * both 802.11abg and 802.11n rates.
+		 */
+		if (RTWN_RATE_IS_VHT(ridx))
+			rate = rtwn_ctl_vhtrate(ic->ic_rt, ridx);
+		else if (RTWN_RATE_IS_HT(ridx))
 			rate = rtwn_ctl_mcsrate(ic->ic_rt, ridx);
 		else
 			rate = ieee80211_ctl_rate(ic->ic_rt, ridx2rate[ridx]);
+		/* Map basic rate back to ridx */
 		ridx = rate2ridx(IEEE80211_RV(rate));
 
 		txd->txdw4 |= htole32(SM(R12A_TXDW4_RTSRATE, ridx));
@@ -261,7 +319,7 @@ r12a_calculate_tx_agg_window(struct rtwn_softc *sc,
 
 void
 r12a_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
-    struct mbuf *m, void *buf, uint8_t ridx, int maxretry)
+    struct mbuf *m, void *buf, uint8_t ridx, bool force_rate, int maxretry)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
@@ -326,8 +384,12 @@ r12a_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 				txd->txdw5 |= htole32(R12A_TXDW5_DATA_SHORT);
 
 			prot = IEEE80211_PROT_NONE;
-			/* TODO: VHT */
-			if (RTWN_RATE_IS_HT(ridx)) {
+			if (RTWN_RATE_IS_VHT(ridx)) {
+				r12a_tx_set_vht_bw(sc, txd, ni);
+				/* XXX TODO: sgi */
+				/* XXX TODO: ldpc */
+				prot = ic->ic_htprotmode;
+			} else if (RTWN_RATE_IS_HT(ridx)) {
 				r12a_tx_set_ht40(sc, txd, ni);
 				r12a_tx_set_sgi(sc, txd, ni);
 				r12a_tx_set_ldpc(sc, txd, ni);

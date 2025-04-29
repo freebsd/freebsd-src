@@ -115,6 +115,8 @@ static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, bool fast_sigblock);
 static void	sigqueue_start(void);
 static void	sigfastblock_setpend(struct thread *td, bool resched);
+static void	sig_handle_first_stop(struct thread *td, struct proc *p,
+    int sig, bool ext);
 
 static uma_zone_t	ksiginfo_zone = NULL;
 const struct filterops sig_filtops = {
@@ -171,6 +173,11 @@ SYSCTL_BOOL(_kern, OID_AUTO, sig_discard_ign, CTLFLAG_RWTUN,
     &kern_sig_discard_ign, 0,
     "Discard ignored signals on delivery, otherwise queue them to "
     "the target queue");
+
+static bool pt_attach_transparent = true;
+SYSCTL_BOOL(_debug, OID_AUTO, ptrace_attach_transparent, CTLFLAG_RWTUN,
+    &pt_attach_transparent, 0,
+    "Hide wakes from PT_ATTACH on interruptible sleeps");
 
 SYSINIT(signal, SI_SUB_P1003_1B, SI_ORDER_FIRST+3, sigqueue_start, NULL);
 
@@ -343,6 +350,14 @@ ast_sig(struct thread *td, int tda)
 	 * the postsig() loop was performed.
 	 */
 	sigfastblock_setpend(td, resched_sigs);
+
+	/*
+	 * Clear td_sa.code: signal to ptrace that syscall arguments
+	 * are unavailable after this point. This AST handler is the
+	 * last chance for ptracestop() to signal the tracer before
+	 * the tracee returns to userspace.
+	 */
+	td->td_sa.code = 0;
 }
 
 static void
@@ -2355,6 +2370,16 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	if (prop & SIGPROP_CONT)
 		sigqueue_delete_stopmask_proc(p);
 	else if (prop & SIGPROP_STOP) {
+		if (pt_attach_transparent &&
+		    (p->p_flag & P_TRACED) != 0 &&
+		    (p->p_flag2 & P2_PTRACE_FSTP) != 0) {
+			td->td_dbgflags |= TDB_FSTP;
+			PROC_SLOCK(p);
+			sig_handle_first_stop(td, p, sig, true);
+			PROC_SUNLOCK(p);
+			return (0);
+		}
+
 		/*
 		 * If sending a tty stop signal to a member of an orphaned
 		 * process group, discard the signal here if the action
@@ -2812,6 +2837,29 @@ sig_suspend_threads(struct thread *td, struct proc *p)
 	}
 }
 
+static void
+sig_handle_first_stop(struct thread *td, struct proc *p, int sig, bool ext)
+{
+	if ((td->td_dbgflags & TDB_FSTP) == 0 &&
+	    ((p->p_flag2 & P2_PTRACE_FSTP) != 0 ||
+	    p->p_xthread != NULL))
+		return;
+
+	p->p_xsig = sig;
+	p->p_xthread = td;
+
+	/*
+	 * If we are on sleepqueue already, let sleepqueue
+	 * code decide if it needs to go sleep after attach.
+	 */
+	if (ext || td->td_wchan == NULL)
+		td->td_dbgflags &= ~TDB_FSTP;
+
+	p->p_flag2 &= ~P2_PTRACE_FSTP;
+	p->p_flag |= P_STOPPED_SIG | P_STOPPED_TRACE;
+	sig_suspend_threads(td, p);
+}
+
 /*
  * Stop the process for an event deemed interesting to the debugger. If si is
  * non-NULL, this is a signal exchange; the new signal requested by the
@@ -2872,24 +2920,8 @@ ptracestop(struct thread *td, int sig, ksiginfo_t *si)
 			 * already set p_xthread, the current thread will get
 			 * a chance to report itself upon the next iteration.
 			 */
-			if ((td->td_dbgflags & TDB_FSTP) != 0 ||
-			    ((p->p_flag2 & P2_PTRACE_FSTP) == 0 &&
-			    p->p_xthread == NULL)) {
-				p->p_xsig = sig;
-				p->p_xthread = td;
+			sig_handle_first_stop(td, p, sig, false);
 
-				/*
-				 * If we are on sleepqueue already,
-				 * let sleepqueue code decide if it
-				 * needs to go sleep after attach.
-				 */
-				if (td->td_wchan == NULL)
-					td->td_dbgflags &= ~TDB_FSTP;
-
-				p->p_flag2 &= ~P2_PTRACE_FSTP;
-				p->p_flag |= P_STOPPED_SIG | P_STOPPED_TRACE;
-				sig_suspend_threads(td, p);
-			}
 			if ((td->td_dbgflags & TDB_STOPATFORK) != 0) {
 				td->td_dbgflags &= ~TDB_STOPATFORK;
 			}
@@ -3328,7 +3360,8 @@ issignal(struct thread *td)
 			}
 		}
 
-		if ((p->p_flag & (P_TRACED | P_PPTRACE)) == P_TRACED &&
+		if (!pt_attach_transparent &&
+		    (p->p_flag & (P_TRACED | P_PPTRACE)) == P_TRACED &&
 		    (p->p_flag2 & P2_PTRACE_FSTP) != 0 &&
 		    SIGISMEMBER(sigpending, SIGSTOP)) {
 			/*

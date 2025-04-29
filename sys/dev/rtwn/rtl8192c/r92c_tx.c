@@ -77,10 +77,14 @@ r92c_tx_set_ht40(struct rtwn_softc *sc, void *buf, struct ieee80211_node *ni)
 
 static void
 r92c_tx_protection(struct rtwn_softc *sc, struct r92c_tx_desc *txd,
-    enum ieee80211_protmode mode, uint8_t ridx)
+    enum ieee80211_protmode mode, uint8_t ridx, bool force_rate)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint8_t rate;
+	bool use_fw_ratectl;
+
+	use_fw_ratectl =
+	    (sc->sc_ratectl == RTWN_RATECTL_FW && !force_rate);
 
 	switch (mode) {
 	case IEEE80211_PROT_CTSONLY:
@@ -95,17 +99,27 @@ r92c_tx_protection(struct rtwn_softc *sc, struct r92c_tx_desc *txd,
 
 	if (mode == IEEE80211_PROT_CTSONLY ||
 	    mode == IEEE80211_PROT_RTSCTS) {
-		if (RTWN_RATE_IS_HT(ridx))
+		if (use_fw_ratectl) {
+			/*
+			 * If we're not forcing the driver rate then this
+			 * field actually doesn't matter; what matters is
+			 * the RRSR and INIRTS configuration.
+			 */
+			ridx = RTWN_RIDX_OFDM24;
+		} else if (RTWN_RATE_IS_HT(ridx)) {
 			rate = rtwn_ctl_mcsrate(ic->ic_rt, ridx);
-		else
+			ridx = rate2ridx(IEEE80211_RV(rate));
+		} else {
 			rate = ieee80211_ctl_rate(ic->ic_rt, ridx2rate[ridx]);
-		ridx = rate2ridx(IEEE80211_RV(rate));
+			ridx = rate2ridx(IEEE80211_RV(rate));
+		}
 
 		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE, ridx));
 		/* RTS rate fallback limit (max). */
 		txd->txdw5 |= htole32(SM(R92C_TXDW5_RTSRATE_FB_LMT, 0xf));
 
-		if (RTWN_RATE_IS_CCK(ridx) && ridx != RTWN_RIDX_CCK1 &&
+		if (!use_fw_ratectl && RTWN_RATE_IS_CCK(ridx) &&
+		    ridx != RTWN_RIDX_CCK1 &&
 		    (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
 			txd->txdw4 |= htole32(R92C_TXDW4_RTS_SHORT);
 	}
@@ -236,14 +250,105 @@ r92c_calculate_tx_agg_window(struct rtwn_softc *sc,
 	return (wnd);
 }
 
+/*
+ * Check whether to enable the per-packet TX CCX report.
+ *
+ * For chipsets that do the RPT2 reports, enabling the TX
+ * CCX report results in the packet not being counted in
+ * the RPT2 counts.
+ */
+static bool
+r92c_check_enable_ccx_report(struct rtwn_softc *sc, int macid)
+{
+	if (sc->sc_ratectl != RTWN_RATECTL_NET80211)
+		return false;
+
+#ifndef RTWN_WITHOUT_UCODE
+	if ((sc->macid_rpt2_max_num != 0) &&
+	    (macid < sc->macid_rpt2_max_num))
+		return false;
+#endif
+	return true;
+}
+
+static void
+r92c_fill_tx_desc_datarate(struct rtwn_softc *sc, struct r92c_tx_desc *txd,
+    uint8_t ridx, bool force_rate)
+{
+
+	/* Force this rate if needed. */
+	if (sc->sc_ratectl == RTWN_RATECTL_FW && !force_rate) {
+		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, 0));
+	} else {
+		txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, ridx));
+		txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
+	}
+
+	/* Data rate fallback limit (max). */
+	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE_FB_LMT, 0x1f));
+}
+
+static void
+r92c_fill_tx_desc_shpreamble(struct rtwn_softc *sc, struct r92c_tx_desc *txd,
+    uint8_t ridx, bool force_rate)
+{
+	const struct ieee80211com *ic = &sc->sc_ic;
+
+	if (RTWN_RATE_IS_CCK(ridx) && ridx != RTWN_RIDX_CCK1 &&
+	    (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
+		txd->txdw4 |= htole32(R92C_TXDW4_DATA_SHPRE);
+}
+
+static enum ieee80211_protmode
+r92c_tx_get_protmode(struct rtwn_softc *sc, const struct ieee80211vap *vap,
+    const struct ieee80211_node *ni, const struct mbuf *m,
+    uint8_t ridx, bool force_rate)
+{
+	const struct ieee80211com *ic = &sc->sc_ic;
+	enum ieee80211_protmode prot;
+
+	prot = IEEE80211_PROT_NONE;
+
+	/*
+	 * If doing firmware rate control, base it the configured channel.
+	 * This ensures that for HT operation the RTS/CTS or CTS-to-self
+	 * configuration is obeyed.
+	 */
+	if (sc->sc_ratectl == RTWN_RATECTL_FW && !force_rate) {
+		struct ieee80211_channel *chan;
+		enum ieee80211_phymode mode;
+
+		chan = (ni->ni_chan != IEEE80211_CHAN_ANYC) ?
+			ni->ni_chan : ic->ic_curchan;
+		mode = ieee80211_chan2mode(chan);
+		if (mode == IEEE80211_MODE_11NG)
+			prot = ic->ic_htprotmode;
+		else if (ic->ic_flags & IEEE80211_F_USEPROT)
+			prot = ic->ic_protmode;
+	} else {
+		if (RTWN_RATE_IS_HT(ridx))
+			prot = ic->ic_htprotmode;
+		else if (ic->ic_flags & IEEE80211_F_USEPROT)
+			prot = ic->ic_protmode;
+	}
+
+	/* XXX fix last comparison for A-MSDU (in net80211) */
+	/* XXX A-MPDU? */
+	if (m->m_pkthdr.len + IEEE80211_CRC_LEN >
+	    vap->iv_rtsthreshold &&
+	    vap->iv_rtsthreshold != IEEE80211_RTS_MAX)
+		prot = IEEE80211_PROT_RTSCTS;
+
+	return (prot);
+}
+
 void
 r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
-    struct mbuf *m, void *buf, uint8_t ridx, int maxretry)
+    struct mbuf *m, void *buf, uint8_t ridx, bool force_rate, int maxretry)
 {
 #ifndef RTWN_WITHOUT_UCODE
 	struct r92c_softc *rs = sc->sc_priv;
 #endif
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct rtwn_vap *uvp = RTWN_VAP(vap);
 	struct ieee80211_frame *wh;
@@ -272,7 +377,13 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	if (ismcast)
 		txd->flags0 |= R92C_FLAGS0_BMCAST;
 
+	if (IEEE80211_IS_QOSDATA(wh))
+		txd->txdw4 |= htole32(R92C_TXDW4_QOS);
+
 	if (!ismcast) {
+		struct rtwn_node *un = RTWN_NODE(ni);
+		macid = un->id;
+
 		/* Unicast frame, check if an ACK is expected. */
 		if (!qos || (qos & IEEE80211_QOS_ACKPOLICY) !=
 		    IEEE80211_QOS_ACKPOLICY_NOACK) {
@@ -280,9 +391,6 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 			txd->txdw5 |= htole32(SM(R92C_TXDW5_RTY_LMT,
 			    maxretry));
 		}
-
-		struct rtwn_node *un = RTWN_NODE(ni);
-		macid = un->id;
 
 		if (type == IEEE80211_FC0_TYPE_DATA) {
 			qsel = tid % RTWN_MAX_TID;
@@ -295,7 +403,7 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 				txd->txdw6 |= htole32(SM(R92C_TXDW6_MAX_AGG,
 				    r92c_calculate_tx_agg_window(sc, ni, tid)));
 			}
-			if (sc->sc_ratectl == RTWN_RATECTL_NET80211) {
+			if (r92c_check_enable_ccx_report(sc, macid)) {
 				txd->txdw2 |= htole32(R92C_TXDW2_CCX_RPT);
 				sc->sc_tx_n_active++;
 #ifndef RTWN_WITHOUT_UCODE
@@ -303,28 +411,24 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 #endif
 			}
 
-			if (RTWN_RATE_IS_CCK(ridx) && ridx != RTWN_RIDX_CCK1 &&
-			    (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
-				txd->txdw4 |= htole32(R92C_TXDW4_DATA_SHPRE);
+			r92c_fill_tx_desc_shpreamble(sc, txd, ridx, force_rate);
 
-			prot = IEEE80211_PROT_NONE;
-			if (RTWN_RATE_IS_HT(ridx)) {
+			prot = r92c_tx_get_protmode(sc, vap, ni, m, ridx,
+			    force_rate);
+
+			/*
+			 * Note: Firmware rate control will enable short-GI
+			 * based on the configured rate mask, however HT40
+			 * may not be enabled.
+			 */
+			if (sc->sc_ratectl != RTWN_RATECTL_FW &&
+			    RTWN_RATE_IS_HT(ridx)) {
 				r92c_tx_set_ht40(sc, txd, ni);
 				r92c_tx_set_sgi(sc, txd, ni);
-				prot = ic->ic_htprotmode;
-			} else if (ic->ic_flags & IEEE80211_F_USEPROT)
-				prot = ic->ic_protmode;
-
-			/* XXX fix last comparison for A-MSDU (in net80211) */
-			/* XXX A-MPDU? */
-			if (m->m_pkthdr.len + IEEE80211_CRC_LEN >
-			    vap->iv_rtsthreshold &&
-			    vap->iv_rtsthreshold != IEEE80211_RTS_MAX)
-				prot = IEEE80211_PROT_RTSCTS;
+			}
 
 			/* NB: checks for ht40 / short bits (set above). */
-			if (prot != IEEE80211_PROT_NONE)
-				r92c_tx_protection(sc, txd, prot, ridx);
+			r92c_tx_protection(sc, txd, prot, ridx, force_rate);
 		} else	/* IEEE80211_FC0_TYPE_MGT */
 			qsel = R92C_TXDW1_QSEL_MGNT;
 	} else {
@@ -335,20 +439,16 @@ r92c_fill_tx_desc(struct rtwn_softc *sc, struct ieee80211_node *ni,
 	txd->txdw1 |= htole32(SM(R92C_TXDW1_QSEL, qsel));
 
 	rtwn_r92c_tx_setup_macid(sc, txd, macid);
-	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, ridx));
-	/* Data rate fallback limit (max). */
-	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE_FB_LMT, 0x1f));
+
+	/* Fill in data rate, data retry */
+	r92c_fill_tx_desc_datarate(sc, txd, ridx, force_rate);
+
 	txd->txdw4 |= htole32(SM(R92C_TXDW4_PORT_ID, uvp->id));
 	r92c_tx_raid(sc, txd, ni, ismcast);
-
-	/* Force this rate if needed. */
-	if (sc->sc_ratectl != RTWN_RATECTL_FW)
-		txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
 
 	if (!hasqos) {
 		/* Use HW sequence numbering for non-QoS frames. */
 		rtwn_r92c_tx_setup_hwseq(sc, txd);
-		txd->txdw4 |= htole32(SM(R92C_TXDW4_SEQ_SEL, uvp->id));
 	} else {
 		uint16_t seqno;
 
@@ -392,24 +492,23 @@ r92c_fill_tx_desc_raw(struct rtwn_softc *sc, struct ieee80211_node *ni,
 		    params->ibp_try0));
 	}
 	if (params->ibp_flags & IEEE80211_BPF_RTS)
-		r92c_tx_protection(sc, txd, IEEE80211_PROT_RTSCTS, ridx);
+		r92c_tx_protection(sc, txd, IEEE80211_PROT_RTSCTS, ridx,
+		    true);
 	if (params->ibp_flags & IEEE80211_BPF_CTS)
-		r92c_tx_protection(sc, txd, IEEE80211_PROT_CTSONLY, ridx);
+		r92c_tx_protection(sc, txd, IEEE80211_PROT_CTSONLY, ridx,
+		    true);
 
 	rtwn_r92c_tx_setup_macid(sc, txd, RTWN_MACID_BC);
 	txd->txdw1 |= htole32(SM(R92C_TXDW1_QSEL, R92C_TXDW1_QSEL_MGNT));
 
 	/* Set TX rate index. */
-	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, ridx));
-	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE_FB_LMT, 0x1f));
+	r92c_fill_tx_desc_datarate(sc, txd, ridx, true); /* force rate */
 	txd->txdw4 |= htole32(SM(R92C_TXDW4_PORT_ID, uvp->id));
-	txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
 	r92c_tx_raid(sc, txd, ni, ismcast);
 
 	if (!IEEE80211_QOS_HAS_SEQ(wh)) {
 		/* Use HW sequence numbering for non-QoS frames. */
 		rtwn_r92c_tx_setup_hwseq(sc, txd);
-		txd->txdw4 |= htole32(SM(R92C_TXDW4_SEQ_SEL, uvp->id));
 	} else {
 		/* Set sequence number. */
 		txd->txdseq |= htole16(M_SEQNO_GET(m) % IEEE80211_SEQ_RANGE);
@@ -438,7 +537,6 @@ r92c_fill_tx_desc_null(struct rtwn_softc *sc, void *buf, int is11b,
 
 	if (!qos) {
 		rtwn_r92c_tx_setup_hwseq(sc, txd);
-		txd->txdw4 |= htole32(SM(R92C_TXDW4_SEQ_SEL, id));
 	}
 }
 

@@ -47,9 +47,6 @@
  * Machine dependent constants for AMD64.
  */
 
-#define __HAVE_ACPI
-#define __PCI_REROUTE_INTERRUPT
-
 #ifndef MACHINE
 #define	MACHINE		"amd64"
 #endif
@@ -142,19 +139,12 @@
 /*
  * Mach derived conversion macros
  */
-#define	round_page(x)	((((unsigned long)(x)) + PAGE_MASK) & ~(PAGE_MASK))
-#define	trunc_page(x)	((unsigned long)(x) & ~(PAGE_MASK))
 #define trunc_2mpage(x)	((unsigned long)(x) & ~PDRMASK)
 #define round_2mpage(x)	((((unsigned long)(x)) + PDRMASK) & ~PDRMASK)
 #define trunc_1gpage(x)	((unsigned long)(x) & ~PDPMASK)
 
-#define	atop(x)		((unsigned long)(x) >> PAGE_SHIFT)
-#define	ptoa(x)		((unsigned long)(x) << PAGE_SHIFT)
-
 #define	amd64_btop(x)	((unsigned long)(x) >> PAGE_SHIFT)
 #define	amd64_ptob(x)	((unsigned long)(x) << PAGE_SHIFT)
-
-#define	pgtok(x)	((unsigned long)(x) * (PAGE_SIZE / 1024))
 
 #define	INKERNEL(va) (((va) >= DMAP_MIN_ADDRESS && (va) < DMAP_MAX_ADDRESS) \
     || ((va) >= VM_MIN_KERNEL_ADDRESS && (va) < VM_MAX_KERNEL_ADDRESS))

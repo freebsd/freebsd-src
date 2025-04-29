@@ -8,6 +8,7 @@
 #ifndef __LIBNVMF_H__
 #define	__LIBNVMF_H__
 
+#include <sys/_nv.h>
 #include <sys/uio.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -249,7 +250,8 @@ uint64_t nvmf_get_log_page_offset(const struct nvme_command *cmd);
 
 /* Prepare to handoff a controller qpair. */
 int	nvmf_handoff_controller_qpair(struct nvmf_qpair *qp,
-    struct nvmf_handoff_controller_qpair *h);
+    const struct nvmf_fabric_connect_cmd *cmd,
+    const struct nvmf_fabric_connect_data *data, struct nvmf_ioc_nv *nv);
 
 /* Host-specific APIs. */
 
@@ -319,6 +321,14 @@ int	nvmf_host_fetch_discovery_log_page(struct nvmf_qpair *qp,
     struct nvme_discovery_log **logp);
 
 /*
+ * Construct a discovery log page entry that describes the connection
+ * used by a host association's admin queue pair.
+ */
+int	nvmf_init_dle_from_admin_qp(struct nvmf_qpair *qp,
+    const struct nvme_controller_data *cdata,
+    struct nvme_discovery_log_entry *dle);
+
+/*
  * Request a desired number of I/O queues via SET_FEATURES.  The
  * number of actual I/O queues available is returned in *actual on
  * success.
@@ -330,7 +340,8 @@ int	nvmf_host_request_queues(struct nvmf_qpair *qp, u_int requested,
  * Handoff active host association to the kernel.  This frees the
  * qpairs (even on error).
  */
-int	nvmf_handoff_host(struct nvmf_qpair *admin_qp, u_int num_queues,
+int	nvmf_handoff_host(const struct nvme_discovery_log_entry *dle,
+    const char *hostnqn, struct nvmf_qpair *admin_qp, u_int num_queues,
     struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata);
 
 /*
@@ -348,16 +359,22 @@ int	nvmf_disconnect_all(void);
 
 /*
  * Fetch reconnect parameters from an existing kernel host to use for
- * establishing a new association.
+ * establishing a new association.  The caller must destroy the
+ * returned nvlist.
  */
-int	nvmf_reconnect_params(int fd, struct nvmf_reconnect_params *rparams);
+int	nvmf_reconnect_params(int fd, nvlist_t **nvlp);
 
 /*
  * Handoff active host association to an existing host in the kernel.
  * This frees the qpairs (even on error).
  */
-int	nvmf_reconnect_host(int fd, struct nvmf_qpair *admin_qp,
-    u_int num_queues, struct nvmf_qpair **io_queues,
-    const struct nvme_controller_data *cdata);
+int	nvmf_reconnect_host(int fd, const struct nvme_discovery_log_entry *dle,
+    const char *hostnqn, struct nvmf_qpair *admin_qp, u_int num_queues,
+    struct nvmf_qpair **io_queues, const struct nvme_controller_data *cdata);
+
+/*
+ * Fetch connection status from an existing kernel host.
+ */
+int	nvmf_connection_status(int fd, nvlist_t **nvlp);
 
 #endif /* !__LIBNVMF_H__ */

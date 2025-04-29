@@ -4,6 +4,7 @@
  * Copyright (c) 2008 Isilon Inc http://www.isilon.com/
  * Authors: Doug Rabson <dfr@rabson.org>
  * Developed with Red Inc: Alfred Perlstein <alfred@freebsd.org>
+ * Copyright (c) 2025 Gleb Smirnoff <glebius@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,27 +33,20 @@
  * the server side of kernel RPC-over-TLS by Rick Macklem.
  */
 
-#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/queue.h>
-#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/time.h>
-#include <sys/wait.h>
+#include <assert.h>
 #include <err.h>
 #include <getopt.h>
 #include <libutil.h>
 #include <netdb.h>
+#include <pthread.h>
 #include <pwd.h>
-#include <signal.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdbool.h>
-#include <string.h>
 #include <unistd.h>
 
 #include <rpc/rpc.h>
@@ -68,9 +62,6 @@
 #include "rpctlssd.h"
 #include "rpc.tlscommon.h"
 
-#ifndef _PATH_RPCTLSSDSOCK
-#define _PATH_RPCTLSSDSOCK	"/var/run/rpc.tlsservd.sock"
-#endif
 #ifndef	_PATH_CERTANDKEY
 #define	_PATH_CERTANDKEY	"/etc/rpc.tlsservd/"
 #endif
@@ -89,25 +80,26 @@ const char		*rpctls_verify_cafile = NULL;
 const char		*rpctls_verify_capath = NULL;
 char			*rpctls_crlfile = NULL;
 bool			rpctls_gothup = false;
+
+static SVCXPRT		*xprt;
+static pthread_key_t	xidkey;
 struct ssl_list		rpctls_ssllist;
+static pthread_rwlock_t	rpctls_rwlock;
+static u_int		rpctls_nthreads = 0;
+static pthread_mutex_t	rpctls_mtx;
+static pthread_cond_t	rpctls_cv;
 
 static struct pidfh	*rpctls_pfh = NULL;
 static bool		rpctls_do_mutual = false;
 static const char	*rpctls_certdir = _PATH_CERTANDKEY;
 static bool		rpctls_comparehost = false;
 static unsigned int	rpctls_wildcard = X509_CHECK_FLAG_NO_WILDCARDS;
-static uint64_t		rpctls_ssl_refno = 0;
-static uint64_t		rpctls_ssl_sec = 0;
-static uint64_t		rpctls_ssl_usec = 0;
 static bool		rpctls_cnuser = false;
 static char		*rpctls_dnsname;
 static const char	*rpctls_cnuseroid = "1.3.6.1.4.1.2238.1.1.1";
 static const char	*rpctls_ciphers = NULL;
 static int		rpctls_mintls = TLS1_3_VERSION;
-static int		rpctls_procs = 1;
-static char		*rpctls_sockname[RPCTLS_SRV_MAXNPROCS];
-static pid_t		rpctls_workers[RPCTLS_SRV_MAXNPROCS - 1];
-static bool		rpctls_im_a_worker = false;
+static u_int		rpctls_maxthreads;
 
 static void		rpctls_cleanup_term(int sig);
 static SSL_CTX		*rpctls_setup_ssl(const char *certdir);
@@ -119,7 +111,9 @@ static int		rpctls_cnname(X509 *cert, uint32_t *uidp,
 static char		*rpctls_getdnsname(char *dnsname);
 static void		rpctls_huphandler(int sig __unused);
 
-extern void		rpctlssd_1(struct svc_req *rqstp, SVCXPRT *transp);
+extern void		rpctlssd_2(struct svc_req *rqstp, SVCXPRT *transp);
+
+static void *dummy_thread(void *v __unused) { return (NULL); }
 
 static struct option longopts[] = {
 	{ "allowtls1_2",	no_argument,		NULL,	'2' },
@@ -129,7 +123,7 @@ static struct option longopts[] = {
 	{ "checkhost",		no_argument,		NULL,	'h' },
 	{ "verifylocs",		required_argument,	NULL,	'l' },
 	{ "mutualverf",		no_argument,		NULL,	'm' },
-	{ "numdaemons",		required_argument,	NULL,	'N' },
+	{ "maxthreads",		required_argument,	NULL,	'N' },
 	{ "domain",		required_argument,	NULL,	'n' },
 	{ "verifydir",		required_argument,	NULL,	'p' },
 	{ "crl",		required_argument,	NULL,	'r' },
@@ -143,21 +137,13 @@ static struct option longopts[] = {
 int
 main(int argc, char **argv)
 {
-	/*
-	 * We provide an RPC service on a local-domain socket. The
-	 * kernel rpctls code will upcall to this daemon to do the initial
-	 * TLS handshake.
-	 */
-	struct sockaddr_un sun;
-	int ch, fd, i, mypos, oldmask;
-	SVCXPRT *xprt;
-	struct timeval tm;
-	struct timezone tz;
+	int ch;
 	char hostname[MAXHOSTNAMELEN + 2];
 	pid_t otherpid;
+	pthread_t tid;
 	bool tls_enable;
 	size_t tls_enable_len;
-	sigset_t signew;
+	u_int ncpu;
 
 	/* Check that another rpctlssd isn't already running. */
 	rpctls_pfh = pidfile_open(_PATH_RPCTLSSDPID, 0600, &otherpid);
@@ -173,11 +159,6 @@ main(int argc, char **argv)
 	    NULL, 0) != 0 || !tls_enable)
 		errx(1, "Kernel TLS not enabled");
 
-	/* Get the time when this daemon is started. */
-	gettimeofday(&tm, &tz);
-	rpctls_ssl_sec = tm.tv_sec;
-	rpctls_ssl_usec = tm.tv_usec;
-
 	/* Set the dns name for the server. */
 	rpctls_dnsname = rpctls_getdnsname(hostname);
 	if (rpctls_dnsname == NULL) {
@@ -185,14 +166,9 @@ main(int argc, char **argv)
 		rpctls_dnsname = hostname;
 	}
 
-	/* Initialize socket names. */
-	for (i = 0; i < RPCTLS_SRV_MAXNPROCS; i++) {
-		asprintf(&rpctls_sockname[i], "%s.%d", _PATH_RPCTLSSDSOCK, i);
-		if (rpctls_sockname[i] == NULL)
-			errx(1, "Cannot malloc socknames");
-	}
-
 	rpctls_verbose = false;
+	rpctls_maxthreads = (ncpu = (u_int)sysconf(_SC_NPROCESSORS_ONLN)) / 2;
+
 	while ((ch = getopt_long(argc, argv, "2C:D:dhl:N:n:mp:r:uvWw", longopts,
 	    NULL)) != -1) {
 		switch (ch) {
@@ -218,11 +194,10 @@ main(int argc, char **argv)
 			rpctls_do_mutual = true;
 			break;
 		case 'N':
-			rpctls_procs = atoi(optarg);
-			if (rpctls_procs < 1 ||
-			    rpctls_procs > RPCTLS_SRV_MAXNPROCS)
-				errx(1, "numdaemons/-N must be between 1 and "
-				    "%d", RPCTLS_SRV_MAXNPROCS);
+			rpctls_maxthreads = atoi(optarg);
+			if (rpctls_maxthreads < 1 || rpctls_maxthreads > ncpu)
+				errx(1, "maximum threads must be between 1 and "
+				    "number of CPUs (%d)", ncpu);
 			break;
 		case 'n':
 			hostname[0] = '@';
@@ -260,7 +235,6 @@ main(int argc, char **argv)
 			    "[-D/--certdir certdir] [-d/--debuglevel] "
 			    "[-h/--checkhost] "
 			    "[-l/--verifylocs CAfile] [-m/--mutualverf] "
-			    "[-N/--numdaemons num] "
 			    "[-n/--domain domain_name] "
 			    "[-p/--verifydir CApath] [-r/--crl CRLfile] "
 			    "[-u/--certuser] [-v/--verbose] [-W/--multiwild] "
@@ -289,89 +263,21 @@ main(int argc, char **argv)
 		if (kldload("krpc") < 0 || modfind("krpc") < 0)
 			errx(1, "Kernel RPC is not available");
 	}
-
-	for (i = 0; i < rpctls_procs - 1; i++)
-		rpctls_workers[i] = -1;
-	mypos = 0;
-
-	if (rpctls_debug_level == 0) {
-		/*
-		 * Temporarily block SIGTERM and SIGCHLD, so workers[] can't
-		 * end up bogus.
-		 */
-		sigemptyset(&signew);
-		sigaddset(&signew, SIGTERM);
-		sigaddset(&signew, SIGCHLD);
-		sigprocmask(SIG_BLOCK, &signew, NULL);
-
-		if (daemon(0, 0) != 0)
-			err(1, "Can't daemonize");
-		signal(SIGINT, SIG_IGN);
-		signal(SIGQUIT, SIG_IGN);
-	}
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGHUP, rpctls_huphandler);
 	signal(SIGTERM, rpctls_cleanup_term);
-	signal(SIGCHLD, rpctls_cleanup_term);
 
+	if (rpctls_debug_level == 0 && daemon(0, 0) != 0)
+		err(1, "Can't daemonize");
 	pidfile_write(rpctls_pfh);
 
-	rpctls_syscall(RPCTLS_SYSC_SRVSTARTUP, "");
-
-	if (rpctls_debug_level == 0) {
-		/* Fork off the worker daemons. */
-		for (i = 0; i < rpctls_procs - 1; i++) {
-			rpctls_workers[i] = fork();
-			if (rpctls_workers[i] == 0) {
-				rpctls_im_a_worker = true;
-				mypos = i + 1;
-				setproctitle("server");
-				break;
-			} else if (rpctls_workers[i] < 0) {
-				syslog(LOG_ERR, "fork: %m");
-			}
-		}
-
-		if (!rpctls_im_a_worker && rpctls_procs > 1)
-			setproctitle("master");
-	}
-	sigemptyset(&signew);
-	sigaddset(&signew, SIGTERM);
-	sigaddset(&signew, SIGCHLD);
-	sigprocmask(SIG_UNBLOCK, &signew, NULL);
-
-	memset(&sun, 0, sizeof sun);
-	sun.sun_family = AF_LOCAL;
-	unlink(rpctls_sockname[mypos]);
-	strcpy(sun.sun_path, rpctls_sockname[mypos]);
-	sun.sun_len = SUN_LEN(&sun);
-	fd = socket(AF_LOCAL, SOCK_STREAM, 0);
-	if (fd < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR, "Can't create local rpctlssd socket");
-			exit(1);
-		}
-		err(1, "Can't create local rpctlssd socket");
-	}
-	oldmask = umask(S_IXUSR|S_IRWXG|S_IRWXO);
-	if (bind(fd, (struct sockaddr *)&sun, sun.sun_len) < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR, "Can't bind local rpctlssd socket");
-			exit(1);
-		}
-		err(1, "Can't bind local rpctlssd socket");
-	}
-	umask(oldmask);
-	if (listen(fd, SOMAXCONN) < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR,
-			    "Can't listen on local rpctlssd socket");
-			exit(1);
-		}
-		err(1, "Can't listen on local rpctlssd socket");
-	}
-	xprt = svc_vc_create(fd, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
-	if (!xprt) {
+	/*
+	 * XXX: Push libc internal state into threaded mode before creating
+	 * the threaded svc_nl xprt.
+	 */
+	(void)pthread_create(&tid, NULL, dummy_thread, NULL);
+	(void)pthread_join(tid, NULL);
+	if ((xprt = svc_nl_create("tlsserv")) == NULL) {
 		if (rpctls_debug_level == 0) {
 			syslog(LOG_ERR,
 			    "Can't create transport for local rpctlssd socket");
@@ -379,7 +285,9 @@ main(int argc, char **argv)
 		}
 		err(1, "Can't create transport for local rpctlssd socket");
 	}
-	if (!svc_reg(xprt, RPCTLSSD, RPCTLSSDVERS, rpctlssd_1, NULL)) {
+	if (!SVC_CONTROL(xprt, SVCNL_GET_XIDKEY, &xidkey))
+		err(1, "Failed to obtain pthread key for xid from svc_nl");
+	if (!svc_reg(xprt, RPCTLSSD, RPCTLSSDVERS, rpctlssd_2, NULL)) {
 		if (rpctls_debug_level == 0) {
 			syslog(LOG_ERR,
 			    "Can't register service for local rpctlssd socket");
@@ -397,18 +305,10 @@ main(int argc, char **argv)
 		err(1, "Can't create SSL context");
 	}
 	rpctls_gothup = false;
+	pthread_rwlock_init(&rpctls_rwlock, NULL);
+	pthread_mutex_init(&rpctls_mtx, NULL);
+	pthread_cond_init(&rpctls_cv, NULL);
 	LIST_INIT(&rpctls_ssllist);
-
-	if (rpctls_syscall(RPCTLS_SYSC_SRVSETPATH, rpctls_sockname[mypos]) < 0){
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR,
-			    "Can't set upcall socket path=%s errno=%d",
-			    rpctls_sockname[mypos], errno);
-			exit(1);
-		}
-		err(1, "Can't set upcall socket path=%s",
-		    rpctls_sockname[mypos]);
-	}
 
 	rpctls_svc_run();
 
@@ -417,7 +317,7 @@ main(int argc, char **argv)
 }
 
 bool_t
-rpctlssd_null_1_svc(__unused void *argp, __unused void *result,
+rpctlssd_null_2_svc(__unused void *argp, __unused void *result,
     __unused struct svc_req *rqstp)
 {
 
@@ -425,24 +325,90 @@ rpctlssd_null_1_svc(__unused void *argp, __unused void *result,
 	return (TRUE);
 }
 
+/*
+ * To parallelize SSL handshakes we will launch a thread per handshake.  Thread
+ * creation/destruction shall be order(s) of magnitude cheaper than a crypto
+ * handshake, so we are not keeping a pool of workers here.
+ *
+ * Marrying rpc(3) and pthread(3):
+ *
+ * Normally the rpcgen(1) generated rpctlssd_V() calls rpctlssd_connect_V_svc(),
+ * and the latter processes the RPC all the way to the end and returns a TRUE
+ * value and populates the result.  The generated code immediately calls
+ * svc_sendreply() transmitting the result back.
+ *
+ * We will make a private copy of arguments and return FALSE.  Then it is our
+ * obligation to call svc_sendreply() once we do the work in the thread.
+ */
+
+static void * rpctlssd_connect_thread(void *);
+struct rpctlssd_connect_thread_ctx {
+	struct rpctlssd_connect_arg arg;
+	uint32_t xid;
+};
+
 bool_t
-rpctlssd_connect_1_svc(__unused void *argp,
-    struct rpctlssd_connect_res *result, __unused struct svc_req *rqstp)
+rpctlssd_connect_2_svc(struct rpctlssd_connect_arg *argp,
+    struct rpctlssd_connect_res *result __unused, struct svc_req *rqstp)
 {
+	struct rpctlssd_connect_thread_ctx *ctx;
+	pthread_t tid;
+
+	assert(rqstp->rq_xprt == xprt);
+
+	ctx = malloc(sizeof(*ctx));
+	memcpy(&ctx->arg, argp, sizeof(ctx->arg));
+	ctx->xid = *(uint32_t *)pthread_getspecific(xidkey);
+
+	pthread_mutex_lock(&rpctls_mtx);
+	while (rpctls_nthreads >= rpctls_maxthreads)
+		pthread_cond_wait(&rpctls_cv, &rpctls_mtx);
+	rpctls_nthreads++;
+	pthread_mutex_unlock(&rpctls_mtx);
+
+	rpctls_verbose_out("rpctlsd_connect_svc: xid %u thread %u\n",
+	    ctx->xid, rpctls_nthreads);
+
+	if (pthread_create(&tid, NULL, rpctlssd_connect_thread, ctx) != 0)
+		warn("failed to start handshake thread");
+
+	/* Intentionally, so that RPC generated code doesn't try to reply. */
+	return (FALSE);
+}
+
+static void *
+rpctlssd_connect_thread(void *v)
+{
+	struct rpctlssd_connect_thread_ctx *ctx = v;
+	struct rpctlssd_connect_res result;
+	uint64_t socookie;
 	int ngrps, s;
 	SSL *ssl;
 	uint32_t flags;
 	struct ssl_entry *newslp;
-	uint32_t uid;
+	uint32_t xid, uid;
 	uint32_t *gidp;
 	X509 *cert;
 
-	rpctls_verbose_out("rpctlsd_connect_svc: started\n");
-	memset(result, 0, sizeof(*result));
+	socookie = ctx->arg.socookie;
+	xid = ctx->xid;
+	free(ctx);
+	ctx = NULL;
+	pthread_detach(pthread_self());
+
+	if (pthread_setspecific(xidkey, &xid) != 0) {
+		rpctls_verbose_out("rpctlssd_connect_svc: pthread_setspecific "
+		    "failed\n");
+		goto out;
+	}
+
 	/* Get the socket fd from the kernel. */
-	s = rpctls_syscall(RPCTLS_SYSC_SRVSOCKET, "");
-	if (s < 0)
-		return (FALSE);
+	s = rpctls_syscall(socookie);
+	if (s < 0) {
+		rpctls_verbose_out("rpctlssd_connect_svc: rpctls_syscall "
+		    "accept failed\n");
+		goto out;
+	}
 
 	/* Do the server side of a TLS handshake. */
 	gidp = calloc(NGROUPS, sizeof(*gidp));
@@ -456,26 +422,24 @@ rpctlssd_connect_1_svc(__unused void *argp,
 		 * to close off the socket upon handshake failure.
 		 */
 		close(s);
-		return (FALSE);
+		goto out;
 	} else {
 		rpctls_verbose_out("rpctlssd_connect_svc: "
 		    "succeeded flags=0x%x\n", flags);
-		result->flags = flags;
-		result->sec = rpctls_ssl_sec;
-		result->usec = rpctls_ssl_usec;
-		result->ssl = ++rpctls_ssl_refno;
-		/* Hard to believe this could ever wrap around.. */
-		if (rpctls_ssl_refno == 0)
-			result->ssl = ++rpctls_ssl_refno;
-		if ((flags & RPCTLS_FLAGS_CERTUSER) != 0) {
-			result->uid = uid;
-			result->gid.gid_len = ngrps;
-			result->gid.gid_val = gidp;
-		} else {
-			result->uid = 0;
-			result->gid.gid_len = 0;
-			result->gid.gid_val = gidp;
-		}
+		if ((flags & RPCTLS_FLAGS_CERTUSER) != 0)
+			result = (struct rpctlssd_connect_res){
+				.flags = flags,
+				.uid = uid,
+				.gid.gid_len = ngrps,
+				.gid.gid_val = gidp,
+			};
+		else
+			result = (struct rpctlssd_connect_res){
+				.flags = flags,
+				.uid = 0,
+				.gid.gid_len = 0,
+				.gid.gid_val = gidp,
+			};
 	}
 
 	/* Maintain list of all current SSL *'s */
@@ -483,28 +447,42 @@ rpctlssd_connect_1_svc(__unused void *argp,
 	newslp->ssl = ssl;
 	newslp->s = s;
 	newslp->shutoff = false;
-	newslp->refno = rpctls_ssl_refno;
+	newslp->cookie = socookie;
 	newslp->cert = cert;
+	pthread_rwlock_wrlock(&rpctls_rwlock);
 	LIST_INSERT_HEAD(&rpctls_ssllist, newslp, next);
-	return (TRUE);
+	pthread_rwlock_unlock(&rpctls_rwlock);
+
+	if (!svc_sendreply(xprt, (xdrproc_t)xdr_rpctlssd_connect_res, &result))
+		svcerr_systemerr(xprt);
+
+	free(result.gid.gid_val);
+	rpctls_verbose_out("rpctlsd_connect_svc: xid %u: thread finished\n",
+	    xid);
+
+out:
+	pthread_mutex_lock(&rpctls_mtx);
+	if (rpctls_nthreads-- >= rpctls_maxthreads) {
+		pthread_mutex_unlock(&rpctls_mtx);
+		pthread_cond_signal(&rpctls_cv);
+	} else
+		pthread_mutex_unlock(&rpctls_mtx);
+	return (NULL);
 }
 
 bool_t
-rpctlssd_handlerecord_1_svc(struct rpctlssd_handlerecord_arg *argp,
+rpctlssd_handlerecord_2_svc(struct rpctlssd_handlerecord_arg *argp,
     struct rpctlssd_handlerecord_res *result, __unused struct svc_req *rqstp)
 {
 	struct ssl_entry *slp;
 	int ret;
 	char junk;
 
-	slp = NULL;
-	if (argp->sec == rpctls_ssl_sec && argp->usec ==
-	    rpctls_ssl_usec) {
-		LIST_FOREACH(slp, &rpctls_ssllist, next) {
-			if (slp->refno == argp->ssl)
-				break;
-		}
-	}
+	pthread_rwlock_rdlock(&rpctls_rwlock);
+	LIST_FOREACH(slp, &rpctls_ssllist, next)
+		if (slp->cookie == argp->socookie)
+			break;
+	pthread_rwlock_unlock(&rpctls_rwlock);
 
 	if (slp != NULL) {
 		rpctls_verbose_out("rpctlssd_handlerecord fd=%d\n",
@@ -533,25 +511,23 @@ rpctlssd_handlerecord_1_svc(struct rpctlssd_handlerecord_arg *argp,
 }
 
 bool_t
-rpctlssd_disconnect_1_svc(struct rpctlssd_disconnect_arg *argp,
+rpctlssd_disconnect_2_svc(struct rpctlssd_disconnect_arg *argp,
     struct rpctlssd_disconnect_res *result, __unused struct svc_req *rqstp)
 {
 	struct ssl_entry *slp;
 	int ret;
 
-	slp = NULL;
-	if (argp->sec == rpctls_ssl_sec && argp->usec ==
-	    rpctls_ssl_usec) {
-		LIST_FOREACH(slp, &rpctls_ssllist, next) {
-			if (slp->refno == argp->ssl)
-				break;
+	pthread_rwlock_wrlock(&rpctls_rwlock);
+	LIST_FOREACH(slp, &rpctls_ssllist, next)
+		if (slp->cookie == argp->socookie) {
+			LIST_REMOVE(slp, next);
+			break;
 		}
-	}
+	pthread_rwlock_unlock(&rpctls_rwlock);
 
 	if (slp != NULL) {
 		rpctls_verbose_out("rpctlssd_disconnect fd=%d closed\n",
 		    slp->s);
-		LIST_REMOVE(slp, next);
 		if (!slp->shutoff) {
 			ret = SSL_get_shutdown(slp->ssl);
 			/*
@@ -579,15 +555,9 @@ rpctlssd_disconnect_1_svc(struct rpctlssd_disconnect_arg *argp,
 }
 
 int
-rpctlssd_1_freeresult(__unused SVCXPRT *transp, xdrproc_t xdr_result,
-    caddr_t result)
+rpctlssd_2_freeresult(__unused SVCXPRT *transp, xdrproc_t xdr_result __unused,
+    caddr_t result __unused)
 {
-	rpctlssd_connect_res *res;
-
-	if (xdr_result == (xdrproc_t)xdr_rpctlssd_connect_res) {
-		res = (rpctlssd_connect_res *)(void *)result;
-		free(res->gid.gid_val);
-	}
 	return (TRUE);
 }
 
@@ -595,37 +565,14 @@ rpctlssd_1_freeresult(__unused SVCXPRT *transp, xdrproc_t xdr_result,
  * cleanup_term() called via SIGTERM (or SIGCHLD if a child dies).
  */
 static void
-rpctls_cleanup_term(int sig)
+rpctls_cleanup_term(int sig __unused)
 {
 	struct ssl_entry *slp;
-	int i, cnt;
 
-	if (rpctls_im_a_worker && sig == SIGCHLD)
-		return;
 	LIST_FOREACH(slp, &rpctls_ssllist, next)
 		shutdown(slp->s, SHUT_RD);
 	SSL_CTX_free(rpctls_ctx);
 	EVP_cleanup();
-
-	if (rpctls_im_a_worker)
-		exit(0);
-
-	/* I'm the server, so terminate the workers. */
-	cnt = 0;
-	for (i = 0; i < rpctls_procs - 1; i++) {
-		if (rpctls_workers[i] != -1) {
-			cnt++;
-			kill(rpctls_workers[i], SIGTERM);
-		}
-	}
-
-	/*
-	 * Wait for them to die.
-	 */
-	for (i = 0; i < cnt; i++)
-		wait3(NULL, 0, NULL);
-
-	rpctls_syscall(RPCTLS_SYSC_SRVSHUTDOWN, "");
 	pidfile_remove(rpctls_pfh);
 
 	exit(0);

@@ -177,7 +177,6 @@ options 	GEOM_RAID3		# RAID3 functionality.
 options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_UZIP		# Read-only compressed disks
-options 	GEOM_VINUM		# Vinum logical volume manager
 options 	GEOM_VIRSTOR		# Virtual storage.
 options 	GEOM_ZERO		# Performance testing helper.
 
@@ -890,10 +889,11 @@ options 	IEEE80211_SUPPORT_MESH	#enable 802.11s D3.0 support
 options 	IEEE80211_SUPPORT_TDMA	#enable TDMA support
 
 #  The `wlan_wep', `wlan_tkip', and `wlan_ccmp' devices provide
-#  support for WEP, TKIP, and AES-CCMP crypto protocols optionally
+#  support for WEP, TKIP, AES-CCMP and AES-GCMP crypto protocols optionally
 #  used with 802.11 devices that depend on the `wlan' module.
 device		wlan_wep
 device		wlan_ccmp
+device		wlan_gcmp
 device		wlan_tkip
 
 #  The `wlan_xauth' device provides support for external (i.e. user-mode)
@@ -1025,9 +1025,6 @@ device		dummymbuf
 #
 # PF_DEFAULT_TO_DROP causes the default pf(4) rule to deny everything.
 #
-# TCPPCAP enables code which keeps the last n packets sent and received
-# on a TCP socket.
-#
 # TCP_BLACKBOX enables enhanced TCP event logging.
 #
 # TCP_HHOOK enables the hhook(9) framework hooks for the TCP stack.
@@ -1050,7 +1047,6 @@ options 	IPFILTER_LOOKUP		#ipfilter pools
 options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
 options 	PF_DEFAULT_TO_DROP	#drop everything by default
-options 	TCPPCAP
 options 	TCP_BLACKBOX
 options 	TCP_HHOOK
 options		SOCKET_HHOOK

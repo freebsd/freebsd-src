@@ -134,6 +134,41 @@ rtwn_set_basicrates(struct rtwn_softc *sc, uint32_t rates)
 	rtwn_setbits_4(sc, R92C_RRSR, R92C_RRSR_RATE_BITMAP_M, rates);
 }
 
+/*
+ * Configure the initial RTS rate to use.
+ */
+void
+rtwn_set_rts_rate(struct rtwn_softc *sc, uint32_t rates)
+{
+	uint8_t ridx;
+
+	/*
+	 * We shouldn't set the initial RTS/CTS generation rate
+	 * as the highest available rate - that may end up
+	 * with trying to configure something like MCS1 RTS/CTS.
+	 *
+	 * Instead, choose a suitable low OFDM/CCK rate based
+	 * on the basic rate bitmask.  Assume the caller
+	 * has filtered out CCK modes in 5GHz.
+	 */
+	rates &= (1 << RTWN_RIDX_CCK1) | (1 << RTWN_RIDX_CCK55) |
+	    (1 << RTWN_RIDX_CCK11) | (1 << RTWN_RIDX_OFDM6) |
+	    (1 << RTWN_RIDX_OFDM9) | (1 << RTWN_RIDX_OFDM12) |
+	    (1 << RTWN_RIDX_OFDM18) | (1 << RTWN_RIDX_OFDM24);
+	if (rates == 0) {
+		device_printf(sc->sc_dev,
+		    "WARNING: no configured basic RTS rate!\n");
+		return;
+	}
+	ridx = fls(rates) - 1;
+
+	RTWN_DPRINTF(sc, RTWN_DEBUG_RA,
+	    "%s: mask=0x%08x, ridx=%d\n",
+	    __func__, rates, ridx);
+
+	rtwn_write_1(sc, R92C_INIRTS_RATE_SEL, ridx);
+}
+
 static void
 rtwn_update_avgrssi(struct rtwn_softc *sc, struct rtwn_node *un, int8_t rssi,
     int is_cck)
@@ -532,7 +567,7 @@ rtwn_set_promisc(struct rtwn_softc *sc)
 	RTWN_ASSERT_LOCKED(sc);
 
 	mask_all = R92C_RCR_ACF | R92C_RCR_ADF | R92C_RCR_AMF | R92C_RCR_AAP;
-	mask_min = R92C_RCR_APM | R92C_RCR_APPFCS;
+	mask_min = R92C_RCR_APM;
 
 	if (sc->bcn_vaps == 0)
 		mask_min |= R92C_RCR_CBSSID_BCN;
@@ -551,5 +586,12 @@ rtwn_set_promisc(struct rtwn_softc *sc)
 		sc->rcr &= ~mask_min;
 		sc->rcr |= mask_all;
 	}
+
+	/*
+	 * Add FCS, to work around occasional 4 byte truncation.
+	 * See the previous comment above R92C_RCR_APPFCS.
+	 */
+	sc->rcr |= R92C_RCR_APPFCS;
+
 	rtwn_rxfilter_set(sc);
 }

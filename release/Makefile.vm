@@ -1,6 +1,4 @@
 #
-#
-#
 # Makefile for building virtual machine and cloud provider disk images.
 #
 
@@ -21,6 +19,10 @@ VMDK_DESC=	VMWare, VirtualBox disk image
 QCOW2_DESC=	Qemu, KVM disk image
 RAW_DESC=	Unformatted raw disk image
 
+.if defined(WITHOUT_QEMU)
+CLOUDWARE_TYPES?= \
+		BASIC-CI
+.else
 CLOUDWARE_TYPES?= AZURE \
 		BASIC-CI \
 		BASIC-CLOUDINIT \
@@ -28,6 +30,7 @@ CLOUDWARE_TYPES?= AZURE \
 		GCE \
 		ORACLE \
 		VAGRANT
+.endif
 AZURE_FORMAT=	vhdf
 AZURE_FSLIST?=	ufs zfs
 AZURE_DESC=	Microsoft Azure platform image
@@ -39,8 +42,9 @@ BASIC-CLOUDINIT_FSLIST?=	ufs zfs
 BASIC-CLOUDINIT_DESC?=	Images for VM with cloudinit disk config support
 EC2_FORMAT=	raw
 EC2_FSLIST?=	ufs zfs
-EC2_FLAVOURS?=	BASE CLOUD-INIT SMALL
+EC2_FLAVOURS?=	BASE BUILDER CLOUD-INIT SMALL
 EC2-BASE_DESC=	Amazon EC2 image
+EC2-BUILDER_DESC=	Amazon EC2 AMI Builder image
 EC2-CLOUD-INIT_DESC=	Amazon EC2 Cloud-Init image
 EC2-SMALL_DESC=	Amazon EC2 small image
 GCE_FORMAT=	raw
@@ -94,13 +98,18 @@ emulator-portinstall:
 .endif
 	touch ${.TARGET}
 
-.if ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} && !defined(WITHOUT_QEMU)
 .if ( ${TARGET_ARCH} != "i386" ) || ( ${MACHINE_ARCH} != "amd64" )
 QEMUSTATIC=/usr/local/bin/qemu-${TARGET_ARCH}-static
 QEMUTGT=emulator-portinstall
 .endif
 .endif
 QEMUTGT?=
+
+.if (defined(WITHOUT_QEMU) && !defined(NO_ROOT)) || \
+  (!defined(WITHOUT_QEMU) && defined(NO_ROOT))
+.error WITHOUT_QEMU requires NO_ROOT (and vice versa)
+.endif
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 . for _CW in ${CLOUDWARE}
@@ -116,12 +125,23 @@ CLEANFILES+=	${_CW:tl}.${_FS}.${_FMT}.img \
 		${_CW:tl}.${_FS}.${_FMT}.raw
 ${_CW:tu}${_FS:tu}${_FMT:tu}IMAGE=	${_CW:tl}.${_FS}.${_FMT}
 
+# Special handling: EC2 "AMI Builder" images need a copy of the "base" disk
+# built first.
+.if ${_CW} == EC2-BUILDER
+cw-${_CW:tl}-${_FS}-${_FMT}: cw-ec2-base-${_FS}-${_FMT}
+.endif
+
 cw-${_CW:tl}-${_FS}-${_FMT}: ${QEMUTGT}
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
+		EC2BASEIMG=${.OBJDIR}/${EC2-BASE${_FS:tu}${_FMT:tu}IMAGE} \
+		${WITHOUT_QEMU:DWITHOUT_QEMU=true} \
+		${NO_ROOT:DNO_ROOT=true} \
+		PKG_INSTALL_EPOCH=${PKG_INSTALL_EPOCH:U${GITEPOCH}} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
-		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} -F ${_FS} \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
+		-F ${"${_CW:MEC2-BUILDER}" != "":?ufs:${_FS}} \
 		-i ${.OBJDIR}/${_CW:tl}.${_FS}.${_FMT}.img -s ${VMSIZE} -f ${_FMT} \
 		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW:tu}${_FS:tu}${_FMT:tu}IMAGE} -c ${${_CW:tu}CONF}
 	touch ${.TARGET}
@@ -169,6 +189,9 @@ vm-image:	${QEMUTGT}
 	mkdir -p ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} SWAPSIZE=${SWAPSIZE} \
 		QEMUSTATIC=${QEMUSTATIC} \
+		${WITHOUT_QEMU:DWITHOUT_QEMU=true} \
+		${NO_ROOT:DNO_ROOT=true} \
+		PKG_INSTALL_EPOCH=${PKG_INSTALL_EPOCH:U${GITEPOCH}} \
 		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr \
 		-d ${.OBJDIR}/${.TARGET}-${FORMAT}-${FS} -F ${FS} \
@@ -210,7 +233,7 @@ vm-install:
 .  for FORMAT in ${VMFORMATS}
 .   for FS in ${VMFSLIST}
 	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
-	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}-${FS}.${FORMAT}
+	${XZ_CMD} -f ${DESTDIR}/vmimages/${OSRELEASE}-${FS}.${FORMAT}
 .   endfor
 .  endfor
 . endif
@@ -226,7 +249,7 @@ cloud-install-BASIC-CI:
 . for _FMT in ${BASIC-CI_FORMAT}
 	cp -p ${.OBJDIR}/${BASIC-CI${_FS:tu}${_FMT:tu}IMAGE} \
 		${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${_FS}.${_FMT}
-	${XZ_CMD} ${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${_FS}.${_FMT}
+	${XZ_CMD} -f ${DESTDIR}/ciimages/${OSRELEASE}-BASIC-CI-${_FS}.${_FMT}
 . endfor
 .endfor
 	cd ${DESTDIR}/ciimages && sha512 ${OSRELEASE}* > \
@@ -240,7 +263,7 @@ cloud-install-BASIC-CLOUDINIT:
 . for _FMT in ${BASIC-CLOUDINIT_FORMAT}
 	cp -p ${.OBJDIR}/${BASIC-CLOUDINIT${_FS:tu}${_FMT:tu}IMAGE} \
 		${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT-${_FS}.${_FMT}
-	${XZ_CMD} ${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT-${_FS}.${_FMT}
+	${XZ_CMD} -f ${DESTDIR}/vmimages/${OSRELEASE}-BASIC-CLOUDINIT-${_FS}.${_FMT}
 . endfor
 .endfor
 	cd ${DESTDIR}/vmimages && sha512 ${OSRELEASE}* > \
@@ -274,5 +297,6 @@ cloudware-release:
 .include "${.CURDIR}/Makefile.ec2"
 .include "${.CURDIR}/Makefile.firecracker"
 .include "${.CURDIR}/Makefile.gce"
+.include "${.CURDIR}/Makefile.oracle"
 .include "${.CURDIR}/Makefile.vagrant"
 .include "${.CURDIR}/Makefile.inc1"

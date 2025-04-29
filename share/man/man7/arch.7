@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 13, 2024
+.Dd April 12, 2025
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@ documentation.
 .Pp
 If not explicitly mentioned, sizes are in bytes.
 The architecture details in this document apply to
-.Fx 12.0
+.Fx 13.0
 and later, unless otherwise noted.
 .Pp
 .Fx
@@ -104,17 +104,17 @@ Discontinued architectures are shown in the following table.
 .It armeb       Ta 8.0   Ta 11.4
 .It armv6       Ta 10.0  Ta 14.x
 .It ia64        Ta 5.0   Ta 10.4
-.It mips        Ta 8.0   Ta 13.x
-.It mipsel      Ta 9.0   Ta 13.x
-.It mipselhf    Ta 12.0  Ta 13.x
-.It mipshf      Ta 12.0  Ta 13.x
-.It mipsn32     Ta 9.0   Ta 13.x
-.It mips64      Ta 9.0   Ta 13.x
-.It mips64el    Ta 9.0   Ta 13.x
-.It mips64elhf  Ta 12.0  Ta 13.x
-.It mips64hf    Ta 12.0  Ta 13.x
+.It mips        Ta 8.0   Ta 13.5
+.It mipsel      Ta 9.0   Ta 13.5
+.It mipselhf    Ta 12.0  Ta 13.5
+.It mipshf      Ta 12.0  Ta 13.5
+.It mipsn32     Ta 9.0   Ta 13.5
+.It mips64      Ta 9.0   Ta 13.5
+.It mips64el    Ta 9.0   Ta 13.5
+.It mips64elhf  Ta 12.0  Ta 13.5
+.It mips64hf    Ta 12.0  Ta 13.5
 .It pc98        Ta 2.2   Ta 11.4
-.It riscv64sf   Ta 12.0  Ta 13.x
+.It riscv64sf   Ta 12.0  Ta 13.5
 .It sparc64     Ta 5.0   Ta 12.4
 .El
 .Ss Type sizes
@@ -248,7 +248,7 @@ as the default compiler on all supported CPU architectures,
 LLVM's
 .Xr ld.lld 1
 as the default linker, and
-ELF Tool Chain binary utilities such as
+LLVM binary utilities such as
 .Xr objcopy 1
 and
 .Xr readelf 1 .
@@ -414,7 +414,7 @@ in the top level Makefile for cross building.
 Unused outside of that scope.
 It is not passed down to the rest of the build.
 Makefiles outside of the top level should not use it at all (though
-some have their own private copy for hysterical raisons).
+some have their own private copy for historical reasons).
 .It Dv TARGET_ARCH
 Used to set
 .Dv MACHINE_ARCH

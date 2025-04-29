@@ -52,6 +52,7 @@ static void
 gve_tx_free_ring_gqi(struct gve_priv *priv, int i)
 {
 	struct gve_tx_ring *tx = &priv->tx[i];
+	struct gve_ring_com *com = &tx->com;
 
 	if (tx->desc_ring != NULL) {
 		gve_dma_free_coherent(&tx->desc_ring_mem);
@@ -61,6 +62,11 @@ gve_tx_free_ring_gqi(struct gve_priv *priv, int i)
 	if (tx->info != NULL) {
 		free(tx->info, M_GVE);
 		tx->info = NULL;
+	}
+
+	if (com->qpl != NULL) {
+		gve_free_qpl(priv, com->qpl);
+		com->qpl = NULL;
 	}
 }
 
@@ -109,9 +115,11 @@ gve_tx_alloc_ring_gqi(struct gve_priv *priv, int i)
 	}
 	tx->desc_ring = tx->desc_ring_mem.cpu_addr;
 
-	com->qpl = &priv->qpls[i];
+	com->qpl = gve_alloc_qpl(priv, i, priv->tx_desc_cnt / GVE_QPL_DIVISOR,
+	    /*single_kva=*/true);
 	if (com->qpl == NULL) {
-		device_printf(priv->dev, "No QPL left for tx ring %d\n", i);
+		device_printf(priv->dev,
+		    "Failed to alloc QPL for tx ring %d\n", i);
 		err = ENOMEM;
 		goto abort;
 	}
@@ -173,39 +181,32 @@ abort:
 }
 
 int
-gve_alloc_tx_rings(struct gve_priv *priv)
+gve_alloc_tx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_idx)
 {
-	int err = 0;
 	int i;
+	int err;
 
-	priv->tx = malloc(sizeof(struct gve_tx_ring) * priv->tx_cfg.num_queues,
-	    M_GVE, M_WAITOK | M_ZERO);
+	KASSERT(priv->tx != NULL, ("priv->tx is NULL!"));
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++) {
+	for (i = start_idx; i < stop_idx; i++) {
 		err = gve_tx_alloc_ring(priv, i);
 		if (err != 0)
 			goto free_rings;
-
 	}
 
 	return (0);
-
 free_rings:
-	while (i--)
-		gve_tx_free_ring(priv, i);
-	free(priv->tx, M_GVE);
+	gve_free_tx_rings(priv, start_idx, i);
 	return (err);
 }
 
 void
-gve_free_tx_rings(struct gve_priv *priv)
+gve_free_tx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_idx)
 {
 	int i;
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++)
+	for (i = start_idx; i < stop_idx; i++)
 		gve_tx_free_ring(priv, i);
-
-	free(priv->tx, M_GVE);
 }
 
 static void
@@ -240,15 +241,16 @@ gve_clear_tx_ring(struct gve_priv *priv, int i)
 }
 
 static void
-gve_start_tx_ring(struct gve_priv *priv, int i,
-    void (cleanup) (void *arg, int pending))
+gve_start_tx_ring(struct gve_priv *priv, int i)
 {
 	struct gve_tx_ring *tx = &priv->tx[i];
 	struct gve_ring_com *com = &tx->com;
 
 	atomic_store_bool(&tx->stopped, false);
-
-	NET_TASK_INIT(&com->cleanup_task, 0, cleanup, tx);
+	if (gve_is_gqi(priv))
+		NET_TASK_INIT(&com->cleanup_task, 0, gve_tx_cleanup_tq, tx);
+	else
+		NET_TASK_INIT(&com->cleanup_task, 0, gve_tx_cleanup_tq_dqo, tx);
 	com->cleanup_tq = taskqueue_create_fast("gve tx", M_WAITOK,
 	    taskqueue_thread_enqueue, &com->cleanup_tq);
 	taskqueue_start_threads(&com->cleanup_tq, 1, PI_NET, "%s txq %d",
@@ -297,10 +299,7 @@ gve_create_tx_rings(struct gve_priv *priv)
 		com->db_offset = 4 * be32toh(com->q_resources->db_index);
 		com->counter_idx = be32toh(com->q_resources->counter_index);
 
-		if (gve_is_gqi(priv))
-			gve_start_tx_ring(priv, i, gve_tx_cleanup_tq);
-		else
-			gve_start_tx_ring(priv, i, gve_tx_cleanup_tq_dqo);
+		gve_start_tx_ring(priv, i);
 	}
 
 	gve_set_state_flag(priv, GVE_STATE_FLAG_TX_RINGS_OK);
@@ -421,7 +420,7 @@ gve_tx_cleanup_tq(void *arg, int pending)
 	 * interrupt but they will still be handled by the enqueue below.
 	 * Completions born after the barrier WILL trigger an interrupt.
 	 */
-	mb();
+	atomic_thread_fence_seq_cst();
 
 	nic_done = gve_tx_load_event_counter(priv, tx);
 	todo = nic_done - tx->done;

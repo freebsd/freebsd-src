@@ -59,8 +59,8 @@
 #include <dev/qcom_clk/qcom_clk_branch2.h>
 #include <dev/qcom_clk/qcom_clk_ro_div.h>
 
-#include "qcom_gcc_ipq4018_var.h"
-
+#include "qcom_gcc_var.h"
+#include "qcom_gcc_ipq4018.h"
 
 /* Fixed rate clock. */
 #define F_RATE(_id, cname, _freq)					\
@@ -578,7 +578,7 @@ static struct qcom_clk_branch2_def branch2_tbl[] = {
 	    0x1e00c, 0, 0, 0, 0x1e00c, QCOM_CLK_BRANCH2_BRANCH_HALT,
 	    false, 0),
 	F_BRANCH2(GCC_USB2_SLEEP_CLK, "gcc_usb2_sleep_clk",
-	    "gcc_sleep_clk_src", 0x1e010, 0, 0, 0, 0x1e010,
+	    "sleep_clk", 0x1e010, 0, 0, 0, 0x1e010,
 	    QCOM_CLK_BRANCH2_BRANCH_HALT,
 	    false, 0),
 	F_BRANCH2(GCC_USB2_MOCK_UTMI_CLK, "gcc_usb2_mock_utmi_clk",
@@ -588,7 +588,7 @@ static struct qcom_clk_branch2_def branch2_tbl[] = {
 	F_BRANCH2(GCC_USB3_MASTER_CLK, "gcc_usb3_master_clk", "fepll125",
 	    0x1e028, 0, 0, 0, 0x1e028, QCOM_CLK_BRANCH2_BRANCH_HALT,
 	    false, 0),
-	F_BRANCH2(GCC_USB3_SLEEP_CLK, "gcc_usb3_sleep_clk", "gcc_sleep_clk_src",
+	F_BRANCH2(GCC_USB3_SLEEP_CLK, "gcc_usb3_sleep_clk", "sleep_clk",
 	    0x1e02c, 0, 0, 0, 0x1e02c, QCOM_CLK_BRANCH2_BRANCH_HALT,
 	    false, 0),
 	F_BRANCH2(GCC_USB3_MOCK_UTMI_CLK, "gcc_usb3_mock_utmi_clk",
@@ -602,7 +602,12 @@ static struct qcom_clk_branch2_def branch2_tbl[] = {
 	F_BRANCH2(GCC_WCSS2G_REF_CLK, "gcc_wcss2g_ref_clk", "xo",
 	    0x1f00c, 0, 0, 0, 0x1f00c, QCOM_CLK_BRANCH2_BRANCH_HALT,
 	    false, QCOM_CLK_BRANCH2_FLAGS_SET_RATE_PARENT),
-	F_BRANCH2(GCC_WCSS2G_RTC_CLK, "gcc_wcss2g_rtc_clk", "gcc_sleep_clk_src",
+	/*
+	 * TODO: figure out whether gcc_sleep_clk_src -> sleep_clk is right;
+	 * will need to go consult the openwrt ipq4018 device tree / code
+	 * again!
+	 */
+	F_BRANCH2(GCC_WCSS2G_RTC_CLK, "gcc_wcss2g_rtc_clk", "sleep_clk",
 	    0x1f010, 0, 0, 0, 0x1f010, QCOM_CLK_BRANCH2_BRANCH_HALT,
 	    false, 0),
 
@@ -613,7 +618,7 @@ static struct qcom_clk_branch2_def branch2_tbl[] = {
 	F_BRANCH2(GCC_WCSS5G_REF_CLK, "gcc_wcss5g_ref_clk", "xo",
 	    0x1f00c, 0, 0, 0, 0x2000c, QCOM_CLK_BRANCH2_BRANCH_HALT,
 	    false, QCOM_CLK_BRANCH2_FLAGS_SET_RATE_PARENT),
-	F_BRANCH2(GCC_WCSS5G_RTC_CLK, "gcc_wcss5g_rtc_clk", "gcc_sleep_clk_src",
+	F_BRANCH2(GCC_WCSS5G_RTC_CLK, "gcc_wcss5g_rtc_clk", "sleep_clk",
 	    0x1f010, 0, 0, 0, 0x20010, QCOM_CLK_BRANCH2_BRANCH_HALT,
 	    false, 0),
 
@@ -624,7 +629,7 @@ static struct qcom_clk_branch2_def branch2_tbl[] = {
 };
 
 static void
-qcom_gcc_ipq4018_clock_init_fepll(struct qcom_gcc_ipq4018_softc *sc)
+qcom_gcc_ipq4018_clock_init_fepll(struct qcom_gcc_softc *sc)
 {
 	int i, rv;
 
@@ -636,7 +641,7 @@ qcom_gcc_ipq4018_clock_init_fepll(struct qcom_gcc_ipq4018_softc *sc)
 }
 
 static void
-qcom_gcc_ipq4018_clock_init_fdiv(struct qcom_gcc_ipq4018_softc *sc)
+qcom_gcc_ipq4018_clock_init_fdiv(struct qcom_gcc_softc *sc)
 {
 	int i, rv;
 
@@ -648,7 +653,7 @@ qcom_gcc_ipq4018_clock_init_fdiv(struct qcom_gcc_ipq4018_softc *sc)
 }
 
 static void
-qcom_gcc_ipq4018_clock_init_apssdiv(struct qcom_gcc_ipq4018_softc *sc)
+qcom_gcc_ipq4018_clock_init_apssdiv(struct qcom_gcc_softc *sc)
 {
 	int i, rv;
 
@@ -660,7 +665,7 @@ qcom_gcc_ipq4018_clock_init_apssdiv(struct qcom_gcc_ipq4018_softc *sc)
 }
 
 static void
-qcom_gcc_ipq4018_clock_init_rcg2(struct qcom_gcc_ipq4018_softc *sc)
+qcom_gcc_ipq4018_clock_init_rcg2(struct qcom_gcc_softc *sc)
 {
 	int i, rv;
 
@@ -672,7 +677,7 @@ qcom_gcc_ipq4018_clock_init_rcg2(struct qcom_gcc_ipq4018_softc *sc)
 }
 
 static void
-qcom_gcc_ipq4018_clock_init_branch2(struct qcom_gcc_ipq4018_softc *sc)
+qcom_gcc_ipq4018_clock_init_branch2(struct qcom_gcc_softc *sc)
 {
 	int i, rv;
 
@@ -684,7 +689,7 @@ qcom_gcc_ipq4018_clock_init_branch2(struct qcom_gcc_ipq4018_softc *sc)
 }
 
 static void
-qcom_gcc_ipq4018_clock_init_ro_div(struct qcom_gcc_ipq4018_softc *sc)
+qcom_gcc_ipq4018_clock_init_ro_div(struct qcom_gcc_softc *sc)
 {
 	int i, rv;
 
@@ -695,43 +700,8 @@ qcom_gcc_ipq4018_clock_init_ro_div(struct qcom_gcc_ipq4018_softc *sc)
 	}
 }
 
-int
-qcom_gcc_ipq4018_clock_read(device_t dev, bus_addr_t addr, uint32_t *val)
-{
-	struct qcom_gcc_ipq4018_softc *sc;
-
-	sc = device_get_softc(dev);
-	*val = bus_read_4(sc->reg, addr);
-	return (0);
-}
-
-int
-qcom_gcc_ipq4018_clock_write(device_t dev, bus_addr_t addr, uint32_t val)
-{
-	struct qcom_gcc_ipq4018_softc *sc;
-
-	sc = device_get_softc(dev);
-	bus_write_4(sc->reg, addr, val);
-	return (0);
-}
-
-int
-qcom_gcc_ipq4018_clock_modify(device_t dev, bus_addr_t addr,
-     uint32_t clear_mask, uint32_t set_mask)
-{
-	struct qcom_gcc_ipq4018_softc *sc;
-	uint32_t reg;
-
-	sc = device_get_softc(dev);
-	reg = bus_read_4(sc->reg, addr);
-	reg &= clear_mask;
-	reg |= set_mask;
-	bus_write_4(sc->reg, addr, reg);
-	return (0);
-}
-
 void
-qcom_gcc_ipq4018_clock_setup(struct qcom_gcc_ipq4018_softc *sc)
+qcom_gcc_ipq4018_clock_setup(struct qcom_gcc_softc *sc)
 {
 
 	sc->clkdom = clkdom_create(sc->dev);
@@ -746,22 +716,4 @@ qcom_gcc_ipq4018_clock_setup(struct qcom_gcc_ipq4018_softc *sc)
 
 	/* Finalise clock tree */
 	clkdom_finit(sc->clkdom);
-}
-
-void
-qcom_gcc_ipq4018_clock_lock(device_t dev)
-{
-	struct qcom_gcc_ipq4018_softc *sc;
-
-	sc = device_get_softc(dev);
-	mtx_lock(&sc->mtx);
-}
-
-void
-qcom_gcc_ipq4018_clock_unlock(device_t dev)
-{
-	struct qcom_gcc_ipq4018_softc *sc;
-
-	sc = device_get_softc(dev);
-	mtx_unlock(&sc->mtx);
 }

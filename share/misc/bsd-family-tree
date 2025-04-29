@@ -469,10 +469,12 @@ FreeBSD 5.2           |      |                 |                       |
  |     |      |      15      |    |               |                    |
  |     |   FreeBSD    |      |    |               |                    |
  |     |     13.4     |      |    |           OpenBSD 7.6              |
- |  FreeBSD           |      |    |               |                    |
- |   14.2             |      |    |               |                    |
- |                    |      |  NetBSD            |                    |
- |                    |      |   10.1             |                    |
+ |  FreeBSD   |       |      |    |               |                    |
+ |   14.2     |       |      |    |               |                    |
+ |            |       |      |  NetBSD            |                    |
+ |            |       |      |   10.1             |                    |
+ |         FreeBSD    |      |                    |                    |
+ |           13.5     |      |                    |                    |
  |                    |      |                    |                    |
 FreeBSD 15 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
  |                    |      |                    |                    |
@@ -913,6 +915,7 @@ FreeBSD 13.4		2024-09-17 [FBD]
 OpenBSD 7.6		2024-10-08 [OBD]
 FreeBSD 14.2		2024-12-03 [FBD]
 NetBSD 10.1		2024-12-16 [NBD]
+FreeBSD 13.5		2025-03-11 [FBD]
 
 Bibliography
 ------------------------

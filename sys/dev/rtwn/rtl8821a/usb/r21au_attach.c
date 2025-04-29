@@ -141,6 +141,7 @@ r21a_attach_private(struct rtwn_softc *sc)
 	rs->rs_iq_calib_sw		= r21a_iq_calib_sw;
 
 	rs->ampdu_max_time		= 0x5e;
+	rs->ampdu_max_size		= 0xffff; /* 64k */
 
 	rs->ac_usb_dma_size		= 0x01;
 	rs->ac_usb_dma_time		= 0x10;
@@ -159,11 +160,22 @@ r21au_adj_devcaps(struct rtwn_softc *sc)
 		ic->ic_caps |= IEEE80211_C_DFS;
 
 	ic->ic_htcaps |=
-	    IEEE80211_HTCAP_CHWIDTH40 /* 40 MHz channel width */
-	    | IEEE80211_HTCAP_SHORTGI40 /* short GI in 40MHz */
+	    IEEE80211_HTCAP_CHWIDTH40 | /* 40 MHz channel width */
+	    IEEE80211_HTCAP_SHORTGI40 /* short GI in 40MHz */
 	    ;
 
-	/* TODO: VHT */
+	/* VHT config */
+	ic->ic_flags_ext |= IEEE80211_FEXT_VHT;
+	ic->ic_vht_cap.vht_cap_info =
+	    IEEE80211_VHTCAP_MAX_MPDU_LENGTH_11454 |
+	    IEEE80211_VHTCAP_SHORT_GI_80 |
+	    IEEE80211_VHTCAP_TXSTBC |
+	    IEEE80211_VHTCAP_RXSTBC_1 |
+	    IEEE80211_VHTCAP_HTC_VHT |
+	    _IEEE80211_SHIFTMASK(7,
+	        IEEE80211_VHTCAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK);
+
+	rtwn_attach_vht_cap_info_mcs(sc);
 }
 
 void
@@ -223,6 +235,7 @@ r21au_attach(struct rtwn_usb_softc *uc)
 #endif
 	sc->sc_beacon_init		= r21a_beacon_init;
 	sc->sc_beacon_enable		= r92c_beacon_enable;
+	sc->sc_sta_beacon_enable	= r12a_sta_beacon_enable;
 	sc->sc_beacon_set_rate		= r12a_beacon_set_rate;
 	sc->sc_beacon_select		= r21a_beacon_select;
 	sc->sc_temp_measure		= r88e_temp_measure;

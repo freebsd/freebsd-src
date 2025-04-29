@@ -60,6 +60,8 @@
 #include <linux/pci_ids.h>
 #include <linux/pm.h>
 
+#include <linux/kernel.h>	/* pr_debug */
+
 struct pci_device_id {
 	uint32_t	vendor;
 	uint32_t	device;
@@ -114,6 +116,10 @@ MODULE_PNP_INFO("U32:vendor;U32:device;V32:subvendor;V32:subdevice",	\
 #define	PCI_COMMAND		PCIR_COMMAND
 #define	PCI_COMMAND_INTX_DISABLE	PCIM_CMD_INTxDIS
 #define	PCI_COMMAND_MEMORY	PCIM_CMD_MEMEN
+#define	PCI_PRIMARY_BUS		PCIR_PRIBUS_1
+#define	PCI_SECONDARY_BUS	PCIR_SECBUS_1
+#define	PCI_SUBORDINATE_BUS	PCIR_SUBBUS_1
+#define	PCI_SEC_LATENCY_TIMER	PCIR_SECLAT_1
 #define	PCI_EXP_DEVCTL		PCIER_DEVICE_CTL		/* Device Control */
 #define	PCI_EXP_LNKCTL		PCIER_LINK_CTL			/* Link Control */
 #define	PCI_EXP_LNKCTL_ASPM_L0S	PCIEM_LINK_CTL_ASPMC_L0S
@@ -224,6 +230,8 @@ typedef int pci_power_t;
 
 extern const char *pci_power_names[6];
 
+#define	PCI_ERR_UNCOR_STATUS		PCIR_AER_UC_STATUS
+#define	PCI_ERR_COR_STATUS		PCIR_AER_COR_STATUS
 #define	PCI_ERR_ROOT_COMMAND		PCIR_AER_ROOTERR_CMD
 #define	PCI_ERR_ROOT_ERR_SRC		PCIR_AER_COR_SOURCE_ID
 
@@ -238,7 +246,7 @@ extern const char *pci_power_names[6];
 #define	PCI_IRQ_MSIX			0x04
 #define	PCI_IRQ_ALL_TYPES		(PCI_IRQ_MSIX|PCI_IRQ_MSI|PCI_IRQ_INTX)
 
-#if defined(LINUXKPI_VERSION) && (LINUXKPI_VERSION >= 60800)
+#if defined(LINUXKPI_VERSION) && (LINUXKPI_VERSION <= 61000)
 #define	PCI_IRQ_LEGACY			PCI_IRQ_INTX
 #endif
 
@@ -372,7 +380,9 @@ struct device *lkpi_pci_find_irq_dev(unsigned int irq);
 int _lkpi_pci_enable_msi_range(struct pci_dev *pdev, int minvec, int maxvec);
 
 #define	pci_err(pdev, fmt, ...)						\
-    dev_err(&(pdev)->dev, fmt, __VA_ARGS__)
+    dev_err(&(pdev)->dev, fmt, ##__VA_ARGS__)
+#define	pci_info(pdev, fmt, ...)					\
+    dev_info(&(pdev)->dev, fmt, ##__VA_ARGS__)
 
 static inline bool
 dev_is_pci(struct device *dev)
@@ -515,7 +525,20 @@ pci_upstream_bridge(struct pci_dev *pdev)
 	if (pdev == pdev->bus->self) {
 		device_t bridge;
 
-		bridge = device_get_parent(pdev->dev.bsddev);
+		/*
+		 * In the case of DRM drivers, the passed device is a child of
+		 * `vgapci`. We want to start the lookup from `vgapci`, so the
+		 * parent of the passed `drmn`.
+		 *
+		 * We can use the `isdrm` flag to determine this.
+		 */
+		bridge = pdev->dev.bsddev;
+		if (pdev->pdrv != NULL && pdev->pdrv->isdrm)
+			bridge = device_get_parent(bridge);
+		if (bridge == NULL)
+			goto done;
+
+		bridge = device_get_parent(bridge);
 		if (bridge == NULL)
 			goto done;
 		bridge = device_get_parent(bridge);
@@ -1355,6 +1378,9 @@ pci_bus_write_config_word(struct pci_bus *bus, unsigned int devfn, int pos,
 
 struct pci_dev *lkpi_pci_get_class(unsigned int class, struct pci_dev *from);
 #define	pci_get_class(class, from)	lkpi_pci_get_class(class, from)
+struct pci_dev *lkpi_pci_get_base_class(unsigned int class,
+    struct pci_dev *from);
+#define	pci_get_base_class(class, from)	lkpi_pci_get_base_class(class, from)
 
 /* -------------------------------------------------------------------------- */
 
@@ -1495,6 +1521,14 @@ pci_irq_vector(struct pci_dev *pdev, unsigned int vector)
 	}
 
         return (-ENXIO);
+}
+
+static inline int
+pci_wake_from_d3(struct pci_dev *pdev, bool enable)
+{
+
+	pr_debug("%s: TODO\n", __func__);
+	return (0);
 }
 
 #endif	/* _LINUXKPI_LINUX_PCI_H_ */

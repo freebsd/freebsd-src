@@ -38,13 +38,13 @@
 #include <err.h>
 #include <getopt.h>
 #include <libgen.h>
+#include <mntopts.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "extern.h"
-#include "mntopts.h"
 
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,

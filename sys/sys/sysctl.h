@@ -864,7 +864,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 /* OID expressing a sbintime_t as microseconds */
 #define	SYSCTL_SBINTIME_USEC(parent, nbr, name, access, ptr, descr)	\
 	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    CTLTYPE_S64 | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
 	    (ptr), 0, sysctl_usec_to_sbintime, "Q", descr);		\
 	CTASSERT(((access) & CTLTYPE) == 0 ||				\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S64)
@@ -874,7 +874,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	CTASSERT(((access) & CTLTYPE) == 0 ||				\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S64);		\
 	sysctl_add_oid(ctx, parent, nbr, name,				\
-	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    CTLTYPE_S64 | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
 	    __ptr, 0, sysctl_usec_to_sbintime, "Q", __DESCR(descr),	\
 	    NULL);							\
 })
@@ -882,7 +882,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 /* OID expressing a sbintime_t as milliseconds */
 #define	SYSCTL_SBINTIME_MSEC(parent, nbr, name, access, ptr, descr)	\
 	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    CTLTYPE_S64 | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
 	    (ptr), 0, sysctl_msec_to_sbintime, "Q", descr);		\
 	CTASSERT(((access) & CTLTYPE) == 0 ||				\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S64)
@@ -892,7 +892,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	CTASSERT(((access) & CTLTYPE) == 0 ||				\
 	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S64);		\
 	sysctl_add_oid(ctx, parent, nbr, name,				\
-	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    CTLTYPE_S64 | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
 	    __ptr, 0, sysctl_msec_to_sbintime, "Q", __DESCR(descr),	\
 	    NULL);							\
 })
@@ -1041,6 +1041,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_PROC_SIGFASTBLK	44	/* address of fastsigblk magic word */
 #define	KERN_PROC_VM_LAYOUT	45	/* virtual address space layout info */
 #define	KERN_PROC_RLIMIT_USAGE	46	/* array of rlim_t */
+#define	KERN_PROC_KQUEUE	47	/* array of struct kinfo_knote */
 
 /*
  * KERN_IPC identifiers

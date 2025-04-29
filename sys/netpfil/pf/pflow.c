@@ -1216,7 +1216,7 @@ pflow_sendout_ipfix(struct pflow_softc *sc, enum pflow_family_t af)
 		    + sc->sc_count_nat4 * sizeof(struct pflow_ipfix_nat4);
 		break;
 	default:
-		panic("Unsupported AF %d", af);
+		unhandled_af(af);
 	}
 
 	pflowstat_inc(pflow_packets);
@@ -1389,15 +1389,12 @@ pflow_nl_create(struct nlmsghdr *hdr, struct nl_pstate *npt)
 struct pflow_parsed_del {
 	int id;
 };
-#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pflow_parsed_del, _field)
 static const struct nlattr_parser nla_p_del[] = {
 	{ .type = PFLOWNL_DEL_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
 };
-static const struct nlfield_parser nlf_p_del[] = {};
-#undef _IN
 #undef _OUT
-NL_DECLARE_PARSER(del_parser, struct genlmsghdr, nlf_p_del, nla_p_del);
+NL_DECLARE_PARSER(del_parser, struct genlmsghdr, nlf_p_empty, nla_p_del);
 
 static int
 pflow_nl_del(struct nlmsghdr *hdr, struct nl_pstate *npt)
@@ -1417,15 +1414,12 @@ pflow_nl_del(struct nlmsghdr *hdr, struct nl_pstate *npt)
 struct pflow_parsed_get {
 	int id;
 };
-#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pflow_parsed_get, _field)
 static const struct nlattr_parser nla_p_get[] = {
 	{ .type = PFLOWNL_GET_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
 };
-static const struct nlfield_parser nlf_p_get[] = {};
-#undef _IN
 #undef _OUT
-NL_DECLARE_PARSER(get_parser, struct genlmsghdr, nlf_p_get, nla_p_get);
+NL_DECLARE_PARSER(get_parser, struct genlmsghdr, nlf_p_empty, nla_p_get);
 
 static bool
 nlattr_add_sockaddr(struct nl_writer *nw, int attr, const struct sockaddr *s)
@@ -1450,7 +1444,7 @@ nlattr_add_sockaddr(struct nl_writer *nw, int attr, const struct sockaddr *s)
 		break;
 	}
 	default:
-		panic("Unknown address family %d", s->sa_family);
+		unhandled_af(s->sa_family);
 	}
 
 	nlattr_set_len(nw, off);
@@ -1558,7 +1552,6 @@ struct pflow_parsed_set {
 	struct sockaddr_storage dst;
 	uint32_t observation_dom;
 };
-#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pflow_parsed_set, _field)
 static const struct nlattr_parser nla_p_set[] = {
 	{ .type = PFLOWNL_SET_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
@@ -1567,10 +1560,8 @@ static const struct nlattr_parser nla_p_set[] = {
 	{ .type = PFLOWNL_SET_DST, .off = _OUT(dst), .arg = &addr_parser, .cb = nlattr_get_nested },
 	{ .type = PFLOWNL_SET_OBSERVATION_DOMAIN, .off = _OUT(observation_dom), .cb = nlattr_get_uint32 },
 };
-static const struct nlfield_parser nlf_p_set[] = {};
-#undef _IN
 #undef _OUT
-NL_DECLARE_PARSER(set_parser, struct genlmsghdr, nlf_p_set, nla_p_set);
+NL_DECLARE_PARSER(set_parser, struct genlmsghdr, nlf_p_empty, nla_p_set);
 
 static int
 pflow_set(struct pflow_softc *sc, const struct pflow_parsed_set *pflowr, struct ucred *cred)
@@ -1792,11 +1783,11 @@ static const struct nlhdr_parser *all_parsers[] = {
 
 static unsigned		pflow_do_osd_jail_slot;
 
+static uint16_t family_id;
 static int
 pflow_init(void)
 {
 	bool ret;
-	int family_id __diagused;
 
 	NL_VERIFY_PARSERS(all_parsers);
 
@@ -1805,10 +1796,10 @@ pflow_init(void)
 	};
 	pflow_do_osd_jail_slot = osd_jail_register(NULL, methods);
 
-	family_id = genl_register_family(PFLOWNL_FAMILY_NAME, 0, 2, PFLOWNL_CMD_MAX);
+	family_id = genl_register_family(PFLOWNL_FAMILY_NAME, 0, 2,
+	    PFLOWNL_CMD_MAX);
 	MPASS(family_id != 0);
-	ret = genl_register_cmds(PFLOWNL_FAMILY_NAME, pflow_cmds,
-	    nitems(pflow_cmds));
+	ret = genl_register_cmds(family_id, pflow_cmds, nitems(pflow_cmds));
 
 	return (ret ? 0 : ENODEV);
 }
@@ -1817,7 +1808,7 @@ static void
 pflow_uninit(void)
 {
 	osd_jail_deregister(pflow_do_osd_jail_slot);
-	genl_unregister_family(PFLOWNL_FAMILY_NAME);
+	genl_unregister_family(family_id);
 }
 
 static int

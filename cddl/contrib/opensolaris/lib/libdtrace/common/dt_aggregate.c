@@ -472,14 +472,18 @@ dt_aggregate_snap_cpu(dtrace_hdl_t *dtp, processorid_t cpu)
 	}
 
 	if (buf->dtbd_drops != 0) {
-		xo_open_instance("probes");
-		dt_oformat_drop(dtp, cpu);
-		if (dt_handle_cpudrop(dtp, cpu,
-		    DTRACEDROP_AGGREGATION, buf->dtbd_drops) == -1) {
-			xo_close_instance("probes");
-			return (-1);
+		int error;
+
+		if (dtp->dt_oformat) {
+			xo_open_instance("probes");
+			dt_oformat_drop(dtp, cpu);
 		}
-		xo_close_instance("probes");
+		error = dt_handle_cpudrop(dtp, cpu, DTRACEDROP_AGGREGATION,
+		    buf->dtbd_drops);
+		if (dtp->dt_oformat)
+			xo_close_instance("probes");
+		if (error != 0)
+			return (-1);
 	}
 
 	if (buf->dtbd_size == 0)
@@ -1092,8 +1096,10 @@ dt_aggregate_go(dtrace_hdl_t *dtp)
 	assert(agp->dtat_ncpu == 0);
 	assert(agp->dtat_cpus == NULL);
 
-	agp->dtat_maxcpu = dt_sysconf(dtp, _SC_CPUID_MAX) + 1;
-	agp->dtat_ncpu = dt_sysconf(dtp, _SC_NPROCESSORS_MAX);
+	agp->dtat_maxcpu = dt_cpu_maxid(dtp) + 1;
+	if (agp->dtat_maxcpu <= 0)
+		return (-1);
+	agp->dtat_ncpu = dt_sysconf(dtp, _SC_NPROCESSORS_CONF);
 	agp->dtat_cpus = malloc(agp->dtat_ncpu * sizeof (processorid_t));
 
 	if (agp->dtat_cpus == NULL)

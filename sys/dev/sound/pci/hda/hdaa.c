@@ -2912,7 +2912,7 @@ hdaa_dump_gpo(struct hdaa_devinfo *devinfo)
 		data = hda_command(dev,
 		    HDA_CMD_GET_GPO_DATA(0, devinfo->nid));
 		for (i = 0; i < HDA_PARAM_GPIO_COUNT_NUM_GPO(devinfo->gpio_cap); i++) {
-			device_printf(dev, " GPO%d: state=%d", i,
+			device_printf(dev, " GPO%d: state=%d\n", i,
 				    (data >> i) & 1);
 		}
 	}
@@ -3218,7 +3218,7 @@ hdaa_audio_as_parse(struct hdaa_devinfo *devinfo)
 				continue;
 			}
 			KASSERT(cnt < max,
-			    ("%s: Associations owerflow (%d of %d)",
+			    ("%s: Associations overflow (%d of %d)",
 			    __func__, cnt, max));
 			type = w->wclass.pin.config &
 			    HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
@@ -6200,7 +6200,9 @@ hdaa_configure(device_t dev)
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Creating PCM devices...\n");
 	);
+	hdaa_unlock(devinfo);
 	hdaa_create_pcms(devinfo);
+	hdaa_lock(devinfo);
 
 	HDA_BOOTVERBOSE(
 		if (devinfo->quirks != 0) {
@@ -6684,7 +6686,7 @@ hdaa_detach(device_t dev)
 	struct hdaa_devinfo *devinfo = device_get_softc(dev);
 	int error;
 
-	if ((error = device_delete_children(dev)) != 0)
+	if ((error = bus_generic_detach(dev)) != 0)
 		return (error);
 
 	hdaa_lock(devinfo);

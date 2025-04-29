@@ -29,12 +29,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 14, 2023
+.Dd April 22, 2025
 .Dt GETENV 3
 .Os
 .Sh NAME
 .Nm clearenv ,
 .Nm getenv ,
+.Nm getenv_r ,
 .Nm putenv ,
 .Nm secure_getenv ,
 .Nm setenv ,
@@ -48,6 +49,8 @@
 .Fn clearenv "void"
 .Ft char *
 .Fn getenv "const char *name"
+.Ft int
+.Fn getenv_r "const char *name" "char *buf" "size_t len"
 .Ft char *
 .Fn secure_getenv "const char *name"
 .Ft int
@@ -71,12 +74,23 @@ and
 .Pp
 The
 .Fn getenv
-function obtains the current value of the environment variable,
+function obtains the current value of the environment variable
+designated by
 .Fa name .
 The application should not modify the string pointed
 to by the
 .Fn getenv
 function.
+.Pp
+The
+.Fn getenv_r
+function obtains the current value of the environment variable
+designated by
+.Fa name
+and copies it into the buffer
+.Fa buf
+of length
+.Fa len .
 .Pp
 The
 .Fn secure_getenv
@@ -85,7 +99,7 @@ returns
 when the environment cannot be trusted, otherwise it acts like
 .Fn getenv .
 The environment currently is not trusted when
-.Xr issetugid 3
+.Xr issetugid 2
 returns a non-zero value, but other conditions may be added
 in the future.
 .Pp
@@ -157,12 +171,13 @@ function returns
 if the process is in "secure execution," otherwise it will call
 .Fn getenv .
 .Pp
-.Rv -std clearenv setenv putenv unsetenv
+.Rv -std clearenv getenv_r setenv putenv unsetenv
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The function
 .Fn getenv ,
+.Fn getenv_r ,
 .Fn setenv
 or
 .Fn unsetenv
@@ -191,6 +206,11 @@ is the first character in
 This does not follow the
 .Tn POSIX
 specification.
+.It Bq Er ENOENT
+The function
+.Fn getenv_r
+failed because the requested variable was not found in the
+environment.
 .It Bq Er ENOMEM
 The function
 .Fn setenv ,
@@ -198,6 +218,11 @@ The function
 or
 .Fn putenv
 failed because they were unable to allocate memory for the environment.
+.It Bq Er ERANGE
+The function
+.Fn getenv_r
+failed because the value of the requested variable was too long to fit
+in the provided buffer.
 .El
 .Sh SEE ALSO
 .Xr csh 1 ,
@@ -251,6 +276,13 @@ and
 .Fn secure_getenv
 functions were added in
 .Fx 14 .
+.Pp
+The
+.Fn getenv_r
+function first appeared in
+.Nx 4.0
+and was added in
+.Fx 15 .
 .Sh BUGS
 Successive calls to
 .Fn setenv

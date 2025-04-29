@@ -23,14 +23,14 @@ net/wifi-firmware-kmod@release
 ports-mgmt/pkg
 shells/bash
 shells/zsh
-security/sudo
+security/sudo@default
 sysutils/screen
 sysutils/seatd
 sysutils/tmux
 www/firefox
 www/links
 x11/gnome
-x11/kde5
+x11/kde
 x11/sddm
 x11/xorg
 x11-wm/sway"

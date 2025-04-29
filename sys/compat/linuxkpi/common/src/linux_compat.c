@@ -59,6 +59,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_radix.h>
 
 #include <machine/stdarg.h>
 
@@ -75,6 +76,7 @@
 #include <linux/moduleparam.h>
 #include <linux/cdev.h>
 #include <linux/file.h>
+#include <linux/fs.h>
 #include <linux/sysfs.h>
 #include <linux/mm.h>
 #include <linux/io.h>
@@ -95,6 +97,8 @@
 #include <linux/rcupdate.h>
 #include <linux/interval_tree.h>
 #include <linux/interval_tree_generic.h>
+#include <linux/printk.h>
+#include <linux/seq_file.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <asm/smp.h>
@@ -644,6 +648,7 @@ int
 zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
     unsigned long size)
 {
+	struct pctrie_iter pages;
 	vm_object_t obj;
 	vm_page_t m;
 
@@ -651,9 +656,8 @@ zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
 	if (obj == NULL || (obj->flags & OBJ_UNMANAGED) != 0)
 		return (-ENOTSUP);
 	VM_OBJECT_RLOCK(obj);
-	for (m = vm_page_find_least(obj, OFF_TO_IDX(address));
-	    m != NULL && m->pindex < OFF_TO_IDX(address + size);
-	    m = TAILQ_NEXT(m, listq))
+	vm_page_iter_limit_init(&pages, obj, OFF_TO_IDX(address + size));
+	VM_RADIX_FOREACH_FROM(m, &pages, OFF_TO_IDX(address))
 		pmap_remove_all(m);
 	VM_OBJECT_RUNLOCK(obj);
 	return (0);
@@ -1080,6 +1084,58 @@ linux_poll_wakeup(struct linux_file *filp)
 	/* make sure the "knote" gets woken up */
 	KNOTE_LOCKED(&filp->f_selinfo.si_note, 1);
 	spin_unlock(&filp->f_kqlock);
+}
+
+static struct linux_file *
+__get_file_rcu(struct linux_file **f)
+{
+	struct linux_file *file1, *file2;
+
+	file1 = READ_ONCE(*f);
+	if (file1 == NULL)
+		return (NULL);
+
+	if (!refcount_acquire_if_not_zero(
+	    file1->_file == NULL ? &file1->f_count : &file1->_file->f_count))
+		return (ERR_PTR(-EAGAIN));
+
+	file2 = READ_ONCE(*f);
+	if (file2 == file1)
+		return (file2);
+
+	fput(file1);
+	return (ERR_PTR(-EAGAIN));
+}
+
+struct linux_file *
+linux_get_file_rcu(struct linux_file **f)
+{
+	struct linux_file *file1;
+
+	for (;;) {
+		file1 = __get_file_rcu(f);
+		if (file1 == NULL)
+			return (NULL);
+
+		if (IS_ERR(file1))
+			continue;
+
+		return (file1);
+	}
+}
+
+struct linux_file *
+get_file_active(struct linux_file **f)
+{
+	struct linux_file *file1;
+
+	rcu_read_lock();
+	file1 = __get_file_rcu(f);
+	rcu_read_unlock();
+	if (IS_ERR(file1))
+		file1 = NULL;
+
+	return (file1);
 }
 
 static void
@@ -1916,6 +1972,84 @@ kasprintf(gfp_t gfp, const char *fmt, ...)
 	return (p);
 }
 
+int
+__lkpi_hexdump_printf(void *arg1 __unused, const char *fmt, ...)
+{
+	va_list ap;
+	int result;
+
+	va_start(ap, fmt);
+	result = vprintf(fmt, ap);
+	va_end(ap);
+	return (result);
+}
+
+int
+__lkpi_hexdump_sbuf_printf(void *arg1, const char *fmt, ...)
+{
+	va_list ap;
+	int result;
+
+	va_start(ap, fmt);
+	result = sbuf_vprintf(arg1, fmt, ap);
+	va_end(ap);
+	return (result);
+}
+
+void
+lkpi_hex_dump(int(*_fpf)(void *, const char *, ...), void *arg1,
+    const char *level, const char *prefix_str,
+    const int prefix_type, const int rowsize, const int groupsize,
+    const void *buf, size_t len, const bool ascii)
+{
+	typedef const struct { long long value; } __packed *print_64p_t;
+	typedef const struct { uint32_t value; } __packed *print_32p_t;
+	typedef const struct { uint16_t value; } __packed *print_16p_t;
+	const void *buf_old = buf;
+	int row;
+
+	while (len > 0) {
+		if (level != NULL)
+			_fpf(arg1, "%s", level);
+		if (prefix_str != NULL)
+			_fpf(arg1, "%s ", prefix_str);
+
+		switch (prefix_type) {
+		case DUMP_PREFIX_ADDRESS:
+			_fpf(arg1, "[%p] ", buf);
+			break;
+		case DUMP_PREFIX_OFFSET:
+			_fpf(arg1, "[%#tx] ", ((const char *)buf -
+			    (const char *)buf_old));
+			break;
+		default:
+			break;
+		}
+		for (row = 0; row != rowsize; row++) {
+			if (groupsize == 8 && len > 7) {
+				_fpf(arg1, "%016llx ", ((print_64p_t)buf)->value);
+				buf = (const uint8_t *)buf + 8;
+				len -= 8;
+			} else if (groupsize == 4 && len > 3) {
+				_fpf(arg1, "%08x ", ((print_32p_t)buf)->value);
+				buf = (const uint8_t *)buf + 4;
+				len -= 4;
+			} else if (groupsize == 2 && len > 1) {
+				_fpf(arg1, "%04x ", ((print_16p_t)buf)->value);
+				buf = (const uint8_t *)buf + 2;
+				len -= 2;
+			} else if (len > 0) {
+				_fpf(arg1, "%02x ", *(const uint8_t *)buf);
+				buf = (const uint8_t *)buf + 1;
+				len--;
+			} else {
+				break;
+			}
+		}
+		_fpf(arg1, "\n");
+	}
+}
+
 static void
 linux_timer_callback_wrapper(void *context)
 {
@@ -2714,8 +2848,8 @@ linux_compat_init(void *arg)
 	boot_cpu_data.x86_model = CPUID_TO_MODEL(cpu_id);
 	boot_cpu_data.x86_vendor = x86_vendor;
 
-	__cpu_data = mallocarray(mp_maxid + 1,
-	    sizeof(*__cpu_data), M_KMALLOC, M_WAITOK | M_ZERO);
+	__cpu_data = kmalloc_array(mp_maxid + 1,
+	    sizeof(*__cpu_data), M_WAITOK | M_ZERO);
 	CPU_FOREACH(i) {
 		__cpu_data[i].x86_clflush_size = cpu_clflush_line_size;
 		__cpu_data[i].x86_max_cores = mp_ncpus;
@@ -2757,8 +2891,8 @@ linux_compat_init(void *arg)
 	 * This is used by cpumask_of() (and possibly others in the future) for,
 	 * e.g., drivers to pass hints to irq_set_affinity_hint().
 	 */
-	static_single_cpu_mask = mallocarray(mp_maxid + 1,
-	    sizeof(static_single_cpu_mask), M_KMALLOC, M_WAITOK | M_ZERO);
+	static_single_cpu_mask = kmalloc_array(mp_maxid + 1,
+	    sizeof(static_single_cpu_mask), M_WAITOK | M_ZERO);
 
 	/*
 	 * When the number of CPUs reach a threshold, we start to save memory
@@ -2777,9 +2911,9 @@ linux_compat_init(void *arg)
 		 * (_BITSET_BITS / 8)' bytes (for comparison with the
 		 * overlapping scheme).
 		 */
-		static_single_cpu_mask_lcs = mallocarray(mp_ncpus,
+		static_single_cpu_mask_lcs = kmalloc_array(mp_ncpus,
 		    sizeof(*static_single_cpu_mask_lcs),
-		    M_KMALLOC, M_WAITOK | M_ZERO);
+		    M_WAITOK | M_ZERO);
 
 		sscm_ptr = static_single_cpu_mask_lcs;
 		CPU_FOREACH(i) {

@@ -53,6 +53,7 @@
 #include <machine/elf.h>
 #include <machine/md_var.h>
 #include <machine/thead.h>
+#include <machine/cbo.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
@@ -78,6 +79,11 @@ bool __read_frequently has_sstc;
 bool __read_frequently has_sscofpmf;
 bool has_svpbmt;
 
+/* Z-extensions support. */
+bool has_zicbom;
+bool has_zicboz;
+bool has_zicbop;
+
 struct cpu_desc {
 	const char	*cpu_mvendor_name;
 	const char	*cpu_march_name;
@@ -89,6 +95,12 @@ struct cpu_desc {
 #define	 SV_SVPBMT	(1 << 2)
 #define	 SV_SVINVAL	(1 << 3)
 #define	 SV_SSCOFPMF	(1 << 4)
+	u_int		z_extensions;		/* Multi-letter extensions. */
+#define	 Z_ZICBOM	(1 << 0)
+#define	 Z_ZICBOZ	(1 << 1)
+#define	 Z_ZICBOP	(1 << 2)
+	int		cbom_block_size;
+	int		cboz_block_size;
 };
 
 struct cpu_desc cpu_desc[MAXCPU];
@@ -114,6 +126,7 @@ static const struct marchid_entry global_marchids[] = {
 
 static const struct marchid_entry sifive_marchids[] = {
 	{ MARCHID_SIFIVE_U7,	"6/7/P200/X200-Series Processor" },
+	{ MARCHID_SIFIVE_P5,	"P550/P650 Processor" },
 	MARCHID_END
 };
 
@@ -196,11 +209,24 @@ parse_ext_x(struct cpu_desc *desc __unused, char *isa, int idx, int len)
 static __inline int
 parse_ext_z(struct cpu_desc *desc __unused, char *isa, int idx, int len)
 {
+#define	CHECK_Z_EXT(str, flag)						\
+	do {								\
+		if (strncmp(&isa[idx], (str),				\
+		    MIN(strlen(str), len - idx)) == 0) {		\
+			desc->z_extensions |= flag;			\
+			return (idx + strlen(str));			\
+		}							\
+	} while (0)
+
+	/* Check for known/supported extensions. */
+	CHECK_Z_EXT("zicbom",	Z_ZICBOM);
+	CHECK_Z_EXT("zicboz",	Z_ZICBOZ);
+	CHECK_Z_EXT("zicbop",	Z_ZICBOP);
+
+#undef CHECK_Z_EXT
 	/*
 	 * Proceed to the next multi-letter extension or the end of the
 	 * string.
-	 *
-	 * TODO: parse some of these.
 	 */
 	while (isa[idx] != '_' && idx < len) {
 		idx++;
@@ -322,6 +348,22 @@ parse_mmu_fdt(struct cpu_desc *desc, phandle_t node)
 }
 
 static void
+parse_cbo_fdt(struct cpu_desc *desc, phandle_t node)
+{
+	int error;
+
+	error = OF_getencprop(node, "riscv,cbom-block-size",
+	    &desc->cbom_block_size, sizeof(desc->cbom_block_size));
+	if (error == -1)
+		desc->cbom_block_size = 0;
+
+	error = OF_getencprop(node, "riscv,cboz-block-size",
+	    &desc->cboz_block_size, sizeof(desc->cboz_block_size));
+	if (error == -1)
+		desc->cboz_block_size = 0;
+}
+
+static void
 identify_cpu_features_fdt(u_int cpu, struct cpu_desc *desc)
 {
 	char isa[1024];
@@ -372,6 +414,9 @@ identify_cpu_features_fdt(u_int cpu, struct cpu_desc *desc)
 		/* Check MMU features. */
 		parse_mmu_fdt(desc, node);
 
+		/* Cache-block operations (CBO). */
+		parse_cbo_fdt(desc, node);
+
 		/* We are done. */
 		break;
 	}
@@ -421,6 +466,11 @@ update_global_capabilities(u_int cpu, struct cpu_desc *desc)
 	UPDATE_CAP(has_sstc, (desc->smode_extensions & SV_SSTC) != 0);
 	UPDATE_CAP(has_sscofpmf, (desc->smode_extensions & SV_SSCOFPMF) != 0);
 	UPDATE_CAP(has_svpbmt, (desc->smode_extensions & SV_SVPBMT) != 0);
+
+	/* Z extension support. */
+	UPDATE_CAP(has_zicbom, (desc->z_extensions & Z_ZICBOM) != 0);
+	UPDATE_CAP(has_zicboz, (desc->z_extensions & Z_ZICBOZ) != 0);
+	UPDATE_CAP(has_zicbop, (desc->z_extensions & Z_ZICBOP) != 0);
 
 #undef UPDATE_CAP
 }
@@ -506,6 +556,9 @@ identify_cpu(u_int cpu)
 
 	update_global_capabilities(cpu, desc);
 	handle_cpu_quirks(cpu, desc);
+
+	if (has_zicbom && cpu == 0)
+		cbo_zicbom_setup_cache(desc->cbom_block_size);
 }
 
 void

@@ -118,7 +118,7 @@ mlx5e_tls_tag_import(void *arg, void **store, int cnt, int domain, int flags)
 
 	for (i = 0; i != cnt; i++) {
 		ptag = malloc_domainset(sizeof(*ptag), M_MLX5E_TLS,
-		    mlx5_dev_domainset(arg), flags | M_ZERO);
+		    mlx5_dev_domainset(priv->mdev), flags | M_ZERO);
 		if (ptag == NULL)
 			return (i);
 		ptag->tls = &priv->tls;

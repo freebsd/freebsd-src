@@ -19,6 +19,7 @@ atf_test_case config2_pubkeys_meta_data
 atf_test_case config2_network
 atf_test_case config2_network_static_v4
 atf_test_case config2_ssh_keys
+atf_test_case nocloud_userdata_cloudconfig_ssh_pwauth
 
 args_body()
 {
@@ -459,6 +460,58 @@ blabla
 	atf_check -o inline:"${_expected}" cat ${PWD}/etc/ssh/ssh_host_ed25519_key.pub
 }
 
+
+nocloud_userdata_cloudconfig_ssh_pwauth_head()
+{
+	atf_set "require.user" root
+}
+nocloud_userdata_cloudconfig_ssh_pwauth_body()
+{
+	mkdir -p etc
+	cat > etc/master.passwd << EOF
+root:*:0:0::0:0:Charlie &:/root:/bin/sh
+sys:*:1:0::0:0:Sys:/home/sys:/bin/sh
+EOF
+	pwd_mkdb -d etc "${PWD}"/etc/master.passwd
+	cat > etc/group << EOF
+wheel:*:0:root
+users:*:1:
+EOF
+	mkdir -p media/nuageinit
+	printf "instance-id: iid-local01\n" > "${PWD}"/media/nuageinit/meta-data
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+ssh_pwauth: true
+EOF
+	mkdir -p etc/ssh/
+	touch etc/ssh/sshd_config
+
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o inline:"PasswordAuthentication yes\n" cat etc/ssh/sshd_config
+
+	# Same value we don't touch anything
+	printf "   PasswordAuthentication yes # I want password\n" > etc/ssh/sshd_config
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o inline:"   PasswordAuthentication yes # I want password\n" cat etc/ssh/sshd_config
+
+	printf "   PasswordAuthentication no # Should change\n" > etc/ssh/sshd_config
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o inline:"PasswordAuthentication yes\n" cat etc/ssh/sshd_config
+
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+ssh_pwauth: false
+EOF
+
+	printf "   PasswordAuthentication no # no passwords\n" > etc/ssh/sshd_config
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o inline:"   PasswordAuthentication no # no passwords\n" cat etc/ssh/sshd_config
+
+	printf "   PasswordAuthentication yes # Should change\n" > etc/ssh/sshd_config
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o inline:"PasswordAuthentication no\n" cat etc/ssh/sshd_config
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case args
@@ -474,4 +527,5 @@ atf_init_test_cases()
 	atf_add_test_case config2_network
 	atf_add_test_case config2_network_static_v4
 	atf_add_test_case config2_ssh_keys
+	atf_add_test_case nocloud_userdata_cloudconfig_ssh_pwauth
 }

@@ -401,6 +401,24 @@ lkpi_pci_get_class(unsigned int class, struct pci_dev *from)
 }
 
 struct pci_dev *
+lkpi_pci_get_base_class(unsigned int baseclass, struct pci_dev *from)
+{
+	device_t dev;
+	device_t devfrom = NULL;
+	struct pci_dev *pdev;
+
+	if (from != NULL)
+		devfrom = from->dev.bsddev;
+
+	dev = pci_find_base_class_from(baseclass, devfrom);
+	if (dev == NULL)
+		return (NULL);
+
+	pdev = lkpinew_pci_dev(dev);
+	return (pdev);
+}
+
+struct pci_dev *
 lkpi_pci_get_domain_bus_and_slot(int domain, unsigned int bus,
     unsigned int devfn)
 {
@@ -1453,14 +1471,19 @@ linux_dma_map_phys_common(struct device *dev, vm_paddr_t phys, size_t len,
 	}
 
 	nseg = -1;
-	if (_bus_dmamap_load_phys(obj->dmat, obj->dmamap, phys, len,
-	    BUS_DMA_NOWAIT, &seg, &nseg) != 0) {
+	error = _bus_dmamap_load_phys(obj->dmat, obj->dmamap, phys, len,
+	    BUS_DMA_NOWAIT, &seg, &nseg);
+	if (error != 0) {
 		bus_dmamap_destroy(obj->dmat, obj->dmamap);
 		DMA_PRIV_UNLOCK(priv);
 		uma_zfree(linux_dma_obj_zone, obj);
 		counter_u64_add(lkpi_pci_nseg1_fail, 1);
-		if (linuxkpi_debug)
+		if (linuxkpi_debug) {
+			device_printf(dev->bsddev, "%s: _bus_dmamap_load_phys "
+			    "error %d, phys %#018jx len %zu\n", __func__,
+			    error, (uintmax_t)phys, len);
 			dump_stack();
+		}
 		return (0);
 	}
 

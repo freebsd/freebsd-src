@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -2193,7 +2194,7 @@ dbuf_dirty_lightweight(dnode_t *dn, uint64_t blkid, dmu_tx_t *tx)
 	mutex_enter(&dn->dn_mtx);
 	int txgoff = tx->tx_txg & TXG_MASK;
 	if (dn->dn_free_ranges[txgoff] != NULL) {
-		range_tree_clear(dn->dn_free_ranges[txgoff], blkid, 1);
+		zfs_range_tree_clear(dn->dn_free_ranges[txgoff], blkid, 1);
 	}
 
 	if (dn->dn_nlevels == 1) {
@@ -2400,7 +2401,7 @@ dbuf_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	    db->db_blkid != DMU_SPILL_BLKID) {
 		mutex_enter(&dn->dn_mtx);
 		if (dn->dn_free_ranges[txgoff] != NULL) {
-			range_tree_clear(dn->dn_free_ranges[txgoff],
+			zfs_range_tree_clear(dn->dn_free_ranges[txgoff],
 			    db->db_blkid, 1);
 		}
 		mutex_exit(&dn->dn_mtx);
@@ -4779,8 +4780,7 @@ dbuf_sync_leaf(dbuf_dirty_record_t *dr, dmu_tx_t *tx)
 
 	if (*datap != NULL && *datap == db->db_buf &&
 	    dn->dn_object != DMU_META_DNODE_OBJECT &&
-	    zfs_refcount_count(&db->db_holds) > 1 &&
-	    dr->dt.dl.dr_override_state != DR_OVERRIDDEN) {
+	    zfs_refcount_count(&db->db_holds) > 1) {
 		/*
 		 * If this buffer is currently "in use" (i.e., there
 		 * are active holds and db_data still references it),
@@ -5352,8 +5352,8 @@ dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx)
 		mutex_enter(&db->db_mtx);
 		dr->dt.dl.dr_override_state = DR_NOT_OVERRIDDEN;
 		zio_write_override(dr->dr_zio, &dr->dt.dl.dr_overridden_by,
-		    dr->dt.dl.dr_copies, dr->dt.dl.dr_nopwrite,
-		    dr->dt.dl.dr_brtwrite);
+		    dr->dt.dl.dr_copies, dr->dt.dl.dr_gang_copies,
+		    dr->dt.dl.dr_nopwrite, dr->dt.dl.dr_brtwrite);
 		mutex_exit(&db->db_mtx);
 	} else if (data == NULL) {
 		ASSERT(zp.zp_checksum == ZIO_CHECKSUM_OFF ||

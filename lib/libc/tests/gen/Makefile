@@ -7,6 +7,9 @@ ATF_TESTS_C+=		fmtcheck2_test
 ATF_TESTS_C+=		fmtmsg_test
 ATF_TESTS_C+=		fnmatch2_test
 ATF_TESTS_C+=		fpclassify2_test
+.if ${COMPILER_FEATURES:Mblocks}
+ATF_TESTS_C+=		fts_blocks_test
+.endif
 ATF_TESTS_C+=		ftw_test
 ATF_TESTS_C+=		getentropy_test
 ATF_TESTS_C+=		getmntinfo_test
@@ -91,6 +94,12 @@ SRCS.fnmatch2_test=	fnmatch_test.c
 TEST_METADATA.setdomainname_test+=	is_exclusive=true
 TESTS_SUBDIRS=	execve
 TESTS_SUBDIRS+=	posix_spawn
+
+# Tests that require blocks support
+.for t in fts_blocks_test
+CFLAGS.${t}.c+=		-fblocks
+LIBADD.${t}+=		BlocksRuntime
+.endfor
 
 # The old testcase name
 TEST_FNMATCH=	test-fnmatch

@@ -56,6 +56,7 @@
 #include <net/if_dl.h>
 #include <net/if_private.h>
 #include <net/if_types.h>
+#include <net/if_bridgevar.h>
 #include <net/netisr.h>
 #include <net/ethernet.h>
 #include <net/route.h>
@@ -155,11 +156,12 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_log_per_second,
  */
 #define MAX_GARP_RETRANSMITS 16
 static int sysctl_garp_rexmit(SYSCTL_HANDLER_ARGS);
-static int garp_rexmit_count = 0; /* GARP retransmission setting. */
+VNET_DEFINE_STATIC(int, garp_rexmit_count) = 0; /* GARP retransmission setting. */
+#define	V_garp_rexmit_count	VNET(garp_rexmit_count)
 
 SYSCTL_PROC(_net_link_ether_inet, OID_AUTO, garp_rexmit_count,
-    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MPSAFE,
-    &garp_rexmit_count, 0, sysctl_garp_rexmit, "I",
+    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MPSAFE|CTLFLAG_VNET,
+    &VNET_NAME(garp_rexmit_count), 0, sysctl_garp_rexmit, "I",
     "Number of times to retransmit GARP packets;"
     " 0 to disable, maximum of 16");
 
@@ -831,7 +833,7 @@ in_arpinput(struct mbuf *m)
 	 * when we have clusters of interfaces).
 	 */
 	CK_LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
-		if (((bridged && ia->ia_ifp->if_bridge == ifp->if_bridge) ||
+		if (((bridged && bridge_same_p(ia->ia_ifp->if_bridge, ifp->if_bridge)) ||
 		    ia->ia_ifp == ifp) &&
 		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr &&
 		    (ia->ia_ifa.ifa_carp == NULL ||
@@ -841,7 +843,7 @@ in_arpinput(struct mbuf *m)
 		}
 	}
 	CK_LIST_FOREACH(ia, INADDR_HASH(isaddr.s_addr), ia_hash)
-		if (((bridged && ia->ia_ifp->if_bridge == ifp->if_bridge) ||
+		if (((bridged && bridge_same_p(ia->ia_ifp->if_bridge, ifp->if_bridge)) ||
 		    ia->ia_ifp == ifp) &&
 		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
 			ifa_ref(&ia->ia_ifa);
@@ -849,7 +851,7 @@ in_arpinput(struct mbuf *m)
 		}
 
 #define BDG_MEMBER_MATCHES_ARP(addr, ifp, ia)				\
-  (ia->ia_ifp->if_bridge == ifp->if_softc &&				\
+  (bridge_get_softc_p(ia->ia_ifp) == ifp->if_softc &&			\
   !bcmp(IF_LLADDR(ia->ia_ifp), IF_LLADDR(ifp), ifp->if_addrlen) &&	\
   addr == ia->ia_addr.sin_addr.s_addr)
 	/*
@@ -1352,6 +1354,7 @@ sysctl_garp_rexmit(SYSCTL_HANDLER_ARGS)
 static void
 garp_rexmit(void *arg)
 {
+	struct epoch_tracker et;
 	struct in_ifaddr *ia = arg;
 
 	if (callout_pending(&ia->ia_garp_timer) ||
@@ -1361,6 +1364,7 @@ garp_rexmit(void *arg)
 		return;
 	}
 
+	NET_EPOCH_ENTER(et);
 	CURVNET_SET(ia->ia_ifa.ifa_ifp->if_vnet);
 
 	/*
@@ -1377,7 +1381,7 @@ garp_rexmit(void *arg)
 	 * the callout to retransmit another GARP packet.
 	 */
 	++ia->ia_garp_count;
-	if (ia->ia_garp_count >= garp_rexmit_count) {
+	if (ia->ia_garp_count >= V_garp_rexmit_count) {
 		ifa_free(&ia->ia_ifa);
 	} else {
 		int rescheduled;
@@ -1392,6 +1396,7 @@ garp_rexmit(void *arg)
 	}
 
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 }
 
 /*
@@ -1444,7 +1449,7 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 	NET_EPOCH_ENTER(et);
 	arp_announce_ifaddr(ifp, dst_in->sin_addr, IF_LLADDR(ifp));
 	NET_EPOCH_EXIT(et);
-	if (garp_rexmit_count > 0) {
+	if (V_garp_rexmit_count > 0) {
 		garp_timer_start(ifa);
 	}
 

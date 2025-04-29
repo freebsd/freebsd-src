@@ -401,7 +401,7 @@ freebsd32_sigaltstack(struct thread *td,
  */
 int
 freebsd32_exec_copyin_args(struct image_args *args, const char *fname,
-    enum uio_seg segflg, uint32_t *argv, uint32_t *envv)
+    uint32_t *argv, uint32_t *envv)
 {
 	char *argp, *envp;
 	uint32_t *p32, arg;
@@ -422,7 +422,7 @@ freebsd32_exec_copyin_args(struct image_args *args, const char *fname,
 	/*
 	 * Copy the file name.
 	 */
-	error = exec_args_add_fname(args, fname, segflg);
+	error = exec_args_add_fname(args, fname, UIO_USERSPACE);
 	if (error != 0)
 		goto err_exit;
 
@@ -477,8 +477,8 @@ freebsd32_execve(struct thread *td, struct freebsd32_execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = freebsd32_exec_copyin_args(&eargs, uap->fname, UIO_USERSPACE,
-	    uap->argv, uap->envv);
+	error = freebsd32_exec_copyin_args(&eargs, uap->fname, uap->argv,
+	    uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL, oldvmspace);
 	post_execve(td, error, oldvmspace);
@@ -496,8 +496,7 @@ freebsd32_fexecve(struct thread *td, struct freebsd32_fexecve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = freebsd32_exec_copyin_args(&eargs, NULL, UIO_SYSSPACE,
-	    uap->argv, uap->envv);
+	error = freebsd32_exec_copyin_args(&eargs, NULL, uap->argv, uap->envv);
 	if (error == 0) {
 		eargs.fd = uap->fd;
 		error = kern_execve(td, &eargs, NULL, oldvmspace);
@@ -679,6 +678,86 @@ freebsd32_pselect(struct thread *td, struct freebsd32_pselect_args *uap)
 	return (error);
 }
 
+static void
+freebsd32_kevent_to_kevent32(const struct kevent *kevp, struct kevent32 *ks32)
+{
+	uint64_t e;
+	int j;
+
+	CP(*kevp, *ks32, ident);
+	CP(*kevp, *ks32, filter);
+	CP(*kevp, *ks32, flags);
+	CP(*kevp, *ks32, fflags);
+#if BYTE_ORDER == LITTLE_ENDIAN
+	ks32->data1 = kevp->data;
+	ks32->data2 = kevp->data >> 32;
+#else
+	ks32->data1 = kevp->data >> 32;
+	ks32->data2 = kevp->data;
+#endif
+	PTROUT_CP(*kevp, *ks32, udata);
+	for (j = 0; j < nitems(kevp->ext); j++) {
+		e = kevp->ext[j];
+#if BYTE_ORDER == LITTLE_ENDIAN
+		ks32->ext64[2 * j] = e;
+		ks32->ext64[2 * j + 1] = e >> 32;
+#else
+		ks32->ext64[2 * j] = e >> 32;
+		ks32->ext64[2 * j + 1] = e;
+#endif
+	}
+}
+
+void
+freebsd32_kinfo_knote_to_32(const struct kinfo_knote *kin,
+    struct kinfo_knote32 *kin32)
+{
+	memset(kin32, 0, sizeof(*kin32));
+	CP(*kin, *kin32, knt_kq_fd);
+	freebsd32_kevent_to_kevent32(&kin->knt_event, &kin32->knt_event);
+	CP(*kin, *kin32, knt_status);
+	CP(*kin, *kin32, knt_extdata);
+	switch (kin->knt_extdata) {
+	case KNOTE_EXTDATA_NONE:
+		break;
+	case KNOTE_EXTDATA_VNODE:
+		CP(*kin, *kin32, knt_vnode.knt_vnode_type);
+#if BYTE_ORDER == LITTLE_ENDIAN
+		kin32->knt_vnode.knt_vnode_fsid[0] = kin->knt_vnode.
+		    knt_vnode_fsid;
+		kin32->knt_vnode.knt_vnode_fsid[1] = kin->knt_vnode.
+		    knt_vnode_fsid >> 32;
+		kin32->knt_vnode.knt_vnode_fileid[0] = kin->knt_vnode.
+		    knt_vnode_fileid;
+		kin32->knt_vnode.knt_vnode_fileid[1] = kin->knt_vnode.
+		    knt_vnode_fileid >> 32;
+#else
+		kin32->knt_vnode.knt_vnode_fsid[1] = kin->knt_vnode.
+		    knt_vnode_fsid;
+		kin32->knt_vnode.knt_vnode_fsid[0] = kin->knt_vnode.
+		    knt_vnode_fsid >> 32;
+		kin32->knt_vnode.knt_vnode_fileid[1] = kin->knt_vnode.
+		    knt_vnode_fileid;
+		kin32->knt_vnode.knt_vnode_fileid[0] = kin->knt_vnode.
+		    knt_vnode_fileid >> 32;
+#endif
+		memcpy(kin32->knt_vnode.knt_vnode_fullpath,
+		    kin->knt_vnode.knt_vnode_fullpath, PATH_MAX);
+		break;
+	case KNOTE_EXTDATA_PIPE:
+#if BYTE_ORDER == LITTLE_ENDIAN
+		kin32->knt_pipe.knt_pipe_ino[0] = kin->knt_pipe.knt_pipe_ino;
+		kin32->knt_pipe.knt_pipe_ino[1] = kin->knt_pipe.
+		    knt_pipe_ino >> 32;
+#else
+		kin32->knt_pipe.knt_pipe_ino[1] = kin->knt_pipe.knt_pipe_ino;
+		kin32->knt_pipe.knt_pipe_ino[0] = kin->knt_pipe.
+		    knt_pipe_ino >> 32;
+#endif
+		break;
+	}
+}
+
 /*
  * Copy 'count' items into the destination list pointed to by uap->eventlist.
  */
@@ -687,36 +766,13 @@ freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count)
 {
 	struct freebsd32_kevent_args *uap;
 	struct kevent32	ks32[KQ_NEVENTS];
-	uint64_t e;
-	int i, j, error;
+	int i, error;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
 	uap = (struct freebsd32_kevent_args *)arg;
 
-	for (i = 0; i < count; i++) {
-		CP(kevp[i], ks32[i], ident);
-		CP(kevp[i], ks32[i], filter);
-		CP(kevp[i], ks32[i], flags);
-		CP(kevp[i], ks32[i], fflags);
-#if BYTE_ORDER == LITTLE_ENDIAN
-		ks32[i].data1 = kevp[i].data;
-		ks32[i].data2 = kevp[i].data >> 32;
-#else
-		ks32[i].data1 = kevp[i].data >> 32;
-		ks32[i].data2 = kevp[i].data;
-#endif
-		PTROUT_CP(kevp[i], ks32[i], udata);
-		for (j = 0; j < nitems(kevp->ext); j++) {
-			e = kevp[i].ext[j];
-#if BYTE_ORDER == LITTLE_ENDIAN
-			ks32[i].ext64[2 * j] = e;
-			ks32[i].ext64[2 * j + 1] = e >> 32;
-#else
-			ks32[i].ext64[2 * j] = e >> 32;
-			ks32[i].ext64[2 * j + 1] = e;
-#endif
-		}
-	}
+	for (i = 0; i < count; i++)
+		freebsd32_kevent_to_kevent32(&kevp[i], &ks32[i]);
 	error = copyout(ks32, uap->eventlist, count * sizeof *ks32);
 	if (error == 0)
 		uap->eventlist += count;
@@ -2251,8 +2307,9 @@ copy_stat(struct stat *in, struct stat32 *out)
 	CP(*in, *out, st_blksize);
 	CP(*in, *out, st_flags);
 	CP(*in, *out, st_gen);
+	CP(*in, *out, st_filerev);
+	CP(*in, *out, st_bsdflags);
 	TS_CP(*in, *out, st_birthtim);
-	out->st_padding0 = 0;
 	out->st_padding1 = 0;
 #ifdef __STAT32_TIME_T_EXT
 	out->st_atim_ext = 0;

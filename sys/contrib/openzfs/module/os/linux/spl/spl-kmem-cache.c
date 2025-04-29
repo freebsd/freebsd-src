@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
  *  Copyright (C) 2007 The Regents of the University of California.
@@ -727,6 +728,7 @@ spl_kmem_cache_create(const char *name, size_t size, size_t align,
 
 	rc = percpu_counter_init(&skc->skc_linux_alloc, 0, GFP_KERNEL);
 	if (rc != 0) {
+		kfree(skc->skc_name);
 		kfree(skc);
 		return (NULL);
 	}

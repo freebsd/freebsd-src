@@ -48,6 +48,19 @@
 
 #include "gen-private.h"
 
+#ifdef __BLOCKS__
+#include <Block.h>
+#else
+#include "block_abi.h"
+typedef DECLARE_BLOCK(int, fts_block,
+    const FTSENT * const *, const FTSENT * const *);
+void qsort_b(void *, size_t, size_t, fts_block);
+#endif /* __BLOCKS__ */
+/* only present if linked with blocks runtime */
+void *_Block_copy(const void *) __weak_symbol;
+void _Block_release(const void *) __weak_symbol;
+extern void *_NSConcreteGlobalBlock[] __weak_symbol;
+
 static FTSENT	*fts_alloc(FTS *, char *, size_t);
 static FTSENT	*fts_build(FTS *, int);
 static void	 fts_lfree(FTSENT *);
@@ -102,34 +115,12 @@ static const char *ufslike_filesystems[] = {
 	0
 };
 
-FTS *
-fts_open(char * const *argv, int options,
-    int (*compar)(const FTSENT * const *, const FTSENT * const *))
+static FTS *
+__fts_open(FTS *sp, char * const *argv)
 {
-	struct _fts_private *priv;
-	FTS *sp;
 	FTSENT *p, *root;
 	FTSENT *parent, *tmp;
 	size_t len, nitems;
-
-	/* Options check. */
-	if (options & ~FTS_OPTIONMASK) {
-		errno = EINVAL;
-		return (NULL);
-	}
-
-	/* fts_open() requires at least one path */
-	if (*argv == NULL) {
-		errno = EINVAL;
-		return (NULL);
-	}
-
-	/* Allocate/initialize the stream. */
-	if ((priv = calloc(1, sizeof(*priv))) == NULL)
-		return (NULL);
-	sp = &priv->ftsp_fts;
-	sp->fts_compar = compar;
-	sp->fts_options = options;
 
 	/* Logical walks turn on NOCHDIR; symbolic links are too hard. */
 	if (ISSET(FTS_LOGICAL))
@@ -168,7 +159,7 @@ fts_open(char * const *argv, int options,
 		 * If comparison routine supplied, traverse in sorted
 		 * order; otherwise traverse in the order specified.
 		 */
-		if (compar) {
+		if (sp->fts_compar) {
 			p->fts_link = root;
 			root = p;
 		} else {
@@ -181,7 +172,7 @@ fts_open(char * const *argv, int options,
 			}
 		}
 	}
-	if (compar && nitems > 1)
+	if (sp->fts_compar && nitems > 1)
 		root = fts_sort(sp, root, nitems);
 
 	/*
@@ -212,6 +203,97 @@ mem3:	fts_lfree(root);
 mem2:	free(sp->fts_path);
 mem1:	free(sp);
 	return (NULL);
+}
+
+FTS *
+fts_open(char * const *argv, int options,
+    int (*compar)(const FTSENT * const *, const FTSENT * const *))
+{
+	struct _fts_private *priv;
+	FTS *sp;
+
+	/* Options check. */
+	if (options & ~FTS_OPTIONMASK) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
+	/* fts_open() requires at least one path */
+	if (*argv == NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
+	/* Allocate/initialize the stream. */
+	if ((priv = calloc(1, sizeof(*priv))) == NULL)
+		return (NULL);
+	sp = &priv->ftsp_fts;
+	sp->fts_compar = compar;
+	sp->fts_options = options;
+
+	return (__fts_open(sp, argv));
+}
+
+#ifdef __BLOCKS__
+FTS *
+fts_open_b(char * const *argv, int options,
+    int (^compar)(const FTSENT * const *, const FTSENT * const *))
+#else
+FTS *
+fts_open_b(char * const *argv, int options, fts_block compar)
+#endif /* __BLOCKS__ */
+{
+	struct _fts_private *priv;
+	FTS *sp;
+
+	/* No blocks, no problems. */
+	if (compar == NULL)
+		return (fts_open(argv, options, NULL));
+
+	/* Avoid segfault if blocks runtime is missing. */
+	if (_Block_copy == NULL) {
+		errno = ENOSYS;
+		return (NULL);
+	}
+
+	/* Options check. */
+	if (options & ~FTS_OPTIONMASK) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
+	/* fts_open() requires at least one path */
+	if (*argv == NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
+	/* Allocate/initialize the stream. */
+	if ((priv = calloc(1, sizeof(*priv))) == NULL)
+		return (NULL);
+	sp = &priv->ftsp_fts;
+#ifdef __BLOCKS__
+	compar = Block_copy(compar);
+#else
+	if (compar->isa != &_NSConcreteGlobalBlock)
+		compar = _Block_copy(compar);
+#endif /* __BLOCKS__ */
+	if (compar == NULL) {
+		free(priv);
+		return (NULL);
+	}
+	sp->fts_compar_b = compar;
+	sp->fts_options = options | FTS_COMPAR_B;
+
+	if ((sp = __fts_open(sp, argv)) == NULL) {
+#ifdef __BLOCKS__
+		Block_release(compar);
+#else
+		if (compar->isa != &_NSConcreteGlobalBlock)
+			_Block_release(compar);
+#endif /* __BLOCKS__ */
+	}
+	return (sp);
 }
 
 static void
@@ -264,6 +346,16 @@ fts_close(FTS *sp)
 	if (sp->fts_array)
 		free(sp->fts_array);
 	free(sp->fts_path);
+
+	/* Free up any block pointer. */
+	if (ISSET(FTS_COMPAR_B) && sp->fts_compar_b != NULL) {
+#ifdef __BLOCKS__
+		Block_release(sp->fts_compar_b);
+#else
+		if (sp->fts_compar_b->isa != &_NSConcreteGlobalBlock)
+			_Block_release(sp->fts_compar_b);
+#endif /* __BLOCKS__ */
+	}
 
 	/* Return to original directory, save errno if necessary. */
 	if (!ISSET(FTS_NOCHDIR)) {
@@ -900,10 +992,12 @@ fts_stat(FTS *sp, FTSENT *p, int follow, int dfd)
 	int saved_errno;
 	const char *path;
 
-	if (dfd == -1)
-		path = p->fts_accpath, dfd = AT_FDCWD;
-	else
+	if (dfd == -1) {
+		path = p->fts_accpath;
+		dfd = AT_FDCWD;
+	} else {
 		path = p->fts_name;
+	}
 
 	/* If user needs stat info, stat buffer already allocated. */
 	sbp = ISSET(FTS_NOSTAT) ? &sb : p->fts_statp;
@@ -977,21 +1071,6 @@ err:		memset(sbp, 0, sizeof(struct stat));
 	return (FTS_DEFAULT);
 }
 
-/*
- * The comparison function takes pointers to pointers to FTSENT structures.
- * Qsort wants a comparison function that takes pointers to void.
- * (Both with appropriate levels of const-poisoning, of course!)
- * Use a trampoline function to deal with the difference.
- */
-static int
-fts_compar(const void *a, const void *b)
-{
-	FTS *parent;
-
-	parent = (*(const FTSENT * const *)a)->fts_fts;
-	return (*parent->fts_compar)(a, b);
-}
-
 static FTSENT *
 fts_sort(FTS *sp, FTSENT *head, size_t nitems)
 {
@@ -1014,7 +1093,18 @@ fts_sort(FTS *sp, FTSENT *head, size_t nitems)
 	}
 	for (ap = sp->fts_array, p = head; p; p = p->fts_link)
 		*ap++ = p;
-	qsort(sp->fts_array, nitems, sizeof(FTSENT *), fts_compar);
+	if (ISSET(FTS_COMPAR_B)) {
+#ifdef __BLOCKS__
+		qsort_b(sp->fts_array, nitems, sizeof(FTSENT *),
+		    (int (^)(const void *, const void *))sp->fts_compar_b);
+#else
+		qsort_b(sp->fts_array, nitems, sizeof(FTSENT *),
+		    sp->fts_compar_b);
+#endif /* __BLOCKS__ */
+	} else {
+		qsort(sp->fts_array, nitems, sizeof(FTSENT *),
+		    (int (*)(const void *, const void *))sp->fts_compar);
+	}
 	for (head = *(ap = sp->fts_array); --nitems; ++ap)
 		ap[0]->fts_link = ap[1];
 	ap[0]->fts_link = NULL;
@@ -1132,6 +1222,7 @@ fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
 {
 	int ret, oerrno, newfd;
 	struct stat sb;
+	struct statfs sf;
 
 	newfd = fd;
 	if (ISSET(FTS_NOCHDIR))
@@ -1144,9 +1235,15 @@ fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
 		goto bail;
 	}
 	if (p->fts_dev != sb.st_dev || p->fts_ino != sb.st_ino) {
-		errno = ENOENT;		/* disinformation */
-		ret = -1;
-		goto bail;
+		if (_fstatfs(newfd, &sf) != 0 ||
+		    (sf.f_flags & MNT_AUTOMOUNTED) == 0) {
+			errno = ENOENT;		/* disinformation */
+			ret = -1;
+			goto bail;
+		}
+		/* autofs might did the mount under us, accept. */
+		p->fts_dev = sb.st_dev;
+		p->fts_ino = sb.st_ino;
 	}
 	ret = fchdir(newfd);
 bail:

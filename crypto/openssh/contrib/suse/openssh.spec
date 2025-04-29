@@ -13,7 +13,7 @@
 
 Summary:	OpenSSH, a free Secure Shell (SSH) protocol implementation
 Name:		openssh
-Version:	9.7p1
+Version:	9.9p2
 URL:		https://www.openssh.com/
 Release:	1
 Source0:	openssh-%{version}.tar.gz
@@ -211,6 +211,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(0755,root,root) %{_sbindir}/sshd
 %attr(0755,root,root) %dir %{_libdir}/ssh
 %attr(0755,root,root) %{_libdir}/ssh/sftp-server
+%attr(0755,root,root) %{_libdir}/ssh/sshd-session
 %attr(4711,root,root) %{_libdir}/ssh/ssh-keysign
 %attr(0755,root,root) %{_libdir}/ssh/ssh-pkcs11-helper
 %attr(0755,root,root) %{_libdir}/ssh/ssh-sk-helper

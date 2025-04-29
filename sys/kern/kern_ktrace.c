@@ -396,7 +396,7 @@ ktr_drain(struct thread *td)
 
 	STAILQ_INIT(&local_queue);
 
-	if (!STAILQ_EMPTY(&td->td_proc->p_ktr)) {
+	if (!STAILQ_EMPTY_ATOMIC(&td->td_proc->p_ktr)) {
 		mtx_lock(&ktrace_mtx);
 		STAILQ_CONCAT(&local_queue, &td->td_proc->p_ktr);
 		mtx_unlock(&ktrace_mtx);
@@ -973,9 +973,16 @@ ktrcapfail(enum ktr_cap_violation type, const void *data)
 		case CAPFAIL_PROTO:
 			kcd->cap_int = *(const int *)data;
 			break;
-		case CAPFAIL_SOCKADDR:
-			kcd->cap_sockaddr = *(const struct sockaddr *)data;
+		case CAPFAIL_SOCKADDR: {
+			size_t len;
+
+			len = MIN(((const struct sockaddr *)data)->sa_len,
+			    sizeof(kcd->cap_sockaddr));
+			memset(&kcd->cap_sockaddr, 0,
+			    sizeof(kcd->cap_sockaddr));
+			memcpy(&kcd->cap_sockaddr, data, len);
 			break;
+		}
 		case CAPFAIL_NAMEI:
 			strlcpy(kcd->cap_path, data, MAXPATHLEN);
 			break;

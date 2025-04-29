@@ -80,6 +80,11 @@ coredump_phnum_body()
 		atf_fail "Helper program did not dump core"
 	fi
 
+	if readelf --version | grep -q LLVM; then
+		atf_expect_fail "PR285547: llvm-objdump does not support large phdr count"
+		# See https://github.com/llvm/llvm-project/issues/132216
+	fi
+
 	# These magic numbers don't have any real significance.  They are just
 	# the result of running the helper program and dumping core.  The only
 	# important bit is that they're larger than 65535 (UINT16_MAX).

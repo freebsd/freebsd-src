@@ -38,6 +38,7 @@
 #ifndef _KERNEL
 /* stuff that *used* to be included by user.h, or is now needed */
 #include <sys/errno.h>
+#include <sys/event.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/ucred.h>
@@ -665,6 +666,35 @@ struct kinfo_vm_layout {
 	uintptr_t	kvm_spare[12];
 };
 
+#define	KNOTE_STATUS_ACTIVE		0x00000001
+#define	KNOTE_STATUS_QUEUED		0x00000002
+#define	KNOTE_STATUS_DISABLED		0x00000004
+#define	KNOTE_STATUS_DETACHED		0x00000008
+#define	KNOTE_STATUS_KQUEUE		0x00000010
+
+#define	KNOTE_EXTDATA_NONE		0
+#define	KNOTE_EXTDATA_VNODE		1
+#define	KNOTE_EXTDATA_PIPE		2
+
+struct kinfo_knote {
+	int		knt_kq_fd;
+	struct kevent	knt_event;
+	int		knt_status;
+	int		knt_extdata;
+	uint64_t	knt_spare0[4];
+	union {
+		struct {
+			int		knt_vnode_type;
+			uint64_t	knt_vnode_fsid;
+			uint64_t	knt_vnode_fileid;
+			char		knt_vnode_fullpath[PATH_MAX];
+		} knt_vnode;
+		struct {
+			ino_t		knt_pipe_ino;
+		} knt_pipe;
+	};
+};
+
 #ifdef _KERNEL
 /* Flags for kern_proc_out function. */
 #define KERN_PROC_NOTHREADS	0x1
@@ -692,6 +722,8 @@ int	kern_proc_cwd_out(struct proc *p, struct sbuf *sb, ssize_t maxlen);
 int	kern_proc_out(struct proc *p, struct sbuf *sb, int flags);
 int	kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen,
 	int flags);
+int	kern_proc_kqueues_out(struct proc *p, struct sbuf *s, size_t maxlen,
+	bool compat32);
 
 int	vntype_to_kinfo(int vtype);
 void	pack_kinfo(struct kinfo_file *kif);

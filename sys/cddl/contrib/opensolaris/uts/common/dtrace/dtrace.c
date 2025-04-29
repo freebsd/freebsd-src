@@ -472,7 +472,7 @@ static kmutex_t dtrace_errlock;
 #define	DT_MASK_LO 0x00000000FFFFFFFFULL
 
 #define	DTRACE_STORE(type, tomax, offset, what) \
-	*((type *)((uintptr_t)(tomax) + (uintptr_t)offset)) = (type)(what);
+	*((type *)((uintptr_t)(tomax) + (size_t)offset)) = (type)(what);
 
 #if !defined(__x86) && !defined(__aarch64__)
 #define	DTRACE_ALIGNCHECK(addr, size, flags)				\
@@ -594,14 +594,15 @@ static dtrace_probe_t *dtrace_probe_lookup_id(dtrace_id_t id);
 static void dtrace_enabling_provide(dtrace_provider_t *);
 static int dtrace_enabling_match(dtrace_enabling_t *, int *);
 static void dtrace_enabling_matchall(void);
-static void dtrace_enabling_reap(void);
+static void dtrace_enabling_matchall_task(void *);
+static void dtrace_enabling_reap(void *);
 static dtrace_state_t *dtrace_anon_grab(void);
 static uint64_t dtrace_helper(int, dtrace_mstate_t *,
     dtrace_state_t *, uint64_t, uint64_t);
 static dtrace_helpers_t *dtrace_helpers_create(proc_t *);
 static void dtrace_buffer_drop(dtrace_buffer_t *);
 static int dtrace_buffer_consumed(dtrace_buffer_t *, hrtime_t when);
-static intptr_t dtrace_buffer_reserve(dtrace_buffer_t *, size_t, size_t,
+static ssize_t dtrace_buffer_reserve(dtrace_buffer_t *, size_t, size_t,
     dtrace_state_t *, dtrace_mstate_t *);
 static int dtrace_state_option(dtrace_state_t *, dtrace_optid_t,
     dtrace_optval_t);
@@ -2548,7 +2549,7 @@ dtrace_aggregate(dtrace_aggregation_t *agg, dtrace_buffer_t *dbuf,
 	caddr_t tomax, data, kdata;
 	dtrace_actkind_t action;
 	dtrace_action_t *act;
-	uintptr_t offs;
+	size_t offs;
 
 	if (buf == NULL)
 		return;
@@ -2843,7 +2844,7 @@ dtrace_speculation_commit(dtrace_state_t *state, processorid_t cpu,
 	dtrace_buffer_t *src, *dest;
 	uintptr_t daddr, saddr, dlimit, slimit;
 	dtrace_speculation_state_t curstate, new = 0;
-	intptr_t offs;
+	ssize_t offs;
 	uint64_t timestamp;
 
 	if (which == 0)
@@ -6910,7 +6911,6 @@ dtrace_action_breakpoint(dtrace_ecb_t *ecb)
 	char c[DTRACE_FULLNAMELEN + 80], *str;
 	char *msg = "dtrace: breakpoint action at probe ";
 	char *ecbmsg = " (ecb ";
-	uintptr_t mask = (0xf << (sizeof (uintptr_t) * NBBY / 4));
 	uintptr_t val = (uintptr_t)ecb;
 	int shift = (sizeof (uintptr_t) * NBBY) - 4, i = 0;
 
@@ -6951,9 +6951,9 @@ dtrace_action_breakpoint(dtrace_ecb_t *ecb)
 		c[i++] = *ecbmsg++;
 
 	while (shift >= 0) {
-		mask = (uintptr_t)0xf << shift;
+		size_t mask = (size_t)0xf << shift;
 
-		if (val >= ((uintptr_t)1 << shift))
+		if (val >= ((size_t)1 << shift))
 			c[i++] = "0123456789abcdef"[(val & mask) >> shift];
 		shift -= 4;
 	}
@@ -8038,7 +8038,7 @@ dtrace_hash_str(const char *p)
 }
 
 static dtrace_hash_t *
-dtrace_hash_create(uintptr_t stroffs, uintptr_t nextoffs, uintptr_t prevoffs)
+dtrace_hash_create(size_t stroffs, size_t nextoffs, size_t prevoffs)
 {
 	dtrace_hash_t *hash = kmem_zalloc(sizeof (dtrace_hash_t), KM_SLEEP);
 
@@ -12316,11 +12316,11 @@ dtrace_buffer_drop(dtrace_buffer_t *buf)
  * mstate.  Returns the new offset in the buffer, or a negative value if an
  * error has occurred.
  */
-static intptr_t
+static ssize_t
 dtrace_buffer_reserve(dtrace_buffer_t *buf, size_t needed, size_t align,
     dtrace_state_t *state, dtrace_mstate_t *mstate)
 {
-	intptr_t offs = buf->dtb_offset, soffs;
+	ssize_t offs = buf->dtb_offset, soffs;
 	intptr_t woffs;
 	caddr_t tomax;
 	size_t total;
@@ -12993,6 +12993,12 @@ dtrace_enabling_match(dtrace_enabling_t *enab, int *nmatched)
 }
 
 static void
+dtrace_enabling_matchall_task(void *args __unused)
+{
+	dtrace_enabling_matchall();
+}
+
+static void
 dtrace_enabling_matchall(void)
 {
 	dtrace_enabling_t *enab;
@@ -13119,7 +13125,7 @@ retry:
  * Called to reap ECBs that are attached to probes from defunct providers.
  */
 static void
-dtrace_enabling_reap(void)
+dtrace_enabling_reap(void *args __unused)
 {
 	dtrace_provider_t *prov;
 	dtrace_probe_t *probe;
@@ -16720,8 +16726,8 @@ dtrace_module_loaded(modctl_t *ctl)
 		return;
 	}
 
-	(void) taskq_dispatch(dtrace_taskq,
-	    (task_func_t *)dtrace_enabling_matchall, NULL, TQ_SLEEP);
+	(void)taskq_dispatch(dtrace_taskq,
+	    (task_func_t *)dtrace_enabling_matchall_task, NULL, TQ_SLEEP);
 
 	mutex_exit(&dtrace_lock);
 

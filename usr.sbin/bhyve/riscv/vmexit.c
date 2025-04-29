@@ -47,6 +47,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <vmmapi.h>
 
@@ -135,6 +136,12 @@ vmexit_debug(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
     struct vm_run *vmrun __unused)
 {
 
+	/*
+	 * XXX-MJ sleep for a short period to avoid chewing up the CPU in the
+	 * window between activation of the vCPU thread and the
+	 * SBI_HSM_HART_START request.
+	 */
+	usleep(1000);
 	return (VMEXIT_CONTINUE);
 }
 
@@ -166,13 +173,7 @@ vmm_sbi_probe_extension(int ext_id)
 	return (1);
 }
 
-static void
-vmexit_ecall_time(struct vmctx *ctx __unused, struct vm_exit *vme __unused)
-{
-
-}
-
-static void
+static int
 vmexit_ecall_hsm(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
     struct vm_exit *vme)
 {
@@ -180,15 +181,12 @@ vmexit_ecall_hsm(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
 	uint64_t hart_id;
 	int func_id;
 	int error;
-	int ret;
 
 	hart_id = vme->u.ecall.args[0];
 	func_id = vme->u.ecall.args[6];
 
-	ret = -1;
-
 	if (HART_TO_CPU(hart_id) >= (uint64_t)guest_ncpus)
-		goto done;
+		return (SBI_ERR_INVALID_PARAM);
 
 	newvcpu = fbsdrun_vcpu(HART_TO_CPU(hart_id));
 	assert(newvcpu != NULL);
@@ -207,43 +205,40 @@ vmexit_ecall_hsm(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
 		    vme->u.ecall.args[1]);
 		assert(error == 0);
 
+		/* Pass private data. */
+		error = vm_set_register(newvcpu, VM_REG_GUEST_A1,
+		    vme->u.ecall.args[2]);
+		assert(error == 0);
+
 		vm_resume_cpu(newvcpu);
 		CPU_SET_ATOMIC(hart_id, &running_hartmask);
-
-		ret = 0;
 		break;
 	case SBI_HSM_HART_STOP:
 		if (!CPU_ISSET(hart_id, &running_hartmask))
 			break;
 		CPU_CLR_ATOMIC(hart_id, &running_hartmask);
 		vm_suspend_cpu(newvcpu);
-		ret = 0;
 		break;
 	case SBI_HSM_HART_STATUS:
 		/* TODO. */
 		break;
 	default:
-		break;
+		return (SBI_ERR_NOT_SUPPORTED);
 	}
 
-done:
-	error = vm_set_register(vcpu, VM_REG_GUEST_A0, ret);
-	assert(error == 0);
+	return (SBI_SUCCESS);
 }
 
-static void
+static int
 vmexit_ecall_base(struct vmctx *ctx __unused, struct vcpu *vcpu,
     struct vm_exit *vme)
 {
 	int sbi_function_id;
+	uint32_t val;
 	int ext_id;
 	int error;
-	uint32_t val;
-	int ret;
 
 	sbi_function_id = vme->u.ecall.args[6];
-
-	ret = 0;
 
 	switch (sbi_function_id) {
 	case SBI_BASE_GET_SPEC_VERSION:
@@ -270,20 +265,16 @@ vmexit_ecall_base(struct vmctx *ctx __unused, struct vcpu *vcpu,
 		val = 0;
 		break;
 	default:
-		ret = 1;
-		break;
+		return (SBI_ERR_NOT_SUPPORTED);
 	}
 
-	error = vm_set_register(vcpu, VM_REG_GUEST_A0, ret);
+	error = vm_set_register(vcpu, VM_REG_GUEST_A1, val);
 	assert(error == 0);
 
-	if (ret == 0) {
-		error = vm_set_register(vcpu, VM_REG_GUEST_A1, val);
-		assert(error == 0);
-	}
+	return (SBI_SUCCESS);
 }
 
-static void
+static int
 vmexit_ecall_srst(struct vmctx *ctx, struct vm_exit *vme)
 {
 	enum vm_suspend_how how;
@@ -303,11 +294,14 @@ vmexit_ecall_srst(struct vmctx *ctx, struct vm_exit *vme)
 			vm_suspend(ctx, how);
 			break;
 		default:
-			break;
+			return (SBI_ERR_NOT_SUPPORTED);
 		}
-	default:
 		break;
+	default:
+		return (SBI_ERR_NOT_SUPPORTED);
 	}
+
+	return (SBI_SUCCESS);
 }
 
 static int
@@ -315,29 +309,32 @@ vmexit_ecall(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 {
 	int sbi_extension_id;
 	struct vm_exit *vme;
+	int error;
+	int ret;
 
 	vme = vmrun->vm_exit;
 
 	sbi_extension_id = vme->u.ecall.args[7];
 	switch (sbi_extension_id) {
 	case SBI_EXT_ID_SRST:
-		vmexit_ecall_srst(ctx, vme);
+		ret = vmexit_ecall_srst(ctx, vme);
 		break;
 	case SBI_EXT_ID_BASE:
-		vmexit_ecall_base(ctx, vcpu, vme);
-		break;
-	case SBI_EXT_ID_TIME:
-		vmexit_ecall_time(ctx, vme);
+		ret = vmexit_ecall_base(ctx, vcpu, vme);
 		break;
 	case SBI_EXT_ID_HSM:
-		vmexit_ecall_hsm(ctx, vcpu, vme);
+		ret = vmexit_ecall_hsm(ctx, vcpu, vme);
 		break;
 	case SBI_CONSOLE_PUTCHAR:
 	case SBI_CONSOLE_GETCHAR:
 	default:
 		/* Unknown SBI extension. */
+		ret = SBI_ERR_NOT_SUPPORTED;
 		break;
 	}
+
+	error = vm_set_register(vcpu, VM_REG_GUEST_A0, ret);
+	assert(error == 0);
 
 	return (VMEXIT_CONTINUE);
 }

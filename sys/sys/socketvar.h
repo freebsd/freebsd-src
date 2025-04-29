@@ -80,6 +80,7 @@ struct so_splice {
 	struct mtx mtx;
 	unsigned int wq_index;
 	enum so_splice_state {
+		SPLICE_INIT,	/* embryonic state, don't queue work yet */
 		SPLICE_IDLE,	/* waiting for work to arrive */
 		SPLICE_QUEUED,	/* a wakeup has queued some work */
 		SPLICE_RUNNING,	/* currently transferring data */
@@ -525,10 +526,8 @@ struct socket *
 	sonewconn(struct socket *head, int connstatus);
 struct socket *
 	sopeeloff(struct socket *);
-int	sopoll(struct socket *so, int events, struct ucred *active_cred,
-	    struct thread *td);
-int	sopoll_generic(struct socket *so, int events,
-	    struct ucred *active_cred, struct thread *td);
+int	sopoll_generic(struct socket *so, int events, struct thread *td);
+int	soaio_queue_generic(struct socket *so, struct kaiocb *job);
 int	soreceive(struct socket *so, struct sockaddr **paddr, struct uio *uio,
 	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp);
 int	soreceive_stream(struct socket *so, struct sockaddr **paddr,
@@ -555,6 +554,7 @@ int	sosend_dgram(struct socket *so, struct sockaddr *addr,
 int	sosend_generic(struct socket *so, struct sockaddr *addr,
 	    struct uio *uio, struct mbuf *top, struct mbuf *control,
 	    int flags, struct thread *td);
+int	sosetfib(struct socket *so, int fibnum);
 int	soshutdown(struct socket *so, enum shutdown_how);
 void	soupcall_clear(struct socket *, sb_which);
 void	soupcall_set(struct socket *, sb_which, so_upcall_t, void *);
@@ -595,6 +595,8 @@ SYSCTL_DECL(_net_inet_accf);
 #endif
 int	accept_filt_generic_mod_event(module_t mod, int event, void *data);
 #endif
+
+int	pr_listen_notsupp(struct socket *so, int backlog, struct thread *td);
 
 #endif /* _KERNEL */
 

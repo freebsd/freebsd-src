@@ -137,7 +137,7 @@ base.txz:
 	sh ${WORLDDIR}/usr.sbin/etcupdate/etcupdate.sh extract -B \
 	    -m "${MAKE}" -M "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" \
 	    -s ${WORLDDIR} -d "${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate" \
-	    -L /dev/null -N
+	    -L /dev/stdout -N
 	echo "./var/db/etcupdate type=dir uname=root gname=wheel mode=0755" >> ${.OBJDIR}/${DISTDIR}/base.meta
 	sed -n 's,^\.,./var/db/etcupdate/current,p' \
 	    ${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate/current/METALOG | \
@@ -193,6 +193,7 @@ disc1: packagesystem
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
+	${PKG_INSTALL} pkg || true
 	${PKG_INSTALL} wifi-firmware-kmod-release || true
 	${PKG_CLEAN} || true
 .endif
@@ -225,13 +226,16 @@ bootonly: packagesystem
 	    MK_TOOLCHAIN=no \
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
-	    -DDB_FROM_SRC )
+	    -DDB_FROM_SRC -DNO_ROOT)
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	cp MANIFEST ${.TARGET}/usr/freebsd-dist
-.if defined(NO_ROOT)
 	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
 	echo "./usr/freebsd-dist/MANIFEST type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
+.if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
+# Install packages onto release media.
+	${PKG_INSTALL} pkg || true
+	${PKG_CLEAN} || true
 .endif
 # Set up installation environment
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
@@ -242,13 +246,11 @@ bootonly: packagesystem
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	echo loader_menu_multi_user_prompt=\"Installer\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
-.if defined(NO_ROOT)
 	echo "./etc/resolv.conf type=link uname=root gname=wheel mode=0644 link=/tmp/bsdinstall_etc/resolv.conf" >> ${.TARGET}/METALOG
 	echo "./etc/rc.conf type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 	echo "./etc/sysctl.conf type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 	echo "./boot/loader.conf type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 	echo "./etc/rc.local type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
-.endif
 
 dvd: packagesystem
 # Install system
@@ -270,6 +272,7 @@ dvd: packagesystem
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
+	${PKG_INSTALL} pkg || true
 	${PKG_INSTALL} wifi-firmware-kmod-release || true
 	${PKG_CLEAN} || true
 .endif
@@ -307,7 +310,7 @@ dvd1.iso: dvd pkg-stage
 	cd dvd && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
 
 bootonly.iso: bootonly-bootonly
-	cd bootonly-bootonly && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
+	cd bootonly-bootonly && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ../${.TARGET} ./METALOG ${XTRADIR}
 
 memstick: memstick.img
 memstick.img: disc1-memstick
@@ -315,7 +318,7 @@ memstick.img: disc1-memstick
 
 mini-memstick: mini-memstick.img
 mini-memstick.img: bootonly-memstick
-	cd bootonly-memstick && sh ${.CURDIR}/${TARGET}/make-memstick.sh .${NO_ROOT:D/METALOG} ../${.TARGET}
+	cd bootonly-memstick && sh ${.CURDIR}/${TARGET}/make-memstick.sh ./METALOG ../${.TARGET}
 
 packagesystem: ${DISTRIBUTIONS}
 	sh ${.CURDIR}/scripts/make-manifest.sh $$(ls *.txz | grep -v container) > MANIFEST
@@ -324,6 +327,9 @@ packagesystem: ${DISTRIBUTIONS}
 pkg-stage: dvd
 # TODO: Support for -DNO_ROOT
 .if !defined(NOPKG) || empty(NOPKG)
+.if defined(NO_ROOT)
+.warning pkg-stage does not yet support NO_ROOT.
+.endif
 	env PORTSDIR=${PORTSDIR} REPOS_DIR=${.CURDIR}/pkg_repos/ \
 		sh ${.CURDIR}/scripts/pkg-stage.sh
 	mkdir -p ${.OBJDIR}/dvd/packages/repos/

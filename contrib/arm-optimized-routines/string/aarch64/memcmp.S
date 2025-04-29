@@ -30,10 +30,6 @@
 
 
 ENTRY (__memcmp_aarch64)
-	PTR_ARG (0)
-	PTR_ARG (1)
-	SIZE_ARG (2)
-
 	cmp	limit, 16
 	b.lo	L(less16)
 	ldp	data1, data3, [src1]

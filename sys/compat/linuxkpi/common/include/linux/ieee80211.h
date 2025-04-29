@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2024 The FreeBSD Foundation
+ * Copyright (c) 2020-2025 The FreeBSD Foundation
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -64,6 +64,7 @@ struct ieee80211_mmie_16 {
 #define	IEEE80211_GCMP_MIC_LEN			16
 #define	IEEE80211_GCMP_PN_LEN			6
 #define	IEEE80211_GMAC_PN_LEN			6
+#define	IEEE80211_CMAC_PN_LEN			6
 
 #define	IEEE80211_MAX_PN_LEN			16
 
@@ -100,7 +101,9 @@ struct ieee80211_mmie_16 {
 #define	IEEE80211_QOS_CTL_ACK_POLICY_NOACK	0x0020
 #define	IEEE80211_QOS_CTL_MESH_CONTROL_PRESENT	0x0100
 
-#define	IEEE80211_RATE_SHORT_PREAMBLE		BIT(0)
+enum ieee80211_rate_flags {
+	IEEE80211_RATE_SHORT_PREAMBLE		= BIT(0),
+};
 
 enum ieee80211_rate_control_changed_flags {
 	IEEE80211_RC_BW_CHANGED			= BIT(0),
@@ -115,7 +118,8 @@ enum ieee80211_rate_control_changed_flags {
 #define	IEEE80211_TKIP_ICV_LEN			4
 #define	IEEE80211_TKIP_IV_LEN			8	/* WEP + KID + EXT */
 
-#define	IEEE80211_VHT_EXT_NSS_BW_CAPABLE	(1 << 13)	/* assigned to tx_highest */
+/* 802.11-2016, 9.4.2.158.3 Supported VHT-MCS and NSS Set field. */
+#define	IEEE80211_VHT_EXT_NSS_BW_CAPABLE	(1 << 13)	/* part of tx_highest */
 
 #define	IEEE80211_VHT_MAX_AMPDU_1024K		7	/* 9.4.2.56.3 A-MPDU Parameters field, Table 9-163 */
 
@@ -143,6 +147,7 @@ enum ieee80211_key_len {
 	WLAN_KEY_LEN_WEP104			= 13,
 	WLAN_KEY_LEN_TKIP			= 32,
 	WLAN_KEY_LEN_CCMP			= 16,
+	WLAN_KEY_LEN_CCMP_256			= 32,
 	WLAN_KEY_LEN_GCMP			= 16,
 	WLAN_KEY_LEN_AES_CMAC			= 16,
 	WLAN_KEY_LEN_GCMP_256			= 32,
@@ -344,6 +349,7 @@ enum ieee80211_chanctx_change_flags {
 	IEEE80211_CHANCTX_CHANGE_WIDTH		= BIT(3),
 	IEEE80211_CHANCTX_CHANGE_CHANNEL	= BIT(4),
 	IEEE80211_CHANCTX_CHANGE_PUNCTURING	= BIT(5),
+	IEEE80211_CHANCTX_CHANGE_MIN_DEF	= BIT(6),
 };
 
 enum ieee80211_frame_release_type {
@@ -410,7 +416,7 @@ enum ieee80211_tx_info_flags {
 	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(18),
 	IEEE80211_TX_CTL_LDPC			= BIT(19),
 	IEEE80211_TX_CTL_STBC			= BIT(20),
-};
+} __packed;
 
 enum ieee80211_tx_status_flags {
 	IEEE80211_TX_STATUS_ACK_SIGNAL_VALID	= BIT(0),
@@ -503,6 +509,12 @@ struct ieee80211_mgmt {
 			uint16_t	capab_info;
 			uint8_t		variable[0];
 		} beacon;
+		/* 9.3.3.5 Association Request frame format */
+		struct  {
+			uint16_t	capab_info;
+			uint16_t	listen_interval;
+			uint8_t		variable[0];
+		} assoc_req;
 		/* 9.3.3.10 Probe Request frame format */
 		struct {
 			uint8_t		variable[0];
@@ -771,6 +783,20 @@ struct ieee80211_bss_load_elem {
 	uint8_t					channel_util;
 	uint16_t				avail_adm_capa;
 };
+
+struct ieee80211_p2p_noa_desc {
+	uint32_t				count;		/* uint8_t ? */
+	uint32_t				duration;
+	uint32_t				interval;
+	uint32_t				start_time;
+};
+
+struct ieee80211_p2p_noa_attr {
+	uint8_t					index;
+	uint8_t					oppps_ctwindow;
+	struct ieee80211_p2p_noa_desc		desc[4];
+};
+
 
 /* net80211: IEEE80211_IS_CTL() */
 static __inline bool
@@ -1213,6 +1239,5 @@ ieee80211_get_qos_ctl(struct ieee80211_hdr *hdr)
         else
                 return (u8 *)hdr + 24;
 }
-
 
 #endif	/* _LINUXKPI_LINUX_IEEE80211_H */

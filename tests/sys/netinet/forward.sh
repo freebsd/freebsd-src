@@ -34,7 +34,7 @@ fwd_ip_icmp_iface_fast_success_head() {
 
 	atf_set descr 'Test valid IPv4 on-stick fastforwarding to iface'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip_icmp_iface_fast_success_body() {
@@ -90,7 +90,7 @@ fwd_ip_icmp_gw_fast_success_head() {
 
 	atf_set descr 'Test valid IPv4 on-stick fastforwarding to gw'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip_icmp_gw_fast_success_body() {
@@ -150,7 +150,7 @@ fwd_ip_icmp_iface_slow_success_head() {
 
 	atf_set descr 'Test valid IPv4 on-stick "slow" forwarding to iface'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip_icmp_iface_slow_success_body() {
@@ -204,7 +204,7 @@ fwd_ip_icmp_gw_slow_success_head() {
 
 	atf_set descr 'Test valid IPv4 on-stick "slow" forwarding to gw'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip_icmp_gw_slow_success_body() {

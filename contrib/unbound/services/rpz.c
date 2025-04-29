@@ -666,7 +666,7 @@ rpz_insert_local_zones_trigger(struct local_zones* lz, uint8_t* dname,
 	int newzone = 0;
 
 	if(a == RPZ_INVALID_ACTION) {
-		char str[255+1];
+		char str[LDNS_MAX_DOMAINLEN];
 		if(rrtype == LDNS_RR_TYPE_SOA || rrtype == LDNS_RR_TYPE_NS ||
 			rrtype == LDNS_RR_TYPE_DNAME ||
 			rrtype == LDNS_RR_TYPE_DNSKEY ||
@@ -739,7 +739,7 @@ rpz_insert_local_zones_trigger(struct local_zones* lz, uint8_t* dname,
 static void
 rpz_log_dname(char const* msg, uint8_t* dname, size_t dname_len)
 {
-	char buf[LDNS_MAX_DOMAINLEN+1];
+	char buf[LDNS_MAX_DOMAINLEN];
 	(void)dname_len;
 	dname_str(dname, buf);
 	verbose(VERB_ALGO, "rpz: %s: <%s>", msg, buf);
@@ -1062,7 +1062,7 @@ rpz_insert_response_ip_trigger(struct rpz* r, uint8_t* dname, size_t dnamelen,
 
 	if(a == RPZ_INVALID_ACTION ||
 		rpz_action_to_respip_action(a) == respip_invalid) {
-		char str[255+1];
+		char str[LDNS_MAX_DOMAINLEN];
 		dname_str(dname, str);
 		verbose(VERB_ALGO, "rpz: respip trigger, %s skipping unsupported action: %s",
 			str, rpz_action_to_string(a));
@@ -1633,7 +1633,7 @@ log_rpz_apply(char* trigger, uint8_t* dname, struct addr_tree_node* addrnode,
 	struct comm_reply* repinfo, struct module_qstate* ms, char* log_name)
 {
 	char ip[128], txt[512], portstr[32];
-	char dnamestr[LDNS_MAX_DOMAINLEN+1];
+	char dnamestr[LDNS_MAX_DOMAINLEN];
 	uint16_t port = 0;
 	if(dname) {
 		dname_str(dname, dnamestr);
@@ -2427,7 +2427,8 @@ rpz_delegation_point_zone_lookup(struct delegpt* dp, struct local_zones* zones,
 			match->dname = nameserver->name;
 			match->dname_len = nameserver->namelen;
 			if(verbosity >= VERB_ALGO) {
-				char nm[255+1], zn[255+1];
+				char nm[LDNS_MAX_DOMAINLEN];
+				char zn[LDNS_MAX_DOMAINLEN];
 				dname_str(match->dname, nm);
 				dname_str(z->name, zn);
 				if(strcmp(nm, zn) != 0)
@@ -2581,7 +2582,7 @@ struct dns_msg* rpz_callback_from_iterator_cname(struct module_qstate* ms,
 	}
 
 	if(verbosity >= VERB_ALGO) {
-		char nm[255+1], zn[255+1];
+		char nm[LDNS_MAX_DOMAINLEN], zn[LDNS_MAX_DOMAINLEN];
 		dname_str(is->qchase.qname, nm);
 		dname_str(z->name, zn);
 		if(strcmp(zn, nm) != 0)
@@ -2758,7 +2759,7 @@ rpz_callback_from_worker_request(struct auth_zones* az, struct module_env* env,
 	}
 
 	if(verbosity >= VERB_ALGO) {
-		char nm[255+1], zn[255+1];
+		char nm[LDNS_MAX_DOMAINLEN], zn[LDNS_MAX_DOMAINLEN];
 		dname_str(qinfo->qname, nm);
 		dname_str(z->name, zn);
 		if(strcmp(zn, nm) != 0)
@@ -2790,4 +2791,32 @@ void rpz_disable(struct rpz* r)
     if(!r)
         return;
     r->disabled = 1;
+}
+
+/** Get memory usage for clientip_synthesized_rrset. Ignores memory usage
+ * of locks. */
+static size_t
+rpz_clientip_synthesized_set_get_mem(struct clientip_synthesized_rrset* set)
+{
+	size_t m = sizeof(*set);
+	lock_rw_rdlock(&set->lock);
+	m += regional_get_mem(set->region);
+	lock_rw_unlock(&set->lock);
+	return m;
+}
+
+size_t rpz_get_mem(struct rpz* r)
+{
+	size_t m = sizeof(*r);
+	if(r->taglist)
+		m += r->taglistlen;
+	if(r->log_name)
+		m += strlen(r->log_name) + 1;
+	m += regional_get_mem(r->region);
+	m += local_zones_get_mem(r->local_zones);
+	m += local_zones_get_mem(r->nsdname_zones);
+	m += respip_set_get_mem(r->respip_set);
+	m += rpz_clientip_synthesized_set_get_mem(r->client_set);
+	m += rpz_clientip_synthesized_set_get_mem(r->ns_set);
+	return m;
 }

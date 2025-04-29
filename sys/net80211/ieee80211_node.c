@@ -1044,8 +1044,7 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 			ieee80211_vht_updateparams(ni,
 			    ni->ni_ies.vhtcap_ie,
 			    ni->ni_ies.vhtopmode_ie);
-			ieee80211_setup_vht_rates(ni, ni->ni_ies.vhtcap_ie,
-			    ni->ni_ies.vhtopmode_ie);
+			ieee80211_setup_vht_rates(ni);
 			do_ht = 1;
 		}
 	}
@@ -1874,9 +1873,7 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 				ieee80211_vht_updateparams(ni,
 				    ni->ni_ies.vhtcap_ie,
 				    ni->ni_ies.vhtopmode_ie);
-				ieee80211_setup_vht_rates(ni,
-				    ni->ni_ies.vhtcap_ie,
-				    ni->ni_ies.vhtopmode_ie);
+				ieee80211_setup_vht_rates(ni);
 			}
 		}
 
@@ -2209,7 +2206,7 @@ ieee80211_node_delucastkey(struct ieee80211_node *ni)
 		IEEE80211_NODE_LOCK(nt);
 	nikey = NULL;
 	status = 1;		/* NB: success */
-	if (ni->ni_ucastkey.wk_keyix != IEEE80211_KEYIX_NONE) {
+	if (!IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey)) {
 		keyix = ni->ni_ucastkey.wk_rxkeyix;
 		status = ieee80211_crypto_delkey(ni->ni_vap, &ni->ni_ucastkey);
 		if (nt->nt_keyixmap != NULL && keyix < nt->nt_keyixmax) {
@@ -2667,14 +2664,16 @@ ieee80211_dump_node(struct ieee80211_node_table *nt __unused,
 		ni->ni_esslen, ni->ni_essid,
 		(ni->ni_chan != IEEE80211_CHAN_ANYC) ? ni->ni_chan->ic_freq : 0,
 		(ni->ni_chan != IEEE80211_CHAN_ANYC) ? ni->ni_chan->ic_flags : 0);
-	printf("\tinact %u inact_reload %u txrate %u\n",
-		ni->ni_inact, ni->ni_inact_reload, ni->ni_txrate);
+	printf("\tinact %u inact_reload %u txrate type %d dot11rate %u\n",
+		ni->ni_inact, ni->ni_inact_reload,
+		ni->ni_txrate.type,
+		ni->ni_txrate.dot11rate);
 	printf("\thtcap %x htparam %x htctlchan %u ht2ndchan %u\n",
 		ni->ni_htcap, ni->ni_htparam,
 		ni->ni_htctlchan, ni->ni_ht2ndchan);
-	printf("\thtopmode %x htstbc %x htchw %b\n",
+	printf("\thtopmode %x htstbc %x htchw %d (%s)\n",
 		ni->ni_htopmode, ni->ni_htstbc,
-		ni->ni_chw, IEEE80211_NI_CHW_BITS);
+		ni->ni_chw, ieee80211_ni_chw_to_str(ni->ni_chw));
 	printf("\tvhtcap %x freq1 %d freq2 %d vhtbasicmcs %x\n",
 		ni->ni_vhtcap, (int) ni->ni_vht_chan1, (int) ni->ni_vht_chan2,
 		(int) ni->ni_vht_basicmcs);
@@ -3136,4 +3135,199 @@ ieee80211_getsignal(struct ieee80211vap *vap, int8_t *rssi, int8_t *noise)
 	/* for non-station mode return avg'd rssi accounting */
 	if (vap->iv_opmode != IEEE80211_M_STA)
 		*rssi = ieee80211_getrssi(vap);
+}
+
+/**
+ * @brief return a dot11rate / ratecode representing the current transmit rate
+ *
+ * This is the API call for legacy / 802.11n drivers and rate control APIs
+ * which expect a dot11rate / ratecode representation for legacy and HT MCS
+ * rates.
+ *
+ * Drivers which support VHT should not use this API, as it will log an error
+ * and return a low rate if a VHT rate is selected.
+ *
+ * @param ni		the ieee80211_node to return the transmit rate for
+ * @returns		the dot11rate / ratecode for legacy/MCS, or the
+ *			lowest available dot11rate if it's VHT (and shouldn't
+ *			have been called.)
+ */
+uint8_t
+ieee80211_node_get_txrate_dot11rate(struct ieee80211_node *ni)
+{
+	switch (ni->ni_txrate.type) {
+	case IEEE80211_NODE_TXRATE_LEGACY:
+	case IEEE80211_NODE_TXRATE_HT:
+		return (ni->ni_txrate.dot11rate);
+		break;
+	case IEEE80211_NODE_TXRATE_VHT:
+	default:
+		printf("%s: called for VHT / unknown rate (type %d)!\n",
+		    __func__, ni->ni_txrate.type);
+		return (12);		/* OFDM6 for now */
+	}
+}
+
+/**
+ * @brief return the txrate representing the current transmit rate
+ *
+ * This is the API call for drivers and rate control APIs to fetch
+ * rates.  It will populate a struct ieee80211_node_txrate with the
+ * current rate configuration to use.
+ *
+ * @param ni		the ieee80211_node to return the transmit rate for
+ * @param txrate	the struct ieee80211_node_txrate to populate
+ */
+void
+ieee80211_node_get_txrate(struct ieee80211_node *ni,
+    struct ieee80211_node_txrate *txr)
+{
+	MPASS(ni != NULL);
+	MPASS(txr != NULL);
+
+	*txr = ni->ni_txrate;
+}
+
+/**
+ * @brief Set the txrate representing the current transmit rate
+ *
+ * This is the API call for drivers and rate control APIs to set
+ * rates.  It will copy a struct ieee80211_node_txrate with the
+ * current rate configuration to use.
+ *
+ * @param ni		the ieee80211_node to return the transmit rate for
+ * @param txrate	the struct ieee80211_node_txrate to copy to the node
+ */
+void
+ieee80211_node_set_txrate(struct ieee80211_node *ni,
+    const struct ieee80211_node_txrate *txr)
+{
+	MPASS(ni != NULL);
+	MPASS(txr != NULL);
+
+	ni->ni_txrate = *txr;
+}
+
+/**
+ * @brief set the dot11rate / ratecode representing the current transmit rate
+ *
+ * This is the API call for legacy / 802.11n drivers and rate control APIs
+ * which expect a dot11rate / ratecode representation for legacy and HT MCS
+ * rates.
+ *
+ * @param ni		the ieee80211_node to return the transmit rate for
+ * @param dot11rate	the dot11rate rate code to use
+ */
+void
+ieee80211_node_set_txrate_dot11rate(struct ieee80211_node *ni,
+    uint8_t dot11Rate)
+{
+	if (dot11Rate & IEEE80211_RATE_MCS) {
+		ni->ni_txrate.type = IEEE80211_NODE_TXRATE_HT;
+		ni->ni_txrate.mcs = dot11Rate & IEEE80211_RATE_VAL;
+		ni->ni_txrate.nss = 0;
+		ni->ni_txrate.dot11rate = dot11Rate;
+	} else {
+		ni->ni_txrate.type = IEEE80211_NODE_TXRATE_LEGACY;
+		ni->ni_txrate.mcs = ni->ni_txrate.nss = 0;
+		ni->ni_txrate.dot11rate = dot11Rate;
+	}
+}
+
+/**
+ * @brief set the dot11rate / ratecode representing the current HT transmit rate
+ *
+ * This is the API call for 802.11n drivers and rate control APIs
+ * which expect a dot11rate / ratecode representation for legacy and HT MCS
+ * rates.  It expects an MCS rate code from 0 .. 76.
+ *
+ * @param ni		the ieee80211_node to return the transmit rate for
+ * @param mcs		the MCS rate to select
+ */
+void
+ieee80211_node_set_txrate_ht_mcsrate(struct ieee80211_node *ni,
+    uint8_t mcs)
+{
+	KASSERT(mcs <= 76, ("%s: MCS is not 0..76 (%d)", __func__, mcs));
+	if (mcs > 76) {
+		ic_printf(ni->ni_ic, "%s: invalid MCS (%d)\n", __func__, mcs);
+		return;
+	}
+
+	ni->ni_txrate.type = IEEE80211_NODE_TXRATE_HT;
+	ni->ni_txrate.mcs = mcs;
+	ni->ni_txrate.nss = 0;
+	ni->ni_txrate.dot11rate = IEEE80211_RATE_MCS | mcs;
+}
+
+/**
+ * @brief set the rate to the given VHT transmission rate.
+ *
+ * This sets the current transmit rate to the given VHT NSS/MCS.
+ *
+ * @param ni		the ieee80211_node to set the transmit rate for
+ * @param nss		the number of spatial streams
+ * @param mcs		the MCS rate to select
+ */
+void
+ieee80211_node_set_txrate_vht_rate(struct ieee80211_node *ni,
+    uint8_t nss, uint8_t mcs)
+{
+	MPASS(ni != NULL);
+
+	ni->ni_txrate.type = IEEE80211_NODE_TXRATE_VHT;
+	ni->ni_txrate.mcs = mcs;
+	ni->ni_txrate.nss = nss;
+	ni->ni_txrate.dot11rate = 0;
+}
+
+/*
+ * @brief Fetch the transmit rate for the given node in kbit/s.
+ *
+ * This currently only works for CCK, OFDM and HT rates.
+ *
+ * @param ni	struct ieee80211_node * to lookup
+ * @returns	current transmit rate in kbit/s
+ */
+uint32_t
+ieee80211_node_get_txrate_kbit(struct ieee80211_node *ni)
+{
+	uint32_t kbps;
+
+	switch (ni->ni_txrate.type) {
+	case IEEE80211_NODE_TXRATE_LEGACY:
+		kbps = ni->ni_txrate.dot11rate * 500;
+		break;
+	case IEEE80211_NODE_TXRATE_HT:
+		/* Note: Valid for MCS 0..76 */
+		{
+			const struct ieee80211_mcs_rates *mcs =
+			    &ieee80211_htrates[ni->ni_txrate.dot11rate &
+			    ~IEEE80211_RATE_MCS];
+
+			if (IEEE80211_IS_CHAN_HT40(ni->ni_chan)) {
+				if (ni->ni_flags & IEEE80211_NODE_SGI40)
+					kbps = mcs->ht40_rate_800ns * 500;
+				else
+					kbps = mcs->ht40_rate_400ns * 500;
+			} else {
+				if (ni->ni_flags & IEEE80211_NODE_SGI20)
+					kbps = mcs->ht20_rate_800ns * 500;
+				else
+					kbps = mcs->ht20_rate_400ns * 500;
+			}
+		}
+		break;
+	case IEEE80211_NODE_TXRATE_VHT:
+		/* Note: valid for VHT rates, assumes long-GI for now */
+		kbps = ieee80211_phy_vht_get_mcs_kbit(ni->ni_chw,
+		    ni->ni_txrate.nss, ni->ni_txrate.mcs, false);
+		break;
+	default:
+		printf("%s: called for unknown rate (type %d)!\n",
+		    __func__, ni->ni_txrate.type);
+		return (0);
+	}
+
+	return (kbps);
 }

@@ -450,18 +450,14 @@ link_elf_init(void* arg)
 	Elf_Dyn *dp;
 	Elf_Addr *ctors_addrp;
 	Elf_Size *ctors_sizep;
-	caddr_t modptr, baseptr, sizeptr;
+	caddr_t baseptr, sizeptr;
 	elf_file_t ef;
 	const char *modname;
 
 	linker_add_class(&link_elf_class);
 
 	dp = (Elf_Dyn *)&_DYNAMIC;
-	modname = NULL;
-	modptr = preload_search_by_type("elf" __XSTRING(__ELF_WORD_SIZE) " kernel");
-	if (modptr == NULL)
-		modptr = preload_search_by_type("elf kernel");
-	modname = (char *)preload_search_info(modptr, MODINFO_NAME);
+	modname = (char *)preload_search_info(preload_kmdp, MODINFO_NAME);
 	if (modname == NULL)
 		modname = "kernel";
 	linker_kernel_file = linker_make_file(modname, &link_elf_class);
@@ -493,17 +489,17 @@ link_elf_init(void* arg)
 	linker_kernel_file->size = -(intptr_t)linker_kernel_file->address;
 #endif
 
-	if (modptr != NULL) {
-		ef->modptr = modptr;
-		baseptr = preload_search_info(modptr, MODINFO_ADDR);
+	if (preload_kmdp != NULL) {
+		ef->modptr = preload_kmdp;
+		baseptr = preload_search_info(preload_kmdp, MODINFO_ADDR);
 		if (baseptr != NULL)
 			linker_kernel_file->address = *(caddr_t *)baseptr;
-		sizeptr = preload_search_info(modptr, MODINFO_SIZE);
+		sizeptr = preload_search_info(preload_kmdp, MODINFO_SIZE);
 		if (sizeptr != NULL)
 			linker_kernel_file->size = *(size_t *)sizeptr;
-		ctors_addrp = (Elf_Addr *)preload_search_info(modptr,
+		ctors_addrp = (Elf_Addr *)preload_search_info(preload_kmdp,
 			MODINFO_METADATA | MODINFOMD_CTORS_ADDR);
-		ctors_sizep = (Elf_Size *)preload_search_info(modptr,
+		ctors_sizep = (Elf_Size *)preload_search_info(preload_kmdp,
 			MODINFO_METADATA | MODINFOMD_CTORS_SIZE);
 		if (ctors_addrp != NULL && ctors_sizep != NULL) {
 			linker_kernel_file->ctors_addr = ef->address +
@@ -899,9 +895,7 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	sizeptr = preload_search_info(modptr, MODINFO_SIZE);
 	dynptr = preload_search_info(modptr,
 	    MODINFO_METADATA | MODINFOMD_DYNAMIC);
-	if (type == NULL ||
-	    (strcmp(type, "elf" __XSTRING(__ELF_WORD_SIZE) " module") != 0 &&
-	     strcmp(type, "elf module") != 0))
+	if (type == NULL || strcmp(type, preload_modtype) != 0)
 		return (EFTYPE);
 	if (baseptr == NULL || sizeptr == NULL || dynptr == NULL)
 		return (EINVAL);
@@ -2016,7 +2010,7 @@ elf_lookup_ifunc(linker_file_t lf, Elf_Size symidx, int deps __unused,
 }
 
 void
-link_elf_ireloc(caddr_t kmdp)
+link_elf_ireloc(void)
 {
 	struct elf_file eff;
 	elf_file_t ef;
@@ -2026,7 +2020,7 @@ link_elf_ireloc(caddr_t kmdp)
 
 	bzero_early(ef, sizeof(*ef));
 
-	ef->modptr = kmdp;
+	ef->modptr = preload_kmdp;
 	ef->dynamic = (Elf_Dyn *)&_DYNAMIC;
 
 #ifdef RELOCATABLE_KERNEL

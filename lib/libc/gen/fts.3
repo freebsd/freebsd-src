@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 12, 2014
+.Dd April 17, 2025
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -37,6 +37,8 @@
 .In fts.h
 .Ft FTS *
 .Fn fts_open "char * const *path_argv" "int options" "int (*compar)(const FTSENT * const *, const FTSENT * const *)"
+.Ft FTS *
+.Fn fts_open_b "char * const *path_argv" "int options" "int (^compar)(const FTSENT * const *, const FTSENT * const *)"
 .Ft FTSENT *
 .Fn fts_read "FTS *ftsp"
 .Ft FTSENT *
@@ -59,7 +61,9 @@ functions are provided for traversing
 file hierarchies.
 A simple overview is that the
 .Fn fts_open
-function returns a
+and
+.Fn fts_open_b
+functions return a
 .Dq handle
 on a file hierarchy, which is then supplied to
 the other
@@ -186,6 +190,8 @@ or
 .Ql ..\&
 which was not specified as a file name to
 .Fn fts_open
+or
+.Fn fts_open_b
 (see
 .Dv FTS_SEEDOT ) .
 .It Dv FTS_DP
@@ -234,6 +240,8 @@ A path for accessing the file from the current directory.
 The path for the file relative to the root of the traversal.
 This path contains the path specified to
 .Fn fts_open
+or
+.Fn fts_open_b
 as a prefix.
 .It Fa fts_pathlen
 The length of the string referenced by
@@ -518,6 +526,15 @@ the directory traversal order is in the order listed in
 .Fa path_argv
 for the root paths, and in the order listed in the directory for
 everything else.
+.Sh FTS_OPEN_B
+The
+.Fn fts_open_b
+function is identical to
+.Fn fts_open
+except that it takes a block pointer instead of a function pointer.
+The block is copied before
+.Fn fts_open_b
+returns, so the original can safely go out of scope or be released.
 .Sh FTS_READ
 The
 .Fn fts_read
@@ -593,9 +610,13 @@ As a special case, if
 has not yet been called for a hierarchy,
 .Fn fts_children
 will return a pointer to the files in the logical directory specified to
-.Fn fts_open ,
+.Fn fts_open
+or
+.Fn fts_open_b ,
 i.e., the arguments specified to
-.Fn fts_open .
+.Fn fts_open
+or
+.Fn fts_open_b .
 Otherwise, if the
 .Vt FTSENT
 structure most recently returned by
@@ -716,6 +737,8 @@ function closes a file hierarchy stream
 .Fa ftsp
 and restores the current directory to the directory from which
 .Fn fts_open
+or
+.Fn fts_open_b
 was called to open
 .Fa ftsp .
 The
@@ -723,29 +746,38 @@ The
 function
 returns 0 on success, and \-1 if an error occurs.
 .Sh ERRORS
-The function
+The
 .Fn fts_open
-may fail and set
+and
+.Fn fts_open_b
+functions may fail and set
 .Va errno
 for any of the errors specified for the library functions
 .Xr open 2
 and
 .Xr malloc 3 .
+The
+.Fn fts_open_b
+function may also fail and set
+.Va errno
+to
+.Dv ENOSYS
+if the blocks runtime is missing.
 .Pp
-The function
+The
 .Fn fts_close
-may fail and set
+function may fail and set
 .Va errno
 for any of the errors specified for the library functions
 .Xr chdir 2
 and
 .Xr close 2 .
 .Pp
-The functions
+The
 .Fn fts_read
 and
 .Fn fts_children
-may fail and set
+functions may fail and set
 .Va errno
 for any of the errors specified for the library functions
 .Xr chdir 2 ,
@@ -755,12 +787,12 @@ for any of the errors specified for the library functions
 and
 .Xr stat 2 .
 .Pp
-In addition,
+In addition, the
 .Fn fts_children ,
-.Fn fts_open
+.Fn fts_open ,
 and
 .Fn fts_set
-may fail and set
+functions may fail and set
 .Va errno
 as follows:
 .Bl -tag -width Er

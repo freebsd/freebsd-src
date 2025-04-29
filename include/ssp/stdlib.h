@@ -38,6 +38,10 @@ __BEGIN_DECLS
 __ssp_redirect(void, arc4random_buf, (void *__buf, size_t __len),
     (__buf, __len));
 
+__ssp_redirect(int, getenv_r,
+    (const char *name, char * _Nonnull __buf, size_t __len),
+    (name, __buf, __len));
+
 __ssp_redirect_raw_impl(char *, realpath, realpath,
     (const char *__restrict path, char *__restrict buf))
 {

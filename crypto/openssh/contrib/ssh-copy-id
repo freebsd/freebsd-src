@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 1999-2023 Philip Hands <phil@hands.com>
+# Copyright (c) 1999-2024 Philip Hands <phil@hands.com>
 #               2021 Carlos Rodríguez Gili <carlos.rodriguez-gili@upc.edu>
 #               2020 Matthias Blümel <blaimi@blaimi.de>
 #               2017 Sebastien Boyron <seb@boyron.eu>
@@ -56,19 +56,19 @@ then
 	  a bug describing your setup, and the shell you used to make it work.
 
 	EOF
-    printf '%s: ERROR: Less dimwitted shell required.\n' "$0"
+    printf '%s: ERROR: Less dimwitted shell required.\n' "$0" >&2
     exit 1
   fi
 fi
 
 # shellcheck disable=SC2010
-DEFAULT_PUB_ID_FILE=$(ls -t "${HOME}"/.ssh/id*.pub 2>/dev/null | grep -v -- '-cert.pub$' | head -n 1)
+DEFAULT_PUB_ID_FILE=$(ls -dt "${HOME}"/.ssh/id*.pub 2>/dev/null | grep -v -- '-cert.pub$' | head -n 1)
 SSH="ssh -a -x"
 TARGET_PATH=".ssh/authorized_keys"
 umask 0177
 
 usage () {
-  printf 'Usage: %s [-h|-?|-f|-n|-s|-x] [-i [identity_file]] [-p port] [-F alternative ssh_config file] [-t target_path] [[-o <ssh -o options>] ...] [user@]hostname\n' "$0" >&2
+  printf 'Usage: %s [-h|-?|-f|-n|-s|-x] [-i [identity_file]] [-t target_path] [-F ssh_config] [[-o ssh_option] ...] [-p port] [user@]hostname\n' "$0" >&2
   printf '\t-f: force mode -- copy keys without trying to check if they are already installed\n' >&2
   printf '\t-n: dry run    -- no keys are actually copied\n' >&2
   printf '\t-s: use sftp   -- use sftp instead of executing remote-commands. Can be useful if the remote only allows sftp\n' >&2
@@ -86,7 +86,7 @@ use_id_file() {
   L_ID_FILE="$1"
 
   if [ -z "$L_ID_FILE" ] ; then
-    printf '%s: ERROR: no ID file found\n' "$0"
+    printf '%s: ERROR: no ID file found\n' "$0" >&2
     exit 1
   fi
 
@@ -103,11 +103,10 @@ use_id_file() {
     ErrMSG=$( { : < "$f" ; } 2>&1 ) || {
       L_PRIVMSG=""
       [ "$f" = "$PRIV_ID_FILE" ] && L_PRIVMSG="	(to install the contents of '$PUB_ID_FILE' anyway, look at the -f option)"
-      printf "\\n%s: ERROR: failed to open ID file '%s': %s\\n" "$0" "$f" "$(printf '%s\n%s\n' "$ErrMSG" "$L_PRIVMSG" | sed -e 's/.*: *//')"
+      printf "\\n%s: ERROR: failed to open ID file '%s': %s\\n" "$0" "$f" "$(printf '%s\n%s\n' "$ErrMSG" "$L_PRIVMSG" | sed -e 's/.*: *//')" >&2
       exit 1
     }
   done
-  printf '%s: INFO: Source of key(s) to be installed: "%s"\n' "$0" "$PUB_ID_FILE" >&2
   GET_ID="cat \"$PUB_ID_FILE\""
 }
 
@@ -115,15 +114,31 @@ if [ -n "$SSH_AUTH_SOCK" ] && ssh-add -L >/dev/null 2>&1 ; then
   GET_ID="ssh-add -L"
 fi
 
-while getopts "i:o:p:F:t:fnsxh?" OPT
+OPTS="io:p:F:t:fnsxh?"
+
+while getopts "$OPTS" OPT
 do
   case "$OPT" in
     i)
       [ "${SEEN_OPT_I}" ] && {
-        printf '\n%s: ERROR: -i option must not be specified more than once\n\n' "$0"
+        printf '\n%s: ERROR: -i option must not be specified more than once\n\n' "$0" >&2
         usage
       }
       SEEN_OPT_I="yes"
+
+      # Check for -i's optional parameter
+      eval "nextarg=\${$OPTIND}"
+      # shellcheck disable=SC2154
+      if [ $OPTIND = $# ]; then
+        if [ -r "$nextarg" ] && grep -iq ssh "$nextarg"; then
+          printf '\n%s: ERROR: Missing hostname. Use "-i -- %s" if you really mean to use this as the hostname\n\n' "$0" "$nextarg" >&2
+          usage
+        fi
+      elif ! expr -- "$nextarg" : "-[$(echo "$OPTS" | tr -d :)-]" >/dev/null ; then
+        # when not at the last arg, and not followed by an option, -i has an argument
+        OPTARG="$nextarg"
+        OPTIND=$((OPTIND + 1))
+      fi
       use_id_file "${OPTARG:-$DEFAULT_PUB_ID_FILE}"
       ;;
     o|F)
@@ -176,16 +191,28 @@ if [ -z "$(eval $GET_ID)" ] && [ -r "${PUB_ID_FILE:=$DEFAULT_PUB_ID_FILE}" ] ; t
   use_id_file "$PUB_ID_FILE"
 fi
 
+printf '%s: INFO: Source of key(s) to be installed: %s\n' "$0" "${GET_ID#cat }" >&2
+
 # shellcheck disable=SC2086
 if [ -z "$(eval $GET_ID)" ] ; then
   printf '%s: ERROR: No identities found\n' "$0" >&2
   exit 1
 fi
 
+# assert_scratch_ok()
+# ensures that $SCRATCH_DIR is setup.
+assert_scratch_ok() {
+  [ "$SCRATCH_DIR" ] && [ -d "$SCRATCH_DIR" ] && [ -w "$SCRATCH_DIR" ] && return 0
+
+  printf 'ERROR: Assertion failure: in %s(): scratch_dir was not correctly set up (SCRATCH_DIR = "%s")\n' "$1" "$SCRATCH_DIR" >&2
+  return 1
+}
+
 # filter_ids()
 # tries to log in using the keys piped to it, and filters out any that work
 filter_ids() {
   L_SUCCESS="$1"
+  assert_scratch_ok filter_ids || return
   L_TMP_ID_FILE="$SCRATCH_DIR"/popids_tmp_id
   L_OUTPUT_FILE="$SCRATCH_DIR"/popids_output
 
@@ -288,23 +315,24 @@ installkeys_via_sftp() {
   # repopulate "$@" inside this function
   eval set -- "$SSH_OPTS"
 
-  L_KEYS=$SCRATCH_DIR/authorized_keys
-  L_SHARED_CON=$SCRATCH_DIR/master-conn
+  assert_scratch_ok installkeys_via_sftp || return 1
+  L_KEYS="$SCRATCH_DIR"/authorized_keys
+  L_SHARED_CON="$SCRATCH_DIR"/master-conn
   $SSH -f -N -M -S "$L_SHARED_CON" "$@"
-  L_CLEANUP="$SSH -S $L_SHARED_CON -O exit 'ignored' >/dev/null 2>&1 ; $SCRATCH_CLEANUP"
+  L_CLEANUP="$SSH -S '$L_SHARED_CON' -O exit 'ignored' >/dev/null 2>&1 ; $SCRATCH_CLEANUP"
   #shellcheck disable=SC2064
   trap "$L_CLEANUP" EXIT TERM INT QUIT
-  sftp -b - -o "ControlPath=$L_SHARED_CON" "ignored" <<-EOF || return 1
+  sftp -b - -o "ControlPath='$L_SHARED_CON'" "ignored" <<-EOF || return 1
 	-get "$AUTH_KEY_FILE" "$L_KEYS"
 	EOF
   # add a newline or create file if it's missing, same like above
   [ -z "$(tail -1c "$L_KEYS" 2>/dev/null)" ] || echo >> "$L_KEYS"
   # append the keys being piped in here
   cat >> "$L_KEYS"
-  sftp -b - -o "ControlPath=$L_SHARED_CON" "ignored" <<-EOF || return 1
+  sftp -b - -o "ControlPath='$L_SHARED_CON'" "ignored" <<-EOF || return 1
 	-mkdir "$AUTH_KEY_DIR"
 	chmod 700 "$AUTH_KEY_DIR"
-	put $L_KEYS "$AUTH_KEY_FILE"
+	put "$L_KEYS" "$AUTH_KEY_FILE"
 	chmod 600 "$AUTH_KEY_FILE"
 	EOF
   #shellcheck disable=SC2064
@@ -321,7 +349,7 @@ then
   #shellcheck disable=SC2064
   trap "$SCRATCH_CLEANUP" EXIT TERM INT QUIT
 else
-  printf '%s: ERROR: failed to create required temporary directory under ~/.ssh\n' "$0" >&2
+  printf '%s: ERROR: failed to create required temporary directory under ~/.ssh (HOME="%s")\n' "$0" "$HOME" >&2
   exit 1
 fi
 
@@ -379,7 +407,7 @@ else
 
 	Number of key(s) added: $ADDED
 
-	Now try logging into the machine, with:   "${SFTP:-ssh}${SSH_PORT:+ -${PORT_OPT:-p} $SSH_PORT} ${OPTS_USER_HOST}"
+	Now try logging into the machine, with: "${SFTP:-ssh} ${SEEN_OPT_I:+-i${PRIV_ID_FILE:+ $PRIV_ID_FILE} }${SSH_PORT:+-${PORT_OPT:-p} $SSH_PORT }${OPTS_USER_HOST}"
 	and check to make sure that only the key(s) you wanted were added.
 
 	EOF

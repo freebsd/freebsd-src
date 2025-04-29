@@ -1443,6 +1443,9 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	case NVME_GET_MAX_XFER_SIZE:
 		*(uint64_t *)arg = ctrlr->max_xfer_size;
 		break;
+	case NVME_GET_CONTROLLER_DATA:
+		memcpy(arg, &ctrlr->cdata, sizeof(ctrlr->cdata));
+		break;
 	/* Linux Compatible (see nvme_linux.h) */
 	case NVME_IOCTL_ID:
 		td->td_retval[0] = 0xfffffffful;
@@ -1609,7 +1612,8 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 void
 nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 {
-	int	gone, i;
+	int	i;
+	bool	gone;
 
 	ctrlr->is_dying = true;
 
@@ -1619,10 +1623,16 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 		goto noadminq;
 
 	/*
-	 * Check whether it is a hot unplug or a clean driver detach.
-	 * If device is not there any more, skip any shutdown commands.
+	 * Check whether it is a hot unplug or a clean driver detach.  If device
+	 * is not there any more, skip any shutdown commands.  Some hotplug
+	 * bridges will return zeros instead of ff's when the device is
+	 * departing, so ask the bridge if the device is gone. Some systems can
+	 * remove the drive w/o the bridge knowing its gone (they don't really
+	 * do hotplug), so failsafe with detecting all ff's (impossible with
+	 * this hardware) as the device being gone.
 	 */
-	gone = (nvme_mmio_read_4(ctrlr, csts) == NVME_GONE);
+	gone = bus_child_present(dev) == 0 ||
+	    (nvme_mmio_read_4(ctrlr, csts) == NVME_GONE);
 	if (gone)
 		nvme_ctrlr_fail(ctrlr, true);
 	else
@@ -1650,17 +1660,17 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	nvme_admin_qpair_destroy(&ctrlr->adminq);
 
 	/*
-	 *  Notify the controller of a shutdown, even though this is due to
-	 *   a driver unload, not a system shutdown (this path is not invoked
-	 *   during shutdown).  This ensures the controller receives a
-	 *   shutdown notification in case the system is shutdown before
-	 *   reloading the driver.
+	 * Notify the controller of a shutdown, even though this is due to a
+	 * driver unload, not a system shutdown (this path is not invoked uring
+	 * shutdown).  This ensures the controller receives a shutdown
+	 * notification in case the system is shutdown before reloading the
+	 * driver. Some NVMe drives need this to flush their cache to stable
+	 * media and consider it a safe shutdown in SMART stats.
 	 */
-	if (!gone)
+	if (!gone) {
 		nvme_ctrlr_shutdown(ctrlr);
-
-	if (!gone)
 		nvme_ctrlr_disable(ctrlr);
+	}
 
 noadminq:
 	if (ctrlr->taskqueue)

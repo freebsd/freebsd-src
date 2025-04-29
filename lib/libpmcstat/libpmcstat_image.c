@@ -193,6 +193,14 @@ pmcstat_image_link(struct pmcstat_process *pp, struct pmcstat_image *image,
 	assert(image->pi_type != PMCSTAT_IMAGE_UNKNOWN &&
 	    image->pi_type != PMCSTAT_IMAGE_INDETERMINABLE);
 
+	/*
+	 * It's possible to have images with nothing of value in .text
+	 * legitimately.  We shouldn't have any samples from this image, so
+	 * don't bother with a map entry either.
+	 */
+	if (image->pi_start == 0 && image->pi_end == 0)
+		return;
+
 	if ((pcmnew = malloc(sizeof(*pcmnew))) == NULL)
 		err(EX_OSERR, "ERROR: Cannot create a map entry");
 

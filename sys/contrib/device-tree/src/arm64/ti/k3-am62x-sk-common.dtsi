@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
  * Common dtsi for AM62x SK and derivatives
  *
- * Copyright (C) 2021-2023 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2021-2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <dt-bindings/leds/common.h>
@@ -46,6 +46,14 @@
 			console-size = <0x8000>;
 			ftrace-size = <0x00>;
 			pmsg-size = <0x8000>;
+		};
+
+		/* global cma region */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x00 0x8000000>;
+			linux,cma-default;
 		};
 
 		secure_tfa_ddr: tfa@9e780000 {
@@ -128,6 +136,10 @@
 	};
 };
 
+&phy_gmii_sel {
+	bootph-all;
+};
+
 &main_pmx0 {
 	/* First pad number is ALW package and second is AMC package */
 	main_uart0_pins_default: main-uart0-default-pins {
@@ -156,6 +168,7 @@
 	};
 
 	main_i2c1_pins_default: main-i2c1-default-pins {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x1e8, PIN_INPUT_PULLUP, 0) /* (B17/A17) I2C1_SCL */
 			AM62X_IOPAD(0x1ec, PIN_INPUT_PULLUP, 0) /* (A17/A16) I2C1_SDA */
@@ -335,15 +348,9 @@
 			self-powered;
 			data-role = "dual";
 			power-role = "sink";
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				port@0 {
-					reg = <0>;
-					usb_con_hs: endpoint {
-						remote-endpoint = <&usb0_hs_ep>;
-					};
+			port {
+				usb_con_hs: endpoint {
+					remote-endpoint = <&usb0_hs_ep>;
 				};
 			};
 		};
@@ -411,7 +418,6 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc0_pins_default>;
-	ti,driver-strength-ohm = <50>;
 	disable-wp;
 };
 
@@ -421,7 +427,6 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc1_pins_default>;
-	ti,driver-strength-ohm = <50>;
 	disable-wp;
 };
 
@@ -460,6 +465,7 @@
 };
 
 &usbss0 {
+	bootph-all;
 	status = "okay";
 	ti,vbus-divider;
 };
@@ -470,12 +476,10 @@
 };
 
 &usb0 {
-	#address-cells = <1>;
-	#size-cells = <0>;
+	bootph-all;
 	usb-role-switch;
 
-	port@0 {
-		reg = <0>;
+	port {
 		usb0_hs_ep: endpoint {
 		    remote-endpoint = <&usb_con_hs>;
 	       };
@@ -504,8 +508,6 @@
 	       0 0 0 0
 	       0 0 0 0
 	>;
-	tx-num-evt = <32>;
-	rx-num-evt = <32>;
 };
 
 &dss {

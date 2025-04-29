@@ -1675,15 +1675,11 @@ vtterm_done(struct terminal *tm)
 static void
 vtterm_splash(struct vt_device *vd)
 {
-	caddr_t kmdp;
 	struct splash_info *si;
 	uintptr_t image;
 	vt_axis_t top, left;
 
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	si = MD_FETCH(kmdp, MODINFOMD_SPLASH, struct splash_info *);
+	si = MD_FETCH(preload_kmdp, MODINFOMD_SPLASH, struct splash_info *);
 	if (!(vd->vd_flags & VDF_TEXTMODE) && (boothowto & RB_MUTE)) {
 		if (si == NULL) {
 			top = (vd->vd_height - vt_logo_height) / 2;
@@ -1806,14 +1802,10 @@ parse_font_info(struct font_info *fi)
 static void
 vt_init_font(void *arg)
 {
-	caddr_t kmdp;
 	struct font_info *fi;
 	struct vt_font *font;
 
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	fi = MD_FETCH(kmdp, MODINFOMD_FONT, struct font_info *);
+	fi = MD_FETCH(preload_kmdp, MODINFOMD_FONT, struct font_info *);
 
 	font = parse_font_info(fi);
 	if (font != NULL)
@@ -1825,14 +1817,10 @@ SYSINIT(vt_init_font, SI_SUB_KMEM, SI_ORDER_ANY, vt_init_font, &vt_consdev);
 static void
 vt_init_font_static(void)
 {
-	caddr_t kmdp;
 	struct font_info *fi;
 	struct vt_font *font;
 
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	fi = MD_FETCH(kmdp, MODINFOMD_FONT, struct font_info *);
+	fi = MD_FETCH(preload_kmdp, MODINFOMD_FONT, struct font_info *);
 
 	font = parse_font_info_static(fi);
 	if (font != NULL)

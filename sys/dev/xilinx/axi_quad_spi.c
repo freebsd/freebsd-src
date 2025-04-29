@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2016-2025 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -100,6 +100,12 @@ struct spi_softc {
 	void			*ih;
 };
 
+static struct ofw_compat_data compat_data[] = {
+	{ "xlnx,xps-spi-3.2",			1 },
+	{ "xlnx,xps-spi-2.00.a",		1 },
+	{ NULL,					0 }
+};
+
 static struct resource_spec spi_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ -1, 0 }
@@ -112,7 +118,7 @@ spi_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "xlnx,xps-spi-3.2"))
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "Xilinx Quad SPI");
@@ -148,7 +154,7 @@ spi_attach(device_t dev)
 	reg = (CR_MASTER | CR_MSS | CR_SPE);
 	WRITE4(sc, SPI_CR, reg);
 
-	device_add_child(dev, "spibus", 0);
+	device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
 	bus_attach_children(dev);
 	return (0);
 }
@@ -212,20 +218,33 @@ spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	return (0);
 }
 
+static phandle_t
+axispi_get_node(device_t bus, device_t dev)
+{
+
+	return (ofw_bus_get_node(bus));
+}
+
 static device_method_t spi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		spi_probe),
 	DEVMETHOD(device_attach,	spi_attach),
+
+	/* ofw_bus_if */
+	DEVMETHOD(ofw_bus_get_node,	axispi_get_node),
 
 	/* SPI interface */
 	DEVMETHOD(spibus_transfer,	spi_transfer),
 	DEVMETHOD_END
 };
 
-static driver_t spi_driver = {
-	"spi",
+static driver_t axispi_driver = {
+	"axispi",
 	spi_methods,
 	sizeof(struct spi_softc),
 };
 
-DRIVER_MODULE(spi, simplebus, spi_driver, 0, 0);
+DRIVER_MODULE(axispi, simplebus, axispi_driver, 0, 0);
+DRIVER_MODULE(ofw_spibus, axispi, ofw_spibus_driver, 0, 0);
+MODULE_DEPEND(axispi, ofw_spibus, 1, 1, 1);
+SIMPLEBUS_PNP_INFO(compat_data);

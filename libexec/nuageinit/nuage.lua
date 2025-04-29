@@ -135,7 +135,7 @@ local function adduser(pwd)
 	cmd = cmd .. extraargs .. " -c '" .. pwd.gecos
 	cmd = cmd .. "' -d '" .. pwd.homedir .. "' -s " .. pwd.shell .. postcmd
 
-	local f = io.popen(cmd, "w")
+	f = io.popen(cmd, "w")
 	if input then
 		f:write(input)
 	end
@@ -228,6 +228,39 @@ local function addsshkey(homedir, key)
 	end
 end
 
+local function update_sshd_config(key, value)
+	local sshd_config = "/etc/ssh/sshd_config"
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	if root then
+		sshd_config = root .. sshd_config
+	end
+	local f = assert(io.open(sshd_config, "r+"))
+	local tgt = assert(io.open(sshd_config .. ".nuageinit", "w"))
+	local found = false
+	local pattern = "^%s*"..key:lower().."%s+(%w+)%s*#?.*$"
+	while true do
+		local line = f:read()
+		if line == nil then break end
+		local _, _, val = line:lower():find(pattern)
+		if val then
+			found = true
+			if val == value then
+				assert(tgt:write(line .. "\n"))
+			else
+				assert(tgt:write(key .. " " .. value .. "\n"))
+			end
+		else
+			assert(tgt:write(line .. "\n"))
+		end
+	end
+	if not found then
+		assert(tgt:write(key .. " " .. value .. "\n"))
+	end
+	assert(f:close())
+	assert(tgt:close())
+	os.rename(sshd_config .. ".nuageinit", sshd_config)
+end
+
 local n = {
 	warn = warnmsg,
 	err = errmsg,
@@ -236,7 +269,8 @@ local n = {
 	sethostname = sethostname,
 	adduser = adduser,
 	addgroup = addgroup,
-	addsshkey = addsshkey
+	addsshkey = addsshkey,
+	update_sshd_config = update_sshd_config
 }
 
 return n

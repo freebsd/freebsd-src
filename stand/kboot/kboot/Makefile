@@ -25,8 +25,6 @@ SRCS=	\
 		hostfs.c \
 		init.c \
 		main.c \
-		seg.c \
-		util.c \
 		vers.c
 
 .if ${MK_FDT} != "no"

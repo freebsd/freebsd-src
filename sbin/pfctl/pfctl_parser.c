@@ -38,6 +38,7 @@
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <sys/proc.h>
+#include <net/if_dl.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -499,11 +500,6 @@ print_pool(struct pfctl_pool *pool, u_int16_t p1, u_int16_t p2,
 		    pool->mape.offset, pool->mape.psidlen, pool->mape.psid);
 }
 
-const char	* const pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
-const char	* const pf_lcounters[LCNT_MAX+1] = LCNT_NAMES;
-const char	* const pf_fcounters[FCNT_MAX+1] = FCNT_NAMES;
-const char	* const pf_scounters[FCNT_MAX+1] = FCNT_NAMES;
-
 void
 print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 {
@@ -518,7 +514,8 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 	running = s->running ? "Enabled" : "Disabled";
 
 	if (s->since) {
-		unsigned int	sec, min, hrs, day = runtime;
+		unsigned int	sec, min, hrs;
+		time_t		day = runtime;
 
 		sec = day % 60;
 		day /= 60;
@@ -527,8 +524,8 @@ print_status(struct pfctl_status *s, struct pfctl_syncookies *cookies, int opts)
 		hrs = day % 24;
 		day /= 24;
 		snprintf(statline, sizeof(statline),
-		    "Status: %s for %u days %.2u:%.2u:%.2u",
-		    running, day, hrs, min, sec);
+		    "Status: %s for %lld days %.2u:%.2u:%.2u",
+		    running, (long long)day, hrs, min, sec);
 	} else
 		snprintf(statline, sizeof(statline), "Status: %s", running);
 	printf("%-44s", statline);
@@ -654,6 +651,7 @@ print_src_node(struct pfctl_src_node *sn, int opts)
 {
 	struct pf_addr_wrap aw;
 	uint64_t min, sec;
+	const char *sn_type_names[] = PF_SN_TYPE_NAMES;
 
 	memset(&aw, 0, sizeof(aw));
 	if (sn->af == AF_INET)
@@ -702,6 +700,7 @@ print_src_node(struct pfctl_src_node *sn, int opts)
 				printf(", filter rule %u", sn->rule);
 			break;
 		}
+		printf(", %s", sn_type_names[sn->type]);
 		printf("\n");
 	}
 }
@@ -942,7 +941,10 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 		else if (r->rt == PF_DUPTO)
 			printf(" dup-to");
 		printf(" ");
-		print_pool(&r->rpool, 0, 0, r->af, PF_PASS);
+		print_pool(&r->rdr, 0, 0, r->af, PF_PASS);
+		print_pool(&r->route, 0, 0,
+		    r->rule_flag & PFRULE_AFTO && r->rt != PF_REPLYTO ? r->naf : r->af,
+		    PF_PASS);
 	}
 	if (r->af) {
 		if (r->af == AF_INET)
@@ -961,7 +963,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 	print_fromto(&r->src, r->os_fingerprint, &r->dst, r->af, r->proto,
 	    verbose, numeric);
 	if (r->rcv_ifname[0])
-		printf(" received-on %s", r->rcv_ifname);
+		printf(" %sreceived-on %s", r->rcvifnot ? "!" : "",
+		    r->rcv_ifname);
 	if (r->uid.op)
 		print_ugid(r->uid.op, r->uid.uid[0], r->uid.uid[1], "user",
 		    UID_MAX);
@@ -1238,11 +1241,11 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 #endif
 	}
 	if (!anchor_call[0] && ! TAILQ_EMPTY(&r->nat.list) &&
-	    r->naf != r->af) {
+	    r->rule_flag & PFRULE_AFTO) {
 		printf(" af-to %s from ", r->naf == AF_INET ? "inet" : "inet6");
 		print_pool(&r->nat, r->nat.proxy_port[0], r->nat.proxy_port[1],
 		    r->naf ? r->naf : r->af, PF_NAT);
-		if (r->rdr.cur != NULL && !TAILQ_EMPTY(&r->rdr.list)) {
+		if (!TAILQ_EMPTY(&r->rdr.list)) {
 			printf(" to ");
 			print_pool(&r->rdr, r->rdr.proxy_port[0],
 			    r->rdr.proxy_port[1], r->naf ? r->naf : r->af,
@@ -1253,8 +1256,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 	    (r->action == PF_NAT || r->action == PF_BINAT ||
 		r->action == PF_RDR)) {
 		printf(" -> ");
-		print_pool(&r->rpool, r->rpool.proxy_port[0],
-		    r->rpool.proxy_port[1], r->af, r->action);
+		print_pool(&r->rdr, r->rdr.proxy_port[0],
+		    r->rdr.proxy_port[1], r->af, r->action);
 	}
 }
 
@@ -1519,6 +1522,8 @@ ifa_load(void)
 			    ifa->ifa_addr)->sin6_scope_id;
 		} else if (n->af == AF_LINK) {
 			ifa_add_groups_to_map(ifa->ifa_name);
+			n->ifindex = ((struct sockaddr_dl *)
+			    ifa->ifa_addr)->sdl_index;
 		}
 		if ((n->ifname = strdup(ifa->ifa_name)) == NULL)
 			err(1, "ifa_load: strdup");
@@ -1583,6 +1588,34 @@ is_a_group(char *name)
 		return (0);
 
 	return (*(int *)ret_item->data);
+}
+
+unsigned int
+ifa_nametoindex(const char *ifa_name)
+{
+	struct node_host	*p;
+
+	for (p = iftab; p; p = p->next) {
+		if (p->af == AF_LINK && strcmp(p->ifname, ifa_name) == 0)
+			return (p->ifindex);
+	}
+	errno = ENXIO;
+	return (0);
+}
+
+char *
+ifa_indextoname(unsigned int ifindex, char *ifa_name)
+{
+	struct node_host	*p;
+
+	for (p = iftab; p; p = p->next) {
+		if (p->af == AF_LINK && ifindex == p->ifindex) {
+			strlcpy(ifa_name, p->ifname, IFNAMSIZ);
+			return (ifa_name);
+		}
+	}
+	errno = ENXIO;
+	return (NULL);
 }
 
 struct node_host *

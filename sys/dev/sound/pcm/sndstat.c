@@ -5,7 +5,7 @@
  * Copyright (c) 2001 Cameron Grant <cg@FreeBSD.org>
  * Copyright (c) 2020 The FreeBSD Foundation
  * All rights reserved.
- * Copyright (c) 2024 The FreeBSD Foundation
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
  *
  * Portions of this software were developed by Christos Margiolis
  * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
@@ -47,7 +47,6 @@
 #include <sys/sx.h>
 
 #include <dev/sound/pcm/sound.h>
-#include <dev/sound/pcm/pcm.h>
 
 #include "feeder_if.h"
 
@@ -441,12 +440,14 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 	nvlist_add_string(sound4di, SNDST_DSPS_SOUND4_STATUS, d->status);
 	nvlist_add_bool(
 	    sound4di, SNDST_DSPS_SOUND4_BITPERFECT, d->flags & SD_F_BITPERFECT);
-	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHAN, d->pvchancount);
+	nvlist_add_bool(sound4di, SNDST_DSPS_SOUND4_PVCHAN,
+	    d->flags & SD_F_PVCHANS);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHANRATE,
 	    d->pvchanrate);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHANFORMAT,
 	    d->pvchanformat);
-	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHAN, d->rvchancount);
+	nvlist_add_bool(sound4di, SNDST_DSPS_SOUND4_RVCHAN,
+	    d->flags & SD_F_RVCHANS);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHANRATE,
 	    d->rvchanrate);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHANFORMAT,
@@ -492,6 +493,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		    CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FR));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_FORMAT,
 		    sndbuf_getfmt(c->bufhard));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_RATE,
+		    sndbuf_getspd(c->bufhard));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_SIZE,
 		    sndbuf_getsize(c->bufhard));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_BLKSZ,
@@ -504,6 +507,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		    sndbuf_getready(c->bufhard));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_FORMAT,
 		    sndbuf_getfmt(c->bufsoft));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_RATE,
+		    sndbuf_getspd(c->bufsoft));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_SIZE,
 		    sndbuf_getsize(c->bufsoft));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_BLKSZ,

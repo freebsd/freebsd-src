@@ -298,7 +298,7 @@ cubic_ack_received(struct cc_var *ccv, ccsignal_t type)
 			W_cubic = cubic_cwnd(usecs_since_epoch +
 					     cubic_data->mean_rtt_usecs,
 					     cubic_data->W_max,
-					     tcp_fixed_maxseg(ccv->tp),
+					     mss,
 					     cubic_data->K);
 
 			if (W_cubic < W_est) {
@@ -328,8 +328,7 @@ cubic_ack_received(struct cc_var *ccv, ccsignal_t type)
 			if (((cubic_data->flags & CUBICFLAG_CONG_EVENT) == 0) &&
 			    cubic_data->W_max < CCV(ccv, snd_cwnd)) {
 				cubic_data->W_max = CCV(ccv, snd_cwnd);
-				cubic_data->K = cubic_k(cubic_data->W_max /
-				    tcp_fixed_maxseg(ccv->tp));
+				cubic_data->K = cubic_k(cubic_data->W_max / mss);
 			}
 		}
 	} else if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
@@ -469,32 +468,21 @@ cubic_cong_signal(struct cc_var *ccv, ccsignal_t type)
 			 */
 			cubic_data->undo_t_epoch = cubic_data->t_epoch;
 			cubic_data->undo_cwnd_epoch = cubic_data->cwnd_epoch;
-			cubic_data->undo_W_est = cubic_data->W_est;
-			cubic_data->undo_cwnd_prior = cubic_data->cwnd_prior;
 			cubic_data->undo_W_max = cubic_data->W_max;
 			cubic_data->undo_K = cubic_data->K;
-			if (V_tcp_do_newsack) {
-				pipe = tcp_compute_pipe(ccv->tp);
-			} else {
-				pipe = CCV(ccv, snd_max) -
-					CCV(ccv, snd_fack) +
-					CCV(ccv, sackhint.sack_bytes_rexmit);
-			}
+			pipe = tcp_compute_pipe(ccv->tp);
 			CCV(ccv, snd_ssthresh) = max(2,
 				(((uint64_t)min(CCV(ccv, snd_wnd), pipe) *
 				CUBIC_BETA) >> CUBIC_SHIFT) / mss) * mss;
 		}
 		cubic_data->flags |= CUBICFLAG_CONG_EVENT | CUBICFLAG_RTO_EVENT;
-		cubic_data->undo_W_max = cubic_data->W_max;
 		CCV(ccv, snd_cwnd) = mss;
 		break;
 
 	case CC_RTO_ERR:
 		cubic_data->flags &= ~(CUBICFLAG_CONG_EVENT | CUBICFLAG_RTO_EVENT);
 		cubic_data->K = cubic_data->undo_K;
-		cubic_data->cwnd_prior = cubic_data->undo_cwnd_prior;
 		cubic_data->W_max = cubic_data->undo_W_max;
-		cubic_data->W_est = cubic_data->undo_W_est;
 		cubic_data->cwnd_epoch = cubic_data->undo_cwnd_epoch;
 		cubic_data->t_epoch = cubic_data->undo_t_epoch;
 		break;
@@ -542,14 +530,8 @@ cubic_post_recovery(struct cc_var *ccv)
 		 * If inflight data is less than ssthresh, set cwnd
 		 * conservatively to avoid a burst of data, as suggested in
 		 * the NewReno RFC. Otherwise, use the CUBIC method.
-		 *
-		 * XXXLAS: Find a way to do this without needing curack
 		 */
-		if (V_tcp_do_newsack)
-			pipe = tcp_compute_pipe(ccv->tp);
-		else
-			pipe = CCV(ccv, snd_max) - ccv->curack;
-
+		pipe = tcp_compute_pipe(ccv->tp);
 		if (pipe < CCV(ccv, snd_ssthresh))
 			/*
 			 * Ensure that cwnd does not collapse to 1 MSS under

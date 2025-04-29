@@ -6,6 +6,10 @@
  * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
  * Portions Copyright (c) Luigi Rizzo <luigi@FreeBSD.org> - 1997-99
  * All rights reserved.
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -128,6 +132,7 @@ chn_vpc_proc(int reset, int db)
 	struct pcm_channel *c;
 	int i;
 
+	bus_topo_lock();
 	for (i = 0; pcm_devclass != NULL &&
 	    i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
@@ -146,6 +151,7 @@ chn_vpc_proc(int reset, int db)
 		PCM_RELEASE(d);
 		PCM_UNLOCK(d);
 	}
+	bus_topo_unlock();
 }
 
 static int
@@ -166,7 +172,7 @@ sysctl_hw_snd_vpc_0db(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_0db,
-    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, sizeof(int),
     sysctl_hw_snd_vpc_0db, "I",
     "0db relative level");
 
@@ -186,7 +192,7 @@ sysctl_hw_snd_vpc_reset(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_reset,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(int),
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, sizeof(int),
     sysctl_hw_snd_vpc_reset, "I",
     "reset volume on all channels");
 
@@ -957,29 +963,38 @@ static const struct {
 	{ "mulaw",  NULL, NULL, AFMT_MU_LAW },
 	{    "u8",   "8", NULL, AFMT_U8     },
 	{    "s8",  NULL, NULL, AFMT_S8     },
+	{   "ac3",  NULL, NULL, AFMT_AC3    },
 #if BYTE_ORDER == LITTLE_ENDIAN
 	{ "s16le", "s16", "16", AFMT_S16_LE },
 	{ "s16be",  NULL, NULL, AFMT_S16_BE },
+	{ "s24le", "s24", "24", AFMT_S24_LE },
+	{ "s24be",  NULL, NULL, AFMT_S24_BE },
+	{ "s32le", "s32", "32", AFMT_S32_LE },
+	{ "s32be",  NULL, NULL, AFMT_S32_BE },
+	{ "f32le", "f32", NULL, AFMT_F32_LE },
+	{ "f32be",  NULL, NULL, AFMT_F32_BE },
+	{ "u16le", "u16", NULL, AFMT_U16_LE },
+	{ "u16be",  NULL, NULL, AFMT_U16_BE },
+	{ "u24le", "u24", NULL, AFMT_U24_LE },
+	{ "u24be",  NULL, NULL, AFMT_U24_BE },
+	{ "u32le", "u32", NULL, AFMT_U32_LE },
+	{ "u32be",  NULL, NULL, AFMT_U32_BE },
 #else
 	{ "s16le",  NULL, NULL, AFMT_S16_LE },
 	{ "s16be", "s16", "16", AFMT_S16_BE },
-#endif
-	{ "u16le",  NULL, NULL, AFMT_U16_LE },
-	{ "u16be",  NULL, NULL, AFMT_U16_BE },
 	{ "s24le",  NULL, NULL, AFMT_S24_LE },
-	{ "s24be",  NULL, NULL, AFMT_S24_BE },
-	{ "u24le",  NULL, NULL, AFMT_U24_LE },
-	{ "u24be",  NULL, NULL, AFMT_U24_BE },
-#if BYTE_ORDER == LITTLE_ENDIAN
-	{ "s32le", "s32", "32", AFMT_S32_LE },
-	{ "s32be",  NULL, NULL, AFMT_S32_BE },
-#else
+	{ "s24be", "s24", "24", AFMT_S24_BE },
 	{ "s32le",  NULL, NULL, AFMT_S32_LE },
 	{ "s32be", "s32", "32", AFMT_S32_BE },
-#endif
+	{ "f32le",  NULL, NULL, AFMT_F32_LE },
+	{ "f32be", "f32", NULL, AFMT_F32_BE },
+	{ "u16le",  NULL, NULL, AFMT_U16_LE },
+	{ "u16be", "u16", NULL, AFMT_U16_BE },
+	{ "u24le",  NULL, NULL, AFMT_U24_LE },
+	{ "u24be", "u24", NULL, AFMT_U24_BE },
 	{ "u32le",  NULL, NULL, AFMT_U32_LE },
-	{ "u32be",  NULL, NULL, AFMT_U32_BE },
-	{   "ac3",  NULL, NULL, AFMT_AC3    },
+	{ "u32be", "u32", NULL, AFMT_U32_BE },
+#endif
 	{    NULL,  NULL, NULL, 0           }
 };
 
@@ -1172,19 +1187,31 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
 	char buf[CHN_NAMELEN];
-	int i, direction;
+	int err, i, direction, *vchanrate, *vchanformat;
 
 	PCM_BUSYASSERT(d);
 	PCM_LOCKASSERT(d);
 
 	switch (dir) {
 	case PCMDIR_PLAY:
+		d->playcount++;
+		/* FALLTHROUGH */
 	case PCMDIR_PLAY_VIRTUAL:
+		if (dir == PCMDIR_PLAY_VIRTUAL)
+			d->pvchancount++;
 		direction = PCMDIR_PLAY;
+		vchanrate = &d->pvchanrate;
+		vchanformat = &d->pvchanformat;
 		break;
 	case PCMDIR_REC:
+		d->reccount++;
+		/* FALLTHROUGH */
 	case PCMDIR_REC_VIRTUAL:
+		if (dir == PCMDIR_REC_VIRTUAL)
+			d->rvchancount++;
 		direction = PCMDIR_REC;
+		vchanrate = &d->rvchanrate;
+		vchanformat = &d->rvchanformat;
 		break;
 	default:
 		device_printf(d->dev,
@@ -1205,8 +1232,8 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	c->direction = direction;
 	c->type = dir;
 	c->unit = alloc_unr(chn_getunr(d, c->type));
-	c->format = SND_FORMAT(AFMT_U8, 1, 0);
-	c->speed = DSP_DEFAULT_SPEED;
+	c->format = SND_FORMAT(AFMT_S16_LE, 2, 0);
+	c->speed = 48000;
 	c->pid = -1;
 	c->latency = -1;
 	c->timeout = 1;
@@ -1279,43 +1306,27 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		bs->shadbuf = malloc(bs->sl, M_DEVBUF, M_WAITOK);
 	}
 
+	if ((c->flags & CHN_F_VIRTUAL) == 0) {
+		CHN_LOCK(c);
+		err = chn_reset(c, c->format, c->speed);
+		CHN_UNLOCK(c);
+		if (err != 0)
+			goto fail;
+	}
+
 	PCM_LOCK(d);
 	CHN_INSERT_SORT_ASCEND(d, c, channels.pcm);
-
-	switch (c->type) {
-	case PCMDIR_PLAY:
-		d->playcount++;
-		break;
-	case PCMDIR_PLAY_VIRTUAL:
-		d->pvchancount++;
-		break;
-	case PCMDIR_REC:
-		d->reccount++;
-		break;
-	case PCMDIR_REC_VIRTUAL:
-		d->rvchancount++;
-		break;
-	default:
-		__assert_unreachable();
+	if ((c->flags & CHN_F_VIRTUAL) == 0) {
+		CHN_INSERT_SORT_ASCEND(d, c, channels.pcm.primary);
+		/* Initialize the *vchanrate/vchanformat parameters. */
+		*vchanrate = sndbuf_getspd(c->bufsoft);
+		*vchanformat = sndbuf_getfmt(c->bufsoft);
 	}
 
 	return (c);
 
 fail:
-	free_unr(chn_getunr(d, c->type), c->unit);
-	feeder_remove(c);
-	if (c->devinfo && CHANNEL_FREE(c->methods, c->devinfo))
-		sndbuf_free(b);
-	if (bs)
-		sndbuf_destroy(bs);
-	if (b)
-		sndbuf_destroy(b);
-	CHN_LOCK(c);
-	chn_lockdestroy(c);
-
-	kobj_delete(c->methods, M_DEVBUF);
-	free(c, M_DEVBUF);
-
+	chn_kill(c);
 	PCM_LOCK(d);
 
 	return (NULL);
@@ -1332,6 +1343,8 @@ chn_kill(struct pcm_channel *c)
 
 	PCM_LOCK(d);
 	CHN_REMOVE(d, c, channels.pcm);
+	if ((c->flags & CHN_F_VIRTUAL) == 0)
+		CHN_REMOVE(d, c, channels.pcm.primary);
 
 	switch (c->type) {
 	case PCMDIR_PLAY:
@@ -1356,12 +1369,14 @@ chn_kill(struct pcm_channel *c)
 		chn_trigger(c, PCMTRIG_ABORT);
 		CHN_UNLOCK(c);
 	}
-	free_unr(chn_getunr(c->parentsnddev, c->type), c->unit);
+	free_unr(chn_getunr(d, c->type), c->unit);
 	feeder_remove(c);
-	if (CHANNEL_FREE(c->methods, c->devinfo))
+	if (c->devinfo && CHANNEL_FREE(c->methods, c->devinfo))
 		sndbuf_free(b);
-	sndbuf_destroy(bs);
-	sndbuf_destroy(b);
+	if (bs)
+		sndbuf_destroy(bs);
+	if (b)
+		sndbuf_destroy(b);
 	CHN_LOCK(c);
 	c->flags |= CHN_F_DEAD;
 	chn_lockdestroy(c);
@@ -2092,21 +2107,23 @@ chn_setparam(struct pcm_channel *c, uint32_t format, uint32_t speed)
 int
 chn_setspeed(struct pcm_channel *c, uint32_t speed)
 {
-	uint32_t oldformat, oldspeed, format;
+	uint32_t oldformat, oldspeed;
 	int ret;
 
 	oldformat = c->format;
 	oldspeed = c->speed;
-	format = oldformat;
 
-	ret = chn_setparam(c, format, speed);
+	if (c->speed == speed)
+		return (0);
+
+	ret = chn_setparam(c, c->format, speed);
 	if (ret != 0) {
 		if (snd_verbose > 3)
 			device_printf(c->dev,
 			    "%s(): Setting speed %d failed, "
 			    "falling back to %d\n",
 			    __func__, speed, oldspeed);
-		chn_setparam(c, c->format, oldspeed);
+		chn_setparam(c, oldformat, oldspeed);
 	}
 
 	return (ret);
@@ -2115,7 +2132,7 @@ chn_setspeed(struct pcm_channel *c, uint32_t speed)
 int
 chn_setformat(struct pcm_channel *c, uint32_t format)
 {
-	uint32_t oldformat, oldspeed, speed;
+	uint32_t oldformat, oldspeed;
 	int ret;
 
 	/* XXX force stereo */
@@ -2126,9 +2143,11 @@ chn_setformat(struct pcm_channel *c, uint32_t format)
 
 	oldformat = c->format;
 	oldspeed = c->speed;
-	speed = oldspeed;
 
-	ret = chn_setparam(c, format, speed);
+	if (c->format == format)
+		return (0);
+
+	ret = chn_setparam(c, format, c->speed);
 	if (ret != 0) {
 		if (snd_verbose > 3)
 			device_printf(c->dev,
@@ -2291,7 +2310,7 @@ chn_trigger(struct pcm_channel *c, int go)
 		break;
 	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
-		CHN_REMOVE_SAFE(d, c, channels.pcm.busy);
+		CHN_REMOVE(d, c, channels.pcm.busy);
 		PCM_UNLOCK(d);
 		break;
 	default:
@@ -2360,7 +2379,7 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 	CHN_LOCKASSERT(c);
 
 	if (CHN_EMPTY(c, children))
-		return (ENODEV);
+		return (0);
 
 	err = 0;
 

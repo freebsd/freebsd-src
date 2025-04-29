@@ -132,6 +132,41 @@
 #define	HCR_TWEDEn			(UL(0x1) << 59)
 #define	HCR_TWEDEL_MASK			(UL(0xf) << 60)
 
+/* HCRX_EL2 - Extended Hypervisor Configuration Register */
+#define HCRX_EL2_REG		MRS_REG_ALT_NAME(HCRX_EL2)
+#define HCRX_EL2_op0		3
+#define HCRX_EL2_op1		4
+#define HCRX_EL2_CRn		1
+#define HCRX_EL2_CRm		2
+#define HCRX_EL2_op2		2
+
+#define HCRX_EnAS0			(UL(0x1) << 0)
+#define HCRX_EnALS			(UL(0x1) << 1)
+#define HCRX_EnASR			(UL(0x1) << 2)
+#define HCRX_FnXS			(UL(0x1) << 3)
+#define HCRX_FGTnXS			(UL(0x1) << 4)
+#define HCRX_SMPME			(UL(0x1) << 5)
+#define HCRX_TALLINT			(UL(0x1) << 6)
+#define HCRX_VINMI			(UL(0x1) << 7)
+#define HCRX_VFNMI			(UL(0x1) << 8)
+#define HCRX_CMOW			(UL(0x1) << 9)
+#define HCRX_MCE2			(UL(0x1) << 10)
+#define HCRX_MSCEn			(UL(0x1) << 11)
+/* Bits 12 & 13 are reserved */
+#define HCRX_TCR2En			(UL(0x1) << 14)
+#define HCRX_SCTLR2En			(UL(0x1) << 15)
+#define HCRX_PTTWI			(UL(0x1) << 16)
+#define HCRX_D128En			(UL(0x1) << 17)
+#define HCRX_EnSNERR			(UL(0x1) << 18)
+#define HCRX_TMEA			(UL(0x1) << 19)
+#define HCRX_EnSDERR			(UL(0x1) << 20)
+#define HCRX_EnIDCP128			(UL(0x1) << 21)
+#define HCRX_GCSEn			(UL(0x1) << 22)
+#define HCRX_EnFPM			(UL(0x1) << 23)
+#define HCRX_PACMEn			(UL(0x1) << 24)
+/* Bit 25 is reserved */
+#define HCRX_SRMASKEn			(UL(0x1) << 26)
+
 /* HPFAR_EL2 - Hypervisor IPA Fault Address Register */
 #define	HPFAR_EL2_FIPA_SHIFT	4
 #define	HPFAR_EL2_FIPA_MASK	0xfffffffff0
@@ -246,6 +281,7 @@
 #define	 VTCR_EL2_PS_42BIT	(0x3UL << VTCR_EL2_PS_SHIFT)
 #define	 VTCR_EL2_PS_44BIT	(0x4UL << VTCR_EL2_PS_SHIFT)
 #define	 VTCR_EL2_PS_48BIT	(0x5UL << VTCR_EL2_PS_SHIFT)
+#define	 VTCR_EL2_PS_52BIT	(0x6UL << VTCR_EL2_PS_SHIFT)
 #define	VTCR_EL2_DS_SHIFT	32
 #define	VTCR_EL2_DS		(0x1UL << VTCR_EL2_DS_SHIFT)
 

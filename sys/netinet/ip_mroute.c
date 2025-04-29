@@ -139,6 +139,13 @@ static MALLOC_DEFINE(M_MRTABLE, "mroutetbl", "multicast forwarding cache");
  * structures.
  */
 
+static struct sx __exclusive_cache_line mrouter_teardown;
+#define	MRW_TEARDOWN_WLOCK()	sx_xlock(&mrouter_teardown)
+#define	MRW_TEARDOWN_WUNLOCK()	sx_xunlock(&mrouter_teardown)
+#define	MRW_TEARDOWN_LOCK_INIT()				\
+	sx_init(&mrouter_teardown, "IPv4 multicast forwarding teardown")
+#define	MRW_TEARDOWN_LOCK_DESTROY()	sx_destroy(&mrouter_teardown)
+
 static struct rwlock mrouter_lock;
 #define	MRW_RLOCK()		rw_rlock(&mrouter_lock)
 #define	MRW_WLOCK()		rw_wlock(&mrouter_lock)
@@ -692,15 +699,18 @@ ip_mrouter_init(struct socket *so, int version)
 	if (version != 1)
 		return ENOPROTOOPT;
 
+	MRW_TEARDOWN_WLOCK();
 	MRW_WLOCK();
 
 	if (ip_mrouter_unloading) {
 		MRW_WUNLOCK();
+		MRW_TEARDOWN_WUNLOCK();
 		return ENOPROTOOPT;
 	}
 
 	if (V_ip_mrouter != NULL) {
 		MRW_WUNLOCK();
+		MRW_TEARDOWN_WUNLOCK();
 		return EADDRINUSE;
 	}
 
@@ -708,6 +718,7 @@ ip_mrouter_init(struct socket *so, int version)
 	    HASH_NOWAIT);
 	if (V_mfchashtbl == NULL) {
 		MRW_WUNLOCK();
+		MRW_TEARDOWN_WUNLOCK();
 		return (ENOMEM);
 	}
 
@@ -717,6 +728,7 @@ ip_mrouter_init(struct socket *so, int version)
 	    M_NOWAIT, &V_bw_upcalls_ring_mtx);
 	if (!V_bw_upcalls_ring) {
 		MRW_WUNLOCK();
+		MRW_TEARDOWN_WUNLOCK();
 		return (ENOMEM);
 	}
 
@@ -736,6 +748,7 @@ ip_mrouter_init(struct socket *so, int version)
 	mtx_init(&V_buf_ring_mtx, "mroute buf_ring mtx", NULL, MTX_DEF);
 
 	MRW_WUNLOCK();
+	MRW_TEARDOWN_WUNLOCK();
 
 	CTR1(KTR_IPMF, "%s: done", __func__);
 
@@ -754,8 +767,12 @@ X_ip_mrouter_done(void)
 	vifi_t vifi;
 	struct bw_upcall *bu;
 
-	if (V_ip_mrouter == NULL)
+	MRW_TEARDOWN_WLOCK();
+
+	if (V_ip_mrouter == NULL) {
+		MRW_TEARDOWN_WUNLOCK();
 		return (EINVAL);
+	}
 
 	/*
 	 * Detach/disable hooks to the reset of the system.
@@ -830,6 +847,7 @@ X_ip_mrouter_done(void)
 	mtx_destroy(&V_buf_ring_mtx);
 
 	MRW_WUNLOCK();
+	MRW_TEARDOWN_WUNLOCK();
 
 	/*
 	 * Now drop our claim on promiscuous multicast on the interfaces recorded
@@ -2448,7 +2466,7 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
 	ip_outer->ip_tos = ip->ip_tos;
 	if (ip->ip_off & htons(IP_DF))
 		ip_outer->ip_off |= htons(IP_DF);
-	ip_fillid(ip_outer);
+	ip_fillid(ip_outer, V_ip_random_id);
 	pimhdr = (struct pim_encap_pimhdr *)((caddr_t)ip_outer
 			+ sizeof(pim_encap_iphdr));
 	*pimhdr = pim_encap_pimhdr;
@@ -2721,6 +2739,9 @@ sysctl_mfctable(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	MRW_RLOCK();
+	if (V_mfchashtbl == NULL)
+		goto out_locked;
+
 	for (i = 0; i < mfchashsize; i++) {
 		LIST_FOREACH(rt, &V_mfchashtbl[i], mfc_hash) {
 			error = SYSCTL_OUT(req, rt, sizeof(struct mfc));
@@ -2809,6 +2830,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD:
+		MRW_TEARDOWN_LOCK_INIT();
 		MRW_LOCK_INIT();
 
 		if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
@@ -2880,6 +2902,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 		rsvp_input_p = NULL;
 
 		MRW_LOCK_DESTROY();
+		MRW_TEARDOWN_LOCK_DESTROY();
 		break;
 
 	default:

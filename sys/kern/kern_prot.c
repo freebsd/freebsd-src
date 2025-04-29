@@ -2365,7 +2365,7 @@ crunuse(struct thread *td)
 }
 
 static void
-crunusebatch(struct ucred *cr, int users, int ref)
+crunusebatch(struct ucred *cr, u_int users, long ref)
 {
 
 	KASSERT(users > 0, ("%s: passed users %d not > 0 ; cred %p",

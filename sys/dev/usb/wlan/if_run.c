@@ -17,7 +17,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 /*-
  * Ralink Technology RT2700U/RT2800U/RT3000U/RT3900E chipset driver.
  * http://www.ralinktech.com/
@@ -325,6 +324,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(SITECOMEU,		RT2870_3),
     RUN_DEV(SITECOMEU,		RT2870_4),
     RUN_DEV(SITECOMEU,		RT3070),
+    RUN_DEV(SITECOMEU,		RT3070_1),
     RUN_DEV(SITECOMEU,		RT3070_2),
     RUN_DEV(SITECOMEU,		RT3070_3),
     RUN_DEV(SITECOMEU,		RT3070_4),
@@ -2685,6 +2685,7 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 	union run_stats sta[2];
 	uint16_t (*wstat)[3];
 	int error, ridx;
+	uint8_t dot11rate;
 
 	RUN_LOCK(sc);
 
@@ -2737,15 +2738,17 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 	ieee80211_ratectl_tx_update(vap, txs);
 	ieee80211_ratectl_rate(ni, NULL, 0);
 	/* XXX TODO: methodize with MCS rates */
+	dot11rate = ieee80211_node_get_txrate_dot11rate(ni);
 	for (ridx = 0; ridx < RT2860_RIDX_MAX; ridx++)
-		if (rt2860_rates[ridx].rate == ni->ni_txrate)
+		if (rt2860_rates[ridx].rate == dot11rate)
 			break;
 	rn->amrr_ridx = ridx;
 
 fail:
 	RUN_UNLOCK(sc);
 
-	RUN_DPRINTF(sc, RUN_DEBUG_RATE, "rate=%d, ridx=%d\n", ni->ni_txrate, rn->amrr_ridx);
+	RUN_DPRINTF(sc, RUN_DEBUG_RATE, "rate=0x%02x, ridx=%d\n",
+	    ieee80211_node_get_txrate_dot11rate(ni), rn->amrr_ridx);
 }
 
 static void

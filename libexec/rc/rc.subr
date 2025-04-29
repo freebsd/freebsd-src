@@ -207,15 +207,8 @@ rc_trace()
 
 	if [ -z "$RC_LEVEL" ]; then
 		[ -f $cf ] || return
-		if [ -s $cf ]; then
-			# don't try to set RC_LEVEL without sed
-			if [ -n "$SED" ]; then
-				RC_LEVEL=$($SED -n '/^RC_LEVEL=/ { s/.*=//p;q; }' $cf)
-				RC_LEVEL=${RC_LEVEL:-0}
-			fi
-		else
-			RC_LEVEL=0
-		fi
+		RC_LEVEL=0	# existence is 0 at least
+		sdot $cf	# allow override
 	fi
 	[ ${RC_LEVEL:-0} -ge ${level:-0} ] || return
 	rc_log "$@"
@@ -1203,7 +1196,8 @@ run_rc_command()
 	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon} \
 	    _limits=\$${name}_limits	_oomprotect=\$${name}_oomprotect \
 	    _setup=\$${name}_setup	_env_file=\$${name}_env_file \
-	    _umask=\$${name}_umask	_svcj_options=\$${name}_svcj_options
+	    _umask=\$${name}_umask	_svcj_options=\$${name}_svcj_options \
+	    _svcj_ipaddrs=\$${name}_svcj_ipaddrs
 
 	if [ -n "$_env_file" ] && [ -r "${_env_file}" ]; then	# load env from file
 		set -a
@@ -1217,9 +1211,30 @@ run_rc_command()
 		fi
 	fi
 
-	if [ -n "$_svcj_options" ]; then	# translate service jail options
-		_svcj_cmd_options=""
+	_svcj_ip="inherit"
+	_svcj_ip4_addrs=""
+	_svcj_ip6_addrs=""
 
+	for addr in $_svcj_ipaddrs; do
+		case $addr in
+			*:*) _svcj_ip6_addrs="$addr,${_svcj_ip6_addrs}" ;;
+			*) _svcj_ip4_addrs="$addr,${_svcj_ip4_addrs}" ;;
+		esac
+	done
+
+	_svcj_cmd_options=""
+
+	if [ -n "$_svcj_ip4_addrs" ]; then
+		_svcj_cmd_options="ip4.addr=${_svcj_ip4_addrs%*,} ${_svcj_cmd_options}"
+		_svcj_ip="new"
+	fi
+
+	if [ -n "$_svcj_ip6_addrs" ]; then
+		_svcj_cmd_options="ip6.addr=${_svcj_ip6_addrs%*,} ${_svcj_cmd_options}"
+		_svcj_ip="new"
+	fi
+
+	if [ -n "$_svcj_options" ]; then	# translate service jail options
 		_svcj_sysvipc_x=0
 		for _svcj_option in $_svcj_options; do
 			case "$_svcj_option" in
@@ -1227,22 +1242,25 @@ run_rc_command()
 					_svcj_cmd_options="allow.mlock ${_svcj_cmd_options}"
 					;;
 				netv4)
-					_svcj_cmd_options="ip4=inherit allow.reserved_ports ${_svcj_cmd_options}"
+					_svcj_cmd_options="ip4=${_svcj_ip} allow.reserved_ports ${_svcj_cmd_options}"
 					;;
 				netv6)
-					_svcj_cmd_options="ip6=inherit allow.reserved_ports ${_svcj_cmd_options}"
+					_svcj_cmd_options="ip6=${_svcj_ip} allow.reserved_ports ${_svcj_cmd_options}"
 					;;
 				net_basic)
-					_svcj_cmd_options="ip4=inherit ip6=inherit allow.reserved_ports ${_svcj_cmd_options}"
+					_svcj_cmd_options="ip4=${_svcj_ip} ip6=${_svcj_ip} allow.reserved_ports ${_svcj_cmd_options}"
 					;;
 				net_raw)
 					_svcj_cmd_options="allow.raw_sockets ${_svcj_cmd_options}"
 					;;
 				net_all)
-					_svcj_cmd_options="allow.socket_af allow.raw_sockets allow.reserved_ports ip4=inherit ip6=inherit ${_svcj_cmd_options}"
+					_svcj_cmd_options="allow.socket_af allow.raw_sockets allow.reserved_ports ip4=${_svcj_ip} ip6=${_svcj_ip} ${_svcj_cmd_options}"
 					;;
 				nfsd)
 					_svcj_cmd_options="allow.nfsd enforce_statfs=1 ${_svcj_cmd_options}"
+					;;
+				settime)
+					_svcj_cmd_options="allow.settime ${_svcj_cmd_options}"
 					;;
 				sysvipc)
 					_svcj_sysvipc_x=$((${_svcj_sysvipc_x} + 1))
@@ -1310,7 +1328,9 @@ run_rc_command()
 		     _postcmd=\$${rc_arg}_postcmd
 
 		if [ -n "$_cmd" ]; then
-			rc_trace 1 "$_cmd"
+			if [ "$_cmd" != : ]; then
+				rc_trace 1 "$_cmd"
+			fi
 			if [ -n "$_env" ]; then
 				eval "export -- $_env"
 			fi

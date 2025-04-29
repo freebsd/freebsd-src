@@ -38,6 +38,7 @@
 
 #include <sys/types.h>
 #include <limits.h>
+#include <wchar.h>
 #include "xlocale_private.h"
 
 /*
@@ -65,6 +66,8 @@
 
 #define	DIRECTIVE_DIRECTION_MASK (DIRECTIVE_FORWARD | DIRECTIVE_BACKWARD)
 
+#define	IGNORE_EQUIV_CLASS 1
+
 /*
  * The collate file format is as follows:
  *
@@ -85,6 +88,7 @@
 typedef struct collate_info {
 	uint8_t directive_count;
 	uint8_t directive[COLL_WEIGHTS_MAX];
+	uint8_t chain_max_len; /* In padding */
 	int32_t pri_count[COLL_WEIGHTS_MAX];
 	int32_t flags;
 	int32_t chain_count;
@@ -126,8 +130,13 @@ struct xlocale_collate {
 };
 
 __BEGIN_DECLS
-int	__collate_load_tables(const char *);
+size_t	__collate_collating_symbol(wchar_t *, size_t, const char *, size_t,
+    mbstate_t *);
+int	__collate_equiv_class(const char *, size_t, mbstate_t *);
 int	__collate_equiv_value(locale_t, const wchar_t *, size_t);
+size_t	__collate_equiv_match(int, wchar_t *, size_t, wchar_t, const char *,
+    size_t, mbstate_t *, size_t *);
+int	__collate_load_tables(const char *);
 void	_collate_lookup(struct xlocale_collate *,const wchar_t *, int *, int *,
 	int, const int **);
 int	__collate_range_cmp(char, char);

@@ -289,7 +289,7 @@ again:
 			mtx_unlock(&e->lock);
 			goto again;
 		}
-		if (adapter_stopped(sc))
+		if (!hw_all_ok(sc))
 			free(wr, M_CXGBE);
 		else
 			arpq_enqueue(e, wr);
@@ -361,7 +361,7 @@ t4_l2t_get(struct port_info *pi, if_t ifp, struct sockaddr *sa)
 	struct l2t_entry *e;
 	struct adapter *sc = pi->adapter;
 	struct l2t_data *d = sc->l2t;
-	u_int hash, smt_idx = pi->port_id;
+	u_int hash;
 	uint16_t vid, pcp, vtag;
 
 	KASSERT(sa->sa_family == AF_INET || sa->sa_family == AF_INET6,
@@ -386,8 +386,7 @@ t4_l2t_get(struct port_info *pi, if_t ifp, struct sockaddr *sa)
 		goto done;
 	}
 	for (e = d->l2tab[hash].first; e; e = e->next) {
-		if (l2_cmp(sa, e) == 0 && e->ifp == ifp && e->vlan == vtag &&
-		    e->smt_idx == smt_idx) {
+		if (l2_cmp(sa, e) == 0 && e->ifp == ifp && e->vlan == vtag) {
 			l2t_hold(d, e);
 			goto done;
 		}
@@ -403,7 +402,6 @@ t4_l2t_get(struct port_info *pi, if_t ifp, struct sockaddr *sa)
 		e->state = L2T_STATE_RESOLVING;
 		l2_store(sa, e);
 		e->ifp = ifp;
-		e->smt_idx = smt_idx;
 		e->hash = hash;
 		e->lport = pi->lport;
 		e->wrq = &sc->sge.ctrlq[pi->port_id];

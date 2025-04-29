@@ -318,7 +318,11 @@ static inline
 int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 			    struct iwl_fw_runtime *fwrt)
 {
+#if defined(__linux__)
 	return 0;
+#elif defined(__FreeBSD__)
+	return -ENOENT;
+#endif
 }
 #endif /* CONFIG_EFI */
 #endif /* __iwl_fw_uefi__ */

@@ -164,6 +164,7 @@ SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
 
 int use_xsave;			/* non-static for cpu_switch.S */
 uint64_t xsave_mask;		/* the same */
+static	uint64_t xsave_mask_supervisor;
 static	uint64_t xsave_extensions;
 static	uma_zone_t fpu_save_area_zone;
 static	struct savefpu *fpu_initialstate;
@@ -324,6 +325,7 @@ fpuinit_bsp1(void)
 		ctx_switch_xsave[3] |= 0x10;
 		restore_wp(old_wp);
 	}
+	xsave_mask_supervisor = ((uint64_t)cp[3] << 32) | cp[2];
 }
 
 /*
@@ -421,7 +423,7 @@ fpuinitstate(void *arg __unused)
 	    XSAVE_AREA_ALIGN - 1, 0);
 	fpu_initialstate = uma_zalloc(fpu_save_area_zone, M_WAITOK | M_ZERO);
 	if (use_xsave) {
-		max_ext_n = flsl(xsave_mask);
+		max_ext_n = flsl(xsave_mask | xsave_mask_supervisor);
 		xsave_area_desc = malloc(max_ext_n * sizeof(struct
 		    xsave_area_elm_descr), M_DEVBUF, M_WAITOK | M_ZERO);
 	}
@@ -1293,20 +1295,30 @@ fpu_save_area_reset(struct savefpu *fsa)
 }
 
 static __inline void
-xsave_extfeature_check(uint64_t feature)
+xsave_extfeature_check(uint64_t feature, bool supervisor)
 {
+#ifdef INVARIANTS
+	uint64_t mask;
 
+	mask = supervisor ? xsave_mask_supervisor : xsave_mask;
 	KASSERT((feature & (feature - 1)) == 0,
 	    ("%s: invalid XFEATURE 0x%lx", __func__, feature));
-	KASSERT(feature < flsl(xsave_mask),
-	    ("%s: unsupported XFEATURE 0x%lx", __func__, feature));
+	KASSERT(ilog2(feature) <= ilog2(mask),
+	    ("%s: unsupported %s XFEATURE 0x%lx", __func__,
+	    supervisor ? "supervisor" : "user", feature));
+#endif
 }
 
 static __inline void
-xsave_extstate_bv_check(uint64_t xstate_bv)
+xsave_extstate_bv_check(uint64_t xstate_bv, bool supervisor)
 {
-	KASSERT(xstate_bv != 0 && ilog2(xstate_bv) < flsl(xsave_mask),
+#ifdef INVARIANTS
+	uint64_t mask;
+
+	mask = supervisor ? xsave_mask_supervisor : xsave_mask;
+	KASSERT(xstate_bv != 0 && ilog2(xstate_bv) <= ilog2(mask),
 	    ("%s: invalid XSTATE_BV 0x%lx", __func__, xstate_bv));
+#endif
 }
 
 /*
@@ -1317,11 +1329,13 @@ bool
 xsave_extfeature_supported(uint64_t feature, bool supervisor)
 {
 	int idx;
+	uint64_t mask;
 
 	KASSERT(use_xsave, ("%s: XSAVE not supported", __func__));
-	xsave_extfeature_check(feature);
+	xsave_extfeature_check(feature, supervisor);
 
-	if ((xsave_mask & feature) == 0)
+	mask = supervisor ? xsave_mask_supervisor : xsave_mask;
+	if ((mask & feature) == 0)
 		return (false);
 	idx = ilog2(feature);
 	return (((xsave_area_desc[idx].flags & CPUID_EXTSTATE_SUPERVISOR) != 0) ==
@@ -1345,15 +1359,15 @@ xsave_extension_supported(uint64_t extension)
  */
 size_t
 xsave_area_offset(uint64_t xstate_bv, uint64_t feature,
-    bool compact)
+    bool compact, bool supervisor)
 {
 	int i, idx;
 	size_t offs;
 	struct xsave_area_elm_descr *xep;
 
 	KASSERT(use_xsave, ("%s: XSAVE not supported", __func__));
-	xsave_extstate_bv_check(xstate_bv);
-	xsave_extfeature_check(feature);
+	xsave_extstate_bv_check(xstate_bv, supervisor);
+	xsave_extfeature_check(feature, supervisor);
 
 	idx = ilog2(feature);
 	if (!compact)
@@ -1376,16 +1390,16 @@ xsave_area_offset(uint64_t xstate_bv, uint64_t feature,
  * 'xstate_bv' and extended region format ('compact').
  */
 size_t
-xsave_area_size(uint64_t xstate_bv, bool compact)
+xsave_area_size(uint64_t xstate_bv, bool compact, bool supervisor)
 {
 	int last_idx;
 
 	KASSERT(use_xsave, ("%s: XSAVE not supported", __func__));
-	xsave_extstate_bv_check(xstate_bv);
+	xsave_extstate_bv_check(xstate_bv, supervisor);
 
 	last_idx = ilog2(xstate_bv);
 
-	return (xsave_area_offset(xstate_bv, (uint64_t)1 << last_idx, compact) +
+	return (xsave_area_offset(xstate_bv, (uint64_t)1 << last_idx, compact, supervisor) +
 	    xsave_area_desc[last_idx].size);
 }
 

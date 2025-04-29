@@ -1,8 +1,8 @@
-# $NetBSD: cmdline.mk,v 1.5 2024/04/23 22:51:28 rillig Exp $
+# $NetBSD: cmdline.mk,v 1.7 2024/08/29 17:56:37 sjg Exp $
 #
 # Tests for command line parsing and related special variables.
 
-TMPBASE?=	${TMPDIR:U/tmp/uid${.MAKE.UID}}
+TMPBASE?=	${TMPDIR:U/tmp/uid${.MAKE.UID}}/cmdline
 SUB1=		a7b41170-53f8-4cc2-bc5c-e4c3dd93ec45	# just a random UUID
 SUB2=		6a8899d2-d227-4b55-9b6b-f3c8eeb83fd5	# just a random UUID
 MAKE_CMD=	env TMPBASE=${TMPBASE}/${SUB1} ${.MAKE} -f ${MAKEFILE} -r
@@ -12,6 +12,7 @@ DIR12=		${TMPBASE}/${SUB1}/${SUB2}
 all: prepare-dirs
 all: makeobjdir-direct makeobjdir-indirect
 all: space-and-comment
+all: cleanup
 
 prepare-dirs:
 	@rm -rf ${DIR2} ${DIR12}
@@ -56,3 +57,6 @@ space-and-comment: .PHONY
 	@env -i MAKEFLAGS="' VAR= value # no comment '" \
 	    ${MAKE} -r -f /dev/null -v VAR \
 	| sed 's,$$,$$,'
+
+cleanup:
+	@rm -rf ${TMPBASE}

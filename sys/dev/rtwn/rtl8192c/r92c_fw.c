@@ -239,7 +239,12 @@ r92c_init_ra(struct rtwn_softc *sc, int macid)
 	}
 #endif
 
-	rtwn_write_1(sc, R92C_INIDATA_RATE_SEL(macid), maxrate);
+	/*
+	 * There's no need to set this if firmware rate control is
+	 * enabled - the firmware will be controlling this per MACID.
+	 */
+	if (sc->sc_ratectl != RTWN_RATECTL_FW)
+		rtwn_write_1(sc, R92C_INIDATA_RATE_SEL(macid), maxrate);
 
 	ieee80211_free_node(ni);
 }

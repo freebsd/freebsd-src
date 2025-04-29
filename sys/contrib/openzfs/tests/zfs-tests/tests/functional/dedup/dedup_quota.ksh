@@ -1,4 +1,5 @@
 #!/bin/ksh -p
+# SPDX-License-Identifier: CDDL-1.0
 # CDDL HEADER START
 #
 # The contents of this file are subject to the terms of the
@@ -49,13 +50,13 @@ VDEV_GENERAL="$TEST_BASE_DIR/vdevfile.general.$$"
 VDEV_DEDUP="$TEST_BASE_DIR/vdevfile.dedup.$$"
 POOL="dedup_pool"
 
-save_tunable TXG_TIMEOUT
-
 # we set the dedup log txg interval to 1, to get a log flush every txg,
 # effectively disabling the log. without this it's hard to predict when and
 # where things appear on-disk
 log_must save_tunable DEDUP_LOG_TXG_MAX
 log_must set_tunable32 DEDUP_LOG_TXG_MAX 1
+log_must save_tunable DEDUP_LOG_FLUSH_ENTRIES_MIN
+log_must set_tunable32 DEDUP_LOG_FLUSH_ENTRIES_MIN 100000
 
 function cleanup
 {
@@ -63,8 +64,8 @@ function cleanup
 		destroy_pool $POOL
 	fi
 	log_must rm -fd $VDEV_GENERAL $VDEV_DEDUP $MOUNTDIR
-	log_must restore_tunable TXG_TIMEOUT
 	log_must restore_tunable DEDUP_LOG_TXG_MAX
+	log_must restore_tunable DEDUP_LOG_FLUSH_ENTRIES_MIN
 }
 
 
@@ -79,8 +80,7 @@ function do_setup
 	log_must truncate -s 5G $VDEV_GENERAL
 	# Use 'xattr=sa' to prevent selinux xattrs influencing our accounting
 	log_must zpool create -o ashift=12 -f -O xattr=sa -m $MOUNTDIR $POOL $VDEV_GENERAL
-	log_must zfs set dedup=on $POOL
-	log_must set_tunable32 TXG_TIMEOUT 600
+	log_must zfs set compression=off dedup=on $POOL
 }
 
 function dedup_table_size

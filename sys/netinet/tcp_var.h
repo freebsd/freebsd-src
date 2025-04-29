@@ -452,7 +452,6 @@ struct tcpcb {
 	tcp_seq gput_seq;		/* Outbound measurement seq */
 	tcp_seq gput_ack;		/* Inbound measurement ack */
 	int32_t t_stats_gput_prev;	/* XXXLAS: Prev gput measurement */
-	uint32_t t_maxpeakrate;		/* max peak rate set by user, bytes/s */
 	uint32_t t_sndtlppack;		/* tail loss probe packets sent */
 	uint64_t t_sndtlpbyte;		/* total tail loss probe bytes sent */
 	uint64_t t_sndbytes;		/* total bytes sent */
@@ -499,10 +498,6 @@ struct tcpcb {
 #ifdef TCP_ACCOUNTING
 	uint64_t tcp_cnt_counters[TCP_NUM_CNT_COUNTERS];
 	uint64_t tcp_proc_time[TCP_NUM_CNT_COUNTERS];
-#endif
-#ifdef TCPPCAP
-	struct mbufq t_inpkts;		/* List of saved input packets. */
-	struct mbufq t_outpkts;		/* List of saved output packets. */
 #endif
 };
 #endif	/* _KERNEL || _WANT_TCPCB */
@@ -1271,6 +1266,7 @@ VNET_DECLARE(uint32_t, tcp_ack_war_time_window);
 VNET_DECLARE(int, tcp_autorcvbuf_max);
 VNET_DECLARE(int, tcp_autosndbuf_inc);
 VNET_DECLARE(int, tcp_autosndbuf_max);
+VNET_DECLARE(int, tcp_bind_all_fibs);
 VNET_DECLARE(int, tcp_delack_enabled);
 VNET_DECLARE(int, tcp_do_autorcvbuf);
 VNET_DECLARE(int, tcp_do_autosndbuf);
@@ -1324,6 +1320,7 @@ VNET_DECLARE(struct inpcbinfo, tcbinfo);
 #define	V_tcp_autorcvbuf_max		VNET(tcp_autorcvbuf_max)
 #define	V_tcp_autosndbuf_inc		VNET(tcp_autosndbuf_inc)
 #define	V_tcp_autosndbuf_max		VNET(tcp_autosndbuf_max)
+#define	V_tcp_bind_all_fibs		VNET(tcp_bind_all_fibs)
 #define	V_tcp_delack_enabled		VNET(tcp_delack_enabled)
 #define	V_tcp_do_autorcvbuf		VNET(tcp_do_autorcvbuf)
 #define	V_tcp_do_autosndbuf		VNET(tcp_do_autosndbuf)

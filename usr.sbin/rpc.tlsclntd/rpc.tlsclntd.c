@@ -66,9 +66,6 @@
 #include "rpctlscd.h"
 #include "rpc.tlscommon.h"
 
-#ifndef _PATH_RPCTLSCDSOCK
-#define _PATH_RPCTLSCDSOCK	"/var/run/rpc.tlsclntd.sock"
-#endif
 #ifndef	_PATH_CERTANDKEY
 #define	_PATH_CERTANDKEY	"/etc/rpc.tlsclntd/"
 #endif
@@ -90,9 +87,6 @@ struct ssl_list		rpctls_ssllist;
 static struct pidfh	*rpctls_pfh = NULL;
 static const char	*rpctls_certdir = _PATH_CERTANDKEY;
 static const char	*rpctls_ciphers = NULL;
-static uint64_t		rpctls_ssl_refno = 0;
-static uint64_t		rpctls_ssl_sec = 0;
-static uint64_t		rpctls_ssl_usec = 0;
 static int		rpctls_tlsvers = TLS1_3_VERSION;
 
 static void		rpctlscd_terminate(int);
@@ -101,7 +95,7 @@ static SSL		*rpctls_connect(SSL_CTX *ctx, int s, char *certname,
 			    u_int certlen, X509 **certp);
 static void		rpctls_huphandler(int sig __unused);
 
-extern void rpctlscd_1(struct svc_req *rqstp, SVCXPRT *transp);
+extern void rpctlscd_2(struct svc_req *rqstp, SVCXPRT *transp);
 
 static struct option longopts[] = {
 	{ "usetls1_2",		no_argument,		NULL,	'2' },
@@ -119,17 +113,9 @@ static struct option longopts[] = {
 int
 main(int argc, char **argv)
 {
-	/*
-	 * We provide an RPC service on a local-domain socket. The
-	 * kernel rpctls code will upcall to this daemon to do the initial
-	 * TLS handshake.
-	 */
-	struct sockaddr_un sun;
-	int ch, fd, oldmask;
+	int ch;
 	SVCXPRT *xprt;
 	bool tls_enable;
-	struct timeval tm;
-	struct timezone tz;
 	pid_t otherpid;
 	size_t tls_enable_len;
 
@@ -146,11 +132,6 @@ main(int argc, char **argv)
 	if (sysctlbyname("kern.ipc.tls.enable", &tls_enable, &tls_enable_len,
 	    NULL, 0) != 0 || !tls_enable)
 		errx(1, "Kernel TLS not enabled");
-
-	/* Get the time when this daemon is started. */
-	gettimeofday(&tm, &tz);
-	rpctls_ssl_sec = tm.tv_sec;
-	rpctls_ssl_usec = tm.tv_usec;
 
 	rpctls_verbose = false;
 	while ((ch = getopt_long(argc, argv, "2C:D:dl:mp:r:v", longopts,
@@ -234,38 +215,7 @@ main(int argc, char **argv)
 
 	pidfile_write(rpctls_pfh);
 
-	memset(&sun, 0, sizeof sun);
-	sun.sun_family = AF_LOCAL;
-	unlink(_PATH_RPCTLSCDSOCK);
-	strcpy(sun.sun_path, _PATH_RPCTLSCDSOCK);
-	sun.sun_len = SUN_LEN(&sun);
-	fd = socket(AF_LOCAL, SOCK_STREAM, 0);
-	if (fd < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR, "Can't create local rpctlscd socket");
-			exit(1);
-		}
-		err(1, "Can't create local rpctlscd socket");
-	}
-	oldmask = umask(S_IXUSR|S_IRWXG|S_IRWXO);
-	if (bind(fd, (struct sockaddr *)&sun, sun.sun_len) < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR, "Can't bind local rpctlscd socket");
-			exit(1);
-		}
-		err(1, "Can't bind local rpctlscd socket");
-	}
-	umask(oldmask);
-	if (listen(fd, SOMAXCONN) < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR,
-			    "Can't listen on local rpctlscd socket");
-			exit(1);
-		}
-		err(1, "Can't listen on local rpctlscd socket");
-	}
-	xprt = svc_vc_create(fd, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
-	if (!xprt) {
+	if ((xprt = svc_nl_create("tlsclnt")) == NULL) {
 		if (rpctls_debug_level == 0) {
 			syslog(LOG_ERR,
 			    "Can't create transport for local rpctlscd socket");
@@ -273,7 +223,7 @@ main(int argc, char **argv)
 		}
 		err(1, "Can't create transport for local rpctlscd socket");
 	}
-	if (!svc_reg(xprt, RPCTLSCD, RPCTLSCDVERS, rpctlscd_1, NULL)) {
+	if (!svc_reg(xprt, RPCTLSCD, RPCTLSCDVERS, rpctlscd_2, NULL)) {
 		if (rpctls_debug_level == 0) {
 			syslog(LOG_ERR,
 			    "Can't register service for local rpctlscd socket");
@@ -282,25 +232,14 @@ main(int argc, char **argv)
 		err(1, "Can't register service for local rpctlscd socket");
 	}
 
-	if (rpctls_syscall(RPCTLS_SYSC_CLSETPATH, _PATH_RPCTLSCDSOCK) < 0) {
-		if (rpctls_debug_level == 0) {
-			syslog(LOG_ERR,
-			    "Can't set upcall socket path errno=%d", errno);
-			exit(1);
-		}
-		err(1, "Can't set upcall socket path");
-	}
-
 	rpctls_svc_run();
-
-	rpctls_syscall(RPCTLS_SYSC_CLSHUTDOWN, "");
 
 	SSL_CTX_free(rpctls_ctx);
 	return (0);
 }
 
 bool_t
-rpctlscd_null_1_svc(__unused void *argp, __unused void *result,
+rpctlscd_null_2_svc(__unused void *argp, __unused void *result,
     __unused struct svc_req *rqstp)
 {
 
@@ -309,7 +248,7 @@ rpctlscd_null_1_svc(__unused void *argp, __unused void *result,
 }
 
 bool_t
-rpctlscd_connect_1_svc(struct rpctlscd_connect_arg *argp,
+rpctlscd_connect_2_svc(struct rpctlscd_connect_arg *argp,
     struct rpctlscd_connect_res *result, __unused struct svc_req *rqstp)
 {
 	int s;
@@ -319,7 +258,7 @@ rpctlscd_connect_1_svc(struct rpctlscd_connect_arg *argp,
 
 	rpctls_verbose_out("rpctlsd_connect: started\n");
 	/* Get the socket fd from the kernel. */
-	s = rpctls_syscall(RPCTLS_SYSC_CLSOCKET, "");
+	s = rpctls_syscall(argp->socookie);
 	if (s < 0) {
 		result->reterr = RPCTLSERR_NOSOCKET;
 		return (TRUE);
@@ -332,28 +271,18 @@ rpctlscd_connect_1_svc(struct rpctlscd_connect_arg *argp,
 		rpctls_verbose_out("rpctlsd_connect: can't do TLS "
 		    "handshake\n");
 		result->reterr = RPCTLSERR_NOSSL;
-	} else {
-		result->reterr = RPCTLSERR_OK;
-		result->sec = rpctls_ssl_sec;
-		result->usec = rpctls_ssl_usec;
-		result->ssl = ++rpctls_ssl_refno;
-		/* Hard to believe this will ever wrap around.. */
-		if (rpctls_ssl_refno == 0)
-			result->ssl = ++rpctls_ssl_refno;
-	}
-
-	if (ssl == NULL) {
 		/*
 		 * For RPC-over-TLS, this upcall is expected
 		 * to close off the socket.
 		 */
 		close(s);
 		return (TRUE);
-	}
+	} else
+		result->reterr = RPCTLSERR_OK;
 
 	/* Maintain list of all current SSL *'s */
 	newslp = malloc(sizeof(*newslp));
-	newslp->refno = rpctls_ssl_refno;
+	newslp->cookie = argp->socookie;
 	newslp->s = s;
 	newslp->shutoff = false;
 	newslp->ssl = ssl;
@@ -363,21 +292,16 @@ rpctlscd_connect_1_svc(struct rpctlscd_connect_arg *argp,
 }
 
 bool_t
-rpctlscd_handlerecord_1_svc(struct rpctlscd_handlerecord_arg *argp,
+rpctlscd_handlerecord_2_svc(struct rpctlscd_handlerecord_arg *argp,
     struct rpctlscd_handlerecord_res *result, __unused struct svc_req *rqstp)
 {
 	struct ssl_entry *slp;
 	int ret;
 	char junk;
 
-	slp = NULL;
-	if (argp->sec == rpctls_ssl_sec && argp->usec ==
-	    rpctls_ssl_usec) {
-		LIST_FOREACH(slp, &rpctls_ssllist, next) {
-			if (slp->refno == argp->ssl)
-				break;
-		}
-	}
+	LIST_FOREACH(slp, &rpctls_ssllist, next)
+		if (slp->cookie == argp->socookie)
+			break;
 
 	if (slp != NULL) {
 		rpctls_verbose_out("rpctlscd_handlerecord fd=%d\n",
@@ -406,20 +330,15 @@ rpctlscd_handlerecord_1_svc(struct rpctlscd_handlerecord_arg *argp,
 }
 
 bool_t
-rpctlscd_disconnect_1_svc(struct rpctlscd_disconnect_arg *argp,
+rpctlscd_disconnect_2_svc(struct rpctlscd_disconnect_arg *argp,
     struct rpctlscd_disconnect_res *result, __unused struct svc_req *rqstp)
 {
 	struct ssl_entry *slp;
 	int ret;
 
-	slp = NULL;
-	if (argp->sec == rpctls_ssl_sec && argp->usec ==
-	    rpctls_ssl_usec) {
-		LIST_FOREACH(slp, &rpctls_ssllist, next) {
-			if (slp->refno == argp->ssl)
-				break;
-		}
-	}
+	LIST_FOREACH(slp, &rpctls_ssllist, next)
+		if (slp->cookie == argp->socookie)
+			break;
 
 	if (slp != NULL) {
 		rpctls_verbose_out("rpctlscd_disconnect: fd=%d closed\n",
@@ -452,7 +371,7 @@ rpctlscd_disconnect_1_svc(struct rpctlscd_disconnect_arg *argp,
 }
 
 int
-rpctlscd_1_freeresult(__unused SVCXPRT *transp, __unused xdrproc_t xdr_result,
+rpctlscd_2_freeresult(__unused SVCXPRT *transp, __unused xdrproc_t xdr_result,
     __unused caddr_t result)
 {
 
@@ -463,7 +382,6 @@ static void
 rpctlscd_terminate(int sig __unused)
 {
 
-	rpctls_syscall(RPCTLS_SYSC_CLSHUTDOWN, "");
 	pidfile_remove(rpctls_pfh);
 	exit(0);
 }

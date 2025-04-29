@@ -49,6 +49,7 @@
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/protosw.h>
 #include <sys/socketvar.h>
 #include <sys/uio.h>
 #include <sys/eventfd.h>
@@ -1817,7 +1818,7 @@ selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
 	 */
 	for (;;) {
 		selfdalloc(td, NULL);
-		if (sopoll(so, events, NULL, td) != 0) {
+		if (so->so_proto->pr_sopoll(so, events, td) != 0) {
 			error = 0;
 			break;
 		}

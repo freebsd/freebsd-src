@@ -169,6 +169,9 @@ axidma_intr(struct axidma_softc *sc,
 
 	while (chan->idx_tail != chan->idx_head) {
 		desc = chan->descs[chan->idx_tail];
+		cpu_dcache_wbinv_range((vm_offset_t)desc,
+		    sizeof(struct axidma_desc));
+
 		if ((desc->status & BD_STATUS_CMPLT) == 0)
 			break;
 
@@ -357,7 +360,8 @@ axidma_desc_alloc(struct axidma_softc *sc, struct xdma_channel *xchan,
 		return (-1);
 	}
 	chan->mem_vaddr = kva_alloc(chan->mem_size);
-	pmap_kenter_device(chan->mem_vaddr, chan->mem_size, chan->mem_paddr);
+	pmap_kenter(chan->mem_vaddr, chan->mem_size, chan->mem_paddr,
+	    VM_MEMATTR_DEFAULT);
 
 	device_printf(sc->dev, "Allocated chunk %lx %lu\n",
 	    chan->mem_paddr, chan->mem_size);
@@ -492,6 +496,9 @@ axidma_channel_submit_sg(device_t dev, struct xdma_channel *xchan,
 			desc->control |= BD_CONTROL_TXSOF;
 		if (sg[i].last == 1)
 			desc->control |= BD_CONTROL_TXEOF;
+
+		cpu_dcache_wbinv_range((vm_offset_t)desc,
+		    sizeof(struct axidma_desc));
 
 		tmp = chan->idx_head;
 

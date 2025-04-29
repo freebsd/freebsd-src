@@ -162,6 +162,11 @@
 #define	  FSCR_DSCR		  0x0000000000000004 /* DSCR available in PR state */
 #define	SPR_UAMOR		0x09d	/* User Authority Mask Override Register */
 #define	SPR_DPDES		0x0b0	/* .6. Directed Privileged Doorbell Exception State Register */
+#define	SPR_HFSCR		0xbe	/* Hypervisor Facility Status and Control Register */
+#define	  HFSCR_BHRB		  0x0000000000000010 /* BHRB instructions */
+#define	  HFSCR_PM		  0x0000000000000008 /* Performance monitor SPRs */
+#define	  HFSCR_VECVSX		  0x0000000000000002 /* Vector and VSX facilities */
+#define	  HFSCR_FP		  0x0000000000000001 /* Floating Point facility */
 #define	SPR_USPRG0		0x100	/* 4.8 User SPR General 0 */
 #define	SPR_VRSAVE		0x100	/* .6. AltiVec VRSAVE */
 #define	SPR_SPRG0		0x110	/* 468 SPR General 0 */

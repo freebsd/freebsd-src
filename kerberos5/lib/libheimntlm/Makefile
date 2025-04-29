@@ -1,7 +1,7 @@
 PACKAGE=	kerberos-lib
 
 LIB=	heimntlm
-LDFLAGS=	-Wl,--no-undefined
+LDFLAGS+=	-Wl,--no-undefined
 LIBADD=	crypto com_err krb5 roken
 SRCS=	ntlm.c ntlm_err.c ntlm_err.h
 INCS=	heimntlm.h heimntlm-protos.h ntlm_err.h

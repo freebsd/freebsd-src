@@ -361,8 +361,8 @@ char *piaddr(struct iaddr);
 extern cap_channel_t *capsyslog;
 extern const char *path_dhclient_conf;
 extern char *path_dhclient_db;
-extern struct timespec time_now;
-extern time_t cur_time;
+extern struct timespec time_now;	/* CLOCK_MONOTONIC */
+extern time_t cur_time;			/* Seconds since epoch */
 extern int log_priority;
 extern int log_perror;
 

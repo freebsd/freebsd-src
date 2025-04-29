@@ -548,6 +548,14 @@ void comm_base_set_slow_accept_handlers(struct comm_base* b,
 struct ub_event_base* comm_base_internal(struct comm_base* b);
 
 /**
+ * Access internal event structure. It is for use with
+ * ub_winsock_tcp_wouldblock on windows.
+ * @param c: comm point.
+ * @return event.
+ */
+struct ub_event* comm_point_internal(struct comm_point* c);
+
+/**
  * Create an UDP comm point. Calls malloc.
  * setups the structure with the parameters you provide.
  * @param base: in which base to alloc the commpoint.
@@ -593,8 +601,7 @@ struct comm_point* comm_point_create_udp_ancil(struct comm_base* base,
  * @param socket: and opened socket properties will be passed to your callback function.
  * @param table: the doq connection table for the host.
  * @param rnd: random generator to use.
- * @param ssl_service_key: the ssl service key file.
- * @param ssl_service_pem: the ssl service pem file.
+ * @param quic_sslctx: the quic ssl context.
  * @param cfg: config file struct.
  * @return: returns the allocated communication point. NULL on error.
  * Sets timeout to NULL. Turns off TCP options.
@@ -603,8 +610,8 @@ struct comm_point* comm_point_create_doq(struct comm_base* base,
 	int fd, struct sldns_buffer* buffer,
 	comm_point_callback_type* callback, void* callback_arg,
 	struct unbound_socket* socket, struct doq_table* table,
-	struct ub_randstate* rnd, const char* ssl_service_key,
-	const char* ssl_service_pem, struct config_file* cfg);
+	struct ub_randstate* rnd, const void* quic_sslctx,
+	struct config_file* cfg);
 
 /**
  * Create a TCP listener comm point. Calls malloc.
@@ -1045,12 +1052,6 @@ struct doq_server_socket {
 	struct ub_randstate* rnd;
 	/** if address validation is enabled */
 	uint8_t validate_addr;
-	/** the ssl service key file */
-	char* ssl_service_key;
-	/** the ssl service pem file */
-	char* ssl_service_pem;
-	/** the ssl verify pem file */
-	char* ssl_verify_pem;
 	/** the server scid length */
 	int sv_scidlen;
 	/** the idle timeout in nanoseconds */

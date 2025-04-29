@@ -133,11 +133,13 @@ enum nl80211_band {
 
 	/* Keep this last. */
 	NUM_NL80211_BANDS
-};
+} __packed;
 
-enum nl80211_chan_flags {
-	/* XXX TODO */
+enum nl80211_channel_type {
 	NL80211_CHAN_NO_HT,
+	NL80211_CHAN_HT20,
+	NL80211_CHAN_HT40PLUS,
+	NL80211_CHAN_HT40MINUS,
 };
 
 enum nl80211_chan_width {
@@ -188,8 +190,6 @@ enum nl80211_tdls_operation {
 	NL80211_TDLS_ENABLE_LINK,
 	NL80211_TDLS_DISABLE_LINK,
 	NL80211_TDLS_DISCOVERY_REQ,
-	NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY,
-	NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY,
 };
 
 enum nl80211_cqm_rssi_threshold_event {
@@ -247,6 +247,7 @@ enum nl80211_ext_feature {
 	NUM_NL80211_EXT_FEATURES
 };
 
+/* Keep in order with lkpi_nl80211_sta_info_to_str() */
 enum nl80211_sta_info {
 	/* XXX TODO */
 	NL80211_STA_INFO_BEACON_RX,
@@ -432,6 +433,9 @@ enum nl80211_user_reg_hint_type {
 enum nl80211_hidden_ssid {
 	NL80211_HIDDEN_SSID_NOT_IN_USE,
 };
+
+#define	NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY	16
+#define	NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY	24
 
 #define	NL80211_KCK_LEN				16
 #define	NL80211_KCK_EXT_LEN			24

@@ -480,16 +480,6 @@ int
 cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
     stack_t *stack)
 {
-
-	/* 
-	 * Do any extra cleaning that needs to be done.
-	 * The thread may have optional components
-	 * that are not present in a fresh thread.
-	 * This may be a recycled thread so make it look
-	 * as though it's newly allocated.
-	 */
-	cpu_thread_clean(td);
-
 	/*
 	 * Set the trap frame to point at the beginning of the entry
 	 * function.
@@ -542,6 +532,13 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	}
 	critical_exit();
 	return (0);
+}
+
+void
+cpu_update_pcb(struct thread *td)
+{
+	MPASS(td == curthread);
+	td->td_pcb->pcb_gs = rgs();
 }
 
 /*

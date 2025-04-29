@@ -28,6 +28,7 @@
 
 #include "namespace.h"
 #include <sys/types.h>
+#include <ssp/ssp.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -440,6 +441,41 @@ getenv(const char *name)
 		envNdx = envVarsTotal - 1;
 		return (__findenv(name, nameLen, &envNdx, true));
 	}
+}
+
+
+/*
+ * Like getenv(), but copies the value into the provided buffer.
+ */
+int
+__ssp_real(getenv_r)(const char *name, char *buf, size_t len)
+{
+	const char *val;
+	size_t nameLen;
+	int envNdx;
+
+	if (name == NULL || (nameLen = __strleneq(name)) == 0) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	if (environ == NULL || environ[0] == NULL) {
+		val = NULL;
+	} else if (envVars == NULL || environ != intEnviron) {
+		val = __findenv_environ(name, nameLen);
+	} else {
+		envNdx = envVarsTotal - 1;
+		val = __findenv(name, nameLen, &envNdx, true);
+	}
+	if (val == NULL) {
+		errno = ENOENT;
+		return (-1);
+	}
+	if (strlcpy(buf, val, len) >= len) {
+		errno = ERANGE;
+		return (-1);
+	}
+	return (0);
 }
 
 

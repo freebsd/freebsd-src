@@ -1118,7 +1118,7 @@ forwarding_intr_to_fwq(struct adapter *sc)
 	return (sc->intr_count == 1);
 }
 
-/* Works reliably inside a sync_op or with reg_lock held. */
+/* Works reliably inside a synch_op or with reg_lock held. */
 static inline bool
 hw_off_limits(struct adapter *sc)
 {
@@ -1127,12 +1127,14 @@ hw_off_limits(struct adapter *sc)
 	return (__predict_false(off_limits != 0));
 }
 
+/* Works reliably inside a synch_op or with reg_lock held. */
 static inline bool
-adapter_stopped(struct adapter *sc)
+hw_all_ok(struct adapter *sc)
 {
-	const int stopped = atomic_load_int(&sc->error_flags) & ADAP_STOPPED;
+	const int not_ok = atomic_load_int(&sc->error_flags) &
+	    (ADAP_STOPPED | HW_OFF_LIMITS);
 
-	return (__predict_false(stopped != 0));
+	return (__predict_true(not_ok == 0));
 }
 
 static inline int
@@ -1363,8 +1365,6 @@ extern unsigned int t4_ddp_rcvbuf_cache;
 extern device_method_t cxgbe_methods[];
 
 int t4_os_find_pci_capability(struct adapter *, int);
-int t4_os_pci_save_state(struct adapter *);
-int t4_os_pci_restore_state(struct adapter *);
 void t4_os_portmod_changed(struct port_info *);
 void t4_os_link_changed(struct port_info *);
 void t4_iterate(void (*)(struct adapter *, void *), void *);

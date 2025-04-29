@@ -83,7 +83,6 @@ smbus_detach(device_t dev)
 	error = bus_generic_detach(dev);
 	if (error)
 		return (error);
-	device_delete_children(dev);
 	mtx_destroy(&sc->lock);
 
 	return (0);

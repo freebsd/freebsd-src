@@ -8,6 +8,12 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# reformat libexec/rtld-elf
+7e2f38311e62b1a3ba4a023042f2dc36e27cdd06
+986c96b54b9ec1118d285b723f53c7451a4c0772
+3a85aa6a1d8916082155867ce0545a07185e8924
+78b5dadb58e201e51a3a2eda5cf8cab6d31e0b62
+1c8cdd807a9487aac532ef44f78bf53fe8ec4ce2
 # whitespace fixes for sys/sys/kernel.h
 5c623697d6011de63bc762560a648c09379e06d2
 # style fixes for iflib

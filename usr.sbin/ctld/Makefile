@@ -4,9 +4,9 @@ CFLAGS+=-I${SRCTOP}/contrib/libucl/include
 .PATH:  ${SRCTOP}/contrib/libucl/include
 
 PACKAGE=	iscsi
-PROG=		ctld
-SRCS=		ctld.c discovery.c isns.c kernel.c
-SRCS+=		login.c parse.y token.l y.tab.h uclparse.c
+PROG_CXX=	ctld
+SRCS=		ctld.cc conf.cc discovery.cc isns.cc kernel.cc
+SRCS+=		login.cc parse.y token.l y.tab.h uclparse.cc
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${SRCTOP}/sys
 CFLAGS+=	-I${SRCTOP}/sys/cam/ctl
@@ -14,6 +14,7 @@ CFLAGS+=	-I${SRCTOP}/sys/dev/iscsi
 CFLAGS+=	-I${SRCTOP}/lib/libiscsiutil
 #CFLAGS+=	-DICL_KERNEL_PROXY
 NO_WCAST_ALIGN=
+CXXWARNFLAGS.gcc= -Wno-shadow
 MAN=		ctld.8 ctl.conf.5
 
 LIBADD=		bsdxml iscsiutil md sbuf util ucl m nv

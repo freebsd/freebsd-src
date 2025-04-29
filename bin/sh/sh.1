@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 20, 2024
+.Dd March 8, 2025
 .Dt SH 1
 .Os
 .Sh NAME
@@ -238,11 +238,9 @@ If a shell function is executed and its exit status is explicitly
 tested, all commands of the function are considered to be tested as
 well.
 .Pp
-It is recommended to check for failures explicitly
-instead of relying on
-.Fl e
-because it tends to behave in unexpected ways,
-particularly in larger scripts.
+Note that many commands return non-zero values to convey information other
+than errors, which can cause unexpected program termination with
+.Fl e .
 .It Fl f Li noglob
 Disable pathname expansion.
 .It Fl h Li trackall
@@ -1945,8 +1943,9 @@ make it the first or last character listed.
 .Ss Built-in Commands
 This section lists the built-in commands.
 .Bl -tag -width indent
-.It Ic \&:
+.It Ic \&: Op Ar arg Ar ...
 A null command that returns a 0 (true) exit value.
+Any arguments are discarded.
 .It Ic \&. Ar file
 The commands in the specified file are read and executed by the shell.
 The
@@ -1968,7 +1967,7 @@ it is sought in the current working directory.
 .It Ic \&[
 A built-in equivalent of
 .Xr test 1 .
-.It Ic alias Oo Ar name Ns Oo = Ns Ar string Oc ... Oc
+.It Ic alias Oo Ar name Ns Oo = Ns Ar string Oc Ar ... Oc
 If
 .Ar name Ns = Ns Ar string
 is specified, the shell defines the alias
@@ -2355,29 +2354,61 @@ Move the specified
 .Ar job
 or the current job to the foreground.
 .It Ic getopts Ar optstring var
-The POSIX
-.Ic getopts
-command.
-The
-.Ic getopts
-command deprecates the older
-.Xr getopt 1
-command.
-The first argument should be a series of letters, each possibly
+Parse command-line options and arguments.
+The first argument
+.Va optstring
+should be a series of letters, each possibly
 followed by a colon which indicates that the option takes an argument.
-The specified variable is set to the parsed option.
+The specified variable
+.Va var
+is set to the parsed option.
 The index of
 the next argument is placed into the shell variable
 .Va OPTIND .
 If an option takes an argument, it is placed into the shell variable
 .Va OPTARG .
-If an invalid option is encountered,
+.Pp
+If the found character
+is not specified by
+.Va optstring
+or if it is missing a required argument,
+the option is considered invalid and:
+.Bl -offset indent
+.It
+If the first character of
+.Va optstring
+is not a colon then
+.Va OPTARG
+is unset,
 .Ar var
 is set to
-.Ql \&? .
-It returns a false value (1) when it encounters the end of the options.
+.Ql \&?
+and a diagnostic message is written to stderr.
+.It
+If the first character of
+.Va optstring
+is a colon then
+.Va OPTARG
+is set to the the option character found,
+.Ar var
+is set to
+.Ql \&:
+when a required argument is missing or to
+.Ql \&?
+when the option was not specified by
+.Va optstring ,
+and no diagnostic message is written to stderr.
+.El
+.Pp
+.Ic getopts
+returns a false value (1) when it encounters the end of the options.
 A new set of arguments may be parsed by assigning
 .Li OPTIND=1 .
+The POSIX
+.Ic getopts
+command deprecates the older
+.Xr getopt 1
+command.
 .It Ic hash Oo Fl rv Oc Op Ar command ...
 The shell maintains a hash table which remembers the locations of commands.
 With no arguments whatsoever, the

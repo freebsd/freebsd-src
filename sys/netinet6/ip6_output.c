@@ -792,12 +792,6 @@ nonh6lookup:
 	 * XXX: need scope argument.
 	 */
 	if (IPSEC_ENABLED(ipv6)) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL) {
-			IP6STAT_INC(ip6s_odropped);
-			error = ENOBUFS;
-			goto bad;
-		}
 		if ((error = IPSEC_OUTPUT(ipv6, ifp, m, inp, mtu == 0 ?
 		    ifp->if_mtu : mtu)) != 0) {
 			if (error == EINPROGRESS)
@@ -1106,10 +1100,20 @@ passout:
 
 	/* Ensure the packet data is mapped if the interface requires it. */
 	if ((ifp->if_capenable & IFCAP_MEXTPG) == 0) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL) {
+		struct mbuf *m1;
+
+		error = mb_unmapped_to_ext(m, &m1);
+		if (error != 0) {
+			if (error == EINVAL) {
+				if_printf(ifp, "TLS packet\n");
+				/* XXXKIB */
+			} else if (error == ENOMEM) {
+				error = ENOBUFS;
+			}
 			IP6STAT_INC(ip6s_odropped);
-			return (ENOBUFS);
+			return (error);
+		} else {
+			m = m1;
 		}
 	}
 
@@ -1644,10 +1648,22 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 		    sopt->sopt_dir == SOPT_SET) {
 			switch (sopt->sopt_name) {
 			case SO_SETFIB:
+				error = sooptcopyin(sopt, &optval,
+				    sizeof(optval), sizeof(optval));
+				if (error != 0)
+					break;
+
 				INP_WLOCK(inp);
-				inp->inp_inc.inc_fibnum = so->so_fibnum;
+				if ((inp->inp_flags & INP_BOUNDFIB) != 0 &&
+				    optval != so->so_fibnum) {
+					INP_WUNLOCK(inp);
+					error = EISCONN;
+					break;
+				}
+				error = sosetfib(inp->inp_socket, optval);
+				if (error == 0)
+					inp->inp_inc.inc_fibnum = optval;
 				INP_WUNLOCK(inp);
-				error = 0;
 				break;
 			case SO_MAX_PACING_RATE:
 #ifdef RATELIMIT

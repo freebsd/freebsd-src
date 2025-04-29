@@ -233,7 +233,7 @@ CFLAGS+=	-ffreestanding
 CFLAGS+=	-fwrapv
 
 #
-# GCC SSP support
+# Stack Smashing Protection (SSP) support
 #
 .if ${MK_SSP} != "no"
 CFLAGS+=	-fstack-protector
@@ -367,7 +367,7 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 .PHONY: ${PHONY_NOTMAIN}
 .NOTMAIN: ${PHONY_NOTMAIN}
 
-CSTD?=		gnu99
+CSTD?=		gnu17
 
 # c99/gnu99 is the minimum C standard version supported for kernel build
 .if ${CSTD} == "k&r" || ${CSTD} == "c89" || ${CSTD} == "c90" || \

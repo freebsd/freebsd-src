@@ -1,11 +1,10 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved
- * Copyright (c) 2023, Linaro Ltd.
+ * Copyright (c) 2022, The Linux Foundation. All rights reserved.
  */
 
-#ifndef _DT_BINDINGS_CLK_QCOM_SM8650_DISP_CC_H
-#define _DT_BINDINGS_CLK_QCOM_SM8650_DISP_CC_H
+#ifndef _DT_BINDINGS_CLK_QCOM_SM8550_DISP_CC_H
+#define _DT_BINDINGS_CLK_QCOM_SM8550_DISP_CC_H
 
 /* DISP_CC clocks */
 #define DISP_CC_MDSS_ACCU_CLK					0

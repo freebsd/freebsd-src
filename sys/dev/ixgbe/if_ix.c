@@ -1424,8 +1424,10 @@ ixgbe_add_media_types(if_ctx_t ctx)
 		ifmedia_add(sc->media, IFM_ETHER | IFM_2500_SX, 0, NULL);
 	}
 #endif
-	if (layer & IXGBE_PHYSICAL_LAYER_1000BASE_BX)
+	if (layer & IXGBE_PHYSICAL_LAYER_1000BASE_BX) {
 		device_printf(dev, "Media supported: 1000baseBX\n");
+		ifmedia_add(sc->media, IFM_ETHER | IFM_1000_BX, 0, NULL);
+	}
 
 	if (hw->device_id == IXGBE_DEV_ID_82598AT) {
 		ifmedia_add(sc->media, IFM_ETHER | IFM_1000_T | IFM_FDX,
@@ -2567,6 +2569,7 @@ ixgbe_if_media_change(if_ctx_t ctx)
 #endif
 	case IFM_1000_LX:
 	case IFM_1000_SX:
+	case IFM_1000_BX:
 		speed |= IXGBE_LINK_SPEED_1GB_FULL;
 		break;
 	case IFM_1000_T:

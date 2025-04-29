@@ -337,7 +337,7 @@ bhyve_init_platform(struct vmctx *ctx, struct vcpu *bsp)
 	error = vm_set_register(bsp, VM_REG_GUEST_A1, fdt_gpa);
 	assert(error == 0);
 
-	fdt_add_aplic(APLIC_MEM_BASE, APLIC_MEM_SIZE);
+	fdt_add_aplic(APLIC_MEM_BASE, APLIC_MEM_SIZE, guest_ncpus);
 	error = vm_attach_aplic(ctx, APLIC_MEM_BASE, APLIC_MEM_SIZE);
 	if (error != 0) {
 		warn("vm_attach_aplic()");

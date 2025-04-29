@@ -150,6 +150,11 @@ struct file_operations {
  * an illegal seek error
  */
 	off_t (*llseek)(struct linux_file *, off_t, int);
+/*
+ * Not supported in FreeBSD. That's ok, we never call it and it allows some
+ * drivers like DRM drivers to compile without changes.
+ */
+	void (*show_fdinfo)(struct seq_file *, struct file *);
 #if 0
 	/* We do not support these methods.  Don't permit them to compile. */
 	loff_t (*llseek)(struct file *, loff_t, int);
@@ -264,12 +269,18 @@ get_file(struct linux_file *f)
 	return (f);
 }
 
+struct linux_file * linux_get_file_rcu(struct linux_file **f);
+struct linux_file * get_file_active(struct linux_file **f);
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION < 60700
 static inline bool
 get_file_rcu(struct linux_file *f)
 {
 	return (refcount_acquire_if_not_zero(
 	    f->_file == NULL ? &f->f_count : &f->_file->f_count));
 }
+#else
+#define	get_file_rcu(f)	linux_get_file_rcu(f)
+#endif
 
 static inline struct inode *
 igrab(struct inode *inode)

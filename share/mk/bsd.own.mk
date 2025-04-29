@@ -146,7 +146,7 @@
 # SYMLINKMODE	Symbolic link mode [755]
 
 .if !target(__<bsd.own.mk>__)
-__<bsd.own.mk>__:
+__<bsd.own.mk>__:	.NOTMAIN
 
 .include <bsd.opts.mk>		# options now here or src.opts.mk
 

@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 25, 2024
+.Dd February 10, 2025
 .Dt PFCTL 8
 .Os
 .Sh NAME
@@ -82,7 +82,7 @@ Translation rules are described in
 .Xr pf.conf 5 .
 .Pp
 When the variable
-.Va pf
+.Va pf_enable
 is set to
 .Dv YES
 in
@@ -104,9 +104,7 @@ to 1.
 Set them permanently in
 .Xr sysctl.conf 5 .
 .Pp
-The
-.Nm
-utility provides several commands.
+At least one option must be specified.
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl A
@@ -475,6 +473,47 @@ can be used to select an interface or a group of interfaces.
 .It Fl s Cm all
 Show all of the above, except for the lists of interfaces and operating
 system fingerprints.
+.El
+.Pp
+Counters shown with
+.Fl s Cm info
+are:
+.Pp
+.Bl -tag -width xxxxxxxxxxxxxx -compact
+.It match
+explicit rule match
+.It bad-offset
+currently unused
+.It fragment
+invalid fragments dropped
+.It short
+short packets dropped
+.It normalize
+dropped by normalizer: illegal packets
+.It memory
+memory could not be allocated
+.It bad-timestamp
+bad TCP timestamp; RFC 1323
+.It congestion
+network interface queue congested
+.It ip-option
+bad IP/IPv6 options
+.It proto-cksum
+invalid protocol checksum
+.It state-mismatch
+packet was associated with a state entry, but sequence numbers did not match
+.It state-insert
+state insertion failure
+.It state-limit
+configured state limit was reached
+.It src-limit
+source node/connection limit
+.It synproxy
+dropped by synproxy
+.It map-failed
+address mapping failed
+.It translate
+no free ports in translation port range
 .El
 .It Fl T Ar command Op Ar address ...
 Specify the

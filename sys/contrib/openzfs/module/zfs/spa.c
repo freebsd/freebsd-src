@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -1685,11 +1686,11 @@ spa_activate(spa_t *spa, spa_mode_t mode)
 	spa->spa_mode = mode;
 	spa->spa_read_spacemaps = spa_mode_readable_spacemaps;
 
-	spa->spa_normal_class = metaslab_class_create(spa, msp);
-	spa->spa_log_class = metaslab_class_create(spa, msp);
-	spa->spa_embedded_log_class = metaslab_class_create(spa, msp);
-	spa->spa_special_class = metaslab_class_create(spa, msp);
-	spa->spa_dedup_class = metaslab_class_create(spa, msp);
+	spa->spa_normal_class = metaslab_class_create(spa, msp, B_FALSE);
+	spa->spa_log_class = metaslab_class_create(spa, msp, B_TRUE);
+	spa->spa_embedded_log_class = metaslab_class_create(spa, msp, B_TRUE);
+	spa->spa_special_class = metaslab_class_create(spa, msp, B_FALSE);
+	spa->spa_dedup_class = metaslab_class_create(spa, msp, B_FALSE);
 
 	/* Try to create a covering process */
 	mutex_enter(&spa->spa_proc_lock);
@@ -1983,7 +1984,7 @@ static void
 spa_unload_log_sm_flush_all(spa_t *spa)
 {
 	dmu_tx_t *tx = dmu_tx_create_dd(spa_get_dsl(spa)->dp_mos_dir);
-	VERIFY0(dmu_tx_assign(tx, TXG_WAIT));
+	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT));
 
 	ASSERT3U(spa->spa_log_flushall_txg, ==, 0);
 	spa->spa_log_flushall_txg = dmu_tx_get_txg(tx);
@@ -2778,7 +2779,7 @@ spa_load_verify_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	 * When damaged consider it to be a metadata error since we cannot
 	 * trust the BP_GET_TYPE and BP_GET_LEVEL values.
 	 */
-	if (!zfs_blkptr_verify(spa, bp, BLK_CONFIG_NEEDED, BLK_VERIFY_LOG)) {
+	if (zfs_blkptr_verify(spa, bp, BLK_CONFIG_NEEDED, BLK_VERIFY_LOG)) {
 		atomic_inc_64(&sle->sle_meta_count);
 		return (0);
 	}
@@ -3261,7 +3262,7 @@ spa_livelist_condense_cb(void *arg, zthr_t *t)
 		dmu_tx_t *tx = dmu_tx_create_dd(spa_get_dsl(spa)->dp_mos_dir);
 		dmu_tx_mark_netfree(tx);
 		dmu_tx_hold_space(tx, 1);
-		err = dmu_tx_assign(tx, TXG_NOWAIT | TXG_NOTHROTTLE);
+		err = dmu_tx_assign(tx, DMU_TX_NOWAIT | DMU_TX_NOTHROTTLE);
 		if (err == 0) {
 			/*
 			 * Prevent the condense zthr restarting before
@@ -8592,7 +8593,7 @@ spa_vdev_split_mirror(spa_t *spa, const char *newname, nvlist_t *config,
 	/* finally, update the original pool's config */
 	txg = spa_vdev_config_enter(spa);
 	tx = dmu_tx_create_dd(spa_get_dsl(spa)->dp_mos_dir);
-	error = dmu_tx_assign(tx, TXG_WAIT);
+	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error != 0)
 		dmu_tx_abort(tx);
 	for (c = 0; c < children; c++) {
@@ -8948,16 +8949,26 @@ spa_async_remove(spa_t *spa, vdev_t *vd)
 }
 
 static void
-spa_async_fault_vdev(spa_t *spa, vdev_t *vd)
+spa_async_fault_vdev(vdev_t *vd, boolean_t *suspend)
 {
 	if (vd->vdev_fault_wanted) {
+		vdev_state_t newstate = VDEV_STATE_FAULTED;
 		vd->vdev_fault_wanted = B_FALSE;
-		vdev_set_state(vd, B_TRUE, VDEV_STATE_FAULTED,
-		    VDEV_AUX_ERR_EXCEEDED);
-	}
 
+		/*
+		 * If this device has the only valid copy of the data, then
+		 * back off and simply mark the vdev as degraded instead.
+		 */
+		if (!vd->vdev_top->vdev_islog && vd->vdev_aux == NULL &&
+		    vdev_dtl_required(vd)) {
+			newstate = VDEV_STATE_DEGRADED;
+			/* A required disk is missing so suspend the pool */
+			*suspend = B_TRUE;
+		}
+		vdev_set_state(vd, B_TRUE, newstate, VDEV_AUX_ERR_EXCEEDED);
+	}
 	for (int c = 0; c < vd->vdev_children; c++)
-		spa_async_fault_vdev(spa, vd->vdev_child[c]);
+		spa_async_fault_vdev(vd->vdev_child[c], suspend);
 }
 
 static void
@@ -9049,8 +9060,11 @@ spa_async_thread(void *arg)
 	 */
 	if (tasks & SPA_ASYNC_FAULT_VDEV) {
 		spa_vdev_state_enter(spa, SCL_NONE);
-		spa_async_fault_vdev(spa, spa->spa_root_vdev);
+		boolean_t suspend = B_FALSE;
+		spa_async_fault_vdev(spa->spa_root_vdev, &suspend);
 		(void) spa_vdev_state_exit(spa, NULL, 0);
+		if (suspend)
+			zio_suspend(spa, NULL, ZIO_SUSPEND_IOERR);
 	}
 
 	/*
@@ -9683,9 +9697,17 @@ spa_sync_props(void *arg, dmu_tx_t *tx)
 			if (nvpair_type(elem) == DATA_TYPE_STRING) {
 				ASSERT(proptype == PROP_TYPE_STRING);
 				strval = fnvpair_value_string(elem);
-				VERIFY0(zap_update(mos,
-				    spa->spa_pool_props_object, propname,
-				    1, strlen(strval) + 1, strval, tx));
+				if (strlen(strval) == 0) {
+					/* remove the property if value == "" */
+					(void) zap_remove(mos,
+					    spa->spa_pool_props_object,
+					    propname, tx);
+				} else {
+					VERIFY0(zap_update(mos,
+					    spa->spa_pool_props_object,
+					    propname, 1, strlen(strval) + 1,
+					    strval, tx));
+				}
 				spa_history_log_internal(spa, "set", tx,
 				    "%s=%s", elemname, strval);
 			} else if (nvpair_type(elem) == DATA_TYPE_UINT64) {
@@ -9848,7 +9870,7 @@ vdev_indirect_state_sync_verify(vdev_t *vd)
 	 * happen in syncing context, the obsolete segments
 	 * tree must be empty when we start syncing.
 	 */
-	ASSERT0(range_tree_space(vd->vdev_obsolete_segments));
+	ASSERT0(zfs_range_tree_space(vd->vdev_obsolete_segments));
 }
 
 /*
@@ -9861,60 +9883,9 @@ spa_sync_adjust_vdev_max_queue_depth(spa_t *spa)
 {
 	ASSERT(spa_writeable(spa));
 
-	vdev_t *rvd = spa->spa_root_vdev;
-	uint32_t max_queue_depth = zfs_vdev_async_write_max_active *
-	    zfs_vdev_queue_depth_pct / 100;
-	metaslab_class_t *normal = spa_normal_class(spa);
-	metaslab_class_t *special = spa_special_class(spa);
-	metaslab_class_t *dedup = spa_dedup_class(spa);
-
-	uint64_t slots_per_allocator = 0;
-	for (int c = 0; c < rvd->vdev_children; c++) {
-		vdev_t *tvd = rvd->vdev_child[c];
-
-		metaslab_group_t *mg = tvd->vdev_mg;
-		if (mg == NULL || !metaslab_group_initialized(mg))
-			continue;
-
-		metaslab_class_t *mc = mg->mg_class;
-		if (mc != normal && mc != special && mc != dedup)
-			continue;
-
-		/*
-		 * It is safe to do a lock-free check here because only async
-		 * allocations look at mg_max_alloc_queue_depth, and async
-		 * allocations all happen from spa_sync().
-		 */
-		for (int i = 0; i < mg->mg_allocators; i++) {
-			ASSERT0(zfs_refcount_count(
-			    &(mg->mg_allocator[i].mga_alloc_queue_depth)));
-		}
-		mg->mg_max_alloc_queue_depth = max_queue_depth;
-
-		for (int i = 0; i < mg->mg_allocators; i++) {
-			mg->mg_allocator[i].mga_cur_max_alloc_queue_depth =
-			    zfs_vdev_def_queue_depth;
-		}
-		slots_per_allocator += zfs_vdev_def_queue_depth;
-	}
-
-	for (int i = 0; i < spa->spa_alloc_count; i++) {
-		ASSERT0(zfs_refcount_count(&normal->mc_allocator[i].
-		    mca_alloc_slots));
-		ASSERT0(zfs_refcount_count(&special->mc_allocator[i].
-		    mca_alloc_slots));
-		ASSERT0(zfs_refcount_count(&dedup->mc_allocator[i].
-		    mca_alloc_slots));
-		normal->mc_allocator[i].mca_alloc_max_slots =
-		    slots_per_allocator;
-		special->mc_allocator[i].mca_alloc_max_slots =
-		    slots_per_allocator;
-		dedup->mc_allocator[i].mca_alloc_max_slots =
-		    slots_per_allocator;
-	}
-	normal->mc_alloc_throttle_enabled = zio_dva_throttle_enabled;
-	special->mc_alloc_throttle_enabled = zio_dva_throttle_enabled;
-	dedup->mc_alloc_throttle_enabled = zio_dva_throttle_enabled;
+	metaslab_class_balance(spa_normal_class(spa), B_TRUE);
+	metaslab_class_balance(spa_special_class(spa), B_TRUE);
+	metaslab_class_balance(spa_dedup_class(spa), B_TRUE);
 }
 
 static void
@@ -10134,12 +10105,6 @@ spa_sync(spa_t *spa, uint64_t txg)
 	spa->spa_syncing_txg = txg;
 	spa->spa_sync_pass = 0;
 
-	for (int i = 0; i < spa->spa_alloc_count; i++) {
-		mutex_enter(&spa->spa_allocs[i].spaa_lock);
-		VERIFY0(avl_numnodes(&spa->spa_allocs[i].spaa_tree));
-		mutex_exit(&spa->spa_allocs[i].spaa_lock);
-	}
-
 	/*
 	 * If there are any pending vdev state changes, convert them
 	 * into config changes that go out with this transaction group.
@@ -10251,12 +10216,6 @@ spa_sync(spa_t *spa, uint64_t txg)
 	}
 
 	dsl_pool_sync_done(dp, txg);
-
-	for (int i = 0; i < spa->spa_alloc_count; i++) {
-		mutex_enter(&spa->spa_allocs[i].spaa_lock);
-		VERIFY0(avl_numnodes(&spa->spa_allocs[i].spaa_tree));
-		mutex_exit(&spa->spa_allocs[i].spaa_lock);
-	}
 
 	/*
 	 * Update usable space statistics.

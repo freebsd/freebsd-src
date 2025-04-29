@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.127 2024/03/19 16:03:23 sjg Exp $
+#	$Id: Makefile,v 1.133 2025/03/08 20:12:56 sjg Exp $
 
-PROG=	bmake
+PROG = bmake
 
-SRCS= \
+SRCS = \
 	arch.c \
 	buf.c \
 	compat.c \
@@ -25,6 +25,11 @@ SRCS= \
 	util.c \
 	var.c
 
+.MAIN: all
+
+MAN = ${PROG}.1
+SRCS.${MAN} = ${srcdir}/make.1
+
 .-include "VERSION"
 .-include "Makefile.inc"
 
@@ -32,25 +37,26 @@ SRCS= \
 .-include "Makefile.config"
 
 .if !empty(LIBOBJS)
-SRCS+= ${LIBOBJS:T:.o=.c}
+SRCS += ${LIBOBJS:T:.o=.c}
 .endif
 
 # just in case
-prefix?= /usr
-srcdir?= ${.CURDIR}
+prefix ?= /usr
+srcdir ?= ${.PARSEDIR}
+srcdir := ${srcdir}
 
-DEFAULT_SYS_PATH?= ${prefix}/share/mk
+DEFAULT_SYS_PATH ?= ${prefix}/share/mk
 
-CPPFLAGS+= -DUSE_META
-CFLAGS+= ${CPPFLAGS}
-CFLAGS+= -D_PATH_DEFSYSPATH=\"${DEFAULT_SYS_PATH}\"
-CFLAGS+= -I. -I${srcdir} ${XDEFS} -DMAKE_NATIVE
-CFLAGS+= ${COPTS.${.ALLSRC:M*.c:T:u}}
-COPTS.main.c+= "-DMAKE_VERSION=\"${_MAKE_VERSION}\""
+CPPFLAGS += -DUSE_META
+CFLAGS += ${CPPFLAGS}
+CFLAGS += -D_PATH_DEFSYSPATH=\"${DEFAULT_SYS_PATH}\"
+CFLAGS += -I. -I${srcdir} ${XDEFS} -DMAKE_NATIVE
+CFLAGS += ${COPTS.${.ALLSRC:M*.c:T:u}}
+COPTS.main.c += "-DMAKE_VERSION=\"${_MAKE_VERSION}\""
 
 .for x in FORCE_MAKE_OS FORCE_MACHINE FORCE_MACHINE_ARCH
 .ifdef $x
-COPTS.main.c+= "-D$x=\"${$x}\""
+COPTS.main.c += "-D$x=\"${$x}\""
 .endif
 .endfor
 
@@ -59,9 +65,9 @@ COPTS.main.c+= "-D$x=\"${$x}\""
 USE_FILEMON ?= no
 .if ${USE_FILEMON:tl} != "no"
 .PATH:	${srcdir}/filemon
-SRCS+=	filemon_${USE_FILEMON}.c
-COPTS.meta.c+= -DUSE_FILEMON -DUSE_FILEMON_${USE_FILEMON:tu}
-COPTS.job.c+= ${COPTS.meta.c}
+SRCS += filemon_${USE_FILEMON}.c
+COPTS.meta.c += -DUSE_FILEMON -DUSE_FILEMON_${USE_FILEMON:tu}
+COPTS.job.c += ${COPTS.meta.c}
 
 .if ${USE_FILEMON} == "dev"
 FILEMON_H ?= /usr/include/dev/filemon/filemon.h
@@ -76,65 +82,82 @@ COPTS.filemon_ktrace.c += -Wno-error=unused-parameter
 
 .PATH:	${srcdir}
 
-.if make(obj) || make(clean)
-SUBDIR+= unit-tests
-.endif
-
 # start-delete1 for bsd.after-import.mk
 # we skip a lot of this when building as part of FreeBSD etc.
 
 # list of OS's which are derrived from BSD4.4
-BSD44_LIST= NetBSD FreeBSD OpenBSD DragonFly MirBSD Bitrig
+BSD44_LIST = NetBSD FreeBSD OpenBSD DragonFly MirBSD Bitrig
 # we are...
 OS := ${.MAKE.OS:U${uname -s:L:sh}}
 # are we 4.4BSD ?
-isBSD44:=${BSD44_LIST:M${OS}}
+isBSD44 := ${BSD44_LIST:M${OS}}
 
 .if ${isBSD44} == "" && ${OS:NCygwin:NDarwin:NLinux} != ""
-MANTARGET?= cat
+MANTARGET ?= cat
 .if ${MACHINE} == "sun386"
 # even I don't have one of these anymore :-)
-CFLAGS+= -DPORTAR
+CFLAGS += -DPORTAR
 .elif ${OS} != "SunOS"
 # assume the worst
-SRCS+= sigcompat.c
-CFLAGS+= -DSIGNAL_FLAGS=SA_RESTART
+SRCS += sigcompat.c
+CFLAGS += -DSIGNAL_FLAGS=SA_RESTART
 .endif
 .else
-MANTARGET?= man
+MANTARGET ?= man
 .endif
 
 # turn this on by default - ignored if we are root
-WITH_INSTALL_AS_USER=
+WITH_INSTALL_AS_USER =
 
 # suppress with -DWITHOUT_*
-OPTIONS_DEFAULT_YES+= \
+OPTIONS_DEFAULT_YES += \
 	AUTOCONF_MK \
 	INSTALL_MK \
-	PROG_LINK
+	PROG_LINK \
+	TESTS \
 
-OPTIONS_DEFAULT_NO+= \
-	PROG_VERSION
+OPTIONS_DEFAULT_NO += \
+	GEN_MAN \
+	PROG_VERSION \
+
+.if ${PROG} != "make" || ${srcdir} != ${.CURDIR} || !exists(${srcdir}/${MAN})
+WITH_GEN_MAN = 1
+.endif
 
 # process options now
 .include <own.mk>
 
 .if ${MK_PROG_VERSION} == "yes"
-PROG_NAME= ${PROG}-${_MAKE_VERSION}
+PROG_NAME = ${PROG}-${_MAKE_VERSION}
 .if ${MK_PROG_LINK} == "yes"
-SYMLINKS+= ${PROG_NAME} ${BINDIR}/${PROG}
+SYMLINKS += ${PROG_NAME} ${BINDIR}/${PROG}
 .endif
 .endif
 
-EXTRACT_MAN=no
+EXTRACT_MAN = no
 # end-delete1
 
-MAN= ${PROG}.1
-MAN1= ${MAN}
+.if make(obj) || make(clean)
+SUBDIR.${MK_TESTS} += unit-tests
+.endif
+
+MAN1 = ${MAN}
+
+.if ${MK_GEN_MAN:Uno} == "yes"
+
+# we use this to generate ${MAN}
+.include <${srcdir}/mk/genfiles.mk>
 
 .if ${PROG} != "make"
-CLEANFILES+= my.history
-.if make(${MAN}) || !exists(${srcdir}/${MAN})
+CLEANFILES += my.history
+SED_CMDS.${MAN} += \
+	-e '/^.Dt/s/MAKE/${PROG:tu}/' \
+	-e '/^.Nm/s/make/${PROG}/' \
+
+.endif
+
+.if ${CLEANFILES:U:Mmy.history} != ""
+${MAN}: my.history
 my.history:
 	@(echo ".Nm"; \
 	echo "is derived from NetBSD"; \
@@ -142,40 +165,46 @@ my.history:
 	echo "It uses autoconf to facilitate portability to other platforms."; \
 	echo ".Pp") > $@
 
-.NOPATH: ${MAN}
-${MAN}:	make.1 my.history
-	@echo making $@
-	@sed \
-	-e '/^.Dt/s/MAKE/${PROG:tu}/' \
-	-e 's/^.Nx/NetBSD/' \
-	-e '/^.Nm/s/make/${PROG}/' \
+SED_CMDS.${MAN} += \
 	-e '/^.Sh HISTORY/rmy.history' \
-	-e '/^.Sh HISTORY/,$$s,^.Nm,make,' ${srcdir}/make.1 > $@
+	-e '/^.Sh HISTORY/,/BUGS/s,^.Nm,make,' \
 
-all beforeinstall: ${MAN}
-_mfromdir=.
-.endif
 .endif
 
-MANTARGET?= cat
-MANDEST?= ${MANDIR}/${MANTARGET}1
+.if ${.MAKE.OS:N*BSD} != ""
+# assume .Nx is not supported
+SED_CMDS.${MAN} += -e 's/^\.Nx/NetBSD/'
+.endif
+
+# watch out for a late change of PROG
+.if !empty(SRCS.${MAN})
+.NOPATH: ${MAN}
+${MAN}:	${SRCS.${MAN}} _GENFILES_USE
+
+all man beforeinstall: ${MAN}
+_mfromdir = .
+.endif
+.endif				# MK_GEN_MAN
+
+MANTARGET ?= cat
+MANDEST ?= ${MANDIR}/${MANTARGET}1
 
 .if ${MANTARGET} == "cat"
-_mfromdir=${srcdir}
+_mfromdir = ${srcdir}
 .endif
 
 .include <prog.mk>
 
-CPPFLAGS+= -DMAKE_NATIVE -DHAVE_CONFIG_H
+CPPFLAGS += -DMAKE_NATIVE -DHAVE_CONFIG_H
 COPTS.var.c += -Wno-cast-qual
 COPTS.job.c += -Wno-format-nonliteral
 COPTS.parse.c += -Wno-format-nonliteral
 COPTS.var.c += -Wno-format-nonliteral
 
 # Force these
-SHAREDIR= ${SHAREDIR.bmake:U${prefix}/share}
-BINDIR= ${BINDIR.bmake:U${prefix}/bin}
-MANDIR= ${MANDIR.bmake:U${SHAREDIR}/man}
+SHAREDIR = ${SHAREDIR.bmake:U${prefix}/share}
+BINDIR = ${BINDIR.bmake:U${prefix}/bin}
+MANDIR = ${MANDIR.bmake:U${SHAREDIR}/man}
 
 ${OBJS}: config.h
 

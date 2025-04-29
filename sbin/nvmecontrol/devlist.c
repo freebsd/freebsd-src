@@ -27,11 +27,14 @@
  */
 
 #include <sys/param.h>
+#include <sys/nv.h>
+#include <sys/time.h>
 
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <libnvmf.h>
 #include <libutil.h>
 #include <paths.h>
 #include <stddef.h>
@@ -39,6 +42,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -113,12 +117,78 @@ scan_namespace(int fd, int ctrlr, uint32_t nsid)
 }
 
 static bool
+print_controller_info(const char *name, int fd)
+{
+	static struct timespec		now;
+	struct nvme_controller_data	cdata;
+	struct timespec			last_disconnect, delta;
+	uint8_t				mn[64];
+	nvlist_t			*nvl;
+	const nvlist_t			*nvl_ts;
+	bool				connected;
+
+	/*
+	 * If the controller doesn't support connection status, assume
+	 * it is connected.
+	 */
+	if (nvmf_connection_status(fd, &nvl) != 0) {
+		connected = true;
+		nvl = NULL;
+	} else {
+		connected = nvlist_get_bool(nvl, "connected");
+	}
+
+	if (connected) {
+		if (read_controller_data(fd, &cdata) != 0) {
+			nvlist_destroy(nvl);
+			return (false);
+		}
+	} else {
+		if (ioctl(fd, NVME_GET_CONTROLLER_DATA, &cdata) == -1) {
+			nvlist_destroy(nvl);
+			return (false);
+		}
+	}
+
+	nvme_strvis(mn, cdata.mn, sizeof(mn), NVME_MODEL_NUMBER_LENGTH);
+	printf("%6s: %s", name, mn);
+	if (connected) {
+		const struct nvme_discovery_log_entry *dle;
+		size_t len;
+
+		nvlist_destroy(nvl);
+		if (nvmf_reconnect_params(fd, &nvl) == 0) {
+			dle = nvlist_get_binary(nvl, "dle", &len);
+			if (len == sizeof(*dle)) {
+				printf(" (connected via %s %.*s:%.*s)",
+				    nvmf_transport_type(dle->trtype),
+				    (int)sizeof(dle->traddr), dle->traddr,
+				    (int)sizeof(dle->trsvcid), dle->trsvcid);
+			}
+		} else {
+			nvl = NULL;
+		}
+	} else {
+		if (now.tv_sec == 0)
+			clock_gettime(CLOCK_REALTIME, &now);
+
+		nvl_ts = nvlist_get_nvlist(nvl, "last_disconnect");
+		last_disconnect.tv_sec = nvlist_get_number(nvl_ts, "tv_sec");
+		last_disconnect.tv_nsec = nvlist_get_number(nvl_ts, "tv_nsec");
+		timespecsub(&now, &last_disconnect, &delta);
+		printf(" (disconnected for %ju seconds)",
+		    (uintmax_t)delta.tv_sec);
+	}
+	printf("\n");
+	nvlist_destroy(nvl);
+	return (connected);
+}
+
+static bool
 scan_controller(int ctrlr)
 {
-	struct nvme_controller_data	cdata;
 	struct nvme_ns_list		nslist;
 	char				name[64];
-	uint8_t				mn[64];
 	uint32_t			nsid;
 	int				fd, ret;
 
@@ -132,13 +202,10 @@ scan_controller(int ctrlr)
 	} else if (ret != 0)
 		return (false);
 
-	if (read_controller_data(fd, &cdata) != 0) {
+	if (!print_controller_info(name, fd)) {
 		close(fd);
 		return (true);
 	}
-
-	nvme_strvis(mn, cdata.mn, sizeof(mn), NVME_MODEL_NUMBER_LENGTH);
-	printf("%6s: %s\n", name, mn);
 
 	nsid = 0;
 	for (;;) {

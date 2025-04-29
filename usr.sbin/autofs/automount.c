@@ -45,6 +45,7 @@
 #include <fcntl.h>
 #include <libgen.h>
 #include <libutil.h>
+#include <mntopts.h>
 #include <netdb.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -55,7 +56,6 @@
 #include <unistd.h>
 
 #include "common.h"
-#include "mntopts.h"
 
 static int
 unmount_by_statfs(const struct statfs *sb, bool force)

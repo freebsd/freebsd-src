@@ -133,8 +133,8 @@
 #define	IEEE80211_FVHT_VHT	0x000000001	/* CONF: VHT supported */
 #define	IEEE80211_FVHT_USEVHT40	0x000000002	/* CONF: Use VHT40 */
 #define	IEEE80211_FVHT_USEVHT80	0x000000004	/* CONF: Use VHT80 */
-#define	IEEE80211_FVHT_USEVHT160 0x000000008	/* CONF: Use VHT160 */
-#define	IEEE80211_FVHT_USEVHT80P80 0x000000010	/* CONF: Use VHT 80+80 */
+#define	IEEE80211_FVHT_USEVHT80P80 0x000000008	/* CONF: Use VHT 80+80 */
+#define	IEEE80211_FVHT_USEVHT160 0x000000010	/* CONF: Use VHT160 */
 #define	IEEE80211_FVHT_STBC_TX  0x00000020	/* CONF: STBC tx enabled */
 #define	IEEE80211_FVHT_STBC_RX  0x00000040	/* CONF: STBC rx enabled */
 #endif
@@ -198,8 +198,10 @@ static int gottxparams = 0;
 static struct ieee80211_channel curchan;
 static int gotcurchan = 0;
 static struct ifmediareq *global_ifmr;
+
+/* HT */
 static int htconf = 0;
-static	int gothtconf = 0;
+static int gothtconf = 0;
 
 static void
 gethtconf(if_ctx *ctx)
@@ -213,7 +215,7 @@ gethtconf(if_ctx *ctx)
 
 /* VHT */
 static int vhtconf = 0;
-static	int gotvhtconf = 0;
+static int gotvhtconf = 0;
 
 static void
 getvhtconf(if_ctx *ctx)
@@ -1978,13 +1980,11 @@ set80211vhtconf(if_ctx *ctx, const char *val __unused, int d)
 {
 	if (get80211val(ctx, IEEE80211_IOC_VHTCONF, &vhtconf) < 0)
 		errx(-1, "cannot set VHT setting");
-	printf("%s: vhtconf=0x%08x, d=%d\n", __func__, vhtconf, d);
 	if (d < 0) {
 		d = -d;
 		vhtconf &= ~d;
 	} else
 		vhtconf |= d;
-	printf("%s: vhtconf is now 0x%08x\n", __func__, vhtconf);
 	set80211(ctx, IEEE80211_IOC_VHTCONF, vhtconf, 0, NULL);
 }
 
@@ -2298,7 +2298,7 @@ regdomain_addchans(if_ctx *ctx, struct ieee80211req_chaninfo *ci,
 			memset(c, 0, sizeof(*c));
 			c->ic_freq = freq;
 			c->ic_flags = flags;
-		if (c->ic_flags & IEEE80211_CHAN_DFS)
+			if (c->ic_flags & IEEE80211_CHAN_DFS)
 				c->ic_maxregpower = nb->maxPowerDFS;
 			else
 				c->ic_maxregpower = nb->maxPower;
@@ -3136,6 +3136,12 @@ rsn_cipher(const u_int8_t *sel)
 		return "AES-CCMP";
 	case RSN_SEL(RSN_CSE_WRAP):
 		return "AES-OCB";
+	case RSN_SEL(RSN_CSE_GCMP_128):
+		return "AES-GCMP";
+	case RSN_SEL(RSN_CSE_CCMP_256):
+		return "AES-CCMP-256";
+	case RSN_SEL(RSN_CSE_GCMP_256):
+		return "AES-GCMP-256";
 	}
 	return "?";
 #undef WPA_SEL
@@ -3152,6 +3158,10 @@ rsn_keymgmt(const u_int8_t *sel)
 		return "8021X-UNSPEC";
 	case RSN_SEL(RSN_ASE_8021X_PSK):
 		return "8021X-PSK";
+	case RSN_SEL(RSN_ASE_8021X_UNSPEC_SHA256):
+		return "8021X-UNSPEC-SHA256";
+	case RSN_SEL(RSN_ASE_8021X_PSK_SHA256):
+		return "8021X-PSK-256";
 	case RSN_SEL(RSN_ASE_NONE):
 		return "NONE";
 	}
@@ -5418,26 +5428,27 @@ end:
 
 	if (IEEE80211_IS_CHAN_VHT(c) || verbose) {
 		getvhtconf(ctx);
-		if (vhtconf & IEEE80211_FVHT_VHT)
+		if (vhtconf & IEEE80211_FVHT_VHT) {
 			LINE_CHECK("vht");
-		else
+
+			if (vhtconf & IEEE80211_FVHT_USEVHT40)
+				LINE_CHECK("vht40");
+			else
+				LINE_CHECK("-vht40");
+			if (vhtconf & IEEE80211_FVHT_USEVHT80)
+				LINE_CHECK("vht80");
+			else
+				LINE_CHECK("-vht80");
+			if (vhtconf & IEEE80211_FVHT_USEVHT160)
+				LINE_CHECK("vht160");
+			else
+				LINE_CHECK("-vht160");
+			if (vhtconf & IEEE80211_FVHT_USEVHT80P80)
+				LINE_CHECK("vht80p80");
+			else
+				LINE_CHECK("-vht80p80");
+		} else if (verbose)
 			LINE_CHECK("-vht");
-		if (vhtconf & IEEE80211_FVHT_USEVHT40)
-			LINE_CHECK("vht40");
-		else
-			LINE_CHECK("-vht40");
-		if (vhtconf & IEEE80211_FVHT_USEVHT80)
-			LINE_CHECK("vht80");
-		else
-			LINE_CHECK("-vht80");
-		if (vhtconf & IEEE80211_FVHT_USEVHT160)
-			LINE_CHECK("vht160");
-		else
-			LINE_CHECK("-vht160");
-		if (vhtconf & IEEE80211_FVHT_USEVHT80P80)
-			LINE_CHECK("vht80p80");
-		else
-			LINE_CHECK("-vht80p80");
 	}
 
 	if (get80211val(ctx, IEEE80211_IOC_WME, &wme) != -1) {
@@ -6031,7 +6042,7 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("ht",		3,	set80211htconf),	/* NB: 20+40 */
 	DEF_CMD("-ht",		0,	set80211htconf),
 	DEF_CMD("vht",		IEEE80211_FVHT_VHT,		set80211vhtconf),
-	DEF_CMD("-vht",		0,				set80211vhtconf),
+	DEF_CMD("-vht",		-IEEE80211_FVHT_VHT,		set80211vhtconf),
 	DEF_CMD("vht40",	IEEE80211_FVHT_USEVHT40,	set80211vhtconf),
 	DEF_CMD("-vht40",	-IEEE80211_FVHT_USEVHT40,	set80211vhtconf),
 	DEF_CMD("vht80",	IEEE80211_FVHT_USEVHT80,	set80211vhtconf),

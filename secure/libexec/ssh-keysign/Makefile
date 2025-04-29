@@ -2,19 +2,11 @@
 .include "${SRCTOP}/secure/ssh.mk"
 
 PROG=	ssh-keysign
-SRCS=	ssh-keysign.c readconf.c uidswap.c
+SRCS=	ssh-keysign.c readconf.c uidswap.c $(SKSRCS)
 MAN=	ssh-keysign.8
 BINMODE=4555
 
-LIBADD=	ssh
-
-.if ${MK_LDNS} != "no"
-CFLAGS+=	-DHAVE_LDNS=1
-#DPADD+=	${LIBLDNS}
-#LDADD+=	-lldns
-.endif
-
-LIBADD+=	crypto
+LIBADD=	crypto ssh
 
 .include <bsd.prog.mk>
 

@@ -50,6 +50,7 @@ SRCS+= \
 	exec.c \
 	exect.c \
 	fdevname.c \
+	fdopendir.c \
 	feature_present.c \
 	fmtcheck.c \
 	fmtmsg.c \
@@ -106,6 +107,7 @@ SRCS+= \
 	nlist.c \
 	nrand48.c \
 	opendir.c \
+	opendir2.c \
 	pause.c \
 	pmadvise.c \
 	popen.c \
@@ -165,6 +167,10 @@ SRCS+= \
 	utxdb.c \
 	valloc.c \
 	wordexp.c
+
+.if ${COMPILER_FEATURES:Mblocks}
+CFLAGS.fts.c= -fblocks
+.endif
 
 CFLAGS.arc4random.c= -I${SRCTOP}/sys -I${SRCTOP}/sys/crypto/chacha20
 
@@ -463,7 +469,8 @@ MLINKS+=posix_spawn.3 posix_spawnp.3 \
 	posix_spawnattr_getsigdefault.3 posix_spawnattr_setsigdefault.3 \
 	posix_spawnattr_getsigmask.3 posix_spawnattr_setsigmask.3 \
 	posix_spawnattr_init.3 posix_spawnattr_destroy.3
-MLINKS+=psignal.3 strsignal.3 \
+MLINKS+=psignal.3 psiginfo.3 \
+	psignal.3 strsignal.3 \
 	psignal.3 sys_siglist.3 \
 	psignal.3 sys_signame.3
 MLINKS+=pwcache.3 gid_from_group.3 \

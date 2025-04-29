@@ -64,6 +64,7 @@
 #include <grp.h>
 #include <libutil.h>
 #include <limits.h>
+#include <mntopts.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
@@ -73,7 +74,6 @@
 #include <unistd.h>
 #include <vis.h>
 #include "pathnames.h"
-#include "mntopts.h"
 
 #ifdef DEBUG
 #include <stdarg.h>
@@ -215,7 +215,8 @@ static int	do_export_mount(struct exportlist *, struct statfs *);
 static int	do_mount(struct exportlist *, struct grouplist *, uint64_t,
 		    struct expcred *, char *, int, struct statfs *, int, int *);
 static int	do_opt(char **, char **, struct exportlist *,
-		    struct grouplist *, int *, uint64_t *, struct expcred *);
+		    struct grouplist *, int *, uint64_t *, struct expcred *,
+		    char *);
 static struct exportlist	*ex_search(fsid_t *, struct exportlisthead *);
 static struct exportlist	*get_exp(void);
 static void	free_dir(struct dirlist *);
@@ -292,6 +293,7 @@ static int sock_fdpos;
 static int suspend_nfsd = 0;
 static int nofork = 0;
 static int skiplocalhost = 0;
+static int alldirs_fail = 0;
 
 static int opt_flags;
 static int have_v6 = 1;
@@ -320,6 +322,7 @@ static gid_t *tmp_groups = NULL;
 #define OP_MASKLEN	0x200
 #define OP_SEC		0x400
 #define OP_CLASSMASK	0x800	/* mask not specified, is Class A/B/C default */
+#define	OP_NOTROOT	0x1000	/* Mark the the mount path is not a fs root */
 
 #ifdef DEBUG
 static int debug = 1;
@@ -458,13 +461,16 @@ main(int argc, char **argv)
 	else
 		close(s);
 
-	while ((c = getopt(argc, argv, "2Adeh:lNnp:RrSs")) != -1)
+	while ((c = getopt(argc, argv, "2Aadeh:lNnp:RrSs")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
 			break;
 		case 'A':
 			warn_admin = 0;
+			break;
+		case 'a':
+			alldirs_fail = 1;
 			break;
 		case 'e':
 			/* now a no-op, since this is the default */
@@ -1590,6 +1596,7 @@ get_exportlist_one(int passno)
 	v4root_phase = 0;
 	dirhead = (struct dirlist *)NULL;
 	unvis_dir[0] = '\0';
+	fsb.f_mntonname[0] = '\0';
 
 	while (get_line()) {
 		if (debug)
@@ -1650,7 +1657,7 @@ get_exportlist_one(int passno)
 				warnx("doing opt %s", cp);
 			    got_nondir = 1;
 			    if (do_opt(&cp, &endcp, ep, grp, &has_host,
-				&exflags, &anon)) {
+				&exflags, &anon, unvis_dir)) {
 				getexp_err(ep, tgrp, NULL);
 				goto nextline;
 			    }
@@ -1731,19 +1738,9 @@ get_exportlist_one(int passno)
 						fsb.f_fsid.val[1]);
 				    }
 
-				    if (warn_admin != 0 &&
-					(ep->ex_flag & EX_ADMINWARN) == 0 &&
-					strcmp(unvis_dir, fsb.f_mntonname) !=
-					0) {
-					if (debug)
-					    warnx("exporting %s exports entire "
-						"%s file system", unvis_dir,
-						    fsb.f_mntonname);
-					syslog(LOG_ERR, "Warning: exporting %s "
-					    "exports entire %s file system",
-					    unvis_dir, fsb.f_mntonname);
-					ep->ex_flag |= EX_ADMINWARN;
-				    }
+				    if (strcmp(unvis_dir, fsb.f_mntonname) !=
+					0)
+					opt_flags |= OP_NOTROOT;
 
 				    /*
 				     * Add dirpath to export mount point.
@@ -1809,10 +1806,21 @@ get_exportlist_one(int passno)
 			len = endcp - cp;
 		}
 		if (opt_flags & OP_CLASSMASK)
-			syslog(LOG_WARNING,
+			syslog(LOG_ERR,
 			    "WARNING: No mask specified for %s, "
 			    "using out-of-date default",
 			    (&grp->gr_ptr.gt_net)->nt_name);
+		if ((opt_flags & OP_NOTROOT) != 0 && warn_admin != 0 &&
+		    (ep->ex_flag & EX_ADMINWARN) == 0 && unvis_dir[0] != '\0' &&
+		    fsb.f_mntonname[0] != '\0') {
+			if (debug)
+				warnx("exporting %s exports entire %s file "
+				    "system", unvis_dir, fsb.f_mntonname);
+			syslog(LOG_ERR, "Warning: exporting %s exports "
+			    "entire %s file system", unvis_dir,
+			    fsb.f_mntonname);
+			ep->ex_flag |= EX_ADMINWARN;
+		}
 		if (check_options(dirhead)) {
 			getexp_err(ep, tgrp, NULL);
 			goto nextline;
@@ -2091,19 +2099,7 @@ get_exportlist(int passno)
 			syslog(LOG_ERR, "NFSv4 requires at least one V4: line");
 	}
 
-	if (iov != NULL) {
-		/* Free strings allocated by strdup() in getmntopts.c */
-		free(iov[0].iov_base); /* fstype */
-		free(iov[2].iov_base); /* fspath */
-		free(iov[4].iov_base); /* from */
-		free(iov[6].iov_base); /* update */
-		free(iov[8].iov_base); /* export */
-		free(iov[10].iov_base); /* errmsg */
-
-		/* free iov, allocated by realloc() */
-		free(iov);
-		iovlen = 0;
-	}
+	free_iovec(&iov, &iovlen);
 
 	/*
 	 * If there was no public fh, clear any previous one set.
@@ -2836,7 +2832,7 @@ parsesec(char *seclist, struct exportlist *ep)
  */
 static int
 do_opt(char **cpp, char **endcpp, struct exportlist *ep, struct grouplist *grp,
-	int *has_hostp, uint64_t *exflagsp, struct expcred *cr)
+	int *has_hostp, uint64_t *exflagsp, struct expcred *cr, char *unvis_dir)
 {
 	char *cpoptarg, *cpoptend;
 	char *cp, *endcp, *cpopt, savedc, savedc2;
@@ -2920,6 +2916,12 @@ do_opt(char **cpp, char **endcpp, struct exportlist *ep, struct grouplist *grp,
 			if (fnd_equal == 1) {
 				syslog(LOG_ERR, "= after op: %s", cpopt);
 				return (1);
+			}
+			if ((opt_flags & OP_NOTROOT) != 0) {
+				syslog(LOG_ERR, "%s: path %s not mount point",
+				    cpopt, unvis_dir);
+				if (alldirs_fail != 0)
+					return (1);
 			}
 			opt_flags |= OP_ALLDIRS;
 		} else if (!strcmp(cpopt, "public")) {
@@ -3317,7 +3319,8 @@ do_mount(struct exportlist *ep, struct grouplist *grp, uint64_t exflags,
 					ret = 1;
 					goto error_exit;
 				}
-				if (opt_flags & OP_ALLDIRS) {
+				if ((opt_flags & OP_ALLDIRS) &&
+				    alldirs_fail != 0) {
 					if (errno == EINVAL)
 						syslog(LOG_ERR,
 		"-alldirs requested but %s is not a filesystem mountpoint",
@@ -3394,18 +3397,7 @@ skip:
 	if (cp)
 		*cp = savedc;
 error_exit:
-	/* free strings allocated by strdup() in getmntopts.c */
-	if (iov != NULL) {
-		free(iov[0].iov_base); /* fstype */
-		free(iov[2].iov_base); /* fspath */
-		free(iov[4].iov_base); /* from */
-		free(iov[6].iov_base); /* update */
-		free(iov[8].iov_base); /* export */
-		free(iov[10].iov_base); /* errmsg */
-
-		/* free iov, allocated by realloc() */
-		free(iov);
-	}
+	free_iovec(&iov, &iovlen);
 	return (ret);
 }
 

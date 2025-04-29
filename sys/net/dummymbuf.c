@@ -209,6 +209,37 @@ bad:
 	return (NULL);
 }
 
+static struct mbuf *
+dmb_m_enlarge(struct mbuf *m, struct rule *rule)
+{
+	struct mbuf *n;
+	int size;
+
+	size = (int)strtol(rule->opargs, NULL, 10);
+	if (size < 0 || size > MJUM16BYTES)
+		goto bad;
+
+	if (!(m->m_flags & M_PKTHDR))
+		goto bad;
+	if (m->m_pkthdr.len <= 0)
+		return (m);
+
+	if ((n = m_get3(size, M_NOWAIT, MT_DATA, M_PKTHDR)) == NULL)
+		goto bad;
+
+	m_move_pkthdr(n, m);
+	m_copydata(m, 0, m->m_pkthdr.len, n->m_ext.ext_buf);
+	n->m_len = m->m_pkthdr.len;
+
+	n->m_next = m;
+
+	return (n);
+
+bad:
+	m_freem(m);
+	return (NULL);
+}
+
 static bool
 read_rule(const char **cur, struct rule *rule, bool *eof)
 {
@@ -278,6 +309,9 @@ read_rule(const char **cur, struct rule *rule, bool *eof)
 	if (strstr(*cur, "pull-head") == *cur) {
 		rule->op = dmb_m_pull_head;
 		*cur += strlen("pull-head");
+	} else if (strstr(*cur, "enlarge") == *cur) {
+		rule->op = dmb_m_enlarge;
+		*cur += strlen("enlarge");
 	} else {
 		return (false);
 	}
@@ -437,7 +471,7 @@ dmb_pfil_uninit(void)
 }
 
 static void
-vnet_dmb_init(void *unused __unused)
+vnet_dmb_init(const void *unused __unused)
 {
 	sx_init(&V_dmb_rules_lock, "dummymbuf rules");
 	V_dmb_hits = counter_u64_alloc(M_WAITOK);
@@ -447,7 +481,7 @@ VNET_SYSINIT(vnet_dmb_init, SI_SUB_PROTO_PFIL, SI_ORDER_ANY,
     vnet_dmb_init, NULL);
 
 static void
-vnet_dmb_uninit(void *unused __unused)
+vnet_dmb_uninit(const void *unused __unused)
 {
 	dmb_pfil_uninit();
 	counter_u64_free(V_dmb_hits);

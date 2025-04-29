@@ -18,10 +18,18 @@ FORTIFY_TCATS+=	unistd
 FORTIFY_TCATS+=	wchar
 
 # Manually run after updating the test generator.
-generate-tests: .PHONY
+lint-generator: .PHONY
+	@if ! which luacheck>/dev/null; then \
+		1>&2 echo "devel/lua-luacheck is required to regenerate and lint these tests"; \
+		exit 1; \
+	fi
+	luacheck ${.CURDIR}/generate-fortify-tests.lua
+
+generate-tests: .PHONY lint-generator
 .for tcat in ${FORTIFY_TCATS}
 ATF_TESTS_C+=	fortify_${tcat}_test
 
+.ORDER: lint-generator generate-tests-${tcat}
 generate-tests: generate-tests-${tcat}
 generate-tests-${tcat}: .PHONY
 	${.CURDIR}/generate-fortify-tests.lua ${tcat} > ${.CURDIR}/fortify_${tcat}_test.c

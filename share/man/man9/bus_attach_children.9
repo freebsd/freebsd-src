@@ -1,0 +1,152 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 John Baldwin <jhb@FreeBSD.org>
+.Dd February 5, 2025
+.Dt BUS_ATTACH_CHILDREN 9
+.Os
+.Sh NAME
+.Nm bus_attach_children ,
+.Nm bus_delayed_attach_children ,
+.Nm bus_detach_children ,
+.Nm bus_enumerate_hinted_children ,
+.Nm bus_identify_children
+.Nd manage child devices of a bus device
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/bus.h
+.Ft void
+.Fn bus_attach_children "device_t dev"
+.Ft void
+.Fn bus_delayed_attach_children "device_t bus"
+.Ft int
+.Fn bus_detach_children "device_t dev"
+.Ft void
+.Fn bus_enumerate_hinted_children "device_t bus"
+.Ft void
+.Fn bus_identify_children "device_t dev"
+.Sh DESCRIPTION
+These functions manage state transitions of child devices for
+.Fa dev .
+.Pp
+.Fn bus_enumerate_hinted_children
+walks the kernel environment to identify any device hints that describe a
+device attached to
+.Fa dev .
+For each set of matching hints,
+the
+.Xr BUS_HINTED_CHILD 9
+method is invoked.
+This function is typically called from a bus driver's
+.Xr DEVICE_ATTACH 9
+method to add hinted devices.
+Note that most bus drivers do not use hints to identify child devices.
+This is typically used for legacy buses such as ISA that do not provide
+a mechanism for enumerating devices.
+.Pp
+.Fn bus_identify_children
+iterates over all eligible device drivers for children of
+.Fa dev
+invoking the
+.Xr DEVICE_IDENTIFY 9
+method.
+This allows device drivers to add child devices that are enumerated via
+alternate mechanisms such as firmware tables.
+This function is typically called from a bus driver's
+.Xr DEVICE_ATTACH 9
+method.
+.Pp
+.Fn bus_attach_children
+attaches device drivers to all children of
+.Fa dev .
+This function invokes
+.Xr device_probe_and_attach 9
+on each child device ignoring errors.
+It makes a best-effort pass to attach device drivers to all children.
+Child devices are attached in increasing order.
+Child devices with the same order are attached in FIFO order based
+on the time when the device was created via
+.Xr device_add_child 9 .
+This function is typically called from a bus driver's
+.Xr DEVICE_ATTACH 9
+method after adding devices.
+.Pp
+.Fn bus_delayed_attach_children
+attaches device drivers to all children of
+.Fa dev
+after interrupts are enabled.
+This function schedules a call to
+.Fn bus_attach_children
+after interrupts are enabled via
+.Xr config_intrhook_establish 9 .
+If interrupts are already enabled
+(for example, when loading a device driver after booting),
+.Fn bus_attach_children
+is called immediately.
+.Pp
+.Fn bus_detach_children
+detaches device drivers from all children of
+.Fa dev
+by calling
+.Xr device_detach 9
+on each child device.
+Unlike
+.Fn bus_attach_children ,
+this function does not make a best-effort pass.
+If a child device fails to detach,
+.Fn bus_detach_children
+immediately fails returning the error from the child's failed detach.
+Child devices are detached in reverse order compared to
+.Fn bus_attach_children .
+That is,
+child devices are detached in decreasing order,
+and child devices with the same order are detached in LIFO order.
+Detached devices are not deleted.
+.Pp
+.Fn bus_detach_children
+is typically called at the start of a bus driver's
+.Xr DEVICE_ATTACH 9
+method to give child devices a chance to veto the detach request.
+It is usually paired with a later call to
+.Fn device_delete_children 9
+to delete child devices.
+If no additional logic is required between the two function calls,
+a bus driver can use
+.Xr bus_generic_detach 9
+to detach and delete children.
+.Sh RETURN VALUES
+.Sh SEE ALSO
+.Xr config_intrhook_establish 9 ,
+.Xr device_add_child 9 ,
+.Xr DEVICE_ATTACH 9 ,
+.Xr device_delete_children 9 ,
+.Xr DEVICE_DETACH 9 ,
+.Xr device_detach 9 ,
+.Xr DEVICE_IDENTIFY 9 ,
+.Xr device_probe_and_attach 9
+.Sh HISTORY
+.Fn bus_enumerate_hinted_children
+first appeared in
+.Fx 6.2 .
+.Pp
+.Fn bus_delayed_attach_children
+first appeared in
+.Fx 12.2 .
+.Pp
+.Fn bus_identify_children
+first appeared in
+.Fx 15.0 .
+Its functionality is available in older releases via the deprecated
+.Fn bus_generic_probe .
+.Pp
+.Fn bus_attach_children
+first appeared in
+.Fx 15.0 .
+Its functionality is available in older releases via the deprecated
+.Fn bus_generic_attach .
+.Pp
+.Fn bus_detach_children
+first appeared in
+.Fx 15.0 .
+Its functionality is available in older releases via
+.Fn bus_generic_detach .

@@ -416,7 +416,7 @@ for details.
 The process scheduling increment (see
 .Xr setpriority 2 ) .
 .It Cm rss
-the real memory (resident set) size of the process (in 1024 byte units).
+the real memory (resident set) size of the process in KiB.
 .It Cm start
 The time the command started.
 If the command started less than 24 hours ago, the start time is
@@ -569,7 +569,7 @@ number of copy-on-write faults
 The processor number on which the process is executing (visible only on SMP
 systems).
 .It Cm dsiz
-data size (in Kbytes)
+data size in KiB
 .It Cm emul
 system-call emulation environment (ABI)
 .It Cm etime
@@ -668,7 +668,7 @@ real group ID
 .It Cm rgroup
 group name (from rgid)
 .It Cm rss
-resident set size
+resident set size in KiB
 .It Cm rtprio
 realtime priority (see
 .Xr rtprio 1)
@@ -693,7 +693,7 @@ blocked signals (alias
 .It Cm sl
 sleep time (in seconds; 127 = infinity)
 .It Cm ssiz
-stack size (in Kbytes)
+stack size in KiB
 .It Cm start
 time started
 .It Cm state
@@ -719,11 +719,11 @@ control terminal process group ID
 .It Cm tracer
 tracer process ID
 .\".It Cm trss
-.\"text resident set size (in Kbytes)
+.\"text resident set size in KiB
 .It Cm tsid
 control terminal session ID
 .It Cm tsiz
-text size (in Kbytes)
+text size in KiB
 .It Cm tt
 control terminal name (two letter abbreviation)
 .It Cm tty
@@ -745,7 +745,7 @@ accumulated user CPU time
 .It Cm vmaddr
 vmspace pointer
 .It Cm vsz
-virtual size in Kbytes (alias
+virtual size in KiB (alias
 .Cm vsize )
 .It Cm wchan
 wait channel (as a symbolic name)

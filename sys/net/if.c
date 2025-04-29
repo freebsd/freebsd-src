@@ -285,12 +285,12 @@ static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
 static void	if_attach_internal(struct ifnet *, bool);
-static int	if_detach_internal(struct ifnet *, bool);
+static void	if_detach_internal(struct ifnet *, bool);
 static void	if_siocaddmulti(void *, int);
 static void	if_link_ifnet(struct ifnet *);
 static bool	if_unlink_ifnet(struct ifnet *, bool);
 #ifdef VIMAGE
-static int	if_vmove(struct ifnet *, struct vnet *);
+static void	if_vmove(struct ifnet *, struct vnet *);
 #endif
 
 #ifdef INET6
@@ -433,7 +433,6 @@ vnet_if_init(const void *unused __unused)
 
 	CK_STAILQ_INIT(&V_ifnet);
 	CK_STAILQ_INIT(&V_ifg_head);
-	vnet_if_clone_init();
 }
 VNET_SYSINIT(vnet_if_init, SI_SUB_INIT_IF, SI_ORDER_SECOND, vnet_if_init,
     NULL);
@@ -1113,7 +1112,7 @@ if_detach(struct ifnet *ifp)
  * on a vnet instance shutdown without this flag being set, e.g., when
  * the cloned interfaces are destoyed as first thing of teardown.
  */
-static int
+static void
 if_detach_internal(struct ifnet *ifp, bool vmove)
 {
 	struct ifaddr *ifa;
@@ -1244,7 +1243,7 @@ finish_vnet_shutdown:
 	ifp->if_afdata_initialized = 0;
 	IF_AFDATA_UNLOCK(ifp);
 	if (i == 0)
-		return (0);
+		return;
 	SLIST_FOREACH(dp, &domains, dom_next) {
 		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family]) {
 			(*dp->dom_ifdetach)(ifp,
@@ -1252,8 +1251,6 @@ finish_vnet_shutdown:
 			ifp->if_afdata[dp->dom_family] = NULL;
 		}
 	}
-
-	return (0);
 }
 
 #ifdef VIMAGE
@@ -1261,19 +1258,21 @@ finish_vnet_shutdown:
  * if_vmove() performs a limited version of if_detach() in current
  * vnet and if_attach()es the ifnet to the vnet specified as 2nd arg.
  */
-static int
+static void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
-	int rc;
+#ifdef DEV_BPF
+	/*
+	 * Detach BPF file descriptors from its interface.
+	 */
+	bpf_ifdetach(ifp);
+#endif
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
 	 * mark as dead etc. so that the ifnet can be reattached later.
-	 * If we cannot find it, we lost the race to someone else.
 	 */
-	rc = if_detach_internal(ifp, true);
-	if (rc != 0)
-		return (rc);
+	if_detach_internal(ifp, true);
 
 	/*
 	 * Perform interface-specific reassignment tasks, if provided by
@@ -1288,7 +1287,6 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	CURVNET_SET_QUIET(new_vnet);
 	if_attach_internal(ifp, true);
 	CURVNET_RESTORE();
-	return (0);
 }
 
 /*
@@ -1299,8 +1297,7 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 {
 	struct prison *pr;
 	struct ifnet *difp;
-	int error;
-	bool found __diagused;
+	bool found;
 	bool shutdown;
 
 	MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
@@ -1347,16 +1344,15 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	}
 
 	/* Move the interface into the child jail/vnet. */
-	error = if_vmove(ifp, pr->pr_vnet);
+	if_vmove(ifp, pr->pr_vnet);
 
-	/* Report the new if_xname back to the userland on success. */
-	if (error == 0)
-		sprintf(ifname, "%s", ifp->if_xname);
+	/* Report the new if_xname back to the userland. */
+	sprintf(ifname, "%s", ifp->if_xname);
 
 	sx_xunlock(&ifnet_detach_sxlock);
 
 	prison_free(pr);
-	return (error);
+	return (0);
 }
 
 static int
@@ -1365,7 +1361,7 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	struct prison *pr;
 	struct vnet *vnet_dst;
 	struct ifnet *ifp;
-	int error, found __diagused;
+	int found __diagused;
  	bool shutdown;
 
 	/* Try to find the prison within our visibility. */
@@ -1406,16 +1402,15 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	found = if_unlink_ifnet(ifp, true);
 	MPASS(found);
 	sx_xlock(&ifnet_detach_sxlock);
-	error = if_vmove(ifp, vnet_dst);
+	if_vmove(ifp, vnet_dst);
 	sx_xunlock(&ifnet_detach_sxlock);
 	CURVNET_RESTORE();
 
-	/* Report the new if_xname back to the userland on success. */
-	if (error == 0)
-		sprintf(ifname, "%s", ifp->if_xname);
+	/* Report the new if_xname back to the userland. */
+	sprintf(ifname, "%s", ifp->if_xname);
 
 	prison_free(pr);
-	return (error);
+	return (0);
 }
 #endif /* VIMAGE */
 

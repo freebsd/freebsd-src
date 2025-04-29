@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.632 2024/07/11 20:09:16 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.641 2025/03/31 14:35:22 riastradh Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -83,9 +83,6 @@
  *	Fatal		Print an error message and exit.
  *
  *	Punt		Abort all jobs and exit with a message.
- *
- *	Finish		Finish things up by printing the number of errors
- *			that occurred, and exit.
  */
 
 #include <sys/types.h>
@@ -111,7 +108,7 @@
 #include "trace.h"
 
 /*	"@(#)main.c	8.3 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: main.c,v 1.632 2024/07/11 20:09:16 sjg Exp $");
+MAKE_RCSID("$NetBSD: main.c,v 1.641 2025/03/31 14:35:22 riastradh Exp $");
 #if defined(MAKE_NATIVE)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993 "
 	    "The Regents of the University of California.  "
@@ -1414,7 +1411,8 @@ main_Init(int argc, char **argv)
 
 	/* Set some other useful variables. */
 	{
-		char buf[64], *ep = getenv(MAKE_LEVEL_ENV);
+		char buf[64];
+		const char *ep = getenv(MAKE_LEVEL_ENV);
 
 		makelevel = ep != NULL && ep[0] != '\0' ? atoi(ep) : 0;
 		if (makelevel < 0)
@@ -1658,6 +1656,20 @@ ReadMakefile(const char *fname)
 		Parse_File("(stdin)", -1);
 		Var_Set(SCOPE_INTERNAL, "MAKEFILE", "");
 	} else {
+		if (strncmp(fname, ".../", 4) == 0) {
+			name = Dir_FindHereOrAbove(curdir, fname + 4);
+			if (name != NULL) {
+				/* Dir_FindHereOrAbove returns dirname */
+				path = str_concat3(name, "/",
+				    str_basename(fname));
+				free(name);
+				fd = open(path, O_RDONLY);
+				if (fd != -1) {
+					fname = path;
+					goto found;
+				}
+			}
+		}
 		/* if we've chdir'd, rebuild the path name */
 		if (strcmp(curdir, objdir) != 0 && *fname != '/') {
 			path = str_concat3(curdir, "/", fname);
@@ -1768,7 +1780,7 @@ Cmd_Exec(const char *cmd, char **error)
 	int pipefds[2];
 	int cpid;		/* Child PID */
 	int pid;		/* PID from wait() */
-	int status;		/* command exit status */
+	WAIT_T status;		/* command exit status */
 	Buffer buf;		/* buffer to store the result */
 	ssize_t bytes_read;
 	char *output;
@@ -1787,7 +1799,7 @@ Cmd_Exec(const char *cmd, char **error)
 
 	Var_ReexportVars(SCOPE_GLOBAL);
 
-	switch (cpid = vfork()) {
+	switch (cpid = FORK_FUNCTION()) {
 	case 0:
 		(void)close(pipefds[0]);
 		(void)dup2(pipefds[1], STDOUT_FILENO);
@@ -1947,19 +1959,6 @@ DieHorribly(void)
 	exit(2);		/* Not 1 so -q can distinguish error */
 }
 
-/*
- * Called when aborting due to errors in child shell to signal abnormal exit.
- * The program exits.
- * Errors is the number of errors encountered in Make_Make.
- */
-void
-Finish(int errs)
-{
-	if (shouldDieQuietly(NULL, -1))
-		exit(2);
-	Fatal("%d error%s", errs, errs == 1 ? "" : "s");
-}
-
 int
 unlink_file(const char *file)
 {
@@ -1998,23 +1997,14 @@ write_all(int fd, const void *data, size_t n)
 
 /* Print why exec failed, avoiding stdio. */
 void MAKE_ATTR_DEAD
-execDie(const char *af, const char *av)
+execDie(const char *func, const char *arg)
 {
-	Buffer buf;
+	char msg[1024];
+	int len;
 
-	Buf_Init(&buf);
-	Buf_AddStr(&buf, progname);
-	Buf_AddStr(&buf, ": ");
-	Buf_AddStr(&buf, af);
-	Buf_AddStr(&buf, "(");
-	Buf_AddStr(&buf, av);
-	Buf_AddStr(&buf, ") failed (");
-	Buf_AddStr(&buf, strerror(errno));
-	Buf_AddStr(&buf, ")\n");
-
-	write_all(STDERR_FILENO, buf.data, buf.len);
-
-	Buf_Done(&buf);
+	len = snprintf(msg, sizeof(msg), "%s: %s(%s) failed (%s)\n",
+	    progname, func, arg, strerror(errno));
+	write_all(STDERR_FILENO, msg, (size_t)len);
 	_exit(1);
 }
 
@@ -2146,12 +2136,17 @@ PrintOnError(GNode *gn, const char *msg)
 		SetErrorVars(gn);
 
 	{
-		char *errorVarsValues = Var_Subst(
+		char *errorVarsValues;
+		enum PosixState p_s = posix_state;
+
+		posix_state = PS_TOO_LATE;
+		errorVarsValues = Var_Subst(
 		    "${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'\n@}",
 		    SCOPE_GLOBAL, VARE_EVAL);
 		/* TODO: handle errors */
 		printf("%s", errorVarsValues);
 		free(errorVarsValues);
+		posix_state = p_s;
 	}
 
 	fflush(stdout);
@@ -2170,12 +2165,15 @@ void
 Main_ExportMAKEFLAGS(bool first)
 {
 	static bool once = true;
+	enum PosixState p_s;
 	char *flags;
 
 	if (once != first)
 		return;
 	once = false;
 
+	p_s = posix_state;
+	posix_state = PS_TOO_LATE;
 	flags = Var_Subst(
 	    "${.MAKEFLAGS} ${.MAKEOVERRIDES:O:u:@v@$v=${$v:Q}@}",
 	    SCOPE_CMDLINE, VARE_EVAL);
@@ -2183,6 +2181,7 @@ Main_ExportMAKEFLAGS(bool first)
 	if (flags[0] != '\0')
 		setenv("MAKEFLAGS", flags, 1);
 	free(flags);
+	posix_state = p_s;
 }
 
 char *

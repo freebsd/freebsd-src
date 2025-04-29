@@ -368,6 +368,7 @@ r92e_power_off(struct rtwn_softc *sc)
 		return;
 	}
 
+#if 0
 	/* SOP option to disable BG/MB. */
 	rtwn_setbits_1_shift(sc, R92C_APS_FSMCO, 0xff,
 	   R92C_APS_FSMCO_SOP_RCK, 3);
@@ -377,12 +378,15 @@ r92e_power_off(struct rtwn_softc *sc)
 
 	/* Disable small LDO. */
 	rtwn_setbits_1(sc, R92C_SPS0_CTRL, 0x1, 0);
+#endif
 
 	/* Enable WL suspend. */
 	rtwn_setbits_1_shift(sc, R92C_APS_FSMCO, R92C_APS_FSMCO_AFSM_PCIE,
 	    R92C_APS_FSMCO_AFSM_HSUS, 1);
 
+#if 0
 	/* Enable SW LPS. */
 	rtwn_setbits_1_shift(sc, R92C_APS_FSMCO, 0,
 	    R92C_APS_FSMCO_APFM_RSM, 1);
+#endif
 }

@@ -215,39 +215,17 @@ iwmbt_dump_version_tlv(struct iwmbt_version_tlv *ver)
 	    ver->otp_bd_addr.b[2],
 	    ver->otp_bd_addr.b[1],
 	    ver->otp_bd_addr.b[0]);
-	if (ver->img_type == 0x01 || ver->img_type == 0x03)
+	if (ver->img_type == TLV_IMG_TYPE_BOOTLOADER ||
+	    ver->img_type == TLV_IMG_TYPE_OPERATIONAL)
 		iwmbt_info("%s timestamp %u.%u buildtype %u build %u",
-		    ver->img_type == 0x01 ? "Bootloader" : "Firmware",
+		    (ver->img_type == TLV_IMG_TYPE_BOOTLOADER ?
+		    "Bootloader" : "Firmware"),
 		    2000 + (ver->timestamp >> 8),
 		    ver->timestamp & 0xff,
 		    ver->build_type,
 		    ver->build_num);
 }
 
-static int
-iwmbt_patch_firmware(libusb_device_handle *hdl, const char *firmware_path)
-{
-	struct iwmbt_firmware fw;
-	int ret;
-
-	iwmbt_debug("loading %s", firmware_path);
-
-	/* Read in the firmware */
-	if (iwmbt_fw_read(&fw, firmware_path) <= 0) {
-		iwmbt_debug("iwmbt_fw_read() failed");
-		return (-1);
-	}
-
-	/* Load in the firmware */
-	ret = iwmbt_patch_fwfile(hdl, &fw);
-	if (ret < 0)
-		iwmbt_debug("Loading firmware file failed");
-
-	/* free it */
-	iwmbt_fw_free(&fw);
-
-	return (ret);
-}
 
 static int
 iwmbt_init_firmware(libusb_device_handle *hdl, const char *firmware_path,
@@ -391,13 +369,274 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "Usage: iwmbtfw (-D) -d ugenX.Y (-f firmware path) (-I)\n");
+	    "Usage: iwmbtfw [-DI] -d ugenX.Y [-f firmware path]\n");
 	fprintf(stderr, "    -D: enable debugging\n");
 	fprintf(stderr, "    -d: device to operate upon\n");
-	fprintf(stderr, "    -f: firmware path, if not default\n");
+	fprintf(stderr, "    -f: firmware path (defaults to %s)\n",
+	    _DEFAULT_IWMBT_FIRMWARE_PATH);
 	fprintf(stderr, "    -I: enable informational output\n");
 	exit(127);
 }
+
+
+
+/*
+ * Returns 0 on success.
+ */
+static int
+handle_7260(libusb_device_handle *hdl, char *firmware_dir)
+{
+	int r;
+	char *firmware_path;
+	struct iwmbt_version ver;
+	struct iwmbt_firmware fw;
+
+	r = iwmbt_get_version(hdl, &ver);
+	if (r < 0) {
+		iwmbt_debug("iwmbt_get_version() failed code %d", r);
+		return 1;
+	}
+	iwmbt_dump_version(&ver);
+	iwmbt_debug("fw_patch_num=0x%02x", (int) ver.fw_patch_num);
+
+	/* fw_patch_num = >0 operational mode */
+	if (ver.fw_patch_num > 0x00) {
+		iwmbt_info("Firmware has already been downloaded");
+		return 0;
+	}
+
+	firmware_path = iwmbt_get_fwname(&ver, NULL, firmware_dir, "bseq");
+	if (firmware_path == NULL)
+		return 1;
+	iwmbt_debug("firmware_path = %s", firmware_path);
+
+	r = iwmbt_fw_read(&fw, firmware_path);
+	free(firmware_path);
+	if (r <= 0) {
+		iwmbt_debug("iwmbt_fw_read() failed");
+		return 1;
+	}
+
+	r = iwmbt_enter_manufacturer(hdl);
+	if (r < 0) {
+		iwmbt_debug("iwmbt_enter_manufacturer() failed code %d", r);
+		iwmbt_fw_free(&fw);
+		return 1;
+	}
+
+	/* Download firmware */
+	r = iwmbt_patch_fwfile(hdl, &fw);
+	iwmbt_fw_free(&fw);
+	if (r < 0) {
+		iwmbt_debug("Loading firmware file failed");
+		(void)iwmbt_exit_manufacturer(hdl, IWMBT_MM_EXIT_COLD_RESET);
+		return 1;
+	}
+
+	iwmbt_info("Firmware download complete");
+
+	r = iwmbt_exit_manufacturer(hdl,
+	    (r == 0 ? IWMBT_MM_EXIT_ONLY : IWMBT_MM_EXIT_WARM_RESET));
+	if (r < 0) {
+		iwmbt_debug("iwmbt_exit_manufacturer() failed code %d", r);
+		return 1;
+	}
+
+	/* Once device is running in operational mode we can ignore failures */
+
+	/* Dump actual controller version */
+	r = iwmbt_get_version(hdl, &ver);
+	if (r == 0)
+		iwmbt_dump_version(&ver);
+
+	if (iwmbt_enter_manufacturer(hdl) < 0)
+		return 0;
+	r = iwmbt_set_event_mask(hdl);
+	if (r == 0)
+		iwmbt_info("Intel Event Mask is set");
+	(void)iwmbt_exit_manufacturer(hdl, IWMBT_MM_EXIT_ONLY);
+
+	return 0;
+}
+
+
+/*
+ * Returns 0 on success.
+ */
+static int
+handle_8260(libusb_device_handle *hdl, char *firmware_dir)
+{
+	int r;
+	uint32_t boot_param;
+	struct iwmbt_version ver;
+	struct iwmbt_boot_params params;
+	char *firmware_path = NULL;
+
+	r = iwmbt_get_version(hdl, &ver);
+	if (r < 0) {
+		iwmbt_debug("iwmbt_get_version() failed code %d", r);
+		return 1;
+	}
+	iwmbt_dump_version(&ver);
+	iwmbt_debug("fw_variant=0x%02x", (int) ver.fw_variant);
+
+	if (ver.fw_variant == FW_VARIANT_OPERATIONAL) {
+		iwmbt_info("Firmware has already been downloaded");
+		return 0;
+	}
+
+	if (ver.fw_variant != FW_VARIANT_BOOTLOADER){
+		iwmbt_err("unknown fw_variant 0x%02x", (int) ver.fw_variant);
+		return 1;
+	}
+
+	/* Read Intel Secure Boot Params */
+	r = iwmbt_get_boot_params(hdl, &params);
+	if (r < 0) {
+		iwmbt_debug("iwmbt_get_boot_params() failed!");
+		return 1;
+	}
+	iwmbt_dump_boot_params(&params);
+
+	/* Check if firmware fragments are ACKed with a cmd complete event */
+	if (params.limited_cce != 0x00) {
+		iwmbt_err("Unsupported Intel firmware loading method (%u)",
+		   params.limited_cce);
+		return 1;
+	}
+
+	firmware_path = iwmbt_get_fwname(&ver, &params, firmware_dir, "sfi");
+	if (firmware_path == NULL)
+		return 1;
+	iwmbt_debug("firmware_path = %s", firmware_path);
+
+	/* Download firmware and parse it for magic Intel Reset parameter */
+	r = iwmbt_init_firmware(hdl, firmware_path, &boot_param, 0, 0);
+	free(firmware_path);
+	if (r < 0)
+		return 1;
+
+	iwmbt_info("Firmware download complete");
+
+	r = iwmbt_intel_reset(hdl, boot_param);
+	if (r < 0) {
+		iwmbt_debug("iwmbt_intel_reset() failed!");
+		return 1;
+	}
+
+	iwmbt_info("Firmware operational");
+
+	/* Once device is running in operational mode we can ignore failures */
+
+	/* Dump actual controller version */
+	r = iwmbt_get_version(hdl, &ver);
+	if (r == 0)
+		iwmbt_dump_version(&ver);
+
+	/* Apply the device configuration (DDC) parameters */
+	firmware_path = iwmbt_get_fwname(&ver, &params, firmware_dir, "ddc");
+	iwmbt_debug("ddc_path = %s", firmware_path);
+	if (firmware_path != NULL) {
+		r = iwmbt_init_ddc(hdl, firmware_path);
+		if (r == 0)
+			iwmbt_info("DDC download complete");
+		free(firmware_path);
+	}
+
+	r = iwmbt_set_event_mask(hdl);
+	if (r == 0)
+		iwmbt_info("Intel Event Mask is set");
+
+	return 0;
+}
+
+
+static int
+handle_9260(libusb_device_handle *hdl, char *firmware_dir)
+{
+	int r;
+	uint32_t boot_param;
+	struct iwmbt_version vl;
+	struct iwmbt_version_tlv vt;
+	char *firmware_path = NULL;
+
+	r = iwmbt_get_version_tlv(hdl, &vt);
+	if (r < 0) {
+		iwmbt_debug("iwmbt_get_version_tlv() failed code %d", r);
+		return 1;
+	}
+	iwmbt_dump_version_tlv(&vt);
+	iwmbt_debug("img_type=0x%02x", (int) vt.img_type);
+
+	if (vt.img_type == TLV_IMG_TYPE_OPERATIONAL) {
+		iwmbt_info("Firmware has already been downloaded");
+		return 0;
+	}
+
+	if (vt.img_type != TLV_IMG_TYPE_BOOTLOADER) {
+		iwmbt_err("unknown img_type 0x%02x", (int) vt.img_type);
+		return 1;
+	}
+
+	/* Check if firmware fragments are ACKed with a cmd complete event */
+	if (vt.limited_cce != 0x00) {
+		iwmbt_err("Unsupported Intel firmware loading method (%u)",
+		   vt.limited_cce);
+		return 1;
+	}
+
+	/* Check if secure boot engine is supported: 1 (ECDSA) or 0 (RSA) */
+	if (vt.sbe_type > 0x01) {
+		iwmbt_err("Unsupported secure boot engine (%u)",
+		   vt.sbe_type);
+		return 1;
+	}
+
+	firmware_path = iwmbt_get_fwname_tlv(&vt, firmware_dir, "sfi");
+	if (firmware_path == NULL)
+		return 1;
+	iwmbt_debug("firmware_path = %s", firmware_path);
+
+	/* Download firmware and parse it for magic Intel Reset parameter */
+	r = iwmbt_init_firmware(hdl, firmware_path, &boot_param,
+	    vt.cnvi_bt >> 16 & 0x3f, vt.sbe_type);
+	free(firmware_path);
+	if (r < 0)
+		return 1;
+
+	iwmbt_info("Firmware download complete");
+
+	r = iwmbt_intel_reset(hdl, boot_param);
+	if (r < 0) {
+		iwmbt_debug("iwmbt_intel_reset() failed!");
+		return 1;
+	}
+
+	iwmbt_info("Firmware operational");
+
+	/* Once device is running in operational mode we can ignore failures */
+
+	r = iwmbt_get_version(hdl, &vl);
+	if (r == 0)
+		iwmbt_dump_version(&vl);
+
+	/* Apply the device configuration (DDC) parameters */
+	firmware_path = iwmbt_get_fwname_tlv(&vt, firmware_dir, "ddc");
+	iwmbt_debug("ddc_path = %s", firmware_path);
+	if (firmware_path != NULL) {
+		r = iwmbt_init_ddc(hdl, firmware_path);
+		if (r == 0)
+			iwmbt_info("DDC download complete");
+		free(firmware_path);
+	}
+
+	r = iwmbt_set_event_mask(hdl);
+	if (r == 0)
+		iwmbt_info("Intel Event Mask is set");
+
+	return 0;
+}
+
 
 int
 main(int argc, char *argv[])
@@ -405,21 +644,16 @@ main(int argc, char *argv[])
 	libusb_context *ctx = NULL;
 	libusb_device *dev = NULL;
 	libusb_device_handle *hdl = NULL;
-	static struct iwmbt_version ver;
-	static struct iwmbt_version_tlv ver_tlv;
-	static struct iwmbt_boot_params params;
-	uint32_t boot_param;
 	int r;
 	uint8_t bus_id = 0, dev_id = 0;
 	int devid_set = 0;
 	int n;
 	char *firmware_dir = NULL;
-	char *firmware_path = NULL;
 	int retcode = 1;
 	enum iwmbt_device iwmbt_device;
 
 	/* Parse command line arguments */
-	while ((n = getopt(argc, argv, "Dd:f:hIm:p:v:")) != -1) {
+	while ((n = getopt(argc, argv, "Dd:f:hI")) != -1) {
 		switch (n) {
 		case 'd': /* ugen device name */
 			devid_set = 1;
@@ -450,6 +684,10 @@ main(int argc, char *argv[])
 		usage();
 		/* NOTREACHED */
 	}
+
+	/* Default the firmware path */
+	if (firmware_dir == NULL)
+		firmware_dir = strdup(_DEFAULT_IWMBT_FIRMWARE_PATH);
 
 	/* libusb setup */
 	r = libusb_init(&ctx);
@@ -490,261 +728,30 @@ main(int argc, char *argv[])
 		goto shutdown;
 	}
 
-	if (iwmbt_device == IWMBT_DEVICE_7260) {
-
-		/* Get Intel version */
-		r = iwmbt_get_version(hdl, &ver);
-		if (r < 0) {
-			iwmbt_debug("iwmbt_get_version() failed code %d", r);
-			goto shutdown;
-		}
-		iwmbt_dump_version(&ver);
-		iwmbt_debug("fw_patch_num=0x%02x", (int) ver.fw_patch_num);
-
-		/* fw_patch_num = >0 operational mode */
-		if (ver.fw_patch_num > 0x00) {
-			iwmbt_info("Firmware has already been downloaded");
-			retcode = 0;
-			goto reset;
-		}
-
-		/* Default the firmware path */
-		if (firmware_dir == NULL)
-			firmware_dir = strdup(_DEFAULT_IWMBT_FIRMWARE_PATH);
-
-		firmware_path = iwmbt_get_fwname(&ver, &params, firmware_dir, "bseq");
-		if (firmware_path == NULL)
-			goto shutdown;
-
-		iwmbt_debug("firmware_path = %s", firmware_path);
-
-		/* Enter manufacturer mode */
-		r = iwmbt_enter_manufacturer(hdl);
-		if (r < 0) {
-			iwmbt_debug("iwmbt_enter_manufacturer() failed code %d", r);
-			goto shutdown;
-		}
-
-		/* Download firmware and parse it for magic Intel Reset parameter */
-		r = iwmbt_patch_firmware(hdl, firmware_path);
-		free(firmware_path);
-		if (r < 0) {
-			(void)iwmbt_exit_manufacturer(hdl, 0x01);
-			goto shutdown;
-		}
-
-		iwmbt_info("Firmware download complete");
-
-		/* Exit manufacturer mode */
-		r = iwmbt_exit_manufacturer(hdl, r == 0 ? 0x00 : 0x02);
-		if (r < 0) {
-			iwmbt_debug("iwmbt_exit_manufacturer() failed code %d", r);
-			goto shutdown;
-		}
-
-		/* Once device is running in operational mode we can ignore failures */
-		retcode = 0;
-
-		/* Execute Read Intel Version one more time */
-		r = iwmbt_get_version(hdl, &ver);
-		if (r == 0)
-			iwmbt_dump_version(&ver);
-
-		/* Set Intel Event mask */
-		if (iwmbt_enter_manufacturer(hdl) < 0)
-			goto reset;
-		r = iwmbt_set_event_mask(hdl);
-		if (r == 0)
-			iwmbt_info("Intel Event Mask is set");
-		(void)iwmbt_exit_manufacturer(hdl, 0x00);
-
-	} else if (iwmbt_device == IWMBT_DEVICE_8260) {
-
-		/* Get Intel version */
-		r = iwmbt_get_version(hdl, &ver);
-		if (r < 0) {
-			iwmbt_debug("iwmbt_get_version() failed code %d", r);
-			goto shutdown;
-		}
-		iwmbt_dump_version(&ver);
-		iwmbt_debug("fw_variant=0x%02x", (int) ver.fw_variant);
-
-		/* fw_variant = 0x06 bootloader mode / 0x23 operational mode */
-		if (ver.fw_variant == 0x23) {
-			iwmbt_info("Firmware has already been downloaded");
-			retcode = 0;
-			goto reset;
-		}
-
-		if (ver.fw_variant != 0x06){
-			iwmbt_err("unknown fw_variant 0x%02x", (int) ver.fw_variant);
-			goto shutdown;
-		}
-
-		/* Read Intel Secure Boot Params */
-		r = iwmbt_get_boot_params(hdl, &params);
-		if (r < 0) {
-			iwmbt_debug("iwmbt_get_boot_params() failed!");
-			goto shutdown;
-		}
-		iwmbt_dump_boot_params(&params);
-
-		/* Check if firmware fragments are ACKed with a cmd complete event */
-		if (params.limited_cce != 0x00) {
-			iwmbt_err("Unsupported Intel firmware loading method (%u)",
-			   params.limited_cce);
-			goto shutdown;
-		}
-
-		/* Default the firmware path */
-		if (firmware_dir == NULL)
-			firmware_dir = strdup(_DEFAULT_IWMBT_FIRMWARE_PATH);
-
-		firmware_path = iwmbt_get_fwname(&ver, &params, firmware_dir, "sfi");
-		if (firmware_path == NULL)
-			goto shutdown;
-
-		iwmbt_debug("firmware_path = %s", firmware_path);
-
-		/* Download firmware and parse it for magic Intel Reset parameter */
-		r = iwmbt_init_firmware(hdl, firmware_path, &boot_param, 0, 0);
-		free(firmware_path);
-		if (r < 0)
-			goto shutdown;
-
-		iwmbt_info("Firmware download complete");
-
-		r = iwmbt_intel_reset(hdl, boot_param);
-		if (r < 0) {
-			iwmbt_debug("iwmbt_intel_reset() failed!");
-			goto shutdown;
-		}
-
-		iwmbt_info("Firmware operational");
-
-		/* Once device is running in operational mode we can ignore failures */
-		retcode = 0;
-
-		/* Execute Read Intel Version one more time */
-		r = iwmbt_get_version(hdl, &ver);
-		if (r == 0)
-			iwmbt_dump_version(&ver);
-
-		/* Apply the device configuration (DDC) parameters */
-		firmware_path = iwmbt_get_fwname(&ver, &params, firmware_dir, "ddc");
-		iwmbt_debug("ddc_path = %s", firmware_path);
-		if (firmware_path != NULL) {
-			r = iwmbt_init_ddc(hdl, firmware_path);
-			if (r == 0)
-				iwmbt_info("DDC download complete");
-			free(firmware_path);
-		}
-
-		/* Set Intel Event mask */
-		r = iwmbt_set_event_mask(hdl);
-		if (r == 0)
-			iwmbt_info("Intel Event Mask is set");
-
-	} else {
-
-		/* Get Intel version */
-		r = iwmbt_get_version_tlv(hdl, &ver_tlv);
-		if (r < 0) {
-			iwmbt_debug("iwmbt_get_version_tlv() failed code %d", r);
-			goto shutdown;
-		}
-		iwmbt_dump_version_tlv(&ver_tlv);
-		iwmbt_debug("img_type=0x%02x", (int) ver_tlv.img_type);
-
-		/* img_type = 0x01 bootloader mode / 0x03 operational mode */
-		if (ver_tlv.img_type == 0x03) {
-			iwmbt_info("Firmware has already been downloaded");
-			retcode = 0;
-			goto reset;
-		}
-
-		if (ver_tlv.img_type != 0x01){
-			iwmbt_err("unknown img_type 0x%02x", (int) ver_tlv.img_type);
-			goto shutdown;
-		}
-
-		/* Check if firmware fragments are ACKed with a cmd complete event */
-		if (ver_tlv.limited_cce != 0x00) {
-			iwmbt_err("Unsupported Intel firmware loading method (%u)",
-			   ver_tlv.limited_cce);
-			goto shutdown;
-		}
-
-		/* Check if secure boot engine is supported: 1 (ECDSA) or 0 (RSA) */
-		if (ver_tlv.sbe_type > 0x01) {
-			iwmbt_err("Unsupported secure boot engine (%u)",
-			   ver_tlv.sbe_type);
-			goto shutdown;
-		}
-
-		/* Default the firmware path */
-		if (firmware_dir == NULL)
-			firmware_dir = strdup(_DEFAULT_IWMBT_FIRMWARE_PATH);
-
-		firmware_path = iwmbt_get_fwname_tlv(&ver_tlv, firmware_dir, "sfi");
-		if (firmware_path == NULL)
-			goto shutdown;
-
-		iwmbt_debug("firmware_path = %s", firmware_path);
-
-		/* Download firmware and parse it for magic Intel Reset parameter */
-		r = iwmbt_init_firmware(hdl, firmware_path, &boot_param,
-		    ver_tlv.cnvi_bt >> 16 & 0x3f, ver_tlv.sbe_type);
-		free(firmware_path);
-		if (r < 0)
-			goto shutdown;
-
-		r = iwmbt_intel_reset(hdl, boot_param);
-		if (r < 0) {
-			iwmbt_debug("iwmbt_intel_reset() failed!");
-			goto shutdown;
-		}
-
-		iwmbt_info("Firmware operational");
-
-		/* Once device is running in operational mode we can ignore failures */
-		retcode = 0;
-
-		/* Execute Read Intel Version one more time */
-		r = iwmbt_get_version(hdl, &ver);
-		if (r == 0)
-			iwmbt_dump_version(&ver);
-
-		/* Apply the device configuration (DDC) parameters */
-		firmware_path = iwmbt_get_fwname_tlv(&ver_tlv, firmware_dir, "ddc");
-		iwmbt_debug("ddc_path = %s", firmware_path);
-		if (firmware_path != NULL) {
-			r = iwmbt_init_ddc(hdl, firmware_path);
-			if (r == 0)
-				iwmbt_info("DDC download complete");
-			free(firmware_path);
-		}
-
-		/* Set Intel Event mask */
-		r = iwmbt_set_event_mask(hdl);
-		if (r == 0)
-			iwmbt_info("Intel Event Mask is set");
-
-		iwmbt_info("Firmware download complete");
+	switch(iwmbt_device) {
+	case IWMBT_DEVICE_7260:
+		retcode = handle_7260(hdl, firmware_dir);
+		break;
+	case IWMBT_DEVICE_8260:
+		retcode = handle_8260(hdl, firmware_dir);
+		break;
+	case IWMBT_DEVICE_9260:
+		retcode = handle_9260(hdl, firmware_dir);
+		break;
+	default:
+		iwmbt_err("FIXME: unknown iwmbt type %d", (int)iwmbt_device);
+		retcode = 1;
 	}
 
-reset:
-
-	/* Ask kernel driver to probe and attach device again */
-	r = libusb_reset_device(hdl);
-	if (r != 0)
-		iwmbt_err("libusb_reset_device() failed: %s",
-		    libusb_strerror(r));
+	if (retcode == 0) {
+		/* Ask kernel driver to probe and attach device again */
+		r = libusb_reset_device(hdl);
+		if (r != 0)
+			iwmbt_err("libusb_reset_device() failed: %s",
+			    libusb_strerror(r));
+	}
 
 shutdown:
-
-	/* Shutdown */
-
 	if (hdl != NULL)
 		libusb_close(hdl);
 

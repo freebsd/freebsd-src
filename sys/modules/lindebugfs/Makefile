@@ -14,6 +14,7 @@ EXPORT_SYMS+=	debugfs_create_file
 EXPORT_SYMS+=	debugfs_create_file_size
 EXPORT_SYMS+=	debugfs_create_file_unsafe
 EXPORT_SYMS+=	debugfs_create_mode_unsafe
+EXPORT_SYMS+=	debugfs_create_str
 EXPORT_SYMS+=	debugfs_create_symlink
 EXPORT_SYMS+=	debugfs_create_u8
 EXPORT_SYMS+=	debugfs_create_u16
@@ -24,6 +25,7 @@ EXPORT_SYMS+=	debugfs_create_x8
 EXPORT_SYMS+=	debugfs_create_x16
 EXPORT_SYMS+=	debugfs_create_x32
 EXPORT_SYMS+=	debugfs_create_x64
+EXPORT_SYMS+=	debugfs_lookup
 EXPORT_SYMS+=	debugfs_remove
 EXPORT_SYMS+=	debugfs_remove_recursive
 

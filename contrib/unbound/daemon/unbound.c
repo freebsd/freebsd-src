@@ -463,6 +463,64 @@ detach(void)
 #endif /* HAVE_DAEMON */
 }
 
+/* setup a listening ssl context, fatal_exit() on any failure */
+static void
+setup_listen_sslctx(void** ctx, int is_dot, int is_doh, struct config_file* cfg)
+{
+#ifdef HAVE_SSL
+	if(!(*ctx = listen_sslctx_create(
+		cfg->ssl_service_key, cfg->ssl_service_pem, NULL,
+		cfg->tls_ciphers, cfg->tls_ciphersuites,
+		(cfg->tls_session_ticket_keys.first &&
+		cfg->tls_session_ticket_keys.first->str[0] != 0),
+		is_dot, is_doh))) {
+		fatal_exit("could not set up listen SSL_CTX");
+	}
+#else /* HAVE_SSL */
+	(void)ctx;(void)is_dot;(void)is_doh;(void)cfg;
+#endif /* HAVE_SSL */
+}
+
+/* setups the needed ssl contexts, fatal_exit() on any failure */
+static void
+setup_sslctxs(struct daemon* daemon, struct config_file* cfg)
+{
+#ifdef HAVE_SSL
+	if(!(daemon->rc = daemon_remote_create(cfg)))
+		fatal_exit("could not set up remote-control");
+	if(cfg->ssl_service_key && cfg->ssl_service_key[0]) {
+		/* setup the session keys; the callback to use them will be
+		 * attached to each sslctx separately */
+		if(cfg->tls_session_ticket_keys.first &&
+			cfg->tls_session_ticket_keys.first->str[0] != 0) {
+			if(!listen_sslctx_setup_ticket_keys(
+				cfg->tls_session_ticket_keys.first)) {
+				fatal_exit("could not set session ticket SSL_CTX");
+			}
+		}
+		(void)setup_listen_sslctx(&daemon->listen_dot_sslctx, 1, 0, cfg);
+#ifdef HAVE_NGHTTP2_NGHTTP2_H
+		if(cfg_has_https(cfg)) {
+			(void)setup_listen_sslctx(&daemon->listen_doh_sslctx, 0, 1, cfg);
+		}
+#endif
+#ifdef HAVE_NGTCP2
+		if(cfg_has_quic(cfg)) {
+			if(!(daemon->listen_quic_sslctx = quic_sslctx_create(
+				cfg->ssl_service_key, cfg->ssl_service_pem, NULL))) {
+				fatal_exit("could not set up quic SSL_CTX");
+			}
+		}
+#endif /* HAVE_NGTCP2 */
+	}
+	if(!(daemon->connect_dot_sslctx = connect_sslctx_create(NULL, NULL,
+		cfg->tls_cert_bundle, cfg->tls_win_cert)))
+		fatal_exit("could not set up connect SSL_CTX");
+#else /* HAVE_SSL */
+	(void)daemon;(void)cfg;
+#endif /* HAVE_SSL */
+}
+
 /** daemonize, drop user privileges and chroot if needed */
 static void
 perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
@@ -489,36 +547,7 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 #endif
 
 	/* read ssl keys while superuser and outside chroot */
-#ifdef HAVE_SSL
-	if(!(daemon->rc = daemon_remote_create(cfg)))
-		fatal_exit("could not set up remote-control");
-	if(cfg->ssl_service_key && cfg->ssl_service_key[0]) {
-		if(!(daemon->listen_sslctx = listen_sslctx_create(
-			cfg->ssl_service_key, cfg->ssl_service_pem, NULL)))
-			fatal_exit("could not set up listen SSL_CTX");
-		if(cfg->tls_ciphers && cfg->tls_ciphers[0]) {
-			if (!SSL_CTX_set_cipher_list(daemon->listen_sslctx, cfg->tls_ciphers)) {
-				fatal_exit("failed to set tls-cipher %s", cfg->tls_ciphers);
-			}
-		}
-#ifdef HAVE_SSL_CTX_SET_CIPHERSUITES
-		if(cfg->tls_ciphersuites && cfg->tls_ciphersuites[0]) {
-			if (!SSL_CTX_set_ciphersuites(daemon->listen_sslctx, cfg->tls_ciphersuites)) {
-				fatal_exit("failed to set tls-ciphersuites %s", cfg->tls_ciphersuites);
-			}
-		}
-#endif
-		if(cfg->tls_session_ticket_keys.first &&
-			cfg->tls_session_ticket_keys.first->str[0] != 0) {
-			if(!listen_sslctx_setup_ticket_keys(daemon->listen_sslctx, cfg->tls_session_ticket_keys.first)) {
-				fatal_exit("could not set session ticket SSL_CTX");
-			}
-		}
-	}
-	if(!(daemon->connect_sslctx = connect_sslctx_create(NULL, NULL,
-		cfg->tls_cert_bundle, cfg->tls_win_cert)))
-		fatal_exit("could not set up connect SSL_CTX");
-#endif
+	(void)setup_sslctxs(daemon, cfg);
 
 	/* init syslog (as root) if needed, before daemonize, otherwise
 	 * a fork error could not be printed since daemonize closed stderr.*/
@@ -681,6 +710,9 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 	 * it would succeed on SIGHUP as well */
 	if(!cfg->use_syslog)
 		log_init(cfg->logfile, cfg->use_syslog, cfg->chrootdir);
+	daemon->cfgfile = strdup(*cfgfile);
+	if(!daemon->cfgfile)
+		fatal_exit("out of memory in daemon cfgfile strdup");
 }
 
 /**

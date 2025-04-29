@@ -968,7 +968,7 @@ ar9300_set_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
         u_int32_t capability, u_int32_t setting, HAL_STATUS *status)
 {
     struct ath_hal_9300 *ahp = AH9300(ah);
-    const HAL_CAPABILITIES *p_cap = &AH_PRIVATE(ah)->ah_caps;
+    HAL_CAPABILITIES *p_cap = &AH_PRIVATE(ah)->ah_caps;
     u_int32_t v;
 
     switch (type) {
@@ -1079,6 +1079,33 @@ ar9300_set_capability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
             return AH_TRUE;
         }
         return AH_FALSE;
+
+#define owl_get_ntxchains(_txchainmask) \
+        (((_txchainmask >> 2) & 1) + ((_txchainmask >> 1) & 1) + \
+        (_txchainmask & 1))
+
+    case HAL_CAP_RX_CHAINMASK:
+        setting &= ar9300_eeprom_get(ahp, EEP_RX_MASK);
+        p_cap->halRxChainMask = setting;
+        p_cap->halRxStreams = owl_get_ntxchains(setting);
+        if (p_cap->halRxStreams > 3)
+            p_cap->halRxStreams = 3;
+        else if (p_cap->halRxStreams < 1)
+            p_cap->halRxStreams = 1;
+        return AH_TRUE;
+
+    case HAL_CAP_TX_CHAINMASK:
+        setting &= ar9300_eeprom_get(ahp, EEP_TX_MASK);
+        p_cap->halTxChainMask = setting;
+        p_cap->halTxStreams = owl_get_ntxchains(setting);
+        if (p_cap->halTxStreams > 3)
+            p_cap->halTxStreams = 3;
+        else if (p_cap->halTxStreams < 1)
+            p_cap->halTxStreams = 1;
+        return AH_TRUE;
+
+#undef owl_get_ntxchains
+
         /* fall thru... */
     default:
         return ath_hal_setcapability(ah, type, capability, setting, status);

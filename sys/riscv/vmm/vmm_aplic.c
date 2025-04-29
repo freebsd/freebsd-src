@@ -70,9 +70,13 @@ MALLOC_DEFINE(M_APLIC, "RISC-V VMM APLIC", "RISC-V AIA APLIC");
 /* If D == 1. */
 #define	 SOURCECFG_CHILD_INDEX_S	(0)
 #define	 SOURCECFG_CHILD_INDEX_M	(0x3ff << SOURCECFG_CHILD_INDEX_S)
+#define	APLIC_SETIP		0x1c00
 #define	APLIC_SETIPNUM		0x1cdc
+#define	APLIC_CLRIP		0x1d00
 #define	APLIC_CLRIPNUM		0x1ddc
+#define	APLIC_SETIE		0x1e00
 #define	APLIC_SETIENUM		0x1edc
+#define	APLIC_CLRIE		0x1f00
 #define	APLIC_CLRIENUM		0x1fdc
 #define	APLIC_GENMSI		0x3000
 #define	APLIC_TARGET(x)		(0x3004 + ((x) - 1) * 4)
@@ -96,6 +100,7 @@ struct aplic_irq {
 	uint32_t state;
 #define	APLIC_IRQ_STATE_PENDING	(1 << 0)
 #define	APLIC_IRQ_STATE_ENABLED	(1 << 1)
+#define	APLIC_IRQ_STATE_INPUT	(1 << 2)
 	uint32_t target;
 	uint32_t target_hart;
 };
@@ -146,13 +151,38 @@ aplic_set_enabled(struct aplic *aplic, bool write, uint64_t *val, bool enabled)
 	irq = &aplic->irqs[i];
 
 	mtx_lock_spin(&aplic->mtx);
-	if (enabled)
-		irq->state |= APLIC_IRQ_STATE_ENABLED;
-	else
-		irq->state &= ~APLIC_IRQ_STATE_ENABLED;
+	if ((irq->sourcecfg & SOURCECFG_SM_M) != SOURCECFG_SM_INACTIVE) {
+		if (enabled)
+			irq->state |= APLIC_IRQ_STATE_ENABLED;
+		else
+			irq->state &= ~APLIC_IRQ_STATE_ENABLED;
+	}
 	mtx_unlock_spin(&aplic->mtx);
 
 	return (0);
+}
+
+static void
+aplic_set_enabled_word(struct aplic *aplic, bool write, uint32_t word,
+    uint64_t *val, bool enabled)
+{
+	uint64_t v;
+	int i;
+
+	if (!write) {
+		*val = 0;
+		return;
+	}
+
+	/*
+	 * The write is ignored if value written is not an active interrupt
+	 * source number in the domain.
+	 */
+	for (i = 0; i < 32; i++)
+		if (*val & (1u << i)) {
+			v = word * 32 + i;
+			(void)aplic_set_enabled(aplic, write, &v, enabled);
+		}
 }
 
 static int
@@ -238,6 +268,8 @@ aplic_mmio_access(struct hyp *hyp, struct aplic *aplic, uint64_t reg,
 	int r;
 	int i;
 
+	dprintf("%s: reg %lx\n", __func__, reg);
+
 	if ((reg >= APLIC_SOURCECFG(1)) &&
 	    (reg <= APLIC_SOURCECFG(aplic->nirqs))) {
 		i = ((reg - APLIC_SOURCECFG(1)) >> 2) + 1;
@@ -258,9 +290,20 @@ aplic_mmio_access(struct hyp *hyp, struct aplic *aplic, uint64_t reg,
 		return (error);
 	}
 
+	if ((reg >= APLIC_CLRIE) && (reg < (APLIC_CLRIE + aplic->nirqs * 4))) {
+		i = (reg - APLIC_CLRIE) >> 2;
+		aplic_set_enabled_word(aplic, write, i, val, false);
+		return (0);
+	}
+
 	switch (reg) {
 	case APLIC_DOMAINCFG:
-		aplic->domaincfg = *val & DOMAINCFG_IE;
+		mtx_lock_spin(&aplic->mtx);
+		if (write)
+			aplic->domaincfg = *val & DOMAINCFG_IE;
+		else
+			*val = aplic->domaincfg;
+		mtx_unlock_spin(&aplic->mtx);
 		error = 0;
 		break;
 	case APLIC_SETIENUM:
@@ -441,6 +484,7 @@ aplic_inject_irq(struct hyp *hyp, int vcpuid, uint32_t irqid, bool level)
 	struct aplic *aplic;
 	bool notify;
 	int error;
+	int mask;
 
 	aplic = hyp->aplic;
 
@@ -460,22 +504,39 @@ aplic_inject_irq(struct hyp *hyp, int vcpuid, uint32_t irqid, bool level)
 
 	notify = false;
 	switch (irq->sourcecfg & SOURCECFG_SM_M) {
-	case SOURCECFG_SM_EDGE1:
-		if (level) {
+	case SOURCECFG_SM_LEVEL0:
+		if (!level)
 			irq->state |= APLIC_IRQ_STATE_PENDING;
-			if (irq->state & APLIC_IRQ_STATE_ENABLED)
-				notify = true;
-		} else
-			irq->state &= ~APLIC_IRQ_STATE_PENDING;
+		break;
+	case SOURCECFG_SM_LEVEL1:
+		if (level)
+			irq->state |= APLIC_IRQ_STATE_PENDING;
+		break;
+	case SOURCECFG_SM_EDGE0:
+		if (!level && (irq->state & APLIC_IRQ_STATE_INPUT))
+			irq->state |= APLIC_IRQ_STATE_PENDING;
+		break;
+	case SOURCECFG_SM_EDGE1:
+		if (level && !(irq->state & APLIC_IRQ_STATE_INPUT))
+			irq->state |= APLIC_IRQ_STATE_PENDING;
 		break;
 	case SOURCECFG_SM_DETACHED:
+	case SOURCECFG_SM_INACTIVE:
 		break;
 	default:
-		/* TODO. */
-		dprintf("sourcecfg %d\n", irq->sourcecfg & SOURCECFG_SM_M);
 		error = ENXIO;
 		break;
 	}
+
+	if (level)
+		irq->state |= APLIC_IRQ_STATE_INPUT;
+	else
+		irq->state &= ~APLIC_IRQ_STATE_INPUT;
+
+	mask = APLIC_IRQ_STATE_ENABLED | APLIC_IRQ_STATE_PENDING;
+	if ((irq->state & mask) == mask)
+		notify = true;
+
 	mtx_unlock_spin(&aplic->mtx);
 
 	if (notify)

@@ -208,6 +208,7 @@ iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 igoro [label="Igor Ostapenko\nigoro@FreeBSD.org\n2024/08/22"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
 ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
+ivy [label="Lexi Winter\nivy@FreeBSD.org\n2025/04/18"]
 jah [label="Jason A. Harmening\njah@FreeBSD.org\n2015/03/08"]
 jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
 jasone [label="Jason Evans\njasone@FreeBSD.org\n1999/03/03"]
@@ -516,6 +517,7 @@ delphij -> sephe
 
 des -> anholt
 des -> hmp
+des -> ivy
 des -> mike
 des -> olli
 des -> ru
@@ -718,6 +720,7 @@ ken -> ram
 ken -> slm
 ken -> will
 
+kevans -> ivy
 kevans -> rew
 
 kib -> ae

@@ -361,8 +361,9 @@ sctp_getcred(SYSCTL_HANDLER_ARGS)
 	/* FIX, for non-bsd is this right? */
 	vrf_id = SCTP_DEFAULT_VRFID;
 
+	if (req->newptr == NULL)
+		return (EINVAL);
 	error = priv_check(req->td, PRIV_NETINET_GETCRED);
-
 	if (error)
 		return (error);
 
@@ -7516,7 +7517,6 @@ sctp_peeraddr(struct socket *so, struct sockaddr *sa)
 	.pr_control =	in_control,				\
 	.pr_close =	sctp_close,				\
 	.pr_detach =	sctp_close,				\
-	.pr_sopoll =	sopoll_generic,				\
 	.pr_disconnect = sctp_disconnect,			\
 	.pr_listen =	sctp_listen,				\
 	.pr_peeraddr =	sctp_peeraddr,				\

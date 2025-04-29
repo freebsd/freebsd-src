@@ -119,7 +119,7 @@ LDFLAGS+=	-Wl,-m,elf64lriscv_fbsd
 .endif
 .endif
 
-CXXSTD?=	c++17
+CXXSTD=		c++17
 CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
 .if ${.MAKE.OS} == "FreeBSD" || !defined(BOOTSTRAPPING)

@@ -63,7 +63,8 @@ CODE {
 	    int unit)
 	{
 
-		panic("bus_add_child is not implemented");
+		panic("%s: bus_add_child is not implemented, name '%s', "
+		    "unit %d", device_get_nameunit(bus), name, unit);
 	}
 
 	static int
@@ -80,6 +81,12 @@ CODE {
 
 	static struct rman *
 	null_get_rman(device_t bus, int type, u_int flags)
+	{
+		return (NULL);
+	}
+
+	static struct resource_list *
+	null_get_resource_list(device_t bus, device_t dev)
 	{
 		return (NULL);
 	}
@@ -608,7 +615,7 @@ METHOD void delete_resource {
 METHOD struct resource_list * get_resource_list {
 	device_t	_dev;
 	device_t	_child;
-} DEFAULT bus_generic_get_resource_list;
+} DEFAULT null_get_resource_list;
 
 /**
  * @brief Return a struct rman.

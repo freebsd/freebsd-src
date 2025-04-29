@@ -530,6 +530,7 @@ int
 kmem_back_domain(int domain, vm_object_t object, vm_offset_t addr,
     vm_size_t size, int flags)
 {
+	struct pctrie_iter pages;
 	vm_offset_t offset, i;
 	vm_page_t m, mpred;
 	vm_prot_t prot;
@@ -546,11 +547,12 @@ kmem_back_domain(int domain, vm_object_t object, vm_offset_t addr,
 	prot = (flags & M_EXEC) != 0 ? VM_PROT_ALL : VM_PROT_RW;
 
 	i = 0;
+	vm_page_iter_init(&pages, object);
 	VM_OBJECT_WLOCK(object);
 retry:
-	mpred = vm_radix_lookup_le(&object->rtree, atop(offset + i));
+	mpred = vm_radix_iter_lookup_lt(&pages, atop(offset + i));
 	for (; i < size; i += PAGE_SIZE, mpred = m) {
-		m = vm_page_alloc_domain_after(object, atop(offset + i),
+		m = vm_page_alloc_domain_after(object, &pages, atop(offset + i),
 		    domain, pflags, mpred);
 
 		/*
@@ -648,16 +650,16 @@ _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	pmap_remove(kernel_pmap, addr, addr + size);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	end = offset + size;
-	VM_OBJECT_WLOCK(object);
 	vm_page_iter_init(&pages, object);
-	m = vm_page_iter_lookup(&pages, atop(offset)); 
+	VM_OBJECT_WLOCK(object);
+	m = vm_radix_iter_lookup(&pages, atop(offset)); 
 	domain = vm_page_domain(m);
 	if (__predict_true((m->oflags & VPO_KMEM_EXEC) == 0))
 		arena = vm_dom[domain].vmd_kernel_arena;
 	else
 		arena = vm_dom[domain].vmd_kernel_rwx_arena;
 	for (; offset < end; offset += PAGE_SIZE,
-	    m = vm_page_iter_lookup(&pages, atop(offset))) {
+	    m = vm_radix_iter_lookup(&pages, atop(offset))) {
 		vm_page_xbusy_claim(m);
 		vm_page_unwire_noq(m);
 		vm_page_iter_free(&pages, m);
@@ -953,7 +955,7 @@ kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
 
 		vmd = vm_pagequeue_domain(m);
 		vm_domain_free_lock(vmd);
-		vm_phys_free_pages(m, 0);
+		vm_phys_free_pages(m, m->pool, 0);
 		vm_domain_free_unlock(vmd);
 
 		vm_domain_freecnt_inc(vmd, 1);

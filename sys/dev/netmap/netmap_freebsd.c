@@ -1025,11 +1025,20 @@ netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
 	return (VM_PAGER_OK);
 }
 
+static void
+netmap_dev_pager_path(void *handle, char *path, size_t len)
+{
+	struct netmap_vm_handle_t *vmh = handle;
+	struct cdev *dev = vmh->dev;
+
+	dev_copyname(dev, path, len);
+}
 
 static struct cdev_pager_ops netmap_cdev_pager_ops = {
 	.cdev_pg_ctor = netmap_dev_pager_ctor,
 	.cdev_pg_dtor = netmap_dev_pager_dtor,
 	.cdev_pg_fault = netmap_dev_pager_fault,
+	.cdev_pg_path = netmap_dev_pager_path,
 };
 
 

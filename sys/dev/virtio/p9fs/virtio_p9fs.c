@@ -488,7 +488,7 @@ vt9p_modevent(module_t mod, int type, void *unused)
 	return (error);
 }
 
-DRIVER_MODULE(virtio_p9fs, virtio_pci, vt9p_drv, vt9p_modevent, 0);
+VIRTIO_DRIVER_MODULE(virtio_p9fs, vt9p_drv, vt9p_modevent, NULL);
 MODULE_VERSION(virtio_p9fs, 1);
 MODULE_DEPEND(virtio_p9fs, virtio, 1, 1, 1);
 MODULE_DEPEND(virtio_p9fs, p9fs, 1, 1, 1);

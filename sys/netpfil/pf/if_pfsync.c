@@ -574,6 +574,12 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 		 * from the local ruleset.
 		 */
 		if (r != &V_pf_default_rule) {
+			struct pf_kpool		*pool = &r->route;
+
+			/* Backwards compatibility. */
+			if (TAILQ_EMPTY(&pool->list))
+				pool = &r->rdr;
+
 			/*
 			 * The ruleset is identical, try to recover. If the rule
 			 * has a redirection pool with a single interface, there
@@ -582,7 +588,7 @@ pfsync_state_import(union pfsync_state_union *sp, int flags, int msg_version)
 			 * give up, as we can't be sure that we will pick the
 			 * same one as the pfsync peer did.
 			 */
-			rpool_first = TAILQ_FIRST(&(r->rdr.list));
+			rpool_first = TAILQ_FIRST(&(pool->list));
 			if ((rpool_first == NULL) ||
 			    (TAILQ_NEXT(rpool_first, entries) != NULL)) {
 				DPFPRINTF(PF_DEBUG_MISC,
@@ -1045,7 +1051,7 @@ relock:
 			LIST_FOREACH(s, &ih->states, entry) {
 				if (s->creatorid == creatorid) {
 					s->state_flags |= PFSTATE_NOSYNC;
-					pf_unlink_state(s);
+					pf_remove_state(s);
 					goto relock;
 				}
 			}
@@ -1434,7 +1440,7 @@ pfsync_in_del_c(struct mbuf *m, int offset, int count, int flags, int action)
 		}
 
 		st->state_flags |= PFSTATE_NOSYNC;
-		pf_unlink_state(st);
+		pf_remove_state(st);
 	}
 
 	return (len);
@@ -1894,7 +1900,7 @@ pfsync_sendout(int schedswi, int c)
 
 		len -= sizeof(union inet_template) - sizeof(struct ip);
 		ip->ip_len = htons(len);
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip_random_id);
 		break;
 	    }
 #endif

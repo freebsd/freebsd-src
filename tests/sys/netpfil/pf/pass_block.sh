@@ -232,7 +232,7 @@ urpf_head()
 {
 	atf_set descr "Test unicast reverse path forwarding check"
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 urpf_body()
@@ -366,6 +366,16 @@ received_on_body()
 	    ping -c 1 203.0.113.2
 	atf_check -s exit:2 -o ignore \
 	    ping -c 1 203.0.113.3
+
+	# Test '! received-on'
+	pft_set_rules alcatraz \
+	    "pass in" \
+	    "block ! received-on ${epair_one}b"
+
+	atf_check -s exit:0 -o ignore \
+	    ping -c 1 192.0.2.1
+	atf_check -s exit:2 -o ignore \
+	    ping -c 1 198.51.100.1
 }
 
 received_on_cleanup()
@@ -408,6 +418,39 @@ optimize_any_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "any_if" "cleanup"
+any_if_head()
+{
+	atf_set descr 'Test the any interface keyword'
+	atf_set require.user root
+}
+
+any_if_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}b 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}a
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+	    "block" \
+	    "pass in on any"
+
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.1
+}
+
+any_if_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "enable_disable"
@@ -418,4 +461,5 @@ atf_init_test_cases()
 	atf_add_test_case "urpf"
 	atf_add_test_case "received_on"
 	atf_add_test_case "optimize_any"
+	atf_add_test_case "any_if"
 }

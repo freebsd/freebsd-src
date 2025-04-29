@@ -56,7 +56,6 @@
 #define	MV_CLOCK_SRC_ARMV7	25000000	/* Timers' 25MHz mode */
 
 struct mv_wdt_config {
-	enum soc_family wdt_soc;
 	uint32_t wdt_timer;
 	void (*wdt_enable)(void);
 	void (*wdt_disable)(void);
@@ -73,7 +72,6 @@ static void mv_wdt_disable_armada_38x(void);
 static void mv_wdt_disable_armada_xp(void);
 
 static struct mv_wdt_config mv_wdt_armada_38x_config = {
-	.wdt_soc = MV_SOC_ARMADA_38X,
 	.wdt_timer = 4,
 	.wdt_enable = &mv_wdt_enable_armada_38x,
 	.wdt_disable = &mv_wdt_disable_armada_38x,
@@ -81,7 +79,6 @@ static struct mv_wdt_config mv_wdt_armada_38x_config = {
 };
 
 static struct mv_wdt_config mv_wdt_armada_xp_config = {
-	.wdt_soc = MV_SOC_ARMADA_XP,
 	.wdt_timer = 2,
 	.wdt_enable = &mv_wdt_enable_armada_xp,
 	.wdt_disable = &mv_wdt_disable_armada_xp,
@@ -89,7 +86,6 @@ static struct mv_wdt_config mv_wdt_armada_xp_config = {
 };
 
 static struct mv_wdt_config mv_wdt_armv5_config = {
-	.wdt_soc = MV_SOC_ARMV5,
 	.wdt_timer = 2,
 	.wdt_enable = &mv_wdt_enable_armv5,
 	.wdt_disable = &mv_wdt_disable_armv5,

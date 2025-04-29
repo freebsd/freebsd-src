@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -660,8 +661,8 @@ dsl_early_sync_task_verify(dsl_pool_t *dp, uint64_t txg)
 
 		for (ms = txg_list_head(tl, TXG_CLEAN(txg)); ms;
 		    ms = txg_list_next(tl, ms, TXG_CLEAN(txg))) {
-			VERIFY(range_tree_is_empty(ms->ms_freeing));
-			VERIFY(range_tree_is_empty(ms->ms_checkpointing));
+			VERIFY(zfs_range_tree_is_empty(ms->ms_freeing));
+			VERIFY(zfs_range_tree_is_empty(ms->ms_checkpointing));
 		}
 	}
 

@@ -140,6 +140,8 @@ filed_to_nvlist(const struct filed *filed)
 		nvlist_add_string(nvl_filed, "f_hname", filed->f_hname);
 		nvlist_add_descriptor_array(nvl_filed, "f_addr_fds",
 		    filed->f_addr_fds, filed->f_num_addr_fds);
+		nvlist_add_binary(nvl_filed, "f_addrs", filed->f_addrs,
+		    filed->f_num_addr_fds * sizeof(*filed->f_addrs));
 	} else if (filed->f_type == F_PIPE) {
 		nvlist_add_string(nvl_filed, "f_pname", filed->f_pname);
 		if (filed->f_procdesc >= 0) {

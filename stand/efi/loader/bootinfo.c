@@ -182,7 +182,7 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	struct efi_map_header *efihdr;
 	bool do_vmap;
 
-#if defined(__amd64__) || defined(__aarch64__) || defined(__i386__)
+#ifdef MODINFOMD_EFI_FB
 	struct efi_fb efifb;
 
 	efifb.fb_addr = gfx_state.tg_fb.fb_addr;
@@ -414,15 +414,13 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	/* Handle device tree blob */
 	dtbp = addr;
 	dtb_size = fdt_copy(addr);
-		
+
 	/* Pad to a page boundary */
 	if (dtb_size)
 		addr += roundup(dtb_size, PAGE_SIZE);
 #endif
 
-	kfp = file_findfile(NULL, "elf kernel");
-	if (kfp == NULL)
-		kfp = file_findfile(NULL, "elf64 kernel");
+	kfp = file_findfile(NULL, md_kerntype);
 	if (kfp == NULL)
 		panic("can't find kernel file");
 	kernend = 0;	/* fill it in later */

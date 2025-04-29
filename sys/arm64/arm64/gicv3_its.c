@@ -532,7 +532,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 		cache = 0;
 	} else {
 		devbits = GITS_TYPER_DEVB(gic_its_read_8(sc, GITS_TYPER));
-		cache = GITS_BASER_CACHE_WAWB;
+		cache = GITS_BASER_CACHE_RAWAWB;
 	}
 	sc->sc_devbits = devbits;
 	share = GITS_BASER_SHARE_IS;
@@ -801,7 +801,7 @@ its_init_cpu_lpi(device_t dev, struct gicv3_its_softc *sc)
 		/* Make sure changes are observable my the GIC */
 		dsb(sy);
 
-		size = (flsl(LPI_CONFTAB_SIZE | GIC_FIRST_LPI) - 1);
+		size = ilog2_long(LPI_CONFTAB_SIZE | GIC_FIRST_LPI) - 1;
 
 		xbaser = vtophys(sc->sc_conf_base) |
 		    (GICR_PROPBASER_SHARE_IS << GICR_PROPBASER_SHARE_SHIFT) |
@@ -1744,9 +1744,15 @@ gicv3_iommu_init(device_t dev, device_t child, struct iommu_domain **domain)
 	int error;
 
 	sc = device_get_softc(dev);
+	/*
+	 * Get the context. If no context is found then the device isn't
+	 * behind an IOMMU so no setup is needed.
+	 */
 	ctx = iommu_get_dev_ctx(child);
-	if (ctx == NULL)
-		return (ENXIO);
+	if (ctx == NULL) {
+		*domain = NULL;
+		return (0);
+	}
 	/* Map the page containing the GITS_TRANSLATER register. */
 	error = iommu_map_msi(ctx, PAGE_SIZE, 0,
 	    IOMMU_MAP_ENTRY_WRITE, IOMMU_MF_CANWAIT, &sc->ma);

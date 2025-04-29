@@ -480,9 +480,10 @@ felix_detach(device_t dev)
 	int error;
 	int i;
 
-	error = 0;
 	sc = device_get_softc(dev);
-	bus_generic_detach(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	mtx_lock(&sc->mtx);
 	callout_stop(&sc->tick_callout);
@@ -497,8 +498,6 @@ felix_detach(device_t dev)
 		felix_setup(sc);
 
 	for (i = 0; i < sc->info.es_nports; i++) {
-		if (sc->ports[i].miibus != NULL)
-			device_delete_child(dev, sc->ports[i].miibus);
 		if (sc->ports[i].ifp != NULL)
 			if_free(sc->ports[i].ifp);
 		if (sc->ports[i].ifname != NULL)

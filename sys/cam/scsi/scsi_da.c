@@ -1803,10 +1803,20 @@ daopen(struct disk *dp)
 	    (softc->quirks & DA_Q_NO_PREVENT) == 0)
 		daprevent(periph, PR_PREVENT);
 
-	if (error == 0) {
+	/*
+	 * Only 'validate' the pack if the media size is non-zero and the
+	 * underlying peripheral isn't invalid (the only error != 0 path).  Once
+	 * the periph is marked invalid, we only get here on lost races with its
+	 * teardown, so keeping the pack invalid also keeps more I/O from
+	 * starting.
+	 */
+	if (error == 0 && softc->params.sectors != 0)
 		softc->flags &= ~DA_FLAG_PACK_INVALID;
+	else
+		softc->flags |= DA_FLAG_PACK_INVALID;
+
+	if (error == 0)
 		softc->flags |= DA_FLAG_OPEN;
-	}
 
 	da_periph_unhold(periph, DA_REF_OPEN_HOLD);
 	cam_periph_unlock(periph);
@@ -1899,7 +1909,15 @@ dastrategy(struct bio *bp)
 	cam_periph_lock(periph);
 
 	/*
-	 * If the device has been made invalid, error out
+	 * If the pack has been invalidated, fail all I/O. The medium is not
+	 * suitable for normal I/O, because one or more is ture:
+	 *	- the medium is missing
+	 *	- its size is unknown
+	 *	- it differs from the medium present at daopen
+	 *	- we're tearing the cam periph device down
+	 * Since we have the cam periph lock, we don't need to check it for
+	 * the last condition since PACK_INVALID is set when we invalidate
+	 * the device.
 	 */
 	if ((softc->flags & DA_FLAG_PACK_INVALID)) {
 		cam_periph_unlock(periph);
@@ -1946,6 +1964,10 @@ dadump(void *arg, void *virtual, off_t offset, size_t length)
 	softc = (struct da_softc *)periph->softc;
 	secsize = softc->params.secsize;
 
+	/*
+	 * Can't dump to a disk that's not there or changed, for whatever
+	 * reason.
+	 */
 	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0)
 		return (ENXIO);
 
@@ -2186,7 +2208,8 @@ daasync(void *callback_arg, uint32_t code,
 		ccb = (union ccb *)arg;
 
 		/*
-		 * Handle all UNIT ATTENTIONs except our own, as they will be
+		 * Unit attentions are broadcast to all the LUNs of the device
+		 * so handle all UNIT ATTENTIONs except our own, as they will be
 		 * handled by daerror().
 		 */
 		if (xpt_path_periph(ccb->ccb_h.path) != periph &&
@@ -4581,35 +4604,53 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			cam_periph_unlock(periph);
 			return;
 		}
+		/*
+		 * refresh bp, since cmd6workaround may set it to NULL when
+		 * there's no delete methos available since it pushes the bp
+		 * back onto the work queue to reschedule it (since different
+		 * delete methods have different size limitations).
+		 */
 		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 		if (error != 0) {
-			int queued_error;
+			bool pack_invalid =
+			    (softc->flags & DA_FLAG_PACK_INVALID) != 0;
 
-			/*
-			 * return all queued I/O with EIO, so that
-			 * the client can retry these I/Os in the
-			 * proper order should it attempt to recover.
-			 */
-			queued_error = EIO;
-
-			if (error == ENXIO
-			 && (softc->flags & DA_FLAG_PACK_INVALID)== 0) {
+			if (error == ENXIO && !pack_invalid) {
 				/*
-				 * Catastrophic error.  Mark our pack as
-				 * invalid.
+				 * ENXIO flags ASC/ASCQ codes for either media
+				 * missing, or the drive being extremely
+				 * unhealthy.  Invalidate peripheral on this
+				 * catestrophic error when the pack is valid
+				 * since we set the pack invalid bit only for
+				 * the few ASC/ASCQ codes indicating missing
+				 * media.  The invalidation will flush any
+				 * queued I/O and short-circuit retries for
+				 * other I/O. We only invalidate the da device
+				 * so the passX device remains for recovery and
+				 * diagnostics.
 				 *
-				 * XXX See if this is really a media
-				 * XXX change first?
+				 * While we do also set the pack invalid bit
+				 * after invalidating the peripheral, the
+				 * pending I/O will have been flushed then with
+				 * no new I/O starting, so this 'edge' case
+				 * doesn't matter.
 				 */
 				xpt_print(periph->path, "Invalidating pack\n");
-				softc->flags |= DA_FLAG_PACK_INVALID;
-#ifdef CAM_IO_STATS
-				softc->invalidations++;
-#endif
-				queued_error = ENXIO;
+				cam_periph_invalidate(periph);
+			} else {
+				/*
+				 * Return all queued I/O with EIO, so that the
+				 * client can retry these I/Os in the proper
+				 * order should it attempt to recover. When the
+				 * pack is invalid, fail all I/O with ENXIO
+				 * since we can't assume when the media returns
+				 * it's the same media and we force a trip
+				 * through daclose / daopen and the client won't
+				 * retry.
+				 */
+				cam_iosched_flush(softc->cam_iosched, NULL,
+				    pack_invalid ? ENXIO : EIO);
 			}
-			cam_iosched_flush(softc->cam_iosched, NULL,
-			   queued_error);
 			if (bp != NULL) {
 				bp->bio_error = error;
 				bp->bio_resid = bp->bio_bcount;
@@ -6016,6 +6057,16 @@ daerror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 			/* 28/0: NOT READY TO READY CHANGE, MEDIUM MAY HAVE CHANGED */
 			softc->flags &= ~DA_FLAG_PROBED;
 			disk_media_changed(softc->disk, M_NOWAIT);
+			/*
+			 * In an ideal world, we'd make sure that we have the
+			 * same medium mounted (if we'd seen one already) but
+			 * instead we don't invalidate the pack here and flag
+			 * below to retry the UAs. If we exhaust retries, then
+			 * we'll invalidate it in dadone for ENXIO errors (which
+			 * 28/0 will fail with eventually). Usually, retrying
+			 * just works and/or we get this before we've opened the
+			 * device (which clears the invalid flag).
+			 */
 		} else if (sense_key == SSD_KEY_UNIT_ATTENTION &&
 		    asc == 0x3F && ascq == 0x03) {
 			/* 3f/3: INQUIRY DATA HAS CHANGED */

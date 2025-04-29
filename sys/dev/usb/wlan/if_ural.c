@@ -19,7 +19,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 /*-
  * Ralink Technology RT2500USB chipset driver
  * http://www.ralinktech.com/
@@ -1227,7 +1226,7 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		rate = tp->ucastrate;
 	else {
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
-		rate = ni->ni_txrate;
+		rate = ieee80211_node_get_txrate_dot11rate(ni);
 	}
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {

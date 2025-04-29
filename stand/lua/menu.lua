@@ -255,9 +255,16 @@ menu.welcome = {
 			},
 			{
 				entry_type = core.MENU_SEPARATOR,
-				name = "Options:",
+				name = "Kernel:",
 			},
 			menu_entries.kernel_options,
+			{
+				entry_type = core.MENU_SEPARATOR,
+			},
+			{
+				entry_type = core.MENU_SEPARATOR,
+				name = "Options:",
+			},
 			menu_entries.boot_options,
 			menu_entries.zpool_checkpoints,
 			menu_entries.boot_envs,
@@ -332,22 +339,19 @@ menu.welcome = {
 			items = core.kernelList,
 			name = function(idx, choice, all_choices)
 				if #all_choices == 0 then
-					return "Kernel: "
+					return ""
 				end
 
-				local is_default = (idx == 1)
-				local kernel_name = ""
+				local kernel_name
 				local name_color
-				if is_default then
+				if idx == 1 then
 					name_color = color.escapefg(color.GREEN)
-					kernel_name = "default/"
 				else
 					name_color = color.escapefg(color.CYAN)
 				end
-				kernel_name = kernel_name .. name_color ..
-				    choice .. color.resetfg()
-				return color.highlight("K") .. "ernel: " ..
-				    kernel_name .. " (" .. idx .. " of " ..
+				kernel_name = name_color .. choice ..
+				    color.resetfg()
+				return kernel_name .. " (" .. idx .. " of " ..
 				    #all_choices .. ")"
 			end,
 			func = function(_, choice, _)
@@ -537,6 +541,7 @@ end
 function menu.autoboot(delay)
 	local x = loader.getenv("loader_menu_timeout_x") or 4
 	local y = loader.getenv("loader_menu_timeout_y") or 24
+	local autoboot_show = loader.getenv("loader_autoboot_show") or "yes"
 	local endtime = loader.time() + delay
 	local time
 	local last
@@ -544,10 +549,12 @@ function menu.autoboot(delay)
 		time = endtime - loader.time()
 		if last == nil or last ~= time then
 			last = time
-			screen.setcursor(x, y)
-			printc("Autoboot in " .. time ..
-			    " seconds. [Space] to pause ")
-			screen.defcursor()
+			if autoboot_show == "yes" then
+			   screen.setcursor(x, y)
+			   printc("Autoboot in " .. time ..
+				  " seconds. [Space] to pause ")
+			   screen.defcursor()
+			end
 		end
 		if io.ischar() then
 			local ch = io.getchar()

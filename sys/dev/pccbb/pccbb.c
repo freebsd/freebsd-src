@@ -275,41 +275,11 @@ int
 cbb_detach(device_t brdev)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
-	device_t *devlist;
-	int tmp, tries, error, numdevs;
+	int error;
 
-	/*
-	 * Before we delete the children (which we have to do because
-	 * attach doesn't check for children busses correctly), we have
-	 * to detach the children.  Even if we didn't need to delete the
-	 * children, we have to detach them.
-	 */
 	error = bus_generic_detach(brdev);
 	if (error != 0)
 		return (error);
-
-	/*
-	 * Since the attach routine doesn't search for children before it
-	 * attaches them to this device, we must delete them here in order
-	 * for the kldload/unload case to work.  If we failed to do that, then
-	 * we'd get duplicate devices when cbb.ko was reloaded.
-	 */
-	tries = 10;
-	do {
-		error = device_get_children(brdev, &devlist, &numdevs);
-		if (error == 0)
-			break;
-		/*
-		 * Try hard to cope with low memory.
-		 */
-		if (error == ENOMEM) {
-			pause("cbbnomem", 1);
-			continue;
-		}
-	} while (tries-- > 0);
-	for (tmp = 0; tmp < numdevs; tmp++)
-		device_delete_child(brdev, devlist[tmp]);
-	free(devlist, M_TEMP);
 
 	/* Turn off the interrupts */
 	cbb_set(sc, CBB_SOCKET_MASK, 0);

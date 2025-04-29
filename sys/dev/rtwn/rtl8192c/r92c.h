@@ -46,6 +46,7 @@ void	r92c_read_chipid_vendor(struct rtwn_softc *, uint32_t);
 /* r92c_beacon.c */
 void	r92c_beacon_init(struct rtwn_softc *, void *, int);
 void	r92c_beacon_enable(struct rtwn_softc *, int, int);
+void	r92c_sta_beacon_enable(struct rtwn_softc *, int, bool);
 
 /* r92c_calib.c */
 void	r92c_iq_calib(struct rtwn_softc *);
@@ -116,7 +117,7 @@ void	r92c_tx_enable_ampdu(void *, int);
 void	r92c_tx_setup_hwseq(void *);
 void	r92c_tx_setup_macid(void *, int);
 void	r92c_fill_tx_desc(struct rtwn_softc *, struct ieee80211_node *,
-	    struct mbuf *, void *, uint8_t, int);
+	    struct mbuf *, void *, uint8_t, bool, int);
 void	r92c_fill_tx_desc_raw(struct rtwn_softc *, struct ieee80211_node *,
 	    struct mbuf *, void *, const struct ieee80211_bpf_params *);
 void	r92c_fill_tx_desc_null(struct rtwn_softc *, void *, int, int, int);

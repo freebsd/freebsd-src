@@ -61,14 +61,14 @@ echo "#"
 
 for i
 do
-	if [ -d $i ]; then
-		echo "echo c - $i"
-		echo "mkdir -p $i > /dev/null 2>&1"
+	if [ -d "$i" ]; then
+		echo "echo c - '$i'"
+		echo "mkdir -p '$i' > /dev/null 2>&1"
 	else
-		md5sum=`echo -n $i | md5`
-		echo "echo x - $i"
-		echo "sed 's/^X//' >$i << '$md5sum'"
-		sed 's/^/X/' $i || exit
+		md5sum=`echo -n "$i" | md5`
+		echo "echo x - '$i'"
+		echo "sed 's/^X//' >'$i' << '$md5sum'"
+		sed 's/^/X/' "$i" || exit 1
 		echo "$md5sum"
 	fi
 done

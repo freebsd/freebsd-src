@@ -43,6 +43,9 @@
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/refcount.h>
+#include <sys/sdt.h>
+#include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 #include <dev/clk/clk.h>
 #include <dev/fdt/simplebus.h>
@@ -52,10 +55,30 @@
 #include "scmi.h"
 #include "scmi_protocols.h"
 
+SDT_PROVIDER_DEFINE(scmi);
+SDT_PROBE_DEFINE3(scmi, func, scmi_req_alloc, req_alloc,
+    "int", "int", "int");
+SDT_PROBE_DEFINE3(scmi, func, scmi_req_free_unlocked, req_alloc,
+    "int", "int", "int");
+SDT_PROBE_DEFINE3(scmi, func, scmi_req_get, req_alloc,
+    "int", "int", "int");
+SDT_PROBE_DEFINE3(scmi, func, scmi_req_put, req_alloc,
+    "int", "int", "int");
+SDT_PROBE_DEFINE5(scmi, func, scmi_request_tx, xfer_track,
+    "int", "int", "int", "int", "int");
+SDT_PROBE_DEFINE5(scmi, entry, scmi_wait_for_response, xfer_track,
+    "int", "int", "int", "int", "int");
+SDT_PROBE_DEFINE5(scmi, exit, scmi_wait_for_response, xfer_track,
+    "int", "int", "int", "int", "int");
+SDT_PROBE_DEFINE2(scmi, func, scmi_rx_irq_callback, hdr_dump,
+    "int", "int");
+SDT_PROBE_DEFINE5(scmi, func, scmi_process_response, xfer_track,
+    "int", "int", "int", "int", "int");
+
 #define SCMI_MAX_TOKEN		1024
 
 #define	SCMI_HDR_TOKEN_S		18
-#define SCMI_HDR_TOKEN_BF		(0x3fff)
+#define SCMI_HDR_TOKEN_BF		(0x3ff)
 #define	SCMI_HDR_TOKEN_M		(SCMI_HDR_TOKEN_BF << SCMI_HDR_TOKEN_S)
 
 #define	SCMI_HDR_PROTOCOL_ID_S		10
@@ -87,12 +110,21 @@
 
 #define SCMI_MSG_TOKEN(_hdr)		\
     (((_hdr) & SCMI_HDR_TOKEN_M) >> SCMI_HDR_TOKEN_S)
+#define SCMI_MSG_PROTOCOL_ID(_hdr)		\
+    (((_hdr) & SCMI_HDR_PROTOCOL_ID_M) >> SCMI_HDR_PROTOCOL_ID_S)
+#define SCMI_MSG_MESSAGE_ID(_hdr)		\
+    (((_hdr) & SCMI_HDR_MESSAGE_ID_M) >> SCMI_HDR_MESSAGE_ID_S)
+#define SCMI_MSG_TYPE(_hdr)		\
+    (((_hdr) & SCMI_HDR_TYPE_ID_M) >> SCMI_HDR_TYPE_ID_S)
 
 struct scmi_req {
 	int		cnt;
 	bool		timed_out;
 	bool		use_polling;
 	bool		done;
+	bool		is_raw;
+	device_t	dev;
+	struct task	tsk;
 	struct mtx	mtx;
 	LIST_ENTRY(scmi_req)	next;
 	int		protocol_id;
@@ -102,6 +134,7 @@ struct scmi_req {
 	struct scmi_msg msg;
 };
 
+#define tsk_to_req(t)	__containerof((t), struct scmi_req, tsk)
 #define buf_to_msg(b)	__containerof((b), struct scmi_msg, payld)
 #define msg_to_req(m)	__containerof((m), struct scmi_req, msg)
 #define buf_to_req(b)	msg_to_req(buf_to_msg(b))
@@ -127,16 +160,21 @@ struct scmi_transport {
 	struct mtx		mtx;
 };
 
-static int		scmi_transport_init(struct scmi_softc *);
+static void		scmi_transport_configure(struct scmi_transport_desc *, phandle_t);
+static int		scmi_transport_init(struct scmi_softc *, phandle_t);
 static void		scmi_transport_cleanup(struct scmi_softc *);
-static struct scmi_reqs_pool *scmi_reqs_pool_allocate(const int, const int);
+static void		scmi_req_async_waiter(void *, int);
+static struct scmi_reqs_pool *scmi_reqs_pool_allocate(device_t, const int,
+			    const int);
 static void		scmi_reqs_pool_free(struct scmi_reqs_pool *);
-static struct scmi_req *scmi_req_alloc(struct scmi_softc *, enum scmi_chan);
+static struct scmi_req	*scmi_req_alloc(struct scmi_softc *, enum scmi_chan);
+static struct scmi_req	*scmi_req_initialized_alloc(device_t, int, int);
 static void		scmi_req_free_unlocked(struct scmi_softc *,
-    enum scmi_chan, struct scmi_req *);
+			    enum scmi_chan, struct scmi_req *);
 static void		scmi_req_get(struct scmi_softc *, struct scmi_req *);
 static void		scmi_req_put(struct scmi_softc *, struct scmi_req *);
 static int		scmi_token_pick(struct scmi_softc *);
+static int		scmi_token_reserve(struct scmi_softc *, uint16_t);
 static void		scmi_token_release_unlocked(struct scmi_softc *, int);
 static int		scmi_req_track_inflight(struct scmi_softc *,
 			    struct scmi_req *);
@@ -146,11 +184,13 @@ static struct scmi_req *scmi_req_lookup_inflight(struct scmi_softc *, uint32_t);
 
 static int		scmi_wait_for_response(struct scmi_softc *,
 			    struct scmi_req *, void **);
-static void		scmi_process_response(struct scmi_softc *, uint32_t);
+static void		scmi_process_response(struct scmi_softc *, uint32_t,
+			    unsigned int);
 
 int
 scmi_attach(device_t dev)
 {
+	struct sysctl_oid *sysctl_trans;
 	struct scmi_softc *sc;
 	phandle_t node;
 	int error;
@@ -164,12 +204,23 @@ scmi_attach(device_t dev)
 
 	simplebus_init(dev, node);
 
-	error = scmi_transport_init(sc);
+	error = scmi_transport_init(sc, node);
 	if (error != 0)
 		return (error);
 
-	device_printf(dev, "Transport reply timeout initialized to %dms\n",
-	    sc->trs_desc.reply_timo_ms);
+	device_printf(dev, "Transport - max_msg:%d  max_payld_sz:%lu  reply_timo_ms:%d\n",
+	    SCMI_MAX_MSG(sc), SCMI_MAX_MSG_PAYLD_SIZE(sc), SCMI_MAX_MSG_TIMEOUT_MS(sc));
+
+	sc->sysctl_root = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_hw),
+	    OID_AUTO, "scmi", CTLFLAG_RD, 0, "SCMI root");
+	sysctl_trans = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(sc->sysctl_root),
+	    OID_AUTO, "transport", CTLFLAG_RD, 0, "SCMI Transport properties");
+	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(sysctl_trans), OID_AUTO, "max_msg",
+	    CTLFLAG_RD, &sc->trs_desc.max_msg, 0, "SCMI Max number of inflight messages");
+	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(sysctl_trans), OID_AUTO, "max_msg_size",
+	    CTLFLAG_RD, &sc->trs_desc.max_payld_sz, 0, "SCMI Max message payload size");
+	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(sysctl_trans), OID_AUTO, "max_rx_timeout_ms",
+	    CTLFLAG_RD, &sc->trs_desc.reply_timo_ms, 0, "SCMI Max message RX timeout ms");
 
 	/*
 	 * Allow devices to identify.
@@ -212,7 +263,7 @@ DRIVER_MODULE(scmi, simplebus, scmi_driver, 0, 0);
 MODULE_VERSION(scmi, 1);
 
 static struct scmi_reqs_pool *
-scmi_reqs_pool_allocate(const int max_msg, const int max_payld_sz)
+scmi_reqs_pool_allocate(device_t dev, const int max_msg, const int max_payld_sz)
 {
 	struct scmi_reqs_pool *rp;
 	struct scmi_req *req;
@@ -223,6 +274,10 @@ scmi_reqs_pool_allocate(const int max_msg, const int max_payld_sz)
 	for (int i = 0; i < max_msg; i++) {
 		req = malloc(sizeof(*req) + max_payld_sz,
 		    M_DEVBUF, M_ZERO | M_WAITOK);
+
+		req->dev = dev;
+		req->tsk.ta_context = &req->tsk;
+		req->tsk.ta_func = scmi_req_async_waiter;
 
 		mtx_init(&req->mtx, "req", "SCMI", MTX_SPIN);
 		LIST_INSERT_HEAD(&rp->head, req, next);
@@ -247,29 +302,42 @@ scmi_reqs_pool_free(struct scmi_reqs_pool *rp)
 	free(rp, M_DEVBUF);
 }
 
-static int
-scmi_transport_init(struct scmi_softc *sc)
+static void
+scmi_transport_configure(struct scmi_transport_desc *td, phandle_t node)
 {
+	if (OF_getencprop(node, "arm,max-msg", &td->max_msg, sizeof(td->max_msg)) == -1)
+		td->max_msg = SCMI_DEF_MAX_MSG;
+
+	if (OF_getencprop(node, "arm,max-msg-size", &td->max_payld_sz,
+	    sizeof(td->max_payld_sz)) == -1)
+		td->max_payld_sz = SCMI_DEF_MAX_MSG_PAYLD_SIZE;
+}
+
+static int
+scmi_transport_init(struct scmi_softc *sc, phandle_t node)
+{
+	struct scmi_transport_desc *td = &sc->trs_desc;
 	struct scmi_transport *trs;
 	int ret;
 
 	trs = malloc(sizeof(*trs), M_DEVBUF, M_ZERO | M_WAITOK);
 
+	scmi_transport_configure(td, node);
+
 	BIT_FILL(SCMI_MAX_TOKEN, &trs->avail_tokens);
 	mtx_init(&trs->mtx, "tokens", "SCMI", MTX_SPIN);
 
-	trs->inflight_ht = hashinit(SCMI_MAX_MSG, M_DEVBUF,
-	    &trs->inflight_mask);
+	trs->inflight_ht = hashinit(td->max_msg, M_DEVBUF, &trs->inflight_mask);
 
 	trs->chans[SCMI_CHAN_A2P] =
-	    scmi_reqs_pool_allocate(SCMI_MAX_MSG, SCMI_MAX_MSG_PAYLD_SIZE);
+	    scmi_reqs_pool_allocate(sc->dev, td->max_msg, td->max_payld_sz);
 	if (trs->chans[SCMI_CHAN_A2P] == NULL) {
 		free(trs, M_DEVBUF);
 		return (ENOMEM);
 	}
 
 	trs->chans[SCMI_CHAN_P2A] =
-	    scmi_reqs_pool_allocate(SCMI_MAX_MSG, SCMI_MAX_MSG_PAYLD_SIZE);
+	    scmi_reqs_pool_allocate(sc->dev, td->max_msg, td->max_payld_sz);
 	if (trs->chans[SCMI_CHAN_P2A] == NULL) {
 		scmi_reqs_pool_free(trs->chans[SCMI_CHAN_A2P]);
 		free(trs, M_DEVBUF);
@@ -285,8 +353,13 @@ scmi_transport_init(struct scmi_softc *sc)
 		return (ret);
 	}
 
+	/* Use default transport timeout if not overridden by OF */
+	OF_getencprop(node, "arm,max-rx-timeout-ms", &td->reply_timo_ms,
+	    sizeof(td->reply_timo_ms));
+
 	return (0);
 }
+
 static void
 scmi_transport_cleanup(struct scmi_softc *sc)
 {
@@ -297,6 +370,32 @@ scmi_transport_cleanup(struct scmi_softc *sc)
 	scmi_reqs_pool_free(sc->trs->chans[SCMI_CHAN_A2P]);
 	scmi_reqs_pool_free(sc->trs->chans[SCMI_CHAN_P2A]);
 	free(sc->trs, M_DEVBUF);
+}
+
+static struct scmi_req *
+scmi_req_initialized_alloc(device_t dev, int tx_payld_sz, int rx_payld_sz)
+{
+	struct scmi_softc *sc;
+	struct scmi_req *req;
+
+	sc = device_get_softc(dev);
+
+	if (tx_payld_sz > SCMI_MAX_MSG_PAYLD_SIZE(sc) ||
+	    rx_payld_sz > SCMI_MAX_MSG_REPLY_SIZE(sc)) {
+		device_printf(dev, "Unsupported payload size. Drop.\n");
+		return (NULL);
+	}
+
+	/* Pick one from free list */
+	req = scmi_req_alloc(sc, SCMI_CHAN_A2P);
+	if (req == NULL)
+		return (NULL);
+
+	req->msg.tx_len = sizeof(req->msg.hdr) + tx_payld_sz;
+	req->msg.rx_len = rx_payld_sz ?
+	    rx_payld_sz + 2 * sizeof(uint32_t) : SCMI_MAX_MSG_SIZE(sc);
+
+	return (req);
 }
 
 static struct scmi_req *
@@ -313,8 +412,11 @@ scmi_req_alloc(struct scmi_softc *sc, enum scmi_chan ch_idx)
 	}
 	mtx_unlock_spin(&rp->mtx);
 
-	if (req != NULL)
+	if (req != NULL) {
 		refcount_init(&req->cnt, 1);
+		SDT_PROBE3(scmi, func, scmi_req_alloc, req_alloc,
+		    req, refcount_load(&req->cnt), -1);
+	}
 
 	return (req);
 }
@@ -329,9 +431,13 @@ scmi_req_free_unlocked(struct scmi_softc *sc, enum scmi_chan ch_idx,
 	mtx_lock_spin(&rp->mtx);
 	req->timed_out = false;
 	req->done = false;
+	req->is_raw = false;
 	refcount_init(&req->cnt, 0);
 	LIST_INSERT_HEAD(&rp->head, req, next);
 	mtx_unlock_spin(&rp->mtx);
+
+	SDT_PROBE3(scmi, func, scmi_req_free_unlocked, req_alloc,
+	    req, refcount_load(&req->cnt), -1);
 }
 
 static void
@@ -346,6 +452,9 @@ scmi_req_get(struct scmi_softc *sc, struct scmi_req *req)
 	if (!ok)
 		device_printf(sc->dev, "%s() -- BAD REFCOUNT\n", __func__);
 
+	SDT_PROBE3(scmi, func, scmi_req_get, req_alloc,
+	    req, refcount_load(&req->cnt), SCMI_MSG_TOKEN(req->msg.hdr));
+
 	return;
 }
 
@@ -354,8 +463,15 @@ scmi_req_put(struct scmi_softc *sc, struct scmi_req *req)
 {
 	mtx_lock_spin(&req->mtx);
 	if (!refcount_release_if_not_last(&req->cnt)) {
-		bzero(&req->msg, sizeof(req->msg) + SCMI_MAX_MSG_PAYLD_SIZE);
+		req->protocol_id = 0;
+		req->message_id = 0;
+		req->token = 0;
+		req->header = 0;
+		bzero(&req->msg, sizeof(req->msg) + SCMI_MAX_MSG_PAYLD_SIZE(sc));
 		scmi_req_free_unlocked(sc, SCMI_CHAN_A2P, req);
+	} else {
+		SDT_PROBE3(scmi, func, scmi_req_put, req_alloc,
+		    req, refcount_load(&req->cnt), SCMI_MSG_TOKEN(req->msg.hdr));
 	}
 	mtx_unlock_spin(&req->mtx);
 }
@@ -373,7 +489,6 @@ scmi_token_pick(struct scmi_softc *sc)
 	 */
 	next_msg_id = sc->trs->next_id++ & SCMI_HDR_TOKEN_BF;
 	token = BIT_FFS_AT(SCMI_MAX_TOKEN, &sc->trs->avail_tokens, next_msg_id);
-	/* TODO Account for wrap-arounds and holes */
 	if (token != 0)
 		BIT_CLR(SCMI_MAX_TOKEN, token - 1, &sc->trs->avail_tokens);
 	mtx_unlock_spin(&sc->trs->mtx);
@@ -389,6 +504,28 @@ scmi_token_pick(struct scmi_softc *sc)
 	return ((int)(token - 1));
 }
 
+static int
+scmi_token_reserve(struct scmi_softc *sc, uint16_t candidate)
+{
+	int token = -EBUSY, retries = 3;
+
+	do {
+		mtx_lock_spin(&sc->trs->mtx);
+		if (BIT_ISSET(SCMI_MAX_TOKEN, candidate, &sc->trs->avail_tokens)) {
+			BIT_CLR(SCMI_MAX_TOKEN, candidate, &sc->trs->avail_tokens);
+			token = candidate;
+			sc->trs->next_id++;
+		}
+		mtx_unlock_spin(&sc->trs->mtx);
+		if (token == candidate || retries-- == 0)
+			break;
+
+		pause("scmi_tk_reserve", hz);
+	} while (1);
+
+	return (token);
+}
+
 static void
 scmi_token_release_unlocked(struct scmi_softc *sc, int token)
 {
@@ -399,19 +536,23 @@ scmi_token_release_unlocked(struct scmi_softc *sc, int token)
 static int
 scmi_finalize_req(struct scmi_softc *sc, struct scmi_req *req)
 {
-	uint32_t header = 0;
+	if (!req->is_raw)
+		req->token = scmi_token_pick(sc);
+	else
+		req->token = scmi_token_reserve(sc, SCMI_MSG_TOKEN(req->msg.hdr));
 
-	req->token = scmi_token_pick(sc);
 	if (req->token < 0)
 		return (EBUSY);
 
-	header = req->message_id;
-	header |= SCMI_MSG_TYPE_CMD << SCMI_HDR_MESSAGE_TYPE_S;
-	header |= req->protocol_id << SCMI_HDR_PROTOCOL_ID_S;
-	header |= req->token << SCMI_HDR_TOKEN_S;
+	if (!req->is_raw) {
+		req->msg.hdr = req->message_id;
+		req->msg.hdr |= SCMI_MSG_TYPE_CMD << SCMI_HDR_MESSAGE_TYPE_S;
+		req->msg.hdr |= req->protocol_id << SCMI_HDR_PROTOCOL_ID_S;
+		req->msg.hdr |= req->token << SCMI_HDR_TOKEN_S;
+	}
 
-	req->header = htole32(header);
-	req->msg.hdr = htole32(header);
+	/* Save requested header */
+	req->header = req->msg.hdr;
 
 	return (0);
 }
@@ -469,7 +610,7 @@ scmi_req_lookup_inflight(struct scmi_softc *sc, uint32_t hdr)
 }
 
 static void
-scmi_process_response(struct scmi_softc *sc, uint32_t hdr)
+scmi_process_response(struct scmi_softc *sc, uint32_t hdr, uint32_t rx_len)
 {
 	bool timed_out = false;
 	struct scmi_req *req;
@@ -482,8 +623,13 @@ scmi_process_response(struct scmi_softc *sc, uint32_t hdr)
 		return;
 	}
 
+	SDT_PROBE5(scmi, func, scmi_process_response, xfer_track, req,
+	    SCMI_MSG_PROTOCOL_ID(req->msg.hdr), SCMI_MSG_MESSAGE_ID(req->msg.hdr),
+	    SCMI_MSG_TOKEN(req->msg.hdr), req->timed_out);
+
 	mtx_lock_spin(&req->mtx);
 	req->done = true;
+	req->msg.rx_len = rx_len;
 	if (!req->timed_out) {
 		/*
 		 * Consider the case in which a polled message is picked
@@ -512,11 +658,13 @@ scmi_process_response(struct scmi_softc *sc, uint32_t hdr)
 }
 
 void
-scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr)
+scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr, uint32_t rx_len)
 {
 	struct scmi_softc *sc;
 
 	sc = device_get_softc(dev);
+
+	SDT_PROBE2(scmi, func, scmi_rx_irq_callback, hdr_dump, hdr, rx_len);
 
 	if (SCMI_IS_MSG_TYPE_NOTIF(hdr) || SCMI_IS_MSG_TYPE_DRESP(hdr)) {
 		device_printf(dev, "DRESP/NOTIF unsupported. Drop.\n");
@@ -524,19 +672,23 @@ scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr)
 		return;
 	}
 
-	scmi_process_response(sc, hdr);
+	scmi_process_response(sc, hdr, rx_len);
 }
 
 static int
 scmi_wait_for_response(struct scmi_softc *sc, struct scmi_req *req, void **out)
 {
+	unsigned int reply_timo_ms = SCMI_MAX_MSG_TIMEOUT_MS(sc);
 	int ret;
+
+	SDT_PROBE5(scmi, entry, scmi_wait_for_response, xfer_track, req,
+	    SCMI_MSG_PROTOCOL_ID(req->msg.hdr), SCMI_MSG_MESSAGE_ID(req->msg.hdr),
+	    SCMI_MSG_TOKEN(req->msg.hdr), reply_timo_ms);
 
 	if (req->msg.polling) {
 		bool needs_drop;
 
-		ret = SCMI_POLL_MSG(sc->dev, &req->msg,
-		    sc->trs_desc.reply_timo_ms);
+		ret = SCMI_POLL_MSG(sc->dev, &req->msg, reply_timo_ms);
 		/*
 		 * Drop reference to successfully polled req unless it had
 		 * already also been processed on the IRQ path.
@@ -545,6 +697,7 @@ scmi_wait_for_response(struct scmi_softc *sc, struct scmi_req *req, void **out)
 		 */
 		mtx_lock_spin(&req->mtx);
 		needs_drop = (ret == 0) && !req->done;
+		req->timed_out = ret != 0;
 		mtx_unlock_spin(&req->mtx);
 		if (needs_drop)
 			scmi_req_drop_inflight(sc, req);
@@ -554,12 +707,12 @@ scmi_wait_for_response(struct scmi_softc *sc, struct scmi_req *req, void **out)
 			    le32toh(req->msg.hdr), le32toh(req->header));
 		}
 	} else {
-		ret = tsleep(req, 0, "scmi_wait4",
-		    (sc->trs_desc.reply_timo_ms * hz) / 1000);
+		ret = tsleep(req, 0, "scmi_wait4", (reply_timo_ms * hz) / 1000);
 		/* Check for lost wakeups since there is no associated lock */
 		mtx_lock_spin(&req->mtx);
 		if (ret != 0 && req->done)
 			ret = 0;
+		req->timed_out = ret != 0;
 		mtx_unlock_spin(&req->mtx);
 	}
 
@@ -567,16 +720,18 @@ scmi_wait_for_response(struct scmi_softc *sc, struct scmi_req *req, void **out)
 		SCMI_COLLECT_REPLY(sc->dev, &req->msg);
 		if (req->msg.payld[0] != 0)
 			ret = req->msg.payld[0];
-		*out = &req->msg.payld[SCMI_MSG_HDR_SIZE];
+		if (out != NULL)
+			*out = &req->msg.payld[SCMI_MSG_HDR_SIZE];
 	} else {
-		mtx_lock_spin(&req->mtx);
-		req->timed_out = true;
-		mtx_unlock_spin(&req->mtx);
 		device_printf(sc->dev,
 		    "Request for token 0x%X timed-out.\n", req->token);
 	}
 
 	SCMI_TX_COMPLETE(sc->dev, NULL);
+
+	SDT_PROBE5(scmi, exit, scmi_wait_for_response, xfer_track, req,
+	    SCMI_MSG_PROTOCOL_ID(req->msg.hdr), SCMI_MSG_MESSAGE_ID(req->msg.hdr),
+	    SCMI_MSG_TOKEN(req->msg.hdr), req->timed_out);
 
 	return (ret);
 }
@@ -585,27 +740,15 @@ void *
 scmi_buf_get(device_t dev, uint8_t protocol_id, uint8_t message_id,
     int tx_payld_sz, int rx_payld_sz)
 {
-	struct scmi_softc *sc;
 	struct scmi_req *req;
 
-	sc = device_get_softc(dev);
-
-	if (tx_payld_sz > SCMI_MAX_MSG_PAYLD_SIZE ||
-	    rx_payld_sz > SCMI_MAX_MSG_REPLY_SIZE) {
-		device_printf(dev, "Unsupported payload size. Drop.\n");
-		return (NULL);
-	}
-
-	/* Pick one from free list */
-	req = scmi_req_alloc(sc, SCMI_CHAN_A2P);
+	/* Pick a pre-built req */
+	req = scmi_req_initialized_alloc(dev, tx_payld_sz, rx_payld_sz);
 	if (req == NULL)
 		return (NULL);
 
 	req->protocol_id = protocol_id & SCMI_HDR_PROTOCOL_ID_BF;
 	req->message_id = message_id & SCMI_HDR_MESSAGE_ID_BF;
-	req->msg.tx_len = sizeof(req->msg.hdr) + tx_payld_sz;
-	req->msg.rx_len = rx_payld_sz ?
-	    rx_payld_sz + 2 * sizeof(uint32_t) : SCMI_MAX_MSG_SIZE;
 
 	return (&req->msg.payld[0]);
 }
@@ -622,8 +765,50 @@ scmi_buf_put(device_t dev, void *buf)
 	scmi_req_put(sc, req);
 }
 
+struct scmi_msg *
+scmi_msg_get(device_t dev, int tx_payld_sz, int rx_payld_sz)
+{
+	struct scmi_req *req;
+
+	/* Pick a pre-built req */
+	req = scmi_req_initialized_alloc(dev, tx_payld_sz, rx_payld_sz);
+	if (req == NULL)
+		return (NULL);
+
+	req->is_raw = true;
+
+	return (&req->msg);
+}
+
+static void
+scmi_req_async_waiter(void *context, int pending)
+{
+	struct task *ta = context;
+	struct scmi_softc *sc;
+	struct scmi_req *req;
+
+	req = tsk_to_req(ta);
+	sc = device_get_softc(req->dev);
+	scmi_wait_for_response(sc, req, NULL);
+
+	scmi_msg_put(req->dev, &req->msg);
+}
+
+void
+scmi_msg_put(device_t dev, struct scmi_msg *msg)
+{
+	struct scmi_softc *sc;
+	struct scmi_req *req;
+
+	sc = device_get_softc(dev);
+
+	req = msg_to_req(msg);
+
+	scmi_req_put(sc, req);
+}
+
 int
-scmi_request(device_t dev, void *in, void **out)
+scmi_request_tx(device_t dev, void *in)
 {
 	struct scmi_softc *sc;
 	struct scmi_req *req;
@@ -638,8 +823,11 @@ scmi_request(device_t dev, void *in, void **out)
 
 	/* Set inflight and send using transport specific method - refc-2 */
 	error = scmi_req_track_inflight(sc, req);
-	if (error != 0)
+	if (error != 0) {
+		device_printf(dev, "Failed to build req with HDR |%0X|\n",
+		    req->msg.hdr);
 		return (error);
+	}
 
 	error = SCMI_XFER_MSG(sc->dev, &req->msg);
 	if (error != 0) {
@@ -647,5 +835,37 @@ scmi_request(device_t dev, void *in, void **out)
 		return (error);
 	}
 
+	SDT_PROBE5(scmi, func, scmi_request_tx, xfer_track, req,
+	    SCMI_MSG_PROTOCOL_ID(req->msg.hdr), SCMI_MSG_MESSAGE_ID(req->msg.hdr),
+	    SCMI_MSG_TOKEN(req->msg.hdr), req->msg.polling);
+
+	return (0);
+}
+
+int
+scmi_request(device_t dev, void *in, void **out)
+{
+	struct scmi_softc *sc;
+	struct scmi_req *req;
+	int error;
+
+	error = scmi_request_tx(dev, in);
+	if (error != 0)
+		return (error);
+
+	sc = device_get_softc(dev);
+	req = buf_to_req(in);
+
 	return (scmi_wait_for_response(sc, req, out));
+}
+
+int
+scmi_msg_async_enqueue(struct scmi_msg *msg)
+{
+	struct scmi_req *req;
+
+	req = msg_to_req(msg);
+
+	return taskqueue_enqueue_flags(taskqueue_thread, &req->tsk,
+	    TASKQUEUE_FAIL_IF_PENDING | TASKQUEUE_FAIL_IF_CANCELING);
 }

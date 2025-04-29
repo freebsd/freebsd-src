@@ -881,11 +881,11 @@ nat44_get_log(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 }
 
 static struct ipfw_sopt_handler	scodes[] = {
-	{ IP_FW_NAT44_XCONFIG,	0,	HDIR_SET,	nat44_cfg },
-	{ IP_FW_NAT44_DESTROY,	0,	HDIR_SET,	nat44_destroy },
-	{ IP_FW_NAT44_XGETCONFIG,	0,	HDIR_GET,	nat44_get_cfg },
-	{ IP_FW_NAT44_LIST_NAT,	0,	HDIR_GET,	nat44_list_nat },
-	{ IP_FW_NAT44_XGETLOG,	0,	HDIR_GET,	nat44_get_log },
+    { IP_FW_NAT44_XCONFIG,	IP_FW3_OPVER, HDIR_SET,	nat44_cfg },
+    { IP_FW_NAT44_DESTROY,	IP_FW3_OPVER, HDIR_SET,	nat44_destroy },
+    { IP_FW_NAT44_XGETCONFIG,	IP_FW3_OPVER, HDIR_GET,	nat44_get_cfg },
+    { IP_FW_NAT44_LIST_NAT,	IP_FW3_OPVER, HDIR_GET,	nat44_list_nat },
+    { IP_FW_NAT44_XGETLOG,	IP_FW3_OPVER, HDIR_GET,	nat44_get_log },
 };
 
 /*

@@ -100,11 +100,9 @@ typedef enum {
 	"\007RETRY_BUSY"
 
 typedef enum {
-	CD_FLAG_INVALID		= 0x0001,
 	CD_FLAG_NEW_DISC	= 0x0002,
 	CD_FLAG_DISC_LOCKED	= 0x0004,
 	CD_FLAG_DISC_REMOVABLE	= 0x0008,
-	CD_FLAG_SAW_MEDIA	= 0x0010,
 	CD_FLAG_ACTIVE		= 0x0080,
 	CD_FLAG_SCHED_ON_COMP	= 0x0100,
 	CD_FLAG_RETRY_UA	= 0x0200,
@@ -376,8 +374,6 @@ cdoninvalidate(struct cam_periph *periph)
 	 */
 	xpt_register_async(0, cdasync, periph, periph->path);
 
-	softc->flags |= CD_FLAG_INVALID;
-
 	/*
 	 * Return all queued I/O with ENXIO.
 	 * XXX Handle any transactions queued to the card
@@ -466,6 +462,7 @@ cdasync(void *callback_arg, uint32_t code,
 		if (xpt_path_periph(ccb->ccb_h.path) != periph &&
 		    scsi_extract_sense_ccb(ccb,
 		     &error_code, &sense_key, &asc, &ascq)) {
+			/* 28/0: NOT READY TO READY CHANGE, MEDIUM MAY HAVE CHANGED */
 			if (asc == 0x28 && ascq == 0x00)
 				disk_media_changed(softc->disk, M_NOWAIT);
 		}
@@ -739,22 +736,14 @@ static int
 cdopen(struct disk *dp)
 {
 	struct cam_periph *periph;
-	struct cd_softc *softc;
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	softc = (struct cd_softc *)periph->softc;
 
 	if (cam_periph_acquire(periph) != 0)
 		return(ENXIO);
 
 	cam_periph_lock(periph);
-
-	if (softc->flags & CD_FLAG_INVALID) {
-		cam_periph_release_locked(periph);
-		cam_periph_unlock(periph);
-		return(ENXIO);
-	}
 
 	if ((error = cam_periph_hold(periph, PRIBIO | PCATCH)) != 0) {
 		cam_periph_release_locked(periph);
@@ -860,7 +849,7 @@ cdstrategy(struct bio *bp)
 	/*
 	 * If the device has been made invalid, error out
 	 */
-	if ((softc->flags & CD_FLAG_INVALID)) {
+	if ((periph->flags & CAM_PERIPH_INVALID) != 0) {
 		cam_periph_unlock(periph);
 		biofinish(bp, NULL, ENXIO);
 		return;
@@ -1270,6 +1259,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 				 * CDROM or WORM device, as long as it
 				 * doesn't return a "Logical unit not
 				 * supported" (0x25) error.
+				 *
+				 * 25/0: LOGICAL UNIT NOT SUPPORTED
 				 */
 				if ((have_sense) && (asc != 0x25)
 				 && (error_code == SSD_CURRENT_ERROR
@@ -1498,7 +1489,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			softc->disk->d_mediasize =
 			    (off_t)softc->params.blksize *
 			    softc->params.disksize;
-			softc->flags |= CD_FLAG_SAW_MEDIA | CD_FLAG_VALID_MEDIA;
+			softc->flags |= CD_FLAG_VALID_MEDIA;
 			softc->state = CD_STATE_MEDIA_TOC_HDR;
 		} else {
 			softc->flags &= ~(CD_FLAG_VALID_MEDIA |
@@ -2887,14 +2878,20 @@ cderror(union ccb *ccb, uint32_t cam_flags, uint32_t sense_flags)
 		error = cd6byteworkaround(ccb);
 	} else if (scsi_extract_sense_ccb(ccb,
 	    &error_code, &sense_key, &asc, &ascq)) {
-		if (sense_key == SSD_KEY_ILLEGAL_REQUEST)
+		if (sense_key == SSD_KEY_ILLEGAL_REQUEST) {
 			error = cd6byteworkaround(ccb);
-		else if (sense_key == SSD_KEY_UNIT_ATTENTION &&
-		    asc == 0x28 && ascq == 0x00)
+		} else if (sense_key == SSD_KEY_UNIT_ATTENTION &&
+		    asc == 0x28 && ascq == 0x00) {
+			/* 28/0: NOT READY TO READY CHANGE, MEDIUM MAY HAVE CHANGED */
 			disk_media_changed(softc->disk, M_NOWAIT);
-		else if (sense_key == SSD_KEY_NOT_READY &&
-		    asc == 0x3a && (softc->flags & CD_FLAG_SAW_MEDIA)) {
-			softc->flags &= ~CD_FLAG_SAW_MEDIA;
+		} else if (sense_key == SSD_KEY_NOT_READY &&
+		    asc == 0x3a && (softc->flags & CD_FLAG_VALID_MEDIA)) {
+			/* 3a/0: MEDIUM NOT PRESENT */
+			/* 3a/1: MEDIUM NOT PRESENT - TRAY CLOSED */
+			/* 3a/2: MEDIUM NOT PRESENT - TRAY OPEN */
+			/* 3a/3: MEDIUM NOT PRESENT - LOADABLE */
+			/* 3a/4: MEDIUM NOT PRESENT - MEDIUM AUXILIARY MEMORY ACCESSIBLE */
+			softc->flags &= ~CD_FLAG_VALID_MEDIA;
 			disk_media_gone(softc->disk, M_NOWAIT);
 		}
 	}

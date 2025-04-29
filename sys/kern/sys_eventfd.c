@@ -25,27 +25,25 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/limits.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/types.h>
-#include <sys/user.h>
+#include <sys/event.h>
+#include <sys/eventfd.h>
+#include <sys/errno.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
-#include <sys/stat.h>
-#include <sys/errno.h>
-#include <sys/event.h>
+#include <sys/kernel.h>
+#include <sys/limits.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
-#include <sys/uio.h>
 #include <sys/selinfo.h>
-#include <sys/eventfd.h>
+#include <sys/stat.h>
+#include <sys/uio.h>
+#include <sys/user.h>
 
 #include <security/audit/audit.h>
 

@@ -277,6 +277,7 @@ enum intr_type {
 	INTR_EXCL = 256,		/* exclusive interrupt */
 	INTR_MPSAFE = 512,		/* this interrupt is SMP safe */
 	INTR_ENTROPY = 1024,		/* this interrupt provides entropy */
+	INTR_SLEEPABLE = 2048,		/* this interrupt handler can sleep */
 	INTR_MD1 = 4096,		/* flag reserved for MD use */
 	INTR_MD2 = 8192,		/* flag reserved for MD use */
 	INTR_MD3 = 16384,		/* flag reserved for MD use */
@@ -304,18 +305,6 @@ enum intr_polarity {
 enum cpu_sets {
 	LOCAL_CPUS = 0,
 	INTR_CPUS
-};
-
-typedef int (*devop_t)(void);
-
-/**
- * @brief This structure is deprecated.
- *
- * Use the kobj(9) macro DEFINE_CLASS to
- * declare classes which implement device drivers.
- */
-struct driver {
-	KOBJ_CLASS_FIELDS;
 };
 
 struct resource;
@@ -468,8 +457,6 @@ int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
 ssize_t	bus_generic_get_property(device_t dev, device_t child,
 				 const char *propname, void *propvalue,
 				 size_t size, device_property_type_t type);
-struct resource_list *
-	bus_generic_get_resource_list(device_t, device_t);
 int	bus_generic_map_resource(device_t dev, device_t child,
 				 struct resource *r,
 				 struct resource_map_request *args,
@@ -863,24 +850,25 @@ struct driver_module_data {
 	int		dmd_pass;
 };
 
-#define	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, evh, arg,	 \
+#define	EARLY_DRIVER_MODULE_ORDERED(_name, busname, driver, evh, arg,	\
     order, pass)							\
 									\
-static struct driver_module_data name##_##busname##_driver_mod = {	\
-	evh, arg,							\
-	#busname,							\
-	(kobj_class_t) &driver,						\
-	NULL,								\
-	pass								\
+static struct driver_module_data _name##_##busname##_driver_mod = {	\
+	.dmd_chainevh = evh,						\
+	.dmd_chainarg = arg,						\
+	.dmd_busname =  #busname,					\
+	.dmd_driver =   (kobj_class_t)&driver,				\
+	.dmd_devclass = NULL,						\
+	.dmd_pass =     pass,						\
 };									\
 									\
-static moduledata_t name##_##busname##_mod = {				\
-	#busname "/" #name,						\
-	driver_module_handler,						\
-	&name##_##busname##_driver_mod					\
+static moduledata_t _name##_##busname##_mod = {				\
+	.name =	  #busname "/" #_name ,					\
+	.evhand = driver_module_handler,				\
+	.priv =	  &_name##_##busname##_driver_mod,			\
 };									\
-DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
-	       SI_SUB_DRIVERS, order)
+DECLARE_MODULE(_name##_##busname, _name##_##busname##_mod,		\
+   SI_SUB_DRIVERS, order)
 
 #define	EARLY_DRIVER_MODULE(name, busname, driver, evh, arg, pass)	\
 	EARLY_DRIVER_MODULE_ORDERED(name, busname, driver, evh, arg,	\

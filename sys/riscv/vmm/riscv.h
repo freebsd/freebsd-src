@@ -38,6 +38,8 @@
 #include <machine/pcpu.h>
 #include <machine/vmm.h>
 
+#include <riscv/vmm/vmm_vtimer.h>
+
 struct hypregs {
 	uint64_t hyp_ra;
 	uint64_t hyp_sp;
@@ -65,6 +67,20 @@ struct hypcsr {
 	uint64_t senvcfg;
 };
 
+enum vmm_fence_type {
+	VMM_RISCV_FENCE_INVALID = 0,
+	VMM_RISCV_FENCE_I,
+	VMM_RISCV_FENCE_VMA,
+	VMM_RISCV_FENCE_VMA_ASID,
+};
+
+struct vmm_fence {
+	enum vmm_fence_type type;
+	size_t start;
+	size_t size;
+	uint64_t asid;
+};
+
 struct hypctx {
 	struct hypregs host_regs;
 	struct hypregs guest_regs;
@@ -78,6 +94,16 @@ struct hypctx {
 	bool has_exception;
 	int cpu_id;
 	int ipi_pending;
+	int interrupts_pending;
+	struct vtimer vtimer;
+
+	struct vmm_fence *fence_queue;
+	struct mtx fence_queue_mtx;
+	int fence_queue_head;
+	int fence_queue_tail;
+#define	FENCE_REQ_I	(1 << 0)
+#define	FENCE_REQ_VMA	(1 << 1)
+	int fence_req;
 };
 
 struct hyp {
@@ -124,9 +150,10 @@ DEFINE_VMMOPS_IFUNC(void, vmspace_free, (struct vmspace *vmspace))
 struct hypctx *riscv_get_active_vcpu(void);
 void vmm_switch(struct hypctx *);
 void vmm_unpriv_trap(struct hyptrap *, uint64_t tmp);
-int vmm_sbi_ecall(struct vcpu *, bool *);
+bool vmm_sbi_ecall(struct vcpu *);
 
-void riscv_send_ipi(struct hypctx *hypctx, int hart_id);
+void riscv_send_ipi(struct hyp *hyp, cpuset_t *cpus);
 int riscv_check_ipi(struct hypctx *hypctx, bool clear);
+bool riscv_check_interrupts_pending(struct hypctx *hypctx);
 
 #endif /* !_VMM_RISCV_H_ */

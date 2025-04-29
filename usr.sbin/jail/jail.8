@@ -513,6 +513,42 @@ sysctl and uname -r.
 The number for the jail's
 .Va kern.osreldate
 and uname -K.
+.It Va meta , Va env
+An arbitrary string associated with the jail.
+Its maximum buffer size is controlled by the global
+.Va security.jail.meta_maxbufsize
+sysctl, which can only be adjusted by the non-jailed root user.
+While the
+.Va meta
+is hidden from the jail, the
+.Va env
+is readable through the
+.Va security.jail.env
+sysctl.
+.Pp
+Each buffer can be treated as a set of key=value\\n strings.
+In order to add or replace a specific key the
+.Va meta.keyname=value
+or
+.Va env.keyname=value
+parameter notations must be used.
+While
+.Va meta.keyname=
+or
+.Va env.keyname=
+reset the value to an empty string, the
+.Va meta.keyname
+or
+.Va env.keyname
+notations, without the equal sign, remove the given key.
+Respectively, the same
+.Va meta.keyname
+or
+.Va env.keyname
+notations are used to query a specific key while reading jail parameters
+using such commands as
+.Xr jls 8 .
+Multiple keys can be queried or modified with a single command.
 .It Va allow.*
 Some restrictions of the jail environment may be set on a per-jail
 basis.

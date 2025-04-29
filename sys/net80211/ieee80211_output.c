@@ -214,7 +214,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 * frames will always have sequence numbers allocated from the NON_QOS
 	 * TID.
 	 */
-	if (do_ampdu) {
+	if (!IEEE80211_CONF_AMPDU_OFFLOAD(ic) && do_ampdu) {
 		if ((m->m_flags & M_EAPOL) == 0 && (! mcast)) {
 			int tid = WME_AC_TO_TID(M_WME_GETAC(m));
 			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[tid];
@@ -2649,6 +2649,12 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 
 /*
  * Calculate capability information for mgt frames.
+ *
+ * This fills out the 16 bit capability field in various management
+ * frames for non-DMG STAs.  DMG STAs are not supported.
+ *
+ * See 802.11-2020 9.4.1.4 (Capability Information Field) for the
+ * field definitions.
  */
 uint16_t
 ieee80211_getcapinfo(struct ieee80211vap *vap, struct ieee80211_channel *chan)

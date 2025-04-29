@@ -26,6 +26,7 @@
 
 #include <sys/cdefs.h>
 #include "opt_acpi.h"
+#include "opt_evdev.h"
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
@@ -40,6 +41,15 @@
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
 #include "acpi_wmi_if.h"
+
+#include <dev/backlight/backlight.h>
+#include "backlight_if.h"
+
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/input.h>
+#include <dev/evdev/evdev.h>
+#define NO_KEY	KEY_RESERVED
+#endif
 
 #define _COMPONENT	ACPI_OEM
 ACPI_MODULE_NAME("ASUS-WMI")
@@ -89,9 +99,11 @@ ACPI_MODULE_NAME("ASUS-WMI")
 #define ASUS_WMI_DEVID_CARDREADER       0x00080013
 #define ASUS_WMI_DEVID_TOUCHPAD         0x00100011
 #define ASUS_WMI_DEVID_TOUCHPAD_LED     0x00100012
+#define ASUS_WMI_DEVID_TUF_RGB_MODE	0x00100056
 #define ASUS_WMI_DEVID_THERMAL_CTRL     0x00110011
 #define ASUS_WMI_DEVID_FAN_CTRL         0x00110012
 #define ASUS_WMI_DEVID_PROCESSOR_STATE  0x00120012
+#define ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY 0x00120075
 
 /* DSTS masks */
 #define ASUS_WMI_DSTS_STATUS_BIT        0x00000001
@@ -102,6 +114,12 @@ ACPI_MODULE_NAME("ASUS-WMI")
 #define ASUS_WMI_DSTS_BRIGHTNESS_MASK   0x000000FF
 #define ASUS_WMI_DSTS_MAX_BRIGTH_MASK   0x0000FF00
 
+/* Events */
+#define ASUS_WMI_EVENT_QUEUE_SIZE	0x10
+#define ASUS_WMI_EVENT_QUEUE_END	0x1
+#define ASUS_WMI_EVENT_MASK		0xFFFF
+#define ASUS_WMI_EVENT_VALUE_ATK	0xFF
+
 struct acpi_asus_wmi_softc {
 	device_t	dev;
 	device_t	wmi_dev;
@@ -110,6 +128,14 @@ struct acpi_asus_wmi_softc {
 	struct sysctl_oid	*sysctl_tree;
 	int		dsts_id;
 	int		handle_keys;
+	bool		event_queue;
+	struct cdev	*kbd_bkl;
+	uint32_t	kbd_bkl_level;
+	uint32_t	tuf_rgb_mode;
+	uint32_t	ttp_mode;
+#ifdef EVDEV_SUPPORT
+	struct evdev_dev	*evdev;
+#endif
 };
 
 static struct {
@@ -250,8 +276,90 @@ static struct {
 		.dev_id		= ASUS_WMI_DEVID_PROCESSOR_STATE,
 		.flag_rdonly	= 1
 	},
+	{
+		.name		= "throttle_thermal_policy",
+		.dev_id		= ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY,
+		.description	= "Throttle Thermal Policy "
+				  "(0 - default, 1 - overboost, 2 - silent)",
+	},
 	{ NULL, 0, NULL, 0 }
 };
+
+#ifdef EVDEV_SUPPORT
+static const struct {
+	UINT32		notify;
+	uint16_t	key;
+} acpi_asus_wmi_evdev_map[] = {
+	{ 0x20, KEY_BRIGHTNESSDOWN },
+	{ 0x2f, KEY_BRIGHTNESSUP },
+	{ 0x30, KEY_VOLUMEUP },
+	{ 0x31, KEY_VOLUMEDOWN },
+	{ 0x32, KEY_MUTE },
+	{ 0x35, KEY_SCREENLOCK },
+	{ 0x38, KEY_PROG3 },		/* Armoury Crate */
+	{ 0x40, KEY_PREVIOUSSONG },
+	{ 0x41, KEY_NEXTSONG },
+	{ 0x43, KEY_STOPCD },		/* Stop/Eject */
+	{ 0x45, KEY_PLAYPAUSE },
+	{ 0x4f, KEY_LEFTMETA },		/* Fn-locked "Windows" Key */
+	{ 0x4c, KEY_MEDIA },		/* WMP Key */
+	{ 0x50, KEY_EMAIL },
+	{ 0x51, KEY_WWW },
+	{ 0x55, KEY_CALC },
+	{ 0x57, NO_KEY },		/* Battery mode */
+	{ 0x58, NO_KEY },		/* AC mode */
+	{ 0x5C, KEY_F15 },		/* Power Gear key */
+	{ 0x5D, KEY_WLAN },		/* Wireless console Toggle */
+	{ 0x5E, KEY_WLAN },		/* Wireless console Enable */
+	{ 0x5F, KEY_WLAN },		/* Wireless console Disable */
+	{ 0x60, KEY_TOUCHPAD_ON },
+	{ 0x61, KEY_SWITCHVIDEOMODE },	/* SDSP LCD only */
+	{ 0x62, KEY_SWITCHVIDEOMODE },	/* SDSP CRT only */
+	{ 0x63, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + CRT */
+	{ 0x64, KEY_SWITCHVIDEOMODE },	/* SDSP TV */
+	{ 0x65, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + TV */
+	{ 0x66, KEY_SWITCHVIDEOMODE },	/* SDSP CRT + TV */
+	{ 0x67, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + CRT + TV */
+	{ 0x6B, KEY_TOUCHPAD_TOGGLE },
+	{ 0x6E, NO_KEY },		/* Low Battery notification */
+	{ 0x71, KEY_F13 },		/* General-purpose button */
+	{ 0x79, NO_KEY },	/* Charger type dectection notification */
+	{ 0x7a, KEY_ALS_TOGGLE },	/* Ambient Light Sensor Toggle */
+	{ 0x7c, KEY_MICMUTE },
+	{ 0x7D, KEY_BLUETOOTH },	/* Bluetooth Enable */
+	{ 0x7E, KEY_BLUETOOTH },	/* Bluetooth Disable */
+	{ 0x82, KEY_CAMERA },
+	{ 0x86, KEY_PROG1 },		/* MyASUS Key */
+	{ 0x88, KEY_RFKILL },		/* Radio Toggle Key */
+	{ 0x8A, KEY_PROG1 },		/* Color enhancement mode */
+	{ 0x8C, KEY_SWITCHVIDEOMODE },	/* SDSP DVI only */
+	{ 0x8D, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + DVI */
+	{ 0x8E, KEY_SWITCHVIDEOMODE },	/* SDSP CRT + DVI */
+	{ 0x8F, KEY_SWITCHVIDEOMODE },	/* SDSP TV + DVI */
+	{ 0x90, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + CRT + DVI */
+	{ 0x91, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + TV + DVI */
+	{ 0x92, KEY_SWITCHVIDEOMODE },	/* SDSP CRT + TV + DVI */
+	{ 0x93, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + CRT + TV + DVI */
+	{ 0x95, KEY_MEDIA },
+	{ 0x99, KEY_PHONE },		/* Conflicts with fan mode switch */
+	{ 0xA0, KEY_SWITCHVIDEOMODE },	/* SDSP HDMI only */
+	{ 0xA1, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + HDMI */
+	{ 0xA2, KEY_SWITCHVIDEOMODE },	/* SDSP CRT + HDMI */
+	{ 0xA3, KEY_SWITCHVIDEOMODE },	/* SDSP TV + HDMI */
+	{ 0xA4, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + CRT + HDMI */
+	{ 0xA5, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + TV + HDMI */
+	{ 0xA6, KEY_SWITCHVIDEOMODE },	/* SDSP CRT + TV + HDMI */
+	{ 0xA7, KEY_SWITCHVIDEOMODE },	/* SDSP LCD + CRT + TV + HDMI */
+	{ 0xAE, KEY_FN_F5 },		/* Fn+F5 fan mode on 2020+ */
+	{ 0xB3, KEY_PROG4 },		/* AURA */
+	{ 0xB5, KEY_CALC },
+	{ 0xC4, KEY_KBDILLUMUP },
+	{ 0xC5, KEY_KBDILLUMDOWN },
+	{ 0xC6, NO_KEY },		/* Ambient Light Sensor notification */
+	{ 0xFA, KEY_PROG2 },		/* Lid flip action */
+	{ 0xBD, KEY_PROG2 },	/* Lid flip action on ROG xflow laptops */
+};
+#endif
 
 ACPI_SERIAL_DECL(asus_wmi, "ASUS WMI device");
 
@@ -259,24 +367,42 @@ static void	acpi_asus_wmi_identify(driver_t *driver, device_t parent);
 static int	acpi_asus_wmi_probe(device_t dev);
 static int	acpi_asus_wmi_attach(device_t dev);
 static int	acpi_asus_wmi_detach(device_t dev);
+static int	acpi_asus_wmi_suspend(device_t dev);
+static int	acpi_asus_wmi_resume(device_t dev);
 
 static int	acpi_asus_wmi_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_asus_wmi_sysctl_set(struct acpi_asus_wmi_softc *sc, int dev_id,
 		    int arg, int oldarg);
 static int	acpi_asus_wmi_sysctl_get(struct acpi_asus_wmi_softc *sc, int dev_id);
 static int	acpi_asus_wmi_evaluate_method(device_t wmi_dev, int method,
-		    UINT32 arg0, UINT32 arg1, UINT32 *retval);
+		    UINT32 arg0, UINT32 arg1, UINT32 arg2, UINT32 *retval);
 static int	acpi_wpi_asus_get_devstate(struct acpi_asus_wmi_softc *sc,
 		    UINT32 dev_id, UINT32 *retval);
 static int	acpi_wpi_asus_set_devstate(struct acpi_asus_wmi_softc *sc,
 		    UINT32 dev_id, UINT32 ctrl_param, UINT32 *retval);
+static int	acpi_asus_wmi_get_event_code(device_t wmi_dev, UINT32 notify,
+		    int *code);
 static void	acpi_asus_wmi_notify(ACPI_HANDLE h, UINT32 notify, void *context);
+static int	acpi_asus_wmi_backlight_update_status(device_t dev,
+		    struct backlight_props *props);
+static int	acpi_asus_wmi_backlight_get_status(device_t dev,
+		    struct backlight_props *props);
+static int	acpi_asus_wmi_backlight_get_info(device_t dev,
+		    struct backlight_info *info);
 
 static device_method_t acpi_asus_wmi_methods[] = {
+	/* Device interface */
 	DEVMETHOD(device_identify, acpi_asus_wmi_identify),
 	DEVMETHOD(device_probe, acpi_asus_wmi_probe),
 	DEVMETHOD(device_attach, acpi_asus_wmi_attach),
 	DEVMETHOD(device_detach, acpi_asus_wmi_detach),
+	DEVMETHOD(device_suspend, acpi_asus_wmi_suspend),
+	DEVMETHOD(device_resume, acpi_asus_wmi_resume),
+
+	/* Backlight interface */
+        DEVMETHOD(backlight_update_status, acpi_asus_wmi_backlight_update_status),
+        DEVMETHOD(backlight_get_status, acpi_asus_wmi_backlight_get_status),
+        DEVMETHOD(backlight_get_info, acpi_asus_wmi_backlight_get_info),
 
 	DEVMETHOD_END
 };
@@ -290,6 +416,34 @@ static driver_t	acpi_asus_wmi_driver = {
 DRIVER_MODULE(acpi_asus_wmi, acpi_wmi, acpi_asus_wmi_driver, 0, 0);
 MODULE_DEPEND(acpi_asus_wmi, acpi_wmi, 1, 1, 1);
 MODULE_DEPEND(acpi_asus_wmi, acpi, 1, 1, 1);
+MODULE_DEPEND(acpi_asus_wmi, backlight, 1, 1, 1);
+#ifdef EVDEV_SUPPORT
+MODULE_DEPEND(acpi_asus_wmi, evdev, 1, 1, 1);
+#endif
+
+static const uint32_t acpi_asus_wmi_backlight_levels[] = { 0, 33, 66, 100 };
+
+static inline uint32_t
+devstate_to_kbd_bkl_level(UINT32 val)
+{
+	return (acpi_asus_wmi_backlight_levels[val & 0x3]);
+}
+
+static inline UINT32
+kbd_bkl_level_to_devstate(uint32_t bkl)
+{
+	UINT32 val;
+	int i;
+
+	for (i = 0; i < nitems(acpi_asus_wmi_backlight_levels); i++) {
+		if (bkl < acpi_asus_wmi_backlight_levels[i])
+			break;
+	}
+	val = (i - 1) & 0x3;
+	if (val != 0)
+		val |= 0x80;
+	return(val);
+}
 
 static void
 acpi_asus_wmi_identify(driver_t *driver, device_t parent)
@@ -328,7 +482,8 @@ acpi_asus_wmi_attach(device_t dev)
 {
 	struct acpi_asus_wmi_softc	*sc;
 	UINT32			val;
-	int			dev_id, i;
+	int			dev_id, i, code;
+	bool			have_kbd_bkl = false;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
@@ -383,14 +538,14 @@ next:
 
 	/* Initialize. */
 	if (!acpi_asus_wmi_evaluate_method(sc->wmi_dev,
-	    ASUS_WMI_METHODID_INIT, 0, 0, &val) && bootverbose)
+	    ASUS_WMI_METHODID_INIT, 0, 0, 0, &val) && bootverbose)
 		device_printf(dev, "Initialization: %#x\n", val);
 	if (!acpi_asus_wmi_evaluate_method(sc->wmi_dev,
-	    ASUS_WMI_METHODID_SPEC, 0, 0x9, &val) && bootverbose)
+	    ASUS_WMI_METHODID_SPEC, 0, 0x9, 0, &val) && bootverbose)
 		device_printf(dev, "WMI BIOS version: %d.%d\n",
 		    val >> 16, val & 0xFF);
 	if (!acpi_asus_wmi_evaluate_method(sc->wmi_dev,
-	    ASUS_WMI_METHODID_SFUN, 0, 0, &val) && bootverbose)
+	    ASUS_WMI_METHODID_SFUN, 0, 0, 0, &val) && bootverbose)
 		device_printf(dev, "SFUN value: %#x\n", val);
 
 	ACPI_SERIAL_BEGIN(asus_wmi);
@@ -413,6 +568,10 @@ next:
 			if (val == 0)
 				continue;
 			break;
+		case ASUS_WMI_DEVID_KBD_BACKLIGHT:
+			sc->kbd_bkl_level = devstate_to_kbd_bkl_level(val);
+			have_kbd_bkl = true;
+			/* FALLTHROUGH */
 		default:
 			if ((val & ASUS_WMI_DSTS_PRESENCE_BIT) == 0)
 				continue;
@@ -437,6 +596,54 @@ next:
 	}
 	ACPI_SERIAL_END(asus_wmi);
 
+	/* Detect and flush event queue */
+	if (sc->dsts_id == ASUS_WMI_METHODID_DSTS2) {
+		for (i = 0; i <= ASUS_WMI_EVENT_QUEUE_SIZE; i++) {
+			if (acpi_asus_wmi_get_event_code(sc->wmi_dev,
+			    ASUS_WMI_EVENT_VALUE_ATK, &code) != 0) {
+				device_printf(dev,
+				    "Can not flush event queue\n");
+				break;
+			}
+			if (code == ASUS_WMI_EVENT_QUEUE_END ||
+			    code == ASUS_WMI_EVENT_MASK) {
+				sc->event_queue = true;
+				break;
+			}
+		}
+	}
+
+#ifdef EVDEV_SUPPORT
+	if (sc->notify_guid != NULL) {
+		sc->evdev = evdev_alloc();
+		evdev_set_name(sc->evdev, device_get_desc(dev));
+		evdev_set_phys(sc->evdev, device_get_nameunit(dev));
+		evdev_set_id(sc->evdev, BUS_HOST, 0, 0, 1);
+		evdev_support_event(sc->evdev, EV_SYN);
+		evdev_support_event(sc->evdev, EV_KEY);
+		for (i = 0; i < nitems(acpi_asus_wmi_evdev_map); i++) {
+			if (acpi_asus_wmi_evdev_map[i].key != NO_KEY)
+				evdev_support_key(sc->evdev,
+				    acpi_asus_wmi_evdev_map[i].key);
+		}
+
+		if (evdev_register(sc->evdev) != 0) {
+			device_printf(dev, "Can not register evdev\n");
+			acpi_asus_wmi_detach(dev);
+			return (ENXIO);
+		}
+	}
+#endif
+
+	if (have_kbd_bkl) {
+		sc->kbd_bkl = backlight_register("acpi_asus_wmi", dev);
+		if (sc->kbd_bkl == NULL) {
+			device_printf(dev, "Can not register backlight\n");
+			acpi_asus_wmi_detach(dev);
+			return (ENXIO);
+		}
+	}
+
 	return (0);
 }
 
@@ -447,8 +654,43 @@ acpi_asus_wmi_detach(device_t dev)
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
-	if (sc->notify_guid)
+	if (sc->kbd_bkl != NULL)
+		backlight_destroy(sc->kbd_bkl);
+
+	if (sc->notify_guid) {
 		ACPI_WMI_REMOVE_EVENT_HANDLER(dev, sc->notify_guid);
+#ifdef EVDEV_SUPPORT
+		evdev_free(sc->evdev);
+#endif
+	}
+
+	return (0);
+}
+
+static int
+acpi_asus_wmi_suspend(device_t dev)
+{
+	struct acpi_asus_wmi_softc *sc = device_get_softc(dev);
+
+	if (sc->kbd_bkl != NULL) {
+		ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
+		acpi_wpi_asus_set_devstate(sc,
+		    ASUS_WMI_DEVID_KBD_BACKLIGHT, 0, NULL);
+	}
+
+	return (0);
+}
+
+static int
+acpi_asus_wmi_resume(device_t dev)
+{
+	struct acpi_asus_wmi_softc *sc = device_get_softc(dev);
+
+	if (sc->kbd_bkl != NULL) {
+		ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
+		acpi_wpi_asus_set_devstate(sc, ASUS_WMI_DEVID_KBD_BACKLIGHT,
+		    kbd_bkl_level_to_devstate(sc->kbd_bkl_level), NULL);
+	}
 
 	return (0);
 }
@@ -488,6 +730,13 @@ acpi_asus_wmi_sysctl_get(struct acpi_asus_wmi_softc *sc, int dev_id)
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 	ACPI_SERIAL_ASSERT(asus_wmi);
 
+	switch(dev_id) {
+	case ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY:
+		return (sc->ttp_mode);
+	default:
+		break;
+	}
+
 	acpi_wpi_asus_get_devstate(sc, dev_id, &val);
 
 	switch(dev_id) {
@@ -501,7 +750,7 @@ acpi_asus_wmi_sysctl_get(struct acpi_asus_wmi_softc *sc, int dev_id)
 		val &= ASUS_WMI_DSTS_BRIGHTNESS_MASK;
 		break;
 	case ASUS_WMI_DEVID_KBD_BACKLIGHT:
-		val &= 0x7;
+		val &= 0x3;
 		break;
 	default:
 		if (val & ASUS_WMI_DSTS_UNKNOWN_BIT)
@@ -522,9 +771,13 @@ acpi_asus_wmi_sysctl_set(struct acpi_asus_wmi_softc *sc, int dev_id, int arg, in
 
 	switch(dev_id) {
 	case ASUS_WMI_DEVID_KBD_BACKLIGHT:
-		arg = min(0x7, arg);
+		arg = min(0x3, arg);
 		if (arg != 0)
 			arg |= 0x80;
+		break;
+	case ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY:
+		arg = min(0x2, arg);
+		sc->ttp_mode = arg;
 		break;
 	}
 
@@ -540,32 +793,65 @@ acpi_asus_wmi_free_buffer(ACPI_BUFFER* buf) {
 	}
 }
 
-static void
-acpi_asus_wmi_notify(ACPI_HANDLE h, UINT32 notify, void *context)
+static int
+acpi_asus_wmi_get_event_code(device_t wmi_dev, UINT32 notify, int *code)
 {
-	device_t dev = context;
-	ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, notify);
-	UINT32 val;
-	int code = 0;
-
-	struct acpi_asus_wmi_softc *sc = device_get_softc(dev);
 	ACPI_BUFFER response = { ACPI_ALLOCATE_BUFFER, NULL };
 	ACPI_OBJECT *obj;
-	ACPI_WMI_GET_EVENT_DATA(sc->wmi_dev, notify, &response);
+	int error = 0;
+
+	if (ACPI_FAILURE(ACPI_WMI_GET_EVENT_DATA(wmi_dev, notify, &response)))
+		return (EIO);
 	obj = (ACPI_OBJECT*) response.Pointer;
-	if (obj && obj->Type == ACPI_TYPE_INTEGER) {
-		code = obj->Integer.Value;
+	if (obj && obj->Type == ACPI_TYPE_INTEGER)
+		*code = obj->Integer.Value & ASUS_WMI_EVENT_MASK;
+	else
+		error = EINVAL;
+	acpi_asus_wmi_free_buffer(&response);
+	return (error);
+}
+
+#ifdef EVDEV_SUPPORT
+static void
+acpi_asus_wmi_push_evdev_event(struct evdev_dev *evdev, UINT32 notify)
+{
+	int i;
+	uint16_t key;
+
+	for (i = 0; i < nitems(acpi_asus_wmi_evdev_map); i++) {
+		if (acpi_asus_wmi_evdev_map[i].notify == notify &&
+		    acpi_asus_wmi_evdev_map[i].key != NO_KEY) {
+			key = acpi_asus_wmi_evdev_map[i].key;
+			evdev_push_key(evdev, key, 1);
+			evdev_sync(evdev);
+			evdev_push_key(evdev, key, 0);
+			evdev_sync(evdev);
+			break;
+		}
+	}
+}
+#endif
+
+static void
+acpi_asus_wmi_handle_event(struct acpi_asus_wmi_softc *sc, int code)
+{
+	UINT32 val;
+
+	if (code != 0) {
 		acpi_UserNotify("ASUS", ACPI_ROOT_OBJECT,
 		    code);
+#ifdef EVDEV_SUPPORT
+		acpi_asus_wmi_push_evdev_event(sc->evdev, code);
+#endif
 	}
 	if (code && sc->handle_keys) {
 		/* Keyboard backlight control. */
 		if (code == 0xc4 || code == 0xc5) {
 			acpi_wpi_asus_get_devstate(sc,
 			    ASUS_WMI_DEVID_KBD_BACKLIGHT, &val);
-			val &= 0x7;
+			val &= 0x3;
 			if (code == 0xc4) {
-				if (val < 0x7)
+				if (val < 0x3)
 					val++;
 			} else if (val > 0)
 				val--;
@@ -573,6 +859,7 @@ acpi_asus_wmi_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 				val |= 0x80;
 			acpi_wpi_asus_set_devstate(sc,
 			    ASUS_WMI_DEVID_KBD_BACKLIGHT, val, NULL);
+			sc->kbd_bkl_level = devstate_to_kbd_bkl_level(val);
 		}
 		/* Touchpad control. */
 		if (code == 0x6b) {
@@ -582,15 +869,68 @@ acpi_asus_wmi_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 			acpi_wpi_asus_set_devstate(sc,
 			    ASUS_WMI_DEVID_TOUCHPAD, val, NULL);
 		}
+		/* Throttle thermal policy control. */
+		if (code == 0xae) {
+			sc->ttp_mode++;
+			if (sc->ttp_mode > 2)
+				sc->ttp_mode = 0;
+			acpi_wpi_asus_set_devstate(sc,
+			    ASUS_WMI_DEVID_THROTTLE_THERMAL_POLICY,
+			    sc->ttp_mode, NULL);
+		}
+		/* TUF laptop RGB mode control. */
+		if (code == 0xb3) {
+			const uint32_t cmd = 0xb4;	/* Save to BIOS */
+			const uint32_t r = 0xff, g = 0xff, b = 0xff;
+			const uint32_t speed = 0xeb;	/* Medium */
+			if (sc->tuf_rgb_mode < 2)
+				sc->tuf_rgb_mode++;
+			else if (sc->tuf_rgb_mode == 2)
+				sc->tuf_rgb_mode = 10;
+			else sc->tuf_rgb_mode = 0;
+			acpi_asus_wmi_evaluate_method(sc->wmi_dev,
+			    ASUS_WMI_METHODID_DEVS,
+			    ASUS_WMI_DEVID_TUF_RGB_MODE,
+			    cmd | (sc->tuf_rgb_mode << 8) | (r << 16) | (g << 24),
+			    b | (speed << 8), NULL);
+		}
 	}
-	acpi_asus_wmi_free_buffer(&response);
+}
+
+static void
+acpi_asus_wmi_notify(ACPI_HANDLE h, UINT32 notify, void *context)
+{
+	device_t dev = context;
+	struct acpi_asus_wmi_softc *sc = device_get_softc(dev);
+	int code = 0, i = 1;
+
+	ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, notify);
+
+	if (sc->event_queue)
+		i += ASUS_WMI_EVENT_QUEUE_SIZE;
+	do {
+		if (acpi_asus_wmi_get_event_code(sc->wmi_dev, notify, &code)
+		    != 0) {
+			device_printf(dev, "Failed to get event code\n");
+			return;
+	        }
+		if (code == ASUS_WMI_EVENT_QUEUE_END ||
+		    code == ASUS_WMI_EVENT_MASK)
+			return;
+		acpi_asus_wmi_handle_event(sc, code);
+		if (notify != ASUS_WMI_EVENT_VALUE_ATK)
+			return;
+	} while (--i != 0);
+	if (sc->event_queue)
+		device_printf(dev, "Can not read event queue, "
+		    "last code: 0x%x\n", code);
 }
 
 static int
 acpi_asus_wmi_evaluate_method(device_t wmi_dev, int method,
-    UINT32 arg0, UINT32 arg1, UINT32 *retval)
+    UINT32 arg0, UINT32 arg1, UINT32 arg2, UINT32 *retval)
 {
-	UINT32		params[2] = { arg0, arg1 };
+	UINT32		params[3] = { arg0, arg1, arg2 };
 	UINT32		result;
 	ACPI_OBJECT	*obj;
 	ACPI_BUFFER	in = { sizeof(params), &params };
@@ -618,7 +958,7 @@ acpi_wpi_asus_get_devstate(struct acpi_asus_wmi_softc *sc,
 {
 
 	return (acpi_asus_wmi_evaluate_method(sc->wmi_dev,
-	    sc->dsts_id, dev_id, 0, retval));
+	    sc->dsts_id, dev_id, 0, 0, retval));
 }
 
 static int
@@ -627,5 +967,40 @@ acpi_wpi_asus_set_devstate(struct acpi_asus_wmi_softc *sc,
 {
 
 	return (acpi_asus_wmi_evaluate_method(sc->wmi_dev,
-	    ASUS_WMI_METHODID_DEVS, dev_id, ctrl_param, retval));
+	    ASUS_WMI_METHODID_DEVS, dev_id, ctrl_param, 0, retval));
+}
+
+static int
+acpi_asus_wmi_backlight_update_status(device_t dev, struct backlight_props
+    *props)
+{
+	struct acpi_asus_wmi_softc *sc = device_get_softc(dev);
+
+	acpi_wpi_asus_set_devstate(sc, ASUS_WMI_DEVID_KBD_BACKLIGHT,
+	    kbd_bkl_level_to_devstate(props->brightness), NULL);
+	sc->kbd_bkl_level = props->brightness;
+
+	return (0);
+}
+
+static int
+acpi_asus_wmi_backlight_get_status(device_t dev, struct backlight_props *props)
+{
+	struct acpi_asus_wmi_softc *sc = device_get_softc(dev);
+
+	props->brightness = sc->kbd_bkl_level;
+	props->nlevels = nitems(acpi_asus_wmi_backlight_levels);
+	memcpy(props->levels, acpi_asus_wmi_backlight_levels,
+	    sizeof(acpi_asus_wmi_backlight_levels));
+
+        return (0);
+}
+
+static int
+acpi_asus_wmi_backlight_get_info(device_t dev, struct backlight_info *info)
+{
+        info->type = BACKLIGHT_TYPE_KEYBOARD;
+        strlcpy(info->name, "ASUS Keyboard", BACKLIGHTMAXNAMELENGTH);
+
+        return (0);
 }

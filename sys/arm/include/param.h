@@ -49,8 +49,6 @@
 #define STACKALIGNBYTES	(8 - 1)
 #define STACKALIGN(p)	((u_int)(p) & ~STACKALIGNBYTES)
 
-#define __PCI_REROUTE_INTERRUPT
-
 #ifndef MACHINE
 #define	MACHINE		"arm"
 #endif
@@ -123,17 +121,10 @@
 /*
  * Mach derived conversion macros
  */
-#define	trunc_page(x)		((x) & ~PAGE_MASK)
-#define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
 #define	trunc_1mpage(x)		((unsigned)(x) & ~PDRMASK)
 #define	round_1mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
 
-#define	atop(x)			((unsigned)(x) >> PAGE_SHIFT)
-#define	ptoa(x)			((unsigned)(x) << PAGE_SHIFT)
-
 #define	arm32_btop(x)		((unsigned)(x) >> PAGE_SHIFT)
 #define	arm32_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
-
-#define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
 
 #endif /* !_ARM_INCLUDE_PARAM_H_ */

@@ -91,6 +91,8 @@
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_radix.h>
 #include <vm/uma.h>
 
 #include <fs/devfs/devfs.h>
@@ -2559,7 +2561,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 			pi_adv = atop(entry->end - addr);
 			pindex = pi;
 			for (tobj = obj;; tobj = tobj->backing_object) {
-				m = vm_page_find_least(tobj, pindex);
+				m = vm_radix_lookup_ge(&tobj->rtree, pindex);
 				if (m != NULL) {
 					if (m->pindex == pindex)
 						break;
@@ -2615,11 +2617,9 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 	struct ucred *cred;
 	struct vnode *vp;
 	struct vmspace *vm;
-	struct cdev *cdev;
-	struct cdevsw *csw;
 	vm_offset_t addr;
 	unsigned int last_timestamp;
-	int error, ref;
+	int error;
 	key_t key;
 	unsigned short seq;
 	bool guard, super;
@@ -2715,19 +2715,10 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 
 			kve->kve_ref_count = obj->ref_count;
 			kve->kve_shadow_count = obj->shadow_count;
-			if ((obj->type == OBJT_DEVICE ||
-			    obj->type == OBJT_MGTDEVICE) &&
-			    (obj->flags & OBJ_CDEVH) != 0) {
-				cdev = obj->un_pager.devp.handle;
-				if (cdev != NULL) {
-					csw = dev_refthread(cdev, &ref);
-					if (csw != NULL) {
-						strlcpy(kve->kve_path,
-						    cdev->si_name, sizeof(
-						    kve->kve_path));
-						dev_relthread(cdev, ref);
-					}
-				}
+			if (obj->type == OBJT_DEVICE ||
+			    obj->type == OBJT_MGTDEVICE) {
+				cdev_pager_get_path(obj, kve->kve_path,
+				    sizeof(kve->kve_path));
 			}
 			VM_OBJECT_RUNLOCK(obj);
 			if ((lobj->flags & OBJ_SYSVSHM) != 0) {

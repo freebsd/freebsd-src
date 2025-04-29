@@ -63,10 +63,13 @@ feed_volume_##SIGN##BIT##ENDIAN(int *vol, int *matrix,			\
 		do {							\
 			dst -= PCM_##BIT##_BPS;				\
 			i--;						\
-			x = PCM_READ_##SIGN##BIT##_##ENDIAN(dst);	\
+			x = pcm_sample_read_calc(dst,			\
+			    AFMT_##SIGN##BIT##_##ENDIAN);		\
 			v = FEEDVOLUME_CALC##BIT(x, vol[matrix[i]]);	\
-			x = PCM_CLAMP_##SIGN##BIT(v);			\
-			_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, x);	\
+			x = pcm_clamp_calc(v,				\
+			    AFMT_##SIGN##BIT##_##ENDIAN);		\
+			pcm_sample_write(dst, x,			\
+			    AFMT_##SIGN##BIT##_##ENDIAN);		\
 		} while (i != 0);					\
 	} while (--count != 0);						\
 }
@@ -90,6 +93,8 @@ FEEDVOLUME_DECLARE(U, 32, LE)
 FEEDVOLUME_DECLARE(U, 16, BE)
 FEEDVOLUME_DECLARE(U, 24, BE)
 FEEDVOLUME_DECLARE(U, 32, BE)
+FEEDVOLUME_DECLARE(F, 32, LE)
+FEEDVOLUME_DECLARE(F, 32, BE)
 #endif
 
 struct feed_volume_info {

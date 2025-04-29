@@ -25,6 +25,20 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the 
 second edition of the AWK book was published in September 2023.
 
+Jan 14, 2025
+	Fix incorrect error line number issues. unput has
+	no business managing lineno. Thanks to Ozan Yigit.
+
+Jan 05, 2025
+	Fix hex detection in is_valid_number.
+	Fix indirect field specification with non-numeric string
+	eg. $("foo") in indirect. This is not illegal.
+	Thanks to Arnold Robbins.
+
+Jan 01, 2025
+	Fixed openfile to not try to read from a directory.
+	Thanks to Arnold Robbins.
+
 Jul 28, 2024
 	Fixed readcsvrec resize segfault when reading csv records longer
 	than 8k. Thanks to Ozan Yigit.

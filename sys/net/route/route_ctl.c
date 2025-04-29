@@ -109,10 +109,11 @@ SYSCTL_DECL(_net_route);
 #define	V_rib_route_multipath	VNET(rib_route_multipath)
 #ifdef ROUTE_MPATH
 #define _MP_FLAGS	CTLFLAG_RW
+VNET_DEFINE(u_int, rib_route_multipath) = 1;
 #else
 #define _MP_FLAGS	CTLFLAG_RD
+VNET_DEFINE(u_int, rib_route_multipath) = 0;
 #endif
-VNET_DEFINE(u_int, rib_route_multipath) = 1;
 SYSCTL_UINT(_net_route, OID_AUTO, multipath, _MP_FLAGS | CTLFLAG_VNET,
     &VNET_NAME(rib_route_multipath), 0, "Enable route multipath");
 #undef _MP_FLAGS
@@ -820,7 +821,7 @@ add_route_flags(struct rib_head *rnh, struct rtentry *rt, struct route_nhop_data
 
 	/* Now either append or replace */
 	if (op_flags & RTM_F_REPLACE) {
-		if (nhop_get_prio(rnd_orig.rnd_nhop) > nhop_get_prio(rnd_add->rnd_nhop)) {
+		if (nhop_get_prio(rnd_orig.rnd_nhop) == NH_PRIORITY_HIGH) {
 			/* Old path is "better" (e.g. has PINNED flag set) */
 			RIB_WUNLOCK(rnh);
 			error = EEXIST;

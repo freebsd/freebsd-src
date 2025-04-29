@@ -664,6 +664,8 @@ struct ip6_hdr;
 
 int	in6_cksum(struct mbuf *, uint8_t, uint32_t, uint32_t);
 int	in6_cksum_partial(struct mbuf *, uint8_t, uint32_t, uint32_t, uint32_t);
+int	in6_cksum_partial_l2(struct mbuf *m, uint8_t nxt, uint32_t off_l3,
+	    uint32_t off_l4, uint32_t len, uint32_t cov);
 int	in6_cksum_pseudo(struct ip6_hdr *, uint32_t, uint8_t, uint16_t);
 
 int	in6_localaddr(struct in6_addr *);

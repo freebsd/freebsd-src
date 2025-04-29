@@ -398,6 +398,21 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 		flags |= IEEE80211_KEY_SWCRYPT;
 	}
 	/*
+	 * Check if the software cipher is available; if not then
+	 * fail it early.
+	 *
+	 * Some devices do not support all ciphers in software
+	 * (for example they don't support a "raw" data path.)
+	 */
+	if ((flags & IEEE80211_KEY_SWCRYPT) &&
+	    (ic->ic_sw_cryptocaps & (1<<cipher)) == 0) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
+		    "%s: no s/w support for cipher %s, rejecting\n",
+		    __func__, cip->ic_name);
+		vap->iv_stats.is_crypto_swcipherfail++;
+		return (0);
+	}
+	/*
 	 * Hardware TKIP with software MIC is an important
 	 * combination; we handle it by flagging each key,
 	 * the cipher modules honor it.
@@ -466,14 +481,15 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 			 */
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 			    "%s: driver override for cipher %s, flags "
-			    "0x%x -> 0x%x\n", __func__, cip->ic_name,
-			    oflags, key->wk_flags);
+			    "%b -> %b\n", __func__, cip->ic_name,
+			    oflags, IEEE80211_KEY_BITS,
+			    key->wk_flags, IEEE80211_KEY_BITS);
 			keyctx = cip->ic_attach(vap, key);
 			if (keyctx == NULL) {
 				IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 				    "%s: unable to attach cipher %s with "
-				    "flags 0x%x\n", __func__, cip->ic_name,
-				    key->wk_flags);
+				    "flags %b\n", __func__, cip->ic_name,
+				    key->wk_flags, IEEE80211_KEY_BITS);
 				key->wk_flags = oflags;	/* restore old flags */
 				vap->iv_stats.is_crypto_attachfail++;
 				return 0;
@@ -498,9 +514,9 @@ _ieee80211_crypto_delkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	KASSERT(key->wk_cipher != NULL, ("No cipher!"));
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-	    "%s: %s keyix %u flags 0x%x rsc %ju tsc %ju len %u\n",
+	    "%s: %s keyix %u flags %b rsc %ju tsc %ju len %u\n",
 	    __func__, key->wk_cipher->ic_name,
-	    key->wk_keyix, key->wk_flags,
+	    key->wk_keyix, key->wk_flags, IEEE80211_KEY_BITS,
 	    key->wk_keyrsc[IEEE80211_NONQOS_TID], key->wk_keytsc,
 	    key->wk_keylen);
 
@@ -566,9 +582,9 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	KASSERT(cip != NULL, ("No cipher!"));
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-	    "%s: %s keyix %u flags 0x%x mac %s rsc %ju tsc %ju len %u\n",
+	    "%s: %s keyix %u flags %b mac %s rsc %ju tsc %ju len %u\n",
 	    __func__, cip->ic_name, key->wk_keyix,
-	    key->wk_flags, ether_sprintf(key->wk_macaddr),
+	    key->wk_flags, IEEE80211_KEY_BITS, ether_sprintf(key->wk_macaddr),
 	    key->wk_keyrsc[IEEE80211_NONQOS_TID], key->wk_keytsc,
 	    key->wk_keylen);
 
@@ -586,9 +602,9 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	 */
 	if (!cip->ic_setkey(key)) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-		    "%s: cipher %s rejected key index %u len %u flags 0x%x\n",
+		    "%s: cipher %s rejected key index %u len %u flags %b\n",
 		    __func__, cip->ic_name, key->wk_keyix,
-		    key->wk_keylen, key->wk_flags);
+		    key->wk_keylen, key->wk_flags, IEEE80211_KEY_BITS);
 		vap->iv_stats.is_crypto_setkey_cipher++;
 		return 0;
 	}
@@ -741,7 +757,7 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen,
 		k = &ni->ni_ucastkey;
 
 	/*
-	 * Insure crypto header is contiguous and long enough for all
+	 * Ensure crypto header is contiguous and long enough for all
 	 * decap work.
 	 */
 	cip = k->wk_cipher;
@@ -773,8 +789,22 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen,
 #undef IEEE80211_WEP_HDRLEN
 }
 
-/*
- * Check and remove any MIC.
+/**
+ * @brief Check and remove any post-defragmentation MIC from an MSDU.
+ *
+ * This is called after defragmentation.  Crypto types that implement
+ * a MIC/ICV check per MSDU will not implement this function.
+ *
+ * As an example, TKIP decapsulation covers both MIC/ICV checks per
+ * MPDU (the "WEP" ICV) and then a Michael MIC verification on the
+ * defragmented MSDU.  Please see 802.11-2020 12.5.2.1.3 (TKIP decapsulation)
+ * for more information.
+ *
+ * @param vap	the current VAP
+ * @param k	the current key
+ * @param m	the mbuf representing the MSDU
+ * @param f	set to 1 to force a MSDU MIC check, even if HW decrypted
+ * @returns	0 if error / MIC check failed, 1 if OK
  */
 int
 ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
@@ -791,20 +821,22 @@ ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
 	 * Handle demic / mic errors from hardware-decrypted offload devices.
 	 */
 	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_DECRYPTED)) {
-		if (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MIC) {
+		if ((rxs->c_pktflags & IEEE80211_RX_F_FAIL_MMIC) != 0) {
 			/*
-			 * Hardware has said MIC failed.  We don't care about
+			 * Hardware has said MMIC failed.  We don't care about
 			 * whether it was stripped or not.
 			 *
 			 * Eventually - teach the demic methods in crypto
 			 * modules to handle a NULL key and not to dereference
 			 * it.
 			 */
-			ieee80211_notify_michael_failure(vap, wh, -1);
+			ieee80211_notify_michael_failure(vap, wh,
+			    IEEE80211_KEYIX_NONE);
 			return (0);
 		}
 
-		if (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP) {
+		if ((rxs->c_pktflags &
+		    (IEEE80211_RX_F_MIC_STRIP|IEEE80211_RX_F_MMIC_STRIP)) != 0) {
 			/*
 			 * Hardware has decrypted and not indicated a
 			 * MIC failure and has stripped the MIC.
@@ -882,4 +914,101 @@ ieee80211_crypto_set_deftxkey(struct ieee80211vap *vap, ieee80211_keyix kid)
 	/* XXX TODO: assert we're in a key update block */
 
 	vap->iv_update_deftxkey(vap, kid);
+}
+
+/**
+ * @brief Calculate the AAD required for this frame for AES-GCM/AES-CCM.
+ *
+ * The contents are described in 802.11-2020 12.5.3.3.3 (Construct AAD)
+ * under AES-CCM and are shared with AES-GCM as covered in 12.5.5.3.3
+ * (Construct AAD) (AES-GCM).
+ *
+ * NOTE: the first two bytes are a 16 bit big-endian length, which are used
+ * by AES-CCM as part of the Adata field (RFC 3610, section 2.2
+ * (Authentication)) to indicate the length of the Adata field itself.
+ * Since this is small and fits in 0xfeff bytes, the length field
+ * uses the two byte big endian option.
+ *
+ * AES-GCM doesn't require the length at the beginning and will need to
+ * skip it.
+ *
+ * TODO: net80211 currently doesn't support negotiating SPP (Signaling
+ * and Payload Protected A-MSDUs) and thus bit 7 of the QoS control field
+ * is always masked.
+ *
+ * TODO: net80211 currently doesn't support DMG (802.11ad) so bit 7
+ * (A-MSDU present) and bit 8 (A-MSDU type) are always masked.
+ *
+ * @param wh	802.11 frame to calculate the AAD over
+ * @param aad	AAD (additional authentication data) buffer
+ * @param len	The AAD buffer length in bytes.
+ * @returns	The number of AAD payload bytes (ignoring the first two
+ * 		bytes, which are the AAD payload length in big-endian).
+ */
+uint16_t
+ieee80211_crypto_init_aad(const struct ieee80211_frame *wh, uint8_t *aad,
+    int len)
+{
+	uint16_t aad_len;
+
+	memset(aad, 0, len);
+
+	/*
+	 * AAD for PV0 MPDUs:
+	 *
+	 * FC with bits 4..6 and 11..13 masked to zero; 14 is always one
+	 * A1 | A2 | A3
+	 * SC with bits 4..15 (seq#) masked to zero
+	 * A4 (if present)
+	 * QC (if present)
+	 */
+	aad[0] = 0;	/* AAD length >> 8 */
+	/* NB: aad[1] set below */
+	aad[2] = wh->i_fc[0] & 0x8f;	/* see above for bitfields */
+	aad[3] = wh->i_fc[1] & 0xc7;	/* see above for bitfields */
+	/* mask aad[3] b7 if frame is data frame w/ QoS control field */
+	if (IEEE80211_IS_QOS_ANY(wh))
+		aad[3] &= 0x7f;
+
+	/* NB: we know 3 addresses are contiguous */
+	memcpy(aad + 4, wh->i_addr1, 3 * IEEE80211_ADDR_LEN);
+	aad[22] = wh->i_seq[0] & IEEE80211_SEQ_FRAG_MASK;
+	aad[23] = 0; /* all bits masked */
+	/*
+	 * Construct variable-length portion of AAD based
+	 * on whether this is a 4-address frame/QOS frame.
+	 * We always zero-pad to 32 bytes before running it
+	 * through the cipher.
+	 */
+	if (IEEE80211_IS_DSTODS(wh)) {
+		IEEE80211_ADDR_COPY(aad + 24,
+			((const struct ieee80211_frame_addr4 *)wh)->i_addr4);
+		if (IEEE80211_IS_QOS_ANY(wh)) {
+			const struct ieee80211_qosframe_addr4 *qwh4 =
+				(const struct ieee80211_qosframe_addr4 *) wh;
+			/* TODO: SPP A-MSDU / A-MSDU present bit */
+			aad[30] = qwh4->i_qos[0] & 0x0f;/* just priority bits */
+			aad[31] = 0;
+			aad_len = aad[1] = 22 + IEEE80211_ADDR_LEN + 2;
+		} else {
+			*(uint16_t *)&aad[30] = 0;
+			aad_len = aad[1] = 22 + IEEE80211_ADDR_LEN;
+		}
+	} else {
+		if (IEEE80211_IS_QOS_ANY(wh)) {
+			const struct ieee80211_qosframe *qwh =
+				(const struct ieee80211_qosframe*) wh;
+			/* TODO: SPP A-MSDU / A-MSDU present bit */
+			aad[24] = qwh->i_qos[0] & 0x0f;	/* just priority bits */
+			aad[25] = 0;
+			aad_len = aad[1] = 22 + 2;
+		} else {
+			*(uint16_t *)&aad[24] = 0;
+			aad_len = aad[1] = 22;
+		}
+		*(uint16_t *)&aad[26] = 0;
+		*(uint32_t *)&aad[28] = 0;
+	}
+
+	return (aad_len);
 }

@@ -43,6 +43,8 @@
  * 31116 Rev 3.20  February 04, 2009
  * BIOS and Kernel Developer's Guide(BKDG) for AMD Family 11h Processors
  * 41256 Rev 3.00 - July 07, 2008
+ * Processor Programming Reference (PPR) for AMD Family 1Ah Model 02h,
+ * Revision C1 Processors Volume 1 of 7 - Sep 29, 2024
  */
 
 #include <sys/param.h>
@@ -87,6 +89,8 @@
 #define	AMD_17H_CUR_VID(msr)			(((msr) >> 14) & 0xFF)
 #define	AMD_17H_CUR_DID(msr)			(((msr) >> 8) & 0x3F)
 #define	AMD_17H_CUR_FID(msr)			((msr) & 0xFF)
+
+#define	AMD_1AH_CUR_FID(msr)			((msr) & 0xFFF)
 
 #define	HWPSTATE_DEBUG(dev, msg...)			\
 	do {						\
@@ -162,6 +166,23 @@ static driver_t hwpstate_driver = {
 };
 
 DRIVER_MODULE(hwpstate, cpu, hwpstate_driver, 0, 0);
+
+static int
+hwpstate_amd_iscale(int val, int div)
+{
+	switch (div) {
+	case 3: /* divide by 1000 */
+		val /= 10;
+	case 2: /* divide by 100 */
+		val /= 10;
+	case 1: /* divide by 10 */
+		val /= 10;
+	case 0: /* divide by 1 */
+	    ;
+	}
+
+	return (val);
+}
 
 /*
  * Go to Px-state on all cpus, considering the limit register (if so
@@ -461,13 +482,31 @@ hwpstate_get_info_from_msr(device_t dev)
 			break;
 		case 0x17:
 		case 0x18:
-			did = AMD_17H_CUR_DID(msr);
-			if (did == 0) {
-				HWPSTATE_DEBUG(dev, "unexpected did: 0\n");
-				did = 1;
+		case 0x19:
+		case 0x1A:
+			/* calculate freq */
+			if (family == 0x1A) {
+				fid = AMD_1AH_CUR_FID(msr);
+				/* 1Ah CPU don't use a divisor */
+				hwpstate_set[i].freq = fid;
+				if (fid > 0x0f)
+					hwpstate_set[i].freq *= 5;
+				else {
+					HWPSTATE_DEBUG(dev,
+					    "unexpected fid: %d\n", fid);
+					return (ENXIO);
+				}
+			} else {
+				did = AMD_17H_CUR_DID(msr);
+				if (did == 0) {
+					HWPSTATE_DEBUG(dev,
+					    "unexpected did: 0\n");
+					did = 1;
+				}
+				fid = AMD_17H_CUR_FID(msr);
+				hwpstate_set[i].freq = (200 * fid) / did;
 			}
-			fid = AMD_17H_CUR_FID(msr);
-			hwpstate_set[i].freq = (200 * fid) / did;
+
 			/* Vid step is 6.25mV, so scale by 100. */
 			hwpstate_set[i].volts =
 			    (155000 - (625 * AMD_17H_CUR_VID(msr))) / 100;
@@ -478,16 +517,8 @@ hwpstate_get_info_from_msr(device_t dev)
 			 * section 2.5.2.1.6.
 			 */
 			hwpstate_set[i].power = AMD_17H_CUR_IDD(msr) * 1000;
-			switch (AMD_17H_CUR_IDIV(msr)) {
-			case 3: /* divide by 1000 */
-				hwpstate_set[i].power /= 10;
-			case 2: /* divide by 100 */
-				hwpstate_set[i].power /= 10;
-			case 1: /* divide by 10 */
-				hwpstate_set[i].power /= 10;
-			case 0:	/* divide by 1 */
-				;
-			}
+			hwpstate_set[i].power = hwpstate_amd_iscale(
+			    hwpstate_set[i].power, AMD_17H_CUR_IDIV(msr));
 			hwpstate_set[i].power *= hwpstate_set[i].volts;
 			/* Milli amps * milli volts to milli watts. */
 			hwpstate_set[i].power /= 1000;

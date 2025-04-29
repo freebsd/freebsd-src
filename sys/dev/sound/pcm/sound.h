@@ -5,6 +5,10 @@
  * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
  * Copyright (c) 1995 Hannu Savolainen
  * All rights reserved.
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -84,7 +88,6 @@ struct snd_mixer;
 #include <dev/sound/pcm/buffer.h>
 #include <dev/sound/pcm/matrix.h>
 #include <dev/sound/pcm/channel.h>
-#include <dev/sound/pcm/pcm.h>
 #include <dev/sound/pcm/feeder.h>
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
@@ -99,10 +102,8 @@ struct snd_mixer;
 #define SOUND_PREFVER	SOUND_MODVER
 #define SOUND_MAXVER	SOUND_MODVER
 
-#define SND_MAXVCHANS		256
-
 #define SD_F_SIMPLEX		0x00000001
-#define SD_F_AUTOVCHAN		0x00000002
+/* unused			0x00000002 */
 #define SD_F_SOFTPCMVOL		0x00000004
 #define SD_F_BUSY		0x00000008
 #define SD_F_MPSAFE		0x00000010
@@ -113,17 +114,16 @@ struct snd_mixer;
 #define SD_F_EQ_ENABLED		0x00000200	/* EQ enabled */
 #define SD_F_EQ_BYPASSED	0x00000400	/* EQ bypassed */
 #define SD_F_EQ_PC		0x00000800	/* EQ per-channel */
+#define SD_F_PVCHANS		0x00001000	/* Playback vchans enabled */
+#define SD_F_RVCHANS		0x00002000	/* Recording vchans enabled */
 
 #define SD_F_EQ_DEFAULT		(SD_F_EQ | SD_F_EQ_ENABLED)
 #define SD_F_EQ_MASK		(SD_F_EQ | SD_F_EQ_ENABLED |		\
 				 SD_F_EQ_BYPASSED | SD_F_EQ_PC)
 
-#define SD_F_PRIO_RD		0x10000000
-#define SD_F_PRIO_WR		0x20000000
-
 #define SD_F_BITS		"\020"					\
 				"\001SIMPLEX"				\
-				"\002AUTOVCHAN"				\
+				/* "\002 */				\
 				"\003SOFTPCMVOL"			\
 				"\004BUSY"				\
 				"\005MPSAFE"				\
@@ -134,82 +134,19 @@ struct snd_mixer;
 				"\012EQ_ENABLED"			\
 				"\013EQ_BYPASSED"			\
 				"\014EQ_PC"				\
-				"\035PRIO_RD"				\
-				"\036PRIO_WR"
+				"\015PVCHANS"				\
+				"\016RVCHANS"
 
 #define PCM_ALIVE(x)		((x) != NULL && (x)->lock != NULL)
 #define PCM_REGISTERED(x)	(PCM_ALIVE(x) && ((x)->flags & SD_F_REGISTERED))
 
+#define	PCM_MAXCHANS		10000
 #define	PCM_CHANCOUNT(d)	\
 	(d->playcount + d->pvchancount + d->reccount + d->rvchancount)
 
 /* many variables should be reduced to a range. Here define a macro */
 #define RANGE(var, low, high) (var) = \
 	(((var)<(low))? (low) : ((var)>(high))? (high) : (var))
-
-/* make figuring out what a format is easier. got AFMT_STEREO already */
-#define AFMT_32BIT (AFMT_S32_LE | AFMT_S32_BE | AFMT_U32_LE | AFMT_U32_BE)
-#define AFMT_24BIT (AFMT_S24_LE | AFMT_S24_BE | AFMT_U24_LE | AFMT_U24_BE)
-#define AFMT_16BIT (AFMT_S16_LE | AFMT_S16_BE | AFMT_U16_LE | AFMT_U16_BE)
-#define AFMT_G711  (AFMT_MU_LAW | AFMT_A_LAW)
-#define AFMT_8BIT (AFMT_G711 | AFMT_U8 | AFMT_S8)
-#define AFMT_SIGNED (AFMT_S32_LE | AFMT_S32_BE | AFMT_S24_LE | AFMT_S24_BE | \
-			AFMT_S16_LE | AFMT_S16_BE | AFMT_S8)
-#define AFMT_BIGENDIAN (AFMT_S32_BE | AFMT_U32_BE | AFMT_S24_BE | AFMT_U24_BE | \
-			AFMT_S16_BE | AFMT_U16_BE)
-
-#define AFMT_CONVERTIBLE	(AFMT_8BIT | AFMT_16BIT | AFMT_24BIT |	\
-				 AFMT_32BIT)
-
-/* Supported vchan mixing formats */
-#define AFMT_VCHAN		(AFMT_CONVERTIBLE & ~AFMT_G711)
-
-#define AFMT_PASSTHROUGH		AFMT_AC3
-#define AFMT_PASSTHROUGH_RATE		48000
-#define AFMT_PASSTHROUGH_CHANNEL	2
-#define AFMT_PASSTHROUGH_EXTCHANNEL	0
-
-/*
- * We're simply using unused, contiguous bits from various AFMT_ definitions.
- * ~(0xb00ff7ff)
- */
-#define AFMT_ENCODING_MASK	0xf00fffff
-#define AFMT_CHANNEL_MASK	0x07f00000
-#define AFMT_CHANNEL_SHIFT	20
-#define AFMT_CHANNEL_MAX	0x7f
-#define AFMT_EXTCHANNEL_MASK	0x08000000
-#define AFMT_EXTCHANNEL_SHIFT	27
-#define AFMT_EXTCHANNEL_MAX	1
-
-#define AFMT_ENCODING(v)	((v) & AFMT_ENCODING_MASK)
-
-#define AFMT_EXTCHANNEL(v)	(((v) & AFMT_EXTCHANNEL_MASK) >>	\
-				AFMT_EXTCHANNEL_SHIFT)
-
-#define AFMT_CHANNEL(v)		(((v) & AFMT_CHANNEL_MASK) >>		\
-				AFMT_CHANNEL_SHIFT)
-
-#define AFMT_BIT(v)		(((v) & AFMT_32BIT) ? 32 :		\
-				(((v) & AFMT_24BIT) ? 24 :		\
-				((((v) & AFMT_16BIT) ||			\
-				((v) & AFMT_PASSTHROUGH)) ? 16 : 8)))
-
-#define AFMT_BPS(v)		(AFMT_BIT(v) >> 3)
-#define AFMT_ALIGN(v)		(AFMT_BPS(v) * AFMT_CHANNEL(v))
-
-#define SND_FORMAT(f, c, e)	(AFMT_ENCODING(f) |		\
-				(((c) << AFMT_CHANNEL_SHIFT) &		\
-				AFMT_CHANNEL_MASK) |			\
-				(((e) << AFMT_EXTCHANNEL_SHIFT) &	\
-				AFMT_EXTCHANNEL_MASK))
-
-#define AFMT_U8_NE	AFMT_U8
-#define AFMT_S8_NE	AFMT_S8
-
-#define AFMT_SIGNED_NE	(AFMT_S8_NE | AFMT_S16_NE | AFMT_S24_NE | AFMT_S32_NE)
-
-#define AFMT_NE		(AFMT_SIGNED_NE | AFMT_U8_NE | AFMT_U16_NE |	\
-			 AFMT_U24_NE | AFMT_U32_NE)
 
 enum {
 	SND_DEV_CTL = 0,	/* Control port /dev/mixer */
@@ -231,9 +168,6 @@ extern struct unrhdr *pcmsg_unrhdr;
 #endif
 
 SYSCTL_DECL(_hw_snd);
-
-int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
-    pid_t pid, char *comm);
 
 int pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo);
 unsigned int pcm_getbuffersize(device_t dev, unsigned int minbufsz, unsigned int deflt, unsigned int maxbufsz);
@@ -288,6 +222,9 @@ struct snddev_info {
 			struct {
 				SLIST_HEAD(, pcm_channel) head;
 			} opened;
+			struct {
+				SLIST_HEAD(, pcm_channel) head;
+			} primary;
 		} pcm;
 	} channels;
 	unsigned playcount, reccount, pvchancount, rvchancount;
@@ -299,8 +236,8 @@ struct snddev_info {
 	struct mtx *lock;
 	struct cdev *mixer_dev;
 	struct cdev *dsp_dev;
-	uint32_t pvchanrate, pvchanformat;
-	uint32_t rvchanrate, rvchanformat;
+	uint32_t pvchanrate, pvchanformat, pvchanmode;
+	uint32_t rvchanrate, rvchanformat, rvchanmode;
 	int32_t eqpreamp;
 	struct sysctl_ctx_list play_sysctl_ctx, rec_sysctl_ctx;
 	struct sysctl_oid *play_sysctl_tree, *rec_sysctl_tree;
@@ -507,5 +444,72 @@ int	sound_oss_card_info(oss_card_info *);
 } while (0)
 
 #endif /* _KERNEL */
+
+/* make figuring out what a format is easier. got AFMT_STEREO already */
+#define AFMT_32BIT (AFMT_S32_LE | AFMT_S32_BE | AFMT_U32_LE | AFMT_U32_BE | \
+			AFMT_F32_LE | AFMT_F32_BE)
+#define AFMT_24BIT (AFMT_S24_LE | AFMT_S24_BE | AFMT_U24_LE | AFMT_U24_BE)
+#define AFMT_16BIT (AFMT_S16_LE | AFMT_S16_BE | AFMT_U16_LE | AFMT_U16_BE)
+#define AFMT_G711  (AFMT_MU_LAW | AFMT_A_LAW)
+#define AFMT_8BIT (AFMT_G711 | AFMT_U8 | AFMT_S8)
+#define AFMT_SIGNED (AFMT_S32_LE | AFMT_S32_BE | AFMT_F32_LE | AFMT_F32_BE | \
+			AFMT_S24_LE | AFMT_S24_BE | \
+			AFMT_S16_LE | AFMT_S16_BE | AFMT_S8)
+#define AFMT_BIGENDIAN (AFMT_S32_BE | AFMT_U32_BE | AFMT_F32_BE | \
+			AFMT_S24_BE | AFMT_U24_BE | AFMT_S16_BE | AFMT_U16_BE)
+
+#define AFMT_CONVERTIBLE	(AFMT_8BIT | AFMT_16BIT | AFMT_24BIT |	\
+				 AFMT_32BIT)
+
+/* Supported vchan mixing formats */
+#define AFMT_VCHAN		(AFMT_CONVERTIBLE & ~AFMT_G711)
+
+#define AFMT_PASSTHROUGH		AFMT_AC3
+#define AFMT_PASSTHROUGH_RATE		48000
+#define AFMT_PASSTHROUGH_CHANNEL	2
+#define AFMT_PASSTHROUGH_EXTCHANNEL	0
+
+/*
+ * We're simply using unused, contiguous bits from various AFMT_ definitions.
+ * ~(0xb00ff7ff)
+ */
+#define AFMT_ENCODING_MASK	0xf00fffff
+#define AFMT_CHANNEL_MASK	0x07f00000
+#define AFMT_CHANNEL_SHIFT	20
+#define AFMT_CHANNEL_MAX	0x7f
+#define AFMT_EXTCHANNEL_MASK	0x08000000
+#define AFMT_EXTCHANNEL_SHIFT	27
+#define AFMT_EXTCHANNEL_MAX	1
+
+#define AFMT_ENCODING(v)	((v) & AFMT_ENCODING_MASK)
+
+#define AFMT_EXTCHANNEL(v)	(((v) & AFMT_EXTCHANNEL_MASK) >>	\
+				AFMT_EXTCHANNEL_SHIFT)
+
+#define AFMT_CHANNEL(v)		(((v) & AFMT_CHANNEL_MASK) >>		\
+				AFMT_CHANNEL_SHIFT)
+
+#define AFMT_BIT(v)		(((v) & AFMT_32BIT) ? 32 :		\
+				(((v) & AFMT_24BIT) ? 24 :		\
+				((((v) & AFMT_16BIT) ||			\
+				((v) & AFMT_PASSTHROUGH)) ? 16 : 8)))
+
+#define AFMT_BPS(v)		(AFMT_BIT(v) >> 3)
+#define AFMT_ALIGN(v)		(AFMT_BPS(v) * AFMT_CHANNEL(v))
+
+#define SND_FORMAT(f, c, e)	(AFMT_ENCODING(f) |		\
+				(((c) << AFMT_CHANNEL_SHIFT) &		\
+				AFMT_CHANNEL_MASK) |			\
+				(((e) << AFMT_EXTCHANNEL_SHIFT) &	\
+				AFMT_EXTCHANNEL_MASK))
+
+#define AFMT_U8_NE	AFMT_U8
+#define AFMT_S8_NE	AFMT_S8
+
+#define AFMT_SIGNED_NE	(AFMT_S8_NE | AFMT_S16_NE | AFMT_S24_NE | \
+			AFMT_S32_NE | AFMT_F32_NE)
+
+#define AFMT_NE		(AFMT_SIGNED_NE | AFMT_U8_NE | AFMT_U16_NE |	\
+			 AFMT_U24_NE | AFMT_U32_NE)
 
 #endif	/* _OS_H_ */

@@ -612,13 +612,11 @@ static int
 zy7_qspi_detach(device_t dev)
 {
 	struct zy7_qspi_softc *sc = device_get_softc(dev);
+	int error;
 
-	if (device_is_attached(dev))
-		bus_generic_detach(dev);
-
-	/* Delete child bus. */
-	if (sc->child)
-		device_delete_child(dev, sc->child);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	/* Disable hardware. */
 	if (sc->mem_res != NULL) {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -1702,12 +1703,13 @@ zfs_vget(struct super_block *sb, struct inode **ipp, fid_t *fidp)
 	/* A zero fid_gen means we are in the .zfs control directories */
 	if (fid_gen == 0 &&
 	    (object == ZFSCTL_INO_ROOT || object == ZFSCTL_INO_SNAPDIR)) {
-		*ipp = zfsvfs->z_ctldir;
-		ASSERT(*ipp != NULL);
-
 		if (zfsvfs->z_show_ctldir == ZFS_SNAPDIR_DISABLED) {
+			zfs_exit(zfsvfs, FTAG);
 			return (SET_ERROR(ENOENT));
 		}
+
+		*ipp = zfsvfs->z_ctldir;
+		ASSERT(*ipp != NULL);
 
 		if (object == ZFSCTL_INO_SNAPDIR) {
 			VERIFY(zfsctl_root_lookup(*ipp, "snapshot", ipp,
@@ -1960,7 +1962,7 @@ zfs_set_version(zfsvfs_t *zfsvfs, uint64_t newvers)
 		    ZFS_SA_ATTRS);
 		dmu_tx_hold_zap(tx, DMU_NEW_OBJECT, FALSE, NULL);
 	}
-	error = dmu_tx_assign(tx, TXG_WAIT);
+	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error) {
 		dmu_tx_abort(tx);
 		return (error);

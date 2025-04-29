@@ -77,41 +77,73 @@
 static const char DEFAULT_NAT64_PREFIX[] = "64:ff9b::/96";
 
 /** fillup fetch policy array */
-static void
-fetch_fill(struct iter_env* ie, const char* str)
+static int
+fetch_fill(int* target_fetch_policy, int max_dependency_depth, const char* str)
 {
 	char* s = (char*)str, *e;
 	int i;
-	for(i=0; i<ie->max_dependency_depth+1; i++) {
-		ie->target_fetch_policy[i] = strtol(s, &e, 10);
-		if(s == e)
-			fatal_exit("cannot parse fetch policy number %s", s);
+	for(i=0; i<max_dependency_depth+1; i++) {
+		target_fetch_policy[i] = strtol(s, &e, 10);
+		if(s == e) {
+			log_err("cannot parse fetch policy number %s", s);
+			return 0;
+		}
 		s = e;
 	}
+	return 1;
 }
 
 /** Read config string that represents the target fetch policy */
-static int
-read_fetch_policy(struct iter_env* ie, const char* str)
+int
+read_fetch_policy(int** target_fetch_policy, int* max_dependency_depth,
+	const char* str)
 {
 	int count = cfg_count_numbers(str);
 	if(count < 1) {
 		log_err("Cannot parse target fetch policy: \"%s\"", str);
 		return 0;
 	}
-	ie->max_dependency_depth = count - 1;
-	ie->target_fetch_policy = (int*)calloc(
-		(size_t)ie->max_dependency_depth+1, sizeof(int));
-	if(!ie->target_fetch_policy) {
+	*max_dependency_depth = count - 1;
+	*target_fetch_policy = (int*)calloc(
+		(size_t)(*max_dependency_depth)+1, sizeof(int));
+	if(!*target_fetch_policy) {
 		log_err("alloc fetch policy: out of memory");
 		return 0;
 	}
-	fetch_fill(ie, str);
+	if(!fetch_fill(*target_fetch_policy, *max_dependency_depth, str))
+		return 0;
 	return 1;
 }
 
-/** apply config caps whitelist items to name tree */
-static int
+struct rbtree_type*
+caps_white_create(void)
+{
+	struct rbtree_type* caps_white = rbtree_create(name_tree_compare);
+	if(!caps_white)
+		log_err("out of memory");
+	return caps_white;
+}
+
+/** delete caps_whitelist element */
+static void
+caps_free(struct rbnode_type* n, void* ATTR_UNUSED(d))
+{
+	if(n) {
+		free(((struct name_tree_node*)n)->name);
+		free(n);
+	}
+}
+
+void
+caps_white_delete(struct rbtree_type* caps_white)
+{
+	if(!caps_white)
+		return;
+	traverse_postorder(caps_white, caps_free, NULL);
+	free(caps_white);
+}
+
+int
 caps_white_apply_cfg(rbtree_type* ntree, struct config_file* cfg)
 {
 	struct config_strlist* p;
@@ -145,12 +177,41 @@ caps_white_apply_cfg(rbtree_type* ntree, struct config_file* cfg)
 }
 
 int
-iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg)
+nat64_apply_cfg(struct iter_nat64* nat64, struct config_file* cfg)
 {
 	const char *nat64_prefix;
+
+	nat64_prefix = cfg->nat64_prefix;
+	if(!nat64_prefix)
+		nat64_prefix = cfg->dns64_prefix;
+	if(!nat64_prefix)
+		nat64_prefix = DEFAULT_NAT64_PREFIX;
+	if(!netblockstrtoaddr(nat64_prefix, 0, &nat64->nat64_prefix_addr,
+		&nat64->nat64_prefix_addrlen, &nat64->nat64_prefix_net)) {
+		log_err("cannot parse nat64-prefix netblock: %s", nat64_prefix);
+		return 0;
+	}
+	if(!addr_is_ip6(&nat64->nat64_prefix_addr,
+		nat64->nat64_prefix_addrlen)) {
+		log_err("nat64-prefix is not IPv6: %s", cfg->nat64_prefix);
+		return 0;
+	}
+	if(!prefixnet_is_nat64(nat64->nat64_prefix_net)) {
+		log_err("nat64-prefix length it not 32, 40, 48, 56, 64 or 96: %s",
+			nat64_prefix);
+		return 0;
+	}
+	nat64->use_nat64 = cfg->do_nat64;
+	return 1;
+}
+
+int
+iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg)
+{
 	int i;
 	/* target fetch policy */
-	if(!read_fetch_policy(iter_env, cfg->target_fetch_policy))
+	if(!read_fetch_policy(&iter_env->target_fetch_policy,
+		&iter_env->max_dependency_depth, cfg->target_fetch_policy))
 		return 0;
 	for(i=0; i<iter_env->max_dependency_depth+1; i++)
 		verbose(VERB_QUERY, "target fetch policy for level %d is %d",
@@ -170,7 +231,7 @@ iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg)
 	}
 	if(cfg->caps_whitelist) {
 		if(!iter_env->caps_white)
-			iter_env->caps_white = rbtree_create(name_tree_compare);
+			iter_env->caps_white = caps_white_create();
 		if(!iter_env->caps_white || !caps_white_apply_cfg(
 			iter_env->caps_white, cfg)) {
 			log_err("Could not set capsforid whitelist");
@@ -179,31 +240,13 @@ iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg)
 
 	}
 
-	nat64_prefix = cfg->nat64_prefix;
-	if(!nat64_prefix)
-		nat64_prefix = cfg->dns64_prefix;
-	if(!nat64_prefix)
-		nat64_prefix = DEFAULT_NAT64_PREFIX;
-	if(!netblockstrtoaddr(nat64_prefix, 0, &iter_env->nat64_prefix_addr,
-		&iter_env->nat64_prefix_addrlen,
-		&iter_env->nat64_prefix_net)) {
-		log_err("cannot parse nat64-prefix netblock: %s", nat64_prefix);
-		return 0;
-	}
-	if(!addr_is_ip6(&iter_env->nat64_prefix_addr,
-		iter_env->nat64_prefix_addrlen)) {
-		log_err("nat64-prefix is not IPv6: %s", cfg->nat64_prefix);
-		return 0;
-	}
-	if(!prefixnet_is_nat64(iter_env->nat64_prefix_net)) {
-		log_err("nat64-prefix length it not 32, 40, 48, 56, 64 or 96: %s",
-			nat64_prefix);
+	if(!nat64_apply_cfg(&iter_env->nat64, cfg)) {
+		log_err("Could not setup nat64");
 		return 0;
 	}
 
 	iter_env->supports_ipv6 = cfg->do_ip6;
 	iter_env->supports_ipv4 = cfg->do_ip4;
-	iter_env->use_nat64 = cfg->do_nat64;
 	iter_env->outbound_msg_retry = cfg->outbound_msg_retry;
 	iter_env->max_sent_count = cfg->max_sent_count;
 	iter_env->max_query_restarts = cfg->max_query_restarts;
@@ -270,7 +313,7 @@ iter_filter_unsuitable(struct iter_env* iter_env, struct module_env* env,
 	if(!iter_env->supports_ipv6 && addr_is_ip6(&a->addr, a->addrlen)) {
 		return -1; /* there is no ip6 available */
 	}
-	if(!iter_env->supports_ipv4 && !iter_env->use_nat64 &&
+	if(!iter_env->supports_ipv4 && !iter_env->nat64.use_nat64 &&
 	   !addr_is_ip6(&a->addr, a->addrlen)) {
 		return -1; /* there is no ip4 available */
 	}
@@ -693,10 +736,11 @@ dns_copy_msg(struct dns_msg* from, struct regional* region)
 void
 iter_dns_store(struct module_env* env, struct query_info* msgqinf,
 	struct reply_info* msgrep, int is_referral, time_t leeway, int pside,
-	struct regional* region, uint16_t flags, time_t qstarttime)
+	struct regional* region, uint16_t flags, time_t qstarttime,
+	int is_valrec)
 {
 	if(!dns_cache_store(env, msgqinf, msgrep, is_referral, leeway,
-		pside, region, flags, qstarttime))
+		pside, region, flags, qstarttime, is_valrec))
 		log_err("out of memory: cannot store data in cache");
 }
 
@@ -1488,14 +1532,15 @@ iter_stub_fwd_no_cache(struct module_qstate *qstate, struct query_info *qinf,
 
 	/* check stub */
 	if (stub != NULL && stub->dp != NULL) {
+		enum verbosity_value level = VERB_ALGO;
 		int stub_no_cache = stub->dp->no_cache;
 		lock_rw_unlock(&qstate->env->fwds->lock);
-		if(stub_no_cache) {
-			char qname[255+1];
-			char dpname[255+1];
+		if(verbosity >= level && stub_no_cache) {
+			char qname[LDNS_MAX_DOMAINLEN];
+			char dpname[LDNS_MAX_DOMAINLEN];
 			dname_str(qinf->qname, qname);
 			dname_str(stub->dp->name, dpname);
-			verbose(VERB_ALGO, "stub for %s %s has no_cache", qname, dpname);
+			verbose(level, "stub for %s %s has no_cache", qname, dpname);
 		}
 		if(retdpname) {
 			if(stub->dp->namelen > dpname_storage_len) {
@@ -1516,14 +1561,15 @@ iter_stub_fwd_no_cache(struct module_qstate *qstate, struct query_info *qinf,
 
 	/* Check for forward. */
 	if (dp) {
+		enum verbosity_value level = VERB_ALGO;
 		int dp_no_cache = dp->no_cache;
 		lock_rw_unlock(&qstate->env->hints->lock);
-		if(dp_no_cache) {
-			char qname[255+1];
-			char dpname[255+1];
+		if(verbosity >= level && dp_no_cache) {
+			char qname[LDNS_MAX_DOMAINLEN];
+			char dpname[LDNS_MAX_DOMAINLEN];
 			dname_str(qinf->qname, qname);
 			dname_str(dp->name, dpname);
-			verbose(VERB_ALGO, "forward for %s %s has no_cache", qname, dpname);
+			verbose(level, "forward for %s %s has no_cache", qname, dpname);
 		}
 		if(retdpname) {
 			if(dp->namelen > dpname_storage_len) {
@@ -1605,4 +1651,13 @@ limit_nsec_ttl(struct dns_msg* msg)
 			}
 		}
 	}
+}
+
+void
+iter_make_minimal(struct reply_info* rep)
+{
+	size_t rem = rep->ns_numrrsets + rep->ar_numrrsets;
+	rep->ns_numrrsets = 0;
+	rep->ar_numrrsets = 0;
+	rep->rrset_count -= rem;
 }

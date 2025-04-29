@@ -277,6 +277,7 @@ TAILQ_HEAD(pf_opt_queue, pf_opt_rule);
 int	pfctl_rules(int, char *, int, int, char *, struct pfr_buffer *);
 int	pfctl_optimize_ruleset(struct pfctl *, struct pfctl_ruleset *);
 
+void	pfctl_init_rule(struct pfctl_rule *r);
 int	pfctl_append_rule(struct pfctl *, struct pfctl_rule *, const char *);
 int	pfctl_append_eth_rule(struct pfctl *, struct pfctl_eth_rule *,
 	    const char *);
@@ -290,7 +291,7 @@ int	pfctl_set_reassembly(struct pfctl *, int, int);
 int	pfctl_set_optimization(struct pfctl *, const char *);
 int	pfctl_apply_limit(struct pfctl *, const char *, unsigned int);
 int	pfctl_set_logif(struct pfctl *, char *);
-int	pfctl_set_hostid(struct pfctl *, u_int32_t);
+void	pfctl_set_hostid(struct pfctl *, u_int32_t);
 int	pfctl_do_set_debug(struct pfctl *, char *);
 int	pfctl_set_interface_flags(struct pfctl *, char *, int, int);
 int	pfctl_cfg_syncookies(struct pfctl *, uint8_t, struct pfctl_watermarks *);
@@ -363,6 +364,8 @@ int			 check_netmask(struct node_host *, sa_family_t);
 int			 unmask(struct pf_addr *, sa_family_t);
 struct node_host	*gen_dynnode(struct node_host *, sa_family_t);
 void			 ifa_load(void);
+unsigned int		 ifa_nametoindex(const char *);
+char			*ifa_indextoname(unsigned int, char *);
 int			 get_query_socket(void);
 struct node_host	*ifa_exists(char *);
 struct node_host	*ifa_grouplookup(char *ifa_name, int flags);

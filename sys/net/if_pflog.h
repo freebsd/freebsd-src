@@ -33,8 +33,6 @@
 
 #include <net/if.h>
 
-#define	PFLOGIFS_MAX	16
-
 #define	PFLOG_RULESET_NAME_SIZE	16
 
 struct pfloghdr {
@@ -71,9 +69,9 @@ struct pf_ruleset;
 struct pfi_kif;
 struct pf_pdesc;
 
-#define	PFLOG_PACKET(b,t,c,d,e,f,g) do {		\
+#define	PFLOG_PACKET(b,t,c,d,e,f,g,h) do {		\
 	if (pflog_packet_ptr != NULL)			\
-		pflog_packet_ptr(b,t,c,d,e,f,g);	\
+		pflog_packet_ptr(b,t,c,d,e,f,g,h);	\
 } while (0)
 #endif /* _KERNEL */
 #endif /* _NET_IF_PFLOG_H_ */

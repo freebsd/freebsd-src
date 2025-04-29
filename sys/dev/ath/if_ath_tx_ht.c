@@ -301,7 +301,7 @@ ath_tx_rate_fill_rcflags(struct ath_softc *sc, struct ath_buf *bf)
 				rc[i].flags |= ATH_RC_SGI_FLAG;
 			}
 
-			if (ni->ni_chw == IEEE80211_STA_RX_BW_40 &&
+			if (ni->ni_chw == IEEE80211_STA_RX_BW_20 &&
 			    ieee80211_ht_check_tx_shortgi_20(ni) &&
 			    (bf->bf_flags & ATH_BUF_TOA_PROBE) == 0) {
 				rc[i].flags |= ATH_RC_SGI_FLAG;

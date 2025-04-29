@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 15, 2017
+.Dd February 5, 2025
 .Dt BUS_GENERIC_DETACH 9
 .Os
 .Sh NAME
@@ -44,13 +44,23 @@ This function provides an implementation of the
 .Xr DEVICE_DETACH 9
 method
 which can be used by most bus code.
-It simply calls the
-.Xr DEVICE_DETACH 9
-method of each child device attached to the bus.
+It uses
+.Xr bus_detach_children 9
+to detach drivers from all child devices giving them a chance to veto the
+detach request.
+If
+.Fn bus_detach_children
+succeeds,
+.Fn bus_generic_detach
+calls
+.Xr device_delete_children 9
+to delete all child devices.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an appropriate error is returned.
 .Sh SEE ALSO
+.Xr bus_detach_children 9 ,
 .Xr device 9 ,
+.Xr device_delete_children 9 ,
 .Xr driver 9
 .Sh AUTHORS
 This manual page was written by

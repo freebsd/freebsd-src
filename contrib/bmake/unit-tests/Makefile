@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.224 2024/07/13 05:27:35 sjg Exp $
+# $Id: Makefile,v 1.233 2025/04/14 16:02:33 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.350 2024/07/07 09:37:00 rillig Exp $
+# $NetBSD: Makefile,v 1.358 2025/04/13 09:29:32 rillig Exp $
 #
 # Unit tests for make(1)
 #
@@ -46,6 +46,11 @@ TMPDIR:=	/tmp/uid${.MAKE.UID}
 .if !exist(${TMPDIR})
 _!= mkdir -p ${TMPDIR}
 .endif
+# and clean it up - outside the context of
+# any target that might be using it.
+.END: rm-tmpdir
+rm-tmpdir:	.NOMETA
+	@rm -rf ${TMPDIR}
 
 # Each test is in a sub-makefile.
 # Keep the list sorted.
@@ -294,6 +299,9 @@ TESTS+=		parse
 TESTS+=		parse-var
 TESTS+=		phony-end
 TESTS+=		posix
+TESTS+=		posix-execution
+TESTS+=		posix-expansion
+TESTS+=		posix-varassign
 TESTS+=		# posix1	# broken by reverting POSIX changes
 TESTS+=		recursive
 TESTS+=		sh
@@ -314,6 +322,7 @@ TESTS+=		shell-custom
 TESTS+=		shell-ksh
 .endif
 TESTS+=		shell-sh
+TESTS+=		suff
 TESTS+=		suff-add-later
 TESTS+=		suff-clear-regular
 TESTS+=		suff-clear-single
@@ -575,7 +584,7 @@ SED_CMDS.deptgt-phony=	${STD_SED_CMDS.dd}
 SED_CMDS.dir=		${STD_SED_CMDS.dd}
 SED_CMDS.directive-include-guard= \
 	-e '/\.MAKEFLAGS/d' \
-	-e '/^Parsing line/d' \
+	-e '/^Parsing .*:[1-9][0-9]*:/d' \
 	-e '/^SetFilenameVars:/d' \
 	-e '/^ParseDependency/d' \
 	-e '/^ParseEOF:/d'
@@ -603,7 +612,9 @@ SED_CMDS.opt-chdir=		-e 's,\(nonexistent\).[1-9][0-9]*,\1,' \
 	-e 's,Filename,File name,'
 
 # meta line numbers can vary based on filemon implementation
-SED_CMDS.meta-ignore= -e 's,\(\.meta:\) [1-9][0-9]*:,\1 <line>:,'
+SED_CMDS.meta-ignore= -e 's,\(\.meta:\)[1-9][0-9]*:,\1<line>:,'
+
+SED_CMDS.opt-chdir=		-e 's,\(nonexistent\).[1-9][0-9]*,\1,'
 SED_CMDS.opt-debug-graph1=	${STD_SED_CMDS.dg1}
 SED_CMDS.opt-debug-graph2=	${STD_SED_CMDS.dg2}
 SED_CMDS.opt-debug-graph3=	${STD_SED_CMDS.dg3}
@@ -641,8 +652,8 @@ SED_CMDS.varparse-errors+=	${STD_SED_CMDS.timestamp}
 SED_CMDS.varname-dot-make-meta-ignore_filter+= ${SED_CMDS.meta-ignore}
 SED_CMDS.varname-dot-make-meta-ignore_paths+= ${SED_CMDS.meta-ignore}
 SED_CMDS.varname-dot-make-meta-ignore_patterns+= ${SED_CMDS.meta-ignore}
-SED_CMDS.varname-dot-parsedir=	-e '/in some cases/ s,^make: "[^"]*,make: "<normalized>,'
-SED_CMDS.varname-dot-parsefile=	-e '/in some cases/ s,^make: "[^"]*,make: "<normalized>,'
+SED_CMDS.varname-dot-parsedir=	-e '/in some cases/ s,^make: [^:]*:,make: <normalized>:,'
+SED_CMDS.varname-dot-parsefile=	-e '/in some cases/ s,^make: [^:]*:,make: <normalized>:,'
 SED_CMDS.varname-dot-shell=	-e 's, = /[^ ]*, = (details omitted),g'
 SED_CMDS.varname-dot-shell+=	-e 's,"/[^" ]*","(details omitted)",g'
 SED_CMDS.varname-dot-shell+=	-e 's,\[/[^] ]*\],[(details omitted)],g'
@@ -857,11 +868,12 @@ SED_CMDS.opt-debug-jobs+= -e 's,Command: <shell> -v,Command: <shell>,'
 
 .rawout.out:
 	@${TOOL_SED} ${_SED_CMDS} ${SED_CMDS.${.PREFIX:T}} \
-	  < ${.IMPSRC} > ${.TARGET}.tmp1
-	@${POSTPROC.${.PREFIX:T}:Ucat} < ${.TARGET}.tmp1 > ${.TARGET}.tmp2
-	@rm ${.TARGET}.tmp1
-	@echo "exit status `cat ${.TARGET:R}.status`" >> ${.TARGET}.tmp2
-	@mv ${.TARGET}.tmp2 ${.TARGET}
+	  < ${.IMPSRC} > ${.TARGET}.tmp
+	@${POSTPROC.${.PREFIX:T}:D \
+	    ${POSTPROC.${.PREFIX:T}} < ${.TARGET}.tmp > ${.TARGET}.post \
+	    && mv ${.TARGET}.post ${.TARGET}.tmp}
+	@echo "exit status `cat ${.TARGET:R}.status`" >> ${.TARGET}.tmp
+	@mv ${.TARGET}.tmp ${.TARGET}
 
 .if empty(DIFF_FLAGS)
 DIFF_ECHO= echo

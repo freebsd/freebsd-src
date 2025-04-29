@@ -248,19 +248,20 @@ static int
 mtkswitch_detach(device_t dev)
 {
 	struct mtkswitch_softc *sc = device_get_softc(dev);
-	int phy;
+	int error, phy;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	callout_drain(&sc->callout_tick);
 
 	for (phy = 0; phy < MTKSWITCH_MAX_PHYS; phy++) {
-		if (sc->miibus[phy] != NULL)
-			device_delete_child(dev, sc->miibus[phy]);
 		if (sc->ifp[phy] != NULL)
 			if_free(sc->ifp[phy]);
 		free(sc->ifname[phy], M_DEVBUF);
 	}
 
-	bus_generic_detach(dev);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);

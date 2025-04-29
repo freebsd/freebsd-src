@@ -52,24 +52,6 @@
 #include "util/config_file.h"
 #include "iterator/iterator.h"
 
-/** Timeout when only a single probe query per IP is allowed. */
-#define PROBE_MAXRTO 12000 /* in msec */
-
-/** number of timeouts for a type when the domain can be blocked ;
- * even if another type has completely rtt maxed it, the different type
- * can do this number of packets (until those all timeout too) */
-#define TIMEOUT_COUNT_MAX 3
-
-/** Minus 1000 because that is outside of the RTTBAND, so
- * blacklisted servers stay blacklisted if this is chosen.
- * If USEFUL_SERVER_TOP_TIMEOUT is below 1000 (configured via RTT_MAX_TIMEOUT,
- * infra-cache-max-rtt) change it to just above the RTT_BAND. */
-#define STILL_USEFUL_TIMEOUT (				\
-	USEFUL_SERVER_TOP_TIMEOUT < 1000 ||		\
-	USEFUL_SERVER_TOP_TIMEOUT - 1000 <= RTT_BAND	\
-		?RTT_BAND + 1				\
-		:USEFUL_SERVER_TOP_TIMEOUT - 1000)
-
 /** ratelimit value for delegation point */
 int infra_dp_ratelimit = 0;
 
@@ -81,6 +63,20 @@ int infra_ip_ratelimit = 0;
  *  in queries per second.
  *  For clients with a valid DNS Cookie. */
 int infra_ip_ratelimit_cookie = 0;
+
+/** Minus 1000 because that is outside of the RTTBAND, so
+ * blacklisted servers stay blacklisted if this is chosen.
+ * If USEFUL_SERVER_TOP_TIMEOUT is below 1000 (configured via RTT_MAX_TIMEOUT,
+ * infra-cache-max-rtt) change it to just above the RTT_BAND. */
+int
+still_useful_timeout()
+{
+	return
+	USEFUL_SERVER_TOP_TIMEOUT < 1000 ||
+	USEFUL_SERVER_TOP_TIMEOUT - 1000 <= RTT_BAND
+		?RTT_BAND + 1
+		:USEFUL_SERVER_TOP_TIMEOUT - 1000;
+}
 
 size_t 
 infra_sizefunc(void* k, void* ATTR_UNUSED(d))
@@ -165,7 +161,7 @@ rate_deldatafunc(void* d, void* ATTR_UNUSED(arg))
 
 /** find or create element in domainlimit tree */
 static struct domain_limit_data* domain_limit_findcreate(
-	struct infra_cache* infra, char* name)
+	struct rbtree_type* domain_limits, char* name)
 {
 	uint8_t* nm;
 	int labs;
@@ -181,8 +177,8 @@ static struct domain_limit_data* domain_limit_findcreate(
 	labs = dname_count_labels(nm);
 
 	/* can we find it? */
-	d = (struct domain_limit_data*)name_tree_find(&infra->domain_limits,
-		nm, nmlen, labs, LDNS_RR_CLASS_IN);
+	d = (struct domain_limit_data*)name_tree_find(domain_limits, nm,
+		nmlen, labs, LDNS_RR_CLASS_IN);
 	if(d) {
 		free(nm);
 		return d;
@@ -201,8 +197,8 @@ static struct domain_limit_data* domain_limit_findcreate(
 	d->node.dclass = LDNS_RR_CLASS_IN;
 	d->lim = -1;
 	d->below = -1;
-	if(!name_tree_insert(&infra->domain_limits, &d->node, nm, nmlen,
-		labs, LDNS_RR_CLASS_IN)) {
+	if(!name_tree_insert(domain_limits, &d->node, nm, nmlen, labs,
+		LDNS_RR_CLASS_IN)) {
 		log_err("duplicate element in domainlimit tree");
 		free(nm);
 		free(d);
@@ -212,19 +208,19 @@ static struct domain_limit_data* domain_limit_findcreate(
 }
 
 /** insert rate limit configuration into lookup tree */
-static int infra_ratelimit_cfg_insert(struct infra_cache* infra,
+static int infra_ratelimit_cfg_insert(struct rbtree_type* domain_limits,
 	struct config_file* cfg)
 {
 	struct config_str2list* p;
 	struct domain_limit_data* d;
 	for(p = cfg->ratelimit_for_domain; p; p = p->next) {
-		d = domain_limit_findcreate(infra, p->str);
+		d = domain_limit_findcreate(domain_limits, p->str);
 		if(!d)
 			return 0;
 		d->lim = atoi(p->str2);
 	}
 	for(p = cfg->ratelimit_below_domain; p; p = p->next) {
-		d = domain_limit_findcreate(infra, p->str);
+		d = domain_limit_findcreate(domain_limits, p->str);
 		if(!d)
 			return 0;
 		d->below = atoi(p->str2);
@@ -232,24 +228,21 @@ static int infra_ratelimit_cfg_insert(struct infra_cache* infra,
 	return 1;
 }
 
-/** setup domain limits tree (0 on failure) */
-static int
-setup_domain_limits(struct infra_cache* infra, struct config_file* cfg)
+int
+setup_domain_limits(struct rbtree_type* domain_limits, struct config_file* cfg)
 {
-	name_tree_init(&infra->domain_limits);
-	if(!infra_ratelimit_cfg_insert(infra, cfg)) {
+	name_tree_init(domain_limits);
+	if(!infra_ratelimit_cfg_insert(domain_limits, cfg)) {
 		return 0;
 	}
-	name_tree_init_parents(&infra->domain_limits);
+	name_tree_init_parents(domain_limits);
 	return 1;
 }
 
 /** find or create element in wait limit netblock tree */
 static struct wait_limit_netblock_info*
-wait_limit_netblock_findcreate(struct infra_cache* infra, char* str,
-	int cookie)
+wait_limit_netblock_findcreate(struct rbtree_type* tree, char* str)
 {
-	rbtree_type* tree;
 	struct sockaddr_storage addr;
 	int net;
 	socklen_t addrlen;
@@ -261,10 +254,6 @@ wait_limit_netblock_findcreate(struct infra_cache* infra, char* str,
 	}
 
 	/* can we find it? */
-	if(cookie)
-		tree = &infra->wait_limits_cookie_netblock;
-	else
-		tree = &infra->wait_limits_netblock;
 	d = (struct wait_limit_netblock_info*)addr_tree_find(tree, &addr,
 		addrlen, net);
 	if(d)
@@ -286,19 +275,21 @@ wait_limit_netblock_findcreate(struct infra_cache* infra, char* str,
 
 /** insert wait limit information into lookup tree */
 static int
-infra_wait_limit_netblock_insert(struct infra_cache* infra,
-	struct config_file* cfg)
+infra_wait_limit_netblock_insert(rbtree_type* wait_limits_netblock,
+        rbtree_type* wait_limits_cookie_netblock, struct config_file* cfg)
 {
 	struct config_str2list* p;
 	struct wait_limit_netblock_info* d;
 	for(p = cfg->wait_limit_netblock; p; p = p->next) {
-		d = wait_limit_netblock_findcreate(infra, p->str, 0);
+		d = wait_limit_netblock_findcreate(wait_limits_netblock,
+			p->str);
 		if(!d)
 			return 0;
 		d->limit = atoi(p->str2);
 	}
 	for(p = cfg->wait_limit_cookie_netblock; p; p = p->next) {
-		d = wait_limit_netblock_findcreate(infra, p->str, 1);
+		d = wait_limit_netblock_findcreate(wait_limits_cookie_netblock,
+			p->str);
 		if(!d)
 			return 0;
 		d->limit = atoi(p->str2);
@@ -306,16 +297,48 @@ infra_wait_limit_netblock_insert(struct infra_cache* infra,
 	return 1;
 }
 
-/** setup wait limits tree (0 on failure) */
+/** Add a default wait limit netblock */
 static int
-setup_wait_limits(struct infra_cache* infra, struct config_file* cfg)
+wait_limit_netblock_default(struct rbtree_type* tree, char* str, int limit)
 {
-	addr_tree_init(&infra->wait_limits_netblock);
-	addr_tree_init(&infra->wait_limits_cookie_netblock);
-	if(!infra_wait_limit_netblock_insert(infra, cfg))
+	struct wait_limit_netblock_info* d;
+	d = wait_limit_netblock_findcreate(tree, str);
+	if(!d)
 		return 0;
-	addr_tree_init_parents(&infra->wait_limits_netblock);
-	addr_tree_init_parents(&infra->wait_limits_cookie_netblock);
+	d->limit = limit;
+	return 1;
+}
+
+int
+setup_wait_limits(rbtree_type* wait_limits_netblock,
+	rbtree_type* wait_limits_cookie_netblock, struct config_file* cfg)
+{
+	addr_tree_init(wait_limits_netblock);
+	addr_tree_init(wait_limits_cookie_netblock);
+
+	/* Insert defaults */
+	/* The loopback address is separated from the rest of the network. */
+	/* wait-limit-netblock: 127.0.0.0/8 -1 */
+	if(!wait_limit_netblock_default(wait_limits_netblock, "127.0.0.0/8",
+		-1))
+		return 0;
+	/* wait-limit-netblock: ::1/128 -1 */
+	if(!wait_limit_netblock_default(wait_limits_netblock, "::1/128", -1))
+		return 0;
+	/* wait-limit-cookie-netblock: 127.0.0.0/8 -1 */
+	if(!wait_limit_netblock_default(wait_limits_cookie_netblock,
+		"127.0.0.0/8", -1))
+		return 0;
+	/* wait-limit-cookie-netblock: ::1/128 -1 */
+	if(!wait_limit_netblock_default(wait_limits_cookie_netblock,
+		"::1/128", -1))
+		return 0;
+
+	if(!infra_wait_limit_netblock_insert(wait_limits_netblock,
+		wait_limits_cookie_netblock, cfg))
+		return 0;
+	addr_tree_init_parents(wait_limits_netblock);
+	addr_tree_init_parents(wait_limits_cookie_netblock);
 	return 1;
 }
 
@@ -348,11 +371,12 @@ infra_create(struct config_file* cfg)
 		return NULL;
 	}
 	/* insert config data into ratelimits */
-	if(!setup_domain_limits(infra, cfg)) {
+	if(!setup_domain_limits(&infra->domain_limits, cfg)) {
 		infra_delete(infra);
 		return NULL;
 	}
-	if(!setup_wait_limits(infra, cfg)) {
+	if(!setup_wait_limits(&infra->wait_limits_netblock,
+		&infra->wait_limits_cookie_netblock, cfg)) {
 		infra_delete(infra);
 		return NULL;
 	}
@@ -377,10 +401,27 @@ static void domain_limit_free(rbnode_type* n, void* ATTR_UNUSED(arg))
 	}
 }
 
+void
+domain_limits_free(struct rbtree_type* domain_limits)
+{
+	if(!domain_limits)
+		return;
+	traverse_postorder(domain_limits, domain_limit_free, NULL);
+}
+
 /** delete wait_limit_netblock_info entries */
 static void wait_limit_netblock_del(rbnode_type* n, void* ATTR_UNUSED(arg))
 {
 	free(n);
+}
+
+void
+wait_limits_free(struct rbtree_type* wait_limits_tree)
+{
+	if(!wait_limits_tree)
+		return;
+	traverse_postorder(wait_limits_tree, wait_limit_netblock_del,
+		NULL);
 }
 
 void 
@@ -390,12 +431,10 @@ infra_delete(struct infra_cache* infra)
 		return;
 	slabhash_delete(infra->hosts);
 	slabhash_delete(infra->domain_rates);
-	traverse_postorder(&infra->domain_limits, domain_limit_free, NULL);
+	domain_limits_free(&infra->domain_limits);
 	slabhash_delete(infra->client_ip_rates);
-	traverse_postorder(&infra->wait_limits_netblock,
-		wait_limit_netblock_del, NULL);
-	traverse_postorder(&infra->wait_limits_cookie_netblock,
-		wait_limit_netblock_del, NULL);
+	wait_limits_free(&infra->wait_limits_netblock);
+	wait_limits_free(&infra->wait_limits_cookie_netblock);
 	free(infra);
 }
 
@@ -426,7 +465,7 @@ infra_adjust(struct infra_cache* infra, struct config_file* cfg)
 		/* reapply domain limits */
 		traverse_postorder(&infra->domain_limits, domain_limit_free,
 			NULL);
-		if(!setup_domain_limits(infra, cfg)) {
+		if(!setup_domain_limits(&infra->domain_limits, cfg)) {
 			infra_delete(infra);
 			return NULL;
 		}
@@ -668,7 +707,7 @@ infra_update_tcp_works(struct infra_cache* infra,
 	if(data->rtt.rto >= RTT_MAX_TIMEOUT)
 		/* do not disqualify this server altogether, it is better
 		 * than nothing */
-		data->rtt.rto = STILL_USEFUL_TIMEOUT;
+		data->rtt.rto = still_useful_timeout();
 	lock_rw_unlock(&e->lock);
 }
 
@@ -808,7 +847,7 @@ infra_get_lame_rtt(struct infra_cache* infra,
 		&& infra->infra_keep_probing) {
 		/* single probe, keep probing */
 		if(*rtt >= USEFUL_SERVER_TOP_TIMEOUT)
-			*rtt = STILL_USEFUL_TIMEOUT;
+			*rtt = still_useful_timeout();
 	} else if(host->rtt.rto >= PROBE_MAXRTO && timenow < host->probedelay
 		&& rtt_notimeout(&host->rtt)*4 <= host->rtt.rto) {
 		/* single probe for this domain, and we are not probing */
@@ -816,15 +855,15 @@ infra_get_lame_rtt(struct infra_cache* infra,
 		if(qtype == LDNS_RR_TYPE_A) {
 			if(host->timeout_A >= TIMEOUT_COUNT_MAX)
 				*rtt = USEFUL_SERVER_TOP_TIMEOUT;
-			else	*rtt = STILL_USEFUL_TIMEOUT;
+			else	*rtt = still_useful_timeout();
 		} else if(qtype == LDNS_RR_TYPE_AAAA) {
 			if(host->timeout_AAAA >= TIMEOUT_COUNT_MAX)
 				*rtt = USEFUL_SERVER_TOP_TIMEOUT;
-			else	*rtt = STILL_USEFUL_TIMEOUT;
+			else	*rtt = still_useful_timeout();
 		} else {
 			if(host->timeout_other >= TIMEOUT_COUNT_MAX)
 				*rtt = USEFUL_SERVER_TOP_TIMEOUT;
-			else	*rtt = STILL_USEFUL_TIMEOUT;
+			else	*rtt = still_useful_timeout();
 		}
 	}
 	/* expired entry */
@@ -832,7 +871,7 @@ infra_get_lame_rtt(struct infra_cache* infra,
 		/* see if this can be a re-probe of an unresponsive server */
 		if(host->rtt.rto >= USEFUL_SERVER_TOP_TIMEOUT) {
 			lock_rw_unlock(&e->lock);
-			*rtt = STILL_USEFUL_TIMEOUT;
+			*rtt = still_useful_timeout();
 			*lame = 0;
 			*dnsseclame = 0;
 			*reclame = 0;
@@ -1081,7 +1120,8 @@ int infra_ratelimit_inc(struct infra_cache* infra, uint8_t* name,
 		lock_rw_unlock(&entry->lock);
 
 		if(premax <= lim && max > lim) {
-			char buf[257], qnm[257], ts[12], cs[12], ip[128];
+			char buf[LDNS_MAX_DOMAINLEN], qnm[LDNS_MAX_DOMAINLEN];
+			char ts[12], cs[12], ip[128];
 			dname_str(name, buf);
 			dname_str(qinfo->qname, qnm);
 			sldns_wire2str_type_buf(qinfo->qtype, ts, sizeof(ts));

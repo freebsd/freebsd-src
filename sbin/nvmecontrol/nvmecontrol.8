@@ -235,6 +235,9 @@
 .Aq Ar device-id | Ar namespace-id | Ar SubNQN
 .Nm
 .Ic reconnect
+.Aq Ar device-id
+.Nm
+.Ic reconnect
 .Op Fl FGg
 .Op Fl i Ar queues
 .Op Fl k Ar seconds
@@ -813,11 +816,20 @@ Delete the controller device associated with a remote I/O controller
 including any active association and open queues.
 .Ss reconnect
 Reestablish an association for the remote I/O controller associated with
-.Ar device-id
-at
-.Ar address .
-The address must include a port.
-The flags have the same meaning for the new association as described above
+.Ar device-id .
+If an
+.Ar address
+is not provided,
+the resolved address and settings from the previous association are used
+to establish a new association.
+If an
+.Ar address
+is provided,
+the supplied address and command line flags are used to establish a new
+association.
+In this case,
+the address must include a port and
+the flags have the same meaning for the new association as described above
 for the
 .Cm connect
 command.

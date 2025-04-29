@@ -49,7 +49,7 @@
 enum	{ PF_INOUT, PF_IN, PF_OUT };
 enum	{ PF_PASS, PF_DROP, PF_SCRUB, PF_NOSCRUB, PF_NAT, PF_NONAT,
 	  PF_BINAT, PF_NOBINAT, PF_RDR, PF_NORDR, PF_SYNPROXY_DROP, PF_DEFER,
-	  PF_MATCH, PF_AFRT };
+	  PF_MATCH, PF_AFRT, PF_RT };
 enum	{ PF_RULESET_SCRUB, PF_RULESET_FILTER, PF_RULESET_NAT,
 	  PF_RULESET_BINAT, PF_RULESET_RDR, PF_RULESET_MAX };
 enum	{ PF_OP_NONE, PF_OP_IRG, PF_OP_EQ, PF_OP_NE, PF_OP_LT,
@@ -113,7 +113,7 @@ enum	{
 #define PFTM_OTHER_FIRST_PACKET_VAL	60	/* First packet */
 #define PFTM_OTHER_SINGLE_VAL		30	/* Unidirectional */
 #define PFTM_OTHER_MULTIPLE_VAL		60	/* Bidirectional */
-#define PFTM_FRAG_VAL			30	/* Fragment expire */
+#define PFTM_FRAG_VAL			60	/* Fragment expire */
 #define PFTM_INTERVAL_VAL		10	/* Expire interval */
 #define PFTM_SRC_NODE_VAL		0	/* Source tracking */
 #define PFTM_TS_DIFF_VAL		30	/* Allowed TS diff */
@@ -132,6 +132,11 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 #define PF_POOL_ENDPI		0x40
 #define	PF_WSCALE_FLAG		0x80
 #define	PF_WSCALE_MASK		0x0f
+
+#define PF_POOL_DYNTYPE(_o)					\
+	((((_o) & PF_POOL_TYPEMASK) == PF_POOL_ROUNDROBIN) ||	\
+	(((_o) & PF_POOL_TYPEMASK) == PF_POOL_RANDOM) ||	\
+	(((_o) & PF_POOL_TYPEMASK) == PF_POOL_SRCHASH))
 
 #define	PF_LOG			0x01
 #define	PF_LOG_ALL		0x02
@@ -156,7 +161,8 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 #define PFRES_SRCLIMIT	13		/* Source node/conn limit */
 #define PFRES_SYNPROXY	14		/* SYN proxy */
 #define PFRES_MAPFAILED	15		/* pf_map_addr() failed */
-#define PFRES_MAX	16		/* total+1 */
+#define PFRES_TRANSLATE	16		/* No translation address available */
+#define PFRES_MAX	17		/* total+1 */
 
 #define PFRES_NAMES { \
 	"match", \
@@ -175,6 +181,7 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 	"src-limit", \
 	"synproxy", \
 	"map-failed", \
+	"translate", \
 	NULL \
 }
 
@@ -617,6 +624,8 @@ struct pf_rule {
 #define	PFRULE_IFBOUND		0x00010000 /* if-bound */
 #define	PFRULE_STATESLOPPY	0x00020000 /* sloppy state tracking */
 #define	PFRULE_PFLOW		0x00040000
+#define	PFRULE_ALLOW_RELATED	0x00080000
+#define	PFRULE_AFTO		0x00200000  /* af-to rule */
 
 #ifdef _KERNEL
 #define	PFRULE_REFS		0x0080	/* rule has references */
@@ -644,6 +653,12 @@ struct pf_rule {
 #define	PFSTATE_DN_IS_QUEUE	0x8000
 #define	PFSTATE_SCRUBMASK (PFSTATE_NODF|PFSTATE_RANDOMID|PFSTATE_SCRUB_TCP)
 #define	PFSTATE_SETMASK   (PFSTATE_SETTOS|PFSTATE_SETPRIO)
+
+/* pfctl_state->src_node_flags */
+#define PFSTATE_SRC_NODE_LIMIT		0x01
+#define PFSTATE_SRC_NODE_NAT		0x02
+#define PFSTATE_SRC_NODE_ROUTE		0x04
+#define PFSTATE_SRC_NODE_LIMIT_GLOBAL	0x10
 
 #define PFSTATE_HIWAT		100000	/* default state table size */
 #define PFSTATE_ADAPT_START	60000	/* default adaptive timeout start */

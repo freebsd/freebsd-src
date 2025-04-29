@@ -457,7 +457,7 @@ hv_hid_detach(device_t dev)
 	int		ret;
 
 	sc = device_get_softc(dev);
-	ret = device_delete_children(dev);
+	ret = bus_generic_detach(dev);
 	if (ret != 0)
 		return (ret);
 	if (sc->hs_xact_ctx != NULL)

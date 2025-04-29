@@ -6,5 +6,8 @@ SUBDIR += imcsmb
 .if ${MACHINE_CPUARCH} == "riscv"
 SUBDIR += iicoc
 .endif
+.if ${MACHINE_CPUARCH} == "aarch64"
+SUBDIR += geni_iic
+.endif
 
 .include <bsd.subdir.mk>

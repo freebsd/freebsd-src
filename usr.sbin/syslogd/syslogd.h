@@ -127,6 +127,11 @@ enum f_type {
 	F_PIPE,		/* pipe to program */
 };
 
+struct forw_addr {
+	struct sockaddr_storage laddr;
+	struct sockaddr_storage raddr;
+};
+
 /*
  * This structure represents the files that will have log
  * copies printed.
@@ -158,6 +163,7 @@ struct filed {
 			char	f_hname[MAXHOSTNAMELEN];
 			int	*f_addr_fds;
 			size_t	f_num_addr_fds;
+			struct forw_addr *f_addrs;
 		};				/* F_FORW */
 		struct {
 			char	f_pname[MAXPATHLEN];

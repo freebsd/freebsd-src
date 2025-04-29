@@ -1,13 +1,15 @@
 /*
  * Single-precision erf(x) function.
  *
- * Copyright (c) 2020, Arm Limited.
+ * Copyright (c) 2020-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include <stdint.h>
 #include <math.h>
 #include "math_config.h"
+#include "test_defs.h"
+#include "test_sig.h"
 
 #define TwoOverSqrtPiMinusOne 0x1.06eba8p-3f
 #define A __erff_data.erff_poly_A
@@ -102,3 +104,11 @@ erff (float x)
     }
   return r;
 }
+
+TEST_SIG (S, F, 1, erf, -6.0, 6.0)
+TEST_ULP (erff, 0.6)
+TEST_ULP_NONNEAREST (erff, 0.9)
+TEST_INTERVAL (erff, 0, 0xffff0000, 10000)
+TEST_SYM_INTERVAL (erff, 0x1p-127, 0x1p-26, 40000)
+TEST_SYM_INTERVAL (erff, 0x1p-26, 0x1p3, 40000)
+TEST_INTERVAL (erff, 0, inf, 40000)

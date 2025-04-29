@@ -27,11 +27,6 @@
  * SUCH DAMAGE.
  */
 
-/**
- * Beware that the OMAP4 datasheet(s) lists GPIO banks 1-6, whereas the code
- * here uses 0-5.
- */
-
 #include <sys/cdefs.h>
 #include "opt_platform.h"
 
@@ -66,7 +61,7 @@
 #include "ti_gpio_if.h"
 #include "pic_if.h"
 
-#if !defined(SOC_OMAP4) && !defined(SOC_TI_AM335X)
+#if !defined(SOC_TI_AM335X)
 #error "Unknown SoC"
 #endif
 
@@ -105,21 +100,11 @@
 #define	TI_GPIO_SETDATAOUT		0x0194
 
 /* Other SoC Specific definitions */
-#define	OMAP4_FIRST_GPIO_BANK		1
-#define	OMAP4_INTR_PER_BANK		1
-#define	OMAP4_GPIO_REV			0x50600801
 #define	AM335X_FIRST_GPIO_BANK		0
 #define	AM335X_INTR_PER_BANK		2
 #define	AM335X_GPIO_REV			0x50600801
 #define	PINS_PER_BANK			32
 #define	TI_GPIO_MASK(p)			(1U << ((p) % PINS_PER_BANK))
-
-#define OMAP4_GPIO1_REV			0x00000
-#define OMAP4_GPIO2_REV			0x55000
-#define OMAP4_GPIO3_REV			0x57000
-#define OMAP4_GPIO4_REV			0x59000
-#define OMAP4_GPIO5_REV			0x5b000
-#define OMAP4_GPIO6_REV			0x5d000
 
 #define AM335X_GPIO0_REV		0x07000
 #define AM335X_GPIO1_REV		0x4C000
@@ -136,10 +121,6 @@ static uint32_t
 ti_gpio_rev(void)
 {
 	switch(ti_chip()) {
-#ifdef SOC_OMAP4
-	case CHIP_OMAP_4:
-		return (OMAP4_GPIO_REV);
-#endif
 #ifdef SOC_TI_AM335X
 	case CHIP_AM335X:
 		return (AM335X_GPIO_REV);
@@ -558,29 +539,6 @@ ti_gpio_bank_init(device_t dev)
 	/* AM335x
 	 * sc->sc_bank used in am335x/am335x_gpio.c and omap4/omap4_gpio.c */
 	switch(ti_chip()) {
-#ifdef SOC_OMAP4
-	case CHIP_OMAP_4:
-		switch (rev_address) {
-			case OMAP4_GPIO1_REV:
-				sc->sc_bank = 0;
-				break;
-			case OMAP4_GPIO2_REV:
-				sc->sc_bank = 1;
-				break;
-			case OMAP4_GPIO3_REV:
-				sc->sc_bank = 2;
-				break;
-			case OMAP4_GPIO4_REV:
-				sc->sc_bank = 3;
-				break;
-			case OMAP4_GPIO5_REV:
-				sc->sc_bank = 4;
-				break;
-			case OMAP4_GPIO6_REV:
-				sc->sc_bank = 5;
-				break;
-		}
-#endif
 #ifdef SOC_TI_AM335X
 	case CHIP_AM335X:
 		switch (rev_address) {

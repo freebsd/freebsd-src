@@ -50,7 +50,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 /*-
  * Driver for Atheros AR5523 USB parts.
  *
@@ -442,6 +441,12 @@ uath_attach(device_t dev)
 	ieee80211_init_channels(ic, NULL, bands);
 
 	ieee80211_ifattach(ic);
+
+	/* Note: this has to happen AFTER ieee80211_ifattach() */
+	ieee80211_set_software_ciphers(ic,
+	    IEEE80211_CRYPTO_WEP | IEEE80211_CRYPTO_TKIP |
+	    IEEE80211_CRYPTO_AES_CCM | IEEE80211_CRYPTO_AES_GCM_128);
+
 	ic->ic_raw_xmit = uath_raw_xmit;
 	ic->ic_scan_start = uath_scan_start;
 	ic->ic_scan_end = uath_scan_end;
@@ -2058,7 +2063,8 @@ uath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 * Tx rate is controlled by firmware, report the maximum
 		 * negotiated rate in ifconfig output.
 		 */
-		ni->ni_txrate = ni->ni_rates.rs_rates[ni->ni_rates.rs_nrates-1];
+		ieee80211_node_set_txrate_dot11rate(ni,
+		    ni->ni_rates.rs_rates[ni->ni_rates.rs_nrates-1]);
 
 		if (uath_write_associd(sc) != 0) {
 			device_printf(sc->sc_dev,
@@ -2308,10 +2314,12 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 			    __func__, dlen, sizeof(uint32_t));
 			return;
 		}
-		/* XXX have submitter do this */
-		/* copy answer into caller's supplied buffer */
-		bcopy(hdr+1, cmd->odata, sizeof(uint32_t));
-		cmd->olen = sizeof(uint32_t);
+		if (cmd->odata != NULL) {
+			/* XXX have submitter do this */
+			/* copy answer into caller's supplied buffer */
+			bcopy(hdr+1, cmd->odata, sizeof(uint32_t));
+			cmd->olen = sizeof(uint32_t);
+		}
 		wakeup_one(cmd);		/* wake up caller */
 		break;
 

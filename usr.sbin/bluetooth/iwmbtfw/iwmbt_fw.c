@@ -119,6 +119,7 @@ iwmbt_get_fwname(struct iwmbt_version *ver, struct iwmbt_boot_params *params,
 	switch (ver->hw_variant) {
 	case 0x07:	/* 7260 */
 	case 0x08:	/* 7265 */
+		// NB: don't use params, they are NULL for 7xxx
 		asprintf(&fwname, "%s/ibt-hw-%x.%x.%x-fw-%x.%x.%x.%x.%x.%s",
 		    prefix,
 		    le16toh(ver->hw_platform),

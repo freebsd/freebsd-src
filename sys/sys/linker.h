@@ -221,6 +221,14 @@ void linker_kldload_unbusy(int flags);
 #endif	/* _KERNEL */
 
 /*
+ * ELF file types
+ */
+#define KERNTYPE_MB	"elf multiboot kernel"
+#define KERNTYPE	"elf kernel"
+#define MODTYPE_OBJ	"elf obj module"
+#define MODTYPE		"elf module"
+
+/*
  * Module information subtypes
  */
 #define MODINFO_END		0x0000		/* End of list */
@@ -272,7 +280,10 @@ void linker_kldload_unbusy(int flags);
  * Module lookup
  */
 extern vm_offset_t	preload_addr_relocate;
-extern caddr_t		preload_metadata;
+extern caddr_t		preload_metadata, preload_kmdp;
+extern const char	preload_modtype[];
+extern const char	preload_kerntype[];
+extern const char	preload_modtype_obj[];
 
 extern void *		preload_fetch_addr(caddr_t _mod);
 extern size_t		preload_fetch_size(caddr_t _mod);
@@ -280,6 +291,7 @@ extern caddr_t		preload_search_by_name(const char *_name);
 extern caddr_t		preload_search_by_type(const char *_type);
 extern caddr_t		preload_search_next_name(caddr_t _base);
 extern caddr_t		preload_search_info(caddr_t _mod, int _inf);
+extern void		preload_initkmdp(bool _fatal);
 extern void		preload_delete_name(const char *_name);
 extern void		preload_bootstrap_relocate(vm_offset_t _offset);
 extern void		preload_dump(void);
@@ -312,7 +324,7 @@ int	elf_reloc_local(linker_file_t _lf, Elf_Addr base, const void *_rel,
 Elf_Addr elf_relocaddr(linker_file_t _lf, Elf_Addr addr);
 const Elf_Sym *elf_get_sym(linker_file_t _lf, Elf_Size _symidx);
 const char *elf_get_symname(linker_file_t _lf, Elf_Size _symidx);
-void	link_elf_ireloc(caddr_t kmdp);
+void	link_elf_ireloc(void);
 
 #if defined(__aarch64__) || defined(__amd64__)
 int	elf_reloc_late(linker_file_t _lf, Elf_Addr base, const void *_rel,

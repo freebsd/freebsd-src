@@ -17,6 +17,7 @@ SRCS+=	vmm.c			\
 	vmm_dev.c		\
 	vmm_dev_machdep.c	\
 	vmm_instruction_emul.c	\
+	vmm_mem.c		\
 	vmm_stat.c
 
 .if ${MACHINE_CPUARCH} == "aarch64"
@@ -45,11 +46,11 @@ CLEANFILES+=	vmm_nvhe_exception.o vmm_nvhe.o
 CLEANFILES+=	vmm_hyp_blob.elf.full
 CLEANFILES+=	vmm_hyp_blob.elf vmm_hyp_blob.bin
 
-vmm_nvhe_exception.o: vmm_nvhe_exception.S
+vmm_nvhe_exception.o: vmm_nvhe_exception.S vmm_hyp_exception.S
 	${CC} -c -x assembler-with-cpp -DLOCORE \
 	    ${NOSAN_CFLAGS:N-mbranch-protection*} ${.IMPSRC} -o ${.TARGET} -fpie
 
-vmm_nvhe.o: vmm_nvhe.c
+vmm_nvhe.o: vmm_nvhe.c vmm_hyp.c
 	${CC} -c ${NOSAN_CFLAGS:N-mbranch-protection*} ${.IMPSRC} \
 	    -o ${.TARGET} -fpie
 
@@ -82,7 +83,7 @@ SRCS+=	opt_acpi.h		\
 SRCS+=	vmm_host.c	\
 	vmm_ioport.c	\
 	vmm_lapic.c	\
-	vmm_mem.c	\
+	vmm_mem_machdep.c \
 	vmm_util.c	\
 	x86.c
 
@@ -152,9 +153,11 @@ svm_genassym.o: offset.inc
 .elif ${MACHINE_CPUARCH} == "riscv"
 
 SRCS+=	vmm_aplic.c	\
+	vmm_fence.c	\
 	vmm_riscv.c	\
 	vmm_sbi.c	\
-	vmm_switch.S
+	vmm_switch.S	\
+	vmm_vtimer.c
 
 .endif
 

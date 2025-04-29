@@ -38,6 +38,10 @@
  * store them here. This is constructed to be a useful stack:
  *
  * struct trampoline_data {
+ * // %rsp points here on start and we pop the args off and then retq to 'entry'
+ *	uint64_t	memmap_src;		// Linux-provided memory map PA
+ *	uint64_t	memmap_dst;		// Module data copy PA
+ *	uint64_t	memmap_len;		// Length to copy
  *	uint64_t	pt4;			// Page table address to pop
  *	uint64_t	entry;			// return address to jump to kernel
  *	uint32_t	fill1;			// 0
@@ -47,33 +51,52 @@
  * };
  *
  * loader.kboot will construct a stack that btext expects, which is arguments on
- * the stack, not in registers, and these args are 32-bit not 64
+ * the stack, not in registers, and these args are 32-bit not 64. The extra stuff
+ * is data the trampoline code consumes.
  *
  * Processor is already in long mode when we're called, paging is enabled and
  * boot loader loads things such that:
  * - kernel mapped at KERNBASE, aligned to 2MB, below 4GB, contiguous memory
+ * - %cr3 tells us our PA later in boot, so we install it before jumping
+ *   to the kernel.
  * - there is a 2M hole at KERNBASE (KERNSTART = KERNBASE + 2M)
  * - kernel is mapped with 2M superpages
  * - The kernel, modules and metadata is in first 4GB which is unity mapped
  * - There's additional memory after loader provided data for early allocations
  *
- * Unlike EFI, we don't support copying the staging area. We tell Linux to land
- * the kernel in its final location with the needed alignment, etc. We copy the
- * trampoline code to 1MB offset above KERNBASE since that memory is otherwise
- * free and safely above the lower 1MB swamp we inherited from IBM PC, though
- * this code makes no assumptions about where that might.
+ * Unlike coming directly from loader.efi, we don't support copying the staging
+ * area. We tell Linux to land the kernel in its final location with the needed
+ * alignment, etc. We copy the trampoline code to 1MB offset above KERNBASE
+ * since that memory is otherwise free and safely above the lower 1MB swamp we
+ * inherited from IBM PC, though this code makes no assumptions about where that
+ * might be.
  *
- * Thus, the trampoline just needs to set %rsp to that stack pop the %cr3 value,
- * set it and then retq to jump to the kernel with its stack args filled in.
- * Since the handoff to this code used to be from 32-bit code, it uses the i386
- * calling conventions which put the arguments on the stack. The kernel's btext
- * routine expects this setup.
+ * Thus, the trampoline just needs to set %rsp to that stack pop the systab
+ * patch value, pop the %cr3 value, set it and then retq to jump to the kernel
+ * with its stack args filled in.  Since the handoff to this code used to be
+ * from 32-bit code, it uses the i386 calling conventions which put the
+ * arguments on the stack. The kernel's btext routine expects this setup.
  */
+
 	.text
 	.globl	tramp
 tramp:
 	cli				/* Make sure we don't get interrupted. */
-	leaq	tramp_pt4(%rip), %rsp	/* Setup our pre-filled-in stack */
+	cld				/* Copy in a sane direction */
+	leaq	stack_start(%rip), %rsp	/* Setup our pre-filled-in stack */
+
+	/*
+	 * If we have a EFI memory map, copy it over. These data are always
+	 * on the stack, so we pop them all off before testing to skip the copy.
+	 */
+	popq	%rsi			/* memmap_src */
+	popq	%rdi			/* memmap_dst */
+	popq	%rcx			/* memmap_size */
+	testq	%rsi, %rsi
+	je	no_map_copy
+	rep	movsb			/* Make the copy */
+
+no_map_copy:
 	popq	%rax			/* Pop off the PT4 ptr for %cr3 */
 	movq	%rax, %cr3		/* set the page table */
 	retq				/* Return addr and args already on stack */
@@ -84,6 +107,13 @@ tramp:
  */
 	.p2align	3		/* Stack has to be 8 byte aligned */
 trampoline_data:
+stack_start:				/* %rsp at start. */
+tramp_memmap_src:
+		.quad	0		/* SRC PA (data from Linux) */
+tramp_memmap_dst:
+		.quad	0		/* DST PA (data to FreeBSD's metadata */
+tramp_memmap_len:
+		.quad	0		/* Length */
 tramp_pt4:	.quad	0		/* New %cr3 value */
 tramp_entry:	.quad	0		/* Entry to kernel (btext) */
 	/* %rsp points here on entry to amd64 kernel's btext */
@@ -105,3 +135,5 @@ tramp_size:
 tramp_data_offset:
 	.long	trampoline_data-tramp
 	.size	tramp_data_offset, 4
+
+	.section .note.GNU-stack,"",%progbits

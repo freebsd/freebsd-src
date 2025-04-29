@@ -53,7 +53,7 @@
  * goes from 44 -> 83.
  */
 #define RTWN_RIDX_VHT_MCS_SHIFT	44
-#define RTWN_RIDX_VHT_MCS(s, i)	(RTWN_RIDX_VHT_MCS_SHIFT + ((10*s) + i))
+#define RTWN_RIDX_VHT_MCS(s, i)	(RTWN_RIDX_VHT_MCS_SHIFT + ((10*(s)) + (i)))
 
 /*
  * The total amount of rate indexes, CCK, OFDM, HT MCS0..31,
@@ -82,20 +82,22 @@ rate2ridx(uint8_t rate)
 	}
 	switch (rate) {
 	/* 11g */
-	case 12:	return 4;
-	case 18:	return 5;
-	case 24:	return 6;
-	case 36:	return 7;
-	case 48:	return 8;
-	case 72:	return 9;
-	case 96:	return 10;
-	case 108:	return 11;
+	case 12:	return (RTWN_RIDX_OFDM6);
+	case 18:	return (RTWN_RIDX_OFDM9);
+	case 24:	return (RTWN_RIDX_OFDM12);
+	case 36:	return (RTWN_RIDX_OFDM18);
+	case 48:	return (RTWN_RIDX_OFDM24);
+	case 72:	return (RTWN_RIDX_OFDM36);
+	case 96:	return (RTWN_RIDX_OFDM48);
+	case 108:	return (RTWN_RIDX_OFDM54);
 	/* 11b */
-	case 2:		return 0;
-	case 4:		return 1;
-	case 11:	return 2;
-	case 22:	return 3;
-	default:	return RTWN_RIDX_UNKNOWN;
+	case 2:		return (RTWN_RIDX_CCK1);
+	case 4:		return (RTWN_RIDX_CCK2);
+	case 11:	return (RTWN_RIDX_CCK55);
+	case 22:	return (RTWN_RIDX_CCK11);
+	default:
+		printf("%s: called; unknown rate (%d)\n", __func__, rate);
+		return (RTWN_RIDX_UNKNOWN);
 	}
 }
 
@@ -108,10 +110,23 @@ rtwn_ctl_mcsrate(const struct ieee80211_rate_table *rt, uint8_t ridx)
 	/* Check if we are using MCS rate. */
 	KASSERT(RTWN_RATE_IS_HT(ridx), ("bad mcs rate index %d", ridx));
 
-	rate = (ridx - RTWN_RIDX_HT_MCS(0)) | IEEE80211_RATE_MCS;
+	rate = RTWN_RIDX_TO_MCS(ridx) | IEEE80211_RATE_MCS;
 	cix = rt->info[rt->rateCodeToIndex[rate]].ctlRateIndex;
 	KASSERT(cix != (uint8_t)-1, ("rate %d (%d) has no info", rate, ridx));
-	return rt->info[cix].dot11Rate;
+	return (rt->info[cix].dot11Rate);
+}
+
+/* VHT version of rtwn_ctl_mcsrate */
+/* XXX TODO: also should move this to net80211 */
+static __inline__ uint8_t
+rtwn_ctl_vhtrate(const struct ieee80211_rate_table *rt, uint8_t ridx)
+{
+
+	/* Check if we are using VHT MCS rate. */
+	KASSERT(RTWN_RATE_IS_VHT(ridx), ("bad mcs rate index %d", ridx));
+
+	/* TODO: there's no VHT tables, so for now just stick to OFDM12 */
+	return (24);
 }
 
 #endif	/* IF_RTWN_RIDX_H */

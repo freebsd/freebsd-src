@@ -876,6 +876,8 @@
         mqueue
         ..
         net
+            bpf
+                ..
             if_ovpn
                 ccd
                 ..
@@ -1163,6 +1165,8 @@
         ..
         m4
         ..
+        mail
+        ..
         mkimg
         ..
         mktemp
@@ -1204,6 +1208,8 @@
         tail
         ..
         tar
+        ..
+        tee
         ..
         tftp
         ..

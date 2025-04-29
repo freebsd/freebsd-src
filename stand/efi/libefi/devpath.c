@@ -491,7 +491,7 @@ efi_devpath_to_name(EFI_DEVICE_PATH *devpath)
 		free(ptr);
 		ptr = out;
 	}
-	
+
 	return (ptr);
 }
 

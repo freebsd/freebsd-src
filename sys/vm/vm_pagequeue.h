@@ -247,18 +247,16 @@ struct vm_domain {
 	u_int vmd_domain;		/* (c) Domain number. */
 	u_int vmd_page_count;		/* (c) Total page count. */
 	long vmd_segs;			/* (c) bitmask of the segments */
-	struct vm_nofreeq {
-		vm_page_t ma;
-		int offs;
-	} vmd_nofreeq;			/* (f) NOFREE page bump allocator. */
+	struct pglist vmd_nofreeq;	/* (f) NOFREE page bump allocator. */
 	u_int __aligned(CACHE_LINE_SIZE) vmd_free_count; /* (a,f) free page count */
 	u_int vmd_pageout_deficit;	/* (a) Estimated number of pages deficit */
 	uint8_t vmd_pad[CACHE_LINE_SIZE - (sizeof(u_int) * 2)];
 
 	/* Paging control variables, used within single threaded page daemon. */
 	struct pidctrl vmd_pid;		/* Pageout controller. */
-	boolean_t vmd_oom;
-	u_int vmd_inactive_threads;
+	bool vmd_oom;			/* An OOM kill was requested. */
+	bool vmd_helper_threads_enabled;/* Use multiple threads to scan. */
+	u_int vmd_inactive_threads;	/* Number of extra helper threads. */
 	u_int vmd_inactive_shortage;		/* Per-thread shortage. */
 	blockcount_t vmd_inactive_running;	/* Number of inactive threads. */
 	blockcount_t vmd_inactive_starting;	/* Number of threads started. */

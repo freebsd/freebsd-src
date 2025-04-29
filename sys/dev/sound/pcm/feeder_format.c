@@ -3,6 +3,10 @@
  *
  * Copyright (c) 2008-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,7 +40,7 @@
 #include "opt_snd.h"
 #endif
 #include <dev/sound/pcm/sound.h>
-#include <dev/sound/pcm/g711.h>
+#include <dev/sound/pcm/pcm.h>
 #include "feeder_if.h"
 
 #define SND_USE_FXDIV
@@ -48,201 +52,18 @@
 struct feed_format_info {
 	uint32_t ibps, obps;
 	uint32_t ialign, oalign, channels;
-	intpcm_read_t *read;
-	intpcm_write_t *write;
+	uint32_t rdfmt, wrfmt;
 	uint8_t reservoir[FEEDFORMAT_RESERVOIR];
-};
-
-#define INTPCM_DECLARE_OP_WRITE(SIGN, BIT, ENDIAN, SHIFT)		\
-static __inline void							\
-intpcm_write_##SIGN##BIT##ENDIAN(uint8_t *dst, intpcm_t v)		\
-{									\
-									\
-	_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, v >> SHIFT);		\
-}
-
-#define INTPCM_DECLARE_OP_8(SIGN, ENDIAN)				\
-static __inline intpcm_t						\
-intpcm_read_##SIGN##8##ENDIAN(uint8_t *src)				\
-{									\
-									\
-	return (_PCM_READ_##SIGN##8##_##ENDIAN(src) << 24);		\
-}									\
-INTPCM_DECLARE_OP_WRITE(SIGN, 8, ENDIAN, 24)
-
-#define INTPCM_DECLARE_OP_16(SIGN, ENDIAN)				\
-static __inline intpcm_t						\
-intpcm_read_##SIGN##16##ENDIAN(uint8_t *src)				\
-{									\
-									\
-	return (_PCM_READ_##SIGN##16##_##ENDIAN(src) << 16);		\
-}									\
-INTPCM_DECLARE_OP_WRITE(SIGN, 16, ENDIAN, 16)
-
-#define INTPCM_DECLARE_OP_24(SIGN, ENDIAN)				\
-static __inline intpcm_t						\
-intpcm_read_##SIGN##24##ENDIAN(uint8_t *src)				\
-{									\
-									\
-	return (_PCM_READ_##SIGN##24##_##ENDIAN(src) << 8);		\
-}									\
-INTPCM_DECLARE_OP_WRITE(SIGN, 24, ENDIAN, 8)
-
-#define INTPCM_DECLARE_OP_32(SIGN, ENDIAN)				\
-static __inline intpcm_t						\
-intpcm_read_##SIGN##32##ENDIAN(uint8_t *src)				\
-{									\
-									\
-	return (_PCM_READ_##SIGN##32##_##ENDIAN(src));			\
-}									\
-									\
-static __inline void							\
-intpcm_write_##SIGN##32##ENDIAN(uint8_t *dst, intpcm_t v)		\
-{									\
-									\
-	_PCM_WRITE_##SIGN##32##_##ENDIAN(dst, v);			\
-}
-
-INTPCM_DECLARE_OP_8(S, NE)
-INTPCM_DECLARE_OP_16(S, LE)
-INTPCM_DECLARE_OP_16(S, BE)
-INTPCM_DECLARE_OP_24(S, LE)
-INTPCM_DECLARE_OP_24(S, BE)
-INTPCM_DECLARE_OP_32(S, LE)
-INTPCM_DECLARE_OP_32(S, BE)
-INTPCM_DECLARE_OP_8(U, NE)
-INTPCM_DECLARE_OP_16(U, LE)
-INTPCM_DECLARE_OP_16(U, BE)
-INTPCM_DECLARE_OP_24(U, LE)
-INTPCM_DECLARE_OP_24(U, BE)
-INTPCM_DECLARE_OP_32(U, LE)
-INTPCM_DECLARE_OP_32(U, BE)
-
-static const struct {
-	const uint8_t ulaw_to_u8[G711_TABLE_SIZE];
-	const uint8_t alaw_to_u8[G711_TABLE_SIZE];
-	const uint8_t u8_to_ulaw[G711_TABLE_SIZE];
-	const uint8_t u8_to_alaw[G711_TABLE_SIZE];
-} xlaw_conv_tables = {
-	ULAW_TO_U8,
-	ALAW_TO_U8,
-	U8_TO_ULAW,
-	U8_TO_ALAW
-};
-
-static __inline intpcm_t
-intpcm_read_ulaw(uint8_t *src)
-{
-	return (_G711_TO_INTPCM(xlaw_conv_tables.ulaw_to_u8, *src) << 24);
-}
-
-static __inline intpcm_t
-intpcm_read_alaw(uint8_t *src)
-{
-	return (_G711_TO_INTPCM(xlaw_conv_tables.alaw_to_u8, *src) << 24);
-}
-
-static __inline void
-intpcm_write_ulaw(uint8_t *dst, intpcm_t v)
-{
-	*dst = _INTPCM_TO_G711(xlaw_conv_tables.u8_to_ulaw, v >> 24);
-}
-
-static __inline void
-intpcm_write_alaw(uint8_t *dst, intpcm_t v)
-{
-	*dst = _INTPCM_TO_G711(xlaw_conv_tables.u8_to_alaw, v >> 24);
-}
-
-/*
- * dummy ac3/dts passthrough, etc.
- * XXX assume as s16le.
- */
-static __inline intpcm_t
-intpcm_read_null(uint8_t *src __unused)
-{
-
-	return (0);
-}
-
-static __inline void
-intpcm_write_null(uint8_t *dst, intpcm_t v __unused)
-{
-
-	_PCM_WRITE_S16_LE(dst, 0);
-}
-
-#define FEEDFORMAT_ENTRY(SIGN, BIT, ENDIAN)				\
-	{								\
-		AFMT_##SIGN##BIT##_##ENDIAN,				\
-		intpcm_read_##SIGN##BIT##ENDIAN,			\
-		intpcm_write_##SIGN##BIT##ENDIAN			\
-	}
-
-static const struct {
-	uint32_t format;
-	intpcm_read_t *read;
-	intpcm_write_t *write;
-} feed_format_ops[] = {
-	FEEDFORMAT_ENTRY(S,  8, NE),
-	FEEDFORMAT_ENTRY(S, 16, LE),
-	FEEDFORMAT_ENTRY(S, 24, LE),
-	FEEDFORMAT_ENTRY(S, 32, LE),
-	FEEDFORMAT_ENTRY(S, 16, BE),
-	FEEDFORMAT_ENTRY(S, 24, BE),
-	FEEDFORMAT_ENTRY(S, 32, BE),
-	FEEDFORMAT_ENTRY(U,  8, NE),
-	FEEDFORMAT_ENTRY(U, 16, LE),
-	FEEDFORMAT_ENTRY(U, 24, LE),
-	FEEDFORMAT_ENTRY(U, 32, LE),
-	FEEDFORMAT_ENTRY(U, 16, BE),
-	FEEDFORMAT_ENTRY(U, 24, BE),
-	FEEDFORMAT_ENTRY(U, 32, BE),
-	{
-		AFMT_MU_LAW,
-		intpcm_read_ulaw, intpcm_write_ulaw
-	},
-	{
-		AFMT_A_LAW,
-		intpcm_read_alaw, intpcm_write_alaw
-	},
-	{
-		AFMT_AC3,
-		intpcm_read_null, intpcm_write_null
-	}
 };
 
 static int
 feed_format_init(struct pcm_feeder *f)
 {
 	struct feed_format_info *info;
-	intpcm_read_t *rd_op;
-	intpcm_write_t *wr_op;
-	size_t i;
 
 	if (f->desc->in == f->desc->out ||
 	    AFMT_CHANNEL(f->desc->in) != AFMT_CHANNEL(f->desc->out))
 		return (EINVAL);
-
-	rd_op = NULL;
-	wr_op = NULL;
-
-	for (i = 0; i < nitems(feed_format_ops) &&
-	    (rd_op == NULL || wr_op == NULL); i++) {
-		if (rd_op == NULL &&
-		    AFMT_ENCODING(f->desc->in) == feed_format_ops[i].format)
-			rd_op = feed_format_ops[i].read;
-		if (wr_op == NULL &&
-		    AFMT_ENCODING(f->desc->out) == feed_format_ops[i].format)
-			wr_op = feed_format_ops[i].write;
-	}
-
-	if (rd_op == NULL || wr_op == NULL) {
-		printf("%s(): failed to initialize io ops "
-		    "in=0x%08x out=0x%08x\n",
-		    __func__, f->desc->in, f->desc->out);
-		return (EINVAL);
-	}
 
 	info = malloc(sizeof(*info), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (info == NULL)
@@ -252,11 +73,11 @@ feed_format_init(struct pcm_feeder *f)
 
 	info->ibps = AFMT_BPS(f->desc->in);
 	info->ialign = info->ibps * info->channels;
-	info->read = rd_op;
+	info->rdfmt = AFMT_ENCODING(f->desc->in);
 
 	info->obps = AFMT_BPS(f->desc->out);
 	info->oalign = info->obps * info->channels;
-	info->write = wr_op;
+	info->wrfmt = AFMT_ENCODING(f->desc->out);
 
 	f->data = info;
 
@@ -340,8 +161,8 @@ feed_format_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 		count -= j * info->obps;
 
 		do {
-			v = info->read(src);
-			info->write(dst, v);
+			v = pcm_sample_read_norm(src, info->rdfmt);
+			pcm_sample_write_norm(dst, v, info->wrfmt);
 			dst += info->obps;
 			src += info->ibps;
 		} while (--j != 0);
@@ -365,29 +186,3 @@ static kobj_method_t feeder_format_methods[] = {
 };
 
 FEEDER_DECLARE(feeder_format, NULL);
-
-intpcm_read_t *
-feeder_format_read_op(uint32_t format)
-{
-	size_t i;
-
-	for (i = 0; i < nitems(feed_format_ops); i++) {
-		if (AFMT_ENCODING(format) == feed_format_ops[i].format)
-			return (feed_format_ops[i].read);
-	}
-
-	return (NULL);
-}
-
-intpcm_write_t *
-feeder_format_write_op(uint32_t format)
-{
-	size_t i;
-
-	for (i = 0; i < nitems(feed_format_ops); i++) {
-		if (AFMT_ENCODING(format) == feed_format_ops[i].format)
-			return (feed_format_ops[i].write);
-	}
-
-	return (NULL);
-}

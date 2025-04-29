@@ -47,7 +47,9 @@ EOF
 
 log()
 {
-	echo "$@"
+	if [ "${QUIET}" != "y" ]; then
+		echo "$@"
+	fi
 }
 
 log_verbose()
@@ -118,16 +120,12 @@ done
 
 case "${packages}" in
 ""|^[[:space:]]*$)
-	if [ "${QUIET}" != "y" ]; then
-		echo "No firmware packages to install."
-	fi
+	log "No firmware packages to install."
 	exit 0
 	;;
 esac
 
-if [ "${QUIET}" != "y" ]; then
-	echo "Needed firmware packages: '${packages}'"
-fi
+log "Needed firmware packages: '${packages}'"
 if [ "${DRY_RUN}" = "y" ]; then
 	if [ "${QUIET}" = "y" ]; then
 		for pkg in ${packages}; do

@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.c,v 1.405 2024/03/04 02:16:11 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.419 2024/09/25 01:24:04 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -70,6 +70,10 @@
 #include "digest.h"
 #include "version.h"
 
+#if !defined(SSHD_PAM_SERVICE)
+# define SSHD_PAM_SERVICE		"sshd"
+#endif
+
 static void add_listen_addr(ServerOptions *, const char *,
     const char *, int);
 static void add_one_listen_addr(ServerOptions *, const char *,
@@ -78,8 +82,6 @@ static void parse_server_config_depth(ServerOptions *options,
     const char *filename, struct sshbuf *conf, struct include_list *includes,
     struct connection_info *connectinfo, int flags, int *activep, int depth);
 
-/* Use of privilege separation or not */
-extern int use_privsep;
 extern struct sshbuf *cfg;
 
 /* Initializes the server options to their default values. */
@@ -91,6 +93,7 @@ initialize_server_options(ServerOptions *options)
 
 	/* Portable-specific options */
 	options->use_pam = -1;
+	options->pam_service_name = NULL;
 
 	/* Standard Options */
 	options->num_ports = 0;
@@ -166,6 +169,19 @@ initialize_server_options(ServerOptions *options)
 	options->per_source_max_startups = -1;
 	options->per_source_masklen_ipv4 = -1;
 	options->per_source_masklen_ipv6 = -1;
+	options->per_source_penalty_exempt = NULL;
+	options->per_source_penalty.enabled = -1;
+	options->per_source_penalty.max_sources4 = -1;
+	options->per_source_penalty.max_sources6 = -1;
+	options->per_source_penalty.overflow_mode = -1;
+	options->per_source_penalty.overflow_mode6 = -1;
+	options->per_source_penalty.penalty_crash = -1;
+	options->per_source_penalty.penalty_authfail = -1;
+	options->per_source_penalty.penalty_noauth = -1;
+	options->per_source_penalty.penalty_grace = -1;
+	options->per_source_penalty.penalty_refuseconnection = -1;
+	options->per_source_penalty.penalty_max = -1;
+	options->per_source_penalty.penalty_min = -1;
 	options->max_authtries = -1;
 	options->max_sessions = -1;
 	options->banner = NULL;
@@ -198,6 +214,8 @@ initialize_server_options(ServerOptions *options)
 	options->channel_timeouts = NULL;
 	options->num_channel_timeouts = 0;
 	options->unused_connection_timeout = -1;
+	options->sshd_session_path = NULL;
+	options->refuse_connection = -1;
 	options->use_blacklist = -1;
 }
 
@@ -286,6 +304,8 @@ fill_default_server_options(ServerOptions *options)
 	/* Portable-specific options */
 	if (options->use_pam == -1)
 		options->use_pam = 1;
+	if (options->pam_service_name == NULL)
+		options->pam_service_name = xstrdup(SSHD_PAM_SERVICE);
 
 	/* Standard Options */
 	if (options->num_host_key_files == 0) {
@@ -411,6 +431,30 @@ fill_default_server_options(ServerOptions *options)
 		options->per_source_masklen_ipv4 = 32;
 	if (options->per_source_masklen_ipv6 == -1)
 		options->per_source_masklen_ipv6 = 128;
+	if (options->per_source_penalty.enabled == -1)
+		options->per_source_penalty.enabled = 1;
+	if (options->per_source_penalty.max_sources4 == -1)
+		options->per_source_penalty.max_sources4 = 65536;
+	if (options->per_source_penalty.max_sources6 == -1)
+		options->per_source_penalty.max_sources6 = 65536;
+	if (options->per_source_penalty.overflow_mode == -1)
+		options->per_source_penalty.overflow_mode = PER_SOURCE_PENALTY_OVERFLOW_PERMISSIVE;
+	if (options->per_source_penalty.overflow_mode6 == -1)
+		options->per_source_penalty.overflow_mode6 = options->per_source_penalty.overflow_mode;
+	if (options->per_source_penalty.penalty_crash == -1)
+		options->per_source_penalty.penalty_crash = 90;
+	if (options->per_source_penalty.penalty_grace == -1)
+		options->per_source_penalty.penalty_grace = 10;
+	if (options->per_source_penalty.penalty_authfail == -1)
+		options->per_source_penalty.penalty_authfail = 5;
+	if (options->per_source_penalty.penalty_noauth == -1)
+		options->per_source_penalty.penalty_noauth = 1;
+	if (options->per_source_penalty.penalty_refuseconnection == -1)
+		options->per_source_penalty.penalty_refuseconnection = 10;
+	if (options->per_source_penalty.penalty_min == -1)
+		options->per_source_penalty.penalty_min = 15;
+	if (options->per_source_penalty.penalty_max == -1)
+		options->per_source_penalty.penalty_max = 600;
 	if (options->max_authtries == -1)
 		options->max_authtries = DEFAULT_AUTH_FAIL_MAX;
 	if (options->max_sessions == -1)
@@ -455,14 +499,14 @@ fill_default_server_options(ServerOptions *options)
 		options->required_rsa_size = SSH_RSA_MINIMUM_MODULUS_SIZE;
 	if (options->unused_connection_timeout == -1)
 		options->unused_connection_timeout = 0;
+	if (options->sshd_session_path == NULL)
+		options->sshd_session_path = xstrdup(_PATH_SSHD_SESSION);
+	if (options->refuse_connection == -1)
+		options->refuse_connection = 0;
 	if (options->use_blacklist == -1)
 		options->use_blacklist = 0;
 
 	assemble_algorithms(options);
-
-	/* Turn privilege separation and sandboxing on by default */
-	if (use_privsep == -1)
-		use_privsep = PRIVSEP_ON;
 
 #define CLEAR_ON_NONE(v) \
 	do { \
@@ -492,6 +536,7 @@ fill_default_server_options(ServerOptions *options)
 	CLEAR_ON_NONE(options->chroot_directory);
 	CLEAR_ON_NONE(options->routing_domain);
 	CLEAR_ON_NONE(options->host_key_agent);
+	CLEAR_ON_NONE(options->per_source_penalty_exempt);
 
 	for (i = 0; i < options->num_host_key_files; i++)
 		CLEAR_ON_NONE(options->host_key_files[i]);
@@ -508,7 +553,7 @@ fill_default_server_options(ServerOptions *options)
 typedef enum {
 	sBadOption,		/* == unknown option */
 	/* Portable-specific options */
-	sUsePAM,
+	sUsePAM, sPAMServiceName,
 	/* Standard Options */
 	sPort, sHostKeyFile, sLoginGraceTime,
 	sPermitRootLogin, sLogFacility, sLogLevel, sLogVerbose,
@@ -526,6 +571,7 @@ typedef enum {
 	sBanner, sUseDNS, sHostbasedAuthentication,
 	sHostbasedUsesNameFromPacketOnly, sHostbasedAcceptedAlgorithms,
 	sHostKeyAlgorithms, sPerSourceMaxStartups, sPerSourceNetBlockSize,
+	sPerSourcePenalties, sPerSourcePenaltyExemptList,
 	sClientAliveInterval, sClientAliveCountMax, sAuthorizedKeysFile,
 	sGssAuthentication, sGssCleanupCreds, sGssStrictAcceptor,
 	sAcceptEnv, sSetEnv, sPermitTunnel,
@@ -541,6 +587,7 @@ typedef enum {
 	sAllowStreamLocalForwarding, sFingerprintHash, sDisableForwarding,
 	sExposeAuthInfo, sRDomain, sPubkeyAuthOptions, sSecurityKeyProvider,
 	sRequiredRSASize, sChannelTimeout, sUnusedConnectionTimeout,
+	sSshdSessionPath, sRefuseConnection,
 	sUseBlacklist,
 	sDeprecated, sIgnore, sUnsupported
 } ServerOpCodes;
@@ -560,8 +607,10 @@ static struct {
 	/* Portable-specific options */
 #ifdef USE_PAM
 	{ "usepam", sUsePAM, SSHCFG_GLOBAL },
+	{ "pamservicename", sPAMServiceName, SSHCFG_ALL },
 #else
 	{ "usepam", sUnsupported, SSHCFG_GLOBAL },
+	{ "pamservicename", sUnsupported, SSHCFG_ALL },
 #endif
 	{ "pamauthenticationviakbdint", sDeprecated, SSHCFG_GLOBAL },
 	/* Standard Options */
@@ -658,6 +707,8 @@ static struct {
 	{ "maxstartups", sMaxStartups, SSHCFG_GLOBAL },
 	{ "persourcemaxstartups", sPerSourceMaxStartups, SSHCFG_GLOBAL },
 	{ "persourcenetblocksize", sPerSourceNetBlockSize, SSHCFG_GLOBAL },
+	{ "persourcepenalties", sPerSourcePenalties, SSHCFG_GLOBAL },
+	{ "persourcepenaltyexemptlist", sPerSourcePenaltyExemptList, SSHCFG_GLOBAL },
 	{ "maxauthtries", sMaxAuthTries, SSHCFG_ALL },
 	{ "maxsessions", sMaxSessions, SSHCFG_ALL },
 	{ "banner", sBanner, SSHCFG_ALL },
@@ -704,6 +755,8 @@ static struct {
 	{ "requiredrsasize", sRequiredRSASize, SSHCFG_ALL },
 	{ "channeltimeout", sChannelTimeout, SSHCFG_ALL },
 	{ "unusedconnectiontimeout", sUnusedConnectionTimeout, SSHCFG_ALL },
+	{ "sshdsessionpath", sSshdSessionPath, SSHCFG_GLOBAL },
+	{ "refuseconnection", sRefuseConnection, SSHCFG_ALL },
 	{ "useblacklist", sUseBlacklist, SSHCFG_GLOBAL },
 	{ "useblocklist", sUseBlacklist, SSHCFG_GLOBAL }, /* alias */
 
@@ -917,95 +970,6 @@ process_queued_listen_addrs(ServerOptions *options)
 }
 
 /*
- * Inform channels layer of permitopen options for a single forwarding
- * direction (local/remote).
- */
-static void
-process_permitopen_list(struct ssh *ssh, ServerOpCodes opcode,
-    char **opens, u_int num_opens)
-{
-	u_int i;
-	int port;
-	char *host, *arg, *oarg;
-	int where = opcode == sPermitOpen ? FORWARD_LOCAL : FORWARD_REMOTE;
-	const char *what = lookup_opcode_name(opcode);
-
-	channel_clear_permission(ssh, FORWARD_ADM, where);
-	if (num_opens == 0)
-		return; /* permit any */
-
-	/* handle keywords: "any" / "none" */
-	if (num_opens == 1 && strcmp(opens[0], "any") == 0)
-		return;
-	if (num_opens == 1 && strcmp(opens[0], "none") == 0) {
-		channel_disable_admin(ssh, where);
-		return;
-	}
-	/* Otherwise treat it as a list of permitted host:port */
-	for (i = 0; i < num_opens; i++) {
-		oarg = arg = xstrdup(opens[i]);
-		host = hpdelim(&arg);
-		if (host == NULL)
-			fatal_f("missing host in %s", what);
-		host = cleanhostname(host);
-		if (arg == NULL || ((port = permitopen_port(arg)) < 0))
-			fatal_f("bad port number in %s", what);
-		/* Send it to channels layer */
-		channel_add_permission(ssh, FORWARD_ADM,
-		    where, host, port);
-		free(oarg);
-	}
-}
-
-/*
- * Inform channels layer of permitopen options from configuration.
- */
-void
-process_permitopen(struct ssh *ssh, ServerOptions *options)
-{
-	process_permitopen_list(ssh, sPermitOpen,
-	    options->permitted_opens, options->num_permitted_opens);
-	process_permitopen_list(ssh, sPermitListen,
-	    options->permitted_listens,
-	    options->num_permitted_listens);
-}
-
-void
-process_channel_timeouts(struct ssh *ssh, ServerOptions *options)
-{
-	int secs;
-	u_int i;
-	char *type;
-
-	debug3_f("setting %u timeouts", options->num_channel_timeouts);
-	channel_clear_timeouts(ssh);
-	for (i = 0; i < options->num_channel_timeouts; i++) {
-		if (parse_pattern_interval(options->channel_timeouts[i],
-		    &type, &secs) != 0) {
-			fatal_f("internal error: bad timeout %s",
-			    options->channel_timeouts[i]);
-		}
-		channel_add_timeout(ssh, type, secs);
-		free(type);
-	}
-}
-
-struct connection_info *
-get_connection_info(struct ssh *ssh, int populate, int use_dns)
-{
-	static struct connection_info ci;
-
-	if (ssh == NULL || !populate)
-		return &ci;
-	ci.host = auth_get_canonical_hostname(ssh, use_dns);
-	ci.address = ssh_remote_ipaddr(ssh);
-	ci.laddress = ssh_local_ipaddr(ssh);
-	ci.lport = ssh_local_port(ssh);
-	ci.rdomain = ssh_packet_rdomain_in(ssh);
-	return &ci;
-}
-
-/*
  * The strategy for the Match blocks is that the config file is parsed twice.
  *
  * The first time is at startup.  activep is initialized to 1 and the
@@ -1079,46 +1043,80 @@ match_test_missing_fatal(const char *criteria, const char *attrib)
  * not match.
  */
 static int
-match_cfg_line(char **condition, int line, struct connection_info *ci)
+match_cfg_line(const char *full_line, int *acp, char ***avp,
+    int line, struct connection_info *ci)
 {
 	int result = 1, attributes = 0, port;
-	char *arg, *attrib, *cp = *condition;
+	char *arg, *attrib = NULL, *oattrib;
 
 	if (ci == NULL)
-		debug3("checking syntax for 'Match %s'", cp);
-	else
-		debug3("checking match for '%s' user %s host %s addr %s "
-		    "laddr %s lport %d", cp, ci->user ? ci->user : "(null)",
+		debug3("checking syntax for 'Match %s'", full_line);
+	else {
+		debug3("checking match for '%s' user %s%s host %s addr %s "
+		    "laddr %s lport %d", full_line,
+		    ci->user ? ci->user : "(null)",
+		    ci->user_invalid ? " (invalid)" : "",
 		    ci->host ? ci->host : "(null)",
 		    ci->address ? ci->address : "(null)",
 		    ci->laddress ? ci->laddress : "(null)", ci->lport);
+	}
 
-	while ((attrib = strdelim(&cp)) && *attrib != '\0') {
+	while ((oattrib = argv_next(acp, avp)) != NULL) {
+		attrib = xstrdup(oattrib);
 		/* Terminate on comment */
 		if (*attrib == '#') {
-			cp = NULL; /* mark all arguments consumed */
+			argv_consume(acp); /* mark all arguments consumed */
 			break;
 		}
 		arg = NULL;
 		attributes++;
 		/* Criterion "all" has no argument and must appear alone */
 		if (strcasecmp(attrib, "all") == 0) {
-			if (attributes > 1 || ((arg = strdelim(&cp)) != NULL &&
+			if (attributes > 1 ||
+			    ((arg = argv_next(acp, avp)) != NULL &&
 			    *arg != '\0' && *arg != '#')) {
 				error("'all' cannot be combined with other "
 				    "Match attributes");
-				return -1;
+				result = -1;
+				goto out;
 			}
 			if (arg != NULL && *arg == '#')
-				cp = NULL; /* mark all arguments consumed */
-			*condition = cp;
-			return 1;
+				argv_consume(acp); /* consume remaining args */
+			result = 1;
+			goto out;
 		}
+		/* Criterion "invalid-user" also has no argument */
+		if (strcasecmp(attrib, "invalid-user") == 0) {
+			if (ci == NULL) {
+				result = 0;
+				continue;
+			}
+			if (ci->user_invalid == 0)
+				result = 0;
+			else
+				debug("matched invalid-user at line %d", line);
+			continue;
+		}
+
+		/* Keep this list in sync with below */
+		if (strprefix(attrib, "user=", 1) != NULL ||
+		    strprefix(attrib, "group=", 1) != NULL ||
+		    strprefix(attrib, "host=", 1) != NULL ||
+		    strprefix(attrib, "address=", 1) != NULL ||
+		    strprefix(attrib, "localaddress=", 1) != NULL ||
+		    strprefix(attrib, "localport=", 1) != NULL ||
+		    strprefix(attrib, "rdomain=", 1) != NULL) {
+			arg = strchr(attrib, '=');
+			*(arg++) = '\0';
+		} else {
+			arg = argv_next(acp, avp);
+		}
+
 		/* All other criteria require an argument */
-		if ((arg = strdelim(&cp)) == NULL ||
-		    *arg == '\0' || *arg == '#') {
+		if (arg == NULL || *arg == '\0' || *arg == '#') {
 			error("Missing Match criteria for %s", attrib);
-			return -1;
+			result = -1;
+			goto out;
 		}
 		if (strcasecmp(attrib, "user") == 0) {
 			if (ci == NULL || (ci->test && ci->user == NULL)) {
@@ -1141,7 +1139,8 @@ match_cfg_line(char **condition, int line, struct connection_info *ci)
 				match_test_missing_fatal("Group", "user");
 			switch (match_cfg_line_group(arg, line, ci->user)) {
 			case -1:
-				return -1;
+				result = -1;
+				goto out;
 			case 0:
 				result = 0;
 			}
@@ -1177,7 +1176,8 @@ match_cfg_line(char **condition, int line, struct connection_info *ci)
 				result = 0;
 				break;
 			case -2:
-				return -1;
+				result = -1;
+				goto out;
 			}
 		} else if (strcasecmp(attrib, "localaddress") == 0){
 			if (ci == NULL || (ci->test && ci->laddress == NULL)) {
@@ -1202,13 +1202,15 @@ match_cfg_line(char **condition, int line, struct connection_info *ci)
 				result = 0;
 				break;
 			case -2:
-				return -1;
+				result = -1;
+				goto out;
 			}
 		} else if (strcasecmp(attrib, "localport") == 0) {
 			if ((port = a2port(arg)) == -1) {
 				error("Invalid LocalPort '%s' on Match line",
 				    arg);
-				return -1;
+				result = -1;
+				goto out;
 			}
 			if (ci == NULL || (ci->test && ci->lport == -1)) {
 				result = 0;
@@ -1236,17 +1238,21 @@ match_cfg_line(char **condition, int line, struct connection_info *ci)
 				debug("user %.100s matched 'RDomain %.100s' at "
 				    "line %d", ci->rdomain, arg, line);
 		} else {
-			error("Unsupported Match attribute %s", attrib);
-			return -1;
+			error("Unsupported Match attribute %s", oattrib);
+			result = -1;
+			goto out;
 		}
+		free(attrib);
+		attrib = NULL;
 	}
 	if (attributes == 0) {
 		error("One or more attributes required for Match");
 		return -1;
 	}
-	if (ci != NULL)
+ out:
+	if (ci != NULL && result != -1)
 		debug3("match %sfound", result ? "" : "not ");
-	*condition = cp;
+	free(attrib);
 	return result;
 }
 
@@ -1384,6 +1390,16 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 	case sUsePAM:
 		intptr = &options->use_pam;
 		goto parse_flag;
+	case sPAMServiceName:
+		charptr = &options->pam_service_name;
+		arg = argv_next(&ac, &av);
+		if (!arg || *arg == '\0') {
+			fatal("%s line %d: missing argument.",
+			    filename, linenum);
+		}
+		if (*activep && *charptr == NULL)
+			*charptr = xstrdup(arg);
+		break;
 
 	/* Standard Options */
 	case sBadOption:
@@ -1980,6 +1996,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		xasprintf(&options->subsystem_args[options->num_subsystems],
 		    "%s%s%s", arg, *arg2 == '\0' ? "" : " ", arg2);
 		free(arg2);
+		free(arg);
 		argv_consume(&ac);
 		options->num_subsystems++;
 		break;
@@ -2047,6 +2064,103 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		}
 		if (*activep && options->per_source_max_startups == -1)
 			options->per_source_max_startups = value;
+		break;
+
+	case sPerSourcePenaltyExemptList:
+		charptr = &options->per_source_penalty_exempt;
+		arg = argv_next(&ac, &av);
+		if (!arg || *arg == '\0')
+			fatal("%s line %d: missing argument.",
+			    filename, linenum);
+		if (addr_match_list(NULL, arg) != 0) {
+			fatal("%s line %d: keyword %s "
+			    "invalid address argument.",
+			    filename, linenum, keyword);
+		}
+		if (*activep && *charptr == NULL)
+			*charptr = xstrdup(arg);
+		break;
+
+	case sPerSourcePenalties:
+		while ((arg = argv_next(&ac, &av)) != NULL) {
+			found = 1;
+			value = -1;
+			value2 = 0;
+			p = NULL;
+			/* Allow no/yes only in first position */
+			if (strcasecmp(arg, "no") == 0 ||
+			    (value2 = (strcasecmp(arg, "yes") == 0))) {
+				if (ac > 0) {
+					fatal("%s line %d: keyword %s \"%s\" "
+					    "argument must appear alone.",
+					    filename, linenum, keyword, arg);
+				}
+				if (*activep &&
+				    options->per_source_penalty.enabled == -1)
+					options->per_source_penalty.enabled = value2;
+				continue;
+			} else if (strncmp(arg, "crash:", 6) == 0) {
+				p = arg + 6;
+				intptr = &options->per_source_penalty.penalty_crash;
+			} else if (strncmp(arg, "authfail:", 9) == 0) {
+				p = arg + 9;
+				intptr = &options->per_source_penalty.penalty_authfail;
+			} else if (strncmp(arg, "noauth:", 7) == 0) {
+				p = arg + 7;
+				intptr = &options->per_source_penalty.penalty_noauth;
+			} else if (strncmp(arg, "grace-exceeded:", 15) == 0) {
+				p = arg + 15;
+				intptr = &options->per_source_penalty.penalty_grace;
+			} else if (strncmp(arg, "refuseconnection:", 17) == 0) {
+				p = arg + 17;
+				intptr = &options->per_source_penalty.penalty_refuseconnection;
+			} else if (strncmp(arg, "max:", 4) == 0) {
+				p = arg + 4;
+				intptr = &options->per_source_penalty.penalty_max;
+			} else if (strncmp(arg, "min:", 4) == 0) {
+				p = arg + 4;
+				intptr = &options->per_source_penalty.penalty_min;
+			} else if (strncmp(arg, "max-sources4:", 13) == 0) {
+				intptr = &options->per_source_penalty.max_sources4;
+				if ((errstr = atoi_err(arg+13, &value)) != NULL)
+					fatal("%s line %d: %s value %s.",
+					    filename, linenum, keyword, errstr);
+			} else if (strncmp(arg, "max-sources6:", 13) == 0) {
+				intptr = &options->per_source_penalty.max_sources6;
+				if ((errstr = atoi_err(arg+13, &value)) != NULL)
+					fatal("%s line %d: %s value %s.",
+					    filename, linenum, keyword, errstr);
+			} else if (strcmp(arg, "overflow:deny-all") == 0) {
+				intptr = &options->per_source_penalty.overflow_mode;
+				value = PER_SOURCE_PENALTY_OVERFLOW_DENY_ALL;
+			} else if (strcmp(arg, "overflow:permissive") == 0) {
+				intptr = &options->per_source_penalty.overflow_mode;
+				value = PER_SOURCE_PENALTY_OVERFLOW_PERMISSIVE;
+			} else if (strcmp(arg, "overflow6:deny-all") == 0) {
+				intptr = &options->per_source_penalty.overflow_mode6;
+				value = PER_SOURCE_PENALTY_OVERFLOW_DENY_ALL;
+			} else if (strcmp(arg, "overflow6:permissive") == 0) {
+				intptr = &options->per_source_penalty.overflow_mode6;
+				value = PER_SOURCE_PENALTY_OVERFLOW_PERMISSIVE;
+			} else {
+				fatal("%s line %d: unsupported %s keyword %s",
+				    filename, linenum, keyword, arg);
+			}
+			/* If no value was parsed above, assume it's a time */
+			if (value == -1 && (value = convtime(p)) == -1) {
+				fatal("%s line %d: invalid %s time value.",
+				    filename, linenum, keyword);
+			}
+			if (*activep && *intptr == -1) {
+				*intptr = value;
+				/* any option implicitly enables penalties */
+				options->per_source_penalty.enabled = 1;
+			}
+		}
+		if (!found) {
+			fatal("%s line %d: no %s specified",
+			    filename, linenum, keyword);
+		}
 		break;
 
 	case sMaxAuthTries:
@@ -2278,7 +2392,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		if (cmdline)
 			fatal("Match directive not supported as a command-line "
 			    "option");
-		value = match_cfg_line(&str, linenum,
+		value = match_cfg_line(str, &ac, &av, linenum,
 		    (*inc_flags & SSHCFG_NEVERMATCH ? NULL : connectinfo));
 		if (value < 0)
 			fatal("%s line %d: Bad Match condition", filename,
@@ -2289,12 +2403,6 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		 * match block.
 		 */
 		*inc_flags &= ~SSHCFG_MATCH_ONLY;
-		/*
-		 * If match_cfg_line() didn't consume all its arguments then
-		 * arrange for the extra arguments check below to fail.
-		 */
-		if (str == NULL || *str == '\0')
-			argv_consume(&ac);
 		break;
 
 	case sPermitListen:
@@ -2607,6 +2715,15 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		}
 		goto parse_time;
 
+	case sSshdSessionPath:
+		charptr = &options->sshd_session_path;
+		goto parse_filename;
+
+	case sRefuseConnection:
+		intptr = &options->refuse_connection;
+		multistate_ptr = multistate_flag;
+		goto parse_multistate;
+
 	case sUseBlacklist:
 		intptr = &options->use_blacklist;
 		goto parse_flag;
@@ -2725,6 +2842,8 @@ int parse_server_match_testspec(struct connection_info *ci, char *spec)
 				    " specification %s\n", p+6, p);
 				return -1;
 			}
+		} else if (strcmp(p, "invalid-user") == 0) {
+			ci->user_invalid = 1;
 		} else {
 			fprintf(stderr, "Invalid test mode specification %s\n",
 			    p);
@@ -2826,6 +2945,7 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 	M_CP_INTOPT(log_level);
 	M_CP_INTOPT(required_rsa_size);
 	M_CP_INTOPT(unused_connection_timeout);
+	M_CP_INTOPT(refuse_connection);
 
 	/*
 	 * The bind_mask is a mode_t that may be unsigned, so we can't use
@@ -3100,6 +3220,7 @@ dump_config(ServerOptions *o)
 	/* integer arguments */
 #ifdef USE_PAM
 	dump_cfg_fmtint(sUsePAM, o->use_pam);
+	dump_cfg_string(sPAMServiceName, o->pam_service_name);
 #endif
 	dump_cfg_int(sLoginGraceTime, o->login_grace_time);
 	dump_cfg_int(sX11DisplayOffset, o->x11_display_offset);
@@ -3155,6 +3276,7 @@ dump_config(ServerOptions *o)
 	dump_cfg_fmtint(sStreamLocalBindUnlink, o->fwd_opts.streamlocal_bind_unlink);
 	dump_cfg_fmtint(sFingerprintHash, o->fingerprint_hash);
 	dump_cfg_fmtint(sExposeAuthInfo, o->expose_userauth_info);
+	dump_cfg_fmtint(sRefuseConnection, o->refuse_connection);
 	dump_cfg_fmtint(sUseBlacklist, o->use_blacklist);
 
 	/* string arguments */
@@ -3186,6 +3308,8 @@ dump_config(ServerOptions *o)
 #if defined(__OpenBSD__) || defined(HAVE_SYS_SET_PROCESS_RDOMAIN)
 	dump_cfg_string(sRDomain, o->routing_domain);
 #endif
+	dump_cfg_string(sSshdSessionPath, o->sshd_session_path);
+	dump_cfg_string(sPerSourcePenaltyExemptList, o->per_source_penalty_exempt);
 
 	/* string arguments requiring a lookup */
 	dump_cfg_string(sLogLevel, log_level_name(o->log_level));
@@ -3273,4 +3397,27 @@ dump_config(ServerOptions *o)
 	if (o->pubkey_auth_options & PUBKEYAUTH_VERIFY_REQUIRED)
 		printf(" verify-required");
 	printf("\n");
+
+	if (o->per_source_penalty.enabled) {
+		printf("persourcepenalties crash:%d authfail:%d noauth:%d "
+		    "grace-exceeded:%d refuseconnection:%d max:%d min:%d "
+		    "max-sources4:%d max-sources6:%d "
+		    "overflow:%s overflow6:%s\n",
+		    o->per_source_penalty.penalty_crash,
+		    o->per_source_penalty.penalty_authfail,
+		    o->per_source_penalty.penalty_noauth,
+		    o->per_source_penalty.penalty_grace,
+		    o->per_source_penalty.penalty_refuseconnection,
+		    o->per_source_penalty.penalty_max,
+		    o->per_source_penalty.penalty_min,
+		    o->per_source_penalty.max_sources4,
+		    o->per_source_penalty.max_sources6,
+		    o->per_source_penalty.overflow_mode ==
+		    PER_SOURCE_PENALTY_OVERFLOW_DENY_ALL ?
+		    "deny-all" : "permissive",
+		    o->per_source_penalty.overflow_mode6 ==
+		    PER_SOURCE_PENALTY_OVERFLOW_DENY_ALL ?
+		    "deny-all" : "permissive");
+	} else
+		printf("persourcepenalties no\n");
 }

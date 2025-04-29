@@ -325,13 +325,7 @@ htcp_cong_signal(struct cc_var *ccv, ccsignal_t type)
 
 	case CC_RTO:
 		if (CCV(ccv, t_rxtshift) == 1) {
-			if (V_tcp_do_newsack) {
-				pipe = tcp_compute_pipe(ccv->tp);
-			} else {
-				pipe = CCV(ccv, snd_max) -
-					CCV(ccv, snd_fack) +
-					CCV(ccv, sackhint.sack_bytes_rexmit);
-			}
+			pipe = tcp_compute_pipe(ccv->tp);
 			CCV(ccv, snd_ssthresh) = max(2,
 				min(CCV(ccv, snd_wnd), pipe) / 2 / mss) * mss;
 		}
@@ -381,14 +375,8 @@ htcp_post_recovery(struct cc_var *ccv)
 		 * If inflight data is less than ssthresh, set cwnd
 		 * conservatively to avoid a burst of data, as suggested in the
 		 * NewReno RFC. Otherwise, use the HTCP method.
-		 *
-		 * XXXLAS: Find a way to do this without needing curack
 		 */
-		if (V_tcp_do_newsack)
-			pipe = tcp_compute_pipe(ccv->tp);
-		else
-			pipe = CCV(ccv, snd_max) - ccv->curack;
-
+		pipe = tcp_compute_pipe(ccv->tp);
 		if (pipe < CCV(ccv, snd_ssthresh))
 			/*
 			 * Ensure that cwnd down not collape to 1 MSS under

@@ -275,6 +275,7 @@ enum tokens {
 	TOK_UNLOCK,
 	TOK_VLIST,
 	TOK_OLIST,
+	TOK_MONITOR,
 	TOK_MISSING,
 	TOK_ORFLUSH,
 
@@ -305,6 +306,8 @@ enum tokens {
 	TOK_LOGOFF,
 	TOK_PRIVATE,
 	TOK_PRIVATEOFF,
+	TOK_SWAPCONF,
+	TOK_SWAPCONFOFF,
 
 	/* NAT64 CLAT tokens */
 	TOK_NAT64CLAT,
@@ -345,7 +348,7 @@ struct buf_pr {
 int pr_u64(struct buf_pr *bp, void *pd, int width);
 int bp_alloc(struct buf_pr *b, size_t size);
 void bp_free(struct buf_pr *b);
-int bprintf(struct buf_pr *b, const char *format, ...);
+int bprintf(struct buf_pr *b, const char *format, ...) __printflike(2, 3);
 
 
 /* memory allocation support */
@@ -463,5 +466,5 @@ int table_check_name(const char *tablename);
 void ipfw_list_ta(int ac, char *av[]);
 void ipfw_list_values(int ac, char *av[]);
 void table_fill_ntlv(struct _ipfw_obj_ntlv *ntlv, const char *name,
-    uint8_t set, uint16_t uidx);
+    uint8_t set, uint32_t uidx);
 

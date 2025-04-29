@@ -132,6 +132,7 @@ max_src_conn_rule_head()
 {
 	atf_set descr 'Max connections per source per rule'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 max_src_conn_rule_body()
@@ -191,6 +192,7 @@ max_src_states_rule_head()
 {
 	atf_set descr 'Max states per source per rule'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 max_src_states_rule_body()
@@ -239,11 +241,11 @@ max_src_states_rule_body()
 	nodes=$(mktemp) || exit 1
 	jexec router pfctl -qvsS | normalize_pfctl_s > $nodes
 	for node_regexp in \
-		'2001:db8:44::1 -> :: \( states 3, connections 3, rate [0-9/\.]+s \) age [0-9:]+, 9 pkts, [0-9]+ bytes, filter rule 3$' \
-		'2001:db8:44::1 -> :: \( states 3, connections 3, rate [0-9/\.]+s \) age [0-9:]+, 9 pkts, [0-9]+ bytes, filter rule 4$' \
-		'2001:db8:44::2 -> :: \( states 3, connections 3, rate [0-9/\.]+s \) age [0-9:]+, 9 pkts, [0-9]+ bytes, filter rule 4$' \
+		'2001:db8:44::1 -> :: \( states 3, connections 3, rate [0-9/\.]+s \) age [0-9:]+, 9 pkts, [0-9]+ bytes, filter rule 3, limit source-track$' \
+		'2001:db8:44::1 -> :: \( states 3, connections 3, rate [0-9/\.]+s \) age [0-9:]+, 9 pkts, [0-9]+ bytes, filter rule 4, limit source-track$' \
+		'2001:db8:44::2 -> :: \( states 3, connections 3, rate [0-9/\.]+s \) age [0-9:]+, 9 pkts, [0-9]+ bytes, filter rule 4, limit source-track$' \
 	; do
-		grep -qE "$node_regexp" $nodes || atf_fail "Source nodes not matching expected output"
+		grep -qE "${node_regexp}" $nodes || atf_fail "Source node not found for '${node_regexp}'"
 	done
 
 	# Check if limit counters have been properly set.
@@ -255,10 +257,159 @@ max_src_states_rule_cleanup()
 	pft_cleanup
 }
 
+max_src_states_global_head()
+{
+	atf_set descr 'Max states per source global'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+max_src_states_global_body()
+{
+	setup_router_server_ipv6
+
+	# Clients will connect from another network behind the router.
+	# This allows for using multiple source addresses and for tester jail
+	# to not respond with RST packets for SYN+ACKs.
+	jexec router route add -6 2001:db8:44::0/64 2001:db8:42::2
+	jexec server route add -6 2001:db8:44::0/64 2001:db8:43::1
+
+	pft_set_rules router \
+		"block" \
+		"pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
+		"pass in  on ${epair_tester}b inet6 proto tcp from port 4210:4219 keep state (max-src-states 3 source-track global) label rule_A" \
+		"pass in  on ${epair_tester}b inet6 proto tcp from port 4220:4229 keep state (max-src-states 3 source-track global) label rule_B" \
+		"pass out on ${epair_server}a keep state"
+
+	# Global source tracking creates a single source node shared between all
+	# rules for each connecting source IP address and counts states created
+	# by all rules. Each rule has its own max-src-conn value checked against
+	# that single source node.
+
+	# 3 connections from host …::1 matching rule_A will be allowed.
+	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4211 --fromaddr 2001:db8:44::1
+	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4212 --fromaddr 2001:db8:44::1
+	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4213 --fromaddr 2001:db8:44::1
+	# The 4th connection matching rule_A from host …::1 will have its state killed.
+	ping_server_check_reply exit:1 --ping-type=tcp3way --send-sport=4214 --fromaddr 2001:db8:44::1
+	# A connection matching rule_B from host …::1 will have its state killed too.
+	ping_server_check_reply exit:1 --ping-type=tcp3way --send-sport=4221 --fromaddr 2001:db8:44::1
+
+	nodes=$(mktemp) || exit 1
+	jexec router pfctl -qvsS | normalize_pfctl_s > $nodes
+	cat $nodes
+	node_regexp='2001:db8:44::1 -> :: \( states 3, connections 3, rate [0-9/\.]+s \) age [0-9:]+, 9 pkts, [0-9]+ bytes, limit source-track'
+	grep -qE "$node_regexp" $nodes || atf_fail "Source nodes not matching expected output"
+}
+
+max_src_states_global_cleanup()
+{
+	pft_cleanup
+}
+
+route_to_head()
+{
+	atf_set descr 'Max states per source per rule with route-to'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+route_to_body()
+{
+	setup_router_dummy_ipv6
+
+	# Clients will connect from another network behind the router.
+	# This allows for using multiple source addresses.
+	jexec router route add -6 2001:db8:44::0/64 2001:db8:42::2
+
+	# Additional gateways for route-to.
+	rtgw=${net_server_host_server%::*}::2:1
+	jexec router ndp -s ${rtgw} 00:01:02:03:04:05
+
+	# This test will check for proper source node creation for:
+	# max-src-states -> PF_SN_LIMIT
+	# sticky-address -> PF_SN_NAT
+	# route-to -> PF_SN_ROUTE
+	# The test expands to all 8 combinations of those source nodes being
+	# present or not.
+
+	pft_set_rules router \
+		"table <rtgws> { ${rtgw} }" \
+		"table <rdrgws> { 2001:db8:45::1 }" \
+		"rdr on ${epair_tester}b inet6 proto tcp from 2001:db8:44::10/124 to 2001:db8:45::1 -> <rdrgws> port 4242 sticky-address" \
+		"block" \
+		"pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
+		"pass in  quick  on ${epair_tester}b route-to ( ${epair_server}a <rtgws>)                inet6 proto tcp from port 4211 keep state                                      label rule_3" \
+		"pass in  quick  on ${epair_tester}b route-to ( ${epair_server}a <rtgws>) sticky-address inet6 proto tcp from port 4212 keep state                                      label rule_4" \
+		"pass in  quick  on ${epair_tester}b route-to ( ${epair_server}a <rtgws>)                inet6 proto tcp from port 4213 keep state (max-src-states 3 source-track rule) label rule_5" \
+		"pass in  quick  on ${epair_tester}b route-to ( ${epair_server}a <rtgws>) sticky-address inet6 proto tcp from port 4214 keep state (max-src-states 3 source-track rule) label rule_6" \
+		"pass out quick  on ${epair_server}a keep state"
+
+	# We don't check if state limits are properly enforced, this is tested
+	# by other tests in this file.
+	# Source address will not match the NAT rule
+	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-sport=4211 --fromaddr 2001:db8:44::01 --to 2001:db8:45::1
+	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-sport=4212 --fromaddr 2001:db8:44::02 --to 2001:db8:45::1
+	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-sport=4213 --fromaddr 2001:db8:44::03 --to 2001:db8:45::1
+	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-sport=4214 --fromaddr 2001:db8:44::04 --to 2001:db8:45::1
+	# Source address will match the NAT rule
+	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-sport=4211 --fromaddr 2001:db8:44::11 --to 2001:db8:45::1
+	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-sport=4212 --fromaddr 2001:db8:44::12 --to 2001:db8:45::1
+	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-sport=4213 --fromaddr 2001:db8:44::13 --to 2001:db8:45::1
+	ping_dummy_check_request exit:0 --ping-type=tcpsyn --send-sport=4214 --fromaddr 2001:db8:44::14 --to 2001:db8:45::1
+
+	states=$(mktemp) || exit 1
+	jexec router pfctl -qvss | normalize_pfctl_s > $states
+	nodes=$(mktemp) || exit 1
+	jexec router pfctl -qvvsS | normalize_pfctl_s > $nodes
+
+	# Order of states in output is not guaranteed, find each one separately.
+	for state_regexp in \
+		'all tcp 2001:db8:45::1\[9\] <- 2001:db8:44::1\[4211\] .* 1:0 pkts, 76:0 bytes, rule 3$' \
+		'all tcp 2001:db8:45::1\[9\] <- 2001:db8:44::2\[4212\] .* 1:0 pkts, 76:0 bytes, rule 4, route sticky-address$' \
+		'all tcp 2001:db8:45::1\[9\] <- 2001:db8:44::3\[4213\] .* 1:0 pkts, 76:0 bytes, rule 5, limit source-track$' \
+		'all tcp 2001:db8:45::1\[9\] <- 2001:db8:44::4\[4214\] .* 1:0 pkts, 76:0 bytes, rule 6, limit source-track, route sticky-address$' \
+		'all tcp 2001:db8:45::1\[4242\] \(2001:db8:45::1\[9\]\) <- 2001:db8:44::11\[4211\] .* 1:0 pkts, 76:0 bytes, rule 3, NAT/RDR sticky-address' \
+		'all tcp 2001:db8:45::1\[4242\] \(2001:db8:45::1\[9\]\) <- 2001:db8:44::12\[4212\] .* 1:0 pkts, 76:0 bytes, rule 4, NAT/RDR sticky-address, route sticky-address' \
+		'all tcp 2001:db8:45::1\[4242\] \(2001:db8:45::1\[9\]\) <- 2001:db8:44::13\[4213\] .* 1:0 pkts, 76:0 bytes, rule 5, limit source-track, NAT/RDR sticky-address' \
+		'all tcp 2001:db8:45::1\[4242\] \(2001:db8:45::1\[9\]\) <- 2001:db8:44::14\[4214\] .* 1:0 pkts, 76:0 bytes, rule 6, limit source-track, NAT/RDR sticky-address, route sticky-address' \
+	; do
+		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
+	done
+
+	# Order of source nodes in output is not guaranteed, find each one separately.
+	for node_regexp in \
+		'2001:db8:44::2 -> 2001:db8:43::2:1 \( states 1, connections 0, rate 0.0/0s \) age [0-9:]+, 1 pkts, 76 bytes, filter rule 4, route sticky-address' \
+		'2001:db8:44::3 -> :: \( states 1, connections 0, rate 0.0/0s \) age [0-9:]+, 1 pkts, 76 bytes, filter rule 5, limit source-track' \
+		'2001:db8:44::4 -> 2001:db8:43::2:1 \( states 1, connections 0, rate 0.0/0s ) age [0-9:]+, 1 pkts, 76 bytes, filter rule 6, route sticky-address' \
+		'2001:db8:44::4 -> :: \( states 1, connections 0, rate 0.0/0s \) age [0-9:]+, 1 pkts, 76 bytes, filter rule 6, limit source-track' \
+		'2001:db8:44::11 -> 2001:db8:45::1 \( states 1, connections 0, rate 0.0/0s \) age [0-9:]+, 1 pkts, 76 bytes, rdr rule 0, NAT/RDR sticky-address' \
+		'2001:db8:44::12 -> 2001:db8:45::1 \( states 1, connections 0, rate 0.0/0s \) age [0-9:]+, 1 pkts, 76 bytes, rdr rule 0, NAT/RDR sticky-address' \
+		'2001:db8:44::12 -> 2001:db8:43::2:1 \( states 1, connections 0, rate 0.0/0s \) age [0-9:]+, 1 pkts, 76 bytes, filter rule 4, route sticky-address' \
+		'2001:db8:44::13 -> 2001:db8:45::1 \( states 1, connections 0, rate 0.0/0s \) age [0-9:]+, 1 pkts, 76 bytes, rdr rule 0, NAT/RDR sticky-address' \
+		'2001:db8:44::13 -> :: \( states 1, connections 0, rate 0.0/0s \) age [0-9:]+, 1 pkts, 76 bytes, filter rule 5, limit source-track' \
+		'2001:db8:44::14 -> 2001:db8:45::1 \( states 1, connections 0, rate 0.0/0s \) age [0-9:]+, 1 pkts, 76 bytes, rdr rule 0, NAT/RDR sticky-address' \
+		'2001:db8:44::14 -> 2001:db8:43::2:1 \( states 1, connections 0, rate 0.0/0s ) age [0-9:]+, 1 pkts, 76 bytes, filter rule 6, route sticky-address' \
+		'2001:db8:44::14 -> :: \( states 1, connections 0, rate 0.0/0s \) age [0-9:]+, 1 pkts, 76 bytes, filter rule 6, limit source-track' \
+	; do
+		grep -qE "${node_regexp}" $nodes || atf_fail "Source node not found for '${node_regexp}'"
+	done
+
+	! grep -q 'filter rule 3' $nodes || atf_fail "Source node found for rule 3"
+}
+
+route_to_cleanup()
+{
+	pft_cleanup
+}
+
+
 atf_init_test_cases()
 {
 	atf_add_test_case "source_track"
 	atf_add_test_case "kill"
 	atf_add_test_case "max_src_conn_rule"
 	atf_add_test_case "max_src_states_rule"
+	atf_add_test_case "max_src_states_global"
+	atf_add_test_case "route_to"
 }

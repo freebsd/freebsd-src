@@ -315,16 +315,10 @@ gpiobus_attach_bus(device_t dev)
 int
 gpiobus_detach_bus(device_t dev)
 {
-	int err;
-
 #ifdef FDT
 	ofw_gpiobus_unregister_provider(dev);
 #endif
-	err = bus_generic_detach(dev);
-	if (err != 0)
-		return (err);
-
-	return (device_delete_children(dev));
+	return (bus_generic_detach(dev));
 }
 
 int
@@ -582,9 +576,7 @@ gpiobus_detach(device_t dev)
 	    ("gpiobus mutex not initialized"));
 	GPIOBUS_LOCK_DESTROY(sc);
 
-	if ((err = bus_generic_detach(dev)) != 0)
-		return (err);
-	if ((err = device_delete_children(dev)) != 0)
+	if ((err = bus_detach_children(dev)) != 0)
 		return (err);
 
 	rman_fini(&sc->sc_intr_rman);

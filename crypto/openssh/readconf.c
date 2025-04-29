@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.386 2024/03/04 04:13:18 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.392 2024/09/26 23:55:08 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -646,24 +646,78 @@ check_match_ifaddrs(const char *addrlist)
 }
 
 /*
+ * Expand a "match exec" command or an Include path, caller must free returned
+ * value.
+ */
+static char *
+expand_match_exec_or_include_path(const char *path, Options *options,
+    struct passwd *pw, const char *host_arg, const char *original_host,
+    int final_pass, int is_include_path)
+{
+	char thishost[NI_MAXHOST], shorthost[NI_MAXHOST], portstr[NI_MAXSERV];
+	char uidstr[32], *conn_hash_hex, *keyalias, *jmphost, *ruser;
+	char *host, *ret;
+	int port;
+
+	port = options->port <= 0 ? default_ssh_port() : options->port;
+	ruser = options->user == NULL ? pw->pw_name : options->user;
+	if (final_pass) {
+		host = xstrdup(options->hostname);
+	} else if (options->hostname != NULL) {
+		/* NB. Please keep in sync with ssh.c:main() */
+		host = percent_expand(options->hostname,
+		    "h", host_arg, (char *)NULL);
+	} else {
+		host = xstrdup(host_arg);
+	}
+	if (gethostname(thishost, sizeof(thishost)) == -1)
+		fatal("gethostname: %s", strerror(errno));
+	jmphost = option_clear_or_none(options->jump_host) ?
+	    "" : options->jump_host;
+	strlcpy(shorthost, thishost, sizeof(shorthost));
+	shorthost[strcspn(thishost, ".")] = '\0';
+	snprintf(portstr, sizeof(portstr), "%d", port);
+	snprintf(uidstr, sizeof(uidstr), "%llu",
+	    (unsigned long long)pw->pw_uid);
+	conn_hash_hex = ssh_connection_hash(thishost, host,
+	    portstr, ruser, jmphost);
+	keyalias = options->host_key_alias ?  options->host_key_alias : host;
+
+	ret = (is_include_path ? percent_dollar_expand : percent_expand)(path,
+	    "C", conn_hash_hex,
+	    "L", shorthost,
+	    "d", pw->pw_dir,
+	    "h", host,
+	    "k", keyalias,
+	    "l", thishost,
+	    "n", original_host,
+	    "p", portstr,
+	    "r", ruser,
+	    "u", pw->pw_name,
+	    "i", uidstr,
+	    "j", jmphost,
+	    (char *)NULL);
+	free(host);
+	free(conn_hash_hex);
+	return ret;
+}
+
+/*
  * Parse and execute a Match directive.
  */
 static int
-match_cfg_line(Options *options, char **condition, struct passwd *pw,
-    const char *host_arg, const char *original_host, int final_pass,
-    int *want_final_pass, const char *filename, int linenum)
+match_cfg_line(Options *options, const char *full_line, int *acp, char ***avp,
+    struct passwd *pw, const char *host_arg, const char *original_host,
+    int final_pass, int *want_final_pass, const char *filename, int linenum)
 {
-	char *arg, *oattrib, *attrib, *cmd, *cp = *condition, *host, *criteria;
+	char *arg, *oattrib = NULL, *attrib = NULL, *cmd, *host, *criteria;
 	const char *ruser;
-	int r, port, this_result, result = 1, attributes = 0, negate;
-	char thishost[NI_MAXHOST], shorthost[NI_MAXHOST], portstr[NI_MAXSERV];
-	char uidstr[32];
+	int r, this_result, result = 1, attributes = 0, negate;
 
 	/*
 	 * Configuration is likely to be incomplete at this point so we
 	 * must be prepared to use default values.
 	 */
-	port = options->port <= 0 ? default_ssh_port() : options->port;
 	ruser = options->user == NULL ? pw->pw_name : options->user;
 	if (final_pass) {
 		host = xstrdup(options->hostname);
@@ -676,11 +730,12 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 	}
 
 	debug2("checking match for '%s' host %s originally %s",
-	    cp, host, original_host);
-	while ((oattrib = attrib = strdelim(&cp)) && *attrib != '\0') {
+	    full_line, host, original_host);
+	while ((attrib = argv_next(acp, avp)) != NULL) {
+		attrib = oattrib = xstrdup(attrib);
 		/* Terminate on comment */
 		if (*attrib == '#') {
-			cp = NULL; /* mark all arguments consumed */
+			argv_consume(acp);
 			break;
 		}
 		arg = criteria = NULL;
@@ -689,7 +744,8 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 			attrib++;
 		/* Criterion "all" has no argument and must appear alone */
 		if (strcasecmp(attrib, "all") == 0) {
-			if (attributes > 1 || ((arg = strdelim(&cp)) != NULL &&
+			if (attributes > 1 ||
+			    ((arg = argv_next(acp, avp)) != NULL &&
 			    *arg != '\0' && *arg != '#')) {
 				error("%.200s line %d: '%s' cannot be combined "
 				    "with other Match attributes",
@@ -698,7 +754,7 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 				goto out;
 			}
 			if (arg != NULL && *arg == '#')
-				cp = NULL; /* mark all arguments consumed */
+				argv_consume(acp); /* consume remaining args */
 			if (result)
 				result = negate ? 0 : 1;
 			goto out;
@@ -722,9 +778,23 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 			    this_result ? "" : "not ", oattrib);
 			continue;
 		}
+
+		/* Keep this list in sync with below */
+		if (strprefix(attrib, "host=", 1)  != NULL ||
+		    strprefix(attrib, "originalhost=", 1) != NULL ||
+		    strprefix(attrib, "user=", 1) != NULL ||
+		    strprefix(attrib, "localuser=", 1) != NULL ||
+		    strprefix(attrib, "localnetwork=", 1) != NULL ||
+		    strprefix(attrib, "tagged=", 1) != NULL ||
+		    strprefix(attrib, "exec=", 1) != NULL) {
+			arg = strchr(attrib, '=');
+			*(arg++) = '\0';
+		} else {
+			arg = argv_next(acp, avp);
+		}
+
 		/* All other criteria require an argument */
-		if ((arg = strdelim(&cp)) == NULL ||
-		    *arg == '\0' || *arg == '#') {
+		if (arg == NULL || *arg == '\0' || *arg == '#') {
 			error("Missing Match criteria for %s", attrib);
 			result = -1;
 			goto out;
@@ -765,37 +835,12 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 			if (r == (negate ? 1 : 0))
 				this_result = result = 0;
 		} else if (strcasecmp(attrib, "exec") == 0) {
-			char *conn_hash_hex, *keyalias, *jmphost;
-
-			if (gethostname(thishost, sizeof(thishost)) == -1)
-				fatal("gethostname: %s", strerror(errno));
-			jmphost = option_clear_or_none(options->jump_host) ?
-			    "" : options->jump_host;
-			strlcpy(shorthost, thishost, sizeof(shorthost));
-			shorthost[strcspn(thishost, ".")] = '\0';
-			snprintf(portstr, sizeof(portstr), "%d", port);
-			snprintf(uidstr, sizeof(uidstr), "%llu",
-			    (unsigned long long)pw->pw_uid);
-			conn_hash_hex = ssh_connection_hash(thishost, host,
-			    portstr, ruser, jmphost);
-			keyalias = options->host_key_alias ?
-			    options->host_key_alias : host;
-
-			cmd = percent_expand(arg,
-			    "C", conn_hash_hex,
-			    "L", shorthost,
-			    "d", pw->pw_dir,
-			    "h", host,
-			    "k", keyalias,
-			    "l", thishost,
-			    "n", original_host,
-			    "p", portstr,
-			    "r", ruser,
-			    "u", pw->pw_name,
-			    "i", uidstr,
-			    "j", jmphost,
-			    (char *)NULL);
-			free(conn_hash_hex);
+			if ((cmd = expand_match_exec_or_include_path(arg,
+			    options, pw, host_arg, original_host,
+			    final_pass, 0)) == NULL) {
+				fatal("%.200s line %d: failed to expand match "
+				    "exec '%.100s'", filename, linenum, arg);
+			}
 			if (result != 1) {
 				/* skip execution if prior predicate failed */
 				debug3("%.200s line %d: skipped exec "
@@ -826,6 +871,8 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
 		    criteria == NULL ? "" : criteria,
 		    criteria == NULL ? "" : "\"");
 		free(criteria);
+		free(oattrib);
+		oattrib = attrib = NULL;
 	}
 	if (attributes == 0) {
 		error("One or more attributes required for Match");
@@ -835,7 +882,7 @@ match_cfg_line(Options *options, char **condition, struct passwd *pw,
  out:
 	if (result != -1)
 		debug2("match %sfound", result ? "" : "not ");
-	*condition = cp;
+	free(oattrib);
 	free(host);
 	return result;
 }
@@ -1002,7 +1049,7 @@ static const struct multistate multistate_pubkey_auth[] = {
 };
 static const struct multistate multistate_compression[] = {
 #ifdef WITH_ZLIB
-	{ "yes",			COMP_ZLIB },
+	{ "yes",			COMP_DELAYED },
 #endif
 	{ "no",				COMP_NONE },
 	{ NULL, -1 }
@@ -1778,8 +1825,8 @@ parse_pubkey_algos:
 			    "option");
 			goto out;
 		}
-		value = match_cfg_line(options, &str, pw, host, original_host,
-		    flags & SSHCONF_FINAL, want_final_pass,
+		value = match_cfg_line(options, str, &ac, &av, pw, host,
+		    original_host, flags & SSHCONF_FINAL, want_final_pass,
 		    filename, linenum);
 		if (value < 0) {
 			error("%.200s line %d: Bad Match condition", filename,
@@ -1787,13 +1834,6 @@ parse_pubkey_algos:
 			goto out;
 		}
 		*activep = (flags & SSHCONF_NEVERMATCH) ? 0 : value;
-		/*
-		 * If match_cfg_line() didn't consume all its arguments then
-		 * arrange for the extra arguments check below to fail.
-		 */
-
-		if (str == NULL || *str == '\0')
-			argv_consume(&ac);
 		break;
 
 	case oEscapeChar:
@@ -1990,6 +2030,15 @@ parse_pubkey_algos:
 				    filename, linenum, keyword);
 				goto out;
 			}
+			/* Expand %tokens and environment variables */
+			if ((p = expand_match_exec_or_include_path(arg,
+			    options, pw, host, original_host,
+			    flags & SSHCONF_FINAL, 1)) == NULL) {
+				error("%.200s line %d: Unable to expand user "
+				    "config file '%.100s'",
+				    filename, linenum, arg);
+				continue;
+			}
 			/*
 			 * Ensure all paths are anchored. User configuration
 			 * files may begin with '~/' but system configurations
@@ -1997,17 +2046,19 @@ parse_pubkey_algos:
 			 * as living in ~/.ssh for user configurations or
 			 * /etc/ssh for system ones.
 			 */
-			if (*arg == '~' && (flags & SSHCONF_USERCONF) == 0) {
+			if (*p == '~' && (flags & SSHCONF_USERCONF) == 0) {
 				error("%.200s line %d: bad include path %s.",
-				    filename, linenum, arg);
+				    filename, linenum, p);
 				goto out;
 			}
-			if (!path_absolute(arg) && *arg != '~') {
+			if (!path_absolute(p) && *p != '~') {
 				xasprintf(&arg2, "%s/%s",
 				    (flags & SSHCONF_USERCONF) ?
-				    "~/" _PATH_SSH_USER_DIR : SSHDIR, arg);
-			} else
-				arg2 = xstrdup(arg);
+				    "~/" _PATH_SSH_USER_DIR : SSHDIR, p);
+			} else {
+				arg2 = xstrdup(p);
+			}
+			free(p);
 			memset(&gl, 0, sizeof(gl));
 			r = glob(arg2, GLOB_TILDE, NULL, &gl);
 			if (r == GLOB_NOMATCH) {
@@ -2033,8 +2084,9 @@ parse_pubkey_algos:
 				    (oactive ? 0 : SSHCONF_NEVERMATCH),
 				    activep, want_final_pass, depth + 1);
 				if (r != 1 && errno != ENOENT) {
-					error("Can't open user config file "
-					    "%.100s: %.100s", gl.gl_pathv[i],
+					error("%.200s line %d: Can't open user "
+					    "config file %.100s: %.100s",
+					    filename, linenum, gl.gl_pathv[i],
 					    strerror(errno));
 					globfree(&gl);
 					goto out;
@@ -3337,7 +3389,7 @@ parse_ssh_uri(const char *uri, char **userp, char **hostp, int *portp)
 	return r;
 }
 
-/* XXX the following is a near-vebatim copy from servconf.c; refactor */
+/* XXX the following is a near-verbatim copy from servconf.c; refactor */
 static const char *
 fmt_multistate_int(int val, const struct multistate *m)
 {

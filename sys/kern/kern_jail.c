@@ -130,6 +130,12 @@ struct jailsys_flags {
 	unsigned	 new;
 };
 
+/*
+ * Handle jail teardown in a dedicated thread to avoid deadlocks from
+ * vnet_destroy().
+ */
+TASKQUEUE_DEFINE_THREAD(jail_remove);
+
 /* allprison, allprison_racct and lastprid are protected by allprison_lock. */
 struct	sx allprison_lock;
 SX_SYSINIT(allprison_lock, &allprison_lock, "allprison");
@@ -1681,9 +1687,18 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			    sizeof(pr->pr_osrelease));
 
 #ifdef VIMAGE
-		/* Allocate a new vnet if specified. */
-		pr->pr_vnet = (pr_flags & PR_VNET)
-		    ? vnet_alloc() : ppr->pr_vnet;
+		/*
+		 * Allocate a new vnet if specified.
+		 *
+		 * Set PR_VNET now if so, so that the vnet is disposed of
+		 * properly when the jail is destroyed.
+		 */
+		if (pr_flags & PR_VNET) {
+			pr->pr_flags |= PR_VNET;
+			pr->pr_vnet = vnet_alloc();
+		} else {
+			pr->pr_vnet = ppr->pr_vnet;
+		}
 #endif
 		/*
 		 * Allocate a dedicated cpuset for each jail.
@@ -2537,6 +2552,15 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 
 	/* By now, all parameters should have been noted. */
 	TAILQ_FOREACH(opt, opts, link) {
+		if (!opt->seen &&
+		    (strstr(opt->name, JAIL_META_PRIVATE ".") == opt->name ||
+		    strstr(opt->name, JAIL_META_SHARED ".") == opt->name)) {
+			/* Communicate back a missing key. */
+			free(opt->value, M_MOUNT);
+			opt->value = NULL;
+			opt->len = 0;
+			continue;
+		}
 		if (!opt->seen && strcmp(opt->name, "errmsg")) {
 			error = EINVAL;
 			vfs_opterror(opts, "unknown parameter: %s", opt->name);
@@ -2902,7 +2926,7 @@ prison_free(struct prison *pr)
 		 * Don't remove the last reference in this context,
 		 * in case there are locks held.
 		 */
-		taskqueue_enqueue(taskqueue_thread, &pr->pr_task);
+		taskqueue_enqueue(taskqueue_jail_remove, &pr->pr_task);
 	}
 }
 
@@ -2976,7 +3000,7 @@ prison_proc_free(struct prison *pr)
 		     pr->pr_id));
 		pr->pr_flags |= PR_COMPLETE_PROC;
 		mtx_unlock(&pr->pr_mtx);
-		taskqueue_enqueue(taskqueue_thread, &pr->pr_task);
+		taskqueue_enqueue(taskqueue_jail_remove, &pr->pr_task);
 	}
 }
 
@@ -3201,9 +3225,12 @@ prison_deref(struct prison *pr, int flags)
 					 * Removing a prison frees references
 					 * from its parent.
 					 */
+					ppr = pr->pr_parent;
+					pr->pr_parent = NULL;
 					mtx_unlock(&pr->pr_mtx);
+
+					pr = ppr;
 					flags &= ~PD_LOCKED;
-					pr = pr->pr_parent;
 					flags |= PD_DEREF | PD_DEUREF;
 					continue;
 				}
@@ -3230,7 +3257,7 @@ prison_deref(struct prison *pr, int flags)
 	 */
 	TAILQ_FOREACH_SAFE(rpr, &freeprison, pr_list, tpr) {
 #ifdef VIMAGE
-		if (rpr->pr_vnet != rpr->pr_parent->pr_vnet)
+		if (rpr->pr_flags & PR_VNET)
 			vnet_destroy(rpr->pr_vnet);
 #endif
 		if (rpr->pr_root != NULL)
@@ -3991,6 +4018,11 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_PROC_SETRLIMIT:
 
 		/*
+		 * Debuggers should work in jails.
+		 */
+	case PRIV_PROC_MEM_WRITE:
+
+		/*
 		 * System V and POSIX IPC privileges are granted in jail.
 		 */
 	case PRIV_IPC_READ:
@@ -4185,6 +4217,7 @@ prison_priv_check(struct ucred *cred, int priv)
 		 * Conditionally allow privileged process in the jail set
 		 * machine time.
 		 */
+	case PRIV_SETTIMEOFDAY:
 	case PRIV_CLOCK_SETTIME:
 		if (cred->cr_prison->pr_allow & PR_ALLOW_SETTIME)
 			return (0);
@@ -4254,7 +4287,7 @@ prison_path(struct prison *pr1, struct prison *pr2)
 /*
  * Jail-related sysctls.
  */
-static SYSCTL_NODE(_security, OID_AUTO, jail, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+SYSCTL_NODE(_security, OID_AUTO, jail, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Jails");
 
 #if defined(INET) || defined(INET6)

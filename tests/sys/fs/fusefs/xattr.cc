@@ -569,7 +569,7 @@ TEST_F(Listxattr, size_only_race_smaller)
 	}));
 	expect_listxattr(ino, sizeof(attrs0),
 		ReturnImmediate([&](auto in __unused, auto& out) {
-			strlcpy((char*)out.body.bytes, attrs1, sizeof(attrs1));
+			memcpy((char*)out.body.bytes, attrs1, sizeof(attrs1));
 			out.header.len = sizeof(fuse_out_header) +
 			    sizeof(attrs1);
 		})

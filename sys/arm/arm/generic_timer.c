@@ -60,6 +60,8 @@
 
 #if defined(__aarch64__)
 #include <machine/undefined.h>
+#include <machine/cpufunc.h>
+#include <machine/cpu_feat.h>
 #endif
 
 #ifdef FDT
@@ -93,6 +95,10 @@
 #define	GT_CNTKCTL_EVNTEN	(1 << 2) /* Enables virtual counter events */
 #define	GT_CNTKCTL_PL0VCTEN	(1 << 1) /* PL0 CNTVCT and CNTFRQ access */
 #define	GT_CNTKCTL_PL0PCTEN	(1 << 0) /* PL0 CNTPCT and CNTFRQ access */
+
+#if defined(__aarch64__)
+static bool __read_mostly enable_wfxt = false;
+#endif
 
 struct arm_tmr_softc;
 
@@ -191,8 +197,8 @@ get_freq(void)
 static uint64_t
 get_cntxct_a64_unstable(bool physical)
 {
-	uint64_t val
-;
+	uint64_t val;
+
 	isb();
 	if (physical) {
 		do {
@@ -805,12 +811,10 @@ EARLY_DRIVER_MODULE(timer, acpi, arm_tmr_acpi_driver, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 #endif
 
-static void
-arm_tmr_do_delay(int usec, void *arg)
+static int64_t
+arm_tmr_get_counts(int usec)
 {
-	struct arm_tmr_softc *sc = arg;
-	int32_t counts, counts_per_usec;
-	uint32_t first, last;
+	int64_t counts, counts_per_usec;
 
 	/* Get the number of times to count */
 	counts_per_usec = ((arm_tmr_timecount.tc_frequency / 1000000) + 1);
@@ -826,12 +830,30 @@ arm_tmr_do_delay(int usec, void *arg)
 	else
 		counts = usec * counts_per_usec;
 
-	first = sc->get_cntxct(sc->physical_sys);
+	return counts;
+}
 
-	while (counts > 0) {
-		last = sc->get_cntxct(sc->physical_sys);
-		counts -= (int32_t)(last - first);
-		first = last;
+static void
+arm_tmr_do_delay(int usec, void *arg)
+{
+	struct arm_tmr_softc *sc = arg;
+	int64_t counts;
+	uint64_t first;
+#if defined(__aarch64__)
+	int64_t end;
+#endif
+
+	counts = arm_tmr_get_counts(usec);
+	first = sc->get_cntxct(sc->physical_sys);
+#if defined(__aarch64__)
+	end = first + counts;
+#endif
+
+	while ((sc->get_cntxct(sc->physical_sys) - first) < counts) {
+#if defined(__aarch64__)
+		if (enable_wfxt)
+			wfet(end);
+#endif
 	}
 }
 
@@ -843,21 +865,47 @@ DELAY(int usec)
 
 	TSENTER();
 	/*
-	 * Check the timers are setup, if not just
-	 * use a for loop for the meantime
-	 */
-	if (arm_tmr_sc == NULL) {
+	 * We have two options for a delay: using the timer, or using the wfet
+	 * instruction. However, both of these are dependent on timers being
+	 * setup, and if they're not just use a loop for the meantime.
+	*/
+	if (arm_tmr_sc != NULL) {
+		arm_tmr_do_delay(usec, arm_tmr_sc);
+	} else {
 		for (; usec > 0; usec--)
 			for (counts = 200; counts > 0; counts--)
-				/*
-				 * Prevent the compiler from optimizing
-				 * out the loop
-				 */
+				/* Prevent the compiler from optimizing out the loop */
 				cpufunc_nullop();
-	} else
-		arm_tmr_do_delay(usec, arm_tmr_sc);
+	}
 	TSEXIT();
 }
+
+static bool
+wfxt_check(const struct cpu_feat *feat __unused, u_int midr __unused)
+{
+	uint64_t id_aa64isar2;
+
+	if (!get_kernel_reg(ID_AA64ISAR2_EL1, &id_aa64isar2))
+		return (false);
+	return (ID_AA64ISAR2_WFxT_VAL(id_aa64isar2) != ID_AA64ISAR2_WFxT_NONE);
+}
+
+static void
+wfxt_enable(const struct cpu_feat *feat __unused,
+    cpu_feat_errata errata_status __unused, u_int *errata_list __unused,
+    u_int errata_count __unused)
+{
+	/* will be called if wfxt_check returns true */
+	enable_wfxt = true;
+}
+
+static struct cpu_feat feat_wfxt = {
+	.feat_name		= "FEAT_WFXT",
+	.feat_check		= wfxt_check,
+	.feat_enable		= wfxt_enable,
+	.feat_flags		= CPU_FEAT_AFTER_DEV | CPU_FEAT_SYSTEM,
+};
+DATA_SET(cpu_feat_set, feat_wfxt);
 #endif
 
 static uint32_t

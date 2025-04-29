@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2020 iXsystems, Inc.
  * All rights reserved.
@@ -677,6 +678,27 @@ param_set_deadman_failmode(SYSCTL_HANDLER_ARGS)
 		zfs_deadman_failmode = "panic";
 
 	return (-param_set_deadman_failmode_common(buf));
+}
+
+int
+param_set_raidz_impl(SYSCTL_HANDLER_ARGS)
+{
+	const size_t bufsize = 128;
+	char *buf;
+	int rc;
+
+	buf = malloc(bufsize, M_SOLARIS, M_WAITOK | M_ZERO);
+	if (req->newptr == NULL)
+		vdev_raidz_impl_get(buf, bufsize);
+
+	rc = sysctl_handle_string(oidp, buf, bufsize, req);
+	if (rc || req->newptr == NULL) {
+		free(buf, M_SOLARIS);
+		return (rc);
+	}
+	rc = vdev_raidz_impl_set(buf);
+	free(buf, M_SOLARIS);
+	return (rc);
 }
 
 int

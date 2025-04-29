@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -436,9 +436,14 @@ DtGetFieldType (
     case ACPI_DMT_RAW_BUFFER:
     case ACPI_DMT_BUF7:
     case ACPI_DMT_BUF10:
+    case ACPI_DMT_BUF11:
     case ACPI_DMT_BUF12:
     case ACPI_DMT_BUF16:
     case ACPI_DMT_BUF18:
+    case ACPI_DMT_BUF24:
+    case ACPI_DMT_BUF26:
+    case ACPI_DMT_BUF32:
+    case ACPI_DMT_BUF112:
     case ACPI_DMT_BUF128:
     case ACPI_DMT_PCI_PATH:
     case ACPI_DMT_PMTT_VENDOR:
@@ -585,12 +590,6 @@ DtGetFieldLength (
     case ACPI_DMT_GTDT:
     case ACPI_DMT_MADT:
     case ACPI_DMT_MPAM_LOCATOR:
-    case ACPI_DMT_NHLT1:
-    case ACPI_DMT_NHLT1a:
-    case ACPI_DMT_NHLT1b:
-    case ACPI_DMT_NHLT1c:
-    case ACPI_DMT_NHLT1d:
-    case ACPI_DMT_NHLT1f:
     case ACPI_DMT_PCCT:
     case ACPI_DMT_PMTT:
     case ACPI_DMT_PPTT:
@@ -618,10 +617,10 @@ DtGetFieldLength (
     case ACPI_DMT_ASPT:
     case ACPI_DMT_UINT16:
     case ACPI_DMT_DMAR:
+    case ACPI_DMT_ERDT:
     case ACPI_DMT_HEST:
     case ACPI_DMT_HMAT:
     case ACPI_DMT_NFIT:
-    case ACPI_DMT_NHLT1e:
     case ACPI_DMT_PCI_PATH:
     case ACPI_DMT_PHAT:
 
@@ -737,6 +736,11 @@ DtGetFieldLength (
         ByteLength = 10;
         break;
 
+    case ACPI_DMT_BUF11:
+
+        ByteLength = 11;
+        break;
+
     case ACPI_DMT_BUF12:
 
         ByteLength = 12;
@@ -751,6 +755,26 @@ DtGetFieldLength (
     case ACPI_DMT_BUF18:
 
         ByteLength = 18;
+        break;
+
+    case ACPI_DMT_BUF24:
+
+        ByteLength = 24;
+        break;
+
+    case ACPI_DMT_BUF26:
+
+        ByteLength = 26;
+        break;
+
+    case ACPI_DMT_BUF32:
+
+        ByteLength = 32;
+        break;
+
+    case ACPI_DMT_BUF112:
+
+        ByteLength = 112;
         break;
 
     case ACPI_DMT_BUF128:

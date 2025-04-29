@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 14, 2024
+.Dd April 20, 2025
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -269,6 +269,11 @@ If set to
 auto-jail the service with inherited filesystem and other
 jail properties depending on
 .Ao Ar name Ac Ns Va _svcj_options .
+.It Ao Ar name Ac Ns Va _svcj_ipaddrs
+.Pq Vt str
+A list of IP addresses that the service jail will be permitted to use.
+If this is not specified, the service jail will be permitted to use all
+assigned IP addresses if networking is enabled in the jail.
 .It Ao Ar name Ac Ns Va _svcj_options
 .Pq Vt str
 A list of jail properties for the service.
@@ -3133,6 +3138,14 @@ the interfaces specified in
 This should only be enabled with great care.
 You may want to fine-tune
 .Xr rtadvd.conf 5 .
+.It Va rtadvd_flags
+.Pq Vt str
+If
+.Va rtadvd_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to
+.Xr rtadvd 8 .
 .It Va rtadvd_interfaces
 .Pq Vt str
 If
@@ -4961,16 +4974,26 @@ are:
 .It mlock
 Allows to lock memory pages into the physical memory.
 .It netv4
-Inherit the IPv4 address and allows to open reserved ports.
+Allows IPv4 network access and the ability to bind to reserved ports.
+If
+.Ao Ar name Ac Ns Va _svcj_ipaddrs
+is set, only the IPv4 addresses listed there will be visible to the jail,
+otherwise all assigned IPv4 addresses will be visible.
 This can not be combined with
 .Pa netv6 .
 .It netv6
-Inherit the IPv6 address and allows to open reserved ports.
+Allows IPv6 network access and the ability to bind to reserved ports.
+If
+.Ao Ar name Ac Ns Va _svcj_ipaddrs
+is set, only the IPv6 addresses listed there will be visible to the jail,
+otherwise all assigned IPv6 addresses will be visible.
 This can not be combined with
 .Pa netv4 .
 .It net_basic
-Inherits the IPv4 and IPv6 addresses and allows to open
-reserved ports.
+Equivalent to enabling both
+.Pa netv6
+and
+.Pa netv4 .
 .It net_raw
 Allow to open raw sockets.
 This option can be combined with
@@ -4978,12 +5001,16 @@ This option can be combined with
 .Pa netv6 ,
 .Pa net_basic .
 .It net_all
-Inherits the IPv4 and IPv6 addresses, allows to open reserved
-ports, allows to open raw sockets, and allows to open sockets
-of protocol stacks that have not had jail functionality added
-to them.
+Allows IPv6 and IPv4 network access as for
+.Pa netv4
+and
+.Pa netv6 ,
+allows to open raw sockets, and allows to open sockets of protocol stacks that
+have not had jail functionality added to them.
 .It nfsd
 Allows to run nfsd and affiliated daemons.
+.It settime
+Allows to set and slew the system time.
 .It sysvipc
 Inherits the SysV semaphores, SysV shared memory and
 SysV messages from the host or the parent jail.

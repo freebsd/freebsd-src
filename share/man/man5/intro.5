@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" Copyright (c) 1983, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -25,25 +28,41 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 16, 1997
+.Dd November 17, 2024
 .Dt INTRO 5
 .Os
 .Sh NAME
 .Nm intro
-.Nd "introduction to file formats"
+.Nd introduction to file formats
 .Sh DESCRIPTION
-This section contains information about file formats.
+This section contains information about the file formats
+which comprise most data structures in the
+.Bx
+environment, including:
+.Pp
+.Bl -bullet -compact
+.It
+.Xr ascii 7
+configuration and resource files
+.It
+system binary file and stream structures
+.It
+composition of database files
+.El
 .Sh FILES
-.Bl -tag -width /etc/shells -compact
-.It Pa /etc
-location of most system configuration files
+.Bl -tag -width "/usr/local/etc/" -compact
+.It Pa /etc/
+base system software configuration files
+.It Pa /usr/local/etc/
+locally installed software configuration files
 .El
 .Sh SEE ALSO
 .Xr apropos 1 ,
 .Xr intro 1 ,
+.Xr hier 7 ,
 .Xr intro 8
 .Sh HISTORY
 The
-.Nm
-section manual page appeared in
+.Nm Ns Pq 5
+manual page first appeared in
 .Fx 2.2 .

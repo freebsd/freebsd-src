@@ -51,18 +51,10 @@
 #include <machine/machdep.h>
 #include <machine/platformvar.h>
 
-#include <arm/ti/omap4/omap4_machdep.h>
-#include <arm/ti/omap4/omap4_reg.h>
 #include <arm/ti/ti_cpuid.h>
 
 #include "platform_if.h"
 
-#if defined(SOC_OMAP4)
-#include "platform_pl310_if.h"
-
-static platform_attach_t omap4_attach;
-static platform_devmap_init_t ti_omap4_devmap_init;
-#endif
 #if defined(SOC_TI_AM335X)
 static platform_attach_t ti_am335x_attach;
 static platform_devmap_init_t ti_am335x_devmap_init;
@@ -72,15 +64,6 @@ static platform_cpu_reset_t ti_plat_cpu_reset;
 void (*ti_cpu_reset)(void) = NULL;
 
 int _ti_chip = -1;
-
-#if defined(SOC_OMAP4)
-static int
-omap4_attach(platform_t plat)
-{
-	_ti_chip = CHIP_OMAP_4;
-	return (0);
-}
-#endif
 
 #if defined(SOC_TI_AM335X)
 static int
@@ -95,16 +78,6 @@ ti_am335x_attach(platform_t plat)
  * Construct static devmap entries to map out the most frequently used
  * peripherals using 1mb section mappings.
  */
-#if defined(SOC_OMAP4)
-static int
-ti_omap4_devmap_init(platform_t plat)
-{
-	devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
-	devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_CFG devices */
-	return (0);
-}
-#endif
-
 #if defined(SOC_TI_AM335X)
 static int
 ti_am335x_devmap_init(platform_t plat)
@@ -129,26 +102,6 @@ ti_plat_cpu_reset(platform_t plat)
 	else
 		printf("no cpu_reset implementation\n");
 }
-
-#if defined(SOC_OMAP4)
-static platform_method_t omap4_methods[] = {
-	PLATFORMMETHOD(platform_attach, 	omap4_attach),
-	PLATFORMMETHOD(platform_devmap_init,	ti_omap4_devmap_init),
-	PLATFORMMETHOD(platform_cpu_reset,	ti_plat_cpu_reset),
-
-#ifdef SMP
-	PLATFORMMETHOD(platform_mp_start_ap,	omap4_mp_start_ap),
-	PLATFORMMETHOD(platform_mp_setmaxid,	omap4_mp_setmaxid),
-#endif
-
-	PLATFORMMETHOD(platform_pl310_init,	omap4_pl310_init),
-	PLATFORMMETHOD(platform_pl310_write_ctrl, omap4_pl310_write_ctrl),
-	PLATFORMMETHOD(platform_pl310_write_debug, omap4_pl310_write_debug),
-
-	PLATFORMMETHOD_END,
-};
-FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430", 200);
-#endif
 
 #if defined(SOC_TI_AM335X)
 static platform_method_t am335x_methods[] = {

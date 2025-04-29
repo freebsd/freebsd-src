@@ -51,6 +51,58 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250409: removal of iwlwifi firmware files
+OLD_FILES+=usr/share/doc/legal/intel_iwlwifi_firmware.LICENCE
+
+# 20250331: removal of TCPPCAP
+OLD_FILES+=usr/include/netinet/tcp_pcap.h
+
+# 20250310: caroot bundle updated
+OLD_FILES+=usr/share/certs/trusted/Entrust_Root_Certification_Authority_-_G4.pem
+OLD_FILES+=usr/share/certs/trusted/SecureSign_RootCA11.pem
+OLD_FILES+=usr/share/certs/trusted/Security_Communication_RootCA3.pem
+OLD_FILES+=usr/share/certs/trusted/SwissSign_Silver_CA_-_G2.pem
+OLD_FILES+=usr/share/certs/untrusted/AddTrust_External_Root.pem
+OLD_FILES+=usr/share/certs/untrusted/AddTrust_Low-Value_Services_Root.pem
+OLD_FILES+=usr/share/certs/untrusted/Staat_der_Nederlanden_Root_CA_-_G2.pem
+OLD_FILES+=usr/share/certs/untrusted/Cybertrust_Global_Root.pem
+OLD_FILES+=usr/share/certs/untrusted/DST_Root_CA_X3.pem
+OLD_FILES+=usr/share/certs/untrusted/GlobalSign_Root_CA_-_R2.pem
+OLD_FILES+=usr/share/certs/untrusted/QuoVadis_Root_CA.pem
+OLD_FILES+=usr/share/certs/untrusted/Sonera_Class_2_Root_CA.pem
+OLD_FILES+=usr/share/certs/untrusted/GeoTrust_Global_CA.pem
+OLD_FILES+=usr/share/certs/untrusted/Staat_der_Nederlanden_EV_Root_CA.pem
+OLD_FILES+=usr/share/certs/untrusted/E-Tugra_Certification_Authority.pem
+OLD_FILES+=usr/share/certs/untrusted/Hongkong_Post_Root_CA_1.pem
+OLD_FILES+=usr/share/certs/untrusted/Security_Communication_Root_CA.pem
+OLD_FILES+=usr/share/certs/untrusted/Trustis_FPS_Root_CA.pem
+
+# 20250205: bus_generic_attach.9 removed after the function was deprecated
+OLD_FILES+=usr/share/man/man9/bus_generic_attach.9.gz
+
+# 20250204: sys/vm/stack test symbols moved to /usr/lib/debug
+OLD_FILES+=usr/tests/sys/vm/stack/.debug/libsoxstack.so.debug
+OLD_DIRS+=usr/tests/sys/vm/stack/.debug
+
+# 20250129: libdevinfo bumped to version 7
+OLD_LIBS+=lib/libdevinfo.so.6
+
+# 20250123: Remove gvinum(8)
+OLD_FILES+=sbin/gvinum
+OLD_FILES+=usr/share/man/man8/gvinum.8.gz
+
+# 20250122: Remove publickey(5) stuff
+OLD_FILES+=usr/bin/chkey
+OLD_FILES+=usr/bin/keylogin
+OLD_FILES+=usr/bin/keylogout
+OLD_FILES+=usr/sbin/keyserv
+OLD_FILES+=usr/bin/newkey
+OLD_FILES+=usr/share/man/man1/chkey.1.gz
+OLD_FILES+=usr/share/man/man1/keylogin.1.gz
+OLD_FILES+=usr/share/man/man1/keylogin.1.gz
+OLD_FILES+=usr/share/man/man5/publickey.5.gz
+OLD_FILES+=usr/share/man/man8/keyserv.1.gz
+
 # 20241206: Remove Altera DE4 drivers
 OLD_FILES+=usr/share/man/man4/altera_atse.4.gz
 OLD_FILES+=usr/share/man/man4/altera_avgen.4.gz
@@ -554,6 +606,7 @@ OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_cxx-powerpc64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_cxx-powerpc64le.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_cxx-riscv64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_static-aarch64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_static-i386.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_static-powerpc64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.asan_static-powerpc64le.a
@@ -572,6 +625,7 @@ OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.dd-aarch64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.dd-x86_64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.fuzzer-aarch64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.fuzzer-x86_64.a
+OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.fuzzer_interceptors-aarch64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.fuzzer_interceptors-x86_64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.fuzzer_no_main-aarch64.a
 OLD_FILES+=usr/lib/clang/18/lib/freebsd/libclang_rt.fuzzer_no_main-x86_64.a
@@ -737,11 +791,6 @@ OLD_FILES+=usr/tests/sys/netpfil/pf/divapp
 
 # 20240930: libmd bumped to version 7
 OLD_LIBS+=lib/libmd.so.6
-
-# 20240914 libpcap upgrade from 1.10.4 to 1.10.5
-OLD_FILES+=contrib/libpcap/pcap-haiku.cpp
-OLD_FILES+=contrib/libpcap/pcap-rpcap-int.h
-OLD_FILES+=contrib/libpcap/pcap-usb-linux-common.c
 
 # 20240827: retire fips.so
 OLD_LIBS+=usr/lib/ossl-modules/fips.so
@@ -2235,6 +2284,9 @@ OLD_FILES+=usr/share/certs/trusted/Staat_der_Nederlanden_EV_Root_CA.pem
 OLD_FILES+=usr/share/certs/trusted/TrustCor_ECA-1.pem
 OLD_FILES+=usr/share/certs/trusted/TrustCor_RootCert_CA-1.pem
 OLD_FILES+=usr/share/certs/trusted/TrustCor_RootCert_CA-2.pem
+
+# 20230510: twe(4) driver removed
+OLD_FILES+=usr/share/man/man4/twe.4.gz
 
 # 20230505: md5 tests are now self-contained
 OLD_FILES+=usr/tests/sbin/md5/1.inp
@@ -12427,8 +12479,6 @@ OLD_FILES+=usr/bin/llvm-pdbdump
 OLD_FILES+=usr/share/man/man2/pdwait4.2.gz
 # 20170610: chown-f_test replaced by chown_test
 OLD_FILES+=usr/tests/usr.sbin/chown/chown-f_test
-# 20170609: drop obsolete manpage link (if_rtwn.ko -> rtwn.ko)
-OLD_FILES+=usr/share/man/man4/if_rtwn.4.gz
 # 20170531: removal of groff
 OLD_FILES+=usr/bin/addftinfo
 OLD_FILES+=usr/bin/afmtodit
@@ -13543,9 +13593,6 @@ OLD_FILES+=usr/share/man/man1/rlog.1.gz
 OLD_FILES+=usr/share/man/man5/rcsfile.5.gz
 # 20161010: remove link to removed m_getclr(9) macro
 OLD_FILES+=usr/share/man/man9/m_getclr.9.gz
-# 20161003: MK_ELFCOPY_AS_OBJCOPY option retired
-OLD_FILES+=usr/bin/elfcopy
-OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
 # 20160906: libkqueue tests moved to /usr/tests/sys/kqueue/libkqueue
 OLD_FILES+=usr/tests/sys/kqueue/kqtest
 OLD_FILES+=usr/tests/sys/kqueue/kqueue_test
@@ -15362,8 +15409,6 @@ OLD_FILES+=usr/share/man/man4/lindev.4.gz
 # 20140425
 OLD_FILES+=usr/lib/libssp_p.a
 OLD_FILES+=usr/lib/libstand_p.a
-# 20140413: Removed NO_MANCOMPRESS from mount_fusefs
-OLD_FILES+=usr/share/man/man8/mount_fusefs.8
 # 20140314: AppleTalk
 OLD_DIRS+=usr/include/netatalk
 OLD_FILES+=usr/include/netatalk/aarp.h

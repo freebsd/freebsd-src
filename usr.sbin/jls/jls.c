@@ -37,6 +37,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <jail.h>
 #include <limits.h>
@@ -447,6 +448,7 @@ print_jail(int pflags, int jflags)
 			if (!(params[i].jp_flags & JP_USER))
 				continue;
 			if ((pflags & PRINT_SKIP) &&
+			    !(params[i].jp_flags & JP_KEYVALUE) &&
 			    ((!(params[i].jp_ctltype &
 				(CTLFLAG_WR | CTLFLAG_TUN))) ||
 			     (param_parent[i] >= 0 &&
@@ -457,6 +459,13 @@ print_jail(int pflags, int jflags)
 				xo_emit("{P: }");
 			else
 				spc = 1;
+			if ((params[i].jp_flags & JP_KEYVALUE) &&
+			    params[i].jp_valuelen == 0) {
+				/* Communicate back a missing key. */
+				if (pflags & PRINT_NAMEVAL)
+					xo_emit("{d:%s}", params[i].jp_name);
+				continue;
+			}
 			if (pflags & PRINT_NAMEVAL) {
 				/*
 				 * Generally "name=value", but for booleans
@@ -515,13 +524,21 @@ quoted_print(int pflags, char *name, char *value)
 	}
 
 	/*
-	 * The value will be surrounded by quotes if it contains spaces
-	 * or quotes.
+	 * The value will be surrounded by quotes if it contains
+	 * whitespace or quotes.
 	 */
-	qc = strchr(p, '\'') ? '"'
-		: strchr(p, '"') ? '\''
-		: strchr(p, ' ') || strchr(p, '\t') ? '"'
-		: 0;
+	if (strchr(p, '\''))
+		qc = '"';
+	else if (strchr(p, '"'))
+		qc = '\'';
+	else {
+		qc = 0;
+		for (; *p; ++p)
+			if (isspace(*p)) {
+				qc = '"';
+				break;
+			}
+	}
 
 	if (qc && pflags & PRINT_QUOTED)
 		xo_emit("{P:/%c}", qc);

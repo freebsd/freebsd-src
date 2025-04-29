@@ -791,14 +791,16 @@ static int
 zy7_devcfg_detach(device_t dev)
 {
 	struct zy7_devcfg_softc *sc = device_get_softc(dev);
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	if (sc->sysctl_tree_top != NULL) {
 		sysctl_ctx_free(&sc->sysctl_tree);
 		sc->sysctl_tree_top = NULL;
 	}
-
-	if (device_is_attached(dev))
-		bus_generic_detach(dev);
 
 	/* Get rid of /dev/devcfg0. */
 	if (sc->sc_ctl_dev != NULL)

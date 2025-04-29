@@ -521,11 +521,6 @@ ip_input(struct mbuf *m)
 			goto bad;
 		}
 	}
-	/* The unspecified address can appear only as a src address - RFC1122 */
-	if (__predict_false(ntohl(ip->ip_dst.s_addr) == INADDR_ANY)) {
-		IPSTAT_INC(ips_badaddr);
-		goto bad;
-	}
 
 	if (m->m_pkthdr.csum_flags & CSUM_IP_CHECKED) {
 		sum = !(m->m_pkthdr.csum_flags & CSUM_IP_VALID);
@@ -641,6 +636,17 @@ tooshort:
 		}
 	}
 passin:
+	/*
+	 * The unspecified address can appear only as a src address - RFC1122.
+	 *
+	 * The check is deferred to here to give firewalls a chance to block
+	 * (and log) such packets.  ip_tryforward() will not process such
+	 * packets.
+	 */
+	if (__predict_false(ntohl(ip->ip_dst.s_addr) == INADDR_ANY)) {
+		IPSTAT_INC(ips_badaddr);
+		goto bad;
+	}
 
 	/*
 	 * Process options and, if not destined for us,
@@ -783,9 +789,7 @@ passin:
 		 */
 		goto ours;
 	}
-	if (ip->ip_dst.s_addr == (u_long)INADDR_BROADCAST)
-		goto ours;
-	if (ip->ip_dst.s_addr == INADDR_ANY)
+	if (in_broadcast(ip->ip_dst))
 		goto ours;
 	/* RFC 3927 2.7: Do not forward packets to or from IN_LINKLOCAL. */
 	if (IN_LINKLOCAL(ntohl(ip->ip_dst.s_addr)) ||
@@ -920,7 +924,7 @@ ip_forward(struct mbuf *m, int srcrt)
 
 	NET_EPOCH_ASSERT();
 
-	if (m->m_flags & (M_BCAST|M_MCAST) || in_canforward(ip->ip_dst) == 0) {
+	if (m->m_flags & (M_BCAST|M_MCAST) || !in_canforward(ip->ip_dst)) {
 		IPSTAT_INC(ips_cantforward);
 		m_freem(m);
 		return;

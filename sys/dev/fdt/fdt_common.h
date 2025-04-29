@@ -36,7 +36,7 @@
 #include <contrib/libfdt/libfdt_env.h>
 #include <dev/ofw/ofw_bus.h>
 
-#define FDT_MEM_REGIONS	16
+#define FDT_MEM_REGIONS	64
 
 #define DI_MAX_INTR_NUM	32
 
@@ -66,24 +66,22 @@ struct fdt_ic {
 	device_t		dev;
 };
 
-extern vm_paddr_t fdt_immr_pa;
-extern vm_offset_t fdt_immr_va;
-extern vm_offset_t fdt_immr_size;
-
 #if defined(FDT_DTB_STATIC)
 extern u_char fdt_static_dtb;
 #endif
 
 SYSCTL_DECL(_hw_fdt);
 
+typedef void (*fdt_mem_region_cb)(const struct mem_region *, void *);
+
 int fdt_addrsize_cells(phandle_t, int *, int *);
-u_long fdt_data_get(void *, int);
-int fdt_data_to_res(pcell_t *, int, int, u_long *, u_long *);
+u_long fdt_data_get(const void *, int);
+int fdt_data_to_res(const pcell_t *, int, int, u_long *, u_long *);
 phandle_t fdt_find_compatible(phandle_t, const char *, int);
 phandle_t fdt_depth_search_compatible(phandle_t, const char *, int);
-int fdt_get_mem_regions(struct mem_region *, int *, uint64_t *);
-int fdt_get_reserved_mem(struct mem_region *, int *);
-int fdt_get_reserved_regions(struct mem_region *, int *);
+int fdt_foreach_mem_region(fdt_mem_region_cb, void *);
+int fdt_foreach_reserved_mem(fdt_mem_region_cb, void *);
+int fdt_foreach_reserved_region(fdt_mem_region_cb, void *);
 int fdt_get_phyaddr(phandle_t, device_t, int *, void **);
 int fdt_get_range(phandle_t, int, u_long *, u_long *);
 int fdt_immr_addr(vm_offset_t);

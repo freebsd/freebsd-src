@@ -669,6 +669,10 @@ aac_detach(device_t dev)
 	sc = device_get_softc(dev);
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
+
 	callout_drain(&sc->aac_daemontime);
 
 	mtx_lock(&sc->aac_io_lock);
@@ -683,9 +687,6 @@ aac_detach(device_t dev)
 
 	/* Remove the child containers */
 	while ((co = TAILQ_FIRST(&sc->aac_container_tqh)) != NULL) {
-		error = device_delete_child(dev, co->co_disk);
-		if (error)
-			return (error);
 		TAILQ_REMOVE(&sc->aac_container_tqh, co, co_link);
 		free(co, M_AACBUF);
 	}
@@ -693,9 +694,6 @@ aac_detach(device_t dev)
 	/* Remove the CAM SIMs */
 	while ((sim = TAILQ_FIRST(&sc->aac_sim_tqh)) != NULL) {
 		TAILQ_REMOVE(&sc->aac_sim_tqh, sim, sim_link);
-		error = device_delete_child(dev, sim->sim_dev);
-		if (error)
-			return (error);
 		free(sim, M_AACBUF);
 	}
 

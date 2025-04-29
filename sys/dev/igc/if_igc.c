@@ -2450,10 +2450,9 @@ igc_enable_wakeup(if_ctx_t ctx)
 	device_t dev = iflib_get_dev(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
 	int error = 0;
-	u32 pmc, ctrl, rctl;
-	u16 status;
+	u32 ctrl, rctl;
 
-	if (pci_find_cap(dev, PCIY_PMG, &pmc) != 0)
+	if (!pci_has_pm(dev))
 		return;
 
 	/*
@@ -2487,11 +2486,8 @@ igc_enable_wakeup(if_ctx_t ctx)
 	IGC_WRITE_REG(&sc->hw, IGC_WUFC, sc->wol);
 
 pme:
-	status = pci_read_config(dev, pmc + PCIR_POWER_STATUS, 2);
-	status &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
 	if (!error && (if_getcapenable(ifp) & IFCAP_WOL))
-		status |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
-	pci_write_config(dev, pmc + PCIR_POWER_STATUS, status, 2);
+		pci_enable_pme(dev);
 
 	return;
 }

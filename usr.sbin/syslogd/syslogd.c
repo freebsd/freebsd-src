@@ -194,6 +194,13 @@ static STAILQ_HEAD(, socklist) shead = STAILQ_HEAD_INITIALIZER(shead);
 #define	RFC3164_DATELEN	15
 #define	RFC3164_DATEFMT	"%b %e %H:%M:%S"
 
+/*
+ * FORMAT_BSD_LEGACY and FORMAT_RFC3164_STRICT are two variations of
+ * the RFC 3164 logging format.
+ */
+#define IS_RFC3164_FORMAT (output_format == FORMAT_BSD_LEGACY ||	\
+output_format == FORMAT_RFC3164_STRICT)
+
 static STAILQ_HEAD(, filed) fhead =
     STAILQ_HEAD_INITIALIZER(fhead);	/* Log files that we write to */
 static struct filed consfile;		/* Console */
@@ -315,7 +322,11 @@ static int	LogFacPri;	/* Put facility and priority in log message: */
 static bool	KeepKernFac;	/* Keep remotely logged kernel facility */
 static bool	needdofsync = true; /* Are any file(s) waiting to be fsynced? */
 static struct pidfh *pfh;
-static bool	RFC3164OutputFormat = true; /* Use legacy format by default. */
+static enum {
+	FORMAT_BSD_LEGACY,	/* default, RFC 3164 with legacy deviations */
+	FORMAT_RFC3164_STRICT,	/* compliant to RFC 3164 recommendataions */
+	FORMAT_RFC5424,		/* RFC 5424 format */
+} output_format = FORMAT_BSD_LEGACY;
 static int	kq;		/* kqueue(2) descriptor. */
 
 struct iovlist;
@@ -323,7 +334,8 @@ struct iovlist;
 static bool	allowaddr(char *);
 static void	addpeer(const char *, const char *, mode_t);
 static void	addsock(const char *, const char *, mode_t);
-static nvlist_t *cfline(const char *, const char *, const char *, const char *);
+static void	cfline(nvlist_t *, const char *, const char *, const char *,
+    const char *);
 static const char *cvthname(struct sockaddr *);
 static struct deadq_entry *deadq_enter(int);
 static void	deadq_remove(struct deadq_entry *);
@@ -358,13 +370,10 @@ static void	increase_rcvbuf(int);
 static void
 close_filed(struct filed *f)
 {
-
-	if (f == NULL || f->f_file == -1)
-		return;
-
 	switch (f->f_type) {
 	case F_FORW:
 		if (f->f_addr_fds != NULL) {
+			free(f->f_addrs);
 			for (size_t i = 0; i < f->f_num_addr_fds; ++i)
 				close(f->f_addr_fds[i]);
 			free(f->f_addr_fds);
@@ -398,7 +407,8 @@ close_filed(struct filed *f)
 	default:
 		break;
 	}
-	(void)close(f->f_file);
+	if (f->f_file != -1)
+		(void)close(f->f_file);
 	f->f_file = -1;
 }
 
@@ -635,10 +645,12 @@ main(int argc, char *argv[])
 		case 'O':
 			if (strcmp(optarg, "bsd") == 0 ||
 			    strcmp(optarg, "rfc3164") == 0)
-				RFC3164OutputFormat = true;
+				output_format = FORMAT_BSD_LEGACY;
+			else if (strcmp(optarg, "rfc3164-strict") == 0)
+				output_format = FORMAT_RFC3164_STRICT;
 			else if (strcmp(optarg, "syslog") == 0 ||
 			    strcmp(optarg, "rfc5424") == 0)
-				RFC3164OutputFormat = false;
+				output_format = FORMAT_RFC5424;
 			else
 				usage();
 			break;
@@ -666,7 +678,7 @@ main(int argc, char *argv[])
 	if ((argc -= optind) != 0)
 		usage();
 
-	if (RFC3164OutputFormat && MaxForwardLen > 1024)
+	if (IS_RFC3164_FORMAT && MaxForwardLen > 1024)
 		errx(1, "RFC 3164 messages may not exceed 1024 bytes");
 
 	pfh = pidfile_open(PidFile, 0600, &spid);
@@ -1993,7 +2005,10 @@ fprintlog_rfc3164(struct filed *f, const char *hostname, const char *app_name,
 		iovlist_append(&il, priority_number);
 		iovlist_append(&il, ">");
 		iovlist_append(&il, timebuf);
-		if (strcasecmp(hostname, LocalHostName) != 0) {
+		if (output_format == FORMAT_RFC3164_STRICT) {
+			iovlist_append(&il, " ");
+			iovlist_append(&il, hostname);
+		} else if (strcasecmp(hostname, LocalHostName) != 0) {
 			iovlist_append(&il, " Forwarded from ");
 			iovlist_append(&il, hostname);
 			iovlist_append(&il, ":");
@@ -2092,7 +2107,7 @@ fprintlog_first(struct filed *f, const char *hostname, const char *app_name,
 		return;
 	}
 
-	if (RFC3164OutputFormat)
+	if (IS_RFC3164_FORMAT)
 		fprintlog_rfc3164(f, hostname, app_name, procid, msg, flags);
 	else
 		fprintlog_rfc5424(f, hostname, app_name, procid, msgid,
@@ -2215,7 +2230,7 @@ cvthname(struct sockaddr *f)
 	if (hl > 0 && hname[hl-1] == '.')
 		hname[--hl] = '\0';
 	/* RFC 5424 prefers logging FQDNs. */
-	if (RFC3164OutputFormat)
+	if (IS_RFC3164_FORMAT)
 		trimdomain(hname, hl);
 	return (hname);
 }
@@ -2431,8 +2446,7 @@ parseconfigfile(FILE *cf, bool allow_includes, nvlist_t *nvl_conf)
 		}
 		for (i = strlen(cline) - 1; i >= 0 && isspace(cline[i]); i--)
 			cline[i] = '\0';
-		nvlist_append_nvlist_array(nvl_conf, "filed_list",
-		    cfline(cline, prog, host, pfilter));
+		cfline(nvl_conf, cline, prog, host, pfilter);
 
 	}
 	return (nvl_conf);
@@ -2456,10 +2470,8 @@ readconfigfile(const char *path)
 		(void)fclose(cf);
 	} else {
 		dprintf("cannot open %s\n", path);
-		nvlist_append_nvlist_array(nvl_conf, "filed_list",
-		    cfline("*.ERR\t/dev/console", "*", "*", "*"));
-		nvlist_append_nvlist_array(nvl_conf, "filed_list",
-		    cfline("*.PANIC\t*", "*", "*", "*"));
+		cfline(nvl_conf, "*.ERR\t/dev/console", "*", "*", "*");
+		cfline(nvl_conf, "*.PANIC\t*", "*", "*", "*");
 	}
 	return (nvl_conf);
 }
@@ -2599,7 +2611,7 @@ init(bool reload)
 		err(EX_OSERR, "gethostname() failed");
 	if ((p = strchr(LocalHostName, '.')) != NULL) {
 		/* RFC 5424 prefers logging FQDNs. */
-		if (RFC3164OutputFormat)
+		if (IS_RFC3164_FORMAT)
 			*p = '\0';
 		LocalDomain = p + 1;
 	} else {
@@ -2976,11 +2988,152 @@ parse_selector(const char *p, struct filed *f)
 	return (q);
 }
 
-static void
-parse_action(const char *p, struct filed *f)
+static int
+maybe_dup_forw_socket(const nvlist_t *nvl, const struct sockaddr *rsa,
+    const struct sockaddr *lsa)
 {
-	struct addrinfo *ai, hints, *res;
-	int error, i;
+	const nvlist_t * const *line;
+	size_t linecount;
+
+	if (!nvlist_exists_nvlist_array(nvl, "filed_list"))
+		return (-1);
+	line = nvlist_get_nvlist_array(nvl, "filed_list", &linecount);
+	for (size_t i = 0; i < linecount; i++) {
+		const struct forw_addr *forw;
+		const int *fdp;
+		size_t fdc;
+
+		if (nvlist_get_number(line[i], "f_type") != F_FORW)
+			continue;
+		fdp = nvlist_get_descriptor_array(line[i], "f_addr_fds", &fdc);
+		forw = nvlist_get_binary(line[i], "f_addrs", NULL);
+		for (size_t j = 0; j < fdc; j++) {
+			int fd;
+
+			if (memcmp(&forw[j].raddr, rsa, rsa->sa_len) != 0 ||
+			    memcmp(&forw[j].laddr, lsa, lsa->sa_len) != 0)
+				continue;
+
+			fd = dup(fdp[j]);
+			if (fd < 0)
+				err(1, "dup");
+			return (fd);
+		}
+	}
+
+	return (-1);
+}
+
+/*
+ * Create a UDP socket that will forward messages from "lai" to "ai".
+ * Capsicum doesn't permit connect() or sendto(), so we can't reuse the (bound)
+ * sockets used to listen for messages.
+ */
+static int
+make_forw_socket(const nvlist_t *nvl, struct addrinfo *ai, struct addrinfo *lai)
+{
+	int s;
+
+	s = socket(ai->ai_family, ai->ai_socktype, 0);
+	if (s < 0)
+		err(1, "socket");
+	if (lai != NULL) {
+		if (setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &(int){1},
+		    sizeof(int)) < 0)
+			err(1, "setsockopt");
+		if (bind(s, lai->ai_addr, lai->ai_addrlen) < 0)
+			err(1, "bind");
+	}
+	if (connect(s, ai->ai_addr, ai->ai_addrlen) < 0) {
+		if (errno == EADDRINUSE && lai != NULL) {
+			int s1;
+
+			s1 = maybe_dup_forw_socket(nvl, ai->ai_addr,
+			    lai->ai_addr);
+			if (s1 < 0)
+				errc(1, EADDRINUSE, "connect");
+			(void)close(s);
+			s = s1;
+		} else {
+			err(1, "connect");
+		}
+	}
+	/* Make it a write-only socket. */
+	if (shutdown(s, SHUT_RD) < 0)
+		err(1, "shutdown");
+
+	return (s);
+}
+
+static void
+make_forw_socket_array(const nvlist_t *nvl, struct filed *f,
+    struct addrinfo *res)
+{
+	struct addrinfo *ai;
+	size_t i;
+
+	f->f_num_addr_fds = 0;
+
+	/* How many sockets do we need? */
+	for (ai = res; ai != NULL; ai = ai->ai_next) {
+		struct socklist *boundsock;
+		int count;
+
+		count = 0;
+		STAILQ_FOREACH(boundsock, &shead, next) {
+			if (boundsock->sl_ai.ai_family == ai->ai_family)
+				count++;
+		}
+		if (count == 0)
+			count = 1;
+		f->f_num_addr_fds += count;
+	}
+
+	f->f_addr_fds = calloc(f->f_num_addr_fds, sizeof(*f->f_addr_fds));
+	f->f_addrs = calloc(f->f_num_addr_fds, sizeof(*f->f_addrs));
+	if (f->f_addr_fds == NULL || f->f_addrs == NULL)
+		err(1, "malloc failed");
+
+	/*
+	 * Create our forwarding sockets: for each bound socket
+	 * belonging to the destination address, create one socket
+	 * connected to the destination and bound to the address of the
+	 * listening socket.
+	 */
+	i = 0;
+	for (ai = res; ai != NULL; ai = ai->ai_next) {
+		struct socklist *boundsock;
+		int count;
+
+		count = 0;
+		STAILQ_FOREACH(boundsock, &shead, next) {
+			if (boundsock->sl_ai.ai_family ==
+			    ai->ai_family) {
+				memcpy(&f->f_addrs[i].raddr, ai->ai_addr,
+				    ai->ai_addrlen);
+				memcpy(&f->f_addrs[i].laddr,
+				    boundsock->sl_ai.ai_addr,
+				    boundsock->sl_ai.ai_addrlen);
+				f->f_addr_fds[i++] = make_forw_socket(nvl, ai,
+				    &boundsock->sl_ai);
+				count++;
+			}
+		}
+		if (count == 0) {
+			memcpy(&f->f_addrs[i].raddr, ai->ai_addr,
+			    ai->ai_addrlen);
+			f->f_addr_fds[i++] = make_forw_socket(nvl, ai, NULL);
+		}
+	}
+	assert(i == f->f_num_addr_fds);
+}
+
+static void
+parse_action(const nvlist_t *nvl, const char *p, struct filed *f)
+{
+	struct addrinfo hints, *res;
+	size_t i;
+	int error;
 	const char *q;
 	bool syncfile;
 
@@ -3034,28 +3187,8 @@ parse_action(const char *p, struct filed *f)
 			dprintf("%s\n", gai_strerror(error));
 			break;
 		}
-
-		for (ai = res; ai != NULL; ai = ai->ai_next)
-			++f->f_num_addr_fds;
-
-		f->f_addr_fds = calloc(f->f_num_addr_fds,
-		    sizeof(*f->f_addr_fds));
-		if (f->f_addr_fds == NULL)
-			err(1, "malloc failed");
-
-		for (ai = res, i = 0; ai != NULL; ai = ai->ai_next, ++i) {
-			int *sockp = &f->f_addr_fds[i];
-
-			*sockp = socket(ai->ai_family, ai->ai_socktype, 0);
-			if (*sockp < 0)
-				err(1, "socket");
-			if (connect(*sockp, ai->ai_addr, ai->ai_addrlen) < 0)
-				err(1, "connect");
-			/* Make it a write-only socket. */
-			if (shutdown(*sockp, SHUT_RD) < 0)
-				err(1, "shutdown");
-		}
-
+		make_forw_socket_array(nvl, f, res);
+		freeaddrinfo(res);
 		f->f_type = F_FORW;
 		break;
 
@@ -3109,10 +3242,11 @@ parse_action(const char *p, struct filed *f)
 }
 
 /*
- * Crack a configuration file line
+ * Convert a configuration file line to an nvlist and add to "nvl", which
+ * contains all of the log configuration processed thus far.
  */
-static nvlist_t *
-cfline(const char *line, const char *prog, const char *host,
+static void
+cfline(nvlist_t *nvl, const char *line, const char *prog, const char *host,
     const char *pfilter)
 {
 	nvlist_t *nvl_filed;
@@ -3134,7 +3268,7 @@ cfline(const char *line, const char *prog, const char *host,
 		if (hl > 0 && f.f_host[hl-1] == '.')
 			f.f_host[--hl] = '\0';
 		/* RFC 5424 prefers logging FQDNs. */
-		if (RFC3164OutputFormat)
+		if (IS_RFC3164_FORMAT)
 			trimdomain(f.f_host, hl);
 	}
 
@@ -3149,10 +3283,11 @@ cfline(const char *line, const char *prog, const char *host,
 	/* skip to action part */
 	while (*p == '\t' || *p == ' ')
 		p++;
-	parse_action(p, &f);
+	parse_action(nvl, p, &f);
 
 	/* An nvlist is heap allocated heap here. */
 	nvl_filed = filed_to_nvlist(&f);
+	close_filed(&f);
 
 	if (pfilter && *pfilter != '*') {
 		nvlist_t *nvl_pfilter;
@@ -3163,7 +3298,8 @@ cfline(const char *line, const char *prog, const char *host,
 		nvlist_add_nvlist(nvl_filed, "f_prop_filter", nvl_pfilter);
 	}
 
-	return (nvl_filed);
+	nvlist_append_nvlist_array(nvl, "filed_list", nvl_filed);
+	nvlist_destroy(nvl_filed);
 }
 
 /*
@@ -3754,6 +3890,13 @@ socksetup(struct addrinfo *ai, const char *name, mode_t mode)
 
 		if (ai->ai_family == AF_LOCAL && fchmod(s, mode) < 0) {
 			dprintf("fchmod %s: %s\n", name, strerror(errno));
+			close(s);
+			return (NULL);
+		}
+
+		if (setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &(int){1},
+		    sizeof(int)) < 0) {
+			logerror("setsockopt(SO_REUSEPORT)");
 			close(s);
 			return (NULL);
 		}

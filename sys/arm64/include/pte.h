@@ -54,13 +54,6 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	ATTR_MASK_L		UINT64_C(0x0000000000000fff)
 #define	ATTR_MASK		(ATTR_MASK_H | ATTR_MASK_L)
 
-#define BASE_MASK		~ATTR_MASK
-#define BASE_ADDR(x)		((x) & BASE_MASK)
-
-#define PTE_TO_PHYS(pte)	BASE_ADDR(pte)
-/* Convert a phys addr to the output address field of a PTE */
-#define PHYS_TO_PTE(pa)		(pa)
-
 /* Bits 58:55 are reserved for software */
 #define	ATTR_SW_UNUSED1		(1UL << 58)
 #define	ATTR_SW_NO_PROMOTE	(1UL << 57)
@@ -80,14 +73,37 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 
 #define	ATTR_CONTIGUOUS		(1UL << 52)
 #define	ATTR_DBM		(1UL << 51)
-#define	ATTR_S1_GP		(1UL << 50)
+#define	ATTR_S1_GP_SHIFT	50
+#define	ATTR_S1_GP		(1UL << ATTR_S1_GP_SHIFT)
+
+/*
+ * Largest possible output address field for a level 3 page. Block
+ * entries will use fewer low address bits, but these are res0 so
+ * should be safe to include.
+ *
+ * This is also safe to use for the next-level table address for
+ * table entries as they encode a physical address in the same way.
+ */
+#if PAGE_SIZE == PAGE_SIZE_4K
+#define	ATTR_ADDR		UINT64_C(0x0003fffffffff000)
+#elif PAGE_SIZE == PAGE_SIZE_16K
+#define	ATTR_ADDR		UINT64_C(0x0003ffffffffc000)
+#else
+#error Unsupported page size
+#endif
+
 #define	ATTR_S1_nG		(1 << 11)
 #define	ATTR_AF			(1 << 10)
+/* When TCR_EL1.DS == 0 */
 #define	ATTR_SH(x)		((x) << 8)
 #define	 ATTR_SH_MASK		ATTR_SH(3)
 #define	 ATTR_SH_NS		0		/* Non-shareable */
 #define	 ATTR_SH_OS		2		/* Outer-shareable */
 #define	 ATTR_SH_IS		3		/* Inner-shareable */
+/* When TCR_EL1.DS == 1 */
+#define	ATTR_OA_51_50_SHIFT	8
+#define	ATTR_OA_51_50_MASK	(3 << ATTR_OA_51_50_SHIFT)
+#define	ATTR_OA_51_50_DELTA	(50 - 8)	/* Delta from address to pte */
 
 #define	ATTR_S1_AP_RW_BIT	(1 << 7)
 #define	ATTR_S1_AP(x)		((x) << 6)
@@ -123,6 +139,29 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
  * mask all be identical in the constituent PTEs.
  */
 #define	ATTR_PROMOTE	(ATTR_MASK & ~(ATTR_CONTIGUOUS | ATTR_AF))
+
+/* Read the output address or next-level table address from a PTE */
+#define PTE_TO_PHYS(x)		({					\
+	pt_entry_t _pte = (x);						\
+	vm_paddr_t _pa;							\
+	_pa = _pte & ATTR_ADDR;						\
+	if (pmap_lpa_enabled)						\
+		_pa |= (_pte & ATTR_OA_51_50_MASK) << ATTR_OA_51_50_DELTA; \
+	_pa;								\
+})
+
+/*
+ * Convert a physical address to an output address or next-level
+ * table address in a PTE
+ */
+#define PHYS_TO_PTE(x)		({					\
+	vm_paddr_t _pa = (x);						\
+	pt_entry_t _pte;						\
+	_pte = _pa & ATTR_ADDR;						\
+	if (pmap_lpa_enabled)						\
+		_pte |= (_pa >> ATTR_OA_51_50_DELTA) & ATTR_OA_51_50_MASK; \
+	_pte;								\
+})
 
 #if PAGE_SIZE == PAGE_SIZE_4K
 #define	L0_SHIFT	39

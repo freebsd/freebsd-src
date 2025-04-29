@@ -30,7 +30,7 @@
 #
 
 .if !target(__<bsd.opts.mk>__)
-__<bsd.opts.mk>__:
+__<bsd.opts.mk>__:	.NOTMAIN
 
 .if !defined(_WITHOUT_SRCCONF)
 #
@@ -81,7 +81,8 @@ __DEFAULT_NO_OPTIONS = \
     RETPOLINE \
     STALE_STAGED \
     UBSAN \
-    UNDEFINED_VERSION
+    UNDEFINED_VERSION \
+    ZEROREGS
 
 __DEFAULT_DEPENDENT_OPTIONS = \
     MAKE_CHECK_USE_SANDBOX/TESTS \

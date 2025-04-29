@@ -288,7 +288,7 @@ soo_poll(struct file *fp, int events, struct ucred *active_cred,
 	if (error)
 		return (error);
 #endif
-	return (sopoll(so, events, fp->f_cred, td));
+	return (so->so_proto->pr_sopoll(so, events, td));
 }
 
 static int
@@ -802,15 +802,16 @@ soo_aio_cancel(struct kaiocb *job)
 static int
 soo_aio_queue(struct file *fp, struct kaiocb *job)
 {
-	struct socket *so;
+	struct socket *so = fp->f_data;
+
+	return (so->so_proto->pr_aio_queue(so, job));
+}
+
+int
+soaio_queue_generic(struct socket *so, struct kaiocb *job)
+{
 	struct sockbuf *sb;
 	sb_which which;
-	int error;
-
-	so = fp->f_data;
-	error = so->so_proto->pr_aio_queue(so, job);
-	if (error == 0)
-		return (0);
 
 	/* Lock through the socket, since this may be a listening socket. */
 	switch (job->uaiocb.aio_lio_opcode & (LIO_WRITE | LIO_READ)) {

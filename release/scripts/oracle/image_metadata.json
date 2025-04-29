@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "externalLaunchOptions": {
+    "firmware": "UEFI_64",
+    "networkType": "PARAVIRTUALIZED",
+    "bootVolumeType": "PARAVIRTUALIZED",
+    "remoteDataVolumeType": "PARAVIRTUALIZED",
+    "localDataVolumeType": "PARAVIRTUALIZED",
+    "launchOptionsSource": "PARAVIRTUALIZED",
+    "pvAttachmentVersion": 2,
+    "pvEncryptionInTransitEnabled": false,
+    "consistentVolumeNamingEnabled": false
+  },
+  "imageCapabilityData": "REPLACE",
+  "imageCapsFormatVersion": "23cfd738-ad9c-4f56-9281-67be6c8cd14c",
+  "operatingSystem": "REPLACE",
+  "operatingSystemVersion": "REPLACE",
+  "additionalMetadata": {
+    "shapeCompatibilities": "REPLACE"
+  }
+}

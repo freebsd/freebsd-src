@@ -135,7 +135,6 @@ linux_to_bsd_ip_sockopt(int opt)
 		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_RECVTTL");
 		return (IP_RECVTTL);
 	case LINUX_IP_RECVTOS:
-		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_RECVTOS");
 		return (IP_RECVTOS);
 	case LINUX_IP_FREEBIND:
 		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_FREEBIND");
@@ -663,6 +662,8 @@ bsd_to_linux_ip_cmsg_type(int cmsg_type)
 	switch (cmsg_type) {
 	case IP_RECVORIGDSTADDR:
 		return (LINUX_IP_RECVORIGDSTADDR);
+	case IP_RECVTOS:
+		return (LINUX_IP_TOS);
 	}
 	return (-1);
 }
@@ -1858,7 +1859,7 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		lcm->cmsg_level = bsd_to_linux_sockopt_level(cm->cmsg_level);
 
 		if (lcm->cmsg_type == -1 ||
-		    cm->cmsg_level == -1) {
+		    lcm->cmsg_level == -1) {
 			LINUX_RATELIMIT_MSG_OPT2(
 			    "unsupported recvmsg cmsg level %d type %d",
 			    cm->cmsg_level, cm->cmsg_type);

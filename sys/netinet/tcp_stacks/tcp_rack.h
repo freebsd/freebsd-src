@@ -435,7 +435,6 @@ struct rack_control {
 	uint32_t rc_rcvtime;	/* When we last received data */
 	uint32_t rc_num_split_allocs;	/* num split map entries allocated */
 	uint32_t rc_split_limit;	/* Limit from control var can be set by socket opt */
-	uint32_t rack_avg_rec_sends;
 
 	uint32_t rc_last_output_to;
 	uint32_t rc_went_idle_time;
@@ -462,7 +461,6 @@ struct rack_control {
 	uint32_t rc_agg_early;
 	uint32_t rc_agg_delayed;
 	uint32_t rc_tlp_rxt_last_time;
-	uint32_t rc_saved_cwnd;
 	uint64_t rc_gp_output_ts; /* chg*/
 	uint64_t rc_gp_cumack_ts; /* chg*/
 	struct timeval act_rcv_time;
@@ -540,15 +538,14 @@ struct rack_control {
 	uint32_t rc_min_to;	/* Socket option value Lock(a) */
 	uint32_t rc_pkt_delay;	/* Socket option value Lock(a) */
 	uint32_t persist_lost_ends;
-	uint32_t input_pkt;
-	uint32_t saved_input_pkt;
 	uint32_t cleared_app_ack_seq;
 	uint32_t last_rcv_tstmp_for_rtt;
 	uint32_t last_time_of_arm_rcv;
 	uint32_t rto_ssthresh;
-	struct newreno rc_saved_beta;	/*
-					 * For newreno cc:
-					 * rc_saved_cc are the values we have had
+	uint32_t rc_saved_beta;
+	uint32_t rc_saved_beta_ecn;	/*
+					 * For newreno cc: rc_saved_beta and
+					 * rc_saved_beta_ecn are the values we have had
 					 * set by the user, if pacing is not happening
 					 * (i.e. its early and we have not turned on yet
 					 *  or it was turned off). The minute pacing
@@ -572,38 +569,15 @@ struct rack_control {
 	uint8_t rc_tlp_cwnd_reduce;	/* Socket option value Lock(a) */
 	uint8_t rc_prr_sendalot;/* Socket option value Lock(a) */
 	uint8_t rc_rate_sample_method;
-	uint8_t full_dgp_in_rec;	/* Flag to say if we do full DGP in recovery */
 	uint8_t client_suggested_maxseg;	/* Not sure what to do with this yet */
 	uint8_t use_gp_not_last;
 	uint8_t pacing_method;	       /* If pace_always, what type of pacing */
-	uint8_t already_had_a_excess;
 };
 #endif
 
 #define RACK_PACING_NONE 0x00
 #define RACK_DGP_PACING  0x01
 #define RACK_REG_PACING  0x02
-
-/* DGP with no buffer level mitigations */
-#define DGP_LEVEL0	0
-
-/*
- * DGP with buffer level mitigation where BL:4 caps fillcw and BL:5
- * turns off fillcw.
- */
-#define DGP_LEVEL1	1
-
-/*
- * DGP with buffer level mitigation where BL:3 caps fillcw and BL:4 turns off fillcw
- * and BL:5 reduces by 10%
- */
-#define DGP_LEVEL2	2
-
-/*
- * DGP with buffer level mitigation where BL:2 caps fillcw and BL:3 turns off
- * fillcw  BL:4 reduces by 10% and BL:5 reduces by 20%
- */
-#define DGP_LEVEL3	3
 
 /* Hybrid pacing log defines */
 #define HYBRID_LOG_NO_ROOM	0	/* No room for the clients request */
@@ -623,12 +597,7 @@ struct rack_control {
 #define HYBRID_LOG_EXTEND	14	/* We extended the end */
 #define HYBRID_LOG_SENT_LOST	15	/* A closing sent/lost report */
 
-#define LOST_ZERO	1 	/* Zero it out */
-#define LOST_ADD	2	/* Add to it */
-#define LOST_SUB	3	/* Sub from it */
-
 #define RACK_TIMELY_CNT_BOOST 5	/* At 5th increase boost */
-#define RACK_MINRTT_FILTER_TIM 10 /* Seconds */
 
 #define RACK_HYSTART_OFF	0
 #define RACK_HYSTART_ON		1	/* hystart++ on */

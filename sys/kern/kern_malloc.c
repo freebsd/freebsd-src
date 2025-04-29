@@ -477,11 +477,18 @@ contigmalloc_size(uma_slab_t slab)
 }
 
 void *
-contigmalloc(unsigned long size, struct malloc_type *type, int flags,
+contigmalloc(unsigned long osize, struct malloc_type *type, int flags,
     vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
     vm_paddr_t boundary)
 {
 	void *ret;
+	unsigned long size;
+
+#ifdef DEBUG_REDZONE
+	size = redzone_size_ntor(osize);
+#else
+	size = osize;
+#endif
 
 	ret = (void *)kmem_alloc_contig(size, flags, low, high, alignment,
 	    boundary, VM_MEMATTR_DEFAULT);
@@ -489,16 +496,26 @@ contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 		/* Use low bits unused for slab pointers. */
 		vsetzoneslab((uintptr_t)ret, NULL, CONTIG_MALLOC_SLAB(size));
 		malloc_type_allocated(type, round_page(size));
+#ifdef DEBUG_REDZONE
+		ret = redzone_setup(ret, osize);
+#endif
 	}
 	return (ret);
 }
 
 void *
-contigmalloc_domainset(unsigned long size, struct malloc_type *type,
+contigmalloc_domainset(unsigned long osize, struct malloc_type *type,
     struct domainset *ds, int flags, vm_paddr_t low, vm_paddr_t high,
     unsigned long alignment, vm_paddr_t boundary)
 {
 	void *ret;
+	unsigned long size;
+
+#ifdef DEBUG_REDZONE
+	size = redzone_size_ntor(osize);
+#else
+	size = osize;
+#endif
 
 	ret = (void *)kmem_alloc_contig_domainset(ds, size, flags, low, high,
 	    alignment, boundary, VM_MEMATTR_DEFAULT);
@@ -506,6 +523,9 @@ contigmalloc_domainset(unsigned long size, struct malloc_type *type,
 		/* Use low bits unused for slab pointers. */
 		vsetzoneslab((uintptr_t)ret, NULL, CONTIG_MALLOC_SLAB(size));
 		malloc_type_allocated(type, round_page(size));
+#ifdef DEBUG_REDZONE
+		ret = redzone_setup(ret, osize);
+#endif
 	}
 	return (ret);
 }
@@ -1121,6 +1141,9 @@ malloc_usable_size(const void *addr)
 		break;
 	case SLAB_COOKIE_MALLOC_LARGE:
 		size = malloc_large_size(slab);
+		break;
+	case SLAB_COOKIE_CONTIG_MALLOC:
+		size = round_page(contigmalloc_size(slab));
 		break;
 	default:
 		__assert_unreachable();

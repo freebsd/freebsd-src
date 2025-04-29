@@ -49,6 +49,7 @@
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ht.h>
+#include <net80211/ieee80211_vht.h>
 #include <net80211/ieee80211_amrr.h>
 #include <net80211/ieee80211_ratectl.h>
 
@@ -139,13 +140,95 @@ amrr_deinit(struct ieee80211vap *vap)
 }
 
 static void
+amrr_node_init_vht(struct ieee80211_node *ni)
+{
+	struct ieee80211_amrr_node *amn = ni->ni_rctls;
+
+	/* Default to VHT NSS 1 MCS 2; should be reliable! */
+	amn->amn_vht_mcs = 2;
+	amn->amn_vht_nss = 1;
+	ieee80211_node_set_txrate_vht_rate(ni, amn->amn_vht_nss,
+	    amn->amn_vht_mcs);
+
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+	    "AMRR: VHT: initial rate NSS %d MCS %d",
+	    amn->amn_vht_nss,
+	    amn->amn_vht_mcs);
+}
+
+static void
+amrr_node_init_ht(struct ieee80211_node *ni)
+{
+	const struct ieee80211_rateset *rs;
+	struct ieee80211_amrr_node *amn = ni->ni_rctls;
+	uint8_t rate;	/* dot11rate */
+
+	rs = (struct ieee80211_rateset *) &ni->ni_htrates;
+	/* Initial rate - lowest */
+	rate = rs->rs_rates[0];
+
+	/* Pick something low that's likely to succeed */
+	for (amn->amn_rix = rs->rs_nrates - 1; amn->amn_rix > 0;
+	    amn->amn_rix--) {
+		/* 11n - stop at MCS4 */
+		if ((rs->rs_rates[amn->amn_rix] & 0x1f) < 4)
+			break;
+	}
+	rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
+
+	/* Ensure the MCS bit is set */
+	rate |= IEEE80211_RATE_MCS;
+
+	/* Assign initial rate from the rateset */
+	ieee80211_node_set_txrate_dot11rate(ni, rate);
+
+	/* XXX TODO: we really need a rate-to-string method */
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+	    "AMRR: nrates=%d, initial rate MCS %d",
+	    rs->rs_nrates,
+	    (rate & IEEE80211_RATE_VAL));
+}
+
+static void
+amrr_node_init_legacy(struct ieee80211_node *ni)
+{
+	const struct ieee80211_rateset *rs;
+	struct ieee80211_amrr_node *amn = ni->ni_rctls;
+	uint8_t rate;	/* dot11rate */
+
+	rs = &ni->ni_rates;
+	/* Initial rate - lowest */
+	rate = rs->rs_rates[0];
+
+	/* Clear the basic rate flag if it's not 11n */
+	rate &= IEEE80211_RATE_VAL;
+
+	/* Pick something low that's likely to succeed */
+	for (amn->amn_rix = rs->rs_nrates - 1; amn->amn_rix > 0;
+	    amn->amn_rix--) {
+		/* legacy - anything < 36mbit, stop searching */
+		if ((rs->rs_rates[amn->amn_rix] &
+		    IEEE80211_RATE_VAL) <= 72)
+			break;
+	}
+	rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
+
+	/* Assign initial rate from the rateset */
+	ieee80211_node_set_txrate_dot11rate(ni, rate);
+
+	/* XXX TODO: we really need a rate-to-string method */
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+	    "AMRR: nrates=%d, initial rate %d Mb",
+	    rs->rs_nrates,
+	    (rate & IEEE80211_RATE_VAL) / 2);
+}
+
+static void
 amrr_node_init(struct ieee80211_node *ni)
 {
-	const struct ieee80211_rateset *rs = NULL;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_amrr *amrr = vap->iv_rs;
 	struct ieee80211_amrr_node *amn;
-	uint8_t rate;
 
 	if (!amrr) {
 		if_printf(vap->iv_ifp, "ratectl structure was not allocated, "
@@ -163,60 +246,22 @@ amrr_node_init(struct ieee80211_node *ni)
 		}
 	} else
 		amn = ni->ni_rctls;
+
+	/* Common state */
 	amn->amn_amrr = amrr;
 	amn->amn_success = 0;
 	amn->amn_recovery = 0;
 	amn->amn_txcnt = amn->amn_retrycnt = 0;
 	amn->amn_success_threshold = amrr->amrr_min_success_threshold;
-
-	/* 11n or not? Pick the right rateset */
-	if (ieee80211_ht_check_tx_ht(ni)) {
-		/* XXX ew */
-		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
-		    "%s: 11n node", __func__);
-		rs = (struct ieee80211_rateset *) &ni->ni_htrates;
-	} else {
-		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
-		    "%s: non-11n node", __func__);
-		rs = &ni->ni_rates;
-	}
-
-	/* Initial rate - lowest */
-	rate = rs->rs_rates[0];
-
-	/* XXX clear the basic rate flag if it's not 11n */
-	if (! ieee80211_ht_check_tx_ht(ni))
-		rate &= IEEE80211_RATE_VAL;
-
-	/* pick initial rate from the rateset - HT or otherwise */
-	/* Pick something low that's likely to succeed */
-	for (amn->amn_rix = rs->rs_nrates - 1; amn->amn_rix > 0;
-	    amn->amn_rix--) {
-		/* legacy - anything < 36mbit, stop searching */
-		/* 11n - stop at MCS4 */
-		if (ieee80211_ht_check_tx_ht(ni)) {
-			if ((rs->rs_rates[amn->amn_rix] & 0x1f) < 4)
-				break;
-		} else if ((rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL) <= 72)
-			break;
-	}
-	rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
-
-	/* if the rate is an 11n rate, ensure the MCS bit is set */
-	if (ieee80211_ht_check_tx_ht(ni))
-		rate |= IEEE80211_RATE_MCS;
-
-	/* Assign initial rate from the rateset */
-	ni->ni_txrate = rate;
 	amn->amn_ticks = ticks;
 
-	/* XXX TODO: we really need a rate-to-string method */
-	/* XXX TODO: non-11n rate should be divided by two.. */
-	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
-	    "AMRR: nrates=%d, initial rate %s%d",
-	    rs->rs_nrates,
-	    ieee80211_ht_check_tx_ht(ni) ? "MCS " : "",
-	    rate & IEEE80211_RATE_VAL);
+	/* Pick the right rateset */
+	if (ieee80211_vht_check_tx_vht(ni))
+		amrr_node_init_vht(ni);
+	else if (ieee80211_ht_check_tx_ht(ni))
+		amrr_node_init_ht(ni);
+	else
+		amrr_node_init_legacy(ni);
 }
 
 static void
@@ -225,27 +270,149 @@ amrr_node_deinit(struct ieee80211_node *ni)
 	IEEE80211_FREE(ni->ni_rctls, M_80211_RATECTL);
 }
 
+static void
+amrr_update_vht_inc(struct ieee80211_node *ni)
+{
+	struct ieee80211_amrr_node *amn = ni->ni_rctls;
+	uint8_t nss, mcs;
+
+	/*
+	 * For now just keep looping over MCS to 9, then NSS up, checking if
+	 * it's valid via ieee80211_vht_node_check_tx_valid_mcs(),
+	 * until we hit max.  This at least tests the VHT MCS rates,
+	 * but definitely is suboptimal (in the same way the 11n MCS selection
+	 * is suboptimal.)
+	 */
+	nss = amn->amn_vht_nss;
+	mcs = amn->amn_vht_mcs;
+
+	while (nss <= 8 && mcs <= 9) {
+		/* Increment MCS 0..9, NSS 1..8 */
+		if (mcs == 9) {
+			mcs = 0;
+			nss++;
+		} else
+			mcs++;
+		if (nss > 8)
+			break;
+
+		if (ieee80211_vht_node_check_tx_valid_mcs(ni, ni->ni_chw, nss,
+		    mcs)) {
+			amn->amn_vht_nss = nss;
+			amn->amn_vht_mcs = mcs;
+			break;
+		}
+	}
+}
+
+static void
+amrr_update_vht_dec(struct ieee80211_node *ni)
+{
+	struct ieee80211_amrr_node *amn = ni->ni_rctls;
+	uint8_t nss, mcs;
+
+	/*
+	 * For now just keep looping over MCS 9 .. 0 then NSS down, checking if
+	 * it's valid via ieee80211_vht_node_check_tx_valid_mcs(),
+	 * until we hit min.  This at least tests the VHT MCS rates,
+	 * but definitely is suboptimal (in the same way the 11n MCS selection
+	 * is suboptimal.
+	 */
+	nss = amn->amn_vht_nss;
+	mcs = amn->amn_vht_mcs;
+
+	while (nss >= 1 && mcs >= 0) {
+
+		if (mcs == 0) {
+			mcs = 9;
+			nss--;
+		} else
+			mcs--;
+		if (nss < 1)
+			break;
+
+		if (ieee80211_vht_node_check_tx_valid_mcs(ni, ni->ni_chw, nss,
+		    mcs)) {
+			amn->amn_vht_nss = nss;
+			amn->amn_vht_mcs = mcs;
+			break;
+		}
+	}
+}
+
+/*
+ * A placeholder / temporary hack VHT rate control.
+ *
+ * Use the available MCS rates at the current node bandwidth
+ * and configured / negotiated MCS rates.
+ */
 static int
-amrr_update(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
+amrr_update_vht(struct ieee80211_node *ni)
+{
+	struct ieee80211_amrr_node *amn = ni->ni_rctls;
+	struct ieee80211_amrr *amrr = ni->ni_vap->iv_rs;
+
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+	    "AMRR: VHT: current rate NSS %d MCS %d, txcnt=%d, retrycnt=%d",
+	    amn->amn_vht_nss, amn->amn_vht_mcs, amn->amn_txcnt,
+	    amn->amn_retrycnt);
+
+	if (is_success(amn)) {
+		amn->amn_success++;
+		if (amn->amn_success >= amn->amn_success_threshold) {
+			amn->amn_recovery = 1;
+			amn->amn_success = 0;
+
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+			    "AMRR: VHT: increase rate (txcnt=%d retrycnt=%d)",
+			    amn->amn_txcnt, amn->amn_retrycnt);
+
+			amrr_update_vht_inc(ni);
+		} else {
+			amn->amn_recovery = 0;
+		}
+	} else if (is_failure(amn)) {
+		amn->amn_success = 0;
+
+		if (amn->amn_recovery) {
+			amn->amn_success_threshold *= 2;
+			if (amn->amn_success_threshold >
+			    amrr->amrr_max_success_threshold)
+				amn->amn_success_threshold =
+				    amrr->amrr_max_success_threshold;
+		} else {
+			amn->amn_success_threshold =
+			    amrr->amrr_min_success_threshold;
+		}
+		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+		    "AMRR: VHT: decreasing rate (txcnt=%d retrycnt=%d)",
+		    amn->amn_txcnt, amn->amn_retrycnt);
+
+		amrr_update_vht_dec(ni);
+
+		amn->amn_recovery = 0;
+	}
+
+	/* Reset counters */
+	amn->amn_txcnt = 0;
+	amn->amn_retrycnt = 0;
+
+	/* Return 0, not useful anymore */
+	return (0);
+}
+
+static int
+amrr_update_ht(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
     struct ieee80211_node *ni)
 {
 	int rix = amn->amn_rix;
-	const struct ieee80211_rateset *rs = NULL;
+	const struct ieee80211_rateset *rs;
 
-	KASSERT(is_enough(amn), ("txcnt %d", amn->amn_txcnt));
-
-	/* 11n or not? Pick the right rateset */
-	if (ieee80211_ht_check_tx_ht(ni)) {
-		/* XXX ew */
-		rs = (struct ieee80211_rateset *) &ni->ni_htrates;
-	} else {
-		rs = &ni->ni_rates;
-	}
+	rs = (struct ieee80211_rateset *)&ni->ni_htrates;
 
 	/* XXX TODO: we really need a rate-to-string method */
-	/* XXX TODO: non-11n rate should be divided by two.. */
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
-	    "AMRR: current rate %d, txcnt=%d, retrycnt=%d",
+	    "AMRR: current rate MCS %d, txcnt=%d, retrycnt=%d",
 	    rs->rs_rates[rix] & IEEE80211_RATE_VAL,
 	    amn->amn_txcnt,
 	    amn->amn_retrycnt);
@@ -266,9 +433,9 @@ amrr_update(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
 			amn->amn_success = 0;
 			rix++;
 			/* XXX TODO: we really need a rate-to-string method */
-			/* XXX TODO: non-11n rate should be divided by two.. */
 			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
-			    "AMRR increasing rate %d (txcnt=%d retrycnt=%d)",
+			    "AMRR increasing rate MCS %d "
+			    "(txcnt=%d retrycnt=%d)",
 			    rs->rs_rates[rix] & IEEE80211_RATE_VAL,
 			    amn->amn_txcnt, amn->amn_retrycnt);
 		} else {
@@ -289,20 +456,112 @@ amrr_update(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
 			}
 			rix--;
 			/* XXX TODO: we really need a rate-to-string method */
-			/* XXX TODO: non-11n rate should be divided by two.. */
 			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
-			    "AMRR decreasing rate %d (txcnt=%d retrycnt=%d)",
+			    "AMRR decreasing rate MCS %d "
+			    "(txcnt=%d retrycnt=%d)",
 			    rs->rs_rates[rix] & IEEE80211_RATE_VAL,
 			    amn->amn_txcnt, amn->amn_retrycnt);
 		}
 		amn->amn_recovery = 0;
 	}
 
+	return (rix);
+}
+
+static int
+amrr_update_legacy(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
+    struct ieee80211_node *ni)
+{
+	int rix = amn->amn_rix;
+	const struct ieee80211_rateset *rs;
+
+	rs = &ni->ni_rates;
+
+	/* XXX TODO: we really need a rate-to-string method */
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+	    "AMRR: current rate %d Mb, txcnt=%d, retrycnt=%d",
+	    (rs->rs_rates[rix] & IEEE80211_RATE_VAL) / 2,
+	    amn->amn_txcnt,
+	    amn->amn_retrycnt);
+
+	if (is_success(amn)) {
+		amn->amn_success++;
+		if (amn->amn_success >= amn->amn_success_threshold &&
+		    rix + 1 < rs->rs_nrates) {
+			amn->amn_recovery = 1;
+			amn->amn_success = 0;
+			rix++;
+			/* XXX TODO: we really need a rate-to-string method */
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+			    "AMRR increasing rate %d Mb (txcnt=%d retrycnt=%d)",
+			    (rs->rs_rates[rix] & IEEE80211_RATE_VAL) / 2,
+			    amn->amn_txcnt, amn->amn_retrycnt);
+		} else {
+			amn->amn_recovery = 0;
+		}
+	} else if (is_failure(amn)) {
+		amn->amn_success = 0;
+		if (rix > 0) {
+			if (amn->amn_recovery) {
+				amn->amn_success_threshold *= 2;
+				if (amn->amn_success_threshold >
+				    amrr->amrr_max_success_threshold)
+					amn->amn_success_threshold =
+					    amrr->amrr_max_success_threshold;
+			} else {
+				amn->amn_success_threshold =
+				    amrr->amrr_min_success_threshold;
+			}
+			rix--;
+			/* XXX TODO: we really need a rate-to-string method */
+			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_RATECTL, ni,
+			    "AMRR decreasing rate %d Mb (txcnt=%d retrycnt=%d)",
+			    (rs->rs_rates[rix] & IEEE80211_RATE_VAL) / 2,
+			    amn->amn_txcnt, amn->amn_retrycnt);
+		}
+		amn->amn_recovery = 0;
+	}
+
+	return (rix);
+}
+
+static int
+amrr_update(struct ieee80211_amrr *amrr, struct ieee80211_amrr_node *amn,
+    struct ieee80211_node *ni)
+{
+	int rix;
+
+	KASSERT(is_enough(amn), ("txcnt %d", amn->amn_txcnt));
+
+	/* Pick the right rateset */
+	if (ieee80211_vht_check_tx_vht(ni))
+		rix = amrr_update_vht(ni);
+	else if (ieee80211_ht_check_tx_ht(ni))
+		rix = amrr_update_ht(amrr, amn, ni);
+	else
+		rix = amrr_update_legacy(amrr, amn, ni);
+
 	/* reset counters */
 	amn->amn_txcnt = 0;
 	amn->amn_retrycnt = 0;
 
-	return rix;
+	return (rix);
+}
+
+static int
+amrr_rate_vht(struct ieee80211_node *ni)
+{
+	struct ieee80211_amrr *amrr = ni->ni_vap->iv_rs;
+	struct ieee80211_amrr_node *amn = ni->ni_rctls;
+
+	if (is_enough(amn) && (ticks - amn->amn_ticks) > amrr->amrr_interval)
+		amrr_update_vht(ni);
+
+	ieee80211_node_set_txrate_vht_rate(ni, amn->amn_vht_nss,
+	    amn->amn_vht_mcs);
+
+	/* Note: There's no vht rs_rates, and the API doesn't use it anymore */
+	return (0);
 }
 
 /*
@@ -321,13 +580,15 @@ amrr_rate(struct ieee80211_node *ni, void *arg __unused, uint32_t iarg __unused)
 	/* XXX should return -1 here, but drivers may not expect this... */
 	if (!amn)
 	{
-		ni->ni_txrate = ni->ni_rates.rs_rates[0];
+		ieee80211_node_set_txrate_dot11rate(ni,
+		    ni->ni_rates.rs_rates[0]);
 		return 0;
 	}
 
-	amrr = amn->amn_amrr;
+	if (ieee80211_vht_check_tx_vht(ni))
+		return (amrr_rate_vht(ni));
 
-	/* 11n or not? Pick the right rateset */
+	/* Pick the right rateset */
 	if (ieee80211_ht_check_tx_ht(ni)) {
 		/* XXX ew */
 		rs = (struct ieee80211_rateset *) &ni->ni_htrates;
@@ -335,16 +596,20 @@ amrr_rate(struct ieee80211_node *ni, void *arg __unused, uint32_t iarg __unused)
 		rs = &ni->ni_rates;
 	}
 
+	amrr = amn->amn_amrr;
 	if (is_enough(amn) && (ticks - amn->amn_ticks) > amrr->amrr_interval) {
 		rix = amrr_update(amrr, amn, ni);
 		if (rix != amn->amn_rix) {
+			uint8_t dot11Rate;
 			/* update public rate */
-			ni->ni_txrate = rs->rs_rates[rix];
+			dot11Rate = rs->rs_rates[rix];
 			/* XXX strip basic rate flag from txrate, if non-11n */
 			if (ieee80211_ht_check_tx_ht(ni))
-				ni->ni_txrate |= IEEE80211_RATE_MCS;
+				dot11Rate |= IEEE80211_RATE_MCS;
 			else
-				ni->ni_txrate &= IEEE80211_RATE_VAL;
+				dot11Rate &= IEEE80211_RATE_VAL;
+			ieee80211_node_set_txrate_dot11rate(ni, dot11Rate);
+
 			amn->amn_rix = rix;
 		}
 		amn->amn_ticks = ticks;

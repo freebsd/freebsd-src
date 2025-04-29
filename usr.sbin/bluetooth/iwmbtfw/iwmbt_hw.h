@@ -58,6 +58,18 @@ struct iwmbt_hci_event_cmd_compl {
 	uint8_t			data[];
 } __attribute__ ((packed));
 
+/*
+ * Manufacturer mode exit type: selects reset type,
+ * 0x00: simply exit manufacturer mode without a reset.
+ * 0x01: exit manufacturer mode with a reset and patches disabled
+ * 0x02: exit manufacturer mode with a reset and patches enabled
+ */
+enum iwmbt_mm_exit {
+	IWMBT_MM_EXIT_ONLY = 0x00,
+	IWMBT_MM_EXIT_COLD_RESET = 0x01,
+	IWMBT_MM_EXIT_WARM_RESET = 0x02,
+};
+
 #define IWMBT_HCI_EVT_COMPL_SIZE(payload) \
 	(offsetof(struct iwmbt_hci_event_cmd_compl, data) + sizeof(payload))
 #define	IWMBT_HCI_EVENT_COMPL_HEAD_SIZE \
@@ -91,7 +103,7 @@ extern	int iwmbt_load_fwfile(struct libusb_device_handle *hdl,
 	    const struct iwmbt_firmware *fw, uint32_t *boot_param, int offset);
 extern	int iwmbt_enter_manufacturer(struct libusb_device_handle *hdl);
 extern	int iwmbt_exit_manufacturer(struct libusb_device_handle *hdl,
-	    int mode);
+	    enum iwmbt_mm_exit mode);
 extern	int iwmbt_get_version(struct libusb_device_handle *hdl,
 	    struct iwmbt_version *version);
 extern	int iwmbt_get_version_tlv(struct libusb_device_handle *hdl,

@@ -67,6 +67,7 @@
 #define	D80211_TRACEX		(D80211_TRACE_TX|D80211_TRACE_RX)
 #define	D80211_TRACEX_DUMP	(D80211_TRACE_TX_DUMP|D80211_TRACE_RX_DUMP)
 #define	D80211_TRACE_STA	0x00010000
+#define	D80211_TRACE_HW_CRYPTO	0x00020000
 #define	D80211_TRACE_MO		0x00100000
 #define	D80211_TRACE_MODE	0x0f000000
 #define	D80211_TRACE_MODE_HT	0x01000000
@@ -78,12 +79,14 @@
     if (linuxkpi_debug_80211 & D80211_IMPROVE_TXQ)			\
 	printf("%s:%d: XXX LKPI80211 IMPROVE_TXQ\n", __func__, __LINE__)
 
-#define	IMPROVE_HT(...)							\
+#define	IMPROVE_HT(fmt, ...)						\
     if (linuxkpi_debug_80211 & D80211_TRACE_MODE_HT)			\
-	printf("%s:%d: XXX LKPI80211 IMPROVE_HT\n", __func__, __LINE__)
+	printf("%s:%d: XXX LKPI80211 IMPROVE_HT " fmt "\n",		\
+	    __func__, __LINE__, ##__VA_ARGS__);
 
 #define	MTAG_ABI_LKPI80211	1707696513	/* LinuxKPI 802.11 KBI */
 
+#ifdef LKPI_80211_USE_MTAG
 /*
  * Deferred RX path.
  * We need to pass *ni along (and possibly more in the future so
@@ -93,6 +96,7 @@
 struct lkpi_80211_tag_rxni {
 	struct ieee80211_node	*ni;		/* MUST hold a reference to it. */
 };
+#endif
 
 struct lkpi_radiotap_tx_hdr {
 	struct ieee80211_radiotap_header wt_ihdr;
@@ -124,6 +128,8 @@ struct lkpi_radiotap_rx_hdr {
 	 (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |			\
 	 (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE))
 
+struct lkpi_hw;
+
 struct lkpi_txq {
 	TAILQ_ENTRY(lkpi_txq)	txq_entry;
 
@@ -140,8 +146,9 @@ struct lkpi_txq {
 
 
 struct lkpi_sta {
-        TAILQ_ENTRY(lkpi_sta)	lsta_entry;
+	struct list_head	lsta_list;
 	struct ieee80211_node	*ni;
+	struct ieee80211_hw	*hw;		/* back pointer f. locking. */
 
 	/* Deferred TX path. */
 	/* Eventually we might want to migrate this into net80211 entirely. */
@@ -150,11 +157,13 @@ struct lkpi_sta {
 	struct mbufq		txq;
 	struct mtx		txq_mtx;
 
-	struct ieee80211_key_conf *kc;
+	struct ieee80211_key_conf *kc[IEEE80211_WEP_NKID];
 	enum ieee80211_sta_state state;
 	bool			txq_ready;			/* Can we run the taskq? */
 	bool			added_to_drv;			/* Driver knows; i.e. we called ...(). */
 	bool			in_mgd;				/* XXX-BZ should this be per-vif? */
+
+	struct station_info	sinfo;				/* statistics */
 
 	/* Must be last! */
 	struct ieee80211_sta	sta __aligned(CACHE_LINE_SIZE);
@@ -162,10 +171,13 @@ struct lkpi_sta {
 #define	STA_TO_LSTA(_sta)	container_of(_sta, struct lkpi_sta, sta)
 #define	LSTA_TO_STA(_lsta)	(&(_lsta)->sta)
 
+/* Either protected by wiphy lock or rcu for the list. */
 struct lkpi_vif {
         TAILQ_ENTRY(lkpi_vif)	lvif_entry;
 	struct ieee80211vap	iv_vap;
 	eventhandler_tag	lvif_ifllevent;
+
+	struct sysctl_ctx_list	sysctl_ctx;
 
 	struct mtx		mtx;
 	struct wireless_dev	wdev;
@@ -175,8 +187,13 @@ struct lkpi_vif {
 				    enum ieee80211_state, int);
 	struct ieee80211_node *	(*iv_update_bss)(struct ieee80211vap *,
 				    struct ieee80211_node *);
-	TAILQ_HEAD(, lkpi_sta)	lsta_head;
+	struct list_head	lsta_list;
+
 	struct lkpi_sta		*lvif_bss;
+
+	struct ieee80211_node	*key_update_iv_bss;
+	int			ic_unlocked;			/* Count of ic unlocks pending (*mo_set_key) */
+	int			nt_unlocked;			/* Count of nt unlocks pending (*mo_set_key) */
 	bool			lvif_bss_synched;
 	bool			added_to_drv;			/* Driver knows; i.e. we called add_interface(). */
 
@@ -205,7 +222,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	TAILQ_HEAD(, lkpi_vif)		lvif_head;
 	struct sx			lvif_sx;
 
-	struct sx			sx;			/* XXX-BZ Can this be wiphy->mtx in the future? */
+	struct list_head		lchanctx_list;
 
 	struct mtx			txq_mtx;
 	uint32_t			txq_generation[IEEE80211_NUM_ACS];
@@ -273,7 +290,10 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 #define	HW_TO_LHW(_hw)		container_of(_hw, struct lkpi_hw, hw)
 
 struct lkpi_chanctx {
+	struct list_head		entry;
+
 	bool				added_to_drv;	/* Managed by MO */
+
 	struct ieee80211_chanctx_conf	chanctx_conf __aligned(CACHE_LINE_SIZE);
 };
 #define	LCHANCTX_TO_CHANCTX_CONF(_lchanctx)		\
@@ -306,19 +326,6 @@ struct lkpi_wiphy {
     mtx_assert(&(_lwiphy)->wwk_mtx, MA_OWNED)
 #define	LKPI_80211_LWIPHY_WORK_UNLOCK_ASSERT(_lwiphy)	\
     mtx_assert(&(_lwiphy)->wwk_mtx, MA_NOTOWNED)
-
-#define	LKPI_80211_LHW_LOCK_INIT(_lhw)			\
-    sx_init_flags(&(_lhw)->sx, "lhw", SX_RECURSE);
-#define	LKPI_80211_LHW_LOCK_DESTROY(_lhw)		\
-    sx_destroy(&(_lhw)->sx);
-#define	LKPI_80211_LHW_LOCK(_lhw)			\
-    sx_xlock(&(_lhw)->sx)
-#define	LKPI_80211_LHW_UNLOCK(_lhw)			\
-    sx_xunlock(&(_lhw)->sx)
-#define	LKPI_80211_LHW_LOCK_ASSERT(_lhw)		\
-    sx_assert(&(_lhw)->sx, SA_LOCKED)
-#define	LKPI_80211_LHW_UNLOCK_ASSERT(_lhw)		\
-    sx_assert(&(_lhw)->sx, SA_UNLOCKED)
 
 #define	LKPI_80211_LHW_SCAN_LOCK_INIT(_lhw)		\
     mtx_init(&(_lhw)->scan_mtx, "lhw-scan", NULL, MTX_DEF | MTX_RECURSE);
@@ -414,7 +421,7 @@ int lkpi_80211_mo_config(struct ieee80211_hw *, uint32_t);
 int lkpi_80211_mo_assign_vif_chanctx(struct ieee80211_hw *, struct ieee80211_vif *,
     struct ieee80211_bss_conf *, struct ieee80211_chanctx_conf *);
 void lkpi_80211_mo_unassign_vif_chanctx(struct ieee80211_hw *, struct ieee80211_vif *,
-    struct ieee80211_bss_conf *, struct ieee80211_chanctx_conf **);
+    struct ieee80211_bss_conf *, struct ieee80211_chanctx_conf *);
 int lkpi_80211_mo_add_chanctx(struct ieee80211_hw *, struct ieee80211_chanctx_conf *);
 void lkpi_80211_mo_change_chanctx(struct ieee80211_hw *,
     struct ieee80211_chanctx_conf *, uint32_t);
@@ -441,6 +448,7 @@ int lkpi_80211_mo_set_key(struct ieee80211_hw *, enum set_key_cmd,
     struct ieee80211_key_conf *);
 int lkpi_80211_mo_ampdu_action(struct ieee80211_hw *, struct ieee80211_vif *,
     struct ieee80211_ampdu_params *);
-
+int lkpi_80211_mo_sta_statistics(struct ieee80211_hw *, struct ieee80211_vif *,
+    struct ieee80211_sta *, struct station_info *);
 
 #endif	/* _LKPI_SRC_LINUX_80211_H */

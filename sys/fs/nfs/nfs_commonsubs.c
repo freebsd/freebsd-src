@@ -135,7 +135,7 @@ struct nfsv4_opflag nfsv4_opflag[NFSV42_NOPS] = {
 	{ 1, 2, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* Lookupp */
 	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* NVerify */
 	{ 1, 1, 0, 1, LK_EXCLUSIVE, 1, 0 },		/* Open */
-	{ 1, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* OpenAttr */
+	{ 1, 1, 1, 1, LK_EXCLUSIVE, 1, 1 },		/* OpenAttr */
 	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* OpenConfirm */
 	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1, 0 },		/* OpenDowngrade */
 	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1, 1 },		/* PutFH */
@@ -219,10 +219,11 @@ NFSD_VNET_DEFINE_STATIC(u_char *, nfsrv_dnsname) = NULL;
 static int nfs_bigreply[NFSV42_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
-    1, 0, 0, 1, 0, 0, 0, 0, 0 };
+    1, 0, 0, 1, 0, 0, 0, 0, 0, 0 };
 
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
+static bool nfs_test_namedattr(struct nfsrv_descript *nd, struct vnode *vp);
 static void nfsv4_wanted(struct nfsv4lock *lp);
 static uint32_t nfsv4_filesavail(struct statfs *, struct mount *);
 static int nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name);
@@ -230,6 +231,8 @@ static void nfsrv_removeuser(struct nfsusrgrp *usrp, int isuser);
 static int nfsrv_getrefstr(struct nfsrv_descript *, u_char **, u_char **,
     int *, int *);
 static void nfsrv_refstrbigenough(int, u_char **, u_char **, int *);
+static uint32_t vtonfsv4_type(struct vattr *);
+static __enum_uint8(vtype) nfsv4tov_type(uint32_t, uint16_t *);
 
 static struct {
 	int	op;
@@ -307,6 +310,7 @@ static struct {
 	{ NFSV4OP_DEALLOCATE, 2, "Deallocate", 10, },
 	{ NFSV4OP_LAYOUTERROR, 1, "LayoutError", 11, },
 	{ NFSV4OP_VERIFY, 3, "AppendWrite", 11, },
+	{ NFSV4OP_OPENATTR, 3, "OpenAttr", 8, },
 };
 
 /*
@@ -316,7 +320,7 @@ static int nfs_bigrequest[NFSV42_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-	0, 1
+	0, 1, 0
 };
 
 /*
@@ -985,6 +989,17 @@ nfsm_fhtom(struct nfsmount *nmp, struct nfsrv_descript *nd, u_int8_t *fhp,
 		    (nmp->nm_privflag & NFSMNTP_FAKEROOTFH) != 0) {
 			fhp = nmp->nm_fh;
 			size = nmp->nm_fhsize;
+		} else if (size >= NFSX_FHMAX + NFSX_V4NAMEDDIRFH &&
+		    size <= NFSX_FHMAX + NFSX_V4NAMEDATTRFH) {
+			size -= (NFSX_FHMAX - NFSX_MYFH);
+			NFSM_BUILD(tl, uint32_t *, NFSX_MYFH +
+			    2 * NFSX_UNSIGNED);
+			*tl++ = txdr_unsigned(size);
+			NFSBCOPY(fhp, tl, NFSX_MYFH);
+			tl += (NFSX_MYFH / NFSX_UNSIGNED);
+			*tl = 0;
+			bytesize = NFSX_MYFH + 2 * NFSX_UNSIGNED;
+			break;
 		}
 		fullsiz = NFSM_RNDUP(size);
 		if (set_true) {
@@ -1268,6 +1283,70 @@ nfsmout:
 }
 
 /*
+ * Check to see if a named attribute exists for this file.
+ */
+static bool
+nfs_test_namedattr(struct nfsrv_descript *nd, struct vnode *vp)
+{
+	struct uio io;
+	struct iovec iv;
+	struct componentname cn;
+	struct vnode *dvp;
+	struct dirent *dp;
+	int eofflag, error;
+	char *buf, *cp, *endcp;
+	bool ret;
+
+	if (vp == NULL || (vp->v_mount->mnt_flag & MNT_NAMEDATTR) == 0)
+		return (false);
+	NFSNAMEICNDSET(&cn, nd->nd_cred, LOOKUP, OPENNAMED | ISLASTCN |
+	    NOFOLLOW | LOCKLEAF);
+	cn.cn_lkflags = LK_SHARED;
+	cn.cn_nameptr = ".";
+	cn.cn_namelen = 1;
+	error = VOP_LOOKUP(vp, &dvp, &cn);
+	if (error != 0)
+		return (false);
+
+	/* Now we have to read the directory, looking for a valid entry. */
+	buf = malloc(DIRBLKSIZ, M_TEMP, M_WAITOK);
+	ret = false;
+	io.uio_offset = 0;
+	io.uio_segflg = UIO_SYSSPACE;
+	io.uio_rw = UIO_READ;
+	io.uio_td = NULL;
+	do {
+		iv.iov_base = buf;
+		iv.iov_len = DIRBLKSIZ;
+		io.uio_iov = &iv;
+		io.uio_iovcnt = 1;
+		io.uio_resid = DIRBLKSIZ;
+		error = VOP_READDIR(dvp, &io, nd->nd_cred, &eofflag, NULL,
+		    NULL);
+		if (error != 0 || io.uio_resid == DIRBLKSIZ)
+			break;
+		cp = buf;
+		endcp = &buf[DIRBLKSIZ - io.uio_resid];
+		while (cp < endcp) {
+			dp = (struct dirent *)cp;
+			if (dp->d_fileno != 0 && dp->d_type != DT_WHT &&
+			    ((dp->d_namlen == 1 && dp->d_name[0] != '.') ||
+			     (dp->d_namlen == 2 && (dp->d_name[0] != '.' ||
+			      dp->d_name[1] != '.')) || dp->d_namlen > 2)) {
+				ret = true;
+				break;
+			}
+			cp += dp->d_reclen;
+		}
+		if (ret)
+			break;
+	} while (eofflag == 0);
+	vput(dvp);
+	free(buf, M_TEMP);
+	return (ret);
+}
+
+/*
  * Get the attributes for V4.
  * If the compare flag is true, test for any attribute changes,
  * otherwise return the attribute values.
@@ -1298,6 +1377,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 	gid_t gid;
 	u_int32_t freenum = 0, tuint;
 	u_int64_t uquad = 0, thyp, thyp2;
+	uint16_t tui16;
 #ifdef QUOTA
 	struct dqblk dqb;
 	uid_t savuid;
@@ -1413,11 +1493,16 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			if (compare) {
 				if (!(*retcmpp)) {
-				    if (nap->na_type != nfsv34tov_type(*tl))
+				    tui16 = 0;
+				    if (nap->na_type != nfsv4tov_type(*tl,
+					&tui16) ||
+					((nap->na_bsdflags & SFBSD_NAMEDATTR) ^
+					 tui16) != 0)
 					*retcmpp = NFSERR_NOTSAME;
 				}
 			} else if (nap != NULL) {
-				nap->na_type = nfsv34tov_type(*tl);
+				nap->na_type = nfsv4tov_type(*tl,
+				    &nap->na_bsdflags);
 			}
 			attrsum += NFSX_UNSIGNED;
 			break;
@@ -1497,7 +1582,11 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		case NFSATTRBIT_NAMEDATTR:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			if (compare && !(*retcmpp)) {
-				if (*tl != newnfs_false)
+				bool named_attr;
+
+				named_attr = nfs_test_namedattr(nd, vp);
+				if ((named_attr && *tl != newnfs_true) ||
+				    (!named_attr && *tl != newnfs_false))
 					*retcmpp = NFSERR_NOTSAME;
 			}
 			attrsum += NFSX_UNSIGNED;
@@ -1672,6 +1761,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 				goto nfsmout;
 			tfhsize = tnfhp->nfh_len;
 			if (compare) {
+				if (tfhsize > NFSX_MYFH)
+					tfhsize = NFSX_MYFH;
 				if (!(*retcmpp) &&
 				    !NFSRV_CMPFH(tnfhp->nfh_fh, tfhsize,
 				     fhp, fhsize))
@@ -2303,6 +2394,23 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			if (compare && !(*retcmpp) && i != nfs_srvmaxio)
 				*retcmpp = NFSERR_NOTSAME;
 			break;
+		case NFSATTRBIT_CHANGEATTRTYPE:
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			if (compare) {
+				if (!(*retcmpp)) {
+				    tuint = NFSV4CHANGETYPE_UNDEFINED;
+				    if ((vp->v_mount->mnt_vfc->vfc_flags &
+					VFCF_FILEREVINC) != 0)
+					tuint = NFSV4CHANGETYPE_VERS_COUNTER_NOPNFS;
+				    else if ((vp->v_mount->mnt_vfc->vfc_flags &
+					VFCF_FILEREVCT) != 0)
+					tuint = NFSV4CHANGETYPE_TIME_METADATA;
+				    if (fxdr_unsigned(uint32_t, *tl) != tuint)
+					*retcmpp = NFSERR_NOTSAME;
+				}
+			}
+			attrsum += NFSX_UNSIGNED;
+			break;
 		default:
 			printf("EEK! nfsv4_loadattr unknown attr=%d\n",
 				bitpos);
@@ -2575,6 +2683,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	NFSACL_T *aclp, *naclp = NULL;
 	size_t atsiz;
 	bool xattrsupp;
+	short irflag;
 #ifdef QUOTA
 	struct dqblk dqb;
 	uid_t savuid;
@@ -2695,7 +2804,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		case NFSATTRBIT_TYPE:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = vtonfsv34_type(vap->va_type);
+			*tl = vtonfsv4_type(vap);
 			retnum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_FHEXPIRETYPE:
@@ -2731,7 +2840,10 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		case NFSATTRBIT_NAMEDATTR:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			*tl = newnfs_false;
+			if (nfs_test_namedattr(nd, vp))
+				*tl = newnfs_true;
+			else
+				*tl = newnfs_false;
 			retnum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_FSID:
@@ -2792,7 +2904,15 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			retnum += NFSX_UNSIGNED;
 			break;
 		case NFSATTRBIT_FILEHANDLE:
-			retnum += nfsm_fhtom(NULL, nd, (u_int8_t *)fhp, 0, 0);
+			siz = 0;
+			if (vp != NULL) {
+				irflag = vn_irflag_read(vp);
+				if ((irflag & VIRF_NAMEDDIR) != 0)
+					siz = NFSX_FHMAX + 2;
+				else if ((irflag & VIRF_NAMEDATTR) != 0)
+					siz = NFSX_FHMAX + 3;
+			}
+			retnum += nfsm_fhtom(NULL, nd, (u_int8_t *)fhp, siz, 0);
 			break;
 		case NFSATTRBIT_FILEID:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_HYPER);
@@ -3126,6 +3246,21 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			*tl++ = vtonfsv34_mode(vap->va_mode);
 			*tl = 0;
 			retnum += 2 * NFSX_UNSIGNED;
+			break;
+		case NFSATTRBIT_CHANGEATTRTYPE:
+			NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(NFSV4CHANGETYPE_UNDEFINED);
+			if (mp != NULL) {
+				if ((mp->mnt_vfc->vfc_flags &
+				    VFCF_FILEREVINC) != 0)
+					*tl = txdr_unsigned(
+					   NFSV4CHANGETYPE_VERS_COUNTER_NOPNFS);
+				else if ((mp->mnt_vfc->vfc_flags &
+				    VFCF_FILEREVCT) != 0)
+					*tl = txdr_unsigned(
+					   NFSV4CHANGETYPE_TIME_METADATA);
+			}
+			retnum += NFSX_UNSIGNED;
 			break;
 		default:
 			printf("EEK! Bad V4 attribute bitpos=%d\n", bitpos);
@@ -5015,6 +5150,8 @@ nfsv4_freeslot(struct nfsclsession *sep, int slot, bool resetseq)
 	mtx_lock(&sep->nfsess_mtx);
 	if (resetseq)
 		sep->nfsess_slotseq[slot]--;
+	else if (slot > sep->nfsess_foreslots)
+		sep->nfsess_slotseq[slot] = 0;
 	if ((bitval & sep->nfsess_slots) == 0)
 		printf("freeing free slot!!\n");
 	sep->nfsess_slots &= ~bitval;
@@ -5143,4 +5280,47 @@ nfsrpc_destroysession(struct nfsmount *nmp, struct nfsclsession *tsep,
 	error = nd->nd_repstat;
 	m_freem(nd->nd_mrep);
 	return (error);
+}
+
+/*
+ * Translate a vnode type into an NFSv4 type, including the named
+ * attribute types.
+ */
+static uint32_t
+vtonfsv4_type(struct vattr *vap)
+{
+	nfstype ntyp;
+
+	if (vap->va_type >= 9)
+		ntyp = NFNON;
+	else
+		ntyp = nfsv34_type[vap->va_type];
+	if ((vap->va_bsdflags & SFBSD_NAMEDATTR) != 0) {
+		if (ntyp == NFDIR)
+			ntyp = NFATTRDIR;
+		else if (ntyp == NFREG)
+			ntyp = NFNAMEDATTR;
+	}
+	return (txdr_unsigned((uint32_t)ntyp));
+}
+
+/*
+ * Translate an NFS type to a vnode type.
+ */
+static __enum_uint8(vtype)
+nfsv4tov_type(uint32_t ntyp, uint16_t *bsdflags)
+{
+	__enum_uint8(vtype) vtyp;
+
+	ntyp = fxdr_unsigned(uint32_t, ntyp) % (NFNAMEDATTR + 1);
+	if (ntyp == NFATTRDIR) {
+		vtyp = VDIR;
+		*bsdflags |= SFBSD_NAMEDATTR;
+	} else if (ntyp == NFNAMEDATTR) {
+		vtyp = VREG;
+		*bsdflags |= SFBSD_NAMEDATTR;
+	} else {
+		vtyp = nv34tov_type[ntyp];
+	}
+	return (vtyp);
 }

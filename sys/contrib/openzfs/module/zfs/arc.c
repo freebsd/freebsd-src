@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -1905,7 +1906,7 @@ arc_hdr_decrypt(arc_buf_hdr_t *hdr, spa_t *spa, const zbookmark_phys_t *zb)
 error:
 	arc_hdr_free_abd(hdr, B_FALSE);
 	if (cabd != NULL)
-		arc_free_data_buf(hdr, cabd, arc_hdr_size(hdr), hdr);
+		arc_free_data_abd(hdr, cabd, arc_hdr_size(hdr), hdr);
 
 	return (ret);
 }
@@ -5683,6 +5684,7 @@ arc_read(zio_t *pio, spa_t *spa, const blkptr_t *bp,
 	boolean_t no_buf = *arc_flags & ARC_FLAG_NO_BUF;
 	arc_buf_t *buf = NULL;
 	int rc = 0;
+	boolean_t bp_validation = B_FALSE;
 
 	ASSERT(!embedded_bp ||
 	    BPE_GET_ETYPE(bp) == BP_EMBEDDED_TYPE_DATA);
@@ -5725,7 +5727,7 @@ top:
 		 * should always be the case since the blkptr is protected by
 		 * a checksum.
 		 */
-		if (!zfs_blkptr_verify(spa, bp, BLK_CONFIG_SKIP,
+		if (zfs_blkptr_verify(spa, bp, BLK_CONFIG_SKIP,
 		    BLK_VERIFY_LOG)) {
 			mutex_exit(hash_lock);
 			rc = SET_ERROR(ECKSUM);
@@ -5877,6 +5879,8 @@ top:
 		abd_t *hdr_abd;
 		int alloc_flags = encrypted_read ? ARC_HDR_ALLOC_RDATA : 0;
 		arc_buf_contents_t type = BP_GET_BUFC_TYPE(bp);
+		int config_lock;
+		int error;
 
 		if (*arc_flags & ARC_FLAG_CACHED_ONLY) {
 			if (hash_lock != NULL)
@@ -5885,16 +5889,31 @@ top:
 			goto done;
 		}
 
+		if (zio_flags & ZIO_FLAG_CONFIG_WRITER) {
+			config_lock = BLK_CONFIG_HELD;
+		} else if (hash_lock != NULL) {
+			/*
+			 * Prevent lock order reversal
+			 */
+			config_lock = BLK_CONFIG_NEEDED_TRY;
+		} else {
+			config_lock = BLK_CONFIG_NEEDED;
+		}
+
 		/*
 		 * Verify the block pointer contents are reasonable.  This
 		 * should always be the case since the blkptr is protected by
 		 * a checksum.
 		 */
-		if (!zfs_blkptr_verify(spa, bp,
-		    (zio_flags & ZIO_FLAG_CONFIG_WRITER) ?
-		    BLK_CONFIG_HELD : BLK_CONFIG_NEEDED, BLK_VERIFY_LOG)) {
+		if (!bp_validation && (error = zfs_blkptr_verify(spa, bp,
+		    config_lock, BLK_VERIFY_LOG))) {
 			if (hash_lock != NULL)
 				mutex_exit(hash_lock);
+			if (error == EBUSY && !zfs_blkptr_verify(spa, bp,
+			    BLK_CONFIG_NEEDED, BLK_VERIFY_LOG)) {
+				bp_validation = B_TRUE;
+				goto top;
+			}
 			rc = SET_ERROR(ECKSUM);
 			goto done;
 		}
@@ -6031,6 +6050,7 @@ top:
 		acb->acb_compressed = compressed_read;
 		acb->acb_encrypted = encrypted_read;
 		acb->acb_noauth = noauth_read;
+		acb->acb_nobuf = no_buf;
 		acb->acb_zb = *zb;
 
 		ASSERT3P(hdr->b_l1hdr.b_acb, ==, NULL);
@@ -6429,26 +6449,10 @@ arc_release(arc_buf_t *buf, const void *tag)
 	arc_state_t *state = hdr->b_l1hdr.b_state;
 	ASSERT3P(hash_lock, ==, HDR_LOCK(hdr));
 	ASSERT3P(state, !=, arc_anon);
+	ASSERT3P(state, !=, arc_l2c_only);
 
 	/* this buffer is not on any list */
 	ASSERT3S(zfs_refcount_count(&hdr->b_l1hdr.b_refcnt), >, 0);
-
-	if (HDR_HAS_L2HDR(hdr)) {
-		mutex_enter(&hdr->b_l2hdr.b_dev->l2ad_mtx);
-
-		/*
-		 * We have to recheck this conditional again now that
-		 * we're holding the l2ad_mtx to prevent a race with
-		 * another thread which might be concurrently calling
-		 * l2arc_evict(). In that case, l2arc_evict() might have
-		 * destroyed the header's L2 portion as we were waiting
-		 * to acquire the l2ad_mtx.
-		 */
-		if (HDR_HAS_L2HDR(hdr))
-			arc_hdr_l2hdr_destroy(hdr);
-
-		mutex_exit(&hdr->b_l2hdr.b_dev->l2ad_mtx);
-	}
 
 	/*
 	 * Do we have more than one buf?
@@ -6461,10 +6465,6 @@ arc_release(arc_buf_t *buf, const void *tag)
 		boolean_t protected = HDR_PROTECTED(hdr);
 		enum zio_compress compress = arc_hdr_get_compress(hdr);
 		arc_buf_contents_t type = arc_buf_type(hdr);
-		VERIFY3U(hdr->b_type, ==, type);
-
-		ASSERT(hdr->b_l1hdr.b_buf != buf || buf->b_next != NULL);
-		VERIFY3S(remove_reference(hdr, tag), >, 0);
 
 		if (ARC_BUF_SHARED(buf) && !ARC_BUF_COMPRESSED(buf)) {
 			ASSERT3P(hdr->b_l1hdr.b_buf, !=, buf);
@@ -6472,10 +6472,10 @@ arc_release(arc_buf_t *buf, const void *tag)
 		}
 
 		/*
-		 * Pull the data off of this hdr and attach it to
-		 * a new anonymous hdr. Also find the last buffer
+		 * Pull the buffer off of this hdr and find the last buffer
 		 * in the hdr's buffer list.
 		 */
+		VERIFY3S(remove_reference(hdr, tag), >, 0);
 		arc_buf_t *lastbuf = arc_buf_remove(hdr, buf);
 		ASSERT3P(lastbuf, !=, NULL);
 
@@ -6484,7 +6484,6 @@ arc_release(arc_buf_t *buf, const void *tag)
 		 * buffer, then we must stop sharing that block.
 		 */
 		if (ARC_BUF_SHARED(buf)) {
-			ASSERT3P(hdr->b_l1hdr.b_buf, !=, buf);
 			ASSERT(!arc_buf_is_shared(lastbuf));
 
 			/*
@@ -6506,7 +6505,6 @@ arc_release(arc_buf_t *buf, const void *tag)
 				abd_copy_from_buf(hdr->b_l1hdr.b_pabd,
 				    buf->b_data, psize);
 			}
-			VERIFY3P(lastbuf->b_data, !=, NULL);
 		} else if (HDR_SHARED_DATA(hdr)) {
 			/*
 			 * Uncompressed shared buffers are always at the end
@@ -6522,17 +6520,9 @@ arc_release(arc_buf_t *buf, const void *tag)
 		}
 
 		ASSERT(hdr->b_l1hdr.b_pabd != NULL || HDR_HAS_RABD(hdr));
-		ASSERT3P(state, !=, arc_l2c_only);
 
 		(void) zfs_refcount_remove_many(&state->arcs_size[type],
 		    arc_buf_size(buf), buf);
-
-		if (zfs_refcount_is_zero(&hdr->b_l1hdr.b_refcnt)) {
-			ASSERT3P(state, !=, arc_l2c_only);
-			(void) zfs_refcount_remove_many(
-			    &state->arcs_esize[type],
-			    arc_buf_size(buf), buf);
-		}
 
 		arc_cksum_verify(buf);
 		arc_buf_unwatch(buf);
@@ -6561,6 +6551,15 @@ arc_release(arc_buf_t *buf, const void *tag)
 		/* protected by hash lock, or hdr is on arc_anon */
 		ASSERT(!multilist_link_active(&hdr->b_l1hdr.b_arc_node));
 		ASSERT(!HDR_IO_IN_PROGRESS(hdr));
+
+		if (HDR_HAS_L2HDR(hdr)) {
+			mutex_enter(&hdr->b_l2hdr.b_dev->l2ad_mtx);
+			/* Recheck to prevent race with l2arc_evict(). */
+			if (HDR_HAS_L2HDR(hdr))
+				arc_hdr_l2hdr_destroy(hdr);
+			mutex_exit(&hdr->b_l2hdr.b_dev->l2ad_mtx);
+		}
+
 		hdr->b_l1hdr.b_mru_hits = 0;
 		hdr->b_l1hdr.b_mru_ghost_hits = 0;
 		hdr->b_l1hdr.b_mfu_hits = 0;
@@ -6888,6 +6887,8 @@ arc_write(zio_t *pio, spa_t *spa, uint64_t txg,
 			localprop.zp_nopwrite = B_FALSE;
 			localprop.zp_copies =
 			    MIN(localprop.zp_copies, SPA_DVAS_PER_BP - 1);
+			localprop.zp_gang_copies =
+			    MIN(localprop.zp_gang_copies, SPA_DVAS_PER_BP - 1);
 		}
 		zio_flags |= ZIO_FLAG_RAW;
 	} else if (ARC_BUF_COMPRESSED(buf)) {

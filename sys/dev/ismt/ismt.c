@@ -532,8 +532,6 @@ ismt_detach(device_t dev)
 	if (error)
 		return (error);
 
-	device_delete_child(dev, sc->smbdev);
-
 	if (sc->intr_handle != NULL) {
 		bus_teardown_intr(dev, sc->intr_res, sc->intr_handle);
 		sc->intr_handle = NULL;

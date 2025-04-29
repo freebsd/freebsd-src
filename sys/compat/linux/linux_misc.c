@@ -2612,7 +2612,7 @@ linux_seccomp(struct thread *td, struct linux_seccomp_args *args)
  */
 static int
 linux_exec_copyin_args(struct image_args *args, const char *fname,
-    enum uio_seg segflg, l_uintptr_t *argv, l_uintptr_t *envv)
+    l_uintptr_t *argv, l_uintptr_t *envv)
 {
 	char *argp, *envp;
 	l_uintptr_t *ptr, arg;
@@ -2633,7 +2633,7 @@ linux_exec_copyin_args(struct image_args *args, const char *fname,
 	/*
 	 * Copy the file name.
 	 */
-	error = exec_args_add_fname(args, fname, segflg);
+	error = exec_args_add_fname(args, fname, UIO_USERSPACE);
 	if (error != 0)
 		goto err_exit;
 
@@ -2696,8 +2696,8 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 
 	LINUX_CTR(execve);
 
-	error = linux_exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
-	    args->argp, args->envp);
+	error = linux_exec_copyin_args(&eargs, args->path, args->argp,
+	    args->envp);
 	if (error == 0)
 		error = linux_common_execve(td, &eargs);
 	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);

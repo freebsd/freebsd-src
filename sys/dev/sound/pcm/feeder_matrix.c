@@ -3,6 +3,10 @@
  *
  * Copyright (c) 2008-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -60,20 +64,11 @@
 #define SND_CHN_T_EOF		0x00e0fe0f
 #define SND_CHN_T_NULL		0x0e0e0e0e
 
-struct feed_matrix_info;
-
-typedef void (*feed_matrix_t)(struct feed_matrix_info *, uint8_t *,
-    uint8_t *, uint32_t);
-
 struct feed_matrix_info {
+	uint32_t fmt;
 	uint32_t bps;
 	uint32_t ialign, oalign;
 	uint32_t in, out;
-	feed_matrix_t apply;
-#ifdef FEEDMATRIX_GENERIC
-	intpcm_read_t *rd;
-	intpcm_write_t *wr;
-#endif
 	struct {
 		int chn[SND_CHN_T_MAX + 1];
 		int mul, shift;
@@ -119,111 +114,48 @@ static int feeder_matrix_default_ids[9] = {
 } while (0)
 #endif
 
-#define FEEDMATRIX_DECLARE(SIGN, BIT, ENDIAN)				\
-static void								\
-feed_matrix_##SIGN##BIT##ENDIAN(struct feed_matrix_info *info,		\
-    uint8_t *src, uint8_t *dst, uint32_t count)				\
-{									\
-	intpcm64_t accum;						\
-	intpcm_t v;							\
-	int i, j;							\
-									\
-	do {								\
-		for (i = 0; info->matrix[i].chn[0] != SND_CHN_T_EOF;	\
-		    i++) {						\
-			if (info->matrix[i].chn[0] == SND_CHN_T_NULL) {	\
-				_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst,	\
-				    0);					\
-				dst += PCM_##BIT##_BPS;			\
-				continue;				\
-			} else if (info->matrix[i].chn[1] ==		\
-			    SND_CHN_T_EOF) {				\
-				v = _PCM_READ_##SIGN##BIT##_##ENDIAN(	\
-				    src + info->matrix[i].chn[0]);	\
-				_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst,	\
-				    v);					\
-				dst += PCM_##BIT##_BPS;			\
-				continue;				\
-			}						\
-									\
-			accum = 0;					\
-			for (j = 0;					\
-			    info->matrix[i].chn[j] != SND_CHN_T_EOF;	\
-			    j++) {					\
-				v = _PCM_READ_##SIGN##BIT##_##ENDIAN(	\
-				    src + info->matrix[i].chn[j]);	\
-				accum += v;				\
-			}						\
-									\
-			accum = (accum * info->matrix[i].mul) >>	\
-			    info->matrix[i].shift;			\
-									\
-			FEEDMATRIX_CLIP_CHECK(accum, BIT);		\
-									\
-			v = (accum > PCM_S##BIT##_MAX) ?		\
-			    PCM_S##BIT##_MAX :				\
-			    ((accum < PCM_S##BIT##_MIN) ?		\
-			    PCM_S##BIT##_MIN :				\
-			    accum);					\
-			_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, v);	\
-			dst += PCM_##BIT##_BPS;				\
-		}							\
-		src += info->ialign;					\
-	} while (--count != 0);						\
+__always_inline static void
+feed_matrix_apply(struct feed_matrix_info *info, uint8_t *src, uint8_t *dst,
+    uint32_t count, const uint32_t fmt)
+{
+	intpcm64_t accum;
+	intpcm_t v;
+	int i, j;
+
+	do {
+		for (i = 0; info->matrix[i].chn[0] != SND_CHN_T_EOF; i++) {
+			if (info->matrix[i].chn[0] == SND_CHN_T_NULL) {
+				pcm_sample_write(dst, 0, fmt);
+				dst += info->bps;
+				continue;
+			} else if (info->matrix[i].chn[1] == SND_CHN_T_EOF) {
+				v = pcm_sample_read(src +
+				    info->matrix[i].chn[0], fmt);
+				pcm_sample_write(dst, v, fmt);
+				dst += info->bps;
+				continue;
+			}
+
+			accum = 0;
+			for (j = 0; info->matrix[i].chn[j] != SND_CHN_T_EOF;
+			    j++) {
+				v = pcm_sample_read(src +
+				    info->matrix[i].chn[j], fmt);
+				accum += v;
+			}
+
+			accum = (accum * info->matrix[i].mul) >>
+			    info->matrix[i].shift;
+
+			FEEDMATRIX_CLIP_CHECK(accum, AFMT_BIT(fmt));
+
+			v = pcm_clamp(accum, fmt);
+			pcm_sample_write(dst, v, fmt);
+			dst += info->bps;
+		}
+		src += info->ialign;
+	} while (--count != 0);
 }
-
-#if BYTE_ORDER == LITTLE_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
-FEEDMATRIX_DECLARE(S, 16, LE)
-FEEDMATRIX_DECLARE(S, 32, LE)
-#endif
-#if BYTE_ORDER == BIG_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
-FEEDMATRIX_DECLARE(S, 16, BE)
-FEEDMATRIX_DECLARE(S, 32, BE)
-#endif
-#ifdef SND_FEEDER_MULTIFORMAT
-FEEDMATRIX_DECLARE(S,  8, NE)
-FEEDMATRIX_DECLARE(S, 24, LE)
-FEEDMATRIX_DECLARE(S, 24, BE)
-FEEDMATRIX_DECLARE(U,  8, NE)
-FEEDMATRIX_DECLARE(U, 16, LE)
-FEEDMATRIX_DECLARE(U, 24, LE)
-FEEDMATRIX_DECLARE(U, 32, LE)
-FEEDMATRIX_DECLARE(U, 16, BE)
-FEEDMATRIX_DECLARE(U, 24, BE)
-FEEDMATRIX_DECLARE(U, 32, BE)
-#endif
-
-#define FEEDMATRIX_ENTRY(SIGN, BIT, ENDIAN)				\
-	{								\
-		AFMT_##SIGN##BIT##_##ENDIAN,				\
-		feed_matrix_##SIGN##BIT##ENDIAN				\
-	}
-
-static const struct {
-	uint32_t format;
-	feed_matrix_t apply;
-} feed_matrix_tab[] = {
-#if BYTE_ORDER == LITTLE_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
-	FEEDMATRIX_ENTRY(S, 16, LE),
-	FEEDMATRIX_ENTRY(S, 32, LE),
-#endif
-#if BYTE_ORDER == BIG_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
-	FEEDMATRIX_ENTRY(S, 16, BE),
-	FEEDMATRIX_ENTRY(S, 32, BE),
-#endif
-#ifdef SND_FEEDER_MULTIFORMAT
-	FEEDMATRIX_ENTRY(S,  8, NE),
-	FEEDMATRIX_ENTRY(S, 24, LE),
-	FEEDMATRIX_ENTRY(S, 24, BE),
-	FEEDMATRIX_ENTRY(U,  8, NE),
-	FEEDMATRIX_ENTRY(U, 16, LE),
-	FEEDMATRIX_ENTRY(U, 24, LE),
-	FEEDMATRIX_ENTRY(U, 32, LE),
-	FEEDMATRIX_ENTRY(U, 16, BE),
-	FEEDMATRIX_ENTRY(U, 24, BE),
-	FEEDMATRIX_ENTRY(U, 32, BE)
-#endif
-};
 
 static void
 feed_matrix_reset(struct feed_matrix_info *info)
@@ -240,53 +172,6 @@ feed_matrix_reset(struct feed_matrix_info *info)
 		info->matrix[i].shift = 0;
 	}
 }
-
-#ifdef FEEDMATRIX_GENERIC
-static void
-feed_matrix_apply_generic(struct feed_matrix_info *info,
-    uint8_t *src, uint8_t *dst, uint32_t count)
-{
-	intpcm64_t accum;
-	intpcm_t v;
-	int i, j;
-
-	do {
-		for (i = 0; info->matrix[i].chn[0] != SND_CHN_T_EOF;
-		    i++) {
-			if (info->matrix[i].chn[0] == SND_CHN_T_NULL) {
-				info->wr(dst, 0);
-				dst += info->bps;
-				continue;
-			} else if (info->matrix[i].chn[1] ==
-			    SND_CHN_T_EOF) {
-				v = info->rd(src + info->matrix[i].chn[0]);
-				info->wr(dst, v);
-				dst += info->bps;
-				continue;
-			}
-
-			accum = 0;
-			for (j = 0;
-			    info->matrix[i].chn[j] != SND_CHN_T_EOF;
-			    j++) {
-				v = info->rd(src + info->matrix[i].chn[j]);
-				accum += v;
-			}
-
-			accum = (accum * info->matrix[i].mul) >>
-			    info->matrix[i].shift;
-
-			FEEDMATRIX_CLIP_CHECK(accum, 32);
-
-			v = (accum > PCM_S32_MAX) ? PCM_S32_MAX :
-			    ((accum < PCM_S32_MIN) ? PCM_S32_MIN : accum);
-			info->wr(dst, v);
-			dst += info->bps;
-		}
-		src += info->ialign;
-	} while (--count != 0);
-}
-#endif
 
 static int
 feed_matrix_setup(struct feed_matrix_info *info, struct pcmchan_matrix *m_in,
@@ -396,7 +281,6 @@ feed_matrix_init(struct pcm_feeder *f)
 {
 	struct feed_matrix_info *info;
 	struct pcmchan_matrix *m_in, *m_out;
-	uint32_t i;
 	int ret;
 
 	if (AFMT_ENCODING(f->desc->in) != AFMT_ENCODING(f->desc->out))
@@ -408,31 +292,10 @@ feed_matrix_init(struct pcm_feeder *f)
 
 	info->in = f->desc->in;
 	info->out = f->desc->out;
+	info->fmt = AFMT_ENCODING(info->in);
 	info->bps = AFMT_BPS(info->in);
 	info->ialign = AFMT_ALIGN(info->in);
 	info->oalign = AFMT_ALIGN(info->out);
-	info->apply = NULL;
-
-	for (i = 0; info->apply == NULL &&
-	    i < (sizeof(feed_matrix_tab) / sizeof(feed_matrix_tab[0])); i++) {
-		if (AFMT_ENCODING(info->in) == feed_matrix_tab[i].format)
-			info->apply = feed_matrix_tab[i].apply;
-	}
-
-	if (info->apply == NULL) {
-#ifdef FEEDMATRIX_GENERIC
-		info->rd = feeder_format_read_op(info->in);
-		info->wr = feeder_format_write_op(info->out);
-		if (info->rd == NULL || info->wr == NULL) {
-			free(info, M_DEVBUF);
-			return (EINVAL);
-		}
-		info->apply = feed_matrix_apply_generic;
-#else
-		free(info, M_DEVBUF);
-		return (EINVAL);
-#endif
-	}
 
 	m_in  = feeder_matrix_format_map(info->in);
 	m_out = feeder_matrix_format_map(info->out);
@@ -510,7 +373,21 @@ feed_matrix_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 		if (j == 0)
 			break;
 
-		info->apply(info, src, dst, j);
+		/* Optimize some common formats. */
+		switch (info->fmt) {
+		case AFMT_S16_NE:
+			feed_matrix_apply(info, src, dst, j, AFMT_S16_NE);
+			break;
+		case AFMT_S24_NE:
+			feed_matrix_apply(info, src, dst, j, AFMT_S24_NE);
+			break;
+		case AFMT_S32_NE:
+			feed_matrix_apply(info, src, dst, j, AFMT_S32_NE);
+			break;
+		default:
+			feed_matrix_apply(info, src, dst, j, info->fmt);
+			break;
+		}
 
 		j *= info->oalign;
 		dst += j;

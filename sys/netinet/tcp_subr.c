@@ -109,9 +109,6 @@
 #include <netinet/tcpip.h>
 #include <netinet/tcp_fastopen.h>
 #include <netinet/tcp_accounting.h>
-#ifdef TCPPCAP
-#include <netinet/tcp_pcap.h>
-#endif
 #ifdef TCP_OFFLOAD
 #include <netinet/tcp_offload.h>
 #endif
@@ -1384,7 +1381,7 @@ deregister_tcp_functions(struct tcp_function_block *blk, bool quiesce,
 }
 
 static void
-tcp_drain(void)
+tcp_drain(void *ctx __unused, int flags __unused)
 {
 	struct epoch_tracker et;
 	VNET_ITERATOR_DECL(vnet_iter);
@@ -1415,13 +1412,6 @@ tcp_drain(void)
 				tcp_clean_sackreport(tcpb);
 #ifdef TCP_BLACKBOX
 				tcp_log_drain(tcpb);
-#endif
-#ifdef TCPPCAP
-				if (tcp_pcap_aggressive_free) {
-					/* Free the TCP PCAP queues. */
-					tcp_pcap_drain(&(tcpb->t_inpkts));
-					tcp_pcap_drain(&(tcpb->t_outpkts));
-				}
 #endif
 			}
 		}
@@ -1535,9 +1525,6 @@ tcp_init(void *arg __unused)
 	tcp_bad_csums = counter_u64_alloc(M_WAITOK);
 	tcp_pacing_failures = counter_u64_alloc(M_WAITOK);
 	tcp_dgp_failures = counter_u64_alloc(M_WAITOK);
-#ifdef TCPPCAP
-	tcp_pcap_init();
-#endif
 
 	hashsize = tcp_tcbhashsize;
 	if (hashsize == 0) {
@@ -2099,7 +2086,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			union tcp_log_stackspecific log;
 			struct timeval tv;
 
-			memset(&log.u_bbr, 0, sizeof(log.u_bbr));
+			memset(&log, 0, sizeof(log));
 			log.u_bbr.inhpts = tcp_in_hpts(tp);
 			log.u_bbr.flex8 = 4;
 			log.u_bbr.pkts_out = tp->t_maxseg;
@@ -2337,12 +2324,6 @@ tcp_newtcpcb(struct inpcb *inp, struct tcpcb *listening_tcb)
 	 * which may match an IPv4-mapped IPv6 address.
 	 */
 	inp->inp_ip_ttl = V_ip_defttl;
-#ifdef TCPPCAP
-	/*
-	 * Init the TCP PCAP queues.
-	 */
-	tcp_pcap_tcpcb_init(tp);
-#endif
 #ifdef TCP_BLACKBOX
 	/* Initialize the per-TCPCB log data. */
 	tcp_log_tcpcbinit(tp);
@@ -2418,11 +2399,6 @@ tcp_discardcb(struct tcpcb *tp)
 	/* Disconnect offload device, if any. */
 	if (tp->t_flags & TF_TOE)
 		tcp_offload_detach(tp);
-#endif
-#ifdef TCPPCAP
-	/* Free the TCP PCAP queues. */
-	tcp_pcap_drain(&(tp->t_inpkts));
-	tcp_pcap_drain(&(tp->t_outpkts));
 #endif
 
 	/* Allow the CC algorithm to clean up after itself. */
@@ -2698,6 +2674,8 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error;
 
+	if (req->newptr == NULL)
+		return (EINVAL);
 	error = priv_check(req->td, PRIV_NETINET_GETCRED);
 	if (error)
 		return (error);
@@ -2740,6 +2718,8 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 	int mapped = 0;
 #endif
 
+	if (req->newptr == NULL)
+		return (EINVAL);
 	error = priv_check(req->td, PRIV_NETINET_GETCRED);
 	if (error)
 		return (error);
@@ -4384,7 +4364,7 @@ tcp_req_log_req_info(struct tcpcb *tp, struct tcp_sendfile_track *req,
 		union tcp_log_stackspecific log;
 		struct timeval tv;
 
-		memset(&log.u_bbr, 0, sizeof(log.u_bbr));
+		memset(&log, 0, sizeof(log));
 		log.u_bbr.inhpts = tcp_in_hpts(tp);
 		log.u_bbr.flex8 = val;
 		log.u_bbr.rttProp = req->timestamp;

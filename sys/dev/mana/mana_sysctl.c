@@ -34,8 +34,20 @@ static int mana_sysctl_cleanup_thread_cpu(SYSCTL_HANDLER_ARGS);
 
 int mana_log_level = MANA_ALERT | MANA_WARNING | MANA_INFO;
 
+unsigned int mana_tx_req_size;
+unsigned int mana_rx_req_size;
+unsigned int mana_rx_refill_threshold;
+
 SYSCTL_NODE(_hw, OID_AUTO, mana, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "MANA driver parameters");
+
+SYSCTL_UINT(_hw_mana, OID_AUTO, tx_req_size, CTLFLAG_RWTUN,
+    &mana_tx_req_size, 0, "requested number of unit of tx queue");
+SYSCTL_UINT(_hw_mana, OID_AUTO, rx_req_size, CTLFLAG_RWTUN,
+    &mana_rx_req_size, 0, "requested number of unit of rx queue");
+SYSCTL_UINT(_hw_mana, OID_AUTO, rx_refill_thresh, CTLFLAG_RWTUN,
+    &mana_rx_refill_threshold, 0,
+    "number of rx slots before starting the refill");
 
 /*
  * Logging level for changing verbosity of the output
@@ -165,6 +177,14 @@ mana_sysctl_add_port(struct mana_port_context *apc)
 	SYSCTL_ADD_BOOL(ctx, apc->port_list, OID_AUTO,
 	    "enable_altq", CTLFLAG_RW, &apc->enable_tx_altq, 0,
 	    "Choose alternative txq under heavy load");
+
+	SYSCTL_ADD_UINT(ctx, apc->port_list, OID_AUTO,
+	    "tx_queue_size", CTLFLAG_RD, &apc->tx_queue_size, 0,
+	    "number of unit of tx queue");
+
+	SYSCTL_ADD_UINT(ctx, apc->port_list, OID_AUTO,
+	    "rx_queue_size", CTLFLAG_RD, &apc->rx_queue_size, 0,
+	    "number of unit of rx queue");
 
 	SYSCTL_ADD_PROC(ctx, apc->port_list, OID_AUTO,
 	    "bind_cleanup_thread_cpu",
@@ -313,6 +333,9 @@ mana_sysctl_add_queues(struct mana_port_context *apc)
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "mbuf_alloc_fail", CTLFLAG_RD,
 		    &rx_stats->mbuf_alloc_fail, "Failed mbuf allocs");
+		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
+		    "partial_refill", CTLFLAG_RD,
+		    &rx_stats->partial_refill, "Partially refilled mbuf");
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "dma_mapping_err", CTLFLAG_RD,
 		    &rx_stats->dma_mapping_err, "DMA mapping errors");

@@ -1,0 +1,5 @@
+$ORIGIN rpz.nlnetlabs.nl.
+$TTL 60
+@ IN SOA a b 1 2 3 4 5
+nxdomain.nlnetlabs.nl IN CNAME .
+rpzdata.nlnetlabs.nl IN A 0.0.0.0

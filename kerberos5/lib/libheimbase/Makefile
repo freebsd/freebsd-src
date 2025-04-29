@@ -1,7 +1,7 @@
 PACKAGE=	kerberos-lib
 
 LIB=	heimbase
-LDFLAGS=	-Wl,--no-undefined
+LDFLAGS+=	-Wl,--no-undefined
 LIBADD=	pthread
 VERSION_MAP= ${KRB5DIR}/base/version-script.map
 

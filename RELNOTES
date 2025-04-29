@@ -10,6 +10,58 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+f0600c41e754-de701f9bdbe0, bc201841d139:
+	mac_do(4) is now considered production-ready and its functionality has
+	been considerably extended at the price of breaking credentials
+	transition rules' backwards compatibility.  All that could be specified
+	with old rules can also be with new rules.  Migrating old rules is just
+	a matter of adding "uid=" in front of the target part, substituting
+	commas (",") with semi-colons (";") and colons (":") with greater-than
+	signs (">").  Please consult the mac_do(4) manual page for the new rules
+	grammar.
+
+02d4eeabfd73:
+	hw.snd.maxautovchans has been retired. The commit introduced a
+	hw.snd.vchans_enable sysctl, which along with
+	dev.pcm.X.{play|rec}.vchans, from now on work as tunables to only
+	enable/disable vchans, as opposed to setting their number and/or
+	(de-)allocating vchans. Since these sysctls do not trigger any
+	(de-)allocations anymore, their effect is instantaneous, whereas before
+	we could have frozen the machine (when trying to allocate new vchans)
+	when setting dev.pcm.X.{play|rec}.vchans to a very large value.
+
+7e7f88001d7d:
+	The definition of pf's struct pfr_tstats and struct pfr_astats has
+	changed, breaking ABI compatibility for 32-bit powerpc (including
+	powerpcspe) and armv7. Users of these platforms should ensure kernel
+	and userspace are updated together.
+
+5dc99e9bb985, 08e638c089a, 4009a98fe80:
+	The net.inet.{tcp,udp,raw}.bind_all_fibs tunables have been added.
+	They modify socket behavior such that packets not originating from the
+	same FIB as the socket are ignored.  TCP and UDP sockets belonging to
+	different FIBs may also be bound to the same address.  The default
+	behavior is unmodified.
+
+f87bb5967670, e51036fbf3f8:
+	Support for vinum volumes has been removed.
+
+8ae6247aa966, cf0ede720391d, 205659c43d87bd, 1ccbdf561f417, 4db1b113b151:
+	The layout of NFS file handles for the tarfs, tmpfs, cd9660, and ext2fs
+	file systems has changed.  An NFS server that exports any of these file
+	systems will need its clients to unmount and remount the exports.
+
+1111a44301da:
+	Defer the January 19, 2038 date limit in UFS1 filesystems to
+	February 7, 2106. This affects only UFS1 format filesystems.
+	See the commit message for details.
+
+07cd69e272da:
+	Add a new -a command line option to mountd(8).
+	If this command line option is specified, when
+	a line in exports(5) has the -alldirs export option,
+	the directory must be a server file system mount point.
+
 0e8a36a2ab12:
 	Add a new NFS mount option called "mountport" that may be used
 	to specify the port# for the NFS server's Mount protocol.

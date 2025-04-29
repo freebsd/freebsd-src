@@ -232,3 +232,91 @@ r88e_get_rx_stats(struct rtwn_softc *sc, struct ieee80211_rx_stats *rxs,
 		rxs->c_band = IEEE80211_CHAN_2GHZ;
 	}
 }
+
+void
+r88e_ratectl_tx_complete_periodic(struct rtwn_softc *sc, uint8_t *buf,
+    int len)
+{
+	const struct r92c_rx_stat *rxs;
+	uint64_t mac_bitmap;
+	int macid;
+
+	if (len < sizeof(struct r92c_rx_stat))
+		return;
+
+	rxs = (const struct r92c_rx_stat *) buf;
+
+	/* Skip Rx descriptor. */
+	buf += sizeof(struct r92c_rx_stat);
+	len -= sizeof(struct r92c_rx_stat);
+
+	/*
+	 * Note: the valid macid bitmap is rx_desc[5] << 32 | rx_desc[4];
+	 * Note: rx_desc[5] is the TSF, which isn't valid for this report!
+	 */
+	mac_bitmap = ((uint64_t) le32toh(rxs->tsf_low) << 32)
+	    | le32toh(rxs->rxdw4);
+
+#if 0
+	RTWN_DPRINTF(sc, RTWN_DEBUG_RA,
+	    "%s: mac bitmap: 0x%lx\n", __func__, mac_bitmap);
+#endif
+
+	/*
+	 * Note: the RX reports aren't sparse - invalid entries (ie,
+	 * the bitmap has the macid set to 0) are just populated
+	 * with random data.
+	 */
+	for (macid = 0; (macid < 64) && (macid < sc->macid_rpt2_max_num) &&
+	    (len >= sizeof(struct r88e_fw_c2h_txreport2_entry)); macid++) {
+		struct ieee80211_ratectl_tx_stats txs = { 0 };
+		const struct r88e_fw_c2h_txreport2_entry *rpt;
+		uint32_t ntotal, nsuccess, ndrop, nretry, nframes;
+
+		rpt = (const struct r88e_fw_c2h_txreport2_entry *) buf;
+		buf += sizeof(struct r88e_fw_c2h_txreport2_entry);
+		len -= sizeof(struct r88e_fw_c2h_txreport2_entry);
+
+		if ((mac_bitmap & (1UL << macid)) == 0)
+			continue;
+
+		txs.flags = IEEE80211_RATECTL_TX_STATS_NODE |
+			    IEEE80211_RATECTL_TX_STATS_RETRIES;
+
+		/* calculate all the various combinations of things */
+		nframes = le16toh(rpt->retry0);
+		ntotal = nframes + rpt->retry1 + rpt->retry2
+		    + rpt->retry3 + rpt->retry4 + rpt->drop;
+		/*
+		 * Note: sometimes this is zero or 1, but the retries
+		 * are all capped out at 255!  That means the frame
+		 * transmits are all failing.
+		 */
+		nsuccess = ntotal - rpt->drop;
+		ndrop = rpt->drop;
+		nretry = rpt->retry1 + rpt->retry2 + rpt->retry3
+		    + rpt->retry4;
+
+		txs.nretries = nretry + ndrop;
+		txs.nsuccess = nsuccess;
+		txs.nframes = ntotal;
+
+		RTWN_DPRINTF(sc, RTWN_DEBUG_RA,
+		    "%s: MAC %d rpt retries %d %d %d %d %d, "
+		    "drop %d\n",
+		    __func__,
+		    macid,
+		    le16toh(rpt->retry0),
+		    rpt->retry1,
+		    rpt->retry2,
+		    rpt->retry3,
+		    rpt->retry4,
+		    rpt->drop);
+		if (sc->node_list[macid] != NULL) {
+			struct ieee80211_node *ni;
+			ni = sc->node_list[macid];
+			txs.ni = ni;
+			ieee80211_ratectl_tx_update(ni->ni_vap, &txs);
+		}
+	}
+}

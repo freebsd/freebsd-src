@@ -2202,8 +2202,8 @@ If your provider assigns your address dynamically, choose a suitably
 unobtrusive and unspecific IP number as your address.
 10.0.0.1/0 would be appropriate.
 The bit after the / specifies how many bits of the
-address you consider to be important, so if you wanted to insist on
-something in the class C network 1.2.3.0, you could specify 1.2.3.1/24.
+address you consider to be important, so if you wanted to specify an
+address within the 1.2.3.0/24 subnet, you could specify 1.2.3.1/24.
 .It
 If you find that your ISP accepts the first IP number that you suggest,
 specify third and forth arguments of
@@ -3186,7 +3186,7 @@ is an address from a LAN.
 Default: Disabled.
 Enabling this will tell
 .Nm
-to add proxy arp entries for every IP address in all class C or
+to add proxy arp entries for every IP address in all /24 subnets or
 smaller subnets routed via the tun interface.
 .Pp
 Proxy arp entries are only made for sticky routes that are added

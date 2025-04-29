@@ -441,7 +441,7 @@ static int ttm_pool_get_num_unused_pages(void)
 /**
  * Callback for mm to request pool to reduce number of page held.
  */
-static int ttm_pool_mm_shrink(void *arg)
+static int ttm_pool_mm_shrink(void *arg, int flags __unused)
 {
 	static unsigned int start_pool = 0;
 	unsigned i;

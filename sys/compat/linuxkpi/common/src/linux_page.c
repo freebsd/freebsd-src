@@ -117,7 +117,8 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 			page = vm_page_alloc_noobj_contig(req, npages, 0, pmax,
 			    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 			if (page == NULL) {
-				if (flags & M_WAITOK) {
+				if ((flags & (M_WAITOK | __GFP_NORETRY)) ==
+				    M_WAITOK) {
 					int err = vm_page_reclaim_contig(req,
 					    npages, 0, pmax, PAGE_SIZE, 0);
 					if (err == ENOMEM)
@@ -182,12 +183,10 @@ linux_alloc_kmem(gfp_t flags, unsigned int order)
 	size_t size = ((size_t)PAGE_SIZE) << order;
 	void *addr;
 
-	if ((flags & GFP_DMA32) == 0) {
-		addr = kmem_malloc(size, flags & GFP_NATIVE_MASK);
-	} else {
-		addr = kmem_alloc_contig(size, flags & GFP_NATIVE_MASK, 0,
-		    BUS_SPACE_MAXADDR_32BIT, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	}
+	addr = kmem_alloc_contig(size, flags & GFP_NATIVE_MASK, 0,
+	    ((flags & GFP_DMA32) == 0) ? -1UL : BUS_SPACE_MAXADDR_32BIT,
+	    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+
 	return ((vm_offset_t)addr);
 }
 

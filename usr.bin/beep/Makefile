@@ -1,6 +1,5 @@
 PROG=	beep
 MAN=	beep.1
-
-LDFLAGS= -lm
+LIBADD=	m
 
 .include <bsd.prog.mk>

@@ -9,13 +9,6 @@
 
 #define DEVT_HOSTDISK 1234
 
-struct memory_segments
-{
-	uint64_t	start;
-	uint64_t	end;
-	uint64_t	type;	/* MD defined */
-};
-
 bool enumerate_memory_arch(void);
 struct preloaded_file;
 void bi_loadsmap(struct preloaded_file *kfp);
@@ -40,19 +33,7 @@ const char *hostdisk_gen_probe(void);
 void hostdisk_zfs_probe(void);
 bool hostdisk_zfs_find_default(void);
 
-/* seg.c */
-#define SYSTEM_RAM 1
-void init_avail(void);
-void need_avail(int n);
-void add_avail(uint64_t start, uint64_t end, uint64_t type);
-void remove_avail(uint64_t start, uint64_t end, uint64_t type);
-uint64_t first_avail(uint64_t align, uint64_t min_size, uint64_t type);
-void print_avail(void);
-bool populate_avail_from_iomem(void);
-uint64_t space_avail(uint64_t start);
-
-/* util.c */
-bool file2str(const char *fn, char *buffer, size_t buflen);
-bool file2u64(const char *fn, uint64_t *val);
+#include "seg.h"
+#include "util.h"
 
 #endif /* KBOOT_H */

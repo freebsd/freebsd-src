@@ -161,12 +161,6 @@ nb_connect_in(struct nbpcb *nbp, struct sockaddr_in *to, struct thread *td)
 		goto bad;
 	nb_setsockopt_int(so, SOL_SOCKET, SO_KEEPALIVE, 1);
 	nb_setsockopt_int(so, IPPROTO_TCP, TCP_NODELAY, 1);
-	SOCKBUF_LOCK(&so->so_rcv);
-	so->so_rcv.sb_flags &= ~SB_NOINTR;
-	SOCKBUF_UNLOCK(&so->so_rcv);
-	SOCKBUF_LOCK(&so->so_snd);
-	so->so_snd.sb_flags &= ~SB_NOINTR;
-	SOCKBUF_UNLOCK(&so->so_snd);
 	error = soconnect(so, (struct sockaddr*)to, td);
 	if (error)
 		goto bad;

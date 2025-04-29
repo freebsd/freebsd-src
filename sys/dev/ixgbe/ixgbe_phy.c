@@ -1423,6 +1423,13 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 				else
 					hw->phy.sfp_type =
 						ixgbe_sfp_type_1g_lx_core1;
+			} else if (comp_codes_1g & IXGBE_SFF_BASEBX10_CAPABLE) {
+				if (hw->bus.lan_id == 0)
+					hw->phy.sfp_type =
+						ixgbe_sfp_type_1g_bx_core0;
+				else
+					hw->phy.sfp_type =
+						ixgbe_sfp_type_1g_bx_core1;
 			} else {
 				hw->phy.sfp_type = ixgbe_sfp_type_unknown;
 			}
@@ -1513,7 +1520,9 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		      hw->phy.sfp_type == ixgbe_sfp_type_1g_lx_core0 ||
 		      hw->phy.sfp_type == ixgbe_sfp_type_1g_lx_core1 ||
 		      hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
-		      hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core1)) {
+		      hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core1 ||
+		      hw->phy.sfp_type == ixgbe_sfp_type_1g_bx_core0 ||
+		      hw->phy.sfp_type == ixgbe_sfp_type_1g_bx_core1)) {
 			hw->phy.type = ixgbe_phy_sfp_unsupported;
 			status = IXGBE_ERR_SFP_NOT_SUPPORTED;
 			goto out;
@@ -1532,7 +1541,9 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		      hw->phy.sfp_type == ixgbe_sfp_type_1g_lx_core0 ||
 		      hw->phy.sfp_type == ixgbe_sfp_type_1g_lx_core1 ||
 		      hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
-		      hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core1)) {
+		      hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core1 ||
+		      hw->phy.sfp_type == ixgbe_sfp_type_1g_bx_core0 ||
+		      hw->phy.sfp_type == ixgbe_sfp_type_1g_bx_core1)) {
 			/* Make sure we're a supported PHY type */
 			if (hw->phy.type == ixgbe_phy_sfp_intel) {
 				status = IXGBE_SUCCESS;
@@ -1615,6 +1626,8 @@ u64 ixgbe_get_supported_phy_sfp_layer_generic(struct ixgbe_hw *hw)
 			physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_T;
 		else if (comp_codes_1g & IXGBE_SFF_1GBASESX_CAPABLE)
 			physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_SX;
+		else if (comp_codes_1g & IXGBE_SFF_BASEBX10_CAPABLE)
+			physical_layer = IXGBE_PHYSICAL_LAYER_1000BASE_BX;
 		break;
 	case ixgbe_phy_qsfp_intel:
 	case ixgbe_phy_qsfp_unknown:
@@ -1863,12 +1876,14 @@ s32 ixgbe_get_sfp_init_sequence_offsets(struct ixgbe_hw *hw,
 	if (sfp_type == ixgbe_sfp_type_da_act_lmt_core0 ||
 	    sfp_type == ixgbe_sfp_type_1g_lx_core0 ||
 	    sfp_type == ixgbe_sfp_type_1g_cu_core0 ||
-	    sfp_type == ixgbe_sfp_type_1g_sx_core0)
+	    sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
+	    sfp_type == ixgbe_sfp_type_1g_bx_core0)
 		sfp_type = ixgbe_sfp_type_srlr_core0;
 	else if (sfp_type == ixgbe_sfp_type_da_act_lmt_core1 ||
 		 sfp_type == ixgbe_sfp_type_1g_lx_core1 ||
 		 sfp_type == ixgbe_sfp_type_1g_cu_core1 ||
-		 sfp_type == ixgbe_sfp_type_1g_sx_core1)
+		 sfp_type == ixgbe_sfp_type_1g_sx_core1 ||
+		 sfp_type == ixgbe_sfp_type_1g_bx_core1)
 		sfp_type = ixgbe_sfp_type_srlr_core1;
 
 	/* Read offset to PHY init contents */

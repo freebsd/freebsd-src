@@ -112,9 +112,7 @@ the Makefile.
 The variable DESTDIR works as before.  It's not set anywhere but will change
 the tree where the file gets installed.
 
-The profiled libraries are no longer built in a different directory than
-the regular libraries.  A new suffix, ".po", is used to denote a profiled
-object, and ".pico" denotes a position-independent relocatable object.
+A ".pico" suffix denotes a position-independent relocatable object.
 ".nossppico" denotes a position-independent relocatable object without
 stack smashing protection and without sanitizer instrumentation.
 
@@ -318,19 +316,19 @@ DPADD		Additional dependencies for the program.  Usually used for
 
 			DPADD=${LIBCOMPAT} ${LIBUTIL}
 
-		There is a predefined identifier for each (non-profiled,
-		non-shared) library and object.  Library file names are
+		There is a predefined identifier for each (non-shared
+		library and object.  Library file names are
 		transformed to identifiers by removing the extension and
 		converting to upper case.
 
-		There are no special identifiers for profiled or shared
-		libraries or objects.  The identifiers for the standard
-		libraries are used in DPADD.  This works correctly iff all
-		the libraries are built at the same time.  Unfortunately,
-		it causes unnecessary relinks to shared libraries when
-		only the static libraries have changed.  Dependencies on
-		shared libraries should be only on the library version
-		numbers.
+		There are no special identifiers for shared libraries
+		or objects.  The identifiers for the standard
+		libraries are used in DPADD.  This works correctly iff
+		all the libraries are built at the same time.
+		Unfortunately, it causes unnecessary relinks to shared
+		libraries when only the static libraries have changed.
+		Dependencies on shared libraries should be only on the
+		library version numbers.
 
 FILES		A list of non-executable files.
 		The installation is controlled by the FILESNAME, FILESOWN,
@@ -628,9 +626,6 @@ SRCS		List of source files to build the library.  Suffix types
 
 The include file <bsd.lib.mk> includes the file named "../Makefile.inc"
 if it exists, as well as the include file <bsd.man.mk>.
-
-It has rules for building profiled objects; profiled libraries are
-built by default.
 
 Libraries are ranlib'd before installation.
 

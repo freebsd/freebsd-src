@@ -566,7 +566,7 @@ rtnl_lle_event(void *arg __unused, struct llentry *lle, int evt)
 
 	int nlmsgs_type = evt == LLENTRY_RESOLVED ? NL_RTM_NEWNEIGH : NL_RTM_DELNEIGH;
 
-	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, RTNLGRP_NEIGH,
+	if (!nl_writer_group(&nw, NLMSG_SMALL, NETLINK_ROUTE, RTNLGRP_NEIGH, 0,
 	    false)) {
 		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;

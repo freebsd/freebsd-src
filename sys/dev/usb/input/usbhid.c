@@ -30,7 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * HID spec: https://www.usb.org/sites/default/files/documents/hid1_11.pdf
  */
@@ -851,8 +850,12 @@ static int
 usbhid_detach(device_t dev)
 {
 	struct usbhid_softc *sc = device_get_softc(dev);
+	int error;
 
-	device_delete_children(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
+
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);

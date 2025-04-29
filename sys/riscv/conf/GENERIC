@@ -90,6 +90,9 @@ device		syscon
 device		syscon_power
 device		riscv_syscon
 
+# CPU frequency control
+device		cpufreq
+
 # Bus drivers
 device		pci
 
@@ -137,6 +140,7 @@ device		uart_ns8250	# ns8250-type UART driver
 
 # Console
 device		vt
+device		vt_efifb
 device		kbdmux
 
 # RTC
@@ -157,6 +161,7 @@ device		fdt_pinctrl
 # SPI
 device		spibus
 device		spigen
+device		xilinx_spi	# Xilinx AXI SPI Controller
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.

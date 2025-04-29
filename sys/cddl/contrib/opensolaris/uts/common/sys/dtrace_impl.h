@@ -51,7 +51,7 @@ extern "C" {
 #include <sys/file.h>
 
 #ifndef illumos
-typedef uintptr_t		pc_t;
+typedef vm_offset_t		pc_t;
 typedef	u_long			greg_t;
 #endif
 
@@ -149,9 +149,9 @@ typedef struct dtrace_hash {
 	int dth_size;				/* size of hash table */
 	int dth_mask;				/* mask to index into table */
 	int dth_nbuckets;			/* total number of buckets */
-	uintptr_t dth_nextoffs;			/* offset of next in probe */
-	uintptr_t dth_prevoffs;			/* offset of prev in probe */
-	uintptr_t dth_stroffs;			/* offset of str in probe */
+	size_t dth_nextoffs;			/* offset of next in probe */
+	size_t dth_prevoffs;			/* offset of prev in probe */
+	size_t dth_stroffs;			/* offset of str in probe */
 } dtrace_hash_t;
 
 /*
@@ -1272,11 +1272,7 @@ typedef struct dtrace_toxrange {
 	uintptr_t	dtt_limit;		/* limit of toxic range */
 } dtrace_toxrange_t;
 
-#ifdef illumos
 extern uint64_t dtrace_getarg(int, int);
-#else
-extern uint64_t __noinline dtrace_getarg(int, int);
-#endif
 extern greg_t dtrace_getfp(void);
 extern int dtrace_getipl(void);
 extern uintptr_t dtrace_caller(int);

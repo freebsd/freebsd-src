@@ -29,10 +29,12 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/types.h>
 #include <sys/capsicum.h>
 #include <sys/queue.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/types.h>
+#include <sys/un.h>
 
 #include <capsicum_helpers.h>
 #include <err.h>
@@ -52,16 +54,15 @@ struct entry {
 static STAILQ_HEAD(, entry) head = STAILQ_HEAD_INITIALIZER(head);
 
 static void add(int, const char *);
+static int tee_open(const char *, int);
 static void usage(void) __dead2;
 
 int
 main(int argc, char *argv[])
 {
+	char *bp, *buf;
 	struct entry *p;
-	int n, fd, rval, wval;
-	char *bp;
-	int append, ch, exitval;
-	char *buf;
+	int append, ch, exitval, fd, n, oflags, rval, wval;
 #define	BSIZE (8 * 1024)
 
 	append = 0;
@@ -88,13 +89,20 @@ main(int argc, char *argv[])
 
 	add(STDOUT_FILENO, "stdout");
 
-	for (exitval = 0; *argv; ++argv)
-		if ((fd = open(*argv, append ? O_WRONLY|O_CREAT|O_APPEND :
-		    O_WRONLY|O_CREAT|O_TRUNC, DEFFILEMODE)) < 0) {
+	oflags = O_WRONLY | O_CREAT;
+	if (append)
+		oflags |= O_APPEND;
+	else
+		oflags |= O_TRUNC;
+
+	for (exitval = 0; *argv; ++argv) {
+		if ((fd = tee_open(*argv, oflags)) < 0) {
 			warn("%s", *argv);
 			exitval = 1;
-		} else
+		} else {
 			add(fd, *argv);
+		}
+	}
 
 	if (caph_enter() < 0)
 		err(EXIT_FAILURE, "unable to enter capability mode");
@@ -143,4 +151,43 @@ add(int fd, const char *name)
 	p->fd = fd;
 	p->name = name;
 	STAILQ_INSERT_HEAD(&head, p, entries);
+}
+
+static int
+tee_open(const char *path, int oflags)
+{
+	struct sockaddr_un sun = { .sun_family = AF_UNIX };
+	size_t pathlen;
+	int fd;
+
+	if ((fd = open(path, oflags, DEFFILEMODE)) >= 0)
+		return (fd);
+
+	if (errno != EOPNOTSUPP)
+		return (-1);
+
+	pathlen = strnlen(path, sizeof(sun.sun_path));
+	if (pathlen >= sizeof(sun.sun_path))
+		goto failed;
+
+	/*
+	 * For EOPNOTSUPP, we'll try again as a unix(4) socket.  Any errors here
+	 * we'll just surface as the original EOPNOTSUPP since they may not have
+	 * intended for this.
+	 */
+	fd = socket(PF_UNIX, SOCK_STREAM, 0);
+	if (fd < 0)
+		goto failed;
+
+	(void)strlcpy(&sun.sun_path[0], path, sizeof(sun.sun_path));
+	sun.sun_len = SUN_LEN(&sun);
+
+	if (connect(fd, (const struct sockaddr *)&sun, sun.sun_len) == 0)
+		return (fd);
+
+failed:
+	if (fd >= 0)
+		close(fd);
+	errno = EOPNOTSUPP;
+	return (-1);
 }

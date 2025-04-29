@@ -240,6 +240,11 @@ By default, writes are ignored and reads return all bits set.
 Inject a general protection fault if a guest accesses a Model Specific
 Register (MSR) that is not emulated.
 If this is false, writes are ignored and reads return zero.
+.It Va x86.verbosemsr Ta bool Ta false Ta
+Enable verbose MSR print out. When this option is true,
+messages related to reading from (rdmsr) and writing to (wrmsr)
+MSRs on virtual CPUs will be printed out. This can be useful for
+debugging purposes.
 .It Va x86.vmexit_on_hlt Ta bool Ta false Ta
 Force a VM exit when a guest CPU executes the
 .Dv HLT

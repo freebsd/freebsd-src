@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * ASIX Electronics AX88178A/AX88179/AX88179A USB 2.0/3.0 gigabit ethernet
  * driver.

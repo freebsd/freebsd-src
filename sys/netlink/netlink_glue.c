@@ -85,13 +85,13 @@ struct rtbridge *netlink_callback_p = &ignore_cb;
 bool
 nlp_has_priv(struct nlpcb *nlp, int priv)
 {
-	return (priv_check_cred(nlp->nl_cred, priv) == 0);
+	return (priv_check_cred(nlp->nl_socket->so_cred, priv) == 0);
 }
 
 struct ucred *
 nlp_get_cred(struct nlpcb *nlp)
 {
-	return (nlp->nl_cred);
+	return (nlp->nl_socket->so_cred);
 }
 
 uint32_t
@@ -118,7 +118,7 @@ nl_writer_unicast_stub(struct nl_writer *nw, size_t size, struct nlpcb *nlp,
 
 static bool
 nl_writer_group_stub(struct nl_writer *nw, size_t size, uint16_t protocol,
-    uint16_t group_id, bool waitok)
+    uint16_t group_id, int priv, bool waitok)
 {
 	return (get_stub_writer(nw));
 }
@@ -221,9 +221,10 @@ nl_writer_unicast(struct nl_writer *nw, size_t size, struct nlpcb *nlp,
 
 bool
 nl_writer_group(struct nl_writer *nw, size_t size, uint16_t protocol,
-    uint16_t group_id, bool waitok)
+    uint16_t group_id, int priv, bool waitok)
 {
-	return (_nl->nl_writer_group(nw, size, protocol, group_id, waitok));
+	return (_nl->nl_writer_group(nw, size, protocol, group_id, priv,
+	    waitok));
 }
 
 bool

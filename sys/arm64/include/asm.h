@@ -73,6 +73,16 @@
 #define	lr		x30
 
 /*
+ * Check whether a given cpu feature is present, in the case it is not we jump
+ * to the given label. The tmp register should be a register able to hold the
+ * temporary data.
+ */
+#define CHECK_CPU_FEAT(tmp, feat_reg, feat, label)	\
+	mrs tmp, ##feat_reg##_el1;	\
+	ubfx tmp, tmp, ##feat_reg##_##feat##_SHIFT, ##feat_reg##_##feat##_WIDTH; \
+	cbz tmp, label
+
+/*
  * Sets the trap fault handler. The exception handler will return to the
  * address in the handler register on a data abort or the xzr register to
  * clear the handler. The tmp parameter should be a register able to hold

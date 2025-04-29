@@ -55,7 +55,6 @@ GTESTS+=	xattr
 
 .for p in ${GTESTS}
 SRCS.$p+=	${p}.cc
-SRCS.$p+=	getmntopts.c
 SRCS.$p+=	mockfs.cc
 SRCS.$p+=	utils.cc
 .endfor
@@ -68,7 +67,6 @@ TEST_METADATA.nfs+=	required_user="root"
 TEST_METADATA+= timeout=10
 
 FUSEFS=		${SRCTOP}/sys/fs/fuse
-MOUNT=		${SRCTOP}/sbin/mount
 # Suppress warnings that GCC generates for the libc++ and gtest headers.
 CXXWARNFLAGS.gcc+=	-Wno-placement-new -Wno-attributes
 # Suppress Wcast-align for readdir.cc, because it is unavoidable when using
@@ -87,9 +85,6 @@ CXXWARNFLAGS+=	-Wno-vla-cxx-extension
 .endif
 CXXFLAGS+=	-I${SRCTOP}/tests
 CXXFLAGS+=	-I${FUSEFS}
-CXXFLAGS+=	-I${MOUNT}
-.PATH:		${MOUNT}
-CXXSTD=		c++14
 
 LIBADD+=	pthread
 LIBADD+=	gmock gtest

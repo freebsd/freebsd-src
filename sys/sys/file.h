@@ -86,6 +86,8 @@ struct ucred;
 #define	FOF_NEXTOFF_W	0x08	/* Also update f_nextoff[UIO_WRITE] */
 #define	FOF_NOUPDATE	0x10	/* Do not update f_offset */
 off_t foffset_lock(struct file *fp, int flags);
+void foffset_lock_pair(struct file *fp1, off_t *off1p, struct file *fp2,
+    off_t *off2p, int flags);
 void foffset_lock_uio(struct file *fp, struct uio *uio, int flags);
 void foffset_unlock(struct file *fp, off_t val, int flags);
 void foffset_unlock_uio(struct file *fp, struct uio *uio, int flags);
@@ -267,6 +269,8 @@ int fget_fcntl(struct thread *td, int fd, cap_rights_t *rightsp,
     int needfcntl, struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 int fget_remote(struct thread *td, struct proc *p, int fd, struct file **fpp);
+int fget_remote_foreach(struct thread *td, struct proc *p,
+    int (*fn)(struct proc *, int, struct file *, void *), void *arg);
 
 fo_rdwr_t	invfo_rdwr;
 fo_truncate_t	invfo_truncate;

@@ -37,6 +37,13 @@ cleanup() {
 	return 0
 }
 
+metalog_add_data() {
+	if [ -n "${NO_ROOT}" ]; then
+		echo "$1 type=file uname=root gname=wheel mode=0644" >> \
+		    ${DESTDIR}/METALOG
+	fi
+}
+
 vm_create_base() {
 
 	mkdir -p ${DESTDIR}
@@ -46,6 +53,7 @@ vm_create_base() {
 
 vm_copy_base() {
 	# Defunct
+	return 0
 }
 
 vm_install_base() {
@@ -60,7 +68,15 @@ vm_install_base() {
 	mkdir -p ${DESTDIR}/var/db/etcupdate
 	etcupdate extract -B \
 		-M "TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}" \
-		-s ${WORLDDIR} -d ${DESTDIR}/var/db/etcupdate
+		-s ${WORLDDIR} -d ${DESTDIR}/var/db/etcupdate \
+		-L /dev/stdout ${NO_ROOT:+-N}
+	if [ -n "${NO_ROOT}" ]; then
+		# Reroot etcupdate's internal METALOG to the whole tree
+		sed -n 's,^\.,./var/db/etcupdate/current,p' \
+		    ${DESTDIR}/var/db/etcupdate/current/METALOG | \
+		    env -i LC_COLLATE=C sort >> ${DESTDIR}/METALOG
+		rm ${DESTDIR}/var/db/etcupdate/current/METALOG
+	fi
 
 	echo '# Custom /etc/fstab for FreeBSD VM images' \
 		> ${DESTDIR}/etc/fstab
@@ -72,22 +88,28 @@ vm_install_base() {
 		echo '/dev/gpt/swapfs  none    swap    sw      0       0' \
 			>> ${DESTDIR}/etc/fstab
 	fi
+	metalog_add_data ./etc/fstab
 
 	local hostname
 	hostname="$(echo $(uname -o) | tr '[:upper:]' '[:lower:]')"
 	echo "hostname=\"${hostname}\"" >> ${DESTDIR}/etc/rc.conf
+	metalog_add_data ./etc/rc.conf
 	if [ "${VMFS}" = zfs ]; then
 		echo "zfs_enable=\"YES\"" >> ${DESTDIR}/etc/rc.conf
 		echo "zpool_reguid=\"zroot\"" >> ${DESTDIR}/etc/rc.conf
 		echo "zpool_upgrade=\"zroot\"" >> ${DESTDIR}/etc/rc.conf
 		echo "kern.geom.label.disk_ident.enable=0" >> ${DESTDIR}/boot/loader.conf
 		echo "zfs_load=YES" >> ${DESTDIR}/boot/loader.conf
+		metalog_add_data ./boot/loader.conf
 	fi
 
 	return 0
 }
 
 vm_emulation_setup() {
+	if [ -n "${WITHOUT_QEMU}" ]; then
+		return 0
+	fi
 	if ! [ -z "${QEMUSTATIC}" ]; then
 		export EMULATOR=/qemu
 		cp ${QEMUSTATIC} ${DESTDIR}/${EMULATOR}
@@ -129,6 +151,10 @@ vm_extra_enable_services() {
 }
 
 vm_extra_install_packages() {
+	if [ -n "${WITHOUT_QEMU}" ]; then
+		return 0
+	fi
+
 	if [ -z "${VM_EXTRA_PACKAGES}" ]; then
 		return 0
 	fi
@@ -157,6 +183,10 @@ vm_extra_pre_umount() {
 }
 
 vm_emulation_cleanup() {
+	if [ -n "${WITHOUT_QEMU}" ]; then
+		return 0
+	fi
+
 	if ! [ -z "${QEMUSTATIC}" ]; then
 		rm -f ${DESTDIR}/${EMULATOR}
 	fi
@@ -179,11 +209,11 @@ buildfs() {
 
 	case "${VMFS}" in
 	ufs)
-		makefs ${MAKEFSARGS} -o label=rootfs -o version=2 -o softupdates=1 \
-			${VMBASE} ${DESTDIR}
+		cd ${DESTDIR} && makefs ${MAKEFSARGS} -o label=rootfs -o version=2 -o softupdates=1 \
+			${VMBASE} .${NO_ROOT:+/METALOG}
 		;;
 	zfs)
-		makefs -t zfs ${MAKEFSARGS} \
+		cd ${DESTDIR} && makefs -t zfs ${MAKEFSARGS} \
 			-o poolname=zroot -o bootfs=zroot/ROOT/default -o rootpath=/ \
 			-o fs=zroot\;mountpoint=none \
 			-o fs=zroot/ROOT\;mountpoint=none \
@@ -200,7 +230,7 @@ buildfs() {
 			-o fs=zroot/var/log\;setuid=off\;exec=off \
 			-o fs=zroot/var/mail\;atime=on \
 			-o fs=zroot/var/tmp\;setuid=off \
-			${VMBASE} ${DESTDIR}
+			${VMBASE} .${NO_ROOT:+/METALOG}
 		;;
 	*)
 		echo "Unexpected VMFS value '${VMFS}'"
@@ -264,7 +294,7 @@ vm_create_disk() {
 		WITH_UNIFIED_OBJDIR=yes \
 		make -C ${WORLDDIR}/stand -V .OBJDIR)"
 	BOOTFILES="$(realpath ${BOOTFILES})"
-	MAKEFSARGS="-s ${VMSIZE}"
+	MAKEFSARGS="-s ${VMSIZE} -D"
 
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
@@ -333,3 +363,7 @@ vm_extra_create_disk() {
 	return 0
 }
 
+touch_firstboot() {
+	touch ${DESTDIR}/firstboot
+	metalog_add_data ./firstboot
+}

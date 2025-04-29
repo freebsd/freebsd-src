@@ -86,11 +86,12 @@ _nl_writer_unicast(struct nl_writer *nw, size_t size, struct nlpcb *nlp,
 
 bool
 _nl_writer_group(struct nl_writer *nw, size_t size, uint16_t protocol,
-    uint16_t group_id, bool waitok)
+    uint16_t group_id, int priv, bool waitok)
 {
 	*nw = (struct nl_writer){
 		.group.proto = protocol,
 		.group.id = group_id,
+		.group.priv = priv,
 		.cb = nl_send_group,
 	};
 

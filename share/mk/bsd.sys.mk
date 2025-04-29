@@ -10,8 +10,7 @@
 
 .include <bsd.compiler.mk>
 
-# the default is gnu99 for now
-CSTD?=		gnu99
+CSTD?=		gnu17
 
 .if ${CSTD} == "c89" || ${CSTD} == "c90"
 CFLAGS+=	-std=iso9899:1990
@@ -22,6 +21,8 @@ CFLAGS+=	-std=iso9899:1999
 .else # CSTD
 CFLAGS+=	-std=${CSTD}
 .endif # CSTD
+
+CXXSTD?=	gnu++17
 
 .if !empty(CXXSTD)
 CXXFLAGS+=	-std=${CXXSTD}
@@ -292,19 +293,17 @@ CLANG_OPT_SMALL+= -mllvm -simplifycfg-dup-ret
 .endif
 CLANG_OPT_SMALL+= -mllvm -enable-load-pre=false
 CFLAGS.clang+=	 -Qunused-arguments
-# The libc++ headers use c++11 extensions.  These are normally silenced because
-# they are treated as system headers, but we explicitly disable that warning
-# suppression when building the base system to catch bugs in our headers.
-# Eventually we'll want to start building the base system C++ code as C++11,
-# but not yet.
-CXXFLAGS.clang+=	 -Wno-c++11-extensions
 
 # XXX This should be defaulted to 2 when WITH_SSP is in use after further
 # testing and soak time.
 FORTIFY_SOURCE?=	0
 .if ${MK_SSP} != "no"
 # Don't use -Wstack-protector as it breaks world with -Werror.
+.if ${COMPILER_FEATURES:Mstackclash}
+SSP_CFLAGS?=	-fstack-protector-strong -fstack-clash-protection
+.else
 SSP_CFLAGS?=	-fstack-protector-strong
+.endif
 CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP
 .if ${FORTIFY_SOURCE} > 0

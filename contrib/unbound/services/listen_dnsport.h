@@ -194,12 +194,12 @@ int resolve_interface_names(char** ifs, int num_ifs,
  * @param http_endpoint: HTTP endpoint to service queries on
  * @param http_notls: no TLS for http downstream
  * @param tcp_conn_limit: TCP connection limit info.
- * @param sslctx: nonNULL if ssl context.
+ * @param dot_sslctx: nonNULL if dot ssl context.
+ * @param doh_sslctx: nonNULL if doh ssl context.
+ * @param quic_sslctx: nonNULL if quic ssl context.
  * @param dtenv: nonNULL if dnstap enabled.
  * @param doq_table: the doq connection table, with shared information.
  * @param rnd: random state.
- * @param ssl_service_key: the SSL service key file.
- * @param ssl_service_pem: the SSL service pem file.
  * @param cfg: config file struct.
  * @param cb: callback function when a request arrives. It is passed
  *	  the packet and user argument. Return true to send a reply.
@@ -211,9 +211,10 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 	size_t bufsize, int tcp_accept_count, int tcp_idle_timeout,
 	int harden_large_queries, uint32_t http_max_streams,
 	char* http_endpoint, int http_notls, struct tcl_list* tcp_conn_limit,
-	void* sslctx, struct dt_env* dtenv, struct doq_table* doq_table,
-	struct ub_randstate* rnd, const char* ssl_service_key,
-	const char* ssl_service_pem, struct config_file* cfg,
+	void* dot_sslctx, void* doh_sslctx, void* quic_sslctx,
+	struct dt_env* dtenv,
+	struct doq_table* doq_table,
+	struct ub_randstate* rnd,struct config_file* cfg,
 	comm_point_callback_type* cb, void *cb_arg);
 
 /**
@@ -512,6 +513,15 @@ struct doq_table {
 	size_t current_size;
 };
 
+/**
+ * create SSL context for QUIC
+ * @param key: private key file.
+ * @param pem: public key cert.
+ * @param verifypem: if nonNULL, verifylocation file.
+ * return SSL_CTX* or NULL on failure (logged).
+ */
+void* quic_sslctx_create(char* key, char* pem, char* verifypem);
+
 /** create doq table */
 struct doq_table* doq_table_create(struct config_file* cfg,
 	struct ub_randstate* rnd);
@@ -711,9 +721,6 @@ int doq_timer_cmp(const void* key1, const void* key2);
 
 /** compare function of doq_stream */
 int doq_stream_cmp(const void* key1, const void* key2);
-
-/** setup the doq_socket server tls context */
-int doq_socket_setup_ctx(struct doq_server_socket* doq_socket);
 
 /** setup the doq connection callbacks, and settings. */
 int doq_conn_setup(struct doq_conn* conn, uint8_t* scid, size_t scidlen,

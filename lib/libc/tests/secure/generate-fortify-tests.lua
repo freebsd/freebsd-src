@@ -62,6 +62,7 @@
 
 local includes = {
 	"sys/param.h",
+	"sys/jail.h",
 	"sys/random.h",
 	"sys/resource.h",
 	"sys/select.h",
@@ -86,6 +87,10 @@ local includes = {
 }
 
 local tests_added = {}
+
+-- Configuration for tests that want the host/domainname
+local hostname = "host.example.com"
+local domainname = "example.com"
 
 -- Some of these will need to be excluded because clang sees the wrong size when
 -- an array is embedded inside a struct, we'll get something that looks more
@@ -580,6 +585,15 @@ local all_tests = {
 			exclude = excludes_stack_overflow,
 		},
 		{
+			func = "getenv_r",
+			arguments = {
+				"\"PATH\"",
+				"__buf",
+				"__len",
+			},
+			exclude = excludes_stack_overflow,
+		},
+		{
 			func = "realpath",
 			bufsize = "PATH_MAX",
 			arguments = {
@@ -858,18 +872,14 @@ local all_tests = {
 		},
 		{
 			func = "getdomainname",
-			bufsize = "4",
+			bufsize = #domainname + 1,
 			arguments = {
 				"__buf",
 				"__len",
 			},
+			need_root = true,
 			exclude = excludes_stack_overflow,
-			stackvars = "\tchar sysdomain[256];\n",
-			early_init = [[
-	(void)getdomainname(sysdomain, __len);
-	if (strlen(sysdomain) <= __len)
-		atf_tc_skip("domain name too short for testing");
-]]
+			early_init = "	dhost_jail();",
 		},
 		{
 			func = "getentropy",
@@ -881,21 +891,14 @@ local all_tests = {
 		},
 		{
 			func = "gethostname",
-			bufsize = "4",
+			bufsize = #hostname + 1,
 			arguments = {
 				"__buf",
 				"__len",
 			},
+			need_root = true,
 			exclude = excludes_stack_overflow,
-			stackvars = [[
-	char syshost[256];
-	int error;
-]],
-			early_init = [[
-	error = gethostname(syshost, __len);
-	if (error != 0 || strlen(syshost) <= __len)
-		atf_tc_skip("hostname too short for testing");
-]]
+			early_init = "	dhost_jail();",
 		},
 		{
 			func = "getlogin_r",
@@ -1066,8 +1069,15 @@ local all_tests = {
 	},
 }
 
-local function write_test_boilerplate(fh, name, body)
-	fh:write("ATF_TC_WITHOUT_HEAD(" .. name .. ");\n")
+local function write_test_boilerplate(fh, name, body, def)
+	fh:write("ATF_TC(" .. name .. ");\n")
+	fh:write("ATF_TC_HEAD(" .. name .. ", tc)\n")
+	fh:write("{\n")
+	if def.need_root then
+		fh:write("	atf_tc_set_md_var(tc, \"require.user\", \"root\");\n")
+	end
+	fh:write("}\n")
+
 	fh:write("ATF_TC_BODY(" .. name .. ", tc)\n")
 	fh:write("{\n" .. body .. "\n}\n\n")
 	return name
@@ -1113,7 +1123,7 @@ local function configurable(def, idx)
 end
 
 local function generate_stackframe(buftype, bufsize, disposition, heap, def)
-	local function len_offset(inverted, disposition)
+	local function len_offset(inverted)
 		-- Tests that don't use __len in their arguments may use an
 		-- inverted sense because we can't just specify a length that
 		-- would induce an access just after the end.  Instead, we have
@@ -1128,7 +1138,7 @@ local function generate_stackframe(buftype, bufsize, disposition, heap, def)
 		end
 	end
 
-	local function test_uses_len(def)
+	local function test_uses_len()
 		if def.uses_len then
 			return true
 		end
@@ -1151,8 +1161,8 @@ local function generate_stackframe(buftype, bufsize, disposition, heap, def)
 	local vars = "\tstruct {\n"
 	vars = vars .. "\t\tuint8_t padding_l;\n"
 
-	local uses_len = test_uses_len(def)
-	local bufsize_offset = len_offset(not uses_len, disposition)
+	local uses_len = test_uses_len()
+	local bufsize_offset = len_offset(not uses_len)
 	local buftype_elem = array_type(buftype)
 	local size_expr = bufsize
 
@@ -1230,7 +1240,7 @@ local function write_test(fh, func, disposition, heap, def)
 		return
 	end
 
-	local function need_addr(buftype)
+	local function need_addr()
 		return not (buftype:match("%[%]") or buftype:match("%*"))
 	end
 
@@ -1292,7 +1302,7 @@ local function write_test(fh, func, disposition, heap, def)
 		end
 
 		if arg == "__buf" then
-			if not heap and need_addr(buftype) then
+			if not heap and need_addr() then
 				body = body .. "&"
 			end
 
@@ -1342,7 +1352,7 @@ monitor:
 
 ::skip::
 	body = body .. "#undef BUF\n"
-	return write_test_boilerplate(fh, testname, body)
+	return write_test_boilerplate(fh, testname, body, def)
 end
 
 -- main()
@@ -1507,6 +1517,32 @@ replace_stdin(void)
 }
 
 ]])
+
+if tcat == "unistd" then
+	fh:write("#define	JAIL_HOSTNAME	\"" .. hostname .. "\"\n")
+	fh:write("#define	JAIL_DOMAINNAME	\"" .. domainname .. "\"\n")
+	fh:write([[
+static void
+dhost_jail(void)
+{
+	struct iovec iov[4];
+	int jid;
+
+	iov[0].iov_base = __DECONST(char *, "host.hostname");
+	iov[0].iov_len = sizeof("host.hostname");
+	iov[1].iov_base = __DECONST(char *, JAIL_HOSTNAME);
+	iov[1].iov_len = sizeof(JAIL_HOSTNAME);
+	iov[2].iov_base = __DECONST(char *, "host.domainname");
+	iov[2].iov_len = sizeof("host.domainname");
+	iov[3].iov_base = __DECONST(char *, JAIL_DOMAINNAME);
+	iov[3].iov_len = sizeof(JAIL_DOMAINNAME);
+
+	jid = jail_set(iov, nitems(iov), JAIL_CREATE | JAIL_ATTACH);
+	ATF_REQUIRE_MSG(jid > 0, "Jail creation failed: %s", strerror(errno));
+}
+
+]])
+end
 
 for _, def in pairs(tests) do
 	local func = def.func

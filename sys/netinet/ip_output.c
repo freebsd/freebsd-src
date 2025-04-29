@@ -112,13 +112,19 @@ ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, int flags,
 	struct mbuf *m;
 	struct in_addr odst;
 	struct ip *ip;
+	int ret;
 
 	m = *mp;
 	ip = mtod(m, struct ip *);
 
 	/* Run through list of hooks for output packets. */
 	odst.s_addr = ip->ip_dst.s_addr;
-	switch (pfil_mbuf_out(V_inet_pfil_head, mp, ifp, inp)) {
+	if (flags & IP_FORWARDING)
+		ret = pfil_mbuf_fwd(V_inet_pfil_head, mp, ifp, inp);
+	else
+		ret = pfil_mbuf_out(V_inet_pfil_head, mp, ifp, inp);
+
+	switch (ret) {
 	case PFIL_DROPPED:
 		*error = EACCES;
 		/* FALLTHROUGH */
@@ -323,7 +329,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	const struct sockaddr *gw;
 	struct in_ifaddr *ia = NULL;
 	struct in_addr src;
-	int isbroadcast;
+	bool isbroadcast;
 	uint16_t ip_len, ip_off;
 	struct route iproute;
 	uint32_t fibnum;
@@ -362,7 +368,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	if ((flags & (IP_FORWARDING|IP_RAWOUTPUT)) == 0) {
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = hlen >> 2;
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip_random_id);
 	} else {
 		/* Header already set, fetch hlen from there */
 		hlen = ip->ip_hl << 2;
@@ -428,7 +434,7 @@ again:
 		ifp = ia->ia_ifp;
 		mtu = ifp->if_mtu;
 		ip->ip_ttl = 1;
-		isbroadcast = 1;
+		isbroadcast = true;
 		src = IA_SIN(ia)->sin_addr;
 	} else if (flags & IP_ROUTETOIF) {
 		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
@@ -443,7 +449,8 @@ again:
 		mtu = ifp->if_mtu;
 		ip->ip_ttl = 1;
 		isbroadcast = ifp->if_flags & IFF_BROADCAST ?
-		    in_ifaddr_broadcast(dst->sin_addr, ia) : 0;
+		    (in_broadcast(ip->ip_dst) ||
+		    in_ifaddr_broadcast(dst->sin_addr, ia)) : 0;
 		src = IA_SIN(ia)->sin_addr;
 	} else if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
 	    imo != NULL && imo->imo_multicast_ifp != NULL) {
@@ -454,7 +461,7 @@ again:
 		ifp = imo->imo_multicast_ifp;
 		mtu = ifp->if_mtu;
 		IFP_TO_IA(ifp, ia);
-		isbroadcast = 0;	/* fool gcc */
+		isbroadcast = false;
 		/* Interface may have no addresses. */
 		if (ia != NULL)
 			src = IA_SIN(ia)->sin_addr;
@@ -496,10 +503,13 @@ again:
 			gw = &nh->gw_sa;
 		if (nh->nh_flags & NHF_HOST)
 			isbroadcast = (nh->nh_flags & NHF_BROADCAST);
-		else if ((ifp->if_flags & IFF_BROADCAST) && (gw->sa_family == AF_INET))
-			isbroadcast = in_ifaddr_broadcast(((const struct sockaddr_in *)gw)->sin_addr, ia);
+		else if ((ifp->if_flags & IFF_BROADCAST) &&
+		    (gw->sa_family == AF_INET))
+			isbroadcast = in_broadcast(ip->ip_dst) ||
+			    in_ifaddr_broadcast(
+			    ((const struct sockaddr_in *)gw)->sin_addr, ia);
 		else
-			isbroadcast = 0;
+			isbroadcast = false;
 		mtu = nh->nh_mtu;
 		src = IA_SIN(ia)->sin_addr;
 	} else {
@@ -527,11 +537,12 @@ again:
 			gw = &nh->gw_sa;
 		ia = ifatoia(nh->nh_ifa);
 		src = IA_SIN(ia)->sin_addr;
-		isbroadcast = (((nh->nh_flags & (NHF_HOST | NHF_BROADCAST)) ==
+		isbroadcast = ((nh->nh_flags & (NHF_HOST | NHF_BROADCAST)) ==
 		    (NHF_HOST | NHF_BROADCAST)) ||
 		    ((ifp->if_flags & IFF_BROADCAST) &&
 		    (gw->sa_family == AF_INET) &&
-		    in_ifaddr_broadcast(((const struct sockaddr_in *)gw)->sin_addr, ia)));
+		    (in_broadcast(ip->ip_dst) || in_ifaddr_broadcast(
+		    ((const struct sockaddr_in *)gw)->sin_addr, ia)));
 	}
 
 	/* Catch a possible divide by zero later. */
@@ -667,18 +678,19 @@ again:
 sendit:
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 	if (IPSEC_ENABLED(ipv4)) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL) {
-			IPSTAT_INC(ips_odropped);
-			error = ENOBUFS;
-			goto bad;
-		}
+		struct ip ip_hdr;
+
 		if ((error = IPSEC_OUTPUT(ipv4, ifp, m, inp, mtu)) != 0) {
 			if (error == EINPROGRESS)
 				error = 0;
 			goto done;
 		}
+
+		/* Update variables that are affected by ipsec4_output(). */
+		m_copydata(m, 0, sizeof(ip_hdr), (char *)&ip_hdr);
+		hlen = ip_hdr.ip_hl << 2;
 	}
+
 	/*
 	 * Check if there was a route for this packet; return error if not.
 	 */
@@ -687,9 +699,6 @@ sendit:
 		error = EHOSTUNREACH;
 		goto bad;
 	}
-	/* Update variables that are affected by ipsec4_output(). */
-	ip = mtod(m, struct ip *);
-	hlen = ip->ip_hl << 2;
 #endif /* IPSEC */
 
 	/* Jump over all PFIL processing if hooks are not active. */
@@ -731,11 +740,20 @@ sendit:
 
 	/* Ensure the packet data is mapped if the interface requires it. */
 	if ((ifp->if_capenable & IFCAP_MEXTPG) == 0) {
-		m = mb_unmapped_to_ext(m);
-		if (m == NULL) {
+		struct mbuf *m1;
+
+		error = mb_unmapped_to_ext(m, &m1);
+		if (error != 0) {
+			if (error == EINVAL) {
+				if_printf(ifp, "TLS packet\n");
+				/* XXXKIB */
+			} else if (error == ENOMEM) {
+				error = ENOBUFS;
+			}
 			IPSTAT_INC(ips_odropped);
-			error = ENOBUFS;
-			goto bad;
+			goto done;
+		} else {
+			m = m1;
 		}
 	}
 
@@ -841,7 +859,7 @@ sendit:
 
 done:
 	return (error);
- bad:
+bad:
 	m_freem(m);
 	goto done;
 }
@@ -1081,10 +1099,22 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		    sopt->sopt_dir == SOPT_SET) {
 			switch (sopt->sopt_name) {
 			case SO_SETFIB:
+				error = sooptcopyin(sopt, &optval,
+				    sizeof(optval), sizeof(optval));
+				if (error != 0)
+					break;
+
 				INP_WLOCK(inp);
-				inp->inp_inc.inc_fibnum = so->so_fibnum;
+				if ((inp->inp_flags & INP_BOUNDFIB) != 0 &&
+				    optval != so->so_fibnum) {
+					INP_WUNLOCK(inp);
+					error = EISCONN;
+					break;
+				}
+				error = sosetfib(inp->inp_socket, optval);
+				if (error == 0)
+					inp->inp_inc.inc_fibnum = optval;
 				INP_WUNLOCK(inp);
-				error = 0;
 				break;
 			case SO_MAX_PACING_RATE:
 #ifdef RATELIMIT

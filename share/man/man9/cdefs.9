@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd December 6, 2024
+.Dd January 6, 2025
 .Dt CDEFS 9
 .Os
 .Sh NAME
@@ -352,6 +352,7 @@ Defining the macros outlined below requests that the system header files provide
 only the functions, structures and macros (symbols) defined by the appropriate
 standard, while suppressing all extensions.
 However, system headers not defined by that standard may define extensions.
+You may only define one of the following for any compilation unit.
 .Bl -column "---------------"
 .It Sy Macro Ta Sy Environment
 .It Dv _POSIX_SOURCE Ta St -p1003.1-88 including St -ansiC
@@ -400,7 +401,8 @@ are also included.
 These macros are set by
 .Nm
 to control the visibility of different standards.
-Users should not use these, but they are documented here for developers.
+Users must not define these, and doing so will produced undefined results.
+They are documented here for developers working on system's header files.
 .Bl -column "---------------"
 .It Dv __XSI_VISIBLE Ta Restricts the visibility of XOPEN Single Unix Standard version.
 Possible values are 500, 600, 700 or 800, corresponding to Issue 5, 6, 7, or 8

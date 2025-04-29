@@ -172,14 +172,15 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	OPENREAD	0x00200000 /* open for reading */
 #define	OPENWRITE	0x00400000 /* open for writing */
 #define	WANTIOCTLCAPS	0x00800000 /* leave ioctl caps for the caller */
-/* UNUSED		0x01000000 */
+#define	OPENNAMED	0x01000000 /* opening a named attribute (dir) */
 #define	NOEXECCHECK	0x02000000 /* do not perform exec check on dir */
 #define	MAKEENTRY	0x04000000 /* entry is to be added to name cache */
 #define	ISSYMLINK	0x08000000 /* symlink needs interpretation */
 #define	ISLASTCN	0x10000000 /* this is last component of pathname */
 #define	ISDOTDOT	0x20000000 /* current component name is .. */
 #define	TRAILINGSLASH	0x40000000 /* path ended in a slash */
-#define	PARAMASK	0x7ffffe00 /* mask of parameter descriptors */
+#define	CREATENAMED	0x80000000 /* create a named attribute dir */
+#define	PARAMASK	0xfffffe00 /* mask of parameter descriptors */
 
 /*
  * Flags which must not be passed in by callers.

@@ -1365,7 +1365,7 @@ mixer_clone(void *arg,
 		bus_topo_lock();
 		d = devclass_get_softc(pcm_devclass, snd_unit);
 		/* See related comment in dsp_clone(). */
-		if (d != NULL && PCM_REGISTERED(d) && d->mixer_dev != NULL) {
+		if (PCM_REGISTERED(d) && d->mixer_dev != NULL) {
 			*dev = d->mixer_dev;
 			dev_ref(*dev);
 		}
@@ -1444,12 +1444,14 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 	 * There's a 1:1 relationship between mixers and PCM devices, so
 	 * begin by iterating over PCM devices and search for our mixer.
 	 */
+	bus_topo_lock();
 	for (i = 0; pcm_devclass != NULL &&
 	    i < devclass_get_maxunit(pcm_devclass); i++) {
 		d = devclass_get_softc(pcm_devclass, i);
 		if (!PCM_REGISTERED(d)) {
 			if ((mi->dev == -1 && i == snd_unit) || mi->dev == i) {
 				mixer_oss_mixerinfo_unavail(mi, i);
+				bus_topo_unlock();
 				return (0);
 			} else
 				continue;
@@ -1470,6 +1472,7 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 		if (d->mixer_dev->si_drv1 == NULL) {
 			mixer_oss_mixerinfo_unavail(mi, i);
 			PCM_UNLOCK(d);
+			bus_topo_unlock();
 			return (0);
 		}
 
@@ -1550,8 +1553,10 @@ mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi)
 
 		PCM_UNLOCK(d);
 
+		bus_topo_unlock();
 		return (0);
 	}
+	bus_topo_unlock();
 
 	return (EINVAL);
 }

@@ -1,6 +1,6 @@
 
 .if !target(__<src.init.mk>__)
-__<src.init.mk>__:
+__<src.init.mk>__:	.NOTMAIN
 
 .if !target(buildenv)
 buildenv: .PHONY

@@ -77,7 +77,7 @@ v6_head()
 {
 	atf_set descr 'IPv6 fragmentation test'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 v6_body()
@@ -165,11 +165,6 @@ v6_route_to_head()
 v6_route_to_body()
 {
 	pft_init
-}
-
-v6_route_to_cleanup()
-{
-	pft_cleanup
 
 	epair_send=$(vnet_mkepair)
 	epair_link=$(vnet_mkepair)
@@ -222,6 +217,11 @@ v6_route_to_cleanup()
 
 	atf_check -s exit:0 -o ignore\
 		ping -6 -c 1 -b 70000 -s 65000 2001:db8:43::3
+}
+
+v6_route_to_cleanup()
+{
+	pft_cleanup
 }
 
 atf_test_case "mtu_diff" "cleanup"
@@ -305,7 +305,7 @@ overreplace_head()
 {
 	atf_set descr 'ping fragment that overlaps fragment at index boundary and replace it'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 overreplace_body()
@@ -323,7 +323,7 @@ overindex_head()
 {
 	atf_set descr 'ping fragment that overlaps the first fragment at index boundary'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 overindex_body()
@@ -341,7 +341,7 @@ overlimit_head()
 {
 	atf_set descr 'ping fragment at index boundary that cannot be requeued'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 overlimit_body()
@@ -350,6 +350,42 @@ overlimit_body()
 }
 
 overlimit_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "overhole" "cleanup"
+overhole_head()
+{
+	atf_set descr 'ping fragment at index boundary which modifies pf hole counter'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+overhole_body()
+{
+	frag_common overhole
+}
+
+overhole_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "adjhole" "cleanup"
+adjhole_head()
+{
+	atf_set descr 'overlapping ping fragments which modifies pf hole counter'
+	atf_set require.user root
+	atf_set require.progs python3 scapy
+}
+
+adjhole_body()
+{
+	frag_common adjhole
+}
+
+adjhole_cleanup()
 {
 	pft_cleanup
 }
@@ -407,6 +443,7 @@ no_df_head()
 {
 	atf_set descr 'Test removing of DF flag'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 no_df_body()
@@ -445,6 +482,7 @@ reassemble_slowpath_head()
 {
 	atf_set descr 'Test reassembly on the slow path'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 reassemble_slowpath_body()
@@ -573,6 +611,7 @@ dummynet_fragmented_head()
 {
 	atf_set descr 'Test dummynet on NATed fragmented traffic'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 dummynet_fragmented_body()
@@ -618,6 +657,8 @@ atf_init_test_cases()
 	atf_add_test_case "overreplace"
 	atf_add_test_case "overindex"
 	atf_add_test_case "overlimit"
+	atf_add_test_case "overhole"
+	atf_add_test_case "adjhole"
 	atf_add_test_case "reassemble"
 	atf_add_test_case "no_df"
 	atf_add_test_case "reassemble_slowpath"

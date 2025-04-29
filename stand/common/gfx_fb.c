@@ -102,6 +102,8 @@
 #include <vbe.h>
 #endif
 
+#include "modinfo.h"
+
 /* VGA text mode does use bold font. */
 #if !defined(VGA_8X16_FONT)
 #define	VGA_8X16_FONT		"/boot/fonts/8x16b.fnt"
@@ -158,6 +160,14 @@ static const int vga_to_cons_colors[NCOLORS] = {
 	0,  1,  2,  3,  4,  5,  6,  7,
 	8,  9, 10, 11,  12, 13, 14, 15
 };
+
+/*
+ * It is reported very slow console draw in some systems.
+ * in order to exclude buggy gop->Blt(), we want option
+ * to use direct draw to framebuffer and avoid gop->Blt.
+ * Can be toggled with "gop" command.
+ */
+bool ignore_gop_blt = false;
 
 struct text_pixel *screen_buffer;
 #if defined(EFI)
@@ -793,7 +803,7 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
 	 * done as they are provided by protocols that disappear when exit
 	 * boot services.
 	 */
-	if (gop != NULL && boot_services_active) {
+	if (!ignore_gop_blt && gop != NULL && boot_services_active) {
 		tpl = BS->RaiseTPL(TPL_NOTIFY);
 		switch (BltOperation) {
 		case GfxFbBltVideoFill:
@@ -2982,9 +2992,7 @@ build_font_module(vm_offset_t addr)
 
 	fi.fi_checksum = -checksum;
 
-	fp = file_findfile(NULL, "elf kernel");
-	if (fp == NULL)
-		fp = file_findfile(NULL, "elf64 kernel");
+	fp = file_findfile(NULL, md_kerntype);
 	if (fp == NULL)
 		panic("can't find kernel file");
 
@@ -3026,9 +3034,7 @@ build_splash_module(vm_offset_t addr)
 		return (addr);
 	}
 
-	fp = file_findfile(NULL, "elf kernel");
-	if (fp == NULL)
-		fp = file_findfile(NULL, "elf64 kernel");
+	fp = file_findfile(NULL, md_kerntype);
 	if (fp == NULL)
 		panic("can't find kernel file");
 

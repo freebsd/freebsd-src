@@ -8,6 +8,7 @@
 
 enum cc_attr {
 	CC_ATTR_MEM_ENCRYPT,
+	CC_ATTR_GUEST_MEM_ENCRYPT,
 };
 
 static inline bool

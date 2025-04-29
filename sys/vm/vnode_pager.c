@@ -1007,9 +1007,8 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	rbehind = a_rbehind ? *a_rbehind : 0;
 	rahead = a_rahead ? *a_rahead : 0;
 	rbehind = min(rbehind, before);
-	rbehind = min(rbehind, m[0]->pindex);
 	rahead = min(rahead, after);
-	rahead = min(rahead, object->size - m[count - 1]->pindex);
+
 	/*
 	 * Check that total amount of pages fit into buf.  Trim rbehind and
 	 * rahead evenly if not.
@@ -1039,71 +1038,19 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	 * for read ahead pages, but there is no need to shift the array
 	 * in case of encountering a cached page.
 	 */
-	i = bp->b_npages = 0;
-	if (rbehind) {
-		vm_pindex_t startpindex, tpindex;
-		vm_page_t p;
-
+	if (rbehind != 0 || rahead != 0) {
 		VM_OBJECT_WLOCK(object);
-		startpindex = m[0]->pindex - rbehind;
-		if ((p = TAILQ_PREV(m[0], pglist, listq)) != NULL &&
-		    p->pindex >= startpindex)
-			startpindex = p->pindex + 1;
-
-		/* tpindex is unsigned; beware of numeric underflow. */
-		for (tpindex = m[0]->pindex - 1;
-		    tpindex >= startpindex && tpindex < m[0]->pindex;
-		    tpindex--, i++) {
-			p = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
-			if (p == NULL) {
-				/* Shift the array. */
-				for (int j = 0; j < i; j++)
-					bp->b_pages[j] = bp->b_pages[j + 
-					    tpindex + 1 - startpindex]; 
-				break;
-			}
-			bp->b_pages[tpindex - startpindex] = p;
-		}
-
-		bp->b_pgbefore = i;
-		bp->b_npages += i;
-		bp->b_blkno -= IDX_TO_OFF(i) / DEV_BSIZE;
-	} else
-		bp->b_pgbefore = 0;
-
-	/* Requested pages. */
-	for (int j = 0; j < count; j++, i++)
-		bp->b_pages[i] = m[j];
-	bp->b_npages += count;
-
-	if (rahead) {
-		vm_pindex_t endpindex, tpindex;
-		vm_page_t p;
-
-		if (!VM_OBJECT_WOWNED(object))
-			VM_OBJECT_WLOCK(object);
-		endpindex = m[count - 1]->pindex + rahead + 1;
-		if ((p = TAILQ_NEXT(m[count - 1], listq)) != NULL &&
-		    p->pindex < endpindex)
-			endpindex = p->pindex;
-		if (endpindex > object->size)
-			endpindex = object->size;
-
-		for (tpindex = m[count - 1]->pindex + 1;
-		    tpindex < endpindex; i++, tpindex++) {
-			p = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
-			if (p == NULL)
-				break;
-			bp->b_pages[i] = p;
-		}
-
-		bp->b_pgafter = i - bp->b_npages;
-		bp->b_npages = i;
-	} else
-		bp->b_pgafter = 0;
-
-	if (VM_OBJECT_WOWNED(object))
+		vm_object_prepare_buf_pages(object, bp->b_pages, count,
+		    &rbehind, &rahead, m);
 		VM_OBJECT_WUNLOCK(object);
+	} else {
+		for (int j = 0; j < count; j++)
+			bp->b_pages[j] = m[j];
+	}
+	bp->b_blkno -= IDX_TO_OFF(rbehind) / DEV_BSIZE;
+	bp->b_pgbefore = rbehind;
+	bp->b_pgafter = rahead;
+	bp->b_npages = rbehind + count + rahead;
 
 	/* Report back actual behind/ahead read. */
 	if (a_rbehind)
@@ -1130,7 +1077,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int count,
 	 * for real devices.
 	 */
 	foff = IDX_TO_OFF(bp->b_pages[0]->pindex);
-	bytecount = bp->b_npages << PAGE_SHIFT;
+	bytecount = ptoa(bp->b_npages);
 	if ((foff + bytecount) > object->un_pager.vnp.vnp_size)
 		bytecount = object->un_pager.vnp.vnp_size - foff;
 	secmask = bo->bo_bsize - 1;

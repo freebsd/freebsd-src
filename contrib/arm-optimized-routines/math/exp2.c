@@ -1,7 +1,7 @@
 /*
  * Double-precision 2^x function.
  *
- * Copyright (c) 2018-2019, Arm Limited.
+ * Copyright (c) 2018-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -9,6 +9,8 @@
 #include <math.h>
 #include <stdint.h>
 #include "math_config.h"
+#include "test_defs.h"
+#include "test_sig.h"
 
 #define N (1 << EXP_TABLE_BITS)
 #define Shift __exp_data.exp2_shift
@@ -141,3 +143,10 @@ hidden_alias (exp2, __ieee754_exp2)
 long double exp2l (long double x) { return exp2 (x); }
 # endif
 #endif
+
+TEST_SIG (S, D, 1, exp2, -9.9, 9.9)
+TEST_ULP (exp2, 0.01)
+TEST_ULP_NONNEAREST (exp2, 0.5)
+TEST_INTERVAL (exp2, 0, 0xffff000000000000, 10000)
+TEST_SYM_INTERVAL (exp2, 0x1p-6, 0x1p6, 40000)
+TEST_SYM_INTERVAL (exp2, 633.3, 733.3, 10000)

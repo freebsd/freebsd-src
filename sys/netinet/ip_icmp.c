@@ -88,7 +88,7 @@ SYSCTL_PROC(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLTYPE_UINT |
     &sysctl_icmplim_and_jitter, "IU",
     "Maximum number of ICMP responses per second");
 
-VNET_DEFINE_STATIC(int, icmplim_curr_jitter) = 0;
+VNET_DEFINE_STATIC(int, icmplim_curr_jitter[BANDLIM_MAX]) = {0};
 #define V_icmplim_curr_jitter		VNET(icmplim_curr_jitter)
 VNET_DEFINE_STATIC(u_int, icmplim_jitter) = 16;
 #define	V_icmplim_jitter		VNET(icmplim_jitter)
@@ -635,15 +635,10 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		 */
 		if (icmplen < ICMP_MASKLEN)
 			break;
-		switch (ip->ip_dst.s_addr) {
-		case INADDR_BROADCAST:
-		case INADDR_ANY:
+		if (in_broadcast(ip->ip_dst))
 			icmpdst.sin_addr = ip->ip_src;
-			break;
-
-		default:
+		else
 			icmpdst.sin_addr = ip->ip_dst;
-		}
 		ia = (struct in_ifaddr *)ifaof_ifpforaddr(
 			    (struct sockaddr *)&icmpdst, m->m_pkthdr.rcvif);
 		if (ia == NULL)
@@ -788,10 +783,11 @@ icmp_reflect(struct mbuf *m)
 
 	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
 	    (IN_EXPERIMENTAL(ntohl(ip->ip_src.s_addr)) && !V_ip_allow_net240) ||
-	    (IN_ZERONET(ntohl(ip->ip_src.s_addr)) && !V_ip_allow_net0) ) {
+	    (IN_ZERONET(ntohl(ip->ip_src.s_addr)) && !V_ip_allow_net0) ||
+	    in_nullhost(ip->ip_src) ) {
 		m_freem(m);	/* Bad return address */
 		ICMPSTAT_INC(icps_badaddr);
-		goto done;	/* Ip_output() will check for broadcast */
+		goto done;	/* ip_output() will check for broadcast */
 	}
 
 	t = ip->ip_dst;
@@ -1108,14 +1104,16 @@ static const char *icmp_rate_descrs[BANDLIM_MAX] = {
 };
 
 static void
-icmplim_new_jitter(void)
+icmplim_new_jitter(int which)
 {
 	/*
 	 * Adjust limit +/- to jitter the measurement to deny a side-channel
 	 * port scan as in https://dl.acm.org/doi/10.1145/3372297.3417280
 	 */
+	KASSERT(which >= 0 && which < BANDLIM_MAX,
+	    ("%s: which %d", __func__, which));
 	if (V_icmplim_jitter > 0)
-		V_icmplim_curr_jitter =
+		V_icmplim_curr_jitter[which] =
 		    arc4random_uniform(V_icmplim_jitter * 2 + 1) -
 		    V_icmplim_jitter;
 }
@@ -1144,7 +1142,9 @@ sysctl_icmplim_and_jitter(SYSCTL_HANDLER_ARGS)
 				error = EINVAL;
 			else {
 				V_icmplim_jitter = new;
-				icmplim_new_jitter();
+				for (int i = 0; i < BANDLIM_MAX; i++) {
+					icmplim_new_jitter(i);
+				}
 			}
 		}
 	}
@@ -1160,8 +1160,8 @@ icmp_bandlimit_init(void)
 	for (int i = 0; i < BANDLIM_MAX; i++) {
 		V_icmp_rates[i].cr_rate = counter_u64_alloc(M_WAITOK);
 		V_icmp_rates[i].cr_ticks = ticks;
+		icmplim_new_jitter(i);
 	}
-	icmplim_new_jitter();
 }
 VNET_SYSINIT(icmp_bandlimit, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY,
     icmp_bandlimit_init, NULL);
@@ -1190,14 +1190,14 @@ badport_bandlim(int which)
 	    ("%s: which %d", __func__, which));
 
 	pps = counter_ratecheck(&V_icmp_rates[which], V_icmplim +
-	    V_icmplim_curr_jitter);
+	    V_icmplim_curr_jitter[which]);
 	if (pps > 0) {
 		if (V_icmplim_output)
 			log(LOG_NOTICE,
 			    "Limiting %s response from %jd to %d packets/sec\n",
 			    icmp_rate_descrs[which], (intmax_t )pps,
-			    V_icmplim + V_icmplim_curr_jitter);
-		icmplim_new_jitter();
+			    V_icmplim + V_icmplim_curr_jitter[which]);
+		icmplim_new_jitter(which);
 	}
 	if (pps == -1)
 		return (-1);

@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/domain.h>
+#define	_WANT_PROTOSW
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #define	_WANT_SOCKET
@@ -336,7 +337,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 					xo_emit(" {T:/%-11.11s}", "(state)");
 			}
 			if (xflag) {
-				xo_emit("{T:/%-6.6s} {T:/%-6.6s} "
+				xo_emit(" {T:/%-6.6s} {T:/%-6.6s} "
 				    "{T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s} "
 				    "{T:/%-6.6s} {T:/%-6.6s} {T:/%-6.6s}",
 				    "R-HIWA", "S-HIWA", "R-LOWA", "S-LOWA",

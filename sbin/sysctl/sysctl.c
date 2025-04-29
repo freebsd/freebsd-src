@@ -33,6 +33,9 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#ifdef JAIL
+#include <sys/jail.h>
+#endif
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <dev/evdev/input.h>
@@ -51,6 +54,9 @@
 #include <err.h>
 #include <errno.h>
 #include <inttypes.h>
+#ifdef JAIL
+#include <jail.h>
+#endif
 #include <locale.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -59,14 +65,18 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#ifdef JAIL
+static const char *jailname;
+#endif
 static const char *conffile;
 
 static int	aflag, bflag, Bflag, dflag, eflag, hflag, iflag;
 static int	Nflag, nflag, oflag, qflag, tflag, Tflag, Wflag, xflag;
 static bool	Fflag, Jflag, lflag, Vflag;
 
+static void	attach_jail(void);
 static int	oidfmt(int *, int, char *, u_int *);
-static int	parsefile(const char *);
+static int	parsefile(FILE *);
 static int	parse(const char *, int);
 static int	show_var(int *, int, bool);
 static int	sysctl_all(int *, int);
@@ -121,8 +131,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdeFhilNnoqTtWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
-	    "       sysctl [-bdeFhlNnoqTtWx] [ -B <bufsize> ] -a");
+	    "usage: sysctl [-j jail] [-bdeFhiJlNnoqTtVWx] [ -B <bufsize> ] [-f filename] name[=value] ...",
+	    "       sysctl [-j jail] [-bdeFhJlNnoqTtVWx] [ -B <bufsize> ] -a");
 	exit(1);
 }
 
@@ -131,12 +141,13 @@ main(int argc, char **argv)
 {
 	int ch;
 	int warncount = 0;
+	FILE *file = NULL;
 
 	setlocale(LC_NUMERIC, "");
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabB:def:FhiJlNnoqtTVwWxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AaB:bdeFf:hiJj:lNnoqTtVWwXx")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -145,11 +156,11 @@ main(int argc, char **argv)
 		case 'a':
 			aflag = 1;
 			break;
-		case 'b':
-			bflag = 1;
-			break;
 		case 'B':
 			Bflag = strtol(optarg, NULL, 0);
+			break;
+		case 'b':
+			bflag = 1;
 			break;
 		case 'd':
 			dflag = 1;
@@ -157,11 +168,11 @@ main(int argc, char **argv)
 		case 'e':
 			eflag = 1;
 			break;
-		case 'f':
-			conffile = optarg;
-			break;
 		case 'F':
 			Fflag = true;
+			break;
+		case 'f':
+			conffile = optarg;
 			break;
 		case 'h':
 			hflag = 1;
@@ -171,6 +182,14 @@ main(int argc, char **argv)
 			break;
 		case 'J':
 			Jflag = true;
+			break;
+		case 'j':
+#ifdef JAIL
+			if ((jailname = optarg) == NULL)
+				usage();
+#else
+			errx(1, "not built with jail support");
+#endif
 			break;
 		case 'l':
 			lflag = true;
@@ -187,21 +206,21 @@ main(int argc, char **argv)
 		case 'q':
 			qflag = 1;
 			break;
-		case 't':
-			tflag = 1;
-			break;
 		case 'T':
 			Tflag = 1;
+			break;
+		case 't':
+			tflag = 1;
 			break;
 		case 'V':
 			Vflag = true;
 			break;
+		case 'W':
+			Wflag = 1;
+			break;
 		case 'w':
 			/* compatibility */
 			/* ignored */
-			break;
-		case 'W':
-			Wflag = 1;
 			break;
 		case 'X':
 			/* compatibility */
@@ -221,18 +240,45 @@ main(int argc, char **argv)
 	/* TODO: few other combinations do not make sense but come back later */
 	if (Nflag && (lflag || nflag))
 		usage();
-	if (aflag && argc == 0)
+	if (aflag && argc == 0) {
+		attach_jail();
 		exit(sysctl_all(NULL, 0));
+	}
 	if (argc == 0 && conffile == NULL)
 		usage();
 
-	if (conffile != NULL)
-		warncount += parsefile(conffile);
+	if (conffile != NULL) {
+		file = fopen(conffile, "r");
+		if (file == NULL)
+			err(EX_NOINPUT, "%s", conffile);
+	}
+	attach_jail();
+	if (file != NULL) {
+		warncount += parsefile(file);
+		fclose(file);
+	}
 
 	while (argc-- > 0)
 		warncount += parse(*argv++, 0);
 
 	return (warncount);
+}
+
+static void
+attach_jail(void)
+{
+#ifdef JAIL
+	int jid;
+
+	if (jailname == NULL)
+		return;
+
+	jid = jail_getid(jailname);
+	if (jid == -1)
+		errx(1, "jail not found");
+	if (jail_attach(jid) != 0)
+		errx(1, "cannot attach to jail");
+#endif
 }
 
 /*
@@ -568,15 +614,11 @@ parse(const char *string, int lineno)
 }
 
 static int
-parsefile(const char *filename)
+parsefile(FILE *file)
 {
-	FILE *file;
 	char line[BUFSIZ], *p, *pq, *pdq;
 	int warncount = 0, lineno = 0;
 
-	file = fopen(filename, "r");
-	if (file == NULL)
-		err(EX_NOINPUT, "%s", filename);
 	while (fgets(line, sizeof(line), file) != NULL) {
 		lineno++;
 		p = line;
@@ -612,7 +654,6 @@ parsefile(const char *filename)
 		else
 			warncount += parse(p, lineno);
 	}
-	fclose(file);
 
 	return (warncount);
 }

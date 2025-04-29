@@ -247,7 +247,7 @@ scmi_shmem_clear_channel(device_t dev)
 }
 
 int
-scmi_shmem_read_msg_header(device_t dev, uint32_t *msg_header)
+scmi_shmem_read_msg_header(device_t dev, uint32_t *msg_header, unsigned int *rx_len)
 {
 	uint32_t length, header;
 
@@ -256,6 +256,7 @@ scmi_shmem_read_msg_header(device_t dev, uint32_t *msg_header)
 	if (le32toh(length) < sizeof(header))
 		return (EINVAL);
 
+	*rx_len = le32toh(length);
 	/* Read header. */
 	scmi_shmem_read(dev, SMT_OFFSET_MSG_HEADER, &header,
 	    SMT_SIZE_MSG_HEADER);
@@ -266,14 +267,11 @@ scmi_shmem_read_msg_header(device_t dev, uint32_t *msg_header)
 }
 
 int
-scmi_shmem_read_msg_payload(device_t dev, uint8_t *buf, uint32_t buf_len)
+scmi_shmem_read_msg_payload(device_t dev, uint8_t *buf, uint32_t buf_len, uint32_t rx_len)
 {
-	uint32_t length, payld_len;
+	uint32_t payld_len;
 
-	/* Read length. */
-	scmi_shmem_read(dev, SMT_OFFSET_LENGTH, &length, SMT_SIZE_LENGTH);
-	payld_len = le32toh(length) - SCMI_MSG_HDR_SIZE;
-
+	payld_len = rx_len - SCMI_MSG_HDR_SIZE;
 	if (payld_len > buf_len) {
 		device_printf(dev,
 		    "RX payload %dbytes exceeds buflen %dbytes. Truncate.\n",
@@ -296,7 +294,7 @@ scmi_shmem_tx_complete(device_t dev)
 	scmi_shmem_release_channel(sc);
 }
 
-bool scmi_shmem_poll_msg(device_t dev, uint32_t *msg_header)
+bool scmi_shmem_poll_msg(device_t dev, uint32_t *msg_header, uint32_t *rx_len)
 {
 	uint32_t status;
 	bool ret;
@@ -306,12 +304,10 @@ bool scmi_shmem_poll_msg(device_t dev, uint32_t *msg_header)
 
 	ret = (status & (SCMI_SHMEM_CHAN_STAT_CHANNEL_ERROR |
 	    SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE));
+	if (ret == 0)
+		return (ret);
 
-	if (ret)
-		scmi_shmem_read(dev, SMT_OFFSET_MSG_HEADER, msg_header,
-		    SMT_SIZE_MSG_HEADER);
-
-	return (ret);
+	return (scmi_shmem_read_msg_header(dev, msg_header, rx_len));
 }
 
 static device_method_t shmem_methods[] = {
@@ -326,4 +322,4 @@ DEFINE_CLASS_1(shmem, shmem_driver, shmem_methods, sizeof(struct shmem_softc),
 
 EARLY_DRIVER_MODULE(shmem, mmio_sram, shmem_driver, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-MODULE_VERSION(scmi, 1);
+MODULE_VERSION(scmi_shmem, 1);

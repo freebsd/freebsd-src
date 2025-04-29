@@ -190,8 +190,16 @@ r12a_check_frame_checksum(struct rtwn_softc *sc, struct mbuf *m)
 		    (rxdw1 & R12A_RXDW1_IPV6) ? "IPv6" : "IP",
 		    (rxdw1 & R12A_RXDW1_CKSUM_ERR) ? "invalid" : "valid");
 
+		/*
+		 * There seems to be a problem with UDP checksum processing
+		 * with the checksum value = 0 (ie, no checksum.)
+		 * So, don't treat it as a permament failure; just let
+		 * the IP stack take a crack at validating frames.
+		 *
+		 * See kern/285837 for more details.
+		 */
 		if (rxdw1 & R12A_RXDW1_CKSUM_ERR)
-			return (-1);
+			return (0);
 
 		if ((rxdw1 & R12A_RXDW1_IPV6) ?
 		    (rs->rs_flags & R12A_RXCKSUM6_EN) :

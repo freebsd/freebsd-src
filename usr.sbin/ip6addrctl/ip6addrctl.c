@@ -36,6 +36,9 @@
 #include <sys/queue.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#ifdef JAIL
+#include <sys/jail.h>
+#endif
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -45,12 +48,18 @@
 
 #include <stdlib.h>
 #include <netdb.h>
+#ifdef JAIL
+#include <jail.h>
+#endif
 #include <stdio.h>
 #include <unistd.h>
 #include <limits.h>
 #include <string.h>
 #include <err.h>
 
+#ifdef JAIL
+static char *jailname;
+#endif
 static char *configfile;
 
 struct policyqueue {
@@ -58,9 +67,10 @@ struct policyqueue {
 	struct in6_addrpolicy pc_policy;
 };
 TAILQ_HEAD(policyhead, policyqueue);
-static struct policyhead policyhead;
+static struct policyhead policyhead = TAILQ_HEAD_INITIALIZER(policyhead);
 
 static void usage(void) __dead2;
+static void attach_jail(void);
 static void get_policy(void);
 static void dump_policy(void);
 static int mask2plen(struct sockaddr_in6 *);
@@ -75,32 +85,73 @@ static void flush_policy(void);
 int
 main(int argc, char *argv[])
 {
-	TAILQ_INIT(&policyhead);
+	int ch;
 
-	if (argc == 1 || strcasecmp(argv[1], "show") == 0) {
+	while ((ch = getopt(argc, argv, "j:")) != -1) {
+		switch (ch) {
+		case 'j':
+#ifdef JAIL
+			if ((jailname = optarg) == NULL)
+				usage();
+#else
+			errx(1, "not built with jail support");
+#endif
+			break;
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc == 0 || (argc == 1 && strcasecmp(argv[0], "show") == 0)) {
+		attach_jail();
 		get_policy();
 		dump_policy();
-	} else if (strcasecmp(argv[1], "add") == 0) {
-		if (argc < 5)
+	} else if (strcasecmp(argv[0], "add") == 0) {
+		if (argc != 4)
 			usage();
-		add_policy(argv[2], argv[3], argv[4]);
-	} else if (strcasecmp(argv[1], "delete") == 0) {
-		if (argc < 3)
+		attach_jail();
+		add_policy(argv[1], argv[2], argv[3]);
+	} else if (strcasecmp(argv[0], "delete") == 0) {
+		if (argc != 2)
 			usage();
-		delete_policy(argv[2]);
-	} else if (strcasecmp(argv[1], "flush") == 0) {
+		attach_jail();
+		delete_policy(argv[1]);
+	} else if (strcasecmp(argv[0], "flush") == 0) {
+		if (argc != 1)
+			usage();
+		attach_jail();
 		get_policy();
 		flush_policy();
-	} else if (strcasecmp(argv[1], "install") == 0) {
-		if (argc < 3)
+	} else if (strcasecmp(argv[0], "install") == 0) {
+		if (argc != 2)
 			usage();
-		configfile = argv[2];
+		configfile = argv[1];
 		make_policy_fromfile(configfile);
+		attach_jail();
 		set_policy();
 	} else
 		usage();
 
 	exit(0);
+}
+
+static void
+attach_jail(void)
+{
+#ifdef JAIL
+	int jid;
+
+	if (jailname == NULL)
+		return;
+
+	jid = jail_getid(jailname);
+	if (jid == -1)
+		errx(1, "jail not found");
+	if (jail_attach(jid) != 0)
+		errx(1, "cannot attach to jail");
+#endif
 }
 
 static void
@@ -445,12 +496,12 @@ flush_policy(void)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: ip6addrctl [show]\n");
-	fprintf(stderr, "       ip6addrctl add "
+	fprintf(stderr, "usage: ip6addrctl [-j jail] [show]\n");
+	fprintf(stderr, "       ip6addrctl [-j jail] add "
 		"<prefix> <precedence> <label>\n");
-	fprintf(stderr, "       ip6addrctl delete <prefix>\n");
-	fprintf(stderr, "       ip6addrctl flush\n");
-	fprintf(stderr, "       ip6addrctl install <configfile>\n");
+	fprintf(stderr, "       ip6addrctl [-j jail] delete <prefix>\n");
+	fprintf(stderr, "       ip6addrctl [-j jail] flush\n");
+	fprintf(stderr, "       ip6addrctl [-j jail] install <configfile>\n");
 
 	exit(1);
 }

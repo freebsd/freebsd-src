@@ -154,6 +154,14 @@ typedef struct mtx spinlock_t;
 	mtx_assert(_l, MA_OWNED);		\
 } while (0)
 
+#define	local_irq_save(flags) do {		\
+	(flags) = 0;				\
+} while (0)
+
+#define	local_irq_restore(flags) do {		\
+	(void)(flags);				\
+} while (0)
+
 #define	atomic_dec_and_lock_irqsave(cnt, lock, flags) \
 	_atomic_dec_and_lock_irqsave(cnt, lock, &(flags))
 static inline int

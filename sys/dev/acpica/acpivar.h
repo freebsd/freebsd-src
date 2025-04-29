@@ -230,6 +230,10 @@ extern struct mtx			acpi_mutex;
  *	compatible flag and ignoring overrides that redirect IRQ 0 to pin 2.
  * ACPI_Q_AEI_NOPULL: Specifies that _AEI objects incorrectly designate pins
  *	as "PullUp" and they should be treated as "NoPull" instead.
+ * ACPI_Q_CLEAR_PME_ON_DETACH: Specifies that PCIM_PSTAT_(PME & ~PMEENABLE)
+ *	should be written to the power status register as part of ACPI Eject.
+ * ACPI_Q_DELAY_BEFORE_EJECT_RESCAN: Specifies that we need a short (10ms)
+ *	delay after _EJ0 returns before rescanning the PCI bus.
  */
 extern int	acpi_quirks;
 #define ACPI_Q_OK		0
@@ -237,6 +241,8 @@ extern int	acpi_quirks;
 #define ACPI_Q_TIMER		(1 << 1)
 #define ACPI_Q_MADT_IRQ0	(1 << 2)
 #define ACPI_Q_AEI_NOPULL	(1 << 3)
+#define ACPI_Q_CLEAR_PME_ON_DETACH	(1 << 4)
+#define ACPI_Q_DELAY_BEFORE_EJECT_RESCAN	(1 << 5)
 
 #if defined(__amd64__) || defined(__i386__)
 /*
@@ -608,12 +614,13 @@ bus_get_cpus_t		acpi_get_cpus;
  * ARM specific ACPI interfaces, relating to IORT table.
  */
 int	acpi_iort_map_pci_msi(u_int seg, u_int rid, u_int *xref, u_int *devid);
-int	acpi_iort_map_pci_smmuv3(u_int seg, u_int rid, u_int *xref, u_int *devid);
+int	acpi_iort_map_pci_smmuv3(u_int seg, u_int rid, uint64_t *xref,
+	    u_int *devid);
 int	acpi_iort_its_lookup(u_int its_id, u_int *xref, int *pxm);
 int	acpi_iort_map_named_msi(const char *devname, u_int rid, u_int *xref,
 	    u_int *devid);
-int	acpi_iort_map_named_smmuv3(const char *devname, u_int rid, u_int *xref,
-	    u_int *devid);
+int	acpi_iort_map_named_smmuv3(const char *devname, u_int rid,
+	    uint64_t *xref, u_int *devid);
 #endif
 #endif /* _KERNEL */
 #endif /* !_ACPIVAR_H_ */

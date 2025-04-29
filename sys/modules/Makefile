@@ -196,10 +196,10 @@ SUBDIR=	\
 	${_iwi} \
 	${_iwifw} \
 	${_iwlwifi} \
-	${_iwlwififw} \
 	${_iwm} \
 	${_iwn} \
 	${_iwnfw} \
+	${_iwx} \
 	${_ix} \
 	${_ixv} \
 	${_ixl} \
@@ -420,6 +420,7 @@ SUBDIR=	\
 	wlan_acl \
 	wlan_amrr \
 	wlan_ccmp \
+	wlan_gcmp \
 	wlan_rssadapt \
 	wlan_tkip \
 	wlan_wep \
@@ -569,9 +570,6 @@ _mlx5ib=	mlx5ib
 _ena=		ena
 _gve=		gve
 _iwlwifi=	iwlwifi
-.if ${MK_SOURCELESS_UCODE} != "no"
-_iwlwififw=	iwlwififw
-.endif
 _rtw88=		rtw88
 _rtw89=		rtw89
 _vmware=	vmware
@@ -833,6 +831,7 @@ _ccp=		ccp
 _enic=		enic
 _iavf=		iavf
 _ioat=		ioat
+_iwx=		iwx
 _ixl=		ixl
 _nvdimm=	nvdimm
 _pms=		pms

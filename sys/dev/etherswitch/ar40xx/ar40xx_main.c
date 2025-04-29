@@ -254,22 +254,23 @@ static int
 ar40xx_detach(device_t dev)
 {
 	struct ar40xx_softc *sc = device_get_softc(dev);
-	int i;
+	int error, i;
 
 	device_printf(sc->sc_dev, "%s: called\n", __func__);
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	callout_drain(&sc->sc_phy_callout);
 
 	/* Free PHYs */
 	for (i = 0; i < AR40XX_NUM_PHYS; i++) {
-		if (sc->sc_phys.miibus[i] != NULL)
-			device_delete_child(dev, sc->sc_phys.miibus[i]);
 		if (sc->sc_phys.ifp[i] != NULL)
 			if_free(sc->sc_phys.ifp[i]);
 		free(sc->sc_phys.ifname[i], M_DEVBUF);
 	}
 
-	bus_generic_detach(dev);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);

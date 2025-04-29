@@ -98,6 +98,7 @@
 #include <vm/vm_pagequeue.h>
 #include <vm/vm_object.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_phys.h>
@@ -611,40 +612,36 @@ static int
 vm_thread_stack_back(vm_offset_t ks, vm_page_t ma[], int npages, int req_class,
     int domain)
 {
+	struct pctrie_iter pages;
 	vm_object_t obj = vm_thread_kstack_size_to_obj(npages);
 	vm_pindex_t pindex;
-	vm_page_t m;
+	vm_page_t m, mpred;
 	int n;
 
 	pindex = vm_kstack_pindex(ks, npages);
 
+	vm_page_iter_init(&pages, obj);
 	VM_OBJECT_WLOCK(obj);
-	for (n = 0; n < npages;) {
-		m = vm_page_grab(obj, pindex + n,
+	for (n = 0; n < npages; ma[n++] = m) {
+		m = vm_page_grab_iter(obj, &pages, pindex + n,
 		    VM_ALLOC_NOCREAT | VM_ALLOC_WIRED);
-		if (m == NULL) {
-			m = n > 0 ? ma[n - 1] : vm_page_mpred(obj, pindex);
-			m = vm_page_alloc_domain_after(obj, pindex + n, domain,
-			    req_class | VM_ALLOC_WIRED, m);
+		if (m != NULL)
+			continue;
+		mpred = (n > 0) ? ma[n - 1] :
+		    vm_radix_iter_lookup_lt(&pages, pindex);
+		m = vm_page_alloc_domain_after(obj, &pages, pindex + n,
+		    domain, req_class | VM_ALLOC_WIRED, mpred);
+		if (m != NULL)
+			continue;
+		for (int i = 0; i < n; i++) {
+			m = ma[i];
+			(void)vm_page_unwire_noq(m);
+			vm_page_free(m);
 		}
-		if (m == NULL)
-			break;
-		ma[n++] = m;
-	}
-	if (n < npages)
-		goto cleanup;
-	VM_OBJECT_WUNLOCK(obj);
-
-	return (0);
-cleanup:
-	for (int i = 0; i < n; i++) {
-		m = ma[i];
-		(void)vm_page_unwire_noq(m);
-		vm_page_free(m);
+		break;
 	}
 	VM_OBJECT_WUNLOCK(obj);
-
-	return (ENOMEM);
+	return (n < npages ? ENOMEM : 0);
 }
 
 static vm_object_t

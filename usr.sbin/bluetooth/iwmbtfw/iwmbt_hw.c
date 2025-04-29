@@ -437,7 +437,8 @@ iwmbt_enter_manufacturer(struct libusb_device_handle *hdl)
 }
 
 int
-iwmbt_exit_manufacturer(struct libusb_device_handle *hdl, int mode)
+iwmbt_exit_manufacturer(struct libusb_device_handle *hdl,
+    enum iwmbt_mm_exit mode)
 {
 	int ret, transferred;
 	static struct iwmbt_hci_cmd cmd = {
@@ -447,17 +448,7 @@ iwmbt_exit_manufacturer(struct libusb_device_handle *hdl, int mode)
 	};
 	uint8_t buf[IWMBT_HCI_MAX_EVENT_SIZE];
 
-	/*
-	 * The mode sets the type of reset we want to perform:
-	 * 0x00: simply exit manufacturer mode without a reset.
-	 * 0x01: exit manufacturer mode with a reset and patches disabled
-	 * 0x02: exit manufacturer mode with a reset and patches enabled
-	 */
-	if (mode > 2) {
-		iwmbt_debug("iwmbt_exit_manufacturer(): unknown mode (%d)",
-				mode);
-	}
-	cmd.data[1] = mode;
+	cmd.data[1] = (uint8_t)mode;
 
 	ret = iwmbt_hci_command(hdl,
 	    &cmd,

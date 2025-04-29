@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2024 The FreeBSD Foundation
+ * Copyright (c) 2020-2025 The FreeBSD Foundation
  * Copyright (c) 2021-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -33,6 +33,7 @@
 #include <linux/types.h>
 #include <linux/nl80211.h>
 #include <linux/ieee80211.h>
+#include <linux/mutex.h>
 #include <linux/if_ether.h>
 #include <linux/ethtool.h>
 #include <linux/device.h>
@@ -79,6 +80,9 @@ enum cfg80211_rate_info_flags {
 	RATE_INFO_FLAGS_EHT_MCS		= BIT(7),
 	/* Max 8 bits as used in struct rate_info. */
 };
+
+#define	CFG80211_RATE_INFO_FLAGS_BITS					\
+    "\20\1MCS\2VHT_MCS\3SGI\5HE_MCS\10EHT_MCS"
 
 extern const uint8_t rfc1042_header[6];
 extern const uint8_t bridge_tunnel_header[6];
@@ -163,7 +167,7 @@ enum rate_info_bw {
 
 struct rate_info {
 	uint8_t					flags;			/* enum cfg80211_rate_info_flags */
-	uint8_t					bw;
+	uint8_t					bw;			/* enum rate_info_bw */
 	uint16_t				legacy;
 	uint8_t					mcs;
 	uint8_t					nss;
@@ -174,11 +178,10 @@ struct rate_info {
 };
 
 struct ieee80211_rate {
-	/* TODO FIXME */
-	uint32_t		bitrate;
-	uint32_t		hw_value;
-	uint32_t		hw_value_short;
-	uint32_t		flags;
+	uint32_t		flags;					/* enum ieee80211_rate_flags */
+	uint16_t		bitrate;
+	uint16_t		hw_value;
+	uint16_t		hw_value_short;
 };
 
 struct ieee80211_sta_ht_cap {
@@ -197,7 +200,7 @@ struct ieee80211_sta_ht_cap {
 
 #define	IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ		(IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_160MHZ << IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK_S)
 #define	IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ	(IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_160_80P80MHZ << IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK_S)
-#define	IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK	0x0000000c	/* IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK */
+#define	IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK			IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK
 
 #define	IEEE80211_VHT_CAP_RXLDPC		0x00000010	/* IEEE80211_VHTCAP_RXLDPC */
 
@@ -235,7 +238,8 @@ struct ieee80211_sta_ht_cap {
 #define	IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK	\
 	(7 << IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_SHIFT)	/* IEEE80211_VHTCAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK */
 
-#define	IEEE80211_VHT_CAP_EXT_NSS_BW_MASK	0xc0000000
+#define	IEEE80211_VHT_CAP_EXT_NSS_BW_MASK	IEEE80211_VHTCAP_EXT_NSS_BW
+#define	IEEE80211_VHT_CAP_EXT_NSS_BW_SHIFT	IEEE80211_VHTCAP_EXT_NSS_BW_S
 
 struct ieee80211_sta_vht_cap {
 		/* TODO FIXME */
@@ -545,18 +549,39 @@ struct station_del_parameters {
 };
 
 struct station_info {
-	/* TODO FIXME */
-	int     assoc_req_ies_len, connected_time;
-	int	generation, inactive_time, rx_bytes, rx_dropped_misc, rx_packets, signal, tx_bytes, tx_packets;
-	int     filled, rx_beacon, rx_beacon_signal_avg, signal_avg;
-	int	rx_duration, tx_duration, tx_failed, tx_retries;
-	int	ack_signal, avg_ack_signal;
+	uint64_t				filled;		/* enum nl80211_sta_info */
+	uint32_t				connected_time;
+	uint32_t				inactive_time;
+
+	uint64_t				rx_bytes;
+	uint32_t				rx_packets;
+	uint32_t				rx_dropped_misc;
+
+	uint64_t				rx_duration;
+	uint32_t				rx_beacon;
+	uint8_t					rx_beacon_signal_avg;
+
+	int8_t					signal;
+	int8_t					signal_avg;
+	int8_t					ack_signal;
+	int8_t					avg_ack_signal;
+
+	/* gap */
+	int					generation;
+
+	uint64_t				tx_bytes;
+	uint32_t				tx_packets;
+	uint32_t				tx_failed;
+	uint64_t				tx_duration;
+	uint32_t				tx_retries;
 
 	int					chains;
 	uint8_t					chain_signal[IEEE80211_MAX_CHAINS];
 	uint8_t					chain_signal_avg[IEEE80211_MAX_CHAINS];
 
 	uint8_t					*assoc_req_ies;
+	size_t					assoc_req_ies_len;
+
 	struct rate_info			rxrate;
 	struct rate_info			txrate;
 	struct cfg80211_ibss_params		bss_param;
@@ -1008,9 +1033,12 @@ struct cfg80211_wowlan_nd_info {
 
 enum wiphy_wowlan_support_flags {
 	WIPHY_WOWLAN_DISCONNECT,
-	WIPHY_WOWLAN_GTK_REKEY_FAILURE,
 	WIPHY_WOWLAN_MAGIC_PKT,
 	WIPHY_WOWLAN_SUPPORTS_GTK_REKEY,
+	WIPHY_WOWLAN_GTK_REKEY_FAILURE,
+	WIPHY_WOWLAN_EAP_IDENTITY_REQ,
+	WIPHY_WOWLAN_4WAY_HANDSHAKE,
+	WIPHY_WOWLAN_RFKILL_RELEASE,
 	WIPHY_WOWLAN_NET_DETECT,
 };
 
@@ -1024,6 +1052,7 @@ struct cfg80211_wowlan_wakeup {
 	/* XXX TODO */
 	uint16_t				pattern_idx;
 	bool					disconnect;
+	bool					unprot_deauth_disassoc;
 	bool					eap_identity_req;
 	bool					four_way_handshake;
 	bool					gtk_rekey_failure;
@@ -1041,11 +1070,22 @@ struct cfg80211_wowlan_wakeup {
 
 struct cfg80211_wowlan {
 	/* XXX TODO */
-	int	disconnect, gtk_rekey_failure, magic_pkt;
-	int	eap_identity_req, four_way_handshake, rfkill_release, tcp, any;
+	bool					any;
+	bool					disconnect;
+	bool					magic_pkt;
+	bool					gtk_rekey_failure;
+	bool					eap_identity_req;
+	bool					four_way_handshake;
+	bool					rfkill_release;
+
+	/* Magic packet patterns. */
 	int					n_patterns;
-	struct cfg80211_sched_scan_request	*nd_config;
 	struct cfg80211_pkt_pattern		*patterns;
+
+	/* netdetect? if not assoc? */
+	struct cfg80211_sched_scan_request	*nd_config;
+
+	void					*tcp;		/* XXX ? */
 };
 
 struct cfg80211_gtk_rekey_data {
@@ -1219,7 +1259,8 @@ struct wiphy {
 
 	unsigned long				ext_features[BITS_TO_LONGS(NUM_NL80211_EXT_FEATURES)];
 	struct dentry				*debugfsdir;
-	struct cfg80211_wowlan_support		*wowlan;
+	const struct wiphy_wowlan_support	*wowlan;
+	struct cfg80211_wowlan			*wowlan_config;
 	/* Lower layer (driver/mac80211) specific data. */
 	/* Must stay last. */
 	uint8_t					priv[0] __aligned(CACHE_LINE_SIZE);
@@ -1303,6 +1344,7 @@ void linuxkpi_wiphy_delayed_work_cancel(struct wiphy *,
 
 int linuxkpi_regulatory_set_wiphy_regd_sync(struct wiphy *wiphy,
     struct linuxkpi_ieee80211_regdomain *regd);
+uint32_t linuxkpi_cfg80211_calculate_bitrate(struct rate_info *);
 uint32_t linuxkpi_ieee80211_channel_to_frequency(uint32_t, enum nl80211_band);
 uint32_t linuxkpi_ieee80211_frequency_to_channel(uint32_t, uint32_t);
 struct linuxkpi_ieee80211_channel *
@@ -1358,13 +1400,13 @@ wiphy_dev(struct wiphy *wiphy)
 static __inline void
 wiphy_lock(struct wiphy *wiphy)
 {
-	TODO();
+	mutex_lock(&wiphy->mtx);
 }
 
 static __inline void
 wiphy_unlock(struct wiphy *wiphy)
 {
-	TODO();
+	mutex_unlock(&wiphy->mtx);
 }
 
 static __inline void
@@ -1416,6 +1458,18 @@ rfkill_soft_blocked(int rfkill)
 	return (false);
 }
 
+static __inline void
+wiphy_rfkill_start_polling(struct wiphy *wiphy)
+{
+	TODO();
+}
+
+static __inline void
+wiphy_rfkill_stop_polling(struct wiphy *wiphy)
+{
+	TODO();
+}
+
 static __inline int
 reg_query_regdb_wmm(uint8_t *alpha2, uint32_t center_freq,
     struct ieee80211_reg_rule *rule)
@@ -1457,36 +1511,33 @@ cfg80211_pmsr_report(struct wireless_dev *wdev,
 	TODO();
 }
 
-static __inline void
+static inline void
 cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
-    struct linuxkpi_ieee80211_channel *chan, enum nl80211_chan_flags chan_flag)
+    struct linuxkpi_ieee80211_channel *chan, enum nl80211_channel_type chan_type)
 {
 
 	KASSERT(chandef != NULL, ("%s: chandef is NULL\n", __func__));
 	KASSERT(chan != NULL, ("%s: chan is NULL\n", __func__));
 
-	memset(chandef, 0, sizeof(*chandef));
+	/* memset(chandef, 0, sizeof(*chandef)); */
 	chandef->chan = chan;
-	chandef->center_freq2 = 0;	/* Set here and only overwrite if needed. */
+	chandef->center_freq1 = chan->center_freq;
+	/* chandef->width, center_freq2, punctured */
 
-	switch (chan_flag) {
+	switch (chan_type) {
 	case NL80211_CHAN_NO_HT:
 		chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
-		chandef->center_freq1 = chan->center_freq;
 		break;
-	default:
-		IMPROVE("Also depends on our manual settings");
-		if (chan->flags & IEEE80211_CHAN_NO_HT40)
-			chandef->width = NL80211_CHAN_WIDTH_20;
-		else if (chan->flags & IEEE80211_CHAN_NO_80MHZ)
-			chandef->width = NL80211_CHAN_WIDTH_40;
-		else if (chan->flags & IEEE80211_CHAN_NO_160MHZ)
-			chandef->width = NL80211_CHAN_WIDTH_80;
-		else {
-			chandef->width = NL80211_CHAN_WIDTH_160;
-			IMPROVE("80P80 and 320 ...");
-		}
-		chandef->center_freq1 = chan->center_freq;
+	case NL80211_CHAN_HT20:
+		chandef->width = NL80211_CHAN_WIDTH_20;
+		break;
+	case NL80211_CHAN_HT40MINUS:
+		chandef->width = NL80211_CHAN_WIDTH_40;
+		chandef->center_freq1 -= 10;
+		break;
+	case NL80211_CHAN_HT40PLUS:
+		chandef->width = NL80211_CHAN_WIDTH_40;
+		chandef->center_freq1 += 10;
 		break;
 	};
 }
@@ -1573,11 +1624,10 @@ cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
 	return (__DECONST(uint8_t *, elem));
 }
 
-static __inline uint32_t
+static inline uint32_t
 cfg80211_calculate_bitrate(struct rate_info *rate)
 {
-	TODO();
-	return (-1);
+	return (linuxkpi_cfg80211_calculate_bitrate(rate));
 }
 
 static __inline uint32_t
@@ -1956,7 +2006,7 @@ cfg80211_channel_is_psc(struct linuxkpi_ieee80211_channel *channel)
 
 static inline int
 cfg80211_get_ies_channel_number(const uint8_t *ie, size_t len,
-    enum nl80211_band band, enum cfg80211_bss_frame_type ftype)
+    enum nl80211_band band)
 {
 	const struct element *elem;
 
@@ -2072,12 +2122,40 @@ ieee80211_get_sband_iftype_data(const struct ieee80211_supported_band *band,
 	return (NULL);
 }
 
-static __inline const struct ieee80211_sta_eht_cap *
+static inline const struct ieee80211_sta_he_cap *
+ieee80211_get_he_iftype_cap(const struct ieee80211_supported_band *band,
+    enum nl80211_iftype iftype)
+{
+	const struct ieee80211_sband_iftype_data *iftype_data;
+	const struct ieee80211_sta_he_cap *he_cap;
+
+	iftype_data = ieee80211_get_sband_iftype_data(band, iftype);
+	if (iftype_data == NULL)
+		return (NULL);
+
+	he_cap = NULL;
+	if (iftype_data->he_cap.has_he)
+		he_cap = &iftype_data->he_cap;
+
+	return (he_cap);
+}
+
+static inline const struct ieee80211_sta_eht_cap *
 ieee80211_get_eht_iftype_cap(const struct ieee80211_supported_band *band,
     enum nl80211_iftype iftype)
 {
-	TODO();
-	return (NULL);
+	const struct ieee80211_sband_iftype_data *iftype_data;
+	const struct ieee80211_sta_eht_cap *eht_cap;
+
+	iftype_data = ieee80211_get_sband_iftype_data(band, iftype);
+	if (iftype_data == NULL)
+		return (NULL);
+
+	eht_cap = NULL;
+	if (iftype_data->eht_cap.has_eht)
+		eht_cap = &iftype_data->eht_cap;
+
+	return (eht_cap);
 }
 
 static inline bool
@@ -2139,6 +2217,16 @@ nl80211_chan_width_to_mhz(enum nl80211_chan_width width)
 		return (320);
 		break;
 	}
+}
+
+static __inline ssize_t
+wiphy_locked_debugfs_write(struct wiphy *wiphy, struct file *file,
+    char *buf, size_t bufsize, const char __user *userbuf, size_t count,
+    ssize_t (*handler)(struct wiphy *, struct file *, char *, size_t, void *),
+    void *data)
+{
+	TODO();
+	return (-ENXIO);
 }
 
 /* -------------------------------------------------------------------------- */

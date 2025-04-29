@@ -32,10 +32,10 @@
 #include "gve_adminq.h"
 #include "gve_dqo.h"
 
-#define GVE_DRIVER_VERSION "GVE-FBSD-1.3.1\n"
+#define GVE_DRIVER_VERSION "GVE-FBSD-1.3.3\n"
 #define GVE_VERSION_MAJOR 1
 #define GVE_VERSION_MINOR 3
-#define GVE_VERSION_SUB 1
+#define GVE_VERSION_SUB 3
 
 #define GVE_DEFAULT_RX_COPYBREAK 256
 
@@ -192,15 +192,146 @@ reset:
 	gve_schedule_reset(priv);
 }
 
+int
+gve_adjust_rx_queues(struct gve_priv *priv, uint16_t new_queue_cnt)
+{
+	int err;
+
+	GVE_IFACE_LOCK_ASSERT(priv->gve_iface_lock);
+
+	gve_down(priv);
+
+	if (new_queue_cnt < priv->rx_cfg.num_queues) {
+		/*
+		 * Freeing a ring still preserves its ntfy_id,
+		 * which is needed if we create the ring again.
+		 */
+		gve_free_rx_rings(priv, new_queue_cnt, priv->rx_cfg.num_queues);
+	} else {
+		err = gve_alloc_rx_rings(priv, priv->rx_cfg.num_queues, new_queue_cnt);
+		if (err != 0) {
+			device_printf(priv->dev, "Failed to allocate new queues");
+			/* Failed to allocate rings, start back up with old ones */
+			gve_up(priv);
+			return (err);
+
+		}
+	}
+	priv->rx_cfg.num_queues = new_queue_cnt;
+
+	err = gve_up(priv);
+	if (err != 0)
+		gve_schedule_reset(priv);
+
+	return (err);
+}
+
+int
+gve_adjust_tx_queues(struct gve_priv *priv, uint16_t new_queue_cnt)
+{
+	int err;
+
+	GVE_IFACE_LOCK_ASSERT(priv->gve_iface_lock);
+
+	gve_down(priv);
+
+	if (new_queue_cnt < priv->tx_cfg.num_queues) {
+		/*
+		 * Freeing a ring still preserves its ntfy_id,
+		 * which is needed if we create the ring again.
+		 */
+		gve_free_tx_rings(priv, new_queue_cnt, priv->tx_cfg.num_queues);
+	} else {
+		err = gve_alloc_tx_rings(priv, priv->tx_cfg.num_queues, new_queue_cnt);
+		if (err != 0) {
+			device_printf(priv->dev, "Failed to allocate new queues");
+			/* Failed to allocate rings, start back up with old ones */
+			gve_up(priv);
+			return (err);
+
+		}
+	}
+	priv->tx_cfg.num_queues = new_queue_cnt;
+
+	err = gve_up(priv);
+	if (err != 0)
+		gve_schedule_reset(priv);
+
+	return (err);
+}
+
+int
+gve_adjust_ring_sizes(struct gve_priv *priv, uint16_t new_desc_cnt, bool is_rx)
+{
+	int err;
+	uint16_t prev_desc_cnt;
+
+	GVE_IFACE_LOCK_ASSERT(priv->gve_iface_lock);
+
+	gve_down(priv);
+
+	if (is_rx) {
+		gve_free_rx_rings(priv, 0, priv->rx_cfg.num_queues);
+		prev_desc_cnt = priv->rx_desc_cnt;
+		priv->rx_desc_cnt = new_desc_cnt;
+		err = gve_alloc_rx_rings(priv, 0, priv->rx_cfg.num_queues);
+		if (err != 0) {
+			device_printf(priv->dev,
+			    "Failed to allocate rings. Trying to start back up with previous ring size.");
+			priv->rx_desc_cnt = prev_desc_cnt;
+			err = gve_alloc_rx_rings(priv, 0, priv->rx_cfg.num_queues);
+		}
+	} else {
+		gve_free_tx_rings(priv, 0, priv->tx_cfg.num_queues);
+		prev_desc_cnt = priv->tx_desc_cnt;
+		priv->tx_desc_cnt = new_desc_cnt;
+		err = gve_alloc_tx_rings(priv, 0, priv->tx_cfg.num_queues);
+		if (err != 0) {
+			device_printf(priv->dev,
+			    "Failed to allocate rings. Trying to start back up with previous ring size.");
+			priv->tx_desc_cnt = prev_desc_cnt;
+			err = gve_alloc_tx_rings(priv, 0, priv->tx_cfg.num_queues);
+		}
+	}
+
+	if (err != 0) {
+		device_printf(priv->dev, "Failed to allocate rings! Cannot start device back up!");
+		return (err);
+	}
+
+	err = gve_up(priv);
+	if (err != 0) {
+		gve_schedule_reset(priv);
+		return (err);
+	}
+
+	return (0);
+}
+
 static int
 gve_set_mtu(if_t ifp, uint32_t new_mtu)
 {
 	struct gve_priv *priv = if_getsoftc(ifp);
+	const uint32_t max_problem_range = 8227;
+	const uint32_t min_problem_range = 7822;
 	int err;
 
 	if ((new_mtu > priv->max_mtu) || (new_mtu < ETHERMIN)) {
 		device_printf(priv->dev, "Invalid new MTU setting. new mtu: %d max mtu: %d min mtu: %d\n",
 		    new_mtu, priv->max_mtu, ETHERMIN);
+		return (EINVAL);
+	}
+
+	/*
+	 * When hardware LRO is enabled in DQ mode, MTUs within the range
+	 * [7822, 8227] trigger hardware issues which cause a drastic drop
+	 * in throughput.
+	 */
+	if (!gve_is_gqi(priv) && !gve_disable_hw_lro &&
+	    new_mtu >= min_problem_range && new_mtu <= max_problem_range) {
+		device_printf(priv->dev,
+		    "Cannot set to MTU to %d within the range [%d, %d] while hardware LRO is enabled\n",
+		    new_mtu, min_problem_range, max_problem_range);
 		return (EINVAL);
 	}
 
@@ -376,7 +507,7 @@ gve_setup_ifnet(device_t dev, struct gve_priv *priv)
 	/*
 	 * Set TSO limits, must match the arguments to bus_dma_tag_create
 	 * when creating tx->dqo.buf_dmatag. Only applies to the RDA mode
-	 * because in QPL we copy the entire pakcet into the bounce buffer
+	 * because in QPL we copy the entire packet into the bounce buffer
 	 * and thus it does not matter how fragmented the mbuf is.
 	 */
 	if (!gve_is_gqi(priv) && !gve_is_qpl(priv)) {
@@ -465,10 +596,14 @@ static void
 gve_free_rings(struct gve_priv *priv)
 {
 	gve_free_irqs(priv);
-	gve_free_tx_rings(priv);
-	gve_free_rx_rings(priv);
-	if (gve_is_qpl(priv))
-		gve_free_qpls(priv);
+
+	gve_free_tx_rings(priv, 0, priv->tx_cfg.num_queues);
+	free(priv->tx, M_GVE);
+	priv->tx = NULL;
+
+	gve_free_rx_rings(priv, 0, priv->rx_cfg.num_queues);
+	free(priv->rx, M_GVE);
+	priv->rx = NULL;
 }
 
 static int
@@ -476,17 +611,15 @@ gve_alloc_rings(struct gve_priv *priv)
 {
 	int err;
 
-	if (gve_is_qpl(priv)) {
-		err = gve_alloc_qpls(priv);
-		if (err != 0)
-			goto abort;
-	}
-
-	err = gve_alloc_rx_rings(priv);
+	priv->rx = malloc(sizeof(struct gve_rx_ring) * priv->rx_cfg.max_queues,
+	    M_GVE, M_WAITOK | M_ZERO);
+	err = gve_alloc_rx_rings(priv, 0, priv->rx_cfg.num_queues);
 	if (err != 0)
 		goto abort;
 
-	err = gve_alloc_tx_rings(priv);
+	priv->tx = malloc(sizeof(struct gve_tx_ring) * priv->tx_cfg.max_queues,
+	    M_GVE, M_WAITOK | M_ZERO);
+	err = gve_alloc_tx_rings(priv, 0, priv->tx_cfg.num_queues);
 	if (err != 0)
 		goto abort;
 
@@ -502,7 +635,7 @@ abort:
 }
 
 static void
-gve_deconfigure_resources(struct gve_priv *priv)
+gve_deconfigure_and_free_device_resources(struct gve_priv *priv)
 {
 	int err;
 
@@ -528,7 +661,7 @@ gve_deconfigure_resources(struct gve_priv *priv)
 }
 
 static int
-gve_configure_resources(struct gve_priv *priv)
+gve_alloc_and_configure_device_resources(struct gve_priv *priv)
 {
 	int err;
 
@@ -569,7 +702,7 @@ gve_configure_resources(struct gve_priv *priv)
 	return (0);
 
 abort:
-	gve_deconfigure_resources(priv);
+	gve_deconfigure_and_free_device_resources(priv);
 	return (err);
 }
 
@@ -588,7 +721,7 @@ gve_set_queue_cnts(struct gve_priv *priv)
 		    priv->rx_cfg.num_queues);
 	}
 
-	priv->num_queues = priv->tx_cfg.num_queues + priv->rx_cfg.num_queues;
+	priv->num_queues = priv->tx_cfg.max_queues + priv->rx_cfg.max_queues;
 	priv->mgmt_msix_idx = priv->num_queues;
 }
 
@@ -634,7 +767,7 @@ static void
 gve_destroy(struct gve_priv *priv)
 {
 	gve_down(priv);
-	gve_deconfigure_resources(priv);
+	gve_deconfigure_and_free_device_resources(priv);
 	gve_release_adminq(priv);
 }
 
@@ -647,9 +780,21 @@ gve_restore(struct gve_priv *priv)
 	if (err != 0)
 		goto abort;
 
-	err = gve_configure_resources(priv);
-	if (err != 0)
+	err = gve_adminq_configure_device_resources(priv);
+	if (err != 0) {
+		device_printf(priv->dev, "Failed to configure device resources: err=%d\n",
+		    err);
+		err = (ENXIO);
 		goto abort;
+	}
+	if (!gve_is_gqi(priv)) {
+		err = gve_adminq_get_ptype_map_dqo(priv, priv->ptype_lut_dqo);
+		if (err != 0) {
+			device_printf(priv->dev, "Failed to configure ptype lut: err=%d\n",
+			    err);
+			goto abort;
+		}
+	}
 
 	err = gve_up(priv);
 	if (err != 0)
@@ -660,6 +805,25 @@ gve_restore(struct gve_priv *priv)
 abort:
 	device_printf(priv->dev, "Restore failed!\n");
 	return;
+}
+
+static void
+gve_clear_device_resources(struct gve_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < priv->num_event_counters; i++)
+		priv->counters[i] = 0;
+	bus_dmamap_sync(priv->counter_array_mem.tag, priv->counter_array_mem.map,
+	    BUS_DMASYNC_PREWRITE);
+
+	for (i = 0; i < priv->num_queues; i++)
+		priv->irq_db_indices[i] = (struct gve_irq_db){};
+	bus_dmamap_sync(priv->irqs_db_mem.tag, priv->irqs_db_mem.map,
+	    BUS_DMASYNC_PREWRITE);
+
+	if (priv->ptype_lut_dqo)
+		*priv->ptype_lut_dqo = (struct gve_ptype_lut){0};
 }
 
 static void
@@ -693,6 +857,8 @@ gve_handle_reset(struct gve_priv *priv)
 	gve_clear_state_flag(priv, GVE_STATE_FLAG_TX_RINGS_OK);
 
 	gve_down(priv);
+	gve_clear_device_resources(priv);
+
 	gve_restore(priv);
 
 	GVE_IFACE_LOCK_UNLOCK(priv->gve_iface_lock);
@@ -820,7 +986,7 @@ gve_attach(device_t dev)
 	if (err != 0)
 		goto abort;
 
-	err = gve_configure_resources(priv);
+	err = gve_alloc_and_configure_device_resources(priv);
 	if (err != 0)
 		goto abort;
 
@@ -849,7 +1015,7 @@ gve_attach(device_t dev)
 
 abort:
 	gve_free_rings(priv);
-	gve_deconfigure_resources(priv);
+	gve_deconfigure_and_free_device_resources(priv);
 	gve_release_adminq(priv);
 	gve_free_sys_res_mem(priv);
 	GVE_IFACE_LOCK_DESTROY(priv->gve_iface_lock);

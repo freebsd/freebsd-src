@@ -587,6 +587,7 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 
 	memcpy(&peer->remote, &remote, sizeof(remote));
 
+#ifdef INET6
 	if (peer->local.ss_family == AF_INET6 &&
 	    IN6_IS_ADDR_V4MAPPED(&TO_IN6(&peer->remote)->sin6_addr)) {
 		/* V4 mapped address, so treat this as v4, not v6. */
@@ -594,7 +595,6 @@ ovpn_new_peer(struct ifnet *ifp, const nvlist_t *nvl)
 		in6_sin6_2_sin_in_sock((struct sockaddr *)&peer->remote);
 	}
 
-#ifdef INET6
 	if (peer->local.ss_family == AF_INET6 &&
 	    IN6_IS_ADDR_UNSPECIFIED(&TO_IN6(&peer->local)->sin6_addr)) {
 		NET_EPOCH_ENTER(et);
@@ -2248,12 +2248,6 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 
 	M_ASSERTPKTHDR(m);
 
-	m = m_unshare(m, M_NOWAIT);
-	if (m == NULL) {
-		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
-		return (true);
-	}
-
 	OVPN_COUNTER_ADD(sc, transport_bytes_received, m->m_pkthdr.len - off);
 
 	ohdrlen = sizeof(*ohdr) - sizeof(ohdr->auth_tag);
@@ -2279,6 +2273,12 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 		/* Control packet? */
 		OVPN_RUNLOCK(sc);
 		return (false);
+	}
+
+	m = m_unshare(m, M_NOWAIT);
+	if (m == NULL) {
+		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
+		return (true);
 	}
 
 	m = m_pullup(m, off + sizeof(*uhdr) + ohdrlen);

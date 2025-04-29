@@ -17,7 +17,7 @@ CFLAGS+=	-I${SRCTOP}/libexec/rtld-elf/rtld-libc
 # redirects all calls to interposed functions to use the non-interposed version
 # instead.
 .PATH: ${LIBC_SRCTOP}/gen
-SRCS+=	opendir.c closedir.c readdir.c telldir.c
+SRCS+=	fdopendir.c opendir.c opendir2.c closedir.c readdir.c telldir.c
 
 # Avoid further dependencies by providing simple implementations of libc
 # functions such as __error(), etc.
@@ -58,7 +58,7 @@ _libc_other_objects= sigsetjmp lstat stat fstat fstatat fstatfs syscall \
     sysarch __sysctl issetugid __getcwd utrace getpid \
     thr_self thr_kill pread mmap lseek _exit \
     getdirentries _close _fcntl _open _openat _read \
-    _sigprocmask _write readlink __realpathat _setjmp setjmp setjmperr
+    _sigprocmask _write readlink ___realpathat _setjmp setjmp setjmperr
 
 
 # Finally add additional architecture-dependent libc dependencies

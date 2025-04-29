@@ -159,9 +159,13 @@ static int
 p2sb_detach(device_t dev)
 {
 	struct p2sb_softc *sc;
+	int error;
 
 	/* Teardown the state in our softc created in our attach routine. */
-	device_delete_children(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
+
 	sc = device_get_softc(dev);
 	mtx_destroy(&sc->mutex);
 	if (sc->res != NULL)

@@ -1771,15 +1771,6 @@ sk_detach(device_t dev)
 		ether_ifdetach(ifp);
 		SK_IF_LOCK(sc_if);
 	}
-	/*
-	 * We're generally called from skc_detach() which is using
-	 * device_delete_child() to get to here. It's already trashed
-	 * miibus for us, so don't do it here or we'll panic.
-	 */
-	/*
-	if (sc_if->sk_miibus != NULL)
-		device_delete_child(dev, sc_if->sk_miibus);
-	*/
 	bus_generic_detach(dev);
 	sk_dma_jumbo_free(sc_if);
 	sk_dma_free(sc_if);
@@ -1798,15 +1789,7 @@ skc_detach(device_t dev)
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->sk_mtx), ("sk mutex not initialized"));
 
-	if (device_is_alive(dev)) {
-		if (sc->sk_devs[SK_PORT_A] != NULL) {
-			device_delete_child(dev, sc->sk_devs[SK_PORT_A]);
-		}
-		if (sc->sk_devs[SK_PORT_B] != NULL) {
-			device_delete_child(dev, sc->sk_devs[SK_PORT_B]);
-		}
-		bus_generic_detach(dev);
-	}
+	bus_generic_detach(dev);
 
 	if (sc->sk_intrhand)
 		bus_teardown_intr(dev, sc->sk_res[1], sc->sk_intrhand);

@@ -4,6 +4,7 @@
 #define	TMPFILE_SIZE	(1024 * 32)
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/random.h>
 #include <sys/resource.h>
 #include <sys/select.h>
@@ -162,7 +163,10 @@ replace_stdin(void)
 		close(fd);
 }
 
-ATF_TC_WITHOUT_HEAD(arc4random_buf_before_end);
+ATF_TC(arc4random_buf_before_end);
+ATF_TC_HEAD(arc4random_buf_before_end, tc)
+{
+}
 ATF_TC_BODY(arc4random_buf_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -180,7 +184,10 @@ ATF_TC_BODY(arc4random_buf_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(arc4random_buf_end);
+ATF_TC(arc4random_buf_end);
+ATF_TC_HEAD(arc4random_buf_end, tc)
+{
+}
 ATF_TC_BODY(arc4random_buf_end, tc)
 {
 #define BUF &__stack.__buf
@@ -198,7 +205,10 @@ ATF_TC_BODY(arc4random_buf_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(arc4random_buf_heap_before_end);
+ATF_TC(arc4random_buf_heap_before_end);
+ATF_TC_HEAD(arc4random_buf_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(arc4random_buf_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -218,7 +228,10 @@ ATF_TC_BODY(arc4random_buf_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(arc4random_buf_heap_end);
+ATF_TC(arc4random_buf_heap_end);
+ATF_TC_HEAD(arc4random_buf_heap_end, tc)
+{
+}
 ATF_TC_BODY(arc4random_buf_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -238,7 +251,10 @@ ATF_TC_BODY(arc4random_buf_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(arc4random_buf_heap_after_end);
+ATF_TC(arc4random_buf_heap_after_end);
+ATF_TC_HEAD(arc4random_buf_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(arc4random_buf_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -289,7 +305,152 @@ monitor:
 
 }
 
-ATF_TC_WITHOUT_HEAD(realpath_before_end);
+ATF_TC(getenv_r_before_end);
+ATF_TC_HEAD(getenv_r_before_end, tc)
+{
+}
+ATF_TC_BODY(getenv_r_before_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+
+	getenv_r("PATH", __stack.__buf, __len);
+#undef BUF
+
+}
+
+ATF_TC(getenv_r_end);
+ATF_TC_HEAD(getenv_r_end, tc)
+{
+}
+ATF_TC_BODY(getenv_r_end, tc)
+{
+#define BUF &__stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char __buf[42];
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(__stack.__buf);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+
+	getenv_r("PATH", __stack.__buf, __len);
+#undef BUF
+
+}
+
+ATF_TC(getenv_r_heap_before_end);
+ATF_TC_HEAD(getenv_r_heap_before_end, tc)
+{
+}
+ATF_TC_BODY(getenv_r_heap_before_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 - 1;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+
+	getenv_r("PATH", __stack.__buf, __len);
+#undef BUF
+
+}
+
+ATF_TC(getenv_r_heap_end);
+ATF_TC_HEAD(getenv_r_heap_end, tc)
+{
+}
+ATF_TC_BODY(getenv_r_heap_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42;
+	const size_t __idx __unused = __len - 1;
+
+	__stack.__buf = malloc(__bufsz);
+
+	getenv_r("PATH", __stack.__buf, __len);
+#undef BUF
+
+}
+
+ATF_TC(getenv_r_heap_after_end);
+ATF_TC_HEAD(getenv_r_heap_after_end, tc)
+{
+}
+ATF_TC_BODY(getenv_r_heap_after_end, tc)
+{
+#define BUF __stack.__buf
+	struct {
+		uint8_t padding_l;
+		unsigned char * __buf;
+		uint8_t padding_r;
+	} __stack;
+	const size_t __bufsz __unused = sizeof(*__stack.__buf) * (42);
+	const size_t __len = 42 + 1;
+	const size_t __idx __unused = __len - 1;
+	pid_t __child;
+	int __status;
+
+	__child = fork();
+	ATF_REQUIRE(__child >= 0);
+	if (__child > 0)
+		goto monitor;
+
+	/* Child */
+	disable_coredumps();
+	__stack.__buf = malloc(__bufsz);
+
+	getenv_r("PATH", __stack.__buf, __len);
+	_exit(EX_SOFTWARE);	/* Should have aborted. */
+
+monitor:
+	while (waitpid(__child, &__status, 0) != __child) {
+		ATF_REQUIRE_EQ(EINTR, errno);
+	}
+
+	if (!WIFSIGNALED(__status)) {
+		switch (WEXITSTATUS(__status)) {
+		case EX_SOFTWARE:
+			atf_tc_fail("FORTIFY_SOURCE failed to abort");
+			break;
+		case EX_OSERR:
+			atf_tc_fail("setrlimit(2) failed");
+			break;
+		default:
+			atf_tc_fail("child exited with status %d",
+			    WEXITSTATUS(__status));
+		}
+	} else {
+		ATF_REQUIRE_EQ(SIGABRT, WTERMSIG(__status));
+	}
+#undef BUF
+
+}
+
+ATF_TC(realpath_before_end);
+ATF_TC_HEAD(realpath_before_end, tc)
+{
+}
 ATF_TC_BODY(realpath_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -307,7 +468,10 @@ ATF_TC_BODY(realpath_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(realpath_end);
+ATF_TC(realpath_end);
+ATF_TC_HEAD(realpath_end, tc)
+{
+}
 ATF_TC_BODY(realpath_end, tc)
 {
 #define BUF &__stack.__buf
@@ -325,7 +489,10 @@ ATF_TC_BODY(realpath_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(realpath_heap_before_end);
+ATF_TC(realpath_heap_before_end);
+ATF_TC_HEAD(realpath_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(realpath_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -345,7 +512,10 @@ ATF_TC_BODY(realpath_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(realpath_heap_end);
+ATF_TC(realpath_heap_end);
+ATF_TC_HEAD(realpath_heap_end, tc)
+{
+}
 ATF_TC_BODY(realpath_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -365,7 +535,10 @@ ATF_TC_BODY(realpath_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(realpath_heap_after_end);
+ATF_TC(realpath_heap_after_end);
+ATF_TC_HEAD(realpath_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(realpath_heap_after_end, tc)
 {
 #define BUF __stack.__buf
@@ -423,6 +596,11 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, arc4random_buf_heap_before_end);
 	ATF_TP_ADD_TC(tp, arc4random_buf_heap_end);
 	ATF_TP_ADD_TC(tp, arc4random_buf_heap_after_end);
+	ATF_TP_ADD_TC(tp, getenv_r_before_end);
+	ATF_TP_ADD_TC(tp, getenv_r_end);
+	ATF_TP_ADD_TC(tp, getenv_r_heap_before_end);
+	ATF_TP_ADD_TC(tp, getenv_r_heap_end);
+	ATF_TP_ADD_TC(tp, getenv_r_heap_after_end);
 	ATF_TP_ADD_TC(tp, realpath_before_end);
 	ATF_TP_ADD_TC(tp, realpath_end);
 	ATF_TP_ADD_TC(tp, realpath_heap_before_end);

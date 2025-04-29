@@ -252,7 +252,6 @@ struct cp2112iic_softc {
 	}		io;
 };
 
-static int cp2112_detach(device_t dev);
 static int cp2112gpio_detach(device_t dev);
 static int cp2112iic_detach(device_t dev);
 
@@ -351,20 +350,8 @@ cp2112_attach(device_t dev)
 	return (0);
 
 detach:
-	cp2112_detach(dev);
+	bus_generic_detach(dev);
 	return (ENXIO);
-}
-
-static int
-cp2112_detach(device_t dev)
-{
-	int err;
-
-	err = bus_generic_detach(dev);
-	if (err != 0)
-		return (err);
-	device_delete_children(dev);
-	return (0);
 }
 
 static int
@@ -1358,7 +1345,6 @@ cp2112iic_detach(device_t dev)
 	err = bus_generic_detach(dev);
 	if (err != 0)
 		return (err);
-	device_delete_children(dev);
 
 	mtx_lock(&sc->io.lock);
 	usbd_transfer_stop(sc->xfers[CP2112_INTR_IN]);
@@ -1374,7 +1360,7 @@ cp2112iic_detach(device_t dev)
 static device_method_t cp2112hid_methods[] = {
 	DEVMETHOD(device_probe,		cp2112_probe),
 	DEVMETHOD(device_attach,	cp2112_attach),
-	DEVMETHOD(device_detach,	cp2112_detach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
 
 	DEVMETHOD_END
 };
