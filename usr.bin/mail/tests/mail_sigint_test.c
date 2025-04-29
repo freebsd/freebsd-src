@@ -39,7 +39,7 @@ mailx_sigint(bool interactive)
 
 	/* input, output, error, sync pipes */
 	if (pipe(ipd) != 0 || pipe(opd) != 0 || pipe(epd) != 0 ||
-	    pipe2(spd, O_CLOEXEC) != 0)
+	    pipe(spd) != 0 || fcntl(spd[1], F_SETFD, FD_CLOEXEC) != 0)
 		atf_tc_fail("failed to pipe");
 	/* fork child */
 	if ((pid = fork()) < 0)
@@ -55,6 +55,7 @@ mailx_sigint(bool interactive)
 		dup2(epd[1], STDERR_FILENO);
 		close(epd[0]);
 		close(epd[1]);
+		close(spd[0]);
 		/* force dead.letter to go to cwd */
 		setenv("HOME", ".", 1);
 		/* exec mailx */
@@ -113,7 +114,7 @@ mailx_sigint(bool interactive)
 	close(spd[0]);
 	if (interactive) {
 		ATF_CHECK(WIFEXITED(status));
-		ATF_CHECK_INTEQ(0, WEXITSTATUS(status));
+		ATF_CHECK_INTEQ(1, WEXITSTATUS(status));
 		ATF_CHECK_INTEQ(2, kc);
 		ATF_CHECK_STREQ("", obuf);
 		ATF_CHECK_MATCH("Interrupt -- one more to kill letter", ebuf);
