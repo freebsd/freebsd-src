@@ -112,6 +112,7 @@ static struct rtlbt_devid rtlbt_list[] = {
 	{ .vendor_id = 0x2ff8, .product_id = 0xb011 },
 
 	/* Realtek 8761BUV Bluetooth devices */
+	{ .vendor_id = 0x2c4e, .product_id = 0x0115 },
 	{ .vendor_id = 0x2357, .product_id = 0x0604 },
 	{ .vendor_id = 0x0b05, .product_id = 0x190e },
 	{ .vendor_id = 0x2550, .product_id = 0x8761 },

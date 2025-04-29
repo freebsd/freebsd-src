@@ -127,6 +127,7 @@ const STRUCT_USB_HOST_ID ubt_rtl_devs[] =
 	{ USB_VPI(0x2ff8, 0xb011, 0) },
 
 	/* Realtek 8761BUV Bluetooth devices */
+	{ USB_VPI(0x2c4e, 0x0115, 0) },
 	{ USB_VPI(0x2357, 0x0604, 0) },
 	{ USB_VPI(0x0b05, 0x190e, 0) },
 	{ USB_VPI(0x2550, 0x8761, 0) },
