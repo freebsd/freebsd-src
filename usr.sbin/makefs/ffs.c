@@ -685,9 +685,7 @@ ffs_build_dinode1(struct ufs1_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 	dinp->di_mode = cur->inode->st.st_mode;
 	dinp->di_nlink = cur->inode->nlink;
 	dinp->di_size = cur->inode->st.st_size;
-#if HAVE_STRUCT_STAT_ST_FLAGS
-	dinp->di_flags = cur->inode->st.st_flags;
-#endif
+	dinp->di_flags = FSINODE_ST_FLAGS(*cur->inode);
 	dinp->di_gen = random();
 	dinp->di_uid = cur->inode->st.st_uid;
 	dinp->di_gid = cur->inode->st.st_gid;
@@ -733,9 +731,7 @@ ffs_build_dinode2(struct ufs2_dinode *dinp, dirbuf_t *dbufp, fsnode *cur,
 	dinp->di_mode = cur->inode->st.st_mode;
 	dinp->di_nlink = cur->inode->nlink;
 	dinp->di_size = cur->inode->st.st_size;
-#if HAVE_STRUCT_STAT_ST_FLAGS
-	dinp->di_flags = cur->inode->st.st_flags;
-#endif
+	dinp->di_flags = FSINODE_ST_FLAGS(*cur->inode);
 	dinp->di_gen = random();
 	dinp->di_uid = cur->inode->st.st_uid;
 	dinp->di_gid = cur->inode->st.st_gid;
