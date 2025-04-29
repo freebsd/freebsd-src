@@ -2711,6 +2711,13 @@ u_short			 pf_get_translation(struct pf_pdesc *,
 			    int, struct pf_state_key **, struct pf_state_key **,
 			    struct pf_kanchor_stackframe *, struct pf_krule **,
 			    struct pf_udp_mapping **udp_mapping);
+u_short			 pf_get_transaddr(struct pf_pdesc *,
+			    struct pf_state_key **, struct pf_state_key **,
+			    struct pf_krule *, struct pf_udp_mapping **,
+			    u_int8_t, struct pf_kpool *);
+int			 pf_translate_compat(struct pf_pdesc *,
+			    struct pf_state_key *, struct pf_state_key *,
+			    struct pf_krule *, u_int16_t);
 
 int			 pf_state_key_setup(struct pf_pdesc *,
 			    u_int16_t, u_int16_t,

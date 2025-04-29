@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 22, 2025
+.Dd April 27, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -1333,29 +1333,18 @@ If the
 .Xr dummynet 4
 module is not loaded any traffic sent into a queue or pipe will be dropped.
 .Sh TRANSLATION
-Translation rules modify either the source or destination address of the
-packets associated with a stateful connection.
-A stateful connection is automatically created to track packets matching
-such a rule as long as they are not blocked by the filtering section of
-.Nm pf.conf .
-The translation engine modifies the specified address and/or port in the
-packet, recalculates IP, TCP and UDP checksums as necessary, and passes
-it to the packet filter for evaluation.
+Translation options modify either the source or destination address and
+port of the packets associated with a stateful connection.
+.Xr pf 4
+modifies the specified address and/or port in the packet and recalculates
+IP, TCP, and UDP checksums as necessary.
 .Pp
-Since translation occurs before filtering the filter
-engine will see packets as they look after any
-addresses and ports have been translated.
-Filter rules will therefore have to filter based on the translated
+If specified on a
+.Ic match
+rule, subsequent rules will see packets as they look
+after any addresses and ports have been translated.
+These rules will therefore have to filter based on the translated
 address and port number.
-Packets that match a translation rule are only automatically passed if
-the
-.Ar pass
-modifier is given, otherwise they are
-still subject to
-.Ar block
-and
-.Ar pass
-rules.
 .Pp
 The state entry created permits
 .Xr pf 4
@@ -1418,13 +1407,18 @@ The current implementation will only extract IPv4 addresses from the
 IPv6 addresses with a prefix length of /96 and greater.
 .It Ar binat
 A
-.Ar binat
+.Ar binat-to
 rule specifies a bidirectional mapping between an external IP netblock
 and an internal IP netblock.
-.It Ar nat
+It expands to an outbound
+.Ar nat-to
+rule and an inbound
+.Ar rdr-to
+rule.
+.It Ar nat-to
 A
-.Ar nat
-rule specifies that IP addresses are to be changed as the packet
+.Ar nat-to
+option specifies that IP addresses are to be changed as the packet
 traverses the given interface.
 This technique allows one or more IP addresses
 on the translating host to support network traffic for a larger range of
@@ -1432,44 +1426,116 @@ machines on an "inside" network.
 Although in theory any IP address can be used on the inside, it is strongly
 recommended that one of the address ranges defined by RFC 1918 be used.
 These netblocks are:
-.Bd -literal
-10.0.0.0 - 10.255.255.255 (all of net 10, i.e., 10/8)
-172.16.0.0 - 172.31.255.255 (i.e., 172.16/12)
-192.168.0.0 - 192.168.255.255 (i.e., 192.168/16)
+.Bd -literal -offset indent
+10.0.0.0 - 10.255.255.255 (all of net 10.0.0.0, i.e., 10.0.0.0/8)
+172.16.0.0 - 172.31.255.255 (i.e., 172.16.0.0/12)
+192.168.0.0 - 192.168.255.255 (i.e., 192.168.0.0/16)
 .Ed
-.It Pa rdr
+.Pp
+.Ar nat-to
+is usually applied outbound.
+If applied inbound, nat-to to a local IP address is not supported.
+.It Pa rdr-to
 The packet is redirected to another destination and possibly a
 different port.
-.Ar rdr
-rules can optionally specify port ranges instead of single ports.
-rdr ... port 2000:2999 -> ... port 4000
+.Ar rdr-to
+can optionally specify port ranges instead of single ports.
+For instance:
+.Bd -literal -offset indent
+match in ... port 2000:2999 rdr-to ... port 4000
+.Ed
 redirects ports 2000 to 2999 (inclusive) to port 4000.
-rdr ... port 2000:2999 -> ... port 4000:*
+.Bd -literal -offset indent
+qmatch in ... port 2000:2999 rdr-to ... port 4000:*
+.Ed
 redirects port 2000 to 4000, 2001 to 4001, ..., 2999 to 4999.
 .El
 .Pp
+.Ar rdr-to
+is usually applied inbound.
+If applied outbound, rdr-to to a local IP address is not supported.
 In addition to modifying the address, some translation rules may modify
 source or destination ports for
 .Xr tcp 4
 or
 .Xr udp 4
 connections; implicitly in the case of
-.Ar nat
-rules and both implicitly and explicitly in the case of
-.Ar rdr
-rules.
+.Ar nat-to
+options and both implicitly and explicitly in the case of
+.Ar rdr-to
+ones.
 A
-.Ar rdr
-rule may cause the source port to be modified if doing so avoids a conflict
+.Ar rdr-to
+opion may cause the source port to be modified if doing so avoids a conflict
 with an existing connection.
 A random source port in the range 50001-65535 is chosen in this case; to
 avoid excessive CPU consumption, the number of searches for a free port is
 limited by the
-.Va net.pf.rdr_srcport_rewrite_tries
+.Va net.pf.rdqr_srcport_rewrite_tries
 sysctl.
 Port numbers are never translated with a
-.Ar binat
-rule.
+.Ar binat-to
+option.
+.Pp
+Note that redirecting external incoming connections to the loopback
+address, as in
+.Bd -literal -offset indent
+pass in on egress proto tcp from any to any port smtp \e
+      rdr-to 127.0.0.1 port spamd
+.Ed
+.Pp
+will effectively allow an external host to connect to daemons
+bound solely to the loopback address, circumventing the traditional
+blocking of such connections on a real interface.
+Unless this effect is desired, any of the local non-loopback addresses
+should be used as redirection target instead, which allows external
+connections only to daemons bound to this address or not bound to
+any address.
+.Pp
+See
+.Sx TRANSLATION EXAMPLES
+below.
+.Ss NAT ruleset (pre-FreeBSD 15)
+In order to maintain compatibility with older releases of FreeBSD
+.Ar NAT
+rules can also be specified in their own ruleset.
+A stateful connection is automatically created to track packets matching
+such a rule as long as they are not blocked by the filtering section of
+.Nm pf.conf .
+Since translation occurs before filtering the filter
+engine will see packets as they look after any
+addresses and ports have been translated.
+Filter rules will therefore have to filter based on the translated
+address and port number.
+Packets that match a translation rule are only automatically passed if
+the
+.Ar pass
+modifier is given, otherwise they are
+still subject to
+.Ar block
+and
+.Ar pass
+rules.
+.Pp
+The following rules can be defined in the NAT ruleset:
+.Ar binat ,
+.Ar nat ,
+and
+.Ar rdr .
+They have the same effect as
+.Ar binat-to ,
+.Ar nat-to
+and
+.Ar rdr-to
+options for filter rules.
+.Pp
+The
+.Ar no
+option prefixed to a translation rule causes packets to remain untranslated,
+much in the same way as
+.Ar drop quick
+works in the packet filter.
+If no rule matches the packet it is passed to the filter engine unmodified.
 .Pp
 Evaluation order of the translation rules is dependent on the type
 of the translation rules and of the direction of a packet.
@@ -1484,14 +1550,6 @@ Rules of the same type are evaluated in the same order in which they
 appear in the ruleset.
 The first matching rule decides what action is taken.
 .Pp
-The
-.Ar no
-option prefixed to a translation rule causes packets to remain untranslated,
-much in the same way as
-.Ar drop quick
-works in the packet filter (see below).
-If no rule matches the packet it is passed to the filter engine unmodified.
-.Pp
 Translation rules apply only to packets that pass through
 the specified interface, and if no interface is specified,
 translation is applied to packets on all interfaces.
@@ -1504,22 +1562,8 @@ Redirections cannot reflect packets back through the interface they arrive
 on, they can only be redirected to hosts connected to different interfaces
 or to the firewall itself.
 .Pp
-Note that redirecting external incoming connections to the loopback
-address, as in
-.Bd -literal -offset indent
-rdr on ne3 inet proto tcp to port smtp -> 127.0.0.1 port spamd
-.Ed
-.Pp
-will effectively allow an external host to connect to daemons
-bound solely to the loopback address, circumventing the traditional
-blocking of such connections on a real interface.
-Unless this effect is desired, any of the local non-loopback addresses
-should be used as redirection target instead, which allows external
-connections only to daemons bound to this address or not bound to
-any address.
-.Pp
 See
-.Sx TRANSLATION EXAMPLES
+.Sx COMPATIBILITY TRANSLATION EXAMPLES
 below.
 .Sh PACKET FILTERING
 .Xr pf 4
@@ -1615,6 +1659,9 @@ rules in that parameters are set for every rule a packet matches, not only
 on the last matching rule.
 For the following parameters, this means that the parameter effectively becomes
 "sticky" until explicitly overridden:
+.Ar nat-to ,
+.Ar binat-to ,
+.Ar rdr-to ,
 .Ar queue ,
 .Ar dnpipe ,
 .Ar dnqueue ,
@@ -2037,8 +2084,8 @@ if one flushes the state table.
 However, states created from such intermediate packets may be missing
 connection details such as the TCP window scaling factor.
 States which modify the packet flow, such as those affected by
-.Ar af-to,
-.Ar nat,
+.Ar af-to ,
+.Ar nat ,
 .Ar binat or
 .Ar rdr
 rules,
@@ -3051,21 +3098,24 @@ Doing so would break SCTP multihoming.
 This example maps incoming requests on port 80 to port 8080, on
 which a daemon is running (because, for example, it is not run as root,
 and therefore lacks permission to bind to port 80).
-.Bd -literal
+.Bd -literal -offset indent
 # use a macro for the interface name, so it can be changed easily
 ext_if = \&"ne3\&"
 
 # map daemon on 8080 to appear to be on 80
-rdr on $ext_if proto tcp from any to any port 80 -> 127.0.0.1 port 8080
+match in on $ext_if proto tcp from any to any port 80 \e
+      rdr-to 127.0.0.1 port 8080
 .Ed
 .Pp
-If the
+If a
 .Ar pass
-modifier is given, packets matching the translation rule are passed without
-inspecting the filter rules:
-.Bd -literal
-rdr pass on $ext_if proto tcp from any to any port 80 -> 127.0.0.1 \e
-      port 8080
+rule is used with the
+.Ar quick
+modifier, packets matching the translation rule are passed without
+inspecting subsequent filter rules:
+.Bd -literal -offset indent
+pass in quick on $ext_if proto tcp from any to any port 80 \e
+      rdr-to 127.0.0.1 port 8080
 .Ed
 .Pp
 In the example below, vlan12 is configured as 192.168.168.1;
@@ -3076,29 +3126,8 @@ network appear as though it is the Internet routable address
 204.92.77.111 to nodes behind any interface on the router except
 for the nodes on vlan12.
 (Thus, 192.168.168.1 can talk to the 192.168.168.0/24 nodes.)
-.Bd -literal
-nat on ! vlan12 from 192.168.168.0/24 to any -> 204.92.77.111
-.Ed
-.Pp
-In the example below, the machine sits between a fake internal 144.19.74.*
-network, and a routable external IP of 204.92.77.100.
-The
-.Ar no nat
-rule excludes protocol AH from being translated.
-.Bd -literal
-# NO NAT
-no nat on $ext_if proto ah from 144.19.74.0/24 to any
-nat on $ext_if from 144.19.74.0/24 to any -> 204.92.77.100
-.Ed
-.Pp
-In the example below, packets bound for one specific server, as well as those
-generated by the sysadmins are not proxied; all other connections are.
-.Bd -literal
-# NO RDR
-no rdr on $int_if proto { tcp, udp } from any to $server port 80
-no rdr on $int_if proto { tcp, udp } from $sysadmins to any port 80
-rdr on $int_if proto { tcp, udp } from any to any port 80 -> 127.0.0.1 \e
-      port 80
+.Bd -literal -offset indent
+match out on ! vlan12 from 192.168.168.0/24 to any nat-to 204.92.77.111
 .Ed
 .Pp
 This longer example uses both a NAT and a redirection.
@@ -3111,62 +3140,84 @@ The three mandatory anchors for
 are omitted from this example; see the
 .Xr ftp-proxy 8
 manpage.
-.Bd -literal
+.Bd -literal -offset indent
 # NAT
 # Translate outgoing packets' source addresses (any protocol).
 # In this case, any address but the gateway's external address is mapped.
-nat on $ext_if inet from ! ($ext_if) to any -> ($ext_if)
+pass out on $ext_if inet from ! ($ext_if) to any nat-to ($ext_if)
 
 # NAT PROXYING
 # Map outgoing packets' source port to an assigned proxy port instead of
 # an arbitrary port.
 # In this case, proxy outgoing isakmp with port 500 on the gateway.
-nat on $ext_if inet proto udp from any port = isakmp to any -> ($ext_if) \e
-      port 500
+pass out on $ext_if inet proto udp from any port = isakmp to any \e
+      nat-to ($ext_if) port 500
 
 # BINAT
 # Translate outgoing packets' source address (any protocol).
 # Translate incoming packets' destination address to an internal machine
 # (bidirectional).
-binat on $ext_if from 10.1.2.150 to any -> $ext_if
+pass on $ext_if from 10.1.2.150 to any binat-to $ext_if
 
 # Translate packets arriving on $peer_if addressed to 172.22.16.0/20
 # to the corresponding address in 172.21.16.0/20 (bidirectional).
-binat on $peer_if from 172.21.16.0/20 to any -> 172.22.16.0/20
+pass on $peer_if from 172.21.16.0/20 to any binat-to 172.22.16.0/20
 
 # RDR
 # Translate incoming packets' destination addresses.
 # As an example, redirect a TCP and UDP port to an internal machine.
-rdr on $ext_if inet proto tcp from any to ($ext_if) port 8080 \e
-      -> 10.1.2.151 port 22
-rdr on $ext_if inet proto udp from any to ($ext_if) port 8080 \e
-      -> 10.1.2.151 port 53
+pass in on $ext_if inet proto tcp from any to ($ext_if) port 8080 \e
+      rdr-to 10.1.2.151 port 22
+pass in on $ext_if inet proto udp from any to ($ext_if) port 8080 \e
+      rdr-to 10.1.2.151 port 53
 
 # RDR
 # Translate outgoing ftp control connections to send them to localhost
 # for proxying with ftp-proxy(8) running on port 8021.
-rdr on $int_if proto tcp from any to any port 21 -> 127.0.0.1 port 8021
+pass in on $int_if proto tcp from any to any port 21 \e
+      rdr-to 127.0.0.1 port 8021
 .Ed
 .Pp
 In this example, a NAT gateway is set up to translate internal addresses
 using a pool of public addresses (192.0.2.16/28) and to redirect
 incoming web server connections to a group of web servers on the internal
 network.
-.Bd -literal
+.Bd -literal -offset indent
 # NAT LOAD BALANCE
 # Translate outgoing packets' source addresses using an address pool.
 # A given source address is always translated to the same pool address by
 # using the source-hash keyword.
-nat on $ext_if inet from any to any -> 192.0.2.16/28 source-hash
+pass out on $ext_if inet from any to any nat-to 192.0.2.16/28 source-hash
 
 # RDR ROUND ROBIN
 # Translate incoming web server connections to a group of web servers on
 # the internal network.
-rdr on $ext_if proto tcp from any to any port 80 \e
-      -> { 10.1.2.155, 10.1.2.160, 10.1.2.161 } round-robin
+pass in on $ext_if proto tcp from any to any port 80 \e
+      rdr-to { 10.1.2.155, 10.1.2.160, 10.1.2.161 } round-robin
+.Ed
+.Sh COMPATIBILITY TRANSLATION EXAMPLES
+In the example below, the machine sits between a fake internal 144.19.74.*
+network, and a routable external IP of 204.92.77.100.
+The
+.Ar no nat
+rule excludes protocol AH from being translated.
+.Bd -literal -offset indent
+# NAT
+no nat on $ext_if proto ah from 144.19.74.0/24 to any
+nat on $ext_if from 144.19.74.0/24 to any -> 204.92.77.100
+.Ed
+.Pp
+In the example below, packets bound for one specific server, as well as those
+generated by the sysadmins are not proxied; all other connections are.
+.Bd -literal -offset indent
+# RDR
+no rdr on $int_if proto { tcp, udp } from any to $server port 80
+no rdr on $int_if proto { tcp, udp } from $sysadmins to any port 80
+rdr on $int_if proto { tcp, udp } from any to any port 80 \e
+      -> 127.0.0.1 port 80
 .Ed
 .Sh FILTER EXAMPLES
-.Bd -literal
+.Bd -literal -offset indent
 # The external interface is kue0
 # (157.161.48.183, the only routable address)
 # and the private network is 10.0.0.0/8, for which we are doing NAT.

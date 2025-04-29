@@ -52,7 +52,7 @@ class systembuf : public std::streambuf, noncopyable {
     struct impl;
 
     /// Pointer to the shared internal implementation.
-    std::auto_ptr< impl > _pimpl;
+    std::unique_ptr< impl > _pimpl;
 
 protected:
     int_type underflow(void);

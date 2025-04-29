@@ -46,7 +46,7 @@
 namespace utils {
 
 
-std::auto_ptr< std::ostream > open_ostream(const utils::fs::path&);
+std::unique_ptr< std::ostream > open_ostream(const utils::fs::path&);
 std::size_t stream_length(std::istream&);
 std::string read_file(const utils::fs::path&);
 std::string read_stream(std::istream&);

@@ -187,12 +187,12 @@ class executor_handle {
                            const utils::fs::path&,
                            const utils::datetime::delta&,
                            const utils::optional< utils::passwd::user >,
-                           std::auto_ptr< utils::process::child >);
+                           std::unique_ptr< utils::process::child >);
 
     void spawn_followup_pre(void);
     exec_handle spawn_followup_post(const exit_handle&,
                                     const utils::datetime::delta&,
-                                    std::auto_ptr< utils::process::child >);
+                                    std::unique_ptr< utils::process::child >);
 
 public:
     ~executor_handle(void);

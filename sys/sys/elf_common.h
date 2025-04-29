@@ -824,6 +824,7 @@ typedef struct {
 #define	NT_FREEBSD_FCTL_WXNEEDED	0x00000008
 #define	NT_FREEBSD_FCTL_LA48		0x00000010
 /* was ASG_DISABLE, do not reuse	0x00000020 */
+#define	NT_FREEBSD_FCTL_LA57		0x00000040
 
 /* Values for n_type.  Used in core files. */
 #define	NT_PRSTATUS	1	/* Process status. */

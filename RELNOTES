@@ -10,6 +10,23 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+995b690d1398:
+	ps(1)'s '-U' option has been changed to select processes by their real
+	user IDs instead of their effective one, in accordance with POSIX and
+	the use case of wanting to list processes launched by some user, which
+	is expected to be more frequent than listing processes having the rights
+	of some user.  This only affects the selection of processes whose real
+	and effective user IDs differ.	After this change, ps(1)'s '-U' flag
+	behaves differently then in other BSDs but identically to that of
+	Linux's procps and illumos.
+
+1aabbb25c9f9:
+	ps(1)'s default list of processes now comes from matching its effective
+	user ID instead of its real user ID with the effective user ID of all
+	processes, in accordance with POSIX.  As ps(1) itself is not installed
+	setuid, this only affects processes having different real and effective
+	user IDs that launch ps(1) processes.
+
 f0600c41e754-de701f9bdbe0, bc201841d139:
 	mac_do(4) is now considered production-ready and its functionality has
 	been considerably extended at the price of breaking credentials

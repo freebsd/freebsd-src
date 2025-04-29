@@ -59,10 +59,10 @@ static const fs::path stderr_path("/dev/stderr");
 /// \param path The path to the output file to be created.
 ///
 /// \return A pointer to a new output stream.
-std::auto_ptr< std::ostream >
+std::unique_ptr< std::ostream >
 utils::open_ostream(const fs::path& path)
 {
-    std::auto_ptr< std::ostream > out;
+    std::unique_ptr< std::ostream > out;
     if (path == stdout_path) {
         out.reset(new std::ofstream());
         out->copyfmt(std::cout);

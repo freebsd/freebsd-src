@@ -31,6 +31,7 @@
 #ifndef _SYS_KASSERT_H_
 #define	_SYS_KASSERT_H_
 
+#include <sys/_types.h>
 #include <sys/cdefs.h>
 
 #ifdef _KERNEL
@@ -51,11 +52,11 @@ extern const char *panicstr;	/* panic message */
  */
 #ifdef	INVARIANTS
 
-extern caddr_t poisoned_buf;
+extern void *poisoned_buf;
 #define DEBUG_POISON_POINTER_VALUE poisoned_buf
 
 #define DEBUG_POISON_POINTER(x) ({				\
-	x = (void *)(DEBUG_POISON_POINTER_VALUE);		\
+	x = (DEBUG_POISON_POINTER_VALUE);			\
 })
 
 #else

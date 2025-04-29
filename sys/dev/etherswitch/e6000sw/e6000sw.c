@@ -89,6 +89,7 @@ typedef struct e6000sw_softc {
 	device_t		miibus[E6000SW_MAX_PORTS];
 	struct taskqueue	*sc_tq;
 	struct timeout_task	sc_tt;
+	bool			is_shutdown;
 
 	int			vlans[E6000SW_NUM_VLANS];
 	uint32_t		swid;
@@ -198,7 +199,7 @@ DRIVER_MODULE(e6000sw, mdio, e6000sw_driver, 0, 0);
 DRIVER_MODULE(etherswitch, e6000sw, etherswitch_driver, 0, 0);
 DRIVER_MODULE(miibus, e6000sw, miibus_driver, 0, 0);
 MODULE_DEPEND(e6000sw, mdio, 1, 1, 1);
-
+MODULE_DEPEND(e6000sw, etherswitch, 1, 1, 1);
 
 static void
 e6000sw_identify(driver_t *driver, device_t parent)
@@ -216,7 +217,8 @@ e6000sw_probe(device_t dev)
 #ifdef FDT
 	phandle_t switch_node;
 #else
-	int is_6190;
+	int is_6190 = 0;
+	int is_6190x = 0;
 #endif
 
 	sc = device_get_softc(dev);
@@ -252,15 +254,25 @@ e6000sw_probe(device_t dev)
 	    device_get_unit(sc->dev), "addr", &sc->sw_addr) != 0)
 		return (ENXIO);
 	if (resource_int_value(device_get_name(sc->dev),
-	    device_get_unit(sc->dev), "is6190", &is_6190) != 0)
+	    device_get_unit(sc->dev), "is6190", &is_6190) != 0) {
 		/*
 		 * Check "is8190" to keep backward compatibility with
 		 * older setups.
 		 */
 		resource_int_value(device_get_name(sc->dev),
 		    device_get_unit(sc->dev), "is8190", &is_6190);
+	}
+	resource_int_value(device_get_name(sc->dev),
+	    device_get_unit(sc->dev), "is6190x", &is_6190x);
+		if (is_6190 != 0 && is_6190x != 0) {
+			device_printf(dev,
+			    "Cannot configure conflicting variants (6190 / 6190x)\n");
+			return (ENXIO);
+		}
 	if (is_6190 != 0)
 		sc->swid = MV88E6190;
+	else if (is_6190x != 0)
+		sc->swid = MV88E6190X;
 #endif
 	if (sc->sw_addr < 0 || sc->sw_addr > 32)
 		return (ENXIO);
@@ -302,6 +314,10 @@ e6000sw_probe(device_t dev)
 		description = "Marvell 88E6190";
 		sc->num_ports = 11;
 		break;
+	case MV88E6190X:
+		description = "Marvell 88E6190X";
+		sc->num_ports = 11;
+		break;
 	default:
 		device_printf(dev, "Unrecognized device, id 0x%x.\n", sc->swid);
 		return (ENXIO);
@@ -332,7 +348,7 @@ e6000sw_parse_fixed_link(e6000sw_softc_t *sc, phandle_t node, uint32_t port)
 			return (ENXIO);
 		}
 		if (speed == 2500 && (MVSWITCH(sc, MV88E6141) ||
-		     MVSWITCH(sc, MV88E6341) || MVSWITCH(sc, MV88E6190)))
+		     MVSWITCH(sc, MV88E6341) || MVSWITCH(sc, MV88E6190) || MVSWITCH(sc, MV88E6190X)))
 			sc->fixed25_mask |= (1 << port);
 	}
 
@@ -596,22 +612,26 @@ e6000sw_attach(device_t dev)
 				reg |= PSC_CONTROL_SPD2500;
 			else
 				reg |= PSC_CONTROL_SPD1000;
-			if (MVSWITCH(sc, MV88E6190) &&
+			if ((MVSWITCH(sc, MV88E6190) ||
+			    MVSWITCH(sc, MV88E6190X)) &&
 			    e6000sw_is_fixed25port(sc, port))
 				reg |= PSC_CONTROL_ALT_SPD;
 			reg |= PSC_CONTROL_FORCED_DPX | PSC_CONTROL_FULLDPX |
 			    PSC_CONTROL_FORCED_LINK | PSC_CONTROL_LINK_UP |
 			    PSC_CONTROL_FORCED_SPD;
-			if (!MVSWITCH(sc, MV88E6190))
+			if (!MVSWITCH(sc, MV88E6190) &&
+			    !MVSWITCH(sc, MV88E6190X))
 				reg |= PSC_CONTROL_FORCED_FC | PSC_CONTROL_FC_ON;
 			if (MVSWITCH(sc, MV88E6141) ||
 			    MVSWITCH(sc, MV88E6341) ||
-			    MVSWITCH(sc, MV88E6190))
+			    MVSWITCH(sc, MV88E6190) ||
+			    MVSWITCH(sc, MV88E6190X))
 				reg |= PSC_CONTROL_FORCED_EEE;
 			e6000sw_writereg(sc, REG_PORT(sc, port), PSC_CONTROL,
 			    reg);
 			/* Power on the SERDES interfaces. */
-			if (MVSWITCH(sc, MV88E6190) &&
+			if ((MVSWITCH(sc, MV88E6190) ||
+			    MVSWITCH(sc, MV88E6190X)) &&
 			    (port == 9 || port == 10)) {
 				if (e6000sw_is_fixed25port(sc, port))
 					sgmii = false;
@@ -650,6 +670,7 @@ e6000sw_attach(device_t dev)
 	return (0);
 
 out_fail:
+	E6000SW_UNLOCK(sc);
 	e6000sw_detach(dev);
 
 	return (err);
@@ -850,12 +871,17 @@ e6000sw_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	E6000SW_LOCK(sc);
+	sc->is_shutdown = true;
+	if (sc->sc_tq != NULL) {
+		while (taskqueue_cancel_timeout(sc->sc_tq, &sc->sc_tt, NULL) != 0)
+			taskqueue_drain_timeout(sc->sc_tq, &sc->sc_tt);
+	}
+	E6000SW_UNLOCK(sc);
+
 	error = bus_generic_detach(dev);
 	if (error != 0)
 		return (error);
-
-	if (device_is_attached(dev))
-		taskqueue_drain_timeout(sc->sc_tq, &sc->sc_tt);
 
 	if (sc->sc_tq != NULL)
 		taskqueue_free(sc->sc_tq);
@@ -1583,6 +1609,12 @@ e6000sw_tick(void *arg, int p __unused)
 	E6000SW_LOCK_ASSERT(sc, SA_UNLOCKED);
 
 	E6000SW_LOCK(sc);
+
+	if (sc->is_shutdown) {
+		E6000SW_UNLOCK(sc);
+		return;
+	}
+
 	for (port = 0; port < sc->num_ports; port++) {
 		/* Tick only on PHY ports */
 		if (!e6000sw_is_portenabled(sc, port) ||
@@ -1600,6 +1632,17 @@ e6000sw_tick(void *arg, int p __unused)
 		    &mii->mii_media_status, &mii->mii_media_active);
 
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
+			/*
+			 * Note: this is sometimes NULL during PHY
+			 * enumeration, although that shouldn't be
+			 * happening /after/ tick runs. To work
+			 * around this whilst the problem is being
+			 * debugged, just do a NULL check here and
+			 * continue.
+			 */
+			if (mii->mii_media.ifm_cur == NULL)
+				continue;
+
 			if (IFM_INST(mii->mii_media.ifm_cur->ifm_media)
 			    != miisc->mii_inst)
 				continue;
@@ -1607,6 +1650,7 @@ e6000sw_tick(void *arg, int p __unused)
 		}
 	}
 	E6000SW_UNLOCK(sc);
+	taskqueue_enqueue_timeout(sc->sc_tq, &sc->sc_tt, hz);
 }
 
 static void

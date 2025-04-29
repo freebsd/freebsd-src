@@ -108,7 +108,7 @@ static int	issignal(struct thread *td);
 static void	reschedule_signals(struct proc *p, sigset_t block, int flags);
 static int	sigprop(int sig);
 static void	tdsigwakeup(struct thread *, int, sig_t, int);
-static void	sig_suspend_threads(struct thread *, struct proc *);
+static bool	sig_suspend_threads(struct thread *, struct proc *);
 static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
@@ -116,7 +116,7 @@ static struct thread *sigtd(struct proc *p, int sig, bool fast_sigblock);
 static void	sigqueue_start(void);
 static void	sigfastblock_setpend(struct thread *td, bool resched);
 static void	sig_handle_first_stop(struct thread *td, struct proc *p,
-    int sig, bool ext);
+    int sig);
 
 static uma_zone_t	ksiginfo_zone = NULL;
 const struct filterops sig_filtops = {
@@ -2373,9 +2373,8 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		if (pt_attach_transparent &&
 		    (p->p_flag & P_TRACED) != 0 &&
 		    (p->p_flag2 & P2_PTRACE_FSTP) != 0) {
-			td->td_dbgflags |= TDB_FSTP;
 			PROC_SLOCK(p);
-			sig_handle_first_stop(td, p, sig, true);
+			sig_handle_first_stop(NULL, p, sig);
 			PROC_SUNLOCK(p);
 			return (0);
 		}
@@ -2800,14 +2799,24 @@ ptrace_remotereq(struct thread *td, int flag)
 	wakeup(p);
 }
 
-static void
+/*
+ * Suspend threads of the process p, either by directly setting the
+ * inhibitor for the thread sleeping interruptibly, or by making the
+ * thread suspend at the userspace boundary by scheduling a suspend AST.
+ *
+ * Returns true if some threads were suspended directly from the
+ * sleeping state, and false if all threads are forced to process AST.
+ */
+static bool
 sig_suspend_threads(struct thread *td, struct proc *p)
 {
 	struct thread *td2;
+	bool res;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
 
+	res = false;
 	FOREACH_THREAD_IN_PROC(p, td2) {
 		thread_lock(td2);
 		ast_sched_locked(td2, TDA_SUSPEND);
@@ -2825,8 +2834,10 @@ sig_suspend_threads(struct thread *td, struct proc *p)
 					sleepq_abort(td2, TD_SBDRY_ERRNO(td2));
 					continue;
 				}
-			} else if (!TD_IS_SUSPENDED(td2))
+			} else if (!TD_IS_SUSPENDED(td2)) {
 				thread_suspend_one(td2);
+				res = true;
+			}
 		} else if (!TD_IS_SUSPENDED(td2)) {
 #ifdef SMP
 			if (TD_IS_RUNNING(td2) && td2 != td)
@@ -2835,14 +2846,14 @@ sig_suspend_threads(struct thread *td, struct proc *p)
 		}
 		thread_unlock(td2);
 	}
+	return (res);
 }
 
 static void
-sig_handle_first_stop(struct thread *td, struct proc *p, int sig, bool ext)
+sig_handle_first_stop(struct thread *td, struct proc *p, int sig)
 {
-	if ((td->td_dbgflags & TDB_FSTP) == 0 &&
-	    ((p->p_flag2 & P2_PTRACE_FSTP) != 0 ||
-	    p->p_xthread != NULL))
+	if (td != NULL && (td->td_dbgflags & TDB_FSTP) == 0 &&
+	    ((p->p_flag2 & P2_PTRACE_FSTP) != 0 || p->p_xthread != NULL))
 		return;
 
 	p->p_xsig = sig;
@@ -2852,12 +2863,13 @@ sig_handle_first_stop(struct thread *td, struct proc *p, int sig, bool ext)
 	 * If we are on sleepqueue already, let sleepqueue
 	 * code decide if it needs to go sleep after attach.
 	 */
-	if (ext || td->td_wchan == NULL)
+	if (td != NULL && td->td_wchan == NULL)
 		td->td_dbgflags &= ~TDB_FSTP;
 
 	p->p_flag2 &= ~P2_PTRACE_FSTP;
 	p->p_flag |= P_STOPPED_SIG | P_STOPPED_TRACE;
-	sig_suspend_threads(td, p);
+	if (sig_suspend_threads(td, p) && td == NULL)
+		thread_stopped(p);
 }
 
 /*
@@ -2920,7 +2932,7 @@ ptracestop(struct thread *td, int sig, ksiginfo_t *si)
 			 * already set p_xthread, the current thread will get
 			 * a chance to report itself upon the next iteration.
 			 */
-			sig_handle_first_stop(td, p, sig, false);
+			sig_handle_first_stop(td, p, sig);
 
 			if ((td->td_dbgflags & TDB_STOPATFORK) != 0) {
 				td->td_dbgflags &= ~TDB_STOPATFORK;

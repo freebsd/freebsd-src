@@ -107,7 +107,7 @@ class global_state : utils::noncopyable {
     ::itimerval _old_timeval;
 
     /// Programmer for the SIGALRM handler.
-    std::auto_ptr< signals::programmer > _sigalrm_programmer;
+    std::unique_ptr< signals::programmer > _sigalrm_programmer;
 
     /// Time of the current activation of the timer.
     datetime::timestamp _timer_activation;
@@ -347,7 +347,7 @@ public:
 
 
 /// Unique instance of the global state.
-static std::auto_ptr< global_state > globals;
+static std::unique_ptr< global_state > globals;
 
 
 /// SIGALRM handler for the timer implementation.

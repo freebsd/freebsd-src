@@ -404,7 +404,7 @@ cmd_report::run(cmdline::ui* ui,
                 const cmdline::parsed_cmdline& cmdline,
                 const config::tree& /* user_config */)
 {
-    std::auto_ptr< std::ostream > output = utils::open_ostream(
+    std::unique_ptr< std::ostream > output = utils::open_ostream(
         cmdline.get_option< cmdline::path_option >("output"));
 
     const fs::path results_file = layout::find_results(

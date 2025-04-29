@@ -2215,17 +2215,31 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 	}
 
 	pf_mv_kpool(&V_pf_pabuf[0], &rule->nat.list);
-	pf_mv_kpool(&V_pf_pabuf[1], &rule->rdr.list);
-	pf_mv_kpool(&V_pf_pabuf[2], &rule->route.list);
-	if (((((rule->action == PF_NAT) || (rule->action == PF_RDR) ||
-	    (rule->action == PF_BINAT)) && rule->anchor == NULL) ||
-	    (rule->rt > PF_NOPFROUTE)) &&
-	    (TAILQ_FIRST(&rule->rdr.list) == NULL &&
-	     TAILQ_FIRST(&rule->route.list) == NULL))
-		error = EINVAL;
 
-	if (rule->action == PF_PASS && rule->rdr.opts & PF_POOL_STICKYADDR &&
-	    !rule->keep_state) {
+	/*
+	 * Old version of pfctl provide route redirection pools in single
+	 * common redirection pool rdr. New versions use rdr only for
+	 * rdr-to rules.
+	 */
+	if (rule->rt > PF_NOPFROUTE && TAILQ_EMPTY(&V_pf_pabuf[2])) {
+		pf_mv_kpool(&V_pf_pabuf[1], &rule->route.list);
+	} else {
+		pf_mv_kpool(&V_pf_pabuf[1], &rule->rdr.list);
+		pf_mv_kpool(&V_pf_pabuf[2], &rule->route.list);
+	}
+
+	if (((rule->action == PF_NAT) || (rule->action == PF_RDR) ||
+	    (rule->action == PF_BINAT))	&& rule->anchor == NULL &&
+	    TAILQ_FIRST(&rule->rdr.list) == NULL) {
+		error = EINVAL;
+	}
+
+	if (rule->rt > PF_NOPFROUTE && (TAILQ_FIRST(&rule->route.list) == NULL)) {
+		error = EINVAL;
+	}
+
+	if (rule->action == PF_PASS && (rule->rdr.opts & PF_POOL_STICKYADDR ||
+	    rule->nat.opts & PF_POOL_STICKYADDR) && !rule->keep_state) {
 		error = EINVAL;
 	}
 

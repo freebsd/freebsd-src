@@ -245,6 +245,7 @@ struct redirspec {
 	struct range		 rport;
 	struct pool_opts	 pool_opts;
 	int			 af;
+	bool			 binat;
 };
 
 static struct filter_opts {
@@ -381,7 +382,11 @@ void		 expand_eth_rule(struct pfctl_eth_rule *,
 int		 apply_rdr_ports(struct pfctl_rule *r, struct pfctl_pool *, struct redirspec *);
 int		 apply_nat_ports(struct pfctl_pool *, struct redirspec *);
 int		 apply_redirspec(struct pfctl_pool *, struct redirspec *);
-void		 expand_rule(struct pfctl_rule *, struct node_if *,
+int		 check_binat_redirspec(struct node_host *, struct pfctl_rule *, int);
+void		 add_binat_rdr_rule(struct pfctl_rule *, struct redirspec *,
+		 struct node_host *, struct pfctl_rule *, struct redirspec **,
+		 struct node_host **);
+void		 expand_rule(struct pfctl_rule *, bool, struct node_if *,
 		    struct redirspec *, struct redirspec *, struct redirspec *,
 		    struct node_proto *, struct node_os *, struct node_host *,
 		    struct node_port *, struct node_host *, struct node_port *,
@@ -525,7 +530,8 @@ int	parseport(char *, struct range *r, int);
 %token	STICKYADDRESS ENDPI MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
 %token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY PFLOW ALLOW_RELATED
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
-%token	DIVERTTO DIVERTREPLY BRIDGE_TO RECEIVEDON NE LE GE AFTO
+%token	DIVERTTO DIVERTREPLY BRIDGE_TO RECEIVEDON NE LE GE AFTO NATTO RDRTO
+%token	BINATTO
 %token	<v.string>		STRING
 %token	<v.number>		NUMBER
 %token	<v.i>			PORTBINARY
@@ -1080,7 +1086,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			decide_address_family($8.src.host, &r.af);
 			decide_address_family($8.dst.host, &r.af);
 
-			expand_rule(&r, $5, NULL, NULL, NULL,
+			expand_rule(&r, false, $5, NULL, NULL, NULL,
 			    $7, $8.src_os, $8.src.host, $8.src.port, $8.dst.host,
 			    $8.dst.port, $9.uid, $9.gid, $9.rcv, $9.icmpspec,
 			    pf->astack[pf->asd + 1] ? pf->alast->name : $2);
@@ -1104,7 +1110,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			decide_address_family($6.src.host, &r.af);
 			decide_address_family($6.dst.host, &r.af);
 
-			expand_rule(&r, $3, NULL, NULL, NULL,
+			expand_rule(&r, false, $3, NULL, NULL, NULL,
 			    $5, $6.src_os, $6.src.host, $6.src.port, $6.dst.host,
 			    $6.dst.port, 0, 0, 0, 0, $2);
 			free($2);
@@ -1147,7 +1153,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 				r.dst.port_op = $6.dst.port->op;
 			}
 
-			expand_rule(&r, $3, NULL, NULL, NULL,
+			expand_rule(&r, false, $3, NULL, NULL, NULL,
 			    $5, $6.src_os, $6.src.host, $6.src.port, $6.dst.host,
 			    $6.dst.port, 0, 0, 0, 0, $2);
 			free($2);
@@ -1471,7 +1477,7 @@ scrubrule	: scrubaction dir logquick interface af proto fromto scrub_opts
 			r.match_tag_not = $8.match_tag_not;
 			r.rtableid = $8.rtableid;
 
-			expand_rule(&r, $4, NULL, NULL, NULL,
+			expand_rule(&r, false, $4, NULL, NULL, NULL,
 			    $6, $7.src_os, $7.src.host, $7.src.port, $7.dst.host,
 			    $7.dst.port, NULL, NULL, NULL, NULL, "");
 		}
@@ -1636,9 +1642,9 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 				}
 
 				if (h != NULL)
-					expand_rule(&r, j, NULL, NULL, NULL,
-					    NULL, NULL, h, NULL, NULL, NULL,
-					    NULL, NULL, NULL, NULL, "");
+					expand_rule(&r, false, j, NULL, NULL,
+					    NULL, NULL, NULL, h, NULL, NULL,
+					    NULL, NULL, NULL, NULL, NULL, "");
 
 				if ((i->ifa_flags & IFF_LOOPBACK) == 0) {
 					bzero(&r, sizeof(r));
@@ -1658,10 +1664,10 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 					else
 						h = ifa_lookup(i->ifname, 0);
 					if (h != NULL)
-						expand_rule(&r, NULL, NULL,
-						    NULL, NULL, NULL, NULL, h,
+						expand_rule(&r, false, NULL,
 						    NULL, NULL, NULL, NULL,
-						    NULL, NULL, NULL, "");
+						    NULL, h, NULL, NULL, NULL,
+						    NULL, NULL, NULL, NULL, "");
 				} else
 					free(hh);
 			}
@@ -2797,9 +2803,36 @@ pfrule		: action dir logquick interface route af proto fromto
 
 			if ($9.marker & FOM_AFTO) {
 				r.naf = $9.nat->af;
+			} else {
+				if ($9.nat) {
+					if (!r.af && ! $9.nat->host->ifindex)
+						r.af = $9.nat->host->af;
+					remove_invalid_hosts(&($9.nat->host), &r.af);
+					if (invalid_redirect($9.nat->host, r.af))
+						YYERROR;
+					if ($9.nat->host->addr.type == PF_ADDR_DYNIFTL) {
+						if (($9.nat->host = gen_dynnode($9.nat->host, r.af)) == NULL)
+							err(1, "calloc");
+					}
+					if (check_netmask($9.nat->host, r.af))
+						YYERROR;
+				}
+				if ($9.rdr) {
+					if (!r.af && ! $9.rdr->host->ifindex)
+						r.af = $9.rdr->host->af;
+					remove_invalid_hosts(&($9.rdr->host), &r.af);
+					if (invalid_redirect($9.rdr->host, r.af))
+						YYERROR;
+					if ($9.rdr->host->addr.type == PF_ADDR_DYNIFTL) {
+						if (($9.rdr->host = gen_dynnode($9.rdr->host, r.af)) == NULL)
+							err(1, "calloc");
+					}
+					if (check_netmask($9.rdr->host, r.af))
+						YYERROR;
+				}
 			}
 
-			expand_rule(&r, $4, $9.nat, $9.rdr, $5.redirspec,
+			expand_rule(&r, false, $4, $9.nat, $9.rdr, $5.redirspec,
 			    $7, $8.src_os, $8.src.host, $8.src.port, $8.dst.host,
 			    $8.dst.port, $9.uid, $9.gid, $9.rcv, $9.icmpspec, "");
 		}
@@ -3015,6 +3048,29 @@ filter_opt	: USER uids {
 			if ($3.reassemble_tcp)
 				filter_opts.marker |= FOM_SCRUB_TCP;
 			filter_opts.marker |= $3.marker;
+		}
+		| NATTO port_redirspec {
+			if (filter_opts.nat) {
+				yyerror("cannot respecify nat-to/binat-to");
+				YYERROR;
+			}
+			filter_opts.nat = $2;
+		}
+		| RDRTO port_redirspec {
+			if (filter_opts.rdr) {
+				yyerror("cannot respecify rdr-to");
+				YYERROR;
+			}
+			filter_opts.rdr = $2;
+		}
+		| BINATTO port_redirspec {
+			if (filter_opts.nat) {
+				yyerror("cannot respecify nat-to/binat-to");
+				YYERROR;
+			}
+			filter_opts.nat = $2;
+			filter_opts.nat->binat = 1;
+			filter_opts.nat->pool_opts.staticport = 1;
 		}
 		| AFTO af FROM port_redirspec {
 			if (filter_opts.nat) {
@@ -4859,7 +4915,7 @@ natrule		: nataction interface af proto fromto tag tagged rtable
 				o = o->next;
 			}
 
-			expand_rule(&r, $2, NULL, $9, NULL, $4,
+			expand_rule(&r, false, $2, NULL, $9, NULL, $4,
 			    $5.src_os, $5.src.host, $5.src.port, $5.dst.host,
 			    $5.dst.port, 0, 0, 0, 0, "");
 		}
@@ -5028,8 +5084,6 @@ binatrule	: no BINAT natpasslog interface af proto FROM ipspec toipspec tag
 					YYERROR;
 				}
 
-				TAILQ_INIT(&binat.rdr.list);
-				TAILQ_INIT(&binat.nat.list);
 				pa = calloc(1, sizeof(struct pf_pooladdr));
 				if (pa == NULL)
 					err(1, "binat: calloc");
@@ -5389,9 +5443,18 @@ filter_consistent(struct pfctl_rule *r, int anchor_call)
 		break;
 	default:;
 	}
-	if (r->rdr.opts & PF_POOL_STICKYADDR && !r->keep_state) {
+	if (!TAILQ_EMPTY(&(r->nat.list)) || !TAILQ_EMPTY(&(r->rdr.list))) {
+		if (r->action != PF_MATCH && !r->keep_state) {
+			yyerror("nat-to and rdr-to require keep state");
+			problems++;
+		}
+		if (r->direction == PF_INOUT) {
+			yyerror("nat-to and rdr-to require a direction");
+			problems++;
+		}
+	}
+	if (r->route.opts & PF_POOL_STICKYADDR && !r->keep_state) {
 		yyerror("'sticky-address' requires 'keep state'");
-		problems++;
 	}
 	return (-problems);
 }
@@ -6135,7 +6198,6 @@ apply_redirspec(struct pfctl_pool *rpool, struct redirspec *rs)
 		memcpy(&(rpool->key), rs->pool_opts.key,
 		    sizeof(struct pf_poolhashkey));
 
-	TAILQ_INIT(&(rpool->list));
 	for (h = rs->host; h != NULL; h = h->next) {
 		pa = calloc(1, sizeof(struct pf_pooladdr));
 		if (pa == NULL)
@@ -6153,8 +6215,115 @@ apply_redirspec(struct pfctl_pool *rpool, struct redirspec *rs)
 	return 0;
 }
 
+int
+check_binat_redirspec(struct node_host *src_host, struct pfctl_rule *r, int af)
+{
+	struct pf_pooladdr	*nat_pool = TAILQ_FIRST(&(r->nat.list));
+	int			error = 0;
+
+	/* XXX: FreeBSD allows syntax like "{ host1 host2 }" for redirection
+	 * pools but does not covert them to tables automatically, because
+	 * syntax "{ (iface1 host1), (iface2 iface2) }" is allowed for route-to
+	 * redirection. Add a FreeBSD-specific guard against using multiple
+	 * hosts for source and redirection.
+	 */
+	if (src_host->next) {
+		yyerror("invalid use of table as the source address "
+		    "of a binat-to rule");
+		error++;
+	}
+	if (TAILQ_NEXT(nat_pool, entries)) {
+		yyerror ("tables cannot be used as the redirect "
+		    "address of a binat-to rule");
+		error++;
+	}
+
+	if (disallow_table(src_host, "invalid use of table "
+	    "<%s> as the source address of a binat-to rule") ||
+	    disallow_alias(src_host, "invalid use of interface "
+	    "(%s) as the source address of a binat-to rule")) {
+		error++;
+	} else if ((r->src.addr.type != PF_ADDR_ADDRMASK &&
+	    r->src.addr.type != PF_ADDR_DYNIFTL) ||
+	    (nat_pool->addr.type != PF_ADDR_ADDRMASK &&
+	    nat_pool->addr.type != PF_ADDR_DYNIFTL)) {
+		yyerror("binat-to requires a specified "
+		    "source and redirect address");
+		error++;
+	}
+	if (DYNIF_MULTIADDR(r->src.addr) ||
+	    DYNIF_MULTIADDR(nat_pool->addr)) {
+		yyerror ("dynamic interfaces must be "
+		    "used with:0 in a binat-to rule");
+		error++;
+	}
+	if (PF_AZERO(&r->src.addr.v.a.mask, af) ||
+	    PF_AZERO(&(nat_pool->addr.v.a.mask), af)) {
+		yyerror ("source and redir addresess must have "
+		    "a matching network mask in binat-rule");
+		error++;
+	}
+	if (nat_pool->addr.type == PF_ADDR_TABLE) {
+		yyerror ("tables cannot be used as the redirect "
+		    "address of a binat-to rule");
+		error++;
+	}
+	if (r->direction != PF_INOUT) {
+		yyerror("binat-to cannot be specified "
+		    "with a direction");
+		error++;
+	}
+
+	/* first specify outbound NAT rule */
+	r->direction = PF_OUT;
+
+	return (error);
+}
+
 void
-expand_rule(struct pfctl_rule *r,
+add_binat_rdr_rule(
+    struct pfctl_rule *binat_rule,
+    struct redirspec *binat_nat_redirspec, struct node_host *binat_src_host,
+    struct pfctl_rule *rdr_rule, struct redirspec **rdr_redirspec,
+    struct node_host **rdr_dst_host)
+{
+	struct node_host	*rdr_src_host;
+
+	/*
+	 * We're copying the whole rule, but we must re-init redir pools.
+	 * FreeBSD uses lists of pf_pooladdr, we can't just overwrite them.
+	 */
+	bcopy(binat_rule, rdr_rule, sizeof(struct pfctl_rule));
+	TAILQ_INIT(&(rdr_rule->rdr.list));
+	TAILQ_INIT(&(rdr_rule->nat.list));
+
+	/* now specify inbound rdr rule */
+	rdr_rule->direction = PF_IN;
+
+	if ((rdr_src_host = calloc(1, sizeof(*rdr_src_host))) == NULL)
+		err(1, "%s", __func__);
+	bcopy(binat_src_host, rdr_src_host, sizeof(*rdr_src_host));
+	rdr_src_host->ifname = NULL;
+	rdr_src_host->next = NULL;
+	rdr_src_host->tail = NULL;
+
+	if (((*rdr_dst_host) = calloc(1, sizeof(**rdr_dst_host))) == NULL)
+		err(1, "%s", __func__);
+	bcopy(&(binat_nat_redirspec->host->addr), &((*rdr_dst_host)->addr),
+	    sizeof((*rdr_dst_host)->addr));
+	(*rdr_dst_host)->ifname = NULL;
+	(*rdr_dst_host)->next = NULL;
+	(*rdr_dst_host)->tail = NULL;
+
+	if (((*rdr_redirspec) = calloc(1, sizeof(**rdr_redirspec))) == NULL)
+		err(1, "%s", __func__);
+	bcopy(binat_nat_redirspec, (*rdr_redirspec), sizeof(**rdr_redirspec));
+	(*rdr_redirspec)->pool_opts.staticport = 0;
+	(*rdr_redirspec)->host = rdr_src_host;
+}
+
+void
+expand_rule(struct pfctl_rule *r, bool keeprule,
     struct node_if *interfaces, struct redirspec *nat,
     struct redirspec *rdr, struct redirspec *route,
     struct node_proto *protos,
@@ -6308,17 +6477,25 @@ expand_rule(struct pfctl_rule *r,
 		}
 
 		if (r->action == PF_RDR) {
+			/* Pre-FreeBSD 15 "rdr" rule */
 			error += apply_rdr_ports(r, &(r->rdr), rdr);
+			error += apply_redirspec(&(r->rdr), rdr);
 		} else if (r->action == PF_NAT) {
+			/* Pre-FreeBSD 15 "nat" rule */
 			error += apply_nat_ports(&(r->rdr), rdr);
+			error += apply_redirspec(&(r->rdr), rdr);
+		} else {
+			/* Modern rule with optional NAT, BINAT, RDR or ROUTE*/
+			error += apply_redirspec(&(r->route), route);
+
+			error += apply_nat_ports(&(r->nat), nat);
+			error += apply_redirspec(&(r->nat), nat);
+			error += apply_rdr_ports(r, &(r->rdr), rdr);
+			error += apply_redirspec(&(r->rdr), rdr);
+
+			if (nat && nat->binat)
+				error += check_binat_redirspec(src_host, r, af);
 		}
-
-		error += apply_redirspec(&(r->nat), nat);
-		error += apply_redirspec(&(r->rdr), rdr);
-		error += apply_redirspec(&(r->route), route);
-
-		r->nat.proxy_port[0] = PF_NAT_PROXY_PORT_LOW;
-		r->nat.proxy_port[1] = PF_NAT_PROXY_PORT_HIGH;
 
 		if (rule_consistent(r, anchor_call[0]) < 0 || error)
 			yyerror("skipping rule due to errors");
@@ -6326,6 +6503,22 @@ expand_rule(struct pfctl_rule *r,
 			r->nr = pf->astack[pf->asd]->match++;
 			pfctl_append_rule(pf, r, anchor_call);
 			added++;
+		}
+
+		/* Generate binat's matching inbound rule */
+		if (!error && nat && nat->binat) {
+			struct pfctl_rule	rdr_rule;
+			struct redirspec	*rdr_redirspec;
+			struct node_host	*rdr_dst_host;
+
+			add_binat_rdr_rule(
+			    r, nat, src_hosts,
+			    &rdr_rule, &rdr_redirspec, &rdr_dst_host);
+
+			expand_rule(&rdr_rule, true, interface, NULL, rdr_redirspec,
+			    NULL, proto, src_os, dst_host, dst_port,
+			    rdr_dst_host, src_port, uid, gid, rcv, icmp_type,
+			    "");
 		}
 
 		if (osrch && src_host->addr.type == PF_ADDR_DYNIFTL) {
@@ -6339,27 +6532,29 @@ expand_rule(struct pfctl_rule *r,
 
 	))))))))));
 
-	FREE_LIST(struct node_if, interfaces);
-	FREE_LIST(struct node_proto, protos);
-	FREE_LIST(struct node_host, src_hosts);
-	FREE_LIST(struct node_port, src_ports);
-	FREE_LIST(struct node_os, src_oses);
-	FREE_LIST(struct node_host, dst_hosts);
-	FREE_LIST(struct node_port, dst_ports);
-	FREE_LIST(struct node_uid, uids);
-	FREE_LIST(struct node_gid, gids);
-	FREE_LIST(struct node_icmp, icmp_types);
-	if (nat) {
-		FREE_LIST(struct node_host, nat->host);
-		free(nat);
-	}
-	if (rdr) {
-		FREE_LIST(struct node_host, rdr->host);
-		free(rdr);
-	}
-	if (route) {
-		FREE_LIST(struct node_host, route->host);
-		free(route);
+	if (!keeprule) {
+		FREE_LIST(struct node_if, interfaces);
+		FREE_LIST(struct node_proto, protos);
+		FREE_LIST(struct node_host, src_hosts);
+		FREE_LIST(struct node_port, src_ports);
+		FREE_LIST(struct node_os, src_oses);
+		FREE_LIST(struct node_host, dst_hosts);
+		FREE_LIST(struct node_port, dst_ports);
+		FREE_LIST(struct node_uid, uids);
+		FREE_LIST(struct node_gid, gids);
+		FREE_LIST(struct node_icmp, icmp_types);
+		if (nat) {
+			FREE_LIST(struct node_host, nat->host);
+			free(nat);
+		}
+		if (rdr) {
+			FREE_LIST(struct node_host, rdr->host);
+			free(rdr);
+		}
+		if (route) {
+			FREE_LIST(struct node_host, route->host);
+			free(route);
+		}
 	}
 
 	if (!added)
@@ -6445,6 +6640,7 @@ lookup(char *s)
 		{ "bandwidth",		BANDWIDTH},
 		{ "binat",		BINAT},
 		{ "binat-anchor",	BINATANCHOR},
+		{ "binat-to",		BINATTO},
 		{ "bitmask",		BITMASK},
 		{ "block",		BLOCK},
 		{ "block-policy",	BLOCKPOLICY},
@@ -6508,6 +6704,7 @@ lookup(char *s)
 		{ "modulate",		MODULATE},
 		{ "nat",		NAT},
 		{ "nat-anchor",		NATANCHOR},
+		{ "nat-to",		NATTO},
 		{ "no",			NO},
 		{ "no-df",		NODF},
 		{ "no-route",		NOROUTE},
@@ -6532,6 +6729,7 @@ lookup(char *s)
 		{ "random-id",		RANDOMID},
 		{ "rdr",		RDR},
 		{ "rdr-anchor",		RDRANCHOR},
+		{ "rdr-to",		RDRTO},
 		{ "realtime",		REALTIME},
 		{ "reassemble",		REASSEMBLE},
 		{ "received-on",	RECEIVEDON},

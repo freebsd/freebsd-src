@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2018 Kristof Provost <kp@FreeBSD.org>
+# Copyright (c) 2025 Kajetan Staszkiewicz <ks@FreeBSD.org>
+# Copyright (c) 2021 KUROSAWA Takahiro <takahiro.kurosawa@gmail.com>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -112,14 +114,7 @@ nested_anchor_body()
 
 }
 
-atf_test_case "endpoint_independent" "cleanup"
-endpoint_independent_head()
-{
-	atf_set descr 'Test that a client behind NAT gets the same external IP:port for different servers'
-	atf_set require.user root
-}
-
-endpoint_independent_body()
+endpoint_independent_setup()
 {
 	pft_init
 	filter="udp and dst port 1234"	# only capture udp pings
@@ -153,13 +148,15 @@ endpoint_independent_body()
 
 	jexec server1 ifconfig ${epair_server1}a 198.51.100.32/24 up
 	jexec server2 ifconfig ${epair_server2}a 198.51.100.22/24 up
+}
 
+endpoint_independent_common()
+{
 	# Enable pf!
 	jexec nat pfctl -e
 
 	# validate non-endpoint independent nat rule behaviour
-	pft_set_rules nat \
-		"nat on ${epair_nat}a inet from ! (${epair_nat}a) to any -> (${epair_nat}a)"
+	pft_set_rules nat "${1}"
 
 	jexec server1 tcpdump -i ${epair_server1}a -w ${PWD}/server1.pcap \
 		--immediate-mode $filter &
@@ -198,8 +195,7 @@ endpoint_independent_body()
 	fi
 
 	# validate endpoint independent nat rule behaviour
-	pft_set_rules nat \
-		"nat on ${epair_nat}a inet from ! (${epair_nat}a) to any -> (${epair_nat}a) endpoint-independent"
+	pft_set_rules nat "${2}"
 
 	jexec server1 tcpdump -i ${epair_server1}a -w ${PWD}/server1.pcap \
 		--immediate-mode $filter &
@@ -238,7 +234,47 @@ endpoint_independent_body()
 	fi
 }
 
-endpoint_independent_cleanup()
+atf_test_case "endpoint_independent_compat" "cleanup"
+endpoint_independent_compat_head()
+{
+	atf_set descr 'Test that a client behind NAT gets the same external IP:port for different servers'
+	atf_set require.user root
+}
+
+endpoint_independent_compat_body()
+{
+	endpoint_independent_setup # Sets ${epair_…} variables
+
+	endpoint_independent_common \
+		"nat on ${epair_nat}a inet from ! (${epair_nat}a) to any -> (${epair_nat}a)" \
+		"nat on ${epair_nat}a inet from ! (${epair_nat}a) to any -> (${epair_nat}a) endpoint-independent"
+}
+
+endpoint_independent_compat_cleanup()
+{
+	pft_cleanup
+	rm -f server1.out
+	rm -f server2.out
+}
+
+atf_test_case "endpoint_independent_pass" "cleanup"
+endpoint_independent_pass_head()
+{
+	atf_set descr 'Test that a client behind NAT gets the same external IP:port for different servers'
+	atf_set require.user root
+}
+
+endpoint_independent_pass_body()
+{
+	endpoint_independent_setup # Sets ${epair_…} variables
+
+	endpoint_independent_common \
+		"pass out on ${epair_nat}a inet from ! (${epair_nat}a) to any nat-to (${epair_nat}a) keep state" \
+		"pass out on ${epair_nat}a inet from ! (${epair_nat}a) to any nat-to (${epair_nat}a) endpoint-independent keep state"
+
+}
+
+endpoint_independent_pass_cleanup()
 {
 	pft_cleanup
 	rm -f server1.out
@@ -438,14 +474,324 @@ no_addrs_random_cleanup()
 	pft_cleanup
 }
 
+nat_pass_head()
+{
+	atf_set descr 'IPv4 NAT on pass rule'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+nat_pass_body()
+{
+	setup_router_server_ipv4
+	# Delete the route back to make sure that the traffic has been NAT-ed
+	jexec server route del -net ${net_tester} ${net_server_host_router}
+
+	pft_set_rules router \
+		"block" \
+		"pass in  on ${epair_tester}b inet proto tcp keep state" \
+		"pass out on ${epair_server}a inet proto tcp nat-to ${epair_server}a keep state"
+
+	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4201
+
+	jexec router pfctl -qvvsr
+	jexec router pfctl -qvvss
+	jexec router ifconfig
+	jexec router netstat -rn
+}
+
+nat_pass_cleanup()
+{
+	pft_cleanup
+}
+
+nat_match_head()
+{
+	atf_set descr 'IPv4 NAT on match rule'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+nat_match_body()
+{
+	setup_router_server_ipv4
+	# Delete the route back to make sure that the traffic has been NAT-ed
+	jexec server route del -net ${net_tester} ${net_server_host_router}
+
+	# NAT is applied during ruleset evaluation:
+	# rules after "match" match on NAT-ed address
+	pft_set_rules router \
+		"block" \
+		"pass in  on ${epair_tester}b inet proto tcp keep state" \
+		"match out on ${epair_server}a inet proto tcp nat-to ${epair_server}a" \
+		"pass out on ${epair_server}a inet proto tcp from ${epair_server}a keep state"
+
+	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4201
+
+	jexec router pfctl -qvvsr
+	jexec router pfctl -qvvss
+	jexec router ifconfig
+	jexec router netstat -rn
+}
+
+nat_match_cleanup()
+{
+	pft_cleanup
+}
+
+map_e_common()
+{
+	NC_TRY_COUNT=12
+
+	pft_init
+
+	epair_map_e=$(vnet_mkepair)
+	epair_echo=$(vnet_mkepair)
+
+	vnet_mkjail map_e ${epair_map_e}b ${epair_echo}a
+	vnet_mkjail echo ${epair_echo}b
+
+	ifconfig ${epair_map_e}a 192.0.2.2/24 up
+	route add -net 198.51.100.0/24 192.0.2.1
+
+	jexec map_e ifconfig ${epair_map_e}b 192.0.2.1/24 up
+	jexec map_e ifconfig ${epair_echo}a 198.51.100.1/24 up
+	jexec map_e sysctl net.inet.ip.forwarding=1
+
+	jexec echo ifconfig ${epair_echo}b 198.51.100.2/24 up
+	jexec echo /usr/sbin/inetd -p ${PWD}/inetd-echo.pid $(atf_get_srcdir)/echo_inetd.conf
+
+	# Enable pf!
+	jexec map_e pfctl -e
+}
+
+atf_test_case "map_e_compat" "cleanup"
+map_e_compat_head()
+{
+	atf_set descr 'map-e-portset test'
+	atf_set require.user root
+}
+
+map_e_compat_body()
+{
+	map_e_common
+
+	pft_set_rules map_e \
+		"nat pass on ${epair_echo}a inet from 192.0.2.0/24 to any -> (${epair_echo}a) map-e-portset 2/12/0x342"
+
+	# Only allow specified ports.
+	jexec echo pfctl -e
+	pft_set_rules echo "block return all" \
+		"pass in on ${epair_echo}b inet proto tcp from 198.51.100.1 port 19720:19723 to (${epair_echo}b) port 7" \
+		"pass in on ${epair_echo}b inet proto tcp from 198.51.100.1 port 36104:36107 to (${epair_echo}b) port 7" \
+		"pass in on ${epair_echo}b inet proto tcp from 198.51.100.1 port 52488:52491 to (${epair_echo}b) port 7" \
+		"set skip on lo"
+
+	i=0
+	while [ ${i} -lt ${NC_TRY_COUNT} ]
+	do
+		echo "foo ${i}" | timeout 2 nc -N 198.51.100.2 7
+		if [ $? -ne 0 ]; then
+			atf_fail "nc failed (${i})"
+		fi
+		i=$((${i}+1))
+	done
+}
+
+map_e_compat_cleanup()
+{
+	pft_cleanup
+}
+
+
+atf_test_case "map_e_pass" "cleanup"
+map_e_pass_head()
+{
+	atf_set descr 'map-e-portset test'
+	atf_set require.user root
+}
+
+map_e_pass_body()
+{
+	map_e_common
+
+	pft_set_rules map_e \
+		"pass out on ${epair_echo}a inet from 192.0.2.0/24 to any nat-to (${epair_echo}a) map-e-portset 2/12/0x342 keep state"
+
+	jexec map_e pfctl -qvvsr
+
+	# Only allow specified ports.
+	jexec echo pfctl -e
+	pft_set_rules echo "block return all" \
+		"pass in on ${epair_echo}b inet proto tcp from 198.51.100.1 port 19720:19723 to (${epair_echo}b) port 7" \
+		"pass in on ${epair_echo}b inet proto tcp from 198.51.100.1 port 36104:36107 to (${epair_echo}b) port 7" \
+		"pass in on ${epair_echo}b inet proto tcp from 198.51.100.1 port 52488:52491 to (${epair_echo}b) port 7" \
+		"set skip on lo"
+
+	i=0
+	while [ ${i} -lt ${NC_TRY_COUNT} ]
+	do
+		echo "foo ${i}" | timeout 2 nc -N 198.51.100.2 7
+		if [ $? -ne 0 ]; then
+			atf_fail "nc failed (${i})"
+		fi
+		i=$((${i}+1))
+	done
+}
+
+map_e_pass_cleanup()
+{
+	pft_cleanup
+}
+
+binat_compat_head()
+{
+	atf_set descr 'IPv4 BINAT with nat ruleset'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+binat_compat_body()
+{
+	setup_router_server_ipv4
+	# Delete the route back to make sure that the traffic has been NAT-ed
+	jexec server route del -net ${net_tester} ${net_server_host_router}
+
+	pft_set_rules router \
+		"set state-policy if-bound" \
+		"set ruleset-optimization none" \
+		"binat on ${epair_server}a inet proto tcp from ${net_tester_host_tester} to any tag sometag -> ${epair_server}a" \
+		"block" \
+		"pass in  on ${epair_tester}b inet proto tcp !tagged sometag keep state" \
+		"pass out on ${epair_server}a inet proto tcp tagged sometag keep state" \
+		"pass in  on ${epair_server}a inet proto tcp tagged sometag keep state" \
+		"pass out on ${epair_tester}b inet proto tcp tagged sometag keep state"
+
+	# Test the outbound NAT part of BINAT.
+	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4201
+
+	states=$(mktemp) || exit 1
+	jexec router pfctl -qvss | normalize_pfctl_s > $states
+
+	for state_regexp in \
+		"${epair_tester}b tcp ${net_server_host_server}:9 <- ${net_tester_host_tester}:4201 .* 3:2 pkts,.* rule 1" \
+		"${epair_server}a tcp ${net_server_host_router}:4201 \(${net_tester_host_tester}:4201\) -> ${net_server_host_server}:9 .* 3:2 pkts,.* rule 2" \
+	; do
+		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
+	done
+
+	# Test the inbound RDR part of BINAT.
+	# The "tester" becomes "server" and vice versa.
+	inetd_conf=$(mktemp)
+	echo "discard stream tcp nowait root internal" > $inetd_conf
+	inetd -p ${PWD}/inetd_tester.pid $inetd_conf
+
+	atf_check -s exit:0 \
+	jexec server ${common_dir}/pft_ping.py \
+	    --ping-type=tcp3way --send-sport=4202 \
+	    --sendif ${epair_server}b \
+	    --to ${net_server_host_router} \
+	    --replyif ${epair_server}b
+
+	states=$(mktemp) || exit 1
+	jexec router pfctl -qvss | normalize_pfctl_s > $states
+
+	for state_regexp in \
+		"${epair_server}a tcp ${net_tester_host_tester}:9 \(${net_server_host_router}:9\) <- ${net_server_host_server}:4202 .* 3:2 pkts,.* rule 3" \
+		"${epair_tester}b tcp ${net_server_host_server}:4202 -> ${net_tester_host_tester}:9 .* 3:2 pkts,.* rule 4" \
+	; do
+		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
+	done
+}
+
+binat_compat_cleanup()
+{
+	pft_cleanup
+	kill $(cat ${PWD}/inetd_tester.pid)
+}
+
+binat_match_head()
+{
+	atf_set descr 'IPv4 BINAT with nat ruleset'
+	atf_set require.user root
+	atf_set require.progs scapy
+}
+
+binat_match_body()
+{
+	setup_router_server_ipv4
+	# Delete the route back to make sure that the traffic has been NAT-ed
+	jexec server route del -net ${net_tester} ${net_server_host_router}
+
+	# The "binat-to" rule expands to 2 rules so the ""pass" rules start at 3!
+	pft_set_rules router \
+		"set state-policy if-bound" \
+		"set ruleset-optimization none" \
+		"block" \
+		"match on ${epair_server}a inet proto tcp from ${net_tester_host_tester} to any tag sometag binat-to ${epair_server}a" \
+		"pass in  on ${epair_tester}b inet proto tcp !tagged sometag keep state" \
+		"pass out on ${epair_server}a inet proto tcp tagged sometag keep state" \
+		"pass in  on ${epair_server}a inet proto tcp tagged sometag keep state" \
+		"pass out on ${epair_tester}b inet proto tcp tagged sometag keep state"
+
+	# Test the outbound NAT part of BINAT.
+	ping_server_check_reply exit:0 --ping-type=tcp3way --send-sport=4201
+
+	states=$(mktemp) || exit 1
+	jexec router pfctl -qvss | normalize_pfctl_s > $states
+
+	for state_regexp in \
+		"${epair_tester}b tcp ${net_server_host_server}:9 <- ${net_tester_host_tester}:4201 .* 3:2 pkts,.* rule 3" \
+		"${epair_server}a tcp ${net_server_host_router}:4201 \(${net_tester_host_tester}:4201\) -> ${net_server_host_server}:9 .* 3:2 pkts,.* rule 4" \
+	; do
+		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
+	done
+
+	# Test the inbound RDR part of BINAT.
+	# The "tester" becomes "server" and vice versa.
+	inetd_conf=$(mktemp)
+	echo "discard stream tcp nowait root internal" > $inetd_conf
+	inetd -p ${PWD}/inetd_tester.pid $inetd_conf
+
+	atf_check -s exit:0 \
+	jexec server ${common_dir}/pft_ping.py \
+	    --ping-type=tcp3way --send-sport=4202 \
+	    --sendif ${epair_server}b \
+	    --to ${net_server_host_router} \
+	    --replyif ${epair_server}b
+
+	states=$(mktemp) || exit 1
+	jexec router pfctl -qvss | normalize_pfctl_s > $states
+
+	for state_regexp in \
+		"${epair_server}a tcp ${net_tester_host_tester}:9 \(${net_server_host_router}:9\) <- ${net_server_host_server}:4202 .* 3:2 pkts,.* rule 5" \
+		"${epair_tester}b tcp ${net_server_host_server}:4202 -> ${net_tester_host_tester}:9 .* 3:2 pkts,.* rule 6" \
+	; do
+		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
+	done
+}
+
+binat_match_cleanup()
+{
+	pft_cleanup
+	kill $(cat ${PWD}/inetd_tester.pid)
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "exhaust"
 	atf_add_test_case "nested_anchor"
-	atf_add_test_case "endpoint_independent"
+	atf_add_test_case "endpoint_independent_compat"
+	atf_add_test_case "endpoint_independent_pass"
 	atf_add_test_case "nat6_nolinklocal"
 	atf_add_test_case "empty_table_source_hash"
 	atf_add_test_case "no_addrs_source_hash"
 	atf_add_test_case "empty_table_random"
 	atf_add_test_case "no_addrs_random"
+	atf_add_test_case "map_e_compat"
+	atf_add_test_case "map_e_pass"
+	atf_add_test_case "nat_pass"
+	atf_add_test_case "nat_match"
+	atf_add_test_case "binat_compat"
+	atf_add_test_case "binat_match"
 }

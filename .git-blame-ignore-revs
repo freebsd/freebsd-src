@@ -8,6 +8,10 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# queue(3) single space after all #define
+a4df0830d74dba9d20c01d8c108bddeb1ecd62cd
+# bin/ps whitespace cleanup
+0d320eb5edc37f6c1bfa5eabc0309350b87c08ad
 # reformat libexec/rtld-elf
 7e2f38311e62b1a3ba4a023042f2dc36e27cdd06
 986c96b54b9ec1118d285b723f53c7451a4c0772

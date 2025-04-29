@@ -27,14 +27,6 @@
 
 . $(atf_get_srcdir)/utils.subr
 
-atf_test_case "tcp_v6" "cleanup"
-tcp_v6_head()
-{
-	atf_set descr 'TCP rdr with IPv6'
-	atf_set require.user root
-	atf_set require.progs python3
-}
-
 #
 # Test that rdr works for TCP with IPv6.
 #
@@ -47,7 +39,7 @@ tcp_v6_head()
 #
 # Test for incorrect checksums after the rewrite by looking at a packet capture (see bug 210860)
 #
-tcp_v6_body()
+tcp_v6_setup()
 {
 	pft_init
 
@@ -83,9 +75,11 @@ tcp_v6_body()
 	jexec ${j}c route add -inet6 2001:db8:a::0/64 2001:db8:b::1
 
 	jexec ${j}b pfctl -e
+}
 
-	pft_set_rules ${j}b \
-		"rdr on ${epair_one}a proto tcp from any to any port 80 -> 2001:db8:b::2 port 8000"
+tcp_v6_common()
+{
+	pft_set_rules ${j}b "${1}"
 
 	# Check that a can reach c over the router
 	atf_check -s exit:0 -o ignore \
@@ -116,19 +110,44 @@ tcp_v6_body()
 	atf_check_equal "       0" "$count"
 }
 
-tcp_v6_cleanup()
+atf_test_case "tcp_v6_compat" "cleanup"
+tcp_v6_compat_head()
+{
+	atf_set descr 'TCP rdr with IPv6 with NAT rules'
+	atf_set require.user root
+	atf_set require.progs python3
+}
+
+tcp_v6_compat_body()
+{
+	tcp_v6_setup # Sets ${epair_…} variables
+	tcp_v6_common \
+		"rdr on ${epair_one}a proto tcp from any to any port 80 -> 2001:db8:b::2 port 8000"
+}
+
+tcp_v6_compat_cleanup()
 {
 	pft_cleanup
 }
 
-
-atf_test_case "srcport" "cleanup"
-srcport_head()
+atf_test_case "tcp_v6_pass" "cleanup"
+tcp_v6_pass_head()
 {
-	atf_set descr 'TCP rdr srcport modulation'
+	atf_set descr 'TCP rdr with IPv6 with pass/match rules'
 	atf_set require.user root
 	atf_set require.progs python3
-	atf_set timeout 9999
+}
+
+tcp_v6_pass_body()
+{
+	tcp_v6_setup # Sets ${epair_…} variables
+	tcp_v6_common \
+		"rdr on ${epair_one}a proto tcp from any to any port 80 -> 2001:db8:b::2 port 8000"
+}
+
+tcp_v6_pass_cleanup()
+{
+	pft_cleanup
 }
 
 #
@@ -145,7 +164,7 @@ srcport_head()
 # In this case, the rdr rule should also rewrite the source port (again) to
 # resolve the state conflict.
 #
-srcport_body()
+srcport_setup()
 {
 	pft_init
 
@@ -188,14 +207,17 @@ srcport_body()
 	jexec ${j}c sysctl net.inet.ip.forwarding=1
 	jexec ${j}b pfctl -e
 	jexec ${j}c pfctl -e
+}
 
+srcport_common()
+{
 	pft_set_rules ${j}b \
 		"set debug misc" \
-		"nat on ${epair2}a inet from 198.51.100.0/24 to any -> ${epair2}a static-port"
+		"${1}"
 
 	pft_set_rules ${j}c \
 		"set debug misc" \
-		"rdr on ${epair2}b proto tcp from any to ${epair2}b port 7777 -> 203.0.113.50 port 8888"
+		"${2}"
 
 	jexec ${j}a route add default 198.51.100.1
 	jexec ${j}c route add 198.51.100.0/24 198.51.101.2
@@ -215,13 +237,54 @@ srcport_body()
 	atf_check -o match:"[0-9]+" -o not-inline:"1234" cat port3
 }
 
-srcport_cleanup()
+atf_test_case "srcport_compat" "cleanup"
+srcport_compat_head()
+{
+	atf_set descr 'TCP rdr srcport modulation with NAT rules'
+	atf_set require.user root
+	atf_set require.progs python3
+	atf_set timeout 9999
+}
+
+srcport_compat_body()
+{
+	srcport_setup # Sets ${epair_…} variables
+	srcport_common \
+		"nat on ${epair2}a inet from 198.51.100.0/24 to any -> ${epair2}a static-port" \
+		"rdr on ${epair2}b proto tcp from any to ${epair2}b port 7777 -> 203.0.113.50 port 8888"
+}
+
+srcport_compat_cleanup()
+{
+	pft_cleanup
+}
+
+atf_test_case "srcport_pass" "cleanup"
+srcport_pass_head()
+{
+	atf_set descr 'TCP rdr srcport modulation with pass/match rules'
+	atf_set require.user root
+	atf_set require.progs python3
+	atf_set timeout 9999
+}
+
+srcport_pass_body()
+{
+	srcport_setup # Sets ${epair_…} variables
+	srcport_common \
+		"pass out on ${epair2}a inet from 198.51.100.0/24 to any nat-to ${epair2}a static-port" \
+		"pass in on ${epair2}b proto tcp from any to ${epair2}b port 7777 rdr-to 203.0.113.50 port 8888"
+}
+
+srcport_pass_cleanup()
 {
 	pft_cleanup
 }
 
 atf_init_test_cases()
 {
-	atf_add_test_case "tcp_v6"
-	atf_add_test_case "srcport"
+	atf_add_test_case "tcp_v6_compat"
+	atf_add_test_case "tcp_v6_pass"
+	atf_add_test_case "srcport_compat"
+	atf_add_test_case "srcport_pass"
 }

@@ -1592,6 +1592,8 @@ envvar		hint.isp.0.topology="nport-only"
 envvar		hint.isp.0.portwnn="w50000000aaaa0000"
 envvar		hint.isp.0.nodewnn="w50000000aaaa0001"
 device		ispfw
+# Only works on aarch64 and amd64
+#device		mpi3mr			# LSI-Logic MPT-Fusion 4
 device		mpr			# LSI-Logic MPT-Fusion 3
 device		mps			# LSI-Logic MPT-Fusion 2
 device		mpt			# LSI-Logic MPT-Fusion

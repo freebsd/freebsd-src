@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#define _WANT_SFF_8024_ID
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
