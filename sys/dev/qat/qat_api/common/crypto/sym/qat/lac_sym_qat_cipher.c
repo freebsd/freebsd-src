@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -478,7 +478,7 @@ LacSymQat_CipherCtrlBlockWrite(icp_qat_la_bulk_req_ftr_t *pMsg,
 	   in this case, and add padding. It makes no sense
 	   to force applications to provide such key length for couple reasons:
 	   1. It won't be possible to distinguish between AES 192 and 256 based
-	      on key lenght only
+	      on key length only
 	   2. Only some modes of AES will use UCS slice, then application will
 	      have to know which ones */
 	if (ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE == sliceType &&
@@ -657,12 +657,11 @@ LacSymQat_CipherHwBlockPopulateKeySetup(
 		/* Special handling of AES 192 key for UCS slice.
 		   UCS requires it to have 32 bytes - set is as targetKeyLen
 		   in this case, and add padding. It makes no sense
-		   to force applications to provide such key length for couple
-		   reasons:
-		   1. It won't be possible to distinguish between AES 192 and
-		   256 based on key lenght only
-		   2. Only some modes of AES will use UCS slice, then
-		   application will have to know which ones */
+		   to force applications to provide such key length for couple reasons:
+		   1. It won't be possible to distinguish between AES 192 and 256 based
+		      on key length only
+		   2. Only some modes of AES will use UCS slice, then application will
+		      have to know which ones */
 		if (ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE == sliceType &&
 		    ICP_QAT_HW_AES_192_KEY_SZ == targetKeyLenInBytes) {
 			targetKeyLenInBytes = ICP_QAT_HW_UCS_AES_192_KEY_SZ;
@@ -918,10 +917,10 @@ LacSymQat_CipherRequestParamsPopulate(lac_session_desc_t *pSessionDesc,
 		/* Populate the field with the contents of the buffer,
 		 * zero field first as data may be smaller than the field */
 
-		/* In case of XTS mode using UCS slice always embedd IV.
-		 * IV provided by user needs to be encrypted to calculate
-		 * initial tweak, use pCipherReqParams->u.cipher_IV_array as
-		 * destination buffer for tweak value */
+		/* In case of XTS mode using UCS slice always encrypt the embedded IV.
+		 * IV provided by user needs to be encrypted to calculate initial tweak,
+		 * use pCipherReqParams->u.cipher_IV_array as destination buffer for
+		 * tweak value */
 		if (ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE ==
 			pSessionDesc->cipherSliceType &&
 		    LAC_CIPHER_IS_XTS_MODE(pSessionDesc->cipherAlgorithm)) {

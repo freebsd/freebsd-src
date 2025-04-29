@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  *****************************************************************************
  * @file lac_common.h Common macros
@@ -573,7 +573,6 @@ typedef enum lac_expected_size_s {
  *
  ******************************************************************************/
 #define LAC_QUADWORDS_TO_BYTES(x) ((x) << 3)
-
 
 /******************************************************************************/
 

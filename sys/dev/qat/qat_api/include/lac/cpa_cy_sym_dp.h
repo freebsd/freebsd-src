@@ -1,14 +1,14 @@
 /***************************************************************************
  *
  *   BSD LICENSE
- * 
- *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
+ *
+ *   Copyright(c) 2007-2025 Intel Corporation. All rights reserved.
  *   All rights reserved.
- * 
+ *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
  *   are met:
- * 
+ *
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -18,7 +18,7 @@
  *     * Neither the name of Intel Corporation nor the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
- * 
+ *
  *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -30,7 +30,7 @@
  *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  *
  ***************************************************************************/
 
@@ -376,7 +376,7 @@ typedef struct _CpaCySymDpOpData {
  * @description
  *      This is the callback function prototype. The callback function is
  *      registered by the application using the @ref cpaCySymDpRegCbFunc
- *      function call, and called back on completion of asycnhronous
+ *      function call, and called back on completion of asynchronous
  *      requests made via calls to @ref cpaCySymDpEnqueueOp or @ref
  *      cpaCySymDpEnqueueOpBatch.
  *
@@ -428,7 +428,7 @@ typedef void (*CpaCySymDpCbFunc)(CpaCySymDpOpData *pOpData,
  * @description
  *      This function allows a completion callback function to be registered.
  *      The registered callback function is invoked on completion of
- *      asycnhronous requests made via calls to @ref cpaCySymDpEnqueueOp
+ *      asynchronous requests made via calls to @ref cpaCySymDpEnqueueOp
  *      or @ref cpaCySymDpEnqueueOpBatch.
  *
  *      If a callback function was previously registered, it is overwritten.
