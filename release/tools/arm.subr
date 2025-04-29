@@ -35,7 +35,7 @@ cleanup() {
 		umount_loop ${DESTDIR}/dev 2>/dev/null
 	fi
 	umount_loop ${DESTDIR}
-	if [ ! -z "${mddev}" ]; then
+	if [ -n "${mddev}" ]; then
 		mdconfig -d -u ${mddev}
 	fi
 

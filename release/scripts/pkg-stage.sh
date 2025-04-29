@@ -53,7 +53,7 @@ export PKG_ALTABI=$(pkg --rootdir ${ROOTDIR} config ALTABI 2>/dev/null)
 export PKG_REPODIR="packages/${PKG_ABI}"
 
 /bin/mkdir -p ${ROOTDIR}/${PKG_REPODIR}
-if [ ! -z "${PKG_ALTABI}" ]; then
+if [ -n "${PKG_ALTABI}" ]; then
 	ln -s ${PKG_ABI} ${ROOTDIR}/packages/${PKG_ALTABI}
 fi
 
