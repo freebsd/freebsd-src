@@ -210,6 +210,8 @@ int nhi_write_lc_mailbox(struct nhi_softc *, u_int reg, uint32_t val);
 void nhi_get_tunables(struct nhi_softc *);
 int nhi_attach(struct nhi_softc *);
 int nhi_detach(struct nhi_softc *);
+int nhi_suspend(struct nhi_softc *);
+int nhi_resume(struct nhi_softc *);
 
 struct nhi_cmd_frame * nhi_alloc_tx_frame(struct nhi_ring_pair *);
 void nhi_free_tx_frame(struct nhi_ring_pair *, struct nhi_cmd_frame *);

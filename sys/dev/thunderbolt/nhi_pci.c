@@ -178,15 +178,17 @@ nhi_pci_detach(device_t dev)
 static int
 nhi_pci_suspend(device_t dev)
 {
+	struct nhi_softc *sc = device_get_softc(dev);
 
-	return (0);
+	return (nhi_suspend(sc));
 }
 
 static int
 nhi_pci_resume(device_t dev)
 {
+	struct nhi_softc *sc = device_get_softc(dev);
 
-	return (0);
+	return (nhi_resume(sc));
 }
 
 static void

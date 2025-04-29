@@ -252,6 +252,7 @@ tb_router_attach_root(struct nhi_softc *nsc, tb_route_t route)
 	sc->ring0 = nsc->ring0;
 	sc->route = route;
 	sc->nsc = nsc;
+	sc->suspended = false;
 
 	mtx_init(&sc->mtx, "tbcfg", "Thunderbolt Router Config", MTX_DEF);
 	TAILQ_INIT(&sc->cmd_queue);
@@ -342,6 +343,83 @@ tb_router_detach(struct router_softc *sc)
 	if (sc != NULL)
 		free(sc, M_THUNDERBOLT);
 
+	return (0);
+}
+
+/*
+ * Suspend a USB4 router and it's downstreams.
+ *
+ * TODO(Bug 299199): fully flesh out the implementation.
+ */
+int
+tb_router_suspend(struct router_softc *sc)
+{
+	int		err;
+	uint32_t	reg;
+
+	tb_debug(sc, DBG_ROUTER|DBG_EXTRA, "%s called\n", __func__);
+	if (sc->suspended) {
+		tb_debug(sc, DBG_ROUTER|DBG_EXTRA, "Already suspended\n");
+		return (0);
+	}
+
+	/*
+	 * TODO Before we do anything, we've first got to make sure that the
+	 * USB3 hub is in the U3 state, and the PCIe endpoint is in D3.
+	 *
+	 * Also check for "USB4 Port is Configured" to know if we support
+	 * sleep state.
+	 */
+
+	/* First, we've got to set ROUTER_CS_5.SLP (enter sleep). */
+	err = tb_config_router_read(sc, ROUTER_CS_5, 1, &reg);
+	if (err != 0) {
+		tb_debug(sc, DBG_ROUTER, "Cannot read ROUTER_CS5\n");
+		return (err);
+	}
+	/*
+	 * We want to set the enter sleep bit, as well as preventing wake
+	 * events from:
+	 * - Wake on PCIe (WoP).
+	 * - Wake on USB3 (WoU).
+	 * - Wake on DisplayPort (WoD).
+	 * TODO Eventually, we will want the user to be able to control this.
+	 */
+	reg |= ROUTER_SLP;
+	reg &= ~(ROUTER_WOP | ROUTER_WOU | ROUTER_WOD);
+	err = tb_config_router_write(sc, ROUTER_CS_5, 1, &reg);
+	if (err != 0) {
+		tb_debug(sc, DBG_ROUTER, "Cannot write to ROUTER_CS5\n");
+		return (err);
+	}
+
+	/*
+	 * The ROUTER_CS_6.SLPR (sleep ready) bit should be set tSetSR after
+	 * we set the SLP bit.  Poll for it to be set.
+	 *
+	 * TODO On a v2 router, we should wait for the ROP_CMPLT notification,
+	 * but in the meantime just polling is also valid.
+	 */
+	for (size_t i = 0; i < NHI_SLPR_POLL_TRIES; i++) {
+		pause_sbt("tbrouter", ustosbt(NHI_SLPR_POLL_US), 0, 0);
+		err = tb_config_router_read(sc, ROUTER_CS_6, 1, &reg);
+		if (err != 0) {
+			tb_debug(sc, DBG_ROUTER, "Cannot read ROUTER_CS6\n");
+			return (err);
+		}
+		if ((reg & ROUTER_SLPR) != 0)
+			goto ready;
+	}
+	tb_printf(sc, "Timed out waiting for the sleep ready bit to be set\n");
+	return (ETIMEDOUT);
+
+ready:
+	tb_printf(sc, "Ready to enter sleep\n");
+	sc->suspended = true;
+	/*
+	 * TODO We must tell the host router to send LT_LRoff on the sideband
+	 * channel of each DFP.
+	 */
 	return (0);
 }
 

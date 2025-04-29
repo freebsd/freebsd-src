@@ -387,6 +387,19 @@ nhi_detach(struct nhi_softc *sc)
 	return (0);
 }
 
+int
+nhi_suspend(struct nhi_softc *sc)
+{
+	return (tb_router_suspend(sc->root_rsc));
+}
+
+int
+nhi_resume(struct nhi_softc *sc)
+{
+	/* TODO(Bug 299199): fully flesh out the implementation. */
+	return (0);
+}
+
 static void
 nhi_memaddr_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
