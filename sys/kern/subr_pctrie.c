@@ -494,7 +494,7 @@ _pctrie_lookup_node(struct pctrie *ptree, struct pctrie_node *node,
 	 * search for a value matching 'index'.
 	 */
 	while (node != NULL) {
-		KASSERT(!powerof2(node->pn_popmap),
+		KASSERT(access == PCTRIE_SMR || !powerof2(node->pn_popmap),
 		    ("%s: freed node in iter path", __func__));
 		if (!pctrie_keybarr(node, index, &slot))
 			break;
@@ -520,27 +520,18 @@ _pctrie_lookup_node(struct pctrie *ptree, struct pctrie_node *node,
 }
 
 /*
- * Returns the value stored at a given index value, possibly NULL.
+ * Returns the value stored at a given index value, possibly NULL, assuming
+ * access is externally synchronized by a lock.
  */
-static __always_inline uint64_t *
-_pctrie_iter_lookup(struct pctrie_iter *it, uint64_t index, smr_t smr,
-    enum pctrie_access access)
+uint64_t *
+pctrie_iter_lookup(struct pctrie_iter *it, uint64_t index)
 {
 	struct pctrie_node *node;
 
 	it->index = index;
 	node = _pctrie_lookup_node(it->ptree, it->node, index, &it->node,
-	    smr, access);
+	    NULL, PCTRIE_LOCKED);
 	return (pctrie_match_value(node, index));
-}
-
-/*
- * Returns the value stored at a given index value, possibly NULL.
- */
-uint64_t *
-pctrie_iter_lookup(struct pctrie_iter *it, uint64_t index)
-{
-	return (_pctrie_iter_lookup(it, index, NULL, PCTRIE_LOCKED));
 }
 
 /*
@@ -581,9 +572,8 @@ pctrie_iter_insert_lookup(struct pctrie_iter *it, uint64_t *val)
  * Returns the value stored at a fixed offset from the current index value,
  * possibly NULL.
  */
-static __always_inline uint64_t *
-_pctrie_iter_stride(struct pctrie_iter *it, int stride, smr_t smr,
-    enum pctrie_access access)
+uint64_t *
+pctrie_iter_stride(struct pctrie_iter *it, int stride)
 {
 	uint64_t index = it->index + stride;
 
@@ -594,17 +584,7 @@ _pctrie_iter_stride(struct pctrie_iter *it, int stride, smr_t smr,
 	if ((index < it->limit) != (it->index < it->limit))
 		return (NULL);
 
-	return (_pctrie_iter_lookup(it, index, smr, access));
-}
-
-/*
- * Returns the value stored at a fixed offset from the current index value,
- * possibly NULL.
- */
-uint64_t *
-pctrie_iter_stride(struct pctrie_iter *it, int stride)
-{
-	return (_pctrie_iter_stride(it, stride, NULL, PCTRIE_LOCKED));
+	return (pctrie_iter_lookup(it, index));
 }
 
 /*
@@ -614,7 +594,7 @@ pctrie_iter_stride(struct pctrie_iter *it, int stride)
 uint64_t *
 pctrie_iter_next(struct pctrie_iter *it)
 {
-	return (_pctrie_iter_stride(it, 1, NULL, PCTRIE_LOCKED));
+	return (pctrie_iter_stride(it, 1));
 }
 
 /*
@@ -624,7 +604,48 @@ pctrie_iter_next(struct pctrie_iter *it)
 uint64_t *
 pctrie_iter_prev(struct pctrie_iter *it)
 {
-	return (_pctrie_iter_stride(it, -1, NULL, PCTRIE_LOCKED));
+	return (pctrie_iter_stride(it, -1));
+}
+
+/*
+ * Returns the number of contiguous, non-NULL entries read into the value[]
+ * array, without requiring an external lock.  These entries *may* never have
+ * been in the pctrie all at one time, but for a series of times t0, t1, t2,
+ * ..., with ti <= t(i+1), value[i] was in the trie at time ti.
+ */
+int
+pctrie_lookup_range_unlocked(struct pctrie *ptree, uint64_t index,
+    uint64_t *value[], int count, smr_t smr)
+{
+	struct pctrie_node *parent, *node;
+	int base, end, i;
+
+	parent = NULL;
+	smr_enter(smr);
+	for (i = 0; i < count;) {
+		node = _pctrie_lookup_node(ptree, parent, index + i, &parent,
+		    smr, PCTRIE_SMR);
+		value[i] = pctrie_match_value(node, index + i);
+		if (value[i] == NULL)
+			break;
+		++i;
+		base = (index + i) % PCTRIE_COUNT;
+		if (base == 0 || parent == NULL || parent->pn_clev != 0)
+			continue;
+		end = MIN(count, i + PCTRIE_COUNT - base);
+		while (i < end) {
+			node = pctrie_node_load(&parent->pn_child[base++],
+			    smr, PCTRIE_SMR);
+			value[i] = pctrie_toval(node);
+			if (value[i] == NULL)
+				break;
+			++i;
+		}
+		if (i < end)
+			break;
+	}
+	smr_exit(smr);
+	return (i);
 }
 
 /*

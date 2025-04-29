@@ -5269,7 +5269,7 @@ vm_page_grab_pages_unlocked(vm_object_t object, vm_pindex_t pindex,
 {
 	vm_page_t m;
 	int flags;
-	int i;
+	int i, num_fetched;
 
 	KASSERT(count > 0,
 	    ("vm_page_grab_pages_unlocked: invalid page count %d", count));
@@ -5281,22 +5281,10 @@ vm_page_grab_pages_unlocked(vm_object_t object, vm_pindex_t pindex,
 	 */
 	flags = allocflags & ~VM_ALLOC_NOBUSY;
 	vm_page_grab_check(flags);
-	m = NULL;
-	for (i = 0; i < count; i++, pindex++) {
-		/*
-		 * We may see a false NULL here because the previous page has
-		 * been removed or just inserted and the list is loaded without
-		 * barriers.  Switch to radix to verify.
-		 */
-		if (m == NULL || QMD_IS_TRASHED(m) || m->pindex != pindex ||
-		    atomic_load_ptr(&m->object) != object) {
-			/*
-			 * This guarantees the result is instantaneously
-			 * correct.
-			 */
-			m = NULL;
-		}
-		m = vm_page_acquire_unlocked(object, pindex, m, flags);
+	num_fetched = vm_radix_lookup_range_unlocked(&object->rtree, pindex,
+	    ma, count);
+	for (i = 0; i < num_fetched; i++, pindex++) {
+		m = vm_page_acquire_unlocked(object, pindex, ma[i], flags);
 		if (m == PAGE_NOT_ACQUIRED)
 			return (i);
 		if (m == NULL)
@@ -5308,8 +5296,8 @@ vm_page_grab_pages_unlocked(vm_object_t object, vm_pindex_t pindex,
 		}
 		/* m will still be wired or busy according to flags. */
 		vm_page_grab_release(m, allocflags);
+		/* vm_page_acquire_unlocked() may not return ma[i]. */
 		ma[i] = m;
-		m = TAILQ_NEXT(m, listq);
 	}
 	if (i == count || (allocflags & VM_ALLOC_NOCREAT) != 0)
 		return (i);
