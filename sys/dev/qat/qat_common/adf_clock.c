@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 
 #include <linux/delay.h>
+#include <sys/priv.h>
 
 #define MEASURE_CLOCK_RETRIES 10
 #define MEASURE_CLOCK_DELTA_THRESHOLD 100
@@ -21,11 +22,30 @@
 		}                                                              \
 	} while (0)
 
+static int adf_clock_read_frequency(SYSCTL_HANDLER_ARGS)
+{
+	struct adf_accel_dev *accel_dev = arg1;
+	struct adf_hw_device_data *hw_data;
+	int error = EFAULT;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
+
+	if (accel_dev == NULL)
+		return EINVAL;
+
+	hw_data = accel_dev->hw_device;
+
+	error = sysctl_handle_int(oidp, &hw_data->clock_frequency, 0, req);
+	if (error || !req->newptr)
+		return error;
+
+	return (0);
+}
+
 int
 adf_clock_debugfs_add(struct adf_accel_dev *accel_dev)
 {
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-
 	struct sysctl_ctx_list *qat_sysctl_ctx;
 	struct sysctl_oid *qat_sysctl_tree;
 	struct sysctl_oid *rc = 0;
@@ -35,13 +55,15 @@ adf_clock_debugfs_add(struct adf_accel_dev *accel_dev)
 	qat_sysctl_tree =
 	    device_get_sysctl_tree(accel_dev->accel_pci_dev.pci_dev);
 
-	rc = SYSCTL_ADD_UINT(qat_sysctl_ctx,
+	rc = SYSCTL_ADD_PROC(qat_sysctl_ctx,
 			     SYSCTL_CHILDREN(qat_sysctl_tree),
 			     OID_AUTO,
 			     CLK_DBGFS_FILE,
-			     CTLFLAG_RD,
-			     &hw_data->clock_frequency,
+			     CTLTYPE_INT | CTLFLAG_RD,
+			     accel_dev,
 			     0,
+			     adf_clock_read_frequency,
+			     "IU",
 			     "clock frequency");
 	HB_SYSCTL_ERR(rc);
 	return 0;
