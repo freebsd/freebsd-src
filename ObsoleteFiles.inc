@@ -85,7 +85,7 @@ OLD_FILES+=usr/tests/sys/vm/stack/.debug/libsoxstack.so.debug
 OLD_DIRS+=usr/tests/sys/vm/stack/.debug
 
 # 20250129: libdevinfo bumped to version 7
-OLD_LIBS+=lib/libdevinfo.so.6
+OLD_LIBS+=usr/lib/libdevinfo.so.6
 
 # 20250123: Remove gvinum(8)
 OLD_FILES+=sbin/gvinum
