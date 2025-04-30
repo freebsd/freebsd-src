@@ -84,7 +84,6 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_domainset.h>
-#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_phys.h>
