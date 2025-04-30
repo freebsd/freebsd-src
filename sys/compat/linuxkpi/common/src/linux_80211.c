@@ -6810,7 +6810,7 @@ linuxkpi_ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * For now do the data copy; we can later improve things. Might even
 	 * have an mbuf backing the skb data then?
 	 */
-	m = m_get2(skb->len, M_NOWAIT, MT_DATA, M_PKTHDR);
+	m = m_get3(skb->len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		counter_u64_add(ic->ic_ierrors, 1);
 		goto err;
