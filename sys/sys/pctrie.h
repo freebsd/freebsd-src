@@ -215,6 +215,18 @@ name##_PCTRIE_LOOKUP(struct pctrie *ptree, uint64_t key)		\
 	return name##_PCTRIE_VAL2PTR(pctrie_lookup(ptree, key));	\
 }									\
 									\
+static __inline __unused int						\
+name##_PCTRIE_LOOKUP_RANGE(struct pctrie *ptree, uint64_t key,		\
+     struct type *value[], int count) 					\
+{									\
+	uint64_t **data = (uint64_t **)value;				\
+									\
+	count = pctrie_lookup_range(ptree, key, data, count);		\
+	for (int i = 0; i < count; i++)					\
+		value[i] = name##_PCTRIE_NZVAL2PTR(data[i]);		\
+	return (count);							\
+}									\
+									\
 static __inline __unused struct type *					\
 name##_PCTRIE_LOOKUP_LE(struct pctrie *ptree, uint64_t key)		\
 {									\
@@ -383,6 +395,8 @@ void		pctrie_insert_node(uint64_t *val, struct pctrie_node *parent,
 uint64_t	*pctrie_lookup(struct pctrie *ptree, uint64_t key);
 uint64_t	*pctrie_lookup_unlocked(struct pctrie *ptree, uint64_t key,
 		    smr_t smr);
+int		pctrie_lookup_range(struct pctrie *ptree,
+		    uint64_t index, uint64_t *value[], int count);
 int		pctrie_lookup_range_unlocked(struct pctrie *ptree,
 		    uint64_t index, uint64_t *value[], int count, smr_t smr);
 uint64_t	*pctrie_iter_lookup(struct pctrie_iter *it, uint64_t index);
