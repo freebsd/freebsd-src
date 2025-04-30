@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "qat_freebsd.h"
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
@@ -8,6 +8,7 @@
 #include "adf_gen4_hw_data.h"
 #include "adf_fw_counters.h"
 #include "adf_cfg_device.h"
+#include "adf_dbgfs.h"
 #include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -83,6 +84,7 @@ adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 		free(accel_dev->hw_device, M_QAT_4XXXVF);
 		accel_dev->hw_device = NULL;
 	}
+	adf_dbgfs_exit(accel_dev);
 	adf_cfg_dev_remove(accel_dev);
 }
 
@@ -179,6 +181,8 @@ adf_attach(device_t dev)
 		bar->size = rman_get_size(bar->virt_addr);
 	}
 	pci_enable_busmaster(dev);
+
+	adf_dbgfs_init(accel_dev);
 
 	/* Completion for VF2PF request/response message exchange */
 	init_completion(&accel_dev->u1.vf.msg_received);
