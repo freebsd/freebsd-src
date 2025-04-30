@@ -22,6 +22,7 @@ SRCS+= adf_pfvf_utils.c adf_pfvf_vf_msg.c adf_pfvf_vf_proto.c
 SRCS+= adf_gen4vf_hw_csr_data.c
 SRCS+= adf_freebsd_transport_debug.c adf_clock.c
 SRCS+= adf_freebsd_cnvnr_ctrs_dbg.c
+SRCS+= adf_freebsd_dbgfs.c
 SRCS+= adf_freebsd_pfvf_ctrs_dbg.c
 SRCS+= bus_if.h device_if.h pci_if.h vnode_if.h opt_qat.h
 

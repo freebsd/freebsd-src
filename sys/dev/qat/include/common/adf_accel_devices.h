@@ -685,6 +685,10 @@ struct adf_accel_dev {
 	struct sysctl_oid *ras_reset;
 	struct sysctl_oid *pke_replay_dbgfile;
 	struct sysctl_oid *misc_error_dbgfile;
+	struct sysctl_oid *fw_version_oid;
+	struct sysctl_oid *mmp_version_oid;
+	struct sysctl_oid *hw_version_oid;
+	struct sysctl_oid *cnv_error_oid;
 	struct list_head list;
 	struct adf_accel_pci accel_pci_dev;
 	struct adf_accel_compat_manager *cm;
