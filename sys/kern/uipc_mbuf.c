@@ -1986,7 +1986,6 @@ m_uiotombuf(struct uio *uio, int how, int len, int lspace, int flags)
 
 /*
  * Copy the contents of uio into a properly sized mbuf chain.
- * In case of failure state of mchain is inconsistent.
  * @param length Limit copyout length.  If 0 entire uio_resid is copied.
  * @param lspace Provide leading space in the first mbuf in the chain.
  */
@@ -2032,6 +2031,7 @@ mc_uiotomc(struct mchain *mc, struct uio *uio, u_int length, u_int lspace,
 		error = uiomove(mtod(mb, void *), mlen, uio);
 		if (__predict_false(error)) {
 			mc_freem(mc);
+			*mc = MCHAIN_INITIALIZER(mc);
 			return (error);
 		}
 		mb->m_len = mlen;
