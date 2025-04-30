@@ -186,7 +186,6 @@ static int	filt_soread(struct knote *kn, long hint);
 static void	filt_sowdetach(struct knote *kn);
 static int	filt_sowrite(struct knote *kn, long hint);
 static int	filt_soempty(struct knote *kn, long hint);
-fo_kqfilter_t	soo_kqfilter;
 
 static const struct filterops soread_filtops = {
 	.f_isfd = 1,
@@ -4488,9 +4487,8 @@ sopoll_generic(struct socket *so, int events, struct thread *td)
 }
 
 int
-soo_kqfilter(struct file *fp, struct knote *kn)
+sokqfilter_generic(struct socket *so, struct knote *kn)
 {
-	struct socket *so = kn->kn_fp->f_data;
 	struct sockbuf *sb;
 	sb_which which;
 	struct knlist *knl;

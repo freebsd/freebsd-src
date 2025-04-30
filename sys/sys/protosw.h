@@ -51,6 +51,7 @@ struct stat;
 struct ucred;
 struct uio;
 struct kaiocb;
+struct knote;
 enum shutdown_how;
 
 /* USE THESE FOR YOUR PROTOTYPES ! */
@@ -89,6 +90,7 @@ typedef int	pr_sosend_t(struct socket *, struct sockaddr *, struct uio *,
 typedef int	pr_soreceive_t(struct socket *, struct sockaddr **,
 		    struct uio *, struct mbuf **, struct mbuf **, int *);
 typedef int	pr_sopoll_t(struct socket *, int, struct thread *);
+typedef int	pr_kqfilter_t(struct socket *, struct knote *);
 typedef void	pr_sosetlabel_t(struct socket *);
 typedef void	pr_close_t(struct socket *);
 typedef int	pr_bindat_t(int, struct socket *, struct sockaddr *,
@@ -138,6 +140,7 @@ struct protosw {
 	pr_sosetlabel_t	*pr_sosetlabel;	/* MAC, XXXGL: remove */
 	pr_setsbopt_t	*pr_setsbopt;	/* Socket buffer ioctls */
 	pr_chmod_t	*pr_chmod;	/* fchmod(2) */
+	pr_kqfilter_t	*pr_kqfilter;	/* kevent(2) */
 };
 #endif	/* defined(_KERNEL) || defined(_WANT_PROTOSW) */
 #ifdef _KERNEL
