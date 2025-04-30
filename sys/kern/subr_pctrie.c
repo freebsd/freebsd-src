@@ -609,22 +609,19 @@ pctrie_iter_prev(struct pctrie_iter *it)
 
 /*
  * Returns the number of contiguous, non-NULL entries read into the value[]
- * array, without requiring an external lock.  These entries *may* never have
- * been in the pctrie all at one time, but for a series of times t0, t1, t2,
- * ..., with ti <= t(i+1), value[i] was in the trie at time ti.
+ * array, starting at index.
  */
-int
-pctrie_lookup_range_unlocked(struct pctrie *ptree, uint64_t index,
-    uint64_t *value[], int count, smr_t smr)
+static __always_inline int
+_pctrie_lookup_range(struct pctrie *ptree, uint64_t index, uint64_t *value[],
+    int count, smr_t smr, enum pctrie_access access)
 {
 	struct pctrie_node *parent, *node;
 	int base, end, i;
 
 	parent = NULL;
-	smr_enter(smr);
 	for (i = 0; i < count;) {
 		node = _pctrie_lookup_node(ptree, parent, index + i, &parent,
-		    smr, PCTRIE_SMR);
+		    smr, access);
 		value[i] = pctrie_match_value(node, index + i);
 		if (value[i] == NULL)
 			break;
@@ -635,7 +632,7 @@ pctrie_lookup_range_unlocked(struct pctrie *ptree, uint64_t index,
 		end = MIN(count, i + PCTRIE_COUNT - base);
 		while (i < end) {
 			node = pctrie_node_load(&parent->pn_child[base++],
-			    smr, PCTRIE_SMR);
+			    smr, access);
 			value[i] = pctrie_toval(node);
 			if (value[i] == NULL)
 				break;
@@ -644,8 +641,39 @@ pctrie_lookup_range_unlocked(struct pctrie *ptree, uint64_t index,
 		if (i < end)
 			break;
 	}
-	smr_exit(smr);
 	return (i);
+}
+
+/*
+ * Returns the number of contiguous, non-NULL entries read into the value[]
+ * array, starting at index, assuming access is externally synchronized by a
+ * lock.
+ */
+int
+pctrie_lookup_range(struct pctrie *ptree, uint64_t index,
+    uint64_t *value[], int count)
+{
+	return (_pctrie_lookup_range(ptree, index, value, count, NULL,
+	    PCTRIE_LOCKED));
+}
+
+/*
+ * Returns the number of contiguous, non-NULL entries read into the value[]
+ * array, starting at index, without requiring an external lock.  These entries
+ * *may* never have been in the pctrie all at one time, but for a series of
+ * times t0, t1, t2, ..., with ti <= t(i+1), value[i] was in the trie at time
+ * ti.
+ */
+int
+pctrie_lookup_range_unlocked(struct pctrie *ptree, uint64_t index,
+    uint64_t *value[], int count, smr_t smr)
+{
+	int res;
+
+	smr_enter(smr);
+	res = _pctrie_lookup_range(ptree, index, value, count, smr, PCTRIE_SMR);
+	smr_exit(smr);
+	return (res);
 }
 
 /*
