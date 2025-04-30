@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 #include "adf_dev_err.h"
 #include "adf_freebsd_pfvf_ctrs_dbg.h"
+#include <sys/priv.h>
 
 #define MAX_REPORT_LINES (14)
 #define MAX_REPORT_LINE_LEN (64)
@@ -91,6 +92,9 @@ static int adf_pfvf_ctrs_show(SYSCTL_HANDLER_ARGS)
 {
 	struct pfvf_stats *pfvf_counters = arg1;
 	char report[MAX_REPORT_SIZE];
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	if (!pfvf_counters)
 		return EINVAL;
