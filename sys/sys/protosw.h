@@ -81,6 +81,7 @@ typedef enum {
 } pr_send_flags_t;
 typedef int	pr_send_t(struct socket *, int, struct mbuf *,
 		    struct sockaddr *, struct mbuf *, struct thread *);
+typedef	int	pr_sendfile_wait_t(struct socket *, off_t, int *);
 typedef int	pr_ready_t(struct socket *, struct mbuf *, int);
 typedef int	pr_sense_t(struct socket *, struct stat *);
 typedef int	pr_shutdown_t(struct socket *, enum shutdown_how);
@@ -109,9 +110,9 @@ struct protosw {
 	struct	domain	*pr_domain;	/* domain protocol a member of */
 
 	pr_soreceive_t	*pr_soreceive;	/* recv(2) */
-	pr_rcvd_t	*pr_rcvd;	/* soreceive_generic() if PR_WANTRCVD */
 	pr_sosend_t	*pr_sosend;	/* send(2) */
 	pr_send_t	*pr_send;	/* send(2) via sosend_generic() */
+	pr_sendfile_wait_t  *pr_sendfile_wait;	/* sendfile helper */
 	pr_ready_t	*pr_ready;	/* sendfile/ktls readyness */
 	pr_sopoll_t	*pr_sopoll;	/* poll(2) */
 /* Cache line #2 */
@@ -121,7 +122,7 @@ struct protosw {
 	pr_disconnect_t	*pr_disconnect;	/* sodisconnect() */
 	pr_close_t	*pr_close;	/* close(2) */
 	pr_shutdown_t	*pr_shutdown;	/* shutdown(2) */
-	pr_abort_t	*pr_abort;	/* abrupt tear down: soabort() */
+	pr_rcvd_t	*pr_rcvd;	/* soreceive_generic() if PR_WANTRCVD */
 	pr_aio_queue_t	*pr_aio_queue;	/* aio(9) */
 /* Cache line #3 */
 	pr_bind_t	*pr_bind;	/* bind(2) */
@@ -133,6 +134,7 @@ struct protosw {
 	pr_control_t	*pr_control;	/* ioctl(2) */
 	pr_rcvoob_t	*pr_rcvoob;	/* soreceive_rcvoob() */
 /* Cache line #4 */
+	pr_abort_t	*pr_abort;	/* abrupt tear down: soabort() */
 	pr_ctloutput_t	*pr_ctloutput;	/* control output (from above) */
 	pr_peeraddr_t	*pr_peeraddr;	/* getpeername(2) */
 	pr_sockaddr_t	*pr_sockaddr;	/* getsockname(2) */

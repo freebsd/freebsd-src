@@ -3373,6 +3373,7 @@ static struct protosw streamproto = {
 	.pr_peeraddr =		uipc_peeraddr,
 	.pr_rcvd =		uipc_rcvd,
 	.pr_send =		uipc_send,
+	.pr_sendfile_wait =	sendfile_wait_generic,
 	.pr_ready =		uipc_ready,
 	.pr_sense =		uipc_sense,
 	.pr_shutdown =		uipc_shutdown,
