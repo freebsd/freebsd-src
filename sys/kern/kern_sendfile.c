@@ -779,6 +779,9 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 		SOCKBUF_LOCK(&so->so_snd);
 		if (so->so_snd.sb_lowat < so->so_snd.sb_hiwat / 2)
 			so->so_snd.sb_lowat = so->so_snd.sb_hiwat / 2;
+		if (so->so_snd.sb_lowat < PAGE_SIZE &&
+		    so->so_snd.sb_hiwat >= PAGE_SIZE)
+			so->so_snd.sb_lowat = PAGE_SIZE;
 retry_space:
 		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 			error = EPIPE;
