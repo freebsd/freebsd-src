@@ -667,6 +667,77 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	return (0);
 }
 
+/*
+ * Check socket state and wait (or EAGAIN) for needed amount of space.
+ */
+int
+sendfile_wait_generic(struct socket *so, off_t need, int *space)
+{
+	int error;
+
+	MPASS(need > 0);
+	MPASS(space != NULL);
+
+	/*
+	 * XXXGL: the hack with sb_lowat originates from d99b0dd2c5297.  To
+	 * achieve high performance sending with sendfile(2) a non-blocking
+	 * socket needs a fairly high low watermark.  Otherwise, the socket
+	 * will be reported as writable too early, and sendfile(2) will send
+	 * just a few bytes each time.  It is important to understand that
+	 * we are changing sb_lowat not for the current invocation of the
+	 * syscall, but for the *next* syscall. So there is no way to
+	 * workaround the problem, e.g. provide a special version of sbspace().
+	 * Since this hack has been in the kernel for a long time, we
+	 * anticipate that there is a lot of software that will suffer if we
+	 * remove it.  See also b21104487324.
+	 */
+	error = 0;
+	SOCK_SENDBUF_LOCK(so);
+	if (so->so_snd.sb_lowat < so->so_snd.sb_hiwat / 2)
+		so->so_snd.sb_lowat = so->so_snd.sb_hiwat / 2;
+	if (so->so_snd.sb_lowat < PAGE_SIZE && so->so_snd.sb_hiwat >= PAGE_SIZE)
+		so->so_snd.sb_lowat = PAGE_SIZE;
+retry_space:
+	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+		error = EPIPE;
+		goto done;
+	} else if (so->so_error) {
+		error = so->so_error;
+		so->so_error = 0;
+		goto done;
+	}
+	if ((so->so_state & SS_ISCONNECTED) == 0) {
+		error = ENOTCONN;
+		goto done;
+	}
+
+	*space = sbspace(&so->so_snd);
+	if (*space < need && (*space <= 0 || *space < so->so_snd.sb_lowat)) {
+		if (so->so_state & SS_NBIO) {
+			error = EAGAIN;
+			goto done;
+		}
+		/*
+		 * sbwait() drops the lock while sleeping.  When we loop back
+		 * to retry_space the state may have changed and we retest
+		 * for it.
+		 */
+		error = sbwait(so, SO_SND);
+		/*
+		 * An error from sbwait() usually indicates that we've been
+		 * interrupted by a signal.  If we've sent anything then return
+		 * bytes sent, otherwise return the error.
+		 */
+		if (error != 0)
+			goto done;
+		goto retry_space;
+	}
+done:
+	SOCK_SENDBUF_UNLOCK(so);
+
+	return (error);
+}
+
 int
 vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
@@ -677,6 +748,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct vm_object *obj;
 	vm_page_t pga;
 	struct socket *so;
+	const struct protosw *pr;
 #ifdef KERN_TLS
 	struct ktls_session *tls;
 #endif
@@ -710,6 +782,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	error = sendfile_getsock(td, sockfd, &sock_fp, &so);
 	if (error != 0)
 		goto out;
+	pr = so->so_proto;
 
 #ifdef MAC
 	error = mac_socket_check_send(td->td_ucred, so);
@@ -760,74 +833,8 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 		int nios, space, npages, rhpages;
 
 		mtail = NULL;
-		/*
-		 * Check the socket state for ongoing connection,
-		 * no errors and space in socket buffer.
-		 * If space is low allow for the remainder of the
-		 * file to be processed if it fits the socket buffer.
-		 * Otherwise block in waiting for sufficient space
-		 * to proceed, or if the socket is nonblocking, return
-		 * to userland with EAGAIN while reporting how far
-		 * we've come.
-		 * We wait until the socket buffer has significant free
-		 * space to do bulk sends.  This makes good use of file
-		 * system read ahead and allows packet segmentation
-		 * offloading hardware to take over lots of work.  If
-		 * we were not careful here we would send off only one
-		 * sfbuf at a time.
-		 */
-		SOCKBUF_LOCK(&so->so_snd);
-		if (so->so_snd.sb_lowat < so->so_snd.sb_hiwat / 2)
-			so->so_snd.sb_lowat = so->so_snd.sb_hiwat / 2;
-		if (so->so_snd.sb_lowat < PAGE_SIZE &&
-		    so->so_snd.sb_hiwat >= PAGE_SIZE)
-			so->so_snd.sb_lowat = PAGE_SIZE;
-retry_space:
-		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
-			error = EPIPE;
-			SOCKBUF_UNLOCK(&so->so_snd);
+		if ((error = pr->pr_sendfile_wait(so, rem, &space)) != 0)
 			goto done;
-		} else if (so->so_error) {
-			error = so->so_error;
-			so->so_error = 0;
-			SOCKBUF_UNLOCK(&so->so_snd);
-			goto done;
-		}
-		if ((so->so_state & SS_ISCONNECTED) == 0) {
-			SOCKBUF_UNLOCK(&so->so_snd);
-			error = ENOTCONN;
-			goto done;
-		}
-
-		space = sbspace(&so->so_snd);
-		if (space < rem &&
-		    (space <= 0 ||
-		     space < so->so_snd.sb_lowat)) {
-			if (so->so_state & SS_NBIO) {
-				SOCKBUF_UNLOCK(&so->so_snd);
-				error = EAGAIN;
-				goto done;
-			}
-			/*
-			 * sbwait drops the lock while sleeping.
-			 * When we loop back to retry_space the
-			 * state may have changed and we retest
-			 * for it.
-			 */
-			error = sbwait(so, SO_SND);
-			/*
-			 * An error from sbwait usually indicates that we've
-			 * been interrupted by a signal. If we've sent anything
-			 * then return bytes sent, otherwise return the error.
-			 */
-			if (error != 0) {
-				SOCKBUF_UNLOCK(&so->so_snd);
-				goto done;
-			}
-			goto retry_space;
-		}
-		SOCKBUF_UNLOCK(&so->so_snd);
-
 		/*
 		 * At the beginning of the first loop check if any headers
 		 * are specified and copy them into mbufs.  Reduce space in
@@ -966,8 +973,7 @@ retry_space:
 		 *
 		 * TLS frames always require unmapped mbufs.
 		 */
-		if ((mb_use_ext_pgs &&
-		    so->so_proto->pr_protocol == IPPROTO_TCP)
+		if ((mb_use_ext_pgs && pr->pr_protocol == IPPROTO_TCP)
 #ifdef KERN_TLS
 		    || tls != NULL
 #endif
@@ -1172,8 +1178,8 @@ prepend_header:
 				sendfile_iodone(sfio, NULL, 0, 0);
 #ifdef KERN_TLS
 			if (tls != NULL && tls->mode == TCP_TLS_MODE_SW) {
-				error = so->so_proto->pr_send(so,
-				    PRUS_NOTREADY, m, NULL, NULL, td);
+				error = pr->pr_send(so, PRUS_NOTREADY, m, NULL,
+				    NULL, td);
 				if (error != 0) {
 					m_freem(m);
 				} else {
@@ -1182,14 +1188,13 @@ prepend_header:
 				}
 			} else
 #endif
-				error = so->so_proto->pr_send(so, 0, m, NULL,
-				    NULL, td);
+				error = pr->pr_send(so, 0, m, NULL, NULL, td);
 		} else {
 			sfio->so = so;
 			sfio->m = m0;
 			soref(so);
-			error = so->so_proto->pr_send(so, PRUS_NOTREADY, m,
-			    NULL, NULL, td);
+			error = pr->pr_send(so, PRUS_NOTREADY, m, NULL, NULL,
+			    td);
 			sendfile_iodone(sfio, NULL, 0, error);
 		}
 #ifdef TCP_REQUEST_TRK
