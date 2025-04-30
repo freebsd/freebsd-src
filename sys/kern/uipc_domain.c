@@ -191,6 +191,7 @@ pr_init(struct domain *dom, struct protosw *pr)
 	DEFAULT(pr_sopoll, sopoll_generic);
 	DEFAULT(pr_setsbopt, sbsetopt);
 	DEFAULT(pr_aio_queue, soaio_queue_generic);
+	DEFAULT(pr_kqfilter, sokqfilter_generic);
 
 #define NOTSUPP(foo)	if (pr->foo == NULL)  pr->foo = foo ## _notsupp
 	NOTSUPP(pr_accept);

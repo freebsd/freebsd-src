@@ -87,7 +87,7 @@ static fo_rdwr_t soo_read;
 static fo_rdwr_t soo_write;
 static fo_ioctl_t soo_ioctl;
 static fo_poll_t soo_poll;
-extern fo_kqfilter_t soo_kqfilter;
+static fo_kqfilter_t soo_kqfilter;
 static fo_stat_t soo_stat;
 static fo_close_t soo_close;
 static fo_chmod_t soo_chmod;
@@ -289,6 +289,14 @@ soo_poll(struct file *fp, int events, struct ucred *active_cred,
 		return (error);
 #endif
 	return (so->so_proto->pr_sopoll(so, events, td));
+}
+
+static int
+soo_kqfilter(struct file *fp, struct knote *kn)
+{
+	struct socket *so = fp->f_data;
+
+	return (so->so_proto->pr_kqfilter(so, kn));
 }
 
 static int
