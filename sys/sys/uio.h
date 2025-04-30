@@ -90,6 +90,7 @@ int	physcopyin_vlist(struct bus_dma_segment *src, off_t offset,
 	    vm_paddr_t dst, size_t len);
 int	physcopyout_vlist(vm_paddr_t src, struct bus_dma_segment *dst,
 	    off_t offset, size_t len);
+void	uioadvance(struct uio *, size_t);
 int	uiomove(void *cp, int n, struct uio *uio);
 int	uiomove_frombuf(void *buf, int buflen, struct uio *uio);
 int	uiomove_fromphys(struct vm_page *ma[], vm_offset_t offset, int n,

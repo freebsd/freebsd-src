@@ -288,6 +288,37 @@ out:
 }
 
 /*
+ * Advance the pointer in the uio by offset.
+ */
+void
+uioadvance(struct uio *uio, size_t offset)
+{
+
+	while (offset > 0) {
+		struct iovec *iov;
+		size_t cnt;
+
+		MPASS(uio->uio_resid >= 0);
+		MPASS((size_t)uio->uio_resid >= offset);
+		MPASS(uio->uio_iovcnt > 0);
+
+		iov = uio->uio_iov;
+		if ((cnt = iov->iov_len) == 0) {
+			uio->uio_iov++;
+			uio->uio_iovcnt--;
+			continue;
+		}
+		if (cnt > offset)
+			cnt = offset;
+		iov->iov_base = (char *)iov->iov_base + cnt;
+		iov->iov_len -= cnt;
+		uio->uio_resid -= cnt;
+		uio->uio_offset += cnt;
+		offset -= cnt;
+	}
+}
+
+/*
  * Wrapper for uiomove() that validates the arguments against a known-good
  * kernel buffer.  Currently, uiomove accepts a signed (n) argument, which
  * is almost definitely a bad thing, so we catch that here as well.  We
