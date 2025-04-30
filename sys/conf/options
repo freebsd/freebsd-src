@@ -1014,3 +1014,6 @@ HIDRAW_MAKE_UHID_ALIAS	opt_hid.h
 # This option is insecure except in controlled environments where the static
 # environment's contents are known to be safe.
 PRESERVE_EARLY_KENV	opt_global.h
+
+# Options for the Intel QuickAssist (QAT) driver.
+QAT_DISABLE_SAFE_DC_MODE	opt_qat.h

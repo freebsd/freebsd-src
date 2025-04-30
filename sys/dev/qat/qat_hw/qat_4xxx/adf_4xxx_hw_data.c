@@ -709,6 +709,10 @@ adf_4xxx_send_admin_init(struct adf_accel_dev *accel_dev)
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
 	req.cmd_id = ICP_QAT_FW_INIT_ME;
+#ifdef QAT_DISABLE_SAFE_DC_MODE
+	if (accel_dev->disable_safe_dc_mode)
+		req.fw_flags = ICP_QAT_FW_INIT_DISABLE_SAFE_DC_MODE_FLAG;
+#endif /* QAT_DISABLE_SAFE_DC_MODE */
 	if (adf_send_admin(accel_dev, &req, &resp, ae_mask)) {
 		device_printf(GET_DEV(accel_dev),
 			      "Error sending init message\n");

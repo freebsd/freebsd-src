@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #ifndef ADF_ACCEL_DEVICES_H_
 #define ADF_ACCEL_DEVICES_H_
 
 #include "qat_freebsd.h"
 #include "adf_cfg_common.h"
 #include "adf_pfvf_msg.h"
+
+#include "opt_qat.h"
 
 #define ADF_CFG_NUM_SERVICES 4
 
@@ -687,6 +689,10 @@ struct adf_accel_dev {
 	struct adf_accel_pci accel_pci_dev;
 	struct adf_accel_compat_manager *cm;
 	u8 compat_ver;
+#ifdef QAT_DISABLE_SAFE_DC_MODE
+	struct sysctl_oid *safe_dc_mode;
+	u8 disable_safe_dc_mode;
+#endif /* QAT_DISABLE_SAFE_DC_MODE */
 	union {
 		struct {
 			/* vf_info is non-zero when SR-IOV is init'ed */
