@@ -12,7 +12,7 @@ SRCS+= qat_dh895xcc/adf_dh895xcc_hw_data.c qat_dh895xcc/adf_drv.c
 SRCS+= qat_c4xxx/adf_c4xxx_hw_data.c qat_c4xxx/adf_drv.c qat_c4xxx/adf_c4xxx_ae_config.c qat_c4xxx/adf_c4xxx_misc_error_stats.c
 SRCS+= qat_c4xxx/adf_c4xxx_pke_replay_stats.c qat_c4xxx/adf_c4xxx_ras.c qat_c4xxx/adf_c4xxx_res_part.c
 SRCS+= qat_c4xxx/adf_c4xxx_reset.c
-SRCS+= device_if.h bus_if.h vnode_if.h pci_if.h cryptodev_if.h
+SRCS+= device_if.h bus_if.h vnode_if.h pci_if.h cryptodev_if.h opt_qat.h
 
 CFLAGS+= ${LINUXKPI_INCLUDES}
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/include
@@ -24,5 +24,16 @@ CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/qat_utils/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/qat_direct/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/firmware/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/common/crypto/sym/include
+
+.if !defined(KERNBUILDDIR)
+CFLAGS+=        -include opt_qat.h
+MKDEP=          -include opt_qat.h
+
+opt_qat.h:
+	:> ${.TARGET}
+.if defined(QAT_DISABLE_SAFE_DC_MODE) && ${QAT_DISABLE_SAFE_DC_MODE} == "1"
+	@echo "#define QAT_DISABLE_SAFE_DC_MODE 1" >> ${.TARGET}
+.endif
+.endif
 
 .include <bsd.kmod.mk>
