@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "adf_c4xxx_ras.h"
 #include "adf_accel_devices.h"
 #include "adf_c4xxx_hw_data.h"
 #include <adf_dev_err.h>
 #include "adf_c4xxx_inline.h"
+#include <sys/priv.h>
 
 #define ADF_RAS_STR_LEN 64
 
@@ -12,6 +13,9 @@ static int adf_sysctl_read_ras_correctable(SYSCTL_HANDLER_ARGS)
 {
 	struct adf_accel_dev *accel_dev = arg1;
 	unsigned long counter = 0;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	if (accel_dev->ras_counters)
 		counter = atomic_read(&accel_dev->ras_counters[ADF_RAS_CORR]);
@@ -24,6 +28,9 @@ static int adf_sysctl_read_ras_uncorrectable(SYSCTL_HANDLER_ARGS)
 	struct adf_accel_dev *accel_dev = arg1;
 	unsigned long counter = 0;
 
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
+
 	if (accel_dev->ras_counters)
 		counter = atomic_read(&accel_dev->ras_counters[ADF_RAS_UNCORR]);
 
@@ -34,6 +41,9 @@ static int adf_sysctl_read_ras_fatal(SYSCTL_HANDLER_ARGS)
 {
 	struct adf_accel_dev *accel_dev = arg1;
 	unsigned long counter = 0;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	if (accel_dev->ras_counters)
 		counter = atomic_read(&accel_dev->ras_counters[ADF_RAS_FATAL]);
@@ -46,6 +56,9 @@ static int adf_sysctl_write_ras_reset(SYSCTL_HANDLER_ARGS)
 	struct adf_accel_dev *accel_dev = arg1;
 	int value = 0;
 	int ret = SYSCTL_IN(req, &value, sizeof(value));
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	if (!ret && value != 0 && accel_dev->ras_counters) {
 	}

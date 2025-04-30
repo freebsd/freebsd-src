@@ -9,6 +9,7 @@
 #include "icp_qat_fw_init_admin.h"
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
+#include <sys/priv.h>
 #define ADF_FW_COUNTERS_BUF_SZ 4096
 
 #define ADF_RAS_EVENT_STR "RAS events"
@@ -125,6 +126,9 @@ int adf_read_fw_counters(SYSCTL_HANDLER_ARGS)
 	int ret = 0;
 	struct sbuf *sbuf = NULL;
 	char *cbuf = NULL;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	if (accel_dev == NULL) {
 		return EINVAL;

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_common_drv.h"
 #include "adf_cfg_device.h"
@@ -12,6 +12,7 @@
 #include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 
 static int qat_dev_cfg_show(SYSCTL_HANDLER_ARGS)
 {
@@ -20,6 +21,9 @@ static int qat_dev_cfg_show(SYSCTL_HANDLER_ARGS)
 	struct adf_cfg_key_val *ptr;
 	struct sbuf sb;
 	int error;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	sbuf_new_for_sysctl(&sb, NULL, 128, req);
 	dev_cfg = arg1;

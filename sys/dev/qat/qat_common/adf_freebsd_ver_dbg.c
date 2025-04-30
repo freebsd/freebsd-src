@@ -5,11 +5,15 @@
 #include "adf_common_drv.h"
 #include "adf_accel_devices.h"
 #include "adf_ver_dbg.h"
+#include <sys/priv.h>
 
 static int adf_sysctl_read_fw_versions(SYSCTL_HANDLER_ARGS)
 {
 	struct adf_accel_dev *accel_dev = arg1;
 	char fw_version[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	if (!accel_dev)
 		return -EINVAL;
@@ -34,6 +38,9 @@ static int adf_sysctl_read_hw_versions(SYSCTL_HANDLER_ARGS)
 	struct adf_accel_dev *accel_dev = arg1;
 	char hw_version[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
 
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
+
 	if (!accel_dev)
 		return -EINVAL;
 
@@ -54,6 +61,9 @@ static int adf_sysctl_read_mmp_versions(SYSCTL_HANDLER_ARGS)
 {
 	struct adf_accel_dev *accel_dev = arg1;
 	char mmp_version[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	if (!accel_dev)
 		return -EINVAL;

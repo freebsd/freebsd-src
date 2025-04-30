@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "adf_c4xxx_hw_data.h"
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
+#include <sys/priv.h>
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
 #include <adf_cfg.h>
@@ -59,6 +60,10 @@ static int adf_ae_config_show(SYSCTL_HANDLER_ARGS)
 	u8 ae_index;
 	u8 num_aes;
 	int ret = 0;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
+
 	u32 num_au = hw_data->get_num_accel_units(hw_data);
 
 	sbuf_new_for_sysctl(&sb, NULL, 2048, req);

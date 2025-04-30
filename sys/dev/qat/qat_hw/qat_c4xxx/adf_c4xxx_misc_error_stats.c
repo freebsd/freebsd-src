@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "adf_c4xxx_hw_data.h"
 #include "adf_c4xxx_misc_error_stats.h"
 #include "adf_common_drv.h"
 #include "adf_cfg_common.h"
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
+#include <sys/priv.h>
 
 #define MISC_ERROR_DBG_FILE "misc_error_stats"
 #define LINE                                                                   \
@@ -22,6 +23,9 @@ struct adf_dev_miscellaneous_stats {
 static int qat_misc_error_show(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf sb;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	sbuf_new_for_sysctl(&sb, NULL, 256, req);
 	sbuf_printf(&sb, "\n");

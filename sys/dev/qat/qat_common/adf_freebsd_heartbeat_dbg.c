@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/priv.h>
 #include "adf_heartbeat_dbg.h"
 #include "adf_common_drv.h"
 #include "adf_cfg.h"
@@ -17,6 +18,49 @@
 		}                                                                   \
 	} while (0)
 
+
+static int qat_dev_hb_read_sent(SYSCTL_HANDLER_ARGS)
+{
+	struct adf_accel_dev *accel_dev = arg1;
+	struct adf_heartbeat *hb;
+	int error = EFAULT;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
+
+	if (accel_dev == NULL)
+		return EINVAL;
+
+	hb = accel_dev->heartbeat;
+
+	error = sysctl_handle_int(oidp, &hb->hb_sent_counter, 0, req);
+	if (error || !req->newptr)
+		return error;
+
+	return (0);
+}
+
+static int qat_dev_hb_read_failed(SYSCTL_HANDLER_ARGS)
+{
+	struct adf_accel_dev *accel_dev = arg1;
+	struct adf_heartbeat *hb;
+	int error = EFAULT;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
+
+	if (accel_dev == NULL)
+		return EINVAL;
+
+	hb = accel_dev->heartbeat;
+
+	error = sysctl_handle_int(oidp, &hb->hb_failed_counter, 0, req);
+	if (error || !req->newptr)
+		return error;
+
+	return (0);
+}
+
 /* Handler for HB status check */
 static int qat_dev_hb_read(SYSCTL_HANDLER_ARGS)
 {
@@ -24,6 +68,10 @@ static int qat_dev_hb_read(SYSCTL_HANDLER_ARGS)
 	struct adf_accel_dev *accel_dev = arg1;
 	struct adf_heartbeat *hb;
 	int ret = 0;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
+
 	if (accel_dev == NULL) {
 		return EINVAL;
 	}
@@ -63,24 +111,28 @@ adf_heartbeat_dbg_add(struct adf_accel_dev *accel_dev)
 	    device_get_sysctl_tree(accel_dev->accel_pci_dev.pci_dev);
 
 	hb->heartbeat_sent.oid =
-	    SYSCTL_ADD_UINT(qat_hb_sysctl_ctx,
+	    SYSCTL_ADD_PROC(qat_hb_sysctl_ctx,
 			    SYSCTL_CHILDREN(qat_hb_sysctl_tree),
 			    OID_AUTO,
 			    "heartbeat_sent",
-			    CTLFLAG_RD,
-			    &hb->hb_sent_counter,
+			    CTLTYPE_INT | CTLFLAG_RD,
+			    accel_dev,
 			    0,
-			    "HB sent count");
+			    qat_dev_hb_read_sent,
+			    "IU",
+			    "HB failed count");
 	HB_SYSCTL_ERR(hb->heartbeat_sent.oid);
 
 	hb->heartbeat_failed.oid =
-	    SYSCTL_ADD_UINT(qat_hb_sysctl_ctx,
+	    SYSCTL_ADD_PROC(qat_hb_sysctl_ctx,
 			    SYSCTL_CHILDREN(qat_hb_sysctl_tree),
 			    OID_AUTO,
 			    "heartbeat_failed",
-			    CTLFLAG_RD,
-			    &hb->hb_failed_counter,
+			    CTLTYPE_INT | CTLFLAG_RD,
+			    accel_dev,
 			    0,
+			    qat_dev_hb_read_failed,
+			    "IU",
 			    "HB failed count");
 	HB_SYSCTL_ERR(hb->heartbeat_failed.oid);
 

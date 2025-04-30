@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/priv.h>
 #include "adf_cnvnr_freq_counters.h"
 #include "adf_common_drv.h"
 #include "adf_cfg.h"
@@ -44,6 +45,9 @@ static int qat_cnvnr_ctrs_dbg_read(SYSCTL_HANDLER_ARGS)
 	s16 latest_error = 0;
 	char report[MAX_REPORT_SIZE];
 	char *report_ptr = report;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	/* Defensive check */
 	if (!accel_dev || accel_dev->accel_id > ADF_MAX_DEVICES)

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -14,6 +14,7 @@
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/priv.h>
 
 static int adf_ring_show(SYSCTL_HANDLER_ARGS)
 {
@@ -24,6 +25,9 @@ static int adf_ring_show(SYSCTL_HANDLER_ARGS)
 	struct sbuf sb;
 	int error, word;
 	uint32_t *wp, *end;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	sbuf_new_for_sysctl(&sb, NULL, 128, req);
 	{
@@ -124,6 +128,9 @@ static int adf_bank_show(SYSCTL_HANDLER_ARGS)
 	u8 num_rings_per_bank = 0;
 	struct sbuf sb;
 	int error, ring_id;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	sbuf_new_for_sysctl(&sb, NULL, 128, req);
 	bank = arg1;
