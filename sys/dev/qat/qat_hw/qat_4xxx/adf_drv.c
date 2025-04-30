@@ -47,6 +47,74 @@ adf_probe(device_t dev)
 	return ENXIO;
 }
 
+#ifdef QAT_DISABLE_SAFE_DC_MODE
+static int adf_4xxx_sysctl_disable_safe_dc_mode(SYSCTL_HANDLER_ARGS)
+{
+	struct adf_accel_dev *accel_dev = arg1;
+	int error, value = accel_dev->disable_safe_dc_mode;
+
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error || !req->newptr)
+		return error;
+
+	if (value != 1 && value != 0)
+		return EINVAL;
+
+	if (adf_dev_started(accel_dev)) {
+		device_printf(
+		    GET_DEV(accel_dev),
+		    "QAT: configuration can only be changed in \"down\" device state\n");
+		return EBUSY;
+	}
+
+	accel_dev->disable_safe_dc_mode = (u8)value;
+
+	return 0;
+}
+
+static void
+adf_4xxx_disable_safe_dc_sysctl_add(struct adf_accel_dev *accel_dev)
+{
+	struct sysctl_ctx_list *qat_sysctl_ctx;
+	struct sysctl_oid *qat_sysctl_tree;
+
+	qat_sysctl_ctx =
+	    device_get_sysctl_ctx(accel_dev->accel_pci_dev.pci_dev);
+	qat_sysctl_tree =
+	    device_get_sysctl_tree(accel_dev->accel_pci_dev.pci_dev);
+	accel_dev->safe_dc_mode =
+	    SYSCTL_ADD_OID(qat_sysctl_ctx,
+			   SYSCTL_CHILDREN(qat_sysctl_tree),
+			   OID_AUTO,
+			   "disable_safe_dc_mode",
+			   CTLTYPE_INT | CTLFLAG_WR | CTLFLAG_TUN |
+			       CTLFLAG_SKIP,
+			   accel_dev,
+			   0,
+			   adf_4xxx_sysctl_disable_safe_dc_mode,
+			   "LU",
+			   "Disable QAT safe data compression mode");
+}
+
+static void
+adf_4xxx_disable_safe_dc_sysctl_remove(struct adf_accel_dev *accel_dev)
+{
+	int ret;
+	struct sysctl_ctx_list *qat_sysctl_ctx =
+	    device_get_sysctl_ctx(accel_dev->accel_pci_dev.pci_dev);
+
+	ret = sysctl_ctx_entry_del(qat_sysctl_ctx, accel_dev->safe_dc_mode);
+	if (ret) {
+		device_printf(GET_DEV(accel_dev), "Failed to delete entry\n");
+	} else {
+		ret = sysctl_remove_oid(accel_dev->safe_dc_mode, 1, 1);
+		if (ret)
+			device_printf(GET_DEV(accel_dev),
+				      "Failed to delete oid\n");
+	}
+}
+#endif /* QAT_DISABLE_SAFE_DC_MODE */
+
 static void
 adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 {
@@ -76,6 +144,9 @@ adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 		free(accel_dev->hw_device, M_QAT_4XXX);
 		accel_dev->hw_device = NULL;
 	}
+#ifdef QAT_DISABLE_SAFE_DC_MODE
+	adf_4xxx_disable_safe_dc_sysctl_remove(accel_dev);
+#endif /* QAT_DISABLE_SAFE_DC_MODE */
 	adf_cfg_dev_remove(accel_dev);
 	adf_devmgr_rm_dev(accel_dev, NULL);
 }
@@ -152,6 +223,10 @@ adf_attach(device_t dev)
 	ret = adf_clock_debugfs_add(accel_dev);
 	if (ret)
 		goto out_err;
+
+#ifdef QAT_DISABLE_SAFE_DC_MODE
+	adf_4xxx_disable_safe_dc_sysctl_add(accel_dev);
+#endif /* QAT_DISABLE_SAFE_DC_MODE */
 
 	pci_set_max_read_req(dev, 4096);
 

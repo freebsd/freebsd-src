@@ -60,7 +60,7 @@ SRCS+= qat_utils/src/QatUtilsSemaphore.c
 SRCS+= qat_utils/src/QatUtilsSpinLock.c
 SRCS+= qat_utils/src/QatUtilsAtomic.c
 SRCS+= qat_utils/src/QatUtilsCrypto.c
-SRCS+= bus_if.h cryptodev_if.h device_if.h pci_if.h vnode_if.h
+SRCS+= bus_if.h cryptodev_if.h device_if.h pci_if.h vnode_if.h opt_qat.h
 
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/include/lac
@@ -73,6 +73,17 @@ CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/common/crypto/sym/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/qat_api/firmware/include
 CFLAGS+= -I${SRCTOP}/sys/dev/qat/include/common
 CFLAGS+= ${LINUXKPI_INCLUDES}
+
+.if !defined(KERNBUILDDIR)
+CFLAGS+=        -include opt_qat.h
+MKDEP=          -include opt_qat.h
+
+opt_qat.h:
+	:> ${.TARGET}
+.if defined(QAT_DISABLE_SAFE_DC_MODE) && ${QAT_DISABLE_SAFE_DC_MODE} == "1"
+	@echo "#define QAT_DISABLE_SAFE_DC_MODE 1" >> ${.TARGET}
+.endif
+.endif
 
 .include <bsd.kmod.mk>
 
