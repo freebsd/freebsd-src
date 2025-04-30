@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007 - 2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #ifndef ADF_4XXX_HW_DATA_H_
 #define ADF_4XXX_HW_DATA_H_
 
@@ -105,7 +105,7 @@ enum icp_qat_4xxx_slice_mask {
 	ICP_ACCEL_4XXX_MASK_COMPRESS_SLICE = BIT(3),
 	ICP_ACCEL_4XXX_MASK_UCS_SLICE = BIT(4),
 	ICP_ACCEL_4XXX_MASK_EIA3_SLICE = BIT(5),
-	ICP_ACCEL_4XXX_MASK_SMX_SLICE = BIT(6),
+	ICP_ACCEL_4XXX_MASK_SMX_SLICE = BIT(7),
 };
 
 void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 id);

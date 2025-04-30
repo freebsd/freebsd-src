@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #ifndef ADF_4XXXVF_HW_DATA_H_
 #define ADF_4XXXVF_HW_DATA_H_
 
@@ -26,6 +26,18 @@
 #define ADF_4XXXIOV_VFFUSECTL2_OFFSET (0x4C)
 #define ADF_4XXXIOV_VFFUSECTL4_OFFSET (0x1C4)
 #define ADF_4XXXIOV_VFFUSECTL5_OFFSET (0x1C8)
+
+/*qat_4xxxvf fuse bits are same as qat_4xxx*/
+enum icp_qat_4xxxvf_slice_mask {
+	ICP_ACCEL_4XXXVF_MASK_CIPHER_SLICE = 0x01,
+	ICP_ACCEL_4XXXVF_MASK_AUTH_SLICE = 0x02,
+	ICP_ACCEL_4XXXVF_MASK_PKE_SLICE = 0x04,
+	ICP_ACCEL_4XXXVF_MASK_COMPRESS_SLICE = 0x08,
+	ICP_ACCEL_4XXXVF_MASK_UCS_SLICE = 0x10,
+	ICP_ACCEL_4XXXVF_MASK_EIA3_SLICE = 0x20,
+	/*SM3&SM4 are indicated by same bit*/
+	ICP_ACCEL_4XXXVF_MASK_SMX_SLICE = 0x80,
+};
 
 void adf_init_hw_data_4xxxiov(struct adf_hw_device_data *hw_data);
 void adf_clean_hw_data_4xxxiov(struct adf_hw_device_data *hw_data);

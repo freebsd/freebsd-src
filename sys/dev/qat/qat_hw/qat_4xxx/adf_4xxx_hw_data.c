@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include <linux/iopoll.h>
 #include <adf_accel_devices.h>
 #include <adf_cfg.h>
@@ -212,57 +212,77 @@ adf_4xxx_get_hw_cap(struct adf_accel_dev *accel_dev)
 {
 	device_t pdev = accel_dev->accel_pci_dev.pci_dev;
 	u32 fusectl1;
-	u32 capabilities;
+	u32 capabilities_sym, capabilities_sym_cipher, capabilities_sym_auth,
+	    capabilities_asym, capabilities_dc, capabilities_other;
+
+	capabilities_other = ICP_ACCEL_CAPABILITIES_RL;
 
 	/* Read accelerator capabilities mask */
 	fusectl1 = pci_read_config(pdev, ADF_4XXX_FUSECTL1_OFFSET, 4);
-	capabilities = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
-	    ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
-	    ICP_ACCEL_CAPABILITIES_CIPHER |
-	    ICP_ACCEL_CAPABILITIES_AUTHENTICATION |
-	    ICP_ACCEL_CAPABILITIES_COMPRESSION |
+
+	capabilities_sym_cipher = ICP_ACCEL_CAPABILITIES_HKDF |
+	    ICP_ACCEL_CAPABILITIES_SM4 | ICP_ACCEL_CAPABILITIES_CHACHA_POLY |
+	    ICP_ACCEL_CAPABILITIES_AESGCM_SPC | ICP_ACCEL_CAPABILITIES_AES_V2;
+	capabilities_sym_auth = ICP_ACCEL_CAPABILITIES_SM3 |
+	    ICP_ACCEL_CAPABILITIES_SHA3 | ICP_ACCEL_CAPABILITIES_SHA3_EXT;
+
+	/* A set bit in fusectl1 means the feature is OFF in this SKU */
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_CIPHER_SLICE) {
+		capabilities_sym_cipher &= ~ICP_ACCEL_CAPABILITIES_HKDF;
+		capabilities_sym_cipher &= ~ICP_ACCEL_CAPABILITIES_SM4;
+	}
+
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_UCS_SLICE) {
+		capabilities_sym_cipher &= ~ICP_ACCEL_CAPABILITIES_CHACHA_POLY;
+		capabilities_sym_cipher &= ~ICP_ACCEL_CAPABILITIES_AESGCM_SPC;
+		capabilities_sym_cipher &= ~ICP_ACCEL_CAPABILITIES_AES_V2;
+	}
+
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_AUTH_SLICE) {
+		capabilities_sym_auth &= ~ICP_ACCEL_CAPABILITIES_SM3;
+		capabilities_sym_auth &= ~ICP_ACCEL_CAPABILITIES_SHA3;
+		capabilities_sym_auth &= ~ICP_ACCEL_CAPABILITIES_SHA3_EXT;
+	}
+
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_SMX_SLICE) {
+		capabilities_sym_cipher &= ~ICP_ACCEL_CAPABILITIES_SM4;
+		capabilities_sym_auth &= ~ICP_ACCEL_CAPABILITIES_SM3;
+	}
+
+	if (capabilities_sym_cipher)
+		capabilities_sym_cipher |= ICP_ACCEL_CAPABILITIES_CIPHER;
+
+	if (capabilities_sym_auth)
+		capabilities_sym_auth |= ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
+
+	capabilities_sym = capabilities_sym_cipher | capabilities_sym_auth;
+
+	if (capabilities_sym)
+		capabilities_sym |= ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
+
+	capabilities_asym = ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
+	    ICP_ACCEL_CAPABILITIES_SM2 | ICP_ACCEL_CAPABILITIES_ECEDMONT;
+
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_PKE_SLICE) {
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_SM2;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
+	}
+
+	capabilities_dc = ICP_ACCEL_CAPABILITIES_COMPRESSION |
 	    ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION |
 	    ICP_ACCEL_CAPABILITIES_LZ4S_COMPRESSION |
-	    ICP_ACCEL_CAPABILITIES_SHA3 | ICP_ACCEL_CAPABILITIES_HKDF |
-	    ICP_ACCEL_CAPABILITIES_SHA3_EXT | ICP_ACCEL_CAPABILITIES_SM3 |
-	    ICP_ACCEL_CAPABILITIES_SM4 | ICP_ACCEL_CAPABILITIES_CHACHA_POLY |
-	    ICP_ACCEL_CAPABILITIES_AESGCM_SPC | ICP_ACCEL_CAPABILITIES_AES_V2 |
-	    ICP_ACCEL_CAPABILITIES_RL | ICP_ACCEL_CAPABILITIES_ECEDMONT |
 	    ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64;
 
-	if (fusectl1 & ICP_ACCEL_4XXX_MASK_CIPHER_SLICE) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_HKDF;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
-	}
-	if (fusectl1 & ICP_ACCEL_4XXX_MASK_AUTH_SLICE) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_SHA3;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_SHA3_EXT;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
-	}
-	if (fusectl1 & ICP_ACCEL_MASK_PKE_SLICE) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
-	}
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_COMPRESS_SLICE) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_COMPRESSION;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_LZ4S_COMPRESSION;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64;
-	}
-	if (fusectl1 & ICP_ACCEL_4XXX_MASK_SMX_SLICE) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_SM3;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_SM4;
-	}
-	if (fusectl1 & ICP_ACCEL_4XXX_MASK_UCS_SLICE) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CHACHA_POLY;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_AESGCM_SPC;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_AES_V2;
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_COMPRESSION;
+		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION;
+		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_LZ4S_COMPRESSION;
+		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64;
 	}
 
-	return capabilities;
+	return capabilities_sym | capabilities_dc | capabilities_asym |
+	    capabilities_other;
 }
 
 static u32
