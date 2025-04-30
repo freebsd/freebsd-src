@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
+#include "adf_dbgfs.h"
 #include "adf_accel_devices.h"
 #include "icp_qat_uclo.h"
 #include "icp_qat_fw.h"
@@ -489,6 +490,8 @@ adf_dev_start(struct adf_accel_dev *accel_dev)
 	clear_bit(ADF_STATUS_STARTING, &accel_dev->status);
 	set_bit(ADF_STATUS_STARTED, &accel_dev->status);
 
+	adf_dbgfs_add(accel_dev);
+
 	return 0;
 }
 
@@ -525,6 +528,8 @@ adf_dev_stop(struct adf_accel_dev *accel_dev)
 		    "Waiting for device un-busy failed. Retries limit reached\n");
 		return EBUSY;
 	}
+
+	adf_dbgfs_rm(accel_dev);
 
 	clear_bit(ADF_STATUS_STARTING, &accel_dev->status);
 	clear_bit(ADF_STATUS_STARTED, &accel_dev->status);

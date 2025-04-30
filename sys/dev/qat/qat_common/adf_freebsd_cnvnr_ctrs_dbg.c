@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -123,10 +123,12 @@ static int qat_cnvnr_ctrs_dbg_read(SYSCTL_HANDLER_ARGS)
 			     cnvnr_err_str[error_type],
 			     latest_error);
 		if (bytes_written <= 0) {
-			printf("ERROR: No space left in CnV ctrs line buffer\n"
-			       "\tAcceleration ID: %d, Engine: %d\n",
-			       accel_dev->accel_id,
-			       ae);
+			device_printf(
+			    GET_DEV(accel_dev),
+			    "ERROR: No space left in CnV ctrs line buffer\n"
+			    "\tAcceleration ID: %d, Engine: %d\n",
+			    accel_dev->accel_id,
+			    ae);
 			break;
 		}
 		report_ptr += bytes_written;
@@ -141,7 +143,6 @@ adf_cnvnr_freq_counters_add(struct adf_accel_dev *accel_dev)
 {
 	struct sysctl_ctx_list *qat_sysctl_ctx;
 	struct sysctl_oid *qat_cnvnr_ctrs_sysctl_tree;
-	struct sysctl_oid *oid_rc;
 
 	/* Defensive checks */
 	if (!accel_dev)
@@ -154,19 +155,22 @@ adf_cnvnr_freq_counters_add(struct adf_accel_dev *accel_dev)
 	    device_get_sysctl_tree(accel_dev->accel_pci_dev.pci_dev);
 
 	/* Create "cnv_error" string type leaf - with callback */
-	oid_rc = SYSCTL_ADD_PROC(qat_sysctl_ctx,
-				 SYSCTL_CHILDREN(qat_cnvnr_ctrs_sysctl_tree),
-				 OID_AUTO,
-				 "cnv_error",
-				 CTLTYPE_STRING | CTLFLAG_RD,
-				 accel_dev,
-				 0,
-				 qat_cnvnr_ctrs_dbg_read,
-				 "IU",
-				 "QAT CnVnR status");
+	accel_dev->cnv_error_oid =
+	    SYSCTL_ADD_PROC(qat_sysctl_ctx,
+			    SYSCTL_CHILDREN(qat_cnvnr_ctrs_sysctl_tree),
+			    OID_AUTO,
+			    "cnv_error",
+			    CTLTYPE_STRING | CTLFLAG_RD,
+			    accel_dev,
+			    0,
+			    qat_cnvnr_ctrs_dbg_read,
+			    "IU",
+			    "QAT CnVnR status");
 
-	if (!oid_rc) {
-		printf("ERROR: Memory allocation failed\n");
+	if (!accel_dev->cnv_error_oid) {
+		device_printf(
+		    GET_DEV(accel_dev),
+		    "Failed to create qat cnvnr freq counters sysctl entry.\n");
 		return ENOMEM;
 	}
 	return 0;
@@ -175,4 +179,17 @@ adf_cnvnr_freq_counters_add(struct adf_accel_dev *accel_dev)
 void
 adf_cnvnr_freq_counters_remove(struct adf_accel_dev *accel_dev)
 {
+	struct sysctl_ctx_list *qat_sysctl_ctx;
+
+	if (!accel_dev)
+		return;
+
+	qat_sysctl_ctx =
+	    device_get_sysctl_ctx(accel_dev->accel_pci_dev.pci_dev);
+
+	if (accel_dev->cnv_error_oid) {
+		sysctl_ctx_entry_del(qat_sysctl_ctx, accel_dev->cnv_error_oid);
+		sysctl_remove_oid(accel_dev->cnv_error_oid, 1, 1);
+		accel_dev->cnv_error_oid = NULL;
+	}
 }
