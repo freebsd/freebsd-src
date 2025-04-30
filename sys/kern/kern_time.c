@@ -494,6 +494,10 @@ kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 	    rmt));
 }
 
+static __read_mostly bool nanosleep_precise = true;
+SYSCTL_BOOL(_kern_timecounter, OID_AUTO, nanosleep_precise, CTLFLAG_RW,
+    &nanosleep_precise, 0, "clock_nanosleep() with CLOCK_REALTIME, "
+    "CLOCK_MONOTONIC, CLOCK_UPTIME and nanosleep(2) use precise clock");
 static uint8_t nanowait[MAXCPU];
 
 int
@@ -504,7 +508,7 @@ kern_clock_nanosleep(struct thread *td, clockid_t clock_id, int flags,
 	sbintime_t sbt, sbtt, prec, tmp;
 	time_t over;
 	int error;
-	bool is_abs_real;
+	bool is_abs_real, precise;
 
 	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= NS_PER_SEC)
 		return (EINVAL);
@@ -512,17 +516,31 @@ kern_clock_nanosleep(struct thread *td, clockid_t clock_id, int flags,
 		return (EINVAL);
 	switch (clock_id) {
 	case CLOCK_REALTIME:
+		precise = nanosleep_precise;
+		is_abs_real = (flags & TIMER_ABSTIME) != 0;
+		break;
 	case CLOCK_REALTIME_PRECISE:
+		precise = true;
+		is_abs_real = (flags & TIMER_ABSTIME) != 0;
+		break;
 	case CLOCK_REALTIME_FAST:
 	case CLOCK_SECOND:
+		precise = false;
 		is_abs_real = (flags & TIMER_ABSTIME) != 0;
 		break;
 	case CLOCK_MONOTONIC:
-	case CLOCK_MONOTONIC_PRECISE:
-	case CLOCK_MONOTONIC_FAST:
 	case CLOCK_UPTIME:
+		precise = nanosleep_precise;
+		is_abs_real = false;
+		break;
+	case CLOCK_MONOTONIC_PRECISE:
 	case CLOCK_UPTIME_PRECISE:
+		precise = true;
+		is_abs_real = false;
+		break;
+	case CLOCK_MONOTONIC_FAST:
 	case CLOCK_UPTIME_FAST:
+		precise = false;
 		is_abs_real = false;
 		break;
 	case CLOCK_VIRTUAL:
@@ -553,10 +571,14 @@ kern_clock_nanosleep(struct thread *td, clockid_t clock_id, int flags,
 		} else
 			over = 0;
 		tmp = tstosbt(ts);
-		prec = tmp;
-		prec >>= tc_precexp;
-		if (TIMESEL(&sbt, tmp))
-			sbt += tc_tick_sbt;
+		if (precise) {
+			prec = 0;
+			sbt = sbinuptime();
+		} else {
+			prec = tmp >> tc_precexp;
+			if (TIMESEL(&sbt, tmp))
+				sbt += tc_tick_sbt;
+		}
 		sbt += tmp;
 		error = tsleep_sbt(&nanowait[curcpu], PWAIT | PCATCH, "nanslp",
 		    sbt, prec, C_ABSOLUTE);
