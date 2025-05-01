@@ -2686,7 +2686,7 @@ nchinit(void *dummy __unused)
 
 	ncsize = desiredvnodes * ncsizefactor;
 	cache_recalc_neg_min();
-	nchashtbl = nchinittbl(desiredvnodes * 2, &nchash);
+	nchashtbl = nchinittbl(ncsize, &nchash);
 	ncbuckethash = cache_roundup_2(mp_ncpus * mp_ncpus) - 1;
 	if (ncbuckethash < 7) /* arbitrarily chosen to avoid having one lock */
 		ncbuckethash = 7;
