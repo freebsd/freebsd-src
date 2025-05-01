@@ -323,14 +323,12 @@ racct_getpcpu(struct proc *p, u_int pcpu)
 #ifdef SCHED_4BSD
 	fixpt_t pctcpu, pctcpu_next;
 #endif
-#ifdef SMP
-	struct pcpu *pc;
-	int found;
-#endif
 	fixpt_t p_pctcpu;
 	struct thread *td;
 
 	ASSERT_RACCT_ENABLED();
+	KASSERT((p->p_flag & P_IDLEPROC) == 0,
+	    ("racct_getpcpu: idle process %p", p));
 
 	/*
 	 * If the process is swapped out, we count its %cpu usage as zero.
@@ -350,19 +348,6 @@ racct_getpcpu(struct proc *p, u_int pcpu)
 
 	p_pctcpu = 0;
 	FOREACH_THREAD_IN_PROC(p, td) {
-		if (td == PCPU_GET(idlethread))
-			continue;
-#ifdef SMP
-		found = 0;
-		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
-			if (td == pc->pc_idlethread) {
-				found = 1;
-				break;
-			}
-		}
-		if (found)
-			continue;
-#endif
 		thread_lock(td);
 #ifdef SCHED_4BSD
 		pctcpu = sched_pctcpu(td);
@@ -1258,7 +1243,8 @@ racctd(void)
 
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
-			if (p->p_state != PRS_NORMAL) {
+			if (p->p_state != PRS_NORMAL ||
+			    (p->p_flag & P_IDLEPROC) != 0) {
 				if (p->p_state == PRS_ZOMBIE)
 					racct_set(p, RACCT_PCTCPU, 0);
 				PROC_UNLOCK(p);
