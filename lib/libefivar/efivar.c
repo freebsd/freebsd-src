@@ -77,7 +77,6 @@ static struct uuid_table guid_tbl [] =
 	{ "f46ee6f4-4785-43a3-923d-7f786c3c8479", "lenovo_startup_interrupt", Z },
 	{ "ffffffff-ffff-ffff-ffff-ffffffffffff", "zzignore-this-guid", Z },
 };
-#undef Z
 
 static void
 efi_guid_tbl_compile(void)
@@ -293,9 +292,7 @@ efi_guid_cmp(const efi_guid_t *guid1, const efi_guid_t *guid2)
 int
 efi_guid_is_zero(const efi_guid_t *guid)
 {
-	uint32_t status;
-
-	return uuid_is_nil((const uuid_t *)guid, &status);
+	return (memcmp(guid, &efi_guid_empty, sizeof(*guid)) == 0);
 }
 
 int
