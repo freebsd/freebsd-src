@@ -172,7 +172,7 @@ efi_get_variable(efi_guid_t guid, const char *name,
 	rv = utf8_to_ucs2(name, &var.name, &var.namesize);
 	if (rv != 0)
 		goto errout;
-	var.vendor = guid;
+	memcpy(&var.vendor, &guid, sizeof(guid));
 	var.data = buf;
 	var.datasize = sizeof(buf);
 	rv = ioctl(efi_fd, EFIIOC_VAR_GET, &var);
@@ -240,7 +240,7 @@ again:
 		rv = utf8_to_ucs2(*name, &var.name, &size);
 		if (rv != 0)
 			goto errout;
-		var.vendor = **guid;
+		memcpy(&var.vendor, *guid, sizeof(**guid));
 	}
 	rv = ioctl(efi_fd, EFIIOC_VAR_NEXT, &var);
 	if (rv == 0 && var.name == NULL) {
@@ -266,7 +266,7 @@ again:
 		rv = ucs2_to_utf8(var.name, name);
 		if (rv != 0)
 			goto errout;
-		retguid = var.vendor;
+		memcpy(&retguid, &var.vendor, sizeof(retguid));
 		*guid = &retguid;
 	}
 errout:
@@ -361,7 +361,7 @@ efi_set_variable(efi_guid_t guid, const char *name,
 	rv = utf8_to_ucs2(name, &var.name, &var.namesize);
 	if (rv != 0)
 		goto errout;
-	var.vendor = guid;
+	memcpy(&var.vendor, &guid, sizeof(guid));
 	var.data = data;
 	var.datasize = data_size;
 	var.attrib = attributes;
