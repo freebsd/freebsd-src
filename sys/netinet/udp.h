@@ -44,7 +44,7 @@ struct udphdr {
 	u_short	uh_dport;		/* destination port */
 	u_short	uh_ulen;		/* udp length */
 	u_short	uh_sum;			/* udp checksum */
-};
+} __packed;
 
 /*
  * User-settable options (used with setsockopt).

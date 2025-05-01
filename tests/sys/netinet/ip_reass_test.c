@@ -60,12 +60,16 @@ update_cksum(struct ip *ip)
 {
 	size_t i;
 	uint32_t cksum;
-	uint16_t *cksump;
+	uint8_t  *cksump;
+	uint16_t tmp;
 
 	ip->ip_sum = 0;
-	cksump = (uint16_t *)ip;
-	for (cksum = 0, i = 0; i < sizeof(*ip) / sizeof(*cksump); cksump++, i++)
-		cksum += ntohs(*cksump);
+	cksump = (char *)ip;
+	for (cksum = 0, i = 0; i < sizeof(*ip) / sizeof(uint16_t); i++) {
+		tmp = *cksump++;
+		tmp = tmp << 8 | *cksump++;
+		cksum += ntohs(tmp);
+	}
 	cksum = (cksum >> 16) + (cksum & 0xffff);
 	cksum = ~(cksum + (cksum >> 16));
 	ip->ip_sum = htons((uint16_t)cksum);
