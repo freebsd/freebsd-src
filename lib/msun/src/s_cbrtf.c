@@ -50,7 +50,7 @@ cbrtf(float x)
 	    SET_FLOAT_WORD(t,sign|(hx/3+B1));
 
     /*
-     * First step Newton iteration (solving t*t-x/t == 0) to 16 bits.  In
+     * First step Halley iteration (solving t*t-x/t == 0) to 16 bits.  In
      * double precision so that its terms can be arranged for efficiency
      * without causing overflow or underflow.
      */
@@ -59,7 +59,7 @@ cbrtf(float x)
 	T=T*((double)x+x+r)/(x+r+r);
 
     /*
-     * Second step Newton iteration to 47 bits.  In double precision for
+     * Second step Halley iteration to 47 bits.  In double precision for
      * efficiency and accuracy.
      */
 	r=T*T*T;
