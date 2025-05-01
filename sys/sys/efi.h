@@ -151,7 +151,7 @@ struct efi_esrt_table {
 };
 
 struct efi_esrt_entry_v1 {
-	struct uuid	fw_class;
+	efi_guid_t	fw_class;
 	uint32_t 	fw_type;
 	uint32_t	fw_version;
 	uint32_t	lowest_supported_fw_version;
@@ -181,11 +181,11 @@ struct efi_rt {
 	efi_status	(*rt_setvirtual)(u_long, u_long, uint32_t,
 	    struct efi_md *) EFIABI_ATTR;
 	efi_status	(*rt_cvtptr)(u_long, void **) EFIABI_ATTR;
-	efi_status	(*rt_getvar)(efi_char *, struct uuid *, uint32_t *,
+	efi_status	(*rt_getvar)(efi_char *, efi_guid_t *, uint32_t *,
 	    u_long *, void *) EFIABI_ATTR;
-	efi_status	(*rt_scanvar)(u_long *, efi_char *, struct uuid *)
+	efi_status	(*rt_scanvar)(u_long *, efi_char *, efi_guid_t *)
 	    EFIABI_ATTR;
-	efi_status	(*rt_setvar)(efi_char *, struct uuid *, uint32_t,
+	efi_status	(*rt_setvar)(efi_char *, efi_guid_t *, uint32_t,
 	    u_long, void *) EFIABI_ATTR;
 	efi_status	(*rt_gethicnt)(uint32_t *) EFIABI_ATTR;
 	efi_status	(*rt_reset)(enum efi_reset, efi_status, u_long,
@@ -267,10 +267,10 @@ struct efi_ops {
 	int 	(*get_waketime)(uint8_t *enabled, uint8_t *pending,
 	    struct efi_tm *tm);
 	int 	(*set_waketime)(uint8_t enable, struct efi_tm *tm);
-	int 	(*var_get)(uint16_t *, struct uuid *, uint32_t *, size_t *,
+	int 	(*var_get)(uint16_t *, efi_guid_t *, uint32_t *, size_t *,
     void *);
-	int 	(*var_nextname)(size_t *, uint16_t *, struct uuid *);
-	int 	(*var_set)(uint16_t *, struct uuid *, uint32_t, size_t, void *);
+	int 	(*var_nextname)(size_t *, uint16_t *, efi_guid_t *);
+	int 	(*var_set)(uint16_t *, efi_guid_t *, uint32_t, size_t, void *);
 };
 extern const struct efi_ops *active_efi_ops;
 
@@ -347,7 +347,7 @@ static inline int efi_set_waketime(uint8_t enable, struct efi_tm *tm)
 	return (active_efi_ops->set_waketime(enable, tm));
 }
 
-static inline int efi_var_get(uint16_t *name, struct uuid *vendor,
+static inline int efi_var_get(uint16_t *name, efi_guid_t *vendor,
     uint32_t *attrib, size_t *datasize, void *data)
 {
 
@@ -357,7 +357,7 @@ static inline int efi_var_get(uint16_t *name, struct uuid *vendor,
 }
 
 static inline int efi_var_nextname(size_t *namesize, uint16_t *name,
-    struct uuid *vendor)
+    efi_guid_t *vendor)
 {
 
 	if (active_efi_ops->var_nextname == NULL)
@@ -365,7 +365,7 @@ static inline int efi_var_nextname(size_t *namesize, uint16_t *name,
 	return (active_efi_ops->var_nextname(namesize, name, vendor));
 }
 
-static inline int efi_var_set(uint16_t *name, struct uuid *vendor,
+static inline int efi_var_set(uint16_t *name, efi_guid_t *vendor,
     uint32_t attrib, size_t datasize, void *data)
 {
 
