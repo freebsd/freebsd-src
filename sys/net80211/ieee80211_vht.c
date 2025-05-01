@@ -992,9 +992,15 @@ ieee80211_vht_check_tx_vht80(const struct ieee80211_node *ni)
 	vap = ni->ni_vap;
 	bss_chan = vap->iv_bss->ni_chan;
 
+	/*
+	 * ni_chw represents 20MHz or 40MHz from the HT
+	 * TX width action frame / HT channel negotiation.
+	 * If a HT TX width action frame sets it to 20MHz
+	 * then reject doing 80MHz.
+	 */
 	return (IEEE80211_IS_CHAN_VHT80(bss_chan) &&
 	    IEEE80211_IS_CHAN_VHT80(ni->ni_chan) &&
-	    (ni->ni_chw == IEEE80211_STA_RX_BW_80));
+	    (ni->ni_chw != IEEE80211_STA_RX_BW_20));
 }
 
 /*
@@ -1015,7 +1021,13 @@ ieee80211_vht_check_tx_vht160(const struct ieee80211_node *ni)
 	vap = ni->ni_vap;
 	bss_chan = vap->iv_bss->ni_chan;
 
-	if (ni->ni_chw != IEEE80211_STA_RX_BW_160)
+	/*
+	 * ni_chw represents 20MHz or 40MHz from the HT
+	 * TX width action frame / HT channel negotiation.
+	 * If a HT TX width action frame sets it to 20MHz
+	 * then reject doing 160MHz.
+	 */
+	if (ni->ni_chw == IEEE80211_STA_RX_BW_20)
 		return (false);
 
 	if (IEEE80211_IS_CHAN_VHT160(bss_chan) &&
