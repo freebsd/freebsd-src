@@ -126,7 +126,7 @@ cbrtl(long double x)
 #endif
 
 	/*
-     	 * Final step Newton iteration to 64 or 113 bits with
+	 * Final step Halley iteration to 64 or 113 bits with
 	 * error < 0.667 ulps
 	 */
 	s=t*t;				/* t*t is exact */
