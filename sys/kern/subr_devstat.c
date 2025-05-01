@@ -600,5 +600,4 @@ devstat_free(struct devstat *dsp)
 	}
 }
 
-SYSCTL_INT(_debug_sizeof, OID_AUTO, devstat, CTLFLAG_RD,
-    SYSCTL_NULL_INT_PTR, sizeof(struct devstat), "sizeof(struct devstat)");
+SYSCTL_SIZEOF_STRUCT(devstat);

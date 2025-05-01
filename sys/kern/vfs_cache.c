@@ -511,8 +511,7 @@ SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0,
 #endif
 
 /* Export size information to userland */
-SYSCTL_INT(_debug_sizeof, OID_AUTO, namecache, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
-    sizeof(struct namecache), "sizeof(struct namecache)");
+SYSCTL_SIZEOF_STRUCT(namecache);
 
 /*
  * The new name cache statistics

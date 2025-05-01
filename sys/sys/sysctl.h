@@ -38,6 +38,7 @@
 #define	_SYS_SYSCTL_H_
 
 #ifdef _KERNEL
+#include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <sys/tree.h>
 #endif
@@ -933,6 +934,26 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	    OID_AUTO, name,						\
 	    CTLFLAG_RD | CTLFLAG_CAPRD | CTLTYPE_INT | CTLFLAG_MPSAFE,	\
 	    NULL, 1, sysctl_handle_int, "I", desc, "feature");
+
+/*
+ * Adding new leaves to the 'debug.sizeof' MIB tree for ad-hoc reasons is
+ * discouraged, and in particular for reporting to developers the size of some
+ * kernel structures, which can be obtained by the following alternative means:
+ * 1. In GDB, load a full kernel image and use 'print(sizeof(struct XXX))'.
+ *    Alternatively, use 'ptype/o struct XXX' to additionally get the offsets
+ *    and size of all structure's fields.
+ * 2. If the structure is allocated from UMA, then 'vmstat -z' reports its size
+ *    (the mapping between structure types and zones is usually
+ *    straightforward).
+ */
+/* Generates a read-only sysctl reporting the size of an object/structure. */
+#define SYSCTL_SIZEOF(name, expr)					\
+	SYSCTL_INT(_debug_sizeof, OID_AUTO, name, CTLFLAG_RD,		\
+	    SYSCTL_NULL_INT_PTR, sizeof(expr),				\
+	    "sizeof(" __STRING(expr) ")");
+/* Same, specialized for structures. */
+#define SYSCTL_SIZEOF_STRUCT(struct_name)				\
+	SYSCTL_SIZEOF(struct_name, struct struct_name)
 
 #endif /* _KERNEL */
 
