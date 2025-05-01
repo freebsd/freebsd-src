@@ -2815,9 +2815,11 @@ enter_recovery:
 						KASSERT((tp->t_dupacks == 2 &&
 						    tp->snd_limited == 0) ||
 						   (sent == maxseg + 1 &&
-						    tp->t_flags & TF_SENTFIN),
-						    ("%s: sent too much",
-						    __func__));
+						    tp->t_flags & TF_SENTFIN) ||
+						   (sent < 2 * maxseg &&
+						    tp->t_flags & TF_NODELAY),
+						    ("%s: sent too much: %u>%u",
+						    __func__, sent, maxseg));
 						tp->snd_limited = 2;
 					} else if (sent > 0) {
 						++tp->snd_limited;
