@@ -227,6 +227,60 @@ is 8 bytes on all supported architectures except i386.
 .It powerpc64le Ta 4K
 .It riscv64     Ta 4K, 2M, 1G
 .El
+.Ss User Address Space Layout
+.Bl -column -offset indent "riscv64 (Sv48)" "0x0001000000000000" "NNNU"
+.It Sy Architecture Ta Sy Maximum Address Ta Sy Address Space Size
+.It aarch64        Ta 0x0001000000000000 Ta 256TiB
+.It amd64 (LA48)   Ta 0x0000800000000000 Ta 128TiB
+.It amd64 (LA57)   Ta 0x0100000000000000 Ta 64PiB
+.It armv7          Ta 0xbfc00000         Ta 3GiB
+.It i386           Ta 0xffc00000         Ta 4GiB
+.It powerpc        Ta 0xfffff000         Ta 4GiB
+.It powerpcspe     Ta 0x7ffff000         Ta 2GiB
+.It powerpc64      Ta 0x000fffffc0000000 Ta 4PiB
+.It powerpc64le    Ta 0x000fffffc0000000 Ta 4PiB
+.It riscv64 (Sv39) Ta 0x0000004000000000 Ta 256GiB
+.It riscv64 (Sv48) Ta 0x0000800000000000 Ta 128TiB
+.El
+.Pp
+The layout of a process' address space can be queried via the
+.Dv KERN_PROC_VM_LAYOUT
+.Xr sysctl 3
+MIB.
+.Pp
+Historically, amd64 CPUs were limited to a 48-bit virtual address space.
+Newer CPUs support 5-level page tables, which extend the significant bits of
+addresses to 57 bits (LA57 mode).
+The address space layout is determined by the CPU's support for LA57.
+Setting the
+.Sy vm.pmap.la57
+tunable to 0 forces the system into 4-level paging mode, even on hardware that
+supports 5-level paging.
+In this mode, all processes get a 48-bit address space.
+The
+.Sy vm.pmap.prefer_la48_uva
+tunable determines whether processes running on a LA57 system are limited to
+a 48-bit address space by default.
+Some applications make use of unused upper bits in pointer values to store
+information, and thus implicitly assume they are running in LA48 mode.
+To avoid breaking compatibility, all processes run in LA48 mode by default.
+The
+.Xr elfctl 1
+utility can be used to request LA48 or LA57 mode for specific executables.
+Similarly,
+.Xr proccontrol 1
+can be used to configure the address space layout when executing a process.
+.Pp
+The RISC-V specification permits 3-level (Sv39), 4-level (Sv48), and
+5-level (Sv57) page tables.
+Hardware is only required to implement Sv39; implementations which support
+Sv48 must also support Sv39, and implementations which support Sv57 must also
+support Sv48.
+The
+.Sy vm.pmap.mode
+tunable can be used to select the layout.
+.Fx
+currently supports Sv39 and Sv48 and defaults to using Sv39.
 .Ss Floating Point
 .Bl -column -offset indent "Architecture" "float, double" "long double"
 .It Sy Architecture Ta Sy float, double Ta Sy long double
@@ -424,6 +478,9 @@ Like
 it is unused outside of that scope.
 .El
 .Sh SEE ALSO
+.Xr elfctl 1 ,
+.Xr proccontrol 1 ,
+.Xr sysctl 3 ,
 .Xr src.conf 5 ,
 .Xr build 7 ,
 .Xr simd 7
