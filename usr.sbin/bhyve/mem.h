@@ -53,6 +53,8 @@ struct mem_range {
 void	init_mem(int ncpu);
 int     emulate_mem(struct vcpu *vcpu, uint64_t paddr, struct vie *vie,
 		    struct vm_guest_paging *paging);
+int	mmio_handle_non_backed_mem(struct vcpu *vcpu __unused, uint64_t paddr,
+		    struct mem_range **mr_paramp);
 
 int	read_mem(struct vcpu *vpu, uint64_t gpa, uint64_t *rval, int size);
 int	register_mem(struct mem_range *memp);
