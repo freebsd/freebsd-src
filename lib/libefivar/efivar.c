@@ -287,9 +287,7 @@ done:
 int
 efi_guid_cmp(const efi_guid_t *guid1, const efi_guid_t *guid2)
 {
-	uint32_t status;
-
-	return uuid_compare((const uuid_t *)guid1, (const uuid_t *)guid2, &status);
+	return (memcmp(guid1, guid2, sizeof(*guid1)));
 }
 
 int
@@ -304,11 +302,10 @@ int
 efi_guid_to_name(efi_guid_t *guid, char **name)
 {
 	size_t i;
-	uint32_t status;
 
 	efi_guid_tbl_compile();
 	for (i = 0; i < nitems(guid_tbl); i++) {
-		if (uuid_equal((const uuid_t *)guid, (const uuid_t *)&guid_tbl[i].guid, &status)) {
+		if (memcmp(guid, &guid_tbl[i].guid, sizeof(*guid)) == 0) {
 			*name = strdup(guid_tbl[i].name);
 			return (0);
 		}
