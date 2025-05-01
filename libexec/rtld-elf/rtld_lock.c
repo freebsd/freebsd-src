@@ -326,6 +326,12 @@ lock_restart_for_upgrade(RtldLockState *lockstate)
 	}
 }
 
+bool
+lockstate_wlocked(const RtldLockState *lockstate)
+{
+	return (lockstate->lockstate == RTLD_LOCK_WLOCKED);
+}
+
 void
 dlerror_dflt_init(void)
 {
