@@ -311,7 +311,7 @@ fixpt_t ccpu_exp[] = {
 /*
  * This function is analogical to the getpcpu() function in the ps(1) command.
  * They should both calculate in the same way so that the racct %cpu
- * calculations are consistent with the values showed by the ps(1) tool.
+ * calculations are consistent with the values shown by the ps(1) tool.
  * The calculations are more complex in the 4BSD scheduler because of the value
  * of the ccpu variable.  In ULE it is defined to be zero which saves us some
  * work.
