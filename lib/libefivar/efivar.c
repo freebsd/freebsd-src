@@ -120,7 +120,7 @@ efi_open_dev(void)
 }
 
 static void
-efi_var_reset(struct efi_var_ioc *var)
+efi_var_reset(struct efi_var_ioctl *var)
 {
 	var->name = NULL;
 	var->namesize = 0;
@@ -161,7 +161,7 @@ int
 efi_get_variable(efi_guid_t guid, const char *name,
     uint8_t **data, size_t *data_size, uint32_t *attributes)
 {
-	struct efi_var_ioc var;
+	struct efi_var_ioctl var;
 	int rv;
 	static uint8_t buf[1024*32];
 
@@ -172,7 +172,7 @@ efi_get_variable(efi_guid_t guid, const char *name,
 	rv = utf8_to_ucs2(name, &var.name, &var.namesize);
 	if (rv != 0)
 		goto errout;
-	memcpy(&var.vendor, &guid, sizeof(guid));
+	var.vendor = guid;
 	var.data = buf;
 	var.datasize = sizeof(buf);
 	rv = ioctl(efi_fd, EFIIOC_VAR_GET, &var);
@@ -211,7 +211,7 @@ efi_get_variable_size(efi_guid_t guid, const char *name,
 int
 efi_get_next_variable_name(efi_guid_t **guid, char **name)
 {
-	struct efi_var_ioc var;
+	struct efi_var_ioctl var;
 	int rv;
 	static efi_char *buf;
 	static size_t buflen = 256 * sizeof(efi_char);
@@ -240,7 +240,7 @@ again:
 		rv = utf8_to_ucs2(*name, &var.name, &size);
 		if (rv != 0)
 			goto errout;
-		memcpy(&var.vendor, *guid, sizeof(**guid));
+		var.vendor = **guid;
 	}
 	rv = ioctl(efi_fd, EFIIOC_VAR_NEXT, &var);
 	if (rv == 0 && var.name == NULL) {
@@ -266,7 +266,7 @@ again:
 		rv = ucs2_to_utf8(var.name, name);
 		if (rv != 0)
 			goto errout;
-		memcpy(&retguid, &var.vendor, sizeof(retguid));
+		retguid = var.vendor;
 		*guid = &retguid;
 	}
 errout:
@@ -351,7 +351,7 @@ int
 efi_set_variable(efi_guid_t guid, const char *name,
     uint8_t *data, size_t data_size, uint32_t attributes)
 {
-	struct efi_var_ioc var;
+	struct efi_var_ioctl var;
 	int rv;
 
 	if (efi_open_dev() == -1)
@@ -361,7 +361,7 @@ efi_set_variable(efi_guid_t guid, const char *name,
 	rv = utf8_to_ucs2(name, &var.name, &var.namesize);
 	if (rv != 0)
 		goto errout;
-	memcpy(&var.vendor, &guid, sizeof(guid));
+	var.vendor = guid;
 	var.data = data;
 	var.datasize = data_size;
 	var.attrib = attributes;
