@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  *****************************************************************************
@@ -10,7 +10,9 @@
  * @ingroup SalCtrl
  *
  * @description
- *      This file contains the main function to get SAL instances.
+ *      This file contains generic functions to get instances of a specified
+ *      service type. Note these are complementary to the already existing
+ *      service-specific functions.
  *
  *****************************************************************************/
 
@@ -34,19 +36,22 @@
 #include "lac_mem.h"
 #include "lac_list.h"
 #include "lac_sal_types.h"
+#include "lac_sal_types_crypto.h"
 
 /**
  ******************************************************************************
  * @ingroup SalCtrl
  * @description
- *   Get either sym or asym instance number
+ *   Get the total number of either sym, asym or cy instances
  *****************************************************************************/
-static CpaStatus
-Lac_GetSingleCyNumInstances(
+CpaStatus
+Lac_GetCyNumInstancesByType(
     const CpaAccelerationServiceType accelerationServiceType,
     Cpa16U *pNumInstances)
 {
 	CpaStatus status = CPA_STATUS_SUCCESS;
+	CpaInstanceHandle instanceHandle;
+	CpaInstanceInfo2 info;
 	icp_accel_dev_t **pAdfInsts = NULL;
 	icp_accel_dev_t *dev_addr = NULL;
 	sal_t *base_addr = NULL;
@@ -69,6 +74,12 @@ Lac_GetSingleCyNumInstances(
 	case CPA_ACC_SVC_TYPE_CRYPTO_SYM:
 		accel_capability = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
 		service = "sym";
+		break;
+
+	case CPA_ACC_SVC_TYPE_CRYPTO:
+		accel_capability = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
+		    ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		service = "cy";
 		break;
 
 	default:
@@ -106,14 +117,48 @@ Lac_GetSingleCyNumInstances(
 		}
 		base_addr = dev_addr->pSalHandle;
 
-		if (CPA_ACC_SVC_TYPE_CRYPTO_ASYM == accelerationServiceType) {
-			list_temp = base_addr->asym_services;
-		} else {
-			list_temp = base_addr->sym_services;
+		if (CPA_ACC_SVC_TYPE_CRYPTO == accelerationServiceType) {
+			list_temp = base_addr->crypto_services;
+			while (NULL != list_temp) {
+				instanceHandle = SalList_getObject(list_temp);
+				status = cpaCyInstanceGetInfo2(instanceHandle,
+							       &info);
+				if (CPA_STATUS_SUCCESS == status &&
+				    CPA_TRUE == info.isPolled) {
+					num_inst++;
+				}
+				list_temp = SalList_next(list_temp);
+			}
 		}
-		while (NULL != list_temp) {
-			num_inst++;
-			list_temp = SalList_next(list_temp);
+
+		if (CPA_ACC_SVC_TYPE_CRYPTO_ASYM == accelerationServiceType ||
+		    CPA_ACC_SVC_TYPE_CRYPTO == accelerationServiceType) {
+			list_temp = base_addr->asym_services;
+			while (NULL != list_temp) {
+				instanceHandle = SalList_getObject(list_temp);
+				status = cpaCyInstanceGetInfo2(instanceHandle,
+							       &info);
+				if (CPA_STATUS_SUCCESS == status &&
+				    CPA_TRUE == info.isPolled) {
+					num_inst++;
+				}
+				list_temp = SalList_next(list_temp);
+			}
+		}
+
+		if (CPA_ACC_SVC_TYPE_CRYPTO_SYM == accelerationServiceType ||
+		    CPA_ACC_SVC_TYPE_CRYPTO == accelerationServiceType) {
+			list_temp = base_addr->sym_services;
+			while (NULL != list_temp) {
+				instanceHandle = SalList_getObject(list_temp);
+				status = cpaCyInstanceGetInfo2(instanceHandle,
+							       &info);
+				if (CPA_STATUS_SUCCESS == status &&
+				    CPA_TRUE == info.isPolled) {
+					num_inst++;
+				}
+				list_temp = SalList_next(list_temp);
+			}
 		}
 	}
 
@@ -127,15 +172,17 @@ Lac_GetSingleCyNumInstances(
  ******************************************************************************
  * @ingroup SalCtrl
  * @description
- *   Get either sym or asym instance
+ *   Get either sym, asym or cy instance
  *****************************************************************************/
-static CpaStatus
-Lac_GetSingleCyInstances(
+CpaStatus
+Lac_GetCyInstancesByType(
     const CpaAccelerationServiceType accelerationServiceType,
     Cpa16U numInstances,
     CpaInstanceHandle *pInstances)
 {
 	CpaStatus status = CPA_STATUS_SUCCESS;
+	CpaInstanceHandle instanceHandle = NULL;
+	CpaInstanceInfo2 info;
 	icp_accel_dev_t **pAdfInsts = NULL;
 	icp_accel_dev_t *dev_addr = NULL;
 	sal_t *base_addr = NULL;
@@ -163,14 +210,21 @@ Lac_GetSingleCyInstances(
 		accel_capability = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
 		service = "sym";
 		break;
+
+	case CPA_ACC_SVC_TYPE_CRYPTO:
+		accel_capability = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
+		    ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		service = "cy";
+		break;
+
 	default:
 		QAT_UTILS_LOG("Invalid service type\n");
 		return CPA_STATUS_INVALID_PARAM;
 	}
 
 	/* Get the number of instances */
-	status = cpaGetNumInstances(accelerationServiceType,
-				    &num_allocated_instances);
+	status = Lac_GetCyNumInstancesByType(accelerationServiceType,
+					     &num_allocated_instances);
 	if (CPA_STATUS_SUCCESS != status) {
 		return status;
 	}
@@ -216,17 +270,63 @@ Lac_GetSingleCyInstances(
 			continue;
 		}
 
-		if (CPA_ACC_SVC_TYPE_CRYPTO_ASYM == accelerationServiceType)
-			list_temp = base_addr->asym_services;
-		else
-			list_temp = base_addr->sym_services;
-		while (NULL != list_temp) {
-			if (index > (numInstances - 1))
-				break;
+		if (CPA_ACC_SVC_TYPE_CRYPTO == accelerationServiceType) {
+			list_temp = base_addr->crypto_services;
+			while (NULL != list_temp) {
+				if (index > (numInstances - 1))
+					break;
 
-			pInstances[index] = SalList_getObject(list_temp);
-			list_temp = SalList_next(list_temp);
-			index++;
+				instanceHandle = SalList_getObject(list_temp);
+				status = cpaCyInstanceGetInfo2(instanceHandle,
+							       &info);
+				list_temp = SalList_next(list_temp);
+				if (CPA_STATUS_SUCCESS != status ||
+				    CPA_TRUE != info.isPolled) {
+					continue;
+				}
+				pInstances[index] = instanceHandle;
+				index++;
+			}
+		}
+
+		if (CPA_ACC_SVC_TYPE_CRYPTO_ASYM == accelerationServiceType ||
+		    CPA_ACC_SVC_TYPE_CRYPTO == accelerationServiceType) {
+			list_temp = base_addr->asym_services;
+			while (NULL != list_temp) {
+				if (index > (numInstances - 1))
+					break;
+
+				instanceHandle = SalList_getObject(list_temp);
+				status = cpaCyInstanceGetInfo2(instanceHandle,
+							       &info);
+				list_temp = SalList_next(list_temp);
+				if (CPA_STATUS_SUCCESS != status ||
+				    CPA_TRUE != info.isPolled) {
+					continue;
+				}
+				pInstances[index] = instanceHandle;
+				index++;
+			}
+		}
+
+		if (CPA_ACC_SVC_TYPE_CRYPTO_SYM == accelerationServiceType ||
+		    CPA_ACC_SVC_TYPE_CRYPTO == accelerationServiceType) {
+			list_temp = base_addr->sym_services;
+			while (NULL != list_temp) {
+				if (index > (numInstances - 1))
+					break;
+
+				instanceHandle = SalList_getObject(list_temp);
+				status = cpaCyInstanceGetInfo2(instanceHandle,
+							       &info);
+				list_temp = SalList_next(list_temp);
+				if (CPA_STATUS_SUCCESS != status ||
+				    CPA_TRUE != info.isPolled) {
+					continue;
+				}
+				pInstances[index] = instanceHandle;
+				index++;
+			}
 		}
 	}
 	free(pAdfInsts, M_QAT);
@@ -242,15 +342,23 @@ CpaStatus
 cpaGetNumInstances(const CpaAccelerationServiceType accelerationServiceType,
 		   Cpa16U *pNumInstances)
 {
+	LAC_CHECK_NULL_PARAM(pNumInstances);
+
 	switch (accelerationServiceType) {
 	case CPA_ACC_SVC_TYPE_CRYPTO_ASYM:
 	case CPA_ACC_SVC_TYPE_CRYPTO_SYM:
-		return Lac_GetSingleCyNumInstances(accelerationServiceType,
-						   pNumInstances);
 	case CPA_ACC_SVC_TYPE_CRYPTO:
-		return cpaCyGetNumInstances(pNumInstances);
+		return Lac_GetCyNumInstancesByType(accelerationServiceType,
+						   pNumInstances);
+
 	case CPA_ACC_SVC_TYPE_DATA_COMPRESSION:
 		return cpaDcGetNumInstances(pNumInstances);
+
+	case CPA_ACC_SVC_TYPE_PATTERN_MATCH:
+	case CPA_ACC_SVC_TYPE_RAID:
+	case CPA_ACC_SVC_TYPE_XML:
+		QAT_UTILS_LOG("Unsupported service type\n");
+		return CPA_STATUS_UNSUPPORTED;
 
 	default:
 		QAT_UTILS_LOG("Invalid service type\n");
@@ -268,17 +376,24 @@ cpaGetInstances(const CpaAccelerationServiceType accelerationServiceType,
 		Cpa16U numInstances,
 		CpaInstanceHandle *pInstances)
 {
+	LAC_CHECK_NULL_PARAM(pInstances);
+
 	switch (accelerationServiceType) {
 	case CPA_ACC_SVC_TYPE_CRYPTO_ASYM:
 	case CPA_ACC_SVC_TYPE_CRYPTO_SYM:
-		return Lac_GetSingleCyInstances(accelerationServiceType,
+	case CPA_ACC_SVC_TYPE_CRYPTO:
+		return Lac_GetCyInstancesByType(accelerationServiceType,
 						numInstances,
 						pInstances);
 
-	case CPA_ACC_SVC_TYPE_CRYPTO:
-		return cpaCyGetInstances(numInstances, pInstances);
 	case CPA_ACC_SVC_TYPE_DATA_COMPRESSION:
 		return cpaDcGetInstances(numInstances, pInstances);
+
+	case CPA_ACC_SVC_TYPE_PATTERN_MATCH:
+	case CPA_ACC_SVC_TYPE_RAID:
+	case CPA_ACC_SVC_TYPE_XML:
+		QAT_UTILS_LOG("Unsupported service type\n");
+		return CPA_STATUS_UNSUPPORTED;
 
 	default:
 		QAT_UTILS_LOG("Invalid service type\n");

@@ -73,6 +73,15 @@
 #define NUM_CRYPTO_ASYM_RX_RINGS 1
 #define NUM_CRYPTO_NRBG_RX_RINGS 1
 
+CpaStatus Lac_GetCyInstancesByType(
+    const CpaAccelerationServiceType accelerationServiceType,
+    Cpa16U numInstances,
+    CpaInstanceHandle *pInstances);
+
+CpaStatus Lac_GetCyNumInstancesByType(
+    const CpaAccelerationServiceType accelerationServiceType,
+    Cpa16U *pNumInstances);
+
 static CpaInstanceHandle
 Lac_CryptoGetFirstHandle(void)
 {
@@ -1068,84 +1077,8 @@ cpaCyInstanceSetNotificationCb(
 CpaStatus
 cpaCyGetNumInstances(Cpa16U *pNumInstances)
 {
-	CpaStatus status = CPA_STATUS_SUCCESS;
-	CpaInstanceHandle cyInstanceHandle;
-	CpaInstanceInfo2 info;
-	icp_accel_dev_t **pAdfInsts = NULL;
-	icp_accel_dev_t *dev_addr = NULL;
-	sal_t *base_addr = NULL;
-	sal_list_t *list_temp = NULL;
-	Cpa16U num_accel_dev = 0;
-	Cpa16U num_inst = 0;
-	Cpa16U i = 0;
-
-	LAC_CHECK_NULL_PARAM(pNumInstances);
-
-	/* Get the number of accel_dev in the system */
-	status = icp_amgr_getNumInstances(&num_accel_dev);
-	LAC_CHECK_STATUS(status);
-
-	/* Allocate memory to store addr of accel_devs */
-	pAdfInsts =
-	    malloc(num_accel_dev * sizeof(icp_accel_dev_t *), M_QAT, M_WAITOK);
-	num_accel_dev = 0;
-	/* Get ADF to return all accel_devs that support either
-	 * symmetric or asymmetric crypto */
-	status = icp_amgr_getAllAccelDevByCapabilities(
-	    (ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
-	     ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC),
-	    pAdfInsts,
-	    &num_accel_dev);
-	if (CPA_STATUS_SUCCESS != status) {
-		LAC_LOG_ERROR("No support for crypto\n");
-		*pNumInstances = 0;
-		free(pAdfInsts, M_QAT);
-		return status;
-	}
-
-	for (i = 0; i < num_accel_dev; i++) {
-		dev_addr = (icp_accel_dev_t *)pAdfInsts[i];
-		if (NULL == dev_addr || NULL == dev_addr->pSalHandle) {
-			continue;
-		}
-
-		base_addr = dev_addr->pSalHandle;
-		list_temp = base_addr->crypto_services;
-		while (NULL != list_temp) {
-			cyInstanceHandle = SalList_getObject(list_temp);
-			status = cpaCyInstanceGetInfo2(cyInstanceHandle, &info);
-			if (CPA_STATUS_SUCCESS == status &&
-			    CPA_TRUE == info.isPolled) {
-				num_inst++;
-			}
-			list_temp = SalList_next(list_temp);
-		}
-		list_temp = base_addr->asym_services;
-		while (NULL != list_temp) {
-			cyInstanceHandle = SalList_getObject(list_temp);
-			status = cpaCyInstanceGetInfo2(cyInstanceHandle, &info);
-			if (CPA_STATUS_SUCCESS == status &&
-			    CPA_TRUE == info.isPolled) {
-				num_inst++;
-			}
-			list_temp = SalList_next(list_temp);
-		}
-		list_temp = base_addr->sym_services;
-		while (NULL != list_temp) {
-			cyInstanceHandle = SalList_getObject(list_temp);
-			status = cpaCyInstanceGetInfo2(cyInstanceHandle, &info);
-			if (CPA_STATUS_SUCCESS == status &&
-			    CPA_TRUE == info.isPolled) {
-				num_inst++;
-			}
-			list_temp = SalList_next(list_temp);
-		}
-	}
-	*pNumInstances = num_inst;
-	free(pAdfInsts, M_QAT);
-
-
-	return status;
+	return Lac_GetCyNumInstancesByType(CPA_ACC_SVC_TYPE_CRYPTO,
+					   pNumInstances);
 }
 
 /**
@@ -1155,119 +1088,9 @@ cpaCyGetNumInstances(Cpa16U *pNumInstances)
 CpaStatus
 cpaCyGetInstances(Cpa16U numInstances, CpaInstanceHandle *pCyInstances)
 {
-	CpaStatus status = CPA_STATUS_SUCCESS;
-	CpaInstanceHandle cyInstanceHandle;
-	CpaInstanceInfo2 info;
-	icp_accel_dev_t **pAdfInsts = NULL;
-	icp_accel_dev_t *dev_addr = NULL;
-	sal_t *base_addr = NULL;
-	sal_list_t *list_temp = NULL;
-	Cpa16U num_accel_dev = 0;
-	Cpa16U num_allocated_instances = 0;
-	Cpa16U index = 0;
-	Cpa16U i = 0;
-
-
-	LAC_CHECK_NULL_PARAM(pCyInstances);
-	if (0 == numInstances) {
-		LAC_INVALID_PARAM_LOG("NumInstances is 0");
-		return CPA_STATUS_INVALID_PARAM;
-	}
-
-	/* Get the number of crypto instances */
-	status = cpaCyGetNumInstances(&num_allocated_instances);
-	if (CPA_STATUS_SUCCESS != status) {
-		return status;
-	}
-
-	if (numInstances > num_allocated_instances) {
-		QAT_UTILS_LOG("Only %d crypto instances available\n",
-			      num_allocated_instances);
-		return CPA_STATUS_RESOURCE;
-	}
-
-	/* Get the number of accel devices in the system */
-	status = icp_amgr_getNumInstances(&num_accel_dev);
-	LAC_CHECK_STATUS(status);
-
-	/* Allocate memory to store addr of accel_devs */
-	pAdfInsts =
-	    malloc(num_accel_dev * sizeof(icp_accel_dev_t *), M_QAT, M_WAITOK);
-
-	num_accel_dev = 0;
-	/* Get ADF to return all accel_devs that support either
-	 * symmetric or asymmetric crypto */
-	status = icp_amgr_getAllAccelDevByCapabilities(
-	    (ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
-	     ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC),
-	    pAdfInsts,
-	    &num_accel_dev);
-	if (CPA_STATUS_SUCCESS != status) {
-		LAC_LOG_ERROR("No support for crypto\n");
-		free(pAdfInsts, M_QAT);
-		return status;
-	}
-
-	for (i = 0; i < num_accel_dev; i++) {
-		dev_addr = (icp_accel_dev_t *)pAdfInsts[i];
-		/* Note dev_addr cannot be NULL here as numInstances = 0
-		 * is not valid and if dev_addr = NULL then index = 0 (which
-		 * is less than numInstances and status is set to _RESOURCE
-		 * above
-		 */
-		base_addr = dev_addr->pSalHandle;
-		if (NULL == base_addr) {
-			continue;
-		}
-		list_temp = base_addr->crypto_services;
-		while (NULL != list_temp) {
-			if (index > (numInstances - 1)) {
-				break;
-			}
-			cyInstanceHandle = SalList_getObject(list_temp);
-			status = cpaCyInstanceGetInfo2(cyInstanceHandle, &info);
-			list_temp = SalList_next(list_temp);
-			if (CPA_STATUS_SUCCESS != status ||
-			    CPA_TRUE != info.isPolled) {
-				continue;
-			}
-			pCyInstances[index] = cyInstanceHandle;
-			index++;
-		}
-		list_temp = base_addr->asym_services;
-		while (NULL != list_temp) {
-			if (index > (numInstances - 1)) {
-				break;
-			}
-			cyInstanceHandle = SalList_getObject(list_temp);
-			status = cpaCyInstanceGetInfo2(cyInstanceHandle, &info);
-			list_temp = SalList_next(list_temp);
-			if (CPA_STATUS_SUCCESS != status ||
-			    CPA_TRUE != info.isPolled) {
-				continue;
-			}
-			pCyInstances[index] = cyInstanceHandle;
-			index++;
-		}
-		list_temp = base_addr->sym_services;
-		while (NULL != list_temp) {
-			if (index > (numInstances - 1)) {
-				break;
-			}
-			cyInstanceHandle = SalList_getObject(list_temp);
-			status = cpaCyInstanceGetInfo2(cyInstanceHandle, &info);
-			list_temp = SalList_next(list_temp);
-			if (CPA_STATUS_SUCCESS != status ||
-			    CPA_TRUE != info.isPolled) {
-				continue;
-			}
-			pCyInstances[index] = cyInstanceHandle;
-			index++;
-		}
-	}
-	free(pAdfInsts, M_QAT);
-
-	return status;
+	return Lac_GetCyInstancesByType(CPA_ACC_SVC_TYPE_CRYPTO,
+					numInstances,
+					pCyInstances);
 }
 
 /**

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -186,5 +186,26 @@ typedef struct sal_crypto_service_s {
  *************************************************************************/
 
 CpaInstanceHandle Lac_GetFirstHandle(sal_service_type_t svc_type);
+
+/**
+ ******************************************************************************
+ * @ingroup SalCtrl
+ * @description
+ *   Get the total number of either sym, asym or cy instances
+ *****************************************************************************/
+CpaStatus Lac_GetCyNumInstancesByType(
+    const CpaAccelerationServiceType accelerationServiceType,
+    Cpa16U *pNumInstances);
+
+/**
+ ******************************************************************************
+ * @ingroup SalCtrl
+ * @description
+ *   Get either sym, asym or cy instance
+ *****************************************************************************/
+CpaStatus Lac_GetCyInstancesByType(
+    const CpaAccelerationServiceType accelerationServiceType,
+    Cpa16U numInstances,
+    CpaInstanceHandle *pInstances);
 
 #endif /*LAC_SAL_TYPES_CRYPTO_H_*/
