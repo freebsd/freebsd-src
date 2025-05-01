@@ -35,15 +35,15 @@
 #define	EFI_PAGE_MASK		(EFI_PAGE_SIZE - 1)
 
 #define	EFI_TABLE_SMBIOS				\
-	{0xeb9d2d31,0x2d88,0x11d3,0x9a,0x16,{0x00,0x90,0x27,0x3f,0xc1,0x4d}}
+	{0xeb9d2d31,0x2d88,0x11d3,{0x9a,0x16,0x00,0x90,0x27,0x3f,0xc1,0x4d}}
 #define	EFI_TABLE_SMBIOS3				\
-	{0xf2fd1544,0x9794,0x4a2c,0x99,0x2e,{0xe5,0xbb,0xcf,0x20,0xe3,0x94}}
+	{0xf2fd1544,0x9794,0x4a2c,{0x99,0x2e,0xe5,0xbb,0xcf,0x20,0xe3,0x94}}
 #define	EFI_TABLE_ESRT					\
-	{0xb122a263,0x3661,0x4f68,0x99,0x29,{0x78,0xf8,0xb0,0xd6,0x21,0x80}}
+	{0xb122a263,0x3661,0x4f68,{0x99,0x29,0x78,0xf8,0xb0,0xd6,0x21,0x80}}
 #define	EFI_PROPERTIES_TABLE			\
-	{0x880aaca3,0x4adc,0x4a04,0x90,0x79,{0xb7,0x47,0x34,0x08,0x25,0xe5}}
+	{0x880aaca3,0x4adc,0x4a04,{0x90,0x79,0xb7,0x47,0x34,0x08,0x25,0xe5}}
 #define LINUX_EFI_MEMRESERVE_TABLE			\
-	{0x888eb0c6,0x8ede,0x4ff5,0xa8,0xf0,{0x9a,0xee,0x5c,0xb9,0x77,0xc2}}
+	{0x888eb0c6,0x8ede,0x4ff5,{0xa8,0xf0,0x9a,0xee,0x5c,0xb9,0x77,0xc2}}
 
 enum efi_reset {
 	EFI_RESET_COLD = 0,
@@ -54,8 +54,20 @@ enum efi_reset {
 typedef uint16_t	efi_char;
 typedef unsigned long efi_status;
 
+/*
+ * This type-puns to a struct uuid, but all the EDK2 headers use this variation,
+ * and we use it in the loader to specify GUIDs. We define it here so that we
+ * can use EDK2 definitions both places.
+ */
+typedef struct efi_guid {
+	uint32_t  Data1;
+	uint16_t  Data2;
+	uint16_t  Data3;
+	uint8_t   Data4[8];
+} efi_guid_t;	/* Type puns with GUID and EFI_GUID */
+
 struct efi_cfgtbl {
-	struct uuid	ct_uuid;
+	efi_guid_t	ct_guid;
 	void		*ct_data;
 };
 
@@ -246,8 +258,8 @@ struct efi_ops {
 	 * access them.
 	 */
 	int	(*rt_ok)(void);
-	int 	(*get_table)(struct uuid *, void **);
-	int 	(*copy_table)(struct uuid *, void **, size_t, size_t *);
+	int 	(*get_table)(efi_guid_t *, void **);
+	int 	(*copy_table)(efi_guid_t *, void **, size_t, size_t *);
 	int 	(*get_time)(struct efi_tm *);
 	int 	(*get_time_capabilities)(struct efi_tmcap *);
 	int	(*reset_system)(enum efi_reset);
@@ -271,21 +283,21 @@ static inline int efi_rt_ok(void)
 	return (active_efi_ops->rt_ok());
 }
 
-static inline int efi_get_table(struct uuid *uuid, void **ptr)
+static inline int efi_get_table(efi_guid_t *guid, void **ptr)
 {
 
         if (active_efi_ops->get_table == NULL)
 		return (ENXIO);
-	return (active_efi_ops->get_table(uuid, ptr));
+	return (active_efi_ops->get_table(guid, ptr));
 }
 
-static inline int efi_copy_table(struct uuid *uuid, void **buf,
+static inline int efi_copy_table(efi_guid_t *guid, void **buf,
     size_t buf_len, size_t *table_len)
 {
 
 	if (active_efi_ops->copy_table == NULL)
 		return (ENXIO);
-	return (active_efi_ops->copy_table(uuid, buf, buf_len, table_len));
+	return (active_efi_ops->copy_table(guid, buf, buf_len, table_len));
 }
 
 static inline int efi_get_time(struct efi_tm *tm)

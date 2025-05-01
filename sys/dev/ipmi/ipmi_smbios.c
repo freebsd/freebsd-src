@@ -150,7 +150,7 @@ static void
 ipmi_smbios_probe(struct ipmi_get_info *info)
 {
 #ifdef ARCH_MAY_USE_EFI
-	struct uuid efi_smbios;
+	efi_guid_t efi_smbios = EFI_TABLE_SMBIOS;
 	void *addr_efi;
 #endif
 	struct smbios_eps *header;
@@ -161,7 +161,6 @@ ipmi_smbios_probe(struct ipmi_get_info *info)
 	bzero(info, sizeof(struct ipmi_get_info));
 
 #ifdef ARCH_MAY_USE_EFI
-	efi_smbios = (struct uuid)EFI_TABLE_SMBIOS;
 	if (!efi_get_table(&efi_smbios, &addr_efi))
 		addr = (vm_paddr_t)addr_efi;
 #endif
