@@ -56,7 +56,7 @@ efidev_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 		    (struct efi_get_table_ioc *)addr;
 		void *buf = NULL;
 
-		error = efi_copy_table(&egtioc->uuid, egtioc->buf ? &buf : NULL,
+		error = efi_copy_table((efi_guid_t *)&egtioc->uuid, egtioc->buf ? &buf : NULL,
 		    egtioc->buf_len, &egtioc->table_len);
 
 		if (error != 0 || egtioc->buf == NULL)

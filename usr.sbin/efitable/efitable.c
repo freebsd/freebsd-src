@@ -46,8 +46,6 @@ static void efi_table_print_esrt(const void *data);
 static void efi_table_print_prop(const void *data);
 static void usage(void) __dead2;
 
-typedef uuid_t efi_guid_t;	/*  Typedef for future efi_guid_t */
-
 struct efi_table_op {
 	char name[TABLE_MAX_LEN];
 	void (*parse) (const void *);
