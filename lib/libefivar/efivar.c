@@ -29,6 +29,7 @@
 #include <sys/param.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,7 +84,7 @@ efi_guid_tbl_compile(void)
 {
 	size_t i;
 	uint32_t status;
-	static int done = 0;
+	static bool done = false;
 
 	if (done)
 		return;
@@ -95,7 +96,7 @@ efi_guid_tbl_compile(void)
 			fprintf(stderr, "Can't convert %s to a uuid for %s: %d\n",
 			    guid_tbl[i].uuid_str, guid_tbl[i].name, (int)status);
 	}
-	done = 1;
+	done = true;
 }
 
 int
