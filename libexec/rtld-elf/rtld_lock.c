@@ -251,7 +251,7 @@ rlock_acquire(rtld_lock_t lock, RtldLockState *lockstate)
 	if (lockstate == NULL)
 		return;
 
-	if (thread_mask_set(lock->mask) & lock->mask) {
+	if ((thread_mask_set(lock->mask) & lock->mask) != 0) {
 		dbg("rlock_acquire: recursed");
 		lockstate->lockstate = RTLD_LOCK_UNLOCKED;
 		return;
@@ -267,7 +267,7 @@ wlock_acquire(rtld_lock_t lock, RtldLockState *lockstate)
 	if (lockstate == NULL)
 		return;
 
-	if (thread_mask_set(lock->mask) & lock->mask) {
+	if ((thread_mask_set(lock->mask) & lock->mask) != 0) {
 		dbg("wlock_acquire: recursed");
 		lockstate->lockstate = RTLD_LOCK_UNLOCKED;
 		return;
