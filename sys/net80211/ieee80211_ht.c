@@ -2592,6 +2592,11 @@ ht_recv_action_ba_delba(struct ieee80211_node *ni,
 	return 0;
 }
 
+/*
+ * Handle the HT channel width action frame.
+ *
+ * 802.11-2020 9.6.11.2 (Notify Channel Width frame format).
+ */
 static int
 ht_recv_action_ht_txchwidth(struct ieee80211_node *ni,
 	const struct ieee80211_frame *wh __unused,
@@ -2603,6 +2608,11 @@ ht_recv_action_ht_txchwidth(struct ieee80211_node *ni,
 	if ((ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40) == 0)
 		return (0);
 
+	/*
+	 * The supported values are either 0 (any supported width)
+	 * or 1 (HT20).  80, 160, etc MHz widths are not represented
+	 * here.
+	 */
 	chw = (frm[2] == IEEE80211_A_HT_TXCHWIDTH_2040) ?
 	    IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
 
