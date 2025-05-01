@@ -89,7 +89,7 @@ efi_guid_tbl_compile(void)
 	if (done)
 		return;
 	for (i = 0; i < nitems(guid_tbl); i++) {
-		uuid_from_string(guid_tbl[i].uuid_str, &guid_tbl[i].guid,
+		uuid_from_string(guid_tbl[i].uuid_str, (uuid_t *)&guid_tbl[i].guid,
 		    &status);
 		/* all f's is a bad version, so ignore that error */
 		if (status != uuid_s_ok && status != uuid_s_bad_version)
@@ -289,7 +289,7 @@ efi_guid_cmp(const efi_guid_t *guid1, const efi_guid_t *guid2)
 {
 	uint32_t status;
 
-	return uuid_compare(guid1, guid2, &status);
+	return uuid_compare((const uuid_t *)guid1, (const uuid_t *)guid2, &status);
 }
 
 int
@@ -297,7 +297,7 @@ efi_guid_is_zero(const efi_guid_t *guid)
 {
 	uint32_t status;
 
-	return uuid_is_nil(guid, &status);
+	return uuid_is_nil((const uuid_t *)guid, &status);
 }
 
 int
@@ -308,7 +308,7 @@ efi_guid_to_name(efi_guid_t *guid, char **name)
 
 	efi_guid_tbl_compile();
 	for (i = 0; i < nitems(guid_tbl); i++) {
-		if (uuid_equal(guid, &guid_tbl[i].guid, &status)) {
+		if (uuid_equal((const uuid_t *)guid, (const uuid_t *)&guid_tbl[i].guid, &status)) {
 			*name = strdup(guid_tbl[i].name);
 			return (0);
 		}
@@ -333,7 +333,7 @@ efi_guid_to_str(const efi_guid_t *guid, char **sp)
 	uint32_t status;
 
 	/* knows efi_guid_t is a typedef of uuid_t */
-	uuid_to_string(guid, sp, &status);
+	uuid_to_string((const uuid_t *)guid, sp, &status);
 
 	return (status == uuid_s_ok ? 0 : -1);
 }
@@ -384,7 +384,7 @@ efi_str_to_guid(const char *s, efi_guid_t *guid)
 	uint32_t status;
 
 	/* knows efi_guid_t is a typedef of uuid_t */
-	uuid_from_string(s, guid, &status);
+	uuid_from_string(s, (uuid_t *)guid, &status);
 
 	return (status == uuid_s_ok ? 0 : -1);
 }
