@@ -3809,7 +3809,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 		obj = load_object(name, fd, refobj, lo_flags);
 	}
 
-	if (obj) {
+	if (obj != NULL) {
 		obj->dl_refcount++;
 		if (mode & RTLD_GLOBAL &&
 		    objlist_find(&list_global, obj) == NULL)
@@ -3821,8 +3821,8 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 			if ((lo_flags & RTLD_LO_DEEPBIND) != 0)
 				obj->deepbind = true;
 			result = 0;
-			if ((lo_flags & (RTLD_LO_EARLY | RTLD_LO_IGNSTLS)) ==
-				0 &&
+			if ((lo_flags & (RTLD_LO_EARLY |
+			    RTLD_LO_IGNSTLS)) == 0 &&
 			    obj->static_tls && !allocate_tls_offset(obj)) {
 				_rtld_error(
 		    "%s: No space available for static Thread Local Storage",
@@ -3845,7 +3845,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 			    lockstate) == -1) {
 				dlopen_cleanup(obj, lockstate);
 				obj = NULL;
-			} else if (lo_flags & RTLD_LO_EARLY) {
+			} else if ((lo_flags & RTLD_LO_EARLY) != 0) {
 				/*
 				 * Do not call the init functions for early
 				 * loaded filtees.  The image is still not
@@ -3900,10 +3900,9 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 			distribute_static_tls(&initlist, lockstate);
 	}
 
-	if (initlist_objects_ifunc(&initlist,
-		(mode & RTLD_MODEMASK) == RTLD_NOW,
-		(lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
-		lockstate) == -1) {
+	if (initlist_objects_ifunc(&initlist, (mode & RTLD_MODEMASK) ==
+	    RTLD_NOW, (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
+	    lockstate) == -1) {
 		objlist_clear(&initlist);
 		dlopen_cleanup(obj, lockstate);
 		if (lockstate == &mlockstate)
@@ -3911,7 +3910,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 		return (NULL);
 	}
 
-	if (!(lo_flags & RTLD_LO_EARLY)) {
+	if ((lo_flags & RTLD_LO_EARLY) == 0) {
 		/* Call the init functions. */
 		objlist_call_init(&initlist, lockstate);
 	}
