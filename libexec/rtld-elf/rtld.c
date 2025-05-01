@@ -1018,6 +1018,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
     Elf_Addr target;
     RtldLockState lockstate;
 
+relock:
     rlock_acquire(rtld_bind_lock, &lockstate);
     if (sigsetjmp(lockstate.env, 0) != 0)
 	    lock_upgrade(rtld_bind_lock, &lockstate);
@@ -1031,10 +1032,15 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 	NULL, &lockstate);
     if (def == NULL)
 	rtld_die();
-    if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC)
+    if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC) {
+	if (lockstate_wlocked(&lockstate)) {
+		lock_release(rtld_bind_lock, &lockstate);
+		goto relock;
+	}
 	target = (Elf_Addr)rtld_resolve_ifunc(defobj, def);
-    else
+    } else {
 	target = (Elf_Addr)(defobj->relocbase + def->st_value);
+    }
 
     dbg("\"%s\" in \"%s\" ==> %p in \"%s\"",
       defobj->strtab + def->st_name,
