@@ -42,7 +42,7 @@ static int efi_fd = -2;
 
 const efi_guid_t efi_guid_empty = Z;
 
-static struct uuid_table guid_tbl [] =
+static struct guid_table guid_tbl [] =
 {
 	{ "00000000-0000-0000-0000-000000000000", "zero", Z },
 	{ "093e0fae-a6c4-4f50-9f1b-d41e2b89c19a", "sha512", Z },
@@ -76,31 +76,39 @@ static struct uuid_table guid_tbl [] =
 	{ "e2b36190-879b-4a3d-ad8d-f2e7bba32784", "rsa2048_sha256", Z },
 	{ "ff3e5307-9fd0-48c9-85f1-8ad56c701e01", "sha384", Z },
 	{ "f46ee6f4-4785-43a3-923d-7f786c3c8479", "lenovo_startup_interrupt", Z },
-	{ "ffffffff-ffff-ffff-ffff-ffffffffffff", "zzignore-this-guid", Z },
 };
+
+int
+efi_str_to_guid(const char *s, efi_guid_t *guid)
+{
+	uint32_t status;
+
+	/* knows efi_guid_t is binary compatible with uuid_t */
+	uuid_from_string(s, (uuid_t *)guid, &status);
+
+	return (status == uuid_s_ok ? 0 : -1);
+}
 
 static void
 efi_guid_tbl_compile(void)
 {
 	size_t i;
-	uint32_t status;
 	static bool done = false;
+	struct guid_table *ent;
 
 	if (done)
 		return;
 	for (i = 0; i < nitems(guid_tbl); i++) {
-		uuid_from_string(guid_tbl[i].uuid_str, (uuid_t *)&guid_tbl[i].guid,
-		    &status);
-		/* all f's is a bad version, so ignore that error */
-		if (status != uuid_s_ok && status != uuid_s_bad_version)
-			fprintf(stderr, "Can't convert %s to a uuid for %s: %d\n",
-			    guid_tbl[i].uuid_str, guid_tbl[i].name, (int)status);
+		ent = &guid_tbl[i];
+		if (efi_str_to_guid(ent->uuid_str, &ent->guid) != 0)
+			fprintf(stderr, "Can't convert %s to a guid for %s\n",
+			    ent->uuid_str, ent->name);
 	}
 	done = true;
 }
 
 int
-efi_known_guid(struct uuid_table **tbl)
+efi_known_guid(struct guid_table **tbl)
 {
 
 	*tbl = guid_tbl;
@@ -327,7 +335,7 @@ efi_guid_to_str(const efi_guid_t *guid, char **sp)
 {
 	uint32_t status;
 
-	/* knows efi_guid_t is a typedef of uuid_t */
+	/* knows efi_guid_t is binary compatible with uuid_t */
 	uuid_to_string((const uuid_t *)guid, sp, &status);
 
 	return (status == uuid_s_ok ? 0 : -1);
@@ -371,17 +379,6 @@ errout:
 	free(var.name);
 
 	return rv;
-}
-
-int
-efi_str_to_guid(const char *s, efi_guid_t *guid)
-{
-	uint32_t status;
-
-	/* knows efi_guid_t is a typedef of uuid_t */
-	uuid_from_string(s, (uuid_t *)guid, &status);
-
-	return (status == uuid_s_ok ? 0 : -1);
 }
 
 int
