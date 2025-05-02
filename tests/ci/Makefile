@@ -123,8 +123,8 @@ VM_MEM_SIZE=${QEMU_MAX_MEM_SIZE}g
 .else
 VM_MEM_SIZE=${VM_MEM}g
 .endif
-KLDVMMISLOADED!=kldload -q -n vmm 2>/dev/null && echo "1" || echo "0"
-.if ${KLDVMMISLOADED} == "0"
+VMGUEST!=sysctl -n kern.vm_guest 2>/dev/null || true
+.if ${VMGUEST} != "none"
 USE_QEMU?=1
 .endif
 KLDFILEMONISLOADED!=kldload -q -n filemon 2>/dev/null && echo "1" || echo "0"
