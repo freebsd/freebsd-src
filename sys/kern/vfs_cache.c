@@ -585,6 +585,24 @@ VP2VNODELOCK(struct vnode *vp)
 	return (&vnodelocks[(((uintptr_t)(vp) >> 8) & ncvnodehash)]);
 }
 
+/*
+ * Search the hash table for a namecache entry.  Either the corresponding bucket
+ * must be locked, or the caller must be in an SMR read section.
+ */
+static struct namecache *
+cache_ncp_find(struct vnode *dvp, struct componentname *cnp, uint32_t hash)
+{
+	struct namecache *ncp;
+
+	KASSERT(mtx_owned(HASH2BUCKETLOCK(hash)) || VFS_SMR_ENTERED(),
+	    ("%s: hash %u not locked", __func__, hash));
+	CK_SLIST_FOREACH(ncp, NCHHASH(hash), nc_hash) {
+		if (cache_ncp_match(ncp, dvp, cnp))
+			break;
+	}
+	return (ncp);
+}
+
 static void
 cache_out_ts(struct namecache *ncp, struct timespec *tsp, int *ticksp)
 {
@@ -1877,12 +1895,7 @@ retry:
 		goto out_no_entry;
 
 	mtx_lock(blp);
-
-	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		if (cache_ncp_match(ncp, dvp, cnp))
-			break;
-	}
-
+	ncp = cache_ncp_find(dvp, cnp, hash);
 	if (ncp == NULL) {
 		mtx_unlock(blp);
 		goto out_no_entry;
@@ -2078,11 +2091,7 @@ retry:
 	blp = HASH2BUCKETLOCK(hash);
 	mtx_lock(blp);
 
-	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		if (cache_ncp_match(ncp, dvp, cnp))
-			break;
-	}
-
+	ncp = cache_ncp_find(dvp, cnp, hash);
 	if (__predict_false(ncp == NULL)) {
 		mtx_unlock(blp);
 		SDT_PROBE2(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr);
@@ -2172,11 +2181,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
 	vfs_smr_enter();
 
-	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		if (cache_ncp_match(ncp, dvp, cnp))
-			break;
-	}
-
+	ncp = cache_ncp_find(dvp, cnp, hash);
 	if (__predict_false(ncp == NULL)) {
 		vfs_smr_exit();
 		SDT_PROBE2(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr);
@@ -2494,7 +2499,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	struct celockstate cel;
 	struct namecache *ncp, *n2, *ndd;
 	struct namecache_ts *ncp_ts;
-	struct nchashhead *ncpp;
 	uint32_t hash;
 	int flag;
 	int len;
@@ -2571,45 +2575,46 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	 * with this name.  This can happen with concurrent lookups of
 	 * the same path name.
 	 */
-	ncpp = NCHHASH(hash);
-	CK_SLIST_FOREACH(n2, ncpp, nc_hash) {
-		if (cache_ncp_match(n2, dvp, cnp)) {
-			MPASS(cache_ncp_canuse(n2));
-			if ((n2->nc_flag & NCF_NEGATIVE) != 0)
-				KASSERT(vp == NULL,
-				    ("%s: found entry pointing to a different vnode (%p != %p) ; name [%s]",
-				    __func__, NULL, vp, cnp->cn_nameptr));
-			else
-				KASSERT(n2->nc_vp == vp,
-				    ("%s: found entry pointing to a different vnode (%p != %p) ; name [%s]",
-				    __func__, n2->nc_vp, vp, cnp->cn_nameptr));
-			/*
-			 * Entries are supposed to be immutable unless in the
-			 * process of getting destroyed. Accommodating for
-			 * changing timestamps is possible but not worth it.
-			 * This should be harmless in terms of correctness, in
-			 * the worst case resulting in an earlier expiration.
-			 * Alternatively, the found entry can be replaced
-			 * altogether.
-			 */
-			MPASS((n2->nc_flag & (NCF_TS | NCF_DTS)) == (ncp->nc_flag & (NCF_TS | NCF_DTS)));
+	n2 = cache_ncp_find(dvp, cnp, hash);
+	if (n2 != NULL) {
+		MPASS(cache_ncp_canuse(n2));
+		if ((n2->nc_flag & NCF_NEGATIVE) != 0)
+			KASSERT(vp == NULL,
+			    ("%s: found entry pointing to a different vnode "
+			    "(%p != %p); name [%s]",
+			    __func__, NULL, vp, cnp->cn_nameptr));
+		else
+			KASSERT(n2->nc_vp == vp,
+			    ("%s: found entry pointing to a different vnode "
+			    "(%p != %p); name [%s]",
+			    __func__, n2->nc_vp, vp, cnp->cn_nameptr));
+		/*
+		 * Entries are supposed to be immutable unless in the
+		 * process of getting destroyed. Accommodating for
+		 * changing timestamps is possible but not worth it.
+		 * This should be harmless in terms of correctness, in
+		 * the worst case resulting in an earlier expiration.
+		 * Alternatively, the found entry can be replaced
+		 * altogether.
+		 */
+		MPASS((n2->nc_flag & (NCF_TS | NCF_DTS)) ==
+		    (ncp->nc_flag & (NCF_TS | NCF_DTS)));
 #if 0
-			if (tsp != NULL) {
-				KASSERT((n2->nc_flag & NCF_TS) != 0,
-				    ("no NCF_TS"));
-				n2_ts = __containerof(n2, struct namecache_ts, nc_nc);
-				n2_ts->nc_time = ncp_ts->nc_time;
-				n2_ts->nc_ticks = ncp_ts->nc_ticks;
-				if (dtsp != NULL) {
-					n2_ts->nc_dotdottime = ncp_ts->nc_dotdottime;
-					n2_ts->nc_nc.nc_flag |= NCF_DTS;
-				}
+		if (tsp != NULL) {
+			KASSERT((n2->nc_flag & NCF_TS) != 0,
+			    ("no NCF_TS"));
+			n2_ts = __containerof(n2, struct namecache_ts, nc_nc);
+			n2_ts->nc_time = ncp_ts->nc_time;
+			n2_ts->nc_ticks = ncp_ts->nc_ticks;
+			if (dtsp != NULL) {
+				n2_ts->nc_dotdottime = ncp_ts->nc_dotdottime;
+				n2_ts->nc_nc.nc_flag |= NCF_DTS;
 			}
-#endif
-			SDT_PROBE3(vfs, namecache, enter, duplicate, dvp, ncp->nc_name,
-			    vp);
-			goto out_unlock_free;
 		}
+#endif
+		SDT_PROBE3(vfs, namecache, enter, duplicate, dvp, ncp->nc_name,
+		    vp);
+		goto out_unlock_free;
 	}
 
 	if (flag == NCF_ISDOTDOT) {
@@ -2675,7 +2680,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	 * Insert the new namecache entry into the appropriate chain
 	 * within the cache entries table.
 	 */
-	CK_SLIST_INSERT_HEAD(ncpp, ncp, nc_hash);
+	CK_SLIST_INSERT_HEAD(NCHHASH(hash), ncp, nc_hash);
 
 	atomic_thread_fence_rel();
 	/*
@@ -3105,12 +3110,10 @@ cache_validate(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 		return;
 	blp = HASH2BUCKETLOCK(hash);
 	mtx_lock(blp);
-	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		if (cache_ncp_match(ncp, dvp, cnp)) {
-			if (ncp->nc_vp != vp)
-				panic("%s: mismatch (%p != %p); ncp %p [%s] dvp %p\n",
-				    __func__, vp, ncp->nc_vp, ncp, ncp->nc_name, ncp->nc_dvp);
-		}
+	ncp = cache_ncp_find(dvp, cnp, hash);
+	if (ncp != NULL && ncp->nc_vp != vp) {
+		panic("%s: mismatch (%p != %p); ncp %p [%s] dvp %p\n",
+		    __func__, vp, ncp->nc_vp, ncp, ncp->nc_name, ncp->nc_dvp);
 	}
 	mtx_unlock(blp);
 }
@@ -5554,11 +5557,7 @@ cache_fplookup_next(struct cache_fpl *fpl)
 
 	MPASS(!cache_fpl_isdotdot(cnp));
 
-	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		if (cache_ncp_match(ncp, dvp, cnp))
-			break;
-	}
-
+	ncp = cache_ncp_find(dvp, cnp, hash);
 	if (__predict_false(ncp == NULL)) {
 		return (cache_fplookup_noentry(fpl));
 	}
