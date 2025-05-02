@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2021 The FreeBSD Foundation
+ * Copyright (c) 2020-2025 The FreeBSD Foundation
  *
  * Portions of this software were developed by Björn Zeeb
  * under sponsorship from the FreeBSD Foundation.
@@ -41,6 +41,7 @@ typedef	uint32_t		netdev_features_t;
 #define NETIF_F_TSO6            BIT(5)
 #define NETIF_F_RXCSUM          BIT(6)
 #define	NETIF_F_HW_CSUM		BIT(7)
+#define	NETIF_F_HW_TC		BIT(8)
 
 #define NETIF_F_CSUM_MASK       (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)
 
