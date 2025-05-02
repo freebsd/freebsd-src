@@ -1748,8 +1748,10 @@ hdac_detach(device_t dev)
 		return (error);
 
 	hdac_lock(sc);
+	callout_stop(&sc->poll_callout);
 	hdac_reset(sc, false);
 	hdac_unlock(sc);
+	callout_drain(&sc->poll_callout);
 	taskqueue_drain(taskqueue_thread, &sc->unsolq_task);
 	hdac_irq_free(sc);
 
