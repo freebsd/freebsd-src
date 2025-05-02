@@ -51,8 +51,11 @@ static int	_thr_rtld_set_flag(int);
 static void	_thr_rtld_wlock_acquire(void *);
 
 struct rtld_lock {
-	struct	urwlock	lock;
-	char		_pad[CACHE_LINE_SIZE - sizeof(struct urwlock)];
+	struct urwlock lock;
+	struct pthread *wowner;
+	u_int rlocks;
+	char _pad[CACHE_LINE_SIZE - sizeof(struct urwlock) -
+	    sizeof(struct pthread *) - sizeof(u_int)];
 };
 
 static struct rtld_lock lock_place[MAX_RTLD_LOCKS] __aligned(CACHE_LINE_SIZE);
@@ -117,9 +120,13 @@ _thr_rtld_rlock_acquire(void *lock)
 	SAVE_ERRNO();
 	l = (struct rtld_lock *)lock;
 
-	THR_CRITICAL_ENTER(curthread);
-	while (_thr_rwlock_rdlock(&l->lock, 0, NULL) != 0)
-		;
+	if (l->wowner == curthread) {
+		l->rlocks++;
+	} else {
+		THR_CRITICAL_ENTER(curthread);
+		while (_thr_rwlock_rdlock(&l->lock, 0, NULL) != 0)
+			;
+	}
 	curthread->rdlock_count++;
 	RESTORE_ERRNO();
 }
@@ -138,6 +145,7 @@ _thr_rtld_wlock_acquire(void *lock)
 	THR_CRITICAL_ENTER(curthread);
 	while (_thr_rwlock_wrlock(&l->lock, NULL) != 0)
 		;
+	l->wowner = curthread;
 	RESTORE_ERRNO();
 }
 
@@ -164,6 +172,14 @@ _thr_rtld_lock_release(void *lock)
 		    URWLOCK_WRITE_WAITERS | URWLOCK_READ_WAITERS);
 		l->lock.rw_blocked_readers = 0;
 		l->lock.rw_blocked_writers = 0;
+	}
+	if ((state & URWLOCK_WRITE_OWNER) != 0) {
+		if (l->rlocks > 0) {
+			l->rlocks--;
+			return;
+		} else {
+			l->wowner = NULL;
+		}
 	}
 	if (_thr_rwlock_unlock(&l->lock) == 0) {
 		if ((state & URWLOCK_WRITE_OWNER) == 0)
