@@ -41,6 +41,7 @@
 #include <machine/pte.h>
 #endif
 
+#ifdef __HAVE_STATIC_DEVMAP
 #define	DEVMAP_PADDR_NOTFOUND	((vm_paddr_t)(-1))
 
 static const struct devmap_entry *devmap_table;
@@ -55,12 +56,14 @@ static boolean_t devmap_bootstrap_done = false;
 #define	AKVA_DEVMAP_MAX_ENTRIES	32
 static struct devmap_entry	akva_devmap_entries[AKVA_DEVMAP_MAX_ENTRIES];
 static u_int			akva_devmap_idx;
+#endif
 static vm_offset_t		akva_devmap_vaddr = DEVMAP_MAX_VADDR;
 
 #if defined(__aarch64__) || defined(__riscv)
 extern int early_boot;
 #endif
 
+#ifdef __HAVE_STATIC_DEVMAP
 /*
  * Print the contents of the static mapping table using the provided printf-like
  * output function (which will be either printf or db_printf).
@@ -139,7 +142,6 @@ devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
 		devmap_register_table(akva_devmap_entries);
 
 	 /* Allocate virtual address space from the top of kva downwards. */
-#ifdef __arm__
 	/*
 	 * If the range being mapped is aligned and sized to 1MB boundaries then
 	 * also align the virtual address to the next-lower 1MB boundary so that
@@ -147,9 +149,7 @@ devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
 	 */
 	if ((pa & L1_S_OFFSET) == 0 && (sz & L1_S_OFFSET) == 0) {
 		akva_devmap_vaddr = trunc_1mpage(akva_devmap_vaddr - sz);
-	} else
-#endif
-	{
+	} else {
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - sz);
 	}
 	m = &akva_devmap_entries[akva_devmap_idx++];
@@ -187,12 +187,8 @@ devmap_bootstrap(void)
 		return;
 
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
-#if defined(__arm__)
 		pmap_preboot_map_attr(pd->pd_pa, pd->pd_va, pd->pd_size,
 		    VM_PROT_READ | VM_PROT_WRITE, VM_MEMATTR_DEVICE);
-#elif defined(__aarch64__) || defined(__riscv)
-		pmap_kenter_device(pd->pd_va, pd->pd_size, pd->pd_pa);
-#endif
 	}
 }
 
@@ -237,6 +233,7 @@ devmap_vtop(void * vpva, vm_size_t size)
 
 	return (DEVMAP_PADDR_NOTFOUND);
 }
+#endif
 
 /*
  * Map a set of physical memory pages into the kernel virtual address space.
@@ -253,11 +250,13 @@ void *
 pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
 	vm_offset_t va, offset;
+#ifdef __HAVE_STATIC_DEVMAP
 	void * rva;
 
 	/* First look in the static mapping table. */
 	if ((rva = devmap_ptov(pa, size)) != NULL)
 		return (rva);
+#endif
 
 	offset = pa & PAGE_MASK;
 	pa = trunc_page(pa);
@@ -292,11 +291,13 @@ void *
 pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
 	vm_offset_t va, offset;
+#ifdef __HAVE_STATIC_DEVMAP
 	void * rva;
 
 	/* First look in the static mapping table. */
 	if ((rva = devmap_ptov(pa, size)) != NULL)
 		return (rva);
+#endif
 
 	offset = pa & PAGE_MASK;
 	pa = trunc_page(pa);
@@ -333,9 +334,11 @@ pmap_unmapdev(void *p, vm_size_t size)
 {
 	vm_offset_t offset, va;
 
+#ifdef __HAVE_STATIC_DEVMAP
 	/* Nothing to do if we find the mapping in the static table. */
 	if (devmap_vtop(p, size) != DEVMAP_PADDR_NOTFOUND)
 		return;
+#endif
 
 	va = (vm_offset_t)p;
 	offset = va & PAGE_MASK;
@@ -347,6 +350,7 @@ pmap_unmapdev(void *p, vm_size_t size)
 }
 
 #ifdef DDB
+#ifdef __HAVE_STATIC_DEVMAP
 #include <ddb/ddb.h>
 
 DB_SHOW_COMMAND_FLAGS(devmap, db_show_devmap, DB_CMD_MEMSAFE)
@@ -354,4 +358,5 @@ DB_SHOW_COMMAND_FLAGS(devmap, db_show_devmap, DB_CMD_MEMSAFE)
 	devmap_dump_table(db_printf);
 }
 
+#endif
 #endif /* DDB */
