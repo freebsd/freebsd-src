@@ -91,6 +91,9 @@ hyperv-tools_COMMENT=	Microsoft HyperV Utilities
 hyperv-tools_DESC=	Microsoft HyperV Utilities
 inetd_COMMENT=		Internet super-server
 inetd_DESC=		Internet super-server
+iputils_COMMENT=	IP utilities
+iputils_DESC=		Contains non-essential IP utilities: ping, ping6, \
+traceroute and traceroute6.
 jail_COMMENT= 		Jail Utilities
 jail_DESC= 		Jail Utilities
 jail-debug_DESCR= 	Debugging Symbols

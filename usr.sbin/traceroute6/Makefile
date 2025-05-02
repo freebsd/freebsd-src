@@ -17,7 +17,7 @@
 TRACEROUTE_DISTDIR?= ${SRCTOP}/usr.sbin/traceroute
 .PATH: ${TRACEROUTE_DISTDIR}
 
-PACKAGE=	runtime
+PACKAGE=	iputils
 PROG=	traceroute6
 MAN=	traceroute6.8
 SRCS=	as.c traceroute6.c

@@ -43,6 +43,10 @@ main() {
 		periodic)
 			pkgdeps="cron"
 			;;
+		rc)
+			# because rc.d/netwait requires ping
+			pkgdeps="iputils"
+			;;
 
 		# -dev packages that have no corresponding non-dev package
 		# as a dependency.
