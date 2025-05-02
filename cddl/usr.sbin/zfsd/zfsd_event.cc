@@ -355,6 +355,13 @@ ZfsEvent::Process() const
 
 	Vdev vdev(zpl.front(), vdevConfig);
 	caseFile = &CaseFile::Create(vdev);
+	if (caseFile->VdevState() == VDEV_STATE_OFFLINE) {
+		/*
+		 * An administrator did this deliberately.  It's not considered
+		 * an error that zfsd must fix.
+		 */
+		return (false);
+	}
 	if (caseFile->ReEvaluate(*this) == false) {
 		stringstream msg;
 		int priority = LOG_INFO;
