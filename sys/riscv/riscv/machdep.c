@@ -44,7 +44,6 @@
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
-#include <sys/devmap.h>
 #include <sys/efi_map.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -157,8 +156,6 @@ cpu_startup(void *dummy)
 	printf("avail memory = %ju (%ju MB)\n",
 	    ptoa((uintmax_t)vm_free_count()),
 	    ptoa((uintmax_t)vm_free_count()) / (1024 * 1024));
-	if (bootverbose)
-		devmap_print_table();
 
 	bufinit();
 	vm_pager_bufferinit();
@@ -635,9 +632,6 @@ initriscv(struct riscv_bootparams *rvbp)
 	pmap_bootstrap(rvbp->kern_phys, kernlen);
 
 	physmem_init_kernel_globals();
-
-	/* Establish static device mappings */
-	devmap_bootstrap();
 
 	cninit();
 

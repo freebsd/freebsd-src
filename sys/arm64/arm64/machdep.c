@@ -38,7 +38,6 @@
 #include <sys/cons.h>
 #include <sys/cpu.h>
 #include <sys/csan.h>
-#include <sys/devmap.h>
 #include <sys/efi.h>
 #include <sys/efi_map.h>
 #include <sys/exec.h>
@@ -851,8 +850,6 @@ initarm(struct arm64_bootparams *abp)
 #endif
 
 	physmem_init_kernel_globals();
-
-	devmap_bootstrap();
 
 	valid = bus_probe();
 
