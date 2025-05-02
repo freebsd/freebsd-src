@@ -2540,28 +2540,20 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		    ("wrong vnode type %p", vp));
 		atomic_thread_fence_rel();
 		atomic_store_ptr(&dvp->v_cache_dd, ncp);
-	}
-
-	if (vp != NULL) {
-		if (flag != NCF_ISDOTDOT) {
-			/*
-			 * For this case, the cache entry maps both the
-			 * directory name in it and the name ".." for the
-			 * directory's parent.
-			 */
-			if ((ndd = vp->v_cache_dd) != NULL) {
-				if ((ndd->nc_flag & NCF_ISDOTDOT) != 0)
-					cache_zap_locked(ndd);
-				else
-					ndd = NULL;
-			}
-			atomic_thread_fence_rel();
-			atomic_store_ptr(&vp->v_cache_dd, ncp);
-		} else if (vp->v_type != VDIR) {
-			if (vp->v_cache_dd != NULL) {
-				atomic_store_ptr(&vp->v_cache_dd, NULL);
-			}
+	} else if (vp != NULL) {
+		/*
+		 * For this case, the cache entry maps both the
+		 * directory name in it and the name ".." for the
+		 * directory's parent.
+		 */
+		if ((ndd = vp->v_cache_dd) != NULL) {
+			if ((ndd->nc_flag & NCF_ISDOTDOT) != 0)
+				cache_zap_locked(ndd);
+			else
+				ndd = NULL;
 		}
+		atomic_thread_fence_rel();
+		atomic_store_ptr(&vp->v_cache_dd, ncp);
 	}
 
 	if (flag != NCF_ISDOTDOT) {
