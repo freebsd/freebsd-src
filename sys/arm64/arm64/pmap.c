@@ -2111,6 +2111,56 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 }
 
 /*
+ * Returns true if the entire kernel virtual address range is mapped
+ */
+static bool
+pmap_kmapped_range(vm_offset_t sva, vm_size_t size)
+{
+	pt_entry_t *pte, tpte;
+	vm_offset_t eva;
+
+	KASSERT(sva >= VM_MIN_KERNEL_ADDRESS,
+	    ("%s: Invalid virtual address: %lx", __func__, sva));
+	MPASS(size != 0);
+	eva = sva + size - 1;
+	KASSERT(eva > sva, ("%s: Size too large: sva %lx, size %lx", __func__,
+	    sva, size));
+
+	while (sva <= eva) {
+		pte = pmap_l1(kernel_pmap, sva);
+		if (pte == NULL)
+			return (false);
+		tpte = pmap_load(pte);
+		if (tpte == 0)
+			return (false);
+		if ((tpte & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_BLOCK) {
+			sva = (sva & ~L1_OFFSET) + L1_SIZE;
+			continue;
+		}
+
+		pte = pmap_l1_to_l2(&tpte, sva);
+		tpte = pmap_load(pte);
+		if (tpte == 0)
+			return (false);
+		if ((tpte & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_BLOCK) {
+			sva = (sva & ~L2_OFFSET) + L2_SIZE;
+			continue;
+		}
+		pte = pmap_l2_to_l3(&tpte, sva);
+		tpte = pmap_load(pte);
+		if (tpte == 0)
+			return (false);
+		MPASS((tpte & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_PAGE);
+		if ((tpte & ATTR_CONTIGUOUS) == ATTR_CONTIGUOUS)
+			sva = (sva & ~L3C_OFFSET) + L3C_SIZE;
+		else
+			sva = (sva & ~L3_OFFSET) + L3_SIZE;
+	}
+
+	return (true);
+}
+
+/*
  * Walks the page tables to translate a kernel virtual address to a
  * physical address. Returns true if the kva is valid and stores the
  * physical address in pa if it is not NULL.
@@ -7786,6 +7836,11 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 	pt_entry_t *l2;
 	int i, lvl, l2_blocks, free_l2_count, start_idx;
 
+	/* Use the DMAP region if we can */
+	if (PHYS_IN_DMAP(pa) && PHYS_IN_DMAP(pa + size - 1) &&
+	    pmap_kmapped_range(PHYS_TO_DMAP(pa), size))
+		return ((void *)PHYS_TO_DMAP(pa));
+
 	if (!vm_initialized) {
 		/*
 		 * No L3 ptables so map entire L2 blocks where start VA is:
@@ -7901,10 +7956,25 @@ pmap_unmapbios(void *p, vm_size_t size)
 	vm_offset_t offset, va, va_trunc;
 	pd_entry_t *pde;
 	pt_entry_t *l2;
-	int i, lvl, l2_blocks, block;
+	int error __diagused, i, lvl, l2_blocks, block;
 	bool preinit_map;
 
 	va = (vm_offset_t)p;
+	if (VIRT_IN_DMAP(va)) {
+		KASSERT(VIRT_IN_DMAP(va + size - 1),
+		    ("%s: End address not in DMAP region: %lx", __func__,
+		    va + size - 1));
+		/* Ensure the attributes are as expected for the DMAP region */
+		PMAP_LOCK(kernel_pmap);
+		error = pmap_change_props_locked(va, size,
+		    PROT_READ | PROT_WRITE, VM_MEMATTR_DEFAULT, false);
+		PMAP_UNLOCK(kernel_pmap);
+		KASSERT(error == 0, ("%s: Failed to reset DMAP attributes: %d",
+		    __func__, error));
+
+		return;
+	}
+
 	l2_blocks =
 	   (roundup2(va + size, L2_SIZE) - rounddown2(va, L2_SIZE)) >> L2_SHIFT;
 	KASSERT(l2_blocks > 0, ("pmap_unmapbios: invalid size %lx", size));
