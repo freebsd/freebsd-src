@@ -111,7 +111,11 @@ int mt7615_register_device(struct mt7615_dev *dev)
 			return ret;
 	}
 
+#if defined(CONFIG_MT7615_DEBUGFS)
 	return mt7615_init_debugfs(dev);
+#else
+	return 0;
+#endif
 }
 
 void mt7615_unregister_device(struct mt7615_dev *dev)
