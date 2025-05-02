@@ -483,6 +483,64 @@ zfsd_autoreplace_003_pos_cleanup()
 	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
 }
 
+atf_test_case zfsd_offline_001_neg cleanup
+zfsd_offline_001_neg_head()
+{
+	atf_set "descr" "ZFSD will not automatically reactivate a disk which has been administratively offlined"
+	atf_set "require.progs" "ksh93 zpool zfs"
+}
+zfsd_offline_001_neg_body()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
+	. $(atf_get_srcdir)/zfsd.cfg
+
+	verify_disk_count "$DISKS" 3
+	verify_zfsd_running
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/zfsd_offline_001_neg.ksh
+	if [[ $? != 0 ]]; then
+		save_artifacts
+		atf_fail "Testcase failed"
+	fi
+}
+zfsd_offline_001_neg_cleanup()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/zfsd.cfg
+
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
+}
+
+atf_test_case zfsd_offline_002_neg cleanup
+zfsd_offline_002_neg_head()
+{
+	atf_set "descr" "ZFSD will not automatically activate a spare when a disk has been administratively offlined"
+	atf_set "require.progs" "ksh93 zpool zfs"
+}
+zfsd_offline_002_neg_body()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
+	. $(atf_get_srcdir)/zfsd.cfg
+
+	verify_disk_count "$DISKS" 4
+	verify_zfsd_running
+	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/zfsd_offline_002_neg.ksh
+	if [[ $? != 0 ]]; then
+		save_artifacts
+		atf_fail "Testcase failed"
+	fi
+}
+zfsd_offline_002_neg_cleanup()
+{
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/zfsd.cfg
+
+	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
+}
+
 atf_test_case zfsd_replace_001_pos cleanup
 zfsd_replace_001_pos_head()
 {
@@ -676,6 +734,8 @@ atf_init_test_cases()
 	atf_add_test_case zfsd_autoreplace_001_neg
 	atf_add_test_case zfsd_autoreplace_002_pos
 	atf_add_test_case zfsd_autoreplace_003_pos
+	atf_add_test_case zfsd_offline_001_neg
+	atf_add_test_case zfsd_offline_002_neg
 	atf_add_test_case zfsd_replace_001_pos
 	atf_add_test_case zfsd_replace_002_pos
 	atf_add_test_case zfsd_replace_003_pos
