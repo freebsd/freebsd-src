@@ -32,7 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
 
@@ -457,6 +456,18 @@ cache_ncp_invalidate(struct namecache *ncp)
 	    ("%s: entry %p already invalid", __func__, ncp));
 	atomic_store_char(&ncp->nc_flag, ncp->nc_flag | NCF_INVALID);
 	atomic_thread_fence_rel();
+}
+
+/*
+ * Does this entry match the given directory and name?
+ */
+static bool
+cache_ncp_match(struct namecache *ncp, struct vnode *dvp,
+    struct componentname *cnp)
+{
+	return (ncp->nc_dvp == dvp &&
+	    ncp->nc_nlen == cnp->cn_namelen &&
+	    bcmp(ncp->nc_name, cnp->cn_nameptr, cnp->cn_namelen) == 0);
 }
 
 /*
@@ -1413,8 +1424,7 @@ cache_neg_promote_cond(struct vnode *dvp, struct componentname *cnp,
 	/*
 	 * The newly found entry may be something different...
 	 */
-	if (!(ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
-	    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))) {
+	if (!cache_ncp_match(ncp, dvp, cnp)) {
 		goto out_abort;
 	}
 
@@ -1760,12 +1770,9 @@ cache_zap_unlocked_bucket(struct namecache *ncp, struct componentname *cnp,
 	cache_lock_vnodes(dvlp, vlp);
 	mtx_lock(blp);
 	CK_SLIST_FOREACH(rncp, (NCHHASH(hash)), nc_hash) {
-		if (rncp == ncp && rncp->nc_dvp == dvp &&
-		    rncp->nc_nlen == cnp->cn_namelen &&
-		    !bcmp(rncp->nc_name, cnp->cn_nameptr, rncp->nc_nlen))
+		if (rncp == ncp && cache_ncp_match(rncp, dvp, cnp))
 			break;
 	}
-
 	if (rncp == NULL)
 		goto out_mismatch;
 
@@ -1872,8 +1879,7 @@ retry:
 	mtx_lock(blp);
 
 	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
-		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
+		if (cache_ncp_match(ncp, dvp, cnp))
 			break;
 	}
 
@@ -2073,8 +2079,7 @@ retry:
 	mtx_lock(blp);
 
 	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
-		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
+		if (cache_ncp_match(ncp, dvp, cnp))
 			break;
 	}
 
@@ -2168,8 +2173,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	vfs_smr_enter();
 
 	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
-		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
+		if (cache_ncp_match(ncp, dvp, cnp))
 			break;
 	}
 
@@ -2569,9 +2573,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	 */
 	ncpp = NCHHASH(hash);
 	CK_SLIST_FOREACH(n2, ncpp, nc_hash) {
-		if (n2->nc_dvp == dvp &&
-		    n2->nc_nlen == cnp->cn_namelen &&
-		    !bcmp(n2->nc_name, cnp->cn_nameptr, n2->nc_nlen)) {
+		if (cache_ncp_match(n2, dvp, cnp)) {
 			MPASS(cache_ncp_canuse(n2));
 			if ((n2->nc_flag & NCF_NEGATIVE) != 0)
 				KASSERT(vp == NULL,
@@ -3104,8 +3106,7 @@ cache_validate(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 	blp = HASH2BUCKETLOCK(hash);
 	mtx_lock(blp);
 	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
-		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen)) {
+		if (cache_ncp_match(ncp, dvp, cnp)) {
 			if (ncp->nc_vp != vp)
 				panic("%s: mismatch (%p != %p); ncp %p [%s] dvp %p\n",
 				    __func__, vp, ncp->nc_vp, ncp, ncp->nc_name, ncp->nc_dvp);
@@ -5554,8 +5555,7 @@ cache_fplookup_next(struct cache_fpl *fpl)
 	MPASS(!cache_fpl_isdotdot(cnp));
 
 	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
-		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
+		if (cache_ncp_match(ncp, dvp, cnp))
 			break;
 	}
 
