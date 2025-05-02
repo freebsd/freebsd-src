@@ -172,6 +172,16 @@ struct mt76_connac_tx_free {
 
 extern const struct wiphy_wowlan_support mt76_connac_wowlan_support;
 
+static inline bool is_mt7925(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7925;
+}
+
+static inline bool is_mt7920(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7920;
+}
+
 static inline bool is_mt7922(struct mt76_dev *dev)
 {
 	return mt76_chip(dev) == 0x7922;
@@ -179,7 +189,7 @@ static inline bool is_mt7922(struct mt76_dev *dev)
 
 static inline bool is_mt7921(struct mt76_dev *dev)
 {
-	return mt76_chip(dev) == 0x7961 || is_mt7922(dev);
+	return mt76_chip(dev) == 0x7961 || is_mt7922(dev) || is_mt7920(dev);
 }
 
 static inline bool is_mt7663(struct mt76_dev *dev)
@@ -217,6 +227,16 @@ static inline bool is_mt7996(struct mt76_dev *dev)
 	return mt76_chip(dev) == 0x7990;
 }
 
+static inline bool is_mt7992(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7992;
+}
+
+static inline bool is_mt799x(struct mt76_dev *dev)
+{
+	return is_mt7996(dev) || is_mt7992(dev);
+}
+
 static inline bool is_mt7622(struct mt76_dev *dev)
 {
 	if (!IS_ENABLED(CONFIG_MT7622_WMAC))
@@ -244,7 +264,9 @@ static inline bool is_mt76_fw_txp(struct mt76_dev *dev)
 {
 	switch (mt76_chip(dev)) {
 	case 0x7961:
+	case 0x7920:
 	case 0x7922:
+	case 0x7925:
 	case 0x7663:
 	case 0x7622:
 		return false;
@@ -383,9 +405,10 @@ mt76_connac_mutex_release(struct mt76_dev *dev, struct mt76_connac_pm *pm)
 	mutex_unlock(&dev->mutex);
 }
 
-void mt76_connac_gen_ppe_thresh(u8 *he_ppet, int nss);
+void mt76_connac_gen_ppe_thresh(u8 *he_ppet, int nss, enum nl80211_band band);
 int mt76_connac_init_tx_queues(struct mt76_phy *phy, int idx, int n_desc,
-			       int ring_base, u32 flags);
+			       int ring_base, void *wed, u32 flags);
+
 void mt76_connac_write_hw_txp(struct mt76_dev *dev,
 			      struct mt76_tx_info *tx_info,
 			      void *txp_ptr, u32 id);
@@ -404,7 +427,7 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 				 struct ieee80211_key_conf *key, int pid,
 				 enum mt76_txq_id qid, u32 changed);
 u16 mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy,
-				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *conf,
 				 bool beacon, bool mcast);
 bool mt76_connac2_mac_fill_txs(struct mt76_dev *dev, struct mt76_wcid *wcid,
 			       __le32 *txs_data);
@@ -428,4 +451,6 @@ void mt76_connac2_tx_token_put(struct mt76_dev *dev);
 /* connac3 */
 void mt76_connac3_mac_decode_he_radiotap(struct sk_buff *skb, __le32 *rxv,
 					 u8 mode);
+void mt76_connac3_mac_decode_eht_radiotap(struct sk_buff *skb, __le32 *rxv,
+					  u8 mode);
 #endif /* __MT76_CONNAC_H */

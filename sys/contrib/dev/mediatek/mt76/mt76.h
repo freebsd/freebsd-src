@@ -23,6 +23,7 @@
 #include <net/page_pool.h>
 #endif
 #include <net/mac80211.h>
+#include <net/page_pool/helpers.h>
 #include "util.h"
 #include "testmode.h"
 
@@ -36,20 +37,29 @@
 #define MT76_TOKEN_FREE_THR	64
 
 #define MT_QFLAG_WED_RING	GENMASK(1, 0)
-#define MT_QFLAG_WED_TYPE	GENMASK(3, 2)
-#define MT_QFLAG_WED		BIT(4)
+#define MT_QFLAG_WED_TYPE	GENMASK(4, 2)
+#define MT_QFLAG_WED		BIT(5)
+#define MT_QFLAG_WED_RRO	BIT(6)
+#define MT_QFLAG_WED_RRO_EN	BIT(7)
 
 #define __MT_WED_Q(_type, _n)	(MT_QFLAG_WED | \
 				 FIELD_PREP(MT_QFLAG_WED_TYPE, _type) | \
 				 FIELD_PREP(MT_QFLAG_WED_RING, _n))
+#define __MT_WED_RRO_Q(_type, _n)	(MT_QFLAG_WED_RRO | __MT_WED_Q(_type, _n))
+
 #define MT_WED_Q_TX(_n)		__MT_WED_Q(MT76_WED_Q_TX, _n)
 #define MT_WED_Q_RX(_n)		__MT_WED_Q(MT76_WED_Q_RX, _n)
 #define MT_WED_Q_TXFREE		__MT_WED_Q(MT76_WED_Q_TXFREE, 0)
+#define MT_WED_RRO_Q_DATA(_n)	__MT_WED_RRO_Q(MT76_WED_RRO_Q_DATA, _n)
+#define MT_WED_RRO_Q_MSDU_PG(_n)	__MT_WED_RRO_Q(MT76_WED_RRO_Q_MSDU_PG, _n)
+#define MT_WED_RRO_Q_IND	__MT_WED_RRO_Q(MT76_WED_RRO_Q_IND, 0)
 
 struct mt76_dev;
 struct mt76_phy;
 struct mt76_wcid;
 struct mt76s_intr;
+struct mt76_chanctx;
+struct mt76_vif_link;
 
 struct mt76_reg_pair {
 	u32 reg;
@@ -66,6 +76,9 @@ enum mt76_wed_type {
 	MT76_WED_Q_TX,
 	MT76_WED_Q_TXFREE,
 	MT76_WED_Q_RX,
+	MT76_WED_RRO_Q_DATA,
+	MT76_WED_RRO_Q_MSDU_PG,
+	MT76_WED_RRO_Q_IND,
 };
 
 struct mt76_bus_ops {
@@ -114,6 +127,16 @@ enum mt76_rxq_id {
 	MT_RXQ_MAIN_WA,
 	MT_RXQ_BAND2,
 	MT_RXQ_BAND2_WA,
+	MT_RXQ_RRO_BAND0,
+	MT_RXQ_RRO_BAND1,
+	MT_RXQ_RRO_BAND2,
+	MT_RXQ_MSDU_PAGE_BAND0,
+	MT_RXQ_MSDU_PAGE_BAND1,
+	MT_RXQ_MSDU_PAGE_BAND2,
+	MT_RXQ_TXFREE_BAND0,
+	MT_RXQ_TXFREE_BAND1,
+	MT_RXQ_TXFREE_BAND2,
+	MT_RXQ_RRO_IND,
 	__MT_RXQ_MAX
 };
 
@@ -149,8 +172,8 @@ enum mt76_dfs_state {
 
 struct mt76_queue_buf {
 	dma_addr_t addr;
-	u16 len;
-	bool skip_unmap;
+	u16 len:15,
+	    skip_unmap:1;
 };
 
 struct mt76_tx_info {
@@ -170,7 +193,7 @@ struct mt76_queue_entry {
 		struct urb *urb;
 		int buf_sz;
 	};
-	u32 dma_addr[2];
+	dma_addr_t dma_addr[2];
 	u16 dma_len[2];
 	u16 wcid;
 	bool skip_buf0:1;
@@ -191,11 +214,14 @@ struct mt76_queue {
 	spinlock_t lock;
 	spinlock_t cleanup_lock;
 	struct mt76_queue_entry *entry;
+	struct mt76_rro_desc *rro_desc;
 	struct mt76_desc *desc;
 
 	u16 first;
 	u16 head;
 	u16 tail;
+	u8 hw_idx;
+	u8 ep;
 	int ndesc;
 	int queued;
 	int buf_size;
@@ -203,9 +229,9 @@ struct mt76_queue {
 	bool blocked;
 
 	u8 buf_offset;
-	u8 hw_idx;
-	u8 flags;
+	u16 flags;
 
+	struct mtk_wed_device *wed;
 	u32 wed_regs;
 
 	dma_addr_t desc_dma;
@@ -214,11 +240,14 @@ struct mt76_queue {
 };
 
 struct mt76_mcu_ops {
+	unsigned int max_retry;
 	u32 headroom;
 	u32 tailroom;
 
 	int (*mcu_send_msg)(struct mt76_dev *dev, int cmd, const void *data,
 			    int len, bool wait_resp);
+	int (*mcu_skb_prepare_msg)(struct mt76_dev *dev, struct sk_buff *skb,
+				   int cmd, int *seq);
 	int (*mcu_skb_send_msg)(struct mt76_dev *dev, struct sk_buff *skb,
 				int cmd, int *seq);
 	int (*mcu_parse_response)(struct mt76_dev *dev, int cmd,
@@ -240,7 +269,7 @@ struct mt76_queue_ops {
 		     int idx, int n_desc, int bufsize,
 		     u32 ring_base);
 
-	int (*tx_queue_skb)(struct mt76_dev *dev, struct mt76_queue *q,
+	int (*tx_queue_skb)(struct mt76_phy *phy, struct mt76_queue *q,
 			    enum mt76_txq_id qid, struct sk_buff *skb,
 			    struct mt76_wcid *wcid, struct ieee80211_sta *sta);
 
@@ -331,8 +360,11 @@ struct mt76_wcid {
 	u8 hw_key_idx2;
 
 	u8 sta:1;
+	u8 sta_disabled:1;
 	u8 amsdu:1;
 	u8 phy_idx:2;
+	u8 link_id:4;
+	bool link_valid;
 
 	u8 rx_check_pn;
 	u8 rx_key_pn[IEEE80211_NUM_TIDS + 1][6];
@@ -341,12 +373,18 @@ struct mt76_wcid {
 	u32 tx_info;
 	bool sw_iv;
 
+	struct list_head tx_list;
+	struct sk_buff_head tx_pending;
+	struct sk_buff_head tx_offchannel;
+
 	struct list_head list;
 	struct idr pktid;
 
 	struct mt76_sta_stats stats;
 
 	struct list_head poll_list;
+
+	struct mt76_wcid *def_wcid;
 };
 
 struct mt76_txq {
@@ -355,6 +393,17 @@ struct mt76_txq {
 	u16 agg_ssn;
 	bool send_bar;
 	bool aggr;
+};
+
+struct mt76_wed_rro_ind {
+	u32 se_id	: 12;
+	u32 rsv		: 4;
+	u32 start_sn	: 12;
+	u32 ind_reason	: 4;
+	u32 ind_cnt	: 13;
+	u32 win_sz	: 3;
+	u32 rsv2	: 13;
+	u32 magic_cnt	: 3;
 };
 
 struct mt76_txwi_cache {
@@ -375,6 +424,7 @@ struct mt76_rx_tid {
 	spinlock_t lock;
 	struct delayed_work reorder_work;
 
+	u16 id;
 	u16 head;
 	u16 size;
 	u16 nframes;
@@ -383,7 +433,7 @@ struct mt76_rx_tid {
 
 	u8 started:1, stopped:1, timer_pending:1;
 
-	struct sk_buff *reorder_buf[];
+	struct sk_buff *reorder_buf[] __counted_by(size);
 };
 
 #define MT_TX_CB_DMA_DONE		BIT(0)
@@ -431,6 +481,12 @@ enum {
 	MT76_STATE_WED_RESET,
 };
 
+enum mt76_sta_event {
+	MT76_STA_EVENT_ASSOC,
+	MT76_STA_EVENT_AUTHORIZE,
+	MT76_STA_EVENT_DISASSOC,
+};
+
 struct mt76_hw_cap {
 	bool has_2ghz;
 	bool has_5ghz;
@@ -451,7 +507,10 @@ struct mt76_driver_ops {
 	u16 token_size;
 	u8 mcs_rates;
 
+	unsigned int link_data_size;
+
 	void (*update_survey)(struct mt76_phy *phy);
+	int (*set_channel)(struct mt76_phy *phy);
 
 	int (*tx_prepare_skb)(struct mt76_dev *dev, void *txwi_ptr,
 			      enum mt76_txq_id qid, struct mt76_wcid *wcid,
@@ -476,11 +535,20 @@ struct mt76_driver_ops {
 	int (*sta_add)(struct mt76_dev *dev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
 
-	void (*sta_assoc)(struct mt76_dev *dev, struct ieee80211_vif *vif,
-			  struct ieee80211_sta *sta);
+	int (*sta_event)(struct mt76_dev *dev, struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta, enum mt76_sta_event ev);
 
 	void (*sta_remove)(struct mt76_dev *dev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
+
+	int (*vif_link_add)(struct mt76_phy *phy, struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf,
+			    struct mt76_vif_link *mlink);
+
+	void (*vif_link_remove)(struct mt76_phy *phy,
+				struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *link_conf,
+				struct mt76_vif_link *mlink);
 };
 
 struct mt76_channel_state {
@@ -579,8 +647,7 @@ struct mt76_sdio {
 	struct mt76_worker txrx_worker;
 	struct mt76_worker status_worker;
 	struct mt76_worker net_worker;
-
-	struct work_struct stat_work;
+	struct mt76_worker stat_worker;
 
 	u8 *xmit_buf;
 	u32 xmit_buf_sz;
@@ -590,6 +657,7 @@ struct mt76_sdio {
 	u8 hw_ver;
 	wait_queue_head_t wait;
 
+	int pse_mcu_quota_max;
 	struct {
 		int pse_data_quota;
 		int ple_data_quota;
@@ -607,6 +675,7 @@ struct mt76_mmio {
 	u32 irqmask;
 
 	struct mtk_wed_device wed;
+	struct mtk_wed_device wed_hif2;
 	struct completion wed_reset;
 	struct completion wed_reset_complete;
 };
@@ -706,7 +775,7 @@ struct mt76_testmode_data {
 	} rx_stats;
 };
 
-struct mt76_vif {
+struct mt76_vif_link {
 	u8 idx;
 	u8 omac_idx;
 	u8 band_idx;
@@ -716,6 +785,19 @@ struct mt76_vif {
 	u8 basic_rates_idx;
 	u8 mcast_rates_idx;
 	u8 beacon_rates_idx;
+	bool offchannel;
+	struct ieee80211_chanctx_conf *ctx;
+	struct mt76_wcid *wcid;
+	struct mt76_vif_data *mvif;
+	struct rcu_head rcu_head;
+};
+
+struct mt76_vif_data {
+	struct mt76_vif_link __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
+
+	struct mt76_phy *roc_phy;
+	u16 valid_links;
+	u8 deflink_id;
 };
 
 struct mt76_phy {
@@ -724,12 +806,23 @@ struct mt76_phy {
 	void *priv;
 
 	unsigned long state;
+	unsigned int num_sta;
 	u8 band_idx;
 
+	spinlock_t tx_lock;
+	struct list_head tx_list;
 	struct mt76_queue *q_tx[__MT_TXQ_MAX];
 
 	struct cfg80211_chan_def chandef;
-	struct ieee80211_channel *main_chan;
+	struct cfg80211_chan_def main_chandef;
+	bool offchannel;
+	bool radar_enabled;
+
+	struct delayed_work roc_work;
+	struct ieee80211_vif *roc_vif;
+	struct mt76_vif_link *roc_link;
+
+	struct mt76_chanctx *chanctx;
 
 	struct mt76_channel_state *chan_state;
 	enum mt76_dfs_state dfs_state;
@@ -774,6 +867,7 @@ struct mt76_phy {
 struct mt76_dev {
 	struct mt76_phy phy; /* must be first */
 	struct mt76_phy *phys[__MT_MAX_BAND];
+	struct mt76_phy *band_phys[NUM_NL80211_BANDS];
 
 	struct ieee80211_hw *hw;
 
@@ -797,8 +891,8 @@ struct mt76_dev {
 
 	struct mt76_mcu mcu;
 
-	struct net_device napi_dev;
-	struct net_device tx_napi_dev;
+	struct net_device *napi_dev;
+	struct net_device *tx_napi_dev;
 	spinlock_t rx_lock;
 	struct napi_struct napi[__MT_RXQ_MAX];
 	struct sk_buff_head rx_skb[__MT_RXQ_MAX];
@@ -829,7 +923,6 @@ struct mt76_dev {
 	spinlock_t status_lock;
 
 	u32 wcid_mask[DIV_ROUND_UP(MT76_N_WCIDS, 32)];
-	u32 wcid_phy_mask[DIV_ROUND_UP(MT76_N_WCIDS, 32)];
 
 	u64 vif_mask;
 
@@ -857,6 +950,16 @@ struct mt76_dev {
 	u8 csa_complete;
 
 	u32 rxfilter;
+
+	struct delayed_work scan_work;
+	struct {
+		struct cfg80211_scan_request *req;
+		struct ieee80211_channel *chan;
+		struct ieee80211_vif *vif;
+		struct mt76_vif_link *mlink;
+		struct mt76_phy *phy;
+		int chan_idx;
+	} scan;
 
 #ifdef CONFIG_NL80211_TESTMODE
 	const struct mt76_testmode_ops *test_ops;
@@ -974,6 +1077,7 @@ struct mt76_power_limits {
 	s8 ofdm[8];
 	s8 mcs[4][10];
 	s8 ru[7][12];
+	s8 eht[16][16];
 };
 
 struct mt76_ethtool_worker_info {
@@ -982,6 +1086,10 @@ struct mt76_ethtool_worker_info {
 	int initial_stat_idx;
 	int worker_stat_count;
 	int sta_count;
+};
+
+struct mt76_chanctx {
+	struct mt76_phy *phy;
 };
 
 #define CCK_RATE(_idx, _rate) {					\
@@ -1046,6 +1154,7 @@ bool ____mt76_poll_msec(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 
 void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs);
 void mt76_pci_disable_aspm(struct pci_dev *pdev);
+bool mt76_pci_aspm_supported(struct pci_dev *pdev);
 
 static inline u16 mt76_chip(struct mt76_dev *dev)
 {
@@ -1057,13 +1166,42 @@ static inline u16 mt76_rev(struct mt76_dev *dev)
 	return dev->rev & 0xffff;
 }
 
+void mt76_wed_release_rx_buf(struct mtk_wed_device *wed);
+void mt76_wed_offload_disable(struct mtk_wed_device *wed);
+void mt76_wed_reset_complete(struct mtk_wed_device *wed);
+void mt76_wed_dma_reset(struct mt76_dev *dev);
+int mt76_wed_net_setup_tc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			  struct net_device *netdev, enum tc_setup_type type,
+			  void *type_data);
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+u32 mt76_wed_init_rx_buf(struct mtk_wed_device *wed, int size);
+int mt76_wed_offload_enable(struct mtk_wed_device *wed);
+int mt76_wed_dma_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset);
+#else
+static inline u32 mt76_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+{
+	return 0;
+}
+
+static inline int mt76_wed_offload_enable(struct mtk_wed_device *wed)
+{
+	return 0;
+}
+
+static inline int mt76_wed_dma_setup(struct mt76_dev *dev, struct mt76_queue *q,
+				     bool reset)
+{
+	return 0;
+}
+#endif /* CONFIG_NET_MEDIATEK_SOC_WED */
+
 #define mt76xx_chip(dev) mt76_chip(&((dev)->mt76))
 #define mt76xx_rev(dev) mt76_rev(&((dev)->mt76))
 
 #define mt76_init_queues(dev, ...)		(dev)->mt76.queue_ops->init(&((dev)->mt76), __VA_ARGS__)
 #define mt76_queue_alloc(dev, ...)	(dev)->mt76.queue_ops->alloc(&((dev)->mt76), __VA_ARGS__)
 #define mt76_tx_queue_skb_raw(dev, ...)	(dev)->mt76.queue_ops->tx_queue_skb_raw(&((dev)->mt76), __VA_ARGS__)
-#define mt76_tx_queue_skb(dev, ...)	(dev)->mt76.queue_ops->tx_queue_skb(&((dev)->mt76), __VA_ARGS__)
+#define mt76_tx_queue_skb(dev, ...)	(dev)->mt76.queue_ops->tx_queue_skb(&((dev)->mphy), __VA_ARGS__)
 #define mt76_queue_rx_reset(dev, ...)	(dev)->mt76.queue_ops->rx_reset(&((dev)->mt76), __VA_ARGS__)
 #define mt76_queue_tx_cleanup(dev, ...)	(dev)->mt76.queue_ops->tx_cleanup(&((dev)->mt76), __VA_ARGS__)
 #define mt76_queue_rx_cleanup(dev, ...)	(dev)->mt76.queue_ops->rx_cleanup(&((dev)->mt76), __VA_ARGS__)
@@ -1074,6 +1212,10 @@ static inline u16 mt76_rev(struct mt76_dev *dev)
 	for (i = 0; i < ARRAY_SIZE((dev)->q_rx); i++)	\
 		if ((dev)->q_rx[i].ndesc)
 
+
+#define mt76_dereference(p, dev) \
+	rcu_dereference_protected(p, lockdep_is_held(&(dev)->mutex))
+
 struct mt76_dev *mt76_alloc_device(struct device *pdev, unsigned int size,
 				   const struct ieee80211_ops *ops,
 				   const struct mt76_driver_ops *drv_ops);
@@ -1083,6 +1225,8 @@ void mt76_unregister_device(struct mt76_dev *dev);
 void mt76_free_device(struct mt76_dev *dev);
 void mt76_unregister_phy(struct mt76_phy *phy);
 
+struct mt76_phy *mt76_alloc_radio_phy(struct mt76_dev *dev, unsigned int size,
+				      u8 band_idx);
 struct mt76_phy *mt76_alloc_phy(struct mt76_dev *dev, unsigned int size,
 				const struct ieee80211_ops *ops,
 				u8 band_idx);
@@ -1102,18 +1246,20 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
 
 int mt76_eeprom_init(struct mt76_dev *dev, int len);
 void mt76_eeprom_override(struct mt76_phy *phy);
-int mt76_get_of_eeprom(struct mt76_dev *dev, void *data, int offset, int len);
+int mt76_get_of_data_from_mtd(struct mt76_dev *dev, void *eep, int offset, int len);
+int mt76_get_of_data_from_nvmem(struct mt76_dev *dev, void *eep,
+				const char *cell_name, int len);
 
 struct mt76_queue *
 mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
-		int ring_base, u32 flags);
-u16 mt76_calculate_default_rate(struct mt76_phy *phy, int rateidx);
+		int ring_base, void *wed, u32 flags);
 static inline int mt76_init_tx_queue(struct mt76_phy *phy, int qid, int idx,
-				     int n_desc, int ring_base, u32 flags)
+				     int n_desc, int ring_base, void *wed,
+				     u32 flags)
 {
 	struct mt76_queue *q;
 
-	q = mt76_init_queue(phy->dev, qid, idx, n_desc, ring_base, flags);
+	q = mt76_init_queue(phy->dev, qid, idx, n_desc, ring_base, wed, flags);
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 
@@ -1127,7 +1273,7 @@ static inline int mt76_init_mcu_queue(struct mt76_dev *dev, int qid, int idx,
 {
 	struct mt76_queue *q;
 
-	q = mt76_init_queue(dev, qid, idx, n_desc, ring_base, 0);
+	q = mt76_init_queue(dev, qid, idx, n_desc, ring_base, NULL, 0);
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 
@@ -1187,6 +1333,9 @@ wcid_to_sta(struct mt76_wcid *wcid)
 
 	if (!wcid || !wcid->sta)
 		return NULL;
+
+	if (wcid->def_wcid)
+		ptr = wcid->def_wcid;
 
 	return container_of(ptr, struct ieee80211_sta, drv_priv);
 }
@@ -1294,7 +1443,7 @@ void mt76_release_buffered_frames(struct ieee80211_hw *hw,
 				  enum ieee80211_frame_release_type reason,
 				  bool more_data);
 bool mt76_has_tx_pending(struct mt76_phy *phy);
-void mt76_set_channel(struct mt76_phy *phy);
+int mt76_update_channel(struct mt76_phy *phy);
 void mt76_update_survey(struct mt76_phy *phy);
 void mt76_update_survey_active_time(struct mt76_phy *phy, ktime_t time);
 int mt76_get_survey(struct ieee80211_hw *hw, int idx,
@@ -1334,15 +1483,15 @@ int mt76_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta,
 		   enum ieee80211_sta_state old_state,
 		   enum ieee80211_sta_state new_state);
-void __mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
+void __mt76_sta_remove(struct mt76_phy *phy, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
 void mt76_sta_pre_rcu_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			     struct ieee80211_sta *sta);
 
-int mt76_get_min_avg_rssi(struct mt76_dev *dev, bool ext_phy);
+int mt76_get_min_avg_rssi(struct mt76_dev *dev, u8 phy_idx);
 
 int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		     int *dbm);
+		     unsigned int link_id, int *dbm);
 int mt76_init_sar_power(struct ieee80211_hw *hw,
 			const struct cfg80211_sar_specs *sar);
 int mt76_get_sar_power(struct mt76_phy *phy,
@@ -1358,11 +1507,38 @@ void mt76_insert_ccmp_hdr(struct sk_buff *skb, u8 key_id);
 int mt76_get_rate(struct mt76_dev *dev,
 		  struct ieee80211_supported_band *sband,
 		  int idx, bool cck);
+int mt76_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		 struct ieee80211_scan_request *hw_req);
+void mt76_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 void mt76_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  const u8 *mac);
 void mt76_sw_scan_complete(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif);
 enum mt76_dfs_state mt76_phy_dfs_state(struct mt76_phy *phy);
+int mt76_add_chanctx(struct ieee80211_hw *hw,
+		     struct ieee80211_chanctx_conf *conf);
+void mt76_remove_chanctx(struct ieee80211_hw *hw,
+			 struct ieee80211_chanctx_conf *conf);
+void mt76_change_chanctx(struct ieee80211_hw *hw,
+			 struct ieee80211_chanctx_conf *conf,
+			 u32 changed);
+int mt76_assign_vif_chanctx(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf,
+			    struct ieee80211_chanctx_conf *conf);
+void mt76_unassign_vif_chanctx(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct ieee80211_bss_conf *link_conf,
+			       struct ieee80211_chanctx_conf *conf);
+int mt76_switch_vif_chanctx(struct ieee80211_hw *hw,
+			    struct ieee80211_vif_chanctx_switch *vifs,
+			    int n_vifs,
+			    enum ieee80211_chanctx_switch_mode mode);
+int mt76_remain_on_channel(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   struct ieee80211_channel *chan, int duration,
+			   enum ieee80211_roc_type type);
+int mt76_cancel_remain_on_channel(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif);
 int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      void *data, int len);
 int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -1408,6 +1584,18 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames);
 void mt76_testmode_tx_pending(struct mt76_phy *phy);
 void mt76_queue_tx_complete(struct mt76_dev *dev, struct mt76_queue *q,
 			    struct mt76_queue_entry *e);
+int __mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
+		       bool offchannel);
+int mt76_set_channel(struct mt76_phy *phy, struct cfg80211_chan_def *chandef,
+		     bool offchannel);
+void mt76_scan_work(struct work_struct *work);
+void mt76_abort_scan(struct mt76_dev *dev);
+void mt76_roc_complete_work(struct work_struct *work);
+void mt76_abort_roc(struct mt76_phy *phy);
+struct mt76_vif_link *mt76_get_vif_phy_link(struct mt76_phy *phy,
+					    struct ieee80211_vif *vif);
+void mt76_put_vif_phy_link(struct mt76_phy *phy, struct ieee80211_vif *vif,
+			   struct mt76_vif_link *mlink);
 
 /* usb */
 static inline bool mt76u_urb_error(struct urb *urb)
@@ -1416,13 +1604,6 @@ static inline bool mt76u_urb_error(struct urb *urb)
 	       urb->status != -ECONNRESET &&
 	       urb->status != -ESHUTDOWN &&
 	       urb->status != -ENOENT;
-}
-
-/* Map hardware queues to usb endpoints */
-static inline u8 q2ep(u8 qid)
-{
-	/* TODO: take management packets to queue 5 */
-	return qid + 1;
 }
 
 static inline int
@@ -1544,15 +1725,60 @@ mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb, int cmd,
 
 void mt76_set_irq_mask(struct mt76_dev *dev, u32 addr, u32 clear, u32 set);
 
+struct device_node *
+mt76_find_power_limits_node(struct mt76_dev *dev);
+struct device_node *
+mt76_find_channel_node(struct device_node *np, struct ieee80211_channel *chan);
+
 s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 			      struct ieee80211_channel *chan,
 			      struct mt76_power_limits *dest,
 			      s8 target_power);
 
-static inline bool mt76_queue_is_wed_rx(struct mt76_queue *q)
+static inline bool mt76_queue_is_rx(struct mt76_dev *dev, struct mt76_queue *q)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++) {
+		if (q == &dev->q_rx[i])
+			return true;
+	}
+
+	return false;
+}
+
+static inline bool mt76_queue_is_wed_tx_free(struct mt76_queue *q)
 {
 	return (q->flags & MT_QFLAG_WED) &&
-	       FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_RX;
+	       FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_TXFREE;
+}
+
+static inline bool mt76_queue_is_wed_rro(struct mt76_queue *q)
+{
+	return q->flags & MT_QFLAG_WED_RRO;
+}
+
+static inline bool mt76_queue_is_wed_rro_ind(struct mt76_queue *q)
+{
+	return mt76_queue_is_wed_rro(q) &&
+	       FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_RRO_Q_IND;
+}
+
+static inline bool mt76_queue_is_wed_rro_data(struct mt76_queue *q)
+{
+	return mt76_queue_is_wed_rro(q) &&
+	       (FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_RRO_Q_DATA ||
+		FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_RRO_Q_MSDU_PG);
+}
+
+static inline bool mt76_queue_is_wed_rx(struct mt76_queue *q)
+{
+	if (!(q->flags & MT_QFLAG_WED))
+		return false;
+
+	return FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) == MT76_WED_Q_RX ||
+	       mt76_queue_is_wed_rro_ind(q) || mt76_queue_is_wed_rro_data(q);
+
 }
 
 struct mt76_txwi_cache *
@@ -1617,22 +1843,54 @@ mt76_token_put(struct mt76_dev *dev, int token)
 	return txwi;
 }
 
-static inline void mt76_packet_id_init(struct mt76_wcid *wcid)
-{
-	INIT_LIST_HEAD(&wcid->list);
-	idr_init(&wcid->pktid);
-}
+void mt76_wcid_init(struct mt76_wcid *wcid, u8 band_idx);
+void mt76_wcid_cleanup(struct mt76_dev *dev, struct mt76_wcid *wcid);
+void mt76_wcid_add_poll(struct mt76_dev *dev, struct mt76_wcid *wcid);
 
 static inline void
-mt76_packet_id_flush(struct mt76_dev *dev, struct mt76_wcid *wcid)
+mt76_vif_init(struct ieee80211_vif *vif, struct mt76_vif_data *mvif)
 {
-	struct sk_buff_head list;
+	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
 
-	mt76_tx_status_lock(dev, &list);
-	mt76_tx_status_skb_get(dev, wcid, -1, &list);
-	mt76_tx_status_unlock(dev, &list);
+	mlink->mvif = mvif;
+	rcu_assign_pointer(mvif->link[0], mlink);
+}
 
-	idr_destroy(&wcid->pktid);
+void mt76_vif_cleanup(struct mt76_dev *dev, struct ieee80211_vif *vif);
+
+static inline struct mt76_vif_link *
+mt76_vif_link(struct mt76_dev *dev, struct ieee80211_vif *vif, int link_id)
+{
+	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
+	struct mt76_vif_data *mvif = mlink->mvif;
+
+	return mt76_dereference(mvif->link[link_id], dev);
+}
+
+static inline struct mt76_vif_link *
+mt76_vif_conf_link(struct mt76_dev *dev, struct ieee80211_vif *vif,
+		   struct ieee80211_bss_conf *link_conf)
+{
+	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
+	struct mt76_vif_data *mvif = mlink->mvif;
+
+	if (link_conf == &vif->bss_conf)
+		return mlink;
+
+	return mt76_dereference(mvif->link[link_conf->link_id], dev);
+}
+
+static inline struct mt76_phy *
+mt76_vif_link_phy(struct mt76_vif_link *mlink)
+{
+	struct mt76_chanctx *ctx;
+
+	if (!mlink->ctx)
+		return NULL;
+
+	ctx = (struct mt76_chanctx *)mlink->ctx->drv_priv;
+
+	return ctx->phy;
 }
 
 #endif

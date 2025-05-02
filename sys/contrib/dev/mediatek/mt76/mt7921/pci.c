@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/of.h>
 
 #include "mt7921.h"
 #include "../mt76_connac2_mac.h"
@@ -21,10 +22,14 @@ static const struct pci_device_id mt7921_pci_device_table[] = {
 		.driver_data = (kernel_ulong_t)MT7921_FIRMWARE_WM },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7922),
 		.driver_data = (kernel_ulong_t)MT7922_FIRMWARE_WM },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ITTIM, 0x7922),
+		.driver_data = (kernel_ulong_t)MT7922_FIRMWARE_WM },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x0608),
 		.driver_data = (kernel_ulong_t)MT7921_FIRMWARE_WM },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x0616),
 		.driver_data = (kernel_ulong_t)MT7922_FIRMWARE_WM },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7920),
+		.driver_data = (kernel_ulong_t)MT7920_FIRMWARE_WM },
 	{ },
 };
 
@@ -41,6 +46,10 @@ static void mt7921e_unregister_device(struct mt792x_dev *dev)
 {
 	int i;
 	struct mt76_connac_pm *pm = &dev->pm;
+	struct ieee80211_hw *hw = mt76_hw(dev);
+
+	if (dev->phy.chip_cap & MT792x_CHIP_CAP_WF_RF_PIN_CTRL_EVT_EN)
+		wiphy_rfkill_stop_polling(hw->wiphy);
 
 	cancel_work_sync(&dev->init_work);
 	mt76_unregister_device(&dev->mt76);
@@ -173,7 +182,7 @@ static int mt7921_dma_init(struct mt792x_dev *dev)
 	/* init tx queue */
 	ret = mt76_connac_init_tx_queues(dev->phy.mt76, MT7921_TXQ_BAND0,
 					 MT7921_TX_RING_SIZE,
-					 MT_TX_RING_BASE, 0);
+					 MT_TX_RING_BASE, NULL, 0);
 	if (ret)
 		return ret;
 
@@ -202,7 +211,7 @@ static int mt7921_dma_init(struct mt792x_dev *dev)
 	/* Change mcu queue after firmware download */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU_WA],
 			       MT7921_RXQ_MCU_WM,
-			       MT7921_RX_MCU_RING_SIZE,
+			       MT7921_RX_MCU_WA_RING_SIZE,
 			       MT_RX_BUF_SIZE, MT_WFDMA0(0x540));
 	if (ret)
 		return ret;
@@ -218,7 +227,7 @@ static int mt7921_dma_init(struct mt792x_dev *dev)
 	if (ret < 0)
 		return ret;
 
-	netif_napi_add_tx(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
+	netif_napi_add_tx(dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
 			  mt792x_poll_tx);
 	napi_enable(&dev->mt76.tx_napi);
 
@@ -243,9 +252,10 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 		.rx_skb = mt7921_queue_rx_skb,
 		.rx_poll_complete = mt792x_rx_poll_complete,
 		.sta_add = mt7921_mac_sta_add,
-		.sta_assoc = mt7921_mac_sta_assoc,
+		.sta_event = mt7921_mac_sta_event,
 		.sta_remove = mt7921_mac_sta_remove,
 		.update_survey = mt792x_update_channel,
+		.set_channel = mt7921_set_channel,
 	};
 	static const struct mt792x_hif_ops mt7921_pcie_ops = {
 		.init_reset = mt7921e_init_reset,
@@ -270,9 +280,9 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	struct mt76_bus_ops *bus_ops;
 	struct mt792x_dev *dev;
 	struct mt76_dev *mdev;
+	u16 cmd, chipid;
 	u8 features;
 	int ret;
-	u16 cmd;
 
 	ret = pcim_enable_device(pdev);
 	if (ret)
@@ -338,6 +348,9 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	bus_ops->rmw = mt7921_rmw;
 	dev->mt76.bus = bus_ops;
 
+	if (!mt7921_disable_aspm && mt76_pci_aspm_supported(pdev))
+		dev->aspm_supported = true;
+
 	ret = mt792xe_mcu_fw_pmctrl(dev);
 	if (ret)
 		goto err_free_dev;
@@ -346,7 +359,10 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_free_dev;
 
-	mdev->rev = (mt7921_l1_rr(dev, MT_HW_CHIPID) << 16) |
+	chipid = mt7921_l1_rr(dev, MT_HW_CHIPID);
+	if (chipid == 0x7961 && (mt7921_l1_rr(dev, MT_HW_BOUND) & BIT(7)))
+		chipid = 0x7920;
+	mdev->rev = (chipid << 16) |
 		    (mt7921_l1_rr(dev, MT_HW_REV) & 0xff);
 	dev_info(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
 
@@ -371,6 +387,11 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_free_irq;
 
+#if defined(CONFIG_OF)
+	if (of_property_read_bool(dev->mt76.dev->of_node, "wakeup-source"))
+		device_init_wakeup(dev->mt76.dev, true);
+#endif
+
 	return 0;
 
 err_free_irq:
@@ -388,7 +409,13 @@ static void mt7921_pci_remove(struct pci_dev *pdev)
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
 	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 
+#if defined(CONFIG_OF)
+	if (of_property_read_bool(dev->mt76.dev->of_node, "wakeup-source"))
+		device_init_wakeup(dev->mt76.dev, false);
+#endif
+
 	mt7921e_unregister_device(dev);
+	set_bit(MT76_REMOVED, &mdev->phy.state);
 	devm_free_irq(&pdev->dev, pdev->irq, dev);
 	mt76_free_device(&dev->mt76);
 	pci_free_irq_vectors(pdev);
@@ -408,11 +435,20 @@ static int mt7921_pci_suspend(struct device *device)
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_work_sync(&pm->wake_work);
 
+	mt7921_roc_abort_sync(dev);
+
 	err = mt792x_mcu_drv_pmctrl(dev);
 	if (err < 0)
 		goto restore_suspend;
 
-	err = mt76_connac_mcu_set_hif_suspend(mdev, true);
+	wait_event_timeout(dev->wait,
+			   !dev->regd_in_progress, 5 * HZ);
+
+	err = mt7921_mcu_radio_led_ctrl(dev, EXT_CMD_RADIO_OFF_LED);
+	if (err < 0)
+		goto restore_suspend;
+
+	err = mt76_connac_mcu_set_hif_suspend(mdev, true, true);
 	if (err)
 		goto restore_suspend;
 
@@ -458,7 +494,7 @@ restore_napi:
 	if (!pm->ds_enable)
 		mt76_connac_mcu_set_deep_sleep(&dev->mt76, false);
 
-	mt76_connac_mcu_set_hif_suspend(mdev, false);
+	mt76_connac_mcu_set_hif_suspend(mdev, false, true);
 
 restore_suspend:
 	pm->suspended = false;
@@ -496,12 +532,15 @@ static int mt7921_pci_resume(struct device *device)
 
 	mt76_worker_enable(&mdev->tx_worker);
 
-	local_bh_disable();
 	mt76_for_each_q_rx(mdev, i) {
 		napi_enable(&mdev->napi[i]);
-		napi_schedule(&mdev->napi[i]);
 	}
 	napi_enable(&mdev->tx_napi);
+
+	local_bh_disable();
+	mt76_for_each_q_rx(mdev, i) {
+		napi_schedule(&mdev->napi[i]);
+	}
 	napi_schedule(&mdev->tx_napi);
 	local_bh_enable();
 
@@ -509,7 +548,12 @@ static int mt7921_pci_resume(struct device *device)
 	if (!pm->ds_enable)
 		mt76_connac_mcu_set_deep_sleep(&dev->mt76, false);
 
-	err = mt76_connac_mcu_set_hif_suspend(mdev, false);
+	err = mt76_connac_mcu_set_hif_suspend(mdev, false, true);
+	if (err < 0)
+		goto failed;
+
+	mt7921_regd_update(dev);
+	err = mt7921_mcu_radio_led_ctrl(dev, EXT_CMD_RADIO_ON_LED);
 failed:
 	pm->suspended = false;
 
@@ -539,12 +583,15 @@ static struct pci_driver mt7921_pci_driver = {
 module_pci_driver(mt7921_pci_driver);
 
 MODULE_DEVICE_TABLE(pci, mt7921_pci_device_table);
+MODULE_FIRMWARE(MT7920_FIRMWARE_WM);
+MODULE_FIRMWARE(MT7920_ROM_PATCH);
 MODULE_FIRMWARE(MT7921_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7921_ROM_PATCH);
 MODULE_FIRMWARE(MT7922_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7922_ROM_PATCH);
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
+MODULE_DESCRIPTION("MediaTek MT7921E (PCIe) wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");
 #if defined(__FreeBSD__)
 MODULE_VERSION(mt7921_pci, 1);

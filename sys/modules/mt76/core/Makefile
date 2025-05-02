@@ -2,6 +2,7 @@ KMOD=	mt76_core
 
 # Basic stuff.
 SRCS=	mac80211.c mmio.c util.c dma.c  eeprom.c tx.c agg-rx.c mcu.c
+SRCS+=	channel.c scan.c wed.c
 #SRCS+=	trace.c
 
 # Bus stuff.
@@ -36,5 +37,7 @@ SRCS+=	debugfs.c
 
 CFLAGS+=	-DKBUILD_MODNAME='"mt76_core"'
 CFLAGS+=	-DCONFIG_MAC80211_DEBUGFS=${WITH_DEBUGFS}
+
+EXPORT_SYMS=	YES
 
 .include <bsd.kmod.mk>

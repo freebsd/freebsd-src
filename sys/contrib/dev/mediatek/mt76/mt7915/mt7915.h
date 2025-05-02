@@ -169,7 +169,7 @@ struct mt7915_vif_cap {
 };
 
 struct mt7915_vif {
-	struct mt76_vif mt76; /* must be first */
+	struct mt76_vif_link mt76; /* must be first */
 
 	struct mt7915_vif_cap cap;
 	struct mt7915_sta sta;
@@ -194,6 +194,7 @@ struct mt7915_hif {
 	struct device *dev;
 	void __iomem *regs;
 	int irq;
+	u32 index;
 };
 
 struct mt7915_phy {
@@ -290,6 +291,7 @@ struct mt7915_dev {
 
 	struct list_head sta_rc_list;
 	struct list_head twt_list;
+	spinlock_t reg_lock;
 
 	u32 hw_pattern;
 
@@ -298,10 +300,16 @@ struct mt7915_dev {
 	bool muru_debug;
 	bool ibf;
 
+	u8 monitor_mask;
+
 	struct dentry *debugfs_dir;
 	struct rchan *relay_fwlog;
 
 	void *cal;
+	u32 cur_prek_offset;
+	u8 dpd_chan_num_2g;
+	u8 dpd_chan_num_5g;
+	u8 dpd_chan_num_6g;
 
 	struct {
 		u8 debug_wm;
@@ -426,8 +434,7 @@ void mt7915_dma_cleanup(struct mt7915_dev *dev);
 int mt7915_dma_reset(struct mt7915_dev *dev, bool force);
 int mt7915_dma_start(struct mt7915_dev *dev, bool reset, bool wed_reset);
 int mt7915_txbf_init(struct mt7915_dev *dev);
-void mt7915_init_txpower(struct mt7915_dev *dev,
-			 struct ieee80211_supported_band *sband);
+void mt7915_init_txpower(struct mt7915_phy *phy);
 void mt7915_reset(struct mt7915_dev *dev);
 int mt7915_run(struct ieee80211_hw *hw);
 int mt7915_mcu_init(struct mt7915_dev *dev);
@@ -441,7 +448,7 @@ int mt7915_mcu_add_dev_info(struct mt7915_phy *phy,
 int mt7915_mcu_add_bss_info(struct mt7915_phy *phy,
 			    struct ieee80211_vif *vif, int enable);
 int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta, bool enable);
+		       struct ieee80211_sta *sta, int conn_state, bool newly);
 int mt7915_mcu_add_tx_ba(struct mt7915_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool add);
@@ -450,6 +457,8 @@ int mt7915_mcu_add_rx_ba(struct mt7915_dev *dev,
 			 bool add);
 int mt7915_mcu_update_bss_color(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 				struct cfg80211_he_bss_color *he_bss_color);
+int mt7915_mcu_add_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+				 u32 changed);
 int mt7915_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			  int enable, u32 changed);
 int mt7915_mcu_add_obss_spr(struct mt7915_phy *phy, struct ieee80211_vif *vif,
@@ -458,7 +467,7 @@ int mt7915_mcu_add_rate_ctrl(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 			     struct ieee80211_sta *sta, bool changed);
 int mt7915_mcu_add_smps(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta);
-int mt7915_set_channel(struct mt7915_phy *phy);
+int mt7915_set_channel(struct mt76_phy *mphy);
 int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd);
 int mt7915_mcu_set_tx(struct mt7915_dev *dev, struct ieee80211_vif *vif);
 int mt7915_mcu_update_edca(struct mt7915_dev *dev, void *req);
@@ -555,6 +564,8 @@ void mt7915_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 void mt7915_mac_set_timing(struct mt7915_phy *phy);
 int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
+int mt7915_mac_sta_event(struct mt76_dev *mdev, struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta, enum mt76_sta_event ev);
 void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
 void mt7915_mac_work(struct work_struct *work);
