@@ -37,6 +37,10 @@
 #include <vm/pmap.h>
 #include <machine/vmparam.h>
 
+#ifdef __arm__
+#include <machine/pte.h>
+#endif
+
 static const struct devmap_entry *devmap_table;
 static boolean_t devmap_bootstrap_done = false;
 
@@ -139,7 +143,7 @@ devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
 	 * also align the virtual address to the next-lower 1MB boundary so that
 	 * we end with a nice efficient section mapping.
 	 */
-	if ((pa & 0x000fffff) == 0 && (sz & 0x000fffff) == 0) {
+	if ((pa & L1_S_OFFSET) == 0 && (sz & L1_S_OFFSET) == 0) {
 		akva_devmap_vaddr = trunc_1mpage(akva_devmap_vaddr - sz);
 	} else
 #endif
