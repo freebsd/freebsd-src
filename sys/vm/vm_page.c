@@ -2593,18 +2593,19 @@ vm_page_alloc_nofree_domain(int domain, int req)
 			vm_domain_free_unlock(vmd);
 			return (NULL);
 		}
-		m->pindex = count;
+		m->ref_count = count - 1;
 		TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m, listq);
 		VM_CNT_ADD(v_nofree_count, count);
 	}
 	m = TAILQ_FIRST(&vmd->vmd_nofreeq);
 	TAILQ_REMOVE(&vmd->vmd_nofreeq, m, listq);
-	if (m->pindex > 1) {
+	if (m->ref_count > 0) {
 		vm_page_t m_next;
 
 		m_next = &m[1];
-		m_next->pindex = m->pindex - 1;
+		m_next->ref_count = m->ref_count - 1;
 		TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m_next, listq);
+		m->ref_count = 0;
 	}
 	vm_domain_free_unlock(vmd);
 	VM_CNT_ADD(v_nofree_count, -1);
@@ -2622,7 +2623,7 @@ static void __noinline
 vm_page_free_nofree(struct vm_domain *vmd, vm_page_t m)
 {
 	vm_domain_free_lock(vmd);
-	m->pindex = 1;
+	MPASS(m->ref_count == 0);
 	TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m, listq);
 	vm_domain_free_unlock(vmd);
 	VM_CNT_ADD(v_nofree_count, 1);
