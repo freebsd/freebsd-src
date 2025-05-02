@@ -2281,9 +2281,9 @@ wiphy_delayed_work_cancel(struct wiphy *wiphy, struct wiphy_delayed_work *wdwk)
 #define	wiphy_err(_wiphy, _fmt, ...)					\
     dev_err((_wiphy)->dev, _fmt, __VA_ARGS__)
 #define	wiphy_info(wiphy, fmt, ...)					\
-    dev_info(&(wiphy)->dev, fmt, ##__VA_ARGS__)
+    dev_info((wiphy)->dev, fmt, ##__VA_ARGS__)
 #define	wiphy_info_once(wiphy, fmt, ...)				\
-    dev_info_once(&(wiphy)->dev, fmt, ##__VA_ARGS__)
+    dev_info_once((wiphy)->dev, fmt, ##__VA_ARGS__)
 
 #ifndef LINUXKPI_NET80211
 #define	ieee80211_channel		linuxkpi_ieee80211_channel
