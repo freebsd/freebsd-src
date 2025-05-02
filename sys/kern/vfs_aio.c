@@ -755,10 +755,9 @@ aio_process_rw(struct kaiocb *job)
 	long inblock_st, inblock_end;
 	int error, opcode;
 
-	KASSERT(job->uaiocb.aio_lio_opcode == LIO_READ ||
-	    job->uaiocb.aio_lio_opcode == LIO_READV ||
-	    job->uaiocb.aio_lio_opcode == LIO_WRITE ||
-	    job->uaiocb.aio_lio_opcode == LIO_WRITEV,
+	opcode = job->uaiocb.aio_lio_opcode & ~LIO_FOFFSET;
+	KASSERT(opcode == LIO_READ || opcode == LIO_READV ||
+	    opcode == LIO_WRITE || opcode == LIO_WRITEV,
 	    ("%s: opcode %d", __func__, job->uaiocb.aio_lio_opcode));
 
 	aio_switch_vmspace(job);
@@ -768,7 +767,6 @@ aio_process_rw(struct kaiocb *job)
 	job->uiop->uio_td = td;
 	fp = job->fd_file;
 
-	opcode = job->uaiocb.aio_lio_opcode;
 	cnt = job->uiop->uio_resid;
 
 	msgrcv_st = td->td_ru.ru_msgrcv;
