@@ -161,12 +161,13 @@ LDFLAGS+=	--build-id=sha1
 
 CFLAGS+=	${DEBUG_FLAGS}
 .if ${MACHINE_CPUARCH} == aarch64 || ${MACHINE_CPUARCH} == amd64 || \
-    ${MACHINE_CPUARCH} == riscv
+    ${MACHINE_CPUARCH} == loongarch || ${MACHINE_CPUARCH} == riscv
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
-.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv" || \
-    ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "i386" || \
+    ${MACHINE_CPUARCH} == "loongarch" || ${MACHINE_CPUARCH} == "powerpc" || \
+    ${MACHINE_CPUARCH} == "riscv"
 CFLAGS+=	-fPIC
 .endif
 

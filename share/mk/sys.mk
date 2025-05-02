@@ -11,7 +11,7 @@ unix		?=	We run FreeBSD, not UNIX.
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-__TO_CPUARCH=C/arm(v[67])?/arm/:C/powerpc(64|64le|spe)/powerpc/:C/riscv64/riscv/
+__TO_CPUARCH=C/arm(v[67])?/arm/:C/loongarch64/loongarch/:C/powerpc(64|64le|spe)/powerpc/:C/riscv64/riscv/
 MACHINE_CPUARCH=${MACHINE_ARCH:${__TO_CPUARCH}}
 .endif
 

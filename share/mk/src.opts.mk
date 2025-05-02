@@ -273,10 +273,11 @@ __T=${MACHINE_ARCH}
 __LLVM_TARGETS= \
 		aarch64 \
 		arm \
+		loongarch \
 		powerpc \
 		riscv \
 		x86
-__LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:C/powerpc.*/powerpc/:C/armv[67]/arm/:C/riscv.*/riscv/
+__LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:C/powerpc.*/powerpc/:C/armv[67]/arm/:C/riscv.*/riscv/:C/loongarch.*/loongarch/
 .for __llt in ${__LLVM_TARGETS}
 # Default enable the given TARGET's LLVM_TARGET support
 .if ${__T:${__LLVM_TARGET_FILT}} == ${__llt}
@@ -300,7 +301,7 @@ __DEFAULT_NO_OPTIONS += FDT
 __DEFAULT_YES_OPTIONS += FDT
 .endif
 
-.if ${__T:Marm*} == "" && ${__T:Mriscv64*} == ""
+.if ${__T:Marm*} == "" && ${__T:Mloongarch*} == "" && ${__T:Mriscv64*} == ""
 __DEFAULT_YES_OPTIONS+=LLDB
 .else
 __DEFAULT_NO_OPTIONS+=LLDB
