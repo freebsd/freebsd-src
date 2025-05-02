@@ -1715,6 +1715,8 @@ ifa_lookup(char *ifa_name, int flags)
 		if ((flags & PFI_AFLAG_BROADCAST) &&
 		    !(p->ifa_flags & IFF_BROADCAST))
 			continue;
+		if ((flags & PFI_AFLAG_BROADCAST) && p->bcast.v4.s_addr == 0)
+			continue;
 		if ((flags & PFI_AFLAG_PEER) &&
 		    !(p->ifa_flags & IFF_POINTOPOINT))
 			continue;
