@@ -69,12 +69,13 @@
 #    define	HZ_VM HZ
 #  endif
 #endif
+/* See the comments in init_param2() for these. */
 #define	NPROC (20 + 16 * maxusers)
-#ifndef NBUF
-#define NBUF 0
-#endif
 #ifndef MAXFILES
 #define	MAXFILES (40 + 32 * maxusers)
+#endif
+#ifndef NBUF
+#define NBUF 0
 #endif
 
 static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
@@ -275,13 +276,14 @@ init_param1(void)
 void
 init_param2(long physpages)
 {
+	long maxproc_clamp, maxfiles_clamp;
 
 	TSENTER();
 	/* Base parameters */
 	maxusers = MAXUSERS;
 	TUNABLE_INT_FETCH("kern.maxusers", &maxusers);
 	if (maxusers == 0) {
-		maxusers = physpages / (2 * 1024 * 1024 / PAGE_SIZE);
+		maxusers = pgtok(physpages) / (2 * 1024);
 		if (maxusers < 32)
 			maxusers = 32;
 #ifdef VM_MAX_AUTOTUNE_MAXUSERS
@@ -290,35 +292,43 @@ init_param2(long physpages)
 #endif
                 /*
                  * Scales down the function in which maxusers grows once
-                 * we hit 384.
+                 * we hit 384 (16MB to get a new "user").
                  */
                 if (maxusers > 384)
                         maxusers = 384 + ((maxusers - 384) / 8);
         }
 
 	/*
-	 * The following can be overridden after boot via sysctl.  Note:
-	 * unless overridden, these macros are ultimately based on maxusers.
-	 * Limit maxproc so that kmap entries cannot be exhausted by
-	 * processes.
+	 * The following can be overridden after boot via sysctl.  Note: unless
+	 * overridden, these macros are ultimately based on 'maxusers'.  Limit
+	 * maxproc so that kmap entries cannot be exhausted by processes.  The
+	 * default for 'maxproc' linearly scales as 16 times 'maxusers' (so,
+	 * linearly with 8 processes per MB up to 768MB, then 1 process per MB;
+	 * overridable by a tunable), and is then clamped at 21 + 1/3 processes
+	 * per MB (which never happens by default as long as physical memory is
+	 * > ~1.5MB).
 	 */
 	maxproc = NPROC;
 	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
-	if (maxproc > (physpages / 12))
-		maxproc = physpages / 12;
+	maxproc_clamp = pgtok(physpages) / (3 * 1024 / 64);
+	if (maxproc > maxproc_clamp)
+		maxproc = maxproc_clamp;
 	if (maxproc > pid_max)
 		maxproc = pid_max;
 	maxprocperuid = (maxproc * 9) / 10;
 
 	/*
-	 * The default limit for maxfiles is 1/12 of the number of
-	 * physical page but not less than 16 times maxusers.
-	 * At most it can be 1/6 the number of physical pages.
+	 * 'maxfiles' by default is set to 32 files per MB (overridable by
+	 * a tunable), and is then clamped at 64 files per MB (which thus never
+	 * happens by default).  (The default MAXFILES is for all practical
+	 * purposes not used, as it gives a lower value than 32 files per MB as
+	 * soon as there is more than ~2.5MB of memory.)
 	 */
-	maxfiles = imax(MAXFILES, physpages / 8);
+	maxfiles = imax(MAXFILES, pgtok(physpages) / (1024 / 32));
 	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
-	if (maxfiles > (physpages / 4))
-		maxfiles = physpages / 4;
+	maxfiles_clamp = pgtok(physpages) / (1024 / 64);
+	if (maxfiles > maxfiles_clamp)
+		maxfiles = maxfiles_clamp;
 	maxfilesperproc = (maxfiles / 10) * 9;
 	TUNABLE_INT_FETCH("kern.maxfilesperproc", &maxfilesperproc);
 
