@@ -223,7 +223,7 @@ process::child::fork_capture_aux(void)
             std::cerr << F("Failed to set up subprocess: %s\n") % e.what();
             std::abort();
         }
-        return std::unique_ptr< process::child >(NULL);
+        return {};
     } else {
         ::close(fds[1]);
         LD(F("Spawned process %s: stdout and stderr inherited") % pid);
@@ -284,7 +284,7 @@ process::child::fork_files_aux(const fs::path& stdout_file,
             std::cerr << F("Failed to set up subprocess: %s\n") % e.what();
             std::abort();
         }
-        return std::unique_ptr< process::child >(NULL);
+        return {};
     } else {
         LD(F("Spawned process %s: stdout=%s, stderr=%s") % pid % stdout_file %
            stderr_file);
