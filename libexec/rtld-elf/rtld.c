@@ -112,8 +112,11 @@ static void init_dag(Obj_Entry *);
 static void init_marker(Obj_Entry *);
 static void init_pagesizes(Elf_Auxinfo **aux_info);
 static void init_rtld(caddr_t, Elf_Auxinfo **);
-static void initlist_add_neededs(Needed_Entry *, Objlist *);
-static void initlist_add_objects(Obj_Entry *, Obj_Entry *, Objlist *);
+static void initlist_add_neededs(Needed_Entry *, Objlist *, Objlist *);
+static void initlist_add_objects(Obj_Entry *, Obj_Entry *, Objlist *,
+    Objlist *);
+static void initlist_for_loaded_obj(Obj_Entry *obj, Obj_Entry *tail,
+    Objlist *list);
 static int initlist_objects_ifunc(Objlist *, bool, int, RtldLockState *);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
@@ -952,7 +955,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
 	/* Make a list of init functions to call. */
 	objlist_init(&initlist);
-	initlist_add_objects(globallist_curr(TAILQ_FIRST(&obj_list)),
+	initlist_for_loaded_obj(globallist_curr(TAILQ_FIRST(&obj_list)),
 	    preload_tail, &initlist);
 
 	r_debug_state(NULL, &obj_main->linkmap); /* say hello to gdb! */
@@ -1564,6 +1567,8 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 				obj->z_nodeflib = true;
 			if (dynp->d_un.d_val & DF_1_PIE)
 				obj->z_pie = true;
+			if (dynp->d_un.d_val & DF_1_INITFIRST)
+				obj->z_initfirst = true;
 			break;
 
 		default:
@@ -2543,15 +2548,15 @@ init_pagesizes(Elf_Auxinfo **aux_info)
  * when this function is called.
  */
 static void
-initlist_add_neededs(Needed_Entry *needed, Objlist *list)
+initlist_add_neededs(Needed_Entry *needed, Objlist *list, Objlist *iflist)
 {
 	/* Recursively process the successor needed objects. */
 	if (needed->next != NULL)
-		initlist_add_neededs(needed->next, list);
+		initlist_add_neededs(needed->next, list, iflist);
 
 	/* Process the current needed object. */
 	if (needed->obj != NULL)
-		initlist_add_objects(needed->obj, needed->obj, list);
+		initlist_add_objects(needed->obj, needed->obj, list, iflist);
 }
 
 /*
@@ -2564,36 +2569,96 @@ initlist_add_neededs(Needed_Entry *needed, Objlist *list)
  * held when this function is called.
  */
 static void
-initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list)
+initlist_for_loaded_obj(Obj_Entry *obj, Obj_Entry *tail, Objlist *list)
+{
+	Objlist iflist;		/* initfirst objs and their needed */
+	Objlist_Entry *tmp;
+
+	objlist_init(&iflist);
+	initlist_add_objects(obj, tail, list, &iflist);
+
+	STAILQ_FOREACH(tmp, &iflist, link) {
+		Obj_Entry *tobj = tmp->obj;
+
+		if ((tobj->fini != (Elf_Addr)NULL ||
+		    tobj->fini_array != (Elf_Addr)NULL) &&
+		    !tobj->on_fini_list) {
+			objlist_push_tail(&list_fini, tobj);
+			tobj->on_fini_list = true;
+		}
+	}
+
+	/*
+	 * This might result in the same object appearing more
+	 * than once on the init list.  objlist_call_init()
+	 * uses obj->init_scanned to avoid dup calls.
+	 */
+	STAILQ_REVERSE(&iflist, Struct_Objlist_Entry, link);
+	STAILQ_FOREACH(tmp, &iflist, link)
+		objlist_push_head(list, tmp->obj);
+
+	objlist_clear(&iflist);
+}
+
+static void
+initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list,
+    Objlist *iflist)
 {
 	Obj_Entry *nobj;
 
-	if (obj->init_scanned || obj->init_done)
+	if (obj->init_done)
 		return;
-	obj->init_scanned = true;
 
-	/* Recursively process the successor objects. */
-	nobj = globallist_next(obj);
-	if (nobj != NULL && obj != tail)
-		initlist_add_objects(nobj, tail, list);
+	if (obj->z_initfirst || list == NULL) {
+		/*
+		 * Ignore obj->init_scanned.  The object might indeed
+		 * already be on the init list, but due to being
+		 * needed by an initfirst object, we must put it at
+		 * the head of the init list.  obj->init_done protects
+		 * against double-initialization.
+		 */
+		if (obj->needed != NULL)
+			initlist_add_neededs(obj->needed, NULL, iflist);
+		if (obj->needed_filtees != NULL)
+			initlist_add_neededs(obj->needed_filtees, NULL,
+			    iflist);
+		if (obj->needed_aux_filtees != NULL)
+			initlist_add_neededs(obj->needed_aux_filtees,
+			    NULL, iflist);
+		objlist_push_tail(iflist, obj);
+	} else {
+		if (obj->init_scanned)
+			return;
+		obj->init_scanned = true;
 
-	/* Recursively process the needed objects. */
-	if (obj->needed != NULL)
-		initlist_add_neededs(obj->needed, list);
-	if (obj->needed_filtees != NULL)
-		initlist_add_neededs(obj->needed_filtees, list);
-	if (obj->needed_aux_filtees != NULL)
-		initlist_add_neededs(obj->needed_aux_filtees, list);
+		/* Recursively process the successor objects. */
+		nobj = globallist_next(obj);
+		if (nobj != NULL && obj != tail)
+			initlist_add_objects(nobj, tail, list, iflist);
+		
+		/* Recursively process the needed objects. */
+		if (obj->needed != NULL)
+			initlist_add_neededs(obj->needed, list, iflist);
+		if (obj->needed_filtees != NULL)
+			initlist_add_neededs(obj->needed_filtees, list,
+			    iflist);
+		if (obj->needed_aux_filtees != NULL)
+			initlist_add_neededs(obj->needed_aux_filtees, list,
+			    iflist);
+		
+		/* Add the object to the init list. */
+		objlist_push_tail(list, obj);
 
-	/* Add the object to the init list. */
-	objlist_push_tail(list, obj);
-
-	/* Add the object to the global fini list in the reverse order. */
-	if ((obj->fini != (Elf_Addr)NULL ||
-	    obj->fini_array != (Elf_Addr)NULL) &&
-	    !obj->on_fini_list) {
-		objlist_push_head(&list_fini, obj);
-		obj->on_fini_list = true;
+		/*
+		 * Add the object to the global fini list in the
+		 * reverse order.
+		 */
+		if ((obj->fini != (Elf_Addr)NULL ||
+		    obj->fini_array != (Elf_Addr)NULL) &&
+		    !obj->on_fini_list) {
+			objlist_push_head(&list_fini, obj);
+			obj->on_fini_list = true;
+		}
 	}
 }
 
@@ -3863,7 +3928,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 				 */
 			} else {
 				/* Make list of init functions to call. */
-				initlist_add_objects(obj, obj, &initlist);
+				initlist_for_loaded_obj(obj, obj, &initlist);
 			}
 			/*
 			 * Process all no_delete or global objects here, given
