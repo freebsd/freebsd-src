@@ -2154,10 +2154,11 @@ COMMON ITEMS:
 	# Note: sometimes if you are running current you gotta do more than
 	# is listed here if you are upgrading from a really old current.
 
-	<make sure you have good level 0 dumps>
+	<make sure you have good level 0 dumps>		[2]
 	make buildworld
+	<make sure any needed PORTS_MODULES are set>	[1]
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
-	make installkernel KERNCONF=YOUR_KERNEL_HERE	[1]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
@@ -2191,10 +2192,11 @@ COMMON ITEMS:
 
 	To upgrade in-place from stable to current
 	----------------------------------------------
-	<make sure you have good level 0 dumps>
+	<make sure you have good level 0 dumps>		[2]
 	make buildworld					[9]
+	<make sure any needed PORTS_MODULES are set>	[1]
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
-	make installkernel KERNCONF=YOUR_KERNEL_HERE	[1]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
@@ -2226,6 +2228,11 @@ FOOTNOTES:
 	the port origin directories to PORTS_MODULES instead is also automatic
 	and effective, eg:
 	     PORTS_MODULES+=graphics/drm-kmod graphics/nvidia-drm-kmod
+
+	[2] To make complete dumps on zfs(4), use bectl(8), which
+	creates bootable snapshots of configurable depth that are
+	selectable via the bootloader. For ufs(4), use dump(8) and
+	restore(8).
 
 	[3] From the bootblocks, boot -s, and then do
 		fsck -p
