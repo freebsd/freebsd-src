@@ -790,6 +790,7 @@ typedef struct {
 #define	DF_1_GLOBAL	0x00000002	/* Set the RTLD_GLOBAL for object */
 #define	DF_1_NODELETE	0x00000008	/* Set the RTLD_NODELETE for object */
 #define	DF_1_LOADFLTR	0x00000010	/* Immediate loading of filtees */
+#define	DF_1_INITFIRST	0x00000020	/* Initialize DSO first at runtime */
 #define	DF_1_NOOPEN     0x00000040	/* Do not allow loading on dlopen() */
 #define	DF_1_ORIGIN	0x00000080	/* Process $ORIGIN */
 #define	DF_1_INTERPOSE	0x00000400	/* Interpose all objects but main */
