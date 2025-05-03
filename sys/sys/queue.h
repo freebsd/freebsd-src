@@ -566,6 +566,21 @@ struct {								\
 		(head2)->stqh_last = &STAILQ_FIRST(head2);		\
 } while (0)
 
+#define	STAILQ_REVERSE(head, type, field) do {				\
+	if (STAILQ_EMPTY(head))						\
+		break;							\
+	QUEUE_TYPEOF(type) *_Var, *_Varp, *_Varn;			\
+	for (_Var = STAILQ_FIRST(head), _Varp = NULL;			\
+	    _Var != NULL;) {						\
+		_Varn = STAILQ_NEXT(_Var, field);			\
+		STAILQ_NEXT(_Var, field) = _Varp;			\
+		_Varp = _Var;						\
+		_Var = _Varn;						\
+	}								\
+	(head)->stqh_last = &STAILQ_NEXT(STAILQ_FIRST(head), field);	\
+	(head)->stqh_first = _Varp;					\
+} while (0)
+
 #define STAILQ_END(head)	NULL
 
 
