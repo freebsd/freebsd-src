@@ -2590,7 +2590,7 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list)
 
 	/* Add the object to the global fini list in the reverse order. */
 	if ((obj->fini != (Elf_Addr)NULL ||
-		obj->fini_array != (Elf_Addr)NULL) &&
+	    obj->fini_array != (Elf_Addr)NULL) &&
 	    !obj->on_fini_list) {
 		objlist_push_head(&list_fini, obj);
 		obj->on_fini_list = true;
@@ -3817,7 +3817,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 
 	if (obj != NULL) {
 		obj->dl_refcount++;
-		if (mode & RTLD_GLOBAL &&
+		if ((mode & RTLD_GLOBAL) != 0 &&
 		    objlist_find(&list_global, obj) == NULL)
 			objlist_push_tail(&list_global, obj);
 
