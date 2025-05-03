@@ -37,6 +37,7 @@
 #ifndef _NET_BPF_H_
 #define _NET_BPF_H_
 
+#include <sys/types.h>
 #include <sys/_eventhandler.h>
 #include <sys/ck.h>
 #include <net/dlt.h>
