@@ -290,12 +290,9 @@ NTPPACKAGE=	ntp
 _opensm=	opensm
 .endif
 
-.if ${MK_OPENSSL} != "no"
-CONFS+=		keyserv
-.if ${MK_OPENSSL_KTLS} != "no"
+.if ${MK_OPENSSL} != "no" && ${MK_OPENSSL_KTLS} != "no"
 CONFS+=		tlsclntd \
 		tlsservd
-.endif
 .endif
 
 .if ${MK_OPENSSH} != "no"
