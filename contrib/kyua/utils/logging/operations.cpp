@@ -245,7 +245,7 @@ logging::set_inmemory(void)
     if (globals->logfile.get() != NULL) {
         INV(globals->backlog.empty());
         globals->logfile->flush();
-        globals->logfile.reset(NULL);
+        globals->logfile.reset();
     }
 }
 
