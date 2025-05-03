@@ -141,7 +141,6 @@ BADHDRS= \
 	sys/vdso.h \
 	sys/vmmeter.h \
 	sys/vnode.h \
-	net/bpf.h \
 	net/bpf_buffer.h \
 	net/bpf_jitter.h \
 	net/bpf_zerocopy.h \
