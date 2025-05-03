@@ -102,6 +102,7 @@ OLD_FILES+=usr/share/man/man1/keylogin.1.gz
 OLD_FILES+=usr/share/man/man1/keylogin.1.gz
 OLD_FILES+=usr/share/man/man5/publickey.5.gz
 OLD_FILES+=usr/share/man/man8/keyserv.1.gz
+OLD_FILES+=etc/rc.d/keyserv
 
 # 20241206: Remove Altera DE4 drivers
 OLD_FILES+=usr/share/man/man4/altera_atse.4.gz
