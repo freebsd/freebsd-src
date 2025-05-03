@@ -1,4 +1,4 @@
-/*	$Id: tbl.h,v 1.2 2021/08/10 12:55:04 schwarze Exp $ */
+/*	$Id: tbl.h,v 1.3 2025/01/05 18:14:39 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014,2015,2017,2018,2021 Ingo Schwarze <schwarze@openbsd.org>
@@ -51,7 +51,6 @@ enum	tbl_cellt {
  */
 struct	tbl_cell {
 	struct tbl_cell	 *next;     /* Layout cell to the right. */
-	char		 *wstr;     /* Min width represented as a string. */
 	size_t		  width;    /* Minimum column width. */
 	size_t		  spacing;  /* To the right of the column. */
 	int		  vert;     /* Width of subsequent vertical line. */
