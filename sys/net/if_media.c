@@ -59,6 +59,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h> /* for if_printf() */
 #include <net/if_media.h>
 
 /*
@@ -290,6 +291,22 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 		}
 		ifmr->ifm_mask = ifm->ifm_mask;
 		ifmr->ifm_status = 0;
+
+		/*
+		 * Don't panic if ifm_status isn't yet setup due to
+		 * driver/miibus probe ordering.  This can happen if
+		 * a kldload'ed driver doesn't set the module order
+		 * to setup miibus early enough.
+		 *
+		 * See kern/286530 for more information.
+		 */
+		if (ifm->ifm_status == NULL) {
+			if_printf(ifp,
+			    "%s: ifm_status is NULL; please fix miibus/driver"
+			    " order\n",
+			    __func__);
+			return (EDOOFUS);
+		}
 		(*ifm->ifm_status)(ifp, ifmr);
 
 		/*
