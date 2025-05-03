@@ -67,6 +67,16 @@ struct lookup_irq_request {
 
 static char *pcilink_ids[] = { "PNP0C0F", NULL };
 
+/*
+ * Devices with invalid memory resources
+ */
+static char *bad_memresource_ids[] = {
+    /* PRCx on Radxa Orion O6 conflicts with the PCI resource range */
+    "CIXH2020",
+    NULL
+};
+
+
 static ACPI_STATUS
 acpi_lookup_irq_handler(ACPI_RESOURCE *res, void *context)
 {
@@ -620,6 +630,11 @@ acpi_res_ignore(device_t dev, int type, rman_res_t start, rman_res_t count)
      * access.
      */
     if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+	if (type == SYS_RES_MEMORY &&
+	    ACPI_ID_PROBE(device_get_parent(dev), dev, bad_memresource_ids,
+	    NULL) <= 0)
+		return (true);
+
 	if (ACPI_SUCCESS(AcpiGetObjectInfo(ad->ad_handle, &devinfo))) {
 	    if ((devinfo->Flags & ACPI_PCI_ROOT_BRIDGE) != 0) {
 #if defined(__i386__) || defined(__amd64__)
