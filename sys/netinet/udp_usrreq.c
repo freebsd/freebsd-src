@@ -1261,7 +1261,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		}
 		INP_HASH_WLOCK(pcbinfo);
 		error = in_pcbbind_setup(inp, &src, &laddr.s_addr, &lport,
-		    V_udp_bind_all_fibs ? 0 : INPBIND_FIB, td->td_ucred);
+		    NULL, V_udp_bind_all_fibs ? 0 : INPBIND_FIB, td->td_ucred);
 		INP_HASH_WUNLOCK(pcbinfo);
 		if ((flags & PRUS_IPV6) != 0)
 			inp->inp_vflag = vflagsav;

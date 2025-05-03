@@ -1806,11 +1806,11 @@ sa_dl_equal(const struct sockaddr *a, const struct sockaddr *b)
 }
 
 /*
- * Locate an interface based on a complete address.
+ * Locate an interface based on a complete address,
+ * and optionally retrieve its FIB number.
  */
-/*ARGSUSED*/
 struct ifaddr *
-ifa_ifwithaddr(const struct sockaddr *addr)
+ifa_ifwithaddr_getfib(const struct sockaddr *addr, uint16_t *fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1835,17 +1835,23 @@ ifa_ifwithaddr(const struct sockaddr *addr)
 	}
 	ifa = NULL;
 done:
+	if (ifp != NULL && fibnum != NULL)
+		*fibnum = ifp->if_fib;
 	return (ifa);
 }
 
+/*
+ * Test for existence of an interface having this complete address,
+ * optionally retrieving its FIB number.
+ */
 int
-ifa_ifwithaddr_check(const struct sockaddr *addr)
+ifa_ifwithaddr_check_getfib(const struct sockaddr *addr, uint16_t *fibnum)
 {
 	struct epoch_tracker et;
 	int rc;
 
 	NET_EPOCH_ENTER(et);
-	rc = (ifa_ifwithaddr(addr) != NULL);
+	rc = (ifa_ifwithaddr_getfib(addr, fibnum) != NULL);
 	NET_EPOCH_EXIT(et);
 	return (rc);
 }

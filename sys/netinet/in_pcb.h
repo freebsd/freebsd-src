@@ -638,7 +638,7 @@ int	in_pcballoc(struct socket *, struct inpcbinfo *);
 #define	INPBIND_FIB	0x0001	/* bind to the PCB's FIB only */
 int	in_pcbbind(struct inpcb *, struct sockaddr_in *, int, struct ucred *);
 int	in_pcbbind_setup(struct inpcb *, struct sockaddr_in *, in_addr_t *,
-	    u_short *, int, struct ucred *);
+	    u_short *, u_int16_t *, int, struct ucred *);
 int	in_pcbconnect(struct inpcb *, struct sockaddr_in *, struct ucred *);
 void	in_pcbdisconnect(struct inpcb *);
 void	in_pcbdrop(struct inpcb *);

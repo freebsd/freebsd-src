@@ -545,13 +545,20 @@ int	ifa_add_loopback_route(struct ifaddr *, struct sockaddr *);
 int	ifa_del_loopback_route(struct ifaddr *, struct sockaddr *);
 int	ifa_switch_loopback_route(struct ifaddr *, struct sockaddr *);
 
-struct	ifaddr *ifa_ifwithaddr(const struct sockaddr *);
-int		ifa_ifwithaddr_check(const struct sockaddr *);
+struct	ifaddr *ifa_ifwithaddr_getfib(const struct sockaddr *, uint16_t *);
+int		ifa_ifwithaddr_check_getfib(const struct sockaddr *,
+					    uint16_t *);
+static inline struct ifaddr *ifa_ifwithaddr(const struct sockaddr *sa) {
+	return (ifa_ifwithaddr_getfib(sa, NULL));
+}
+static inline int ifa_ifwithaddr_check(const struct sockaddr *sa) {
+	return (ifa_ifwithaddr_check_getfib(sa, NULL));
+}
 struct	ifaddr *ifa_ifwithbroadaddr(const struct sockaddr *, int);
 struct	ifaddr *ifa_ifwithdstaddr(const struct sockaddr *, int);
 struct	ifaddr *ifa_ifwithnet(const struct sockaddr *, int, int);
 struct	ifaddr *ifa_ifwithroute(int, const struct sockaddr *,
-    const struct sockaddr *, u_int);
+				const struct sockaddr *, u_int);
 struct	ifaddr *ifaof_ifpforaddr(const struct sockaddr *, if_t);
 int	ifa_preferred(struct ifaddr *, struct ifaddr *);
 
