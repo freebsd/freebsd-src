@@ -150,9 +150,8 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
 		coder->member_size = sizeof(lzip_id_string);
 
 		coder->sequence = SEQ_VERSION;
+		FALLTHROUGH;
 	}
-
-	// Fall through
 
 	case SEQ_VERSION:
 		if (*in_pos >= in_size)
@@ -173,7 +172,7 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
 		if (coder->tell_any_check)
 			return LZMA_GET_CHECK;
 
-	// Fall through
+		FALLTHROUGH;
 
 	case SEQ_DICT_SIZE: {
 		if (*in_pos >= in_size)
@@ -220,9 +219,8 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
 		// LZMA_MEMLIMIT_ERROR we need to be able to restart after
 		// the memlimit has been increased.
 		coder->sequence = SEQ_CODER_INIT;
+		FALLTHROUGH;
 	}
-
-	// Fall through
 
 	case SEQ_CODER_INIT: {
 		if (coder->memusage > coder->memlimit)
@@ -243,9 +241,8 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
 
 		coder->crc32 = 0;
 		coder->sequence = SEQ_LZMA_STREAM;
+		FALLTHROUGH;
 	}
-
-	// Fall through
 
 	case SEQ_LZMA_STREAM: {
 		const size_t in_start = *in_pos;
@@ -273,9 +270,8 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
 			return ret;
 
 		coder->sequence = SEQ_MEMBER_FOOTER;
+		FALLTHROUGH;
 	}
-
-	// Fall through
 
 	case SEQ_MEMBER_FOOTER: {
 		// The footer of .lz version 0 lacks the Member size field.

@@ -115,26 +115,7 @@ sandbox_enable_strict_if_allowed(int src_fd lzma_attribute((__unused__)),
 // Landlock //
 //////////////
 
-#include <linux/landlock.h>
-#include <sys/syscall.h>
-#include <sys/prctl.h>
-
-
-// Highest Landlock ABI version supported by this file:
-//   - For ABI versions 1-3 we don't need anything from <linux/landlock.h>
-//     that isn't part of version 1.
-//   - For ABI version 4 we need the larger struct landlock_ruleset_attr
-//     with the handled_access_net member. That is bundled with the macros
-//     LANDLOCK_ACCESS_NET_BIND_TCP and LANDLOCK_ACCESS_NET_CONNECT_TCP.
-#ifdef LANDLOCK_ACCESS_NET_BIND_TCP
-#	define LANDLOCK_ABI_MAX 4
-#else
-#	define LANDLOCK_ABI_MAX 3
-#endif
-
-
-/// Landlock ABI version supported by the kernel
-static int landlock_abi;
+#include "my_landlock.h"
 
 
 // The required_rights should have those bits set that must not be restricted.
@@ -144,40 +125,19 @@ static int landlock_abi;
 static void
 enable_landlock(uint64_t required_rights)
 {
-	assert(landlock_abi <= LANDLOCK_ABI_MAX);
-
-	if (landlock_abi <= 0)
+	// Initialize the ruleset to forbid all actions that the available
+	// Landlock ABI version supports. Return if Landlock isn't supported
+	// at all.
+	struct landlock_ruleset_attr attr;
+	if (my_landlock_ruleset_attr_forbid_all(&attr) == -1)
 		return;
 
-	// We want to set all supported flags in handled_access_fs.
-	// This way the ruleset will initially forbid access to all
-	// actions that the available Landlock ABI version supports.
-	// Exceptions can be added using landlock_add_rule(2) to
-	// allow certain actions on certain files or directories.
-	//
-	// The same flag values are used on all archs. ABI v2 and v3
-	// both add one new flag.
-	//
-	// First in ABI v1: LANDLOCK_ACCESS_FS_EXECUTE = 1ULL << 0
-	// Last in ABI v1: LANDLOCK_ACCESS_FS_MAKE_SYM = 1ULL << 12
-	// Last in ABI v2: LANDLOCK_ACCESS_FS_REFER = 1ULL << 13
-	// Last in ABI v3: LANDLOCK_ACCESS_FS_TRUNCATE = 1ULL << 14
-	//
-	// This makes it simple to set the mask based on the ABI
-	// version and we don't need to care which flags are #defined
-	// in the installed <linux/landlock.h> for ABI versions 1-3.
-	const struct landlock_ruleset_attr attr = {
-		.handled_access_fs = ~required_rights
-			& ((1ULL << (12 + my_min(3, landlock_abi))) - 1),
-#if LANDLOCK_ABI_MAX >= 4
-		.handled_access_net = landlock_abi < 4 ? 0 :
-				(LANDLOCK_ACCESS_NET_BIND_TCP
-				| LANDLOCK_ACCESS_NET_CONNECT_TCP),
-#endif
-	};
+	// Allow the required rights.
+	attr.handled_access_fs &= ~required_rights;
 
-	const int ruleset_fd = syscall(SYS_landlock_create_ruleset,
-			&attr, sizeof(attr), 0U);
+	// Create the ruleset in the kernel. This shouldn't fail.
+	const int ruleset_fd = my_landlock_create_ruleset(
+			&attr, sizeof(attr), 0);
 	if (ruleset_fd < 0)
 		message_fatal(_("Failed to enable the sandbox"));
 
@@ -193,9 +153,10 @@ enable_landlock(uint64_t required_rights)
 	//
 	// prctl(PR_SET_NO_NEW_PRIVS, ...) was already called in
 	// sandbox_init() so we don't do it here again.
-	if (syscall(SYS_landlock_restrict_self, ruleset_fd, 0U) != 0)
+	if (my_landlock_restrict_self(ruleset_fd, 0) != 0)
 		message_fatal(_("Failed to enable the sandbox"));
 
+	(void)close(ruleset_fd);
 	return;
 }
 
@@ -213,19 +174,14 @@ sandbox_init(void)
 	// fails here the error will still be detected when it matters.
 	(void)prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 
-	// Get the highest Landlock ABI version supported by the kernel.
-	landlock_abi = syscall(SYS_landlock_create_ruleset,
-			(void *)NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
-
-	// The kernel might support a newer ABI than this file.
-	if (landlock_abi > LANDLOCK_ABI_MAX)
-		landlock_abi = LANDLOCK_ABI_MAX;
-
 	// These are all in ABI version 1 already. We don't need truncate
 	// rights because files are created with open() using O_EXCL and
 	// without O_TRUNC.
 	//
-	// LANDLOCK_ACCESS_FS_READ_DIR is included here to get a clear error
+	// LANDLOCK_ACCESS_FS_READ_DIR is required to synchronize the
+	// directory before removing the source file.
+	//
+	// LANDLOCK_ACCESS_FS_READ_DIR is also helpful to show a clear error
 	// message if xz is given a directory name. Without this permission
 	// the message would be "Permission denied" but with this permission
 	// it's "Is a directory, skipping". It could be worked around with
