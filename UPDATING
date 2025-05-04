@@ -27,6 +27,21 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250504:
+	newsyslog(8) will no longer compress rotated log files by default.
+	The J, X, Y, and Z flags in newsyslog.conf(5) now indicate that a
+	file may be compressed, rather than specifying a particular
+	compression method.
+
+	To restore the previous default behavior of automatic compression,
+	remove the line:
+
+		<compress> none
+
+	from /etc/newsyslog.conf.
+
+	For more details, refer to the newsyslog(8) manual page.
+
 20250412:
 	LinuxKPI alloc routines were changed to return physically contiguous
 	memory where expected. These changes may require out-of-tree drivers
