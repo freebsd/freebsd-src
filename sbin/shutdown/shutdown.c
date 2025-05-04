@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/boottrace.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <sys/syslog.h>
 #include <sys/time.h>
 
@@ -79,7 +80,8 @@ static struct interval {
 #undef S
 
 static time_t offset, shuttime;
-static int docycle, dohalt, dopower, doreboot, killflg, mbuflen, oflag;
+static int docycle, dohalt, dopower, doreboot, ign_noshutdown,
+    killflg, mbuflen, oflag;
 static char mbuf[BUFSIZ];
 static const char *nosync, *whom;
 
@@ -100,6 +102,7 @@ main(int argc, char **argv)
 {
 	char *p, *endp;
 	struct passwd *pw;
+	struct stat st;
 	int arglen, ch, len, readstdin;
 	bool dowarn;
 
@@ -133,13 +136,16 @@ main(int argc, char **argv)
 		goto poweroff;
 	}
 
-	while ((ch = getopt(argc, argv, "-chknopqr")) != -1)
+	while ((ch = getopt(argc, argv, "-cfhknopqr")) != -1)
 		switch (ch) {
 		case '-':
 			readstdin = 1;
 			break;
 		case 'c':
 			docycle = 1;
+			break;
+		case 'f':
+			ign_noshutdown = 1;
 			break;
 		case 'h':
 			dohalt = 1;
@@ -215,6 +221,12 @@ poweroff:
 		}
 	}
 	mbuflen = strlen(mbuf);
+
+	if (!ign_noshutdown && stat(_PATH_NOSHUTDOWN, &st) == 0) {
+		(void)printf("Shutdown cannot be done, " _PATH_NOSHUTDOWN
+		    " is present\n");
+		exit(2);
+	}
 
 	if (offset) {
 		BOOTTRACE("Shutdown at %s", ctime(&shuttime));
@@ -593,7 +605,7 @@ usage(const char *cp)
 	if (cp != NULL)
 		warnx("%s", cp);
 	(void)fprintf(stderr,
-	    "usage: shutdown [-] [-c | -h | -p | -r | -k] [-o [-n]] [-q] time [warning-message ...]\n"
+	    "usage: shutdown [-] [-c | -f | -h | -p | -r | -k] [-o [-n]] [-q] time [warning-message ...]\n"
 	    "       poweroff\n");
 	exit(1);
 }
