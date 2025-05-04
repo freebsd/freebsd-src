@@ -617,6 +617,15 @@ lzma_simple_riscv_encoder_init(lzma_next_coder *next,
 	return lzma_simple_coder_init(next, allocator, filters,
 			&riscv_encode, 0, 8, 2, true);
 }
+
+
+extern LZMA_API(size_t)
+lzma_bcj_riscv_encode(uint32_t start_offset, uint8_t *buf, size_t size)
+{
+	// start_offset must be a multiple of two.
+	start_offset &= ~UINT32_C(1);
+	return riscv_encode(NULL, start_offset, true, buf, size);
+}
 #endif
 
 
@@ -751,5 +760,14 @@ lzma_simple_riscv_decoder_init(lzma_next_coder *next,
 {
 	return lzma_simple_coder_init(next, allocator, filters,
 			&riscv_decode, 0, 8, 2, false);
+}
+
+
+extern LZMA_API(size_t)
+lzma_bcj_riscv_decode(uint32_t start_offset, uint8_t *buf, size_t size)
+{
+	// start_offset must be a multiple of two.
+	start_offset &= ~UINT32_C(1);
+	return riscv_decode(NULL, start_offset, false, buf, size);
 }
 #endif

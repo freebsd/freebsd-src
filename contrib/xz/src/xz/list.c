@@ -347,13 +347,14 @@ static bool
 parse_indexes(xz_file_info *xfi, file_pair *pair)
 {
 	if (pair->src_st.st_size <= 0) {
-		message_error(_("%s: File is empty"), pair->src_name);
+		message_error(_("%s: File is empty"),
+				tuklib_mask_nonprint(pair->src_name));
 		return true;
 	}
 
 	if (pair->src_st.st_size < 2 * LZMA_STREAM_HEADER_SIZE) {
 		message_error(_("%s: Too small to be a valid .xz file"),
-				pair->src_name);
+				tuklib_mask_nonprint(pair->src_name));
 		return true;
 	}
 
@@ -365,7 +366,9 @@ parse_indexes(xz_file_info *xfi, file_pair *pair)
 			hardware_memlimit_get(MODE_LIST),
 			(uint64_t)(pair->src_st.st_size));
 	if (ret != LZMA_OK) {
-		message_error(_("%s: %s"), pair->src_name, message_strm(ret));
+		message_error(_("%s: %s"),
+				tuklib_mask_nonprint(pair->src_name),
+				message_strm(ret));
 		return true;
 	}
 
@@ -411,7 +414,8 @@ parse_indexes(xz_file_info *xfi, file_pair *pair)
 		}
 
 		default:
-			message_error(_("%s: %s"), pair->src_name,
+			message_error(_("%s: %s"),
+					tuklib_mask_nonprint(pair->src_name),
 					message_strm(ret));
 
 			// If the error was too low memory usage limit,
@@ -473,7 +477,8 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
 		break;
 
 	case LZMA_OPTIONS_ERROR:
-		message_error(_("%s: %s"), pair->src_name,
+		message_error(_("%s: %s"),
+				tuklib_mask_nonprint(pair->src_name),
 				message_strm(LZMA_OPTIONS_ERROR));
 		return true;
 
@@ -520,8 +525,7 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
 
 		// If the above fails, the file is corrupt so
 		// LZMA_DATA_ERROR is a good error code.
-
-	// Fall through
+		FALLTHROUGH;
 
 	case LZMA_DATA_ERROR:
 		// Free the memory allocated by lzma_block_header_decode().
@@ -587,7 +591,8 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
 
 	// Check if the stringification succeeded.
 	if (str_ret != LZMA_OK) {
-		message_error(_("%s: %s"), pair->src_name,
+		message_error(_("%s: %s"),
+				tuklib_mask_nonprint(pair->src_name),
 				message_strm(str_ret));
 		return true;
 	}
@@ -596,7 +601,8 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
 
 data_error:
 	// Show the error message.
-	message_error(_("%s: %s"), pair->src_name,
+	message_error(_("%s: %s"),
+			tuklib_mask_nonprint(pair->src_name),
 			message_strm(LZMA_DATA_ERROR));
 	return true;
 }
@@ -744,7 +750,7 @@ print_info_basic(const xz_file_info *xfi, file_pair *pair)
 	char checks[CHECKS_STR_SIZE];
 	get_check_names(checks, lzma_index_checks(xfi->idx), false);
 
-	const char *cols[7] = {
+	const char *cols[6] = {
 		uint64_to_str(lzma_index_stream_count(xfi->idx), 0),
 		uint64_to_str(lzma_index_block_count(xfi->idx), 1),
 		uint64_to_nicestr(lzma_index_file_size(xfi->idx),
@@ -754,7 +760,6 @@ print_info_basic(const xz_file_info *xfi, file_pair *pair)
 		get_ratio(lzma_index_file_size(xfi->idx),
 			lzma_index_uncompressed_size(xfi->idx)),
 		checks,
-		pair->src_name,
 	};
 	printf("%*s %*s  %*s  %*s  %*s  %-*s %s\n",
 			tuklib_mbstr_fw(cols[0], 5), cols[0],
@@ -763,7 +768,7 @@ print_info_basic(const xz_file_info *xfi, file_pair *pair)
 			tuklib_mbstr_fw(cols[3], 11), cols[3],
 			tuklib_mbstr_fw(cols[4], 5), cols[4],
 			tuklib_mbstr_fw(cols[5], 7), cols[5],
-			cols[6]);
+			tuklib_mask_nonprint(pair->src_name));
 
 	return false;
 }
@@ -1034,7 +1039,7 @@ print_info_adv(xz_file_info *xfi, file_pair *pair)
 		printf("  %-*s %s\n", COLON_STR(COLON_STR_SIZES_IN_HEADERS),
 				xfi->all_have_sizes ? _("Yes") : _("No"));
 		//printf("  %-*s %s\n", COLON_STR(COLON_STR_MINIMUM_XZ_VERSION),
-		printf(_("  Minimum XZ Utils version: %s\n"),
+		printf("  %s %s\n", _("Minimum XZ Utils version:"),
 				xz_ver_to_str(xfi->min_version));
 	}
 
@@ -1048,7 +1053,11 @@ print_info_robot(xz_file_info *xfi, file_pair *pair)
 	char checks[CHECKS_STR_SIZE];
 	get_check_names(checks, lzma_index_checks(xfi->idx), false);
 
-	printf("name\t%s\n", pair->src_name);
+	// Robot mode has to mask at least some control chars to prevent
+	// the output from getting out of sync if filename is malicious.
+	// Masking all non-printable chars is more than we need but
+	// perhaps this is good enough in practice.
+	printf("name\t%s\n", tuklib_mask_nonprint(pair->src_name));
 
 	printf("file\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
 			"\t%s\t%s\t%" PRIu64 "\n",
@@ -1219,7 +1228,7 @@ print_totals_adv(void)
 		printf("  %-*s %s\n", COLON_STR(COLON_STR_SIZES_IN_HEADERS),
 				totals.all_have_sizes ? _("Yes") : _("No"));
 		//printf("  %-*s %s\n", COLON_STR(COLON_STR_MINIMUM_XZ_VERSION),
-		printf(_("  Minimum XZ Utils version: %s\n"),
+		printf("  %s %s\n", _("Minimum XZ Utils version:"),
 				xz_ver_to_str(totals.min_version));
 	}
 

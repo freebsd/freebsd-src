@@ -14,7 +14,7 @@
 #include "crc_common.h"
 
 #if defined(CRC_X86_CLMUL)
-#	define BUILDING_CRC64_CLMUL
+#	define BUILDING_CRC_CLMUL 64
 #	include "crc_x86_clmul.h"
 #endif
 
@@ -25,6 +25,18 @@
 // Generic slice-by-four CRC64 //
 /////////////////////////////////
 
+#if defined(WORDS_BIGENDIAN)
+#	include "crc64_table_be.h"
+#else
+#	include "crc64_table_le.h"
+#endif
+
+
+#ifdef HAVE_CRC_X86_ASM
+extern uint64_t lzma_crc64_generic(
+		const uint8_t *buf, size_t size, uint64_t crc);
+#else
+
 #ifdef WORDS_BIGENDIAN
 #	define A1(x) ((x) >> 56)
 #else
@@ -34,7 +46,7 @@
 
 // See the comments in crc32_fast.c. They aren't duplicated here.
 static uint64_t
-crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
+lzma_crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
 {
 	crc = ~crc;
 
@@ -78,7 +90,8 @@ crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
 
 	return ~crc;
 }
-#endif
+#endif // HAVE_CRC_X86_ASM
+#endif // CRC64_GENERIC
 
 
 #if defined(CRC64_GENERIC) && defined(CRC64_ARCH_OPTIMIZED)
@@ -97,7 +110,7 @@ static crc64_func_type
 crc64_resolve(void)
 {
 	return is_arch_extension_supported()
-			? &crc64_arch_optimized : &crc64_generic;
+			? &crc64_arch_optimized : &lzma_crc64_generic;
 }
 
 #ifdef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
@@ -133,24 +146,24 @@ crc64_dispatch(const uint8_t *buf, size_t size, uint64_t crc)
 extern LZMA_API(uint64_t)
 lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
 {
-#if defined(CRC64_GENERIC) && defined(CRC64_ARCH_OPTIMIZED)
-
-#ifdef CRC_USE_GENERIC_FOR_SMALL_INPUTS
-	if (size <= 16)
-		return crc64_generic(buf, size, crc);
+#if defined(_MSC_VER) && !defined(__INTEL_COMPILER) && !defined(__clang__) \
+		&& defined(_M_IX86) && defined(CRC64_ARCH_OPTIMIZED)
+	// VS2015-2022 might corrupt the ebx register on 32-bit x86 when
+	// the CLMUL code is enabled. This hack forces MSVC to store and
+	// restore ebx. This is only needed here, not in lzma_crc32().
+	__asm  mov ebx, ebx
 #endif
+
+#if defined(CRC64_GENERIC) && defined(CRC64_ARCH_OPTIMIZED)
 	return crc64_func(buf, size, crc);
 
 #elif defined(CRC64_ARCH_OPTIMIZED)
 	// If arch-optimized version is used unconditionally without runtime
 	// CPU detection then omitting the generic version and its 8 KiB
 	// lookup table makes the library smaller.
-	//
-	// FIXME: Lookup table isn't currently omitted on 32-bit x86,
-	// see crc64_table.c.
 	return crc64_arch_optimized(buf, size, crc);
 
 #else
-	return crc64_generic(buf, size, crc);
+	return lzma_crc64_generic(buf, size, crc);
 #endif
 }

@@ -18,7 +18,7 @@
 
 // The macros unroll loops with switch statements.
 // Silence warnings about missing fall-through comments.
-#if TUKLIB_GNUC_REQ(7, 0)
+#if TUKLIB_GNUC_REQ(7, 0) || defined(__clang__)
 #	pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #endif
 

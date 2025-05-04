@@ -19,10 +19,10 @@
 #define LZMA_VERSION_MAJOR 5
 
 /** \brief Minor version number of the liblzma release. */
-#define LZMA_VERSION_MINOR 6
+#define LZMA_VERSION_MINOR 8
 
 /** \brief Patch version number of the liblzma release. */
-#define LZMA_VERSION_PATCH 3
+#define LZMA_VERSION_PATCH 1
 
 /**
  * \brief Version stability marker

@@ -3,11 +3,10 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 /// \file       crc_common.h
-/// \brief      Some functions and macros for CRC32 and CRC64
+/// \brief      Macros and declarations for CRC32 and CRC64
 //
 //  Authors:    Lasse Collin
 //              Ilya Kurdyukov
-//              Hans Jansen
 //              Jia Tan
 //
 ///////////////////////////////////////////////////////////////////////////////
@@ -17,6 +16,10 @@
 
 #include "common.h"
 
+
+/////////////
+// Generic //
+/////////////
 
 #ifdef WORDS_BIGENDIAN
 #	define A(x) ((x) >> 24)
@@ -38,43 +41,63 @@
 #endif
 
 
-// CRC CLMUL code needs this because accessing input buffers that aren't
-// aligned to the vector size will inherently trip the address sanitizer.
-#if lzma_has_attribute(__no_sanitize_address__)
-#	define crc_attr_no_sanitize_address \
-			__attribute__((__no_sanitize_address__))
+/// lzma_crc32_table[0] is needed by LZ encoder so we need to keep
+/// the array two-dimensional.
+#ifdef HAVE_SMALL
+lzma_attr_visibility_hidden
+extern uint32_t lzma_crc32_table[1][256];
+
+extern void lzma_crc32_init(void);
+
 #else
-#	define crc_attr_no_sanitize_address
+
+lzma_attr_visibility_hidden
+extern const uint32_t lzma_crc32_table[8][256];
+
+lzma_attr_visibility_hidden
+extern const uint64_t lzma_crc64_table[4][256];
 #endif
 
-// Keep this in sync with changes to crc32_arm64.h
-#if defined(_WIN32) || defined(HAVE_GETAUXVAL) \
-		|| defined(HAVE_ELF_AUX_INFO) \
-		|| (defined(__APPLE__) && defined(HAVE_SYSCTLBYNAME))
-#	define ARM64_RUNTIME_DETECTION 1
-#endif
 
+///////////////////
+// Configuration //
+///////////////////
 
+// NOTE: This config isn't used if HAVE_SMALL is defined!
+
+// These are defined if the generic slicing-by-n implementations and their
+// lookup tables are built.
 #undef CRC32_GENERIC
 #undef CRC64_GENERIC
 
+// These are defined if an arch-specific version is built. If both this
+// and matching _GENERIC is defined then runtime detection must be used.
 #undef CRC32_ARCH_OPTIMIZED
 #undef CRC64_ARCH_OPTIMIZED
 
 // The x86 CLMUL is used for both CRC32 and CRC64.
 #undef CRC_X86_CLMUL
 
+// Many ARM64 processor have CRC32 instructions.
+// CRC64 could be done with CLMUL but it's not implemented yet.
 #undef CRC32_ARM64
-#undef CRC64_ARM64_CLMUL
 
-#undef CRC_USE_GENERIC_FOR_SMALL_INPUTS
+// 64-bit LoongArch has CRC32 instructions.
+#undef CRC32_LOONGARCH
+
+
+// ARM64
+//
+// Keep this in sync with changes to crc32_arm64.h
+#if defined(_WIN32) || defined(HAVE_GETAUXVAL) \
+		|| defined(HAVE_ELF_AUX_INFO) \
+		|| (defined(__APPLE__) && defined(HAVE_SYSCTLBYNAME))
+#	define CRC_ARM64_RUNTIME_DETECTION 1
+#endif
 
 // ARM64 CRC32 instruction is only useful for CRC32. Currently, only
 // little endian is supported since we were unable to test on a big
 // endian machine.
-//
-// NOTE: Keep this and the next check in sync with the macro
-//       NO_CRC32_TABLE in crc32_table.c
 #if defined(HAVE_ARM64_CRC32) && !defined(WORDS_BIGENDIAN)
 	// Allow ARM64 CRC32 instruction without a runtime check if
 	// __ARM_FEATURE_CRC32 is defined. GCC and Clang only define
@@ -82,21 +105,40 @@
 #	if defined(__ARM_FEATURE_CRC32)
 #		define CRC32_ARCH_OPTIMIZED 1
 #		define CRC32_ARM64 1
-#	elif defined(ARM64_RUNTIME_DETECTION)
+#	elif defined(CRC_ARM64_RUNTIME_DETECTION)
 #		define CRC32_ARCH_OPTIMIZED 1
 #		define CRC32_ARM64 1
 #		define CRC32_GENERIC 1
 #	endif
 #endif
 
-#if defined(HAVE_USABLE_CLMUL)
-// If CLMUL is allowed unconditionally in the compiler options then the
-// generic version can be omitted. Note that this doesn't work with MSVC
-// as I don't know how to detect the features here.
+
+// LoongArch
 //
-// NOTE: Keep this in sync with the NO_CRC32_TABLE macro in crc32_table.c
-// and NO_CRC64_TABLE in crc64_table.c.
-#	if (defined(__SSSE3__) && defined(__SSE4_1__) && defined(__PCLMUL__)) \
+// Only 64-bit LoongArch is supported for now. No runtime detection
+// is needed because the LoongArch specification says that the CRC32
+// instructions are a part of the Basic Integer Instructions and
+// they shall be implemented by 64-bit LoongArch implementations.
+#ifdef HAVE_LOONGARCH_CRC32
+#	define CRC32_ARCH_OPTIMIZED 1
+#	define CRC32_LOONGARCH 1
+#endif
+
+
+// x86 and E2K
+#if defined(HAVE_USABLE_CLMUL)
+	// If CLMUL is allowed unconditionally in the compiler options then
+	// the generic version and the tables can be omitted. Exceptions:
+	//
+	//   - If 32-bit x86 assembly files are enabled then those are always
+	//     built and runtime detection is used even if compiler flags
+	//     were set to allow CLMUL unconditionally.
+	//
+	//   - This doesn't work with MSVC as I don't know how to detect
+	//     the features here.
+	//
+#	if (defined(__SSSE3__) && defined(__SSE4_1__) && defined(__PCLMUL__) \
+			&& !defined(HAVE_CRC_X86_ASM)) \
 		|| (defined(__e2k__) && __iset__ >= 6)
 #		define CRC32_ARCH_OPTIMIZED 1
 #		define CRC64_ARCH_OPTIMIZED 1
@@ -107,21 +149,12 @@
 #		define CRC32_ARCH_OPTIMIZED 1
 #		define CRC64_ARCH_OPTIMIZED 1
 #		define CRC_X86_CLMUL 1
-
-/*
-		// The generic code is much faster with 1-8-byte inputs and
-		// has similar performance up to 16 bytes  at least in
-		// microbenchmarks (it depends on input buffer alignment
-		// too). If both versions are built, this #define will use
-		// the generic version for inputs up to 16 bytes and CLMUL
-		// for bigger inputs. It saves a little in code size since
-		// the special cases for 0-16-byte inputs will be omitted
-		// from the CLMUL code.
-#		define CRC_USE_GENERIC_FOR_SMALL_INPUTS 1
-*/
 #	endif
 #endif
 
+
+// Fallback configuration
+//
 // For CRC32 use the generic slice-by-eight implementation if no optimized
 // version is available.
 #if !defined(CRC32_ARCH_OPTIMIZED) && !defined(CRC32_GENERIC)

@@ -93,8 +93,7 @@ index_decode(void *coder_ptr, const lzma_allocator *allocator,
 
 		coder->pos = 0;
 		coder->sequence = SEQ_MEMUSAGE;
-
-	// Fall through
+		FALLTHROUGH;
 
 	case SEQ_MEMUSAGE:
 		if (lzma_index_memusage(1, coder->count) > coder->memlimit) {
@@ -153,8 +152,7 @@ index_decode(void *coder_ptr, const lzma_allocator *allocator,
 	case SEQ_PADDING_INIT:
 		coder->pos = lzma_index_padding_size(coder->index);
 		coder->sequence = SEQ_PADDING;
-
-	// Fall through
+		FALLTHROUGH;
 
 	case SEQ_PADDING:
 		if (coder->pos > 0) {
@@ -170,8 +168,7 @@ index_decode(void *coder_ptr, const lzma_allocator *allocator,
 				*in_pos - in_start, coder->crc32);
 
 		coder->sequence = SEQ_CRC32;
-
-	// Fall through
+		FALLTHROUGH;
 
 	case SEQ_CRC32:
 		do {

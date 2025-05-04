@@ -55,6 +55,12 @@ typedef struct {
 	/// File descriptor of the target file
 	int dest_fd;
 
+#ifndef TUKLIB_DOSLIKE
+	/// File descriptor of the directory of the target file (which is
+	/// also the directory of the source file)
+	int dir_fd;
+#endif
+
 	/// True once end of the source file has been detected.
 	bool src_eof;
 
@@ -177,6 +183,6 @@ extern bool io_pread(file_pair *pair, io_buf *buf, size_t size, uint64_t pos);
 /// \param      buf     Buffer containing the data to be written
 /// \param      size    Size of the buffer; must be at most IO_BUFFER_SIZE
 ///
-/// \return     On success, zero is returned. On error, -1 is returned
-///             and error message printed.
+/// \return     On success, false is returned. On error, error message
+///             is printed and true is returned.
 extern bool io_write(file_pair *pair, const io_buf *buf, size_t size);
