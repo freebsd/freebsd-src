@@ -67,6 +67,7 @@ CONFS=	DAEMON \
 	nfsd \
 	nfsuserd \
 	nisdomain \
+	noshutdown \
 	${_nscd} \
 	ntpdate \
 	${_opensm} \
