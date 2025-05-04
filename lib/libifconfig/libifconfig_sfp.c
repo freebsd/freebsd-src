@@ -410,7 +410,8 @@ get_sfp_status(struct i2c_info *ii, struct ifconfig_sfp_status *ss)
 		return (-1);
 	}
 	ss->channel[0].rx = get_sff_channel(ii, SFF_8472_DIAG, SFF_8472_RX_POWER);
-	ss->channel[0].tx = get_sff_channel(ii, SFF_8472_DIAG, SFF_8472_TX_BIAS);
+	ss->channel[0].tx = get_sff_channel(ii, SFF_8472_DIAG, SFF_8472_TX_POWER);
+	ss->channel[0].tx_bias = get_sff_channel(ii, SFF_8472_DIAG, SFF_8472_TX_BIAS);
 	return (ii->error);
 }
 
@@ -448,10 +449,9 @@ get_qsfp_status(struct i2c_info *ii, struct ifconfig_sfp_status *ss)
 	for (size_t chan = 0; chan < channels; ++chan) {
 		uint8_t rxoffs = SFF_8436_RX_CH1_MSB + chan * sizeof(uint16_t);
 		uint8_t txoffs = SFF_8436_TX_CH1_MSB + chan * sizeof(uint16_t);
-		ss->channel[chan].rx =
-		    get_sff_channel(ii, SFF_8436_BASE, rxoffs);
-		ss->channel[chan].tx =
-		    get_sff_channel(ii, SFF_8436_BASE, txoffs);
+		ss->channel[chan].rx = get_sff_channel(ii, SFF_8436_BASE, rxoffs);
+		ss->channel[chan].tx = NULL;
+		ss->channel[chan].tx_bias = get_sff_channel(ii, SFF_8436_BASE, txoffs);
 	}
 	ss->bitrate = get_qsfp_bitrate(ii);
 	return (ii->error);
