@@ -731,8 +731,7 @@ stream_encode_mt(void *coder_ptr, const lzma_allocator *allocator,
 
 		coder->header_pos = 0;
 		coder->sequence = SEQ_BLOCK;
-
-	// Fall through
+		FALLTHROUGH;
 
 	case SEQ_BLOCK: {
 		// Initialized to silence warnings.
@@ -851,9 +850,9 @@ stream_encode_mt(void *coder_ptr, const lzma_allocator *allocator,
 		// to be ready to be copied out.
 		coder->progress_out += lzma_index_size(coder->index)
 				+ LZMA_STREAM_HEADER_SIZE;
-	}
 
-	// Fall through
+		FALLTHROUGH;
+	}
 
 	case SEQ_INDEX: {
 		// Call the Index encoder. It doesn't take any input, so
@@ -873,9 +872,8 @@ stream_encode_mt(void *coder_ptr, const lzma_allocator *allocator,
 			return LZMA_PROG_ERROR;
 
 		coder->sequence = SEQ_STREAM_FOOTER;
+		FALLTHROUGH;
 	}
-
-	// Fall through
 
 	case SEQ_STREAM_FOOTER:
 		lzma_bufcpy(coder->header, &coder->header_pos,

@@ -40,6 +40,12 @@ XZ Utils Licensing
         free software licenses. These aren't built or installed as
         part of XZ Utils.
 
+    The following command may be helpful in finding per-file license
+    information. It works on xz.git and on a clean file tree extracted
+    from a release tarball.
+
+        sh build-aux/license-check.sh -v
+
     For the files under the BSD Zero Clause License (0BSD), if
     a copyright notice is needed, the following is sufficient:
 
@@ -58,25 +64,6 @@ XZ Utils Licensing
       - COPYING.LGPLv2.1: GNU Lesser General Public License version 2.1
       - COPYING.GPLv2: GNU General Public License version 2
       - COPYING.GPLv3: GNU General Public License version 3
-
-    A note about old XZ Utils releases:
-
-        XZ Utils releases 5.4.6 and older and 5.5.1alpha have a
-        significant amount of code put into the public domain and
-        that obviously remains so. The switch from public domain to
-        0BSD for newer releases was made in Febrary 2024 because
-        public domain has (real or perceived) legal ambiguities in
-        some jurisdictions.
-
-        There is very little *practical* difference between public
-        domain and 0BSD. The main difference likely is that one
-        shouldn't claim that 0BSD-licensed code is in the public
-        domain; 0BSD-licensed code is copyrighted but available under
-        an extremely permissive license. Neither 0BSD nor public domain
-        require retaining or reproducing author, copyright holder, or
-        license notices when distributing the software. (Compare to,
-        for example, BSD 2-Clause "Simplified" License which does have
-        such requirements.)
 
     If you have questions, don't hesitate to ask for more information.
     The contact information is in the README file.
