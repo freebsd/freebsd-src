@@ -3050,7 +3050,7 @@ continue_anyway:
 			/* GAK, more FIXME IFA lock? */
 			if (ifa->localifa_flags & SCTP_ADDR_IFA_UNUSEABLE) {
 				/* Can't bind a non-existent addr. */
-				error = EINVAL;
+				error = EADDRNOTAVAIL;
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
 				goto out;
 			}
