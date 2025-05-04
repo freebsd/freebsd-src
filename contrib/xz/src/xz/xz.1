@@ -4,7 +4,7 @@
 .\" Authors: Lasse Collin
 .\"          Jia Tan
 .\"
-.TH XZ 1 "2024-04-08" "Tukaani" "XZ Utils"
+.TH XZ 1 "2025-03-08" "Tukaani" "XZ Utils"
 .
 .SH NAME
 xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
@@ -237,6 +237,8 @@ The memory usage limiter can be enabled with
 the command line option \fB\-\-memlimit=\fIlimit\fR.
 Often it is more convenient to enable the limiter
 by default by setting the environment variable
+.\" TRANSLATORS: Don't translate the uppercase XZ_DEFAULTS.
+.\" It's a name of an environment variable.
 .BR XZ_DEFAULTS ,
 for example,
 .BR XZ_DEFAULTS=\-\-memlimit=150MiB .
@@ -351,9 +353,24 @@ the command name (for example,
 .B unxz
 implies
 .BR \-\-decompress ).
+.IP ""
+.\" The DESCRIPTION section already says this but it's good to repeat it
+.\" here because the default behavior is a bit dangerous and new users
+.\" in a hurry may skip reading the DESCRIPTION section.
+After successful compression, the source file is removed
+unless writing to standard output or
+.B \-\-keep
+was specified.
 .TP
 .BR \-d ", " \-\-decompress ", " \-\-uncompress
 Decompress.
+.\" The DESCRIPTION section already says this but it's good to repeat it
+.\" here because the default behavior is a bit dangerous and new users
+.\" in a hurry may skip reading the DESCRIPTION section.
+After successful decompression, the source file is removed
+unless writing to standard output or
+.B \-\-keep
+was specified.
 .TP
 .BR \-t ", " \-\-test
 Test the integrity of compressed
@@ -482,6 +499,13 @@ This option has no effect if the operation mode is not
 .B \-\-decompress
 or
 .BR \-\-test .
+.IP ""
+Since
+.B xz
+5.7.1alpha,
+.B \-\-single\-stream
+implies
+.BR \-\-keep .
 .TP
 .B \-\-no\-sparse
 Disable creation of sparse files.
@@ -553,6 +577,7 @@ Specify the file
 to compress or decompress:
 .RS
 .TP
+.\" TRANSLATORS: Don't translate bold string B<auto>.
 .B auto
 This is the default.
 When compressing,
@@ -639,6 +664,9 @@ Supported
 types:
 .RS
 .TP
+.\" TRANSLATORS: Don't translate the bold strings B<none>, B<crc32>,
+.\" B<crc64>, and B<sha256>. The command line option --check accepts
+.\" only the untranslated strings.
 .B none
 Don't calculate an integrity check at all.
 This is usually a bad idea.
@@ -1038,6 +1066,28 @@ Currently
 is unsuitable for decompressing the stream in real time due to how
 .B xz
 does buffering.
+.TP
+.B \-\-no\-sync
+Do not synchronize the target file and its directory
+to the storage device before removing the source file.
+This can improve performance if compressing or decompressing
+many small files.
+However, if the system crashes soon after the deletion,
+it is possible that the target file was not written
+to the storage device but the delete operation was.
+In that case neither the original source file
+nor the target file is available.
+.IP ""
+This option has an effect only when
+.B xz
+is going to remove the source file.
+In other cases synchronization is never done.
+.IP ""
+The synchronization and
+.B \-\-no\-sync
+were added in
+.B xz
+5.7.1alpha.
 .TP
 .BI \-\-memlimit\-compress= limit
 Set a memory usage limit for compression.
@@ -1453,6 +1503,11 @@ LZMA1 and LZMA2 share the same set of
 .IR options :
 .RS
 .TP
+.\" TRANSLATORS: Don't translate bold strings like B<preset>, B<dict>,
+.\" B<mode>, B<nice>, B<fast>, or B<normal> because those are command line
+.\" options. On the other hand, do translate the italic strings like
+.\" I<preset>, I<size>, and I<mode>, because such italic strings are
+.\" placeholders which a user replaces with an actual value.
 .BI preset= preset
 Reset all LZMA1 or LZMA2
 .I options
@@ -2103,6 +2158,11 @@ uses tab-separated output.
 The first column of every line has a string
 that indicates the type of the information found on that line:
 .TP
+.\" TRANSLATORS: The bold strings B<name>, B<file>, B<stream>, B<block>,
+.\" B<summary>, and B<totals> are produced by the xz tool for scripts to
+.\" parse, thus the untranslated strings must be included in the translated
+.\" man page. It may be useful to provide a translated string in parenthesis
+.\" without bold, for example: "B<name> (nimi)"
 .B name
 This is always the first line when starting to list a file.
 The second column on the line is the filename.
@@ -2181,6 +2241,9 @@ are displayed instead of the ratio.
 .IP 7. 4
 Comma-separated list of integrity check names.
 The following strings are used for the known check types:
+.\" TRANSLATORS: Don't translate the bold strings B<None>, B<CRC32>,
+.\" B<CRC64>, B<SHA-256>, or B<Unknown-> here. In robot mode, xz produces
+.\" them in untranslated form for scripts to parse.
 .BR None ,
 .BR CRC32 ,
 .BR CRC64 ,
@@ -2467,6 +2530,7 @@ prints the version number of
 .B xz
 and liblzma in the following format:
 .PP
+.\" TRANSLATORS: Don't translate the uppercase XZ_VERSION or LIBLZMA_VERSION.
 .BI XZ_VERSION= XYYYZZZS
 .br
 .BI LIBLZMA_VERSION= XYYYZZZS
@@ -2521,6 +2585,8 @@ don't affect the exit status.
 .B xz
 parses space-separated lists of options
 from the environment variables
+.\" TRANSLATORS: Don't translate the uppercase XZ_DEFAULTS or XZ_OPT.
+.\" They are names of environment variables.
 .B XZ_DEFAULTS
 and
 .BR XZ_OPT ,
@@ -2530,14 +2596,36 @@ all non-options are silently ignored.
 Parsing is done with
 .BR getopt_long (3)
 which is used also for the command line arguments.
+.PP
+.B Warning:
+By setting these environment variables,
+one is effectively modifying programs and scripts that run
+.BR xz .
+Most of the time it is safe to set memory usage limits, number of threads,
+and compression options via the environment variables.
+However, some options can break scripts.
+An obvious example is
+.B \-\-help
+which makes
+.B xz
+show the help text instead of compressing or decompressing a file.
+More subtle examples are
+.B \-\-quiet
+and
+.BR \-\-verbose .
+In many cases it works well to enable the progress indicator using
+.BR \-\-verbose ,
+but in some situations the extra messages create problems.
+The verbosity level also affects the behavior of
+.BR \-\-list .
 .TP
 .B XZ_DEFAULTS
 User-specific or system-wide default options.
 Typically this is set in a shell initialization script to enable
 .BR xz 's
-memory usage limiter by default.
+memory usage limiter by default or set the default number of threads.
 Excluding shell initialization scripts
-and similar special cases, scripts must never set or unset
+and similar special cases, scripts should never set or unset
 .BR XZ_DEFAULTS .
 .TP
 .B XZ_OPT

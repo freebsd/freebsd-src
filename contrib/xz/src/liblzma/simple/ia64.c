@@ -25,8 +25,10 @@ ia64_code(void *simple lzma_attribute((__unused__)),
 		4, 4, 0, 0, 4, 4, 0, 0
 	};
 
+	size &= ~(size_t)15;
+
 	size_t i;
-	for (i = 0; i + 16 <= size; i += 16) {
+	for (i = 0; i < size; i += 16) {
 		const uint32_t instr_template = buffer[i] & 0x1F;
 		const uint32_t mask = BRANCH_TABLE[instr_template];
 		uint32_t bit_pos = 5;

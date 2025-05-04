@@ -23,17 +23,29 @@
 #	include <config.h>
 #endif
 
-// This #define ensures that C99 and POSIX compliant stdio functions are
-// available with MinGW-w64 (both 32-bit and 64-bit). Modern MinGW-w64 adds
-// this automatically, for example, when the compiler is in C99 (or later)
-// mode when building against msvcrt.dll. It still doesn't hurt to be explicit
-// that we always want this and #define this unconditionally.
+// Choose if MinGW-w64's stdio replacement functions should be used.
+// The default has varied slightly in the past so it's clearest to always
+// set it explicitly.
 //
-// With Universal CRT (UCRT) this is less important because UCRT contains
-// C99-compatible stdio functions. It's still nice to #define this as UCRT
-// doesn't support the POSIX thousand separator flag in printf (like "%'u").
-#ifdef __MINGW32__
+// Modern MinGW-w64 enables the replacement functions even with UCRT
+// when _GNU_SOURCE is defined. That's good because UCRT doesn't support
+// the POSIX thousand separator flag in printf (like "%'u"). Otherwise
+// XZ Utils works with the UCRT stdio functions.
+//
+// The replacement functions add over 20 KiB to each executable. For
+// size-optimized builds (HAVE_SMALL), disable the replacements.
+// Then thousand separators aren't shown in xz's messages but this is
+// a minor downside compare to the slower speed of the HAVE_SMALL builds.
+//
+// The legacy MSVCRT is pre-C99 and it's best to always use the stdio
+// replacements functions from MinGW-w64.
+#if defined(__MINGW32__) && !defined(__USE_MINGW_ANSI_STDIO)
 #	define __USE_MINGW_ANSI_STDIO 1
+#	include <_mingw.h>
+#	if defined(_UCRT) && defined(HAVE_SMALL)
+#		undef __USE_MINGW_ANSI_STDIO
+#		define __USE_MINGW_ANSI_STDIO 0
+#	endif
 #endif
 
 // size_t and NULL
@@ -156,17 +168,26 @@ typedef unsigned char _Bool;
 #	define __bool_true_false_are_defined 1
 #endif
 
+// We may need alignas from C11/C17/C23.
+#if __STDC_VERSION__ >= 202311
+	// alignas is a keyword in C23. Do nothing.
+#elif __STDC_VERSION__ >= 201112
+	// Oracle Developer Studio 12.6 lacks <stdalign.h>.
+	// For simplicity, avoid the header with all C11/C17 compilers.
+#	define alignas _Alignas
+#elif defined(__GNUC__) || defined(__clang__)
+#	define alignas(n) __attribute__((__aligned__(n)))
+#else
+#	define alignas(n)
+#endif
+
 #include <string.h>
 
-// Visual Studio 2013 update 2 supports only __inline, not inline.
-// MSVC v19.0 / VS 2015 and newer support both.
+// MSVC v19.00 (VS 2015 version 14.0) and later should work.
 //
 // MSVC v19.27 (VS 2019 version 16.7) added support for restrict.
 // Older ones support only __restrict.
 #ifdef _MSC_VER
-#	if _MSC_VER < 1900 && !defined(inline)
-#		define inline __inline
-#	endif
 #	if _MSC_VER < 1927 && !defined(restrict)
 #		define restrict __restrict
 #	endif
@@ -194,6 +215,15 @@ typedef unsigned char _Bool;
 #	define lzma_attr_alloc_size(x) __attribute__((__alloc_size__(x)))
 #else
 #	define lzma_attr_alloc_size(x)
+#endif
+
+#if __STDC_VERSION__ >= 202311
+#	define FALLTHROUGH [[__fallthrough__]]
+#elif (defined(__GNUC__) && __GNUC__ >= 7) \
+		|| (defined(__clang_major__) && __clang_major__ >= 10)
+#	define FALLTHROUGH __attribute__((__fallthrough__))
+#else
+#	define FALLTHROUGH ((void)0)
 #endif
 
 #endif

@@ -159,8 +159,7 @@ lzma2_encode(void *coder_ptr, lzma_mf *restrict mf,
 		coder->uncompressed_size = 0;
 		coder->compressed_size = 0;
 		coder->sequence = SEQ_LZMA_ENCODE;
-
-	// Fall through
+		FALLTHROUGH;
 
 	case SEQ_LZMA_ENCODE: {
 		// Calculate how much more uncompressed data this chunk
@@ -219,9 +218,8 @@ lzma2_encode(void *coder_ptr, lzma_mf *restrict mf,
 		lzma2_header_lzma(coder);
 
 		coder->sequence = SEQ_LZMA_COPY;
+		FALLTHROUGH;
 	}
-
-	// Fall through
 
 	case SEQ_LZMA_COPY:
 		// Copy the compressed chunk along its headers to the
@@ -244,8 +242,7 @@ lzma2_encode(void *coder_ptr, lzma_mf *restrict mf,
 			return LZMA_OK;
 
 		coder->sequence = SEQ_UNCOMPRESSED_COPY;
-
-	// Fall through
+		FALLTHROUGH;
 
 	case SEQ_UNCOMPRESSED_COPY:
 		// Copy the uncompressed data as is from the dictionary
