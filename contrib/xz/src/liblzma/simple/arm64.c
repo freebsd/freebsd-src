@@ -28,6 +28,8 @@ arm64_code(void *simple lzma_attribute((__unused__)),
 		uint32_t now_pos, bool is_encoder,
 		uint8_t *buffer, size_t size)
 {
+	size &= ~(size_t)3;
+
 	size_t i;
 
 	// Clang 14.0.6 on x86-64 makes this four times bigger and 40 % slower
@@ -37,7 +39,7 @@ arm64_code(void *simple lzma_attribute((__unused__)),
 #ifdef __clang__
 #	pragma clang loop vectorize(disable)
 #endif
-	for (i = 0; i + 4 <= size; i += 4) {
+	for (i = 0; i < size; i += 4) {
 		uint32_t pc = (uint32_t)(now_pos + i);
 		uint32_t instr = read32le(buffer + i);
 
@@ -122,6 +124,15 @@ lzma_simple_arm64_encoder_init(lzma_next_coder *next,
 {
 	return arm64_coder_init(next, allocator, filters, true);
 }
+
+
+extern LZMA_API(size_t)
+lzma_bcj_arm64_encode(uint32_t start_offset, uint8_t *buf, size_t size)
+{
+	// start_offset must be a multiple of four.
+	start_offset &= ~UINT32_C(3);
+	return arm64_code(NULL, start_offset, true, buf, size);
+}
 #endif
 
 
@@ -132,5 +143,14 @@ lzma_simple_arm64_decoder_init(lzma_next_coder *next,
 		const lzma_filter_info *filters)
 {
 	return arm64_coder_init(next, allocator, filters, false);
+}
+
+
+extern LZMA_API(size_t)
+lzma_bcj_arm64_decode(uint32_t start_offset, uint8_t *buf, size_t size)
+{
+	// start_offset must be a multiple of four.
+	start_offset &= ~UINT32_C(3);
+	return arm64_code(NULL, start_offset, false, buf, size);
 }
 #endif

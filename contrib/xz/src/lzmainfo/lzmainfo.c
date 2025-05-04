@@ -17,6 +17,8 @@
 #include "getopt.h"
 #include "tuklib_gettext.h"
 #include "tuklib_progname.h"
+#include "tuklib_mbstr_nonprint.h"
+#include "tuklib_mbstr_wrap.h"
 #include "tuklib_exit.h"
 
 #ifdef TUKLIB_DOSLIKE
@@ -29,17 +31,36 @@ tuklib_attr_noreturn
 static void
 help(void)
 {
-	printf(
-_("Usage: %s [--help] [--version] [FILE]...\n"
-"Show information stored in the .lzma file header"), progname);
+	// A few languages use so long strings that we need automatic
+	// wrapping. A few strings are the same as in xz/message.c and
+	// should be kept in sync.
+	static const struct tuklib_wrap_opt wrap0 = {  0,  0,  0,  0, 79 };
+	int e = 0;
 
-	printf(_(
-"\nWith no FILE, or when FILE is -, read standard input.\n"));
-	printf("\n");
+	printf(_("Usage: %s [--help] [--version] [FILE]...\n"), progname);
 
-	printf(_("Report bugs to <%s> (in English or Finnish).\n"),
+	e |= tuklib_wraps(stdout, &wrap0,
+		W_("Show information stored in the .lzma file header."));
+	e |= tuklib_wraps(stdout, &wrap0,
+		W_("With no FILE, or when FILE is -, read standard input."));
+
+	putchar('\n');
+
+	e |= tuklib_wrapf(stdout, &wrap0,
+			W_("Report bugs to <%s> (in English or Finnish)."),
 			PACKAGE_BUGREPORT);
-	printf(_("%s home page: <%s>\n"), PACKAGE_NAME, PACKAGE_URL);
+
+	e |= tuklib_wrapf(stdout, &wrap0,
+			W_("%s home page: <%s>"), PACKAGE_NAME, PACKAGE_URL);
+
+	if (e != 0) {
+		// Avoid new translatable strings by printing the message
+		// in pieces.
+		fprintf(stderr, _("%s: "), progname);
+		fprintf(stderr, _("Error printing the help text "
+				"(error code %d)"), e);
+		fprintf(stderr, "\n");
+	}
 
 	tuklib_exit(EXIT_SUCCESS, EXIT_FAILURE, true);
 }
@@ -104,7 +125,8 @@ lzmainfo(const char *name, FILE *f)
 	uint8_t buf[13];
 	const size_t size = fread(buf, 1, sizeof(buf), f);
 	if (size != 13) {
-		fprintf(stderr, "%s: %s: %s\n", progname, name,
+		fprintf(stderr, "%s: %s: %s\n", progname,
+				tuklib_mask_nonprint(name),
 				ferror(f) ? strerror(errno)
 				: _("File is too small to be a .lzma file"));
 		return true;
@@ -118,7 +140,8 @@ lzmainfo(const char *name, FILE *f)
 		break;
 
 	case LZMA_OPTIONS_ERROR:
-		fprintf(stderr, "%s: %s: %s\n", progname, name,
+		fprintf(stderr, "%s: %s: %s\n", progname,
+				tuklib_mask_nonprint(name),
 				_("Not a .lzma file"));
 		return true;
 
@@ -142,7 +165,7 @@ lzmainfo(const char *name, FILE *f)
 	// this output and we don't want to break that when people move
 	// from LZMA Utils to XZ Utils.
 	if (f != stdin)
-		printf("%s\n", name);
+		printf("%s\n", tuklib_mask_nonprint(name));
 
 	printf("Uncompressed size:             ");
 	if (uncompressed_size == UINT64_MAX)
@@ -200,9 +223,10 @@ main(int argc, char **argv)
 				if (f == NULL) {
 					ret = EXIT_FAILURE;
 					fprintf(stderr, "%s: %s: %s\n",
-							progname,
-							argv[optind],
-							strerror(errno));
+						progname,
+						tuklib_mask_nonprint(
+							argv[optind]),
+						strerror(errno));
 					continue;
 				}
 
