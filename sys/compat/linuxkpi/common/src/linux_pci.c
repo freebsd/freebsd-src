@@ -288,18 +288,22 @@ linux_pci_find(device_t dev, const struct pci_device_id **idp)
 struct pci_dev *
 lkpi_pci_get_device(uint16_t vendor, uint16_t device, struct pci_dev *odev)
 {
-	struct pci_dev *pdev;
+	struct pci_dev *pdev, *found;
 
 	KASSERT(odev == NULL, ("%s: odev argument not yet supported\n", __func__));
 
+	found = NULL;
 	spin_lock(&pci_lock);
 	list_for_each_entry(pdev, &pci_devices, links) {
-		if (pdev->vendor == vendor && pdev->device == device)
+		if (pdev->vendor == vendor && pdev->device == device) {
+			found = pdev;
 			break;
+		}
 	}
+	pci_dev_get(found);
 	spin_unlock(&pci_lock);
 
-	return (pdev);
+	return (found);
 }
 
 static void
