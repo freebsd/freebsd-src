@@ -146,9 +146,8 @@ block_decode(void *coder_ptr, const lzma_allocator *allocator,
 		coder->block->uncompressed_size = coder->uncompressed_size;
 
 		coder->sequence = SEQ_PADDING;
+		FALLTHROUGH;
 	}
-
-	// Fall through
 
 	case SEQ_PADDING:
 		// Compressed Data is padded to a multiple of four bytes.
@@ -173,8 +172,7 @@ block_decode(void *coder_ptr, const lzma_allocator *allocator,
 			lzma_check_finish(&coder->check, coder->block->check);
 
 		coder->sequence = SEQ_CHECK;
-
-	// Fall through
+		FALLTHROUGH;
 
 	case SEQ_CHECK: {
 		const size_t check_size = lzma_check_size(coder->block->check);

@@ -163,7 +163,7 @@ uncompressed_name(const char *src_name, const size_t src_len)
 
 	if (new_len == 0) {
 		message_warning(_("%s: Filename has an unknown suffix, "
-				"skipping"), src_name);
+				"skipping"), tuklib_mask_nonprint(src_name));
 		return NULL;
 	}
 
@@ -178,13 +178,14 @@ uncompressed_name(const char *src_name, const size_t src_len)
 }
 
 
-/// This message is needed in multiple places in compressed_name(),
-/// so the message has been put into its own function.
 static void
 msg_suffix(const char *src_name, const char *suffix)
 {
+	char *mem = NULL;
 	message_warning(_("%s: File already has '%s' suffix, skipping"),
-			src_name, suffix);
+			tuklib_mask_nonprint(src_name),
+			tuklib_mask_nonprint_r(suffix, &mem));
+	free(mem);
 	return;
 }
 
@@ -390,7 +391,8 @@ suffix_set(const char *suffix)
 	// Empty suffix and suffixes having a directory separator are
 	// rejected. Such suffixes would break things later.
 	if (suffix[0] == '\0' || has_dir_sep(suffix))
-		message_fatal(_("%s: Invalid filename suffix"), suffix);
+		message_fatal(_("%s: Invalid filename suffix"),
+				tuklib_mask_nonprint(suffix));
 
 	// Replace the old custom_suffix (if any) with the new suffix.
 	free(custom_suffix);

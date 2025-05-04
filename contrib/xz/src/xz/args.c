@@ -21,6 +21,7 @@
 bool opt_stdout = false;
 bool opt_force = false;
 bool opt_keep_original = false;
+bool opt_synchronous = true;
 bool opt_robot = false;
 bool opt_ignore_check = false;
 
@@ -217,6 +218,7 @@ parse_real(args_info *args, int argc, char **argv)
 		OPT_LZMA1,
 		OPT_LZMA2,
 
+		OPT_NO_SYNC,
 		OPT_SINGLE_STREAM,
 		OPT_NO_SPARSE,
 		OPT_FILES,
@@ -249,6 +251,7 @@ parse_real(args_info *args, int argc, char **argv)
 		{ "force",        no_argument,       NULL,  'f' },
 		{ "stdout",       no_argument,       NULL,  'c' },
 		{ "to-stdout",    no_argument,       NULL,  'c' },
+		{ "no-sync",      no_argument,       NULL,  OPT_NO_SYNC },
 		{ "single-stream", no_argument,      NULL,  OPT_SINGLE_STREAM },
 		{ "no-sparse",    no_argument,       NULL,  OPT_NO_SPARSE },
 		{ "suffix",       required_argument, NULL,  'S' },
@@ -275,17 +278,17 @@ parse_real(args_info *args, int argc, char **argv)
 		{ "best",         no_argument,       NULL,  '9' },
 
 		// Filters
-		{ "filters",      optional_argument, NULL,  OPT_FILTERS},
-		{ "filters1",     optional_argument, NULL,  OPT_FILTERS1},
-		{ "filters2",     optional_argument, NULL,  OPT_FILTERS2},
-		{ "filters3",     optional_argument, NULL,  OPT_FILTERS3},
-		{ "filters4",     optional_argument, NULL,  OPT_FILTERS4},
-		{ "filters5",     optional_argument, NULL,  OPT_FILTERS5},
-		{ "filters6",     optional_argument, NULL,  OPT_FILTERS6},
-		{ "filters7",     optional_argument, NULL,  OPT_FILTERS7},
-		{ "filters8",     optional_argument, NULL,  OPT_FILTERS8},
-		{ "filters9",     optional_argument, NULL,  OPT_FILTERS9},
-		{ "filters-help", optional_argument, NULL,  OPT_FILTERS_HELP},
+		{ "filters",      required_argument, NULL,  OPT_FILTERS},
+		{ "filters1",     required_argument, NULL,  OPT_FILTERS1},
+		{ "filters2",     required_argument, NULL,  OPT_FILTERS2},
+		{ "filters3",     required_argument, NULL,  OPT_FILTERS3},
+		{ "filters4",     required_argument, NULL,  OPT_FILTERS4},
+		{ "filters5",     required_argument, NULL,  OPT_FILTERS5},
+		{ "filters6",     required_argument, NULL,  OPT_FILTERS6},
+		{ "filters7",     required_argument, NULL,  OPT_FILTERS7},
+		{ "filters8",     required_argument, NULL,  OPT_FILTERS8},
+		{ "filters9",     required_argument, NULL,  OPT_FILTERS9},
+		{ "filters-help", no_argument,       NULL,  OPT_FILTERS_HELP},
 
 		{ "lzma1",        optional_argument, NULL,  OPT_LZMA1 },
 		{ "lzma2",        optional_argument, NULL,  OPT_LZMA2 },
@@ -612,6 +615,9 @@ parse_real(args_info *args, int argc, char **argv)
 
 		case OPT_SINGLE_STREAM:
 			opt_single_stream = true;
+
+			// Since 5.7.1alpha --single-stream implies --keep.
+			opt_keep_original = true;
 			break;
 
 		case OPT_NO_SPARSE:
@@ -621,7 +627,7 @@ parse_real(args_info *args, int argc, char **argv)
 		case OPT_FILES:
 			args->files_delim = '\n';
 
-		// Fall through
+			FALLTHROUGH;
 
 		case OPT_FILES0:
 			if (args->files_name != NULL)
@@ -653,6 +659,10 @@ parse_real(args_info *args, int argc, char **argv)
 		case OPT_FLUSH_TIMEOUT:
 			opt_flush_timeout = str_to_uint64("flush-timeout",
 					optarg, 0, UINT64_MAX);
+			break;
+
+		case OPT_NO_SYNC:
+			opt_synchronous = false;
 			break;
 
 		default:
@@ -822,6 +832,13 @@ args_parse(args_info *args, int argc, char **argv)
 		opt_keep_original = true;
 		opt_stdout = true;
 	}
+
+	// Don't use fsync() if --keep is specified or implied.
+	// However, don't document this as "--keep implies --no-sync"
+	// because if syncing support was added to --flush-timeout,
+	// it would sync even if --keep was specified.
+	if (opt_keep_original)
+		opt_synchronous = false;
 
 	// When compressing, if no --format flag was used, or it
 	// was --format=auto, we compress to the .xz format.

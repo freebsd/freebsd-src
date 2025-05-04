@@ -11,6 +11,9 @@ XZ_5.4 {
 XZ_5.6 {
 } XZ_5.4;
 
-XZprivate_1.0 {
+XZ_5.8 {
 } XZ_5.6;
+
+XZprivate_1.0 {
+} XZ_5.8;
 

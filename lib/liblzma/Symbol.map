@@ -118,6 +118,15 @@ XZ_5.6 {
 	lzma_mt_block_size;
 };
 
+XZ_5.8 {
+	lzma_bcj_arm64_encode;
+	lzma_bcj_arm64_decode;
+	lzma_bcj_riscv_encode;
+	lzma_bcj_riscv_decode;
+	lzma_bcj_x86_encode;
+	lzma_bcj_x86_decode;
+};
+
 XZprivate_1.0 {
 	lzma_alloc;
 	lzma_alloc_zero;
