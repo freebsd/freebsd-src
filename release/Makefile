@@ -74,9 +74,9 @@ VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 # For installing packages into the release media.
 .if defined(NO_ROOT)
 PKG_ENV+=	INSTALL_AS_USER=yes
-PKG_ARGS+=	-o METALOG=METALOG
 .endif
 PKG_ENV+=	ASSUME_ALWAYS_YES=yes
+PKG_ARGS+=	-o METALOG=METALOG
 PKG_ARGS+=	-r ${.TARGET} -o REPOS_DIR=${.CURDIR}/pkg_repos
 PKG_INSTALL=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} install
 PKG_CLEAN=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} clean -a
