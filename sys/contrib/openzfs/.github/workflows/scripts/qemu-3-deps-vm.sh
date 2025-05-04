@@ -55,6 +55,7 @@ function freebsd() {
     '^samba4[[:digit:]]+$' \
     '^py3[[:digit:]]+-cffi$' \
     '^py3[[:digit:]]+-sysctl$' \
+    '^py3[[:digit:]]+-setuptools$' \
     '^py3[[:digit:]]+-packaging$'
   echo "##[endgroup]"
 }
@@ -129,6 +130,9 @@ case "$1" in
   fedora*)
     rhel
     sudo dnf install -y libunwind-devel
+
+    # Fedora 42+ moves /usr/bin/script from 'util-linux' to 'util-linux-script'
+    sudo dnf install -y util-linux-script || true
     ;;
   freebsd*)
     freebsd

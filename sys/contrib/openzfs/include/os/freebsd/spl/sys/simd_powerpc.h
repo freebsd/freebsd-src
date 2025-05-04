@@ -53,11 +53,11 @@
 
 #define	kfpu_allowed()		1
 #define	kfpu_initialize(tsk)	do {} while (0)
-#define kfpu_begin() {					\
+#define	kfpu_begin() {					\
 	if (__predict_false(!is_fpu_kern_thread(0)))	\
 	fpu_kern_enter(PCPU_GET(curthread), NULL, FPU_KERN_NOCTX);\
 }
-#define kfpu_end()	{				\
+#define	kfpu_end()	{				\
 	if (__predict_false(PCPU_GET(curpcb)->pcb_flags & PCB_KERN_FPU_NOSAVE))\
 	fpu_kern_leave(PCPU_GET(curthread), NULL);	\
 }
