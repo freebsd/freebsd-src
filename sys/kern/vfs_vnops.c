@@ -208,11 +208,8 @@ open2nameif(int fmode, u_int vn_open_flags)
 		res |= OPENREAD;
 	if ((fmode & FWRITE) != 0)
 		res |= OPENWRITE;
-	if ((fmode & O_NAMEDATTR) != 0) {
-		res |= OPENNAMED;
-		if ((fmode & O_CREAT) != 0)
-			res |= CREATENAMED;
-	}
+	if ((fmode & O_NAMEDATTR) != 0)
+		res |= OPENNAMED | CREATENAMED;
 	if ((vn_open_flags & VN_OPEN_NOAUDIT) == 0)
 		res |= AUDITVNODE1;
 	if ((vn_open_flags & VN_OPEN_NOCAPCHECK) != 0)
