@@ -4,12 +4,13 @@
 
 set -e
 
+unset NO_ROOT
+
 export ASSUME_ALWAYS_YES="YES"
 export PKG_DBDIR="/tmp/pkg"
 export PERMISSIVE="YES"
 export REPO_AUTOUPDATE="NO"
 export ROOTDIR="$PWD/dvd"
-export PKGCMD="/usr/sbin/pkg -d --rootdir ${ROOTDIR}"
 export PORTSDIR="${PORTSDIR:-/usr/ports}"
 
 _DVD_PACKAGES="
@@ -44,6 +45,25 @@ if [ ! -f ${PORTSDIR}/Makefile ]; then
 	echo "*** Unset NOPORTS to fix this ***"
 	exit 0
 fi
+
+usage()
+{
+	echo "usage: $0 [-N]"
+	exit 0
+}
+
+while getopts N opt; do
+	case "$opt" in
+	N)	NO_ROOT=1 ;;
+	*)	usage ;;
+	esac
+done
+
+PKG_ARGS="-d --rootdir ${ROOTDIR}"
+if [ $NO_ROOT ]; then
+	PKG_ARGS="$PKG_ARGS -o INSTALL_AS_USER=1"
+fi
+PKGCMD="/usr/sbin/pkg ${PKG_ARGS}"
 
 if [ ! -x /usr/local/sbin/pkg ]; then
 	/etc/rc.d/ldconfig restart
@@ -90,6 +110,11 @@ mkdir -p ${LATEST_DIR}
 ln -s ../All/$(${PKGCMD} rquery %n-%v pkg).pkg ${LATEST_DIR}/pkg.pkg
 
 ${PKGCMD} repo ${PKG_REPODIR}
+
+if [ $NO_ROOT ]; then
+	mtree -c -p $ROOTDIR | mtree -C -k type,mode,link,size | \
+	    grep '^./packages/' >> $ROOTDIR/METALOG
+fi
 
 # Always exit '0', even if pkg(8) complains about conflicts.
 exit 0
