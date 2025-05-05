@@ -165,6 +165,34 @@ ATF_TC_BODY(type ## _split_after_and_concat, tc)			\
 	type ## _destroy(type);						\
 }
 
+#define QUEUE_TESTS_CHECK_REVERSED(type, TYPE)				\
+/*									\
+ * Checks that some tailq/list is reversed.				\
+ */									\
+static void								\
+type ## _check_reversed(const struct type ## _ids *const type,		\
+    const u_int nb, const u_int id_shift)				\
+{									\
+	struct type ## _id_elem *e;					\
+	u_int i = 0;							\
+									\
+	TYPE ## _FOREACH(e, type, ie_entry) {				\
+		const u_int expected_id = nb - 1 - i + id_shift;	\
+									\
+		ATF_REQUIRE_MSG(i < nb,					\
+		    #type " %p has more than %u elements",		\
+		    type, nb);						\
+		ATF_REQUIRE_MSG(e->ie_id == expected_id,		\
+		    #type " %p element %p, idx %u: Found ID %u, "	\
+		    "expected %u",					\
+		    type, e, i, e->ie_id, expected_id);			\
+		++i;							\
+	}								\
+	ATF_REQUIRE_MSG(i == nb,					\
+	    #type " %p has only %u elements, expected %u",		\
+	    type, i, nb);						\
+}
+
 /*
  * Paper over the *_CONCAT() signature differences.
  */
@@ -216,10 +244,39 @@ ATF_TC_BODY(type ## _split_after_and_concat, tc)			\
  * Meat.
  */
 
+/* Common tests. */
 QUEUE_TESTS_COMMON(tailq, TAILQ);
 QUEUE_TESTS_COMMON(list, LIST);
 QUEUE_TESTS_COMMON(stailq, STAILQ);
 QUEUE_TESTS_COMMON(slist, SLIST);
+
+/* STAILQ_REVERSE(). */
+QUEUE_TESTS_CHECK_REVERSED(stailq, STAILQ);
+ATF_TC(stailq_reverse);
+ATF_TC_HEAD(stailq_reverse, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test STAILQ_REVERSE");
+}
+ATF_TC_BODY(stailq_reverse, tc)
+{
+	const u_int size = 100;
+	struct stailq_ids *const stailq = stailq_create(size, 0);
+	struct stailq_ids *const empty_stailq = stailq_create(0, 0);
+	const struct stailq_id_elem *last;
+
+	stailq_check(stailq, size, 0);
+	STAILQ_REVERSE(stailq, stailq_id_elem, ie_entry);
+	stailq_check_reversed(stailq, size, 0);
+	last = STAILQ_LAST(stailq, stailq_id_elem, ie_entry);
+	ATF_REQUIRE_MSG(last->ie_id == 0,
+	    "Last element of stailq %p has id %u, expected 0",
+	    stailq, last->ie_id);
+	stailq_destroy(stailq);
+
+	STAILQ_REVERSE(empty_stailq, stailq_id_elem, ie_entry);
+	stailq_check(empty_stailq, 0, 0);
+	stailq_destroy(empty_stailq);
+}
 
 /*
  * Main.
@@ -230,6 +287,7 @@ ATF_TP_ADD_TCS(tp)
 	QUEUE_TESTS_REGISTRATION(tp, list);
 	QUEUE_TESTS_REGISTRATION(tp, stailq);
 	QUEUE_TESTS_REGISTRATION(tp, slist);
+	ATF_TP_ADD_TC(tp, stailq_reverse);
 
 	return (atf_no_error());
 }
