@@ -43,6 +43,10 @@ main() {
 		periodic)
 			pkgdeps="cron"
 			;;
+		rcmds)
+			# the RPC daemons require rpcbind
+			pkgdeps="utilities"
+			;;
 
 		# -dev packages that have no corresponding non-dev package
 		# as a dependency.
