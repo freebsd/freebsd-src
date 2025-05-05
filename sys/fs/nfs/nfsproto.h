@@ -1414,7 +1414,6 @@ struct nfsv3_sattr {
  * NFSGETATTRBIT_PATHCONF0 - bits 0<->31
  */
 #define	NFSGETATTRBIT_PATHCONF0	(NFSATTRBIT_GETATTR0 |			\
-				NFSATTRBM_NAMEDATTR |			\
 			 	NFSATTRBM_CASEINSENSITIVE |		\
 			 	NFSATTRBM_CASEPRESERVING |		\
 			 	NFSATTRBM_CHOWNRESTRICTED |		\
@@ -1646,7 +1645,6 @@ struct nfsv3_pathconf {
 	u_int32_t pc_chownrestricted;
 	u_int32_t pc_caseinsensitive;
 	u_int32_t pc_casepreserving;
-	bool pc_has_namedattr;
 };
 
 /*
