@@ -46,7 +46,6 @@ CONFS=	DAEMON \
 	mountlate \
 	mdconfig \
 	mdconfig2 \
-	mountd \
 	msgs \
 	netif \
 	netoptions \
@@ -116,11 +115,12 @@ CRON+=			cron
 CRONPACKAGE=		cron
 
 CONFGROUPS+=		NFS
-NFS=			nfsclient \
+NFS=			lockd \
+			mountd \
+			nfscbd \
+			nfsclient \
 			nfsd \
 			nfsuserd \
-			nfscbd \
-			lockd \
 			statd
 NFSPACKAGE=		nfs
 
