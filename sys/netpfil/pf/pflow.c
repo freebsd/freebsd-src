@@ -466,6 +466,9 @@ pflow_destroy(int unit, bool drain)
 	error = swi_remove(sc->sc_swi_cookie);
 	MPASS(error == 0);
 	error = intr_event_destroy(sc->sc_swi_ie);
+	if (error != 0)
+		printf("ERROR: %s(): intr_event_destroy() error = %d!\n",
+		    __func__, error);
 	MPASS(error == 0);
 
 	callout_drain(&sc->sc_tmo);
