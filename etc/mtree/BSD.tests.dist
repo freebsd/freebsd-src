@@ -1279,6 +1279,8 @@
         ..
         sysrc
         ..
+        traceroute
+        ..
     ..
 ..
 
