@@ -36,7 +36,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 10, 2024
+.Dd May 5, 2025
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -158,6 +158,19 @@ This can be used to multiplex the input of two or more interfaces into a single
 stream.
 This is useful for reconstructing the traffic for network taps
 that transmit the RX/TX signals out through two separate interfaces.
+.Pp
+To allow the host to communicate with bridge members, IP addresses
+should be assigned to the
+.Nm
+interface itself, not to the bridge's member interfaces.
+Assigning IP addresses to bridge member interfaces is unsupported, but
+for backward compatibility, it is permitted if the
+.Xr sysctl 8
+variable
+.Va net.link.bridge.member_ifaddrs
+is set to 1, which is the default.
+In a future release, this sysctl may be set to 0 by default, or may be
+removed entirely.
 .Sh IPV6 SUPPORT
 .Nm
 supports the

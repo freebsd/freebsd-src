@@ -112,6 +112,7 @@ void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 /* if_bridge(4) support */
 void	(*bridge_dn_p)(struct mbuf *, struct ifnet *);
+bool	(*bridge_member_ifaddrs_p)(void);
 
 /* if_lagg(4) support */
 struct mbuf *(*lagg_input_ethernet_p)(struct ifnet *, struct mbuf *); 
