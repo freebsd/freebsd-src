@@ -136,8 +136,12 @@ periodic_COMMENT=	Periodic Utility
 periodic_DESC=		Periodic Utility
 rc_COMMENT= 		RC Scripts
 rc_DESC= 		RC Scripts
-rcmds_COMMENT= 		Remote Command Utilities
-rcmds_DESC= 		Remote Command Utilities
+rcmds_COMMENT= 		BSD/SunOS remote status commands
+rcmds_DESC=\
+The BSD/SunOS remote status commands, which can be used to query or interact\
+with remote hosts over the network.  This includes the command-line utilities\
+rwho, ruptime, rup, rusers and rwall and the daemons rwhod, rpc.rstatd,\
+rpc.rusersd, and rpc.rwalld.
 rdma_COMMENT=		RDMA Utilities
 rdma_DESC=		RDMA Utilities
 rescue_COMMENT= 	Rescue Utilities
