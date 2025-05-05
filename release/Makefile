@@ -179,18 +179,16 @@ disc1: packagesystem
 	    MK_TOOLCHAIN=no \
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
-	    -DDB_FROM_SRC )
+	    -DDB_FROM_SRC -DNO_ROOT)
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	for dist in MANIFEST $$(ls *.txz | grep -v container | grep -vE -- '(${base ${_ALL_libcompats}:L:ts|})-dbg'); \
 	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
 	done
-.if defined(NO_ROOT)
 	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
 	for dist in MANIFEST $$(ls *.txz | grep -v container | grep -vE -- '(${base ${_ALL_libcompats}:L:ts|})-dbg'); \
 	    do echo "./usr/freebsd-dist/$${dist} type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG; \
 	done
-.endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
 # Install packages onto release media.
 	${PKG_INSTALL} pkg || true
@@ -206,13 +204,11 @@ disc1: packagesystem
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	echo loader_menu_multi_user_prompt=\"Installer\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
-.if defined(NO_ROOT)
 	echo "./etc/resolv.conf type=link uname=root gname=wheel mode=0644 link=/tmp/bsdinstall_etc/resolv.conf" >> ${.TARGET}/METALOG
 	echo "./etc/rc.conf type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 	echo "./etc/sysctl.conf type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 	echo "./boot/loader.conf type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
 	echo "./etc/rc.local type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
-.endif
 	touch ${.TARGET}
 
 bootonly: packagesystem
@@ -304,7 +300,7 @@ bootonly-bootonly bootonly-memstick: bootonly
 
 release.iso: disc1.iso
 disc1.iso: disc1-disc1
-	cd disc1-disc1 && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
+	cd disc1-disc1 && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ../${.TARGET} ./METALOG ${XTRADIR}
 
 dvd1.iso: dvd pkg-stage
 	cd dvd && sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ../${.TARGET} .${NO_ROOT:D/METALOG} ${XTRADIR}
@@ -314,7 +310,7 @@ bootonly.iso: bootonly-bootonly
 
 memstick: memstick.img
 memstick.img: disc1-memstick
-	cd disc1-memstick && sh ${.CURDIR}/${TARGET}/make-memstick.sh .${NO_ROOT:D/METALOG} ../${.TARGET}
+	cd disc1-memstick && sh ${.CURDIR}/${TARGET}/make-memstick.sh ./METALOG ../${.TARGET}
 
 mini-memstick: mini-memstick.img
 mini-memstick.img: bootonly-memstick
