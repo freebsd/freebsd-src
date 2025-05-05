@@ -11,7 +11,7 @@ newline.  Entries should be separated by a newline.
 Changes to this file should not be MFCed.
 
 44e5a0150835, 9a37f1024ceb:
-	A new utility sndctl(8) has been added to concertrate the various
+	A new utility sndctl(8) has been added to concentrate the various
 	interfaces for viewing and manipulating audio device settings (sysctls,
 	/dev/sndstat), into a single utility with a similar control-driven
 	interface to that of mixer(8).
