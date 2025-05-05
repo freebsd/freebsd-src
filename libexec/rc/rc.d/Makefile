@@ -70,7 +70,6 @@ CONFS=	DAEMON \
 	savecore \
 	securelevel \
 	serial \
-	statd \
 	static_arp \
 	static_ndp \
 	stf \
@@ -120,7 +119,8 @@ NFS=			nfsclient \
 			nfsd \
 			nfsuserd \
 			nfscbd \
-			lockd
+			lockd \
+			statd
 NFSPACKAGE=		nfs
 
 CONFGROUPS+=		NEWSYSLOG
