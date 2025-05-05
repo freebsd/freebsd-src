@@ -405,14 +405,14 @@ static void		 pf_mtag_free(struct m_tag *);
 static void		 pf_packet_rework_nat(struct pf_pdesc *, int,
 			    struct pf_state_key *);
 #ifdef INET
-static void		 pf_route(struct mbuf **, struct pf_krule *,
+static void		 pf_route(struct pf_krule *,
 			    struct ifnet *, struct pf_kstate *,
 			    struct pf_pdesc *, struct inpcb *);
 #endif /* INET */
 #ifdef INET6
 static void		 pf_change_a6(struct pf_addr *, u_int16_t *,
 			    struct pf_addr *, u_int8_t);
-static void		 pf_route6(struct mbuf **, struct pf_krule *,
+static void		 pf_route6(struct pf_krule *,
 			    struct ifnet *, struct pf_kstate *,
 			    struct pf_pdesc *, struct inpcb *);
 #endif /* INET6 */
@@ -8842,7 +8842,7 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kkif *kif,
 
 #ifdef INET
 static void
-pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
+pf_route(struct pf_krule *r, struct ifnet *oifp,
     struct pf_kstate *s, struct pf_pdesc *pd, struct inpcb *inp)
 {
 	struct mbuf		*m0, *m1, *md;
@@ -8857,9 +8857,9 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	int			 r_dir;
 	bool			 skip_test = false;
 
-	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
+	KASSERT(pd->m && r && oifp, ("%s: invalid parameters", __func__));
 
-	SDT_PROBE4(pf, ip, route_to, entry, *m, pd, s, oifp);
+	SDT_PROBE4(pf, ip, route_to, entry, pd->m, pd, s, oifp);
 
 	if (s) {
 		r_dir = s->direction;
@@ -8872,10 +8872,10 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	    __func__));
 
 	if ((pd->pf_mtag == NULL &&
-	    ((pd->pf_mtag = pf_get_mtag(*m)) == NULL)) ||
+	    ((pd->pf_mtag = pf_get_mtag(pd->m)) == NULL)) ||
 	    pd->pf_mtag->routed++ > 3) {
-		m0 = *m;
-		*m = NULL;
+		m0 = pd->m;
+		pd->m = NULL;
 		SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
 		goto bad_locked;
 	}
@@ -8892,14 +8892,14 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 				/* When the 2nd interface is not skipped */
 				return;
 			} else {
-				m0 = *m;
-				*m = NULL;
+				m0 = pd->m;
+				pd->m = NULL;
 				SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
 				goto bad;
 			}
 		} else {
 			pd->pf_mtag->flags |= PF_MTAG_FLAG_DUPLICATED;
-			if (((m0 = m_dup(*m, M_NOWAIT)) == NULL)) {
+			if (((m0 = m_dup(pd->m, M_NOWAIT)) == NULL)) {
 				if (s)
 					PF_STATE_UNLOCK(s);
 				return;
@@ -8908,7 +8908,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	} else {
 		if ((pd->act.rt == PF_REPLYTO) == (r_dir == pd->dir)) {
 			if (pd->af == pd->naf) {
-				pf_dummynet(pd, s, r, m);
+				pf_dummynet(pd, s, r, &pd->m);
 				if (s)
 					PF_STATE_UNLOCK(s);
 				return;
@@ -8934,7 +8934,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 				ifp = NULL;
 			}
 		}
-		m0 = *m;
+		m0 = pd->m;
 	}
 
 	ip = mtod(m0, struct ip *);
@@ -8949,7 +8949,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		if (ifp == NULL && (pd->af != pd->naf)) {
 			/* We're in the AFTO case. Do a route lookup. */
 			const struct nhop_object *nh;
-			nh = fib4_lookup(M_GETFIB(*m), ip->ip_dst, 0, NHR_NONE, 0);
+			nh = fib4_lookup(M_GETFIB(m0), ip->ip_dst, 0, NHR_NONE, 0);
 			if (nh) {
 				ifp = nh->nh_ifp;
 
@@ -8984,8 +8984,8 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	}
 
 	if (ifp == NULL) {
-		m0 = *m;
-		*m = NULL;
+		m0 = pd->m;
+		pd->m = NULL;
 		SDT_PROBE1(pf, ip, route_to, drop, __LINE__);
 		goto bad;
 	}
@@ -9118,7 +9118,7 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 
 done:
 	if (pd->act.rt != PF_DUPTO)
-		*m = NULL;
+		pd->m = NULL;
 	return;
 
 bad_locked:
@@ -9132,7 +9132,7 @@ bad:
 
 #ifdef INET6
 static void
-pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
+pf_route6(struct pf_krule *r, struct ifnet *oifp,
     struct pf_kstate *s, struct pf_pdesc *pd, struct inpcb *inp)
 {
 	struct mbuf		*m0, *md;
@@ -9143,9 +9143,9 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	int			 r_dir;
 	bool			 skip_test = false;
 
-	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
+	KASSERT(pd->m && r && oifp, ("%s: invalid parameters", __func__));
 
-	SDT_PROBE4(pf, ip6, route_to, entry, *m, pd, s, oifp);
+	SDT_PROBE4(pf, ip6, route_to, entry, pd->m, pd, s, oifp);
 
 	if (s) {
 		r_dir = s->direction;
@@ -9158,10 +9158,10 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	    __func__));
 
 	if ((pd->pf_mtag == NULL &&
-	    ((pd->pf_mtag = pf_get_mtag(*m)) == NULL)) ||
+	    ((pd->pf_mtag = pf_get_mtag(pd->m)) == NULL)) ||
 	    pd->pf_mtag->routed++ > 3) {
-		m0 = *m;
-		*m = NULL;
+		m0 = pd->m;
+		pd->m = NULL;
 		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 		goto bad_locked;
 	}
@@ -9178,14 +9178,14 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 				/* When the 2nd interface is not skipped */
 				return;
 			} else {
-				m0 = *m;
-				*m = NULL;
+				m0 = pd->m;
+				pd->m = NULL;
 				SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 				goto bad;
 			}
 		} else {
 			pd->pf_mtag->flags |= PF_MTAG_FLAG_DUPLICATED;
-			if (((m0 = m_dup(*m, M_NOWAIT)) == NULL)) {
+			if (((m0 = m_dup(pd->m, M_NOWAIT)) == NULL)) {
 				if (s)
 					PF_STATE_UNLOCK(s);
 				return;
@@ -9194,7 +9194,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	} else {
 		if ((pd->act.rt == PF_REPLYTO) == (r_dir == pd->dir)) {
 			if (pd->af == pd->naf) {
-				pf_dummynet(pd, s, r, m);
+				pf_dummynet(pd, s, r, &pd->m);
 				if (s)
 					PF_STATE_UNLOCK(s);
 				return;
@@ -9220,7 +9220,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 				ifp = NULL;
 			}
 		}
-		m0 = *m;
+		m0 = pd->m;
 	}
 
 	ip6 = mtod(m0, struct ip6_hdr *);
@@ -9233,7 +9233,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	if (s != NULL) {
 		if (ifp == NULL && (pd->af != pd->naf)) {
 			const struct nhop_object *nh;
-			nh = fib6_lookup(M_GETFIB(*m), &ip6->ip6_dst, 0, NHR_NONE, 0);
+			nh = fib6_lookup(M_GETFIB(m0), &ip6->ip6_dst, 0, NHR_NONE, 0);
 			if (nh) {
 				ifp = nh->nh_ifp;
 
@@ -9277,8 +9277,8 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	}
 
 	if (ifp == NULL) {
-		m0 = *m;
-		*m = NULL;
+		m0 = pd->m;
+		pd->m = NULL;
 		SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
 		goto bad;
 	}
@@ -9377,7 +9377,7 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 
 done:
 	if (pd->act.rt != PF_DUPTO)
-		*m = NULL;
+		pd->m = NULL;
 	return;
 
 bad_locked:
@@ -10723,21 +10723,19 @@ done:
 		break;
 	case PF_AFRT:
 		if (pf_translate_af(&pd)) {
-			if (!pd.m)
-				*m0 = NULL;
+			*m0 = pd.m;
 			action = PF_DROP;
 			break;
 		}
-		*m0 = pd.m; /* pf_translate_af may change pd.m */
 #ifdef INET
 		if (pd.naf == AF_INET)
-			pf_route(m0, r, kif->pfik_ifp, s, &pd, inp);
+			pf_route(r, kif->pfik_ifp, s, &pd, inp);
 #endif /* INET */
 #ifdef INET6
 		if (pd.naf == AF_INET6)
-			pf_route6(m0, r, kif->pfik_ifp, s, &pd, inp);
+			pf_route6(r, kif->pfik_ifp, s, &pd, inp);
 #endif /* INET6 */
-		*m0 = NULL;
+		*m0 = pd.m;
 		action = PF_PASS;
 		goto out;
 		break;
@@ -10747,16 +10745,17 @@ done:
 #ifdef INET
 			case AF_INET:
 				/* pf_route() returns unlocked. */
-				pf_route(m0, r, kif->pfik_ifp, s, &pd, inp);
+				pf_route(r, kif->pfik_ifp, s, &pd, inp);
 				break;
 #endif /* INET */
 #ifdef INET6
 			case AF_INET6:
 				/* pf_route6() returns unlocked. */
-				pf_route6(m0, r, kif->pfik_ifp, s, &pd, inp);
+				pf_route6(r, kif->pfik_ifp, s, &pd, inp);
 				break;
 #endif /* INET6 */
 			}
+			*m0 = pd.m;
 			goto out;
 		}
 		if (pf_dummynet(&pd, s, r, m0) != 0) {
