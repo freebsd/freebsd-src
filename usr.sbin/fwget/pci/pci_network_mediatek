@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright 2023 Bjoern A. Zeeb
-# Copyright (c) 2024 The FreeBSD Foundation
+# Copyright (c) 2024-2025 The FreeBSD Foundation
 #
 # Portions of this software were developed by Björn Zeeb
 # under sponsorship from the FreeBSD Foundation.
@@ -41,10 +41,14 @@ pci_network_mediatek_mt76()
 	0x0608)	addpkg "wifi-firmware-mediatek-kmod-mt792x"; return 1 ;;
 	0x0616)	addpkg "wifi-firmware-mediatek-kmod-mt792x"; return 1 ;;
 	0x0717)	addpkg "wifi-firmware-mediatek-kmod-mt792x"; return 1 ;;
+	0x7611)	addpkg "wifi-firmware-mediatek-kmod-mt7615"; return 1 ;;
+	0x7615)	addpkg "wifi-firmware-mediatek-kmod-mt7615"; return 1 ;;
+	0x7663)	addpkg "wifi-firmware-mediatek-kmod-mt7615"; return 1 ;;
 	0x7906)	addpkg "wifi-firmware-mediatek-kmod-mt7915"; return 1 ;;
 	0x790a)	addpkg "wifi-firmware-mediatek-kmod-mt7915"; return 1 ;;
 	0x7915)	addpkg "wifi-firmware-mediatek-kmod-mt7915"; return 1 ;;
 	0x7916)	addpkg "wifi-firmware-mediatek-kmod-mt7915"; return 1 ;;
+	0x7920)	addpkg "wifi-firmware-mediatek-kmod-mt792x"; return 1 ;;
 	0x7922)	addpkg "wifi-firmware-mediatek-kmod-mt792x"; return 1 ;;
 	0x7925)	addpkg "wifi-firmware-mediatek-kmod-mt792x"; return 1 ;;
 	0x7961)	addpkg "wifi-firmware-mediatek-kmod-mt792x"; return 1 ;;
