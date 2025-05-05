@@ -231,6 +231,7 @@ do_done:
 
 	/* Wakeup other waiters */
 	pthread_cond_broadcast(&ctx->ctx_cond);
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb10_handle_events_sub complete");
 
 	return (err);
 }
