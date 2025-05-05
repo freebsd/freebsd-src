@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 4, 2025
+.Dd May 5, 2025
 .Dt PUC 4
 .Os
 .Sh NAME
@@ -77,27 +77,19 @@ Everest SP2
 VScom:
 .Bl -dash -compact
 .It
-PCI-800
-.It
-PCI-400
-.It
-PCI-200
+PCI-200, PCI-400, and PCI-800
 .El
 .It
 Boca Research Turbo Serial:
 .Bl -dash -compact
 .It
-658
-.It
-654
+654 and 658
 .El
 .It
 Dolphin Peripherals:
 .Bl -dash -compact
 .It
-4035
-.It
-4014
+4014 and 4035
 .El
 .It
 Applied Micro Circuits 8 Port UART
@@ -105,161 +97,66 @@ Applied Micro Circuits 8 Port UART
 Digi Neo:
 .Bl -dash -compact
 .It
-PCI 4 Port
+PCI 4 and 8 Port
 .It
-PCI 8 Port
-.It
-PCIe 8 Port
-.It
-PCIe 4 Port
-.It
-PCIe 4 Port RJ45
-.It
-PCIe 8 Port RJ45
+PCIe 4 and 8 Port (with and without RJ45)
 .El
 .It
 Comtrol RocketPort:
 .Bl -dash -compact
+550/4 Normal and RJ45
 .It
-550/8 RJ11 part A
+550/8 Normal, RJ11 and Octa
 .It
-550/8 RJ11 part B
-.It
-550/8 Octa part A
-.It
-550/8 Octa part B
-.It
-550/4 RJ45
-.It
-550/Quad
-.It
-550/16 part A
-.It
-550/16 part B
-.It
-550/8 part A
-.It
-550/8 part B
+550/16
 .El
 .It
 IBM SurePOS 300 Series (481033H) serial ports
 .It
-SIIG Cyber I/O PCI (10x family and 20x family):
+SIIG Cyber Series of UART and parallel port boars:
 .Bl -dash -compact
 .It
-16C550
+Cyber 2S and 2SP1 PCI 16550
 .It
-16C650
+Cyber 4 PCI 16550
 .It
-16C850
+Cyber 4S PCI 16C650 (20x family)
+.It
+Cyber I/O PCI (10x family and 20x family):
+.It
+Cyber Parallel Dual PCI (10x family and 20x family):
+.It
+Cyber Serial Dual PCI (10x family and 20x family):
+.It
+Cyber 2S1P PCI (10x family and 20x family):
+.It
+Cyber 4S PCI (10x family and 20x family):
+.It
+PS8000 8S PCI 16C650 (20x family)
+.It
+Quartet Serial 850
 .El
-.It
-SIIG Cyber Parallel Dual PCI (10x family and 20x family):
-.It
-SIIG Cyber Serial Dual PCI (10x family and 20x family):
-.Bl -dash -compact
-.It
-16C550
-.It
-16C650
-.It
-16C850
-.El
-.It
-SIIG Cyber 2S1P PCI (10x family and 20x family):
-.Bl -dash -compact
-.It
-16C550
-.It
-16C650
-.It
-16C850
-.El
-.It
-SIIG Cyber 4S PCI (10x family and 20x family):
-.Bl -dash -compact
-.It
-16C550
-.It
-16C650
-.It
-16C850
-.El
-.It
-SIIG PS8000 8S PCI 16C650 (20x family)
 .It
 Brainboxes:
 .Bl -dash -compact
 .It
 PX-101
 .It
-PX-246
+PX-246, PX-257, PX-260, PX-279
 .It
-PX-257
+PX-310, PX-313, PX-320, PX-346, PX-368
 .It
-PX-260
+PX-420, PX-431, PX-475
 .It
-PX-279
-.It
-PX-310
-.It
-PX-313
-.It
-PX-320
-.It
-PX-346
-.It
-PX-368
-.It
-PX-420
-.It
-PX-431
-.It
-PX-475
-.It
-PX-803
-.It
-PX-820
-.It
-PX-831
-.It
-PX-846
-.It
-PX-857
+PX-803, PX-820, PX-831, PX-846, PX-857
 .It
 UC-101
 .It
-UC-203
+UC-203, UC-253, UC-257, UC-260, UC-268, UC-279
 .It
-UC-253
+UC-302, UC-310, UC-313, UC-346, UC-357, UC-368
 .It
-UC-257
-.It
-UC-260
-.It
-UC-268
-.It
-UC-279
-.It
-UC-302
-.It
-UC-310
-.It
-UC-313
-.It
-UC-346
-.It
-UC-357
-.It
-UC-368
-.It
-UC-414
-.It
-UC-420
-.It
-UC-431
-.It
-UC-475
+UC-414, UC-420, UC-431, UC-475
 .It
 UC-607
 .It
@@ -269,47 +166,37 @@ UP-189
 .It
 UP-200
 .It
-UP-869
-.It
-UP-880
+UP-869, UP-880
 .El
 .It
 Intashield:
 .Bl -dash -compact
 .It
-IS-200
+IS-200, IS-400
 .It
-IS-400
-.It
-IX-100
-.It
-IX-200
-.It
-IX-400
+IX-100, IX-200, IX-400
 .El
 .It
 Quatech:
 .Bl -dash -compact
 .It
-QSC-100
-.It
 DSC-100
 .It
 DSC-200/300
-.It
-QSC-200/300
-.It
-ESC-100D
-.It
-ESC-100M
-.It
-QSCLP-100
 .It
 DSCLP-100
 .It
 DSCLP-200/300
 .It
-ESCLP-100
+ESC-100D
+.It
+ESC-100M
+.It
+QSC-100
+.It
+QSC-200/300
+.It
+QSCLP-100
 .El
 .It
 Moxa Technologies:
@@ -377,53 +264,27 @@ Lava Computers:
 .It
 Dual Serial
 .It
-Quatro A
+Quattro
 .It
-Quatro B
+Quattro-PCI
 .It
-Quattro-PCI A
-.It
-Quattro-PCI B
-.It
-Octo A
-.It
-Octo B
+Octopus-550 
 .El
-.It
-Sunix SUN1888
 .It
 I-O DATA RSA-PCI2/R
 .It
-SIIG Cyber 4 PCI 16550
-.It
-SIIG Cyber 4S PCI 16C650 (20x family)
-.It
-SIIG Quartet Serial 850
-.It
 Kuroutoshikou SERIAL4P-LPPCI2
 .It
-Oxford Semiconductor OX16PCI954 UARTs
-.It
-SIIG Cyber:
+Oxford Semiconductor based boards:
 .Bl -dash -compact
 .It
-2S PCIe
+OX16PCI952 UART (with and without Parallel port)
 .It
-Serial Dual PCI 16C850
+OX16PCI954 UART
 .It
-2SP1 PCIe
-.El
+OX9160/OX16PCI954 UARTs
 .It
-Oxford Semiconductor:
-.Bl -dash -compact
-.It
-OX16PCI954 UARTs
-.It
-OX9160/OX16PCI954 UARTs (function 1)
-.It
-OX16PCI952 UARTs
-.It
-OX16PCI958 UARTs
+OX16PCI958 UART
 .El
 .It
 Perle:
@@ -436,32 +297,6 @@ Speed2 LE
 Speed4 LE
 .It
 Speed8 LE
-.El
-.It
-Oxford Semiconductor OXPCIe952:
-.Bl -dash -compact
-.It
-1S1P
-.It
-UARTs
-.It
-UARTs (function 1)
-.El
-.It
-Oxford Semiconductor OXPCIe954:
-.Bl -dash -compact
-.It
-UARTs
-.It
-UARTs (function 1)
-.El
-.It
-Oxford Semiconductor OXPCIe958:
-.Bl -dash -compact
-.It
-UARTs
-.It
-UARTs (function 1)
 .El
 .It
 VScom:
@@ -502,24 +337,18 @@ Avlab Low Profile PCI 4 Serial
 .It
 Syba Tech Ltd PCI-4S2P-550-ECP
 .It
+Sunix SUN1888
+.It
 Sunix SER5xxxx
 .Bl -dash -compact
 .It
-2-port serial
-.It
-4-port serial
-.It
-8-port serial
+2, 4 and 8 port serial
 .El
 .It
 Sunix MIO5xxxx (1284 Printer port):
 .Bl -dash -compact
 .It
-1-port serial
-.It
-2-port serial
-.It
-4-port serial
+1, 2 and 4 port serial
 .El
 .It
 Feasso PCI FPP-02 2S1P
@@ -541,9 +370,7 @@ NetMos NM9815 Dual 1284 Printer port
 NetMos NM9835:
 .Bl -dash -compact
 .It
-based 1-port serial
-.It
-based 2-port serial
+based 1 and 2 port serial
 .It
 Dual UART and 1284 Printer port
 .El
@@ -600,3 +427,4 @@ This driver took the idea from the
 .Nx
 .Nm
 driver.
+It uses a substantial amount of the same data.
