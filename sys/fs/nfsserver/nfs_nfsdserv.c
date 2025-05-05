@@ -595,6 +595,8 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 	char *bufp;
 	u_long *hashp;
 	struct thread *p = curthread;
+	struct componentname *cnp;
+	short irflag;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, dattr_ret, &dattr);
@@ -611,8 +613,12 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	}
 
-	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, LOOKUP,
-	    LOCKLEAF);
+	cnp = &named.ni_cnd;
+	irflag = vn_irflag_read(dp);
+	if ((irflag & VIRF_NAMEDDIR) != 0)
+		NFSNAMEICNDSET(cnp, nd->nd_cred, LOOKUP, LOCKLEAF | OPENNAMED);
+	else
+		NFSNAMEICNDSET(cnp, nd->nd_cred, LOOKUP, LOCKLEAF);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 	if (error) {
@@ -621,6 +627,10 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	}
 	if (!nd->nd_repstat) {
+		/* Don't set OPENNAMED for Lookupp (".."). */
+		if (cnp->cn_namelen == 2 && *cnp->cn_nameptr == '.' &&
+		    *(cnp->cn_nameptr + 1) == '.')
+			cnp->cn_flags &= ~OPENNAMED;
 		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, &dirp);
 	} else {
 		vrele(dp);
@@ -1348,6 +1358,18 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		vtyp = nfsv34tov_type(*tl);
 		nfs4type = fxdr_unsigned(nfstype, *tl);
+		if ((vn_irflag_read(dp) & VIRF_NAMEDDIR) != 0) {
+			/*
+			 * Don't allow creation of non-regular file objects
+			 * in a named attribute directory.
+			 */
+			nd->nd_repstat = NFSERR_INVAL;
+			vrele(dp);
+#ifdef NFS4_ACL_EXTATTR_NAME
+			acl_free(aclp);
+#endif
+			goto out;
+		}
 		switch (nfs4type) {
 		case NFLNK:
 			error = nfsvno_getsymlink(nd, &nva, p, &pathcp,
@@ -1680,8 +1702,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 		}
 
 		/* If this is the same file handle, just VREF() the vnode. */
-		if (tfh.nfsrvfh_len == NFSX_MYFH &&
-		    !NFSBCMP(tfh.nfsrvfh_data, &fh, NFSX_MYFH)) {
+		if (!NFSBCMP(tfh.nfsrvfh_data, &fh, NFSX_MYFH)) {
 			VREF(dp);
 			tdp = dp;
 			tnes = *exp;
@@ -1804,8 +1825,15 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
 		goto out;
 	}
+	if ((vn_irflag_read(vp) & (VIRF_NAMEDDIR | VIRF_NAMEDATTR)) != 0 ||
+	    (tovp != NULL &&
+	     (vn_irflag_read(tovp) & (VIRF_NAMEDDIR | VIRF_NAMEDATTR)) != 0)) {
+		nd->nd_repstat = NFSERR_INVAL;
+		if (tovp != NULL)
+			vrele(tovp);
+	}
 	NFSVOPUNLOCK(vp);
-	if (vp->v_type == VDIR) {
+	if (!nd->nd_repstat && vp->v_type == VDIR) {
 		if (nd->nd_flag & ND_NFSV4)
 			nd->nd_repstat = NFSERR_ISDIR;
 		else
@@ -2971,6 +2999,8 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
 			cverf[0] = *tl++;
 			cverf[1] = *tl;
+			if ((vn_irflag_read(dp) & VIRF_NAMEDDIR) != 0)
+				nd->nd_repstat = NFSERR_INVAL;
 			break;
 		case NFSCREATE_EXCLUSIVE41:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
@@ -2979,7 +3009,8 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			error = nfsv4_sattr(nd, NULL, &nva, &attrbits, aclp, p);
 			if (error != 0)
 				goto nfsmout;
-			if (NFSISSET_ATTRBIT(&attrbits,
+			if ((vn_irflag_read(dp) & VIRF_NAMEDDIR) != 0 ||
+			    NFSISSET_ATTRBIT(&attrbits,
 			    NFSATTRBIT_TIMEACCESSSET))
 				nd->nd_repstat = NFSERR_INVAL;
 			/*
@@ -3473,11 +3504,20 @@ nfsrvd_getfh(struct nfsrv_descript *nd, __unused int isdgram,
 {
 	fhandle_t fh;
 	struct thread *p = curthread;
+	int siz;
+	short irflag;
 
 	nd->nd_repstat = nfsvno_getfh(vp, &fh, p);
+	irflag = vn_irflag_read(vp);
 	vput(vp);
-	if (!nd->nd_repstat)
-		(void)nfsm_fhtom(NULL, nd, (u_int8_t *)&fh, 0, 0);
+	if (nd->nd_repstat == 0) {
+		siz = 0;
+		if ((irflag & VIRF_NAMEDDIR) != 0)
+			siz = NFSX_FHMAX + NFSX_V4NAMEDDIRFH;
+		else if ((irflag & VIRF_NAMEDATTR) != 0)
+			siz = NFSX_FHMAX + NFSX_V4NAMEDATTRFH;
+		(void)nfsm_fhtom(NULL, nd, (u_int8_t *)&fh, siz, 0);
+	}
 	NFSEXITCODE2(0, nd);
 	return (0);
 }
@@ -4187,7 +4227,8 @@ nfsrvd_verify(struct nfsrv_descript *nd, int isdgram,
 	if (!nd->nd_repstat) {
 		nfsvno_getfs(&fs, isdgram);
 		error = nfsv4_loadattr(nd, vp, &nva, NULL, &fh, fhsize, NULL,
-		    sf, NULL, &fs, NULL, 1, &ret, NULL, NULL, p, nd->nd_cred);
+		    sf, NULL, &fs, NULL, 1, &ret, NULL, NULL, NULL, p,
+		    nd->nd_cred);
 		if (!error) {
 			if (nd->nd_procnum == NFSV4OP_NVERIFY) {
 				if (ret == 0)
@@ -4209,15 +4250,39 @@ nfsrvd_verify(struct nfsrv_descript *nd, int isdgram,
  */
 int
 nfsrvd_openattr(struct nfsrv_descript *nd, __unused int isdgram,
-    vnode_t dp, __unused vnode_t *vpp, __unused fhandle_t *fhp,
+    struct vnode *dp, struct vnode **vpp, __unused fhandle_t *fhp,
     __unused struct nfsexstuff *exp)
 {
-	u_int32_t *tl;
-	int error = 0, createdir __unused;
+	uint32_t *tl;
+	struct componentname cn;
+	int error = 0;
 
-	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
-	createdir = fxdr_unsigned(int, *tl);
-	nd->nd_repstat = NFSERR_NOTSUPP;
+	NFSNAMEICNDSET(&cn, nd->nd_cred, LOOKUP, OPENNAMED | ISLASTCN |
+	    NOFOLLOW);
+	cn.cn_nameptr = ".";
+	cn.cn_namelen = 1;
+	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+	if (*tl == newnfs_true)
+		cn.cn_flags |= CREATENAMED;
+
+	nd->nd_repstat = vn_lock(dp, LK_SHARED);
+	if (nd->nd_repstat != 0)
+		goto nfsmout;
+
+	if ((dp->v_mount->mnt_flag & MNT_NAMEDATTR) == 0)
+		nd->nd_repstat = NFSERR_NOTSUPP;
+	if (nd->nd_repstat == 0 && (vn_irflag_read(dp) & (VIRF_NAMEDDIR |
+	    VIRF_NAMEDATTR)) != 0)
+		nd->nd_repstat = NFSERR_WRONGTYPE;
+	if (nd->nd_repstat == 0) {
+		nd->nd_repstat = VOP_LOOKUP(dp, vpp, &cn);
+		if (nd->nd_repstat == ENOATTR)
+			nd->nd_repstat = NFSERR_NOENT;
+	}
+
+	vput(dp);
+	NFSEXITCODE2(0, nd);
+	return (0);
 nfsmout:
 	vrele(dp);
 	NFSEXITCODE2(error, nd);
