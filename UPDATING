@@ -28,6 +28,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20250504:
+	Commit 9419e086e1a3 changed the internal API between the nfscommon
+	and nfscl modules.  Both need to be built from updated sources.
+
+20250504:
 	newsyslog(8) will no longer compress rotated log files by default.
 	The J, X, Y, and Z flags in newsyslog.conf(5) now indicate that a
 	file may be compressed, rather than specifying a particular
