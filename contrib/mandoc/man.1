@@ -1,4 +1,4 @@
-.\"	$Id: man.1,v 1.41 2022/08/04 11:32:23 schwarze Exp $
+.\" $Id: man.1,v 1.42 2025/01/26 14:43:25 schwarze Exp $
 .\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)man.1	8.2 (Berkeley) 1/2/94
 .\"
-.Dd $Mdocdate: August 4 2022 $
+.Dd $Mdocdate: January 26 2025 $
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -58,7 +58,19 @@ a specific category
 .Pq Ar section
 or
 machine architecture
-.Pq Ar subsection .
+.Pq Ar subsection ,
+or searched for with
+.Fl k
+using
+.Xr apropos 1
+search expressions.
+The default pager,
+.Xr less 1 ,
+supports the command
+.Ic :t
+to jump to definitions of specific terms (see
+.Dv MANPAGER ,
+below).
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -345,6 +357,26 @@ See
 .Xr mandoc 1
 for details.
 .Sh EXAMPLES
+Show all manual pages that mention the
+.Ev PWD
+environment variable:
+.Pp
+.Dl $ man -ak Ev=PWD
+.Pp
+Show the
+.Xr ksh 1
+manual and jump to the place where the
+.Ic pwd
+builtin command is described:
+.Pp
+.Dl $ man -O tag=pwd ksh
+.Pp
+Equivalently, use the command
+.Ql man ksh ,
+then type
+.Ql :tpwd
+and press the return key.
+.Pp
 Format a page for pasting extracts into an email message \(em
 avoid printing any UTF-8 characters, reduce the width to ease
 quoting in replies, and remove markup:

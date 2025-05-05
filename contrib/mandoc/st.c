@@ -1,4 +1,4 @@
-/* $Id: st.c,v 1.18 2024/06/16 18:49:04 schwarze Exp $ */
+/* $Id: st.c,v 1.19 2025/01/02 13:34:04 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010 Kristaps Dzonsons <kristaps@bsd.lv>
  *
