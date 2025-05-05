@@ -57,6 +57,7 @@
 #include <net/if_llatbl.h>
 #include <net/if_private.h>
 #include <net/if_types.h>
+#include <net/if_bridgevar.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
 #include <net/route/route_ctl.h>
@@ -517,6 +518,13 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct ucred *cred
 	if (error != 0)
 		return (error);
 #endif
+
+	/*
+	 * Check if bridge wants to allow adding addrs to member interfaces.
+	 */
+	if (ifp->if_bridge && bridge_member_ifaddrs_p &&
+	    !bridge_member_ifaddrs_p())
+		return (EINVAL);
 
 	/*
 	 * See whether address already exist.
