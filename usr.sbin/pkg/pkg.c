@@ -1164,7 +1164,7 @@ main(int argc, char *argv[])
 				{ "yes",	no_argument,	NULL,	'y' },
 				{ NULL,		0,		NULL,	0   },
 			};
-			while ((ch = getopt_long(argc, argv, "+y",
+			while ((ch = getopt_long(argc, argv, "+:y",
 			    sub_longopts, NULL)) != -1) {
 				switch (ch) {
 				case 'y':
