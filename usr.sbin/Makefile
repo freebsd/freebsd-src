@@ -2,7 +2,6 @@
 
 SUBDIR=	adduser \
 	arp \
-	audio \
 	binmiscctl \
 	boottrace \
 	bsdconfig \
@@ -84,6 +83,7 @@ SUBDIR=	adduser \
 	setpmac \
 	smbmsg \
 	snapinfo \
+	sndctl \
 	spi \
 	spray \
 	syslogd \

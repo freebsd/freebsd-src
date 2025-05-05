@@ -28,10 +28,10 @@
 .\" SUCH DAMAGE.
 .\"
 .Dd May 5, 2025
-.Dt AUDIO 8
+.Dt SNDCTL 8
 .Os
 .Sh NAME
-.Nm audio
+.Nm sndctl
 .Nd list and modify soundcard properties
 .Sh SYNOPSIS
 .Nm
@@ -149,28 +149,28 @@ The audio device file, where X is the unit of the device, for example
 Disable auto-conversions and enable realtime mode to get as low latencies as
 possible:
 .Bd -literal -offset indent
-$ audio autoconv=0 realtime=1
+$ sndctl autoconv=0 realtime=1
 .Ed
 .Pp
 Set the playback sample format to 2-channel signed 24-bit low endian, and sample
 rate to 48000 Hz:
 .Bd -literal -offset indent
-$ audio play.format=s24le:2.0 play.rate=48000
+$ sndctl play.format=s24le:2.0 play.rate=48000
 .Ed
 .Pp
 List the PIDs and process names of all channels for
 .Pa /dev/dsp1 :
 .Bd -literal -offset indent
-$ audio -f /dev/dsp1 pid proc
+$ sndctl -f /dev/dsp1 pid proc
 .Ed
 .Pp
 Dump
 .Pa /dev/dsp0
 information to a file and retrieve back later:
 .Bd -literal -offset indent
-$ audio -f /dev/dsp0 -o > info
+$ sndctl -f /dev/dsp0 -o > info
 \&...
-$ audio -f /dev/dsp0 `cat info`
+$ sndctl -f /dev/dsp0 `cat info`
 .Ed
 .Sh SEE ALSO
 .Xr sndstat 4 ,
