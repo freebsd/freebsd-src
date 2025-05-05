@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+44e5a0150835, 9a37f1024ceb:
+	A new utility sndctl(8) has been added to concertrate the various
+	interfaces for viewing and manipulating audio device settings (sysctls,
+	/dev/sndstat), into a single utility with a similar control-driven
+	interface to that of mixer(8).
 995b690d1398:
 	ps(1)'s '-U' option has been changed to select processes by their real
 	user IDs instead of their effective one, in accordance with POSIX and
