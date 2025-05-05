@@ -42,7 +42,7 @@ git pull --rebase
 for pr in $(git config --get-all branch.${staging}.opabinia.prs); do
     if ! $do_pr_branch_push; then
 	gh pr edit $pr --add-label merged
-	gh pr close $pr --comment "ghpr helper script closed this after push to source of truth."
+	gh pr close $pr --comment "Automated message from ghpr: Thank you for your submission. This PR has been merged to FreeBSD's `main` branch. These changes will appear shortly on our GitHub mirror."
     fi
     git branch -D PR-${pr}
     git config --remove-section branch.${staging}.opabinia.${pr}
