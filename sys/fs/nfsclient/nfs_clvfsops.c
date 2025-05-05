@@ -1801,12 +1801,18 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		if (argp->flags & NFSMNT_NFSV3)
 			ncl_fsinfo(nmp, *vpp, cred, td);
 
-		/* Mark if the mount point supports NFSv4 ACLs. */
-		if ((argp->flags & NFSMNT_NFSV4) != 0 && nfsrv_useacl != 0 &&
-		    ret == 0 &&
-		    NFSISSET_ATTRBIT(&nfsva.na_suppattr, NFSATTRBIT_ACL)) {
+		/*
+		 * Mark if the mount point supports NFSv4 ACLs and
+		 * named attributes.
+		 */
+		if ((argp->flags & NFSMNT_NFSV4) != 0) {
 			MNT_ILOCK(mp);
-			mp->mnt_flag |= MNT_NFS4ACLS;
+			if (ret == 0 && nfsrv_useacl != 0 &&
+			    NFSISSET_ATTRBIT(&nfsva.na_suppattr,
+			    NFSATTRBIT_ACL))
+				mp->mnt_flag |= MNT_NFS4ACLS;
+			if (nmp->nm_minorvers > 0)
+				mp->mnt_flag |= MNT_NAMEDATTR;
 			MNT_IUNLOCK(mp);
 		}
 

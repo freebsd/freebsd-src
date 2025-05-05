@@ -1473,8 +1473,9 @@ int
 nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 {
 	u_int32_t *tl;
-	int error = 0, len, copylen;
+	int error = 0, len, copylen, namedlen;
 
+	namedlen = 0;
 	if (nd->nd_flag & (ND_NFSV3 | ND_NFSV4)) {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		len = fxdr_unsigned(int, *tl);
@@ -1490,6 +1491,11 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 			copylen = NFSX_MYFH;
 			len = NFSM_RNDUP(len);
 			nd->nd_flag |= ND_DSSERVER;
+		} else if (len >= NFSX_MYFH + NFSX_V4NAMEDDIRFH &&
+		    len <= NFSX_MYFH + NFSX_V4NAMEDATTRFH) {
+			copylen = NFSX_MYFH;
+			namedlen = len;
+			len = NFSM_RNDUP(len);
 		} else if (len < NFSRV_MINFH || len > NFSRV_MAXFH) {
 			if (nd->nd_flag & ND_NFSV4) {
 			    if (len > 0 && len <= NFSX_V4FHMAX) {
@@ -1524,7 +1530,10 @@ nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 		goto nfsmout;
 	}
 	NFSBCOPY(tl, (caddr_t)fhp->nfsrvfh_data, copylen);
-	fhp->nfsrvfh_len = copylen;
+	if (namedlen > 0)
+		fhp->nfsrvfh_len = namedlen;
+	else
+		fhp->nfsrvfh_len = copylen;
 nfsmout:
 	NFSEXITCODE2(error, nd);
 	return (error);
