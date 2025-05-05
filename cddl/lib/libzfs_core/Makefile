@@ -6,7 +6,7 @@
 
 LIB=	zfs_core
 LIBADD=	nvpair spl zutil
-PACKAGE=	zfs
+PACKAGE=	libzfs
 
 INCS=	libzfs_core.h
 SRCS=	libzfs_core.c \

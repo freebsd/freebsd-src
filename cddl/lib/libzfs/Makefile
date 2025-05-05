@@ -7,7 +7,7 @@
 .PATH: ${SRCTOP}/sys/contrib/openzfs/module/zstd
 .PATH: ${SRCTOP}/sys/contrib/openzfs/module/zstd/lib
 
-PACKAGE=	zfs
+PACKAGE=	libzfs
 LIB=	zfs
 LIBADD= \
 	avl \

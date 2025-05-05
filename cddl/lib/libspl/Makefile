@@ -6,7 +6,7 @@
 
 LIB=	spl
 LIBADD=
-PACKAGE=	zfs
+PACKAGE=	libzfs
 
 SRCS = \
         assert.c \
