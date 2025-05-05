@@ -81,12 +81,11 @@ ${PKGCMD} -vv
 ${PKGCMD} update -f
 ${PKGCMD} fetch -o ${PKG_REPODIR} -d ${DVD_PACKAGES}
 
-# Create the 'Latest/pkg.txz' symlink so 'pkg bootstrap' works
+# Create the 'Latest/pkg.pkg' symlink so 'pkg bootstrap' works
 # using the on-disc packages.
 export LATEST_DIR="${ROOTDIR}/${PKG_REPODIR}/Latest"
 mkdir -p ${LATEST_DIR}
 ln -s ../All/$(${PKGCMD} rquery %n-%v pkg).pkg ${LATEST_DIR}/pkg.pkg
-ln -sf pkg.pkg ${LATEST_DIR}/pkg.txz
 
 ${PKGCMD} repo ${PKG_REPODIR}
 
