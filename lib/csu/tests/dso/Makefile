@@ -1,4 +1,6 @@
 .PATH: ${.CURDIR:H}
+
+PACKAGE=	tests
 SHLIB=		h_csu
 SHLIB_NAME=	libh_csu.so
 SHLIB_MAJOR=	1
