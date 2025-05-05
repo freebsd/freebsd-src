@@ -50,7 +50,7 @@
 #define STATUS_LEN	64
 #define FMTSTR_LEN	16
 
-struct audio_chan {
+struct snd_chan {
 	char name[NAME_MAX];
 	char parentchan[NAME_MAX];
 	int unit;
@@ -78,11 +78,11 @@ struct audio_chan {
 		int ready;
 	} hwbuf, swbuf;
 	char feederchain[BUFSIZ];
-	struct audio_dev *dev;
-	TAILQ_ENTRY(audio_chan) next;
+	struct snd_dev *dev;
+	TAILQ_ENTRY(snd_chan) next;
 };
 
-struct audio_dev {
+struct snd_dev {
 	char name[NAME_MAX];
 	char desc[NAME_MAX];
 	char status[BUFSIZ];
@@ -104,10 +104,10 @@ struct audio_dev {
 		int max_chans;
 		char formats[BUFSIZ];
 	} play, rec;
-	TAILQ_HEAD(, audio_chan) chans;
+	TAILQ_HEAD(, snd_chan) chans;
 };
 
-struct audio_ctl {
+struct snd_ctl {
 	const char *name;
 	size_t off;
 #define STR	0
@@ -115,7 +115,7 @@ struct audio_ctl {
 #define VOL	2
 #define GRP	3
 	int type;
-	int (*mod)(struct audio_dev *, void *);
+	int (*mod)(struct snd_dev *, void *);
 };
 
 struct map {
@@ -123,18 +123,18 @@ struct map {
 	const char *str;
 };
 
-static int mod_bitperfect(struct audio_dev *, void *);
-static int mod_autoconv(struct audio_dev *, void *);
-static int mod_realtime(struct audio_dev *, void *);
-static int mod_play_vchans(struct audio_dev *, void *);
-static int mod_play_rate(struct audio_dev *, void *);
-static int mod_play_format(struct audio_dev *, void *);
-static int mod_rec_vchans(struct audio_dev *, void *);
-static int mod_rec_rate(struct audio_dev *, void *);
-static int mod_rec_format(struct audio_dev *, void *);
+static int mod_bitperfect(struct snd_dev *, void *);
+static int mod_autoconv(struct snd_dev *, void *);
+static int mod_realtime(struct snd_dev *, void *);
+static int mod_play_vchans(struct snd_dev *, void *);
+static int mod_play_rate(struct snd_dev *, void *);
+static int mod_play_format(struct snd_dev *, void *);
+static int mod_rec_vchans(struct snd_dev *, void *);
+static int mod_rec_rate(struct snd_dev *, void *);
+static int mod_rec_format(struct snd_dev *, void *);
 
-static struct audio_ctl dev_ctls[] = {
-#define F(member)	offsetof(struct audio_dev, member)
+static struct snd_ctl dev_ctls[] = {
+#define F(member)	offsetof(struct snd_dev, member)
 	{ "name",		F(name),		STR,	NULL },
 	{ "desc",		F(desc),		STR,	NULL },
 	{ "status",		F(status),		STR,	NULL },
@@ -169,8 +169,8 @@ static struct audio_ctl dev_ctls[] = {
 #undef F
 };
 
-static struct audio_ctl chan_ctls[] = {
-#define F(member)	offsetof(struct audio_chan, member)
+static struct snd_ctl chan_ctls[] = {
+#define F(member)	offsetof(struct snd_chan, member)
 	/*{ "name",		F(name),		STR,	NULL },*/
 	{ "parentchan",		F(parentchan),		STR,	NULL },
 	{ "unit",		F(unit),		NUM,	NULL },
@@ -333,15 +333,15 @@ bytes2frames(int bytes, int fmt)
 	return (bytes / (samplesz * ch));
 }
 
-static struct audio_dev *
+static struct snd_dev *
 read_dev(char *path)
 {
 	nvlist_t *nvl;
 	const nvlist_t * const *di;
 	const nvlist_t * const *cdi;
 	struct sndstioc_nv_arg arg;
-	struct audio_dev *dp = NULL;
-	struct audio_chan *ch;
+	struct snd_dev *dp = NULL;
+	struct snd_chan *ch;
 	size_t nitems, nchans, i, j;
 	int fd, caps, unit;
 
@@ -389,7 +389,7 @@ read_dev(char *path)
 
 #define NV(type, item)	\
 	nvlist_get_ ## type (di[i], SNDST_DSPS_ ## item)
-	if ((dp = calloc(1, sizeof(struct audio_dev))) == NULL)
+	if ((dp = calloc(1, sizeof(struct snd_dev))) == NULL)
 		err(1, "calloc");
 
 	dp->unit = -1;
@@ -469,7 +469,7 @@ read_dev(char *path)
 	for (j = 0; j < nchans; j++) {
 #define NV(type, item)	\
 	nvlist_get_ ## type (cdi[j], SNDST_DSPS_SOUND4_CHAN_ ## item)
-		if ((ch = calloc(1, sizeof(struct audio_chan))) == NULL)
+		if ((ch = calloc(1, sizeof(struct snd_chan))) == NULL)
 			err(1, "calloc");
 
 		strlcpy(ch->name, NV(string, NAME), sizeof(ch->name));
@@ -538,9 +538,9 @@ done:
 }
 
 static void
-free_dev(struct audio_dev *dp)
+free_dev(struct snd_dev *dp)
 {
-	struct audio_chan *ch;
+	struct snd_chan *ch;
 
 	while (!TAILQ_EMPTY(&dp->chans)) {
 		ch = TAILQ_FIRST(&dp->chans);
@@ -551,10 +551,10 @@ free_dev(struct audio_dev *dp)
 }
 
 static void
-print_dev_ctl(struct audio_dev *dp, struct audio_ctl *ctl, bool simple,
+print_dev_ctl(struct snd_dev *dp, struct snd_ctl *ctl, bool simple,
     bool showgrp)
 {
-	struct audio_ctl *cp;
+	struct snd_ctl *cp;
 	size_t len;
 
 	if (ctl->type != GRP) {
@@ -587,10 +587,10 @@ print_dev_ctl(struct audio_dev *dp, struct audio_ctl *ctl, bool simple,
 }
 
 static void
-print_chan_ctl(struct audio_chan *ch, struct audio_ctl *ctl, bool simple,
+print_chan_ctl(struct snd_chan *ch, struct snd_ctl *ctl, bool simple,
     bool showgrp)
 {
-	struct audio_ctl *cp;
+	struct snd_ctl *cp;
 	size_t len;
 	int v;
 
@@ -627,10 +627,10 @@ print_chan_ctl(struct audio_chan *ch, struct audio_ctl *ctl, bool simple,
 }
 
 static void
-print_dev(struct audio_dev *dp)
+print_dev(struct snd_dev *dp)
 {
-	struct audio_chan *ch;
-	struct audio_ctl *ctl;
+	struct snd_chan *ch;
+	struct snd_ctl *ctl;
 
 	if (!oflag) {
 		printf("%s: <%s> %s", dp->name, dp->desc, dp->status);
@@ -739,7 +739,7 @@ sysctl_str(const char *buf, const char *arg, char *var, size_t varsz)
 }
 
 static int
-mod_bitperfect(struct audio_dev *dp, void *arg)
+mod_bitperfect(struct snd_dev *dp, void *arg)
 {
 	char buf[64];
 
@@ -752,7 +752,7 @@ mod_bitperfect(struct audio_dev *dp, void *arg)
 }
 
 static int
-mod_autoconv(struct audio_dev *dp, void *arg)
+mod_autoconv(struct snd_dev *dp, void *arg)
 {
 	const char *val = arg;
 	const char *zero = "0";
@@ -780,7 +780,7 @@ mod_autoconv(struct audio_dev *dp, void *arg)
 }
 
 static int
-mod_realtime(struct audio_dev *dp, void *arg)
+mod_realtime(struct snd_dev *dp, void *arg)
 {
 	const char *val = arg;
 	int rc = -1;
@@ -807,7 +807,7 @@ mod_realtime(struct audio_dev *dp, void *arg)
 }
 
 static int
-mod_play_vchans(struct audio_dev *dp, void *arg)
+mod_play_vchans(struct snd_dev *dp, void *arg)
 {
 	char buf[64];
 
@@ -820,7 +820,7 @@ mod_play_vchans(struct audio_dev *dp, void *arg)
 }
 
 static int
-mod_play_rate(struct audio_dev *dp, void *arg)
+mod_play_rate(struct snd_dev *dp, void *arg)
 {
 	char buf[64];
 
@@ -835,7 +835,7 @@ mod_play_rate(struct audio_dev *dp, void *arg)
 }
 
 static int
-mod_play_format(struct audio_dev *dp, void *arg)
+mod_play_format(struct snd_dev *dp, void *arg)
 {
 	char buf[64];
 
@@ -850,7 +850,7 @@ mod_play_format(struct audio_dev *dp, void *arg)
 }
 
 static int
-mod_rec_vchans(struct audio_dev *dp, void *arg)
+mod_rec_vchans(struct snd_dev *dp, void *arg)
 {
 	char buf[64];
 
@@ -863,7 +863,7 @@ mod_rec_vchans(struct audio_dev *dp, void *arg)
 }
 
 static int
-mod_rec_rate(struct audio_dev *dp, void *arg)
+mod_rec_rate(struct snd_dev *dp, void *arg)
 {
 	char buf[64];
 
@@ -878,7 +878,7 @@ mod_rec_rate(struct audio_dev *dp, void *arg)
 }
 
 static int
-mod_rec_format(struct audio_dev *dp, void *arg)
+mod_rec_format(struct snd_dev *dp, void *arg)
 {
 	char buf[64];
 
@@ -903,9 +903,9 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	struct audio_dev *dp;
-	struct audio_chan *ch;
-	struct audio_ctl *ctl;
+	struct snd_dev *dp;
+	struct snd_chan *ch;
+	struct snd_ctl *ctl;
 	char *path = NULL;
 	char *s, *propstr;
 	bool show = true, found;
