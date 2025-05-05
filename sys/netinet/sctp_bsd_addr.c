@@ -117,6 +117,9 @@ sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa)
 {
 	struct in6_ifaddr *ifa6;
 
+	KASSERT(ifa->address.sa.sa_family == AF_INET6,
+	    ("sctp_gather_internal_ifa_flags() called with address family %u",
+	    ifa->address.sa.sa_family));
 	ifa6 = (struct in6_ifaddr *)ifa->ifa;
 	ifa->flags = ifa6->ia6_flags;
 	if (MODULE_GLOBAL(ip6_use_deprecated)) {
