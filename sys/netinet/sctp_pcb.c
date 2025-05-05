@@ -453,7 +453,11 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 					SCTPDBG(SCTP_DEBUG_PCB4,
 					    "Clearing deleted ifa flag\n");
 					sctp_ifap->localifa_flags = SCTP_ADDR_VALID;
-					sctp_gather_internal_ifa_flags(sctp_ifap);
+#ifdef INET6
+					if (sctp_ifap->address.sa.sa_family == AF_INET6) {
+						sctp_gather_internal_ifa_flags(sctp_ifap);
+					}
+#endif
 					sctp_ifap->ifn_p = sctp_ifnp;
 					atomic_add_int(&sctp_ifap->ifn_p->refcount, 1);
 				}
@@ -476,7 +480,11 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		} else {
 			/* Repair ifn_p, which was NULL... */
 			sctp_ifap->localifa_flags = SCTP_ADDR_VALID;
-			sctp_gather_internal_ifa_flags(sctp_ifap);
+#ifdef INET6
+			if (sctp_ifap->address.sa.sa_family == AF_INET6) {
+				sctp_gather_internal_ifa_flags(sctp_ifap);
+			}
+#endif
 			SCTPDBG(SCTP_DEBUG_PCB4,
 			    "Repairing ifn %p for ifa %p\n",
 			    (void *)sctp_ifnp, (void *)sctp_ifap);
@@ -501,7 +509,12 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	sctp_ifap->ifa = ifa;
 	memcpy(&sctp_ifap->address, addr, addr->sa_len);
 	sctp_ifap->localifa_flags = SCTP_ADDR_VALID | SCTP_ADDR_DEFER_USE;
-	sctp_gather_internal_ifa_flags(sctp_ifap);
+	sctp_ifap->flags = ifa_flags;
+#ifdef INET6
+	if (addr->sa_family == AF_INET6) {
+		sctp_gather_internal_ifa_flags(sctp_ifap);
+	}
+#endif
 	/* Set scope */
 	switch (sctp_ifap->address.sa.sa_family) {
 #ifdef INET
