@@ -407,6 +407,7 @@ void libusb_hotplug_deregister_callback(libusb_context *ctx,
 
 	HOTPLUG_LOCK(ctx);
 	TAILQ_REMOVE(&ctx->hotplug_cbh, handle, entry);
+	libusb_interrupt_event_handler(ctx);
 	HOTPLUG_UNLOCK(ctx);
 
 	free(handle);
