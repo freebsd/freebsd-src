@@ -199,6 +199,62 @@ err:
 }
 
 static int
+lua_execp(lua_State *L)
+{
+	int argc, error;
+	const char *file;
+	const char **argv;
+
+	enforce_max_args(L, 2);
+
+	file = luaL_checkstring(L, 1);
+	luaL_checktype(L, 2, LUA_TTABLE);
+
+	lua_len(L, 2);
+	argc = lua_tointeger(L, -1);
+
+	/*
+	 * Use lua_newuserdatauv() to allocate a scratch buffer that is tracked
+	 * and freed by lua's GC. This avoid any chance of a leak if a lua error
+	 * is raised later in this function (e.g. by luaL_argerror()).
+	 * The (argc + 2) size gives enough space in the buffer for argv[0] and
+	 * the terminating NULL.
+	 */
+	argv = lua_newuserdatauv(L, (argc + 2) * sizeof(char *), 0);
+
+	/*
+	 * Sequential tables in lua start at index 1 by convention.
+	 * If there happens to be a string at index 0, use that to
+	 * override the default argv[0]. This matches the lposix API.
+	 */
+	lua_pushinteger(L, 0);
+	lua_gettable(L, 2);
+	argv[0] = lua_tostring(L, -1);
+	if (argv[0] == NULL) {
+		argv[0] = file;
+	}
+
+	for (int i = 1; i <= argc; i++) {
+		lua_pushinteger(L, i);
+		lua_gettable(L, 2);
+		argv[i] = lua_tostring(L, -1);
+		if (argv[i] == NULL) {
+			luaL_argerror(L, 2,
+			    "argv table must contain only strings");
+		}
+	}
+	argv[argc + 1] = NULL;
+
+	execvp(file, (char **)argv);
+	error = errno;
+
+	lua_pushnil(L);
+	lua_pushstring(L, strerror(error));
+	lua_pushinteger(L, error);
+	return (3);
+}
+
+static int
 lua_fnmatch(lua_State *L)
 {
 	const char *pattern, *string;
@@ -513,6 +569,7 @@ static const struct luaL_Reg unistdlib[] = {
 	REG_SIMPLE(chown),
 	REG_DEF(close, lua_pclose),
 	REG_SIMPLE(dup2),
+	REG_SIMPLE(execp),
 	REG_SIMPLE(fork),
 	REG_SIMPLE(getpid),
 	REG_SIMPLE(pipe),
