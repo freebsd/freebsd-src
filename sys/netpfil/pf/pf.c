@@ -9073,11 +9073,12 @@ pf_route(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 		error = EMSGSIZE;
 		KMOD_IPSTAT_INC(ips_cantfrag);
 		if (pd->act.rt != PF_DUPTO) {
-			if (s && s->nat_rule != NULL)
+			if (s && s->nat_rule != NULL) {
 				MPASS(m0 == pd->m);
 				PACKET_UNDO_NAT(pd,
 				    (ip->ip_hl << 2) + (ip_off & IP_OFFMASK),
 				    s);
+			}
 
 			icmp_error(m0, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG, 0,
 			    ifp->if_mtu);
@@ -9359,11 +9360,12 @@ pf_route6(struct mbuf **m, struct pf_krule *r, struct ifnet *oifp,
 	else {
 		in6_ifstat_inc(ifp, ifs6_in_toobig);
 		if (pd->act.rt != PF_DUPTO) {
-			if (s && s->nat_rule != NULL)
+			if (s && s->nat_rule != NULL) {
 				MPASS(m0 == pd->m);
 				PACKET_UNDO_NAT(pd,
 				    ((caddr_t)ip6 - m0->m_data) +
 				    sizeof(struct ip6_hdr), s);
+			}
 
 			icmp6_error(m0, ICMP6_PACKET_TOO_BIG, 0, ifp->if_mtu);
 			SDT_PROBE1(pf, ip6, route_to, drop, __LINE__);
