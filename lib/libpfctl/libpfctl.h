@@ -556,5 +556,7 @@ int	pfctl_get_tstats(struct pfctl_handle *h, const struct pfr_table *filter,
 	    pfctl_get_tstats_fn fn, void *arg);
 int	pfctl_clear_tstats(struct pfctl_handle *h, const struct pfr_table *filter,
 	    int *nzero, int flags);
+int	pfctl_clear_addrs(struct pfctl_handle *h, const struct pfr_table *filter,
+	    int *ndel, int flags);
 
 #endif

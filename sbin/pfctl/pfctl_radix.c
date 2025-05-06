@@ -113,20 +113,7 @@ pfr_get_tables(struct pfr_table *filter, struct pfr_table *tbl, int *size,
 int
 pfr_clr_addrs(struct pfr_table *tbl, int *ndel, int flags)
 {
-	struct pfioc_table io;
-
-	if (tbl == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
-	bzero(&io, sizeof io);
-	io.pfrio_flags = flags;
-	io.pfrio_table = *tbl;
-	if (ioctl(dev, DIOCRCLRADDRS, &io))
-		return (-1);
-	if (ndel != NULL)
-		*ndel = io.pfrio_ndel;
-	return (0);
+	return (pfctl_clear_addrs(pfh, tbl, ndel, flags));
 }
 
 int
