@@ -285,6 +285,11 @@ sendfile_iowait(struct sf_io *sfio, const char *wmesg)
 
 /*
  * I/O completion callback.
+ *
+ * When called via I/O path, the curvnet is not set and should be obtained
+ * from the socket.  When called synchronously from vn_sendfile(), usually
+ * to report error or just release the reference (all pages are valid), then
+ * curvnet shall be already set.
  */
 static void
 sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
@@ -365,7 +370,7 @@ sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
 		    ("non-ext_pgs mbuf with TLS session"));
 #endif
 	so = sfio->so;
-	CURVNET_SET(so->so_vnet);
+	CURVNET_SET_QUIET(so->so_vnet);
 	if (__predict_false(sfio->error)) {
 		/*
 		 * I/O operation failed.  The state of data in the socket
@@ -782,6 +787,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	error = sendfile_getsock(td, sockfd, &sock_fp, &so);
 	if (error != 0)
 		goto out;
+	CURVNET_SET(so->so_vnet);
 	pr = so->so_proto;
 
 #ifdef MAC
@@ -1161,7 +1167,6 @@ prepend_header:
 		    ("%s: mlen %u space %d hdrlen %d",
 		    __func__, m_length(m, NULL), space, hdrlen));
 
-		CURVNET_SET(so->so_vnet);
 #ifdef KERN_TLS
 		if (tls != NULL)
 			ktls_frame(m, tls, &tls_enq_cnt, TLS_RLTYPE_APP);
@@ -1203,8 +1208,6 @@ prepend_header:
 			tcp_log_sendfile(so, offset, nbytes, flags);
 		}
 #endif
-		CURVNET_RESTORE();
-
 		m = NULL;
 		if (error)
 			goto done;
@@ -1265,9 +1268,9 @@ out:
 	if (tls != NULL)
 		ktls_free(tls);
 #endif
-
 	if (error == ERESTART)
 		error = EINTR;
+	CURVNET_RESTORE();
 
 	return (error);
 }
