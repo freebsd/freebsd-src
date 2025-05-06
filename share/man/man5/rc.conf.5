@@ -4934,6 +4934,16 @@ daemon.
 .Dq Li YES ,
 these are the flags to pass to the
 .Xr sendmail 8
+.It Va precious_machine
+If set to
+.Dq Li YES ,
+some destructive actions require removal of the action-specific safe-belts
+before being allowed.
+For instance, the file
+.Pa /var/run/noshutdown
+is created to prevent
+.Xr shutdown 8
+targeted at the wrong machine.
 .El
 .Sh FILES
 .Bl -tag -width "/etc/defaults/rc.conf" -compact
