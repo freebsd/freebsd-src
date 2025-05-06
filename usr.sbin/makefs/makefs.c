@@ -470,7 +470,7 @@ get_tstamp(const char *b, struct stat *st)
 	}
 
 	st->st_ino = 1;
-#ifdef HAVE_STRUCT_STAT_BIRTHTIME
+#if HAVE_STRUCT_STAT_BIRTHTIME
 	st->st_birthtime =
 #endif
 	st->st_mtime = st->st_ctime = st->st_atime = when;
