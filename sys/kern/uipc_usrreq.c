@@ -2436,8 +2436,11 @@ uipc_sendfile(struct socket *so, int flags, struct mbuf *m,
 			sb->sb_acc += mc.mc_len;
 			wakeup = true;
 		}
-	} else
+	} else {
+		STAILQ_FOREACH(m, &mc.mc_q, m_stailq)
+			m->m_flags |= M_BLOCKED;
 		wakeup = false;
+	}
 	STAILQ_CONCAT(&sb->uxst_mbq, &mc.mc_q);
 	UIPC_STREAM_SBCHECK(sb);
 	if (wakeup)
