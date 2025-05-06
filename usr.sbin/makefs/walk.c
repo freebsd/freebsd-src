@@ -530,14 +530,12 @@ apply_specentry(const char *dir, NODE *specnode, fsnode *dirnode)
 		    dirnode->inode->st.st_uid, specnode->st_uid);
 		dirnode->inode->st.st_uid = specnode->st_uid;
 	}
-#if HAVE_STRUCT_STAT_ST_FLAGS
 	if (specnode->flags & F_FLAGS) {
 		ASEPRINT("flags", "%#lX",
-		    (unsigned long)dirnode->inode->st.st_flags,
+		    (unsigned long)FSINODE_ST_FLAGS(*dirnode->inode),
 		    (unsigned long)specnode->st_flags);
-		dirnode->inode->st.st_flags = specnode->st_flags;
+		FSINODE_ST_FLAGS(*dirnode->inode) = specnode->st_flags;
 	}
-#endif
 /*	if (specnode->flags & F_DEV) {
 		ASEPRINT("rdev", "%#llx",
 		    (unsigned long long)dirnode->inode->st.st_rdev,

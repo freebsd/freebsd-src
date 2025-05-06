@@ -212,8 +212,8 @@ CFLAGS.closefrom.c+=	-DSTDC_HEADERS -DHAVE_SYS_DIR_H -DHAVE_DIRENT_H \
 	-DHAVE_DIRFD -DHAVE_SYSCONF
 # Provide getprogname/setprograme
 SRCS+=	progname.c
-# Stub implementations of fflagstostr/strtofflags
-SRCS+=	fflags.c
+# Provide fflagstostr/strtofflags for mtree and makefs
+SRCS+=	strtofflags.c
 
 # macOS has a standalone cross-build implementation, but Linux can use the same
 # ELF one as FreeBSD
