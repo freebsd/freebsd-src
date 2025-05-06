@@ -12,7 +12,8 @@ export ROOTDIR="$PWD/dvd"
 export PKGCMD="/usr/sbin/pkg -d --rootdir ${ROOTDIR}"
 export PORTSDIR="${PORTSDIR:-/usr/ports}"
 
-_DVD_PACKAGES="devel/git@lite
+_DVD_PACKAGES="
+devel/git@lite
 misc/freebsd-doc-all
 net/mpd5
 net/rsync
@@ -30,7 +31,8 @@ x11/gnome
 x11/kde
 x11/sddm
 x11/xorg
-x11-wm/sway"
+x11-wm/sway
+"
 
 # If NOPORTS is set for the release, do not attempt to build pkg(8).
 if [ ! -f ${PORTSDIR}/Makefile ]; then
