@@ -34,6 +34,8 @@
 #ifndef _NET_IF_DL_H_
 #define _NET_IF_DL_H_
 
+#include <sys/_types.h>
+
 /*
  * A Link-Level Sockaddr may specify the interface in one of two
  * ways: either by means of a system-provided index number (computed
@@ -67,8 +69,8 @@ struct sockaddr_dl {
 				   contains both if name and ll address */
 };
 
-#define LLADDR(s) ((caddr_t)((s)->sdl_data + (s)->sdl_nlen))
-#define CLLADDR(s) ((c_caddr_t)((s)->sdl_data + (s)->sdl_nlen))
+#define LLADDR(s) (&(s)->sdl_data[(s)->sdl_nlen])
+#define CLLADDR(s) ((const char *)LLADDR(s))
 #define LLINDEX(s) ((s)->sdl_index)
 
 #ifdef _KERNEL
