@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <atf-c.h>
@@ -32,6 +33,7 @@ mailx_sigint(bool interactive)
 	char ebuf[1024] = "";
 	struct pollfd fds[2];
 	int ipd[2], opd[2], epd[2], spd[2];
+	time_t start, now;
 	size_t olen = 0, elen = 0;
 	ssize_t rlen;
 	pid_t pid;
@@ -86,24 +88,27 @@ mailx_sigint(bool interactive)
 	fds[0].events = POLLIN;
 	fds[1].fd = epd[0];
 	fds[1].events = POLLIN;
+	time(&start);
 	for (;;) {
-		if (poll(fds, 2, 1000) < 0)
-			atf_tc_fail("failed to poll");
+		ATF_REQUIRE(poll(fds, 2, 1000) >= 0);
 		if (fds[0].revents == POLLIN && olen < sizeof(obuf)) {
 			rlen = read(opd[0], obuf + olen, sizeof(obuf) - olen - 1);
-			if (rlen < 0)
-				atf_tc_fail("failed to read");
+			ATF_REQUIRE(rlen >= 0);
 			olen += rlen;
 		}
 		if (fds[1].revents == POLLIN && elen < sizeof(ebuf)) {
 			rlen = read(epd[0], ebuf + elen, sizeof(ebuf) - elen - 1);
-			if (rlen < 0)
-				atf_tc_fail("failed to read");
+			ATF_REQUIRE(rlen >= 0);
 			elen += rlen;
 		}
-		if (elen > 0 && kc == 1) {
-			kill(pid, SIGINT);
+		time(&now);
+		if (now - start > 1 && elen > 0 && kc == 1) {
+			ATF_CHECK_INTEQ(0, kill(pid, SIGINT));
 			kc++;
+		}
+		if (now - start > 15 && kc > 0) {
+			(void)kill(pid, SIGKILL);
+			kc = -1;
 		}
 		if (waitpid(pid, &status, WNOHANG) == pid)
 			break;
@@ -114,14 +119,16 @@ mailx_sigint(bool interactive)
 	close(spd[0]);
 	if (interactive) {
 		ATF_CHECK(WIFEXITED(status));
-		ATF_CHECK_INTEQ(1, WEXITSTATUS(status));
+		if (WIFEXITED(status))
+			ATF_CHECK_INTEQ(1, WEXITSTATUS(status));
 		ATF_CHECK_INTEQ(2, kc);
 		ATF_CHECK_STREQ("", obuf);
 		ATF_CHECK_MATCH("Interrupt -- one more to kill letter", ebuf);
 		atf_utils_compare_file("dead.letter", BODY);
 	} else {
 		ATF_CHECK(WIFSIGNALED(status));
-		ATF_CHECK_INTEQ(SIGINT, WTERMSIG(status));
+		if (WIFSIGNALED(status))
+			ATF_CHECK_INTEQ(SIGINT, WTERMSIG(status));
 		ATF_CHECK_INTEQ(1, kc);
 		ATF_CHECK_STREQ("", obuf);
 		ATF_CHECK_STREQ("", ebuf);
