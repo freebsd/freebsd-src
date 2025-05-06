@@ -243,6 +243,7 @@ mcommphy_yt8531_speed_adjustment(struct mii_softc *sc)
 	PHY_WRITE(sc, EXT_REG_ADDR, oldaddr);
 }
 
+#ifdef FDT
 static int
 mcommphy_yt8531_setup_delay(struct mii_softc *sc)
 {
@@ -285,6 +286,7 @@ mcommphy_yt8531_setup_delay(struct mii_softc *sc)
 
 	return (0);
 }
+#endif
 
 static int
 mcommphy_yt8531_setup(struct mii_softc *sc)
