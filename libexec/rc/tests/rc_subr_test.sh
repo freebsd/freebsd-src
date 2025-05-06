@@ -59,9 +59,9 @@ oomprotect_all_body()
 	atf_check -s exit:0 -o inline:"Starting ${__name}.\n" -e empty \
 		/bin/sh "$__script" "$__name" "$__pidfile" "$__childpidfile" onestart
 	atf_check -s exit:0 -o match:'^..1..... .......1$' -e empty \
-		ps -p "$(cat "$__pidfile")" -ax -o flags,flags2
+		ps -p "$(cat "$__pidfile")" -o flags,flags2
 	atf_check -s exit:0 -o match:'^..1..... .......1$' -e empty \
-		ps -p "$(cat "$__childpidfile")" -ax -o flags,flags2
+		ps -p "$(cat "$__childpidfile")" -o flags,flags2
 	atf_check -s exit:0 -o ignore -e empty \
 		/bin/sh "$__script" "$__name" "$__pidfile" "$__childpidfile" onestop
 }
