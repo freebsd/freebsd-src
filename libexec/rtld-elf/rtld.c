@@ -496,7 +496,7 @@ rtld_trunc_page(uintptr_t x)
 func_ptr_type
 _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 {
-	Elf_Auxinfo *aux, *auxp, *auxpf, *aux_info[AT_COUNT];
+	Elf_Auxinfo *aux, *auxp, *auxpf, *aux_info[AT_COUNT], auxtmp;
 	Objlist_Entry *entry;
 	Obj_Entry *last_interposer, *obj, *preload_tail;
 	const Elf_Phdr *phdr;
@@ -673,7 +673,12 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 				 * present
 				 */
 				for (;; auxp++, auxpf++) {
-					*auxp = *auxpf;
+					/*
+					 * NB: Use a temporary since *auxpf and
+					 * *auxp overlap if rtld_argc is 1
+					 */
+					auxtmp = *auxpf;
+					*auxp = auxtmp;
 					if (auxp->a_type == AT_NULL)
 						break;
 				}
