@@ -4213,10 +4213,9 @@ unp_dispose(struct socket *so)
 			while (m != NULL && m->m_flags & M_NOTREADY)
 				m = m->m_next;
 			for (prev = n = m; n != NULL; n = n->m_next) {
-				if (n->m_flags & M_NOTREADY) {
-					n = n->m_next;
-					prev->m_next = n;
-				} else
+				if (n->m_flags & M_NOTREADY)
+					prev->m_next = n->m_next;
+				else
 					prev = n;
 			}
 			sb->uxst_fnrdy = NULL;
