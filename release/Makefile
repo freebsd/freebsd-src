@@ -321,13 +321,9 @@ packagesystem: ${DISTRIBUTIONS}
 	touch ${.TARGET}
 
 pkg-stage: dvd
-# TODO: Support for -DNO_ROOT
 .if !defined(NOPKG) || empty(NOPKG)
-.if defined(NO_ROOT)
-.warning pkg-stage does not yet support NO_ROOT.
-.endif
 	env PORTSDIR=${PORTSDIR} REPOS_DIR=${.CURDIR}/pkg_repos/ \
-		sh ${.CURDIR}/scripts/pkg-stage.sh
+		sh ${.CURDIR}/scripts/pkg-stage.sh ${NO_ROOT:D-N}
 	mkdir -p ${.OBJDIR}/dvd/packages/repos/
 	cp ${.CURDIR}/scripts/FreeBSD_install_cdrom.conf \
 		${.OBJDIR}/dvd/packages/repos/
