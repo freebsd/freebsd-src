@@ -4269,7 +4269,7 @@ rtld_fill_dl_phdr_info(const Obj_Entry *obj, struct dl_phdr_info *phdr_info)
 	phdr_info->dlpi_tls_modid = obj->tlsindex;
 	dtvp = &_tcb_get()->tcb_dtv;
 	phdr_info->dlpi_tls_data = (char *)tls_get_addr_slow(dtvp,
-	    obj->tlsindex, 0, true) + TLS_DTV_OFFSET;
+	    obj->tlsindex, 0, true);
 	phdr_info->dlpi_adds = obj_loads;
 	phdr_info->dlpi_subs = obj_loads - obj_count;
 }
