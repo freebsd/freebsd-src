@@ -4082,7 +4082,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	    sym = rtld_resolve_ifunc(defobj, def);
 	else if (ELF_ST_TYPE(def->st_info) == STT_TLS) {
 	    ti.ti_module = defobj->tlsindex;
-	    ti.ti_offset = def->st_value;
+	    ti.ti_offset = def->st_value - TLS_DTV_OFFSET;
 	    sym = __tls_get_addr(&ti);
 	} else
 	    sym = defobj->relocbase + def->st_value;
