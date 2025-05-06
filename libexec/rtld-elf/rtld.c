@@ -777,7 +777,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      */
     if (fd != -1) {	/* Load the main program. */
 	dbg("loading main program");
-	obj_main = map_object(fd, argv0, NULL);
+	obj_main = map_object(fd, argv0, NULL, true);
 	close(fd);
 	if (obj_main == NULL)
 	    rtld_die();
@@ -2891,7 +2891,7 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp,
     }
 
     dbg("loading \"%s\"", printable_path(path));
-    obj = map_object(fd, printable_path(path), sbp);
+    obj = map_object(fd, printable_path(path), sbp, false);
     if (obj == NULL)
         return (NULL);
 
