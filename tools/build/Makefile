@@ -212,8 +212,11 @@ CFLAGS.closefrom.c+=	-DSTDC_HEADERS -DHAVE_SYS_DIR_H -DHAVE_DIRENT_H \
 	-DHAVE_DIRFD -DHAVE_SYSCONF
 # Provide getprogname/setprograme
 SRCS+=	progname.c
-# Stub implementations of fflagstostr/strtofflags
-SRCS+=	fflags.c
+# Provide fflagstostr/strtofflags for mtree and makefs
+# On macOS we use the host's so conflate host and target flags, which ideally
+# we'd avoid, but in practice these align for many flags, including
+# SF_IMMUTABLE, the only flag we currently set during install.
+SRCS+=	strtofflags.c
 
 # macOS has a standalone cross-build implementation, but Linux can use the same
 # ELF one as FreeBSD
