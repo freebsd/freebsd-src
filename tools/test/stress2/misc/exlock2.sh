@@ -153,7 +153,7 @@ out:
 	}
 #if defined(DEBUG)
 	if (e != 0) {
-		system("ps -Uroot | grep -v grep | grep  /tmp/exlock2 | "\
+		system("ps | grep -v grep | grep  /tmp/exlock2 | "\
 		    "awk '{print $1}' | xargs procstat -f");
 	}
 #endif
