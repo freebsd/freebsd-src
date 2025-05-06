@@ -30,9 +30,10 @@
  */
 
 typedef struct {
-	char	*p_end;			/* pointer to NULL at end of path */
-	char	*target_end;		/* pointer to end of target base */
-	char	p_path[PATH_MAX];	/* pointer to the start of a path */
+	int		 dir;		/* base directory handle */
+	char		*end;		/* pointer to NUL at end of path */
+	char		 base[PATH_MAX];	/* base directory path */
+	char		 path[PATH_MAX];	/* target path */
 } PATH_T;
 
 extern PATH_T to;
@@ -40,12 +41,24 @@ extern int Nflag, fflag, iflag, lflag, nflag, pflag, sflag, vflag;
 extern volatile sig_atomic_t info;
 
 __BEGIN_DECLS
-int	copy_fifo(struct stat *, int);
-int	copy_file(const FTSENT *, int);
-int	copy_link(const FTSENT *, int);
-int	copy_special(struct stat *, int);
-int	setfile(struct stat *, int);
-int	preserve_dir_acls(struct stat *, char *, char *);
+int	copy_fifo(struct stat *, bool, bool);
+int	copy_file(const FTSENT *, bool, bool);
+int	copy_link(const FTSENT *, bool, bool);
+int	copy_special(struct stat *, bool, bool);
+int	setfile(struct stat *, int, bool);
+int	preserve_dir_acls(const char *, const char *);
 int	preserve_fd_acls(int, int);
 void	usage(void) __dead2;
 __END_DECLS
+
+/*
+ * The FreeBSD and Darwin kernels return ENOTCAPABLE when a path lookup
+ * violates a RESOLVE_BENEATH constraint.  This results in confusing error
+ * messages, so translate it to the more widely recognized EACCES.
+ */
+#ifdef ENOTCAPABLE
+#define warn(...)							\
+	warnc(errno == ENOTCAPABLE ? EACCES : errno, __VA_ARGS__)
+#define err(rv, ...)							\
+	errc(rv, errno == ENOTCAPABLE ? EACCES : errno, __VA_ARGS__)
+#endif
