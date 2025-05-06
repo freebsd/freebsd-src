@@ -396,7 +396,7 @@ SNL_DECLARE_PARSER(getstatus_parser, struct genlmsghdr, snl_f_p_empty, ap_getsta
 #undef _OUT
 
 struct pfctl_status *
-pfctl_get_status_h(struct pfctl_handle *h __unused)
+pfctl_get_status_h(struct pfctl_handle *h)
 {
 	struct pfctl_status	*status;
 	struct snl_errmsg_data e = {};
