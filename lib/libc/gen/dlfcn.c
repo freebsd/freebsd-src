@@ -226,7 +226,7 @@ dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *) __unused,
 		return (1);
 	_once(&dl_phdr_info_once, dl_init_phdr_info);
 	ti.ti_module = 1;
-	ti.ti_offset = 0;
+	ti.ti_offset = -TLS_DTV_OFFSET;
 	mutex_lock(&dl_phdr_info_lock);
 	phdr_info.dlpi_tls_data = __tls_get_addr(&ti);
 	ret = callback(&phdr_info, sizeof(phdr_info), data);
