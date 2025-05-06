@@ -21,15 +21,17 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/stddef.h>
+
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 
-#include <vector>
-#include <span>
 #include <format>
-#include <utility>
 #include <ranges>
+#include <span>
+#include <utility>
+#include <vector>
+
+#include <cstddef>
 #include <cstdint>
 
 #include <atf-c++.hpp>
