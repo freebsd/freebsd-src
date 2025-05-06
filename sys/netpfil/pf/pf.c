@@ -9774,13 +9774,14 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 	struct ip6_ext		 ext;
 	struct ip6_rthdr	 rthdr;
 	uint32_t		 end;
-	int			 fraghdr_cnt = 0, rthdr_cnt = 0;
+	int			 hdr_cnt = 0, fraghdr_cnt = 0, rthdr_cnt = 0;
 
 	pd->off += sizeof(struct ip6_hdr);
 	end = pd->off + ntohs(h->ip6_plen);
 	pd->fragoff = pd->extoff = pd->jumbolen = 0;
 	pd->proto = h->ip6_nxt;
 	for (;;) {
+		hdr_cnt++;
 		switch (pd->proto) {
 		case IPPROTO_FRAGMENT:
 			if (fraghdr_cnt++) {
@@ -9833,8 +9834,15 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 				return (PF_DROP);
 			}
 			/* FALLTHROUGH */
-		case IPPROTO_AH:
 		case IPPROTO_HOPOPTS:
+			/* RFC2460 4.1:  Hop-by-Hop only after IPv6 header */
+			if (pd->proto == IPPROTO_HOPOPTS && hdr_cnt > 1) {
+				DPFPRINTF(PF_DEBUG_MISC, ("IPv6 hopopts not first"));
+				REASON_SET(reason, PFRES_IPOPTIONS);
+				return (PF_DROP);
+			}
+			/* FALLTHROUGH */
+		case IPPROTO_AH:
 		case IPPROTO_DSTOPTS:
 			if (!pf_pull_hdr(pd->m, pd->off, &ext, sizeof(ext),
 			    NULL, reason, AF_INET6)) {
