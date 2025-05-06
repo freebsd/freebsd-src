@@ -735,10 +735,8 @@ void*
 __tls_get_addr(tls_index* ti)
 {
 	uintptr_t **dtvp;
-	char *p;
 
 	dtvp = &_tcb_get()->tcb_dtv;
-	p = tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset);
-
-	return (p + TLS_DTV_OFFSET);
+	return (tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset +
+	    TLS_DTV_OFFSET));
 }
