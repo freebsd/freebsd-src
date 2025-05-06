@@ -533,13 +533,11 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 					break;
 				}
 				flset = flclr = 0;
-#if HAVE_STRUCT_STAT_ST_FLAGS
 				if (!strtofflags(&value, &flset, &flclr)) {
-					st->st_flags &= ~flclr;
-					st->st_flags |= flset;
+					FSINODE_ST_FLAGS(*node->inode) &= ~flclr;
+					FSINODE_ST_FLAGS(*node->inode) |= flset;
 				} else
 					error = errno;
-#endif
 			} else
 				error = ENOSYS;
 			break;

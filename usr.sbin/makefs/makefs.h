@@ -40,6 +40,12 @@
 #ifndef	_MAKEFS_H
 #define	_MAKEFS_H
 
+#if HAVE_NBTOOL_CONFIG_H
+#include "nbtool_config.h"
+#else
+#define	HAVE_STRUCT_STAT_ST_FLAGS	1
+#endif
+
 #include <sys/stat.h>
 #include <err.h>
 
@@ -85,7 +91,16 @@ typedef struct {
 	enum fi_flags	 flags;		/* flags used by fs specific code */
 	void		*param;		/* for use by individual fs impls */
 	struct stat	 st;		/* stat entry */
+#if !HAVE_STRUCT_STAT_ST_FLAGS
+	uint32_t	 st_flags;	/* stand-in for st.st_flags */
+#endif
 } fsinode;
+
+#if HAVE_STRUCT_STAT_ST_FLAGS
+#define	FSINODE_ST_FLAGS(inode)	(inode).st.st_flags
+#else
+#define	FSINODE_ST_FLAGS(inode)	(inode).st_flags
+#endif
 
 typedef struct _fsnode {
 	struct _fsnode	*parent;	/* parent (NULL if root) */
