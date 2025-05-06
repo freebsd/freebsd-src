@@ -151,7 +151,8 @@ libc_free_aligned(void *ptr)
  *   where TP points (with bias) to TLS and TCB immediately precedes TLS without
  *   any alignment gap[4]. Only TLS should be aligned.  The TCB[0] points to DTV
  *   vector and DTV values are biased by constant value (TLS_DTV_OFFSET) from
- *   real addresses[5].
+ *   real addresses. However, like RTLD, we don't actually bias the DTV values,
+ *   instead we compensate in __tls_get_addr for ti_offset's bias.
  *
  * [1] Ulrich Drepper: ELF Handling for Thread-Local Storage
  *     www.akkadia.org/drepper/tls.pdf
@@ -167,8 +168,6 @@ libc_free_aligned(void *ptr)
  *     but we must follow this rule due to suboptimal _tcb_set()
  *     (aka <ARCH>_SET_TP) implementation. This function doesn't expect TP but
  *     TCB as argument.
- *
- * [5] I'm not able to validate "values are biased" assertions.
  */
 
 /*
@@ -272,7 +271,7 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 
 		/* Adjust the DTV. */
 		dtv = tcb[0];
-		dtv[2] = (Elf_Addr)(tls + TLS_DTV_OFFSET);
+		dtv[2] = (Elf_Addr)tls;
 	} else {
 		dtv = __je_bootstrap_malloc(3 * sizeof(Elf_Addr));
 		if (dtv == NULL) {
@@ -283,7 +282,7 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 		tcb[0] = dtv;
 		dtv[0] = 1;		/* Generation. */
 		dtv[1] = 1;		/* Segments count. */
-		dtv[2] = (Elf_Addr)(tls + TLS_DTV_OFFSET);
+		dtv[2] = (Elf_Addr)tls;
 
 		if (libc_tls_init_size > 0)
 			memcpy(tls, libc_tls_init, libc_tls_init_size);
