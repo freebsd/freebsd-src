@@ -273,14 +273,14 @@ struct {								\
 	    "slist %p is empty", (head))
 
 #define SLIST_CONCAT(head1, head2, type, field) do {			\
-	QUEUE_TYPEOF(type) *curelm = SLIST_FIRST(head1);		\
-	if (curelm == NULL) {						\
+	QUEUE_TYPEOF(type) *_Curelm = SLIST_FIRST(head1);		\
+	if (_Curelm == NULL) {						\
 		if ((SLIST_FIRST(head1) = SLIST_FIRST(head2)) != NULL)	\
 			SLIST_INIT(head2);				\
 	} else if (SLIST_FIRST(head2) != NULL) {			\
-		while (SLIST_NEXT(curelm, field) != NULL)		\
-			curelm = SLIST_NEXT(curelm, field);		\
-		SLIST_NEXT(curelm, field) = SLIST_FIRST(head2);		\
+		while (SLIST_NEXT(_Curelm, field) != NULL)		\
+			_Curelm = SLIST_NEXT(_Curelm, field);		\
+		SLIST_NEXT(_Curelm, field) = SLIST_FIRST(head2);	\
 		SLIST_INIT(head2);					\
 	}								\
 } while (0)
@@ -338,24 +338,24 @@ struct {								\
 		SLIST_REMOVE_HEAD((head), field);			\
 	}								\
 	else {								\
-		QUEUE_TYPEOF(type) *curelm = SLIST_FIRST(head);		\
-		while (SLIST_NEXT(curelm, field) != (elm))		\
-			curelm = SLIST_NEXT(curelm, field);		\
-		SLIST_REMOVE_AFTER(curelm, field);			\
+		QUEUE_TYPEOF(type) *_Curelm = SLIST_FIRST(head);		\
+		while (SLIST_NEXT(_Curelm, field) != (elm))		\
+			_Curelm = SLIST_NEXT(_Curelm, field);		\
+		SLIST_REMOVE_AFTER(_Curelm, field);			\
 	}								\
 } while (0)
 
 #define SLIST_REMOVE_AFTER(elm, field) do {				\
-	QMD_SAVELINK(oldnext, SLIST_NEXT(elm, field)->field.sle_next);	\
+	QMD_SAVELINK(_Oldnext, SLIST_NEXT(elm, field)->field.sle_next);	\
 	SLIST_NEXT(elm, field) =					\
 	    SLIST_NEXT(SLIST_NEXT(elm, field), field);			\
-	TRASHIT(*oldnext);						\
+	TRASHIT(*_Oldnext);						\
 } while (0)
 
 #define SLIST_REMOVE_HEAD(head, field) do {				\
-	QMD_SAVELINK(oldnext, SLIST_FIRST(head)->field.sle_next);	\
+	QMD_SAVELINK(_Oldnext, SLIST_FIRST(head)->field.sle_next);	\
 	SLIST_FIRST((head)) = SLIST_NEXT(SLIST_FIRST((head)), field);	\
-	TRASHIT(*oldnext);						\
+	TRASHIT(*_Oldnext);						\
 } while (0)
 
 #define SLIST_REMOVE_PREVPTR(prevp, elm, field) do {			\
@@ -371,9 +371,9 @@ struct {								\
 } while (0)
 
 #define SLIST_SWAP(head1, head2, type) do {				\
-	QUEUE_TYPEOF(type) *swap_first = SLIST_FIRST(head1);		\
+	QUEUE_TYPEOF(type) *_Swap_first = SLIST_FIRST(head1);		\
 	SLIST_FIRST(head1) = SLIST_FIRST(head2);			\
-	SLIST_FIRST(head2) = swap_first;				\
+	SLIST_FIRST(head2) = _Swap_first;				\
 } while (0)
 
 #define SLIST_END(head)		NULL
@@ -512,17 +512,17 @@ struct {								\
 #define STAILQ_NEXT(elm, field)	((elm)->field.stqe_next)
 
 #define STAILQ_REMOVE(head, elm, type, field) do {			\
-	QMD_SAVELINK(oldnext, (elm)->field.stqe_next);			\
+	QMD_SAVELINK(_Oldnext, (elm)->field.stqe_next);			\
 	if (STAILQ_FIRST((head)) == (elm)) {				\
 		STAILQ_REMOVE_HEAD((head), field);			\
 	}								\
 	else {								\
-		QUEUE_TYPEOF(type) *curelm = STAILQ_FIRST(head);	\
-		while (STAILQ_NEXT(curelm, field) != (elm))		\
-			curelm = STAILQ_NEXT(curelm, field);		\
-		STAILQ_REMOVE_AFTER(head, curelm, field);		\
+		QUEUE_TYPEOF(type) *_Curelm = STAILQ_FIRST(head);	\
+		while (STAILQ_NEXT(_Curelm, field) != (elm))		\
+			_Curelm = STAILQ_NEXT(_Curelm, field);		\
+		STAILQ_REMOVE_AFTER(head, _Curelm, field);		\
 	}								\
-	TRASHIT(*oldnext);						\
+	TRASHIT(*_Oldnext);						\
 } while (0)
 
 #define STAILQ_REMOVE_AFTER(head, elm, field) do {			\
@@ -552,12 +552,12 @@ struct {								\
 } while (0)
 
 #define STAILQ_SWAP(head1, head2, type) do {				\
-	QUEUE_TYPEOF(type) *swap_first = STAILQ_FIRST(head1);		\
-	QUEUE_TYPEOF(type) **swap_last = (head1)->stqh_last;		\
+	QUEUE_TYPEOF(type) *_Swap_first = STAILQ_FIRST(head1);		\
+	QUEUE_TYPEOF(type) **_Swap_last = (head1)->stqh_last;		\
 	STAILQ_FIRST(head1) = STAILQ_FIRST(head2);			\
 	(head1)->stqh_last = (head2)->stqh_last;			\
-	STAILQ_FIRST(head2) = swap_first;				\
-	(head2)->stqh_last = swap_last;					\
+	STAILQ_FIRST(head2) = _Swap_first;				\
+	(head2)->stqh_last = _Swap_last;					\
 	if (STAILQ_FIRST(head1) == NULL)				\
 		(head1)->stqh_last = &STAILQ_FIRST(head1);		\
 	if (STAILQ_FIRST(head2) == NULL)				\
@@ -658,18 +658,18 @@ struct {								\
 	    "list %p is empty", (head))
 
 #define LIST_CONCAT(head1, head2, type, field) do {			\
-	QUEUE_TYPEOF(type) *curelm = LIST_FIRST(head1);			\
-	if (curelm == NULL) {						\
+	QUEUE_TYPEOF(type) *_Curelm = LIST_FIRST(head1);			\
+	if (_Curelm == NULL) {						\
 		if ((LIST_FIRST(head1) = LIST_FIRST(head2)) != NULL) {	\
 			LIST_FIRST(head2)->field.le_prev =		\
 			    &LIST_FIRST((head1));			\
 			LIST_INIT(head2);				\
 		}							\
 	} else if (LIST_FIRST(head2) != NULL) {				\
-		while (LIST_NEXT(curelm, field) != NULL)		\
-			curelm = LIST_NEXT(curelm, field);		\
-		LIST_NEXT(curelm, field) = LIST_FIRST(head2);		\
-		LIST_FIRST(head2)->field.le_prev = &LIST_NEXT(curelm, field);\
+		while (LIST_NEXT(_Curelm, field) != NULL)		\
+			_Curelm = LIST_NEXT(_Curelm, field);		\
+		LIST_NEXT(_Curelm, field) = LIST_FIRST(head2);		\
+		LIST_FIRST(head2)->field.le_prev = &LIST_NEXT(_Curelm, field);\
 		LIST_INIT(head2);					\
 	}								\
 } while (0)
@@ -741,21 +741,21 @@ struct {								\
 	LIST_REMOVE(LIST_FIRST(head), field)
 
 #define LIST_REMOVE(elm, field) do {					\
-	QMD_SAVELINK(oldnext, (elm)->field.le_next);			\
-	QMD_SAVELINK(oldprev, (elm)->field.le_prev);			\
+	QMD_SAVELINK(_Oldnext, (elm)->field.le_next);			\
+	QMD_SAVELINK(_Oldprev, (elm)->field.le_prev);			\
 	QMD_LIST_CHECK_NEXT(elm, field);				\
 	QMD_LIST_CHECK_PREV(elm, field);				\
 	if (LIST_NEXT((elm), field) != NULL)				\
 		LIST_NEXT((elm), field)->field.le_prev =		\
 		    (elm)->field.le_prev;				\
 	*(elm)->field.le_prev = LIST_NEXT((elm), field);		\
-	TRASHIT(*oldnext);						\
-	TRASHIT(*oldprev);						\
+	TRASHIT(*_Oldnext);						\
+	TRASHIT(*_Oldprev);						\
 } while (0)
 
 #define LIST_REPLACE(elm, elm2, field) do {				\
-	QMD_SAVELINK(oldnext, (elm)->field.le_next);			\
-	QMD_SAVELINK(oldprev, (elm)->field.le_prev);			\
+	QMD_SAVELINK(_Oldnext, (elm)->field.le_next);			\
+	QMD_SAVELINK(_Oldprev, (elm)->field.le_prev);			\
 	QMD_LIST_CHECK_NEXT(elm, field);				\
 	QMD_LIST_CHECK_PREV(elm, field);				\
 	LIST_NEXT((elm2), field) = LIST_NEXT((elm), field);		\
@@ -764,8 +764,8 @@ struct {								\
 		    &(elm2)->field.le_next;				\
 	(elm2)->field.le_prev = (elm)->field.le_prev;			\
 	*(elm2)->field.le_prev = (elm2);				\
-	TRASHIT(*oldnext);						\
-	TRASHIT(*oldprev);						\
+	TRASHIT(*_Oldnext);						\
+	TRASHIT(*_Oldprev);						\
 } while (0)
 
 #define LIST_SPLIT_AFTER(head, elm, rest, field) do {			\
@@ -1022,8 +1022,8 @@ struct {								\
 	TAILQ_REMOVE(head, TAILQ_FIRST(head), field)
 
 #define TAILQ_REMOVE(head, elm, field) do {				\
-	QMD_SAVELINK(oldnext, (elm)->field.tqe_next);			\
-	QMD_SAVELINK(oldprev, (elm)->field.tqe_prev);			\
+	QMD_SAVELINK(_Oldnext, (elm)->field.tqe_next);			\
+	QMD_SAVELINK(_Oldprev, (elm)->field.tqe_prev);			\
 	QMD_TAILQ_CHECK_NEXT(elm, field);				\
 	QMD_TAILQ_CHECK_PREV(elm, field);				\
 	if ((TAILQ_NEXT((elm), field)) != NULL)				\
@@ -1034,14 +1034,14 @@ struct {								\
 		QMD_TRACE_HEAD(head);					\
 	}								\
 	*(elm)->field.tqe_prev = TAILQ_NEXT((elm), field);		\
-	TRASHIT(*oldnext);						\
-	TRASHIT(*oldprev);						\
+	TRASHIT(*_Oldnext);						\
+	TRASHIT(*_Oldprev);						\
 	QMD_TRACE_ELEM(&(elm)->field);					\
 } while (0)
 
 #define TAILQ_REPLACE(head, elm, elm2, field) do {			\
-	QMD_SAVELINK(oldnext, (elm)->field.tqe_next);			\
-	QMD_SAVELINK(oldprev, (elm)->field.tqe_prev);			\
+	QMD_SAVELINK(_Oldnext, (elm)->field.tqe_next);			\
+	QMD_SAVELINK(_Oldprev, (elm)->field.tqe_prev);			\
 	QMD_TAILQ_CHECK_NEXT(elm, field);				\
 	QMD_TAILQ_CHECK_PREV(elm, field);				\
 	TAILQ_NEXT((elm2), field) = TAILQ_NEXT((elm), field);		\
@@ -1052,8 +1052,8 @@ struct {								\
                 (head)->tqh_last = &(elm2)->field.tqe_next;		\
         (elm2)->field.tqe_prev = (elm)->field.tqe_prev;			\
         *(elm2)->field.tqe_prev = (elm2);				\
-	TRASHIT(*oldnext);						\
-	TRASHIT(*oldprev);						\
+	TRASHIT(*_Oldnext);						\
+	TRASHIT(*_Oldprev);						\
 	QMD_TRACE_ELEM(&(elm)->field);					\
 } while (0)
 
