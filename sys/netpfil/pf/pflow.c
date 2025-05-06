@@ -191,10 +191,10 @@ pflow_jail_remove(void *obj, void *data __unused)
 #ifdef VIMAGE
 	const struct prison *pr = obj;
 #endif
-	struct pflow_softc	*sc;
+	struct pflow_softc	*sc, *tmp;
 
 	CURVNET_SET(pr->pr_vnet);
-	CK_LIST_FOREACH(sc, &V_pflowif_list, sc_next) {
+	CK_LIST_FOREACH_SAFE(sc, &V_pflowif_list, sc_next, tmp) {
 		pflow_destroy(sc->sc_id, false);
 	}
 	CURVNET_RESTORE();
