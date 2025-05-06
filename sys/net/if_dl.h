@@ -68,12 +68,14 @@ struct sockaddr_dl {
 #define LLADDR(s) ((caddr_t)((s)->sdl_data + (s)->sdl_nlen))
 #define LLINDEX(s) ((s)->sdl_index)
 
+#ifdef _KERNEL
+
 struct ifnet;
 struct sockaddr_dl *link_alloc_sdl(size_t, int);
 void link_free_sdl(struct sockaddr *sa);
 struct sockaddr_dl *link_init_sdl(struct ifnet *, struct sockaddr *, u_char);
 
-#ifndef _KERNEL
+#else /* !_KERNEL */
 
 #include <sys/cdefs.h>
 
