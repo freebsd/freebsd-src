@@ -174,7 +174,7 @@ cd /
 for dir in /etc/rc.d $local_startup; do
 	if [ -x "$dir/$script" ]; then
 		[ -n "$VERBOSE" ] && echo "$script is located in $dir"
-		exec env -i -L -/daemon HOME=/ PATH=/sbin:/bin:/usr/sbin:/usr/bin ${VARS} "$dir/$script" "$@"
+		exec /usr/bin/env -i -L -/daemon HOME=/ PATH=/sbin:/bin:/usr/sbin:/usr/bin ${VARS} "$dir/$script" "$@"
 	fi
 done
 
