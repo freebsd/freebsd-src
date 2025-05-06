@@ -171,8 +171,7 @@ static void vm_page_enqueue(vm_page_t m, uint8_t queue);
 static bool vm_page_free_prep(vm_page_t m);
 static void vm_page_free_toq(vm_page_t m);
 static void vm_page_init(void *dummy);
-static void vm_page_insert_radixdone(vm_page_t m, vm_object_t object,
-    vm_page_t mpred);
+static void vm_page_insert_radixdone(vm_page_t m, vm_object_t object);
 static void vm_page_mvqueue(vm_page_t m, const uint8_t queue,
     const uint16_t nflag);
 static int vm_page_reclaim_run(int req_class, int domain, u_long npages,
@@ -1470,11 +1469,11 @@ vm_page_dirty_KBI(vm_page_t m)
 }
 
 /*
- * Insert the given page into the given object at the given pindex.  mpred is
- * used for memq linkage.  From vm_page_insert, iter is false, mpred is
- * initially NULL, and this procedure looks it up.  From vm_page_iter_insert,
- * iter is true and mpred is known to the caller to be valid, and may be NULL if
- * this will be the page with the lowest pindex.
+ * Insert the given page into the given object at the given pindex.  From
+ * vm_page_insert, iter is false, mpred is initially NULL, and this procedure
+ * looks it up.  From vm_page_iter_insert, iter is true and mpred is known to
+ * the caller to be valid, and may be NULL if this will be the page with the
+ * lowest pindex.
  *
  * The procedure is marked __always_inline to suggest to the compiler to
  * eliminate the lookup parameter and the associated alternate branch.
@@ -1514,7 +1513,7 @@ vm_page_insert_lookup(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
 	/*
 	 * Now link into the object's ordered list of backed pages.
 	 */
-	vm_page_insert_radixdone(m, object, mpred);
+	vm_page_insert_radixdone(m, object);
 	vm_pager_page_inserted(object, m);
 	return (0);
 }
@@ -1563,7 +1562,7 @@ vm_page_iter_insert(struct pctrie_iter *pages, vm_page_t m, vm_object_t object,
  *	The object must be locked.
  */
 static void
-vm_page_insert_radixdone(vm_page_t m, vm_object_t object, vm_page_t mpred)
+vm_page_insert_radixdone(vm_page_t m, vm_object_t object)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
@@ -1571,24 +1570,6 @@ vm_page_insert_radixdone(vm_page_t m, vm_object_t object, vm_page_t mpred)
 	    ("vm_page_insert_radixdone: page %p has inconsistent object", m));
 	KASSERT((m->ref_count & VPRC_OBJREF) != 0,
 	    ("vm_page_insert_radixdone: page %p is missing object ref", m));
-	if (mpred != NULL) {
-		KASSERT(mpred->object == object,
-		    ("vm_page_insert_radixdone: object doesn't contain mpred"));
-		KASSERT(mpred->pindex < m->pindex,
-		    ("vm_page_insert_radixdone: mpred doesn't precede pindex"));
-		KASSERT(TAILQ_NEXT(mpred, listq) == NULL ||
-		    m->pindex < TAILQ_NEXT(mpred, listq)->pindex,
-		    ("vm_page_insert_radixdone: pindex doesn't precede msucc"));
-	} else {
-		KASSERT(TAILQ_EMPTY(&object->memq) ||
-		    m->pindex < TAILQ_FIRST(&object->memq)->pindex,
-		    ("vm_page_insert_radixdone: no mpred but not first page"));
-	}
-
-	if (mpred != NULL)
-		TAILQ_INSERT_AFTER(&object->memq, mpred, m, listq);
-	else
-		TAILQ_INSERT_HEAD(&object->memq, m, listq);
 
 	/*
 	 * Show that the object has one more resident page.
@@ -1635,11 +1616,6 @@ vm_page_remove_radixdone(vm_page_t m)
 
 	vm_pager_page_removed(object, m);
 	m->object = NULL;
-
-	/*
-	 * Now remove from the object's list of backed pages.
-	 */
-	TAILQ_REMOVE(&object->memq, m, listq);
 
 	/*
 	 * And show that the object has one fewer resident page.
@@ -1914,9 +1890,6 @@ vm_page_replace_hold(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex,
 	    (mnew->oflags & VPO_UNMANAGED),
 	    ("vm_page_replace: mismatched VPO_UNMANAGED"));
 
-	/* Keep the resident page list in sorted order. */
-	TAILQ_INSERT_AFTER(&object->memq, mold, mnew, listq);
-	TAILQ_REMOVE(&object->memq, mold, listq);
 	mold->object = NULL;
 
 	/*
@@ -1996,7 +1969,7 @@ vm_page_iter_rename(struct pctrie_iter *old_pages, vm_page_t m,
 	m->pindex = new_pindex;
 	m->object = new_object;
 
-	vm_page_insert_radixdone(m, new_object, mpred);
+	vm_page_insert_radixdone(m, new_object);
 	if (vm_page_any_valid(m))
 		vm_page_dirty(m);
 	vm_pager_page_inserted(new_object, m);
