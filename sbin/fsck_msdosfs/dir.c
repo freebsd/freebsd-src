@@ -769,7 +769,7 @@ readDosDirSection(struct fat_descriptor *fat, struct dosDirEntry *dir)
 				if (vallfn || invlfn) {
 					mod |= removede(fat,
 							invlfn ? invlfn : vallfn, p,
-							invlfn ? invcl : valcl, -1, 0,
+							invlfn ? invcl : valcl, cl, cl,
 							fullpath(dir), 2);
 					vallfn = NULL;
 					invlfn = NULL;
