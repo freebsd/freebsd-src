@@ -1496,6 +1496,7 @@ static	int		dacmdsizesysctl(SYSCTL_HANDLER_ARGS);
 static	int		dadeletemethodsysctl(SYSCTL_HANDLER_ARGS);
 static	int		dabitsysctl(SYSCTL_HANDLER_ARGS);
 static	int		daflagssysctl(SYSCTL_HANDLER_ARGS);
+static	int		daquirkssysctl(SYSCTL_HANDLER_ARGS);
 static	int		dazonemodesysctl(SYSCTL_HANDLER_ARGS);
 static	int		dazonesupsysctl(SYSCTL_HANDLER_ARGS);
 static	int		dadeletemaxsysctl(SYSCTL_HANDLER_ARGS);
@@ -2395,6 +2396,10 @@ dasysctlinit(void *context, int pending)
 	    softc, 0, daflagssysctl, "A",
 	    "Flags for drive");
 	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "quirks", CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    softc, 0, daquirkssysctl, "A",
+	    "Active quirks for drive");
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "rotating", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
 	    &softc->flags, (u_int)DA_FLAG_ROTATING, dabitsysctl, "I",
 	    "Rotating media *DEPRECATED* gone in FreeBSD 15");
@@ -2710,6 +2715,24 @@ daflagssysctl(SYSCTL_HANDLER_ARGS)
 	sbuf_new_for_sysctl(&sbuf, NULL, 0, req);
 	if (softc->flags != 0)
 		sbuf_printf(&sbuf, "0x%b", (unsigned)softc->flags, DA_FLAG_STRING);
+	else
+		sbuf_putc(&sbuf, '0');
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+
+	return (error);
+}
+
+static int
+daquirkssysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	struct da_softc *softc = arg1;
+	int error;
+
+	sbuf_new_for_sysctl(&sbuf, NULL, 0, req);
+	if (softc->quirks != 0)
+		sbuf_printf(&sbuf, "0x%b", (unsigned)softc->quirks, DA_Q_BIT_STRING);
 	else
 		sbuf_putc(&sbuf, '0');
 	error = sbuf_finish(&sbuf);
