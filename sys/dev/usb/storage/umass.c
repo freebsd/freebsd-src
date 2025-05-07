@@ -2682,28 +2682,6 @@ umass_scsi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 {
 	sc->sc_transfer.cmd_len = cmd_len;
 
-	switch (cmd_ptr[0]) {
-	case TEST_UNIT_READY:
-		if (sc->sc_quirks & NO_TEST_UNIT_READY) {
-			DPRINTF(sc, UDMASS_SCSI, "Converted TEST_UNIT_READY "
-			    "to START_UNIT\n");
-			memset(sc->sc_transfer.cmd_data, 0, cmd_len);
-			sc->sc_transfer.cmd_data[0] = START_STOP_UNIT;
-			sc->sc_transfer.cmd_data[4] = SSS_START;
-			return (true);
-		}
-		break;
-
-	case INQUIRY:
-		/*
-		 * some drives wedge when asked for full inquiry
-		 * information.
-		 */
-		if (sc->sc_quirks & FORCE_SHORT_INQUIRY) {
-			sc->sc_transfer.cmd_data[4] = SHORT_INQUIRY_LENGTH;
-		}
-		break;
-	}
 	return (true);
 }
 
@@ -2759,27 +2737,12 @@ umass_ufi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		 * should work. Copy the command into the (zeroed out)
 		 * destination buffer.
 		 */
-	case TEST_UNIT_READY:
-		if (sc->sc_quirks & NO_TEST_UNIT_READY) {
-			/*
-			 * Some devices do not support this command. Start
-			 * Stop Unit should give the same results
-			 */
-			DPRINTF(sc, UDMASS_UFI, "Converted TEST_UNIT_READY "
-			    "to START_UNIT\n");
-
-			/* Zero the command data */
-			memset(sc->sc_transfer.cmd_data, 0, UFI_COMMAND_LENGTH);
-			sc->sc_transfer.cmd_data[0] = START_STOP_UNIT;
-			sc->sc_transfer.cmd_data[4] = SSS_START;
-			return (1);
-		}
-		break;
 
 	case REZERO_UNIT:
 	case REQUEST_SENSE:
 	case FORMAT_UNIT:
 	case INQUIRY:
+	case TEST_UNIT_READY:
 	case START_STOP_UNIT:
 	case SEND_DIAGNOSTIC:
 	case PREVENT_ALLOW:
@@ -2828,30 +2791,11 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		 * should work. Copy the command into the destination
 		 * buffer.
 		 */
-	case INQUIRY:
-		/*
-		 * some drives wedge when asked for full inquiry
-		 * information, so adjust the transfer length
-		 */
-		if (sc->sc_quirks & FORCE_SHORT_INQUIRY) {
-			sc->sc_transfer.cmd_data[4] = SHORT_INQUIRY_LENGTH;
-		}
-		break;
-
-	case TEST_UNIT_READY:
-		if (sc->sc_quirks & NO_TEST_UNIT_READY) {
-			DPRINTF(sc, UDMASS_SCSI, "Converted TEST_UNIT_READY "
-			    "to START_UNIT\n");
-			memset(sc->sc_transfer.cmd_data, 0, ATAPI_COMMAND_LENGTH);
-			sc->sc_transfer.cmd_data[0] = START_STOP_UNIT;
-			sc->sc_transfer.cmd_data[4] = SSS_START;
-			return (true);
-		}
-		break;
-
 	case REZERO_UNIT:
 	case REQUEST_SENSE:
+	case INQUIRY:
 	case START_STOP_UNIT:
+	case TEST_UNIT_READY:
 	case SEND_DIAGNOSTIC:
 	case PREVENT_ALLOW:
 	case READ_CAPACITY:
@@ -2905,18 +2849,46 @@ umass_no_transform(struct umass_softc *sc, uint8_t *cmd,
 
 static bool
 umass_std_transform(struct umass_softc *sc, union ccb *ccb,
-    uint8_t *cmd, uint8_t cmdlen)
+    uint8_t *cmd, uint8_t cmd_len)
 {
-	uint8_t retval;
-
 	if (cmd_len == 0 || cmd_len > sizeof(sc->sc_transfer.cmd_data)) {
 		DPRINTF(sc, UDMASS_SCSI, "Invalid command length: %d bytes\n",
 		    cmd_len);
 		return (false);		/* failure */
 	}
 
-	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
-	if (sc->sc_transform(sc, cmd, cmdlen))
+	/*
+	 * Copy the CDB to the cmd_data buffer and then apply the common quirks
+	 * to the code. We then pass the transformed command down to allow
+	 * further transforms.
+	 */
+	memset(sc->sc_transfer.cmd_data, 0, sizeof(sc->sc_transfer.cmd_data));
+	memcpy(sc->sc_transfer.cmd_data, cmd, cmd_len);
+	switch (cmd[0]) {
+	case TEST_UNIT_READY:
+		/*
+		 * Some drive choke on TEST UNIT READY. Convert it to START STOP
+		 * UNIT to get similar status.
+		 */
+		if ((sc->sc_quirks & NO_TEST_UNIT_READY) != 0) {
+			DPRINTF(sc, UDMASS_SCSI,
+			    "Converted TEST_UNIT_READY to START_UNIT\n");
+			memset(sc->sc_transfer.cmd_data, 0, cmd_len);
+			sc->sc_transfer.cmd_data[0] = START_STOP_UNIT;
+			sc->sc_transfer.cmd_data[4] = SSS_START;
+		}
+		break;
+
+	case INQUIRY:
+		/*
+		 * some drives wedge when asked for full inquiry
+		 * information.
+		 */
+		if ((sc->sc_quirks & FORCE_SHORT_INQUIRY) != 0)
+			sc->sc_transfer.cmd_data[4] = SHORT_INQUIRY_LENGTH;
+		break;
+	}
+	if (sc->sc_transform(sc, cmd, cmd_len))
 		return (true);	/* Execute command */
 
 	xpt_freeze_devq(ccb->ccb_h.path, 1);
