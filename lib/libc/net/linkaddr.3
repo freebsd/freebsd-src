@@ -28,12 +28,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 28, 2007
+.Dd May 7, 2025
 .Dt LINK_ADDR 3
 .Os
 .Sh NAME
 .Nm link_addr ,
-.Nm link_ntoa
+.Nm link_ntoa ,
+.Nm link_ntoa_r
 .Nd elementary address specification routines for link level access
 .Sh LIBRARY
 .Lb libc
@@ -45,12 +46,15 @@
 .Fn link_addr "const char *addr" "struct sockaddr_dl *sdl"
 .Ft char *
 .Fn link_ntoa "const struct sockaddr_dl *sdl"
+.Ft int
+.Fn link_ntoa_r "const struct sockaddr_dl *sdl" "char *obuf" "size_t *buflen"
 .Sh DESCRIPTION
 The routine
 .Fn link_addr
 interprets character strings representing
 link-level addresses, returning binary information suitable
 for use in system calls.
+.Pp
 The routine
 .Fn link_ntoa
 takes
@@ -60,8 +64,33 @@ address and returns an
 string representing some of the information present,
 including the link level address itself, and the interface name
 or number, if present.
+The returned string is stored in a static buffer.
 This facility is experimental and is
 still subject to change.
+.Pp
+The routine
+.Fn link_ntoa_r
+behaves like
+.Fn link_ntoa ,
+except the string is placed in the provided buffer instead of a static
+buffer.
+The caller should initialize
+.Fa buflen
+to the number of bytes available in
+.Fa obuf .
+On return,
+.Fa buflen
+is set to the actual number of bytes required for the output buffer,
+including the NUL terminator.
+If
+.Fa obuf
+is NULL, then
+.Fa buflen
+is set as described, but nothing is written.
+This may be used to determine the required length of the buffer before
+calling
+.Fn link_ntoa_r
+a second time.
 .Pp
 For
 .Fn link_addr ,
@@ -94,6 +123,14 @@ The
 .Fn link_ntoa
 function
 always returns a null terminated string.
+.Pp
+The
+.Fn link_ntoa_r
+function returns 0 on success, or -1 if the provided buffer was not
+large enough; in the latter case, the contents of the buffer are
+indeterminate, but a trailing NUL will always be written if the buffer
+was at least one byte in size.
+.Pp
 The
 .Fn link_addr
 function
@@ -109,6 +146,10 @@ and
 .Fn link_ntoa
 functions appeared in
 .Bx 4.3 Reno .
+The
+.Fn link_ntoa_r
+function appeared in
+.Fx 15.0 .
 .Sh BUGS
 The returned values for link_ntoa
 reside in a static memory area.

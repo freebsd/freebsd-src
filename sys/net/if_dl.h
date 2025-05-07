@@ -84,6 +84,7 @@ struct sockaddr_dl *link_init_sdl(struct ifnet *, struct sockaddr *, u_char);
 __BEGIN_DECLS
 void	link_addr(const char *, struct sockaddr_dl *);
 char	*link_ntoa(const struct sockaddr_dl *);
+int	link_ntoa_r(const struct sockaddr_dl *, char *, size_t *);
 __END_DECLS
 
 #endif /* !_KERNEL */

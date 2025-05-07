@@ -26,6 +26,7 @@
 #include <net/if_dl.h>
 
 #include <format>
+#include <iostream>
 #include <ranges>
 #include <span>
 #include <utility>
@@ -262,10 +263,120 @@ ATF_TEST_CASE_BODY(overlong)
 	    ::link_ntoa(&sdl));
 }
 
+/*
+ * Test link_ntoa_r, the re-entrant version of link_ntoa().
+ */
+ATF_TEST_CASE_WITHOUT_HEAD(link_ntoa_r)
+ATF_TEST_CASE_BODY(link_ntoa_r)
+{
+	static constexpr char garbage = 0x41;
+	std::vector<char> buf;
+	sockaddr_dl sdl;
+	size_t len;
+	int ret;
+
+	// Return the contents of buf as a string, using the NUL terminator to
+	// determine length.  This is to ensure we're using the return value in
+	// the same way C code would, but we do a bit more verification to
+	// elicit a test failure rather than a SEGV if it's broken.
+	auto bufstr = [&buf]() -> std::string_view {
+		// Find the NUL.
+		auto end = std::ranges::find(buf, '\0');
+		ATF_REQUIRE(end != buf.end());
+
+		// Intentionally chopping the NUL off.
+		return {begin(buf), end};
+	};
+
+	// Resize the buffer and set the contents to a known garbage value, so
+	// we don't accidentally have a NUL in the right place when link_ntoa_r
+	// didn't put it there.
+	auto resetbuf = [&buf, &len](std::size_t size) {
+		len = size;
+		buf.resize(len);
+		std::ranges::fill(buf, garbage);
+	};
+
+	// Test a short address with a large buffer.
+	sdl = make_linkaddr("ix0:1.2.3");
+	resetbuf(64);
+	ret = ::link_ntoa_r(&sdl, &buf[0], &len);
+	ATF_REQUIRE_EQ(0, ret);
+	ATF_REQUIRE_EQ(10, len);
+	ATF_REQUIRE_EQ("ix0:1.2.3"s, bufstr());
+
+	// Test a buffer which is exactly the right size.
+	sdl = make_linkaddr("ix0:1.2.3");
+	resetbuf(10);
+	ret = ::link_ntoa_r(&sdl, &buf[0], &len);
+	ATF_REQUIRE_EQ(0, ret);
+	ATF_REQUIRE_EQ(10, len);
+	ATF_REQUIRE_EQ("ix0:1.2.3"sv, bufstr());
+
+	// Test various short buffers, using a table of buffer length and the
+	// output we expect.  All of these should produce valid but truncated
+	// strings, with a trailing NUL and with buflen set correctly.
+
+	auto buftests = std::vector<std::pair<std::size_t, std::string_view>>{
+		{1u, ""sv},
+		{2u, ""sv},
+		{3u, ""sv},
+		{4u, "ix0"sv},
+		{5u, "ix0:"sv},
+		{6u, "ix0:1"sv},
+		{7u, "ix0:1."sv},
+		{8u, "ix0:1.2"sv},
+		{9u, "ix0:1.2."sv},
+	};
+
+	for (auto const &[buflen, expected] : buftests) {
+		sdl = make_linkaddr("ix0:1.2.3");
+		resetbuf(buflen);
+		ret = ::link_ntoa_r(&sdl, &buf[0], &len);
+		ATF_REQUIRE_EQ(-1, ret);
+		ATF_REQUIRE_EQ(10, len);
+		ATF_REQUIRE_EQ(expected, bufstr());
+	}
+
+	// Test a NULL buffer, which should just set buflen.
+	sdl = make_linkaddr("ix0:1.2.3");
+	len = 0;
+	ret = ::link_ntoa_r(&sdl, NULL, &len);
+	ATF_REQUIRE_EQ(-1, ret);
+	ATF_REQUIRE_EQ(10, len);
+
+	// A NULL buffer with a non-zero length should also be accepted.
+	sdl = make_linkaddr("ix0:1.2.3");
+	len = 64;
+	ret = ::link_ntoa_r(&sdl, NULL, &len);
+	ATF_REQUIRE_EQ(-1, ret);
+	ATF_REQUIRE_EQ(10, len);
+
+	// Test a non-NULL buffer, but with a length of zero.
+	sdl = make_linkaddr("ix0:1.2.3");
+	resetbuf(1);
+	len = 0;
+	ret = ::link_ntoa_r(&sdl, &buf[0], &len);
+	ATF_REQUIRE_EQ(-1, ret);
+	ATF_REQUIRE_EQ(10, len);
+	// Check we really didn't write anything.
+	ATF_REQUIRE_EQ(garbage, buf[0]);
+
+	// Test a buffer which would be truncated in the middle of a two-digit
+	// hex octet, which should not write the truncated octet at all.
+	sdl = make_linkaddr("ix0:1.22.3");
+	resetbuf(8);
+	ret = ::link_ntoa_r(&sdl, &buf[0], &len);
+	ATF_REQUIRE_EQ(-1, ret);
+	ATF_REQUIRE_EQ(11, len);
+	ATF_REQUIRE_EQ("ix0:1."sv, bufstr());
+}
+
 ATF_INIT_TEST_CASES(tcs)
 {
 	ATF_ADD_TEST_CASE(tcs, basic);
 	ATF_ADD_TEST_CASE(tcs, ifname);
 	ATF_ADD_TEST_CASE(tcs, nonether);
 	ATF_ADD_TEST_CASE(tcs, overlong);
+	ATF_ADD_TEST_CASE(tcs, link_ntoa_r);
 }
