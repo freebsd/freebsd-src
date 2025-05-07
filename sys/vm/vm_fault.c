@@ -1291,9 +1291,8 @@ vm_fault_allocate(struct faultstate *fs, struct pctrie_iter *pages)
 			vm_fault_unlock_and_deallocate(fs);
 			return (FAULT_FAILURE);
 		}
-		fs->m = vm_page_alloc_after(fs->object, pages, fs->pindex,
-		    P_KILLED(curproc) ? VM_ALLOC_SYSTEM : 0,
-		    vm_radix_iter_lookup_lt(pages, fs->pindex));
+		fs->m = vm_page_alloc_iter(fs->object, fs->pindex,
+		    P_KILLED(curproc) ? VM_ALLOC_SYSTEM : 0, pages);
 	}
 	if (fs->m == NULL) {
 		if (vm_fault_allocate_oom(fs))
@@ -2103,7 +2102,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map __unused,
 	vm_pindex_t dst_pindex, pindex, src_pindex;
 	vm_prot_t access, prot;
 	vm_offset_t vaddr;
-	vm_page_t dst_m, mpred;
+	vm_page_t dst_m;
 	vm_page_t src_m;
 	bool upgrade;
 
@@ -2176,11 +2175,9 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map __unused,
 	 * regardless of whether they can be written.
 	 */
 	vm_page_iter_init(&pages, dst_object);
-	mpred = (src_object == dst_object) ?
-	   vm_page_mpred(src_object, src_pindex) : NULL;
 	for (vaddr = dst_entry->start, dst_pindex = 0;
 	    vaddr < dst_entry->end;
-	    vaddr += PAGE_SIZE, dst_pindex++, mpred = dst_m) {
+	    vaddr += PAGE_SIZE, dst_pindex++) {
 again:
 		/*
 		 * Find the page in the source object, and copy it in.
@@ -2220,15 +2217,14 @@ again:
 			 */
 			pindex = (src_object == dst_object ? src_pindex : 0) +
 			    dst_pindex;
-			dst_m = vm_page_alloc_after(dst_object, &pages, pindex,
-			    VM_ALLOC_NORMAL, mpred);
+			dst_m = vm_page_alloc_iter(dst_object, pindex,
+			    VM_ALLOC_NORMAL, &pages);
 			if (dst_m == NULL) {
 				VM_OBJECT_WUNLOCK(dst_object);
 				VM_OBJECT_RUNLOCK(object);
 				vm_wait(dst_object);
 				VM_OBJECT_WLOCK(dst_object);
 				pctrie_iter_reset(&pages);
-				mpred = vm_radix_iter_lookup_lt(&pages, pindex);
 				goto again;
 			}
 

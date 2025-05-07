@@ -510,8 +510,8 @@ vm_reserv_from_page(vm_page_t m)
  * successor pointer.
  */
 static vm_reserv_t
-vm_reserv_from_object(vm_object_t object, struct pctrie_iter *pages,
-    vm_pindex_t pindex, vm_page_t *mpredp, vm_page_t *msuccp)
+vm_reserv_from_object(vm_object_t object, vm_pindex_t pindex,
+    vm_page_t *mpredp, vm_page_t *msuccp, struct pctrie_iter *pages)
 {
 	vm_reserv_t rv;
 	vm_page_t mpred, msucc;
@@ -685,9 +685,9 @@ vm_reserv_populate(vm_reserv_t rv, int index)
  * The object must be locked.
  */
 vm_page_t
-vm_reserv_alloc_contig(vm_object_t object, struct pctrie_iter *pages,
-    vm_pindex_t pindex, int domain, int req, u_long npages, vm_paddr_t low,
-    vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
+vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, int domain,
+    int req, u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
+    vm_paddr_t boundary, struct pctrie_iter *pages)
 {
 	struct vm_domain *vmd;
 	vm_paddr_t pa, size;
@@ -725,7 +725,7 @@ vm_reserv_alloc_contig(vm_object_t object, struct pctrie_iter *pages,
 	/*
 	 * Look for an existing reservation.
 	 */
-	rv = vm_reserv_from_object(object, pages, pindex, &mpred, &msucc);
+	rv = vm_reserv_from_object(object, pindex, &mpred, &msucc, pages);
 	if (rv != NULL) {
 		KASSERT(object != kernel_object || rv->domain == domain,
 		    ("vm_reserv_alloc_contig: domain mismatch"));
@@ -832,8 +832,8 @@ out:
  * The object must be locked.
  */
 vm_page_t
-vm_reserv_alloc_page(vm_object_t object, struct pctrie_iter *pages,
-    vm_pindex_t pindex, int domain, int req)
+vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex, int domain,
+    int req, struct pctrie_iter *pages)
 {
 	struct vm_domain *vmd;
 	vm_page_t m, mpred, msucc;
@@ -853,7 +853,7 @@ vm_reserv_alloc_page(vm_object_t object, struct pctrie_iter *pages,
 	/*
 	 * Look for an existing reservation.
 	 */
-	rv = vm_reserv_from_object(object, pages, pindex, &mpred, &msucc);
+	rv = vm_reserv_from_object(object, pindex, &mpred, &msucc, pages);
 	if (rv != NULL) {
 		KASSERT(object != kernel_object || rv->domain == domain,
 		    ("vm_reserv_alloc_page: domain mismatch"));

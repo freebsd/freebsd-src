@@ -251,8 +251,8 @@ default_phys_pager_populate(vm_object_t object, vm_pindex_t pidx,
 
 	for (i = base; i <= end; i++) {
 		ahead = MIN(end - i, PHYSALLOC);
-		m = vm_page_grab_iter(object, &pages, i,
-		    VM_ALLOC_NORMAL | VM_ALLOC_COUNT(ahead));
+		m = vm_page_grab_iter(object, i,
+		    VM_ALLOC_NORMAL | VM_ALLOC_COUNT(ahead), &pages);
 		if (!vm_page_all_valid(m))
 			vm_page_zero_invalid(m, TRUE);
 		KASSERT(m->dirty == 0,
