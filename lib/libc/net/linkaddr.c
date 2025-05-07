@@ -35,8 +35,12 @@ static char sccsid[] = "@(#)linkaddr.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include <net/if.h>
 #include <net/if_dl.h>
+
+#include <assert.h>
+#include <stdint.h>
 #include <string.h>
 
 /* States*/
@@ -117,53 +121,109 @@ link_addr(const char *addr, struct sockaddr_dl *sdl)
 	return;
 }
 
-static const char hexlist[] = "0123456789abcdef";
-
 char *
 link_ntoa(const struct sockaddr_dl *sdl)
 {
 	static char obuf[64];
+	size_t buflen;
 	_Static_assert(sizeof(obuf) >= IFNAMSIZ + 20, "obuf is too small");
+
+	/*
+	 * Ignoring the return value of link_ntoa_r() is safe here because it
+	 * always writes the terminating NUL.  This preserves the traditional
+	 * behaviour of link_ntoa().
+	 */
+	buflen = sizeof(obuf);
+	(void)link_ntoa_r(sdl, obuf, &buflen);
+	return obuf;
+}
+
+int
+link_ntoa_r(const struct sockaddr_dl *sdl, char *obuf, size_t *buflen)
+{
+	static const char hexlist[] = "0123456789abcdef";
 	char *out;
 	const u_char *in, *inlim;
 	int namelen, i, rem;
+	size_t needed;
+
+	assert(sdl);
+	assert(buflen);
+	/* obuf may be null */
+
+	needed = 1; /* 1 for the NUL */
+	out = obuf;
+	if (obuf)
+		rem = *buflen;
+	else
+		rem = 0;
+
+/*
+ * Check if at least n bytes are available in the output buffer, plus 1 for the
+ * trailing NUL.  If not, set rem = 0 so we stop writing.
+ * Either way, increment needed by the amount we would have written.
+ */
+#define CHECK(n) do {				\
+		if ((SIZE_MAX - (n)) >= needed)	\
+			needed += (n);		\
+		if (rem >= ((n) + 1))		\
+			rem -= (n);		\
+		else				\
+			rem = 0;		\
+	} while (0)
+
+/*
+ * Write the char c to the output buffer, unless the buffer is full.
+ * Note that if obuf is NULL, rem is always zero.
+ */
+#define OUT(c) do {			\
+		if (rem > 0)		\
+			*out++ = (c);	\
+	} while (0)
 
 	namelen = (sdl->sdl_nlen <= IFNAMSIZ) ? sdl->sdl_nlen : IFNAMSIZ;
-
-	out = obuf;
-	rem = sizeof(obuf);
 	if (namelen > 0) {
-		bcopy(sdl->sdl_data, out, namelen);
-		out += namelen;
-		rem -= namelen;
+		CHECK(namelen);
+		if (rem > 0) {
+			bcopy(sdl->sdl_data, out, namelen);
+			out += namelen;
+		}
+
 		if (sdl->sdl_alen > 0) {
-			*out++ = ':';
-			rem--;
+			CHECK(1);
+			OUT(':');
 		}
 	}
 
-	in = (const u_char *)sdl->sdl_data + sdl->sdl_nlen;
+	in = (const u_char *)LLADDR(sdl);
 	inlim = in + sdl->sdl_alen;
 
-	while (in < inlim && rem > 1) {
-		if (in != (const u_char *)sdl->sdl_data + sdl->sdl_nlen) {
-			*out++ = '.';
-			rem--;
+	while (in < inlim) {
+		if (in != (const u_char *)LLADDR(sdl)) {
+			CHECK(1);
+			OUT('.');
 		}
 		i = *in++;
 		if (i > 0xf) {
-			if (rem < 3)
-				break;
-			*out++ = hexlist[i >> 4];
-			*out++ = hexlist[i & 0xf];
-			rem -= 2;
+			CHECK(2);
+			OUT(hexlist[i >> 4]);
+			OUT(hexlist[i & 0xf]);
 		} else {
-			if (rem < 2)
-				break;
-			*out++ = hexlist[i];
-			rem--;
+			CHECK(1);
+			OUT(hexlist[i]);
 		}
 	}
-	*out = 0;
-	return (obuf);
+
+#undef CHECK
+#undef OUT
+
+	/*
+	 * We always leave enough room for the NUL if possible, but the user
+	 * might have passed a NULL or zero-length buffer.
+	 */
+	if (out && *buflen)
+		*out = '\0';
+
+	*buflen = needed;
+	return ((rem > 0) ? 0 : -1);
 }
