@@ -2890,10 +2890,7 @@ umass_std_transform(struct umass_softc *sc, union ccb *ccb,
 	}
 	if (sc->sc_transform(sc, cmd, cmd_len))
 		return (true);	/* Execute command */
-
-	xpt_freeze_devq(ccb->ccb_h.path, 1);
-	ccb->ccb_h.status = CAM_REQ_INVALID | CAM_DEV_QFRZN;
-	xpt_done(ccb);
+	umass_cam_illegal_request(ccb);
 	return (false);		/* Already failed -- don't submit */
 }
 
