@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -276,6 +276,15 @@ adf_notify_fatal_error_work(struct work_struct *work)
 	struct adf_fatal_error_data *wq_data =
 	    container_of(work, struct adf_fatal_error_data, work);
 	struct adf_accel_dev *accel_dev = wq_data->accel_dev;
+	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
+
+	if (adf_dev_in_use(accel_dev)) {
+		if (hw_device->pre_reset) {
+			device_printf(GET_DEV(accel_dev),
+				      "Performing pre reset save\n");
+			hw_device->pre_reset(accel_dev);
+		}
+	}
 
 	adf_error_notifier((uintptr_t)accel_dev);
 	if (!accel_dev->is_vf) {

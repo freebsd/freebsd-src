@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <adf_accel_devices.h>
@@ -858,10 +858,10 @@ update_hw_capability(struct adf_accel_dev *accel_dev)
 
 	if (!au_info->asym_ae_msk)
 		disabled_caps = ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
-		    ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
-
+		    ICP_ACCEL_CAPABILITIES_ECEDMONT;
 	if (!au_info->sym_ae_msk)
 		disabled_caps |= ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
+		    ICP_ACCEL_CAPABILITIES_AUTHENTICATION |
 		    ICP_ACCEL_CAPABILITIES_CIPHER | ICP_ACCEL_CAPABILITIES_ZUC |
 		    ICP_ACCEL_CAPABILITIES_SHA3_EXT |
 		    ICP_ACCEL_CAPABILITIES_SM3 | ICP_ACCEL_CAPABILITIES_SM4 |

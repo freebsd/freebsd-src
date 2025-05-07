@@ -2160,6 +2160,14 @@ LacSymKey_CheckParamSslTls(const void *pKeyGenOpData,
 			}
 		}
 
+		/* check 0 secret length as it is not valid for SSL3 Key Gen
+		 * request */
+		if (0 == uSecretLen) {
+			LAC_INVALID_PARAM_LOG1("%u secret.dataLenInBytes",
+					       uSecretLen);
+			return CPA_STATUS_INVALID_PARAM;
+		}
+
 		/* Only seed length for SSL3 Key Gen request */
 		if (maxSeedLen != uSeedLen) {
 			LAC_INVALID_PARAM_LOG("seed.dataLenInBytes");

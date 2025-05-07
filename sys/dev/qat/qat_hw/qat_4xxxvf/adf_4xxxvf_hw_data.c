@@ -294,6 +294,9 @@ get_ring_to_svc_map(struct adf_accel_dev *accel_dev, u16 *ring_to_svc_map)
 	char val[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	u32 i = 0;
 
+	if (accel_dev->hw_device->get_ring_to_svc_done)
+		return 0;
+
 	/* Get the services enabled by user if provided.
 	 * The function itself will also be called during the driver probe
 	 * procedure where no ServicesEnable is provided. Then the device

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include <linux/bitfield.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
@@ -98,6 +98,22 @@ adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 	return 0;
 }
 
+void
+adf_vf2pf_restarting_complete(struct adf_accel_dev *accel_dev)
+{
+	struct pfvf_message msg = { .type =
+					ADF_VF2PF_MSGTYPE_RESTARTING_COMPLETE };
+
+	if (accel_dev->u1.vf.pf_compat_ver < ADF_PFVF_COMPAT_FALLBACK)
+		return;
+
+	if (adf_send_vf2pf_msg(accel_dev, msg)) {
+		device_printf(
+		    GET_DEV(accel_dev),
+		    "Failed to send Restarting complete event to PF\n");
+	}
+}
+
 int
 adf_vf2pf_get_capabilities(struct adf_accel_dev *accel_dev)
 {
@@ -180,5 +196,7 @@ adf_vf2pf_get_ring_to_svc(struct adf_accel_dev *accel_dev)
 
 	/* Only v1 at present */
 	accel_dev->hw_device->ring_to_svc_map = rts_map_msg.map;
+	accel_dev->hw_device->get_ring_to_svc_done = true;
+
 	return 0;
 }

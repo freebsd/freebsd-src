@@ -192,11 +192,6 @@ adf_attach(device_t dev)
 	adf_init_hw_data_4xxx(accel_dev->hw_device, pci_get_device(dev));
 	accel_pci_dev->revid = pci_get_revid(dev);
 	hw_data->fuses = pci_read_config(dev, ADF_4XXX_FUSECTL4_OFFSET, 4);
-	if (accel_pci_dev->revid == 0x00) {
-		device_printf(dev, "A0 stepping is not supported.\n");
-		ret = ENODEV;
-		goto out_err;
-	}
 
 	/* Get PPAERUCM values and store */
 	ret = adf_aer_store_ppaerucm_reg(dev, hw_data);

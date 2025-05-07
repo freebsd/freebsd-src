@@ -1235,7 +1235,8 @@ cpaCyInstanceGetInfo2(const CpaInstanceHandle instanceHandle_in,
 
 	/* Get the instance name and part name */
 	dev = icp_adf_getAccelDevByAccelId(pCryptoService->pkgID);
-	if (NULL == dev) {
+	if (NULL == dev ||
+	    0 == strnlen(dev->deviceName, ADF_DEVICE_TYPE_LENGTH + 1)) {
 		LAC_LOG_ERROR("Can not find device for the instance\n");
 		LAC_OS_BZERO(pInstanceInfo2, sizeof(CpaInstanceInfo2));
 		return CPA_STATUS_FAIL;
@@ -1717,7 +1718,6 @@ Lac_GetFirstHandle(sal_service_type_t svc_type)
 	default:
 		LAC_LOG_ERROR("Invalid service type\n");
 		return NULL;
-		break;
 	}
 	/* Only need 1 dev with crypto enabled - so check all devices*/
 	status = icp_amgr_getAllAccelDevByEachCapability(capabilities,

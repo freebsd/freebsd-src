@@ -448,6 +448,7 @@ struct adf_hw_device_data {
 	uint8_t num_accel;
 	uint8_t num_logical_accel;
 	uint8_t num_engines;
+	bool get_ring_to_svc_done;
 	int (*get_storage_enabled)(struct adf_accel_dev *accel_dev,
 				   uint32_t *storage_enabled);
 	u8 query_storage_cap;
@@ -721,5 +722,6 @@ struct adf_accel_dev {
 	bool is_vf;
 	u32 accel_id;
 	void *lac_dev;
+	struct mutex lock; /* protect accel_dev during start/stop e.t.c */
 };
 #endif

@@ -93,6 +93,7 @@ static int qat_cnvnr_ctrs_dbg_read(SYSCTL_HANDLER_ARGS)
 
 	/* Extracting number of Acceleration Engines */
 	num_aes = hw_device->get_num_aes(hw_device);
+	explicit_bzero(&request, sizeof(struct icp_qat_fw_init_admin_req));
 	for (ae = 0; ae < num_aes; ae++) {
 		if (accel_dev->au_info && !test_bit(ae, &dc_ae_msk))
 			continue;
