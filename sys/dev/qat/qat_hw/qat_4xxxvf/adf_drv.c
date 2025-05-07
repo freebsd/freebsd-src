@@ -101,6 +101,7 @@ adf_attach(device_t dev)
 	struct adf_cfg_device *cfg_dev = NULL;
 
 	accel_dev = device_get_softc(dev);
+	mutex_init(&accel_dev->lock);
 	accel_dev->is_vf = true;
 	pf = adf_devmgr_pci_to_accel_dev(pci_find_pf(dev));
 
@@ -112,11 +113,13 @@ adf_attach(device_t dev)
 		accel_pci_dev->node = 0;
 
 	/* Add accel device to accel table */
-	if (adf_devmgr_add_dev(accel_dev, pf)) {
+	ret = adf_devmgr_add_dev(accel_dev, pf);
+	if (ret) {
 		device_printf(GET_DEV(accel_dev),
 			      "Failed to add new accelerator device.\n");
-		return -EFAULT;
+		goto out_err_lock;
 	}
+
 	/* Allocate and configure device configuration structure */
 	hw_data = malloc(sizeof(*hw_data), M_QAT_4XXXVF, M_WAITOK | M_ZERO);
 	accel_dev->hw_device = hw_data;
@@ -152,6 +155,8 @@ adf_attach(device_t dev)
 				 NULL,
 				 NULL,
 				 &accel_dev->dma_tag);
+	if (ret)
+		goto out_err;
 
 	hw_data->accel_capabilities_mask = adf_4xxxvf_get_hw_cap(accel_dev);
 
@@ -180,7 +185,9 @@ adf_attach(device_t dev)
 		bar->base_addr = rman_get_start(bar->virt_addr);
 		bar->size = rman_get_size(bar->virt_addr);
 	}
-	pci_enable_busmaster(dev);
+	ret = pci_enable_busmaster(dev);
+	if (ret)
+		goto out_err;
 
 	adf_dbgfs_init(accel_dev);
 
@@ -190,7 +197,7 @@ adf_attach(device_t dev)
 
 	ret = hw_data->config_device(accel_dev);
 	if (ret)
-		goto out_err;
+		goto out_err_disable;
 
 	ret = adf_dev_init(accel_dev);
 	if (!ret)
@@ -212,8 +219,13 @@ adf_attach(device_t dev)
 
 	return ret;
 
+out_err_disable:
+	pci_disable_busmaster(dev);
 out_err:
 	adf_cleanup_accel(accel_dev);
+out_err_lock:
+	mutex_destroy(&accel_dev->lock);
+
 	return ret;
 }
 
@@ -231,7 +243,9 @@ adf_detach(device_t dev)
 	clear_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
 	adf_dev_stop(accel_dev);
 	adf_dev_shutdown(accel_dev);
+	pci_disable_busmaster(dev);
 	adf_cleanup_accel(accel_dev);
+	mutex_destroy(&accel_dev->lock);
 	return 0;
 }
 
