@@ -79,7 +79,7 @@
  *		perform object/offset lookups
  *
  *		A list of all pages for a given object,
- *		so they can be quickly deactivated at
+ *		so that they can be quickly deactiviated at
  *		time of deallocation.
  *
  *		An ordered list of pages due for pageout.
@@ -606,12 +606,11 @@ void vm_page_free_zero(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
 void vm_page_advise(vm_page_t m, int advice);
-vm_page_t vm_page_mpred(vm_object_t, vm_pindex_t);
 vm_page_t vm_page_alloc(vm_object_t, vm_pindex_t, int);
-vm_page_t vm_page_alloc_after(vm_object_t, struct pctrie_iter *, vm_pindex_t,
-    int, vm_page_t);
-vm_page_t vm_page_alloc_domain_after(vm_object_t, struct pctrie_iter *,
-    vm_pindex_t, int, int, vm_page_t);
+vm_page_t vm_page_alloc_iter(vm_object_t, vm_pindex_t, int,
+    struct pctrie_iter *);
+vm_page_t vm_page_alloc_domain_iter(vm_object_t, vm_pindex_t, int, int,
+    struct pctrie_iter *);
 vm_page_t vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr);
@@ -632,8 +631,8 @@ bool vm_page_blacklist_add(vm_paddr_t pa, bool verbose);
 int vm_page_grab_zero_partial(vm_object_t object, vm_pindex_t pindex, int base,
     int end);
 vm_page_t vm_page_grab(vm_object_t, vm_pindex_t, int);
-vm_page_t vm_page_grab_iter(vm_object_t object, struct pctrie_iter *pages, vm_pindex_t pindex,
-    int allocflags);
+vm_page_t vm_page_grab_iter(vm_object_t object, vm_pindex_t pindex,
+    int allocflags, struct pctrie_iter *pages);
 vm_page_t vm_page_grab_unlocked(vm_object_t, vm_pindex_t, int);
 int vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
     vm_page_t *ma, int count);
@@ -642,7 +641,7 @@ int vm_page_grab_pages_unlocked(vm_object_t object, vm_pindex_t pindex,
 int vm_page_grab_valid(vm_page_t *mp, vm_object_t object, vm_pindex_t pindex,
     int allocflags);
 int vm_page_grab_valid_iter(vm_page_t *mp, vm_object_t object,
-    struct pctrie_iter *, vm_pindex_t pindex, int allocflags);
+    vm_pindex_t pindex, int allocflags, struct pctrie_iter *pages);
 int vm_page_grab_valid_unlocked(vm_page_t *mp, vm_object_t object,
     vm_pindex_t pindex, int allocflags);
 void vm_page_deactivate(vm_page_t);
