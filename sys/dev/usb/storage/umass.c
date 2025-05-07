@@ -489,6 +489,7 @@ static void	umass_cam_sense_cb(struct umass_softc *, union ccb *, uint32_t,
 		    uint8_t);
 static void	umass_cam_quirk_cb(struct umass_softc *, union ccb *, uint32_t,
 		    uint8_t);
+static void	umass_cam_illegal_request(union ccb *ccb);
 static uint8_t	umass_scsi_transform(struct umass_softc *, uint8_t *, uint8_t);
 static uint8_t	umass_rbc_transform(struct umass_softc *, uint8_t *, uint8_t);
 static uint8_t	umass_ufi_transform(struct umass_softc *, uint8_t *, uint8_t);
@@ -2262,20 +2263,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 					 */
 					if ((sc->sc_quirks & (NO_INQUIRY_EVPD | NO_INQUIRY)) &&
 					    (sc->sc_transfer.cmd_data[1] & SI_EVPD)) {
-						scsi_set_sense_data(&ccb->csio.sense_data,
-							/*sense_format*/ SSD_TYPE_NONE,
-							/*current_error*/ 1,
-							/*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
-							/*asc*/ 0x24,	/* 24h/00h INVALID FIELD IN CDB */
-							/*ascq*/ 0x00,
-							/*extra args*/ SSD_ELEM_NONE);
-						ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
-						ccb->ccb_h.status =
-						    CAM_SCSI_STATUS_ERROR |
-						    CAM_AUTOSNS_VALID |
-						    CAM_DEV_QFRZN;
-						xpt_freeze_devq(ccb->ccb_h.path, 1);
-						xpt_done(ccb);
+						umass_cam_illegal_request(ccb);
 						goto done;
 					}
 					/*
@@ -2461,6 +2449,29 @@ umass_cam_poll(struct cam_sim *sim)
 	DPRINTF(sc, UDMASS_SCSI, "CAM poll\n");
 
 	usbd_transfer_poll(sc->sc_xfer, UMASS_T_MAX);
+}
+
+/* umass_cam_illegal_request
+ *	Complete the command as an illegal command with invalid field
+ */
+
+static void
+umass_cam_illegal_request(union ccb *ccb)
+{
+	scsi_set_sense_data(&ccb->csio.sense_data,
+		/*sense_format*/ SSD_TYPE_NONE,
+		/*current_error*/ 1,
+		/*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+		/*asc*/ 0x24,	/* 24h/00h INVALID FIELD IN CDB */
+		/*ascq*/ 0x00,
+		/*extra args*/ SSD_ELEM_NONE);
+	ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
+	ccb->ccb_h.status =
+	    CAM_SCSI_STATUS_ERROR |
+	    CAM_AUTOSNS_VALID |
+	    CAM_DEV_QFRZN;
+	xpt_freeze_devq(ccb->ccb_h.path, 1);
+	xpt_done(ccb);
 }
 
 /* umass_cam_cb
