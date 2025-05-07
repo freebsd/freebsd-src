@@ -2949,20 +2949,13 @@ umass_std_transform(struct umass_softc *sc, union ccb *ccb,
 {
 	uint8_t retval;
 
-	retval = (sc->sc_transform) (sc, cmd, cmdlen);
+	if (sc->sc_transform(sc, cmd, cmdlen))
+		return (1);	/* Execute command */
 
-	if (retval == 2) {
-		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
-		return (0);
-	} else if (retval == 0) {
-		xpt_freeze_devq(ccb->ccb_h.path, 1);
-		ccb->ccb_h.status = CAM_REQ_INVALID | CAM_DEV_QFRZN;
-		xpt_done(ccb);
-		return (0);
-	}
-	/* Command should be executed */
-	return (1);
+	xpt_freeze_devq(ccb->ccb_h.path, 1);
+	ccb->ccb_h.status = CAM_REQ_INVALID | CAM_DEV_QFRZN;
+	xpt_done(ccb);
+	return (0);		/* Already failed */
 }
 
 #ifdef USB_DEBUG
