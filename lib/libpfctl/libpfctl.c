@@ -2271,6 +2271,9 @@ pfctl_set_syncookies(int dev, const struct pfctl_syncookies *s)
 	if (ret != 0)
 		return (ret);
 
+	if (state_limit == 0)
+		state_limit = INT_MAX;
+
 	lim = state_limit;
 	hi = lim * s->highwater / 100;
 	lo = lim * s->lowwater / 100;
@@ -2310,6 +2313,9 @@ pfctl_get_syncookies(int dev, struct pfctl_syncookies *s)
 	ret = _pfctl_get_limit(dev, PF_LIMIT_STATES, &state_limit);
 	if (ret != 0)
 		return (ret);
+
+	if (state_limit == 0)
+		state_limit = INT_MAX;
 
 	bzero(s, sizeof(*s));
 
