@@ -842,15 +842,11 @@ error:
 static int
 change_table(int add, const char *ip_src)
 {
-	struct pfioc_table	io;
+	struct pfr_table	tbl = { 0 };
 	struct pfr_addr		addr;
+	int			ret;
 
-	bzero(&io, sizeof(io));
-	strlcpy(io.pfrio_table.pfrt_name, tablename,
-	    sizeof(io.pfrio_table.pfrt_name));
-	io.pfrio_buffer = &addr;
-	io.pfrio_esize = sizeof(addr);
-	io.pfrio_size = 1;
+	strlcpy(tbl.pfrt_name, tablename, sizeof(tbl.pfrt_name));
 
 	bzero(&addr, sizeof(addr));
 	if (ip_src == NULL || !ip_src[0])
@@ -866,11 +862,16 @@ change_table(int add, const char *ip_src)
 		return (-1);
 	}
 
-	if (ioctl(pfctl_fd(pfh), add ? DIOCRADDADDRS : DIOCRDELADDRS, &io) &&
-	    errno != ESRCH) {
+	if (add)
+		ret = pfctl_table_add_addrs(pfctl_fd(pfh), &tbl, &addr, 1, NULL, 0);
+	else
+		ret = pfctl_table_del_addrs(pfctl_fd(pfh), &tbl, &addr, 1, NULL, 0);
+
+
+	if (ret != 0 && ret != ESRCH) {
 		syslog(LOG_ERR, "cannot %s %s from table %s: %s",
 		    add ? "add" : "remove", ip_src, tablename,
-		    strerror(errno));
+		    strerror(ret));
 		return (-1);
 	}
 	return (0);
