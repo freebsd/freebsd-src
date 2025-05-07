@@ -78,10 +78,6 @@
  *		A radix tree used to quickly
  *		perform object/offset lookups
  *
- *		A list of all pages for a given object,
- *		so that they can be quickly deactiviated at
- *		time of deallocation.
- *
  *		An ordered list of pages due for pageout.
  *
  *	In addition, the structure contains the object
