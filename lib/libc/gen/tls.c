@@ -85,8 +85,8 @@ __libc_tls_get_addr(void *vti)
 
 	dtv = _tcb_get()->tcb_dtv;
 	ti = vti;
-	return ((char *)(dtv[ti->ti_module + 1] + ti->ti_offset) +
-	    TLS_DTV_OFFSET);
+	return ((char *)dtv[ti->ti_module + 1] + (ti->ti_offset +
+	    TLS_DTV_OFFSET));
 }
 
 #ifdef __i386__
