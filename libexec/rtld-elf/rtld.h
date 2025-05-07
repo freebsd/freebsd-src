@@ -415,7 +415,7 @@ void _rtld_bind_start(void);
 void *rtld_resolve_ifunc(const Obj_Entry *obj, const Elf_Sym *def);
 void symlook_init(SymLook *, const char *);
 int symlook_obj(SymLook *, const Obj_Entry *);
-void *tls_get_addr_common(uintptr_t **dtvp, int index, size_t offset);
+void *tls_get_addr_common(struct dtv **dtvp, int index, size_t offset);
 void *allocate_tls(Obj_Entry *, void *, size_t, size_t);
 void free_tls(void *, size_t, size_t);
 void *allocate_module_tls(int index);

@@ -170,7 +170,7 @@ static int symlook_list(SymLook *, const Objlist *, DoneList *);
 static int symlook_needed(SymLook *, const Needed_Entry *, DoneList *);
 static int symlook_obj1_sysv(SymLook *, const Obj_Entry *);
 static int symlook_obj1_gnu(SymLook *, const Obj_Entry *);
-static void *tls_get_addr_slow(uintptr_t **, int, size_t, bool) __noinline;
+static void *tls_get_addr_slow(struct dtv **, int, size_t, bool) __noinline;
 static void trace_loaded_objects(Obj_Entry *, bool);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *, RtldLockState *lockstate);
@@ -4312,7 +4312,7 @@ dlinfo(void *handle, int request, void *p)
 static void
 rtld_fill_dl_phdr_info(const Obj_Entry *obj, struct dl_phdr_info *phdr_info)
 {
-	uintptr_t **dtvp;
+	struct dtv **dtvp;
 
 	phdr_info->dlpi_addr = (Elf_Addr)obj->relocbase;
 	phdr_info->dlpi_name = obj->path;
@@ -5350,24 +5350,26 @@ unref_dag(Obj_Entry *root)
  * Common code for MD __tls_get_addr().
  */
 static void *
-tls_get_addr_slow(uintptr_t **dtvp, int index, size_t offset, bool locked)
+tls_get_addr_slow(struct dtv **dtvp, int index, size_t offset, bool locked)
 {
-	uintptr_t *newdtv, *dtv;
+	struct dtv *newdtv, *dtv;
 	RtldLockState lockstate;
 	int to_copy;
 
 	dtv = *dtvp;
 	/* Check dtv generation in case new modules have arrived */
-	if (dtv[0] != tls_dtv_generation) {
+	if (dtv->dtv_gen != tls_dtv_generation) {
 		if (!locked)
 			wlock_acquire(rtld_bind_lock, &lockstate);
-		newdtv = xcalloc(tls_max_index + 2, sizeof(uintptr_t));
-		to_copy = dtv[1];
+		newdtv = xcalloc(1, sizeof(struct dtv) + tls_max_index *
+		    sizeof(struct dtv_slot));
+		to_copy = dtv->dtv_size;
 		if (to_copy > tls_max_index)
 			to_copy = tls_max_index;
-		memcpy(&newdtv[2], &dtv[2], to_copy * sizeof(uintptr_t));
-		newdtv[0] = tls_dtv_generation;
-		newdtv[1] = tls_max_index;
+		memcpy(newdtv->dtv_slots, dtv->dtv_slots, to_copy *
+		    sizeof(struct dtv_slot));
+		newdtv->dtv_gen = tls_dtv_generation;
+		newdtv->dtv_size = tls_max_index;
 		free(dtv);
 		if (!locked)
 			lock_release(rtld_bind_lock, &lockstate);
@@ -5375,27 +5377,29 @@ tls_get_addr_slow(uintptr_t **dtvp, int index, size_t offset, bool locked)
 	}
 
 	/* Dynamically allocate module TLS if necessary */
-	if (dtv[index + 1] == 0) {
+	if (dtv->dtv_slots[index - 1].dtvs_tls == 0) {
 		/* Signal safe, wlock will block out signals. */
 		if (!locked)
 			wlock_acquire(rtld_bind_lock, &lockstate);
-		if (!dtv[index + 1])
-			dtv[index + 1] = (uintptr_t)allocate_module_tls(index);
+		if (!dtv->dtv_slots[index - 1].dtvs_tls)
+			dtv->dtv_slots[index - 1].dtvs_tls =
+			    allocate_module_tls(index);
 		if (!locked)
 			lock_release(rtld_bind_lock, &lockstate);
 	}
-	return ((void *)(dtv[index + 1] + offset));
+	return (dtv->dtv_slots[index - 1].dtvs_tls + offset);
 }
 
 void *
-tls_get_addr_common(uintptr_t **dtvp, int index, size_t offset)
+tls_get_addr_common(struct dtv **dtvp, int index, size_t offset)
 {
-	uintptr_t *dtv;
+	struct dtv *dtv;
 
 	dtv = *dtvp;
 	/* Check dtv generation in case new modules have arrived */
-	if (__predict_true(dtv[0] == tls_dtv_generation && dtv[index + 1] != 0))
-		return ((void *)(dtv[index + 1] + offset));
+	if (__predict_true(dtv->dtv_gen == tls_dtv_generation &&
+	    dtv->dtv_slots[index - 1].dtvs_tls != 0))
+		return (dtv->dtv_slots[index - 1].dtvs_tls + offset);
 	return (tls_get_addr_slow(dtvp, index, offset, false));
 }
 
@@ -5436,7 +5440,7 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 {
 	Obj_Entry *obj;
 	char *tls_block;
-	uintptr_t *dtv;
+	struct dtv *dtv;
 	struct tcb *tcb;
 	char *addr;
 	uintptr_t i;
@@ -5469,18 +5473,22 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 
 		/* Adjust the DTV. */
 		dtv = tcb->tcb_dtv;
-		for (i = 0; i < dtv[1]; i++) {
-			if (dtv[i + 2] >= (uintptr_t)oldtcb &&
-			    dtv[i + 2] < (uintptr_t)oldtcb + tls_static_space) {
-				dtv[i + 2] = (uintptr_t)((char *)tcb +
-				    ((char *)dtv[i + 2] - (char *)oldtcb));
+		for (i = 0; i < dtv->dtv_size; i++) {
+			if ((uintptr_t)dtv->dtv_slots[i].dtvs_tls >=
+			    (uintptr_t)oldtcb &&
+			    (uintptr_t)dtv->dtv_slots[i].dtvs_tls <
+			    (uintptr_t)oldtcb + tls_static_space) {
+				dtv->dtv_slots[i].dtvs_tls = (char *)tcb +
+				    (dtv->dtv_slots[i].dtvs_tls -
+				    (char *)oldtcb);
 			}
 		}
 	} else {
-		dtv = xcalloc(tls_max_index + 2, sizeof(uintptr_t));
+		dtv = xcalloc(1, sizeof(struct dtv) + tls_max_index *
+		    sizeof(struct dtv_slot));
 		tcb->tcb_dtv = dtv;
-		dtv[0] = tls_dtv_generation;
-		dtv[1] = tls_max_index;
+		dtv->dtv_gen = tls_dtv_generation;
+		dtv->dtv_size = tls_max_index;
 
 		for (obj = globallist_curr(objs); obj != NULL;
 		    obj = globallist_next(obj)) {
@@ -5501,7 +5509,7 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 				    obj->tlssize - obj->tlsinitsize -
 					tls_init_offset);
 			}
-			dtv[obj->tlsindex + 1] = (uintptr_t)addr;
+			dtv->dtv_slots[obj->tlsindex - 1].dtvs_tls = addr;
 		}
 	}
 
@@ -5511,10 +5519,10 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 void
 free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
 {
-	uintptr_t *dtv;
+	struct dtv *dtv;
 	uintptr_t tlsstart, tlsend;
 	size_t post_size;
-	size_t dtvsize, i, tls_init_align __unused;
+	size_t i, tls_init_align __unused;
 
 	assert(tcbsize >= TLS_TCB_SIZE);
 	tls_init_align = MAX(obj_main->tlsalign, 1);
@@ -5526,11 +5534,11 @@ free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
 	tlsend = (uintptr_t)tcb + tls_static_space;
 
 	dtv = ((struct tcb *)tcb)->tcb_dtv;
-	dtvsize = dtv[1];
-	for (i = 0; i < dtvsize; i++) {
-		if (dtv[i + 2] != 0 && (dtv[i + 2] < tlsstart ||
-		    dtv[i + 2] >= tlsend)) {
-			free((void *)dtv[i + 2]);
+	for (i = 0; i < dtv->dtv_size; i++) {
+		if (dtv->dtv_slots[i].dtvs_tls != NULL &&
+		    ((uintptr_t)dtv->dtv_slots[i].dtvs_tls < tlsstart ||
+		    (uintptr_t)dtv->dtv_slots[i].dtvs_tls >= tlsend)) {
+			free(dtv->dtv_slots[i].dtvs_tls);
 		}
 	}
 	free(dtv);
@@ -5550,7 +5558,7 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 	Obj_Entry *obj;
 	size_t size, ralign;
 	char *tls_block;
-	uintptr_t *dtv, *olddtv;
+	struct dtv *dtv, *olddtv;
 	struct tcb *tcb;
 	char *addr;
 	size_t i;
@@ -5562,14 +5570,15 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 
 	assert(tcbsize >= 2 * sizeof(uintptr_t));
 	tls_block = xmalloc_aligned(size, ralign, 0 /* XXX */);
-	dtv = xcalloc(tls_max_index + 2, sizeof(uintptr_t));
+	dtv = xcalloc(1, sizeof(struct dtv) + tls_max_index *
+	    sizeof(struct dtv_slot));
 
 	tcb = (struct tcb *)(tls_block + roundup(tls_static_space, ralign));
 	tcb->tcb_self = tcb;
 	tcb->tcb_dtv = dtv;
 
-	dtv[0] = tls_dtv_generation;
-	dtv[1] = tls_max_index;
+	dtv->dtv_gen = tls_dtv_generation;
+	dtv->dtv_size = tls_max_index;
 
 	if (oldtcb != NULL) {
 		/*
@@ -5584,11 +5593,14 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 		 * move them over.
 		 */
 		olddtv = ((struct tcb *)oldtcb)->tcb_dtv;
-		for (i = 0; i < olddtv[1]; i++) {
-			if (olddtv[i + 2] < (uintptr_t)oldtcb - size ||
-			    olddtv[i + 2] > (uintptr_t)oldtcb) {
-				dtv[i + 2] = olddtv[i + 2];
-				olddtv[i + 2] = 0;
+		for (i = 0; i < olddtv->dtv_size; i++) {
+			if ((uintptr_t)olddtv->dtv_slots[i].dtvs_tls <
+			    (uintptr_t)oldtcb - size ||
+			    (uintptr_t)olddtv->dtv_slots[i].dtvs_tls >
+			    (uintptr_t)oldtcb) {
+				dtv->dtv_slots[i].dtvs_tls =
+				    olddtv->dtv_slots[i].dtvs_tls;
+				olddtv->dtv_slots[i].dtvs_tls = NULL;
 			}
 		}
 
@@ -5608,7 +5620,7 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 				memcpy(addr, obj->tlsinit, obj->tlsinitsize);
 				obj->static_tls_copied = true;
 			}
-			dtv[obj->tlsindex + 1] = (uintptr_t)addr;
+			dtv->dtv_slots[obj->tlsindex - 1].dtvs_tls = addr;
 		}
 	}
 
@@ -5618,9 +5630,9 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 void
 free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign)
 {
-	uintptr_t *dtv;
+	struct dtv *dtv;
 	size_t size, ralign;
-	int dtvsize, i;
+	size_t i;
 	uintptr_t tlsstart, tlsend;
 
 	/*
@@ -5633,18 +5645,18 @@ free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign)
 	size = roundup(tls_static_space, ralign);
 
 	dtv = ((struct tcb *)tcb)->tcb_dtv;
-	dtvsize = dtv[1];
 	tlsend = (uintptr_t)tcb;
 	tlsstart = tlsend - size;
-	for (i = 0; i < dtvsize; i++) {
-		if (dtv[i + 2] != 0 && (dtv[i + 2] < tlsstart ||
-		    dtv[i + 2] > tlsend)) {
-			free((void *)dtv[i + 2]);
+	for (i = 0; i < dtv->dtv_size; i++) {
+		if (dtv->dtv_slots[i].dtvs_tls != NULL &&
+		    ((uintptr_t)dtv->dtv_slots[i].dtvs_tls < tlsstart ||
+		    (uintptr_t)dtv->dtv_slots[i].dtvs_tls > tlsend)) {
+			free(dtv->dtv_slots[i].dtvs_tls);
 		}
 	}
 
 	free((void *)tlsstart);
-	free((void *)dtv);
+	free(dtv);
 }
 
 #endif /* TLS_VARIANT_II */
