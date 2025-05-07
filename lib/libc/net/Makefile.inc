@@ -108,8 +108,11 @@ MLINKS+=inet6_opt_init.3 inet6_opt_append.3 \
 	inet6_rthdr_space.3 inet6_rthdr_lasthop.3 \
 	inet6_rthdr_space.3 inet6_rthdr_reverse.3 \
 	inet6_rthdr_space.3 inet6_rthdr_segments.3
-MLINKS+=linkaddr.3 link_addr.3 linkaddr.3 link_ntoa.3 
-MLINKS+=rcmd.3 iruserok.3 rcmd.3 iruserok_sa.3 \
+MLINKS+=linkaddr.3 link_addr.3 \
+	linkaddr.3 link_ntoa.3 \
+	linkaddr.3 link_ntoa_r.3
+MLINKS+=rcmd.3 iruserok.3 \
+	rcmd.3 iruserok_sa.3 \
 	rcmd.3 rcmd_af.3 \
 	rcmd.3 rresvport.3 rcmd.3 rresvport_af.3 \
 	rcmd.3 ruserok.3
