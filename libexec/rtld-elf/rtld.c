@@ -5472,8 +5472,8 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 		for (i = 0; i < dtv[1]; i++) {
 			if (dtv[i + 2] >= (uintptr_t)oldtcb &&
 			    dtv[i + 2] < (uintptr_t)oldtcb + tls_static_space) {
-				dtv[i + 2] = dtv[i + 2] - (uintptr_t)oldtcb +
-				    (uintptr_t)tcb;
+				dtv[i + 2] = (uintptr_t)((char *)tcb +
+				    ((char *)dtv[i + 2] - (char *)oldtcb));
 			}
 		}
 	} else {
