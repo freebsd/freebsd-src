@@ -323,62 +323,58 @@ __libc_free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign)
  * Allocate Static TLS using the Variant II method.
  */
 void *
-__libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
+__libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 {
 	size_t size;
-	char *tls;
-	uintptr_t *dtv;
-	uintptr_t segbase, oldsegbase;
+	char *tls_block, *tls;
+	uintptr_t *dtv, **tcb;
 
 	tcbalign = MAX(tcbalign, libc_tls_init_align);
 	size = roundup2(libc_tls_static_space, tcbalign);
 
 	if (tcbsize < 2 * sizeof(uintptr_t))
 		tcbsize = 2 * sizeof(uintptr_t);
-	tls = libc_malloc_aligned(size + tcbsize, tcbalign);
-	if (tls == NULL) {
+	tls_block = libc_malloc_aligned(size + tcbsize, tcbalign);
+	if (tls_block == NULL) {
 		tls_msg("__libc_allocate_tls: Out of memory.\n");
 		abort();
 	}
-	memset(tls, 0, size + tcbsize);
+	memset(tls_block, 0, size + tcbsize);
 	dtv = __je_bootstrap_malloc(3 * sizeof(uintptr_t));
 	if (dtv == NULL) {
 		tls_msg("__libc_allocate_tls: Out of memory.\n");
 		abort();
 	}
 
-	segbase = (uintptr_t)(tls + size);
-	((uintptr_t *)segbase)[0] = segbase;
-	((uintptr_t *)segbase)[1] = (uintptr_t)dtv;
+	tcb = (uintptr_t **)(tls_block + size);
+	tls = (char *)tcb - libc_tls_static_space;
+	tcb[0] = (uintptr_t *)tcb;
+	tcb[1] = dtv;
 
 	dtv[0] = 1;
 	dtv[1] = 1;
-	dtv[2] = segbase - libc_tls_static_space;
+	dtv[2] = (uintptr_t)tls;
 
-	if (oldtls) {
+	if (oldtcb != NULL) {
 		/*
 		 * Copy the static TLS block over whole.
 		 */
-		oldsegbase = (uintptr_t)oldtls;
-		memcpy((void *)(segbase - libc_tls_static_space),
-		    (const void *)(oldsegbase - libc_tls_static_space),
+		memcpy(tls, (const char *)oldtcb - libc_tls_static_space,
 		    libc_tls_static_space);
 
 		/*
 		 * We assume that this block was the one we created with
 		 * allocate_initial_tls().
 		 */
-		_rtld_free_tls(oldtls, 2 * sizeof(uintptr_t),
+		_rtld_free_tls(oldtcb, 2 * sizeof(uintptr_t),
 		    sizeof(uintptr_t));
 	} else {
-		memcpy((void *)(segbase - libc_tls_static_space),
-		    libc_tls_init, libc_tls_init_size);
-		memset((void *)(segbase - libc_tls_static_space +
-		    libc_tls_init_size), 0,
+		memcpy(tls, libc_tls_init, libc_tls_init_size);
+		memset(tls + libc_tls_init_size, 0,
 		    libc_tls_static_space - libc_tls_init_size);
 	}
 
-	return (void*) segbase;
+	return (tcb);
 }
 
 #endif /* TLS_VARIANT_II */
@@ -386,7 +382,7 @@ __libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
 #else
 
 void *
-__libc_allocate_tls(void *oldtls __unused, size_t tcbsize __unused,
+__libc_allocate_tls(void *oldtcb __unused, size_t tcbsize __unused,
 	size_t tcbalign __unused)
 {
 	return (0);
