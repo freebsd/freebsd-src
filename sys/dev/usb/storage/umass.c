@@ -431,6 +431,7 @@ struct umass_softc {
 	uint8_t	sc_maxlun;		/* maximum LUN number, inclusive */
 	uint8_t	sc_last_xfer_index;
 	uint8_t	sc_status_try;
+	bool sc_sending_sense;
 };
 
 struct umass_probe_proto {
@@ -2013,16 +2014,20 @@ umass_t_cbi_status_callback(struct usb_xfer *xfer, usb_error_t error)
 			/*
 			 * Section 3.4.3.1.3 specifies that the UFI command
 			 * protocol returns an ASC and ASCQ in the interrupt
-			 * data block.
+			 * data block. However, we might also be fetching the
+			 * sense explicitly, where they are likely to be
+			 * non-zero, in which case we should succeed.
 			 */
 
 			DPRINTF(sc, UDMASS_CBI, "UFI CCI, ASC = 0x%02x, "
 			    "ASCQ = 0x%02x\n", sc->sbl.ufi.asc,
 			    sc->sbl.ufi.ascq);
 
-			status = (((sc->sbl.ufi.asc == 0) &&
-			    (sc->sbl.ufi.ascq == 0)) ?
-			    STATUS_CMD_OK : STATUS_CMD_FAILED);
+			if ((sc->sbl.ufi.asc == 0 && sc->sbl.ufi.ascq == 0) ||
+			    sc->sc_transfer.cmd_data[0] == REQUEST_SENSE)
+				status = STATUS_CMD_OK;
+			else
+				status = STATUS_CMD_FAILED;
 
 			sc->sc_transfer.ccb = NULL;
 
