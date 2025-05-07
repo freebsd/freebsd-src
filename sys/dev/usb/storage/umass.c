@@ -2230,6 +2230,13 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 			 * command format needed by the specific command set
 			 * and return the converted command in
 			 * "sc->sc_transfer.cmd_data"
+			 *
+			 * For commands we know the device doesn't support, we
+			 * either complete them with an illegal request, or fake
+			 * the completion, based on what upper layers tolerate.
+			 * Ideally, we'd let the periph drivers know and not
+			 * fake things up, but some periphs fall short of the
+			 * ideal.
 			 */
 			if (umass_std_transform(sc, ccb, cmd, ccb->csio.cdb_len)) {
 				if (sc->sc_transfer.cmd_data[0] == INQUIRY) {
