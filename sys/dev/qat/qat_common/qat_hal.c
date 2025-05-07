@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -1052,8 +1052,7 @@ qat_hal_init(struct adf_accel_dev *accel_dev)
 	handle->hal_cap_ae_xfer_csr_addr_v = ae_offset;
 	handle->hal_ep_csr_addr_v = ep_offset;
 	handle->hal_cap_ae_local_csr_addr_v =
-	    ((uintptr_t)handle->hal_cap_ae_xfer_csr_addr_v +
-	     LOCAL_TO_XFER_REG_OFFSET);
+	     ((uintptr_t)handle->hal_cap_ae_xfer_csr_addr_v + LOCAL_TO_XFER_REG_OFFSET);
 	handle->fw_auth = (pci_get_device(GET_DEV(handle->accel_dev)) ==
 			   ADF_DH895XCC_PCI_DEVICE_ID) ?
 	    false :
@@ -1283,7 +1282,7 @@ qat_hal_exec_micro_inst(struct icp_qat_fw_loader_handle *handle,
 			unsigned int max_cycle,
 			unsigned int *endpc)
 {
-	uint64_t savuwords[MAX_EXEC_INST];
+	u64 *savuwords = NULL;
 	unsigned int ind_lm_addr0, ind_lm_addr1;
 	unsigned int ind_lm_addr2, ind_lm_addr3;
 	unsigned int ind_lm_addr_byte0, ind_lm_addr_byte1;
@@ -1300,6 +1299,11 @@ qat_hal_exec_micro_inst(struct icp_qat_fw_loader_handle *handle,
 		pr_err("QAT: invalid instruction num %d\n", inst_num);
 		return EINVAL;
 	}
+
+	savuwords = kzalloc(sizeof(u64) * MAX_EXEC_INST, GFP_KERNEL);
+	if (!savuwords)
+		return ENOMEM;
+
 	/* save current context */
 	qat_hal_rd_indr_csr(handle, ae, ctx, LM_ADDR_0_INDIRECT, &ind_lm_addr0);
 	qat_hal_rd_indr_csr(handle, ae, ctx, LM_ADDR_1_INDIRECT, &ind_lm_addr1);
@@ -1360,8 +1364,10 @@ qat_hal_exec_micro_inst(struct icp_qat_fw_loader_handle *handle,
 	qat_hal_wr_ae_csr(handle, ae, CTX_SIG_EVENTS_ACTIVE, 0);
 	qat_hal_enable_ctx(handle, ae, (1 << ctx));
 	/* wait for micro codes to finish */
-	if (qat_hal_wait_cycles(handle, ae, max_cycle, 1) != 0)
+	if (qat_hal_wait_cycles(handle, ae, max_cycle, 1) != 0) {
+		kfree(savuwords);
 		return EFAULT;
+	}
 	if (endpc) {
 		unsigned int ctx_status;
 
@@ -1429,6 +1435,7 @@ qat_hal_exec_micro_inst(struct icp_qat_fw_loader_handle *handle,
 	    handle, ae, (1 << ctx), CTX_SIG_EVENTS_INDIRECT, ind_sig);
 	qat_hal_wr_ae_csr(handle, ae, CTX_SIG_EVENTS_ACTIVE, act_sig);
 	qat_hal_wr_ae_csr(handle, ae, CTX_ENABLES, ctx_enables);
+	kfree(savuwords);
 
 	return 0;
 }

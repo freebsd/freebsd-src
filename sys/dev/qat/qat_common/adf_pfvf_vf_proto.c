@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include <linux/kernel.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
@@ -89,9 +89,15 @@ adf_send_vf2pf_req(struct adf_accel_dev *accel_dev,
 		}
 
 		/* Wait for response, if it times out retry */
-		ret =
-		    wait_for_completion_timeout(&accel_dev->u1.vf.msg_received,
-						timeout);
+		if (!cold) {
+			ret = wait_for_completion_timeout(
+			    &accel_dev->u1.vf.msg_received, timeout);
+		} else {
+			/* In cold start timers may not be initialized yet */
+			DELAY(ADF_PFVF_MSG_RESP_TIMEOUT * 1000);
+			ret = try_wait_for_completion(
+			    &accel_dev->u1.vf.msg_received);
+		}
 		if (ret) {
 			if (likely(resp))
 				*resp = accel_dev->u1.vf.response;
@@ -345,6 +351,9 @@ adf_handle_pf2vf_msg(struct adf_accel_dev *accel_dev, struct pfvf_message msg)
 		return false;
 	case ADF_PF2VF_MSGTYPE_RP_RESET_RESP:
 		adf_pf2vf_handle_pf_rp_reset(accel_dev, msg);
+		return true;
+	case ADF_PF2VF_MSGTYPE_FATAL_ERROR:
+		adf_pf2vf_handle_pf_error(accel_dev);
 		return true;
 	case ADF_PF2VF_MSGTYPE_VERSION_RESP:
 	case ADF_PF2VF_MSGTYPE_BLKMSG_RESP:

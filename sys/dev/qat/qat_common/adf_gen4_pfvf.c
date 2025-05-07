@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include <linux/iopoll.h>
-#include <linux/mutex.h>
 #include <linux/types.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"

@@ -1013,6 +1013,9 @@ adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 id)
 	hw_data->get_hb_clock = get_hb_clock;
 	hw_data->int_timer_init = adf_int_timer_init;
 	hw_data->int_timer_exit = adf_int_timer_exit;
+	hw_data->pre_reset = adf_dev_pre_reset;
+	hw_data->post_reset = adf_dev_post_reset;
+	hw_data->disable_arb = adf_disable_arb;
 	hw_data->get_heartbeat_status = adf_get_heartbeat_status;
 	hw_data->get_ae_clock = get_ae_clock;
 	hw_data->measure_clock = measure_clock;

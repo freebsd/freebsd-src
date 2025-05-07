@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #ifndef ADF_GEN4VF_HW_CSR_DATA_H_
 #define ADF_GEN4VF_HW_CSR_DATA_H_
 
@@ -51,7 +51,7 @@
 		struct resource *_csr_base_addr = csr_base_addr;               \
 		u32 _bank = bank;                                              \
 		u32 _ring = ring;                                              \
-		dma_addr_t _value = value;                                     \
+		bus_addr_t _value = value;                                     \
 		u32 l_base = 0, u_base = 0;                                    \
 		l_base = (u32)((_value)&0xFFFFFFFF);                           \
 		u_base = (u32)(((_value)&0xFFFFFFFF00000000ULL) >> 32);        \

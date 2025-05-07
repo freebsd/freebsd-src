@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #ifndef ADF_C3XXX_HW_DATA_H_
 #define ADF_C3XXX_HW_DATA_H_
 
 /* PCIe configuration space */
-#define ADF_C3XXX_PMISC_BAR 0
-#define ADF_C3XXX_ETR_BAR 1
+#define ADF_C3XXX_PMISC_BAR 1
+#define ADF_C3XXX_ETR_BAR 2
 #define ADF_C3XXX_RX_RINGS_OFFSET 8
 #define ADF_C3XXX_TX_RINGS_MASK 0xFF
 #define ADF_C3XXX_MAX_ACCELERATORS 3
