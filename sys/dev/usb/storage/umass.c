@@ -2825,12 +2825,11 @@ umass_ufi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 
 		/*
 		 * SYNCHRONIZE_CACHE isn't supported by UFI, nor should it be
-		 * required for UFI devices, so it is appropriate to fake
-		 * success.
+		 * required for UFI devices. Just fail it, the upper layers
+		 * know what to do.
 		 */
 	case SYNCHRONIZE_CACHE:
-		return (2);
-
+		return (0);
 	default:
 		DPRINTF(sc, UDMASS_SCSI, "Unsupported UFI "
 		    "command 0x%02x\n", cmd_ptr[0]);
