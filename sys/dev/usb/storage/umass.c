@@ -2625,11 +2625,14 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 			DPRINTF(sc, UDMASS_SCSI, "Doing a sneaky"
 			    "TEST_UNIT_READY\n");
 
-			/* the rest of the command was filled in at attach */
-
-			if ((sc->sc_transform)(sc,
+			/*
+			 * Transform the TUR and if successful, send it.  Pass
+			 * NULL for the ccb so we don't override the above
+			 * status.
+			 */
+			if (umass_std_transform(sc, NULL,
 			    &sc->cam_scsi_test_unit_ready.opcode,
-			    sizeof(sc->cam_scsi_test_unit_ready)) == 1) {
+			    sizeof(sc->cam_scsi_test_unit_ready))) {
 				umass_command_start(sc, DIR_NONE, NULL, 0,
 				    ccb->ccb_h.timeout,
 				    &umass_cam_quirk_cb, ccb);
@@ -2890,7 +2893,8 @@ umass_std_transform(struct umass_softc *sc, union ccb *ccb,
 	}
 	if (sc->sc_transform(sc, cmd, cmd_len))
 		return (true);	/* Execute command */
-	umass_cam_illegal_request(ccb);
+	if (ccb)
+		umass_cam_illegal_request(ccb);
 	return (false);		/* Already failed -- don't submit */
 }
 
