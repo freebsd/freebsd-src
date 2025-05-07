@@ -1681,11 +1681,12 @@ uipc_sopoll_stream_or_seqpacket(struct socket *so, int events,
 					    (POLLOUT | POLLWRNORM);
 				if (sb->sb_state & SBS_CANTRCVMORE)
 					revents |= POLLHUP;
-				if (!(revents & (POLLOUT | POLLWRNORM)))
+				if (!(revents & (POLLOUT | POLLWRNORM))) {
 					so2->so_rcv.uxst_flags |= UXST_PEER_SEL;
+					selrecord(td, &so->so_wrsel);
+				}
 				SOCK_RECVBUF_UNLOCK(so2);
-			}
-			if (!(revents & (POLLOUT | POLLWRNORM)))
+			} else
 				selrecord(td, &so->so_wrsel);
 		}
 	}
