@@ -299,7 +299,7 @@ typedef void (umass_callback_t)(struct umass_softc *sc, union ccb *ccb,
 #define	STATUS_CMD_FAILED	2	/* transfer was ok, command failed */
 #define	STATUS_WIRE_FAILED	3	/* couldn't even get command across */
 
-typedef uint8_t (umass_transform_t)(struct umass_softc *sc, uint8_t *cmd_ptr,
+typedef bool (umass_transform_t)(struct umass_softc *sc, uint8_t *cmd_ptr,
     	uint8_t cmd_len);
 
 /* Wire and command protocol */
@@ -490,13 +490,12 @@ static void	umass_cam_sense_cb(struct umass_softc *, union ccb *, uint32_t,
 static void	umass_cam_quirk_cb(struct umass_softc *, union ccb *, uint32_t,
 		    uint8_t);
 static void	umass_cam_illegal_request(union ccb *ccb);
-static uint8_t	umass_scsi_transform(struct umass_softc *, uint8_t *, uint8_t);
-static uint8_t	umass_rbc_transform(struct umass_softc *, uint8_t *, uint8_t);
-static uint8_t	umass_ufi_transform(struct umass_softc *, uint8_t *, uint8_t);
-static uint8_t	umass_atapi_transform(struct umass_softc *, uint8_t *,
-		    uint8_t);
-static uint8_t	umass_no_transform(struct umass_softc *, uint8_t *, uint8_t);
-static uint8_t	umass_std_transform(struct umass_softc *, union ccb *, uint8_t
+static bool	umass_scsi_transform(struct umass_softc *, uint8_t *, uint8_t);
+static bool	umass_rbc_transform(struct umass_softc *, uint8_t *, uint8_t);
+static bool	umass_ufi_transform(struct umass_softc *, uint8_t *, uint8_t);
+static bool	umass_atapi_transform(struct umass_softc *, uint8_t *, uint8_t);
+static bool	umass_no_transform(struct umass_softc *, uint8_t *, uint8_t);
+static bool	umass_std_transform(struct umass_softc *, union ccb *, uint8_t
 		    *, uint8_t);
 
 #ifdef USB_DEBUG
@@ -2677,7 +2676,7 @@ umass_cam_quirk_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
  * SCSI specific functions
  */
 
-static uint8_t
+static bool
 umass_scsi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
     uint8_t cmd_len)
 {
@@ -2685,7 +2684,7 @@ umass_scsi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 	    (cmd_len > sizeof(sc->sc_transfer.cmd_data))) {
 		DPRINTF(sc, UDMASS_SCSI, "Invalid command "
 		    "length: %d bytes\n", cmd_len);
-		return (0);		/* failure */
+		return (false);		/* failure */
 	}
 	sc->sc_transfer.cmd_len = cmd_len;
 
@@ -2697,7 +2696,7 @@ umass_scsi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 			memset(sc->sc_transfer.cmd_data, 0, cmd_len);
 			sc->sc_transfer.cmd_data[0] = START_STOP_UNIT;
 			sc->sc_transfer.cmd_data[4] = SSS_START;
-			return (1);
+			return (true);
 		}
 		break;
 
@@ -2709,23 +2708,23 @@ umass_scsi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		if (sc->sc_quirks & FORCE_SHORT_INQUIRY) {
 			memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 			sc->sc_transfer.cmd_data[4] = SHORT_INQUIRY_LENGTH;
-			return (1);
+			return (true);
 		}
 		break;
 	}
 
 	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
-	return (1);
+	return (true);
 }
 
-static uint8_t
+static bool
 umass_rbc_transform(struct umass_softc *sc, uint8_t *cmd_ptr, uint8_t cmd_len)
 {
 	if ((cmd_len == 0) ||
 	    (cmd_len > sizeof(sc->sc_transfer.cmd_data))) {
 		DPRINTF(sc, UDMASS_SCSI, "Invalid command "
 		    "length: %d bytes\n", cmd_len);
-		return (0);		/* failure */
+		return (false);		/* failure */
 	}
 	switch (cmd_ptr[0]) {
 		/* these commands are defined in RBC: */
@@ -2756,17 +2755,17 @@ umass_rbc_transform(struct umass_softc *sc, uint8_t *cmd_ptr, uint8_t cmd_len)
 			cmd_len = 12;
 		}
 		sc->sc_transfer.cmd_len = cmd_len;
-		return (1);		/* success */
+		return (true);		/* success */
 
 		/* All other commands are not legal in RBC */
 	default:
 		DPRINTF(sc, UDMASS_SCSI, "Unsupported RBC "
 		    "command 0x%02x\n", cmd_ptr[0]);
-		return (0);		/* failure */
+		return (false);		/* failure */
 	}
 }
 
-static uint8_t
+static bool
 umass_ufi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
     uint8_t cmd_len)
 {
@@ -2774,7 +2773,7 @@ umass_ufi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 	    (cmd_len > sizeof(sc->sc_transfer.cmd_data))) {
 		DPRINTF(sc, UDMASS_SCSI, "Invalid command "
 		    "length: %d bytes\n", cmd_len);
-		return (0);		/* failure */
+		return (false);		/* failure */
 	}
 	/* An UFI command is always 12 bytes in length */
 	sc->sc_transfer.cmd_len = UFI_COMMAND_LENGTH;
@@ -2829,21 +2828,21 @@ umass_ufi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		 * know what to do.
 		 */
 	case SYNCHRONIZE_CACHE:
-		return (0);
+		return (false);
 	default:
 		DPRINTF(sc, UDMASS_SCSI, "Unsupported UFI "
 		    "command 0x%02x\n", cmd_ptr[0]);
-		return (0);		/* failure */
+		return (false);		/* failure */
 	}
 
 	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
-	return (1);			/* success */
+	return (true);			/* success */
 }
 
 /*
  * 8070i (ATAPI) specific functions
  */
-static uint8_t
+static bool
 umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
     uint8_t cmd_len)
 {
@@ -2851,7 +2850,7 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 	    (cmd_len > sizeof(sc->sc_transfer.cmd_data))) {
 		DPRINTF(sc, UDMASS_SCSI, "Invalid command "
 		    "length: %d bytes\n", cmd_len);
-		return (0);		/* failure */
+		return (false);		/* failure */
 	}
 	/* An ATAPI command is always 12 bytes in length. */
 	sc->sc_transfer.cmd_len = ATAPI_COMMAND_LENGTH;
@@ -2874,7 +2873,7 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 			memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 
 			sc->sc_transfer.cmd_data[4] = SHORT_INQUIRY_LENGTH;
-			return (1);
+			return (true);
 		}
 		break;
 
@@ -2884,7 +2883,7 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 			    "to START_UNIT\n");
 			sc->sc_transfer.cmd_data[0] = START_STOP_UNIT;
 			sc->sc_transfer.cmd_data[4] = SSS_START;
-			return (1);
+			return (true);
 		}
 		break;
 
@@ -2933,29 +2932,29 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 	}
 
 	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
-	return (1);			/* success */
+	return (true);			/* success */
 }
 
-static uint8_t
+static bool
 umass_no_transform(struct umass_softc *sc, uint8_t *cmd,
     uint8_t cmdlen)
 {
-	return (0);			/* failure */
+	return (false);			/* failure */
 }
 
-static uint8_t
+static bool
 umass_std_transform(struct umass_softc *sc, union ccb *ccb,
     uint8_t *cmd, uint8_t cmdlen)
 {
 	uint8_t retval;
 
 	if (sc->sc_transform(sc, cmd, cmdlen))
-		return (1);	/* Execute command */
+		return (true);	/* Execute command */
 
 	xpt_freeze_devq(ccb->ccb_h.path, 1);
 	ccb->ccb_h.status = CAM_REQ_INVALID | CAM_DEV_QFRZN;
 	xpt_done(ccb);
-	return (0);		/* Already failed */
+	return (false);		/* Already failed -- don't submit */
 }
 
 #ifdef USB_DEBUG
