@@ -2537,7 +2537,8 @@ pf_ioctl_set_limit(int index, unsigned int limit, unsigned int *old_limit)
 		PF_RULES_WUNLOCK();
 		return (EINVAL);
 	}
-	uma_zone_set_max(V_pf_limits[index].zone, limit);
+	uma_zone_set_max(V_pf_limits[index].zone,
+	    limit == 0 ? INT_MAX : limit);
 	if (old_limit != NULL)
 		*old_limit = V_pf_limits[index].limit;
 	V_pf_limits[index].limit = limit;
