@@ -5544,13 +5544,13 @@ free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
  * Allocate Static TLS using the Variant II method.
  */
 void *
-allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
+allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 {
 	Obj_Entry *obj;
 	size_t size, ralign;
-	char *tls;
+	char *tls_block;
 	uintptr_t *dtv, *olddtv;
-	uintptr_t segbase, oldsegbase;
+	uintptr_t **tcb;
 	char *addr;
 	size_t i;
 
@@ -5560,33 +5560,32 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
 	size = roundup(tls_static_space, ralign) + roundup(tcbsize, ralign);
 
 	assert(tcbsize >= 2 * sizeof(uintptr_t));
-	tls = xmalloc_aligned(size, ralign, 0 /* XXX */);
+	tls_block = xmalloc_aligned(size, ralign, 0 /* XXX */);
 	dtv = xcalloc(tls_max_index + 2, sizeof(uintptr_t));
 
-	segbase = (uintptr_t)(tls + roundup(tls_static_space, ralign));
-	((uintptr_t *)segbase)[0] = segbase;
-	((uintptr_t *)segbase)[1] = (uintptr_t)dtv;
+	tcb = (uintptr_t **)(tls_block + roundup(tls_static_space, ralign));
+	tcb[0] = (uintptr_t *)tcb;
+	tcb[1] = dtv;
 
 	dtv[0] = tls_dtv_generation;
 	dtv[1] = tls_max_index;
 
-	if (oldtls != NULL) {
+	if (oldtcb != NULL) {
 		/*
 		 * Copy the static TLS block over whole.
 		 */
-		oldsegbase = (uintptr_t)oldtls;
-		memcpy((void *)(segbase - tls_static_space),
-		    (const void *)(oldsegbase - tls_static_space),
+		memcpy((char *)tcb - tls_static_space,
+		    (const char *)oldtcb - tls_static_space,
 		    tls_static_space);
 
 		/*
 		 * If any dynamic TLS blocks have been created tls_get_addr(),
 		 * move them over.
 		 */
-		olddtv = ((uintptr_t **)oldsegbase)[1];
+		olddtv = ((uintptr_t **)oldtcb)[1];
 		for (i = 0; i < olddtv[1]; i++) {
-			if (olddtv[i + 2] < oldsegbase - size ||
-			    olddtv[i + 2] > oldsegbase) {
+			if (olddtv[i + 2] < (uintptr_t)oldtcb - size ||
+			    olddtv[i + 2] > (uintptr_t)oldtcb) {
 				dtv[i + 2] = olddtv[i + 2];
 				olddtv[i + 2] = 0;
 			}
@@ -5596,12 +5595,12 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
 		 * We assume that this block was the one we created with
 		 * allocate_initial_tls().
 		 */
-		free_tls(oldtls, 2 * sizeof(uintptr_t), sizeof(uintptr_t));
+		free_tls(oldtcb, 2 * sizeof(uintptr_t), sizeof(uintptr_t));
 	} else {
 		for (obj = objs; obj != NULL; obj = TAILQ_NEXT(obj, next)) {
 			if (obj->marker || obj->tlsoffset == 0)
 				continue;
-			addr = (char *)segbase - obj->tlsoffset;
+			addr = (char *)tcb - obj->tlsoffset;
 			memset(addr + obj->tlsinitsize, 0, obj->tlssize -
 			    obj->tlsinitsize);
 			if (obj->tlsinit) {
@@ -5612,11 +5611,11 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
 		}
 	}
 
-	return ((void *)segbase);
+	return (tcb);
 }
 
 void
-free_tls(void *tls, size_t tcbsize __unused, size_t tcbalign)
+free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign)
 {
 	uintptr_t *dtv;
 	size_t size, ralign;
@@ -5632,9 +5631,9 @@ free_tls(void *tls, size_t tcbsize __unused, size_t tcbalign)
 		ralign = tls_static_max_align;
 	size = roundup(tls_static_space, ralign);
 
-	dtv = ((uintptr_t **)tls)[1];
+	dtv = ((uintptr_t **)tcb)[1];
 	dtvsize = dtv[1];
-	tlsend = (uintptr_t)tls;
+	tlsend = (uintptr_t)tcb;
 	tlsstart = tlsend - size;
 	for (i = 0; i < dtvsize; i++) {
 		if (dtv[i + 2] != 0 && (dtv[i + 2] < tlsstart ||
@@ -5755,13 +5754,13 @@ free_tls_offset(Obj_Entry *obj)
 }
 
 void *
-_rtld_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
+_rtld_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 {
 	void *ret;
 	RtldLockState lockstate;
 
 	wlock_acquire(rtld_bind_lock, &lockstate);
-	ret = allocate_tls(globallist_curr(TAILQ_FIRST(&obj_list)), oldtls,
+	ret = allocate_tls(globallist_curr(TAILQ_FIRST(&obj_list)), oldtcb,
 	    tcbsize, tcbalign);
 	lock_release(rtld_bind_lock, &lockstate);
 	return (ret);
