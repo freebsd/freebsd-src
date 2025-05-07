@@ -20,6 +20,10 @@
 #include "adf_common_drv.h"
 #include "icp_qat_fw.h"
 
+#if defined(QAT_UIO)
+#include "adf_cfg_device.h"
+#endif /* QAT_UIO*/
+
 /* Mask used to check the CompressAndVerify capability bit */
 #define DC_CNV_EXTENDED_CAPABILITY (0x01)
 
@@ -28,6 +32,11 @@
 
 static LIST_HEAD(service_table);
 static DEFINE_MUTEX(service_lock);
+
+static int adf_dev_init_locked(struct adf_accel_dev *accel_dev);
+static int adf_dev_start_locked(struct adf_accel_dev *accel_dev);
+static int adf_dev_stop_locked(struct adf_accel_dev *accel_dev);
+static void adf_dev_shutdown_locked(struct adf_accel_dev *accel_dev);
 
 static void
 adf_service_add(struct service_hndl *service)
@@ -262,6 +271,18 @@ adf_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 int
 adf_dev_init(struct adf_accel_dev *accel_dev)
 {
+	int ret = 0;
+
+	mutex_lock(&accel_dev->lock);
+	ret = adf_dev_init_locked(accel_dev);
+	mutex_unlock(&accel_dev->lock);
+
+	return ret;
+}
+
+static int
+adf_dev_init_locked(struct adf_accel_dev *accel_dev)
+{
 	struct service_hndl *service;
 	struct list_head *list_itr;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
@@ -411,6 +432,18 @@ adf_dev_init(struct adf_accel_dev *accel_dev)
 int
 adf_dev_start(struct adf_accel_dev *accel_dev)
 {
+	int ret = 0;
+
+	mutex_lock(&accel_dev->lock);
+	ret = adf_dev_start_locked(accel_dev);
+	mutex_unlock(&accel_dev->lock);
+
+	return ret;
+}
+
+static int
+adf_dev_start_locked(struct adf_accel_dev *accel_dev)
+{
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct service_hndl *service;
 	struct list_head *list_itr;
@@ -508,6 +541,18 @@ adf_dev_start(struct adf_accel_dev *accel_dev)
 int
 adf_dev_stop(struct adf_accel_dev *accel_dev)
 {
+	int ret = 0;
+
+	mutex_lock(&accel_dev->lock);
+	ret = adf_dev_stop_locked(accel_dev);
+	mutex_unlock(&accel_dev->lock);
+
+	return ret;
+}
+
+static int
+adf_dev_stop_locked(struct adf_accel_dev *accel_dev)
+{
 	struct service_hndl *service;
 	struct list_head *list_itr;
 
@@ -517,6 +562,10 @@ adf_dev_stop(struct adf_accel_dev *accel_dev)
 			      accel_dev->accel_id);
 		return ENODEV;
 	}
+
+	if (!test_bit(ADF_STATUS_CONFIGURED, &accel_dev->status))
+		return 0;
+
 	if (!adf_dev_started(accel_dev) &&
 	    !test_bit(ADF_STATUS_STARTING, &accel_dev->status)) {
 		return 0;
@@ -571,9 +620,20 @@ adf_dev_stop(struct adf_accel_dev *accel_dev)
 void
 adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 {
+	mutex_lock(&accel_dev->lock);
+	adf_dev_shutdown_locked(accel_dev);
+	mutex_unlock(&accel_dev->lock);
+}
+
+static void
+adf_dev_shutdown_locked(struct adf_accel_dev *accel_dev)
+{
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct service_hndl *service;
 	struct list_head *list_itr;
+
+	if (!test_bit(ADF_STATUS_CONFIGURED, &accel_dev->status))
+		return;
 
 	if (test_bit(ADF_STATUS_SYSCTL_CTX_INITIALISED, &accel_dev->status)) {
 		sysctl_ctx_free(&accel_dev->sysctl_ctx);
@@ -623,8 +683,12 @@ adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 	}
 
 	/* Delete configuration only if not restarting */
-	if (!test_bit(ADF_STATUS_RESTARTING, &accel_dev->status))
+	if (!test_bit(ADF_STATUS_RESTARTING, &accel_dev->status)) {
 		adf_cfg_del_all(accel_dev);
+#ifdef QAT_UIO
+		adf_cfg_device_clear_all(accel_dev);
+#endif
+	}
 
 	if (hw_data->remove_pke_stats)
 		hw_data->remove_pke_stats(accel_dev);

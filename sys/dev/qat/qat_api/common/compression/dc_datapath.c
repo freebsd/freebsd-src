@@ -118,14 +118,19 @@ dcCompression_ProcessCallback(void *pRespMsg)
 
 	/* Cast response message to compression response message type */
 	pCompRespMsg = (icp_qat_fw_comp_resp_t *)pRespMsg;
-
+	if (!(pCompRespMsg)) {
+		QAT_UTILS_LOG("pCompRespMsg is NULL\n");
+		return;
+	}
 	/* Extract request data pointer from the opaque data */
 	LAC_MEM_SHARED_READ_TO_PTR(pCompRespMsg->opaque_data, pReqData);
+	if (!(pReqData)) {
+		QAT_UTILS_LOG("pReqData is NULL\n");
+		return;
+	}
 
 	/* Extract fields from the request data structure */
 	pCookie = (dc_compression_cookie_t *)pReqData;
-	if (!pCookie)
-		return;
 
 	pSessionDesc = DC_SESSION_DESC_FROM_CTX_GET(pCookie->pSessionHandle);
 	pService = (sal_compression_service_t *)(pCookie->dcInstance);

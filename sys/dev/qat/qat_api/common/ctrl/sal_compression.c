@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  *****************************************************************************
  * @file sal_compression.c
@@ -370,9 +370,6 @@ SalCtrl_CompressionInit(icp_accel_dev_t *device, sal_service_t *service)
 	char *section = DYN_SEC;
 
 	SAL_SERVICE_GOOD_FOR_INIT(pCompressionService);
-
-	pCompressionService->generic_service_info.state =
-	    SAL_SERVICE_STATE_INITIALIZING;
 
 	if (CPA_FALSE == pCompressionService->generic_service_info.is_dyn) {
 		section = icpGetProcessName();
@@ -1438,7 +1435,8 @@ cpaDcInstanceGetInfo2(const CpaInstanceHandle instanceHandle,
 	pInstanceInfo2->isOffloaded = CPA_TRUE;
 	/* Get the instance name and part name from the config file */
 	dev = icp_adf_getAccelDevByAccelId(pCompressionService->pkgID);
-	if (NULL == dev) {
+	if (NULL == dev ||
+	    0 == strnlen(dev->deviceName, ADF_DEVICE_TYPE_LENGTH + 1)) {
 		QAT_UTILS_LOG("Can not find device for the instance.\n");
 		LAC_OS_BZERO(pInstanceInfo2, sizeof(CpaInstanceInfo2));
 		return CPA_STATUS_FAIL;

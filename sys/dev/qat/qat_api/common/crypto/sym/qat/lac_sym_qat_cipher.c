@@ -214,6 +214,11 @@ static const uint8_t key_size_f8[] = {
 	ICP_QAT_HW_CIPHER_ALGO_AES256 /* ICP_QAT_HW_AES_256_F8_KEY_SZ */
 };
 
+/* This array must be kept aligned with CpaCySymCipherAlgorithm enum but
+ * offset by -1 as that enum starts at 1. LacSymQat_CipherGetCfgData()
+ * below relies on that alignment and uses that enum -1 to index into this
+ * array.
+ */
 typedef struct _icp_qat_hw_cipher_info {
 	icp_qat_hw_cipher_algo_t algorithm;
 	icp_qat_hw_cipher_mode_t mode;
@@ -542,7 +547,7 @@ LacSymQat_CipherGetCfgData(lac_session_desc_t *pSession,
 	sal_crypto_service_t *pService =
 	    (sal_crypto_service_t *)pSession->pInstance;
 
-	CpaCySymCipherAlgorithm cipherAlgorithm = 0;
+	int cipherIdx = 0;
 	icp_qat_hw_cipher_dir_t cipherDirection = 0;
 
 	/* Set defaults */
@@ -551,21 +556,33 @@ LacSymQat_CipherGetCfgData(lac_session_desc_t *pSession,
 	*pMode = ICP_QAT_HW_CIPHER_ECB_MODE;
 	*pDir = ICP_QAT_HW_CIPHER_ENCRYPT;
 
-	/* decrease since it's numbered from 1 instead of 0 */
-	cipherAlgorithm = pSession->cipherAlgorithm - 1;
+	/* offset index as CpaCySymCipherAlgorithm enum starts from 1, not from
+	 * 0 */
+	cipherIdx = pSession->cipherAlgorithm - 1;
 	cipherDirection =
 	    pSession->cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT ?
 		  ICP_QAT_HW_CIPHER_ENCRYPT :
 		  ICP_QAT_HW_CIPHER_DECRYPT;
 
-	*pAlgorithm = icp_qat_alg_info[cipherAlgorithm].algorithm;
-	*pMode = icp_qat_alg_info[cipherAlgorithm].mode;
-	*pDir = icp_qat_alg_info[cipherAlgorithm].dir[cipherDirection];
-	*pKey_convert =
-	    icp_qat_alg_info[cipherAlgorithm].key_convert[cipherDirection];
+	/* Boundary check against the last value in the algorithm enum */
+	if (!(pSession->cipherAlgorithm <= CPA_CY_SYM_CIPHER_SM4_CTR)) {
+		QAT_UTILS_LOG("Invalid cipherAlgorithm value\n");
+		return;
+	}
 
-	if (IS_KEY_DEP_NO != icp_qat_alg_info[cipherAlgorithm].isKeyLenDepend) {
-		*pAlgorithm = icp_qat_alg_info[cipherAlgorithm]
+	if (!(cipherDirection <= ICP_QAT_HW_CIPHER_DECRYPT)) {
+		QAT_UTILS_LOG("Invalid cipherDirection value\n");
+		return;
+	}
+
+	*pAlgorithm = icp_qat_alg_info[cipherIdx].algorithm;
+	*pMode = icp_qat_alg_info[cipherIdx].mode;
+	*pDir = icp_qat_alg_info[cipherIdx].dir[cipherDirection];
+	*pKey_convert =
+	    icp_qat_alg_info[cipherIdx].key_convert[cipherDirection];
+
+	if (IS_KEY_DEP_NO != icp_qat_alg_info[cipherIdx].isKeyLenDepend) {
+		*pAlgorithm = icp_qat_alg_info[cipherIdx]
 				  .pAlgByKeySize[pSession->cipherKeyLenInBytes];
 	}
 

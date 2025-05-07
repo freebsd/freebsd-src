@@ -198,8 +198,8 @@ struct icp_qat_fw_init_admin_resp {
 enum icp_qat_fw_init_admin_init_flag { ICP_QAT_FW_INIT_FLAG_PKE_DISABLED = 0 };
 
 struct icp_qat_fw_init_admin_hb_cnt {
-	u16 resp_heartbeat_cnt;
 	u16 req_heartbeat_cnt;
+	u16 resp_heartbeat_cnt;
 };
 
 #define ICP_QAT_FW_COMN_HEARTBEAT_OK 0
