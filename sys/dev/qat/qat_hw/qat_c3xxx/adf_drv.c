@@ -84,7 +84,7 @@ adf_attach(device_t dev)
 	struct adf_accel_pci *accel_pci_dev;
 	struct adf_hw_device_data *hw_data;
 	unsigned int i, bar_nr;
-	int ret, rid;
+	int ret = 0, rid;
 	struct adf_cfg_device *cfg_dev = NULL;
 
 	/* Set pci MaxPayLoad to 256. Implemented to avoid the issue of
@@ -95,6 +95,7 @@ adf_attach(device_t dev)
 
 	accel_dev = device_get_softc(dev);
 
+	mutex_init(&accel_dev->lock);
 	INIT_LIST_HEAD(&accel_dev->crypto_list);
 	accel_pci_dev = &accel_dev->accel_pci_dev;
 	accel_pci_dev->pci_dev = dev;
@@ -106,9 +107,10 @@ adf_attach(device_t dev)
 
 	/* Add accel device to accel table.
 	 * This should be called before adf_cleanup_accel is called */
-	if (adf_devmgr_add_dev(accel_dev, NULL)) {
+	ret = adf_devmgr_add_dev(accel_dev, NULL);
+	if (ret) {
 		device_printf(dev, "Failed to add new accelerator device.\n");
-		return ENXIO;
+		goto out_err_lock;
 	}
 
 	/* Allocate and configure device configuration structure */
@@ -202,18 +204,20 @@ adf_attach(device_t dev)
 		bar->base_addr = rman_get_start(bar->virt_addr);
 		bar->size = rman_get_size(bar->virt_addr);
 	}
-	pci_enable_busmaster(dev);
+	ret = pci_enable_busmaster(dev);
+	if (ret)
+		goto out_err;
 
 	adf_dbgfs_init(accel_dev);
 
 	if (!accel_dev->hw_device->config_device) {
 		ret = EFAULT;
-		goto out_err;
+		goto out_err_disable;
 	}
 
 	ret = accel_dev->hw_device->config_device(accel_dev);
 	if (ret)
-		goto out_err;
+		goto out_err_disable;
 
 	ret = adf_dev_init(accel_dev);
 	if (ret)
@@ -232,8 +236,13 @@ out_dev_stop:
 	adf_dev_stop(accel_dev);
 out_dev_shutdown:
 	adf_dev_shutdown(accel_dev);
+out_err_disable:
+	pci_disable_busmaster(dev);
 out_err:
 	adf_cleanup_accel(accel_dev);
+out_err_lock:
+	mutex_destroy(&accel_dev->lock);
+
 	return ret;
 }
 
@@ -249,7 +258,9 @@ adf_detach(device_t dev)
 
 	adf_dev_shutdown(accel_dev);
 
+	pci_disable_busmaster(dev);
 	adf_cleanup_accel(accel_dev);
+	mutex_destroy(&accel_dev->lock);
 
 	return 0;
 }

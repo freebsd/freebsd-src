@@ -449,12 +449,6 @@ adf_dev_start_locked(struct adf_accel_dev *accel_dev)
 	struct list_head *list_itr;
 
 	set_bit(ADF_STATUS_STARTING, &accel_dev->status);
-	if (adf_devmgr_verify_id(&accel_dev->accel_id)) {
-		device_printf(GET_DEV(accel_dev),
-			      "QAT: Device %d not found\n",
-			      accel_dev->accel_id);
-		return ENODEV;
-	}
 	if (adf_ae_start(accel_dev)) {
 		device_printf(GET_DEV(accel_dev), "AE Start Failed\n");
 		return EFAULT;
@@ -555,13 +549,6 @@ adf_dev_stop_locked(struct adf_accel_dev *accel_dev)
 {
 	struct service_hndl *service;
 	struct list_head *list_itr;
-
-	if (adf_devmgr_verify_id(&accel_dev->accel_id)) {
-		device_printf(GET_DEV(accel_dev),
-			      "QAT: Device %d not found\n",
-			      accel_dev->accel_id);
-		return ENODEV;
-	}
 
 	if (!test_bit(ADF_STATUS_CONFIGURED, &accel_dev->status))
 		return 0;
