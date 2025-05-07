@@ -27,6 +27,7 @@ PARALLEL_JOBS!=sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null
 TOTAL_MEMORY!=expr ${_MEMORY} / 1073741824
 KERNCONF?=	GENERIC
 LOCALBASE?=	/usr/local
+EXTRA_MAKE_FLAGS?=
 
 .if !defined(TARGET) || empty(TARGET)
 TARGET=		${MACHINE}
@@ -167,15 +168,16 @@ ci-buildworld: .PHONY
 	@echo "Building world for ${TARGET_ARCH}"
 	${IMAKE} -j${PARALLEL_JOBS} -C ${WORLDDIR} ${METAMODE} \
 		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} SRCCONF=${SRCCONF} \
-		buildworld > ${.CURDIR}/_.${TARGET_ARCH}.${.TARGET} 2>&1 || \
+		${EXTRA_MAKE_FLAGS} buildworld > ${.CURDIR}/_.${TARGET_ARCH}.${.TARGET} 2>&1 || \
 		(echo "${.TARGET} failed, check _.${TARGET_ARCH}.${.TARGET} for details" ; false)
 
 
 ci-buildkernel: ci-buildworld-${TARGET_ARCH:tl} .PHONY
 	@echo "Building kernel for ${TARGET_ARCH"}"
 	${IMAKE} -j${PARALLEL_JOBS} -C ${WORLDDIR} ${METAMODE} \
-		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} \
-		SRCCONF=${SRCCONF} buildkernel > ${.CURDIR}/_.${TARGET_ARCH}.${.TARGET} 2>&1 || \
+		${CROSS_TOOLCHAIN_PARAM} __MAKE_CONF=${MAKECONF} SRCCONF=${SRCCONF}
+		${EXTRA_MAKE_FLAGS} KERNCONF=${KERNCONF} \
+		buildkernel > ${.CURDIR}/_.${TARGET_ARCH}.${.TARGET} 2>&1 || \
 		(echo "${.TARGET} failed, check _.${TARGET_ARCH}.${.TARGET} for details" ; false)
 
 ci-buildimage: ${QEMUTGT} ci-buildkernel-${TARGET_ARCH:tl} .PHONY
