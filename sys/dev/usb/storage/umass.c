@@ -2290,9 +2290,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 					}
 				} else if (sc->sc_transfer.cmd_data[0] == SYNCHRONIZE_CACHE) {
 					if (sc->sc_quirks & NO_SYNCHRONIZE_CACHE) {
-						ccb->csio.scsi_status = SCSI_STATUS_OK;
-						ccb->ccb_h.status = CAM_REQ_CMP;
-						xpt_done(ccb);
+						umass_cam_illegal_request(ccb);
 						goto done;
 					}
 				} else if (sc->sc_transfer.cmd_data[0] == START_STOP_UNIT) {
