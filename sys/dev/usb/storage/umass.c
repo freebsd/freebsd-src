@@ -2680,12 +2680,6 @@ static bool
 umass_scsi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
     uint8_t cmd_len)
 {
-	if ((cmd_len == 0) ||
-	    (cmd_len > sizeof(sc->sc_transfer.cmd_data))) {
-		DPRINTF(sc, UDMASS_SCSI, "Invalid command "
-		    "length: %d bytes\n", cmd_len);
-		return (false);		/* failure */
-	}
 	sc->sc_transfer.cmd_len = cmd_len;
 
 	switch (cmd_ptr[0]) {
@@ -2706,26 +2700,16 @@ umass_scsi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		 * information.
 		 */
 		if (sc->sc_quirks & FORCE_SHORT_INQUIRY) {
-			memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 			sc->sc_transfer.cmd_data[4] = SHORT_INQUIRY_LENGTH;
-			return (true);
 		}
 		break;
 	}
-
-	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 	return (true);
 }
 
 static bool
 umass_rbc_transform(struct umass_softc *sc, uint8_t *cmd_ptr, uint8_t cmd_len)
 {
-	if ((cmd_len == 0) ||
-	    (cmd_len > sizeof(sc->sc_transfer.cmd_data))) {
-		DPRINTF(sc, UDMASS_SCSI, "Invalid command "
-		    "length: %d bytes\n", cmd_len);
-		return (false);		/* failure */
-	}
 	switch (cmd_ptr[0]) {
 		/* these commands are defined in RBC: */
 	case READ_10:
@@ -2746,9 +2730,6 @@ umass_rbc_transform(struct umass_softc *sc, uint8_t *cmd_ptr, uint8_t cmd_len)
 		 */
 	case REQUEST_SENSE:
 	case PREVENT_ALLOW:
-
-		memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
-
 		if ((sc->sc_quirks & RBC_PAD_TO_12) && (cmd_len < 12)) {
 			memset(sc->sc_transfer.cmd_data + cmd_len,
 			    0, 12 - cmd_len);
@@ -2769,17 +2750,8 @@ static bool
 umass_ufi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
     uint8_t cmd_len)
 {
-	if ((cmd_len == 0) ||
-	    (cmd_len > sizeof(sc->sc_transfer.cmd_data))) {
-		DPRINTF(sc, UDMASS_SCSI, "Invalid command "
-		    "length: %d bytes\n", cmd_len);
-		return (false);		/* failure */
-	}
 	/* An UFI command is always 12 bytes in length */
 	sc->sc_transfer.cmd_len = UFI_COMMAND_LENGTH;
-
-	/* Zero the command data */
-	memset(sc->sc_transfer.cmd_data, 0, UFI_COMMAND_LENGTH);
 
 	switch (cmd_ptr[0]) {
 		/*
@@ -2796,6 +2768,8 @@ umass_ufi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 			DPRINTF(sc, UDMASS_UFI, "Converted TEST_UNIT_READY "
 			    "to START_UNIT\n");
 
+			/* Zero the command data */
+			memset(sc->sc_transfer.cmd_data, 0, UFI_COMMAND_LENGTH);
 			sc->sc_transfer.cmd_data[0] = START_STOP_UNIT;
 			sc->sc_transfer.cmd_data[4] = SSS_START;
 			return (1);
@@ -2835,7 +2809,6 @@ umass_ufi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		return (false);		/* failure */
 	}
 
-	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 	return (true);			/* success */
 }
 
@@ -2846,17 +2819,8 @@ static bool
 umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
     uint8_t cmd_len)
 {
-	if ((cmd_len == 0) ||
-	    (cmd_len > sizeof(sc->sc_transfer.cmd_data))) {
-		DPRINTF(sc, UDMASS_SCSI, "Invalid command "
-		    "length: %d bytes\n", cmd_len);
-		return (false);		/* failure */
-	}
 	/* An ATAPI command is always 12 bytes in length. */
 	sc->sc_transfer.cmd_len = ATAPI_COMMAND_LENGTH;
-
-	/* Zero the command data */
-	memset(sc->sc_transfer.cmd_data, 0, ATAPI_COMMAND_LENGTH);
 
 	switch (cmd_ptr[0]) {
 		/*
@@ -2867,13 +2831,10 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 	case INQUIRY:
 		/*
 		 * some drives wedge when asked for full inquiry
-		 * information.
+		 * information, so adjust the transfer length
 		 */
 		if (sc->sc_quirks & FORCE_SHORT_INQUIRY) {
-			memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
-
 			sc->sc_transfer.cmd_data[4] = SHORT_INQUIRY_LENGTH;
-			return (true);
 		}
 		break;
 
@@ -2881,6 +2842,7 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		if (sc->sc_quirks & NO_TEST_UNIT_READY) {
 			DPRINTF(sc, UDMASS_SCSI, "Converted TEST_UNIT_READY "
 			    "to START_UNIT\n");
+			memset(sc->sc_transfer.cmd_data, 0, ATAPI_COMMAND_LENGTH);
 			sc->sc_transfer.cmd_data[0] = START_STOP_UNIT;
 			sc->sc_transfer.cmd_data[4] = SSS_START;
 			return (true);
@@ -2931,7 +2893,6 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		break;
 	}
 
-	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 	return (true);			/* success */
 }
 
@@ -2948,6 +2909,13 @@ umass_std_transform(struct umass_softc *sc, union ccb *ccb,
 {
 	uint8_t retval;
 
+	if (cmd_len == 0 || cmd_len > sizeof(sc->sc_transfer.cmd_data)) {
+		DPRINTF(sc, UDMASS_SCSI, "Invalid command length: %d bytes\n",
+		    cmd_len);
+		return (false);		/* failure */
+	}
+
+	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 	if (sc->sc_transform(sc, cmd, cmdlen))
 		return (true);	/* Execute command */
 
