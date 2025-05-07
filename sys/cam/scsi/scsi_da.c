@@ -87,6 +87,7 @@ typedef enum {
 	DA_STATE_PROBE_WP,
 	DA_STATE_PROBE_RC,
 	DA_STATE_PROBE_RC16,
+	DA_STATE_PROBE_CACHE,
 	DA_STATE_PROBE_LBP,
 	DA_STATE_PROBE_BLK_LIMITS,
 	DA_STATE_PROBE_BDC,
@@ -120,7 +121,8 @@ typedef enum {
 	DA_FLAG_CAN_ATA_SUPCAP	= 0x020000,
 	DA_FLAG_CAN_ATA_ZONE	= 0x040000,
 	DA_FLAG_TUR_PENDING	= 0x080000,
-	DA_FLAG_UNMAPPEDIO	= 0x100000
+	DA_FLAG_UNMAPPEDIO	= 0x100000,
+	DA_FLAG_LBP		= 0x200000,
 } da_flags;
 #define DA_FLAG_STRING		\
 	"\020"			\
@@ -144,7 +146,8 @@ typedef enum {
 	"\022CAN_ATA_SUPACP"	\
 	"\023CAN_ATA_ZONE"	\
 	"\024TUR_PENDING"	\
-	"\025UNMAPPEDIO"
+	"\025UNMAPPEDIO"	\
+	"\026LBP"		\
 
 typedef enum {
 	DA_Q_NONE		= 0x00,
@@ -190,6 +193,7 @@ typedef enum {
 	DA_CCB_PROBE_ATA_SUP	= 0x10,
 	DA_CCB_PROBE_ATA_ZONE	= 0x11,
 	DA_CCB_PROBE_WP		= 0x12,
+	DA_CCB_PROBE_CACHE	= 0x13,
 	DA_CCB_TYPE_MASK	= 0x1F,
 	DA_CCB_RETRY_UA		= 0x20
 } da_ccb_state;
@@ -1525,6 +1529,8 @@ static void		dadone_probeblklimits(struct cam_periph *periph,
 					      union ccb *done_ccb);
 static void		dadone_probebdc(struct cam_periph *periph,
 					union ccb *done_ccb);
+static void		dadone_probecache(struct cam_periph *periph,
+			    union ccb *done_ccb);
 static void		dadone_probeata(struct cam_periph *periph,
 					union ccb *done_ccb);
 static void		dadone_probeatalogdir(struct cam_periph *periph,
@@ -3756,6 +3762,45 @@ out:
 		xpt_action(start_ccb);
 		break;
 	}
+	case DA_STATE_PROBE_CACHE:
+	{
+		void  *mode_buf;
+		int    mode_buf_len;
+
+		/* XXX Future: skip if already not doing SYNC CACHE */
+
+		/*
+		 * Probe the CACHE mode page to see if we need to do a
+		 * SYNCHRONIZE CACHE command or not. If there's no
+		 * caching page, or we get back garbage when we ask
+		 * for the caching page or MODE SENSE isn't supported,
+		 * we set DA_Q_NO_SYNC_CACHE.
+		 */
+		mode_buf_len = sizeof(struct scsi_mode_header_6) +
+		    sizeof(struct scsi_mode_blk_desc) +
+		    sizeof(struct scsi_caching_page);
+		mode_buf = malloc(mode_buf_len, M_SCSIDA, M_NOWAIT);
+		if (mode_buf == NULL) {
+			printf("dastart: Couldn't malloc mode_buf data\n");
+			/* da_free_periph??? */
+			break;
+		}
+		scsi_mode_sense(&start_ccb->csio,
+		    /*retries*/4,
+		    dadone_probecache,
+		    MSG_SIMPLE_Q_TAG,
+		    /*dbd*/FALSE,
+		    SMS_PAGE_CTRL_CURRENT,
+		    SMS_CACHE_PAGE,
+		    mode_buf,
+		    mode_buf_len,
+		    SSD_FULL_SIZE,
+		    /*timeout*/60000);
+		start_ccb->ccb_h.ccb_bp = NULL;
+		start_ccb->ccb_h.ccb_state = DA_CCB_PROBE_CACHE;
+		xpt_action(start_ccb);
+		break;
+	}
 	case DA_STATE_PROBE_ATA:
 	{
 		struct ata_params *ata_params;
@@ -4857,7 +4902,7 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 	da_ccb_state state;
 	char *announce_buf;
 	uint32_t  priority;
-	int lbp, n;
+	int n;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_proberc\n"));
 
@@ -4873,7 +4918,6 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 	    ("CCB State (%lu) not PROBE_RC* in dadone_probewp, periph %p ccb %p",
 		(unsigned long)state, periph, done_ccb));
 
-	lbp = 0;
 	rdcap = NULL;
 	rcaplong = NULL;
 	/* XXX TODO: can this be a malloc? */
@@ -4944,7 +4988,9 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 			dasetgeom(periph, block_size, maxsector,
 				  rcaplong, sizeof(*rcaplong));
-			lbp = (lalba & SRC16_LBPME_A);
+			if ((lalba & SRC16_LBPME_A) != 0 &&
+			    (softc->quirks & DA_Q_NO_UNMAP) == 0)
+				softc->flags |= DA_FLAG_LBP;
 			dp = &softc->params;
 			n = snprintf(announce_buf, DA_ANNOUNCETMP_SZ,
 			    "%juMB (%ju %u byte sectors",
@@ -5106,34 +5152,7 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 		return;
 	}
 
-	/* Ensure re-probe doesn't see old delete. */
-	softc->delete_available = 0;
-	dadeleteflag(softc, DA_DELETE_ZERO, 1);
-	if (lbp && (softc->quirks & DA_Q_NO_UNMAP) == 0) {
-		/*
-		 * Based on older SBC-3 spec revisions
-		 * any of the UNMAP methods "may" be
-		 * available via LBP given this flag so
-		 * we flag all of them as available and
-		 * then remove those which further
-		 * probes confirm aren't available
-		 * later.
-		 *
-		 * We could also check readcap(16) p_type
-		 * flag to exclude one or more invalid
-		 * write same (X) types here
-		 */
-		dadeleteflag(softc, DA_DELETE_WS16, 1);
-		dadeleteflag(softc, DA_DELETE_WS10, 1);
-		dadeleteflag(softc, DA_DELETE_UNMAP, 1);
-
-		softc->state = DA_STATE_PROBE_LBP;
-		xpt_release_ccb(done_ccb);
-		xpt_schedule(periph, priority);
-		return;
-	}
-
-	softc->state = DA_STATE_PROBE_BDC;
+	softc->state = DA_STATE_PROBE_CACHE;
 	xpt_release_ccb(done_ccb);
 	xpt_schedule(periph, priority);
 	return;
@@ -5386,6 +5405,166 @@ dadone_probebdc(struct cam_periph *periph, union ccb *done_ccb)
 
 	free(bdc, M_SCSIDA);
 	softc->state = DA_STATE_PROBE_ATA;
+	xpt_release_ccb(done_ccb);
+	xpt_schedule(periph, priority);
+	return;
+}
+
+static void
+dadone_probecache(struct cam_periph *periph, union ccb *done_ccb)
+{
+	struct da_softc *softc;
+	struct ccb_scsiio *csio;
+	uint32_t  priority;
+	struct scsi_mode_header_6 *sense_hdr;
+	struct scsi_caching_page *cache_page;
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone_probecache\n"));
+
+	softc = (struct da_softc *)periph->softc;
+	priority = done_ccb->ccb_h.pinfo.priority;
+	csio = &done_ccb->csio;
+	sense_hdr = (struct scsi_mode_header_6 *)csio->data_ptr;
+	cache_page = (struct scsi_caching_page *)(csio->data_ptr +
+	    sizeof(struct scsi_mode_header_6) + sense_hdr->blk_desc_len);
+
+	if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+		/*
+		 * Sanity check different fields of the data. We make sure
+		 * there's enough data, in total, and that the page part of the
+		 * data is long enough and that the page number is correct. Some
+		 * devices will return sense data as if we'd requested page 0x3f
+		 * always, for exmaple, and those devices can't be trusted
+		 * (which is why we don't walk the list of pages or try to
+		 * request a bigger buffer). The devices that have problems are
+		 * typically cheap USB thumb drives.
+		 */
+		if (sense_hdr->data_length + 1 <
+		    sense_hdr->blk_desc_len + sizeof(*cache_page)) {
+			xpt_print(done_ccb->ccb_h.path,
+		"CACHE PAGE TOO SHORT data len %d desc len %d\n",
+			    sense_hdr->data_length,
+			    sense_hdr->blk_desc_len);
+			goto bad;
+		}
+		if ((cache_page->page_code & ~SMS_PAGE_CTRL_MASK) !=
+		    SMS_CACHE_PAGE) {
+			xpt_print(done_ccb->ccb_h.path,
+			    "Bad cache page %#x\n",
+			    cache_page->page_code);
+			goto bad;
+		}
+		if (cache_page->page_length != sizeof(*cache_page) -
+			offsetof(struct scsi_caching_page, flags1)) {
+			xpt_print(done_ccb->ccb_h.path,
+			    "CACHE PAGE length bogus %#x\n",
+			    cache_page->page_length);
+			goto bad;
+		}
+		/*
+		 * If there's a block descritor header, we could save the block
+		 * count to compare later against READ CAPACITY or READ CAPACITY
+		 * (16), but the same devices that get those wrongs often don't
+		 * provide a block descritptor header to store away for later.
+		 */
+
+		/*
+		 * Warn about aparently unsafe quirking. A couple of
+		 * my USB sticks have WCE enabled, but some quirk somewhere
+		 * disables the necessary SYCHRONIZE CACHE ops.
+		 */
+		if (softc->quirks & DA_Q_NO_SYNC_CACHE &&
+			cache_page->flags1 & SCP_WCE)
+			xpt_print(done_ccb->ccb_h.path,
+    "Devices quirked NO_SYNC_CACHE, but WCE=1 enabling write cache.\n");
+	} else {
+		int error, error_code, sense_key, asc, ascq;
+		bool mark_bad;
+
+		/*
+		 * Three types of errors observed here:
+		 * 24h/00h  DZTPROMAEBKVF  INVALID FIELD IN CDB
+		 * 26h/00h  DZTPROMAEBKVF  INVALID FIELD IN PARAMETER LIST
+		 * 3Ah/00h  DZT ROM  BK    MEDIUM NOT PRESENT
+		 *
+		 * The first two are legit ways of saying page 8 doesn't exist
+		 * and set the NO_SYNC_CACHE quirk.  The third is a null result:
+		 * At least some devices that report this when a slot is empty
+		 * none-the-less have working SYNCHRONIZE CACHE. Take our
+		 * chances and refrain from setting the quirk. The one device I
+		 * have that does this, but doesn't support the command doesn't
+		 * hang on the command either. I conjecture that the exact card
+		 * that's inserted will determine if SYNC is supported which
+		 * would make repeated probings hard.
+		 */
+		mark_bad = true;
+		if (scsi_extract_sense_ccb(done_ccb, &error_code, &sense_key,
+		    &asc, &ascq)) {
+			if (sense_key == SSD_KEY_NOT_READY && asc == 0x3a)
+				mark_bad = false;
+		}
+		error = daerror(done_ccb, CAM_RETRY_SELTO, SF_RETRY_UA | SF_NO_PRINT);
+		if (error == ERESTART) {
+			return;
+		} else if (error != 0) {
+			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+				/* Don't wedge this device's queue */
+				cam_release_devq(done_ccb->ccb_h.path,
+						 /*relsim_flags*/0,
+						 /*reduction*/0,
+						 /*timeout*/0,
+						 /*getcount_only*/0);
+			}
+		}
+		xpt_print(done_ccb->ccb_h.path,
+		    "MODE SENSE for CACHE page command failed.\n");
+
+		/*
+		 * There's no cache page, the command wasn't
+		 * supported, retries failed or the data returned was
+		 * junk. Any one of these reasons is enough to
+		 * conclude that the drive doesn't support caching, so
+		 * SYNCHRONIZE CACHE isn't needed and may hang the
+		 * drive!
+		 */
+		if (mark_bad) {
+bad:
+			xpt_print(done_ccb->ccb_h.path,
+			    "Mode page 8 missing, disabling SYNCHRONIZE CACHE\n");
+			if (softc->quirks & DA_Q_NO_SYNC_CACHE)
+				xpt_print(done_ccb->ccb_h.path,
+    "Devices already quirked for NO_SYNC_CACHE, maybe remove quirk table\n");
+			softc->quirks |= DA_Q_NO_SYNC_CACHE;
+			softc->disk->d_flags &= ~DISKFLAG_CANFLUSHCACHE;
+		}
+	}
+	free(sense_hdr, M_SCSIDA);
+
+	/* Ensure re-probe doesn't see old delete. */
+	softc->delete_available = 0;
+	dadeleteflag(softc, DA_DELETE_ZERO, 1);
+	if ((softc->flags & DA_FLAG_LBP) != 0) {
+		/*
+		 * Based on older SBC-3 spec revisions
+		 * any of the UNMAP methods "may" be
+		 * available via LBP given this flag so
+		 * we flag all of them as available and
+		 * then remove those which further
+		 * probes confirm aren't available
+		 * later.
+		 *
+		 * We could also check readcap(16) p_type
+		 * flag to exclude one or more invalid
+		 * write same (X) types here
+		 */
+		dadeleteflag(softc, DA_DELETE_WS16, 1);
+		dadeleteflag(softc, DA_DELETE_WS10, 1);
+		dadeleteflag(softc, DA_DELETE_UNMAP, 1);
+
+		softc->state = DA_STATE_PROBE_LBP;
+	} else {
+		softc->state = DA_STATE_PROBE_BDC;
+	}
 	xpt_release_ccb(done_ccb);
 	xpt_schedule(periph, priority);
 	return;
