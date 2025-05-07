@@ -134,7 +134,7 @@ class VnetInterface(object):
         self.run_cmd(cmd)
 
     def enable_ipv6(self):
-        cmd = "/usr/sbin/ndp -i {} -disabled".format(self.name)
+        cmd = "/usr/sbin/ndp -i {} -- -disabled".format(self.name)
         self.run_cmd(cmd)
 
     def has_tentative(self) -> bool:
