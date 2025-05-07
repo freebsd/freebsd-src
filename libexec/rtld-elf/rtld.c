@@ -5443,7 +5443,7 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 	struct dtv *dtv;
 	struct tcb *tcb;
 	char *addr;
-	uintptr_t i;
+	size_t i;
 	size_t extra_size, maxalign, post_size, pre_size, tls_block_size;
 	size_t tls_init_align, tls_init_offset;
 
