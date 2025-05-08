@@ -90,10 +90,6 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
-#include <vm/uma.h>
-#include <vm/uma_int.h>
-#include <sys/kdb.h>
-
 extern void	uma_startup1(vm_offset_t);
 
 long physmem;
