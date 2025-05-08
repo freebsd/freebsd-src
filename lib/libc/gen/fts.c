@@ -127,8 +127,8 @@ __fts_open(FTS *sp, char * const *argv)
 		SET(FTS_NOCHDIR);
 
 	/* NOSTAT_TYPE implies NOSTAT */
-        if (ISSET(FTS_NOSTAT_TYPE))
-                SET(FTS_NOSTAT);
+	if (ISSET(FTS_NOSTAT_TYPE))
+		SET(FTS_NOSTAT);
 
 	/*
 	 * Start out with 1K of path space, and enough, in any case,
