@@ -5901,8 +5901,6 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		M_SETFIB(pd->m, pd->act.rtableid);
 
 	if (r->rt) {
-		struct pf_ksrc_node	*sn = NULL;
-		struct pf_srchash	*snh = NULL;
 		/*
 		 * Set act.rt here instead of in pf_rule_to_actions() because
 		 * it is applied only from the last pass rule.
@@ -5910,7 +5908,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		pd->act.rt = r->rt;
 		/* Don't use REASON_SET, pf_map_addr increases the reason counters */
 		ctx.reason = pf_map_addr_sn(pd->af, r, pd->src, &pd->act.rt_addr,
-		    &pd->act.rt_kif, NULL, &sn, &snh, &(r->route), PF_SN_ROUTE);
+		    &pd->act.rt_kif, NULL, &(r->route), PF_SN_ROUTE);
 		if (ctx.reason != 0)
 			goto cleanup;
 	}
