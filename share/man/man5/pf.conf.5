@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 27, 2025
+.Dd May 8, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -3355,13 +3355,13 @@ option         = "set" ( [ "timeout" ( timeout | "{" timeout-list "}" ) ] |
 
 ether-rule     = "ether" etheraction [ ( "in" | "out" ) ]
                  [ "quick" ] [ "on" ifspec ] [ "bridge-to" interface-name ]
-                 [ etherprotospec ] etherhosts [ "l3" hosts ]
+                 [ etherprotospec ] [ etherhosts ] [ "l3" hosts ]
                  [ etherfilteropt-list ]
 
 pf-rule        = action [ ( "in" | "out" ) ]
                  [ "log" [ "(" logopts ")"] ] [ "quick" ]
                  [ "on" ifspec ] [ route ] [ af ] [ protospec ]
-                 hosts [ filteropt-list ]
+                 [ hosts ] [ filteropt-list ]
 
 logopts        = logopt [ "," logopts ]
 logopt         = "all" | "matches" | "user" | "to" interface-name
