@@ -2714,7 +2714,6 @@ u_short			 pf_map_addr(u_int8_t, struct pf_krule *,
 u_short			 pf_map_addr_sn(u_int8_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_addr *,
 			    struct pfi_kkif **nkif, struct pf_addr *,
-			    struct pf_ksrc_node **, struct pf_srchash **,
 			    struct pf_kpool *, pf_sn_types_t);
 int			 pf_get_transaddr_af(struct pf_krule *,
 			    struct pf_pdesc *);
