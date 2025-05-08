@@ -65,7 +65,11 @@ typedef struct {
 #define	FTS_SEEDOT	0x000020	/* return dot and dot-dot */
 #define	FTS_XDEV	0x000040	/* don't cross devices */
 #define	FTS_WHITEOUT	0x000080	/* return whiteout information */
-#define	FTS_OPTIONMASK	0x0000ff	/* valid user option mask */
+					/* 0x0100 is FTS_NAMEONLY below */
+					/* 0x0200 was previously FTS_STOP */
+#define FTS_COMFOLLOWDIR 0x00400	/* like COMFOLLOW but directories only */
+#define FTS_NOSTAT_TYPE	0x000800	/* like NOSTAT but use d_type */
+#define	FTS_OPTIONMASK	0x000cff	/* valid user option mask */
 
 /* valid only for fts_children() */
 #define	FTS_NAMEONLY	0x000100	/* child names only */
