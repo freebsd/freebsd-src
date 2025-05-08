@@ -493,17 +493,6 @@ vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end)
 {
 	vm_paddr_t paddr;
 
-#if 0
-	printf("CHUQ %s start 0x%lx rstart 0x%lx end 0x%lx rend 0x%lx\n",
-	       __func__, start, round_page(start), end, round_page(end));
-	start = round_page(start);
-	end = trunc_page(end);
-	if (end <= start) {
-		printf("skipping seg start 0x%lx end 0x%lx\n", start, end);
-		return;
-	}
-#endif
-
 	if ((start & PAGE_MASK) != 0)
 		panic("%s: start (%jx) is not page aligned", __func__,
 		    (uintmax_t)start);
