@@ -90,7 +90,8 @@ ORG=		0x0
 
 CFLAGS+=	-Wall
 LDFLAGS+=	-static ${LDFLAGS_ORG} -Wl,--gc-sections
-.if ${LINKER_TYPE} == "lld" && ${LINKER_VERSION} >= 130000
+.if (${LINKER_TYPE} == "lld" && ${LINKER_VERSION} >= 130000) || \
+    (${LINKER_TYPE} == "bfd" && ${LINKER_VERSION} >= 23700)
 # lld 13 and higher default to garbage collecting start/stop symbols,
 # completely ruining our linker sets. For now, work around it by
 # disabling this un-feature.
