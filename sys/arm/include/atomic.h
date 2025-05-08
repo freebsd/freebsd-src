@@ -213,7 +213,7 @@ ATOMIC_ACQ_REL_LONG(clear)
 	    "   teqeq    %R[tmp], %R[cmp]                     \n"  \
 	    "   ittee    ne                                   \n"  \
 	    "   movne    %[ret], #0                           \n"  \
-	    "   strdne   %[cmp], [%[oldv]]                    \n"  \
+	    "   strdne   %[tmp], [%[oldv]]                    \n"  \
 	    "   strexdeq %[ret], %Q[newv], %R[newv], [%[ptr]] \n"  \
 	    "   eorseq   %[ret], #1                           \n"  \
 	    "   beq      1b                                   \n"  \
