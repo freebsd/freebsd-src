@@ -1126,7 +1126,7 @@ pfctl_show_eth_rules(int dev, char *path, int opts, enum pfctl_show format,
 
 	if (anchorname[0] == '/') {
 		if ((npath = calloc(1, MAXPATHLEN)) == NULL)
-			errx(1, "pfctl_rules: calloc");
+			errx(1, "calloc");
 		snprintf(npath, MAXPATHLEN, "%s", anchorname);
 	} else {
 		if (path[0])
@@ -1242,7 +1242,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 
 	if (anchorname[0] == '/') {
 		if ((npath = calloc(1, MAXPATHLEN)) == NULL)
-			errx(1, "pfctl_rules: calloc");
+			errx(1, "calloc");
 		strlcpy(npath, anchorname, MAXPATHLEN);
 	} else {
 		if (path[0])
@@ -1461,7 +1461,7 @@ pfctl_show_nat(int dev, const char *path, int opts, char *anchorname, int depth,
 	}
 
 	if ((npath = calloc(1, MAXPATHLEN)) == NULL)
-		errx(1, "pfctl_rules: calloc");
+		errx(1, "calloc");
 
 	if (anchorname[0] == '/') {
 		snprintf(npath, MAXPATHLEN, "%s", anchorname);
