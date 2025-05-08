@@ -4597,7 +4597,7 @@ pf_match_rcvif(struct mbuf *m, struct pf_krule *r)
 
 	if (kif == NULL) {
 		DPFPRINTF(PF_DEBUG_URGENT,
-		    ("pf_test_via: kif == NULL, @%d via %s\n", r->nr,
+		    ("%s: kif == NULL, @%d via %s\n", __func__, r->nr,
 			r->rcv_ifname));
 		return (0);
 	}
@@ -5255,8 +5255,8 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 	if (__predict_false(m->m_len < sizeof(struct ether_header)) &&
 	    (m = *m0 = m_pullup(*m0, sizeof(struct ether_header))) == NULL) {
 		DPFPRINTF(PF_DEBUG_URGENT,
-		    ("pf_test_eth_rule: m_len < sizeof(struct ether_header)"
-		     ", pullup failed\n"));
+		    ("%s: m_len < sizeof(struct ether_header)"
+		     ", pullup failed\n", __func__));
 		return (PF_DROP);
 	}
 	e = mtod(m, struct ether_header *);
@@ -6133,8 +6133,8 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		    &s->src, &s->dst, rewrite)) {
 			/* This really shouldn't happen!!! */
 			DPFPRINTF(PF_DEBUG_URGENT,
-			    ("pf_normalize_tcp_stateful failed on first "
-			     "pkt\n"));
+			    ("%s: tcp normalize failed on first "
+			     "pkt\n", __func__));
 			goto csfailed;
 		}
 	} else if (pd->proto == IPPROTO_SCTP) {
@@ -9935,7 +9935,8 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		if (__predict_false((*m0)->m_len < sizeof(struct ip)) &&
 		    (pd->m = *m0 = m_pullup(*m0, sizeof(struct ip))) == NULL) {
 			DPFPRINTF(PF_DEBUG_URGENT,
-			    ("pf_test: m_len < sizeof(struct ip), pullup failed\n"));
+			    ("%s: m_len < sizeof(struct ip), pullup failed\n",
+			    __func__));
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
 			return (-1);
@@ -9984,8 +9985,8 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		if (__predict_false((*m0)->m_len < sizeof(struct ip6_hdr)) &&
 		    (pd->m = *m0 = m_pullup(*m0, sizeof(struct ip6_hdr))) == NULL) {
 			DPFPRINTF(PF_DEBUG_URGENT,
-			    ("pf_test6: m_len < sizeof(struct ip6_hdr)"
-			     ", pullup failed\n"));
+			    ("%s: m_len < sizeof(struct ip6_hdr)"
+			     ", pullup failed\n", __func__));
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
 			return (-1);
@@ -10333,7 +10334,8 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 
 	if (__predict_false(kif == NULL)) {
 		DPFPRINTF(PF_DEBUG_URGENT,
-		    ("pf_test: kif == NULL, if_xname %s\n", ifp->if_xname));
+		    ("%s: kif == NULL, if_xname %s\n",
+		    __func__, ifp->if_xname));
 		PF_RULES_RUNLOCK();
 		return (PF_DROP);
 	}
