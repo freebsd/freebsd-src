@@ -2908,16 +2908,13 @@ pmap_init(void)
 	PMAP_LOCK(kernel_pmap);
 	for (i = 0; i < nkpt; i++) {
 		mpte = pmap_pa_to_ptpage(KPTphys + (i << PAGE_SHIFT_PT));
-#if 0
-		printf("CHUQ %s nkpt loop i %d\n", __func__, i);
-		printf("CHUQ %s pa 0x%lx\n", __func__, KPTphys + (i << PAGE_SHIFT_PT));
-		printf("CHUQ %s mpte %p\n", __func__, mpte);
-		printf("CHUQ %s ptpage pa 0x%lx\n", __func__, pmap_ptpage_pa(mpte));
-#endif
-#if 0
-		/* CHUQ this triggers but I don't understand why */
+#if PAGE_SIZE == PAGE_SIZE_4K
+		KASSERT((vm_page_t)mpte >= vm_page_array &&
+		    (vm_page_t)mpte < &vm_page_array[vm_page_array_size],
+		    ("pmap_init: page table page is out of range"));
+#else
 		KASSERT(mpte >= pmap_pt_page_array &&
-		    mpte < &pmap_pt_page_array[vm_page_array_size],
+		    mpte < &pmap_pt_page_array[pmap_pt_page_array_size],
 		    ("pmap_init: page table page is out of range"));
 #endif
 		pmap_ptpage_pindex_set(mpte, pmap_pde_pindex(KERNBASE) + i);
