@@ -38,21 +38,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	Commit 9419e086e1a3 changed the internal API between the nfscommon
 	and nfscl modules.  Both need to be built from updated sources.
 
-20250504:
-	newsyslog(8) will no longer compress rotated log files by default.
-	The J, X, Y, and Z flags in newsyslog.conf(5) now indicate that a
-	file may be compressed, rather than specifying a particular
-	compression method.
-
-	To restore the previous default behavior of automatic compression,
-	remove the line:
-
-		<compress> none
-
-	from /etc/newsyslog.conf.
-
-	For more details, refer to the newsyslog(8) manual page.
-
 20250412:
 	LinuxKPI alloc routines were changed to return physically contiguous
 	memory where expected. These changes may require out-of-tree drivers
