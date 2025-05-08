@@ -294,6 +294,7 @@ trap(struct trapframe *frame)
 
 	if (TRAPF_USERMODE(frame)) {
 		/* user trap */
+
 		td->td_pticks = 0;
 		td->td_frame = frame;
 		addr = frame->tf_rip;
