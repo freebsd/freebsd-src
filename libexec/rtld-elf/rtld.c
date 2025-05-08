@@ -2640,7 +2640,7 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list,
 		nobj = globallist_next(obj);
 		if (nobj != NULL && obj != tail)
 			initlist_add_objects(nobj, tail, list, iflist);
-		
+
 		/* Recursively process the needed objects. */
 		if (obj->needed != NULL)
 			initlist_add_neededs(obj->needed, list, iflist);
@@ -2650,7 +2650,7 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list,
 		if (obj->needed_aux_filtees != NULL)
 			initlist_add_neededs(obj->needed_aux_filtees, list,
 			    iflist);
-		
+
 		/* Add the object to the init list. */
 		objlist_push_tail(list, obj);
 
