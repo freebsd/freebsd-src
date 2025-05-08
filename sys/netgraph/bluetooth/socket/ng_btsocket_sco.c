@@ -1192,7 +1192,7 @@ ng_btsocket_sco_attach(struct socket *so, int proto, struct thread *td)
 	if (so->so_type != SOCK_SEQPACKET)
 		return (ESOCKTNOSUPPORT);
 
-#if 0 /* XXX sonewconn() calls "pru_attach" with proto == 0 */
+#if 0 /* XXX sonewconn() calls pr_attach() with proto == 0 */
 	if (proto != 0) 
 		if (proto != BLUETOOTH_PROTO_SCO)
 			return (EPROTONOSUPPORT);
@@ -1247,7 +1247,7 @@ ng_btsocket_sco_attach(struct socket *so, int proto, struct thread *td)
 	 * In the second case we hold ng_btsocket_sco_sockets_mtx already.
 	 * So we now need to distinguish between these cases. From reading
 	 * /sys/kern/uipc_socket2.c we can find out that sonewconn() calls
-	 * pru_attach with proto == 0 and td == NULL. For now use this fact
+	 * pr_attach() with proto == 0 and td == NULL. For now use this fact
 	 * to figure out if we were called from socket() or from sonewconn().
 	 */
 

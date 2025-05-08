@@ -83,7 +83,7 @@ static MALLOC_DEFINE(M_SENDFILE, "sendfile", "sendfile dynamic memory");
  * Every I/O completion calls sendfile_iodone(), which decrements the 'nios',
  * and the syscall also calls sendfile_iodone() after allocating all mbufs,
  * linking them and sending to socket.  Whoever reaches zero 'nios' is
- * responsible to * call pru_ready on the socket, to notify it of readyness
+ * responsible to call pr_ready() on the socket, to notify it of readyness
  * of the data.
  */
 struct sf_io {
@@ -353,7 +353,7 @@ sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
 		 * Either I/O operation failed, or we failed to allocate
 		 * buffers, or we bailed out on first busy page, or we
 		 * succeeded filling the request without any I/Os. Anyway,
-		 * pru_send hadn't been executed - nothing had been sent
+		 * pr_send() hadn't been executed - nothing had been sent
 		 * to the socket yet.
 		 */
 		MPASS((curthread->td_pflags & TDP_KTHREAD) == 0);

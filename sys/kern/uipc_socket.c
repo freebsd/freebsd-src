@@ -41,18 +41,18 @@
  * sodealloc() tears down socket layer state for a socket, called only by
  * sofree() and sonewconn().  Socket layer private.
  *
- * pru_attach() associates protocol layer state with an allocated socket;
+ * pr_attach() associates protocol layer state with an allocated socket;
  * called only once, may fail, aborting socket allocation.  This is called
  * from socreate() and sonewconn().  Socket layer private.
  *
- * pru_detach() disassociates protocol layer state from an attached socket,
- * and will be called exactly once for sockets in which pru_attach() has
- * been successfully called.  If pru_attach() returned an error,
- * pru_detach() will not be called.  Socket layer private.
+ * pr_detach() disassociates protocol layer state from an attached socket,
+ * and will be called exactly once for sockets in which pr_attach() has
+ * been successfully called.  If pr_attach() returned an error,
+ * pr_detach() will not be called.  Socket layer private.
  *
- * pru_abort() and pru_close() notify the protocol layer that the last
+ * pr_abort() and pr_close() notify the protocol layer that the last
  * consumer of a socket is starting to tear down the socket, and that the
- * protocol should terminate the connection.  Historically, pru_abort() also
+ * protocol should terminate the connection.  Historically, pr_abort() also
  * detached protocol state from the socket state, but this is no longer the
  * case.
  *
@@ -969,7 +969,7 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	}
 	/*
 	 * Auto-sizing of socket buffers is managed by the protocols and
-	 * the appropriate flags must be set in the pru_attach function.
+	 * the appropriate flags must be set in the pr_attach() method.
 	 */
 	CURVNET_SET(so->so_vnet);
 	error = prp->pr_attach(so, proto, td);
@@ -1338,9 +1338,9 @@ sopeeloff(struct socket *head)
 		    __func__, head->so_pcb);
 		return (NULL);
 	}
-	if ((*so->so_proto->pr_attach)(so, 0, NULL)) {
+	if (so->so_proto->pr_attach(so, 0, NULL)) {
 		sodealloc(so);
-		log(LOG_DEBUG, "%s: pcb %p: pru_attach() failed\n",
+		log(LOG_DEBUG, "%s: pcb %p: pr_attach() failed\n",
 		    __func__, head->so_pcb);
 		return (NULL);
 	}
@@ -3826,7 +3826,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 	CURVNET_SET(so->so_vnet);
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
-		error = (*so->so_proto->pr_ctloutput)(so, sopt);
+		error = so->so_proto->pr_ctloutput(so, sopt);
 	} else {
 		switch (sopt->sopt_name) {
 		case SO_ACCEPTFILTER:
@@ -4037,7 +4037,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			break;
 		}
 		if (error == 0)
-			(void)(*so->so_proto->pr_ctloutput)(so, sopt);
+			(void)so->so_proto->pr_ctloutput(so, sopt);
 	}
 bad:
 	CURVNET_RESTORE();
@@ -4087,7 +4087,7 @@ sogetopt(struct socket *so, struct sockopt *sopt)
 	CURVNET_SET(so->so_vnet);
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
-		error = (*so->so_proto->pr_ctloutput)(so, sopt);
+		error = so->so_proto->pr_ctloutput(so, sopt);
 		CURVNET_RESTORE();
 		return (error);
 	} else {
