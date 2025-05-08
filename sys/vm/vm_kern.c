@@ -772,7 +772,6 @@ kmem_init_zero_region(void)
 	 * zeros, while not using much more physical resources.
 	 */
 	addr = kva_alloc(ZERO_REGION_SIZE);
-	printf("CHUQ %s addr %p\n", __func__, (void *)addr);
 	m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO |
 	    VM_ALLOC_NOFREE);
 	for (i = 0; i < ZERO_REGION_SIZE; i += PAGE_SIZE)

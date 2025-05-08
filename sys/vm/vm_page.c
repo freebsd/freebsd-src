@@ -738,11 +738,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Allocate physical memory for the reservation management system's
 	 * data structures, and map it.
 	 */
-	printf("CHUQ %s before reserv_startup vaddr 0x%lx new_end 0x%lx\n",
-	       __func__, vaddr, new_end);
 	new_end = vm_reserv_startup(&vaddr, new_end);
-	printf("CHUQ %s after reserv_startup vaddr 0x%lx new_end 0x%lx\n",
-	       __func__, vaddr, new_end);
 #endif
 #if MINIDUMP_PAGE_TRACKING && MINIDUMP_STARTUP_PAGE_TRACKING
 	/*

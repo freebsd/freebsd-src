@@ -202,31 +202,8 @@ ptpage_t pmap_pt_page_array;
 
 #define TID (curthread->td_tid)
 
-int chuq_b = 0;
-int chuq_pp;
-int chuq_p = 0;
-int chuq_pv = 0;
-int chuq_skipcopy = 1;
-
-SYSCTL_INT(_debug, OID_AUTO, chuq_p, CTLFLAG_RWTUN | CTLFLAG_SECURE, &chuq_p, 0, "chuq_p");
-
-SYSCTL_INT(_debug, OID_AUTO, chuq_pv, CTLFLAG_RWTUN | CTLFLAG_ANYBODY, &chuq_pv, 0, "chuq_pv");
-
-SYSCTL_INT(_debug, OID_AUTO, chuq_skipcopy, CTLFLAG_RWTUN | CTLFLAG_ANYBODY, &chuq_skipcopy, 0, "chuq_skipcopy");
-
-static void pmap_print_pte(db_expr_t, bool, db_expr_t, char *);
-
-void chuq_check_pte(void);
-
-void chuq_do_pp(void);
-void
-chuq_do_pp(void)
-{
-
-	if (chuq_pp)
-		chuq_check_pte();
-}
-
+#if 0
+/* CHUQ */
 #undef PMAP_LOCK
 #define PMAP_LOCK(pmap)		pmap_lock(pmap)
 void pmap_lock(pmap_t);
@@ -249,8 +226,7 @@ pmap_unlock(pmap_t pmap)
 	chuq_do_pp();
 	mtx_unlock(&(pmap)->pm_mtx);
 }
-
-
+#endif
 
 #if PAGE_SIZE == PAGE_SIZE_4K
 
@@ -377,7 +353,6 @@ pmap_pt_page_array_mark(void)
 	    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);
 }
 
-#if 1
 static __inline pt_entry_t
 pte_load_datapg(pt_entry_t *ptep)
 {
@@ -397,7 +372,6 @@ pte_load_datapg(pt_entry_t *ptep)
 	}
 	return (pte);
 }
-#endif
 
 /*
  * Store all PTEs for a data page.
@@ -419,19 +393,6 @@ pte_store_datapg(pt_entry_t *ptep, pt_entry_t pte)
 		ptep[i] = pte ? (pte | (i << PAGE_SHIFT_PT)) : 0;
 	}
 }
-
-#if 0
-static __inline void
-pte_store_datapg2(pmap_t pmap, pt_entry_t *ptep, pt_entry_t pte)
-{
-
-	pte_store_datapg(ptep, pte);
-	if (pmap != kernel_pmap) {
-		if (chuq_p)
-		printf("CHUQ %d %s ptep %p pte 0x%lx\n", TID, __func__, ptep, pte);
-	}
-}
-#endif
 
 static __inline pt_entry_t
 pte_load_clear_datapg(pt_entry_t *ptep)
@@ -2237,8 +2198,6 @@ create_pagetables(vm_paddr_t *firstaddr)
 	pd_p = (pd_entry_t *)KPDphys;
 	for (i = 0; i < nkpt; i++) {
 		pd_p[i] = (KPTphys + ptoa_pt(i)) | X86_PG_RW | X86_PG_V;
-		printf("CHUQ %s mapped pd_p %p [0x%x] = %p\n",
-		       __func__, pd_p, i, (void *)pd_p[i]);
 	}
 
 	/*
@@ -2253,8 +2212,6 @@ create_pagetables(vm_paddr_t *firstaddr)
 		/* Preset PG_M and PG_A because demotion expects it. */
 		pd_p[i] = pax | X86_PG_V | PG_PS | pg_g | X86_PG_M |
 		    X86_PG_A | bootaddr_rwx(pax);
-		printf("CHUQ %s 2 mapped pd_p %p [0x%x] = %p\n",
-		       __func__, pd_p, i, (void *)pd_p[i]);
 	}
 
 	/*
@@ -4102,7 +4059,6 @@ pmap_flush_cache_phys_range(vm_paddr_t spa, vm_paddr_t epa, vm_memattr_t mattr)
 
 	pte_bits = pmap_cache_bits(kernel_pmap, mattr, false) | X86_PG_RW |
 	    X86_PG_V;
-	/* CHUQ PAGE_SIZE or PAGE_SIZE_PT ? */
 	error = vmem_alloc(kernel_arena, PAGE_SIZE, M_BESTFIT | M_WAITOK,
 	    &vaddr);
 	KASSERT(error == 0, ("vmem_alloc failed: %d", error));
@@ -4453,10 +4409,6 @@ static inline bool
 pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, ptpage_t m, struct ptpglist *free)
 {
 
-	if (chuq_p)
-	if (chuq_pv || curthread->td_pflags2 & TDP2_CHUQ) {
-		printf("CHUQ %s pmap %p va 0x%lx m %p pindex 0x%lx refs %d\n", __func__, pmap, va, m, pmap_ptpage_pindex(m), pmap_ptpage_refs(m));
-	}
 	pmap_ptpage_ref_add(m, -1);
 	if (pmap_ptpage_refs(m) == 0) {
 		_pmap_unwire_ptp(pmap, va, m, free);
@@ -4475,10 +4427,6 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, ptpage_t ptp, struct ptpglist *fre
 	ptpage_t pdpg, pdppg, pml4pg;
 	vm_pindex_t pindex;
 
-	if (chuq_p)
-	if (chuq_pv || curthread->td_pflags2 & TDP2_CHUQ) {
-		printf("CHUQ %s pmap %p va 0x%lx ptp %p pindex 0x%lx\n", __func__, pmap, va, ptp, pmap_ptpage_pindex(ptp));
-	}
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/*
@@ -4909,8 +4857,6 @@ pmap_alloc_pt_page(pmap_t pmap, vm_pindex_t pindex, int flags)
 		if (ptp != NULL) {
 			TAILQ_REMOVE(&pmap->pm_ptpfree, ptp, pt_list);
 			m = pmap_ptpage_vmpage(ptp);
-if (chuq_p)
-printf("CHUQ %s cached ptp %p va %p m %p mva %p\n", __func__, ptp, pmap_ptpage_va(ptp), m, (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
 			if (--m->pindex == 0) {
 				/* CHUQ do something? */
 			}
@@ -4920,8 +4866,6 @@ printf("CHUQ %s cached ptp %p va %p m %p mva %p\n", __func__, ptp, pmap_ptpage_v
 		}
 	}
 	m = vm_page_alloc_noobj(flags);
-	if (chuq_p)
-	printf("CHUQ %s new page m %p va %p\n", __func__, m, (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
 	if (__predict_false(m == NULL))
 		return (NULL);
 	m->pindex = PAGE_SIZE_PTES - 1;
@@ -4936,10 +4880,6 @@ printf("CHUQ %s cached ptp %p va %p m %p mva %p\n", __func__, ptp, pmap_ptpage_v
 	}
 
 out:
-	if (pmap != kernel_pmap) {
-		if (chuq_p)
-		printf("CHUQ %s allocated pindex 0x%lx ptp %p\n", __func__, pindex, ptp);
-	}
 	ptp->pindex = pindex;
 	ptp->refs = 1;
 	ptp->free = 0;
@@ -4961,9 +4901,6 @@ pmap_free_pt_page(pmap_t pmap, ptpage_t ptp, bool zerofilled)
 	pmap = NULL;
 #endif
 
-	if (chuq_p)
-	printf("CHUQ %s pmap %p ptp %p\n", __func__, pmap, ptp);
-
 	/* CHUQ do something with zerofilled. */
 
 	pmap_pt_page_count_adj(pmap, -1);
@@ -4977,8 +4914,6 @@ pmap_free_pt_page(pmap_t pmap, ptpage_t ptp, bool zerofilled)
 	 */
 
 	if (pmap == NULL) {
-		if (chuq_p)
-		printf("CHUQ %s free whole m %p mva %p\n", __func__, m, (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
 		vm_page_unwire_noq(m);
 		vm_page_free(m);
 		return;
@@ -4991,8 +4926,6 @@ pmap_free_pt_page(pmap_t pmap, ptpage_t ptp, bool zerofilled)
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if (++ m->pindex < PAGE_SIZE_PTES) {
-		if (chuq_p)
-		printf("CHUQ %s free to cache\n", __func__);
 		TAILQ_INSERT_HEAD(&pmap->pm_ptpfree, ptp, pt_list);
 		return;
 	}
@@ -5011,8 +4944,6 @@ pmap_free_pt_page(pmap_t pmap, ptpage_t ptp, bool zerofilled)
 
 	}
 	vm_page_unwire_noq(m);
-	if (chuq_p)
-	printf("CHUQ %s free to vm m %p mva %p\n", __func__, m, (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)));
 	vm_page_free(m);
 }
 
@@ -5151,8 +5082,8 @@ pmap_page_alloc_below_4g(bool zeroed)
 	vm_page_t m;
 
 	/*
-	 * CHUQ these are all used only temporarily, so allocate a whole
-	 * vm_page for each ptpage and waste the rest.
+	 * These ptpages are all used only temporarily, so just allocate a whole
+	 * vm_page for each ptpage.
 	 */
 
 	m = vm_page_alloc_noobj_contig(VM_ALLOC_WIRED | (zeroed ? VM_ALLOC_ZERO : 0),
@@ -5180,8 +5111,6 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 	ptpage_t pmltop_pg, pmltop_pgu;
 	vm_paddr_t pmltop_phys;
 
-	if (chuq_pv)
-	printf("CHUQ %s pmap %p\n", __func__, pmap);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 
 	/*
@@ -5309,10 +5238,6 @@ pmap_allocpte_getpml4(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
 	pml5index = pmap_pml5e_index(va);
 	pml5 = &pmap->pm_pmltop[pml5index];
 	if ((*pml5 & PG_V) == 0) {
-		if (pmap != kernel_pmap) {
-			if (chuq_p)
-			printf("CHUQ %s recurse for pdp\n", __func__);
-		}
 		if (pmap_allocpte_nosleep(pmap, pmap_pml5e_pindex(va), lockp,
 		    va) == NULL)
 			return (NULL);
@@ -5350,10 +5275,6 @@ pmap_allocpte_getpdp(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
 
 	if ((*pml4 & PG_V) == 0) {
 		/* Have to allocate a new pdp, recurse */
-		if (pmap != kernel_pmap) {
-			if (chuq_p)
-			printf("CHUQ %s recurse for pdp\n", __func__);
-		}
 		if (pmap_allocpte_nosleep(pmap, pmap_pml4e_pindex(va), lockp,
 		    va) == NULL) {
 			if (pmap_is_la57(pmap))
@@ -5423,11 +5344,6 @@ pmap_allocpte_nosleep(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 	pt_entry_t PG_A, PG_M, PG_RW, PG_V;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-
-	if (pmap != kernel_pmap) {
-		if (chuq_p)
-		printf("CHUQ %s pmap %p pindex 0x%lx va 0x%lx\n", __func__, pmap, ptepindex, va);
-	}
 
 	PG_A = pmap_accessed_bit(pmap);
 	PG_M = pmap_modified_bit(pmap);
@@ -5511,10 +5427,6 @@ pmap_allocpte_nosleep(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 		}
 		if ((*pdp & PG_V) == 0) {
 			/* Have to allocate a new pd, recurse */
-			if (pmap != kernel_pmap) {
-	if (chuq_p)
-				printf("CHUQ %s recurse for pd\n", __func__);
-			}
 			if (pmap_allocpte_nosleep(pmap, pmap_pdpe_pindex(va),
 			    lockp, va) == NULL) {
 				pmap_allocpte_free_unref(pmap, va,
@@ -5756,8 +5668,7 @@ pmap_kmsan_shadow_map_page_array(vm_paddr_t pdppa, vm_size_t size)
 	npde = size / NBPDR;
 
 	/*
-	 * CHUQ Allocate PAGE_SIZE even though we only need PAGE_SIZE_PT,
-	 * maybe fix this later.
+	 * CHUQ allocate a whole page even though we only need a ptpage.
 	 */
 
 	dummypa = vm_phys_early_alloc(-1, PAGE_SIZE);
@@ -5835,12 +5746,9 @@ pmap_page_array_alloc(vm_offset_t start, long pages, size_t size)
 		pde_store(pde, newpdir);
 	}
 
-	if (chuq_p)
-	printf("CHUQ %s done *start 0x%lx\n", __func__, *(uint64_t *)start);
 #ifdef KMSAN
 	pmap_kmsan_page_array_startup(start, end);
 #endif
-	printf("CHUQ %s done first_page 0x%lx\n", __func__, first_page);
 	return ((void *)start);
 }
 
@@ -6262,7 +6170,6 @@ next_chunk:
 		m_pc = SLIST_FIRST(&free);
 		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 		/* Recycle a freed page table page. */
-		/* CHUQ this is a pv page.  let's treat it as a data page for now. */
 		m_pc->ref_count = 1;
 	}
 #endif
@@ -6573,9 +6480,6 @@ pmap_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 			break;
 		}
 	}
-	if (chuq_pv) {
-		printf("CHUQ %s pmap %p va 0x%lx pv %p\n", __func__, pmap, va, pv);
-	}
 	return (pv);
 }
 
@@ -6594,9 +6498,6 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	vm_offset_t va_last;
 	vm_page_t m;
 	int bit, field;
-
-	if (chuq_p)
-	printf("CHUQ %s pmap %p va 0x%lx pa 0x%lx\n", __func__, pmap, va, pa);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((pa & PDRMASK) == 0,
@@ -6670,9 +6571,6 @@ pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	    ("pmap_pv_promote_pde: pa is not 2mpage aligned"));
 	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa);
 
-	if (chuq_p)
-	printf("CHUQ %s pmap %p va 0x%lx pa 0x%lx\n", __func__, pmap, va, pa);
-
 	/*
 	 * Transfer the first page's pv entry for this mapping to the 2mpage's
 	 * pv list.  Aside from avoiding the cost of a call to get_pv_entry(),
@@ -6726,8 +6624,6 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	/* Pass NULL instead of the lock pointer to disable reclamation. */
 	if ((pv = get_pv_entry(pmap, NULL)) != NULL) {
-		if (chuq_pv)
-			printf("CHUQ %s pmap %p va 0x%lx pv %p\n", __func__, pmap, va, pv);
 		pv->pv_va = va;
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
@@ -6856,9 +6752,6 @@ pmap_demote_pde_mpte(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	vm_paddr_t mptepa;
 	int PG_PTE_CACHE;
 	bool in_kernel;
-
-	if (chuq_p)
-	printf("CHUQ %s pmap %p pde %p va 0x%lx\n", __func__, pmap, pde, va);
 
 	PG_A = pmap_accessed_bit(pmap);
 	PG_G = pmap_global_bit(pmap);
@@ -7061,9 +6954,6 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva, bool demote_kpde,
 	PG_M = pmap_modified_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
 
-	if (chuq_p)
-	printf("CHUQ %s pmap %p pdq %p sva 0x%lx\n", __func__, pmap, pdq, sva);
-
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((sva & PDRMASK) == 0,
 	    ("pmap_remove_pde: sva is not 2mpage aligned"));
@@ -7093,8 +6983,6 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva, bool demote_kpde,
 	}
 	if (pmap != kernel_pmap) {
 		mpte = pmap_remove_pt_page(pmap, sva);
-		if (chuq_p)
-		printf("CHUQ %s returned mpte %p\n", __func__, mpte);
 		if (mpte != NULL) {
 			KASSERT(pmap_ptpage_valid_get(mpte) != 0,
 			    ("pmap_remove_pde: pte page not promoted"));
@@ -7127,11 +7015,6 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
 	pt_entry_t oldpte, PG_A, PG_M, PG_RW;
 	vm_page_t m;
 
-	if (chuq_p)
-	if (chuq_pv || curthread->td_pflags2 & TDP2_CHUQ) {
-		printf("CHUQ %s pmap %p va 0x%lx ptq %p\n", __func__, pmap, va, ptq);
-	}
-
 	PG_A = pmap_accessed_bit(pmap);
 	PG_M = pmap_modified_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
@@ -7149,10 +7032,6 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
 		if (oldpte & PG_A)
 			vm_page_aflag_set(m, PGA_REFERENCED);
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
-		if (chuq_p)
-		if (chuq_pv || curthread->td_pflags2 & TDP2_CHUQ) {
-			printf("CHUQ %s pmap %p va 0x%lx m %p\n", __func__, pmap, va, m);
-		}
 		pmap_pvh_free(&m->md, pmap, va);
 		if (TAILQ_EMPTY(&m->md.pv_list) &&
 		    (m->flags & PG_FICTITIOUS) == 0) {
@@ -7178,16 +7057,10 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
 	PG_V = pmap_valid_bit(pmap);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if ((*pde & PG_V) == 0) {
-		if (chuq_pv) {
-			printf("CHUQ %s pmap %p va 0x%lx pde %p pde not valid\n", __func__, pmap, va, pde);
-		}
 		return;
 	}
 	pte = pmap_pde_to_pte(pde, va);
 	if ((*pte & PG_V) == 0) {
-		if (chuq_pv) {
-			printf("CHUQ %s pmap %p va 0x%lx pte %p pte not valid\n", __func__, pmap, va, pte);
-		}
 		return;
 	}
 	lock = NULL;
@@ -7208,11 +7081,6 @@ pmap_remove_ptes(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 	vm_offset_t va;
 	bool anyvalid;
 
-	if (chuq_p)
-	if (chuq_pv || curthread->td_pflags2 & TDP2_CHUQ) {
-		printf("CHUQ %s pmap %p sva 0x%lx eva 0x%lx\n", __func__, pmap, sva, eva);
-	}
-
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PG_G = pmap_global_bit(pmap);
 	anyvalid = false;
@@ -7231,12 +7099,7 @@ pmap_remove_ptes(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 			anyvalid = true;
 		else if (va == eva)
 			va = sva;
-		pd_entry_t qpde = *pde;
 		if (pmap_remove_pte(pmap, pte, sva, *pde, free, lockp)) {
-			if (chuq_p)
-			if (chuq_pv || curthread->td_pflags2 & TDP2_CHUQ) {
-				printf("CHUQ %s pmap %p va 0x%lx qpde 0x%lx ended loop\n", __func__, pmap, sva, qpde);
-			}
 			sva += PAGE_SIZE;
 			break;
 		}
@@ -7426,10 +7289,6 @@ void
 pmap_map_delete(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 
-	if (chuq_pv) {
-		printf("CHUQ %s pmap %p sva 0x%lx eva 0x%lx\n", __func__, pmap, sva, eva);
-	}
-
 	pmap_remove1(pmap, sva, eva, true);
 }
 
@@ -7518,8 +7377,6 @@ retry:
 			vm_page_dirty(m);
 		pmap_unuse_pt(pmap, pv->pv_va, *pde, &free);
 		pmap_invalidate_page_datapg(pmap, pv->pv_va);
-		if (chuq_pv)
-			printf("CHUQ %s pmap %p va 0x%lx pv %p\n", __func__, pmap, pv->pv_va, pv);
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
 		free_pv_entry(pmap, pv);
@@ -7792,9 +7649,6 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va, ptpage_t mpte,
 	pt_entry_t *firstpte, oldpte, pa, *pte;
 	pt_entry_t allpte_PG_A, PG_A, PG_G, PG_M, PG_PKU_MASK, PG_RW, PG_V;
 	int PG_PTE_CACHE;
-
-	if (chuq_p)
-	printf("CHUQ %s pmap %p pde %p va 0x%lx mpte %p\n", __func__, pmap, pde, va, mpte);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if (!pmap_ps_enabled(pmap))
@@ -8084,15 +7938,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	PG_V = pmap_valid_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
 
-	if (pmap != kernel_pmap) {
-	if (chuq_pv)
-		printf("CHUQ %d %s pmap %p va 0x%lx pg %p pa 0x%lx prot 0x%x flags 0x%x psind %d\n",
-		       TID, __func__, pmap, va, m, VM_PAGE_TO_PHYS(m), prot, flags, psind);
-#if 0
-		pmap_ptpages((db_expr_t)pmap, true, 0, NULL);
-#endif
-	}
-
 	va = trunc_page(va);
 	KASSERT(va <= kva_layout.km_high, ("pmap_enter: toobig"));
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
@@ -8160,18 +8005,8 @@ retry:
 	if (pde != NULL && (*pde & PG_V) != 0 && ((*pde & PG_PS) == 0 ||
 	    pmap_demote_pde_locked(pmap, pde, va, &lock))) {
 		pte = pmap_pde_to_pte(pde, va);
-
-		if (pmap != kernel_pmap) {
-			if (chuq_pv) {
-				printf("CHUQ %d %s found pde %p pte %p\n", TID, __func__, pde, pte);
-			}
-		}
-
 		if (va < VM_MAXUSER_ADDRESS && mpte == NULL) {
 			mpte = pmap_pa_to_ptpage(*pde & PG_FRAME);
-			if (chuq_pv) {
-				printf("CHUQ %s mpte %p\n", __func__, mpte);
-			}
 			pmap_ptpage_ref_add(mpte, 1);
 		}
 	} else if (va < VM_MAXUSER_ADDRESS) {
@@ -8182,8 +8017,6 @@ retry:
 		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
 		mpte = pmap_allocpte_alloc(pmap, pmap_pde_pindex(va),
 		    nosleep ? NULL : &lock, va);
-		if (chuq_p)
-		printf("CHUQ %d %s pmap_allocpte_alloc -> %p\n", TID, __func__, mpte);
 		if (mpte == NULL && nosleep) {
 			rv = KERN_RESOURCE_SHORTAGE;
 			goto out;
@@ -8193,10 +8026,6 @@ retry:
 		panic("pmap_enter: invalid page directory va=%#lx", va);
 
 	origpte = *pte;
-	if (pmap != kernel_pmap) {
-		if (chuq_pv)
-			printf("CHUQ %d %s origpte 0x%lx mpte %p\n", TID, __func__, origpte, mpte);
-	}
 	pv = NULL;
 	if (va < VM_MAXUSER_ADDRESS && pmap->pm_type == PT_X86)
 		newpte |= pmap_pkru_get(pmap, va);
@@ -8205,10 +8034,6 @@ retry:
 	 * Is the specified virtual address already mapped?
 	 */
 	if ((origpte & PG_V) != 0) {
-		if (pmap != kernel_pmap) {
-			if (chuq_p)
-			printf("CHUQ %d %s already valid\n", TID, __func__);
-		}
 		/*
 		 * Wiring change, just update stats. We don't worry about
 		 * wiring PT pages as they remain resident as long as there
@@ -8235,9 +8060,6 @@ retry:
 		 */
 		opa = origpte & PG_FRAME;
 		if (opa == pa) {
-			if (chuq_p)
-			printf("CHUQ %d same pa 0x%lx origpte 0x%lx newpte 0x%lx\n",
-			       TID, pa, origpte, newpte);
 			/*
 			 * No, might be a protection or wiring change.
 			 */
@@ -8279,9 +8101,6 @@ retry:
 			}
 			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
 			pv = pmap_pvh_remove(&om->md, pmap, va);
-	if (chuq_pv) {
-		printf("CHUQ %s pmap %p va 0x%lx remove old pv %p\n", __func__, pmap, va, pv);
-	}
 			KASSERT(pv != NULL,
 			    ("pmap_enter: no PV entry for %#lx", va));
 			if ((newpte & PG_MANAGED) == 0)
@@ -8311,20 +8130,12 @@ retry:
 	/*
 	 * Enter on the PV list if part of our managed memory.
 	 */
-	if (chuq_pv) {
-		printf("CHUQ %s pmap %p va 0x%lx newpte 0x%lx\n", __func__, pmap, va, newpte);
-	}
 	if ((newpte & PG_MANAGED) != 0) {
 		if (pv == NULL) {
 			pv = get_pv_entry(pmap, &lock);
 			pv->pv_va = va;
 		}
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
-
-		if (chuq_pv) {
-			printf("CHUQ %s pmap %p va 0x%lx pv %p\n",
-			       __func__, pmap, va, pv);
-		}
 
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
@@ -8338,15 +8149,10 @@ retry:
 	if ((origpte & PG_V) != 0) {
 validate:
 		origpte = pte_load_store_datapg(pte, newpte);
-		if (chuq_p)
-		printf("CHUQ %d %s already valid2 origpte2 0x%lx newpte 0x%lx\n",
-		       TID, __func__, origpte, newpte);
 		KASSERT((origpte & PG_FRAME) == pa,
 		    ("pmap_enter: unexpected pa update for %#lx", va));
 		if ((newpte & PG_M) == 0 && (origpte & (PG_M | PG_RW)) ==
 		    (PG_M | PG_RW)) {
-			if (chuq_p)
-			printf("CHUQ %s mark dirty\n", __func__);
 			if ((origpte & PG_MANAGED) != 0)
 				vm_page_dirty(m);
 
@@ -8356,8 +8162,6 @@ validate:
 			 * the PTE no longer has PG_M set.
 			 */
 		} else if ((origpte & PG_NX) != 0 || (newpte & PG_NX) == 0) {
-			if (chuq_p)
-			printf("CHUQ %s unchanged\n", __func__);
 			/*
 			 * This PTE change does not require TLB invalidation.
 			 */
@@ -8367,11 +8171,6 @@ validate:
 			pmap_invalidate_page_datapg(pmap, va);
 	} else {
 		pte_store_datapg(pte, newpte);
-		if (pmap != kernel_pmap) {
-	if (chuq_p)
-			printf("CHUQ %d %s not valid origpte 0x%lx newpte 0x%lx\n",
-			       TID, __func__, origpte, newpte);
-		}
 	}
 
 unchanged:
@@ -8408,11 +8207,6 @@ pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 {
 	pd_entry_t newpde;
 	pt_entry_t PG_V;
-
-	if (pmap != kernel_pmap) {
-	if (chuq_p)
-		printf("CHUQ %s pmap %p va 0x%lx m %p prot 0x%x\n", __func__, pmap, va, m, prot);
-	}
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PG_V = pmap_valid_bit(pmap);
@@ -8473,11 +8267,6 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 	pt_entry_t PG_G, PG_RW, PG_V;
 	vm_page_t mt;
 	ptpage_t pdpg, uwptpg, tptp;
-
-	if (chuq_p && pmap != kernel_pmap) {
-		printf("CHUQ %s pmap %p va 0x%lx newpde 0x%lx flags 0x%x m %p\n",
-		       __func__, pmap, va, newpde, flags, m);
-	}
 
 	PG_G = pmap_global_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
@@ -8547,8 +8336,6 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 			 * the mapping is not from kernel_pmap, then
 			 * a reserved PT page could be freed.
 			 */
-			if (chuq_p)
-			printf("CHUQ %s superpage\n", __func__);
 			(void)pmap_remove_pde(pmap, pde, va, false, &free,
 			    lockp);
 			if ((oldpde & PG_G) == 0)
@@ -8575,13 +8362,9 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 				 */
 			}
 			pmap_delayed_invl_start();
-			if (chuq_p)
-			printf("CHUQ %s normal pages\n", __func__);
-			curthread->td_pflags2 |= TDP2_CHUQ;
 			if (pmap_remove_ptes(pmap, va, va + NBPDR, pde, &free,
 			    lockp))
 		               pmap_invalidate_all(pmap);
-			curthread->td_pflags2 &= ~TDP2_CHUQ;
 			pmap_delayed_invl_finish();
 		}
 		if (va < VM_MAXUSER_ADDRESS) {
@@ -8702,12 +8485,6 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
-	if (pmap != kernel_pmap) {
-	if (chuq_p)
-		printf("CHUQ %s pmap %p start 0x%lx end 0x%lx m_start %p prot 0x%x\n",
-		       __func__, pmap, start, end, m_start, prot);
-	}
-
 	mpte = NULL;
 	vm_page_iter_limit_init(&pages, m_start->object,
 	    m_start->pindex + atop(end - start));
@@ -8760,12 +8537,6 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 {
 	pd_entry_t *pde;
 	pt_entry_t newpte, *pte, PG_V;
-
-	if (pmap != kernel_pmap) {
-	if (chuq_p)
-		printf("CHUQ %s pmap %p va 0x%lx m %p prot 0x%x ptp %p\n",
-		       __func__, pmap, va, m, prot, mpte);
-	}
 
 	KASSERT(!VA_IS_CLEANMAP(va) ||
 	    (m->oflags & VPO_UNMANAGED) != 0,
@@ -8857,9 +8628,6 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if (va < VM_MAXUSER_ADDRESS)
 		newpte |= PG_U | pmap_pkru_get(pmap, va);
 	pte_store_datapg(pte, newpte);
-	if (pmap != kernel_pmap && chuq_b) {
-		kdb_enter(KDB_WHY_SYSCTL, "CHUQ kdb.enter");
-	}
 
 #if VM_NRESERVLEVEL > 0
 	/*
@@ -9111,14 +8879,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	pt_entry_t *dst_pte, PG_A, PG_M, PG_V, ptetemp, *src_pte;
 	vm_offset_t addr, end_addr, va_next;
 	ptpage_t dst_pdpg, dstmpte, srcmpte;
-
-	if (chuq_p)
-	printf("CHUQ %d %s dp %p sp %p dva 0x%lx sva 0x%lx len 0x%lx\n",
-	       TID, __func__, dst_pmap, src_pmap, dst_addr, src_addr, len);
-
-	/* XXX CHUQ this function is allowed to be a nop so put off fixing the bug here. */
-	if (chuq_skipcopy)
-		return;
 
 	if (dst_addr != src_addr)
 		return;
@@ -9588,10 +9348,6 @@ pmap_remove_pages(pmap_t pmap)
 	bool superpage;
 	vm_paddr_t pa;
 
-	if (chuq_pv) {
-		printf("CHUQ %s pmap %p start\n", __func__, pmap);
-	}
-
 	/*
 	 * Assert that the given pmap is only active on the current
 	 * CPU.  Unfortunately, we cannot block another CPU from
@@ -9632,9 +9388,6 @@ pmap_remove_pages(pmap_t pmap)
 				bitmask = 1UL << bit;
 				idx = field * 64 + bit;
 				pv = &pc->pc_pventry[idx];
-				if (chuq_pv) {
-					printf("CHUQ %s pmap %p pv %p va 0x%lx\n", __func__, pmap, pv, pv->pv_va);
-				}
 				inuse &= ~bitmask;
 
 				pte = pmap_pdpe(pmap, pv->pv_va);
@@ -9667,18 +9420,13 @@ pmap_remove_pages(pmap_t pmap)
 					    pv->pv_va, tpte);
 				}
 
-#if 1
 /*
  * We cannot remove wired pages from a process' mapping at this time
  */
 				if (tpte & PG_W) {
 					allfree = 0;
-					if (chuq_pv) {
-						printf("CHUQ %s pmap %p va 0x%lx pv %p wired not removed\n", __func__, pmap, pv->pv_va, pv);
-					}
 					continue;
 				}
-#endif
 
 				/* Mark free */
 				pc->pc_map[field] |= bitmask;
@@ -9725,9 +9473,6 @@ pmap_remove_pages(pmap_t pmap)
 				if (superpage) {
 					pmap_resident_count_adj(pmap, -NBPDR / PAGE_SIZE_PT);
 					pvh = pa_to_pvh(tpte & PG_PS_FRAME);
-					if (chuq_pv) {
-						printf("CHUQ %s remove super pv %p\n", __func__, pv);
-					}
 					TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);
 					pvh->pv_gen++;
 					if (TAILQ_EMPTY(&pvh->pv_list)) {
@@ -9748,9 +9493,6 @@ pmap_remove_pages(pmap_t pmap)
 					}
 				} else {
 					pmap_resident_count_adj(pmap, -PAGE_SIZE_PTES);
-					if (chuq_pv) {
-						printf("CHUQ %s remove normal pv %p\n", __func__, pv);
-					}
 					TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 					m->md.pv_gen++;
 					if ((m->a.flags & PGA_WRITEABLE) != 0 &&
@@ -9782,9 +9524,6 @@ pmap_remove_pages(pmap_t pmap)
 	free_pv_chunk_batch((struct pv_chunklist *)&free_chunks);
 	PMAP_UNLOCK(pmap);
 	pmap_ptpage_slist_free(&free, true);
-	if (chuq_pv) {
-		printf("CHUQ %s pmap %p end\n", __func__, pmap);
-	}
 }
 
 static bool
@@ -10275,9 +10014,6 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	if (pmap_emulate_ad_bits(pmap))
 		return;
 
-	if (chuq_p)
-	printf("CHUQ %s pmap %p sva 0x%lx eva 0x%lx advice %d\n", __func__, pmap, sva, eva, advice);
-
 	PG_A = pmap_accessed_bit(pmap);
 	PG_G = pmap_global_bit(pmap);
 	PG_M = pmap_modified_bit(pmap);
@@ -10518,9 +10254,6 @@ pmap_mapdev_internal(vm_paddr_t pa, vm_size_t size, int mode, int flags)
 	vm_size_t tmpsize;
 	int i;
 
-	if (chuq_p)
-	printf("CHUQ %s pa 0x%lx size 0x%lx mode %d flags 0x%x\n", __func__, pa, size, mode, flags);
-
 	offset = pa & PAGE_MASK;
 	size = round_page(offset + size);
 	pa = trunc_page(pa);
@@ -10678,7 +10411,7 @@ pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va, ptpage_t m)
 		}
 	} else {
 		pdpg = m;
-		pdpg->pindex = va >> PDPSHIFT;
+		pmap_ptpage_pindex_set(pdpg, va >> PDPSHIFT);
 		pmap_pt_page_count_adj(pmap, 1);
 	}
 	pdpgpa = pmap_ptpage_pa(pdpg);
@@ -13399,73 +13132,6 @@ DB_SHOW_COMMAND(pte, pmap_print_pte)
 	}
 	pte = pmap_pde_to_pte(pde, va);
 	db_printf(" pte@0x%016lx 0x%016lx\n", (uint64_t)pte, *pte);
-}
-
-
-void
-chuq_check_pte(void)
-{
-	pmap_t pmap;
-	pml5_entry_t *pml5;
-	pml4_entry_t *pml4;
-	pdp_entry_t *pdp;
-	pd_entry_t *pde;
-	pt_entry_t *pte, PG_V;
-	vm_offset_t va;
-
-	pmap = PCPU_GET(curpmap);
-	va = 0xfffff800fec00000U;
-
-	PG_V = pmap_valid_bit(pmap);
-	//	db_printf("VA 0x%016lx", va);
-
-	if (pmap_is_la57(pmap)) {
-		pml5 = pmap_pml5e(pmap, va);
-		//		db_printf(" pml5e 0x%016lx", *pml5);
-		if ((*pml5 & PG_V) == 0) {
-			//			db_printf("\n");
-			return;
-		}
-		pml4 = pmap_pml5e_to_pml4e(pml5, va);
-	} else {
-		pml4 = pmap_pml4e(pmap, va);
-	}
-	//	db_printf(" pml4e 0x%016lx", *pml4);
-	if ((*pml4 & PG_V) == 0) {
-		//		db_printf("\n");
-		return;
-	}
-	pdp = pmap_pml4e_to_pdpe(pml4, va);
-	//	db_printf(" pdpe 0x%016lx", *pdp);
-	if ((*pdp & PG_V) == 0 || (*pdp & PG_PS) != 0) {
-		//		db_printf("\n");
-		return;
-	}
-	pde = pmap_pdpe_to_pde(pdp, va);
-	//	db_printf(" pde 0x%016lx", *pde);
-	if ((*pde & PG_V) == 0 || (*pde & PG_PS) != 0) {
-		//		db_printf("\n");
-		return;
-	}
-	pte = pmap_pde_to_pte(pde, va);
-	//	db_printf(" pte 0x%016lx\n", *pte);
-
-	if (*pte == 0) {
-		panic("CHUQ ioapic unmapped");
-	}
-}
-
-void
-chuq_spte(db_expr_t addr, int count);
-void
-chuq_spte(db_expr_t addr, int count)
-{
-	int i;
-
-	for (i = 0; i < count; i++) {
-		pmap_print_pte(addr, true, count, NULL);
-		addr += 4096;
-	}
 }
 
 DB_SHOW_COMMAND(phys2dmap, pmap_phys2dmap)

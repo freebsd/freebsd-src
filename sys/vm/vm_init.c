@@ -141,44 +141,31 @@ vm_mem_init(void *dummy)
 	 */
 	vm_set_page_size();
 	virtual_avail = vm_page_startup(virtual_avail);
-	uint64_t *start = (void *)0xfffffe0000c00000;
-	printf("CHUQ %s 1 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 
 	/*
 	 * Set an initial domain policy for thread0 so that allocations
 	 * can work.
 	 */
 	domainset_zero();
-	printf("CHUQ %s 2 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 
 	/* Bootstrap the kernel memory allocator. */
 	uma_startup1(virtual_avail);
-	printf("CHUQ %s 3 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 
 	/*
 	 * Initialize other VM packages
 	 */
 	vmem_startup();
-	printf("CHUQ %s 4 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 	vm_object_init();
-	printf("CHUQ %s 5 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 	vm_map_startup();
-	printf("CHUQ %s 6 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
-	printf("CHUQ %s virtual_avail 0x%lx virtual_end 0x%lx\n",
-	       __func__, virtual_avail, virtual_end);
 	kmem_init(virtual_avail, virtual_end);
-	printf("CHUQ %s 7 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 
 	kmem_init_zero_region();
-	printf("CHUQ %s 8 ptpage_array[0] 0x%lx\n", __func__, *(uint64_t *)start);
 	pmap_init();
-	printf("CHUQ %s 9\n", __func__);
 	vm_pager_init();
 
 #ifdef INVARIANTS
 	vm_check_pagesizes();
 #endif
-	printf("CHUQ %s 10\n", __func__);
 }
 
 void
