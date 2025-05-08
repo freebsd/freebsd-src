@@ -743,14 +743,10 @@ fts_build(FTS *sp, int type)
 	 * Open the directory for reading.  If this fails, we're done.
 	 * If being called from fts_read, set the fts_info field.
 	 */
-#ifdef FTS_WHITEOUT
 	if (ISSET(FTS_WHITEOUT))
 		oflag = DTF_NODUP;
 	else
 		oflag = DTF_HIDEW | DTF_NODUP;
-#else
-#define __opendir2(path, flag) opendir(path)
-#endif
 	if ((dirp = __opendir2(cur->fts_accpath, oflag)) == NULL) {
 		if (type == BREAD) {
 			cur->fts_info = FTS_DNR;
@@ -877,10 +873,8 @@ mem1:				saved_errno = errno;
 		p->fts_parent = sp->fts_cur;
 		p->fts_pathlen = len + dnamlen;
 
-#ifdef FTS_WHITEOUT
 		if (dp->d_type == DT_WHT)
 			p->fts_flags |= FTS_ISW;
-#endif
 
 		if (cderrno) {
 			if (nlinks) {
@@ -889,12 +883,8 @@ mem1:				saved_errno = errno;
 			} else
 				p->fts_info = FTS_NSOK;
 			p->fts_accpath = cur->fts_accpath;
-		} else if (nlinks == 0
-#ifdef DT_DIR
-		    || (nostat &&
-		    dp->d_type != DT_DIR && dp->d_type != DT_UNKNOWN)
-#endif
-		    ) {
+		} else if (nlinks == 0 || (nostat &&
+		    dp->d_type != DT_DIR && dp->d_type != DT_UNKNOWN)) {
 			p->fts_accpath =
 			    ISSET(FTS_NOCHDIR) ? p->fts_path : p->fts_name;
 			p->fts_info = FTS_NSOK;
@@ -1003,7 +993,6 @@ fts_stat(FTS *sp, FTSENT *p, int follow, int dfd)
 	/* If user needs stat info, stat buffer already allocated. */
 	sbp = ISSET(FTS_NOSTAT) ? &sb : p->fts_statp;
 
-#ifdef FTS_WHITEOUT
 	/* Check for whiteout. */
 	if (p->fts_flags & FTS_ISW) {
 		if (sbp != &sb) {
@@ -1012,7 +1001,6 @@ fts_stat(FTS *sp, FTSENT *p, int follow, int dfd)
 		}
 		return (FTS_W);
 	}
-#endif
 
 	/*
 	 * If doing a logical walk, or application requested FTS_FOLLOW, do
