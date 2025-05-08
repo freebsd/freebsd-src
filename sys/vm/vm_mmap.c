@@ -1075,10 +1075,8 @@ kern_mlock(struct proc *proc, struct ucred *cred, uintptr_t addr0, size_t len)
 	int error;
 
 	error = priv_check_cred(cred, PRIV_VM_MLOCK);
-	if (error) {
-		printf("CHUQ %s priv_check_cred error %d\n", __func__, error);
+	if (error)
 		return (error);
-	}
 	addr = addr0;
 	size = len;
 	last = addr + size;
@@ -1093,11 +1091,8 @@ kern_mlock(struct proc *proc, struct ucred *cred, uintptr_t addr0, size_t len)
 	PROC_LOCK(proc);
 	nsize = ptoa(npages + pmap_wired_count(map->pmap));
 	if (nsize > lim_cur_proc(proc, RLIMIT_MEMLOCK)) {
-#if 0
 		PROC_UNLOCK(proc);
-		printf("CHUQ %s nsize %ld\n", __func__, nsize);
 		return (ENOMEM);
-#endif
 	}
 	PROC_UNLOCK(proc);
 #ifdef RACCT
@@ -1125,7 +1120,6 @@ kern_mlock(struct proc *proc, struct ucred *cred, uintptr_t addr0, size_t len)
 	case KERN_INVALID_ARGUMENT:
 		return (EINVAL);
 	default:
-		printf("CHUQ %s vm_map_wire error %d\n", __func__, error);
 		return (ENOMEM);
 	}
 }
@@ -1537,15 +1531,12 @@ kern_mmap_racct_check(struct thread *td, vm_map_t map, vm_size_t size)
 		return (ENOMEM);
 	}
 	if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-#if 0
-		/* CHUQ wire count busted, fix later. */
 		if (ptoa(pmap_wired_count(map->pmap)) + size >
 		    lim_cur(td, RLIMIT_MEMLOCK)) {
 			racct_set_force(td->td_proc, RACCT_VMEM, map->size);
 			RACCT_PROC_UNLOCK(td->td_proc);
 			return (ENOMEM);
 		}
-#endif
 		error = racct_set(td->td_proc, RACCT_MEMLOCK,
 		    ptoa(pmap_wired_count(map->pmap)) + size);
 		if (error != 0) {
