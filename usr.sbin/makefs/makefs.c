@@ -44,6 +44,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -103,6 +104,13 @@ main(int argc, char *argv[])
 	const char	*specfile;
 
 	setprogname(argv[0]);
+
+	/*
+	 * Set the locale for collation, so that directory entry sorting is
+	 * consistent.
+	 */
+	if (setlocale(LC_COLLATE, "C") == NULL)
+		err(1, "setlocale");
 
 	debug = 0;
 	if ((fstype = get_fstype(DEFAULT_FSTYPE)) == NULL)

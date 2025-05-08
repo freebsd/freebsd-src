@@ -61,6 +61,50 @@ static	void	 apply_specentry(const char *, NODE *, fsnode *);
 static	fsnode	*create_fsnode(const char *, const char *, const char *,
 			       struct stat *);
 
+static int
+cmp(const void *_a, const void *_b)
+{
+	const fsnode * const *a = _a;
+	const fsnode * const *b = _b;
+
+	assert(strcmp((*a)->name, (*b)->name) != 0);
+	if (strcmp((*a)->name, ".") == 0)
+		return (-1);
+	if (strcmp((*b)->name, ".") == 0)
+		return (1);
+	return (strcoll((*a)->name, (*b)->name));
+}
+
+/*
+ * Sort the entries rather than relying on the order given by readdir(3),
+ * which might not be reproducible.
+ */
+static fsnode *
+sort_dir(fsnode *list)
+{
+	fsnode		**array;
+	fsnode		*cur;
+	size_t		nitems, i;
+
+	nitems = 0;
+	for (cur = list; cur != NULL; cur = cur->next)
+		nitems++;
+	assert(nitems > 0);
+
+	array = malloc(nitems * sizeof(fsnode *));
+	if (array == NULL)
+		err(1, "malloc");
+	for (i = 0, cur = list; cur != NULL; i++, cur = cur->next)
+		array[i] = cur;
+	qsort(array, nitems, sizeof(fsnode *), cmp);
+	for (i = 0; i < nitems; i++) {
+		array[i]->first = array[0];
+		array[i]->next = i == nitems - 1 ? NULL : array[i + 1];
+	}
+	cur = array[0];
+	free(array);
+	return (cur);
+}
 
 /*
  * walk_dir --
@@ -73,7 +117,7 @@ static	fsnode	*create_fsnode(const char *, const char *, const char *,
 fsnode *
 walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join)
 {
-	fsnode		*first, *cur, *prev, *last;
+	fsnode		*first, *cur;
 	DIR		*dirp;
 	struct dirent	*dent;
 	char		path[MAXPATHLEN + 1];
@@ -97,10 +141,8 @@ walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join)
 		first = cur = join;
 		while (cur->next != NULL)
 			cur = cur->next;
-		prev = cur;
 	} else
-		first = prev = NULL;
-	last = prev;
+		first = NULL;
 	while ((dent = readdir(dirp)) != NULL) {
 		name = dent->d_name;
 		dot = 0;
@@ -138,10 +180,6 @@ walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join)
 			for (;;) {
 				if (cur == NULL || strcmp(cur->name, name) == 0)
 					break;
-				if (cur == last) {
-					cur = NULL;
-					break;
-				}
 				cur = cur->next;
 			}
 			if (cur != NULL) {
@@ -162,24 +200,11 @@ walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join)
 
 		cur = create_fsnode(root, dir, name, &stbuf);
 		cur->parent = parent;
-		if (dot) {
-				/* ensure "." is at the start of the list */
-			cur->next = first;
-			first = cur;
-			if (! prev)
-				prev = cur;
-			cur->first = first;
-		} else {			/* not "." */
-			if (prev)
-				prev->next = cur;
-			prev = cur;
-			if (!first)
-				first = cur;
-			cur->first = first;
-			if (S_ISDIR(cur->type)) {
-				cur->child = walk_dir(root, rp, cur, NULL);
-				continue;
-			}
+		cur->next = first;
+		first = cur;
+		if (!dot && S_ISDIR(cur->type)) {
+			cur->child = walk_dir(root, rp, cur, NULL);
+			continue;
 		}
 		if (stbuf.st_nlink > 1) {
 			fsinode	*curino;
@@ -206,13 +231,9 @@ walk_dir(const char *root, const char *dir, fsnode *parent, fsnode *join)
 			cur->symlink = estrdup(slink);
 		}
 	}
-	assert(first != NULL);
-	if (join == NULL)
-		for (cur = first->next; cur != NULL; cur = cur->next)
-			cur->first = first;
 	if (closedir(dirp) == -1)
 		err(1, "Can't closedir `%s/%s'", root, dir);
-	return (first);
+	return (sort_dir(first));
 }
 
 static fsnode *
