@@ -113,7 +113,7 @@ unix2fattime(const struct timespec *tsp, uint16_t *ddp, uint16_t *dtp)
 	struct tm lt = {0};
 
 	t1 = tsp->tv_sec;
-	localtime_r(&t1, &lt);
+	gmtime_r(&t1, &lt);
 
 	unsigned long fat_time = ((lt.tm_year - 80) << 25) |
             ((lt.tm_mon + 1) << 21) |
