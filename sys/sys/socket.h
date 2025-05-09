@@ -479,6 +479,9 @@ struct msghdr {
 #define	MSG_MORETOCOME	 0x00100000	/* additional data pending */
 #define	MSG_TLSAPPDATA	 0x00200000	/* do not soreceive() alert rec. (TLS) */
 #endif
+#if __BSD_VISIBLE
+#define	MSG_CMSG_CLOFORK 0x00400000	/* make received fds close-on-fork */
+#endif
 
 /*
  * Header for ancillary data objects in msg_control buffer.
