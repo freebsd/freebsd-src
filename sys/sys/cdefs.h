@@ -394,6 +394,44 @@
 #endif
 
 /*
+ * nodiscard attribute added in C++17 and C23, but supported by both LLVM and
+ * GCC in earlier language versions, so we use __has_c{,pp}_attribute to test
+ * for it.
+ *
+ * __nodiscard may be used on a function:
+ * 	__nodiscard int f();
+ *
+ * or on a struct, union or enum:
+ * 	struct __nodiscard S{};
+ * 	struct S f();
+ *
+ * or in C++, on an object constructor.
+ */
+
+#if defined(__cplusplus) && defined(__has_cpp_attribute)
+#if __has_cpp_attribute(nodiscard)
+#define	__nodiscard	[[nodiscard]]
+#endif
+#elif defined(__STDC_VERSION__) && defined(__has_c_attribute)
+#if __has_c_attribute(__nodiscard__)
+#define	__nodiscard	[[__nodiscard__]]
+#endif
+#endif
+
+#ifndef __nodiscard
+/*
+ * LLVM 16 and earlier don't support [[nodiscard]] in C, but they do support
+ * __warn_unused_result__ with the same semantics, so fall back to that.
+ * We can't do this for GCC because the semantics are different.
+ */
+#ifdef __clang__
+#define	__nodiscard	__attribute__((__warn_unused_result__))
+#else
+#define	__nodiscard
+#endif
+#endif
+
+/*
  * We use `__restrict' as a way to define the `restrict' type qualifier
  * without disturbing older software that is unaware of C99 keywords.
  * GCC also provides `__restrict' as an extension to support C99-style
