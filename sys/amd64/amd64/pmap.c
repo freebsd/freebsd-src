@@ -6164,8 +6164,11 @@ next_chunk:
 	pvc->active_reclaims--;
 	mtx_unlock(&pvc->pvc_lock);
 	reclaim_pv_chunk_leave_pmap(pmap, locked_pmap, start_di);
-#if 0
-	/* CHUQ this tries to convert a pt page into a pv page.  argh.  skip for now. */
+#if 0 && PAGE_SIZE_PT == PAGE_SIZE_PV
+	/*
+	 * This tries to reuse a pt page as a pv page.
+	 * This only works when those sizes are the same.
+	 */
 	if (m_pc == NULL && !SLIST_EMPTY(&free)) {
 		m_pc = SLIST_FIRST(&free);
 		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
@@ -8169,9 +8172,8 @@ validate:
 		}
 		if ((origpte & PG_A) != 0)
 			pmap_invalidate_page_datapg(pmap, va);
-	} else {
+	} else
 		pte_store_datapg(pte, newpte);
-	}
 
 unchanged:
 
@@ -8191,7 +8193,6 @@ out:
 	if (lock != NULL)
 		rw_wunlock(lock);
 	PMAP_UNLOCK(pmap);
-
 	return (rv);
 }
 
@@ -9287,8 +9288,11 @@ pmap_page_is_mapped(vm_page_t m)
 	struct rwlock *lock;
 	bool rv;
 
+#if 0
+	/* CHUQ why did I add this? */
 	if (cold)
 		return false;
+#endif
 	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (false);
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
@@ -10070,7 +10074,6 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 			 * underlying page table page is fully populated, this
 			 * removal never frees a page table page.
 			 */
-			/* XXX CHUQ this should remove all ptes for the datapg */
 			if ((oldpde & PG_W) == 0) {
 				va = eva;
 				if (va > va_next)
