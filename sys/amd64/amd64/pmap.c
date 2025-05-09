@@ -3998,7 +3998,6 @@ pmap_invalidate_cache_pages(vm_page_t *pages, int count)
 		else if (cpu_vendor_id != CPU_VENDOR_INTEL)
 			mfence();
 		for (i = 0; i < count; i++) {
-			/* CHUQ this is a data page. */
 			daddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pages[i]));
 			eva = daddr + PAGE_SIZE;
 			for (; daddr < eva; daddr += cpu_clflush_line_size) {
@@ -6091,7 +6090,6 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 				tpte = pte_load_clear_datapg(pte);
 				if ((tpte & PG_G) != 0)
 					pmap_invalidate_page_datapg(pmap, va);
-				/* CHUQ this is a data page. */
 				m = PHYS_TO_VM_PAGE(tpte & PG_FRAME);
 				if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 					vm_page_dirty(m);
@@ -6517,7 +6515,6 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	pv = pmap_pvh_remove(pvh, pmap, va);
 	KASSERT(pv != NULL, ("pmap_pv_demote_pde: pv not found"));
 
-	/* CHUQ this is a data page. */
 	m = PHYS_TO_VM_PAGE(pa);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 	m->md.pv_gen++;
@@ -6581,7 +6578,6 @@ pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	 * reclaim_pv_chunk() and that reclaim_pv_chunk() removes one of the
 	 * mappings that is being promoted.
 	 */
-	/* CHUQ this is a data page. */
 	m = PHYS_TO_VM_PAGE(pa);
 	va = trunc_2mpage(va);
 	pv = pmap_pvh_remove(&m->md, pmap, va);
@@ -6971,7 +6967,6 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva, bool demote_kpde,
 		pvh = pa_to_pvh(oldpde & PG_PS_FRAME);
 		pmap_pvh_free(pvh, pmap, sva);
 		eva = sva + NBPDR;
-		/* CHUQ this is a data page. */
 		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
 		    va < eva; va += PAGE_SIZE, m++) {
 			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW))
@@ -7028,7 +7023,6 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
 		pmap->pm_stats.wired_count -= PAGE_SIZE_PTES;
 	pmap_resident_count_adj(pmap, -PAGE_SIZE_PTES);
 	if (oldpte & PG_MANAGED) {
-		/* CHUQ this is a data page. */
 		m = PHYS_TO_VM_PAGE(oldpte & PG_FRAME);
 		if ((oldpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 			vm_page_dirty(m);
@@ -7415,7 +7409,6 @@ retry:
 	if ((prot & VM_PROT_WRITE) == 0) {
 		if ((oldpde & (PG_MANAGED | PG_M | PG_RW)) ==
 		    (PG_MANAGED | PG_M | PG_RW)) {
-			/* CHUQ this is a data page. */
 			m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
 			for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
 				vm_page_dirty(mt);
@@ -7603,7 +7596,6 @@ retry:
 			if ((prot & VM_PROT_WRITE) == 0) {
 				if ((pbits & (PG_MANAGED | PG_M | PG_RW)) ==
 				    (PG_MANAGED | PG_M | PG_RW)) {
-					/* CHUQ this is part of a data page. */
 					m = PHYS_TO_VM_PAGE(pbits & PG_FRAME & ~PAGE_MASK);
 					vm_page_dirty(m);
 				}
@@ -8088,7 +8080,6 @@ retry:
 		KASSERT((origpte & PG_FRAME) == opa,
 		    ("pmap_enter: unexpected pa update for %#lx", va));
 		if ((origpte & PG_MANAGED) != 0) {
-			/* CHUQ this is a data page. */
 			om = PHYS_TO_VM_PAGE(opa);
 
 			/*
@@ -8436,7 +8427,6 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
 			return (KERN_RESOURCE_SHORTAGE);
 		}
 		if ((newpde & PG_RW) != 0) {
-			/* CHUQ this is a data page. */
 			for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
 				vm_page_aflag_set(mt, PGA_WRITEABLE);
 		}
@@ -8619,7 +8609,6 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	pmap_resident_count_adj(pmap, PAGE_SIZE_PTES);
 
-	/* CHUQ this is a data page. */
 	newpte = VM_PAGE_TO_PHYS(m) | PG_V |
 	    pmap_cache_bits(pmap, m->md.pat_mode, false);
 	if ((m->oflags & VPO_UNMANAGED) == 0)
@@ -9032,7 +9021,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			dst_pte = pmap_ptpage_va(dstmpte);
 			dst_pte = &dst_pte[pmap_pte_index(addr)];
 			if (*dst_pte == 0 &&
-			    /* CHUQ this is a data page. */
 			    pmap_try_insert_pv_entry(dst_pmap, addr,
 			    PHYS_TO_VM_PAGE(ptetemp & PG_FRAME), &lock)) {
 				/*
@@ -9098,7 +9086,6 @@ pmap_zero_page(vm_page_t m)
 #ifdef TSLOG_PAGEZERO
 	TSENTER();
 #endif
-	/* CHUQ this is a data page. */
 	va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 	pagezero((void *)va);
 #ifdef TSLOG_PAGEZERO
@@ -9113,7 +9100,6 @@ pmap_zero_page(vm_page_t m)
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
-	/* CHUQ this is a data page. */
 	vm_offset_t va = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 
 	if (off == 0 && size == PAGE_SIZE)
@@ -9128,9 +9114,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 void
 pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 {
-	/* CHUQ this is a data page. */
 	vm_offset_t src = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(msrc));
-	/* CHUQ this is a data page. */
 	vm_offset_t dst = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mdst));
 
 	pagecopy((void *)src, (void *)dst);
@@ -9440,7 +9424,6 @@ pmap_remove_pages(pmap_t pmap)
 				 * processors, the dirty bit cannot have
 				 * changed state since we last loaded pte.
 				 */
-				/* CHUQ this is a data page if !superpage. */
 				if (superpage) {
 					pte_clear(pte);
 					pa = tpte & PG_PS_FRAME;
@@ -9449,7 +9432,6 @@ pmap_remove_pages(pmap_t pmap)
 					pa = tpte & PG_FRAME;
 				}
 
-				/* CHUQ this is a data page. */
 				m = PHYS_TO_VM_PAGE(pa);
 				KASSERT(m->phys_addr == pa,
 				    ("vm_page_t %p phys_addr mismatch %016jx %016jx",
@@ -9809,7 +9791,6 @@ pmap_ts_referenced(vm_page_t m)
 	    ("pmap_ts_referenced: page %p is not managed", m));
 	SLIST_INIT(&free);
 	cleared = 0;
-	/* CHUQ this is a data page. */
 	pa = VM_PAGE_TO_PHYS(m);
 	lock = PHYS_TO_PV_LIST_LOCK(pa);
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : pa_to_pvh(pa);
@@ -10106,7 +10087,6 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 					 * can be avoided by making the page
 					 * dirty now.
 					 */
-					/* CHUQ this is a data page. */
 					m = PHYS_TO_VM_PAGE(*pte & PG_FRAME);
 					vm_page_dirty(m);
 				}
@@ -10188,7 +10168,6 @@ restart:
 			 * Write protect the mapping to a single page so that
 			 * a subsequent write access may repromote.
 			 */
-			/* CHUQ this is a data page. */
 			va += VM_PAGE_TO_PHYS(m) - (oldpde & PG_PS_FRAME);
 			pte = pmap_pde_to_pte(pde, va);
 			atomic_clear_long_datapg(pte, PG_M | PG_RW);
@@ -11295,7 +11274,6 @@ pmap_emulate_accessed_dirty(pmap_t pmap, vm_offset_t va, int ftype)
 	else
 		mpte = NULL;
 
-	/* CHUQ this is a data page. */
 	m = PHYS_TO_VM_PAGE(*pte & PG_FRAME);
 
 	if ((mpte == NULL || pmap_ptpage_refs(mpte) == NDPTEPG) &&
@@ -11391,7 +11369,6 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 	 */
 	needs_mapping = false;
 	for (i = 0; i < count; i++) {
-		/* CHUQ this is a data page. */
 		paddr = VM_PAGE_TO_PHYS(page[i]);
 		if (__predict_false(paddr >= dmaplimit)) {
 			error = vmem_alloc(kernel_arena, PAGE_SIZE,
@@ -11418,7 +11395,6 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 	if (!can_fault)
 		sched_pin();
 	for (i = 0; i < count; i++) {
-		/* CHUQ this is a data page. */
 		paddr = VM_PAGE_TO_PHYS(page[i]);
 		if (paddr >= dmaplimit) {
 			if (can_fault) {
@@ -11450,7 +11426,6 @@ pmap_unmap_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 	if (!can_fault)
 		sched_unpin();
 	for (i = 0; i < count; i++) {
-		/* CHUQ this is a data page. */
 		paddr = VM_PAGE_TO_PHYS(page[i]);
 		if (paddr >= dmaplimit) {
 			if (can_fault)
@@ -11465,7 +11440,6 @@ pmap_quick_enter_page(vm_page_t m)
 {
 	vm_paddr_t paddr;
 
-	/* CHUQ this is a data page. */
 	paddr = VM_PAGE_TO_PHYS(m);
 	if (paddr < dmaplimit)
 		return (PHYS_TO_DMAP(paddr));
