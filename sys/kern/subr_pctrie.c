@@ -612,13 +612,14 @@ pctrie_iter_prev(struct pctrie_iter *it)
  * array, starting at index.
  */
 static __always_inline int
-_pctrie_lookup_range(struct pctrie *ptree, uint64_t index, uint64_t *value[],
-    int count, smr_t smr, enum pctrie_access access)
+_pctrie_lookup_range(struct pctrie *ptree, struct pctrie_node *node,
+    uint64_t index, uint64_t *value[], int count,
+    struct pctrie_node **parent_out, smr_t smr, enum pctrie_access access)
 {
-	struct pctrie_node *parent, *node;
+	struct pctrie_node *parent;
 	int base, end, i;
 
-	parent = NULL;
+	parent = node;
 	for (i = 0; i < count;) {
 		node = _pctrie_lookup_node(ptree, parent, index + i, &parent,
 		    smr, access);
@@ -641,6 +642,8 @@ _pctrie_lookup_range(struct pctrie *ptree, uint64_t index, uint64_t *value[],
 		if (i < end)
 			break;
 	}
+	if (parent_out != NULL)
+		*parent_out = parent;
 	return (i);
 }
 
@@ -653,8 +656,8 @@ int
 pctrie_lookup_range(struct pctrie *ptree, uint64_t index,
     uint64_t *value[], int count)
 {
-	return (_pctrie_lookup_range(ptree, index, value, count, NULL,
-	    PCTRIE_LOCKED));
+	return (_pctrie_lookup_range(ptree, NULL, index, value, count, NULL,
+	    NULL, PCTRIE_LOCKED));
 }
 
 /*
@@ -671,9 +674,23 @@ pctrie_lookup_range_unlocked(struct pctrie *ptree, uint64_t index,
 	int res;
 
 	smr_enter(smr);
-	res = _pctrie_lookup_range(ptree, index, value, count, smr, PCTRIE_SMR);
+	res = _pctrie_lookup_range(ptree, NULL, index, value, count, NULL,
+	    smr, PCTRIE_SMR);
 	smr_exit(smr);
 	return (res);
+}
+
+/*
+ * Returns the number of contiguous, non-NULL entries read into the value[]
+ * array, starting at index, assuming access is externally synchronized by a
+ * lock.  Uses an iterator.
+ */
+int
+pctrie_iter_lookup_range(struct pctrie_iter *it, uint64_t index,
+    uint64_t *value[], int count)
+{
+	return (_pctrie_lookup_range(it->ptree, it->node, index, value, count,
+	    &it->node, NULL, PCTRIE_LOCKED));
 }
 
 /*
