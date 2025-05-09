@@ -21,18 +21,26 @@
 #include "lauxlib.h"
 #include "lposix.h"
 
+static void
+enforce_max_args(lua_State *L, int max)
+{
+	int narg;
+
+	narg = lua_gettop(L);
+	luaL_argcheck(L, narg <= max, max + 1, "too many arguments");
+}
+
 /*
  * Minimal implementation of luaposix needed for internal FreeBSD bits.
  */
 static int
 lua__exit(lua_State *L)
 {
-	int code, narg;
+	int code;
 
-	narg = lua_gettop(L);
-	luaL_argcheck(L, narg == 1, 1, "_exit takes exactly one argument");
-
+	enforce_max_args(L, 1);
 	code = luaL_checkinteger(L, 1);
+
 	_exit(code);
 }
 
@@ -40,10 +48,8 @@ static int
 lua_basename(lua_State *L)
 {
 	char *inpath, *outpath;
-	int narg;
 
-	narg = lua_gettop(L);
-	luaL_argcheck(L, narg > 0, 1, "at least one argument required");
+	enforce_max_args(L, 1);
 	inpath = strdup(luaL_checkstring(L, 1));
 	if (inpath == NULL) {
 		lua_pushnil(L);
@@ -61,15 +67,13 @@ lua_basename(lua_State *L)
 static int
 lua_chmod(lua_State *L)
 {
-	int n;
 	const char *path;
 	mode_t mode;
 
-	n = lua_gettop(L);
-	luaL_argcheck(L, n == 2, n > 2 ? 3 : n,
-	    "chmod takes exactly two arguments");
+	enforce_max_args(L, 2);
 	path = luaL_checkstring(L, 1);
 	mode = (mode_t)luaL_checkinteger(L, 2);
+
 	if (chmod(path, mode) == -1) {
 		lua_pushnil(L);
 		lua_pushstring(L, strerror(errno));
@@ -83,14 +87,12 @@ lua_chmod(lua_State *L)
 static int
 lua_chown(lua_State *L)
 {
-	int n;
 	const char *path;
 	uid_t owner = (uid_t) -1;
 	gid_t group = (gid_t) -1;
 
-	n = lua_gettop(L);
-	luaL_argcheck(L, n > 1, n,
-	   "chown takes at least two arguments");
+	enforce_max_args(L, 3);
+
 	path = luaL_checkstring(L, 1);
 	if (lua_isinteger(L, 2))
 		owner = (uid_t) lua_tointeger(L, 2);
@@ -139,11 +141,9 @@ lua_chown(lua_State *L)
 static int
 lua_pclose(lua_State *L)
 {
-	int error, fd, n;
+	int error, fd;
 
-	n = lua_gettop(L);
-	luaL_argcheck(L, n == 1, 1,
-	    "close takes exactly one argument (fd)");
+	enforce_max_args(L, 1);
 
 	fd = luaL_checkinteger(L, 1);
 	if (fd < 0) {
@@ -169,14 +169,13 @@ static int
 lua_fnmatch(lua_State *L)
 {
 	const char *pattern, *string;
-	int flags, n;
+	int flags;
 
-	n = lua_gettop(L);
-	luaL_argcheck(L, n == 2 || n == 3, 4, "need 2 or 3 arguments");
-
+	enforce_max_args(L, 3);
 	pattern = luaL_checkstring(L, 1);
 	string = luaL_checkstring(L, 2);
 	flags = luaL_optinteger(L, 3, 0);
+
 	lua_pushinteger(L, fnmatch(pattern, string, flags));
 
 	return (1);
@@ -186,10 +185,9 @@ static int
 lua_uname(lua_State *L)
 {
 	struct utsname name;
-	int error, n;
+	int error;
 
-	n = lua_gettop(L);
-	luaL_argcheck(L, n == 0, 1, "too many arguments");
+	enforce_max_args(L, 0);
 
 	error = uname(&name);
 	if (error != 0) {
@@ -219,11 +217,9 @@ static int
 lua_dirname(lua_State *L)
 {
 	char *inpath, *outpath;
-	int narg;
 
-	narg = lua_gettop(L);
-	luaL_argcheck(L, narg > 0, 1,
-	    "dirname takes at least one argument (path)");
+	enforce_max_args(L, 1);
+
 	inpath = strdup(luaL_checkstring(L, 1));
 	if (inpath == NULL) {
 		lua_pushnil(L);
@@ -242,10 +238,8 @@ static int
 lua_fork(lua_State *L)
 {
 	pid_t pid;
-	int narg;
 
-	narg = lua_gettop(L);
-	luaL_argcheck(L, narg == 0, 1, "too many arguments");
+	enforce_max_args(L, 0);
 
 	pid = fork();
 	if (pid < 0) {
@@ -262,10 +256,8 @@ lua_fork(lua_State *L)
 static int
 lua_getpid(lua_State *L)
 {
-	int narg;
+	enforce_max_args(L, 0);
 
-	narg = lua_gettop(L);
-	luaL_argcheck(L, narg == 0, 1, "too many arguments");
 	lua_pushinteger(L, getpid());
 	return (1);
 }
@@ -273,10 +265,9 @@ lua_getpid(lua_State *L)
 static int
 lua_pipe(lua_State *L)
 {
-	int error, fd[2], narg;
+	int error, fd[2];
 
-	narg = lua_gettop(L);
-	luaL_argcheck(L, narg == 0, 1, "too many arguments");
+	enforce_max_args(L, 0);
 
 	error = pipe(fd);
 	if (error != 0) {
@@ -297,12 +288,9 @@ lua_read(lua_State *L)
 	char *buf;
 	ssize_t ret;
 	size_t sz;
-	int error, fd, narg;
+	int error, fd;
 
-	narg = lua_gettop(L);
-	luaL_argcheck(L, narg == 2, 1,
-	    "read takes exactly two arguments (fd, size)");
-
+	enforce_max_args(L, 2);
 	fd = luaL_checkinteger(L, 1);
 	sz = luaL_checkinteger(L, 2);
 
@@ -343,10 +331,8 @@ lua_realpath(lua_State *L)
 {
 	const char *inpath;
 	char *outpath;
-	int narg;
 
-	narg = lua_gettop(L);
-	luaL_argcheck(L, narg > 0, 1, "at least one argument required");
+	enforce_max_args(L, 1);
 	inpath = luaL_checkstring(L, 1);
 
 	outpath = realpath(inpath, NULL);
@@ -367,17 +353,12 @@ lua_wait(lua_State *L)
 {
 	pid_t pid;
 	int options, status;
-	int narg;
 
-	narg = lua_gettop(L);
+	enforce_max_args(L, 2);
+	pid = luaL_optinteger(L, 1, -1);
+	options = luaL_optinteger(L, 2, 0);
 
-	pid = -1;
-	status = options = 0;
-	if (narg >= 1 && !lua_isnil(L, 1))
-		pid = luaL_checkinteger(L, 1);
-	if (narg >= 2 && !lua_isnil(L, 2))
-		options = luaL_checkinteger(L, 2);
-
+	status = 0;
 	pid = waitpid(pid, &status, options);
 	if (pid < 0) {
 		lua_pushnil(L);
@@ -419,13 +400,9 @@ lua_write(lua_State *L)
 	size_t bufsz, sz;
 	ssize_t ret;
 	off_t offset;
-	int error, fd, narg;
+	int error, fd;
 
-	narg = lua_gettop(L);
-	luaL_argcheck(L, narg >= 2, 1,
-	    "write takes at least two arguments (fd, buf, sz, off)");
-	luaL_argcheck(L, narg <= 4, 5,
-	    "write takes no more than four arguments (fd, buf, sz, off)");
+	enforce_max_args(L, 4);
 
 	fd = luaL_checkinteger(L, 1);
 	if (fd < 0) {
@@ -435,13 +412,11 @@ lua_write(lua_State *L)
 
 	buf = luaL_checkstring(L, 2);
 
-	bufsz = sz = lua_rawlen(L, 2);
-	if (narg >= 3 && !lua_isnil(L, 3))
-		sz = luaL_checkinteger(L, 3);
+	bufsz = lua_rawlen(L, 2);
+	sz = luaL_optinteger(L, 3, bufsz);
 
-	offset = 0;
-	if (narg >= 4 && !lua_isnil(L, 4))
-		offset = luaL_checkinteger(L, 4);
+	offset = luaL_optinteger(L, 4, 0);
+
 
 	if ((size_t)offset > bufsz || offset + sz > bufsz) {
 		lua_pushnil(L);
