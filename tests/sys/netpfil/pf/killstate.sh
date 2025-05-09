@@ -574,6 +574,61 @@ id_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "key" "cleanup"
+key_head()
+{
+	atf_set descr 'Test killing states by their key'
+	atf_set require.user root
+}
+
+key_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+		"block all" \
+		"pass in proto tcp" \
+		"pass in proto icmp"
+
+	# Sanity check & establish state
+	atf_check -s exit:0 -o ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 192.0.2.2 \
+		--replyif ${epair}a
+
+	# Get the state key
+	key=$(jexec alcatraz pfctl -ss -vvv | awk '/icmp/ { print($2 " " $3 " " $4 " " $5); }')
+	bad_key=$(echo ${key} | sed 's/icmp/tcp/')
+
+	# Kill the wrong key
+	atf_check -s exit:0 -e "match:killed 0 states" \
+	    jexec alcatraz pfctl -k key -k "${bad_key}"
+	if ! find_state;
+	then
+		atf_fail "Killing a different ID removed the state."
+	fi
+
+	# Kill the correct key
+	atf_check -s exit:0 -e "match:killed 1 states" \
+	    jexec alcatraz pfctl -k key -k "${key}"
+	if find_state;
+	then
+		atf_fail "Killing the state did not remove it."
+	fi
+}
+
+key_cleanup()
+{
+	pft_cleanup
+}
+
 atf_test_case "nat" "cleanup"
 nat_head()
 {
@@ -653,5 +708,6 @@ atf_init_test_cases()
 	atf_add_test_case "match"
 	atf_add_test_case "interface"
 	atf_add_test_case "id"
+	atf_add_test_case "key"
 	atf_add_test_case "nat"
 }
