@@ -215,6 +215,10 @@ vm_page_init_cache_zones(void *dummy __unused)
 	for (domain = 0; domain < vm_ndomains; domain++) {
 		vmd = VM_DOMAIN(domain);
 		for (pool = 0; pool < VM_NFREEPOOL; pool++) {
+#ifdef VM_FREEPOOL_LAZYINIT
+			if (pool == VM_FREEPOOL_LAZYINIT)
+				continue;
+#endif
 			pgcache = &vmd->vmd_pgcache[pool];
 			pgcache->domain = domain;
 			pgcache->pool = pool;
