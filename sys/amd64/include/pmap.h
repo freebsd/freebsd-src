@@ -320,7 +320,7 @@ struct ptpage;
 typedef struct ptpage *ptpage_t;
 SLIST_HEAD(ptpglist, ptpage);
 struct ptpage_radix {
-#if PAGE_SIZE == 4096
+#if PAGE_SIZE == PAGE_SIZE_4K
 	struct vm_radix vmr;
 #else
 	struct pctrie	rt_trie;
