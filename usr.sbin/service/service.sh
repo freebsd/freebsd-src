@@ -151,7 +151,7 @@ if [ -n "$RCORDER" ]; then
 	exit 0
 fi
 
-if [ $# -gt 1 ]; then
+if [ $# -gt 0 ]; then
 	script=$1
 	shift
 else
