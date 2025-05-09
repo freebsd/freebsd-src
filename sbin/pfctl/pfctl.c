@@ -1040,8 +1040,9 @@ pfctl_parse_host(char *str, struct pf_rule_addr *addr)
 	} else if ((sbs = strchr(s, ':')) != NULL) {
 		hints.ai_family = AF_INET;
 		*(sbs++) = '\0';
-	} else
-		goto error;
+	} else {
+		/* Assume that no ':<number>' means port 0 */
+	}
 
 	if (getaddrinfo(s, sbs, &hints, &ai) != 0)
 		goto error;
