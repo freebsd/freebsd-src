@@ -157,7 +157,8 @@ src.txz:
 	mkdir -p ${DISTDIR}/usr
 	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
 	( cd ${DISTDIR} && ${TAR_CMD} cLvf - --exclude .svn --exclude .zfs \
-	    --exclude .git --exclude @ --exclude usr/src/release/dist usr/src | \
+	    --exclude .git --exclude @ --exclude usr/src/release/dist \
+	    --exclude usr/src/release/obj usr/src | \
 	    ${XZ_CMD} > ${.OBJDIR}/src.txz )
 
 ports.txz:
