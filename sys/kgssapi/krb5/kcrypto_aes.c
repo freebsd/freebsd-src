@@ -126,7 +126,6 @@ aes_crypto_cb(struct cryptop *crp)
 
 	if (crp->crp_etype == EAGAIN) {
 		crp->crp_etype = 0;
-		crp->crp_flags &= ~CRYPTO_F_DONE;
 		(void)crypto_dispatch(crp);
 	} else {
 		mtx_lock(&as->as_lock);
