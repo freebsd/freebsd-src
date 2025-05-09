@@ -931,8 +931,8 @@ Examples of integer, opaque, string, and procedure sysctls follow:
  * flags are CTLFLAG_RD, the variable pointer is SYSCTL_NULL_INT_PTR,
  * and the value is declared.
  */
-SYSCTL_INT(_debug_sizeof, OID_AUTO, bio, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
-    sizeof(struct bio), "sizeof(struct bio)");
+SYSCTL_INT(_kern, OID_AUTO, hz_max, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, HZ_MAXIMUM,
+    "Maximum hz value supported");
 
 /*
  * Example of a variable integer value.  Notice that the control
