@@ -133,6 +133,7 @@ retry:
 static int
 tegra_bo_init_pager(struct tegra_bo *bo)
 {
+	struct pctrie_iter pages;
 	vm_page_t m;
 	size_t size;
 	int i;
@@ -143,6 +144,7 @@ tegra_bo_init_pager(struct tegra_bo *bo)
 	if (vmem_alloc(kernel_arena, size, M_WAITOK | M_BESTFIT, &bo->vbase))
 		return (ENOMEM);
 
+	vm_page_iter_init(&pages, bo->cdev_pager);
 	VM_OBJECT_WLOCK(bo->cdev_pager);
 	for (i = 0; i < bo->npages; i++) {
 		m = bo->m[i];
@@ -159,7 +161,7 @@ tegra_bo_init_pager(struct tegra_bo *bo)
 		 */
 		m->oflags &= ~VPO_UNMANAGED;
 		m->flags |= PG_FICTITIOUS;
-		if (vm_page_insert(m, bo->cdev_pager, i) != 0)
+		if (vm_page_iter_insert(m, bo->cdev_pager, i, &pages) != 0)
 			return (EINVAL);
 	}
 	VM_OBJECT_WUNLOCK(bo->cdev_pager);

@@ -100,7 +100,7 @@ static int
 ttm_bo_vm_fault(vm_object_t vm_obj, vm_ooffset_t offset,
     int prot, vm_page_t *mres)
 {
-
+	struct pctrie_iter pages;
 	struct ttm_buffer_object *bo = vm_obj->handle;
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_tt *ttm = NULL;
@@ -114,6 +114,7 @@ ttm_bo_vm_fault(vm_object_t vm_obj, vm_ooffset_t offset,
 	if (*mres != NULL) {
 		(void)vm_page_remove(*mres);
 	}
+	vm_page_iter_init(&pages, vm_obj);
 retry:
 	VM_OBJECT_WUNLOCK(vm_obj);
 	m = NULL;
@@ -234,10 +235,12 @@ reserve:
 		ttm_bo_unreserve(bo);
 		goto retry;
 	}
-	m1 = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
+	pctrie_iter_reset(&pages);
+	m1 = vm_radix_iter_lookup(&pages, OFF_TO_IDX(offset));
 	/* XXX This looks like it should just be vm_page_replace? */
 	if (m1 == NULL) {
-		if (vm_page_insert(m, vm_obj, OFF_TO_IDX(offset))) {
+		if (vm_page_iter_insert(
+		    m, vm_obj, OFF_TO_IDX(offset), &pages) != 0) {
 			vm_page_xunbusy(m);
 			VM_OBJECT_WUNLOCK(vm_obj);
 			vm_wait(vm_obj);

@@ -1532,7 +1532,7 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
  *
  *	The object must be locked.
  */
-static int
+int
 vm_page_iter_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex,
     struct pctrie_iter *pages)
 {
