@@ -28,7 +28,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd November 2, 2022
+.Dd May 8, 2025
 .Dt CRYPTO_REQUEST 9
 .Os
 .Sh NAME
@@ -466,17 +466,6 @@ Set by drivers prior to completing a request via
 .Fn crypto_done .
 .It Fa crp_flags
 A bitmask of flags.
-The following flags are available in addition to flags discussed previously:
-.Bl -tag -width CRYPTO_F_DONE
-.It Dv CRYPTO_F_DONE
-Set by
-.Fa crypto_done
-before calling
-.Fa crp_callback .
-This flag is not very useful and will likely be removed in the future.
-It can only be safely checked from the callback routine at which point
-it is always set.
-.El
 .It Fa crp_cipher_key
 Pointer to a request-specific encryption key.
 If this value is not set,
