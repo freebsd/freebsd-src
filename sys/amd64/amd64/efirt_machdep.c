@@ -201,13 +201,17 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	struct efi_md *p;
 	pt_entry_t *pte;
 	void *pml;
-#if 0
+#if 1
 	vm_page_t m;
 #endif
 	vm_offset_t va;
 	uint64_t idx;
 	int bits, i, mode;
 	bool map_pz = true;
+#if 0 && PAGE_SIZE != PAGE_SIZE_4K
+	vm_paddr_t lastpa = 0;
+	int lastmode = 0;
+#endif
 
 	obj_1t1_pt = vm_pager_allocate(OBJT_PHYS, NULL, ptoa(1 +
 	    NPML4EPG + NPML4EPG * NPDPEPG + NPML4EPG * NPDPEPG * NPDEPG),
@@ -231,6 +235,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		efi_map_regs &= EFI_ALLOWED_TYPES_MASK;
 	}
 
+#if PAGE_SIZE != PAGE_SIZE_4K
+#endif
 	for (i = 0, p = map; i < ndesc; i++, p = efi_next_descriptor(p,
 	    descsz)) {
 		if ((p->md_attr & EFI_MD_ATTR_RT) == 0 &&
@@ -280,20 +286,20 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 			pte = efi_1t1_pte(va);
 			pte_store(pte, va | bits);
 
-#if 0
-			m = PHYS_TO_VM_PAGE(va);
 #if 1
-			/* CHUQ skip this for now */
-			printf("CHUQ %s pa 0x%016lx m %p\n", __func__, va, m);
-#else
+			m = PHYS_TO_VM_PAGE(trunc_page(va));
 			if (m != NULL && VM_PAGE_TO_PHYS(m) == 0) {
+#if 0
+				/* CHUQ skip this for now */
+				printf("CHUQ %s pa 0x%016lx m %p\n", __func__, va, m);
+#else
 				vm_page_init_page(m, va, -1,
 				    VM_FREEPOOL_DEFAULT);
 				m->order = VM_NFREEORDER + 1; /* invalid */
 				m->pool = VM_NFREEPOOL + 1; /* invalid */
 				pmap_page_set_memattr_noflush(m, mode);
-			}
 #endif
+			}
 #endif
 		}
 		VM_OBJECT_WUNLOCK(obj_1t1_pt);
