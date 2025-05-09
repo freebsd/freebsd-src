@@ -114,6 +114,17 @@ vm_radix_lookup_range_unlocked(struct vm_radix *rtree, vm_pindex_t index,
 }
 
 /*
+ * Returns the number of contiguous, non-NULL pages read into the ma[]
+ * array, without requiring an external lock.
+ */
+static __inline int
+vm_radix_iter_lookup_range(struct pctrie_iter *pages, vm_pindex_t index,
+    vm_page_t ma[], int count)
+{
+	return (VM_RADIX_PCTRIE_ITER_LOOKUP_RANGE(pages, index, ma, count));
+}
+
+/*
  * Initialize an iterator for vm_radix.
  */
 static __inline void

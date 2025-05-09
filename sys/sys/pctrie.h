@@ -217,11 +217,23 @@ name##_PCTRIE_LOOKUP(struct pctrie *ptree, uint64_t key)		\
 									\
 static __inline __unused int						\
 name##_PCTRIE_LOOKUP_RANGE(struct pctrie *ptree, uint64_t key,		\
-     struct type *value[], int count) 					\
+    struct type *value[], int count) 					\
 {									\
 	uint64_t **data = (uint64_t **)value;				\
 									\
 	count = pctrie_lookup_range(ptree, key, data, count);		\
+	for (int i = 0; i < count; i++)					\
+		value[i] = name##_PCTRIE_NZVAL2PTR(data[i]);		\
+	return (count);							\
+}									\
+									\
+static __inline __unused int						\
+name##_PCTRIE_ITER_LOOKUP_RANGE(struct pctrie_iter *it, uint64_t key,	\
+    struct type *value[], int count) 					\
+{									\
+	uint64_t **data = (uint64_t **)value;				\
+									\
+	count = pctrie_iter_lookup_range(it, key, data, count);		\
 	for (int i = 0; i < count; i++)					\
 		value[i] = name##_PCTRIE_NZVAL2PTR(data[i]);		\
 	return (count);							\
@@ -399,6 +411,8 @@ int		pctrie_lookup_range(struct pctrie *ptree,
 		    uint64_t index, uint64_t *value[], int count);
 int		pctrie_lookup_range_unlocked(struct pctrie *ptree,
 		    uint64_t index, uint64_t *value[], int count, smr_t smr);
+int		pctrie_iter_lookup_range(struct pctrie_iter *it, uint64_t index,
+		    uint64_t *value[], int count);
 uint64_t	*pctrie_iter_lookup(struct pctrie_iter *it, uint64_t index);
 uint64_t	*pctrie_iter_stride(struct pctrie_iter *it, int stride);
 uint64_t	*pctrie_iter_next(struct pctrie_iter *it);
