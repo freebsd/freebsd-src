@@ -64,6 +64,9 @@ typedef struct pv_entry {
 #ifndef PAGE_SIZE_PV
 #define PAGE_SIZE_PV PAGE_SIZE
 #endif
+#ifndef PAGE_MASK_PV
+#define PAGE_MASK_PV PAGE_MASK
+#endif
 #if PAGE_SIZE_PV == 4 * 1024
 #ifdef __LP64__
 #define	_NPCPV	168
