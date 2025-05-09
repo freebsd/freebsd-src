@@ -36,7 +36,7 @@
 
 extern bool bsddialog_interruptprogview;
 extern bool bsddialog_abortprogview;
-extern int  bsddialog_total_progview;
+extern long long int bsddialog_total_progview;
 
 struct bsddialog_fileminibar {
 	const char *path;

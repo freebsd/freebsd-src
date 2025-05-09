@@ -47,7 +47,7 @@
 
 bool bsddialog_interruptprogview;
 bool bsddialog_abortprogview;
-int  bsddialog_total_progview;
+long long int bsddialog_total_progview;
 
 static void
 draw_bar(WINDOW *win, int y, int x, int barlen, int perc, bool withlabel,
