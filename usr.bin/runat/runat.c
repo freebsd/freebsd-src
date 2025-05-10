@@ -52,6 +52,8 @@ main(int argc, char *argv[])
 	pos = 0;
 	for (i = 1; i < argc; i++) {
 		outsiz = snprintf(&buf[pos], siz, "%s ", argv[i]);
+		if (outsiz <= 0)
+			errx(1, "snprintf failed: returned %d", outsiz);
 		if ((size_t)outsiz > siz)
 			errx(1, "Arguments too large");
 		pos += outsiz;
