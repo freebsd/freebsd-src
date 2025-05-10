@@ -470,6 +470,8 @@ MLINKS+=posix_spawn.3 posix_spawnp.3 \
 	posix_spawnattr_getsigmask.3 posix_spawnattr_setsigmask.3 \
 	posix_spawnattr_init.3 posix_spawnattr_destroy.3
 MLINKS+=psignal.3 psiginfo.3 \
+	psignal.3 sig2str.3 \
+	psignal.3 str2sig.3 \
 	psignal.3 strsignal.3 \
 	psignal.3 sys_siglist.3 \
 	psignal.3 sys_signame.3

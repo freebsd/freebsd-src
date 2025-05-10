@@ -462,6 +462,8 @@ FBSD_1.8 {
 	psiginfo;
 	rtld_get_var;
 	rtld_set_var;
+	sig2str;
+	str2sig;
 };
 
 FBSDprivate_1.0 {
