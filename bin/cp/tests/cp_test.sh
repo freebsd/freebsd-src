@@ -479,10 +479,15 @@ to_deadlink_append_body()
 	mkdir bar
 	ln -s baz bar/foo
 	atf_check cp foo bar
-	atf_check cmp -s foo bar/foo
-	rm -f bar/foo
+	atf_check cmp -s foo bar/baz
+	rm -f bar/foo bar/baz
+	ln -s baz bar/foo
 	atf_check cp foo bar/
-	atf_check cmp -s foo bar/foo
+	atf_check cmp -s foo bar/baz
+	rm -f bar/foo bar/baz
+	ln -s $PWD/baz bar/foo
+	atf_check cp foo bar/
+	atf_check cmp -s foo baz
 }
 
 atf_test_case to_dirlink
