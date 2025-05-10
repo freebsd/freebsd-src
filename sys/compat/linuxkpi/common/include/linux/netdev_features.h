@@ -33,16 +33,20 @@
 
 typedef	uint32_t		netdev_features_t;
 
-#define NETIF_F_HIGHDMA         BIT(0)
-#define NETIF_F_SG              BIT(1)
-#define NETIF_F_IP_CSUM         BIT(2)
-#define NETIF_F_IPV6_CSUM       BIT(3)
-#define NETIF_F_TSO             BIT(4)
-#define NETIF_F_TSO6            BIT(5)
-#define NETIF_F_RXCSUM          BIT(6)
-#define	NETIF_F_HW_CSUM		BIT(7)
-#define	NETIF_F_HW_TC		BIT(8)
+#define	NETIF_F_HIGHDMA		BIT(0)	/* Can DMA to high memory. */
+#define	NETIF_F_SG		BIT(1)	/* Can do scatter/gather I/O. */
+#define	NETIF_F_IP_CSUM		BIT(2)	/* Can csum TCP/UDP on IPv4. */
+#define	NETIF_F_IPV6_CSUM	BIT(3)	/* Can csum TCP/UDP on IPv6. */
+#define	NETIF_F_TSO		BIT(4)	/* Can do TCP over IPv4 segmentation. */
+#define	NETIF_F_TSO6		BIT(5)	/* Can do TCP over IPv6 segmentation. */
+#define	NETIF_F_RXCSUM		BIT(6)	/* Can do receive csum offload. */
+#define	NETIF_F_HW_CSUM		BIT(7)	/* Can csum packets (which?). */
+#define	NETIF_F_HW_TC		BIT(8)	/* Can offload TC. */
 
-#define NETIF_F_CSUM_MASK       (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)
+#define	NETIF_F_CSUM_MASK	(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM)
+
+#define	NETIF_F_BITS							\
+   "\20\1HIGHDMA\2SG\3IP_CSUM\4IPV6_CSUM\5TSO\6TSO6\7RXCSUM"		\
+   "\10HW_CSUM\11HW_TC"
 
 #endif	/* _LINUXKPI_LINUX_NETDEV_FEATURES_H_ */
