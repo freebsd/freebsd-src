@@ -59,14 +59,14 @@ On unload it is first called with
 .Fa what
 set to
 .Dv MOD_QUIESCE .
-If the unload was not forced, a non-zero return will prevent the
+If the unload was not forced, a nonzero return will prevent the
 unload from happening.
 .Pp
 If the unload continues
 .Fa what
 is set to
 .Dv MOD_UNLOAD .
-If the module returns non-zero to this, the unload will not happen.
+If the module returns nonzero to this, the unload will not happen.
 .Pp
 The difference between
 .Dv MOD_QUIESCE
