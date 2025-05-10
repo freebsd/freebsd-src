@@ -601,7 +601,7 @@ int
 tcp6_input(struct mbuf **mp, int *offp, int proto)
 {
 
-	return(tcp6_input_with_port(mp, offp, proto, 0));
+	return (tcp6_input_with_port(mp, offp, proto, 0));
 }
 #endif /* INET6 */
 
@@ -1062,7 +1062,9 @@ findpcb:
 		}
 		inc.inc_fport = th->th_sport;
 		inc.inc_lport = th->th_dport;
-		inc.inc_fibnum = so->so_fibnum;
+
+		/* note, C has short-circuit evaluation. */
+		inc.inc_fibnum = so->so_fibnum || m->m_pkthdr.fibnum;
 
 		/*
 		 * Check for an existing connection attempt in syncache if
@@ -1494,7 +1496,7 @@ tcp_autorcvbuf(struct mbuf *m, struct tcphdr *th, struct socket *so,
 int
 tcp_input(struct mbuf **mp, int *offp, int proto)
 {
-	return(tcp_input_with_port(mp, offp, proto, 0));
+	return (tcp_input_with_port(mp, offp, proto, 0));
 }
 
 static void
