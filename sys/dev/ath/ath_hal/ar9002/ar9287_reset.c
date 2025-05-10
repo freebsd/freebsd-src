@@ -47,22 +47,18 @@ ar9287SetPowerCalTable(struct ath_hal *ah,
 {
 	struct cal_data_op_loop_ar9287 *pRawDatasetOpenLoop;
 	uint8_t *pCalBChans = NULL;
-	uint16_t pdGainOverlap_t2;
 	uint16_t numPiers = 0, i;
 	uint16_t numXpdGain, xpdMask;
 	uint16_t xpdGainValues[AR5416_NUM_PD_GAINS] = {0, 0, 0, 0};
-	uint32_t regChainOffset;
 	HAL_EEPROM_9287 *ee = AH_PRIVATE(ah)->ah_eeprom;
 	struct ar9287_eeprom *pEepData = &ee->ee_base;
 
 	xpdMask = pEepData->modalHeader.xpdGain;
 
-	if ((pEepData->baseEepHeader.version & AR9287_EEP_VER_MINOR_MASK) >=
-	    AR9287_EEP_MINOR_VER_2)
-		pdGainOverlap_t2 = pEepData->modalHeader.pdGainOverlap;
-	else
-		pdGainOverlap_t2 = (uint16_t)(MS(OS_REG_READ(ah, AR_PHY_TPCRG5),
-					    AR_PHY_TPCRG5_PD_GAIN_OVERLAP));
+	if ((pEepData->baseEepHeader.version & AR9287_EEP_VER_MINOR_MASK) <
+	    AR9287_EEP_MINOR_VER_2) {
+		(void)(MS(OS_REG_READ(ah, AR_PHY_TPCRG5), AR_PHY_TPCRG5_PD_GAIN_OVERLAP));
+	}
 
 	/* Note: Kiwi should only be 2ghz.. */
 	if (IEEE80211_IS_CHAN_2GHZ(chan)) {
@@ -94,8 +90,6 @@ ar9287SetPowerCalTable(struct ath_hal *ah,
 		      xpdGainValues[2]);
 
 	for (i = 0; i < AR9287_MAX_CHAINS; i++) {
-		regChainOffset = i * 0x1000;
-
 		if (pEepData->baseEepHeader.txMask & (1 << i)) {
 			int8_t txPower;
 			pRawDatasetOpenLoop =
