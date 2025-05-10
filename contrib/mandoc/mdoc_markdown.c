@@ -1,6 +1,6 @@
-/* $Id: mdoc_markdown.c,v 1.38 2024/08/13 12:44:00 schwarze Exp $ */
+/* $Id: mdoc_markdown.c,v 1.39 2025/01/20 07:01:17 schwarze Exp $ */
 /*
- * Copyright (c) 2017, 2018, 2020 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2017, 2018, 2020, 2025 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -85,6 +85,7 @@ static	int	 md_pre_Sh(struct roff_node *);
 static	int	 md_pre_Sm(struct roff_node *);
 static	int	 md_pre_Vt(struct roff_node *);
 static	int	 md_pre_Xr(struct roff_node *);
+static	int	 md_pre__R(struct roff_node *);
 static	int	 md_pre__T(struct roff_node *);
 static	int	 md_pre_br(struct roff_node *);
 
@@ -159,7 +160,7 @@ static	const struct md_act md_acts[MDOC_MAX - MDOC_Dd] = {
 	{ NULL, NULL, md_post_pc, NULL, NULL }, /* %N */
 	{ NULL, NULL, md_post_pc, NULL, NULL }, /* %O */
 	{ NULL, NULL, md_post_pc, NULL, NULL }, /* %P */
-	{ NULL, NULL, md_post_pc, NULL, NULL }, /* %R */
+	{ NULL, md_pre__R, md_post_pc, NULL, NULL }, /* %R */
 	{ NULL, md_pre__T, md_post__T, NULL, NULL }, /* %T */
 	{ NULL, NULL, md_post_pc, NULL, NULL }, /* %V */
 	{ NULL, NULL, NULL, NULL, NULL }, /* Ac */
@@ -1577,6 +1578,34 @@ md_pre_Xr(struct roff_node *n)
 	md_word("(");
 	md_node(n);
 	md_word(")");
+	return 0;
+}
+
+static int
+md_pre__R(struct roff_node *n)
+{
+	const unsigned char	*cp;
+	const char		*arg;
+
+	arg = n->child->string;
+
+	if (strncmp(arg, "RFC ", 4) != 0)
+		return 1;
+	cp = arg += 4;
+	while (isdigit(*cp))
+		cp++;
+	if (*cp != '\0')
+		return 1;
+
+	md_rawword("[RFC ");
+	outflags &= ~MD_spc;
+	md_rawword(arg);
+	outflags &= ~MD_spc;
+	md_rawword("](http://www.rfc-editor.org/rfc/rfc");
+	outflags &= ~MD_spc;
+	md_rawword(arg);
+	outflags &= ~MD_spc;
+	md_rawword(".html)");
 	return 0;
 }
 
