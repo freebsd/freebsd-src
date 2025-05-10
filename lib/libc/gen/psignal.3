@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd Apr 16, 2025
+.Dd May 10, 2025
 .Dt PSIGNAL 3
 .Os
 .Sh NAME
@@ -33,7 +33,9 @@
 .Nm psiginfo ,
 .Nm strsignal ,
 .Nm sys_siglist ,
-.Nm sys_signame
+.Nm sys_signame ,
+.Nm sig2str ,
+.Nm str2sig
 .Nd system signal messages
 .Sh LIBRARY
 .Lb libc
@@ -48,6 +50,10 @@
 .In string.h
 .Ft "char *"
 .Fn strsignal "int sig"
+.Ft int
+.Fn sig2str "int signum" "char *str"
+.Ft int
+.Fn str2sig "char *str" "int *pnum"
 .Sh DESCRIPTION
 The
 .Fn psignal
@@ -108,10 +114,50 @@ contains a count of the strings in
 .Va sys_siglist
 and
 .Va sys_signame .
+.Pp
+The
+.Fn sig2str
+function translates the signal number
+.Fa signum
+to the signal name, without the
+.Dq SIG
+prefix, and stores it at the location specified by
+.Fa str ,
+which should be large enough to hold the name and the terminating
+.Dv NUL
+byte.
+The symbol
+.Dv SIG2STR_MAX
+gives the maximum size in bytes required.
+.Pp
+The
+.Fn str2sig
+function translates the signal name
+.Fa str
+to a signal number and stores it in the location referenced by
+.Fa pnum .
+The name in
+.Fa str
+can be either the name of the signal, with or without the
+.Dq SIG
+prefix, or a decimal number.
 .Sh SEE ALSO
 .Xr sigaction 2 ,
 .Xr perror 3 ,
 .Xr strerror 3
+.Sh STANDARDS
+The
+.Fn psignal
+and
+.Fn psiginfo
+functions are defined by
+.St -p1003.1-2008
+, while the
+.Fn sig2str
+and
+.Fn str2sig
+functions are defined by
+.St -p1003.1-2024 .
 .Sh HISTORY
 The
 .Fn psignal
@@ -124,3 +170,9 @@ function appeared in
 .Nx 6.0 ,
 and
 .Dx 4.1 .
+The
+.Fn sig2str
+and
+.Fn str2sig
+functions appeared in
+.Fx 15.0 .
