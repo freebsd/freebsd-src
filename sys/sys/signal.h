@@ -385,6 +385,10 @@ struct sigaction {
 #define	NSIG		32	/* number of old signals (counting 0) */
 #endif
 
+#if __POSIX_VISIBLE >= 202405
+#define SIG2STR_MAX	32	/* size of buffer required for sig2str() */
+#endif
+
 #if __POSIX_VISIBLE || __XSI_VISIBLE
 #define	SI_NOINFO	0		/* No signal info besides si_signo. */
 #define	SI_USER		0x10001		/* Signal sent by kill(). */

@@ -35,6 +35,7 @@
  */
 #include "namespace.h"
 #include <signal.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include "un-namespace.h"
@@ -60,4 +61,92 @@ void
 psiginfo(const siginfo_t *si, const char *s)
 {
 	psignal(si->si_signo, s);
+}
+
+int
+sig2str(int signum, char *str)
+{
+	char tmp[16];
+	char *t, *p;
+	int n;
+
+	if (signum > 0 && signum < sys_nsig) {
+		strcpy(str, sys_signame[signum]);
+		return (0);
+	}
+
+	if (signum < SIGRTMIN || signum > SIGRTMAX)
+		return (-1);
+
+	if (signum <= (SIGRTMIN + SIGRTMAX) / 2) {
+		strcpy(str, "RTMIN");
+		n = signum - SIGRTMIN;
+	} else {
+		strcpy(str, "RTMAX");
+		n = signum - SIGRTMAX;
+	}
+
+	if (n != 0) {
+		/*
+		 * This block does the equivalent of
+		 * sprintf(str + 5, "%+d", n);
+		 */
+		if (n < 0) {
+			str[5] = '-';
+			n = -n;
+		} else
+			str[5] = '+';
+		t = tmp;
+		do {
+			*t++ = "0123456789"[n % 10];
+		} while (n /= 10);
+
+		p = str + 6;
+		do {
+			*p++ = *--t;
+		} while (t > tmp);
+		*p = '\0';
+	}
+
+	return (0);
+}
+
+int
+str2sig(const char * restrict str, int * restrict pnum)
+{
+	int n, sig;
+	char *end;
+
+	if (strncmp(str, "RTMIN", 5) == 0 || strncmp(str, "RTMAX", 5) == 0) {
+		sig = (str[4] == 'X') ? SIGRTMAX : SIGRTMIN;
+		n = 0;
+		if (str[5] == '+' || str[5] == '-') {
+			n = (int) strtol(str + 5, &end, 10);
+			if (*end != '\0' || n == 0)
+				return (-1);
+		} else if (str[5] != '\0')
+			return (-1);
+		sig += n;
+		if (sig < SIGRTMIN || sig > SIGRTMAX)
+			return (-1);
+		*pnum = sig;
+		return (0);
+	}
+
+	if (str[0] >= '0' && str[0] <= '9') {
+		sig = (int)strtol(str, &end, 10);
+		if (*end == '\0' && sig > 0 && sig < sys_nsig) {
+			*pnum = sig;
+			return (0);
+		}
+	}
+
+	for (sig = 1; sig < sys_nsig; sig++) {
+		if (strcmp(sys_signame[sig], str) == 0) {
+			*pnum = sig;
+			return (0);
+		}
+	}
+
+	return (-1);
 }

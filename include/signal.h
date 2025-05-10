@@ -119,6 +119,11 @@ void	psiginfo(const siginfo_t *, const char *);
 void	psignal(int, const char *);
 #endif
 
+#if __POSIX_VISIBLE >= 202405
+int sig2str(int, char *);
+int str2sig(const char * __restrict, int * __restrict);
+#endif
+
 #if __BSD_VISIBLE
 int	sigandset(sigset_t *dest, const sigset_t *left, const sigset_t *right);
 int	sigblock(int);
