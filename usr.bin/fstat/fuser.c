@@ -108,7 +108,7 @@ struct reqfile {
 static int flags = 0;	/* Option flags. */
 
 static void	printflags(struct consumer *consumer);
-static int	str2sig(const char *str);
+static int	xstr2sig(const char *str);
 static void	usage(void) __dead2;
 static int	addfile(const char *path, struct reqfile *reqfile);
 static void	dofiles(struct procstat *procstat, struct kinfo_proc *kp,
@@ -205,7 +205,7 @@ do_fuser(int argc, char *argv[])
 					errx(EX_USAGE, "illegal signal number" ": %s",
 					    optarg);
 			} else {
-				sig = str2sig(optarg);
+				sig = xstr2sig(optarg);
 				if (sig < 0)
 					errx(EX_USAGE, "illegal signal name: "
 					    "%s", optarg);
@@ -353,7 +353,7 @@ dofiles(struct procstat *procstat, struct kinfo_proc *kp,
  * Returns signal number for it's string representation.
  */
 static int
-str2sig(const char *str)
+xstr2sig(const char *str)
 {
 	int i;
 
