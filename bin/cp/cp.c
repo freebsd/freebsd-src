@@ -331,10 +331,18 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				assert(to.dir < 0);
 				assert(root_stat == NULL);
 				mode = curr_stat->st_mode | S_IRWXU;
+				/*
+				 * Will our umask prevent us from entering
+				 * the directory after we create it?
+				 */
+				if (~mask & S_IRWXU)
+					umask(~mask & ~S_IRWXU);
 				if (mkdir(to.base, mode) != 0) {
 					warn("%s", to.base);
 					fts_set(ftsp, curr, FTS_SKIP);
 					badcp = rval = 1;
+					if (~mask & S_IRWXU)
+						umask(~mask);
 					continue;
 				}
 				to.dir = open(to.base, O_DIRECTORY | O_SEARCH);
@@ -343,6 +351,8 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 					(void)rmdir(to.base);
 					fts_set(ftsp, curr, FTS_SKIP);
 					badcp = rval = 1;
+					if (~mask & S_IRWXU)
+						umask(~mask);
 					continue;
 				}
 				if (fstat(to.dir, &created_root_stat) != 0) {
@@ -352,9 +362,14 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 					fts_set(ftsp, curr, FTS_SKIP);
 					to.dir = -1;
 					badcp = rval = 1;
+					if (~mask & S_IRWXU)
+						umask(~mask);
 					continue;
 				}
+				if (~mask & S_IRWXU)
+					umask(~mask);
 				root_stat = &created_root_stat;
+				curr->fts_number = 1;
 			} else {
 				/* entering a directory; append its name to to.path */
 				len = snprintf(to.end, END(to.path) - to.end, "%s%s",
@@ -432,9 +447,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			} else if (curr->fts_number) {
 				const char *path = *to.path ? to.path : dot;
 				mode = curr_stat->st_mode;
-				if (((mode & (S_ISUID | S_ISGID | S_ISTXT)) ||
-				    ((mode | S_IRWXU) & mask) != (mode & mask)) &&
-				    fchmodat(to.dir, path, mode & mask, 0) != 0) {
+				if (fchmodat(to.dir, path, mode & mask, 0) != 0) {
 					warn("chmod: %s/%s", to.base, to.path);
 					rval = 1;
 				}
@@ -538,12 +551,22 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			 */
 			if (dne) {
 				mode = curr_stat->st_mode | S_IRWXU;
+				/*
+				 * Will our umask prevent us from entering
+				 * the directory after we create it?
+				 */
+				if (~mask & S_IRWXU)
+					umask(~mask & ~S_IRWXU);
 				if (mkdirat(to.dir, to.path, mode) != 0) {
 					warn("%s/%s", to.base, to.path);
 					fts_set(ftsp, curr, FTS_SKIP);
 					badcp = rval = 1;
+					if (~mask & S_IRWXU)
+						umask(~mask);
 					break;
 				}
+				if (~mask & S_IRWXU)
+					umask(~mask);
 			} else if (!S_ISDIR(to_stat.st_mode)) {
 				warnc(ENOTDIR, "%s/%s", to.base, to.path);
 				fts_set(ftsp, curr, FTS_SKIP);
@@ -554,8 +577,10 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			 * Arrange to correct directory attributes later
 			 * (in the post-order phase) if this is a new
 			 * directory, or if the -p flag is in effect.
+			 * Note that fts_number may already be set if this
+			 * is the newly created destination directory.
 			 */
-			curr->fts_number = pflag || dne;
+			curr->fts_number |= pflag || dne;
 			break;
 		case S_IFBLK:
 		case S_IFCHR:

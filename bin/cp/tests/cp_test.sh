@@ -557,6 +557,28 @@ to_link_outside_body()
 	    cp -r dir dst
 }
 
+atf_test_case dstmode
+dstmode_body()
+{
+	mkdir -m 0755 dir
+	echo "foo" >dir/file
+	umask 0177
+	#atf_check cp -R dir dst
+#begin
+	# atf-check stupidly refuses to work if the current umask is
+	# weird, instead of just dealing with the situation
+	cp -R dir dst >stdout 2>stderr
+	rc=$?
+	umask 022
+	atf_check_equal 0 $rc
+	atf_check cat stdout
+	atf_check cat stderr
+#end
+	atf_check -o inline:"40600\n" stat -f%p dst
+	atf_check chmod 0750 dst
+	atf_check cmp dir/file dst/file
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -593,4 +615,5 @@ atf_init_test_cases()
 	atf_add_test_case to_dirlink
 	atf_add_test_case to_deaddirlink
 	atf_add_test_case to_link_outside
+	atf_add_test_case dstmode
 }
