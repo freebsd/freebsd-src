@@ -685,7 +685,7 @@ ipf_proxy_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 	caddr_t ptr;
 	int error;
 
-	mode = mode;	/* LINT */
+	(void)mode;	/* UNUSED */
 
 	switch (cmd)
 	{
