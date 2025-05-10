@@ -280,7 +280,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 	if (type == FILE_TO_FILE) {
 		to.dir = AT_FDCWD;
 		to.end = to.path + strlcpy(to.path, to.base, sizeof(to.path));
-		strcpy(to.base, dot);
+		strlcpy(to.base, dot, sizeof(to.base));
 	} else if (type == FILE_TO_DIR) {
 		to.dir = open(to.base, O_DIRECTORY | O_SEARCH);
 		if (to.dir < 0)
@@ -333,7 +333,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				mode = curr_stat->st_mode | S_IRWXU;
 				if (mkdir(to.base, mode) != 0) {
 					warn("%s", to.base);
-					(void)fts_set(ftsp, curr, FTS_SKIP);
+					fts_set(ftsp, curr, FTS_SKIP);
 					badcp = rval = 1;
 					continue;
 				}
@@ -341,7 +341,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				if (to.dir < 0) {
 					warn("%s", to.base);
 					(void)rmdir(to.base);
-					(void)fts_set(ftsp, curr, FTS_SKIP);
+					fts_set(ftsp, curr, FTS_SKIP);
 					badcp = rval = 1;
 					continue;
 				}
@@ -349,7 +349,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 					warn("%s", to.base);
 					(void)close(to.dir);
 					(void)rmdir(to.base);
-					(void)fts_set(ftsp, curr, FTS_SKIP);
+					fts_set(ftsp, curr, FTS_SKIP);
 					to.dir = -1;
 					badcp = rval = 1;
 					continue;
@@ -371,33 +371,33 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				to.end += len;
 			}
 			skipdp = false;
-                        /*
-                         * We're on the verge of recursing on ourselves.
-                         * Either we need to stop right here (we knowingly
-                         * just created it), or we will in an immediate
-                         * descendant.  Record the path of the immediate
-                         * descendant to make our lives a little less
-                         * complicated looking.
-                         */
+			/*
+			 * We're on the verge of recursing on ourselves.
+			 * Either we need to stop right here (we knowingly
+			 * just created it), or we will in an immediate
+			 * descendant.  Record the path of the immediate
+			 * descendant to make our lives a little less
+			 * complicated looking.
+			 */
 			if (type != FILE_TO_FILE &&
 			    root_stat->st_dev == curr_stat->st_dev &&
 			    root_stat->st_ino == curr_stat->st_ino) {
 				assert(recpath == NULL);
 				if (root_stat == &created_root_stat) {
-                                        /*
-                                         * This directory didn't exist
-                                         * when we started, we created it
-                                         * as part of traversal.  Stop
-                                         * right here before we do
-                                         * something silly.
-                                         */
-					(void)fts_set(ftsp, curr, FTS_SKIP);
+					/*
+					 * This directory didn't exist
+					 * when we started, we created it
+					 * as part of traversal.  Stop
+					 * right here before we do
+					 * something silly.
+					 */
+					fts_set(ftsp, curr, FTS_SKIP);
 					continue;
 				}
 				if (asprintf(&recpath, "%s/%s", to.path,
 				    rootname) < 0) {
 					warnc(ENOMEM, NULL);
-					(void)fts_set(ftsp, curr, FTS_SKIP);
+					fts_set(ftsp, curr, FTS_SKIP);
 					badcp = rval = 1;
 					continue;
 				}
@@ -476,9 +476,9 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			/*
 			 * This can happen in two cases:
 			 * - DIR_TO_DNE; we created the directory and
-                         *   populated root_stat earlier.
+			 *   populated root_stat earlier.
 			 * - FILE_TO_DIR if a source has a trailing slash;
-                         *   the caller populated root_stat.
+			 *   the caller populated root_stat.
 			 */
 			dne = false;
 			to_stat = *root_stat;
@@ -497,7 +497,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			    to.base, to.path, curr->fts_path);
 			badcp = rval = 1;
 			if (S_ISDIR(curr_stat->st_mode))
-				(void)fts_set(ftsp, curr, FTS_SKIP);
+				fts_set(ftsp, curr, FTS_SKIP);
 			continue;
 		}
 
@@ -524,7 +524,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			if (!Rflag) {
 				warnx("%s is a directory (not copied).",
 				    curr->fts_path);
-				(void)fts_set(ftsp, curr, FTS_SKIP);
+				fts_set(ftsp, curr, FTS_SKIP);
 				badcp = rval = 1;
 				break;
 			}
@@ -540,13 +540,13 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				mode = curr_stat->st_mode | S_IRWXU;
 				if (mkdirat(to.dir, to.path, mode) != 0) {
 					warn("%s/%s", to.base, to.path);
-					(void)fts_set(ftsp, curr, FTS_SKIP);
+					fts_set(ftsp, curr, FTS_SKIP);
 					badcp = rval = 1;
 					break;
 				}
 			} else if (!S_ISDIR(to_stat.st_mode)) {
 				warnc(ENOTDIR, "%s/%s", to.base, to.path);
-				(void)fts_set(ftsp, curr, FTS_SKIP);
+				fts_set(ftsp, curr, FTS_SKIP);
 				badcp = rval = 1;
 				break;
 			}
