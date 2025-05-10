@@ -3877,9 +3877,11 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	/* Force MC init. */
 	lkpi_update_mcast_filter(ic, true);
 
-	IMPROVE();
-
 	ieee80211_vap_setup(ic, vap, name, unit, opmode, flags, bssid);
+
+	/* Now we have a valid vap->iv_ifp.  Any checksum offloading goes below. */
+
+	IMPROVE();
 
 	/* Override with LinuxKPI method so we can drive mac80211/cfg80211. */
 	lvif->iv_newstate = vap->iv_newstate;
@@ -6364,8 +6366,10 @@ linuxkpi_ieee80211_ifattach(struct ieee80211_hw *hw)
 		hw->wiphy->max_scan_ie_len -= lhw->scan_ie_len;
 	}
 
-	if (bootverbose)
+	if (bootverbose) {
+		ic_printf(ic, "netdev_features %b\n", hw->netdev_features, NETIF_F_BITS);
 		ieee80211_announce(ic);
+	}
 
 	return (0);
 err:
