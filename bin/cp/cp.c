@@ -267,7 +267,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 	char *recpath = NULL;
 	int atflags, dne, badcp, len, rval;
 	mode_t mask, mode;
-	bool beneath = type != FILE_TO_FILE;
+	bool beneath = Rflag && type != FILE_TO_FILE;
 	bool skipdp = false;
 
 	/*
