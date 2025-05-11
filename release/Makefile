@@ -76,7 +76,9 @@ PKG_ENV+=	INSTALL_AS_USER=yes
 PKG_ENV+=	ASSUME_ALWAYS_YES=yes
 PKG_ARGS+=	-o METALOG=METALOG
 PKG_ARGS+=	-r ${.TARGET} -o REPOS_DIR=${.CURDIR}/pkg_repos
-PKG_INSTALL=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} install
+# Pass -f to make sure pkg writes to the METALOG even if the package
+# is already installed from a previous build
+PKG_INSTALL=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} install -f
 PKG_CLEAN=	env ${PKG_ENV} ${PKG_CMD} ${PKG_ARGS} clean -a
 .endif
 
