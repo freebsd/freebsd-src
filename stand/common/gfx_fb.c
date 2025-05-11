@@ -1001,6 +1001,8 @@ gfx_fb_fill(void *arg, const teken_rect_t *r, teken_char_t c,
 	teken_pos_t p;
 	struct text_pixel *row;
 
+	TSENTER();
+
 	/* remove the cursor */
 	if (state->tg_cursor_visible)
 		gfx_fb_cursor_draw(state, &state->tg_cursor, false);
@@ -1026,6 +1028,8 @@ gfx_fb_fill(void *arg, const teken_rect_t *r, teken_char_t c,
 		c = teken_get_cursor(&state->tg_teken);
 		gfx_fb_cursor_draw(state, c, true);
 	}
+
+	TSEXIT();
 }
 
 static void
