@@ -1424,13 +1424,15 @@ kern_close(struct thread *td, int fd)
 }
 
 static int
-close_range_cloexec(struct thread *td, u_int lowfd, u_int highfd)
+close_range_flags(struct thread *td, u_int lowfd, u_int highfd, int flags)
 {
 	struct filedesc *fdp;
 	struct fdescenttbl *fdt;
 	struct filedescent *fde;
-	int fd;
+	int fd, fde_flags;
 
+	fde_flags = ((flags & CLOSE_RANGE_CLOEXEC) != 0 ? UF_EXCLOSE : 0) |
+	    ((flags & CLOSE_RANGE_CLOFORK) != 0 ? UF_FOCLOSE : 0);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_XLOCK(fdp);
 	fdt = atomic_load_ptr(&fdp->fd_files);
@@ -1442,7 +1444,7 @@ close_range_cloexec(struct thread *td, u_int lowfd, u_int highfd)
 	for (; fd <= highfd; fd++) {
 		fde = &fdt->fdt_ofiles[fd];
 		if (fde->fde_file != NULL)
-			fde->fde_flags |= UF_EXCLOSE;
+			fde->fde_flags |= fde_flags;
 	}
 out_locked:
 	FILEDESC_XUNLOCK(fdp);
@@ -1500,8 +1502,8 @@ kern_close_range(struct thread *td, int flags, u_int lowfd, u_int highfd)
 		return (EINVAL);
 	}
 
-	if ((flags & CLOSE_RANGE_CLOEXEC) != 0)
-		return (close_range_cloexec(td, lowfd, highfd));
+	if ((flags & (CLOSE_RANGE_CLOEXEC | CLOSE_RANGE_CLOFORK)) != 0)
+		return (close_range_flags(td, lowfd, highfd, flags));
 
 	return (close_range_impl(td, lowfd, highfd));
 }
@@ -1521,7 +1523,7 @@ sys_close_range(struct thread *td, struct close_range_args *uap)
 	AUDIT_ARG_CMD(uap->highfd);
 	AUDIT_ARG_FFLAGS(uap->flags);
 
-	if ((uap->flags & ~(CLOSE_RANGE_CLOEXEC)) != 0)
+	if ((uap->flags & ~(CLOSE_RANGE_CLOEXEC | CLOSE_RANGE_CLOFORK)) != 0)
 		return (EINVAL);
 	return (kern_close_range(td, uap->flags, uap->lowfd, uap->highfd));
 }
