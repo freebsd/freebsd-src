@@ -210,6 +210,7 @@
  * close_range() options.
  */
 #define	CLOSE_RANGE_CLOEXEC	(1<<2)
+#define	CLOSE_RANGE_CLOFORK	(1<<3)
 
 #endif /* __BSD_VISIBLE */
 
