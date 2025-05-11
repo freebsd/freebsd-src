@@ -1259,6 +1259,9 @@ run_rc_command()
 				nfsd)
 					_svcj_cmd_options="allow.nfsd enforce_statfs=1 ${_svcj_cmd_options}"
 					;;
+				routing)
+					_svcj_cmd_options="allow.routing ${_svcj_cmd_options}"
+					;;
 				settime)
 					_svcj_cmd_options="allow.settime ${_svcj_cmd_options}"
 					;;
