@@ -259,7 +259,8 @@ struct prison_racct {
 #define	PR_ALLOW_EXTATTR		0x00040000
 #define	PR_ALLOW_ADJTIME		0x00080000
 #define	PR_ALLOW_SETTIME		0x00100000
-#define	PR_ALLOW_ALL_STATIC		0x001f87ff
+#define	PR_ALLOW_ROUTING		0x00200000
+#define	PR_ALLOW_ALL_STATIC		0x003f87ff
 
 /*
  * PR_ALLOW_DIFFERENCES determines which flags are able to be
