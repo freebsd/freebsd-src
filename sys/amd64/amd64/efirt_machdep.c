@@ -116,17 +116,11 @@ efi_phys_to_kva(vm_paddr_t paddr)
 static ptpage_t
 efi_1t1_page(void)
 {
-
-#if 0
-	return ((ptpage_t)vm_page_grab(obj_1t1_pt, efi_1t1_idx++, VM_ALLOC_NOBUSY |
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO));
-#else
-	/* CHUQ hack this for now */
 	vm_page_t m;
 
-	m = vm_page_alloc_noobj(VM_ALLOC_NOBUSY | VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_WAITOK);
+	/* CHUQ don't worry about freeing this for now */
+	m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 	return (pmap_pa_to_ptpage(VM_PAGE_TO_PHYS(m)));
-#endif
 }
 
 static pt_entry_t *
@@ -229,14 +223,6 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 		pmap_pinit_pml4(efi_pmltop_page);
 	}
 
-	if ((efi_map_regs & ~EFI_ALLOWED_TYPES_MASK) != 0) {
-		printf("Ignoring the following runtime EFI regions: %#x\n",
-		    efi_map_regs & ~EFI_ALLOWED_TYPES_MASK);
-		efi_map_regs &= EFI_ALLOWED_TYPES_MASK;
-	}
-
-#if PAGE_SIZE != PAGE_SIZE_4K
-#endif
 	for (i = 0, p = map; i < ndesc; i++, p = efi_next_descriptor(p,
 	    descsz)) {
 		if ((p->md_attr & EFI_MD_ATTR_RT) == 0 &&
@@ -286,21 +272,21 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 			pte = efi_1t1_pte(va);
 			pte_store(pte, va | bits);
 
-#if 1
 			m = PHYS_TO_VM_PAGE(trunc_page(va));
-			if (m != NULL && VM_PAGE_TO_PHYS(m) == 0) {
-#if 0
-				/* CHUQ skip this for now */
-				printf("CHUQ %s pa 0x%016lx m %p\n", __func__, va, m);
-#else
+			if (m == NULL)
+				continue;
+			if (VM_PAGE_TO_PHYS(m) == 0) {
 				vm_page_init_page(m, va, -1,
 				    VM_FREEPOOL_DEFAULT);
 				m->order = VM_NFREEORDER + 1; /* invalid */
 				m->pool = VM_NFREEPOOL + 1; /* invalid */
 				pmap_page_set_memattr_noflush(m, mode);
-#endif
+			} else {
+				KASSERT(m->md.pat_mode == mode,
+				    ("pa 0x%lx idx 0x%lx m %p "
+				    "m->md.pat_mode 0x%x == mode 0x%x",
+				    va, idx, m, m->md.pat_mode, mode));
 			}
-#endif
 		}
 		VM_OBJECT_WUNLOCK(obj_1t1_pt);
 		if (p->md_phys == 0)

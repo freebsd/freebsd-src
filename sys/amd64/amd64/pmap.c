@@ -5765,6 +5765,7 @@ pmap_page_array_startup(long pages)
 	size = sizeof (struct vm_page);
 	vm_page_array = pmap_page_array_alloc(start, pages, size);
 	vm_page_array_size = pages;
+	bzero(vm_page_array, pages * size);
 
 #if PAGE_SIZE != PAGE_SIZE_4K
 	start += roundup(pages * size, NBPDR);
@@ -5772,6 +5773,7 @@ pmap_page_array_startup(long pages)
 	size = sizeof (struct ptpage);
 	pmap_pt_page_array = pmap_page_array_alloc(start, pages, size);
 	pmap_pt_page_array_size = pages;
+	bzero(pmap_pt_page_array, pages * size);
 #endif
 }
 
