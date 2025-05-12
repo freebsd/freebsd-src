@@ -2071,6 +2071,22 @@ linux_timer_callback_wrapper(void *context)
 	timer->function(timer->data);
 }
 
+static int
+linux_timer_jiffies_until(unsigned long expires)
+{
+	unsigned long delta = expires - jiffies;
+
+	/*
+	 * Guard against already expired values and make sure that the value can
+	 * be used as a tick count, rather than a jiffies count.
+	 */
+	if ((long)delta < 1)
+		delta = 1;
+	else if (delta > INT_MAX)
+		delta = INT_MAX;
+	return ((int)delta);
+}
+
 int
 mod_timer(struct timer_list *timer, unsigned long expires)
 {
