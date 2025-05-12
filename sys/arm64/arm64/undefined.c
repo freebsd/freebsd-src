@@ -88,36 +88,6 @@ struct undef_handler {
  */
 LIST_HEAD(, undef_handler) undef_handlers[2];
 
-/*
- * Work around a bug in QEMU prior to 2.5.1 where reading unknown ID
- * registers would raise an exception when they should return 0.
- */
-static int
-id_aa64mmfr2_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
-    uint32_t esr)
-{
-	int reg;
-
-#define	 MRS_ID_AA64MMFR2_EL0_MASK	(MRS_MASK | 0x000fffe0)
-#define	 MRS_ID_AA64MMFR2_EL0_VALUE	(MRS_VALUE | 0x00080740)
-
-	/* mrs xn, id_aa64mfr2_el1 */
-	if ((insn & MRS_ID_AA64MMFR2_EL0_MASK) == MRS_ID_AA64MMFR2_EL0_VALUE) {
-		reg = MRS_REGISTER(insn);
-
-		frame->tf_elr += INSN_SIZE;
-		if (reg < nitems(frame->tf_x)) {
-			frame->tf_x[reg] = 0;
-		} else if (reg == 30) {
-			frame->tf_lr = 0;
-		}
-		/* If reg is 32 then write to xzr, i.e. do nothing */
-
-		return (1);
-	}
-	return (0);
-}
-
 static bool
 arm_cond_match(uint32_t insn, struct trapframe *frame)
 {
@@ -282,7 +252,6 @@ undef_init(void)
 	LIST_INIT(&undef_handlers[0]);
 	LIST_INIT(&undef_handlers[1]);
 
-	install_undef_handler(false, id_aa64mmfr2_handler);
 #ifdef COMPAT_FREEBSD32
 	install_undef_handler(true, gdb_trapper);
 	install_undef_handler(true, swp_emulate);
