@@ -2341,21 +2341,22 @@ static struct cpu_feat user_ctr = {
 };
 DATA_SET(cpu_feat_set, user_ctr);
 
-static int
-user_ctr_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
-    uint32_t esr)
+static bool
+user_ctr_handler(uint64_t esr, struct trapframe *frame)
 {
 	uint64_t value;
 	int reg;
 
-	if ((insn & MRS_MASK) != MRS_VALUE)
-		return (0);
+	if (ESR_ELx_EXCEPTION(esr) != EXCP_MSR)
+		return (false);
+
+	/* Only support reading from ctr_el0 */
+	if ((esr & ISS_MSR_DIR) == 0)
+		return (false);
 
 	/* Check if this is the ctr_el0 register */
-	/* TODO: Add macros to armreg.h */
-	if (mrs_Op0(insn) != 3 || mrs_Op1(insn) != 3 || mrs_CRn(insn) != 0 ||
-	    mrs_CRm(insn) != 0 || mrs_Op2(insn) != 1)
-		return (0);
+	if ((esr & ISS_MSR_REG_MASK) != CTR_EL0_ISS)
+		return (false);
 
 	if (SV_CURPROC_ABI() == SV_ABI_FREEBSD)
 		value = user_cpu_desc.ctr;
@@ -2367,17 +2368,17 @@ user_ctr_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	 */
 	frame->tf_elr += INSN_SIZE;
 
-	reg = MRS_REGISTER(insn);
+	reg = ISS_MSR_Rt(esr);
 	/* If reg is 31 then write to xzr, i.e. do nothing */
 	if (reg == 31)
-		return (1);
+		return (true);
 
 	if (reg < nitems(frame->tf_x))
 		frame->tf_x[reg] = value;
 	else if (reg == 30)
 		frame->tf_lr = value;
 
-	return (1);
+	return (true);
 }
 
 static bool
@@ -2793,7 +2794,7 @@ identify_cpu_sysinit(void *dummy __unused)
 		panic("CPU does not support LSE atomic instructions");
 #endif
 
-	install_undef_handler(user_ctr_handler);
+	install_sys_handler(user_ctr_handler);
 	install_sys_handler(user_idreg_handler);
 }
 SYSINIT(identify_cpu, SI_SUB_CPU, SI_ORDER_MIDDLE, identify_cpu_sysinit, NULL);
