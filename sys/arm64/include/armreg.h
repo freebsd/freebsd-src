@@ -278,6 +278,7 @@
 
 /* CNTPCT_EL0 - Counter-timer Physical Count register */
 #define	CNTPCT_EL0		MRS_REG(CNTPCT_EL0)
+#define	CNTPCT_EL0_ISS		ISS_MSR_REG(CNTPCT_EL0)
 #define	CNTPCT_EL0_op0		3
 #define	CNTPCT_EL0_op1		3
 #define	CNTPCT_EL0_CRn		14
