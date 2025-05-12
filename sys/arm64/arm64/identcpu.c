@@ -2193,6 +2193,7 @@ static const struct mrs_field mvfr1_fields[] = {
 
 struct mrs_user_reg {
 	u_int		reg;
+	u_int		iss;
 	u_int		CRm;
 	u_int		Op2;
 	bool		is64bit;
@@ -2203,6 +2204,7 @@ struct mrs_user_reg {
 #define	USER_REG(name, field_name, _is64bit)				\
 	{								\
 		.reg = name,						\
+		.iss = name##_ISS,					\
 		.CRm = name##_CRm,					\
 		.Op2 = name##_op2,					\
 		.offset = __offsetof(struct cpu_desc, field_name),	\
