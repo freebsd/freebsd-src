@@ -727,13 +727,12 @@ vntblinit(void *dummy __unused)
 	 * KVA).
 	 *
 	 * Currently, on 64-bit platforms, 'desiredvnodes' is set to
-	 * 'virtvnodes' up to a physical memory cutoff of ~1674MB, after which
+	 * 'virtvnodes' up to a physical memory cutoff of ~1722MB, after which
 	 * 'physvnodes' applies instead.  With the current automatic tuning for
-	 * 'maxfiles' (32 files/MB), 'desiredvnodes' becomes smaller than it at
-	 * ~5136MB.
+	 * 'maxfiles' (32 files/MB), 'desiredvnodes' is always greater than it.
 	 */
-	physvnodes = maxproc + pgtok(vm_cnt.v_page_count) / 64 +
-	    3 * min(98304 * 16, pgtok(vm_cnt.v_page_count)) / 64;
+	physvnodes = maxproc + pgtok(vm_cnt.v_page_count) / 32 +
+	    min(98304 * 16, pgtok(vm_cnt.v_page_count)) / 32;
 	virtvnodes = vm_kmem_size / (10 * (sizeof(struct vm_object) +
 	    sizeof(struct vnode) + NC_SZ * ncsizefactor + NFS_NCLNODE_SZ));
 	desiredvnodes = min(physvnodes, virtvnodes);
