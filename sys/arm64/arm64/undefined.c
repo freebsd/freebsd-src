@@ -322,8 +322,9 @@ undef_insn(u_int el, struct trapframe *frame)
 
 	if (el == 0) {
 		ret = fueword32((uint32_t *)frame->tf_elr, &insn);
+		/* Raise a SIGILL if we are unable to read the instruction */
 		if (ret != 0)
-			panic("Unable to read userspace faulting instruction");
+			return (0);
 	} else {
 		insn = *(uint32_t *)frame->tf_elr;
 	}
