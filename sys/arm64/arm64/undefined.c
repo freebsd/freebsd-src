@@ -88,6 +88,10 @@ struct undef_handler {
  */
 LIST_HEAD(, undef_handler) undef_handlers =
     LIST_HEAD_INITIALIZER(undef_handlers);
+#ifdef COMPAT_FREEBSD32
+LIST_HEAD(, undef_handler) undef32_handlers =
+    LIST_HEAD_INITIALIZER(undef32_handlers);
+#endif
 
 static bool
 arm_cond_match(uint32_t insn, struct trapframe *frame)
@@ -150,8 +154,7 @@ gdb_trapper(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	struct thread *td = curthread;
 
 	if (insn == GDB_BREAKPOINT || insn == GDB5_BREAKPOINT) {
-		if (SV_PROC_FLAG(td->td_proc, SV_ILP32) &&
-		    va < VM_MAXUSER_ADDRESS) {
+		if (va < VM_MAXUSER_ADDRESS) {
 			ksiginfo_t ksi;
 
 			ksiginfo_init_trap(&ksi);
@@ -183,8 +186,7 @@ swp_emulate(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	 * swp, swpb only; there are no Thumb swp/swpb instructions so we can
 	 * safely bail out if we're in Thumb mode.
 	 */
-	if (!compat32_emul_swp || !SV_PROC_FLAG(td->td_proc, SV_ILP32) ||
-	    (frame->tf_spsr & PSR_T) != 0)
+	if (!compat32_emul_swp || (frame->tf_spsr & PSR_T) != 0)
 		return (0);
 	else if ((insn & 0x0fb00ff0) != 0x01000090)
 		return (0);
@@ -250,8 +252,8 @@ void
 undef_init(void)
 {
 #ifdef COMPAT_FREEBSD32
-	install_undef_handler(gdb_trapper);
-	install_undef_handler(swp_emulate);
+	install_undef32_handler(gdb_trapper);
+	install_undef32_handler(swp_emulate);
 #endif
 }
 
@@ -266,6 +268,20 @@ install_undef_handler(undef_handler_t func)
 
 	return (uh);
 }
+
+#ifdef COMPAT_FREEBSD32
+void *
+install_undef32_handler(undef_handler_t func)
+{
+	struct undef_handler *uh;
+
+	uh = malloc(sizeof(*uh), M_UNDEF, M_WAITOK);
+	uh->uh_handler = func;
+	LIST_INSERT_HEAD(&undef32_handlers, uh, uh_link);
+
+	return (uh);
+}
+#endif
 
 void
 remove_undef_handler(void *handle)
@@ -288,6 +304,18 @@ undef_insn(struct trapframe *frame)
 	/* Raise a SIGILL if we are unable to read the instruction */
 	if (ret != 0)
 		return (0);
+
+#ifdef COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(curthread->td_proc, SV_ILP32)) {
+		LIST_FOREACH(uh, &undef32_handlers, uh_link) {
+			ret = uh->uh_handler(frame->tf_elr, insn, frame,
+			    frame->tf_esr);
+			if (ret)
+				return (1);
+		}
+		return (0);
+	}
+#endif
 
 	LIST_FOREACH(uh, &undef_handlers, uh_link) {
 		ret = uh->uh_handler(frame->tf_elr, insn, frame, frame->tf_esr);
