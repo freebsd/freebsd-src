@@ -299,7 +299,6 @@ static int	unp_connectat(int, struct socket *, struct sockaddr *,
 static void	unp_connect2(struct socket *, struct socket *, bool);
 static void	unp_disconnect(struct unpcb *unp, struct unpcb *unp2);
 static void	unp_dispose(struct socket *so);
-static void	unp_shutdown(struct unpcb *);
 static void	unp_drop(struct unpcb *);
 static void	unp_gc(__unused void *, int);
 static void	unp_scan(struct mbuf *, void (*)(struct filedescent **, int));
@@ -1339,6 +1338,18 @@ uipc_wakeup(struct socket *so)
 	}
 	KNOTE_LOCKED(&sel->si_note, 0);
 	SOCK_RECVBUF_UNLOCK(so);
+}
+
+static void
+uipc_cantrcvmore(struct socket *so)
+{
+
+	SOCK_RECVBUF_LOCK(so);
+	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
+	if (so->so_rcv.uxst_peer != NULL)
+		uipc_wakeup(so);
+	else
+		SOCK_RECVBUF_UNLOCK(so);
 }
 
 static int
@@ -2646,18 +2657,28 @@ uipc_shutdown(struct socket *so, enum shutdown_how how)
 
 	switch (how) {
 	case SHUT_RD:
-		socantrcvmore(so);
+		if (so->so_type == SOCK_DGRAM)
+			socantrcvmore(so);
+		else
+			uipc_cantrcvmore(so);
 		unp_dispose(so);
 		break;
 	case SHUT_RDWR:
-		socantrcvmore(so);
+		if (so->so_type == SOCK_DGRAM)
+			socantrcvmore(so);
+		else
+			uipc_cantrcvmore(so);
 		unp_dispose(so);
 		/* FALLTHROUGH */
 	case SHUT_WR:
-		UNP_PCB_LOCK(unp);
-		socantsendmore(so);
-		unp_shutdown(unp);
-		UNP_PCB_UNLOCK(unp);
+		if (so->so_type == SOCK_DGRAM) {
+			socantsendmore(so);
+		} else {
+			UNP_PCB_LOCK(unp);
+			if (unp->unp_conn != NULL)
+				uipc_cantrcvmore(unp->unp_conn->unp_socket);
+			UNP_PCB_UNLOCK(unp);
+		}
 	}
 	wakeup(&so->so_timeo);
 
@@ -3379,23 +3400,6 @@ SYSCTL_PROC(_net_local_seqpacket, OID_AUTO, pcblist,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
     (void *)(intptr_t)SOCK_SEQPACKET, 0, unp_pcblist, "S,xunpcb",
     "List of active local seqpacket sockets");
-
-static void
-unp_shutdown(struct unpcb *unp)
-{
-	struct unpcb *unp2;
-	struct socket *so;
-
-	UNP_PCB_LOCK_ASSERT(unp);
-
-	unp2 = unp->unp_conn;
-	if ((unp->unp_socket->so_type == SOCK_STREAM ||
-	    (unp->unp_socket->so_type == SOCK_SEQPACKET)) && unp2 != NULL) {
-		so = unp2->unp_socket;
-		if (so != NULL)
-			socantrcvmore(so);
-	}
-}
 
 static void
 unp_drop(struct unpcb *unp)
