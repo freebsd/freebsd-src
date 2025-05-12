@@ -57,9 +57,9 @@ MRS_GET(CRm)
 MRS_GET(Op2)
 
 void undef_init(void);
-void *install_undef_handler(bool, undef_handler_t);
+void *install_undef_handler(undef_handler_t);
 void remove_undef_handler(void *);
-int undef_insn(u_int, struct trapframe *);
+int undef_insn(struct trapframe *);
 
 #endif /* _KERNEL */
 

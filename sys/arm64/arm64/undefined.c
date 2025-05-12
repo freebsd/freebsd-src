@@ -83,10 +83,11 @@ struct undef_handler {
 };
 
 /*
- * Create two undefined instruction handler lists, one for userspace, one for
- * the kernel. This allows us to handle instructions that will trap
+ * Create the undefined instruction handler lists.
+ * This allows us to handle instructions that will trap.
  */
-LIST_HEAD(, undef_handler) undef_handlers[2];
+LIST_HEAD(, undef_handler) undef_handlers =
+    LIST_HEAD_INITIALIZER(undef_handlers);
 
 static bool
 arm_cond_match(uint32_t insn, struct trapframe *frame)
@@ -248,24 +249,20 @@ fault:
 void
 undef_init(void)
 {
-
-	LIST_INIT(&undef_handlers[0]);
-	LIST_INIT(&undef_handlers[1]);
-
 #ifdef COMPAT_FREEBSD32
-	install_undef_handler(true, gdb_trapper);
-	install_undef_handler(true, swp_emulate);
+	install_undef_handler(gdb_trapper);
+	install_undef_handler(swp_emulate);
 #endif
 }
 
 void *
-install_undef_handler(bool user, undef_handler_t func)
+install_undef_handler(undef_handler_t func)
 {
 	struct undef_handler *uh;
 
 	uh = malloc(sizeof(*uh), M_UNDEF, M_WAITOK);
 	uh->uh_handler = func;
-	LIST_INSERT_HEAD(&undef_handlers[user ? 0 : 1], uh, uh_link);
+	LIST_INSERT_HEAD(&undef_handlers, uh, uh_link);
 
 	return (uh);
 }
@@ -281,24 +278,18 @@ remove_undef_handler(void *handle)
 }
 
 int
-undef_insn(u_int el, struct trapframe *frame)
+undef_insn(struct trapframe *frame)
 {
 	struct undef_handler *uh;
 	uint32_t insn;
 	int ret;
 
-	KASSERT(el < 2, ("Invalid exception level %u", el));
+	ret = fueword32((uint32_t *)frame->tf_elr, &insn);
+	/* Raise a SIGILL if we are unable to read the instruction */
+	if (ret != 0)
+		return (0);
 
-	if (el == 0) {
-		ret = fueword32((uint32_t *)frame->tf_elr, &insn);
-		/* Raise a SIGILL if we are unable to read the instruction */
-		if (ret != 0)
-			return (0);
-	} else {
-		insn = *(uint32_t *)frame->tf_elr;
-	}
-
-	LIST_FOREACH(uh, &undef_handlers[el], uh_link) {
+	LIST_FOREACH(uh, &undef_handlers, uh_link) {
 		ret = uh->uh_handler(frame->tf_elr, insn, frame, frame->tf_esr);
 		if (ret)
 			return (1);
