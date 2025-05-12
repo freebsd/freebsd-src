@@ -511,4 +511,6 @@
 #define	FREEBSD32_SYS_fchroot	590
 #define	FREEBSD32_SYS_freebsd32_setcred	591
 #define	FREEBSD32_SYS_exterrctl	592
-#define	FREEBSD32_SYS_MAXSYSCALL	593
+#define	FREEBSD32_SYS_inotify_add_watch_at	593
+#define	FREEBSD32_SYS_inotify_rm_watch	594
+#define	FREEBSD32_SYS_MAXSYSCALL	595
