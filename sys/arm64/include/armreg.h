@@ -38,6 +38,8 @@
 
 #define	MRS_MASK			0xfff00000
 #define	MRS_VALUE			0xd5300000
+#define	MSR_REG_VALUE			0xd5100000
+#define	MSR_IMM_VALUE			0xd5000000
 #define	MRS_SPECIAL(insn)		((insn) & 0x000fffe0)
 #define	MRS_REGISTER(insn)		((insn) & 0x0000001f)
 #define	 MRS_Op0_SHIFT			19
