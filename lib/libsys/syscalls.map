@@ -809,4 +809,8 @@ FBSDprivate_1.0 {
 	__sys_setcred;
 	_exterrctl;
 	__sys_exterrctl;
+	_inotify_add_watch_at;
+	__sys_inotify_add_watch_at;
+	_inotify_rm_watch;
+	__sys_inotify_rm_watch;
 };
