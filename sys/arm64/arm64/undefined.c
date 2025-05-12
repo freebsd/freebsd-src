@@ -82,10 +82,17 @@ struct undef_handler {
 	undef_handler_t		uh_handler;
 };
 
+/* System instruction handlers, e.g. msr, mrs, sys */
+struct sys_handler {
+	LIST_ENTRY(sys_handler) sys_link;
+	undef_sys_handler_t	sys_handler;
+};
+
 /*
  * Create the undefined instruction handler lists.
  * This allows us to handle instructions that will trap.
  */
+LIST_HEAD(, sys_handler) sys_handlers = LIST_HEAD_INITIALIZER(sys_handler);
 LIST_HEAD(, undef_handler) undef_handlers =
     LIST_HEAD_INITIALIZER(undef_handlers);
 #ifdef COMPAT_FREEBSD32
@@ -293,6 +300,72 @@ remove_undef_handler(void *handle)
 	free(handle, M_UNDEF);
 }
 
+void
+install_sys_handler(undef_sys_handler_t func)
+{
+	struct sys_handler *sysh;
+
+	sysh = malloc(sizeof(*sysh), M_UNDEF, M_WAITOK);
+	sysh->sys_handler = func;
+	LIST_INSERT_HEAD(&sys_handlers, sysh, sys_link);
+}
+
+bool
+undef_sys(uint64_t esr, struct trapframe *frame)
+{
+	struct sys_handler *sysh;
+
+	LIST_FOREACH(sysh, &sys_handlers, sys_link) {
+		if (sysh->sys_handler(esr, frame))
+			return (true);
+	}
+
+	return (false);
+}
+
+static bool
+undef_sys_insn(struct trapframe *frame, uint32_t insn)
+{
+	uint64_t esr;
+	int op0;
+	bool read;
+
+	read = false;
+	switch (insn & MRS_MASK) {
+	case MRS_VALUE:
+		read = true;
+		/* FALLTHROUGH */
+	case MSR_REG_VALUE:
+		op0 = mrs_Op0(insn);
+		break;
+	case MSR_IMM_VALUE:
+		/*
+		 * MSR (immediate) needs special handling. The
+		 * source register is always 31 (xzr), CRn is 4,
+		 * and op0 is hard coded as 0.
+		 */
+		if (MRS_REGISTER(insn) != 31)
+			return (false);
+		if (mrs_CRn(insn) != 4)
+			return (false);
+		op0 = 0;
+		break;
+	default:
+		return (false);
+	}
+
+	/* Create a fake EXCP_MSR esr value */
+	esr = EXCP_MSR << ESR_ELx_EC_SHIFT;
+	esr |= ESR_ELx_IL;
+	esr |= __ISS_MSR_REG(op0, mrs_Op1(insn), mrs_CRn(insn), mrs_CRm(insn),
+	    mrs_Op2(insn));
+	esr |= MRS_REGISTER(insn) << ISS_MSR_Rt_SHIFT;
+	if (read)
+		esr |= ISS_MSR_DIR;
+
+	return (undef_sys(esr, frame));
+}
+
 int
 undef_insn(struct trapframe *frame)
 {
@@ -316,6 +389,9 @@ undef_insn(struct trapframe *frame)
 		return (0);
 	}
 #endif
+
+	if (undef_sys_insn(frame, insn))
+		return (1);
 
 	LIST_FOREACH(uh, &undef_handlers, uh_link) {
 		ret = uh->uh_handler(frame->tf_elr, insn, frame, frame->tf_esr);
