@@ -140,15 +140,4 @@ get_jiffies_64(void)
 	return ((uint64_t)jiffies);
 }
 
-static inline unsigned long
-linux_timer_jiffies_until(unsigned long expires)
-{
-	unsigned long delta = expires - jiffies;
-
-	/* guard against already expired values */
-	if ((long)delta < 1)
-		delta = 1;
-	return (delta);
-}
-
 #endif	/* _LINUXKPI_LINUX_JIFFIES_H_ */
