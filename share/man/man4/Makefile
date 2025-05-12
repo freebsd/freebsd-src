@@ -151,6 +151,7 @@ MAN=	aac.4 \
 	eventtimers.4 \
 	exca.4 \
 	ext2fs.4 \
+	e6000sw.4 \
 	e6060sw.4 \
 	fd.4 \
 	fdc.4 \
