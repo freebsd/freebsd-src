@@ -150,7 +150,7 @@ out:
 		usleep(100);
 	}
 	if (debug != 0 && e != 0)
-		system("ps | grep -v grep | grep  /tmp/exlock2 | "\
+		system("ps -x | grep -v grep | grep  /tmp/exlock2 | "\
 		    "awk '{print $1}' | xargs procstat -f");
 	share[SYNC] = 0;
 
