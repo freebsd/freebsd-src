@@ -332,7 +332,7 @@ tmr_setup_user_access(void *arg __unused)
 #ifdef __aarch64__
 		if (TUNABLE_INT_FETCH("hw.emulate_phys_counter", &emulate) &&
 		    emulate != 0) {
-			install_undef_handler(true, cntpct_handler);
+			install_undef_handler(cntpct_handler);
 		}
 #endif
 	}

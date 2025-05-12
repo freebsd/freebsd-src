@@ -2792,8 +2792,8 @@ identify_cpu_sysinit(void *dummy __unused)
 		panic("CPU does not support LSE atomic instructions");
 #endif
 
-	install_undef_handler(true, user_ctr_handler);
-	install_undef_handler(true, user_mrs_handler);
+	install_undef_handler(user_ctr_handler);
+	install_undef_handler(user_mrs_handler);
 }
 SYSINIT(identify_cpu, SI_SUB_CPU, SI_ORDER_MIDDLE, identify_cpu_sysinit, NULL);
 
