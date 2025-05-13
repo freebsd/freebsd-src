@@ -1945,6 +1945,15 @@ bad:
 #undef MC01
 }
 
+/**
+ * @brief Free an 802.11 frame mbuf.
+ *
+ * Note that since a "frame" may consist of an mbuf packet
+ * list containing the 802.11 fragments that make up said
+ * frame, it will free everything in the mbuf packet list.
+ *
+ * @param m     mbuf packet list to free
+ */
 void
 ieee80211_free_mbuf(struct mbuf *m)
 {
