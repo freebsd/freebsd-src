@@ -1996,11 +1996,24 @@ vn_alloc_hard(struct mount *mp, u_long rnumvnodes, bool bumped)
 
 	mtx_lock(&vnode_list_mtx);
 
+	/*
+	 * Reload 'numvnodes', as since we acquired the lock, it may have
+	 * changed significantly if we waited, and 'rnumvnodes' above was only
+	 * actually passed if 'bumped' is true (else it is 0).
+	 */
+	rnumvnodes = atomic_load_long(&numvnodes);
+	if (rnumvnodes + !bumped < desiredvnodes) {
+		vn_alloc_cyclecount = 0;
+		mtx_unlock(&vnode_list_mtx);
+		goto alloc;
+	}
+
 	rfreevnodes = vnlru_read_freevnodes();
 	if (vn_alloc_cyclecount++ >= rfreevnodes) {
 		vn_alloc_cyclecount = 0;
 		vstir = true;
 	}
+
 	/*
 	 * Grow the vnode cache if it will not be above its target max after
 	 * growing.  Otherwise, if there is at least one free vnode, try to
