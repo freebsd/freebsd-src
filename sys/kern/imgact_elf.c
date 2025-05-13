@@ -1120,7 +1120,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 #if defined(__amd64__) && __ELF_WORD_SIZE == 32 && PAGE_SIZE != PAGE_SIZE_4K
 	/*
-	 * XXX CHUQ ia32 code hard-codes 4k page size, just reject for now.
+	 * XXX ia32 code hard-codes 4k page size, reject if PAGE_SIZE is larger.
 	 */
 	return -1;
 #endif

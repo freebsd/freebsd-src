@@ -255,8 +255,10 @@ link_elf_protect(elf_file_t ef)
 	vm_prot_t gapprot, prot, segprot;
 	int i;
 
-	printf("CHUQ %s skipping\n", __func__);
+#if PAGE_SIZE != PAGE_SIZE_4K
+	/* XXX skip this for now */
 	return;
+#endif
 
 	/*
 	 * If the file was preloaded, the last page may contain other preloaded
@@ -265,8 +267,6 @@ link_elf_protect(elf_file_t ef)
 	 * microcode may be loaded with a smaller alignment.
 	 */
 	gapprot = ef->preloaded ? VM_PROT_RW : VM_PROT_READ;
-
-	printf("CHUQ %s ef %p address %p\n", __func__, ef, ef->address);
 
 	start = end = (vm_offset_t)ef->address;
 	prot = VM_PROT_READ;
@@ -282,13 +282,10 @@ link_elf_protect(elf_file_t ef)
 		    strcmp(ef->progtab[i].name, DPCPU_SETNAME) == 0))
 			continue;
 
-		printf("CHUQ %s i %d addr %p size 0x%lx\n", __func__, i, ef->progtab[i].addr, (vm_offset_t)ef->progtab[i].addr + ef->progtab[i].size);
-
 		segstart = trunc_page((vm_offset_t)ef->progtab[i].addr);
 		segend = round_page((vm_offset_t)ef->progtab[i].addr +
 		    ef->progtab[i].size);
 		segprot = VM_PROT_READ;
-		printf("CHUQ %s start 0x%lx end 0x%lx segstart 0x%lx segend 0x%lx\n", __func__, start, end, segstart, segend);
 		if ((ef->progtab[i].flags & SHF_WRITE) != 0)
 			segprot |= VM_PROT_WRITE;
 		if ((ef->progtab[i].flags & SHF_EXECINSTR) != 0)
