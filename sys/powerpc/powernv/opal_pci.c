@@ -270,7 +270,7 @@ opalpci_attach(device_t dev)
 
 	rid = 0;
 	sc->r_reg = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE | RF_SHAREABLE);
+	    &rid, RF_ACTIVE | RF_SHAREABLE | RF_BIGENDIAN);
 	if (sc->r_reg == NULL) {
 		device_printf(dev, "Failed to allocate PHB[%jd] registers\n",
 		    (uintmax_t)sc->phb_id);
