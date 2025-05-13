@@ -2082,7 +2082,7 @@ gfx_get_font(teken_unit_t rows, teken_unit_t cols, teken_unit_t height,
 		 * Skip too large fonts.
 		 */
 		font = fl->font_data;
-		if (height / font->vfbd_height < rows &&
+		if (height / font->vfbd_height < rows ||
 		    width / font->vfbd_width < cols)
 			continue;
 
