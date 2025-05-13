@@ -40,43 +40,34 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_hwpmc_hooks.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/buf.h>
 #include <sys/disk.h>
+#include <sys/dirent.h>
 #include <sys/fail.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/kdb.h>
+#include <sys/filio.h>
 #include <sys/ktr.h>
-#include <sys/stat.h>
-#include <sys/priv.h>
-#include <sys/proc.h>
+#include <sys/ktrace.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
-#include <sys/vnode.h>
-#include <sys/dirent.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
-#include <sys/filio.h>
-#include <sys/resourcevar.h>
-#include <sys/rwlock.h>
+#include <sys/priv.h>
 #include <sys/prng.h>
-#include <sys/sx.h>
+#include <sys/proc.h>
 #include <sys/sleepqueue.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
-#include <sys/ttycom.h>
-#include <sys/conf.h>
-#include <sys/syslog.h>
 #include <sys/unistd.h>
 #include <sys/user.h>
-#include <sys/ktrace.h>
+#include <sys/vnode.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
