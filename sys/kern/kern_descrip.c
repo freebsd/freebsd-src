@@ -3701,13 +3701,10 @@ int __noinline
 _fdrop(struct file *fp, struct thread *td)
 {
 	int error;
-#ifdef INVARIANTS
-	int count;
 
-	count = refcount_load(&fp->f_count);
-	if (count != 0)
-		panic("fdrop: fp %p count %d", fp, count);
-#endif
+	KASSERT(refcount_load(&fp->f_count) == 0,
+	    ("fdrop: fp %p count %d", fp, refcount_load(&fp->f_count)));
+
 	error = fo_close(fp, td);
 	atomic_subtract_int(&openfiles, 1);
 	crfree(fp->f_cred);
