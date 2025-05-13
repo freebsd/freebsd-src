@@ -288,7 +288,7 @@ nexus_map_resource(device_t bus, device_t child, struct resource *r,
 		if ((rman_get_flags(r) & RF_LITTLEENDIAN) != 0)
 			map->r_bustag = &bs_le_tag;
 		else
-			map->r_bustag = nexus_get_bus_tag(NULL, NULL);
+			map->r_bustag = &bs_be_tag;
 		map->r_size = length;
 		map->r_bushandle = (bus_space_handle_t)map->r_vaddr;
 		break;
