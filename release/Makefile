@@ -253,7 +253,7 @@ dvd: packagesystem
 	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
 		MK_TESTS=no MK_DEBUG_FILES=no \
-		-DDB_FROM_SRC )
+		-DDB_FROM_SRC -DNO_ROOT)
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	for dist in MANIFEST $$(ls *.txz | grep -v container); \
