@@ -45,17 +45,17 @@
 #define LG_VADDR 48
 
 /* Defined if C11 atomics are available. */
-#define JEMALLOC_C11_ATOMICS 1
+#define JEMALLOC_C11_ATOMICS 
 
 /* Defined if GCC __atomic atomics are available. */
-#define JEMALLOC_GCC_ATOMIC_ATOMICS 1
+#define JEMALLOC_GCC_ATOMIC_ATOMICS 
 /* and the 8-bit variant support. */
-#define JEMALLOC_GCC_U8_ATOMIC_ATOMICS 1
+#define JEMALLOC_GCC_U8_ATOMIC_ATOMICS 
 
 /* Defined if GCC __sync atomics are available. */
-#define JEMALLOC_GCC_SYNC_ATOMICS 1
+#define JEMALLOC_GCC_SYNC_ATOMICS 
 /* and the 8-bit variant support. */
-#define JEMALLOC_GCC_U8_SYNC_ATOMICS 1
+#define JEMALLOC_GCC_U8_SYNC_ATOMICS 
 
 /*
  * Defined if __builtin_clz() and __builtin_clzl() are available.
@@ -73,7 +73,7 @@
 /*
  * Defined if secure_getenv(3) is available.
  */
-/* #undef JEMALLOC_HAVE_SECURE_GETENV */
+#define JEMALLOC_HAVE_SECURE_GETENV 
 
 /*
  * Defined if issetugid(2) is available.
@@ -84,22 +84,33 @@
 #define JEMALLOC_HAVE_PTHREAD_ATFORK 
 
 /* Defined if pthread_setname_np(3) is available. */
-/* #undef JEMALLOC_HAVE_PTHREAD_SETNAME_NP */
+#define JEMALLOC_HAVE_PTHREAD_SETNAME_NP 
+
+/* Defined if pthread_getname_np(3) is available. */
+#define JEMALLOC_HAVE_PTHREAD_GETNAME_NP 
+
+/* Defined if pthread_get_name_np(3) is available. */
+#define JEMALLOC_HAVE_PTHREAD_GET_NAME_NP 
 
 /*
  * Defined if clock_gettime(CLOCK_MONOTONIC_COARSE, ...) is available.
  */
-/* #undef JEMALLOC_HAVE_CLOCK_MONOTONIC_COARSE */
+#define JEMALLOC_HAVE_CLOCK_MONOTONIC_COARSE 
 
 /*
  * Defined if clock_gettime(CLOCK_MONOTONIC, ...) is available.
  */
-#define JEMALLOC_HAVE_CLOCK_MONOTONIC 1
+#define JEMALLOC_HAVE_CLOCK_MONOTONIC 
 
 /*
  * Defined if mach_absolute_time() is available.
  */
 /* #undef JEMALLOC_HAVE_MACH_ABSOLUTE_TIME */
+
+/*
+ * Defined if clock_gettime(CLOCK_REALTIME, ...) is available.
+ */
+#define JEMALLOC_HAVE_CLOCK_REALTIME 
 
 /*
  * Defined if _malloc_thread_cleanup() exists.  At least in the case of
@@ -122,7 +133,7 @@
  * _pthread_mutex_init_calloc_cb(), in which case the function is used in order
  * to avoid recursive allocation during mutex initialization.
  */
-#define JEMALLOC_MUTEX_INIT_CB 1
+#define JEMALLOC_MUTEX_INIT_CB 
 
 /* Non-empty if the tls_model attribute is supported. */
 #define JEMALLOC_TLS_MODEL __attribute__((tls_model("initial-exec")))
@@ -163,6 +174,9 @@
 /* Support utrace(2)-based tracing. */
 #define JEMALLOC_UTRACE 
 
+/* Support utrace(2)-based tracing (label based signature). */
+/* #undef JEMALLOC_UTRACE_LABEL */
+
 /* Support optional abort() on OOM. */
 #define JEMALLOC_XMALLOC 
 
@@ -177,6 +191,9 @@
 
 /* One page is 2^LG_PAGE bytes. */
 #define LG_PAGE 12
+
+/* Maximum number of regions in a slab. */
+/* #undef CONFIG_LG_SLAB_MAXREGS */
 
 /*
  * One huge page is 2^LG_HUGEPAGE bytes.  Note that this is defined even if the
@@ -292,16 +309,45 @@
 /* #undef JEMALLOC_MADVISE_DONTDUMP */
 
 /*
+ * Defined if MADV_[NO]CORE is supported as an argument to madvise.
+ */
+#define JEMALLOC_MADVISE_NOCORE 
+
+/* Defined if mprotect(2) is available. */
+#define JEMALLOC_HAVE_MPROTECT 
+
+/*
  * Defined if transparent huge pages (THPs) are supported via the
  * MADV_[NO]HUGEPAGE arguments to madvise(2), and THP support is enabled.
  */
 /* #undef JEMALLOC_THP */
 
+/* Defined if posix_madvise is available. */
+/* #undef JEMALLOC_HAVE_POSIX_MADVISE */
+
+/*
+ * Method for purging unused pages using posix_madvise.
+ *
+ *   posix_madvise(..., POSIX_MADV_DONTNEED)
+ */
+/* #undef JEMALLOC_PURGE_POSIX_MADVISE_DONTNEED */
+/* #undef JEMALLOC_PURGE_POSIX_MADVISE_DONTNEED_ZEROS */
+
+/*
+ * Defined if memcntl page admin call is supported
+ */
+/* #undef JEMALLOC_HAVE_MEMCNTL */
+
+/*
+ * Defined if malloc_size is supported
+ */
+/* #undef JEMALLOC_HAVE_MALLOC_SIZE */
+
 /* Define if operating system has alloca.h header. */
 /* #undef JEMALLOC_HAS_ALLOCA_H */
 
 /* C99 restrict keyword supported. */
-#define JEMALLOC_HAS_RESTRICT 1
+#define JEMALLOC_HAS_RESTRICT 
 
 /* For use by hash code. */
 /* #undef JEMALLOC_BIG_ENDIAN */
@@ -334,15 +380,15 @@
 #define JEMALLOC_HAVE_PTHREAD_MUTEX_ADAPTIVE_NP 
 
 /* GNU specific sched_getcpu support */
-/* #undef JEMALLOC_HAVE_SCHED_GETCPU */
+#define JEMALLOC_HAVE_SCHED_GETCPU 
 
 /* GNU specific sched_setaffinity support */
-/* #undef JEMALLOC_HAVE_SCHED_SETAFFINITY */
+#define JEMALLOC_HAVE_SCHED_SETAFFINITY 
 
 /*
  * If defined, all the features necessary for background threads are present.
  */
-#define JEMALLOC_BACKGROUND_THREAD 1
+#define JEMALLOC_BACKGROUND_THREAD 
 
 /*
  * If defined, jemalloc symbols are not exported (doesn't work when
@@ -354,7 +400,7 @@
 #define JEMALLOC_CONFIG_MALLOC_CONF "abort_conf:false"
 
 /* If defined, jemalloc takes the malloc/free/etc. symbol names. */
-#define JEMALLOC_IS_MALLOC 1
+#define JEMALLOC_IS_MALLOC 
 
 /*
  * Defined if strerror_r returns char * if _GNU_SOURCE is defined.
@@ -363,5 +409,20 @@
 
 /* Performs additional safety checks when defined. */
 /* #undef JEMALLOC_OPT_SAFETY_CHECKS */
+
+/* Is C++ support being built? */
+#define JEMALLOC_ENABLE_CXX 
+
+/* Performs additional size checks when defined. */
+/* #undef JEMALLOC_OPT_SIZE_CHECKS */
+
+/* Allows sampled junk and stash for checking use-after-free when defined. */
+/* #undef JEMALLOC_UAF_DETECTION */
+
+/* Darwin VM_MAKE_TAG support */
+/* #undef JEMALLOC_HAVE_VM_MAKE_TAG */
+
+/* If defined, realloc(ptr, 0) defaults to "free" instead of "alloc". */
+/* #undef JEMALLOC_ZERO_REALLOC_DEFAULT_FREE */
 
 #endif /* JEMALLOC_INTERNAL_DEFS_H_ */
