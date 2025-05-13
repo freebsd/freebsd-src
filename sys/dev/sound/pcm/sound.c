@@ -139,6 +139,7 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 {
 	struct snddev_info *d = device_get_softc(dev);
 	struct pcm_channel *ch;
+	int err = 0;
 
 	PCM_LOCK(d);
 	PCM_WAIT(d);
@@ -147,13 +148,12 @@ pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo)
 	if (!ch) {
 		device_printf(d->dev, "chn_init(%s, %d, %p) failed\n",
 		    cls->name, dir, devinfo);
-		PCM_UNLOCK(d);
-		return (ENODEV);
+		err = ENODEV;
 	}
 	PCM_RELEASE(d);
 	PCM_UNLOCK(d);
 
-	return (0);
+	return (err);
 }
 
 static void
