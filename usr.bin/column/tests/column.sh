@@ -144,6 +144,7 @@ seven.:eight.:nine
 ::zwei
 drei..
 vier:
+:
 
 END
 
@@ -161,10 +162,39 @@ END
 	atf_check diff expected output
 }
 
+atf_test_case "ncols"
+ncols_head()
+{
+	atf_set descr "column(1) with -t (table) and -s and -l options"
+}
+
+ncols_body()
+{
+	cat >input <<END
+now we have five columns
+here there are four
+now only three
+just two
+one
+END
+
+	cat >expected <<END
+now   we     have five columns
+here  there  are four
+now   only   three
+just  two
+one
+END
+
+	atf_check -o save:output column -tc120 -l3 input
+	atf_check diff expected output
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
 	atf_add_test_case rows
 	atf_add_test_case basic_table
 	atf_add_test_case colonic_table
+	atf_add_test_case ncols
 }
