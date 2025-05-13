@@ -54,6 +54,7 @@ static void	usage(void);
 static int	width(const wchar_t *);
 
 static int	termwidth = 80;		/* default terminal width */
+static int	tblcols;		/* number of table columns for -t */
 
 static int	entries;		/* number of records */
 static int	eval;			/* exit value */
@@ -68,7 +69,7 @@ main(int argc, char **argv)
 	FILE *fp;
 	int ch, tflag, xflag;
 	char *p;
-	const char *src;
+	const char *errstr, *src;
 	wchar_t *newsep;
 	size_t seplen;
 
@@ -81,17 +82,26 @@ main(int argc, char **argv)
 		termwidth = win.ws_col;
 
 	tflag = xflag = 0;
-	while ((ch = getopt(argc, argv, "c:s:tx")) != -1)
+	while ((ch = getopt(argc, argv, "c:l:s:tx")) != -1)
 		switch(ch) {
 		case 'c':
-			termwidth = atoi(optarg);
+			termwidth = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr != NULL)
+				errx(1, "invalid terminal width \"%s\": %s",
+				    optarg, errstr);
+			break;
+		case 'l':
+			tblcols = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr != NULL)
+				errx(1, "invalid max width \"%s\": %s",
+				    optarg, errstr);
 			break;
 		case 's':
 			src = optarg;
 			seplen = mbsrtowcs(NULL, &src, 0, NULL);
 			if (seplen == (size_t)-1)
 				err(1, "bad separator");
-			newsep = malloc((seplen + 1) * sizeof(wchar_t));
+			newsep = calloc(seplen + 1, sizeof(wchar_t));
 			if (newsep == NULL)
 				err(1, NULL);
 			mbsrtowcs(newsep, &src, seplen + 1, NULL);
@@ -109,6 +119,9 @@ main(int argc, char **argv)
 		}
 	argc -= optind;
 	argv += optind;
+
+	if (tblcols && !tflag)
+		errx(1, "the -l flag cannot be used without the -t flag");
 
 	if (!*argv)
 		input(stdin);
@@ -217,7 +230,7 @@ maketbl(void)
 	int *lens, maxcols;
 	TBL *tbl;
 	wchar_t **cols;
-	wchar_t *last;
+	wchar_t *s;
 
 	if ((t = tbl = calloc(entries, sizeof(TBL))) == NULL)
 		err(1, NULL);
@@ -226,9 +239,11 @@ maketbl(void)
 	if ((lens = calloc(maxcols, sizeof(int))) == NULL)
 		err(1, NULL);
 	for (cnt = 0, lp = list; cnt < entries; ++cnt, ++lp, ++t) {
-		for (coloff = 0, p = *lp;
-		    (cols[coloff] = wcstok(p, separator, &last));
-		    p = NULL)
+		for (p = *lp; wcschr(separator, *p); ++p)
+			/* nothing */ ;
+		for (coloff = 0; *p;) {
+			cols[coloff] = p;
+
 			if (++coloff == maxcols) {
 				if (!(cols = realloc(cols, ((u_int)maxcols +
 				    DEFCOLS) * sizeof(wchar_t *))) ||
@@ -239,6 +254,16 @@ maketbl(void)
 				    0, DEFCOLS * sizeof(int));
 				maxcols += DEFCOLS;
 			}
+
+			if ((!tblcols || coloff < tblcols) &&
+			    (s = wcspbrk(p, separator))) {
+				*s++ = L'\0';
+				while (*s && wcschr(separator, *s))
+					++s;
+				p = s;
+			} else
+				break;
+		}
 		if ((t->list = calloc(coloff, sizeof(*t->list))) == NULL)
 			err(1, NULL);
 		if ((t->len = calloc(coloff, sizeof(int))) == NULL)
@@ -319,8 +344,8 @@ width(const wchar_t *wcs)
 static void
 usage(void)
 {
-
 	(void)fprintf(stderr,
-	    "usage: column [-tx] [-c columns] [-s sep] [file ...]\n");
+	    "usage: column [-tx] [-c columns] [-l tblcols]"
+	    " [-s sep] [file ...]\n");
 	exit(1);
 }
