@@ -628,8 +628,8 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	if (!nd->nd_repstat) {
 		/* Don't set OPENNAMED for Lookupp (".."). */
-		if (cnp->cn_namelen == 2 && *cnp->cn_nameptr == '.' &&
-		    *(cnp->cn_nameptr + 1) == '.')
+		if (cnp->cn_namelen == 2 && *cnp->cn_pnbuf == '.' &&
+		    *(cnp->cn_pnbuf + 1) == '.')
 			cnp->cn_flags &= ~OPENNAMED;
 		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, &dirp);
 	} else {
