@@ -84,6 +84,9 @@ const STRUCT_USB_HOST_ID ubt_rtl_devs[] =
 	/* Realtek 8822CU Bluetooth devices */
 	{ USB_VPI(0x13d3, 0x3549, 0) },
 
+	/* Realtek 8851BE Bluetooth devices */
+	{ USB_VPI(0x13d3, 0x3600, 0) },
+
 	/* Realtek 8852AE Bluetooth devices */
 	{ USB_VPI(0x0bda, 0x2852, 0) },
 	{ USB_VPI(0x0bda, 0xc852, 0) },
@@ -100,11 +103,28 @@ const STRUCT_USB_HOST_ID ubt_rtl_devs[] =
 	{ USB_VPI(0x13d3, 0x3587, 0) },
 	{ USB_VPI(0x13d3, 0x3586, 0) },
 	{ USB_VPI(0x13d3, 0x3592, 0) },
+	{ USB_VPI(0x0489, 0xe122, 0) },
 
 	/* Realtek 8852BE Bluetooth devices */
 	{ USB_VPI(0x0cb8, 0xc559, 0) },
+	{ USB_VPI(0x0bda, 0x4853, 0) },
 	{ USB_VPI(0x0bda, 0x887b, 0) },
+	{ USB_VPI(0x0bda, 0xb85b, 0) },
+	{ USB_VPI(0x13d3, 0x3570, 0) },
 	{ USB_VPI(0x13d3, 0x3571, 0) },
+	{ USB_VPI(0x13d3, 0x3572, 0) },
+	{ USB_VPI(0x13d3, 0x3591, 0) },
+	{ USB_VPI(0x0489, 0xe123, 0) },
+	{ USB_VPI(0x0489, 0xe125, 0) },
+
+	/* Realtek 8852BT/8852BE-VT Bluetooth devices */
+	{ USB_VPI(0x0bda, 0x8520, 0) },
+
+	/* Realtek 8922AE Bluetooth devices */
+	{ USB_VPI(0x0bda, 0x8922, 0) },
+	{ USB_VPI(0x13d3, 0x3617, 0) },
+	{ USB_VPI(0x13d3, 0x3616, 0) },
+	{ USB_VPI(0x0489, 0xe130, 0) },
 
 	/* Realtek 8723AE Bluetooth devices */
 	{ USB_VPI(0x0930, 0x021d, 0) },
