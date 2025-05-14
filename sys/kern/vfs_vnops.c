@@ -62,6 +62,7 @@
 #include <sys/priv.h>
 #include <sys/prng.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sleepqueue.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
