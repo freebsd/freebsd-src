@@ -205,8 +205,6 @@ commands(void)
 	if (!sourcing) {
 		if (signal(SIGINT, SIG_IGN) != SIG_IGN)
 			(void)signal(SIGINT, intr);
-		if (signal(SIGHUP, SIG_IGN) != SIG_IGN)
-			(void)signal(SIGHUP, hangup);
 		(void)signal(SIGTSTP, stop);
 		(void)signal(SIGTTOU, stop);
 		(void)signal(SIGTTIN, stop);
@@ -571,17 +569,6 @@ stop(int s)
 		reset_on_stop = 0;
 		reset(0);
 	}
-}
-
-/*
- * Branch here on hangup signal and simulate "exit".
- */
-void
-hangup(int s __unused)
-{
-
-	/* nothing to do? */
-	exit(1);
 }
 
 /*
