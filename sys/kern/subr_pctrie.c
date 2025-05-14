@@ -617,16 +617,16 @@ _pctrie_lookup_range(struct pctrie *ptree, struct pctrie_node *node,
     struct pctrie_node **parent_out, smr_t smr, enum pctrie_access access)
 {
 	struct pctrie_node *parent;
+	uint64_t *val;
 	int base, end, i;
 
 	parent = node;
 	for (i = 0; i < count;) {
 		node = _pctrie_lookup_node(ptree, parent, index + i, &parent,
 		    smr, access);
-		value[i] = pctrie_match_value(node, index + i);
-		if (value[i] == NULL)
+		if ((val = pctrie_match_value(node, index + i)) == NULL)
 			break;
-		++i;
+		value[i++] = val;
 		base = (index + i) % PCTRIE_COUNT;
 		if (base == 0 || parent == NULL || parent->pn_clev != 0)
 			continue;
@@ -634,10 +634,9 @@ _pctrie_lookup_range(struct pctrie *ptree, struct pctrie_node *node,
 		while (i < end) {
 			node = pctrie_node_load(&parent->pn_child[base++],
 			    smr, access);
-			value[i] = pctrie_toval(node);
-			if (value[i] == NULL)
+			if ((val = pctrie_toval(node)) == NULL)
 				break;
-			++i;
+			value[i++] = val;
 		}
 		if (i < end)
 			break;
