@@ -131,7 +131,6 @@ int	 getrawlist(char *, char **, int);
 uid_t	 getuserid(char *);
 int	 grabh(struct header *, int);
 int	 group(void *);
-void	 hangup(int);
 int	 hash(const char *);
 void	 hdrstop(int);
 int	 headers(void *);
