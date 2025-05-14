@@ -25,9 +25,11 @@
  * then exit cleanly on receipt of a second.
  *
  * When not interactive, mailx(1) should terminate on receipt of SIGINT.
+ *
+ * In either case, mailx(1) should terminate on receipt of SIGHUP.
  */
 static void
-mailx_sigint(bool interactive)
+mailx_signal_test(int signo, bool interactive)
 {
 	char obuf[1024] = "";
 	char ebuf[1024] = "";
@@ -80,8 +82,8 @@ mailx_sigint(bool interactive)
 	ATF_REQUIRE_INTEQ(BODYLEN, write(ipd[1], BODY, BODYLEN));
 	/* give it a chance to process */
 	poll(NULL, 0, 2000);
-	/* send first SIGINT */
-	ATF_CHECK_INTEQ(0, kill(pid, SIGINT));
+	/* send first signal */
+	ATF_CHECK_INTEQ(0, kill(pid, signo));
 	kc = 1;
 	/* receive output until child terminates */
 	fds[0].fd = opd[0];
@@ -103,7 +105,7 @@ mailx_sigint(bool interactive)
 		}
 		time(&now);
 		if (now - start > 1 && elen > 0 && kc == 1) {
-			ATF_CHECK_INTEQ(0, kill(pid, SIGINT));
+			ATF_CHECK_INTEQ(0, kill(pid, signo));
 			kc++;
 		}
 		if (now - start > 15 && kc > 0) {
@@ -117,41 +119,67 @@ mailx_sigint(bool interactive)
 	close(opd[0]);
 	close(epd[0]);
 	close(spd[0]);
-	if (interactive) {
+	/*
+	 * In interactive mode, SIGINT results in a prompt, and a second
+	 * SIGINT results in exit(1).  In all other cases, we should see
+	 * the signal terminate the process.
+	 */
+	if (interactive && signo == SIGINT) {
 		ATF_CHECK(WIFEXITED(status));
 		if (WIFEXITED(status))
 			ATF_CHECK_INTEQ(1, WEXITSTATUS(status));
 		ATF_CHECK_INTEQ(2, kc);
 		ATF_CHECK_STREQ("", obuf);
 		ATF_CHECK_MATCH("Interrupt -- one more to kill letter", ebuf);
-		atf_utils_compare_file("dead.letter", BODY);
 	} else {
 		ATF_CHECK(WIFSIGNALED(status));
 		if (WIFSIGNALED(status))
-			ATF_CHECK_INTEQ(SIGINT, WTERMSIG(status));
+			ATF_CHECK_INTEQ(signo, WTERMSIG(status));
 		ATF_CHECK_INTEQ(1, kc);
 		ATF_CHECK_STREQ("", obuf);
 		ATF_CHECK_STREQ("", ebuf);
+	}
+	/*
+	 * In interactive mode, and only in interactive mode, mailx should
+	 * save whatever was typed before termination in ~/dead.letter.
+	 * This is why we set HOME to "." in the child.
+	 */
+	if (interactive) {
+		atf_utils_compare_file("dead.letter", BODY);
+	} else {
 		ATF_CHECK_INTEQ(-1, access("dead.letter", F_OK));
 	}
 }
 
-
-ATF_TC_WITHOUT_HEAD(mail_sigint_interactive);
-ATF_TC_BODY(mail_sigint_interactive, tc)
+ATF_TC_WITHOUT_HEAD(mailx_sighup_interactive);
+ATF_TC_BODY(mailx_sighup_interactive, tc)
 {
-	mailx_sigint(true);
+	mailx_signal_test(SIGHUP, true);
 }
 
-ATF_TC_WITHOUT_HEAD(mail_sigint_noninteractive);
-ATF_TC_BODY(mail_sigint_noninteractive, tc)
+ATF_TC_WITHOUT_HEAD(mailx_sighup_noninteractive);
+ATF_TC_BODY(mailx_sighup_noninteractive, tc)
 {
-	mailx_sigint(false);
+	mailx_signal_test(SIGHUP, false);
+}
+
+ATF_TC_WITHOUT_HEAD(mailx_sigint_interactive);
+ATF_TC_BODY(mailx_sigint_interactive, tc)
+{
+	mailx_signal_test(SIGINT, true);
+}
+
+ATF_TC_WITHOUT_HEAD(mailx_sigint_noninteractive);
+ATF_TC_BODY(mailx_sigint_noninteractive, tc)
+{
+	mailx_signal_test(SIGINT, false);
 }
 
 ATF_TP_ADD_TCS(tp)
 {
-	ATF_TP_ADD_TC(tp, mail_sigint_interactive);
-	ATF_TP_ADD_TC(tp, mail_sigint_noninteractive);
+	ATF_TP_ADD_TC(tp, mailx_sighup_interactive);
+	ATF_TP_ADD_TC(tp, mailx_sighup_noninteractive);
+	ATF_TP_ADD_TC(tp, mailx_sigint_interactive);
+	ATF_TP_ADD_TC(tp, mailx_sigint_noninteractive);
 	return (atf_no_error());
 }

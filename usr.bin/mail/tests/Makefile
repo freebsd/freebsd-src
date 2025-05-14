@@ -1,4 +1,4 @@
 PACKAGE=	tests
-ATF_TESTS_C+=	mail_sigint_test
+ATF_TESTS_C+=	mailx_signal_test
 
 .include <bsd.test.mk>
