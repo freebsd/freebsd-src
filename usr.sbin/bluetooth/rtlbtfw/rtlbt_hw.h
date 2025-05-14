@@ -95,9 +95,22 @@ struct rtlbt_hci_dl_rp {
         uint8_t index;
 } __attribute__ ((packed));
 
+/* Vendor USB request payload */
+struct rtlbt_vendor_cmd {
+	uint8_t data[5];
+}  __attribute__ ((packed));
+#define	RTLBT_SEC_PROJ	(&(struct rtlbt_vendor_cmd) {{0x10, 0xA4, 0x0D, 0x00, 0xb0}})
+
+struct rtlbt_vendor_rp {
+	uint8_t status;
+	uint8_t data[2];
+};
+
 int	rtlbt_read_local_ver(struct libusb_device_handle *hdl,
 	    ng_hci_read_local_ver_rp *ver);
 int	rtlbt_read_rom_ver(struct libusb_device_handle *hdl, uint8_t *ver);
+int	rtlbt_read_reg16(struct libusb_device_handle *hdl,
+	    struct rtlbt_vendor_cmd *cmd, uint8_t *resp);
 int	rtlbt_load_fwfile(struct libusb_device_handle *hdl,
 	    const struct rtlbt_firmware *fw);
 
