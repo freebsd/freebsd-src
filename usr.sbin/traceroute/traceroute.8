@@ -16,7 +16,7 @@
 .\"	$Id: traceroute.8,v 1.19 2000/09/21 08:44:19 leres Exp $
 .\"	$FreeBSD$
 .\"
-.Dd October 25, 2023
+.Dd May 14, 2025
 .Dt TRACEROUTE 8
 .Os
 .Sh NAME
@@ -148,6 +148,68 @@ at the destination host (so an ICMP PORT_UNREACHABLE message will
 be returned to terminate the route tracing).  If something is
 listening on a port in the default range, this option can be used
 to pick an unused port range.
+.It Fl P Ar proto
+Use packets of specified IP protocol when sending probes.
+The
+.Ar proto
+argument may be one of the following:
+.Bl -tag -width Ar udplite
+.It Ar udp
+Use
+.Xr udp 4
+packets.
+This is the default.
+.It Ar icmp
+Use
+.Xr icmp 4
+.Dq echo request
+packets.
+.It Ar udplite
+Use
+.Xr udplite 4
+packets.
+.It Ar tcp
+Use
+.Xr tcp 4
+.Dq SYN
+packets.
+This will cause a successful traceroute to end with no response (i.e., a
+.Dq *
+response) since
+.Nm
+does not know how to detect the RST or SYN+ACK response from the
+destination host.
+.It Ar sctp
+Use
+.Xr sctp 4
+packets.
+The
+.Ar packetlen
+argument must be a multiple of 4.
+SCTP probes will be constructed as SCTP
+.Dq INIT
+chunks, unless the packet length is too small, in which case the probes
+will be SCTP
+.Dq SHUTDOWN-ACK
+chunks followed by zero or one
+.Dq PAD
+chunks.
+.It Ar gre
+Use
+.Xr gre 4
+packets.
+The GRE packets will be constructed as if they contain a PPTP
+(Point-to-Point Tunneling Protocol) payload.
+.El
+.Pp
+Other protocols may also be specified, either by number or by name (see
+.Xr protocols 5 ) ,
+though
+.Nm
+does not implement any special knowledge of their packet formats.
+This option is useful for determining which router along a path may be blocking
+packets based on IP protocol number.
+But see BUGS below.
 .It Fl q Ar nprobes
 Set the number of probes per hop (default is 3,
 unless
