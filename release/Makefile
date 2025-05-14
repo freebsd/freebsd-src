@@ -53,7 +53,8 @@ TARGET_ARCH=	${MACHINE_ARCH}
 TARGET_ARCH=	${TARGET}
 .endif
 .endif
-IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
+IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET} \
+		    -DNO_ROOT -DDB_FROM_SRC
 DISTDIR=	dist
 
 # Define OSRELEASE by using newvers.sh
@@ -137,7 +138,7 @@ clean: beforeclean
 #
 base.txz: # Also (if enabled) tests, compat libs, and -dbg variants for all.
 	mkdir -p ${DISTDIR}
-	( cd ${WORLDDIR} && ${IMAKE} -DNO_ROOT distributeworld DISTDIR=${.OBJDIR}/${DISTDIR} )
+	( cd ${WORLDDIR} && ${IMAKE} distributeworld DISTDIR=${.OBJDIR}/${DISTDIR} )
 	# Bootstrap etcupdate(8) database.
 	sh ${WORLDDIR}/usr.sbin/etcupdate/etcupdate.sh extract -B \
 	    -m "${MAKE}" -M "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" \
@@ -149,13 +150,13 @@ base.txz: # Also (if enabled) tests, compat libs, and -dbg variants for all.
 	    env -i LC_COLLATE=C sort >> ${.OBJDIR}/${DISTDIR}/base.meta
 	rm ${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate/current/METALOG
 # Package all components
-	( cd ${WORLDDIR} && ${IMAKE} -DNO_ROOT packageworld DISTDIR=${.OBJDIR}/${DISTDIR} )
+	( cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${.OBJDIR}/${DISTDIR} )
 	mv ${DISTDIR}/*.txz .
 
 kernel.txz: # Also (if enabled) kernel-dbg.txz.
 	mkdir -p ${DISTDIR}
-	( cd ${WORLDDIR} && ${IMAKE} -DNO_ROOT distributekernel DISTDIR=${.OBJDIR}/${DISTDIR} )
-	( cd ${WORLDDIR} && ${IMAKE} -DNO_ROOT packagekernel DISTDIR=${.OBJDIR}/${DISTDIR} )
+	( cd ${WORLDDIR} && ${IMAKE} distributekernel DISTDIR=${.OBJDIR}/${DISTDIR} )
+	( cd ${WORLDDIR} && ${IMAKE} packagekernel DISTDIR=${.OBJDIR}/${DISTDIR} )
 	mv ${DISTDIR}/kernel*.txz .
 
 src.txz:
@@ -196,8 +197,7 @@ disc1: packagesystem ${PKGBASE_REPO}
 	    ${_ALL_LIBCOMPATS:@v@MK_LIB$v=no@} \
 	    MK_TOOLCHAIN=no \
 	    MK_RESCUE=no MK_DICT=no \
-	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
-	    -DDB_FROM_SRC -DNO_ROOT)
+	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no)
 .if defined(PKGBASE)
 # Create offline pkgbase repo on release media
 	mkdir -p ${.TARGET}/usr/freebsd-packages/repos/
@@ -258,8 +258,7 @@ bootonly: packagesystem
 	    ${_ALL_LIBCOMPATS:@v@MK_LIB$v=no@} \
 	    MK_TOOLCHAIN=no \
 	    MK_RESCUE=no MK_DICT=no \
-	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
-	    -DDB_FROM_SRC -DNO_ROOT)
+	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no)
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	cp MANIFEST ${.TARGET}/usr/freebsd-dist
@@ -290,8 +289,7 @@ dvd: packagesystem ${PKGBASE_REPO}
 	mkdir -p ${.TARGET}
 	( cd ${WORLDDIR} && ${IMAKE} installworld installkernel distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
-		MK_TESTS=no MK_DEBUG_FILES=no \
-		-DDB_FROM_SRC -DNO_ROOT)
+		MK_TESTS=no MK_DEBUG_FILES=no)
 .if defined(PKGBASE)
 # Create offline pkgbase repo on release media
 	mkdir -p ${.TARGET}/usr/freebsd-packages/repos/
