@@ -704,7 +704,7 @@ collint(int s __unused)
 
 /*ARGSUSED*/
 void
-collhup(int s __unused)
+collhup(int signo)
 {
 	rewind(collf);
 	savedeadletter(collf);
@@ -712,7 +712,8 @@ collhup(int s __unused)
 	 * Let's pretend nobody else wants to clean up,
 	 * a true statement at this time.
 	 */
-	exit(1);
+	signal(signo, SIG_DFL);
+	raise(signo);
 }
 
 void
