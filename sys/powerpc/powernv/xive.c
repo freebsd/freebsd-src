@@ -327,7 +327,7 @@ xive_attach(device_t dev)
 
 	rid = 1;	/* Get the Hypervisor-level register set. */
 	sc->sc_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE | RF_BIGENDIAN);
+	    &rid, RF_ACTIVE);
 	sc->sc_offset = XIVE_TM_QW3_HV;
 
 	mtx_init(&sc->sc_mtx, "XIVE", NULL, MTX_DEF);

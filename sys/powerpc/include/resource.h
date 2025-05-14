@@ -47,6 +47,5 @@
  */
 
 #define	RF_LITTLEENDIAN		RF_SPARE1
-#define	RF_BIGENDIAN		RF_SPARE2
 
 #endif /* !_MACHINE_RESOURCE_H_ */
