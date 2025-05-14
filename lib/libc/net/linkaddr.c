@@ -36,86 +36,152 @@
 #include <net/if_dl.h>
 
 #include <assert.h>
+#include <errno.h>
 #include <stdint.h>
 #include <string.h>
 
-/* States*/
-#define NAMING	0
-#define GOTONE	1
-#define GOTTWO	2
-#define RESET	3
-/* Inputs */
-#define	DIGIT	(4*0)
-#define	END	(4*1)
-#define DELIM	(4*2)
-#define LETTER	(4*3)
-
-void
+int
 link_addr(const char *addr, struct sockaddr_dl *sdl)
 {
 	char *cp = sdl->sdl_data;
 	char *cplim = sdl->sdl_len + (char *)sdl;
-	int byte = 0, state = NAMING, new;
+	const char *nptr;
+	size_t newsize;
+	int error = 0;
+	char delim = 0;
 
+	/* Initialise the sdl to zero, except for sdl_len. */
 	bzero((char *)&sdl->sdl_family, sdl->sdl_len - 1);
 	sdl->sdl_family = AF_LINK;
-	do {
-		state &= ~LETTER;
-		if ((*addr >= '0') && (*addr <= '9')) {
-			new = *addr - '0';
-		} else if ((*addr >= 'a') && (*addr <= 'f')) {
-			new = *addr - 'a' + 10;
-		} else if ((*addr >= 'A') && (*addr <= 'F')) {
-			new = *addr - 'A' + 10;
-		} else if (*addr == 0) {
-			state |= END;
-		} else if (state == NAMING &&
-			   (((*addr >= 'A') && (*addr <= 'Z')) ||
-			   ((*addr >= 'a') && (*addr <= 'z'))))
-			state |= LETTER;
-		else
-			state |= DELIM;
-		addr++;
-		switch (state /* | INPUT */) {
-		case NAMING | DIGIT:
-		case NAMING | LETTER:
-			*cp++ = addr[-1];
-			continue;
-		case NAMING | DELIM:
-			state = RESET;
-			sdl->sdl_nlen = cp - sdl->sdl_data;
-			continue;
-		case GOTTWO | DIGIT:
-			*cp++ = byte;
-			/* FALLTHROUGH */
-		case RESET | DIGIT:
-			state = GOTONE;
-			byte = new;
-			continue;
-		case GOTONE | DIGIT:
-			state = GOTTWO;
-			byte = new + (byte << 4);
-			continue;
-		default: /* | DELIM */
-			state = RESET;
-			*cp++ = byte;
-			byte = 0;
-			continue;
-		case GOTONE | END:
-		case GOTTWO | END:
-			*cp++ = byte;
-			/* FALLTHROUGH */
-		case RESET | END:
+
+	/*
+	 * Everything up to the first ':' is the interface name.  Usually the
+	 * ':' should always be present even if there's no interface name, but
+	 * since this interface was poorly specified in the past, accept a
+	 * missing colon as meaning no interface name.
+	 */
+	if ((nptr = strchr(addr, ':')) != NULL) {
+		size_t namelen = nptr - addr;
+
+		/* Ensure the sdl is large enough to store the name. */
+		if (namelen > cplim - cp) {
+			errno = ENOSPC;
+			return (-1);
+		}
+
+		memcpy(cp, addr, namelen);
+		cp += namelen;
+		sdl->sdl_nlen = namelen;
+		/* Skip the interface name and the colon. */
+		addr += namelen + 1;
+	}
+
+	/*
+	 * The remainder of the string should be hex digits representing the
+	 * address, with optional delimiters.  Each two hex digits form one
+	 * octet, but octet output can be forced using a delimiter, so we accept
+	 * a long string of hex digits, or a mix of delimited and undelimited
+	 * digits like "1122.3344.5566", or delimited one- or two-digit octets
+	 * like "1.22.3".
+	 *
+	 * If anything fails at this point, exit the loop so we set sdl_alen and
+	 * sdl_len based on whatever we did manage to parse.  This preserves
+	 * compatibility with the 4.3BSD version of link_addr, which had no way
+	 * to indicate an error and would just return.
+	 */
+#define DIGIT(c)						\
+	 (((c) >= '0' && (c) <= '9') ? ((c) - '0')		\
+	: ((c) >= 'a' && (c) <= 'f') ? ((c) - 'a' + 10)		\
+	: ((c) >= 'A' && (c) <= 'F') ? ((c) - 'A' + 10)		\
+	: (-1))
+#define ISDELIM(c) (((c) == '.' || (c) == ':' || (c) == '-') && \
+    (delim == 0 || delim == (c)))
+
+	for (;;) {
+		int digit, digit2;
+
+		/*
+		 * Treat any leading delimiters as empty bytes.  This supports
+		 * the (somewhat obsolete) form of Ethernet addresses with empty
+		 * octets, e.g. "1::3:4:5:6".
+		 */
+		while (ISDELIM(*addr) && cp < cplim) {
+			delim = *addr++;
+			*cp++ = 0;
+		}
+
+		/* Did we reach the end of the string? */
+		if (*addr == '\0')
+			break;
+
+		/*
+		 * If not, the next character must be a digit, so make sure we
+		 * have room for at least one more octet.
+		 */
+
+		if (cp >= cplim) {
+			error = ENOSPC;
 			break;
 		}
-		break;
-	} while (cp < cplim);
+
+		if ((digit = DIGIT(*addr)) == -1) {
+			error = EINVAL;
+			break;
+		}
+
+		++addr;
+
+		/* If the next character is another digit, consume it. */
+		if ((digit2 = DIGIT(*addr)) != -1) {
+			digit = (digit << 4) | digit2;
+			++addr;
+		}
+
+		if (ISDELIM(*addr)) {
+			/*
+			 * If the digit is followed by a delimiter, write it
+			 * and consume the delimiter.
+			 */
+			delim = *addr++;
+			*cp++ = digit;
+		} else if (DIGIT(*addr) != -1) {
+			/*
+			 * If two digits are followed by a third digit, treat
+			 * the two digits we have as a single octet and
+			 * continue.
+			 */
+			*cp++ = digit;
+		} else if (*addr == '\0') {
+			/* If the digit is followed by EOS, we're done. */
+			*cp++ = digit;
+			break;
+		} else {
+			/* Otherwise, the input was invalid. */
+			error = EINVAL;
+			break;
+		}
+	}
+#undef DIGIT
+#undef ISDELIM
+
+	/* How many bytes did we write to the address? */
 	sdl->sdl_alen = cp - LLADDR(sdl);
-	new = cp - (char *)sdl;
-	if (new > sizeof(*sdl))
-		sdl->sdl_len = new;
-	return;
+
+	/*
+	 * The user might have given us an sdl which is larger than sizeof(sdl);
+	 * in that case, record the actual size of the new sdl.
+	 */
+	newsize = cp - (char *)sdl;
+	if (newsize > sizeof(*sdl))
+		sdl->sdl_len = (u_char)newsize;
+
+	if (error == 0)
+		return (0);
+
+	errno = error;
+	return (-1);
 }
+
 
 char *
 link_ntoa(const struct sockaddr_dl *sdl)
