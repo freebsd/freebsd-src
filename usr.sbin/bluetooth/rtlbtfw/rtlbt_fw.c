@@ -118,6 +118,18 @@ static const struct rtlbt_id_table rtlbt_ic_id_table[] = {
 	    .hci_version = 0xc,
 	    .flags = RTLBT_IC_FLAG_MSFT,
 	    .fw_name  = "rtl8851bu",
+	}, { /* 8922A */
+	    .lmp_subversion = RTLBT_ROM_LMP_8922A,
+	    .hci_revision = 0xa,
+	    .hci_version = 0xc,
+	    .flags = RTLBT_IC_FLAG_MSFT,
+	    .fw_name  = "rtl8922au",
+	}, { /* 8852BT/8852BE-VT */
+	    .lmp_subversion = RTLBT_ROM_LMP_8852A,
+	    .hci_revision = 0x87,
+	    .hci_version = 0xc,
+	    .flags = RTLBT_IC_FLAG_MSFT,
+	    .fw_name  = "rtl8852btu",
 	},
 };
 
@@ -138,6 +150,8 @@ static const uint16_t project_ids[] = {
 	[ 25 ] = RTLBT_ROM_LMP_8852A,	/* 8852CU */
 	[ 33 ] = RTLBT_ROM_LMP_8822B,	/* 8822EU */
 	[ 36 ] = RTLBT_ROM_LMP_8851B,	/* 8851BU */
+	[ 44 ] = RTLBT_ROM_LMP_8922A,	/* 8922A */
+	[ 47 ] = RTLBT_ROM_LMP_8852A,	/* 8852BT */
 };
 
 /* Signatures */
