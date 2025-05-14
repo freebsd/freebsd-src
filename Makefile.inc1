@@ -375,6 +375,10 @@ test-system-${_t}: .PHONY
 .elif ${MK_LLD_BOOTSTRAP} == "yes"
 .info SYSTEM_LINKER: libclang will be built for bootstrapping a cross-linker.
 .endif
+BUILD_USER!=	id -u
+.if ${BUILD_USER} == 0
+.warning Warning: ${.TARGETS} should not be run as root
+.endif
 .endif
 
 # End WITH_SYSTEM_COMPILER / WITH_SYSTEM_LD
