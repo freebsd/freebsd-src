@@ -619,6 +619,13 @@ lkpi_sta_sync_from_ni(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 #if defined(LKPI_80211_VHT)
 	lkpi_sta_sync_vht_from_ni(vif, sta, ni);
 #endif
+
+	/*
+	 * Ensure rx_nss is at least 1 as otherwise drivers run into
+	 * unexpected problems.
+	 */
+	sta->deflink.rx_nss = MAX(1, sta->deflink.rx_nss);
+
 	/*
 	 * We are also called from node allocation which net80211
 	 * can do even on `ifconfig down`; in that case the chanctx
@@ -2938,7 +2945,6 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 		IMPROVE("net80211 does not consider node authorized");
 	}
 
-	sta->deflink.rx_nss = MAX(1, sta->deflink.rx_nss);
 	IMPROVE("Is this the right spot, has net80211 done all updates already?");
 	lkpi_sta_sync_from_ni(hw, vif, sta, ni, true);
 
