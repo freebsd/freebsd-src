@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+4d618f6ced86
+	The bridge(4) sysctl net.link.bridge.member_ifaddrs now defaults to 0,
+	meaning that interfaces added to a bridge may not have IP addresses
+	assigned.  Refer to bridge(4) for more information.
+
 44e5a0150835, 9a37f1024ceb:
 	A new utility sndctl(8) has been added to concentrate the various
 	interfaces for viewing and manipulating audio device settings (sysctls,
