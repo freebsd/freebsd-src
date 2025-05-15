@@ -445,6 +445,8 @@ libusb_get_device_speed(libusb_device *dev)
 		return (LIBUSB_SPEED_HIGH);
 	case LIBUSB20_SPEED_SUPER:
 		return (LIBUSB_SPEED_SUPER);
+	case LIBUSB20_SPEED_SUPER_PLUS:
+		return (LIBUSB_SPEED_SUPER_PLUS);
 	default:
 		break;
 	}
@@ -1073,6 +1075,9 @@ libusb10_get_buffsize(struct libusb20_device *pdev, libusb_transfer *xfer)
 			break;
 		case LIBUSB20_SPEED_SUPER:
 			ret = 65536;
+			break;
+		case LIBUSB20_SPEED_SUPER_PLUS:
+			ret = 131072;
 			break;
 		default:
 			ret = 16384;
