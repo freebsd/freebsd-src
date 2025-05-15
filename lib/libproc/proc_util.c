@@ -37,6 +37,7 @@
 #include <err.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -180,8 +181,12 @@ proc_getwstat(struct proc_handle *phdl)
 char *
 proc_signame(int sig, char *name, size_t namesz)
 {
+	char buf[SIG2STR_MAX];
 
-	strlcpy(name, strsignal(sig), namesz);
+	if (sig2str(sig, buf) == 0)
+		(void)snprintf(name, namesz, "SIG%s", buf);
+	else
+		(void)snprintf(name, namesz, "SIG#%d", sig);
 
 	return (name);
 }
