@@ -216,6 +216,7 @@ enum libusb_speed {
 	LIBUSB_SPEED_FULL = 2,
 	LIBUSB_SPEED_HIGH = 3,
 	LIBUSB_SPEED_SUPER = 4,
+	LIBUSB_SPEED_SUPER_PLUS = 5,
 };
 
 enum libusb_transfer_status {
