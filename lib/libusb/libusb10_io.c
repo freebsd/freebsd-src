@@ -36,6 +36,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/eventfd.h>
 #include <sys/queue.h>
 #include <sys/endian.h>
 #endif
@@ -187,10 +188,8 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 			CTX_LOCK(ctx);
 
 		} else {
-			uint8_t dummy;
+			eventfd_read(fds[i].fd, &(eventfd_t){0});
 
-			while (read(fds[i].fd, &dummy, 1) == 1)
-				;
 		}
 	}
 

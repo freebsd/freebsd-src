@@ -39,6 +39,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/eventfd.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/queue.h>
@@ -118,15 +119,13 @@ libusb_set_nonblocking(int f)
 void
 libusb_interrupt_event_handler(libusb_context *ctx)
 {
-	uint8_t dummy;
 	int err;
 
 	if (ctx == NULL)
 		return;
 
-	dummy = 0;
-	err = write(ctx->ctrl_pipe[1], &dummy, sizeof(dummy));
-	if (err < (int)sizeof(dummy)) {
+	err = eventfd_write(ctx->event, 1);
+	if (err < 0) {
 		/* ignore error, if any */
 		DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "Waking up event loop failed!");
 	}
@@ -145,7 +144,6 @@ libusb_init_context(libusb_context **context,
 	struct libusb_context *ctx;
 	pthread_condattr_t attr;
 	char *debug, *ep;
-	int ret;
 
 	if (num_options < 0)
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -234,19 +232,16 @@ libusb_init_context(libusb_context **context,
 	ctx->ctx_handler = NO_THREAD;
 	ctx->hotplug_handler = NO_THREAD;
 
-	ret = pipe(ctx->ctrl_pipe);
-	if (ret < 0) {
+	ctx->event = eventfd(0, EFD_NONBLOCK);
+	if (ctx->event < 0) {
 		pthread_mutex_destroy(&ctx->ctx_lock);
 		pthread_mutex_destroy(&ctx->hotplug_lock);
 		pthread_cond_destroy(&ctx->ctx_cond);
 		free(ctx);
 		return (LIBUSB_ERROR_OTHER);
 	}
-	/* set non-blocking mode on the control pipe to avoid deadlock */
-	libusb_set_nonblocking(ctx->ctrl_pipe[0]);
-	libusb_set_nonblocking(ctx->ctrl_pipe[1]);
 
-	libusb10_add_pollfd(ctx, &ctx->ctx_poll, NULL, ctx->ctrl_pipe[0], POLLIN);
+	libusb10_add_pollfd(ctx, &ctx->ctx_poll, NULL, ctx->event, POLLIN);
 
 	pthread_mutex_lock(&default_context_lock);
 	if (usbi_default_context == NULL) {
@@ -296,8 +291,7 @@ libusb_exit(libusb_context *ctx)
 	/* XXX cleanup devices */
 
 	libusb10_remove_pollfd(ctx, &ctx->ctx_poll);
-	close(ctx->ctrl_pipe[0]);
-	close(ctx->ctrl_pipe[1]);
+	close(ctx->event);
 	pthread_mutex_destroy(&ctx->ctx_lock);
 	pthread_mutex_destroy(&ctx->hotplug_lock);
 	pthread_cond_destroy(&ctx->ctx_cond);
