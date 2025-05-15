@@ -41,6 +41,7 @@
 #define	IPHETH_BUF_SIZE         1514
 #define	IPHETH_TX_TIMEOUT       5000	/* ms */
 
+#define	IPHETH_RX_NCM_BUF_SIZE	 65536
 #define	IPHETH_RX_FRAMES_MAX	1
 #define	IPHETH_TX_FRAMES_MAX	8
 
@@ -55,9 +56,19 @@
 #define	IPHETH_CTRL_TIMEOUT     5000	/* ms */
 
 #define	IPHETH_CMD_GET_MACADDR   0x00
+#define	IPHETH_CMD_ENABLE_NCM	 0x04
 #define	IPHETH_CMD_CARRIER_CHECK 0x45
 
 #define	IPHETH_CARRIER_ON       0x04
+
+#define	IPHETH_NCM_DPT_DP_NUM	 22
+#define	IPHETH_NCM_DPT_HEADER_SIZE      \
+	(sizeof(struct usb_ncm16_dpt) + \
+	    IPHETH_NCM_DPT_DP_NUM * sizeof(struct usb_ncm16_dp))
+#define	IPHETH_NCM_HEADER_SIZE \
+	(sizeof(struct usb_ncm16_hdr) + IPHETH_NCM_DPT_HEADER_SIZE)
+
+typedef void (ipheth_consumer_t)(struct usb_xfer *xfer, int idx);
 
 enum {
 	IPHETH_BULK_TX,
@@ -76,6 +87,16 @@ struct ipheth_softc {
 	uint8_t	sc_data[IPHETH_CTRL_BUF_SIZE];
 	uint8_t	sc_iface_no;
 	uint8_t	sc_carrier_on;
+
+	bool is_ncm;
+
+	ipheth_consumer_t *consume;
+};
+
+struct ncm_data_cache {
+	struct usb_ncm16_hdr hdr;
+	struct usb_ncm16_dpt dpt;
+	struct usb_ncm16_dp dp[IPHETH_NCM_DPT_DP_NUM];
 };
 
 #define	IPHETH_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)
