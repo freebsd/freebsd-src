@@ -172,14 +172,8 @@ void pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 #define	pmap_map_delete(pmap, sva, eva)	pmap_remove(pmap, sva, eva)
 
 void *pmap_mapdev(vm_paddr_t, vm_size_t);
+void *pmap_mapdev_attr(vm_paddr_t, vm_size_t, vm_memattr_t);
 void pmap_unmapdev(void *, vm_size_t);
-
-static inline void *
-pmap_mapdev_attr(vm_paddr_t addr __unused, vm_size_t size __unused,
-    int attr __unused)
-{
-	panic("%s is not implemented yet!\n", __func__);
-}
 
 struct pcb;
 void pmap_set_pcb_pagedir(pmap_t, struct pcb *);
