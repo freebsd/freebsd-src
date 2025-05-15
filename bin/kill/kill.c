@@ -48,7 +48,6 @@
 
 static void nosig(const char *);
 static void printsignals(FILE *);
-static int signame_to_signum(const char *);
 static void usage(void) __dead2;
 
 int
@@ -72,12 +71,7 @@ main(int argc, char *argv[])
 		if (argc == 1) {
 			if (!isdigit(**argv))
 				usage();
-			numsig = strtol(*argv, &ep, 10);
-			if (!**argv || *ep)
-				errx(2, "illegal signal number: %s", *argv);
-			if (numsig >= 128)
-				numsig -= 128;
-			if (numsig <= 0 || numsig >= sys_nsig)
+			if (str2sig(*argv, &numsig) < 0)
 				nosig(*argv);
 			printf("%s\n", sys_signame[numsig]);
 			return (0);
@@ -92,24 +86,14 @@ main(int argc, char *argv[])
 			warnx("option requires an argument -- s");
 			usage();
 		}
-		if (strcmp(*argv, "0")) {
-			if ((numsig = signame_to_signum(*argv)) < 0)
-				nosig(*argv);
-		} else
+		if (strcmp(*argv, "0") == 0)
 			numsig = 0;
+		else if (str2sig(*argv, &numsig) < 0)
+			nosig(*argv);
 		argc--, argv++;
 	} else if (**argv == '-' && *(*argv + 1) != '-') {
 		++*argv;
-		if (isalpha(**argv)) {
-			if ((numsig = signame_to_signum(*argv)) < 0)
-				nosig(*argv);
-		} else if (isdigit(**argv)) {
-			numsig = strtol(*argv, &ep, 10);
-			if (!**argv || *ep)
-				errx(2, "illegal signal number: %s", *argv);
-			if (numsig < 0)
-				nosig(*argv);
-		} else
+		if (str2sig(*argv, &numsig) < 0)
 			nosig(*argv);
 		argc--, argv++;
 	}
@@ -141,20 +125,6 @@ main(int argc, char *argv[])
 	}
 
 	return (errors);
-}
-
-static int
-signame_to_signum(const char *sig)
-{
-	int n;
-
-	if (strncasecmp(sig, "SIG", 3) == 0)
-		sig += 3;
-	for (n = 1; n < sys_nsig; n++) {
-		if (!strcasecmp(sys_signame[n], sig))
-			return (n);
-	}
-	return (-1);
 }
 
 static void
