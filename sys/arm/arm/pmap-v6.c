@@ -1150,7 +1150,7 @@ pmap_dump_kextract(vm_offset_t va, pt2_entry_t *pte2p)
  *  After pmap_bootstrap() is called, the following functions for
  *  mappings can be used:
  *
- *  void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
+ *  void pmap_kenter(vm_offset_t va, vm_size_t size, vm_paddr_t pa, int mode);
  *  void pmap_kremove(vm_offset_t va);
  *  vm_offset_t pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end,
  *      int prot);
@@ -1308,11 +1308,28 @@ pmap_kenter_prot_attr(vm_offset_t va, vm_paddr_t pa, uint32_t prot,
 	pte2_store(pte2p, PTE2_KERN(pa, prot, attr));
 }
 
-PMAP_INLINE void
-pmap_kenter(vm_offset_t va, vm_paddr_t pa)
+static __inline void
+pmap_kenter_noflush(vm_offset_t va, vm_size_t size, vm_paddr_t pa, int mode)
 {
+	uint32_t l2attr;
 
-	pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, PTE2_ATTR_DEFAULT);
+	KASSERT((size & PAGE_MASK) == 0,
+	    ("%s: device mapping not page-sized", __func__));
+
+	l2attr = vm_memattr_to_pte2(mode);
+	while (size != 0) {
+		pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, l2attr);
+		va += PAGE_SIZE;
+		pa += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+}
+
+PMAP_INLINE void
+pmap_kenter(vm_offset_t va, vm_size_t size, vm_paddr_t pa, int mode)
+{
+	pmap_kenter_noflush(va, size, pa, mode);
+	tlb_flush_range(va, size);
 }
 
 /*
@@ -1453,7 +1470,7 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 	/* QQQ: 'i' should be less or equal to MAXDUMPPGS. */
 
 	va = (vm_offset_t)crashdumpmap + (i * PAGE_SIZE);
-	pmap_kenter(va, pa);
+	pmap_kenter_noflush(va, PAGE_SIZE, pa, VM_MEMATTR_DEFAULT);
 	tlb_flush_local(va);
 	return ((void *)crashdumpmap);
 }
@@ -6253,21 +6270,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 void
 pmap_kenter_device(vm_offset_t va, vm_size_t size, vm_paddr_t pa)
 {
-	vm_offset_t sva;
-	uint32_t l2attr;
-
-	KASSERT((size & PAGE_MASK) == 0,
-	    ("%s: device mapping not page-sized", __func__));
-
-	sva = va;
-	l2attr = vm_memattr_to_pte2(VM_MEMATTR_DEVICE);
-	while (size != 0) {
-		pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, l2attr);
-		va += PAGE_SIZE;
-		pa += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-	tlb_flush_range(sva, va - sva);
+	pmap_kenter(va, size, pa, VM_MEMATTR_DEVICE);
 }
 
 void
