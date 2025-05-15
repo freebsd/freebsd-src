@@ -267,7 +267,7 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
 		va = akva_devmap_vaddr;
 		KASSERT(va >= VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE,
-		    ("Too many early devmap mappings"));
+		    ("%s: Too many early devmap mappings", __func__));
 	} else
 #endif
 #ifdef __aarch64__
@@ -306,8 +306,8 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 	if (early_boot) {
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
 		va = akva_devmap_vaddr;
-		KASSERT(va >= (VM_MAX_KERNEL_ADDRESS - (PMAP_MAPDEV_EARLY_SIZE)),
-		    ("Too many early devmap mappings 2"));
+		KASSERT(va >= (VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE),
+		    ("%s: Too many early devmap mappings", __func__));
 	} else
 #ifdef __aarch64__
 	if (size >= L2_SIZE && (pa & L2_OFFSET) == 0)
