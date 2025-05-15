@@ -93,7 +93,7 @@ TAILQ_HEAD(libusb_device_head, libusb_device);
 struct libusb_context {
 	int	debug;
 	int	debug_fixed;
-	int	ctrl_pipe[2];
+	int	event;
 	int	tr_done_ref;
 	int	tr_done_gen;
 
