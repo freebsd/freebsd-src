@@ -22,6 +22,7 @@ ATF_TESTS_C+=		makecontext_test
 ATF_TESTS_C+=		popen_test
 ATF_TESTS_C+=		posix_spawn_test
 ATF_TESTS_C+=		realpath2_test
+ATF_TESTS_C+=		sig2str_test
 ATF_TESTS_C+=		sigsetops_test
 ATF_TESTS_C+=		wordexp_test
 
