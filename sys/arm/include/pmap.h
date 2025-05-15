@@ -135,7 +135,7 @@ extern ttb_entry_t pmap_kern_ttb; 	/* TTB for kernel pmap */
  * vtopte2().
  */
 void pmap_bootstrap(vm_offset_t);
-void pmap_kenter(vm_offset_t, vm_paddr_t);
+void pmap_kenter(vm_offset_t, vm_size_t, vm_paddr_t, int);
 void pmap_kremove(vm_offset_t);
 bool pmap_page_is_mapped(vm_page_t);
 bool	pmap_ps_enabled(pmap_t pmap);
