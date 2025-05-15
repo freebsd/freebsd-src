@@ -183,7 +183,12 @@ main(int argc, char *argv[])
 			sep--;
 		*sep = '\0';
 	}
-	if (strlcpy(to.base, target, sizeof(to.base)) >= sizeof(to.base))
+	/*
+	 * Copy target into to.base, leaving room for a possible separator
+	 * which will be appended later in the non-FILE_TO_FILE cases.
+	 */
+	if (strlcpy(to.base, target, sizeof(to.base) - 1) >=
+	    sizeof(to.base) - 1)
 		errc(1, ENAMETOOLONG, "%s", target);
 
 	/* Set end of argument list for fts(3). */
@@ -264,7 +269,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 	struct stat created_root_stat, to_stat, *curr_stat;
 	FTS *ftsp;
 	FTSENT *curr;
-	char *recpath = NULL;
+	char *recpath = NULL, *sep;
 	int atflags, dne, badcp, len, rval;
 	mode_t mask, mode;
 	bool beneath = Rflag && type != FILE_TO_FILE;
@@ -280,11 +285,17 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 	if (type == FILE_TO_FILE) {
 		to.dir = AT_FDCWD;
 		to.end = to.path + strlcpy(to.path, to.base, sizeof(to.path));
-		strlcpy(to.base, dot, sizeof(to.base));
+		to.base[0] = '\0';
 	} else if (type == FILE_TO_DIR) {
 		to.dir = open(to.base, O_DIRECTORY | O_SEARCH);
 		if (to.dir < 0)
 			err(1, "%s", to.base);
+		/*
+		 * We have previously made sure there is room for this.
+		 */
+		sep = strchr(to.base, '\0');
+		sep[0] = '/';
+		sep[1] = '\0';
 	}
 
 	if ((ftsp = fts_open(argv, fts_options, NULL)) == NULL)
@@ -370,13 +381,20 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 					umask(~mask);
 				root_stat = &created_root_stat;
 				curr->fts_number = 1;
+				/*
+				 * We have previously made sure there is
+				 * room for this.
+				 */
+				sep = strchr(to.base, '\0');
+				sep[0] = '/';
+				sep[1] = '\0';
 			} else {
 				/* entering a directory; append its name to to.path */
 				len = snprintf(to.end, END(to.path) - to.end, "%s%s",
 				    to.end > to.path ? "/" : "", curr->fts_name);
 				if (to.end + len >= END(to.path)) {
 					*to.end = '\0';
-					warnc(ENAMETOOLONG, "%s/%s%s%s", to.base,
+					warnc(ENAMETOOLONG, "%s%s%s%s", to.base,
 					    to.path, to.end > to.path ? "/" : "",
 					    curr->fts_name);
 					fts_set(ftsp, curr, FTS_SKIP);
@@ -448,7 +466,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				const char *path = *to.path ? to.path : dot;
 				mode = curr_stat->st_mode;
 				if (fchmodat(to.dir, path, mode & mask, 0) != 0) {
-					warn("chmod: %s/%s", to.base, to.path);
+					warn("chmod: %s%s", to.base, to.path);
 					rval = 1;
 				}
 			}
@@ -474,7 +492,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			    to.end > to.path ? "/" : "", curr->fts_name);
 			if (to.end + len >= END(to.path)) {
 				*to.end = '\0';
-				warnc(ENAMETOOLONG, "%s/%s%s%s", to.base,
+				warnc(ENAMETOOLONG, "%s%s%s%s", to.base,
 				    to.path, to.end > to.path ? "/" : "",
 				    curr->fts_name);
 				badcp = rval = 1;
@@ -506,7 +524,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 		if (!dne &&
 		    to_stat.st_dev == curr_stat->st_dev &&
 		    to_stat.st_ino == curr_stat->st_ino) {
-			warnx("%s/%s and %s are identical (not copied).",
+			warnx("%s%s and %s are identical (not copied).",
 			    to.base, to.path, curr->fts_path);
 			badcp = rval = 1;
 			if (S_ISDIR(curr_stat->st_mode))
@@ -558,7 +576,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				if (~mask & S_IRWXU)
 					umask(~mask & ~S_IRWXU);
 				if (mkdirat(to.dir, to.path, mode) != 0) {
-					warn("%s/%s", to.base, to.path);
+					warn("%s%s", to.base, to.path);
 					fts_set(ftsp, curr, FTS_SKIP);
 					badcp = rval = 1;
 					if (~mask & S_IRWXU)
@@ -568,7 +586,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 				if (~mask & S_IRWXU)
 					umask(~mask);
 			} else if (!S_ISDIR(to_stat.st_mode)) {
-				warnc(ENOTDIR, "%s/%s", to.base, to.path);
+				warnc(ENOTDIR, "%s%s", to.base, to.path);
 				fts_set(ftsp, curr, FTS_SKIP);
 				badcp = rval = 1;
 				break;
@@ -611,7 +629,7 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 			break;
 		}
 		if (vflag && !badcp)
-			(void)printf("%s -> %s/%s\n", curr->fts_path, to.base, to.path);
+			(void)printf("%s -> %s%s\n", curr->fts_path, to.base, to.path);
 	}
 	if (errno)
 		err(1, "fts_read");

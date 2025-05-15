@@ -31,8 +31,8 @@
 
 typedef struct {
 	int		 dir;		/* base directory handle */
+	char		 base[PATH_MAX + 1];	/* base directory path */
 	char		*end;		/* pointer to NUL at end of path */
-	char		 base[PATH_MAX];	/* base directory path */
 	char		 path[PATH_MAX];	/* target path */
 } PATH_T;
 
