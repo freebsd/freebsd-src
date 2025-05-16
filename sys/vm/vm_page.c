@@ -2095,7 +2095,9 @@ vm_page_alloc_domain_iter(vm_object_t object, vm_pindex_t pindex, int domain,
 	m = NULL;
 	if (!vm_pager_can_alloc_page(object, pindex))
 		return (NULL);
+#if VM_NRESERVLEVEL > 0
 again:
+#endif
 	if (__predict_false((req & VM_ALLOC_NOFREE) != 0)) {
 		m = vm_page_alloc_nofree_domain(domain, req);
 		if (m != NULL)
