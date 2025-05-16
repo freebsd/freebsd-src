@@ -463,7 +463,6 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_spin_lock.3 \
 		pthread_suspend_all_np.3 \
 		pthread_suspend_np.3 \
-		pthread_switch_add_np.3 \
 		pthread_testcancel.3 \
 		pthread_yield.3
 
@@ -528,7 +527,6 @@ PTHREAD_MLINKS+=pthread_set_name_np.3 pthread_get_name_np.3 \
 PTHREAD_MLINKS+=pthread_spin_init.3 pthread_spin_destroy.3 \
 		pthread_spin_lock.3 pthread_spin_trylock.3 \
 		pthread_spin_lock.3 pthread_spin_unlock.3
-PTHREAD_MLINKS+=pthread_switch_add_np.3 pthread_switch_delete_np.3
 PTHREAD_MLINKS+=pthread_testcancel.3 pthread_setcancelstate.3 \
 		pthread_testcancel.3 pthread_setcanceltype.3
 PTHREAD_MLINKS+=pthread_join.3 pthread_peekjoin_np.3 \

@@ -35,11 +35,6 @@
 #include <sys/cpuset.h>
 
 /*
- * Non-POSIX type definitions:
- */
-typedef void	(*pthread_switch_routine_t)(pthread_t, pthread_t);
-
-/*
  * Non-POSIX thread function prototype definitions:
  */
 __BEGIN_DECLS
@@ -67,8 +62,6 @@ int pthread_setaffinity_np(pthread_t, size_t, const cpuset_t *);
 int pthread_single_np(void);
 void pthread_suspend_all_np(void);
 int pthread_suspend_np(pthread_t);
-int pthread_switch_add_np(pthread_switch_routine_t);
-int pthread_switch_delete_np(pthread_switch_routine_t);
 int pthread_timedjoin_np(pthread_t, void **, const struct timespec *);
 __END_DECLS
 
