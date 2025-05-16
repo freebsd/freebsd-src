@@ -750,6 +750,9 @@ ppt_setup_msix(struct vm *vm, int bus, int slot, int func,
 		}
 	}
 
+	if (idx >= ppt->msix.num_msgs)
+		return (EINVAL);
+
 	if ((vector_control & PCIM_MSIX_VCTRL_MASK) == 0) {
 		/* Tear down the IRQ if it's already set up */
 		ppt_teardown_msix_intr(ppt, idx);
