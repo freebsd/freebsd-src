@@ -254,7 +254,7 @@ static struct {
 	{ NFSV4OP_REMOVE, 1, "Remove", 6, },
 	{ NFSV4OP_REMOVE, 1, "Remove", 6, },
 	{ NFSV4OP_SAVEFH, 5, "Rename", 6, },
-	{ NFSV4OP_SAVEFH, 4, "Link", 4, },
+	{ NFSV4OP_SAVEFH, 6, "Link", 4, },
 	{ NFSV4OP_READDIR, 2, "Readdir", 7, },
 	{ NFSV4OP_READDIR, 2, "Readdir", 7, },
 	{ NFSV4OP_GETATTR, 1, "Getattr", 7, },
