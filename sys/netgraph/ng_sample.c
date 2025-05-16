@@ -271,7 +271,7 @@ ng_xxx_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			struct ngxxxstat *stats;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*stats), M_NOWAIT);
-			if (!resp) {
+			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
@@ -320,7 +320,7 @@ ng_xxx_rcvmsg(node_p node, item_p item, hook_p lasthook)
  * in the connect() method.
  */
 static int
-ng_xxx_rcvdata(hook_p hook, item_p item )
+ng_xxx_rcvdata(hook_p hook, item_p item)
 {
 	const xxx_p xxxp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	int chan = -2;
