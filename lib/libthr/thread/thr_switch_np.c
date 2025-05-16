@@ -40,9 +40,12 @@
 
 #include "thr_private.h"
 
-
 __weak_reference(_pthread_switch_add_np, pthread_switch_add_np);
 __weak_reference(_pthread_switch_delete_np, pthread_switch_delete_np);
+
+typedef void	(*pthread_switch_routine_t)(pthread_t, pthread_t);
+int _pthread_switch_add_np(pthread_switch_routine_t routine);
+int _pthread_switch_delete_np(pthread_switch_routine_t routine);
 
 int
 _pthread_switch_add_np(pthread_switch_routine_t routine __unused)

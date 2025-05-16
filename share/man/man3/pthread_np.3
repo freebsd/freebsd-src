@@ -132,16 +132,6 @@ Suspend the specified thread.
 Suspend all active threads.
 .It Xo
 .Ft int
-.Fn pthread_switch_add_np "pthread_switch_routine_t routine"
-.Xc
-Install a routine that is called every time a thread context switches.
-.It Xo
-.Ft int
-.Fn pthread_switch_delete_np "pthread_switch_routine_t routine"
-.Xc
-Remove a routine that is called every time a thread context switches.
-.It Xo
-.Ft int
 .Fo pthread_timedjoin_np
 .Fa "pthread_t thread" "void **value_ptr" "const struct timespec *abstime"
 .Fc
