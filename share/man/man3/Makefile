@@ -458,6 +458,7 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_setspecific.3 \
 		pthread_sigmask.3 \
 		pthread_sigqueue.3 \
+		pthread_signals_block_np.3 \
 		pthread_spin_init.3 \
 		pthread_spin_lock.3 \
 		pthread_suspend_all_np.3 \
@@ -523,6 +524,8 @@ PTHREAD_MLINKS+=pthread_schedparam.3 pthread_getschedparam.3 \
 PTHREAD_MLINKS+=pthread_set_name_np.3 pthread_get_name_np.3 \
 		pthread_set_name_np.3 pthread_getname_np.3 \
 		pthread_set_name_np.3 pthread_setname_np.3
+PTHREAD_MLINKS+=pthread_signals_block_np.3 \
+		pthread_signals_unblock_np.3
 PTHREAD_MLINKS+=pthread_spin_init.3 pthread_spin_destroy.3 \
 		pthread_spin_lock.3 pthread_spin_trylock.3 \
 		pthread_spin_lock.3 pthread_spin_unlock.3
