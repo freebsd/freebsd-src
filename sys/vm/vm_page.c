@@ -2333,9 +2333,6 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 	KASSERT(npages > 0, ("vm_page_alloc_contig: npages is zero"));
 
 	vm_page_iter_init(&pages, object);
-	mpred = vm_radix_iter_lookup_lt(&pages, pindex);
-	KASSERT(mpred == NULL || mpred->pindex != pindex,
-	    ("vm_page_alloc_contig: pindex already allocated"));
 	for (;;) {
 #if VM_NRESERVLEVEL > 0
 		/*
@@ -2406,7 +2403,6 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 			}
 			return (NULL);
 		}
-		mpred = m;
 		if (memattr != VM_MEMATTR_DEFAULT)
 			pmap_page_set_memattr(m, memattr);
 		pindex++;
