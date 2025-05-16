@@ -31,6 +31,9 @@
 # "panic: failed to set signal flags for ast p ... fl 4" seen.
 # Fixed in r302999.
 
+# Test scenario updated after commit:
+# ecc662c749b1 - main - PT_ATTACH: do not interrupt interruptible sleeps
+
 . ../default.cfg
 
 cd /tmp
@@ -46,38 +49,32 @@ main(void)
 
 	fprintf(stderr, "%d\n", getpid());
 	if ((pid = vfork()) == 0) {
-#if 0
-		if (ptrace(PT_TRACE_ME, 0, 0, 0) == -1)
-			err(1, "PT_TRACEME");
-#endif
 		sleep(30);
 		_exit(0);
 	}
 	if (pid == -1)
 		err(1, "vfork");
-
-	return (0);
 }
 EOF
-mycc -o vfork1 -Wall -Wextra -g vfork1.c
-rm  vfork1.c
+mycc -o vfork1 -Wall -Wextra -g vfork1.c || exit 1
+rm vfork1.c
 
 cat > vfork2.c <<- EOF
 #include <sys/types.h>
+#include <sys/ptrace.h>
+#include <sys/resource.h>
+#include <sys/time.h>
+#include <sys/wait.h>
 #include <err.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
-#include <sys/ptrace.h>
-#include <sys/resource.h>
-#include <sys/time.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
 	pid_t pid, rpid;
 	struct rusage ru;
@@ -86,6 +83,7 @@ main(int argc, char **argv)
 	if (argc != 2)
 		errx(1, "Usage: %s <pid>", argv[0]);
 	pid = atoi(argv[1]);
+	status = 0;
 
 	if (pid == -1)
 		err(1, "fork()");
@@ -99,24 +97,17 @@ main(int argc, char **argv)
 			err(0, "OK wait4");
 	}
 	if (rpid == 0) {
-//		fprintf(stderr, "No rusage info.\n");
 		if (ptrace(PT_DETACH, pid, NULL, 0) == -1)
 			err(1, "ptrace(%d) detach", pid);
-		if (wait(&status) == -1)
-			err(1, "wait");
 	} else {
 		fprintf(stderr, "FAIL Got unexpected rusage.\n");
 		if (ru.ru_utime.tv_sec != 0)
 			fprintf(stderr, "FAIL tv_sec\n");
 	}
-	if (status != 0x4000)
-		fprintf(stderr, "FAIL Child exit status 0x%x\n", status);
-
-	return (0);
 }
 EOF
-mycc -o vfork2 -Wall -Wextra -g vfork2.c
-rm  vfork2.c
+mycc -o vfork2 -Wall -Wextra -g vfork2.c || exit 1
+rm vfork2.c
 
 ./vfork1 &
 sleep .2
@@ -127,5 +118,6 @@ childpid=`ps -lx | grep -v grep | grep vfork1 |
 ./vfork2 $childpid
 s=$?
 
+pkill vfork1
 rm -f vfork1 vfork2
 exit $s
