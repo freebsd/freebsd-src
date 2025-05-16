@@ -3114,14 +3114,19 @@ nfsrpc_link(vnode_t dvp, vnode_t vp, char *name, int namelen,
 		VTONFS(dvp)->n_fhp->nfh_len, 0);
 	if (nd->nd_flag & ND_NFSV4) {
 		NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-		*tl = txdr_unsigned(NFSV4OP_GETATTR);
-		NFSWCCATTR_ATTRBIT(&attrbits);
-		(void) nfsrv_putattrbit(nd, &attrbits);
-		nd->nd_flag |= ND_V4WCCATTR;
-		NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 		*tl = txdr_unsigned(NFSV4OP_LINK);
 	}
 	(void) nfsm_strtom(nd, name, namelen);
+	if (nd->nd_flag & ND_NFSV4) {
+		NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+		*tl = txdr_unsigned(NFSV4OP_GETATTR);
+		NFSGETATTR_ATTRBIT(&attrbits);
+		(void)nfsrv_putattrbit(nd, &attrbits);
+		NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+		*tl++ = txdr_unsigned(NFSV4OP_RESTOREFH);
+		*tl = txdr_unsigned(NFSV4OP_GETATTR);
+		(void)nfsrv_putattrbit(nd, &attrbits);
+	}
 	error = nfscl_request(nd, vp, p, cred);
 	if (error)
 		return (error);
@@ -3130,19 +3135,28 @@ nfsrpc_link(vnode_t dvp, vnode_t vp, char *name, int namelen,
 		if (!error)
 			error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp,
 			    NULL, NULL);
-	} else if ((nd->nd_flag & (ND_NFSV4 | ND_NOMOREDATA)) == ND_NFSV4) {
+	} else if (nd->nd_repstat == 0 && (nd->nd_flag & ND_NFSV4) != 0) {
 		/*
-		 * First, parse out the PutFH and Getattr result.
+		 * First and parse out the PutFH and Link results.
 		 */
-		NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-		if (!(*(tl + 1)))
-			NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-		if (*(tl + 1))
+		NFSM_DISSECT(tl, uint32_t *, 5 * NFSX_UNSIGNED +
+		    2 * NFSX_HYPER);
+		if (*(tl + 3))
 			nd->nd_flag |= ND_NOMOREDATA;
 		/*
-		 * Get the pre-op attributes.
+		 * Get the directory post-op attributes.
 		 */
-		error = nfscl_wcc_data(nd, dvp, dnap, dattrflagp, NULL, NULL);
+		if ((nd->nd_flag & ND_NOMOREDATA) == 0)
+			error = nfscl_postop_attr(nd, dnap, dattrflagp);
+		if (error == 0 && (nd->nd_flag & ND_NOMOREDATA) == 0) {
+			/* Get rid of the RestoreFH reply. */
+			NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
+			if (*(tl + 1))
+				nd->nd_flag |= ND_NOMOREDATA;
+		}
+		/* Get the file's post-op attributes. */
+		if (error == 0 && (nd->nd_flag & ND_NOMOREDATA) == 0)
+			error = nfscl_postop_attr(nd, nap, attrflagp);
 	}
 	if (nd->nd_repstat && !error)
 		error = nd->nd_repstat;
