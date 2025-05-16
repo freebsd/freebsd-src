@@ -2140,8 +2140,6 @@ again:
 		 * Not allocatable, give up.
 		 */
 		pctrie_iter_reset(pages);
-		if (vm_domain_alloc_fail(vmd, object, req))
-			goto again;
 		return (NULL);
 	}
 
@@ -2333,23 +2331,23 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 	KASSERT(npages > 0, ("vm_page_alloc_contig: npages is zero"));
 
 	vm_page_iter_init(&pages, object);
-	for (;;) {
+	m_ret = NULL;
 #if VM_NRESERVLEVEL > 0
-		/*
-		 * Can we allocate the pages from a reservation?
-		 */
-		if (vm_object_reserv(object) &&
-		    (m_ret = vm_reserv_alloc_contig(object, pindex, domain,
-		    req, npages, low, high, alignment, boundary, &pages)) !=
-		    NULL) {
-			break;
-		}
+	/*
+	 * Can we allocate the pages from a reservation?
+	 */
+	if (vm_object_reserv(object)) {
+		m_ret = vm_reserv_alloc_contig(object, pindex, domain,
+		    req, npages, low, high, alignment, boundary, &pages);
+	}
 #endif
-		if ((m_ret = vm_page_find_contig_domain(domain, req, npages,
-		    low, high, alignment, boundary)) != NULL)
-			break;
-		if (!vm_domain_alloc_fail(VM_DOMAIN(domain), object, req))
-			return (NULL);
+	if (m_ret == NULL) {
+		m_ret = vm_page_find_contig_domain(domain, req, npages,
+		    low, high, alignment, boundary);
+	}
+	if (m_ret == NULL) {
+		(void)vm_domain_alloc_fail(VM_DOMAIN(domain), object, req);
+		return (NULL);
 	}
 
 	/*
