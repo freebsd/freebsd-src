@@ -409,6 +409,10 @@ cleanup_file:
 			proc = pfind(gbl_args.u.pid);
 			if (proc == NULL)
 				return (EINVAL);
+			else if (proc->p_textvp == NULL) {
+				PROC_UNLOCK(proc);
+				return (EINVAL);
+			}
 			proc_locked = 1;
 		}
 		gbl_args.gbl = (SLOT(proc->p_textvp->v_label) |
