@@ -339,5 +339,7 @@ FBSD_1.6 {
 };
 
 FBSD_1.8 {
+	 pthread_signals_block_np;
+	 pthread_signals_unblock_np;
 	 pthread_sigqueue;
 };
