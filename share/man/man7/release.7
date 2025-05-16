@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 26, 2024
+.Dd May 20, 2025
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -282,6 +282,10 @@ within the
 This is intended for use only when
 .Fa /usr/ports
 is expected to exist by alternative means.
+.It Va PKGBASE
+Include base system packages for use with
+.Xr pkg 8
+on the install media, instead of legacy tarball distribution sets.
 .El
 .Sh EMBEDDED BUILDS
 The following
