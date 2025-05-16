@@ -59,6 +59,8 @@ int pthread_resume_np(pthread_t);
 int pthread_peekjoin_np(pthread_t, void **);
 void pthread_set_name_np(pthread_t, const char *);
 int pthread_setaffinity_np(pthread_t, size_t, const cpuset_t *);
+void pthread_signals_block_np(void);
+void pthread_signals_unblock_np(void);
 int pthread_single_np(void);
 void pthread_suspend_all_np(void);
 int pthread_suspend_np(pthread_t);
