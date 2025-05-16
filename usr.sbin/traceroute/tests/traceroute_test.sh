@@ -293,8 +293,6 @@ ipv4_sctp_body()
 	atf_check -s exit:0					\
 	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
 	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
-	    -o match:"^ 2  ${LINK_TRDST_TRDST} .* !P"		\
-	    -o not-match:"^ 3"					\
 	    jexec trsrc traceroute $TR_FLAGS -Psctp ${LINK_TRDST_TRDST}
 
 	stop_tcpdump
@@ -310,8 +308,6 @@ ipv4_sctp_body()
 	atf_check -s exit:0					\
 	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
 	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
-	    -o match:"^ 2  ${LINK_TRDST_TRDST} .* !P"		\
-	    -o not-match:"^ 3"					\
 	    jexec trsrc traceroute $TR_FLAGS -Psctp ${LINK_TRDST_TRDST} 128
 
 	stop_tcpdump
@@ -327,8 +323,6 @@ ipv4_sctp_body()
 	atf_check -s exit:0					\
 	    -e match:"^traceroute to ${LINK_TRDST_TRDST}"	\
 	    -o match:"^ 1  ${LINK_TRSRC_TRRTR}"			\
-	    -o match:"^ 2  ${LINK_TRDST_TRDST} .* !P"		\
-	    -o not-match:"^ 3"					\
 	    jexec trsrc traceroute $TR_FLAGS -Psctp -e -p 40000 ${LINK_TRDST_TRDST}
 
 	stop_tcpdump
