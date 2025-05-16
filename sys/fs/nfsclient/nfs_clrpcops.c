@@ -8584,6 +8584,13 @@ nfsrpc_createlayout(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			    &ret, &acesize, p);
 			if (error != 0)
 				goto nfsmout;
+		} else if (deleg == NFSV4OPEN_DELEGATENONEEXT &&
+		    NFSHASNFSV4N(nmp)) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			deleg = fxdr_unsigned(uint32_t, *tl);
+			if (deleg == NFSV4OPEN_CONTENTION ||
+			    deleg == NFSV4OPEN_RESOURCE)
+				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 		} else if (deleg != NFSV4OPEN_DELEGATENONE) {
 			error = NFSERR_BADXDR;
 			goto nfsmout;
