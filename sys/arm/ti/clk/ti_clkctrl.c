@@ -284,9 +284,9 @@ create_clkctrl(struct ti_clkctrl_softc *sc, cell_t *reg, uint32_t index, uint32_
 
 	/*
 	 * Check out XX_CLKCTRL-INDEX(offset)-macro dance in
-	 * sys/gnu/dts/dts/include/dt-bindings/clock/am3.h
-	 * sys/gnu/dts/dts/include/dt-bindings/clock/am4.h
-	 * sys/gnu/dts/dts/include/dt-bindings/clock/dra7.h
+	 * sys/contrib/device-tree/include/dt-bindings/clock/am3.h
+	 * sys/contrib/device-tree/include/dt-bindings/clock/am4.h
+	 * sys/contrib/device-tree/include/dt-bindings/clock/dra7.h
 	 * reg[0] are in practice the same as the offset described in the dts.
 	 */
 	/* special_gdbclk_reg are 0 or 1 */
