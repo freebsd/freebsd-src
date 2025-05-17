@@ -291,6 +291,10 @@ typedef	__pid_t		pid_t;
 #endif
 
 #if __BSD_VISIBLE
+#define F_DUP3FD	24		/* Used with dup3() */
+
+#define F_DUP3FD_SHIFT	16		/* Shift used for F_DUP3FD */
+
 /* Seals (F_ADD_SEALS, F_GET_SEALS). */
 #define	F_SEAL_SEAL	0x0001		/* Prevent adding sealings */
 #define	F_SEAL_SHRINK	0x0002		/* May not shrink */

@@ -38,9 +38,11 @@
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
 
+#define EXTERR_CATEGORY	EXTERR_CAT_FILEDESC
 #include <sys/systm.h>
 #include <sys/capsicum.h>
 #include <sys/conf.h>
+#include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -492,6 +494,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	int error, flg, kif_sz, seals, tmp, got_set, got_cleared;
 	uint64_t bsize;
 	off_t foffset;
+	int flags;
 
 	error = 0;
 	flg = F_POSIX;
@@ -923,7 +926,17 @@ revert_f_setfl:
 		break;
 
 	default:
-		error = EINVAL;
+		if ((cmd & ((1u << F_DUP3FD_SHIFT) - 1)) != F_DUP3FD)
+			return (EXTERROR(EINVAL, "invalid fcntl cmd"));
+		/* Handle F_DUP3FD */
+		flags = (cmd >> F_DUP3FD_SHIFT);
+		if ((flags & ~(FD_CLOEXEC | FD_CLOFORK)) != 0)
+			return (EXTERROR(EINVAL, "invalid flags for F_DUP3FD"));
+		tmp = arg;
+		error = kern_dup(td, FDDUP_FIXED,
+		    ((flags & FD_CLOEXEC) != 0 ? FDDUP_FLAG_CLOEXEC : 0) |
+		    ((flags & FD_CLOFORK) != 0 ? FDDUP_FLAG_CLOFORK : 0),
+		    fd, tmp);
 		break;
 	}
 	return (error);
