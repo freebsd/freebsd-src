@@ -2142,8 +2142,7 @@ again:
 		 * Not allocatable, give up.
 		 */
 		(void)vm_domain_alloc_fail(vmd, object, req);
-		if ((req & VM_ALLOC_WAITFAIL) != 0)
-			pctrie_iter_reset(pages);
+		pctrie_iter_reset(pages);
 		return (NULL);
 	}
 
