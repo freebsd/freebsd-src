@@ -675,7 +675,7 @@ prochandler(struct ps_prochandle *P, const char *msg, void *arg)
 	int pid = proc_getpid(P);
 	int wstat = proc_getwstat(P);
 #endif
-	char name[SIG2STR_MAX];
+	char name[SIG2STR_MAX + 3];
 
 	if (msg != NULL) {
 		notice("pid %d: %s\n", pid, msg);
