@@ -280,6 +280,13 @@ typedef	__pid_t		pid_t;
 #endif
 #if __BSD_VISIBLE
 #define	F_DUP2FD_CLOFORK 24		/* Like F_DUP2FD, but FD_CLOFORK is set */
+/*
+ * XXX
+ * Needed to support both FD_CLO* flags in dup3()
+ * but do we really want to export these?
+ */
+#define	F_DUPFD_CLOBOTH	25		/* Like F_DUPFD, with both FD_CLO* set */
+#define	F_DUP2FD_CLOBOTH 26		/* Like F_DUP2FD, with both FD_CLO* set */
 
 /* Seals (F_ADD_SEALS, F_GET_SEALS). */
 #define	F_SEAL_SEAL	0x0001		/* Prevent adding sealings */
