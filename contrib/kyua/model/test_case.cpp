@@ -60,6 +60,9 @@ struct model::test_case::impl : utils::noncopyable {
     /// Fake result to return instead of running the test case.
     optional< model::test_result > fake_result;
 
+    /// Optional pointer to a debugger attached.
+    engine::debugger_ptr debugger;
+
     /// Constructor.
     ///
     /// \param name_ The name of the test case within the test program.
@@ -230,6 +233,24 @@ const model::metadata&
 model::test_case::get_raw_metadata(void) const
 {
     return _pimpl->md;
+}
+
+
+/// Attach a debugger to the test case.
+void
+model::test_case::attach_debugger(engine::debugger_ptr debugger) const
+{
+    _pimpl->debugger = debugger;
+}
+
+
+/// Gets the optional pointer to a debugger.
+///
+/// \return An optional pointer to a debugger.
+engine::debugger_ptr
+model::test_case::get_debugger() const
+{
+    return _pimpl->debugger;
 }
 
 

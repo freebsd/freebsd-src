@@ -1,4 +1,4 @@
-// Copyright 2011 The Kyua Authors.
+// Copyright 2025 The Kyua Authors.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,58 +26,46 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-/// \file drivers/debug_test.hpp
-/// Driver to run a single test in a controlled manner.
-///
-/// This driver module implements the logic to execute a particular test
-/// with hooks into the runtime procedure.  This is to permit debugging the
-/// behavior of the test.
+/// \file engine/debugger.hpp
+/// The interface between the engine and the users outside.
 
-#if !defined(DRIVERS_DEBUG_TEST_HPP)
-#define DRIVERS_DEBUG_TEST_HPP
+#if !defined(ENGINE_DEBUGGER_HPP)
+#define ENGINE_DEBUGGER_HPP
 
-#include "engine/debugger.hpp"
-#include "engine/filters.hpp"
-#include "model/test_result.hpp"
-#include "utils/config/tree_fwd.hpp"
-#include "utils/fs/path_fwd.hpp"
+#include "model/test_case_fwd.hpp"
+#include "model/test_program_fwd.hpp"
+#include "model/test_result_fwd.hpp"
 #include "utils/optional_fwd.hpp"
+#include "utils/process/executor_fwd.hpp"
 
-using engine::debugger;
+namespace executor = utils::process::executor;
 
-namespace drivers {
-namespace debug_test {
+using utils::optional;
 
 
-/// Tuple containing the results of this driver.
-class result {
+namespace engine {
+
+
+/// Abstract debugger interface.
+class debugger {
 public:
-    /// A filter matching the executed test case only.
-    engine::test_filter test_case;
+    debugger() {}
+    virtual ~debugger() {}
 
-    /// The result of the test case.
-    model::test_result test_result;
-
-    /// Initializer for the tuple's fields.
-    ///
-    /// \param test_case_ The matched test case.
-    /// \param test_result_ The result of the test case.
-    result(const engine::test_filter& test_case_,
-           const model::test_result& test_result_) :
-        test_case(test_case_),
-        test_result(test_result_)
-    {
-    }
+    /// Called right before test cleanup.
+    virtual void before_cleanup(
+        const model::test_program_ptr&,
+        const model::test_case&,
+        optional< model::test_result >&,
+        executor::exit_handle&) const = 0;
 };
 
 
-result drive(std::shared_ptr< debugger >,
-             const utils::fs::path&, const utils::optional< utils::fs::path >,
-             const engine::test_filter&, const utils::config::tree&,
-             const utils::fs::path&, const utils::fs::path&);
+/// Pointer to a debugger implementation.
+typedef std::shared_ptr< debugger > debugger_ptr;
 
 
-}  // namespace debug_test
-}  // namespace drivers
+}  // namespace engine
 
-#endif  // !defined(DRIVERS_DEBUG_TEST_HPP)
+
+#endif  // !defined(ENGINE_DEBUGGER_HPP)
