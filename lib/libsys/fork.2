@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 5, 2021
+.Dd May 17, 2024
 .Dt FORK 2
 .Os
 .Sh NAME
@@ -68,6 +68,16 @@ by the parent.
 This descriptor copying is also used by the shell to
 establish standard input and output for newly created processes
 as well as to set up pipes.
+Any file descriptors that were marked with the close-on-fork flag,
+.Dv FD_CLOFORK
+.Po see
+.Fn fcntl 2
+and
+.Dv O_CLOFORK
+in
+.Fn open 2
+.Pc ,
+will not be present in the child process, but remain open in the parent.
 .It
 The child process' resource utilizations
 are set to 0; see

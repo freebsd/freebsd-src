@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 5, 2025
+.Dd June 24, 2025
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -81,6 +81,13 @@ to remain open across
 .Xr execve 2
 system calls.
 .It
+The fork-on-exec flag
+.Dv FD_CLOFORK
+associated with the new file descriptor is cleared, so the file descriptor is
+to remain open across
+.Xr fork 2
+system calls.
+.It
 The
 .Dv FD_RESOLVE_BENEATH
 flag, described below, will be set if it was set on the original
@@ -94,6 +101,15 @@ but the
 flag associated with the new file descriptor is set, so the file descriptor
 is closed when
 .Xr execve 2
+system call executes.
+.It Dv F_DUPFD_CLOFORK
+Like
+.Dv F_DUPFD ,
+but the
+.Dv FD_CLOFORK
+flag associated with the new file descriptor is set, so the file descriptor
+is closed when
+.Xr fork 2
 system call executes.
 .It Dv F_DUP2FD
 It is functionally equivalent to
@@ -117,6 +133,11 @@ Use
 .Fn dup2
 instead of
 .Dv F_DUP2FD .
+.It Dv F_DUP3FD
+Used to implement the
+.Fn dup3
+call.
+Do not use it.
 .It Dv F_GETFD
 Get the flags associated with the file descriptor
 .Fa fd .
@@ -128,6 +149,10 @@ The file will be closed upon execution of
 .Fa ( arg
 is ignored).
 Otherwise, the file descriptor will remain open.
+.It Dv FD_CLOFORK
+The file will be closed upon execution of the
+.Fn fork
+family of system calls.
 .It Dv FD_RESOLVE_BENEATH
 All path name lookups relative to that file descriptor
 will behave as if the lookup had
@@ -153,7 +178,8 @@ descriptor to also have the flag set.
 Set flags associated with
 .Fa fd .
 The available flags are
-.Dv FD_CLOEXEC
+.Dv FD_CLOEXEC ,
+.Dv FD_CLOFORK
 and
 .Dv FD_RESOLVE_BENEATH .
 The
@@ -785,8 +811,10 @@ for the reasons as stated in
 .Sh STANDARDS
 The
 .Dv F_DUP2FD
-constant is non portable.
-It is provided for compatibility with AIX and Solaris.
+and
+.Dv F_DUP3FD
+constants are not portable.
+They are provided for compatibility with AIX and Solaris.
 .Pp
 Per
 .St -susv4 ,
@@ -811,3 +839,10 @@ The
 .Dv F_DUP2FD
 constant first appeared in
 .Fx 7.1 .
+.Pp
+The
+.Dv F_DUPFD_CLOFORK
+and
+.Dv F_DUP3FD
+flags appeared in
+.Fx 15.0 .
