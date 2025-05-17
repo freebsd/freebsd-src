@@ -1003,13 +1003,13 @@ SYSCTL_TIMEVAL_SEC(_kern_ipc, OID_AUTO, sooverinterval, CTLFLAG_RW,
  * accept(2), the protocol has two options:
  * 1) Call legacy sonewconn() function, which would call protocol attach
  *    method, same as used for socket(2).
- * 2) Call solisten_clone(), do attach that is specific to a cloned connection,
- *    and then call solisten_enqueue().
+ * 2) Call solisten_clone(), do an attach that is specific to a cloned
+ *    connection, and then call solisten_enqueue().
  *
  * Note: the ref count on the socket is 0 on return.
  */
 struct socket *
-solisten_clone(struct socket *head)
+solisten_clone(struct socket *head, int fibnum)
 {
 	struct sbuf descrsb;
 	struct socket *so;
@@ -1180,7 +1180,8 @@ solisten_clone(struct socket *head)
 	    SO_DONTROUTE | SO_LINGER | SO_OOBINLINE | SO_NOSIGPIPE);
 	so->so_linger = head->so_linger;
 	so->so_state = head->so_state;
-	so->so_fibnum = head->so_fibnum;
+	/* note, C has short-circuit evaluation. */
+	so->so_fibnum = head->so_fibnum || fibnum;
 	so->so_proto = head->so_proto;
 	so->so_cred = crhold(head->so_cred);
 #ifdef SOCKET_HHOOK
@@ -1226,7 +1227,7 @@ sonewconn(struct socket *head, int connstatus)
 {
 	struct socket *so;
 
-	if ((so = solisten_clone(head)) == NULL)
+	if ((so = solisten_clone(head, head->so_fibnum)) == NULL)
 		return (NULL);
 
 	if (so->so_proto->pr_attach(so, 0, NULL) != 0) {

@@ -521,7 +521,7 @@ int	solisten_proto_check(struct socket *so);
 bool	solisten_enqueue(struct socket *, int);
 int	solisten_dequeue(struct socket *, struct socket **, int);
 struct socket *
-	solisten_clone(struct socket *);
+	solisten_clone(struct socket *, int fibnum);
 struct socket *
 	sonewconn(struct socket *head, int connstatus);
 struct socket *
