@@ -280,6 +280,7 @@ typedef	__pid_t		pid_t;
 #endif
 #if __BSD_VISIBLE
 #define	F_DUP2FD_CLOFORK 24		/* Like F_DUP2FD, but FD_CLOFORK is set */
+#define F_DUP3FD	25		/* Used with dup3() */
 
 /* Seals (F_ADD_SEALS, F_GET_SEALS). */
 #define	F_SEAL_SEAL	0x0001		/* Prevent adding sealings */
