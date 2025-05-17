@@ -111,15 +111,15 @@ HOSTNAME=$( dialog_hostname "$HOSTNAME" )
 # Store the user's choice
 #
 f_eval_catch "$pgm" echo "$ECHO_OVERWRITE" \
-    'hostname=\"$HOSTNAME\"' "$HOSTNAMEFILE"
+	'hostname=\"$HOSTNAME\"' "$HOSTNAMEFILE"
 retval=$?
 
 #
 # Activate entry if configured
 #
 if [ "$BSDINSTALL_CONFIGCURRENT" ]; then
-    f_eval_catch "$pgm" hostname "$SET_HOSTNAME" "$HOSTNAME"
-    retval=$?
+	f_eval_catch "$pgm" hostname "$SET_HOSTNAME" "$HOSTNAME"
+	retval=$?
 fi
 
 exit $retval
