@@ -94,6 +94,7 @@ VNET_DEFINE(int, nd6_defifindex);
 VNET_DEFINE(int, ip6_use_tempaddr) = 0;
 
 VNET_DEFINE(int, ip6_desync_factor);
+VNET_DEFINE(uint32_t, ip6_temp_max_desync_factor) = TEMP_MAX_DESYNC_FACTOR_BASE;
 VNET_DEFINE(u_int32_t, ip6_temp_preferred_lifetime) = DEF_TEMP_PREFERRED_LIFETIME;
 VNET_DEFINE(u_int32_t, ip6_temp_valid_lifetime) = DEF_TEMP_VALID_LIFETIME;
 
@@ -2229,7 +2230,7 @@ restart:
 
 /*
  * Get a randomized interface identifier for a temporary address
- * <draft-ietf-6man-rfc4941bis-08.txt>, Section 3.3.1.
+ * Based on RFC 8981, Section 3.3.1.
  */
 static int
 in6_get_tmp_ifid(struct in6_aliasreq *ifra)

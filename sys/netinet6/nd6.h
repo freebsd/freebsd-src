@@ -187,7 +187,7 @@ struct	in6_ndifreq {
 #define DEF_TEMP_VALID_LIFETIME		172800	/* 2 days */
 #define DEF_TEMP_PREFERRED_LIFETIME	86400	/* 1 day */
 #define TEMPADDR_REGEN_ADVANCE		5	/* sec */
-#define MAX_TEMP_DESYNC_FACTOR		600	/* 10 min */
+#define TEMP_MAX_DESYNC_FACTOR_BASE	300	/* 5 min */
 #define ND_COMPUTE_RTIME(x) \
 		(((MIN_RANDOM_FACTOR * (x >> 10)) + (arc4random() & \
 		((MAX_RANDOM_FACTOR - MIN_RANDOM_FACTOR) * (x >> 10)))) /1000)
@@ -292,11 +292,13 @@ VNET_DECLARE(struct mtx, nd6_onlink_mtx);
 /* nd6_rtr.c */
 VNET_DECLARE(int, nd6_defifindex);
 VNET_DECLARE(int, ip6_desync_factor);	/* seconds */
+VNET_DECLARE(uint32_t, ip6_temp_max_desync_factor); /* seconds */
 VNET_DECLARE(u_int32_t, ip6_temp_preferred_lifetime); /* seconds */
 VNET_DECLARE(u_int32_t, ip6_temp_valid_lifetime); /* seconds */
 VNET_DECLARE(int, ip6_temp_regen_advance); /* seconds */
 #define	V_nd6_defifindex		VNET(nd6_defifindex)
 #define	V_ip6_desync_factor		VNET(ip6_desync_factor)
+#define	V_ip6_temp_max_desync_factor	VNET(ip6_temp_max_desync_factor)
 #define	V_ip6_temp_preferred_lifetime	VNET(ip6_temp_preferred_lifetime)
 #define	V_ip6_temp_valid_lifetime	VNET(ip6_temp_valid_lifetime)
 #define	V_ip6_temp_regen_advance	VNET(ip6_temp_regen_advance)
