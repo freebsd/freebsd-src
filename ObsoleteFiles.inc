@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250521: NDFREE(9) -> NDFREE_PNBUF(9)
+OLD_FILES+=usr/share/man/man9/NDFREE.9.gz
+
 # 20250419: removal of iwlwifi firmware files
 OLD_FILES+=usr/share/doc/legal/intel_iwlwifi_firmware.LICENCE
 
