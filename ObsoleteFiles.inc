@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250516: NDFREE(9) -> NDFREE_PNBUF(9)
+OLD_FILES+=usr/share/man/man9/NDFREE.9.gz
+
 # 20250511: mailx test renamed
 OLD_FILES+=usr/tests/usr.bin/mail/mail_sigint_test
 

@@ -1639,7 +1639,8 @@ MLINKS+=mutex.9 mtx_assert.9 \
 	mutex.9 mtx_unlock_flags.9 \
 	mutex.9 mtx_unlock_spin.9 \
 	mutex.9 mtx_unlock_spin_flags.9
-MLINKS+=namei.9 NDFREE.9 \
+MLINKS+=namei.9 NDFREE_PNBUF.9 \
+	namei.9 NDINIT_AT.9 \
 	namei.9 NDINIT.9
 MLINKS+=netisr.9 netisr_clearqdrops.9 \
 	netisr.9 netisr_default_flow2cpu.9 \
