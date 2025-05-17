@@ -1,6 +1,6 @@
-.\" $Id: mandoc.1,v 1.267 2023/11/13 19:13:01 schwarze Exp $
+.\" $Id: mandoc.1,v 1.270 2025/03/03 14:07:51 schwarze Exp $
 .\"
-.\" Copyright (c) 2012, 2014-2023 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2012, 2014-2023, 2025 Ingo Schwarze <schwarze@openbsd.org>
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: November 13 2023 $
+.Dd $Mdocdate: March 3 2025 $
 .Dt MANDOC 1
 .Os
 .Sh NAME
@@ -954,7 +954,7 @@ The
 macro uses the legacy
 .Xr man 7
 date format
-.Dq yyyy-dd-mm .
+.Dq yyyy-mm-dd .
 Consider using the conventional
 .Xr mdoc 7
 date format
@@ -1896,6 +1896,12 @@ The invalid character is discarded.
 A table layout specification contains an opening parenthesis,
 but no matching closing parenthesis.
 The rest of the input line, starting from the parenthesis, has no effect.
+.It Sy "ignoring invalid column width in tbl layout"
+.Pq tbl
+A column width specifier in a table layout is empty, zero, or not a valid
+numerical expression.
+The width specifier is ignored and the column is made wide enough
+to accommodate all its data cells.
 .It Sy "ignoring excessive spacing in tbl layout"
 .Pq tbl
 A spacing modifier in a table layout is unreasonably large.
