@@ -234,6 +234,147 @@ This flag is not looked for by the actual code, which looks for
 .Dv NOFOLLOW
 is used to indicate to the source code reader that symlinks
 are intentionally not followed.
+.It Dv NC_KEEPPOSENTRY
+Keep the positive-caching entry in cache.
+This flag is typically combined with
+.Dv NOCACHE
+to not cache a new entry,
+but keep existing one, or with
+.Dv MAKEENTRY .
+.It Dv FAILIFEXISTS
+Makes the
+.Nm
+operation fail if the target exists.
+It requires that the
+.Dv LOCKPARENT
+flag is set and
+.Dv LOCKLEAF
+is not.
+.It Dv EMPTYPATH
+For
+.Nm
+call initialized with
+.Fn NDINIT_AT ,
+allow the
+.Fa namep
+path to be empty.
+In this case, the
+.Fa dirfd
+file descriptor may reference a file of arbitrary type, not
+necessary a directory, and lookup returns the vnode for this file.
+.It Dv RBENEATH
+Requires that
+.Nm
+did not cross the
+.Fa dirfd
+directory.
+The flag is used to implement
+.Dv O_RESOLVE_BENEATH
+flag for
+.Xr openat 2 .
+.El
+.Sh PARAMETERS DESCRIPTORS FLAGS
+These flags are used for several purposes.
+Some of them affects the global
+.Nm
+operation, some provide information for processing of the specific
+path element, for instance, by the
+.Dv VOP_LOOKUP
+implementation of the involved filesystem.
+.Bl -tag -width IGNOREWHITEOUT
+.It Dv RDONLY
+Specifies that the lookup should act as if the final node is located on
+read-only mount.
+The flag is typically used by file servers, e.g. NFS,
+to handle read-only exports.
+.It Dv ISRESTARTED
+The
+.Nm
+was restarted with
+.Fn NDRESTART .
+This is used internally for double-root lookups used by ABI subsystems,
+after the lookup with native root failed.
+The components are reset to the original values, and lookup is repeated
+with different root, once.
+.It Dv IGNOREWHITEOUT
+Ignore whiteouts, e.g. when checking if a directory is empty.
+.It Dv ISWHITEOUT
+The result of lookup is whiteout.
+.It Dv DOWHITEOUT
+Handle whiteouts, the instruction for the
+.Fn VOP_LOOKUP
+filesystem methods.
+.It Dv WILLBEDIR
+The lookup is done for creating a new entry that will be directory.
+It allows the trailing slash in the path string.
+.It Dv ISOPEN
+The caller is the code that opens a file.
+This allows to weaken the lock mode of the return vnode, if the
+mount point indicates extended shared lock support.
+.It Dv NOCROSSMOUNT
+Do not cross mount points during lookup.
+.Pp
+For .. lookups leading to mount roots, returns the root vnode of
+the mount instead of the covered vnode of the filesystem where
+the mount was placed.
+.Pp
+For other lookups passing over mount, do not jump into the mounted
+filesystem.
+This allows to descend into the file hierarchy otherwise shadowed
+by the mount point.
+.It Dv NOMACCHECK
+Do not perform MAC checks during lookup.
+.It Dv AUDITVNODE1
+Audit the looked up vnode information, use the first slot for audit information.
+.It Dv AUDITVNODE2
+Same as
+.Dv AUDITVNODE1
+but use the second slot.
+.It Dv NOCAPCHECK
+Do not perform capability checks.
+If the calling process is in capability mode, lookup is denied outright.
+.It Dv OPENREAD
+The lookup was for open and file will be opened for read.
+.It Dv OPENWRITE
+The lookup was for open and file will be opened for write.
+.It Dv WANTIOCTLCAPS
+Leave ioctl caps for the caller.
+See the description of
+.Nm
+results.
+.It Dv OPENNAMED
+Opening a named attribute (directory).
+.It Dv NOEXECCHECK
+Do not perform check for allowed execution on the starting directory.
+It is used to implement the POSIX-required semantic for
+.Xr openat 2
+lookups that must use the permissions from time the directory was
+opened, and not when used for lookup.
+.It Dv MAKEENTRY
+Looked-up entry is to be added to name cache.
+.It Dv ISSYMLINK
+Current component is symlink, and it needs the interpretation
+according to the
+.Dv FOLLOW
+or
+.Dv NOFOLLOW
+flags.
+.It Dv ISLASTCN
+This is last component of pathname.
+It is handled specially, many flags augments its processing.
+.It Dv ISDOTDOT
+Current component name is .. .
+Usually implies a need to specially handle the vnode locking
+for instantiation of the target vnode.
+The generic
+.Fn vn_vget_ino_gen
+function and its more specialized variant
+.Fn vn_vget_ino
+might be useful.
+.It Dv TRAILINGSLASH
+Path ended in a slash.
+.It Dv CREATENAMED
+Create a named attribute dir.
 .El
 .Sh ALLOCATED ELEMENTS
 The
@@ -282,6 +423,34 @@ It is managed by the
 .Xr uma 9
 zone allocation interface.
 .El
+.Sh RESULTS
+The
+.Vt struct namei
+member
+.Dv ni_resflags
+returns the following flags giving some details of the succesfull operation:
+.Bl -tag -width NIRES_EMPTYPATH
+.It Dv NIRES_ABS
+The path passed was absolute.
+.It Dv NIRES_STRICTREL
+Restricted lookup result.
+Only relative lookups were done to resolve the path to vnode.
+.It Dv NIRES_EMPTYPATH
+The
+.Dv EMPTYPATH
+flag was provided and used.
+In particular, the passed path was empty.
+.El
+.Pp
+If the
+.Dv WANTIOCTLCAPS
+flag was specified, on return the
+.Va ni_filecaps
+member of the
+.Vt struct namei
+contains the capabilities of the file descriptor used as
+the lookup starting point
+.Pq Va dirfd .
 .Sh RETURN VALUES
 If successful,
 .Fn namei
@@ -290,6 +459,24 @@ will return 0, otherwise it will return an error.
 .Bl -tag -width Pa
 .It Pa src/sys/kern/vfs_lookup.c
 .El
+.Sh EXAMPLES
+Assuming the
+.Dv path
+variable contains a pointer to userspace path string, the following
+example looks up the file named by it, and performs required error
+and resource handling:
+.Bd -literal
+	char *path;
+	struct nameidata nd;
+	int error;
+
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
+	    path);
+	if ((error = namei(&nd)) != 0)
+		return (error);
+	NDFREE_PNBUF(&nd);
+	... use nd.ni_vp vnode
+.Ed
 .Sh ERRORS
 Errors which
 .Fn namei
