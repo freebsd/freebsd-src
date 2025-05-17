@@ -63,7 +63,8 @@ using utils::optional;
 ///
 /// \returns A structure with all results computed by this driver.
 drivers::debug_test::result
-drivers::debug_test::drive(const fs::path& kyuafile_path,
+drivers::debug_test::drive(engine::debugger_ptr debugger,
+                           const fs::path& kyuafile_path,
                            const optional< fs::path > build_root,
                            const engine::test_filter& filter,
                            const config::tree& user_config,
@@ -91,6 +92,10 @@ drivers::debug_test::drive(const fs::path& kyuafile_path,
     INV(match && scanner.done());
     const model::test_program_ptr test_program = match.get().first;
     const std::string& test_case_name = match.get().second;
+
+    const model::test_case test_case = test_program->find(test_case_name);
+    if (debugger)
+        test_case.attach_debugger(debugger);
 
     scheduler::result_handle_ptr result_handle = handle.debug_test(
         test_program, test_case_name, user_config,
