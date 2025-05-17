@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 26, 2022
+.Dd July 02, 2025
 .Dt EXECVE 2
 .Os
 .Sh NAME
@@ -127,7 +127,10 @@ flag is set (see
 and
 .Xr fcntl 2 ) .
 Descriptors that remain open are unaffected by
-.Fn execve .
+.Fn execve ,
+except those with the close-on-fork flag
+.Dv FD_CLOFORK
+which is cleared from all file descriptors.
 If any of the standard descriptors (0, 1, and/or 2) are closed at the
 time
 .Fn execve
