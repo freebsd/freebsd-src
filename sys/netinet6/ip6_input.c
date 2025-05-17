@@ -173,6 +173,11 @@ SYSCTL_BOOL(_net_inet6_ip6, OID_AUTO, source_address_validation,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_sav), true,
     "Drop incoming packets with source address that is a local address");
 
+SYSCTL_UINT(_net_inet6_ip6, OID_AUTO, temp_max_desync_factor,
+    CTLFLAG_RD | CTLFLAG_VNET,
+    &VNET_NAME(ip6_temp_max_desync_factor), 0,
+    "RFC 8981 max desync factor");
+
 #ifdef RSS
 static struct netisr_handler ip6_direct_nh = {
 	.nh_name = "ip6_direct",
@@ -262,7 +267,10 @@ ip6_vnet_init(void *arg __unused)
 	nd6_init();
 	frag6_init();
 
-	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
+	V_ip6_temp_max_desync_factor = TEMP_MAX_DESYNC_FACTOR_BASE +
+	    (V_ip6_temp_preferred_lifetime >> 2) +
+	    (V_ip6_temp_preferred_lifetime >> 3);
+	V_ip6_desync_factor = arc4random() % V_ip6_temp_max_desync_factor;
 
 	/* Skip global initialization stuff for non-default instances. */
 #ifdef VIMAGE
