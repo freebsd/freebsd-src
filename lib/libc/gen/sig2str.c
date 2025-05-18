@@ -35,13 +35,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ssp/ssp.h>
 #include "un-namespace.h"
 
 static const char rtmin_str[] = "RTMIN";
 static const char rtmax_str[] = "RTMAX";
 
 int
-sig2str(int signum, char *str)
+__ssp_real(sig2str)(int signum, char *str)
 {
 	if (signum <= 0 || signum > SIGRTMAX)
 		return (-1);
