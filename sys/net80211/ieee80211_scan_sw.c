@@ -526,7 +526,6 @@ ieee80211_swscan_probe_curchan(struct ieee80211vap *vap, bool force __unused)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_state *ss = ic->ic_scan;
-	struct ifnet *ifp = vap->iv_ifp;
 	int i;
 
 	/*
@@ -542,13 +541,15 @@ ieee80211_swscan_probe_curchan(struct ieee80211vap *vap, bool force __unused)
 	 */
 	for (i = 0; i < ss->ss_nssid; i++)
 		ieee80211_send_probereq(vap->iv_bss,
-			vap->iv_myaddr, ifp->if_broadcastaddr,
-			ifp->if_broadcastaddr,
+			vap->iv_myaddr,
+			ieee80211_vap_get_broadcast_address(vap),
+			ieee80211_vap_get_broadcast_address(vap),
 			ss->ss_ssid[i].ssid, ss->ss_ssid[i].len);
 	if ((ss->ss_flags & IEEE80211_SCAN_NOBCAST) == 0)
 		ieee80211_send_probereq(vap->iv_bss,
-			vap->iv_myaddr, ifp->if_broadcastaddr,
-			ifp->if_broadcastaddr,
+			vap->iv_myaddr,
+			ieee80211_vap_get_broadcast_address(vap),
+			ieee80211_vap_get_broadcast_address(vap),
 			"", 0);
 }
 

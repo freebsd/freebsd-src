@@ -1314,6 +1314,18 @@ ieee80211_vap_ifp_set_running_state(struct ieee80211vap *vap, bool state)
 		if_setdrvflagbits(vap->iv_ifp, 0, IFF_DRV_RUNNING);
 }
 
+/**
+ * @brief Return the broadcast MAC address.
+ *
+ * @param vap	The current VAP
+ * @retval a uint8_t array representing the ethernet broadcast address
+ */
+const uint8_t *
+ieee80211_vap_get_broadcast_address(struct ieee80211vap *vap)
+{
+	return (if_getbroadcastaddr(vap->iv_ifp));
+}
+
 /*
  * Module glue.
  *
