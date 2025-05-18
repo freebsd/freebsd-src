@@ -169,7 +169,7 @@ ieee80211_create_wds(struct ieee80211vap *vap, struct ieee80211_channel *chan)
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_WDS,
 			    "%s: station %s in use with %s\n",
 			    __func__, ether_sprintf(vap->iv_des_bssid),
-			    ni->ni_wdsvap->iv_ifp->if_xname);
+			    ieee80211_get_vap_ifname(ni->ni_wdsvap));
 			/* XXX stat? */
 		} else {
 			/*

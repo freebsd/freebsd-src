@@ -1141,7 +1141,7 @@ ieee80211_get_vap_ifname(struct ieee80211vap *vap)
 {
 	if (vap->iv_ifp == NULL)
 		return "(none)";
-	return vap->iv_ifp->if_xname;
+	return (if_name(vap->iv_ifp));
 }
 
 #ifdef DEBUGNET
