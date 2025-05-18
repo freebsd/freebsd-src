@@ -510,7 +510,8 @@ ieee80211_ioctl_getstainfo(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	error = copyin(ireq->i_data, macaddr, IEEE80211_ADDR_LEN);
 	if (error != 0)
 		return error;
-	if (IEEE80211_ADDR_EQ(macaddr, vap->iv_ifp->if_broadcastaddr)) {
+	if (IEEE80211_ADDR_EQ(macaddr,
+	    ieee80211_vap_get_broadcast_address(vap))) {
 		ni = NULL;
 	} else {
 		ni = ieee80211_find_vap_node(&vap->iv_ic->ic_sta, vap, macaddr);
@@ -1371,7 +1372,8 @@ setmlme_dropsta(struct ieee80211vap *vap,
 	int error = 0;
 
 	/* NB: the broadcast address means do 'em all */
-	if (!IEEE80211_ADDR_EQ(mac, vap->iv_ifp->if_broadcastaddr)) {
+	if (!IEEE80211_ADDR_EQ(mac,
+	    ieee80211_vap_get_broadcast_address(vap))) {
 		IEEE80211_NODE_LOCK(nt);
 		ni = ieee80211_find_node_locked(nt, mac);
 		IEEE80211_NODE_UNLOCK(nt);
