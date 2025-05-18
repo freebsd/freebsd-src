@@ -72,6 +72,10 @@ typedef __pthread_t pthread_t;
 #endif
 #endif /* __POSIX_VISIBLE || __XSI_VISIBLE */
 
+#if !defined(_STANDALONE) && defined(_FORTIFY_SOURCE) && _FORTIFY_SOURCE > 0
+#include <ssp/signal.h>
+#endif
+
 __BEGIN_DECLS
 int	raise(int);
 
