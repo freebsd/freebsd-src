@@ -1007,7 +1007,7 @@ zfs_create_diskpart()
 		f_eval_catch $funcname gpart "$GPART_CREATE" BSD ${disk}s1 ||
 		             return $FAILURE
 
-		# NB: ZFS pool will use s1a (no labels)
+		# NB: ZFS pools will use s1a (no labels)
 		bootpart=s1a swappart=s1b targetpart=s1d mbrindex=4
 
 		#
