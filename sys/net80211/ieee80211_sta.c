@@ -681,7 +681,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 		}
 	resubmit_ampdu:
 		if (dir == IEEE80211_FC1_DIR_FROMDS) {
-			if ((ifp->if_flags & IFF_SIMPLEX) &&
+			if (ieee80211_vap_ifp_check_is_simplex(vap) &&
 			    isfromds_mcastecho(vap, wh)) {
 				/*
 				 * In IEEE802.11 network, multicast
@@ -716,7 +716,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 				vap->iv_stats.is_rx_wrongdir++;
 				goto out;
 			}
-			if ((ifp->if_flags & IFF_SIMPLEX) &&
+			if (ieee80211_vap_ifp_check_is_simplex(vap) &&
 			    isdstods_mcastecho(vap, wh)) {
 				/*
 				 * In IEEE802.11 network, multicast

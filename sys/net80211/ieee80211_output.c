@@ -777,7 +777,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	if (error)
 		senderr(error);
 #endif
-	if (ifp->if_flags & IFF_MONITOR)
+	if (ieee80211_vap_ifp_check_is_monitor(vap))
 		senderr(ENETDOWN);
 	if (!IFNET_IS_UP_RUNNING(ifp))
 		senderr(ENETDOWN);

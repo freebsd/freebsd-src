@@ -564,7 +564,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ifp = if_alloc(IFT_ETHER);
 	if_initname(ifp, name, unit);
 	ifp->if_softc = vap;			/* back pointer */
-	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
+	if_setflags(ifp, IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
 	ifp->if_transmit = ieee80211_vap_transmit;
 	ifp->if_qflush = ieee80211_vap_qflush;
 	ifp->if_ioctl = ieee80211_ioctl;
