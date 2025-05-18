@@ -39,6 +39,7 @@
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/rwlock.h>
+#include <sys/pctrie.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
@@ -199,7 +200,7 @@ vm_domainset_iter_first(struct vm_domainset_iter *di, int *domain)
 
 void
 vm_domainset_iter_page_init(struct vm_domainset_iter *di, struct vm_object *obj,
-    vm_pindex_t pindex, int *domain, int *req)
+    vm_pindex_t pindex, int *domain, int *req, struct pctrie_iter *pages)
 {
 	struct domainset_ref *dr;
 
@@ -218,12 +219,12 @@ vm_domainset_iter_page_init(struct vm_domainset_iter *di, struct vm_object *obj,
 	    VM_ALLOC_NOWAIT;
 	vm_domainset_iter_first(di, domain);
 	if (vm_page_count_min_domain(*domain))
-		vm_domainset_iter_page(di, obj, domain);
+		vm_domainset_iter_page(di, obj, domain, pages);
 }
 
 int
 vm_domainset_iter_page(struct vm_domainset_iter *di, struct vm_object *obj,
-    int *domain)
+    int *domain, struct pctrie_iter *pages)
 {
 	if (__predict_false(DOMAINSET_EMPTY(&di->di_valid_mask)))
 		return (ENOMEM);
@@ -248,8 +249,11 @@ vm_domainset_iter_page(struct vm_domainset_iter *di, struct vm_object *obj,
 		return (ENOMEM);
 
 	/* Wait for one of the domains to accumulate some free pages. */
-	if (obj != NULL)
+	if (obj != NULL) {
 		VM_OBJECT_WUNLOCK(obj);
+		if (pages != NULL)
+			pctrie_iter_reset(pages);
+	}
 	vm_wait_doms(&di->di_valid_mask, 0);
 	if (obj != NULL)
 		VM_OBJECT_WLOCK(obj);
@@ -339,7 +343,7 @@ vm_domainset_iter_ignore(struct vm_domainset_iter *di, int domain)
 
 int
 vm_domainset_iter_page(struct vm_domainset_iter *di, struct vm_object *obj,
-    int *domain)
+    int *domain, struct pctrie_iter *pages)
 {
 
 	return (EJUSTRETURN);
@@ -347,7 +351,7 @@ vm_domainset_iter_page(struct vm_domainset_iter *di, struct vm_object *obj,
 
 void
 vm_domainset_iter_page_init(struct vm_domainset_iter *di, struct vm_object *obj,
-    vm_pindex_t pindex, int *domain, int *flags)
+    vm_pindex_t pindex, int *domain, int *flags, struct pctrie_iter *pages)
 {
 
 	*domain = 0;
