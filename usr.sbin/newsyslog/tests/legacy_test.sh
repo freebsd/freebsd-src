@@ -225,7 +225,7 @@ tests_normal_rotate() {
 
 	tmpdir_create
 
-	begin "create file ${name_postfix}" -newdir
+	begin "create file ${name_postfix}"
 	run_newsyslog -C
 	ckfe $LOGFNAME
 	cknt ${dir}${LOGFNAME}.0${ext}
@@ -303,7 +303,7 @@ tests_normal_rotate_keepn() {
 
 	tmpdir_create
 
-	begin "create file ${name_postfix}" -newdir
+	begin "create file ${name_postfix}"
 	run_newsyslog -C
 	ckfe $LOGFNAME
 	cknt ${dir}${LOGFNAME}.0${ext}
@@ -372,7 +372,7 @@ tests_time_rotate() {
 
 	tmpdir_create
 
-	begin "create file ${name_postfix}" -newdir
+	begin "create file ${name_postfix}"
 	run_newsyslog -C ${newsyslog_args}
 	ckfe ${LOGFNAME}
 	end
@@ -433,7 +433,7 @@ tests_rfc5424() {
 
 	tmpdir_create
 
-	begin "RFC-5424 - create file ${name_postfix}" -newdir
+	begin "RFC-5424 - create file ${name_postfix}"
 	run_newsyslog -C
 	ckfe $LOGFNAME
 	cknt ${dir}${LOGFNAME}.0${ext}
