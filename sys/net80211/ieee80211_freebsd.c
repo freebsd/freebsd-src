@@ -1257,6 +1257,63 @@ ieee80211_vap_deliver_data(struct ieee80211vap *vap, struct mbuf *m)
 	NET_EPOCH_EXIT(et);
 }
 
+/**
+ * @brief Return whether the VAP is configured with monitor mode
+ *
+ * This checks the operating system layer for whether monitor mode
+ * is enabled.
+ *
+ * @param vap	the current VAP
+ * @retval true if the underlying interface is in MONITOR mode, false otherwise
+ */
+bool
+ieee80211_vap_ifp_check_is_monitor(struct ieee80211vap *vap)
+{
+	return ((if_getflags(vap->iv_ifp) & IFF_MONITOR) != 0);
+}
+
+/**
+ * @brief Return whether the VAP is configured in simplex mode.
+ *
+ * This checks the operating system layer for whether simplex mode
+ * is enabled.
+ *
+ * @param vap	the current VAP
+ * @retval true if the underlying interface is in SIMPLEX mode, false otherwise
+ */
+bool
+ieee80211_vap_ifp_check_is_simplex(struct ieee80211vap *vap)
+{
+	return ((if_getflags(vap->iv_ifp) & IFF_SIMPLEX) != 0);
+}
+
+/**
+ * @brief Return if the VAP underlying network interface is running
+ *
+ * @param vap	the current VAP
+ * @retval true if the underlying interface is running; false otherwise
+ */
+bool
+ieee80211_vap_ifp_check_is_running(struct ieee80211vap *vap)
+{
+	return ((if_getdrvflags(vap->iv_ifp) & IFF_DRV_RUNNING) != 0);
+}
+
+/**
+ * @brief Change the VAP underlying network interface state
+ *
+ * @param vap	the current VAP
+ * @param state	true to mark the interface as RUNNING, false to clear
+ */
+void
+ieee80211_vap_ifp_set_running_state(struct ieee80211vap *vap, bool state)
+{
+	if (state)
+		if_setdrvflagbits(vap->iv_ifp, IFF_DRV_RUNNING, 0);
+	else
+		if_setdrvflagbits(vap->iv_ifp, 0, IFF_DRV_RUNNING);
+}
+
 /*
  * Module glue.
  *

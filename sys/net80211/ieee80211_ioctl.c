@@ -3619,7 +3619,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 					wait = 1;
 				ieee80211_start_locked(vap);
 			}
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		} else if (ieee80211_vap_ifp_check_is_running(vap)) {
 			/*
 			 * Stop ourself.  If we are the last vap to be
 			 * marked down the parent will also be taken down.
