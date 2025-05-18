@@ -542,6 +542,7 @@ struct debugnet80211_methods {
 
 void ieee80211_vap_sync_mac_address(struct ieee80211vap *);
 void ieee80211_vap_copy_mac_address(struct ieee80211vap *);
+void ieee80211_vap_deliver_data(struct ieee80211vap *, struct mbuf *);
 
 #endif /* _KERNEL */
 

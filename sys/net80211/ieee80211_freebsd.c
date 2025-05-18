@@ -1236,6 +1236,27 @@ ieee80211_vap_copy_mac_address(struct ieee80211vap *vap)
 	NET_EPOCH_EXIT(et);
 }
 
+/**
+ * @brief Deliver data into the upper ifp of the VAP interface
+ *
+ * This delivers an 802.3 frame from net80211 up to the operating
+ * system network interface layer.
+ *
+ * @param vap	the current VAP
+ * @param m	the 802.3 frame to pass up to the VAP interface
+ *
+ * Note: this API consumes the mbuf.
+ */
+void
+ieee80211_vap_deliver_data(struct ieee80211vap *vap, struct mbuf *m)
+{
+	struct epoch_tracker et;
+
+	NET_EPOCH_ENTER(et);
+	if_input(vap->iv_ifp, m);
+	NET_EPOCH_EXIT(et);
+}
+
 /*
  * Module glue.
  *
