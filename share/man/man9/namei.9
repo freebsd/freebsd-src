@@ -148,7 +148,26 @@ The
 function takes the following set of
 .Dq "operation flags"
 that influence its operation:
-.Bl -tag -width ".Dv WANTPARENT"
+.Bl -tag -width NC_KEEPPOSENTRY
+.It Dv NC_NOMAKEENTRY
+An alias for
+.Dv NOCACHE .
+.It Dv NC_KEEPPOSENTRY
+Keep the positive-caching entry in cache.
+This flag is typically combined with
+.Dv NOCACHE
+to not cache a new entry,
+but keep existing one, or with
+.Dv MAKEENTRY .
+.It Dv NOCACHE
+Avoid
+.Fn namei
+creating this entry in the namecache if it is not
+already present.
+Normally,
+.Fn namei
+will add entries to the name cache
+if they are not already there.
 .It Dv LOCKLEAF
 Lock vnode on return with
 .Dv LK_EXCLUSIVE
@@ -181,6 +200,45 @@ or
 .Xr VOP_UNLOCK 9
 and
 .Xr vrele 9 .
+.It Dv WANTPARENT
+This flag allows the
+.Fn namei
+function to return the parent (directory) vnode in an unlocked state.
+The parent vnode must be released separately by using
+.Xr vrele 9 .
+.It Dv WANTPARENT
+This flag allows the
+.Fn namei
+function to return the parent (directory) vnode in an unlocked state.
+The parent vnode must be released separately by using
+.Xr vrele 9 .
+.It Dv FAILIFEXISTS
+Makes the
+.Nm
+operation fail if the target exists.
+It requires that the
+.Dv LOCKPARENT
+flag is set and
+.Dv LOCKLEAF
+is not.
+.It Dv FOLLOW
+With this flag,
+.Fn namei
+will follow the symbolic link if the last part
+of the path supplied is a symbolic link (i.e., it will return a vnode
+for whatever the link points at, instead for the link itself).
+.It Dv EMPTYPATH
+For
+.Nm
+call initialized with
+.Fn NDINIT_AT ,
+allow the
+.Fa namep
+path to be empty.
+In this case, the
+.Fa dirfd
+file descriptor may reference a file of arbitrary type, not
+necessary a directory, and lookup returns the vnode for this file.
 .It Dv LOCKSHARED
 Lock vnode on return with
 .Dv LK_SHARED ,
@@ -206,27 +264,6 @@ which is equivalent to calling
 followed by
 .Xr vrele 9 ,
 all in one).
-.It Dv WANTPARENT
-This flag allows the
-.Fn namei
-function to return the parent (directory) vnode in an unlocked state.
-The parent vnode must be released separately by using
-.Xr vrele 9 .
-.It Dv NOCACHE
-Avoid
-.Fn namei
-creating this entry in the namecache if it is not
-already present.
-Normally,
-.Fn namei
-will add entries to the name cache
-if they are not already there.
-.It Dv FOLLOW
-With this flag,
-.Fn namei
-will follow the symbolic link if the last part
-of the path supplied is a symbolic link (i.e., it will return a vnode
-for whatever the link points at, instead for the link itself).
 .It Dv NOFOLLOW
 Do not follow symbolic links (pseudo).
 This flag is not looked for by the actual code, which looks for
@@ -234,34 +271,6 @@ This flag is not looked for by the actual code, which looks for
 .Dv NOFOLLOW
 is used to indicate to the source code reader that symlinks
 are intentionally not followed.
-.It Dv NC_KEEPPOSENTRY
-Keep the positive-caching entry in cache.
-This flag is typically combined with
-.Dv NOCACHE
-to not cache a new entry,
-but keep existing one, or with
-.Dv MAKEENTRY .
-.It Dv FAILIFEXISTS
-Makes the
-.Nm
-operation fail if the target exists.
-It requires that the
-.Dv LOCKPARENT
-flag is set and
-.Dv LOCKLEAF
-is not.
-.It Dv EMPTYPATH
-For
-.Nm
-call initialized with
-.Fn NDINIT_AT ,
-allow the
-.Fa namep
-path to be empty.
-In this case, the
-.Fa dirfd
-file descriptor may reference a file of arbitrary type, not
-necessary a directory, and lookup returns the vnode for this file.
 .It Dv RBENEATH
 Requires that
 .Nm
