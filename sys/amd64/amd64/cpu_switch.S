@@ -91,14 +91,8 @@ ENTRY(cpu_switch)
 	jnz	2f
 	testb	$CPUID_STDEXT_FSGSBASE,cpu_stdext_feature(%rip)
 	jz	2f
-	movl	%fs,%eax
-	cmpl	$KUF32SEL,%eax
-	jne	1f
 	rdfsbase %rax
 	movq	%rax,PCB_FSBASE(%r8)
-1:	movl	%gs,%eax
-	cmpl	$KUG32SEL,%eax
-	jne	2f
 	movq	%rdx,%r12
 	movl	$MSR_KGSBASE,%ecx		/* Read user gs base */
 	rdmsr

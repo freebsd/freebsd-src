@@ -1789,10 +1789,8 @@ set_pcb_flags_fsgsbase(struct pcb *pcb, const u_int flags)
 	    (pcb->pcb_flags & PCB_FULL_IRET) == 0) {
 		r = intr_disable();
 		if ((pcb->pcb_flags & PCB_FULL_IRET) == 0) {
-			if (rfs() == _ufssel)
-				pcb->pcb_fsbase = rdfsbase();
-			if (rgs() == _ugssel)
-				pcb->pcb_gsbase = rdmsr(MSR_KGSBASE);
+			pcb->pcb_fsbase = rdfsbase();
+			pcb->pcb_gsbase = rdmsr(MSR_KGSBASE);
 		}
 		set_pcb_flags_raw(pcb, flags);
 		intr_restore(r);
