@@ -567,8 +567,6 @@ int
 tcp6_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 {
 	struct mbuf *m;
-	struct in6_ifaddr *ia6;
-	struct ip6_hdr *ip6;
 
 	m = *mp;
 	if (m->m_len < *offp + sizeof(struct tcphdr)) {
@@ -578,19 +576,6 @@ tcp6_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 			TCPSTAT_INC(tcps_rcvshort);
 			return (IPPROTO_DONE);
 		}
-	}
-
-	/*
-	 * draft-itojun-ipv6-tcp-to-anycast
-	 * better place to put this in?
-	 */
-	ip6 = mtod(m, struct ip6_hdr *);
-	ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */, false);
-	if (ia6 && (ia6->ia6_flags & IN6_IFF_ANYCAST)) {
-		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_ADDR,
-			    (caddr_t)&ip6->ip6_dst - (caddr_t)ip6);
-		*mp = NULL;
-		return (IPPROTO_DONE);
 	}
 
 	*mp = m;
