@@ -416,6 +416,61 @@ tests_time_rotate() {
 	tmpdir_clean
 }
 
+tests_size_rotate() {
+	local dir ext name_postfix newsyslog_args
+
+	ext="$1"
+	dir="$2"
+
+	if [ -n "$dir" ]; then
+		newsyslog_args="-a ${dir}"
+		name_postfix="${ext} archive dir"
+	else
+		newsyslog_args=""
+		name_postfix="${ext}"
+	fi
+
+	tmpdir_create
+
+	begin "when rotating by size, an empty file should not be rotated ${name_postfix}"
+	touch ${LOGFNAME}
+	run_newsyslog ${newsyslog_args}
+	ckfe ${LOGFNAME}
+	cknt ${dir}${LOGFNAME}.0${ext}
+	cknt ${dir}${LOGFNAME}.1${ext}
+	cknt ${dir}${LOGFNAME}.2${ext}
+	end
+
+	begin "when the size limit is 4 KB, a 3072 B file should not be rotated ${name_postfix}"
+	head -c 3072 < /dev/zero > "${LOGFNAME}"
+	run_newsyslog ${newsyslog_args}
+	ckfe ${LOGFNAME}
+	cknt ${dir}${LOGFNAME}.0${ext}
+	cknt ${dir}${LOGFNAME}.1${ext}
+	cknt ${dir}${LOGFNAME}.2${ext}
+	end
+
+	begin "when the size limit is 4 KB, a 3073 B file should be rotated ${name_postfix}"
+	head -c 3073 < /dev/zero > "${LOGFNAME}"
+	run_newsyslog ${newsyslog_args}
+	ckfe ${LOGFNAME}
+	ckfe ${dir}${LOGFNAME}.0${ext}
+	cknt ${dir}${LOGFNAME}.1${ext}
+	cknt ${dir}${LOGFNAME}.2${ext}
+	end
+
+	begin "when the size limit is 4 KB, a 4097 B file should be rotated ${name_postfix}"
+	head -c 4097 < /dev/zero > "${LOGFNAME}"
+	run_newsyslog ${newsyslog_args}
+	ckfe ${LOGFNAME}
+	ckfe ${dir}${LOGFNAME}.0${ext}
+	ckfe ${dir}${LOGFNAME}.1${ext}
+	cknt ${dir}${LOGFNAME}.2${ext}
+	end
+
+	tmpdir_clean
+}
+
 tests_rfc5424() {
 	local dir ext name_postfix newsyslog_args
 
@@ -521,9 +576,11 @@ tests_normal_rotate_recompress() {
 	ckfe ${LOGFNAME}.0${ext}
 	ckfe ${LOGFNAME}.1${ext}
 	end
+
+	tmpdir_clean
 }
 
-echo 1..185
+echo 1..225
 mkdir -p ${TMPDIR}
 cd ${TMPDIR}
 
@@ -634,5 +691,37 @@ tests_p_flag_rotate ".gz"
 
 echo "$LOGFPATH 640  3     *    @T00  NCZ" > newsyslog.conf
 tests_normal_rotate_recompress
+
+# Size based, no archive dir
+echo "$LOGFPATH	640  3	   4	*  BNC" > newsyslog.conf
+tests_size_rotate
+
+echo "$LOGFPATH	640  3	   4	*  BNCZ" > newsyslog.conf
+tests_size_rotate ".gz" ""
+
+echo "$LOGFPATH	640  3	   4	*  BNCJ" > newsyslog.conf
+tests_size_rotate ".bz2" ""
+
+echo "$LOGFPATH	640  3	   4	*  BNCX" > newsyslog.conf
+tests_size_rotate ".xz" ""
+
+echo "$LOGFPATH	640  3	   4	*  BNCY" > newsyslog.conf
+tests_size_rotate ".zst" ""
+
+# Size based, archive dir
+echo "$LOGFPATH	640  3	   4	*  BNC" > newsyslog.conf
+tests_size_rotate "" "${TMPDIR}/alog/"
+
+echo "$LOGFPATH	640  3	   4	*  BNCZ" > newsyslog.conf
+tests_size_rotate ".gz" "${TMPDIR}/alog/"
+
+echo "$LOGFPATH	640  3	   4	*  BNCJ" > newsyslog.conf
+tests_size_rotate ".bz2" "${TMPDIR}/alog/"
+
+echo "$LOGFPATH	640  3	   4	*  BNCX" > newsyslog.conf
+tests_size_rotate ".xz" "${TMPDIR}/alog/"
+
+echo "$LOGFPATH	640  3	   4	*  BNCY" > newsyslog.conf
+tests_size_rotate ".zst" "${TMPDIR}/alog/"
 
 rm -rf "${TMPDIR}"
