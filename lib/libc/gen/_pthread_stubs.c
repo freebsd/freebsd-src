@@ -63,6 +63,7 @@ static int		stub_getname_np(pthread_t, char *, size_t);
 #define	PJT_DUAL_ENTRY(entry)	\
 	(pthread_func_t)entry, (pthread_func_t)entry
 
+__attribute__((visibility("protected")))
 pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	[PJT_ATFORK] =			{PJT_DUAL_ENTRY(stub_zero)},
 	[PJT_ATTR_DESTROY] =		{PJT_DUAL_ENTRY(stub_zero)},
