@@ -110,7 +110,7 @@ main(int argc, char **argv)
 	bars = bridge = caps = errors = verbose = vpd= 0;
 	width = 4;
 
-	while ((c = getopt(argc, argv, "aBbcDehlrwVv")) != -1) {
+	while ((c = getopt(argc, argv, "aBbcDehlrwVvx")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;
