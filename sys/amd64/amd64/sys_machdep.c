@@ -208,6 +208,8 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	case AMD64_GET_XFPUSTATE:
 	case AMD64_SET_PKRU:
 	case AMD64_CLEAR_PKRU:
+	case AMD64_GET_TLSBASE:
+	case AMD64_SET_TLSBASE:
 		break;
 
 	case I386_SET_IOPERM:
@@ -313,14 +315,27 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		error = copyout(&pcb->pcb_fsbase, uap->parms,
 		    sizeof(pcb->pcb_fsbase));
 		break;
-		
+	case AMD64_GET_TLSBASE:
+		if ((pcb->pcb_flags & PCB_TLSBASE) == 0) {
+			error = ESRCH;
+		} else {
+			error = copyout(&pcb->pcb_tlsbase, uap->parms,
+			    sizeof(pcb->pcb_tlsbase));
+		}
+		break;
+
 	case AMD64_SET_FSBASE:
+	case AMD64_SET_TLSBASE:
 		error = copyin(uap->parms, &a64base, sizeof(a64base));
 		if (error == 0) {
 			if (a64base < curproc->p_sysent->sv_maxuser) {
 				set_pcb_flags(pcb, PCB_FULL_IRET);
 				pcb->pcb_fsbase = a64base;
 				td->td_frame->tf_fs = _ufssel;
+				if (uap->op == AMD64_SET_TLSBASE) {
+					pcb->pcb_tlsbase = a64base;
+					set_pcb_flags(pcb, PCB_TLSBASE);
+				}
 			} else
 				error = EINVAL;
 		}

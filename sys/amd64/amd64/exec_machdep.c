@@ -211,6 +211,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
+	if ((pcb->pcb_flags & PCB_TLSBASE) != 0)
+		pcb->pcb_fsbase = pcb->pcb_tlsbase;
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -381,9 +383,9 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 		user_ldt_free(td);
 
 	update_pcb_bases(pcb);
-	pcb->pcb_fsbase = 0;
+	pcb->pcb_fsbase = pcb->pcb_tlsbase = 0;
 	pcb->pcb_gsbase = 0;
-	clear_pcb_flags(pcb, PCB_32BIT);
+	clear_pcb_flags(pcb, PCB_32BIT | PCB_TLSBASE);
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
 
 	saved_rflags = regs->tf_rflags & PSL_T;

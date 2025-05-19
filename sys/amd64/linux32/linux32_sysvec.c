@@ -580,6 +580,10 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 	if (td->td_proc->p_md.md_ldt != NULL)
 		user_ldt_free(td);
 
+	/* Do full restore on return so that we can change to a different %cs */
+	set_pcb_flags(pcb, PCB_32BIT | PCB_FULL_IRET);
+	clear_pcb_flags(pcb, PCB_TLSBASE);
+
 	critical_enter();
 	wrmsr(MSR_FSBASE, 0);
 	wrmsr(MSR_KGSBASE, 0);	/* User value while we're in the kernel */
@@ -605,9 +609,6 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 	x86_clear_dbregs(pcb);
 
 	fpstate_drop(td);
-
-	/* Do full restore on return so that we can change to a different %cs */
-	set_pcb_flags(pcb, PCB_32BIT | PCB_FULL_IRET);
 }
 
 /*
