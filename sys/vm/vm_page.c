@@ -5164,14 +5164,13 @@ vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
 	i = 0;
 	vm_page_iter_init(&pages, object);
 retrylookup:
-	ahead = 0;
+	ahead = -1;
 	for (; i < count; i++) {
-		if (ahead == 0) {
+		if (ahead < 0) {
 			ahead = vm_radix_iter_lookup_range(
 			    &pages, pindex + i, &ma[i], count - i);
 		}
-		if (ahead > 0) {
-			--ahead;
+		if (ahead-- > 0) {
 			m = ma[i];
 			if (!vm_page_tryacquire(m, allocflags)) {
 				if (vm_page_grab_sleep(object, m, pindex + i,
