@@ -323,7 +323,9 @@ mount point indicates extended shared lock support.
 .It Dv NOCROSSMOUNT
 Do not cross mount points during lookup.
 .Pp
-For .. lookups leading to mount roots, returns the root vnode of
+For
+.Dq ..
+lookup leading to mount root, returns the root vnode of
 the mount instead of the covered vnode of the filesystem where
 the mount was placed.
 .Pp
@@ -370,9 +372,10 @@ or
 flags.
 .It Dv ISLASTCN
 This is last component of pathname.
-It is handled specially, many flags augments its processing.
+It is handled specially, many flags augment its processing.
 .It Dv ISDOTDOT
-Current component name is .. .
+Current component name is
+.Dq .. .
 Usually implies a need to specially handle the vnode locking
 for instantiation of the target vnode.
 The generic
