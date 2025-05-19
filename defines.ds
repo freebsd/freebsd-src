@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -210,6 +210,7 @@
 #define	TERMSBUF_SIZE	1024	/* Buffer to hold termcap strings */
 #define	TAGLINE_SIZE	512	/* Max size of line in tags file */
 #define	TABSTOP_MAX	32	/* Max number of custom tab stops */
+#define LINENUM_POOL    200     /* Size of line number pool */
 #else /* more reasonable sizes for modern machines */
 #define	CMDBUF_SIZE	2048	/* Buffer for multichar commands */
 #define	UNGOT_SIZE	200	/* Max chars to unget() */
@@ -220,6 +221,7 @@
 #define	TERMSBUF_SIZE	1024	/* Buffer to hold termcap strings */
 #define	TAGLINE_SIZE	1024	/* Max size of line in tags file */
 #define	TABSTOP_MAX	128	/* Max number of custom tab stops */
+#define LINENUM_POOL    1024    /* Size of line number pool */
 #endif
 
 /* Define to `long' if <sys/types.h> doesn't define.  */
@@ -278,6 +280,7 @@
 #define HAVE_ERRNO 1
 #define MUST_DEFINE_ERRNO 1
 #endif
+#define HAVE_SETTABLE_ERRNO 1
 
 /* Define HAVE_SYS_ERRLIST if you have the sys_errlist[] variable */
 #define HAVE_SYS_ERRLIST 1

@@ -34,27 +34,28 @@
 
        #env   Defines environment variables.
 
-       Blank lines and lines which start with a hash mark (#) are ignored, ex‐
-       cept as noted below.
+       Blank lines are ignored.  Any text that follows an unescaped hash  mark
+       (#) in a line is ignored, except as noted below.
 
 [1mCOMMAND SECTION[0m
        The command section begins with the line
 
        #command
 
-       If the command section is the first section in the file, this line  may
+       If  the command section is the first section in the file, this line may
        be omitted.  The command section consists of lines of the form:
 
-            [4mstring[24m <whitespace> [4maction[24m [extra‐string] <newline>
+            [4mstring[24m <whitespace> [4maction[24m <whitespace> [extra‐string] <newline>
 
-       Whitespace  is  any  sequence  of  one or more spaces and/or tabs.  The
-       [4mstring[24m is the command key(s) which invoke the action.  The  [4mstring[24m  may
+       Whitespace is any sequence of one or  more  spaces  and/or  tabs.   The
+       [4mstring[24m  is  the command key(s) which invoke the action.  The [4mstring[24m may
        be a single command key, or a sequence of up to 15 keys.  The [4maction[24m is
-       the  name  of  the less action, from the list below.  The characters in
-       the [4mstring[24m may appear literally, or be prefixed by a caret to  indicate
-       a  control  key.  A backslash followed by one to three octal digits may
-       be used to specify a character by its octal value.   A  backslash  fol‐
-       lowed by certain characters specifies input characters as follows:
+       the name of the less action, from the lists in the EXAMPLE sections be‐
+       low.  The characters in the [4mstring[24m may appear literally, or be prefixed
+       by a caret to indicate a control key.  A backslash followed by  one  to
+       three  octal  digits  may  be  used to specify a character by its octal
+       value.  A backslash followed  by  certain  characters  specifies  input
+       characters as follows:
             \b   BACKSPACE   (0x08)
             \e   ESCAPE      (0x1B)
             \n   NEWLINE     (0x0A)
@@ -118,6 +119,8 @@
             J          forw‐line‐force
             K          back‐line‐force
             Y          back‐line‐force
+            \ej        forw‐newline
+            \ek        back‐newline
             d          forw‐scroll
             ˆD         forw‐scroll
             u          back‐scroll
@@ -134,6 +137,7 @@
             z          forw‐window
             w          back‐window
             \e\40      forw‐screen‐force
+            \eb        back‐screen‐force
             F          forw‐forever
             \eF        forw‐until‐hilite
             R          repaint‐flush
@@ -210,6 +214,8 @@
             !          shell
             #          pshell
             +          firstcmd
+            \e[M       mouse
+            \e[<       mouse6
             H          help
             h          help
             V          version
@@ -292,6 +298,8 @@
             \ku          up
             \ej          down
             ˆG           abort
+            \e[M         mouse
+            \e[<         mouse6
 
 
 [1mLESS ENVIRONMENT VARIABLES[0m
@@ -376,7 +384,7 @@
        represented as \340 in a lesskey file.
 
 [1mCOPYRIGHT[0m
-       Copyright (C) 1984‐2024  Mark Nudelman
+       Copyright (C) 1984‐2025  Mark Nudelman
 
        less is part of the GNU project and is free software.  You  can  redis‐
        tribute  it and/or modify it under the terms of either (1) the GNU Gen‐
@@ -395,6 +403,6 @@
 
 [1mAUTHOR[0m
        Mark Nudelman
-       Report bugs at https://github.com/gwsw/less/issues.
+       Report bugs at ⟨https://github.com/gwsw/less/issues⟩.
 
-                           Version 668: 06 Oct 2024                 [4mLESSKEY[24m(1)
+                           Version 678: 01 May 2025                 [4mLESSKEY[24m(1)

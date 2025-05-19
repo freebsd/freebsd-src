@@ -4,8 +4,9 @@ use Getopt::Std;
 use IO::Stty;
 
 my $usage =
-    "usage: ltview [-cfr] [-w wide.uni] lt-file [error-file]\n" .
+    "usage: ltview [-cdfr] [-w wide.uni] lt-file [error-file]\n" .
     "       -c = use color\n" .
+    "       -d = don't color differences\n" .
     "       -f = use lt-file even if it does not fit on screen\n" .
     "       -r = don't put terminal in raw mode\n" .
     "       -w = list of Unicode wide chars\n" .
@@ -48,7 +49,7 @@ my %opt;
 exit (main() ? 0 : 1);
 
 sub main {
-    die $usage if not getopts('cfrw:', \%opt);
+    die $usage if not getopts('cdfrw:', \%opt);
     my $ltfile = shift @ARGV;
     my $errfile = shift @ARGV;
     my $wide_file = ($opt{w} or "../wide.uni");
@@ -241,9 +242,9 @@ sub display {
         $literal = 0;
         if ($ich > 0) {
             my $diff = ($cmp_ich != $ich);
-            print $DIFF_ATTR_ON if $diff;
+            print $DIFF_ATTR_ON if $diff and not $opt{d};
             print chr($ich);
-            print $DIFF_ATTR_OFF if $diff;
+            print $DIFF_ATTR_OFF if $diff and not $opt{d};
             $x += cwidth($ich);
             if ($x >= $lt->{columns}) {
                 print "\r\n";
@@ -387,7 +388,7 @@ sub parse_ltfile {
 # ---------------------------------------------------------------------
 sub parse_env {
     my ($line, $lt) = @_;
-    my ($ename, $evalue) = /^E \s* "(\w*)" \s* "([^"]*)" /x;
+    my ($ename, $evalue) = /^E \s* "([^"]*)" \s* "([^"]*)" /x;
     if ($ename eq "COLUMNS") {
         $lt->{columns} = $evalue;
     } elsif ($ename eq "LINES") {
@@ -538,6 +539,9 @@ sub utf8_char {
     my @ich;
     for (my $i = 0; $i < length($ch); ++$i) {
         push @ich, ord substr($ch, $i, 1);
+    }
+    if (@ich == 0) {
+        return '';
     }
     if (@ich == 2) {
         return (($ich[0] & 0x1F) << 6) | ($ich[1] & 0x3F);

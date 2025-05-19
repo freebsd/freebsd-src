@@ -20,7 +20,13 @@ ifneq ($(strip $(LESSTEST)),)
 CPPFLAGS += -DLESSTEST
 endif
 
-LIBS = @LIBS@
+# Make with SAN=1 to enable the gcc address sanitizer.
+ifeq ($(SAN),1)
+CPPFLAGS += -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment
+LIBSAN = -lasan -lubsan
+endif
+
+LIBS = $(LIBSAN) @LIBS@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
@@ -35,7 +41,6 @@ datarootdir = @datarootdir@
 mandir = @mandir@
 manext = 1
 manprefix = 
-DESTDIR =
 
 #### End of system configuration section. ####
 

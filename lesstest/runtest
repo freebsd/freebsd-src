@@ -27,7 +27,7 @@ sub main {
 	$rundir     = (rfile($opt{r}, $cwd) or "$srcdir/.runtest_dir");
 	$lesstest   = (rfile($opt{t}, $cwd) or "$srcdir/lesstest");
 	$lt_screen  = (rfile($opt{s}, $cwd) or "$srcdir/lt_screen");
-	$less       = (rfile($opt{l}, $cwd) or "$srcdir/../obj/less");
+	$less       = (rfile($opt{l}, $cwd) or -x "$srcdir/../obj/less" ? "$srcdir/../obj/less" : "$srcdir/../less");
 	$lt_opts    = ($opt{O} or "");
 	$err_only   = $opt{E} ? 2 : $opt{e} ? 1 : 0;
 	$lt_opts = "-$lt_opts" if $lt_opts =~ /^[^-]/;

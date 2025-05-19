@@ -90,7 +90,8 @@ distclean: clean
 realclean: clean
 
 REPLACE_VERSION = \
-	DT=`date '+%d %h %Y'`; \
+	if [ -n "${SOURCE_DATE_EPOCH}" ]; then DFLAG="-d@${SOURCE_DATE_EPOCH}"; fi; \
+	DT=`date $$DFLAG '+%d %h %Y'`; \
 	echo "Stuffing version number ${REL} into $@"; \
 	rm -f $@; \
 	sed \
@@ -172,5 +173,5 @@ gnu-upload:
 	${GPG} -b $$TARF && \
 	( echo "version: 1.2"; echo "directory: less"; echo "filename: $$TARF" ) > $$TARF.directive && \
 	${GPG} --clearsign $$TARF.directive && \
-	echo "upload ready: cd $$RELDIR; ftp ftp-upload.gnu.org; cd /incoming/ftp; put ... { $TARF, $$TARF.sig, $$TARF.directive.asc }" 
+	echo "upload ready: cd $$RELDIR; ftp ftp-upload.gnu.org; cd /incoming/ftp; put ... { $$TARF, $$TARF.sig, $$TARF.directive.asc }" 
 
