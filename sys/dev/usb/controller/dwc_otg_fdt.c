@@ -140,10 +140,6 @@ dwc_otg_attach(device_t dev)
 	if (sc->sc_otg.sc_irq_res == NULL)
 		goto error;
 
-	sc->sc_otg.sc_bus.bdev = device_add_child(dev, "usbus", DEVICE_UNIT_ANY);
-	if (sc->sc_otg.sc_bus.bdev == NULL)
-		goto error;
-
 	err = dwc_otg_init(&sc->sc_otg);
 	if (err == 0) {
 		err = device_probe_and_attach(sc->sc_otg.sc_bus.bdev);
