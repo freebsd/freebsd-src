@@ -4880,7 +4880,7 @@ int
 vm_page_grab_valid_iter(vm_page_t *mp, vm_object_t object, vm_pindex_t pindex,
     int allocflags, struct pctrie_iter *pages)
 {
-	vm_page_t m, mpred;
+	vm_page_t m;
 	vm_page_t ma[VM_INITIAL_PAGEIN];
 	int after, i, pflags, rv;
 
@@ -4924,7 +4924,6 @@ retrylookup:
 		*mp = NULL;
 		return (VM_PAGER_FAIL);
 	} else {
-		mpred = vm_radix_iter_lookup_lt(pages, pindex);
 		m = vm_page_alloc_iter(object, pindex, pflags, pages);
 		if (m == NULL) {
 			if (!vm_pager_can_alloc_page(object, pindex)) {
@@ -4941,7 +4940,7 @@ retrylookup:
 		after = MIN(after, VM_INITIAL_PAGEIN);
 		after = MIN(after, allocflags >> VM_ALLOC_COUNT_SHIFT);
 		after = MAX(after, 1);
-		ma[0] = mpred = m;
+		ma[0] = m;
 		pctrie_iter_reset(pages);
 		for (i = 1; i < after; i++) {
 			m = vm_radix_iter_lookup(pages, pindex + i);
@@ -4952,7 +4951,6 @@ retrylookup:
 					break;
 			} else if (vm_page_any_valid(m) || !vm_page_tryxbusy(m))
 				break;
-			mpred = ma[i] = m;
 		}
 		after = i;
 		vm_object_pip_add(object, after);
