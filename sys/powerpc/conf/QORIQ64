@@ -42,6 +42,7 @@ options 	QUOTA			#Enable disk quotas for UFS
 options 	GDB
 options 	GEOM_PART_GPT
 options 	GEOM_LABEL		#Provides labelization
+options 	VIMAGE
 options 	INET
 options 	INET6
 options 	TCP_HHOOK		# hhook(9) framework for TCP
