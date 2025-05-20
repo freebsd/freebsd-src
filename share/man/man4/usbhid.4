@@ -55,7 +55,11 @@ tunables:
 .It Va hw.usb.usbhid.enable
 Enable
 .Nm
-and make its priority greater than other USB HID drivers have.
+and make its priority greater than other USB HID drivers, such as
+.Xr ukbd 4 ,
+.Xr ums 4 ,
+and
+.Xr uhid 4 .
 Default is 0.
 .El
 .Bl -tag -width indent
