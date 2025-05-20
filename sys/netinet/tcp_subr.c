@@ -2664,6 +2664,218 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_PCBLIST, pcblist,
     NULL, 0, tcp_pcblist, "S,xtcpcb",
     "List of active TCP connections");
 
+#define SND_TAG_STATUS_MAXLEN	128
+
+#ifdef KERN_TLS
+static int
+tcp_ktlslist(SYSCTL_HANDLER_ARGS, bool export_keys)
+{
+	struct xinpgen xig;
+	struct inpcb *inp;
+	struct socket *so;
+	struct ktls_session *ksr, *kss;
+	char *buf;
+	struct xktls_session *xktls;
+	uint64_t ipi_gencnt;
+	size_t buflen, len, sz;
+	u_int cnt;
+	int error;
+	bool ek, p;
+
+	if (req->newptr != NULL)
+		return (EPERM);
+
+	len = 0;
+	cnt = 0;
+	ipi_gencnt = V_tcbinfo.ipi_gencnt;
+	bzero(&xig, sizeof(xig));
+	xig.xig_len = sizeof(xig);
+	xig.xig_gen = atomic_load_acq_64(&ktls_glob_gen);
+	xig.xig_sogen = so_gencnt;
+
+	struct inpcb_iterator inpi = INP_ALL_ITERATOR(&V_tcbinfo,
+	    INPLOOKUP_RLOCKPCB);
+	while ((inp = inp_next(&inpi)) != NULL) {
+		if (inp->inp_gencnt > ipi_gencnt ||
+		    cr_canseeinpcb(req->td->td_ucred, inp) != 0)
+			continue;
+
+		so = inp->inp_socket;
+		if (so != NULL && so->so_gencnt <= xig.xig_sogen) {
+			p = false;
+			ek = export_keys && cr_canexport_ktlskeys(
+			    req->td, inp);
+			ksr = so->so_rcv.sb_tls_info;
+			if (ktls_session_genvis(ksr, xig.xig_gen)) {
+				p = true;
+				if (ek) {
+					sz = SIZE_T_MAX;
+					ktls_session_copy_keys(ksr,
+					    NULL, &sz);
+					len += sz;
+				}
+				if (ksr->snd_tag != NULL &&
+				    ksr->snd_tag->sw->snd_tag_status_str !=
+				    NULL) {
+					sz = SND_TAG_STATUS_MAXLEN;
+					ksr->snd_tag->sw->snd_tag_status_str(
+					    ksr->snd_tag, NULL, &sz);
+					len += sz;
+				}
+			}
+			kss = so->so_snd.sb_tls_info;
+			if (ktls_session_genvis(kss, xig.xig_gen)) {
+				p = true;
+				if (ek) {
+					sz = SIZE_T_MAX;
+					ktls_session_copy_keys(kss,
+					    NULL, &sz);
+					len += sz;
+				}
+				if (kss->snd_tag != NULL &&
+				    kss->snd_tag->sw->snd_tag_status_str !=
+				    NULL) {
+					sz = SND_TAG_STATUS_MAXLEN;
+					kss->snd_tag->sw->snd_tag_status_str(
+					    kss->snd_tag, NULL, &sz);
+					len += sz;
+				}
+			}
+			if (p) {
+				len += sizeof(*xktls);
+				len = roundup2(len, __alignof(struct
+				    xktls_session));
+			}
+		}
+	}
+	if (req->oldptr == NULL) {
+		len += 2 * sizeof(xig);
+		len += 3 * len / 4;
+		req->oldidx = len;
+		return (0);
+	}
+
+	if ((error = sysctl_wire_old_buffer(req, 0)) != 0)
+		return (error);
+
+	error = SYSCTL_OUT(req, &xig, sizeof xig);
+	if (error != 0)
+		return (error);
+
+	buflen = roundup2(sizeof(*xktls) + 2 * TLS_MAX_PARAM_SIZE +
+	    2 * SND_TAG_STATUS_MAXLEN, __alignof(struct xktls_session));
+	buf = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
+	struct inpcb_iterator inpi1 = INP_ALL_ITERATOR(&V_tcbinfo,
+	    INPLOOKUP_RLOCKPCB);
+	while ((inp = inp_next(&inpi1)) != NULL) {
+		if (inp->inp_gencnt > ipi_gencnt ||
+		    cr_canseeinpcb(req->td->td_ucred, inp) != 0)
+			continue;
+
+		so = inp->inp_socket;
+		if (so == NULL)
+			continue;
+
+		p = false;
+		ek = export_keys && cr_canexport_ktlskeys(req->td, inp);
+		ksr = so->so_rcv.sb_tls_info;
+		kss = so->so_snd.sb_tls_info;
+		xktls = (struct xktls_session *)buf;
+		if (ktls_session_genvis(ksr, xig.xig_gen)) {
+			p = true;
+			ktls_session_to_xktls_onedir(ksr, ek, &xktls->rcv);
+		}
+		if (ktls_session_genvis(kss, xig.xig_gen)) {
+			p = true;
+			ktls_session_to_xktls_onedir(kss, ek, &xktls->snd);
+		}
+		if (!p)
+			continue;
+
+		xktls->inp_gencnt = inp->inp_gencnt;
+		xktls->so_pcb = (kvaddr_t)inp;
+		memcpy(&xktls->coninf, &inp->inp_inc, sizeof(xktls->coninf));
+		len = sizeof(*xktls);
+		if (ktls_session_genvis(ksr, xig.xig_gen)) {
+			if (ek) {
+				sz = buflen - len;
+				ktls_session_copy_keys(ksr, buf + len, &sz);
+				len += sz;
+			} else {
+				xktls->rcv.cipher_key_len = 0;
+				xktls->rcv.auth_key_len = 0;
+			}
+			if (ksr->snd_tag != NULL &&
+			    ksr->snd_tag->sw->snd_tag_status_str != NULL) {
+				sz = SND_TAG_STATUS_MAXLEN;
+				ksr->snd_tag->sw->snd_tag_status_str(
+				    ksr->snd_tag, buf + len, &sz);
+				len += sz;
+			}
+		}
+		if (ktls_session_genvis(kss, xig.xig_gen)) {
+			if (ek) {
+				sz = buflen - len;
+				ktls_session_copy_keys(kss, buf + len, &sz);
+				len += sz;
+			} else {
+				xktls->snd.cipher_key_len = 0;
+				xktls->snd.auth_key_len = 0;
+			}
+			if (kss->snd_tag != NULL &&
+			    kss->snd_tag->sw->snd_tag_status_str != NULL) {
+				sz = SND_TAG_STATUS_MAXLEN;
+				kss->snd_tag->sw->snd_tag_status_str(
+				    kss->snd_tag, buf + len, &sz);
+				len += sz;
+			}
+		}
+		len = roundup2(len, __alignof(*xktls));
+		xktls->tsz = len;
+		xktls->fsz = sizeof(*xktls);
+
+		error = SYSCTL_OUT(req, xktls, len);
+		if (error != 0) {
+			INP_RUNLOCK(inp);
+			break;
+		}
+		cnt++;
+	}
+
+	if (error == 0) {
+		atomic_thread_fence_rel();
+		xig.xig_gen = atomic_load_64(&ktls_glob_gen);
+		xig.xig_sogen = so_gencnt;
+		xig.xig_count = cnt;
+		error = SYSCTL_OUT(req, &xig, sizeof(xig));
+	}
+
+	zfree(buf, M_TEMP);
+	return (error);
+}
+
+static int
+tcp_ktlslist_nokeys(SYSCTL_HANDLER_ARGS)
+{
+	return (tcp_ktlslist(oidp, arg1, arg2, req, false));
+}
+
+static int
+tcp_ktlslist_wkeys(SYSCTL_HANDLER_ARGS)
+{
+	return (tcp_ktlslist(oidp, arg1, arg2, req, true));
+}
+
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_KTLSLIST, ktlslist,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, 0, tcp_ktlslist_nokeys, "S,xktls_session",
+    "List of active kTLS sessions for TCP connections");
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_KTLSLIST_WKEYS, ktlslist_wkeys,
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    NULL, 0, tcp_ktlslist_wkeys, "S,xktls_session",
+    "List of active kTLS sessions for TCP connections with keys");
+#endif /* KERN_TLS */
+
 #ifdef INET
 static int
 tcp_getcred(SYSCTL_HANDLER_ARGS)
