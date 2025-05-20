@@ -111,7 +111,7 @@ md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
      * tested/set by MI code before launching the kernel.
      */
     rootdevname = getenv("rootdev");
-    if (rootdevname == NULL)
+    if (rootdevname == NULL || *rootdevname == '\0')
 	rootdevname = getenv("currdev");
     /* Try reading the /etc/fstab file to select the root device */
     getrootmount(rootdevname);
