@@ -278,7 +278,6 @@ static void	if_input_default(struct ifnet *, struct mbuf *);
 static int	if_requestencap_default(struct ifnet *, struct if_encap_req *);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
 static int	if_transmit_default(struct ifnet *ifp, struct mbuf *m);
-static void	if_unroute(struct ifnet *, int flag, int fam);
 static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
 static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
@@ -2097,25 +2096,6 @@ link_init_sdl(struct ifnet *ifp, struct sockaddr *paddr, u_char iftype)
 	return (sdl);
 }
 
-/*
- * Mark an interface down and notify protocols of
- * the transition.
- */
-static void
-if_unroute(struct ifnet *ifp, int flag, int fam)
-{
-
-	KASSERT(flag == IFF_UP, ("if_unroute: flag != IFF_UP"));
-
-	ifp->if_flags &= ~flag;
-	getmicrotime(&ifp->if_lastchange);
-	ifp->if_qflush(ifp);
-
-	if (ifp->if_carp)
-		(*carp_linkstate_p)(ifp);
-	rt_ifmsg(ifp, IFF_UP);
-}
-
 void	(*vlan_link_state_p)(struct ifnet *);	/* XXX: private from if_vlan */
 void	(*vlan_trunk_cap_p)(struct ifnet *);		/* XXX: private from if_vlan */
 struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
@@ -2190,7 +2170,14 @@ if_down(struct ifnet *ifp)
 {
 
 	EVENTHANDLER_INVOKE(ifnet_event, ifp, IFNET_EVENT_DOWN);
-	if_unroute(ifp, IFF_UP, AF_UNSPEC);
+
+	ifp->if_flags &= ~IFF_UP;
+	getmicrotime(&ifp->if_lastchange);
+	ifp->if_qflush(ifp);
+
+	if (ifp->if_carp)
+		(*carp_linkstate_p)(ifp);
+	rt_ifmsg(ifp, IFF_UP);
 }
 
 /*
