@@ -37,9 +37,9 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl Ealnru
-.Ar command
 .Op Fl I Ar extension
 .Op Fl i Ar extension
+.Ar command
 .Op Ar
 .Nm
 .Op Fl Ealnru
@@ -368,7 +368,7 @@ function or by beginning a new cycle.
 Branch to the
 .Dq \&:
 function with the specified label.
-If the label is not specified, branch to the end of the script.
+If the label is not specified, branch to the end of the command.
 .Pp
 .It [2addr]c\e
 .It text
@@ -454,7 +454,7 @@ Write the pattern space, up to the first newline character to the
 standard output.
 .Pp
 .It [1addr]q
-Branch to the end of the script and quit without starting a new cycle.
+Branch to the end of the command and quit without starting a new cycle.
 .Pp
 .It [1addr]r file
 Copy the contents of
@@ -524,7 +524,7 @@ function bearing the label if any substitutions have been made since the
 most recent reading of an input line or execution of a
 .Dq t
 function.
-If no label is specified, branch to the end of the script.
+If no label is specified, branch to the end of the command.
 .Pp
 .It [2addr]w Em file
 Append the pattern space to the
