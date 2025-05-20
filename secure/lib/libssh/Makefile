@@ -39,6 +39,9 @@ SRCS=	${LIBOPENSSH_SRCS} \
 	sftp-realpath.c platform-pledge.c platform-tracing.c platform-misc.c \
 	sshbuf-io.c
 
+# Add ${SKSRCS} to avoid linking problems.
+SRCS+=	${SKSRCS}
+
 PACKAGE=	ssh
 
 # Portability layer
