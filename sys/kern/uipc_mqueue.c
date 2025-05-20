@@ -2169,13 +2169,14 @@ sys_kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 	return (error);
 }
 
-typedef int (*_fgetf)(struct thread *, int, cap_rights_t *, struct file **);
+typedef int (*_fgetf)(struct thread *, int, const cap_rights_t *,
+    struct file **);
 
 /*
  * Get message queue by giving file slot
  */
 static int
-_getmq(struct thread *td, int fd, cap_rights_t *rightsp, _fgetf func,
+_getmq(struct thread *td, int fd, const cap_rights_t *rightsp, _fgetf func,
        struct file **fpp, struct mqfs_node **ppn, struct mqueue **pmq)
 {
 	struct mqfs_node *pn;

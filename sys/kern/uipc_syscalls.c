@@ -85,7 +85,7 @@ static int sockargs(struct mbuf **, char *, socklen_t, int);
  * A reference on the file entry is held upon returning.
  */
 int
-getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
+getsock_cap(struct thread *td, int fd, const cap_rights_t *rightsp,
     struct file **fpp, struct filecaps *havecapsp)
 {
 	struct file *fp;
@@ -105,7 +105,8 @@ getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
 }
 
 int
-getsock(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
+getsock(struct thread *td, int fd, const cap_rights_t *rightsp,
+    struct file **fpp)
 {
 	struct file *fp;
 	int error;
@@ -718,7 +719,7 @@ kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	struct uio auio;
 	struct iovec *iov;
 	struct socket *so;
-	cap_rights_t *rights;
+	const cap_rights_t *rights;
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
