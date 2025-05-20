@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -16,3 +16,4 @@
 #define BOTTOM          (-1)
 #define BOTTOM_PLUS_ONE (-2)
 #define MIDDLE          (-3)
+#define BOTTOM_OFFSET   (-4)
