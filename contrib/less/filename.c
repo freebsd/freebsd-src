@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -288,7 +288,7 @@ public char * homefile(constant char *filename)
 	if (pathname != NULL)
 		return (pathname);
 #endif
-#if MSDOS_COMPILER || OS2
+#if (MSDOS_COMPILER && MSDOS_COMPILER!=WIN32C) || OS2
 	/* Look for the file anywhere on search path. */
 	pathname = (char *) ecalloc(_MAX_PATH, sizeof(char));
 #if MSDOS_COMPILER==DJGPPC
@@ -496,7 +496,7 @@ public int bin_file(int f, ssize_t *n)
 			struct ansi_state *pansi;
 			if (ctldisp == OPT_ONPLUS && (pansi = ansi_start(c)) != NULL)
 			{
-				skip_ansi(pansi, &p, edata);
+				skip_ansi(pansi, c, &p, edata);
 				ansi_done(pansi);
 			} else if (binary_char(c))
 				bin_count++;

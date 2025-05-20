@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -145,7 +145,7 @@ static HANDLE con_out_ours = INVALID_HANDLE_VALUE; /* our own */
 HANDLE con_out = INVALID_HANDLE_VALUE;             /* current console */
 
 extern int utf_mode;
-extern int quitting;
+extern lbool quitting;
 static void win32_init_term();
 static void win32_deinit_term();
 
@@ -219,6 +219,8 @@ static constant char
 	*sc_e_keypad,           /* End keypad mode */
 	*sc_s_mousecap,         /* Start mouse capture mode */
 	*sc_e_mousecap,         /* End mouse capture mode */
+	*sc_s_bracketed_paste,  /* Start bracketed paste mode */
+	*sc_e_bracketed_paste,  /* End bracketed paste mode */
 	*sc_init,               /* Startup terminal initialization */
 	*sc_deinit;             /* Exit terminal de-initialization */
 
@@ -240,9 +242,9 @@ public int so_s_width, so_e_width;      /* Printing width of standout seq */
 public int bl_s_width, bl_e_width;      /* Printing width of blink seq */
 public int above_mem, below_mem;        /* Memory retained above/below screen */
 public int can_goto_line;               /* Can move cursor to any line */
-public int clear_bg;            /* Clear fills with background color */
-public int missing_cap = 0;     /* Some capability is missing */
-public constant char *kent = NULL;       /* Keypad ENTER sequence */
+public int clear_bg;                    /* Clear fills with background color */
+public lbool missing_cap = FALSE;       /* Some capability is missing */
+public constant char *kent = NULL;      /* Keypad ENTER sequence */
 public lbool term_init_done = FALSE;
 public lbool full_screen = TRUE;
 
@@ -251,6 +253,7 @@ static int termcap_debug = -1;
 static int no_alt_screen;       /* sc_init does not switch to alt screen */
 extern int binattr;
 extern int one_screen;
+extern int shell_lines;
 
 #if !MSDOS_COMPILER
 static constant char *cheaper(constant char *t1, constant char *t2, constant char *def);
@@ -283,6 +286,7 @@ extern int oldbot;
 extern int mousecap;
 extern int is_tty;
 extern int use_color;
+extern int no_paste;
 #if HILITE_SEARCH
 extern int hilite_search;
 #endif
@@ -324,17 +328,6 @@ static void set_termio_flags(
 	);
 
 	s->c_oflag |= (0
-#ifdef OXTABS
-		| OXTABS
-#else
-#ifdef TAB3
-		| TAB3
-#else
-#ifdef XTABS
-		| XTABS
-#endif
-#endif
-#endif
 #ifdef OPOST
 		| OPOST
 #endif
@@ -624,7 +617,7 @@ public void raw_mode(int on)
 		 * Set the modes to the way we want them.
 		 */
 		s.sg_flags |= CBREAK;
-		s.sg_flags &= ~(ECHO|XTABS);
+		s.sg_flags &= ~(ECHO);
 	} else
 	{
 		/*
@@ -1325,10 +1318,17 @@ public void get_term(void)
 
 	sc_s_mousecap = ltgetstr("MOUSE_START", &sp);
 	if (sc_s_mousecap == NULL)
-		sc_s_mousecap = ESCS "[?1000h" ESCS "[?1006h";
+		sc_s_mousecap = ESCS "[?1000h" ESCS "[?1002h" ESCS "[?1006h";
 	sc_e_mousecap = ltgetstr("MOUSE_END", &sp);
 	if (sc_e_mousecap == NULL)
-		sc_e_mousecap = ESCS "[?1006l" ESCS "[?1000l";
+		sc_e_mousecap = ESCS "[?1006l" ESCS "[?1002l" ESCS "[?1000l";
+
+	sc_s_bracketed_paste = ltgetstr("BRACKETED_PASTE_START", &sp);
+	if (sc_s_bracketed_paste == NULL)
+		sc_s_bracketed_paste = ESCS"[?2004h";
+	sc_e_bracketed_paste = ltgetstr("BRACKETED_PASTE_END", &sp);
+	if (sc_e_bracketed_paste == NULL)
+		sc_e_bracketed_paste = ESCS"[?2004l";
 
 	sc_init = ltgetstr("ti", &sp);
 	if (sc_init == NULL)
@@ -1341,21 +1341,21 @@ public void get_term(void)
 	sc_eol_clear = ltgetstr("ce", &sp);
 	if (sc_eol_clear == NULL || *sc_eol_clear == '\0')
 	{
-		missing_cap = 1;
+		missing_cap = TRUE;
 		sc_eol_clear = "";
 	}
 
 	sc_eos_clear = ltgetstr("cd", &sp);
 	if (below_mem && (sc_eos_clear == NULL || *sc_eos_clear == '\0'))
 	{
-		missing_cap = 1;
+		missing_cap = TRUE;
 		sc_eos_clear = "";
 	}
 
 	sc_clear = ltgetstr("cl", &sp);
 	if (sc_clear == NULL || *sc_clear == '\0')
 	{
-		missing_cap = 1;
+		missing_cap = TRUE;
 		sc_clear = "\n\n";
 	}
 
@@ -1441,12 +1441,9 @@ public void get_term(void)
 	t2 = ltgetstr("sr", &sp);
 	if (t2 == NULL)
 		t2 = "";
-#if OS2
 	if (*t1 == '\0' && *t2 == '\0')
 		sc_addline = "";
-	else
-#endif
-	if (above_mem)
+	else if (above_mem)
 		sc_addline = t1;
 	else
 		sc_addline = cheaper(t1, t2, "");
@@ -1459,6 +1456,12 @@ public void get_term(void)
 	}
 }
 #endif /* MSDOS_COMPILER */
+	{
+		const char *env = lgetenv("LESS_SHELL_LINES");
+		shell_lines = isnullenv(env) ? 1 : atoi(env);
+		if (shell_lines >= sc_height)
+			shell_lines = sc_height - 1;
+	}
 }
 
 #if !MSDOS_COMPILER
@@ -1494,7 +1497,7 @@ static constant char * cheaper(constant char *t1, constant char *t2, constant ch
 {
 	if (*t1 == '\0' && *t2 == '\0')
 	{
-		missing_cap = 1;
+		missing_cap = TRUE;
 		return (def);
 	}
 	if (*t1 == '\0')
@@ -1590,17 +1593,17 @@ static void initcolor(void)
  */
 static void win32_init_vt_term(void)
 {
-	DWORD console_output_mode;
-
 	if (vt_enabled == 0 || (vt_enabled == 1 && con_out == con_out_ours))
-		return;
+		return;  // already initialized
 
-	console_output_mode = init_console_output_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-	vt_enabled = SetConsoleMode(con_out, console_output_mode);
+	/* don't care about the initial mode, and win VT hard-enables am+xn */
+	vt_enabled = SetConsoleMode(con_out, ENABLE_PROCESSED_OUTPUT |
+	                                     ENABLE_VIRTUAL_TERMINAL_PROCESSING |
+										 ENABLE_WRAP_AT_EOL_OUTPUT);
 	if (vt_enabled)
 	{
-	    auto_wrap = 0;
-	    ignaw = 1;
+		auto_wrap = 1;
+		ignaw = 1;
 	}
 }
 
@@ -1635,6 +1638,12 @@ static void win32_init_term(void)
 			(LPSECURITY_ATTRIBUTES) NULL,
 			CONSOLE_TEXTMODE_BUFFER,
 			(LPVOID) NULL);
+
+		// we don't care about the initial state. we need processed
+		// output without anything else (no wrap at EOL, no VT,
+		// no disabled auto-return).
+		if (SetConsoleMode(con_out_ours, ENABLE_PROCESSED_OUTPUT))
+			auto_wrap = 0;
 	}
 
 	size.X = scr.srWindow.Right - scr.srWindow.Left + 1;
@@ -1772,6 +1781,8 @@ public void init(void)
 			ltputs(sc_s_keypad, sc_height, putchr);
 		if (mousecap)
 			init_mouse();
+		if (no_paste)
+			init_bracketed_paste();
 	}
 	init_done = 1;
 	if (top_scroll) 
@@ -1821,6 +1832,8 @@ public void deinit(void)
 	{
 		if (mousecap)
 			deinit_mouse();
+        if (no_paste)
+            deinit_bracketed_paste();
 		if (!no_keypad)
 			ltputs(sc_e_keypad, sc_height, putchr);
 		if (!no_init)
@@ -2445,6 +2458,25 @@ public void clear_bot(void)
 }
 
 /*
+ * Enable or disable bracketed paste mode.
+ * When enabled, the terminal sends an "open bracket" sequence 
+ * before pasted content and "close bracket" after it.
+ */
+public void init_bracketed_paste(void)
+{
+#if !MSDOS_COMPILER
+    ltputs(sc_s_bracketed_paste, 1, putchr);
+#endif
+}
+
+public void deinit_bracketed_paste(void)
+{
+#if !MSDOS_COMPILER
+    ltputs(sc_e_bracketed_paste, 1, putchr);
+#endif
+}
+
+/*
  * Color string may be "x[y]" where x and y are 4-bit color chars,
  * or "N[.M]" where N and M are decimal integers>
  * Any of x,y,N,M may also be "-" to mean "unchanged".
@@ -2953,8 +2985,7 @@ static lbool win32_mouse_event(XINPUT_RECORD *xip)
 {
 	char b;
 
-	if (!mousecap || xip->ir.EventType != MOUSE_EVENT ||
-		xip->ir.Event.MouseEvent.dwEventFlags == MOUSE_MOVED)
+	if (!mousecap || xip->ir.EventType != MOUSE_EVENT)
 		return (FALSE);
 
 	/* Generate an X11 mouse sequence from the mouse event. */
@@ -2975,6 +3006,12 @@ static lbool win32_mouse_event(XINPUT_RECORD *xip)
 		break;
 	case MOUSE_WHEELED:
 		b = X11MOUSE_OFFSET + (((int)xip->ir.Event.MouseEvent.dwButtonState < 0) ? X11MOUSE_WHEEL_DOWN : X11MOUSE_WHEEL_UP);
+		break;
+	case MOUSE_MOVED:
+		if (xip->ir.Event.MouseEvent.dwButtonState != 1)
+			return (FALSE);
+		/* Drag with left button down. */
+		b = X11MOUSE_OFFSET + X11MOUSE_DRAG;
 		break;
 	default:
 		return (FALSE);
@@ -3123,11 +3160,11 @@ static lbool win32_key_event(XINPUT_RECORD *xip)
 /*
  * Determine whether an input character is waiting to be read.
  */
-public lbool win32_kbhit(void)
+public lbool win32_kbhit2(lbool no_queued)
 {
 	XINPUT_RECORD xip;
 
-	if (win32_queued_char())
+	if (!no_queued && win32_queued_char())
 		return (TRUE);
 
 	for (;;)
@@ -3150,6 +3187,11 @@ public lbool win32_kbhit(void)
 			break;
 	}
 	return (TRUE);
+}
+
+public lbool win32_kbhit(void)
+{
+	return win32_kbhit2(FALSE);
 }
 
 /*
@@ -3201,7 +3243,7 @@ public void WIN32textout(constant char *text, size_t len)
 		len = MultiByteToWideChar(CP_UTF8, 0, text, len, wtext, countof(wtext));
 		WriteConsoleW(con_out, wtext, len, &written, NULL);
 	} else
-		WriteConsole(con_out, text, len, &written, NULL);
+		WriteConsole(con_out, text, (DWORD) len, &written, NULL);
 #else
 	char buf[2048];
 	if (len >= sizeof(buf))

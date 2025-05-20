@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -13,19 +13,19 @@
 /*
  * Types of options.
  */
-#define BOOL            01      /* Boolean option: 0 or 1 */
-#define TRIPLE          02      /* Triple-valued option: 0, 1 or 2 */
-#define NUMBER          04      /* Numeric option */
-#define STRING          010     /* String-valued option */
-#define NOVAR           020     /* No associated variable */
-#define REPAINT         040     /* Repaint screen after toggling option */
-#define NO_TOGGLE       0100    /* Option cannot be toggled with "-" cmd */
-#define HL_REPAINT      0200    /* Repaint hilites after toggling option */
-#define NO_QUERY        0400    /* Option cannot be queried with "_" cmd */
-#define INIT_HANDLER    01000   /* Call option handler function at startup */
-#define UNSUPPORTED     02000   /* Option is unsupported via LESS_UNSUPPORT */
+#define O_BOOL            01      /* Boolean option: 0 or 1 */
+#define O_TRIPLE          02      /* Triple-valued option: 0, 1 or 2 */
+#define O_NUMBER          04      /* Numeric option */
+#define O_STRING          010     /* String-valued option */
+#define O_NOVAR           020     /* No associated variable */
+#define O_REPAINT         040     /* Repaint screen after toggling option */
+#define O_NO_TOGGLE       0100    /* Option cannot be toggled with "-" cmd */
+#define O_HL_REPAINT      0200    /* Repaint hilites after toggling option */
+#define O_NO_QUERY        0400    /* Option cannot be queried with "_" cmd */
+#define O_INIT_HANDLER    01000   /* Call option handler function at startup */
+#define O_UNSUPPORTED     02000   /* Option is unsupported via LESS_UNSUPPORT */
 
-#define OTYPE           (BOOL|TRIPLE|NUMBER|STRING|NOVAR)
+#define OTYPE           (O_BOOL|O_TRIPLE|O_NUMBER|O_STRING|O_NOVAR)
 
 #define OLETTER_NONE    '\1'     /* Invalid option letter */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -32,6 +32,9 @@
 #if HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#if MUST_DEFINE_ERRNO
+extern int errno;
+#endif
 #if HAVE_VALUES_H
 #include <values.h>
 #endif
@@ -58,21 +61,35 @@ static lbool any_data = FALSE;
  * On other systems, setjmp() doesn't affect the signal mask and so
  * _setjmp() does not exist; we just use setjmp().
  */
-#if HAVE__SETJMP && HAVE_SIGSETMASK
-#define SET_JUMP        _setjmp
-#define LONG_JUMP       _longjmp
+#if HAVE_SIGSETJMP
+#define SET_JUMP(label)        sigsetjmp(label, 1)
+#define LONG_JUMP(label, val)  siglongjmp(label, val)
+#define JUMP_BUF               sigjmp_buf
 #else
-#define SET_JUMP        setjmp
-#define LONG_JUMP       longjmp
+#if HAVE__SETJMP && HAVE_SIGSETMASK
+#define SET_JUMP(label)        _setjmp(label)
+#define LONG_JUMP(label, val)  _longjmp(label, val)
+#define JUMP_BUF               jmp_buf
+#else
+#define SET_JUMP(label)        setjmp(label)
+#define LONG_JUMP(label, val)  longjmp(label, val)
+#define JUMP_BUF               jmp_buf
+#endif
 #endif
 
-public int reading;
+static lbool reading;
+static lbool opening;
 public lbool waiting_for_data;
 public int consecutive_nulls = 0;
+public lbool getting_one_screen = FALSE;
 
 /* Milliseconds to wait for data before displaying "waiting for data" message. */
 static int waiting_for_data_delay = 4000;
-static jmp_buf read_label;
+/* Max milliseconds expected to "normally" read and display a screen of text. */
+public int screenfill_ms = 3000;
+
+static JUMP_BUF read_label;
+static JUMP_BUF open_label;
 
 extern int sigs;
 extern int ignore_eoi;
@@ -81,6 +98,11 @@ extern int follow_mode;
 extern int scanning_eof;
 extern char intr_char;
 extern int is_tty;
+extern int quit_if_one_screen;
+extern int one_screen;
+#if HAVE_TIME
+extern time_type less_start_time;
+#endif
 #if !MSDOS_COMPILER
 extern int tty;
 #endif
@@ -91,6 +113,10 @@ public void init_poll(void)
 	int idelay = (delay == NULL) ? 0 : atoi(delay);
 	if (idelay > 0)
 		waiting_for_data_delay = idelay;
+	delay = lgetenv("LESS_SCREENFILL_TIME");
+	idelay = (delay == NULL) ? 0 : atoi(delay);
+	if (idelay > 0)
+		screenfill_ms = idelay;
 #if USE_POLL
 #if defined(__APPLE__)
 	/* In old versions of MacOS, poll() does not work with /dev/tty. */
@@ -111,7 +137,11 @@ public void init_poll(void)
 static int check_poll(int fd, int tty)
 {
 	struct pollfd poller[2] = { { fd, POLLIN, 0 }, { tty, POLLIN, 0 } };
-	int timeout = (waiting_for_data && !(scanning_eof && follow_mode == FOLLOW_NAME)) ? -1 : waiting_for_data_delay;
+	int timeout = (waiting_for_data && !(scanning_eof && follow_mode == FOLLOW_NAME)) ? -1 : (ignore_eoi && !waiting_for_data) ? 0 : waiting_for_data_delay;
+#if HAVE_TIME
+	if (getting_one_screen && get_time() < less_start_time + screenfill_ms/1000)
+		return (0);
+#endif
 	if (!any_data)
 	{
 		/*
@@ -133,6 +163,7 @@ static int check_poll(int fd, int tty)
 				/* Break out of "waiting for data". */
 				return (READ_INTR);
 			ungetcc_back((char) ch);
+			return (READ_INTR);
 		}
 	}
 	if (ignore_eoi && exit_F_on_close && (poller[0].revents & (POLLHUP|POLLIN)) == POLLHUP)
@@ -161,7 +192,7 @@ public int supports_ctrl_x(void)
 
 /*
  * Like read() system call, but is deliberately interruptible.
- * A call to intread() from a signal handler will interrupt
+ * A call to intio() from a signal handler will interrupt
  * any pending iread().
  */
 public ssize_t iread(int fd, unsigned char *buf, size_t len)
@@ -188,7 +219,7 @@ start:
 	if (!reading && SET_JUMP(read_label))
 	{
 		/*
-		 * We jumped here from intread.
+		 * We jumped here from intio.
 		 */
 		reading = FALSE;
 #if HAVE_SIGPROCMASK
@@ -238,7 +269,7 @@ start:
 	}
 #endif
 #if USE_POLL
-	if (is_tty && fd != tty && use_poll)
+	if (is_tty && fd != tty && use_poll && !(quit_if_one_screen && one_screen))
 	{
 		int ret = check_poll(fd, tty);
 		if (ret != 0)
@@ -251,24 +282,22 @@ start:
 	}
 #else
 #if MSDOS_COMPILER==WIN32C
-	if (win32_kbhit())
+	if (win32_kbhit2(TRUE))
 	{
 		int c;
 
 		c = WIN32getch();
-		if (c == intr_char)
-		{
-			sigs |= S_INTERRUPT;
-			reading = FALSE;
-			return (READ_INTR);
-		}
-		WIN32ungetch(c);
+		sigs |= S_INTERRUPT;
+		reading = FALSE;
+		if (c != CONTROL('C') && c != intr_char)
+			WIN32ungetch((char) c);
+		return (READ_INTR);
 	}
 #endif
 #endif
 	n = read(fd, buf, len);
 	reading = FALSE;
-#if 1
+#if 0
 	/*
 	 * This is a kludge to workaround a problem on some systems
 	 * where terminating a remote tty connection causes read() to
@@ -292,9 +321,6 @@ start:
 		/*
 		 * Certain values of errno indicate we should just retry the read.
 		 */
-#if MUST_DEFINE_ERRNO
-		extern int errno;
-#endif
 #ifdef EINTR
 		if (errno == EINTR)
 			goto start;
@@ -314,11 +340,45 @@ start:
 }
 
 /*
- * Interrupt a pending iread().
+ * Like open() system call, but is interruptible.
  */
-public void intread(void)
+public int iopen(constant char *filename, int flags)
 {
-	LONG_JUMP(read_label, 1);
+	int r;
+	while (!opening && SET_JUMP(open_label))
+	{
+		opening = FALSE;
+		if (sigs & S_INTERRUPT)
+		{
+			sigs = 0;
+#if HAVE_SETTABLE_ERRNO
+#ifdef EINTR
+			errno = EINTR;
+#endif
+#endif
+			return -1;
+		}
+		psignals(); /* Handle S_STOP or S_WINCH */
+	}
+	opening = TRUE;
+	r = open(filename, flags);
+	opening = FALSE;
+	return r;
+}
+
+/*
+ * Interrupt a pending iopen() or iread().
+ */
+public void intio(void)
+{
+	if (opening)
+	{
+		LONG_JUMP(open_label, 1);
+	}
+	if (reading)
+	{
+		LONG_JUMP(read_label, 1);
+	}
 }
 
 /*
@@ -363,9 +423,6 @@ public char * errno_message(constant char *filename)
 	char *m;
 	size_t len;
 #if HAVE_ERRNO
-#if MUST_DEFINE_ERRNO
-	extern int errno;
-#endif
 	p = strerror(errno);
 #else
 	p = "cannot open";
