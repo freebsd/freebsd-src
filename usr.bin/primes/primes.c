@@ -241,6 +241,10 @@ primes(ubig start, ubig stop)
 		if (p <= pr_limit) {
 			return;
 		}
+		/*
+		 * the next odd number after the largest prime in the
+		 * precomputed list
+		 */
 		start = *pr_limit+2;
 	}
 
