@@ -145,6 +145,28 @@ struct tls_get_record {
 	uint16_t tls_length;
 };
 
+#define	XKTLS_SESSION_IV_BUF_LEN	32
+struct xktls_session_onedir {
+	uint64_t gen;
+	uint64_t rsrv1[8];
+	uint32_t rsrv2[8];
+	uint8_t iv[XKTLS_SESSION_IV_BUF_LEN];
+	int	cipher_algorithm;
+	int	auth_algorithm;
+	uint16_t cipher_key_len;
+	uint16_t iv_len;
+	uint16_t auth_key_len;
+	uint16_t max_frame_len;
+	uint8_t tls_vmajor;
+	uint8_t tls_vminor;
+	uint8_t tls_hlen;
+	uint8_t tls_tlen;
+	uint8_t tls_bs;
+	uint8_t flags;
+	uint16_t drv_st_len;
+	char ifnet[16];	/* IFNAMSIZ */
+};
+
 #ifdef _KERNEL
 
 struct tls_session_params {
@@ -266,6 +288,11 @@ ktls_session_genvis(const struct ktls_session *ks, uint64_t gen)
 {
 	return (ks != NULL && ks->gen <= gen);
 }
+
+void ktls_session_to_xktls_onedir(const struct ktls_session *ks,
+    bool export_keys, struct xktls_session_onedir *xktls_od);
+void ktls_session_copy_keys(const struct ktls_session *ktls,
+    uint8_t *data, size_t *sz);
 
 #endif /* !_KERNEL */
 #endif /* !_SYS_KTLS_H_ */
