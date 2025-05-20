@@ -439,3 +439,46 @@ gve_mask_all_queue_irqs(struct gve_priv *priv)
 		gve_db_bar_write_4(priv, rx->com.irq_db_offset, GVE_IRQ_MASK);
 	}
 }
+
+/*
+ * In some cases, such as tracking timeout events, we must mark a timestamp as
+ * invalid when we do not want to consider its value. Such timestamps must be
+ * checked for validity before reading them.
+ */
+void
+gve_invalidate_timestamp(int64_t *timestamp_sec)
+{
+	atomic_store_64(timestamp_sec, GVE_TIMESTAMP_INVALID);
+}
+
+/*
+ * Returns 0 if the timestamp is invalid, otherwise returns the elapsed seconds
+ * since the timestamp was set.
+ */
+int64_t
+gve_seconds_since(int64_t *timestamp_sec)
+{
+	struct bintime curr_time;
+	int64_t enqueued_time;
+
+	getbintime(&curr_time);
+	enqueued_time = atomic_load_64(timestamp_sec);
+	if (enqueued_time == GVE_TIMESTAMP_INVALID)
+		return (0);
+	return ((int64_t)(curr_time.sec - enqueued_time));
+}
+
+void
+gve_set_timestamp(int64_t *timestamp_sec)
+{
+	struct bintime curr_time;
+
+	getbintime(&curr_time);
+	atomic_store_64(timestamp_sec, curr_time.sec);
+}
+
+bool
+gve_timestamp_valid(int64_t *timestamp_sec)
+{
+	return (atomic_load_64(timestamp_sec) != GVE_TIMESTAMP_INVALID);
+}
