@@ -377,7 +377,8 @@ struct stats {
 _Static_assert(sizeof(struct stats) == 16,
     "gve: bad admin queue struct length");
 
-/* These are control path types for PTYPE which are the same as the data path
+/*
+ * These are control path types for PTYPE which are the same as the data path
  * types.
  */
 struct gve_ptype_entry {
