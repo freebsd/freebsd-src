@@ -97,7 +97,9 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
       COMMAND bsdcpio_test -vv
                            -p $<TARGET_FILE:bsdcpio>
                            -r ${CMAKE_CURRENT_SOURCE_DIR}
+                           -s
                            ${_testname})
+    SET_TESTS_PROPERTIES(bsdcpio_${_testname} PROPERTIES SKIP_RETURN_CODE 2)
   ENDMACRO (DEFINE_TEST _testname)
 
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)

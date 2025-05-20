@@ -41,6 +41,7 @@
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_read_disk_private.h"
+#include "archive_time_private.h"
 
 #ifndef O_BINARY
 #define O_BINARY	0
@@ -49,7 +50,7 @@
 /* Old SDKs do not provide IO_REPARSE_TAG_SYMLINK */
 #define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
 #endif
-/* To deal with absolute symlink isuues */
+/* To deal with absolute symlink issues */
 #define START_ABSOLUTE_SYMLINK_REPARSE L"\\??\\"
 
 /*-
@@ -602,7 +603,7 @@ _archive_read_close(struct archive *_a)
 
 static void
 setup_symlink_mode(struct archive_read_disk *a, char symlink_mode, 
-    int follow_symlinks)
+    char follow_symlinks)
 {
 	a->symlink_mode = symlink_mode;
 	a->follow_symlinks = follow_symlinks;
@@ -1983,40 +1984,20 @@ tree_dir_next_windows(struct tree *t, const wchar_t *pattern)
 	}
 }
 
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
-static void
-fileTimeToUtc(const FILETIME *filetime, time_t *t, long *ns)
-{
-	ULARGE_INTEGER utc;
-
-	utc.HighPart = filetime->dwHighDateTime;
-	utc.LowPart  = filetime->dwLowDateTime;
-	if (utc.QuadPart >= EPOC_TIME) {
-		utc.QuadPart -= EPOC_TIME;
-		/* milli seconds base */
-		*t = (time_t)(utc.QuadPart / 10000000);
-		/* nano seconds base */
-		*ns = (long)(utc.QuadPart % 10000000) * 100;
-	} else {
-		*t = 0;
-		*ns = 0;
-	}
-}
-
 static void
 entry_copy_bhfi(struct archive_entry *entry, const wchar_t *path,
 	const WIN32_FIND_DATAW *findData,
 	const BY_HANDLE_FILE_INFORMATION *bhfi)
 {
-	time_t secs;
-	long nsecs;
+	int64_t secs;
+	uint32_t nsecs;
 	mode_t mode;
 
-	fileTimeToUtc(&bhfi->ftLastAccessTime, &secs, &nsecs);
+	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftLastAccessTime), &secs, &nsecs);
 	archive_entry_set_atime(entry, secs, nsecs);
-	fileTimeToUtc(&bhfi->ftLastWriteTime, &secs, &nsecs);
+	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftLastWriteTime), &secs, &nsecs);
 	archive_entry_set_mtime(entry, secs, nsecs);
-	fileTimeToUtc(&bhfi->ftCreationTime, &secs, &nsecs);
+	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftCreationTime), &secs, &nsecs);
 	archive_entry_set_birthtime(entry, secs, nsecs);
 	archive_entry_set_ctime(entry, secs, nsecs);
 	archive_entry_set_dev(entry, bhfi_dev(bhfi));

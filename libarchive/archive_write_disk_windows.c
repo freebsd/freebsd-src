@@ -60,6 +60,7 @@
 #include "archive_string.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_time_private.h"
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -637,7 +638,7 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 }
 
 /*
- * Create file or directory symolic link
+ * Create file or directory symbolic link
  *
  * If linktype is AE_SYMLINK_TYPE_UNDEFINED (or unknown), guess linktype from
  * the link target
@@ -2605,10 +2606,6 @@ set_times(struct archive_write_disk *a,
     time_t mtime, long mtime_nanos,
     time_t ctime_sec, long ctime_nanos)
 {
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
-#define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
-	 + ((nsec)/100))
-
 	HANDLE hw = 0;
 	ULARGE_INTEGER wintm;
 	FILETIME *pfbtime;
@@ -2646,17 +2643,17 @@ set_times(struct archive_write_disk *a,
 		h = hw;
 	}
 
-	wintm.QuadPart = WINTIME(atime, atime_nanos);
+	wintm.QuadPart = unix_to_ntfs(atime, atime_nanos);
 	fatime.dwLowDateTime = wintm.LowPart;
 	fatime.dwHighDateTime = wintm.HighPart;
-	wintm.QuadPart = WINTIME(mtime, mtime_nanos);
+	wintm.QuadPart = unix_to_ntfs(mtime, mtime_nanos);
 	fmtime.dwLowDateTime = wintm.LowPart;
 	fmtime.dwHighDateTime = wintm.HighPart;
 	/*
 	 * SetFileTime() supports birthtime.
 	 */
 	if (birthtime > 0 || birthtime_nanos > 0) {
-		wintm.QuadPart = WINTIME(birthtime, birthtime_nanos);
+		wintm.QuadPart = unix_to_ntfs(birthtime, birthtime_nanos);
 		fbtime.dwLowDateTime = wintm.LowPart;
 		fbtime.dwHighDateTime = wintm.HighPart;
 		pfbtime = &fbtime;
@@ -2878,34 +2875,16 @@ set_xattrs(struct archive_write_disk *a)
 	return (ARCHIVE_OK);
 }
 
-static void
-fileTimeToUtc(const FILETIME *filetime, time_t *t, long *ns)
-{
-	ULARGE_INTEGER utc;
-
-	utc.HighPart = filetime->dwHighDateTime;
-	utc.LowPart  = filetime->dwLowDateTime;
-	if (utc.QuadPart >= EPOC_TIME) {
-		utc.QuadPart -= EPOC_TIME;
-		/* milli seconds base */
-		*t = (time_t)(utc.QuadPart / 10000000);
-		/* nano seconds base */
-		*ns = (long)(utc.QuadPart % 10000000) * 100;
-	} else {
-		*t = 0;
-		*ns = 0;
-	}
-}
 /*
  * Test if file on disk is older than entry.
  */
 static int
 older(BY_HANDLE_FILE_INFORMATION *st, struct archive_entry *entry)
 {
-	time_t sec;
-	long nsec;
+	int64_t sec;
+	uint32_t nsec;
 
-	fileTimeToUtc(&st->ftLastWriteTime, &sec, &nsec);
+	ntfs_to_unix(FILETIME_to_ntfs(&st->ftLastWriteTime), &sec, &nsec);
 	/* First, test the seconds and return if we have a definite answer. */
 	/* Definitely older. */
 	if (sec < archive_entry_mtime(entry))
@@ -2913,11 +2892,10 @@ older(BY_HANDLE_FILE_INFORMATION *st, struct archive_entry *entry)
 	/* Definitely younger. */
 	if (sec > archive_entry_mtime(entry))
 		return (0);
-	if (nsec < archive_entry_mtime_nsec(entry))
+	if ((long)nsec < archive_entry_mtime_nsec(entry))
 		return (1);
 	/* Same age or newer, so not older. */
 	return (0);
 }
 
 #endif /* _WIN32 && !__CYGWIN__ */
-

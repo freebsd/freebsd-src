@@ -24,43 +24,24 @@
  */
 
 #include "archive_platform.h"
-
+#include "archive_time_private.h"
 #include "archive_private.h"
 #include "archive_entry.h"
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
-
-__inline static void
-fileTimeToUtc(const FILETIME *filetime, time_t *t, long *ns)
-{
-	ULARGE_INTEGER utc;
-
-	utc.HighPart = filetime->dwHighDateTime;
-	utc.LowPart  = filetime->dwLowDateTime;
-	if (utc.QuadPart >= EPOC_TIME) {
-		utc.QuadPart -= EPOC_TIME;
-		*t = (time_t)(utc.QuadPart / 10000000);	/* milli seconds base */
-		*ns = (long)(utc.QuadPart % 10000000) * 100;/* nano seconds base */
-	} else {
-		*t = 0;
-		*ns = 0;
-	}
-}
-
 void
 archive_entry_copy_bhfi(struct archive_entry *entry,
 			BY_HANDLE_FILE_INFORMATION *bhfi)
 {
-	time_t secs;
-	long nsecs;
+	int64_t secs;
+	uint32_t nsecs;
 
-	fileTimeToUtc(&bhfi->ftLastAccessTime, &secs, &nsecs);
+	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftLastAccessTime), &secs, &nsecs);
 	archive_entry_set_atime(entry, secs, nsecs);
-	fileTimeToUtc(&bhfi->ftLastWriteTime, &secs, &nsecs);
+	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftLastWriteTime), &secs, &nsecs);
 	archive_entry_set_mtime(entry, secs, nsecs);
-	fileTimeToUtc(&bhfi->ftCreationTime, &secs, &nsecs);
+	ntfs_to_unix(FILETIME_to_ntfs(&bhfi->ftCreationTime), &secs, &nsecs);
 	archive_entry_set_birthtime(entry, secs, nsecs);
 	archive_entry_set_ctime(entry, secs, nsecs);
 	archive_entry_set_dev(entry, bhfi->dwVolumeSerialNumber);

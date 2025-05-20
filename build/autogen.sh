@@ -1,7 +1,7 @@
 #!/bin/sh
+set -eu
 
 PATH=/usr/local/gnu-autotools/bin/:$PATH
-export PATH
 
 # Start from one level above the build directory
 if [ -f version ]; then
@@ -49,7 +49,7 @@ perl -p -i -e 's/(m4_define\(\[LIBARCHIVE_VERSION_S\]),.*\)/$1,['"$VS"'])/' conf
 perl -p -i -e 's/(m4_define\(\[LIBARCHIVE_VERSION_N\]),.*\)/$1,['"$VN"'])/' configure.ac
 
 # Remove developer CFLAGS if a release build is being made
-if [ -n "${MAKE_LIBARCHIVE_RELEASE}" ]; then
+if [ -n "${MAKE_LIBARCHIVE_RELEASE:-}" ]; then
   perl -p -i -e "s/^(DEV_CFLAGS.*)/# \$1/" Makefile.am
   perl -p -i -e 's/CMAKE_BUILD_TYPE "[A-Za-z]*"/CMAKE_BUILD_TYPE "Release"/' CMakeLists.txt
 fi

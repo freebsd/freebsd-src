@@ -1,4 +1,5 @@
 #!/bin/sh
+set -eu
 
 #
 # This script exists primarily to document some of the
@@ -8,7 +9,6 @@
 #
 
 PATH=/usr/local/gnu-autotools/bin/:$PATH
-export PATH
 
 # Start from one level above the build directory
 if [ -f version ]; then
@@ -24,7 +24,7 @@ fi
 # Makefile.  Effectively disable it.
 export MAKEOBJDIRPREFIX=/junk
 
-set -ex
+set -x
 
 #
 # Scrub the local tree before running the build tests below.

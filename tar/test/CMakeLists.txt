@@ -29,13 +29,14 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_format_newc.c
     test_help.c
     test_leading_slash.c
+    test_list_item.c
     test_missing_file.c
     test_option_C_upper.c
     test_option_C_mtree.c
     test_option_H_upper.c
     test_option_L_upper.c
     test_option_O_upper.c
-    test_option_P.c
+    test_option_P_upper.c
     test_option_T_upper.c
     test_option_U_upper.c
     test_option_X_upper.c
@@ -57,6 +58,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_option_lz4.c
     test_option_lzma.c
     test_option_lzop.c
+    test_option_mtime.c
     test_option_n.c
     test_option_newer_than.c
     test_option_nodump.c
@@ -115,7 +117,9 @@ IF(ENABLE_TAR AND ENABLE_TEST)
       COMMAND bsdtar_test -vv
                           -p $<TARGET_FILE:bsdtar>
                           -r ${CMAKE_CURRENT_SOURCE_DIR}
+                          -s
                           ${_testname})
+    SET_TESTS_PROPERTIES(bsdtar_${_testname} PROPERTIES SKIP_RETURN_CODE 2)
   ENDMACRO (DEFINE_TEST _testname)
 
   INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)

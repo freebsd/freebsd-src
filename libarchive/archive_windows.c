@@ -47,6 +47,7 @@
 #include "archive_platform.h"
 #include "archive_private.h"
 #include "archive_entry.h"
+#include "archive_time_private.h"
 #include <ctype.h>
 #include <errno.h>
 #include <stddef.h>
@@ -60,8 +61,6 @@
 #include <wchar.h>
 #include <windows.h>
 #include <share.h>
-
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 
 #if defined(__LA_LSEEK_NEEDED)
 static BOOL SetFilePointerEx_perso(HANDLE hFile,
@@ -450,24 +449,6 @@ __la_read(int fd, void *buf, size_t nbytes)
 	return ((ssize_t)bytes_read);
 }
 
-/* Convert Windows FILETIME to UTC */
-__inline static void
-fileTimeToUTC(const FILETIME *filetime, time_t *t, long *ns)
-{
-	ULARGE_INTEGER utc;
-
-	utc.HighPart = filetime->dwHighDateTime;
-	utc.LowPart  = filetime->dwLowDateTime;
-	if (utc.QuadPart >= EPOC_TIME) {
-		utc.QuadPart -= EPOC_TIME;
-		*t = (time_t)(utc.QuadPart / 10000000);	/* milli seconds base */
-		*ns = (long)(utc.QuadPart % 10000000) * 100;/* nano seconds base */
-	} else {
-		*t = 0;
-		*ns = 0;
-	}
-}
-
 /* Stat by handle
  * Windows' stat() does not accept the path added "\\?\" especially "?"
  * character.
@@ -487,8 +468,6 @@ __hstat(HANDLE handle, struct ustat *st)
 	ULARGE_INTEGER ino64;
 	DWORD ftype;
 	mode_t mode;
-	time_t t;
-	long ns;
 
 	switch (ftype = GetFileType(handle)) {
 	case FILE_TYPE_UNKNOWN:
@@ -544,15 +523,9 @@ __hstat(HANDLE handle, struct ustat *st)
 		mode |= S_IFREG;
 	st->st_mode = mode;
 
-	fileTimeToUTC(&info.ftLastAccessTime, &t, &ns);
-	st->st_atime = t;
-	st->st_atime_nsec = ns;
-	fileTimeToUTC(&info.ftLastWriteTime, &t, &ns);
-	st->st_mtime = t;
-	st->st_mtime_nsec = ns;
-	fileTimeToUTC(&info.ftCreationTime, &t, &ns);
-	st->st_ctime = t;
-	st->st_ctime_nsec = ns;
+	ntfs_to_unix(FILETIME_to_ntfs(&info.ftLastAccessTime), &st->st_atime, &st->st_atime_nsec);
+	ntfs_to_unix(FILETIME_to_ntfs(&info.ftLastWriteTime), &st->st_mtime, &st->st_mtime_nsec);
+	ntfs_to_unix(FILETIME_to_ntfs(&info.ftCreationTime), &st->st_ctime, &st->st_ctime_nsec);
 	st->st_size =
 	    ((int64_t)(info.nFileSizeHigh) * ((int64_t)MAXDWORD + 1))
 		+ (int64_t)(info.nFileSizeLow);

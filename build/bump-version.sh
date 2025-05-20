@@ -1,4 +1,5 @@
 #!/bin/sh +v
+set -eu
 
 # Start from the build directory, where the version file is located
 if [ -f build/version ]; then

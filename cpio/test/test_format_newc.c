@@ -189,10 +189,10 @@ DEFINE_TEST(test_format_newc)
 	gid = from_hex(e + 30, 8); /* gid */
 	assertEqualMem(e + 38, "00000003", 8); /* nlink */
 	t = from_hex(e + 46, 8); /* mtime */
-	failure("t=%#08jx now=%#08jx=%jd", (intmax_t)t, (intmax_t)now,
+	failure("t=%#08jx now=%#08jx=%jd", (uintmax_t)t, (uintmax_t)now,
 	    (intmax_t)now);
 	assert(t <= now); /* File wasn't created in future. */
-	failure("t=%#08jx now - 2=%#08jx=%jd", (intmax_t)t, (intmax_t)now - 2,
+	failure("t=%#08jx now - 2=%#08jx=%jd", (uintmax_t)t, (uintmax_t)now - 2,
 	    (intmax_t)now - 2);
 	assert(t >= now - 2); /* File was created w/in last 2 secs. */
 	failure("newc format stores body only with last appearance of a link\n"
@@ -230,7 +230,7 @@ DEFINE_TEST(test_format_newc)
 		assertEqualMem(e + 38, "00000001", 8); /* nlink */
 		t2 = from_hex(e + 46, 8); /* mtime */
 		failure("First entry created at t=%#08jx this entry created"
-		    " at t2=%#08jx", (intmax_t)t, (intmax_t)t2);
+		    " at t2=%#08jx", (uintmax_t)t, (uintmax_t)t2);
 		assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */
 		assertEqualMem(e + 54, "00000005", 8); /* File size */
 		fs = (uint64_t)from_hex(e + 54, 8);
@@ -266,7 +266,7 @@ DEFINE_TEST(test_format_newc)
 #endif
 	t2 = from_hex(e + 46, 8); /* mtime */
 	failure("First entry created at t=%#08jx this entry created at"
-	    "t2=%#08jx", (intmax_t)t, (intmax_t)t2);
+	    "t2=%#08jx", (uintmax_t)t, (uintmax_t)t2);
 	assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */
 	assertEqualMem(e + 54, "00000000", 8); /* File size */
 	fs = (uint64_t)from_hex(e + 54, 8);
@@ -300,7 +300,7 @@ DEFINE_TEST(test_format_newc)
 	assertEqualMem(e + 38, "00000003", 8); /* nlink */
 	t2 = from_hex(e + 46, 8); /* mtime */
 	failure("First entry created at t=%#08jx this entry created at"
-	    "t2=%#08jx", (intmax_t)t, (intmax_t)t2);
+	    "t2=%#08jx", (uintmax_t)t, (uintmax_t)t2);
 	assert(t2 == t || t2 == t + 1); /* Almost same as first entry. */
 	assertEqualInt(10, from_hex(e + 54, 8)); /* File size */
 	fs = (uint64_t)from_hex(e + 54, 8);

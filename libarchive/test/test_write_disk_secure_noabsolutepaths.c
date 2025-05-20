@@ -35,7 +35,7 @@ DEFINE_TEST(test_write_disk_secure_noabsolutepaths)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	// Create an absolute path for a test file inside testworkdir.
-	char *entry_suffix = "/badfile";
+	const char *entry_suffix = "/badfile";
 	size_t entry_suffix_length = strlen(entry_suffix);
 	size_t testworkdir_length = strlen(testworkdir);
 	size_t temp_absolute_file_name_length = testworkdir_length + entry_suffix_length;
@@ -79,8 +79,8 @@ DEFINE_TEST(test_write_disk_secure_noabsolutepaths)
 	assert(ARCHIVE_OK != archive_read_extract(a, ae, ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS));
 
 	// This should also fail.
-	assert((ad = archive_write_new()) != NULL);
-	assertEqualInt(ARCHIVE_OK, archive_write_disk_set_options(a, ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS));
+	assert((ad = archive_write_disk_new()) != NULL);
+	assertEqualInt(ARCHIVE_OK, archive_write_disk_set_options(ad, ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS));
 	assert(ARCHIVE_OK != archive_read_extract2(a, ae, ad));
 
 	assertEqualInt(ARCHIVE_OK, archive_write_free(ad));

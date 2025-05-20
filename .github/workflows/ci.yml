@@ -12,9 +12,9 @@ jobs:
       matrix:
         bs: [autotools, cmake]
     steps:
-    - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
     - name: Install dependencies
-      run: ./build/ci/github_actions/macos.sh prepare
+      run: ./build/ci/github_actions/install-macos-dependencies.sh
     - name: Autogen
       run: ./build/ci/build.sh -a autogen
       env:
@@ -23,29 +23,31 @@ jobs:
       run: ./build/ci/build.sh -a configure
       env:
         BS: ${{ matrix.bs }}
+        # Avoid using liblzma from the Xcode 16 / MacOSX15.0.sdk, which fails RISCV filter tests.
+        CMAKE_ARGS: -D LIBLZMA_LIBRARY=/opt/homebrew/lib/liblzma.dylib -D LIBLZMA_INCLUDE_DIR=/opt/homebrew/include/lzma.h
     - name: Build
       run: ./build/ci/build.sh -a build
       env:
         BS: ${{ matrix.bs }}
-        MAKE_ARGS: -j
+        MAKE_ARGS: -j3
     - name: Test
       run: ./build/ci/build.sh -a test
       env:
         BS: ${{ matrix.bs }}
         SKIP_OPEN_FD_ERR_TEST: 1
         IGNORE_TRAVERSALS_TEST4: 1
-        MAKE_ARGS: -j
+        MAKE_ARGS: -j3
         CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/build.sh -a install
       env:
         BS: ${{ matrix.bs }}
-        MAKE_ARGS: -j
+        MAKE_ARGS: -j3
     - name: Artifact
       run: ./build/ci/build.sh -a artifact
       env:
         BS: ${{ matrix.bs }}
-    - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: libarchive-macos-${{ matrix.bs }}-${{ github.sha }}
         path: libarchive.tar.xz
@@ -57,7 +59,7 @@ jobs:
         bs: [autotools, cmake]
         crypto: [mbedtls, nettle, openssl]
     steps:
-    - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
     - name: Update apt cache
       run: sudo apt-get update
     - name: Install dependencies
@@ -75,13 +77,13 @@ jobs:
       run: ./build/ci/build.sh -a build
       env:
         BS: ${{ matrix.bs }}
-        MAKE_ARGS: -j
+        MAKE_ARGS: -j4
     - name: Test
       run: ./build/ci/build.sh -a test
       env:
         BS: ${{ matrix.bs }}
         SKIP_OPEN_FD_ERR_TEST: 1
-        MAKE_ARGS: -j
+        MAKE_ARGS: -j4
         CTEST_OUTPUT_ON_FAILURE: ON
     - name: Install
       run: ./build/ci/build.sh -a install
@@ -91,14 +93,14 @@ jobs:
       run: ./build/ci/build.sh -a artifact
       env:
         BS: ${{ matrix.bs }}
-    - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: libarchive-ubuntu-${{ matrix.bs }}-${{ matrix.crypto }}-${{ github.sha }}
         path: libarchive.tar.xz
   Ubuntu-distcheck:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
     - name: Update package definitions
       run: sudo apt-get update
     - name: Install dependencies
@@ -113,7 +115,7 @@ jobs:
         SKIP_OPEN_FD_ERR_TEST: 1
     - name: Dist-Artifact
       run: ./build/ci/build.sh -a dist-artifact
-    - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: libarchive-${{ github.sha }}
         path: libarchive-dist.tar
@@ -125,7 +127,7 @@ jobs:
       matrix:
         be: [mingw-gcc, msvc]
     steps:
-    - uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
     - name: Install mingw
       if:  ${{ matrix.be=='mingw-gcc' }}
       run: choco install mingw
@@ -161,7 +163,7 @@ jobs:
       shell: cmd
       env:
         BE: ${{ matrix.be }}
-    - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: libarchive-windows-${{ matrix.be }}-${{ github.sha }}
         path: libarchive.zip

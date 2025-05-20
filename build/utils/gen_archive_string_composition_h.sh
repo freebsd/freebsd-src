@@ -1,4 +1,12 @@
 #!/bin/sh
+set -eu
+
+if [ $# != 1 ]
+then
+	echo "Usage: $0 path/to/UnicodeData.txt"
+	exit 1
+fi
+
 #
 # This needs http://unicode.org/Public/6.0.0/ucd/UnicodeData.txt
 #

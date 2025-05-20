@@ -13,7 +13,7 @@ IF "%1%"=="prepare" (
   IF "%BE%"=="cygwin-gcc" (
     @ECHO ON
     choco install -y --no-progress cygwin || EXIT /b 1
-    C:\tools\cygwin\cygwinsetup.exe -q -P make,autoconf,automake,cmake,gcc-core,binutils,libtool,pkg-config,bison,sharutils,zlib-devel,libbz2-devel,liblzma-devel,liblz4-devel,libiconv-devel,libxml2-devel,libzstd-devel,libssl-devel || EXIT /b 1
+    C:\tools\cygwin\cygwinsetup.exe -q -P make,autoconf,automake,cmake,gcc-core,binutils,libtool,pkg-config,bison,zlib-devel,libbz2-devel,liblzma-devel,liblz4-devel,libiconv-devel,libxml2-devel,libzstd-devel,libssl-devel || EXIT /b 1
     @EXIT /b 0
   ) ELSE IF "%BE%"=="mingw-gcc" (
     @ECHO ON

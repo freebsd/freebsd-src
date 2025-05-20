@@ -1,4 +1,5 @@
 #!/bin/sh
+set -eu
 
 #
 # Attempt to remove as many generated files as we can.

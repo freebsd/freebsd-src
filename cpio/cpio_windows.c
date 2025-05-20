@@ -171,7 +171,7 @@ cpio_CreateFile(const char *path, DWORD dwDesiredAccess, DWORD dwShareMode,
 	return (handle);
 }
 
-#define WINTIME(sec, usec)	((Int32x32To64(sec, 10000000) + EPOC_TIME) + (usec * 10))
+#define WINTIME(sec, usec)	(((sec * 10000000LL) + EPOC_TIME) + (usec * 10))
 static int
 __hutimes(HANDLE handle, const struct __timeval *times)
 {

@@ -153,6 +153,8 @@
 #define HAVE_SYS_VFS_H 1
 #define HAVE_SYS_WAIT_H 1
 #define HAVE_SYS_XATTR_H 1
+#define HAVE_TCGETATTR 1
+#define HAVE_TCSETATTR 1
 #define HAVE_TIMEGM 1
 #define HAVE_TIME_H 1
 #define HAVE_TZSET 1

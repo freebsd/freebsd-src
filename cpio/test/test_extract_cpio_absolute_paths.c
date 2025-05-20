@@ -20,7 +20,7 @@ DEFINE_TEST(test_extract_cpio_absolute_paths)
 	int r;
 
 	// Create an absolute path for a test file inside testworkdir.
-	char *entry_suffix = "/cpio-noabs";
+	const char *entry_suffix = "/cpio-noabs";
 	size_t entry_suffix_length = strlen(entry_suffix);
 	size_t testworkdir_length = strlen(testworkdir);
 	size_t temp_absolute_file_name_length = testworkdir_length + entry_suffix_length;

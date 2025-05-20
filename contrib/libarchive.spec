@@ -22,7 +22,6 @@ BuildRequires:  libzstd-devel
 BuildRequires:  lz4-devel
 BuildRequires:  lzo-devel
 BuildRequires:  openssl-devel
-BuildRequires:  sharutils
 BuildRequires:  xz-devel
 BuildRequires:  zlib-devel
 

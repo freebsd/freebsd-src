@@ -39,10 +39,10 @@
 #include "archive.h"
 #include "archive_private.h"
 #include "archive_entry.h"
-#include "archive_getdate.h"
 #include "archive_pathmatch.h"
 #include "archive_rb.h"
 #include "archive_string.h"
+#include "archive_time_private.h"
 
 struct match {
 	struct match		*next;
@@ -187,7 +187,7 @@ static int	time_excluded(struct archive_match *,
 		    struct archive_entry *);
 static int	validate_time_flag(struct archive *, int, const char *);
 
-#define get_date __archive_get_date
+#define get_date archive_parse_date
 
 static const struct archive_rb_tree_ops rb_ops_mbs = {
 	cmp_node_mbs, cmp_key_mbs
@@ -1145,36 +1145,15 @@ set_timefilter_date_w(struct archive_match *a, int timetype,
 }
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 static int
 set_timefilter_find_data(struct archive_match *a, int timetype,
-    DWORD ftLastWriteTime_dwHighDateTime, DWORD ftLastWriteTime_dwLowDateTime,
-    DWORD ftCreationTime_dwHighDateTime, DWORD ftCreationTime_dwLowDateTime)
+    const FILETIME* ftLastWriteTime, const FILETIME* ftCreationTime)
 {
-	ULARGE_INTEGER utc;
 	time_t ctime_sec, mtime_sec;
-	long ctime_ns, mtime_ns;
+	uint32_t ctime_ns, mtime_ns;
 
-	utc.HighPart = ftCreationTime_dwHighDateTime;
-	utc.LowPart = ftCreationTime_dwLowDateTime;
-	if (utc.QuadPart >= EPOC_TIME) {
-		utc.QuadPart -= EPOC_TIME;
-		ctime_sec = (time_t)(utc.QuadPart / 10000000);
-		ctime_ns = (long)(utc.QuadPart % 10000000) * 100;
-	} else {
-		ctime_sec = 0;
-		ctime_ns = 0;
-	}
-	utc.HighPart = ftLastWriteTime_dwHighDateTime;
-	utc.LowPart = ftLastWriteTime_dwLowDateTime;
-	if (utc.QuadPart >= EPOC_TIME) {
-		utc.QuadPart -= EPOC_TIME;
-		mtime_sec = (time_t)(utc.QuadPart / 10000000);
-		mtime_ns = (long)(utc.QuadPart % 10000000) * 100;
-	} else {
-		mtime_sec = 0;
-		mtime_ns = 0;
-	}
+	ntfs_to_unix(FILETIME_to_ntfs(ftLastWriteTime), &mtime_sec, &mtime_ns);
+	ntfs_to_unix(FILETIME_to_ntfs(ftCreationTime), &ctime_sec, &ctime_ns);
 	return set_timefilter(a, timetype,
 			mtime_sec, mtime_ns, ctime_sec, ctime_ns);
 }
@@ -1199,9 +1178,7 @@ set_timefilter_pathname_mbs(struct archive_match *a, int timetype,
 		return (ARCHIVE_FAILED);
 	}
 	FindClose(h);
-	return set_timefilter_find_data(a, timetype,
-	    d.ftLastWriteTime.dwHighDateTime, d.ftLastWriteTime.dwLowDateTime,
-	    d.ftCreationTime.dwHighDateTime, d.ftCreationTime.dwLowDateTime);
+	return set_timefilter_find_data(a, timetype, &d.ftLastWriteTime, &d.ftCreationTime);
 }
 
 static int
@@ -1223,9 +1200,7 @@ set_timefilter_pathname_wcs(struct archive_match *a, int timetype,
 		return (ARCHIVE_FAILED);
 	}
 	FindClose(h);
-	return set_timefilter_find_data(a, timetype,
-	    d.ftLastWriteTime.dwHighDateTime, d.ftLastWriteTime.dwLowDateTime,
-	    d.ftCreationTime.dwHighDateTime, d.ftCreationTime.dwLowDateTime);
+	return set_timefilter_find_data(a, timetype, &d.ftLastWriteTime, &d.ftCreationTime);
 }
 
 #else /* _WIN32 && !__CYGWIN__ */
@@ -1871,4 +1846,3 @@ owner_excluded(struct archive_match *a, struct archive_entry *entry)
 	}
 	return (0);
 }
-

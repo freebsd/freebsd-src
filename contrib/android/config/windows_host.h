@@ -530,9 +530,6 @@
 /* Define to 1 if you have the <lz4.h> header file. */
 /* #undef HAVE_LZ4_H */
 
-/* Define to 1 if you have the <lzmadec.h> header file. */
-/* #undef HAVE_LZMADEC_H */
-
 /* Define to 1 if you have the <lzma.h> header file. */
 /* #undef HAVE_LZMA_H */
 
@@ -826,6 +823,12 @@
 
 /* Define to 1 if you have the <sys/xattr.h> header file. */
 /* #undef HAVE_SYS_XATTR_H */
+
+/* Define to 1 if you have the `tcgetattr' function. */
+/* #undef HAVE_TCGETATTR */
+
+/* Define to 1 if you have the `tcsetattr' function. */
+/* #undef HAVE_TCSETATTR */
 
 /* Define to 1 if you have the `timegm' function. */
 /* #undef HAVE_TIMEGM */

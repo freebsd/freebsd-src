@@ -19,13 +19,13 @@
 #    xdg-open coverage/index.html
 #################################################################
 
-# Find programs we need 
+# Find programs we need
 FIND_PROGRAM(LCOV_EXECUTABLE lcov DOC "Full path to lcov executable")
 FIND_PROGRAM(GENHTML_EXECUTABLE genhtml DOC "Full path to genhtml executable")
 MARK_AS_ADVANCED(LCOV_EXECUTABLE GENHTML_EXECUTABLE)
 
 # Check, compiler, build types and programs are available
-IF(NOT CMAKE_COMPILER_IS_GNUCC)
+IF(NOT CMAKE_C_COMPILER_ID STREQUAL "GNU")
 MESSAGE(FATAL_ERROR "Coverage can only be built on GCC")
 ELSEIF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
 MESSAGE(FATAL_ERROR "Coverage can only be built in Debug mode")
@@ -33,7 +33,7 @@ ELSEIF(NOT LCOV_EXECUTABLE)
 MESSAGE(FATAL_ERROR "lcov executable not found")
 ELSEIF(NOT GENHTML_EXECUTABLE)
 MESSAGE(FATAL_ERROR "genhtml executable not found")
-ENDIF(NOT CMAKE_COMPILER_IS_GNUCC)
+ENDIF()
 
 # Enable testing if not already done
 SET(ENABLE_TEST ON)

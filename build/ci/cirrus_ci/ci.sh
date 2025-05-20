@@ -1,4 +1,12 @@
 #!/bin/sh
+set -eu
+
+if [ $# != 1 ]
+then
+	echo "Usage: $0 prepare | test"
+	exit 1
+fi
+
 UNAME=`uname`
 if [ "$1" = "prepare" ]
 then
@@ -29,10 +37,10 @@ then
 		if [ -f "/etc/debian_version" ]
 		then
 			apt-get -y update
-			apt-get -y install build-essential locales automake libtool bison sharutils pkgconf libacl1-dev libbz2-dev zlib1g-dev liblzma-dev liblz4-dev libzstd-dev libssl-dev lrzip cmake
+			apt-get -y install build-essential locales automake libtool bison pkgconf libacl1-dev libbz2-dev zlib1g-dev liblzma-dev liblz4-dev libzstd-dev libssl-dev lrzip cmake
 		elif [ -f "/etc/fedora-release" ]
 		then
-			dnf -y install make cmake gcc gcc-c++ kernel-devel automake libtool bison sharutils pkgconf libacl-devel librichacl-devel bzip2-devel zlib-devel xz-devel lz4-devel libzstd-devel openssl-devel
+			dnf -y install make cmake gcc gcc-c++ kernel-devel automake libtool bison pkgconf libacl-devel librichacl-devel bzip2-devel zlib-devel xz-devel lz4-devel libzstd-devel openssl-devel
 		fi
 	fi
 elif [ "$1" = "test" ]
@@ -53,6 +61,6 @@ then
 		TMPDIR=/tmp_acl_nfsv4 ${BIN_SUBDIR}/libarchive_test -r "${CURDIR}/libarchive/test" -v test_acl_platform_nfs4
 	fi
 else
-	echo "Usage $0 prepare | test_nfsv4_acls"
+	echo "Usage: $0 prepare | test"
 	exit 1
 fi

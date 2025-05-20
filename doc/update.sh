@@ -1,11 +1,13 @@
 #!/bin/sh
-
-set -e
+set -eu
 
 #
 # Simple script to repopulate the 'doc' tree from
 # the mdoc man pages stored in each project.
 #
+
+script_dir=`dirname $0`
+cd "$script_dir"
 
 # Collect list of man pages, relative to my subdirs
 test -d man || mkdir man

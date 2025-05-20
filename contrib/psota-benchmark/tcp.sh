@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # tar comparison program
 # 2007-10-25 Jan Psota
 

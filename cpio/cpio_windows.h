@@ -52,4 +52,4 @@ extern int utimes(const char *name, const struct __timeval *times);
 #define HAVE_UTIMES 1
 #endif
 
-#endif /* CPIO_WINDOWS_H */
+#endif /* !CPIO_WINDOWS_H */

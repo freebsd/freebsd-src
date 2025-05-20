@@ -1,7 +1,7 @@
 @ECHO OFF
 SET ZLIB_VERSION=1.3
 SET BZIP2_VERSION=1ea1ac188ad4b9cb662e3f8314673c63df95a589
-SET XZ_VERSION=5.4.4
+SET XZ_VERSION=5.6.3
 IF NOT "%BE%"=="mingw-gcc" (
   IF NOT "%BE%"=="msvc" (
     ECHO Environment variable BE must be mingw-gcc or msvc
@@ -64,7 +64,7 @@ IF "%1"=="deplibs" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
     cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
-    mingw32-make || EXIT /b 1
+    mingw32-make -j %NUMBER_OF_PROCESSORS% || EXIT /b 1
     mingw32-make test || EXIT /b 1
     mingw32-make install || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
@@ -78,7 +78,7 @@ IF "%1"=="deplibs" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
     cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" -D ENABLE_LIB_ONLY=ON -D ENABLE_SHARED_LIB=OFF -D ENABLE_STATIC_LIB=ON . || EXIT /b 1
-    mingw32-make || EXIT /b 1
+    mingw32-make -j %NUMBER_OF_PROCESSORS% || EXIT /b 1
     REM mingw32-make test || EXIT /b 1
     mingw32-make install || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
@@ -92,7 +92,7 @@ IF "%1"=="deplibs" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
     cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
-    mingw32-make || EXIT /b 1
+    mingw32-make -j %NUMBER_OF_PROCESSORS% || EXIT /b 1
     mingw32-make install || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     cmake -G "Visual Studio 17 2022" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
@@ -104,7 +104,7 @@ IF "%1"=="deplibs" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
     cmake -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
-    mingw32-make || EXIT /b 1
+    mingw32-make -j %NUMBER_OF_PROCESSORS% || EXIT /b 1
     mingw32-make install || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     cmake -G "Visual Studio 17 2022" -D CMAKE_BUILD_TYPE="Release" . || EXIT /b 1
@@ -120,13 +120,13 @@ IF "%1"=="deplibs" (
   ) ELSE IF "%BE%"=="msvc" (
     MKDIR build_ci\cmake
     CD build_ci\cmake
-    cmake -G "Visual Studio 17 2022" -D CMAKE_BUILD_TYPE="Release" -D ZLIB_LIBRARY="C:/Program Files (x86)/zlib/lib/zlibstatic.lib" -D ZLIB_INCLUDE_DIR="C:/Program Files (x86)/zlib/include" -D BZIP2_LIBRARIES="C:/Program Files (x86)/bzip2/lib/bz2_static.lib" -D BZIP2_INCLUDE_DIR="C:/Program Files (x86)/bzip2/include" -D LIBLZMA_LIBRARY="C:/Program Files (x86)/xz/lib/liblzma.lib" -D LIBLZMA_INCLUDE_DIR="C:/Program Files (x86)/xz/include" -D ZSTD_LIBRARY="C:/Program Files (x86)/zstd/lib/zstd_static.lib" -D ZSTD_INCLUDE_DIR="C:/Program Files (x86)/zstd/include" ..\.. || EXIT /b 1
+    cmake -G "Visual Studio 17 2022" -D CMAKE_BUILD_TYPE="Release" -D ZLIB_LIBRARY="C:/Program Files (x86)/zlib/lib/zlibstatic.lib" -D ZLIB_INCLUDE_DIR="C:/Program Files (x86)/zlib/include" -D BZIP2_LIBRARIES="C:/Program Files (x86)/bzip2/lib/bz2_static.lib" -D BZIP2_INCLUDE_DIR="C:/Program Files (x86)/bzip2/include" -D LIBLZMA_LIBRARY="C:/Program Files (x86)/xz/lib/lzma.lib" -D LIBLZMA_INCLUDE_DIR="C:/Program Files (x86)/xz/include" -D ZSTD_LIBRARY="C:/Program Files (x86)/zstd/lib/zstd_static.lib" -D ZSTD_INCLUDE_DIR="C:/Program Files (x86)/zstd/include" ..\.. || EXIT /b 1
   )
 ) ELSE IF "%1%"=="build" (
   IF "%BE%"=="mingw-gcc" (
     SET PATH=%MINGWPATH%
     CD build_ci\cmake
-    mingw32-make VERBOSE=1 || EXIT /b 1
+    mingw32-make -j %NUMBER_OF_PROCESSORS% VERBOSE=1 || EXIT /b 1
   ) ELSE IF "%BE%"=="msvc" (
     CD build_ci\cmake
     cmake --build . --target ALL_BUILD --config Release || EXIT /b 1
@@ -150,6 +150,7 @@ IF "%1"=="deplibs" (
     CD build_ci\cmake
     cmake --build . --target INSTALL --config Release || EXIT /b 1
   )
+  "C:\Program Files (x86)\libarchive\bin\bsdtar.exe" --version
 ) ELSE IF "%1"=="artifact" (
     C:\windows\system32\tar.exe -c -C "C:\Program Files (x86)" --format=zip -f libarchive.zip libarchive
 ) ELSE (

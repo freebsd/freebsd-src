@@ -195,7 +195,7 @@ add_trivial_nfs4_acl(struct archive_entry *entry)
 	} else if ((mode & 0010) || (mode & 0001))
 		tacl_entry[1].permset |= eperm;
 
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < sizeof(tacl_entry) / sizeof(tacl_entry[0]); i++) {
 		if (tacl_entry[i].permset != 0) {
 			archive_entry_acl_add_entry(entry,
 			    tacl_entry[i].type, tacl_entry[i].permset,

@@ -12,14 +12,18 @@
 # MAKE_ARGS=		# make arguments
 # DEBUG=		# set -g -fsanitize=address flags
 
+set -eu
+
 ACTIONS=
-if [ -n "${BUILD_SYSTEM}" ]; then
+if [ -n "${BUILD_SYSTEM:-}" ]; then
 	BS="${BUILD_SYSTEM}"
 fi
 
 BS="${BS:-autotools}"
 MAKE="${MAKE:-make}"
 CMAKE="${CMAKE:-cmake}"
+CMAKE_ARGS="${CMAKE_ARGS:-}"
+CONFIGURE_ARGS="${CONFIGURE_ARGS:-}"
 CURDIR=`pwd`
 SRCDIR="${SRCDIR:-`pwd`}"
 RET=0
@@ -74,7 +78,7 @@ while getopts a:b:c:d:s: opt; do
 		;;
 	esac
 done
-case "${CRYPTO}" in
+case "${CRYPTO:-}" in
 	mbedtls)
 		CMAKE_ARGS="${CMAKE_ARGS} -DENABLE_OPENSSL=OFF -DENABLE_MBEDTLS=ON"
 		CONFIGURE_ARGS="${CONFIGURE_ARGS} --without-openssl --with-mbedtls"
@@ -84,15 +88,21 @@ case "${CRYPTO}" in
 		CONFIGURE_ARGS="${CONFIGURE_ARGS} --without-openssl --with-nettle"
 	;;
 esac
-if [ -z "${MAKE_ARGS}" ]; then
+if [ -z "${MAKE_ARGS:-}" ]; then
 	if [ "${BS}" = "autotools" ]; then
 		MAKE_ARGS="V=1"
 	elif [ "${BS}" = "cmake" ]; then
 		MAKE_ARGS="VERBOSE=1"
 	fi
 fi
-if [ -n "${DEBUG}" ]; then
-	if [ -n "${CFLAGS}" ]; then
+if [ -d /opt/homebrew/include ]; then
+	export CFLAGS="${CFLAGS:-} -I/opt/homebrew/include"
+fi
+if [ -d /opt/homebrew/lib ]; then
+	export LDFLAGS="${LDFLAGS:-} -L/opt/homebrew/lib"
+fi
+if [ -n "${DEBUG:-}" ]; then
+	if [ -n "${CFLAGS:-}" ]; then
 		export CFLAGS="${CFLAGS} -g -fsanitize=address"
 	else
 		export CFLAGS="-g -fsanitize=address"
@@ -104,7 +114,7 @@ fi
 if [ -z "${BS}" ]; then
 	inputerror "Missing build system (-b) parameter"
 fi
-if [ -z "${BUILDDIR}" ]; then
+if [ -z "${BUILDDIR:-}" ]; then
 	BUILDDIR="${CURDIR}/build_ci/${BS}"
 fi
 mkdir -p "${BUILDDIR}"
@@ -141,18 +151,19 @@ for action in ${ACTIONS}; do
 					;;
 			esac
 			RET="$?"
-			find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \;
+			find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \; 2>/dev/null || /bin/true
 		;;
 		install)
 			${MAKE} ${MAKE_ARGS} install DESTDIR="${BUILDDIR}/destdir"
 			RET="$?"
 			cd "${BUILDDIR}/destdir" && ls -lR .
+			./usr/local/bin/bsdtar --version
 		;;
 		distcheck)
 			${MAKE} ${MAKE_ARGS} distcheck || (
 				RET="$?"
 				find . -name 'test-suite.log' -print -exec cat {} \;
-				find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \;
+				find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \; 2>/dev/null || /bin/true
 				exit "${RET}"
 			)
 			RET="$?"
