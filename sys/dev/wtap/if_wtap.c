@@ -33,7 +33,7 @@
  */
 #include "if_wtapvar.h"
 #include <sys/uio.h>    /* uio struct */
-#include <sys/jail.h>
+#include <net/if.h>
 #include <net/if_var.h>
 #include <net/vnet.h>
 
@@ -395,7 +395,7 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	ieee80211_vap_attach(vap, ieee80211_media_change,
 	    ieee80211_media_status, mac);
 	avp->av_dev = make_dev(&wtap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "%s", (const char *)vap->iv_ifp->if_xname);
+	    "%s", if_name(vap->iv_ifp));
 	avp->av_dev->si_drv1 = sc;
 	callout_init(&avp->av_swba, 0);
 
