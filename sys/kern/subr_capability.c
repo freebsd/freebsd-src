@@ -50,107 +50,61 @@
 
 #ifdef _KERNEL
 #define	assert(exp)	KASSERT((exp), ("%s:%u", __func__, __LINE__))
-__read_mostly cap_rights_t cap_accept_rights;
-__read_mostly cap_rights_t cap_bind_rights;
-__read_mostly cap_rights_t cap_chflags_rights;
-__read_mostly cap_rights_t cap_connect_rights;
-__read_mostly cap_rights_t cap_event_rights;
-__read_mostly cap_rights_t cap_fchdir_rights;
-__read_mostly cap_rights_t cap_fchflags_rights;
-__read_mostly cap_rights_t cap_fchmod_rights;
-__read_mostly cap_rights_t cap_fchown_rights;
-__read_mostly cap_rights_t cap_fchroot_rights;
-__read_mostly cap_rights_t cap_fcntl_rights;
-__read_mostly cap_rights_t cap_fexecve_rights;
-__read_mostly cap_rights_t cap_flock_rights;
-__read_mostly cap_rights_t cap_fpathconf_rights;
-__read_mostly cap_rights_t cap_fstat_rights;
-__read_mostly cap_rights_t cap_fstatfs_rights;
-__read_mostly cap_rights_t cap_fsync_rights;
-__read_mostly cap_rights_t cap_ftruncate_rights;
-__read_mostly cap_rights_t cap_futimes_rights;
-__read_mostly cap_rights_t cap_getpeername_rights;
-__read_mostly cap_rights_t cap_getsockopt_rights;
-__read_mostly cap_rights_t cap_getsockname_rights;
-__read_mostly cap_rights_t cap_ioctl_rights;
-__read_mostly cap_rights_t cap_listen_rights;
-__read_mostly cap_rights_t cap_linkat_source_rights;
-__read_mostly cap_rights_t cap_linkat_target_rights;
-__read_mostly cap_rights_t cap_mmap_rights;
-__read_mostly cap_rights_t cap_mkdirat_rights;
-__read_mostly cap_rights_t cap_mkfifoat_rights;
-__read_mostly cap_rights_t cap_mknodat_rights;
-__read_mostly cap_rights_t cap_pdgetpid_rights;
-__read_mostly cap_rights_t cap_pdkill_rights;
-__read_mostly cap_rights_t cap_pread_rights;
-__read_mostly cap_rights_t cap_pwrite_rights;
-__read_mostly cap_rights_t cap_read_rights;
-__read_mostly cap_rights_t cap_recv_rights;
-__read_mostly cap_rights_t cap_renameat_source_rights;
-__read_mostly cap_rights_t cap_renameat_target_rights;
-__read_mostly cap_rights_t cap_seek_rights;
-__read_mostly cap_rights_t cap_send_rights;
-__read_mostly cap_rights_t cap_send_connect_rights;
-__read_mostly cap_rights_t cap_setsockopt_rights;
-__read_mostly cap_rights_t cap_shutdown_rights;
-__read_mostly cap_rights_t cap_symlinkat_rights;
-__read_mostly cap_rights_t cap_unlinkat_rights;
-__read_mostly cap_rights_t cap_write_rights;
-__read_mostly cap_rights_t cap_no_rights;
-
-static void
-cap_rights_sysinit(void *arg)
-{
-	cap_rights_init_one(&cap_accept_rights, CAP_ACCEPT);
-	cap_rights_init_one(&cap_bind_rights, CAP_BIND);
-	cap_rights_init_one(&cap_connect_rights, CAP_CONNECT);
-	cap_rights_init_one(&cap_event_rights, CAP_EVENT);
-	cap_rights_init_one(&cap_fchdir_rights, CAP_FCHDIR);
-	cap_rights_init_one(&cap_fchflags_rights, CAP_FCHFLAGS);
-	cap_rights_init_one(&cap_fchmod_rights, CAP_FCHMOD);
-	cap_rights_init_one(&cap_fchown_rights, CAP_FCHOWN);
-	cap_rights_init_one(&cap_fchroot_rights, CAP_FCHROOT);
-	cap_rights_init_one(&cap_fcntl_rights, CAP_FCNTL);
-	cap_rights_init_one(&cap_fexecve_rights, CAP_FEXECVE);
-	cap_rights_init_one(&cap_flock_rights, CAP_FLOCK);
-	cap_rights_init_one(&cap_fpathconf_rights, CAP_FPATHCONF);
-	cap_rights_init_one(&cap_fstat_rights, CAP_FSTAT);
-	cap_rights_init_one(&cap_fstatfs_rights, CAP_FSTATFS);
-	cap_rights_init_one(&cap_fsync_rights, CAP_FSYNC);
-	cap_rights_init_one(&cap_ftruncate_rights, CAP_FTRUNCATE);
-	cap_rights_init_one(&cap_futimes_rights, CAP_FUTIMES);
-	cap_rights_init_one(&cap_getpeername_rights, CAP_GETPEERNAME);
-	cap_rights_init_one(&cap_getsockname_rights, CAP_GETSOCKNAME);
-	cap_rights_init_one(&cap_getsockopt_rights, CAP_GETSOCKOPT);
-	cap_rights_init_one(&cap_ioctl_rights, CAP_IOCTL);
-	cap_rights_init_one(&cap_linkat_source_rights, CAP_LINKAT_SOURCE);
-	cap_rights_init_one(&cap_linkat_target_rights, CAP_LINKAT_TARGET);
-	cap_rights_init_one(&cap_listen_rights, CAP_LISTEN);
-	cap_rights_init_one(&cap_mkdirat_rights, CAP_MKDIRAT);
-	cap_rights_init_one(&cap_mkfifoat_rights, CAP_MKFIFOAT);
-	cap_rights_init_one(&cap_mknodat_rights, CAP_MKNODAT);
-	cap_rights_init_one(&cap_mmap_rights, CAP_MMAP);
-	cap_rights_init_one(&cap_pdgetpid_rights, CAP_PDGETPID);
-	cap_rights_init_one(&cap_pdkill_rights, CAP_PDKILL);
-	cap_rights_init_one(&cap_pread_rights, CAP_PREAD);
-	cap_rights_init_one(&cap_pwrite_rights, CAP_PWRITE);
-	cap_rights_init_one(&cap_read_rights, CAP_READ);
-	cap_rights_init_one(&cap_recv_rights, CAP_RECV);
-	cap_rights_init_one(&cap_renameat_source_rights, CAP_RENAMEAT_SOURCE);
-	cap_rights_init_one(&cap_renameat_target_rights, CAP_RENAMEAT_TARGET);
-	cap_rights_init_one(&cap_seek_rights, CAP_SEEK);
-	cap_rights_init_one(&cap_send_rights, CAP_SEND);
-	cap_rights_init(&cap_send_connect_rights, CAP_SEND, CAP_CONNECT);
-	cap_rights_init_one(&cap_setsockopt_rights, CAP_SETSOCKOPT);
-	cap_rights_init_one(&cap_shutdown_rights, CAP_SHUTDOWN);
-	cap_rights_init_one(&cap_symlinkat_rights, CAP_SYMLINKAT);
-	cap_rights_init_one(&cap_unlinkat_rights, CAP_UNLINKAT);
-	cap_rights_init_one(&cap_write_rights, CAP_WRITE);
-	cap_rights_init(&cap_no_rights);
-}
-SYSINIT(cap_rights_sysinit, SI_SUB_COPYRIGHT, SI_ORDER_ANY, cap_rights_sysinit,
-    NULL);
-
+const cap_rights_t cap_accept_rights = CAP_RIGHTS_INITIALIZER(CAP_ACCEPT);
+const cap_rights_t cap_bind_rights = CAP_RIGHTS_INITIALIZER(CAP_BIND);
+const cap_rights_t cap_connect_rights = CAP_RIGHTS_INITIALIZER(CAP_CONNECT);
+const cap_rights_t cap_event_rights = CAP_RIGHTS_INITIALIZER(CAP_EVENT);
+const cap_rights_t cap_fchdir_rights = CAP_RIGHTS_INITIALIZER(CAP_FCHDIR);
+const cap_rights_t cap_fchflags_rights = CAP_RIGHTS_INITIALIZER(CAP_FCHFLAGS);
+const cap_rights_t cap_fchmod_rights = CAP_RIGHTS_INITIALIZER(CAP_FCHMOD);
+const cap_rights_t cap_fchown_rights = CAP_RIGHTS_INITIALIZER(CAP_FCHOWN);
+const cap_rights_t cap_fchroot_rights = CAP_RIGHTS_INITIALIZER(CAP_FCHROOT);
+const cap_rights_t cap_fcntl_rights = CAP_RIGHTS_INITIALIZER(CAP_FCNTL);
+const cap_rights_t cap_fexecve_rights = CAP_RIGHTS_INITIALIZER(CAP_FEXECVE);
+const cap_rights_t cap_flock_rights = CAP_RIGHTS_INITIALIZER(CAP_FLOCK);
+const cap_rights_t cap_fpathconf_rights = CAP_RIGHTS_INITIALIZER(CAP_FPATHCONF);
+const cap_rights_t cap_fstat_rights = CAP_RIGHTS_INITIALIZER(CAP_FSTAT);
+const cap_rights_t cap_fstatfs_rights = CAP_RIGHTS_INITIALIZER(CAP_FSTATFS);
+const cap_rights_t cap_fsync_rights = CAP_RIGHTS_INITIALIZER(CAP_FSYNC);
+const cap_rights_t cap_ftruncate_rights = CAP_RIGHTS_INITIALIZER(CAP_FTRUNCATE);
+const cap_rights_t cap_futimes_rights = CAP_RIGHTS_INITIALIZER(CAP_FUTIMES);
+const cap_rights_t cap_getpeername_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_GETPEERNAME);
+const cap_rights_t cap_getsockopt_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_GETSOCKOPT);
+const cap_rights_t cap_getsockname_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_GETSOCKNAME);
+const cap_rights_t cap_ioctl_rights = CAP_RIGHTS_INITIALIZER(CAP_IOCTL);
+const cap_rights_t cap_listen_rights = CAP_RIGHTS_INITIALIZER(CAP_LISTEN);
+const cap_rights_t cap_linkat_source_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_LINKAT_SOURCE);
+const cap_rights_t cap_linkat_target_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_LINKAT_TARGET);
+const cap_rights_t cap_mmap_rights = CAP_RIGHTS_INITIALIZER(CAP_MMAP);
+const cap_rights_t cap_mkdirat_rights = CAP_RIGHTS_INITIALIZER(CAP_MKDIRAT);
+const cap_rights_t cap_mkfifoat_rights = CAP_RIGHTS_INITIALIZER(CAP_MKFIFOAT);
+const cap_rights_t cap_mknodat_rights = CAP_RIGHTS_INITIALIZER(CAP_MKNODAT);
+const cap_rights_t cap_pdgetpid_rights = CAP_RIGHTS_INITIALIZER(CAP_PDGETPID);
+const cap_rights_t cap_pdkill_rights = CAP_RIGHTS_INITIALIZER(CAP_PDKILL);
+const cap_rights_t cap_pread_rights = CAP_RIGHTS_INITIALIZER(CAP_PREAD);
+const cap_rights_t cap_pwrite_rights = CAP_RIGHTS_INITIALIZER(CAP_PWRITE);
+const cap_rights_t cap_read_rights = CAP_RIGHTS_INITIALIZER(CAP_READ);
+const cap_rights_t cap_recv_rights = CAP_RIGHTS_INITIALIZER(CAP_RECV);
+const cap_rights_t cap_renameat_source_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_RENAMEAT_SOURCE);
+const cap_rights_t cap_renameat_target_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_RENAMEAT_TARGET);
+const cap_rights_t cap_seek_rights = CAP_RIGHTS_INITIALIZER(CAP_SEEK);
+const cap_rights_t cap_send_rights = CAP_RIGHTS_INITIALIZER(CAP_SEND);
+const cap_rights_t cap_send_connect_rights =
+    CAP_RIGHTS_INITIALIZER2(CAP_SEND, CAP_CONNECT);
+const cap_rights_t cap_setsockopt_rights =
+    CAP_RIGHTS_INITIALIZER(CAP_SETSOCKOPT);
+const cap_rights_t cap_shutdown_rights = CAP_RIGHTS_INITIALIZER(CAP_SHUTDOWN);
+const cap_rights_t cap_symlinkat_rights = CAP_RIGHTS_INITIALIZER(CAP_SYMLINKAT);
+const cap_rights_t cap_unlinkat_rights = CAP_RIGHTS_INITIALIZER(CAP_UNLINKAT);
+const cap_rights_t cap_write_rights = CAP_RIGHTS_INITIALIZER(CAP_WRITE);
+const cap_rights_t cap_no_rights = CAP_RIGHTS_INITIALIZER(0ULL);
 #endif
 
 #define	CAPARSIZE_MIN	(CAP_RIGHTS_VERSION_00 + 2)
