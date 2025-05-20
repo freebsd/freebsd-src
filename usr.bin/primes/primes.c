@@ -289,6 +289,9 @@ primes(ubig start, ubig stop)
 			for ( ; q < tab_lim; q += factor) {
 				*q = '\0'; /* sieve out a spot */
 			}
+			if (p > pr_limit) {
+				break;
+			}
 			factor = *p++;
 		} while (factor <= fact_lim);
 
