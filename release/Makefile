@@ -210,20 +210,17 @@ disc1: packagesystem ${PKGBASE_REPO}
 	mtree -c -p ${.TARGET}/usr/freebsd-packages | \
 	    mtree -C -k type,mode,link,size | \
 	    sed 's|^\.|./usr/freebsd-packages|g' >> ${.TARGET}/METALOG
-# Copy manifest only (no distfiles) to get checksums
+.endif
+	# Copy MANIFEST to provide legacy dist checksums in both modes
 	mkdir -p ${.TARGET}/usr/freebsd-dist
+	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
 	cp MANIFEST ${.TARGET}/usr/freebsd-dist
-	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
 	echo "./usr/freebsd-dist/MANIFEST type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
-.else
+.if !defined(PKGBASE)
 # Copy distfiles
-	mkdir -p ${.TARGET}/usr/freebsd-dist
-	for dist in MANIFEST $$(ls *.txz | grep -v container | grep -vE -- '(${base ${_ALL_libcompats}:L:ts|})-dbg'); \
-	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
-	done
-	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
-	for dist in MANIFEST $$(ls *.txz | grep -v container | grep -vE -- '(${base ${_ALL_libcompats}:L:ts|})-dbg'); \
-	    do echo "./usr/freebsd-dist/$${dist} type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG; \
+	for dist in $$(ls *.txz | grep -v container | grep -vE -- '(${base ${_ALL_libcompats}:L:ts|})-dbg'); do \
+	    cp $${dist} ${.TARGET}/usr/freebsd-dist; \
+	    echo "./usr/freebsd-dist/$${dist} type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG; \
 	done
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
@@ -302,20 +299,18 @@ dvd: packagesystem ${PKGBASE_REPO}
 	mtree -c -p ${.TARGET}/usr/freebsd-packages | \
 	    mtree -C -k type,mode,link,size | \
 	    sed 's|^\.|./usr/freebsd-packages|g' >> ${.TARGET}/METALOG
-# Copy manifest only (no distfiles) to get checksums
+.endif
+	# Copy MANIFEST to provide legacy dist checksums in both modes
 	mkdir -p ${.TARGET}/usr/freebsd-dist
-	cp MANIFEST ${.TARGET}/usr/freebsd-dist
 	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
+	cp MANIFEST ${.TARGET}/usr/freebsd-dist
 	echo "./usr/freebsd-dist/MANIFEST type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG
-.else
+.if !defined(PKGBASE)
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
-	for dist in MANIFEST $$(ls *.txz | grep -v container); \
-	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
-	done
-	echo "./usr/freebsd-dist type=dir uname=root gname=wheel mode=0755" >> ${.TARGET}/METALOG
-	for dist in MANIFEST $$(ls *.txz | grep -v container); \
-	    do echo "./usr/freebsd-dist/$${dist} type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG; \
+	for dist in $$(ls *.txz | grep -v container); do \
+	    cp $${dist} ${.TARGET}/usr/freebsd-dist; \
+	    echo "./usr/freebsd-dist/$${dist} type=file uname=root gname=wheel mode=0644" >> ${.TARGET}/METALOG; \
 	done
 .endif
 .if ${.MAKE.OS} == "FreeBSD" && (!defined(NOPKG) || empty(NOPKG))
