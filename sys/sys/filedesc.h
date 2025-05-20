@@ -275,22 +275,23 @@ struct filedesc_to_leader *
 struct filedesc_to_leader *
 	filedesc_to_leader_share(struct filedesc_to_leader *fdtol,
 	    struct filedesc *fdp);
-int	getvnode(struct thread *td, int fd, cap_rights_t *rightsp,
+int	getvnode(struct thread *td, int fd, const cap_rights_t *rightsp,
 	    struct file **fpp);
-int	getvnode_path(struct thread *td, int fd, cap_rights_t *rightsp,
+int	getvnode_path(struct thread *td, int fd, const cap_rights_t *rightsp,
 	    struct file **fpp);
 void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 
-int	fget_cap_noref(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
-	    struct file **fpp, struct filecaps *havecapsp);
-int	fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
+int	fget_cap_noref(struct filedesc *fdp, int fd,
+	    const cap_rights_t *needrightsp, struct file **fpp,
+	    struct filecaps *havecapsp);
+int	fget_cap(struct thread *td, int fd, const cap_rights_t *needrightsp,
 	    struct file **fpp, struct filecaps *havecapsp);
 /* Return a referenced file from an unlocked descriptor. */
-int	fget_unlocked(struct thread *td, int fd, cap_rights_t *needrightsp,
-	    struct file **fpp);
+int	fget_unlocked(struct thread *td, int fd,
+	    const cap_rights_t *needrightsp, struct file **fpp);
 /* Return a file pointer without a ref. FILEDESC_IS_ONLY_USER must be true.  */
-int	fget_only_user(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
-	    struct file **fpp);
+int	fget_only_user(struct filedesc *fdp, int fd,
+	    const cap_rights_t *needrightsp, struct file **fpp);
 #define	fput_only_user(fdp, fp)	({					\
 	MPASS(FILEDESC_IS_ONLY_USER(fdp));				\
 	MPASS(refcount_load(&fp->f_count) > 0);				\

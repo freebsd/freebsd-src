@@ -70,7 +70,7 @@ struct nameidata {
 	 */
 	const	char *ni_dirp;		/* pathname pointer */
 	enum	uio_seg ni_segflg;	/* location of pathname */
-	cap_rights_t *ni_rightsneeded;	/* rights required to look up vnode */
+	const cap_rights_t *ni_rightsneeded; /* rights needed to look up vnode */
 	/*
 	 * Arguments to lookup.
 	 */
@@ -244,7 +244,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, startdir, rightsp)	\
 do {										\
 	struct nameidata *_ndp = (ndp);						\
-	cap_rights_t *_rightsp = (rightsp);					\
+	const cap_rights_t *_rightsp = (rightsp);					\
 	MPASS(_rightsp != NULL);						\
 	NDINIT_PREFILL(_ndp);							\
 	NDINIT_DBG(_ndp);							\
