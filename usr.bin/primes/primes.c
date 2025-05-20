@@ -285,7 +285,7 @@ primes(ubig start, ubig stop)
 			} else {
 				q = &table[mod ? factor-(mod/2) : 0];
 			}
-			/* sive for our current factor */
+			/* sieve for our current factor */
 			for ( ; q < tab_lim; q += factor) {
 				*q = '\0'; /* sieve out a spot */
 			}
