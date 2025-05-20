@@ -76,7 +76,7 @@
 #include "hid_if.h"
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, usbhid, CTLFLAG_RW, 0, "USB usbhid");
-static int usbhid_enable = 0;
+static int usbhid_enable = 1;
 SYSCTL_INT(_hw_usb_usbhid, OID_AUTO, enable, CTLFLAG_RWTUN,
     &usbhid_enable, 0, "Enable usbhid and prefer it to other USB HID drivers");
 #ifdef USB_DEBUG
