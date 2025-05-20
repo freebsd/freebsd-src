@@ -47,6 +47,21 @@
 #define GVE_TX_MAX_DESCS	4
 #define GVE_TX_BUFRING_ENTRIES	4096
 
+#define GVE_TX_TIMEOUT_PKT_SEC		 	5
+#define GVE_TX_TIMEOUT_CHECK_CADENCE_SEC	5
+/*
+ * If the driver finds timed out packets on a tx queue it first kicks it and
+ * records the time. If the driver again finds a timeout on the same queue
+ * before the end of the cooldown period, only then will it reset. Thus, for a
+ * reset to be able to occur at all, the cooldown must be at least as long
+ * as the tx timeout checking cadence multiplied by the number of queues.
+ */
+#define GVE_TX_TIMEOUT_MAX_TX_QUEUES	 16
+#define GVE_TX_TIMEOUT_KICK_COOLDOWN_SEC \
+    (2 * GVE_TX_TIMEOUT_CHECK_CADENCE_SEC * GVE_TX_TIMEOUT_MAX_TX_QUEUES)
+
+#define GVE_TIMESTAMP_INVALID		-1
+
 #define ADMINQ_SIZE PAGE_SIZE
 
 #define GVE_DEFAULT_RX_BUFFER_SIZE 2048
@@ -337,6 +352,14 @@ struct gve_tx_fifo {
 
 struct gve_tx_buffer_state {
 	struct mbuf *mbuf;
+
+	/*
+	 * Time at which the xmit tq places descriptors for mbuf's payload on a
+	 * tx queue. This timestamp is invalidated when the mbuf is freed and
+	 * must be checked for validity when read.
+	 */
+	int64_t enqueue_time_sec;
+
 	struct gve_tx_iovec iov[GVE_TX_MAX_DESCS];
 };
 
@@ -357,12 +380,21 @@ struct gve_txq_stats {
 	counter_u64_t tx_mbuf_defrag_err;
 	counter_u64_t tx_mbuf_dmamap_enomem_err;
 	counter_u64_t tx_mbuf_dmamap_err;
+	counter_u64_t tx_timeout;
 };
 
 #define NUM_TX_STATS (sizeof(struct gve_txq_stats) / sizeof(counter_u64_t))
 
 struct gve_tx_pending_pkt_dqo {
 	struct mbuf *mbuf;
+
+	/*
+	 * Time at which the xmit tq places descriptors for mbuf's payload on a
+	 * tx queue. This timestamp is invalidated when the mbuf is freed and
+	 * must be checked for validity when read.
+	 */
+	int64_t enqueue_time_sec;
+
 	union {
 		/* RDA */
 		bus_dmamap_t dmamap;
@@ -395,6 +427,8 @@ struct gve_tx_ring {
 
 	uint32_t req; /* free-running total number of packets written to the nic */
 	uint32_t done; /* free-running total number of completed packets */
+
+	int64_t last_kicked; /* always-valid timestamp in seconds for the last queue kick */
 
 	union {
 		/* GQI specific stuff */
@@ -594,6 +628,11 @@ struct gve_priv {
 
 	struct gve_state_flags state_flags;
 	struct sx gve_iface_lock;
+
+	struct callout tx_timeout_service;
+	/* The index of tx queue that the timer service will check on its next invocation */
+	uint16_t check_tx_queue_idx;
+
 };
 
 static inline bool
@@ -652,6 +691,7 @@ int gve_alloc_tx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_
 void gve_free_tx_rings(struct gve_priv *priv, uint16_t start_idx, uint16_t stop_idx);
 int gve_create_tx_rings(struct gve_priv *priv);
 int gve_destroy_tx_rings(struct gve_priv *priv);
+int gve_check_tx_timeout_gqi(struct gve_priv *priv, struct gve_tx_ring *tx);
 int gve_tx_intr(void *arg);
 int gve_xmit_ifp(if_t ifp, struct mbuf *mbuf);
 void gve_qflush(if_t ifp);
@@ -662,6 +702,7 @@ void gve_tx_cleanup_tq(void *arg, int pending);
 int gve_tx_alloc_ring_dqo(struct gve_priv *priv, int i);
 void gve_tx_free_ring_dqo(struct gve_priv *priv, int i);
 void gve_clear_tx_ring_dqo(struct gve_priv *priv, int i);
+int gve_check_tx_timeout_dqo(struct gve_priv *priv, struct gve_tx_ring *tx);
 int gve_tx_intr_dqo(void *arg);
 int gve_xmit_dqo(struct gve_tx_ring *tx, struct mbuf **mbuf_ptr);
 int gve_xmit_dqo_qpl(struct gve_tx_ring *tx, struct mbuf *mbuf);
@@ -696,6 +737,12 @@ void gve_free_irqs(struct gve_priv *priv);
 int gve_alloc_irqs(struct gve_priv *priv);
 void gve_unmask_all_queue_irqs(struct gve_priv *priv);
 void gve_mask_all_queue_irqs(struct gve_priv *priv);
+
+/* Miscellaneous functions defined in gve_utils.c */
+void gve_invalidate_timestamp(int64_t *timestamp_sec);
+int64_t gve_seconds_since(int64_t *timestamp_sec);
+void gve_set_timestamp(int64_t *timestamp_sec);
+bool gve_timestamp_valid(int64_t *timestamp_sec);
 
 /* Systcl functions defined in gve_sysctl.c */
 extern bool gve_disable_hw_lro;

@@ -168,7 +168,7 @@ gve_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 	    &stats->tx_delayed_pkt_tsoerr,
 	    "TSO packets delayed due to err in prep errors");
 	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
-	    "tx_mbuf_collpase", CTLFLAG_RD,
+	    "tx_mbuf_collapse", CTLFLAG_RD,
 	    &stats->tx_mbuf_collapse,
 	    "tx mbufs that had to be collapsed");
 	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
@@ -187,6 +187,10 @@ gve_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 	    "tx_mbuf_dmamap_err", CTLFLAG_RD,
 	    &stats->tx_mbuf_dmamap_err,
 	    "tx mbufs that could not be dma-mapped");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_timeout", CTLFLAG_RD,
+	    &stats->tx_timeout,
+	    "detections of timed out packets on tx queues");
 }
 
 static void

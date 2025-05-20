@@ -173,6 +173,8 @@ gve_tx_alloc_ring(struct gve_priv *priv, int i)
 	}
 	com->q_resources = com->q_resources_mem.cpu_addr;
 
+	tx->last_kicked = 0;
+
 	return (0);
 
 abort:
@@ -218,6 +220,7 @@ gve_tx_clear_desc_ring(struct gve_tx_ring *tx)
 	for (i = 0; i < com->priv->tx_desc_cnt; i++) {
 		tx->desc_ring[i] = (union gve_tx_desc){};
 		tx->info[i] = (struct gve_tx_buffer_state){};
+		gve_invalidate_timestamp(&tx->info[i].enqueue_time_sec);
 	}
 
 	bus_dmamap_sync(tx->desc_ring_mem.tag, tx->desc_ring_mem.map,
@@ -345,6 +348,30 @@ gve_destroy_tx_rings(struct gve_priv *priv)
 }
 
 int
+gve_check_tx_timeout_gqi(struct gve_priv *priv, struct gve_tx_ring *tx)
+{
+	struct gve_tx_buffer_state *info;
+	uint32_t pkt_idx;
+	int num_timeouts;
+
+	num_timeouts = 0;
+
+	for (pkt_idx = 0; pkt_idx < priv->tx_desc_cnt; pkt_idx++) {
+		info = &tx->info[pkt_idx];
+
+		if (!gve_timestamp_valid(&info->enqueue_time_sec))
+			continue;
+
+		if (__predict_false(
+		    gve_seconds_since(&info->enqueue_time_sec) >
+		    GVE_TX_TIMEOUT_PKT_SEC))
+			num_timeouts += 1;
+	}
+
+	return (num_timeouts);
+}
+
+int
 gve_tx_intr(void *arg)
 {
 	struct gve_tx_ring *tx = arg;
@@ -396,7 +423,10 @@ gve_tx_cleanup_tq(void *arg, int pending)
 		if (mbuf == NULL)
 			continue;
 
+		gve_invalidate_timestamp(&info->enqueue_time_sec);
+
 		info->mbuf = NULL;
+
 		counter_enter();
 		counter_u64_add_protected(tx->stats.tbytes, mbuf->m_pkthdr.len);
 		counter_u64_add_protected(tx->stats.tpackets, 1);
@@ -684,6 +714,8 @@ gve_xmit(struct gve_tx_ring *tx, struct mbuf *mbuf)
 
 	/* So that the cleanup taskqueue can free the mbuf eventually. */
 	info->mbuf = mbuf;
+
+	gve_set_timestamp(&info->enqueue_time_sec);
 
 	/*
 	 * We don't want to split the header, so if necessary, pad to the end
