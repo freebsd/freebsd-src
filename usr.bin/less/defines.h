@@ -208,6 +208,7 @@
 #define	TERMSBUF_SIZE	1024	/* Buffer to hold termcap strings */
 #define	TAGLINE_SIZE	512	/* Max size of line in tags file */
 #define	TABSTOP_MAX	32	/* Max number of custom tab stops */
+#define LINENUM_POOL    200     /* Size of line number pool */
 #else /* more reasonable sizes for modern machines */
 #define	CMDBUF_SIZE	2048	/* Buffer for multichar commands */
 #define	UNGOT_SIZE	200	/* Max chars to unget() */
@@ -218,6 +219,7 @@
 #define	TERMSBUF_SIZE	1024	/* Buffer to hold termcap strings */
 #define	TAGLINE_SIZE	1024	/* Max size of line in tags file */
 #define	TABSTOP_MAX	128	/* Max number of custom tab stops */
+#define LINENUM_POOL    1024    /* Size of line number pool */
 #endif
 
 /* Define as the return type of signal handlers (int or void).  */
@@ -262,9 +264,6 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
 
-/* Define to 1 if you have the <linux/magic.h> header file. */
-/* #undef HAVE_LINUX_MAGIC_H */
-
 /* Define HAVE_LOCALE if you have locale.h and setlocale. */
 #define HAVE_LOCALE 1
 
@@ -307,11 +306,17 @@
 /* BSD re_comp() */
 /* #undef HAVE_RE_COMP */
 
+/* Define HAVE_SETTABLE_ERRNO if the errno variable can be assigned to. */
+#define HAVE_SETTABLE_ERRNO 1
+
 /* Define HAVE_SIGEMPTYSET if you have the sigemptyset macro. */
 #define HAVE_SIGEMPTYSET 1
 
 /* Define to 1 if you have the 'sigprocmask' function. */
 #define HAVE_SIGPROCMASK 1
+
+/* Define HAVE_SIGSETJMP if you have sigsetjmp and siglongjmp. */
+#define HAVE_SIGSETJMP 1
 
 /* Define to 1 if you have the 'sigsetmask' function. */
 #define HAVE_SIGSETMASK 1
@@ -421,8 +426,8 @@
 /* Define to 1 if you have the '_setjmp' function. */
 #define HAVE__SETJMP 1
 
-/* Define MUST_DEFINE_ERRNO if you have errno but it is not define in errno.h.
-   */
+/* Define MUST_DEFINE_ERRNO if you have errno but it is not defined in
+   errno.h. */
 /* #undef MUST_DEFINE_ERRNO */
 
 /* Define MUST_DEFINE_OSPEED if you have ospeed but it is not defined in
