@@ -1,5 +1,5 @@
 '\" t
-.TH LESSKEY 1 "Version 668: 06 Oct 2024"
+.TH LESSKEY 1 "Version 678: 01 May 2025"
 .SH NAME
 lesskey \- customize key bindings for less
 .SH "SYNOPSIS (deprecated)"
@@ -48,7 +48,8 @@ Customizes line-editing key bindings.
 .IP #env
 Defines environment variables.
 .PP
-Blank lines and lines which start with a hash mark (#) are ignored,
+Blank lines are ignored.
+Any text that follows an unescaped hash mark (#) in a line is ignored,
 except as noted below.
 .
 .SH "COMMAND SECTION"
@@ -60,12 +61,13 @@ If the command section is the first section in the file,
 this line may be omitted.
 The command section consists of lines of the form:
 .sp
-	\fIstring\fP <whitespace> \fIaction\fP [extra-string] <newline>
+	\fIstring\fP <whitespace> \fIaction\fP <whitespace> [extra-string] <newline>
 .sp
 Whitespace is any sequence of one or more spaces and/or tabs.
 The \fIstring\fP is the command key(s) which invoke the action.
 The \fIstring\fP may be a single command key, or a sequence of up to 15 keys.
-The \fIaction\fP is the name of the less action, from the list below.
+The \fIaction\fP is the name of the less action, 
+from the lists in the EXAMPLE sections below.
 The characters in the \fIstring\fP may appear literally, or be
 prefixed by a caret to indicate a control key.
 A backslash followed by one to three octal digits may be used to
@@ -152,6 +154,8 @@ y	back-line
 J	forw-line-force
 K	back-line-force
 Y	back-line-force
+\eej	forw-newline
+\eek	back-newline
 d	forw-scroll
 ^D	forw-scroll
 u	back-scroll
@@ -168,6 +172,7 @@ b	back-screen
 z	forw-window
 w	back-window
 \ee\e40	forw-screen-force
+\eeb	back-screen-force
 F	forw-forever
 \eeF	forw-until-hilite
 R	repaint-flush
@@ -244,6 +249,8 @@ v	visual
 !	shell
 #	pshell
 +	firstcmd
+\ee[M	mouse
+\ee[<	mouse6
 H	help
 h	help
 V	version
@@ -339,6 +346,8 @@ l l.
 \eku	up
 \eej	down
 ^G	abort
+\ee[M	mouse
+\ee[<	mouse6
 .TE
 .RE
 .sp
@@ -452,7 +461,7 @@ which start with a NUL character (0).
 This NUL character should be represented as \e340 in a lesskey file.
 .
 .SH COPYRIGHT
-Copyright (C) 1984-2024  Mark Nudelman
+Copyright (C) 1984-2025  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it
@@ -477,4 +486,6 @@ See the GNU General Public License for more details.
 .
 Mark Nudelman
 .br
-Report bugs at https://github.com/gwsw/less/issues.
+Report bugs at 
+.UR https://github.com/gwsw/less/issues
+.UE .

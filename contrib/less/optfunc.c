@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -66,6 +66,7 @@ extern int chopline;
 extern int tabstops[];
 extern int ntabstops;
 extern int tabdefault;
+extern int no_paste;
 extern char intr_char;
 extern int nosearch_header_lines;
 extern int nosearch_header_cols;
@@ -528,7 +529,7 @@ public void opt__V(int type, constant char *s)
 		putstr(" regular expressions)\n");
 		{
 			char constant *copyright = 
-				"Copyright (C) 1984-2024  Mark Nudelman\n\n";
+				"Copyright (C) 1984-2025  Mark Nudelman\n\n";
 			putstr(copyright);
 		}
 		if (version[strlen(version)-1] == 'x')
@@ -1164,7 +1165,8 @@ static void do_nosearch_headers(int type, int no_header_lines, int no_header_col
 	case TOGGLE:
 		nosearch_header_lines = no_header_lines;
 		nosearch_header_cols = no_header_cols;
-		break;
+		if (type != TOGGLE) break;
+		/*FALLTHRU*/
 	case QUERY:
 		if (nosearch_header_lines && nosearch_header_cols)
 			error("Search does not include header lines or columns", NULL_PARG);
@@ -1193,6 +1195,23 @@ public void opt_nosearch_header_lines(int type, constant char *s)
 public void opt_nosearch_header_cols(int type, constant char *s)
 {
 	do_nosearch_headers(type, 0, 1);
+}
+
+	/*ARGSUSED*/
+public void opt_no_paste(int type, constant char *s)
+{
+	switch (type)
+	{
+	case TOGGLE:
+		if (no_paste)
+			init_bracketed_paste();
+		else
+			deinit_bracketed_paste();
+        break;
+	case INIT:
+	case QUERY:
+		break;
+    }
 }
 
 #if LESSTEST

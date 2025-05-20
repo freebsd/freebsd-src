@@ -1,13 +1,11 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
  * For more information, see the README file.
  */
-
-#define NEWBOT 1
 
 /*
  * Standard include file for "less".
@@ -169,7 +167,7 @@ void free();
 #define IS_DIGIT(c)     ((c) >= '0' && (c) <= '9')
 #endif
 
-#define IS_CSI_START(c) (((LWCHAR)(c)) == ESC || (((LWCHAR)(c)) == CSI))
+#define IS_CSI_START(c) (control_char(c) && (((LWCHAR)(c)) == ESC || (((LWCHAR)(c)) == CSI)))
 
 #define OPT_OFF         0
 #define OPT_ON          1
@@ -290,15 +288,6 @@ typedef off_t           LINENUM;
 #endif
 #endif
 
-/*
- * Does the shell treat "?" as a metacharacter?
- */
-#if MSDOS_COMPILER || OS2 || _OSK
-#define SHELL_META_QUEST 0
-#else
-#define SHELL_META_QUEST 1
-#endif
-
 #define SPACES_IN_FILENAMES 1
 
 /*
@@ -364,6 +353,14 @@ typedef short POLL_EVENTS;
 #define NUM_FRAC_DENOM                  1000000
 #define NUM_LOG_FRAC_DENOM              6
 
+/*
+ * Max expected reasonable duration of a paste.
+ * Increasing this value avoids accidentally reenabling unwanted paste input 
+ * in the middle of a very long paste but risks apparently frozen UI if the 
+ * end bracket is missing.
+ */
+#define MAX_PASTE_IGNORE_SEC            5
+
 /* How quiet should we be? */
 #define NOT_QUIET       0       /* Ring bell at eof and for errors */
 #define LITTLE_QUIET    1       /* Ring bell only for errors */
@@ -404,12 +401,16 @@ typedef short POLL_EVENTS;
                                 (((t) & ~SRCH_BACK) | SRCH_FORW))
 /* Parsing position in an OSC8 link: "\e]8;PARAMS;URI\e\\" (final "\e\\" may be "\7") */
 typedef enum osc8_state {
+	OSC_START,    /* Waiting for initial \e */
+	OSC_INTRO,    /* Waiting for intro char, usually ']' */
+	OSC_TYPENUM,  /* Reading OS command type */
+	OSC_STRING,   /* Reading OS command string */
+	OSC_END_CSI,  /* Waiting for backslash after the final ESC. */
+	OSC_END,      /* At end */
+
+	OSC8_PARAMS,  /* In the OSC8 parameters */
+	OSC8_URI,     /* In the OSC8 URI */
 	OSC8_NOT,     /* This is not an OSC8 link */
-	OSC8_PREFIX,  /* In the "\e]8;" */
-	OSC8_PARAMS,  /* In the parameters */
-	OSC8_URI,     /* In the URI */
-	OSC8_ST_ESC,  /* After the final \e */
-	OSC8_END,     /* At end */
 } osc8_state;
 
 /* */
@@ -422,7 +423,8 @@ typedef enum osc8_state {
 #define CC_ERROR        2       /* Char could not be accepted due to error */
 #define CC_PASS         3       /* Char was rejected (internal) */
 
-#define CF_QUIT_ON_ERASE 0001   /* Abort cmd if its entirely erased */
+#define CF_QUIT_ON_ERASE (1<<0) /* Abort cmd if its entirely erased */
+#define CF_OPTION        (1<<1) /* A_OPT_TOGGLE */
 
 /* Special char bit-flags used to tell put_line() to do something special */
 #define AT_NORMAL       (0)
@@ -625,6 +627,7 @@ typedef enum {
 #define X11MOUSE_BUTTON2    1 /* Middle button press */
 #define X11MOUSE_BUTTON3    2 /* Right button press */
 #define X11MOUSE_BUTTON_REL 3 /* Button release */
+#define X11MOUSE_DRAG       0x20 /* Drag with button down */
 #define X11MOUSE_WHEEL_UP   0x40 /* Wheel scroll up */
 #define X11MOUSE_WHEEL_DOWN 0x41 /* Wheel scroll down */
 #define X11MOUSE_OFFSET     0x20 /* Added to button & pos bytes to create a char */
