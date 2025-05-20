@@ -1029,6 +1029,19 @@ gve_clear_tx_ring_dqo(struct gve_priv *priv, int i)
 	gve_tx_clear_compl_ring_dqo(tx);
 }
 
+static uint8_t
+gve_tx_get_gen_bit(uint8_t *desc)
+{
+	uint8_t byte;
+
+	/*
+	 * Prevent generation bit from being read after the rest of the
+	 * descriptor.
+	 */
+	byte = atomic_load_acq_8(desc + GVE_TX_DESC_DQO_GEN_BYTE_OFFSET);
+	return ((byte & GVE_TX_DESC_DQO_GEN_BIT_MASK) != 0);
+}
+
 static bool
 gve_tx_cleanup_dqo(struct gve_priv *priv, struct gve_tx_ring *tx, int budget)
 {
@@ -1041,20 +1054,16 @@ gve_tx_cleanup_dqo(struct gve_priv *priv, struct gve_tx_ring *tx, int budget)
 	uint16_t type;
 
 	while (work_done < budget) {
-		bus_dmamap_sync(tx->dqo.compl_ring_mem.tag, tx->dqo.compl_ring_mem.map,
+		bus_dmamap_sync(tx->dqo.compl_ring_mem.tag,
+		    tx->dqo.compl_ring_mem.map,
 		    BUS_DMASYNC_POSTREAD);
 
 		compl_desc = &tx->dqo.compl_ring[tx->dqo.compl_head];
-		if (compl_desc->generation == tx->dqo.cur_gen_bit)
+		if (gve_tx_get_gen_bit((uint8_t *)compl_desc) ==
+		    tx->dqo.cur_gen_bit)
 			break;
 
-		/*
-		 * Prevent generation bit from being read after the rest of the
-		 * descriptor.
-		 */
-		atomic_thread_fence_acq();
 		type = compl_desc->type;
-
 		if (type == GVE_COMPL_TYPE_DQO_DESC) {
 			/* This is the last descriptor fetched by HW plus one */
 			tx_head = le16toh(compl_desc->tx_head);
