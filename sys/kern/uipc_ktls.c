@@ -3447,3 +3447,56 @@ ktls_disable_ifnet(void *arg)
 	TASK_INIT(&tls->disable_ifnet_task, 0, ktls_disable_ifnet_help, tls);
 	(void)taskqueue_enqueue(taskqueue_thread, &tls->disable_ifnet_task);
 }
+
+void
+ktls_session_to_xktls_onedir(const struct ktls_session *ktls, bool export_keys,
+    struct xktls_session_onedir *xk)
+{
+	if_t ifp;
+	struct m_snd_tag *st;
+
+	xk->gen = ktls->gen;
+#define	A(m) xk->m = ktls->params.m
+	A(cipher_algorithm);
+	A(auth_algorithm);
+	A(cipher_key_len);
+	A(auth_key_len);
+	A(max_frame_len);
+	A(tls_vmajor);
+	A(tls_vminor);
+	A(tls_hlen);
+	A(tls_tlen);
+	A(tls_bs);
+	A(flags);
+	if (export_keys) {
+		memcpy(&xk->iv, &ktls->params.iv, XKTLS_SESSION_IV_BUF_LEN);
+		A(iv_len);
+	} else {
+		memset(&xk->iv, 0, XKTLS_SESSION_IV_BUF_LEN);
+		xk->iv_len = 0;
+	}
+#undef A
+	if ((st = ktls->snd_tag) != NULL &&
+	    (ifp = ktls->snd_tag->ifp) != NULL)
+		strncpy(xk->ifnet, if_name(ifp), sizeof(xk->ifnet));
+}
+
+void
+ktls_session_copy_keys(const struct ktls_session *ktls,
+    uint8_t *data, size_t *sz)
+{
+	size_t t, ta, tc;
+
+	if (ktls == NULL) {
+		*sz = 0;
+		return;
+	}
+	t = *sz;
+	tc = MIN(t, ktls->params.cipher_key_len);
+	if (data != NULL)
+		memcpy(data, ktls->params.cipher_key, tc);
+	ta = MIN(t - tc, ktls->params.auth_key_len);
+	if (data != NULL)
+		memcpy(data + tc, ktls->params.auth_key, ta);
+	*sz = ta + tc;
+}
