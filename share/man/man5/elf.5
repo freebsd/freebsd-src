@@ -1422,6 +1422,10 @@ Disable stack gap.
 .It NT_FREEBSD_FCTL_WXNEEDED Pq Value: 0x08
 Indicate that the binary requires mappings that are simultaneously
 writeable and executable.
+.It NT_FREEBSD_FCTL_LA48 Pq Value: 0x10
+Request 48-bit linear address space on amd64.
+.It NT_FREEBSD_FCTL_LA57 Pq Value: 0x40
+Accept 57-bit linear address space on amd64.
 .El
 .El
 .Sh SEE ALSO
