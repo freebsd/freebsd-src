@@ -662,12 +662,11 @@ static int
 sysctl_int(const char *buf, const char *arg, int *var)
 {
 	size_t size;
-	const char *val = arg;
 	int n, prev;
 
-	n = strtol(val, NULL, 10);
+	n = strtol(arg, NULL, 10);
 	if (errno == EINVAL || errno == ERANGE) {
-		warn("strtol(%s)", val);
+		warn("strtol(%s)", arg);
 		return (-1);
 	}
 
@@ -699,7 +698,6 @@ static int
 sysctl_str(const char *buf, const char *arg, char *var, size_t varsz)
 {
 	size_t size;
-	const char *val = arg;
 	char prev[BUFSIZ];
 	char *tmp;
 
@@ -710,10 +708,10 @@ sysctl_str(const char *buf, const char *arg, char *var, size_t varsz)
 		return (-1);
 	}
 
-	size = strlen(val);
+	size = strlen(arg);
 	/* Apply new value. */
-	if (sysctlbyname(buf, NULL, 0, val, size) < 0) {
-		warn("sysctlbyname(%s, %s)", buf, val);
+	if (sysctlbyname(buf, NULL, 0, arg, size) < 0) {
+		warn("sysctlbyname(%s, %s)", buf, arg);
 		return (-1);
 	}
 	/* Get size of new string. */
