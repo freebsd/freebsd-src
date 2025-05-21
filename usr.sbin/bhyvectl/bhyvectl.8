@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2015 Christian Brueffer
 .\" All rights reserved.
 .\"
@@ -22,12 +25,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 4, 2020
+.Dd May 8, 2025
 .Dt BHYVECTL 8
 .Os
 .Sh NAME
 .Nm bhyvectl
-.Nd "control utility for bhyve instances"
+.Nd control utility for bhyve instances
 .Sh SYNOPSIS
 .Nm
 .Fl -vm= Ns Ar <vmname>
@@ -37,8 +40,8 @@
 .Op Fl -inject-nmi
 .Op Fl -force-reset
 .Op Fl -force-poweroff
-.Op Fl -checkpoint= Ns Ar <filename>
-.Op Fl -suspend= Ns Ar <filename>
+.Op Fl -checkpoint= Ns Ar <file>
+.Op Fl -suspend= Ns Ar <file>
 .Sh DESCRIPTION
 The
 .Nm
@@ -46,17 +49,8 @@ command is a control utility for active
 .Xr bhyve 8
 virtual machine instances.
 .Pp
-.Em Note :
-Most
-.Nm
-flags are intended for querying and setting the state of an active instance.
-These commands are intended for development purposes, and are not documented here.
-A complete list can be obtained by executing
-.Nm
-without any arguments.
-.Pp
 The user-facing options are as follows:
-.Bl -tag -width ".Fl d Ar argument"
+.Bl -tag -width "--checkpoint=<file>"
 .It Fl -vm= Ns Ar <vmname>
 Operate on the virtual machine
 .Ar <vmname> .
@@ -72,24 +66,38 @@ Inject a non-maskable interrupt (NMI) into the VM.
 Force the VM to reset.
 .It Fl -force-poweroff
 Force the VM to power off.
-.It Fl -checkpoint= Ns Ar <filename>
+.It Fl -checkpoint= Ns Ar <file>
 Save a snapshot of a virtual machine.
 The guest memory contents are saved in the file given in
-.Ar <filename> .
+.Ar <file> .
 The guest device and vCPU state are saved in the file
-.Ar <filename>.kern .
-.It Fl -suspend= Ns Ar <filename>
+.Ar <file>.kern .
+.It Fl -suspend= Ns Ar <file>
 Save a snapshot of a virtual machine similar to
 .Fl -checkpoint .
 The virtual machine will terminate after the snapshot has been
 saved.
 .El
+.Pp
+.Em Note :
+Most
+.Nm
+flags are intended for querying and setting
+the state of an active instance.
+These commands are intended for development purposes,
+and are not documented here.
+A complete list can be obtained by executing
+.Nm
+without any arguments.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
 Destroy the VM called fbsd10:
 .Pp
-.Dl "bhyvectl --vm=fbsd10 --destroy"
+.Dl bhyvectl --vm=fbsd10 --destroy
+.Pp
+Running VMs will be visible in
+.Pa /dev/vmm/ .
 .Sh COMPATIBILITY
 The snapshot file format is not yet stable and is subject to future changes.
 Backwards compatibility support for the current snapshot file format is not
