@@ -279,6 +279,52 @@ ATF_TC_BODY(unconnected_writability, tc)
 	close(s);
 }
 
+ATF_TC_WITHOUT_HEAD(peerclosed_writability);
+ATF_TC_BODY(peerclosed_writability, tc)
+{
+	struct kevent kev;
+	int sv[2], kq;
+
+	do_socketpair(sv);
+	close(sv[1]);
+
+	check_writable_select(sv[0], 1, false);
+	check_writable_poll(sv[0], 1, false);
+
+	ATF_REQUIRE(kq = kqueue());
+	EV_SET(&kev, sv[0], EVFILT_WRITE, EV_ADD, 0, 0, NULL);
+	ATF_REQUIRE(kevent(kq, &kev, 1, &kev, 1, NULL) == 1);
+	ATF_REQUIRE(kev.ident == (uintptr_t)sv[0] &&
+	    kev.filter == EVFILT_WRITE &&
+	    kev.flags == EV_EOF);
+
+	close(sv[0]);
+}
+
+ATF_TC_WITHOUT_HEAD(peershutdown_writability);
+ATF_TC_BODY(peershutdown_writability, tc)
+{
+	int sv[2];
+
+	do_socketpair(sv);
+	shutdown(sv[1], SHUT_RD);
+
+	check_writable_select(sv[0], 1, false);
+	check_writable_poll(sv[0], 1, false);
+	/*
+	 * XXXGL: historically unix(4) sockets were not reporting peer's
+	 * shutdown(SHUT_RD) as our EV_EOF.  The kevent(2) manual page says
+	 * "filter will set EV_EOF when the reader disconnects", which is hard
+	 * to interpret unambigously.  For now leave the historic behavior,
+	 * but we may want to change that in uipc_usrreq.c:uipc_filt_sowrite(),
+	 * and then this test will look like the peerclosed_writability test.
+	 */
+	check_writable_kevent(sv[0], 1, false);
+
+	close(sv[0]);
+	close(sv[1]);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, getpeereid);
@@ -288,6 +334,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, full_writability_select);
 	ATF_TP_ADD_TC(tp, full_writability_poll);
 	ATF_TP_ADD_TC(tp, full_writability_kevent);
+	ATF_TP_ADD_TC(tp, peerclosed_writability);
+	ATF_TP_ADD_TC(tp, peershutdown_writability);
 
 	return atf_no_error();
 }
