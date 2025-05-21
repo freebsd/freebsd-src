@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250524: don't install zoneinfo version
+OLD_FILES+=usr/share/zoneinfo/version
+
 # 20250310: caroot bundle updated
 OLD_FILES+=usr/share/certs/trusted/Entrust_Root_Certification_Authority_-_G4.pem
 OLD_FILES+=usr/share/certs/trusted/SecureSign_RootCA11.pem
