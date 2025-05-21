@@ -12,6 +12,14 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250707:
+	Commit f5195b1a63df removed in6_maxmtu and its setter in6_setmaxmtu().
+	in6_maxmtu is used to store the max IPv6 MTU of all interfaces,
+	however it does not have any in-tree consumers since the introduction
+	from the KAME project. The removal should have little impact, and the
+	max IPv6 MTU can be easily retrieved by iterating over all the attached
+	interface if 3rd party modules need it.
+
 20250419:
 	LinuxKPI alloc routines were changed to return physically contiguous
 	memory where expected. These changes may require out-of-tree drivers
