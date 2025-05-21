@@ -158,6 +158,15 @@ and
 .Va COPTFLAGS
 to contain the appropriate optimization directive to
 .Xr cc 1 .
+To set the
+.Va CPUTYPE
+value, use
+.Dq Li ?=
+instead of
+.Dq Li =
+so that it can be overridden by
+.Xr make 1
+targets.
 The automatic setting of
 .Va CFLAGS
 may be overridden using the
