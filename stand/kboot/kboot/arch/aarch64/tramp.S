@@ -8,7 +8,7 @@
  * This is the trampoline that starts the FreeBSD kernel. Since the Linux kernel
  * calls this routine with no args, and has a different environment than the boot
  * loader provides and that the kernel expects, this code is responsible for setting
- * all that up and calling the normal kernel entry point. It's analogous ot the
+ * all that up and calling the normal kernel entry point. It's analogous to the
  * "purgatory" code in the linux kernel. Details about these operations are
  * contained in comments below. On aarch64, the kernel will start all the APs so
  * we don't have to worry about them here.
