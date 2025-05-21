@@ -37,6 +37,13 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#ifdef __amd64__
+#include <machine/elf.h>
+#include <machine/vmparam.h>
+#include <machine/md_var.h>
+#include <machine/dump.h>
+#endif
+
 int do_minidump = 1;
 SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RWTUN, &do_minidump, 0,
     "Enable mini crash dumps");
@@ -52,3 +59,22 @@ dumpsys_map_chunk(vm_paddr_t pa, size_t chunk, void **va)
 		*va = pmap_kenter_temporary(trunc_page(a), i);
 	}
 }
+
+#ifdef __amd64__
+int
+dumpsys_write_aux_headers(struct dumperinfo *di)
+{
+	Elf_Phdr phdr;
+
+	phdr.p_type = PT_DUMP_DELTA;
+	phdr.p_flags = PF_R;
+	phdr.p_offset = 0;
+	phdr.p_vaddr = KERNBASE;
+	phdr.p_paddr = kernphys;
+	phdr.p_filesz = 0;
+	phdr.p_memsz = 0;
+	phdr.p_align = KERNLOAD;
+
+	return (dumpsys_buf_write(di, (char *)&phdr, sizeof(phdr)));
+}
+#endif
