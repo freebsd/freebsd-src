@@ -36,7 +36,7 @@ installdirs: installdirs-${dir}
 _uniquedirs_${${dir}}=	${dir}
 _alldirs_${dir}=	${dir}
 installdirs-${dir}: .PHONY
-	@${ECHO} installing DIRS ${_alldirs_${dir}}
+	@${ECHO} Installing DIRS: ${_alldirs_${dir}}
 	${INSTALL} ${${dir}TAG_ARGS} -d -m ${${dir}_MODE} -o ${${dir}_OWN} \
 		-g ${${dir}_GRP} ${${dir}_FLAG} ${DESTDIR}${${dir}}
 .      else
