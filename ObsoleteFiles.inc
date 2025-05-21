@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250521: don't install zoneinfo version
+OLD_FILES+=usr/share/zoneinfo/version
+
 # 20250516: NDFREE(9) -> NDFREE_PNBUF(9)
 OLD_FILES+=usr/share/man/man9/NDFREE.9.gz
 
