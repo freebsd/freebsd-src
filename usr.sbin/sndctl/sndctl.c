@@ -664,30 +664,37 @@ sysctl_int(const char *buf, const char *arg, int *var)
 	size_t size;
 	int n, prev;
 
-	n = strtol(arg, NULL, 10);
-	if (errno == EINVAL || errno == ERANGE) {
-		warn("strtol(%s)", arg);
-		return (-1);
-	}
-
 	size = sizeof(int);
 	/* Read current value. */
 	if (sysctlbyname(buf, &prev, &size, NULL, 0) < 0) {
 		warn("sysctlbyname(%s)", buf);
 		return (-1);
 	}
-	/* Apply new value. */
-	if (sysctlbyname(buf, NULL, 0, &n, size) < 0) {
-		warn("sysctlbyname(%s, %d)", buf, n);
-		return (-1);
+
+	/* Read-only. */
+	if (arg != NULL) {
+		errno = 0;
+		n = strtol(arg, NULL, 10);
+		if (errno == EINVAL || errno == ERANGE) {
+			warn("strtol(%s)", arg);
+			return (-1);
+		}
+
+		/* Apply new value. */
+		if (sysctlbyname(buf, NULL, 0, &n, size) < 0) {
+			warn("sysctlbyname(%s, %d)", buf, n);
+			return (-1);
+		}
 	}
+
 	/* Read back applied value for good measure. */
 	if (sysctlbyname(buf, &n, &size, NULL, 0) < 0) {
 		warn("sysctlbyname(%s)", buf);
 		return (-1);
 	}
 
-	printf("%s: %d -> %d\n", buf, prev, n);
+	if (arg != NULL)
+		printf("%s: %d -> %d\n", buf, prev, n);
 	if (var != NULL)
 		*var = n;
 
@@ -708,17 +715,21 @@ sysctl_str(const char *buf, const char *arg, char *var, size_t varsz)
 		return (-1);
 	}
 
-	size = strlen(arg);
-	/* Apply new value. */
-	if (sysctlbyname(buf, NULL, 0, arg, size) < 0) {
-		warn("sysctlbyname(%s, %s)", buf, arg);
-		return (-1);
+	/* Read-only. */
+	if (arg != NULL) {
+		size = strlen(arg);
+		/* Apply new value. */
+		if (sysctlbyname(buf, NULL, 0, arg, size) < 0) {
+			warn("sysctlbyname(%s, %s)", buf, arg);
+			return (-1);
+		}
+		/* Get size of new string. */
+		if (sysctlbyname(buf, NULL, &size, NULL, 0) < 0) {
+			warn("sysctlbyname(%s)", buf);
+			return (-1);
+		}
 	}
-	/* Get size of new string. */
-	if (sysctlbyname(buf, NULL, &size, NULL, 0) < 0) {
-		warn("sysctlbyname(%s)", buf);
-		return (-1);
-	}
+
 	if ((tmp = calloc(1, size)) == NULL)
 		err(1, "calloc");
 	/* Read back applied value for good measure. */
@@ -728,7 +739,8 @@ sysctl_str(const char *buf, const char *arg, char *var, size_t varsz)
 		return (-1);
 	}
 
-	printf("%s: %s -> %s\n", buf, prev, tmp);
+	if (arg != NULL)
+		printf("%s: %s -> %s\n", buf, prev, tmp);
 	if (var != NULL)
 		strlcpy(var, tmp, varsz);
 	free(tmp);
