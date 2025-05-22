@@ -75,8 +75,9 @@ VNET_DEFINE_STATIC(int, pf_rdr_srcport_rewrite_tries) = 16;
 
 static uint64_t		 pf_hash(struct pf_addr *, struct pf_addr *,
 			    struct pf_poolhashkey *, sa_family_t);
-struct pf_krule		*pf_match_translation(struct pf_pdesc *,
-			    int, struct pf_kanchor_stackframe *);
+struct pf_krule		*pf_match_translation(int, struct pf_test_ctx *);
+static enum pf_test_status pf_step_into_translation_anchor(int, struct pf_test_ctx *,
+			    struct pf_krule *);
 static int		 pf_get_sport(struct pf_pdesc *, struct pf_krule *,
 			    struct pf_addr *, uint16_t *, uint16_t, uint16_t,
 			    struct pf_ksrc_node **, struct pf_srchash **,
@@ -128,25 +129,21 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 	return (res);
 }
 
-#define PF_TEST_ATTRIB(t, a)\
-	do {				\
-		if (t) {		\
-			r = a;		\
-			goto nextrule;	\
-		}			\
+#define PF_TEST_ATTRIB(t, a)		\
+	if (t) {			\
+		r = a;			\
+		continue;		\
+	} else do {			\
 	} while (0)
 
-struct pf_krule *
-pf_match_translation(struct pf_pdesc *pd,
-    int rs_num, struct pf_kanchor_stackframe *anchor_stack)
+static enum pf_test_status
+pf_match_translation_rule(int rs_num, struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 {
-	struct pf_krule		*r, *rm = NULL;
-	struct pf_kruleset	*ruleset = NULL;
-	int			 tag = -1;
+	struct pf_krule		*r;
+	struct pf_pdesc		*pd = ctx->pd;
 	int			 rtableid = -1;
-	int			 asd = 0;
 
-	r = TAILQ_FIRST(pf_main_ruleset.rules[rs_num].active.ptr);
+	r = TAILQ_FIRST(ruleset->rules[rs_num].active.ptr);
 	while (r != NULL) {
 		struct pf_rule_addr	*src = NULL, *dst = NULL;
 		struct pf_addr_wrap	*xdst = NULL;
@@ -188,7 +185,7 @@ pf_match_translation(struct pf_pdesc *pd,
 		    !pf_match_port(dst->port_op, dst->port[0],
 		    dst->port[1], pd->ndport),
 			r->skip[PF_SKIP_DST_PORT]);
-		PF_TEST_ATTRIB(r->match_tag && !pf_match_tag(pd->m, r, &tag,
+		PF_TEST_ATTRIB(r->match_tag && !pf_match_tag(pd->m, r, &ctx->tag,
 		    pd->pf_mtag ? pd->pf_mtag->tag : 0),
 			TAILQ_NEXT(r, entries));
 		PF_TEST_ATTRIB(r->os_fingerprint != PF_OSFP_ANY && (pd->proto !=
@@ -196,33 +193,101 @@ pf_match_translation(struct pf_pdesc *pd,
 		    &pd->hdr.tcp), r->os_fingerprint)),
 			TAILQ_NEXT(r, entries));
 		if (r->tag)
-			tag = r->tag;
+			ctx->tag = r->tag;
 		if (r->rtableid >= 0)
 			rtableid = r->rtableid;
 		if (r->anchor == NULL) {
-			rm = r;
-			if (rm->action == PF_NONAT ||
-			    rm->action == PF_NORDR ||
-			    rm->action == PF_NOBINAT) {
-				rm = NULL;
+			if (r->action == PF_NONAT ||
+			    r->action == PF_NORDR ||
+			    r->action == PF_NOBINAT) {
+				*ctx->rm = NULL;
+			} else {
+				/*
+				 * found matching r
+				 */
+				ctx->tr = r;
+				/*
+				 * anchor, with ruleset, where r belongs to
+				 */
+				*ctx->am = ctx->a;
+				/*
+				 * ruleset where r belongs to
+				 */
+				*ctx->rsm = ruleset;
+				/*
+				 * ruleset, where anchor belongs to.
+				 */
+				ctx->arsm = ctx->aruleset;
 			}
-			break;
 		} else {
-			pf_step_into_anchor(anchor_stack, &asd,
-			    &ruleset, rs_num, &r, NULL);
+			ctx->a = r;			/* remember anchor */
+			ctx->aruleset = ruleset;	/* and its ruleset */
+			if (pf_step_into_translation_anchor(rs_num, ctx,
+			    r) != PF_TEST_OK) {
+				break;
+			}
 		}
-nextrule:
-		if (r == NULL && pf_step_out_of_anchor(anchor_stack, &asd, &ruleset,
-			    rs_num, &r, NULL, NULL))
-			break;
+		r = TAILQ_NEXT(r, entries);
 	}
 
-	if (tag > 0 && pf_tag_packet(pd, tag))
-		return (NULL);
+	if (ctx->tag > 0 && pf_tag_packet(pd, ctx->tag))
+		return (PF_TEST_FAIL);
 	if (rtableid >= 0)
 		M_SETFIB(pd->m, rtableid);
 
-	return (rm);
+	return (PF_TEST_OK);
+}
+
+static enum pf_test_status
+pf_step_into_translation_anchor(int rs_num, struct pf_test_ctx *ctx, struct pf_krule *r)
+{
+	enum pf_test_status	rv;
+
+	PF_RULES_RASSERT();
+
+	if (ctx->depth >= PF_ANCHOR_STACK_MAX) {
+		printf("%s: anchor stack overflow on %s\n",
+		    __func__, r->anchor->name);
+		return (PF_TEST_FAIL);
+	}
+
+	ctx->depth++;
+
+	if (r->anchor_wildcard) {
+		struct pf_kanchor *child;
+		rv = PF_TEST_OK;
+		RB_FOREACH(child, pf_kanchor_node, &r->anchor->children) {
+			rv = pf_match_translation_rule(rs_num, ctx, &child->ruleset);
+			if ((rv == PF_TEST_QUICK) || (rv == PF_TEST_FAIL)) {
+				/*
+				 * we either hit a rule qith quick action
+				 * (more likely), or hit some runtime
+				 * error (e.g. pool_get() faillure).
+				 */
+				break;
+			}
+		}
+	} else {
+		rv = pf_match_translation_rule(rs_num, ctx, &r->anchor->ruleset);
+	}
+
+	ctx->depth--;
+
+	return (rv);
+}
+
+struct pf_krule *
+pf_match_translation(int rs_num, struct pf_test_ctx *ctx)
+{
+	enum pf_test_status rv;
+
+	MPASS(ctx->depth == 0);
+	rv = pf_match_translation_rule(rs_num, ctx, &pf_main_ruleset);
+	MPASS(ctx->depth == 0);
+	if (rv != PF_TEST_OK)
+		return (NULL);
+
+	return (ctx->tr);
 }
 
 static int
@@ -780,8 +845,7 @@ done:
 u_short
 pf_get_translation(struct pf_pdesc *pd, int off,
     struct pf_state_key **skp, struct pf_state_key **nkp,
-    struct pf_kanchor_stackframe *anchor_stack, struct pf_krule **rp,
-    struct pf_udp_mapping **udp_mapping)
+    struct pf_test_ctx *ctx, struct pf_udp_mapping **udp_mapping)
 {
 	struct pf_krule	*r = NULL;
 	u_short		 transerror;
@@ -790,16 +854,16 @@ pf_get_translation(struct pf_pdesc *pd, int off,
 	KASSERT(*skp == NULL, ("*skp not NULL"));
 	KASSERT(*nkp == NULL, ("*nkp not NULL"));
 
-	*rp = NULL;
+	ctx->nr = NULL;
 
 	if (pd->dir == PF_OUT) {
-		r = pf_match_translation(pd, PF_RULESET_BINAT, anchor_stack);
+		r = pf_match_translation(PF_RULESET_BINAT, ctx);
 		if (r == NULL)
-			r = pf_match_translation(pd, PF_RULESET_NAT, anchor_stack);
+			r = pf_match_translation(PF_RULESET_NAT, ctx);
 	} else {
-		r = pf_match_translation(pd, PF_RULESET_RDR, anchor_stack);
+		r = pf_match_translation(PF_RULESET_RDR, ctx);
 		if (r == NULL)
-			r = pf_match_translation(pd, PF_RULESET_BINAT, anchor_stack);
+			r = pf_match_translation(PF_RULESET_BINAT, ctx);
 	}
 
 	if (r == NULL)
@@ -814,7 +878,7 @@ pf_get_translation(struct pf_pdesc *pd, int off,
 
 	transerror = pf_get_transaddr(pd, skp, nkp, r, udp_mapping, r->action, &(r->rdr));
 	if (transerror == PFRES_MATCH)
-		*rp = r;
+		ctx->nr = r;
 
 	return (transerror);
 }
