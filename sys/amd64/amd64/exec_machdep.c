@@ -635,6 +635,8 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_gsbase = pcb->pcb_gsbase;
 	mcp->mc_xfpustate = 0;
 	mcp->mc_xfpustate_len = 0;
+	mcp->mc_tlsbase = (pcb->pcb_flags & PCB_TLSBASE) != 0 ?
+	    pcb->pcb_tlsbase : 0;
 	bzero(mcp->mc_spare, sizeof(mcp->mc_spare));
 	return (0);
 }
@@ -708,6 +710,10 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	if (mcp->mc_flags & _MC_HASBASES) {
 		pcb->pcb_fsbase = mcp->mc_fsbase;
 		pcb->pcb_gsbase = mcp->mc_gsbase;
+	}
+	if ((mcp->mc_flags & _MC_HASTLSBASE) != 0) {
+		pcb->pcb_tlsbase = mcp->mc_tlsbase;
+		set_pcb_flags(pcb, PCB_TLSBASE);
 	}
 	return (0);
 }
