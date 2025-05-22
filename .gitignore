@@ -1,0 +1,35 @@
+.cproject
+.project
+.settings
+
+# Auto*/libtool
+Makefile
+Makefile.in
+/aclocal.m4
+/autom4te.cache/
+/config.*
+/configure
+/depcomp
+/install-sh
+/libtool
+/ltmain.sh
+/missing
+/stamp-h*
+/ar-lib
+/test-driver
+/compile
+.deps/
+.dirstamp
+.libs/
+*.l[ao]
+*~
+*.o
+
+# pkgconf
+libucl.pc
+
+# python extension
+python/build
+
+# Default CMake build directory
+/build/

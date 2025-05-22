@@ -41,12 +41,12 @@ template = 'python/MANIFEST.in'
 # distutils assume setup.py is in the root of the project
 # we need to include C source from the parent so trick it
 in_ucl_root = 'setup.py' in os.listdir('python')
-if in_ucl_root:
+if not os.path.isfile('setup.py') and in_ucl_root:
     os.link('python/setup.py', 'setup.py')
 
 setup(
     name = 'ucl',
-    version = '0.8.1',
+    version = '0.8.2',
     description = 'ucl parser and emitter',
     ext_modules = [uclmodule],
     template=template, # no longer supported with setuptools but doesn't hurt

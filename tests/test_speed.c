@@ -44,7 +44,7 @@ get_ticks (void)
 {
 	double res;
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && defined(HAVE_MACH_MACH_TIME_H)
 	res = mach_absolute_time () / 1000000000.;
 #else
 	struct timespec ts;

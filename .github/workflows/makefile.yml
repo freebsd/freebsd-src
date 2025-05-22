@@ -1,0 +1,30 @@
+name: Makefile CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install Lua
+      run: sudo apt-get install -y liblua5.4-dev lua5.4
+
+    - uses: actions/checkout@v3
+
+    - name: configure
+      run: ./autogen.sh && ./configure --enable-lua
+
+    - name: Install dependencies
+      run: make
+
+    - name: Run check
+      run: make check
+
+    - name: Run distcheck
+      run: make distcheck
