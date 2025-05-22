@@ -946,10 +946,10 @@ if_attach_internal(struct ifnet *ifp, bool vmove)
 	}
 #endif
 
-	if_link_ifnet(ifp);
-
 	if (domain_init_status >= 2)
 		if_attachdomain1(ifp);
+
+	if_link_ifnet(ifp);
 
 	EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
 	if (IS_DEFAULT_VNET(curvnet))
