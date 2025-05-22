@@ -1012,7 +1012,7 @@ uipc_stream_sbcheck(struct sockbuf *sb)
 		if (d == sb->uxst_fnrdy)
 			notready = true;
 		if (notready)
-			MPASS(d->m_flags & M_NOTREADY);
+			MPASS(d->m_flags & (M_NOTREADY|M_BLOCKED));
 		if (d->m_type == MT_CONTROL)
 			dctl += d->m_len;
 		else if (d->m_type == MT_DATA) {
@@ -1246,7 +1246,8 @@ restart:
 			cmc.mc_len = 0;
 		}
 		sent += mc.mc_len;
-		sb->sb_acc += mc.mc_len;
+		if (sb->uxst_fnrdy == NULL)
+			sb->sb_acc += mc.mc_len;
 		sb->sb_ccc += mc.mc_len;
 		sb->sb_mbcnt += mc.mc_mlen;
 		STAILQ_CONCAT(&sb->uxst_mbq, &mc.mc_q);
@@ -1397,11 +1398,13 @@ restart:
 	 * last == NULL - socket to be flushed
 	 * last != NULL
 	 *   lastlen > last->m_len - uio to be filled, last to be adjusted
-	 *   lastlen == 0          - MT_CONTROL or M_EOR encountered
+	 *   lastlen == 0          - MT_CONTROL, M_EOR or M_NOTREADY encountered
 	 */
 	space = uio->uio_resid;
 	datalen = 0;
-	for (m = first, last = NULL; m != NULL; m = STAILQ_NEXT(m, m_stailq)) {
+	for (m = first, last = sb->uxst_fnrdy, lastlen = 0;
+	     m != sb->uxst_fnrdy;
+	     m = STAILQ_NEXT(m, m_stailq)) {
 		if (m->m_type != MT_DATA) {
 			last = m;
 			lastlen = 0;
