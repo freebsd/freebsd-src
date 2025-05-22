@@ -29,6 +29,10 @@ FBSD_1.6 {
 	 x86_pkru_unprotect_range;
 };
 
+FBSD_1.8 {
+	amd64_set_tlsbase;
+};
+
 /*
  *
  * FreeBSD private ABI
