@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 20, 2017
+.Dd June 14, 2025
 .Dt KVM_OPEN 3
 .Os
 .Sh NAME
@@ -245,7 +245,20 @@ The value passed via
 was
 .Dv NULL .
 .El
+.Sh NOTE
+Full memory dumps taken on 13.x (excluding 13.0) and 14.x amd64 kernels
+will cause both
+.Fn kvm_open
+and
+.Fn kvm_open2
+to fail since they do not provide sufficient information to figure out
+where in physical memory the kernel was loaded.
+Full memory dumps have to be explicitly enabled by setting the
+.Va debug.minidump
+.Xr sysctl 8
+to 0.
 .Sh SEE ALSO
+.Xr dumpon 8 ,
 .Xr close 2 ,
 .Xr open 2 ,
 .Xr kvm 3 ,
