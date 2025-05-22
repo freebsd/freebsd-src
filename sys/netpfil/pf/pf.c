@@ -4629,13 +4629,6 @@ pf_tag_packet(struct pf_pdesc *pd, int tag)
 	return (0);
 }
 
-#define	PF_ANCHOR_STACKSIZE	32
-struct pf_kanchor_stackframe {
-	struct pf_kruleset	*rs;
-	struct pf_krule		*r;	/* XXX: + match bit */
-	struct pf_kanchor	*child;
-};
-
 /*
  * XXX: We rely on malloc(9) returning pointer aligned addresses.
  */
@@ -4649,80 +4642,42 @@ struct pf_kanchor_stackframe {
 				((uintptr_t)(f)->r | PF_ANCHORSTACK_MATCH);  \
 } while (0)
 
-void
-pf_step_into_anchor(struct pf_kanchor_stackframe *stack, int *depth,
-    struct pf_kruleset **rs, int n, struct pf_krule **r, struct pf_krule **a)
+enum pf_test_status
+pf_step_into_anchor(struct pf_test_ctx *ctx, struct pf_krule *r)
 {
-	struct pf_kanchor_stackframe	*f;
+	enum pf_test_status	rv;
 
 	PF_RULES_RASSERT();
 
-	if (*depth >= PF_ANCHOR_STACKSIZE) {
+	if (ctx->depth >= PF_ANCHOR_STACK_MAX) {
 		printf("%s: anchor stack overflow on %s\n",
-		    __func__, (*r)->anchor->name);
-		*r = TAILQ_NEXT(*r, entries);
-		return;
-	} else if (*depth == 0 && a != NULL)
-		*a = *r;
-	f = stack + (*depth)++;
-	f->rs = *rs;
-	f->r = *r;
-	if ((*r)->anchor_wildcard) {
-		struct pf_kanchor_node *parent = &(*r)->anchor->children;
-
-		if ((f->child = RB_MIN(pf_kanchor_node, parent)) == NULL) {
-			*r = NULL;
-			return;
-		}
-		*rs = &f->child->ruleset;
-	} else {
-		f->child = NULL;
-		*rs = &(*r)->anchor->ruleset;
+		    __func__, r->anchor->name);
+		return (PF_TEST_FAIL);
 	}
-	*r = TAILQ_FIRST((*rs)->rules[n].active.ptr);
-}
 
-int
-pf_step_out_of_anchor(struct pf_kanchor_stackframe *stack, int *depth,
-    struct pf_kruleset **rs, int n, struct pf_krule **r, struct pf_krule **a,
-    int *match)
-{
-	struct pf_kanchor_stackframe	*f;
-	struct pf_krule *fr;
-	int quick = 0;
+	ctx->depth++;
 
-	PF_RULES_RASSERT();
-
-	do {
-		if (*depth <= 0)
-			break;
-		f = stack + *depth - 1;
-		fr = PF_ANCHOR_RULE(f);
-		if (f->child != NULL) {
-			f->child = RB_NEXT(pf_kanchor_node,
-			    &fr->anchor->children, f->child);
-			if (f->child != NULL) {
-				*rs = &f->child->ruleset;
-				*r = TAILQ_FIRST((*rs)->rules[n].active.ptr);
-				if (*r == NULL)
-					continue;
-				else
-					break;
+	if (r->anchor_wildcard) {
+		struct pf_kanchor *child;
+		rv = PF_TEST_OK;
+		RB_FOREACH(child, pf_kanchor_node, &r->anchor->children) {
+			rv = pf_match_rule(ctx, &child->ruleset);
+			if ((rv == PF_TEST_QUICK) || (rv == PF_TEST_FAIL)) {
+				/*
+				 * we either hit a rule qith quick action
+				 * (more likely), or hit some runtime
+				 * error (e.g. pool_get() faillure).
+				 */
+				break;
 			}
 		}
-		(*depth)--;
-		if (*depth == 0 && a != NULL)
-			*a = NULL;
-		*rs = f->rs;
-		if (match != NULL && *match > *depth) {
-			*match = *depth;
-			if (f->r->quick)
-				quick = 1;
-		}
-		*r = TAILQ_NEXT(fr, entries);
-	} while (*r == NULL);
+	} else {
+		rv = pf_match_rule(ctx, &r->anchor->ruleset);
+	}
 
-	return (quick);
+	ctx->depth--;
+
+	return (rv);
 }
 
 struct pf_keth_anchor_stackframe {
@@ -4749,7 +4704,7 @@ pf_step_into_keth_anchor(struct pf_keth_anchor_stackframe *stack, int *depth,
 
 	if (match)
 		*match = 0;
-	if (*depth >= PF_ANCHOR_STACKSIZE) {
+	if (*depth >= PF_ANCHOR_STACK_MAX) {
 		printf("%s: anchor stack overflow on %s\n",
 		    __func__, (*r)->anchor->name);
 		*r = TAILQ_NEXT(*r, entries);
@@ -5240,7 +5195,7 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 	int asd = 0, match = 0;
 	int tag = -1;
 	uint8_t action;
-	struct pf_keth_anchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
+	struct pf_keth_anchor_stackframe	anchor_stack[PF_ANCHOR_STACK_MAX];
 
 	MPASS(kif->pfik_ifp->if_vnet == curvnet);
 	NET_EPOCH_ASSERT();
@@ -5495,12 +5450,11 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 	return (action);
 }
 
-#define PF_TEST_ATTRIB(t, a)\
-	do {				\
-		if (t) {		\
-			r = a;		\
-			goto nextrule;	\
-		}			\
+#define PF_TEST_ATTRIB(t, a)		\
+	if (t) {			\
+		r = a;			\
+		continue;		\
+	} else do {			\
 	} while (0)
 
 static __inline u_short
@@ -5555,132 +5509,18 @@ pf_rule_apply_nat(struct pf_pdesc *pd, struct pf_state_key **skp,
 	return (PFRES_MAX);
 }
 
-static int
-pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
-    struct pf_pdesc *pd, struct pf_krule **am,
-    struct pf_kruleset **rsm, u_short *reason, struct inpcb *inp)
+enum pf_test_status
+pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 {
-	struct pf_krule		*nr = NULL;
-	struct pf_krule		*r, *a = NULL;
-	struct pf_kruleset	*ruleset = NULL;
-	struct pf_krule_slist	 match_rules;
 	struct pf_krule_item	*ri;
-	struct tcphdr		*th = &pd->hdr.tcp;
-	struct pf_state_key	*sk = NULL, *nk = NULL;
+	struct pf_krule		*r;
+	struct pf_pdesc		*pd = ctx->pd;
 	u_short			 transerror;
-	int			 rewrite = 0;
-	int			 tag = -1;
-	int			 asd = 0;
-	int			 match = 0;
-	int			 state_icmp = 0, icmp_dir;
-	int			 action = PF_PASS;
-	u_int16_t		 virtual_type, virtual_id;
-	u_int16_t		 bproto_sum = 0, bip_sum = 0;
-	u_int8_t		 icmptype = 0, icmpcode = 0;
-	struct pf_kanchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
-	struct pf_udp_mapping	*udp_mapping = NULL;
-	struct pf_kpool		*nat_pool = NULL;
 
-	PF_RULES_RASSERT();
-
-	PF_ACPY(&pd->nsaddr, pd->src, pd->af);
-	PF_ACPY(&pd->ndaddr, pd->dst, pd->af);
-
-	SLIST_INIT(&match_rules);
-
-	if (inp != NULL) {
-		INP_LOCK_ASSERT(inp);
-		pd->lookup.uid = inp->inp_cred->cr_uid;
-		pd->lookup.gid = inp->inp_cred->cr_groups[0];
-		pd->lookup.done = 1;
-	}
-
-	if (pd->ip_sum)
-		bip_sum = *pd->ip_sum;
-
-	switch (pd->virtual_proto) {
-	case IPPROTO_TCP:
-		bproto_sum = th->th_sum;
-		pd->nsport = th->th_sport;
-		pd->ndport = th->th_dport;
-		break;
-	case IPPROTO_UDP:
-		bproto_sum = pd->hdr.udp.uh_sum;
-		pd->nsport = pd->hdr.udp.uh_sport;
-		pd->ndport = pd->hdr.udp.uh_dport;
-		break;
-	case IPPROTO_SCTP:
-		pd->nsport = pd->hdr.sctp.src_port;
-		pd->ndport = pd->hdr.sctp.dest_port;
-		break;
-#ifdef INET
-	case IPPROTO_ICMP:
-		MPASS(pd->af == AF_INET);
-		icmptype = pd->hdr.icmp.icmp_type;
-		icmpcode = pd->hdr.icmp.icmp_code;
-		state_icmp = pf_icmp_mapping(pd, icmptype,
-		    &icmp_dir, &virtual_id, &virtual_type);
-		if (icmp_dir == PF_IN) {
-			pd->nsport = virtual_id;
-			pd->ndport = virtual_type;
-		} else {
-			pd->nsport = virtual_type;
-			pd->ndport = virtual_id;
-		}
-		break;
-#endif /* INET */
-#ifdef INET6
-	case IPPROTO_ICMPV6:
-		MPASS(pd->af == AF_INET6);
-		icmptype = pd->hdr.icmp6.icmp6_type;
-		icmpcode = pd->hdr.icmp6.icmp6_code;
-		state_icmp = pf_icmp_mapping(pd, icmptype,
-		    &icmp_dir, &virtual_id, &virtual_type);
-		if (icmp_dir == PF_IN) {
-			pd->nsport = virtual_id;
-			pd->ndport = virtual_type;
-		} else {
-			pd->nsport = virtual_type;
-			pd->ndport = virtual_id;
-		}
-
-		break;
-#endif /* INET6 */
-	default:
-		pd->nsport = pd->ndport = 0;
-		break;
-	}
-	pd->osport = pd->nsport;
-	pd->odport = pd->ndport;
-
-	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_FILTER].active.ptr);
-
-	/* check packet for BINAT/NAT/RDR */
-	transerror = pf_get_translation(pd, pd->off, &sk, &nk, anchor_stack,
-	    &nr, &udp_mapping);
-	switch (transerror) {
-	default:
-		/* A translation error occurred. */
-		REASON_SET(reason, transerror);
-		goto cleanup;
-	case PFRES_MAX:
-		/* No match. */
-		break;
-	case PFRES_MATCH:
-		KASSERT(sk != NULL, ("%s: null sk", __func__));
-		KASSERT(nk != NULL, ("%s: null nk", __func__));
-		if (nr->log) {
-			PFLOG_PACKET(nr->action, PFRES_MATCH, nr, a,
-			    ruleset, pd, 1, NULL);
-		}
-
-		rewrite += pf_translate_compat(pd, sk, nk, nr, virtual_type);
-		nat_pool = &(nr->rdr);
-	}
-
+	r = TAILQ_FIRST(ruleset->rules[PF_RULESET_FILTER].active.ptr);
 	while (r != NULL) {
-		if (pd->related_rule) {
-			*rm = pd->related_rule;
+		if (ctx->pd->related_rule) {
+			*ctx->rm = ctx->pd->related_rule;
 			break;
 		}
 		pf_counter_u64_add(&r->evaluations, 1);
@@ -5714,7 +5554,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 			break;
 
 		case IPPROTO_TCP:
-			PF_TEST_ATTRIB((r->flagset & tcp_get_flags(th)) != r->flags,
+			PF_TEST_ATTRIB((r->flagset & tcp_get_flags(ctx->th))
+			    != r->flags,
 				TAILQ_NEXT(r, entries));
 			/* FALLTHROUGH */
 		case IPPROTO_SCTP:
@@ -5744,10 +5585,10 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		case IPPROTO_ICMP:
 		case IPPROTO_ICMPV6:
 			/* icmp only. type always 0 in other cases */
-			PF_TEST_ATTRIB(r->type && r->type != icmptype + 1,
+			PF_TEST_ATTRIB(r->type && r->type != ctx->icmptype + 1,
 				TAILQ_NEXT(r, entries));
 			/* icmp only. type always 0 in other cases */
-			PF_TEST_ATTRIB(r->code && r->code != icmpcode + 1,
+			PF_TEST_ATTRIB(r->code && r->code != ctx->icmpcode + 1,
 				TAILQ_NEXT(r, entries));
 			break;
 
@@ -5762,8 +5603,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		PF_TEST_ATTRIB(r->prob &&
 		    r->prob <= arc4random(),
 			TAILQ_NEXT(r, entries));
-		PF_TEST_ATTRIB(r->match_tag && !pf_match_tag(pd->m, r, &tag,
-		    pd->pf_mtag ? pd->pf_mtag->tag : 0),
+		PF_TEST_ATTRIB(r->match_tag && !pf_match_tag(pd->m, r,
+		    &ctx->tag, pd->pf_mtag ? pd->pf_mtag->tag : 0),
 			TAILQ_NEXT(r, entries));
 		PF_TEST_ATTRIB((r->rcv_kif && pf_match_rcvif(pd->m, r) ==
 		   r->rcvifnot),
@@ -5773,21 +5614,21 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 			TAILQ_NEXT(r, entries));
 		PF_TEST_ATTRIB(r->os_fingerprint != PF_OSFP_ANY &&
 		    (pd->virtual_proto != IPPROTO_TCP || !pf_osfp_match(
-		    pf_osfp_fingerprint(pd, th),
+		    pf_osfp_fingerprint(pd, ctx->th),
 		    r->os_fingerprint)),
 			TAILQ_NEXT(r, entries));
 		/* FALLTHROUGH */
 		if (r->tag)
-			tag = r->tag;
+			ctx->tag = r->tag;
 		if (r->anchor == NULL) {
 			if (r->action == PF_MATCH) {
 				/*
 				 * Apply translations before increasing counters,
 				 * in case it fails.
 				 */
-				transerror = pf_rule_apply_nat(pd, &sk, &nk, r,
-				    &nr, &udp_mapping, virtual_type, &rewrite,
-				    &nat_pool);
+				transerror = pf_rule_apply_nat(pd, &ctx->sk, &ctx->nk, r,
+				    &ctx->nr, &ctx->udp_mapping, ctx->virtual_type,
+				    &ctx->rewrite, &ctx->nat_pool);
 				switch (transerror) {
 				case PFRES_MATCH:
 					/* Translation action found in rule and applied successfully */
@@ -5796,16 +5637,16 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 					break;
 				default:
 					/* Translation action found in rule but failed to apply */
-					REASON_SET(reason, transerror);
-					goto cleanup;
+					REASON_SET(&ctx->reason, transerror);
+					return (PF_TEST_FAIL);
 				}
 				ri = malloc(sizeof(struct pf_krule_item), M_PF_RULE_ITEM, M_NOWAIT | M_ZERO);
 				if (ri == NULL) {
-					REASON_SET(reason, PFRES_MEMORY);
-					goto cleanup;
+					REASON_SET(&ctx->reason, PFRES_MEMORY);
+					return (PF_TEST_FAIL);
 				}
 				ri->r = r;
-				SLIST_INSERT_HEAD(&match_rules, ri, entry);
+				SLIST_INSERT_HEAD(&ctx->rules, ri, entry);
 				pf_counter_u64_critical_enter();
 				pf_counter_u64_add_protected(&r->packets[pd->dir == PF_OUT], 1);
 				pf_counter_u64_add_protected(&r->bytes[pd->dir == PF_OUT], pd->tot_len);
@@ -5813,36 +5654,183 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 				pf_rule_to_actions(r, &pd->act);
 				if (r->log)
 					PFLOG_PACKET(r->action, PFRES_MATCH, r,
-					    a, ruleset, pd, 1, NULL);
+					    ctx->a, ruleset, pd, 1, NULL);
 			} else {
-				match = asd;
-				*rm = r;
-				*am = a;
-				*rsm = ruleset;
+				/*
+				 * found matching r
+				 */
+				*ctx->rm = r;
+				/*
+				 * anchor, with ruleset, where r belongs to
+				 */
+				*ctx->am = ctx->a;
+				/*
+				 * ruleset where r belongs to
+				 */
+				*ctx->rsm = ruleset;
+				/*
+				 * ruleset, where anchor belongs to.
+				 */
+				ctx->arsm = ctx->aruleset;
 			}
 			if (pd->act.log & PF_LOG_MATCHES)
-				pf_log_matches(pd, r, a, ruleset, &match_rules);
-			if (r->quick)
+				pf_log_matches(pd, r, ctx->a, ruleset, &ctx->rules);
+			if (r->quick) {
+				ctx->test_status = PF_TEST_QUICK;
 				break;
-			r = TAILQ_NEXT(r, entries);
-		} else
-			pf_step_into_anchor(anchor_stack, &asd,
-			    &ruleset, PF_RULESET_FILTER, &r, &a);
-nextrule:
-		if (r == NULL && pf_step_out_of_anchor(anchor_stack, &asd,
-		    &ruleset, PF_RULESET_FILTER, &r, &a, &match))
-			break;
+			}
+		} else {
+			ctx->a = r;			/* remember anchor */
+			ctx->aruleset = ruleset;	/* and its ruleset */
+			if (ctx->a->quick)
+				ctx->test_status = PF_TEST_QUICK;
+			if (pf_step_into_anchor(ctx, r) != PF_TEST_OK) {
+				break;
+			}
+		}
+		r = TAILQ_NEXT(r, entries);
 	}
-	r = *rm;
-	a = *am;
-	ruleset = *rsm;
 
-	REASON_SET(reason, PFRES_MATCH);
+	return (ctx->test_status);
+}
+
+static int
+pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
+    struct pf_pdesc *pd, struct pf_krule **am,
+    struct pf_kruleset **rsm, u_short *reason, struct inpcb *inp)
+{
+	struct pf_krule		*r = NULL;
+	struct pf_kruleset	*ruleset = NULL;
+	struct pf_krule_item	*ri;
+	struct pf_test_ctx	 ctx;
+	u_short			 transerror;
+	int			 action = PF_PASS;
+	u_int16_t		 bproto_sum = 0, bip_sum = 0;
+	enum pf_test_status	 rv;
+
+	PF_RULES_RASSERT();
+
+	bzero(&ctx, sizeof(ctx));
+	ctx.tag = -1;
+	ctx.pd = pd;
+	ctx.rm = rm;
+	ctx.am = am;
+	ctx.rsm = rsm;
+	ctx.th = &pd->hdr.tcp;
+	ctx.reason = *reason;
+	SLIST_INIT(&ctx.rules);
+
+	PF_ACPY(&pd->nsaddr, pd->src, pd->af);
+	PF_ACPY(&pd->ndaddr, pd->dst, pd->af);
+
+	if (inp != NULL) {
+		INP_LOCK_ASSERT(inp);
+		pd->lookup.uid = inp->inp_cred->cr_uid;
+		pd->lookup.gid = inp->inp_cred->cr_groups[0];
+		pd->lookup.done = 1;
+	}
+
+	if (pd->ip_sum)
+		bip_sum = *pd->ip_sum;
+
+	switch (pd->virtual_proto) {
+	case IPPROTO_TCP:
+		bproto_sum = ctx.th->th_sum;
+		pd->nsport = ctx.th->th_sport;
+		pd->ndport = ctx.th->th_dport;
+		break;
+	case IPPROTO_UDP:
+		bproto_sum = pd->hdr.udp.uh_sum;
+		pd->nsport = pd->hdr.udp.uh_sport;
+		pd->ndport = pd->hdr.udp.uh_dport;
+		break;
+	case IPPROTO_SCTP:
+		pd->nsport = pd->hdr.sctp.src_port;
+		pd->ndport = pd->hdr.sctp.dest_port;
+		break;
+#ifdef INET
+	case IPPROTO_ICMP:
+		MPASS(pd->af == AF_INET);
+		ctx.icmptype = pd->hdr.icmp.icmp_type;
+		ctx.icmpcode = pd->hdr.icmp.icmp_code;
+		ctx.state_icmp = pf_icmp_mapping(pd, ctx.icmptype,
+		    &ctx.icmp_dir, &ctx.virtual_id, &ctx.virtual_type);
+		if (ctx.icmp_dir == PF_IN) {
+			pd->nsport = ctx.virtual_id;
+			pd->ndport = ctx.virtual_type;
+		} else {
+			pd->nsport = ctx.virtual_type;
+			pd->ndport = ctx.virtual_id;
+		}
+		break;
+#endif /* INET */
+#ifdef INET6
+	case IPPROTO_ICMPV6:
+		MPASS(pd->af == AF_INET6);
+		ctx.icmptype = pd->hdr.icmp6.icmp6_type;
+		ctx.icmpcode = pd->hdr.icmp6.icmp6_code;
+		ctx.state_icmp = pf_icmp_mapping(pd, ctx.icmptype,
+		    &ctx.icmp_dir, &ctx.virtual_id, &ctx.virtual_type);
+		if (ctx.icmp_dir == PF_IN) {
+			pd->nsport = ctx.virtual_id;
+			pd->ndport = ctx.virtual_type;
+		} else {
+			pd->nsport = ctx.virtual_type;
+			pd->ndport = ctx.virtual_id;
+		}
+
+		break;
+#endif /* INET6 */
+	default:
+		pd->nsport = pd->ndport = 0;
+		break;
+	}
+	pd->osport = pd->nsport;
+	pd->odport = pd->ndport;
+
+	/* check packet for BINAT/NAT/RDR */
+	transerror = pf_get_translation(pd, pd->off, &ctx.sk, &ctx.nk, &ctx,
+	    &ctx.udp_mapping);
+	switch (transerror) {
+	default:
+		/* A translation error occurred. */
+		REASON_SET(&ctx.reason, transerror);
+		goto cleanup;
+	case PFRES_MAX:
+		/* No match. */
+		break;
+	case PFRES_MATCH:
+		KASSERT(ctx.sk != NULL, ("%s: null sk", __func__));
+		KASSERT(ctx.nk != NULL, ("%s: null nk", __func__));
+		if (ctx.nr->log) {
+			PFLOG_PACKET(ctx.nr->action, PFRES_MATCH, ctx.nr, ctx.a,
+			    ruleset, pd, 1, NULL);
+		}
+
+		ctx.rewrite += pf_translate_compat(pd, ctx.sk, ctx.nk, ctx.nr, ctx.virtual_type);
+		ctx.nat_pool = &(ctx.nr->rdr);
+	}
+
+	ruleset = &pf_main_ruleset;
+	rv = pf_match_rule(&ctx, ruleset);
+	if (rv == PF_TEST_FAIL) {
+		/*
+		 * Reason has been set in pf_match_rule() already.
+		 */
+		goto cleanup;
+	}
+
+	r = *ctx.rm;			/* matching rule */
+	ctx.a = *ctx.am;		/* rule that defines an anchor containing 'r' */
+	ruleset = *ctx.rsm;		/* ruleset of the anchor defined by the rule 'a' */
+	ctx.aruleset = ctx.arsm;	/* ruleset of the 'a' rule itself */
+
+	REASON_SET(&ctx.reason, PFRES_MATCH);
 
 	/* apply actions for last matching pass/block rule */
 	pf_rule_to_actions(r, &pd->act);
-	transerror = pf_rule_apply_nat(pd, &sk, &nk, r, &nr, &udp_mapping,
-	    virtual_type, &rewrite, &nat_pool);
+	transerror = pf_rule_apply_nat(pd, &ctx.sk, &ctx.nk, r, &ctx.nr, &ctx.udp_mapping,
+	    ctx.virtual_type, &ctx.rewrite, &ctx.nat_pool);
 	switch (transerror) {
 	case PFRES_MATCH:
 		/* Translation action found in rule and applied successfully */
@@ -5851,31 +5839,31 @@ nextrule:
 		break;
 	default:
 		/* Translation action found in rule but failed to apply */
-		REASON_SET(reason, transerror);
+		REASON_SET(&ctx.reason, transerror);
 		goto cleanup;
 	}
 
 	if (r->log) {
-		if (rewrite)
+		if (ctx.rewrite)
 			m_copyback(pd->m, pd->off, pd->hdrlen, pd->hdr.any);
-		PFLOG_PACKET(r->action, *reason, r, a, ruleset, pd, 1, NULL);
+		PFLOG_PACKET(r->action, ctx.reason, r, ctx.a, ruleset, pd, 1, NULL);
 	}
 	if (pd->act.log & PF_LOG_MATCHES)
-		pf_log_matches(pd, r, a, ruleset, &match_rules);
+		pf_log_matches(pd, r, ctx.a, ruleset, &ctx.rules);
 	if (pd->virtual_proto != PF_VPROTO_FRAGMENT &&
 	   (r->action == PF_DROP) &&
 	    ((r->rule_flag & PFRULE_RETURNRST) ||
 	    (r->rule_flag & PFRULE_RETURNICMP) ||
 	    (r->rule_flag & PFRULE_RETURN))) {
-		pf_return(r, nr, pd, th, bproto_sum,
-		    bip_sum, reason, r->rtableid);
+		pf_return(r, ctx.nr, pd, ctx.th, bproto_sum,
+		    bip_sum, &ctx.reason, r->rtableid);
 	}
 
 	if (r->action == PF_DROP)
 		goto cleanup;
 
-	if (tag > 0 && pf_tag_packet(pd, tag)) {
-		REASON_SET(reason, PFRES_MEMORY);
+	if (ctx.tag > 0 && pf_tag_packet(pd, ctx.tag)) {
+		REASON_SET(&ctx.reason, PFRES_MEMORY);
 		goto cleanup;
 	}
 	if (pd->act.rtableid >= 0)
@@ -5890,31 +5878,32 @@ nextrule:
 		 */
 		pd->act.rt = r->rt;
 		/* Don't use REASON_SET, pf_map_addr increases the reason counters */
-		*reason = pf_map_addr_sn(pd->af, r, pd->src, &pd->act.rt_addr,
+		ctx.reason = pf_map_addr_sn(pd->af, r, pd->src, &pd->act.rt_addr,
 		    &pd->act.rt_kif, NULL, &sn, &snh, &(r->route), PF_SN_ROUTE);
-		if (*reason != 0)
+		if (ctx.reason != 0)
 			goto cleanup;
 	}
 
 	if (pd->virtual_proto != PF_VPROTO_FRAGMENT &&
-	   (!state_icmp && (r->keep_state || nr != NULL ||
+	   (!ctx.state_icmp && (r->keep_state || ctx.nr != NULL ||
 	    (pd->flags & PFDESC_TCP_NORM)))) {
 		bool nat64;
 
-		action = pf_create_state(r, nr, a, pd, nk, sk,
-		    &rewrite, sm, tag, bproto_sum, bip_sum,
-		    &match_rules, udp_mapping, nat_pool, reason);
-		sk = nk = NULL;
+		action = pf_create_state(r, ctx.nr, ctx.a, pd, ctx.nk, ctx.sk,
+		    &ctx.rewrite, sm, ctx.tag, bproto_sum, bip_sum,
+		    &ctx.rules, ctx.udp_mapping, ctx.nat_pool, &ctx.reason);
+		ctx.sk = ctx.nk = NULL;
 		if (action != PF_PASS) {
-			pf_udp_mapping_release(udp_mapping);
-			if (r->log || (nr != NULL && nr->log) ||
-			    *reason == PFRES_MEMORY)
+			pf_udp_mapping_release(ctx.udp_mapping);
+			if (r->log || (ctx.nr != NULL && ctx.nr->log) ||
+			    ctx.reason == PFRES_MEMORY)
 				pd->act.log |= PF_LOG_FORCE;
 			if (action == PF_DROP &&
 			    (r->rule_flag & PFRULE_RETURN))
-				pf_return(r, nr, pd, th,
-				    bproto_sum, bip_sum, reason,
+				pf_return(r, ctx.nr, pd, ctx.th,
+				    bproto_sum, bip_sum, &ctx.reason,
 				    pd->act.rtableid);
+			*reason = ctx.reason;
 			return (action);
 		}
 
@@ -5922,69 +5911,73 @@ nextrule:
 		if (nat64) {
 			int			 ret;
 
-			if (sk == NULL)
-				sk = (*sm)->key[pd->dir == PF_IN ? PF_SK_STACK : PF_SK_WIRE];
-			if (nk == NULL)
-				nk = (*sm)->key[pd->dir == PF_IN ? PF_SK_WIRE : PF_SK_STACK];
+			if (ctx.sk == NULL)
+				ctx.sk = (*sm)->key[pd->dir == PF_IN ? PF_SK_STACK : PF_SK_WIRE];
+			if (ctx.nk == NULL)
+				ctx.nk = (*sm)->key[pd->dir == PF_IN ? PF_SK_WIRE : PF_SK_STACK];
 
 			if (pd->dir == PF_IN) {
-				ret = pf_translate(pd, &sk->addr[pd->didx],
-				    sk->port[pd->didx], &sk->addr[pd->sidx],
-				    sk->port[pd->sidx], virtual_type,
-				    icmp_dir);
+				ret = pf_translate(pd, &ctx.sk->addr[pd->didx],
+				    ctx.sk->port[pd->didx], &ctx.sk->addr[pd->sidx],
+				    ctx.sk->port[pd->sidx], ctx.virtual_type,
+				    ctx.icmp_dir);
 			} else {
-				ret = pf_translate(pd, &sk->addr[pd->sidx],
-				    sk->port[pd->sidx], &sk->addr[pd->didx],
-				    sk->port[pd->didx], virtual_type,
-				    icmp_dir);
+				ret = pf_translate(pd, &ctx.sk->addr[pd->sidx],
+				    ctx.sk->port[pd->sidx], &ctx.sk->addr[pd->didx],
+				    ctx.sk->port[pd->didx], ctx.virtual_type,
+				    ctx.icmp_dir);
 			}
 
 			if (ret < 0)
 				goto cleanup;
 
-			rewrite += ret;
+			ctx.rewrite += ret;
 
-			if (rewrite && sk->af != nk->af)
+			if (ctx.rewrite && ctx.sk->af != ctx.nk->af)
 				action = PF_AFRT;
 		}
 	} else {
-		while ((ri = SLIST_FIRST(&match_rules))) {
-			SLIST_REMOVE_HEAD(&match_rules, entry);
+		while ((ri = SLIST_FIRST(&ctx.rules))) {
+			SLIST_REMOVE_HEAD(&ctx.rules, entry);
 			free(ri, M_PF_RULE_ITEM);
 		}
 
-		uma_zfree(V_pf_state_key_z, sk);
-		uma_zfree(V_pf_state_key_z, nk);
-		sk = nk = NULL;
-		pf_udp_mapping_release(udp_mapping);
+		uma_zfree(V_pf_state_key_z, ctx.sk);
+		uma_zfree(V_pf_state_key_z, ctx.nk);
+		ctx.sk = ctx.nk = NULL;
+		pf_udp_mapping_release(ctx.udp_mapping);
 	}
 
 	/* copy back packet headers if we performed NAT operations */
-	if (rewrite)
+	if (ctx.rewrite)
 		m_copyback(pd->m, pd->off, pd->hdrlen, pd->hdr.any);
 
 	if (*sm != NULL && !((*sm)->state_flags & PFSTATE_NOSYNC) &&
 	    pd->dir == PF_OUT &&
-	    V_pfsync_defer_ptr != NULL && V_pfsync_defer_ptr(*sm, pd->m))
+	    V_pfsync_defer_ptr != NULL && V_pfsync_defer_ptr(*sm, pd->m)) {
 		/*
 		 * We want the state created, but we dont
 		 * want to send this in case a partner
 		 * firewall has to know about it to allow
 		 * replies through it.
 		 */
+		*reason = ctx.reason;
 		return (PF_DEFER);
+	}
 
+	*reason = ctx.reason;
 	return (action);
 
 cleanup:
-	while ((ri = SLIST_FIRST(&match_rules))) {
-		SLIST_REMOVE_HEAD(&match_rules, entry);
+	while ((ri = SLIST_FIRST(&ctx.rules))) {
+		SLIST_REMOVE_HEAD(&ctx.rules, entry);
 		free(ri, M_PF_RULE_ITEM);
 	}
 
-	uma_zfree(V_pf_state_key_z, sk);
-	uma_zfree(V_pf_state_key_z, nk);
-	pf_udp_mapping_release(udp_mapping);
+	uma_zfree(V_pf_state_key_z, ctx.sk);
+	uma_zfree(V_pf_state_key_z, ctx.nk);
+	pf_udp_mapping_release(ctx.udp_mapping);
+	*reason = ctx.reason;
 
 	return (PF_DROP);
 }
