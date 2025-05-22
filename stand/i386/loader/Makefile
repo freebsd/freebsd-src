@@ -16,7 +16,7 @@ LOADER?=	loader_${LOADER_INTERP}
 PROG=		${LOADER}.sym
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
-VERSION_FILE=	${.CURDIR}/../loader/version
+VERSION_FILE?=	${.CURDIR}/../loader/version
 #
 # There's 640k - 40k maximum space, less however much memory the BIOS uses.  A
 # non-random survey suggests that 20k-25k is a good value for 'most' machines.
