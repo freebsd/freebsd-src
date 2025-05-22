@@ -50,13 +50,17 @@ if [ -n "$SOURCE_DATE_EPOCH" ]; then
 		exit 1
 	fi
 else
-	t=`date`
+	t="${NEWVERS_DATE:-`date`}"
 fi
 r=`awk -F: ' /^[0-9]\.[0-9]+:/ { print $1; exit }' $1`
 
 bootprog_info="FreeBSD/${3} ${2}, Revision ${r}\\n"
 if [ -n "${include_metadata}" ]; then
 	bootprog_info="$bootprog_info(${t} ${u}@${h})\\n"
+	if [ -n "$BUILD_UTC" ]; then
+		# We can use what(1) to extract BUILD_UTC
+		bootprog_info="$bootprog_info\\0@(#)BUILD_UTC=$BUILD_UTC"
+	fi
 fi
 
 cat > $tempfile <<EOF
