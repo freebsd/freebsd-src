@@ -368,6 +368,27 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 		cpu_ptrace_setbase(td, req, rv);
 		break;
 
+	case PT_GETTLSBASE:
+		pcb = td->td_pcb;
+		if ((pcb->pcb_flags & PCB_TLSBASE) != 0)
+			error = copyout(&pcb->pcb_tlsbase, addr, sizeof(*r));
+		else
+			error = ESRCH;
+		break;
+
+	case PT_SETTLSBASE:
+		pcb = td->td_pcb;
+		error = copyin(addr, &rv, sizeof(rv));
+		if (error != 0)
+			break;
+		if (rv >= td->td_proc->p_sysent->sv_maxuser) {
+			error = EINVAL;
+			break;
+		}
+		pcb->pcb_tlsbase = rv;
+		set_pcb_flags(pcb, PCB_TLSBASE);
+		break;
+
 	default:
 		error = EINVAL;
 		break;
