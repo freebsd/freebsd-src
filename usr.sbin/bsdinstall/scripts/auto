@@ -186,15 +186,24 @@ trap true SIGINT	# This section is optional
 trap error SIGINT	# Catch cntrl-C here
 if [ -z "$BSDINSTALL_SKIP_HOSTNAME" ]; then bsdinstall hostname || error "Set hostname failed"; fi
 
+if [ -f /usr/freebsd-packages/repos/FreeBSD-base-offline.conf ]; then
+	HAVE_BASE_PACKAGES=yes
+	PKGBASE_DEFAULT_BUTTON=--default-no
+else
+	unset HAVE_BASE_PACKAGES
+	unset PKGBASE_DEFAULT_BUTTON
+fi
+
 bsddialog --backtitle "$OSNAME Installer" --title "Select Installation Type" \
 	--yes-label "Traditional" --no-label "Packages (Experimental)" --yesno \
+	$PKGBASE_DEFAULT_BUTTON \
 	"Would you like to install the base system using traditional distribution sets or packages (experimental)?" 0 0
 if [ $? -eq 1 ]; then
 	PKGBASE=yes
 fi
 
 if [ "$PKGBASE" == yes ]; then
-	if [ -f /usr/freebsd-packages/repos/FreeBSD-base-offline.conf ]; then
+	if [ "$HAVE_BASE_PACKAGES" == yes ]; then
 		bsddialog --backtitle "$OSNAME Installer" --title "Network or Offline Installation" \
 		    --yes-label "Network" --no-label "Offline (Limited Packages)" --yesno \
 		    "Would you like to fetch packages from the internet or use the limited set of packages included in this installation media?" 0 0
