@@ -69,7 +69,7 @@ clean-coverage-report:
 	-rm -rf $(COVERAGE_REPORT_DIR)
 
 clean-coverage: clean-coverage-report
-	-$(LCOV) --gcov-tool $(GCOV) --zerocounters --directory $(top_builddir)
+	-$(LCOV) --gcov-tool $(GCOV) --zerocounters --directory $(top_builddir) || true
 	@if xargs --version 2>/dev/null; then \
 		find $(top_builddir) -name "*.gcno" | xargs --no-run-if-empty rm; \
 	else \

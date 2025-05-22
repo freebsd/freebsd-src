@@ -39,6 +39,7 @@
 #ifdef HAVE_MATH_H
 #include <math.h>
 #endif
+#include <inttypes.h>
 
 static bool ucl_schema_validate (const ucl_object_t *schema,
 		const ucl_object_t *obj, bool try_array,
