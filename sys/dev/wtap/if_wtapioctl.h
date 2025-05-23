@@ -40,7 +40,7 @@
 #ifndef _DEV_WTAP_WTAPIOCTL_H
 #define _DEV_WTAP_WTAPIOCTL_H
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <net80211/ieee80211_radiotap.h>
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
