@@ -40,6 +40,7 @@
 #include <sys/queue.h>
 #include <sys/param.h>
 #include <sys/cpuset.h>
+#include <sys/exterrvar.h>
 #include <machine/atomic.h>
 #include <errno.h>
 #include <limits.h>
@@ -576,6 +577,8 @@ struct pthread {
 
 	/* pthread_set/get_name_np */
 	char			*name;
+
+	struct uexterror	uexterr;
 };
 
 #define THR_SHOULD_GC(thrd) 						\
