@@ -175,7 +175,7 @@ DPADD		Additional dependencies.  Usually used for libraries.
 		Dependencies on shared libraries should be only on the
 		library version numbers.
 
-LDADD		Additional loader objects.  Usually used to add libraries.
+LDADD		Additional linker objects.  Usually used to add libraries.
 		For example, to load with the compatibility and utility
 		libraries, use:
 
@@ -184,8 +184,8 @@ LDADD		Additional loader objects.  Usually used to add libraries.
 LDADD.${.TARGET:T}
 		Loader objects dependent on output file name.
 
-LDFLAGS		Additional loader flags. Passed to the loader via CC,
-		since that's used to link programs as well, so loader
+LDFLAGS		Additional linker flags. Passed to the linker via CC,
+		since that's used to link programs as well, so linker
 		specific flags need to be prefixed with -Wl, to work.
 LDFLAGS.${.TARGET:T}
 		Flags dependent on output file name.
