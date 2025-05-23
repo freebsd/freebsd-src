@@ -1008,10 +1008,10 @@ uipc_stream_sbcheck(struct sockbuf *sb)
 
 	dacc = dccc = dctl = dmbcnt = 0;
 	STAILQ_FOREACH(d, &sb->uxst_mbq, m_stailq) {
-		if (d == sb->uxst_fnrdy)
+		if (d == sb->uxst_fnrdy) {
+			MPASS(d->m_flags & M_NOTREADY);
 			notready = true;
-		if (notready)
-			MPASS(d->m_flags & (M_NOTREADY|M_BLOCKED));
+		}
 		if (d->m_type == MT_CONTROL)
 			dctl += d->m_len;
 		else if (d->m_type == MT_DATA) {
@@ -2471,15 +2471,21 @@ uipc_sendfile(struct socket *so, int flags, struct mbuf *m,
 	sb->sb_mbcnt += mc.mc_mlen;
 	if (sb->uxst_fnrdy == NULL) {
 		if (notready) {
-			sb->uxst_fnrdy = STAILQ_FIRST(&mc.mc_q);
 			wakeup = false;
+			STAILQ_FOREACH(m, &mc.mc_q, m_stailq) {
+				if (m->m_flags & M_NOTREADY) {
+					sb->uxst_fnrdy = m;
+					break;
+				} else {
+					sb->sb_acc += m->m_len;
+					wakeup = true;
+				}
+			}
 		} else {
-			sb->sb_acc += mc.mc_len;
 			wakeup = true;
+			sb->sb_acc += mc.mc_len;
 		}
 	} else {
-		STAILQ_FOREACH(m, &mc.mc_q, m_stailq)
-			m->m_flags |= M_BLOCKED;
 		wakeup = false;
 	}
 	STAILQ_CONCAT(&sb->uxst_mbq, &mc.mc_q);
@@ -2504,24 +2510,22 @@ out:
 static int
 uipc_sbready(struct sockbuf *sb, struct mbuf *m, int count)
 {
-	u_int blocker;
+	bool blocker;
 
 	/* assert locked */
 
-	blocker = (sb->uxst_fnrdy == m) ? M_BLOCKED : 0;
+	blocker = (sb->uxst_fnrdy == m);
 	STAILQ_FOREACH_FROM(m, &sb->uxst_mbq, m_stailq) {
 		if (count > 0) {
 			MPASS(m->m_flags & M_NOTREADY);
-			m->m_flags &= ~(M_NOTREADY | blocker);
+			m->m_flags &= ~M_NOTREADY;
 			if (blocker)
 				sb->sb_acc += m->m_len;
 			count--;
-		} else if (blocker && !(m->m_flags & M_NOTREADY)) {
-			MPASS(m->m_flags & M_BLOCKED);
-			m->m_flags &= ~M_BLOCKED;
-			sb->sb_acc += m->m_len;
-		} else
+		} else if (m->m_flags & M_NOTREADY)
 			break;
+		else if (blocker)
+			sb->sb_acc += m->m_len;
 	}
 	if (blocker) {
 		sb->uxst_fnrdy = m;
