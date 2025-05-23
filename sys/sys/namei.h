@@ -154,6 +154,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	LOCKSHARED	0x0100	/* Shared lock leaf */
 #define	NOFOLLOW	0x0000	/* do not follow symbolic links (pseudo) */
 #define	RBENEATH	0x100000000ULL /* No escape, even tmp, from start dir */
+#define	NAMEILOOKUP	0x200000000ULL /* cnp is embedded in nameidata */
 #define	MODMASK		0xf000001ffULL	/* mask of operational modifiers */
 
 /*
@@ -254,7 +255,7 @@ do {										\
 	NDINIT_PREFILL(_ndp);							\
 	NDINIT_DBG(_ndp);							\
 	_ndp->ni_cnd.cn_nameiop = op;						\
-	_ndp->ni_cnd.cn_flags = flags;						\
+	_ndp->ni_cnd.cn_flags = (flags) | NAMEILOOKUP;				\
 	_ndp->ni_segflg = segflg;						\
 	_ndp->ni_dirp = namep;							\
 	_ndp->ni_dirfd = dirfd;							\
@@ -312,6 +313,8 @@ void NDVALIDATE(struct nameidata *);
 
 int	namei(struct nameidata *ndp);
 int	lookup(struct nameidata *ndp);
+bool	lookup_isroot(struct nameidata *ndp, struct vnode *dvp);
+struct nameidata *lookup_nameidata(struct componentname *cnp);
 int	relookup(struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp);
 #endif
