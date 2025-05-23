@@ -433,4 +433,5 @@ MIASM =  \
 	kcmp.o \
 	getrlimitusage.o \
 	fchroot.o \
-	setcred.o
+	setcred.o \
+	exterrctl.o

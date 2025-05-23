@@ -510,4 +510,5 @@
 #define	FREEBSD32_SYS_getrlimitusage	589
 #define	FREEBSD32_SYS_fchroot	590
 #define	FREEBSD32_SYS_freebsd32_setcred	591
-#define	FREEBSD32_SYS_MAXSYSCALL	592
+#define	FREEBSD32_SYS_exterrctl	592
+#define	FREEBSD32_SYS_MAXSYSCALL	593
