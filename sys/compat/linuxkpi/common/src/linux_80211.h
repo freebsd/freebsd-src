@@ -59,6 +59,7 @@
 #define	D80211_IMPROVE_TXQ	0x00000004
 #define	D80211_TRACE		0x00000010
 #define	D80211_TRACEOK		0x00000020
+#define	D80211_SCAN		0x00000040
 #define	D80211_TRACE_TX		0x00000100
 #define	D80211_TRACE_TX_DUMP	0x00000200
 #define	D80211_TRACE_RX		0x00001000
@@ -74,6 +75,15 @@
 #define	D80211_TRACE_MODE_VHT	0x02000000
 #define	D80211_TRACE_MODE_HE	0x04000000
 #define	D80211_TRACE_MODE_EHT	0x08000000
+
+#ifdef	LINUXKPI_DEBUG_80211
+#define	TRACE_SCAN(ic, fmt, ...)					\
+    if (linuxkpi_debug_80211 & D80211_SCAN)				\
+	printf("%s:%d: %s SCAN " fmt "\n",				\
+	    __func__, __LINE__, ic->ic_name, ##__VA_ARGS__)
+#else
+#define	TRACE_SCAN(...)		do {} while (0)
+#endif
 
 #define	IMPROVE_TXQ(...)						\
     if (linuxkpi_debug_80211 & D80211_IMPROVE_TXQ)			\
@@ -298,6 +308,9 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 };
 #define	LHW_TO_HW(_lhw)		(&(_lhw)->hw)
 #define	HW_TO_LHW(_hw)		container_of(_hw, struct lkpi_hw, hw)
+
+#define	LKPI_LHW_SCAN_BITS				\
+    "\010\1RUNING\2HW"
 
 struct lkpi_chanctx {
 	struct list_head		entry;
