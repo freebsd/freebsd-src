@@ -597,4 +597,5 @@ const char *freebsd32_syscallnames[] = {
 	"getrlimitusage",			/* 589 = getrlimitusage */
 	"fchroot",			/* 590 = fchroot */
 	"freebsd32_setcred",			/* 591 = freebsd32_setcred */
+	"exterrctl",			/* 592 = exterrctl */
 };

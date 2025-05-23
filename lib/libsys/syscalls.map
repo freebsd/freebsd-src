@@ -807,4 +807,6 @@ FBSDprivate_1.0 {
 	__sys_fchroot;
 	_setcred;
 	__sys_setcred;
+	_exterrctl;
+	__sys_exterrctl;
 };
