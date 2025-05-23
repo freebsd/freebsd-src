@@ -25,6 +25,8 @@
  */
 
 #include <sys/param.h>
+#include <sys/stat.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <glob.h>
@@ -35,6 +37,8 @@
 #include <unistd.h>
 
 #include <atf-c.h>
+
+static int glob_callback_invoked;
 
 /*
  * Derived from Russ Cox' pathological case test program used for the
@@ -102,10 +106,64 @@ ATF_TC_BODY(glob_pathological_test, tc)
 	}
 }
 
+ATF_TC(glob_period);
+ATF_TC_HEAD(glob_period, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test behaviour when matching files that start with a period"
+	    "(documented in the glob(3) CAVEATS section).");
+}
+ATF_TC_BODY(glob_period, tc)
+{
+	int i;
+	glob_t g;
+
+	atf_utils_create_file(".test", "");
+	glob(".", 0, NULL, &g);
+	ATF_REQUIRE_MSG(g.gl_matchc == 1,
+	    "glob(3) shouldn't match files starting with a period when using '.'");
+	for (i = 0; i < g.gl_matchc; i++)
+		printf("%s\n", g.gl_pathv[i]);
+	glob(".*", 0, NULL, &g);
+	ATF_REQUIRE_MSG(g.gl_matchc == 3 && strcmp(g.gl_pathv[2], ".test") == 0,
+	    "glob(3) should match files starting with a period when using '.*'");
+}
+
+static int
+errfunc(const char *path, int err)
+{
+	ATF_REQUIRE_STREQ(path, "test/");
+	ATF_REQUIRE(err == EACCES);
+	glob_callback_invoked = 1;
+	/* Suppress EACCES errors. */
+	return (0);
+}
+
+ATF_TC_WITHOUT_HEAD(glob_callback_test);
+ATF_TC_BODY(glob_callback_test, tc)
+{
+	int rv;
+	glob_t g;
+
+	glob_callback_invoked = 0;
+	ATF_REQUIRE_EQ(0, mkdir("test", 0007));
+	rv = glob("test/*", 0, errfunc, &g);
+	ATF_REQUIRE_MSG(glob_callback_invoked == 1,
+	    "glob(3) failed to invoke callback function");
+	ATF_REQUIRE_MSG(rv == GLOB_NOMATCH,
+	    "error callback function failed to suppress EACCES");
+
+	/* GLOB_ERR should ignore the suppressed error. */
+	rv = glob("test/*", GLOB_ERR, errfunc, &g);
+	ATF_REQUIRE_MSG(rv == GLOB_ABORTED,
+	    "GLOB_ERR didn't override error callback function");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, glob_pathological_test);
-
+	ATF_TP_ADD_TC(tp, glob_period);
+	ATF_TP_ADD_TC(tp, glob_callback_test);
 	return (atf_no_error());
 }
