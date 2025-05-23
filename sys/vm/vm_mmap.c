@@ -40,13 +40,14 @@
  * Mapped file (mmap) interface to VM
  */
 
-#include <sys/cdefs.h>
 #include "opt_hwpmc_hooks.h"
 #include "opt_vm.h"
 
+#define	EXTERR_CATEGORY	EXTERR_CAT_MMAP
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/capsicum.h>
+#include <sys/exterrvar.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -190,12 +191,16 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 	pos = mrp->mr_pos;
 	check_fp_fn = mrp->mr_check_fp_fn;
 
-	if ((prot & ~(_PROT_ALL | PROT_MAX(_PROT_ALL))) != 0)
+	if ((prot & ~(_PROT_ALL | PROT_MAX(_PROT_ALL))) != 0) {
+		SET_ERROR0(EINVAL, "unknown PROT bits");
 		return (EINVAL);
+	}
 	max_prot = PROT_MAX_EXTRACT(prot);
 	prot = PROT_EXTRACT(prot);
-	if (max_prot != 0 && (max_prot & prot) != prot)
+	if (max_prot != 0 && (max_prot & prot) != prot) {
+		SET_ERROR0(ENOTSUP, "prot is not subset of max_prot");
 		return (ENOTSUP);
+	}
 
 	p = td->td_proc;
 
