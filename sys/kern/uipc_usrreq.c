@@ -1304,6 +1304,43 @@ out:
 	return (error);
 }
 
+/*
+ * Our version of sowakeup(), used by recv(2) and shutdown(2).
+ *
+ * @param so	Points to a connected stream socket with receive buffer locked
+ *
+ * In a blocking mode peer is sleeping on our receive buffer, and we need just
+ * wakeup(9) on it.  But to wake up various event engines, we need to reach
+ * over to peer's selinfo.  This can be safely done as the socket buffer
+ * receive lock is protecting us from the peer going away.
+ */
+static void
+uipc_wakeup(struct socket *so)
+{
+	struct sockbuf *sb = &so->so_rcv;
+	struct selinfo *sel;
+
+	SOCK_RECVBUF_LOCK_ASSERT(so);
+	MPASS(sb->uxst_peer != NULL);
+
+	sel = &sb->uxst_peer->so_wrsel;
+
+	if (sb->uxst_flags & UXST_PEER_SEL) {
+		selwakeuppri(sel, PSOCK);
+		/*
+		 * XXXGL: sowakeup() does SEL_WAITING() without locks.
+		 */
+		if (!SEL_WAITING(sel))
+			sb->uxst_flags &= ~UXST_PEER_SEL;
+	}
+	if (sb->sb_flags & SB_WAIT) {
+		sb->sb_flags &= ~SB_WAIT;
+		wakeup(&sb->sb_acc);
+	}
+	KNOTE_LOCKED(&sel->si_note, 0);
+	SOCK_RECVBUF_UNLOCK(so);
+}
+
 static int
 uipc_soreceive_stream_or_seqpacket(struct socket *so, struct sockaddr **psa,
     struct uio *uio, struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
@@ -1448,35 +1485,14 @@ restart:
 		MPASS(sb->sb_mbcnt >= mbcnt);
 		sb->sb_mbcnt -= mbcnt;
 		UIPC_STREAM_SBCHECK(sb);
-		/*
-		 * In a blocking mode peer is sleeping on our receive buffer,
-		 * and we need just wakeup(9) on it.  But to wake up various
-		 * event engines, we need to reach over to peer's selinfo.
-		 * This can be safely done as the socket buffer receive lock
-		 * is protecting us from the peer going away.
-		 */
 		if (__predict_true(sb->uxst_peer != NULL)) {
-			struct selinfo *sel = &sb->uxst_peer->so_wrsel;
 			struct unpcb *unp2;
 			bool aio;
 
 			if ((aio = sb->uxst_flags & UXST_PEER_AIO))
 				sb->uxst_flags &= ~UXST_PEER_AIO;
-			if (sb->uxst_flags & UXST_PEER_SEL) {
-				selwakeuppri(sel, PSOCK);
-				/*
-				 * XXXGL: sowakeup() does SEL_WAITING() without
-				 * locks.
-				 */
-				if (!SEL_WAITING(sel))
-					sb->uxst_flags &= ~UXST_PEER_SEL;
-			}
-			if (sb->sb_flags & SB_WAIT) {
-				sb->sb_flags &= ~SB_WAIT;
-				wakeup(&sb->sb_acc);
-			}
-			KNOTE_LOCKED(&sel->si_note, 0);
-			SOCK_RECVBUF_UNLOCK(so);
+
+			uipc_wakeup(so);
 			/*
 			 * XXXGL: need to go through uipc_lock_peer() after
 			 * the receive buffer lock dropped, it was protecting
