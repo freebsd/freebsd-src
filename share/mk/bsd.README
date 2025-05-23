@@ -197,6 +197,9 @@ LIBADD		Additional libraries.  This is for base system libraries
 LIBADD.${.TARGET:T}
 		Libraries dependent on output file name.
 
+SHARED_CFLAGS	Additional compiler flags used when creating shared or
+		position independent object files.
+
 COMPILER_FEATURES
 		A list of features that the compiler supports. Zero or
 		more of:
