@@ -33,11 +33,8 @@
  */
 #include "if_wtapvar.h"
 #include <sys/uio.h>    /* uio struct */
-#include <net/if.h>
 #include <net/if_var.h>
-#include <net/vnet.h>
 
-#include <net80211/ieee80211_ratectl.h>
 #include "if_medium.h"
 #include "wtap_hal/hal.h"
 
