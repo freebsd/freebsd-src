@@ -1,0 +1,58 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2025 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * This software were developed by Konstantin Belousov <kib@FreeBSD.org>
+ * under sponsorship from the FreeBSD Foundation.
+ */
+
+#ifndef _SYS_EXTERRVAR_H_
+#define	_SYS_EXTERRVAR_H_
+
+#include <sys/_exterr.h>
+#include <sys/exterr_cat.h>
+#include <sys/types.h>
+
+struct uexterror {
+	uint32_t ver;
+	uint32_t error;
+	uint32_t cat;
+	uint32_t src_line;
+	uint64_t p1;
+	uint64_t p2;
+	uint64_t rsrv1[4];
+	char msg[128];
+};
+
+#ifdef _KERNEL
+
+#ifndef EXTERR_CATEGORY
+#error "Specify error category before including sys/exterrvar.h"
+#endif
+
+#ifdef	BLOW_KERNEL_WITH_EXTERR
+#define	SET_ERROR_MSG(mmsg)	_Td->td_kexterr.msg = mmsg
+#else
+#define	SET_ERROR_MSG(mmsg)	_Td->td_kexterr.msg = NULL
+#endif
+
+#define	SET_ERROR2(eerror, mmsg, pp1, pp2) do {	\
+	struct thread *_Td = curthread;				\
+	if ((_Td->td_pflags2 & TDP2_UEXTERR) != 0) {		\
+		_Td->td_pflags2 |= TDP2_EXTERR;			\
+		_Td->td_kexterr.error = eerror;			\
+		_Td->td_kexterr.cat = EXTERR_CATEGORY;		\
+		SET_ERROR_MSG(mmsg);				\
+		_Td->td_kexterr.p1 = (uintptr_t)pp1;		\
+		_Td->td_kexterr.p2 = (uintptr_t)pp2;		\
+		_Td->td_kexterr.src_line = __LINE__;		\
+	}							\
+} while (0)
+#define	SET_ERROR0(eerror, mmsg)	SET_ERROR2(eerror, mmsg, 0, 0)
+#define	SET_ERROR1(eerror, mmsg, pp1)	SET_ERROR2(eerror, mmsg, pp1, 0)
+
+#endif	/* _KERNEL */
+
+#endif
