@@ -128,6 +128,14 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 	return (res);
 }
 
+#define PF_TEST_ATTRIB(t, a)\
+	do {				\
+		if (t) {		\
+			r = a;		\
+			goto nextrule;	\
+		}			\
+	} while (0)
+
 struct pf_krule *
 pf_match_translation(struct pf_pdesc *pd,
     int rs_num, struct pf_kanchor_stackframe *anchor_stack)
@@ -153,60 +161,60 @@ pf_match_translation(struct pf_pdesc *pd,
 		}
 
 		pf_counter_u64_add(&r->evaluations, 1);
-		if (pfi_kkif_match(r->kif, pd->kif) == r->ifnot)
-			r = r->skip[PF_SKIP_IFP];
-		else if (r->direction && r->direction != pd->dir)
-			r = r->skip[PF_SKIP_DIR];
-		else if (r->af && r->af != pd->af)
-			r = r->skip[PF_SKIP_AF];
-		else if (r->proto && r->proto != pd->proto)
-			r = r->skip[PF_SKIP_PROTO];
-		else if (PF_MISMATCHAW(&src->addr, &pd->nsaddr, pd->af,
-		    src->neg, pd->kif, M_GETFIB(pd->m)))
-			r = r->skip[src == &r->src ? PF_SKIP_SRC_ADDR :
-			    PF_SKIP_DST_ADDR];
-		else if (src->port_op && !pf_match_port(src->port_op,
-		    src->port[0], src->port[1], pd->nsport))
-			r = r->skip[src == &r->src ? PF_SKIP_SRC_PORT :
-			    PF_SKIP_DST_PORT];
-		else if (dst != NULL &&
+		PF_TEST_ATTRIB(pfi_kkif_match(r->kif, pd->kif) == r->ifnot,
+			r->skip[PF_SKIP_IFP]);
+		PF_TEST_ATTRIB(r->direction && r->direction != pd->dir,
+			r->skip[PF_SKIP_DIR]);
+		PF_TEST_ATTRIB(r->af && r->af != pd->af,
+			r->skip[PF_SKIP_AF]);
+		PF_TEST_ATTRIB(r->proto && r->proto != pd->proto,
+			r->skip[PF_SKIP_PROTO]);
+		PF_TEST_ATTRIB(PF_MISMATCHAW(&src->addr, &pd->nsaddr, pd->af,
+		    src->neg, pd->kif, M_GETFIB(pd->m)),
+			r->skip[src == &r->src ? PF_SKIP_SRC_ADDR :
+			    PF_SKIP_DST_ADDR]);
+		PF_TEST_ATTRIB(src->port_op && !pf_match_port(src->port_op,
+		    src->port[0], src->port[1], pd->nsport),
+			r->skip[src == &r->src ? PF_SKIP_SRC_PORT :
+			    PF_SKIP_DST_PORT]);
+		PF_TEST_ATTRIB(dst != NULL &&
 		    PF_MISMATCHAW(&dst->addr, &pd->ndaddr, pd->af, dst->neg, NULL,
-		    M_GETFIB(pd->m)))
-			r = r->skip[PF_SKIP_DST_ADDR];
-		else if (xdst != NULL && PF_MISMATCHAW(xdst, &pd->ndaddr, pd->af,
-		    0, NULL, M_GETFIB(pd->m)))
-			r = TAILQ_NEXT(r, entries);
-		else if (dst != NULL && dst->port_op &&
+		    M_GETFIB(pd->m)),
+			r->skip[PF_SKIP_DST_ADDR]);
+		PF_TEST_ATTRIB(xdst != NULL && PF_MISMATCHAW(xdst, &pd->ndaddr, pd->af,
+		    0, NULL, M_GETFIB(pd->m)),
+			TAILQ_NEXT(r, entries));
+		PF_TEST_ATTRIB(dst != NULL && dst->port_op &&
 		    !pf_match_port(dst->port_op, dst->port[0],
-		    dst->port[1], pd->ndport))
-			r = r->skip[PF_SKIP_DST_PORT];
-		else if (r->match_tag && !pf_match_tag(pd->m, r, &tag,
-		    pd->pf_mtag ? pd->pf_mtag->tag : 0))
-			r = TAILQ_NEXT(r, entries);
-		else if (r->os_fingerprint != PF_OSFP_ANY && (pd->proto !=
+		    dst->port[1], pd->ndport),
+			r->skip[PF_SKIP_DST_PORT]);
+		PF_TEST_ATTRIB(r->match_tag && !pf_match_tag(pd->m, r, &tag,
+		    pd->pf_mtag ? pd->pf_mtag->tag : 0),
+			TAILQ_NEXT(r, entries));
+		PF_TEST_ATTRIB(r->os_fingerprint != PF_OSFP_ANY && (pd->proto !=
 		    IPPROTO_TCP || !pf_osfp_match(pf_osfp_fingerprint(pd,
-		    &pd->hdr.tcp), r->os_fingerprint)))
-			r = TAILQ_NEXT(r, entries);
-		else {
-			if (r->tag)
-				tag = r->tag;
-			if (r->rtableid >= 0)
-				rtableid = r->rtableid;
-			if (r->anchor == NULL) {
-				rm = r;
-				if (rm->action == PF_NONAT ||
-				    rm->action == PF_NORDR ||
-				    rm->action == PF_NOBINAT) {
-					rm = NULL;
-				}
-				break;
-			} else
-				pf_step_into_anchor(anchor_stack, &asd,
-				    &ruleset, rs_num, &r, NULL);
+		    &pd->hdr.tcp), r->os_fingerprint)),
+			TAILQ_NEXT(r, entries));
+		if (r->tag)
+			tag = r->tag;
+		if (r->rtableid >= 0)
+			rtableid = r->rtableid;
+		if (r->anchor == NULL) {
+			rm = r;
+			if (rm->action == PF_NONAT ||
+			    rm->action == PF_NORDR ||
+			    rm->action == PF_NOBINAT) {
+				rm = NULL;
+			}
+			break;
+		} else {
+			pf_step_into_anchor(anchor_stack, &asd,
+			    &ruleset, rs_num, &r, NULL);
 		}
-		if (r == NULL)
-			pf_step_out_of_anchor(anchor_stack, &asd, &ruleset,
-			    rs_num, &r, NULL, NULL);
+nextrule:
+		if (r == NULL && pf_step_out_of_anchor(anchor_stack, &asd, &ruleset,
+			    rs_num, &r, NULL, NULL))
+			break;
 	}
 
 	if (tag > 0 && pf_tag_packet(pd, tag))
