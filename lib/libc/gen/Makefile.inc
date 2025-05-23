@@ -172,6 +172,7 @@ SRCS+= \
 
 .if ${COMPILER_FEATURES:Mblocks}
 CFLAGS.fts.c= -fblocks
+CFLAGS.glob.c= -fblocks
 .endif
 
 CFLAGS.arc4random.c= -I${SRCTOP}/sys -I${SRCTOP}/sys/crypto/chacha20
