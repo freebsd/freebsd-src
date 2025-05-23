@@ -181,7 +181,7 @@ expand_builtin(const char *argv[], int argc, int td)
 		int maxdigits = 0;
 		const char *errstr;
 
-		if (argc > 3) {
+		if (argc > 3 && *argv[3] != '\0') {
 			base = strtonum(argv[3], 2, 36, &errstr);
 			if (errstr) {
 				m4errx(1, "expr: base is %s: %s.",
