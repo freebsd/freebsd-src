@@ -1087,6 +1087,8 @@
         ..
         col
         ..
+        column
+        ..
         comm
         ..
         compress
@@ -1278,6 +1280,8 @@
         syslogd
         ..
         sysrc
+        ..
+        traceroute
         ..
     ..
 ..

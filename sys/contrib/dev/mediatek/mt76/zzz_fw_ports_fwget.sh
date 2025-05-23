@@ -2,7 +2,7 @@
 #-
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2024 The FreeBSD Foundation
+# Copyright (c) 2024-2025 The FreeBSD Foundation
 #
 # This software was developed by Björn Zeeb
 # under sponsorship from the FreeBSD Foundation.
@@ -14,8 +14,8 @@
 # USAGE: please check out the correct tag/hash for ports in the
 # linux-firmware.git repository you point this script to.
 #
-# Valid flavors: mt7915 mt792x {for the drivers with x=[15]} mt7996
-# To add a new one you need to add the mappings in the help functions.
+# Valid flavors: mt7615 mt7915 mt792x {for the drivers with x=[15]} mt7996
+# To add a new one you need to add the mappings in the helper functions.
 #
 
 set -e
@@ -51,9 +51,10 @@ fi
 
 get_device_ids_by_flav()
 {
-	for d in mt7915 mt7921 mt7925 mt7996; do
+	for d in mt7615 mt7915 mt7921 mt7925 mt7996; do
 
 		case ${d} in
+		mt7615)	flav=${d} ;;
 		mt7915)	flav=${d} ;;
 		mt7921)	flav=mt792x ;;
 		mt7925)	flav=mt792x ;;
@@ -79,9 +80,10 @@ get_device_ids_by_flav()
 
 get_firmwares_by_flavor()
 {
-	for h in mt7915/mt7915.h mt792x.h mt7996/mt7996.h; do
+	for h in mt7615/mt7615.h mt7915/mt7915.h mt792x.h mt7996/mt7996.h; do
 
 		case ${h} in
+		mt7615/mt7615.h)	flav=mt7615 ;;
 		mt7915/mt7915.h)	flav=mt7915 ;;
 		mt792x.h)		flav=mt792x ;;
 		mt7996/mt7996.h)	flav=mt7996 ;;
@@ -287,6 +289,6 @@ if test ${fn} -gt 0; then
 	done
 fi
 
-printf "INFO: fwget pci_network_qca %s template at %s\n" ${DRIVER} ${fwgetfile} >&2
+printf "INFO: fwget pci_network_mediatek %s template at %s\n" ${DRIVER} ${fwgetfile} >&2
 
 # end

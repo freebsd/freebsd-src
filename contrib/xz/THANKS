@@ -20,6 +20,7 @@ has been important. :-) In alphabetical order:
   - Jakub Bogusz
   - Adam Borowski
   - Maarten Bosmans
+  - Roel Bouckaert
   - Lukas Braune
   - Benjamin Buch
   - Trent W. Buck
@@ -29,26 +30,35 @@ has been important. :-) In alphabetical order:
   - Frank Busse
   - Daniel Mealha Cabrita
   - Milo Casagrande
+  - Cristiano Ceglia
   - Marek Černocký
   - Tomer Chachamu
   - Vitaly Chikunov
   - Antoine Cœur
+  - Elijah Almeida Coimbra
   - Felix Collin
+  - Ryan Colyer
+  - Marcus Comstedt
+  - Vincent Cruz
   - Gabi Davar
+  - Ron Desmond
   - İhsan Doğan
   - Chris Donawa
   - Andrew Dudman
   - Markus Duft
   - İsmail Dönmez
+  - Dexter Castor Döpping
   - Paul Eggert
   - Robert Elz
   - Gilles Espinasse
   - Denis Excoffier
   - Vincent Fazio
   - Michael Felt
+  - Sean Fenian
   - Michael Fox
   - Andres Freund
   - Mike Frysinger
+  - Collin Funk
   - Daniel Richard G.
   - Tomasz Gajc
   - Bjarni Ingi Gislason
@@ -57,10 +67,14 @@ has been important. :-) In alphabetical order:
   - Matthew Good
   - Michał Górny
   - Jason Gorski
+  - Alexander M. Greenham
   - Juan Manuel Guerrero
   - Gabriela Gutierrez
   - Diederik de Haas
+  - Jan Terje Hansen
+  - Tobias Lahrmann Hansen
   - Joachim Henke
+  - Lizandro Heredia
   - Christian Hesse
   - Vincenzo Innocente
   - Peter Ivanov
@@ -76,9 +90,11 @@ has been important. :-) In alphabetical order:
   - Per Øyvind Karlsen
   - Firas Khalil Khana
   - Iouri Kharon
+  - Kim Jinyeong
   - Thomas Klausner
   - Richard Koch
   - Anton Kochkov
+  - Harri K. Koskinen
   - Ville Koskinen
   - Sergey Kosukhin
   - Marcin Kowalczyk
@@ -103,14 +119,20 @@ has been important. :-) In alphabetical order:
   - Chenxi Mao
   - Gregory Margo
   - Julien Marrec
+  - Pierre-Yves Martin
   - Ed Maste
   - Martin Matuška
+  - Scott McAllister
+  - Chris McCrohan
+  - Derwin McGeary
   - Ivan A. Melnikov
   - Jim Meyering
   - Arkadiusz Miskiewicz
   - Nathan Moinvaziri
   - Étienne Mollier
   - Conley Moorhous
+  - Dirk Müller
+  - Rainer Müller
   - Andrew Murray
   - Rafał Mużyło
   - Adrien Nader
@@ -118,28 +140,34 @@ has been important. :-) In alphabetical order:
   - Alexander Neumann
   - Hongbo Ni
   - Jonathan Nieder
+  - Asgeir Storesund Nilsen
   - Andre Noll
+  - Ruarí Ødegaard
   - Peter O'Gorman
   - Dimitri Papadopoulos Orfanos
   - Daniel Packard
   - Filip Palian
   - Peter Pallinger
   - Kai Pastor
+  - Keith Patton
   - Rui Paulo
   - Igor Pavlov
   - Diego Elio Pettenò
   - Elbert Pol
+  - Guiorgy Potskhishvili
   - Mikko Pouru
   - Frank Prochnow
   - Rich Prohaska
   - Trần Ngọc Quân
   - Pavel Raiskup
+  - Matthieu Rakotojaona
   - Ole André Vadla Ravnås
   - Eric S. Raymond
   - Robert Readman
   - Bernhard Reutner-Fischer
   - Markus Rickert
   - Cristian Rodríguez
+  - Jeroen Roovers
   - Christian von Roques
   - Boud Roukema
   - Torsten Rupp
@@ -156,6 +184,7 @@ has been important. :-) In alphabetical order:
   - Dan Shechter
   - Stuart Shelton
   - Sebastian Andrzej Siewior
+  - Andrej Skenderija
   - Ville Skyttä
   - Brad Smith
   - Bruce Stark
@@ -181,19 +210,27 @@ has been important. :-) In alphabetical order:
   - Christian Weisgerber
   - Dan Weiss
   - Bert Wesarg
+  - Mark Wielaard
   - Fredrik Wikstrom
   - Jim Wilcoxson
   - Ralf Wildenhues
   - Charles Wilson
   - Lars Wirzenius
+  - Vincent Wixsom
   - Pilorz Wojciech
   - Chien Wong
+  - Xi Ruoyao
   - Ryan Young
   - Andreas Zieringer
+  - 榆柳松 (ZhengSen Wang)
 
 Companies:
   - Google
   - Sandfly Security
+
+Other credits:
+  - cleemy desu wayo working with Trend Micro Zero Day Initiative
+  - Orange Tsai and splitline from DEVCORE Research Team
 
 Also thanks to all the people who have participated in the Tukaani project.
 

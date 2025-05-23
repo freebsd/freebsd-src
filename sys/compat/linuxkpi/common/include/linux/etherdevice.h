@@ -58,9 +58,15 @@ is_zero_ether_addr(const u8 * addr)
 }
 
 static inline bool
+is_unicast_ether_addr(const u8 * addr)
+{
+	return ((addr[0] & 0x01) == 0x00);
+}
+
+static inline bool
 is_multicast_ether_addr(const u8 * addr)
 {
-	return (0x01 & addr[0]);
+	return ((addr[0] & 0x01) == 0x01);
 }
 
 static inline bool

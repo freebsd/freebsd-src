@@ -85,6 +85,7 @@ zpool_get_all_props(zpool_handle_t *zhp)
 		fnvlist_add_string_array(innvl, ZPOOL_GET_PROPS_NAMES,
 		    zhp->zpool_propnames, zhp->zpool_n_propnames);
 		zcmd_write_src_nvlist(hdl, &zc, innvl);
+		fnvlist_free(innvl);
 	}
 
 	zcmd_alloc_dst_nvlist(hdl, &zc, 0);
@@ -332,7 +333,7 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 	 */
 	if (prop == ZPOOL_PROP_DEDUPCACHED) {
 		zpool_add_propname(zhp, ZPOOL_DEDUPCACHED_PROP_NAME);
-		(void) zpool_get_all_props(zhp);
+		(void) zpool_props_refresh(zhp);
 	}
 
 	if (zhp->zpool_props == NULL && zpool_get_all_props(zhp) &&
@@ -2959,6 +2960,18 @@ vdev_to_nvlist_iter(nvlist_t *nv, nvlist_t *search, boolean_t *avail_spare,
 			}
 			idx = p + 1;
 			*p = '\0';
+
+			/*
+			 * draid names are presented like: draid2:4d:6c:0s
+			 * We match them up to the first ':' so we can still
+			 * do the parity check below, but the other params
+			 * are ignored.
+			 */
+			if ((p = strchr(type, ':')) != NULL) {
+				if (strncmp(type, VDEV_TYPE_DRAID,
+				    strlen(VDEV_TYPE_DRAID)) == 0)
+					*p = '\0';
+			}
 
 			/*
 			 * If the types don't match then keep looking.

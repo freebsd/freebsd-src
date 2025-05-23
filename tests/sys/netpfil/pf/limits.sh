@@ -60,7 +60,60 @@ basic_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "zero" "cleanup"
+zero_head()
+{
+	atf_set descr 'Test changing a limit from zero on an in-use zone'
+	atf_set require.user root
+}
+
+zero_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}b 192.0.2.2/24 up
+
+	vnet_mkjail alcatraz ${epair}a
+	jexec alcatraz ifconfig ${epair}a 192.0.2.1/24 up
+
+	atf_check -s exit:0 -o ignore \
+	    ping -c 3 192.0.2.1
+
+	jexec alcatraz pfctl -e
+	# Set no limit
+	pft_set_rules noflush alcatraz \
+		"set limit states 0" \
+		"pass"
+
+	# Check that we really report no limit
+	atf_check -s exit:0 -o 'match:states        hard limit        0' \
+	    jexec alcatraz pfctl -sa
+
+	# Create a state
+	atf_check -s exit:0 -o ignore \
+	    ping -c 3 192.0.2.1
+
+	# Limit states
+	pft_set_rules noflush alcatraz \
+		"set limit states 1000" \
+		"pass"
+
+	# And create a new state
+	atf_check -s exit:0 -o ignore \
+	    ping -c 3 192.0.2.1
+
+	atf_check -s exit:0 -o 'match:states        hard limit     1000' \
+	    jexec alcatraz pfctl -sa
+}
+
+zero_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
+	atf_add_test_case "zero"
 }

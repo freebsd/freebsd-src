@@ -67,6 +67,9 @@ static struct rtlbt_devid rtlbt_list[] = {
 	/* Realtek 8822CU Bluetooth devices */
 	{ .vendor_id = 0x13d3, .product_id = 0x3549 },
 
+	/* Realtek 8851BE Bluetooth devices */
+	{ .vendor_id = 0x13d3, .product_id = 0x3600 },
+
 	/* Realtek 8852AE Bluetooth devices */
 	{ .vendor_id = 0x0bda, .product_id = 0x2852 },
 	{ .vendor_id = 0x0bda, .product_id = 0xc852 },
@@ -76,7 +79,6 @@ static struct rtlbt_devid rtlbt_list[] = {
 	{ .vendor_id = 0x04ca, .product_id = 0x4006 },
 	{ .vendor_id = 0x0cb8, .product_id = 0xc549 },
 
-#ifdef RTLBTFW_SUPPORTS_FW_V2
 	/* Realtek 8852CE Bluetooth devices */
 	{ .vendor_id = 0x04ca, .product_id = 0x4007 },
 	{ .vendor_id = 0x04c5, .product_id = 0x1675 },
@@ -84,12 +86,28 @@ static struct rtlbt_devid rtlbt_list[] = {
 	{ .vendor_id = 0x13d3, .product_id = 0x3587 },
 	{ .vendor_id = 0x13d3, .product_id = 0x3586 },
 	{ .vendor_id = 0x13d3, .product_id = 0x3592 },
-#endif
+	{ .vendor_id = 0x0489, .product_id = 0xe122 },
 
 	/* Realtek 8852BE Bluetooth devices */
 	{ .vendor_id = 0x0cb8, .product_id = 0xc559 },
+	{ .vendor_id = 0x0bda, .product_id = 0x4853 },
 	{ .vendor_id = 0x0bda, .product_id = 0x887b },
+	{ .vendor_id = 0x0bda, .product_id = 0xb85b },
+	{ .vendor_id = 0x13d3, .product_id = 0x3570 },
 	{ .vendor_id = 0x13d3, .product_id = 0x3571 },
+	{ .vendor_id = 0x13d3, .product_id = 0x3572 },
+	{ .vendor_id = 0x13d3, .product_id = 0x3591 },
+	{ .vendor_id = 0x0489, .product_id = 0xe123 },
+	{ .vendor_id = 0x0489, .product_id = 0xe125 },
+
+	/* Realtek 8852BT/8852BE-VT Bluetooth devices */
+	{ .vendor_id = 0x0bda, .product_id = 0x8520 },
+
+	/* Realtek 8922AE Bluetooth devices */
+	{ .vendor_id = 0x0bda, .product_id = 0x8922 },
+	{ .vendor_id = 0x13d3, .product_id = 0x3617 },
+	{ .vendor_id = 0x13d3, .product_id = 0x3616 },
+	{ .vendor_id = 0x0489, .product_id = 0xe130 },
 
 	/* Realtek 8723AE Bluetooth devices */
 	{ .vendor_id = 0x0930, .product_id = 0x021d },
@@ -312,6 +330,7 @@ main(int argc, char *argv[])
 	char *firmware_dir = NULL;
 	char *firmware_path = NULL;
 	char *config_path = NULL;
+	const char *fw_suffix;
 	int retcode = 1;
 	const struct rtlbt_id_table *ic;
 	uint8_t rom_version;
@@ -410,7 +429,8 @@ main(int argc, char *argv[])
 	if (firmware_dir == NULL)
 		firmware_dir = strdup(_DEFAULT_RTLBT_FIRMWARE_PATH);
 
-	firmware_path = rtlbt_get_fwname(ic->fw_name, firmware_dir, "_fw.bin");
+	fw_suffix = ic->fw_suffix == NULL ? "_fw.bin" : ic->fw_suffix;
+	firmware_path = rtlbt_get_fwname(ic->fw_name, firmware_dir, fw_suffix);
 	if (firmware_path == NULL)
 		goto shutdown;
 
@@ -449,7 +469,18 @@ main(int argc, char *argv[])
 		rtlbt_debug("rom_version = %d", rom_version);
 
 		/* Load in the firmware */
-		r = rtlbt_parse_fwfile_v1(&fw, rom_version);
+		if (fw_type == RTLBT_FW_TYPE_V2) {
+			uint8_t key_id, reg_val[2];
+			r = rtlbt_read_reg16(hdl, RTLBT_SEC_PROJ, reg_val);
+			if (r < 0) {
+				rtlbt_err("rtlbt_read_reg16() failed code %d", r);
+				goto shutdown;
+			}
+			key_id = reg_val[0];
+			rtlbt_debug("key_id = %d", key_id);
+			r = rtlbt_parse_fwfile_v2(&fw, rom_version, key_id);
+		} else
+			r = rtlbt_parse_fwfile_v1(&fw, rom_version);
 		if (r < 0) {
 			rtlbt_err("Parseing firmware file failed");
 			goto shutdown;

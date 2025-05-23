@@ -4,18 +4,17 @@
 
 set -e
 
+unset NO_ROOT
+
 export ASSUME_ALWAYS_YES="YES"
 export PKG_DBDIR="/tmp/pkg"
 export PERMISSIVE="YES"
 export REPO_AUTOUPDATE="NO"
 export ROOTDIR="$PWD/dvd"
-export PKGCMD="/usr/sbin/pkg -d --rootdir ${ROOTDIR}"
 export PORTSDIR="${PORTSDIR:-/usr/ports}"
 
-_DVD_PACKAGES="devel/git@lite
-graphics/drm-kmod
-graphics/drm-510-kmod
-graphics/drm-515-kmod
+_DVD_PACKAGES="
+devel/git@lite
 misc/freebsd-doc-all
 net/mpd5
 net/rsync
@@ -33,7 +32,8 @@ x11/gnome
 x11/kde
 x11/sddm
 x11/xorg
-x11-wm/sway"
+x11-wm/sway
+"
 
 # If NOPORTS is set for the release, do not attempt to build pkg(8).
 if [ ! -f ${PORTSDIR}/Makefile ]; then
@@ -42,6 +42,25 @@ if [ ! -f ${PORTSDIR}/Makefile ]; then
 	echo "*** Unset NOPORTS to fix this ***"
 	exit 0
 fi
+
+usage()
+{
+	echo "usage: $0 [-N]"
+	exit 0
+}
+
+while getopts N opt; do
+	case "$opt" in
+	N)	NO_ROOT=1 ;;
+	*)	usage ;;
+	esac
+done
+
+PKG_ARGS="-d --rootdir ${ROOTDIR}"
+if [ $NO_ROOT ]; then
+	PKG_ARGS="$PKG_ARGS -o INSTALL_AS_USER=1"
+fi
+PKGCMD="/usr/sbin/pkg ${PKG_ARGS}"
 
 if [ ! -x /usr/local/sbin/pkg ]; then
 	/etc/rc.d/ldconfig restart
@@ -81,14 +100,18 @@ ${PKGCMD} -vv
 ${PKGCMD} update -f
 ${PKGCMD} fetch -o ${PKG_REPODIR} -d ${DVD_PACKAGES}
 
-# Create the 'Latest/pkg.txz' symlink so 'pkg bootstrap' works
+# Create the 'Latest/pkg.pkg' symlink so 'pkg bootstrap' works
 # using the on-disc packages.
 export LATEST_DIR="${ROOTDIR}/${PKG_REPODIR}/Latest"
 mkdir -p ${LATEST_DIR}
 ln -s ../All/$(${PKGCMD} rquery %n-%v pkg).pkg ${LATEST_DIR}/pkg.pkg
-ln -sf pkg.pkg ${LATEST_DIR}/pkg.txz
 
 ${PKGCMD} repo ${PKG_REPODIR}
+
+if [ $NO_ROOT ]; then
+	mtree -c -p $ROOTDIR | mtree -C -k type,mode,link,size | \
+	    grep '^./packages/' >> $ROOTDIR/METALOG
+fi
 
 # Always exit '0', even if pkg(8) complains about conflicts.
 exit 0

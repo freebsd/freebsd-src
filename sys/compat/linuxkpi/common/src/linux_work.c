@@ -226,6 +226,13 @@ linux_queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 	if (atomic_read(&wq->draining) != 0)
 		return (!work_pending(&dwork->work));
 
+	/*
+	 * Clamp the delay to a valid ticks value, some consumers pass
+	 * MAX_SCHEDULE_TIMEOUT.
+	 */
+	if (delay > INT_MAX)
+		delay = INT_MAX;
+
 	mtx_lock(&dwork->timer.mtx);
 	switch (linux_update_state(&dwork->work.state, states)) {
 	case WORK_ST_EXEC:

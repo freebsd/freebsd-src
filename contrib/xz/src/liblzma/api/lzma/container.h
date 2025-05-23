@@ -573,7 +573,7 @@ extern LZMA_API(lzma_ret) lzma_stream_buffer_encode(
  * The action argument must be LZMA_FINISH and the return value will never be
  * LZMA_OK. Thus the encoding is always done with a single lzma_code() after
  * the initialization. The benefit of the combination of initialization
- * function and lzma_code() is that memory allocations can be re-used for
+ * function and lzma_code() is that memory allocations can be reused for
  * better performance.
  *
  * lzma_code() will try to encode as much input as is possible to fit into

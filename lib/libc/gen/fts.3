@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 17, 2025
+.Dd May 7, 2025
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -394,6 +394,10 @@ This option causes any symbolic link specified as a root path to be
 followed immediately whether or not
 .Dv FTS_LOGICAL
 is also specified.
+.It Dv FTS_COMFOLLOWDIR
+This option is similar to
+.Dv FTS_COMFOLLOW ,
+but only follows symbolic links to directories.
 .It Dv FTS_LOGICAL
 This option causes the
 .Nm
@@ -449,6 +453,15 @@ field to
 and leave the contents of the
 .Fa statp
 field undefined.
+.It Dv FTS_NOSTAT_TYPE
+This option is similar to
+.Dv FTS_NOSTAT ,
+but attempts to populate
+.Fa fts_info
+based on information from the
+.Fa d_type
+field of
+.Vt struct dirent .
 .It Dv FTS_PHYSICAL
 This option causes the
 .Nm
@@ -820,6 +833,13 @@ functions were introduced in
 principally to provide for alternative interfaces to the
 .Nm
 functionality using different data structures.
+Blocks support and the
+.Dv FTS_COMFOLLOWDIR
+and
+.Dv FTS_NOSTAT
+options were added in
+.Fx 15.0
+based on similar functionality in macOS.
 .Sh BUGS
 The
 .Fn fts_open

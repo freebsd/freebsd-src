@@ -148,6 +148,12 @@ static int ig4iic_pci_detach(device_t dev);
 #define PCI_CHIP_GEMINILAKE_I2C_5	0x31b68086
 #define PCI_CHIP_GEMINILAKE_I2C_6	0x31b88086
 #define PCI_CHIP_GEMINILAKE_I2C_7	0x31ba8086
+#define PCI_CHIP_JASPERLAKE_I2C_0	0x4de88086
+#define PCI_CHIP_JASPERLAKE_I2C_1	0x4de98086
+#define PCI_CHIP_JASPERLAKE_I2C_2	0x4dea8086
+#define PCI_CHIP_JASPERLAKE_I2C_3	0x4deb8086
+#define PCI_CHIP_JASPERLAKE_I2C_4	0x4dc58086
+#define PCI_CHIP_JASPERLAKE_I2C_5	0x4dc68086
 #define PCI_CHIP_ALDERLAKE_P_I2C_0	0x51e88086
 #define PCI_CHIP_ALDERLAKE_P_I2C_1	0x51e98086
 #define PCI_CHIP_ALDERLAKE_P_I2C_2	0x51ea8086
@@ -272,6 +278,12 @@ static struct ig4iic_pci_device ig4iic_pci_devices[] = {
 	{ PCI_CHIP_GEMINILAKE_I2C_5, "Intel Gemini Lake I2C Controller-5", IG4_GEMINILAKE},
 	{ PCI_CHIP_GEMINILAKE_I2C_6, "Intel Gemini Lake I2C Controller-6", IG4_GEMINILAKE},
 	{ PCI_CHIP_GEMINILAKE_I2C_7, "Intel Gemini Lake I2C Controller-7", IG4_GEMINILAKE},
+	{ PCI_CHIP_JASPERLAKE_I2C_0, "Intel Jasper Lake I2C Controller-0", IG4_TIGERLAKE},
+	{ PCI_CHIP_JASPERLAKE_I2C_1, "Intel Jasper Lake I2C Controller-1", IG4_TIGERLAKE},
+	{ PCI_CHIP_JASPERLAKE_I2C_2, "Intel Jasper Lake I2C Controller-2", IG4_TIGERLAKE},
+	{ PCI_CHIP_JASPERLAKE_I2C_3, "Intel Jasper Lake I2C Controller-3", IG4_TIGERLAKE},
+	{ PCI_CHIP_JASPERLAKE_I2C_4, "Intel Jasper Lake I2C Controller-4", IG4_TIGERLAKE},
+	{ PCI_CHIP_JASPERLAKE_I2C_5, "Intel Jasper Lake I2C Controller-5", IG4_TIGERLAKE},
 	{ PCI_CHIP_ALDERLAKE_P_I2C_0, "Intel Alder Lake-P I2C Controller-0", IG4_TIGERLAKE},
 	{ PCI_CHIP_ALDERLAKE_P_I2C_1, "Intel Alder Lake-P I2C Controller-1", IG4_TIGERLAKE},
 	{ PCI_CHIP_ALDERLAKE_P_I2C_2, "Intel Alder Lake-P I2C Controller-2", IG4_TIGERLAKE},

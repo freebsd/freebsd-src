@@ -527,6 +527,8 @@ gve_alloc_pending_packet(struct gve_tx_ring *tx)
 	tx->dqo.free_pending_pkts_csm = pending_pkt->next;
 	pending_pkt->state = GVE_PACKET_STATE_PENDING_DATA_COMPL;
 
+	gve_set_timestamp(&pending_pkt->enqueue_time_sec);
+
 	return (pending_pkt);
 }
 
@@ -538,6 +540,8 @@ gve_free_pending_packet(struct gve_tx_ring *tx,
 	int32_t old_head;
 
 	pending_pkt->state = GVE_PACKET_STATE_FREE;
+
+	gve_invalidate_timestamp(&pending_pkt->enqueue_time_sec);
 
 	/* Add pending_pkt to the producer list */
 	while (true) {
@@ -940,6 +944,29 @@ gve_handle_packet_completion(struct gve_priv *priv,
 }
 
 int
+gve_check_tx_timeout_dqo(struct gve_priv *priv, struct gve_tx_ring *tx)
+{
+	struct gve_tx_pending_pkt_dqo *pending_pkt;
+	int num_timeouts;
+	uint16_t pkt_idx;
+
+	num_timeouts = 0;
+	for (pkt_idx = 0; pkt_idx < tx->dqo.num_pending_pkts; pkt_idx++) {
+		pending_pkt = &tx->dqo.pending_pkts[pkt_idx];
+
+		if (!gve_timestamp_valid(&pending_pkt->enqueue_time_sec))
+			continue;
+
+		if (__predict_false(
+		    gve_seconds_since(&pending_pkt->enqueue_time_sec) >
+		    GVE_TX_TIMEOUT_PKT_SEC))
+			num_timeouts += 1;
+	}
+
+	return (num_timeouts);
+}
+
+int
 gve_tx_intr_dqo(void *arg)
 {
 	struct gve_tx_ring *tx = arg;
@@ -960,8 +987,11 @@ gve_tx_clear_desc_ring_dqo(struct gve_tx_ring *tx)
 	struct gve_ring_com *com = &tx->com;
 	int i;
 
-	for (i = 0; i < com->priv->tx_desc_cnt; i++)
+	for (i = 0; i < com->priv->tx_desc_cnt; i++) {
 		tx->dqo.desc_ring[i] = (union gve_tx_desc_dqo){};
+		gve_invalidate_timestamp(
+		    &tx->dqo.pending_pkts[i].enqueue_time_sec);
+	}
 
 	bus_dmamap_sync(tx->desc_ring_mem.tag, tx->desc_ring_mem.map,
 	    BUS_DMASYNC_PREWRITE);
@@ -1029,6 +1059,19 @@ gve_clear_tx_ring_dqo(struct gve_priv *priv, int i)
 	gve_tx_clear_compl_ring_dqo(tx);
 }
 
+static uint8_t
+gve_tx_get_gen_bit(uint8_t *desc)
+{
+	uint8_t byte;
+
+	/*
+	 * Prevent generation bit from being read after the rest of the
+	 * descriptor.
+	 */
+	byte = atomic_load_acq_8(desc + GVE_TX_DESC_DQO_GEN_BYTE_OFFSET);
+	return ((byte & GVE_TX_DESC_DQO_GEN_BIT_MASK) != 0);
+}
+
 static bool
 gve_tx_cleanup_dqo(struct gve_priv *priv, struct gve_tx_ring *tx, int budget)
 {
@@ -1041,20 +1084,16 @@ gve_tx_cleanup_dqo(struct gve_priv *priv, struct gve_tx_ring *tx, int budget)
 	uint16_t type;
 
 	while (work_done < budget) {
-		bus_dmamap_sync(tx->dqo.compl_ring_mem.tag, tx->dqo.compl_ring_mem.map,
+		bus_dmamap_sync(tx->dqo.compl_ring_mem.tag,
+		    tx->dqo.compl_ring_mem.map,
 		    BUS_DMASYNC_POSTREAD);
 
 		compl_desc = &tx->dqo.compl_ring[tx->dqo.compl_head];
-		if (compl_desc->generation == tx->dqo.cur_gen_bit)
+		if (gve_tx_get_gen_bit((uint8_t *)compl_desc) ==
+		    tx->dqo.cur_gen_bit)
 			break;
 
-		/*
-		 * Prevent generation bit from being read after the rest of the
-		 * descriptor.
-		 */
-		atomic_thread_fence_acq();
 		type = compl_desc->type;
-
 		if (type == GVE_COMPL_TYPE_DQO_DESC) {
 			/* This is the last descriptor fetched by HW plus one */
 			tx_head = le16toh(compl_desc->tx_head);

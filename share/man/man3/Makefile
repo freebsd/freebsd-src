@@ -216,6 +216,7 @@ MLINKS+=	queue.3 LIST_CLASS_ENTRY.3 \
 		queue.3 LIST_PREV.3 \
 		queue.3 LIST_REMOVE.3 \
 		queue.3 LIST_REPLACE.3 \
+		queue.3 LIST_SPLIT_AFTER.3 \
 		queue.3 LIST_SWAP.3 \
 		queue.3 SLIST_CLASS_ENTRY.3 \
 		queue.3 SLIST_CLASS_HEAD.3 \
@@ -236,6 +237,7 @@ MLINKS+=	queue.3 LIST_CLASS_ENTRY.3 \
 		queue.3 SLIST_REMOVE_AFTER.3 \
 		queue.3 SLIST_REMOVE_HEAD.3 \
 		queue.3 SLIST_REMOVE_PREVPTR.3 \
+		queue.3 SLIST_SPLIT_AFTER.3 \
 		queue.3 SLIST_SWAP.3 \
 		queue.3 STAILQ_CLASS_ENTRY.3 \
 		queue.3 STAILQ_CLASS_HEAD.3 \
@@ -258,6 +260,8 @@ MLINKS+=	queue.3 LIST_CLASS_ENTRY.3 \
 		queue.3 STAILQ_REMOVE.3 \
 		queue.3 STAILQ_REMOVE_AFTER.3 \
 		queue.3 STAILQ_REMOVE_HEAD.3 \
+		queue.3 STAILQ_REVERSE.3 \
+		queue.3 STAILQ_SPLIT_AFTER.3 \
 		queue.3 STAILQ_SWAP.3 \
 		queue.3 TAILQ_CLASS_ENTRY.3 \
 		queue.3 TAILQ_CLASS_HEAD.3 \
@@ -285,6 +289,7 @@ MLINKS+=	queue.3 LIST_CLASS_ENTRY.3 \
 		queue.3 TAILQ_PREV.3 \
 		queue.3 TAILQ_REMOVE.3 \
 		queue.3 TAILQ_REPLACE.3 \
+		queue.3 TAILQ_SPLIT_AFTER.3 \
 		queue.3 TAILQ_SWAP.3
 MLINKS+=	stats.3 stats_tpl_alloc.3 \
 		stats.3 stats_tpl_fetch_allocid.3 \
@@ -453,11 +458,11 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_setspecific.3 \
 		pthread_sigmask.3 \
 		pthread_sigqueue.3 \
+		pthread_signals_block_np.3 \
 		pthread_spin_init.3 \
 		pthread_spin_lock.3 \
 		pthread_suspend_all_np.3 \
 		pthread_suspend_np.3 \
-		pthread_switch_add_np.3 \
 		pthread_testcancel.3 \
 		pthread_yield.3
 
@@ -519,10 +524,11 @@ PTHREAD_MLINKS+=pthread_schedparam.3 pthread_getschedparam.3 \
 PTHREAD_MLINKS+=pthread_set_name_np.3 pthread_get_name_np.3 \
 		pthread_set_name_np.3 pthread_getname_np.3 \
 		pthread_set_name_np.3 pthread_setname_np.3
+PTHREAD_MLINKS+=pthread_signals_block_np.3 \
+		pthread_signals_unblock_np.3
 PTHREAD_MLINKS+=pthread_spin_init.3 pthread_spin_destroy.3 \
 		pthread_spin_lock.3 pthread_spin_trylock.3 \
 		pthread_spin_lock.3 pthread_spin_unlock.3
-PTHREAD_MLINKS+=pthread_switch_add_np.3 pthread_switch_delete_np.3
 PTHREAD_MLINKS+=pthread_testcancel.3 pthread_setcancelstate.3 \
 		pthread_testcancel.3 pthread_setcanceltype.3
 PTHREAD_MLINKS+=pthread_join.3 pthread_peekjoin_np.3 \

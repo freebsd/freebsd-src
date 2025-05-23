@@ -2,7 +2,7 @@
 #-
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2024 The FreeBSD Foundation
+# Copyright (c) 2024-2025 The FreeBSD Foundation
 #
 # This software was developed by Björn Zeeb
 # under sponsorship from the FreeBSD Foundation.
@@ -48,18 +48,19 @@ if test ! -d ${LFWDIR} -o ! -e ${LFWDIR}/WHENCE; then
 	exit 1
 fi
 
-kldstat -n if_iwlwifi.ko > /dev/null 2>&1
-rc=$?
-case ${rc} in
-0)	;;
-*)	printf "ERROR: please pre-load if_iwlwifi.ko (you do not need a device)\n" >&2
-	exit 1
-	;;
-esac
-
 if test -r ${D_PCI_IDS_FILE}; then
 	printf "NOTICE: using proovided ${D_PCI_IDS_FILE}\n" >&2
 else
+
+	kldstat -n if_iwlwifi.ko > /dev/null 2>&1
+	rc=$?
+	case ${rc} in
+	0)	;;
+	*)	printf "ERROR: please pre-load if_iwlwifi.ko (you do not need a device)\n" >&2
+		exit 1
+		;;
+	esac
+
 	sysctl -N compat.linuxkpi.iwlwifi_pci_ids_name > /dev/null 2>&1
 	rc=$?
 	case ${rc} in
@@ -327,11 +328,11 @@ awk '
 	# Sourt out duplicate lines.
 	if (dup[$0]++) { next; }
 
-	# my ($ids, $name, $fw) = split /\t/;
 	split($0, a, "\t");
 	ids=a[1];
 	name=a[2];
 	fw=a[3];
+	flavor=a[5];
 
 	#my ($v, $d, $sv, $sd) = split("/", $ids);
 	split(ids, i, "/");
@@ -342,9 +343,11 @@ awk '
 
 	if (name == "") { name="(unknown)"; }
 	if (fw == "") { fw="(unknown)"; }
+	if (flavor == "") { flavor="iwlwifi"; }
+	if (flavor == "undefined") { flavor="iwlwifi"; }
 
 	# iwlwififw.4
-	printf ".It \"\"\n.It %s\n.It %s Ta %s Ta %s Ta %s Ta %s\n", name, i[1], i[2], i[3], i[4], fw;
+	printf ".It \"\"\n.It %s\n.It %s Ta %s Ta %s Ta %s Ta %s Ta %s\n", name, i[1], i[2], i[3], i[4], flavor, fw;
 
 	# wiki
 	# XXX TODO possibly quote some in `` to avoid automatic linking?

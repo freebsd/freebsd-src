@@ -287,18 +287,22 @@ linux_pci_find(device_t dev, const struct pci_device_id **idp)
 struct pci_dev *
 lkpi_pci_get_device(uint16_t vendor, uint16_t device, struct pci_dev *odev)
 {
-	struct pci_dev *pdev;
+	struct pci_dev *pdev, *found;
 
 	KASSERT(odev == NULL, ("%s: odev argument not yet supported\n", __func__));
 
+	found = NULL;
 	spin_lock(&pci_lock);
 	list_for_each_entry(pdev, &pci_devices, links) {
-		if (pdev->vendor == vendor && pdev->device == device)
+		if (pdev->vendor == vendor && pdev->device == device) {
+			found = pdev;
 			break;
+		}
 	}
+	pci_dev_get(found);
 	spin_unlock(&pci_lock);
 
-	return (pdev);
+	return (found);
 }
 
 static void
@@ -309,9 +313,18 @@ lkpi_pci_dev_release(struct device *dev)
 	spin_lock_destroy(&dev->devres_lock);
 }
 
-static void
+static int
 lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 {
+	int error;
+
+	error = kobject_init_and_add(&pdev->dev.kobj, &linux_dev_ktype,
+	    &linux_root_device.kobj, device_get_nameunit(dev));
+	if (error != 0) {
+		printf("%s:%d: kobject_init_and_add returned %d\n",
+		    __func__, __LINE__, error);
+		return (error);
+	}
 
 	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
 	pdev->vendor = pci_get_vendor(dev);
@@ -341,12 +354,10 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 		pdev->msi_desc = malloc(pci_msi_count(dev) *
 		    sizeof(*pdev->msi_desc), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
-	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
-	kobject_add(&pdev->dev.kobj, &linux_root_device.kobj,
-	    kobject_name(&pdev->dev.kobj));
 	spin_lock_init(&pdev->dev.devres_lock);
 	INIT_LIST_HEAD(&pdev->dev.devres_head);
+
+	return (0);
 }
 
 static void
@@ -374,9 +385,14 @@ struct pci_dev *
 lkpinew_pci_dev(device_t dev)
 {
 	struct pci_dev *pdev;
+	int error;
 
 	pdev = malloc(sizeof(*pdev), M_DEVBUF, M_WAITOK|M_ZERO);
-	lkpifill_pci_dev(dev, pdev);
+	error = lkpifill_pci_dev(dev, pdev);
+	if (error != 0) {
+		free(pdev, M_DEVBUF);
+		return (NULL);
+	}
 	pdev->dev.release = lkpinew_pci_dev_release;
 
 	return (pdev);
@@ -525,7 +541,10 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 		device_set_ivars(dev, dinfo);
 	}
 
-	lkpifill_pci_dev(dev, pdev);
+	error = lkpifill_pci_dev(dev, pdev);
+	if (error != 0)
+		return (error);
+
 	if (isdrm)
 		PCI_GET_ID(device_get_parent(parent), parent, PCI_ID_RID, &rid);
 	else

@@ -8,26 +8,20 @@
 /// The CRC32 and CRC64 implementations use 32/64-bit x86 SSSE3, SSE4.1, and
 /// CLMUL instructions. This is compatible with Elbrus 2000 (E2K) too.
 ///
-/// They were derived from
+/// See the Intel white paper "Fast CRC Computation for Generic Polynomials
+/// Using PCLMULQDQ Instruction" from 2009. The original file seems to be
+/// gone from Intel's website but a version is available here:
 /// https://www.researchgate.net/publication/263424619_Fast_CRC_computation
-/// and the public domain code from https://github.com/rawrunprotected/crc
-/// (URLs were checked on 2023-10-14).
+/// (The link was checked on 2024-06-11.)
 ///
 /// While this file has both CRC32 and CRC64 implementations, only one
-/// should be built at a time to ensure that crc_simd_body() is inlined
-/// even with compilers with which lzma_always_inline expands to plain inline.
-/// The version to build is selected by defining BUILDING_CRC32_CLMUL or
-/// BUILDING_CRC64_CLMUL before including this file.
+/// can be built at a time. The version to build is selected by defining
+/// BUILDING_CRC_CLMUL to 32 or 64 before including this file.
 ///
-/// FIXME: Builds for 32-bit x86 use the assembly .S files by default
-/// unless configured with --disable-assembler. Even then the lookup table
-/// isn't omitted in crc64_table.c since it doesn't know that assembly
-/// code has been disabled.
+/// NOTE: The x86 CLMUL CRC implementation was rewritten for XZ Utils 5.8.0.
 //
-//  Authors:    Ilya Kurdyukov
-//              Hans Jansen
-//              Lasse Collin
-//              Jia Tan
+//  Authors:    Lasse Collin
+//              Ilya Kurdyukov
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -36,6 +30,10 @@
 #	error crc_x86_clmul.h was included twice.
 #endif
 #define LZMA_CRC_X86_CLMUL_H
+
+#if BUILDING_CRC_CLMUL != 32 && BUILDING_CRC_CLMUL != 64
+#	error BUILDING_CRC_CLMUL is undefined or has an invalid value
+#endif
 
 #include <immintrin.h>
 
@@ -59,330 +57,277 @@
 #endif
 
 
-#define MASK_L(in, mask, r) r = _mm_shuffle_epi8(in, mask)
-
-#define MASK_H(in, mask, r) \
-	r = _mm_shuffle_epi8(in, _mm_xor_si128(mask, vsign))
-
-#define MASK_LH(in, mask, low, high) \
-	MASK_L(in, mask, low); \
-	MASK_H(in, mask, high)
-
-
-crc_attr_target
-crc_attr_no_sanitize_address
-static lzma_always_inline void
-crc_simd_body(const uint8_t *buf, const size_t size, __m128i *v0, __m128i *v1,
-		const __m128i vfold16, const __m128i initial_crc)
-{
-	// Create a vector with 8-bit values 0 to 15. This is used to
-	// construct control masks for _mm_blendv_epi8 and _mm_shuffle_epi8.
-	const __m128i vramp = _mm_setr_epi32(
-			0x03020100, 0x07060504, 0x0b0a0908, 0x0f0e0d0c);
-
-	// This is used to inverse the control mask of _mm_shuffle_epi8
-	// so that bytes that wouldn't be picked with the original mask
-	// will be picked and vice versa.
-	const __m128i vsign = _mm_set1_epi8(-0x80);
-
-	// Memory addresses A to D and the distances between them:
-	//
-	//     A           B     C         D
-	//     [skip_start][size][skip_end]
-	//     [     size2      ]
-	//
-	// A and D are 16-byte aligned. B and C are 1-byte aligned.
-	// skip_start and skip_end are 0-15 bytes. size is at least 1 byte.
-	//
-	// A = aligned_buf will initially point to this address.
-	// B = The address pointed by the caller-supplied buf.
-	// C = buf + size == aligned_buf + size2
-	// D = buf + size + skip_end == aligned_buf + size2 + skip_end
-	const size_t skip_start = (size_t)((uintptr_t)buf & 15);
-	const size_t skip_end = (size_t)((0U - (uintptr_t)(buf + size)) & 15);
-	const __m128i *aligned_buf = (const __m128i *)(
-			(uintptr_t)buf & ~(uintptr_t)15);
-
-	// If size2 <= 16 then the whole input fits into a single 16-byte
-	// vector. If size2 > 16 then at least two 16-byte vectors must
-	// be processed. If size2 > 16 && size <= 16 then there is only
-	// one 16-byte vector's worth of input but it is unaligned in memory.
-	//
-	// NOTE: There is no integer overflow here if the arguments
-	// are valid. If this overflowed, buf + size would too.
-	const size_t size2 = skip_start + size;
-
-	// Masks to be used with _mm_blendv_epi8 and _mm_shuffle_epi8:
-	// The first skip_start or skip_end bytes in the vectors will have
-	// the high bit (0x80) set. _mm_blendv_epi8 and _mm_shuffle_epi8
-	// will produce zeros for these positions. (Bitwise-xor of these
-	// masks with vsign will produce the opposite behavior.)
-	const __m128i mask_start
-			= _mm_sub_epi8(vramp, _mm_set1_epi8((char)skip_start));
-	const __m128i mask_end
-			= _mm_sub_epi8(vramp, _mm_set1_epi8((char)skip_end));
-
-	// Get the first 1-16 bytes into data0. If loading less than 16
-	// bytes, the bytes are loaded to the high bits of the vector and
-	// the least significant positions are filled with zeros.
-	const __m128i data0 = _mm_blendv_epi8(_mm_load_si128(aligned_buf),
-			_mm_setzero_si128(), mask_start);
-	aligned_buf++;
-
-	__m128i v2, v3;
-
-#ifndef CRC_USE_GENERIC_FOR_SMALL_INPUTS
-	if (size <= 16) {
-		// Right-shift initial_crc by 1-16 bytes based on "size"
-		// and store the result in v1 (high bytes) and v0 (low bytes).
-		//
-		// NOTE: The highest 8 bytes of initial_crc are zeros so
-		// v1 will be filled with zeros if size >= 8. The highest
-		// 8 bytes of v1 will always become zeros.
-		//
-		// [      v1      ][      v0      ]
-		//  [ initial_crc  ]                  size == 1
-		//   [ initial_crc  ]                 size == 2
-		//                [ initial_crc  ]    size == 15
-		//                 [ initial_crc  ]   size == 16 (all in v0)
-		const __m128i mask_low = _mm_add_epi8(
-				vramp, _mm_set1_epi8((char)(size - 16)));
-		MASK_LH(initial_crc, mask_low, *v0, *v1);
-
-		if (size2 <= 16) {
-			// There are 1-16 bytes of input and it is all
-			// in data0. Copy the input bytes to v3. If there
-			// are fewer than 16 bytes, the low bytes in v3
-			// will be filled with zeros. That is, the input
-			// bytes are stored to the same position as
-			// (part of) initial_crc is in v0.
-			MASK_L(data0, mask_end, v3);
-		} else {
-			// There are 2-16 bytes of input but not all bytes
-			// are in data0.
-			const __m128i data1 = _mm_load_si128(aligned_buf);
-
-			// Collect the 2-16 input bytes from data0 and data1
-			// to v2 and v3, and bitwise-xor them with the
-			// low bits of initial_crc in v0. Note that the
-			// the second xor is below this else-block as it
-			// is shared with the other branch.
-			MASK_H(data0, mask_end, v2);
-			MASK_L(data1, mask_end, v3);
-			*v0 = _mm_xor_si128(*v0, v2);
-		}
-
-		*v0 = _mm_xor_si128(*v0, v3);
-		*v1 = _mm_alignr_epi8(*v1, *v0, 8);
-	} else
+// GCC and Clang would produce good code with _mm_set_epi64x
+// but MSVC needs _mm_cvtsi64_si128 on x86-64.
+#if defined(__i386__) || defined(_M_IX86)
+#	define my_set_low64(a) _mm_set_epi64x(0, (a))
+#else
+#	define my_set_low64(a) _mm_cvtsi64_si128(a)
 #endif
-	{
-		// There is more than 16 bytes of input.
-		const __m128i data1 = _mm_load_si128(aligned_buf);
-		const __m128i *end = (const __m128i*)(
-				(const char *)aligned_buf - 16 + size2);
-		aligned_buf++;
-
-		MASK_LH(initial_crc, mask_start, *v0, *v1);
-		*v0 = _mm_xor_si128(*v0, data0);
-		*v1 = _mm_xor_si128(*v1, data1);
-
-		while (aligned_buf < end) {
-			*v1 = _mm_xor_si128(*v1, _mm_clmulepi64_si128(
-					*v0, vfold16, 0x00));
-			*v0 = _mm_xor_si128(*v1, _mm_clmulepi64_si128(
-					*v0, vfold16, 0x11));
-			*v1 = _mm_load_si128(aligned_buf++);
-		}
-
-		if (aligned_buf != end) {
-			MASK_H(*v0, mask_end, v2);
-			MASK_L(*v0, mask_end, *v0);
-			MASK_L(*v1, mask_end, v3);
-			*v1 = _mm_or_si128(v2, v3);
-		}
-
-		*v1 = _mm_xor_si128(*v1, _mm_clmulepi64_si128(
-				*v0, vfold16, 0x00));
-		*v0 = _mm_xor_si128(*v1, _mm_clmulepi64_si128(
-				*v0, vfold16, 0x11));
-		*v1 = _mm_srli_si128(*v0, 8);
-	}
-}
 
 
-/////////////////////
-// x86 CLMUL CRC32 //
-/////////////////////
+// Align it so that the whole array is within the same cache line.
+// More than one unaligned load can be done from this during the
+// same CRC function call.
+//
+// The bytes [0] to [31] are used with AND to clear the low bytes. (With ANDN
+// those could be used to clear the high bytes too but it's not needed here.)
+//
+// The bytes [16] to [47] are for left shifts.
+// The bytes [32] to [63] are for right shifts.
+alignas(64)
+static uint8_t vmasks[64] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+	0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+};
 
-/*
-// These functions were used to generate the constants
-// at the top of crc32_arch_optimized().
-static uint64_t
-calc_lo(uint64_t p, uint64_t a, int n)
+
+// *Unaligned* 128-bit load
+crc_attr_target
+static inline __m128i
+my_load128(const uint8_t *p)
 {
-	uint64_t b = 0; int i;
-	for (i = 0; i < n; i++) {
-		b = b >> 1 | (a & 1) << (n - 1);
-		a = (a >> 1) ^ ((0 - (a & 1)) & p);
-	}
-	return b;
+	return _mm_loadu_si128((const __m128i *)p);
 }
 
-// same as ~crc(&a, sizeof(a), ~0)
-static uint64_t
-calc_hi(uint64_t p, uint64_t a, int n)
+
+// Keep the highest "count" bytes as is and clear the remaining low bytes.
+crc_attr_target
+static inline __m128i
+keep_high_bytes(__m128i v, size_t count)
 {
-	int i;
-	for (i = 0; i < n; i++)
-		a = (a >> 1) ^ ((0 - (a & 1)) & p);
-	return a;
+	return _mm_and_si128(my_load128((vmasks + count)), v);
 }
-*/
 
-#ifdef BUILDING_CRC32_CLMUL
+
+// Shift the 128-bit value left by "amount" bytes (not bits).
+crc_attr_target
+static inline __m128i
+shift_left(__m128i v, size_t amount)
+{
+	return _mm_shuffle_epi8(v, my_load128((vmasks + 32 - amount)));
+}
+
+
+// Shift the 128-bit value right by "amount" bytes (not bits).
+crc_attr_target
+static inline __m128i
+shift_right(__m128i v, size_t amount)
+{
+	return _mm_shuffle_epi8(v, my_load128((vmasks + 32 + amount)));
+}
+
 
 crc_attr_target
-crc_attr_no_sanitize_address
+static inline __m128i
+fold(__m128i v, __m128i k)
+{
+	__m128i a = _mm_clmulepi64_si128(v, k, 0x00);
+	__m128i b = _mm_clmulepi64_si128(v, k, 0x11);
+	return _mm_xor_si128(a, b);
+}
+
+
+crc_attr_target
+static inline __m128i
+fold_xor(__m128i v, __m128i k, const uint8_t *buf)
+{
+	return _mm_xor_si128(my_load128(buf), fold(v, k));
+}
+
+
+#if BUILDING_CRC_CLMUL == 32
+crc_attr_target
 static uint32_t
 crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
-{
-#ifndef CRC_USE_GENERIC_FOR_SMALL_INPUTS
-	// The code assumes that there is at least one byte of input.
-	if (size == 0)
-		return crc;
-#endif
-
-	// uint32_t poly = 0xedb88320;
-	const int64_t p = 0x1db710640; // p << 1
-	const int64_t mu = 0x1f7011641; // calc_lo(p, p, 32) << 1 | 1
-	const int64_t k5 = 0x163cd6124; // calc_hi(p, p, 32) << 1
-	const int64_t k4 = 0x0ccaa009e; // calc_hi(p, p, 64) << 1
-	const int64_t k3 = 0x1751997d0; // calc_hi(p, p, 128) << 1
-
-	const __m128i vfold4 = _mm_set_epi64x(mu, p);
-	const __m128i vfold8 = _mm_set_epi64x(0, k5);
-	const __m128i vfold16 = _mm_set_epi64x(k4, k3);
-
-	__m128i v0, v1, v2;
-
-	crc_simd_body(buf, size, &v0, &v1, vfold16,
-			_mm_cvtsi32_si128((int32_t)~crc));
-
-	v1 = _mm_xor_si128(
-			_mm_clmulepi64_si128(v0, vfold16, 0x10), v1); // xxx0
-	v2 = _mm_shuffle_epi32(v1, 0xe7); // 0xx0
-	v0 = _mm_slli_epi64(v1, 32);  // [0]
-	v0 = _mm_clmulepi64_si128(v0, vfold8, 0x00);
-	v0 = _mm_xor_si128(v0, v2);   // [1] [2]
-	v2 = _mm_clmulepi64_si128(v0, vfold4, 0x10);
-	v2 = _mm_clmulepi64_si128(v2, vfold4, 0x00);
-	v0 = _mm_xor_si128(v0, v2);   // [2]
-	return ~(uint32_t)_mm_extract_epi32(v0, 2);
-}
-#endif // BUILDING_CRC32_CLMUL
-
-
-/////////////////////
-// x86 CLMUL CRC64 //
-/////////////////////
-
-/*
-// These functions were used to generate the constants
-// at the top of crc64_arch_optimized().
-static uint64_t
-calc_lo(uint64_t poly)
-{
-	uint64_t a = poly;
-	uint64_t b = 0;
-
-	for (unsigned i = 0; i < 64; ++i) {
-		b = (b >> 1) | (a << 63);
-		a = (a >> 1) ^ (a & 1 ? poly : 0);
-	}
-
-	return b;
-}
-
-static uint64_t
-calc_hi(uint64_t poly, uint64_t a)
-{
-	for (unsigned i = 0; i < 64; ++i)
-		a = (a >> 1) ^ (a & 1 ? poly : 0);
-
-	return a;
-}
-*/
-
-#ifdef BUILDING_CRC64_CLMUL
-
-// MSVC (VS2015 - VS2022) produces bad 32-bit x86 code from the CLMUL CRC
-// code when optimizations are enabled (release build). According to the bug
-// report, the ebx register is corrupted and the calculated result is wrong.
-// Trying to workaround the problem with "__asm mov ebx, ebx" didn't help.
-// The following pragma works and performance is still good. x86-64 builds
-// and CRC32 CLMUL aren't affected by this problem. The problem does not
-// happen in crc_simd_body() either (which is shared with CRC32 CLMUL anyway).
-//
-// NOTE: Another pragma after crc64_arch_optimized() restores
-// the optimizations. If the #if condition here is updated,
-// the other one must be updated too.
-#if defined(_MSC_VER) && !defined(__INTEL_COMPILER) && !defined(__clang__) \
-		&& defined(_M_IX86)
-#	pragma optimize("g", off)
-#endif
-
+#else
 crc_attr_target
-crc_attr_no_sanitize_address
 static uint64_t
 crc64_arch_optimized(const uint8_t *buf, size_t size, uint64_t crc)
+#endif
 {
-#ifndef CRC_USE_GENERIC_FOR_SMALL_INPUTS
-	// The code assumes that there is at least one byte of input.
+	// We will assume that there is at least one byte of input.
 	if (size == 0)
 		return crc;
+
+	// See crc_clmul_consts_gen.c.
+#if BUILDING_CRC_CLMUL == 32
+	const __m128i fold512 = _mm_set_epi64x(0x1d9513d7, 0x8f352d95);
+	const __m128i fold128 = _mm_set_epi64x(0xccaa009e, 0xae689191);
+	const __m128i mu_p = _mm_set_epi64x(
+		(int64_t)0xb4e5b025f7011641, 0x1db710640);
+#else
+	const __m128i fold512 = _mm_set_epi64x(
+		(int64_t)0x081f6054a7842df4, (int64_t)0x6ae3efbb9dd441f3);
+
+	const __m128i fold128 = _mm_set_epi64x(
+		(int64_t)0xdabe95afc7875f40, (int64_t)0xe05dd497ca393ae4);
+
+	const __m128i mu_p = _mm_set_epi64x(
+		(int64_t)0x9c3e466c172963d5, (int64_t)0x92d8af2baf0e1e84);
 #endif
 
-	// const uint64_t poly = 0xc96c5795d7870f42; // CRC polynomial
-	const uint64_t p  = 0x92d8af2baf0e1e85; // (poly << 1) | 1
-	const uint64_t mu = 0x9c3e466c172963d5; // (calc_lo(poly) << 1) | 1
-	const uint64_t k2 = 0xdabe95afc7875f40; // calc_hi(poly, 1)
-	const uint64_t k1 = 0xe05dd497ca393ae4; // calc_hi(poly, k2)
+	__m128i v0, v1, v2, v3;
 
-	const __m128i vfold8 = _mm_set_epi64x((int64_t)p, (int64_t)mu);
-	const __m128i vfold16 = _mm_set_epi64x((int64_t)k2, (int64_t)k1);
+	crc = ~crc;
 
-	__m128i v0, v1, v2;
+	if (size < 8) {
+		uint64_t x = crc;
+		size_t i = 0;
+
+		// Checking the bit instead of comparing the size means
+		// that we don't need to update the size between the steps.
+		if (size & 4) {
+			x ^= read32le(buf);
+			buf += 4;
+			i = 32;
+		}
+
+		if (size & 2) {
+			x ^= (uint64_t)read16le(buf) << i;
+			buf += 2;
+			i += 16;
+		}
+
+		if (size & 1)
+			x ^= (uint64_t)*buf << i;
+
+		v0 = my_set_low64((int64_t)x);
+		v0 = shift_left(v0, 8 - size);
+
+	} else if (size < 16) {
+		v0 = my_set_low64((int64_t)(crc ^ read64le(buf)));
+
+		// NOTE: buf is intentionally left 8 bytes behind so that
+		// we can read the last 1-7 bytes with read64le(buf + size).
+		size -= 8;
+
+		// Handling 8-byte input specially is a speed optimization
+		// as the clmul can be skipped. A branch is also needed to
+		// avoid a too high shift amount.
+		if (size > 0) {
+			const size_t padding = 8 - size;
+			uint64_t high = read64le(buf + size) >> (padding * 8);
 
 #if defined(__i386__) || defined(_M_IX86)
-	crc_simd_body(buf, size, &v0, &v1, vfold16,
-			_mm_set_epi64x(0, (int64_t)~crc));
+			// Simple but likely not the best code for 32-bit x86.
+			v0 = _mm_insert_epi32(v0, (int32_t)high, 2);
+			v0 = _mm_insert_epi32(v0, (int32_t)(high >> 32), 3);
 #else
-	// GCC and Clang would produce good code with _mm_set_epi64x
-	// but MSVC needs _mm_cvtsi64_si128 on x86-64.
-	crc_simd_body(buf, size, &v0, &v1, vfold16,
-			_mm_cvtsi64_si128((int64_t)~crc));
+			v0 = _mm_insert_epi64(v0, (int64_t)high, 1);
 #endif
 
-	v1 = _mm_xor_si128(_mm_clmulepi64_si128(v0, vfold16, 0x10), v1);
-	v0 = _mm_clmulepi64_si128(v1, vfold8, 0x00);
-	v2 = _mm_clmulepi64_si128(v0, vfold8, 0x10);
-	v0 = _mm_xor_si128(_mm_xor_si128(v1, _mm_slli_si128(v0, 8)), v2);
+			v0 = shift_left(v0, padding);
 
+			v1 = _mm_srli_si128(v0, 8);
+			v0 = _mm_clmulepi64_si128(v0, fold128, 0x10);
+			v0 = _mm_xor_si128(v0, v1);
+		}
+	} else {
+		v0 = my_set_low64((int64_t)crc);
+
+		// To align or not to align the buf pointer? If the end of
+		// the buffer isn't aligned, aligning the pointer here would
+		// make us do an extra folding step with the associated byte
+		// shuffling overhead. The cost of that would need to be
+		// lower than the benefit of aligned reads. Testing on an old
+		// Intel Ivy Bridge processor suggested that aligning isn't
+		// worth the cost but it likely depends on the processor and
+		// buffer size. Unaligned loads (MOVDQU) should be fast on
+		// x86 processors that support PCLMULQDQ, so we don't align
+		// the buf pointer here.
+
+		// Read the first (and possibly the only) full 16 bytes.
+		v0 = _mm_xor_si128(v0, my_load128(buf));
+		buf += 16;
+		size -= 16;
+
+		if (size >= 48) {
+			v1 = my_load128(buf);
+			v2 = my_load128(buf + 16);
+			v3 = my_load128(buf + 32);
+			buf += 48;
+			size -= 48;
+
+			while (size >= 64) {
+				v0 = fold_xor(v0, fold512, buf);
+				v1 = fold_xor(v1, fold512, buf + 16);
+				v2 = fold_xor(v2, fold512, buf + 32);
+				v3 = fold_xor(v3, fold512, buf + 48);
+				buf += 64;
+				size -= 64;
+			}
+
+			v0 = _mm_xor_si128(v1, fold(v0, fold128));
+			v0 = _mm_xor_si128(v2, fold(v0, fold128));
+			v0 = _mm_xor_si128(v3, fold(v0, fold128));
+		}
+
+		while (size >= 16) {
+			v0 = fold_xor(v0, fold128, buf);
+			buf += 16;
+			size -= 16;
+		}
+
+		if (size > 0) {
+			// We want the last "size" number of input bytes to
+			// be at the high bits of v1. First do a full 16-byte
+			// load and then mask the low bytes to zeros.
+			v1 = my_load128(buf + size - 16);
+			v1 = keep_high_bytes(v1, size);
+
+			// Shift high bytes from v0 to the low bytes of v1.
+			//
+			// Alternatively we could replace the combination
+			// keep_high_bytes + shift_right + _mm_or_si128 with
+			// _mm_shuffle_epi8 + _mm_blendv_epi8 but that would
+			// require larger tables for the masks. Now there are
+			// three loads (instead of two) from the mask tables
+			// but they all are from the same cache line.
+			v1 = _mm_or_si128(v1, shift_right(v0, size));
+
+			// Shift high bytes of v0 away, padding the
+			// low bytes with zeros.
+			v0 = shift_left(v0, 16 - size);
+
+			v0 = _mm_xor_si128(v1, fold(v0, fold128));
+		}
+
+		v1 = _mm_srli_si128(v0, 8);
+		v0 = _mm_clmulepi64_si128(v0, fold128, 0x10);
+		v0 = _mm_xor_si128(v0, v1);
+	}
+
+	// Barrett reduction
+
+#if BUILDING_CRC_CLMUL == 32
+	v1 = _mm_clmulepi64_si128(v0, mu_p, 0x10); // v0 * mu
+	v1 = _mm_clmulepi64_si128(v1, mu_p, 0x00); // v1 * p
+	v0 = _mm_xor_si128(v0, v1);
+	return ~(uint32_t)_mm_extract_epi32(v0, 2);
+#else
+	// Because p is 65 bits but one bit doesn't fit into the 64-bit
+	// half of __m128i, finish the second clmul by shifting v1 left
+	// by 64 bits and xorring it to the final result.
+	v1 = _mm_clmulepi64_si128(v0, mu_p, 0x10); // v0 * mu
+	v2 = _mm_slli_si128(v1, 8);
+	v1 = _mm_clmulepi64_si128(v1, mu_p, 0x00); // v1 * p
+	v0 = _mm_xor_si128(v0, v2);
+	v0 = _mm_xor_si128(v0, v1);
 #if defined(__i386__) || defined(_M_IX86)
 	return ~(((uint64_t)(uint32_t)_mm_extract_epi32(v0, 3) << 32) |
 			(uint64_t)(uint32_t)_mm_extract_epi32(v0, 2));
 #else
 	return ~(uint64_t)_mm_extract_epi64(v0, 1);
 #endif
-}
-
-#if defined(_MSC_VER) && !defined(__INTEL_COMPILER) && !defined(__clang__) \
-		&& defined(_M_IX86)
-#	pragma optimize("", on)
 #endif
-
-#endif // BUILDING_CRC64_CLMUL
+}
 
 
 // Even though this is an inline function, compile it only when needed.

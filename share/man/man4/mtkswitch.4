@@ -1,0 +1,45 @@
+.\"
+.\" Copyright (c) 2025 Alexander Ziaee
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd May 19, 2025
+.Dt MTKSWITCH 4
+.Sh NAME
+.Nm mtkswitch
+.Nd MediaTek/Ralink Ethernet switch driver
+.Sh SYNOPSIS
+.Cd device mdio
+.Cd device etherswitch
+.Cd device mtkswitch
+.Sh DESCRIPTION
+The
+.Nm
+driver supports MediaTek/Ralink Ethernet switch controllers.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following Ethernet switch controllers:
+.Pp
+.Bl -bullet -compact
+.It
+MediaTek MT7628 (5 port Fast Ethernet)
+.It
+MediaTek MT7621 (5 port Gigabit Ethernet)
+.It
+MediaTek MT7620 (5 port Fast Ethernet)
+.It
+Ralink RT5350 (5 port Fast Ethernet)
+.It
+Ralink RT3352 (5 port Fast Ethernet)
+.It
+Ralink RT3050 (5 port Fast Ethernet)
+.El
+.Sh SEE ALSO
+.Xr etherswitch 4 ,
+.Xr etherswitchcfg 8
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 11.0 .

@@ -246,6 +246,7 @@ typedef struct Struct_Obj_Entry {
     bool z_nodeflib : 1;	/* Don't search default library path */
     bool z_global : 1;		/* Make the object global */
     bool z_pie : 1;		/* Object proclaimed itself PIE executable */
+    bool z_initfirst : 1;	/* Proceed initializers before other objects */
     bool static_tls : 1;	/* Needs static TLS allocation */
     bool static_tls_copied : 1;	/* Needs static TLS copying */
     bool ref_nodel : 1;		/* Refcount increased to prevent dlclose */
@@ -379,7 +380,7 @@ enum {
 void _rtld_error(const char *, ...) __printflike(1, 2) __exported;
 void rtld_die(void) __dead2;
 const char *rtld_strerror(int);
-Obj_Entry *map_object(int, const char *, const struct stat *);
+Obj_Entry *map_object(int, const char *, const struct stat *, bool);
 void *xcalloc(size_t, size_t);
 void *xmalloc(size_t);
 char *xstrdup(const char *);
@@ -414,7 +415,7 @@ void _rtld_bind_start(void);
 void *rtld_resolve_ifunc(const Obj_Entry *obj, const Elf_Sym *def);
 void symlook_init(SymLook *, const char *);
 int symlook_obj(SymLook *, const Obj_Entry *);
-void *tls_get_addr_common(uintptr_t **dtvp, int index, size_t offset);
+void *tls_get_addr_common(struct dtv **dtvp, int index, size_t offset);
 void *allocate_tls(Obj_Entry *, void *, size_t, size_t);
 void free_tls(void *, size_t, size_t);
 void *allocate_module_tls(int index);

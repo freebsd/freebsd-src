@@ -473,6 +473,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_DISALLOW_PUNCTURING_5GHZ,
 	IEEE80211_HW_TX_STATUS_NO_AMPDU_LEN,
 	IEEE80211_HW_HANDLES_QUIET_CSA,
+	IEEE80211_HW_NO_VIRTUAL_MONITOR,
 
 	/* Keep last. */
 	NUM_IEEE80211_HW_FLAGS
@@ -708,9 +709,10 @@ struct ieee80211_sta_rates {
 	/* XXX TODO */
 	/* XXX some _rcu thing */
 	struct {
-		int	idx;
-		int	flags;
-	} rate[1];		/* XXX what is the real number? */
+		uint8_t			idx;
+		uint8_t			count;
+		uint16_t		flags;
+	} rate[4];		/* XXX what is the real number? */
 };
 
 struct ieee80211_sta_txpwr {
@@ -734,7 +736,7 @@ struct ieee80211_link_sta {
 	struct ieee80211_sta_ht_cap		ht_cap;
 	struct ieee80211_sta_vht_cap		vht_cap;
 	struct ieee80211_sta_he_cap		he_cap;
-	struct ieee80211_sta_he_6ghz_capa	he_6ghz_capa;
+	struct ieee80211_he_6ghz_capa		he_6ghz_capa;
 	struct ieee80211_sta_eht_cap		eht_cap;
 	uint8_t					rx_nss;
 	enum ieee80211_sta_rx_bw		bandwidth;
@@ -1093,7 +1095,7 @@ struct ieee80211_ops {
 
 	void (*update_vif_offload)(struct ieee80211_hw *, struct ieee80211_vif *);
 
-	int  (*get_txpower)(struct ieee80211_hw *, struct ieee80211_vif *, int *);
+	int  (*get_txpower)(struct ieee80211_hw *, struct ieee80211_vif *, unsigned int, int *);
 	int  (*get_stats)(struct ieee80211_hw *, struct ieee80211_low_level_stats *);
 
 	int  (*set_radar_background)(struct ieee80211_hw *, struct cfg80211_chan_def *);
@@ -1870,13 +1872,13 @@ ieee80211_rate_set_vht(struct ieee80211_tx_rate *r, uint8_t mcs, uint8_t nss)
 }
 
 static inline uint8_t
-ieee80211_rate_get_vht_nss(struct ieee80211_tx_rate *r)
+ieee80211_rate_get_vht_nss(const struct ieee80211_tx_rate *r)
 {
 	return (((r->idx >> 4) & 0x07) + 1);
 }
 
 static inline uint8_t
-ieee80211_rate_get_vht_mcs(struct ieee80211_tx_rate *r)
+ieee80211_rate_get_vht_mcs(const struct ieee80211_tx_rate *r)
 {
 	return (r->idx & 0x0f);
 }
@@ -2180,10 +2182,25 @@ ieee80211_queue_work(struct ieee80211_hw *hw, struct work_struct *w)
 	linuxkpi_ieee80211_queue_work(hw, w);
 }
 
+static __inline bool
+ieee80211_tx_prepare_skb(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct sk_buff *skb, enum nl80211_band band, struct ieee80211_sta **sta)
+{
+	TODO();
+	return (false);
+}
+
 static __inline void
 ieee80211_tx_status_skb(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	linuxkpi_ieee80211_tx_status(hw, skb);
+}
+
+static inline void
+ieee80211_tx_status_noskb(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+    struct ieee80211_tx_info *info)
+{
+	TODO();
 }
 
 static __inline void
@@ -2267,7 +2284,8 @@ ieee80211_txq_may_transmit(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 }
 
 static __inline void
-ieee80211_radar_detected(struct ieee80211_hw *hw)
+ieee80211_radar_detected(struct ieee80211_hw *hw,
+    struct ieee80211_chanctx_conf *chanctx_conf)
 {
 	TODO();
 }
@@ -2327,7 +2345,7 @@ ieee80211_get_tx_rates(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 }
 
 static __inline void
-ieee80211_color_change_finish(struct ieee80211_vif *vif)
+ieee80211_color_change_finish(struct ieee80211_vif *vif, uint8_t link_id)
 {
 	TODO();
 }

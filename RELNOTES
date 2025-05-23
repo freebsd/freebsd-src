@@ -10,6 +10,34 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+4d618f6ced86
+	The bridge(4) sysctl net.link.bridge.member_ifaddrs now defaults to 0,
+	meaning that interfaces added to a bridge may not have IP addresses
+	assigned.  Refer to bridge(4) for more information.
+
+44e5a0150835, 9a37f1024ceb:
+	A new utility sndctl(8) has been added to concentrate the various
+	interfaces for viewing and manipulating audio device settings (sysctls,
+	/dev/sndstat), into a single utility with a similar control-driven
+	interface to that of mixer(8).
+
+93a94ce731a8:
+	ps(1)'s options '-a' and '-A', when combined with any other one
+	affecting the selection of processes except for '-X' and '-x', would
+	have no effect, in contradiction with the rule that one process is
+	listed as soon as any of the specified options selects it (inclusive
+	OR), which is both mandated by POSIX and arguably a natural expectation.
+	This bug has been fixed.
+
+	As a practical consequence, specifying '-a'/'-A' now causes all
+	processes to be listed regardless of other selection options (except for
+	'-X' and '-x', which still apply).  In particular, to list only
+	processes from specific jails, one must not use '-a' with '-J'.  Option
+	'-J', contrary to its apparent initial intent, never worked as a filter
+	in practice (except by accident with '-a' due to the bug), but instead
+	as any other selection options (e.g., '-U', '-p', '-G', etc.) subject to
+	the "inclusive OR" rule.
+
 995b690d1398:
 	ps(1)'s '-U' option has been changed to select processes by their real
 	user IDs instead of their effective one, in accordance with POSIX and

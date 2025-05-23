@@ -38,29 +38,47 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
+/*
+ * Convert a relative time in jiffies to a tick count, suitable for use with
+ * native FreeBSD interfaces (callouts, sleepqueues, etc.).
+ */
+static int
+linux_jiffies_timeout_to_ticks(long timeout)
+{
+	if (timeout < 1)
+		return (1);
+	else if (timeout == MAX_SCHEDULE_TIMEOUT)
+		return (0);
+	else if (timeout > INT_MAX)
+		return (INT_MAX);
+	else
+		return (timeout);
+}
+
 static int
 linux_add_to_sleepqueue(void *wchan, struct task_struct *task,
     const char *wmesg, long timeout, int state)
 {
-	int flags, ret;
+	int flags, ret, stimeout;
 
 	MPASS((state & ~(TASK_PARKED | TASK_NORMAL)) == 0);
 
 	flags = SLEEPQ_SLEEP | ((state & TASK_INTERRUPTIBLE) != 0 ?
 	    SLEEPQ_INTERRUPTIBLE : 0);
+	stimeout = linux_jiffies_timeout_to_ticks(timeout);
 
 	sleepq_add(wchan, NULL, wmesg, flags, 0);
-	if (timeout != 0)
-		sleepq_set_timeout(wchan, timeout);
+	if (stimeout != 0)
+		sleepq_set_timeout(wchan, stimeout);
 
 	DROP_GIANT();
 	if ((state & TASK_INTERRUPTIBLE) != 0) {
-		if (timeout == 0)
+		if (stimeout == 0)
 			ret = -sleepq_wait_sig(wchan, 0);
 		else
 			ret = -sleepq_timedwait_sig(wchan, 0);
 	} else {
-		if (timeout == 0) {
+		if (stimeout == 0) {
 			sleepq_wait(wchan, 0);
 			ret = 0;
 		} else
@@ -182,6 +200,65 @@ default_wake_function(wait_queue_t *wq, unsigned int state, int flags,
 	return (wake_up_task(wq->private, state));
 }
 
+long
+linux_wait_woken(wait_queue_t *wq, unsigned state, long timeout)
+{
+	void *wchan;
+	struct task_struct *task;
+	int ret;
+	int remainder;
+
+	task = current;
+	wchan = wq->private;
+
+	remainder = jiffies + timeout;
+
+	set_task_state(task, state);
+
+	sleepq_lock(wchan);
+	if (!(wq->flags & WQ_FLAG_WOKEN)) {
+		ret = linux_add_to_sleepqueue(wchan, task, "woken",
+		    timeout, state);
+	} else {
+		sleepq_release(wchan);
+		ret = 0;
+	}
+
+	set_task_state(task, TASK_RUNNING);
+	wq->flags &= ~WQ_FLAG_WOKEN;
+
+	if (timeout == MAX_SCHEDULE_TIMEOUT)
+		return (MAX_SCHEDULE_TIMEOUT);
+
+	/* range check return value */
+	remainder -= jiffies;
+
+	/* range check return value */
+	if (ret == -ERESTARTSYS && remainder < 1)
+		remainder = 1;
+	else if (remainder < 0)
+		remainder = 0;
+	else if (remainder > timeout)
+		remainder = timeout;
+	return (remainder);
+}
+
+int
+woken_wake_function(wait_queue_t *wq, unsigned int state,
+    int flags __unused, void *key __unused)
+{
+	void *wchan;
+
+	wchan = wq->private;
+
+	sleepq_lock(wchan);
+	wq->flags |= WQ_FLAG_WOKEN;
+	sleepq_signal(wchan, SLEEPQ_SLEEP, 0, 0);
+	sleepq_release(wchan);
+
+	return (1);
+}
+
 void
 linux_init_wait_entry(wait_queue_t *wq, int flags)
 {
@@ -258,12 +335,6 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, long timeout,
 	if (lock != NULL)
 		spin_unlock_irq(lock);
 
-	/* range check timeout */
-	if (timeout < 1)
-		timeout = 1;
-	else if (timeout == MAX_SCHEDULE_TIMEOUT)
-		timeout = 0;
-
 	task = current;
 
 	sleepq_lock(task);
@@ -285,16 +356,9 @@ linux_schedule_timeout(long timeout)
 {
 	struct task_struct *task;
 	long remainder;
-	int ret;
-	int state;
+	int ret, state;
 
 	task = current;
-
-	/* range check timeout */
-	if (timeout < 1)
-		timeout = 1;
-	else if (timeout == MAX_SCHEDULE_TIMEOUT)
-		timeout = 0;
 
 	remainder = jiffies + timeout;
 
@@ -309,7 +373,7 @@ linux_schedule_timeout(long timeout)
 	}
 	set_task_state(task, TASK_RUNNING);
 
-	if (timeout == 0)
+	if (timeout == MAX_SCHEDULE_TIMEOUT)
 		return (MAX_SCHEDULE_TIMEOUT);
 
 	/* range check return value */
@@ -349,12 +413,6 @@ linux_wait_on_bit_timeout(unsigned long *word, int bit, unsigned int state,
 	struct task_struct *task;
 	void *wchan;
 	int ret;
-
-	/* range check timeout */
-	if (timeout < 1)
-		timeout = 1;
-	else if (timeout == MAX_SCHEDULE_TIMEOUT)
-		timeout = 0;
 
 	task = current;
 	wchan = bit_to_wchan(word, bit);

@@ -105,20 +105,31 @@ static const struct rtlbt_id_table rtlbt_ic_id_table[] = {
 	    .hci_version = 0xb,
 	    .flags = RTLBT_IC_FLAG_MSFT,
 	    .fw_name = "rtl8852bu",
-#ifdef RTLBTFW_SUPPORTS_FW_V2
 	}, { /* 8852C */
 	    .lmp_subversion = RTLBT_ROM_LMP_8852A,
 	    .hci_revision = 0xc,
 	    .hci_version = 0xc,
 	    .flags = RTLBT_IC_FLAG_MSFT,
 	    .fw_name  = "rtl8852cu",
+	    .fw_suffix = "_fw_v2.bin",
 	}, { /* 8851B */
 	    .lmp_subversion = RTLBT_ROM_LMP_8851B,
 	    .hci_revision = 0xb,
 	    .hci_version = 0xc,
 	    .flags = RTLBT_IC_FLAG_MSFT,
 	    .fw_name  = "rtl8851bu",
-#endif
+	}, { /* 8922A */
+	    .lmp_subversion = RTLBT_ROM_LMP_8922A,
+	    .hci_revision = 0xa,
+	    .hci_version = 0xc,
+	    .flags = RTLBT_IC_FLAG_MSFT,
+	    .fw_name  = "rtl8922au",
+	}, { /* 8852BT/8852BE-VT */
+	    .lmp_subversion = RTLBT_ROM_LMP_8852A,
+	    .hci_revision = 0x87,
+	    .hci_version = 0xc,
+	    .flags = RTLBT_IC_FLAG_MSFT,
+	    .fw_name  = "rtl8852btu",
 	},
 };
 
@@ -139,15 +150,15 @@ static const uint16_t project_ids[] = {
 	[ 25 ] = RTLBT_ROM_LMP_8852A,	/* 8852CU */
 	[ 33 ] = RTLBT_ROM_LMP_8822B,	/* 8822EU */
 	[ 36 ] = RTLBT_ROM_LMP_8851B,	/* 8851BU */
+	[ 44 ] = RTLBT_ROM_LMP_8922A,	/* 8922A */
+	[ 47 ] = RTLBT_ROM_LMP_8852A,	/* 8852BT */
 };
 
 /* Signatures */
 static const uint8_t fw_header_sig_v1[8] =
     {0x52, 0x65, 0x61, 0x6C, 0x74, 0x65, 0x63, 0x68};	/* Realtech */
-#ifdef RTLBTFW_SUPPORTS_FW_V2
 static const uint8_t fw_header_sig_v2[8] =
     {0x52, 0x54, 0x42, 0x54, 0x43, 0x6F, 0x72, 0x65};	/* RTBTCore */
-#endif
 static const uint8_t fw_ext_sig[4] = {0x51, 0x04, 0xFD, 0x77};
 
 int
@@ -260,12 +271,10 @@ rtlbt_get_fw_type(struct rtlbt_firmware *fw, uint16_t *fw_lmp_subversion)
 		fw_type = RTLBT_FW_TYPE_V1;
 		fw_header_len = sizeof(struct rtlbt_fw_header_v1);
 	} else
-#ifdef RTLBTFW_SUPPORTS_FW_V2
 	if (memcmp(fw->buf, fw_header_sig_v2, sizeof(fw_header_sig_v2)) == 0) {
 		fw_type = RTLBT_FW_TYPE_V2;
 		fw_header_len = sizeof(struct rtlbt_fw_header_v2);
 	} else
-#endif
 		return (RTLBT_FW_TYPE_UNKNOWN);
 
 	if (fw->len < fw_header_len + sizeof(fw_ext_sig) + 4) {
@@ -363,6 +372,194 @@ rtlbt_parse_fwfile_v1(struct rtlbt_firmware *fw, uint8_t rom_version)
 	free(fw->buf);
 	fw->buf = patch_buf;
 	fw->len = patch_length;
+
+	return (0);
+}
+
+static void *
+rtlbt_iov_fetch(struct rtlbt_iov *iov, uint32_t len)
+{
+	void *data = NULL;
+
+	if (iov->len >= len) {
+		data = iov->data;
+		iov->data += len;
+		iov->len  -= len;
+	}
+
+	return (data);
+}
+
+static int
+rtlbt_patch_entry_cmp(struct rtlbt_patch_entry *a, struct rtlbt_patch_entry *b,
+    void *thunk __unused)
+{
+	return ((a->prio > b->prio) - (a->prio < b->prio));
+}
+
+static int
+rtlbt_parse_section(struct rtlbt_patch_list *patch_list, uint32_t opcode,
+    uint8_t *data, uint32_t len, uint8_t rom_version, uint8_t key_id)
+{
+	struct rtlbt_sec_hdr *hdr;
+	struct rtlbt_patch_entry *entry;
+	struct rtlbt_subsec_hdr *subsec_hdr;
+	struct rtlbt_subsec_security_hdr *subsec_security_hdr;
+	uint16_t num_subsecs;
+	uint8_t *subsec_data;
+	uint32_t subsec_len;
+	int i, sec_len = 0;
+	struct rtlbt_iov iov = {
+		.data = data,
+		.len  = len,
+	};
+
+	hdr = rtlbt_iov_fetch(&iov, sizeof(*hdr));
+	if (hdr == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+	num_subsecs = le16toh(hdr->num);
+
+	for (i = 0; i < num_subsecs; i++) {
+		subsec_hdr = rtlbt_iov_fetch(&iov, sizeof(*subsec_hdr));
+		if (subsec_hdr == NULL)
+			break;
+		subsec_len = le32toh(subsec_hdr->len);
+
+		rtlbt_debug("subsection, eco 0x%02x, prio 0x%02x, len 0x%x",
+		    subsec_hdr->eco, subsec_hdr->prio, subsec_len);
+
+		subsec_data = rtlbt_iov_fetch(&iov, subsec_len);
+		if (subsec_data == NULL)
+			break;
+
+		if (subsec_hdr->eco == rom_version + 1) {
+			if (opcode == RTLBT_PATCH_SECURITY_HEADER) {
+				subsec_security_hdr = (void *)subsec_hdr;
+				if (subsec_security_hdr->key_id == key_id)
+					break;
+				continue;
+			}
+
+			entry = calloc(1, sizeof(*entry));
+			if (entry == NULL) {
+				errno = ENOMEM;
+				return (-1);
+			}
+			*entry = (struct rtlbt_patch_entry) {
+				.opcode = opcode,
+				.len = subsec_len,
+				.prio = subsec_hdr->prio,
+				.data = subsec_data,
+			};
+			SLIST_INSERT_HEAD(patch_list, entry, next);
+			sec_len += subsec_len;
+		}
+	}
+
+	return (sec_len);
+}
+
+int
+rtlbt_parse_fwfile_v2(struct rtlbt_firmware *fw, uint8_t rom_version,
+    uint8_t key_id)
+{
+	struct rtlbt_fw_header_v2 *hdr;
+	struct rtlbt_section *section;
+	struct rtlbt_patch_entry *entry;
+	uint32_t num_sections;
+	uint32_t section_len;
+	uint32_t opcode;
+	int seclen, len = 0, patch_len = 0;
+	uint32_t i;
+	uint8_t *section_data, *patch_buf;
+	struct rtlbt_patch_list patch_list =
+	    SLIST_HEAD_INITIALIZER(patch_list);
+	struct rtlbt_iov iov = {
+		.data = fw->buf,
+		.len = fw->len - 7,
+	};
+
+	hdr = rtlbt_iov_fetch(&iov, sizeof(*hdr));
+	if (hdr == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+	num_sections = le32toh(hdr->num_sections);
+
+	rtlbt_debug("FW version %02x%02x%02x%02x-%02x%02x%02x%02x",
+	    hdr->fw_version[0], hdr->fw_version[1],
+	    hdr->fw_version[2], hdr->fw_version[3],
+	    hdr->fw_version[4], hdr->fw_version[5],
+	    hdr->fw_version[6], hdr->fw_version[7]);
+
+	for (i = 0; i < num_sections; i++) {
+		section = rtlbt_iov_fetch(&iov, sizeof(*section));
+		if (section == NULL)
+			break;
+		section_len = le32toh(section->len);
+		opcode = le32toh(section->opcode);
+
+		rtlbt_debug("section, opcode 0x%08x", section->opcode);
+
+		section_data = rtlbt_iov_fetch(&iov, section_len);
+		if (section_data == NULL)
+			break;
+
+		seclen = 0;
+		switch (opcode) {
+		case RTLBT_PATCH_SECURITY_HEADER:
+			if (key_id == 0)
+				break;
+			/* FALLTHROUGH */
+		case RTLBT_PATCH_SNIPPETS:
+		case RTLBT_PATCH_DUMMY_HEADER:
+			seclen = rtlbt_parse_section(&patch_list, opcode,
+			    section_data, section_len, rom_version, key_id);
+			break;
+		default:
+			break;
+		}
+		if (seclen < 0) {
+			rtlbt_err("Section parse (0x%08x) failed. err %d",
+			    opcode, errno);
+			return (-1);
+		}
+		len += seclen;
+	}
+
+	if (len == 0) {
+		errno = ENOMSG;
+		return (-1);
+	}
+
+	patch_buf = calloc(1, len);
+	if (patch_buf == NULL) {
+		errno = ENOMEM;
+		return (-1);
+	}
+
+	SLIST_MERGESORT(&patch_list, NULL,
+	    rtlbt_patch_entry_cmp, rtlbt_patch_entry, next);
+	while (!SLIST_EMPTY(&patch_list)) {
+		entry = SLIST_FIRST(&patch_list);
+		rtlbt_debug("opcode 0x%08x, addr 0x%p, len 0x%x",
+			    entry->opcode, entry->data, entry->len);
+		memcpy(patch_buf + patch_len, entry->data, entry->len);
+		patch_len += entry->len;
+		SLIST_REMOVE_HEAD(&patch_list, next);
+		free(entry);
+	}
+
+	if (patch_len == 0) {
+		errno = EPERM;
+		return (-1);
+	}
+
+	free(fw->buf);
+	fw->buf = patch_buf;
+	fw->len = patch_len;
 
 	return (0);
 }

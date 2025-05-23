@@ -401,13 +401,9 @@ while ((getline < srcfile) > 0) {
 		add_pre(name);
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "Entry", "\t");
-		printc("\tif (!SDT_PROBES_ENABLED()) {");
-		printc("\t\trc = vop->"name"(a);")
-		printc("\t} else {")
-		printc("\t\tSDT_PROBE2(vfs, vop, " name ", entry, a->a_" args[0] ", a);");
-		printc("\t\trc = vop->"name"(a);")
-		printc("\t\tSDT_PROBE3(vfs, vop, " name ", return, a->a_" args[0] ", a, rc);");
-		printc("\t}")
+		printc("\tSDT_PROBE2(vfs, vop, " name ", entry, a->a_" args[0] ", a);");
+		printc("\trc = vop->"name"(a);")
+		printc("\tSDT_PROBE3(vfs, vop, " name ", return, a->a_" args[0] ", a, rc);");
 		printc("\tif (rc == 0) {");
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "OK", "\t\t");

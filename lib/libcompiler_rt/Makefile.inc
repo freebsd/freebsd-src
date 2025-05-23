@@ -208,7 +208,7 @@ SRCF+=		trunctfsf2
 .endif
 
 # These are already shipped by libc.a on some architectures.
-.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "riscv"
+.if ${MACHINE_CPUARCH} != "riscv"
 SRCF+=		adddf3
 SRCF+=		addsf3
 SRCF+=		divdf3
@@ -225,10 +225,8 @@ SRCF+=		subsf3
 SRCF+=		truncdfsf2
 .endif
 
-.if ${MACHINE_CPUARCH} != "arm"
 SRCF+=		comparedf2
 SRCF+=		comparesf2
-.endif
 
 # Helper to reduce complexity of _Float16 and __bf16 statements below.
 .if ${MACHINE_CPUARCH} == "aarch64" || \
@@ -274,10 +272,7 @@ CFLAGS+=	-DEMIT_SYNC_ATOMICS
 .endif
 
 .for file in ${SRCF}
-.if ${MACHINE_CPUARCH} == "arm" && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "") \
-    && exists(${CRTSRC}/${CRTARCH}/${file}vfp.S)
-SRCS+=		${file}vfp.S
-. elif exists(${CRTSRC}/${CRTARCH}/${file}.S)
+. if exists(${CRTSRC}/${CRTARCH}/${file}.S)
 SRCS+=		${file}.S
 . else
 SRCS+=		${file}.c
@@ -285,7 +280,15 @@ SRCS+=		${file}.c
 .endfor
 
 .if ${MACHINE_CPUARCH} == "arm"
+SRCS+=		aeabi_cdcmp.S
+SRCS+=		aeabi_cdcmpeq_check_nan.c
+SRCS+=		aeabi_cfcmp.S
+SRCS+=		aeabi_cfcmpeq_check_nan.c
+SRCS+=		aeabi_dcmp.S
 SRCS+=		aeabi_div0.c
+SRCS+=		aeabi_drsub.c
+SRCS+=		aeabi_fcmp.S
+SRCS+=		aeabi_frsub.c
 SRCS+=		aeabi_idivmod.S
 SRCS+=		aeabi_ldivmod.S
 SRCS+=		aeabi_memcmp.S
@@ -294,6 +297,7 @@ SRCS+=		aeabi_memmove.S
 SRCS+=		aeabi_memset.S
 SRCS+=		aeabi_uidivmod.S
 SRCS+=		aeabi_uldivmod.S
+
 SRCS+=		switch16.S
 SRCS+=		switch32.S
 SRCS+=		switch8.S

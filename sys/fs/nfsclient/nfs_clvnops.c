@@ -113,6 +113,8 @@ static vop_write_t	nfsfifo_write;
 static vop_close_t	nfsfifo_close;
 static int	nfs_setattrrpc(struct vnode *, struct vattr *, struct ucred *,
 		    struct thread *);
+static int	nfs_get_namedattrdir(struct vnode *, struct componentname *,
+	    struct vnode **);
 static vop_lookup_t	nfs_lookup;
 static vop_create_t	nfs_create;
 static vop_mknod_t	nfs_mknod;
@@ -1194,6 +1196,40 @@ nfs_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 }
 
 /*
+ * Get a named attribute directory for the vnode.
+ */
+static int
+nfs_get_namedattrdir(struct vnode *vp, struct componentname *cnp,
+    struct vnode **vpp)
+{
+	struct nfsfh *nfhp;
+	struct nfsnode *np;
+	struct vnode *newvp;
+	struct nfsvattr nfsva;
+	int attrflag, error;
+
+	attrflag = 0;
+	*vpp = NULL;
+	np = VTONFS(vp);
+	error = nfsrpc_openattr(VFSTONFS(vp->v_mount), vp, np->n_fhp->nfh_fh,
+	    np->n_fhp->nfh_len, (cnp->cn_flags & CREATENAMED),
+	    cnp->cn_cred, curthread, &nfsva, &nfhp, &attrflag);
+	if (error == NFSERR_NOTSUPP)
+		error = ENOATTR;
+	if (error == 0)
+		error = nfscl_nget(vp->v_mount, vp, nfhp, cnp, curthread, &np,
+		    cnp->cn_lkflags);
+	if (error != 0)
+		return (error);
+	newvp = NFSTOV(np);
+	vn_irflag_set_cond(newvp, VIRF_NAMEDDIR);
+	if (attrflag != 0)
+		(void)nfscl_loadattrcache(&newvp, &nfsva, NULL, 0, 1);
+	*vpp = newvp;
+	return (0);
+}
+
+/*
  * nfs lookup call, one step at a time...
  * First look in cache
  * If not found, unlock the directory nfsnode and do the rpc
@@ -1205,7 +1241,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct vnode *dvp = ap->a_dvp;
 	struct vnode **vpp = ap->a_vpp;
 	struct mount *mp = dvp->v_mount;
-	int flags = cnp->cn_flags;
+	uint64_t flags = cnp->cn_flags;
 	struct vnode *newvp;
 	struct nfsmount *nmp;
 	struct nfsnode *np, *newnp;
@@ -1216,15 +1252,57 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct vattr vattr;
 	struct timespec nctime, ts;
 	uint32_t openmode;
+	bool is_nameddir, needs_nameddir, opennamed;
 
+	dattrflag = 0;
 	*vpp = NULLVP;
+	nmp = VFSTONFS(mp);
+	opennamed = (flags & (OPENNAMED | ISLASTCN)) == (OPENNAMED | ISLASTCN);
+	if (opennamed && (!NFSHASNFSV4(nmp) || !NFSHASNFSV4N(nmp)))
+		return (ENOATTR);
+	is_nameddir = (vn_irflag_read(dvp) & VIRF_NAMEDDIR) != 0;
+	if ((is_nameddir && (flags & ISLASTCN) == 0 && (cnp->cn_namelen > 1 ||
+	    *cnp->cn_nameptr != '.')) ||
+	    (opennamed && !is_nameddir && (flags & ISDOTDOT) != 0))
+		return (ENOATTR);
 	if ((flags & ISLASTCN) && (mp->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
 		return (EROFS);
+	np = VTONFS(dvp);
+
+	needs_nameddir = false;
+	if (opennamed || is_nameddir) {
+		cnp->cn_flags &= ~MAKEENTRY;
+		if (!is_nameddir)
+			needs_nameddir = true;
+	}
+
+	/*
+	 * If the named attribute directory is needed, acquire it now.
+	 */
+	newvp = NULLVP;
+	if (needs_nameddir) {
+		KASSERT(np->n_v4 == NULL, ("nfs_lookup: O_NAMEDATTR when"
+		    " n_v4 not NULL"));
+		error = nfs_get_namedattrdir(dvp, cnp, &newvp);
+		if (error != 0)
+			goto handle_error;
+		if (cnp->cn_namelen == 1 && *cnp->cn_nameptr == '.') {
+			*vpp = newvp;
+			return (0);
+		}
+		dvp = newvp;
+		np = VTONFS(dvp);
+		newvp = NULLVP;
+	} else if (opennamed && cnp->cn_namelen == 1 &&
+	    *cnp->cn_nameptr == '.') {
+		VREF(dvp);
+		*vpp = dvp;
+		return (0);
+	}
+
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
-	nmp = VFSTONFS(mp);
-	np = VTONFS(dvp);
 
 	/* For NFSv4, wait until any remove is done. */
 	NFSLOCKNODE(np);
@@ -1237,77 +1315,83 @@ nfs_lookup(struct vop_lookup_args *ap)
 	error = vn_dir_check_exec(dvp, cnp);
 	if (error != 0)
 		return (error);
-	error = cache_lookup(dvp, vpp, cnp, &nctime, &ncticks);
-	if (error > 0 && error != ENOENT)
-		return (error);
-	if (error == -1) {
-		/*
-		 * Lookups of "." are special and always return the
-		 * current directory.  cache_lookup() already handles
-		 * associated locking bookkeeping, etc.
-		 */
-		if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
-			return (0);
-		}
 
-		/*
-		 * We only accept a positive hit in the cache if the
-		 * change time of the file matches our cached copy.
-		 * Otherwise, we discard the cache entry and fallback
-		 * to doing a lookup RPC.  We also only trust cache
-		 * entries for less than nm_nametimeo seconds.
-		 *
-		 * To better handle stale file handles and attributes,
-		 * clear the attribute cache of this node if it is a
-		 * leaf component, part of an open() call, and not
-		 * locally modified before fetching the attributes.
-		 * This should allow stale file handles to be detected
-		 * here where we can fall back to a LOOKUP RPC to
-		 * recover rather than having nfs_open() detect the
-		 * stale file handle and failing open(2) with ESTALE.
-		 */
-		newvp = *vpp;
-		newnp = VTONFS(newvp);
-		if (!(nmp->nm_flag & NFSMNT_NOCTO) &&
-		    (flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN) &&
-		    !(newnp->n_flag & NMODIFIED)) {
-			NFSLOCKNODE(newnp);
-			newnp->n_attrstamp = 0;
-			KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(newvp);
-			NFSUNLOCKNODE(newnp);
+	if (!opennamed && !is_nameddir) {
+		error = cache_lookup(dvp, vpp, cnp, &nctime, &ncticks);
+		if (error > 0 && error != ENOENT)
+			return (error);
+		if (error == -1) {
+			/*
+			 * Lookups of "." are special and always return the
+			 * current directory.  cache_lookup() already handles
+			 * associated locking bookkeeping, etc.
+			 */
+			if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
+				return (0);
+			}
+
+			/*
+			 * We only accept a positive hit in the cache if the
+			 * change time of the file matches our cached copy.
+			 * Otherwise, we discard the cache entry and fallback
+			 * to doing a lookup RPC.  We also only trust cache
+			 * entries for less than nm_nametimeo seconds.
+			 *
+			 * To better handle stale file handles and attributes,
+			 * clear the attribute cache of this node if it is a
+			 * leaf component, part of an open() call, and not
+			 * locally modified before fetching the attributes.
+			 * This should allow stale file handles to be detected
+			 * here where we can fall back to a LOOKUP RPC to
+			 * recover rather than having nfs_open() detect the
+			 * stale file handle and failing open(2) with ESTALE.
+			 */
+			newvp = *vpp;
+			newnp = VTONFS(newvp);
+			if (!(nmp->nm_flag & NFSMNT_NOCTO) &&
+			    (flags & (ISLASTCN | ISOPEN)) ==
+			     (ISLASTCN | ISOPEN) &&
+			    !(newnp->n_flag & NMODIFIED)) {
+				NFSLOCKNODE(newnp);
+				newnp->n_attrstamp = 0;
+				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(newvp);
+				NFSUNLOCKNODE(newnp);
+			}
+			if (nfscl_nodeleg(newvp, 0) == 0 ||
+			    ((u_int)(ticks - ncticks) <
+			    (nmp->nm_nametimeo * hz) &&
+			    VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
+			    timespeccmp(&vattr.va_ctime, &nctime, ==))) {
+				NFSINCRGLOBAL(nfsstatsv1.lookupcache_hits);
+				return (0);
+			}
+			cache_purge(newvp);
+			if (dvp != newvp)
+				vput(newvp);
+			else
+				vrele(newvp);
+			*vpp = NULLVP;
+		} else if (error == ENOENT) {
+			if (VN_IS_DOOMED(dvp))
+				return (ENOENT);
+			/*
+			 * We only accept a negative hit in the cache if the
+			 * modification time of the parent directory matches
+			 * the cached copy in the name cache entry.
+			 * Otherwise, we discard all of the negative cache
+			 * entries for this directory.  We also only trust
+			 * negative cache entries for up to nm_negnametimeo
+			 * seconds.
+			 */
+			if ((u_int)(ticks - ncticks) <
+			    (nmp->nm_negnametimeo * hz) &&
+			    VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
+			    timespeccmp(&vattr.va_mtime, &nctime, ==)) {
+				NFSINCRGLOBAL(nfsstatsv1.lookupcache_hits);
+				return (ENOENT);
+			}
+			cache_purge_negative(dvp);
 		}
-		if (nfscl_nodeleg(newvp, 0) == 0 ||
-		    ((u_int)(ticks - ncticks) < (nmp->nm_nametimeo * hz) &&
-		    VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
-		    timespeccmp(&vattr.va_ctime, &nctime, ==))) {
-			NFSINCRGLOBAL(nfsstatsv1.lookupcache_hits);
-			return (0);
-		}
-		cache_purge(newvp);
-		if (dvp != newvp)
-			vput(newvp);
-		else 
-			vrele(newvp);
-		*vpp = NULLVP;
-	} else if (error == ENOENT) {
-		if (VN_IS_DOOMED(dvp))
-			return (ENOENT);
-		/*
-		 * We only accept a negative hit in the cache if the
-		 * modification time of the parent directory matches
-		 * the cached copy in the name cache entry.
-		 * Otherwise, we discard all of the negative cache
-		 * entries for this directory.  We also only trust
-		 * negative cache entries for up to nm_negnametimeo
-		 * seconds.
-		 */
-		if ((u_int)(ticks - ncticks) < (nmp->nm_negnametimeo * hz) &&
-		    VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
-		    timespeccmp(&vattr.va_mtime, &nctime, ==)) {
-			NFSINCRGLOBAL(nfsstatsv1.lookupcache_hits);
-			return (ENOENT);
-		}
-		cache_purge_negative(dvp);
 	}
 
 	openmode = 0;
@@ -1328,7 +1412,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	if (NFSHASNFSV4N(nmp) && NFSHASONEOPENOWN(nmp) && !NFSHASPNFS(nmp) &&
 	    (nmp->nm_privflag & NFSMNTP_DELEGISSUED) == 0 &&
 	    (!NFSMNT_RDONLY(mp) || (flags & OPENWRITE) == 0) &&
-	    (flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN)) {
+	    (flags & (ISLASTCN | ISOPEN | OPENNAMED))) == (ISLASTCN | ISOPEN)) {
 		if ((flags & OPENREAD) != 0)
 			openmode |= NFSV4OPEN_ACCESSREAD;
 		if ((flags & OPENWRITE) != 0)
@@ -1337,7 +1421,6 @@ nfs_lookup(struct vop_lookup_args *ap)
 	NFSUNLOCKMNT(nmp);
 #endif
 
-	newvp = NULLVP;
 	NFSINCRGLOBAL(nfsstatsv1.lookupcache_misses);
 	nanouptime(&ts);
 	error = nfsrpc_lookup(dvp, cnp->cn_nameptr, cnp->cn_namelen,
@@ -1345,6 +1428,11 @@ nfs_lookup(struct vop_lookup_args *ap)
 	    openmode);
 	if (dattrflag)
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, 0, 1);
+	if (needs_nameddir) {
+		vput(dvp);
+		dvp = ap->a_dvp;
+	}
+handle_error:
 	if (error) {
 		if (newvp != NULLVP) {
 			vput(newvp);
@@ -1353,13 +1441,14 @@ nfs_lookup(struct vop_lookup_args *ap)
 
 		if (error != ENOENT) {
 			if (NFS_ISV4(dvp))
-				error = nfscl_maperr(td, error, (uid_t)0,
-				    (gid_t)0);
+				error = nfscl_maperr(td, error,
+				    (uid_t)0, (gid_t)0);
 			return (error);
 		}
 
 		/* The requested file was not found. */
-		if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
+		if ((cnp->cn_nameiop == CREATE ||
+		     cnp->cn_nameiop == RENAME) &&
 		    (flags & ISLASTCN)) {
 			/*
 			 * XXX: UFS does a full VOP_ACCESS(dvp,
@@ -1400,7 +1489,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 			free(nfhp, M_NFSFH);
 			return (EISDIR);
 		}
-		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, LK_EXCLUSIVE);
+		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np,
+		    LK_EXCLUSIVE);
 		if (error)
 			return (error);
 		newvp = NFSTOV(np);
@@ -1421,7 +1511,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 		}
 		NFSUNLOCKNODE(np);
 		if (attrflag)
-			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL, 0, 1);
+			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL,
+			    0, 1);
 		*vpp = newvp;
 		return (0);
 	}
@@ -1462,19 +1553,23 @@ nfs_lookup(struct vop_lookup_args *ap)
 		if (error != 0)
 			return (error);
 		if (attrflag)
-			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL, 0, 1);
+			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL,
+			    0, 1);
 	} else if (NFS_CMPFH(np, nfhp->nfh_fh, nfhp->nfh_len)) {
 		free(nfhp, M_NFSFH);
 		VREF(dvp);
 		newvp = dvp;
 		if (attrflag)
-			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL, 0, 1);
+			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL,
+			    0, 1);
 	} else {
 		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np,
 		    cnp->cn_lkflags);
 		if (error)
 			return (error);
 		newvp = NFSTOV(np);
+		if (opennamed)
+			vn_irflag_set_cond(newvp, VIRF_NAMEDATTR);
 		/*
 		 * If n_localmodtime >= time before RPC, then
 		 * a file modification operation, such as
@@ -1492,8 +1587,10 @@ nfs_lookup(struct vop_lookup_args *ap)
 		}
 		NFSUNLOCKNODE(np);
 		if (attrflag)
-			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL, 0, 1);
-		else if ((flags & (ISLASTCN | ISOPEN)) == (ISLASTCN | ISOPEN) &&
+			(void)nfscl_loadattrcache(&newvp, &nfsva, NULL,
+			    0, 1);
+		else if ((flags & (ISLASTCN | ISOPEN)) ==
+		    (ISLASTCN | ISOPEN) &&
 		    !(np->n_flag & NMODIFIED)) {			
 			/*
 			 * Flush the attribute cache when opening a
@@ -1754,6 +1851,7 @@ nfs_create(struct vop_create_args *ap)
 	nfsquad_t cverf;
 	int error = 0, attrflag, dattrflag, fmode = 0;
 	struct vattr vattr;
+	bool is_nameddir, needs_nameddir, opennamed;
 
 	/*
 	 * Oops, not for me..
@@ -1767,6 +1865,32 @@ nfs_create(struct vop_create_args *ap)
 		fmode |= O_EXCL;
 	dnp = VTONFS(dvp);
 	nmp = VFSTONFS(dvp->v_mount);
+	needs_nameddir = false;
+	if (NFSHASNFSV4(nmp) && NFSHASNFSV4N(nmp)) {
+		opennamed = (cnp->cn_flags & (OPENNAMED | ISLASTCN)) ==
+		    (OPENNAMED | ISLASTCN);
+		is_nameddir = (vn_irflag_read(dvp) & VIRF_NAMEDDIR) != 0;
+		if (opennamed || is_nameddir) {
+			cnp->cn_flags &= ~MAKEENTRY;
+			if (!is_nameddir)
+				needs_nameddir = true;
+		}
+	}
+
+	/*
+	 * If the named attribute directory is needed, acquire it now.
+	 */
+	if (needs_nameddir) {
+		KASSERT(dnp->n_v4 == NULL, ("nfs_create: O_NAMEDATTR when"
+		    " n_v4 not NULL"));
+		error = nfs_get_namedattrdir(dvp, cnp, &newvp);
+		if (error != 0)
+			return (error);
+		dvp = newvp;
+		dnp = VTONFS(dvp);
+		newvp = NULL;
+	}
+
 again:
 	/* For NFSv4, wait until any remove is done. */
 	NFSLOCKNODE(dnp);
@@ -1849,6 +1973,8 @@ again:
 		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(dvp);
 	}
 	NFSUNLOCKNODE(dnp);
+	if (needs_nameddir)
+		vput(dvp);
 	return (error);
 }
 
@@ -4375,25 +4501,48 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	struct nfsmount *nmp;
 	struct thread *td = curthread;
 	off_t off;
-	bool eof;
+	bool eof, has_namedattr, named_enabled;
 	int attrflag, error;
+	struct nfsnode *np;
 
+	nmp = VFSTONFS(vp->v_mount);
+	np = VTONFS(vp);
+	named_enabled = false;
+	has_namedattr = false;
 	if ((NFS_ISV34(vp) && (ap->a_name == _PC_LINK_MAX ||
 	    ap->a_name == _PC_NAME_MAX || ap->a_name == _PC_CHOWN_RESTRICTED ||
 	    ap->a_name == _PC_NO_TRUNC)) ||
-	    (NFS_ISV4(vp) && ap->a_name == _PC_ACL_NFS4)) {
+	    (NFS_ISV4(vp) && (ap->a_name == _PC_ACL_NFS4 ||
+	     ap->a_name == _PC_HAS_NAMEDATTR))) {
 		/*
 		 * Since only the above 4 a_names are returned by the NFSv3
 		 * Pathconf RPC, there is no point in doing it for others.
 		 * For NFSv4, the Pathconf RPC (actually a Getattr Op.) can
-		 * be used for _PC_NFS4_ACL as well.
+		 * be used for _PC_ACL_NFS4 and _PC_HAS_NAMEDATTR as well.
 		 */
-		error = nfsrpc_pathconf(vp, &pc, td->td_ucred, td, &nfsva,
-		    &attrflag);
+		error = nfsrpc_pathconf(vp, &pc, &has_namedattr, td->td_ucred,
+		    td, &nfsva, &attrflag);
 		if (attrflag != 0)
 			(void) nfscl_loadattrcache(&vp, &nfsva, NULL, 0, 1);
 		if (error != 0)
 			return (error);
+	} else if (NFS_ISV4(vp) && ap->a_name == _PC_NAMEDATTR_ENABLED &&
+	    (np->n_flag & NNAMEDNOTSUPP) == 0) {
+		struct nfsfh *nfhp;
+
+		error = nfsrpc_openattr(nmp, vp, np->n_fhp->nfh_fh,
+		    np->n_fhp->nfh_len, false, td->td_ucred, td, &nfsva, &nfhp,
+		    &attrflag);
+		named_enabled = true;
+		if (error == 0) {
+			free(nfhp, M_NFSFH);
+		} else if (error == NFSERR_NOTSUPP) {
+			named_enabled = false;
+			NFSLOCKNODE(np);
+			np->n_flag |= NNAMEDNOTSUPP;
+			NFSUNLOCKNODE(np);
+		}
+		error = 0;
 	} else {
 		/*
 		 * For NFSv2 (or NFSv3 when not one of the above 4 a_names),
@@ -4476,7 +4625,6 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	case _PC_MIN_HOLE_SIZE:
 		/* Only some NFSv4.2 servers support Seek for Holes. */
 		*ap->a_retval = 0;
-		nmp = VFSTONFS(vp->v_mount);
 		if (NFS_ISV4(vp) && nmp->nm_minorvers == NFSV42_MINORVERSION) {
 			/*
 			 * NFSv4.2 doesn't have an attribute for hole size,
@@ -4506,6 +4654,18 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 				*ap->a_retval = vp->v_mount->mnt_stat.f_iosize;
 			mtx_unlock(&nmp->nm_mtx);
 		}
+		break;
+	case _PC_NAMEDATTR_ENABLED:
+		if (named_enabled)
+			*ap->a_retval = 1;
+		else
+			*ap->a_retval = 0;
+		break;
+	case _PC_HAS_NAMEDATTR:
+		if (has_namedattr)
+			*ap->a_retval = 1;
+		else
+			*ap->a_retval = 0;
 		break;
 
 	default:

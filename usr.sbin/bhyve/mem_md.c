@@ -1,19 +1,10 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright 2018-2020 Alex Richardson <arichardson@FreeBSD.org>
+ * Copyright (c) 2025 The FreeBSD Foundation
  *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory (Department of Computer Science and
- * Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
- * DARPA SSITH research programme.
- *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
- * ("CTSRD"), as part of the DARPA CRASH research programme.
- *
- * This work was supported by Innovate UK project 105694, "Digital Security by
- * Design (DSbD) Technology Platform Prototype".
+ * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,7 +18,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -37,26 +28,17 @@
  * SUCH DAMAGE.
  */
 
-#include <string.h>
-#include <unistd.h>
+#include <sys/types.h>
+#include <sys/errno.h>
+#include <sys/tree.h>
+#include <machine/vmm.h>
+#include <machine/vmm_instruction_emul.h>
 
-char *
-fflagstostr(u_long flags __unused)
-{
-	return strdup("");
-}
+#include "mem.h"
 
 int
-strtofflags(char **stringp __unused, u_long *setp, u_long *clrp)
+mmio_handle_non_backed_mem(struct vcpu *vcpu __unused, uint64_t paddr __unused,
+    struct mem_range **mr_paramp __unused)
 {
-	/* On linux just ignore the file flags for now */
-	/*
-	 * XXX: this will prevent makefs from setting noschg on libc, etc.
-	 * so we should really find a way to support flags in disk images.
-	 */
-	if (setp)
-		*setp = 0;
-	if (clrp)
-		*clrp = 0;
-	return (0); /* success */
+	return (ESRCH);
 }

@@ -253,18 +253,6 @@
 #define	__noinline	__attribute__ ((__noinline__))
 #define	__fastcall	__attribute__((__fastcall__))
 #define	__result_use_check	__attribute__((__warn_unused_result__))
-#ifdef __clang__
-/*
- * clang and gcc have different semantics for __warn_unused_result__: the latter
- * does not permit the use of a void cast to suppress the warning.  Use
- * __result_use_or_ignore_check in places where a void cast is acceptable.
- * This can be implemented by [[nodiscard]] from C23.
- */
-#define	__result_use_or_ignore_check	__result_use_check
-#else
-#define	__result_use_or_ignore_check
-#endif /* !__clang__ */
-
 #define	__returns_twice	__attribute__((__returns_twice__))
 
 #define	__unreachable()	__builtin_unreachable()
@@ -293,6 +281,44 @@
 #else
 #define __noexcept
 #define __noexcept_if(__c)
+#endif
+
+/*
+ * nodiscard attribute added in C++17 and C23, but supported by both LLVM and
+ * GCC in earlier language versions, so we use __has_c{,pp}_attribute to test
+ * for it.
+ *
+ * __nodiscard may be used on a function:
+ * 	__nodiscard int f();
+ *
+ * or on a struct, union or enum:
+ * 	struct __nodiscard S{};
+ * 	struct S f();
+ *
+ * or in C++, on an object constructor.
+ */
+
+#if defined(__cplusplus) && defined(__has_cpp_attribute)
+#if __has_cpp_attribute(nodiscard)
+#define	__nodiscard	[[nodiscard]]
+#endif
+#elif defined(__STDC_VERSION__) && defined(__has_c_attribute)
+#if __has_c_attribute(__nodiscard__)
+#define	__nodiscard	[[__nodiscard__]]
+#endif
+#endif
+
+#ifndef __nodiscard
+/*
+ * LLVM 16 and earlier don't support [[nodiscard]] in C, but they do support
+ * __warn_unused_result__ with the same semantics, so fall back to that.
+ * We can't do this for GCC because the semantics are different.
+ */
+#ifdef __clang__
+#define	__nodiscard	__attribute__((__warn_unused_result__))
+#else
+#define	__nodiscard
+#endif
 #endif
 
 /*

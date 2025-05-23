@@ -179,6 +179,41 @@ rtlbt_read_rom_ver(struct libusb_device_handle *hdl, uint8_t *ver)
 }
 
 int
+rtlbt_read_reg16(struct libusb_device_handle *hdl,
+    struct rtlbt_vendor_cmd *vcmd, uint8_t *resp)
+{
+	int ret, transferred;
+	struct rtlbt_hci_event_cmd_compl *event;
+	uint8_t cmd_buf[offsetof(struct rtlbt_hci_cmd, data) + sizeof(*vcmd)];
+	struct rtlbt_hci_cmd *cmd = (struct rtlbt_hci_cmd *)cmd_buf;
+	cmd->opcode = htole16(0xfc61);
+	cmd->length = sizeof(struct rtlbt_vendor_cmd);
+	memcpy(cmd->data, vcmd, sizeof(struct rtlbt_vendor_cmd));
+	uint8_t buf[RTLBT_HCI_EVT_COMPL_SIZE(struct rtlbt_vendor_rp)];
+
+	memset(buf, 0, sizeof(buf));
+
+	ret = rtlbt_hci_command(hdl,
+	    cmd,
+	    buf,
+	    sizeof(buf),
+	    &transferred,
+	    RTLBT_HCI_CMD_TIMEOUT);
+
+	if (ret < 0 || transferred != sizeof(buf)) {
+		 rtlbt_debug("Can't read reg16: code=%d, size=%d",
+		     ret,
+		     transferred);
+		 return (-1);
+	}
+
+	event = (struct rtlbt_hci_event_cmd_compl *)buf;
+	memcpy(resp, &(((struct rtlbt_vendor_rp *)event->data)->data), 2);
+
+	return (0);
+}
+
+int
 rtlbt_load_fwfile(struct libusb_device_handle *hdl,
     const struct rtlbt_firmware *fw)
 {

@@ -208,9 +208,14 @@ _Static_assert(sizeof(struct gve_tx_metadata_dqo) == 12,
 
 #define GVE_TX_METADATA_VERSION_DQO 0
 
+/* Used to access the generation bit within a TX completion descriptor. */
+#define GVE_TX_DESC_DQO_GEN_BYTE_OFFSET 1
+#define GVE_TX_DESC_DQO_GEN_BIT_MASK 0x80
+
 /* TX completion descriptor */
 struct gve_tx_compl_desc_dqo {
-	/* For types 0-4 this is the TX queue ID associated with this
+	/*
+	 * For types 0-4 this is the TX queue ID associated with this
 	 * completion.
 	 */
 	uint16_t id:11;
@@ -222,12 +227,14 @@ struct gve_tx_compl_desc_dqo {
 	/* Flipped by HW to notify the descriptor is populated. */
 	uint16_t generation:1;
 	union {
-		/* For descriptor completions, this is the last index fetched
+		/*
+		 * For descriptor completions, this is the last index fetched
 		 * by HW + 1.
 		 */
 		__le16 tx_head;
 
-		/* For packet completions, this is the completion tag set on the
+		/*
+		 * For packet completions, this is the completion tag set on the
 		 * TX packet descriptors.
 		 */
 		__le16 completion_tag;
@@ -258,6 +265,10 @@ struct gve_rx_desc_dqo {
 _Static_assert(sizeof(struct gve_rx_desc_dqo) == 32,
     "gve: bad dqo desc struct length");
 
+/* Used to access the generation bit within an RX completion descriptor. */
+#define GVE_RX_DESC_DQO_GEN_BYTE_OFFSET 5
+#define GVE_RX_DESC_DQO_GEN_BIT_MASK 0x40
+
 /* Descriptor for HW to notify SW of new packets received on RX queue. */
 struct gve_rx_compl_desc_dqo {
 	/* Must be 1 */
@@ -266,7 +277,8 @@ struct gve_rx_compl_desc_dqo {
 
 	/* Packet originated from this system rather than the network. */
 	uint8_t loopback:1;
-	/* Set when IPv6 packet contains a destination options header or routing
+	/*
+	 * Set when IPv6 packet contains a destination options header or routing
 	 * header.
 	 */
 	uint8_t ipv6_ex_add:1;

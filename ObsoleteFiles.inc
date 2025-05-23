@@ -51,6 +51,19 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250521: don't install zoneinfo version
+OLD_FILES+=usr/share/zoneinfo/version
+
+# 20250516: NDFREE(9) -> NDFREE_PNBUF(9)
+OLD_FILES+=usr/share/man/man9/NDFREE.9.gz
+
+# 20250511: mailx test renamed
+OLD_FILES+=usr/tests/usr.bin/mail/mail_sigint_test
+
+# 20250505: Remove audio(8) files after rename to sndctl(8)
+OLD_FILES+=usr/sbin/audio
+OLD_FILES+=usr/share/man/man8/audio.8.gz
+
 # 20250409: removal of iwlwifi firmware files
 OLD_FILES+=usr/share/doc/legal/intel_iwlwifi_firmware.LICENCE
 

@@ -34,11 +34,9 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_capsicum.h"
 #include "opt_ktrace.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
 #ifdef COMPAT_FREEBSD11
 #include <sys/abi_compat.h>
@@ -47,33 +45,33 @@
 #include <sys/buf.h>
 #include <sys/capsicum.h>
 #include <sys/disk.h>
+#include <sys/dirent.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
+#include <sys/filio.h>
+#include <sys/jail.h>
+#include <sys/kernel.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
+#include <sys/limits.h>
+#include <sys/linker.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
-#include <sys/sysproto.h>
 #include <sys/namei.h>
-#include <sys/filedesc.h>
-#include <sys/kernel.h>
-#include <sys/fcntl.h>
-#include <sys/file.h>
-#include <sys/filio.h>
-#include <sys/limits.h>
-#include <sys/linker.h>
+#include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
-#include <sys/unistd.h>
-#include <sys/vnode.h>
-#include <sys/priv.h>
-#include <sys/proc.h>
-#include <sys/dirent.h>
-#include <sys/jail.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
-#ifdef KTRACE
-#include <sys/ktrace.h>
-#endif
+#include <sys/sysproto.h>
+#include <sys/unistd.h>
+#include <sys/vnode.h>
 
 #include <machine/stdarg.h>
 
@@ -4411,7 +4409,7 @@ out:
  * semantics.
  */
 int
-getvnode_path(struct thread *td, int fd, cap_rights_t *rightsp,
+getvnode_path(struct thread *td, int fd, const cap_rights_t *rightsp,
     struct file **fpp)
 {
 	struct file *fp;
@@ -4449,7 +4447,8 @@ getvnode_path(struct thread *td, int fd, cap_rights_t *rightsp,
  * A reference on the file entry is held upon returning.
  */
 int
-getvnode(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
+getvnode(struct thread *td, int fd, const cap_rights_t *rightsp,
+    struct file **fpp)
 {
 	int error;
 

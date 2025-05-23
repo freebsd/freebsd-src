@@ -55,10 +55,6 @@ OLD_FILES+=usr/share/man/man8/acpidump.8.gz
 OLD_FILES+=usr/share/man/man8/iasl.8.gz
 .endif
 
-.if ${MK_ACPI} == no && ${MK_APM} == no
-OLD_FILES+=etc/rc.d/powerd
-.endif
-
 .if ${MK_APM} == no
 OLD_FILES+=etc/rc.d/apm
 OLD_FILES+=etc/rc.d/apmd
@@ -413,6 +409,8 @@ OLD_FILES+=usr/libexec/bsdinstall/distfetch
 OLD_FILES+=usr/libexec/bsdinstall/docsinstall
 OLD_FILES+=usr/libexec/bsdinstall/entropy
 OLD_FILES+=usr/libexec/bsdinstall/fetchmissingdists
+OLD_FILES+=usr/libexec/bsdinstall/finalconfig
+OLD_FILES+=usr/libexec/bsdinstall/firmware
 OLD_FILES+=usr/libexec/bsdinstall/hardening
 OLD_FILES+=usr/libexec/bsdinstall/hostname
 OLD_FILES+=usr/libexec/bsdinstall/jail
@@ -423,6 +421,7 @@ OLD_FILES+=usr/libexec/bsdinstall/netconfig
 OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv4
 OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv6
 OLD_FILES+=usr/libexec/bsdinstall/partedit
+OLD_FILES+=usr/libexec/bsdinstall/pkgbase
 OLD_FILES+=usr/libexec/bsdinstall/rootpass
 OLD_FILES+=usr/libexec/bsdinstall/runconsoles
 OLD_FILES+=usr/libexec/bsdinstall/script

@@ -223,7 +223,6 @@ static int nfs_bigreply[NFSV42_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
 
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
-static bool nfs_test_namedattr(struct nfsrv_descript *nd, struct vnode *vp);
 static void nfsv4_wanted(struct nfsv4lock *lp);
 static uint32_t nfsv4_filesavail(struct statfs *, struct mount *);
 static int nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name);
@@ -255,7 +254,7 @@ static struct {
 	{ NFSV4OP_REMOVE, 1, "Remove", 6, },
 	{ NFSV4OP_REMOVE, 1, "Remove", 6, },
 	{ NFSV4OP_SAVEFH, 5, "Rename", 6, },
-	{ NFSV4OP_SAVEFH, 4, "Link", 4, },
+	{ NFSV4OP_SAVEFH, 6, "Link", 4, },
 	{ NFSV4OP_READDIR, 2, "Readdir", 7, },
 	{ NFSV4OP_READDIR, 2, "Readdir", 7, },
 	{ NFSV4OP_GETATTR, 1, "Getattr", 7, },
@@ -1283,70 +1282,6 @@ nfsmout:
 }
 
 /*
- * Check to see if a named attribute exists for this file.
- */
-static bool
-nfs_test_namedattr(struct nfsrv_descript *nd, struct vnode *vp)
-{
-	struct uio io;
-	struct iovec iv;
-	struct componentname cn;
-	struct vnode *dvp;
-	struct dirent *dp;
-	int eofflag, error;
-	char *buf, *cp, *endcp;
-	bool ret;
-
-	if (vp == NULL || (vp->v_mount->mnt_flag & MNT_NAMEDATTR) == 0)
-		return (false);
-	NFSNAMEICNDSET(&cn, nd->nd_cred, LOOKUP, OPENNAMED | ISLASTCN |
-	    NOFOLLOW | LOCKLEAF);
-	cn.cn_lkflags = LK_SHARED;
-	cn.cn_nameptr = ".";
-	cn.cn_namelen = 1;
-	error = VOP_LOOKUP(vp, &dvp, &cn);
-	if (error != 0)
-		return (false);
-
-	/* Now we have to read the directory, looking for a valid entry. */
-	buf = malloc(DIRBLKSIZ, M_TEMP, M_WAITOK);
-	ret = false;
-	io.uio_offset = 0;
-	io.uio_segflg = UIO_SYSSPACE;
-	io.uio_rw = UIO_READ;
-	io.uio_td = NULL;
-	do {
-		iv.iov_base = buf;
-		iv.iov_len = DIRBLKSIZ;
-		io.uio_iov = &iv;
-		io.uio_iovcnt = 1;
-		io.uio_resid = DIRBLKSIZ;
-		error = VOP_READDIR(dvp, &io, nd->nd_cred, &eofflag, NULL,
-		    NULL);
-		if (error != 0 || io.uio_resid == DIRBLKSIZ)
-			break;
-		cp = buf;
-		endcp = &buf[DIRBLKSIZ - io.uio_resid];
-		while (cp < endcp) {
-			dp = (struct dirent *)cp;
-			if (dp->d_fileno != 0 && dp->d_type != DT_WHT &&
-			    ((dp->d_namlen == 1 && dp->d_name[0] != '.') ||
-			     (dp->d_namlen == 2 && (dp->d_name[0] != '.' ||
-			      dp->d_name[1] != '.')) || dp->d_namlen > 2)) {
-				ret = true;
-				break;
-			}
-			cp += dp->d_reclen;
-		}
-		if (ret)
-			break;
-	} while (eofflag == 0);
-	vput(dvp);
-	free(buf, M_TEMP);
-	return (ret);
-}
-
-/*
  * Get the attributes for V4.
  * If the compare flag is true, test for any attribute changes,
  * otherwise return the attribute values.
@@ -1361,7 +1296,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
     struct nfsvattr *nap, struct nfsfh **nfhpp, fhandle_t *fhp, int fhsize,
     struct nfsv3_pathconf *pc, struct statfs *sbp, struct nfsstatfs *sfp,
     struct nfsfsinfo *fsp, NFSACL_T *aclp, int compare, int *retcmpp,
-    u_int32_t *leasep, u_int32_t *rderrp, NFSPROC_T *p, struct ucred *cred)
+    u_int32_t *leasep, u_int32_t *rderrp, bool *has_namedattrp,
+    NFSPROC_T *p, struct ucred *cred)
 {
 	u_int32_t *tl;
 	int i = 0, j, k, l = 0, m, bitpos, attrsum = 0;
@@ -1451,6 +1387,8 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			sfp->sf_tbytes = UINT64_MAX;
 			sfp->sf_abytes = UINT64_MAX;
 		}
+		if (has_namedattrp != NULL)
+			*has_namedattrp = false;
 	}
 
 	/*
@@ -1581,13 +1519,25 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			break;
 		case NFSATTRBIT_NAMEDATTR:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
-			if (compare && !(*retcmpp)) {
-				bool named_attr;
+			if (compare) {
+				if (!(*retcmpp)) {
+					long has_named_attr;
 
-				named_attr = nfs_test_namedattr(nd, vp);
-				if ((named_attr && *tl != newnfs_true) ||
-				    (!named_attr && *tl != newnfs_false))
-					*retcmpp = NFSERR_NOTSAME;
+					if (vp == NULL || VOP_PATHCONF(vp,
+					    _PC_HAS_NAMEDATTR, &has_named_attr)
+					    != 0)
+						has_named_attr = 0;
+					if ((has_named_attr != 0 &&
+					     *tl != newnfs_true) ||
+					    (has_named_attr == 0 &&
+					    *tl != newnfs_false))
+						*retcmpp = NFSERR_NOTSAME;
+				}
+			} else if (has_namedattrp != NULL) {
+				if (*tl == newnfs_true)
+					*has_namedattrp = true;
+				else
+					*has_namedattrp = false;
 			}
 			attrsum += NFSX_UNSIGNED;
 			break;
@@ -2684,6 +2634,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	size_t atsiz;
 	bool xattrsupp;
 	short irflag;
+	long has_named_attr;
 #ifdef QUOTA
 	struct dqblk dqb;
 	uid_t savuid;
@@ -2840,7 +2791,10 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			break;
 		case NFSATTRBIT_NAMEDATTR:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-			if (nfs_test_namedattr(nd, vp))
+			if (VOP_PATHCONF(vp, _PC_HAS_NAMEDATTR, &has_named_attr)
+			    != 0)
+				has_named_attr = 0;
+			if (has_named_attr != 0)
 				*tl = newnfs_true;
 			else
 				*tl = newnfs_false;

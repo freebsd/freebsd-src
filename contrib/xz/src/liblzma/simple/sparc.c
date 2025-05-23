@@ -18,9 +18,10 @@ sparc_code(void *simple lzma_attribute((__unused__)),
 		uint32_t now_pos, bool is_encoder,
 		uint8_t *buffer, size_t size)
 {
-	size_t i;
-	for (i = 0; i + 4 <= size; i += 4) {
+	size &= ~(size_t)3;
 
+	size_t i;
+	for (i = 0; i < size; i += 4) {
 		if ((buffer[i] == 0x40 && (buffer[i + 1] & 0xC0) == 0x00)
 				|| (buffer[i] == 0x7F
 				&& (buffer[i + 1] & 0xC0) == 0xC0)) {

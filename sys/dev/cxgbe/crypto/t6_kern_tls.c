@@ -1793,9 +1793,11 @@ ktls_write_tls_wr(struct tlspcb *tlsp, struct sge_txq *txq, void *dst,
 	}
 
 	if (imm_len % 16 != 0) {
-		/* Zero pad to an 8-byte boundary. */
-		memset(out, 0, 8 - (imm_len % 8));
-		out += 8 - (imm_len % 8);
+		if (imm_len % 8 != 0) {
+			/* Zero pad to an 8-byte boundary. */
+			memset(out, 0, 8 - (imm_len % 8));
+			out += 8 - (imm_len % 8);
+		}
 
 		/*
 		 * Insert a ULP_TX_SC_NOOP if needed so the SGL is

@@ -83,6 +83,8 @@ int	 pfctl_net_kill_states(int, const char *, int);
 int	 pfctl_gateway_kill_states(int, const char *, int);
 int	 pfctl_label_kill_states(int, const char *, int);
 int	 pfctl_id_kill_states(int, const char *, int);
+int	 pfctl_key_kill_states(int, const char *, int);
+int	 pfctl_parse_host(char *, struct pf_rule_addr *);
 void	 pfctl_init_options(struct pfctl *);
 int	 pfctl_load_options(struct pfctl *);
 int	 pfctl_load_limit(struct pfctl *, unsigned int, unsigned int);
@@ -955,6 +957,124 @@ pfctl_id_kill_states(int dev, const char *iface, int opts)
 }
 
 int
+pfctl_key_kill_states(int dev, const char *iface, int opts)
+{
+	struct pfctl_kill kill;
+	char *s, *token, *tokens[4];
+	struct protoent *p;
+	u_int i, sidx, didx;
+	int ret, killed;
+
+	if (state_killers != 2 || (strlen(state_kill[1]) == 0)) {
+		warnx("no key specified");
+		usage();
+	}
+	memset(&kill, 0, sizeof(kill));
+
+	if (iface != NULL &&
+	    strlcpy(kill.ifname, iface, sizeof(kill.ifname)) >=
+	    sizeof(kill.ifname))
+		errx(1, "invalid interface: %s", iface);
+
+	s = strdup(state_kill[1]);
+	if (!s)
+		errx(1, "%s: strdup", __func__);
+	i = 0;
+	while ((token = strsep(&s, " \t")) != NULL)
+		if (*token != '\0') {
+			if (i < 4)
+				tokens[i] = token;
+			i++;
+		}
+	if (i != 4)
+		errx(1, "%s: key must be "
+		    "\"protocol host1:port1 direction host2:port2\" format",
+		    __func__);
+
+	if ((p = getprotobyname(tokens[0])) == NULL)
+		errx(1, "invalid protocol: %s", tokens[0]);
+	kill.proto = p->p_proto;
+
+	if (strcmp(tokens[2], "->") == 0) {
+		sidx = 1;
+		didx = 3;
+	} else if (strcmp(tokens[2], "<-") == 0) {
+		sidx = 3;
+		didx = 1;
+	} else
+		errx(1, "invalid direction: %s", tokens[2]);
+
+	if (pfctl_parse_host(tokens[sidx], &kill.src) == -1)
+		errx(1, "invalid host: %s", tokens[sidx]);
+	if (pfctl_parse_host(tokens[didx], &kill.dst) == -1)
+		errx(1, "invalid host: %s", tokens[didx]);
+
+	if ((ret = pfctl_kill_states_h(pfh, &kill, &killed)) != 0)
+		errc(1, ret, "DIOCKILLSTATES");
+
+	if ((opts & PF_OPT_QUIET) == 0)
+		fprintf(stderr, "killed %d states\n", killed);
+
+	return (0);
+}
+
+int
+pfctl_parse_host(char *str, struct pf_rule_addr *addr)
+{
+	char *s = NULL, *sbs, *sbe;
+	struct addrinfo hints, *ai;
+	struct sockaddr_in *sin4;
+	struct sockaddr_in6 *sin6;
+
+	s = strdup(str);
+	if (!s)
+		errx(1, "pfctl_parse_host: strdup");
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_DGRAM; /* dummy */
+	hints.ai_flags = AI_NUMERICHOST;
+
+	if ((sbs = strchr(s, '[')) != NULL && (sbe = strrchr(s, ']')) != NULL) {
+		hints.ai_family = AF_INET6;
+		*(sbs++) = *sbe = '\0';
+	} else if ((sbs = strchr(s, ':')) != NULL) {
+		hints.ai_family = AF_INET;
+		*(sbs++) = '\0';
+	} else {
+		/* Assume that no ':<number>' means port 0 */
+	}
+
+	if (getaddrinfo(s, sbs, &hints, &ai) != 0)
+		goto error;
+
+	switch (ai->ai_family) {
+	case AF_INET:
+		sin4 = (struct sockaddr_in *)ai->ai_addr;
+		addr->addr.v.a.addr.v4 = sin4->sin_addr;
+		addr->port[0] = sin4->sin_port;
+		break;
+
+	case AF_INET6:
+		sin6 = (struct sockaddr_in6 *)ai->ai_addr;
+		addr->addr.v.a.addr.v6 = sin6->sin6_addr;
+		addr->port[0] = sin6->sin6_port;
+		break;
+	}
+	freeaddrinfo(ai);
+	free(s);
+
+	memset(&addr->addr.v.a.mask, 0xff, sizeof(struct pf_addr));
+	addr->port_op = PF_OP_EQ;
+	addr->addr.type = PF_ADDR_ADDRMASK;
+
+	return (0);
+
+error:
+	free(s);
+	return (-1);
+}
+
+int
 pfctl_get_pool(int dev, struct pfctl_pool *pool, u_int32_t nr,
     u_int32_t ticket, int r_action, const char *anchorname, int which)
 {
@@ -1126,7 +1246,7 @@ pfctl_show_eth_rules(int dev, char *path, int opts, enum pfctl_show format,
 
 	if (anchorname[0] == '/') {
 		if ((npath = calloc(1, MAXPATHLEN)) == NULL)
-			errx(1, "pfctl_rules: calloc");
+			errx(1, "calloc");
 		snprintf(npath, MAXPATHLEN, "%s", anchorname);
 	} else {
 		if (path[0])
@@ -1242,7 +1362,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 
 	if (anchorname[0] == '/') {
 		if ((npath = calloc(1, MAXPATHLEN)) == NULL)
-			errx(1, "pfctl_rules: calloc");
+			errx(1, "calloc");
 		strlcpy(npath, anchorname, MAXPATHLEN);
 	} else {
 		if (path[0])
@@ -1461,7 +1581,7 @@ pfctl_show_nat(int dev, const char *path, int opts, char *anchorname, int depth,
 	}
 
 	if ((npath = calloc(1, MAXPATHLEN)) == NULL)
-		errx(1, "pfctl_rules: calloc");
+		errx(1, "calloc");
 
 	if (anchorname[0] == '/') {
 		snprintf(npath, MAXPATHLEN, "%s", anchorname);
@@ -3282,6 +3402,8 @@ main(int argc, char *argv[])
 			pfctl_id_kill_states(dev, ifaceopt, opts);
 		else if (!strcmp(state_kill[0], "gateway"))
 			pfctl_gateway_kill_states(dev, ifaceopt, opts);
+		else if (!strcmp(state_kill[0], "key"))
+			pfctl_key_kill_states(dev, ifaceopt, opts);
 		else
 			pfctl_net_kill_states(dev, ifaceopt, opts);
 	}

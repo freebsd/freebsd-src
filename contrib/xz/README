@@ -10,6 +10,7 @@ XZ Utils
     2. Version numbering
     3. Reporting bugs
     4. Translations
+       4.1. Testing translations
     5. Other implementations of the .xz format
     6. Contact information
 
@@ -203,77 +204,47 @@ XZ Utils
 
         https://translationproject.org/html/translators.html
 
-    Below are notes and testing instructions specific to xz
-    translations.
+    Updates to translations won't be accepted by methods that bypass
+    the Translation Project because there is a risk of duplicate work:
+    translation updates made in the xz repository aren't seen by the
+    translators in the Translation Project. If you have found bugs in
+    a translation, please report them to the Language-Team address
+    which can be found near the beginning of the PO file.
 
-    Testing can be done by installing xz into a temporary directory:
+    If you find language problems in the original English strings,
+    feel free to suggest improvements. Ask if something is unclear.
 
-        ./configure --disable-shared --prefix=/tmp/xz-test
-        # <Edit the .po file in the po directory.>
+
+4.1. Testing translations
+
+    Testing can be done by installing xz into a temporary directory.
+
+    If building from Git repository (not tarball), generate the
+    Autotools files:
+
+        ./autogen.sh
+
+    Create a subdirectory for the build files. The tmp-build directory
+    can be deleted after testing.
+
+        mkdir tmp-build
+        cd tmp-build
+        ../configure --disable-shared --enable-debug --prefix=$PWD/inst
+
+    Edit the .po file in the po directory. Then build and install to
+    the "tmp-build/inst" directory, and use translations.bash to see
+    how some of the messages look. Repeat these  steps if needed:
+
         make -C po update-po
-        make install
-        bash debug/translation.bash | less
-        bash debug/translation.bash | less -S  # For --list outputs
+        make -j"$(nproc)" install
+        bash ../debug/translation.bash | less
+        bash ../debug/translation.bash | less -S  # For --list outputs
 
-    Repeat the above as needed (no need to re-run configure though).
+    To test other languages, set the LANGUAGE environment variable
+    before running translations.bash. The value should match the PO file
+    name without the .po suffix. Example:
 
-    Note especially the following:
-
-      - The output of --help and --long-help must look nice on
-        an 80-column terminal. It's OK to add extra lines if needed.
-
-      - In contrast, don't add extra lines to error messages and such.
-        They are often preceded with e.g. a filename on the same line,
-        so you have no way to predict where to put a \n. Let the terminal
-        do the wrapping even if it looks ugly. Adding new lines will be
-        even uglier in the generic case even if it looks nice in a few
-        limited examples.
-
-      - Be careful with column alignment in tables and table-like output
-        (--list, --list --verbose --verbose, --info-memory, --help, and
-        --long-help):
-
-          * All descriptions of options in --help should start in the
-            same column (but it doesn't need to be the same column as
-            in the English messages; just be consistent if you change it).
-            Check that both --help and --long-help look OK, since they
-            share several strings.
-
-          * --list --verbose and --info-memory print lines that have
-            the format "Description:   %s". If you need a longer
-            description, you can put extra space between the colon
-            and %s. Then you may need to add extra space to other
-            strings too so that the result as a whole looks good (all
-            values start at the same column).
-
-          * The columns of the actual tables in --list --verbose --verbose
-            should be aligned properly. Abbreviate if necessary. It might
-            be good to keep at least 2 or 3 spaces between column headings
-            and avoid spaces in the headings so that the columns stand out
-            better, but this is a matter of opinion. Do what you think
-            looks best.
-
-      - Be careful to put a period at the end of a sentence when the
-        original version has it, and don't put it when the original
-        doesn't have it. Similarly, be careful with \n characters
-        at the beginning and end of the strings.
-
-      - Read the TRANSLATORS comments that have been extracted from the
-        source code and included in xz.pot. Some comments suggest
-        testing with a specific command which needs an .xz file. You
-        may use e.g. any tests/files/good-*.xz. However, these test
-        commands are included in translations.bash output, so reading
-        translations.bash output carefully can be enough.
-
-      - If you find language problems in the original English strings,
-        feel free to suggest improvements. Ask if something is unclear.
-
-      - The translated messages should be understandable (sometimes this
-        may be a problem with the original English messages too). Don't
-        make a direct word-by-word translation from English especially if
-        the result doesn't sound good in your language.
-
-    Thanks for your help!
+        export LANGUAGE=fi
 
 
 5. Other implementations of the .xz format

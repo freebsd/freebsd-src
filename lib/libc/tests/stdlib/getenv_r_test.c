@@ -55,7 +55,7 @@ ATF_TC_BODY(getenv_r_erange, tc)
 
 	ATF_REQUIRE_EQ(0, setenv("ATF_TC_IDENT", ident, 1));
 	errno = 0;
-	ATF_REQUIRE_EQ(-1, getenv_r(NULL, buf, strlen(ident)));
+	ATF_REQUIRE_EQ(-1, getenv_r("ATF_TC_IDENT", buf, strlen(ident)));
 	ATF_REQUIRE_EQ(ERANGE, errno);
 }
 

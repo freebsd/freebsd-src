@@ -181,8 +181,6 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	object = (vm_object_t)mem;
 	KASSERT(object->ref_count == 0,
 	    ("object %p ref_count = %d", object, object->ref_count));
-	KASSERT(TAILQ_EMPTY(&object->memq),
-	    ("object %p has resident pages in its memq", object));
 	KASSERT(vm_radix_is_empty(&object->rtree),
 	    ("object %p has resident pages in its trie", object));
 #if VM_NRESERVLEVEL > 0
@@ -235,8 +233,6 @@ static void
 _vm_object_allocate(objtype_t type, vm_pindex_t size, u_short flags,
     vm_object_t object, void *handle)
 {
-
-	TAILQ_INIT(&object->memq);
 	LIST_INIT(&object->shadow_head);
 
 	object->type = type;
@@ -922,7 +918,6 @@ vm_object_terminate_pages(vm_object_t object)
 
 	vm_radix_reclaim_callback(&object->rtree,
 	    vm_object_terminate_single_page, object);
-	TAILQ_INIT(&object->memq);
 	object->resident_page_count = 0;
 	if (object->type == OBJT_VNODE)
 		vdrop(object->handle);
@@ -2141,8 +2136,8 @@ vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 	vm_page_iter_init(&pages, object);
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	for (pindex = start; pindex < end; pindex++) {
-		rv = vm_page_grab_valid_iter(&m, object, &pages, pindex,
-		    VM_ALLOC_NORMAL);
+		rv = vm_page_grab_valid_iter(&m, object, pindex,
+		    VM_ALLOC_NORMAL, &pages);
 		if (rv != VM_PAGER_OK)
 			break;
 
@@ -2293,10 +2288,9 @@ vm_object_prepare_buf_pages(vm_object_t object, vm_page_t *ma_dst, int count,
 		mpred = vm_radix_iter_lookup_lt(&pages, pindex);
 		*rbehind = MIN(*rbehind,
 		    pindex - (mpred != NULL ? mpred->pindex + 1 : 0));
-		/* Stepping backward from pindex, mpred doesn't change. */
 		for (int i = 0; i < *rbehind; i++) {
-			m = vm_page_alloc_after(object, &pages, pindex - i - 1,
-			    VM_ALLOC_NORMAL, mpred);
+			m = vm_page_alloc_iter(object, pindex - i - 1,
+			    VM_ALLOC_NORMAL, &pages);
 			if (m == NULL) {
 				/* Shift the array. */
 				for (int j = 0; j < i; j++)
@@ -2316,15 +2310,14 @@ vm_object_prepare_buf_pages(vm_object_t object, vm_page_t *ma_dst, int count,
 		msucc = vm_radix_iter_lookup_ge(&pages, pindex);
 		*rahead = MIN(*rahead,
 		    (msucc != NULL ? msucc->pindex : object->size) - pindex);
-		mpred = m;
 		for (int i = 0; i < *rahead; i++) {
-			m = vm_page_alloc_after(object, &pages, pindex + i,
-			    VM_ALLOC_NORMAL, mpred);
+			m = vm_page_alloc_iter(object, pindex + i,
+			    VM_ALLOC_NORMAL, &pages);
 			if (m == NULL) {
 				*rahead = i;
 				break;
 			}
-			ma_dst[*rbehind + count + i] = mpred = m;
+			ma_dst[*rbehind + count + i] = m;
 		}
 	}
 }

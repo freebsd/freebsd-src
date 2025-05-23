@@ -47,7 +47,7 @@ The
 base system
 .Nm
 is deprecated, and will be removed in
-.Fx 15.0.
+.Fx 15.0 .
 Users are advised to install the
 .Pa ftp/freebsd-ftpd
 port or package instead.
@@ -57,9 +57,7 @@ The
 utility is the
 Internet File Transfer Protocol
 server process.
-The server uses the
-.Tn TCP
-protocol
+The server uses the TCP protocol
 and listens at the port specified with the
 .Fl P
 option or in the
@@ -107,7 +105,8 @@ With this option set,
 .Nm
 sends authentication success and failure messages to the
 .Xr blacklistd 8
-daemon.  If this option is not specified, no communcation with the
+daemon.
+If this option is not specified, no communcation with the
 .Xr blacklistd 8
 daemon is attempted.
 .It Fl D

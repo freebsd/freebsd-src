@@ -33,6 +33,7 @@
  */
 
 #include <sys/types.h>
+#define _WANT_KERNEL_ERRNO 1
 #include <sys/errno.h>
 #include <sys/tree.h>
 #include <machine/vmm.h>
@@ -167,10 +168,13 @@ static int
 access_memory(struct vcpu *vcpu, uint64_t paddr, mem_cb_t *cb, void *arg)
 {
 	struct mmio_rb_range *entry;
+	struct mem_range *mr;
 	int err, perror, immutable, vcpuid;
 
 	vcpuid = vcpu_id(vcpu);
+	mr = NULL;
 	pthread_rwlock_rdlock(&mmio_rwlock);
+
 	/*
 	 * First check the per-vCPU cache
 	 */
@@ -185,14 +189,22 @@ access_memory(struct vcpu *vcpu, uint64_t paddr, mem_cb_t *cb, void *arg)
 		if (mmio_rb_lookup(&mmio_rb_root, paddr, &entry) == 0) {
 			/* Update the per-vCPU cache */
 			mmio_hint[vcpuid] = entry;
-		} else if (mmio_rb_lookup(&mmio_rb_fallback, paddr, &entry)) {
-			perror = pthread_rwlock_unlock(&mmio_rwlock);
-			assert(perror == 0);
-			return (ESRCH);
+		} else if (mmio_rb_lookup(&mmio_rb_fallback, paddr,
+		    &entry) == 0) {
+		} else {
+			err = mmio_handle_non_backed_mem(vcpu, paddr, &mr);
+			if (err != 0) {
+				perror = pthread_rwlock_unlock(&mmio_rwlock);
+				assert(perror == 0);
+				return (err == EJUSTRETURN ? 0 : err);
+			}
 		}
 	}
 
-	assert(entry != NULL);
+	if (mr == NULL) {
+		assert(entry != NULL);
+		mr = &entry->mr_param;
+	}
 
 	/*
 	 * An 'immutable' memory range is guaranteed to be never removed
@@ -205,13 +217,13 @@ access_memory(struct vcpu *vcpu, uint64_t paddr, mem_cb_t *cb, void *arg)
 	 * deadlock on 'mmio_rwlock'. However by registering the extended
 	 * config space window as 'immutable' the deadlock can be avoided.
 	 */
-	immutable = (entry->mr_param.flags & MEM_F_IMMUTABLE);
+	immutable = (mr->flags & MEM_F_IMMUTABLE) != 0;
 	if (immutable) {
 		perror = pthread_rwlock_unlock(&mmio_rwlock);
 		assert(perror == 0);
 	}
 
-	err = cb(vcpu, paddr, &entry->mr_param, arg);
+	err = cb(vcpu, paddr, mr, arg);
 
 	if (!immutable) {
 		perror = pthread_rwlock_unlock(&mmio_rwlock);

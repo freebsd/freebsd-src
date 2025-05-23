@@ -122,7 +122,6 @@ extern struct nfsdevicehead nfsrv_devidhead;
 /* Map d_type to vnode type. */
 static uint8_t dtype_to_vnode[DT_WHT + 1] = { VNON, VFIFO, VCHR, VNON, VDIR,
     VNON, VBLK, VNON, VREG, VNON, VLNK, VNON, VSOCK, VNON, VNON };
-#define	NFS_DTYPETOVTYPE(t)	((t) <= DT_WHT ? dtype_to_vnode[(t)] : VNON)
 
 static int nfsrv_createiovec(int, struct mbuf **, struct mbuf **,
     struct iovec **);
@@ -130,6 +129,7 @@ static int nfsrv_createiovec_extpgs(int, int, struct mbuf **,
     struct mbuf **, struct iovec **);
 static int nfsrv_createiovecw(int, struct mbuf *, char *, struct iovec **,
     int *);
+static void nfs_dtypetovtype(struct nfsvattr *, struct vnode *, uint8_t);
 static void nfsrv_pnfscreate(struct vnode *, struct vattr *, struct ucred *,
     NFSPROC_T *);
 static void nfsrv_pnfsremovesetup(struct vnode *, NFSPROC_T *, struct vnode **,
@@ -444,6 +444,7 @@ nfsvno_getattr(struct vnode *vp, struct nfsvattr *nvap,
 			gotattr = 1;
 	}
 
+	nvap->na_bsdflags = 0;
 	error = VOP_GETATTR(vp, &nvap->na_vattr, nd->nd_cred);
 	if (lockedit != 0)
 		NFSVOPUNLOCK(vp);
@@ -2046,6 +2047,23 @@ nfsvno_fillattr(struct nfsrv_descript *nd, struct mount *mp, struct vnode *vp,
 	return (error);
 }
 
+/*
+ * Convert a dirent d_type to a vnode type.
+ */
+static void nfs_dtypetovtype(struct nfsvattr *nvap, struct vnode *vp,
+    uint8_t dtype)
+{
+
+	if ((vn_irflag_read(vp) & VIRF_NAMEDDIR) != 0) {
+		nvap->na_type = VREG;
+		nvap->na_bsdflags |= SFBSD_NAMEDATTR;
+	} else if (dtype <= DT_WHT) {
+		nvap->na_type = dtype_to_vnode[dtype];
+	} else {
+		nvap->na_type = VNON;
+	}
+}
+
 /* Since the Readdir vnode ops vary, put the entire functions in here. */
 /*
  * nfs readdir service
@@ -2665,6 +2683,10 @@ again:
 						    LK_SHARED, &nvp);
 					else
 						r = EOPNOTSUPP;
+					if (r == 0 && (vn_irflag_read(vp) &
+					    VIRF_NAMEDDIR) != 0)
+						vn_irflag_set_cond(nvp,
+						    VIRF_NAMEDATTR);
 					if (r == EOPNOTSUPP) {
 						if (usevget) {
 							usevget = 0;
@@ -2679,6 +2701,10 @@ again:
 						cn.cn_namelen = nlen;
 						cn.cn_flags = ISLASTCN |
 						    NOFOLLOW | LOCKLEAF;
+						if ((vn_irflag_read(vp) &
+						    VIRF_NAMEDDIR) != 0)
+							cn.cn_flags |=
+							    OPENNAMED;
 						if (nlen == 2 &&
 						    dp->d_name[0] == '.' &&
 						    dp->d_name[1] == '.')
@@ -2796,7 +2822,7 @@ again:
 				/* Only need Type and/or Fileid. */
 				VATTR_NULL(&nvap->na_vattr);
 				nvap->na_fileid = dp->d_fileno;
-				nvap->na_type = NFS_DTYPETOVTYPE(dp->d_type);
+				nfs_dtypetovtype(nvap, vp, dp->d_type);
 			}
 
 			/*
@@ -3461,6 +3487,15 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 	nd->nd_repstat = nfsvno_fhtovp(mp, fhp, nd->nd_nam, lktype, vpp, exp,
 	    &credanon);
 	vfs_unbusy(mp);
+
+	if (nd->nd_repstat == 0 &&
+	    nfp->nfsrvfh_len >= NFSX_MYFH + NFSX_V4NAMEDDIRFH &&
+	    nfp->nfsrvfh_len <= NFSX_MYFH + NFSX_V4NAMEDATTRFH) {
+		if (nfp->nfsrvfh_len == NFSX_MYFH + NFSX_V4NAMEDDIRFH)
+			vn_irflag_set_cond(*vpp, VIRF_NAMEDDIR);
+		else
+			vn_irflag_set_cond(*vpp, VIRF_NAMEDATTR);
+	}
 
 	/*
 	 * For NFSv4 without a pseudo root fs, unexported file handles
@@ -5528,7 +5563,7 @@ nfsrv_writedsdorpc(struct nfsmount *nmp, fhandle_t *fhp, off_t off, int len,
 	if ((nd->nd_flag & (ND_NOMOREDATA | ND_NFSV4 | ND_V4WCCATTR)) ==
 	    (ND_NFSV4 | ND_V4WCCATTR)) {
 		error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0, NULL, NULL,
-		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
+		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL);
 		NFSD_DEBUG(4, "nfsrv_writedsdorpc: wcc attr=%d\n", error);
 		if (error != 0)
 			goto nfsmout;
@@ -5559,7 +5594,7 @@ nfsrv_writedsdorpc(struct nfsmount *nmp, fhandle_t *fhp, off_t off, int len,
 	if (error == 0) {
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 		error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0, NULL, NULL,
-		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
+		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL);
 	}
 	NFSD_DEBUG(4, "nfsrv_writedsdorpc: aft loadattr=%d\n", error);
 nfsmout:
@@ -5725,7 +5760,7 @@ nfsrv_allocatedsdorpc(struct nfsmount *nmp, fhandle_t *fhp, off_t off,
 	if (nd->nd_repstat == 0) {
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 		error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0, NULL, NULL,
-		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
+		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL);
 	} else
 		error = nd->nd_repstat;
 	NFSD_DEBUG(4, "nfsrv_allocatedsdorpc: aft loadattr=%d\n", error);
@@ -5892,7 +5927,7 @@ nfsrv_deallocatedsdorpc(struct nfsmount *nmp, fhandle_t *fhp, off_t off,
 	if ((nd->nd_flag & (ND_NOMOREDATA | ND_NFSV4 | ND_V4WCCATTR)) ==
 	    (ND_NFSV4 | ND_V4WCCATTR)) {
 		error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0, NULL, NULL,
-		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
+		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL);
 		NFSD_DEBUG(4, "nfsrv_deallocatedsdorpc: wcc attr=%d\n", error);
 		if (error != 0)
 			goto nfsmout;
@@ -5906,7 +5941,7 @@ nfsrv_deallocatedsdorpc(struct nfsmount *nmp, fhandle_t *fhp, off_t off,
 	if (nd->nd_repstat == 0) {
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 		error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0, NULL, NULL,
-		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
+		    NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL);
 	} else
 		error = nd->nd_repstat;
 	NFSD_DEBUG(4, "nfsrv_deallocatedsdorpc: aft loadattr=%d\n", error);
@@ -6054,7 +6089,7 @@ nfsrv_setattrdsdorpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	if ((nd->nd_flag & (ND_NOMOREDATA | ND_NFSV4 | ND_V4WCCATTR)) ==
 	    (ND_NFSV4 | ND_V4WCCATTR)) {
 		error = nfsv4_loadattr(nd, NULL, dsnap, NULL, NULL, 0, NULL,
-		    NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
+		    NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL);
 		NFSD_DEBUG(4, "nfsrv_setattrdsdorpc: wcc attr=%d\n", error);
 		if (error != 0)
 			goto nfsmout;
@@ -6078,7 +6113,8 @@ nfsrv_setattrdsdorpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	if (error == 0) {
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 		error = nfsv4_loadattr(nd, NULL, dsnap, NULL, NULL, 0, NULL,
-		    NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
+		    NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
+		    NULL);
 	}
 	NFSD_DEBUG(4, "nfsrv_setattrdsdorpc: aft setattr loadattr=%d\n", error);
 nfsmout:
@@ -6367,7 +6403,7 @@ nfsrv_getattrdsrpc(fhandle_t *fhp, struct ucred *cred, NFSPROC_T *p,
 	if (nd->nd_repstat == 0) {
 		error = nfsv4_loadattr(nd, NULL, nap, NULL, NULL, 0,
 		    NULL, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL,
-		    NULL, NULL);
+		    NULL, NULL, NULL);
 		/*
 		 * We can only save the updated values in the extended
 		 * attribute if the vp is exclusively locked.

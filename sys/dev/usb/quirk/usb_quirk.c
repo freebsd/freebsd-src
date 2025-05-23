@@ -565,16 +565,6 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(PLOYTEC, SPL_CRIMSON_1, UQ_CFG_INDEX_1),
 	USB_QUIRK(ROLAND, UA25EX_AD, UQ_AU_VENDOR_CLASS),
 
-	/*
-	 * Quirks for manufacturers which USB devices does not respond
-	 * after issuing non-supported commands:
-	 */
-	USB_QUIRK_VO(ALCOR, UQ_MSC_NO_SYNC_CACHE, UQ_MSC_NO_TEST_UNIT_READY),
-	USB_QUIRK_VO(APPLE, UQ_MSC_NO_SYNC_CACHE),
-	USB_QUIRK_VO(FEIYA, UQ_MSC_NO_SYNC_CACHE),
-	USB_QUIRK_VO(REALTEK, UQ_MSC_NO_SYNC_CACHE),
-	USB_QUIRK_VO(INITIO, UQ_MSC_NO_SYNC_CACHE),
-
 	/* DYMO LabelManager Pnp */
 	USB_QUIRK(DYMO, LABELMANAGERPNP, UQ_MSC_DYMO_EJECT),
 

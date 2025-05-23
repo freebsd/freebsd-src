@@ -161,6 +161,14 @@ virt_to_head_page(const void *p)
 	return (virt_to_page(p));
 }
 
+static inline struct folio *
+virt_to_folio(const void *p)
+{
+	struct page *page = virt_to_page(p);
+
+	return (page_folio(page));
+}
+
 /*
  * Compute log2 of the power of two rounded up count of pages
  * needed for size bytes.
@@ -184,7 +192,7 @@ get_order(unsigned long size)
  *
  * NOTE: This function only works for pages allocated by the kernel.
  */
-void *linux_page_address(struct page *);
+void *linux_page_address(const struct page *);
 #define	page_address(page) linux_page_address(page)
 
 static inline void *
@@ -275,6 +283,38 @@ get_page(struct page *page)
 	vm_page_wire(page);
 }
 
+static inline void
+put_page(struct page *page)
+{
+	/* `__free_page()` takes care of the refcounting (unwire). */
+	__free_page(page);
+}
+
+static inline void
+folio_get(struct folio *folio)
+{
+	get_page(&folio->page);
+}
+
+static inline void
+folio_put(struct folio *folio)
+{
+	put_page(&folio->page);
+}
+
+/*
+ * Linux uses the following "transparent" union so that `release_pages()`
+ * accepts both a list of `struct page` or a list of `struct folio`. This
+ * relies on the fact that a `struct folio` can be cast to a `struct page`.
+ */
+typedef union {
+	struct page **pages;
+	struct folio **folios;
+} release_pages_arg __attribute__ ((__transparent_union__));
+
+void linux_release_pages(release_pages_arg arg, int nr);
+#define	release_pages(arg, nr) linux_release_pages((arg), (nr))
+
 extern long
 lkpi_get_user_pages(unsigned long start, unsigned long nr_pages,
     unsigned int gup_flags, struct page **);
@@ -329,12 +369,6 @@ pin_user_pages_remote(struct task_struct *task, struct mm_struct *mm,
 {
 	return get_user_pages_remote(
 	    task, mm, start, nr_pages, gup_flags, pages, vmas);
-}
-
-static inline void
-put_page(struct page *page)
-{
-	vm_page_unwire(page, PQ_ACTIVE);
 }
 
 #define	unpin_user_page(page) put_page(page)
@@ -410,6 +444,36 @@ static inline bool
 want_init_on_free(void)
 {
 	return (false);
+}
+
+static inline unsigned long
+folio_pfn(struct folio *folio)
+{
+	return (page_to_pfn(&folio->page));
+}
+
+static inline long
+folio_nr_pages(struct folio *folio)
+{
+	return (1);
+}
+
+static inline size_t
+folio_size(struct folio *folio)
+{
+	return (PAGE_SIZE);
+}
+
+static inline void
+folio_mark_dirty(struct folio *folio)
+{
+	set_page_dirty(&folio->page);
+}
+
+static inline void *
+folio_address(const struct folio *folio)
+{
+	return (page_address(&folio->page));
 }
 
 #endif					/* _LINUXKPI_LINUX_MM_H_ */

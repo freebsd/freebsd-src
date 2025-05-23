@@ -453,7 +453,7 @@ vm_thread_stack_create(struct domainset *ds, int pages)
 	obj = vm_thread_kstack_size_to_obj(pages);
 	if (vm_ndomains > 1)
 		obj->domain.dr_policy = ds;
-	vm_domainset_iter_page_init(&di, obj, 0, &domain, &req);
+	vm_domainset_iter_page_init(&di, obj, 0, &domain, &req, NULL);
 	do {
 		/*
 		 * Get a kernel virtual address for this thread's kstack.
@@ -480,7 +480,7 @@ vm_thread_stack_create(struct domainset *ds, int pages)
 			vm_page_valid(ma[i]);
 		pmap_qenter(ks, ma, pages);
 		return (ks);
-	} while (vm_domainset_iter_page(&di, obj, &domain) == 0);
+	} while (vm_domainset_iter_page(&di, obj, &domain, NULL) == 0);
 
 	return (0);
 }
@@ -615,7 +615,7 @@ vm_thread_stack_back(vm_offset_t ks, vm_page_t ma[], int npages, int req_class,
 	struct pctrie_iter pages;
 	vm_object_t obj = vm_thread_kstack_size_to_obj(npages);
 	vm_pindex_t pindex;
-	vm_page_t m, mpred;
+	vm_page_t m;
 	int n;
 
 	pindex = vm_kstack_pindex(ks, npages);
@@ -623,14 +623,12 @@ vm_thread_stack_back(vm_offset_t ks, vm_page_t ma[], int npages, int req_class,
 	vm_page_iter_init(&pages, obj);
 	VM_OBJECT_WLOCK(obj);
 	for (n = 0; n < npages; ma[n++] = m) {
-		m = vm_page_grab_iter(obj, &pages, pindex + n,
-		    VM_ALLOC_NOCREAT | VM_ALLOC_WIRED);
+		m = vm_page_grab_iter(obj, pindex + n,
+		    VM_ALLOC_NOCREAT | VM_ALLOC_WIRED, &pages);
 		if (m != NULL)
 			continue;
-		mpred = (n > 0) ? ma[n - 1] :
-		    vm_radix_iter_lookup_lt(&pages, pindex);
-		m = vm_page_alloc_domain_after(obj, &pages, pindex + n,
-		    domain, req_class | VM_ALLOC_WIRED, mpred);
+		m = vm_page_alloc_domain_iter(obj, pindex + n,
+		    domain, req_class | VM_ALLOC_WIRED, &pages);
 		if (m != NULL)
 			continue;
 		for (int i = 0; i < n; i++) {

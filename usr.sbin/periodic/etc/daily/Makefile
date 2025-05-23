@@ -7,23 +7,29 @@ CONFGROUPS=	CONFS
 CONFS=	100.clean-disks \
 	110.clean-tmps \
 	120.clean-preserve \
-	140.clean-rwho \
 	200.backup-passwd \
 	210.backup-aliases \
-	221.backup-gpart \
-	222.backup-gmirror \
 	400.status-disks \
-	401.status-graid \
-	406.status-gmirror \
-	407.status-graid3 \
-	408.status-gstripe \
-	409.status-gconcat \
 	410.status-mfi \
 	420.status-network \
 	430.status-uptime \
 	450.status-security \
 	510.status-world-kernel \
 	999.local
+
+CONFGROUPS+=	GEOM
+GEOM+=		221.backup-gpart \
+		222.backup-gmirror \
+		401.status-graid \
+		406.status-gmirror \
+		407.status-graid3 \
+		408.status-gstripe \
+		409.status-gconcat
+GEOMPACKAGE=	geom
+
+CONFGROUPS+=	RCMDS
+RCMDS+=		140.clean-rwho
+RCMDSPACKAGE=	rcmds
 
 # NB: keep these sorted by MK_* knobs
 
@@ -60,10 +66,12 @@ SENDMAILPACKAGE=	sendmail
 .endif
 
 .if ${MK_ZFS} != "no"
-CONFS+=	223.backup-zfs \
-	404.status-zfs \
-	800.scrub-zfs  \
-	801.trim-zfs
+CONFGROUPS+=	ZFS
+ZFS+=		223.backup-zfs \
+		404.status-zfs \
+		800.scrub-zfs  \
+		801.trim-zfs
+ZFSPACKAGE=	zfs
 .endif
 
 .include <bsd.prog.mk>

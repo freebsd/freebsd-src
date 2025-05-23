@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 24, 2008
+.Dd May 5, 2025
 .Dt PUC 4
 .Os
 .Sh NAME
@@ -36,7 +36,10 @@ Communications driver
 .Cd "device uart"
 .Cd "device ppc"
 .Sh DESCRIPTION
-This driver acts as a shim to connect PCI serial and parallel ports to the
+The
+.Nm
+driver acts as a shim to connect
+PCI multi-port serial and parallel adapters to the
 .Xr uart 4
 and
 .Xr ppc 4
@@ -45,6 +48,377 @@ driver.
 The list of supported devices is in
 .Pa sys/dev/puc/pucdata.c .
 Support for new cards should be added there.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following
+PCI multi-port serial and parallel adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Sunix SUN1889
+.It
+HP Diva Serial [GSP] Multiport UART:
+.Bl -dash -compact
+.It
+Tosca Console
+.It
+Tosca Secondary
+.It
+Maestro SP2
+.It
+Superdome Console
+.It
+Keystone SP2
+.It
+Everest SP2
+.El
+.It
+VScom:
+.Bl -dash -compact
+.It
+PCI-200, PCI-400, and PCI-800
+.El
+.It
+Boca Research Turbo Serial:
+.Bl -dash -compact
+.It
+654 and 658
+.El
+.It
+Dolphin Peripherals:
+.Bl -dash -compact
+.It
+4014 and 4035
+.El
+.It
+Applied Micro Circuits 8 Port UART
+.It
+Digi Neo:
+.Bl -dash -compact
+.It
+PCI 4 and 8 Port
+.It
+PCIe 4 and 8 Port (with and without RJ45)
+.El
+.It
+Comtrol RocketPort:
+.Bl -dash -compact
+550/4 Normal and RJ45
+.It
+550/8 Normal, RJ11 and Octa
+.It
+550/16
+.El
+.It
+IBM SurePOS 300 Series (481033H) serial ports
+.It
+SIIG Cyber Series of UART and parallel port boars:
+.Bl -dash -compact
+.It
+Cyber 2S and 2SP1 PCI 16550
+.It
+Cyber 4 PCI 16550
+.It
+Cyber 4S PCI 16C650 (20x family)
+.It
+Cyber I/O PCI (10x family and 20x family):
+.It
+Cyber Parallel Dual PCI (10x family and 20x family):
+.It
+Cyber Serial Dual PCI (10x family and 20x family):
+.It
+Cyber 2S1P PCI (10x family and 20x family):
+.It
+Cyber 4S PCI (10x family and 20x family):
+.It
+PS8000 8S PCI 16C650 (20x family)
+.It
+Quartet Serial 850
+.El
+.It
+Brainboxes:
+.Bl -dash -compact
+.It
+PX-101
+.It
+PX-246, PX-257, PX-260, PX-279
+.It
+PX-310, PX-313, PX-320, PX-346, PX-368
+.It
+PX-420, PX-431, PX-475
+.It
+PX-803, PX-820, PX-831, PX-846, PX-857
+.It
+UC-101
+.It
+UC-203, UC-253, UC-257, UC-260, UC-268, UC-279
+.It
+UC-302, UC-310, UC-313, UC-346, UC-357, UC-368
+.It
+UC-414, UC-420, UC-431, UC-475
+.It
+UC-607
+.It
+UC-836
+.It
+UP-189
+.It
+UP-200
+.It
+UP-869, UP-880
+.El
+.It
+Intashield:
+.Bl -dash -compact
+.It
+IS-200, IS-400
+.It
+IX-100, IX-200, IX-400
+.El
+.It
+Quatech:
+.Bl -dash -compact
+.It
+DSC-100
+.It
+DSC-200/300
+.It
+DSCLP-100
+.It
+DSCLP-200/300
+.It
+ESC-100D
+.It
+ESC-100M
+.It
+QSC-100
+.It
+QSC-200/300
+.It
+QSCLP-100
+.El
+.It
+Moxa Technologies:
+.Bl -dash -compact
+.It
+Smartio CP-102E/PCIe
+.It
+Smartio CP-102EL/PCIe
+.It
+Smartio C104H/PCI
+.It
+Smartio CP-104UL/PCI
+.It
+Smartio CP-104JU/PCI
+.It
+Smartio CP-104EL/PCIe
+.It
+Smartio CP-104EL-A/PCIe
+.It
+CP-112UL
+.It
+Industio CP-114
+.It
+Smartio CP-114EL/PCIe
+.It
+Smartio CP-118EL-A/PCIe
+.It
+C168H/PCI
+.It
+C168U/PCI
+.It
+CP-168EL/PCIe
+.It
+Smartio CP-168EL-A/PCIe
+.El
+.It
+Exar:
+.Bl -dash -compact
+.It
+XR17C/D152
+.It
+XR17C154
+.It
+XR17C158
+.It
+XR17V258IV
+.It
+XR17V352
+.It
+XR17V354
+.It
+XR17V358
+.El
+.It
+Advantech
+.Bl -dash -compact
+.It
+PCI-1602 Rev A
+.It
+2-port PCI (PCI-1602 Rev B1/PCI-1603)
+.El
+.It
+Lava Computers:
+.Bl -dash -compact
+.It
+Dual Serial
+.It
+Quattro
+.It
+Quattro-PCI
+.It
+Octopus-550 
+.El
+.It
+I-O DATA RSA-PCI2/R
+.It
+Kuroutoshikou SERIAL4P-LPPCI2
+.It
+Oxford Semiconductor based boards:
+.Bl -dash -compact
+.It
+OX16PCI952 UART (with and without Parallel port)
+.It
+OX16PCI954 UART
+.It
+OX9160/OX16PCI954 UARTs
+.It
+OX16PCI958 UART
+.El
+.It
+Perle:
+.Bl -dash -compact
+.It
+Ultraport4 Express
+.It
+Speed2 LE
+.It
+Speed4 LE
+.It
+Speed8 LE
+.El
+.It
+VScom:
+.Bl -dash -compact
+.It
+PCI-100L
+.It
+PCI-200L
+.It
+200Li
+.El
+.It
+Titan:
+.Bl -dash -compact
+.It
+PCI-800H
+.It
+PCI-800H
+.It
+PCI-200H
+.El
+.It
+Titan VScom:
+.Bl -dash -compact
+.It
+PCI-800L
+.It
+PCI-200HV2
+.It
+PCIex-800H
+.It
+PCIex-800H
+.El
+.It
+Avlab Technology PCI IO 2S
+.It
+Avlab Low Profile PCI 4 Serial
+.It
+Syba Tech Ltd PCI-4S2P-550-ECP
+.It
+Sunix SUN1888
+.It
+Sunix SER5xxxx
+.Bl -dash -compact
+.It
+2, 4 and 8 port serial
+.El
+.It
+Sunix MIO5xxxx (1284 Printer port):
+.Bl -dash -compact
+.It
+1, 2 and 4 port serial
+.El
+.It
+Feasso PCI FPP-02 2S1P
+.It
+Sun 1040 PCI Quad Serial
+.It
+Decision Computer Inc PCCOM:
+.Bl -dash -compact
+.It
+4-port serial
+.It
+8-port serial
+.El
+.It
+PCCOM dual port RS232/422/485
+.It
+NetMos NM9815 Dual 1284 Printer port
+.It
+NetMos NM9835:
+.Bl -dash -compact
+.It
+based 1 and 2 port serial
+.It
+Dual UART and 1284 Printer port
+.El
+.It
+NetMos NM9845:
+.Bl -dash -compact
+.It
+6 Port UART
+.It
+Quad UART and 1284 Printer port
+.El
+.It
+NetMos NM9865:
+.Bl -dash -compact
+.It
+Dual UART
+.It
+Triple UART
+.It
+Quad UART
+.It
+Single UART and 1284 Printer port
+.It
+Dual UART and 1284 Printer port
+.It
+Dual 1284 Printer port
+.El
+.It
+IC Book Labs:
+.Bl -dash -compact
+.It
+Gunboat x4 Lite
+.It
+Gunboat x4 Pro
+.It
+Ironclad x8 Lite
+.It
+Ironclad x8 Pro
+.It
+Dreadnought x16 Pro
+.It
+Dreadnought x16 Lite
+.It
+Gunboat x2 Low Profile
+.It
+Gunboat x4 Low Profile
+.El
+.El
 .Sh SEE ALSO
 .Xr ppc 4 ,
 .Xr uart 4
@@ -53,3 +427,4 @@ This driver took the idea from the
 .Nx
 .Nm
 driver.
+It uses a substantial amount of the same data.

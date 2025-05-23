@@ -73,6 +73,7 @@
 .Nm STAILQ_REMOVE ,
 .Nm STAILQ_REMOVE_AFTER ,
 .Nm STAILQ_REMOVE_HEAD ,
+.Nm STAILQ_REVERSE ,
 .Nm STAILQ_SPLIT_AFTER ,
 .Nm STAILQ_SWAP ,
 .Nm LIST_CLASS_ENTRY ,
@@ -177,6 +178,7 @@ lists and tail queues
 .Fn STAILQ_REMOVE "STAILQ_HEAD *head" "TYPE *elm" "TYPE" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE_AFTER "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE_HEAD "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
+.Fn STAILQ_REVERSE "STAILQ_HEAD *head" "TYPE" "STAILQ_ENTRY NAME"
 .Fn STAILQ_SPLIT_AFTER "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_HEAD *rest" "STAILQ_ENTRY NAME"
 .Fn STAILQ_SWAP "STAILQ_HEAD *head1" "STAILQ_HEAD *head2" "TYPE"
 .\"
@@ -789,6 +791,10 @@ from the tail queue.
 Use of this macro should be avoided as it traverses the entire list.
 A doubly-linked tail queue should be used if this macro is needed in
 high-usage code paths or to operate on long tail queues.
+.Pp
+The macro
+.Nm STAILQ_REVERSE
+reverses the queue in place.
 .Pp
 The macro
 .Nm STAILQ_SPLIT_AFTER

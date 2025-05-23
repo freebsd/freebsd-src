@@ -379,10 +379,6 @@ nd6_setmtu0(struct ifnet *ifp, struct nd_ifinfo *ndi)
 		    "new link MTU on %s (%lu) is too small for IPv6\n",
 		    if_name(ifp), (unsigned long)ndi->maxmtu);
 	}
-
-	if (ndi->maxmtu > V_in6_maxmtu)
-		in6_setmaxmtu(); /* check all interfaces just in case */
-
 }
 
 void

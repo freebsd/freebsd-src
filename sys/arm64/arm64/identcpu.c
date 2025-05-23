@@ -2193,8 +2193,7 @@ static const struct mrs_field mvfr1_fields[] = {
 
 struct mrs_user_reg {
 	u_int		reg;
-	u_int		CRm;
-	u_int		Op2;
+	u_int		iss;
 	bool		is64bit;
 	size_t		offset;
 	const struct mrs_field *fields;
@@ -2203,8 +2202,7 @@ struct mrs_user_reg {
 #define	USER_REG(name, field_name, _is64bit)				\
 	{								\
 		.reg = name,						\
-		.CRm = name##_CRm,					\
-		.Op2 = name##_op2,					\
+		.iss = name##_ISS,					\
 		.offset = __offsetof(struct cpu_desc, field_name),	\
 		.fields = field_name##_fields,				\
 		.is64bit = _is64bit,					\
@@ -2343,21 +2341,22 @@ static struct cpu_feat user_ctr = {
 };
 DATA_SET(cpu_feat_set, user_ctr);
 
-static int
-user_ctr_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
-    uint32_t esr)
+static bool
+user_ctr_handler(uint64_t esr, struct trapframe *frame)
 {
 	uint64_t value;
 	int reg;
 
-	if ((insn & MRS_MASK) != MRS_VALUE)
-		return (0);
+	if (ESR_ELx_EXCEPTION(esr) != EXCP_MSR)
+		return (false);
+
+	/* Only support reading from ctr_el0 */
+	if ((esr & ISS_MSR_DIR) == 0)
+		return (false);
 
 	/* Check if this is the ctr_el0 register */
-	/* TODO: Add macros to armreg.h */
-	if (mrs_Op0(insn) != 3 || mrs_Op1(insn) != 3 || mrs_CRn(insn) != 0 ||
-	    mrs_CRm(insn) != 0 || mrs_Op2(insn) != 1)
-		return (0);
+	if ((esr & ISS_MSR_REG_MASK) != CTR_EL0_ISS)
+		return (false);
 
 	if (SV_CURPROC_ABI() == SV_ABI_FREEBSD)
 		value = user_cpu_desc.ctr;
@@ -2369,61 +2368,62 @@ user_ctr_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	 */
 	frame->tf_elr += INSN_SIZE;
 
-	reg = MRS_REGISTER(insn);
+	reg = ISS_MSR_Rt(esr);
 	/* If reg is 31 then write to xzr, i.e. do nothing */
 	if (reg == 31)
-		return (1);
+		return (true);
 
 	if (reg < nitems(frame->tf_x))
 		frame->tf_x[reg] = value;
 	else if (reg == 30)
 		frame->tf_lr = value;
 
-	return (1);
+	return (true);
 }
 
-static int
-user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
-    uint32_t esr)
+static bool
+user_idreg_handler(uint64_t esr, struct trapframe *frame)
 {
 	uint64_t value;
-	int CRm, Op2, i, reg;
+	int reg;
 
-	if ((insn & MRS_MASK) != MRS_VALUE)
-		return (0);
+	if (ESR_ELx_EXCEPTION(esr) != EXCP_MSR)
+		return (false);
+
+	/* Only support reading from ID registers */
+	if ((esr & ISS_MSR_DIR) == 0)
+		return (false);
 
 	/*
-	 * We only emulate Op0 == 3, Op1 == 0, CRn == 0, CRm == {0, 4-7}.
-	 * These are in the EL1 CPU identification space.
-	 * CRm == 0 holds MIDR_EL1, MPIDR_EL1, and REVID_EL1.
-	 * CRm == {4-7} holds the ID_AA64 registers.
+	 * This only handles the ID register space and a few registers that
+	 * are safe to pass through to userspace.
 	 *
-	 * For full details see the ARMv8 ARM (ARM DDI 0487C.a)
-	 * Table D9-2 System instruction encodings for non-Debug System
-	 * register accesses.
+	 * These registers are all in the space op0 == 3, op1 == 0,
+	 * CRn == 0. We support the following CRm:
+	 *  - CRm == 0: midr_el1, mpidr_el1, and revidr_el1.
+	 *  - CRm in {4-7}: sanitized ID registers.
+	 *
+	 * Registers in the ID register space (CRm in {4-7}) are all
+	 * read-only and have either defined fields, or are read as
+	 * zero (RAZ). For these we return 0 for any unknown register.
 	 */
-	if (mrs_Op0(insn) != 3 || mrs_Op1(insn) != 0 || mrs_CRn(insn) != 0)
-		return (0);
+	if (ISS_MSR_OP0(esr) != 3 || ISS_MSR_OP1(esr) != 0 ||
+	    ISS_MSR_CRn(esr) != 0)
+		return (false);
 
-	CRm = mrs_CRm(insn);
-	if (CRm > 7 || (CRm < 4 && CRm != 0))
-		return (0);
-
-	Op2 = mrs_Op2(insn);
 	value = 0;
-
-	for (i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].CRm == CRm && user_regs[i].Op2 == Op2) {
-			if (SV_CURPROC_ABI() == SV_ABI_FREEBSD)
-				value = CPU_DESC_FIELD(user_cpu_desc, i);
-			else
-				value = CPU_DESC_FIELD(l_user_cpu_desc, i);
-			break;
+	if (ISS_MSR_CRm(esr) >= 4 && ISS_MSR_CRm(esr) <= 7) {
+		for (int i = 0; i < nitems(user_regs); i++) {
+			if (user_regs[i].iss == (esr & ISS_MSR_REG_MASK)) {
+				if (SV_CURPROC_ABI() == SV_ABI_FREEBSD)
+					value = CPU_DESC_FIELD(user_cpu_desc, i);
+				else
+					value = CPU_DESC_FIELD(l_user_cpu_desc, i);
+				break;
+			}
 		}
-	}
-
-	if (CRm == 0) {
-		switch (Op2) {
+	} else if (ISS_MSR_CRm(esr) == 0) {
+		switch (ISS_MSR_OP2(esr)) {
 		case 0:
 			value = READ_SPECIALREG(midr_el1);
 			break;
@@ -2434,8 +2434,10 @@ user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 			value = READ_SPECIALREG(revidr_el1);
 			break;
 		default:
-			return (0);
+			return (false);
 		}
+	} else {
+		return (false);
 	}
 
 	/*
@@ -2444,7 +2446,7 @@ user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	 */
 	frame->tf_elr += INSN_SIZE;
 
-	reg = MRS_REGISTER(insn);
+	reg = ISS_MSR_Rt(esr);
 	/* If reg is 31 then write to xzr, i.e. do nothing */
 	if (reg == 31)
 		return (1);
@@ -2454,7 +2456,7 @@ user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	else if (reg == 30)
 		frame->tf_lr = value;
 
-	return (1);
+	return (true);
 }
 
 /*
@@ -2792,8 +2794,8 @@ identify_cpu_sysinit(void *dummy __unused)
 		panic("CPU does not support LSE atomic instructions");
 #endif
 
-	install_undef_handler(true, user_ctr_handler);
-	install_undef_handler(true, user_mrs_handler);
+	install_sys_handler(user_ctr_handler);
+	install_sys_handler(user_idreg_handler);
 }
 SYSINIT(identify_cpu, SI_SUB_CPU, SI_ORDER_MIDDLE, identify_cpu_sysinit, NULL);
 

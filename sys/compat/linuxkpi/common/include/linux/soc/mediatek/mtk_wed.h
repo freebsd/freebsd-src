@@ -43,6 +43,7 @@ struct mtk_wed_device {
     do {} while (0)
 #define	mtk_wed_device_stop(_dev)			do { } while(0)
 #define	mtk_wed_device_start_hw_rro(_dev, _mask, _b)	do { } while(0)
+#define	mtk_wed_device_setup_tc(_dev, _ndev, _type, _tdata)	(-EOPNOTSUPP)
 
 static inline bool
 mtk_wed_device_active(struct mtk_wed_device *dev __unused)

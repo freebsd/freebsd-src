@@ -642,6 +642,20 @@ If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
 .Cm cross-tools
 target.
+.It Va PKG_FORMAT
+Specify a package compression format when building
+.Pa src
+into
+.Cm packages .
+Default:
+.Ql tzst .
+Consider using
+.Ql tar
+to disable compression.
+Accepted options are documented in the
+.Fl f
+description of
+.Xr pkg-create 8 .
 .It Va PORTS_MODULES
 A list of ports with kernel modules that should be built and installed
 as part of the
@@ -649,6 +663,10 @@ as part of the
 and
 .Cm installkernel
 process.
+This is currently incompatible with building
+.Pa src
+into
+.Cm packages .
 .Bd -literal -offset indent
 make PORTS_MODULES=emulators/virtualbox-ose-kmod kernel
 .Ed

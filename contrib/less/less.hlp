@@ -13,11 +13,14 @@
 
   e  ^E  j  ^N  CR  *  Forward  one line   (or _N lines).
   y  ^Y  k  ^K  ^P  *  Backward one line   (or _N lines).
+  ESC-j             *  Forward  one file line (or _N file lines).
+  ESC-k             *  Backward one file line (or _N file lines).
   f  ^F  ^V  SPACE  *  Forward  one window (or _N lines).
   b  ^B  ESC-v      *  Backward one window (or _N lines).
   z                 *  Forward  one window (and set window to _N).
   w                 *  Backward one window (and set window to _N).
   ESC-SPACE         *  Forward  one window, but don't stop at end-of-file.
+  ESC-b             *  Backward one window, but don't stop at beginning-of-file.
   d  ^D             *  Forward  one half-window (and set half-window to _N).
   u  ^U             *  Backward one half-window (and set half-window to _N).
   ESC-)  RightArrow *  Right one half screen width (or _N positions).
@@ -48,6 +51,7 @@
   ESC-U                Clear search highlighting.
   &_p_a_t_t_e_r_n          *  Display only matching lines.
         ---------------------------------------------------
+		Search is case-sensitive unless changed with -i or -I.
         A search pattern may begin with one or more of:
         ^N or !  Search for NON-matching lines.
         ^E or *  Search multiple files (pass thru END OF FILE).
@@ -221,6 +225,8 @@
                   Automatically determine the size of the input file.
                 --follow-name
                   The F command changes files if the input file is renamed.
+                --form-feed
+                  Stop scrolling when a form feed character is reached.
                 --header=[_L[,_C[,_N]]]
                   Use _L lines (starting at line _N) and _C columns as headers.
                 --incsearch
@@ -239,12 +245,16 @@
                   Read _N lines from the input file and look for vim modelines.
                 --mouse
                   Enable mouse input.
+                --no-edit-warn
+                  Don't warn when using v command on a file opened via LESSOPEN.
                 --no-keypad
                   Don't send termcap keypad init/deinit strings.
                 --no-histdups
                   Remove duplicates from command history.
                 --no-number-headers
                   Don't give line numbers to header lines.
+                --no-paste
+                  Ignore pasted input.
                 --no-search-header-lines
                   Searches do not include header lines.
                 --no-search-header-columns

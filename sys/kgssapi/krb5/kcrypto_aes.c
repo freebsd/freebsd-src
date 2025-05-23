@@ -116,19 +116,23 @@ aes_random_to_key(struct krb5_key_state *ks, const void *in)
 static int
 aes_crypto_cb(struct cryptop *crp)
 {
-	int error;
 	struct aes_state *as = (struct aes_state *) crp->crp_opaque;
 
-	if (CRYPTO_SESS_SYNC(crp->crp_session))
+	if (CRYPTO_SESS_SYNC(crp->crp_session)) {
+		KASSERT(crp->crp_etype == 0,
+		    ("%s: callback with error %d", __func__, crp->crp_etype));
 		return (0);
+	}
 
-	error = crp->crp_etype;
-	if (error == EAGAIN)
-		error = crypto_dispatch(crp);
-	mtx_lock(&as->as_lock);
-	if (error || (crp->crp_flags & CRYPTO_F_DONE))
+	if (crp->crp_etype == EAGAIN) {
+		crp->crp_etype = 0;
+		(void)crypto_dispatch(crp);
+	} else {
+		mtx_lock(&as->as_lock);
+		crp->crp_opaque = NULL;
 		wakeup(crp);
-	mtx_unlock(&as->as_lock);
+		mtx_unlock(&as->as_lock);
+	}
 
 	return (0);
 }
@@ -164,11 +168,12 @@ aes_encrypt_1(const struct krb5_key_state *ks, int buftype, void *buf,
 
 	if (!CRYPTO_SESS_SYNC(as->as_session_aes)) {
 		mtx_lock(&as->as_lock);
-		if (!error && !(crp->crp_flags & CRYPTO_F_DONE))
+		if (error == 0 && crp->crp_opaque != NULL)
 			error = msleep(crp, &as->as_lock, 0, "gssaes", 0);
 		mtx_unlock(&as->as_lock);
 	}
-
+	if (crp->crp_etype != 0)
+		panic("%s: crypto req failed: %d", __func__, crp->crp_etype);
 	crypto_freereq(crp);
 }
 
@@ -334,11 +339,13 @@ aes_checksum(const struct krb5_key_state *ks, int usage,
 
 	if (!CRYPTO_SESS_SYNC(as->as_session_sha1)) {
 		mtx_lock(&as->as_lock);
-		if (!error && !(crp->crp_flags & CRYPTO_F_DONE))
+		if (error == 0 && crp->crp_opaque != NULL)
 			error = msleep(crp, &as->as_lock, 0, "gssaes", 0);
 		mtx_unlock(&as->as_lock);
 	}
 
+	if (crp->crp_etype != 0)
+		panic("%s: crypto req failed: %d", __func__, crp->crp_etype);
 	crypto_freereq(crp);
 }
 

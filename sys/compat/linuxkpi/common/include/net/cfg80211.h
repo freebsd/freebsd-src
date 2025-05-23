@@ -744,6 +744,8 @@ struct linuxkpi_ieee80211_regdomain {
 #define	IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_4	0x20
 #define	IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_MASK	0x40
 #define	IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_MASK	0x80
+#define	IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_5		0x80
+#define	IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_5		0x80
 
 #define	IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_2	0x1
 #define	IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_2	0x2
@@ -931,11 +933,6 @@ struct ieee80211_he_obss_pd {
 	uint8_t					partial_bssid_bitmap[8];
 };
 
-struct ieee80211_sta_he_6ghz_capa {
-	/* TODO FIXME */
-	int	capa;
-};
-
 struct ieee80211_eht_mcs_nss_supp_20mhz_only {
 	union {
 		struct {
@@ -989,7 +986,7 @@ struct ieee80211_sband_iftype_data {
 	/* TODO FIXME */
 	enum nl80211_iftype			types_mask;
 	struct ieee80211_sta_he_cap		he_cap;
-	struct ieee80211_sta_he_6ghz_capa	he_6ghz_capa;
+	struct ieee80211_he_6ghz_capa		he_6ghz_capa;
 	struct ieee80211_sta_eht_cap		eht_cap;
 	struct {
 		const uint8_t			*data;
@@ -1182,6 +1179,18 @@ enum cfg80211_regulatory {
 	REGULATORY_COUNTRY_IE_FOLLOW_POWER	= BIT(6),
 };
 
+struct wiphy_radio_freq_range {
+	uint32_t				start_freq;
+	uint32_t				end_freq;
+};
+
+struct wiphy_radio {
+	int					n_freq_range;
+	int					n_iface_combinations;
+	const struct wiphy_radio_freq_range	*freq_range;
+	const struct ieee80211_iface_combination *iface_combinations;
+};
+
 enum wiphy_flags {
 	WIPHY_FLAG_AP_UAPSD			= BIT(0),
 	WIPHY_FLAG_HAS_CHANNEL_SWITCH		= BIT(1),
@@ -1246,6 +1255,9 @@ struct wiphy {
 	uint8_t					available_antennas_rx;
 	uint8_t					available_antennas_tx;
 
+	int					n_radio;
+	const struct wiphy_radio		*radio;
+
 	int	features, hw_version;
 	int	interface_modes, max_match_sets, max_remain_on_channel_duration, max_scan_ssids, max_sched_scan_ie_len, max_sched_scan_plan_interval, max_sched_scan_plan_iterations, max_sched_scan_plans, max_sched_scan_reqs, max_sched_scan_ssids;
 	int	num_iftype_ext_capab;
@@ -1259,6 +1271,7 @@ struct wiphy {
 
 	unsigned long				ext_features[BITS_TO_LONGS(NUM_NL80211_EXT_FEATURES)];
 	struct dentry				*debugfsdir;
+
 	const struct wiphy_wowlan_support	*wowlan;
 	struct cfg80211_wowlan			*wowlan_config;
 	/* Lower layer (driver/mac80211) specific data. */
@@ -1271,8 +1284,9 @@ struct wiphy {
 
 struct wireless_dev {
 		/* XXX TODO, like ic? */
-	int		iftype;
-	int     address;
+	enum nl80211_iftype			iftype;
+	uint32_t				radio_mask;
+	uint8_t					address[ETH_ALEN];
 	struct net_device			*netdev;
 	struct wiphy				*wiphy;
 };
@@ -1540,6 +1554,43 @@ cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
 		chandef->center_freq1 += 10;
 		break;
 	};
+}
+
+static __inline bool
+cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
+{
+	TODO();
+	return (false);
+}
+
+static __inline bool
+cfg80211_chandef_dfs_usable(struct wiphy *wiphy, const struct cfg80211_chan_def *chandef)
+{
+	TODO();
+	return (false);
+}
+
+static __inline unsigned int
+cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy, const struct cfg80211_chan_def *chandef)
+{
+	TODO();
+	return (0);
+}
+
+static __inline bool
+cfg80211_chandef_identical(const struct cfg80211_chan_def *chandef_1,
+    const struct cfg80211_chan_def *chandef_2)
+{
+	TODO();
+	return (false);
+}
+
+static __inline bool
+cfg80211_chandef_usable(struct wiphy *wiphy,
+    const struct cfg80211_chan_def *chandef, uint32_t flags)
+{
+	TODO();
+	return (false);
 }
 
 static __inline void
@@ -2077,27 +2128,6 @@ cfg80211_find_ext_ie(uint8_t eid, const uint8_t *p, size_t len)
 	return (NULL);
 }
 
-static __inline bool
-cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
-{
-	TODO();
-	return (false);
-}
-
-static __inline bool
-cfg80211_chandef_dfs_usable(struct wiphy *wiphy, const struct cfg80211_chan_def *chandef)
-{
-	TODO();
-	return (false);
-}
-
-static __inline unsigned int
-cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy, const struct cfg80211_chan_def *chandef)
-{
-	TODO();
-	return (0);
-}
-
 static inline void
 _ieee80211_set_sband_iftype_data(struct ieee80211_supported_band *band,
     struct ieee80211_sband_iftype_data *iftype_data, size_t nitems)
@@ -2187,6 +2217,14 @@ cfg80211_get_iftype_ext_capa(struct wiphy *wiphy, enum nl80211_iftype iftype)
 
 	TODO();
 	return (NULL);
+}
+
+static inline uint16_t
+ieee80211_get_he_6ghz_capa(const struct ieee80211_supported_band *sband,
+    enum nl80211_iftype iftype)
+{
+	TODO();
+	return (0);
 }
 
 static inline int
@@ -2281,9 +2319,9 @@ wiphy_delayed_work_cancel(struct wiphy *wiphy, struct wiphy_delayed_work *wdwk)
 #define	wiphy_err(_wiphy, _fmt, ...)					\
     dev_err((_wiphy)->dev, _fmt, __VA_ARGS__)
 #define	wiphy_info(wiphy, fmt, ...)					\
-    dev_info(&(wiphy)->dev, fmt, ##__VA_ARGS__)
+    dev_info((wiphy)->dev, fmt, ##__VA_ARGS__)
 #define	wiphy_info_once(wiphy, fmt, ...)				\
-    dev_info_once(&(wiphy)->dev, fmt, ##__VA_ARGS__)
+    dev_info_once((wiphy)->dev, fmt, ##__VA_ARGS__)
 
 #ifndef LINUXKPI_NET80211
 #define	ieee80211_channel		linuxkpi_ieee80211_channel

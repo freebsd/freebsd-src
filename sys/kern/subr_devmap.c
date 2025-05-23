@@ -249,44 +249,9 @@ devmap_vtop(void * vpva, vm_size_t size)
 void *
 pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
-	vm_offset_t va, offset;
-#ifdef __HAVE_STATIC_DEVMAP
-	void * rva;
-
-	/* First look in the static mapping table. */
-	if ((rva = devmap_ptov(pa, size)) != NULL)
-		return (rva);
-#endif
-
-	offset = pa & PAGE_MASK;
-	pa = trunc_page(pa);
-	size = round_page(size + offset);
-
-#if defined(__aarch64__) || defined(__riscv)
-	if (early_boot) {
-		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
-		va = akva_devmap_vaddr;
-		KASSERT(va >= VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE,
-		    ("Too many early devmap mappings"));
-	} else
-#endif
-#ifdef __aarch64__
-	if (size >= L2_SIZE && (pa & L2_OFFSET) == 0)
-		va = kva_alloc_aligned(size, L2_SIZE);
-	else if (size >= L3C_SIZE && (pa & L3C_OFFSET) == 0)
-		va = kva_alloc_aligned(size, L3C_SIZE);
-	else
-#endif
-		va = kva_alloc(size);
-	if (!va)
-		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
-
-	pmap_kenter_device(va, size, pa);
-
-	return ((void *)(va + offset));
+	return (pmap_mapdev_attr(pa, size, VM_MEMATTR_DEVICE));
 }
 
-#if defined(__aarch64__) || defined(__riscv)
 void *
 pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 {
@@ -294,21 +259,30 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 #ifdef __HAVE_STATIC_DEVMAP
 	void * rva;
 
-	/* First look in the static mapping table. */
-	if ((rva = devmap_ptov(pa, size)) != NULL)
+	/*
+	 * First look in the static mapping table. These are all mapped
+	 * as device memory, so only use the devmap for VM_MEMATTR_DEVICE.
+	 */
+	if ((rva = devmap_ptov(pa, size)) != NULL) {
+		KASSERT(ma == VM_MEMATTR_DEVICE,
+		    ("%s: Non-device mapping for pa %jx (type %x)", __func__,
+		    (uintmax_t)pa, ma));
 		return (rva);
+	}
 #endif
 
 	offset = pa & PAGE_MASK;
 	pa = trunc_page(pa);
 	size = round_page(size + offset);
 
+#ifdef PMAP_MAPDEV_EARLY_SIZE
 	if (early_boot) {
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
 		va = akva_devmap_vaddr;
-		KASSERT(va >= (VM_MAX_KERNEL_ADDRESS - (PMAP_MAPDEV_EARLY_SIZE)),
-		    ("Too many early devmap mappings 2"));
+		KASSERT(va >= (VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE),
+		    ("%s: Too many early devmap mappings", __func__));
 	} else
+#endif
 #ifdef __aarch64__
 	if (size >= L2_SIZE && (pa & L2_OFFSET) == 0)
 		va = kva_alloc_aligned(size, L2_SIZE);
@@ -324,7 +298,6 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t ma)
 
 	return ((void *)(va + offset));
 }
-#endif
 
 /*
  * Unmap device memory and free the kva space.

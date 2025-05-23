@@ -36,7 +36,7 @@
 .Nm
 .Op Fl
 .Oo
-.Fl c | Fl h | Fl p |
+.Fl c | Fl f | Fl h | Fl p |
 .Fl r | Fl k
 .Oc
 .Oo
@@ -71,6 +71,12 @@ At the present time, only systems with BMC supported by the
 driver that implement this functionality support this flag.
 The amount of time the system is off is dependent on the device
 that implements this feature.
+.It Fl f
+The
+.Nm
+command ignores the presence of the
+.Pa /var/run/noshutdown
+file.
 .It Fl h
 The system is halted at the specified
 .Ar time .
@@ -206,6 +212,12 @@ file that
 .Nm
 created will be removed automatically.
 .Pp
+If the
+.Pa /var/run/noshutdown
+file is present,
+.Nm
+exits without executing any action on the system.
+.Pp
 When run without options, the
 .Nm
 utility will place the system into single user mode at the
@@ -219,11 +231,18 @@ is equivalent to running:
 shutdown -p now
 .Ed
 .Sh FILES
-.Bl -tag -width /var/run/nologin -compact
+.Bl -tag -width /var/run/noshutdown -compact
 .It Pa /var/run/nologin
 tells
 .Xr login 1
 not to let anyone log in
+.It Pa /var/run/noshutdown
+prevents
+.Nm
+from initiating an action on the system.
+Can be overridden with the
+.Fl f
+option.
 .El
 .Sh EXAMPLES
 Reboot the system in 30 minutes and display a warning message on the terminals
