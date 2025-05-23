@@ -566,7 +566,6 @@ DIRDEPS+= \
 	usr.sbin/jls \
 	usr.sbin/kbdcontrol \
 	usr.sbin/kbdmap \
-	usr.sbin/keyserv \
 	usr.sbin/kldxref \
 	usr.sbin/lastlogin \
 	usr.sbin/lmcconfig \
