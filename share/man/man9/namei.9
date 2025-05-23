@@ -281,6 +281,15 @@ The flag is used to implement
 .Dv O_RESOLVE_BENEATH
 flag for
 .Xr openat 2 .
+.It Dv NAMEILOOKUP
+The component is embedded in a
+.Nm
+lookup structure, and the
+.Fn vfs_lookup_nameidata
+function can be used to obtain that structure.
+This can be useful in
+.Xr VOP_LOOKUP 9
+implementations which need to obtain extra lookup metadata.
 .El
 .Sh PARAMETERS DESCRIPTORS FLAGS
 These flags are used for several purposes.
