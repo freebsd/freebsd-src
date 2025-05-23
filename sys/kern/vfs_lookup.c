@@ -530,12 +530,12 @@ namei(struct nameidata *ndp)
 	cnp->cn_origflags = cnp->cn_flags;
 #endif
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
-	KASSERT(ndp->ni_resflags == 0, ("%s: garbage in ni_resflags: %x\n",
+	KASSERT(ndp->ni_resflags == 0, ("%s: garbage in ni_resflags: %x",
 	    __func__, ndp->ni_resflags));
 	KASSERT(cnp->cn_cred && td->td_proc, ("namei: bad cred/proc"));
 	KASSERT((cnp->cn_flags & NAMEI_INTERNAL_FLAGS) == 0,
-	    ("namei: unexpected flags: %" PRIx64 "\n",
-	    cnp->cn_flags & NAMEI_INTERNAL_FLAGS));
+	    ("namei: unexpected flags: %#jx",
+	    (uintmax_t)(cnp->cn_flags & NAMEI_INTERNAL_FLAGS)));
 	if (cnp->cn_flags & NOCACHE)
 		KASSERT(cnp->cn_nameiop != LOOKUP,
 		    ("%s: NOCACHE passed with LOOKUP", __func__));
@@ -761,6 +761,31 @@ needs_exclusive_leaf(struct mount *mp, int flags)
 _Static_assert(MAXNAMLEN == NAME_MAX,
     "MAXNAMLEN and NAME_MAX have different values");
 
+
+struct nameidata *
+lookup_nameidata(struct componentname *cnp)
+{
+	if ((cnp->cn_flags & NAMEILOOKUP) == 0)
+		return (NULL);
+	return (__containerof(cnp, struct nameidata, ni_cnd));
+}
+
+/*
+ * Would a dotdot lookup relative to dvp cause this lookup to cross a jail or
+ * chroot boundary?
+ */
+bool
+lookup_isroot(struct nameidata *ndp, struct vnode *dvp)
+{
+	for (struct prison *pr = ndp->ni_cnd.cn_cred->cr_prison; pr != NULL;
+	    pr = pr->pr_parent) {
+		if (dvp == pr->pr_root)
+			return (true);
+	}
+	return (dvp == ndp->ni_rootdir || dvp == ndp->ni_topdir ||
+	    dvp == rootvnode);
+}
+
 /*
  * Search a pathname.
  * This is a very central and rather complicated routine.
@@ -808,7 +833,6 @@ lookup(struct nameidata *ndp)
 	struct vnode *dp = NULL;	/* the directory we are searching */
 	struct vnode *tdp;		/* saved dp */
 	struct mount *mp;		/* mount table entry */
-	struct prison *pr;
 	size_t prev_ni_pathlen;		/* saved ndp->ni_pathlen */
 	int docache;			/* == 0 do not cache last component */
 	int wantparent;			/* 1 => wantparent or lockparent flag */
@@ -1008,15 +1032,11 @@ dirloop:
 			goto bad;
 		}
 		for (;;) {
-			for (pr = cnp->cn_cred->cr_prison; pr != NULL;
-			     pr = pr->pr_parent)
-				if (dp == pr->pr_root)
-					break;
-			bool isroot = dp == ndp->ni_rootdir ||
-			    dp == ndp->ni_topdir || dp == rootvnode ||
-			    pr != NULL;
-			if (isroot && (ndp->ni_lcf &
-			    NI_LCF_STRICTRELATIVE) != 0) {
+			bool isroot;
+
+			isroot = lookup_isroot(ndp, dp);
+			if (__predict_false(isroot && (ndp->ni_lcf &
+			    NI_LCF_STRICTRELATIVE) != 0)) {
 				error = ENOTCAPABLE;
 				goto capdotdot;
 			}
