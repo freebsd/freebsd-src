@@ -1329,25 +1329,6 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		return (EINVAL);
 	}
 
-	/*
-	 * If member_ifaddrs is disabled, do not allow an interface with
-	 * assigned IP addresses to be added to a bridge.
-	 */
-	if (!V_member_ifaddrs) {
-		struct ifaddr *ifa;
-
-		CK_STAILQ_FOREACH(ifa, &ifs->if_addrhead, ifa_link) {
-#ifdef INET
-			if (ifa->ifa_addr->sa_family == AF_INET)
-				return (EINVAL);
-#endif
-#ifdef INET6
-			if (ifa->ifa_addr->sa_family == AF_INET6)
-				return (EINVAL);
-#endif
-		}
-	}
-
 #ifdef INET6
 	/*
 	 * Two valid inet6 addresses with link-local scope must not be
@@ -1386,6 +1367,26 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		}
 	}
 #endif
+
+	/*
+	 * If member_ifaddrs is disabled, do not allow an interface with
+	 * assigned IP addresses to be added to a bridge.
+	 */
+	if (!V_member_ifaddrs) {
+		struct ifaddr *ifa;
+
+		CK_STAILQ_FOREACH(ifa, &ifs->if_addrhead, ifa_link) {
+#ifdef INET
+			if (ifa->ifa_addr->sa_family == AF_INET)
+				return (EINVAL);
+#endif
+#ifdef INET6
+			if (ifa->ifa_addr->sa_family == AF_INET6)
+				return (EINVAL);
+#endif
+		}
+	}
+
 	/* Allow the first Ethernet member to define the MTU */
 	if (CK_LIST_EMPTY(&sc->sc_iflist))
 		sc->sc_ifp->if_mtu = ifs->if_mtu;
