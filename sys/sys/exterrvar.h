@@ -26,6 +26,13 @@ struct uexterror {
 	char msg[128];
 };
 
+#define	UEXTERROR_VER		0x10010001
+
+#define	EXTERRCTL_ENABLE	1
+#define	EXTERRCTL_DISABLE	2
+
+#define	EXTERRCTLF_FORCE	0x00000001
+
 #ifdef _KERNEL
 
 #ifndef EXTERR_CATEGORY
@@ -52,6 +59,12 @@ struct uexterror {
 } while (0)
 #define	SET_ERROR0(eerror, mmsg)	SET_ERROR2(eerror, mmsg, 0, 0)
 #define	SET_ERROR1(eerror, mmsg, pp1)	SET_ERROR2(eerror, mmsg, pp1, 0)
+
+#else	/* _KERNEL */
+
+__BEGIN_DECLS
+int exterrctl(u_int op, u_int flags, void *ptr);
+__END_DECLS
 
 #endif	/* _KERNEL */
 

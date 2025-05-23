@@ -343,6 +343,7 @@ struct thread {
 	void		*td_sigblock_ptr; /* (k) uptr for fast sigblock. */
 	uint32_t	td_sigblock_val;  /* (k) fast sigblock value read at
 					     td_sigblock_ptr on kern entry */
+	void		*td_exterr_ptr;
 #define	td_endcopy td_pcb
 
 /*
@@ -572,6 +573,7 @@ enum {
 #define	TDP2_ACCT	0x00000004 /* Doing accounting */
 #define	TDP2_SAN_QUIET	0x00000008 /* Disable warnings from K(A|M)SAN */
 #define	TDP2_EXTERR	0x00000010 /* Kernel reported ext error */
+#define	TDP2_UEXTERR	0x00000020 /* User set ext error reporting ptr */
 
 /*
  * Reasons that the current thread can not be run yet.
