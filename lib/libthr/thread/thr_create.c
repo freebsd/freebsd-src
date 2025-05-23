@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/rtprio.h>
 #include <sys/signalvar.h>
+#include <sys/exterrvar.h>
 #include <errno.h>
 #include <link.h>
 #include <stdlib.h>
@@ -284,6 +285,9 @@ thread_start(struct pthread *curthread)
 	curthread->unwind_stackend = (char *)curthread->attr.stackaddr_attr +
 		curthread->attr.stacksize_attr;
 #endif
+
+	curthread->uexterr.ver = UEXTERROR_VER;
+	exterrctl(EXTERRCTL_ENABLE, 0, &curthread->uexterr);
 
 	/* Run the current thread's start routine with argument: */
 	_pthread_exit(curthread->start_routine(curthread->arg));

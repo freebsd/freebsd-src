@@ -433,6 +433,9 @@ init_main_thread(struct pthread *thread)
 	thread->unwind_stackend = _usrstack;
 #endif
 
+	thread->uexterr.ver = UEXTERROR_VER;
+	exterrctl(EXTERRCTL_ENABLE, EXTERRCTLF_FORCE, &thread->uexterr);
+
 	/* Others cleared to zero by thr_alloc() */
 }
 

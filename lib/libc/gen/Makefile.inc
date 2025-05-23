@@ -159,6 +159,7 @@ SRCS+= \
 	ttyname.c \
 	ttyslot.c \
 	ualarm.c \
+	uexterr_gettext.c \
 	ulimit.c \
 	uname.c \
 	unvis-compat.c \
