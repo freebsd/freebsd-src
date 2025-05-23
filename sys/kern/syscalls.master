@@ -3349,5 +3349,11 @@
 		    size_t size
 		);
 	}
-
+592	AUE_NULL	STD {
+		int exterrctl(
+		    u_int op,
+		    u_int flags,
+		    _In_reads_bytes_(4) void *ptr
+		);
+	}
 ; vim: syntax=off
