@@ -46,12 +46,28 @@ __dup3(int oldfd, int newfd, int flags)
 		return (-1);
 	}
 
-	if (flags & ~O_CLOEXEC) {
+	if ((flags & ~(O_CLOEXEC | O_CLOFORK)) != 0) {
 		errno = EINVAL;
 		return (-1);
 	}
 
-	how = (flags & O_CLOEXEC) ? F_DUP2FD_CLOEXEC : F_DUP2FD;
+	switch (flags & (O_CLOEXEC | O_CLOFORK)) {
+	case O_CLOEXEC | O_CLOFORK:
+		how = F_DUP2FD_CLOBOTH;
+		break;
+	case O_CLOEXEC:
+		how = F_DUP2FD_CLOEXEC;
+		break;
+	case O_CLOFORK:
+		how = F_DUP2FD_CLOFORK;
+		break;
+	case 0:
+		how = F_DUP2FD;
+		break;
+	default:
+		errno = EINVAL;
+		return (-1);
+	}
 
 	return (_fcntl(oldfd, how, newfd));
 }
