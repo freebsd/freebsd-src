@@ -569,7 +569,7 @@ yesno:
 	case _SC_IPV6:
 #if _POSIX_IPV6 == 0
 		sverrno = errno;
-		value = _socket(PF_INET6, SOCK_DGRAM, 0);
+		value = _socket(PF_INET6, SOCK_CLOEXEC | SOCK_DGRAM, 0);
 		errno = sverrno;
 		if (value >= 0) {
 			_close(value);
