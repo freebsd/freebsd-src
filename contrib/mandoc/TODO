@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.335 2024/09/21 12:08:54 schwarze Exp $
+* $Id: TODO,v 1.337 2025/04/08 21:53:14 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -233,6 +233,11 @@ are mere guesses, and some may be wrong.
   loc *  exist **  algo ***  size *  imp **
 
 --- missing man features -----------------------------------------------
+
+- When calling less(1), specify -P to print "name(sec) lines ..."
+  in the bottom line instead of "/tmp/man..."
+  Jan Engelhardt (SuSE) via Matej Cepl 06 Apr 2025 14:42:52 +0200
+  loc *  exist *  algo *  size *  imp **
 
 - MANWIDTH
   Markus Waldeck <waldeck at gmx dot de> 9 Jun 2015 05:49:56 +0200
@@ -482,6 +487,10 @@ are mere guesses, and some may be wrong.
 - formatting /usr/local/man/man1/latex2man.1 with groff and mandoc
   reveals lots of bugs both in groff and mandoc...
   reported by bentley@  Wed, 22 May 2013 23:49:30 -0600
+
+- Make an underlined blank an underscore rather than a blank in both
+  groff and mandoc terminal output (likely tricky, needs investigation)
+  job@  21 Jan 2025 18:03:52 +0000
 
 --- PostScript and PDF issues ------------------------------------------
 
