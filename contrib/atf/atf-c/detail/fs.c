@@ -54,70 +54,12 @@
  * Prototypes for auxiliary functions.
  * --------------------------------------------------------------------- */
 
-static bool check_umask(const mode_t, const mode_t);
 static atf_error_t copy_contents(const atf_fs_path_t *, char **);
-static mode_t current_umask(void);
 static atf_error_t do_mkdtemp(char *);
 static atf_error_t normalize(atf_dynstr_t *, char *);
 static atf_error_t normalize_ap(atf_dynstr_t *, const char *, va_list);
 static void replace_contents(atf_fs_path_t *, const char *);
 static const char *stat_type_to_string(const int);
-
-/* ---------------------------------------------------------------------
- * The "invalid_umask" error type.
- * --------------------------------------------------------------------- */
-
-struct invalid_umask_error_data {
-    /* One of atf_fs_stat_*_type. */
-    int m_type;
-
-    /* The original path causing the error. */
-    /* XXX: Ideally this would be an atf_fs_path_t, but if we create it
-     * from the error constructor, we cannot delete the path later on.
-     * Can't remember why atf_error_new does not take a hook for
-     * deletion. */
-    char m_path[1024];
-
-    /* The umask that caused the error. */
-    mode_t m_umask;
-};
-typedef struct invalid_umask_error_data invalid_umask_error_data_t;
-
-static
-void
-invalid_umask_format(const atf_error_t err, char *buf, size_t buflen)
-{
-    const invalid_umask_error_data_t *data;
-
-    PRE(atf_error_is(err, "invalid_umask"));
-
-    data = atf_error_data(err);
-    snprintf(buf, buflen, "Could not create the temporary %s %s because "
-             "it will not have enough access rights due to the current "
-             "umask %05o", stat_type_to_string(data->m_type),
-             data->m_path, (unsigned int)data->m_umask);
-}
-
-static
-atf_error_t
-invalid_umask_error(const atf_fs_path_t *path, const int type,
-                    const mode_t failing_mask)
-{
-    atf_error_t err;
-    invalid_umask_error_data_t data;
-
-    data.m_type = type;
-
-    strncpy(data.m_path, atf_fs_path_cstring(path), sizeof(data.m_path));
-    data.m_path[sizeof(data.m_path) - 1] = '\0';
-
-    data.m_umask = failing_mask;
-
-    err = atf_error_new("invalid_umask", &data, sizeof(data),
-                        invalid_umask_format);
-
-    return err;
-}
 
 /* ---------------------------------------------------------------------
  * The "unknown_file_type" error type.
@@ -163,14 +105,6 @@ unknown_type_error(const char *path, int type)
  * --------------------------------------------------------------------- */
 
 static
-bool
-check_umask(const mode_t exp_mode, const mode_t min_mode)
-{
-    const mode_t actual_mode = (~current_umask() & exp_mode);
-    return (actual_mode & min_mode) == min_mode;
-}
-
-static
 atf_error_t
 copy_contents(const atf_fs_path_t *p, char **buf)
 {
@@ -187,15 +121,6 @@ copy_contents(const atf_fs_path_t *p, char **buf)
     }
 
     return err;
-}
-
-static
-mode_t
-current_umask(void)
-{
-    const mode_t current = umask(0);
-    (void)umask(current);
-    return current;
 }
 
 static
@@ -794,11 +719,10 @@ atf_fs_mkdtemp(atf_fs_path_t *p)
 {
     atf_error_t err;
     char *buf;
+    mode_t mask;
 
-    if (!check_umask(S_IRWXU, S_IRWXU)) {
-        err = invalid_umask_error(p, atf_fs_stat_dir_type, current_umask());
-        goto out;
-    }
+    mask = umask(0);
+    umask(mask & 077);
 
     err = copy_contents(p, &buf);
     if (atf_is_error(err))
@@ -814,6 +738,7 @@ atf_fs_mkdtemp(atf_fs_path_t *p)
 out_buf:
     free(buf);
 out:
+    umask(mask);
     return err;
 }
 
@@ -823,11 +748,10 @@ atf_fs_mkstemp(atf_fs_path_t *p, int *fdout)
     atf_error_t err;
     char *buf;
     int fd;
+    mode_t mask;
 
-    if (!check_umask(S_IRWXU, S_IRWXU)) {
-        err = invalid_umask_error(p, atf_fs_stat_reg_type, current_umask());
-        goto out;
-    }
+    mask = umask(0);
+    umask(mask & 077);
 
     err = copy_contents(p, &buf);
     if (atf_is_error(err))
@@ -844,6 +768,7 @@ atf_fs_mkstemp(atf_fs_path_t *p, int *fdout)
 out_buf:
     free(buf);
 out:
+    umask(mask);
     return err;
 }
 

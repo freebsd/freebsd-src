@@ -896,25 +896,25 @@ ATF_TC_BODY(mkdtemp_err, tc)
 static
 void
 do_umask_check(atf_error_t (*const mk_func)(atf_fs_path_t *),
-               atf_fs_path_t *path, const mode_t test_mask,
-               const char *str_mask, const char *exp_name)
+               atf_error_t (*const rm_func)(const atf_fs_path_t *),
+               atf_fs_path_t *tmpl, const mode_t test_mask,
+               const char *exp_name)
 {
-    char buf[1024];
-    int old_umask;
+    atf_fs_path_t path;
+    int pre_mask, post_mask;
     atf_error_t err;
 
-    printf("Creating temporary %s with umask %s\n", exp_name, str_mask);
+    printf("Creating temporary %s with umask %05o\n", exp_name, test_mask);
 
-    old_umask = umask(test_mask);
-    err = mk_func(path);
-    (void)umask(old_umask);
+    RE(atf_fs_path_copy(&path, tmpl));
 
-    ATF_REQUIRE(atf_is_error(err));
-    ATF_REQUIRE(atf_error_is(err, "invalid_umask"));
-    atf_error_format(err, buf, sizeof(buf));
-    ATF_CHECK(strstr(buf, exp_name) != NULL);
-    ATF_CHECK(strstr(buf, str_mask) != NULL);
-    atf_error_free(err);
+    pre_mask = umask(test_mask);
+    err = mk_func(&path);
+    post_mask = umask(pre_mask);
+
+    ATF_REQUIRE(!atf_is_error(err));
+    ATF_CHECK_EQ(post_mask, test_mask);
+    RE(rm_func(&path));
 }
 
 ATF_TC(mkdtemp_umask);
@@ -929,11 +929,11 @@ ATF_TC_BODY(mkdtemp_umask, tc)
 
     RE(atf_fs_path_init_fmt(&p, "testdir.XXXXXX"));
 
-    do_umask_check(atf_fs_mkdtemp, &p, 00100, "00100", "directory");
-    do_umask_check(atf_fs_mkdtemp, &p, 00200, "00200", "directory");
-    do_umask_check(atf_fs_mkdtemp, &p, 00400, "00400", "directory");
-    do_umask_check(atf_fs_mkdtemp, &p, 00500, "00500", "directory");
-    do_umask_check(atf_fs_mkdtemp, &p, 00600, "00600", "directory");
+    do_umask_check(atf_fs_mkdtemp, atf_fs_rmdir, &p, 00100, "directory");
+    do_umask_check(atf_fs_mkdtemp, atf_fs_rmdir, &p, 00200, "directory");
+    do_umask_check(atf_fs_mkdtemp, atf_fs_rmdir, &p, 00400, "directory");
+    do_umask_check(atf_fs_mkdtemp, atf_fs_rmdir, &p, 00500, "directory");
+    do_umask_check(atf_fs_mkdtemp, atf_fs_rmdir, &p, 00600, "directory");
 
     atf_fs_path_fini(&p);
 }
@@ -1039,9 +1039,9 @@ ATF_TC_BODY(mkstemp_umask, tc)
 
     RE(atf_fs_path_init_fmt(&p, "testfile.XXXXXX"));
 
-    do_umask_check(mkstemp_discard_fd, &p, 00100, "00100", "regular file");
-    do_umask_check(mkstemp_discard_fd, &p, 00200, "00200", "regular file");
-    do_umask_check(mkstemp_discard_fd, &p, 00400, "00400", "regular file");
+    do_umask_check(mkstemp_discard_fd, atf_fs_unlink, &p, 00100, "regular file");
+    do_umask_check(mkstemp_discard_fd, atf_fs_unlink, &p, 00200, "regular file");
+    do_umask_check(mkstemp_discard_fd, atf_fs_unlink, &p, 00400, "regular file");
 
     atf_fs_path_fini(&p);
 }
