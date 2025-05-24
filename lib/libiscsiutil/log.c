@@ -207,6 +207,12 @@ log_warnx(const char *fmt, ...)
 }
 
 void
+log_vwarnx(const char *fmt, va_list ap)
+{
+	log_common(LOG_WARNING, -1, fmt, ap);
+}
+
+void
 log_debugx(const char *fmt, ...)
 {
 	va_list ap;
