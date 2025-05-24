@@ -206,8 +206,6 @@ struct carpkreq {
  *
  * Known issues with locking:
  *
- * - Sending ad, we put the pointer to the softc in an mtag, and no reference
- *   counting is done on the softc.
  * - On module unload we may race (?) with packet processing thread
  *   dereferencing our function pointers.
  */
@@ -1688,6 +1686,7 @@ char *
 carp_macmatch6(struct ifnet *ifp, struct mbuf *m, const struct in6_addr *taddr)
 {
 	struct ifaddr *ifa;
+	char *mac = NULL;
 
 	NET_EPOCH_ASSERT();
 
@@ -1698,18 +1697,26 @@ carp_macmatch6(struct ifnet *ifp, struct mbuf *m, const struct in6_addr *taddr)
 			struct m_tag *mtag;
 
 			mtag = m_tag_get(PACKET_TAG_CARP,
-			    sizeof(struct carp_softc *), M_NOWAIT);
-			if (mtag == NULL)
-				/* Better a bit than nothing. */
-				return (sc->sc_addr);
+			    sizeof(sc->sc_vhid) + sizeof(sc->sc_addr),
+			    M_NOWAIT);
+			if (mtag == NULL) {
+				CARPSTATS_INC(carps_onomem);
+				break;
+			}
+			/* carp_output expects sc_vhid first. */
+			bcopy(&sc->sc_vhid, mtag + 1, sizeof(sc->sc_vhid));
+			/*
+			 * Save sc_addr into mtag data after sc_vhid to avoid
+			 * possible access to destroyed softc.
+			 */
+			mac = (char *)(mtag + 1) + sizeof(sc->sc_vhid);
+			bcopy(sc->sc_addr, mac, sizeof(sc->sc_addr));
 
-			bcopy(&sc, mtag + 1, sizeof(sc));
 			m_tag_prepend(m, mtag);
-
-			return (sc->sc_addr);
+			break;
 		}
 
-	return (NULL);
+	return (mac);
 }
 #endif /* INET6 */
 
