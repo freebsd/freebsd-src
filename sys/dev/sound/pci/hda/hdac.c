@@ -1773,17 +1773,17 @@ hdac_detach(device_t dev)
 	struct hdac_softc *sc = device_get_softc(dev);
 	int i, error;
 
+	callout_drain(&sc->poll_callout);
+	hdac_irq_free(sc);
+	taskqueue_drain(taskqueue_thread, &sc->unsolq_task);
+
 	error = bus_generic_detach(dev);
 	if (error != 0)
 		return (error);
 
 	hdac_lock(sc);
-	callout_stop(&sc->poll_callout);
 	hdac_reset(sc, false);
 	hdac_unlock(sc);
-	callout_drain(&sc->poll_callout);
-	taskqueue_drain(taskqueue_thread, &sc->unsolq_task);
-	hdac_irq_free(sc);
 
 	for (i = 0; i < sc->num_ss; i++)
 		hdac_dma_free(sc, &sc->streams[i].bdl);
@@ -2206,4 +2206,4 @@ static driver_t hdac_driver = {
 	sizeof(struct hdac_softc),
 };
 
-DRIVER_MODULE(snd_hda, pci, hdac_driver, NULL, NULL);
+DRIVER_MODULE_ORDERED(snd_hda, pci, hdac_driver, NULL, NULL, SI_ORDER_ANY);
