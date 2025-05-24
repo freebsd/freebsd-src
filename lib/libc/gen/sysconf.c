@@ -34,6 +34,7 @@
 
 #include "namespace.h"
 #include <sys/param.h>
+#include <sys/exterrvar.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/resource.h>
@@ -602,6 +603,8 @@ yesno:
 			return (-1);
 		return ((long)value);
 #endif
+	case _SC_UEXTERR_MAXLEN:
+		return (UEXTERROR_MAXLEN);
 
 	default:
 		errno = EINVAL;
