@@ -1319,12 +1319,30 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	lhw = ic->ic_softc;
 	hw = LHW_TO_HW(lhw);
 	lvif = VAP_TO_LVIF(vap);
+	vif = LVIF_TO_VIF(lvif);
 
 	/*
 	 * Make sure we do not make it here without going through
 	 * lkpi_iv_key_update_begin() first.
 	 */
 	lockdep_assert_wiphy(hw->wiphy);
+
+	/*
+	 * While we are assoc we may still send packets.  We cannot delete the
+	 * keys as otherwise packets could go out unencrypted.  Some firmware
+	 * does not like this and will fire an assert.
+	 * net80211 needs to drive this better but given we want the disassoc
+	 * frame out and have to unlock we are open to a race currently.
+	 * This check should prevent problems.
+	 * How to test: run 800Mbit/s UDP traffic and during that restart your
+	 * supplicant.  You want to survive that.
+	 */
+	if (vif->cfg.assoc) {
+		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
+			ic_printf(ic, "%d %lu %s: vif still assoc; not deleting keys\n",
+			    curthread->td_tid, (unsigned long)jiffies, __func__);
+		return (0);
+	}
 
 	if (IEEE80211_KEY_UNDEFINED(k)) {
 		ic_printf(ic, "%s: vap %p key %p is undefined: %p %u\n",
@@ -1370,7 +1388,6 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
-	vif = LVIF_TO_VIF(lvif);
 	error = lkpi_80211_mo_set_key(hw, DISABLE_KEY, vif, sta, kc);
 	if (error != 0) {
 		ic_printf(ic, "%d %lu %s: set_key cmd %d(%s) for sta %6D failed: %d\n",
@@ -2785,6 +2802,14 @@ _lkpi_sta_assoc_to_down(struct ieee80211vap *vap, enum ieee80211_state nstate, i
 	bss_changed = 0;
 	bss_changed |= lkpi_disassoc(sta, vif, lhw);
 
+#ifdef LKPI_80211_HW_CRYPTO
+	/*
+	 * In theory we remove keys here but there must not exist any for this
+	 * state change until we clean them up again into small steps and no
+	 * code duplication.
+	 */
+#endif
+
 	lkpi_lsta_dump(lsta, ni, __func__, __LINE__);
 
 	/* Adjust sta and change state (from NONE) to NOTEXIST. */
@@ -3317,6 +3342,16 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 
 #ifdef LKPI_80211_HW_CRYPTO
 	if (lkpi_hwcrypto) {
+		/*
+		 * In theory we only need to do this if we changed assoc.
+		 * If we were not assoc, there should be no keys and we
+		 * should not be here.
+		 */
+#ifdef notyet
+		KASSERT((bss_changed & BSS_CHANGED_ASSOC) != 0, ("%s: "
+		    "trying to remove keys but were not assoc: %#010jx, lvif %p\n",
+		    __func__, (uintmax_t)bss_changed, lvif));
+#endif
 		error = lkpi_sta_del_keys(hw, vif, lsta);
 		if (error != 0) {
 			ic_printf(vap->iv_ic, "%s:%d: lkpi_sta_del_keys "
@@ -3378,6 +3413,9 @@ lkpi_sta_run_to_init(struct ieee80211vap *vap, enum ieee80211_state nstate, int 
 	 * 4) call unassign_vif_chanctx
 	 * 5) call lkpi_hw_conf_idle
 	 * 6) call remove_chanctx
+	 *
+	 * Note: vif->driver_flags & IEEE80211_VIF_REMOVE_AP_AFTER_DISASSOC
+	 * might change this.
 	 */
 	bss_changed |= lkpi_disassoc(sta, vif, lhw);
 
