@@ -1249,6 +1249,7 @@ setup_kbd_port(KBDC kbdc, int port, int intr)
 static int
 get_kbd_echo(KBDC kbdc)
 {
+	int data;
 	/* enable the keyboard port, but disable the keyboard intr. */
 	if (setup_kbd_port(kbdc, TRUE, FALSE))
 		/* CONTROLLER ERROR: there is very little we can do... */
@@ -1256,7 +1257,18 @@ get_kbd_echo(KBDC kbdc)
 
 	/* see if something is present */
 	write_kbd_command(kbdc, KBDC_ECHO);
-	if (read_kbd_data(kbdc) != KBD_ECHO) {
+	data = read_kbd_data(kbdc);
+
+	/*
+	 * Some i8042 falsely return KBD_ACK for ECHO comamnd.
+	 * Thought it is not a correct behavior for AT keyboard, we accept
+	 * and consume it to prevent resetting the whole keyboard after the
+	 * first interrupt.
+	 */
+	if (data == KBD_ACK)
+		data = read_kbd_data(kbdc);
+
+	if (data != KBD_ECHO) {
 		empty_both_buffers(kbdc, 10);
 		test_controller(kbdc);
 		test_kbd_port(kbdc);
