@@ -428,6 +428,19 @@ ieee80211_bg_scan(struct ieee80211vap *vap, int flags)
 
 	// IEEE80211_UNLOCK_ASSERT(sc);
 
+	/*
+	 * If the driver has not announced BGSCAN capabilities
+	 * or BGSCAN is disabled do not attempt to start a bg_scan.
+	 * IEEE80211_F_BGSCAN only gets set if IEEE80211_C_BGSCAN
+	 * was set by the driver, so no need to check for both here.
+	 */
+	if ((vap->iv_flags & IEEE80211_F_BGSCAN) == 0) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+		    "%s: BGSCAN not enabled; not starting bg_scan\n",
+		    __func__);
+		return (0);
+	}
+
 	scan = ieee80211_scanner_get(vap->iv_opmode);
 	if (scan == NULL) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,

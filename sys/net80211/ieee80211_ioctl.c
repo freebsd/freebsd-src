@@ -2598,6 +2598,18 @@ ieee80211_scanreq(struct ieee80211vap *vap, struct ieee80211_scan_req *sr)
 			return EINVAL;
 	/* cleanse flags just in case, could reject if invalid flags */
 	sr->sr_flags &= IEEE80211_IOC_SCAN_FLAGS;
+
+	/*
+	 * If the driver does not support BGSCAN, or BGSCAN is disabled
+	 * do not allow the IEEE80211_SCAN_BGSCAN flag to go through
+	 * to avoid accidentally enabling BGSCANs.
+	 * Also if not STA mode [see ieee80211_vap_setup()].
+	 */
+	if ((vap->iv_caps & IEEE80211_C_BGSCAN) == 0 ||
+	    (vap->iv_flags & IEEE80211_F_BGSCAN) == 0 ||
+	    vap->iv_opmode != IEEE80211_M_STA)
+		sr->sr_flags &= ~IEEE80211_IOC_SCAN_BGSCAN;
+
 	/*
 	 * Add an implicit NOPICK if the vap is not marked UP.  This
 	 * allows applications to scan without joining a bss (or picking

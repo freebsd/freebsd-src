@@ -201,7 +201,9 @@ ieee80211_swscan_start_scan_locked(const struct ieee80211_scanner *scan,
 				vap->iv_stats.is_scan_passive++;
 			if (flags & IEEE80211_SCAN_FLUSH)
 				ss->ss_ops->scan_flush(ss);
-			if (flags & IEEE80211_SCAN_BGSCAN)
+			/* Only BGSCAN if enabled and requested. */
+			if ((vap->iv_flags & IEEE80211_F_BGSCAN) != 0 &&
+			    (flags & IEEE80211_SCAN_BGSCAN) != 0)
 				ic->ic_flags_ext |= IEEE80211_FEXT_BGSCAN;
 
 			/* Set duration for this particular scan */
@@ -339,6 +341,10 @@ ieee80211_swscan_bg_scan(const struct ieee80211_scanner *scan,
 	// IEEE80211_UNLOCK_ASSERT(ic);
 
 	IEEE80211_LOCK(ic);
+	KASSERT((vap->iv_flags & IEEE80211_F_BGSCAN) != 0,
+	    ("%s: vap %p iv_flags %#010x no IEEE80211_F_BGSCAN set",
+	    __func__, vap, vap->iv_flags));
+
 	scanning = ic->ic_flags & IEEE80211_F_SCAN;
 	if (!scanning) {
 		u_int duration;
