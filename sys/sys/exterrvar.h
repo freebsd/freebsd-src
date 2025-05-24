@@ -26,6 +26,8 @@ struct uexterror {
 	char msg[128];
 };
 
+#define	UEXTERROR_MAXLEN	256
+
 #define	UEXTERROR_VER		0x10010001
 
 #define	EXTERRCTL_ENABLE	1
