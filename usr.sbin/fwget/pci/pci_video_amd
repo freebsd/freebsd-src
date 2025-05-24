@@ -138,6 +138,7 @@ pci_video_amd()
 		0x742*|0x743*)
 			addpkg "gpu-firmware-amd-kmod-beige-goby"
 			;;
+		# Navi 31
 		0x744c)
 			addpkg "gpu-firmware-amd-kmod-dcn-3-2-0"
 			addpkg "gpu-firmware-amd-kmod-gc-11-0-0"
@@ -146,6 +147,7 @@ pci_video_amd()
 			addpkg "gpu-firmware-amd-kmod-smu-13-0-0"
 			addpkg "gpu-firmware-amd-kmod-vcn-4-0-0"
 			;;
+		# Phoenix1
 		0x15bf)
 			addpkg "gpu-firmware-amd-kmod-gc-11-0-1"
 			addpkg "gpu-firmware-amd-kmod-psp-13-0-4"
@@ -153,6 +155,7 @@ pci_video_amd()
 			addpkg "gpu-firmware-amd-kmod-sdma-6-0-1"
 			addpkg "gpu-firmware-amd-kmod-vcn-4-0-2"
 			;;
+		# Phoenix2
 		0x15c8)
 			addpkg "gpu-firmware-amd-kmod-dcn-3-1-4"
 			addpkg "gpu-firmware-amd-kmod-gc-11-0-4"
@@ -160,6 +163,7 @@ pci_video_amd()
 			addpkg "gpu-firmware-amd-kmod-sdma-6-0-1"
 			addpkg "gpu-firmware-amd-kmod-vcn-4-0-2"
 			;;
+		# Raphael
 		0x164e)
 			addpkg "gpu-firmware-amd-kmod-gc-10-3-6"
 			addpkg "gpu-firmware-amd-kmod-psp-13-0-5"
