@@ -2466,12 +2466,12 @@ doxygen: .PHONY
 #
 # ------------------------------------------------------------------------
 #
-# From here onwards are utility targets used by the 'make world' and
+# From here onwards are utility targets used by the 'make buildworld' and
 # related targets.  If your 'world' breaks, you may like to try to fix
 # the problem and manually run the following targets to attempt to
 # complete the build.  Beware, this is *not* guaranteed to work, you
 # need to have a pretty good grip on the current state of the system
-# to attempt to manually finish it.  If in doubt, 'make world' again.
+# to attempt to manually finish it.  If in doubt, 'make buildworld' again.
 #
 
 #
