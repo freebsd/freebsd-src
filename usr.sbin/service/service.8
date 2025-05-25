@@ -45,6 +45,7 @@
 .Fl r
 .Nm
 .Op Fl j Ar jail
+.Op Fl q
 .Op Fl v
 .Op Fl E Ar var=value
 .Ar script
@@ -115,6 +116,8 @@ as in
 above, but list all of the files, not just what is enabled.
 .It Fl v
 Be slightly more verbose.
+.It Fl q
+Be quiet, redirecting output to /dev/null.
 .El
 .Sh ENVIRONMENT
 When used to run rc.d scripts the
