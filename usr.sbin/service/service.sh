@@ -44,7 +44,7 @@ usage () {
 	echo "-R		Stop and start enabled $local_startup services"
 	echo "-l		List all scripts in /etc/rc.d and $local_startup"
 	echo '-r		Show the results of boot time rcorder'
-	echo '-q	quiet'
+	echo '-q		quiet'
 	echo '-v		Verbose'
 	echo ''
 }
