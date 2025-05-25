@@ -1408,20 +1408,11 @@ wiphy_dev(struct wiphy *wiphy)
 	return (wiphy->dev);
 }
 
-#define	wiphy_dereference(wiphy, p)					\
-    rcu_dereference_check(p, lockdep_is_held(&(wiphy)->mtx))
+#define	wiphy_dereference(_w, p)					\
+    rcu_dereference_check(p, lockdep_is_held(&(_w)->mtx))
 
-static __inline void
-wiphy_lock(struct wiphy *wiphy)
-{
-	mutex_lock(&wiphy->mtx);
-}
-
-static __inline void
-wiphy_unlock(struct wiphy *wiphy)
-{
-	mutex_unlock(&wiphy->mtx);
-}
+#define	wiphy_lock(_w)		mutex_lock(&(_w)->mtx)
+#define	wiphy_unlock(_w)	mutex_unlock(&(_w)->mtx)
 
 static __inline void
 wiphy_rfkill_set_hw_state_reason(struct wiphy *wiphy, bool blocked,
