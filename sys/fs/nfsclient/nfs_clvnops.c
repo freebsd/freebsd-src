@@ -1421,6 +1421,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	NFSUNLOCKMNT(nmp);
 #endif
 
+	newvp = NULLVP;
 	NFSINCRGLOBAL(nfsstatsv1.lookupcache_misses);
 	nanouptime(&ts);
 	error = nfsrpc_lookup(dvp, cnp->cn_nameptr, cnp->cn_namelen,

@@ -299,7 +299,6 @@ static int	unp_connectat(int, struct socket *, struct sockaddr *,
 static void	unp_connect2(struct socket *, struct socket *, bool);
 static void	unp_disconnect(struct unpcb *unp, struct unpcb *unp2);
 static void	unp_dispose(struct socket *so);
-static void	unp_shutdown(struct unpcb *);
 static void	unp_drop(struct unpcb *);
 static void	unp_gc(__unused void *, int);
 static void	unp_scan(struct mbuf *, void (*)(struct filedescent **, int));
@@ -1009,10 +1008,10 @@ uipc_stream_sbcheck(struct sockbuf *sb)
 
 	dacc = dccc = dctl = dmbcnt = 0;
 	STAILQ_FOREACH(d, &sb->uxst_mbq, m_stailq) {
-		if (d == sb->uxst_fnrdy)
+		if (d == sb->uxst_fnrdy) {
+			MPASS(d->m_flags & M_NOTREADY);
 			notready = true;
-		if (notready)
-			MPASS(d->m_flags & (M_NOTREADY|M_BLOCKED));
+		}
 		if (d->m_type == MT_CONTROL)
 			dctl += d->m_len;
 		else if (d->m_type == MT_DATA) {
@@ -1304,6 +1303,55 @@ out:
 	return (error);
 }
 
+/*
+ * Our version of sowakeup(), used by recv(2) and shutdown(2).
+ *
+ * @param so	Points to a connected stream socket with receive buffer locked
+ *
+ * In a blocking mode peer is sleeping on our receive buffer, and we need just
+ * wakeup(9) on it.  But to wake up various event engines, we need to reach
+ * over to peer's selinfo.  This can be safely done as the socket buffer
+ * receive lock is protecting us from the peer going away.
+ */
+static void
+uipc_wakeup(struct socket *so)
+{
+	struct sockbuf *sb = &so->so_rcv;
+	struct selinfo *sel;
+
+	SOCK_RECVBUF_LOCK_ASSERT(so);
+	MPASS(sb->uxst_peer != NULL);
+
+	sel = &sb->uxst_peer->so_wrsel;
+
+	if (sb->uxst_flags & UXST_PEER_SEL) {
+		selwakeuppri(sel, PSOCK);
+		/*
+		 * XXXGL: sowakeup() does SEL_WAITING() without locks.
+		 */
+		if (!SEL_WAITING(sel))
+			sb->uxst_flags &= ~UXST_PEER_SEL;
+	}
+	if (sb->sb_flags & SB_WAIT) {
+		sb->sb_flags &= ~SB_WAIT;
+		wakeup(&sb->sb_acc);
+	}
+	KNOTE_LOCKED(&sel->si_note, 0);
+	SOCK_RECVBUF_UNLOCK(so);
+}
+
+static void
+uipc_cantrcvmore(struct socket *so)
+{
+
+	SOCK_RECVBUF_LOCK(so);
+	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
+	if (so->so_rcv.uxst_peer != NULL)
+		uipc_wakeup(so);
+	else
+		SOCK_RECVBUF_UNLOCK(so);
+}
+
 static int
 uipc_soreceive_stream_or_seqpacket(struct socket *so, struct sockaddr **psa,
     struct uio *uio, struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
@@ -1448,35 +1496,14 @@ restart:
 		MPASS(sb->sb_mbcnt >= mbcnt);
 		sb->sb_mbcnt -= mbcnt;
 		UIPC_STREAM_SBCHECK(sb);
-		/*
-		 * In a blocking mode peer is sleeping on our receive buffer,
-		 * and we need just wakeup(9) on it.  But to wake up various
-		 * event engines, we need to reach over to peer's selinfo.
-		 * This can be safely done as the socket buffer receive lock
-		 * is protecting us from the peer going away.
-		 */
 		if (__predict_true(sb->uxst_peer != NULL)) {
-			struct selinfo *sel = &sb->uxst_peer->so_wrsel;
 			struct unpcb *unp2;
 			bool aio;
 
 			if ((aio = sb->uxst_flags & UXST_PEER_AIO))
 				sb->uxst_flags &= ~UXST_PEER_AIO;
-			if (sb->uxst_flags & UXST_PEER_SEL) {
-				selwakeuppri(sel, PSOCK);
-				/*
-				 * XXXGL: sowakeup() does SEL_WAITING() without
-				 * locks.
-				 */
-				if (!SEL_WAITING(sel))
-					sb->uxst_flags &= ~UXST_PEER_SEL;
-			}
-			if (sb->sb_flags & SB_WAIT) {
-				sb->sb_flags &= ~SB_WAIT;
-				wakeup(&sb->sb_acc);
-			}
-			KNOTE_LOCKED(&sel->si_note, 0);
-			SOCK_RECVBUF_UNLOCK(so);
+
+			uipc_wakeup(so);
 			/*
 			 * XXXGL: need to go through uipc_lock_peer() after
 			 * the receive buffer lock dropped, it was protecting
@@ -2444,15 +2471,21 @@ uipc_sendfile(struct socket *so, int flags, struct mbuf *m,
 	sb->sb_mbcnt += mc.mc_mlen;
 	if (sb->uxst_fnrdy == NULL) {
 		if (notready) {
-			sb->uxst_fnrdy = STAILQ_FIRST(&mc.mc_q);
 			wakeup = false;
+			STAILQ_FOREACH(m, &mc.mc_q, m_stailq) {
+				if (m->m_flags & M_NOTREADY) {
+					sb->uxst_fnrdy = m;
+					break;
+				} else {
+					sb->sb_acc += m->m_len;
+					wakeup = true;
+				}
+			}
 		} else {
-			sb->sb_acc += mc.mc_len;
 			wakeup = true;
+			sb->sb_acc += mc.mc_len;
 		}
 	} else {
-		STAILQ_FOREACH(m, &mc.mc_q, m_stailq)
-			m->m_flags |= M_BLOCKED;
 		wakeup = false;
 	}
 	STAILQ_CONCAT(&sb->uxst_mbq, &mc.mc_q);
@@ -2477,24 +2510,22 @@ out:
 static int
 uipc_sbready(struct sockbuf *sb, struct mbuf *m, int count)
 {
-	u_int blocker;
+	bool blocker;
 
 	/* assert locked */
 
-	blocker = (sb->uxst_fnrdy == m) ? M_BLOCKED : 0;
+	blocker = (sb->uxst_fnrdy == m);
 	STAILQ_FOREACH_FROM(m, &sb->uxst_mbq, m_stailq) {
 		if (count > 0) {
 			MPASS(m->m_flags & M_NOTREADY);
-			m->m_flags &= ~(M_NOTREADY | blocker);
+			m->m_flags &= ~M_NOTREADY;
 			if (blocker)
 				sb->sb_acc += m->m_len;
 			count--;
-		} else if (blocker && !(m->m_flags & M_NOTREADY)) {
-			MPASS(m->m_flags & M_BLOCKED);
-			m->m_flags &= ~M_BLOCKED;
-			sb->sb_acc += m->m_len;
-		} else
+		} else if (m->m_flags & M_NOTREADY)
 			break;
+		else if (blocker)
+			sb->sb_acc += m->m_len;
 	}
 	if (blocker) {
 		sb->uxst_fnrdy = m;
@@ -2630,18 +2661,28 @@ uipc_shutdown(struct socket *so, enum shutdown_how how)
 
 	switch (how) {
 	case SHUT_RD:
-		socantrcvmore(so);
+		if (so->so_type == SOCK_DGRAM)
+			socantrcvmore(so);
+		else
+			uipc_cantrcvmore(so);
 		unp_dispose(so);
 		break;
 	case SHUT_RDWR:
-		socantrcvmore(so);
+		if (so->so_type == SOCK_DGRAM)
+			socantrcvmore(so);
+		else
+			uipc_cantrcvmore(so);
 		unp_dispose(so);
 		/* FALLTHROUGH */
 	case SHUT_WR:
-		UNP_PCB_LOCK(unp);
-		socantsendmore(so);
-		unp_shutdown(unp);
-		UNP_PCB_UNLOCK(unp);
+		if (so->so_type == SOCK_DGRAM) {
+			socantsendmore(so);
+		} else {
+			UNP_PCB_LOCK(unp);
+			if (unp->unp_conn != NULL)
+				uipc_cantrcvmore(unp->unp_conn->unp_socket);
+			UNP_PCB_UNLOCK(unp);
+		}
 	}
 	wakeup(&so->so_timeo);
 
@@ -3363,23 +3404,6 @@ SYSCTL_PROC(_net_local_seqpacket, OID_AUTO, pcblist,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE,
     (void *)(intptr_t)SOCK_SEQPACKET, 0, unp_pcblist, "S,xunpcb",
     "List of active local seqpacket sockets");
-
-static void
-unp_shutdown(struct unpcb *unp)
-{
-	struct unpcb *unp2;
-	struct socket *so;
-
-	UNP_PCB_LOCK_ASSERT(unp);
-
-	unp2 = unp->unp_conn;
-	if ((unp->unp_socket->so_type == SOCK_STREAM ||
-	    (unp->unp_socket->so_type == SOCK_SEQPACKET)) && unp2 != NULL) {
-		so = unp2->unp_socket;
-		if (so != NULL)
-			socantrcvmore(so);
-	}
-}
 
 static void
 unp_drop(struct unpcb *unp)

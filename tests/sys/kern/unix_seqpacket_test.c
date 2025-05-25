@@ -894,6 +894,38 @@ ATF_TC_BODY(shutdown_send_sigpipe, tc)
 	close(s2);
 }
 
+/*
+ * https://syzkaller.appspot.com/bug?id=ac94349a29f2efc40e9274239e4ca9b2c473a4e7
+ */
+ATF_TC_WITHOUT_HEAD(shutdown_o_async);
+ATF_TC_BODY(shutdown_o_async, tc)
+{
+	int sv[2];
+
+	do_socketpair(sv);
+
+	ATF_CHECK_EQ(0, fcntl(sv[0], F_SETFL, O_ASYNC));
+	ATF_CHECK_EQ(0, shutdown(sv[0], SHUT_WR));
+	close(sv[0]);
+	close(sv[1]);
+}
+
+/*
+ * If peer had done SHUT_WR on their side, our recv(2) shouldn't block.
+ */
+ATF_TC_WITHOUT_HEAD(shutdown_recv);
+ATF_TC_BODY(shutdown_recv, tc)
+{
+	char buf[10];
+	int sv[2];
+
+	do_socketpair(sv);
+	ATF_CHECK_EQ(0, shutdown(sv[0], SHUT_WR));
+	ATF_CHECK_EQ(0, recv(sv[1], buf, sizeof(buf), 0));
+	close(sv[0]);
+	close(sv[1]);
+}
+
 /* nonblocking send(2) and recv(2) a single short record */
 ATF_TC_WITHOUT_HEAD(send_recv_nonblocking);
 ATF_TC_BODY(send_recv_nonblocking, tc)
@@ -1310,6 +1342,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, implied_connect);
 	ATF_TP_ADD_TC(tp, shutdown_send);
 	ATF_TP_ADD_TC(tp, shutdown_send_sigpipe);
+	ATF_TP_ADD_TC(tp, shutdown_o_async);
+	ATF_TP_ADD_TC(tp, shutdown_recv);
 	ATF_TP_ADD_TC(tp, eagain_8k_8k);
 	ATF_TP_ADD_TC(tp, eagain_8k_128k);
 	ATF_TP_ADD_TC(tp, eagain_128k_8k);

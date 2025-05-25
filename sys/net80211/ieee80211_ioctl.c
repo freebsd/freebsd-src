@@ -510,7 +510,8 @@ ieee80211_ioctl_getstainfo(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	error = copyin(ireq->i_data, macaddr, IEEE80211_ADDR_LEN);
 	if (error != 0)
 		return error;
-	if (IEEE80211_ADDR_EQ(macaddr, vap->iv_ifp->if_broadcastaddr)) {
+	if (IEEE80211_ADDR_EQ(macaddr,
+	    ieee80211_vap_get_broadcast_address(vap))) {
 		ni = NULL;
 	} else {
 		ni = ieee80211_find_vap_node(&vap->iv_ic->ic_sta, vap, macaddr);
@@ -1371,7 +1372,8 @@ setmlme_dropsta(struct ieee80211vap *vap,
 	int error = 0;
 
 	/* NB: the broadcast address means do 'em all */
-	if (!IEEE80211_ADDR_EQ(mac, vap->iv_ifp->if_broadcastaddr)) {
+	if (!IEEE80211_ADDR_EQ(mac,
+	    ieee80211_vap_get_broadcast_address(vap))) {
 		IEEE80211_NODE_LOCK(nt);
 		ni = ieee80211_find_node_locked(nt, mac);
 		IEEE80211_NODE_UNLOCK(nt);
@@ -3619,7 +3621,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 					wait = 1;
 				ieee80211_start_locked(vap);
 			}
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		} else if (ieee80211_vap_ifp_check_is_running(vap)) {
 			/*
 			 * Stop ourself.  If we are the last vap to be
 			 * marked down the parent will also be taken down.
@@ -3631,24 +3633,8 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		IEEE80211_UNLOCK(ic);
 		/* Wait for parent ioctl handler if it was queued */
 		if (wait) {
-			struct epoch_tracker et;
-
 			ieee80211_waitfor_parent(ic);
-
-			/*
-			 * Check if the MAC address was changed
-			 * via SIOCSIFLLADDR ioctl.
-			 *
-			 * NB: device may be detached during initialization;
-			 * use if_ioctl for existence check.
-			 */
-			NET_EPOCH_ENTER(et);
-			if (ifp->if_ioctl == ieee80211_ioctl &&
-			    (ifp->if_flags & IFF_UP) == 0 &&
-			    !IEEE80211_ADDR_EQ(vap->iv_myaddr, IF_LLADDR(ifp)))
-				IEEE80211_ADDR_COPY(vap->iv_myaddr,
-				    IF_LLADDR(ifp));
-			NET_EPOCH_EXIT(et);
+			ieee80211_vap_sync_mac_address(vap);
 		}
 		break;
 	case SIOCADDMULTI:

@@ -1938,7 +1938,6 @@ distributekernel distributekernel.debug: .PHONY
 .endif
 
 packagekernel: .PHONY
-.if defined(NO_ROOT)
 .if !defined(NO_INSTALLKERNEL)
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    ${TAR_CMD} cvf - --exclude '*.debug' \
@@ -1964,30 +1963,6 @@ packagekernel: .PHONY
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
 .endif
 .endfor
-.endif
-.else
-.if !defined(NO_INSTALLKERNEL)
-	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    ${TAR_CMD} cvf - --exclude '*.debug' . | \
-	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
-.endif
-.if ${MK_DEBUG_FILES} != "no"
-	cd ${DESTDIR}/${DISTDIR}/kernel; \
-	    ${TAR_CMD} cvf - --include '*/*/*.debug' $$(eval find .) | \
-	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
-.endif
-.if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
-.for _kernel in ${BUILDKERNELS:[2..-1]}
-	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    ${TAR_CMD} cvf - --exclude '*.debug' . | \
-	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
-.if ${MK_DEBUG_FILES} != "no"
-	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
-	    ${TAR_CMD} cvf - --include '*/*/*.debug' $$(eval find .) | \
-	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
-.endif
-.endfor
-.endif
 .endif
 
 stagekernel: .PHONY

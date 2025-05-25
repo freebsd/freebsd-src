@@ -23,7 +23,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include <efivar.h>
 #include <sys/efiio.h>
 #include <sys/param.h>

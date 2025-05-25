@@ -120,14 +120,20 @@ stack smashing protection and without sanitizer instrumentation.
 
 The following variables are common:
 
-AFLAGS.${SRC}
-		Flags dependent on source file name.
-AFLAGS.${.TARGET:T}
-		Flags dependent on output file name.
+ACFLAGS		Flags to the compiler when preprocessing and
+		assembling .S files.
 ACFLAGS.${SRC}
 		Flags dependent on source file name.
 ACFLAGS.${.TARGET:T}
 		Flags dependent on output file name.
+
+AFLAGS		Flags to the assembler when assembling .s files.
+AFLAGS.${SRC}
+		Flags dependent on source file name.
+AFLAGS.${.TARGET:T}
+		Flags dependent on output file name.
+
+CFLAGS		Flags to the compiler when creating C objects.
 CFLAGS.${SRC}
 		Flags dependent on source file name.
 CFLAGS.${.TARGET:T}
@@ -139,6 +145,7 @@ CFLAGS.${MACHINE_ARCH}
 CFLAGS_NO_SIMD	Add this to CFLAGS for programs that don't want any SIMD
 		instructions generated. It is setup in bsd.cpu.mk to an
 		appropriate value for the compiler and target.
+
 CXXFLAGS.${COMPILER_TYPE}
 		Flags dependent on compiler added to CXXFLAGS.
 CXXFLAGS.${MACHINE_ARCH}
@@ -147,6 +154,52 @@ CXXFLAGS.${SRC}
 		Flags dependent on source file name.
 CXXFLAGS.${.TARGET:T}
 		Flags dependent on output file name.
+
+DPADD		Additional dependencies.  Usually used for libraries.
+		For example, to depend on the compatibility and utility
+		libraries use:
+
+			DPADD=${LIBCOMPAT} ${LIBUTIL}
+
+		There is a predefined identifier for each (non-shared)
+		library and object.  Library file names are
+		transformed to identifiers by removing the extension and
+		converting to upper case.
+
+		There are no special identifiers for shared libraries
+		or objects.  The identifiers for the standard
+		libraries are used in DPADD.  This works correctly iff
+		all the libraries are built at the same time.
+		Unfortunately, it causes unnecessary relinks to shared
+		libraries when only the static libraries have changed.
+		Dependencies on shared libraries should be only on the
+		library version numbers.
+
+LDADD		Additional linker objects.  Usually used to add libraries.
+		For example, to load with the compatibility and utility
+		libraries, use:
+
+			LDADD=-lutil -lcompat
+
+LDADD.${.TARGET:T}
+		Loader objects dependent on output file name.
+
+LDFLAGS		Additional linker flags. Passed to the linker via CC,
+		since that's used to link programs as well, so linker
+		specific flags need to be prefixed with -Wl, to work.
+LDFLAGS.${.TARGET:T}
+		Flags dependent on output file name.
+
+LIBADD		Additional libraries.  This is for base system libraries
+		and is only valid inside of the FreeBSD tree.
+		Use LIBADD=name instead of LDADD=-lname.
+
+LIBADD.${.TARGET:T}
+		Libraries dependent on output file name.
+
+SHARED_CFLAGS	Additional compiler flags used when creating shared or
+		position independent object files.
+
 COMPILER_FEATURES
 		A list of features that the compiler supports. Zero or
 		more of:
@@ -281,18 +334,11 @@ It has seven targets:
 
 It sets/uses the following variables:
 
-ACFLAGS		Flags to the compiler when preprocessing and
-		assembling .S files.
-
-AFLAGS		Flags to the assembler when assembling .s files.
-
 BINGRP		Binary group.
 
 BINMODE		Binary mode.
 
 BINOWN		Binary owner.
-
-CFLAGS		Flags to the compiler when creating C objects.
 
 CLEANDIRS	Additional files (CLEANFILES) and directories (CLEANDIRS) to
 CLEANFILES	remove during clean and cleandir targets.  "rm -rf" and
@@ -310,53 +356,10 @@ DIRS		A list of variables referring to directories.  For example:
 		will be created before the files are installed and the
 		dependencies will be set correctly.
 
-DPADD		Additional dependencies for the program.  Usually used for
-		libraries.  For example, to depend on the compatibility and
-		utility libraries use:
-
-			DPADD=${LIBCOMPAT} ${LIBUTIL}
-
-		There is a predefined identifier for each (non-shared
-		library and object.  Library file names are
-		transformed to identifiers by removing the extension and
-		converting to upper case.
-
-		There are no special identifiers for shared libraries
-		or objects.  The identifiers for the standard
-		libraries are used in DPADD.  This works correctly iff
-		all the libraries are built at the same time.
-		Unfortunately, it causes unnecessary relinks to shared
-		libraries when only the static libraries have changed.
-		Dependencies on shared libraries should be only on the
-		library version numbers.
-
 FILES		A list of non-executable files.
 		The installation is controlled by the FILESNAME, FILESOWN,
 		FILESGRP, FILESMODE, FILESDIR variables that can be
 		further specialized by FILES<VAR>_<file>.
-
-LDADD		Additional loader objects.  Usually used for libraries.
-		For example, to load with the compatibility and utility
-		libraries, use:
-
-			LDADD=-lutil -lcompat
-
-LDADD.${.TARGET:T}
-		Loader objects dependent on output file name.
-
-LDFLAGS		Additional loader flags. Passed to the loader via CC,
-		since that's used to link programs as well, so loader
-		specific flags need to be prefixed with -Wl, to work.
-
-LDFLAGS.${.TARGET:T}
-		Flags dependent on output file name.
-
-LIBADD		Additional libraries.  This is for base system libraries
-		and is only valid inside of the /usr/src tree.
-		Use LIBADD=name instead of LDADD=-lname.
-
-LIBADD.${.TARGET:T}
-		Libraries dependent on output file name.
 
 LINKS		The list of binary links; should be full pathnames, the
 		linked-to file coming first, followed by the linked
@@ -568,15 +571,9 @@ the BSD tree.
 
 It sets/uses the following variables:
 
-LDADD		Additional loader objects.
-
 LIB		The name of the library to build.  Both a shared and static
 		library will be built.  NO_PIC can be set to only build a
 		static library.
-
-LIBADD		Additional libraries.  This is for base system libraries
-		and is only valid inside of the /usr/src tree.
-		Use LIBADD=name instead of LDADD=-lname.
 
 LIBDIR		Target directory for libraries.
 

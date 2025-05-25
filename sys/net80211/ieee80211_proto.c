@@ -1976,7 +1976,6 @@ ieee80211_start_reset_chan(struct ieee80211vap *vap)
 void
 ieee80211_start_locked(struct ieee80211vap *vap)
 {
-	struct ifnet *ifp = vap->iv_ifp;
 	struct ieee80211com *ic = vap->iv_ic;
 
 	IEEE80211_LOCK_ASSERT(ic);
@@ -1985,7 +1984,7 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 		IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
 		"start running, %d vaps running\n", ic->ic_nrunning);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	if (!ieee80211_vap_ifp_check_is_running(vap)) {
 		/*
 		 * Mark us running.  Note that it's ok to do this first;
 		 * if we need to bring the parent device up we defer that
@@ -1994,7 +1993,7 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 		 * through ieee80211_start_all at which point we'll come
 		 * back in here and complete the work.
 		 */
-		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		ieee80211_vap_ifp_set_running_state(vap, true);
 		ieee80211_notify_ifnet_change(vap, IFF_DRV_RUNNING);
 
 		/*
@@ -2099,7 +2098,6 @@ void
 ieee80211_stop_locked(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	struct ifnet *ifp = vap->iv_ifp;
 
 	IEEE80211_LOCK_ASSERT(ic);
 
@@ -2107,8 +2105,9 @@ ieee80211_stop_locked(struct ieee80211vap *vap)
 	    "stop running, %d vaps running\n", ic->ic_nrunning);
 
 	ieee80211_new_state_locked(vap, IEEE80211_S_INIT, -1);
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;	/* mark us stopped */
+	if (ieee80211_vap_ifp_check_is_running(vap)) {
+		/* mark us stopped */
+		ieee80211_vap_ifp_set_running_state(vap, false);
 		ieee80211_notify_ifnet_change(vap, IFF_DRV_RUNNING);
 		if (--ic->ic_nrunning == 0) {
 			IEEE80211_DPRINTF(vap,
