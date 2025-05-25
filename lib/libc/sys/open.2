@@ -452,6 +452,13 @@ flag for
 .Xr fstatat 2
 and related syscalls.
 .Pp
+Conversely, a file descriptor
+.Dv fd
+referencing a filesystem file can be converted to the
+.Dv O_PATH
+type of descriptor by using the following call
+.Dl opath_fd = openat(fd, \[dq]\[dq], O_EMPTY_PATH | O_PATH);
+.Pp
 If successful,
 .Fn open
 returns a non-negative integer, termed a file descriptor.
