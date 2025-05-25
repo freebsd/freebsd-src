@@ -61,20 +61,34 @@ static uint32_t		initial_howto;
 static uint32_t		initial_bootdev;
 static struct bootinfo	*initial_bootinfo;
 
-struct arch_switch	archsw;		/* MI/MD interface boundary */
-
-static void		extract_currdev(void);
 static int		isa_inb(int port);
 static void		isa_outb(int port, int value);
+
+#ifdef LOADER_ZFS_SUPPORT
+struct zfs_boot_args	*zargs;
+static void		i386_zfs_probe(void);
+#endif
+
+struct arch_switch	archsw = {		/* MI/MD interface boundary */
+	.arch_autoload = i386_autoload,
+	.arch_getdev = i386_getdev,
+	.arch_copyin = i386_copyin,
+	.arch_copyout = i386_copyout,
+	.arch_readin = i386_readin,
+	.arch_isainb = isa_inb,
+	.arch_isaoutb = isa_outb,
+	.arch_hypervisor = x86_hypervisor,
+#ifdef LOADER_ZFS_SUPPORT
+	.arch_zfs_probe = i386_zfs_probe,
+#endif
+};
+
+static void		extract_currdev(void);
 void			exit(int code);
 #ifdef LOADER_GELI_SUPPORT
 #include "geliboot.h"
 struct geli_boot_args	*gargs;
 struct geli_boot_data	*gbdata;
-#endif
-#ifdef LOADER_ZFS_SUPPORT
-struct zfs_boot_args	*zargs;
-static void		i386_zfs_probe(void);
 #endif
 
 /* XXX debugging */
@@ -182,17 +196,7 @@ main(void)
 			bc_add(initial_bootdev);
 	}
 
-	archsw.arch_autoload = i386_autoload;
-	archsw.arch_getdev = i386_getdev;
-	archsw.arch_copyin = i386_copyin;
-	archsw.arch_copyout = i386_copyout;
-	archsw.arch_readin = i386_readin;
-	archsw.arch_isainb = isa_inb;
-	archsw.arch_isaoutb = isa_outb;
-	archsw.arch_hypervisor = x86_hypervisor;
 #ifdef LOADER_ZFS_SUPPORT
-	archsw.arch_zfs_probe = i386_zfs_probe;
-
 	/*
 	 * zfsboot and gptzfsboot have always passed KARGS_FLAGS_ZFS,
 	 * so if that is set along with KARGS_FLAGS_EXTARG we know we
