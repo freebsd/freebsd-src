@@ -55,7 +55,16 @@ void *callbacks_arg;
 
 static jmp_buf jb;
 
-struct arch_switch archsw;	/* MI/MD interface boundary */
+struct arch_switch archsw = {	/* MI/MD interface boundary */
+	.arch_autoload = userboot_autoload,
+	.arch_getdev = userboot_getdev,
+	.arch_copyin = userboot_copyin,
+	.arch_copyout = userboot_copyout,
+	.arch_readin = userboot_readin,
+#if defined(USERBOOT_ZFS_SUPPORT)
+	.arch_zfs_probe = userboot_zfs_probe,
+#endif
+};
 
 static void	extract_currdev(void);
 static void	check_interpreter(void);
@@ -188,15 +197,6 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 			break;
 		putenv(var);
 	}
-
-	archsw.arch_autoload = userboot_autoload;
-	archsw.arch_getdev = userboot_getdev;
-	archsw.arch_copyin = userboot_copyin;
-	archsw.arch_copyout = userboot_copyout;
-	archsw.arch_readin = userboot_readin;
-#if defined(USERBOOT_ZFS_SUPPORT)
-	archsw.arch_zfs_probe = userboot_zfs_probe;
-#endif
 
 	/*
 	 * Initialise the block cache. Set the upper limit.
