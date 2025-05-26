@@ -110,9 +110,6 @@ static int old_msync;
 SYSCTL_INT(_vm, OID_AUTO, old_msync, CTLFLAG_RW, &old_msync, 0,
     "Use old (insecure) msync behavior");
 
-static int	vm_object_page_collect_flush(struct pctrie_iter *pages,
-		    vm_page_t p, int pagerflags, int flags, boolean_t *allclean,
-		    boolean_t *eio);
 static boolean_t vm_object_page_remove_write(vm_page_t p, int flags,
 		    boolean_t *allclean);
 static void	vm_object_backing_remove(vm_object_t object);
@@ -1001,6 +998,31 @@ vm_object_page_remove_write(vm_page_t p, int flags, boolean_t *allclean)
 	}
 }
 
+static int
+vm_object_page_clean_flush(struct pctrie_iter *pages, vm_page_t p,
+    int pagerflags, int flags, boolean_t *allclean, boolean_t *eio)
+{
+	vm_page_t ma[vm_pageout_page_count];
+	int count, runlen;
+
+	vm_page_lock_assert(p, MA_NOTOWNED);
+	vm_page_assert_xbusied(p);
+	ma[0] = p;
+	for (count = 1; count < vm_pageout_page_count; count++) {
+		p = vm_radix_iter_next(pages);
+		if (p == NULL || vm_page_tryxbusy(p) == 0)
+			break;
+		if (!vm_object_page_remove_write(p, flags, allclean)) {
+			vm_page_xunbusy(p);
+			break;
+		}
+		ma[count] = p;
+	}
+
+	vm_pageout_flush(ma, count, pagerflags, 0, &runlen, eio);
+	return (runlen);
+}
+
 /*
  *	vm_object_page_clean
  *
@@ -1073,7 +1095,7 @@ rescan:
 			continue;
 		}
 		if (object->type == OBJT_VNODE) {
-			n = vm_object_page_collect_flush(&pages, p, pagerflags,
+			n = vm_object_page_clean_flush(&pages, p, pagerflags,
 			    flags, &allclean, &eio);
 			pctrie_iter_reset(&pages);
 			if (eio) {
@@ -1118,45 +1140,6 @@ rescan:
 	if (allclean && object->type == OBJT_VNODE)
 		object->cleangeneration = curgeneration;
 	return (res);
-}
-
-static int
-vm_object_page_collect_flush(struct pctrie_iter *pages, vm_page_t p,
-    int pagerflags, int flags, boolean_t *allclean, boolean_t *eio)
-{
-	vm_page_t ma[2 * vm_pageout_page_count - 1];
-	int base, count, runlen;
-
-	vm_page_lock_assert(p, MA_NOTOWNED);
-	vm_page_assert_xbusied(p);
-	base = nitems(ma) / 2;
-	ma[base] = p;
-	for (count = 1; count < vm_pageout_page_count; count++) {
-		p = vm_radix_iter_next(pages);
-		if (p == NULL || vm_page_tryxbusy(p) == 0)
-			break;
-		if (!vm_object_page_remove_write(p, flags, allclean)) {
-			vm_page_xunbusy(p);
-			break;
-		}
-		ma[base + count] = p;
-	}
-
-	pages->index = ma[base]->pindex;
-	for (; count < vm_pageout_page_count; count++) {
-		p = vm_radix_iter_prev(pages);
-		if (p == NULL || vm_page_tryxbusy(p) == 0)
-			break;
-		if (!vm_object_page_remove_write(p, flags, allclean)) {
-			vm_page_xunbusy(p);
-			break;
-		}
-		ma[--base] = p;
-	}
-
-	vm_pageout_flush(&ma[base], count, pagerflags, nitems(ma) / 2 - base,
-	    &runlen, eio);
-	return (runlen);
 }
 
 /*
