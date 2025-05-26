@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 8, 2025
+.Dd May 26, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -724,6 +724,9 @@ A packet always comes in on, or goes out through, one interface.
 Most parameters are optional.
 If a parameter is specified, the rule only applies to packets with
 matching attributes.
+The matching for some parameters can be inverted with the
+.Cm !\&
+operator.
 Certain parameters can be expressed as lists, in which case
 .Xr pfctl 8
 generates all needed rule combinations.
@@ -2239,7 +2242,7 @@ For example:
 pass in proto tcp to port 25 set prio 2
 pass in proto tcp to port 22 set prio (2, 5)
 .Ed
-.It Ar received-on Aq Ar interface
+.It Oo Cm \&! Oc Ns Cm received-on Ar interface
 Only match packets which were received on the specified
 .Ar interface
 (or interface group).
@@ -2272,12 +2275,6 @@ Tags take the same macros as labels (see above).
 Used with filter, translation or scrub rules
 to specify that packets must already
 be tagged with the given tag in order to match the rule.
-Inverse tag matching can also be done
-by specifying the
-.Cm !\&
-operator before the
-.Ar tagged
-keyword.
 .It Ar rtable Aq Ar number
 Used to select an alternate routing table for the routing lookup.
 Only effective before the route lookup happened, i.e. when filtering inbound.
@@ -3379,7 +3376,7 @@ filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
                  "fragment" | "no-df" | "min-ttl" number | "set-tos" tos |
                  "max-mss" number | "random-id" | "reassemble tcp" |
                  fragmentation | "allow-opts" |
-                 "label" string | "tag" string | [ ! ] "tagged" string |
+                 "label" string | "tag" string | [ "!" ] "tagged" string |
                  "set prio" ( number | "(" number [ [ "," ] number ] ")" ) |
                  "queue" ( string | "(" string [ [ "," ] string ] ")" ) |
                  "rtable" number | "probability" number"%" | "prio" number |
