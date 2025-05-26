@@ -44,6 +44,7 @@ int eventfd_create_file(struct thread *td, struct file *fp, uint32_t initval,
     int flags);
 struct eventfd *eventfd_get(struct file *fp);
 void eventfd_put(struct eventfd *efd);
+void eventfd_signal(struct eventfd *efd);
 
 #else
 
