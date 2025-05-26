@@ -1377,10 +1377,9 @@ umb_getinfobuf(char *in, int inlen, uint32_t offs, uint32_t sz,
 {
 	offs = le32toh(offs);
 	sz = le32toh(sz);
-	if (inlen >= offs + sz) {
-		memset(out, 0, outlen);
+	memset(out, 0, outlen);
+	if ((uint64_t)inlen >= (uint64_t)offs + (uint64_t)sz)
 		memcpy(out, in + offs, MIN(sz, outlen));
-	}
 }
 
 static inline int
