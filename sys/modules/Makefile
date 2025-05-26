@@ -429,7 +429,7 @@ SUBDIR=	\
 	wlan_xauth \
 	${_wpi} \
 	${_wpifw} \
-	wtap \
+	${_wtap} \
 	${_x86bios} \
 	xdr \
 	xl \
@@ -823,6 +823,9 @@ _vmd=		vmd
 _wpi=		wpi
 .if ${MK_SOURCELESS_UCODE} != "no"
 _wpifw=		wpifw
+.endif
+.if ${KERN_OPTS:MVIMAGE}
+_wtap=		wtap
 .endif
 _x86bios=	x86bios
 .endif
