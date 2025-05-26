@@ -40,7 +40,15 @@
 #endif
 
 struct uboot_devdesc currdev;
-struct arch_switch archsw;		/* MI/MD interface boundary */
+struct arch_switch archsw = {		/* MI/MD interface boundary */
+	.arch_loadaddr = uboot_loadaddr,
+	.arch_getdev = uboot_getdev,
+	.arch_copyin = uboot_copyin,
+	.arch_copyout = uboot_copyout,
+	.arch_readin = uboot_readin,
+	.arch_autoload = uboot_autoload,
+};
+
 int devs_no;
 
 uintptr_t uboot_heap_start;
@@ -473,13 +481,6 @@ main(int argc, char **argv)
 	dump_addr_info();
 
 	meminfo();
-
-	archsw.arch_loadaddr = uboot_loadaddr;
-	archsw.arch_getdev = uboot_getdev;
-	archsw.arch_copyin = uboot_copyin;
-	archsw.arch_copyout = uboot_copyout;
-	archsw.arch_readin = uboot_readin;
-	archsw.arch_autoload = uboot_autoload;
 
 	/* Set up currdev variable to have hooks in place. */
 	env_setenv("currdev", EV_VOLATILE, "", uboot_setcurrdev, env_nounset);
