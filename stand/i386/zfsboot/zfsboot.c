@@ -131,7 +131,16 @@ static int parse_cmd(void);
 static char gelipw[GELI_PW_MAXLEN];
 #endif
 
-struct arch_switch archsw;	/* MI/MD interface boundary */
+/*
+ * Only because the zfs code requires access through archsw, otherwise the
+ * 'boot' programs don't need archsw. This is less than ideal, but this
+ * workaround is easier than many of the alternatives.
+ */
+struct arch_switch archsw = {	/* MI/MD interface boundary */
+	.arch_getdev = i386_getdev,
+	.arch_zfs_probe = i386_zfs_probe,
+};
+
 static char boot_devname[2 * ZFS_MAXNAMELEN + 8]; /* disk or pool:dataset */
 
 struct devsw *devsw[] = {
@@ -183,15 +192,6 @@ main(void)
 	 * Initialise the block cache. Set the upper limit.
 	 */
 	bcache_init(32768, 512);
-
-	archsw.arch_autoload = NULL;
-	archsw.arch_getdev = i386_getdev;
-	archsw.arch_copyin = NULL;
-	archsw.arch_copyout = NULL;
-	archsw.arch_readin = NULL;
-	archsw.arch_isainb = NULL;
-	archsw.arch_isaoutb = NULL;
-	archsw.arch_zfs_probe = i386_zfs_probe;
 
 	bootinfo.bi_version = BOOTINFO_VERSION;
 	bootinfo.bi_size = sizeof(bootinfo);
