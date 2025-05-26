@@ -703,7 +703,8 @@ void
 smp_masked_invlpg(vm_offset_t addr, pmap_t pmap, smp_invl_cb_t curcpu_cb)
 {
 	if (invlpgb_works && pmap == kernel_pmap) {
-		invlpgb(INVLPGB_GLOB | INVLPGB_VA | trunc_page(addr), 0, 0);
+		KASSERT((addr & PAGE_MASK_PT) == 0, ("unaligned va 0x%lx", addr));
+		invlpgb(INVLPGB_GLOB | INVLPGB_VA | addr, 0, 0);
 		tlbsync();
 		sched_unpin();
 		return;
@@ -939,7 +940,7 @@ invlrng_handler(vm_offset_t smp_tlb_addr1, vm_offset_t smp_tlb_addr2)
 	addr = smp_tlb_addr1;
 	do {
 		invlpg(addr);
-		addr += PAGE_SIZE;
+		addr += PAGE_SIZE_PT;
 	} while (addr < smp_tlb_addr2);
 }
 
@@ -965,7 +966,7 @@ invlrng_invpcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 	} else {
 		do {
 			invlpg(addr);
-			addr += PAGE_SIZE;
+			addr += PAGE_SIZE_PT;
 		} while (addr < smp_tlb_addr2);
 	}
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
@@ -976,7 +977,7 @@ invlrng_invpcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 		d.addr = smp_tlb_addr1;
 		do {
 			invpcid(&d, INVPCID_ADDR);
-			d.addr += PAGE_SIZE;
+			d.addr += PAGE_SIZE_PT;
 		} while (d.addr < smp_tlb_addr2);
 	}
 }
@@ -999,7 +1000,7 @@ invlrng_pcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 	addr = smp_tlb_addr1;
 	do {
 		invlpg(addr);
-		addr += PAGE_SIZE;
+		addr += PAGE_SIZE_PT;
 	} while (addr < smp_tlb_addr2);
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
 	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3 &&
