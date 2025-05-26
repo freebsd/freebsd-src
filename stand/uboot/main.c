@@ -61,8 +61,6 @@ struct device_type {
 
 extern char end[];
 
-extern unsigned char _etext[];
-extern unsigned char _edata[];
 extern unsigned char __bss_start[];
 extern unsigned char __sbss_start[];
 extern unsigned char __sbss_end[];
