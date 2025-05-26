@@ -304,7 +304,7 @@ struct ieee80211_mcs_info {
 	uint16_t	rx_highest;
 	uint8_t		tx_params;
 	uint8_t		__reserved[3];
-};
+} __packed;
 
 /* 802.11-2020, 9.4.2.55.1 HT Capabilities element structure */
 struct ieee80211_ht_cap {
@@ -314,7 +314,7 @@ struct ieee80211_ht_cap {
 	uint16_t				extended_ht_cap_info;
 	uint32_t				tx_BF_cap_info;
 	uint8_t					antenna_selection_info;
-};
+} __packed;
 
 #define	IEEE80211_HT_MAX_AMPDU_FACTOR		13
 #define	IEEE80211_HE_HT_MAX_AMPDU_FACTOR	16
