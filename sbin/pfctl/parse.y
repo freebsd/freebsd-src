@@ -6091,7 +6091,7 @@ apply_rdr_ports(struct pfctl_rule *r, struct pfctl_pool *rpool, struct redirspec
 
 	rpool->proxy_port[0] = ntohs(rs->rport.a);
 
-	if (!rs->rport.b && rs->rport.t && r->dst.port != NULL) {
+	if (!rs->rport.b && rs->rport.t) {
 		rpool->proxy_port[1] = ntohs(rs->rport.a) +
 		    (ntohs(r->dst.port[1]) - ntohs(r->dst.port[0]));
 	} else
