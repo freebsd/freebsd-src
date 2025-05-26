@@ -84,7 +84,7 @@ tcp_socketpair(int out[2], int domain)
 		memset(&sin, 0, sizeof(sin));
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(sin);
-		sin.sin_addr.s_addr = htonl(INADDR_ANY);
+		sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 		sin.sin_port = htons(0);
 		sinp = (struct sockaddr *)&sin;
 	} else {
@@ -92,7 +92,7 @@ tcp_socketpair(int out[2], int domain)
 		memset(&sin6, 0, sizeof(sin6));
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_len = sizeof(sin6);
-		sin6.sin6_addr = in6addr_any;
+		sin6.sin6_addr = in6addr_loopback;
 		sin6.sin6_port = htons(0);
 		sinp = (struct sockaddr *)&sin6;
 	}
