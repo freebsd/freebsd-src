@@ -157,6 +157,27 @@ eventfd_put(struct eventfd *efd)
 	free(efd, M_EVENTFD);
 }
 
+static void
+eventfd_wakeup(struct eventfd *efd)
+{
+	KNOTE_LOCKED(&efd->efd_sel.si_note, 0);
+	selwakeup(&efd->efd_sel);
+	wakeup(&efd->efd_count);
+}
+
+void
+eventfd_signal(struct eventfd *efd)
+{
+	mtx_lock(&efd->efd_lock);
+
+	if (efd->efd_count < UINT64_MAX)
+		efd->efd_count++;
+
+	eventfd_wakeup(efd);
+
+	mtx_unlock(&efd->efd_lock);
+}
+
 static int
 eventfd_close(struct file *fp, struct thread *td)
 {
@@ -244,9 +265,7 @@ retry:
 	if (error == 0) {
 		MPASS(UINT64_MAX - efd->efd_count > count);
 		efd->efd_count += count;
-		KNOTE_LOCKED(&efd->efd_sel.si_note, 0);
-		selwakeup(&efd->efd_sel);
-		wakeup(&efd->efd_count);
+		eventfd_wakeup(efd);
 	}
 	mtx_unlock(&efd->efd_lock);
 
