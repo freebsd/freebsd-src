@@ -29,22 +29,9 @@ import pytest
 import random
 import socket
 import selectors
-import threading
-import time
+from utils import DelayedSend
 from atf_python.sys.net.tools import ToolsHelper
 from atf_python.sys.net.vnet import VnetTestTemplate
-
-class DelayedSend(threading.Thread):
-    def __init__(self, packet):
-        threading.Thread.__init__(self)
-        self._packet = packet
-
-        self.start()
-
-    def run(self):
-        import scapy.all as sp
-        time.sleep(1)
-        sp.send(self._packet)
 
 class TCPClient:
     def __init__(self, src, dst, sport, dport, sp):
@@ -135,8 +122,6 @@ class TestTcp(VnetTestTemplate):
 
         # Import in the correct vnet, so at to not confuse Scapy
         import scapy.all as sp
-
-        #time.sleep(30)
 
         a = TCPClient("192.0.2.3", "192.0.2.2", 1234, 1234, sp)
         a.connect()
