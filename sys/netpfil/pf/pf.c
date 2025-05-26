@@ -8756,6 +8756,7 @@ void *
 pf_pull_hdr(const struct mbuf *m, int off, void *p, int len,
     u_short *actionp, u_short *reasonp, sa_family_t af)
 {
+	int iplen = 0;
 	switch (af) {
 #ifdef INET
 	case AF_INET: {
@@ -8771,12 +8772,7 @@ pf_pull_hdr(const struct mbuf *m, int off, void *p, int len,
 			}
 			return (NULL);
 		}
-		if (m->m_pkthdr.len < off + len ||
-		    ntohs(h->ip_len) < off + len) {
-			ACTION_SET(actionp, PF_DROP);
-			REASON_SET(reasonp, PFRES_SHORT);
-			return (NULL);
-		}
+		iplen = ntohs(h->ip_len);
 		break;
 	}
 #endif /* INET */
@@ -8784,16 +8780,15 @@ pf_pull_hdr(const struct mbuf *m, int off, void *p, int len,
 	case AF_INET6: {
 		const struct ip6_hdr	*h = mtod(m, struct ip6_hdr *);
 
-		if (m->m_pkthdr.len < off + len ||
-		    (ntohs(h->ip6_plen) + sizeof(struct ip6_hdr)) <
-		    (unsigned)(off + len)) {
-			ACTION_SET(actionp, PF_DROP);
-			REASON_SET(reasonp, PFRES_SHORT);
-			return (NULL);
-		}
+		iplen = ntohs(h->ip6_plen) + sizeof(struct ip6_hdr);
 		break;
 	}
 #endif /* INET6 */
+	}
+	if (m->m_pkthdr.len < off + len || iplen < off + len) {
+		ACTION_SET(actionp, PF_DROP);
+		REASON_SET(reasonp, PFRES_SHORT);
+		return (NULL);
 	}
 	m_copydata(m, off, len, p);
 	return (p);
