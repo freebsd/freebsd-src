@@ -52,7 +52,6 @@ struct arch_switch	archsw = {
 	.arch_autoload = kboot_autoload,
 	.arch_zfs_probe = kboot_zfs_probe,
 };
-extern void *_end;
 
 extern int command_fdt_internal(int argc, char *argv[]);
 
