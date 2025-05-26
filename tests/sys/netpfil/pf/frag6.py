@@ -1,23 +1,10 @@
 import pytest
 import logging
-import threading
-import time
 import random
 logging.getLogger("scapy").setLevel(logging.CRITICAL)
+from utils import DelayedSend
 from atf_python.sys.net.tools import ToolsHelper
 from atf_python.sys.net.vnet import VnetTestTemplate
-
-class DelayedSend(threading.Thread):
-    def __init__(self, packet):
-        threading.Thread.__init__(self)
-        self._packet = packet
-
-        self.start()
-
-    def run(self):
-        import scapy.all as sp
-        time.sleep(1)
-        sp.send(self._packet)
 
 class TestFrag6(VnetTestTemplate):
     REQUIRED_MODULES = ["pf", "dummymbuf"]
