@@ -1753,7 +1753,8 @@ umb_add_inet_config(struct umb_softc *sc, struct in_addr ip, u_int prefixlen,
 	sin = (struct sockaddr_in *)&ifra.ifra_mask;
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof (*sin);
-	umb_in_len2mask(&sin->sin_addr, prefixlen);
+	umb_in_len2mask(&sin->sin_addr,
+	    MIN(prefixlen, sizeof (struct in_addr) * 8));
 
 	mtx_unlock(&sc->sc_mutex);
 	CURVNET_SET_QUIET(if_getvnet(ifp));
