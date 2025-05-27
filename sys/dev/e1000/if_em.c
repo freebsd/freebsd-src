@@ -1671,6 +1671,7 @@ em_newitr(struct e1000_softc *sc, struct em_rx_queue *que,
 			goto em_set_next_itr;
 		}
 
+		bytes = bytes_packets = 0;
 		/* Get largest values from the associated tx and rx ring */
 		if (txr->tx_bytes && txr->tx_packets) {
 			bytes = txr->tx_bytes;
