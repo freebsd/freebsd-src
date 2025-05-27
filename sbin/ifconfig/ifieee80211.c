@@ -4774,6 +4774,17 @@ printcipher(int s, struct ieee80211req *ireq, int keylenop)
 #endif
 
 static void
+printkey_index(uint16_t keyix, char *buf, size_t buflen)
+{
+	buf[0] = '\0';
+	if (keyix == IEEE80211_KEYIX_NONE) {
+		snprintf(buf, buflen, "ucast");
+	} else {
+		snprintf(buf, buflen, "%u", keyix+1);
+	}
+}
+
+static void
 printkey(if_ctx *ctx, const struct ieee80211req_key *ik)
 {
 	static const uint8_t zerodata[IEEE80211_KEYBUF_SIZE];
@@ -4781,41 +4792,43 @@ printkey(if_ctx *ctx, const struct ieee80211req_key *ik)
 	int printcontents;
 	const int verbose = ctx->args->verbose;
 	const bool printkeys = ctx->args->printkeys;
+	char keyix[16];
 
 	printcontents = printkeys &&
 		(memcmp(ik->ik_keydata, zerodata, keylen) != 0 || verbose);
 	if (printcontents)
 		LINE_BREAK();
+	printkey_index(ik->ik_keyix, keyix, sizeof(keyix));
 	switch (ik->ik_type) {
 	case IEEE80211_CIPHER_WEP:
 		/* compatibility */
-		LINE_CHECK("wepkey %u:%s", ik->ik_keyix+1,
+		LINE_CHECK("wepkey %s:%s", keyix,
 		    keylen <= 5 ? "40-bit" :
 		    keylen <= 13 ? "104-bit" : "128-bit");
 		break;
 	case IEEE80211_CIPHER_TKIP:
 		if (keylen > 128/8)
 			keylen -= 128/8;	/* ignore MIC for now */
-		LINE_CHECK("TKIP %u:%u-bit", ik->ik_keyix+1, 8*keylen);
+		LINE_CHECK("TKIP %s:%u-bit", keyix, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_AES_OCB:
-		LINE_CHECK("AES-OCB %u:%u-bit", ik->ik_keyix+1, 8*keylen);
+		LINE_CHECK("AES-OCB %s:%u-bit", keyix, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_AES_CCM:
-		LINE_CHECK("AES-CCM %u:%u-bit", ik->ik_keyix+1, 8*keylen);
+		LINE_CHECK("AES-CCM %s:%u-bit", keyix, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_AES_GCM_128:
-		LINE_CHECK("AES-GCM %u:%u-bit", ik->ik_keyix+1, 8*keylen);
+		LINE_CHECK("AES-GCM %s:%u-bit", keyix, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_CKIP:
-		LINE_CHECK("CKIP %u:%u-bit", ik->ik_keyix+1, 8*keylen);
+		LINE_CHECK("CKIP %s:%u-bit", keyix, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_NONE:
-		LINE_CHECK("NULL %u:%u-bit", ik->ik_keyix+1, 8*keylen);
+		LINE_CHECK("NULL %s:%u-bit", keyix, 8*keylen);
 		break;
 	default:
-		LINE_CHECK("UNKNOWN (0x%x) %u:%u-bit",
-			ik->ik_type, ik->ik_keyix+1, 8*keylen);
+		LINE_CHECK("UNKNOWN (0x%x) %s:%u-bit",
+			ik->ik_type, keyix, 8*keylen);
 		break;
 	}
 	if (printcontents) {
