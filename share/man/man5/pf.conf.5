@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 26, 2025
+.Dd May 27, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -2147,20 +2147,21 @@ pass all tos 0x10
 pass all tos 16
 .Ed
 .It Ar allow-opts
-By default, IPv4 packets with IP options or IPv6 packets with routing
-extension headers are blocked.
+By default, packets with IPv4 options or IPv6 hop-by-hop or destination
+options header are blocked.
 When
 .Ar allow-opts
 is specified for a
 .Ar pass
 rule, packets that pass the filter based on that rule (last matching)
-do so even if they contain IP options or routing extension headers.
+do so even if they contain options.
 For packets that match state, the rule that initially created the
 state is used.
 The implicit
 .Ar pass
-rule that is used when a packet does not match any rules does not
-allow IP options.
+rule, that is used when a packet does not match
+any rules, does not allow IP options or option headers.
+Note that IPv6 packets with type 0 routing headers are always dropped.
 .It Ar label Aq Ar string
 Adds a label (name) to the rule, which can be used to identify the rule.
 For instance,
