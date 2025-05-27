@@ -229,7 +229,6 @@ struct vm_page {
 			void *zone;
 		} uma;
 	} plinks;
-	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) */
 	vm_object_t object;		/* which object am I in (O) */
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page (C) */
