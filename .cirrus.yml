@@ -189,3 +189,30 @@ task:
   post_script:
   - df -m
   - du -m -s /usr/obj
+
+precommit_task:
+  matrix:
+    - name: amd64 smoke test using internal ci systems
+      only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src' || $CIRRUS_BRANCH =~ 'pull/.*'
+      env:
+        TARGET: amd64
+        TARGET_ARCH: amd64
+    - name: aarch64 smoke test using internal ci systems
+      only_if: $CIRRUS_REPO_FULL_NAME != 'freebsd/freebsd-src' || $CIRRUS_BRANCH =~ 'pull/.*'
+      env:
+        TARGET: arm64
+        TARGET_ARCH: aarch64
+  timeout_in: 120m
+
+  setup_script:
+    - uname -a
+    - gpart show
+    - df -m
+    - pkg --version
+
+  ci_script:
+    - make -C tests/ci TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} CITYPE=smoke ci
+
+  post_script:
+    - df -m
+    - du -m -s /usr/obj
