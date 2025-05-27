@@ -139,11 +139,30 @@ is_boot_cpu(uint64_t target_cpu)
 	return (PCPU_GET_MPIDR(cpuid_to_pcpu[0]) == (target_cpu & CPU_AFF_MASK));
 }
 
+static bool
+wait_for_aps(void)
+{
+	for (int i = 0, started = 0; i < 2000; i++) {
+		if (atomic_load_acq_int(&smp_started) != 0) {
+			return (true);
+		}
+		/*
+		 * Don't time out while we are making progress. Some large
+		 * systems can take a while to start all CPUs.
+		 */
+		if (smp_cpus > started) {
+			i = 0;
+			started = smp_cpus;
+		}
+		DELAY(1000);
+	}
+
+	return (false);
+}
+
 static void
 release_aps(void *dummy __unused)
 {
-	int i, started;
-
 	/* Only release CPUs if they exist */
 	if (mp_ncpus == 1)
 		return;
@@ -164,24 +183,10 @@ release_aps(void *dummy __unused)
 
 	printf("Release APs...");
 
-	started = 0;
-	for (i = 0; i < 2000; i++) {
-		if (atomic_load_acq_int(&smp_started) != 0) {
-			printf("done\n");
-			return;
-		}
-		/*
-		 * Don't time out while we are making progress. Some large
-		 * systems can take a while to start all CPUs.
-		 */
-		if (smp_cpus > started) {
-			i = 0;
-			started = smp_cpus;
-		}
-		DELAY(1000);
-	}
-
-	printf("APs not started\n");
+	if (wait_for_aps())
+		printf("done\n");
+	else
+		printf("APs not started\n");
 }
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
 
