@@ -755,6 +755,8 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	dp->d_hba_device = virtio_get_device(dev);
 	dp->d_hba_subvendor = virtio_get_subvendor(dev);
 	dp->d_hba_subdevice = virtio_get_subdevice(dev);
+	strlcpy(dp->d_attachment, device_get_nameunit(dev),
+	    sizeof(dp->d_attachment));
 
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_RO))
 		dp->d_flags |= DISKFLAG_WRITE_PROTECT;
