@@ -521,13 +521,13 @@ pmc_arm64_initialize(void)
 	struct pmc_mdep *pmc_mdep;
 	struct pmc_classdep *pcd;
 	int classes, idcode, impcode;
-	int reg;
+	int pmcr;
 	uint64_t midr;
 
-	reg = arm64_pmcr_read();
-	arm64_npmcs = (reg & PMCR_N_MASK) >> PMCR_N_SHIFT;
-	impcode = (reg & PMCR_IMP_MASK) >> PMCR_IMP_SHIFT;
-	idcode = (reg & PMCR_IDCODE_MASK) >> PMCR_IDCODE_SHIFT;
+	pmcr = arm64_pmcr_read();
+	arm64_npmcs = (pmcr & PMCR_N_MASK) >> PMCR_N_SHIFT;
+	impcode = (pmcr & PMCR_IMP_MASK) >> PMCR_IMP_SHIFT;
+	idcode = (pmcr & PMCR_IDCODE_MASK) >> PMCR_IDCODE_SHIFT;
 
 	PMCDBG1(MDP, INI, 1, "arm64-init npmcs=%d", arm64_npmcs);
 
