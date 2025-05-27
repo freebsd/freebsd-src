@@ -4888,6 +4888,7 @@ ieee80211_status(if_ctx *ctx)
 {
 	int s = ctx->io_s;
 	static const uint8_t zerobssid[IEEE80211_ADDR_LEN];
+	uint8_t bssid[IEEE80211_ADDR_LEN];
 	enum ieee80211_opmode opmode = get80211opmode(ctx);
 	int i, num, wpa, wme, bgscan, bgscaninterval, val, len, wepmode;
 	uint8_t data[32];
@@ -4938,10 +4939,10 @@ ieee80211_status(if_ctx *ctx)
 	} else if (verbose)
 		printf(" channel UNDEF");
 
-	if (get80211(ctx, IEEE80211_IOC_BSSID, data, IEEE80211_ADDR_LEN) >= 0 &&
-	    (memcmp(data, zerobssid, sizeof(zerobssid)) != 0 || verbose)) {
-		printf(" bssid %s", ether_ntoa((struct ether_addr *)data));
-		printbssidname((struct ether_addr *)data);
+	if (get80211(ctx, IEEE80211_IOC_BSSID, bssid, IEEE80211_ADDR_LEN) >= 0 &&
+	    (memcmp(bssid, zerobssid, sizeof(zerobssid)) != 0 || verbose)) {
+		printf(" bssid %s", ether_ntoa((struct ether_addr *)bssid));
+		printbssidname((struct ether_addr *)bssid);
 	}
 
 	if (get80211len(ctx, IEEE80211_IOC_STATIONNAME, data, sizeof(data), &len) != -1) {
@@ -5095,6 +5096,21 @@ ieee80211_status(if_ctx *ctx)
 				if (verbose)
 					LINE_BREAK();
 				printkey(ctx, &ik);
+			}
+		}
+		if (opmode == IEEE80211_M_STA && wpa >= 2) {
+			struct ieee80211req_key ik;
+			int error;
+
+			memset(&ik, 0, sizeof(ik));
+			ik.ik_keyix = IEEE80211_KEYIX_NONE;
+			memcpy(ik.ik_macaddr, bssid, sizeof(ik.ik_macaddr));
+			error = get80211(ctx, IEEE80211_IOC_WPAKEY, &ik, sizeof(ik));
+			if (error == 0 && ik.ik_keylen != 0) {
+				if (verbose)
+					LINE_BREAK();
+				printkey(ctx, &ik);
+				i++;
 			}
 		}
 		if (i > 0 && verbose)
