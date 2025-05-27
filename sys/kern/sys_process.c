@@ -1233,6 +1233,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				    (u_long)(uintfptr_t)addr);
 				if (error)
 					goto out;
+				td2->td_dbgflags |= TDB_USERWR;
 			}
 			switch (req) {
 			case PT_TO_SCE:
