@@ -97,8 +97,9 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 	int		iswhiteout;
 	int		lockflag;
 	int		error , uerror, lerror;
+	uint64_t	cnflags;
 	u_long		nameiop;
-	u_long		cnflags, cnflagsbk;
+	u_long		cnflagsbk;
 	struct unionfs_node *dunp;
 	struct vnode   *dvp, *udvp, *ldvp, *vp, *uvp, *lvp, *dtmpvp;
 	struct vattr	va;

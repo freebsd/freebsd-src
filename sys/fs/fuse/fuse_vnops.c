@@ -1433,9 +1433,9 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	struct timespec now;
 
 	int nameiop = cnp->cn_nameiop;
-	int flags = cnp->cn_flags;
-	int wantparent = flags & (LOCKPARENT | WANTPARENT);
-	int islastcn = flags & ISLASTCN;
+	bool wantparent = cnp->cn_flags & (LOCKPARENT | WANTPARENT);
+	bool isdotdot = cnp->cn_flags & ISDOTDOT;
+	bool islastcn = cnp->cn_flags & ISLASTCN;
 	struct mount *mp = vnode_mount(dvp);
 	struct fuse_data *data = fuse_get_mpdata(mp);
 	int default_permissions = data->dataflags & FSESS_DEFAULT_PERMISSIONS;
@@ -1468,8 +1468,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		return err;
 
 	is_dot = cnp->cn_namelen == 1 && *(cnp->cn_nameptr) == '.';
-	if ((flags & ISDOTDOT) && !(data->dataflags & FSESS_EXPORT_SUPPORT))
-	{
+	if (isdotdot && !(data->dataflags & FSESS_EXPORT_SUPPORT)) {
 		if (!(VTOFUD(dvp)->flag & FN_PARENT_NID)) {
 			/*
 			 * Since the file system doesn't support ".." lookups,
@@ -1590,7 +1589,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		}
 	} else {
 		/* Entry was found */
-		if (flags & ISDOTDOT) {
+		if (isdotdot) {
 			struct fuse_lookup_alloc_arg flaa;
 
 			flaa.nid = nid;
