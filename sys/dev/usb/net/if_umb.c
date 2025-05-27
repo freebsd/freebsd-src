@@ -2147,10 +2147,12 @@ umb_decap(struct umb_softc *sc, struct usb_xfer *xfer, int frame)
 		goto fail;
 	}
 
+	if (len < ptroff)
+		goto toosmall;
 	ptr16 = (struct ncm_pointer16 *)(buf + ptroff);
 	psig = UGETDW(ptr16->dwSignature);
 	ptrlen = UGETW(ptr16->wLength);
-	if (len < ptrlen + ptroff)
+	if ((uint64_t)len < (uint64_t)ptrlen + (uint64_t)ptroff)
 		goto toosmall;
 	if (!MBIM_NCM_NTH16_ISISG(psig) && !MBIM_NCM_NTH32_ISISG(psig)) {
 		DPRINTF("%s: unsupported NCM pointer signature (0x%08x)\n",
@@ -2197,7 +2199,7 @@ umb_decap(struct umb_softc *sc, struct usb_xfer *xfer, int frame)
 		/* Terminating zero entry */
 		if (dlen == 0 || doff == 0)
 			break;
-		if (len < dlen + doff) {
+		if ((uint64_t)len < (uint64_t)dlen + (uint64_t)doff) {
 			/* Skip giant datagram but continue processing */
 			DPRINTF("%s: datagram too large (%d @ off %d)\n",
 			    DEVNAM(sc), dlen, doff);
