@@ -270,6 +270,7 @@ int __sys_sigfastblock(int cmd, void *ptr);
 
 #ifdef _KERNEL
 extern bool sigfastblock_fetch_always;
+extern bool pt_attach_transparent;
 
 /* Return nonzero if process p has an unmasked pending signal. */
 #define	SIGPENDING(td)							\
