@@ -28,9 +28,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20250527:
-	ctld(8), ctladm(8) and ctlstat(8) have moved to the new FreeBSD-ctl
-	package.  If you use pkgbase and you need the CAM Target Layer, you
-	should install the new package.
+	The CAM target layer userland, i.e. ctld(8), ctladm(8) and ctlstat(8),
+	has moved to the new FreeBSD-ctl package.  If you use pkgbase and you
+	need the CAM Target Layer, you should install the new package.
+
+	Development-related tools (e.g. ar and nm) have moved to the new
+	"FreeBSD-toolchain" package, which subsumes and obsoletes the
+	existing "FreeBSD-elftoolchain" package.  If you use pkgbase and
+	need to compile software, you should install the new package and
+	ensure the old FreeBSD-elftoolchain* packages are completely removed.
 
 20250521:
 	Commit e64fe5ad3a23 removed in6_maxmtu and its setter in6_setmaxmtu().
