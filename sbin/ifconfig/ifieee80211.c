@@ -5082,7 +5082,7 @@ ieee80211_status(if_ctx *ctx)
 			memset(&ik, 0, sizeof(ik));
 			ik.ik_keyix = i;
 			if (get80211(ctx, IEEE80211_IOC_WPAKEY, &ik, sizeof(ik)) < 0) {
-				warn("WEP support, but can get keys!");
+				warn("WEP support, but cannot get keys!");
 				goto end;
 			}
 			if (ik.ik_keylen != 0) {
