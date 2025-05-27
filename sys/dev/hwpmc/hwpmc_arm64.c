@@ -501,9 +501,8 @@ arm64_pcpu_init(struct pmc_mdep *md, int cpu)
 	WRITE_SPECIALREG(pmcntenclr_el0, 0xffffffff);
 	WRITE_SPECIALREG(pmintenclr_el1, 0xffffffff);
 
-	/* Enable unit */
-	pmcr = arm64_pmcr_read();
-	pmcr |= PMCR_E;
+	/* Enable unit with a useful default state */
+	pmcr = PMCR_LC | PMCR_C | PMCR_P | PMCR_E;
 	if (arm64_64bit_events)
 		pmcr |= PMCR_LP;
 	arm64_pmcr_write(pmcr);
