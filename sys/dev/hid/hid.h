@@ -57,6 +57,7 @@
 #define	HUP_SCALE		0x008c
 #define	HUP_CAMERA_CONTROL	0x0090
 #define	HUP_ARCADE		0x0091
+#define	HUP_FIDO		0xf1d0
 #define	HUP_MICROSOFT		0xff00
 
 /* Usages, generic desktop */
@@ -160,6 +161,9 @@
 #define	HUC_CONTROL		0x0001
 #define	HUC_HEADPHONE		0x0005
 #define	HUC_AC_PAN		0x0238
+
+/* Usages, FIDO */
+#define	HUF_U2FHID		0x0001
 
 #define	HID_USAGE2(p,u)		(((p) << 16) | (u))
 #define	HID_GET_USAGE(u)	((u) & 0xffff)
