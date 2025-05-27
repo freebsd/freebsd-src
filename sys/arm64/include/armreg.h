@@ -2377,9 +2377,8 @@
 #define	PMCR_X				(1 << 4) /* Export to ext. monitoring (ETM) */
 #define	PMCR_DP				(1 << 5) /* Disable CCNT if non-invasive debug*/
 #define	PMCR_LC				(1 << 6) /* Long cycle count enable */
-#define	PMCR_IMP_SHIFT			24	/* Implementer code */
-#define	PMCR_IMP_MASK			(0xff << PMCR_IMP_SHIFT)
-#define	 PMCR_IMP_ARM			0x41
+#define	PMCR_N_SHIFT			11  /* Number of counters implemented */
+#define	PMCR_N_MASK			(0x1f << PMCR_N_SHIFT)
 #define	PMCR_IDCODE_SHIFT		16	/* Identification code */
 #define	PMCR_IDCODE_MASK		(0xff << PMCR_IDCODE_SHIFT)
 #define	 PMCR_IDCODE_CORTEX_A57		0x01
@@ -2393,8 +2392,9 @@
 #define	 PMCR_IDCODE_CORTEX_A55		0x45
 #define	 PMCR_IDCODE_NEOVERSE_E1	0x46
 #define	 PMCR_IDCODE_CORTEX_A75		0x4a
-#define	PMCR_N_SHIFT			11  /* Number of counters implemented */
-#define	PMCR_N_MASK			(0x1f << PMCR_N_SHIFT)
+#define	PMCR_IMP_SHIFT			24	/* Implementer code */
+#define	PMCR_IMP_MASK			(0xff << PMCR_IMP_SHIFT)
+#define	 PMCR_IMP_ARM			0x41
 
 /* PMEVCNTR<n>_EL0 */
 #define	PMEVCNTR_EL0_op0		3
