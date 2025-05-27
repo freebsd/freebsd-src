@@ -3990,7 +3990,8 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
     const struct pf_addr *saddr, const struct pf_addr *daddr,
     u_int16_t sport, u_int16_t dport, u_int32_t seq, u_int32_t ack,
     u_int8_t tcp_flags, u_int16_t win, u_int16_t mss, u_int8_t ttl,
-    int mbuf_flags, u_int16_t mtag_tag, u_int16_t mtag_flags, int rtableid)
+    int mbuf_flags, u_int16_t mtag_tag, u_int16_t mtag_flags, u_int sack,
+    int rtableid)
 {
 	struct mbuf	*m;
 	int		 len, tlen;
@@ -4011,6 +4012,8 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 	tlen = sizeof(struct tcphdr);
 	if (mss)
 		tlen += 4;
+	if (sack)
+		tlen += 2;
 
 	switch (af) {
 #ifdef INET
@@ -4115,12 +4118,19 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 	tcp_set_flags(th, tcp_flags);
 	th->th_win = htons(win);
 
+	opt = (char *)(th + 1);
 	if (mss) {
 		opt = (char *)(th + 1);
 		opt[0] = TCPOPT_MAXSEG;
 		opt[1] = 4;
 		mss = htons(mss);
 		memcpy((opt + 2), &mss, 2);
+		opt += 4;
+	}
+	if (sack) {
+		opt[0] = TCPOPT_SACK_PERMITTED;
+		opt[1] = 2;
+		opt += 2;
 	}
 
 	return (m);
@@ -4253,7 +4263,7 @@ pf_send_tcp(const struct pf_krule *r, sa_family_t af,
 	struct mbuf	*m;
 
 	m = pf_build_tcp(r, af, saddr, daddr, sport, dport, seq, ack, tcp_flags,
-	    win, mss, ttl, mbuf_flags, mtag_tag, mtag_flags, rtableid);
+	    win, mss, ttl, mbuf_flags, mtag_tag, mtag_flags, 0, rtableid);
 	if (m == NULL)
 		return;
 
