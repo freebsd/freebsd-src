@@ -39,6 +39,7 @@
 #include "opt_acpi.h"
 
 static int arm64_npmcs;
+static bool arm64_64bit_events __read_mostly = false;
 
 struct arm64_event_code_map {
 	enum pmc_event	pe_ev;
@@ -247,8 +248,15 @@ arm64_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 		/* Reread counter in case we raced. */
 		tmp = arm64_pmcn_read(ri);
 	}
-	tmp &= 0xffffffffu;
-	tmp += 0x100000000llu * pm->pm_pcpu_state[cpu].pps_overflowcnt;
+	/*
+	 * If the counter is 32-bit increment the upper bits of the counter.
+	 * It it is 64-bit then there is nothing we can do as tmp is already
+	 * 64-bit.
+	 */
+	if (!arm64_64bit_events) {
+		tmp &= 0xffffffffu;
+		tmp += (uint64_t)pm->pm_pcpu_state[cpu].pps_overflowcnt << 32;
+	}
 	intr_restore(s);
 
 	PMCDBG2(MDP, REA, 2, "arm64-read id=%d -> %jd", ri, tmp);
@@ -282,8 +290,10 @@ arm64_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 
 	PMCDBG3(MDP, WRI, 1, "arm64-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
-	pm->pm_pcpu_state[cpu].pps_overflowcnt = v >> 32;
-	v &= 0xffffffffu;
+	if (!arm64_64bit_events) {
+		pm->pm_pcpu_state[cpu].pps_overflowcnt = v >> 32;
+		v &= 0xffffffffu;
+	}
 	arm64_pmcn_write(ri, v);
 
 	return (0);
@@ -494,6 +504,8 @@ arm64_pcpu_init(struct pmc_mdep *md, int cpu)
 	/* Enable unit */
 	pmcr = arm64_pmcr_read();
 	pmcr |= PMCR_E;
+	if (arm64_64bit_events)
+		pmcr |= PMCR_LP;
 	arm64_pmcr_write(pmcr);
 
 	return (0);
@@ -523,6 +535,7 @@ pmc_arm64_initialize(void)
 	struct pmc_mdep *pmc_mdep;
 	struct pmc_classdep *pcd;
 	int classes, idcode, impcode;
+	uint64_t dfr;
 	uint64_t pmcr;
 	uint64_t midr;
 
@@ -544,6 +557,12 @@ pmc_arm64_initialize(void)
 	midr = (uint64_t)(pcpu_find(0)->pc_midr);
 	midr &= ~(CPU_VAR_MASK | CPU_REV_MASK);
 	snprintf(pmc_cpuid, sizeof(pmc_cpuid), "0x%016lx", midr);
+
+	/* Check if we have 64-bit counters */
+	if (get_kernel_reg(ID_AA64DFR0_EL1, &dfr)) {
+		if (ID_AA64DFR0_PMUVer_VAL(dfr) >= ID_AA64DFR0_PMUVer_3_5)
+			arm64_64bit_events = true;
+	}
 
 	/*
 	 * Allocate space for pointers to PMC HW descriptors and for
