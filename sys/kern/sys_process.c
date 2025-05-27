@@ -39,6 +39,7 @@
 #include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/reg.h>
+#include <sys/sleepqueue.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -1345,6 +1346,27 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		 */
 		if (data == SIGKILL)
 			proc_wkilled(p);
+
+		/*
+		 * If the PT_CONTINUE-like operation is attempted on
+		 * the thread on sleepq, this is possible only after
+		 * the transparent PT_ATTACH.  In this case, if the
+		 * caller modified the thread state, e.g. by writing
+		 * register file or specifying the pc, make the thread
+		 * xstopped by waking it up.
+		 */
+		if ((td2->td_dbgflags & TDB_USERWR) != 0) {
+			if (pt_attach_transparent) {
+				thread_lock(td2);
+				if (TD_ON_SLEEPQ(td2) &&
+				    (td2->td_flags & TDF_SINTR) != 0) {
+					sleepq_abort(td2, EINTR);
+				} else {
+					thread_unlock(td2);
+				}
+			}
+			td2->td_dbgflags &= ~TDB_USERWR;
+		}
 
 		/*
 		 * Unsuspend all threads.  To leave a thread
