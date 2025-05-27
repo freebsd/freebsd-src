@@ -4747,6 +4747,9 @@ printcipher(int s, struct ieee80211req *ireq, int keylenop)
 	case IEEE80211_CIPHER_AES_CCM:
 		printf("AES-CCM");
 		break;
+	case IEEE80211_CIPHER_AES_GCM_128:
+		printf("AES-GCM");
+		break;
 	case IEEE80211_CIPHER_CKIP:
 		printf("CKIP");
 		break;
@@ -4790,6 +4793,9 @@ printkey(if_ctx *ctx, const struct ieee80211req_key *ik)
 		break;
 	case IEEE80211_CIPHER_AES_CCM:
 		LINE_CHECK("AES-CCM %u:%u-bit", ik->ik_keyix+1, 8*keylen);
+		break;
+	case IEEE80211_CIPHER_AES_GCM_128:
+		LINE_CHECK("AES-GCM %u:%u-bit", ik->ik_keyix+1, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_CKIP:
 		LINE_CHECK("CKIP %u:%u-bit", ik->ik_keyix+1, 8*keylen);
