@@ -41,21 +41,87 @@
  * program that will verify everything is correctly honored after an exec.
  */
 
+#include <sys/param.h>
+#include <sys/sysctl.h>
+
+#include <netinet/in.h>
+#include <sys/socket.h>
+
+#include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <err.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/sysmacros.h>
-#include <sys/fork.h>
-#include <wait.h>
+#include <sys/wait.h>
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
 #include <libgen.h>
-#include <sys/socket.h>
+#include <fcntl.h>
+#include <signal.h>
+
+void *recallocarray(void *, size_t, size_t, size_t);
+
+#define strerrorname_np(e) (sys_errlist[e])
+
+#ifndef FORK_NOSIGCHLD
+#define FORK_NOSIGCHLD 0x01
+#endif
+
+#ifndef FORK_WAITPID
+#define FORK_WAITPID   0x02
+#endif
+
+/*
+ * Simulate Solaris' forkx() with rfork()
+ */
+static pid_t
+forkx(int flags)
+{
+	int rfork_flags = RFPROC | RFFDG;
+	pid_t pid;
+
+	if ((flags & ~(FORK_NOSIGCHLD | FORK_WAITPID)) != 0) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	if ((flags & FORK_WAITPID) == 0)
+		rfork_flags |= RFNOWAIT;
+
+	pid = rfork(rfork_flags);
+	if (pid == -1)
+		return (-1);
+
+	return (pid);
+}
+
+/*
+ * Get pathname to avoid reading /proc/curproc/exe
+ *
+ * Taken from procstat_getpathname_sysctl()
+ */
+static int
+getpathname(pid_t pid, char *pathname, size_t maxlen)
+{
+	int error, name[4];
+	size_t len;
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_PATHNAME;
+	name[3] = pid;
+	len = maxlen;
+	error = sysctl(name, nitems(name), pathname, &len, NULL, 0);
+	if (error != 0 && errno != ESRCH)
+		warn("sysctl: kern.proc.pathname: %d", pid);
+	if (len == 0)
+		pathname[0] = '\0';
+	return (error);
+}
 
 /*
  * Verification program name.
@@ -89,8 +155,8 @@ typedef struct clo_rtdata {
 } clo_rtdata_t;
 
 static clo_rtdata_t *oclo_rtdata;
-size_t oclo_rtdata_nents = 0;
-size_t oclo_rtdata_next = 0;
+static size_t oclo_rtdata_nents = 0;
+static size_t oclo_rtdata_next = 0;
 static int oclo_nextfd = STDERR_FILENO + 1;
 
 static bool
@@ -267,7 +333,7 @@ oclo_fdup_common(const clo_create_t *c, int targ_flags, int cmd)
 		dup = fcntl(fd, cmd, fd + 1);
 		break;
 	case F_DUP3FD:
-		dup = fcntl(fd, cmd, fd + 1, targ_flags);
+		dup = fcntl(fd, cmd | (targ_flags << 16), fd + 1);
 		break;
 	default:
 		errx(EXIT_FAILURE, "TEST FAILURE: %s: internal error: "
@@ -600,7 +666,7 @@ oclo_rights_common(const clo_create_t *c, int targ_flags)
 
 	if (msg.msg_controllen < CMSG_SPACE(sizeof (int))) {
 		errx(EXIT_FAILURE, "TEST FAILED: %s: found insufficient "
-		    "message control length: expected at least 0x%x, found "
+		    "message control length: expected at least 0x%lx, found "
 		    "0x%x", c->clo_desc, CMSG_SPACE(sizeof (int)),
 		    msg.msg_controllen);
 	}
@@ -1208,20 +1274,12 @@ oclo_exec(void)
 	char dir[PATH_MAX], file[PATH_MAX];
 	char **argv;
 
-	ret = readlink("/proc/self/path/a.out", dir, sizeof (dir));
-	if (ret < 0) {
-		err(EXIT_FAILURE, "TEST FAILED: failed to read our a.out path "
-		    "from /proc");
-	} else if (ret == 0) {
-		errx(EXIT_FAILURE, "TEST FAILED: reading /proc/self/path/a.out "
-		    "returned 0 bytes");
-	} else if (ret == sizeof (dir)) {
-		errx(EXIT_FAILURE, "TEST FAILED: Using /proc/self/path/a.out "
-		    "requires truncation");
-	}
+	ret = getpathname(getpid(), dir, sizeof(dir));
+	if (ret < 0)
+		err(EXIT_FAILURE, "TEST FAILED: failed to read executable path");
 
 	if (snprintf(file, sizeof (file), "%s/%s", dirname(dir), OCLO_VERIFY) >=
-	    sizeof (file)) {
+	    (int)sizeof (file)) {
 		errx(EXIT_FAILURE, "TEST FAILED: cannot assemble exec path "
 		    "name: internal buffer overflow");
 	}
@@ -1262,7 +1320,7 @@ main(void)
 	 * Treat failure during this set up phase as a hard failure. There's no
 	 * reason to continue if we can't successfully create the FDs we expect.
 	 */
-	for (size_t i = 0; i < ARRAY_SIZE(oclo_create); i++) {
+	for (size_t i = 0; i < nitems(oclo_create); i++) {
 		oclo_create[i].clo_func(&oclo_create[i]);
 	}
 
