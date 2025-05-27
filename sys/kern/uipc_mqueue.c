@@ -846,7 +846,8 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 	struct mqfs_node *pd;
 	struct mqfs_node *pn;
 	struct mqfs_info *mqfs;
-	int nameiop, flags, error, namelen;
+	uint64_t flags;
+	int nameiop, error, namelen;
 	char *pname;
 	struct thread *td;
 

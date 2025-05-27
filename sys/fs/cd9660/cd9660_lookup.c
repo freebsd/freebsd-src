@@ -134,7 +134,7 @@ cd9660_lookup(ap)
 	char *name;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
-	int flags = cnp->cn_flags;
+	uint64_t flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 
 	ep2 = ep = NULL;
