@@ -8,6 +8,7 @@
 # Also note that flex.skel no longer gets installed.
 #
 
+PACKAGE=	toolchain
 PROG=		lex
 LINKS+=	${BINDIR}/lex ${BINDIR}/lex++
 LINKS+=	${BINDIR}/lex ${BINDIR}/flex

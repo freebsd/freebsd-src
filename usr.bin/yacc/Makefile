@@ -3,6 +3,7 @@
 BYACC_SRC=	${SRCTOP}/contrib/byacc
 .PATH: ${BYACC_SRC}
 
+PACKAGE= toolchain
 PROG=	yacc
 SRCS=	closure.c error.c graph.c lalr.c lr0.c main.c mkpar.c mstring.c output.c \
 	reader.c yaccpar.c symtab.c verbose.c warshall.c

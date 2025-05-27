@@ -1,6 +1,6 @@
 .include <src.opts.mk>
 
-PACKAGE=	elftoolchain
+PACKAGE=	toolchain
 
 ELFTCDIR=	${SRCTOP}/contrib/elftoolchain
 SRCDIR=		${ELFTCDIR}/cxxfilt
