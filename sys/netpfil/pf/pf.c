@@ -114,6 +114,8 @@
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_crc32.h>
 
+#include <netipsec/ah.h>
+
 #include <machine/in_cksum.h>
 #include <security/mac/mac_framework.h>
 
@@ -9694,7 +9696,7 @@ pf_dummynet_route(struct pf_pdesc *pd, struct pf_kstate *s,
 static int
 pf_walk_header(struct pf_pdesc *pd, struct ip *h, u_short *reason)
 {
-	struct ip6_ext	 ext;
+	struct ah	 ext;
 	u_int32_t	 hlen, end;
 
 	hlen = h->ip_hl << 2;
@@ -9720,8 +9722,8 @@ pf_walk_header(struct pf_pdesc *pd, struct ip *h, u_short *reason)
 				DPFPRINTF(PF_DEBUG_MISC, ("IP short exthdr"));
 				return (PF_DROP);
 			}
-			pd->off += (ext.ip6e_len + 2) * 4;
-			pd->proto = ext.ip6e_nxt;
+			pd->off += (ext.ah_len + 2) * 4;
+			pd->proto = ext.ah_nxt;
 			break;
 		default:
 			return (PF_PASS);
