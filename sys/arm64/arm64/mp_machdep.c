@@ -124,7 +124,7 @@ static void *bootstacks[MAXCPU];
 static volatile int aps_started;
 
 /* Set to 1 once we're ready to let the APs out of the pen. */
-static volatile int aps_ready;
+static volatile int aps_after_dev, aps_ready;
 
 /* Temporary variables for init_secondary()  */
 static void *dpcpu[MAXCPU - 1];
@@ -159,6 +159,26 @@ wait_for_aps(void)
 
 	return (false);
 }
+
+static void
+release_aps_after_dev(void *dummy __unused)
+{
+	/* Only release CPUs if they exist */
+	if (mp_ncpus == 1)
+		return;
+
+	atomic_store_int(&aps_started, 0);
+	atomic_store_rel_int(&aps_after_dev, 1);
+	/* Wake up the other CPUs */
+	__asm __volatile(
+	    "dsb ishst	\n"
+	    "sev	\n"
+	    ::: "memory");
+
+	wait_for_aps();
+}
+SYSINIT(aps_after_dev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE + 1,
+    release_aps_after_dev, NULL);
 
 static void
 release_aps(void *dummy __unused)
@@ -237,8 +257,20 @@ init_secondary(uint64_t cpu)
 	/* Detect early CPU feature support */
 	enable_cpu_feat(CPU_FEAT_EARLY_BOOT);
 
-	/* Signal the BSP and spin until it has released all APs. */
+	/* Signal we are waiting for aps_after_dev */
 	atomic_add_int(&aps_started, 1);
+
+	/* Wait for devices to be ready */
+	while (!atomic_load_int(&aps_after_dev))
+		__asm __volatile("wfe");
+
+	install_cpu_errata();
+	enable_cpu_feat(CPU_FEAT_AFTER_DEV);
+
+	/* Signal we are done */
+	atomic_add_int(&aps_started, 1);
+
+	/* Wait until we can run the scheduler */
 	while (!atomic_load_int(&aps_ready))
 		__asm __volatile("wfe");
 
@@ -252,9 +284,6 @@ init_secondary(uint64_t cpu)
 	KASSERT(pmap_to_ttbr0(pmap0) == READ_SPECIALREG(ttbr0_el1),
 	    ("pmap0 doesn't match cpu %ld's ttbr0", cpu));
 	pcpup->pc_curpmap = pmap0;
-
-	install_cpu_errata();
-	enable_cpu_feat(CPU_FEAT_AFTER_DEV);
 
 	intr_pic_init_secondary();
 
