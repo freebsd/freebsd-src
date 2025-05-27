@@ -101,7 +101,7 @@ class TestFrag6HopHyHop(VnetTestTemplate):
         ToolsHelper.print_output("/sbin/pfctl -x loud")
         ToolsHelper.pf_rules([
             "scrub fragment reassemble min-ttl 10",
-            "pass",
+            "pass allow-opts",
         ])
 
     @pytest.mark.require_user("root")
