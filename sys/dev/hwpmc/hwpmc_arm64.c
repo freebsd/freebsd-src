@@ -592,7 +592,7 @@ pmc_arm64_initialize(void)
 	pcd->pcd_class = PMC_CLASS_ARMV8;
 	pcd->pcd_num   = arm64_npmcs;
 	pcd->pcd_ri    = pmc_mdep->pmd_npmc;
-	pcd->pcd_width = 32;
+	pcd->pcd_width = 64;
 
 	pcd->pcd_allocate_pmc   = arm64_allocate_pmc;
 	pcd->pcd_config_pmc     = arm64_config_pmc;
