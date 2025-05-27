@@ -135,7 +135,7 @@ arm64_pmcr_write(uint64_t reg)
 /*
  * Performance Count Register N
  */
-static uint32_t
+static uint64_t
 arm64_pmcn_read(unsigned int pmc)
 {
 
@@ -149,7 +149,7 @@ arm64_pmcn_read(unsigned int pmc)
 }
 
 static void
-arm64_pmcn_write(unsigned int pmc, uint32_t reg)
+arm64_pmcn_write(unsigned int pmc, uint64_t reg)
 {
 
 	KASSERT(pmc < arm64_npmcs, ("%s: illegal PMC number %d", __func__, pmc));
@@ -247,6 +247,7 @@ arm64_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 		/* Reread counter in case we raced. */
 		tmp = arm64_pmcn_read(ri);
 	}
+	tmp &= 0xffffffffu;
 	tmp += 0x100000000llu * pm->pm_pcpu_state[cpu].pps_overflowcnt;
 	intr_restore(s);
 
@@ -282,6 +283,7 @@ arm64_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 	PMCDBG3(MDP, WRI, 1, "arm64-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
 	pm->pm_pcpu_state[cpu].pps_overflowcnt = v >> 32;
+	v &= 0xffffffffu;
 	arm64_pmcn_write(ri, v);
 
 	return (0);
