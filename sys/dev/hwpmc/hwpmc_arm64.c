@@ -113,7 +113,7 @@ arm64_counter_disable(unsigned int pmc)
 /*
  * Performance Monitors Control Register
  */
-static uint32_t
+static uint64_t
 arm64_pmcr_read(void)
 {
 	uint32_t reg;
@@ -124,7 +124,7 @@ arm64_pmcr_read(void)
 }
 
 static void
-arm64_pmcr_write(uint32_t reg)
+arm64_pmcr_write(uint64_t reg)
 {
 
 	WRITE_SPECIALREG(pmcr_el0, reg);
@@ -500,7 +500,7 @@ arm64_pcpu_init(struct pmc_mdep *md, int cpu)
 static int
 arm64_pcpu_fini(struct pmc_mdep *md, int cpu)
 {
-	uint32_t pmcr;
+	uint64_t pmcr;
 
 	PMCDBG0(MDP, INI, 1, "arm64-pcpu-fini");
 
@@ -521,7 +521,7 @@ pmc_arm64_initialize(void)
 	struct pmc_mdep *pmc_mdep;
 	struct pmc_classdep *pcd;
 	int classes, idcode, impcode;
-	int pmcr;
+	uint64_t pmcr;
 	uint64_t midr;
 
 	pmcr = arm64_pmcr_read();
