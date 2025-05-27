@@ -316,11 +316,28 @@ variable is specified,
 .Ar value
 is assumed to be the empty string.
 .Pp
+Note that, as the common makefiles overwrite the
+.Va CFLAGS
+variable after having processed the configuration file,
+customizing
+.Va CFLAGS
+directly via
+.Ic makeoptions
+is not possible.
+Nonetheless, custom compiler flags can be specified using the
+.Va CONF_CFLAGS
+variable instead.
+Its content is appended to
+.Va CFLAGS
+after the common makefiles have set the latter, allowing to override their
+compilation flags.
+.Pp
 Example:
 .Bd -literal -offset indent -compact
 makeoptions MYMAKEOPTION="foo"
 makeoptions MYMAKEOPTION+="bar"
 makeoptions MYNULLMAKEOPTION
+makeoptions CONF_CFLAGS+="-DSOME_CONTROLLING_MACRO"
 .Ed
 .\" -------- MAXUSERS --------
 .Pp
