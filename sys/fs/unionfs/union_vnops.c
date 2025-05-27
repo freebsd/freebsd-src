@@ -86,8 +86,8 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 	struct vattr	va;
 	struct componentname *cnp;
 	struct thread  *td;
+	uint64_t	cnflags, cnflagsbk;
 	u_long		nameiop;
-	u_long		cnflags, cnflagsbk;
 	int		iswhiteout;
 	int		lockflag;
 	int		error , uerror, lerror;
