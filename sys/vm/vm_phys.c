@@ -393,13 +393,23 @@ static void
 vm_freelist_add(struct vm_freelist *fl, vm_page_t m, int order, int pool,
     int tail)
 {
+	/*
+	 * The paging queues and the free page lists utilize the same field,
+	 * plinks.q, within the vm_page structure.  When a physical page is
+	 * freed, it is lazily removed from the paging queues to reduce the
+	 * cost of removal through batching.  Here, we must ensure that any
+	 * deferred dequeue on the physical page has completed before using
+	 * its plinks.q field.
+	 */
+	if (__predict_false(vm_page_astate_load(m).queue != PQ_NONE))
+		vm_page_dequeue(m);
 
 	m->order = order;
 	m->pool = pool;
 	if (tail)
-		TAILQ_INSERT_TAIL(&fl[order].pl, m, listq);
+		TAILQ_INSERT_TAIL(&fl[order].pl, m, plinks.q);
 	else
-		TAILQ_INSERT_HEAD(&fl[order].pl, m, listq);
+		TAILQ_INSERT_HEAD(&fl[order].pl, m, plinks.q);
 	fl[order].lcnt++;
 }
 
@@ -407,7 +417,7 @@ static void
 vm_freelist_rem(struct vm_freelist *fl, vm_page_t m, int order)
 {
 
-	TAILQ_REMOVE(&fl[order].pl, m, listq);
+	TAILQ_REMOVE(&fl[order].pl, m, plinks.q);
 	fl[order].lcnt--;
 	m->order = VM_NFREEORDER;
 }
@@ -1582,7 +1592,7 @@ vm_phys_find_freelist_contig(struct vm_freelist *fl, u_long npages,
 	 * check if there are enough free blocks starting at a properly aligned
 	 * block.  Thus, no block is checked for free-ness more than twice.
 	 */
-	TAILQ_FOREACH(m, &fl[max_order].pl, listq) {
+	TAILQ_FOREACH(m, &fl[max_order].pl, plinks.q) {
 		/*
 		 * Skip m unless it is first in a sequence of free max page
 		 * blocks >= low in its segment.
@@ -1655,7 +1665,7 @@ vm_phys_find_queues_contig(
 	for (oind = order; oind < VM_NFREEORDER; oind++) {
 		for (pind = vm_default_freepool; pind < VM_NFREEPOOL; pind++) {
 			fl = (*queues)[pind];
-			TAILQ_FOREACH(m_ret, &fl[oind].pl, listq) {
+			TAILQ_FOREACH(m_ret, &fl[oind].pl, plinks.q) {
 				/*
 				 * Determine if the address range starting at pa
 				 * is within the given range, satisfies the
