@@ -112,9 +112,6 @@ void mpentry_psci(unsigned long cpuid);
 void mpentry_spintable(void);
 void init_secondary(uint64_t);
 
-/* Synchronize AP startup. */
-static struct mtx ap_boot_mtx;
-
 /* Used to initialize the PCPU ahead of calling init_secondary(). */
 void *bootpcpu;
 uint64_t ap_cpuid;
@@ -143,16 +140,19 @@ static bool
 wait_for_aps(void)
 {
 	for (int i = 0, started = 0; i < 2000; i++) {
-		if (atomic_load_acq_int(&smp_started) != 0) {
+		int32_t nstarted;
+
+		nstarted = atomic_load_32(&aps_started);
+		if (nstarted == mp_ncpus - 1)
 			return (true);
-		}
+
 		/*
 		 * Don't time out while we are making progress. Some large
 		 * systems can take a while to start all CPUs.
 		 */
-		if (smp_cpus > started) {
+		if (nstarted > started) {
 			i = 0;
-			started = smp_cpus;
+			started = nstarted;
 		}
 		DELAY(1000);
 	}
@@ -174,6 +174,7 @@ release_aps(void *dummy __unused)
 	intr_ipi_setup(IPI_STOP_HARD, "stop hard", ipi_stop, NULL);
 	intr_ipi_setup(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL);
 
+	atomic_store_int(&aps_started, 0);
 	atomic_store_rel_int(&aps_ready, 1);
 	/* Wake up the other CPUs */
 	__asm __volatile(
@@ -187,6 +188,9 @@ release_aps(void *dummy __unused)
 		printf("done\n");
 	else
 		printf("APs not started\n");
+
+	smp_cpus = atomic_load_int(&aps_started) + 1;
+	atomic_store_rel_int(&smp_started, 1);
 }
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
 
@@ -263,13 +267,8 @@ init_secondary(uint64_t cpu)
 
 	dbg_init();
 
-	mtx_lock_spin(&ap_boot_mtx);
-	atomic_add_rel_32(&smp_cpus, 1);
-	if (smp_cpus == mp_ncpus) {
-		/* enable IPI's, tlb shootdown, freezes etc */
-		atomic_store_rel_int(&smp_started, 1);
-	}
-	mtx_unlock_spin(&ap_boot_mtx);
+	/* Signal the CPU is ready */
+	atomic_add_int(&aps_started, 1);
 
 	kcsan_cpu_init(cpu);
 
@@ -699,8 +698,6 @@ void
 cpu_mp_start(void)
 {
 	uint64_t mpidr;
-
-	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	/* CPU 0 is always boot CPU. */
 	CPU_SET(0, &all_cpus);
