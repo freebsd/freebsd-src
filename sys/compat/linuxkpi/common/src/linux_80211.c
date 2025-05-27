@@ -482,12 +482,6 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 	sta->deflink.ht_cap.cap = htcap->cap_info;
 	sta->deflink.ht_cap.mcs = htcap->mcs;
 
-	if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) != 0 &&
-	    IEEE80211_IS_CHAN_HT40(ni->ni_chan))
-		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_40;
-	else
-		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
-
 	/*
 	 * 802.11n-2009 20.6 Parameters for HT MCSs gives the mandatory/
 	 * optional MCS for Nss=1..4.  We need to check the first four
@@ -496,11 +490,21 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 	 */
 	rx_nss = 0;
 	for (i = 0; i < 4; i++) {
-		if (htcap->mcs.rx_mask[i])
+		if (htcap->mcs.rx_mask[i] != 0)
 			rx_nss++;
 	}
-	if (rx_nss > 0)
+	if (rx_nss > 0) {
 		sta->deflink.rx_nss = rx_nss;
+	} else {
+		sta->deflink.ht_cap.ht_supported = false;
+		return;
+	}
+
+	if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) != 0 &&
+	    IEEE80211_IS_CHAN_HT40(ni->ni_chan))
+		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_40;
+	else
+		sta->deflink.bandwidth = IEEE80211_STA_RX_BW_20;
 
 	IMPROVE("sta->wme");
 
