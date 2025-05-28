@@ -3222,4 +3222,27 @@ DB_SHOW_COMMAND(tcpcb, db_show_tcpcb)
 
 	db_print_tcpcb(tp, "tcpcb", 0);
 }
+
+DB_SHOW_ALL_COMMAND(tcpcbs, db_show_all_tcpcbs)
+{
+	VNET_ITERATOR_DECL(vnet_iter);
+	struct inpcb *inp;
+	bool only_locked;
+
+	only_locked = strchr(modif, 'l') != NULL;
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		CK_LIST_FOREACH(inp, &V_tcbinfo.ipi_listhead, inp_list) {
+			if (only_locked &&
+			    inp->inp_lock.rw_lock == RW_UNLOCKED)
+				continue;
+			db_print_tcpcb(intotcpcb(inp), "tcpcb", 0);
+			if (db_pager_quit)
+				break;
+		}
+		CURVNET_RESTORE();
+		if (db_pager_quit)
+			break;
+	}
+}
 #endif

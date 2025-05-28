@@ -24,7 +24,7 @@
 .\" any improvements or extensions that they make and grant Carnegie Mellon
 .\" the rights to redistribute these changes.
 .\"
-.Dd May 24, 2025
+.Dd May 28, 2025
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -602,6 +602,14 @@ target process is not in the main memory at that time.
 The
 .Cm a
 modifier will print command line arguments for each process.
+.\"
+.Pp
+.It Ic show Cm all tcpcbs Ns Op Li / Ns Cm l
+Show the same output as "show tcpcb" does, but for all
+TCP control blocks within the system.
+Using the
+.Cm l
+modifier will limit the output to TCP control blocks, which are locked.
 .\"
 .Pp
 .It Ic show Cm all trace
