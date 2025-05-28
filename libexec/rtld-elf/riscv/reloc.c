@@ -405,23 +405,6 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			    lockstate);
 			if (def == NULL)
 				return (-1);
-			/*
-			 * We lazily allocate offsets for static TLS as we
-			 * see the first relocation that references the
-			 * TLS block. This allows us to support (small
-			 * amounts of) static TLS in dynamically loaded
-			 * modules. If we run out of space, we generate an
-			 * error.
-			 */
-			if (!defobj->tls_static) {
-				if (!allocate_tls_offset(
-				    __DECONST(Obj_Entry *, defobj))) {
-					_rtld_error(
-					    "%s: No space available for static "
-					    "Thread Local Storage", obj->path);
-					return (-1);
-				}
-			}
 
 			*where += (Elf_Addr)(def->st_value + rela->r_addend
 			    - TLS_DTV_OFFSET);
