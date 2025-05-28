@@ -916,8 +916,8 @@ ffs_populate_dir(const char *dir, fsnode *root, fsinfo_t *fsopts)
 			    root, fsopts);
 
 		if (debug & DEBUG_FS_POPULATE_NODE) {
-			printf("ffs_populate_dir: writing ino %d, %s",
-			    cur->inode->ino, inode_type(cur->type));
+			printf("ffs_populate_dir: writing ino %lld, %s",
+			    (long long)cur->inode->ino, inode_type(cur->type));
 			if (cur->inode->nlink > 1)
 				printf(", nlink %d", cur->inode->nlink);
 			putchar('\n');

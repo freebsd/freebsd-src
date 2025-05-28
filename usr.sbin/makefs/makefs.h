@@ -86,7 +86,7 @@ enum fi_flags {
 };
 
 typedef struct {
-	uint32_t	 ino;		/* inode number used on target fs */
+	uint64_t	 ino;		/* inode number used on target fs */
 	uint32_t	 nlink;		/* number of links to this entry */
 	enum fi_flags	 flags;		/* flags used by fs specific code */
 	void		*param;		/* for use by individual fs impls */
