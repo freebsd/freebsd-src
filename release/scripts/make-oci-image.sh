@@ -22,16 +22,16 @@ echo "Building OCI freebsd${major}-${image} image for ${abi}"
 init_repo() {
 	local workdir=$1; shift
 	local abi=$1; shift
+	local srcdir=$(realpath ${curdir}/..)
 
 	mkdir -p ${workdir}/repos
 	cat > ${workdir}/repos/base.conf <<EOF
 FreeBSD-base: {
-  url: "file:///usr/obj/usr/src/repo/${abi}/latest"
+  url: "file:///usr/obj${srcdir}/repo/${abi}/latest"
   signature_type: "none"
   fingerprints: "none"
 }
 EOF
-	cp /etc/pkg/FreeBSD.conf ${workdir}/repos
 }
 
 # Install packages using pkg(8) into a container with rootfs at $3
