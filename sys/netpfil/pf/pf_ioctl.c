@@ -2439,7 +2439,7 @@ pf_start(void)
 		if (! TAILQ_EMPTY(V_pf_keth->active.rules))
 			hook_pf_eth();
 		V_pf_status.running = 1;
-		V_pf_status.since = time_second;
+		V_pf_status.since = time_uptime;
 		new_unrhdr64(&V_pf_stateid, time_second);
 
 		DPFPRINTF(PF_DEBUG_MISC, ("pf: started\n"));
@@ -2461,7 +2461,7 @@ pf_stop(void)
 		V_pf_status.running = 0;
 		dehook_pf();
 		dehook_pf_eth();
-		V_pf_status.since = time_second;
+		V_pf_status.since = time_uptime;
 		DPFPRINTF(PF_DEBUG_MISC, ("pf: stopped\n"));
 	}
 	sx_xunlock(&V_pf_ioctl_lock);
@@ -2481,7 +2481,7 @@ pf_ioctl_clear_status(void)
 		counter_u64_zero(V_pf_status.scounters[i]);
 	for (int i = 0; i < KLCNT_MAX; i++)
 		counter_u64_zero(V_pf_status.lcounters[i]);
-	V_pf_status.since = time_second;
+	V_pf_status.since = time_uptime;
 	if (*V_pf_status.ifname)
 		pfi_update_status(V_pf_status.ifname, NULL);
 	PF_RULES_WUNLOCK();
@@ -5867,6 +5867,8 @@ pf_getstatus(struct pfioc_nv *nv)
 	char *pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
 	char *pf_lcounter[KLCNT_MAX+1] = KLCNT_NAMES;
 	char *pf_fcounter[FCNT_MAX+1] = FCNT_NAMES;
+	time_t since;
+
 	PF_RULES_RLOCK_TRACKER;
 
 #define ERROUT(x)      ERROUT_FUNCTION(errout, x)
@@ -5877,8 +5879,10 @@ pf_getstatus(struct pfioc_nv *nv)
 	if (nvl == NULL)
 		ERROUT(ENOMEM);
 
+	since = time_second - (time_uptime - V_pf_status.since);
+
 	nvlist_add_bool(nvl, "running", V_pf_status.running);
-	nvlist_add_number(nvl, "since", V_pf_status.since);
+	nvlist_add_number(nvl, "since", since);
 	nvlist_add_number(nvl, "debug", V_pf_status.debug);
 	nvlist_add_number(nvl, "hostid", V_pf_status.hostid);
 	nvlist_add_number(nvl, "states", V_pf_status.states);
