@@ -1008,15 +1008,16 @@ vm_object_page_clean_flush(struct pctrie_iter *pages, vm_page_t p,
 	vm_page_lock_assert(p, MA_NOTOWNED);
 	vm_page_assert_xbusied(p);
 	ma[0] = p;
-	for (count = 1; count < vm_pageout_page_count; count++) {
-		p = vm_radix_iter_next(pages);
-		if (p == NULL || vm_page_tryxbusy(p) == 0)
+	runlen = vm_radix_iter_lookup_range(pages, p->pindex + 1,
+	    &ma[1], vm_pageout_page_count - 1);
+	for (count = 1; count <= runlen; count++) {
+		p = ma[count];
+		if (vm_page_tryxbusy(p) == 0)
 			break;
 		if (!vm_object_page_remove_write(p, flags, allclean)) {
 			vm_page_xunbusy(p);
 			break;
 		}
-		ma[count] = p;
 	}
 
 	vm_pageout_flush(ma, count, pagerflags, 0, &runlen, eio);
