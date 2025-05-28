@@ -94,9 +94,6 @@ ATF_TC_BODY(basic, tc)
 	struct addrinfo *res;
 	int rv;
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_expect_fail("https://bugs.freebsd.org/285826");
-
 	rv = getaddrinfo(goodname, NULL, &hints, &res);
 	ATF_REQUIRE_MSG(rv == 0,
 	    "Expected 0, got %d (%s)", rv, gai_strerror(rv));
@@ -229,9 +226,6 @@ ATF_TC_BODY(nofamily, tc)
 	};
 	struct addrinfo *res;
 	int rv;
-
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_expect_fail("https://bugs.freebsd.org/285826");
 
 	rv = getaddrinfo(ipv6onlyname, NULL, &hints4, &res);
 	ATF_REQUIRE_MSG(rv == EAI_ADDRFAMILY,
