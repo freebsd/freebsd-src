@@ -1526,8 +1526,6 @@ restart:
 
 	while (control != NULL && control->m_type == MT_CONTROL) {
 		if (!peek) {
-			struct mbuf *c;
-
 			/*
 			 * unp_externalize() failure must abort entire read(2).
 			 * Such failure should also free the problematic
@@ -1537,14 +1535,9 @@ restart:
 			 * Probability of such a failure is really low, so it
 			 * is fine that we need to perform pretty complex
 			 * operation here to reconstruct the buffer.
-			 * XXXGL: unp_externalize() used to be
-			 * dom_externalize() KBI and it frees whole chain, so
-			 * we need to feed it with mbufs one by one.
 			 */
-			c = control;
-			control = STAILQ_NEXT(c, m_stailq);
-			STAILQ_NEXT(c, m_stailq) = NULL;
-			error = unp_externalize(c, controlp, flags);
+			error = unp_externalize(control, controlp, flags);
+			control = m_free(control);
 			if (__predict_false(error && control != NULL)) {
 				struct mchain cmc;
 
@@ -2322,13 +2315,8 @@ uipc_soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	 * without MT_DATA mbufs.
 	 */
 	while (m != NULL && m->m_type == MT_CONTROL) {
-		struct mbuf *cm;
-
-		/* XXXGL: unp_externalize() is also dom_externalize() KBI and
-		 * it frees whole chain, so we must disconnect the mbuf.
-		 */
-		cm = m; m = m->m_next; cm->m_next = NULL;
-		error = unp_externalize(cm, controlp, flags);
+		error = unp_externalize(m, controlp, flags);
+		m = m_free(m);
 		if (error != 0) {
 			SOCK_IO_RECV_UNLOCK(so);
 			unp_scan(m, unp_freerights);
@@ -3541,7 +3529,6 @@ next:
 		}
 	}
 
-	m_freem(control);
 	return (error);
 }
 
