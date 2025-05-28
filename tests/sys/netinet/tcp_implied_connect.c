@@ -51,6 +51,7 @@ ATF_TC_BODY(tcp_implied_connect, tc)
 	ATF_REQUIRE(bind(s, (struct sockaddr *)&sin, sizeof(sin)) == 0);
 	len = sizeof(sin);
 	ATF_REQUIRE(getsockname(s, (struct sockaddr *)&sin, &len) == 0);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	ATF_REQUIRE(listen(s, -1) == 0);
 #if 0
 	/*
