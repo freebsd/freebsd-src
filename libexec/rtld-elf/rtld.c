@@ -5378,6 +5378,9 @@ get_tls_block_ptr(void *tcb, size_t tcbsize)
  *     it is based on tls_last_offset, and TLS offsets here are really TCB
  *     offsets, whereas libc's tls_static_space is just the executable's static
  *     TLS segment.
+ *
+ * NB: This differs from NetBSD's ld.elf_so, where TLS offsets are relative to
+ *     the end of the TCB.
  */
 void *
 allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
@@ -5612,7 +5615,7 @@ allocate_module_tls(int index)
 
 	if (obj->tls_static) {
 #ifdef TLS_VARIANT_I
-		p = (char *)_tcb_get() + obj->tlsoffset + TLS_TCB_SIZE;
+		p = (char *)_tcb_get() + obj->tlsoffset;
 #else
 		p = (char *)_tcb_get() - obj->tlsoffset;
 #endif
