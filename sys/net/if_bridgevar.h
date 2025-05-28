@@ -78,6 +78,8 @@
 #define	_NET_IF_BRIDGEVAR_H_
 
 #include <sys/types.h>
+#include <sys/_bitset.h>
+#include <sys/bitset.h>
 #include <sys/callout.h>
 #include <sys/queue.h>
 #include <sys/condvar.h>
@@ -123,6 +125,8 @@
 #define	BRDGSTXHC		29	/* set tx hold count (ifbrparam) */
 #define	BRDGSIFAMAX		30	/* set max interface addrs (ifbreq) */
 #define	BRDGSIFUNTAGGED		31	/* set if untagged vlan */
+#define	BRDGSIFVLANSET		32	/* set if vlan set */
+#define	BRDGGIFVLANSET		33	/* get if vlan set */
 
 /*
  * Generic bridge control request.
@@ -306,6 +310,26 @@ struct ifbpstpconf {
 	eaddr[4] = pv >> 8;          \
 	eaddr[5] = pv >> 0;          \
 } while (0)
+
+/*
+ * Bridge VLAN access request.
+ */
+#define	BRVLAN_SETSIZE	4096
+typedef __BITSET_DEFINE(ifbvlan_set, BRVLAN_SETSIZE) ifbvlan_set_t;
+
+#define	BRVLAN_SET(set, bit)	__BIT_SET(BRVLAN_SETSIZE, (bit), set)
+#define	BRVLAN_CLR(set, bit)	__BIT_CLR(BRVLAN_SETSIZE, (bit), set)
+#define	BRVLAN_TEST(set, bit)	__BIT_ISSET(BRVLAN_SETSIZE, (bit), set)
+
+#define	BRDG_VLAN_OP_SET	1	/* replace current vlan set */
+#define	BRDG_VLAN_OP_ADD	2	/* add vlans to current set */
+#define	BRDG_VLAN_OP_DEL	3	/* remove vlans from current set */
+
+struct ifbif_vlan_req {
+	char		bv_ifname[IFNAMSIZ];
+	uint8_t		bv_op;
+	ifbvlan_set_t	bv_set;
+};
 
 #ifdef _KERNEL
 

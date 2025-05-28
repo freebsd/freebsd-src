@@ -2714,6 +2714,38 @@ Setting
 will automatically enable VLAN filtering on the interface.
 .It Cm -untagged Ar interface Ar vlan-id
 Clear the untagged VLAN identifier for an interface.
+.It Cm tagged Ar interface Ar vlan-list
+Set the interface's VLAN access list to the provided list of VLANs.
+The list should be a comma-separated list of one or more VLAN IDs
+or ranges formatted as
+.Ar first-last ,
+the value
+.Dq none
+meaning the empty set,
+or the value
+.Dq all
+meaning all VLANs (1-4094).
+.Pp
+Setting
+.Cm tagged
+will automatically enable VLAN filtering on the interface.
+.It Cm +tagged Ar interface Ar vlan-list
+Add the provided list of VLAN IDs to the interface's VLAN access list.
+The list should be formatted as described for
+.Cm tagged .
+.Pp
+Setting
+.Cm +tagged
+will automatically enable VLAN filtering on the interface.
+.It Cm -tagged Ar interface Ar vlan-list
+Remove the provided list of VLAN IDs from the interface's VLAN access
+list.
+The list should be formatted as described for
+.Cm tagged .
+.Pp
+Setting
+.Cm -tagged
+will automatically enable VLAN filtering on the interface.
 .El
 .Ss Link Aggregation and Link Failover Parameters
 The following parameters are specific to lagg interfaces:
