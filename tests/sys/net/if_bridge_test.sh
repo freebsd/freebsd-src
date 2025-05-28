@@ -997,6 +997,133 @@ vlan_pvid_1q_cleanup()
        vnet_cleanup
 }
 
+#
+# Test vlan filtering.
+#
+atf_test_case "vlan_filtering" "cleanup"
+vlan_filtering_head()
+{
+	atf_set descr 'tagged traffic with filtering'
+	atf_set require.user root
+}
+
+vlan_filtering_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	epone=$(vnet_mkepair)
+	eptwo=$(vnet_mkepair)
+
+	vnet_mkjail one ${epone}b
+	vnet_mkjail two ${eptwo}b
+
+	jexec one ifconfig ${epone}b up
+	jexec one ifconfig ${epone}b.20 create 192.0.2.1/24 up
+	jexec two ifconfig ${eptwo}b up
+	jexec two ifconfig ${eptwo}b.20 create 192.0.2.2/24 up
+
+	bridge=$(vnet_mkbridge)
+
+	ifconfig ${bridge} up
+	ifconfig ${epone}a up
+	ifconfig ${eptwo}a up
+	ifconfig ${bridge} addm ${epone}a vlanfilter ${epone}a
+	ifconfig ${bridge} addm ${eptwo}a vlanfilter ${eptwo}a
+
+	# Right now there are no VLANs on the access list, so everything
+	# should be blocked.
+	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+
+	# Set the untagged vlan on both ports to 20 and make sure traffic is
+	# still blocked.  We intentionally do not pass tagged traffic for the
+	# untagged vlan.
+	atf_check -s exit:0 ifconfig ${bridge} untagged ${epone}a 20
+	atf_check -s exit:0 ifconfig ${bridge} untagged ${eptwo}a 20
+
+	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+
+	atf_check -s exit:0 ifconfig ${bridge} -untagged ${epone}a
+	atf_check -s exit:0 ifconfig ${bridge} -untagged ${eptwo}a
+
+	# Add VLANs 10-30 to the access list; now access should be allowed.
+	ifconfig ${bridge} +tagged ${epone}a 10-30
+	ifconfig ${bridge} +tagged ${eptwo}a 10-30
+	atf_check -s exit:0 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:0 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+
+	# Remove vlan 20 from the access list, now access should be blocked
+	# again.
+	ifconfig ${bridge} -tagged ${epone}a 20
+	ifconfig ${bridge} -tagged ${eptwo}a 20
+	atf_check -s exit:2 -o ignore jexec one ping -c 3 -t 1 192.0.2.2
+	atf_check -s exit:2 -o ignore jexec two ping -c 3 -t 1 192.0.2.1
+}
+
+vlan_filtering_cleanup()
+{
+	vnet_cleanup
+}
+
+#
+# Test the ifconfig 'tagged' option.
+#
+atf_test_case "vlan_ifconfig_tagged" "cleanup"
+vlan_ifconfig_tagged_head()
+{
+	atf_set descr 'test the ifconfig tagged option'
+	atf_set require.user root
+}
+
+vlan_ifconfig_tagged_body()
+{
+	vnet_init
+	vnet_init_bridge
+
+	ep=$(vnet_mkepair)
+	bridge=$(vnet_mkbridge)
+
+	ifconfig ${bridge} addm ${ep}a vlanfilter ${ep}a up
+	ifconfig ${ep}a up
+
+	# To start with, no vlans should be configured.
+	atf_check -s exit:0 -o not-match:"tagged" ifconfig ${bridge}
+
+	# Add vlans 100-149.
+	atf_check -s exit:0 ifconfig ${bridge} tagged ${ep}a 100-149
+	atf_check -s exit:0 -o match:"tagged 100-149" ifconfig ${bridge}
+
+	# Replace the vlan list with 139-199.
+	atf_check -s exit:0 ifconfig ${bridge} tagged ${ep}a 139-199
+	atf_check -s exit:0 -o match:"tagged 139-199" ifconfig ${bridge}
+
+	# Add vlans 100-170.
+	atf_check -s exit:0 ifconfig ${bridge} +tagged ${ep}a 100-170
+	atf_check -s exit:0 -o match:"tagged 100-199" ifconfig ${bridge}
+
+	# Remove vlans 104, 105, and 150-159
+	atf_check -s exit:0 ifconfig ${bridge} -tagged ${ep}a 104,105,150-159
+	atf_check -s exit:0 -o match:"tagged 100-103,106-149,160-199" \
+	    ifconfig ${bridge}
+
+	# Remove the entire vlan list.
+	atf_check -s exit:0 ifconfig ${bridge} tagged ${ep}a none
+	atf_check -s exit:0 -o not-match:"tagged" ifconfig ${bridge}
+
+	# Test some invalid vlans sets.
+	for bad_vlan in -1 0 4096 4097 foo 0-10 4000-5000 foo-40 40-foo; do
+		atf_check -s exit:1 -e ignore \
+		    ifconfig ${bridge} tagged "$bad_vlan"
+	done
+}
+
+vlan_ifconfig_tagged_cleanup()
+{
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "bridge_transmit_ipv4_unicast"
@@ -1019,4 +1146,6 @@ atf_init_test_cases()
 	atf_add_test_case "vlan_pvid_1q"
 	atf_add_test_case "vlan_pvid_filtered"
 	atf_add_test_case "vlan_pvid_tagged"
+	atf_add_test_case "vlan_filtering"
+	atf_add_test_case "vlan_ifconfig_tagged"
 }

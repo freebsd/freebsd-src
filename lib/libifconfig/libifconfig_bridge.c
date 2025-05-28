@@ -66,40 +66,37 @@ ifconfig_bridge_get_bridge_status(ifconfig_handle_t *h,
 {
 	struct ifbifconf members;
 	struct ifbrparam cache_param;
-	struct _ifconfig_bridge_status *bridge;
-	char *buf;
+	struct _ifconfig_bridge_status *bridge = NULL;
+	char *buf = NULL;
 
+	members.ifbic_buf = NULL;
 	*bridgep = NULL;
 
 	bridge = calloc(1, sizeof(struct _ifconfig_bridge_status));
 	if (bridge == NULL) {
 		h->error.errtype = OTHER;
 		h->error.errcode = ENOMEM;
-		return (-1);
+		goto err;
 	}
 	bridge->inner.params = &bridge->params;
 
 	if (ifconfig_bridge_ioctlwrap(h, name, BRDGGCACHE,
 	    &cache_param, sizeof(cache_param), false) != 0) {
-		free(bridge);
-		return (-1);
+		goto err;
 	}
 	bridge->inner.cache_size = cache_param.ifbrp_csize;
 
 	if (ifconfig_bridge_ioctlwrap(h, name, BRDGGTO,
 	    &cache_param, sizeof(cache_param), false) != 0) {
-		free(bridge);
-		return (-1);
+		goto err;
 	}
 	bridge->inner.cache_lifetime = cache_param.ifbrp_ctime;
 
 	if (ifconfig_bridge_ioctlwrap(h, name, BRDGPARAM,
 	    &bridge->params, sizeof(bridge->params), false) != 0) {
-		free(bridge);
-		return (-1);
+		goto err;
 	}
 
-	members.ifbic_buf = NULL;
 	for (size_t len = 8192;
 	    (buf = realloc(members.ifbic_buf, len)) != NULL;
 	    len *= 2) {
@@ -107,27 +104,52 @@ ifconfig_bridge_get_bridge_status(ifconfig_handle_t *h,
 		members.ifbic_len = len;
 		if (ifconfig_bridge_ioctlwrap(h, name, BRDGGIFS,
 		    &members, sizeof(members), false) != 0) {
-			free(buf);
-			free(bridge);
-			return (-1);
+			goto err;
 		}
 		if ((members.ifbic_len + sizeof(*members.ifbic_req)) < len)
 			break;
 	}
 	if (buf == NULL) {
-		free(members.ifbic_buf);
-		free(bridge);
 		h->error.errtype = OTHER;
 		h->error.errcode = ENOMEM;
-		return (-1);
+		goto err;
 	}
 	bridge->inner.members = members.ifbic_req;
 	bridge->inner.members_count =
 	    members.ifbic_len / sizeof(*members.ifbic_req);
 
+	bridge->inner.member_vlans = calloc(bridge->inner.members_count,
+	    sizeof(ifbvlan_set_t));
+	if (bridge->inner.member_vlans == NULL) {
+		h->error.errtype = OTHER;
+		h->error.errcode = ENOMEM;
+		goto err;
+	}
+	for (size_t i = 0; i < bridge->inner.members_count; ++i) {
+		struct ifbif_vlan_req vreq;
+		memset(&vreq, 0, sizeof(vreq));
+		strlcpy(vreq.bv_ifname, bridge->inner.members[i].ifbr_ifsname,
+		    sizeof(vreq.bv_ifname));
+
+		if (ifconfig_bridge_ioctlwrap(h, name, BRDGGIFVLANSET, &vreq,
+		    sizeof(vreq), false) != 0) {
+			goto err;
+		}
+
+		__BIT_COPY(BRVLAN_SETSIZE, &vreq.bv_set,
+		    &bridge->inner.member_vlans[i]);
+	}
+
 	*bridgep = &bridge->inner;
 
 	return (0);
+
+err:
+	free(members.ifbic_buf);
+	if (bridge)
+		free(bridge->inner.member_vlans);
+	free(bridge);
+	return (-1);
 }
 
 void

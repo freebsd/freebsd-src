@@ -289,7 +289,8 @@ VLAN filtering may be enabled on an interface using the
 .Cm vlanfilter
 option.
 When VLAN filtering is enabled, an interface may only send and receive
-untagged frames.
+frames based on its configured VLAN access list.
+.Pp
 The interface's untagged VLAN ID may be configured using the
 .Xr ifconfig 8
 .Cm untagged
@@ -297,6 +298,16 @@ option.
 If an untagged VLAN ID is configured, incoming frames will be assigned
 to that VLAN, and the interface may receive outgoing untagged frames
 in that VLAN.
+.Pp
+The tagged VLAN access list may be configured using the
+.Cm tagged ,
+.Cm +tagged
+and
+.Cm -tagged
+options to
+.Xr ifconfig 8 .
+An interface may send and receive tagged frames for any VLAN in its
+access list.
 .Pp
 The bridge will automatically insert or remove 802.1q tags as needed,
 based on the interface configuration, when forwarding frames between
