@@ -195,6 +195,8 @@ int iwx_lomark = 192;
 
 #include <dev/iwx/if_iwx_debug.h>
 
+#define	PCI_CFG_RETRY_TIMEOUT	0x41
+
 #define PCI_VENDOR_INTEL		0x8086
 #define	PCI_PRODUCT_INTEL_WL_22500_1	0x2723		/* Wi-Fi 6 AX200 */
 #define	PCI_PRODUCT_INTEL_WL_22500_2	0x02f0		/* Wi-Fi 6 AX201 */
@@ -10142,7 +10144,6 @@ iwx_attach(device_t dev)
 	 * We disable the RETRY_TIMEOUT register (0x41) to keep
 	 * PCI Tx retries from interfering with C3 CPU state.
 	 */
-#define	PCI_CFG_RETRY_TIMEOUT	0x41
 	pci_write_config(dev, PCI_CFG_RETRY_TIMEOUT, 0x00, 1);
 
 	if (pci_msix_count(dev)) {
@@ -10657,8 +10658,11 @@ static int
 iwx_suspend(device_t dev)
 {
 	struct iwx_softc *sc = device_get_softc(dev);
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	if (sc->sc_flags & IWX_FLAG_HW_INITED) {
+		ieee80211_suspend_all(ic);
+
 		iwx_stop(sc);
 		sc->sc_flags &= ~IWX_FLAG_HW_INITED;
 	}
@@ -10669,21 +10673,27 @@ static int
 iwx_resume(device_t dev)
 {
 	struct iwx_softc *sc = device_get_softc(dev);
+	struct ieee80211com *ic = &sc->sc_ic;
 	int err;
 
-	err = iwx_start_hw(sc);
-	if (err) {
-		return err;
-	}
+	/*
+	 * We disable the RETRY_TIMEOUT register (0x41) to keep
+	 * PCI Tx retries from interfering with C3 CPU state.
+	 */
+	pci_write_config(dev, PCI_CFG_RETRY_TIMEOUT, 0x00, 1);
 
-	err = iwx_init_hw(sc);
+	IWX_LOCK(sc);
+
+	err = iwx_init(sc);
 	if (err) {
 		iwx_stop_device(sc);
+		IWX_UNLOCK(sc);
 		return err;
 	}
 
-	ieee80211_start_all(&sc->sc_ic);
+	IWX_UNLOCK(sc);
 
+	ieee80211_resume_all(ic);
 	return (0);
 }
 
