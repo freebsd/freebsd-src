@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 27, 2025
+.Dd May 28, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -2234,9 +2234,10 @@ If the packet is transmitted on a
 .Xr vlan 4
 interface, the queueing priority will be written as the priority
 code point in the 802.1Q VLAN header.
-If two priorities are given, packets which have a TOS of
+If two priorities are given, TCP ACKs with no data payload and packets
+which have a TOS of
 .Cm lowdelay
-and TCP ACKs with no data payload will be assigned to the second one.
+will be assigned to the second one.
 .Pp
 For example:
 .Bd -literal -offset indent
