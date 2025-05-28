@@ -549,10 +549,12 @@ dtrace_load##bits(uintptr_t addr)					\
 		return (0);						\
 	}								\
 									\
+	__compiler_membar();						\
 	*flags |= CPU_DTRACE_NOFAULT;					\
 	/*CSTYLED*/							\
 	rval = *((volatile uint##bits##_t *)addr);			\
 	*flags &= ~CPU_DTRACE_NOFAULT;					\
+	__compiler_membar();						\
 									\
 	return (!(*flags & CPU_DTRACE_FAULT) ? rval : 0);		\
 }

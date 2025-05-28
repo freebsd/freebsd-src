@@ -2421,11 +2421,17 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define	DTRACE_CPUFLAG_ISSET(flag) \
 	(cpu_core[curcpu].cpuc_dtrace_flags & (flag))
 
-#define	DTRACE_CPUFLAG_SET(flag) \
-	(cpu_core[curcpu].cpuc_dtrace_flags |= (flag))
+#define	DTRACE_CPUFLAG_SET(flag) do {				\
+	__compiler_membar();					\
+	cpu_core[curcpu].cpuc_dtrace_flags |= (flag);		\
+	__compiler_membar();					\
+} while (0)
 
-#define	DTRACE_CPUFLAG_CLEAR(flag) \
-	(cpu_core[curcpu].cpuc_dtrace_flags &= ~(flag))
+#define	DTRACE_CPUFLAG_CLEAR(flag) do {				\
+	__compiler_membar();					\
+	cpu_core[curcpu].cpuc_dtrace_flags &= ~(flag);		\
+	__compiler_membar();					\
+} while (0)
 
 #endif /* _KERNEL */
 
