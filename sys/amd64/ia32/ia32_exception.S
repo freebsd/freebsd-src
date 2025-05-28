@@ -54,10 +54,10 @@ int0x80_syscall_common:
 	movq	%rax,TF_RAX(%rsp)
 	movq	%rdx,TF_RDX(%rsp)
 	movq	%rcx,TF_RCX(%rsp)
-	movq	%r15,TF_R15(%rsp)
 	call	handle_ibrs_entry
 	sti
 	movq	%rsi,TF_RSI(%rsp)
+	movq	%r8,TF_R8(%rsp)
 	movq	%r9,TF_R9(%rsp)
 	movq	%rbx,TF_RBX(%rsp)
 	movq	%rbp,TF_RBP(%rsp)
@@ -66,6 +66,7 @@ int0x80_syscall_common:
 	movq	%r12,TF_R12(%rsp)
 	movq	%r13,TF_R13(%rsp)
 	movq	%r14,TF_R14(%rsp)
+	movq	%r15,TF_R15(%rsp)
 	movl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	pushfq
 	andq	$~(PSL_D | PSL_AC),(%rsp)
