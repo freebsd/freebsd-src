@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-4-Clause
+.\"
 .\" Copyright (c) 1997, 1998, 1999, 2000-2003
 .\"     Bill Paul <wpaul@windriver.com>. All rights reserved.
 .\"
@@ -28,7 +31,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd October 4, 2023
+.Dd May 25, 2025
 .Dt AXGE 4
 .Os
 .Sh NAME
@@ -121,6 +124,19 @@ Force half duplex operation.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following USB Gigabit Ethernet controllers:
+.Pp
+.Bl -bullet -compact
+.It
+ASIX Electronics AX88179A
+.It
+ASIX Electronics AX88179
+.It
+ASIX Electronics AX88178A
+.El
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr arp 4 ,
