@@ -272,6 +272,7 @@ do {										\
 	filecaps_free(&_ndp->ni_filecaps);					\
 	_ndp->ni_resflags = 0;							\
 	_ndp->ni_startdir = NULL;						\
+	_ndp->ni_cnd.cn_flags &= ~NAMEI_INTERNAL_FLAGS;				\
 } while (0)
 
 #define	NDPREINIT(ndp) do {							\
