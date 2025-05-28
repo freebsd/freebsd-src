@@ -12,27 +12,31 @@
  */
 
 #ifndef OPENSSL_CONFIGURATION_H
-# define OPENSSL_CONFIGURATION_H
-# pragma once
+#define OPENSSL_CONFIGURATION_H
+#pragma once
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
+#endif
 
-# ifdef OPENSSL_ALGORITHM_DEFINES
-#  error OPENSSL_ALGORITHM_DEFINES no longer supported
-# endif
+#ifdef OPENSSL_ALGORITHM_DEFINES
+#error OPENSSL_ALGORITHM_DEFINES no longer supported
+#endif
 
 /*
  * OpenSSL was configured with the following options:
  */
 
+/* clang-format off */
 # define OPENSSL_CONFIGURED_API 30000
 # ifndef OPENSSL_RAND_SEED_OS
 #  define OPENSSL_RAND_SEED_OS
 # endif
 # ifndef OPENSSL_THREADS
 #  define OPENSSL_THREADS
+# endif
+# ifndef OPENSSL_NO_ACVP_TESTS
+#  define OPENSSL_NO_ACVP_TESTS
 # endif
 # ifndef OPENSSL_NO_AFALGENG
 #  define OPENSSL_NO_AFALGENG
@@ -49,16 +53,14 @@ extern "C" {
 # ifndef OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE
 #  define OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE
 # endif
-# if !defined(__LP64__) || __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
-#  ifndef OPENSSL_NO_EC_NISTP_64_GCC_128
-#   define OPENSSL_NO_EC_NISTP_64_GCC_128
-#  endif
-# endif
 # ifndef OPENSSL_NO_EGD
 #  define OPENSSL_NO_EGD
 # endif
 # ifndef OPENSSL_NO_EXTERNAL_TESTS
 #  define OPENSSL_NO_EXTERNAL_TESTS
+# endif
+# ifndef OPENSSL_NO_FIPS_SECURITYCHECKS
+#  define OPENSSL_NO_FIPS_SECURITYCHECKS
 # endif
 # ifndef OPENSSL_NO_FUZZ_AFL
 #  define OPENSSL_NO_FUZZ_AFL
@@ -115,23 +117,70 @@ extern "C" {
 #  define OPENSSL_NO_STATIC_ENGINE
 # endif
 
+/* clang-format on */
 
 /* Generate 80386 code? */
+/* clang-format off */
 # undef I386_ONLY
+/* clang-format on */
 
 /*
  * The following are cipher-specific, but are part of the public API.
  */
+#if !defined(OPENSSL_SYS_UEFI)
+    /* clang-format off */
+#  undef BN_LLONG
+    /* clang-format on */
+    /* Only one for the following should be defined */
+    /* clang-format off */
+#  define SIXTY_FOUR_BIT_LONG
+    /* clang-format on */
+    /* clang-format off */
+#  undef SIXTY_FOUR_BIT
+    /* clang-format on */
+    /* clang-format off */
+#  undef THIRTY_TWO_BIT
+/* clang-format on */
+#endif
+
+/* clang-format off */
+# define RC4_INT unsigned int
+/* clang-format on */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* OPENSSL_CONFIGURATION_H */
+
+/**
+ * OpenSSL's Configure script generates these values automatically for the host
+ * architecture, but FreeBSD provides values which are universal for all
+ * supported target architectures.
+ */
+
+#ifndef	__FREEBSD_CONFIGURATION_H__
+#define	__FREEBSD_CONFIGURATION_H__
+
+# undef OPENSSL_NO_EC_NISTP_64_GCC_128
+# if __SIZEOF_LONG__ == 4 || __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+#  ifndef OPENSSL_NO_EC_NISTP_64_GCC_128
+#   define OPENSSL_NO_EC_NISTP_64_GCC_128
+#  endif
+# endif
+
+# undef BN_LLONG
+# undef	SIXTY_FOUR_BIT_LONG
+# undef SIXTY_FOUR_BIT
+# undef	THIRTY_TWO_BIT
 # if !defined(OPENSSL_SYS_UEFI)
 #  if __SIZEOF_LONG__ == 8
 #   undef BN_LLONG
-/* Only one for the following should be defined */
 #   define SIXTY_FOUR_BIT_LONG
 #   undef SIXTY_FOUR_BIT
 #   undef THIRTY_TWO_BIT
 #  elif __SIZEOF_LONG__ == 4
 #   define BN_LLONG
-/* Only one for the following should be defined */
 #   undef SIXTY_FOUR_BIT_LONG
 #   undef SIXTY_FOUR_BIT
 #   define THIRTY_TWO_BIT
@@ -140,10 +189,4 @@ extern "C" {
 #  endif
 # endif
 
-# define RC4_INT unsigned int
-
-# ifdef  __cplusplus
-}
-# endif
-
-#endif                          /* OPENSSL_CONFIGURATION_H */
+#endif  /* __FREEBSD_CONFIGURATION_H__ */

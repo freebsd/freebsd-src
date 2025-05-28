@@ -3,6 +3,8 @@
 ##
 ## {- join("\n## ", @autowarntext) -}
 {-
+     use Time::Piece;
+
      use OpenSSL::Util;
 
      our $makedep_scheme = $config{makedep_scheme};
@@ -64,10 +66,20 @@ OPTIONS={- $config{options} -}
 CONFIGURE_ARGS=({- join(", ",quotify_l(@{$config{perlargv}})) -})
 SRCDIR={- $config{sourcedir} -}
 BLDDIR={- $config{builddir} -}
+RESULT_D=$(BLDDIR)/test-runs
 FIPSKEY={- $config{FIPSKEY} -}
 
 VERSION={- "$config{full_version}" -}
 VERSION_NUMBER={- "$config{version}" -}
+RELEASE_DATE={- my $t = localtime;
+		if ($config{"release_date"}) {
+			# Provide the user with a more meaningful error message
+			# than the default internal parsing error from
+			# `Time::Piece->strptime(..)`.
+			eval { $t = Time::Piece->strptime($config{"release_date"}, "%d %b %Y"); } ||
+				die "Parsing \$config{release_date} ('$config{release_date}') failed: $@";
+		}
+		$t->strftime("%Y-%m-%d") -}
 MAJOR={- $config{major} -}
 MINOR={- $config{minor} -}
 SHLIB_VERSION_NUMBER={- $config{shlib_version} -}
@@ -589,7 +601,7 @@ clean: libclean
 	-find . -name '*{- platform->objext() -}' \! -name '.*' \! -type d -exec $(RM) {} \;
 	$(RM) core
 	$(RM) tags TAGS doc-nits md-nits
-	$(RM) -r test/test-runs
+	$(RM) -r $(RESULT_D)
 	$(RM) providers/fips*.new
 	$(RM) openssl.pc libcrypto.pc libssl.pc
 	-find . -type l \! -name '.*' -exec $(RM) {} \;
@@ -1540,7 +1552,8 @@ EOF
           return <<"EOF";
 $args{src}: $pod
 	pod2man --name=$name --section=$section\$(MANSUFFIX) --center=OpenSSL \\
-		--release=\$(VERSION) $pod >\$\@
+		--date=\$(RELEASE_DATE) --release=\$(VERSION) \\
+		$pod >\$\@
 EOF
       } elsif (platform->isdef($args{src})) {
           #

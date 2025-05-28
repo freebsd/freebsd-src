@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2021-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -16,7 +16,7 @@ setup('test_bio_readbuffer');
 my $pemfile = srctop_file("test", "certs", "leaf.pem");
 my $derfile = 'readbuffer_leaf.der';
 
-plan tests => 3;
+plan tests => 4;
 
 ok(run(app([ 'openssl', 'x509', '-inform', 'PEM', '-in', $pemfile,
              '-outform', 'DER', '-out', $derfile])),
@@ -27,3 +27,7 @@ ok(run(test(["bio_readbuffer_test", $derfile])),
 
 ok(run(test(["bio_readbuffer_test", $pemfile])),
    "Running bio_readbuffer_test $pemfile");
+
+ok(run(app([ 'openssl', 'x509', '-inform', 'DER', '-outform', 'PEM',
+             '-noout' ], stdin => $derfile)),
+   "Test stdin read buffer in openssl app");
