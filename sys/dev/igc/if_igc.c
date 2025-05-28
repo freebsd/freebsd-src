@@ -936,6 +936,7 @@ igc_neweitr(struct igc_softc *sc, struct igc_rx_queue *que,
 			goto igc_set_next_eitr;
 		}
 
+		bytes = bytes_packets = 0;
 		/* Get largest values from the associated tx and rx ring */
 		if (txr->tx_bytes && txr->tx_packets) {
 			bytes = txr->tx_bytes;
