@@ -1,5 +1,5 @@
 
-include GENERIC
+include GENERIC-DEBUG
 
 ident   GENERIC-KMSAN
 

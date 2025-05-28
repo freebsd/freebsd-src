@@ -25,7 +25,7 @@
 # in NOTES.
 #
 
-include GENERIC
+include GENERIC-DEBUG
 
 ident   GENERIC-KCSAN
 
