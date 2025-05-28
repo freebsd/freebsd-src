@@ -66,24 +66,24 @@
 void	 usage(void);
 int	 pfctl_enable(int, int);
 int	 pfctl_disable(int, int);
-int	 pfctl_clear_stats(struct pfctl_handle *, int);
-int	 pfctl_get_skip_ifaces(void);
-int	 pfctl_check_skip_ifaces(char *);
-int	 pfctl_adjust_skip_ifaces(struct pfctl *);
-int	 pfctl_clear_interface_flags(int, int);
-int	 pfctl_flush_eth_rules(int, int, char *);
-int	 pfctl_flush_rules(int, int, char *);
-int	 pfctl_flush_nat(int, int, char *);
+void	 pfctl_clear_stats(struct pfctl_handle *, int);
+void	 pfctl_get_skip_ifaces(void);
+void	 pfctl_check_skip_ifaces(char *);
+void	 pfctl_adjust_skip_ifaces(struct pfctl *);
+void	 pfctl_clear_interface_flags(int, int);
+void	 pfctl_flush_eth_rules(int, int, char *);
+void	 pfctl_flush_rules(int, int, char *);
+void	 pfctl_flush_nat(int, int, char *);
 int	 pfctl_clear_altq(int, int);
-int	 pfctl_clear_src_nodes(int, int);
-int	 pfctl_clear_iface_states(int, const char *, int);
+void	 pfctl_clear_src_nodes(int, int);
+void	 pfctl_clear_iface_states(int, const char *, int);
 void	 pfctl_addrprefix(char *, struct pf_addr *);
-int	 pfctl_kill_src_nodes(int, const char *, int);
-int	 pfctl_net_kill_states(int, const char *, int);
-int	 pfctl_gateway_kill_states(int, const char *, int);
-int	 pfctl_label_kill_states(int, const char *, int);
-int	 pfctl_id_kill_states(int, const char *, int);
-int	 pfctl_key_kill_states(int, const char *, int);
+void	 pfctl_kill_src_nodes(int, const char *, int);
+void	 pfctl_net_kill_states(int, const char *, int);
+void	 pfctl_gateway_kill_states(int, const char *, int);
+void	 pfctl_label_kill_states(int, const char *, int);
+void	 pfctl_id_kill_states(int, const char *, int);
+void	 pfctl_key_kill_states(int, const char *, int);
 int	 pfctl_parse_host(char *, struct pf_rule_addr *);
 void	 pfctl_init_options(struct pfctl *);
 int	 pfctl_load_options(struct pfctl *);
@@ -354,7 +354,7 @@ pfctl_disable(int dev, int opts)
 	return (0);
 }
 
-int
+void
 pfctl_clear_stats(struct pfctl_handle *h, int opts)
 {
 	int ret;
@@ -362,10 +362,9 @@ pfctl_clear_stats(struct pfctl_handle *h, int opts)
 		errc(1, ret, "DIOCCLRSTATUS");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "pf: statistics cleared\n");
-	return (0);
 }
 
-int
+void
 pfctl_get_skip_ifaces(void)
 {
 	bzero(&skip_b, sizeof(skip_b));
@@ -378,10 +377,9 @@ pfctl_get_skip_ifaces(void)
 		if (skip_b.pfrb_size <= skip_b.pfrb_msize)
 			break;
 	}
-	return (0);
 }
 
-int
+void
 pfctl_check_skip_ifaces(char *ifname)
 {
 	struct pfi_kif		*p;
@@ -403,10 +401,9 @@ pfctl_check_skip_ifaces(char *ifname)
 			}
 		}
 	}
-	return (0);
 }
 
-int
+void
 pfctl_adjust_skip_ifaces(struct pfctl *pf)
 {
 	struct pfi_kif		*p, *pp;
@@ -439,11 +436,9 @@ pfctl_adjust_skip_ifaces(struct pfctl *pf)
 
 		pfctl_set_interface_flags(pf, p->pfik_name, PFI_IFLAG_SKIP, 0);
 	}
-
-	return (0);
 }
 
-int
+void
 pfctl_clear_interface_flags(int dev, int opts)
 {
 	struct pfioc_iface	pi;
@@ -457,10 +452,9 @@ pfctl_clear_interface_flags(int dev, int opts)
 		if ((opts & PF_OPT_QUIET) == 0)
 			fprintf(stderr, "pf: interface flags reset\n");
 	}
-	return (0);
 }
 
-int
+void
 pfctl_flush_eth_rules(int dev, int opts, char *anchorname)
 {
 	int ret;
@@ -471,11 +465,9 @@ pfctl_flush_eth_rules(int dev, int opts, char *anchorname)
 
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "Ethernet rules cleared\n");
-
-	return (ret);
 }
 
-int
+void
 pfctl_flush_rules(int dev, int opts, char *anchorname)
 {
 	int ret;
@@ -485,10 +477,9 @@ pfctl_flush_rules(int dev, int opts, char *anchorname)
 		err(1, "pfctl_clear_rules");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "rules cleared\n");
-	return (0);
 }
 
-int
+void
 pfctl_flush_nat(int dev, int opts, char *anchorname)
 {
 	int ret;
@@ -498,7 +489,6 @@ pfctl_flush_nat(int dev, int opts, char *anchorname)
 		err(1, "pfctl_clear_nat");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "nat cleared\n");
-	return (0);
 }
 
 int
@@ -519,17 +509,16 @@ pfctl_clear_altq(int dev, int opts)
 	return (0);
 }
 
-int
+void
 pfctl_clear_src_nodes(int dev, int opts)
 {
 	if (ioctl(dev, DIOCCLRSRCNODES))
 		err(1, "DIOCCLRSRCNODES");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "source tracking entries cleared\n");
-	return (0);
 }
 
-int
+void
 pfctl_clear_iface_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_kill kill;
@@ -548,7 +537,6 @@ pfctl_clear_iface_states(int dev, const char *iface, int opts)
 		errc(1, ret, "DIOCCLRSTATES");
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "%d states cleared\n", killed);
-	return (0);
 }
 
 void
@@ -601,7 +589,7 @@ pfctl_addrprefix(char *addr, struct pf_addr *mask)
 	freeaddrinfo(res);
 }
 
-int
+void
 pfctl_kill_src_nodes(int dev, const char *iface, int opts)
 {
 	struct pfioc_src_node_kill psnk;
@@ -701,10 +689,9 @@ pfctl_kill_src_nodes(int dev, const char *iface, int opts)
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "killed %d src nodes from %d sources and %d "
 		    "destinations\n", killed, sources, dests);
-	return (0);
 }
 
-int
+void
 pfctl_net_kill_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_kill kill;
@@ -817,10 +804,9 @@ pfctl_net_kill_states(int dev, const char *iface, int opts)
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "killed %d states from %d sources and %d "
 		    "destinations\n", killed, sources, dests);
-	return (0);
 }
 
-int
+void
 pfctl_gateway_kill_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_kill kill;
@@ -881,10 +867,9 @@ pfctl_gateway_kill_states(int dev, const char *iface, int opts)
 
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "killed %d states\n", killed);
-	return (0);
 }
 
-int
+void
 pfctl_label_kill_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_kill kill;
@@ -912,11 +897,9 @@ pfctl_label_kill_states(int dev, const char *iface, int opts)
 
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "killed %d states\n", killed);
-
-	return (0);
 }
 
-int
+void
 pfctl_id_kill_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_kill kill;
@@ -952,11 +935,9 @@ pfctl_id_kill_states(int dev, const char *iface, int opts)
 
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "killed %d states\n", killed);
-
-	return (0);
 }
 
-int
+void
 pfctl_key_kill_states(int dev, const char *iface, int opts)
 {
 	struct pfctl_kill kill;
@@ -1014,8 +995,6 @@ pfctl_key_kill_states(int dev, const char *iface, int opts)
 
 	if ((opts & PF_OPT_QUIET) == 0)
 		fprintf(stderr, "killed %d states\n", killed);
-
-	return (0);
 }
 
 int
@@ -3433,8 +3412,7 @@ main(int argc, char *argv[])
 
 	if ((rulesopt != NULL) && (loadopt & PFCTL_FLAG_OPTION) &&
 	    !anchorname[0] && !(opts & PF_OPT_NOACTION))
-		if (pfctl_get_skip_ifaces())
-			error = 1;
+		pfctl_get_skip_ifaces();
 
 	if (rulesopt != NULL && !(opts & PF_OPT_MERGE) &&
 	    !anchorname[0] && (loadopt & PFCTL_FLAG_OPTION))
