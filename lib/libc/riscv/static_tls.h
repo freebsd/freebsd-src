@@ -31,12 +31,14 @@
 #ifndef _LIBC_RISCV_STATIC_TLS_H
 #define _LIBC_RISCV_STATIC_TLS_H
 
+#include <machine/tls.h>
+
 static __inline uintptr_t
 _libc_get_static_tls_base(size_t offset)
 {
 	uintptr_t tlsbase;
 
-	__asm __volatile("mv %0, tp" : "=r"(tlsbase));
+	tlsbase = (uintptr_t)_tcb_get();
 	tlsbase += offset;
 	return (tlsbase);
 }
