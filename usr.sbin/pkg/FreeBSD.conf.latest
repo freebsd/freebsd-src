@@ -13,3 +13,10 @@ FreeBSD: {
   fingerprints: "/usr/share/keys/pkg",
   enabled: yes
 }
+FreeBSD-kmods: {
+  url: "pkg+https://pkg.FreeBSD.org/${ABI}/kmods_latest_${VERSION_MINOR}",
+  mirror_type: "srv",
+  signature_type: "fingerprints",
+  fingerprints: "/usr/share/keys/pkg",
+  enabled: yes
+}
