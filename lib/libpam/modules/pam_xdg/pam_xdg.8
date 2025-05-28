@@ -22,7 +22,7 @@
 .\" * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" * SUCH DAMAGE.
-.Dd August 22, 2024
+.Dd May 20, 2025
 .Dt PAM_XDG 8
 .Os
 .Sh NAME
@@ -35,17 +35,26 @@
 .Pa pam_xdg
 .Op Ar arguments
 .Sh DESCRIPTION
-The xdg service module for PAM sets up the runtime directory according
-to the XDG specifications.
+The xdg service module for PAM creates the runtime files base directory
+according to the Cross Desktop Group Base Directory Specification.
 .Pp
 By default the directory is created under
-.Pa /var/run/xdg/<username> .
+.Pa /var/run/xdg/ Ns $ Ns Ev USER .
 .Pp
 The following option may be passed to the authentication module:
-.Bl -tag -width ".Cm runtime_dir_prefix"
+.Bl -tag -width "runtime_dir_prefix=directory"
 .It Cm runtime_dir_prefix Ns = Ns Ar directory
 Use an alternate base directory
 .El
+.Sh ENVIRONMENT
+.Bl -tag -width indent
+.It Ev XDG_RUNTIME_DIR
+The location of the runtime files base directory created by this module.
+Note that the module does not set this environment variable.
+.El
+.Sh STANDARDS
+The directory created by this module conforms to the
+.Lk https://specifications.freedesktop.org/basedir-spec XDG Base Directory Specification .
 .Sh SEE ALSO
 .Xr pam 3 ,
 .Xr pam.conf 5
