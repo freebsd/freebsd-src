@@ -1177,6 +1177,7 @@ pf_handle_get_status(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	char *pf_reasons[PFRES_MAX+1] = PFRES_NAMES;
 	char *pf_lcounter[KLCNT_MAX+1] = KLCNT_NAMES;
 	char *pf_fcounter[FCNT_MAX+1] = FCNT_NAMES;
+	time_t since;
 	int error;
 
 	PF_RULES_RLOCK_TRACKER;
@@ -1189,11 +1190,13 @@ pf_handle_get_status(struct nlmsghdr *hdr, struct nl_pstate *npt)
 	ghdr_new->version = 0;
 	ghdr_new->reserved = 0;
 
+	since = time_second - (time_uptime - V_pf_status.since);
+
 	PF_RULES_RLOCK();
 
 	nlattr_add_string(nw, PF_GS_IFNAME, V_pf_status.ifname);
 	nlattr_add_bool(nw, PF_GS_RUNNING, V_pf_status.running);
-	nlattr_add_u32(nw, PF_GS_SINCE, V_pf_status.since);
+	nlattr_add_u32(nw, PF_GS_SINCE, since);
 	nlattr_add_u32(nw, PF_GS_DEBUG, V_pf_status.debug);
 	nlattr_add_u32(nw, PF_GS_HOSTID, ntohl(V_pf_status.hostid));
 	nlattr_add_u32(nw, PF_GS_STATES, V_pf_status.states);
