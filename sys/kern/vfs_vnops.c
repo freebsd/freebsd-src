@@ -197,11 +197,11 @@ vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp)
 }
 
 static uint64_t
-open2nameif(int fmode, u_int vn_open_flags)
+open2nameif(int fmode, u_int vn_open_flags, uint64_t cn_flags)
 {
 	uint64_t res;
 
-	res = ISOPEN | LOCKLEAF;
+	res = ISOPEN | LOCKLEAF | cn_flags;
 	if ((fmode & O_RESOLVE_BENEATH) != 0)
 		res |= RBENEATH;
 	if ((fmode & O_EMPTY_PATH) != 0)
@@ -210,12 +210,17 @@ open2nameif(int fmode, u_int vn_open_flags)
 		res |= OPENREAD;
 	if ((fmode & FWRITE) != 0)
 		res |= OPENWRITE;
+	if ((fmode & O_NOFOLLOW) != 0)
+		res &= ~FOLLOW;
 	if ((vn_open_flags & VN_OPEN_NOAUDIT) == 0)
 		res |= AUDITVNODE1;
+	else
+		res &= ~AUDITVNODE1;
 	if ((vn_open_flags & VN_OPEN_NOCAPCHECK) != 0)
 		res |= NOCAPCHECK;
 	if ((vn_open_flags & VN_OPEN_WANTIOCTLCAPS) != 0)
 		res |= WANTIOCTLCAPS;
+
 	return (res);
 }
 
@@ -247,7 +252,9 @@ restart:
 		return (EINVAL);
 	else if ((fmode & (O_CREAT | O_DIRECTORY)) == O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
-		ndp->ni_cnd.cn_flags = open2nameif(fmode, vn_open_flags);
+		ndp->ni_cnd.cn_flags = open2nameif(fmode, vn_open_flags,
+		    ndp->ni_cnd.cn_flags);
+
 		/*
 		 * Set NOCACHE to avoid flushing the cache when
 		 * rolling in many files at once.
@@ -256,8 +263,8 @@ restart:
 		 * exist despite NOCACHE.
 		 */
 		ndp->ni_cnd.cn_flags |= LOCKPARENT | NOCACHE | NC_KEEPPOSENTRY;
-		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
-			ndp->ni_cnd.cn_flags |= FOLLOW;
+		if ((fmode & O_EXCL) != 0)
+			ndp->ni_cnd.cn_flags &= ~FOLLOW;
 		if ((vn_open_flags & VN_OPEN_INVFS) == 0)
 			bwillwrite();
 		if ((error = namei(ndp)) != 0)
@@ -325,9 +332,8 @@ restart:
 		}
 	} else {
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
-		ndp->ni_cnd.cn_flags = open2nameif(fmode, vn_open_flags);
-		ndp->ni_cnd.cn_flags |= (fmode & O_NOFOLLOW) != 0 ? NOFOLLOW :
-		    FOLLOW;
+		ndp->ni_cnd.cn_flags = open2nameif(fmode, vn_open_flags,
+		    ndp->ni_cnd.cn_flags);
 		if ((fmode & FWRITE) == 0)
 			ndp->ni_cnd.cn_flags |= LOCKSHARED;
 		if ((error = namei(ndp)) != 0)
