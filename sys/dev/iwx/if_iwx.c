@@ -2607,7 +2607,7 @@ iwx_apm_stop(struct iwx_softc *sc)
 	if (!iwx_poll_bit(sc, IWX_CSR_RESET,
 	    IWX_CSR_RESET_REG_FLAG_MASTER_DISABLED,
 	    IWX_CSR_RESET_REG_FLAG_MASTER_DISABLED, 100))
-		printf("%s: timeout waiting for master\n", DEVNAME(sc));
+		printf("%s: timeout waiting for bus master\n", DEVNAME(sc));
 
 	/*
 	 * Clear "initialization complete" bit to move adapter from
@@ -3697,7 +3697,7 @@ iwx_load_firmware(struct iwx_softc *sc)
 	/* wait for the firmware to load */
 	err = msleep(&sc->sc_uc, &sc->sc_mtx, 0, "iwxuc", hz);
 	if (err || !sc->sc_uc.uc_ok) {
-		printf("%s: could not load firmware, %d\n", DEVNAME(sc), err);
+		printf("%s: firmware upload failed, %d\n", DEVNAME(sc), err);
 		iwx_ctxt_info_free_paging(sc);
 	}
 
@@ -4050,7 +4050,8 @@ iwx_run_init_mvm_ucode(struct iwx_softc *sc, int readnvm)
 	sc->sc_init_complete = 0;
 	err = iwx_load_ucode_wait_alive(sc);
 	if (err) {
-		printf("%s: failed to load init firmware\n", DEVNAME(sc));
+		IWX_DPRINTF(sc, IWX_DEBUG_FIRMWARE_TLV,
+		    "%s: failed to load init firmware\n", DEVNAME(sc));
 		return err;
 	} else {
 		IWX_DPRINTF(sc, IWX_DEBUG_FIRMWARE_TLV,
