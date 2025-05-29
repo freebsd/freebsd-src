@@ -364,7 +364,7 @@ int		 rule_consistent(struct pfctl_rule *, int);
 int		 filter_consistent(struct pfctl_rule *, int);
 int		 nat_consistent(struct pfctl_rule *);
 int		 rdr_consistent(struct pfctl_rule *);
-int		 process_tabledef(char *, struct table_opts *);
+int		 process_tabledef(char *, struct table_opts *, int);
 void		 expand_label_str(char *, size_t, const char *, const char *);
 void		 expand_label_if(const char *, char *, size_t, const char *);
 void		 expand_label_addr(const char *, char *, size_t, sa_family_t,
@@ -1746,7 +1746,7 @@ tabledef	: TABLE '<' STRING '>' table_opts {
 				YYERROR;
 			}
 			if (pf->loadopt & PFCTL_FLAG_TABLE)
-				if (process_tabledef($3, &$5)) {
+				if (process_tabledef($3, &$5, pf->opts)) {
 					free($3);
 					YYERROR;
 				}
@@ -3007,7 +3007,7 @@ filter_opt	: USER uids {
 		}
 		| DIVERTTO STRING PORT portplain {
 #ifndef __FreeBSD__
-			if ((filter_opts.divert.addr = host($2)) == NULL) {
+			if ((filter_opts.divert.addr = host($2, pf->opts)) == NULL) {
 				yyerror("could not parse divert address: %s",
 				    $2);
 				free($2);
@@ -3719,7 +3719,7 @@ xhost		: not host			{
 		;
 
 host		: STRING			{
-			if (($$ = host($1)) == NULL)	{
+			if (($$ = host($1, pf->opts)) == NULL)	{
 				/* error. "any" is handled elsewhere */
 				free($1);
 				yyerror("could not parse host specification");
@@ -3731,7 +3731,8 @@ host		: STRING			{
 		| STRING '-' STRING		{
 			struct node_host *b, *e;
 
-			if ((b = host($1)) == NULL || (e = host($3)) == NULL) {
+			if ((b = host($1, pf->opts)) == NULL ||
+			    (e = host($3, pf->opts)) == NULL) {
 				free($1);
 				free($3);
 				yyerror("could not parse host specification");
@@ -3767,7 +3768,7 @@ host		: STRING			{
 			if (asprintf(&buf, "%s/%lld", $1, (long long)$3) == -1)
 				err(1, "host: asprintf");
 			free($1);
-			if (($$ = host(buf)) == NULL)	{
+			if (($$ = host(buf, pf->opts)) == NULL)	{
 				/* error. "any" is handled elsewhere */
 				free(buf);
 				yyerror("could not parse host specification");
@@ -3785,7 +3786,7 @@ host		: STRING			{
 			if (asprintf(&buf, "%lld/%lld", $1, $3) == -1)
 #endif
 				err(1, "host: asprintf");
-			if (($$ = host(buf)) == NULL)	{
+			if (($$ = host(buf, pf->opts)) == NULL)	{
 				/* error. "any" is handled elsewhere */
 				free(buf);
 				yyerror("could not parse host specification");
@@ -5494,7 +5495,7 @@ rdr_consistent(struct pfctl_rule *r)
 }
 
 int
-process_tabledef(char *name, struct table_opts *opts)
+process_tabledef(char *name, struct table_opts *opts, int popts)
 {
 	struct pfr_buffer	 ab;
 	struct node_tinit	*ti;
@@ -5505,7 +5506,7 @@ process_tabledef(char *name, struct table_opts *opts)
 	ab.pfrb_type = PFRB_ADDRS;
 	SIMPLEQ_FOREACH(ti, &opts->init_nodes, entries) {
 		if (ti->file)
-			if (pfr_buf_load(&ab, ti->file, 0, append_addr)) {
+			if (pfr_buf_load(&ab, ti->file, 0, append_addr, popts)) {
 				if (errno)
 					yyerror("cannot load \"%s\": %s",
 					    ti->file, strerror(errno));
