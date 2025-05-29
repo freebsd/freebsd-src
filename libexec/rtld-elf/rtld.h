@@ -418,7 +418,7 @@ int symlook_obj(SymLook *, const Obj_Entry *);
 void *tls_get_addr_common(struct tcb *tcb, int index, size_t offset);
 void *allocate_tls(Obj_Entry *, void *, size_t, size_t);
 void free_tls(void *, size_t, size_t);
-void *allocate_module_tls(int index);
+void *allocate_module_tls(struct tcb *tcb, int index);
 bool allocate_tls_offset(Obj_Entry *obj);
 void free_tls_offset(Obj_Entry *obj);
 const Ver_Entry *fetch_ventry(const Obj_Entry *obj, unsigned long);

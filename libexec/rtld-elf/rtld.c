@@ -5380,7 +5380,7 @@ tls_get_addr_slow(struct tcb *tcb, int index, size_t offset, bool locked)
 			wlock_acquire(rtld_bind_lock, &lockstate);
 		if (!dtv->dtv_slots[index - 1].dtvs_tls)
 			dtv->dtv_slots[index - 1].dtvs_tls =
-			    allocate_module_tls(index);
+			    allocate_module_tls(tcb, index);
 		if (!locked)
 			lock_release(rtld_bind_lock, &lockstate);
 	}
@@ -5665,7 +5665,7 @@ free_tls(void *tcb, size_t tcbsize __unused, size_t tcbalign)
  * Allocate TLS block for module with given index.
  */
 void *
-allocate_module_tls(int index)
+allocate_module_tls(struct tcb *tcb, int index)
 {
 	Obj_Entry *obj;
 	char *p;
@@ -5683,9 +5683,9 @@ allocate_module_tls(int index)
 
 	if (obj->tls_static) {
 #ifdef TLS_VARIANT_I
-		p = (char *)_tcb_get() + obj->tlsoffset;
+		p = (char *)tcb + obj->tlsoffset;
 #else
-		p = (char *)_tcb_get() - obj->tlsoffset;
+		p = (char *)tcb - obj->tlsoffset;
 #endif
 		return (p);
 	}
