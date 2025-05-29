@@ -1,4 +1,4 @@
-/*	$Id: out.c,v 1.85 2021/10/17 21:05:54 schwarze Exp $ */
+/*	$Id: out.c,v 1.86 2025/01/05 18:14:39 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2014, 2015, 2017, 2018, 2019, 2021
@@ -117,7 +117,6 @@ void
 tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
     size_t offset, size_t rmargin)
 {
-	struct roffsu		 su;
 	const struct tbl_opts	*opts;
 	const struct tbl_span	*sp;
 	const struct tbl_dat	*dp;
@@ -159,13 +158,6 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp_first,
 				continue;
 
 			/* Handle explicit width specifications. */
-
-			if (dp->layout->wstr != NULL &&
-			    dp->layout->width == 0 &&
-			    a2roffsu(dp->layout->wstr, &su, SCALE_EN)
-			    != NULL)
-				dp->layout->width =
-				    (*tbl->sulen)(&su, tbl->arg);
 			if (col->width < dp->layout->width)
 				col->width = dp->layout->width;
 			if (dp->layout->spacing != SIZE_MAX &&
