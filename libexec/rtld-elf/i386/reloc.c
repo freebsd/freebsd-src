@@ -523,20 +523,14 @@ allocate_initial_tls(Obj_Entry *objs)
 __attribute__((__regparm__(1))) void *
 ___tls_get_addr(tls_index *ti)
 {
-	struct dtv **dtvp;
-
-	dtvp = &_tcb_get()->tcb_dtv;
-	return (tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset));
+	return (tls_get_addr_common(_tcb_get(), ti->ti_module, ti->ti_offset));
 }
 
 /* Sun ABI */
 void *
 __tls_get_addr(tls_index *ti)
 {
-	struct dtv **dtvp;
-
-	dtvp = &_tcb_get()->tcb_dtv;
-	return (tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset));
+	return (tls_get_addr_common(_tcb_get(), ti->ti_module, ti->ti_offset));
 }
 
 size_t
