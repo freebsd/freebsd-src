@@ -31,6 +31,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/reboot.h>
+#include <sys/devmap.h>
 #include <sys/physmem.h>
 #include <sys/lock.h>
 
