@@ -50,6 +50,17 @@ mailx_signal_test(int signo, bool interactive)
 		atf_tc_fail("failed to fork");
 	if (pid == 0) {
 		/* child */
+		sigset_t set;
+
+		/*
+		 * Ensure mailx(1) will handle SIGINT; i.e., that it's not
+		 * ignored or blocked.
+		 */
+		(void)signal(signo, SIG_DFL);
+		sigemptyset(&set);
+		sigaddset(&set, signo);
+		ATF_REQUIRE_INTEQ(0, sigprocmask(SIG_UNBLOCK, &set, NULL));
+
 		dup2(ipd[0], STDIN_FILENO);
 		close(ipd[0]);
 		close(ipd[1]);
