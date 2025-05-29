@@ -1515,6 +1515,8 @@ devfs_readdir(struct vop_readdir_args *ap)
 	 */
 	if (tmp_ncookies != NULL)
 		ap->a_ncookies = tmp_ncookies;
+	if (dd == NULL && error == 0 && ap->a_eofflag != NULL)
+		*ap->a_eofflag = 1;
 
 	return (error);
 }
