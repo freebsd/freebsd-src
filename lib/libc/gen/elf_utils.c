@@ -31,11 +31,14 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
+
+#include <machine/tls.h>
+
 #include <link.h>
 #include <stddef.h>
 #include <string.h>
+
 #include "libc_private.h"
-#include "static_tls.h"
 
 void __pthread_map_stacks_exec(void);
 void __pthread_distribute_static_tls(size_t, void *, size_t, size_t);
@@ -107,11 +110,15 @@ void
 __libc_distribute_static_tls(size_t offset, void *src, size_t len,
     size_t total_len)
 {
-	uintptr_t tlsbase;
+	char *tlsbase;
 
-	tlsbase = _libc_get_static_tls_base(offset);
-	memcpy((void *)tlsbase, src, len);
-	memset((char *)tlsbase + len, 0, total_len - len);
+#ifdef TLS_VARIANT_I
+	tlsbase = (char *)_tcb_get() + offset;
+#else
+	tlsbase = (char *)_tcb_get() - offset;
+#endif
+	memcpy(tlsbase, src, len);
+	memset(tlsbase + len, 0, total_len - len);
 }
 
 #pragma weak __pthread_distribute_static_tls
