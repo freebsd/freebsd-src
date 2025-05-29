@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 28, 2025
+.Dd May 29, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -703,8 +703,9 @@ and
 .Ar pass
 packets based on attributes of their Ethernet (layer 2) header.
 .Pp
-For each packet processed by the packet filter, the filter rules are
-evaluated in sequential order, from first to last.
+Each time a packet processed by the packet filter comes in on or
+goes out through an interface, the filter rules are evaluated in
+sequential order, from first to last.
 The last matching rule decides what action is taken.
 If no rule matches the packet, the default action is to pass
 the packet without creating a state.
@@ -3063,12 +3064,13 @@ anchor, if any, before finally evaluating the
 .Ar pass
 rule.
 .Pp
-Filter rule
-.Ar anchors
-can also be loaded inline in the ruleset within a brace ('{' '}') delimited
-block.
+An
+.Ar anchor
+rule can also contain a filter ruleset in a brace-delimited block.
+In that case, no separate loading of rules into the anchor
+is required.
 Brace delimited blocks may contain rules or other brace-delimited blocks.
-When anchors are loaded this way the anchor name becomes optional.
+When an anchor is populated this way the anchor name becomes optional.
 .Bd -literal -offset indent
 anchor "external" on $ext_if {
 	block
