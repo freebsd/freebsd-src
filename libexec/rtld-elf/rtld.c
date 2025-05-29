@@ -170,7 +170,7 @@ static int symlook_list(SymLook *, const Objlist *, DoneList *);
 static int symlook_needed(SymLook *, const Needed_Entry *, DoneList *);
 static int symlook_obj1_sysv(SymLook *, const Obj_Entry *);
 static int symlook_obj1_gnu(SymLook *, const Obj_Entry *);
-static void *tls_get_addr_slow(struct dtv **, int, size_t, bool) __noinline;
+static void *tls_get_addr_slow(struct tcb *, int, size_t, bool) __noinline;
 static void trace_loaded_objects(Obj_Entry *, bool);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *, RtldLockState *lockstate);
@@ -4312,15 +4312,12 @@ dlinfo(void *handle, int request, void *p)
 static void
 rtld_fill_dl_phdr_info(const Obj_Entry *obj, struct dl_phdr_info *phdr_info)
 {
-	struct dtv **dtvp;
-
 	phdr_info->dlpi_addr = (Elf_Addr)obj->relocbase;
 	phdr_info->dlpi_name = obj->path;
 	phdr_info->dlpi_phdr = obj->phdr;
 	phdr_info->dlpi_phnum = obj->phsize / sizeof(obj->phdr[0]);
 	phdr_info->dlpi_tls_modid = obj->tlsindex;
-	dtvp = &_tcb_get()->tcb_dtv;
-	phdr_info->dlpi_tls_data = (char *)tls_get_addr_slow(dtvp,
+	phdr_info->dlpi_tls_data = (char *)tls_get_addr_slow(_tcb_get(),
 	    obj->tlsindex, 0, true);
 	phdr_info->dlpi_adds = obj_loads;
 	phdr_info->dlpi_subs = obj_loads - obj_count;
@@ -5350,13 +5347,13 @@ unref_dag(Obj_Entry *root)
  * Common code for MD __tls_get_addr().
  */
 static void *
-tls_get_addr_slow(struct dtv **dtvp, int index, size_t offset, bool locked)
+tls_get_addr_slow(struct tcb *tcb, int index, size_t offset, bool locked)
 {
 	struct dtv *newdtv, *dtv;
 	RtldLockState lockstate;
 	int to_copy;
 
-	dtv = *dtvp;
+	dtv = tcb->tcb_dtv;
 	/* Check dtv generation in case new modules have arrived */
 	if (dtv->dtv_gen != tls_dtv_generation) {
 		if (!locked)
@@ -5373,7 +5370,7 @@ tls_get_addr_slow(struct dtv **dtvp, int index, size_t offset, bool locked)
 		free(dtv);
 		if (!locked)
 			lock_release(rtld_bind_lock, &lockstate);
-		dtv = *dtvp = newdtv;
+		dtv = tcb->tcb_dtv = newdtv;
 	}
 
 	/* Dynamically allocate module TLS if necessary */
@@ -5391,16 +5388,16 @@ tls_get_addr_slow(struct dtv **dtvp, int index, size_t offset, bool locked)
 }
 
 void *
-tls_get_addr_common(struct dtv **dtvp, int index, size_t offset)
+tls_get_addr_common(struct tcb *tcb, int index, size_t offset)
 {
 	struct dtv *dtv;
 
-	dtv = *dtvp;
+	dtv = tcb->tcb_dtv;
 	/* Check dtv generation in case new modules have arrived */
 	if (__predict_true(dtv->dtv_gen == tls_dtv_generation &&
 	    dtv->dtv_slots[index - 1].dtvs_tls != 0))
 		return (dtv->dtv_slots[index - 1].dtvs_tls + offset);
-	return (tls_get_addr_slow(dtvp, index, offset, false));
+	return (tls_get_addr_slow(tcb, index, offset, false));
 }
 
 #ifdef TLS_VARIANT_I
