@@ -60,7 +60,7 @@ static void* open_th(void* arg) {
  * Check for any memory leaks like this:
  * 1) kldunload fusefs, if necessary
  * 2) kldload fusefs
- * 3) ./destroy --gtest_filter=Destroy.unsent_operations
+ * 3) ./destroy --gtest_filter=Death.unsent_operations
  * 4) kldunload fusefs
  * 5) check /var/log/messages for anything like this:
 Freed UMA keg (fuse_ticket) was not empty (31 items).  Lost 2 pages of memory.
