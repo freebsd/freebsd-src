@@ -66,7 +66,7 @@ static char *			mod_searchmodule_pnpinfo(const char *bus, const char *pnpinfo);
 static void			file_insert_tail(struct preloaded_file *mp);
 static void			file_remove(struct preloaded_file *fp);
 static void			file_remove_tail(struct preloaded_file *fp);
-struct file_metadata*		metadata_next(struct file_metadata *base_mp, int type);
+static struct file_metadata *	metadata_next(struct file_metadata *base_mp, int type);
 static void			moduledir_readhints(struct moduledir *mdp);
 static void			moduledir_rebuild(void);
 
@@ -554,7 +554,7 @@ command_pnpautoload(int argc, char *argv[])
 /*
  * File level interface, functions file_*
  */
-int
+static int
 file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
 {
 	static int last_file_format = 0;
@@ -915,7 +915,7 @@ file_findfile(const char *name, const char *type)
  * Find a module matching (name) inside of given file.
  * NULL may be passed as a wildcard.
  */
-struct kernel_module *
+static struct kernel_module *
 file_findmodule(struct preloaded_file *fp, char *modname,
 	struct mod_depend *verinfo)
 {
@@ -1047,7 +1047,7 @@ file_addbuf(const char *name, const char *type, size_t len, void *buf)
 	return(0);
 }
 
-struct file_metadata *
+static struct file_metadata *
 metadata_next(struct file_metadata *md, int type)
 {
 
