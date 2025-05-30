@@ -454,7 +454,8 @@ command_pnpload(int argc, char *argv[])
 
 #if defined(LOADER_FDT_SUPPORT)
 static void
-pnpautoload_fdt_bus(const char *busname) {
+pnpautoload_fdt_bus(const char *busname)
+{
 	const char *pnpstring;
 	const char *compatstr;
 	char *pnpinfo = NULL;
