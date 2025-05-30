@@ -64,7 +64,7 @@ tests = ['case_all_values', 'norm_all_values', 'sensitive_none_lookup',
 tags = ['functional', 'casenorm']
 
 [tests/functional/channel_program/lua_core]
-tests = ['tst.args_to_lua', 'tst.divide_by_zero', 'tst.exists',
+tests = ['tst.args_to_lua', 'tst.divide_by_zero', 'tst.exists', 'tst.encryption',
     'tst.integer_illegal', 'tst.integer_overflow', 'tst.language_functions_neg',
     'tst.language_functions_pos', 'tst.large_prog', 'tst.libraries',
     'tst.memory_limit', 'tst.nested_neg', 'tst.nested_pos', 'tst.nvlist_to_lua',
@@ -193,6 +193,10 @@ tags = ['functional', 'cli_root', 'zfs_rename']
 [tests/functional/cli_root/zfs_reservation]
 tests = ['zfs_reservation_001_pos', 'zfs_reservation_002_pos']
 tags = ['functional', 'cli_root', 'zfs_reservation']
+
+[tests/functional/cli_root/zfs_rewrite]
+tests = ['zfs_rewrite']
+tags = ['functional', 'cli_root', 'zfs_rewrite']
 
 [tests/functional/cli_root/zfs_rollback]
 tests = ['zfs_rollback_003_neg', 'zfs_rollback_004_neg']

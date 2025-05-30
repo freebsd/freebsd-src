@@ -156,7 +156,7 @@ copy_thread(struct thread *td1, struct thread *td2)
 
 	/* Kernel threads start with clean FPU and segment bases. */
 	if ((td2->td_pflags & TDP_KTHREAD) != 0) {
-		pcb2->pcb_fsbase = 0;
+		pcb2->pcb_fsbase = pcb2->pcb_tlsbase = 0;
 		pcb2->pcb_gsbase = 0;
 		clear_pcb_flags(pcb2, PCB_FPUINITDONE | PCB_USERFPUINITDONE |
 		    PCB_KERNFPU | PCB_KERNFPU_THR);
@@ -182,7 +182,7 @@ copy_thread(struct thread *td1, struct thread *td2)
 	 * pcb2->pcb_savefpu:	cloned above.
 	 * pcb2->pcb_flags:	cloned above.
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
-	 * pcb2->pcb_[fg]sbase:	cloned above
+	 * pcb2->pcb_[f,g,tls]sbase:	cloned above
 	 */
 
 	pcb2->pcb_tssp = NULL;
@@ -663,14 +663,14 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 		return (EINVAL);
 
 	pcb = td->td_pcb;
-	set_pcb_flags(pcb, PCB_FULL_IRET);
+	set_pcb_flags(pcb, PCB_FULL_IRET | PCB_TLSBASE);
 #ifdef COMPAT_FREEBSD32
 	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		pcb->pcb_gsbase = (register_t)tls_base;
 		return (0);
 	}
 #endif
-	pcb->pcb_fsbase = (register_t)tls_base;
+	pcb->pcb_fsbase = pcb->pcb_tlsbase = (register_t)tls_base;
 	return (0);
 }
 

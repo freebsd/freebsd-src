@@ -1214,27 +1214,43 @@ run_rc_command()
 		fi
 	fi
 
-	_svcj_ip="inherit"
 	_svcj_ip4_addrs=""
 	_svcj_ip6_addrs=""
-
-	for addr in $_svcj_ipaddrs; do
-		case $addr in
-			*:*) _svcj_ip6_addrs="$addr,${_svcj_ip6_addrs}" ;;
-			*) _svcj_ip4_addrs="$addr,${_svcj_ip4_addrs}" ;;
-		esac
-	done
-
 	_svcj_cmd_options=""
 
-	if [ -n "$_svcj_ip4_addrs" ]; then
-		_svcj_cmd_options="ip4.addr=${_svcj_ip4_addrs%*,} ${_svcj_cmd_options}"
+	if [ -n "$_svcj_ipaddrs" ]; then
 		_svcj_ip="new"
+
+		for addr in $_svcj_ipaddrs; do
+			case $addr in
+				*:*) _svcj_ip6_addrs="$addr,${_svcj_ip6_addrs}" ;;
+				*) _svcj_ip4_addrs="$addr,${_svcj_ip4_addrs}" ;;
+			esac
+		done
+	else
+		_svcj_ip="inherit"
 	fi
 
-	if [ -n "$_svcj_ip6_addrs" ]; then
-		_svcj_cmd_options="ip6.addr=${_svcj_ip6_addrs%*,} ${_svcj_cmd_options}"
-		_svcj_ip="new"
+	if check_kern_features inet; then
+		_svcj_ip4="ip4=${_svcj_ip}"
+		if [ -n "$_svcj_ip4_addrs" ]; then
+			_svcj_cmd_options="ip4.addr=${_svcj_ip4_addrs%*,} ${_svcj_cmd_options}"
+		fi
+	else
+		if [ -n "$_svcj_ip4_addrs" ]; then
+			warn "$rc_service: ${name}_svcj_ipaddrs contains at least one IPv4 address, but IPv4 is not enabled in the kernel; IPv4 addresses will be ignored."
+		fi
+	fi
+
+	if check_kern_features inet6; then
+		_svcj_ip6="ip6=${_svcj_ip}"
+		if [ -n "$_svcj_ip6_addrs" ]; then
+			_svcj_cmd_options="ip6.addr=${_svcj_ip6_addrs%*,} ${_svcj_cmd_options}"
+		fi
+	else
+		if [ -n "$_svcj_ip6_addrs" ]; then
+			warn "$rc_service: ${name}_svcj_ipaddrs contains at least one IPv6 address, but IPv6 is not enabled in the kernel; IPv6 addresses will be ignored."
+		fi
 	fi
 
 	if [ -n "$_svcj_options" ]; then	# translate service jail options
@@ -1245,19 +1261,19 @@ run_rc_command()
 					_svcj_cmd_options="allow.mlock ${_svcj_cmd_options}"
 					;;
 				netv4)
-					_svcj_cmd_options="ip4=${_svcj_ip} allow.reserved_ports ${_svcj_cmd_options}"
+					_svcj_cmd_options="${_svcj_ip4} allow.reserved_ports ${_svcj_cmd_options}"
 					;;
 				netv6)
-					_svcj_cmd_options="ip6=${_svcj_ip} allow.reserved_ports ${_svcj_cmd_options}"
+					_svcj_cmd_options="${_svcj_ip6} allow.reserved_ports ${_svcj_cmd_options}"
 					;;
 				net_basic)
-					_svcj_cmd_options="ip4=${_svcj_ip} ip6=${_svcj_ip} allow.reserved_ports ${_svcj_cmd_options}"
+					_svcj_cmd_options="${_svcj_ip4} ${_svcj_ip6} allow.reserved_ports ${_svcj_cmd_options}"
 					;;
 				net_raw)
 					_svcj_cmd_options="allow.raw_sockets ${_svcj_cmd_options}"
 					;;
 				net_all)
-					_svcj_cmd_options="allow.socket_af allow.raw_sockets allow.reserved_ports ip4=${_svcj_ip} ip6=${_svcj_ip} ${_svcj_cmd_options}"
+					_svcj_cmd_options="allow.socket_af allow.raw_sockets allow.reserved_ports ${_svcj_ip4} ${_svcj_ip6} ${_svcj_cmd_options}"
 					;;
 				nfsd)
 					_svcj_cmd_options="allow.nfsd enforce_statfs=1 ${_svcj_cmd_options}"

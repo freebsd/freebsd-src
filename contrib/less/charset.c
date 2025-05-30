@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -756,24 +756,38 @@ public LWCHAR step_charc(constant char **pp, signed int dir, constant char *limi
 			ch = (LWCHAR) (unsigned char) ((p > limit) ? *--p : 0);
 	} else if (dir > 0)
 	{
-		len = utf_len(*p);
-		if (p + len > limit)
-		{
+		if (p >= limit)
 			ch = 0;
-			p = (char *) limit;
-		} else
+		else 
 		{
-			ch = get_wchar(p);
-			p += len;
+			len = utf_len(*p);
+			if (p + len > limit || !is_utf8_well_formed(p, len))
+			{
+				ch = (LWCHAR) (unsigned char) *p++;
+			} else
+			{
+				ch = get_wchar(p);
+				p += len;
+			}
 		}
 	} else
 	{
 		while (p > limit && IS_UTF8_TRAIL(p[-1]))
 			p--;
-		if (p > limit)
-			ch = get_wchar(--p);
-		else
+		if (p <= limit)
 			ch = 0;
+		else
+		{
+			len = utf_len(*--p);
+			if (p + len != *pp || !is_utf8_well_formed(p, len))
+			{
+				p = *pp - 1;
+				ch = (LWCHAR) (unsigned char) *p;
+			} else
+			{
+				ch = get_wchar(p);
+			}
+		}
 	}
 	*pp = p;
 	return ch;

@@ -36,8 +36,6 @@
 #ifndef _VISIBILITY_IOCTL_H
 #define _VISIBILITY_IOCTL_H
 
-#include <sys/param.h>
-
 struct link {
       int	op; //0 remove, 1 link
       int 	id1;

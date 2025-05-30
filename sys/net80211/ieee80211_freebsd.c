@@ -1141,7 +1141,7 @@ ieee80211_get_vap_ifname(struct ieee80211vap *vap)
 {
 	if (vap->iv_ifp == NULL)
 		return "(none)";
-	return vap->iv_ifp->if_xname;
+	return (if_name(vap->iv_ifp));
 }
 
 #ifdef DEBUGNET
@@ -1191,6 +1191,140 @@ ieee80211_debugnet_poll(struct ifnet *ifp, int count)
 	return (ic->ic_debugnet_meth->dn8_poll(ic, count));
 }
 #endif
+
+/**
+ * @brief Check if the MAC address was changed by the upper layer.
+ *
+ * This is specifically to handle cases like the MAC address
+ * being changed via an ioctl (eg SIOCSIFLLADDR).
+ *
+ * @param vap	VAP to sync MAC address for
+ */
+void
+ieee80211_vap_sync_mac_address(struct ieee80211vap *vap)
+{
+	struct epoch_tracker et;
+	const struct ifnet *ifp = vap->iv_ifp;
+
+	/*
+	 * Check if the MAC address was changed
+	 * via SIOCSIFLLADDR ioctl.
+	 *
+	 * NB: device may be detached during initialization;
+	 * use if_ioctl for existence check.
+	 */
+	NET_EPOCH_ENTER(et);
+	if (ifp->if_ioctl == ieee80211_ioctl &&
+	    (ifp->if_flags & IFF_UP) == 0 &&
+	    !IEEE80211_ADDR_EQ(vap->iv_myaddr, IF_LLADDR(ifp)))
+		IEEE80211_ADDR_COPY(vap->iv_myaddr, IF_LLADDR(ifp));
+	NET_EPOCH_EXIT(et);
+}
+
+/**
+ * @brief Initial MAC address setup for a VAP.
+ *
+ * @param vap	VAP to sync MAC address for
+ */
+void
+ieee80211_vap_copy_mac_address(struct ieee80211vap *vap)
+{
+	struct epoch_tracker et;
+
+	NET_EPOCH_ENTER(et);
+	IEEE80211_ADDR_COPY(vap->iv_myaddr, IF_LLADDR(vap->iv_ifp));
+	NET_EPOCH_EXIT(et);
+}
+
+/**
+ * @brief Deliver data into the upper ifp of the VAP interface
+ *
+ * This delivers an 802.3 frame from net80211 up to the operating
+ * system network interface layer.
+ *
+ * @param vap	the current VAP
+ * @param m	the 802.3 frame to pass up to the VAP interface
+ *
+ * Note: this API consumes the mbuf.
+ */
+void
+ieee80211_vap_deliver_data(struct ieee80211vap *vap, struct mbuf *m)
+{
+	struct epoch_tracker et;
+
+	NET_EPOCH_ENTER(et);
+	if_input(vap->iv_ifp, m);
+	NET_EPOCH_EXIT(et);
+}
+
+/**
+ * @brief Return whether the VAP is configured with monitor mode
+ *
+ * This checks the operating system layer for whether monitor mode
+ * is enabled.
+ *
+ * @param vap	the current VAP
+ * @retval true if the underlying interface is in MONITOR mode, false otherwise
+ */
+bool
+ieee80211_vap_ifp_check_is_monitor(struct ieee80211vap *vap)
+{
+	return ((if_getflags(vap->iv_ifp) & IFF_MONITOR) != 0);
+}
+
+/**
+ * @brief Return whether the VAP is configured in simplex mode.
+ *
+ * This checks the operating system layer for whether simplex mode
+ * is enabled.
+ *
+ * @param vap	the current VAP
+ * @retval true if the underlying interface is in SIMPLEX mode, false otherwise
+ */
+bool
+ieee80211_vap_ifp_check_is_simplex(struct ieee80211vap *vap)
+{
+	return ((if_getflags(vap->iv_ifp) & IFF_SIMPLEX) != 0);
+}
+
+/**
+ * @brief Return if the VAP underlying network interface is running
+ *
+ * @param vap	the current VAP
+ * @retval true if the underlying interface is running; false otherwise
+ */
+bool
+ieee80211_vap_ifp_check_is_running(struct ieee80211vap *vap)
+{
+	return ((if_getdrvflags(vap->iv_ifp) & IFF_DRV_RUNNING) != 0);
+}
+
+/**
+ * @brief Change the VAP underlying network interface state
+ *
+ * @param vap	the current VAP
+ * @param state	true to mark the interface as RUNNING, false to clear
+ */
+void
+ieee80211_vap_ifp_set_running_state(struct ieee80211vap *vap, bool state)
+{
+	if (state)
+		if_setdrvflagbits(vap->iv_ifp, IFF_DRV_RUNNING, 0);
+	else
+		if_setdrvflagbits(vap->iv_ifp, 0, IFF_DRV_RUNNING);
+}
+
+/**
+ * @brief Return the broadcast MAC address.
+ *
+ * @param vap	The current VAP
+ * @retval a uint8_t array representing the ethernet broadcast address
+ */
+const uint8_t *
+ieee80211_vap_get_broadcast_address(struct ieee80211vap *vap)
+{
+	return (if_getbroadcastaddr(vap->iv_ifp));
+}
 
 /*
  * Module glue.

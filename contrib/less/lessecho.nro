@@ -1,4 +1,4 @@
-.TH LESSECHO 1 "Version 668: 06 Oct 2024"
+.TH LESSECHO 1 "Version 678: 01 May 2025"
 .SH NAME
 lessecho \- expand metacharacters
 .SH SYNOPSIS
@@ -53,4 +53,6 @@ The default is that only arguments containing metacharacters are quoted.
 This manual page was written by Thomas Schoepf <schoepf@debian.org>,
 for the Debian GNU/Linux system (but may be used by others).
 .PP
-Report bugs at https://github.com/gwsw/less/issues.
+Report bugs at 
+.UR https://github.com/gwsw/less/issues
+.UE .

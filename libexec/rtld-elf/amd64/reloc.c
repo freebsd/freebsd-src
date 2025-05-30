@@ -543,10 +543,12 @@ allocate_initial_tls(Obj_Entry *objs)
 	addr = allocate_tls(objs, 0, TLS_TCB_SIZE, TLS_TCB_ALIGN);
 
 	/*
-	 * This does not use _tcb_set() as it calls amd64_set_fsbase()
+	 * This does not use _tcb_set() as it calls amd64_set_tlsbase()
 	 * which is an ifunc and rtld must not use ifuncs.
 	 */
-	if (__getosreldate() >= P_OSREL_WRFSBASE &&
+	if (__getosreldate() >= P_OSREL_TLSBASE)
+		sysarch(AMD64_SET_TLSBASE, &addr);
+	else if (__getosreldate() >= P_OSREL_WRFSBASE &&
 	    (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0)
 		wrfsbase((uintptr_t)addr);
 	else
@@ -556,10 +558,7 @@ allocate_initial_tls(Obj_Entry *objs)
 void *
 __tls_get_addr(tls_index *ti)
 {
-	struct dtv **dtvp;
-
-	dtvp = &_tcb_get()->tcb_dtv;
-	return (tls_get_addr_common(dtvp, ti->ti_module, ti->ti_offset));
+	return (tls_get_addr_common(_tcb_get(), ti->ti_module, ti->ti_offset));
 }
 
 size_t

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -28,7 +28,7 @@ static size_t skipsl(constant char *buf, size_t len, size_t e)
 	lbool esc = FALSE;
 	while (e < len && buf[e] != '\0' && (esc || (buf[e] != '/' && buf[e] != '}')))
 	{
-		esc = (!esc && buf[e] == '\\');
+		esc = (!esc && buf[e] == '\\' && buf[e+1] != '\0');
 		++e;
 	}
 	return e;
@@ -150,7 +150,7 @@ static size_t add_evar(struct xbuffer *xbuf, mutable char *buf, size_t len, size
 			size_t r;
 			for (r = 0;  repl[r] != '\0';  r++)
 			{
-				if (repl[r] == '\\') ++r;
+				if (repl[r] == '\\' && repl[r+1] != '\0') ++r;
 				xbuf_add_char(xbuf, repl[r]);
 			}
 		}

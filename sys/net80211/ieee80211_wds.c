@@ -169,7 +169,7 @@ ieee80211_create_wds(struct ieee80211vap *vap, struct ieee80211_channel *chan)
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_WDS,
 			    "%s: station %s in use with %s\n",
 			    __func__, ether_sprintf(vap->iv_des_bssid),
-			    ni->ni_wdsvap->iv_ifp->if_xname);
+			    ieee80211_get_vap_ifname(ni->ni_wdsvap));
 			/* XXX stat? */
 		} else {
 			/*
@@ -487,7 +487,8 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 	}
 	/* NB: the TA is implicitly verified by finding the wds peer node */
 	if (!IEEE80211_ADDR_EQ(wh->i_addr1, vap->iv_myaddr) &&
-	    !IEEE80211_ADDR_EQ(wh->i_addr1, ifp->if_broadcastaddr)) {
+	    !IEEE80211_ADDR_EQ(wh->i_addr1,
+	    ieee80211_vap_get_broadcast_address(vap))) {
 		/* not interested in */
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 		    wh->i_addr1, NULL, "%s", "not to bss");

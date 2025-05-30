@@ -374,6 +374,81 @@ o_flag_rockridge_dev_nodes_cleanup()
 	common_cleanup
 }
 
+atf_test_case T_flag_dir cleanup
+T_flag_dir_body()
+{
+	timestamp=1742574909
+	check_cd9660_support
+	create_test_dirs
+
+	mkdir -p $TEST_INPUTS_DIR/dir1
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -T $timestamp -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
+
+	mount_image
+	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
+	atf_check_equal $st_atime $timestamp
+	atf_check_equal $st_mtime $timestamp
+	atf_check_equal $st_ctime $timestamp
+}
+
+T_flag_dir_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case T_flag_F_flag cleanup
+T_flag_F_flag_body()
+{
+	atf_expect_fail "-F doesn't take precedence over -T"
+	timestamp_F=1742574909
+	timestamp_T=1742574910
+	create_test_dirs
+	mkdir -p $TEST_INPUTS_DIR/dir1
+
+	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
+	    mtree -c -k "type,time" -p $TEST_INPUTS_DIR
+	change_mtree_timestamp $TEST_SPEC_FILE $timestamp_F
+	atf_check -e empty -o not-empty -s exit:0 \
+	    $MAKEFS -F $TEST_SPEC_FILE -T $timestamp_T -o rockridge $TEST_IMAGE $TEST_INPUTS_DIR
+
+	mount_image
+	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
+	atf_check_equal $st_atime $timestamp_F
+	atf_check_equal $st_mtime $timestamp_F
+	atf_check_equal $st_ctime $timestamp_F
+}
+
+T_flag_F_flag_cleanup()
+{
+	common_cleanup
+}
+
+atf_test_case T_flag_mtree cleanup
+T_flag_mtree_body()
+{
+	timestamp=1742574909
+	create_test_dirs
+	mkdir -p $TEST_INPUTS_DIR/dir1
+
+	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
+	    mtree -c -k "type" -p $TEST_INPUTS_DIR
+	atf_check -e empty -o empty -s exit:0 \
+	    $MAKEFS -T $timestamp -o rockridge $TEST_IMAGE $TEST_SPEC_FILE
+
+	check_cd9660_support
+	mount_image
+	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
+	atf_check_equal $st_atime $timestamp
+	atf_check_equal $st_mtime $timestamp
+	atf_check_equal $st_ctime $timestamp
+}
+
+T_flag_mtree_cleanup()
+{
+	common_cleanup
+}
+
 atf_test_case duplicate_names cleanup
 duplicate_names_head()
 {
@@ -425,6 +500,9 @@ atf_init_test_cases()
 	atf_add_test_case o_flag_publisher
 	atf_add_test_case o_flag_rockridge
 	atf_add_test_case o_flag_rockridge_dev_nodes
+	atf_add_test_case T_flag_dir
+	atf_add_test_case T_flag_F_flag
+	atf_add_test_case T_flag_mtree
 
 	atf_add_test_case duplicate_names
 }

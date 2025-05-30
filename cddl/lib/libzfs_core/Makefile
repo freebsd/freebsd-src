@@ -17,6 +17,7 @@ WARNS?=	2
 CSTD=	c99
 CFLAGS+= -DIN_BASE
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libzfs_core
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libzfs_core/common
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd

@@ -333,6 +333,96 @@ bytes2frames(int bytes, int fmt)
 	return (bytes / (samplesz * ch));
 }
 
+static int
+sysctl_int(const char *buf, const char *arg, int *var)
+{
+	size_t size;
+	int n, prev;
+
+	size = sizeof(int);
+	/* Read current value. */
+	if (sysctlbyname(buf, &prev, &size, NULL, 0) < 0) {
+		warn("sysctlbyname(%s)", buf);
+		return (-1);
+	}
+
+	/* Read-only. */
+	if (arg != NULL) {
+		errno = 0;
+		n = strtol(arg, NULL, 10);
+		if (errno == EINVAL || errno == ERANGE) {
+			warn("strtol(%s)", arg);
+			return (-1);
+		}
+
+		/* Apply new value. */
+		if (sysctlbyname(buf, NULL, 0, &n, size) < 0) {
+			warn("sysctlbyname(%s, %d)", buf, n);
+			return (-1);
+		}
+	}
+
+	/* Read back applied value for good measure. */
+	if (sysctlbyname(buf, &n, &size, NULL, 0) < 0) {
+		warn("sysctlbyname(%s)", buf);
+		return (-1);
+	}
+
+	if (arg != NULL)
+		printf("%s: %d -> %d\n", buf, prev, n);
+	if (var != NULL)
+		*var = n;
+
+	return (0);
+}
+
+static int
+sysctl_str(const char *buf, const char *arg, char *var, size_t varsz)
+{
+	size_t size;
+	char prev[BUFSIZ];
+	char *tmp;
+
+	/* Read current value. */
+	size = sizeof(prev);
+	if (sysctlbyname(buf, prev, &size, NULL, 0) < 0) {
+		warn("sysctlbyname(%s)", buf);
+		return (-1);
+	}
+
+	/* Read-only. */
+	if (arg != NULL) {
+		size = strlen(arg);
+		/* Apply new value. */
+		if (sysctlbyname(buf, NULL, 0, arg, size) < 0) {
+			warn("sysctlbyname(%s, %s)", buf, arg);
+			return (-1);
+		}
+		/* Get size of new string. */
+		if (sysctlbyname(buf, NULL, &size, NULL, 0) < 0) {
+			warn("sysctlbyname(%s)", buf);
+			return (-1);
+		}
+	}
+
+	if ((tmp = calloc(1, size)) == NULL)
+		err(1, "calloc");
+	/* Read back applied value for good measure. */
+	if (sysctlbyname(buf, tmp, &size, NULL, 0) < 0) {
+		warn("sysctlbyname(%s)", buf);
+		free(tmp);
+		return (-1);
+	}
+
+	if (arg != NULL)
+		printf("%s: %s -> %s\n", buf, prev, tmp);
+	if (var != NULL)
+		strlcpy(var, tmp, varsz);
+	free(tmp);
+
+	return (0);
+}
+
 static struct snd_dev *
 read_dev(char *path)
 {
@@ -343,7 +433,7 @@ read_dev(char *path)
 	struct snd_dev *dp = NULL;
 	struct snd_chan *ch;
 	size_t nitems, nchans, i, j;
-	int fd, caps, unit;
+	int fd, caps, unit, t1, t2, t3;
 
 	if ((fd = open("/dev/sndstat", O_RDONLY)) < 0)
 		err(1, "open(/dev/sndstat)");
@@ -455,6 +545,13 @@ read_dev(char *path)
 #undef NV
 
 	dp->autoconv = (dp->play.vchans || dp->rec.vchans) && !dp->bitperfect;
+
+	if (sysctl_int("hw.snd.latency", NULL, &t1) ||
+	    sysctl_int("hw.snd.latency_profile", NULL, &t2) ||
+	    sysctl_int("kern.timecounter.alloweddeviation", NULL, &t3))
+		err(1, "%s: sysctl", dp->name);
+	if (t1 == 0 && t2 == 0 && t3 == 0)
+		dp->realtime = 1;
 
 	if (!nvlist_exists(nvlist_get_nvlist(di[i],
 	    SNDST_DSPS_PROVIDER_INFO), SNDST_DSPS_SOUND4_CHAN_INFO))
@@ -656,86 +753,6 @@ print_dev(struct snd_dev *dp)
 				print_chan_ctl(ch, ctl, oflag, false);
 		}
 	}
-}
-
-static int
-sysctl_int(const char *buf, const char *arg, int *var)
-{
-	size_t size;
-	const char *val = arg;
-	int n, prev;
-
-	n = strtol(val, NULL, 10);
-	if (errno == EINVAL || errno == ERANGE) {
-		warn("strtol(%s)", val);
-		return (-1);
-	}
-
-	size = sizeof(int);
-	/* Read current value. */
-	if (sysctlbyname(buf, &prev, &size, NULL, 0) < 0) {
-		warn("sysctlbyname(%s)", buf);
-		return (-1);
-	}
-	/* Apply new value. */
-	if (sysctlbyname(buf, NULL, 0, &n, size) < 0) {
-		warn("sysctlbyname(%s, %d)", buf, n);
-		return (-1);
-	}
-	/* Read back applied value for good measure. */
-	if (sysctlbyname(buf, &n, &size, NULL, 0) < 0) {
-		warn("sysctlbyname(%s)", buf);
-		return (-1);
-	}
-
-	printf("%s: %d -> %d\n", buf, prev, n);
-	if (var != NULL)
-		*var = n;
-
-	return (0);
-}
-
-static int
-sysctl_str(const char *buf, const char *arg, char *var, size_t varsz)
-{
-	size_t size;
-	const char *val = arg;
-	char prev[BUFSIZ];
-	char *tmp;
-
-	/* Read current value. */
-	size = sizeof(prev);
-	if (sysctlbyname(buf, prev, &size, NULL, 0) < 0) {
-		warn("sysctlbyname(%s)", buf);
-		return (-1);
-	}
-
-	size = strlen(val);
-	/* Apply new value. */
-	if (sysctlbyname(buf, NULL, 0, val, size) < 0) {
-		warn("sysctlbyname(%s, %s)", buf, val);
-		return (-1);
-	}
-	/* Get size of new string. */
-	if (sysctlbyname(buf, NULL, &size, NULL, 0) < 0) {
-		warn("sysctlbyname(%s)", buf);
-		return (-1);
-	}
-	if ((tmp = calloc(1, size)) == NULL)
-		err(1, "calloc");
-	/* Read back applied value for good measure. */
-	if (sysctlbyname(buf, tmp, &size, NULL, 0) < 0) {
-		warn("sysctlbyname(%s)", buf);
-		free(tmp);
-		return (-1);
-	}
-
-	printf("%s: %s -> %s\n", buf, prev, tmp);
-	if (var != NULL)
-		strlcpy(var, tmp, varsz);
-	free(tmp);
-
-	return (0);
 }
 
 static int

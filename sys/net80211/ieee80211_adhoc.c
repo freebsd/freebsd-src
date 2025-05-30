@@ -395,7 +395,8 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		     (subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
 		      subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) &&
 		    !IEEE80211_ADDR_EQ(bssid, vap->iv_bss->ni_bssid) &&
-		    !IEEE80211_ADDR_EQ(bssid, ifp->if_broadcastaddr)) {
+		    !IEEE80211_ADDR_EQ(bssid,
+		        ieee80211_vap_get_broadcast_address(vap))) {
 			/* not interested in */
 			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 			    bssid, NULL, "%s", "not to bss");

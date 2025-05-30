@@ -3046,6 +3046,43 @@ db_print_toobflags(char t_oobflags)
 }
 
 static void
+db_print_bblog_state(int state)
+{
+	switch (state) {
+	case TCP_LOG_STATE_RATIO_OFF:
+		db_printf("TCP_LOG_STATE_RATIO_OFF");
+		break;
+	case TCP_LOG_STATE_CLEAR:
+		db_printf("TCP_LOG_STATE_CLEAR");
+		break;
+	case TCP_LOG_STATE_OFF:
+		db_printf("TCP_LOG_STATE_OFF");
+		break;
+	case TCP_LOG_STATE_TAIL:
+		db_printf("TCP_LOG_STATE_TAIL");
+		break;
+	case TCP_LOG_STATE_HEAD:
+		db_printf("TCP_LOG_STATE_HEAD");
+		break;
+	case TCP_LOG_STATE_HEAD_AUTO:
+		db_printf("TCP_LOG_STATE_HEAD_AUTO");
+		break;
+	case TCP_LOG_STATE_CONTINUAL:
+		db_printf("TCP_LOG_STATE_CONTINUAL");
+		break;
+	case TCP_LOG_STATE_TAIL_AUTO:
+		db_printf("TCP_LOG_STATE_TAIL_AUTO");
+		break;
+	case TCP_LOG_VIA_BBPOINTS:
+		db_printf("TCP_LOG_STATE_BBPOINTS");
+		break;
+	default:
+		db_printf("UNKNOWN(%d)", state);
+		break;
+	}
+}
+
+static void
 db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 {
 
@@ -3156,6 +3193,21 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	db_print_indent(indent);
 	db_printf("t_rttlow: %d   rfbuf_ts: %u   rfbuf_cnt: %d\n",
 	    tp->t_rttlow, tp->rfbuf_ts, tp->rfbuf_cnt);
+
+	db_print_indent(indent);
+	db_printf("t_fb.tfb_tcp_block_name: %s\n", tp->t_fb->tfb_tcp_block_name);
+
+	db_print_indent(indent);
+	db_printf("t_cc.name: %s\n", tp->t_cc->name);
+
+	db_print_indent(indent);
+	db_printf("_t_logstate: %d (", tp->_t_logstate);
+	db_print_bblog_state(tp->_t_logstate);
+	db_printf(")\n");
+
+	db_print_indent(indent);
+	db_printf("t_lognum: %d   t_loglimit: %d   t_logsn: %u\n",
+	    tp->t_lognum, tp->t_loglimit, tp->t_logsn);
 }
 
 DB_SHOW_COMMAND(tcpcb, db_show_tcpcb)
@@ -3169,5 +3221,28 @@ DB_SHOW_COMMAND(tcpcb, db_show_tcpcb)
 	tp = (struct tcpcb *)addr;
 
 	db_print_tcpcb(tp, "tcpcb", 0);
+}
+
+DB_SHOW_ALL_COMMAND(tcpcbs, db_show_all_tcpcbs)
+{
+	VNET_ITERATOR_DECL(vnet_iter);
+	struct inpcb *inp;
+	bool only_locked;
+
+	only_locked = strchr(modif, 'l') != NULL;
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		CK_LIST_FOREACH(inp, &V_tcbinfo.ipi_listhead, inp_list) {
+			if (only_locked &&
+			    inp->inp_lock.rw_lock == RW_UNLOCKED)
+				continue;
+			db_print_tcpcb(intotcpcb(inp), "tcpcb", 0);
+			if (db_pager_quit)
+				break;
+		}
+		CURVNET_RESTORE();
+		if (db_pager_quit)
+			break;
+	}
 }
 #endif

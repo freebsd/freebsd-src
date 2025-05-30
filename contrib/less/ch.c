@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -149,10 +149,7 @@ static int ch_get(void)
 	struct buf *bp;
 	struct bufnode *bn;
 	ssize_t n;
-	lbool read_again;
 	int h;
-	POSITION pos;
-	POSITION len;
 
 	if (thisfile == NULL)
 		return (EOI);
@@ -224,12 +221,28 @@ static int ch_get(void)
 
 	for (;;)
 	{
-		pos = ch_position(ch_block, bp->datasize);
+		lbool read_again;
+		POSITION len;
+		POSITION pos = ch_position(ch_block, bp->datasize);
+		lbool read_pipe_at_eof = FALSE;
 		if ((len = ch_length()) != NULL_POSITION && pos >= len)
+		{
 			/*
-			 * At end of file.
+			 * Apparently at end of file.
+			 * Double-check the file size in case it has changed.
 			 */
-			return (EOI);
+			ch_resize();
+			if ((len = ch_length()) != NULL_POSITION && pos >= len)
+			{
+				if (ch_flags & (CH_CANSEEK|CH_HELPFILE))
+					return (EOI);
+				/* ch_length doesn't work for pipes, so just try to
+				 * read from the pipe to see if more data has appeared.
+				 * This can happen only in limited situations, such as
+				 * a fifo that the writer has closed and reopened. */
+				read_pipe_at_eof = TRUE;
+			}
+		}
 
 		if (pos != ch_fpos)
 		{
@@ -271,7 +284,8 @@ static int ch_get(void)
 		read_again = FALSE;
 		if (n == READ_INTR)
 		{
-			ch_fsize = pos;
+			if (ch_flags & CH_CANSEEK)
+				ch_fsize = pos;
 			return (EOI);
 		}
 		if (n == READ_AGAIN)
@@ -304,6 +318,8 @@ static int ch_get(void)
 
 		ch_fpos += n;
 		bp->datasize += (size_t) n;
+		if (read_pipe_at_eof)
+			ch_set_eof(); /* update length of pipe */
 
 		if (n == 0)
 		{
@@ -330,6 +346,9 @@ static int ch_get(void)
 				return (EOI);
 			}
 			if (sigs)
+				return (EOI);
+			if (read_pipe_at_eof)
+				/* No new data; we are still at EOF on the pipe. */
 				return (EOI);
 		}
 
@@ -400,6 +419,8 @@ public void end_logfile(void)
 	logfile = -1;
 	free(namelogfile);
 	namelogfile = NULL;
+	putstr("\n");
+	flush();
 }
 
 /*
@@ -412,6 +433,7 @@ public void sync_logfile(void)
 	struct buf *bp;
 	struct bufnode *bn;
 	lbool warned = FALSE;
+	int h;
 	BLOCKNUM block;
 	BLOCKNUM nblocks;
 
@@ -421,7 +443,8 @@ public void sync_logfile(void)
 	for (block = 0;  block < nblocks;  block++)
 	{
 		lbool wrote = FALSE;
-		FOR_BUFS(bn)
+		h = BUFHASH(block);
+		FOR_BUFS_IN_CHAIN(h, bn)
 		{
 			bp = bufnode_buf(bn);
 			if (bp->block == block)
@@ -597,6 +620,20 @@ public POSITION ch_length(void)
 	if (ch_flags & CH_NODATA)
 		return (0);
 	return (ch_fsize);
+}
+
+/*
+ * Update the file size, in case it has changed.
+ */
+public void ch_resize(void)
+{
+	POSITION fsize;
+
+	if (!(ch_flags & CH_CANSEEK))
+		return;
+	fsize = filesize(ch_file);
+	if (fsize != NULL_POSITION)
+		ch_fsize = fsize;
 }
 
 /*

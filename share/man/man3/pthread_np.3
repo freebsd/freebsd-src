@@ -116,6 +116,11 @@ Sets the specified thread's name.
 .Xc
 Sets the specified thread's name.
 .It Xo
+.Ft void
+.Fn pthread_signals_block_np void
+.Xc
+Blocks all asynchronous signals, quickly.
+.It Xo
 .Ft int
 .Fn pthread_single_np void
 .Xc
@@ -130,16 +135,6 @@ Suspend the specified thread.
 .Fn pthread_suspend_all_np void
 .Xc
 Suspend all active threads.
-.It Xo
-.Ft int
-.Fn pthread_switch_add_np "pthread_switch_routine_t routine"
-.Xc
-Install a routine that is called every time a thread context switches.
-.It Xo
-.Ft int
-.Fn pthread_switch_delete_np "pthread_switch_routine_t routine"
-.Xc
-Remove a routine that is called every time a thread context switches.
 .It Xo
 .Ft int
 .Fo pthread_timedjoin_np
@@ -223,6 +218,7 @@ instead.
 .Xr pthread_resume_all_np 3 ,
 .Xr pthread_resume_np 3 ,
 .Xr pthread_set_name_np 3 ,
+.Xr pthread_signals_block_np 3 ,
 .Xr pthread_suspend_all_np 3 ,
 .Xr pthread_suspend_np 3 ,
 .Xr pthread_switch_add_np 3

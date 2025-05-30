@@ -1,5 +1,6 @@
+#include <errno.h>
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -16,7 +17,7 @@
  * At some convenient time, the mainline code checks to see if any
  * signals need processing by calling psignal().
  * If we happen to be reading from a file [in iread()] at the time
- * the signal is received, we call intread to interrupt the iread.
+ * the signal is received, we call intio to interrupt the iread.
  */
 
 #include "less.h"
@@ -30,7 +31,6 @@ public int sigs;
 extern int sc_width, sc_height;
 extern int linenums;
 extern int wscroll;
-extern int reading;
 extern int quit_on_intr;
 extern long jump_sline_fraction;
 
@@ -64,8 +64,7 @@ static RETSIGTYPE u_interrupt(int type)
 #if HILITE_SEARCH
 	set_filter_pattern(NULL, 0);
 #endif
-	if (reading)
-		intread(); /* May longjmp */
+	intio();
 }
 #endif
 
@@ -79,8 +78,7 @@ static RETSIGTYPE stop(int type)
 	(void) type;
 	LSIGNAL(SIGTSTP, stop);
 	sigs |= S_STOP;
-	if (reading)
-		intread();
+	intio();
 }
 #endif
 
@@ -102,9 +100,17 @@ public RETSIGTYPE winch(int type)
 {
 	(void) type;
 	LSIGNAL(SIG_LESSWINDOW, winch);
+#if LESSTEST
+	/*
+	 * Ignore window changes during lesstest.
+	 * Changes in the real window are unrelated to the simulated
+	 * screen used by lesstest.
+	 */
+	if (is_lesstest())
+		return;
+#endif
 	sigs |= S_WINCH;
-	if (reading)
-		intread();
+	intio();
 }
 #endif
 
@@ -140,6 +146,27 @@ static RETSIGTYPE terminate(int type)
 }
 
 /*
+ * Handle a SIGUSR signal.
+ */
+#ifdef SIGUSR1
+static void sigusr(constant char *var)
+{
+	constant char *cmd = lgetenv(var);
+	if (isnullenv(cmd))
+		return;
+	ungetsc(cmd);
+	intio();
+}
+
+static RETSIGTYPE sigusr1(int type)
+{
+	(void) type;
+	LSIGNAL(SIGUSR1, sigusr1);
+	sigusr("LESS_SIGUSR1");
+}
+#endif
+
+/*
  * Set up the signal handlers.
  */
 public void init_signals(int on)
@@ -169,6 +196,9 @@ public void init_signals(int on)
 #ifdef SIGTERM
 		(void) LSIGNAL(SIGTERM, terminate);
 #endif
+#ifdef SIGUSR1
+		(void) LSIGNAL(SIGUSR1, sigusr1);
+#endif
 	} else
 	{
 		/*
@@ -193,6 +223,9 @@ public void init_signals(int on)
 #endif
 #ifdef SIGTERM
 		(void) LSIGNAL(SIGTERM, SIG_DFL);
+#endif
+#ifdef SIGUSR1
+		(void) LSIGNAL(SIGUSR1, SIG_DFL);
 #endif
 	}
 }
@@ -262,9 +295,5 @@ public void psignals(void)
 	{
 		if (quit_on_intr)
 			quit(QUIT_INTERRUPT);
-		getcc_clear();
-#if MSDOS_COMPILER==WIN32C
-		win32_getch_clear();
-#endif
 	}
 }

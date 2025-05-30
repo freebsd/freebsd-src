@@ -1,9 +1,10 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2019 The FreeBSD Foundation
+ * Copyright (c) 2025 The FreeBSD Foundation
+ * All rights reserved.
  *
- * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
+ * This software was developed by Konstantin Belousov
  * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -18,7 +19,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -28,17 +29,23 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _LIBC_POWERPC64_STATIC_TLS_H
-#define _LIBC_POWERPC64_STATIC_TLS_H
+#define _WANT_P_OSREL
+#include <sys/param.h>
+#include <machine/cpufunc.h>
+#include <machine/specialreg.h>
+#include <machine/sysarch.h>
+#include <x86/ifunc.h>
+#include "libc_private.h"
 
-static __inline uintptr_t
-_libc_get_static_tls_base(size_t offset)
+static int
+amd64_set_tlsbase_syscall(void *addr)
 {
-	uintptr_t tlsbase;
-
-	__asm __volatile("mr %0,13" : "=r"(tlsbase));
-	tlsbase += offset - 0x7010;
-	return (tlsbase);
+	return (sysarch(AMD64_SET_TLSBASE, &addr));
 }
 
-#endif
+DEFINE_UIFUNC(, int, amd64_set_tlsbase, (void *))
+{
+	if (__getosreldate() >= P_OSREL_TLSBASE)
+		return (amd64_set_tlsbase_syscall);
+	return (amd64_set_fsbase);
+}

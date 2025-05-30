@@ -11,6 +11,79 @@
 
 ======================================================================
 
+	Major changes between "less" versions 668 and 678
+
+* Treat -r in LESS environment variable as -R.
+
+* Add ESC-j and ESC-k commands (github #560).
+
+* Add --no-paste option (github #523).
+
+* Add --no-edit-warn option (github #513).
+
+* Add --form-feed option (github #496).
+
+* Add ESC-b command (github #615).
+
+* Make TAB complete option name in -- command (github #531).
+
+* Update the file size on an attempt to go past end of file.
+
+* Make -R able to pass through any OSC escape sequences,
+  not just OSC 8 (github #504).
+
+* Setting LESS_IS_MORE=0 now disables "more" compatibility even
+  if invoked via a file link named "more" (github #500).
+
+* Pass through escape sequences in prompts even if -R is not set.
+
+* Add LESS_SHELL_LINES to support shell prompts which use more than
+  one line (github #514).
+
+* Add LESSANSIOSCALLOW to define OSC types which may be passed through.
+
+* Add LESSANSIOSCCHARS to define non-standard OSC intro chars.
+
+* Add LESS_SIGUSR1 to define user signal handler (github #582).
+
+* Add mouse and mouse6 commands to lesskey (github #569).
+
+* Improve behavior of ^O^N and ^O^P commands.
+
+* Leave stty tabs setting unchanged (github #620).
+
+* Fix unexpected behavior when entering a partial command followed by 
+  a valid command (github #543).
+
+* Fix bug when coloring prompt string with SGR sequences (github #516).
+
+* Fix bug when searching for text near an invalid UTF-8 sequence (github #542).
+
+* Fix display bug when file contains ESC followed by NUL (github #550).
+
+* Fix bug when using +:n +:p +:x or +:d on the command line (github #552).
+
+* Fix bug with --no-number-headers when header is not at start of file
+  (github #566).
+
+* Fix bug where lesstest fails if window is resized (github #570).
+
+* Fix bug using "configure --with-secure=no" (github #584).
+
+* Fix bug using multibyte command chars (github #595).
+
+* Fix auto_wrap setting on Windows (github #497).
+
+* Fix two bugs using ^S search modifier (github #605).
+
+* Fix bug searching for UTF-8 strings with the PCRE2 library (github #610).
+
+* Fix bug highlighting OSC 8 links when opening a new file.
+
+* Fix bug when & filtering is active (github #618).
+
+======================================================================
+
 	Major changes between "less" versions 661 and 668
 
 * Make 256/true colors work better on Windows without -Da

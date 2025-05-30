@@ -123,8 +123,8 @@ static int	ksem_create(struct thread *td, const char *path,
 		    semid_t *semidp, mode_t mode, unsigned int value,
 		    int flags, int compat32);
 static void	ksem_drop(struct ksem *ks);
-static int	ksem_get(struct thread *td, semid_t id, cap_rights_t *rightsp,
-    struct file **fpp);
+static int	ksem_get(struct thread *td, semid_t id,
+		    const cap_rights_t *rightsp, struct file **fpp);
 static struct ksem *ksem_hold(struct ksem *ks);
 static void	ksem_insert(char *path, Fnv32_t fnv, struct ksem *ks);
 static struct ksem *ksem_lookup(char *path, Fnv32_t fnv);
@@ -587,7 +587,7 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 }
 
 static int
-ksem_get(struct thread *td, semid_t id, cap_rights_t *rightsp,
+ksem_get(struct thread *td, semid_t id, const cap_rights_t *rightsp,
     struct file **fpp)
 {
 	struct ksem *ks;

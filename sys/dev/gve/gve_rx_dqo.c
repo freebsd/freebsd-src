@@ -962,6 +962,19 @@ drop_frag_clear_ctx:
 	rx->ctx = (struct gve_rx_ctx){};
 }
 
+static uint8_t
+gve_rx_get_gen_bit(uint8_t *desc)
+{
+	uint8_t byte;
+
+	/*
+	 * Prevent generation bit from being read after the rest of the
+	 * descriptor.
+	 */
+	byte = atomic_load_acq_8(desc + GVE_RX_DESC_DQO_GEN_BYTE_OFFSET);
+	return ((byte & GVE_RX_DESC_DQO_GEN_BIT_MASK) != 0);
+}
+
 static bool
 gve_rx_cleanup_dqo(struct gve_priv *priv, struct gve_rx_ring *rx, int budget)
 {
@@ -971,17 +984,14 @@ gve_rx_cleanup_dqo(struct gve_priv *priv, struct gve_rx_ring *rx, int budget)
 	NET_EPOCH_ASSERT();
 
 	while (work_done < budget) {
-		bus_dmamap_sync(rx->dqo.compl_ring_mem.tag, rx->dqo.compl_ring_mem.map,
+		bus_dmamap_sync(rx->dqo.compl_ring_mem.tag,
+		    rx->dqo.compl_ring_mem.map,
 		    BUS_DMASYNC_POSTREAD);
 
 		compl_desc = &rx->dqo.compl_ring[rx->dqo.tail];
-		if (compl_desc->generation == rx->dqo.cur_gen_bit)
+		if (gve_rx_get_gen_bit((uint8_t *)compl_desc) ==
+		    rx->dqo.cur_gen_bit)
 			break;
-		/*
-		 * Prevent generation bit from being read after the rest of the
-		 * descriptor.
-		 */
-		atomic_thread_fence_acq();
 
 		rx->cnt++;
 		rx->dqo.tail = (rx->dqo.tail + 1) & rx->dqo.mask;

@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include "un-namespace.h"
 #include "libc_private.h"
 
@@ -161,6 +162,24 @@ _thr_signal_block_setup(struct pthread *curthread)
 	if (!fast_sigblock)
 		return;
 	__sys_sigfastblock(SIGFASTBLOCK_SETPTR, &curthread->fsigblock);
+}
+
+void
+pthread_signals_block_np(void)
+{
+	struct pthread *curthread;
+
+	curthread = _get_curthread();
+	_thr_signal_block(curthread);
+}
+
+void
+pthread_signals_unblock_np(void)
+{
+	struct pthread *curthread;
+
+	curthread = _get_curthread();
+	_thr_signal_unblock(curthread);
 }
 
 int

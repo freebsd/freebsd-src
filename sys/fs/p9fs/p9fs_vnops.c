@@ -222,9 +222,9 @@ p9fs_lookup(struct vop_lookup_args *ap)
 	struct p9fs_session *vses;
 	struct mount *mp; /* Get the mount point */
 	struct p9_fid *dvfid, *newfid;
+	uint64_t flags;
 	int error;
 	struct vattr vattr;
-	int flags;
 	char tmpchr;
 
 	dvp = ap->a_dvp;

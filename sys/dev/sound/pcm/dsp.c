@@ -289,19 +289,25 @@ dsp_close(void *data)
 			if (sg_ids != 0)
 				free_unr(pcmsg_unrhdr, sg_ids);
 
+			/*
+			 * Go through the channel abort/flush path for both
+			 * primary and virtual channels to ensure that, in the
+			 * case of vchans, the stream is always properly
+			 * stopped, and the primary channels do not keep being
+			 * interrupted even if all vchans are gone.
+			 */
+			CHN_LOCK(rdch);
+			chn_abort(rdch); /* won't sleep */
+			rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
+			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
+			chn_reset(rdch, 0, 0);
+			chn_release(rdch);
 			if (rdch->flags & CHN_F_VIRTUAL) {
 				parent = rdch->parentchannel;
 				CHN_LOCK(parent);
 				CHN_LOCK(rdch);
 				vchan_destroy(rdch);
 				CHN_UNLOCK(parent);
-			} else {
-				CHN_LOCK(rdch);
-				chn_abort(rdch); /* won't sleep */
-				rdch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
-				    CHN_F_DEAD | CHN_F_EXCLUSIVE);
-				chn_reset(rdch, 0, 0);
-				chn_release(rdch);
 			}
 		}
 		if (wrch != NULL) {
@@ -314,19 +320,18 @@ dsp_close(void *data)
 			if (sg_ids != 0)
 				free_unr(pcmsg_unrhdr, sg_ids);
 
+			CHN_LOCK(wrch);
+			chn_flush(wrch); /* may sleep */
+			wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
+			    CHN_F_DEAD | CHN_F_EXCLUSIVE);
+			chn_reset(wrch, 0, 0);
+			chn_release(wrch);
 			if (wrch->flags & CHN_F_VIRTUAL) {
 				parent = wrch->parentchannel;
 				CHN_LOCK(parent);
 				CHN_LOCK(wrch);
 				vchan_destroy(wrch);
 				CHN_UNLOCK(parent);
-			} else {
-				CHN_LOCK(wrch);
-				chn_flush(wrch); /* may sleep */
-				wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MMAP |
-				    CHN_F_DEAD | CHN_F_EXCLUSIVE);
-				chn_reset(wrch, 0, 0);
-				chn_release(wrch);
 			}
 		}
 		PCM_LOCK(d);

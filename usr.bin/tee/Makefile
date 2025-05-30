@@ -1,5 +1,6 @@
 .include <src.opts.mk>
 
+PACKAGE= runtime
 PROG=	tee
 
 HAS_TESTS=

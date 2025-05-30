@@ -356,7 +356,7 @@ efi_redirect_exceptions(void)
 	PREPARE_EXCEPTION(19);
 	PREPARE_EXCEPTION(20);
 
-	exc_rsp = exc_stack_pa + PAGE_SIZE -
+	exc_rsp = exc_stack_pa + EFI_PAGE_SIZE -
 	    (6 /* hw exception frame */ + 3 /* scratch regs */) * 8;
 
 	/* Find free IST and use it */
@@ -376,7 +376,7 @@ efi_redirect_exceptions(void)
 		if (intercepted[i])
 			loader_idt_e->gd_ist = ist;
 	}
-	(&(tss->tss_ist1))[ist - 1] = exc_stack_pa + PAGE_SIZE;
+	(&(tss->tss_ist1))[ist - 1] = exc_stack_pa + EFI_PAGE_SIZE;
 
 	/* Switch to new IDT */
 	rfl = intr_disable();

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -203,7 +203,7 @@ static lbool cond(char c, int where)
 	case 'c':
 		return (hshift != 0);
 	case 'e': /* At end of file? */
-		return (eof_displayed());
+		return (eof_displayed(FALSE));
 	case 'f': /* Filename known? */
 	case 'g':
 		return (strcmp(get_filename(curr_ifile), "-") != 0);
@@ -257,7 +257,6 @@ static void protochar(char c, int where)
 {
 	POSITION pos;
 	POSITION len;
-	int n;
 	LINENUM linenum;
 	LINENUM last_linenum;
 	IFILE h;
@@ -341,15 +340,15 @@ static void protochar(char c, int where)
 		else
 			ap_linenum(vlinenum(linenum-1));
 		break;
-	case 'm': /* Number of files */
+	case 'm': { /* Number of files */
 #if TAGS
-		n = ntags();
+		int n = ntags();
 		if (n)
 			ap_int(n);
 		else
 #endif
 			ap_int(nifile());
-		break;
+		break; }
 	case 'o': /* path (URI without protocol) of selected OSC8 link */
 #if OSC8_LINK
 		if (osc8_path != NULL)

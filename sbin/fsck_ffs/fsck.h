@@ -153,7 +153,7 @@ struct bufarea {
 	int b_flags;				/* B_ flags below */
 	int b_type;				/* BT_ type below */
 	int b_refcnt;				/* ref count of users */
-	int b_index;				/* for BT_LEVEL, ptr index */
+	uint64_t b_index;			/* for BT_LEVEL, ptr index */
 						/* for BT_INODES, first inum */
 	union {
 		char *b_buf;			/* buffer space */

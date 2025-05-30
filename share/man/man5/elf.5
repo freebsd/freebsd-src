@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 25, 2022
+.Dd May 26, 2025
 .Dt ELF 5
 .Os
 .Sh NAME
@@ -864,6 +864,13 @@ This section holds version control information.
 This section is of type
 .Sy SHT_PROGBITS .
 No attribute types are used.
+.It .ctors
+This legacy section holds pointers to initialization routines,
+executed before calling the main program entry point.
+This section is of type
+.Sy SHT_PROGBITS .
+The attributes used are
+.Sy SHF_ALLOC .
 .It .data
 This section holds initialized data that contribute to the program's
 memory image.
@@ -889,6 +896,13 @@ are unspecified.
 This section is of type
 .Sy SHT_PROGBITS .
 No attribute types are used.
+.It .dtors
+This legacy section holds pointers to finalization routines,
+executed when the program exits normally.
+This section is of type
+.Sy SHT_PROGBITS .
+The attributes used are
+.Sy SHF_ALLOC .
 .It .dynamic
 This section holds dynamic linking information.
 The section's attributes
@@ -915,7 +929,7 @@ This section is of type
 The attribute used is
 .Sy SHF_ALLOC .
 .It .fini
-This section holds executable instructions that contribute to the process
+This legacy section holds executable instructions that contribute to the process
 termination code.
 When a program exits normally the system arranges to
 execute the code in this section.
@@ -925,6 +939,19 @@ The attributes used are
 .Sy SHF_ALLOC
 and
 .Sy SHF_EXECINSTR .
+.It .fini_array
+This section holds pointers to finalization routines.
+When a program exits normally
+.Xr rtld 1
+executes the code referenced by this section.
+This section is of type
+.Sy SHT_FINI_ARRAY .
+The attributes used are
+.Sy SHF_ALLOC .
+Refer to
+.Dv NT_FREEBSD_NOINIT_TAG
+.Pq below
+for a description of how initialization and finalization code is invoked.
 .It .got
 This section holds the global offset table.
 This section is of type
@@ -937,7 +964,7 @@ This section is of type
 The attribute used is
 .Sy SHF_ALLOC .
 .It .init
-This section holds executable instructions that contribute to the process
+This legacy section holds executable instructions that contribute to the process
 initialization code.
 When a program starts to run the system arranges to
 execute the code in this section before calling the main program entry point.
@@ -947,6 +974,20 @@ The attributes used are
 .Sy SHF_ALLOC
 and
 .Sy SHF_EXECINSTR .
+.It .init_array
+This section holds pointers to initialization routines.
+When a program starts to run
+.Xr rtld 1
+executes the code referenced by this section before calling the program entry
+point.
+This section is of type
+.Sy SHT_INIT_ARRAY .
+The attributes used are
+.Sy SHF_ALLOC .
+Refer to
+.Dv NT_FREEBSD_NOINIT_TAG
+.Pq below
+for a description of how initialization and finalization code is invoked.
 .It .interp
 This section holds the pathname of a program interpreter.
 If the file has
@@ -1384,6 +1425,10 @@ Disable stack gap.
 .It NT_FREEBSD_FCTL_WXNEEDED Pq Value: 0x08
 Indicate that the binary requires mappings that are simultaneously
 writeable and executable.
+.It NT_FREEBSD_FCTL_LA48 Pq Value: 0x10
+Request 48-bit linear address space on amd64.
+.It NT_FREEBSD_FCTL_LA57 Pq Value: 0x40
+Accept 57-bit linear address space on amd64.
 .El
 .El
 .Sh SEE ALSO

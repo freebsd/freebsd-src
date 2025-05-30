@@ -3060,6 +3060,7 @@ pfctl_get_srcnodes(struct pfctl_handle *h, pfctl_get_srcnode_fn fn, void *arg)
 		return (ENXIO);
 
 	while ((hdr = snl_read_reply_multi(&h->ss, seq_id, &e)) != NULL) {
+		bzero(&sn, sizeof(sn));
 		if (!snl_parse_nlmsg(&h->ss, hdr, &srcnode_parser, &sn))
 			continue;
 

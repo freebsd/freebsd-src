@@ -27,6 +27,25 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250527:
+	The CAM target layer userland, i.e. ctld(8), ctladm(8) and ctlstat(8),
+	has moved to the new FreeBSD-ctl package.  If you use pkgbase and you
+	need the CAM Target Layer, you should install the new package.
+
+	Development-related tools (e.g. ar and nm) have moved to the new
+	"FreeBSD-toolchain" package, which subsumes and obsoletes the
+	existing "FreeBSD-elftoolchain" package.  If you use pkgbase and
+	need to compile software, you should install the new package and
+	ensure the old FreeBSD-elftoolchain* packages are completely removed.
+
+20250521:
+	Commit e64fe5ad3a23 removed in6_maxmtu and its setter in6_setmaxmtu().
+	in6_maxmtu is used to store the max IPv6 MTU of all interfaces,
+	however it does not have any in-tree consumers since the introduction
+	from the KAME project. The removal should have little impact, and the
+	max IPv6 MTU can be easily retrieved by iterating over all the attached
+	interface if 3rd party modules need it.
+
 20250515:
 	Commit 772258c89f28 changed the internal API between the nfscommon
 	and nfscl modules.  Both need to be built from updated sources.

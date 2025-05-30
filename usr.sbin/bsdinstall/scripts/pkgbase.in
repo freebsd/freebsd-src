@@ -7,6 +7,9 @@
 -- This software was developed by Isaac Freund <ifreund@freebsdfoundation.org>
 -- under sponsorship from the FreeBSD Foundation.
 
+local sys_wait = require("posix.sys.wait")
+local unistd = require("posix.unistd")
+
 local all_libcompats <const> = "%%_ALL_libcompats%%"
 
 -- Run a command using the OS shell and capture the stdout
@@ -20,38 +23,140 @@ local function capture(command)
 	return output:match("(.-)\n$") or output
 end
 
-local function prompt_yn(question)
-	while true do
-		io.write(question .. " (y/n) ")
-		local input = io.read()
-		if input == "y" or input == "Y" then
-			return true
-		elseif input == "n" or input == "N" then
-			return false
-		end
-	end
-end
-
 local function append_list(list, other)
 	for _, item in ipairs(other) do
 		table.insert(list, item)
 	end
 end
 
--- Returns a list of pkgbase packages equivalent to the default base.txz and kernel.txz
+-- Read from the given fd until EOF
+-- Returns all the data read as a single string
+local function read_all(fd)
+	local ret = ""
+	repeat
+		local buffer = assert(unistd.read(fd, 1024))
+		ret = ret .. buffer
+	until buffer == ""
+	return ret
+end
+
+-- Run bsddialog with the given argument list
+-- Returns the exit code and stderr output of bsddialog
+local function bsddialog(args)
+	local r, w = assert(unistd.pipe())
+
+	local pid = assert(unistd.fork())
+	if pid == 0 then
+		assert(unistd.close(r))
+		assert(unistd.dup2(w, 2))
+		assert(unistd.execp("bsddialog", args))
+		unistd._exit()
+	end
+	assert(unistd.close(w))
+
+	local output = read_all(r)
+	assert(unistd.close(r))
+
+	local _, _, exit_code = assert(sys_wait.wait(pid))
+	return exit_code, output
+end
+
+-- Prompts the user for a yes/no answer to the given question using bsddialog
+-- Returns true if the user answers yes and false if the user answers no.
+local function prompt_yn(question)
+	local exit_code = bsddialog({
+		"--yesno",
+		"--disable-esc",
+		question,
+		0, 0, -- autosize
+	})
+	return exit_code == 0
+end
+
+-- Creates a dialog for component selection mirroring the
+-- traditional tarball component selection dialog.
+local function select_components(components, options)
+	local descriptions = {
+		kernel_dbg = "Kernel debug info",
+		base_dbg = "Base system debug info",
+		src = "System source tree",
+		tests = "Test suite",
+		lib32 = "32-bit compatibility libraries",
+		lib32_dbg = "32-bit compatibility libraries debug info",
+	}
+	local defaults = {
+		kernel_dbg = "on",
+		base_dbg = "off",
+		src = "off",
+		tests = "off",
+		lib32 = "on",
+		lib32_dbg = "off",
+	}
+
+	-- Sorting the components is necessary to ensure that the ordering is
+	-- consistent in the UI.
+	local sorted_components = {}
+	for component, _ in pairs(components) do
+		table.insert(sorted_components, component)
+	end
+	table.sort(sorted_components)
+
+	local checklist_items = {}
+	for _, component in ipairs(sorted_components) do
+		if component ~= "base" and component ~= "kernel" and
+		    not (component == "kernel_dbg" and options.no_kernel) and
+		    #components[component] > 0 then
+			local description = descriptions[component] or "''"
+			local default = defaults[component]  or "off"
+			table.insert(checklist_items, component)
+			table.insert(checklist_items, description)
+			table.insert(checklist_items, default)
+		end
+	end
+
+	local bsddialog_args = {
+		"--backtitle", "FreeBSD Installer",
+		"--title", "Select System Components",
+		"--nocancel",
+		"--disable-esc",
+		"--separate-output",
+		"--checklist", "Choose optional system components to install:",
+		"0", "0", "0", -- autosize
+	}
+	append_list(bsddialog_args, checklist_items)
+
+	local exit_code, output = bsddialog(bsddialog_args)
+	-- This should only be possible if bsddialog is killed by a signal
+	-- or buggy, we disable the cancel option and esc key.
+	-- If this does happen, there's not much we can do except exit with a
+	-- hopefully useful stack trace.
+	assert(exit_code == 0)
+
+	local selected = {"base"}
+	if not options.no_kernel then
+		table.insert(selected, "kernel")
+	end
+	for component in output:gmatch("[^\n]+") do
+		table.insert(selected, component)
+	end
+
+	return selected
+end
+
+-- Returns a list of pkgbase packages selected by the user
 local function select_packages(pkg, options)
 	local components = {
-		["kernel"] = {},
-		["kernel-dbg"] = {},
-		["base"] = {},
-		["base-dbg"] = {},
-		["src"] = {},
-		["tests"] = {},
+		kernel = {},
+		kernel_dbg = {},
+		base = {},
+		base_dbg = {},
+		src = {},
+		tests = {},
 	}
 
 	for compat in all_libcompats:gmatch("%S+") do
 		components["lib" .. compat] = {}
-		components["lib" .. compat .. "-dbg"] = {}
+		components["lib" .. compat .. "_dbg"] = {}
 	end
 
 	local rquery = capture(pkg .. "rquery -U -r FreeBSD-base %n")
@@ -65,15 +170,15 @@ local function select_packages(pkg, options)
 			if package == "FreeBSD-kernel-generic" then
 				table.insert(components["kernel"], package)
 			elseif package == "FreeBSD-kernel-generic-dbg" then
-				table.insert(components["kernel-dbg"], package)
+				table.insert(components["kernel_dbg"], package)
 			end
 		elseif package:match(".*%-dbg$") then
-			table.insert(components["base-dbg"], package)
+			table.insert(components["base_dbg"], package)
 		else
 			local found = false
 			for compat in all_libcompats:gmatch("%S+") do
 				if package:match(".*%-dbg%-lib" .. compat .. "$") then
-					table.insert(components["lib" .. compat .. "-dbg"], package)
+					table.insert(components["lib" .. compat .. "_dbg"], package)
 					found = true
 					break
 				elseif package:match(".*%-lib" .. compat .. "$") then
@@ -94,9 +199,8 @@ local function select_packages(pkg, options)
 	assert(#components["base"] > 0)
 
 	local selected = {}
-	append_list(selected, components["base"])
-	if not options.no_kernel then
-		append_list(selected, components["kernel"])
+	for _, component in ipairs(select_components(components, options)) do
+		append_list(selected, components[component])
 	end
 
 	return selected
@@ -150,7 +254,6 @@ local function pkgbase()
 
 	while not os.execute(pkg .. "update") do
 		if not prompt_yn("Updating repositories failed, try again?") then
-			print("Canceled")
 			os.exit(1)
 		end
 	end
@@ -159,7 +262,6 @@ local function pkgbase()
 
 	while not os.execute(pkg .. "install -U -F -y -r FreeBSD-base " .. packages) do
 		if not prompt_yn("Fetching packages failed, try again?") then
-			print("Canceled")
 			os.exit(1)
 		end
 	end

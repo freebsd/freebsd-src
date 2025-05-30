@@ -157,7 +157,7 @@ handle_misc() {
 		old=`echo "$__ifp__->if_"${word}`
 		new=`echo "if_get"${word}"($__ifp__)"`
 		new=`echo $new | sed -e 's/&/\\\&/'`
-		line=`echo $line| sed -e's/'$old'/'$new'/g'`
+		line=`echo $line| sed -e's/'$old'/'$new'/g' | sed -e 's/if_getxname/if_name/'`
 		return 0;
 	fi
 	return 1;

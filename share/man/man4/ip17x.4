@@ -1,0 +1,42 @@
+.\"
+.\" Copyright (c) 2025 Alexander Ziaee
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd May 18, 2025
+.Dt IP17X 4
+.Sh NAME
+.Nm ip17x
+.Nd IC Plus IP17x series Fast Ethernet switch driver
+.Sh SYNOPSIS
+.Cd device mdio
+.Cd device etherswitch
+.Cd device ip17x
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the
+IC Plus IP17X series Fast Ethernet switch controllers.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following Fast Ethernet switch controllers:
+.Pp
+.Bl -bullet -compact
+.It
+IC Plus IP178C
+.It
+IC Plus IP175D
+.It
+IC Plus IP175C
+.It
+IC Plus IP175A
+.El
+.Sh SEE ALSO
+.Xr etherswitch 4 ,
+.Xr etherswitchcfg 8
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 10.0 .

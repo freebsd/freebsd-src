@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -55,13 +55,11 @@ struct linenum_info
  * when we have a new one to insert and the table is full.
  */
 
-#define NPOOL   200                     /* Size of line number pool */
-
 #define LONGTIME        (2)             /* In seconds */
 
 static struct linenum_info anchor;      /* Anchor of the list */
 static struct linenum_info *freelist;   /* Anchor of the unused entries */
-static struct linenum_info pool[NPOOL]; /* The pool itself */
+static struct linenum_info pool[LINENUM_POOL]; /* The pool itself */
 static struct linenum_info *spare;      /* We always keep one spare entry */
 public lbool scanning_eof = FALSE;
 
@@ -70,6 +68,7 @@ extern int sigs;
 extern int sc_height;
 extern int header_lines;
 extern int nonum_headers;
+extern POSITION header_start_pos;
 
 /*
  * Initialize the line number structures.
@@ -82,12 +81,12 @@ public void clr_linenum(void)
 	 * Put all the entries on the free list.
 	 * Leave one for the "spare".
 	 */
-	for (p = pool;  p < &pool[NPOOL-2];  p++)
+	for (p = pool;  p < &pool[LINENUM_POOL-2];  p++)
 		p->next = p+1;
-	pool[NPOOL-2].next = NULL;
+	pool[LINENUM_POOL-2].next = NULL;
 	freelist = pool;
 
-	spare = &pool[NPOOL-1];
+	spare = &pool[LINENUM_POOL-1];
 
 	/*
 	 * Initialize the anchor.
@@ -511,7 +510,14 @@ public void scan_eof(void)
  */
 public LINENUM vlinenum(LINENUM linenum)
 {
-	if (nonum_headers)
-		linenum = (linenum < header_lines) ? 0 : linenum - header_lines;
+	if (nonum_headers && header_lines > 0)
+	{
+		LINENUM header_start_line = find_linenum(header_start_pos);
+		if (header_start_line != 0)
+		{
+			LINENUM header_end_line = header_start_line + header_lines; /* first line after header */
+			linenum = (linenum < header_end_line) ? 0 : linenum - header_end_line + 1;
+		}
+	}
 	return linenum;
 }

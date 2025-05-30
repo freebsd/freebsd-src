@@ -76,6 +76,21 @@
 	VNASSERT(((vp)->v_op == &unionfs_vnodeops), vp, \
 	    ("%s: non-unionfs vnode", __func__))
 
+static bool
+unionfs_lookup_isroot(struct componentname *cnp, struct vnode *dvp)
+{
+	struct nameidata *ndp;
+
+	if (dvp == NULL)
+		return (false);
+	if ((dvp->v_vflag & VV_ROOT) != 0)
+		return (true);
+	ndp = vfs_lookup_nameidata(cnp);
+	if (ndp == NULL)
+		return (false);
+	return (vfs_lookup_isroot(ndp, dvp));
+}
+
 static int
 unionfs_lookup(struct vop_cachedlookup_args *ap)
 {
@@ -84,8 +99,8 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 	struct vattr	va;
 	struct componentname *cnp;
 	struct thread  *td;
+	uint64_t	cnflags;
 	u_long		nameiop;
-	u_long		cnflags;
 	int		lockflag;
 	int		lkflags;
 	int		error, uerror, lerror;
@@ -146,6 +161,12 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 	if (cnflags & ISDOTDOT) {
 		if (LOOKUP != nameiop && udvp == NULLVP) {
 			error = EROFS;
+			goto unionfs_lookup_return;
+		}
+
+		if (unionfs_lookup_isroot(cnp, udvp) ||
+		    unionfs_lookup_isroot(cnp, ldvp)) {
+			error = ENOENT;
 			goto unionfs_lookup_return;
 		}
 

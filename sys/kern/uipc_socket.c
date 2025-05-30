@@ -2934,13 +2934,7 @@ dontblock:
 		while (cm != NULL) {
 			cmn = cm->m_next;
 			cm->m_next = NULL;
-			if (pr->pr_domain->dom_externalize != NULL) {
-				SOCKBUF_UNLOCK(&so->so_rcv);
-				VNET_SO_ASSERT(so);
-				error = (*pr->pr_domain->dom_externalize)
-				    (cm, controlp, flags);
-				SOCKBUF_LOCK(&so->so_rcv);
-			} else if (controlp != NULL)
+			if (controlp != NULL)
 				*controlp = cm;
 			else
 				m_freem(cm);
@@ -3623,10 +3617,7 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 		while (cm != NULL) {
 			cmn = cm->m_next;
 			cm->m_next = NULL;
-			if (pr->pr_domain->dom_externalize != NULL) {
-				error = (*pr->pr_domain->dom_externalize)
-				    (cm, controlp, flags);
-			} else if (controlp != NULL)
+			if (controlp != NULL)
 				*controlp = cm;
 			else
 				m_freem(cm);

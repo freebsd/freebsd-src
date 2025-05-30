@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 11, 2025
+.Dd May 21, 2025
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2712,22 +2712,6 @@ is set to
 .Dq Li YES ,
 these are the flags to pass to the
 .Xr rpcbind 8
-daemon.
-.It Va keyserv_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the
-.Xr keyserv 8
-daemon on boot for running Secure RPC.
-.It Va keyserv_flags
-.Pq Vt str
-If
-.Va keyserv_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to
-.Xr keyserv 8
 daemon.
 .It Va pppoed_enable
 .Pq Vt bool

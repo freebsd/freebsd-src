@@ -54,6 +54,8 @@
 #define	PT_SETFSBASE	(PT_FIRSTMACH + 8)
 #define	PT_GETGSBASE	(PT_FIRSTMACH + 9)
 #define	PT_SETGSBASE	(PT_FIRSTMACH + 10)
+#define	PT_GETTLSBASE	(PT_FIRSTMACH + 11)
+#define	PT_SETTLSBASE	(PT_FIRSTMACH + 12)
 
 /* Argument structure for PT_GETXSTATE_INFO. */
 struct ptrace_xstate_info {

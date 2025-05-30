@@ -155,6 +155,7 @@ SUBDIR=	alias \
 	tr \
 	true \
 	truncate \
+	ts \
 	tsort \
 	tty \
 	uname \

@@ -223,7 +223,8 @@ commands(void)
 		 */
 		n = 0;
 		for (;;) {
-			if (readline(input, &linebuf[n], LINESIZE - n) < 0) {
+			if (readline(input, &linebuf[n],
+			    sizeof(linebuf) - n) < 0) {
 				if (n == 0)
 					n = -1;
 				break;

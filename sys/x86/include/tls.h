@@ -69,7 +69,7 @@ static __inline void
 _tcb_set(struct tcb *tcb)
 {
 #ifdef __amd64__
-	amd64_set_fsbase(tcb);
+	amd64_set_tlsbase(tcb);
 #else
  	i386_set_gsbase(tcb);
 #endif

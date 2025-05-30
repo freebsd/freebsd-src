@@ -105,7 +105,6 @@ struct uufsd disk;		/* libufs disk structure */
 static char	device[MAXPATHLEN];
 static u_char   bootarea[BBSIZE];
 static int	is_file;		/* work on a file, not a device */
-static char	*dkname;
 static char	*disktype;
 
 static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
@@ -330,7 +329,6 @@ main(int argc, char *argv[])
 	if ((st.st_mode & S_IFMT) != S_IFCHR) {
 		warn("%s: not a character-special device", special);
 		is_file = 1;	/* assume it is a file */
-		dkname = special;
 		if (sectorsize == 0)
 			sectorsize = 512;
 		mediasize = st.st_size;

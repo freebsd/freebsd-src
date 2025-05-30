@@ -37,7 +37,8 @@ tests = ['alloc_class_001_pos', 'alloc_class_002_neg', 'alloc_class_003_pos',
     'alloc_class_004_pos', 'alloc_class_005_pos', 'alloc_class_006_pos',
     'alloc_class_007_pos', 'alloc_class_008_pos', 'alloc_class_009_pos',
     'alloc_class_010_pos', 'alloc_class_011_neg', 'alloc_class_012_pos',
-    'alloc_class_013_pos', 'alloc_class_014_neg', 'alloc_class_015_pos']
+    'alloc_class_013_pos', 'alloc_class_014_neg', 'alloc_class_015_pos',
+    'alloc_class_016_pos']
 tags = ['functional', 'alloc_class']
 
 [tests/functional/append]
@@ -119,7 +120,7 @@ tests = ['case_all_values', 'norm_all_values', 'mixed_create_failure',
 tags = ['functional', 'casenorm']
 
 [tests/functional/channel_program/lua_core]
-tests = ['tst.args_to_lua', 'tst.divide_by_zero', 'tst.exists',
+tests = ['tst.args_to_lua', 'tst.divide_by_zero', 'tst.exists', 'tst.encryption',
     'tst.integer_illegal', 'tst.integer_overflow', 'tst.language_functions_neg',
     'tst.language_functions_pos', 'tst.large_prog', 'tst.libraries',
     'tst.memory_limit', 'tst.nested_neg', 'tst.nested_pos', 'tst.nvlist_to_lua',
@@ -305,6 +306,10 @@ tags = ['functional', 'cli_root', 'zfs_rename']
 [tests/functional/cli_root/zfs_reservation]
 tests = ['zfs_reservation_001_pos', 'zfs_reservation_002_pos']
 tags = ['functional', 'cli_root', 'zfs_reservation']
+
+[tests/functional/cli_root/zfs_rewrite]
+tests = ['zfs_rewrite']
+tags = ['functional', 'cli_root', 'zfs_rewrite']
 
 [tests/functional/cli_root/zfs_rollback]
 tests = ['zfs_rollback_001_pos', 'zfs_rollback_002_pos',
@@ -712,6 +717,14 @@ tags = ['functional', 'direct']
 tests = ['exec_001_pos', 'exec_002_neg']
 tags = ['functional', 'exec']
 
+[tests/functional/fadvise]
+tests = ['fadvise_willneed']
+tags = ['functional', 'fadvise']
+
+[tests/functional/failmode]
+tests = ['failmode_dmu_tx_wait', 'failmode_dmu_tx_continue']
+tags = ['functional', 'failmode']
+
 [tests/functional/fallocate]
 tests = ['fallocate_punch-hole']
 tags = ['functional', 'fallocate']
@@ -952,7 +965,7 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol', 'rsend_001_pos',
     'send_spill_block', 'send_holds', 'send_hole_birth', 'send_mixed_raw',
     'send-wR_encrypted_zvol', 'send_partial_dataset', 'send_invalid',
     'send_doall', 'send_raw_spill_block', 'send_raw_ashift',
-    'send_raw_large_blocks']
+    'send_raw_large_blocks', 'send_leak_keymaps']
 tags = ['functional', 'rsend']
 
 [tests/functional/scrub_mirror]

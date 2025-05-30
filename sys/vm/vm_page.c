@@ -2007,13 +2007,14 @@ vm_page_alloc_iter(vm_object_t object, vm_pindex_t pindex, int req,
 	vm_page_t m;
 	int domain;
 
-	vm_domainset_iter_page_init(&di, object, pindex, &domain, &req);
+	vm_domainset_iter_page_init(&di, object, pindex, &domain, &req,
+	    pages);
 	do {
 		m = vm_page_alloc_domain_iter(object, pindex, domain, req,
 		    pages);
 		if (m != NULL)
 			break;
-	} while (vm_domainset_iter_page(&di, object, &domain) == 0);
+	} while (vm_domainset_iter_page(&di, object, &domain, pages) == 0);
 
 	return (m);
 }
@@ -2142,7 +2143,8 @@ again:
 		 * Not allocatable, give up.
 		 */
 		(void)vm_domain_alloc_fail(vmd, object, req);
-		pctrie_iter_reset(pages);
+		if ((req & VM_ALLOC_WAITFAIL) != 0)
+			pctrie_iter_reset(pages);
 		return (NULL);
 	}
 
@@ -2254,7 +2256,7 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 
 	start_segind = -1;
 
-	vm_domainset_iter_page_init(&di, object, pindex, &domain, &req);
+	vm_domainset_iter_page_init(&di, object, pindex, &domain, &req, NULL);
 	do {
 		m = vm_page_alloc_contig_domain(object, pindex, domain, req,
 		    npages, low, high, alignment, boundary, memattr);
@@ -2266,7 +2268,7 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 		    npages, low, high) == -1) {
 			vm_domainset_iter_ignore(&di, domain);
 		}
-	} while (vm_domainset_iter_page(&di, object, &domain) == 0);
+	} while (vm_domainset_iter_page(&di, object, &domain, NULL) == 0);
 
 	return (m);
 }
@@ -2576,12 +2578,12 @@ vm_page_alloc_noobj(int req)
 	vm_page_t m;
 	int domain;
 
-	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req);
+	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req, NULL);
 	do {
 		m = vm_page_alloc_noobj_domain(domain, req);
 		if (m != NULL)
 			break;
-	} while (vm_domainset_iter_page(&di, NULL, &domain) == 0);
+	} while (vm_domainset_iter_page(&di, NULL, &domain, NULL) == 0);
 
 	return (m);
 }
@@ -2595,13 +2597,13 @@ vm_page_alloc_noobj_contig(int req, u_long npages, vm_paddr_t low,
 	vm_page_t m;
 	int domain;
 
-	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req);
+	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req, NULL);
 	do {
 		m = vm_page_alloc_noobj_contig_domain(domain, req, npages, low,
 		    high, alignment, boundary, memattr);
 		if (m != NULL)
 			break;
-	} while (vm_domainset_iter_page(&di, NULL, &domain) == 0);
+	} while (vm_domainset_iter_page(&di, NULL, &domain, NULL) == 0);
 
 	return (m);
 }
@@ -3316,7 +3318,7 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 
 	ret = ERANGE;
 
-	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req);
+	vm_domainset_iter_page_init(&di, NULL, 0, &domain, &req, NULL);
 	do {
 		status = vm_page_reclaim_contig_domain(domain, req, npages, low,
 		    high, alignment, boundary);
@@ -3329,7 +3331,7 @@ vm_page_reclaim_contig(int req, u_long npages, vm_paddr_t low, vm_paddr_t high,
 			    "from vm_page_reclaim_contig_domain()", status));
 			ret = ENOMEM;
 		}
-	} while (vm_domainset_iter_page(&di, NULL, &domain) == 0);
+	} while (vm_domainset_iter_page(&di, NULL, &domain, NULL) == 0);
 
 	return (ret);
 }
@@ -4878,7 +4880,7 @@ int
 vm_page_grab_valid_iter(vm_page_t *mp, vm_object_t object, vm_pindex_t pindex,
     int allocflags, struct pctrie_iter *pages)
 {
-	vm_page_t m, mpred;
+	vm_page_t m;
 	vm_page_t ma[VM_INITIAL_PAGEIN];
 	int after, i, pflags, rv;
 
@@ -4922,14 +4924,12 @@ retrylookup:
 		*mp = NULL;
 		return (VM_PAGER_FAIL);
 	} else {
-		mpred = vm_radix_iter_lookup_lt(pages, pindex);
 		m = vm_page_alloc_iter(object, pindex, pflags, pages);
 		if (m == NULL) {
 			if (!vm_pager_can_alloc_page(object, pindex)) {
 				*mp = NULL;
 				return (VM_PAGER_AGAIN);
 			}
-			pctrie_iter_reset(pages);
 			goto retrylookup;
 		}
 	}
@@ -4939,7 +4939,7 @@ retrylookup:
 		after = MIN(after, VM_INITIAL_PAGEIN);
 		after = MIN(after, allocflags >> VM_ALLOC_COUNT_SHIFT);
 		after = MAX(after, 1);
-		ma[0] = mpred = m;
+		ma[0] = m;
 		pctrie_iter_reset(pages);
 		for (i = 1; i < after; i++) {
 			m = vm_radix_iter_lookup(pages, pindex + i);
@@ -4950,7 +4950,7 @@ retrylookup:
 					break;
 			} else if (vm_page_any_valid(m) || !vm_page_tryxbusy(m))
 				break;
-			mpred = ma[i] = m;
+			ma[i] = m;
 		}
 		after = i;
 		vm_object_pip_add(object, after);
@@ -5162,14 +5162,13 @@ vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
 	i = 0;
 	vm_page_iter_init(&pages, object);
 retrylookup:
-	ahead = 0;
+	ahead = -1;
 	for (; i < count; i++) {
-		if (ahead == 0) {
+		if (ahead < 0) {
 			ahead = vm_radix_iter_lookup_range(
 			    &pages, pindex + i, &ma[i], count - i);
 		}
-		if (ahead > 0) {
-			--ahead;
+		if (ahead-- > 0) {
 			m = ma[i];
 			if (!vm_page_tryacquire(m, allocflags)) {
 				if (vm_page_grab_sleep(object, m, pindex + i,

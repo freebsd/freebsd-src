@@ -32,10 +32,10 @@
 #include "gve_adminq.h"
 #include "gve_dqo.h"
 
-#define GVE_DRIVER_VERSION "GVE-FBSD-1.3.3\n"
+#define GVE_DRIVER_VERSION "GVE-FBSD-1.3.4\n"
 #define GVE_VERSION_MAJOR 1
 #define GVE_VERSION_MINOR 3
-#define GVE_VERSION_SUB 3
+#define GVE_VERSION_SUB 4
 
 #define GVE_DEFAULT_RX_COPYBREAK 256
 
@@ -49,6 +49,9 @@ static struct gve_dev {
 };
 
 struct sx gve_global_lock;
+
+static void gve_start_tx_timeout_service(struct gve_priv *priv);
+static void gve_stop_tx_timeout_service(struct gve_priv *priv);
 
 static int
 gve_verify_driver_compatibility(struct gve_priv *priv)
@@ -97,6 +100,72 @@ gve_verify_driver_compatibility(struct gve_priv *priv)
 	gve_dma_free_coherent(&driver_info_mem);
 
 	return (err);
+}
+
+static void
+gve_handle_tx_timeout(struct gve_priv *priv, struct gve_tx_ring *tx,
+    int num_timeout_pkts)
+{
+	int64_t time_since_last_kick;
+
+	counter_u64_add_protected(tx->stats.tx_timeout, 1);
+
+	/* last_kicked is never GVE_TIMESTAMP_INVALID so we can skip checking */
+	time_since_last_kick = gve_seconds_since(&tx->last_kicked);
+
+	/* Try kicking first in case the timeout is due to a missed interrupt */
+	if (time_since_last_kick > GVE_TX_TIMEOUT_KICK_COOLDOWN_SEC) {
+		device_printf(priv->dev,
+		    "Found %d timed out packet(s) on txq%d, kicking it for completions\n",
+		    num_timeout_pkts, tx->com.id);
+		gve_set_timestamp(&tx->last_kicked);
+		taskqueue_enqueue(tx->com.cleanup_tq, &tx->com.cleanup_task);
+	} else {
+		device_printf(priv->dev,
+		    "Found %d timed out packet(s) on txq%d with its last kick %jd sec ago which is less than the cooldown period %d. Resetting device\n",
+		    num_timeout_pkts, tx->com.id,
+		    (intmax_t)time_since_last_kick,
+		    GVE_TX_TIMEOUT_KICK_COOLDOWN_SEC);
+		gve_schedule_reset(priv);
+	}
+}
+
+static void
+gve_tx_timeout_service_callback(void *data)
+{
+	struct gve_priv *priv = (struct gve_priv *)data;
+	struct gve_tx_ring *tx;
+	uint16_t num_timeout_pkts;
+
+	tx = &priv->tx[priv->check_tx_queue_idx];
+
+	num_timeout_pkts = gve_is_gqi(priv) ?
+	    gve_check_tx_timeout_gqi(priv, tx) :
+	    gve_check_tx_timeout_dqo(priv, tx);
+	if (num_timeout_pkts)
+		gve_handle_tx_timeout(priv, tx, num_timeout_pkts);
+
+	priv->check_tx_queue_idx = (priv->check_tx_queue_idx + 1) %
+	    priv->tx_cfg.num_queues;
+	callout_reset_sbt(&priv->tx_timeout_service,
+	    SBT_1S * GVE_TX_TIMEOUT_CHECK_CADENCE_SEC, 0,
+	    gve_tx_timeout_service_callback, (void *)priv, 0);
+}
+
+static void
+gve_start_tx_timeout_service(struct gve_priv *priv)
+{
+	priv->check_tx_queue_idx = 0;
+	callout_init(&priv->tx_timeout_service, true);
+	callout_reset_sbt(&priv->tx_timeout_service,
+	    SBT_1S * GVE_TX_TIMEOUT_CHECK_CADENCE_SEC, 0,
+	    gve_tx_timeout_service_callback, (void *)priv, 0);
+}
+
+static void
+gve_stop_tx_timeout_service(struct gve_priv *priv)
+{
+	callout_drain(&priv->tx_timeout_service);
 }
 
 static int
@@ -149,6 +218,9 @@ gve_up(struct gve_priv *priv)
 	gve_unmask_all_queue_irqs(priv);
 	gve_set_state_flag(priv, GVE_STATE_FLAG_QUEUES_UP);
 	priv->interface_up_cnt++;
+
+	gve_start_tx_timeout_service(priv);
+
 	return (0);
 
 reset:
@@ -163,6 +235,8 @@ gve_down(struct gve_priv *priv)
 
 	if (!gve_get_state_flag(priv, GVE_STATE_FLAG_QUEUES_UP))
 		return;
+
+	gve_stop_tx_timeout_service(priv);
 
 	if (gve_get_state_flag(priv, GVE_STATE_FLAG_LINK_UP)) {
 		if_link_state_change(priv->ifp, LINK_STATE_DOWN);

@@ -135,7 +135,7 @@ hfield(const char *field, struct message *mp)
 	ibuf = setinput(mp);
 	if ((lc = mp->m_lines - 1) < 0)
 		return (NULL);
-	if (readline(ibuf, linebuf, LINESIZE) < 0)
+	if (readline(ibuf, linebuf, sizeof(linebuf)) < 0)
 		return (NULL);
 	while (lc > 0) {
 		if ((lc = gethfield(ibuf, linebuf, lc, &colon)) < 0)
@@ -184,7 +184,7 @@ gethfield(FILE *f, char linebuf[], int rem, char **colon)
 			ungetc(c = getc(f), f);
 			if (c != ' ' && c != '\t')
 				break;
-			if ((c = readline(f, line2, LINESIZE)) < 0)
+			if ((c = readline(f, line2, sizeof(line2))) < 0)
 				break;
 			rem--;
 			for (cp2 = line2; *cp2 == ' ' || *cp2 == '\t'; cp2++)
@@ -503,7 +503,7 @@ name1(struct message *mp, int reptype)
 		return (cp);
 	ibuf = setinput(mp);
 	namebuf[0] = '\0';
-	if (readline(ibuf, linebuf, LINESIZE) < 0)
+	if (readline(ibuf, linebuf, sizeof(linebuf)) < 0)
 		return (savestr(namebuf));
 newname:
 	for (cp = linebuf; *cp != '\0' && *cp != ' '; cp++)
@@ -512,10 +512,10 @@ newname:
 		;
 	for (cp2 = &namebuf[strlen(namebuf)];
 	    *cp != '\0' && *cp != ' ' && *cp != '\t' &&
-	    cp2 < namebuf + LINESIZE - 1;)
+	    cp2 < namebuf + sizeof(namebuf) - 1;)
 		*cp2++ = *cp++;
 	*cp2 = '\0';
-	if (readline(ibuf, linebuf, LINESIZE) < 0)
+	if (readline(ibuf, linebuf, sizeof(linebuf)) < 0)
 		return (savestr(namebuf));
 	if ((cp = strchr(linebuf, 'F')) == NULL)
 		return (savestr(namebuf));

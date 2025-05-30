@@ -272,8 +272,10 @@ XZ_THREADS?=	0
 
 .if !empty(XZ_THREADS)
 XZ_CMD?=	xz -T ${XZ_THREADS}
+TAR_XZ_CMD?=	${TAR_CMD} -J --options xz:threads=${XZ_THREADS}
 .else
 XZ_CMD?=	xz
+TAR_XZ_CMD?=	${TAR_CMD} -J
 .endif
 
 PKG_CMD?=	pkg

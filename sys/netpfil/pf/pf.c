@@ -3990,7 +3990,8 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
     const struct pf_addr *saddr, const struct pf_addr *daddr,
     u_int16_t sport, u_int16_t dport, u_int32_t seq, u_int32_t ack,
     u_int8_t tcp_flags, u_int16_t win, u_int16_t mss, u_int8_t ttl,
-    int mbuf_flags, u_int16_t mtag_tag, u_int16_t mtag_flags, int rtableid)
+    int mbuf_flags, u_int16_t mtag_tag, u_int16_t mtag_flags, u_int sack,
+    int rtableid)
 {
 	struct mbuf	*m;
 	int		 len, tlen;
@@ -4011,6 +4012,8 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 	tlen = sizeof(struct tcphdr);
 	if (mss)
 		tlen += 4;
+	if (sack)
+		tlen += 2;
 
 	switch (af) {
 #ifdef INET
@@ -4115,12 +4118,19 @@ pf_build_tcp(const struct pf_krule *r, sa_family_t af,
 	tcp_set_flags(th, tcp_flags);
 	th->th_win = htons(win);
 
+	opt = (char *)(th + 1);
 	if (mss) {
 		opt = (char *)(th + 1);
 		opt[0] = TCPOPT_MAXSEG;
 		opt[1] = 4;
 		mss = htons(mss);
 		memcpy((opt + 2), &mss, 2);
+		opt += 4;
+	}
+	if (sack) {
+		opt[0] = TCPOPT_SACK_PERMITTED;
+		opt[1] = 2;
+		opt += 2;
 	}
 
 	return (m);
@@ -4253,7 +4263,7 @@ pf_send_tcp(const struct pf_krule *r, sa_family_t af,
 	struct mbuf	*m;
 
 	m = pf_build_tcp(r, af, saddr, daddr, sport, dport, seq, ack, tcp_flags,
-	    win, mss, ttl, mbuf_flags, mtag_tag, mtag_flags, rtableid);
+	    win, mss, ttl, mbuf_flags, mtag_tag, mtag_flags, 0, rtableid);
 	if (m == NULL)
 		return;
 
@@ -8756,6 +8766,7 @@ void *
 pf_pull_hdr(const struct mbuf *m, int off, void *p, int len,
     u_short *actionp, u_short *reasonp, sa_family_t af)
 {
+	int iplen = 0;
 	switch (af) {
 #ifdef INET
 	case AF_INET: {
@@ -8771,12 +8782,7 @@ pf_pull_hdr(const struct mbuf *m, int off, void *p, int len,
 			}
 			return (NULL);
 		}
-		if (m->m_pkthdr.len < off + len ||
-		    ntohs(h->ip_len) < off + len) {
-			ACTION_SET(actionp, PF_DROP);
-			REASON_SET(reasonp, PFRES_SHORT);
-			return (NULL);
-		}
+		iplen = ntohs(h->ip_len);
 		break;
 	}
 #endif /* INET */
@@ -8784,16 +8790,15 @@ pf_pull_hdr(const struct mbuf *m, int off, void *p, int len,
 	case AF_INET6: {
 		const struct ip6_hdr	*h = mtod(m, struct ip6_hdr *);
 
-		if (m->m_pkthdr.len < off + len ||
-		    (ntohs(h->ip6_plen) + sizeof(struct ip6_hdr)) <
-		    (unsigned)(off + len)) {
-			ACTION_SET(actionp, PF_DROP);
-			REASON_SET(reasonp, PFRES_SHORT);
-			return (NULL);
-		}
+		iplen = ntohs(h->ip6_plen) + sizeof(struct ip6_hdr);
 		break;
 	}
 #endif /* INET6 */
+	}
+	if (m->m_pkthdr.len < off + len || iplen < off + len) {
+		ACTION_SET(actionp, PF_DROP);
+		REASON_SET(reasonp, PFRES_SHORT);
+		return (NULL);
 	}
 	m_copydata(m, off, len, p);
 	return (p);

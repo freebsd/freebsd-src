@@ -258,7 +258,8 @@ check_type_and_type_flags(const id_type_t type, const flags_t flags)
 		    "groups specification are exclusive";
 		goto unexpected_flags;
 	}
-	if (((flags & MDF_PRIMARY) != 0 || (flags & MDF_ANY) != 0) &&
+	if (type == IT_GID &&
+	    ((flags & MDF_PRIMARY) != 0 || (flags & MDF_ANY) != 0) &&
 	    (flags & MDF_HAS_PRIMARY_CLAUSE) == 0) {
 		str = "Presence of folded primary clause not reflected "
 		    "by presence of MDF_HAS_PRIMARY_CLAUSE";

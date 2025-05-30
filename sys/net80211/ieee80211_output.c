@@ -777,7 +777,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	if (error)
 		senderr(error);
 #endif
-	if (ifp->if_flags & IFF_MONITOR)
+	if (ieee80211_vap_ifp_check_is_monitor(vap))
 		senderr(ENETDOWN);
 	if (!IFNET_IS_UP_RUNNING(ifp))
 		senderr(ENETDOWN);
@@ -3659,7 +3659,6 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = vap->iv_ifp;
 	struct ieee80211_frame *wh;
 	struct mbuf *m;
 	int pktlen;
@@ -3761,7 +3760,8 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni)
 	    IEEE80211_FC0_SUBTYPE_BEACON;
 	wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
 	*(uint16_t *)wh->i_dur = 0;
-	IEEE80211_ADDR_COPY(wh->i_addr1, ifp->if_broadcastaddr);
+	IEEE80211_ADDR_COPY(wh->i_addr1,
+	    ieee80211_vap_get_broadcast_address(vap));
 	IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr3, ni->ni_bssid);
 	*(uint16_t *)wh->i_seq = 0;

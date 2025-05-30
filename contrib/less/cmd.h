@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2024  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -31,6 +31,7 @@
 #define A_HELP                 19
 #define A_NEXT_FILE            20
 #define A_PERCENT              21
+#define A_BF_SCREEN            22
 #define A_PREV_FILE            23
 #define A_QUIT                 24
 #define A_REPAINT              25
@@ -68,6 +69,8 @@
 #define A_GOEND_BUF            57
 #define A_LLSHIFT              58
 #define A_RRSHIFT              59
+#define A_F_NEWLINE            60
+#define A_B_NEWLINE            61
 #define A_CLRMARK              62
 #define A_SETMARKBOT           63
 #define A_X11MOUSE_IN          64
@@ -81,6 +84,8 @@
 #define A_OSC8_B_SEARCH        72
 #define A_OSC8_OPEN            73
 #define A_OSC8_JUMP            74
+#define A_START_PASTE          75 /* must not overlap EC_* */
+#define A_END_PASTE            76 /* must not overlap EC_* */
 
 /* These values must not conflict with any A_* or EC_* value. */
 #define A_INVALID              100
@@ -117,6 +122,8 @@
 #define EC_ABORT               20
 #define EC_X11MOUSE            21
 #define EC_X116MOUSE           22
+#define EC_START_PASTE         A_START_PASTE
+#define EC_END_PASTE           A_END_PASTE
 
 #define EC_UINVALID            102
 

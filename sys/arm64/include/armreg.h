@@ -2370,18 +2370,19 @@
 #define	PMCR_EL0_CRn			9
 #define	PMCR_EL0_CRm			12
 #define	PMCR_EL0_op2			0
-#define	PMCR_E				(1 << 0) /* Enable all counters */
-#define	PMCR_P				(1 << 1) /* Reset all counters */
-#define	PMCR_C				(1 << 2) /* Clock counter reset */
-#define	PMCR_D				(1 << 3) /* CNTR counts every 64 clk cycles */
-#define	PMCR_X				(1 << 4) /* Export to ext. monitoring (ETM) */
-#define	PMCR_DP				(1 << 5) /* Disable CCNT if non-invasive debug*/
-#define	PMCR_LC				(1 << 6) /* Long cycle count enable */
-#define	PMCR_IMP_SHIFT			24	/* Implementer code */
-#define	PMCR_IMP_MASK			(0xff << PMCR_IMP_SHIFT)
-#define	 PMCR_IMP_ARM			0x41
+#define	PMCR_E				(1ul << 0) /* Enable all counters */
+#define	PMCR_P				(1ul << 1) /* Reset all counters */
+#define	PMCR_C				(1ul << 2) /* Clock counter reset */
+#define	PMCR_D				(1ul << 3) /* CNTR counts every 64 clk cycles */
+#define	PMCR_X				(1ul << 4) /* Export to ext. monitoring (ETM) */
+#define	PMCR_DP				(1ul << 5) /* Disable CCNT if non-invasive debug*/
+#define	PMCR_LC				(1ul << 6) /* Long cycle count enable */
+#define	PMCR_LP				(1ul << 7) /* Long event count enable */
+#define	PMCR_FZO			(1ul << 9) /* Freeze-on-overflow */
+#define	PMCR_N_SHIFT			11  /* Number of counters implemented */
+#define	PMCR_N_MASK			(0x1ful << PMCR_N_SHIFT)
 #define	PMCR_IDCODE_SHIFT		16	/* Identification code */
-#define	PMCR_IDCODE_MASK		(0xff << PMCR_IDCODE_SHIFT)
+#define	PMCR_IDCODE_MASK		(0xfful << PMCR_IDCODE_SHIFT)
 #define	 PMCR_IDCODE_CORTEX_A57		0x01
 #define	 PMCR_IDCODE_CORTEX_A72		0x02
 #define	 PMCR_IDCODE_CORTEX_A53		0x03
@@ -2393,8 +2394,10 @@
 #define	 PMCR_IDCODE_CORTEX_A55		0x45
 #define	 PMCR_IDCODE_NEOVERSE_E1	0x46
 #define	 PMCR_IDCODE_CORTEX_A75		0x4a
-#define	PMCR_N_SHIFT			11  /* Number of counters implemented */
-#define	PMCR_N_MASK			(0x1f << PMCR_N_SHIFT)
+#define	PMCR_IMP_SHIFT			24	/* Implementer code */
+#define	PMCR_IMP_MASK			(0xfful << PMCR_IMP_SHIFT)
+#define	 PMCR_IMP_ARM			0x41
+#define	PMCR_FZS			(1ul << 32) /* Freeze-on-SPE event */
 
 /* PMEVCNTR<n>_EL0 */
 #define	PMEVCNTR_EL0_op0		3

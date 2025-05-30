@@ -52,6 +52,7 @@ udp_socketpair(int *s)
 	ATF_REQUIRE((c = socket(PF_INET, SOCK_DGRAM, 0)) > 0);
 	ATF_REQUIRE(bind(b, (struct sockaddr *)&sin, sizeof(sin)) == 0);
 	ATF_REQUIRE(getsockname(b, (struct sockaddr *)&sin, &slen) == 0);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	ATF_REQUIRE(connect(c, (struct sockaddr *)&sin, sizeof(sin)) == 0);
 
 	s[0] = b;

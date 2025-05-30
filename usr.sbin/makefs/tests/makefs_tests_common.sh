@@ -141,3 +141,10 @@ mount_image()
 	    $MOUNT ${1} /dev/$(cat $TEST_MD_DEVICE_FILE) $TEST_MOUNT_DIR
 }
 
+change_mtree_timestamp()
+{
+	filename="$1"
+	timestamp="$2"
+
+	sed -i "" "s/time=.*$/time=${timestamp}.0/g" "$filename"
+}

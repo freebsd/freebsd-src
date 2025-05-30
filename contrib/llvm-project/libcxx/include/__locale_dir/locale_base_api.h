@@ -25,7 +25,13 @@
 #  include <__locale_dir/locale_base_api/fuchsia.h>
 #elif defined(__wasi__) || defined(_LIBCPP_HAS_MUSL_LIBC)
 #  include <__locale_dir/locale_base_api/musl.h>
-#elif defined(__APPLE__) || defined(__FreeBSD__)
+#elif defined(__APPLE__)
+#  include <xlocale.h>
+#elif defined(__FreeBSD__)
+#  if __has_feature(modules)
+#    include <stdio.h>
+#    include <stdlib.h>
+#  endif
 #  include <xlocale.h>
 #endif
 

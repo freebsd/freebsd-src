@@ -55,10 +55,6 @@ OLD_FILES+=usr/share/man/man8/acpidump.8.gz
 OLD_FILES+=usr/share/man/man8/iasl.8.gz
 .endif
 
-.if ${MK_ACPI} == no && ${MK_APM} == no
-OLD_FILES+=etc/rc.d/powerd
-.endif
-
 .if ${MK_APM} == no
 OLD_FILES+=etc/rc.d/apm
 OLD_FILES+=etc/rc.d/apmd

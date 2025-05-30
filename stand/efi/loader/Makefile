@@ -87,7 +87,7 @@ CFLAGS+= -DEFI_SECUREBOOT
 .endif
 
 NEWVERSWHAT?=	"EFI loader" ${MACHINE}
-VERSION_FILE=	${.CURDIR}/../loader/version
+VERSION_FILE?=	${.CURDIR}/../loader/version
 HELP_FILENAME=	loader.help.efi
 
 # Always add MI sources
