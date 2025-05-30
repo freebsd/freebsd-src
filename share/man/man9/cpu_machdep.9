@@ -70,7 +70,7 @@
 .Fa "struct thread *td" "void (*entry)(void *)" "void *arg" "stack_t *stack"
 .Fc
 .Ft int
-.Fn cpu_set_user_tls "struct thread *td" "void *tls_base"
+.Fn cpu_set_user_tls "struct thread *td" "void *tls_base" "int thr_flags"
 .Ft void
 .Fn cpu_switch "struct thread *old" "struct thread *new" "struct mtx *mtx"
 .Ft void
@@ -185,6 +185,15 @@ as the sole argument using the user stack described in
 sets a new thread's initial user thread pointer register to
 reference the user TLS base pointer
 .Fa tls_base .
+The
+.Fa thr_flags
+argument provides flags bits, from the same namespace as
+.Va flags
+member of the
+.Vt struct thr_param
+argument to the
+.Xr thr_new 2
+syscall.
 .Pp
 .Fn cpu_update_pcb
 updates the pcb of the current thread with current user register values.
