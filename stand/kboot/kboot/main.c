@@ -655,3 +655,15 @@ command_fdt(int argc, char *argv[])
 
 COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
 #endif
+
+/*
+ * Support quitting.
+ */
+static int
+command_quit(int argc, char *argv[])
+{
+	exit(0);
+	return (CMD_OK);
+}
+
+COMMAND_SET(quit, "quit", "exit the program", command_quit);
