@@ -43,6 +43,7 @@
 #endif
 
 #include "bootstrap.h"
+#include "modinfo.h"
 
 #define	MDIR_REMOVED	0x0001
 #define	MDIR_NOHINTS	0x0002
@@ -562,8 +563,7 @@ file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
 	int i;
 
 	TSENTER2(filename);
-	if (archsw.arch_loadaddr != NULL)
-		dest = archsw.arch_loadaddr(LOAD_RAW, filename, dest);
+	dest = md_align(dest);
 
 	error = EFTYPE;
 	for (i = last_file_format, fp = NULL;
@@ -713,8 +713,7 @@ file_loadraw(const char *fname, const char *type, int insert)
 #endif
 #endif
 
-	if (archsw.arch_loadaddr != NULL)
-		loadaddr = archsw.arch_loadaddr(LOAD_RAW, name, loadaddr);
+	loadaddr = md_align(loadaddr);
 
 	if (module_verbose > MODULE_VERBOSE_SILENT)
 		printf("%s ", name);
@@ -1015,9 +1014,7 @@ file_addbuf(const char *name, const char *type, size_t len, void *buf)
 	}
 
 	/* Figure out where to load the data. */
-	dest = loadaddr;
-	if (archsw.arch_loadaddr != NULL)
-		dest = archsw.arch_loadaddr(LOAD_RAW, (void *)name, dest);
+	dest = md_align(loadaddr);
 
 	/* Create & populate control structure */
 	fp = file_alloc();
