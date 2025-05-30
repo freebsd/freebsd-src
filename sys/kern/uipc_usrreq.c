@@ -1685,7 +1685,8 @@ uipc_sopoll_stream_or_seqpacket(struct socket *so, int events,
 			    so->so_error || so->so_rerror)
 				revents |= events & (POLLIN | POLLRDNORM);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
-				revents |= events & POLLRDHUP;
+				revents |= events &
+				    (POLLIN | POLLRDNORM | POLLRDHUP);
 			if (!(revents & (POLLIN | POLLRDNORM | POLLRDHUP))) {
 				selrecord(td, &so->so_rdsel);
 				so->so_rcv.sb_flags |= SB_SEL;
