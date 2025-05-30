@@ -519,6 +519,8 @@ seq_addunit(void)
 	int ret;
 	u_char *buf;
 
+	gone_in(15, "MIDI sequencer: no longer needed or used");
+
 	/* Allocate the softc. */
 	ret = ENOMEM;
 	scp = malloc(sizeof(*scp), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -735,6 +737,8 @@ mseq_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct seq_softc *scp = i_dev->si_drv1;
 	int i;
+
+	gone_in(15, "MIDI sequencer: no longer needed or used");
 
 	if (scp == NULL)
 		return ENXIO;
