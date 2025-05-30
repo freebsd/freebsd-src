@@ -160,7 +160,7 @@ _pthread_create(pthread_t * __restrict thread,
 	param.tls_size = sizeof(struct tcb);
 	param.child_tid = &new_thread->tid;
 	param.parent_tid = &new_thread->tid;
-	param.flags = 0;
+	param.flags = THR_C_RUNTIME;
 	if (new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		param.flags |= THR_SYSTEM_SCOPE;
 	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED)
