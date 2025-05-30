@@ -1000,7 +1000,7 @@ vm_object_page_remove_write(vm_page_t p, int flags, boolean_t *allclean)
 
 static int
 vm_object_page_clean_flush(struct pctrie_iter *pages, vm_page_t p,
-    int pagerflags, int flags, boolean_t *allclean, boolean_t *eio)
+    int pagerflags, int flags, boolean_t *allclean, bool *eio)
 {
 	vm_page_t ma[vm_pageout_page_count];
 	int count, runlen;
@@ -1020,8 +1020,7 @@ vm_object_page_clean_flush(struct pctrie_iter *pages, vm_page_t p,
 		}
 	}
 
-	vm_pageout_flush(ma, count, pagerflags, 0, &runlen, eio);
-	return (runlen);
+	return (vm_pageout_flush(ma, count, pagerflags, eio));
 }
 
 /*
@@ -1054,7 +1053,8 @@ vm_object_page_clean(vm_object_t object, vm_ooffset_t start, vm_ooffset_t end,
 	vm_page_t np, p;
 	vm_pindex_t pi, tend, tstart;
 	int curgeneration, n, pagerflags;
-	boolean_t eio, res, allclean;
+	boolean_t res, allclean;
+	bool eio;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
