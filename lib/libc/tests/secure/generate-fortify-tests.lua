@@ -478,6 +478,18 @@ local all_tests = {
 			init = poll_init,
 		},
 	},
+	signal = {
+		-- <signal.h>
+		{
+			func = "sig2str",
+			bufsize = "SIG2STR_MAX",
+			arguments = {
+				"1",
+				"__buf",
+			},
+			exclude = excludes_stack_overflow,
+		},
+	},
 	stdio = {
 		-- <stdio.h>
 		{
