@@ -1021,7 +1021,7 @@ dsl_scan(dsl_pool_t *dp, pool_scan_func_t func, uint64_t txgstart,
 			if (err == 0) {
 				spa_event_notify(spa, NULL, NULL,
 				    ESC_ZFS_ERRORSCRUB_RESUME);
-				return (ECANCELED);
+				return (0);
 			}
 			return (SET_ERROR(err));
 		}
@@ -1037,7 +1037,7 @@ dsl_scan(dsl_pool_t *dp, pool_scan_func_t func, uint64_t txgstart,
 		    POOL_SCRUB_NORMAL);
 		if (err == 0) {
 			spa_event_notify(spa, NULL, NULL, ESC_ZFS_SCRUB_RESUME);
-			return (SET_ERROR(ECANCELED));
+			return (0);
 		}
 		return (SET_ERROR(err));
 	}
@@ -1437,7 +1437,7 @@ dsl_scan_restart_resilver(dsl_pool_t *dp, uint64_t txg)
 	if (txg == 0) {
 		dmu_tx_t *tx;
 		tx = dmu_tx_create_dd(dp->dp_mos_dir);
-		VERIFY(0 == dmu_tx_assign(tx, DMU_TX_WAIT));
+		VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT | DMU_TX_SUSPEND));
 
 		txg = dmu_tx_get_txg(tx);
 		dp->dp_scan->scn_restart_txg = txg;

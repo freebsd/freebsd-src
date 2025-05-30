@@ -375,6 +375,9 @@
 /* iops->create() takes struct user_namespace* */
 /* #undef HAVE_IOPS_CREATE_USERNS */
 
+/* iops->mkdir() returns struct dentry* */
+/* #undef HAVE_IOPS_MKDIR_DENTRY */
+
 /* iops->mkdir() takes struct mnt_idmap* */
 /* #undef HAVE_IOPS_MKDIR_IDMAP */
 
@@ -526,7 +529,7 @@
 /* #undef HAVE_PROC_OPS_STRUCT */
 
 /* If available, contains the Python version number currently in use. */
-#define HAVE_PYTHON "3.7"
+/* #undef HAVE_PYTHON */
 
 /* qat is enabled and existed */
 /* #undef HAVE_QAT */
@@ -646,6 +649,9 @@
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
+
+/* timer_delete_sync is available */
+/* #undef HAVE_TIMER_DELETE_SYNC */
 
 /* i_op->tmpfile() uses old dentry signature */
 /* #undef HAVE_TMPFILE_DENTRY */
@@ -800,7 +806,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.3.99-323-FreeBSD_g246e5883b"
+#define ZFS_META_ALIAS "zfs-2.3.99-392-FreeBSD_g3084336ae"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -809,7 +815,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.14"
+#define ZFS_META_KVER_MAX "6.15"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "4.18"
@@ -830,7 +836,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "323-FreeBSD_g246e5883b"
+#define ZFS_META_RELEASE "392-FreeBSD_g3084336ae"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.3.99"

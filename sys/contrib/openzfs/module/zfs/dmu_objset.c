@@ -765,7 +765,7 @@ dmu_objset_hold_flags(const char *name, boolean_t decrypt, const void *tag,
 
 	err = dmu_objset_from_ds(ds, osp);
 	if (err != 0) {
-		dsl_dataset_rele(ds, tag);
+		dsl_dataset_rele_flags(ds, flags, tag);
 		dsl_pool_rele(dp, tag);
 	}
 
@@ -2272,8 +2272,10 @@ dmu_objset_userquota_find_data(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	dbuf_dirty_record_t *dr;
 	void *data;
 
-	if (db->db_dirtycnt == 0)
+	if (db->db_dirtycnt == 0) {
+		ASSERT(MUTEX_HELD(&db->db_mtx));
 		return (db->db.db_data);  /* Nothing is changing */
+	}
 
 	dr = dbuf_find_dirty_eq(db, tx->tx_txg);
 
@@ -2330,12 +2332,11 @@ dmu_objset_userquota_get_ids(dnode_t *dn, boolean_t before, dmu_tx_t *tx)
 			data = DN_BONUS(dn->dn_phys);
 		}
 	} else if (dn->dn_bonuslen == 0 && dn->dn_bonustype == DMU_OT_SA) {
-			int rf = 0;
+			dmu_flags_t rf = DB_RF_MUST_SUCCEED;
 
 			if (RW_WRITE_HELD(&dn->dn_struct_rwlock))
 				rf |= DB_RF_HAVESTRUCT;
-			error = dmu_spill_hold_by_dnode(dn,
-			    rf | DB_RF_MUST_SUCCEED,
+			error = dmu_spill_hold_by_dnode(dn, rf,
 			    FTAG, (dmu_buf_t **)&db);
 			ASSERT(error == 0);
 			mutex_enter(&db->db_mtx);

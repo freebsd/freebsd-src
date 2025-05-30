@@ -25,6 +25,7 @@ MAN= \
 	zfs-promote.8 \
 	zfs-receive.8 \
 	zfs-rename.8 \
+	zfs-rewrite.8 \
 	zfs-rollback.8 \
 	zfs-send.8 \
 	zfs-set.8 \

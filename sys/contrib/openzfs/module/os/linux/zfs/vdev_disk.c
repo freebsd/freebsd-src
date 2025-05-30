@@ -614,7 +614,7 @@ static inline uint_t
 vdev_bio_max_segs(struct block_device *bdev)
 {
 	/*
-	 * Smallest of the device max segs and the tuneable max segs. Minimum
+	 * Smallest of the device max segs and the tunable max segs. Minimum
 	 * 4, so there's room to finish split pages if they come up.
 	 */
 	const uint_t dev_max_segs = queue_max_segments(bdev_get_queue(bdev));
@@ -1575,29 +1575,6 @@ vdev_ops_t vdev_disk_ops = {
 	.vdev_op_leaf = B_TRUE,			/* leaf vdev */
 	.vdev_op_kobj_evt_post = vdev_disk_kobj_evt_post
 };
-
-/*
- * The zfs_vdev_scheduler module option has been deprecated. Setting this
- * value no longer has any effect.  It has not yet been entirely removed
- * to allow the module to be loaded if this option is specified in the
- * /etc/modprobe.d/zfs.conf file.  The following warning will be logged.
- */
-static int
-param_set_vdev_scheduler(const char *val, zfs_kernel_param_t *kp)
-{
-	int error = param_set_charp(val, kp);
-	if (error == 0) {
-		printk(KERN_INFO "The 'zfs_vdev_scheduler' module option "
-		    "is not supported.\n");
-	}
-
-	return (error);
-}
-
-static const char *zfs_vdev_scheduler = "unused";
-module_param_call(zfs_vdev_scheduler, param_set_vdev_scheduler,
-    param_get_charp, &zfs_vdev_scheduler, 0644);
-MODULE_PARM_DESC(zfs_vdev_scheduler, "I/O scheduler");
 
 int
 param_set_min_auto_ashift(const char *buf, zfs_kernel_param_t *kp)
