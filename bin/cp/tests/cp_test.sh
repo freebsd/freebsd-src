@@ -570,6 +570,27 @@ dstmode_body()
 	atf_check cmp dir/file dst/file
 }
 
+atf_test_case to_root cleanup
+to_root_head()
+{
+	atf_set "require.user" "root"
+}
+to_root_body()
+{
+	dst="$(atf_get ident).$$"
+	echo "$dst" >dst
+	echo "foo" >"$dst"
+	atf_check cp "$dst" /
+	atf_check cmp -s "$dst" "/$dst"
+	atf_check rm "/$dst"
+	atf_check cp "$dst" //
+	atf_check cmp -s "$dst" "/$dst"
+}
+to_root_cleanup()
+{
+	(dst=$(cat dst) && [ -n "/$dst" ] && [ -f "/$dst" ] && rm "/$dst") || true
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case basic
@@ -607,4 +628,5 @@ atf_init_test_cases()
 	atf_add_test_case to_deaddirlink
 	atf_add_test_case to_link_outside
 	atf_add_test_case dstmode
+	atf_add_test_case to_root
 }

@@ -179,9 +179,9 @@ main(int argc, char *argv[])
 		target = dot;
 	} else if ((sep = strrchr(target, '/')) != NULL && sep[1] == '\0') {
 		have_trailing_slash = true;
-		while (sep > target + 1 && *(sep - 1) == '/')
+		while (sep > target && *sep == '/')
 			sep--;
-		*sep = '\0';
+		sep[1] = '\0';
 	}
 	/*
 	 * Copy target into to.base, leaving room for a possible separator
@@ -293,9 +293,11 @@ copy(char *argv[], enum op type, int fts_options, struct stat *root_stat)
 		/*
 		 * We have previously made sure there is room for this.
 		 */
-		sep = strchr(to.base, '\0');
-		sep[0] = '/';
-		sep[1] = '\0';
+		if (strcmp(to.base, "/") != 0) {
+			sep = strchr(to.base, '\0');
+			sep[0] = '/';
+			sep[1] = '\0';
+		}
 	} else {
 		/*
 		 * We will create the destination directory imminently.
