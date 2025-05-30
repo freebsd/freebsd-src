@@ -210,6 +210,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	case AMD64_CLEAR_PKRU:
 	case AMD64_GET_TLSBASE:
 	case AMD64_SET_TLSBASE:
+	case AMD64_DISABLE_TLSBASE:
 		break;
 
 	case I386_SET_IOPERM:
@@ -395,6 +396,11 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		    (vm_offset_t)a64pkru.addr,
 		    (vm_offset_t)a64pkru.addr + a64pkru.len);
 		vm_map_unlock_read(map);
+		break;
+
+	case AMD64_DISABLE_TLSBASE:
+		clear_pcb_flags(pcb, PCB_TLSBASE);
+		update_pcb_bases(pcb);
 		break;
 
 	default:
