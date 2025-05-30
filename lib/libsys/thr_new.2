@@ -133,6 +133,15 @@ The flag is not currently implemented.
 .It Dv THR_SYSTEM_SCOPE
 Create the system scope thread.
 The flag is not currently implemented.
+.It Dv THR_C_RUNTIME
+Indicate that the new thread is created by the C language runtime.
+It has architecture-specific meaning.
+.Pp
+On amd64, the flag requests that the specified
+.Fa tls_base
+was loaded into the
+.Va %fsbase
+register before calling a signal handler.
 .El
 .It Va rtp
 Real-time scheduling priority for the new thread.
