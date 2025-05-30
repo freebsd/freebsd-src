@@ -1091,7 +1091,7 @@ cpu_thread_free(struct thread *td)
 }
 
 int
-cpu_set_user_tls(struct thread *td, void *tls_base)
+cpu_set_user_tls(struct thread *td, void *tls_base, int thr_flags __unused)
 {
 
 	if (SV_PROC_FLAG(td->td_proc, SV_LP64))

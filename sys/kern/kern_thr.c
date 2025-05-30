@@ -169,7 +169,7 @@ thr_new_initthr(struct thread *td, void *thunk)
 	if (error != 0)
 		return (error);
 	/* Setup user TLS address and TLS pointer register. */
-	return (cpu_set_user_tls(td, param->tls_base));
+	return (cpu_set_user_tls(td, param->tls_base, param->flags));
 }
 
 int
