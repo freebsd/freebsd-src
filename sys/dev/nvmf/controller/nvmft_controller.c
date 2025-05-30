@@ -787,6 +787,7 @@ handle_set_features(struct nvmft_controller *ctrlr,
 		ctrlr->aer_mask = aer_mask;
 		mtx_unlock(&ctrlr->lock);
 		nvmft_send_success(ctrlr->admin, nc);
+		nvmf_free_capsule(nc);
 		return;
 	}
 	default:
