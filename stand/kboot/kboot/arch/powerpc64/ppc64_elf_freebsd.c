@@ -89,21 +89,18 @@ ppc64_elf_exec(struct preloaded_file *fp)
 	/*
 	 * Figure out where to put it.
 	 *
-	 * Linux does not allow to do kexec_load into
-	 * any part of memory. Ask arch_loadaddr to
-	 * resolve the first available chunk of physical
-	 * memory where loading is possible (load_addr).
+	 * Linux does not allow us to do kexec_load into any part of memory. Ask
+	 * kboot_get_phys_load_segment to resolve the first available chunk of
+	 * physical memory where loading is possible (load_addr).
 	 *
-	 * Memory organization is shown below.
-	 * It is assumed, that text segment offset of
-	 * kernel ELF (KERNPHYSADDR) is non-zero,
-	 * which is true for PPC/PPC64 architectures,
-	 * where default is 0x100000.
+	 * Memory organization is shown below.  It is assumed, that text segment
+	 * offset of kernel ELF (KERNPHYSADDR) is non-zero, which is true for
+	 * PPC/PPC64 architectures, where default is 0x100000.
 	 *
 	 * load_addr:                 trampoline code
 	 * load_addr + KERNPHYSADDR:  kernel text segment
 	 */
-	trampolinebase = archsw.arch_loadaddr(LOAD_RAW, NULL, 0);
+	trampolinebase = kboot_get_phys_load_segment();
 	printf("Load address at %#jx\n", (uintmax_t)trampolinebase);
 	printf("Relocation offset is %#jx\n", (uintmax_t)elf64_relocation_offset);
 

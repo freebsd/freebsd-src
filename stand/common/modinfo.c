@@ -202,7 +202,7 @@ md_copyenv(vm_offset_t start)
  * platform.
  *
  * XXX For the moment, it's just PAGE_SIZE to make the refactoring go faster,
- * but needs to hook-in arch_loadaddr (or its replacement) functionality.
+ * but needs to hook-in the replacement of arch_loadaddr.
  *
  * Also, we may need other logical things when dealing with different types of
  * page sizes and/or masking or sizes. This works well for addr and sizes, but

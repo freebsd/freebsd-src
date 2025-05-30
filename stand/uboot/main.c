@@ -41,7 +41,6 @@
 
 struct uboot_devdesc currdev;
 struct arch_switch archsw = {		/* MI/MD interface boundary */
-	.arch_loadaddr = uboot_loadaddr,
 	.arch_getdev = uboot_getdev,
 	.arch_copyin = uboot_copyin,
 	.arch_copyout = uboot_copyout,
