@@ -16,5 +16,6 @@ int md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtb);
 
 vm_offset_t md_copymodules(vm_offset_t addr, bool kern64);
 vm_offset_t md_copyenv(vm_offset_t addr);
+vm_offset_t md_align(vm_offset_t addr);
 
 #endif /* COMMON_MODINFO_H */
