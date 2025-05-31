@@ -181,11 +181,13 @@ const char *openpam_module_path[] = {
 	"/usr/lib" COMPAT_libcompat,
 #ifdef LOCALBASE
 	LOCALBASE "/lib" COMPAT_libcompat,
+	LOCALBASE "/lib" COMPAT_libcompat "/security",
 #endif
 #else
 	"/usr/lib",
 #ifdef LOCALBASE
 	LOCALBASE "/lib",
+	LOCALBASE "/lib/security",
 #endif
 #endif
 	NULL
