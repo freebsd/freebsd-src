@@ -62,6 +62,8 @@ struct uexterror {
 #define	SET_ERROR0(eerror, mmsg)	SET_ERROR2(eerror, mmsg, 0, 0)
 #define	SET_ERROR1(eerror, mmsg, pp1)	SET_ERROR2(eerror, mmsg, pp1, 0)
 
+int exterr_to_ue(struct thread *td, struct uexterror *ue);
+
 #else	/* _KERNEL */
 
 __BEGIN_DECLS

@@ -2202,6 +2202,23 @@ file_kcmp_generic(struct file *fp1, struct file *fp2, struct thread *td)
 	return (kcmp_cmp((uintptr_t)fp1->f_data, (uintptr_t)fp2->f_data));
 }
 
+int
+exterr_to_ue(struct thread *td, struct uexterror *ue)
+{
+	if ((td->td_pflags2 & TDP2_EXTERR) == 0)
+		return (ENOENT);
+
+	memset(ue, 0, sizeof(*ue));
+	ue->error = td->td_kexterr.error;
+	ue->cat = td->td_kexterr.cat;
+	ue->src_line = td->td_kexterr.src_line;
+	ue->p1 = td->td_kexterr.p1;
+	ue->p2 = td->td_kexterr.p2;
+	if (td->td_kexterr.msg != NULL)
+		strlcpy(ue->msg, td->td_kexterr.msg, sizeof(ue->msg));
+	return (0);
+}
+
 void
 exterr_copyout(struct thread *td)
 {
@@ -2215,18 +2232,11 @@ exterr_copyout(struct thread *td)
 
 	uloc = (char *)td->td_exterr_ptr + __offsetof(struct uexterror,
 	    error);
-	if ((td->td_pflags2 & TDP2_EXTERR) == 0) {
+	error = exterr_to_ue(td, &ue);
+	if (error != 0) {
 		ue.error = 0;
 		sz = sizeof(ue.error);
 	} else {
-		memset(&ue, 0, sizeof(ue));
-		ue.error = td->td_kexterr.error;
-		ue.cat = td->td_kexterr.cat;
-		ue.src_line = td->td_kexterr.src_line;
-		ue.p1 = td->td_kexterr.p1;
-		ue.p2 = td->td_kexterr.p2;
-		if (td->td_kexterr.msg != NULL)
-			strlcpy(ue.msg, td->td_kexterr.msg, sizeof(ue.msg));
 		sz = sizeof(ue) - __offsetof(struct uexterror, error);
 	}
 	error = copyout(&ue.error, uloc, sz);
