@@ -765,7 +765,9 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_COM_REF_S	1
 #define	IEEE80211_COM_REF_MAX	(IEEE80211_COM_REF >> IEEE80211_COM_REF_S)
 
-int	ic_printf(struct ieee80211com *, const char *, ...) __printflike(2, 3);
+/* TODO: Transition macro */
+#define	ic_printf	net80211_ic_printf
+
 void	ieee80211_ifattach(struct ieee80211com *);
 void	ieee80211_ifdetach(struct ieee80211com *);
 void	ieee80211_set_software_ciphers(struct ieee80211com *,
