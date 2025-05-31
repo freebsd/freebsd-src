@@ -144,7 +144,7 @@ cac_timeout(void *arg)
 		ieee80211_notify_cac(ic, ic->ic_curchan,
 		    IEEE80211_NOTIFY_CAC_RADAR);
 
-		if_printf(vap->iv_ifp,
+		net80211_vap_printf(vap,
 		    "CAC timer on channel %u (%u MHz) stopped due to radar\n",
 		    ic->ic_curchan->ic_ieee, ic->ic_curchan->ic_freq);
 
@@ -153,7 +153,7 @@ cac_timeout(void *arg)
 		vap->iv_des_chan = dfs->newchan;
 		ieee80211_new_state_locked(vap, IEEE80211_S_SCAN, 0);
 	} else {
-		if_printf(vap->iv_ifp,
+		net80211_vap_printf(vap,
 		    "CAC timer on channel %u (%u MHz) expired; "
 		    "no radar detected\n",
 		    ic->ic_curchan->ic_ieee, ic->ic_curchan->ic_freq);
@@ -187,7 +187,8 @@ ieee80211_dfs_cac_start(struct ieee80211vap *vap)
 	IEEE80211_LOCK_ASSERT(ic);
 
 	callout_reset(&dfs->cac_timer, CAC_TIMEOUT, cac_timeout, vap);
-	if_printf(vap->iv_ifp, "start %d second CAC timer on channel %u (%u MHz)\n",
+	net80211_vap_printf(vap,
+	    "start %d second CAC timer on channel %u (%u MHz)\n",
 	    ticks_to_secs(CAC_TIMEOUT),
 	    ic->ic_curchan->ic_ieee, ic->ic_curchan->ic_freq);
 	ieee80211_notify_cac(ic, ic->ic_curchan, IEEE80211_NOTIFY_CAC_START);
@@ -206,7 +207,8 @@ ieee80211_dfs_cac_stop(struct ieee80211vap *vap)
 
 	/* NB: racey but not important */
 	if (callout_pending(&dfs->cac_timer)) {
-		if_printf(vap->iv_ifp, "stop CAC timer on channel %u (%u MHz)\n",
+		net80211_vap_printf(vap,
+		    "stop CAC timer on channel %u (%u MHz)\n",
 		    ic->ic_curchan->ic_ieee, ic->ic_curchan->ic_freq);
 		ieee80211_notify_cac(ic, ic->ic_curchan,
 		    IEEE80211_NOTIFY_CAC_STOP);

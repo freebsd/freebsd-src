@@ -299,9 +299,9 @@ ieee80211_scan_dump(struct ieee80211_scan_state *ss)
 {
 	struct ieee80211vap *vap = ss->ss_vap;
 
-	if_printf(vap->iv_ifp, "scan set ");
+	net80211_vap_printf(vap, "scan set ");
 	ieee80211_scan_dump_channels(ss);
-	printf(" dwell min %ums max %ums\n",
+	net80211_vap_printf(vap, " dwell min %ums max %ums\n",
 	    ticks_to_msecs(ss->ss_mindwell), ticks_to_msecs(ss->ss_maxdwell));
 }
 #endif /* IEEE80211_DEBUG */

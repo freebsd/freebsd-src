@@ -121,7 +121,7 @@ amrr_init(struct ieee80211vap *vap)
 	amrr = vap->iv_rs = IEEE80211_MALLOC(sizeof(struct ieee80211_amrr),
 	    M_80211_RATECTL, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (amrr == NULL) {
-		if_printf(vap->iv_ifp, "couldn't alloc ratectl structure\n");
+		net80211_vap_printf(vap, "couldn't alloc ratectl structure\n");
 		return;
 	}
 	amrr->amrr_min_success_threshold = IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD;
@@ -231,7 +231,8 @@ amrr_node_init(struct ieee80211_node *ni)
 	struct ieee80211_amrr_node *amn;
 
 	if (!amrr) {
-		if_printf(vap->iv_ifp, "ratectl structure was not allocated, "
+		net80211_vap_printf(vap,
+		    "ratectl structure was not allocated, "
 		    "per-node structure allocation skipped\n");
 		return;
 	}
@@ -240,8 +241,8 @@ amrr_node_init(struct ieee80211_node *ni)
 		ni->ni_rctls = amn = IEEE80211_MALLOC(sizeof(struct ieee80211_amrr_node),
 		    M_80211_RATECTL, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 		if (amn == NULL) {
-			if_printf(vap->iv_ifp, "couldn't alloc per-node ratectl "
-			    "structure\n");
+			net80211_vap_printf(vap,
+			    "couldn't alloc per-node ratectl structure\n");
 			return;
 		}
 	} else
