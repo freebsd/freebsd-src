@@ -179,7 +179,7 @@ ieee80211_node_latevattach(struct ieee80211vap *vap)
 		/* XXX should we allow max aid to be zero? */
 		if (vap->iv_max_aid < IEEE80211_AID_MIN) {
 			vap->iv_max_aid = IEEE80211_AID_MIN;
-			if_printf(vap->iv_ifp,
+			net80211_vap_printf(vap,
 			    "WARNING: max aid too small, changed to %d\n",
 			    vap->iv_max_aid);
 		}

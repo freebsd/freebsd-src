@@ -2748,7 +2748,7 @@ ieee80211_is_ctl_frame_for_vap(struct ieee80211_node *ni, const struct mbuf *m0)
 	KASSERT(IEEE80211_IS_CTL(wh), ("%s: not a CTL frame (fc[0]=0x%04x)",
 	    __func__, wh->i_fc[0]));
 	if (!IEEE80211_IS_CTL(wh)) {
-		if_printf(vap->iv_ifp,
+		net80211_vap_printf(vap,
 		    "%s: not a control frame (fc[0]=0x%04x)\n",
 		    __func__, wh->i_fc[0]);
 		return (false);

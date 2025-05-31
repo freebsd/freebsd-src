@@ -950,10 +950,11 @@ ieee80211_note(const struct ieee80211vap *vap, const char *fmt, ...)
 	len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	if_printf(vap->iv_ifp, "%s", buf);	/* NB: no \n */
+	net80211_vap_printf(vap, "%s", buf);	/* NB: no \n */
 
 	if (len >= sizeof(buf))
-		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
+		net80211_vap_printf(vap,
+		    "%s: XXX buffer too small: len = %d\n", __func__, len);
 }
 
 void
@@ -968,7 +969,7 @@ ieee80211_note_frame(const struct ieee80211vap *vap,
 	va_start(ap, fmt);
 	len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
-	if_printf(vap->iv_ifp, "[%s] %s\n",
+	net80211_vap_printf(vap, "[%s] %s\n",
 		ether_sprintf(ieee80211_getbssid(vap, wh)), buf);
 
 	if (len >= sizeof(buf))
@@ -987,7 +988,7 @@ ieee80211_note_mac(const struct ieee80211vap *vap,
 	va_start(ap, fmt);
 	len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
-	if_printf(vap->iv_ifp, "[%s] %s\n", ether_sprintf(mac), buf);
+	net80211_vap_printf(vap, "[%s] %s\n", ether_sprintf(mac), buf);
 
 	if (len >= sizeof(buf))
 		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
@@ -1006,7 +1007,7 @@ ieee80211_discard_frame(const struct ieee80211vap *vap,
 	len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	if_printf(vap->iv_ifp, "[%s] discard %s frame, %s\n",
+	net80211_vap_printf(vap, "[%s] discard %s frame, %s\n",
 	    ether_sprintf(ieee80211_getbssid(vap, wh)),
 	    type != NULL ? type : ieee80211_mgt_subtype_name(wh->i_fc[0]),
 	    buf);
@@ -1028,7 +1029,7 @@ ieee80211_discard_ie(const struct ieee80211vap *vap,
 	len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	if_printf(vap->iv_ifp, "[%s] discard%s%s information element, %s\n",
+	net80211_vap_printf(vap, "[%s] discard%s%s information element, %s\n",
 	    ether_sprintf(ieee80211_getbssid(vap, wh)),
 	    type != NULL ? " " : "", type != NULL ? type : "", buf);
 
@@ -1049,7 +1050,7 @@ ieee80211_discard_mac(const struct ieee80211vap *vap,
 	len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 
-	if_printf(vap->iv_ifp, "[%s] discard%s%s frame, %s\n",
+	net80211_vap_printf(vap, "[%s] discard%s%s frame, %s\n",
 	    ether_sprintf(mac),
 	    type != NULL ? " " : "", type != NULL ? type : "", buf);
 
