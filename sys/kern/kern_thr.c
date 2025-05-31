@@ -178,7 +178,7 @@ kern_thr_new(struct thread *td, struct thr_param *param)
 	struct rtprio rtp, *rtpp;
 	int error;
 
-	if ((param->flags & (THR_SUSPENDED | THR_SYSTEM_SCOPE |
+	if ((param->flags & ~(THR_SUSPENDED | THR_SYSTEM_SCOPE |
 	    THR_C_RUNTIME)) != 0)
 		return (EINVAL);
 	rtpp = NULL;
