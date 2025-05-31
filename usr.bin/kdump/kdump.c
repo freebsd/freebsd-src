@@ -119,6 +119,7 @@ void ktrbitset(char *, struct bitset *, size_t);
 void ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
     int *resnarg, char *resc, u_int sv_flags);
 void ktrexecve(char *, int);
+void ktrexterr(struct ktr_exterr *);
 void usage(void);
 
 #define	TIMESTAMP_NONE		0x0
@@ -521,6 +522,9 @@ main(int argc, char *argv[])
 		case KTR_ENVS:
 			ktrexecve(m, ktrlen);
 			break;
+		case KTR_EXTERR:
+			ktrexterr((struct ktr_exterr *)m);
+			break;
 		default:
 			printf("\n");
 			break;
@@ -710,6 +714,9 @@ dumpheader(struct ktr_header *kth, u_int sv_flags)
 	        break;
 	case KTR_ENVS:
 	        type = "ENVS";
+	        break;
+	case KTR_EXTERR:
+	        type = "EERR";
 	        break;
 	default:
 		sprintf(unknown, "UNKNOWN(%d)", kth->ktr_type);
@@ -2418,6 +2425,17 @@ invalid:
 bad_size:
 	printf("<bad size> }\n");
 	return;
+}
+
+void
+ktrexterr(struct ktr_exterr *ke)
+{
+	struct uexterror *ue;
+
+	ue = &ke->ue;
+	printf("{ errno %d category %u (src line %u) p1 %#jx p2 %#jx %s }\n",
+	    ue->error, ue->cat, ue->src_line,
+	    (uintmax_t)ue->p1, (uintmax_t)ue->p2, ue->msg);
 }
 
 void
