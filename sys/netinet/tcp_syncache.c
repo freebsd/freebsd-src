@@ -794,7 +794,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	 * as they would have been set up if we had created the
 	 * connection when the SYN arrived.
 	 */
-	if ((so = solisten_clone(lso)) == NULL)
+	if ((so = solisten_clone(lso, sc->sc_inc.inc_fibnum)) == NULL)
 		goto allocfail;
 #ifdef MAC
 	mac_socketpeer_set_from_mbuf(m, so);
