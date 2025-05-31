@@ -46,12 +46,14 @@
 		_Td->td_kexterr.p1 = (uintptr_t)pp1;		\
 		_Td->td_kexterr.p2 = (uintptr_t)pp2;		\
 		_Td->td_kexterr.src_line = __LINE__;		\
+		ktrexterr(_Td);					\
 	}							\
 } while (0)
 #define	SET_ERROR0(eerror, mmsg)	SET_ERROR2(eerror, mmsg, 0, 0)
 #define	SET_ERROR1(eerror, mmsg, pp1)	SET_ERROR2(eerror, mmsg, pp1, 0)
 
 int exterr_to_ue(struct thread *td, struct uexterror *ue);
+void ktrexterr(struct thread *td);
 
 #else	/* _KERNEL */
 
