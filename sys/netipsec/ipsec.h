@@ -102,7 +102,7 @@ struct secpolicy {
 	uint32_t id;			/* It's unique number on the system. */
 	/*
 	 * lifetime handler.
-	 * the policy can be used without limitiation if both lifetime and
+	 * the policy can be used without limitation if both lifetime and
 	 * validtime are zero.
 	 * "lifetime" is passed by sadb_lifetime.sadb_lifetime_addtime.
 	 * "validtime" is passed by sadb_lifetime.sadb_lifetime_usetime.
