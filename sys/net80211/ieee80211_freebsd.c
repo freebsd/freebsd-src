@@ -42,6 +42,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <sys/socket.h>
 
@@ -57,6 +58,8 @@
 #include <net/ethernet.h>
 #include <net/route.h>
 #include <net/vnet.h>
+
+#include <machine/stdarg.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>
@@ -275,8 +278,8 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 	ctx = (struct sysctl_ctx_list *) IEEE80211_MALLOC(sizeof(struct sysctl_ctx_list),
 		M_DEVBUF, IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (ctx == NULL) {
-		if_printf(ifp, "%s: cannot allocate sysctl context!\n",
-			__func__);
+		net80211_vap_printf(vap,
+		    "%s: cannot allocate sysctl context!\n", __func__);
 		return;
 	}
 	sysctl_ctx_init(ctx);
@@ -1324,6 +1327,51 @@ const uint8_t *
 ieee80211_vap_get_broadcast_address(struct ieee80211vap *vap)
 {
 	return (if_getbroadcastaddr(vap->iv_ifp));
+}
+
+/**
+ * @brief net80211 printf() (not vap/ic related)
+ */
+void
+net80211_printf(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+}
+
+/**
+ * @brief VAP specific printf()
+ */
+void
+net80211_vap_printf(const struct ieee80211vap *vap, const char *fmt, ...)
+{
+	char if_fmt[256];
+	va_list ap;
+
+	va_start(ap, fmt);
+	snprintf(if_fmt, sizeof(if_fmt), "%s: %s", if_name(vap->iv_ifp), fmt);
+	vlog(LOG_INFO, if_fmt, ap);
+	va_end(ap);
+}
+
+/**
+ * @brief ic specific printf()
+ */
+void
+net80211_ic_printf(const struct ieee80211com *ic, const char *fmt, ...)
+{
+	va_list ap;
+
+	/*
+	 * TODO: do the vap_printf stuff above, use vlog(LOG_INFO, ...)
+	 */
+	printf("%s: ", ic->ic_name);
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
 }
 
 /*

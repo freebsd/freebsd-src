@@ -273,19 +273,6 @@ null_update_chw(struct ieee80211com *ic)
 	ic_printf(ic, "%s: need callback\n", __func__);
 }
 
-int
-ic_printf(struct ieee80211com *ic, const char * fmt, ...)
-{
-	va_list ap;
-	int retval;
-
-	retval = printf("%s: ", ic->ic_name);
-	va_start(ap, fmt);
-	retval += vprintf(fmt, ap);
-	va_end(ap);
-	return (retval);
-}
-
 static LIST_HEAD(, ieee80211com) ic_head = LIST_HEAD_INITIALIZER(ic_head);
 static struct mtx ic_list_mtx;
 MTX_SYSINIT(ic_list, &ic_list_mtx, "ieee80211com list", MTX_DEF);
