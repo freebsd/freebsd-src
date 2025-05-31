@@ -228,7 +228,7 @@ ipf_p_ftp_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 	if (ftp == NULL)
 		return (-1);
 
-	nat = nat;	/* LINT */
+	(void)nat;	/* UNUSED */
 
 	aps->aps_data = ftp;
 	aps->aps_psiz = sizeof(ftpinfo_t);
@@ -1715,7 +1715,7 @@ ipf_p_ftp_eprt4(ipf_ftp_softc_t *softf, fr_info_t *fin, ip_t *ip, nat_t *nat,
 		return (0);
 	if (c != delim)
 		return (0);
-	addr |= addr;
+	/* addr |= (addr << 0); */
 
 	/*
 	 * Get the port number
