@@ -34,9 +34,11 @@
 #include <sys/cdefs.h>
 #include "opt_ktrace.h"
 
+#define	EXTERR_CATEGORY	EXTERR_KTRACE
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/systm.h>
+#include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
