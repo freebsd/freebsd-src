@@ -29,7 +29,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
-#include <sys/interrupt.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -43,7 +42,7 @@
 #include <vm/vm_page.h>
 
 #include <machine/cpufunc.h>
-#include <machine/intr_machdep.h>
+#include <machine/interrupt.h>
 #include <machine/pmap.h>
 #include <machine/stdarg.h>
 

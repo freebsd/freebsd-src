@@ -32,13 +32,14 @@
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/fcntl.h>
-#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/reboot.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/tty.h>
+
+#include <machine/interrupt.h>
 #include <machine/resource.h>
 #include <machine/stdarg.h>
 

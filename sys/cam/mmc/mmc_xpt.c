@@ -36,7 +36,6 @@
 #include <sys/time.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/interrupt.h>
 #include <sys/sbuf.h>
 
 #include <sys/lock.h>
@@ -58,6 +57,7 @@
 #include <cam/mmc/mmc.h>
 #include <cam/mmc/mmc_bus.h>
 
+#include <machine/interrupt.h>
 #include <machine/stdarg.h>	/* for xpt_print below */
 #include <machine/_inttypes.h>  /* for PRIu64 */
 
