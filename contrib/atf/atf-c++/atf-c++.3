@@ -22,7 +22,7 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd March 6, 2017
+.Dd May 11, 2025
 .Dt ATF-C++ 3
 .Os
 .Sh NAME
@@ -277,6 +277,14 @@ It is possible to get the path to the test case's source directory from any
 of its three components by querying the
 .Sq srcdir
 configuration variable.
+.Ss Requiring kernel modules
+Aside from the
+.Va require.kmods
+meta-data variable available in the header only, one can also check for
+additional kernel modules in the test case's body by using the
+.Fn require_kmod
+function, which takes the name of a single module.
+If it is not found, the test case will be automatically skipped.
 .Ss Requiring programs
 Aside from the
 .Va require.progs

@@ -354,6 +354,18 @@ atf_require_prog()
 }
 
 #
+# atf_require_kmod kmod
+#
+#   Checks that the given kmod is loaded.  If it is not, automatically
+#   skips the test case with an appropriate message.
+#
+atf_require_kmod()
+{
+    kldstat -q "${1}" || \
+        atf_skip "The required kmod ${1} is not loaded"
+}
+
+#
 # atf_set varname val1 [.. valN]
 #
 #   Sets the test case's variable 'varname' to the specified values

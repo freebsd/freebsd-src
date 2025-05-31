@@ -133,6 +133,10 @@ engine::parse_atf_metadata(const model::properties_map& props)
                 mdbuilder.set_string("required_disk_space", value);
             } else if (name == "require.files") {
                 mdbuilder.set_string("required_files", value);
+#ifdef __FreeBSD__
+            } else if (name == "require.kmods") {
+                mdbuilder.set_string("required_kmods", value);
+#endif
             } else if (name == "require.machine") {
                 mdbuilder.set_string("allowed_platforms", value);
             } else if (name == "require.memory") {
