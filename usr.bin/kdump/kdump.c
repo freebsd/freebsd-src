@@ -87,40 +87,40 @@
 #include <casper/cap_pwd.h>
 #endif
 
-int fetchprocinfo(struct ktr_header *, u_int *);
-u_int findabi(struct ktr_header *);
-int fread_tail(void *, int, int);
-void dumpheader(struct ktr_header *, u_int);
-void dumptimeval(struct ktr_header_v0 *kth);
-void dumptimespec(struct ktr_header *kth);
-void ktrsyscall(struct ktr_syscall *, u_int);
-void ktrsysret(struct ktr_sysret *, u_int);
-void ktrnamei(char *, int);
-void hexdump(char *, int, int);
-void visdump(char *, int, int);
-void ktrgenio(struct ktr_genio *, int);
-void ktrpsig(struct ktr_psig *);
-void ktrcsw(struct ktr_csw *);
-void ktrcsw_old(struct ktr_csw_old *);
-void ktruser(int, void *);
-void ktrcaprights(cap_rights_t *);
-void ktritimerval(struct itimerval *it);
-void ktrsockaddr(struct sockaddr *);
-void ktrsplice(struct splice *);
-void ktrstat(struct stat *);
-void ktrstruct(char *, size_t);
-void ktrcapfail(struct ktr_cap_fail *);
-void ktrfault(struct ktr_fault *);
-void ktrfaultend(struct ktr_faultend *);
-void ktrkevent(struct kevent *);
-void ktrpollfd(struct pollfd *);
-void ktrstructarray(struct ktr_struct_array *, size_t);
-void ktrbitset(char *, struct bitset *, size_t);
-void ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
+static int fetchprocinfo(struct ktr_header *, u_int *);
+static u_int findabi(struct ktr_header *);
+static int fread_tail(void *, int, int);
+static void dumpheader(struct ktr_header *, u_int);
+static void dumptimeval(struct ktr_header_v0 *kth);
+static void dumptimespec(struct ktr_header *kth);
+static void ktrsyscall(struct ktr_syscall *, u_int);
+static void ktrsysret(struct ktr_sysret *, u_int);
+static void ktrnamei(char *, int);
+static void hexdump(char *, int, int);
+static void visdump(char *, int, int);
+static void ktrgenio(struct ktr_genio *, int);
+static void ktrpsig(struct ktr_psig *);
+static void ktrcsw(struct ktr_csw *);
+static void ktrcsw_old(struct ktr_csw_old *);
+static void ktruser(int, void *);
+static void ktrcaprights(cap_rights_t *);
+static void ktritimerval(struct itimerval *it);
+static void ktrsockaddr(struct sockaddr *);
+static void ktrsplice(struct splice *);
+static void ktrstat(struct stat *);
+static void ktrstruct(char *, size_t);
+static void ktrcapfail(struct ktr_cap_fail *);
+static void ktrfault(struct ktr_fault *);
+static void ktrfaultend(struct ktr_faultend *);
+static void ktrkevent(struct kevent *);
+static void ktrpollfd(struct pollfd *);
+static void ktrstructarray(struct ktr_struct_array *, size_t);
+static void ktrbitset(char *, struct bitset *, size_t);
+static void ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
     int *resnarg, char *resc, u_int sv_flags);
-void ktrexecve(char *, int);
-void ktrexterr(struct ktr_exterr *);
-void usage(void);
+static void ktrexecve(char *, int);
+static void ktrexterr(struct ktr_exterr *);
+static void usage(void);
 
 #define	TIMESTAMP_NONE		0x0
 #define	TIMESTAMP_ABSOLUTE	0x1
@@ -535,7 +535,7 @@ main(int argc, char *argv[])
 	return 0;
 }
 
-int
+static int
 fread_tail(void *buf, int size, int num)
 {
 	int i;
@@ -547,7 +547,7 @@ fread_tail(void *buf, int size, int num)
 	return (i);
 }
 
-int
+static int
 fetchprocinfo(struct ktr_header *kth, u_int *flags)
 {
 	struct proc_info *pi;
@@ -582,7 +582,7 @@ fetchprocinfo(struct ktr_header *kth, u_int *flags)
 	return (0);
 }
 
-u_int
+static u_int
 findabi(struct ktr_header *kth)
 {
 	struct proc_info *pi;
@@ -595,7 +595,7 @@ findabi(struct ktr_header *kth)
 	return (0);
 }
 
-void
+static void
 dumptimeval(struct ktr_header_v0 *kth)
 {
 	static struct timeval prevtime, prevtime_e;
@@ -629,7 +629,7 @@ dumptimeval(struct ktr_header_v0 *kth)
 	}
 }
 
-void
+static void
 dumptimespec(struct ktr_header *kth)
 {
 	static struct timespec prevtime, prevtime_e;
@@ -663,7 +663,7 @@ dumptimespec(struct ktr_header *kth)
 	}
 }
 
-void
+static void
 dumpheader(struct ktr_header *kth, u_int sv_flags)
 {
 	static char unknown[64];
@@ -833,7 +833,7 @@ print_signal(int signo)
 		printf("SIG %d", signo);
 }
 
-void
+static void
 ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 {
 	int narg = ktr->ktr_narg;
@@ -869,7 +869,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int sv_flags)
 	putchar('\n');
 }
 
-void
+static void
 ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
     int *resnarg, char *resc, u_int sv_flags)
 {
@@ -1626,7 +1626,7 @@ ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
 	*resnarg = narg;
 }
 
-void
+static void
 ktrsysret(struct ktr_sysret *ktr, u_int sv_flags)
 {
 	register_t ret = ktr->ktr_retval;
@@ -1659,13 +1659,13 @@ ktrsysret(struct ktr_sysret *ktr, u_int sv_flags)
 	putchar('\n');
 }
 
-void
+static void
 ktrnamei(char *cp, int len)
 {
 	printf("\"%.*s\"\n", len, cp);
 }
 
-void
+static void
 ktrexecve(char *m, int len)
 {
 	int i = 0;
@@ -1680,7 +1680,7 @@ ktrexecve(char *m, int len)
 	printf("\n");
 }
 
-void
+static void
 hexdump(char *p, int len, int screenwidth)
 {
 	int n, i;
@@ -1726,7 +1726,7 @@ hexdump(char *p, int len, int screenwidth)
 		printf("\n");
 }
 
-void
+static void
 visdump(char *dp, int datalen, int screenwidth)
 {
 	int col = 0;
@@ -1772,7 +1772,7 @@ visdump(char *dp, int datalen, int screenwidth)
 	printf("\"\n");
 }
 
-void
+static void
 ktrgenio(struct ktr_genio *ktr, int len)
 {
 	int datalen = len - sizeof (struct ktr_genio);
@@ -1810,7 +1810,7 @@ ktrgenio(struct ktr_genio *ktr, int len)
 		visdump(dp, datalen, screenwidth);
 }
 
-void
+static void
 ktrpsig(struct ktr_psig *psig)
 {
 	const char *str;
@@ -1831,21 +1831,21 @@ ktrpsig(struct ktr_psig *psig)
 	putchar('\n');
 }
 
-void
+static void
 ktrcsw_old(struct ktr_csw_old *cs)
 {
 	printf("%s %s\n", cs->out ? "stop" : "resume",
 		cs->user ? "user" : "kernel");
 }
 
-void
+static void
 ktrcsw(struct ktr_csw *cs)
 {
 	printf("%s %s \"%s\"\n", cs->out ? "stop" : "resume",
 	    cs->user ? "user" : "kernel", cs->wmesg);
 }
 
-void
+static void
 ktruser(int len, void *p)
 {
 	unsigned char *cp;
@@ -1865,7 +1865,7 @@ ktruser(int len, void *p)
 	printf("\n");
 }
 
-void
+static void
 ktrcaprights(cap_rights_t *rightsp)
 {
 
@@ -1881,7 +1881,7 @@ ktrtimeval(struct timeval *tv)
 	printf("{%ld, %ld}", (long)tv->tv_sec, tv->tv_usec);
 }
 
-void
+static void
 ktritimerval(struct itimerval *it)
 {
 
@@ -1892,7 +1892,7 @@ ktritimerval(struct itimerval *it)
 	printf(" }\n");
 }
 
-void
+static void
 ktrsockaddr(struct sockaddr *sa)
 {
 /*
@@ -1967,7 +1967,7 @@ ktrsockaddr(struct sockaddr *sa)
 	printf(" }\n");
 }
 
-void
+static void
 ktrsplice(struct splice *sp)
 {
 	printf("struct splice { fd=%d, max=%#jx, idle=%jd.%06jd }\n",
@@ -1975,7 +1975,7 @@ ktrsplice(struct splice *sp)
 	    (intmax_t)sp->sp_idle.tv_usec);
 }
 
-void
+static void
 ktrstat(struct stat *statp)
 {
 	char mode[12], timestr[PATH_MAX + 4];
@@ -2080,7 +2080,7 @@ ktrstat(struct stat *statp)
 	printf(" }\n");
 }
 
-void
+static void
 ktrbitset(char *name, struct bitset *set, size_t setlen)
 {
 	int i, maxi, c = 0;
@@ -2104,7 +2104,7 @@ ktrbitset(char *name, struct bitset *set, size_t setlen)
 		printf(" ]\n");
 }
 
-void
+static void
 ktrstruct(char *buf, size_t buflen)
 {
 	char *name, *data;
@@ -2181,7 +2181,7 @@ invalid:
 	printf("invalid record\n");
 }
 
-void
+static void
 ktrcapfail(struct ktr_cap_fail *ktr)
 {
 	union ktr_cap_data *kcd = &ktr->cap_data;
@@ -2256,7 +2256,7 @@ ktrcapfail(struct ktr_cap_fail *ktr)
 	printf("\n");
 }
 
-void
+static void
 ktrfault(struct ktr_fault *ktr)
 {
 
@@ -2265,7 +2265,7 @@ ktrfault(struct ktr_fault *ktr)
 	printf("\n");
 }
 
-void
+static void
 ktrfaultend(struct ktr_faultend *ktr)
 {
 	const char *str;
@@ -2278,7 +2278,7 @@ ktrfaultend(struct ktr_faultend *ktr)
 	printf("\n");
 }
 
-void
+static void
 ktrkevent(struct kevent *kev)
 {
 
@@ -2309,7 +2309,7 @@ ktrkevent(struct kevent *kev)
 	printf(", data=%#jx, udata=%p }", (uintmax_t)kev->data, kev->udata);
 }
 
-void
+static void
 ktrpollfd(struct pollfd *pfd)
 {
 
@@ -2321,7 +2321,7 @@ ktrpollfd(struct pollfd *pfd)
 	printf("}");
 }
 
-void
+static void
 ktrstructarray(struct ktr_struct_array *ksa, size_t buflen)
 {
 	struct kevent kev;
@@ -2427,7 +2427,7 @@ bad_size:
 	return;
 }
 
-void
+static void
 ktrexterr(struct ktr_exterr *ke)
 {
 	struct uexterror *ue;
@@ -2438,7 +2438,7 @@ ktrexterr(struct ktr_exterr *ke)
 	    (uintmax_t)ue->p1, (uintmax_t)ue->p2, ue->msg);
 }
 
-void
+static void
 usage(void)
 {
 	fprintf(stderr, "usage: kdump [-dEnlHRrSsTA] [-f trfile] "
