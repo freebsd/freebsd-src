@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 #include <sys/socket.h>
 #include <sys/event.h>
+#include <sys/select.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
 #include <errno.h>
@@ -102,6 +103,20 @@ ATF_TC_BODY(send_0, tc)
 }
 
 static void
+check_readable_select(int fd, int expect, bool timeout)
+{
+	fd_set rdfds;
+	int nfds;
+
+	FD_ZERO(&rdfds);
+	FD_SET(fd, &rdfds);
+	nfds = select(fd + 1, &rdfds, NULL, NULL, timeout ?
+	    &(struct timeval){.tv_usec = 1000} : NULL);
+	ATF_REQUIRE_MSG(nfds == expect,
+	    "select() returns %d errno %d", nfds, errno);
+}
+
+static void
 check_writable_select(int fd, int expect, bool timeout)
 {
 	fd_set wrfds;
@@ -113,6 +128,21 @@ check_writable_select(int fd, int expect, bool timeout)
 	    &(struct timeval){.tv_usec = 1000} : NULL);
 	ATF_REQUIRE_MSG(nfds == expect,
 	    "select() returns %d errno %d", nfds, errno);
+}
+
+static void
+check_readable_poll(int fd, int expect, bool timeout)
+{
+	struct pollfd pfd[1];
+	int nfds;
+
+	pfd[0] = (struct pollfd){
+		.fd = fd,
+		.events = POLLIN | POLLRDNORM,
+	};
+	nfds = poll(pfd, 1, timeout ? 1 : INFTIM);
+	ATF_REQUIRE_MSG(nfds == expect,
+	    "poll() returns %d errno %d", nfds, errno);
 }
 
 static void
@@ -325,6 +355,31 @@ ATF_TC_BODY(peershutdown_writability, tc)
 	close(sv[1]);
 }
 
+ATF_TC_WITHOUT_HEAD(peershutdown_readability);
+ATF_TC_BODY(peershutdown_readability, tc)
+{
+	ssize_t readsz;
+	int sv[2];
+	char c;
+
+	do_socketpair(sv);
+	shutdown(sv[1], SHUT_WR);
+
+	/*
+	 * The other side should flag as readable in select(2) to allow it to
+	 * read(2) and observe EOF.  Ensure that both poll(2) and select(2)
+	 * are consistent here.
+	 */
+	check_readable_select(sv[0], 1, false);
+	check_readable_poll(sv[0], 1, false);
+
+	readsz = read(sv[0], &c, sizeof(c));
+	ATF_REQUIRE_INTEQ(0, readsz);
+
+	close(sv[0]);
+	close(sv[1]);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, getpeereid);
@@ -336,6 +391,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, full_writability_kevent);
 	ATF_TP_ADD_TC(tp, peerclosed_writability);
 	ATF_TP_ADD_TC(tp, peershutdown_writability);
+	ATF_TP_ADD_TC(tp, peershutdown_readability);
 
 	return atf_no_error();
 }
