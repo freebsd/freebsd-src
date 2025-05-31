@@ -573,22 +573,23 @@ dstmode_body()
 atf_test_case to_root cleanup
 to_root_head()
 {
-	atf_set "require.user" "root"
+	atf_set "require.user" "unprivileged"
 }
 to_root_body()
 {
-	dst="$(atf_get ident).$$"
+	dst="test.$(atf_get ident).$$"
 	echo "$dst" >dst
 	echo "foo" >"$dst"
-	atf_check cp "$dst" /
-	atf_check cmp -s "$dst" "/$dst"
-	atf_check rm "/$dst"
-	atf_check cp "$dst" //
-	atf_check cmp -s "$dst" "/$dst"
+	atf_check -s not-exit:0 \
+	    -e match:"^cp: /$dst: (Permission|Read-only)" \
+	    cp "$dst" /
+	atf_check -s not-exit:0 \
+	    -e match:"^cp: /$dst: (Permission|Read-only)" \
+	    cp "$dst" //
 }
 to_root_cleanup()
 {
-	(dst=$(cat dst) && [ -n "/$dst" ] && [ -f "/$dst" ] && rm "/$dst") || true
+	(dst=$(cat dst) && rm "/$dst") 2>/dev/null || true
 }
 
 atf_init_test_cases()
