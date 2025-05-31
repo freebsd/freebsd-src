@@ -663,6 +663,25 @@ dumptimespec(struct ktr_header *kth)
 	}
 }
 
+static const char * const hdr_names[] = {
+	[KTR_SYSCALL] =		"CALL",
+	[KTR_SYSRET] =		"RET ",
+	[KTR_NAMEI] =		"NAMI",
+	[KTR_GENIO] =		"GIO ",
+	[KTR_PSIG] =		"PSIG",
+	[KTR_CSW] =		"CSW ",
+	[KTR_USER] =		"USER",
+	[KTR_STRUCT] =		"STRU",
+	[KTR_STRUCT_ARRAY] =	"STRU",
+	[KTR_SYSCTL] =		"SCTL",
+	[KTR_CAPFAIL] =		"CAP ",
+	[KTR_FAULT] =		"PFLT",
+	[KTR_FAULTEND] =	"PRET",
+	[KTR_ARGS] =		"ARGS",
+	[KTR_ENVS] =		"ENVS",
+	[KTR_EXTERR] =		"EERR",
+};
+
 static void
 dumpheader(struct ktr_header *kth, u_int sv_flags)
 {
@@ -671,56 +690,12 @@ dumpheader(struct ktr_header *kth, u_int sv_flags)
 	const char *arch;
 	const char *type;
 
-	switch (kth->ktr_type) {
-	case KTR_SYSCALL:
-		type = "CALL";
-		break;
-	case KTR_SYSRET:
-		type = "RET ";
-		break;
-	case KTR_NAMEI:
-		type = "NAMI";
-		break;
-	case KTR_GENIO:
-		type = "GIO ";
-		break;
-	case KTR_PSIG:
-		type = "PSIG";
-		break;
-	case KTR_CSW:
-		type = "CSW ";
-		break;
-	case KTR_USER:
-		type = "USER";
-		break;
-	case KTR_STRUCT:
-	case KTR_STRUCT_ARRAY:
-		type = "STRU";
-		break;
-	case KTR_SYSCTL:
-		type = "SCTL";
-		break;
-	case KTR_CAPFAIL:
-		type = "CAP ";
-		break;
-	case KTR_FAULT:
-		type = "PFLT";
-		break;
-	case KTR_FAULTEND:
-		type = "PRET";
-		break;
-	case KTR_ARGS:
-	        type = "ARGS";
-	        break;
-	case KTR_ENVS:
-	        type = "ENVS";
-	        break;
-	case KTR_EXTERR:
-	        type = "EERR";
-	        break;
-	default:
-		sprintf(unknown, "UNKNOWN(%d)", kth->ktr_type);
+	if (kth->ktr_type < 0 || (size_t)kth->ktr_type >= nitems(hdr_names)) {
+		snprintf(unknown, sizeof(unknown), "UNKNOWN(%d)",
+		    kth->ktr_type);
 		type = unknown;
+	} else {
+		type = hdr_names[kth->ktr_type];
 	}
 
 	/*
