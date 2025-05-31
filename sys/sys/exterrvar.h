@@ -12,19 +12,8 @@
 #define	_SYS_EXTERRVAR_H_
 
 #include <sys/_exterr.h>
+#include <sys/_uexterror.h>
 #include <sys/exterr_cat.h>
-#include <sys/types.h>
-
-struct uexterror {
-	uint32_t ver;
-	uint32_t error;
-	uint32_t cat;
-	uint32_t src_line;
-	uint64_t p1;
-	uint64_t p2;
-	uint64_t rsrv1[4];
-	char msg[128];
-};
 
 #define	UEXTERROR_MAXLEN	256
 
@@ -65,6 +54,8 @@ struct uexterror {
 int exterr_to_ue(struct thread *td, struct uexterror *ue);
 
 #else	/* _KERNEL */
+
+#include <sys/types.h>
 
 __BEGIN_DECLS
 int exterrctl(u_int op, u_int flags, void *ptr);
