@@ -1,4 +1,3 @@
-#! /bin/sh
 # SPDX-License-Identifier: ISC
 #
 # Copyright (c) 2025 Lexi Winter
