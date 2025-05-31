@@ -4882,7 +4882,7 @@ vm_page_grab_valid_iter(vm_page_t *mp, vm_object_t object, vm_pindex_t pindex,
 {
 	vm_page_t m;
 	vm_page_t ma[VM_INITIAL_PAGEIN];
-	int after, i, pflags, rv;
+	int after, ahead, i, pflags, rv;
 
 	KASSERT((allocflags & VM_ALLOC_SBUSY) == 0 ||
 	    (allocflags & VM_ALLOC_IGN_SBUSY) != 0,
@@ -4942,13 +4942,18 @@ retrylookup:
 		ma[0] = m;
 		pctrie_iter_reset(pages);
 		for (i = 1; i < after; i++) {
-			m = vm_radix_iter_lookup(pages, pindex + i);
-			if (m == NULL) {
-				m = vm_page_alloc_iter(object, pindex + i,
+			m = vm_radix_iter_lookup_ge(pages, pindex + i);
+			ahead = after;
+			if (m != NULL)
+				ahead = MIN(ahead, m->pindex - pindex);
+			for (; i < ahead; i++) {
+				ma[i] = vm_page_alloc_iter(object, pindex + i,
 				    VM_ALLOC_NORMAL, pages);
-				if (m == NULL)
+				if (ma[i] == NULL)
 					break;
-			} else if (vm_page_any_valid(m) || !vm_page_tryxbusy(m))
+			}
+			if (m == NULL || m->pindex != pindex + i ||
+			    vm_page_any_valid(m) || !vm_page_tryxbusy(m))
 				break;
 			ma[i] = m;
 		}
@@ -4956,6 +4961,7 @@ retrylookup:
 		vm_object_pip_add(object, after);
 		VM_OBJECT_WUNLOCK(object);
 		rv = vm_pager_get_pages(object, ma, after, NULL, NULL);
+		pctrie_iter_reset(pages);
 		VM_OBJECT_WLOCK(object);
 		vm_object_pip_wakeupn(object, after);
 		/* Pager may have replaced a page. */
@@ -4975,8 +4981,8 @@ retrylookup:
 		MPASS(vm_page_all_valid(m));
 	} else {
 		vm_page_zero_invalid(m, TRUE);
+		pctrie_iter_reset(pages);
 	}
-	pctrie_iter_reset(pages);
 out:
 	if ((allocflags & VM_ALLOC_WIRED) != 0)
 		vm_page_wire(m);
