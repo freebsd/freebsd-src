@@ -179,7 +179,9 @@ const char *openpam_module_path[] = {
 	OPENPAM_MODULES_DIRECTORY,
 #elif defined(COMPAT_libcompat)
 	"/usr/lib" COMPAT_libcompat,
-	"/usr/local/lib" COMPAT_libcompat,
+#ifdef LOCALBASE
+	LOCALBASE "/lib" COMPAT_libcompat,
+#endif
 #else
 	"/usr/lib",
 #ifdef LOCALBASE
