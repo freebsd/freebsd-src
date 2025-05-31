@@ -26,6 +26,10 @@
 #include "atf-c/tc.h"
 
 #include <sys/types.h>
+#ifdef __FreeBSD__
+#include <sys/linker.h>
+#include <sys/module.h>
+#endif
 #include <sys/stat.h>
 #include <sys/uio.h>
 
@@ -103,6 +107,9 @@ static void format_reason_fmt(atf_dynstr_t *, const char *, const size_t,
 static void errno_test(struct context *, const char *, const size_t,
                        const int, const char *, const bool,
                        void (*)(struct context *, atf_dynstr_t *));
+#ifdef __FreeBSD__
+static atf_error_t check_kmod(struct context *, const char *);
+#endif
 static atf_error_t check_prog_in_dir(const char *, void *);
 static atf_error_t check_prog(struct context *, const char *);
 
@@ -459,6 +466,39 @@ errno_test(struct context *ctx, const char *file, const size_t line,
         fail_func(ctx, &reason);
     }
 }
+
+#ifdef __FreeBSD__
+static atf_error_t
+check_kmod(struct context *ctx, const char *kmod)
+{
+    struct kld_file_stat fstat = { .version = sizeof(fstat) };
+    struct module_stat mstat = { .version = sizeof(mstat) };
+    atf_dynstr_t reason;
+    size_t len = strlen(kmod);
+    int fid, mid;
+
+    for (fid = kldnext(0); fid > 0; fid = kldnext(fid)) {
+	if (kldstat(fid, &fstat) != 0)
+	    continue;
+	if (strcmp(fstat.name, kmod) == 0)
+	    goto done;
+	if (strncmp(fstat.name, kmod, len) == 0 &&
+	    strcmp(fstat.name + len, ".ko") == 0)
+	    goto done;
+	for (mid = kldfirstmod(fid); mid > 0; mid = modfnext(mid)) {
+	    if (modstat(mid, &mstat) != 0)
+		continue;
+	    if (strcmp(mstat.name, kmod) == 0)
+		goto done;
+	}
+    }
+    format_reason_fmt(&reason, NULL, 0, "The required kmod %s "
+	"is not loaded", kmod);
+    fail_requirement(ctx, &reason);
+done:
+    return atf_no_error();
+}
+#endif
 
 struct prog_found_pair {
     const char *prog;
@@ -829,6 +869,9 @@ static void _atf_tc_fail_check(struct context *, const char *, const size_t,
 static void _atf_tc_fail_requirement(struct context *, const char *,
     const size_t, const char *, va_list) ATF_DEFS_ATTRIBUTE_NORETURN;
 static void _atf_tc_pass(struct context *) ATF_DEFS_ATTRIBUTE_NORETURN;
+#ifdef __FreeBSD__
+static void _atf_tc_require_kmod(struct context *, const char *);
+#endif
 static void _atf_tc_require_prog(struct context *, const char *);
 static void _atf_tc_skip(struct context *, const char *, va_list)
     ATF_DEFS_ATTRIBUTE_NORETURN;
@@ -907,6 +950,14 @@ _atf_tc_pass(struct context *ctx)
     pass(ctx);
     UNREACHABLE;
 }
+
+#ifdef __FreeBSD__
+static void
+_atf_tc_require_kmod(struct context *ctx, const char *kmod)
+{
+    check_fatal_error(check_kmod(ctx, kmod));
+}
+#endif
 
 static void
 _atf_tc_require_prog(struct context *ctx, const char *prog)
@@ -1153,6 +1204,16 @@ atf_tc_pass(void)
 
     _atf_tc_pass(&Current);
 }
+
+#ifdef __FreeBSD__
+void
+atf_tc_require_kmod(const char *kmod)
+{
+    PRE(Current.tc != NULL);
+
+    _atf_tc_require_kmod(&Current, kmod);
+}
+#endif
 
 void
 atf_tc_require_prog(const char *prog)

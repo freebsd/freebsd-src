@@ -34,14 +34,13 @@ wg_basic_head()
 {
 	atf_set descr 'Create a wg(4) tunnel over an epair and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_wg
 }
 
 wg_basic_body()
 {
 	local epair pri1 pri2 pub1 pub2 wg1 wg2
         local endpoint1 endpoint2 tunnel1 tunnel2
-
-	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
 
 	pri1=$(wg genkey)
 	pri2=$(wg genkey)
@@ -175,6 +174,7 @@ wg_basic_netmap_head()
 {
 	atf_set descr 'Create a wg(4) tunnel over an epair and pass traffic between jails with netmap'
 	atf_set require.user root
+	atf_set require.kmods if_wg netmap
 }
 
 wg_basic_netmap_body()
@@ -182,9 +182,6 @@ wg_basic_netmap_body()
 	local epair pri1 pri2 pub1 pub2 wg1 wg2
         local endpoint1 endpoint2 tunnel1 tunnel2 tunnel3 tunnel4
 	local pid status
-
-	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
-	kldload -n netmap || atf_skip "This test requires netmap and could not load it"
 
 	pri1=$(wg genkey)
 	pri2=$(wg genkey)
@@ -268,14 +265,13 @@ wg_key_peerdev_shared_head()
 {
 	atf_set descr 'Create a wg(4) interface with a shared pubkey between device and a peer'
 	atf_set require.user root
+	atf_set require.kmods if_wg
 }
 
 wg_key_peerdev_shared_body()
 {
 	local epair pri1 pub1 wg1
         local endpoint1 tunnel1
-
-	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
 
 	pri1=$(wg genkey)
 
@@ -315,8 +311,6 @@ wg_key_peerdev_makeshared_body()
 {
 	local epair pri1 pub1 pri2 wg1 wg2
         local endpoint1 tunnel1
-
-	kldload -n if_wg || atf_skip "This test requires if_wg and could not load it"
 
 	pri1=$(wg genkey)
 	pri2=$(wg genkey)
@@ -361,14 +355,13 @@ wg_vnet_parent_routing_head()
 {
 	atf_set descr 'Create a wg(4) tunnel without epairs and pass traffic between jails'
 	atf_set require.user root
+	atf_set require.kmods if_wg
 }
 
 wg_vnet_parent_routing_body()
 {
 	local pri1 pri2 pub1 pub2 wg1 wg2
         local tunnel1 tunnel2
-
-	kldload -n if_wg
 
 	pri1=$(wg genkey)
 	pri2=$(wg genkey)
