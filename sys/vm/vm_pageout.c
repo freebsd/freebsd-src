@@ -462,7 +462,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, bool *eio)
 	vm_object_t object = mc[0]->object;
 	int pageout_status[count];
 	int numpagedout = 0;
-	int i;
+	int i, runlen;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
@@ -488,6 +488,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, bool *eio)
 
 	vm_pager_put_pages(object, mc, count, flags, pageout_status);
 
+	runlen = count;
 	if (eio != NULL)
 		*eio = false;
 	for (i = 0; i < count; i++) {
@@ -543,7 +544,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, bool *eio)
 				*eio = true;
 			break;
 		case VM_PAGER_AGAIN:
-			count = i;
+			if (runlen == count)
+				runlen = i;
 			break;
 		}
 
@@ -559,7 +561,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, bool *eio)
 		}
 	}
 	if (eio != NULL)
-		return (count);
+		return (runlen);
 	return (numpagedout);
 }
 
