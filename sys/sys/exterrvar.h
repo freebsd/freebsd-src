@@ -41,7 +41,7 @@ struct uexterror {
 #error "Specify error category before including sys/exterrvar.h"
 #endif
 
-#ifdef	BLOW_KERNEL_WITH_EXTERR
+#ifdef	BLOAT_KERNEL_WITH_EXTERR
 #define	SET_ERROR_MSG(mmsg)	_Td->td_kexterr.msg = mmsg
 #else
 #define	SET_ERROR_MSG(mmsg)	_Td->td_kexterr.msg = NULL
