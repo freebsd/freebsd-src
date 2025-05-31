@@ -287,6 +287,8 @@ do_NAME_MAX:
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_MQ_OPEN_MAX;
 		goto yesno;
+	case _SC_NSIG:
+		return (_SIG_MAXSIG);
 	case _SC_PAGESIZE:
 		return (getpagesize());
 	case _SC_RTSIG_MAX:
