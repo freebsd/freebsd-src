@@ -178,9 +178,11 @@ const char *openpam_module_path[] = {
 #elif defined(COMPAT_libcompat)
 	"/usr/lib" COMPAT_libcompat,
 	"/usr/local/lib" COMPAT_libcompat,
+	"/usr/local/lib" COMPAT_libcompat "/security",
 #else
 	"/usr/lib",
 	"/usr/local/lib",
+	"/usr/local/lib/security",
 #endif
 	NULL
 };
