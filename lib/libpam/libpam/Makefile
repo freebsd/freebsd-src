@@ -153,6 +153,7 @@ MAN?=	openpam.3 \
 
 MLINKS?=	pam.conf.5 pam.d.5
 
+CFLAGS+= -DLOCALBASE=\"${LOCALBASE:U/usr/local}\"
 CFLAGS+= -I${OPENPAM}/include
 CFLAGS+= -DLIB_MAJ=${SHLIB_MAJOR}
 CFLAGS+= -DHAVE_DLFUNC=1

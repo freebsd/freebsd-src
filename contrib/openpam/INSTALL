@@ -24,6 +24,16 @@
 	This option should not be used if you intend to install PAM
 	modules in the system library directory.
 
+    --with-localbase=DIR
+        Search for additional policies and modules in DIR/etc and
+        DIR/lib respectively.  Defaults to the installation prefix if
+        one was set, otherwise to the default installation prefix
+        (usually /usr/local).
+
+    --without-localbase
+        Do not search for policies and modules anywhere else than /etc
+        and /usr/lib.
+
     --without-doc
 	Skips the documentation.
 

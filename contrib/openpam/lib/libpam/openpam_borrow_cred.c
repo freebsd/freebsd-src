@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2025 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -64,7 +64,7 @@ openpam_borrow_cred(pam_handle_t *pamh,
 	const void *scredp;
 	int r;
 
-	ENTERI(pwd->pw_uid);
+	ENTERN(pwd->pw_uid);
 	r = pam_get_data(pamh, PAM_SAVED_CRED, &scredp);
 	if (r == PAM_SUCCESS && scredp != NULL) {
 		openpam_log(PAM_LOG_LIBDEBUG,
