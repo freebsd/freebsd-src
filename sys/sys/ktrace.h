@@ -36,6 +36,7 @@
 #include <sys/caprights.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
+#include <sys/_uexterror.h>
 #include <sys/_uio.h>
 
 /*
@@ -273,6 +274,14 @@ struct ktr_struct_array {
 #define KTR_ENVS 17
 
 /*
+ * KTR_EXTERR - extended error reported
+ */
+#define	KTR_EXTERR 18
+struct ktr_exterr {
+	struct uexterror ue;
+};
+
+/*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
  * between the previous record and this record was dropped.
  */
@@ -306,6 +315,7 @@ struct ktr_struct_array {
 #define	KTRFAC_STRUCT_ARRAY (1<<KTR_STRUCT_ARRAY)
 #define KTRFAC_ARGS     (1<<KTR_ARGS)
 #define KTRFAC_ENVS     (1<<KTR_ENVS)
+#define	KTRFAC_EXTERR	(1<<KTR_EXTERR)
 
 /*
  * trace flags (also in p_traceflags)
