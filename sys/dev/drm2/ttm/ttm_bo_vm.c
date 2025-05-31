@@ -35,7 +35,8 @@
  * <kib@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  */
 
-#include <sys/cdefs.h>
+#include <sys/param.h>
+#include <sys/pctrie.h>
 #include "opt_vm.h"
 
 #include <dev/drm2/drmP.h>
@@ -46,6 +47,7 @@
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_radix.h>
 
 #define TTM_BO_VM_NUM_PREFAULT 16
 
