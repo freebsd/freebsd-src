@@ -31,17 +31,16 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ktrace.h"
 
 #define	EXTERR_CATEGORY	EXTERR_KTRACE
-#include <sys/param.h>
-#include <sys/capsicum.h>
 #include <sys/systm.h>
+#include <sys/capsicum.h>
 #include <sys/exterrvar.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/ktrace.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
@@ -50,16 +49,15 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/unistd.h>
-#include <sys/vnode.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/ktrace.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
+#include <sys/unistd.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_framework.h>
 
