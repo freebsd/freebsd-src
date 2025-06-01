@@ -26,16 +26,13 @@
 
 #include <time.h>
 
-#define __LIBARCHIVE_BUILD 1
-#include "archive_getdate.h"
-
 /*
- * Verify that the getdate() function works.
+ * Verify that the archive_parse_date() function works.
  */
 
-#define get_date __archive_get_date
+#define get_date archive_parse_date
 
-DEFINE_TEST(test_archive_getdate)
+DEFINE_TEST(test_archive_parse_date)
 {
 	time_t now = time(NULL);
 
@@ -84,5 +81,17 @@ DEFINE_TEST(test_archive_getdate)
 	/* "last tuesday" is one week before "tuesday" */
 	assertEqualInt(get_date(now, "last tuesday UTC"),
 	    now - 6 * 24 * 60 * 60);
+
+	/* Unix epoch timestamps */
+	assertEqualInt(get_date(now, "@0"), 0);
+	assertEqualInt(get_date(now, "@100"), 100);
+	assertEqualInt(get_date(now, "@+100"), 100);
+
+	assertEqualInt(get_date(now, "@"), -1);
+	assertEqualInt(get_date(now, "@-"), -1);
+	assertEqualInt(get_date(now, "@+"), -1);
+	assertEqualInt(get_date(now, "@tenth"), -1);
+	assertEqualInt(get_date(now, "@100 tomorrow"), -1);
+
 	/* TODO: Lots more tests here. */
 }

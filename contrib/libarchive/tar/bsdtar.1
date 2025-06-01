@@ -32,19 +32,22 @@
 .Nm
 creates and manipulates streaming archive files.
 This implementation can extract from tar, pax, cpio, zip, jar, ar, xar,
-rpm, 7-zip, and ISO 9660 cdrom images and can create tar, pax, cpio, ar, zip,
-7-zip, and shar archives.
+rar, rpm, 7-zip, and ISO 9660 cdrom images and can create tar, pax,
+cpio, ar, zip, 7-zip, and shar archives.
 .Pp
 The first synopsis form shows a
 .Dq bundled
 option word.
 This usage is provided for compatibility with historical implementations.
-See COMPATIBILITY below for details.
+See
+.Sx COMPATIBILITY
+below for details.
 .Pp
 The other synopsis forms show the preferred usage.
 The first option to
 .Nm
 is a mode indicator from the following list:
+.Pp
 .Bl -tag -compact -width indent
 .It Fl c
 Create a new archive containing the specified items.
@@ -109,16 +112,22 @@ all operating modes.
 The specified archive is opened and the entries
 in it will be appended to the current archive.
 As a simple example,
+.Pp
 .Dl Nm Fl c Fl f Pa - Pa newfile Cm @ Ns Pa original.tar
+.Pp
 writes a new archive to standard output containing a file
 .Pa newfile
 and all of the entries from
 .Pa original.tar .
 In contrast,
+.Pp
 .Dl Nm Fl c Fl f Pa - Pa newfile Pa original.tar
+.Pp
 creates a new archive with only two entries.
 Similarly,
+.Pp
 .Dl Nm Fl czf Pa - Fl Fl format Cm pax Cm @ Ns Pa -
+.Pp
 reads an archive from standard input (whose format will be determined
 automatically) and converts it into a gzip-compressed
 pax-format archive on stdout.
@@ -130,19 +139,29 @@ can be used to convert archives from one format to another.
 Use the archive suffix to decide a set of the format and
 the compressions.
 As a simple example,
+.Pp
 .Dl Nm Fl a Fl cf Pa archive.tgz source.c source.h
+.Pp
 creates a new archive with restricted pax format and gzip compression,
+.Pp
 .Dl Nm Fl a Fl cf Pa archive.tar.bz2.uu source.c source.h
+.Pp
 creates a new archive with restricted pax format and bzip2 compression
 and uuencode compression,
+.Pp
 .Dl Nm Fl a Fl cf Pa archive.zip source.c source.h
+.Pp
 creates a new archive with zip format,
+.Pp
 .Dl Nm Fl a Fl jcf Pa archive.tgz source.c source.h
+.Pp
 ignores the
 .Dq -j
 option, and creates a new archive with restricted pax format
 and gzip compression,
+.Pp
 .Dl Nm Fl a Fl jcf Pa archive.xxx source.c source.h
+.Pp
 if it is unknown suffix or no suffix, creates a new archive with
 restricted pax format and bzip2 compression.
 .It Fl Fl acls
@@ -177,6 +196,11 @@ but before extracting entries from the archive.
 to the current directory after processing any
 .Fl C
 options and before extracting any files.
+.It Fl Fl clamp-mtime
+(use with
+.Fl Fl mtime )
+Only set the modification time if the file is newer than the date specified in
+.Fl Fl mtime .
 .It Fl Fl clear-nochange-fflags
 (x mode only)
 Before removing file system objects to replace them, clear platform-specific
@@ -295,7 +319,9 @@ The
 .Fl Fl include
 option is especially useful when filtering archives.
 For example, the command
+.Pp
 .Dl Nm Fl c Fl f Pa new.tar Fl Fl include='*foo*' Cm @ Ns Pa old.tgz
+.Pp
 creates a new archive
 .Pa new.tar
 containing only the entries from
@@ -393,7 +419,11 @@ and the default behavior in c, r, and u modes or if
 .Nm
 is run in x mode as root.
 Currently supported only for pax formats
-(including "pax restricted", the default tar format for bsdtar.)
+.Po including "pax restricted", the default tar format for
+.Nm bsdtar Pc
+.It Fl Fl mtime Ar date
+(c, r, u modes only)
+Set the modification times of added files to the specified date.
 .It Fl n , Fl Fl norecurse , Fl Fl no-recursion
 Do not operate recursively on the content of directories.
 .It Fl Fl newer Ar date
@@ -450,7 +480,7 @@ and the default behavior if
 .Nm
 is run as non-root in x mode.
 .It Fl Fl no-mac-metadata
-(x mode only)
+(c, r, u and x mode only)
 Mac OS X specific.
 Do not archive or extract ACLs and extended file attributes
 using
@@ -556,6 +586,7 @@ keywords and values.
 These are passed to the modules that handle particular
 formats to control how those formats will behave.
 Each option has one of the following forms:
+.Pp
 .Bl -tag -compact -width indent
 .It Ar key=value
 The key will be set to the specified value in every module that supports it.
@@ -579,6 +610,7 @@ and for extract and list modes in
 .Xr archive_read_set_options 3 .
 .Pp
 Examples of supported options:
+.Pp
 .Bl -tag -compact -width indent
 .It Cm iso9660:joliet
 Support Joliet extensions.
@@ -738,6 +770,7 @@ This option is comparable to the
 .Fl i , Fl Fl ignore-zeros
 option of GNU tar.
 .El
+.Pp
 If a provided option is not supported by any module, that
 is a fatal error.
 .It Fl P , Fl Fl absolute-paths
@@ -910,7 +943,9 @@ This flag also causes
 .Nm
 to remove intervening directory symlinks instead of
 reporting an error.
-See the SECURITY section below for more details.
+See the
+.Sx SECURITY
+section below for more details.
 .It Fl Fl uid Ar id
 Use the provided user id number and ignore the user
 name from the archive.
@@ -1048,24 +1083,31 @@ that contains two files
 .Ar source.c
 and
 .Ar source.h :
+.Pp
 .Dl Nm Fl czf Pa file.tar.gz Pa source.c Pa source.h
 .Pp
 To view a detailed table of contents for this
 archive:
+.Pp
 .Dl Nm Fl tvf Pa file.tar.gz
 .Pp
 To extract all entries from the archive on
 the default tape drive:
+.Pp
 .Dl Nm Fl x
 .Pp
 To examine the contents of an ISO 9660 cdrom image:
+.Pp
 .Dl Nm Fl tf Pa image.iso
 .Pp
 To move file hierarchies, invoke
 .Nm
 as
+.Pp
 .Dl Nm Fl cf Pa - Fl C Pa srcdir \&. | Nm Fl xpf Pa - Fl C Pa destdir
+.Pp
 or more traditionally
+.Pp
 .Dl cd srcdir \&; Nm Fl cf Pa - \&. | ( cd destdir \&; Nm Fl xpf Pa - )
 .Pp
 In create mode, the list of files and directories to be archived
@@ -1074,7 +1116,9 @@ can also include directory change instructions of the form
 and archive inclusions of the form
 .Cm @ Ns Pa archive-file .
 For example, the command line
+.Pp
 .Dl Nm Fl c Fl f Pa new.tar Pa foo1 Cm @ Ns Pa old.tgz Cm -C Ns Pa /tmp Pa foo2
+.Pp
 will create a new archive
 .Pa new.tar .
 .Nm
@@ -1122,9 +1166,13 @@ For example, you can generate mtree output which only contains
 and
 .Cm uid
 keywords:
+.Pp
 .Dl Nm Fl cf Pa file.tar Fl Fl format=mtree Fl Fl options='!all,type,time,uid' Pa dir
+.Pp
 or you can set the compression level used by gzip or xz compression:
+.Pp
 .Dl Nm Fl czf Pa file.tar Fl Fl options='compression-level=9' .
+.Pp
 For more details, see the explanation of the
 .Fn archive_read_set_options
 and
@@ -1142,7 +1190,9 @@ Arguments follow as separate words.
 The order of the arguments must match the order
 of the corresponding characters in the bundled command word.
 For example,
+.Pp
 .Dl Nm Cm tbf 32 Pa file.tar
+.Pp
 specifies three flags
 .Cm t ,
 .Cm b ,
@@ -1240,10 +1290,13 @@ is specified,
 .Nm
 will refuse to extract the entry.
 .El
+.Pp
 To protect yourself, you should be wary of any archives that
 come from untrusted sources.
 You should examine the contents of an archive with
+.Pp
 .Dl Nm Fl tf Pa filename
+.Pp
 before extraction.
 You should use the
 .Fl k
@@ -1294,7 +1347,7 @@ command appeared in Seventh Edition Unix, which was released in January, 1979.
 There have been numerous other implementations,
 many of which extended the file format.
 John Gilmore's
-.Nm pdtar
+.Sy pdtar
 public-domain implementation (circa November, 1987)
 was quite influential, and formed the basis of GNU tar.
 GNU tar was included as the standard system tar
@@ -1347,8 +1400,11 @@ although they still extract it correctly.
 The compression and decompression is implemented internally, so
 there may be insignificant differences between the compressed output
 generated by
+.Pp
 .Dl Nm Fl czf Pa - file
+.Pp
 and that generated by
+.Pp
 .Dl Nm Fl cf Pa - file | Nm gzip
 .Pp
 The default should be to read and write archives to the standard I/O paths,
@@ -1393,5 +1449,5 @@ There is not yet any support for multi-volume archives.
 Converting between dissimilar archive formats (such as tar and cpio) using the
 .Cm @ Ns Pa -
 convention can cause hard link information to be lost.
-(This is a consequence of the incompatible ways that different archive
-formats store hardlink information.)
+This is a consequence of the incompatible ways that different archive
+formats store hardlink information.

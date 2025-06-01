@@ -132,7 +132,7 @@ static struct archive_test_acl_t acls1[] = {
 	  ARCHIVE_ENTRY_ACL_EVERYONE, 0, "" },
 };
 
-const char* acltext[] = {
+static const char* acltext[] = {
 	"user::rwx\n"
 	"group::r-x\n"
 	"other::r-x\n"
