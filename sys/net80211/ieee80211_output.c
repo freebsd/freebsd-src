@@ -1834,7 +1834,8 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		 * be forced to be non-QoS traffic to be A-MSDU encapsulated.
 		 */
 		if (is_amsdu)
-			printf("%s: XXX ERROR: is_amsdu set; not QoS!\n",
+			net80211_vap_printf(vap,
+			    "%s: XXX ERROR: is_amsdu set; not QoS!\n",
 			    __func__);
 	}
 

@@ -261,12 +261,12 @@ void
 ieee80211_crypto_register(const struct ieee80211_cipher *cip)
 {
 	if (cip->ic_cipher >= IEEE80211_CIPHER_MAX) {
-		printf("%s: cipher %s has an invalid cipher index %u\n",
+		net80211_printf("%s: cipher %s has an invalid cipher index %u\n",
 			__func__, cip->ic_name, cip->ic_cipher);
 		return;
 	}
 	if (ciphers[cip->ic_cipher] != NULL && ciphers[cip->ic_cipher] != cip) {
-		printf("%s: cipher %s registered with a different template\n",
+		net80211_printf("%s: cipher %s registered with a different template\n",
 			__func__, cip->ic_name);
 		return;
 	}
@@ -280,12 +280,12 @@ void
 ieee80211_crypto_unregister(const struct ieee80211_cipher *cip)
 {
 	if (cip->ic_cipher >= IEEE80211_CIPHER_MAX) {
-		printf("%s: cipher %s has an invalid cipher index %u\n",
+		net80211_printf("%s: cipher %s has an invalid cipher index %u\n",
 			__func__, cip->ic_name, cip->ic_cipher);
 		return;
 	}
 	if (ciphers[cip->ic_cipher] != NULL && ciphers[cip->ic_cipher] != cip) {
-		printf("%s: cipher %s registered with a different template\n",
+		net80211_printf("%s: cipher %s registered with a different template\n",
 			__func__, cip->ic_name);
 		return;
 	}

@@ -1157,7 +1157,7 @@ match_bss(struct ieee80211vap *vap,
 		fail |= MATCH_RSSI;
 #ifdef IEEE80211_DEBUG
 	if (ieee80211_msg(vap, debug)) {
-		printf(" %c %s",
+		net80211_printf(" %c %s",
 		    fail & MATCH_FAILS ? '=' :
 		    fail & MATCH_NOTSEEN ? '^' :
 		    fail & MATCH_CC ? '$' :
@@ -1170,23 +1170,23 @@ match_bss(struct ieee80211vap *vap,
 #endif
 		    fail & MATCH_MESH_NOID ? 'm' :
 		    fail ? '-' : '+', ether_sprintf(se->se_macaddr));
-		printf(" %s%c", ether_sprintf(se->se_bssid),
+		net80211_printf(" %s%c", ether_sprintf(se->se_bssid),
 		    fail & MATCH_BSSID ? '!' : ' ');
-		printf(" %3d%c", ieee80211_chan2ieee(ic, se->se_chan),
+		net80211_printf(" %3d%c", ieee80211_chan2ieee(ic, se->se_chan),
 			fail & MATCH_CHANNEL ? '!' : ' ');
-		printf(" %+4d%c", se->se_rssi, fail & MATCH_RSSI ? '!' : ' ');
-		printf(" %2dM%c", (rate & IEEE80211_RATE_VAL) / 2,
+		net80211_printf(" %+4d%c", se->se_rssi, fail & MATCH_RSSI ? '!' : ' ');
+		net80211_printf(" %2dM%c", (rate & IEEE80211_RATE_VAL) / 2,
 		    fail & MATCH_RATE ? '!' : ' ');
-		printf(" %4s%c",
+		net80211_printf(" %4s%c",
 		    (se->se_capinfo & IEEE80211_CAPINFO_ESS) ? "ess" :
 		    (se->se_capinfo & IEEE80211_CAPINFO_IBSS) ? "ibss" : "",
 		    fail & MATCH_CAPINFO ? '!' : ' ');
-		printf(" %3s%c ",
+		net80211_printf(" %3s%c ",
 		    (se->se_capinfo & IEEE80211_CAPINFO_PRIVACY) ?
 		    "wep" : "no",
 		    fail & MATCH_PRIVACY ? '!' : ' ');
 		ieee80211_print_essid(se->se_ssid+2, se->se_ssid[1]);
-		printf("%s\n", fail & (MATCH_SSID | MATCH_MESHID) ? "!" : "");
+		net80211_printf("%s\n", fail & (MATCH_SSID | MATCH_MESHID) ? "!" : "");
 	}
 #endif
 	return fail;

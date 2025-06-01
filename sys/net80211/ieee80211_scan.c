@@ -288,7 +288,7 @@ ieee80211_scan_dump_channels(const struct ieee80211_scan_state *ss)
 	for (i = ss->ss_next; i < ss->ss_last; i++) {
 		const struct ieee80211_channel *c = ss->ss_chans[i];
 
-		printf("%s%u%c", sep, ieee80211_chan2ieee(ic, c),
+		net80211_printf("%s%u%c", sep, ieee80211_chan2ieee(ic, c),
 		    ieee80211_channel_type_char(c));
 		sep = ", ";
 	}
@@ -547,21 +547,21 @@ dump_country(const uint8_t *ie)
 	int i, nbands, schan, nchan;
 
 	if (cie->len < 3) {
-		printf(" <bogus country ie, len %d>", cie->len);
+		net80211_printf(" <bogus country ie, len %d>", cie->len);
 		return;
 	}
-	printf(" country [%c%c%c", cie->cc[0], cie->cc[1], cie->cc[2]);
+	net80211_printf(" country [%c%c%c", cie->cc[0], cie->cc[1], cie->cc[2]);
 	nbands = (cie->len - 3) / sizeof(cie->band[0]);
 	for (i = 0; i < nbands; i++) {
 		schan = cie->band[i].schan;
 		nchan = cie->band[i].nchan;
 		if (nchan != 1)
-			printf(" %u-%u,%u", schan, schan + nchan-1,
+			net80211_printf(" %u-%u,%u", schan, schan + nchan-1,
 			    cie->band[i].maxtxpwr);
 		else
-			printf(" %u,%u", schan, cie->band[i].maxtxpwr);
+			net80211_printf(" %u,%u", schan, cie->band[i].maxtxpwr);
 	}
-	printf("]");
+	net80211_printf("]");
 }
 
 void
@@ -570,18 +570,18 @@ ieee80211_scan_dump_probe_beacon(uint8_t subtype, int isnew,
 	const struct ieee80211_scanparams *sp, int rssi)
 {
 
-	printf("[%s] %s%s on chan %u (bss chan %u) ",
+	net80211_printf("[%s] %s%s on chan %u (bss chan %u) ",
 	    ether_sprintf(mac), isnew ? "new " : "",
 	    ieee80211_mgt_subtype_name(subtype), sp->chan, sp->bchan);
 	ieee80211_print_essid(sp->ssid + 2, sp->ssid[1]);
-	printf(" rssi %d\n", rssi);
+	net80211_printf(" rssi %d\n", rssi);
 
 	if (isnew) {
-		printf("[%s] caps 0x%x bintval %u erp 0x%x", 
+		net80211_printf("[%s] caps 0x%x bintval %u erp 0x%x", 
 			ether_sprintf(mac), sp->capinfo, sp->bintval, sp->erp);
 		if (sp->country != NULL)
 			dump_country(sp->country);
-		printf("\n");
+		net80211_printf("\n");
 	}
 }
 #endif /* IEEE80211_DEBUG */

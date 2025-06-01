@@ -415,7 +415,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    ether_sprintf(ni->ni_bssid));
 				ieee80211_print_essid(vap->iv_bss->ni_essid,
 				    ni->ni_esslen);
-				printf(" channel %d start %uMbit/s\n",
+				net80211_printf(" channel %d start %uMbit/s\n",
 				    ieee80211_chan2ieee(ic, ic->ic_curchan),
 				    ieee80211_node_get_txrate_kbit(ni) / 1000);
 			}
@@ -1870,10 +1870,9 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				 * We aren't ready for 2GHz VHT support.
 				 */
 				if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
-					printf("%s: peer %6D: VHT on 2GHz, ignoring\n",
-					    __func__,
-					    ni->ni_macaddr,
-					    ":");
+					net80211_vap_printf(vap,
+					    "%s: peer %6D: VHT on 2GHz, ignoring\n",
+					    __func__, ni->ni_macaddr, ":");
 				} else {
 					ieee80211_vht_node_init(ni);
 					ieee80211_vht_updateparams(ni, vhtcap, vhtopmode);
