@@ -6,3 +6,5 @@ SRCS+=	_umtx_op_err.S
 # the extra context switch cost.  This can measurably impact
 # performance when the application also does not use enough SSE.
 CFLAGS+=${CFLAGS_NO_SIMD}
+
+SRCS+= thr_machdep.c

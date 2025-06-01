@@ -59,4 +59,6 @@ _thr_resolve_machdep(void)
 {
 }
 
+void __thr_setup_tsd(struct pthread *thread);
+
 #endif
