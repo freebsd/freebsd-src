@@ -14,6 +14,8 @@ SUBDIR=	adduser \
 	clear_locks \
 	crashinfo \
 	cron \
+	ctld \
+	ctladm \
 	daemon \
 	dconschat \
 	devctl \
@@ -153,7 +155,7 @@ SUBDIR.${MK_INET6}+=	rtsold
 SUBDIR.${MK_INET6}+=	traceroute6
 SUBDIR.${MK_INETD}+=	inetd
 SUBDIR.${MK_IPFW}+=	ipfwpcap
-SUBDIR.${MK_ISCSI}+=	ctladm ctld iscsid
+SUBDIR.${MK_ISCSI}+=	iscsid
 SUBDIR.${MK_JAIL}+=	jail
 SUBDIR.${MK_JAIL}+=	jexec
 SUBDIR.${MK_JAIL}+=	jls
