@@ -38,7 +38,7 @@ test_1(void)
 	char *buff2;
 	size_t buff2_size = 0x13000;
 	char buff3[1024];
-	long i;
+	unsigned long i;
 
 	assert((buff2 = malloc(buff2_size)) != NULL);
 	/* Repeat the following for a variety of odd blocksizes. */
@@ -181,7 +181,7 @@ test_2(void)
 	char *buff2;
 	size_t buff2_size = 0x11000;
 	char buff3[1024];
-	long i;
+	unsigned long i;
 
 	assert((buff2 = malloc(buff2_size)) != NULL);
 	/* Create a new archive in memory. */

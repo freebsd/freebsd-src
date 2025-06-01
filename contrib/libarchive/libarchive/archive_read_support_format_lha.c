@@ -43,6 +43,7 @@
 #include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
+#include "archive_time_private.h"
 #include "archive_endian.h"
 
 
@@ -162,12 +163,12 @@ struct lha {
 #define ATIME_IS_SET		2
 #define UNIX_MODE_IS_SET	4
 #define CRC_IS_SET		8
-	time_t			 birthtime;
-	long			 birthtime_tv_nsec;
-	time_t			 mtime;
-	long			 mtime_tv_nsec;
-	time_t			 atime;
-	long			 atime_tv_nsec;
+	int64_t			 birthtime;
+	uint32_t		 birthtime_tv_nsec;
+	int64_t			 mtime;
+	uint32_t		 mtime_tv_nsec;
+	int64_t			 atime;
+	uint32_t		 atime_tv_nsec;
 	mode_t			 mode;
 	int64_t			 uid;
 	int64_t			 gid;
@@ -230,8 +231,6 @@ static int	lha_read_file_extended_header(struct archive_read *,
 		    struct lha *, uint16_t *, int, uint64_t, size_t *);
 static size_t	lha_check_header_format(const void *);
 static int	lha_skip_sfx(struct archive_read *);
-static time_t	lha_dos_time(const unsigned char *);
-static time_t	lha_win_time(uint64_t, long *);
 static unsigned char	lha_calcsum(unsigned char, const void *,
 		    int, size_t);
 static int	lha_parse_linkname(struct archive_wstring *,
@@ -819,7 +818,7 @@ lha_read_file_header_0(struct archive_read *a, struct lha *lha)
 	headersum = p[H0_HEADER_SUM_OFFSET];
 	lha->compsize = archive_le32dec(p + H0_COMP_SIZE_OFFSET);
 	lha->origsize = archive_le32dec(p + H0_ORIG_SIZE_OFFSET);
-	lha->mtime = lha_dos_time(p + H0_DOS_TIME_OFFSET);
+	lha->mtime = dos_to_unix(archive_le32dec(p + H0_DOS_TIME_OFFSET));
 	namelen = p[H0_NAME_LEN_OFFSET];
 	extdsize = (int)lha->header_size - H0_FIXED_SIZE - namelen;
 	if ((namelen > 221 || extdsize < 0) && extdsize != -2) {
@@ -919,7 +918,7 @@ lha_read_file_header_1(struct archive_read *a, struct lha *lha)
 	/* Note: An extended header size is included in a compsize. */
 	lha->compsize = archive_le32dec(p + H1_COMP_SIZE_OFFSET);
 	lha->origsize = archive_le32dec(p + H1_ORIG_SIZE_OFFSET);
-	lha->mtime = lha_dos_time(p + H1_DOS_TIME_OFFSET);
+	lha->mtime = dos_to_unix(archive_le32dec(p + H1_DOS_TIME_OFFSET));
 	namelen = p[H1_NAME_LEN_OFFSET];
 	/* Calculate a padding size. The result will be normally 0 only(?) */
 	padding = ((int)lha->header_size) - H1_FIXED_SIZE - namelen;
@@ -1090,7 +1089,7 @@ lha_read_file_header_3(struct archive_read *a, struct lha *lha)
 
 	if (archive_le16dec(p + H3_FIELD_LEN_OFFSET) != 4)
 		goto invalid;
-	lha->header_size =archive_le32dec(p + H3_HEADER_SIZE_OFFSET);
+	lha->header_size = archive_le32dec(p + H3_HEADER_SIZE_OFFSET);
 	lha->compsize = archive_le32dec(p + H3_COMP_SIZE_OFFSET);
 	lha->origsize = archive_le32dec(p + H3_ORIG_SIZE_OFFSET);
 	lha->mtime = archive_le32dec(p + H3_TIME_OFFSET);
@@ -1326,16 +1325,16 @@ lha_read_file_extended_header(struct archive_read *a, struct lha *lha,
 			break;
 		case EXT_TIMESTAMP:
 			if (datasize == (sizeof(uint64_t) * 3)) {
-				lha->birthtime = lha_win_time(
-				    archive_le64dec(extdheader),
+				ntfs_to_unix(archive_le64dec(extdheader),
+					&lha->birthtime,
 				    &lha->birthtime_tv_nsec);
 				extdheader += sizeof(uint64_t);
-				lha->mtime = lha_win_time(
-				    archive_le64dec(extdheader),
+				ntfs_to_unix(archive_le64dec(extdheader),
+					&lha->mtime,
 				    &lha->mtime_tv_nsec);
 				extdheader += sizeof(uint64_t);
-				lha->atime = lha_win_time(
-				    archive_le64dec(extdheader),
+				ntfs_to_unix(archive_le64dec(extdheader),
+					&lha->atime,
 				    &lha->atime_tv_nsec);
 				lha->setflag |= BIRTHTIME_IS_SET |
 				    ATIME_IS_SET;
@@ -1714,45 +1713,6 @@ lha_parse_linkname(struct archive_wstring *linkname,
 		return (1);
 	}
 	return (0);
-}
-
-/* Convert an MSDOS-style date/time into Unix-style time. */
-static time_t
-lha_dos_time(const unsigned char *p)
-{
-	int msTime, msDate;
-	struct tm ts;
-
-	msTime = archive_le16dec(p);
-	msDate = archive_le16dec(p+2);
-
-	memset(&ts, 0, sizeof(ts));
-	ts.tm_year = ((msDate >> 9) & 0x7f) + 80;   /* Years since 1900. */
-	ts.tm_mon = ((msDate >> 5) & 0x0f) - 1;     /* Month number.     */
-	ts.tm_mday = msDate & 0x1f;		    /* Day of month.     */
-	ts.tm_hour = (msTime >> 11) & 0x1f;
-	ts.tm_min = (msTime >> 5) & 0x3f;
-	ts.tm_sec = (msTime << 1) & 0x3e;
-	ts.tm_isdst = -1;
-	return (mktime(&ts));
-}
-
-/* Convert an MS-Windows-style date/time into Unix-style time. */
-static time_t
-lha_win_time(uint64_t wintime, long *ns)
-{
-#define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
-
-	if (wintime >= EPOC_TIME) {
-		wintime -= EPOC_TIME;	/* 1970-01-01 00:00:00 (UTC) */
-		if (ns != NULL)
-			*ns = (long)(wintime % 10000000) * 100;
-		return (wintime / 10000000);
-	} else {
-		if (ns != NULL)
-			*ns = 0;
-		return (0);
-	}
 }
 
 static unsigned char
@@ -2917,4 +2877,3 @@ lzh_decode_huffman(struct huffman *hf, unsigned rbits)
 	/* This bit pattern needs to be found out at a huffman tree. */
 	return (lzh_decode_huffman_tree(hf, rbits, c));
 }
-

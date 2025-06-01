@@ -25,6 +25,8 @@
  */
 #include "test.h"
 
+#include <locale.h>
+
 static void
 test_xar(const char *option)
 {
@@ -147,6 +149,20 @@ test_xar(const char *option)
 	archive_entry_free(ae);
 
 	/*
+	 * "dir/file{UNICODE}" has a name that requires base64 encoding
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 20);
+	archive_entry_set_ctime(ae, 4, 40);
+	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_copy_pathname_w(ae, L"dir/file\U0001F574");
+	archive_entry_set_mode(ae, AE_IFREG | 0755);
+	archive_entry_set_size(ae, 8);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, 8, archive_write_data(a, "ghijklmn", 9));
+
+	/*
 	 * XXX TODO XXX Archive directory, other file types.
 	 * Archive extended attributes, ACLs, other metadata.
 	 * Verify they get read back correctly.
@@ -262,6 +278,22 @@ test_xar(const char *option)
 	assert((AE_IFDIR | 0755) == archive_entry_mode(ae));
 
 	/*
+	 * Read "dir/file{UNICODE}"
+	 */
+	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	assertEqualInt(2, archive_entry_atime(ae));
+	assertEqualInt(0, archive_entry_atime_nsec(ae));
+	assertEqualInt(4, archive_entry_ctime(ae));
+	assertEqualInt(0, archive_entry_ctime_nsec(ae));
+	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(0, archive_entry_mtime_nsec(ae));
+	assertEqualWString(L"dir/file\U0001F574", archive_entry_pathname_w(ae));
+	assert((AE_IFREG | 0755) == archive_entry_mode(ae));
+	assertEqualInt(8, archive_entry_size(ae));
+	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
+	assertEqualMem(buff2, "ghijklmn", 8);
+
+	/*
 	 * Verify the end of the archive.
 	 */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
@@ -273,6 +305,13 @@ test_xar(const char *option)
 
 DEFINE_TEST(test_write_format_xar)
 {
+	/* xar mandates the use of UTF-8 XML; if we cannot
+	 * use UTF-8, perhaps we should not write xar. */
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
+		skipping("en_US.UTF-8 locale not available on this system.");
+		return;
+	}
+
 	/* Default mode. */
 	test_xar(NULL);
 

@@ -424,7 +424,7 @@ acl_flagset_to_bitmap(acl_flagset_t opaque_fs)
 #if ARCHIVE_ACL_SUNOS_NFS4 || ARCHIVE_ACL_LIBRICHACL
 		if (flags & perms[i].machine)
 #else
-		if (acl_get_flag_np(opaque_fs, perms[i].machine))
+		if (acl_get_flag_np(opaque_fs, (acl_flag_t)perms[i].machine))
 #endif
 			flagset |= perms[i].portable;
 	return flagset;
@@ -772,7 +772,8 @@ compare_acls(
 		failure(" ACL entry %d missing from %s: "
 		    "type=%#010x,permset=%#010x,tag=%d,qual=%d,name=``%s''\n",
 		    marker[i], filename,
-		    myacls[marker[i]].type, myacls[marker[i]].permset,
+		    (unsigned int)myacls[marker[i]].type,
+		    (unsigned int)myacls[marker[i]].permset,
 		    myacls[marker[i]].tag, myacls[marker[i]].qual,
 		    myacls[marker[i]].name);
 		assert(0); /* Record this as a failure. */
@@ -824,7 +825,7 @@ compare_entry_acls(struct archive_entry *ae, struct myacl_t *myacls, const char 
 
 		failure("ACL entry on file that shouldn't be there: "
 			"type=%#010x,permset=%#010x,tag=%d,qual=%d",
-			type,permset,tag,qual);
+			(unsigned int)type, (unsigned int)permset, tag, qual);
 		assert(matched == 1);
 	}
 
@@ -833,7 +834,8 @@ compare_entry_acls(struct archive_entry *ae, struct myacl_t *myacls, const char 
 		failure(" ACL entry %d missing from %s: "
 		    "type=%#010x,permset=%#010x,tag=%d,qual=%d,name=``%s''\n",
 		    marker[i], filename,
-		    myacls[marker[i]].type, myacls[marker[i]].permset,
+		    (unsigned int)myacls[marker[i]].type,
+		    (unsigned int)myacls[marker[i]].permset,
 		    myacls[marker[i]].tag, myacls[marker[i]].qual,
 		    myacls[marker[i]].name);
 		assert(0); /* Record this as a failure. */

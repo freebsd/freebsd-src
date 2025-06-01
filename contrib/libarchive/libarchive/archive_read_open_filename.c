@@ -74,6 +74,7 @@ struct read_file_data {
 	size_t	 block_size;
 	void	*buffer;
 	mode_t	 st_mode;  /* Mode bits for opened file. */
+	int64_t	 size;
 	char	 use_lseek;
 	enum fnt_e { FNT_STDIN, FNT_MBS, FNT_WCS } filename_type;
 	union {
@@ -303,7 +304,7 @@ file_open(struct archive *a, void *client_data)
 		}
 		if (fd < 0) {
 			archive_set_error(a, errno,
-			    "Failed to open '%S'", wfilename);
+			    "Failed to open '%ls'", wfilename);
 			return (ARCHIVE_FATAL);
 		}
 #else
@@ -315,7 +316,7 @@ file_open(struct archive *a, void *client_data)
 	if (fstat(fd, &st) != 0) {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 		if (mine->filename_type == FNT_WCS)
-			archive_set_error(a, errno, "Can't stat '%S'",
+			archive_set_error(a, errno, "Can't stat '%ls'",
 			    wfilename);
 		else
 #endif
@@ -400,8 +401,10 @@ file_open(struct archive *a, void *client_data)
 	mine->st_mode = st.st_mode;
 
 	/* Disk-like inputs can use lseek(). */
-	if (is_disk_like)
+	if (is_disk_like) {
 		mine->use_lseek = 1;
+		mine->size = st.st_size;
+	}
 
 	return (ARCHIVE_OK);
 fail:
@@ -447,7 +450,7 @@ file_read(struct archive *a, void *client_data, const void **buff)
 				    "Error reading '%s'", mine->filename.m);
 			else
 				archive_set_error(a, errno,
-				    "Error reading '%S'", mine->filename.w);
+				    "Error reading '%ls'", mine->filename.w);
 		}
 		return (bytes_read);
 	}
@@ -479,21 +482,30 @@ file_skip_lseek(struct archive *a, void *client_data, int64_t request)
 	struct read_file_data *mine = (struct read_file_data *)client_data;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* We use _lseeki64() on Windows. */
-	int64_t old_offset, new_offset;
+	int64_t old_offset, new_offset, skip = request;
 #else
-	off_t old_offset, new_offset;
+	off_t old_offset, new_offset, skip = (off_t)request;
 #endif
+	int skip_bits = sizeof(skip) * 8 - 1;
 
 	/* We use off_t here because lseek() is declared that way. */
 
-	/* TODO: Deal with case where off_t isn't 64 bits.
-	 * This shouldn't be a problem on Linux or other POSIX
-	 * systems, since the configuration logic for libarchive
-	 * tries to obtain a 64-bit off_t.
-	 */
-	if ((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0 &&
-	    (new_offset = lseek(mine->fd, request, SEEK_CUR)) >= 0)
-		return (new_offset - old_offset);
+	/* Reduce a request that would overflow the 'skip' variable. */
+	if (sizeof(request) > sizeof(skip)) {
+		const int64_t max_skip =
+		    (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
+		if (request > max_skip)
+			skip = max_skip;
+	}
+
+	if ((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0) {
+		if (old_offset >= mine->size ||
+		    skip > mine->size - old_offset) {
+			/* Do not seek past end of file. */
+			errno = ESPIPE;
+		} else if ((new_offset = lseek(mine->fd, skip, SEEK_CUR)) >= 0)
+			return (new_offset - old_offset);
+	}
 
 	/* If lseek() fails, don't bother trying again. */
 	mine->use_lseek = 0;
@@ -509,7 +521,7 @@ file_skip_lseek(struct archive *a, void *client_data, int64_t request)
 		archive_set_error(a, errno, "Error seeking in '%s'",
 		    mine->filename.m);
 	else
-		archive_set_error(a, errno, "Error seeking in '%S'",
+		archive_set_error(a, errno, "Error seeking in '%ls'",
 		    mine->filename.w);
 	return (-1);
 }
@@ -540,11 +552,24 @@ static int64_t
 file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 {
 	struct read_file_data *mine = (struct read_file_data *)client_data;
+	off_t seek = (off_t)request;
 	int64_t r;
+	int seek_bits = sizeof(seek) * 8 - 1;
 
 	/* We use off_t here because lseek() is declared that way. */
-	/* See above for notes about when off_t is less than 64 bits. */
-	r = lseek(mine->fd, request, whence);
+
+	/* Reduce a request that would overflow the 'seek' variable. */
+	if (sizeof(request) > sizeof(seek)) {
+		const int64_t max_seek =
+		    (((int64_t)1 << (seek_bits - 1)) - 1) * 2 + 1;
+		const int64_t min_seek = ~max_seek;
+		if (request > max_seek)
+			seek = (off_t)max_seek;
+		else if (request < min_seek)
+			seek = (off_t)min_seek;
+	}
+
+	r = lseek(mine->fd, seek, whence);
 	if (r >= 0)
 		return r;
 
@@ -555,7 +580,7 @@ file_seek(struct archive *a, void *client_data, int64_t request, int whence)
 		archive_set_error(a, errno, "Error seeking in '%s'",
 		    mine->filename.m);
 	else
-		archive_set_error(a, errno, "Error seeking in '%S'",
+		archive_set_error(a, errno, "Error seeking in '%ls'",
 		    mine->filename.w);
 	return (ARCHIVE_FATAL);
 }

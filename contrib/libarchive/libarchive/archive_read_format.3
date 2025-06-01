@@ -37,8 +37,10 @@
 .Nm archive_read_support_format_lha ,
 .Nm archive_read_support_format_mtree ,
 .Nm archive_read_support_format_rar ,
+.Nm archive_read_support_format_rar5 ,
 .Nm archive_read_support_format_raw ,
 .Nm archive_read_support_format_tar ,
+.Nm archive_read_support_format_warc ,
 .Nm archive_read_support_format_xar ,
 .Nm archive_read_support_format_zip
 .Nd functions for reading streaming archives
@@ -70,9 +72,13 @@ Streaming Archive Library (libarchive, -larchive)
 .Ft int
 .Fn archive_read_support_format_rar "struct archive *"
 .Ft int
+.Fn archive_read_support_format_rar5 "struct archive *"
+.Ft int
 .Fn archive_read_support_format_raw "struct archive *"
 .Ft int
 .Fn archive_read_support_format_tar "struct archive *"
+.Ft int
+.Fn archive_read_support_format_warc "struct archive *"
 .Ft int
 .Fn archive_read_support_format_xar "struct archive *"
 .Ft int
@@ -89,8 +95,10 @@ Streaming Archive Library (libarchive, -larchive)
 .Fn archive_read_support_format_lha ,
 .Fn archive_read_support_format_mtree ,
 .Fn archive_read_support_format_rar ,
+.Fn archive_read_support_format_rar5 ,
 .Fn archive_read_support_format_raw ,
 .Fn archive_read_support_format_tar ,
+.Fn archive_read_support_format_warc ,
 .Fn archive_read_support_format_xar ,
 .Fn archive_read_support_format_zip
 .Xc
@@ -100,6 +108,13 @@ For example,
 .Fn archive_read_support_format_tar
 enables support for a variety of standard tar formats, old-style tar,
 ustar, pax interchange format, and many common variants.
+.Fn archive_read_support_format_zip
+enables support for both the streaming and the seeking zip readers,
+which can separately be enabled by respectively
+.Fn archive_read_support_format_zip_streamable
+and
+.Fn archive_read_support_format_zip_seekable
+.
 .It Fn archive_read_support_format_all
 Enables support for all available formats except the
 .Dq raw

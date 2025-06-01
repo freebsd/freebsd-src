@@ -27,7 +27,7 @@
 static unsigned char nulls[1000];
 static unsigned char tmp[1000];
 static unsigned char  buff[10000];
-size_t data_sizes[] = {0, 5, 511, 512, 513};
+static size_t data_sizes[] = {0, 5, 511, 512, 513};
 
 static void verify_read_positions(struct archive *a);
 

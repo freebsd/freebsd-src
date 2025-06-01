@@ -116,4 +116,4 @@ struct archive_hmac {
 };
 
 extern const struct archive_hmac __archive_hmac;
-#endif /* ARCHIVE_HMAC_PRIVATE_H_INCLUDED */
+#endif /* !ARCHIVE_HMAC_PRIVATE_H_INCLUDED */

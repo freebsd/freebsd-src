@@ -175,7 +175,7 @@ memory_read_skip(struct archive *a, void *_private, int64_t skip)
 	}
 	if (private->filebytes > 0) {
 		if (private->filebytes < skip)
-			skip = (off_t)private->filebytes;
+			skip = private->filebytes;
 		private->filebytes -= skip;
 	} else {
 		skip = 0;

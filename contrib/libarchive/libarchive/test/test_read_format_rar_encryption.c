@@ -26,8 +26,8 @@
 #include "test.h"
 
 /*
- * All of the archives for this teset contain four files: a.txt, b.txt, c.txt, and d.txt
- * For solid archives or archvies or archives where filenames are encrypted, all four files are encrypted with the
+ * All of the archives for this test contain four files: a.txt, b.txt, c.txt, and d.txt
+ * For solid archives or archives or archives where filenames are encrypted, all four files are encrypted with the
  * password "password". For non-solid archives without filename encryption, a.txt and c.txt are not encrypted, b.txt is
  * encrypted with the password "password", and d.txt is encrypted with the password "password2".
  *

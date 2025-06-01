@@ -35,11 +35,11 @@ typedef int (*option_handler)(struct archive *a,
 int
 _archive_set_option(struct archive *a,
     const char *mod, const char *opt, const char *val,
-    int magic, const char *fn, option_handler use_option);
+    unsigned int magic, const char *fn, option_handler use_option);
 
 int
 _archive_set_options(struct archive *a, const char *options,
-    int magic, const char *fn, option_handler use_option);
+    unsigned int magic, const char *fn, option_handler use_option);
 
 int
 _archive_set_either_option(struct archive *a,

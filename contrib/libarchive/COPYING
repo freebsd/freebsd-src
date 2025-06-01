@@ -20,7 +20,7 @@ the actual statements in the files are controlling.
    libarchive/mtree.5
 
 * The following source files are in the public domain:
-   libarchive/archive_getdate.c
+   libarchive/archive_parse_date.c
 
 * The following source files are triple-licensed with the ability to choose
   from CC0 1.0 Universal, OpenSSL or Apache 2.0 licenses:

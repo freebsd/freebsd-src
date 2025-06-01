@@ -31,38 +31,6 @@
  * written in streaming mode WITHOUT Zip64 extensions enabled.
  */
 
-static unsigned long
-bitcrc32(unsigned long c, void *_p, size_t s)
-{
-	/* This is a drop-in replacement for crc32() from zlib.
-	 * Libarchive should be able to correctly generate
-	 * uncompressed zip archives (including correct CRCs) even
-	 * when zlib is unavailable, and this function helps us verify
-	 * that.  Yes, this is very, very slow and unsuitable for
-	 * production use, but it's correct, compact, and works well
-	 * enough for this particular usage.  Libarchive internally
-	 * uses a much more efficient implementation.  */
-	const unsigned char *p = _p;
-	int bitctr;
-
-	if (p == NULL)
-		return (0);
-
-	for (; s > 0; --s) {
-		c ^= *p++;
-		for (bitctr = 8; bitctr > 0; --bitctr) {
-			if (c & 1) c = (c >> 1);
-			else	   c = (c >> 1) ^ 0xedb88320;
-			c ^= 0x80000000;
-		}
-	}
-	return (c);
-}
-
-/* Quick and dirty: Read 2-byte and 4-byte integers from Zip file. */
-static unsigned i2(const unsigned char *p) { return ((p[0] & 0xff) | ((p[1] & 0xff) << 8)); }
-static unsigned i4(const unsigned char *p) { return (i2(p) | (i2(p + 2) << 16)); }
-
 DEFINE_TEST(test_write_format_zip_stream)
 {
 	struct archive *a;
@@ -70,7 +38,7 @@ DEFINE_TEST(test_write_format_zip_stream)
 	size_t used, buffsize = 1000000;
 	unsigned long crc;
 	unsigned long compressed_size = 0;
-	int file_perm = 00644;
+	__LA_MODE_T file_perm = 00644;
 #ifdef HAVE_ZLIB_H
 	int zip_version = 20;
 #else
@@ -120,58 +88,58 @@ DEFINE_TEST(test_write_format_zip_stream)
 	failure("End-of-central-directory begins with PK\\005\\006 signature");
 	assertEqualMem(p, "PK\005\006", 4);
 	failure("This must be disk 0");
-	assertEqualInt(i2(p + 4), 0);
+	assertEqualInt(i2le(p + 4), 0);
 	failure("Central dir must start on disk 0");
-	assertEqualInt(i2(p + 6), 0);
+	assertEqualInt(i2le(p + 6), 0);
 	failure("All central dir entries are on this disk");
-	assertEqualInt(i2(p + 8), i2(p + 10));
-	eocd = buff + i4(p + 12) + i4(p + 16);
+	assertEqualInt(i2le(p + 8), i2le(p + 10));
+	eocd = buff + i4le(p + 12) + i4le(p + 16);
 	failure("no zip comment");
-	assertEqualInt(i2(p + 20), 0);
+	assertEqualInt(i2le(p + 20), 0);
 
 	/* Get address of first entry in central directory. */
-	central_header = p = buff + i4(buffend - 6);
-	failure("Central file record at offset %d should begin with"
+	central_header = p = buff + i4le(buffend - 6);
+	failure("Central file record at offset %u should begin with"
 	    " PK\\001\\002 signature",
-	    i4(buffend - 10));
+	    i4le(buffend - 10));
 
 	/* Verify file entry in central directory. */
 	assertEqualMem(p, "PK\001\002", 4); /* Signature */
-	assertEqualInt(i2(p + 4), 3 * 256 + zip_version); /* Version made by */
-	assertEqualInt(i2(p + 6), zip_version); /* Version needed to extract */
-	assertEqualInt(i2(p + 8), 8); /* Flags */
-	assertEqualInt(i2(p + 10), zip_compression); /* Compression method */
-	assertEqualInt(i2(p + 12), 0); /* File time */
-	assertEqualInt(i2(p + 14), 33); /* File date */
+	assertEqualInt(i2le(p + 4), 3 * 256 + zip_version); /* Version made by */
+	assertEqualInt(i2le(p + 6), zip_version); /* Version needed to extract */
+	assertEqualInt(i2le(p + 8), 8); /* Flags */
+	assertEqualInt(i2le(p + 10), zip_compression); /* Compression method */
+	assertEqualInt(i2le(p + 12), 0); /* File time */
+	assertEqualInt(i2le(p + 14), 33); /* File date */
 	crc = bitcrc32(0, file_data, sizeof(file_data));
-	assertEqualInt(i4(p + 16), crc); /* CRC-32 */
-	compressed_size = i4(p + 20);  /* Compressed size */
-	assertEqualInt(i4(p + 24), sizeof(file_data)); /* Uncompressed size */
-	assertEqualInt(i2(p + 28), strlen(file_name)); /* Pathname length */
-	/* assertEqualInt(i2(p + 30), 28); */ /* Extra field length: See below */
-	assertEqualInt(i2(p + 32), 0); /* File comment length */
-	assertEqualInt(i2(p + 34), 0); /* Disk number start */
-	assertEqualInt(i2(p + 36), 0); /* Internal file attrs */
-	assertEqualInt(i4(p + 38) >> 16 & 01777, file_perm); /* External file attrs */
-	assertEqualInt(i4(p + 42), 0); /* Offset of local header */
+	assertEqualInt(i4le(p + 16), crc); /* CRC-32 */
+	compressed_size = i4le(p + 20);  /* Compressed size */
+	assertEqualInt(i4le(p + 24), sizeof(file_data)); /* Uncompressed size */
+	assertEqualInt(i2le(p + 28), strlen(file_name)); /* Pathname length */
+	/* assertEqualInt(i2le(p + 30), 28); */ /* Extra field length: See below */
+	assertEqualInt(i2le(p + 32), 0); /* File comment length */
+	assertEqualInt(i2le(p + 34), 0); /* Disk number start */
+	assertEqualInt(i2le(p + 36), 0); /* Internal file attrs */
+	assertEqualInt(i4le(p + 38) >> 16 & 01777, file_perm); /* External file attrs */
+	assertEqualInt(i4le(p + 42), 0); /* Offset of local header */
 	assertEqualMem(p + 46, file_name, strlen(file_name)); /* Pathname */
 	p = extension_start = central_header + 46 + strlen(file_name);
-	extension_end = extension_start + i2(central_header + 30);
+	extension_end = extension_start + i2le(central_header + 30);
 
-	assertEqualInt(i2(p), 0x7875);  /* 'ux' extension header */
-	assertEqualInt(i2(p + 2), 11); /* 'ux' size */
+	assertEqualInt(i2le(p), 0x7875);  /* 'ux' extension header */
+	assertEqualInt(i2le(p + 2), 11); /* 'ux' size */
 	assertEqualInt(p[4], 1); /* 'ux' version */
 	assertEqualInt(p[5], 4); /* 'ux' uid size */
-	assertEqualInt(i4(p + 6), file_uid); /* 'Ux' UID */
+	assertEqualInt(i4le(p + 6), file_uid); /* 'Ux' UID */
 	assertEqualInt(p[10], 4); /* 'ux' gid size */
-	assertEqualInt(i4(p + 11), file_gid); /* 'Ux' GID */
-	p += 4 + i2(p + 2);
+	assertEqualInt(i4le(p + 11), file_gid); /* 'Ux' GID */
+	p += 4 + i2le(p + 2);
 
-	assertEqualInt(i2(p), 0x5455);  /* 'UT' extension header */
-	assertEqualInt(i2(p + 2), 5); /* 'UT' size */
+	assertEqualInt(i2le(p), 0x5455);  /* 'UT' extension header */
+	assertEqualInt(i2le(p + 2), 5); /* 'UT' size */
 	assertEqualInt(p[4], 1); /* 'UT' flags */
-	assertEqualInt(i4(p + 5), 0); /* 'UT' mtime */
-	p += 4 + i2(p + 2);
+	assertEqualInt(i4le(p + 5), 0); /* 'UT' mtime */
+	p += 4 + i2le(p + 2);
 
 	/* Note: We don't expect to see zip64 extension in the central
 	 * directory, since the writer knows the actual full size by
@@ -181,9 +149,9 @@ DEFINE_TEST(test_write_format_zip_stream)
 
 	/* Just in case: Report any extra extensions. */
 	while (p < extension_end) {
-		failure("Unexpected extension 0x%04X", i2(p));
+		failure("Unexpected extension 0x%04X", i2le(p));
 		assert(0);
-		p += 4 + i2(p + 2);
+		p += 4 + i2le(p + 2);
 	}
 
 	/* Should have run exactly to end of extra data. */
@@ -195,40 +163,40 @@ DEFINE_TEST(test_write_format_zip_stream)
 	/* Verify local header of file entry. */
 	p = local_header = buff;
 	assertEqualMem(p, "PK\003\004", 4); /* Signature */
-	assertEqualInt(i2(p + 4), zip_version); /* Version needed to extract */
-	assertEqualInt(i2(p + 6), 8); /* Flags */
-	assertEqualInt(i2(p + 8), zip_compression); /* Compression method */
-	assertEqualInt(i2(p + 10), 0); /* File time */
-	assertEqualInt(i2(p + 12), 33); /* File date */
-	assertEqualInt(i4(p + 14), 0); /* CRC-32 */
-	assertEqualInt(i4(p + 18), 0); /* Compressed size */
-	assertEqualInt(i4(p + 22), 0); /* Uncompressed size */
-	assertEqualInt(i2(p + 26), strlen(file_name)); /* Pathname length */
-	assertEqualInt(i2(p + 28), 24); /* Extra field length */
+	assertEqualInt(i2le(p + 4), zip_version); /* Version needed to extract */
+	assertEqualInt(i2le(p + 6), 8); /* Flags */
+	assertEqualInt(i2le(p + 8), zip_compression); /* Compression method */
+	assertEqualInt(i2le(p + 10), 0); /* File time */
+	assertEqualInt(i2le(p + 12), 33); /* File date */
+	assertEqualInt(i4le(p + 14), 0); /* CRC-32 */
+	assertEqualInt(i4le(p + 18), 0); /* Compressed size */
+	assertEqualInt(i4le(p + 22), 0); /* Uncompressed size */
+	assertEqualInt(i2le(p + 26), strlen(file_name)); /* Pathname length */
+	assertEqualInt(i2le(p + 28), 24); /* Extra field length */
 	assertEqualMem(p + 30, file_name, strlen(file_name)); /* Pathname */
 	p = extension_start = local_header + 30 + strlen(file_name);
-	extension_end = extension_start + i2(local_header + 28);
+	extension_end = extension_start + i2le(local_header + 28);
 
-	assertEqualInt(i2(p), 0x7875);  /* 'ux' extension header */
-	assertEqualInt(i2(p + 2), 11); /* 'ux' size */
+	assertEqualInt(i2le(p), 0x7875);  /* 'ux' extension header */
+	assertEqualInt(i2le(p + 2), 11); /* 'ux' size */
 	assertEqualInt(p[4], 1); /* 'ux' version */
 	assertEqualInt(p[5], 4); /* 'ux' uid size */
-	assertEqualInt(i4(p + 6), file_uid); /* 'Ux' UID */
+	assertEqualInt(i4le(p + 6), file_uid); /* 'Ux' UID */
 	assertEqualInt(p[10], 4); /* 'ux' gid size */
-	assertEqualInt(i4(p + 11), file_gid); /* 'Ux' GID */
-	p += 4 + i2(p + 2);
+	assertEqualInt(i4le(p + 11), file_gid); /* 'Ux' GID */
+	p += 4 + i2le(p + 2);
 
-	assertEqualInt(i2(p), 0x5455);  /* 'UT' extension header */
-	assertEqualInt(i2(p + 2), 5); /* 'UT' size */
+	assertEqualInt(i2le(p), 0x5455);  /* 'UT' extension header */
+	assertEqualInt(i2le(p + 2), 5); /* 'UT' size */
 	assertEqualInt(p[4], 1); /* 'UT' flags */
-	assertEqualInt(i4(p + 5), 0); /* 'UT' mtime */
-	p += 4 + i2(p + 2);
+	assertEqualInt(i4le(p + 5), 0); /* 'UT' mtime */
+	p += 4 + i2le(p + 2);
 
 	/* Just in case: Report any extra extensions. */
 	while (p < extension_end) {
-		failure("Unexpected extension 0x%04X", i2(p));
+		failure("Unexpected extension 0x%04X", i2le(p));
 		assert(0);
-		p += 4 + i2(p + 2);
+		p += 4 + i2le(p + 2);
 	}
 
 	/* Should have run exactly to end of extra data. */
@@ -241,9 +209,9 @@ DEFINE_TEST(test_write_format_zip_stream)
 	data_end = p;
 	assertEqualInt(data_end - data_start, compressed_size);
 	assertEqualMem(p, "PK\007\010", 4);
-	assertEqualInt(i4(p + 4), crc); /* CRC-32 */
-	assertEqualInt(i4(p + 8), compressed_size); /* compressed size */
-	assertEqualInt(i4(p + 12), sizeof(file_data)); /* uncompressed size */
+	assertEqualInt(i4le(p + 4), crc); /* CRC-32 */
+	assertEqualInt(i4le(p + 8), compressed_size); /* compressed size */
+	assertEqualInt(i4le(p + 12), sizeof(file_data)); /* uncompressed size */
 
 	/* Central directory should immediately follow the data descriptor. */
 	assert(p + 16 == central_header);

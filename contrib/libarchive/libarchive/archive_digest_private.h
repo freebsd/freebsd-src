@@ -113,6 +113,7 @@
   defined(ARCHIVE_CRYPTO_SHA384_LIBSYSTEM) ||\
   defined(ARCHIVE_CRYPTO_SHA512_LIBSYSTEM)
 #include <CommonCrypto/CommonDigest.h>
+#define	ARCHIVE_CRYPTO_CommonCrypto 1
 #endif
 
 /* mbed TLS crypto headers */
@@ -167,6 +168,7 @@
 #if defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
 /* don't use bcrypt when XP needs to be supported */
 #include <bcrypt.h>
+#define	ARCHIVE_CRYPTO_CNG 1
 typedef struct {
   int   valid;
   BCRYPT_ALG_HANDLE  hAlg;
@@ -175,6 +177,7 @@ typedef struct {
 #else
 #include <windows.h>
 #include <wincrypt.h>
+#define	ARCHIVE_CRYPTO_WINCRYPT 1
 typedef struct {
   int   valid;
   HCRYPTPROV  cryptProv;
@@ -190,14 +193,16 @@ typedef MD5_CTX archive_md5_ctx;
 typedef MD5_CTX archive_md5_ctx;
 #elif defined(ARCHIVE_CRYPTO_MD5_LIBSYSTEM)
 typedef CC_MD5_CTX archive_md5_ctx;
+#elif defined(ARCHIVE_CRYPTO_MD5_WIN)
+typedef Digest_CTX archive_md5_ctx;
 #elif defined(ARCHIVE_CRYPTO_MD5_MBEDTLS)
+#define	ARCHIVE_CRYPTO_MBED 1
 typedef mbedtls_md5_context archive_md5_ctx;
 #elif defined(ARCHIVE_CRYPTO_MD5_NETTLE)
+#define	ARCHIVE_CRYPTO_NETTLE 1
 typedef struct md5_ctx archive_md5_ctx;
 #elif defined(ARCHIVE_CRYPTO_MD5_OPENSSL)
 typedef EVP_MD_CTX *archive_md5_ctx;
-#elif defined(ARCHIVE_CRYPTO_MD5_WIN)
-typedef Digest_CTX archive_md5_ctx;
 #else
 typedef unsigned char archive_md5_ctx;
 #endif
@@ -207,8 +212,10 @@ typedef RMD160_CTX archive_rmd160_ctx;
 #elif defined(ARCHIVE_CRYPTO_RMD160_LIBMD)
 typedef RIPEMD160_CTX archive_rmd160_ctx;
 #elif defined(ARCHIVE_CRYPTO_RMD160_MBEDTLS)
+#define	ARCHIVE_CRYPTO_MBED 1
 typedef mbedtls_ripemd160_context archive_rmd160_ctx;
 #elif defined(ARCHIVE_CRYPTO_RMD160_NETTLE)
+#define	ARCHIVE_CRYPTO_NETTLE 1
 typedef struct ripemd160_ctx archive_rmd160_ctx;
 #elif defined(ARCHIVE_CRYPTO_RMD160_OPENSSL)
 typedef EVP_MD_CTX *archive_rmd160_ctx;
@@ -222,14 +229,16 @@ typedef SHA1_CTX archive_sha1_ctx;
 typedef SHA1_CTX archive_sha1_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA1_LIBSYSTEM)
 typedef CC_SHA1_CTX archive_sha1_ctx;
+#elif defined(ARCHIVE_CRYPTO_SHA1_WIN)
+typedef Digest_CTX archive_sha1_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA1_MBEDTLS)
+#define	ARCHIVE_CRYPTO_MBED 1
 typedef mbedtls_sha1_context archive_sha1_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA1_NETTLE)
+#define	ARCHIVE_CRYPTO_NETTLE 1
 typedef struct sha1_ctx archive_sha1_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA1_OPENSSL)
 typedef EVP_MD_CTX *archive_sha1_ctx;
-#elif defined(ARCHIVE_CRYPTO_SHA1_WIN)
-typedef Digest_CTX archive_sha1_ctx;
 #else
 typedef unsigned char archive_sha1_ctx;
 #endif
@@ -244,14 +253,16 @@ typedef SHA2_CTX archive_sha256_ctx;
 typedef SHA256_CTX archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_LIBSYSTEM)
 typedef CC_SHA256_CTX archive_sha256_ctx;
+#elif defined(ARCHIVE_CRYPTO_SHA256_WIN)
+typedef Digest_CTX archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_MBEDTLS)
+#define	ARCHIVE_CRYPTO_MBED 1
 typedef mbedtls_sha256_context archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_NETTLE)
+#define	ARCHIVE_CRYPTO_NETTLE 1
 typedef struct sha256_ctx archive_sha256_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA256_OPENSSL)
 typedef EVP_MD_CTX *archive_sha256_ctx;
-#elif defined(ARCHIVE_CRYPTO_SHA256_WIN)
-typedef Digest_CTX archive_sha256_ctx;
 #else
 typedef unsigned char archive_sha256_ctx;
 #endif
@@ -264,14 +275,16 @@ typedef SHA384_CTX archive_sha384_ctx;
 typedef SHA2_CTX archive_sha384_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA384_LIBSYSTEM)
 typedef CC_SHA512_CTX archive_sha384_ctx;
+#elif defined(ARCHIVE_CRYPTO_SHA384_WIN)
+typedef Digest_CTX archive_sha384_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA384_MBEDTLS)
+#define	ARCHIVE_CRYPTO_MBED 1
 typedef mbedtls_sha512_context archive_sha384_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA384_NETTLE)
+#define	ARCHIVE_CRYPTO_NETTLE 1
 typedef struct sha384_ctx archive_sha384_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA384_OPENSSL)
 typedef EVP_MD_CTX *archive_sha384_ctx;
-#elif defined(ARCHIVE_CRYPTO_SHA384_WIN)
-typedef Digest_CTX archive_sha384_ctx;
 #else
 typedef unsigned char archive_sha384_ctx;
 #endif
@@ -286,14 +299,16 @@ typedef SHA2_CTX archive_sha512_ctx;
 typedef SHA512_CTX archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_LIBSYSTEM)
 typedef CC_SHA512_CTX archive_sha512_ctx;
+#elif defined(ARCHIVE_CRYPTO_SHA512_WIN)
+typedef Digest_CTX archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_MBEDTLS)
+#define	ARCHIVE_CRYPTO_MBED 1
 typedef mbedtls_sha512_context archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_NETTLE)
+#define	ARCHIVE_CRYPTO_NETTLE 1
 typedef struct sha512_ctx archive_sha512_ctx;
 #elif defined(ARCHIVE_CRYPTO_SHA512_OPENSSL)
 typedef EVP_MD_CTX *archive_sha512_ctx;
-#elif defined(ARCHIVE_CRYPTO_SHA512_WIN)
-typedef Digest_CTX archive_sha512_ctx;
 #else
 typedef unsigned char archive_sha512_ctx;
 #endif

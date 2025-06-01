@@ -251,7 +251,7 @@ DEFINE_TEST(test_compat_star_acl_posix1e)
 	assertEntryCompareAcls(ae, acls0, sizeof(acls0)/sizeof(acls0[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, 0142);
 	failure("Basic ACLs should set mode to 0142, not %04o",
-	    archive_entry_mode(ae)&0777);
+	    (unsigned int)archive_entry_mode(ae)&0777);
 	assert((archive_entry_mode(ae) & 0777) == 0142);
 
 	/* Second item has pretty extensive ACLs */
@@ -261,7 +261,7 @@ DEFINE_TEST(test_compat_star_acl_posix1e)
 	assertEntryCompareAcls(ae, acls1, sizeof(acls1)/sizeof(acls1[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, 0543);
 	failure("Basic ACLs should set mode to 0543, not %04o",
-	    archive_entry_mode(ae)&0777);
+	    (unsigned int)archive_entry_mode(ae)&0777);
 	assert((archive_entry_mode(ae) & 0777) == 0543);
 
 	/* Third item has default ACLs */
@@ -271,7 +271,7 @@ DEFINE_TEST(test_compat_star_acl_posix1e)
 	assertEntryCompareAcls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]),
 	    ARCHIVE_ENTRY_ACL_TYPE_DEFAULT, 0142);
 	failure("Basic ACLs should set mode to 0142, not %04o",
-	    archive_entry_mode(ae)&0777);
+	    (unsigned int)archive_entry_mode(ae)&0777);
 	assert((archive_entry_mode(ae) & 0777) == 0142);
 
 	/* Close the archive. */

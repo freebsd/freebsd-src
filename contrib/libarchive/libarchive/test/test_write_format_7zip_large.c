@@ -169,3 +169,9 @@ DEFINE_TEST(test_write_format_7zip_large_ppmd)
 	/* Test that making a 7-Zip archive file with PPMd compression. */
 	test_large("ppmd");
 }
+
+DEFINE_TEST(test_write_format_7zip_large_zstd)
+{
+	/* Test that making a 7-Zip archive file with zstd compression. */
+	test_large("zstd");
+}

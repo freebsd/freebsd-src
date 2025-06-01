@@ -61,6 +61,11 @@
 # endif
 #endif
 
+/* For cygwin, to avoid missing LONG, ULONG, PUCHAR, ... definitions */
+#ifdef __CYGWIN__
+#include <windef.h>
+#endif
+
 /* It should be possible to get rid of this by extending the feature-test
  * macros to cover Windows API functions, probably along with non-trivial
  * refactoring of code to find structures that sit more cleanly on top of

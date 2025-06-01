@@ -45,7 +45,7 @@ DEFINE_TEST(test_read_format_tar_empty_with_gnulabel)
 
 	/* Verify that the format detection worked. */
 	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_NONE);
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_GNUTAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));

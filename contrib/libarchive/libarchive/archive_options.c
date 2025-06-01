@@ -38,7 +38,7 @@ parse_option(const char **str,
 int
 _archive_set_option(struct archive *a,
     const char *m, const char *o, const char *v,
-    int magic, const char *fn, option_handler use_option)
+    unsigned int magic, const char *fn, option_handler use_option)
 {
 	const char *mp, *op, *vp;
 	int r;
@@ -97,7 +97,7 @@ _archive_set_either_option(struct archive *a, const char *m, const char *o, cons
 
 int
 _archive_set_options(struct archive *a, const char *options,
-    int magic, const char *fn, option_handler use_option)
+    unsigned int magic, const char *fn, option_handler use_option)
 {
 	int allok = 1, anyok = 0, ignore_mod_err = 0, r;
 	char *data;

@@ -166,7 +166,7 @@ archive_filter_b64encode_open(struct archive_write_filter *f)
 	}
 
 	archive_string_sprintf(&state->encoded_buff, "begin-base64 %o %s\n",
-	    state->mode, state->name.s);
+	    (unsigned int)state->mode, state->name.s);
 
 	f->data = state;
 	return (0);

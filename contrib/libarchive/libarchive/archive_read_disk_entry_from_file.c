@@ -888,7 +888,7 @@ setup_sparse_fiemap(struct archive_read_disk *a,
 	count = (sizeof(buff) - sizeof(*fm))/sizeof(*fe);
 	fm = (struct fiemap *)buff;
 	fm->fm_start = 0;
-	fm->fm_length = ~0ULL;;
+	fm->fm_length = ~0ULL;
 	fm->fm_flags = FIEMAP_FLAG_SYNC;
 	fm->fm_extent_count = count;
 	do_fiemap = 1;

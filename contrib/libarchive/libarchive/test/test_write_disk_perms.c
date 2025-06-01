@@ -216,7 +216,7 @@ DEFINE_TEST(test_write_disk_perms)
 
 	/* Check original owner. */
 	assertEqualInt(0, stat("dir_owner", &st));
-	failure("dir_owner: st.st_uid=%d", st.st_uid);
+	failure("dir_owner: st.st_uid=%jd", (intmax_t)st.st_uid);
 	assertEqualInt(st.st_uid, original_uid);
 	/* Shouldn't try to edit the owner when no overwrite option is set. */
 	assert((ae = archive_entry_new()) != NULL);
@@ -230,7 +230,7 @@ DEFINE_TEST(test_write_disk_perms)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_finish_entry(a));
 	/* Make sure they're unchanged. */
 	assertEqualInt(0, stat("dir_owner", &st));
-	failure("dir_owner: st.st_uid=%d", st.st_uid);
+	failure("dir_owner: st.st_uid=%jd", (intmax_t)st.st_uid);
 	assertEqualInt(st.st_uid, original_uid);
 
 	/* Write a regular file with SUID bit, but don't use _EXTRACT_PERM. */
@@ -475,8 +475,8 @@ DEFINE_TEST(test_write_disk_perms)
 		assertEqualInt(0, stat("file_bad_owner", &st));
 		failure("file_bad_owner: st.st_mode=%o", st.st_mode);
 		assertEqualInt(st.st_mode & 07777, 0744);
-		failure("file_bad_owner: st.st_uid=%d getuid()=%d",
-		    st.st_uid, getuid());
+		failure("file_bad_owner: st.st_uid=%jd getuid()=%jd",
+		    (intmax_t)st.st_uid, (intmax_t)getuid());
 		/* The entry had getuid()+1, but because we're
 		 * not root, we should not have been able to set that. */
 		assertEqualInt(st.st_uid, getuid());

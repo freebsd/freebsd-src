@@ -70,7 +70,7 @@ DEFINE_TEST(test_option_s)
 	assertFileContents("bar", 3, "test4/in/d1/baz");
 
 	/*
-	 * Test 4b: Multiple substitutions behavior with option b).
+	 * Test 4b: Multiple substitutions behavior with option b.
 	 */
 	assertMakeDir("test4b", 0755);
 	systemf("%s -cf test4b.tar in/d1/foo in/d1/bar",
@@ -79,6 +79,18 @@ DEFINE_TEST(test_option_s)
 	    testprog);
 	assertFileContents("foo", 3, "test4b/in/d1/faz");
 	assertFileContents("bar", 3, "test4b/in/d1/baz");
+
+	/*
+	 * Test 4bb: Multiple substitutions with option b
+	 * (libarchive/libarchive#2414 GitHub issue regression test).
+	 */
+	assertMakeDir("test4bb", 0755);
+	systemf("%s -cf test4bb.tar in/d1/foo in/d1/bar",
+	    testprog);
+	systemf("%s -xf test4bb.tar -s /oo/ar/ -s }ar}az}b -s :az:end:b -C test4bb",
+	    testprog);
+	assertFileContents("foo", 3, "test4bb/in/d1/fend");
+	assertFileContents("bar", 3, "test4bb/in/d1/bend");
 
 	/*
 	 * Test 5: Name-switching substitutions when extracting archive.

@@ -262,7 +262,7 @@ translate_acl(struct archive_read_disk *a,
 			}
 			for (i = 0; i < acl_nfs4_flag_map_size; ++i) {
 				r = acl_get_flag_np(acl_flagset,
-				    acl_nfs4_flag_map[i].p_perm);
+				    (acl_flag_t)acl_nfs4_flag_map[i].p_perm);
 				if (r == -1) {
 					archive_set_error(&a->archive, errno,
 					    "Failed to check flag in a NFSv4 "
@@ -517,7 +517,7 @@ set_acl(struct archive *a, int fd, const char *name,
 			for (i = 0; i < acl_nfs4_flag_map_size; ++i) {
 				if (ae_permset & acl_nfs4_flag_map[i].a_perm) {
 					if (acl_add_flag_np(acl_flagset,
-					    acl_nfs4_flag_map[i].p_perm) != 0) {
+					    (acl_flag_t)acl_nfs4_flag_map[i].p_perm) != 0) {
 						archive_set_error(a, errno,
 						    "Failed to add flag to "
 						    "NFSv4 ACL flagset");

@@ -33,4 +33,4 @@
 /* Random number generator. */
 int archive_random(void *buf, size_t nbytes);
 
-#endif /* ARCHIVE_RANDOM_PRIVATE_H_INCLUDED */
+#endif /* !ARCHIVE_RANDOM_PRIVATE_H_INCLUDED */

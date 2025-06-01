@@ -91,7 +91,7 @@ unicode_to_utf16be(char *p, uint32_t uc)
 		archive_be16enc(utf16+2, (uc & 0x3ff) + 0xDC00);
 		return (4);
 	} else {
-		archive_be16enc(utf16, uc);
+		archive_be16enc(utf16, (uint16_t)uc);
 		return (2);
 	}
 }
@@ -118,7 +118,7 @@ unicode_to_utf16le(char *p, uint32_t uc)
 		archive_le16enc(utf16+2, (uc & 0x3ff) + 0xDC00);
 		return (4);
 	} else {
-		archive_le16enc(utf16, uc);
+		archive_le16enc(utf16, (uint16_t)uc);
 		return (2);
 	}
 }

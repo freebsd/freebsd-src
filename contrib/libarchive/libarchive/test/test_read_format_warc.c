@@ -78,3 +78,27 @@ DEFINE_TEST(test_read_format_warc)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+DEFINE_TEST(test_read_format_warc_incomplete)
+{
+	const char reffile[] = "test_read_format_warc_incomplete.warc";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_filename(a, reffile, 10240));
+
+	/* Entry cannot be parsed */
+	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
+
+	/* Verify archive format. */
+	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
+
+	/* Verify closing and resource freeing */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

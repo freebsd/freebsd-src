@@ -1185,8 +1185,13 @@ archive_acl_from_text_w(struct archive_acl *acl, const wchar_t *text,
 		/* Set remaining fields to blank. */
 		for (n = fields; n < numfields; ++n)
 			field[n].start = field[n].end = NULL;
+		
+		if (field[0].start == NULL || field[0].end == NULL) {
+			/* This should never happen */
+			return (ARCHIVE_FATAL);
+		}
 
-		if (field[0].start != NULL && *(field[0].start) == L'#') {
+		if (*(field[0].start) == L'#') {
 			/* Comment, skip entry */
 			continue;
 		}
@@ -1676,7 +1681,12 @@ archive_acl_from_text_nl(struct archive_acl *acl, const char *text,
 		for (n = fields; n < numfields; ++n)
 			field[n].start = field[n].end = NULL;
 
-		if (field[0].start != NULL && *(field[0].start) == '#') {
+		if (field[0].start == NULL || field[0].end == NULL) {
+			/* This should never happen */
+			return (ARCHIVE_FATAL);
+		}
+
+		if (*(field[0].start) == '#') {
 			/* Comment, skip entry */
 			continue;
 		}

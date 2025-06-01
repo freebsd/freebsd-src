@@ -79,8 +79,8 @@ DEFINE_TEST(test_write_disk_secure_noabsolutepaths)
 	assert(ARCHIVE_OK != archive_read_extract(a, ae, ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS));
 
 	// This should also fail.
-	assert((ad = archive_write_new()) != NULL);
-	assertEqualInt(ARCHIVE_OK, archive_write_disk_set_options(a, ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS));
+	assert((ad = archive_write_disk_new()) != NULL);
+	assertEqualInt(ARCHIVE_OK, archive_write_disk_set_options(ad, ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS));
 	assert(ARCHIVE_OK != archive_read_extract2(a, ae, ad));
 
 	assertEqualInt(ARCHIVE_OK, archive_write_free(ad));

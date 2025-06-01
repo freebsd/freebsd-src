@@ -198,7 +198,7 @@ is_sparse_supported_fiemap(const char *path)
 		return (0);
 	fm = (struct fiemap *)buff;
 	fm->fm_start = 0;
-	fm->fm_length = ~0ULL;;
+	fm->fm_length = ~0ULL;
 	fm->fm_flags = FIEMAP_FLAG_SYNC;
 	fm->fm_extent_count = (sizeof(buff) - sizeof(*fm))/
 		sizeof(struct fiemap_extent);
@@ -608,7 +608,8 @@ DEFINE_TEST(test_sparse_basic)
 	verify_sparse_file(a, "file2", sparse_file2, 20);
 	/* Encoded non sparse; expect a data block but no sparse entries. */
 	verify_sparse_file(a, "file3", sparse_file3, 0);
-	verify_sparse_file(a, "file4", sparse_file4, 2);
+	if (sizeof(off_t) > 4)
+		verify_sparse_file(a, "file4", sparse_file4, 2);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
@@ -635,7 +636,8 @@ DEFINE_TEST(test_sparse_basic)
 	verify_sparse_file(a, "file1", sparse_file1, 0);
 	verify_sparse_file(a, "file2", sparse_file2, 0);
 	verify_sparse_file(a, "file3", sparse_file3, 0);
-	verify_sparse_file(a, "file4", sparse_file4, 0);
+	if (sizeof(off_t) > 4)
+		verify_sparse_file(a, "file4", sparse_file4, 0);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 

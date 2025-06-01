@@ -62,25 +62,6 @@ struct fileblocks {
 #define GB ((int64_t)1024 * MB)
 #define TB ((int64_t)1024 * GB)
 
-static int64_t	memory_read_skip(struct archive *, void *, int64_t request);
-static ssize_t	memory_read(struct archive *, void *, const void **buff);
-static ssize_t	memory_write(struct archive *, void *, const void *, size_t);
-
-static uint16_t le16(const void *_p) {
-	const uint8_t *p = _p;
-	return p[0] | (p[1] << 8);
-}
-
-static uint32_t le32(const void *_p) {
-	const uint8_t *p = _p;
-	return le16(p) | ((uint32_t)le16(p + 2) << 16);
-}
-
-static uint64_t le64(const void *_p) {
-	const uint8_t *p = _p;
-	return le32(p) | ((uint64_t)le32(p + 4) << 32);
-}
-
 static ssize_t
 memory_write(struct archive *a, void *_private, const void *buff, size_t size)
 {
@@ -436,7 +417,7 @@ DEFINE_TEST(test_write_format_zip_large)
 	eocd = p - 22;
 	assertEqualMem(eocd, "PK\005\006\0\0\0\0", 8);
 	assertEqualMem(eocd + 8, "\010\0\010\0", 4); /* 8 entries total */
-	cd_size = le32(eocd + 12);
+	cd_size = i4le(eocd + 12);
 	/* Start of CD offset should be 0xffffffff */
 	assertEqualMem(eocd + 16, "\xff\xff\xff\xff", 4);
 	assertEqualMem(eocd + 20, "\0\0", 2);	/* No Zip comment */
@@ -444,25 +425,25 @@ DEFINE_TEST(test_write_format_zip_large)
 	/* Verify Zip64 locator */
 	zip64_locator = p - 42;
 	assertEqualMem(zip64_locator, "PK\006\007\0\0\0\0", 8);
-	zip64_eocd = p - (fileblocks->filesize - le64(zip64_locator + 8));
+	zip64_eocd = p - (fileblocks->filesize - i8le(zip64_locator + 8));
 	assertEqualMem(zip64_locator + 16, "\001\0\0\0", 4);
 
 	/* Verify Zip64 end-of-cd record. */
 	assert(zip64_eocd == p - 98);
 	assertEqualMem(zip64_eocd, "PK\006\006", 4);
-	assertEqualInt(44, le64(zip64_eocd + 4)); // Size of EoCD record - 12
+	assertEqualInt(44, i8le(zip64_eocd + 4)); // Size of EoCD record - 12
 	assertEqualMem(zip64_eocd + 12, "\055\0", 2);  // Made by version: 45
 	assertEqualMem(zip64_eocd + 14, "\055\0", 2);  // Requires version: 45
 	assertEqualMem(zip64_eocd + 16, "\0\0\0\0", 4); // This disk
 	assertEqualMem(zip64_eocd + 20, "\0\0\0\0", 4); // Total disks
-	assertEqualInt(8, le64(zip64_eocd + 24));  // Entries on this disk
-	assertEqualInt(8, le64(zip64_eocd + 32));  // Total entries
-	cd_size = le64(zip64_eocd + 40);
-	cd_start = p - (fileblocks->filesize - le64(zip64_eocd + 48));
+	assertEqualInt(8, i8le(zip64_eocd + 24));  // Entries on this disk
+	assertEqualInt(8, i8le(zip64_eocd + 32));  // Total entries
+	cd_size = i8le(zip64_eocd + 40);
+	cd_start = p - (fileblocks->filesize - i8le(zip64_eocd + 48));
 
 	assert(cd_start + cd_size == zip64_eocd);
 
-	assertEqualInt(le64(zip64_eocd + 48) // Start of CD
+	assertEqualInt(i8le(zip64_eocd + 48) // Start of CD
 	    + cd_size
 	    + 56 // Size of Zip64 EOCD
 	    + 20 // Size of Zip64 locator

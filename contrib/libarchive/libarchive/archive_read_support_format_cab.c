@@ -363,7 +363,12 @@ archive_read_support_format_cab(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 	archive_string_init(&cab->ws);
-	archive_wstring_ensure(&cab->ws, 256);
+	if (archive_wstring_ensure(&cab->ws, 256) == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory");
+		free(cab);
+		return (ARCHIVE_FATAL);
+	}
 
 	r = __archive_read_register_format(a,
 	    cab,
