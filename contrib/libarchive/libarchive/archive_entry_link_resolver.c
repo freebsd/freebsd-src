@@ -280,6 +280,10 @@ find_entry(struct archive_entry_linkresolver *res,
 	dev_t			 dev;
 	int64_t			 ino;
 
+	if (!archive_entry_ino_is_set(entry) || !archive_entry_dev_is_set(entry)) {
+		return (NULL);
+	}
+
 	/* Free a held entry. */
 	if (res->spare != NULL) {
 		archive_entry_free(res->spare->canonical);
@@ -368,6 +372,10 @@ insert_entry(struct archive_entry_linkresolver *res,
 {
 	struct links_entry *le;
 	size_t hash, bucket;
+
+	if (!archive_entry_ino_is_set(entry) || !archive_entry_dev_is_set(entry)) {
+		return (NULL);
+	}
 
 	/* Add this entry to the links cache. */
 	le = calloc(1, sizeof(struct links_entry));

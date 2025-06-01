@@ -911,7 +911,7 @@ static int	iso9660_finish_entry(struct archive_write *);
 static int	iso9660_close(struct archive_write *);
 static int	iso9660_free(struct archive_write *);
 
-static void	get_system_identitier(char *, size_t);
+static void	get_system_identifier(char *, size_t);
 static void	set_str(unsigned char *, const char *, size_t, char,
 		    const char *);
 static inline int joliet_allowed_char(unsigned char, unsigned char);
@@ -1167,7 +1167,12 @@ archive_write_set_format_iso9660(struct archive *_a)
 	iso9660->primary.rootent->parent = iso9660->primary.rootent;
 	iso9660->cur_dirent = iso9660->primary.rootent;
 	archive_string_init(&(iso9660->cur_dirstr));
-	archive_string_ensure(&(iso9660->cur_dirstr), 1);
+	if (archive_string_ensure(&(iso9660->cur_dirstr), 1) == NULL) {
+		free(iso9660);
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory");
+		return (ARCHIVE_FATAL);
+	}
 	iso9660->cur_dirstr.s[0] = 0;
 	iso9660->sconv_to_utf16be = NULL;
 	iso9660->sconv_from_utf16be = NULL;
@@ -2166,7 +2171,7 @@ iso9660_free(struct archive_write *a)
  * Get the System Identifier
  */
 static void
-get_system_identitier(char *system_id, size_t size)
+get_system_identifier(char *system_id, size_t size)
 {
 #if defined(HAVE_SYS_UTSNAME_H)
 	struct utsname u;
@@ -3872,7 +3877,7 @@ write_VD(struct archive_write *a, struct vdd *vdd)
 	/* Unused Field */
 	set_unused_field_bp(bp, 8, 8);
 	/* System Identifier */
-	get_system_identitier(identifier, sizeof(identifier));
+	get_system_identifier(identifier, sizeof(identifier));
 	r = set_str_a_characters_bp(a, bp, 9, 40, identifier, vdc);
 	if (r != ARCHIVE_OK)
 		return (r);
@@ -4037,7 +4042,7 @@ set_option_info(struct archive_string *info, int *opt, const char *key,
 	case KEY_HEX:
 		d = va_arg(ap, int);
 		archive_string_sprintf(info, "%c%s=%x",
-		    prefix, key, d);
+		    prefix, key, (unsigned int)d);
 		break;
 	}
 	va_end(ap);
@@ -5666,9 +5671,15 @@ isoent_tree(struct archive_write *a, struct isoent **isoentpp)
 		 * inserted. */
 		iso9660->cur_dirent = dent;
 		archive_string_empty(&(iso9660->cur_dirstr));
-		archive_string_ensure(&(iso9660->cur_dirstr),
+		if (archive_string_ensure(&(iso9660->cur_dirstr),
 		    archive_strlen(&(dent->file->parentdir)) +
-		    archive_strlen(&(dent->file->basename)) + 2);
+		    archive_strlen(&(dent->file->basename)) + 2) == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory");
+			_isoent_free(isoent);
+			*isoentpp = NULL;
+			return (ARCHIVE_FATAL);
+		}
 		if (archive_strlen(&(dent->file->parentdir)) +
 		    archive_strlen(&(dent->file->basename)) == 0)
 			iso9660->cur_dirstr.s[0] = 0;

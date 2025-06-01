@@ -1206,7 +1206,7 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	else
 		strcpy(date, "invalid mtime");
 
-	fprintf(out, "%s%3d %-8s %-8s %8s %12s %s",
+	fprintf(out, "%s%3u %-8s %-8s %8s %12s %s",
 	    archive_entry_strmode(entry),
 	    archive_entry_nlink(entry),
 	    uname, gname, size, date,
