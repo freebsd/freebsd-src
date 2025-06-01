@@ -57,4 +57,6 @@ _thr_resolve_machdep(void)
 {
 }
 
+#define	__thr_setup_tsd(thread)		_tcb_set((thread)->tcb)
+
 #endif

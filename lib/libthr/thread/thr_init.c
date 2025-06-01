@@ -354,7 +354,7 @@ _libpthread_init(struct pthread *curthread)
 	_thread_active_threads = 1;
 
 	/* Setup the thread specific data */
-	_tcb_set(curthread->tcb);
+	__thr_setup_tsd(curthread);
 
 	if (first) {
 		_thr_initial = curthread;
