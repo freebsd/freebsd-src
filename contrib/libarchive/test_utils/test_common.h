@@ -467,4 +467,4 @@ void assertVersion(const char *prog, const char *base);
 
 #include "test_utils.h"
 
-#endif	/* TEST_COMMON_H */
+#endif	/* !TEST_COMMON_H */

@@ -176,15 +176,9 @@ client_skip_proxy(struct archive_read_filter *self, int64_t request)
 		return 0;
 
 	if (self->archive->client.skipper != NULL) {
-		/* Seek requests over 1GiB are broken down into
-		 * multiple seeks.  This avoids overflows when the
-		 * requests get passed through 32-bit arguments. */
-		int64_t skip_limit = (int64_t)1 << 30;
 		int64_t total = 0;
 		for (;;) {
 			int64_t get, ask = request;
-			if (ask > skip_limit)
-				ask = skip_limit;
 			get = (self->archive->client.skipper)
 				(&self->archive->archive, self->data, ask);
 			total += get;

@@ -85,13 +85,14 @@ Currently, the library automatically detects and reads the following formats:
   * PWB binary cpio
   * ISO9660 CD-ROM images (with optional Rockridge or Joliet extensions)
   * ZIP archives (with uncompressed or "deflate" compressed entries, including support for encrypted Zip archives)
-  * ZIPX archives (with support for bzip2, ppmd8, lzma and xz compressed entries)
+  * ZIPX archives (with support for bzip2, zstd, ppmd8, lzma and xz compressed entries)
   * GNU and BSD 'ar' archives
   * 'mtree' format
   * 7-Zip archives (including archives that use zstandard compression)
   * Microsoft CAB format
   * LHA and LZH archives
   * RAR and RAR 5.0 archives (with some limitations due to RAR's proprietary status)
+  * WARC archives
   * XAR archives
 
 The library also detects and handles any of the following before evaluating the archive:
@@ -120,15 +121,18 @@ The library can create archives in any of the following formats:
   * PWB binary cpio
   * shar archives
   * ZIP archives (with uncompressed or "deflate" compressed entries)
+  * ZIPX archives (with bzip2, zstd, lzma or xz compressed entries)
   * GNU and BSD 'ar' archives
   * 'mtree' format
   * ISO9660 format
-  * 7-Zip archives
+  * 7-Zip archives (including archives that use zstandard compression)
+  * WARC archives
   * XAR archives
 
 When creating archives, the result can be filtered with any of the following:
 
   * uuencode
+  * base64
   * gzip compression
   * bzip2 compression
   * compress/LZW compression
@@ -241,4 +245,3 @@ questions we are asked about libarchive:
   appropriate.  It has many advantages over other tar formats
   (including the legacy GNU tar format) and is widely supported by
   current tar implementations.
-
