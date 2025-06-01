@@ -219,7 +219,7 @@ DEFINE_TEST(test_format_newc)
 		assert(is_hex(e, 110));
 		assertEqualMem(e + 0, "070701", 6); /* Magic */
 		assert(is_hex(e + 6, 8)); /* ino */
-#if defined(_WIN32) && !defined(CYGWIN)
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		/* Mode: Group members bits and others bits do not work. */
 		assertEqualInt(0xa180, from_hex(e + 14, 8) & 0xffc0);
 #else

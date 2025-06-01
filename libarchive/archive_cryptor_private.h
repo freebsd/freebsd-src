@@ -144,6 +144,10 @@ typedef struct {
 
 #else
 
+#if defined(_WIN32) && !defined(__CYGWIN__) && !(defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA)
+#define ARCHIVE_CRYPTOR_USE_WINCRYPT 1
+#endif
+
 #define AES_BLOCK_SIZE	16
 #define AES_MAX_KEY_SIZE 32
 typedef int archive_crypto_ctx;

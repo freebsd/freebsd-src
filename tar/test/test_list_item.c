@@ -43,54 +43,8 @@ static const char *tvf_out =
 "-rw-r--r--  0 1000            1000            0 Jan  1  1980 f\n";
 #endif
 
-static void
-set_lc_time(const char * str)
-{
-
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	if (!SetEnvironmentVariable("LC_TIME", str)) {
-		fprintf(stderr, "SetEnvironmentVariable failed with %d\n",
-		    (int)GetLastError());
-	}
-#else
-	if (setenv("LC_TIME", str, 1) == -1)
-		fprintf(stderr, "setenv: %s\n", strerror(errno));
-#endif
-}
-
-static int
-run_tvf(void)
-{
-	char * orig_lc_time;
-	char * lc_time;
-	int exact_tvf_check;
-
-	orig_lc_time = getenv("LC_TIME");
-
-	/* Try to set LC_TIME to known (English) dates. */
-	set_lc_time("en_US.UTF-8");
-
-	/* Check if we've got the right LC_TIME; if not, don't check output. */
-	lc_time = getenv("LC_TIME");
-	if ((lc_time != NULL) && strcmp(lc_time, "en_US.UTF-8") == 0)
-		exact_tvf_check = 1;
-	else
-		exact_tvf_check = 0;
-
-	assertEqualInt(0,
-	    systemf("%s tvf test_list_item.tar >tvf.out 2>tvf.err", testprog));
-
-	/* Restore the original date formatting. */
-	if (orig_lc_time != NULL)
-		set_lc_time(orig_lc_time);
-
-	return (exact_tvf_check);
-}
-
 DEFINE_TEST(test_list_item)
 {
-	int exact_tvf_check;
-
 	extract_reference_file("test_list_item.tar");
 
 	/* Run 'tf' and check output. */
@@ -100,16 +54,10 @@ DEFINE_TEST(test_list_item)
 	assertTextFileContents(tf_out, "tf.out");
 	assertEmptyFile("tf.err");
 
-	/* Run 'tvf'. */
-	exact_tvf_check = run_tvf();
-
-	/* Check 'tvf' output. */
+	/* Run 'tvf' and check output. */
+	assertEqualInt(0,
+	    systemf("%s tvf test_list_item.tar >tvf.out 2>tvf.err", testprog));
 	failure("'t' mode with 'v' should write more results to stdout");
+	assertTextFileContents(tvf_out, "tvf.out");
 	assertEmptyFile("tvf.err");
-	if (exact_tvf_check)
-		assertTextFileContents(tvf_out, "tvf.out");
-	else {
-		/* The 'skipping' macro requires braces. */
-		skipping("Can't check exact tvf output");
-	}
 }

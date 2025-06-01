@@ -34,7 +34,7 @@
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3008000
+#define	ARCHIVE_VERSION_NUMBER 3008001
 
 #include <sys/stat.h>
 #include <stddef.h>  /* for wchar_t */
@@ -177,7 +177,7 @@ __LA_DECL int		archive_version_number(void);
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_ONLY_STRING "3.8.0"
+#define	ARCHIVE_VERSION_ONLY_STRING "3.8.1"
 #define	ARCHIVE_VERSION_STRING "libarchive " ARCHIVE_VERSION_ONLY_STRING
 __LA_DECL const char *	archive_version_string(void);
 
@@ -1250,8 +1250,10 @@ __LA_DECL int	archive_match_include_gname_w(struct archive *,
 		    const wchar_t *);
 
 /* Utility functions */
+#if ARCHIVE_VERSION_NUMBER < 4000000
 /* Convenience function to sort a NULL terminated list of strings */
 __LA_DECL int archive_utility_string_sort(char **);
+#endif
 
 #ifdef __cplusplus
 }

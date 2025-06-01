@@ -2209,9 +2209,13 @@ mtree_entry_tree_add(struct archive_write *a, struct mtree_entry **filep)
 		 * inserted. */
 		mtree->cur_dirent = dent;
 		archive_string_empty(&(mtree->cur_dirstr));
-		archive_string_ensure(&(mtree->cur_dirstr),
+		if (archive_string_ensure(&(mtree->cur_dirstr),
 		    archive_strlen(&(dent->parentdir)) +
-		    archive_strlen(&(dent->basename)) + 2);
+		    archive_strlen(&(dent->basename)) + 2) == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory");
+			return (ARCHIVE_FATAL);
+		}
 		if (archive_strlen(&(dent->parentdir)) +
 		    archive_strlen(&(dent->basename)) == 0)
 			mtree->cur_dirstr.s[0] = 0;

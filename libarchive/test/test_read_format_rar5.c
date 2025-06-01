@@ -1126,7 +1126,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_READONLY;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_READONLY;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1138,7 +1138,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_HIDDEN;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_HIDDEN;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1150,7 +1150,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_SYSTEM;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_SYSTEM;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1162,7 +1162,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_READONLY | UF_HIDDEN;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1174,7 +1174,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_READONLY;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_READONLY;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1186,7 +1186,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_HIDDEN;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_HIDDEN;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1198,7 +1198,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_SYSTEM;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_SYSTEM;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1210,7 +1210,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_READONLY | UF_HIDDEN;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN;
 #endif
 	assertEqualInt(flag, set & flag);

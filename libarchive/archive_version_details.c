@@ -134,31 +134,31 @@ archive_libb2_version(struct archive_string* str)
 static void
 archive_crypto_version(struct archive_string* str)
 {
-#if defined(ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto) || defined(ARCHIVE_DIGEST_USE_Apple_CommonCrypto)
+#if defined(ARCHIVE_CRYPTOR_USE_Apple_CommonCrypto)
 	archive_strcat(str, " CommonCrypto/");
 	archive_strcat(str, archive_commoncrypto_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_CNG) || defined(ARCHIVE_DIGEST_USE_CNG)
+#if defined(ARCHIVE_CRYPTOR_USE_CNG)
 	archive_strcat(str, " cng/");
 	archive_strcat(str, archive_cng_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_MBED) || defined(ARCHIVE_DIGEST_USE_MBED)
+#if defined(ARCHIVE_CRYPTOR_USE_MBED)
 	archive_strcat(str, " mbedtls/");
 	archive_strcat(str, archive_mbedtls_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_NETTLE) || defined(ARCHIVE_DIGEST_USE_NETTLE)
+#if defined(ARCHIVE_CRYPTOR_USE_NETTLE)
 	archive_strcat(str, " nettle/");
 	archive_strcat(str, archive_nettle_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_OPENSSL) || defined(ARCHIVE_DIGEST_USE_OPENSSL)
+#if defined(ARCHIVE_CRYPTOR_USE_OPENSSL)
 	archive_strcat(str, " openssl/");
 	archive_strcat(str, archive_openssl_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_LIBMD) || defined(ARCHIVE_DIGEST_USE_LIBMD)
+#if defined(ARCHIVE_CRYPTOR_USE_LIBMD)
 	archive_strcat(str, " libmd/");
 	archive_strcat(str, archive_libmd_version());
 #endif
-#if defined(ARCHIVE_CRYPTOR_USE_WINCRYPT) || defined(ARCHIVE_DIGEST_USE_WINCRYPT)
+#if defined(ARCHIVE_CRYPTOR_USE_WINCRYPT)
 	archive_strcat(str, " WinCrypt/");
 	archive_strcat(str, archive_wincrypt_version());
 #endif
@@ -439,11 +439,11 @@ archive_wincrypt_version(void)
 		if (!CryptAcquireContext(&prov, NULL, NULL, PROV_RSA_FULL, CRYPT_NEWKEYSET))
 			return NULL;
 	}
-	DWORD length, version;
-	if (!CryptGetProvParam(prov, PP_VERSION, &version, &length, 0)) {
+	DWORD version, length = sizeof(version);
+	if (!CryptGetProvParam(prov, PP_VERSION, (BYTE *)&version, &length, 0)) {
 		return NULL;
 	} else {
-		char major = version >> 8;
+		char major = (version >> 8) & 0xFF;
 		char minor = version & 0xFF;
 		static char wincrypt_version[6];
 		snprintf(wincrypt_version, 6, "%hhd.%hhd", major, minor);

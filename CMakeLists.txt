@@ -1257,7 +1257,7 @@ ELSE(LIBXML2_FOUND)
       # Check linkage as well; versions of mingw-w64 before v11.0.0
       # do not contain an import library for xmllite.
       cmake_push_check_state()
-      SET(CMAKE_REQUIRED_LIBRARIES "xmllite")
+      SET(CMAKE_REQUIRED_LIBRARIES "xmllite" "uuid")
       check_c_source_compiles("
       #include <initguid.h>
       #include <xmllite.h>
@@ -1268,7 +1268,7 @@ ELSE(LIBXML2_FOUND)
       cmake_pop_check_state()
       IF(HAVE_XMLLITE_H)
         SET(XMLLITE_FOUND TRUE)
-        LIST(APPEND ADDITIONAL_LIBS "xmllite")
+        LIST(APPEND ADDITIONAL_LIBS "xmllite" "uuid")
       ENDIF()
     ENDIF()
   ENDIF(EXPAT_FOUND)

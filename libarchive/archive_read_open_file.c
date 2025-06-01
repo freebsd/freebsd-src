@@ -132,7 +132,7 @@ FILE_skip(struct archive *a, void *client_data, int64_t request)
 #else
 	long skip = (long)request;
 #endif
-	int64_t old_offset, new_offset;
+	int64_t old_offset, new_offset = -1;
 	int skip_bits = sizeof(skip) * 8 - 1;
 
 	(void)a; /* UNUSED */
@@ -170,11 +170,14 @@ FILE_skip(struct archive *a, void *client_data, int64_t request)
 #ifdef __ANDROID__
 			new_offset = lseek(fileno(mine->f), skip, SEEK_CUR);
 #elif HAVE__FSEEKI64
-			new_offset = _fseeki64(mine->f, skip, SEEK_CUR);
+			if (_fseeki64(mine->f, skip, SEEK_CUR) == 0)
+				new_offset = _ftelli64(mine->f);
 #elif HAVE_FSEEKO
-			new_offset = fseeko(mine->f, skip, SEEK_CUR);
+			if (fseeko(mine->f, skip, SEEK_CUR) == 0)
+				new_offset = ftello(mine->f);
 #else
-			new_offset = fseek(mine->f, skip, SEEK_CUR);
+			if (fseek(mine->f, skip, SEEK_CUR) == 0)
+				new_offset = ftell(mine->f);
 #endif
 			if (new_offset >= 0)
 				return (new_offset - old_offset);

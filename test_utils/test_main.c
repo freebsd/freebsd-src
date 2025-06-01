@@ -2456,7 +2456,7 @@ void assertVersion(const char *prog, const char *base)
 
 	/* Skip arbitrary third-party version numbers. */
 	while (s > 0 && (*q == ' ' || *q == '-' || *q == '/' || *q == '.' ||
-	    isalnum((unsigned char)*q))) {
+	    *q == '_' || isalnum((unsigned char)*q))) {
 		++q;
 		--s;
 	}
@@ -3555,6 +3555,59 @@ test_summarize(int failed, int skips_num)
 }
 
 /*
+ * Set or unset environment variable.
+ */
+static void
+set_environment(const char *key, const char *value)
+{
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (!SetEnvironmentVariable(key, value)) {
+		fprintf(stderr, "SetEnvironmentVariable failed with %d\n",
+		    (int)GetLastError());
+	}
+#else
+	if (value == NULL) {
+		if (unsetenv(key) == -1)
+			fprintf(stderr, "unsetenv: %s\n", strerror(errno));
+	} else {
+		if (setenv(key, value, 1) == -1)
+			fprintf(stderr, "setenv: %s\n", strerror(errno));
+	}
+#endif
+}
+
+/*
+ * Enforce C locale for (sub)processes.
+ */
+static void
+set_c_locale()
+{
+	static const char *lcs[] = {
+		"LC_ADDRESS",
+		"LC_ALL",
+		"LC_COLLATE",
+		"LC_CTYPE",
+		"LC_IDENTIFICATION",
+		"LC_MEASUREMENT",
+		"LC_MESSAGES",
+		"LC_MONETARY",
+		"LC_NAME",
+		"LC_NUMERIC",
+		"LC_PAPER",
+		"LC_TELEPHONE",
+		"LC_TIME",
+		NULL
+	};
+	size_t i;
+
+	setlocale(LC_ALL, "C");
+	set_environment("LANG", "C");
+	for (i = 0; lcs[i] != NULL; i++)
+		set_environment(lcs[i], NULL);
+}
+
+/*
  * Actually run a single test, with appropriate setup and cleanup.
  */
 static int
@@ -3629,7 +3682,7 @@ test_run(int i, const char *tmpdir)
 		exit(1);
 	}
 	/* Explicitly reset the locale before each test. */
-	setlocale(LC_ALL, "C");
+	set_c_locale();
 	/* Record the umask before we run the test. */
 	umask(oldumask = umask(0));
 	/*
@@ -3643,7 +3696,7 @@ test_run(int i, const char *tmpdir)
 	/* Restore umask */
 	umask(oldumask);
 	/* Reset locale. */
-	setlocale(LC_ALL, "C");
+	set_c_locale();
 	/* Reset directory. */
 	if (!assertChdir(tmpdir)) {
 		fprintf(stderr, "ERROR: Couldn't chdir to temp dir %s\n",

@@ -174,8 +174,10 @@ IF(ENABLE_TEST)
     test_read_format_tar_empty_pax.c
     test_read_format_tar_filename.c
     test_read_format_tar_invalid_pax_size.c
+    test_read_format_tar_mac_metadata.c
     test_read_format_tar_pax_g_large.c
     test_read_format_tar_pax_large_attr.c
+    test_read_format_tar_pax_negative_time.c
     test_read_format_tbz.c
     test_read_format_tgz.c
     test_read_format_tlz.c
@@ -208,6 +210,7 @@ IF(ENABLE_TEST)
     test_read_format_zip_zip64.c
     test_read_format_zip_with_invalid_traditional_eocd.c
     test_read_large.c
+    test_read_pax_empty_val_no_nl.c
     test_read_pax_xattr_rht_security_selinux.c
     test_read_pax_xattr_schily.c
     test_read_pax_truncated.c

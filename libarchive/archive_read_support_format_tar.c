@@ -174,7 +174,7 @@ static int	gnu_sparse_old_parse(struct archive_read *, struct tar *,
 		    const struct gnu_sparse *sparse, int length);
 static int	gnu_sparse_01_parse(struct archive_read *, struct tar *,
 		    const char *, size_t);
-static ssize_t	gnu_sparse_10_read(struct archive_read *, struct tar *,
+static int64_t	gnu_sparse_10_read(struct archive_read *, struct tar *,
 		    int64_t *);
 static int	header_Solaris_ACL(struct archive_read *,  struct tar *,
 		    struct archive_entry *, const void *, int64_t *);
@@ -628,7 +628,10 @@ archive_read_format_tar_read_data(struct archive_read *a,
 		/* If we're at end of file, return EOF. */
 		if (tar->sparse_list == NULL ||
 		    tar->entry_bytes_remaining == 0) {
-			if (__archive_read_consume(a, tar->entry_padding) < 0)
+			int64_t request = tar->entry_bytes_remaining +
+			    tar->entry_padding;
+
+			if (__archive_read_consume(a, request) != request)
 				return (ARCHIVE_FATAL);
 			tar->entry_padding = 0;
 			*buff = NULL;
@@ -666,29 +669,15 @@ archive_read_format_tar_read_data(struct archive_read *a,
 static int
 archive_read_format_tar_skip(struct archive_read *a)
 {
-	int64_t bytes_skipped;
 	int64_t request;
-	struct sparse_block *p;
 	struct tar* tar;
 
 	tar = (struct tar *)(a->format->data);
 
-	/* Do not consume the hole of a sparse file. */
-	request = 0;
-	for (p = tar->sparse_list; p != NULL; p = p->next) {
-		if (!p->hole) {
-			if (p->remaining >= INT64_MAX - request) {
-				return ARCHIVE_FATAL;
-			}
-			request += p->remaining;
-		}
-	}
-	if (request > tar->entry_bytes_remaining)
-		request = tar->entry_bytes_remaining;
-	request += tar->entry_padding + tar->entry_bytes_unconsumed;
+	request = tar->entry_bytes_remaining + tar->entry_padding +
+	    tar->entry_bytes_unconsumed;
 
-	bytes_skipped = __archive_read_consume(a, request);
-	if (bytes_skipped < 0)
+	if (__archive_read_consume(a, request) != request)
 		return (ARCHIVE_FATAL);
 
 	tar->entry_bytes_remaining = 0;
@@ -699,6 +688,22 @@ archive_read_format_tar_skip(struct archive_read *a)
 	gnu_clear_sparse_list(tar);
 
 	return (ARCHIVE_OK);
+}
+
+/*
+ * This function resets the accumulated state while reading
+ * a header.
+ */
+static void
+tar_reset_header_state(struct tar *tar)
+{
+	tar->pax_hdrcharset_utf8 = 1;
+	tar->sparse_gnu_attributes_seen = 0;
+	archive_string_empty(&(tar->entry_gname));
+	archive_string_empty(&(tar->entry_pathname));
+	archive_string_empty(&(tar->entry_pathname_override));
+	archive_string_empty(&(tar->entry_uname));
+	archive_string_empty(&tar->entry_linkpath);
 }
 
 /*
@@ -726,13 +731,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	static const int32_t seen_x_header = 32; /* Also X */
 	static const int32_t seen_mac_metadata = 512;
 
-	tar->pax_hdrcharset_utf8 = 1;
-	tar->sparse_gnu_attributes_seen = 0;
-	archive_string_empty(&(tar->entry_gname));
-	archive_string_empty(&(tar->entry_pathname));
-	archive_string_empty(&(tar->entry_pathname_override));
-	archive_string_empty(&(tar->entry_uname));
-	archive_string_empty(&tar->entry_linkpath);
+	tar_reset_header_state(tar);
 
 	/* Ensure format is set. */
 	if (a->archive.archive_format_name == NULL) {
@@ -936,6 +935,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 				err = err_combine(err, err2);
 				/* Note: Other headers can appear again. */
 				seen_headers = seen_mac_metadata;
+				tar_reset_header_state(tar);
 				break;
 			}
 
@@ -1118,8 +1118,8 @@ header_Solaris_ACL(struct archive_read *a, struct tar *tar,
 		break;
 	default:
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Malformed Solaris ACL attribute (unsupported type %"
-		    PRIo64 ")", type);
+		    "Malformed Solaris ACL attribute (unsupported type %llu)",
+		    (unsigned long long)type);
 		archive_string_free(&acl_text);
 		return (ARCHIVE_WARN);
 	}
@@ -1293,18 +1293,21 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
 	(void)tar; /* UNUSED */
 	header = (const struct archive_entry_header_ustar *)h;
 	size  = tar_atol(header->size, sizeof(header->size));
-	if (size > entry_limit) {
+	if (size < 0 || size > entry_limit) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Special header has invalid size: %lld",
+		    (long long)size);
 		return (ARCHIVE_FATAL);
 	}
-	if ((size > (int64_t)pathname_limit) || (size < 0)) {
+	if (size > (int64_t)pathname_limit) {
 		archive_string_empty(as);
 		int64_t to_consume = ((size + 511) & ~511);
 		if (to_consume != __archive_read_consume(a, to_consume)) {
 			return (ARCHIVE_FATAL);
 		}
 		archive_set_error(&a->archive, EINVAL,
-		    "Special header too large: %d > 1MiB",
-		    (int)size);
+		    "Special header too large: %lld > 1MiB",
+		    (long long)size);
 		return (ARCHIVE_WARN);
 	}
 	r = read_bytes_to_string(a, as, size, unconsumed);
@@ -1743,7 +1746,10 @@ header_pax_global(struct archive_read *a, struct tar *tar,
 
 	header = (const struct archive_entry_header_ustar *)h;
 	size = tar_atol(header->size, sizeof(header->size));
-	if (size > entry_limit) {
+	if (size < 0 || size > entry_limit) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Special header has invalid size: %lld",
+		    (long long)size);
 		return (ARCHIVE_FATAL);
 	}
 	to_consume = ((size + 511) & ~511);
@@ -1890,8 +1896,8 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 			return (ARCHIVE_FATAL);
 		}
 		archive_set_error(&a->archive, EINVAL,
-		    "Ignoring oversized pax extensions: %d > %d",
-		    (int)ext_size, (int)ext_size_limit);
+		    "Ignoring oversized pax extensions: %lld > %lld",
+		    (long long)ext_size, (long long)ext_size_limit);
 		return (ARCHIVE_WARN);
 	}
 	tar_flush_unconsumed(a, unconsumed);
@@ -1989,6 +1995,13 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 		/* Consume size, name, and `=` */
 		*unconsumed += p - attr_start;
 		tar_flush_unconsumed(a, unconsumed);
+
+		if (value_length == 0) {
+			archive_set_error(&a->archive, EINVAL,
+					  "Malformed pax attributes");
+			*unconsumed += ext_size + ext_padding;
+			return (ARCHIVE_WARN);
+		}
 
 		/* pax_attribute will consume value_length - 1 */
 		r = pax_attribute(a, tar, entry, attr_name.s, archive_strlen(&attr_name), value_length - 1, unconsumed);
@@ -2199,8 +2212,9 @@ pax_attribute_SCHILY_acl(struct archive_read *a, struct tar *tar,
 	if (value_length > acl_limit) {
 		__archive_read_consume(a, value_length);
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-				  "Unreasonably large ACL: %d > %d",
-				  (int)value_length, (int)acl_limit);
+				  "Unreasonably large ACL: %llu > %llu",
+				  (unsigned long long)value_length,
+				  (unsigned long long)acl_limit);
 		return (ARCHIVE_WARN);
 	}
 
@@ -2247,12 +2261,16 @@ pax_attribute_read_time(struct archive_read *a, size_t value_length, int64_t *ps
 	r = read_bytes_to_string(a, &as, value_length, unconsumed);
 	if (r < ARCHIVE_OK) {
 		archive_string_free(&as);
+		*ps = 0;
+		*pn = 0;
 		return (r);
 	}
 
 	pax_time(as.s, archive_strlen(&as), ps, pn);
 	archive_string_free(&as);
-	if (*ps < 0 || *ps == INT64_MAX) {
+	if (*ps == INT64_MIN) {
+		*ps = 0;
+		*pn = 0;
 		return (ARCHIVE_WARN);
 	}
 	return (ARCHIVE_OK);
@@ -2386,8 +2404,9 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 					tar->sparse_gnu_minor = 1;
 					if (value_length > sparse_map_limit) {
 						archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-								  "Unreasonably large sparse map: %d > %d",
-								  (int)value_length, (int)sparse_map_limit);
+								  "Unreasonably large sparse map: %llu > %llu",
+								  (unsigned long long)value_length,
+								  (unsigned long long)sparse_map_limit);
 						err = ARCHIVE_FAILED;
 					} else {
 						p = __archive_read_ahead(a, value_length, &bytes_read);
@@ -2494,8 +2513,8 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 				} else {
 					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 							  "symlink type is very long"
-							  "(longest recognized value is 4 bytes, this is %d)",
-							  (int)value_length);
+							  "(longest recognized value is 4 bytes, this is %llu)",
+							  (unsigned long long)value_length);
 					err = ARCHIVE_WARN;
 				}
 				__archive_read_consume(a, value_length);
@@ -2531,8 +2550,9 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 			if (value_length > xattr_limit) {
 				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 						  "Ignoring unreasonably large security.selinux attribute:"
-						  " %d > %d",
-						  (int)value_length, (int)xattr_limit);
+						  " %llu > %llu",
+						  (unsigned long long)value_length,
+						  (unsigned long long)xattr_limit);
 				/* TODO: Should this be FAILED instead? */
 				err = ARCHIVE_WARN;
 			} else {
@@ -2649,8 +2669,9 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 					}
 				} else {
 					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-							  "Unreasonably large xattr: %d > %d",
-							  (int)value_length, (int)xattr_limit);
+							  "Unreasonably large xattr: %llu > %llu",
+							  (unsigned long long)value_length,
+							  (unsigned long long)xattr_limit);
 					err = ARCHIVE_WARN;
 				}
 				__archive_read_consume(a, value_length);
@@ -2680,8 +2701,9 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 					}
 				} else {
 					archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-							  "Unreasonably large sparse map: %d > %d",
-							  (int)value_length, (int)sparse_map_limit);
+							  "Unreasonably large sparse map: %llu > %llu",
+							  (unsigned long long)value_length,
+							  (unsigned long long)sparse_map_limit);
 					err = ARCHIVE_FAILED;
 				}
 				__archive_read_consume(a, value_length);
@@ -2750,8 +2772,8 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 				}
 			} else {
 				archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-						  "hdrcharset attribute is unreasonably large (%d bytes)",
-						  (int)value_length);
+						  "hdrcharset attribute is unreasonably large (%llu bytes)",
+						  (unsigned long long)value_length);
 				err = ARCHIVE_WARN;
 			}
 			__archive_read_consume(a, value_length);
@@ -2838,7 +2860,9 @@ pax_attribute(struct archive_read *a, struct tar *tar, struct archive_entry *ent
 
 
 /*
- * parse a decimal time value, which may include a fractional portion
+ * Parse a decimal time value, which may include a fractional portion
+ *
+ * Sets ps to INT64_MIN on error.
  */
 static void
 pax_time(const char *p, size_t length, int64_t *ps, long *pn)
@@ -2854,6 +2878,7 @@ pax_time(const char *p, size_t length, int64_t *ps, long *pn)
 
 	if (length <= 0) {
 		*ps = 0;
+		*pn = 0;
 		return;
 	}
 	s = 0;
@@ -2867,8 +2892,9 @@ pax_time(const char *p, size_t length, int64_t *ps, long *pn)
 		digit = *p - '0';
 		if (s > limit ||
 		    (s == limit && digit > last_digit_limit)) {
-			s = INT64_MAX;
-			break;
+			*ps = INT64_MIN;
+			*pn = 0;
+			return;
 		}
 		s = (s * 10) + digit;
 		++p;
@@ -3229,12 +3255,10 @@ gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
  * Returns length (in bytes) of the sparse data description
  * that was read.
  */
-static ssize_t
+static int64_t
 gnu_sparse_10_read(struct archive_read *a, struct tar *tar, int64_t *unconsumed)
 {
-	ssize_t bytes_read;
-	int entries;
-	int64_t offset, size, to_skip, remaining;
+	int64_t bytes_read, entries, offset, size, to_skip, remaining;
 
 	/* Clear out the existing sparse list. */
 	gnu_clear_sparse_list(tar);
@@ -3242,7 +3266,7 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar, int64_t *unconsumed)
 	remaining = tar->entry_bytes_remaining;
 
 	/* Parse entries. */
-	entries = (int)gnu_sparse_10_atol(a, tar, &remaining, unconsumed);
+	entries = gnu_sparse_10_atol(a, tar, &remaining, unconsumed);
 	if (entries < 0)
 		return (ARCHIVE_FATAL);
 	/* Parse the individual entries. */
@@ -3260,14 +3284,14 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar, int64_t *unconsumed)
 	}
 	/* Skip rest of block... */
 	tar_flush_unconsumed(a, unconsumed);
-	bytes_read = (ssize_t)(tar->entry_bytes_remaining - remaining);
+	bytes_read = tar->entry_bytes_remaining - remaining;
 	to_skip = 0x1ff & -bytes_read;
 	/* Fail if tar->entry_bytes_remaing would get negative */
 	if (to_skip > remaining)
 		return (ARCHIVE_FATAL);
 	if (to_skip != __archive_read_consume(a, to_skip))
 		return (ARCHIVE_FATAL);
-	return ((ssize_t)(bytes_read + to_skip));
+	return (bytes_read + to_skip);
 }
 
 /*
