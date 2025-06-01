@@ -67,7 +67,7 @@
 
 static MALLOC_DEFINE(M_FWCOM, "fw_com", "firewire interface internals");
 
-struct fw_hwaddr firewire_broadcastaddr = {
+static const struct fw_hwaddr firewire_broadcastaddr = {
 	0xffffffff,
 	0xffffffff,
 	0xff,
@@ -777,7 +777,7 @@ firewire_ifattach(struct ifnet *ifp, struct fw_hwaddr *llc)
 	ifp->if_mtu = 1500;	/* XXX */
 	ifp->if_output = firewire_output;
 	ifp->if_resolvemulti = firewire_resolvemulti;
-	ifp->if_broadcastaddr = (u_char *) &firewire_broadcastaddr;
+	ifp->if_broadcastaddr = (const u_char *) &firewire_broadcastaddr;
 
 	ifa = ifp->if_addr;
 	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
