@@ -309,7 +309,7 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    ether_sprintf(ni->ni_bssid));
 				ieee80211_print_essid(ni->ni_essid,
 				    ni->ni_esslen);
-				printf(" channel %d start %uMbit/s\n",
+				net80211_printf(" channel %d start %uMbit/s\n",
 				    ieee80211_chan2ieee(ic, ic->ic_curchan),
 				    ieee80211_node_get_txrate_kbit(ni) / 1000);
 			}
@@ -2218,7 +2218,7 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		    vhtcap != NULL &&
 		    vhtinfo != NULL) {
 			/* XXX TODO; see below */
-			printf("%s: VHT TODO!\n", __func__);
+			net80211_vap_printf(vap, "%s: VHT TODO!\n", __func__);
 			ieee80211_vht_node_init(ni);
 			ieee80211_vht_update_cap(ni, vhtcap, vhtinfo);
 		} else if (ni->ni_flags & IEEE80211_NODE_VHT)

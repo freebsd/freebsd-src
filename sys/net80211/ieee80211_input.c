@@ -901,7 +901,7 @@ ieee80211_parse_action(struct ieee80211_node *ni, struct mbuf *m)
 		break;
 #endif
 	case IEEE80211_ACTION_CAT_VHT:
-		printf("%s: TODO: VHT handling!\n", __func__);
+		net80211_printf("%s: TODO: VHT handling!\n", __func__);
 		break;
 	}
 	return 0;
@@ -915,10 +915,10 @@ void
 ieee80211_ssid_mismatch(struct ieee80211vap *vap, const char *tag,
 	uint8_t mac[IEEE80211_ADDR_LEN], uint8_t *ssid)
 {
-	printf("[%s] discard %s frame, ssid mismatch: ",
+	net80211_printf("[%s] discard %s frame, ssid mismatch: ",
 		ether_sprintf(mac), tag);
 	ieee80211_print_essid(ssid + 2, ssid[1]);
-	printf("\n");
+	net80211_printf("\n");
 }
 
 /*
@@ -973,7 +973,8 @@ ieee80211_note_frame(const struct ieee80211vap *vap,
 		ether_sprintf(ieee80211_getbssid(vap, wh)), buf);
 
 	if (len >= sizeof(buf))
-		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
+		net80211_printf("%s: XXX buffer too small: len = %d\n",
+		    __func__, len);
 }
 
 void
@@ -991,7 +992,8 @@ ieee80211_note_mac(const struct ieee80211vap *vap,
 	net80211_vap_printf(vap, "[%s] %s\n", ether_sprintf(mac), buf);
 
 	if (len >= sizeof(buf))
-		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
+		net80211_printf("%s: XXX buffer too small: len = %d\n",
+		    __func__, len);
 }
 
 void
@@ -1013,7 +1015,8 @@ ieee80211_discard_frame(const struct ieee80211vap *vap,
 	    buf);
 
 	if (len >= sizeof(buf))
-		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
+		net80211_printf("%s: XXX buffer too small: len = %d\n",
+		    __func__, len);
 }
 
 void
@@ -1034,7 +1037,8 @@ ieee80211_discard_ie(const struct ieee80211vap *vap,
 	    type != NULL ? " " : "", type != NULL ? type : "", buf);
 
 	if (len >= sizeof(buf))
-		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
+		net80211_printf("%s: XXX buffer too small: len = %d\n",
+		    __func__, len);
 }
 
 void
@@ -1055,6 +1059,7 @@ ieee80211_discard_mac(const struct ieee80211vap *vap,
 	    type != NULL ? " " : "", type != NULL ? type : "", buf);
 
 	if (len >= sizeof(buf))
-		printf("%s: XXX buffer too small: len = %d\n", __func__, len);
+		net80211_printf("%s: XXX buffer too small: len = %d\n",
+		    __func__, len);
 }
 #endif /* IEEE80211_DEBUG */

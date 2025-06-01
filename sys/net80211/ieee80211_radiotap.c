@@ -354,14 +354,14 @@ radiotap_offset(struct ieee80211_radiotap_header *rh,
 			continue;
 		if (items[i].align == 0) {
 			/* NB: unidentified element, don't guess */
-			printf("%s: unknown item %d\n", __func__, i);
+			net80211_printf("%s: unknown item %d\n", __func__, i);
 			return -1;
 		}
 		off = roundup2(off, items[i].align);
 		if (i == item) {
 			if (off + items[i].width > le16toh(rh->it_len)) {
 				/* NB: item does not fit in header data */
-				printf("%s: item %d not in header data, "
+				net80211_printf("%s: item %d not in header data, "
 				    "off %d width %zu len %d\n", __func__, i,
 				    off, items[i].width, le16toh(rh->it_len));
 				return -1;

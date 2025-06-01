@@ -235,7 +235,7 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				    ether_sprintf(ni->ni_bssid));
 				ieee80211_print_essid(vap->iv_bss->ni_essid,
 				    ni->ni_esslen);
-				printf(" channel %d start %uMbit/s\n",
+				net80211_printf(" channel %d start %uMbit/s\n",
 				    ieee80211_chan2ieee(ic, ic->ic_curchan),
 				    ieee80211_node_get_txrate_kbit(ni) / 1000);
 			}

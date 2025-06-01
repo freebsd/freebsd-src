@@ -250,7 +250,8 @@ ieee80211_parse_vhtopmode(struct ieee80211_node *ni, const uint8_t *ie)
 	ni->ni_vht_basicmcs = le16dec(ie + 5);
 
 #if 0
-	printf("%s: chan1=%d, chan2=%d, chanwidth=%d, basicmcs=0x%04x\n",
+	net80211_vap_printf(ni->ni_vap,
+	    "%s: chan1=%d, chan2=%d, chanwidth=%d, basicmcs=0x%04x\n",
 	    __func__, ni->ni_vht_chan1, ni->ni_vht_chan2, ni->ni_vht_chanwidth,
 	    ni->ni_vht_basicmcs);
 #endif
@@ -774,7 +775,8 @@ ieee80211_add_vhtcap_ch(uint8_t *frm, struct ieee80211vap *vap,
 }
 
 static uint8_t
-ieee80211_vht_get_chwidth_ie(struct ieee80211_channel *c)
+ieee80211_vht_get_chwidth_ie(const struct ieee80211vap *vap,
+    const struct ieee80211_channel *c)
 {
 
 	/*
@@ -794,7 +796,8 @@ ieee80211_vht_get_chwidth_ie(struct ieee80211_channel *c)
 		return IEEE80211_VHT_CHANWIDTH_USE_HT;
 
 	/* We shouldn't get here */
-	printf("%s: called on a non-VHT channel (freq=%d, flags=0x%08x\n",
+	net80211_vap_printf(vap,
+	    "%s: called on a non-VHT channel (freq=%d, flags=0x%08x\n",
 	    __func__, (int) c->ic_freq, c->ic_flags);
 	return IEEE80211_VHT_CHANWIDTH_USE_HT;
 }
@@ -820,7 +823,7 @@ ieee80211_add_vhtinfo(uint8_t *frm, struct ieee80211_node *ni)
 	frm += 2;
 
 	/* 8-bit chanwidth */
-	*frm++ = ieee80211_vht_get_chwidth_ie(ni->ni_chan);
+	*frm++ = ieee80211_vht_get_chwidth_ie(ni->ni_vap, ni->ni_chan);
 
 	/* 8-bit freq1 */
 	*frm++ = ni->ni_chan->ic_vht_ch_freq1;
@@ -863,7 +866,8 @@ ieee80211_vht_adjust_channel(struct ieee80211com *ic,
 	/* First case - handle channel demotion - if VHT isn't set */
 	if ((flags & IEEE80211_FVHT_MASK) == 0) {
 #if 0
-		printf("%s: demoting channel %d/0x%08x\n", __func__,
+		net80211_ic_printf(ic,
+		    "%s: demoting channel %d/0x%08x\n", __func__,
 		    chan->ic_ieee, chan->ic_flags);
 #endif
 		c = ieee80211_find_channel(ic, chan->ic_freq,
@@ -871,7 +875,7 @@ ieee80211_vht_adjust_channel(struct ieee80211com *ic,
 		if (c == NULL)
 			c = chan;
 #if 0
-		printf("%s: .. to %d/0x%08x\n", __func__,
+		net80211_ic_printf(ic, "%s: .. to %d/0x%08x\n", __func__,
 		    c->ic_ieee, c->ic_flags);
 #endif
 		return (c);
@@ -908,7 +912,8 @@ ieee80211_vht_adjust_channel(struct ieee80211com *ic,
 		chan = c;
 
 #if 0
-	printf("%s: selected %d/0x%08x\n", __func__, c->ic_ieee, c->ic_flags);
+	net80211_ic_printf(ic, "%s: selected %d/0x%08x\n", __func__,
+	    c->ic_ieee, c->ic_flags);
 #endif
 	return (chan);
 }
@@ -926,7 +931,7 @@ void
 ieee80211_vht_get_vhtinfo_ie(struct ieee80211_node *ni,
     struct ieee80211_vht_operation *vhtop, int opmode)
 {
-	printf("%s: called; TODO!\n", __func__);
+	net80211_vap_printf(ni->ni_vap, "%s: called; TODO!\n", __func__);
 }
 
 /*

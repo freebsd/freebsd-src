@@ -664,7 +664,8 @@ mesh_vattach(struct ieee80211vap *vap)
 	ms = IEEE80211_MALLOC(sizeof(struct ieee80211_mesh_state), M_80211_VAP,
 	    IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (ms == NULL) {
-		printf("%s: couldn't alloc MBSS state\n", __func__);
+		net80211_vap_printf(vap, "%s: couldn't alloc MBSS state\n",
+		    __func__);
 		return;
 	}
 	vap->iv_mesh = ms;
@@ -821,7 +822,7 @@ mesh_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				ieee80211_print_essid(ni->ni_meshid,
 				    ni->ni_meshidlen);
 				/* XXX MCS/HT */
-				printf(" channel %d\n",
+				net80211_printf(" channel %d\n",
 				    ieee80211_chan2ieee(ic, ic->ic_curchan));
 			}
 #endif

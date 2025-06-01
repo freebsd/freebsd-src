@@ -115,8 +115,8 @@ ieee80211_superg_attach(struct ieee80211com *ic)
 	     sizeof(struct ieee80211_superg), M_80211_VAP,
 	     IEEE80211_M_NOWAIT | IEEE80211_M_ZERO);
 	if (sg == NULL) {
-		printf("%s: cannot allocate SuperG state block\n",
-		    __func__);
+		net80211_ic_printf(ic,
+		    "%s: cannot allocate SuperG state block\n", __func__);
 		return;
 	}
 	TIMEOUT_TASK_INIT(ic->ic_tq, &sg->ff_qtimer, 0, ff_age_all, ic);
@@ -382,7 +382,8 @@ ieee80211_ff_encap(struct ieee80211vap *vap, struct mbuf *m1, int hdrspace,
 	ETHER_HEADER_COPY(&eh1, mtod(m1, caddr_t));
 	m1 = ieee80211_mbuf_adjust(vap, hdrspace, key, m1);
 	if (m1 == NULL) {
-		printf("%s: failed initial mbuf_adjust\n", __func__);
+		net80211_vap_printf(vap, "%s: failed initial mbuf_adjust\n",
+		    __func__);
 		/* NB: ieee80211_mbuf_adjust handles msgs+statistics */
 		m_freem(m2);
 		goto bad;
@@ -398,7 +399,7 @@ ieee80211_ff_encap(struct ieee80211vap *vap, struct mbuf *m1, int hdrspace,
 	m2 = ieee80211_mbuf_adjust(vap, 4, NULL, m2);
 	if (m2 == NULL) {
 		/* NB: ieee80211_mbuf_adjust handles msgs+statistics */
-		printf("%s: failed second \n", __func__);
+		net80211_vap_printf(vap, "%s: failed second \n", __func__);
 		goto bad;
 	}
 
@@ -714,7 +715,7 @@ stageq_remove(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf 
 		}
 		mprev = m;
 	}
-	printf("%s: packet not found\n", __func__);
+	net80211_ic_printf(ic, "%s: packet not found\n", __func__);
 }
 
 static uint32_t

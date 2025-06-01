@@ -2131,7 +2131,7 @@ ieee80211_ioctl_setchannel(struct ieee80211vap *vap,
 			}
 			break;
 		case IEEE80211_MODE_VHT_2GHZ:
-			printf("%s: TBD\n", __func__);
+			net80211_printf("%s: TBD\n", __func__);
 			break;
 		case IEEE80211_MODE_VHT_5GHZ:
 			if (IEEE80211_IS_CHAN_A(c)) {
