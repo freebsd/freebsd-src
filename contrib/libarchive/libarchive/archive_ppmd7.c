@@ -287,9 +287,14 @@ static void *AllocUnits(CPpmd7 *p, unsigned indx)
   return AllocUnitsRare(p, indx);
 }
 
-#define MyMem12Cpy(dest, src, num) \
-  { UInt32 *d = (UInt32 *)dest; const UInt32 *s = (const UInt32 *)src; UInt32 n = num; \
-    do { d[0] = s[0]; d[1] = s[1]; d[2] = s[2]; s += 3; d += 3; } while(--n); }
+#define MyMem12Cpy(dest, src, num) do {					\
+	UInt32 *d = (UInt32 *)dest;					\
+	const UInt32 *s = (const UInt32 *)src;				\
+	UInt32 n = num;							\
+	do {								\
+		d[0] = s[0]; d[1] = s[1]; d[2] = s[2]; s += 3; d += 3;	\
+	} while(--n);							\
+} while (0)
 
 static void *ShrinkUnits(CPpmd7 *p, void *oldPtr, unsigned oldNU, unsigned newNU)
 {

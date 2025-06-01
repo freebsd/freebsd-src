@@ -45,34 +45,6 @@ static const short folder_gid = 40;
 
 static time_t now;
 
-static unsigned long
-bitcrc32(unsigned long c, const void *_p, size_t s)
-{
-	/* This is a drop-in replacement for crc32() from zlib.
-	 * Libarchive should be able to correctly generate
-	 * uncompressed zip archives (including correct CRCs) even
-	 * when zlib is unavailable, and this function helps us verify
-	 * that.  Yes, this is very, very slow and unsuitable for
-	 * production use, but it's correct, compact, and works well
-	 * enough for this particular usage.  Libarchive internally
-	 * uses a much more efficient implementation.  */
-	const unsigned char *p = _p;
-	int bitctr;
-
-	if (p == NULL)
-		return (0);
-
-	for (; s > 0; --s) {
-		c ^= *p++;
-		for (bitctr = 8; bitctr > 0; --bitctr) {
-			if (c & 1) c = (c >> 1);
-			else	   c = (c >> 1) ^ 0xedb88320;
-			c ^= 0x80000000;
-		}
-	}
-	return (c);
-}
-
 static void verify_write_uncompressed(struct archive *a)
 {
 	struct archive_entry *entry;
@@ -106,21 +78,6 @@ static void verify_write_uncompressed(struct archive *a)
 	archive_entry_free(entry);
 }
 
-/* Quick and dirty: Read 2-byte and 4-byte integers from Zip file. */
-static unsigned int
-i2(const void *p_)
-{
-	const unsigned char *p = p_;
-	return (p[0] | (p[1] << 8));
-}
-
-static unsigned int
-i4(const void *p_)
-{
-	const unsigned char *p = p_;
-	return (i2(p) | (i2(p + 2) << 16));
-}
-
 static void verify_uncompressed_contents(const char *buff, size_t used)
 {
 	const char *buffend;
@@ -152,99 +109,99 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 	failure("End-of-central-directory begins with PK\\005\\006 signature");
 	assertEqualMem(p, "PK\005\006", 4);
 	failure("This must be disk 0");
-	assertEqualInt(i2(p + 4), 0);
+	assertEqualInt(i2le(p + 4), 0);
 	failure("Central dir must start on disk 0");
-	assertEqualInt(i2(p + 6), 0);
+	assertEqualInt(i2le(p + 6), 0);
 	failure("All central dir entries are on this disk");
-	assertEqualInt(i2(p + 8), i2(p + 10));
-	failure("CD start (%d) + CD length (%d) should == archive size - 22",
-	    i4(p + 12), i4(p + 16));
-	assertEqualInt(i4(p + 12) + i4(p + 16), used - 22);
+	assertEqualInt(i2le(p + 8), i2le(p + 10));
+	failure("CD start (%u) + CD length (%u) should == archive size - 22",
+	    i4le(p + 12), i4le(p + 16));
+	assertEqualInt(i4le(p + 12) + i4le(p + 16), used - 22);
 	failure("no zip comment");
-	assertEqualInt(i2(p + 20), 0);
+	assertEqualInt(i2le(p + 20), 0);
 
 	/* Get address of first entry in central directory. */
-	p = buff + i4(buffend - 6);
-	failure("Central file record at offset %d should begin with"
+	p = buff + i4le(buffend - 6);
+	failure("Central file record at offset %u should begin with"
 	    " PK\\001\\002 signature",
-	    i4(buffend - 10));
+	    i4le(buffend - 10));
 
 	/* Verify file entry in central directory. */
 	assertEqualMem(p, "PK\001\002", 4); /* Signature */
-	assertEqualInt(i2(p + 4), 3 * 256 + 10); /* Version made by */
-	assertEqualInt(i2(p + 6), 10); /* Version needed to extract */
-	assertEqualInt(i2(p + 8), 8); /* Flags */
-	assertEqualInt(i2(p + 10), 0); /* Compression method */
-	assertEqualInt(i2(p + 12), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
-	assertEqualInt(i2(p + 14), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
+	assertEqualInt(i2le(p + 4), 3 * 256 + 10); /* Version made by */
+	assertEqualInt(i2le(p + 6), 10); /* Version needed to extract */
+	assertEqualInt(i2le(p + 8), 8); /* Flags */
+	assertEqualInt(i2le(p + 10), 0); /* Compression method */
+	assertEqualInt(i2le(p + 12), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
+	assertEqualInt(i2le(p + 14), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
 	crc = bitcrc32(0, file_data1, sizeof(file_data1));
 	crc = bitcrc32(crc, file_data2, sizeof(file_data2));
-	assertEqualInt(i4(p + 16), crc); /* CRC-32 */
-	assertEqualInt(i4(p + 20), sizeof(file_data1) + sizeof(file_data2)); /* Compressed size */
-	assertEqualInt(i4(p + 24), sizeof(file_data1) + sizeof(file_data2)); /* Uncompressed size */
-	assertEqualInt(i2(p + 28), strlen(file_name)); /* Pathname length */
-	assertEqualInt(i2(p + 30), 24); /* Extra field length */
-	assertEqualInt(i2(p + 32), 0); /* File comment length */
-	assertEqualInt(i2(p + 34), 0); /* Disk number start */
-	assertEqualInt(i2(p + 36), 0); /* Internal file attrs */
-	assertEqualInt(i4(p + 38) >> 16 & 01777, file_perm); /* External file attrs */
-	assertEqualInt(i4(p + 42), 0); /* Offset of local header */
+	assertEqualInt(i4le(p + 16), crc); /* CRC-32 */
+	assertEqualInt(i4le(p + 20), sizeof(file_data1) + sizeof(file_data2)); /* Compressed size */
+	assertEqualInt(i4le(p + 24), sizeof(file_data1) + sizeof(file_data2)); /* Uncompressed size */
+	assertEqualInt(i2le(p + 28), strlen(file_name)); /* Pathname length */
+	assertEqualInt(i2le(p + 30), 24); /* Extra field length */
+	assertEqualInt(i2le(p + 32), 0); /* File comment length */
+	assertEqualInt(i2le(p + 34), 0); /* Disk number start */
+	assertEqualInt(i2le(p + 36), 0); /* Internal file attrs */
+	assertEqualInt(i4le(p + 38) >> 16 & 01777, file_perm); /* External file attrs */
+	assertEqualInt(i4le(p + 42), 0); /* Offset of local header */
 	assertEqualMem(p + 46, file_name, strlen(file_name)); /* Pathname */
 	p = p + 46 + strlen(file_name);
 
-	assertEqualInt(i2(p), 0x7875); /* 'ux' extension header */
-	assertEqualInt(i2(p + 2), 11); /* 'ux' size */
+	assertEqualInt(i2le(p), 0x7875); /* 'ux' extension header */
+	assertEqualInt(i2le(p + 2), 11); /* 'ux' size */
 /* TODO */
-	p = p + 4 + i2(p + 2);
+	p = p + 4 + i2le(p + 2);
 
-	assertEqualInt(i2(p), 0x5455); /* 'UT' extension header */
-	assertEqualInt(i2(p + 2), 5); /* 'UT' size */
+	assertEqualInt(i2le(p), 0x5455); /* 'UT' extension header */
+	assertEqualInt(i2le(p + 2), 5); /* 'UT' size */
 	assertEqualInt(p[4], 1); /* 'UT' flags */
-	assertEqualInt(i4(p + 5), now); /* 'UT' mtime */
-	p = p + 4 + i2(p + 2);
+	assertEqualInt(i4le(p + 5), now); /* 'UT' mtime */
+	p = p + 4 + i2le(p + 2);
 
 	/* Verify local header of file entry. */
 	local_header = q = buff;
 	assertEqualMem(q, "PK\003\004", 4); /* Signature */
-	assertEqualInt(i2(q + 4), 10); /* Version needed to extract */
-	assertEqualInt(i2(q + 6), 8); /* Flags: bit 3 = length-at-end.  Required because CRC32 is unknown */
-	assertEqualInt(i2(q + 8), 0); /* Compression method */
-	assertEqualInt(i2(q + 10), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
-	assertEqualInt(i2(q + 12), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
-	assertEqualInt(i4(q + 14), 0); /* CRC-32 */
-	assertEqualInt(i4(q + 18), 0); /* Compressed size, must be zero because of length-at-end */
-	assertEqualInt(i4(q + 22), 0); /* Uncompressed size, must be zero because of length-at-end */
-	assertEqualInt(i2(q + 26), strlen(file_name)); /* Pathname length */
-	assertEqualInt(i2(q + 28), 41); /* Extra field length */
+	assertEqualInt(i2le(q + 4), 10); /* Version needed to extract */
+	assertEqualInt(i2le(q + 6), 8); /* Flags: bit 3 = length-at-end.  Required because CRC32 is unknown */
+	assertEqualInt(i2le(q + 8), 0); /* Compression method */
+	assertEqualInt(i2le(q + 10), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
+	assertEqualInt(i2le(q + 12), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
+	assertEqualInt(i4le(q + 14), 0); /* CRC-32 */
+	assertEqualInt(i4le(q + 18), 0); /* Compressed size, must be zero because of length-at-end */
+	assertEqualInt(i4le(q + 22), 0); /* Uncompressed size, must be zero because of length-at-end */
+	assertEqualInt(i2le(q + 26), strlen(file_name)); /* Pathname length */
+	assertEqualInt(i2le(q + 28), 41); /* Extra field length */
 	assertEqualMem(q + 30, file_name, strlen(file_name)); /* Pathname */
 	extra_start = q = q + 30 + strlen(file_name);
 
-	assertEqualInt(i2(q), 0x7875); /* 'ux' extension header */
-	assertEqualInt(i2(q + 2), 11); /* 'ux' size */
+	assertEqualInt(i2le(q), 0x7875); /* 'ux' extension header */
+	assertEqualInt(i2le(q + 2), 11); /* 'ux' size */
 	assertEqualInt(q[4], 1); /* 'ux' version */
 	assertEqualInt(q[5], 4); /* 'ux' uid size */
-	assertEqualInt(i4(q + 6), file_uid); /* 'Ux' UID */
+	assertEqualInt(i4le(q + 6), file_uid); /* 'Ux' UID */
 	assertEqualInt(q[10], 4); /* 'ux' gid size */
-	assertEqualInt(i4(q + 11), file_gid); /* 'Ux' GID */
-	q = q + 4 + i2(q + 2);
+	assertEqualInt(i4le(q + 11), file_gid); /* 'Ux' GID */
+	q = q + 4 + i2le(q + 2);
 
-	assertEqualInt(i2(q), 0x5455); /* 'UT' extension header */
-	assertEqualInt(i2(q + 2), 9); /* 'UT' size */
+	assertEqualInt(i2le(q), 0x5455); /* 'UT' extension header */
+	assertEqualInt(i2le(q + 2), 9); /* 'UT' size */
 	assertEqualInt(q[4], 3); /* 'UT' flags */
-	assertEqualInt(i4(q + 5), now); /* 'UT' mtime */
-	assertEqualInt(i4(q + 9), now + 3); /* 'UT' atime */
-	q = q + 4 + i2(q + 2);
+	assertEqualInt(i4le(q + 5), now); /* 'UT' mtime */
+	assertEqualInt(i4le(q + 9), now + 3); /* 'UT' atime */
+	q = q + 4 + i2le(q + 2);
 
-	assertEqualInt(i2(q), 0x6c78); /* 'xl' experimental extension header */
-	assertEqualInt(i2(q + 2), 9); /* size */
+	assertEqualInt(i2le(q), 0x6c78); /* 'xl' experimental extension header */
+	assertEqualInt(i2le(q + 2), 9); /* size */
 	assertEqualInt(q[4], 7); /* Bitmap of fields included. */
-	assertEqualInt(i2(q + 5) >> 8, 3); /* system & version made by */
-	assertEqualInt(i2(q + 7), 0); /* internal file attributes */
-	assertEqualInt(i4(q + 9) >> 16 & 01777, file_perm); /* external file attributes */
-	q = q + 4 + i2(q + 2);
+	assertEqualInt(i2le(q + 5) >> 8, 3); /* system & version made by */
+	assertEqualInt(i2le(q + 7), 0); /* internal file attributes */
+	assertEqualInt(i4le(q + 9) >> 16 & 01777, file_perm); /* external file attributes */
+	q = q + 4 + i2le(q + 2);
 
-	assert(q == extra_start + i2(local_header + 28));
-	q = extra_start + i2(local_header + 28);
+	assert(q == extra_start + i2le(local_header + 28));
+	q = extra_start + i2le(local_header + 28);
 
 	/* Verify data of file entry. */
 	assertEqualMem(q, file_data1, sizeof(file_data1));
@@ -253,90 +210,90 @@ static void verify_uncompressed_contents(const char *buff, size_t used)
 
 	/* Verify data descriptor of file entry. */
 	assertEqualMem(q, "PK\007\010", 4); /* Signature */
-	assertEqualInt(i4(q + 4), crc); /* CRC-32 */
-	assertEqualInt(i4(q + 8), sizeof(file_data1) + sizeof(file_data2)); /* Compressed size */
-	assertEqualInt(i4(q + 12), sizeof(file_data1) + sizeof(file_data2)); /* Uncompressed size */
+	assertEqualInt(i4le(q + 4), crc); /* CRC-32 */
+	assertEqualInt(i4le(q + 8), sizeof(file_data1) + sizeof(file_data2)); /* Compressed size */
+	assertEqualInt(i4le(q + 12), sizeof(file_data1) + sizeof(file_data2)); /* Uncompressed size */
 	q = q + 16;
 
 	/* Verify folder entry in central directory. */
 	assertEqualMem(p, "PK\001\002", 4); /* Signature */
-	assertEqualInt(i2(p + 4), 3 * 256 + 20); /* Version made by */
-	assertEqualInt(i2(p + 6), 20); /* Version needed to extract */
-	assertEqualInt(i2(p + 8), 0); /* Flags */
-	assertEqualInt(i2(p + 10), 0); /* Compression method */
-	assertEqualInt(i2(p + 12), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
-	assertEqualInt(i2(p + 14), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
+	assertEqualInt(i2le(p + 4), 3 * 256 + 20); /* Version made by */
+	assertEqualInt(i2le(p + 6), 20); /* Version needed to extract */
+	assertEqualInt(i2le(p + 8), 0); /* Flags */
+	assertEqualInt(i2le(p + 10), 0); /* Compression method */
+	assertEqualInt(i2le(p + 12), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
+	assertEqualInt(i2le(p + 14), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
 	crc = 0;
-	assertEqualInt(i4(p + 16), crc); /* CRC-32 */
-	assertEqualInt(i4(p + 20), 0); /* Compressed size */
-	assertEqualInt(i4(p + 24), 0); /* Uncompressed size */
-	assertEqualInt(i2(p + 28), strlen(folder_name)); /* Pathname length */
-	assertEqualInt(i2(p + 30), 24); /* Extra field length */
-	assertEqualInt(i2(p + 32), 0); /* File comment length */
-	assertEqualInt(i2(p + 34), 0); /* Disk number start */
-	assertEqualInt(i2(p + 36), 0); /* Internal file attrs */
-	assertEqualInt(i4(p + 38) >> 16 & 01777, folder_perm); /* External file attrs */
-	assertEqualInt(i4(p + 42), q - buff); /* Offset of local header */
+	assertEqualInt(i4le(p + 16), crc); /* CRC-32 */
+	assertEqualInt(i4le(p + 20), 0); /* Compressed size */
+	assertEqualInt(i4le(p + 24), 0); /* Uncompressed size */
+	assertEqualInt(i2le(p + 28), strlen(folder_name)); /* Pathname length */
+	assertEqualInt(i2le(p + 30), 24); /* Extra field length */
+	assertEqualInt(i2le(p + 32), 0); /* File comment length */
+	assertEqualInt(i2le(p + 34), 0); /* Disk number start */
+	assertEqualInt(i2le(p + 36), 0); /* Internal file attrs */
+	assertEqualInt(i4le(p + 38) >> 16 & 01777, folder_perm); /* External file attrs */
+	assertEqualInt(i4le(p + 42), q - buff); /* Offset of local header */
 	assertEqualMem(p + 46, folder_name, strlen(folder_name)); /* Pathname */
 	p = p + 46 + strlen(folder_name);
 
-	assertEqualInt(i2(p), 0x7875); /* 'ux' extension header */
-	assertEqualInt(i2(p + 2), 11); /* 'ux' size */
+	assertEqualInt(i2le(p), 0x7875); /* 'ux' extension header */
+	assertEqualInt(i2le(p + 2), 11); /* 'ux' size */
 	assertEqualInt(p[4], 1); /* 'ux' version */
 	assertEqualInt(p[5], 4); /* 'ux' uid size */
-	assertEqualInt(i4(p + 6), folder_uid); /* 'ux' UID */
+	assertEqualInt(i4le(p + 6), folder_uid); /* 'ux' UID */
 	assertEqualInt(p[10], 4); /* 'ux' gid size */
-	assertEqualInt(i4(p + 11), folder_gid); /* 'ux' GID */
-	p = p + 4 + i2(p + 2);
+	assertEqualInt(i4le(p + 11), folder_gid); /* 'ux' GID */
+	p = p + 4 + i2le(p + 2);
 
-	assertEqualInt(i2(p), 0x5455); /* 'UT' extension header */
-	assertEqualInt(i2(p + 2), 5); /* 'UT' size */
+	assertEqualInt(i2le(p), 0x5455); /* 'UT' extension header */
+	assertEqualInt(i2le(p + 2), 5); /* 'UT' size */
 	assertEqualInt(p[4], 1); /* 'UT' flags */
-	assertEqualInt(i4(p + 5), now); /* 'UT' mtime */
-	p = p + 4 + i2(p + 2);
+	assertEqualInt(i4le(p + 5), now); /* 'UT' mtime */
+	p = p + 4 + i2le(p + 2);
 
 	/* Verify local header of folder entry. */
 	local_header = q;
 	assertEqualMem(q, "PK\003\004", 4); /* Signature */
-	assertEqualInt(i2(q + 4), 20); /* Version needed to extract */
-	assertEqualInt(i2(q + 6), 0); /* Flags */
-	assertEqualInt(i2(q + 8), 0); /* Compression method */
-	assertEqualInt(i2(q + 10), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
-	assertEqualInt(i2(q + 12), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
-	assertEqualInt(i4(q + 14), 0); /* CRC-32 */
-	assertEqualInt(i4(q + 18), 0); /* Compressed size */
-	assertEqualInt(i4(q + 22), 0); /* Uncompressed size */
-	assertEqualInt(i2(q + 26), strlen(folder_name)); /* Pathname length */
-	assertEqualInt(i2(q + 28), 41); /* Extra field length */
+	assertEqualInt(i2le(q + 4), 20); /* Version needed to extract */
+	assertEqualInt(i2le(q + 6), 0); /* Flags */
+	assertEqualInt(i2le(q + 8), 0); /* Compression method */
+	assertEqualInt(i2le(q + 10), (tm->tm_hour * 2048) + (tm->tm_min * 32) + (tm->tm_sec / 2)); /* File time */
+	assertEqualInt(i2le(q + 12), ((tm->tm_year - 80) * 512) + ((tm->tm_mon + 1) * 32) + tm->tm_mday); /* File date */
+	assertEqualInt(i4le(q + 14), 0); /* CRC-32 */
+	assertEqualInt(i4le(q + 18), 0); /* Compressed size */
+	assertEqualInt(i4le(q + 22), 0); /* Uncompressed size */
+	assertEqualInt(i2le(q + 26), strlen(folder_name)); /* Pathname length */
+	assertEqualInt(i2le(q + 28), 41); /* Extra field length */
 	assertEqualMem(q + 30, folder_name, strlen(folder_name)); /* Pathname */
 	extra_start = q = q + 30 + strlen(folder_name);
 
-	assertEqualInt(i2(q), 0x7875); /* 'ux' extension header */
-	assertEqualInt(i2(q + 2), 11); /* 'ux' size */
+	assertEqualInt(i2le(q), 0x7875); /* 'ux' extension header */
+	assertEqualInt(i2le(q + 2), 11); /* 'ux' size */
 	assertEqualInt(q[4], 1); /* 'ux' version */
 	assertEqualInt(q[5], 4); /* 'ux' uid size */
-	assertEqualInt(i4(q + 6), folder_uid); /* 'ux' UID */
+	assertEqualInt(i4le(q + 6), folder_uid); /* 'ux' UID */
 	assertEqualInt(q[10], 4); /* 'ux' gid size */
-	assertEqualInt(i4(q + 11), folder_gid); /* 'ux' GID */
-	q = q + 4 + i2(q + 2);
+	assertEqualInt(i4le(q + 11), folder_gid); /* 'ux' GID */
+	q = q + 4 + i2le(q + 2);
 
-	assertEqualInt(i2(q), 0x5455); /* 'UT' extension header */
-	assertEqualInt(i2(q + 2), 9); /* 'UT' size */
+	assertEqualInt(i2le(q), 0x5455); /* 'UT' extension header */
+	assertEqualInt(i2le(q + 2), 9); /* 'UT' size */
 	assertEqualInt(q[4], 5); /* 'UT' flags */
-	assertEqualInt(i4(q + 5), now); /* 'UT' mtime */
-	assertEqualInt(i4(q + 9), now + 5); /* 'UT' atime */
-	q = q + 4 + i2(q + 2);
+	assertEqualInt(i4le(q + 5), now); /* 'UT' mtime */
+	assertEqualInt(i4le(q + 9), now + 5); /* 'UT' atime */
+	q = q + 4 + i2le(q + 2);
 
-	assertEqualInt(i2(q), 0x6c78); /* 'xl' experimental extension header */
-	assertEqualInt(i2(q + 2), 9); /* size */
+	assertEqualInt(i2le(q), 0x6c78); /* 'xl' experimental extension header */
+	assertEqualInt(i2le(q + 2), 9); /* size */
 	assertEqualInt(q[4], 7); /* bitmap of fields */
-	assertEqualInt(i2(q + 5) >> 8, 3); /* system & version made by */
-	assertEqualInt(i2(q + 7), 0); /* internal file attributes */
-	assertEqualInt(i4(q + 9) >> 16 & 01777, folder_perm); /* external file attributes */
-	q = q + 4 + i2(q + 2);
+	assertEqualInt(i2le(q + 5) >> 8, 3); /* system & version made by */
+	assertEqualInt(i2le(q + 7), 0); /* internal file attributes */
+	assertEqualInt(i4le(q + 9) >> 16 & 01777, folder_perm); /* external file attributes */
+	q = q + 4 + i2le(q + 2);
 
-	assert(q == extra_start + i2(local_header + 28));
-	q = extra_start + i2(local_header + 28);
+	assert(q == extra_start + i2le(local_header + 28));
+	q = extra_start + i2le(local_header + 28);
 
 	/* There should not be any data in the folder entry,
 	 * so the first central directory entry should be next: */
