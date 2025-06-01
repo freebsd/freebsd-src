@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2015 Tim Kientzle
+ * Copyright (c) 2003-2025 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,16 +22,27 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "test.h"
 
-#ifndef ARCHIVE_GETDATE_H_INCLUDED
-#define ARCHIVE_GETDATE_H_INCLUDED
+DEFINE_TEST(test_read_format_rar_overflow)
+{
+    struct archive *a;
+    struct archive_entry *ae;
+    const char reffile[] = "test_read_format_rar_overflow.rar";
+    const void *buff;
+    size_t size;
+    int64_t offset;
 
-#ifndef __LIBARCHIVE_BUILD
-#error This header is only to be used internally to libarchive.
-#endif
+    extract_reference_file(reffile);
+    assert((a = archive_read_new()) != NULL);
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, reffile, 1024));
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+    assertEqualInt(48, archive_entry_size(ae));
+    /* The next call should reproduce Issue #2565 */
+    assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data_block(a, &buff, &size, &offset));
 
-#include <time.h>
-
-time_t __archive_get_date(time_t now, const char *);
-
-#endif
+    assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+    assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

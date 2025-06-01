@@ -263,7 +263,7 @@ decimal integer specifying log2 window size in bytes. Values from
 The value is interpreted as a decimal integer specifying the
 number of threads for multi-threaded zstd compression.
 If set to 0, zstd will attempt to detect and use the number
-of physical CPU cores.
+of active physical CPU cores.
 .El
 .It Format 7zip
 .Bl -tag -compact -width indent
@@ -274,9 +274,10 @@ The value is one of
 .Dq deflate ,
 .Dq bzip2 ,
 .Dq lzma1 ,
-.Dq lzma2
+.Dq lzma2 ,
+.Dq ppmd ,
 or
-.Dq ppmd
+.Dq zstd
 to indicate how the following entries should be compressed.
 The values
 .Dq store
@@ -289,9 +290,16 @@ and other special entries.
 The value is interpreted as a decimal integer specifying the
 compression level.
 Values between 0 and 9 are supported, with the exception of bzip2
-which only supports values between 1 and 9.
+which only supports values between 1 and 9, and zstd which may
+support negative values depending on the library version and
+commonly used values 1 through 22.
 The interpretation of the compression level depends on the chosen
 compression method.
+.It Cm threads
+The value is interpreted as a decimal integer specifying the
+number of threads for multi-threaded compression (for compressors
+like zstd that support it). If set to 0, an attempt will be made
+to discover the number of CPU cores.
 .El
 .It Format bin
 .Bl -tag -compact -width indent
@@ -632,9 +640,13 @@ and
 .Bl -tag -compact -width indent
 .It Cm compression
 The value is either
-.Dq store
+.Dq store ,
+.Dq deflate ,
+.Dq bzip2 ,
+.Dq lzma ,
+.Dq xz ,
 or
-.Dq deflate
+.Dq zstd
 to indicate how the following entries should be compressed.
 Note that this setting is ignored for directories, symbolic links,
 and other special entries.
@@ -645,8 +657,23 @@ Values between 0 and 9 are supported.
 A compression level of 0 switches the compression method to
 .Dq store ,
 other values will enable
-.Dq deflate
-compression with the given level.
+.Dq deflate ,
+.Dq bzip2 ,
+.Dq lzma ,
+or
+.Dq zstd
+compression (in order of priority, depending on what libraries 
+are linked) with the given level.
+.It Cm threads
+The value is interpreted as a decimal integer specifying the
+number of threads to use for compression.
+It is supported only for
+.Dq xz
+or
+.Dq zstd
+compression and ignored for any other.
+A threads value of 0 is a special one requesting to detect and use as
+many threads as the number of active physical CPU cores.
 .It Cm encryption
 Enable encryption using traditional zip encryption.
 .It Cm encryption Ns = Ns Ar type

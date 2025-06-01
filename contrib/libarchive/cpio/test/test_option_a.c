@@ -52,7 +52,7 @@ test_create(void)
 		 * #ifdef this section out.  Most of the test below is
 		 * still valid. */
 		memset(&times, 0, sizeof(times));
-#if defined(_WIN32) && !defined(CYGWIN)
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		times.actime = 86400;
 		times.modtime = 86400;
 #else

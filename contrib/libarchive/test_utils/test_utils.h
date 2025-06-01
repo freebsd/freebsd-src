@@ -31,6 +31,11 @@
 #include <stdint.h>
 
 /* Fill a buffer with pseudorandom data */
-void fill_with_pseudorandom_data(void* buffer, size_t size);
-
-#endif /* TEST_UTILS_H */
+void fill_with_pseudorandom_data(void*, size_t);
+/* A simplistic CRC-32 function for testing purposes */
+unsigned long bitcrc32(unsigned long, const void*, size_t);
+/* Read little-endian integers */
+unsigned short i2le(const void*);
+unsigned int i4le(const void*);
+unsigned long long i8le(const void*);
+#endif /* !TEST_UTILS_H */

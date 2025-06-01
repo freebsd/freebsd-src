@@ -52,13 +52,15 @@
 struct read_FILE_data {
 	FILE    *f;
 	size_t	 block_size;
+	int64_t	 size;
 	void	*buffer;
 	char	 can_skip;
 };
 
-static int	file_close(struct archive *, void *);
-static ssize_t	file_read(struct archive *, void *, const void **buff);
-static int64_t	file_skip(struct archive *, void *, int64_t request);
+static int	FILE_close(struct archive *, void *);
+static ssize_t	FILE_read(struct archive *, void *, const void **buff);
+static int64_t	FILE_seek(struct archive *, void *, int64_t, int);
+static int64_t	FILE_skip(struct archive *, void *, int64_t);
 
 int
 archive_read_open_FILE(struct archive *a, FILE *f)
@@ -69,7 +71,7 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 	void *b;
 
 	archive_clear_error(a);
-	mine = malloc(sizeof(*mine));
+	mine = calloc(1, sizeof(*mine));
 	b = malloc(block_size);
 	if (mine == NULL || b == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
@@ -90,22 +92,23 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
 		/* Enable the seek optimization only for regular files. */
 		mine->can_skip = 1;
-	} else
-		mine->can_skip = 0;
+		mine->size = st.st_size;
+	}
 
 #if defined(__CYGWIN__) || defined(_WIN32)
 	setmode(fileno(mine->f), O_BINARY);
 #endif
 
-	archive_read_set_read_callback(a, file_read);
-	archive_read_set_skip_callback(a, file_skip);
-	archive_read_set_close_callback(a, file_close);
+	archive_read_set_read_callback(a, FILE_read);
+	archive_read_set_skip_callback(a, FILE_skip);
+	archive_read_set_seek_callback(a, FILE_seek);
+	archive_read_set_close_callback(a, FILE_close);
 	archive_read_set_callback_data(a, mine);
 	return (archive_read_open1(a));
 }
 
 static ssize_t
-file_read(struct archive *a, void *client_data, const void **buff)
+FILE_read(struct archive *a, void *client_data, const void **buff)
 {
 	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
 	size_t bytes_read;
@@ -119,16 +122,17 @@ file_read(struct archive *a, void *client_data, const void **buff)
 }
 
 static int64_t
-file_skip(struct archive *a, void *client_data, int64_t request)
+FILE_skip(struct archive *a, void *client_data, int64_t request)
 {
 	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
-#if HAVE_FSEEKO
-	off_t skip = (off_t)request;
-#elif HAVE__FSEEKI64
+#if HAVE__FSEEKI64
 	int64_t skip = request;
+#elif HAVE_FSEEKO
+	off_t skip = (off_t)request;
 #else
 	long skip = (long)request;
 #endif
+	int64_t old_offset, new_offset = -1;
 	int skip_bits = sizeof(skip) * 8 - 1;
 
 	(void)a; /* UNUSED */
@@ -144,7 +148,7 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 
 	/* If request is too big for a long or an off_t, reduce it. */
 	if (sizeof(request) > sizeof(skip)) {
-		int64_t max_skip =
+		const int64_t max_skip =
 		    (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
 		if (request > max_skip)
 			skip = max_skip;
@@ -152,23 +156,92 @@ file_skip(struct archive *a, void *client_data, int64_t request)
 
 #ifdef __ANDROID__
         /* fileno() isn't safe on all platforms ... see above. */
-	if (lseek(fileno(mine->f), skip, SEEK_CUR) < 0)
+	old_offset = lseek(fileno(mine->f), 0, SEEK_CUR);
 #elif HAVE__FSEEKI64
-	if (_fseeki64(mine->f, skip, SEEK_CUR) != 0)
+	old_offset = _ftelli64(mine->f);
 #elif HAVE_FSEEKO
-	if (fseeko(mine->f, skip, SEEK_CUR) != 0)
+	old_offset = ftello(mine->f);
 #else
-	if (fseek(mine->f, skip, SEEK_CUR) != 0)
+	old_offset = ftell(mine->f);
 #endif
-	{
-		mine->can_skip = 0;
-		return (0);
+	if (old_offset >= 0) {
+		if (old_offset < mine->size &&
+		    skip <= mine->size - old_offset) {
+#ifdef __ANDROID__
+			new_offset = lseek(fileno(mine->f), skip, SEEK_CUR);
+#elif HAVE__FSEEKI64
+			if (_fseeki64(mine->f, skip, SEEK_CUR) == 0)
+				new_offset = _ftelli64(mine->f);
+#elif HAVE_FSEEKO
+			if (fseeko(mine->f, skip, SEEK_CUR) == 0)
+				new_offset = ftello(mine->f);
+#else
+			if (fseek(mine->f, skip, SEEK_CUR) == 0)
+				new_offset = ftell(mine->f);
+#endif
+			if (new_offset >= 0)
+				return (new_offset - old_offset);
+		}
 	}
-	return (request);
+
+	mine->can_skip = 0;
+	return (0);
+}
+
+/*
+ * TODO: Store the offset and use it in the read callback.
+ */
+static int64_t
+FILE_seek(struct archive *a, void *client_data, int64_t request, int whence)
+{
+	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
+#if HAVE__FSEEKI64
+	int64_t seek = request;
+#elif HAVE_FSEEKO
+	off_t seek = (off_t)request;
+#else
+	long seek = (long)request;
+#endif
+	int seek_bits = sizeof(seek) * 8 - 1;
+	(void)a; /* UNUSED */
+
+	/* Reduce a request that would overflow the 'seek' variable. */
+	if (sizeof(request) > sizeof(seek)) {
+		const int64_t max_seek =
+		    (((int64_t)1 << (seek_bits - 1)) - 1) * 2 + 1;
+		const int64_t min_seek = ~max_seek;
+		if (request > max_seek)
+			seek = max_seek;
+		else if (request < min_seek)
+			seek = min_seek;
+	}
+
+#ifdef __ANDROID__
+	/* Newer Android versions have fseeko...to meditate. */
+	int64_t ret = lseek(fileno(mine->f), seek, whence);
+	if (ret >= 0) {
+		return ret;
+	}
+#elif HAVE__FSEEKI64
+	if (_fseeki64(mine->f, seek, whence) == 0) {
+		return _ftelli64(mine->f);
+	}
+#elif HAVE_FSEEKO
+	if (fseeko(mine->f, seek, whence) == 0) {
+		return ftello(mine->f);
+	}
+#else
+	if (fseek(mine->f, seek, whence) == 0) {
+		return ftell(mine->f);
+	}
+#endif
+	/* If we arrive here, the input is corrupted or truncated so fail. */
+	archive_set_error(a, errno, "Error seeking in FILE* pointer");
+	return (ARCHIVE_FATAL);
 }
 
 static int
-file_close(struct archive *a, void *client_data)
+FILE_close(struct archive *a, void *client_data)
 {
 	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
 

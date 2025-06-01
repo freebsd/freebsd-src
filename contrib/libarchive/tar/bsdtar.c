@@ -7,6 +7,9 @@
 
 #include "bsdtar_platform.h"
 
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
@@ -101,7 +104,7 @@ need_report(void)
 static __LA_NORETURN void		 long_help(void);
 static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
-static void		 set_mode(struct bsdtar *, char opt);
+static void		 set_mode(struct bsdtar *, int opt);
 static __LA_NORETURN void		 version(void);
 
 /* A basic set of security flags to request from libarchive. */
@@ -136,13 +139,14 @@ main(int argc, char **argv)
 {
 	struct bsdtar		*bsdtar, bsdtar_storage;
 	int			 opt, t;
-	char			 compression, compression2;
+	int			 compression, compression2;
 	const char		*compression_name, *compression2_name;
 	const char		*compress_program;
 	char			*tptr, *uptr;
 	char			 possible_help_request;
 	char			 buff[16];
 	long			 l;
+	time_t			now;
 
 	/*
 	 * Use a pointer for consistency, but stack-allocated storage
@@ -157,6 +161,7 @@ main(int argc, char **argv)
 	compression = compression2 = '\0';
 	compression_name = compression2_name = NULL;
 	compress_program = NULL;
+	time(&now);
 
 #if defined(HAVE_SIGACTION)
 	{ /* Set up signal handling. */
@@ -331,7 +336,7 @@ main(int argc, char **argv)
 			if (archive_match_exclude_pattern(
 			    bsdtar->matching, bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0,
-				    "Couldn't exclude %s\n", bsdtar->argument);
+				    "Couldn't exclude %s", bsdtar->argument);
 			break;
 		case OPTION_EXCLUDE_VCS: /* GNU tar */
 			for(t=0; vcs_files[t]; t++) {
@@ -339,7 +344,7 @@ main(int argc, char **argv)
 				    bsdtar->matching,
 				    vcs_files[t]) != ARCHIVE_OK)
 					lafe_errc(1, 0, "Couldn't "
-					    "exclude %s\n", vcs_files[t]);
+					    "exclude %s", vcs_files[t]);
 			}
 			break;
 		case OPTION_FFLAGS:
@@ -673,6 +678,16 @@ main(int argc, char **argv)
 				}
 			}
 			break;
+		case OPTION_MTIME: /* GNU tar */
+			bsdtar->has_mtime = 1;
+			bsdtar->mtime = archive_parse_date(now, bsdtar->argument);
+			if (bsdtar->mtime == (time_t)-1) {
+				lafe_errc(1, 0, "Invalid argument to --mtime (bad date string)");
+			}
+			break;
+		case OPTION_CLAMP_MTIME: /* GNU tar */
+			bsdtar->clamp_mtime = 1;
+			break;
 #if 0
 		/*
 		 * The common BSD -P option is not necessary, since
@@ -740,6 +755,8 @@ main(int argc, char **argv)
 			bsdtar->strip_components = (int)l;
 			break;
 		case 'T': /* GNU tar */
+			if (bsdtar->names_from_file)
+				lafe_errc(1, 0, "Multiple --files-from/-T options are not supported");
 			bsdtar->names_from_file = bsdtar->argument;
 			break;
 		case 't': /* SUSv2 */
@@ -935,7 +952,7 @@ main(int argc, char **argv)
 		switch (compression) {
 		case 'J': case 'j': case 'y': case 'Z': case 'z':
 			strcpy(buff, "-?");
-			buff[1] = compression;
+			buff[1] = (char)compression;
 			break;
 		default:
 			strcpy(buff, "--");
@@ -958,6 +975,10 @@ main(int argc, char **argv)
 		buff[1] = bsdtar->symlink_mode;
 		only_mode(bsdtar, buff, "cru");
 	}
+
+	if (!bsdtar->has_mtime && bsdtar->clamp_mtime)
+		lafe_errc(1, 0,
+		    "--clamp-mtime is not valid without --mtime <date>");
 
 	/*
 	 * When creating an archive from a directory tree, the directory
@@ -1005,7 +1026,7 @@ main(int argc, char **argv)
 }
 
 static void
-set_mode(struct bsdtar *bsdtar, char opt)
+set_mode(struct bsdtar *bsdtar, int opt)
 {
 	if (bsdtar->mode != '\0' && bsdtar->mode != opt)
 		lafe_errc(1, 0,
@@ -1063,6 +1084,8 @@ static const char *long_help_msg =
 	"  -z, -j, -J, --lzma  Compress archive with gzip/bzip2/xz/lzma\n"
 	"  --format {ustar|pax|cpio|shar}  Select archive format\n"
 	"  --exclude <pattern>  Skip files that match pattern\n"
+	"  --mtime <date>  Set modification times for added files\n"
+	"  --clamp-mtime   Only set modification times for files newer than --mtime\n"
 	"  -C <dir>  Change to <dir> before processing remaining files\n"
 	"  @<archive>  Add entries from <archive> to output\n"
 	"List: %p -t [options] [<patterns>]\n"
