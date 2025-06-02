@@ -2797,7 +2797,12 @@ identify_cpu_sysinit(void *dummy __unused)
 	install_sys_handler(user_ctr_handler);
 	install_sys_handler(user_idreg_handler);
 }
-SYSINIT(identify_cpu, SI_SUB_CPU, SI_ORDER_MIDDLE, identify_cpu_sysinit, NULL);
+/*
+ * This needs to be after the APs have stareted as they may have errata that
+ * means we need to mask out ID registers & that could affect hwcaps, etc.
+ */
+SYSINIT(identify_cpu, SI_SUB_CONFIGURE, SI_ORDER_ANY, identify_cpu_sysinit,
+    NULL);
 
 static void
 cpu_features_sysinit(void *dummy __unused)
