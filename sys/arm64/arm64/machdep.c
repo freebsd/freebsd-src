@@ -263,7 +263,9 @@ late_ifunc_resolve(void *dummy __unused)
 {
 	link_elf_late_ireloc();
 }
-SYSINIT(late_ifunc_resolve, SI_SUB_CPU, SI_ORDER_ANY, late_ifunc_resolve, NULL);
+/* Late enough for cpu_feat to have completed */
+SYSINIT(late_ifunc_resolve, SI_SUB_CONFIGURE, SI_ORDER_ANY,
+    late_ifunc_resolve, NULL);
 
 int
 cpu_idle_wakeup(int cpu)
