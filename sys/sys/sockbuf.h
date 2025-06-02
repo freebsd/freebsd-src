@@ -46,7 +46,7 @@
 #define	SB_NOCOALESCE	0x200		/* don't coalesce new data into existing mbufs */
 #define	SB_IN_TOE	0x400		/* socket buffer is in the middle of an operation */
 #define	SB_AUTOSIZE	0x800		/* automatically size socket buffer */
-#define	SB_STOP		0x1000		/* backpressure indicator */
+/* was	SB_STOP		0x1000		*/
 #define	SB_AIO_RUNNING	0x2000		/* AIO operation running */
 #define	SB_SPLICED	0x4000		/* socket buffer is spliced;
 					   previously used for SB_TLS_IFNET */
@@ -302,9 +302,6 @@ sbspace(struct sockbuf *sb)
 #if 0
 	SOCKBUF_LOCK_ASSERT(sb);
 #endif
-
-	if (sb->sb_flags & SB_STOP)
-		return(0);
 
 	bleft = sb->sb_hiwat - sb->sb_ccc;
 	mleft = sb->sb_mbmax - sb->sb_mbcnt;
