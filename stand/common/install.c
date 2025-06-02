@@ -212,6 +212,7 @@ install(char *pkgname)
 	if (i == 4 && !strncasecmp(pkgname, "tftp", i)) {
 		devname = "net0";
 		devnamelen = 4;
+		netproto = NET_TFTP;
 		proto = &tftp_fsops;
 	} else if (i == 4 && !strncasecmp(pkgname, "file", i)) {
 		currdev = getenv("currdev");
