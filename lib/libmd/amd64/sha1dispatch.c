@@ -47,8 +47,10 @@ DEFINE_UIFUNC(, void, sha1_block, (SHA1_CTX *, const void *, size_t))
 {
 	if (cpu_stdext_feature & CPUID_STDEXT_SHA)
 		return (_libmd_sha1block_shani);
+#if 0
 	if ((cpu_stdext_feature & AVX2_STDEXT_NEEDED) == AVX2_STDEXT_NEEDED)
 		return (sha1block_avx2_wrapper);
+#endif
 	else
 		return (_libmd_sha1block_scalar);
 }
