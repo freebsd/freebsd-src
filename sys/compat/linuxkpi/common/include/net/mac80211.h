@@ -413,11 +413,6 @@ struct ieee80211_ftm_responder_params {
 	int					civicloc_len;
 };
 
-struct ieee80211_he_mu_edca_param_ac_rec {
-	/* TODO FIXME */
-	int		aifsn, ecw_min_max, mu_edca_timer;
-};
-
 struct ieee80211_conf {
 	int					dynamic_ps_timeout;
 	int					power_level;
