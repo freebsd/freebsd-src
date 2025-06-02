@@ -2739,7 +2739,7 @@ u_short			 pf_map_addr_sn(u_int8_t, struct pf_krule *,
 int			 pf_get_transaddr_af(struct pf_krule *,
 			    struct pf_pdesc *);
 u_short			 pf_get_translation(struct pf_pdesc *,
-			    int, struct pf_state_key **, struct pf_state_key **,
+			    struct pf_state_key **, struct pf_state_key **,
 			    struct pf_test_ctx *, struct pf_udp_mapping **udp_mapping);
 u_short			 pf_get_transaddr(struct pf_pdesc *,
 			    struct pf_state_key **, struct pf_state_key **,
