@@ -2023,11 +2023,11 @@
 
 /* ID_ISAR5_EL1 */
 #define	ID_ISAR5_EL1_ISS		ISS_MSR_REG(ID_ISAR5_EL1)
-#define	ID_ISAR5_EL1_op0		0x3
-#define	ID_ISAR5_EL1_op1		0x0
-#define	ID_ISAR5_EL1_CRn		0x0
-#define	ID_ISAR5_EL1_CRm		0x2
-#define	ID_ISAR5_EL1_op2		0x5
+#define	ID_ISAR5_EL1_op0		3
+#define	ID_ISAR5_EL1_op1		0
+#define	ID_ISAR5_EL1_CRn		0
+#define	ID_ISAR5_EL1_CRm		2
+#define	ID_ISAR5_EL1_op2		5
 #define	ID_ISAR5_SEVL_SHIFT		0
 #define	ID_ISAR5_SEVL_WIDTH		4
 #define	ID_ISAR5_SEVL_MASK		(UL(0xf) << ID_ISAR5_SEVL_SHIFT)
@@ -2155,11 +2155,11 @@
 
 /* MVFR0_EL1 */
 #define	MVFR0_EL1_ISS			ISS_MSR_REG(MVFR0_EL1)
-#define	MVFR0_EL1_op0			0x3
-#define	MVFR0_EL1_op1			0x0
-#define	MVFR0_EL1_CRn			0x0
-#define	MVFR0_EL1_CRm			0x3
-#define	MVFR0_EL1_op2			0x0
+#define	MVFR0_EL1_op0			3
+#define	MVFR0_EL1_op1			0
+#define	MVFR0_EL1_CRn			0
+#define	MVFR0_EL1_CRm			3
+#define	MVFR0_EL1_op2			0
 #define	MVFR0_SIMDReg_SHIFT		0
 #define	MVFR0_SIMDReg_WIDTH		4
 #define	MVFR0_SIMDReg_MASK		(UL(0xf) << MVFR0_SIMDReg_SHIFT)
@@ -2214,11 +2214,11 @@
 
 /* MVFR1_EL1 */
 #define	MVFR1_EL1_ISS			ISS_MSR_REG(MVFR1_EL1)
-#define	MVFR1_EL1_op0			0x3
-#define	MVFR1_EL1_op1			0x0
-#define	MVFR1_EL1_CRn			0x0
-#define	MVFR1_EL1_CRm			0x3
-#define	MVFR1_EL1_op2			0x1
+#define	MVFR1_EL1_op0			3
+#define	MVFR1_EL1_op1			0
+#define	MVFR1_EL1_CRn			0
+#define	MVFR1_EL1_CRm			3
+#define	MVFR1_EL1_op2			1
 #define	MVFR1_FPFtZ_SHIFT		0
 #define	MVFR1_FPFtZ_WIDTH		4
 #define	MVFR1_FPFtZ_MASK		(UL(0xf) << MVFR1_FPFtZ_SHIFT)
