@@ -3766,7 +3766,7 @@ int
 kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
     const char *new, enum uio_seg pathseg)
 {
-	struct mount *mp = NULL;
+	struct mount *mp, *tmp;
 	struct vnode *tvp, *fvp, *tdvp;
 	struct nameidata fromnd, tond;
 	uint64_t tondflags;
@@ -3774,6 +3774,7 @@ kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
 	short irflag;
 
 again:
+	tmp = mp = NULL;
 	bwillwrite();
 #ifdef MAC
 	if (mac_vnode_check_rename_from_enabled()) {
@@ -3809,6 +3810,7 @@ again:
 	tvp = tond.ni_vp;
 	error = vn_start_write(fvp, &mp, V_NOWAIT);
 	if (error != 0) {
+again1:
 		NDFREE_PNBUF(&fromnd);
 		NDFREE_PNBUF(&tond);
 		if (tvp != NULL)
@@ -3819,10 +3821,24 @@ again:
 			vput(tdvp);
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
+		if (tmp != NULL) {
+			lockmgr(&tmp->mnt_renamelock, LK_EXCLUSIVE, NULL);
+			lockmgr(&tmp->mnt_renamelock, LK_RELEASE, NULL);
+			vfs_rel(tmp);
+			tmp = NULL;
+		}
 		error = vn_start_write(NULL, &mp, V_XSLEEP | V_PCATCH);
 		if (error != 0)
 			return (error);
 		goto again;
+	}
+	error = VOP_GETWRITEMOUNT(tdvp, &tmp);
+	if (error != 0 || tmp == NULL)
+		goto again1;
+	error = lockmgr(&tmp->mnt_renamelock, LK_EXCLUSIVE | LK_NOWAIT, NULL);
+	if (error != 0) {
+		vn_finished_write(mp);
+		goto again1;
 	}
 	irflag = vn_irflag_read(fvp);
 	if (((irflag & VIRF_NAMEDATTR) != 0 && tdvp != fromnd.ni_dvp) ||
@@ -3884,6 +3900,8 @@ out:
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
 	}
+	lockmgr(&tmp->mnt_renamelock, LK_RELEASE, 0);
+	vfs_rel(tmp);
 	vn_finished_write(mp);
 out1:
 	if (error == ERESTART)
