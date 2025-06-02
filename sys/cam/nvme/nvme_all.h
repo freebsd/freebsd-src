@@ -44,8 +44,11 @@ void	nvme_print_ident_short(const struct nvme_controller_data *,
     const struct nvme_namespace_data *, struct sbuf *);
 const char *nvme_op_string(const struct nvme_command *, int admin);
 const char *nvme_cmd_string(const struct nvme_command *, char *, size_t);
+void nvme_opcode_sbuf(bool admin, uint8_t opc, struct sbuf *sb);
 void nvme_cmd_sbuf(const struct nvme_command *, struct sbuf *sb);
 int nvme_command_sbuf(struct ccb_nvmeio *nvmeio, struct sbuf *sb);
+void nvme_cpl_sbuf(const struct nvme_completion *cpl, struct sbuf *sbuf);
+int nvme_status_sbuf(struct ccb_nvmeio *nvmeio, struct sbuf *sb);
 const void *nvme_get_identify_cntrl(struct cam_periph *);
 const void *nvme_get_identify_ns(struct cam_periph *);
 
