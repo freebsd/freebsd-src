@@ -2779,6 +2779,177 @@ printwmeinfo(if_ctx *ctx, const char *tag, const u_int8_t *ie)
 }
 
 static void
+printhecap(if_ctx *ctx, const char *tag, const uint8_t *ie)
+{
+	const struct ieee80211_he_cap_elem *hecap;
+	const struct ieee80211_he_mcs_nss_supp *mcsnss;
+	unsigned int i;
+	uint8_t chw;
+
+	printf("%s", tag);
+	if (!ctx->args->verbose)
+		return;
+
+	/* Check that the right size. */
+	if (ie[1] < 1 + sizeof(*hecap) + 4) {
+		printf("<err: he_cap inval. length %#0x>", ie[1]);
+		return;
+	}
+	/* Skip Element ID, Length, EID Extension. */
+	hecap = (const struct ieee80211_he_cap_elem *)(ie + 3);
+
+	/* XXX-BZ we need to somehow decode each field? */
+	printf("<mac_cap");
+	for (i = 0; i < nitems(hecap->mac_cap_info); i++)
+		printf(" %#04x", hecap->mac_cap_info[i]);
+	printf(" phy_cap");
+	for (i = 0; i < nitems(hecap->phy_cap_info); i++)
+		printf(" %#04x", hecap->phy_cap_info[i]);
+
+	chw = hecap->phy_cap_info[0];
+	ie = (const uint8_t *)(const void *)(hecap + 1);
+	mcsnss = (const struct ieee80211_he_mcs_nss_supp *)ie;
+	/* Cannot use <=  as < is a delimiter. */
+	printf(" rx/tx_he_mcs map: loweq80 %#06x/%#06x",
+	    mcsnss->rx_mcs_80, mcsnss->tx_mcs_80);
+	ie += 2;
+	if ((chw & (1<<2)) != 0) {
+		printf(" 160 %#06x/%#06x",
+		    mcsnss->rx_mcs_160, mcsnss->tx_mcs_160);
+		ie += 2;
+	}
+	if ((chw & (1<<3)) != 0) {
+		printf(" 80+80 %#06x/%#06x",
+		    mcsnss->rx_mcs_80p80, mcsnss->tx_mcs_80p80);
+		ie += 2;
+	}
+	/* TODO: ppet = (struct ... *)ie; */
+
+	printf(">");
+}
+
+static void
+printheoper(if_ctx *ctx, const char *tag, const uint8_t *ie)
+{
+	printf("%s", tag);
+	if (ctx->args->verbose) {
+		const struct ieee80211_he_operation *heoper;
+		uint32_t params;
+
+		/* Check that the right size. */
+		if (ie[1] < 1 + sizeof(*heoper)) {
+			printf("<err: he_oper inval. length %#0x>", ie[1]);
+			return;
+		}
+		/* Skip Element ID, Length, EID Extension. */
+		heoper = (const struct ieee80211_he_operation *)(ie + 3);
+
+		/* XXX-BZ we need to somehow decode each field? */
+		params = heoper->he_oper_params & 0x00ffffff;
+		printf("<params %#08x", params);
+		printf(" bss_col %#04x", (heoper->he_oper_params & 0xff000000) >> 24);
+		printf(" mcs_nss %#06x", heoper->he_mcs_nss_set);
+		if ((params & (1 << 14)) != 0) {
+			printf(" vht_op 0-3");
+		}
+		if ((params & (1 << 15)) != 0) {
+			printf(" max_coh_bssid 0-1");
+		}
+		if ((params & (1 << 17)) != 0) {
+			printf(" 6ghz_op 0-5");
+		}
+		printf(">");
+	}
+}
+
+static void
+printmuedcaparamset(if_ctx *ctx, const char *tag, const uint8_t *ie)
+{
+	static const char *acnames[] = { "BE", "BK", "VO", "VI" };
+	const struct ieee80211_mu_edca_param_set *mu_edca;
+	int i;
+
+	printf("%s", tag);
+	if (!ctx->args->verbose)
+		return;
+
+	/* Check that the right size. */
+	if (ie[1] != 1 + sizeof(*mu_edca)) {
+		printf("<err: mu_edca inval. length %#04x>", ie[1]);
+		return;
+	}
+	/* Skip Element ID, Length, EID Extension. */
+	mu_edca = (const struct ieee80211_mu_edca_param_set *)(ie + 3);
+
+	printf("<qosinfo 0x%x", mu_edca->mu_qos_info);
+	ie++;
+	for (i = 0; i < WME_NUM_AC; i++) {
+		const struct ieee80211_he_mu_edca_param_ac_rec *ac =
+		    &mu_edca->param_ac_recs[i];
+
+		printf(" %s[aifsn %u ecwmin %u ecwmax %u timer %u]", acnames[i],
+		    ac->aifsn,
+		    _IEEE80211_MASKSHIFT(ac->ecw_min_max, WME_PARAM_LOGCWMIN),
+		    _IEEE80211_MASKSHIFT(ac->ecw_min_max, WME_PARAM_LOGCWMAX),
+		    ac->mu_edca_timer);
+	}
+	printf(">");
+}
+
+static void
+printsupopclass(if_ctx *ctx, const char *tag, const u_int8_t *ie)
+{
+	uint8_t len, i;
+
+	printf("%s", tag);
+	if (!ctx->args->verbose)
+		return;
+
+	/* Check that the right size. */
+	len = ie[1];
+	if (len < 2) {
+		printf("<err: sup_op_class inval. length %#04x>", ie[1]);
+		return;
+	}
+
+	ie += 2;
+	i = 0;
+	printf("<cur op class %u", *ie);
+	i++;
+	if (i < len && *(ie + i) != 130)
+		printf(" op classes");
+	while (i < len && *(ie + i) != 130) {
+		printf(" %u", *(ie + i));
+		i++;
+	}
+	if (i > 1 && i < len && *(ie + i) != 130) {
+		printf(" parsing error at %#0x>", i);
+		return;
+	}
+	/* Skip OneHundredAndThirty Delimiter. */
+	i++;
+	if (i < len && *(ie + i) != 0)
+		printf(" ext seq");
+	while (i < len && *(ie + i) != 0) {
+		printf(" %u", *(ie + i));
+		i++;
+	}
+	if (i > 1 && i < len && *(ie + i) != 0) {
+		printf(" parsing error at %#0x>", i);
+		return;
+	}
+	/* Skip Zero Delimiter. */
+	i++;
+	if ((i + 1) < len)
+		printf(" duple seq");
+	while ((i + 1) < len) {
+		printf(" %u/%u", *(ie + i), *(ie + i + 1));
+		i += 2;
+	}
+	printf(">");
+}
+
+static void
 printvhtcap(if_ctx *ctx, const char *tag, const u_int8_t *ie)
 {
 	printf("%s", tag);
@@ -3606,7 +3777,22 @@ iswpsoui(const uint8_t *frm)
 }
 
 static const char *
-iename(int elemid)
+ie_ext_name(uint8_t ext_elemid)
+{
+	static char iename_buf[32];
+
+	switch (ext_elemid) {
+	case IEEE80211_ELEMID_EXT_HE_CAPA:		return " HECAP";
+	case IEEE80211_ELEMID_EXT_HE_OPER:		return " HEOPER";
+	case IEEE80211_ELEMID_EXT_MU_EDCA_PARAM_SET:	return " MU_EDCA_PARAM_SET";
+	}
+	snprintf(iename_buf, sizeof(iename_buf), " ELEMID_EXT_%d",
+	    ext_elemid & 0xff);
+	return (const char *) iename_buf;
+}
+
+static const char *
+iename(uint8_t elemid, const u_int8_t *vp)
 {
 	static char iename_buf[64];
 	switch (elemid) {
@@ -3628,6 +3814,8 @@ iename(int elemid)
 	case IEEE80211_ELEMID_IBSSDFS:	return " IBSSDFS";
 	case IEEE80211_ELEMID_RESERVED_47:
 					return " RESERVED_47";
+	case IEEE80211_ELEMID_SUP_OP_CLASS:
+					return " SUP_OP_CLASS";
 	case IEEE80211_ELEMID_MOBILITY_DOMAIN:
 					return " MOBILITY_DOMAIN";
 	case IEEE80211_ELEMID_RRM_ENACAPS:
@@ -3638,10 +3826,39 @@ iename(int elemid)
 	case IEEE80211_ELEMID_CCKM:	return " CCKM";
 	case IEEE80211_ELEMID_EXTCAP:	return " EXTCAP";
 	case IEEE80211_ELEMID_RSN_EXT:	return " RSNXE";
+	case IEEE80211_ELEMID_EXTFIELD:
+		if (vp[1] >= 1)
+			return ie_ext_name(vp[2]);
+		break;
 	}
-	snprintf(iename_buf, sizeof(iename_buf), " UNKNOWN_ELEMID_%d",
+	snprintf(iename_buf, sizeof(iename_buf), " ELEMID_%d",
 	    elemid);
 	return (const char *) iename_buf;
+}
+
+static void
+printexties(if_ctx *ctx, const u_int8_t *vp, unsigned int maxcols)
+{
+	const int verbose = ctx->args->verbose;
+
+	if (vp[1] < 1)
+		return;
+
+	switch (vp[2]) {
+	case IEEE80211_ELEMID_EXT_HE_CAPA:
+		printhecap(ctx, " HECAP", vp);
+		break;
+	case IEEE80211_ELEMID_EXT_HE_OPER:
+		printheoper(ctx, " HEOPER", vp);
+		break;
+	case IEEE80211_ELEMID_EXT_MU_EDCA_PARAM_SET:
+		printmuedcaparamset(ctx, " MU_EDCA_PARAM_SET", vp);
+		break;
+	default:
+		if (verbose)
+			printie(ctx, iename(vp[0], vp), vp, 2+vp[1], maxcols);
+		break;
+	}
 }
 
 static void
@@ -3695,6 +3912,9 @@ printies(if_ctx *ctx, const u_int8_t *vp, int ielen, unsigned int maxcols)
 		case IEEE80211_ELEMID_HTCAP:
 			printhtcap(ctx, " HTCAP", vp);
 			break;
+		case IEEE80211_ELEMID_SUP_OP_CLASS:
+			printsupopclass(ctx, " SUP_OP_CLASS", vp);
+			break;
 		case IEEE80211_ELEMID_HTINFO:
 			if (verbose)
 				printhtinfo(ctx, " HTINFO", vp);
@@ -3724,9 +3944,12 @@ printies(if_ctx *ctx, const u_int8_t *vp, int ielen, unsigned int maxcols)
 		case IEEE80211_ELEMID_RSN_EXT:
 			printrsnxe(ctx, " RSNXE", vp, 2+vp[1]);
 			break;
+		case IEEE80211_ELEMID_EXTFIELD:
+			printexties(ctx, vp, maxcols);
+			break;
 		default:
 			if (verbose)
-				printie(ctx, iename(vp[0]), vp, 2+vp[1], maxcols);
+				printie(ctx, iename(vp[0], vp), vp, 2+vp[1], maxcols);
 			break;
 		}
 		ielen -= 2+vp[1];
