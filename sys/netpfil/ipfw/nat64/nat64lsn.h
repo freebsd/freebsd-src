@@ -230,7 +230,7 @@ struct nat64lsn_cfg {
 
 	struct nat64_config	base;
 #define	NAT64LSN_FLAGSMASK	(NAT64_LOG | NAT64_ALLOW_PRIVATE | \
-    NAT64LSN_ALLOW_SWAPCONF)
+    NAT64LSN_ALLOW_SWAPCONF | NAT64LSN_NOMATCH_PASS)
 #define	NAT64LSN_ANYPREFIX	0x00000100
 
 	struct mtx		periodic_lock;

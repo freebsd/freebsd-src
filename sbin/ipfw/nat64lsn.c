@@ -382,6 +382,8 @@ static struct _s_x nat64newcmds[] = {
       { "-allow_private", TOK_PRIVATEOFF },
       { "swap_conf",	TOK_SWAPCONF },
       { "-swap_conf",	TOK_SWAPCONFOFF },
+      { "nomatch_pass",	TOK_NOMATCH_PASS },
+      { "-nomatch_pass", TOK_NOMATCH_PASSOFF },
       /* for compatibility with old configurations */
       { "max_ports",	TOK_MAX_PORTS },	/* unused */
       { NULL, 0 }
@@ -521,6 +523,12 @@ nat64lsn_create(const char *name, uint8_t set, int ac, char **av)
 			break;
 		case TOK_SWAPCONFOFF:
 			cfg->flags &= ~NAT64LSN_ALLOW_SWAPCONF;
+			break;
+		case TOK_NOMATCH_PASS:
+			cfg->flags |= NAT64LSN_NOMATCH_PASS;
+			break;
+		case TOK_NOMATCH_PASSOFF:
+			cfg->flags &= ~NAT64LSN_NOMATCH_PASS;
 			break;
 		}
 	}
@@ -812,6 +820,8 @@ nat64lsn_show_cb(ipfw_nat64lsn_cfg *cfg, const char *name, uint8_t set)
 		printf(" jmaxlen %u", cfg->jmaxlen);
 	if (cfg->flags & NAT64LSN_ALLOW_SWAPCONF)
 		printf(" swap_conf");
+	if (cfg->flags & NAT64LSN_NOMATCH_PASS)
+		printf(" nomatch_pass");
 	if (cfg->flags & NAT64_LOG)
 		printf(" log");
 	if (cfg->flags & NAT64_ALLOW_PRIVATE)

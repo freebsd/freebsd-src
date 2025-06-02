@@ -3612,7 +3612,9 @@ source address after translation.
 Stateful NAT64 module translates IPv6 source address of client to one
 IPv4 address from this pool.
 Note that incoming IPv4 packets that don't have corresponding state entry
-in the states table will be dropped by translator.
+in the states table will be dropped by translator, unless
+.Cm nomatch_pass
+paramater is configured.
 Make sure that translation rules handle packets, destined to configured prefix.
 .It Cm prefix6 Ar ipv6_prefix/length
 The IPv6 prefix defines IPv4-embedded IPv6 addresses used by translator
@@ -3698,6 +3700,17 @@ By default IPv6 packets with destinations mapped to private address ranges
 defined by RFC1918 are not processed.
 .It Cm -allow_private
 Turn off private address handling in
+.Nm nat64
+instance.
+.It Cm nomatch_pass
+Turn on search continuation with the next rule if packet does not have
+corresponding state entry in the states table of
+.Nm nat64
+instance.
+By default packets without state will be dropped by translator.
+.It Cm -nomatch_pass
+Turn off search continuation with the next rule if packet does not have
+corresponding state entry in the states table of
 .Nm nat64
 instance.
 .El

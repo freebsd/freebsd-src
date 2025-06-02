@@ -99,6 +99,9 @@ struct ipfw_nat64lsn_stats {
 					 * between NAT64LSN instances
 					 * during the sets swapping.
 					 */
+#define NAT64LSN_NOMATCH_PASS	0x0008	/* Continue search if no state
+					 * matched.
+					 */
 typedef struct _ipfw_nat64stl_cfg {
 	char		name[64];	/* NAT name			*/
 	ipfw_obj_ntlv	ntlv6;		/* object name tlv		*/

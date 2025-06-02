@@ -184,7 +184,8 @@ nat64lsn_create(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	cfg->st_estab_ttl = uc->st_estab_ttl;
 	cfg->st_udp_ttl = uc->st_udp_ttl;
 	cfg->st_icmp_ttl = uc->st_icmp_ttl;
-	cfg->nomatch_verdict = IP_FW_DENY;
+	cfg->nomatch_verdict = (cfg->base.flags & NAT64LSN_NOMATCH_PASS)
+				? IP_FW_PASS : IP_FW_DENY;
 
 	IPFW_UH_WLOCK(ch);
 
