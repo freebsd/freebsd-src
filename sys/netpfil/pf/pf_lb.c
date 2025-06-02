@@ -843,20 +843,18 @@ done:
 }
 
 u_short
-pf_get_translation(struct pf_pdesc *pd,
-    struct pf_state_key **skp, struct pf_state_key **nkp,
-    struct pf_test_ctx *ctx, struct pf_udp_mapping **udp_mapping)
+pf_get_translation(struct pf_test_ctx *ctx)
 {
 	struct pf_krule	*r = NULL;
 	u_short		 transerror;
 
 	PF_RULES_RASSERT();
-	KASSERT(*skp == NULL, ("*skp not NULL"));
-	KASSERT(*nkp == NULL, ("*nkp not NULL"));
+	KASSERT(ctx->sk == NULL, ("*skp not NULL"));
+	KASSERT(ctx->nk == NULL, ("*nkp not NULL"));
 
 	ctx->nr = NULL;
 
-	if (pd->dir == PF_OUT) {
+	if (ctx->pd->dir == PF_OUT) {
 		r = pf_match_translation(PF_RULESET_BINAT, ctx);
 		if (r == NULL)
 			r = pf_match_translation(PF_RULESET_NAT, ctx);
@@ -876,7 +874,7 @@ pf_get_translation(struct pf_pdesc *pd,
 		return (PFRES_MAX);
 	}
 
-	transerror = pf_get_transaddr(pd, skp, nkp, r, udp_mapping, r->action, &(r->rdr));
+	transerror = pf_get_transaddr(ctx, r, r->action, &(r->rdr));
 	if (transerror == PFRES_MATCH)
 		ctx->nr = r;
 
@@ -884,11 +882,10 @@ pf_get_translation(struct pf_pdesc *pd,
 }
 
 u_short
-pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
-    struct pf_state_key **nkp, struct pf_krule *r,
-    struct pf_udp_mapping **udp_mapping, uint8_t nat_action,
-    struct pf_kpool *rpool)
+pf_get_transaddr(struct pf_test_ctx *ctx, struct pf_krule *r,
+    uint8_t nat_action, struct pf_kpool *rpool)
 {
+	struct pf_pdesc	*pd = ctx->pd;
 	struct pf_addr	*naddr;
 	struct pf_ksrc_node	*sn = NULL;
 	struct pf_srchash	*sh = NULL;
@@ -900,13 +897,14 @@ pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
 	KASSERT(r != NULL, ("r is NULL"));
 	KASSERT(!(r->rule_flag & PFRULE_AFTO), ("AFTO rule"));
 
-	if (*skp == NULL && *nkp == NULL) {
-		if (pf_state_key_setup(pd, pd->nsport, pd->ndport, skp, nkp))
+	if (ctx->sk == NULL && ctx->nk == NULL) {
+		if (pf_state_key_setup(pd, pd->nsport, pd->ndport, &ctx->sk,
+		    &ctx->nk))
 			return (PFRES_MEMORY);
 	}
 
-	naddr = &(*nkp)->addr[1];
-	nportp = &(*nkp)->port[1];
+	naddr = &ctx->nk->addr[1];
+	nportp = &ctx->nk->port[1];
 
 	switch (nat_action) {
 	case PF_NAT:
@@ -919,7 +917,7 @@ pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
 		}
 		if (rpool->mape.offset > 0) {
 			if (pf_get_mape_sport(pd, r, naddr, nportp, &sn,
-			    &sh, udp_mapping, rpool)) {
+			    &sh, &ctx->udp_mapping, rpool)) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: MAP-E port allocation (%u/%u/%u)"
 				    " failed\n",
@@ -930,7 +928,7 @@ pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
 				goto notrans;
 			}
 		} else if (pf_get_sport(pd, r, naddr, nportp, low, high, &sn,
-		    &sh, rpool, udp_mapping, PF_SN_NAT)) {
+		    &sh, rpool, &ctx->udp_mapping, PF_SN_NAT)) {
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pf: NAT proxy port allocation (%u-%u) failed\n",
 			    rpool->proxy_port[0], rpool->proxy_port[1]));
@@ -1077,7 +1075,7 @@ pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
 			key.port[0] = htons(tmp);
 			if (!pf_find_state_all_exists(&key, PF_OUT)) {
 				/* Update the source port. */
-				(*nkp)->port[0] = htons(tmp);
+				ctx->nk->port[0] = htons(tmp);
 				goto out;
 			}
 		}
@@ -1087,7 +1085,7 @@ pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
 			key.port[0] = htons(tmp);
 			if (!pf_find_state_all_exists(&key, PF_OUT)) {
 				/* Update the source port. */
-				(*nkp)->port[0] = htons(tmp);
+				ctx->nk->port[0] = htons(tmp);
 				goto out;
 			}
 		}
@@ -1105,7 +1103,7 @@ pf_get_transaddr(struct pf_pdesc *pd, struct pf_state_key **skp,
 out:
 		DPFPRINTF(PF_DEBUG_MISC,
 		    ("pf: RDR source port allocation %u->%u\n",
-		    ntohs(pd->nsport), ntohs((*nkp)->port[0])));
+		    ntohs(pd->nsport), ntohs(ctx->nk->port[0])));
 		break;
 	}
 	default:
@@ -1113,15 +1111,15 @@ out:
 	}
 
 	/* Return success only if translation really happened. */
-	if (bcmp(*skp, *nkp, sizeof(struct pf_state_key_cmp))) {
+	if (bcmp(ctx->sk, ctx->nk, sizeof(struct pf_state_key_cmp))) {
 		return (PFRES_MATCH);
 	}
 
 	reason = PFRES_MAX;
 notrans:
-	uma_zfree(V_pf_state_key_z, *nkp);
-	uma_zfree(V_pf_state_key_z, *skp);
-	*skp = *nkp = NULL;
+	uma_zfree(V_pf_state_key_z, ctx->nk);
+	uma_zfree(V_pf_state_key_z, ctx->sk);
+	ctx->sk = ctx->nk = NULL;
 
 	return (reason);
 }
