@@ -62,16 +62,16 @@
  * @var ice_rc_version
  * @brief driver release candidate version number
  */
-const char ice_driver_version[] = "1.43.2-k";
+const char ice_driver_version[] = "1.43.3-k";
 const uint8_t ice_major_version = 1;
 const uint8_t ice_minor_version = 43;
-const uint8_t ice_patch_version = 2;
+const uint8_t ice_patch_version = 3;
 const uint8_t ice_rc_version = 0;
 
 #define PVIDV(vendor, devid, name) \
-	PVID(vendor, devid, name " - 1.43.2-k")
+	PVID(vendor, devid, name " - 1.43.3-k")
 #define PVIDV_OEM(vendor, devid, svid, sdevid, revid, name) \
-	PVID_OEM(vendor, devid, svid, sdevid, revid, name " - 1.43.2-k")
+	PVID_OEM(vendor, devid, svid, sdevid, revid, name " - 1.43.3-k")
 
 /**
  * @var ice_vendor_info_array
@@ -200,17 +200,6 @@ static const pci_vendor_info_t ice_vendor_info_array[] = {
 		  "Intel(R) Ethernet Network Adapter E830-CC-Q1 for OCP 3.0"),
 	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_QSFP56,
 		"Intel(R) Ethernet Connection E830-CC for QSFP56"),
-	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_SFP,
-		  ICE_INTEL_VENDOR_ID, 0x0001, 0,
-		  "Intel(R) Ethernet Network Adapter E830-XXV-2 for OCP 3.0"),
-	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_SFP,
-		  ICE_INTEL_VENDOR_ID, 0x0003, 0,
-		  "Intel(R) Ethernet Network Adapter E830-XXV-2"),
-	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_SFP,
-		  ICE_INTEL_VENDOR_ID, 0x0004, 0,
-		  "Intel(R) Ethernet Network Adapter E830-XXV-4 for OCP 3.0"),
-	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_SFP,
-		"Intel(R) Ethernet Connection E830-CC for SFP"),
 	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830C_BACKPLANE,
 		"Intel(R) Ethernet Connection E830-C for backplane"),
 	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830C_QSFP,
@@ -221,6 +210,12 @@ static const pci_vendor_info_t ice_vendor_info_array[] = {
 		"Intel(R) Ethernet Connection E830-L for backplane"),
 	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_L_QSFP,
 		"Intel(R) Ethernet Connection E830-L for QSFP"),
+	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_L_SFP,
+		  ICE_INTEL_VENDOR_ID, 0x0001, 0,
+		  "Intel(R) Ethernet Network Adapter E830-XXV-2 for OCP 3.0"),
+	PVIDV_OEM(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_L_SFP,
+		  ICE_INTEL_VENDOR_ID, 0x0003, 0,
+		  "Intel(R) Ethernet Network Adapter E830-XXV-2"),
 	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E830_L_SFP,
 		"Intel(R) Ethernet Connection E830-L for SFP"),
 	PVIDV(ICE_INTEL_VENDOR_ID, ICE_DEV_ID_E825C_BACKPLANE,

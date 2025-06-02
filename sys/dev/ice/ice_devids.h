@@ -61,7 +61,7 @@
 /* Intel(R) Ethernet Controller E830-C for SFP */
 #define ICE_DEV_ID_E830C_SFP            0x12DA
 /* Intel(R) Ethernet Controller E830-L for SFP */
-#define ICE_DEV_ID_E830_L_SFP         0x12DE
+#define ICE_DEV_ID_E830_L_SFP           0x12DE
 /* Intel(R) Ethernet Controller E810-C for backplane */
 #define ICE_DEV_ID_E810C_BACKPLANE	0x1591
 /* Intel(R) Ethernet Controller E810-C for QSFP */
