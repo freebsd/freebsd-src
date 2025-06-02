@@ -54,7 +54,6 @@
 #include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_llc.h>
-#include <net/if_private.h>
 #include <net/ethernet.h>
 
 #include <net80211/ieee80211_var.h>
@@ -3302,11 +3301,11 @@ mesh_airtime_calc(struct ieee80211_node *ni)
 	/* Time to transmit a frame */
 	rate = ieee80211_node_get_txrate_dot11rate(ni);
 	overhead = ieee80211_compute_duration(ic->ic_rt,
-	    ifp->if_mtu + IEEE80211_MESH_MAXOVERHEAD, rate, 0) << M_BITS;
+	    if_getmtu(ifp) + IEEE80211_MESH_MAXOVERHEAD, rate, 0) << M_BITS;
 	/* Error rate in percentage */
 	/* XXX assuming small failures are ok */
-	errrate = (((ifp->if_get_counter(ifp, IFCOUNTER_OERRORS) +
-	    ifp->if_get_counter(ifp, IFCOUNTER_IERRORS)) / 100) << M_BITS)
+	errrate = (((if_getcounter(ifp, IFCOUNTER_OERRORS) +
+	    if_getcounter(ifp, IFCOUNTER_IERRORS)) / 100) << M_BITS)
 	    / 100;
 	res = (overhead + (nbits / rate)) *
 	    ((1 << S_FACTOR) / ((1 << M_BITS) - errrate));
