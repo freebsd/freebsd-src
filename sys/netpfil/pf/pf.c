@@ -5789,7 +5789,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	pd->odport = pd->ndport;
 
 	/* check packet for BINAT/NAT/RDR */
-	transerror = pf_get_translation(pd, pd->off, &ctx.sk, &ctx.nk, &ctx,
+	transerror = pf_get_translation(pd, &ctx.sk, &ctx.nk, &ctx,
 	    &ctx.udp_mapping);
 	switch (transerror) {
 	default:

@@ -843,7 +843,7 @@ done:
 }
 
 u_short
-pf_get_translation(struct pf_pdesc *pd, int off,
+pf_get_translation(struct pf_pdesc *pd,
     struct pf_state_key **skp, struct pf_state_key **nkp,
     struct pf_test_ctx *ctx, struct pf_udp_mapping **udp_mapping)
 {
