@@ -156,6 +156,7 @@ mount_init(void *mem, int size, int flags)
 	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
 	mtx_init(&mp->mnt_listmtx, "struct mount vlist mtx", NULL, MTX_DEF);
 	lockinit(&mp->mnt_explock, PVFS, "explock", 0, 0);
+	lockinit(&mp->mnt_renamelock, PVFS, "rename", 0, 0);
 	mp->mnt_pcpu = uma_zalloc_pcpu(pcpu_zone_16, M_WAITOK | M_ZERO);
 	mp->mnt_ref = 0;
 	mp->mnt_vfs_ops = 1;
@@ -170,6 +171,7 @@ mount_fini(void *mem, int size)
 
 	mp = (struct mount *)mem;
 	uma_zfree_pcpu(pcpu_zone_16, mp->mnt_pcpu);
+	lockdestroy(&mp->mnt_renamelock);
 	lockdestroy(&mp->mnt_explock);
 	mtx_destroy(&mp->mnt_listmtx);
 	mtx_destroy(&mp->mnt_mtx);

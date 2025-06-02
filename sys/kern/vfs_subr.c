@@ -5853,6 +5853,8 @@ vop_rename_pre(void *ap)
 	struct vop_rename_args *a = ap;
 
 #ifdef DEBUG_VFS_LOCKS
+	struct mount *tmp;
+
 	if (a->a_tvp)
 		ASSERT_VI_UNLOCKED(a->a_tvp, "VOP_RENAME");
 	ASSERT_VI_UNLOCKED(a->a_tdvp, "VOP_RENAME");
@@ -5870,6 +5872,11 @@ vop_rename_pre(void *ap)
 	if (a->a_tvp)
 		ASSERT_VOP_LOCKED(a->a_tvp, "vop_rename: tvp not locked");
 	ASSERT_VOP_LOCKED(a->a_tdvp, "vop_rename: tdvp not locked");
+
+	tmp = NULL;
+	VOP_GETWRITEMOUNT(a->a_tdvp, &tmp);
+	lockmgr_assert(&tmp->mnt_renamelock, KA_XLOCKED);
+	vfs_rel(tmp);
 #endif
 	/*
 	 * It may be tempting to add vn_seqc_write_begin/end calls here and
