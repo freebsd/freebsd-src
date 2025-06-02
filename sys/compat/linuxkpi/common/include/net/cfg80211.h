@@ -895,28 +895,34 @@ struct linuxkpi_ieee80211_regdomain {
 
 #define	VENDOR_CMD_RAW_DATA	(void *)(uintptr_t)(-ENOENT)
 
+/*
+ * 802.11ax-2021,
+ * 9.4.2.248.2 HE MAC Capabilities Information field.
+ * 9.4.2.248.3 HE PHY Capabilities Information field.
+ */
 struct ieee80211_he_cap_elem {
 	u8 mac_cap_info[6];
 	u8 phy_cap_info[11];
 } __packed;
 
+/* 802.11ax-2021, 9.4.2.248.4 Supported HE-MCS And NSS Set field. */
 struct ieee80211_he_mcs_nss_supp {
-	/* TODO FIXME */
-	uint32_t	rx_mcs_80;
-	uint32_t	tx_mcs_80;
-	uint32_t	rx_mcs_160;
-	uint32_t	tx_mcs_160;
-	uint32_t	rx_mcs_80p80;
-	uint32_t	tx_mcs_80p80;
+	uint16_t	rx_mcs_80;
+	uint16_t	tx_mcs_80;
+	uint16_t	rx_mcs_160;
+	uint16_t	tx_mcs_160;
+	uint16_t	rx_mcs_80p80;
+	uint16_t	tx_mcs_80p80;
 };
 
-#define	IEEE80211_STA_HE_CAP_PPE_THRES_MAX	32
+#define	IEEE80211_HE_CAP_PPE_THRES_MAX	25
+
+/* net80211::ic_ieee80211_he_cap */
 struct ieee80211_sta_he_cap {
-	/* TODO FIXME */
-	int					has_he;
+	bool					has_he;
 	struct ieee80211_he_cap_elem		he_cap_elem;
 	struct ieee80211_he_mcs_nss_supp	he_mcs_nss_supp;
-	uint8_t					ppe_thres[IEEE80211_STA_HE_CAP_PPE_THRES_MAX];
+	uint8_t					ppe_thres[IEEE80211_HE_CAP_PPE_THRES_MAX];
 };
 
 struct cfg80211_he_bss_color {
