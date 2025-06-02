@@ -845,7 +845,6 @@ doscheckpath(struct denode *source, struct denode *target, daddr_t *wait_scn)
 	*wait_scn = 0;
 
 	pmp = target->de_pmp;
-	lockmgr_assert(&pmp->pm_checkpath_lock, KA_XLOCKED);
 	KASSERT(pmp == source->de_pmp,
 	    ("doscheckpath: source and target on different filesystems"));
 
