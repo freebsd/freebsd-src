@@ -97,8 +97,6 @@ struct ufsmount {
 	uint64_t um_maxsymlinklen;		/* (c) max size of short
 						       symlink */
 	struct	mtx um_lock;			/* (c) Protects ufsmount & fs */
-	struct	sx um_checkpath_lock;		/* (c) Protects ufs_checkpath()
-						       result */
 	struct	mount_softdeps *um_softdep;	/* (c) softdep mgmt structure */
 	struct	vnode *um_quotas[MAXQUOTAS];	/* (q) pointer to quota files */
 	struct	ucred *um_cred[MAXQUOTAS];	/* (q) quota file access cred */
