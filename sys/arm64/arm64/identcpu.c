@@ -51,6 +51,9 @@
 static MALLOC_DEFINE(M_IDENTCPU, "CPU ID", "arm64 CPU identification memory");
 
 struct cpu_desc;
+#ifdef INVARIANTS
+static bool hwcaps_set = false;
+#endif
 
 static void print_cpu_midr(struct sbuf *sb, u_int cpu);
 static void print_cpu_features(u_int cpu, struct cpu_desc *desc,
@@ -2594,13 +2597,62 @@ update_special_reg_field(uint64_t user_reg, u_int type, uint64_t value,
 	return (user_reg);
 }
 
+static void
+clear_set_special_reg_idx(int idx, uint64_t clear, uint64_t set)
+{
+	const struct mrs_field *fields;
+	uint64_t k_old, k_new;
+	uint64_t f_old, f_new;
+	uint64_t l_old, l_new;
+
+	MPASS(idx < nitems(user_regs));
+
+	k_old = CPU_DESC_FIELD(kern_cpu_desc, idx);
+	k_new = (k_old & ~clear) | set;
+
+	f_old = CPU_DESC_FIELD(user_cpu_desc, idx);
+	f_new = (f_old & ~clear) | set;
+
+	l_old = CPU_DESC_FIELD(l_user_cpu_desc, idx);
+	l_new = (l_old & ~clear) | set;
+
+	fields = user_regs[idx].fields;
+	for (int j = 0; fields[j].type != 0; j++) {
+		u_int type;
+
+		/* Update the FreeBSD userspace ID register view */
+		type = ((fields[j].type & MRS_FREEBSD) != 0) ?
+		    fields[j].type :
+		    (MRS_EXACT | (fields[j].type & MRS_SAFE_MASK));
+		f_new = update_special_reg_field(f_new,
+		    type, f_old, fields[j].width, fields[j].shift,
+		    fields[j].sign);
+
+		/* Update the Linux userspace ID register view */
+		type = ((fields[j].type & MRS_LINUX) != 0) ?
+		    fields[j].type :
+		    (MRS_EXACT | (fields[j].type & MRS_SAFE_MASK));
+		l_new = update_special_reg_field(l_new,
+		    type, l_old, fields[j].width, fields[j].shift,
+		    fields[j].sign);
+
+		/* Update the kernel ID register view */
+		k_new = update_special_reg_field(k_new,
+		    fields[j].type, k_old, fields[j].width,
+		    fields[j].shift, fields[j].sign);
+	}
+
+	CPU_DESC_FIELD(kern_cpu_desc, idx) = k_new;
+	CPU_DESC_FIELD(user_cpu_desc, idx) = f_new;
+	CPU_DESC_FIELD(l_user_cpu_desc, idx) = l_new;
+}
+
 void
 update_special_regs(u_int cpu)
 {
 	struct cpu_desc *desc;
-	const struct mrs_field *fields;
-	uint64_t l_user_reg, user_reg, kern_reg, value;
-	int i, j;
+	uint64_t value;
+	int i;
 
 	if (cpu == 0) {
 		/* Create a user visible cpu description with safe values */
@@ -2618,44 +2670,42 @@ update_special_regs(u_int cpu)
 	for (i = 0; i < nitems(user_regs); i++) {
 		value = CPU_DESC_FIELD(*desc, i);
 		if (cpu == 0) {
-			kern_reg = value;
-			user_reg = value;
-			l_user_reg = value;
-		} else {
-			kern_reg = CPU_DESC_FIELD(kern_cpu_desc, i);
-			user_reg = CPU_DESC_FIELD(user_cpu_desc, i);
-			l_user_reg = CPU_DESC_FIELD(l_user_cpu_desc, i);
+			CPU_DESC_FIELD(kern_cpu_desc, i) = value;
+			CPU_DESC_FIELD(user_cpu_desc, i) = value;
+			CPU_DESC_FIELD(l_user_cpu_desc, i) = value;
 		}
 
-		fields = user_regs[i].fields;
-		for (j = 0; fields[j].type != 0; j++) {
-			u_int type;
+		clear_set_special_reg_idx(i, UINT64_MAX, value);
+	}
+}
 
-			/* Update the FreeBSD userspace ID register view */
-			type = ((fields[j].type & MRS_FREEBSD) != 0) ?
-			    fields[j].type :
-			    (MRS_EXACT | (fields[j].type & MRS_SAFE_MASK));
-			user_reg = update_special_reg_field(user_reg,
-			    type, value, fields[j].width, fields[j].shift,
-			    fields[j].sign);
+/*
+ * Updates a special register in all views. This creates a copy of the
+ * register then clears it and sets new bits. It will then compare this
+ * with the old version as if it was the ID register for a new CPU.
+ *
+ * It is intended to let code that disables features, e.g. due to errata,
+ * to clear the user visible field.
+ *
+ * This needs to be called before the HWCAPs are set. If called from a CPU
+ * feature handler this safe to call from CPU_FEAT_EARLY_BOOT. It also needs
+ * to be before link_elf_late_ireloc is called. As this is called after the
+ * HWCAPs are set the check for these is enough.
+ */
+void
+update_special_reg(u_int reg, uint64_t clear, uint64_t set)
+{
+	MPASS(hwcaps_set == false);
+	/* There is no locking here, so we only support changing this on CPU0 */
+	/* TODO: Add said locking */
+	MPASS(PCPU_GET(cpuid) == 0);
 
-			/* Update the Linux userspace ID register view */
-			type = ((fields[j].type & MRS_LINUX) != 0) ?
-			    fields[j].type :
-			    (MRS_EXACT | (fields[j].type & MRS_SAFE_MASK));
-			l_user_reg = update_special_reg_field(l_user_reg,
-			    type, value, fields[j].width, fields[j].shift,
-			    fields[j].sign);
+	for (int i = 0; i < nitems(user_regs); i++) {
+		if (user_regs[i].reg != reg)
+			continue;
 
-			/* Update the kernel ID register view */
-			kern_reg = update_special_reg_field(kern_reg,
-			    fields[j].type, value, fields[j].width,
-			    fields[j].shift, fields[j].sign);
-		}
-
-		CPU_DESC_FIELD(kern_cpu_desc, i) = kern_reg;
-		CPU_DESC_FIELD(user_cpu_desc, i) = user_reg;
-		CPU_DESC_FIELD(l_user_cpu_desc, i) = l_user_reg;
+		clear_set_special_reg_idx(i, clear, set);
+		return;
 	}
 }
 
@@ -2756,6 +2806,11 @@ identify_cpu_sysinit(void *dummy __unused)
 			idc = false;
 		prev_desc = desc;
 	}
+
+#ifdef INVARIANTS
+	/* Check we dont update the special registers after this point */
+	hwcaps_set = true;
+#endif
 
 	/* Find the values to export to userspace as AT_HWCAP and AT_HWCAP2 */
 	parse_cpu_features(true, &user_cpu_desc, &elf_hwcap, &elf_hwcap2);
