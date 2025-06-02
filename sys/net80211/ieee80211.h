@@ -28,6 +28,12 @@
 #ifndef _NET80211_IEEE80211_H_
 #define _NET80211_IEEE80211_H_
 
+#include <sys/types.h>
+
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif
+
 /*
  * 802.11 protocol definitions.
  */
@@ -1022,6 +1028,70 @@ struct ieee80211_ie_vht_txpwrenv {
 #define	WLAN_ACTION_VHT_COMPRESSED_BF		0
 #define	WLAN_ACTION_VHT_GROUPID_MGMT		1
 #define	WLAN_ACTION_VHT_OPMODE_NOTIF		2
+
+#if defined(_KERNEL) || defined(WANT_NET80211)
+/*
+ * HE
+ */
+
+/*
+ * 802.11ax-2021,
+ * 9.4.2.248.2 HE MAC Capabilities Information field.
+ * 9.4.2.248.3 HE PHY Capabilities Information field.
+ */
+struct ieee80211_he_cap_elem {
+	uint8_t					mac_cap_info[6];
+	uint8_t					phy_cap_info[11];
+} __packed;
+
+/* 802.11ax-2021, 9.4.2.248.4 Supported HE-MCS And NSS Set field. */
+struct ieee80211_he_mcs_nss_supp {
+	uint16_t				rx_mcs_80;
+	uint16_t				tx_mcs_80;
+	uint16_t				rx_mcs_160;
+	uint16_t				tx_mcs_160;
+	uint16_t				rx_mcs_80p80;
+	uint16_t				tx_mcs_80p80;
+} __packed;
+
+#define	IEEE80211_HE_CAP_PPE_THRES_MAX		25
+
+/* XXX this should only be internal. */
+struct net80211_he_cap {
+	bool					has_he;
+	struct ieee80211_he_cap_elem		he_cap_elem;
+	struct ieee80211_he_mcs_nss_supp	he_mcs_nss_supp;
+	uint8_t					ppe_thres[IEEE80211_HE_CAP_PPE_THRES_MAX];
+};
+
+/* 802.11ax-2021, 9.4.2.249 HE Operation element. */
+struct ieee80211_he_operation {
+	uint32_t				he_oper_params;
+	uint16_t				he_mcs_nss_set;
+	uint8_t					optional[0];
+} __packed;
+
+/* 802.11ax-2021, 9.4.2.251 MU EDCA Parameter Set element. */
+struct ieee80211_he_mu_edca_param_ac_rec {
+	uint8_t					aifsn;
+	uint8_t					ecw_min_max;
+	uint8_t					mu_edca_timer;
+} __packed;
+
+struct ieee80211_mu_edca_param_set {
+	uint8_t					mu_qos_info;
+	union {
+		struct {
+			struct ieee80211_he_mu_edca_param_ac_rec ac_be;
+			struct ieee80211_he_mu_edca_param_ac_rec ac_bk;
+			struct ieee80211_he_mu_edca_param_ac_rec ac_vi;
+			struct ieee80211_he_mu_edca_param_ac_rec ac_vo;
+		};
+		struct ieee80211_he_mu_edca_param_ac_rec param_ac_recs[4];
+	};
+} __packed;
+#endif	/* _KERNEL || WANT_NET80211 */
+
 
 /*
  * Management information element payloads.
