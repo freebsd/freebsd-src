@@ -108,7 +108,12 @@ struct nameidata {
 	 * through the VOP interface.
 	 */
 	struct componentname ni_cnd;
+
+	/* Serving RBENEATH. */
 	struct nameicap_tracker_head ni_cap_tracker;
+	struct vnode *ni_rbeneath_dpp;
+	struct mount *ni_nctrack_mnt;
+
 	/*
 	 * Private helper data for UFS, must be at the end.  See
 	 * NDINIT_PREFILL().
@@ -235,6 +240,10 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 		panic("namei data not inited");					\
 	if (((arg)->ni_debugflags & NAMEI_DBG_HADSTARTDIR) != 0)		\
 		panic("NDREINIT on namei data with NAMEI_DBG_HADSTARTDIR");	\
+	if ((arg)->ni_nctrack_mnt != NULL)			\
+		panic("NDREINIT on namei data with leaked ni_nctrack_mnt");	\
+	if (!TAILQ_EMPTY(&(arg)->ni_cap_tracker))				\
+		panic("NDREINIT on namei data with leaked ni_cap_tracker");	\
 	(arg)->ni_debugflags = NAMEI_DBG_INITED;				\
 }
 #else
@@ -259,6 +268,9 @@ do {										\
 	_ndp->ni_resflags = 0;							\
 	filecaps_init(&_ndp->ni_filecaps);					\
 	_ndp->ni_rightsneeded = _rightsp;					\
+	_ndp->ni_rbeneath_dpp = NULL;						\
+	_ndp->ni_nctrack_mnt = NULL;						\
+	TAILQ_INIT(&_ndp->ni_cap_tracker);					\
 } while (0)
 
 #define NDREINIT(ndp)	do {							\
