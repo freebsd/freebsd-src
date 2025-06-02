@@ -343,12 +343,9 @@ static int		 pf_test_eth_rule(int, struct pfi_kkif *,
 static int		 pf_test_rule(struct pf_krule **, struct pf_kstate **,
 			    struct pf_pdesc *, struct pf_krule **,
 			    struct pf_kruleset **, u_short *, struct inpcb *);
-static int		 pf_create_state(struct pf_krule *, struct pf_krule *,
-			    struct pf_krule *, struct pf_pdesc *,
-			    struct pf_state_key *, struct pf_state_key *, int *,
-			    struct pf_kstate **, int, u_int16_t, u_int16_t,
-			    struct pf_krule_slist *, struct pf_udp_mapping *,
-			    struct pf_kpool *, u_short *);
+static int		 pf_create_state(struct pf_krule *,
+			    struct pf_test_ctx *,
+			    struct pf_kstate **, u_int16_t, u_int16_t);
 static int		 pf_state_key_addr_setup(struct pf_pdesc *,
 			    struct pf_state_key_cmp *, int);
 static int		 pf_tcp_track_full(struct pf_kstate *,
@@ -5458,49 +5455,46 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf **m0)
 	} while (0)
 
 static __inline u_short
-pf_rule_apply_nat(struct pf_pdesc *pd, struct pf_state_key **skp,
-    struct pf_state_key **nkp, struct pf_krule *r, struct pf_krule **nr,
-    struct pf_udp_mapping **udp_mapping, u_int16_t virtual_type, int *rewrite,
-    struct pf_kpool **nat_pool)
+pf_rule_apply_nat(struct pf_test_ctx *ctx, struct pf_krule *r)
 {
+	struct pf_pdesc	*pd = ctx->pd;
 	u_short		 transerror;
 	u_int8_t	 nat_action;
 
 	if (r->rule_flag & PFRULE_AFTO) {
 		/* Don't translate if there was an old style NAT rule */
-		if (*nr != NULL)
+		if (ctx->nr != NULL)
 			return (PFRES_TRANSLATE);
 
 		/* pass af-to rules, unsupported on match rules */
 		KASSERT(r->action != PF_MATCH, ("%s: af-to on match rule", __func__));
 		/* XXX I can imagine scenarios where we have both NAT and RDR source tracking */
-		*nat_pool = &(r->nat);
-		(*nr) = r;
+		ctx->nat_pool = &(r->nat);
+		ctx->nr = r;
 		pd->naf = r->naf;
-		if (pf_get_transaddr_af(*nr, pd) == -1) {
+		if (pf_get_transaddr_af(ctx->nr, pd) == -1) {
 			return (PFRES_TRANSLATE);
 		}
 		return (PFRES_MATCH);
 	} else if (r->rdr.cur || r->nat.cur) {
 		/* Don't translate if there was an old style NAT rule */
-		if (*nr != NULL)
+		if (ctx->nr != NULL)
 			return (PFRES_TRANSLATE);
 
 		/* match/pass nat-to/rdr-to rules */
-		(*nr) = r;
+		ctx->nr = r;
 		if (r->nat.cur) {
 			nat_action = PF_NAT;
-			*nat_pool = &(r->nat);
+			ctx->nat_pool = &(r->nat);
 		} else {
 			nat_action = PF_RDR;
-			*nat_pool = &(r->rdr);
+			ctx->nat_pool = &(r->rdr);
 		}
 
-		transerror = pf_get_transaddr(pd, skp, nkp, *nr, udp_mapping,
-		    nat_action, *nat_pool);
+		transerror = pf_get_transaddr(ctx, ctx->nr,
+		    nat_action, ctx->nat_pool);
 		if (transerror == PFRES_MATCH) {
-			(*rewrite) += pf_translate_compat(pd, *skp, *nkp, *nr,
-			    virtual_type);
+			ctx->rewrite += pf_translate_compat(ctx);
 			return(PFRES_MATCH);
 		}
 		return (transerror);
@@ -5626,9 +5620,7 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 				 * Apply translations before increasing counters,
 				 * in case it fails.
 				 */
-				transerror = pf_rule_apply_nat(pd, &ctx->sk, &ctx->nk, r,
-				    &ctx->nr, &ctx->udp_mapping, ctx->virtual_type,
-				    &ctx->rewrite, &ctx->nat_pool);
+				transerror = pf_rule_apply_nat(ctx, r);
 				switch (transerror) {
 				case PFRES_MATCH:
 					/* Translation action found in rule and applied successfully */
@@ -5789,8 +5781,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	pd->odport = pd->ndport;
 
 	/* check packet for BINAT/NAT/RDR */
-	transerror = pf_get_translation(pd, &ctx.sk, &ctx.nk, &ctx,
-	    &ctx.udp_mapping);
+	transerror = pf_get_translation(&ctx);
 	switch (transerror) {
 	default:
 		/* A translation error occurred. */
@@ -5807,7 +5798,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 			    ruleset, pd, 1, NULL);
 		}
 
-		ctx.rewrite += pf_translate_compat(pd, ctx.sk, ctx.nk, ctx.nr, ctx.virtual_type);
+		ctx.rewrite += pf_translate_compat(&ctx);
 		ctx.nat_pool = &(ctx.nr->rdr);
 	}
 
@@ -5829,8 +5820,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 
 	/* apply actions for last matching pass/block rule */
 	pf_rule_to_actions(r, &pd->act);
-	transerror = pf_rule_apply_nat(pd, &ctx.sk, &ctx.nk, r, &ctx.nr, &ctx.udp_mapping,
-	    ctx.virtual_type, &ctx.rewrite, &ctx.nat_pool);
+	transerror = pf_rule_apply_nat(&ctx, r);
 	switch (transerror) {
 	case PFRES_MATCH:
 		/* Translation action found in rule and applied successfully */
@@ -5889,9 +5879,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 	    (pd->flags & PFDESC_TCP_NORM)))) {
 		bool nat64;
 
-		action = pf_create_state(r, ctx.nr, ctx.a, pd, ctx.nk, ctx.sk,
-		    &ctx.rewrite, sm, ctx.tag, bproto_sum, bip_sum,
-		    &ctx.rules, ctx.udp_mapping, ctx.nat_pool, &ctx.reason);
+		action = pf_create_state(r, &ctx, sm, bproto_sum, bip_sum);
 		ctx.sk = ctx.nk = NULL;
 		if (action != PF_PASS) {
 			pf_udp_mapping_release(ctx.udp_mapping);
@@ -5983,13 +5971,10 @@ cleanup:
 }
 
 static int
-pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
-    struct pf_pdesc *pd, struct pf_state_key *nk, struct pf_state_key *sk,
-    int *rewrite, struct pf_kstate **sm, int tag, u_int16_t bproto_sum,
-    u_int16_t bip_sum, struct pf_krule_slist *match_rules,
-    struct pf_udp_mapping *udp_mapping, struct pf_kpool *nat_pool,
-    u_short *reason)
+pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
+    struct pf_kstate **sm, u_int16_t bproto_sum, u_int16_t bip_sum)
 {
+	struct pf_pdesc		*pd = ctx->pd;
 	struct pf_kstate	*s = NULL;
 	struct pf_ksrc_node	*sns[PF_SN_MAX] = { NULL };
 	/*
@@ -6007,14 +5992,14 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if (r->max_states &&
 	    (counter_u64_fetch(r->states_cur) >= r->max_states)) {
 		counter_u64_add(V_pf_status.lcounters[LCNT_STATES], 1);
-		REASON_SET(reason, PFRES_MAXSTATES);
+		REASON_SET(&ctx->reason, PFRES_MAXSTATES);
 		goto csfailed;
 	}
 	/* src node for limits */
 	if ((r->rule_flag & PFRULE_SRCTRACK) &&
 	    (sn_reason = pf_insert_src_node(sns, snhs, r, pd->src, pd->af,
 	        NULL, NULL, PF_SN_LIMIT)) != 0) {
-		REASON_SET(reason, sn_reason);
+		REASON_SET(&ctx->reason, sn_reason);
 		goto csfailed;
 	}
 	/* src node for route-to rule */
@@ -6023,30 +6008,30 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		    (sn_reason = pf_insert_src_node(sns, snhs, r, pd->src,
 		    pd->af, &pd->act.rt_addr, pd->act.rt_kif,
 		    PF_SN_ROUTE)) != 0) {
-			REASON_SET(reason, sn_reason);
+			REASON_SET(&ctx->reason, sn_reason);
 			goto csfailed;
 		}
 	}
 	/* src node for translation rule */
-	if (nr != NULL) {
-		KASSERT(nat_pool != NULL, ("%s: nat_pool is NULL", __func__));
-		if ((nat_pool->opts & PF_POOL_STICKYADDR) &&
-		    (sn_reason = pf_insert_src_node(sns, snhs, nr,
-		    &sk->addr[pd->sidx], pd->af, &nk->addr[1], NULL,
+	if (ctx->nr != NULL) {
+		KASSERT(ctx->nat_pool != NULL, ("%s: nat_pool is NULL", __func__));
+		if ((ctx->nat_pool->opts & PF_POOL_STICKYADDR) &&
+		    (sn_reason = pf_insert_src_node(sns, snhs, ctx->nr,
+		    &ctx->sk->addr[pd->sidx], pd->af, &ctx->nk->addr[1], NULL,
 		    PF_SN_NAT)) != 0 ) {
-			REASON_SET(reason, sn_reason);
+			REASON_SET(&ctx->reason, sn_reason);
 			goto csfailed;
 		}
 	}
 	s = pf_alloc_state(M_NOWAIT);
 	if (s == NULL) {
-		REASON_SET(reason, PFRES_MEMORY);
+		REASON_SET(&ctx->reason, PFRES_MEMORY);
 		goto csfailed;
 	}
 	s->rule = r;
-	s->nat_rule = nr;
-	s->anchor = a;
-	memcpy(&s->match_rules, match_rules, sizeof(s->match_rules));
+	s->nat_rule = ctx->nr;
+	s->anchor = ctx->a;
+	memcpy(&s->match_rules, &ctx->rules, sizeof(s->match_rules));
 	memcpy(&s->act, &pd->act, sizeof(struct pf_rule_actions));
 
 	if (pd->act.allow_opts)
@@ -6056,15 +6041,15 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if (pd->flags & PFDESC_TCP_NORM) /* Set by old-style scrub rules */
 		s->state_flags |= PFSTATE_SCRUB_TCP;
 	if ((r->rule_flag & PFRULE_PFLOW) ||
-	    (nr != NULL && nr->rule_flag & PFRULE_PFLOW))
+	    (ctx->nr != NULL && ctx->nr->rule_flag & PFRULE_PFLOW))
 		s->state_flags |= PFSTATE_PFLOW;
 
 	s->act.log = pd->act.log & PF_LOG_ALL;
 	s->sync_state = PFSYNC_S_NONE;
 	s->state_flags |= pd->act.flags; /* Only needed for pfsync and state export */
 
-	if (nr != NULL)
-		s->act.log |= nr->log & PF_LOG_ALL;
+	if (ctx->nr != NULL)
+		s->act.log |= ctx->nr->log & PF_LOG_ALL;
 	switch (pd->proto) {
 	case IPPROTO_TCP:
 		s->src.seqlo = ntohl(th->th_seq);
@@ -6077,7 +6062,7 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 				s->src.seqdiff = 1;
 			pf_change_proto_a(pd->m, &th->th_seq, &th->th_sum,
 			    htonl(s->src.seqlo + s->src.seqdiff), 0);
-			*rewrite = 1;
+			ctx->rewrite = 1;
 		} else
 			s->src.seqdiff = 0;
 		if (tcp_get_flags(th) & TH_SYN) {
@@ -6128,12 +6113,12 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if (pd->proto == IPPROTO_TCP) {
 		if (s->state_flags & PFSTATE_SCRUB_TCP &&
 		    pf_normalize_tcp_init(pd, th, &s->src)) {
-			REASON_SET(reason, PFRES_MEMORY);
+			REASON_SET(&ctx->reason, PFRES_MEMORY);
 			goto csfailed;
 		}
 		if (s->state_flags & PFSTATE_SCRUB_TCP && s->src.scrub &&
-		    pf_normalize_tcp_stateful(pd, reason, th, s,
-		    &s->src, &s->dst, rewrite)) {
+		    pf_normalize_tcp_stateful(pd, &ctx->reason, th, s,
+		    &s->src, &s->dst, &ctx->rewrite)) {
 			/* This really shouldn't happen!!! */
 			DPFPRINTF(PF_DEBUG_URGENT,
 			    ("%s: tcp normalize failed on first "
@@ -6151,25 +6136,26 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	/*
 	 * sk/nk could already been setup by pf_get_translation().
 	 */
-	if (sk == NULL && nk == NULL) {
+	if (ctx->sk == NULL && ctx->nk == NULL) {
 		MPASS(pd->sport == NULL || (pd->osport == *pd->sport));
 		MPASS(pd->dport == NULL || (pd->odport == *pd->dport));
-		if (pf_state_key_setup(pd, pd->nsport, pd->ndport, &sk, &nk)) {
+		if (pf_state_key_setup(pd, pd->nsport, pd->ndport,
+		    &ctx->sk, &ctx->nk)) {
 			goto csfailed;
 		}
 	} else
-		KASSERT((sk != NULL && nk != NULL), ("%s: nr %p sk %p, nk %p",
-		    __func__, nr, sk, nk));
+		KASSERT((ctx->sk != NULL && ctx->nk != NULL), ("%s: nr %p sk %p, nk %p",
+		    __func__, ctx->nr, ctx->sk, ctx->nk));
 
 	/* Swap sk/nk for PF_OUT. */
 	if (pf_state_insert(BOUND_IFACE(s, pd), pd->kif,
-	    (pd->dir == PF_IN) ? sk : nk,
-	    (pd->dir == PF_IN) ? nk : sk, s)) {
-		REASON_SET(reason, PFRES_STATEINS);
+	    (pd->dir == PF_IN) ? ctx->sk : ctx->nk,
+	    (pd->dir == PF_IN) ? ctx->nk : ctx->sk, s)) {
+		REASON_SET(&ctx->reason, PFRES_STATEINS);
 		goto drop;
 	} else
 		*sm = s;
-	sk = nk = NULL;
+	ctx->sk = ctx->nk = NULL;
 
 	STATE_INC_COUNTERS(s);
 
@@ -6183,12 +6169,12 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		}
 	}
 
-	if (tag > 0)
-		s->tag = tag;
+	if (ctx->tag > 0)
+		s->tag = ctx->tag;
 	if (pd->proto == IPPROTO_TCP && (tcp_get_flags(th) & (TH_SYN|TH_ACK)) ==
 	    TH_SYN && r->keep_state == PF_STATE_SYNPROXY) {
 		pf_set_protostate(s, PF_PEER_SRC, PF_TCPS_PROXY_SRC);
-		pf_undo_nat(nr, pd, bip_sum);
+		pf_undo_nat(ctx->nr, pd, bip_sum);
 		s->src.seqhi = arc4random();
 		/* Find mss option */
 		int rtid = M_GETFIB(pd->m);
@@ -6200,22 +6186,22 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		    th->th_sport, s->src.seqhi, ntohl(th->th_seq) + 1,
 		    TH_SYN|TH_ACK, 0, s->src.mss, 0, M_SKIP_FIREWALL, 0, 0,
 		    pd->act.rtableid);
-		REASON_SET(reason, PFRES_SYNPROXY);
+		REASON_SET(&ctx->reason, PFRES_SYNPROXY);
 		return (PF_SYNPROXY_DROP);
 	}
 
-	s->udp_mapping = udp_mapping;
+	s->udp_mapping = ctx->udp_mapping;
 
 	return (PF_PASS);
 
 csfailed:
-	while ((ri = SLIST_FIRST(match_rules))) {
-		SLIST_REMOVE_HEAD(match_rules, entry);
+	while ((ri = SLIST_FIRST(&ctx->rules))) {
+		SLIST_REMOVE_HEAD(&ctx->rules, entry);
 		free(ri, M_PF_RULE_ITEM);
 	}
 
-	uma_zfree(V_pf_state_key_z, sk);
-	uma_zfree(V_pf_state_key_z, nk);
+	uma_zfree(V_pf_state_key_z, ctx->sk);
+	uma_zfree(V_pf_state_key_z, ctx->nk);
 
 	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++) {
 		if (pf_src_node_exists(&sns[sn_type], snhs[sn_type])) {
@@ -6327,14 +6313,15 @@ pf_translate(struct pf_pdesc *pd, struct pf_addr *saddr, u_int16_t sport,
 }
 
 int
-pf_translate_compat(struct pf_pdesc *pd, struct pf_state_key *sk,
-    struct pf_state_key *nk, struct pf_krule *nr, u_int16_t virtual_type)
+pf_translate_compat(struct pf_test_ctx *ctx)
 {
+	struct pf_pdesc		*pd = ctx->pd;
+	struct pf_state_key	*nk = ctx->nk;
 	struct tcphdr		*th = &pd->hdr.tcp;
 	int 			 rewrite = 0;
 
-	KASSERT(sk != NULL, ("%s: null sk", __func__));
-	KASSERT(nk != NULL, ("%s: null nk", __func__));
+	KASSERT(ctx->sk != NULL, ("%s: null sk", __func__));
+	KASSERT(ctx->nk != NULL, ("%s: null nk", __func__));
 
 	switch (pd->proto) {
 	case IPPROTO_TCP:
@@ -6418,7 +6405,7 @@ pf_translate_compat(struct pf_pdesc *pd, struct pf_state_key *sk,
 			PF_ACPY(&pd->ndaddr, pd->dst, pd->af);
 		}
 
-		if (virtual_type == htons(ICMP_ECHO) &&
+		if (ctx->virtual_type == htons(ICMP_ECHO) &&
 		    nk->port[pd->sidx] != pd->hdr.icmp.icmp_id) {
 			pd->hdr.icmp.icmp_cksum = pf_cksum_fixup(
 			    pd->hdr.icmp.icmp_cksum, pd->nsport,

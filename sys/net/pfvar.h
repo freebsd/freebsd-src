@@ -2738,16 +2738,11 @@ u_short			 pf_map_addr_sn(u_int8_t, struct pf_krule *,
 			    struct pf_kpool *, pf_sn_types_t);
 int			 pf_get_transaddr_af(struct pf_krule *,
 			    struct pf_pdesc *);
-u_short			 pf_get_translation(struct pf_pdesc *,
-			    struct pf_state_key **, struct pf_state_key **,
-			    struct pf_test_ctx *, struct pf_udp_mapping **udp_mapping);
-u_short			 pf_get_transaddr(struct pf_pdesc *,
-			    struct pf_state_key **, struct pf_state_key **,
-			    struct pf_krule *, struct pf_udp_mapping **,
+u_short			 pf_get_translation(struct pf_test_ctx *);
+u_short			 pf_get_transaddr(struct pf_test_ctx *,
+			    struct pf_krule *,
 			    u_int8_t, struct pf_kpool *);
-int			 pf_translate_compat(struct pf_pdesc *,
-			    struct pf_state_key *, struct pf_state_key *,
-			    struct pf_krule *, u_int16_t);
+int			 pf_translate_compat(struct pf_test_ctx *);
 
 int			 pf_state_key_setup(struct pf_pdesc *,
 			    u_int16_t, u_int16_t,
