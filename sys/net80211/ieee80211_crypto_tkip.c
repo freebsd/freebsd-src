@@ -370,7 +370,7 @@ finish:
 	/*
 	 * Strip the ICV if hardware has not done so already.
 	 */
-	if (rxs != NULL && (rxs->c_pktflags & IEEE80211_RX_F_ICV_STRIP) == 0)
+	if ((rxs == NULL) || (rxs->c_pktflags & IEEE80211_RX_F_ICV_STRIP) == 0)
 		m_adj(m, -tkip.ic_trailer);
 
 	return 1;
