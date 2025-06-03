@@ -1090,7 +1090,7 @@ ip_next_mtu(int mtu, int dir)
  *	the 'final' error, but it doesn't make sense to solve the printing
  *	delay with more complex code.
  */
-VNET_DEFINE_STATIC(struct counter_rate, icmp_rates[BANDLIM_MAX]);
+VNET_DEFINE_STATIC(struct counter_rate *, icmp_rates[BANDLIM_MAX]);
 #define	V_icmp_rates	VNET(icmp_rates)
 
 static const char *icmp_rate_descrs[BANDLIM_MAX] = {
@@ -1158,8 +1158,7 @@ icmp_bandlimit_init(void)
 {
 
 	for (int i = 0; i < BANDLIM_MAX; i++) {
-		V_icmp_rates[i].cr_rate = counter_u64_alloc(M_WAITOK);
-		V_icmp_rates[i].cr_ticks = ticks;
+		V_icmp_rates[i] = counter_rate_alloc(M_WAITOK, 1);
 		icmplim_new_jitter(i);
 	}
 }
@@ -1172,7 +1171,7 @@ icmp_bandlimit_uninit(void)
 {
 
 	for (int i = 0; i < BANDLIM_MAX; i++)
-		counter_u64_free(V_icmp_rates[i].cr_rate);
+		counter_rate_free(V_icmp_rates[i]);
 }
 VNET_SYSUNINIT(icmp_bandlimit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
     icmp_bandlimit_uninit, NULL);
@@ -1189,7 +1188,7 @@ badport_bandlim(int which)
 	KASSERT(which >= 0 && which < BANDLIM_MAX,
 	    ("%s: which %d", __func__, which));
 
-	pps = counter_ratecheck(&V_icmp_rates[which], V_icmplim +
+	pps = counter_ratecheck(V_icmp_rates[which], V_icmplim +
 	    V_icmplim_curr_jitter[which]);
 	if (pps > 0) {
 		if (V_icmplim_output)
