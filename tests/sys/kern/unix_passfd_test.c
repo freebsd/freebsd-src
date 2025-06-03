@@ -380,6 +380,30 @@ ATF_TC_BODY(simple_send_fd_msg_cmsg_cloexec, tc)
 }
 
 /*
+ * Like simple_send_fd but also sets MSG_CMSG_CLOFORK and checks that the
+ * received file descriptor has the FD_CLOFORK flag set.
+ */
+ATF_TC_WITHOUT_HEAD(simple_send_fd_msg_cmsg_clofork);
+ATF_TC_BODY(simple_send_fd_msg_cmsg_clofork, tc)
+{
+	struct stat getfd_stat, putfd_stat;
+	int fd[2], getfd, putfd;
+
+	domainsocketpair(fd);
+	tempfile(&putfd);
+	dofstat(putfd, &putfd_stat);
+	sendfd(fd[0], putfd);
+	recvfd(fd[1], &getfd, MSG_CMSG_CLOFORK);
+	dofstat(getfd, &getfd_stat);
+	samefile(&putfd_stat, &getfd_stat);
+	ATF_REQUIRE_EQ_MSG(fcntl(getfd, F_GETFD) & FD_CLOFORK, FD_CLOFORK,
+	    "FD_CLOFORK not set on the received file descriptor");
+	close(putfd);
+	close(getfd);
+	closesocketpair(fd);
+}
+
+/*
  * Same as simple_send_fd, only close the file reference after sending, so that
  * the only reference is the descriptor in the UNIX domain socket buffer.
  */
@@ -1170,6 +1194,7 @@ ATF_TP_ADD_TCS(tp)
 
 	ATF_TP_ADD_TC(tp, simple_send_fd);
 	ATF_TP_ADD_TC(tp, simple_send_fd_msg_cmsg_cloexec);
+	ATF_TP_ADD_TC(tp, simple_send_fd_msg_cmsg_clofork);
 	ATF_TP_ADD_TC(tp, send_and_close);
 	ATF_TP_ADD_TC(tp, send_and_cancel);
 	ATF_TP_ADD_TC(tp, send_and_shutdown);
