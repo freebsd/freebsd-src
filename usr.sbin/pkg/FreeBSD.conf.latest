@@ -15,7 +15,7 @@ FreeBSD: {
   enabled: yes
 }
 FreeBSD-kmods: {
-  url: "pkg+https://pkg.FreeBSD.org/${ABI}/kmods_latest_${VERSION_MINOR}",
+  url: "pkg+https://pkg.FreeBSD.org/${ABI}/kmods_latest",
   mirror_type: "srv",
   signature_type: "fingerprints",
   fingerprints: "/usr/share/keys/pkg",
