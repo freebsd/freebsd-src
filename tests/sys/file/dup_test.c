@@ -46,6 +46,8 @@
  * Test #31: check if dup3(0) fails if oldfd == newfd.
  * Test #32: check if dup3(O_CLOEXEC) to a fd > current maximum number of
  *           open files limit work.
+ * Tests #33-43 : Same as #18-26, 30 & 32 with O_CLOFORK instead of O_CLOEXEC,
+ *           except F_DUP2FD_CLOEXEC.
  */
 
 #include <sys/types.h>
@@ -82,7 +84,7 @@ main(int __unused argc, char __unused *argv[])
 
 	orgfd = getafile();
 
-	printf("1..32\n");
+	printf("1..43\n");
 
 	/* If dup(2) ever work? */
 	if ((fd1 = dup(orgfd)) < 0)
@@ -378,6 +380,100 @@ main(int __unused argc, char __unused *argv[])
 		    test);
 	else
 		printf("ok %d - dup3(O_CLOEXEC) didn't bypass NOFILE limit\n",
+		    test);
+
+	/* Does fcntl(F_DUPFD_CLOFORK) work? */
+	if ((fd2 = fcntl(fd1, F_DUPFD_CLOFORK, 10)) < 0)
+		err(1, "fcntl(F_DUPFD_CLOFORK)");
+	if (fd2 < 10)
+		printf("not ok %d - fcntl(F_DUPFD_CLOFORK) returned wrong fd %d\n",
+		    ++test, fd2);
+	else
+		printf("ok %d - fcntl(F_DUPFD_CLOFORK) works\n", ++test);
+
+	/* Was close-on-fork cleared? */
+	++test;
+        if (fcntl(fd2, F_GETFD) != FD_CLOFORK)
+		printf(
+		    "not ok %d - fcntl(F_DUPFD_CLOFORK) didn't set close-on-fork\n",
+		    test);
+	else
+		printf("ok %d - fcntl(F_DUPFD_CLOFORK) set close-on-fork\n",
+		    test);
+
+	/* Does dup3(O_CLOFORK) ever work? */
+	if ((fd2 = dup3(fd1, fd1 + 1, O_CLOFORK)) < 0)
+		err(1, "dup3(O_CLOFORK)");
+	printf("ok %d - dup3(O_CLOFORK) works\n", ++test);
+
+	/* Do we get the right fd? */
+	++test;
+	if (fd2 != fd1 + 1)
+		printf(
+		    "no ok %d - dup3(O_CLOFORK) didn't give us the right fd\n",
+		    test);
+	else
+		printf("ok %d - dup3(O_CLOFORK) returned a correct fd\n",
+		    test);
+
+	/* Was close-on-fork set? */
+	++test;
+	if (fcntl(fd2, F_GETFD) != FD_CLOFORK)
+		printf(
+		    "not ok %d - dup3(O_CLOFORK) didn't set close-on-fork\n",
+		    test);
+	else
+		printf("ok %d - dup3(O_CLOFORK) set close-on-fork\n",
+		    test);
+
+	/* Does dup3(0) ever work? */
+	if ((fd2 = dup3(fd1, fd1 + 1, 0)) < 0)
+		err(1, "dup3(0)");
+	printf("ok %d - dup3(0) works\n", ++test);
+
+	/* Do we get the right fd? */
+	++test;
+	if (fd2 != fd1 + 1)
+		printf(
+		    "no ok %d - dup3(0) didn't give us the right fd\n",
+		    test);
+	else
+		printf("ok %d - dup3(0) returned a correct fd\n",
+		    test);
+
+	/* Was close-on-fork cleared? */
+	++test;
+	if (fcntl(fd2, F_GETFD) != 0)
+		printf(
+		    "not ok %d - dup3(0) didn't clear close-on-fork\n",
+		    test);
+	else
+		printf("ok %d - dup3(0) cleared close-on-fork\n",
+		    test);
+
+	/* dup3() does not allow duplicating to the same fd */
+	++test;
+	if (dup3(fd1, fd1, O_CLOFORK) != -1)
+		printf(
+		    "not ok %d - dup3(fd1, fd1, O_CLOFORK) succeeded\n", test);
+	else
+		printf("ok %d - dup3(fd1, fd1, O_CLOFORK) failed\n", test);
+
+	++test;
+	if (dup3(fd1, fd1, 0) != -1)
+		printf(
+		    "not ok %d - dup3(fd1, fd1, 0) succeeded\n", test);
+	else
+		printf("ok %d - dup3(fd1, fd1, 0) failed\n", test);
+
+	++test;
+	if (getrlimit(RLIMIT_NOFILE, &rlp) < 0)
+		err(1, "getrlimit");
+	if ((fd2 = dup3(fd1, rlp.rlim_cur + 1, O_CLOFORK)) >= 0)
+		printf("not ok %d - dup3(O_CLOFORK) bypassed NOFILE limit\n",
+		    test);
+	else
+		printf("ok %d - dup3(O_CLOFORK) didn't bypass NOFILE limit\n",
 		    test);
 
 	return (0);
