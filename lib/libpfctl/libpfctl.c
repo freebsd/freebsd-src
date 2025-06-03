@@ -1209,6 +1209,19 @@ snl_add_msg_attr_uid(struct snl_writer *nw, uint32_t type, const struct pf_rule_
 }
 
 static void
+snl_add_msg_attr_threshold(struct snl_writer *nw, uint32_t type, const struct pfctl_threshold *th)
+{
+	int off;
+
+	off = snl_add_msg_attr_nested(nw, type);
+
+	snl_add_msg_attr_u32(nw, PF_TH_LIMIT, th->limit);
+	snl_add_msg_attr_u32(nw, PF_TH_SECONDS, th->seconds);
+
+	snl_end_attr_nested(nw, off);
+}
+
+static void
 snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfctl_rule *r)
 {
 	int off;
@@ -1228,6 +1241,7 @@ snl_add_msg_attr_pf_rule(struct snl_writer *nw, uint32_t type, const struct pfct
 	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL_RDR, &r->rdr);
 	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL_NAT, &r->nat);
 	snl_add_msg_attr_rpool(nw, PF_RT_RPOOL_RT, &r->route);
+	snl_add_msg_attr_threshold(nw, PF_RT_PKTRATE, &r->pktrate);
 	snl_add_msg_attr_u32(nw, PF_RT_OS_FINGERPRINT, r->os_fingerprint);
 	snl_add_msg_attr_u32(nw, PF_RT_RTABLEID, r->rtableid);
 	snl_add_msg_attr_timeouts(nw, PF_RT_TIMEOUT, r->timeout);
@@ -1581,6 +1595,15 @@ static const struct snl_attr_parser ap_rule_uid[] = {
 SNL_DECLARE_ATTR_PARSER(rule_uid_parser, ap_rule_uid);
 #undef _OUT
 
+#define	_OUT(_field)	offsetof(struct pfctl_threshold, _field)
+static const struct snl_attr_parser ap_pfctl_threshold[] = {
+	{ .type = PF_TH_LIMIT, .off = _OUT(limit), .cb = snl_attr_get_uint32 },
+	{ .type = PF_TH_SECONDS, .off = _OUT(seconds), .cb = snl_attr_get_uint32 },
+	{ .type = PF_TH_COUNT, .off = _OUT(count), .cb = snl_attr_get_uint32 },
+};
+SNL_DECLARE_ATTR_PARSER(pfctl_threshold_parser, ap_pfctl_threshold);
+#undef _OUT
+
 struct pfctl_nl_get_rule {
 	struct pfctl_rule r;
 	char anchor_call[MAXPATHLEN];
@@ -1668,6 +1691,7 @@ static struct snl_attr_parser ap_getrule[] = {
 	{ .type = PF_RT_SRC_NODES_LIMIT, .off = _OUT(r.src_nodes_type[PF_SN_LIMIT]), .cb = snl_attr_get_uint64 },
 	{ .type = PF_RT_SRC_NODES_NAT, .off = _OUT(r.src_nodes_type[PF_SN_NAT]), .cb = snl_attr_get_uint64 },
 	{ .type = PF_RT_SRC_NODES_ROUTE, .off = _OUT(r.src_nodes_type[PF_SN_ROUTE]), .cb = snl_attr_get_uint64 },
+	{ .type = PF_RT_PKTRATE, .off = _OUT(r.pktrate), .arg = &pfctl_threshold_parser, .cb = snl_attr_get_nested },
 };
 #undef _OUT
 SNL_DECLARE_PARSER(getrule_parser, struct genlmsghdr, snl_f_p_empty, ap_getrule);
@@ -3000,16 +3024,6 @@ pfctl_get_ruleset(struct pfctl_handle *h, const char *path, uint32_t nr, struct 
 
 	return (e.error);
 }
-
-#define	_OUT(_field)	offsetof(struct pfctl_threshold, _field)
-static const struct snl_attr_parser ap_pfctl_threshold[] = {
-	{ .type = PF_TH_LIMIT, .off = _OUT(limit), .cb = snl_attr_get_uint32 },
-	{ .type = PF_TH_SECONDS, .off = _OUT(seconds), .cb = snl_attr_get_uint32 },
-	{ .type = PF_TH_COUNT, .off = _OUT(count), .cb = snl_attr_get_uint32 },
-	{ .type = PF_TH_LAST, .off = _OUT(last), .cb = snl_attr_get_uint32 },
-};
-SNL_DECLARE_ATTR_PARSER(pfctl_threshold_parser, ap_pfctl_threshold);
-#undef _OUT
 
 #define	_OUT(_field)	offsetof(struct pfctl_src_node, _field)
 static struct snl_attr_parser ap_srcnode[] = {

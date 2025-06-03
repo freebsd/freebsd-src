@@ -2156,7 +2156,6 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 
 	if (rule->rtableid > 0 && rule->rtableid >= rt_numfibs)
 		error = EBUSY;
-
 #ifdef ALTQ
 	/* set queue IDs */
 	if (rule->qname[0] != 0) {
@@ -2181,6 +2180,9 @@ pf_ioctl_addrule(struct pf_krule *rule, uint32_t ticket,
 		error = EINVAL;
 	if (!rule->log)
 		rule->logif = 0;
+	if (! pf_init_threshold(&rule->pktrate, rule->pktrate.limit,
+	   rule->pktrate.seconds))
+		error = ENOMEM;
 	if (pf_addr_setup(ruleset, &rule->src.addr, rule->af))
 		error = ENOMEM;
 	if (pf_addr_setup(ruleset, &rule->dst.addr, rule->af))
