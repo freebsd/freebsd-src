@@ -1121,7 +1121,8 @@ err_aborted(glob_t *pglob, int err, char *buf)
 
 	if ((pglob->gl_flags & _GLOB_ERR_BLOCK) != 0) {
 		if (pglob->gl_errblk != NULL)
-			rv = CALL_BLOCK(pglob->gl_errblk, buf, errno);
+			rv = CALL_BLOCK((glob_b_block)pglob->gl_errblk, buf,
+			    errno);
 	} else if (pglob->gl_errfunc != NULL) {
 		rv = pglob->gl_errfunc(buf, errno);
 	}
