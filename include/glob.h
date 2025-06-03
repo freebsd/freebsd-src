@@ -107,7 +107,7 @@ typedef struct {
 __BEGIN_DECLS
 int	glob(const char * __restrict, int,
 	int (*)(const char *, int), glob_t * __restrict);
-#ifdef __BLOCKS__
+#if defined(__BLOCKS__) && __BSD_VISIBLE
 int 	glob_b(const char * __restrict, int,
 	int (^)(const char *, int), glob_t * __restrict);
 #endif
