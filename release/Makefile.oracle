@@ -1,4 +1,4 @@
-#D48382
+#
 # Makefile for preparing & uploading Oracle Cloud images from existing
 # .raw files created by cloudware-release.
 #
