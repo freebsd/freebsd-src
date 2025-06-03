@@ -308,6 +308,10 @@ static struct filter_opts {
 	int			 settos;
 	int			 randomid;
 	int			 max_mss;
+	struct {
+		uint32_t	limit;
+		uint32_t	seconds;
+	}			pktrate;
 } filter_opts;
 
 static struct antispoof_opts {
@@ -531,7 +535,7 @@ int	parseport(char *, struct range *r, int);
 %token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY PFLOW ALLOW_RELATED
 %token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
 %token	DIVERTTO DIVERTREPLY BRIDGE_TO RECEIVEDON NE LE GE AFTO NATTO RDRTO
-%token	BINATTO
+%token	BINATTO MAXPKTRATE
 %token	<v.string>		STRING
 %token	<v.number>		NUMBER
 %token	<v.i>			PORTBINARY
@@ -1012,6 +1016,8 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 			r.prob = $9.prob;
 			r.rtableid = $9.rtableid;
 			r.ridentifier = $9.ridentifier;
+			r.pktrate.limit = $9.pktrate.limit;
+			r.pktrate.seconds = $9.pktrate.seconds;
 
 			if ($9.tag)
 				if (strlcpy(r.tagname, $9.tag,
@@ -2489,6 +2495,8 @@ pfrule		: action dir logquick interface route af proto fromto
 
 			r.tos = $9.tos;
 			r.keep_state = $9.keep.action;
+			r.pktrate.limit = $9.pktrate.limit;
+			r.pktrate.seconds = $9.pktrate.seconds;
 			o = $9.keep.options;
 
 			/* 'keep state' by default on pass rules. */
@@ -3111,6 +3119,19 @@ filter_opt	: USER uids {
 				YYERROR;
 			}
 			filter_opts.marker |= FOM_AFTO;
+		}
+		| MAXPKTRATE NUMBER '/' NUMBER {
+			if ($2 < 0 || $2 > UINT_MAX ||
+			    $4 < 0 || $4 > UINT_MAX) {
+				yyerror("only positive values permitted");
+				YYERROR;
+			}
+			if (filter_opts.pktrate.limit) {
+				yyerror("cannot respecify max-pkt-rate");
+				YYERROR;
+			}
+			filter_opts.pktrate.limit = $2;
+			filter_opts.pktrate.seconds = $4;
 		}
 		| filter_sets
 		;
@@ -6697,6 +6718,7 @@ lookup(char *s)
 		{ "matches",	MATCHES},
 		{ "max",		MAXIMUM},
 		{ "max-mss",		MAXMSS},
+		{ "max-pkt-rate",       MAXPKTRATE},
 		{ "max-src-conn",	MAXSRCCONN},
 		{ "max-src-conn-rate",	MAXSRCCONNRATE},
 		{ "max-src-nodes",	MAXSRCNODES},

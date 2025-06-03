@@ -821,6 +821,7 @@ struct pf_krule {
 	struct pf_kpool		 nat;
 	struct pf_kpool		 rdr;
 	struct pf_kpool		 route;
+	struct pf_kthreshold	 pktrate;
 
 	struct pf_counter_u64	 evaluations;
 	struct pf_counter_u64	 packets[2];

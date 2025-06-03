@@ -445,6 +445,12 @@ VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 		SDT_PROBE5(pf, ip, state, lookup, pd->kif, k, (pd->dir), pd, (s));	\
 		if ((s) == NULL)					\
 			return (PF_DROP);				\
+		if ((s)->rule->pktrate.limit && pd->dir == (s)->direction) {	\
+			if (pf_check_threshold(&(s)->rule->pktrate)) {	\
+				s = NULL;				\
+				return (PF_DROP);			\
+			}						\
+		}							\
 		if (PACKET_LOOPED(pd))					\
 			return (PF_PASS);				\
 	} while (0)
@@ -5606,6 +5612,11 @@ pf_match_rule(struct pf_test_ctx *ctx, struct pf_kruleset *ruleset)
 		    pf_osfp_fingerprint(pd, ctx->th),
 		    r->os_fingerprint)),
 			TAILQ_NEXT(r, entries));
+		/* must be last! */
+		if (r->pktrate.limit) {
+			PF_TEST_ATTRIB((pf_check_threshold(&r->pktrate)),
+			    TAILQ_NEXT(r, entries));
+		}
 		/* FALLTHROUGH */
 		if (r->tag)
 			ctx->tag = r->tag;

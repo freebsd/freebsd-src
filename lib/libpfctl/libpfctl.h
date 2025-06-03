@@ -159,6 +159,13 @@ struct pfctl_rules_info {
 	uint32_t	ticket;
 };
 
+struct pfctl_threshold {
+	uint32_t		limit;
+	uint32_t		seconds;
+	uint32_t		count;
+	uint32_t		last;
+};
+
 struct pfctl_rule {
 	struct pf_rule_addr	 src;
 	struct pf_rule_addr	 dst;
@@ -181,6 +188,7 @@ struct pfctl_rule {
 		struct pfctl_pool	 rdr;
 	};
 	struct pfctl_pool	 route;
+	struct pfctl_threshold	 pktrate;
 
 	uint64_t		 evaluations;
 	uint64_t		 packets[2];
@@ -394,13 +402,6 @@ struct pfctl_syncookies {
 	uint8_t				highwater;	/* Percent */
 	uint8_t				lowwater;	/* Percent */
 	uint32_t			halfopen_states;
-};
-
-struct pfctl_threshold {
-	uint32_t		limit;
-	uint32_t		seconds;
-	uint32_t		count;
-	uint32_t		last;
 };
 
 struct pfctl_src_node {
