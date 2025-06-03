@@ -6,7 +6,7 @@ BRANCH?=	${_BRANCH}
 PKGCONFBRANCH?=	latest
 .else
 . if ${BRANCH:MBETA*} || ${BRANCH:MRC*} || ${BRANCH:MRELEASE*}
-PKGCONFBRANCH?=	quarterly
+PKGCONFBRANCH?=	quarterly-release
 . else
 .  if ${MACHINE} != "amd64" && ${MACHINE} != "i386" && ${MACHINE} != "arm64"
 PKGCONFBRANCH?=	quarterly
