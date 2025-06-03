@@ -495,10 +495,6 @@ enum ieee80211_category {
 	WLAN_CATEGORY_SA_QUERY		= 8,	/* net80211::IEEE80211_ACTION_CAT_SA_QUERY */
 };
 
-struct ieee80211_he_6ghz_capa {
-	uint16_t capa;
-};
-
 /* 80211-2020 9.3.3.2 Format of Management frames */
 struct ieee80211_mgmt {
 	__le16		frame_control;
