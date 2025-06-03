@@ -124,7 +124,8 @@ pfs_add_node(struct pfs_node *parent, struct pfs_node *pn)
 			    ("%s(): nested process directories", __func__));
 	for (iter = parent->pn_nodes; iter != NULL; iter = iter->pn_next) {
 		KASSERT(strcmp(pn->pn_name, iter->pn_name) != 0,
-		    ("%s(): homonymous siblings", __func__));
+		    ("%s(): homonymous siblings: '%s' type %d", __func__,
+		    pn->pn_name, pn->pn_type));
 		if (pn->pn_type == pfstype_procdir)
 			KASSERT(iter->pn_type != pfstype_procdir,
 			    ("%s(): sibling process directories", __func__));
