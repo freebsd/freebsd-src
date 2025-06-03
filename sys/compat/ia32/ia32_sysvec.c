@@ -126,7 +126,7 @@ struct sysentvec ia32_freebsd_sysvec = {
 	.sv_setregs	= ia32_setregs,
 	.sv_fixlimit	= ia32_fixlimit,
 	.sv_maxssiz	= &ia32_maxssiz,
-	.sv_flags	= SV_ABI_FREEBSD | SV_ASLR | SV_IA32 | SV_ILP32 |
+	.sv_flags	= SV_ABI_FREEBSD | SV_ASLR | SV_ILP32 |
 			    SV_SHP | SV_TIMEKEEP | SV_RNG_SEED_VER |
 			    SV_DSO_SIG | SV_SIGSYS,
 	.sv_set_syscall_retval = ia32_set_syscall_retval,
