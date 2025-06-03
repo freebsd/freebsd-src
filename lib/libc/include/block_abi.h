@@ -37,7 +37,7 @@
  * compilers that support blocks and exposing the ABI in the source for other
  * compilers.
  */
-#define CALL_BLOCK(name, ...) name(__VA_ARGS__)
+#define CALL_BLOCK(name, ...) (name)(__VA_ARGS__)
 #else // !__BLOCKS__
 #define	DECLARE_BLOCK(retTy, name, argTys, ...)\
 	struct {\
