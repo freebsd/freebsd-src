@@ -154,7 +154,7 @@ pfs_add_node(struct pfs_node *parent, struct pfs_node *pn)
 }
 
 /*
- * Detach a node from its aprent
+ * Detach a node from its parent
  */
 static void
 pfs_detach_node(struct pfs_node *pn)
