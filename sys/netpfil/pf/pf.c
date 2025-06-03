@@ -6054,9 +6054,16 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 	/* src node for translation rule */
 	if (ctx->nr != NULL) {
 		KASSERT(ctx->nat_pool != NULL, ("%s: nat_pool is NULL", __func__));
+		/*
+		 * The NAT addresses are chosen during ruleset parsing.
+		 * The new afto code stores post-nat addresses in nsaddr.
+		 * The old nat code (also used for new nat-to rules) creates
+		 * state keys and stores addresses in them.
+		 */
 		if ((ctx->nat_pool->opts & PF_POOL_STICKYADDR) &&
 		    (sn_reason = pf_insert_src_node(sns, snhs, ctx->nr,
-		    &ctx->sk->addr[pd->sidx], pd->af, &ctx->nk->addr[1], NULL,
+		    ctx->sk ? &(ctx->sk->addr[pd->sidx]) : pd->src, pd->af,
+		    ctx->nk ? &(ctx->nk->addr[1]) : &(pd->nsaddr), NULL,
 		    PF_SN_NAT)) != 0 ) {
 			REASON_SET(&ctx->reason, sn_reason);
 			goto csfailed;
