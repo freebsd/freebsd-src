@@ -673,12 +673,11 @@ rib_copy_route(struct rtentry *rt, const struct route_nhop_data *rnd_src,
 	if (error != 0) {
 		IF_DEBUG_LEVEL(LOG_DEBUG2) {
 			char buf[NHOP_PRINT_BUFSIZE];
-			rt_print_buf(rt_new, buf, sizeof(buf));
+			rt_print_buf(rt, buf, sizeof(buf));
 			FIB_RH_LOG(LOG_DEBUG, rh_dst,
 			    "Unable to add route %s: error %d", buf, error);
 		}
 		nhop_free(nh);
-		rt_free_immediate(rt_new);
 	}
 	return (error);
 }
