@@ -327,7 +327,6 @@ main(int argc, char *argv[])
 	if (fstat(disk.d_fd, &st) < 0)
 		err(1, "%s", special);
 	if ((st.st_mode & S_IFMT) != S_IFCHR) {
-		warn("%s: not a character-special device", special);
 		is_file = 1;	/* assume it is a file */
 		if (sectorsize == 0)
 			sectorsize = 512;
