@@ -2844,7 +2844,7 @@ sysctl_icmp6lim_and_jitter(SYSCTL_HANDLER_ARGS)
 }
 
 
-VNET_DEFINE_STATIC(struct counter_rate, icmp6_rates[RATELIM_MAX]);
+VNET_DEFINE_STATIC(struct counter_rate *, icmp6_rates[RATELIM_MAX]);
 #define	V_icmp6_rates	VNET(icmp6_rates)
 
 static void
@@ -2852,8 +2852,7 @@ icmp6_ratelimit_init(void)
 {
 
 	for (int i = 0; i < RATELIM_MAX; i++) {
-		V_icmp6_rates[i].cr_rate = counter_u64_alloc(M_WAITOK);
-		V_icmp6_rates[i].cr_ticks = ticks;
+		V_icmp6_rates[i] = counter_rate_alloc(M_WAITOK, 1);
 		icmp6lim_new_jitter(i);
 	}
 }
@@ -2866,7 +2865,7 @@ icmp6_ratelimit_uninit(void)
 {
 
 	for (int i = 0; i < RATELIM_MAX; i++)
-		counter_u64_free(V_icmp6_rates[i].cr_rate);
+		counter_rate_free(V_icmp6_rates[i]);
 }
 VNET_SYSUNINIT(icmp6_ratelimit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
     icmp6_ratelimit_uninit, NULL);
@@ -2916,7 +2915,7 @@ icmp6_ratelimit(const struct in6_addr *dst, const int type, const int code)
 		break;
 	};
 
-	pps = counter_ratecheck(&V_icmp6_rates[which], V_icmp6errppslim +
+	pps = counter_ratecheck(V_icmp6_rates[which], V_icmp6errppslim +
 	    V_icmp6lim_curr_jitter[which]);
 	if (pps > 0) {
 		if (V_icmp6lim_output)

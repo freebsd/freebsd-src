@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 11, 2021
+.Dd June 19, 2025
 .Dt COUNTER 9
 .Os
 .Sh NAME
@@ -49,8 +49,14 @@
 .Fn counter_u64_fetch "counter_u64_t c"
 .Ft void
 .Fn counter_u64_zero "counter_u64_t c"
+.Ft struct counter_rate *
+.Fn counter_rate_alloc "int flags" "int period"
 .Ft int64_t
 .Fn counter_ratecheck "struct counter_rate *cr" "int64_t limit"
+.Ft uint64_t
+.Fn counter_rate_get "struct counter_rate *cr"
+.Ft void
+.Fn counter_rate_free "struct counter_rate *cr"
 .Fn COUNTER_U64_SYSINIT "counter_u64_t c"
 .Fn COUNTER_U64_DEFINE_EARLY "counter_u64_t c"
 .In sys/sysctl.h
@@ -133,6 +139,13 @@ value for any moment.
 Clear the counter
 .Fa c
 and set it to zero.
+.It Fn counter_rate_alloc flags period
+Allocate a new struct counter_rate.
+.Fa flags
+is passed to
+.Xr malloc 9 .
+.Fa period
+is the time over which the rate is checked.
 .It Fn counter_ratecheck cr limit
 The function is a multiprocessor-friendly version of
 .Fn ppsratecheck
@@ -140,11 +153,17 @@ which uses
 .Nm
 internally.
 Returns non-negative value if the rate is not yet reached during the current
-second, and a negative value otherwise.
-If the limit was reached on previous second, but was just reset back to zero,
-then
+period, and a negative value otherwise.
+If the limit was reached during the previous period, but was just reset back
+to zero, then
 .Fn counter_ratecheck
 returns number of events since previous reset.
+.It Fn counter_rate_get cr
+The number of hits to this check within the current period.
+.It Fn counter_rate_free cr
+Free the
+.Fa cr
+counter.
 .It Fn COUNTER_U64_SYSINIT c
 Define a
 .Xr SYSINIT 9
