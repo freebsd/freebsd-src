@@ -30,7 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /* Universal Host Controller Interface
  *
  * UHCI spec: http://www.intel.com/
@@ -414,9 +413,12 @@ int
 uhci_pci_detach(device_t self)
 {
 	uhci_softc_t *sc = device_get_softc(self);
+	int error;
 
 	/* during module unload there are lots of children leftover */
-	device_delete_children(self);
+	error = bus_generic_detach(self);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * disable interrupts that might have been switched on in

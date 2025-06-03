@@ -700,8 +700,8 @@ int32_t ocs_scsi_recv_tmf(ocs_io_t *tmfio, uint64_t lun, ocs_scsi_tmf_cmd_e cmd,
 		trsrc = &fcp->targ_rsrc_wildcard;
 	}
 
-	device_printf(tmfio->ocs->dev, "%s: io=%p cmd=%#x LU=%lx en=%s\n",
-			__func__, tmfio, cmd, (unsigned long)lun,
+	device_printf(tmfio->ocs->dev, "%s: io=%u(index) cmd=%#x LU=%lx en=%s\n",
+			__func__, tmfio->instance_index, cmd, (unsigned long)lun,
 			trsrc ? (trsrc->enabled ? "T" : "F") : "X");
 	if (trsrc) {
 		inot = (struct ccb_immediate_notify *)STAILQ_FIRST(&trsrc->inot);

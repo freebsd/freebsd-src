@@ -41,7 +41,7 @@
 #define _UTIL_H
 
 /* common ip ranges */
-extern struct in_addr masq, pub, prv1, prv2, prv3, cgn, ext, ANY_ADDR;
+extern struct in_addr masq, pub, pub2, prv1, prv2, prv3, cgn, ext, ANY_ADDR;
 
 int		randcmp(const void *a, const void *b);
 void		hexdump(void *p, size_t len);

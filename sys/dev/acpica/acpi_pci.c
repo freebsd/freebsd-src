@@ -93,6 +93,7 @@ static int	acpi_pci_set_powerstate_method(device_t dev, device_t child,
 		    int state);
 static void	acpi_pci_update_device(ACPI_HANDLE handle, device_t pci_child);
 static bus_dma_tag_t acpi_pci_get_dma_tag(device_t bus, device_t child);
+static int	acpi_pci_get_domain(device_t dev, device_t child, int *domain);
 
 static device_method_t acpi_pci_methods[] = {
 	/* Device interface */
@@ -108,7 +109,7 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(bus_get_device_path,	acpi_pci_get_device_path),
 	DEVMETHOD(bus_get_cpus,		acpi_get_cpus),
 	DEVMETHOD(bus_get_dma_tag,	acpi_pci_get_dma_tag),
-	DEVMETHOD(bus_get_domain,	acpi_get_domain),
+	DEVMETHOD(bus_get_domain,	acpi_pci_get_domain),
 
 	/* PCI interface */
 	DEVMETHOD(pci_alloc_devinfo,	acpi_pci_alloc_devinfo),
@@ -204,6 +205,31 @@ acpi_pci_get_device_path(device_t bus, device_t child, const char *locator, stru
 
 	/* Otherwise follow base class' actions */
 	return 	(pci_get_device_path_method(bus, child, locator, sb));
+}
+
+/*
+ * Fetch the NUMA domain for the given device 'dev'.
+ *
+ * If a device has a _PXM method, map that to a NUMA domain.
+ * Otherwise, pass the request up to the parent.
+ * If there's no matching domain or the domain cannot be
+ * determined, return ENOENT.
+ */
+static int
+acpi_pci_get_domain(device_t dev, device_t child, int *domain)
+{
+	int d;
+
+	d = acpi_pxm_parse(child);
+	if (d >= 0) {
+		*domain = d;
+		return (0);
+	}
+	if (d == -1)
+		return (ENOENT);
+
+	/* No _PXM node; go up a level */
+	return (bus_generic_get_domain(dev, child, domain));
 }
 
 /*
@@ -390,6 +416,9 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 			    device_get_nameunit(child), error);
 			return;
 		}
+		if ((acpi_quirks & ACPI_Q_CLEAR_PME_ON_DETACH) &&
+		    pci_has_pm(child))
+			pci_clear_pme(child);
 		status = acpi_SetInteger(h, "_EJ0", 1);
 		if (ACPI_FAILURE(status)) {
 			bus_topo_unlock();
@@ -397,6 +426,8 @@ acpi_pci_device_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 			    acpi_name(h), AcpiFormatException(status));
 			return;
 		}
+		if (acpi_quirks & ACPI_Q_DELAY_BEFORE_EJECT_RESCAN)
+			DELAY(10 * 1000);
 		BUS_RESCAN(dev);
 		bus_topo_unlock();
 		break;

@@ -30,13 +30,11 @@
 #include <sys/exec.h>
 #include <sys/linker.h>
 #include <sys/module.h>
-#include <sys/stdint.h>
-#include <string.h>
 #include <machine/elf.h>
 #include <stand.h>
-#include <sys/link_elf.h>
 
 #include "bootstrap.h"
+#include "modinfo.h"
 
 #define COPYOUT(s,d,l)	archsw.arch_copyout((vm_offset_t)(s), d, l)
 
@@ -88,9 +86,6 @@ static int __elfN(parse_modmetadata)(struct preloaded_file *mp, elf_file_t ef,
     Elf_Addr p_start, Elf_Addr p_end);
 static symaddr_fn __elfN(symaddr);
 static char	*fake_modname(const char *name);
-
-const char	*__elfN(kerneltype) = "elf kernel";
-const char	*__elfN(moduletype) = "elf module";
 
 uint64_t	__elfN(relocation_offset) = 0;
 
@@ -217,7 +212,7 @@ static int elf_section_header_convert(const Elf_Ehdr *ehdr, Elf_Shdr *shdr)
 }
 #endif
 
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__) || (defined(__i386__) && defined(EFI))
 static bool
 is_kernphys_relocatable(elf_file_t ef)
 {
@@ -384,7 +379,7 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 	/*
 	 * Check to see what sort of module we are.
 	 */
-	kfp = file_findfile(NULL, __elfN(kerneltype));
+	kfp = file_findfile(NULL, md_kerntype);
 #ifdef __powerpc__
 	/*
 	 * Kernels can be ET_DYN, so just assume the first loaded object is the
@@ -408,6 +403,7 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 		 * in the elf header (an ARM kernel can be loaded at any 2MB
 		 * boundary), so we leave dest set to the value calculated by
 		 * archsw.arch_loadaddr() and passed in to this function.
+		 * XXX This comment is obsolete, but it still seems to work
 		 */
 #ifndef __arm__
 		if (ehdr->e_type == ET_EXEC)
@@ -435,7 +431,7 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 			err = EPERM;
 			goto oerr;
 		}
-		if (strcmp(__elfN(kerneltype), kfp->f_type)) {
+		if (strcmp(md_kerntype, kfp->f_type)) {
 			printf("elf" __XSTRING(__ELF_WORD_SIZE)
 			 "_loadfile: can't load module with kernel type '%s'\n",
 			    kfp->f_type);
@@ -450,10 +446,7 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 		goto oerr;
 	}
 
-	if (archsw.arch_loadaddr != NULL)
-		dest = archsw.arch_loadaddr(LOAD_ELF, ehdr, dest);
-	else
-		dest = roundup(dest, PAGE_SIZE);
+	dest = md_align(dest);
 
 	/*
 	 * Ok, we think we should handle this.
@@ -470,9 +463,9 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 	fp->f_name = strdup(filename);
 	if (multiboot == 0)
 		fp->f_type = strdup(ef.kernel ?
-		    __elfN(kerneltype) : __elfN(moduletype));
+		    md_kerntype : md_modtype);
 	else
-		fp->f_type = strdup("elf multiboot kernel");
+		fp->f_type = strdup(md_kerntype_mb);
 
 	if (module_verbose >= MODULE_VERBOSE_FULL) {
 		if (ef.kernel)
@@ -491,10 +484,10 @@ __elfN(loadfile_raw)(char *filename, uint64_t dest,
 	/* Load OK, return module pointer */
 	*result = (struct preloaded_file *)fp;
 	err = 0;
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__) || (defined(__i386__) && defined(EFI))
 	fp->f_kernphys_relocatable = multiboot || is_kernphys_relocatable(&ef);
 #endif
-#ifdef __i386__
+#if defined(__i386__) && !defined(EFI)
 	fp->f_tg_kernel_support = is_tg_kernel_support(fp, &ef);
 #endif
 	goto out;

@@ -87,7 +87,7 @@ class test_program_builder : utils::noncopyable {
     struct impl;
 
     /// Pointer to the shared internal implementation.
-    std::auto_ptr< impl > _pimpl;
+    std::unique_ptr< impl > _pimpl;
 
 public:
     test_program_builder(const std::string&, const utils::fs::path&,

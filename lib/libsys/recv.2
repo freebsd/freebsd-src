@@ -316,12 +316,19 @@ On data reception the
 .Fa msg_len
 field is updated to the length of the received message.
 .Sh RETURN VALUES
-These calls except
+On successful completion, the
+.Fn recv ,
+.Fn recvfrom ,
+and
+.Fn recvmsg
+functions return the number of bytes received, while the
 .Fn recvmmsg
-return the number of bytes received.
-.Fn recvmmsg
-returns the number of messages received.
-A value of -1 is returned if an error occurred.
+function returns the number of messages received.
+If no messages are available to be received and the peer has
+performed an orderly shutdown, 0 is returned.
+Otherwise, -1 is returned and
+.Va errno
+is set to indicate the error.
 .Sh ERRORS
 The calls fail if:
 .Bl -tag -width Er

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2024 The FreeBSD Foundation
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
  *
  * This software was developed by Christos Margiolis <christos@FreeBSD.org>
  * under sponsorship from the FreeBSD Foundation.
@@ -65,7 +65,26 @@ struct dummy_softc {
 	struct dummy_chan chans[DUMMY_NCHAN];
 	struct callout callout;
 	struct mtx *lock;
+	bool stopped;
 };
+
+static bool
+dummy_active(struct dummy_softc *sc)
+{
+	struct dummy_chan *ch;
+	int i;
+
+	snd_mtxassert(sc->lock);
+
+	for (i = 0; i < sc->chnum; i++) {
+		ch = &sc->chans[i];
+		if (ch->run)
+			return (true);
+	}
+
+	/* No channel is running at the moment. */
+	return (false);
+}
 
 static void
 dummy_chan_io(void *arg)
@@ -74,7 +93,12 @@ dummy_chan_io(void *arg)
 	struct dummy_chan *ch;
 	int i = 0;
 
-	snd_mtxlock(sc->lock);
+	if (sc->stopped)
+		return;
+
+	/* Do not reschedule if no channel is running. */
+	if (!dummy_active(sc))
+		return;
 
 	for (i = 0; i < sc->chnum; i++) {
 		ch = &sc->chans[i];
@@ -88,9 +112,8 @@ dummy_chan_io(void *arg)
 		chn_intr(ch->chan);
 		snd_mtxlock(sc->lock);
 	}
-	callout_schedule(&sc->callout, 1);
-
-	snd_mtxunlock(sc->lock);
+	if (!sc->stopped)
+		callout_schedule(&sc->callout, 1);
 }
 
 static int
@@ -177,17 +200,22 @@ dummy_chan_trigger(kobj_t obj, void *data, int go)
 
 	snd_mtxlock(sc->lock);
 
+	if (sc->stopped) {
+		snd_mtxunlock(sc->lock);
+		return (0);
+	}
+
 	switch (go) {
 	case PCMTRIG_START:
-		if (!callout_active(&sc->callout))
-			callout_reset(&sc->callout, 1, dummy_chan_io, sc);
 		ch->ptr = 0;
 		ch->run = 1;
+		callout_reset(&sc->callout, 1, dummy_chan_io, sc);
 		break;
 	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
 		ch->run = 0;
-		if (callout_active(&sc->callout))
+		/* If all channels are stopped, stop the callout as well. */
+		if (!dummy_active(sc))
 			callout_stop(&sc->callout);
 	default:
 		break;
@@ -292,6 +320,7 @@ dummy_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_dummy softc");
+	callout_init_mtx(&sc->callout, sc->lock, 0);
 
 	sc->cap_fmts[0] = SND_FORMAT(AFMT_S32_LE, 2, 0);
 	sc->cap_fmts[1] = SND_FORMAT(AFMT_S24_LE, 2, 0);
@@ -305,8 +334,7 @@ dummy_attach(device_t dev)
 	};
 
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
-	if (pcm_register(dev, sc, DUMMY_NPCHAN, DUMMY_NRCHAN))
-		return (ENXIO);
+	pcm_init(dev, sc);
 	for (i = 0; i < DUMMY_NPCHAN; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, &dummy_chan_class, sc);
 	for (i = 0; i < DUMMY_NRCHAN; i++)
@@ -314,9 +342,9 @@ dummy_attach(device_t dev)
 
 	snprintf(status, SND_STATUSLEN, "on %s",
 	    device_get_nameunit(device_get_parent(dev)));
-	pcm_setstatus(dev, status);
+	if (pcm_register(dev, status))
+		return (ENXIO);
 	mixer_init(dev, &dummy_mixer_class, sc);
-	callout_init(&sc->callout, 1);
 
 	return (0);
 }
@@ -327,6 +355,10 @@ dummy_detach(device_t dev)
 	struct dummy_softc *sc = device_get_softc(dev);
 	int err;
 
+	snd_mtxlock(sc->lock);
+	sc->stopped = true;
+	snd_mtxunlock(sc->lock);
+	callout_drain(&sc->callout);
 	err = pcm_unregister(dev);
 	snd_mtxfree(sc->lock);
 

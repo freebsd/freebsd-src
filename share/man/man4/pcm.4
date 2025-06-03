@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 24, 2024
+.Dd February 15, 2025
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -360,14 +360,12 @@ A value of 0 will use a low and aggressive latency profile which can result
 in possible underruns if the application cannot keep up with a rapid irq
 rate, especially during high workload.
 The default value is 1, which is considered a moderate/safe latency profile.
-.It Va hw.snd.maxautovchans
-Global VCHAN setting that only affects devices with at least one playback or
-recording channel available.
-The sound system will dynamically create up to this many VCHANs.
-Set to
-.Dq 0
-if no VCHANs are desired.
-Maximum value is 256.
+.It Va hw.snd.vchans_enable
+Global VCHAN setting to enable (1) or disable (0) VCHANs.
+This setting can be overridden for an individual device by using the
+.Va dev.pcm.%d.[play|rec].vchans
+tunables.
+Default is enabled.
 .It Va hw.snd.report_soft_formats
 Controls the internal format conversion if it is
 available transparently to the application software.
@@ -434,11 +432,8 @@ The recommended way to use bitperfect mode is to disable VCHANs and enable this
 sysctl.
 Default is disabled.
 .It Va dev.pcm.%d.[play|rec].vchans
-The current number of VCHANs allocated per device.
-This can be set to preallocate a certain number of VCHANs.
-Setting this value to
-.Dq 0
-will disable VCHANs for this device.
+Enable (1) or disable (0) VCHANs.
+Default is enabled.
 .It Va dev.pcm.%d.[play|rec].vchanformat
 Format for VCHAN mixing.
 All playback paths will be converted to this format before the mixing
@@ -678,3 +673,10 @@ It was then rewritten for
 .Sh BUGS
 Some features of your sound card (e.g., global volume control) might not
 be supported on all devices.
+.Pp
+Some audio devices might refuse to work properly unless the sample rate is
+configured the same for both recording and playback, even if only simplex is
+used.
+See the
+.Va dev.pcm.%d.[play|rec].vchanrate
+sysctls.

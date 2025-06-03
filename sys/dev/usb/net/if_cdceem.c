@@ -37,7 +37,6 @@
  * https://usb.org/sites/default/files/CDC_EEM10.pdf
  */
 
-#include <sys/cdefs.h>
 #include <sys/gsb_crc32.h>
 #include <sys/eventhandler.h>
 #include <sys/stdint.h>

@@ -109,7 +109,8 @@ LINUXKPI_GENSRCS+= \
 
 LINUXKPI_INCLUDES+= \
 	-I${SYSDIR}/compat/linuxkpi/common/include \
-	-I${SYSDIR}/compat/linuxkpi/dummy/include
+	-I${SYSDIR}/compat/linuxkpi/dummy/include \
+	-include ${SYSDIR}/compat/linuxkpi/common/include/linux/kconfig.h
 
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
@@ -405,8 +406,10 @@ ${_src}:
 .endfor
 .endif
 
-# Add the sanitizer C flags
-CFLAGS+=	${SAN_CFLAGS}
+KASAN_ENABLED=	${KERN_OPTS:MKASAN}
+KCSAN_ENABLED=	${KERN_OPTS:MKCSAN}
+KMSAN_ENABLED=	${KERN_OPTS:MKMSAN}
+KUBSAN_ENABLED=	${KERN_OPTS:MKUBSAN}
 
 # Add the gcov flags
 CFLAGS+=	${GCOV_CFLAGS}

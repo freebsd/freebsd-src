@@ -1,3 +1,5 @@
+.\"-
+.\" SPDX-License-Identifier: ISC
 .\"
 .\" Copyright (c) 2008 AnyWi Technologies
 .\" All rights reserved.
@@ -16,12 +18,12 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd February 4, 2023 
+.Dd December 5, 2024
 .Dt U3G 4
 .Os
 .Sh NAME
 .Nm u3g
-.Nd USB support for 3G and 4G datacards
+.Nd USB support for 3G and 4G cellular modems
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -39,26 +41,46 @@ module at boot time, place the following line in
 u3g_load="YES"
 .Ed
 .Pp
-If neither of the above is done, the driver will automatically be loaded
-by devd(8) when the device is connected.
+If neither of the above is done, the driver will be
+automatically loaded by devd(8) when the device is connected.
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the multiple USB-to-serial interfaces exposed by
-many 3G USB/PCCard modems.
+driver provides support for USB-to-serial interfaces
+exposed by many 3G and 4G modems.
+The supported adapters provide the necessary modem port for
+.Xr ppp 8 ,
+or
+.Pa net/mpd5
+connections.
+Depending on the specific device, extra ports provide other functions
+such as an additional command port, diagnostic port,
+GPS receiver port, or SIM toolkit port.
 .Pp
 The device is accessed through the
 .Xr ucom 4
 driver which makes it behave like a
 .Xr tty 4 .
+.Pp
+In some adapters a mass storage device supported by the
+.Xr umass 4
+driver is present which contains Windows and Mac OS X drivers.
+The device starts up in disk mode (TruInstall, ZeroCD, etc.)
+and requires additional commands to switch it to modem mode.
+If your device is not switching automatically, please try to add quirks.
+See
+.Xr usbconfig 8
+and
+.Xr usb_quirk 4 .
 .Sh HARDWARE
 The
 .Nm
-driver supports the following adapters:
+driver supports the following cellular modems:
 .Pp
 .Bl -bullet -compact
 .It
-Option GT 3G Fusion, GT Fusion Quad, etc. (only 3G part, not WLAN)
+Option GT 3G Fusion, GT Fusion Quad, etc.
+.Pq 3G only, not WLAN
 .It
 Option GT 3G, GT 3G Quad, etc.
 .It
@@ -70,9 +92,10 @@ Qualcomm Inc. CDMA MSM
 .It
 Qualcomm Inc. GOBI 1000, 2000 and 3000 devices with MDM1000 or MDM2000 chipsets
 .It
-QUECTEL BGX, ECX, EGX, EMX, EPX, RGX series.
+QUECTEL BGX, ECX, EGX, EMX, EPX, RGX series
 .It
-Quectel EM160R (see CAVEATS)
+Quectel EM160R
+.Pq see Sx CAVEATS
 .It
 Huawei B190, E180v, E220, E3372, E3372v153, E5573Cs322, ('<Huawei Mobile>')
 .It
@@ -83,26 +106,9 @@ Sierra MC875U, MC8775U, etc.
 Panasonic CF-F9 GOBI
 .El
 .Pp
-(See
+Many more are supported, see
 .Pa /sys/dev/usb/serial/u3g.c
-for the complete list of supported cards for each vendor
-mentioned above.)
-.Pp
-The supported 3G cards provide the necessary modem port for ppp, or mpd
-connections as well as extra ports (depending on the specific device) to
-provide other functions (additional command port, diagnostic port, SIM toolkit
-port).
-.Pp
-In some of these devices a mass storage device supported by the
-.Xr umass 4
-driver is present which contains Windows and Mac OS X drivers.
-The device starts up in disk mode (TruInstall, ZeroCD, etc.) and requires
-additional commands to switch it to modem mode.
-If your device is not switching automatically, please try to add quirks.
-See
-.Xr usbconfig 8
-and
-.Xr usb_quirk 4 .
+for the complete list.
 .Sh FILES
 .Bl -tag -width "/dev/ttyU*.*.init" -compact
 .It Pa /dev/ttyU*.*
@@ -153,7 +159,9 @@ Hardware for testing was provided by AnyWi Technologies, Leiden, NL.
 The Quectel EM160R is not officially supported in PPP mode.
 In order to use it in PPP mode, the ctsrts option needs to be turned off,
 for example, by adding:
+.Pp
 .Dl set ctsrts off
+.Pp
 to
 .Pa /etc/ppp/ppp.conf
 in the correct section.

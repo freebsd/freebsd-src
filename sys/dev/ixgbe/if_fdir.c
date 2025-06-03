@@ -1,4 +1,4 @@
-/******************************************************************************
+/*****************************************************************************
 
   Copyright (c) 2001-2017, Intel Corporation
   All rights reserved.
@@ -29,7 +29,7 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
 
-******************************************************************************/
+*****************************************************************************/
 
 #include "ixgbe.h"
 
@@ -51,9 +51,9 @@ ixgbe_init_fdir(struct ixgbe_softc *sc)
 void
 ixgbe_reinit_fdir(void *context)
 {
-	if_ctx_t       ctx = context;
+	if_ctx_t ctx = context;
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	if_t           ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 
 	if (!(sc->feat_en & IXGBE_FEATURE_FDIR))
 		return;
@@ -79,16 +79,16 @@ ixgbe_reinit_fdir(void *context)
 void
 ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
 {
-	struct ixgbe_softc             *sc = txr->sc;
-	struct ix_queue            *que;
-	struct ip                  *ip;
-	struct tcphdr              *th;
-	struct udphdr              *uh;
-	struct ether_vlan_header   *eh;
+	struct ixgbe_softc *sc = txr->sc;
+	struct ix_queue *que;
+	struct ip *ip;
+	struct tcphdr *th;
+	struct udphdr *uh;
+	struct ether_vlan_header *eh;
 	union ixgbe_atr_hash_dword input = {.dword = 0};
 	union ixgbe_atr_hash_dword common = {.dword = 0};
-	int                        ehdrlen, ip_hlen;
-	u16                        etype;
+	int ehdrlen, ip_hlen;
+	u16 etype;
 
 	eh = mtod(mp, struct ether_vlan_header *);
 	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {

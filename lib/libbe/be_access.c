@@ -33,6 +33,8 @@
 #include "be.h"
 #include "be_impl.h"
 
+#define	LIBBE_MOUNT_PREFIX	"be_mount."
+
 struct be_mountcheck_info {
 	const char *path;
 	char *name;
@@ -164,7 +166,11 @@ be_umount_iter(zfs_handle_t *zfs_hdl, void *data)
 	if (!zfs_is_mounted(zfs_hdl, &mountpoint)) {
 		return (0);
 	}
-	free(mountpoint);
+
+	if (info->depth == 0 && info->mountpoint == NULL)
+		info->mountpoint = mountpoint;
+	else
+		free(mountpoint);
 
 	if (zfs_unmount(zfs_hdl, NULL, info->mntflags) != 0) {
 		switch (errno) {
@@ -255,7 +261,17 @@ be_mount(libbe_handle_t *lbh, const char *bootenv, const char *mountpoint,
 
 	/* Create mountpoint if it is not specified */
 	if (mountpoint == NULL) {
-		strlcpy(mnt_temp, "/tmp/be_mount.XXXX", sizeof(mnt_temp));
+		const char *tmpdir;
+
+		tmpdir = getenv("TMPDIR");
+		if (tmpdir == NULL)
+			tmpdir = _PATH_TMP;
+
+		if (snprintf(mnt_temp, sizeof(mnt_temp), "%s%s%sXXXX", tmpdir,
+		    tmpdir[strlen(tmpdir) - 1] == '/' ? "" : "/",
+		     LIBBE_MOUNT_PREFIX) >= (int)sizeof(mnt_temp))
+			return (set_error(lbh, BE_ERR_PATHLEN));
+
 		if (mkdtemp(mnt_temp) == NULL)
 			return (set_error(lbh, BE_ERR_IO));
 	}
@@ -307,9 +323,31 @@ be_unmount(libbe_handle_t *lbh, const char *bootenv, int flags)
 	info.depth = 0;
 
 	if ((err = be_umount_iter(root_hdl, &info)) != 0) {
+		free(__DECONST(char *, info.mountpoint));
 		zfs_close(root_hdl);
 		return (err);
 	}
+
+	/*
+	 * We'll attempt to remove the directory if we created it on a
+	 * best-effort basis.  rmdir(2) failure will not be reported.
+	 */
+	if (info.mountpoint != NULL) {
+		const char *mdir;
+
+		mdir = strrchr(info.mountpoint, '/');
+		if (mdir == NULL)
+			mdir = info.mountpoint;
+		else
+			mdir++;
+
+		if (strncmp(mdir, LIBBE_MOUNT_PREFIX,
+		    sizeof(LIBBE_MOUNT_PREFIX) - 1) == 0) {
+			(void)rmdir(info.mountpoint);
+		}
+	}
+
+	free(__DECONST(char *, info.mountpoint));
 
 	zfs_close(root_hdl);
 	return (BE_ERR_SUCCESS);

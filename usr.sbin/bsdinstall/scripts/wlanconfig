@@ -55,7 +55,8 @@ country_set()
 		"$WLAN_IFACE" "$ifconfig_args"
 	error_str="${error_str#ifconfig: }"
 	# Restart wpa_supplicant(8) (should not fail).
-	[ "$iface_up" ] && f_eval_catch -d wlanconfig wpa_supplicant \
+	[ "$iface_up" ] && ifconfig "$WLAN_IFACE" up && \
+	    f_eval_catch -d wlanconfig wpa_supplicant \
 		'wpa_supplicant -B -i "%s" -c "%s/wpa_supplicant.conf"' \
 		"$WLAN_IFACE" "$BSDINSTALL_TMPETC"
 	if [ "$error_str" ]; then

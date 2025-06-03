@@ -156,10 +156,6 @@ if [ ! -d "${NANO_TOOLS}" ]; then
 	exit 1
 fi
 
-if ! $do_clean; then
-	NANO_PMAKE="${NANO_PMAKE} -DNO_CLEAN"
-fi
-
 pprint 1 "NanoBSD image ${NANO_NAME} build starting"
 
 run_early_customize

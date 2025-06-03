@@ -195,6 +195,7 @@ void sldns_key_EVP_unload_gost(void)
 }
 #endif /* USE_GOST */
 
+#ifdef USE_DSA
 /* Retrieve params as BIGNUM from raw buffer */
 static int
 sldns_key_dsa_buf_bignum(unsigned char* key, size_t len, BIGNUM** p,
@@ -370,6 +371,7 @@ EVP_PKEY *sldns_key_dsa2pkey_raw(unsigned char* key, size_t len)
 	return evp_key;
 #endif
 }
+#endif /* USE_DSA */
 
 /* Retrieve params as BIGNUM from raw buffer, n is modulus, e is exponent */
 static int

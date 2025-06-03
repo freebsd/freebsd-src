@@ -31,7 +31,6 @@ struct nvmft_qpair {
 	uint16_t qid;
 	u_int	qsize;
 	uint16_t sqhd;
-	uint16_t sqtail;
 	volatile u_int qp_refs;		/* Internal references on 'qp'. */
 
 	struct task datamove_task;
@@ -102,26 +101,24 @@ nvmft_receive_capsule(void *arg, struct nvmf_capsule *nc)
 }
 
 struct nvmft_qpair *
-nvmft_qpair_init(enum nvmf_trtype trtype,
-    const struct nvmf_handoff_qpair_params *handoff, uint16_t qid,
+nvmft_qpair_init(enum nvmf_trtype trtype, const nvlist_t *params, uint16_t qid,
     const char *name)
 {
 	struct nvmft_qpair *qp;
 
 	qp = malloc(sizeof(*qp), M_NVMFT, M_WAITOK | M_ZERO);
-	qp->admin = handoff->admin;
-	qp->sq_flow_control = handoff->sq_flow_control;
-	qp->qsize = handoff->qsize;
+	qp->admin = nvlist_get_bool(params, "admin");
+	qp->sq_flow_control = nvlist_get_bool(params, "sq_flow_control");
+	qp->qsize = nvlist_get_number(params, "qsize");
 	qp->qid = qid;
-	qp->sqhd = handoff->sqhd;
-	qp->sqtail = handoff->sqtail;
+	qp->sqhd = nvlist_get_number(params, "sqhd");
 	strlcpy(qp->name, name, sizeof(qp->name));
 	mtx_init(&qp->lock, "nvmft qp", NULL, MTX_DEF);
 	qp->cids = BITSET_ALLOC(NUM_CIDS, M_NVMFT, M_WAITOK | M_ZERO);
 	STAILQ_INIT(&qp->datamove_queue);
 	TASK_INIT(&qp->datamove_task, 0, nvmft_datamove_task, qp);
 
-	qp->qp = nvmf_allocate_qpair(trtype, true, handoff, nvmft_qpair_error,
+	qp->qp = nvmf_allocate_qpair(trtype, true, params, nvmft_qpair_error,
 	    qp, nvmft_receive_capsule, qp);
 	if (qp->qp == NULL) {
 		mtx_destroy(&qp->lock);

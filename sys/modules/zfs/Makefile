@@ -185,7 +185,6 @@ SRCS+=	abd_os.c \
 	kmod_core.c \
 	spa_os.c \
 	sysctl_os.c \
-	vdev_file.c \
 	vdev_geom.c \
 	vdev_label_os.c \
 	zfs_acl.c \
@@ -197,13 +196,12 @@ SRCS+=	abd_os.c \
 	zfs_racct.c \
 	zfs_vfsops.c \
 	zfs_vnops_os.c \
-	zfs_znode.c \
+	zfs_znode_os.c \
 	zio_crypt.c \
 	zvol_os.c
 
 #unicode
-SRCS+=	uconv.c \
-	u8_textprep.c
+SRCS+=	u8_textprep.c
 
 #zcommon
 SRCS+=	zfeature_common.c \
@@ -242,6 +240,7 @@ SRCS+=	abd.c \
 	ddt_stats.c \
 	ddt_zap.c \
 	dmu.c \
+	dmu_direct.c \
 	dmu_diff.c \
 	dmu_object.c \
 	dmu_objset.c \
@@ -298,6 +297,7 @@ SRCS+=	abd.c \
 	vdev.c \
 	vdev_draid.c \
 	vdev_draid_rand.c \
+	vdev_file.c \
 	vdev_indirect.c \
 	vdev_indirect_births.c \
 	vdev_indirect_mapping.c \
@@ -343,6 +343,7 @@ SRCS+=	abd.c \
 	zfs_rlock.c \
 	zfs_sa.c \
 	zfs_vnops.c \
+	zfs_znode.c \
 	zil.c \
 	zio.c \
 	zio_checksum.c \

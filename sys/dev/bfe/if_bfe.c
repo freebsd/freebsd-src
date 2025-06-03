@@ -551,8 +551,6 @@ bfe_detach(device_t dev)
 	BFE_UNLOCK(sc);
 
 	bus_generic_detach(dev);
-	if (sc->bfe_miibus != NULL)
-		device_delete_child(dev, sc->bfe_miibus);
 
 	bfe_release_resources(sc);
 	bfe_dma_free(sc);

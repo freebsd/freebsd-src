@@ -82,4 +82,7 @@ idle_setup(void *dummy)
 #ifdef SMP
 	}
 #endif
+	PROC_LOCK(p);
+	p->p_flag |= P_IDLEPROC;
+	PROC_UNLOCK(p);
 }

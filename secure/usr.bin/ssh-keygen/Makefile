@@ -2,17 +2,10 @@
 .include "${SRCTOP}/secure/ssh.mk"
 
 PROG=	ssh-keygen
-# XXX ssh-sk-client.c in libssh maybe?
-SRCS=	ssh-keygen.c sshsig.c ssh-sk-client.c
+SRCS=	ssh-keygen.c sshsig.c $(SKSRCS)
 PACKAGE=	ssh
 
-LIBADD=	ssh
-
-.if ${MK_LDNS} != "no"
-CFLAGS+=	-DHAVE_LDNS=1
-.endif
-
-LIBADD+=	crypto
+LIBADD=	crypto ssh
 
 .include <bsd.prog.mk>
 

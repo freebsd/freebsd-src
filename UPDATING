@@ -27,6 +27,133 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250527:
+	The CAM target layer userland, i.e. ctld(8), ctladm(8) and ctlstat(8),
+	has moved to the new FreeBSD-ctl package.  If you use pkgbase and you
+	need the CAM Target Layer, you should install the new package.
+
+	Development-related tools (e.g. ar and nm) have moved to the new
+	"FreeBSD-toolchain" package, which subsumes and obsoletes the
+	existing "FreeBSD-elftoolchain" package.  If you use pkgbase and
+	need to compile software, you should install the new package and
+	ensure the old FreeBSD-elftoolchain* packages are completely removed.
+
+20250521:
+	Commit e64fe5ad3a23 removed in6_maxmtu and its setter in6_setmaxmtu().
+	in6_maxmtu is used to store the max IPv6 MTU of all interfaces,
+	however it does not have any in-tree consumers since the introduction
+	from the KAME project. The removal should have little impact, and the
+	max IPv6 MTU can be easily retrieved by iterating over all the attached
+	interface if 3rd party modules need it.
+
+20250515:
+	Commit 772258c89f28 changed the internal API between the nfscommon
+	and nfscl modules.  Both need to be built from updated sources.
+
+20250513:
+	The bridge(4) sysctl net.link.bridge.member_ifaddrs now defaults to 0,
+	meaning that interfaces added to a bridge may not have IP addresses
+	assigned.  Refer to bridge(4) for more information.
+
+20250507:
+	UMASS quirks and auto-quirk probing has been overhauled. CAM now won't
+	send SYNCHRONIZE CACHE unless MODE PAGE 8 is present and valid. This
+	should allow more devices to work (since the auto quirk code was updated
+	in 14 and broke several e-readers and the like). Please send imp@freebsd.org
+	any regression reports.
+
+20250504:
+	Commit 9419e086e1a3 changed the internal API between the nfscommon
+	and nfscl modules.  Both need to be built from updated sources.
+
+20250412:
+	LinuxKPI alloc routines were changed to return physically contiguous
+	memory where expected. These changes may require out-of-tree drivers
+	to be recompiled.
+	Bump __FreeBSD_version to 1500037 to be able to detect this change.
+
+20250409:
+	Intel iwlwifi firmware has been removed from the src repository.
+	Before updating their system, users of iwlwifi(4) or iwx(4) must
+	install the appropriate firmware for their chipset using fwget(8) or
+	building it from ports.
+
+20250314:
+	We now use LLVM's binary utilities (nm, objcopy, etc.) by default.
+	The WITHOUT_LLVM_BINUTILS src.conf(5) knob can be used to revert to
+	ELF Tool Chain tools if desired.
+
+20250303:
+	Commit 4a77657cbc01 changed the ABI between ipfw(8) and ipfw(4).
+	Please note that the old ipfw(8) binary will not work with the new
+	ipfw(4) module. Therefore, it is recommended to disable ipfw during
+	the upgrade, otherwise the host system may become inaccessible because
+	ipfw rules cannot be installed with the old binary.
+
+20250214:
+	Commit 4517fbfd4251 modified the internal API between the
+	nfscommon and nfscl modules.  As such, both of these modules
+	need to be rebuilt from sources.
+
+20250201:
+	The NFS related daemons, that provide RPC services to the kernel:
+	gssd(8), rpcbind(8), rpc.tlsservd(8) and rpc.tlsclntd(8), now use a
+	different transport - netlink(4) socket instead of unix(4).  Users of
+	NFS need to upgrade both kernel and world (binaries and libc) at once.
+	Also, any revision between 88cd1e17a7d8 and 99e5a70046da should be
+	avoided.
+
+20250129:
+	Defer the January 19, 2038 date limit in UFS1 filesystems to
+	February 7, 2106. This affects only UFS1 format filesystems.
+	See commit message 1111a44301da for details.
+
+20250127:
+	The Allwinner a10_timer driver has been renamed to aw_driver. If you
+	have a custom kernel configuration including the line 'device
+	a10_timer', it must be adjusted to 'device aw_timer'. The same applies
+	for device exclusions with 'nodevice'.
+
+20250106:
+	A new SOC_ROCKCHIP options appeared, so if you have a custom kernel configuration
+	targetting Rockchip SoC you need to add it so shared and mandatory drivers for
+	this SoC familly will be selected.
+	Also a new rk8xx device was added, this select the base driver for Rockchip PMIC.
+
+20241223:
+	The layout of NFS file handles for the tarfs, tmpfs, cd9660, and ext2fs
+	file systems has changed.  An NFS server that exports any of these file
+	systems will need its clients to unmount and remount the exports.
+
+20241216:
+	The iwm(4) firmwares are no longer compiled as kernel modules but instead
+	shipped as raw files. For pkgbase users if you use iwm(4) you will need
+	to install the FreeBSD-firmware-iwm package.
+
+20241124:
+	The OpenBSD derived bc and dc implementations and the WITHOUT_GH_BC
+	option that allowed building them instead of the advanced version
+	imported more than 4 years ago have been removed.
+
+20241107:
+	The ng_ubt(4) driver now requires firmwares to be loaded on Realtek
+	adaptors with rtlbtfw(8) utility. It no longer attaches to devices
+	standing in bootloader mode. Firmware files are available in the
+	comms/rtlbt-firmware port.
+
+20241025:
+	The support for the rc_fast_and_loose variable has been removed from
+	rc.subr(8). Users setting rc_fast_and_loose on their systems are
+	advised to make sure their customizations to rc service scripts
+	do not depend on having a single shell environment shared across
+	all the rc service scripts during booting and shutdown.
+
+20241013:
+	The ciss driver was updated to cope better with hotplug events that
+	caused it to panic before, and to support more than 48 drives attached
+	to the card. These changes were made w/o benefit of hardware for testing
+	and ciss(4) users should be on the lookout for regressions.
+
 20240729:
 	The build now defaults to WITHOUT_CLEAN - i.e., no automatic clean
 	is performed at the beginning of buildworld or buildkernel.  The
@@ -36,6 +163,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	If you encounter incremental build issues, please report them to the
 	freebsd-current mailing list so that a special-case dependency can be
 	added, if necessary.
+
+20240715:
+	We now lean more heavily on ACPI enumeration for some traditional
+	devices. uart has moved from isa to acpi so the hints act as wiring
+	instead of device enumeration. Hints for parallel port, floppy, etc
+	have been removed.  Before upgrading, grep your dmesg for lines like:
+		uart1: non-PNP ISA device will be removed from GENERIC in FreeBSD 15.
+	to see if you need to start including hints for the device on isa
+	in your loader.conf or device.hints file. APU1 (but not APU2) boards
+	are known to be affected, but there may be others.
 
 20240712:
 	Support for armv6 has been disconnected and is being removed.
@@ -2037,10 +2174,11 @@ COMMON ITEMS:
 	# Note: sometimes if you are running current you gotta do more than
 	# is listed here if you are upgrading from a really old current.
 
-	<make sure you have good level 0 dumps>
+	<make sure you have good level 0 dumps>		[2]
 	make buildworld
+	<make sure any needed PORTS_MODULES are set>	[1]
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
-	make installkernel KERNCONF=YOUR_KERNEL_HERE	[1]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
@@ -2074,10 +2212,11 @@ COMMON ITEMS:
 
 	To upgrade in-place from stable to current
 	----------------------------------------------
-	<make sure you have good level 0 dumps>
+	<make sure you have good level 0 dumps>		[2]
 	make buildworld					[9]
+	<make sure any needed PORTS_MODULES are set>	[1]
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE	[8]
-	make installkernel KERNCONF=YOUR_KERNEL_HERE	[1]
+	make installkernel KERNCONF=YOUR_KERNEL_HERE
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
@@ -2108,7 +2247,12 @@ FOOTNOTES:
 	happens automatically. If all your modules come from ports, then adding
 	the port origin directories to PORTS_MODULES instead is also automatic
 	and effective, eg:
-	     PORTS_MODULES+=x11/nvidia-driver
+	     PORTS_MODULES+=graphics/drm-kmod graphics/nvidia-drm-kmod
+
+	[2] To make complete dumps on zfs(4), use bectl(8), which
+	creates bootable snapshots of configurable depth that are
+	selectable via the bootloader. For ufs(4), use dump(8) and
+	restore(8).
 
 	[3] From the bootblocks, boot -s, and then do
 		fsck -p

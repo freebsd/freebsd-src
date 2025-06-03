@@ -1,4 +1,4 @@
-.\" Copyright (c) 2016 The FreeBSD Foundation, Inc.
+.\" Copyright (c) 2016 The FreeBSD Foundation
 .\"
 .\" This documentation was written by
 .\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
@@ -26,7 +26,7 @@
 .\" SUCH DAMAGE.
 .\"
 .Dd May 5, 2020
-.Dt THR_kill 2
+.Dt THR_KILL 2
 .Os
 .Sh NAME
 .Nm thr_kill
@@ -109,12 +109,12 @@ The current process does not have sufficient privilege to check existence or
 send a signal to the specified process.
 .El
 .Sh SEE ALSO
+.Xr _umtx_op 2 ,
 .Xr kill 2 ,
 .Xr thr_exit 2 ,
 .Xr thr_new 2 ,
 .Xr thr_self 2 ,
 .Xr thr_set_name 2 ,
-.Xr _umtx_op 2 ,
 .Xr pthread_kill 3 ,
 .Xr signal 3
 .Sh STANDARDS

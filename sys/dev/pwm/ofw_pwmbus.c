@@ -184,9 +184,10 @@ ofw_pwmbus_attach(device_t dev)
 		}
 	}
 	bus_enumerate_hinted_children(dev);
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 
-	return (bus_generic_attach(dev));
+	return (0);
 }
 
 static device_method_t ofw_pwmbus_methods[] = {

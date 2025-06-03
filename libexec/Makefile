@@ -116,8 +116,11 @@ SUBDIR+=	tftpd
 .endif
 
 .if ${MK_TESTS} != "no"
-_atf=		atf
 _tests=		tests
+.endif
+
+.if ${MK_TESTS_SUPPORT} != "no"
+_atf=		atf
 .endif
 
 .if ${MK_NUAGEINIT} != "no"

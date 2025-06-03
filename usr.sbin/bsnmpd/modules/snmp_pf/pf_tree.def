@@ -107,7 +107,7 @@
                     (2 pfInterfacesIfDescr OCTETSTRING GET)
                     (3 pfInterfacesIfType ENUM ( 0 group 1 instance 2 detached ) GET)
 		    (4 pfInterfacesIfTZero TIMETICKS GET)
-                    (5 pfInterfacesIfRefsState NULL GET)
+                    (5 pfInterfacesIfRefsState UNSIGNED32 GET)
                     (6 pfInterfacesIfRefsRule UNSIGNED32 GET)
                     (7 pfInterfacesIf4BytesInPass COUNTER64 GET)
                     (8 pfInterfacesIf4BytesInBlock COUNTER64 GET)

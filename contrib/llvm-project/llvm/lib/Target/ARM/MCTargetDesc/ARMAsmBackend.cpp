@@ -17,7 +17,6 @@
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/BinaryFormat/MachO.h"
 #include "llvm/MC/MCAsmBackend.h"
-#include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDirectives.h"
@@ -29,6 +28,7 @@
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MCTargetOptions.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/EndianStream.h"
@@ -336,9 +336,8 @@ const char *ARMAsmBackend::reasonForFixupRelaxation(const MCFixup &Fixup,
   return nullptr;
 }
 
-bool ARMAsmBackend::fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value,
-                                         const MCRelaxableFragment *DF,
-                                         const MCAsmLayout &Layout) const {
+bool ARMAsmBackend::fixupNeedsRelaxation(const MCFixup &Fixup,
+                                         uint64_t Value) const {
   return reasonForFixupRelaxation(Fixup, Value);
 }
 
@@ -1147,7 +1146,7 @@ enum CompactUnwindEncodings {
 /// instructions. If the CFI instructions describe a frame that cannot be
 /// encoded in compact unwind, the method returns UNWIND_ARM_MODE_DWARF which
 /// tells the runtime to fallback and unwind using dwarf.
-uint32_t ARMAsmBackendDarwin::generateCompactUnwindEncoding(
+uint64_t ARMAsmBackendDarwin::generateCompactUnwindEncoding(
     const MCDwarfFrameInfo *FI, const MCContext *Ctxt) const {
   DEBUG_WITH_TYPE("compact-unwind", llvm::dbgs() << "generateCU()\n");
   // Only armv7k uses CFI based unwinding.
@@ -1203,8 +1202,8 @@ uint32_t ARMAsmBackendDarwin::generateCompactUnwindEncoding(
       DEBUG_WITH_TYPE("compact-unwind",
                       llvm::dbgs()
                           << "CFI directive not compatible with compact "
-                             "unwind encoding, opcode=" << Inst.getOperation()
-                          << "\n");
+                             "unwind encoding, opcode="
+                          << uint8_t(Inst.getOperation()) << "\n");
       return CU::UNWIND_ARM_MODE_DWARF;
       break;
     }
@@ -1349,7 +1348,9 @@ static MCAsmBackend *createARMAsmBackend(const Target &T,
     return new ARMAsmBackendWinCOFF(T, STI.getTargetTriple().isThumb());
   case Triple::ELF:
     assert(TheTriple.isOSBinFormatELF() && "using ELF for non-ELF target");
-    uint8_t OSABI = MCELFObjectTargetWriter::getOSABI(TheTriple.getOS());
+    uint8_t OSABI = Options.FDPIC
+                        ? ELF::ELFOSABI_ARM_FDPIC
+                        : MCELFObjectTargetWriter::getOSABI(TheTriple.getOS());
     return new ARMAsmBackendELF(T, STI.getTargetTriple().isThumb(), OSABI,
                                 Endian);
   }

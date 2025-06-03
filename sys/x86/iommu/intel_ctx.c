@@ -76,7 +76,6 @@ static void dmar_unref_domain_locked(struct dmar_unit *dmar,
 static void dmar_domain_destroy(struct dmar_domain *domain);
 
 static void dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx);
-static void dmar_free_ctx(struct dmar_ctx *ctx);
 
 static void
 dmar_ensure_ctx_page(struct dmar_unit *dmar, int bus)
@@ -375,7 +374,7 @@ dmar_domain_alloc(struct dmar_unit *dmar, bool id_mapped)
 	iodom = DOM2IODOM(domain);
 	unit = DMAR2IOMMU(dmar);
 	domain->domain = id;
-	LIST_INIT(&domain->contexts);
+	LIST_INIT(&iodom->contexts);
 	iommu_domain_init(unit, iodom, &dmar_domain_map_ops);
 
 	domain->dmar = dmar;
@@ -430,7 +429,7 @@ dmar_ctx_alloc(struct dmar_domain *domain, uint16_t rid)
 	ctx->context.tag = malloc(sizeof(struct bus_dma_tag_iommu),
 	    M_DMAR_CTX, M_WAITOK | M_ZERO);
 	ctx->context.rid = rid;
-	ctx->refs = 1;
+	ctx->context.refs = 1;
 	return (ctx);
 }
 
@@ -446,7 +445,7 @@ dmar_ctx_link(struct dmar_ctx *ctx)
 	    domain->ctx_cnt));
 	domain->refs++;
 	domain->ctx_cnt++;
-	LIST_INSERT_HEAD(&domain->contexts, ctx, link);
+	LIST_INSERT_HEAD(&domain->iodom.contexts, &ctx->context, link);
 }
 
 static void
@@ -463,7 +462,7 @@ dmar_ctx_unlink(struct dmar_ctx *ctx)
 	    domain->refs, domain->ctx_cnt));
 	domain->refs--;
 	domain->ctx_cnt--;
-	LIST_REMOVE(ctx, link);
+	LIST_REMOVE(&ctx->context, link);
 }
 
 static void
@@ -476,7 +475,7 @@ dmar_domain_destroy(struct dmar_domain *domain)
 
 	KASSERT(TAILQ_EMPTY(&domain->iodom.unload_entries),
 	    ("unfinished unloads %p", domain));
-	KASSERT(LIST_EMPTY(&domain->contexts),
+	KASSERT(LIST_EMPTY(&iodom->contexts),
 	    ("destroying dom %p with contexts", domain));
 	KASSERT(domain->ctx_cnt == 0,
 	    ("destroying dom %p with ctx_cnt %d", domain, domain->ctx_cnt));
@@ -593,13 +592,13 @@ dmar_get_ctx_for_dev1(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 			/* Nothing needs to be done to destroy ctx1. */
 			free(ctx1, M_DMAR_CTX);
 			domain = CTX2DOM(ctx);
-			ctx->refs++; /* tag referenced us */
+			ctx->context.refs++; /* tag referenced us */
 		}
 	} else {
 		domain = CTX2DOM(ctx);
 		if (ctx->context.tag->owner == NULL)
 			ctx->context.tag->owner = dev;
-		ctx->refs++; /* tag referenced us */
+		ctx->context.refs++; /* tag referenced us */
 	}
 
 	error = dmar_flush_for_ctx_entry(dmar, enable);
@@ -737,15 +736,15 @@ dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx)
 	struct dmar_domain *domain;
 
 	DMAR_ASSERT_LOCKED(dmar);
-	KASSERT(ctx->refs >= 1,
-	    ("dmar %p ctx %p refs %u", dmar, ctx, ctx->refs));
+	KASSERT(ctx->context.refs >= 1,
+	    ("dmar %p ctx %p refs %u", dmar, ctx, ctx->context.refs));
 
 	/*
 	 * If our reference is not last, only the dereference should
 	 * be performed.
 	 */
-	if (ctx->refs > 1) {
-		ctx->refs--;
+	if (ctx->context.refs > 1) {
+		ctx->context.refs--;
 		DMAR_UNLOCK(dmar);
 		return;
 	}
@@ -762,15 +761,15 @@ dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx)
 	TD_PREP_PINNED_ASSERT;
 	ctxp = dmar_map_ctx_entry(ctx, &sf);
 	DMAR_LOCK(dmar);
-	KASSERT(ctx->refs >= 1,
-	    ("dmar %p ctx %p refs %u", dmar, ctx, ctx->refs));
+	KASSERT(ctx->context.refs >= 1,
+	    ("dmar %p ctx %p refs %u", dmar, ctx, ctx->context.refs));
 
 	/*
 	 * Other thread might have referenced the context, in which
 	 * case again only the dereference should be performed.
 	 */
-	if (ctx->refs > 1) {
-		ctx->refs--;
+	if (ctx->context.refs > 1) {
+		ctx->context.refs--;
 		DMAR_UNLOCK(dmar);
 		iommu_unmap_pgtbl(sf);
 		TD_PINNED_ASSERT;
@@ -803,16 +802,6 @@ dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx)
 	TD_PINNED_ASSERT;
 }
 
-static void
-dmar_free_ctx(struct dmar_ctx *ctx)
-{
-	struct dmar_unit *dmar;
-
-	dmar = CTX2DMAR(ctx);
-	DMAR_LOCK(dmar);
-	dmar_free_ctx_locked(dmar, ctx);
-}
-
 /*
  * Returns with the domain locked.
  */
@@ -820,14 +809,14 @@ struct dmar_ctx *
 dmar_find_ctx_locked(struct dmar_unit *dmar, uint16_t rid)
 {
 	struct dmar_domain *domain;
-	struct dmar_ctx *ctx;
+	struct iommu_ctx *ctx;
 
 	DMAR_ASSERT_LOCKED(dmar);
 
 	LIST_FOREACH(domain, &dmar->domains, link) {
-		LIST_FOREACH(ctx, &domain->contexts, link) {
-			if (ctx->context.rid == rid)
-				return (ctx);
+		LIST_FOREACH(ctx, &domain->iodom.contexts, link) {
+			if (ctx->rid == rid)
+				return (IOCTX2CTX(ctx));
 		}
 	}
 	return (NULL);
@@ -940,13 +929,4 @@ dmar_free_ctx_locked_method(struct iommu_unit *iommu,
 	dmar = IOMMU2DMAR(iommu);
 	ctx = IOCTX2CTX(context);
 	dmar_free_ctx_locked(dmar, ctx);
-}
-
-void
-dmar_free_ctx_method(struct iommu_ctx *context)
-{
-	struct dmar_ctx *ctx;
-
-	ctx = IOCTX2CTX(context);
-	dmar_free_ctx(ctx);
 }

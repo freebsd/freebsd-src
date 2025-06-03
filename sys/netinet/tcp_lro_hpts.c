@@ -39,6 +39,7 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/ethernet.h>
 #include <net/bpf.h>
 #include <net/vnet.h>
@@ -61,7 +62,9 @@
 #include <netinet/tcp_lro.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_hpts.h>
+#ifdef TCP_BLACKBOX
 #include <netinet/tcp_log_buf.h>
+#endif
 
 static void
 build_ack_entry(struct tcp_ackent *ae, struct tcphdr *th, struct mbuf *m,
@@ -147,6 +150,7 @@ tcp_lro_check_wake_status(struct tcpcb *tp)
 	return (false);
 }
 
+#ifdef TCP_BLACKBOX
 static void
 tcp_lro_log(struct tcpcb *tp, const struct lro_ctrl *lc,
     const struct lro_entry *le, const struct mbuf *m,
@@ -196,6 +200,7 @@ tcp_lro_log(struct tcpcb *tp, const struct lro_ctrl *lc,
 		    TCP_LOG_LRO, 0, 0, &log, false, &tv);
 	}
 }
+#endif
 
 static struct mbuf *
 tcp_lro_get_last_if_ackcmp(struct lro_ctrl *lc, struct lro_entry *le,
@@ -208,7 +213,9 @@ tcp_lro_get_last_if_ackcmp(struct lro_ctrl *lc, struct lro_entry *le,
 		m = STAILQ_LAST(&tp->t_inqueue, mbuf, m_stailqpkt);
 		if (m != NULL && (m->m_flags & M_ACKCMP) != 0) {
 			if (M_TRAILINGSPACE(m) >= sizeof(struct tcp_ackent)) {
+#ifdef TCP_BLACKBOX
 				tcp_lro_log(tp, lc, le, NULL, 23, 0, 0, 0, 0);
+#endif
 				*new_m = 0;
 				counter_u64_add(tcp_extra_mbuf, 1);
 				return (m);
@@ -219,7 +226,9 @@ tcp_lro_get_last_if_ackcmp(struct lro_ctrl *lc, struct lro_entry *le,
 		}
 	}
 	/* Decide mbuf size. */
+#ifdef TCP_BLACKBOX
 	tcp_lro_log(tp, lc, le, NULL, 21, 0, 0, 0, 0);
+#endif
 	if (tp->t_flags2 & TF2_MBUF_L_ACKS)
 		m = m_getcl(M_NOWAIT, MT_DATA, M_ACKCMP | M_PKTHDR);
 	else
@@ -611,13 +620,19 @@ _tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 			 * ack will be required.
 			 */
 			cmp = NULL;
+#ifdef TCP_BLACKBOX
 			tcp_lro_log(tp, lc, le, NULL, 25, 0, 0, 0, 0);
+#endif
 		} else if (mv_to != NULL) {
 			/* We are asked to move pp up */
 			pp = &mv_to->m_nextpkt;
+#ifdef TCP_BLACKBOX
 			tcp_lro_log(tp, lc, le, NULL, 24, 0, 0, 0, 0);
 		} else
 			tcp_lro_log(tp, lc, le, NULL, 26, 0, 0, 0, 0);
+#else
+		}
+#endif
 	}
 	/* Update "m_last_mbuf", if any. */
 	if (pp == &le->m_head)
@@ -628,7 +643,9 @@ _tcp_lro_flush_tcphpts(struct lro_ctrl *lc, struct lro_entry *le)
 	/* Check if any data mbufs left. */
 	if (le->m_head != NULL) {
 		counter_u64_add(tcp_inp_lro_direct_queue, 1);
+#ifdef TCP_BLACKBOX
 		tcp_lro_log(tp, lc, le, NULL, 22, 1, tp->t_flags2, 0, 1);
+#endif
 		tcp_queue_pkts(tp, le);
 	}
 	if (should_wake) {

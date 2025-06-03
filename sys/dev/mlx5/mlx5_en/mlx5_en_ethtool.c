@@ -1124,16 +1124,8 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 		/* import HW LRO mode */
 		if (priv->params_ethtool.hw_lro != 0 &&
 		    MLX5_CAP_ETH(priv->mdev, lro_cap)) {
+			priv->params.hw_lro_en = true;
 			priv->params_ethtool.hw_lro = 1;
-			/* check if feature should actually be enabled */
-			if (if_getcapenable(priv->ifp) & IFCAP_LRO) {
-				priv->params.hw_lro_en = true;
-			} else {
-				priv->params.hw_lro_en = false;
-
-				mlx5_en_warn(priv->ifp, "To enable HW LRO "
-				    "please also enable LRO via ifconfig(8).\n");
-			}
 		} else {
 			/* return an error if HW does not support this feature */
 			if (priv->params_ethtool.hw_lro != 0)
@@ -1141,7 +1133,13 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			priv->params.hw_lro_en = false;
 			priv->params_ethtool.hw_lro = 0;
 		}
-		/* restart network interface, if any */
+
+		error = mlx5e_hw_lro_update_tirs(priv);
+
+		/*
+		 * Restart network interface, if any.  This
+		 * re-populates rx wqes with proper segment sizes.
+		 */
 		if (was_opened)
 			mlx5e_open_locked(priv->ifp);
 		break;
@@ -1477,12 +1475,6 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 		    strstr(mlx5e_params_desc[2 * x], "_mtu") != NULL) {
 			SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(node), OID_AUTO,
 			    mlx5e_params_desc[2 * x], CTLTYPE_U64 | CTLFLAG_RD |
-			    CTLFLAG_MPSAFE, priv, x, &mlx5e_ethtool_handler, "QU",
-			    mlx5e_params_desc[2 * x + 1]);
-		} else if (strcmp(mlx5e_params_desc[2 * x], "hw_lro") == 0) {
-			/* read-only, but tunable parameters */
-			SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(node), OID_AUTO,
-			    mlx5e_params_desc[2 * x], CTLTYPE_U64 | CTLFLAG_RDTUN |
 			    CTLFLAG_MPSAFE, priv, x, &mlx5e_ethtool_handler, "QU",
 			    mlx5e_params_desc[2 * x + 1]);
 		} else {

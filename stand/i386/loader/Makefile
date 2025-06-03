@@ -7,8 +7,8 @@ LOADER_CD9660_SUPPORT?=	yes
 LOADER_EXT2FS_SUPPORT?=	no
 LOADER_MSDOS_SUPPORT?=	no
 LOADER_UFS_SUPPORT?=	yes
-LOADER_GZIP_SUPPORT?=	no
-LOADER_BZIP2_SUPPORT?=	no
+LOADER_GZIP_SUPPORT?=	yes
+LOADER_BZIP2_SUPPORT?=	yes
 
 .include <bsd.init.mk>
 
@@ -16,7 +16,7 @@ LOADER?=	loader_${LOADER_INTERP}
 PROG=		${LOADER}.sym
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
-VERSION_FILE=	${.CURDIR}/../loader/version
+VERSION_FILE?=	${.CURDIR}/../loader/version
 #
 # There's 640k - 40k maximum space, less however much memory the BIOS uses.  A
 # non-random survey suggests that 20k-25k is a good value for 'most' machines.
@@ -90,7 +90,8 @@ ORG=		0x0
 
 CFLAGS+=	-Wall
 LDFLAGS+=	-static ${LDFLAGS_ORG} -Wl,--gc-sections
-.if ${LINKER_TYPE} == "lld" && ${LINKER_VERSION} >= 130000
+.if (${LINKER_TYPE} == "lld" && ${LINKER_VERSION} >= 130000) || \
+    (${LINKER_TYPE} == "bfd" && ${LINKER_VERSION} >= 23700)
 # lld 13 and higher default to garbage collecting start/stop symbols,
 # completely ruining our linker sets. For now, work around it by
 # disabling this un-feature.
@@ -139,6 +140,10 @@ FILESMODE_${LOADER}= ${BINMODE} -b
 # LDFLAGS does not have this baggage and will be included first in the list of
 # files.
 LDFLAGS+=	${BTXCRT}
+
+# Force the linker max page size to 4k so that we fit in the limited space even
+# if someone has set a larger default linker max page size via /etc/src.conf.
+LDFLAGS+= -Wl,-z,max-page-size=0x1000
 
 DPADD=	${LDR_INTERP32} ${LIBI386} ${LIBSA32}
 LDADD=	${LDR_INTERP32} ${LIBI386} ${LIBSA32}

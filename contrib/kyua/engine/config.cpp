@@ -141,7 +141,7 @@ public:
 config::detail::base_node*
 engine::user_node::deep_copy(void) const
 {
-    std::auto_ptr< user_node > new_node(new user_node());
+    std::unique_ptr< user_node > new_node(new user_node());
     new_node->_value = _value;
     return new_node.release();
 }

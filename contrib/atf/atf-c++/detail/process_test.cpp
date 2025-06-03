@@ -196,8 +196,8 @@ ATF_TEST_CASE_BODY(argv_array_assign)
     const char* const carray1[] = { "arg1", NULL };
     const char* const carray2[] = { "arg1", "arg2", NULL };
 
-    std::auto_ptr< argv_array > argv1(new argv_array(carray1));
-    std::auto_ptr< argv_array > argv2(new argv_array(carray2));
+    std::unique_ptr< argv_array > argv1(new argv_array(carray1));
+    std::unique_ptr< argv_array > argv2(new argv_array(carray2));
 
     *argv2 = *argv1;
     ATF_REQUIRE_EQ(argv2->size(), argv1->size());
@@ -226,8 +226,8 @@ ATF_TEST_CASE_BODY(argv_array_copy)
 
     const char* const carray[] = { "arg0", NULL };
 
-    std::auto_ptr< argv_array > argv1(new argv_array(carray));
-    std::auto_ptr< argv_array > argv2(new argv_array(*argv1));
+    std::unique_ptr< argv_array > argv1(new argv_array(carray));
+    std::unique_ptr< argv_array > argv2(new argv_array(*argv1));
 
     ATF_REQUIRE_EQ(argv2->size(), argv1->size());
     ATF_REQUIRE(std::strcmp((*argv2)[0], (*argv1)[0]) == 0);

@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 3, 2022
+.Dd April 29, 2025
 .Dt NANOSLEEP 2
 .Os
 .Sh NAME
@@ -87,14 +87,6 @@ If, at the time of the call, the time value specified by
 is less than or equal to the time value of the specified clock, then
 .Fn clock_nanosleep
 returns immediately and the calling thread is not suspended.
-.Pp
-The suspension time may be longer than requested due to the
-scheduling of other activity by the system.
-It is also subject to the allowed time interval deviation
-specified by the
-.Va kern.timecounter.alloweddeviation
-.Xr sysctl 8
-variable.
 An unmasked signal will terminate the sleep early, regardless of the
 .Dv SA_RESTART
 value on the interrupting signal.
@@ -130,6 +122,32 @@ CLOCK_UPTIME_FAST
 .It
 CLOCK_UPTIME_PRECISE
 .El
+.Pp
+The suspension time may be longer than requested due to the
+scheduling of other activity by the system.
+The clocks with the
+.Dv _FAST
+suffix and the
+.Dv CLOCK_SECOND
+are subject to the allowed time interval deviation specified by the
+.Va kern.timecounter.alloweddeviation
+.Xr sysctl 8
+variable.
+The clocks with the
+.Dv _PRECISE
+suffix are always as precise as possible.
+The
+.Dv CLOCK_MONOTONIC ,
+.Dv CLOCK_REALTIME
+and
+.Dv CLOCK_UPTIME
+are precise by default.
+Setting the
+.Va kern.timecounter.nanosleep_precise
+.Xr sysctl 8
+to a false value would make those clocks to behave like the
+.Dv _FAST
+clocks.
 .Pp
 The
 .Fn nanosleep
@@ -217,3 +235,19 @@ and was ported to
 .Ox 2.1
 and
 .Fx 3.0 .
+The
+.Fn clock_nanosleep
+system call has been available since
+.Fx 11.1 .
+.Pp
+In
+.Fx 15.0
+the default behavior of
+.Fn clock_nanosleep
+with
+.Dv CLOCK_MONOTONIC ,
+.Dv CLOCK_REALTIME ,
+.Dv CLOCK_UPTIME
+clocks and
+.Fn nanosleep
+has been switched to use precise clock.

@@ -31,6 +31,7 @@ max_states_head()
 {
 	atf_set descr 'Max states per rule'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 max_states_body()

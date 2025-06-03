@@ -44,7 +44,7 @@ simple_all_pass:skip  ->  skipped: The reason for skipping is this  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-2/2 passed (0 failed)
+1/2 passed (0 broken, 0 failed, 1 skipped)
 EOF
 
     utils_cp_helper simple_all_pass .
@@ -69,7 +69,7 @@ simple_some_fail:pass  ->  passed  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-1/2 passed (1 failed)
+1/2 passed (0 broken, 1 failed, 0 skipped)
 EOF
 
     utils_cp_helper simple_some_fail .
@@ -102,7 +102,7 @@ third:skip  ->  skipped: The reason for skipping is this  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-7/7 passed (0 failed)
+3/7 passed (0 broken, 0 failed, 4 skipped)
 EOF
 
     utils_cp_helper simple_all_pass first
@@ -138,7 +138,7 @@ third:skip  ->  skipped: The reason for skipping is this  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-4/7 passed (3 failed)
+3/7 passed (0 broken, 3 failed, 1 skipped)
 EOF
 
     utils_cp_helper simple_some_fail first
@@ -172,7 +172,7 @@ expect_all_pass:timeout  ->  expected_failure: This times out  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-5/5 passed (0 failed)
+5/5 passed (0 broken, 0 failed, 0 skipped)
 EOF
 # CHECK_STYLE_ENABLE
 
@@ -203,7 +203,7 @@ expect_some_fail:timeout  ->  failed: Test case was expected to hang but it cont
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-1/6 passed (5 failed)
+1/6 passed (0 broken, 5 failed, 0 skipped)
 EOF
 # CHECK_STYLE_ENABLE
 
@@ -231,7 +231,7 @@ bogus_test_cases:pass  ->  passed  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-1/3 passed (2 failed)
+1/3 passed (2 broken, 0 failed, 0 skipped)
 EOF
 # CHECK_STYLE_ENABLE
 
@@ -270,7 +270,7 @@ subdir/simple_some_fail:pass  ->  passed  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-3/4 passed (1 failed)
+2/4 passed (0 broken, 1 failed, 1 skipped)
 EOF
     atf_check -s exit:1 -o file:expout -e empty kyua test
 }
@@ -302,7 +302,7 @@ subdir/simple_all_pass:skip  ->  skipped: The reason for skipping is this  [S.UU
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-2/2 passed (0 failed)
+1/2 passed (0 broken, 0 failed, 1 skipped)
 EOF
 # CHECK_STYLE_ENABLE
     atf_check -s exit:0 -o file:expout -e empty kyua test subdir
@@ -328,7 +328,7 @@ first:skip  ->  skipped: The reason for skipping is this  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-1/1 passed (0 failed)
+0/1 passed (0 broken, 0 failed, 1 skipped)
 EOF
     atf_check -s exit:0 -o file:expout -e empty kyua test first:skip
 }
@@ -354,7 +354,7 @@ second:pass  ->  passed  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-1/2 passed (1 failed)
+1/2 passed (0 broken, 1 failed, 0 skipped)
 EOF
     atf_check -s exit:1 -o file:expout -e empty kyua test second
 }
@@ -402,7 +402,7 @@ subdir/second:pass  ->  passed  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-2/3 passed (1 failed)
+2/3 passed (0 broken, 1 failed, 0 skipped)
 EOF
     atf_check -s exit:1 -o file:expout -e empty kyua test subdir first:pass
 }
@@ -470,7 +470,7 @@ third:pass  ->  passed  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-3/4 passed (1 failed)
+2/4 passed (0 broken, 1 failed, 1 skipped)
 EOF
 
     cat >experr <<EOF
@@ -515,7 +515,7 @@ subdir/fourth:fail  ->  failed: This fails on purpose  [S.UUUs]
 Results file id is $(utils_results_id root)
 Results saved to $(utils_results_file root)
 
-2/3 passed (1 failed)
+1/3 passed (0 broken, 1 failed, 1 skipped)
 EOF
     atf_check -s exit:1 -o file:expout -e empty kyua test \
         -k "$(pwd)/root/Kyuafile" first subdir/fourth:fail
@@ -542,7 +542,7 @@ first:skip  ->  skipped: The reason for skipping is this  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-2/2 passed (0 failed)
+1/2 passed (0 broken, 0 failed, 1 skipped)
 EOF
     CREATE_COOKIE="$(pwd)/cookie"; export CREATE_COOKIE
     atf_check -s exit:0 -o file:expout -e empty kyua test first
@@ -596,6 +596,48 @@ EOF
 }
 
 
+utils_test_case config_unprivileged_user
+config_unprivileged_user_body() {
+    cat >"my-config" <<EOF
+syntax(2)
+unprivileged_user = "nobody"
+EOF
+    cat >Kyuafile <<EOF
+syntax(2)
+atf_test_program{name="config1", test_suite="suite1"}
+EOF
+    utils_cp_helper config config1
+
+    CONFIG_VAR_FILE="$(pwd)/cookie"; export CONFIG_VAR_FILE
+    if [ -f "${CONFIG_VAR_FILE}" ]; then
+        atf_fail "Cookie file already created; test case list may have gotten" \
+            "a bad configuration"
+    fi
+
+    CONFIG_VAR_NAME="unprivileged-user"; export CONFIG_VAR_NAME
+    atf_check -s exit:1 -o ignore -e ignore kyua -c my-config test config1
+    [ -f "${CONFIG_VAR_FILE}" ] || \
+        atf_fail "Cookie file not created; test case list did not get" \
+            "configuration variables"
+    value="$(cat "${CONFIG_VAR_FILE}")"
+    [ "${value}" = "nobody" ] || \
+        atf_fail "Invalid value (${value}) in cookie file; test case list did" \
+            "not get the correct configuration variables"
+
+    rm "${CONFIG_VAR_FILE}"
+
+    CONFIG_VAR_NAME="unprivileged_user"; export CONFIG_VAR_NAME
+    atf_check -s exit:1 -o ignore -e ignore kyua -c my-config test config1
+    [ -f "${CONFIG_VAR_FILE}" ] || \
+        atf_fail "Cookie file not created; test case list did not get" \
+            "configuration variables"
+    value="$(cat "${CONFIG_VAR_FILE}")"
+    [ "${value}" = "nobody" ] || \
+        atf_fail "Invalid value (${value}) in cookie file; test case list did" \
+            "not get the correct configuration variables"
+}
+
+
 utils_test_case store_contents
 store_contents_body() {
     utils_install_stable_test_wrapper
@@ -612,7 +654,7 @@ some-program:pass  ->  passed  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-1/2 passed (1 failed)
+1/2 passed (0 broken, 1 failed, 0 skipped)
 EOF
 
     atf_check -s exit:1 -o file:expout -e empty kyua test
@@ -710,7 +752,7 @@ subdir/third:skip  ->  skipped: The reason for skipping is this  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-6/6 passed (0 failed)
+3/6 passed (0 broken, 0 failed, 3 skipped)
 EOF
 
     mkdir build
@@ -745,7 +787,7 @@ sometest:skip  ->  skipped: The reason for skipping is this  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-2/2 passed (0 failed)
+1/2 passed (0 broken, 0 failed, 1 skipped)
 EOF
     atf_check -s exit:0 -o file:expout -e empty kyua test -k myfile
     atf_check -s exit:0 -o file:expout -e empty kyua test --kyuafile=myfile
@@ -774,7 +816,7 @@ sometest:skip  ->  skipped: The reason for skipping is this  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-2/2 passed (0 failed)
+1/2 passed (0 broken, 0 failed, 1 skipped)
 EOF
     atf_check -s exit:0 -o file:expout -e empty kyua test -k myfile sometest
     cat >expout <<EOF
@@ -784,7 +826,7 @@ sometest:skip  ->  skipped: The reason for skipping is this  [S.UUUs]
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-2/2 passed (0 failed)
+1/2 passed (0 broken, 0 failed, 1 skipped)
 EOF
     atf_check -s exit:0 -o file:expout -e empty kyua test --kyuafile=myfile \
         sometest
@@ -987,7 +1029,7 @@ non_executable:__test_cases_list__  ->  broken: Permission denied to run test pr
 Results file id is $(utils_results_id)
 Results saved to $(utils_results_file)
 
-0/2 passed (2 failed)
+0/2 passed (2 broken, 0 failed, 0 skipped)
 EOF
 # CHECK_STYLE_ENABLE
     atf_check -s exit:1 -o file:expout -e empty kyua test
@@ -1042,6 +1084,7 @@ atf_init_test_cases() {
     atf_add_test_case only_load_used_test_programs
 
     atf_add_test_case config_behavior
+    atf_add_test_case config_unprivileged_user
 
     atf_add_test_case store_contents
     atf_add_test_case results_file__ok

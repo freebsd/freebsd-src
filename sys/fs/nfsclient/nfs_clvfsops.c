@@ -415,7 +415,7 @@ ncl_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 }
 
 /*
- * Mount a remote root fs via. nfs. This depends on the info in the
+ * Mount a remote root fs via nfs. This depends on the info in the
  * nfs_diskless structure that has been filled in properly by some primary
  * bootstrap.
  * It goes something like this:
@@ -1524,12 +1524,14 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 #endif
 
 	NFSCL_DEBUG(3, "in mnt\n");
+	CURVNET_SET(CRED_TO_VNET(cred));
 	clp = NULL;
 	if (mp->mnt_flag & MNT_UPDATE) {
 		nmp = VFSTONFS(mp);
 		printf("%s: MNT_UPDATE is no longer handled here\n", __func__);
 		free(nam, M_SONAME);
 		free(tlscertname, M_NEWNFSMNT);
+		CURVNET_RESTORE();
 		return (0);
 	} else {
 		/* NFS-over-TLS requires that rpctls be functioning. */
@@ -1544,6 +1546,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 			if (error != 0) {
 				free(nam, M_SONAME);
 				free(tlscertname, M_NEWNFSMNT);
+				CURVNET_RESTORE();
 				return (error);
 			}
 		}
@@ -1798,12 +1801,18 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		if (argp->flags & NFSMNT_NFSV3)
 			ncl_fsinfo(nmp, *vpp, cred, td);
 
-		/* Mark if the mount point supports NFSv4 ACLs. */
-		if ((argp->flags & NFSMNT_NFSV4) != 0 && nfsrv_useacl != 0 &&
-		    ret == 0 &&
-		    NFSISSET_ATTRBIT(&nfsva.na_suppattr, NFSATTRBIT_ACL)) {
+		/*
+		 * Mark if the mount point supports NFSv4 ACLs and
+		 * named attributes.
+		 */
+		if ((argp->flags & NFSMNT_NFSV4) != 0) {
 			MNT_ILOCK(mp);
-			mp->mnt_flag |= MNT_NFS4ACLS;
+			if (ret == 0 && nfsrv_useacl != 0 &&
+			    NFSISSET_ATTRBIT(&nfsva.na_suppattr,
+			    NFSATTRBIT_ACL))
+				mp->mnt_flag |= MNT_NFS4ACLS;
+			if (nmp->nm_minorvers > 0)
+				mp->mnt_flag |= MNT_NAMEDATTR;
 			MNT_IUNLOCK(mp);
 		}
 
@@ -1816,6 +1825,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		 */
 		NFSVOPUNLOCK(*vpp);
 		vfs_cache_root_set(mp, *vpp);
+		CURVNET_RESTORE();
 		return (0);
 	}
 	error = EIO;
@@ -1844,6 +1854,7 @@ bad:
 	free(nmp->nm_tlscertname, M_NEWNFSMNT);
 	free(nmp, M_NEWNFSMNT);
 	free(nam, M_SONAME);
+	CURVNET_RESTORE();
 	return (error);
 }
 

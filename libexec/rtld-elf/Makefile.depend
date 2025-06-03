@@ -2,6 +2,7 @@
 
 DIRDEPS = \
 	include \
+	include/ssp \
 	include/xlocale \
 	lib/libc \
 	lib/libcompiler_rt \

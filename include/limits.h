@@ -137,6 +137,10 @@
 
 #define	MB_LEN_MAX		6	/* 31-bit UTF-8 */
 
+#if __POSIX_VISIBLE >= 202405
+#define GETENTROPY_MAX		256
+#endif
+
 #include <sys/limits.h>
 
 #if __POSIX_VISIBLE

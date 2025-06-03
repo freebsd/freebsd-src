@@ -66,10 +66,10 @@ struct pci_conf {
 	struct pcisel	pc_sel;		/* domain+bus+slot+function */
 	u_int8_t	pc_hdr;		/* PCI header type */
 	u_int16_t	pc_subvendor;	/* card vendor ID */
-	u_int16_t	pc_subdevice;	/* card device ID, assigned by 
+	u_int16_t	pc_subdevice;	/* card device ID, assigned by
 					   card vendor */
 	u_int16_t	pc_vendor;	/* chip vendor ID */
-	u_int16_t	pc_device;	/* chip device ID, assigned by 
+	u_int16_t	pc_device;	/* chip device ID, assigned by
 					   chip vendor */
 	u_int8_t	pc_class;	/* chip PCI class */
 	u_int8_t	pc_subclass;	/* chip PCI subclass */

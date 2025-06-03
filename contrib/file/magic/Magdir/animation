@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: animation,v 1.94 2023/06/16 20:06:50 christos Exp $
+# $File: animation,v 1.98 2024/09/01 15:51:51 christos Exp $
 # animation:  file(1) magic for animation/movie formats
 #
 # animation formats
@@ -542,36 +542,36 @@
 >>2	byte&0xF0	!0xF0		MPEG ADTS, layer III, v1
 !:strength +20
 !:mime	audio/mpeg
->2	byte&0xF0	0x10		\b, 32 kbps
->2	byte&0xF0	0x20		\b, 40 kbps
->2	byte&0xF0	0x30		\b, 48 kbps
->2	byte&0xF0	0x40		\b, 56 kbps
->2	byte&0xF0	0x50		\b, 64 kbps
->2	byte&0xF0	0x60		\b, 80 kbps
->2	byte&0xF0	0x70		\b, 96 kbps
->2	byte&0xF0	0x80		\b, 112 kbps
->2	byte&0xF0	0x90		\b, 128 kbps
->2	byte&0xF0	0xA0		\b, 160 kbps
->2	byte&0xF0	0xB0		\b, 192 kbps
->2	byte&0xF0	0xC0		\b, 224 kbps
->2	byte&0xF0	0xD0		\b, 256 kbps
->2	byte&0xF0	0xE0		\b, 320 kbps
+>>>2	byte&0xF0	0x10		\b, 32 kbps
+>>>2	byte&0xF0	0x20		\b, 40 kbps
+>>>2	byte&0xF0	0x30		\b, 48 kbps
+>>>2	byte&0xF0	0x40		\b, 56 kbps
+>>>2	byte&0xF0	0x50		\b, 64 kbps
+>>>2	byte&0xF0	0x60		\b, 80 kbps
+>>>2	byte&0xF0	0x70		\b, 96 kbps
+>>>2	byte&0xF0	0x80		\b, 112 kbps
+>>>2	byte&0xF0	0x90		\b, 128 kbps
+>>>2	byte&0xF0	0xA0		\b, 160 kbps
+>>>2	byte&0xF0	0xB0		\b, 192 kbps
+>>>2	byte&0xF0	0xC0		\b, 224 kbps
+>>>2	byte&0xF0	0xD0		\b, 256 kbps
+>>>2	byte&0xF0	0xE0		\b, 320 kbps
 # timing
->2	byte&0x0C	0x00		\b, 44.1 kHz
->2	byte&0x0C	0x04		\b, 48 kHz
->2	byte&0x0C	0x08		\b, 32 kHz
+>>>2	byte&0x0C	0x00		\b, 44.1 kHz
+>>>2	byte&0x0C	0x04		\b, 48 kHz
+>>>2	byte&0x0C	0x08		\b, 32 kHz
 # channels/options
->3	byte&0xC0	0x00		\b, Stereo
->3	byte&0xC0	0x40		\b, JntStereo
->3	byte&0xC0	0x80		\b, 2x Monaural
->3	byte&0xC0	0xC0		\b, Monaural
-#>1	byte		^0x01		\b, Data Verify
-#>2	byte		&0x02		\b, Packet Pad
-#>2	byte		&0x01		\b, Custom Flag
-#>3	byte		&0x08		\b, Copyrighted
-#>3	byte		&0x04		\b, Original Source
-#>3	byte&0x03	1		\b, NR: 50/15 ms
-#>3	byte&0x03	3		\b, NR: CCIT J.17
+>>>3	byte&0xC0	0x00		\b, Stereo
+>>>3	byte&0xC0	0x40		\b, JntStereo
+>>>3	byte&0xC0	0x80		\b, 2x Monaural
+>>>3	byte&0xC0	0xC0		\b, Monaural
+#>>>1	byte		^0x01		\b, Data Verify
+#>>>2	byte		&0x02		\b, Packet Pad
+#>>>2	byte		&0x01		\b, Custom Flag
+#>>>3	byte		&0x08		\b, Copyrighted
+#>>>3	byte		&0x04		\b, Original Source
+#>>>3	byte&0x03	1		\b, NR: 50/15 ms
+#>>>3	byte&0x03	3		\b, NR: CCIT J.17
 
 # MP2, M1A
 0       beshort&0xFFFE  0xFFFC         MPEG ADTS, layer II, v1
@@ -855,7 +855,7 @@
 # Live MPEG-4 audio streams (instead of RTP FlexMux)
 0       beshort&0xFFE0  0x56E0         MPEG-4 LOAS
 !:mime	audio/x-mp4a-latm
-#>1     beshort&0x1FFF  x              \b, %hu byte packet
+#>1     beshort&0x1FFF  x              \b, %u byte packet
 >3      byte&0xE0       0x40
 >>4     byte&0x3C       0x04           \b, single stream
 >>4     byte&0x3C       0x08           \b, 2 streams
@@ -927,15 +927,12 @@
 #
 # from Oskar Schirmer <schirmer@scara.com> Feb 3, 2001 (ISO 13818.1)
 # syncbyte      8 bit	0x47
-# error_ind     1 bit	-
-# payload_start 1 bit	1
-# priority      1 bit	-
-# PID          13 bit	0x0000
-# scrambling    2 bit	-
-# adaptfld_ctrl 2 bit	1 or 3
-# conti_count   4 bit	-
-0	belong&0xFF5FFF10	0x47400010
->188	byte			0x47		MPEG transport stream data
+# 188 bytes per packet
+0		byte			0x47
+>188	byte			0x47
+>>376	byte			0x47
+>>>564	byte			0x47
+>>>>752	byte			0x47		MPEG transport stream data
 !:mime  video/MP2T
 !:ext	ts
 
@@ -943,8 +940,11 @@
 # From: Alexandre Iooss <erdnaxe@crans.org>
 # URL: https://en.wikipedia.org/wiki/MPEG_transport_stream
 # Note: similar to ISO 13818.1 but with 4 extra bytes per packets
-4	belong&0xFF5FFF10	=0x47400010
->196	byte			=0x47		BDAV MPEG-2 Transport Stream (M2TS)
+4		byte			0x47
+>196	byte			0x47
+>>388	byte			0x47
+>>>580	byte			0x47
+>>>>772	byte			0x47		BDAV MPEG-2 Transport Stream (M2TS)
 !:mime	video/MP2T
 !:ext	m2ts/mts
 
@@ -1204,3 +1204,47 @@
 >12	leshort x	\b, %d
 >14	leshort x	\bx%d
 >24	lelong	>0	\b, %d frames
+
+
+# libplacebo cache file
+# https://libplacebo.org
+0	string	pl_cache	libplacebo cache
+>8	ulelong	x		\b, version %u
+>12	ulelong	=0		\b, empty
+>12	ulelong	=1		\b, 1 entry
+>12	ulelong	>1		\b, %u entries
+
+>4	byte	1		\b, version 3.00.00
+>4	byte	2		\b, version 3.03.00
+>4	byte	3		\b, version 4.00.00
+>4	byte	4		\b, version 4.02.00
+>4	byte	5		\b, version 5.00.00
+
+# live2d: file(1) magic for Live2D Cubism file formats
+# https://www.live2d.com/en/
+0	string/4	MOC3	Live2D Cubism MOC3
+>4	byte	0	\b, SDK version invalid/unknown (%d)
+>4	byte	1	\b, SDK version 3.0.00 - 3.2.07 (%d)
+>4	byte	2	\b, SDK version 3.3.00 - 3.3.03 (%d)
+>4	byte	3	\b, SDK version 4.0.00 - 4.1.05 (%d)
+>4	byte	4	\b, SDK version 4.2.00 - 4.2.02 (%d)
+>4	byte	5	\b, SDK version 5.0.00 (%d)
+>4	byte	>5	\b, SDK version unknown (%d)
+>5	byte	0	\b, little endian
+>5	byte	>0	\b, big endian
+!:mime	application/x-moc3-data
+!:ext	moc3
+
+0	string/4	CAFF	Live2D Cubism archive
+>4	ubyte	x	version %d
+>&0	ubyte	x	\b.%d
+>&1	ubyte	x	\b.%d
+>7	string/4	=----	\b, standard format
+>7	string/4	!----	\b, unknown format (%.4s)
+>11	ubyte	x	version %d
+>&0	ubyte	x	\b.%d
+>&1	ubyte	x	\b.%d
+>14	belong	=0	\b, no obfuscation
+>14	belong	!0	\b, XOR obfuscation key %d
+!:mime	application/x-cubism-archive
+!:ext	cmo3/can3

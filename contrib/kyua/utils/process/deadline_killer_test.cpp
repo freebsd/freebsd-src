@@ -66,7 +66,7 @@ child_sleep(void)
 ATF_TEST_CASE_WITHOUT_HEAD(activation);
 ATF_TEST_CASE_BODY(activation)
 {
-    std::auto_ptr< process::child > child = process::child::fork_capture(
+    std::unique_ptr< process::child > child = process::child::fork_capture(
         child_sleep< 60 >);
 
     datetime::timestamp start = datetime::timestamp::now();
@@ -85,7 +85,7 @@ ATF_TEST_CASE_BODY(activation)
 ATF_TEST_CASE_WITHOUT_HEAD(no_activation);
 ATF_TEST_CASE_BODY(no_activation)
 {
-    std::auto_ptr< process::child > child = process::child::fork_capture(
+    std::unique_ptr< process::child > child = process::child::fork_capture(
         child_sleep< 1 >);
 
     datetime::timestamp start = datetime::timestamp::now();

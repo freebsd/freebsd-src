@@ -1,4 +1,4 @@
-/*	$Id: mansearch.c,v 1.82 2019/07/01 22:56:24 schwarze Exp $ */
+/* $Id: mansearch.c,v 1.84 2023/04/28 19:11:03 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013-2018 Ingo Schwarze <schwarze@openbsd.org>
@@ -220,7 +220,7 @@ mansearch(const struct mansearch *search,
 		if (cur && search->firstmatch)
 			break;
 	}
-	if (res != NULL)
+	if (res != NULL && cur > 1)
 		qsort(*res, cur, sizeof(struct manpage), manpage_compare);
 	if (chdir_status && getcwd_status && chdir(buf) == -1)
 		warn("%s", buf);
@@ -491,7 +491,7 @@ lstlen(const char *cp, size_t sep)
 
 /*
  * Print the NUL-terminated list of NUL-terminated strings
- * into the buffer, seperating strings with sep.
+ * into the buffer, separating strings with sep.
  */
 static void
 lstcat(char *buf, size_t *i, const char *cp, const char *sep)

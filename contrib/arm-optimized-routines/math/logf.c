@@ -1,13 +1,15 @@
 /*
  * Single-precision log function.
  *
- * Copyright (c) 2017-2023, Arm Limited.
+ * Copyright (c) 2017-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include <math.h>
 #include <stdint.h>
 #include "math_config.h"
+#include "test_defs.h"
+#include "test_sig.h"
 
 /*
 LOGF_TABLE_BITS = 4
@@ -77,3 +79,10 @@ logf (float x)
 strong_alias (logf, __logf_finite)
 hidden_alias (logf, __ieee754_logf)
 #endif
+
+TEST_SIG (S, F, 1, log, 0.01, 11.1)
+TEST_ULP (logf, 0.32)
+TEST_ULP_NONNEAREST (logf, 0.5)
+TEST_INTERVAL (logf, 0, 0xffff0000, 10000)
+TEST_INTERVAL (logf, 0x1p-4, 0x1p4, 500000)
+TEST_INTERVAL (logf, 0, inf, 50000)

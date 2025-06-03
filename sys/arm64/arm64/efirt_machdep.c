@@ -50,10 +50,12 @@
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_radix.h>
 
 static vm_object_t obj_1t1_pt;
 static vm_pindex_t efi_1t1_idx;
@@ -63,11 +65,13 @@ static uint64_t efi_ttbr0;
 void
 efi_destroy_1t1_map(void)
 {
+	struct pctrie_iter pages;
 	vm_page_t m;
 
 	if (obj_1t1_pt != NULL) {
+		vm_page_iter_init(&pages, obj_1t1_pt);
 		VM_OBJECT_RLOCK(obj_1t1_pt);
-		TAILQ_FOREACH(m, &obj_1t1_pt->memq, listq)
+		VM_RADIX_FOREACH(m, &pages)
 			m->ref_count = VPRC_OBJREF;
 		vm_wire_sub(obj_1t1_pt->resident_page_count);
 		VM_OBJECT_RUNLOCK(obj_1t1_pt);
@@ -239,6 +243,7 @@ efi_arch_enter(void)
 {
 
 	CRITICAL_ASSERT(curthread);
+	curthread->td_md.md_efirt_dis_pf = vm_fault_disable_pagefaults();
 
 	/*
 	 * Temporarily switch to EFI's page table.  However, we leave curpmap
@@ -269,11 +274,6 @@ efi_arch_leave(void)
 	set_ttbr0(pmap_to_ttbr0(PCPU_GET(curpmap)));
 	if (PCPU_GET(bcast_tlbi_workaround) != 0)
 		invalidate_local_icache();
+	vm_fault_enable_pagefaults(curthread->td_md.md_efirt_dis_pf);
 }
 
-int
-efi_rt_arch_call(struct efirt_callinfo *ec)
-{
-
-	panic("not implemented");
-}

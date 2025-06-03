@@ -38,10 +38,12 @@
 #include <ostream>
 #include <string>
 
+#include "engine/debugger.hpp"
 #include "model/metadata_fwd.hpp"
 #include "model/test_result_fwd.hpp"
 #include "utils/noncopyable.hpp"
 #include "utils/optional_fwd.hpp"
+
 
 namespace model {
 
@@ -70,6 +72,9 @@ public:
     metadata get_metadata(void) const;
     const metadata& get_raw_metadata(void) const;
     utils::optional< test_result > fake_result(void) const;
+
+    void attach_debugger(engine::debugger_ptr) const;
+    engine::debugger_ptr get_debugger() const;
 
     bool operator==(const test_case&) const;
     bool operator!=(const test_case&) const;

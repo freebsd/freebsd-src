@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include "un-namespace.h"
 #include "libc_private.h"
 
@@ -163,6 +164,24 @@ _thr_signal_block_setup(struct pthread *curthread)
 	__sys_sigfastblock(SIGFASTBLOCK_SETPTR, &curthread->fsigblock);
 }
 
+void
+pthread_signals_block_np(void)
+{
+	struct pthread *curthread;
+
+	curthread = _get_curthread();
+	_thr_signal_block(curthread);
+}
+
+void
+pthread_signals_unblock_np(void)
+{
+	struct pthread *curthread;
+
+	curthread = _get_curthread();
+	_thr_signal_unblock(curthread);
+}
+
 int
 _thr_send_sig(struct pthread *thread, int sig)
 {
@@ -185,8 +204,7 @@ thr_remove_thr_signals(const sigset_t *set, sigset_t *newset)
 }
 
 static void
-sigcancel_handler(int sig __unused,
-	siginfo_t *info __unused, ucontext_t *ucp)
+sigcancel_handler(int sig __unused, siginfo_t *info __unused, ucontext_t *ucp)
 {
 	struct pthread *curthread = _get_curthread();
 	int err;
@@ -354,9 +372,11 @@ check_cancel(struct pthread *curthread, ucontext_t *ucp)
 	 *    on getting a signal before it agrees to return.
  	 */
 	if (curthread->cancel_point) {
-		if (curthread->in_sigsuspend && ucp) {
-			SIGADDSET(ucp->uc_sigmask, SIGCANCEL);
-			curthread->unblock_sigcancel = 1;
+		if (curthread->in_sigsuspend) {
+			if (ucp != NULL) {
+				SIGADDSET(ucp->uc_sigmask, SIGCANCEL);
+				curthread->unblock_sigcancel = 1;
+			}
 			_thr_send_sig(curthread, SIGCANCEL);
 		} else
 			thr_wake(curthread->tid);
@@ -365,8 +385,8 @@ check_cancel(struct pthread *curthread, ucontext_t *ucp)
 		 * asynchronous cancellation mode, act upon
 		 * immediately.
 		 */
-		_pthread_exit_mask(PTHREAD_CANCELED,
-		    ucp? &ucp->uc_sigmask : NULL);
+		_pthread_exit_mask(PTHREAD_CANCELED, ucp != NULL ?
+		    &ucp->uc_sigmask : NULL);
 	}
 }
 
@@ -405,9 +425,8 @@ check_suspend(struct pthread *curthread)
 {
 	uint32_t cycle;
 
-	if (__predict_true((curthread->flags &
-		(THR_FLAGS_NEED_SUSPEND | THR_FLAGS_SUSPENDED))
-		!= THR_FLAGS_NEED_SUSPEND))
+	if (__predict_true((curthread->flags & (THR_FLAGS_NEED_SUSPEND |
+	    THR_FLAGS_SUSPENDED)) != THR_FLAGS_NEED_SUSPEND))
 		return;
 	if (curthread == _single_thread)
 		return;
@@ -664,7 +683,7 @@ _thr_sigmask(int how, const sigset_t *set, sigset_t *oset)
 }
 
 int
-_sigsuspend(const sigset_t * set)
+_sigsuspend(const sigset_t *set)
 {
 	sigset_t newset;
 
@@ -672,7 +691,7 @@ _sigsuspend(const sigset_t * set)
 }
 
 int
-__thr_sigsuspend(const sigset_t * set)
+__thr_sigsuspend(const sigset_t *set)
 {
 	struct pthread *curthread;
 	sigset_t newset;
@@ -698,7 +717,7 @@ __thr_sigsuspend(const sigset_t * set)
 
 int
 _sigtimedwait(const sigset_t *set, siginfo_t *info,
-	const struct timespec * timeout)
+    const struct timespec *timeout)
 {
 	sigset_t newset;
 
@@ -713,7 +732,7 @@ _sigtimedwait(const sigset_t *set, siginfo_t *info,
  */
 int
 __thr_sigtimedwait(const sigset_t *set, siginfo_t *info,
-    const struct timespec * timeout)
+    const struct timespec *timeout)
 {
 	struct pthread	*curthread = _get_curthread();
 	sigset_t newset;

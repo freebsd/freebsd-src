@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -33,6 +34,7 @@
  * Copyright (c) 2019, Klara Inc.
  * Copyright (c) 2019, Allan Jude
  * Copyright (c) 2022 Hewlett Packard Enterprise Development LP.
+ * Copyright (c) 2025, Rob Norris <robn@despairlabs.com>
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -66,6 +68,8 @@
 #include "zfs_namecheck.h"
 #include <sys/vdev_impl.h>
 #include <sys/arc.h>
+#include <cityhash.h>
+#include <sys/cred.h>
 
 /*
  * Needed to close a window in dnode_move() that allows the objset to be freed
@@ -351,6 +355,20 @@ smallblk_changed_cb(void *arg, uint64_t newval)
 }
 
 static void
+direct_changed_cb(void *arg, uint64_t newval)
+{
+	objset_t *os = arg;
+
+	/*
+	 * Inheritance and range checking should have been done by now.
+	 */
+	ASSERT(newval == ZFS_DIRECT_DISABLED || newval == ZFS_DIRECT_STANDARD ||
+	    newval == ZFS_DIRECT_ALWAYS);
+
+	os->os_direct = newval;
+}
+
+static void
 logbias_changed_cb(void *arg, uint64_t newval)
 {
 	objset_t *os = arg;
@@ -390,27 +408,13 @@ dmu_objset_byteswap(void *buf, size_t size)
 }
 
 /*
- * The hash is a CRC-based hash of the objset_t pointer and the object number.
+ * Runs cityhash on the objset_t pointer and the object number.
  */
 static uint64_t
 dnode_hash(const objset_t *os, uint64_t obj)
 {
 	uintptr_t osv = (uintptr_t)os;
-	uint64_t crc = -1ULL;
-
-	ASSERT(zfs_crc64_table[128] == ZFS_CRC64_POLY);
-	/*
-	 * The lower 11 bits of the pointer don't have much entropy, because
-	 * the objset_t is more than 1KB long and so likely aligned to 2KB.
-	 */
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (osv >> 11)) & 0xFF];
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (obj >> 0)) & 0xFF];
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (obj >> 8)) & 0xFF];
-	crc = (crc >> 8) ^ zfs_crc64_table[(crc ^ (obj >> 16)) & 0xFF];
-
-	crc ^= (osv>>14) ^ (obj>>24);
-
-	return (crc);
+	return (cityhash2((uint64_t)osv, obj));
 }
 
 static unsigned int
@@ -633,6 +637,11 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 				    ZFS_PROP_SPECIAL_SMALL_BLOCKS),
 				    smallblk_changed_cb, os);
 			}
+			if (err == 0) {
+				err = dsl_prop_register(ds,
+				    zfs_prop_to_name(ZFS_PROP_DIRECT),
+				    direct_changed_cb, os);
+			}
 		}
 		if (err != 0) {
 			arc_buf_destroy(os->os_phys_buf, &os->os_phys_buf);
@@ -756,7 +765,7 @@ dmu_objset_hold_flags(const char *name, boolean_t decrypt, const void *tag,
 
 	err = dmu_objset_from_ds(ds, osp);
 	if (err != 0) {
-		dsl_dataset_rele(ds, tag);
+		dsl_dataset_rele_flags(ds, flags, tag);
 		dsl_pool_rele(dp, tag);
 	}
 
@@ -1172,7 +1181,6 @@ dmu_objset_create_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 typedef struct dmu_objset_create_arg {
 	const char *doca_name;
 	cred_t *doca_cred;
-	proc_t *doca_proc;
 	void (*doca_userfunc)(objset_t *os, void *arg,
 	    cred_t *cr, dmu_tx_t *tx);
 	void *doca_userarg;
@@ -1216,7 +1224,7 @@ dmu_objset_create_check(void *arg, dmu_tx_t *tx)
 	}
 
 	error = dsl_fs_ss_limit_check(pdd, 1, ZFS_PROP_FILESYSTEM_LIMIT, NULL,
-	    doca->doca_cred, doca->doca_proc);
+	    doca->doca_cred);
 	if (error != 0) {
 		dsl_dir_rele(pdd, FTAG);
 		return (error);
@@ -1343,9 +1351,11 @@ dmu_objset_create(const char *name, dmu_objset_type_t type, uint64_t flags,
 	dmu_objset_create_arg_t doca;
 	dsl_crypto_params_t tmp_dcp = { 0 };
 
+	cred_t *cr = CRED();
+	crhold(cr);
+
 	doca.doca_name = name;
-	doca.doca_cred = CRED();
-	doca.doca_proc = curproc;
+	doca.doca_cred = cr;
 	doca.doca_flags = flags;
 	doca.doca_userfunc = func;
 	doca.doca_userarg = arg;
@@ -1367,6 +1377,9 @@ dmu_objset_create(const char *name, dmu_objset_type_t type, uint64_t flags,
 
 	if (rv == 0)
 		zvol_create_minor(name);
+
+	crfree(cr);
+
 	return (rv);
 }
 
@@ -1374,7 +1387,6 @@ typedef struct dmu_objset_clone_arg {
 	const char *doca_clone;
 	const char *doca_origin;
 	cred_t *doca_cred;
-	proc_t *doca_proc;
 } dmu_objset_clone_arg_t;
 
 static int
@@ -1402,7 +1414,7 @@ dmu_objset_clone_check(void *arg, dmu_tx_t *tx)
 	}
 
 	error = dsl_fs_ss_limit_check(pdd, 1, ZFS_PROP_FILESYSTEM_LIMIT, NULL,
-	    doca->doca_cred, doca->doca_proc);
+	    doca->doca_cred);
 	if (error != 0) {
 		dsl_dir_rele(pdd, FTAG);
 		return (SET_ERROR(EDQUOT));
@@ -1458,10 +1470,12 @@ dmu_objset_clone(const char *clone, const char *origin)
 {
 	dmu_objset_clone_arg_t doca;
 
+	cred_t *cr = CRED();
+	crhold(cr);
+
 	doca.doca_clone = clone;
 	doca.doca_origin = origin;
-	doca.doca_cred = CRED();
-	doca.doca_proc = curproc;
+	doca.doca_cred = cr;
 
 	int rv = dsl_sync_task(clone,
 	    dmu_objset_clone_check, dmu_objset_clone_sync, &doca,
@@ -1469,6 +1483,8 @@ dmu_objset_clone(const char *clone, const char *origin)
 
 	if (rv == 0)
 		zvol_create_minor(clone);
+
+	crfree(cr);
 
 	return (rv);
 }
@@ -2256,8 +2272,10 @@ dmu_objset_userquota_find_data(dmu_buf_impl_t *db, dmu_tx_t *tx)
 	dbuf_dirty_record_t *dr;
 	void *data;
 
-	if (db->db_dirtycnt == 0)
+	if (db->db_dirtycnt == 0) {
+		ASSERT(MUTEX_HELD(&db->db_mtx));
 		return (db->db.db_data);  /* Nothing is changing */
+	}
 
 	dr = dbuf_find_dirty_eq(db, tx->tx_txg);
 
@@ -2314,12 +2332,11 @@ dmu_objset_userquota_get_ids(dnode_t *dn, boolean_t before, dmu_tx_t *tx)
 			data = DN_BONUS(dn->dn_phys);
 		}
 	} else if (dn->dn_bonuslen == 0 && dn->dn_bonustype == DMU_OT_SA) {
-			int rf = 0;
+			dmu_flags_t rf = DB_RF_MUST_SUCCEED;
 
 			if (RW_WRITE_HELD(&dn->dn_struct_rwlock))
 				rf |= DB_RF_HAVESTRUCT;
-			error = dmu_spill_hold_by_dnode(dn,
-			    rf | DB_RF_MUST_SUCCEED,
+			error = dmu_spill_hold_by_dnode(dn, rf,
 			    FTAG, (dmu_buf_t **)&db);
 			ASSERT(error == 0);
 			mutex_enter(&db->db_mtx);
@@ -2445,7 +2462,7 @@ dmu_objset_space_upgrade(objset_t *os)
 			continue;
 		tx = dmu_tx_create(os);
 		dmu_tx_hold_bonus(tx, obj);
-		objerr = dmu_tx_assign(tx, TXG_WAIT);
+		objerr = dmu_tx_assign(tx, DMU_TX_WAIT);
 		if (objerr != 0) {
 			dmu_buf_rele(db, FTAG);
 			dmu_tx_abort(tx);
@@ -2615,35 +2632,39 @@ dmu_snapshot_list_next(objset_t *os, int namelen, char *name,
 {
 	dsl_dataset_t *ds = os->os_dsl_dataset;
 	zap_cursor_t cursor;
-	zap_attribute_t attr;
+	zap_attribute_t *attr;
 
 	ASSERT(dsl_pool_config_held(dmu_objset_pool(os)));
 
 	if (dsl_dataset_phys(ds)->ds_snapnames_zapobj == 0)
 		return (SET_ERROR(ENOENT));
 
+	attr = zap_attribute_alloc();
 	zap_cursor_init_serialized(&cursor,
 	    ds->ds_dir->dd_pool->dp_meta_objset,
 	    dsl_dataset_phys(ds)->ds_snapnames_zapobj, *offp);
 
-	if (zap_cursor_retrieve(&cursor, &attr) != 0) {
+	if (zap_cursor_retrieve(&cursor, attr) != 0) {
 		zap_cursor_fini(&cursor);
+		zap_attribute_free(attr);
 		return (SET_ERROR(ENOENT));
 	}
 
-	if (strlen(attr.za_name) + 1 > namelen) {
+	if (strlen(attr->za_name) + 1 > namelen) {
 		zap_cursor_fini(&cursor);
+		zap_attribute_free(attr);
 		return (SET_ERROR(ENAMETOOLONG));
 	}
 
-	(void) strlcpy(name, attr.za_name, namelen);
+	(void) strlcpy(name, attr->za_name, namelen);
 	if (idp)
-		*idp = attr.za_first_integer;
+		*idp = attr->za_first_integer;
 	if (case_conflict)
-		*case_conflict = attr.za_normalization_conflict;
+		*case_conflict = attr->za_normalization_conflict;
 	zap_cursor_advance(&cursor);
 	*offp = zap_cursor_serialize(&cursor);
 	zap_cursor_fini(&cursor);
+	zap_attribute_free(attr);
 
 	return (0);
 }
@@ -2660,33 +2681,37 @@ dmu_dir_list_next(objset_t *os, int namelen, char *name,
 {
 	dsl_dir_t *dd = os->os_dsl_dataset->ds_dir;
 	zap_cursor_t cursor;
-	zap_attribute_t attr;
+	zap_attribute_t *attr;
 
 	/* there is no next dir on a snapshot! */
 	if (os->os_dsl_dataset->ds_object !=
 	    dsl_dir_phys(dd)->dd_head_dataset_obj)
 		return (SET_ERROR(ENOENT));
 
+	attr = zap_attribute_alloc();
 	zap_cursor_init_serialized(&cursor,
 	    dd->dd_pool->dp_meta_objset,
 	    dsl_dir_phys(dd)->dd_child_dir_zapobj, *offp);
 
-	if (zap_cursor_retrieve(&cursor, &attr) != 0) {
+	if (zap_cursor_retrieve(&cursor, attr) != 0) {
 		zap_cursor_fini(&cursor);
+		zap_attribute_free(attr);
 		return (SET_ERROR(ENOENT));
 	}
 
-	if (strlen(attr.za_name) + 1 > namelen) {
+	if (strlen(attr->za_name) + 1 > namelen) {
 		zap_cursor_fini(&cursor);
+		zap_attribute_free(attr);
 		return (SET_ERROR(ENAMETOOLONG));
 	}
 
-	(void) strlcpy(name, attr.za_name, namelen);
+	(void) strlcpy(name, attr->za_name, namelen);
 	if (idp)
-		*idp = attr.za_first_integer;
+		*idp = attr->za_first_integer;
 	zap_cursor_advance(&cursor);
 	*offp = zap_cursor_serialize(&cursor);
 	zap_cursor_fini(&cursor);
+	zap_attribute_free(attr);
 
 	return (0);
 }
@@ -2734,7 +2759,7 @@ dmu_objset_find_dp_impl(dmu_objset_find_ctx_t *dcp)
 	}
 
 	thisobj = dsl_dir_phys(dd)->dd_head_dataset_obj;
-	attr = kmem_alloc(sizeof (zap_attribute_t), KM_SLEEP);
+	attr = zap_attribute_alloc();
 
 	/*
 	 * Iterate over all children.
@@ -2795,7 +2820,7 @@ dmu_objset_find_dp_impl(dmu_objset_find_ctx_t *dcp)
 		}
 	}
 
-	kmem_free(attr, sizeof (zap_attribute_t));
+	zap_attribute_free(attr);
 
 	if (err != 0) {
 		dsl_dir_rele(dd, FTAG);
@@ -2969,7 +2994,7 @@ dmu_objset_find_impl(spa_t *spa, const char *name,
 	}
 
 	thisobj = dsl_dir_phys(dd)->dd_head_dataset_obj;
-	attr = kmem_alloc(sizeof (zap_attribute_t), KM_SLEEP);
+	attr = zap_attribute_alloc();
 
 	/*
 	 * Iterate over all children.
@@ -2997,7 +3022,7 @@ dmu_objset_find_impl(spa_t *spa, const char *name,
 		if (err != 0) {
 			dsl_dir_rele(dd, FTAG);
 			dsl_pool_config_exit(dp, FTAG);
-			kmem_free(attr, sizeof (zap_attribute_t));
+			zap_attribute_free(attr);
 			return (err);
 		}
 	}
@@ -3035,7 +3060,7 @@ dmu_objset_find_impl(spa_t *spa, const char *name,
 	}
 
 	dsl_dir_rele(dd, FTAG);
-	kmem_free(attr, sizeof (zap_attribute_t));
+	zap_attribute_free(attr);
 	dsl_pool_config_exit(dp, FTAG);
 
 	if (err != 0)

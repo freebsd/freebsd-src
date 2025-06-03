@@ -1365,7 +1365,7 @@ sta_roam_check(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	/* NB: the most up to date rssi is in the node, not the scan cache */
 	curRssi = ic->ic_node_getrssi(ni);
 	if (ucastRate == IEEE80211_FIXED_RATE_NONE) {
-		curRate = ni->ni_txrate;
+		curRate = ieee80211_node_get_txrate_dot11rate(ni);
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ROAM,
 		    "%s: currssi %d currate %u roamrssi %d roamrate %u\n",
 		    __func__, curRssi, curRate, roamRssi, roamRate);

@@ -483,7 +483,7 @@ sfxge_lro_merge(struct sfxge_lro_state *st, struct sfxge_lro_conn *c,
 		iph->ip6_plen += mbuf->m_len;
 		c_th = (struct tcphdr *)(iph + 1);
 	}
-	c_th->th_flags |= (th->th_flags & TH_PUSH);
+	tcp_set_flags(c_th, tcp_get_flags(c_th) | (tcp_get_flags(th) & TH_PUSH));
 	c->th_last = th;
 	++st->n_merges;
 
@@ -545,7 +545,7 @@ sfxge_lro_try_merge(struct sfxge_rxq *rxq, struct sfxge_lro_conn *c)
 		       hdr_length);
 	th_seq = ntohl(th->th_seq);
 	dont_merge = ((data_length <= 0)
-		      | (th->th_flags & (TH_URG | TH_SYN | TH_RST | TH_FIN)));
+		      | (tcp_get_flags(th) & (TH_URG | TH_SYN | TH_RST | TH_FIN)));
 
 	/* Check for options other than aligned timestamp. */
 	if (th->th_off != 5) {
@@ -592,7 +592,7 @@ sfxge_lro_try_merge(struct sfxge_rxq *rxq, struct sfxge_lro_conn *c)
 	if (__predict_false(dont_merge)) {
 		if (c->mbuf != NULL)
 			sfxge_lro_deliver(&rxq->lro, c);
-		if (th->th_flags & (TH_FIN | TH_RST)) {
+		if (tcp_get_flags(th) & (TH_FIN | TH_RST)) {
 			++rxq->lro.n_drop_closed;
 			sfxge_lro_drop(rxq, c);
 			return (0);

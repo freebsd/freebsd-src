@@ -2571,5 +2571,5 @@ static moduledata_t g_raid_mod = {
 	g_modevent,
 	&g_raid_class
 };
-DECLARE_MODULE(g_raid, g_raid_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
+DECLARE_MODULE(g_raid, g_raid_mod, SI_SUB_DRIVERS, SI_ORDER_FOURTH);
 MODULE_VERSION(geom_raid, 0);

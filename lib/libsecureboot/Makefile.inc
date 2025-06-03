@@ -77,11 +77,15 @@ VE_SIGNATURE_EXT_LIST?= sig
 # needs to be yes for FIPS 140-2 compliance
 VE_SELF_TESTS?= no
 
+CFLAGS+= -I.
+
+.if ${VE_SIGNATURE_EXT_LIST:M*sig} != ""
 # this is what we use as our trust anchor
-CFLAGS+= -I. -DTRUST_ANCHOR_STR=ta_PEM
+CFLAGS+= -DTRUST_ANCHOR_STR=ta_PEM
 
 .if ${VE_SELF_TESTS} != "no"
 XCFLAGS.vets+= -DVERIFY_CERTS_STR=vc_PEM
+.endif
 .endif
 
 # clean these up

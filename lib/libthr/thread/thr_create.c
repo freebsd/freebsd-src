@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/rtprio.h>
 #include <sys/signalvar.h>
+#include <sys/exterrvar.h>
 #include <errno.h>
 #include <link.h>
 #include <stdlib.h>
@@ -146,7 +147,7 @@ _pthread_create(pthread_t * __restrict thread,
 		_thr_stack_fix_protection(new_thread);
 
 	/* Return thread pointer eariler so that new thread can use it. */
-	(*thread) = new_thread;
+	*thread = new_thread;
 	if (SHOULD_REPORT_EVENT(curthread, TD_CREATE) || cpusetp != NULL) {
 		THR_THREAD_LOCK(curthread, new_thread);
 		locked = 1;
@@ -160,7 +161,7 @@ _pthread_create(pthread_t * __restrict thread,
 	param.tls_size = sizeof(struct tcb);
 	param.child_tid = &new_thread->tid;
 	param.parent_tid = &new_thread->tid;
-	param.flags = 0;
+	param.flags = THR_C_RUNTIME;
 	if (new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		param.flags |= THR_SYSTEM_SCOPE;
 	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED)
@@ -226,8 +227,8 @@ _pthread_create(pthread_t * __restrict thread,
 		THR_THREAD_UNLOCK(curthread, new_thread);
 	}
 out:
-	if (ret)
-		(*thread) = 0;
+	if (ret != 0)
+		*thread = NULL;
 	return (ret);
 }
 
@@ -284,6 +285,9 @@ thread_start(struct pthread *curthread)
 	curthread->unwind_stackend = (char *)curthread->attr.stackaddr_attr +
 		curthread->attr.stacksize_attr;
 #endif
+
+	curthread->uexterr.ver = UEXTERROR_VER;
+	exterrctl(EXTERRCTL_ENABLE, 0, &curthread->uexterr);
 
 	/* Run the current thread's start routine with argument: */
 	_pthread_exit(curthread->start_routine(curthread->arg));

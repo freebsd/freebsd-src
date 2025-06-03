@@ -136,7 +136,7 @@ execv(const char *name, char * const *argv)
 int
 execvp(const char *name, char * const *argv)
 {
-	return (execvpe(name, argv, environ));
+	return (__libc_execvpe(name, argv, environ));
 }
 
 static int
@@ -288,7 +288,7 @@ execvP(const char *name, const char *path, char * const argv[])
 }
 
 int
-execvpe(const char *name, char * const argv[], char * const envp[])
+__libc_execvpe(const char *name, char * const argv[], char * const envp[])
 {
 	const char *path;
 
@@ -298,3 +298,5 @@ execvpe(const char *name, char * const argv[], char * const envp[])
 
 	return (execvPe(name, path, argv, envp));
 }
+
+__weak_reference(__libc_execvpe, execvpe);

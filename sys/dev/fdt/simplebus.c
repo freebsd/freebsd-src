@@ -182,19 +182,25 @@ simplebus_attach(device_t dev)
 	if (rv != 0)
 		return (rv);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 int
 simplebus_detach(device_t dev)
 {
 	struct		simplebus_softc *sc;
+	int	rv;
+
+	rv = bus_generic_detach(dev);
+	if (rv != 0)
+		return (rv);
 
 	sc = device_get_softc(dev);
 	if (sc->ranges != NULL)
 		free(sc->ranges, M_DEVBUF);
 
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 void
@@ -454,9 +460,6 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		end = rle->end;
 		count = rle->count;
         }
-
-	if (type == SYS_RES_IOPORT)
-		type = SYS_RES_MEMORY;
 
 	if (type == SYS_RES_MEMORY) {
 		/* Remap through ranges property */

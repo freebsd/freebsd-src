@@ -294,8 +294,9 @@ _db_show_sta(const struct ieee80211_node *ni)
 	db_printf("\thtcap %b htparam 0x%x htctlchan %u ht2ndchan %u\n",
 		ni->ni_htcap, IEEE80211_HTCAP_BITS,
 		ni->ni_htparam, ni->ni_htctlchan, ni->ni_ht2ndchan);
-	db_printf("\thtopmode 0x%x htstbc 0x%x chw %u\n",
-		ni->ni_htopmode, ni->ni_htstbc, ni->ni_chw);
+	db_printf("\thtopmode 0x%x htstbc 0x%x chw %d (%s)\n",
+		ni->ni_htopmode, ni->ni_htstbc,
+		ni->ni_chw, ieee80211_ni_chw_to_str(ni->ni_chw));
 
 	/* XXX ampdu state */
 	for (i = 0; i < WME_NUM_TID; i++)
@@ -305,8 +306,9 @@ _db_show_sta(const struct ieee80211_node *ni)
 		if (ni->ni_rx_ampdu[i].rxa_flags)
 			_db_show_rxampdu("\t", i, &ni->ni_rx_ampdu[i]);
 
-	db_printf("\tinact %u inact_reload %u txrate %u\n",
-		ni->ni_inact, ni->ni_inact_reload, ni->ni_txrate);
+	db_printf("\tinact %u inact_reload %u txrate type %d rate %u\n",
+		ni->ni_inact, ni->ni_inact_reload, ni->ni_txrate.type,
+		ni->ni_txrate.dot11rate);
 #ifdef IEEE80211_SUPPORT_MESH
 	_db_show_ssid("\tmeshid ", 0, ni->ni_meshidlen, ni->ni_meshid);
 	db_printf(" mlstate %b mllid 0x%x mlpid 0x%x mlrcnt %u mltval %u\n",
@@ -315,9 +317,9 @@ _db_show_sta(const struct ieee80211_node *ni)
 #endif
 
 	/* VHT state */
-	db_printf("\tvhtcap %b vht_basicmcs %#06x vht_pad2 %#06x\n",
+	db_printf("\tvhtcap %b vht_basicmcs %#06x vht_tx_map %#06x\n",
 	    ni->ni_vhtcap, IEEE80211_VHTCAP_BITS,
-	    ni->ni_vht_basicmcs, ni->ni_vht_pad2);
+	    ni->ni_vht_basicmcs, ni->ni_vht_tx_map);
 	db_printf("\tvht_mcsinfo: { rx_mcs_map %#06x rx_highest %#06x "
 	    "tx_mcs_map %#06x tx_highest %#06x }\n",
 	    ni->ni_vht_mcsinfo.rx_mcs_map, ni->ni_vht_mcsinfo.rx_highest,
@@ -939,6 +941,9 @@ _db_show_key(const char *tag, int ix, const struct ieee80211_key *wk)
 		break;
 	case IEEE80211_CIPHER_CKIP:
 		db_printf(" CKIP %u:%u-bit", wk->wk_keyix, 8*keylen);
+		break;
+	case IEEE80211_CIPHER_AES_GCM_128:
+		db_printf(" AES-GCM %u:%u-bit", wk->wk_keyix, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_NONE:
 		db_printf(" NULL %u:%u-bit", wk->wk_keyix, 8*keylen);

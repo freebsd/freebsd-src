@@ -2,17 +2,25 @@ name: C/C++ CI self-hosted
 
 on:
   push:
-    paths: [ '**.c', '**.h', '**.m4', '**.sh', '.github/**', '**/Makefile.in', 'configure.ac' ]
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '**/Makefile.in', 'configure.ac', '.github/configs', '.github/workflows/selfhosted.yml' ]
 
 jobs:
   selfhosted:
+    name: "${{ matrix.target }} ${{ matrix.config }}"
     if: github.repository == 'openssh/openssh-portable-selfhosted'
     runs-on: ${{ matrix.host }}
     timeout-minutes: 600
     env:
+      DEBUG_ACTIONS: false
       HOST: ${{ matrix.host }}
       TARGET_HOST: ${{ matrix.target }}
       TARGET_CONFIG: ${{ matrix.config }}
+      TARGET_DOMAIN: ${{ startsWith(matrix.host, 'libvirt') && format('{0}-{1}-{2}', matrix.target, matrix.config, github.run_id) || matrix.target }}
+      EPHEMERAL: ${{ startsWith(matrix.host, 'libvirt') }}
+      PERSISTENT: ${{ startsWith(matrix.host, 'persist') }}
+      REMOTE: ${{ startsWith(matrix.host, 'remote') }}
+      VM: ${{ startsWith(matrix.host, 'libvirt') || startsWith(matrix.host, 'persist') }}
+      SSHFS: ${{ startsWith(matrix.host, 'libvirt') || startsWith(matrix.host, 'persist') || startsWith(matrix.host, 'remote') }}
     strategy:
       fail-fast: false
       # We use a matrix in two parts: firstly all of the VMs are tested with the
@@ -44,6 +52,7 @@ jobs:
           - obsd74
           - obsdsnap
           - obsdsnap-i386
+          - omnios
           - openindiana
           - ubuntu-2204
         config:
@@ -67,6 +76,7 @@ jobs:
           - { target: dfly58, config: pam, host: libvirt }
           - { target: dfly60, config: pam, host: libvirt }
           - { target: dfly62, config: pam, host: libvirt }
+          - { target: dfly64, config: pam, host: libvirt }
           - { target: fbsd10, config: pam, host: libvirt }
           - { target: fbsd12, config: pam, host: libvirt }
           - { target: fbsd13, config: pam, host: libvirt }
@@ -74,34 +84,47 @@ jobs:
           - { target: nbsd8,  config: pam, host: libvirt }
           - { target: nbsd9,  config: pam, host: libvirt }
           - { target: nbsd10, config: pam, host: libvirt }
+          - { target: omnios, config: pam, host: libvirt }
+          # ARM64 VMs
+          - { target: obsd-arm64, config: default, host: libvirt-arm64 }
           # VMs with persistent disks that have their own runner.
-          - { target: win10, config: default, host: win10 }
-          - { target: win10, config: cygwin-release, host: win10 }
-          # Physical hosts, with either native runners or remote via ssh.
+          - { target: win10, config: default,        host: persist-win10 }
+          - { target: win10, config: cygwin-release, host: persist-win10 }
+          # Physical hosts with native runners.
           - { target: ARM, config: default, host: ARM }
           - { target: ARM64, config: default, host: ARM64 }
           - { target: ARM64, config: pam, host: ARM64 }
-          - { target: debian-riscv64, config: default, host: debian-riscv64 }
-          - { target: obsd-arm64, config: default, host: obsd-arm64 }
-          - { target: openwrt-mips, config: default, host: openwrt-mips }
-          - { target: openwrt-mipsel, config: default, host: openwrt-mipsel }
+          # Physical hosts with remote runners.
+          - { target: debian-riscv64, config: default, host: remote-debian-riscv64 }
+
+          - { target: openwrt-mips, config: default, host: remote-openwrt-mips }
+          - { target: openwrt-mipsel, config: default, host: remote-openwrt-mipsel }
     steps:
-    - name: shutdown VM if running
-      run: vmshutdown
+    - name: unmount stale workspace
+      if: env.SSHFS == 'true'
+      run: fusermount -u ${GITHUB_WORKSPACE} || true
       working-directory: ${{ runner.temp }}
+    - name: shutdown VM if running
+      if: env.VM == 'true'
+      run: vmshutdown
     - uses: actions/checkout@main
     - name: autoreconf
       run: autoreconf
     - name: startup VM
+      if: env.VM == 'true'
       run: vmstartup
+      working-directory: ${{ runner.temp }}
+    - name: copy and mount workspace
+      if: env.SSHFS == 'true'
+      run: sshfs_mount
       working-directory: ${{ runner.temp }}
     - name: configure
       run: vmrun ./.github/configure.sh ${{ matrix.config }}
-    - name: save config
-      uses: actions/upload-artifact@main
-      with:
-        name: ${{ matrix.target }}-${{ matrix.config }}-config
-        path: config.h
+#    - name: save config
+#      uses: actions/upload-artifact@main
+#      with:
+#        name: ${{ matrix.target }}-${{ matrix.config }}-config
+#        path: config.h
     - name: make clean
       run: vmrun make clean
     - name: make
@@ -120,7 +143,10 @@ jobs:
           regress/*.log
           regress/log/*
           regress/valgrind-out/
-    - name: shutdown VM
-      if: always()
-      run: vmshutdown
+    - name: unmount workspace
+      if: always() && env.SSHFS == 'true'
+      run: fusermount -u ${GITHUB_WORKSPACE} || true
       working-directory: ${{ runner.temp }}
+    - name: shutdown VM
+      if: always() && env.VM == 'true'
+      run: vmshutdown

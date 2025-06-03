@@ -31,10 +31,10 @@ Revision History
 //
 #define BIT63   0x8000000000000000
 
-#define PLATFORM_IOBASE_ADDRESS   (0xffffc000000 | BIT63)                                               
+#define PLATFORM_IOBASE_ADDRESS   (0xffffc000000 | BIT63)
 #define PORT_TO_MEMD(_Port) (PLATFORM_IOBASE_ADDRESS | ( ( ( (_Port) & 0xfffc) << 10 ) | ( (_Port) & 0x0fff) ) )
-                                                                           
-//                                                                  
+
+//
 // Macro's with casts make this much easier to use and read.
 //
 #define PORT_TO_MEM8D(_Port)  (*(UINT8  *)(PORT_TO_MEMD(_Port)))
@@ -45,7 +45,7 @@ Revision History
 
 #define EFIERR(a)           (0x8000000000000000 | a)
 #define EFI_ERROR_MASK      0x8000000000000000
-#define EFIERR_OEM(a)       (0xc000000000000000 | a)      
+#define EFIERR_OEM(a)       (0xc000000000000000 | a)
 
 #define BAD_POINTER         0xFBFBFBFBFBFBFBFB
 #define MAX_ADDRESS         0xFFFFFFFFFFFFFFFF
@@ -77,14 +77,14 @@ Revision History
 // BOOTSERVICE - prototype for implementation of a boot service interface
 // RUNTIMESERVICE - prototype for implementation of a runtime service interface
 // RUNTIMEFUNCTION - prototype for implementation of a runtime function that is not a service
-// RUNTIME_CODE - pragma macro for declaring runtime code    
+// RUNTIME_CODE - pragma macro for declaring runtime code
 //
 
-#ifndef EFIAPI                  // Forces EFI calling conventions reguardless of compiler options 
+#ifndef EFIAPI                  // Forces EFI calling conventions reguardless of compiler options
     #ifdef _MSC_EXTENSIONS
-        #define EFIAPI __cdecl  // Force C calling convention for Microsoft C compiler 
+        #define EFIAPI __cdecl  // Force C calling convention for Microsoft C compiler
     #else
-        #define EFIAPI          // Substitute expresion to force C calling convention 
+        #define EFIAPI          // Substitute expresion to force C calling convention
     #endif
 #endif
 
@@ -101,7 +101,7 @@ Revision History
 //
 // BugBug: Need to find out if this is portable across compilers.
 //
-void __mfa (void);                       
+void __mfa (void);
 #define MEMORY_FENCE()    __mfa()
 
 #ifdef EFI_NO_INTERFACE_DECL

@@ -6,8 +6,8 @@
  */
 
 /dts-v1/;
+#include "rk3399.dtsi"
 #include "rk3399-rock-pi-4.dtsi"
-#include "rk3399-opp.dtsi"
 
 / {
 	model = "Radxa ROCK Pi 4C";
@@ -49,7 +49,7 @@
 	flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0>;
-		spi-max-frequency = <10000000>;
+		spi-max-frequency = <108000000>;
 	};
 };
 

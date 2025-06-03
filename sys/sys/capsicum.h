@@ -201,6 +201,9 @@
 /* Allows for renameat(2) (target directory descriptor). */
 #define	CAP_RENAMEAT_TARGET	(CAP_LOOKUP | 0x0000040000000000ULL)
 
+/* Allows for fchroot(2). */
+#define	CAP_FCHROOT		CAPRIGHT(0, 0x0000080000000000ULL)
+
 #define	CAP_SOCK_CLIENT \
 	(CAP_CONNECT | CAP_GETPEERNAME | CAP_GETSOCKNAME | CAP_GETSOCKOPT | \
 	 CAP_PEELOFF | CAP_RECV | CAP_SEND | CAP_SETSOCKOPT | CAP_SHUTDOWN)
@@ -210,11 +213,9 @@
 	 CAP_SETSOCKOPT | CAP_SHUTDOWN)
 
 /* All used bits for index 0. */
-#define	CAP_ALL0		CAPRIGHT(0, 0x000007FFFFFFFFFFULL)
+#define	CAP_ALL0		CAPRIGHT(0, 0x00000FFFFFFFFFFFULL)
 
 /* Available bits for index 0. */
-#define	CAP_UNUSED0_44		CAPRIGHT(0, 0x0000080000000000ULL)
-/* ... */
 #define	CAP_UNUSED0_57		CAPRIGHT(0, 0x0100000000000000ULL)
 
 /* INDEX 1 */
@@ -369,6 +370,24 @@ _Static_assert(CAP_RIGHTS_VERSION == CAP_RIGHTS_VERSION_00,
 	_r->cr_rights[CAPIDXBIT(right) - 1] |= right;			\
 	_r;								\
 })
+
+#define	_CAP_RIGHTS_WORD_INITIALIZER(i, r)				\
+	(CAPIDXBIT(r) == (i) + 1 ? (r) : 0ULL)
+
+/*
+ * Define a set of up to two rights at compile time.
+ */
+#define	CAP_RIGHTS_INITIALIZER2(r1, r2) ((struct cap_rights){		\
+	.cr_rights = {							\
+		[0] = ((uint64_t)CAP_RIGHTS_VERSION << 62) |		\
+		    _CAP_RIGHTS_WORD_INITIALIZER(0, r1) |		\
+		    _CAP_RIGHTS_WORD_INITIALIZER(0, r2),		\
+		[1] = _CAP_RIGHTS_WORD_INITIALIZER(1, r1) |		\
+		    _CAP_RIGHTS_WORD_INITIALIZER(1, r2),		\
+	},								\
+})
+#define	CAP_RIGHTS_INITIALIZER(r)					\
+	CAP_RIGHTS_INITIALIZER2(r, 0ULL)
 
 /*
  * Allow checking caps which are possibly getting modified at the same time.

@@ -10,7 +10,6 @@ arm/arm/busdma_machdep.c 	standard
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
-arm/arm/cpufunc_asm_arm11x6.S	optional	cpu_arm1176
 arm/arm/cpufunc_asm_armv7.S	optional	cpu_cortexa | cpu_krait | cpu_mv_pj4b
 arm/arm/cpufunc_asm_pj4b.S	optional	cpu_mv_pj4b
 arm/arm/cpuinfo.c		standard
@@ -108,6 +107,7 @@ kern/msi_if.m			optional	intrng
 kern/pic_if.m			optional	intrng
 kern/subr_busdma_bufalloc.c	standard
 kern/subr_devmap.c		standard
+kern/subr_efi_map.c		optional	efi
 kern/subr_physmem.c		standard
 kern/subr_sfbuf.c		standard
 libkern/arm/aeabi_unwind.c	standard

@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2019, 2021 Vladimir Kondratyev <wulf@FreeBSD.org>
+ * Copyright (c) 2023 Future Crew LLC.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -56,9 +57,13 @@
 #include <netgraph/bluetooth/include/ng_ubt.h>
 #include <netgraph/bluetooth/drivers/ubt/ng_ubt_var.h>
 
+#define	UBT_INTEL_HCICMD_TIMEOUT	2000	/* ms */
+#define	UBT_INTEL_TLV_IMAGE_TYPE	0x1c
+
 enum {
 	UBT_INTEL_DEVICE_7260,
 	UBT_INTEL_DEVICE_8260,
+	UBT_INTEL_DEVICE_9260,
 };
 
 struct ubt_intel_version_rp {
@@ -93,6 +98,9 @@ static const STRUCT_USB_HOST_ID ubt_intel_devs[] =
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0025, UBT_INTEL_DEVICE_8260) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0026, UBT_INTEL_DEVICE_8260) },
 	{ USB_VPI(USB_VENDOR_INTEL2, 0x0029, UBT_INTEL_DEVICE_8260) },
+	/* Intel Wireless 9260/9560 and successors */
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0032, UBT_INTEL_DEVICE_9260) },
+	{ USB_VPI(USB_VENDOR_INTEL2, 0x0033, UBT_INTEL_DEVICE_9260) },
 };
 
 /*
@@ -103,7 +111,6 @@ static usb_error_t
 ubt_intel_do_hci_request(struct usb_device *udev, uint16_t opcode,
     void *resp, uint8_t resp_len)
 {
-#define	UBT_INTEL_HCICMD_TIMEOUT	2000	/* ms */
 	struct ubt_hci_event_command_compl *evt;
 	struct ubt_hci_cmd cmd;
 	usb_error_t error;
@@ -112,20 +119,68 @@ ubt_intel_do_hci_request(struct usb_device *udev, uint16_t opcode,
 	cmd.opcode = htole16(opcode);
 	evt = malloc(offsetof(struct ubt_hci_event_command_compl, data) +
 	    resp_len, M_TEMP, M_ZERO | M_WAITOK);
+	evt->header.event = NG_HCI_EVENT_COMMAND_COMPL;
 	evt->header.length = resp_len + UBT_HCI_EVENT_COMPL_HEAD_SIZE;
 
 	error = ubt_do_hci_request(udev, &cmd, evt, UBT_INTEL_HCICMD_TIMEOUT);
 	if (error != USB_ERR_NORMAL_COMPLETION)
 		goto exit;
 
-	if (evt->header.event == NG_HCI_EVENT_COMMAND_COMPL &&
-	    evt->header.length == resp_len + UBT_HCI_EVENT_COMPL_HEAD_SIZE)
+	if (evt->header.length == resp_len + UBT_HCI_EVENT_COMPL_HEAD_SIZE)
 		memcpy(resp, evt->data, resp_len);
 	else
 		error = USB_ERR_INVAL;
 exit:
 	free(evt, M_TEMP);
 	return (error);
+}
+
+static uint8_t
+ubt_intel_get_img_type(struct usb_device *udev)
+{
+#define	UBT_INTEL_MAX_EVT_SIZE		256
+	static struct ubt_hci_cmd cmd = {
+	    .opcode = htole16(NG_HCI_OPCODE(NG_HCI_OGF_VENDOR, 0x05)),
+	    .length = 1,
+	    .data = { 0xff },
+	};
+	struct ubt_hci_event_command_compl *evt;
+	usb_error_t error;
+	uint8_t status, datalen, type, len, img_type = 0;
+	uint8_t *data;
+
+	evt = malloc(UBT_INTEL_MAX_EVT_SIZE, M_TEMP, M_ZERO | M_WAITOK);
+	evt->header.event = NG_HCI_EVENT_COMMAND_COMPL;
+	evt->header.length =
+	    UBT_INTEL_MAX_EVT_SIZE - sizeof(struct ubt_hci_evhdr);
+
+	error = ubt_do_hci_request(udev, &cmd, evt, UBT_INTEL_HCICMD_TIMEOUT);
+	if (error != USB_ERR_NORMAL_COMPLETION)
+		goto exit;
+
+	datalen = evt->header.length - UBT_HCI_EVENT_COMPL_HEAD_SIZE;
+	data = evt->data;
+	status = *data++;
+	if (status != 0)
+		goto exit;
+	datalen--;
+
+	while (datalen >= 2) {
+		type = *data++;
+		len = *data++;
+		datalen -= 2;
+		if (datalen < len)
+			break;
+		if (type == UBT_INTEL_TLV_IMAGE_TYPE && len == 1) {
+			img_type = *data;
+			break;
+		}
+		datalen -= len;
+		data += len;
+	}
+exit:
+	free(evt, M_TEMP);
+	return (img_type);
 }
 
 /*
@@ -139,6 +194,7 @@ ubt_intel_probe(device_t dev)
 	struct ubt_intel_version_rp version;
 	ng_hci_reset_rp reset;
 	int error;
+	uint8_t img_type;
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
@@ -190,6 +246,18 @@ ubt_intel_probe(device_t dev)
 		    &version, sizeof(version)) != USB_ERR_NORMAL_COMPLETION)
 			return (ENXIO);
 		if (version.fw_variant != 0x23)
+			return (ENXIO);
+		break;
+
+	case UBT_INTEL_DEVICE_9260:
+		/*
+		 * Find if the Intel Wireless 9260/9560 device is in bootloader
+		 * mode or is running operational firmware with checking of
+		 * image type byte of "Intel version" HCI command response.
+		 * The value 0x03 identifies the operational firmware.
+		 */
+		img_type = ubt_intel_get_img_type(uaa->device);
+		if (img_type != 0x03)
 			return (ENXIO);
 		break;
 

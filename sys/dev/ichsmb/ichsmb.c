@@ -130,7 +130,8 @@ ichsmb_attach(device_t dev)
 	}
 
 	/* Attach children when interrupts are available */
-	return (bus_delayed_attach_children(dev));
+	bus_delayed_attach_children(dev);
+	return (0);
 fail:
 	mtx_destroy(&sc->mutex);
 	return (error);
@@ -695,7 +696,6 @@ ichsmb_detach(device_t dev)
 	error = bus_generic_detach(dev);
 	if (error)
 		return (error);
-	device_delete_child(dev, sc->smb);
 	ichsmb_release_resources(sc);
 	mtx_destroy(&sc->mutex);
 	

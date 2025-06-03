@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020-2024, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2020-2025, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Authors: Sumit Saxena <sumit.saxena@broadcom.com>
@@ -176,7 +176,7 @@ static void mpi3mr_prepare_sgls(void *arg,
 		bus_dmamap_sync(sc->buffer_dmat, cm->dmamap,
 		    BUS_DMASYNC_PREWRITE);
 
-	KASSERT(nsegs <= MPI3MR_SG_DEPTH && nsegs > 0,
+	KASSERT(nsegs <= sc->max_sgl_entries && nsegs > 0,
 	    ("%s: bad SGE count: %d\n", device_get_nameunit(sc->mpi3mr_dev), nsegs));
 	KASSERT(scsiio_req->DataLength != 0,
 	    ("%s: Data segments (%d), but DataLength == 0\n",
@@ -218,7 +218,7 @@ static void mpi3mr_prepare_sgls(void *arg,
 	
 	chain = chain_req->buf;
 	chain_dma = chain_req->buf_phys;
-	memset(chain_req->buf, 0, PAGE_SIZE);
+	memset(chain_req->buf, 0, sc->max_sgl_entries * sizeof(Mpi3SGESimple_t));
 	sges_in_segment = sges_left;
 	chain_length = sges_in_segment * sizeof(Mpi3SGESimple_t);
 
@@ -1154,7 +1154,7 @@ mpi3mr_action_scsiio(struct mpi3mr_cam_softc *cam_sc, union ccb *ccb)
 		return;
 	case CAM_DATA_VADDR:
 	case CAM_DATA_BIO:
-		if (csio->dxfer_len > (MPI3MR_SG_DEPTH * MPI3MR_4K_PGSZ)) {
+		if (csio->dxfer_len > (sc->max_sgl_entries * PAGE_SIZE)) {
 			mpi3mr_set_ccbstatus(ccb, CAM_REQ_TOO_BIG);
 			mpi3mr_release_command(cm);
 			xpt_done(ccb);
@@ -1305,8 +1305,10 @@ mpi3mr_cam_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct mpi3mr_cam_softc *cam_sc;
 	struct mpi3mr_target *targ;
+	struct mpi3mr_softc *sc;
 
 	cam_sc = cam_sim_softc(sim);
+	sc = cam_sc->sc;
 
 	mpi3mr_dprint(cam_sc->sc, MPI3MR_TRACE, "ccb func_code 0x%x target id: 0x%x\n",
 	    ccb->ccb_h.func_code, ccb->ccb_h.target_id);
@@ -1357,7 +1359,7 @@ mpi3mr_cam_action(struct cam_sim *sim, union ccb *ccb)
 				"PCI device target_id: %u max io size: %u\n",
 				ccb->ccb_h.target_id, cpi->maxio);
 		} else {
-			cpi->maxio = PAGE_SIZE * (MPI3MR_SG_DEPTH - 1);
+			cpi->maxio = PAGE_SIZE * (sc->max_sgl_entries - 1);
 		}
 		mpi3mr_set_ccbstatus(ccb, CAM_REQ_CMP);
 		break;
@@ -1671,14 +1673,6 @@ mpi3mr_process_sastopochg_evt(struct mpi3mr_softc *sc, struct mpi3mr_fw_event_wo
 	 */
 	mpi3mr_startup_decrement(sc->cam_sc);
 	return;
-}
-
-static inline void
-mpi3mr_logdata_evt_bh(struct mpi3mr_softc *sc,
-		      struct mpi3mr_fw_event_work *fwevt)
-{
-	mpi3mr_app_save_logdata(sc, fwevt->event_data,
-				fwevt->event_data_size);
 }
 
 static void
@@ -2031,11 +2025,6 @@ mpi3mr_fw_work(struct mpi3mr_softc *sc, struct mpi3mr_fw_event_work *fw_event)
 	case MPI3_EVENT_PCIE_TOPOLOGY_CHANGE_LIST:
 	{
 		mpi3mr_process_pcietopochg_evt(sc, fw_event);
-		break;
-	}
-	case MPI3_EVENT_LOG_DATA:
-	{
-		mpi3mr_logdata_evt_bh(sc, fw_event);
 		break;
 	}
 	default:

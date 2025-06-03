@@ -68,6 +68,7 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <ifaddrs.h>
+#include <libutil.h>
 
 #define	IEEE80211_ADDR_EQ(a1,a2)	(memcmp(a1,a2,IEEE80211_ADDR_LEN) == 0)
 #define	IEEE80211_ADDR_COPY(dst,src)	memcpy(dst,src,IEEE80211_ADDR_LEN)
@@ -107,9 +108,11 @@ main(int argc, char *argv[])
 {
 	const char *progname = argv[0];
 	const char *pidfile = NULL;
+	struct pidfh *pfh = NULL;
 	int s, c, logmask, bg = 1;
 	char msg[2048];
 	int log_stderr = 0;
+	pid_t otherpid;
 
 	logmask = LOG_UPTO(LOG_INFO);
 	while ((c = getopt(argc, argv, "efjP:s:tv")) != -1)
@@ -148,6 +151,17 @@ main(int argc, char *argv[])
 	ifnets = argv;
 	nifnets = argc;
 
+	if (pidfile != NULL) {
+		pfh = pidfile_open(pidfile, 0600, &otherpid);
+		if (pfh == NULL) {
+			if (errno == EEXIST)
+				errx(EXIT_FAILURE, "Daemon already running; pid: %jd.",
+				    (intmax_t)otherpid);
+
+			warn("Cannot open or create pidfile");
+		}
+	}
+
 	s = socket(PF_ROUTE, SOCK_RAW, 0);
 	if (s < 0)
 		err(EX_OSERR, "socket");
@@ -157,8 +171,12 @@ main(int argc, char *argv[])
 	scanforvaps(s);
 
 	/* XXX what directory to work in? */
-	if (bg && daemon(0, 0) < 0)
+	if (bg && daemon(0, 0) < 0) {
+		pidfile_remove(pfh);
 		err(EX_OSERR, "daemon");
+	}
+
+	pidfile_write(pfh);
 
 	openlog("wlanwds", log_stderr | LOG_PID | LOG_CONS, LOG_DAEMON);
 	setlogmask(logmask);
@@ -167,6 +185,8 @@ main(int argc, char *argv[])
 		ssize_t n = read(s, msg, sizeof(msg));
 		handle_rtmsg((struct rt_msghdr *)msg, n);
 	}
+
+	pidfile_remove(pfh);
 	return 0;
 }
 
@@ -283,7 +303,7 @@ getlladdr(const char *ifname, uint8_t macaddr[ETHER_ADDR_LEN])
 	}
 
 	/* Look for a matching interface */
-	for (ifa = ifap; ifa != NULL; ifa++) {
+	for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
 		if (strcmp(ifname, ifa->ifa_name) != 0)
 			continue;
 
@@ -295,7 +315,7 @@ getlladdr(const char *ifname, uint8_t macaddr[ETHER_ADDR_LEN])
 		}
 
 		/* Check address family */
-		sdl = (struct sockaddr_dl *) ifa->ifa_addr;
+		sdl = (struct sockaddr_dl *)(void *)ifa->ifa_addr;
 		if (sdl->sdl_type != IFT_ETHER) {
 			syslog(LOG_CRIT, "%s: %s: unknown aftype (%d)\n",
 			    __func__,

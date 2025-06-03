@@ -9,7 +9,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libgeom \
 	lib/libutil \
-	usr.sbin/bsdinstall/include \
+	usr.sbin/bsdinstall/include.amd64 \
 
 
 .include <dirdeps.mk>

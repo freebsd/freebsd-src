@@ -98,7 +98,7 @@ static int ufsdirhash_findslot(struct dirhash *dh, char *name, int namelen,
 	   doff_t offset);
 static doff_t ufsdirhash_getprev(struct direct *dp, doff_t offset);
 static int ufsdirhash_recycle(int wanted);
-static void ufsdirhash_lowmem(void);
+static void ufsdirhash_lowmem(void *, int);
 static void ufsdirhash_free_locked(struct inode *ip);
 
 static uma_zone_t	ufsdirhash_zone;
@@ -1247,7 +1247,7 @@ ufsdirhash_recycle(int wanted)
  * Callback that frees some dirhashes when the system is low on virtual memory.
  */
 static void
-ufsdirhash_lowmem(void)
+ufsdirhash_lowmem(void *arg __unused, int flags __unused)
 {
 	struct dirhash *dh, *dh_temp;
 	int memfreed, memwanted;

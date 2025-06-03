@@ -674,4 +674,11 @@ sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 	return (total);
 }
 
+static inline void
+sg_set_folio(struct scatterlist *sg, struct folio *folio, size_t len,
+    size_t offset)
+{
+	sg_set_page(sg, &folio->page, len, offset);
+}
+
 #endif					/* _LINUXKPI_LINUX_SCATTERLIST_H_ */

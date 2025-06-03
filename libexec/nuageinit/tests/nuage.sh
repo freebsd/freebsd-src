@@ -9,6 +9,7 @@ export NUAGE_FAKE_ROOTDIR="$PWD"
 atf_test_case sethostname
 atf_test_case addsshkey
 atf_test_case adduser
+atf_test_case adduser_passwd
 atf_test_case addgroup
 
 sethostname_body()
@@ -48,6 +49,22 @@ adduser_body()
 	atf_check -o inline:"impossible_username::1001:1001::0:0:impossible_username User:/home/impossible_username:/bin/sh\n" grep impossible_username etc/master.passwd
 }
 
+adduser_passwd_body()
+{
+	mkdir etc
+	printf "root:*:0:0::0:0:Charlie &:/root:/bin/sh\n" > etc/master.passwd
+	pwd_mkdb -d etc etc/master.passwd
+	printf "wheel:*:0:root\n" > etc/group
+	atf_check /usr/libexec/flua $(atf_get_srcdir)/adduser_passwd.lua
+	test -d home/foo || atf_fail "home not created"
+	passhash=`awk -F ':' '/^foo:/ {print $2}' etc/master.passwd`
+	atf_check -s exit:0 -o inline:$passhash \
+		$(atf_get_srcdir)/crypt $passhash "bar"
+	passhash=`awk -F ':' '/^foocrypted:/ {print $2}' etc/master.passwd`
+	atf_check -s exit:0 -o inline:$passhash \
+		$(atf_get_srcdir)/crypt $passhash "barcrypted"
+}
+
 addgroup_body()
 {
 	mkdir etc
@@ -61,5 +78,6 @@ atf_init_test_cases()
 	atf_add_test_case sethostname
 	atf_add_test_case addsshkey
 	atf_add_test_case adduser
+	atf_add_test_case adduser_passwd
 	atf_add_test_case addgroup
 }

@@ -132,7 +132,7 @@ struct vnode {
 	seqc_t	v_seqc;				/* i modification count */
 	uint32_t v_nchash;			/* u namecache hash */
 	u_int	v_hash;
-	struct	vop_vector *v_op;		/* u vnode operations vector */
+	const struct vop_vector *v_op;		/* u vnode operations vector */
 	void	*v_data;			/* u private data for fs */
 
 	/*
@@ -231,6 +231,7 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 /*
  * Vnode flags.
  *	VI flags are protected by interlock and live in v_iflag
+ *	VIRF flags are protected by interlock and live in v_irflag
  *	VV flags are protected by the vnode lock and live in v_vflag
  *
  *	VIRF_DOOMED is doubly protected by the interlock and vnode lock.  Both
@@ -245,6 +246,8 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 #define	VIRF_MOUNTPOINT	0x0004	/* This vnode is mounted on */
 #define	VIRF_TEXT_REF	0x0008	/* Executable mappings ref the vnode */
 #define	VIRF_CROSSMP	0x0010	/* Cross-mp vnode, no locking */
+#define	VIRF_NAMEDDIR	0x0020	/* Named attribute directory */
+#define	VIRF_NAMEDATTR	0x0040	/* Named attribute */
 
 #define	VI_UNUSED0	0x0001	/* unused */
 #define	VI_MOUNT	0x0002	/* Mount in progress */
@@ -280,7 +283,7 @@ _Static_assert(sizeof(struct vnode) <= 448, "vnode size crosses 448 bytes");
 struct vattr {
 	__enum_uint8(vtype)	va_type;	/* vnode type (for create) */
 	u_short		va_mode;	/* files access mode and type */
-	u_short		va_padding0;
+	uint16_t	va_bsdflags;	/* same as st_bsdflags from stat(2) */
 	uid_t		va_uid;		/* owner user id */
 	gid_t		va_gid;		/* owner group id */
 	nlink_t		va_nlink;	/* number of references to file */
@@ -985,9 +988,10 @@ void	vop_rename_fail(struct vop_rename_args *ap);
 	AUDIT_ARG_VNODE1(ap->a_vp);						\
 	_error = mac_vnode_check_stat(_ap->a_active_cred, _ap->a_file_cred, _ap->a_vp);\
 	if (__predict_true(_error == 0)) {					\
-		ap->a_sb->st_padding0 = 0;					\
 		ap->a_sb->st_padding1 = 0;					\
 		bzero(_ap->a_sb->st_spare, sizeof(_ap->a_sb->st_spare));	\
+		ap->a_sb->st_filerev = 0;					\
+		ap->a_sb->st_bsdflags = 0;					\
 	}									\
 	_error;									\
 })
@@ -1191,6 +1195,7 @@ vn_get_state(struct vnode *vp)
 #define vfs_smr_exit()	smr_exit(VFS_SMR())
 #define vfs_smr_synchronize()	smr_synchronize(VFS_SMR())
 #define vfs_smr_entered_load(ptr)	smr_entered_load((ptr), VFS_SMR())
+#define VFS_SMR_ENTERED()		SMR_ENTERED(VFS_SMR())
 #define VFS_SMR_ASSERT_ENTERED()	SMR_ASSERT_ENTERED(VFS_SMR())
 #define VFS_SMR_ASSERT_NOT_ENTERED()	SMR_ASSERT_NOT_ENTERED(VFS_SMR())
 #define VFS_SMR_ZONE_SET(zone)	uma_zone_set_smr((zone), VFS_SMR())

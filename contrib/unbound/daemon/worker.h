@@ -72,7 +72,13 @@ enum worker_commands {
 	/** obtain statistics without statsclear */
 	worker_cmd_stats_noreset,
 	/** execute remote control command */
-	worker_cmd_remote
+	worker_cmd_remote,
+	/** for fast-reload, perform stop */
+	worker_cmd_reload_stop,
+	/** for fast-reload, start again */
+	worker_cmd_reload_start,
+	/** for fast-reload, poll to make sure worker has released data */
+	worker_cmd_reload_poll
 };
 
 /**

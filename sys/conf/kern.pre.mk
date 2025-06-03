@@ -93,67 +93,10 @@ ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS} ${ASM_CFLAGS.${.IMPSRC:T}}
 COMPAT_FREEBSD32_ENABLED!= grep COMPAT_FREEBSD32 opt_global.h || true ; echo
 
 KASAN_ENABLED!=	grep KASAN opt_global.h || true ; echo
-.if !empty(KASAN_ENABLED)
-SAN_CFLAGS+=	-DSAN_NEEDS_INTERCEPTORS -DSAN_INTERCEPTOR_PREFIX=kasan \
-		-fsanitize=kernel-address \
-		-mllvm -asan-stack=true \
-		-mllvm -asan-instrument-dynamic-allocas=true \
-		-mllvm -asan-globals=true \
-		-mllvm -asan-use-after-scope=true \
-		-mllvm -asan-instrumentation-with-call-threshold=0 \
-		-mllvm -asan-instrument-byval=false
-
-.if ${MACHINE_CPUARCH} == "aarch64"
-# KASAN/ARM64 TODO: -asan-mapping-offset is calculated from:
-#	   (VM_KERNEL_MIN_ADDRESS >> KASAN_SHADOW_SCALE_SHIFT) + $offset = KASAN_MIN_ADDRESS
-#
-#	This is different than amd64, where we have a different
-#	KASAN_MIN_ADDRESS, and this offset value should eventually be
-#	upstreamed similar to: https://reviews.llvm.org/D98285
-#
-SAN_CFLAGS+=	-mllvm -asan-mapping-offset=0xdfff208000000000
-.elif ${MACHINE_CPUARCH} == "amd64" && \
-      ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 180000
-# Work around https://github.com/llvm/llvm-project/issues/87923, which leads to
-# an assertion failure compiling dtrace.c with asan enabled.
-SAN_CFLAGS+=	-mllvm -asan-use-stack-safety=0
-.endif
-.endif
-
-KCSAN_ENABLED!=	grep KCSAN opt_global.h || true ; echo
-.if !empty(KCSAN_ENABLED)
-SAN_CFLAGS+=	-DSAN_NEEDS_INTERCEPTORS -DSAN_INTERCEPTOR_PREFIX=kcsan \
-		-fsanitize=thread
-.endif
-
+KCSAN_ENABLED!= grep KCSAN opt_global.h || true ; echo
 KMSAN_ENABLED!= grep KMSAN opt_global.h || true ; echo
-.if !empty(KMSAN_ENABLED)
-# Disable -fno-sanitize-memory-param-retval until interceptors have been
-# updated to work properly with it.
-MSAN_CFLAGS+=	-DSAN_NEEDS_INTERCEPTORS -DSAN_INTERCEPTOR_PREFIX=kmsan \
-		-fsanitize=kernel-memory
-.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 160000
-MSAN_CFLAGS+=	-fno-sanitize-memory-param-retval
-.endif
-SAN_CFLAGS+=	${MSAN_CFLAGS}
-.endif
-
 KUBSAN_ENABLED!=	grep KUBSAN opt_global.h || true ; echo
-.if !empty(KUBSAN_ENABLED)
-SAN_CFLAGS+=	-fsanitize=undefined
-.endif
-
 COVERAGE_ENABLED!=	grep COVERAGE opt_global.h || true ; echo
-.if !empty(COVERAGE_ENABLED)
-.if ${COMPILER_TYPE} == "clang" || \
-    (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 80100)
-SAN_CFLAGS+=	-fsanitize-coverage=trace-pc,trace-cmp
-.else
-SAN_CFLAGS+=	-fsanitize-coverage=trace-pc
-.endif
-.endif
-
-CFLAGS+=	${SAN_CFLAGS}
 
 GCOV_ENABLED!=	grep GCOV opt_global.h || true ; echo
 .if !empty(GCOV_ENABLED)
@@ -324,7 +267,8 @@ NORMAL_CTFCONVERT=	@:
 
 # Linux Kernel Programming Interface C-flags
 LINUXKPI_INCLUDES=	-I$S/compat/linuxkpi/common/include \
-			-I$S/compat/linuxkpi/dummy/include
+			-I$S/compat/linuxkpi/dummy/include \
+			-include $S/compat/linuxkpi/common/include/linux/kconfig.h
 LINUXKPI_C=		${NORMAL_C} ${LINUXKPI_INCLUDES}
 
 # Infiniband C flags.  Correct include paths and omit errors that linux

@@ -833,7 +833,7 @@ collating-symbol <X0D8E>
 collating-symbol <X0D90>
 collating-symbol <X0D92>
 collating-symbol <X0D94>
-collating-symbol <X0DC6>
+collating-symbol <X0DC4>
 collating-symbol <X1300>
 collating-symbol <X1500>
 collating-symbol <X1700>
@@ -7416,7 +7416,7 @@ order_start forward;forward;forward;forward
 <X0D90>
 <X0D92>
 <X0D94>
-<X0DC6>
+<X0DC4>
 <X1300>
 <X1500>
 <X1700>
@@ -14039,7 +14039,7 @@ order_start forward;forward;forward;forward
 <FULLWIDTH_DOLLAR_SIGN> <X0D90>;<X05>;<X05>;<FULLWIDTH_DOLLAR_SIGN>
 <FULLWIDTH_POUND_SIGN> <X0D92>;<X05>;<X05>;<FULLWIDTH_POUND_SIGN>
 <FULLWIDTH_YEN_SIGN> <X0D94>;<X05>;<X05>;<FULLWIDTH_YEN_SIGN>
-<FULLWIDTH_WON_SIGN> <X0DC6>;<X05>;<X05>;<FULLWIDTH_WON_SIGN>
+<FULLWIDTH_WON_SIGN> <X0DC4>;<X05>;<X05>;<FULLWIDTH_WON_SIGN>
 <zero> <X1300>;<X05>;<X05>;<zero>
 <FULLWIDTH_DIGIT_ZERO> <X1300>;<X05>;<X05>;<FULLWIDTH_DIGIT_ZERO>
 <one> <X1500>;<X05>;<X05>;<one>

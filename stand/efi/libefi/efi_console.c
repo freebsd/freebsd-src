@@ -552,7 +552,7 @@ curs_move(int *_x, int *_y, int x, int y)
 	if (_y != NULL)
 		*_y = conout->Mode->CursorRow;
 }
- 
+
 /* Clear internal state of the terminal emulation code. */
 void
 end_term(void)
@@ -687,7 +687,7 @@ HO(void)
 	args[0] = args[1] = 1;
 	CM();
 }
- 
+
 /* Clear line from current position to end of line */
 static void
 CL(int direction)
@@ -710,7 +710,7 @@ CL(int direction)
 	default:	/* NOTREACHED */
 		__unreachable();
 	}
- 
+
 	if (cury == y - 1)
 		len--;
 
@@ -725,7 +725,7 @@ CL(int direction)
 
 	if (direction != 0)
 		curs_move(NULL, NULL, 0, cury);
- 
+
 	conout->OutputString(conout, line);
 	/* restore cursor position */
 	curs_move(NULL, NULL, curx, cury);
@@ -742,7 +742,7 @@ get_arg(int c)
 	args[argc] += c - '0';
 }
 #endif
- 
+
 /* Emulate basic capabilities of cons25 terminal */
 static void
 efi_term_emu(int c)
@@ -755,7 +755,7 @@ efi_term_emu(int c)
 	};
 	int t, i;
 	EFI_STATUS status;
- 
+
 	switch (esc) {
 	case 0:
 		switch (c) {

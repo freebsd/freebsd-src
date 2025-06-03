@@ -185,6 +185,7 @@ out:
  *	mm = Memory mapped I/O address
  *	pa = Parity
  *	rs = Register shift
+ *	rw = Register width
  *	sb = Stopbits
  *	xo = Device clock (xtal oscillator)
  *
@@ -198,13 +199,6 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	char *cp;
 	bus_addr_t addr = ~0U;
 	int error;
-
-	/*
-	 * All uart_class references are weak. Make sure the default
-	 * device class has been compiled-in.
-	 */
-	if (class == NULL)
-		return (ENXIO);
 
 	/*
 	 * Check the environment variables "hw.uart.console" and
@@ -278,6 +272,8 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 			break;
 		case UART_TAG_XO:
 			di->bas.rclk = uart_parse_long(&spec);
+			if (di->bas.rclk == 0)
+				di->bas.rclk_guess = 1;
 			break;
 		default:
 			goto inval;
@@ -296,6 +292,13 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	if (addr == ~0U)
 		goto inval;
 	freeenv(cp);
+
+	/*
+	 * The default uart_class reference is weak. Make sure the default
+	 * device class has been compiled-in or we've set one with dt=.
+	 */
+	if (class == NULL)
+		return (ENXIO);
 
 	/*
 	 * Accept only the well-known baudrates. Any invalid baudrate

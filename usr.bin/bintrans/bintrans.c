@@ -139,7 +139,7 @@ base64_encode_or_decode(int argc, char *argv[])
 		{NULL,		no_argument,		NULL, 0}
 	};
 
-	while ((ch = getopt_long(argc, argv, "diw:", opts, NULL)) != -1)
+	while ((ch = getopt_long(argc, argv, "+diw:", opts, NULL)) != -1)
 		switch (ch) {
 		case 'd':
 			decode = true;

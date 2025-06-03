@@ -31,7 +31,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 29, 1999
+.Dd April 6, 2025
 .Dt FHOPEN 2
 .Os
 .Sh NAME
@@ -75,6 +75,10 @@ together the flags used for the
 system call.
 All said flags are valid except for
 .Dv O_CREAT .
+If the file handle refers to a named attribute or named attribute
+directory, the
+.Dv O_NAMEDATTR
+flag must be specified.
 .Pp
 The
 .Fn fhstat
@@ -116,6 +120,16 @@ Calling
 with
 .Dv O_CREAT
 set.
+.It Bq Er ENOATTR
+The file handle does not refer to a named attribute or named attribute
+directory although the
+.Dv O_NAMEDATTR
+flag was specified.
+.It Bq Er ENOATTR
+The file handle refers to a named attribute or named attribute directory
+although the
+.Dv O_NAMEDATTR
+flag was not specified.
 .It Bq Er ESTALE
 The file handle
 .Fa fhp
@@ -125,7 +139,8 @@ is no longer valid.
 .Xr fstat 2 ,
 .Xr fstatfs 2 ,
 .Xr getfh 2 ,
-.Xr open 2
+.Xr open 2 ,
+.Xr named_attribute 9
 .Sh HISTORY
 The
 .Fn fhopen ,

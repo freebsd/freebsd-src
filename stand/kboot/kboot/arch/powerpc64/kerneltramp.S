@@ -99,3 +99,5 @@ endkerneltramp:
 	.data
 CNAME(szkerneltramp):
 	.long endkerneltramp - CNAME(kerneltramp)
+
+	.section .note.GNU-stack,"",%progbits

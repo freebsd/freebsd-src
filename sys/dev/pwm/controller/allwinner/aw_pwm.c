@@ -190,7 +190,8 @@ skipcfg:
 
 	sc->busdev = device_add_child(dev, "pwmbus", DEVICE_UNIT_ANY);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	aw_pwm_detach(dev);
@@ -209,9 +210,6 @@ aw_pwm_detach(device_t dev)
 		device_printf(sc->dev, "cannot detach child devices\n");
 		return (error);
 	}
-
-	if (sc->busdev != NULL)
-		device_delete_child(dev, sc->busdev);
 
 	if (sc->res != NULL)
 		bus_release_resources(dev, aw_pwm_spec, &sc->res);

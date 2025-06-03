@@ -83,10 +83,10 @@
 #define GPIO_INTR_EDGE_FALLING	0x00080000	/* edge trigger, falling */
 #define GPIO_INTR_EDGE_BOTH	0x00100000	/* edge trigger, both */
 #define GPIO_INTR_ATTACHED	0x00200000	/* interrupt attached to file */
+#define GPIO_INTR_EDGE_MASK	(GPIO_INTR_EDGE_RISING | \
+				GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH )
 #define GPIO_INTR_MASK		(GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH |  \
-				GPIO_INTR_EDGE_RISING |			       \
-				GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH | \
-				GPIO_INTR_ATTACHED)
+				GPIO_INTR_EDGE_MASK | GPIO_INTR_ATTACHED)
 
 struct gpio_pin {
 	uint32_t gp_pin;			/* pin number */

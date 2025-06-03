@@ -37,7 +37,6 @@ if (NOT APPLE)
 endif()
 add_compile_options($<$<CONFIG:Release>:-Wuninitialized>)
 add_compile_options($<$<CONFIG:Release>:-Wno-dangling-else>)
-add_compile_options(-Wno-string-compare)
 add_compile_options(-Wstack-protector -fstack-protector)
 add_compile_options(-Wstrict-aliasing -fstrict-aliasing)
 

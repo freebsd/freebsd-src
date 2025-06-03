@@ -1,4 +1,4 @@
-/*	$NetBSD: el.h,v 1.46 2021/08/15 10:08:41 christos Exp $	*/
+/*	$NetBSD: el.h,v 1.48 2025/01/03 00:40:08 rillig Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -58,6 +58,7 @@
 #define	NARROW_HISTORY	0x040
 #define	NO_RESET	0x080
 #define	FIXIO		0x100
+#define	FROM_ELLINE	0x200
 
 typedef unsigned char el_action_t;	/* Index to command array	*/
 
@@ -152,7 +153,7 @@ libedit_private EditLine *el_init_internal(const char *, FILE *, FILE *,
 					 __FILE__, __LINE__); \
 				fprintf a; \
 				abort(); \
-			} while( /*CONSTCOND*/0);
+			} while (0)
 #else
 #define EL_ABORT(a)	abort()
 #endif

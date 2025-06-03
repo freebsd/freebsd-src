@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -387,6 +388,10 @@ vdev_config_generate_stats(vdev_t *vd, nvlist_t *nv)
 	/* IO delays */
 	fnvlist_add_uint64(nvx, ZPOOL_CONFIG_VDEV_SLOW_IOS, vs->vs_slow_ios);
 
+	/* Direct I/O write verify errors */
+	fnvlist_add_uint64(nvx, ZPOOL_CONFIG_VDEV_DIO_VERIFY_ERRORS,
+	    vs->vs_dio_verify_errors);
+
 	/* Add extended stats nvlist to main nvlist */
 	fnvlist_add_nvlist(nv, ZPOOL_CONFIG_VDEV_STATS_EX, nvx);
 
@@ -639,7 +644,8 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 			 * will be combined with adjacent allocated segments
 			 * as a single mapping.
 			 */
-			for (int i = 0; i < RANGE_TREE_HISTOGRAM_SIZE; i++) {
+			for (int i = 0; i < ZFS_RANGE_TREE_HISTOGRAM_SIZE;
+			    i++) {
 				if (i + 1 < highbit64(vdev_removal_max_span)
 				    - 1) {
 					to_alloc +=

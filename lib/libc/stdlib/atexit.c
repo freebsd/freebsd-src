@@ -35,6 +35,7 @@
 #include "namespace.h"
 #include <errno.h>
 #include <link.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -56,6 +57,8 @@ _Block_copy(void*);
 #define	ATEXIT_FN_CXA	2
 
 static pthread_mutex_t atexit_mutex = PTHREAD_MUTEX_INITIALIZER;
+static void *current_finalize_dso = NULL;
+static bool call_finalize_again = false;
 
 #define _MUTEX_LOCK(x)		if (__isthreaded) _pthread_mutex_lock(x)
 #define _MUTEX_UNLOCK(x)	if (__isthreaded) _pthread_mutex_unlock(x)
@@ -115,6 +118,9 @@ atexit_register(struct atexit_fn *fptr)
 		__atexit = p;
 	}
 	p->fns[p->ind++] = *fptr;
+	if (current_finalize_dso != NULL &&
+	    current_finalize_dso == fptr->fn_dso)
+		call_finalize_again = true;
 	_MUTEX_UNLOCK(&atexit_mutex);
 	return 0;
 }
@@ -208,33 +214,38 @@ __cxa_finalize(void *dso)
 	}
 
 	_MUTEX_LOCK(&atexit_mutex);
-	for (p = __atexit; p; p = p->next) {
-		for (n = p->ind; --n >= 0;) {
-			if (p->fns[n].fn_type == ATEXIT_FN_EMPTY)
-				continue; /* already been called */
-			fn = p->fns[n];
-			if (dso != NULL && dso != fn.fn_dso) {
-				/* wrong DSO ? */
-				if (!has_phdr || global_exit ||
-				    !__elf_phdr_match_addr(&phdr_info,
-				    fn.fn_ptr.cxa_func))
-					continue;
+	current_finalize_dso = dso;
+	do {
+		call_finalize_again = false;
+		for (p = __atexit; p; p = p->next) {
+			for (n = p->ind; --n >= 0;) {
+				if (p->fns[n].fn_type == ATEXIT_FN_EMPTY)
+					continue; /* already been called */
+				fn = p->fns[n];
+				if (dso != NULL && dso != fn.fn_dso) {
+					/* wrong DSO ? */
+					if (!has_phdr || global_exit ||
+					    !__elf_phdr_match_addr(&phdr_info,
+					    fn.fn_ptr.cxa_func))
+						continue;
+				}
+				/*
+				  Mark entry to indicate that this particular
+				  handler has already been called.
+				*/
+				p->fns[n].fn_type = ATEXIT_FN_EMPTY;
+				_MUTEX_UNLOCK(&atexit_mutex);
+
+				/* Call the function of correct type. */
+				if (fn.fn_type == ATEXIT_FN_CXA)
+					fn.fn_ptr.cxa_func(fn.fn_arg);
+				else if (fn.fn_type == ATEXIT_FN_STD)
+					fn.fn_ptr.std_func();
+				_MUTEX_LOCK(&atexit_mutex);
 			}
-			/*
-			  Mark entry to indicate that this particular handler
-			  has already been called.
-			*/
-			p->fns[n].fn_type = ATEXIT_FN_EMPTY;
-		        _MUTEX_UNLOCK(&atexit_mutex);
-		
-			/* Call the function of correct type. */
-			if (fn.fn_type == ATEXIT_FN_CXA)
-				fn.fn_ptr.cxa_func(fn.fn_arg);
-			else if (fn.fn_type == ATEXIT_FN_STD)
-				fn.fn_ptr.std_func();
-			_MUTEX_LOCK(&atexit_mutex);
 		}
-	}
+	} while (call_finalize_again);
+	current_finalize_dso = NULL;
 	_MUTEX_UNLOCK(&atexit_mutex);
 	if (dso == NULL)
 		_MUTEX_DESTROY(&atexit_mutex);

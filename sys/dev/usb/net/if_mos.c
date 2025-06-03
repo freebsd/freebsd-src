@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: ISC AND BSD-4-Clause */
+
 /*-
- * SPDX-License-Identifier: (BSD-1-Clause AND BSD-4-Clause)
- *
  * Copyright (c) 2011 Rick van der Zwet <info@rickvanderzwet.nl>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -80,7 +80,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * Moschip MCS7730/MCS7830/MCS7832 USB to Ethernet controller
  * The datasheet is available at the following URL:

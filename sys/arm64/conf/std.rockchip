@@ -3,6 +3,7 @@
 #
 
 # SoC support
+options 	SOC_ROCKCHIP
 options 	SOC_ROCKCHIP_RK3328
 options 	SOC_ROCKCHIP_RK3399
 options 	SOC_ROCKCHIP_RK3568
@@ -20,7 +21,9 @@ device		rk_i2c			# RockChip I2C controller
 device		fan53555		# Fairchild Semi FAN53555/SYR82x Regulator
 
 # Power management controllers
+device		rk8xx			# RockChip RK8XX base support
 device		rk805			# RockChip RK805 PMIC
+device		rk808			# RockChip RK808 PMIC
 device		rk817			# RockChip RK817 PMIC
 device		syr827			# Silergy SYR827 PMIC
 device		tcs4525			# TCS 4525 PMIC

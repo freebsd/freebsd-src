@@ -916,12 +916,16 @@ tegra_xhci_detach(device_t dev)
 {
 	struct tegra_xhci_softc *sc;
 	struct xhci_softc *xsc;
+	int error;
 
 	sc = device_get_softc(dev);
 	xsc = &sc->xhci_softc;
 
 	/* during module unload there are lots of children leftover */
-	device_delete_children(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
+
 	if (sc->xhci_inited) {
 		usb_callout_drain(&xsc->sc_callout);
 		xhci_halt_controller(xsc);

@@ -372,8 +372,7 @@ aoa_attach(void *xsc)
 	sc = xsc;
 	self = sc->sc_dev;
 
-	if (pcm_register(self, sc, 1, 0))
-		return (ENXIO);
+	pcm_init(self, sc);
 
 	err = pcm_getbuffersize(self, AOA_BUFFER_SIZE, AOA_BUFFER_SIZE,
 	    AOA_BUFFER_SIZE);
@@ -382,7 +381,6 @@ aoa_attach(void *xsc)
 	pcm_addchan(self, PCMDIR_PLAY, &aoa_chan_class, sc);
 
 	snprintf(status, sizeof(status), "at %s", ofw_bus_get_name(self)); 
-	pcm_setstatus(self, status);
 
-	return (0);
+	return (pcm_register(self, status));
 }

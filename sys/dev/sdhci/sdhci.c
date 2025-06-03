@@ -700,12 +700,14 @@ sdhci_card_task(void *arg, int pending __unused)
 			mmccam_start_discovery(slot->sim);
 			SDHCI_UNLOCK(slot);
 #else
-			d = slot->dev = device_add_child(slot->bus, "mmc", DEVICE_UNIT_ANY);
 			SDHCI_UNLOCK(slot);
+			bus_topo_lock();
+			d = slot->dev = device_add_child(slot->bus, "mmc", DEVICE_UNIT_ANY);
 			if (d) {
 				device_set_ivars(d, slot);
 				(void)device_probe_and_attach(d);
 			}
+			bus_topo_unlock();
 #endif
 		} else
 			SDHCI_UNLOCK(slot);
@@ -731,7 +733,9 @@ sdhci_card_task(void *arg, int pending __unused)
 			slot->opt &= ~SDHCI_TUNING_ENABLED;
 			SDHCI_UNLOCK(slot);
 			callout_drain(&slot->retune_callout);
+			bus_topo_lock();
 			device_delete_child(slot->bus, d);
+			bus_topo_unlock();
 #endif
 		} else
 			SDHCI_UNLOCK(slot);
@@ -760,10 +764,10 @@ sdhci_handle_card_present_locked(struct sdhci_slot *slot, bool is_present)
 	was_present = slot->dev != NULL;
 #endif
 	if (!was_present && is_present) {
-		taskqueue_enqueue_timeout(taskqueue_swi_giant,
+		taskqueue_enqueue_timeout(taskqueue_bus,
 		    &slot->card_delayed_task, -SDHCI_INSERT_DELAY_TICKS);
 	} else if (was_present && !is_present) {
-		taskqueue_enqueue(taskqueue_swi_giant, &slot->card_task);
+		taskqueue_enqueue(taskqueue_bus, &slot->card_task);
 	}
 }
 
@@ -1129,7 +1133,7 @@ no_tuning:
 	    "timeout", CTLFLAG_RWTUN, &slot->timeout, 0,
 	    "Maximum timeout for SDHCI transfers (in secs)");
 	TASK_INIT(&slot->card_task, 0, sdhci_card_task, slot);
-	TIMEOUT_TASK_INIT(taskqueue_swi_giant, &slot->card_delayed_task, 0,
+	TIMEOUT_TASK_INIT(taskqueue_bus, &slot->card_delayed_task, 0,
 		sdhci_card_task, slot);
 	callout_init(&slot->card_poll_callout, 1);
 	callout_init_mtx(&slot->timeout_callout, &slot->mtx, 0);
@@ -1186,8 +1190,8 @@ sdhci_cleanup_slot(struct sdhci_slot *slot)
 	callout_drain(&slot->timeout_callout);
 	callout_drain(&slot->card_poll_callout);
 	callout_drain(&slot->retune_callout);
-	taskqueue_drain(taskqueue_swi_giant, &slot->card_task);
-	taskqueue_drain_timeout(taskqueue_swi_giant, &slot->card_delayed_task);
+	taskqueue_drain(taskqueue_bus, &slot->card_task);
+	taskqueue_drain_timeout(taskqueue_bus, &slot->card_delayed_task);
 
 	SDHCI_LOCK(slot);
 	d = slot->dev;

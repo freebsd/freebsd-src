@@ -22,18 +22,15 @@ CRONPACKAGE=	cron
 
 .if ${MK_AT} != "no"
 CONFGROUPS+=	AT
-AT+=	atrun
+AT+=		atrun
 ATPACKAGE+=	at
 .endif
 
 .if ${MK_FTP} != "no"
 CONFGROUPS+=	FTP
-FTP+=	ftpd
-FTPPACKAGE=	ftp
-
-LINKMODE=	${CONFMODE}
-afterinstallconfig:
-	${INSTALL_LINK} ${TAG_ARGS} ${DESTDIR}${CONFDIR}/ftpd ${DESTDIR}${CONFDIR}/ftp
+FTP+=		ftp ftpd
+# Do not put these in the ftp package, since ports also use them.
+FTPPACKAGE=	runtime
 .endif
 
 .include <bsd.prog.mk>

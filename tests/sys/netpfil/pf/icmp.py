@@ -48,16 +48,20 @@ class TestICMP(VnetTestTemplate):
 
     def vnet2_handler(self, vnet):
         ifname = vnet.iface_alias_map["if1"].name
+        if2name = vnet.iface_alias_map["if2"].name
 
         ToolsHelper.print_output("/sbin/pfctl -e")
         ToolsHelper.pf_rules([
             "set reassemble yes",
+            "set state-policy if-bound",
             "block",
             "pass inet proto icmp icmp-type echoreq",
             ])
 
         ToolsHelper.print_output("/sbin/sysctl net.inet.ip.forwarding=1")
         ToolsHelper.print_output("/sbin/pfctl -x loud")
+
+        ToolsHelper.print_output("/sbin/ifconfig %s mtu 1492" % if2name)
 
     def vnet3_handler(self, vnet):
         # Import in the correct vnet, so at to not confuse Scapy
@@ -66,6 +70,7 @@ class TestICMP(VnetTestTemplate):
         ifname = vnet.iface_alias_map["if2"].name
         ToolsHelper.print_output("/sbin/route add default 198.51.100.1")
         ToolsHelper.print_output("/sbin/ifconfig %s inet alias 198.51.100.3/24" % ifname)
+        ToolsHelper.print_output("/sbin/ifconfig %s mtu 1492" % ifname)
 
         def checkfn(packet):
             icmp = packet.getlayer(sp.ICMP)
@@ -82,6 +87,7 @@ class TestICMP(VnetTestTemplate):
         vnet.pipe.send("Got ICMP destination unreachable packet")
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_inner_match(self):
         vnet = self.vnet_map["vnet1"]
         dst_vnet = self.vnet_map["vnet3"]
@@ -124,3 +130,48 @@ class TestICMP(VnetTestTemplate):
             # We expect the timeout here. It means we didn't get the destination
             # unreachable packet in vnet3
             pass
+
+    def check_icmp_echo(self, sp, payload_size):
+        packet = sp.IP(dst="198.51.100.2", flags="DF") \
+            / sp.ICMP(type='echo-request') \
+            / sp.raw(bytes.fromhex('f0') * payload_size)
+
+        p = sp.sr1(packet, iface=self.vnet.iface_alias_map["if1"].name,
+            timeout=3)
+        p.show()
+
+        ip = p.getlayer(sp.IP)
+        icmp = p.getlayer(sp.ICMP)
+        assert ip
+        assert icmp
+
+        if payload_size > 1464:
+            # Expect ICMP destination unreachable, fragmentation needed
+            assert ip.src == "192.0.2.1"
+            assert ip.dst == "192.0.2.2"
+            assert icmp.type == 3 # dest-unreach
+            assert icmp.code == 4
+            assert icmp.nexthopmtu == 1492
+        else:
+            # Expect echo reply
+            assert ip.src == "198.51.100.2"
+            assert ip.dst == "192.0.2.2"
+            assert icmp.type == 0 # "echo-reply"
+            assert icmp.code == 0
+
+        return
+
+    @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
+    def test_fragmentation_needed(self):
+        ToolsHelper.print_output("/sbin/route add default 192.0.2.1")
+
+        ToolsHelper.print_output("/sbin/ping -c 1 198.51.100.2")
+        ToolsHelper.print_output("/sbin/ping -c 1 -D -s 1472 198.51.100.2")
+
+        # Import in the correct vnet, so at to not confuse Scapy
+        import scapy.all as sp
+
+        self.check_icmp_echo(sp, 128)
+        self.check_icmp_echo(sp, 1464)
+        self.check_icmp_echo(sp, 1468)

@@ -36,7 +36,6 @@
  * $NetBSD: sysv_ipc.c,v 1.9 1995/06/02 19:04:22 mycroft Exp $
  */
 
-#include <sys/cdefs.h>
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
@@ -51,6 +50,8 @@
 #ifndef SYSVSHM
 void (*shmfork_hook)(struct proc *, struct proc *) = NULL;
 void (*shmexit_hook)(struct vmspace *) = NULL;
+void (*shmobjinfo_hook)(struct vm_object *, key_t *key,
+    unsigned short *seq) = NULL;
 
 /* called from kern_fork.c */
 void
@@ -66,6 +67,15 @@ shmexit(struct vmspace *vm)
 {
 	if (shmexit_hook != NULL)
 		shmexit_hook(vm);
+}
+
+void
+shmobjinfo(struct vm_object *obj, key_t *key, unsigned short *seq)
+{
+	*key = 0;	/* For non-present sysvshm.ko */
+	*seq = 0;
+	if (shmobjinfo_hook != NULL)
+		shmobjinfo_hook(obj, key, seq);
 }
 #endif
 

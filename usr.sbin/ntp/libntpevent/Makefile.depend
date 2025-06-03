@@ -3,6 +3,7 @@
 DIRDEPS = \
 	include \
 	include/arpa \
+	include/ssp \
 	include/xlocale \
 	secure/lib/libcrypto \
 

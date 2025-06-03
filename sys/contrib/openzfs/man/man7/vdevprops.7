@@ -1,3 +1,4 @@
+.\" SPDX-License-Identifier: CDDL-1.0
 .\"
 .\" CDDL HEADER START
 .\"
@@ -71,7 +72,7 @@ state of this vdev such as online, faulted, or offline
 .It Sy guid
 globally unique id of this vdev
 .It Sy asize
-The allocable size of this vdev
+The allocatable size of this vdev
 .It Sy psize
 The physical size of this vdev
 .It Sy ashift
@@ -95,7 +96,7 @@ The physical path to the device
 .It Sy encpath
 The enclosure path to the device
 .It Sy fru
-Field Replacable Unit, usually a model number
+Field Replaceable Unit, usually a model number
 .It Sy parent
 Parent of this vdev
 .It Sy children
@@ -147,7 +148,7 @@ A text comment up to 8192 characters long
 .It Sy bootsize
 The amount of space to reserve for the EFI system partition
 .It Sy failfast
-If this device should propage BIO errors back to ZFS, used to disable
+If this device should propagate BIO errors back to ZFS, used to disable
 failfast.
 .It Sy path
 The path to the device for this vdev

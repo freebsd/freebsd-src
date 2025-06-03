@@ -1,0 +1,7 @@
+
+#------------------------------------------------------------------------------
+# $File: lauterbach,v 1.1 2024/10/02 01:45:32 christos Exp $
+# Lauterbach GmbH file formats
+#
+0	string	trace32\x20analyzer\x20data	Lauterbach T32 trace data 
+!:ext ad

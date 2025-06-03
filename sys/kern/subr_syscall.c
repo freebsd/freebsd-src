@@ -74,6 +74,8 @@ syscallenter(struct thread *td)
 			td->td_dbgflags |= TDB_SCE;
 		PROC_UNLOCK(p);
 	}
+	if ((td->td_pflags2 & TDP2_UEXTERR) != 0)
+		td->td_pflags2 &= ~TDP2_EXTERR;
 	error = (p->p_sysent->sv_fetch_syscall_args)(td);
 	se = sa->callp;
 #ifdef KTRACE
@@ -141,9 +143,8 @@ syscallenter(struct thread *td)
 
 	sy_thr_static = (se->sy_thrcnt & SY_THR_STATIC) != 0;
 
-	if (__predict_false(SYSTRACE_ENABLED() ||
-	    AUDIT_SYSCALL_ENTER(sa->code, td) ||
-	    !sy_thr_static)) {
+	if (__predict_false(AUDIT_SYSCALL_ENABLED() ||
+	    SYSTRACE_ENABLED() || !sy_thr_static)) {
 		if (!sy_thr_static) {
 			error = syscall_thread_enter(td, &se);
 			sy_thr_static = (se->sy_thrcnt & SY_THR_STATIC) != 0;
@@ -158,6 +159,9 @@ syscallenter(struct thread *td)
 		if (__predict_false(se->sy_entry != 0))
 			(*systrace_probe_func)(sa, SYSTRACE_ENTRY, 0);
 #endif
+
+		AUDIT_SYSCALL_ENTER(sa->code, td);
+
 		error = (se->sy_call)(td, sa->args);
 		/* Save the latest error return value. */
 		if (__predict_false((td->td_pflags & TDP_NERRNO) != 0))
@@ -205,6 +209,8 @@ syscallenter(struct thread *td)
 		PROC_UNLOCK(p);
 	}
 	(p->p_sysent->sv_set_syscall_retval)(td, error);
+	if (error != 0 && (td->td_pflags2 & TDP2_UEXTERR) != 0)
+		exterr_copyout(td);
 }
 
 static inline void

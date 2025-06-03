@@ -124,6 +124,7 @@
 #include <vm/vm_pageout.h>
 #include <vm/vm_phys.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -1149,7 +1150,7 @@ pmap_dump_kextract(vm_offset_t va, pt2_entry_t *pte2p)
  *  After pmap_bootstrap() is called, the following functions for
  *  mappings can be used:
  *
- *  void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
+ *  void pmap_kenter(vm_offset_t va, vm_size_t size, vm_paddr_t pa, int mode);
  *  void pmap_kremove(vm_offset_t va);
  *  vm_offset_t pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end,
  *      int prot);
@@ -1307,11 +1308,28 @@ pmap_kenter_prot_attr(vm_offset_t va, vm_paddr_t pa, uint32_t prot,
 	pte2_store(pte2p, PTE2_KERN(pa, prot, attr));
 }
 
-PMAP_INLINE void
-pmap_kenter(vm_offset_t va, vm_paddr_t pa)
+static __inline void
+pmap_kenter_noflush(vm_offset_t va, vm_size_t size, vm_paddr_t pa, int mode)
 {
+	uint32_t l2attr;
 
-	pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, PTE2_ATTR_DEFAULT);
+	KASSERT((size & PAGE_MASK) == 0,
+	    ("%s: device mapping not page-sized", __func__));
+
+	l2attr = vm_memattr_to_pte2(mode);
+	while (size != 0) {
+		pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, l2attr);
+		va += PAGE_SIZE;
+		pa += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+}
+
+PMAP_INLINE void
+pmap_kenter(vm_offset_t va, vm_size_t size, vm_paddr_t pa, int mode)
+{
+	pmap_kenter_noflush(va, size, pa, mode);
+	tlb_flush_range(va, size);
 }
 
 /*
@@ -1452,7 +1470,7 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 	/* QQQ: 'i' should be less or equal to MAXDUMPPGS. */
 
 	va = (vm_offset_t)crashdumpmap + (i * PAGE_SIZE);
-	pmap_kenter(va, pa);
+	pmap_kenter_noflush(va, PAGE_SIZE, pa, VM_MEMATTR_DEFAULT);
 	tlb_flush_local(va);
 	return ((void *)crashdumpmap);
 }
@@ -1715,8 +1733,6 @@ pmap_init(void)
 	vm_size_t s;
 	pt2_entry_t *pte2p, pte2;
 	u_int i, pte1_idx, pv_npg;
-
-	PDEBUG(1, printf("%s: phys_start = %#x\n", __func__, PHYSADDR));
 
 	/*
 	 * Initialize the vm page array entries for kernel pmap's
@@ -4784,29 +4800,32 @@ void
 pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
     vm_page_t m_start, vm_prot_t prot)
 {
+	struct pctrie_iter pages;
 	vm_offset_t va;
 	vm_page_t m, mpt2pg;
-	vm_pindex_t diff, psize;
 
 	PDEBUG(6, printf("%s: pmap %p start %#x end  %#x m %p prot %#x\n",
 	    __func__, pmap, start, end, m_start, prot));
 
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
-	psize = atop(end - start);
+
 	mpt2pg = NULL;
-	m = m_start;
+	vm_page_iter_limit_init(&pages, m_start->object,
+	    m_start->pindex + atop(end - start));
+	m = vm_radix_iter_lookup(&pages, m_start->pindex);
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
-		va = start + ptoa(diff);
+	while (m != NULL) {
+		va = start + ptoa(m->pindex - m_start->pindex);
 		if ((va & PTE1_OFFSET) == 0 && va + PTE1_SIZE <= end &&
 		    m->psind == 1 && sp_enabled &&
-		    pmap_enter_1mpage(pmap, va, m, prot))
-			m = &m[PTE1_SIZE / PAGE_SIZE - 1];
-		else
+		    pmap_enter_1mpage(pmap, va, m, prot)) {
+			m = vm_radix_iter_jump(&pages, NBPDR / PAGE_SIZE);
+		} else {
 			mpt2pg = pmap_enter_quick_locked(pmap, va, m, prot,
 			    mpt2pg);
-		m = TAILQ_NEXT(m, listq);
+			m = vm_radix_iter_step(&pages);
+		}
 	}
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
@@ -4821,6 +4840,7 @@ void
 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
     vm_pindex_t pindex, vm_size_t size)
 {
+	struct pctrie_iter pages;
 	pt1_entry_t *pte1p;
 	vm_paddr_t pa, pte2_pa;
 	vm_page_t p;
@@ -4833,7 +4853,8 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 	if ((addr & PTE1_OFFSET) == 0 && (size & PTE1_OFFSET) == 0) {
 		if (!vm_object_populate(object, pindex, pindex + atop(size)))
 			return;
-		p = vm_page_lookup(object, pindex);
+		vm_page_iter_init(&pages, object);
+		p = vm_radix_iter_lookup(&pages, pindex);
 		KASSERT(p->valid == VM_PAGE_BITS_ALL,
 		    ("%s: invalid page %p", __func__, p));
 		pat_mode = p->md.pat_mode;
@@ -4851,15 +4872,14 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 		 * the pages are not physically contiguous or have differing
 		 * memory attributes.
 		 */
-		p = TAILQ_NEXT(p, listq);
 		for (pa = pte2_pa + PAGE_SIZE; pa < pte2_pa + size;
 		    pa += PAGE_SIZE) {
+			p = vm_radix_iter_next(&pages);
 			KASSERT(p->valid == VM_PAGE_BITS_ALL,
 			    ("%s: invalid page %p", __func__, p));
 			if (pa != VM_PAGE_TO_PHYS(p) ||
 			    pat_mode != p->md.pat_mode)
 				return;
-			p = TAILQ_NEXT(p, listq);
 		}
 
 		/*
@@ -6250,21 +6270,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 void
 pmap_kenter_device(vm_offset_t va, vm_size_t size, vm_paddr_t pa)
 {
-	vm_offset_t sva;
-	uint32_t l2attr;
-
-	KASSERT((size & PAGE_MASK) == 0,
-	    ("%s: device mapping not page-sized", __func__));
-
-	sva = va;
-	l2attr = vm_memattr_to_pte2(VM_MEMATTR_DEVICE);
-	while (size != 0) {
-		pmap_kenter_prot_attr(va, pa, PTE2_AP_KRW, l2attr);
-		va += PAGE_SIZE;
-		pa += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-	tlb_flush_range(sva, va - sva);
+	pmap_kenter(va, size, pa, VM_MEMATTR_DEVICE);
 }
 
 void

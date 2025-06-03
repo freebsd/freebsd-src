@@ -8,7 +8,7 @@
 .error bsd.dirs.mk must be included after bsd.files.mk.
 .endif
 
-__<bsd.files.mk>__:
+__<bsd.files.mk>__:	.NOTMAIN
 
 FILESGROUPS?=	FILES
 
@@ -39,6 +39,7 @@ STAGE_SETS+=	${group:C,[/*],_,g}
 
 .if ${group} == "FILES"
 FILESPACKAGE?=	${PACKAGE:Uutilities}
+FILESTAGS+=	${TAGS}
 .endif
 
 .if defined(NO_ROOT)

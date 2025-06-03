@@ -159,16 +159,24 @@ option nor
 .Va pid
 list can be used to limit the display of the locks, mostly because
 some types of locks do not have local (or any) owning processes.
+.It Ar argument(s) | Fl c
+Display command line arguments for the process.
+.Pp
+Substring commands are accepted.
+.It Ar auxv | Fl x
+Display ELF auxiliary vector for the process.
 .It Ar basic
 Print basic process statistics (this is the default).
 .It Ar binary | Fl b
 Display binary information for the process.
 .Pp
 Substring commands are accepted.
-.It Ar argument(s) | Fl c
-Display command line arguments for the process.
+.It Ar credential(s) | Fl s
+Display security credential information for the process.
 .Pp
 Substring commands are accepted.
+.It Ar cpuset | Ar cs | Fl S
+Display the cpuset information for the thread.
 .It Ar environment | Fl e
 Display environment variables for the process.
 .Pp
@@ -179,36 +187,67 @@ Display file descriptor information for the process.
 If the
 .Fl C
 subcommand flag is used then additional capability information is printed.
-.It Ar signal(s) | Fl i
-Display signal pending and disposition information for the process.
-.Pp
+.It Ar kqueue(s) Op Fl v
+Display the events registered in the process kqueues.
+The filter name, filter-specific identifier, flags, filter-specific flags,
+system and user data, and event status are displayed.
 If the
-.Fl n
-subcommand option is used, the signal numbers are shown instead of signal
-names.
+.Fl v
+verbose flag is provided to the subcommand, the values of the ext array
+are displayed as well.
 .Pp
-Substring commands are accepted.
-.It Ar tsignal(s) | Fl j
-Display signal pending and blocked information for the process's threads.
+For flags, a string is printed consisting of the following symbols
+corresponding to set flags:
+.Bl -tag -width X -compact
+.It O
+.Va EV_ONESHOT
+.It C
+.Va EV_CLEAR
+.It R
+.Va EV_RECEIPT
+.It D
+.Va EV_DISPATCH
+.It d
+.Va EV_DROP
+.It 1
+.Va EV_FLAG1
+.It 2
+.Va EV_FLAG2
+.El
 .Pp
-If the
-.Fl n
-subcommand option is used, the signal numbers are shown instead of signal
-names.
-.Pp
-Substring commands are accepted.
+For status:
+.Bl -tag -width X -compact
+.It A
+.Va KNOTE_STATUS_ACTIVE
+.It Q
+.Va KNOTE_STATUS_QUEUED
+.It D
+.Va KNOTE_STATUS_DISABLED
+.It d
+.Va KNOTE_STATUS_DETACHED
+.It K
+.Va KNOTE_STATUS_KQUEUE
+.El
 .It Ar kstack | Fl k
 Display the stacks of kernel threads in the process, excluding stacks of
-threads currently running on a CPU and threads with stacks swapped to disk.
+threads currently running on a CPU in userspace.
 .Pp
 If the
 .Fl v
 subcommand option is used (or the command flag is repeated), function
 offsets as well as function names are printed.
-.It Ar rlimit | Fl l
-Display resource limits for the process.
+.It Ar pargs
+Display arguments for the process.
+.It Ar penv
+Display environment variables for the process.
 .It Ar ptlwpinfo | Fl L
 Display LWP info for the process pertaining to its signal driven exit.
+.It Ar pwdx
+Display current working directory for the process.
+.It Ar rlimit | Fl l
+Display resource limits for the process.
+.It Ar rlimitusage
+Display the usage of the resource limits for the process.
 .It Ar rusage | Fl r
 Display resource usage information for the process.
 .Pp
@@ -220,24 +259,28 @@ is used then per-thread statistics are printed, rather than per-process
 statistics.
 The second field in the table will list the thread ID to which the row of
 information corresponds.
-.It Ar credential(s) | Fl s
-Display security credential information for the process.
+.It Ar signal(s) | Fl i
+Display signal pending and disposition information for the process.
+.Pp
+If the
+.Fl n
+subcommand option is used, the signal numbers are shown instead of signal
+names.
 .Pp
 Substring commands are accepted.
-.It Ar cpuset | Ar cs | Fl S
-Display the cpuset information for the thread.
 .It Ar thread(s) | Fl t
 Display thread information for the process.
+.It Ar tsignal(s) | Fl j
+Display signal pending and blocked information for the process's threads.
+.Pp
+If the
+.Fl n
+subcommand option is used, the signal numbers are shown instead of signal
+names.
+.Pp
+Substring commands are accepted.
 .It Ar vm | Fl v
 Display virtual memory mappings for the process.
-.It Ar auxv | Fl x
-Display ELF auxiliary vector for the process.
-.It Ar pargs
-Display arguments for the process.
-.It Ar penv
-Display environment variables for the process.
-.It Ar pwdx
-Display current working directory for the process.
 .El
 .Pp
 All options generate output in the format of a table, the first field of
@@ -436,13 +479,11 @@ see
 .Pp
 .Bl -tag -width indent -compact
 .It UDD
-.Dv IPPROTO_UDP ;
-see
-.Xr udp 4 .
+Datagram socket.
 .It UDS
-.Dv IPPROTO_TCP ;
-see
-.Xr tcp 4 .
+Stream socket.
+.It UDQ
+Sequential Packet Stream socket.
 .It UD?
 unknown protocol.
 .El

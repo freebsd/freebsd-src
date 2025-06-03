@@ -107,7 +107,7 @@ CODE {
 	}
 
 	static int
-	null_priv_ioctl(if_ctx_t _ctx __unused, u_long command, caddr_t *data __unused)
+	null_priv_ioctl(if_ctx_t _ctx __unused, u_long command, caddr_t data __unused)
 	{
 		return (ENOTSUP);
 	}

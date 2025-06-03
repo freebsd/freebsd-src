@@ -15,7 +15,7 @@
 
 // See lz_encoder_hash.h. This is a bit hackish but avoids making
 // endianness a conditional in makefiles.
-#if defined(WORDS_BIGENDIAN) && !defined(HAVE_SMALL)
+#ifdef LZMA_LZ_HASH_TABLE_IS_NEEDED
 #	include "lz_encoder_hash_table.h"
 #endif
 

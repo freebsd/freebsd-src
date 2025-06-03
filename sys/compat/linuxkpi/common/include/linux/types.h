@@ -63,6 +63,7 @@ typedef unsigned gfp_t;
 typedef off_t loff_t;
 typedef vm_paddr_t resource_size_t;
 typedef uint16_t __bitwise__ __sum16;
+typedef uint32_t __bitwise__ __wsum;
 typedef unsigned long pgoff_t;
 typedef unsigned __poll_t;
 

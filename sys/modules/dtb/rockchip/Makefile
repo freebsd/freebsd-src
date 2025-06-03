@@ -19,7 +19,9 @@ DTS=	\
 	rockchip/rk3399-firefly.dts \
 	rockchip/rk3399-rockpro64.dts \
 	rockchip/rk3566-quartz64-a.dts \
-	rockchip/rk3568-nanopi-r5s.dts
+	rockchip/rk3568-nanopi-r5s.dts \
+	rockchip/rk3566-radxa-zero-3e.dts \
+	rockchip/rk3566-radxa-zero-3w.dts
 
 DTSO=	rk3328-analog-sound.dtso \
 	rk3328-i2c0.dtso \

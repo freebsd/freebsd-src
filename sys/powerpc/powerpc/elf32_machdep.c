@@ -190,7 +190,6 @@ elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 	pcb = td->td_pcb;
 
 	if (pcb->pcb_flags & PCB_VEC) {
-		save_vec_nodrop(td);
 		if (dst != NULL) {
 			len += elf32_populate_note(NT_PPC_VMX,
 			    &pcb->pcb_vec, (char *)dst + len,
@@ -201,7 +200,6 @@ elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 	}
 
 	if (pcb->pcb_flags & PCB_VSX) {
-		save_fpu_nodrop(td);
 		if (dst != NULL) {
 			/*
 			 * Doubleword 0 of VSR0-VSR31 overlap with FPR0-FPR31 and

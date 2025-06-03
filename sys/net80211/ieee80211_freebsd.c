@@ -706,7 +706,37 @@ ieee80211_get_toa_params(struct mbuf *m, struct ieee80211_toa_params *p)
 }
 
 /*
- * Transmit a frame to the parent interface.
+ * @brief Transmit a frame to the parent interface.
+ *
+ * Transmit an 802.11 or 802.3 frame to the parent interface.
+ *
+ * This is called as part of 802.11 processing to enqueue a frame
+ * from net80211 into the device for transmit.
+ *
+ * If the interface is marked as 802.3 via IEEE80211_C_8023ENCAP
+ * (ie, doing offload), then an 802.3 frame will be sent and the
+ * driver will need to understand what to do.
+ *
+ * If the interface is marked as 802.11 (ie, no offload), then
+ * an encapsulated 802.11 frame will be queued.  In the case
+ * of an 802.11 fragmented frame this will be a list of frames
+ * representing the fragments making up the 802.11 frame, linked
+ * via m_nextpkt.
+ *
+ * A fragmented frame list will consist of:
+ * + only the first frame with M_SEQNO_SET() assigned the sequence number;
+ * + only the first frame with the node reference and node in rcvif;
+ * + all frames will have the sequence + fragment number populated in
+ *   the 802.11 header.
+ *
+ * The driver must ensure it doesn't try releasing a node reference
+ * for each fragment in the list.
+ *
+ * The provided mbuf/list is consumed both upon success and error.
+ *
+ * @param ic	struct ieee80211com device to enqueue frame to
+ * @param m	struct mbuf chain / packet list to enqueue
+ * @returns	0 if successful, errno if error.
  */
 int
 ieee80211_parent_xmitpkt(struct ieee80211com *ic, struct mbuf *m)
@@ -726,6 +756,8 @@ ieee80211_parent_xmitpkt(struct ieee80211com *ic, struct mbuf *m)
 
 		/* XXX number of fragments */
 		if_inc_counter(ni->ni_vap->iv_ifp, IFCOUNTER_OERRORS, 1);
+
+		/* Note: there's only one node reference for a fragment list */
 		ieee80211_free_node(ni);
 		ieee80211_free_mbuf(m);
 	}
@@ -733,7 +765,19 @@ ieee80211_parent_xmitpkt(struct ieee80211com *ic, struct mbuf *m)
 }
 
 /*
- * Transmit a frame to the VAP interface.
+ * @brief Transmit an 802.3 frame to the VAP interface.
+ *
+ * This is the entry point for the wifi stack to enqueue 802.3
+ * encapsulated frames for transmit to the given vap/ifnet instance.
+ * This is used in paths where 802.3 frames have been received
+ * or queued, and need to be pushed through the VAP encapsulation
+ * and transmit processing pipeline.
+ *
+ * The provided mbuf/list is consumed both upon success and error.
+ *
+ * @param vap	struct ieee80211vap instance to transmit frame to
+ * @param m	mbuf to transmit
+ * @returns	0 if OK, errno if error
  */
 int
 ieee80211_vap_xmitpkt(struct ieee80211vap *vap, struct mbuf *m)
@@ -870,7 +914,7 @@ ieee80211_notify_replay_failure(struct ieee80211vap *vap,
 
 void
 ieee80211_notify_michael_failure(struct ieee80211vap *vap,
-	const struct ieee80211_frame *wh, u_int keyix)
+	const struct ieee80211_frame *wh, ieee80211_keyix keyix)
 {
 	struct ifnet *ifp = vap->iv_ifp;
 
@@ -1097,7 +1141,7 @@ ieee80211_get_vap_ifname(struct ieee80211vap *vap)
 {
 	if (vap->iv_ifp == NULL)
 		return "(none)";
-	return vap->iv_ifp->if_xname;
+	return (if_name(vap->iv_ifp));
 }
 
 #ifdef DEBUGNET
@@ -1147,6 +1191,140 @@ ieee80211_debugnet_poll(struct ifnet *ifp, int count)
 	return (ic->ic_debugnet_meth->dn8_poll(ic, count));
 }
 #endif
+
+/**
+ * @brief Check if the MAC address was changed by the upper layer.
+ *
+ * This is specifically to handle cases like the MAC address
+ * being changed via an ioctl (eg SIOCSIFLLADDR).
+ *
+ * @param vap	VAP to sync MAC address for
+ */
+void
+ieee80211_vap_sync_mac_address(struct ieee80211vap *vap)
+{
+	struct epoch_tracker et;
+	const struct ifnet *ifp = vap->iv_ifp;
+
+	/*
+	 * Check if the MAC address was changed
+	 * via SIOCSIFLLADDR ioctl.
+	 *
+	 * NB: device may be detached during initialization;
+	 * use if_ioctl for existence check.
+	 */
+	NET_EPOCH_ENTER(et);
+	if (ifp->if_ioctl == ieee80211_ioctl &&
+	    (ifp->if_flags & IFF_UP) == 0 &&
+	    !IEEE80211_ADDR_EQ(vap->iv_myaddr, IF_LLADDR(ifp)))
+		IEEE80211_ADDR_COPY(vap->iv_myaddr, IF_LLADDR(ifp));
+	NET_EPOCH_EXIT(et);
+}
+
+/**
+ * @brief Initial MAC address setup for a VAP.
+ *
+ * @param vap	VAP to sync MAC address for
+ */
+void
+ieee80211_vap_copy_mac_address(struct ieee80211vap *vap)
+{
+	struct epoch_tracker et;
+
+	NET_EPOCH_ENTER(et);
+	IEEE80211_ADDR_COPY(vap->iv_myaddr, IF_LLADDR(vap->iv_ifp));
+	NET_EPOCH_EXIT(et);
+}
+
+/**
+ * @brief Deliver data into the upper ifp of the VAP interface
+ *
+ * This delivers an 802.3 frame from net80211 up to the operating
+ * system network interface layer.
+ *
+ * @param vap	the current VAP
+ * @param m	the 802.3 frame to pass up to the VAP interface
+ *
+ * Note: this API consumes the mbuf.
+ */
+void
+ieee80211_vap_deliver_data(struct ieee80211vap *vap, struct mbuf *m)
+{
+	struct epoch_tracker et;
+
+	NET_EPOCH_ENTER(et);
+	if_input(vap->iv_ifp, m);
+	NET_EPOCH_EXIT(et);
+}
+
+/**
+ * @brief Return whether the VAP is configured with monitor mode
+ *
+ * This checks the operating system layer for whether monitor mode
+ * is enabled.
+ *
+ * @param vap	the current VAP
+ * @retval true if the underlying interface is in MONITOR mode, false otherwise
+ */
+bool
+ieee80211_vap_ifp_check_is_monitor(struct ieee80211vap *vap)
+{
+	return ((if_getflags(vap->iv_ifp) & IFF_MONITOR) != 0);
+}
+
+/**
+ * @brief Return whether the VAP is configured in simplex mode.
+ *
+ * This checks the operating system layer for whether simplex mode
+ * is enabled.
+ *
+ * @param vap	the current VAP
+ * @retval true if the underlying interface is in SIMPLEX mode, false otherwise
+ */
+bool
+ieee80211_vap_ifp_check_is_simplex(struct ieee80211vap *vap)
+{
+	return ((if_getflags(vap->iv_ifp) & IFF_SIMPLEX) != 0);
+}
+
+/**
+ * @brief Return if the VAP underlying network interface is running
+ *
+ * @param vap	the current VAP
+ * @retval true if the underlying interface is running; false otherwise
+ */
+bool
+ieee80211_vap_ifp_check_is_running(struct ieee80211vap *vap)
+{
+	return ((if_getdrvflags(vap->iv_ifp) & IFF_DRV_RUNNING) != 0);
+}
+
+/**
+ * @brief Change the VAP underlying network interface state
+ *
+ * @param vap	the current VAP
+ * @param state	true to mark the interface as RUNNING, false to clear
+ */
+void
+ieee80211_vap_ifp_set_running_state(struct ieee80211vap *vap, bool state)
+{
+	if (state)
+		if_setdrvflagbits(vap->iv_ifp, IFF_DRV_RUNNING, 0);
+	else
+		if_setdrvflagbits(vap->iv_ifp, 0, IFF_DRV_RUNNING);
+}
+
+/**
+ * @brief Return the broadcast MAC address.
+ *
+ * @param vap	The current VAP
+ * @retval a uint8_t array representing the ethernet broadcast address
+ */
+const uint8_t *
+ieee80211_vap_get_broadcast_address(struct ieee80211vap *vap)
+{
+	return (if_getbroadcastaddr(vap->iv_ifp));
+}
 
 /*
  * Module glue.

@@ -226,12 +226,9 @@ enum {
 	MWL_DEBUG_AMPDU		= 0x00004000,	/* BA stream handling */
 	MWL_DEBUG_ANY		= 0xffffffff
 };
-#define	IS_BEACON(wh) \
-    ((wh->i_fc[0] & (IEEE80211_FC0_TYPE_MASK|IEEE80211_FC0_SUBTYPE_MASK)) == \
-	 (IEEE80211_FC0_TYPE_MGT|IEEE80211_FC0_SUBTYPE_BEACON))
 #define	IFF_DUMPPKTS_RECV(sc, wh) \
     ((sc->sc_debug & MWL_DEBUG_RECV) && \
-      ((sc->sc_debug & MWL_DEBUG_RECV_ALL) || !IS_BEACON(wh)))
+      ((sc->sc_debug & MWL_DEBUG_RECV_ALL) || !IEEE80211_IS_MGMT_BEACON(wh)))
 #define	IFF_DUMPPKTS_XMIT(sc) \
 	(sc->sc_debug & MWL_DEBUG_XMIT)
 
@@ -2553,7 +2550,7 @@ mwl_anyhdrsize(const void *data)
 {
 	const struct ieee80211_frame *wh = data;
 
-	if ((wh->i_fc[0]&IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL) {
+	if (IEEE80211_IS_CTL(wh)) {
 		switch (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) {
 		case IEEE80211_FC0_SUBTYPE_CTS:
 		case IEEE80211_FC0_SUBTYPE_ACK:
@@ -3347,6 +3344,7 @@ mwl_tx_processq(struct mwl_softc *sc, struct mwl_txq *txq)
 		ni = bf->bf_node;
 		if (ni != NULL) {
 			status = le32toh(ds->Status);
+			int rate;
 			if (status & EAGLE_TXD_STATUS_OK) {
 				uint16_t Format = le16toh(ds->Format);
 				uint8_t txant = _IEEE80211_MASKSHIFT(Format,
@@ -3359,14 +3357,14 @@ mwl_tx_processq(struct mwl_softc *sc, struct mwl_txq *txq)
 					sc->sc_stats.mst_tx_mretries++;
 				if (txq->qnum >= MWL_WME_AC_VO)
 					ic->ic_wme.wme_hipri_traffic++;
-				ni->ni_txrate = _IEEE80211_MASKSHIFT(Format,
+				rate = _IEEE80211_MASKSHIFT(Format,
 				    EAGLE_TXD_RATE);
 				if ((Format & EAGLE_TXD_FORMAT_HT) == 0) {
-					ni->ni_txrate = mwl_cvtlegacyrix(
-					    ni->ni_txrate);
+					rate = mwl_cvtlegacyrix(rate);
 				} else
-					ni->ni_txrate |= IEEE80211_RATE_MCS;
-				sc->sc_stats.mst_tx_rate = ni->ni_txrate;
+					rate |= IEEE80211_RATE_MCS;
+				sc->sc_stats.mst_tx_rate = rate;
+				ieee80211_node_set_txrate_dot11rate(ni, rate);
 			} else {
 				if (status & EAGLE_TXD_STATUS_FAILED_LINK_ERROR)
 					sc->sc_stats.mst_tx_linkerror++;
@@ -4019,7 +4017,7 @@ mkpeerinfo(MWL_HAL_PEERINFO *pi, const struct ieee80211_node *ni)
 			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI40;
 		if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
 			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI20;
-		if (ni->ni_chw != 40)
+		if (ni->ni_chw != IEEE80211_STA_RX_BW_40)
 			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_CHWIDTH40;
 	}
 	return pi;

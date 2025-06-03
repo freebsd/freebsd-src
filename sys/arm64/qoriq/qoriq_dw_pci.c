@@ -31,7 +31,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/devmap.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -241,7 +240,8 @@ qorif_dw_pci_attach(device_t dev)
 		goto out;
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 out:
 	/* XXX Cleanup */
 	return (rv);

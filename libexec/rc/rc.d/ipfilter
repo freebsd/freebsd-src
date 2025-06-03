@@ -33,7 +33,13 @@ required_modules="ipl:ipfilter"
 ipfilter_start()
 {
 	echo "Enabling ipfilter."
-	if ! ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes'; then
+	if [ -n "${ifilter_optionlist}" ]; then
+		if ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes'; then
+			${ipfilter_program:-/sbin/ipf} -D
+		fi
+		${ipfilter_program:-/sbin/ipf} -T "${ipfilter_optionlist}"
+		${ipfilter_program:-/sbin/ipf} -E
+	elif ! ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes'; then
 		${ipfilter_program:-/sbin/ipf} -E
 	fi
 	${ipfilter_program:-/sbin/ipf} -Fa

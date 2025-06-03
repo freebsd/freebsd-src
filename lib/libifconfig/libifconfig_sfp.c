@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#define _WANT_SFF_8024_ID
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -181,6 +183,7 @@ get_qsfp_info(struct i2c_info *ii, struct ifconfig_sfp_info *sfp)
 	if (code & SFF_8636_EXT_COMPLIANCE) {
 		read_i2c(ii, SFF_8436_BASE, SFF_8436_OPTIONS_START, 1,
 		    &sfp->sfp_eth_ext);
+		sfp->sfp_eth_1040g = code;
 	} else {
 		/* Check 10/40G Ethernet class only */
 		sfp->sfp_eth_1040g =

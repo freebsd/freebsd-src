@@ -13,3 +13,6 @@ device		uart_msm		# Qualcomm MSM UART driver
 device		sdhci
 
 options 	FDT
+
+# DTBs
+makeoptions	MODULES_EXTRA+="dtb/qcom"

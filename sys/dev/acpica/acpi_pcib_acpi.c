@@ -287,62 +287,6 @@ get_decoded_bus_range(struct acpi_hpcib_softc *sc, rman_res_t *startp,
 }
 
 static int
-acpi_pcib_osc(struct acpi_hpcib_softc *sc, uint32_t osc_ctl)
-{
-	ACPI_STATUS status;
-	uint32_t cap_set[3];
-
-	static uint8_t pci_host_bridge_uuid[ACPI_UUID_LENGTH] = {
-		0x5b, 0x4d, 0xdb, 0x33, 0xf7, 0x1f, 0x1c, 0x40,
-		0x96, 0x57, 0x74, 0x41, 0xc0, 0x3d, 0xd7, 0x66
-	};
-
-	/*
-	 * Don't invoke _OSC if a control is already granted.
-	 * However, always invoke _OSC during attach when 0 is passed.
-	 */
-	if (osc_ctl != 0 && (sc->ap_osc_ctl & osc_ctl) == osc_ctl)
-		return (0);
-
-	/* Support Field: Extended PCI Config Space, PCI Segment Groups, MSI */
-	cap_set[PCI_OSC_SUPPORT] = PCIM_OSC_SUPPORT_EXT_PCI_CONF |
-	    PCIM_OSC_SUPPORT_SEG_GROUP | PCIM_OSC_SUPPORT_MSI;
-	/* Active State Power Management, Clock Power Management Capability */
-	if (pci_enable_aspm)
-		cap_set[PCI_OSC_SUPPORT] |= PCIM_OSC_SUPPORT_ASPM |
-		    PCIM_OSC_SUPPORT_CPMC;
-
-	/* Control Field */
-	cap_set[PCI_OSC_CTL] = sc->ap_osc_ctl | osc_ctl;
-
-	status = acpi_EvaluateOSC(sc->ap_handle, pci_host_bridge_uuid, 1,
-	    nitems(cap_set), cap_set, cap_set, false);
-	if (ACPI_FAILURE(status)) {
-		if (status == AE_NOT_FOUND) {
-			sc->ap_osc_ctl |= osc_ctl;
-			return (0);
-		}
-		device_printf(sc->ap_dev, "_OSC failed: %s\n",
-		    AcpiFormatException(status));
-		return (EIO);
-	}
-
-	/*
-	 * _OSC may return an error in the status word, but will
-	 * update the control mask always.  _OSC should not revoke
-	 * previously-granted controls.
-	 */
-	if ((cap_set[PCI_OSC_CTL] & sc->ap_osc_ctl) != sc->ap_osc_ctl)
-		device_printf(sc->ap_dev, "_OSC revoked %#x\n",
-		    (cap_set[PCI_OSC_CTL] & sc->ap_osc_ctl) ^ sc->ap_osc_ctl);
-	sc->ap_osc_ctl = cap_set[PCI_OSC_CTL];
-	if ((sc->ap_osc_ctl & osc_ctl) != osc_ctl)
-		return (EIO);
-
-	return (0);
-}
-
-static int
 acpi_pcib_acpi_attach(device_t dev)
 {
     struct acpi_hpcib_softc	*sc;
@@ -367,7 +311,7 @@ acpi_pcib_acpi_attach(device_t dev)
     if (!acpi_DeviceIsPresent(dev))
 	return (ENXIO);
 
-    acpi_pcib_osc(sc, 0);
+    acpi_pcib_osc(dev, &sc->ap_osc_ctl, 0);
 
     /*
      * Get our segment number by evaluating _SEG.
@@ -528,14 +472,15 @@ acpi_pcib_acpi_attach(device_t dev)
     /* Don't fail to attach if the domain can't be queried or set. */
     error = 0;
 
-    bus_generic_probe(dev);
+    bus_identify_children(dev);
     if (device_add_child(dev, "pci", -1) == NULL) {
 	bus_dma_tag_destroy(sc->ap_dma_tag);
 	sc->ap_dma_tag = NULL;
 	error = ENXIO;
 	goto errout;
     }
-    return (bus_generic_attach(dev));
+    bus_attach_children(dev);
+    return (0);
 
 errout:
     device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
@@ -758,7 +703,7 @@ acpi_pcib_request_feature(device_t pcib, device_t dev, enum pci_feature feature)
 		return (EINVAL);
 	}
 
-	return (acpi_pcib_osc(sc, osc_ctl));
+	return (acpi_pcib_osc(pcib, &sc->ap_osc_ctl, osc_ctl));
 }
 
 static bus_dma_tag_t

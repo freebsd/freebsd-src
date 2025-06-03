@@ -1,0 +1,179 @@
+.\"
+.\" SPDX-Copyright-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (C) 2024 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.Dd March 2, 2024
+.Dt LIBDER 3
+.Os
+.Sh NAME
+.Nm libder ,
+.Nm libder_open ,
+.Nm libder_close ,
+.Nm libder_abort ,
+.Nm libder_get_error ,
+.Nm libder_has_error ,
+.Nm libder_get_normalize ,
+.Nm libder_set_normalize ,
+.Nm libder_get_strict ,
+.Nm libder_set_strict ,
+.Nm libder_get_verbose ,
+.Nm libder_set_verbose
+.Nd DER encoding and decoding library
+.Sh LIBRARY
+.Lb libder
+.Sh SYNOPSIS
+.In libder.h
+.Ft struct libder_ctx *
+.Fn libder_open "void"
+.Ft void
+.Fn libder_close "struct libder_ctx *ctx"
+.Ft void
+.Fn libder_abort "struct libder_ctx *ctx"
+.Ft const char *
+.Fn libder_get_error "struct libder_ctx *ctx"
+.Ft bool
+.Fn libder_has_error "struct libder_ctx *ctx"
+.Ft uint64_t
+.Fn libder_get_normalize "struct libder_ctx *ctx"
+.Ft uint64_t
+.Fn libder_set_normalize "struct libder_ctx *ctx" "uint64_t normalize"
+.Ft bool
+.Fn libder_get_strict "struct libder_ctx *ctx"
+.Ft bool
+.Fn libder_set_strict "struct libder_ctx *ctx" "bool strict"
+.Ft int
+.Fn libder_get_verbose "struct libder_ctx *ctx"
+.Ft int
+.Fn libder_set_verbose "struct libder_ctx *ctx" "int verbose"
+.Sh DESCRIPTION
+The
+.Nm
+library provides functionality for decoding BER and DER encoded data, and
+DER encoding data subjected to constraints outline in ITU-T
+Recommendation X.690.
+.Nm
+will apply relevant normalization rules on write, unless they've been disabled
+with
+.Ft libder_set_normalize ,
+under the assumption that it may not be reading strictly DER encoded data.
+.Pp
+Note that not all of the DER rules are currently implemented.
+.Nm
+will coalesce constructed types that DER specifies should be primitive.
+.Nm
+will primarily normalize bitstrings, booleans, and integers.
+This library was primarily written to be able to provide interoperability with
+OpenSSL keys and signatures, so the library was written with that in mind.
+Eventually it is intended that
+.Nm
+will support the full set of rules, but currently some responsibility is left
+to the library user.
+.Pp
+Also note that
+.Nm
+does not necessarily provide
+.Dq neat
+ways to construct primitives.
+For example, even booleans and integers currently work just by providing a
+buffer that is expected to be formatted in a sane fashion.
+The library user is expected to build the object tree and generally provide the
+object data in a format reasonably encoded as the data for that type should be,
+then
+.Nm
+will provide the proper framing on write and do any transformations that may
+need to be done for strict conformance.
+.Pp
+The
+.Fn libder_open
+function allocates a new
+.Nm
+context.
+The context does not hold any state about any particular structure.
+All of the state held in the context is generally described in this manpage.
+The
+.Fn libder_close
+function will free the context.
+.Pp
+The
+.Fn libder_abort
+function will abort an in-progress
+.Xr libder_read_fd 3
+operation on the existing
+.Fa ctx
+if it is interrupted by a signal in the middle of a
+.Xr read 2
+syscall.
+See
+.Xr libder_read_fd 3
+for further discussion.
+.Pp
+The
+.Fn libder_get_error
+function will return an error string appropriate for the current error, if any.
+The
+.Fn libder_has_error
+function can be used to check if an error was raised in a previous operation.
+.Pp
+The
+.Fn libder_get_normalize
+and
+.Fn libder_set_normalize
+functions retrieve and manipulate any number of flags that detail how
+functions may be used to check or set the normalization flags given
+.Nm context ,
+which dictates how
+.Nm
+will normalize data on write.
+The following normalization flags may be specified:
+.Bl -column "LIBDER_NORMALIZE_CONSTRUCTED"
+.It LIBDER_NORMALIZE_CONSTRUCTED Ta Coalesce types that may be primitive or constructed
+.It LIBDER_NORMALIZE_TAGS Ta Pack tags into the lowest possible encoded value
+.El
+.Pp
+The
+.Fn LIBDER_NORMALIZE_TYPE_FLAG "enum libder_ber_type"
+macaro may also be used to specify normalization of the given universal type.
+By default, every valid normalization flag is enabled.
+.Pp
+The
+.Fn libder_get_strict
+and
+.Fn libder_set_strict
+functions may used to check or set the strict read state of the given
+.Nm
+context.
+By default,
+.Nm
+operates in strict mode and rejects various methods of expressing data that are
+valid looking but not strictly conformant.
+The
+.Va LDE_STRICT_*
+constants in
+.In libder.h
+describe the various scenarios that strict mode may reject.
+.Pp
+The
+.Fn libder_get_verbose
+and
+.Fn libder_set_verbose
+functions may be used to check or set the verbosity of the given
+.Nm
+context.
+This primarily controls how
+.Nm
+behaves when an error is encountered.
+By default, the library will silently set the error state and return.
+With a verbosity level of 1, an error will be printed when the error state is
+set that contains the string that would be returned by
+.Fn libder_get_error .
+With a verbosity level of 2, the filename and line within
+.Nm
+that the error occurred in will be printed, which is primarily intended for
+debugging
+.Nm .
+.Sh SEE ALSO
+.Xr libder_obj 3 ,
+.Xr libder_read 3 ,
+.Xr libder_type 3 ,
+.Xr libder_write 3

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.158 2023/05/21 17:19:08 christos Exp $
+# $File: filesystems,v 1.165 2024/09/01 15:51:51 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid
@@ -1282,7 +1282,7 @@
 #>>>(0x1BC.s+11)		ubyte		x			\b,cfg_def %#x
 # for older versions
 >>>(0x1BC.s+9)		ubyte		<2
-#>>>>(0x1BC.s+12)	ubyte		18			\b,%hhu/18 seconds
+#>>>>(0x1BC.s+12)	ubyte		18			\b,%u/18 seconds
 >>>>(0x1BC.s+12)	ubyte		!18			\b,%u/18 seconds
 # floppy A: or B:
 >>>>(0x1BC.s+13)	ubyte		<2			\b,floppy %#x
@@ -1401,14 +1401,14 @@
 >>>>>16		ubyte		=1		\b, FAT  %u
 >>>>>16		ubyte		>0
 >>>>>17		uleshort	>0		\b, root entries %u
-#>>>>>17	uleshort	=0		\b, root entries %hu=0 (usual Fat32)
+#>>>>>17	uleshort	=0		\b, root entries %u=0 (usual Fat32)
 >>>>>19		uleshort	>0		\b, sectors %u (volumes <=32 MB)
-#>>>>>19	uleshort	=0		\b, sectors %hu=0 (usual Fat32)
+#>>>>>19	uleshort	=0		\b, sectors %u=0 (usual Fat32)
 >>>>>21		ubyte		>0xF0		\b, Media descriptor %#x
 #>>>>>21	ubyte		=0xF0		\b, Media descriptor %#x (usual floppy)
 >>>>>21		ubyte		<0xF0		\b, Media descriptor %#x
 >>>>>22		uleshort	>0		\b, sectors/FAT %u
-#>>>>>22	uleshort	=0		\b, sectors/FAT %hu=0 (usual Fat32)
+#>>>>>22	uleshort	=0		\b, sectors/FAT %u=0 (usual Fat32)
 >>>>>24		uleshort	x		\b, sectors/track %u
 >>>>>26		ubyte		>2		\b, heads %u
 #>>>>>26	ubyte		=2		\b, heads %u (usual floppy)
@@ -1479,7 +1479,7 @@
 >>>>>>36	ulelong		x		\b, sectors/FAT %u
 # https://technet.microsoft.com/en-us/library/cc977221.aspx
 >>>>>>40	uleshort	>0		\b, extension flags %#x
-#>>>>>>40	uleshort	=0		\b, extension flags %hu
+#>>>>>>40	uleshort	=0		\b, extension flags %u
 >>>>>>42	uleshort	>0		\b, fsVersion %u
 #>>>>>>42	uleshort	=0		\b, fsVersion %u (usual)
 >>>>>>44	ulelong		>2		\b, rootdir cluster %u
@@ -1938,26 +1938,29 @@
 # defect IO.SYS+MSDOS.SYS ?
 #>>>>>0x162	use			2xDOS-filename
 
-0	name				cdrom
->38913	string   !NSR0      ISO 9660 CD-ROM filesystem data
+0	name				cdrom	ISO 9660 CD-ROM filesystem data
 !:mime	application/x-iso9660-image
 !:ext	iso/iso9660
->38913	string    NSR0      UDF filesystem data
-!:mime	application/x-iso9660-image
-!:ext	iso/udf
->>38917	string    1         (version 1.0)
->>38917	string    2         (version 1.5)
->>38917	string    3         (version 2.0)
->>38917	byte     >0x33      (unknown version, ID %#X)
->>38917	byte     <0x31      (unknown version, ID %#X)
 # The next line is not necessary because the MBR staff is done looking for boot signature
 >0x1FE	leshort  0xAA55     (DOS/MBR boot sector)
 # "application id" which appears to be used as a volume label
 >32808	string/T  >\0       '%.32s'
 >34816	string    \000CD001\001EL\ TORITO\ SPECIFICATION    (bootable)
+# check for extended area (combined ISO + UDF)
+>36865	string    BEA01     +
+>>36864	use       extendedarea
+
 37633	string    CD001     ISO 9660 CD-ROM filesystem data (raw 2352 byte sectors)
 !:mime	application/x-iso9660-image
+
+# URL:		http://fileformats.archiveteam.org/wiki/High_Sierra
+# Update:	Joerg Jenderek
 32777	string    CDROM     High Sierra CD-ROM filesystem data
+# https://www.unix.com/man-page/OpenSolaris/7fs/hsfs/
+#!:mime	application/octet-stream
+#!:mime	application/x-hsfs-image
+# BOOKSHELF.ISO "Shareware Grab Bag.iso"
+!:ext	iso
 # "application id" which appears to be used as a volume label
 >32816	string/T  >\0       '%.32s'
 
@@ -1973,6 +1976,55 @@
 !:strength +35
 >0	use	cdrom
 
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Universal_Disk_Format
+#		https://en.wikipedia.org/wiki/Universal_Disk_Format
+# Reference:	https://wiki.osdev.org/UDF
+# Note:		called "UDF Disc Image" by DROID via PUID fmt/1738
+#		verified by udftools `udfinfo nero-UDFv26.iso` and 7-Zip `7z l -tUdf nero-UDF1.iso`
+#		
+# look for type descriptor at relative offset 1 of block 16 if it is an extended descriptor section
+32769	string	BEA01
+>32768	use	extendedarea
+
+0	name	extendedarea
+# look for type descriptor at relative offset 1 of block 17 with size 2048 (valid for images with blocksize of 512, 1024 or 2048 bytes)
+>2049		string	NSR0
+>>2048		use	NSR0
+>2049		default	x
+# look for type descriptor at relative offset 1 of block 17 with size 4096 (valid for images with blocksize of 4096 bytes)
+>>4097		string	NSR0
+>>>4096		use	NSR0
+>>4097		default	x
+# look for type descriptor at relative offset 1 of block 17 with size 8192 (valid for images with blocksize of 8192 bytes)
+>>>8193		string	NSR0
+>>>>8192	use	NSR0
+>>>8193		default	x
+# look for type descriptor at relative offset 1 of block 17 with size 16384 (valid for images with blocksize of 16384 bytes)
+>>>>16385	string	NSR0
+>>>>>16384	use	NSR0
+>>>>16385	default	x
+# look for type descriptor at relative offset 1 of block 17 with size 32768 (valid for images with blocksize of 32768 bytes)
+>>>>>32769	string	NSR0
+>>>>>>32768	use	NSR0
+>>>>>32769	default	x
+
+0	name	NSR0
+# NSR02 indicates ISO/IEC 13346 first edition, or ECMA-167 second edition
+# OSTA UDF 1.x revisions are based on ISO/IEC 13346 first edition
+# FIXME: This detection is incorrect as it does not detect UDF 1.x, but ECMA-167 2nd
+>5	ubyte	0x32	UDF filesystem data (version 1.x)
+#!:mime	application/octet-stream
+!:mime	application/x-udf-image
+!:ext	iso/udf
+# NSR03 indicates ISO/IEC 13346 second edition, or ECMA-167 third edition
+# OSTA UDF 2.x revisions are based on ECMA-167 third edition
+# FIXME: This detection is incorrect as it does not detect UDF 2.x, but ECMA-167 3rd
+>5	ubyte	0x33	UDF filesystem data (version 2.x)
+#!:mime	application/octet-stream
+!:mime	application/x-udf-image
+!:ext	iso/udf
+
 # URL: https://en.wikipedia.org/wiki/NRG_(file_format)
 # Reference: https://dl.opendesktop.org/api/files/download/id/1460731811/
 #	11577-mount-iso-0.9.5.tar.bz2/mount-iso-0.9.5/install.sh
@@ -1982,24 +2034,6 @@
 !:mime	application/x-nrg
 !:ext	nrg
 >307200	use cdrom
-
-# .cso files
-# Reference: https://pismotec.com/ciso/ciso.h
-# NOTE: There are two other formats with the same magic but
-# completely incompatible specifications:
-# - GameCube/Wii CISO: https://github.com/dolphin-emu/dolphin/blob/master/Source/Core/DiscIO/CISOBlob.h
-# - PSP CISO: https://github.com/jamie/ciso/blob/master/ciso.h
-0    string    CISO
-# Other fields are used to determine what type of CISO this is:
-# - 0x04 == 0x00200000: GameCube/Wii CISO (block_size)
-# - 0x10 == 0x00000800: PSP CISO (ISO-9660 sector size)
-# - 0x10 == 0x00004000: For >2GB files using maxcso...
-# 			https://github.com/unknownbrackets/maxcso/issues/26
-# - None of the above: Compact ISO.
->4	lelong	!0
->>4	lelong	!0x200000
->>>16	lelong	!0x800
->>>>16	lelong	!0x4000		Compressed ISO CD image
 
 # cramfs filesystem - russell@coker.com.au
 0       lelong    0x28cd3d45      Linux Compressed ROM File System data, little endian
@@ -2199,20 +2233,6 @@
 >560	string		x		label: %.64s,
 >136	string		x		mountpoint: %.128s
 
-# Summary: Oracle ASM tagged volume
-# Created by: Aaron Botsis <redhat@digitalmafia.org>
-32	string		ORCLDISK	Oracle ASM Volume,
->40	string		x		Disk Name: %0.12s
-32	string		ORCLCLRD	Oracle ASM Volume (cleared),
->40	string		x		Disk Name: %0.12s
-
-# Oracle Clustered Filesystem - Aaron Botsis <redhat@digitalmafia.org>
-8	string		OracleCFS	Oracle Clustered Filesystem,
->4	long		x		rev %d
->0	long		x		\b.%d,
->560	string		x		label: %.64s,
->136	string		x		mountpoint: %.128s
-
 # Oracle ASM tagged volume - Aaron Botsis <redhat@digitalmafia.org>
 32	string		ORCLDISK	Oracle ASM Volume,
 >40	string		x		Disk Name: %0.12s
@@ -2277,12 +2297,6 @@
 # dvdisaster's .ecc
 # From: "Nelson A. de Oliveira" <naoliv@gmail.com>
 0	string	*dvdisaster*	dvdisaster error correction file
-
-# xfs metadump image
-# mb_magic XFSM at 0; superblock magic XFSB at 1 << mb_blocklog
-# but can we do the << ?  For now it's always 512 (0x200) anyway.
-0	string XFSM
->0x200	string XFSB	XFS filesystem metadump image
 
 # Type:	CROM filesystem
 # From:	Werner Fink <werner@suse.de>
@@ -2692,3 +2706,60 @@
 >>0	ubelong	>5
 >>0	default	x	YAFFS filesystem root entry (big endian)
 >>>0	use	\^yaffs
+
+# littlefs superblock
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://github.com/littlefs-project/littlefs/blob/v2.9.0/SPEC.md
+# Match first commit tag, then "littlefs" magic
+4	ulelong		0xf7ff0ff0
+>8	string		littlefs	littlefs superblock
+>>22	uleshort	x		\b, version %u
+>>20	uleshort	x		\b.%u
+>>24	ulelong		x		\b, block size: %u bytes
+>>28	ulelong		x		\b, %u blocks
+
+# EldOS Corporation SolidFS (aka SolFS)
+# 256 bytes page size
+0x0	string	\x08\x00\x4e\x57\x20
+>0x100	string	\x4e\x57\x00\x00\x01
+>0x1A2	string	\x4C\x00\x40 EldOS Corporation SolidFS, 256 bytes page size
+
+# 512 bytes page size
+0x0	string	\x09\x00\x4e\x57\x20
+>0x200	string	\x4e\x57\x00\x00\x01
+>0x2A2	string	\x4C\x00\x40 EldOS Corporation SolidFS, 512 bytes page size
+
+# 1 kibibyte page size
+0x0	string	\x0A\x00\x4e\x57\x20
+>0x400	string	\x4e\x57\x00\x00\x01
+>0x4A2	string	\x4C\x00\x40 EldOS Corporation SolidFS, 1KiB page size
+
+# 2 kibibyte page size
+0x0	string	\x0B\x00\x4e\x57\x20
+>0x800	string	\x4e\x57\x00\x00\x01
+>0x8A2	string	\x4C\x00\x40 EldOS Corporation SolidFS, 2KiB page size
+
+# 4 kibibyte page size
+0x0	string	\x0C\x00\x4e\x57\x20
+>0x1000	string	\x4e\x57\x00\x00\x01
+>0x10A2	string	\x4C\x00\x40 EldOS Corporation SolidFS, 4KiB page size
+
+# 8 kibibyte page size
+0x0	string	\x0D\x00\x4e\x57\x20
+>0x2000	string	\x4e\x57\x00\x00\x01
+>0x20A2	string	\x4C\x00\x40 EldOS Corporation SolidFS, 8KiB page size
+
+# 16 kibibyte page size
+0x0	string	\x0E\x00\x4e\x57\x20
+>0x4000	string	\x4e\x57\x00\x00\x01
+>0x40A2	string	\x4C\x00\x40 EldOS Corporation SolidFS, 16KiB page size
+
+# 32 kibibyte page size
+0x0	string	\x0F\x00\x4e\x57\x20
+>0x8000	string	\x4e\x57\x00\x00\x01
+>0x80A2	string	\x4C\x00\x40 EldOS Corporation SolidFS, 32KiB page size
+
+# 64 kibibyte page size
+0x0		string	\x10\x00\x4e\x57\x20
+>0x10000	string	\x4e\x57\x00\x00\x01
+>0x100A2	string	\x4C\x00\x40 EldOS Corporation SolidFS, 64KiB page size

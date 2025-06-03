@@ -263,15 +263,15 @@ vmexit_smccc(struct vmctx *ctx, struct vcpu *vcpu, struct vm_run *vmrun)
 }
 
 static int
-vmexit_hyp(struct vmctx *ctx __unused, struct vcpu *vcpu __unused,
-    struct vm_run *vmrun)
+vmexit_hyp(struct vmctx *ctx __unused, struct vcpu *vcpu, struct vm_run *vmrun)
 {
-	struct vm_exit *vme;
+	/* Raise an unknown reason exception */
+	if (vm_inject_exception(vcpu,
+	    (EXCP_UNKNOWN << ESR_ELx_EC_SHIFT) | ESR_ELx_IL,
+	    vmrun->vm_exit->u.hyp.far_el2) != 0)
+		return (VMEXIT_ABORT);
 
-	vme = vmrun->vm_exit;
-	printf("unhandled exception: esr %#lx, far %#lx\n",
-	    vme->u.hyp.esr_el2, vme->u.hyp.far_el2);
-	return (VMEXIT_ABORT);
+	return (VMEXIT_CONTINUE);
 }
 
 static int

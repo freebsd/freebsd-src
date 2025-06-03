@@ -93,88 +93,93 @@ SYSCTL_INT(_kern_hwpmc, OID_AUTO, nbuffers_pcpu, CTLFLAG_RDTUN,
 
 static struct mtx pmc_kthread_mtx;	/* sleep lock */
 
-#define	PMCLOG_INIT_BUFFER_DESCRIPTOR(D, buf, domain) do {						\
-		(D)->plb_fence = ((char *) (buf)) +	1024*pmclog_buffer_size;			\
-		(D)->plb_base  = (D)->plb_ptr = ((char *) (buf));				\
-		(D)->plb_domain = domain; \
-	} while (0)
+#define	PMCLOG_INIT_BUFFER_DESCRIPTOR(D, buf, domain) do {		\
+	(D)->plb_fence = ((char *)(buf)) + 1024 * pmclog_buffer_size;	\
+	(D)->plb_base = (D)->plb_ptr = ((char *)(buf));			\
+	(D)->plb_domain = domain;					\
+} while (0)
 
-#define	PMCLOG_RESET_BUFFER_DESCRIPTOR(D) do {			\
-		(D)->plb_ptr  = (D)->plb_base; \
-	} while (0)
+#define	PMCLOG_RESET_BUFFER_DESCRIPTOR(D) do {				\
+	(D)->plb_ptr = (D)->plb_base;					\
+} while (0)
 
 /*
  * Log file record constructors.
  */
-#define	_PMCLOG_TO_HEADER(T,L)						\
+#define	_PMCLOG_TO_HEADER(T, L)						\
 	((PMCLOG_HEADER_MAGIC << 24) | (T << 16) | ((L) & 0xFFFF))
 
 /* reserve LEN bytes of space and initialize the entry header */
-#define	_PMCLOG_RESERVE_SAFE(PO,TYPE,LEN,ACTION, TSC) do {	\
-		uint32_t *_le;						\
-		int _len = roundup((LEN), sizeof(uint32_t));	\
-		struct pmclog_header *ph;							\
-		if ((_le = pmclog_reserve((PO), _len)) == NULL) {	\
-			ACTION;											\
-		}													\
-		ph = (struct pmclog_header *)_le;					\
-		ph->pl_header =_PMCLOG_TO_HEADER(TYPE,_len);	\
-		ph->pl_tsc = (TSC);									\
-		_le += sizeof(*ph)/4	/* skip over timestamp */
+#define	_PMCLOG_RESERVE_SAFE(PO, TYPE, LEN, ACTION, TSC) do {		\
+	uint32_t *_le;							\
+	int _len = roundup((LEN), sizeof(uint32_t));			\
+	struct pmclog_header *ph;					\
+									\
+	if ((_le = pmclog_reserve((PO), _len)) == NULL) {		\
+		ACTION;							\
+	}								\
+	ph = (struct pmclog_header *)_le;				\
+	ph->pl_header =_PMCLOG_TO_HEADER(TYPE,_len);			\
+	ph->pl_tsc = (TSC);						\
+	_le += sizeof(*ph) / 4	/* skip over timestamp */
 
 /* reserve LEN bytes of space and initialize the entry header */
-#define	_PMCLOG_RESERVE(PO,TYPE,LEN,ACTION) do {			\
-		uint32_t *_le;						\
-		int _len = roundup((LEN), sizeof(uint32_t));	\
-		uint64_t tsc;										\
-		struct pmclog_header *ph;							\
-		tsc = pmc_rdtsc();									\
-		spinlock_enter();									\
-		if ((_le = pmclog_reserve((PO), _len)) == NULL) {	\
-			spinlock_exit();								\
-			ACTION;											\
-		}												\
-		ph = (struct pmclog_header *)_le;					\
-		ph->pl_header =_PMCLOG_TO_HEADER(TYPE,_len);	\
-		ph->pl_tsc = tsc;									\
-		_le += sizeof(*ph)/4	/* skip over timestamp */
+#define	_PMCLOG_RESERVE(PO, TYPE, LEN, ACTION) do {			\
+	uint32_t *_le;							\
+	int _len = roundup((LEN), sizeof(uint32_t));			\
+	uint64_t tsc;							\
+	struct pmclog_header *ph;					\
+									\
+	tsc = pmc_rdtsc();						\
+	spinlock_enter();						\
+	if ((_le = pmclog_reserve((PO), _len)) == NULL) {		\
+		spinlock_exit();					\
+		ACTION;							\
+	}								\
+	ph = (struct pmclog_header *)_le;				\
+	ph->pl_header =_PMCLOG_TO_HEADER(TYPE,_len);			\
+	ph->pl_tsc = tsc;						\
+	_le += sizeof(*ph) / 4	/* skip over timestamp */
 
-
-
-#define	PMCLOG_RESERVE_SAFE(P,T,L,TSC)		_PMCLOG_RESERVE_SAFE(P,T,L,return,TSC)
-#define	PMCLOG_RESERVE(P,T,L)		_PMCLOG_RESERVE(P,T,L,return)
-#define	PMCLOG_RESERVE_WITH_ERROR(P,T,L) _PMCLOG_RESERVE(P,T,L,		\
-	error=ENOMEM;goto error)
+#define	PMCLOG_RESERVE_SAFE(P, T, L, TSC)				\
+	_PMCLOG_RESERVE_SAFE(P, T, L, return, TSC)
+#define	PMCLOG_RESERVE(P,T,L)						\
+	_PMCLOG_RESERVE(P, T, L, return)
+#define	PMCLOG_RESERVE_WITH_ERROR(P, T, L)				\
+	_PMCLOG_RESERVE(P, T, L, error = ENOMEM; goto error)
 
 #define	PMCLOG_EMIT32(V)	do { *_le++ = (V); } while (0)
 #define	PMCLOG_EMIT64(V)	do { 					\
-		*_le++ = (uint32_t) ((V) & 0xFFFFFFFF);			\
-		*_le++ = (uint32_t) (((V) >> 32) & 0xFFFFFFFF);		\
-	} while (0)
+	*_le++ = (uint32_t) ((V) & 0xFFFFFFFF);				\
+	*_le++ = (uint32_t) (((V) >> 32) & 0xFFFFFFFF);			\
+} while (0)
 
 
 /* Emit a string.  Caution: does NOT update _le, so needs to be last */
-#define	PMCLOG_EMITSTRING(S,L)	do { bcopy((S), _le, (L)); } while (0)
-#define	PMCLOG_EMITNULLSTRING(L) do { bzero(_le, (L)); } while (0)
+#define	PMCLOG_EMITSTRING(S,L)	do {					\
+	bcopy((S), _le, (L));						\
+} while (0)
+#define	PMCLOG_EMITNULLSTRING(L) do {					\
+	bzero(_le, (L));						\
+} while (0)
 
-#define	PMCLOG_DESPATCH_SAFE(PO)						\
-	    pmclog_release((PO));						\
-	} while (0)
+#define	PMCLOG_DESPATCH_SAFE(PO)					\
+	pmclog_release((PO));						\
+} while (0)
 
-#define	PMCLOG_DESPATCH_SCHED_LOCK(PO)						\
-	     pmclog_release_flags((PO), 0);							\
-	} while (0)
+#define	PMCLOG_DESPATCH_SCHED_LOCK(PO)					\
+	pmclog_release_flags((PO), 0);					\
+} while (0)
 
-#define	PMCLOG_DESPATCH(PO)							\
-	    pmclog_release((PO));						\
-		spinlock_exit();							\
-	} while (0)
+#define	PMCLOG_DESPATCH(PO)						\
+	pmclog_release((PO));						\
+	spinlock_exit();						\
+} while (0)
 
-#define	PMCLOG_DESPATCH_SYNC(PO)						\
-	    pmclog_schedule_io((PO), 1);						\
-		spinlock_exit();								\
-		} while (0)
-
+#define	PMCLOG_DESPATCH_SYNC(PO)					\
+	pmclog_schedule_io((PO), 1);					\
+	spinlock_exit();						\
+} while (0)
 
 #define TSDELTA 4
 /*

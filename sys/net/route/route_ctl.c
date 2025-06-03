@@ -109,10 +109,11 @@ SYSCTL_DECL(_net_route);
 #define	V_rib_route_multipath	VNET(rib_route_multipath)
 #ifdef ROUTE_MPATH
 #define _MP_FLAGS	CTLFLAG_RW
+VNET_DEFINE(u_int, rib_route_multipath) = 1;
 #else
 #define _MP_FLAGS	CTLFLAG_RD
+VNET_DEFINE(u_int, rib_route_multipath) = 0;
 #endif
-VNET_DEFINE(u_int, rib_route_multipath) = 1;
 SYSCTL_UINT(_net_route, OID_AUTO, multipath, _MP_FLAGS | CTLFLAG_VNET,
     &VNET_NAME(rib_route_multipath), 0, "Enable route multipath");
 #undef _MP_FLAGS
@@ -772,12 +773,15 @@ add_route_byinfo(struct rib_head *rnh, struct rt_addrinfo *info,
 	rnd_add.rnd_weight = get_info_weight(info, RT_DEFAULT_WEIGHT);
 
 	int op_flags = RTM_F_CREATE;
-	if (get_prio_from_info(info) == NH_PRIORITY_HIGH)
-		op_flags |= RTM_F_FORCE;
-	else
-		op_flags |= RTM_F_APPEND;
-	return (add_route_flags(rnh, rt, &rnd_add, op_flags, rc));
 
+	/*
+	 * Set the desired action when the route already exists:
+	 * If RTF_PINNED is present, assume the direct kernel routes that cannot be multipath.
+	 * Otherwise, append the path.
+	 */
+	op_flags |= (info->rti_flags & RTF_PINNED) ? RTM_F_REPLACE : RTM_F_APPEND;
+
+	return (add_route_flags(rnh, rt, &rnd_add, op_flags, rc));
 }
 
 static int
@@ -817,7 +821,7 @@ add_route_flags(struct rib_head *rnh, struct rtentry *rt, struct route_nhop_data
 
 	/* Now either append or replace */
 	if (op_flags & RTM_F_REPLACE) {
-		if (nhop_get_prio(rnd_orig.rnd_nhop) > nhop_get_prio(rnd_add->rnd_nhop)) {
+		if (nhop_get_prio(rnd_orig.rnd_nhop) == NH_PRIORITY_HIGH) {
 			/* Old path is "better" (e.g. has PINNED flag set) */
 			RIB_WUNLOCK(rnh);
 			error = EEXIST;

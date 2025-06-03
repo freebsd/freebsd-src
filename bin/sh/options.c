@@ -64,7 +64,7 @@ char *nextopt_optptr;		/* used by nextopt */
 char *minusc;			/* argument to -c option */
 
 
-static void options(int);
+static int options(int);
 static void minus_o(char *, int);
 static void setoption(int, int);
 static void setoptionbyindex(int, int);
@@ -76,19 +76,20 @@ static int getopts(char *, char *, char **, char ***, char **);
  * Process the shell command line arguments.
  */
 
-void
+int
 procargs(int argc, char **argv)
 {
-	int i;
+	int i, login;
 	char *scriptname;
 
 	argptr = argv;
+	login = argptr[0] != NULL && argptr[0][0] == '-';
 	if (argc > 0)
 		argptr++;
 	for (i = 0; i < NOPTS; i++)
 		optval[i] = 2;
 	privileged = (getuid() != geteuid() || getgid() != getegid());
-	options(1);
+	login |= options(1);
 	if (*argptr == NULL && minusc == NULL)
 		sflag = 1;
 	if (iflag != 0 && sflag == 1 && isatty(0) && isatty(1)) {
@@ -119,6 +120,8 @@ procargs(int argc, char **argv)
 		argptr++;
 	}
 	optschanged();
+
+	return (login);
 }
 
 
@@ -139,12 +142,13 @@ optschanged(void)
  * to the set special builtin.
  */
 
-static void
+static int
 options(int cmdline)
 {
 	char *kp, *p;
 	int val;
 	int c;
+	int login = 0;
 
 	if (cmdline)
 		minusc = NULL;
@@ -190,6 +194,8 @@ options(int cmdline)
 				if (q == NULL || minusc != NULL)
 					error("Bad -c option");
 				minusc = q;
+			} else if (c == 'l' && cmdline) {
+				login = 1;
 			} else if (c == 'o') {
 				minus_o(*argptr, val);
 				if (*argptr)
@@ -198,13 +204,13 @@ options(int cmdline)
 				setoption(c, val);
 		}
 	}
-	return;
+	return (login);
 
 	/* When processing `set', a single "-" means turn off -x and -v */
 end_options1:
 	if (!cmdline) {
 		xflag = vflag = 0;
-		return;
+		return (login);
 	}
 
 	/*
@@ -217,7 +223,7 @@ end_options2:
 	if (!cmdline) {
 		if (*argptr == NULL)
 			setparam(0, argptr);
-		return;
+		return (login);
 	}
 
 	/*
@@ -236,6 +242,8 @@ end_options2:
 		/* We need to keep the final argument */
 		argptr--;
 	}
+
+	return (login);
 }
 
 static void

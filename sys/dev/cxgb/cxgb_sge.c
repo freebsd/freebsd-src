@@ -1924,7 +1924,7 @@ again:	reclaim_completed_tx_imm(q);
 
 /**
  *	restart_ctrlq - restart a suspended control queue
- *	@qs: the queue set cotaining the control queue
+ *	@qs: the queue set containing the control queue
  *
  *	Resumes transmission on a suspended Tx control queue.
  */
@@ -2299,7 +2299,7 @@ again:	reclaim_completed_tx(qs, 16, TXQ_OFLD);
 
 /**
  *	restart_offloadq - restart a suspended offload queue
- *	@qs: the queue set cotaining the offload queue
+ *	@qs: the queue set containing the offload queue
  *
  *	Resumes transmission on a suspended Tx offload queue.
  */

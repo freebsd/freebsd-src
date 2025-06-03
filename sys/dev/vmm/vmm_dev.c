@@ -8,6 +8,7 @@
 
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/ioccom.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -26,6 +27,7 @@
 #include <vm/vm_object.h>
 
 #include <dev/vmm/vmm_dev.h>
+#include <dev/vmm/vmm_mem.h>
 #include <dev/vmm/vmm_stat.h>
 
 #if defined(__amd64__) && defined(COMPAT_FREEBSD12)
@@ -194,6 +196,7 @@ vmmdev_rw(struct cdev *cdev, struct uio *uio, int flags)
 	 */
 	vm_slock_memsegs(sc->vm);
 
+	error = 0;
 	prot = (uio->uio_rw == UIO_WRITE ? VM_PROT_WRITE : VM_PROT_READ);
 	maxaddr = vmm_sysmem_maxaddr(sc->vm);
 	while (uio->uio_resid > 0 && error == 0) {
@@ -917,24 +920,105 @@ SYSCTL_PROC(_hw_vmm, OID_AUTO, create,
     NULL, 0, sysctl_vmm_create, "A",
     NULL);
 
-void
+static int
+vmmctl_open(struct cdev *cdev, int flags, int fmt, struct thread *td)
+{
+	int error;
+
+	error = vmm_priv_check(td->td_ucred);
+	if (error != 0)
+		return (error);
+
+	if ((flags & FWRITE) == 0)
+		return (EPERM);
+
+	return (0);
+}
+
+static int
+vmmctl_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
+    struct thread *td)
+{
+	int error;
+
+	switch (cmd) {
+	case VMMCTL_VM_CREATE: {
+		struct vmmctl_vm_create *vmc;
+
+		vmc = (struct vmmctl_vm_create *)data;
+		vmc->name[VM_MAX_NAMELEN] = '\0';
+		for (size_t i = 0; i < nitems(vmc->reserved); i++) {
+			if (vmc->reserved[i] != 0) {
+				error = EINVAL;
+				return (error);
+			}
+		}
+
+		error = vmmdev_create(vmc->name, td->td_ucred);
+		break;
+	}
+	case VMMCTL_VM_DESTROY: {
+		struct vmmctl_vm_destroy *vmd;
+
+		vmd = (struct vmmctl_vm_destroy *)data;
+		vmd->name[VM_MAX_NAMELEN] = '\0';
+		for (size_t i = 0; i < nitems(vmd->reserved); i++) {
+			if (vmd->reserved[i] != 0) {
+				error = EINVAL;
+				return (error);
+			}
+		}
+
+		error = vmmdev_lookup_and_destroy(vmd->name, td->td_ucred);
+		break;
+	}
+	default:
+		error = ENOTTY;
+		break;
+	}
+
+	return (error);
+}
+
+static struct cdev *vmmctl_cdev;
+static struct cdevsw vmmctlsw = {
+	.d_name		= "vmmctl",
+	.d_version	= D_VERSION,
+	.d_open		= vmmctl_open,
+	.d_ioctl	= vmmctl_ioctl,
+};
+
+int
 vmmdev_init(void)
 {
-	pr_allow_flag = prison_add_allow(NULL, "vmm", NULL,
-	    "Allow use of vmm in a jail.");
+	int error;
+
+	sx_xlock(&vmmdev_mtx);
+	error = make_dev_p(MAKEDEV_CHECKNAME, &vmmctl_cdev, &vmmctlsw, NULL,
+	    UID_ROOT, GID_WHEEL, 0600, "vmmctl");
+	if (error == 0)
+		pr_allow_flag = prison_add_allow(NULL, "vmm", NULL,
+		    "Allow use of vmm in a jail.");
+	sx_xunlock(&vmmdev_mtx);
+
+	return (error);
 }
 
 int
 vmmdev_cleanup(void)
 {
-	int error;
+	sx_xlock(&vmmdev_mtx);
+	if (!SLIST_EMPTY(&head)) {
+		sx_xunlock(&vmmdev_mtx);
+		return (EBUSY);
+	}
+	if (vmmctl_cdev != NULL) {
+		destroy_dev(vmmctl_cdev);
+		vmmctl_cdev = NULL;
+	}
+	sx_xunlock(&vmmdev_mtx);
 
-	if (SLIST_EMPTY(&head))
-		error = 0;
-	else
-		error = EBUSY;
-
-	return (error);
+	return (0);
 }
 
 static int

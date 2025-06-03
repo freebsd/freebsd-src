@@ -93,6 +93,7 @@ opal_ipmi_recv(struct opal_ipmi_softc *sc, uint64_t *msg_len, int timo)
 		opal_call(OPAL_POLL_EVENTS, NULL);
 		err = opal_call(OPAL_IPMI_RECV, sc->sc_interface,
 		    vtophys(sc->sc_msg), vtophys(msg_len));
+		*msg_len = be64toh(*msg_len);
 		if (err != OPAL_EMPTY)
 			break;
 
@@ -248,15 +249,14 @@ opal_ipmi_startup(struct ipmi_softc *sc)
 }
 
 static int
-opal_ipmi_driver_request(struct ipmi_softc *isc, struct ipmi_request *req,
-    int timo)
+opal_ipmi_driver_request(struct ipmi_softc *isc, struct ipmi_request *req)
 {
 	struct opal_ipmi_softc *sc = (struct opal_ipmi_softc *)isc;
 	int i, err;
 
 	for (i = 0; i < 3; i++) {
 		IPMI_LOCK(&sc->ipmi);
-		err = opal_ipmi_polled_request(sc, req, timo);
+		err = opal_ipmi_polled_request(sc, req, 0);
 		IPMI_UNLOCK(&sc->ipmi);
 		if (err == 0)
 			break;

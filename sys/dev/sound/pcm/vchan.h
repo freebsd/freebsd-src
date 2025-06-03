@@ -4,6 +4,10 @@
  * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * Copyright (c) 2001 Cameron Grant <cg@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,9 +34,9 @@
 #ifndef _SND_VCHAN_H_
 #define _SND_VCHAN_H_
 
-extern int snd_maxautovchans;
+extern bool snd_vchans_enable;
 
-int vchan_create(struct pcm_channel *);
+int vchan_create(struct pcm_channel *, struct pcm_channel **);
 int vchan_destroy(struct pcm_channel *);
 
 #ifdef SND_DEBUG
@@ -46,9 +50,6 @@ int vchan_sync(struct pcm_channel *);
 	(((c)->flags & CHN_F_VIRTUAL) && (((c)->flags & CHN_F_DIRTY) ||	\
 	sndbuf_getfmt((c)->bufhard) != (c)->parentchannel->format ||	\
 	sndbuf_getspd((c)->bufhard) != (c)->parentchannel->speed))
-
-int vchan_setnew(struct snddev_info *, int, int);
-void vchan_setmaxauto(struct snddev_info *, int);
 
 void vchan_initsys(device_t);
 

@@ -24,7 +24,7 @@ sdt_tracepoint_valid(uintptr_t patchpoint, uintptr_t target)
 	    patchpoint + 2 * INSN_SIZE < patchpoint)
 		return (false);
 	offset = target - (patchpoint + 2 * INSN_SIZE);
-	if (offset < -(1 << 24) || offset > (1 >> 24))
+	if (offset < -(1 << 24) || offset > (1 << 24))
 		return (false);
 	return (true);
 }

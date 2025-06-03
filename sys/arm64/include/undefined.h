@@ -35,6 +35,7 @@
 
 typedef int (*undef_handler_t)(vm_offset_t, uint32_t, struct trapframe *,
     uint32_t);
+typedef bool (*undef_sys_handler_t)(uint64_t, struct trapframe *);
 
 static inline int
 mrs_Op0(uint32_t insn)
@@ -57,9 +58,14 @@ MRS_GET(CRm)
 MRS_GET(Op2)
 
 void undef_init(void);
-void *install_undef_handler(bool, undef_handler_t);
+void install_sys_handler(undef_sys_handler_t);
+void *install_undef_handler(undef_handler_t);
+#ifdef COMPAT_FREEBSD32
+void *install_undef32_handler(undef_handler_t);
+#endif
 void remove_undef_handler(void *);
-int undef_insn(u_int, struct trapframe *);
+bool undef_sys(uint64_t, struct trapframe *);
+int undef_insn(struct trapframe *);
 
 #endif /* _KERNEL */
 

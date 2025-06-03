@@ -89,6 +89,7 @@ int	Fflag;					/* fdpass sock to stdout */
 unsigned int iflag;				/* Interval Flag */
 int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
+int	FreeBSD_lb;				/* Use SO_REUSEPORT_LB */
 int	FreeBSD_Mflag;				/* Measure using stats(3) */
 int	Nflag;					/* shutdown() network socket */
 int	nflag;					/* Don't do name look up */
@@ -118,6 +119,7 @@ char *portlist[PORT_MAX+1];
 char *unix_dg_tmp_socket;
 
 void	atelnet(int, unsigned char *, unsigned int);
+int	strtoport(char *portstr, int udp);
 void	build_ports(char *);
 void	help(void);
 int	local_listen(char *, char *, struct addrinfo);
@@ -168,6 +170,7 @@ main(int argc, char *argv[])
 	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
 	struct option longopts[] = {
 		{ "crlf",	no_argument,	&FreeBSD_crlf,	1 },
+		{ "lb",		no_argument,	&FreeBSD_lb, 1 },
 		{ "no-tcpopt",	no_argument,	&FreeBSD_Oflag,	1 },
 		{ "sctp",	no_argument,	&FreeBSD_sctp,	1 },
 		{ "tun",	required_argument,	NULL,	FREEBSD_TUN },
@@ -371,6 +374,8 @@ main(int argc, char *argv[])
 		errx(1, "cannot use -z and -l");
 	if (!lflag && kflag)
 		errx(1, "must use -l with -k");
+	if (!lflag && FreeBSD_lb)
+		errx(1, "must use -l with --lb");
 	if (FreeBSD_sctp) {
 		if (uflag)
 			errx(1, "cannot use -u and --sctp");
@@ -800,6 +805,8 @@ local_listen(char *host, char *port, struct addrinfo hints)
 
 	res0 = res;
 	do {
+		int opt;
+
 		if ((s = socket(res0->ai_family, res0->ai_socktype,
 		    res0->ai_protocol)) < 0)
 			continue;
@@ -808,7 +815,8 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		    &rtableid, sizeof(rtableid)) == -1))
 			err(1, "setsockopt SO_SETFIB");
 
-		ret = setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &x, sizeof(x));
+		opt = FreeBSD_lb != 0 ? SO_REUSEPORT_LB : SO_REUSEPORT;
+		ret = setsockopt(s, SOL_SOCKET, opt, &x, sizeof(x));
 		if (ret == -1)
 			err(1, NULL);
 
@@ -1190,6 +1198,26 @@ atelnet(int nfd, unsigned char *buf, unsigned int size)
 	}
 }
 
+int
+strtoport(char *portstr, int udp)
+{
+	struct servent *entry;
+	const char *errstr;
+	char *proto;
+	int port = -1;
+
+	proto = udp ? "udp" : "tcp";
+
+	port = strtonum(portstr, 1, PORT_MAX, &errstr);
+	if (errstr == NULL)
+		return port;
+	if (errno != EINVAL)
+		errx(1, "port number %s: %s", errstr, portstr);
+	if ((entry = getservbyname(portstr, proto)) == NULL)
+		errx(1, "service \"%s\" unknown", portstr);
+	return ntohs(entry->s_port);
+}
+
 /*
  * build_ports()
  * Build an array of ports in portlist[], listing each port
@@ -1198,7 +1226,6 @@ atelnet(int nfd, unsigned char *buf, unsigned int size)
 void
 build_ports(char *p)
 {
-	const char *errstr;
 	char *n;
 	int hi, lo, cp;
 	int x = 0;
@@ -1208,13 +1235,8 @@ build_ports(char *p)
 		n++;
 
 		/* Make sure the ports are in order: lowest->highest. */
-		hi = strtonum(n, 1, PORT_MAX, &errstr);
-		if (errstr)
-			errx(1, "port number %s: %s", errstr, n);
-		lo = strtonum(p, 1, PORT_MAX, &errstr);
-		if (errstr)
-			errx(1, "port number %s: %s", errstr, p);
-
+		hi = strtoport(n, uflag);
+		lo = strtoport(p, uflag);
 		if (lo > hi) {
 			cp = hi;
 			hi = lo;
@@ -1243,11 +1265,12 @@ build_ports(char *p)
 			}
 		}
 	} else {
-		hi = strtonum(p, 1, PORT_MAX, &errstr);
-		if (errstr)
-			errx(1, "port number %s: %s", errstr, p);
-		portlist[0] = strdup(p);
-		if (portlist[0] == NULL)
+		char *tmp;
+
+		hi = strtoport(p, uflag);
+		if (asprintf(&tmp, "%d", hi) != -1)
+			portlist[0] = tmp;
+		else
 			err(1, NULL);
 	}
 }

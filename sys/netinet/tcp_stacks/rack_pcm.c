@@ -241,7 +241,7 @@ skip_ack_accounting:
 		for (i=0; i<rack->r_ctl.pcm_i.cnt; i++) {
 
 			e = &rack->r_ctl.pcm_s[i];
-			memset(&log.u_bbr, 0, sizeof(log.u_bbr));
+			memset(&log, 0, sizeof(log));
 			log.u_bbr.timeStamp = tcp_tv_to_usectick(&tv);
 			log.u_bbr.inflight = ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked);
 			log.u_bbr.flex8 = 1;

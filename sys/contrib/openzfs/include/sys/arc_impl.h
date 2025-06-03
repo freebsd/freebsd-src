@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -378,8 +379,8 @@ typedef struct l2arc_lb_ptr_buf {
  * L2ARC Internals
  */
 typedef struct l2arc_dev {
-	vdev_t			*l2ad_vdev;	/* vdev */
-	spa_t			*l2ad_spa;	/* spa */
+	vdev_t			*l2ad_vdev;	/* can be NULL during remove */
+	spa_t			*l2ad_spa;	/* can be NULL during remove */
 	uint64_t		l2ad_hand;	/* next write location */
 	uint64_t		l2ad_start;	/* first addr on device */
 	uint64_t		l2ad_end;	/* last addr on device */
@@ -475,8 +476,8 @@ struct arc_buf_hdr {
 
 	arc_buf_contents_t	b_type;
 	uint8_t			b_complevel;
-	uint8_t			b_reserved1; /* used for 4 byte alignment */
-	uint16_t		b_reserved2; /* used for 4 byte alignment */
+	uint8_t			b_reserved1;	/* used for 4 byte alignment */
+	uint16_t		b_l2size;	/* alignment or L2-only size */
 	arc_buf_hdr_t		*b_hash_next;
 	arc_flags_t		b_flags;
 
@@ -942,6 +943,7 @@ typedef struct arc_sums {
 	wmsum_t arcstat_evict_l2_eligible_mru;
 	wmsum_t arcstat_evict_l2_ineligible;
 	wmsum_t arcstat_evict_l2_skip;
+	wmsum_t arcstat_hash_elements;
 	wmsum_t arcstat_hash_collisions;
 	wmsum_t arcstat_hash_chains;
 	aggsum_t arcstat_size;

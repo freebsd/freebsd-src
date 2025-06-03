@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -23,17 +23,29 @@
 #define _WIN32_WINNT 0x400
 #endif
 #include <windows.h>
-public DWORD console_mode;
+#ifndef ENABLE_EXTENDED_FLAGS
+#define ENABLE_EXTENDED_FLAGS 0x80
+#define ENABLE_QUICK_EDIT_MODE 0x40
+#endif
+#ifndef ENABLE_VIRTUAL_TERMINAL_INPUT
+#define ENABLE_VIRTUAL_TERMINAL_INPUT 0x0200
+#endif
 public HANDLE tty;
+public DWORD init_console_input_mode;
+public DWORD curr_console_input_mode;
+public DWORD base_console_input_mode;
+public DWORD mouse_console_input_mode;
 #else
 public int tty;
 #endif
+extern int sigs;
 #if LESSTEST
 public char *ttyin_name = NULL;
+public lbool is_lesstest(void)
+{
+	return ttyin_name != NULL;
+}
 #endif /*LESSTEST*/
-extern int sigs;
-extern int utf_mode;
-extern int wheel_lines;
 
 #if !MSDOS_COMPILER
 static int open_tty_device(constant char* dev)
@@ -56,8 +68,12 @@ public int open_tty(void)
 {
 	int fd = -1;
 #if LESSTEST
-	if (ttyin_name != NULL)
+	if (is_lesstest())
+	{
 		fd = open_tty_device(ttyin_name);
+		if (fd < 0)
+			fd = 0; /* assume lesstest uses stdin */
+	}
 #endif /*LESSTEST*/
 #if HAVE_TTYNAME
 	if (fd < 0)
@@ -71,6 +87,10 @@ public int open_tty(void)
 		fd = open_tty_device("/dev/tty");
 	if (fd < 0)
 		fd = 2;
+#ifdef __MVS__
+	struct f_cnvrt cvtreq = {SETCVTON, 0, 1047};
+	fcntl(fd, F_CONTROL_CVT, &cvtreq);
+#endif
 	return fd;
 }
 #endif /* MSDOS_COMPILER */
@@ -89,9 +109,14 @@ public void open_getchr(void)
 	tty = CreateFile("CONIN$", GENERIC_READ | GENERIC_WRITE,
 			FILE_SHARE_READ, &sa, 
 			OPEN_EXISTING, 0L, NULL);
-	GetConsoleMode(tty, &console_mode);
-	/* Make sure we get Ctrl+C events. */
-	SetConsoleMode(tty, ENABLE_PROCESSED_INPUT | ENABLE_MOUSE_INPUT);
+	GetConsoleMode(tty, &init_console_input_mode);
+	/* base mode: ensure we get ctrl-C events, and don't get VT input. */
+	base_console_input_mode = (init_console_input_mode | ENABLE_PROCESSED_INPUT) & ~ENABLE_VIRTUAL_TERMINAL_INPUT;
+	/* mouse mode: enable mouse and disable quick edit. */
+	mouse_console_input_mode = (base_console_input_mode | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS) & ~ENABLE_QUICK_EDIT_MODE;
+	/* Start with base mode. If --mouse is given, switch to mouse mode in init_mouse. */
+	curr_console_input_mode = base_console_input_mode;
+	SetConsoleMode(tty, curr_console_input_mode);
 #else
 #if MSDOS_COMPILER
 	extern int fd0;
@@ -121,21 +146,21 @@ public void open_getchr(void)
 public void close_getchr(void)
 {
 #if MSDOS_COMPILER==WIN32C
-	SetConsoleMode(tty, console_mode);
+	SetConsoleMode(tty, init_console_input_mode);
 	CloseHandle(tty);
 #endif
 }
 
 #if MSDOS_COMPILER==WIN32C
 /*
- * Close the pipe, restoring the keyboard (CMD resets it, losing the mouse).
+ * Close the pipe, restoring the console mode (CMD resets it, losing the mouse).
  */
 public int pclose(FILE *f)
 {
 	int result;
 
 	result = _pclose(f);
-	SetConsoleMode(tty, ENABLE_PROCESSED_INPUT | ENABLE_MOUSE_INPUT);
+	SetConsoleMode(tty, curr_console_input_mode);
 	return result;
 }
 #endif
@@ -162,7 +187,7 @@ public int default_wheel_lines(void)
 public int getchr(void)
 {
 	char c;
-	int result;
+	ssize_t result;
 
 	do
 	{
@@ -172,8 +197,10 @@ public int getchr(void)
 		 * In raw read, we don't see ^C so look here for it.
 		 */
 #if MSDOS_COMPILER==WIN32C
+#if 0
 		if (ABORT_SIGS())
 			return (READ_INTR);
+#endif
 		c = WIN32getch();
 #else
 		c = getch();

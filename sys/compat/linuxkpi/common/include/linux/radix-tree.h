@@ -29,6 +29,7 @@
 #ifndef	_LINUXKPI_LINUX_RADIX_TREE_H_
 #define	_LINUXKPI_LINUX_RADIX_TREE_H_
 
+#include <linux/rcupdate.h>
 #include <linux/types.h>
 
 #define	RADIX_TREE_MAP_SHIFT	6

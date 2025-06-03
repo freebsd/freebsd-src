@@ -1,9 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright (c) 2001-2024, Intel Corporation
  * Copyright (c) 2016 Nicole Graziano <nicole@nextbsd.org>
- * All rights reserved.
- * Copyright (c) 2021 Rubicon Communications, LLC (Netgate)
+ * Copyright (c) 2021-2024 Rubicon Communications, LLC (Netgate)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -163,6 +163,17 @@
 #define IGC_TX_PTHRESH			8
 #define IGC_TX_HTHRESH			1
 
+/* Define the interrupt rates and EITR helpers */
+#define IGC_INTS_4K		4000
+#define IGC_INTS_20K		20000
+#define IGC_INTS_70K		70000
+#define IGC_INTS_DEFAULT	8000
+#define IGC_EITR_DIVIDEND	1000000
+#define IGC_EITR_SHIFT		2
+#define IGC_QVECTOR_MASK	0x7FFC
+#define IGC_INTS_TO_EITR(i)	(((IGC_EITR_DIVIDEND/i) & IGC_QVECTOR_MASK) << \
+				    IGC_EITR_SHIFT)
+
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
  * multiple of 128 bytes. So we align TDBA/RDBA on 128 byte boundary. This will
@@ -195,10 +206,10 @@
 				 CSUM_IP_SCTP | CSUM_IP6_UDP | CSUM_IP6_TCP | \
 				 CSUM_IP6_SCTP)	/* Offload bits in mbuf flag */
 
-struct igc_adapter;
+struct igc_softc;
 
 struct igc_int_delay_info {
-	struct igc_adapter *adapter;	/* Back-pointer to the adapter struct */
+	struct igc_softc *sc;	/* Back-pointer to the softc struct */
 	int offset;			/* Register offset to read/write */
 	int value;			/* Current value in usecs */
 };
@@ -207,9 +218,9 @@ struct igc_int_delay_info {
  * The transmit ring, one per tx queue
  */
 struct tx_ring {
-        struct igc_adapter	*adapter;
+	struct igc_softc	*sc;
 	struct igc_tx_desc	*tx_base;
-	uint64_t                tx_paddr;
+	uint64_t		tx_paddr;
 	qidx_t			*tx_rsq;
 	uint8_t			me;
 	qidx_t			tx_rs_cidx;
@@ -218,7 +229,12 @@ struct tx_ring {
 	/* Interrupt resources */
 	void                    *tag;
 	struct resource         *res;
-        unsigned long		tx_irq;
+
+	/* Soft stats */
+	unsigned long		tx_irq;
+	unsigned long		tx_packets;
+	unsigned long		tx_bytes;
+
 
 	/* Saved csum offloading context information */
 	int			csum_flags;
@@ -237,7 +253,7 @@ struct tx_ring {
  * The Receive ring, one per rx queue
  */
 struct rx_ring {
-        struct igc_adapter      *adapter;
+        struct igc_softc        *sc;
         struct igc_rx_queue     *que;
         u32                     me;
         u32                     payload;
@@ -253,28 +269,32 @@ struct rx_ring {
         unsigned long		rx_discarded;
         unsigned long		rx_packets;
         unsigned long		rx_bytes;
+
+        /* Next requested EITR latency */
+        u8			rx_nextlatency;
 };
 
 struct igc_tx_queue {
-	struct igc_adapter      *adapter;
-        u32                     msix;
-	u32			eims;		/* This queue's EIMS bit */
-	u32                     me;
-	struct tx_ring          txr;
+	struct igc_softc      *sc;
+	u32                   msix;
+	u32                   eims;		/* This queue's EIMS bit */
+	u32                   me;
+	struct tx_ring        txr;
 };
 
 struct igc_rx_queue {
-	struct igc_adapter     *adapter;
+	struct igc_softc       *sc;
 	u32                    me;
 	u32                    msix;
 	u32                    eims;
+	u32                    eitr_setting;
 	struct rx_ring         rxr;
 	u64                    irqs;
 	struct if_irq          que_irq;
 };
 
-/* Our adapter structure */
-struct igc_adapter {
+/* Our softc structure */
+struct igc_softc {
 	if_t		ifp;
 	struct igc_hw	hw;
 
@@ -315,6 +335,8 @@ struct igc_adapter {
 
 	u32		rx_mbuf_sz;
 
+	int		enable_aim;
+
 	/* Management and WOL features */
 	u32		wol;
 
@@ -328,6 +350,7 @@ struct igc_adapter {
 	u16		link_duplex;
 	u32		smartspeed;
 	u32		dmac;
+	u32		pba;
 	int		link_mask;
 
 	u64		que_mask;
@@ -350,7 +373,7 @@ struct igc_adapter {
 	u16		vf_ifp;
 };
 
-void igc_dump_rs(struct igc_adapter *);
+void igc_dump_rs(struct igc_softc *);
 
 #define IGC_RSSRK_SIZE	4
 #define IGC_RSSRK_VAL(key, i)		(key[(i) * IGC_RSSRK_SIZE] | \

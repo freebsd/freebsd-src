@@ -26,6 +26,7 @@ makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 options 	SCHED_ULE		# ULE scheduler
 options 	NUMA			# Non-Uniform Memory Architecture support
 options 	PREEMPTION		# Enable kernel thread preemption
+options 	BLOAT_KERNEL_WITH_EXTERR
 options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
@@ -145,6 +146,7 @@ device		isp			# Qlogic family
 device		mpt			# LSI-Logic MPT-Fusion
 device		mps			# LSI-Logic MPT-Fusion 2
 device		mpr			# LSI-Logic MPT-Fusion 3
+device		mpi3mr			# LSI-Logic MPT-Fusion 4
 device		sym			# NCR/Symbios Logic
 device		isci			# Intel C600 SAS controller
 device		ocs_fc			# Emulex FC adapters
@@ -283,6 +285,7 @@ options 	IEEE80211_DEBUG		# enable debug msgs
 options 	IEEE80211_SUPPORT_MESH	# enable 802.11s draft support
 device		wlan_wep		# 802.11 WEP support
 device		wlan_ccmp		# 802.11 CCMP support
+device		wlan_gcmp		# 802.11 GCMP support
 device		wlan_tkip		# 802.11 TKIP support
 device		wlan_amrr		# AMRR transmit rate control algorithm
 device		ath			# Atheros CardBus/PCI NICs

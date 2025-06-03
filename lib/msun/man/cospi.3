@@ -62,27 +62,21 @@ where p is the floating\(enpoint precision of
 .Ar x ,
 then the returned value is 1 and it has no significance.
 .Sh SPECIAL VALUES
-.Bl -tag
-.It
-.Fn cospi \*(Pm0
+.Bl -tag -width "cospi(+n/2)"
+.It Fn cospi \*(Pm0
 returns 1.
-.It
-.Fn cospi \*(Pmn/2
+.It Fn cospi \*(Pmn/2
 returns 0 for positive integers
 .Ar n .
-.It
-.Fn cospi n
+.It Fn cospi n
 returns 1 for even integers
 .Ar n .
-.It
-.Fn cospi n
+.It Fn cospi n
 returns \-1 for odd integers
 .Ar n .
-.It
-.Fn cospi \*(Pm\(if
+.It Fn cospi \*(Pm\(if
 return an \*(Na and raises an FE_INVALID exception.
-.It
-.Fn cospi \*(Na
+.It Fn cospi \*(Na
 return an \*(Na and raises an FE_INVALID exception.
 .El
 .Sh SEE ALSO

@@ -74,7 +74,7 @@ v6_head()
 {
 	atf_set descr 'IPv6 fragmentation test'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 v6_body()
@@ -230,7 +230,7 @@ overreplace_head()
 {
 	atf_set descr 'ping fragment that overlaps fragment at index boundary and replace it'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 overreplace_body()
@@ -248,7 +248,7 @@ overindex_head()
 {
 	atf_set descr 'ping fragment that overlaps the first fragment at index boundary'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 overindex_body()
@@ -266,7 +266,7 @@ overlimit_head()
 {
 	atf_set descr 'ping fragment at index boundary that cannot be requeued'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 overlimit_body()
@@ -322,53 +322,6 @@ reassemble_body()
 }
 
 reassemble_cleanup()
-{
-	pft_cleanup
-}
-
-atf_test_case "no_df" "cleanup"
-no_df_head()
-{
-	atf_set descr 'Test removing of DF flag'
-	atf_set require.user root
-}
-
-no_df_body()
-{
-	setup_router_server_ipv4
-
-	ifconfig ${epair_tester}a mtu 9000
-	jexec router ifconfig ${epair_tester}b mtu 9000
-	jexec router ifconfig ${epair_server}a mtu 1500
-	jexec server ifconfig ${epair_server}b mtu 1500
-
-	# Sanity check.
-	ping_server_check_reply exit:0 --ping-type=icmp
-
-	pft_set_rules router \
-		"scrub fragment reassemble" \
-		"pass out" \
-		"block in" \
-		"pass in inet proto icmp all icmp-type echoreq"
-
-	# Ping with normal, fragmentable packets.
-	ping_server_check_reply exit:0 --ping-type=icmp --send-length=2000
-
-	# Ping with non-fragmentable packets, this will fail.
-	ping_server_check_reply exit:1 --ping-type=icmp --send-length=2000 --send-flags DF
-
-	pft_set_rules router \
-		"scrub any reassemble" \
-		"pass out" \
-		"block in" \
-		"pass in inet proto icmp all icmp-type echoreq"
-
-	# Ping with non-fragmentable packets again.
-	# This time pf will strip the DF flag.
-	ping_server_check_reply exit:0 --ping-type=icmp --send-length=2000 --send-flags DF
-}
-
-no_df_cleanup()
 {
 	pft_cleanup
 }

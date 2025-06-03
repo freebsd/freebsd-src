@@ -741,11 +741,10 @@ usb_iface_is_cdrom(struct usb_device *udev, uint8_t iface_index)
 	return (is_cdrom);
 }
 
-static uint8_t
+static int
 usb_msc_get_max_lun(struct usb_device *udev, uint8_t iface_index)
 {
 	struct usb_device_request req;
-	usb_error_t err;
 	uint8_t buf = 0;
 
 	/* The Get Max Lun command is a class-specific request. */
@@ -756,11 +755,7 @@ usb_msc_get_max_lun(struct usb_device *udev, uint8_t iface_index)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 1);
 
-	err = usbd_do_request(udev, NULL, &req, &buf);
-	if (err)
-		buf = 0;
-
-	return (buf);
+	return usbd_do_request(udev, NULL, &req, &buf);
 }
 
 #define	USB_ADD_QUIRK(udev, any, which) do { \
@@ -803,8 +798,8 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index,
 	usb_pause_mtx(NULL, hz);
 
 	if (usb_test_quirk(uaa, UQ_MSC_NO_GETMAXLUN) == 0 &&
-	    usb_msc_get_max_lun(udev, iface_index) == 0) {
-		DPRINTF("Device has only got one LUN.\n");
+	    usb_msc_get_max_lun(udev, iface_index) != 0) {
+		DPRINTF("Device can't handle GETMAXLUN\n");
 		USB_ADD_QUIRK(udev, any_quirk, UQ_MSC_NO_GETMAXLUN);
 	}
 

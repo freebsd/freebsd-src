@@ -1,17 +1,17 @@
-Parsing line 9: .SUFFIXES:
+Parsing suff-incomplete.mk:9: .SUFFIXES:
 ParseDependency(.SUFFIXES:)
 Clearing all suffixes
-Parsing line 11: .SUFFIXES: .a .b .c
+Parsing suff-incomplete.mk:11: .SUFFIXES: .a .b .c
 ParseDependency(.SUFFIXES: .a .b .c)
 Adding suffix ".a"
 Adding suffix ".b"
 Adding suffix ".c"
-Parsing line 17: .a.b:
+Parsing suff-incomplete.mk:17: .a.b:
 ParseDependency(.a.b:)
 defining transformation from `.a' to `.b'
 inserting ".a" (1) at end of list
 inserting ".b" (2) at end of list
-Parsing line 21: .a.c: ${.PREFIX}.dependency
+Parsing suff-incomplete.mk:21: .a.c: ${.PREFIX}.dependency
 deleting incomplete transformation from `.a' to `.b'
 ParseDependency(.a.c: ${.PREFIX}.dependency)
 defining transformation from `.a' to `.c'
@@ -20,10 +20,10 @@ inserting ".c" (3) at end of list
 Target ".a.c" depends on "${.PREFIX}.dependency"
 # .a.c, unmade, type OP_DEPENDS|OP_TRANSFORM, flags none
 # ${.PREFIX}.dependency, unmade, type none, flags none
-Parsing line 23: .DEFAULT:
+Parsing suff-incomplete.mk:23: .DEFAULT:
 transformation .a.c complete
 ParseDependency(.DEFAULT:)
-Parsing line 24: 	: Making ${.TARGET} from ${.IMPSRC} all ${.ALLSRC} by default.
+Parsing suff-incomplete.mk:24: 	: Making ${.TARGET} from ${.IMPSRC} all ${.ALLSRC} by default.
 transformation .DEFAULT complete
 Wildcard expanding "all"...
 SuffFindDeps "all"

@@ -66,8 +66,8 @@ public:
 
 /// A simple smart pointer for arrays providing strict ownership semantics.
 ///
-/// This class is the counterpart of std::auto_ptr for arrays.  The semantics of
-/// the API of this class are the same as those of std::auto_ptr.
+/// This class is the counterpart of std::unique_ptr for arrays.  The semantics of
+/// the API of this class are the same as those of std::unique_ptr.
 ///
 /// The wrapped pointer must be NULL or must have been allocated using operator
 /// new[].

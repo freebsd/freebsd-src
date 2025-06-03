@@ -40,6 +40,8 @@
 #include <unistd.h>
 #include <wchar.h>
 
+#include <capsicum_helpers.h>
+
 #define	TAB	8
 
 void check(FILE *);
@@ -53,6 +55,10 @@ main(int argc, char *argv[])
 	char *p;
 
 	setlocale(LC_ALL, "");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
+		err(EXIT_FAILURE, "capsicum");
 
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
@@ -68,12 +74,12 @@ main(int argc, char *argv[])
 	case 2:
 		stop = strtol(argv[1], &p, 10);
 		if (stop <= 0 || *p)
-			errx(1, "illegal column -- %s", argv[1]);
+			errx(EXIT_FAILURE, "illegal column -- %s", argv[1]);
 		/* FALLTHROUGH */
 	case 1:
 		start = strtol(argv[0], &p, 10);
 		if (start <= 0 || *p)
-			errx(1, "illegal column -- %s", argv[0]);
+			errx(EXIT_FAILURE, "illegal column -- %s", argv[0]);
 		break;
 	case 0:
 		break;
@@ -82,7 +88,7 @@ main(int argc, char *argv[])
 	}
 
 	if (stop && start > stop)
-		errx(1, "illegal start and stop columns");
+		errx(EXIT_FAILURE, "illegal start and stop columns");
 
 	for (column = 0;;) {
 		switch (ch = getwchar()) {
@@ -115,15 +121,14 @@ void
 check(FILE *stream)
 {
 	if (feof(stream))
-		exit(0);
+		exit(EXIT_SUCCESS);
 	if (ferror(stream))
-		err(1, "%s", stream == stdin ? "stdin" : "stdout");
+		err(EXIT_FAILURE, "%s", stream == stdin ? "stdin" : "stdout");
 }
 
 void
 usage(void)
 {
 	(void)fprintf(stderr, "usage: colrm [start [stop]]\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
-

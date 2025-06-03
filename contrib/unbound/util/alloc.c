@@ -519,6 +519,15 @@ void *unbound_stat_realloc_log(void *ptr, size_t size, const char* file,
 	return unbound_stat_realloc(ptr, size);
 }
 
+/** log to file where alloc was done */
+void *unbound_stat_reallocarray_log(void *ptr, size_t nmemb, size_t size,
+	const char* file, int line, const char* func)
+{
+	log_info("%s:%d %s reallocarray(%p, %u, %u)", file, line, func,
+		ptr, (unsigned)nmemb, (unsigned)size);
+	return unbound_stat_realloc(ptr, nmemb*size);
+}
+
 /** log to file where strdup was done */
 char *unbound_stat_strdup_log(const char *s, const char* file, int line,
 	const char* func)

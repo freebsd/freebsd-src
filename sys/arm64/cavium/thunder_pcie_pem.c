@@ -907,8 +907,8 @@ thunder_pem_attach(device_t dev)
 	}
 
 	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
-
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail_io:
 	rman_fini(&sc->io_rman);

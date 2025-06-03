@@ -34,11 +34,9 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_capsicum.h"
 #include "opt_ktrace.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
 #ifdef COMPAT_FREEBSD11
 #include <sys/abi_compat.h>
@@ -47,33 +45,33 @@
 #include <sys/buf.h>
 #include <sys/capsicum.h>
 #include <sys/disk.h>
+#include <sys/dirent.h>
+#include <sys/fcntl.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
+#include <sys/filio.h>
+#include <sys/jail.h>
+#include <sys/kernel.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
+#include <sys/limits.h>
+#include <sys/linker.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
-#include <sys/sysproto.h>
 #include <sys/namei.h>
-#include <sys/filedesc.h>
-#include <sys/kernel.h>
-#include <sys/fcntl.h>
-#include <sys/file.h>
-#include <sys/filio.h>
-#include <sys/limits.h>
-#include <sys/linker.h>
+#include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
-#include <sys/unistd.h>
-#include <sys/vnode.h>
-#include <sys/priv.h>
-#include <sys/proc.h>
-#include <sys/dirent.h>
-#include <sys/jail.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
-#ifdef KTRACE
-#include <sys/ktrace.h>
-#endif
+#include <sys/sysproto.h>
+#include <sys/unistd.h>
+#include <sys/vnode.h>
 
 #include <machine/stdarg.h>
 
@@ -967,6 +965,45 @@ static int unprivileged_chroot = 0;
 SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_chroot, CTLFLAG_RW,
     &unprivileged_chroot, 0,
     "Unprivileged processes can use chroot(2)");
+
+/*
+ * Takes locked vnode, unlocks it before returning.
+ */
+static int
+kern_chroot(struct thread *td, struct vnode *vp)
+{
+	struct proc *p;
+	int error;
+
+	error = priv_check(td, PRIV_VFS_CHROOT);
+	if (error != 0) {
+		p = td->td_proc;
+		PROC_LOCK(p);
+		if (unprivileged_chroot == 0 ||
+		    (p->p_flag2 & P2_NO_NEW_PRIVS) == 0) {
+			PROC_UNLOCK(p);
+			goto e_vunlock;
+		}
+		PROC_UNLOCK(p);
+	}
+
+	error = change_dir(vp, td);
+	if (error != 0)
+		goto e_vunlock;
+#ifdef MAC
+	error = mac_vnode_check_chroot(td->td_ucred, vp);
+	if (error != 0)
+		goto e_vunlock;
+#endif
+	VOP_UNLOCK(vp);
+	error = pwd_chroot(td, vp);
+	vrele(vp);
+	return (error);
+e_vunlock:
+	vput(vp);
+	return (error);
+}
+
 /*
  * Change notion of root (``/'') directory.
  */
@@ -979,40 +1016,41 @@ int
 sys_chroot(struct thread *td, struct chroot_args *uap)
 {
 	struct nameidata nd;
-	struct proc *p;
 	int error;
 
-	error = priv_check(td, PRIV_VFS_CHROOT);
-	if (error != 0) {
-		p = td->td_proc;
-		PROC_LOCK(p);
-		if (unprivileged_chroot == 0 ||
-		    (p->p_flag2 & P2_NO_NEW_PRIVS) == 0) {
-			PROC_UNLOCK(p);
-			return (error);
-		}
-		PROC_UNLOCK(p);
-	}
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
 	    UIO_USERSPACE, uap->path);
 	error = namei(&nd);
 	if (error != 0)
 		return (error);
 	NDFREE_PNBUF(&nd);
-	error = change_dir(nd.ni_vp, td);
-	if (error != 0)
-		goto e_vunlock;
-#ifdef MAC
-	error = mac_vnode_check_chroot(td->td_ucred, nd.ni_vp);
-	if (error != 0)
-		goto e_vunlock;
-#endif
-	VOP_UNLOCK(nd.ni_vp);
-	error = pwd_chroot(td, nd.ni_vp);
-	vrele(nd.ni_vp);
+	error = kern_chroot(td, nd.ni_vp);
 	return (error);
-e_vunlock:
-	vput(nd.ni_vp);
+}
+
+/*
+ * Change notion of root directory to a given file descriptor.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct fchroot_args {
+	int	fd;
+};
+#endif
+int
+sys_fchroot(struct thread *td, struct fchroot_args *uap)
+{
+	struct vnode *vp;
+	struct file *fp;
+	int error;
+
+	error = getvnode_path(td, uap->fd, &cap_fchroot_rights, &fp);
+	if (error != 0)
+		return (error);
+	vp = fp->f_vnode;
+	vrefact(vp);
+	fdrop(fp, td);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	error = kern_chroot(td, vp);
 	return (error);
 }
 
@@ -1111,6 +1149,61 @@ sys_openat(struct thread *td, struct openat_args *uap)
 }
 
 /*
+ * Validate open(2) flags and convert access mode flags (O_RDONLY etc.) to their
+ * in-kernel representations (FREAD etc.).
+ */
+static int
+openflags(int *flagsp)
+{
+	int flags;
+
+	/*
+	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR flags
+	 * may be specified.  On the other hand, for O_PATH any mode
+	 * except O_EXEC is ignored.
+	 */
+	flags = *flagsp;
+	if ((flags & O_PATH) != 0) {
+		flags &= ~O_ACCMODE;
+	} else if ((flags & O_EXEC) != 0) {
+		if ((flags & O_ACCMODE) != 0)
+			return (EINVAL);
+	} else if ((flags & O_ACCMODE) == O_ACCMODE) {
+		return (EINVAL);
+	} else {
+		flags = FFLAGS(flags);
+	}
+	*flagsp = flags;
+	return (0);
+}
+
+static void
+finit_open(struct file *fp, struct vnode *vp, int flags)
+{
+	/*
+	 * Store the vnode, for any f_type. Typically, the vnode use count is
+	 * decremented by a direct call to vnops.fo_close() for files that
+	 * switched type.
+	 */
+	fp->f_vnode = vp;
+
+	/*
+	 * If the file wasn't claimed by devfs or fifofs, bind it to the normal
+	 * vnode operations here.
+	 */
+	if (fp->f_ops == &badfileops) {
+		KASSERT(vp->v_type != VFIFO || (flags & O_PATH) != 0,
+		    ("Unexpected fifo fp %p vp %p", fp, vp));
+		if ((flags & O_PATH) != 0) {
+			finit(fp, (flags & FMASK) | (fp->f_flag & FKQALLOWED),
+			    DTYPE_VNODE, NULL, &path_fileops);
+		} else {
+			finit_vnode(fp, flags, NULL, &vnops);
+		}
+	}
+}
+
+/*
  * If fpp != NULL, opened file is not installed into the file
  * descriptor table, instead it is returned in *fpp.  This is
  * incompatible with fdopen(), in which case we return EINVAL.
@@ -1139,21 +1232,9 @@ openatfp(struct thread *td, int dirfd, const char *path,
 	cap_rights_init_one(&rights, CAP_LOOKUP);
 	flags_to_rights(flags, &rights);
 
-	/*
-	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR flags
-	 * may be specified.  On the other hand, for O_PATH any mode
-	 * except O_EXEC is ignored.
-	 */
-	if ((flags & O_PATH) != 0) {
-		flags &= ~(O_CREAT | O_ACCMODE);
-	} else if ((flags & O_EXEC) != 0) {
-		if (flags & O_ACCMODE)
-			return (EINVAL);
-	} else if ((flags & O_ACCMODE) == O_ACCMODE) {
-		return (EINVAL);
-	} else {
-		flags = FFLAGS(flags);
-	}
+	error = openflags(&flags);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Allocate a file structure. The descriptor to reference it
@@ -1204,28 +1285,7 @@ openatfp(struct thread *td, int dirfd, const char *path,
 	NDFREE_PNBUF(&nd);
 	vp = nd.ni_vp;
 
-	/*
-	 * Store the vnode, for any f_type. Typically, the vnode use
-	 * count is decremented by direct call to vn_closefile() for
-	 * files that switched type in the cdevsw fdopen() method.
-	 */
-	fp->f_vnode = vp;
-
-	/*
-	 * If the file wasn't claimed by devfs bind it to the normal
-	 * vnode operations here.
-	 */
-	if (fp->f_ops == &badfileops) {
-		KASSERT(vp->v_type != VFIFO || (flags & O_PATH) != 0,
-		    ("Unexpected fifo fp %p vp %p", fp, vp));
-		if ((flags & O_PATH) != 0) {
-			finit(fp, (flags & FMASK) | (fp->f_flag & FKQALLOWED),
-			    DTYPE_VNODE, NULL, &path_fileops);
-		} else {
-			finit_vnode(fp, flags, NULL, &vnops);
-		}
-	}
-
+	finit_open(fp, vp, flags);
 	VOP_UNLOCK(vp);
 	if (flags & O_TRUNC) {
 		error = fo_truncate(fp, 0, td->td_ucred, td);
@@ -1395,6 +1455,10 @@ restart:
 			vput(nd.ni_dvp);
 		vrele(vp);
 		return (EEXIST);
+	} else if ((vn_irflag_read(nd.ni_dvp) & VIRF_NAMEDDIR) != 0) {
+		NDFREE_PNBUF(&nd);
+		vput(nd.ni_dvp);
+		return (EINVAL);
 	} else {
 		VATTR_NULL(&vattr);
 		vattr.va_mode = (mode & ALLPERMS) &
@@ -1502,6 +1566,11 @@ restart:
 			vput(nd.ni_dvp);
 		vrele(nd.ni_vp);
 		return (EEXIST);
+	}
+	if ((vn_irflag_read(nd.ni_dvp) & VIRF_NAMEDDIR) != 0) {
+		NDFREE_PNBUF(&nd);
+		vput(nd.ni_dvp);
+		return (EINVAL);
 	}
 	if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
 		NDFREE_PNBUF(&nd);
@@ -1648,6 +1717,10 @@ kern_linkat_vp(struct thread *td, struct vnode *vp, int fd, const char *path,
 		vrele(vp);
 		return (EPERM);		/* POSIX */
 	}
+	if ((vn_irflag_read(vp) & (VIRF_NAMEDDIR | VIRF_NAMEDATTR)) != 0) {
+		vrele(vp);
+		return (EINVAL);
+	}
 	NDINIT_ATRIGHTS(&nd, CREATE,
 	    LOCKPARENT | AUDITVNODE2 | NOCACHE, segflag, path, fd,
 	    &cap_linkat_target_rights);
@@ -1788,6 +1861,10 @@ restart:
 		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | V_PCATCH)) != 0)
 			goto out;
 		goto restart;
+	}
+	if ((vn_irflag_read(nd.ni_dvp) & VIRF_NAMEDDIR) != 0) {
+		error = EINVAL;
+		goto out;
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_mode = ACCESSPERMS &~ td->td_proc->p_pd->pd_cmask;
@@ -1994,7 +2071,6 @@ restart:
 		if (error != 0)
 			goto out;
 #endif
-		vfs_notify_upper(vp, VFS_NOTIFY_UPPER_UNLINK);
 		error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
 #ifdef MAC
 out:
@@ -3682,6 +3758,7 @@ kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
 	struct nameidata fromnd, tond;
 	uint64_t tondflags;
 	int error;
+	short irflag;
 
 again:
 	bwillwrite();
@@ -3733,6 +3810,12 @@ again:
 		if (error != 0)
 			return (error);
 		goto again;
+	}
+	irflag = vn_irflag_read(fvp);
+	if (((irflag & VIRF_NAMEDATTR) != 0 && tdvp != fromnd.ni_dvp) ||
+	    (irflag & VIRF_NAMEDDIR) != 0) {
+		error = EINVAL;
+		goto out;
 	}
 	if (tvp != NULL) {
 		if (fvp->v_type == VDIR && tvp->v_type != VDIR) {
@@ -3853,6 +3936,10 @@ restart:
 			return (error);
 		goto restart;
 	}
+	if ((vn_irflag_read(nd.ni_dvp) & VIRF_NAMEDDIR) != 0) {
+		error = EINVAL;
+		goto out;
+	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VDIR;
 	vattr.va_mode = (mode & ACCESSPERMS) &~ td->td_proc->p_pd->pd_cmask;
@@ -3863,9 +3950,7 @@ restart:
 		goto out;
 #endif
 	error = VOP_MKDIR(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
-#ifdef MAC
 out:
-#endif
 	NDFREE_PNBUF(&nd);
 	VOP_VPUT_PAIR(nd.ni_dvp, error == 0 ? &nd.ni_vp : NULL, true);
 	vn_finished_write(mp);
@@ -3962,7 +4047,6 @@ restart:
 			goto fdout;
 		goto restart;
 	}
-	vfs_notify_upper(vp, VFS_NOTIFY_UPPER_UNLINK);
 	error = VOP_RMDIR(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
 	vn_finished_write(mp);
 out:
@@ -4325,7 +4409,7 @@ out:
  * semantics.
  */
 int
-getvnode_path(struct thread *td, int fd, cap_rights_t *rightsp,
+getvnode_path(struct thread *td, int fd, const cap_rights_t *rightsp,
     struct file **fpp)
 {
 	struct file *fp;
@@ -4363,7 +4447,8 @@ getvnode_path(struct thread *td, int fd, cap_rights_t *rightsp,
  * A reference on the file entry is held upon returning.
  */
 int
-getvnode(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
+getvnode(struct thread *td, int fd, const cap_rights_t *rightsp,
+    struct file **fpp)
 {
 	int error;
 
@@ -4589,20 +4674,22 @@ kern_fhopen(struct thread *td, const struct fhandle *u_fhp, int flags)
 	struct vnode *vp;
 	struct fhandle fhp;
 	struct file *fp;
-	int fmode, error;
-	int indx;
+	int error, indx;
+	bool named_attr;
 
 	error = priv_check(td, PRIV_VFS_FHOPEN);
 	if (error != 0)
 		return (error);
+
 	indx = -1;
-	fmode = FFLAGS(flags);
-	/* why not allow a non-read/write open for our lockd? */
-	if (((fmode & (FREAD | FWRITE)) == 0) || (fmode & O_CREAT))
+	if ((flags & O_CREAT) != 0)
 		return (EINVAL);
+	error = openflags(&flags);
+	if (error != 0)
+		return (error);
 	error = copyin(u_fhp, &fhp, sizeof(fhp));
 	if (error != 0)
-		return(error);
+		return (error);
 	/* find the mount point */
 	mp = vfs_busyfs(&fhp.fh_fsid);
 	if (mp == NULL)
@@ -4613,20 +4700,31 @@ kern_fhopen(struct thread *td, const struct fhandle *u_fhp, int flags)
 	if (error != 0)
 		return (error);
 
+	/*
+	 * Check to see if the file handle refers to a named attribute
+	 * directory or attribute.  If it does, the O_NAMEDATTR flag
+	 * must have been specified.
+	 */
+	named_attr = (vn_irflag_read(vp) &
+	    (VIRF_NAMEDDIR | VIRF_NAMEDATTR)) != 0;
+	if ((named_attr && (flags & O_NAMEDATTR) == 0) ||
+	    (!named_attr && (flags & O_NAMEDATTR) != 0)) {
+		vput(vp);
+		return (ENOATTR);
+	}
+
 	error = falloc_noinstall(td, &fp);
 	if (error != 0) {
 		vput(vp);
 		return (error);
 	}
-	/*
-	 * An extra reference on `fp' has been held for us by
-	 * falloc_noinstall().
-	 */
+	/* Set the flags early so the finit in devfs can pick them up. */
+	fp->f_flag = flags & FMASK;
 
 #ifdef INVARIANTS
 	td->td_dupfd = -1;
 #endif
-	error = vn_open_vnode(vp, fmode, td->td_ucred, td, fp);
+	error = vn_open_vnode(vp, flags, td->td_ucred, td, fp);
 	if (error != 0) {
 		KASSERT(fp->f_ops == &badfileops,
 		    ("VOP_OPEN in fhopen() set f_ops"));
@@ -4639,16 +4737,15 @@ kern_fhopen(struct thread *td, const struct fhandle *u_fhp, int flags)
 #ifdef INVARIANTS
 	td->td_dupfd = 0;
 #endif
-	fp->f_vnode = vp;
-	finit_vnode(fp, fmode, NULL, &vnops);
+	finit_open(fp, vp, flags);
 	VOP_UNLOCK(vp);
-	if ((fmode & O_TRUNC) != 0) {
+	if ((flags & O_TRUNC) != 0) {
 		error = fo_truncate(fp, 0, td->td_ucred, td);
 		if (error != 0)
 			goto bad;
 	}
 
-	error = finstall(td, fp, &indx, fmode, NULL);
+	error = finstall(td, fp, &indx, flags, NULL);
 bad:
 	fdrop(fp, td);
 	td->td_retval[0] = indx;
@@ -4902,16 +4999,17 @@ int
 kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
     off_t *outoffp, size_t len, unsigned int flags)
 {
-	struct file *infp, *outfp;
+	struct file *infp, *infp1, *outfp, *outfp1;
 	struct vnode *invp, *outvp;
 	int error;
 	size_t retlen;
 	void *rl_rcookie, *rl_wcookie;
-	off_t savinoff, savoutoff;
+	off_t inoff, outoff, savinoff, savoutoff;
+	bool foffsets_locked;
 
 	infp = outfp = NULL;
 	rl_rcookie = rl_wcookie = NULL;
-	savinoff = -1;
+	foffsets_locked = false;
 	error = 0;
 	retlen = 0;
 
@@ -4953,13 +5051,35 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 		goto out;
 	}
 
-	/* Set the offset pointers to the correct place. */
-	if (inoffp == NULL)
-		inoffp = &infp->f_offset;
-	if (outoffp == NULL)
-		outoffp = &outfp->f_offset;
-	savinoff = *inoffp;
-	savoutoff = *outoffp;
+	/*
+	 * Figure out which file offsets we're reading from and writing to.
+	 * If the offsets come from the file descriptions, we need to lock them,
+	 * and locking both offsets requires a loop to avoid deadlocks.
+	 */
+	infp1 = outfp1 = NULL;
+	if (inoffp != NULL)
+		inoff = *inoffp;
+	else
+		infp1 = infp;
+	if (outoffp != NULL)
+		outoff = *outoffp;
+	else
+		outfp1 = outfp;
+	if (infp1 != NULL || outfp1 != NULL) {
+		if (infp1 == outfp1) {
+			/*
+			 * Overlapping ranges are not allowed.  A more thorough
+			 * check appears below, but we must not lock the same
+			 * offset twice.
+			 */
+			error = EINVAL;
+			goto out;
+		}
+		foffset_lock_pair(infp1, &inoff, outfp1, &outoff, 0);
+		foffsets_locked = true;
+	}
+	savinoff = inoff;
+	savoutoff = outoff;
 
 	invp = infp->f_vnode;
 	outvp = outfp->f_vnode;
@@ -4975,12 +5095,21 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 		goto out;
 
 	/*
+	 * Make sure that the ranges we check and lock below are valid.  Note
+	 * that len is clamped to SSIZE_MAX above.
+	 */
+	if (inoff < 0 || outoff < 0) {
+		error = EINVAL;
+		goto out;
+	}
+
+	/*
 	 * If infp and outfp refer to the same file, the byte ranges cannot
 	 * overlap.
 	 */
 	if (invp == outvp) {
-		if ((savinoff <= savoutoff && savinoff + len > savoutoff) ||
-		    (savinoff > savoutoff && savoutoff + len > savinoff)) {
+		if ((inoff <= outoff && inoff + len > outoff) ||
+		    (inoff > outoff && outoff + len > inoff)) {
 			error = EINVAL;
 			goto out;
 		}
@@ -4989,28 +5118,36 @@ kern_copy_file_range(struct thread *td, int infd, off_t *inoffp, int outfd,
 
 	/* Range lock the byte ranges for both invp and outvp. */
 	for (;;) {
-		rl_wcookie = vn_rangelock_wlock(outvp, *outoffp, *outoffp +
-		    len);
-		rl_rcookie = vn_rangelock_tryrlock(invp, *inoffp, *inoffp +
-		    len);
+		rl_wcookie = vn_rangelock_wlock(outvp, outoff, outoff + len);
+		rl_rcookie = vn_rangelock_tryrlock(invp, inoff, inoff + len);
 		if (rl_rcookie != NULL)
 			break;
 		vn_rangelock_unlock(outvp, rl_wcookie);
-		rl_rcookie = vn_rangelock_rlock(invp, *inoffp, *inoffp + len);
+		rl_rcookie = vn_rangelock_rlock(invp, inoff, inoff + len);
 		vn_rangelock_unlock(invp, rl_rcookie);
 	}
 
 	retlen = len;
-	error = vn_copy_file_range(invp, inoffp, outvp, outoffp, &retlen,
+	error = vn_copy_file_range(invp, &inoff, outvp, &outoff, &retlen,
 	    flags, infp->f_cred, outfp->f_cred, td);
 out:
 	if (rl_rcookie != NULL)
 		vn_rangelock_unlock(invp, rl_rcookie);
 	if (rl_wcookie != NULL)
 		vn_rangelock_unlock(outvp, rl_wcookie);
-	if (savinoff != -1 && (error == EINTR || error == ERESTART)) {
-		*inoffp = savinoff;
-		*outoffp = savoutoff;
+	if (foffsets_locked) {
+		if (error == EINTR || error == ERESTART) {
+			inoff = savinoff;
+			outoff = savoutoff;
+		}
+		if (inoffp == NULL)
+			foffset_unlock(infp, inoff, 0);
+		else
+			*inoffp = inoff;
+		if (outoffp == NULL)
+			foffset_unlock(outfp, outoff, 0);
+		else
+			*outoffp = outoff;
 	}
 	if (outfp != NULL)
 		fdrop(outfp, td);

@@ -530,8 +530,9 @@ int
 kmem_back_domain(int domain, vm_object_t object, vm_offset_t addr,
     vm_size_t size, int flags)
 {
+	struct pctrie_iter pages;
 	vm_offset_t offset, i;
-	vm_page_t m, mpred;
+	vm_page_t m;
 	vm_prot_t prot;
 	int pflags;
 
@@ -546,12 +547,12 @@ kmem_back_domain(int domain, vm_object_t object, vm_offset_t addr,
 	prot = (flags & M_EXEC) != 0 ? VM_PROT_ALL : VM_PROT_RW;
 
 	i = 0;
+	vm_page_iter_init(&pages, object);
 	VM_OBJECT_WLOCK(object);
 retry:
-	mpred = vm_radix_lookup_le(&object->rtree, atop(offset + i));
-	for (; i < size; i += PAGE_SIZE, mpred = m) {
-		m = vm_page_alloc_domain_after(object, atop(offset + i),
-		    domain, pflags, mpred);
+	for (; i < size; i += PAGE_SIZE) {
+		m = vm_page_alloc_domain_iter(object, atop(offset + i),
+		    domain, pflags, &pages);
 
 		/*
 		 * Ran out of space, free everything up and return. Don't need
@@ -634,8 +635,9 @@ kmem_back(vm_object_t object, vm_offset_t addr, vm_size_t size, int flags)
 static struct vmem *
 _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 {
+	struct pctrie_iter pages;
 	struct vmem *arena;
-	vm_page_t m, next;
+	vm_page_t m;
 	vm_offset_t end, offset;
 	int domain;
 
@@ -647,18 +649,19 @@ _kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	pmap_remove(kernel_pmap, addr, addr + size);
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	end = offset + size;
+	vm_page_iter_init(&pages, object);
 	VM_OBJECT_WLOCK(object);
-	m = vm_page_lookup(object, atop(offset)); 
+	m = vm_radix_iter_lookup(&pages, atop(offset)); 
 	domain = vm_page_domain(m);
 	if (__predict_true((m->oflags & VPO_KMEM_EXEC) == 0))
 		arena = vm_dom[domain].vmd_kernel_arena;
 	else
 		arena = vm_dom[domain].vmd_kernel_rwx_arena;
-	for (; offset < end; offset += PAGE_SIZE, m = next) {
-		next = vm_page_next(m);
+	for (; offset < end; offset += PAGE_SIZE,
+	    m = vm_radix_iter_lookup(&pages, atop(offset))) {
 		vm_page_xbusy_claim(m);
 		vm_page_unwire_noq(m);
-		vm_page_free(m);
+		vm_page_iter_free(&pages, m);
 	}
 	VM_OBJECT_WUNLOCK(object);
 
@@ -722,7 +725,7 @@ kmap_alloc_wait(vm_map_t map, vm_size_t size)
 			swap_release(size);
 			return (0);
 		}
-		map->needs_wakeup = TRUE;
+		vm_map_modflags(map, MAP_NEEDS_WAKEUP, 0);
 		vm_map_unlock_and_wait(map, 0);
 	}
 	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_RW, VM_PROT_RW,
@@ -743,8 +746,8 @@ kmap_free_wakeup(vm_map_t map, vm_offset_t addr, vm_size_t size)
 
 	vm_map_lock(map);
 	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size));
-	if (map->needs_wakeup) {
-		map->needs_wakeup = FALSE;
+	if ((map->flags & MAP_NEEDS_WAKEUP) != 0) {
+		vm_map_modflags(map, 0, MAP_NEEDS_WAKEUP);
 		vm_map_wakeup(map);
 	}
 	vm_map_unlock(map);
@@ -762,7 +765,8 @@ kmem_init_zero_region(void)
 	 * zeros, while not using much more physical resources.
 	 */
 	addr = kva_alloc(ZERO_REGION_SIZE);
-	m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+	m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO |
+	    VM_ALLOC_NOFREE);
 	for (i = 0; i < ZERO_REGION_SIZE; i += PAGE_SIZE)
 		pmap_qenter(addr + i, &m, 1);
 	pmap_protect(kernel_pmap, addr, addr + ZERO_REGION_SIZE, VM_PROT_READ);
@@ -827,8 +831,7 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 	vm_size_t quantum;
 	int domain;
 
-	vm_map_init(kernel_map, kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
-	kernel_map->system_map = 1;
+	vm_map_init_system(kernel_map, kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
 	vm_map_lock(kernel_map);
 	/* N.B.: cannot use kgdb to debug, starting with this assignment ... */
 	(void)vm_map_insert(kernel_map, NULL, 0,
@@ -951,7 +954,7 @@ kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
 
 		vmd = vm_pagequeue_domain(m);
 		vm_domain_free_lock(vmd);
-		vm_phys_free_pages(m, 0);
+		vm_phys_free_pages(m, m->pool, 0);
 		vm_domain_free_unlock(vmd);
 
 		vm_domain_freecnt_inc(vmd, 1);

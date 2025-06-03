@@ -3440,10 +3440,13 @@ ngthread(void *arg)
 				NG_QUEUE_UNLOCK(&node->nd_input_queue);
 				NGI_GET_NODE(item, node); /* zaps stored node */
 
-				if ((item->el_flags & NGQF_TYPE) == NGQF_MESG) {
+				if ((item->el_flags & NGQF_TYPE) != NGQF_DATA) {
 					/*
-					 * NGQF_MESG items should never be processed in
-					 * NET_EPOCH context. So, temporary exit from EPOCH.
+					 * NGQF_MESG, NGQF_FN and NGQF_FN2 items
+					 * should never be processed in
+					 * NET_EPOCH context; they generally
+					 * require heavier synchronization and
+					 * may sleep. So, temporarily exit.
 					 */
 					NET_EPOCH_EXIT(et);
 					ng_apply_item(node, item, rw);

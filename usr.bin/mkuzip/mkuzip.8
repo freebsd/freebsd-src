@@ -207,23 +207,6 @@ The same tradeoff continues to apply: reads in
 .Xr geom_uzip 4
 become more expensive the greater the cluster size.
 .Pp
-The
-.Nm
-utility
-inserts a short shell script at the beginning of the generated image,
-which makes it possible to
-.Dq run
-the image just like any other shell script.
-The script tries to load the
-.Xr geom_uzip 4
-class if it is not loaded, configure the image as an
-.Xr md 4
-disk device using
-.Xr mdconfig 8 ,
-and automatically mount it using
-.Xr mount_cd9660 8
-on the mount point provided as the first argument to the script.
-.Pp
 The de-duplication is a
 .Fx
 specific feature and while it does not require any changes to on-disk
@@ -247,6 +230,34 @@ for
 .Dq 1 .
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+.Pp
+The following describes how to create and mount a uzip image.
+.Pp
+Create a file system image:
+.Bd -literal -offset indent
+makefs /src.img /usr/src
+.Ed
+.Pp
+Create the uzip image, the output file will be named src.img.uzip:
+.Bd -literal -offset indent
+mkuzip /src.img
+.Ed
+.Pp
+Ensure geom_uzip is loaded:
+.Bd -literal -offset indent
+kldload geom_uzip
+.Ed
+.Pp
+Create an MD device backed by the uzip image:
+.Bd -literal -offset indent
+mdconfig -f /src.img.uzip
+.Ed
+.Pp
+Mount the uzip image:
+.Bd -literal -offset indent
+mount -o ro /dev/md0.uzip /mnt
+.Ed
 .Sh SEE ALSO
 .Xr gzip 1 ,
 .Xr xz 1 ,

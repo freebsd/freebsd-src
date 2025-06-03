@@ -751,13 +751,13 @@ tty_kqops_write_event(struct knote *kn, long hint __unused)
 	}
 }
 
-static struct filterops tty_kqops_read = {
+static const struct filterops tty_kqops_read = {
 	.f_isfd = 1,
 	.f_detach = tty_kqops_read_detach,
 	.f_event = tty_kqops_read_event,
 };
 
-static struct filterops tty_kqops_write = {
+static const struct filterops tty_kqops_write = {
 	.f_isfd = 1,
 	.f_detach = tty_kqops_write_detach,
 	.f_event = tty_kqops_write_event,
@@ -1644,6 +1644,24 @@ tty_set_winsize(struct tty *tp, const struct winsize *wsz)
 }
 
 static int
+tty_sti_check(struct tty *tp, int fflag, struct thread *td)
+{
+	/* Root can bypass all of our constraints. */
+	if (priv_check(td, PRIV_TTY_STI) == 0)
+		return (0);
+
+	/* Unprivileged users must have it opened for read. */
+	if ((fflag & FREAD) == 0)
+		return (EPERM);
+
+	/* It must also be their controlling tty. */
+	if (!tty_is_ctty(tp, td->td_proc))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
     struct thread *td)
 {
@@ -1988,11 +2006,9 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		tty_info(tp);
 		return (0);
 	case TIOCSTI:
-		if ((fflag & FREAD) == 0 && priv_check(td, PRIV_TTY_STI))
-			return (EPERM);
-		if (!tty_is_ctty(tp, td->td_proc) &&
-		    priv_check(td, PRIV_TTY_STI))
-			return (EACCES);
+		error = tty_sti_check(tp, fflag, td);
+		if (error != 0)
+			return (error);
 		ttydisc_rint(tp, *(char *)data, 0);
 		ttydisc_rint_done(tp);
 		return (0);

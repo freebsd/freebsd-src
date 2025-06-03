@@ -29,8 +29,6 @@
  * Xilinx DWC3 glue
  */
 
-#include <sys/cdefs.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -133,7 +131,8 @@ xlnx_dwc3_attach(device_t dev)
 			device_probe_and_attach(cdev);
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static device_method_t xlnx_dwc3_methods[] = {

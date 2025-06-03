@@ -33,7 +33,7 @@ tos_head()
 {
 	atf_set descr 'set-tos test'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 tos_body()

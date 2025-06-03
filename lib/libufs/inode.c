@@ -43,6 +43,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <libufs.h>
@@ -53,6 +54,7 @@ getinode(struct uufsd *disk, union dinodep *dp, ino_t inum)
 	ino_t min, max;
 	caddr_t inoblock;
 	struct fs *fs;
+	struct timespec now;
 
 	ERROR(disk, NULL);
 
@@ -65,6 +67,10 @@ getinode(struct uufsd *disk, union dinodep *dp, ino_t inum)
 	min = disk->d_inomin;
 	max = disk->d_inomax;
 
+	if (clock_gettime(CLOCK_REALTIME_FAST, &now) != 0) {
+		ERROR(disk, "cannot get current time of day");
+		return (-1);
+	}
 	if (inum >= min && inum < max)
 		goto gotit;
 	bread(disk, fsbtodb(fs, ino_to_fsba(fs, inum)), inoblock,
@@ -74,6 +80,8 @@ getinode(struct uufsd *disk, union dinodep *dp, ino_t inum)
 gotit:	switch (disk->d_ufs) {
 	case 1:
 		disk->d_dp.dp1 = &((struct ufs1_dinode *)inoblock)[inum - min];
+		if (ffs_oldfscompat_inode_read(fs, disk->d_dp, now.tv_sec))
+			putinode(disk);
 		if (dp != NULL)
 			*dp = disk->d_dp;
 		return (0);
@@ -81,8 +89,12 @@ gotit:	switch (disk->d_ufs) {
 		disk->d_dp.dp2 = &((struct ufs2_dinode *)inoblock)[inum - min];
 		if (dp != NULL)
 			*dp = disk->d_dp;
-		if (ffs_verify_dinode_ckhash(fs, disk->d_dp.dp2) == 0)
+		if (ffs_verify_dinode_ckhash(fs, disk->d_dp.dp2) == 0) {
+			if (ffs_oldfscompat_inode_read(fs, disk->d_dp,
+			    now.tv_sec))
+				putinode(disk);
 			return (0);
+		}
 		ERROR(disk, "check-hash failed for inode read from disk");
 		return (-1);
 	default:

@@ -149,6 +149,7 @@ phandle_t	OF_xref_from_node(phandle_t node);
 device_t	OF_device_from_xref(phandle_t xref);
 phandle_t	OF_xref_from_device(device_t dev);
 int		OF_device_register_xref(phandle_t xref, device_t dev);
+void		OF_device_unregister_xref(phandle_t xref, device_t dev);
 
 /* Device I/O functions */
 ihandle_t	OF_open(const char *path);

@@ -151,7 +151,7 @@ vnet_down()
 
 # netif_common routine
 #	Common configuration subroutine for network interfaces. This
-#	routine takes all the preparatory steps needed for configuriing
+#	routine takes all the preparatory steps needed for configuring
 #	an interface and then calls $routine.
 netif_common()
 {

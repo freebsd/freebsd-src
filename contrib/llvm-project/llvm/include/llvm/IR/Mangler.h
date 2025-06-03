@@ -14,6 +14,7 @@
 #define LLVM_IR_MANGLER_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
@@ -51,6 +52,15 @@ void emitLinkerFlagsForGlobalCOFF(raw_ostream &OS, const GlobalValue *GV,
 
 void emitLinkerFlagsForUsedCOFF(raw_ostream &OS, const GlobalValue *GV,
                                 const Triple &T, Mangler &M);
+
+std::optional<std::string> getArm64ECMangledFunctionName(StringRef Name);
+std::optional<std::string> getArm64ECDemangledFunctionName(StringRef Name);
+
+/// Check if an ARM64EC function name is mangled.
+bool inline isArm64ECMangledFunctionName(StringRef Name) {
+  return Name[0] == '#' ||
+         (Name[0] == '?' && Name.find("@$$h") != StringRef::npos);
+}
 
 } // End llvm namespace
 

@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 16, 1998
+.Dd February 5, 2025
 .Dt DEVICE_DELETE_CHILD 9
 .Os
 .Sh NAME
@@ -41,13 +41,26 @@
 The specified device is removed from
 .Fa dev
 and deleted.
-If the device is currently attached, it is first detached (see
-.Xr DEVICE_ATTACH 9
-and
-.Xr DEVICE_DETACH 9 ) .
+If the device is currently attached, it is first detached via
+.Xr device_detach 9 .
+If
+.Fn device_detach
+fails,
+its error value is returned.
+Otherwise,
+all descendant devices of
+.Fa child
+are deleted and zero is returned.
+.Pp
+The
+.Xr BUS_CHILD_DELETED 9
+method is invoked for each device that is deleted.
+This permits the parent device's driver to tear down any state associated
+with child devices such as ivars.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error is returned.
 .Sh SEE ALSO
+.Xr BUS_CHILD_DELETED 9 ,
 .Xr device_add_child 9
 .Sh AUTHORS
 This manual page was written by

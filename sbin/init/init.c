@@ -49,6 +49,7 @@
 #include <fcntl.h>
 #include <kenv.h>
 #include <libutil.h>
+#include <mntopts.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -69,7 +70,6 @@
 #include <login_cap.h>
 #endif
 
-#include "mntopts.h"
 #include "pathnames.h"
 
 /*

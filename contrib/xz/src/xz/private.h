@@ -28,6 +28,7 @@
 #include "tuklib_gettext.h"
 #include "tuklib_progname.h"
 #include "tuklib_exit.h"
+#include "tuklib_mbstr_nonprint.h"
 #include "tuklib_mbstr.h"
 
 #if defined(_WIN32) && !defined(__CYGWIN__)

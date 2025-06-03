@@ -1,0 +1,2 @@
+SUBDIR+=	bhyve
+SUBDIR+=	bhyvectl

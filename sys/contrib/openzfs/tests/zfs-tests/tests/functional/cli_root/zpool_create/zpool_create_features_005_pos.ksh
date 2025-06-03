@@ -1,4 +1,5 @@
 #!/bin/ksh -p
+# SPDX-License-Identifier: CDDL-1.0
 #
 # CDDL HEADER START
 #
@@ -75,8 +76,8 @@ log_onexit cleanup
 # excluded because other features depend on them.
 set -A features \
     "hole_birth" \
-    "large_blocks"  \
     "large_dnode" \
+    "longname"  \
     "userobj_accounting"
 
 typeset -i i=0

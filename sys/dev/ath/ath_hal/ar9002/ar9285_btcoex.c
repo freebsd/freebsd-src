@@ -54,7 +54,7 @@ ar9285BTCoexAntennaDiversity(struct ath_hal *ah)
 	    !! (ahp->ah_btCoexFlag & HAL_BT_COEX_FLAG_ANT_DIV_ENABLE));
 
 	if ((ahp->ah_btCoexFlag & HAL_BT_COEX_FLAG_ANT_DIV_ALLOW) ||
-	    (AH5212(ah)->ah_diversity != HAL_ANT_VARIABLE)) {
+	    (AH5212(ah)->ah_diversity == AH_TRUE)) {
 	if ((ahp->ah_btCoexFlag & HAL_BT_COEX_FLAG_ANT_DIV_ENABLE) &&
 	     (AH5212(ah)->ah_antControl == HAL_ANT_VARIABLE)) {
 		/* Enable antenna diversity */

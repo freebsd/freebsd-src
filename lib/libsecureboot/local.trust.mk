@@ -84,7 +84,7 @@ VE_SIGNATURE_LIST?= RSA
 # you need to provide t*.pem or t*.asc files for each trust anchor
 # below assumes they are named ta_${ext}.pem eg ta_esig.pem for ECDSA
 .if empty(TRUST_ANCHORS)
-TRUST_ANCHORS!= cd ${.CURDIR} && 'ls' -1 *.pem t*.asc 2> /dev/null
+TRUST_ANCHORS!= cd ${.CURDIR} && 'ls' -1 *.pem t*.asc 2> /dev/null || echo
 .endif
 .if empty(TRUST_ANCHORS) && ${MK_LOADER_EFI_SECUREBOOT} != "yes"
 .error Need TRUST_ANCHORS see ${.PARSEDIR}/README.rst

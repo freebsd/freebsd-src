@@ -8,6 +8,7 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/dnv.h>
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/kernel.h>
@@ -15,6 +16,7 @@
 #include <sys/memdesc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/nv.h>
 #include <sys/reboot.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
@@ -196,108 +198,142 @@ nvmf_send_keep_alive(void *arg)
 }
 
 int
-nvmf_init_ivars(struct nvmf_ivars *ivars, struct nvmf_handoff_host *hh)
+nvmf_copyin_handoff(const struct nvmf_ioc_nv *nv, nvlist_t **nvlp)
 {
-	size_t len;
-	u_int i;
+	const struct nvme_discovery_log_entry *dle;
+	const struct nvme_controller_data *cdata;
+	const nvlist_t *const *io;
+	const nvlist_t *admin, *rparams;
+	nvlist_t *nvl;
+	size_t i, num_io_queues;
+	uint32_t qsize;
 	int error;
 
-	memset(ivars, 0, sizeof(*ivars));
-
-	if (!hh->admin.admin || hh->num_io_queues < 1)
-		return (EINVAL);
-
-	ivars->cdata = malloc(sizeof(*ivars->cdata), M_NVMF, M_WAITOK);
-	error = copyin(hh->cdata, ivars->cdata, sizeof(*ivars->cdata));
+	error = nvmf_unpack_ioc_nvlist(nv, &nvl);
 	if (error != 0)
-		goto out;
-	nvme_controller_data_swapbytes(ivars->cdata);
+		return (error);
 
-	len = hh->num_io_queues * sizeof(*ivars->io_params);
-	ivars->io_params = malloc(len, M_NVMF, M_WAITOK);
-	error = copyin(hh->io, ivars->io_params, len);
-	if (error != 0)
-		goto out;
-	for (i = 0; i < hh->num_io_queues; i++) {
-		if (ivars->io_params[i].admin) {
-			error = EINVAL;
-			goto out;
-		}
+	if (!nvlist_exists_number(nvl, "trtype") ||
+	    !nvlist_exists_nvlist(nvl, "admin") ||
+	    !nvlist_exists_nvlist_array(nvl, "io") ||
+	    !nvlist_exists_binary(nvl, "cdata") ||
+	    !nvlist_exists_nvlist(nvl, "rparams"))
+		goto invalid;
 
-		/* Require all I/O queues to be the same size. */
-		if (ivars->io_params[i].qsize != ivars->io_params[0].qsize) {
-			error = EINVAL;
-			goto out;
-		}
+	rparams = nvlist_get_nvlist(nvl, "rparams");
+	if (!nvlist_exists_binary(rparams, "dle") ||
+	    !nvlist_exists_string(rparams, "hostnqn") ||
+	    !nvlist_exists_number(rparams, "num_io_queues") ||
+	    !nvlist_exists_number(rparams, "io_qsize"))
+		goto invalid;
+
+	admin = nvlist_get_nvlist(nvl, "admin");
+	if (!nvmf_validate_qpair_nvlist(admin, false))
+		goto invalid;
+	if (!nvlist_get_bool(admin, "admin"))
+		goto invalid;
+
+	io = nvlist_get_nvlist_array(nvl, "io", &num_io_queues);
+	if (num_io_queues < 1 ||
+	    num_io_queues != nvlist_get_number(rparams, "num_io_queues"))
+		goto invalid;
+	for (i = 0; i < num_io_queues; i++) {
+		if (!nvmf_validate_qpair_nvlist(io[i], false))
+			goto invalid;
 	}
 
-	ivars->hh = hh;
+	/* Require all I/O queues to be the same size. */
+	qsize = nvlist_get_number(rparams, "io_qsize");
+	for (i = 0; i < num_io_queues; i++) {
+		if (nvlist_get_number(io[i], "qsize") != qsize)
+			goto invalid;
+	}
+
+	cdata = nvlist_get_binary(nvl, "cdata", &i);
+	if (i != sizeof(*cdata))
+		goto invalid;
+	dle = nvlist_get_binary(rparams, "dle", &i);
+	if (i != sizeof(*dle))
+		goto invalid;
+
+	if (memcmp(dle->subnqn, cdata->subnqn, sizeof(cdata->subnqn)) != 0)
+		goto invalid;
+
+	*nvlp = nvl;
 	return (0);
-
-out:
-	free(ivars->io_params, M_NVMF);
-	free(ivars->cdata, M_NVMF);
-	return (error);
-}
-
-void
-nvmf_free_ivars(struct nvmf_ivars *ivars)
-{
-	free(ivars->io_params, M_NVMF);
-	free(ivars->cdata, M_NVMF);
+invalid:
+	nvlist_destroy(nvl);
+	return (EINVAL);
 }
 
 static int
 nvmf_probe(device_t dev)
 {
-	struct nvmf_ivars *ivars = device_get_ivars(dev);
+	const nvlist_t *nvl = device_get_ivars(dev);
+	const struct nvme_controller_data *cdata;
 
-	if (ivars == NULL)
+	if (nvl == NULL)
 		return (ENXIO);
 
-	device_set_descf(dev, "Fabrics: %.256s", ivars->cdata->subnqn);
+	cdata = nvlist_get_binary(nvl, "cdata", NULL);
+	device_set_descf(dev, "Fabrics: %.256s", cdata->subnqn);
 	return (BUS_PROBE_DEFAULT);
 }
 
 static int
-nvmf_establish_connection(struct nvmf_softc *sc, struct nvmf_ivars *ivars)
+nvmf_establish_connection(struct nvmf_softc *sc, nvlist_t *nvl)
 {
+	const nvlist_t *const *io;
+	const nvlist_t *admin;
+	uint64_t kato;
+	size_t num_io_queues;
+	enum nvmf_trtype trtype;
 	char name[16];
 
+	trtype = nvlist_get_number(nvl, "trtype");
+	admin = nvlist_get_nvlist(nvl, "admin");
+	io = nvlist_get_nvlist_array(nvl, "io", &num_io_queues);
+	kato = dnvlist_get_number(nvl, "kato", 0);
+
 	/* Setup the admin queue. */
-	sc->admin = nvmf_init_qp(sc, ivars->hh->trtype, &ivars->hh->admin,
-	    "admin queue");
+	sc->admin = nvmf_init_qp(sc, trtype, admin, "admin queue", 0);
 	if (sc->admin == NULL) {
 		device_printf(sc->dev, "Failed to setup admin queue\n");
 		return (ENXIO);
 	}
 
 	/* Setup I/O queues. */
-	sc->io = malloc(ivars->hh->num_io_queues * sizeof(*sc->io), M_NVMF,
+	sc->io = malloc(num_io_queues * sizeof(*sc->io), M_NVMF,
 	    M_WAITOK | M_ZERO);
-	sc->num_io_queues = ivars->hh->num_io_queues;
+	sc->num_io_queues = num_io_queues;
 	for (u_int i = 0; i < sc->num_io_queues; i++) {
 		snprintf(name, sizeof(name), "I/O queue %u", i);
-		sc->io[i] = nvmf_init_qp(sc, ivars->hh->trtype,
-		    &ivars->io_params[i], name);
+		sc->io[i] = nvmf_init_qp(sc, trtype, io[i], name, i);
 		if (sc->io[i] == NULL) {
 			device_printf(sc->dev, "Failed to setup I/O queue %u\n",
-			    i + 1);
+			    i);
 			return (ENXIO);
 		}
 	}
 
 	/* Start KeepAlive timers. */
-	if (ivars->hh->kato != 0) {
+	if (kato != 0) {
 		sc->ka_traffic = NVMEV(NVME_CTRLR_DATA_CTRATT_TBKAS,
 		    sc->cdata->ctratt) != 0;
-		sc->ka_rx_sbt = mstosbt(ivars->hh->kato);
+		sc->ka_rx_sbt = mstosbt(kato);
 		sc->ka_tx_sbt = sc->ka_rx_sbt / 2;
 		callout_reset_sbt(&sc->ka_rx_timer, sc->ka_rx_sbt, 0,
 		    nvmf_check_keep_alive, sc, C_HARDCLOCK);
 		callout_reset_sbt(&sc->ka_tx_timer, sc->ka_tx_sbt, 0,
 		    nvmf_send_keep_alive, sc, C_HARDCLOCK);
 	}
+
+	memcpy(sc->cdata, nvlist_get_binary(nvl, "cdata", NULL),
+	    sizeof(*sc->cdata));
+
+	/* Save reconnect parameters. */
+	nvlist_destroy(sc->rparams);
+	sc->rparams = nvlist_take_nvlist(nvl, "rparams");
 
 	return (0);
 }
@@ -376,10 +412,10 @@ nvmf_scan_active_nslist(struct nvmf_softc *sc, struct nvme_ns_list *nslist,
 
 	MPASS(nsid == nslist->ns[nitems(nslist->ns) - 1] && nsid != 0);
 
-	if (nsid >= 0xfffffffd)
+	if (nsid >= NVME_GLOBAL_NAMESPACE_TAG - 1)
 		*nsidp = 0;
 	else
-		*nsidp = nsid + 1;
+		*nsidp = nsid;
 	return (true);
 }
 
@@ -452,31 +488,33 @@ nvmf_attach(device_t dev)
 {
 	struct make_dev_args mda;
 	struct nvmf_softc *sc = device_get_softc(dev);
-	struct nvmf_ivars *ivars = device_get_ivars(dev);
+	nvlist_t *nvl = device_get_ivars(dev);
+	const nvlist_t * const *io;
+	struct sysctl_oid *oid;
 	uint64_t val;
 	u_int i;
 	int error;
 
-	if (ivars == NULL)
+	if (nvl == NULL)
 		return (ENXIO);
 
 	sc->dev = dev;
-	sc->trtype = ivars->hh->trtype;
+	sc->trtype = nvlist_get_number(nvl, "trtype");
 	callout_init(&sc->ka_rx_timer, 1);
 	callout_init(&sc->ka_tx_timer, 1);
 	sx_init(&sc->connection_lock, "nvmf connection");
 	TASK_INIT(&sc->disconnect_task, 0, nvmf_disconnect_task, sc);
 
-	/* Claim the cdata pointer from ivars. */
-	sc->cdata = ivars->cdata;
-	ivars->cdata = NULL;
+	oid = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "ioq",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "I/O Queues");
+	sc->ioq_oid_list = SYSCTL_CHILDREN(oid);
+
+	sc->cdata = malloc(sizeof(*sc->cdata), M_NVMF, M_WAITOK);
 
 	nvmf_init_aer(sc);
 
-	/* TODO: Multiqueue support. */
-	sc->max_pending_io = ivars->io_params[0].qsize /* * sc->num_io_queues */;
-
-	error = nvmf_establish_connection(sc, ivars);
+	error = nvmf_establish_connection(sc, nvl);
 	if (error != 0)
 		goto out;
 
@@ -502,6 +540,10 @@ nvmf_attach(device_t dev)
 		    1 << (sc->cdata->mdts + NVME_MPS_SHIFT +
 		    NVME_CAP_HI_MPSMIN(sc->cap >> 32)));
 	}
+
+	io = nvlist_get_nvlist_array(nvl, "io", NULL);
+	sc->max_pending_io = nvlist_get_number(io[0], "qsize") *
+	    sc->num_io_queues;
 
 	error = nvmf_init_sim(sc);
 	if (error != 0)
@@ -533,7 +575,7 @@ nvmf_attach(device_t dev)
 	sc->shutdown_pre_sync_eh = EVENTHANDLER_REGISTER(shutdown_pre_sync,
 	    nvmf_shutdown_pre_sync, sc, SHUTDOWN_PRI_FIRST);
 	sc->shutdown_post_sync_eh = EVENTHANDLER_REGISTER(shutdown_post_sync,
-	    nvmf_shutdown_post_sync, sc, SHUTDOWN_PRI_FIRST);
+	    nvmf_shutdown_post_sync, sc, SHUTDOWN_PRI_LAST);
 
 	return (0);
 out:
@@ -563,6 +605,7 @@ out:
 
 	taskqueue_drain(taskqueue_thread, &sc->disconnect_task);
 	sx_destroy(&sc->connection_lock);
+	nvlist_destroy(sc->rparams);
 	free(sc->cdata, M_NVMF);
 	return (error);
 }
@@ -611,6 +654,7 @@ nvmf_disconnect_task(void *arg, int pending __unused)
 		return;
 	}
 
+	nanotime(&sc->last_disconnect);
 	callout_drain(&sc->ka_tx_timer);
 	callout_drain(&sc->ka_rx_timer);
 	sc->ka_traffic = false;
@@ -636,22 +680,23 @@ nvmf_disconnect_task(void *arg, int pending __unused)
 }
 
 static int
-nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_handoff_host *hh)
+nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_ioc_nv *nv)
 {
-	struct nvmf_ivars ivars;
+	const struct nvme_controller_data *cdata;
+	nvlist_t *nvl;
 	u_int i;
 	int error;
 
+	error = nvmf_copyin_handoff(nv, &nvl);
+	if (error != 0)
+		return (error);
+
 	/* XXX: Should we permit changing the transport type? */
-	if (sc->trtype != hh->trtype) {
+	if (sc->trtype != nvlist_get_number(nvl, "trtype")) {
 		device_printf(sc->dev,
 		    "transport type mismatch on reconnect\n");
 		return (EINVAL);
 	}
-
-	error = nvmf_init_ivars(&ivars, hh);
-	if (error != 0)
-		return (error);
 
 	sx_xlock(&sc->connection_lock);
 	if (sc->admin != NULL || sc->detaching) {
@@ -666,8 +711,9 @@ nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_handoff_host *hh)
 	 * ensures the new association is connected to the same NVMe
 	 * subsystem.
 	 */
-	if (memcmp(sc->cdata->subnqn, ivars.cdata->subnqn,
-	    sizeof(ivars.cdata->subnqn)) != 0) {
+	cdata = nvlist_get_binary(nvl, "cdata", NULL);
+	if (memcmp(sc->cdata->subnqn, cdata->subnqn,
+	    sizeof(cdata->subnqn)) != 0) {
 		device_printf(sc->dev,
 		    "controller subsystem NQN mismatch on reconnect\n");
 		error = EINVAL;
@@ -679,7 +725,7 @@ nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_handoff_host *hh)
 	 * max_pending_io is still correct?
 	 */
 
-	error = nvmf_establish_connection(sc, &ivars);
+	error = nvmf_establish_connection(sc, nvl);
 	if (error != 0)
 		goto out;
 
@@ -701,7 +747,7 @@ nvmf_reconnect_host(struct nvmf_softc *sc, struct nvmf_handoff_host *hh)
 	nvmf_rescan_all_ns(sc);
 out:
 	sx_xunlock(&sc->connection_lock);
-	nvmf_free_ivars(&ivars);
+	nvlist_destroy(nvl);
 	return (error);
 }
 
@@ -753,6 +799,18 @@ nvmf_shutdown_post_sync(void *arg, int howto)
 	callout_drain(&sc->ka_rx_timer);
 
 	nvmf_shutdown_controller(sc);
+
+	/*
+	 * Quiesce consumers so that any commands submitted after this
+	 * fail with an error.  Notably, nda(4) calls nda_flush() from
+	 * a post_sync handler that might be ordered after this one.
+	 */
+	for (u_int i = 0; i < sc->cdata->nn; i++) {
+		if (sc->ns[i] != NULL)
+			nvmf_shutdown_ns(sc->ns[i]);
+	}
+	nvmf_shutdown_sim(sc);
+
 	for (u_int i = 0; i < sc->num_io_queues; i++) {
 		nvmf_destroy_qp(sc->io[i]);
 	}
@@ -774,7 +832,7 @@ nvmf_detach(device_t dev)
 	sx_xunlock(&sc->connection_lock);
 
 	EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->shutdown_pre_sync_eh);
-	EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->shutdown_post_sync_eh);
+	EVENTHANDLER_DEREGISTER(shutdown_post_sync, sc->shutdown_post_sync_eh);
 
 	nvmf_destroy_sim(sc);
 	for (i = 0; i < sc->cdata->nn; i++) {
@@ -802,6 +860,7 @@ nvmf_detach(device_t dev)
 	nvmf_destroy_aer(sc);
 
 	sx_destroy(&sc->connection_lock);
+	nvlist_destroy(sc->rparams);
 	free(sc->cdata, M_NVMF);
 	return (0);
 }
@@ -972,12 +1031,21 @@ nvmf_passthrough_cmd(struct nvmf_softc *sc, struct nvme_pt_command *pt,
 	cmd.cdw14 = pt->cmd.cdw14;
 	cmd.cdw15 = pt->cmd.cdw15;
 
+	sx_slock(&sc->connection_lock);
+	if (sc->admin == NULL || sc->detaching) {
+		device_printf(sc->dev,
+		    "failed to send passthrough command\n");
+		error = ECONNABORTED;
+		sx_sunlock(&sc->connection_lock);
+		goto error;
+	}
 	if (admin)
 		qp = sc->admin;
 	else
 		qp = nvmf_select_io_queue(sc);
 	nvmf_status_init(&status);
 	req = nvmf_allocate_request(qp, &cmd, nvmf_complete, &status, M_WAITOK);
+	sx_sunlock(&sc->connection_lock);
 	if (req == NULL) {
 		device_printf(sc->dev, "failed to send passthrough command\n");
 		error = ECONNABORTED;
@@ -1007,14 +1075,46 @@ error:
 }
 
 static int
+nvmf_reconnect_params(struct nvmf_softc *sc, struct nvmf_ioc_nv *nv)
+{
+	int error;
+
+	sx_slock(&sc->connection_lock);
+	error = nvmf_pack_ioc_nvlist(sc->rparams, nv);
+	sx_sunlock(&sc->connection_lock);
+
+	return (error);
+}
+
+static int
+nvmf_connection_status(struct nvmf_softc *sc, struct nvmf_ioc_nv *nv)
+{
+	nvlist_t *nvl, *nvl_ts;
+	int error;
+
+	nvl = nvlist_create(0);
+	nvl_ts = nvlist_create(0);
+
+	sx_slock(&sc->connection_lock);
+	nvlist_add_bool(nvl, "connected", sc->admin != NULL);
+	nvlist_add_number(nvl_ts, "tv_sec", sc->last_disconnect.tv_sec);
+	nvlist_add_number(nvl_ts, "tv_nsec", sc->last_disconnect.tv_nsec);
+	sx_sunlock(&sc->connection_lock);
+	nvlist_move_nvlist(nvl, "last_disconnect", nvl_ts);
+
+	error = nvmf_pack_ioc_nvlist(nvl, nv);
+	nvlist_destroy(nvl);
+	return (error);
+}
+
+static int
 nvmf_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
     struct thread *td)
 {
 	struct nvmf_softc *sc = cdev->si_drv1;
 	struct nvme_get_nsid *gnsid;
 	struct nvme_pt_command *pt;
-	struct nvmf_reconnect_params *rp;
-	struct nvmf_handoff_host *hh;
+	struct nvmf_ioc_nv *nv;
 
 	switch (cmd) {
 	case NVME_PASSTHROUGH_CMD:
@@ -1029,17 +1129,18 @@ nvmf_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 	case NVME_GET_MAX_XFER_SIZE:
 		*(uint64_t *)arg = sc->max_xfer_size;
 		return (0);
-	case NVMF_RECONNECT_PARAMS:
-		rp = (struct nvmf_reconnect_params *)arg;
-		if ((sc->cdata->fcatt & 1) == 0)
-			rp->cntlid = NVMF_CNTLID_DYNAMIC;
-		else
-			rp->cntlid = sc->cdata->ctrlr_id;
-		memcpy(rp->subnqn, sc->cdata->subnqn, sizeof(rp->subnqn));
+	case NVME_GET_CONTROLLER_DATA:
+		memcpy(arg, sc->cdata, sizeof(*sc->cdata));
 		return (0);
+	case NVMF_RECONNECT_PARAMS:
+		nv = (struct nvmf_ioc_nv *)arg;
+		return (nvmf_reconnect_params(sc, nv));
 	case NVMF_RECONNECT_HOST:
-		hh = (struct nvmf_handoff_host *)arg;
-		return (nvmf_reconnect_host(sc, hh));
+		nv = (struct nvmf_ioc_nv *)arg;
+		return (nvmf_reconnect_host(sc, nv));
+	case NVMF_CONNECTION_STATUS:
+		nv = (struct nvmf_ioc_nv *)arg;
+		return (nvmf_connection_status(sc, nv));
 	default:
 		return (ENOTTY);
 	}

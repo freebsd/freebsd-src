@@ -149,6 +149,43 @@ infiniband_bpf_mtap(struct ifnet *ifp, struct mbuf *mb)
 	mb->m_pkthdr.len += sizeof(*ibh);
 }
 
+/*
+ * For clients using BPF to send broadcasts.
+ *
+ * This driver binds to BPF as an EN10MB (Ethernet) device type. As such, it is
+ * expected BPF and BPF users will send frames with Ethernet headers, which
+ * we'll do our best to handle. We can't resolve non-native unicast or multicast
+ * link-layer addresses, but we can handle broadcast frames.
+ *
+ * phlen is populated with IB header size if ibh was populated, 0 otherwise.
+ */
+static int
+infiniband_resolve_bpf(struct ifnet *ifp, const struct sockaddr *dst,
+    struct mbuf *mb, const struct route *ro, struct infiniband_header *ibh,
+    int *phlen)
+{
+	struct ether_header *eh = (struct ether_header *)ro->ro_prepend;
+	/* If the prepend data & address length don't have the signature of a frame
+	 * forwarded by BPF, allow frame to passthrough. */
+	if (((ro->ro_flags & RT_HAS_HEADER) == 0) ||
+	    (ro->ro_plen != ETHER_HDR_LEN)) {
+		*phlen = 0;
+		return (0);
+	}
+
+	/* Looks like this frame is from BPF. Handle broadcasts, reject otherwise */
+	if (!ETHER_IS_BROADCAST(eh->ether_dhost))
+		return (EOPNOTSUPP);
+
+	memcpy(ibh->ib_hwaddr, ifp->if_broadcastaddr, sizeof(ibh->ib_hwaddr));
+	ibh->ib_protocol = eh->ether_type;
+	mb->m_flags &= ~M_MCAST;
+	mb->m_flags |= M_BCAST;
+
+	*phlen = INFINIBAND_HDR_LEN;
+	return (0);
+}
+
 static void
 update_mbuf_csumflags(struct mbuf *src, struct mbuf *dst)
 {
@@ -306,7 +343,7 @@ infiniband_output(struct ifnet *ifp, struct mbuf *m,
 	struct llentry *lle = NULL;
 	struct infiniband_header *ih;
 	int error = 0;
-	int hlen;	/* link layer header length */
+	int hlen  = 0;	/* link layer header length */
 	uint32_t pflags;
 	bool addref;
 
@@ -316,10 +353,20 @@ infiniband_output(struct ifnet *ifp, struct mbuf *m,
 	phdr = NULL;
 	pflags = 0;
 	if (ro != NULL) {
-		/* XXX BPF uses ro_prepend */
+		/* XXX BPF and ARP use ro_prepend */
 		if (ro->ro_prepend != NULL) {
-			phdr = ro->ro_prepend;
-			hlen = ro->ro_plen;
+			ih = (struct infiniband_header *)linkhdr;
+			/* Assess whether frame is from BPF and handle */
+			error = infiniband_resolve_bpf(ifp, dst, m, ro, ih, &hlen);
+			if (error != 0)
+				goto bad;
+
+			if (hlen != 0) {
+				phdr = linkhdr;
+			} else {
+				phdr = ro->ro_prepend;
+				hlen = ro->ro_plen;
+			}
 		} else if (!(m->m_flags & (M_BCAST | M_MCAST))) {
 			if ((ro->ro_flags & RT_LLE_CACHE) != 0) {
 				lle = ro->ro_lle;
@@ -386,7 +433,7 @@ infiniband_output(struct ifnet *ifp, struct mbuf *m,
 	 * Add local infiniband header. If no space in first mbuf,
 	 * allocate another.
 	 */
-	M_PREPEND(m, INFINIBAND_HDR_LEN, M_NOWAIT);
+	M_PREPEND(m, hlen, M_NOWAIT);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto bad;

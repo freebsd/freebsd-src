@@ -65,7 +65,7 @@ local MSG_FAILSYN_BADVAR = "Malformed variable expression at position '%d'"
 -- env_var entries in the pattern table.  This is perhaps a good target for a
 -- little refactoring.
 local MODULEEXPR = '([%w%d-_.]+)'
-local QVALEXPR = '"(.*)"'
+local QVALEXPR = '"([^"]*)"'
 local QVALREPL = QVALEXPR:gsub('%%', '%%%%')
 local WORDEXPR = "([-%w%d][-%w%d_.]*)"
 local WORDREPL = WORDEXPR:gsub('%%', '%%%%')

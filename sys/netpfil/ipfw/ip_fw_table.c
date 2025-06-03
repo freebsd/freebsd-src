@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2004 Ruslan Ermilov and Vsevolod Lobko.
- * Copyright (c) 2014 Yandex LLC
+ * Copyright (c) 2014-2024 Yandex LLC
  * Copyright (c) 2014 Alexander V. Chernikov
  *
  * Redistribution and use in source and binary forms, with or without
@@ -98,7 +98,7 @@ static struct table_config *alloc_table_config(struct ip_fw_chain *ch,
 static void free_table_config(struct namedobj_instance *ni,
     struct table_config *tc);
 static int create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
-    char *aname, ipfw_xtable_info *i, uint16_t *pkidx, int ref);
+    char *aname, ipfw_xtable_info *i, uint32_t *pkidx, int ref);
 static void link_table(struct ip_fw_chain *ch, struct table_config *tc);
 static void unlink_table(struct ip_fw_chain *ch, struct table_config *tc);
 static int find_ref_table(struct ip_fw_chain *ch, struct tid_info *ti,
@@ -110,7 +110,6 @@ static int export_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh,
 static void export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
     ipfw_xtable_info *i);
 static int dump_table_tentry(void *e, void *arg);
-static int dump_table_xentry(void *e, void *arg);
 
 static int swap_tables(struct ip_fw_chain *ch, struct tid_info *a,
     struct tid_info *b);
@@ -257,7 +256,7 @@ store_tei_result(struct tentry_info *tei, int op, int error, uint32_t num)
  */
 static int
 create_table_compat(struct ip_fw_chain *ch, struct tid_info *ti,
-    uint16_t *pkidx)
+    uint32_t *pkidx)
 {
 	ipfw_xtable_info xi;
 	int error;
@@ -289,7 +288,7 @@ find_ref_table(struct ip_fw_chain *ch, struct tid_info *ti,
 {
 	struct namedobj_instance *ni;
 	struct table_config *tc;
-	uint16_t kidx;
+	uint32_t kidx;
 	int error;
 
 	IPFW_UH_WLOCK_ASSERT(ch);
@@ -330,7 +329,7 @@ find_ref_table(struct ip_fw_chain *ch, struct tid_info *ti,
 		return (error);
 
 	tc = (struct table_config *)ipfw_objhash_lookup_kidx(ni, kidx);
-	KASSERT(tc != NULL, ("create_table_compat returned bad idx %d", kidx));
+	KASSERT(tc != NULL, ("create_table_compat returned bad idx %u", kidx));
 
 	/* OK, now we've got referenced table. */
 	*ptc = tc;
@@ -545,13 +544,12 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 {
 	struct table_config *tc;
 	struct table_algo *ta;
-	uint16_t kidx;
-	int error, first_error, i, rollback;
-	uint32_t num, numadd;
 	struct tentry_info *ptei;
 	struct tableop_state ts;
 	char ta_buf[TA_BUF_SZ];
 	caddr_t ta_buf_m, v;
+	uint32_t kidx, num, numadd;
+	int error, first_error, i, rollback;
 
 	memset(&ts, 0, sizeof(ts));
 	ta = NULL;
@@ -717,11 +715,10 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	struct table_config *tc;
 	struct table_algo *ta;
 	struct tentry_info *ptei;
-	uint16_t kidx;
-	int error, first_error, i;
-	uint32_t num, numdel;
 	char ta_buf[TA_BUF_SZ];
 	caddr_t ta_buf_m, v;
+	uint32_t kidx, num, numdel;
+	int error, first_error, i;
 
 	/*
 	 * Find and reference existing table.
@@ -897,61 +894,6 @@ check_table_space(struct ip_fw_chain *ch, struct tableop_state *ts,
 
 /*
  * Adds or deletes record in table.
- * Data layout (v0):
- * Request: [ ip_fw3_opheader ipfw_table_xentry ]
- *
- * Returns 0 on success
- */
-static int
-manage_table_ent_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
-{
-	ipfw_table_xentry *xent;
-	struct tentry_info tei;
-	struct tid_info ti;
-	struct table_value v;
-	int error, hdrlen, read;
-
-	hdrlen = offsetof(ipfw_table_xentry, k);
-
-	/* Check minimum header size */
-	if (sd->valsize < (sizeof(*op3) + hdrlen))
-		return (EINVAL);
-
-	read = sizeof(ip_fw3_opheader);
-
-	/* Check if xentry len field is valid */
-	xent = (ipfw_table_xentry *)(op3 + 1);
-	if (xent->len < hdrlen || xent->len + read > sd->valsize)
-		return (EINVAL);
-
-	memset(&tei, 0, sizeof(tei));
-	tei.paddr = &xent->k;
-	tei.masklen = xent->masklen;
-	ipfw_import_table_value_legacy(xent->value, &v);
-	tei.pvalue = &v;
-	/* Old requests compatibility */
-	tei.flags = TEI_FLAGS_COMPAT;
-	if (xent->type == IPFW_TABLE_ADDR) {
-		if (xent->len - hdrlen == sizeof(in_addr_t))
-			tei.subtype = AF_INET;
-		else
-			tei.subtype = AF_INET6;
-	}
-
-	memset(&ti, 0, sizeof(ti));
-	ti.uidx = xent->tbl;
-	ti.type = xent->type;
-
-	error = (op3->opcode == IP_FW_TABLE_XADD) ?
-	    add_table_entry(ch, &ti, &tei, 0, 1) :
-	    del_table_entry(ch, &ti, &tei, 0, 1);
-
-	return (error);
-}
-
-/*
- * Adds or deletes record in table.
  * Data layout (v1)(current):
  * Request: [ ipfw_obj_header
  *   ipfw_obj_ctlv(IPFW_TLV_TBLENT_LIST) [ ipfw_obj_tentry x N ]
@@ -968,7 +910,8 @@ manage_table_ent_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	ipfw_obj_header *oh;
 	struct tentry_info *ptei, tei, *tei_buf;
 	struct tid_info ti;
-	int error, i, kidx, read;
+	uint32_t kidx;
+	int error, i, read;
 
 	/* Check minimum header size */
 	if (sd->valsize < (sizeof(*oh) + sizeof(*ctlv)))
@@ -1210,7 +1153,7 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	char algostate[64], *pstate;
 	struct tableop_state ts;
 	int error, need_gc;
-	uint16_t kidx;
+	uint32_t kidx;
 	uint8_t tflags;
 
 	/*
@@ -1500,7 +1443,7 @@ destroy_table(struct ip_fw_chain *ch, struct tid_info *ti)
 
 	/* Free obj index */
 	if (ipfw_objhash_free_idx(ni, tc->no.kidx) != 0)
-		printf("Error unlinking kidx %d from table %s\n",
+		printf("Error unlinking kidx %u from table %s\n",
 		    tc->no.kidx, tc->tablename);
 
 	/* Unref values used in tables while holding UH lock */
@@ -1533,7 +1476,7 @@ ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables)
 	if (ntables > IPFW_TABLES_MAX)
 		ntables = IPFW_TABLES_MAX;
 	/* Alight to nearest power of 2 */
-	ntables = roundup_pow_of_two(ntables); 
+	ntables = roundup_pow_of_two(ntables);
 
 	/* Allocate new pointers */
 	tablestate = malloc(ntables * sizeof(struct table_info),
@@ -1595,7 +1538,7 @@ ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables)
  * Lookup table's named object by its @kidx.
  */
 struct named_object *
-ipfw_objhash_lookup_table_kidx(struct ip_fw_chain *ch, uint16_t kidx)
+ipfw_objhash_lookup_table_kidx(struct ip_fw_chain *ch, uint32_t kidx)
 {
 
 	return (ipfw_objhash_lookup_kidx(CHAIN_TO_NI(ch), kidx));
@@ -1606,7 +1549,7 @@ ipfw_objhash_lookup_table_kidx(struct ip_fw_chain *ch, uint16_t kidx)
  * On success return its @kidx.
  */
 int
-ipfw_ref_table(struct ip_fw_chain *ch, ipfw_obj_ntlv *ntlv, uint16_t *kidx)
+ipfw_ref_table(struct ip_fw_chain *ch, ipfw_obj_ntlv *ntlv, uint32_t *kidx)
 {
 	struct tid_info ti;
 	struct table_config *tc;
@@ -1629,7 +1572,7 @@ ipfw_ref_table(struct ip_fw_chain *ch, ipfw_obj_ntlv *ntlv, uint16_t *kidx)
 }
 
 void
-ipfw_unref_table(struct ip_fw_chain *ch, uint16_t kidx)
+ipfw_unref_table(struct ip_fw_chain *ch, uint32_t kidx)
 {
 
 	struct namedobj_instance *ni;
@@ -1638,7 +1581,7 @@ ipfw_unref_table(struct ip_fw_chain *ch, uint16_t kidx)
 	IPFW_UH_WLOCK_ASSERT(ch);
 	ni = CHAIN_TO_NI(ch);
 	no = ipfw_objhash_lookup_kidx(ni, kidx);
-	KASSERT(no != NULL, ("Table with index %d not found", kidx));
+	KASSERT(no != NULL, ("Table with index %u not found", kidx));
 	no->refcnt--;
 }
 
@@ -1649,7 +1592,7 @@ ipfw_unref_table(struct ip_fw_chain *ch, uint16_t kidx)
  * Returns 1 if key was found.
  */
 int
-ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
+ipfw_lookup_table(struct ip_fw_chain *ch, uint32_t tbl, uint16_t plen,
     void *paddr, uint32_t *val)
 {
 	struct table_info *ti;
@@ -1853,12 +1796,12 @@ create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  */
 static int
 create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
-    char *aname, ipfw_xtable_info *i, uint16_t *pkidx, int compat)
+    char *aname, ipfw_xtable_info *i, uint32_t *pkidx, int compat)
 {
 	struct namedobj_instance *ni;
 	struct table_config *tc, *tc_new, *tmp;
 	struct table_algo *ta;
-	uint16_t kidx;
+	uint32_t kidx;
 
 	ni = CHAIN_TO_NI(ch);
 
@@ -1958,7 +1901,7 @@ ipfw_get_table_objhash(struct ip_fw_chain *ch)
  * Returns 0 on success.
  */
 int
-ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint16_t kidx,
+ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint32_t kidx,
     struct sockopt_data *sd)
 {
 	struct namedobj_instance *ni;
@@ -1991,7 +1934,6 @@ struct dump_args {
 	uint16_t uidx;
 	int error;
 	uint32_t size;
-	ipfw_table_entry *ent;
 	ta_foreach_f *f;
 	void *farg;
 	ipfw_obj_tentry tent;
@@ -2200,202 +2142,6 @@ dump_table_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 }
 
 /*
- * Dumps all table data
- * Data layout (version 0)(legacy):
- * Request: [ ipfw_xtable ], size = IP_FW_TABLE_XGETSIZE()
- * Reply: [ ipfw_xtable ipfw_table_xentry x N ]
- *
- * Returns 0 on success
- */
-static int
-dump_table_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
-{
-	ipfw_xtable *xtbl;
-	struct tid_info ti;
-	struct table_config *tc;
-	struct table_algo *ta;
-	struct dump_args da;
-	size_t sz, count;
-
-	xtbl = (ipfw_xtable *)ipfw_get_sopt_header(sd, sizeof(ipfw_xtable));
-	if (xtbl == NULL)
-		return (EINVAL);
-
-	memset(&ti, 0, sizeof(ti));
-	ti.uidx = xtbl->tbl;
-
-	IPFW_UH_RLOCK(ch);
-	if ((tc = find_table(CHAIN_TO_NI(ch), &ti)) == NULL) {
-		IPFW_UH_RUNLOCK(ch);
-		return (0);
-	}
-	count = table_get_count(ch, tc);
-	sz = count * sizeof(ipfw_table_xentry) + sizeof(ipfw_xtable);
-
-	xtbl->cnt = count;
-	xtbl->size = sz;
-	xtbl->type = tc->no.subtype;
-	xtbl->tbl = ti.uidx;
-
-	if (sd->valsize < sz) {
-		/*
-		 * Submitted buffer size is not enough.
-		 * WE've already filled in @i structure with
-		 * relevant table info including size, so we
-		 * can return. Buffer will be flushed automatically.
-		 */
-		IPFW_UH_RUNLOCK(ch);
-		return (ENOMEM);
-	}
-
-	/* Do the actual dump in eXtended format */
-	memset(&da, 0, sizeof(da));
-	da.ch = ch;
-	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
-	da.tc = tc;
-	da.sd = sd;
-
-	ta = tc->ta;
-
-	ta->foreach(tc->astate, da.ti, dump_table_xentry, &da);
-	IPFW_UH_RUNLOCK(ch);
-
-	return (0);
-}
-
-/*
- * Legacy function to retrieve number of items in table.
- */
-static int
-get_table_size(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
-{
-	uint32_t *tbl;
-	struct tid_info ti;
-	size_t sz;
-	int error;
-
-	sz = sizeof(*op3) + sizeof(uint32_t);
-	op3 = (ip_fw3_opheader *)ipfw_get_sopt_header(sd, sz);
-	if (op3 == NULL)
-		return (EINVAL);
-
-	tbl = (uint32_t *)(op3 + 1);
-	memset(&ti, 0, sizeof(ti));
-	ti.uidx = *tbl;
-	IPFW_UH_RLOCK(ch);
-	error = ipfw_count_xtable(ch, &ti, tbl);
-	IPFW_UH_RUNLOCK(ch);
-	return (error);
-}
-
-/*
- * Legacy IP_FW_TABLE_GETSIZE handler
- */
-int
-ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti, uint32_t *cnt)
-{
-	struct table_config *tc;
-
-	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
-		return (ESRCH);
-	*cnt = table_get_count(ch, tc);
-	return (0);
-}
-
-/*
- * Legacy IP_FW_TABLE_XGETSIZE handler
- */
-int
-ipfw_count_xtable(struct ip_fw_chain *ch, struct tid_info *ti, uint32_t *cnt)
-{
-	struct table_config *tc;
-	uint32_t count;
-
-	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL) {
-		*cnt = 0;
-		return (0); /* 'table all list' requires success */
-	}
-
-	count = table_get_count(ch, tc);
-	*cnt = count * sizeof(ipfw_table_xentry);
-	if (count > 0)
-		*cnt += sizeof(ipfw_xtable);
-	return (0);
-}
-
-static int
-dump_table_entry(void *e, void *arg)
-{
-	struct dump_args *da;
-	struct table_config *tc;
-	struct table_algo *ta;
-	ipfw_table_entry *ent;
-	struct table_value *pval;
-	int error;
-
-	da = (struct dump_args *)arg;
-
-	tc = da->tc;
-	ta = tc->ta;
-
-	/* Out of memory, returning */
-	if (da->cnt == da->size)
-		return (1);
-	ent = da->ent++;
-	ent->tbl = da->uidx;
-	da->cnt++;
-
-	error = ta->dump_tentry(tc->astate, da->ti, e, &da->tent);
-	if (error != 0)
-		return (error);
-
-	ent->addr = da->tent.k.addr.s_addr;
-	ent->masklen = da->tent.masklen;
-	pval = get_table_value(da->ch, da->tc, da->tent.v.kidx);
-	ent->value = ipfw_export_table_value_legacy(pval);
-
-	return (0);
-}
-
-/*
- * Dumps table in pre-8.1 legacy format.
- */
-int
-ipfw_dump_table_legacy(struct ip_fw_chain *ch, struct tid_info *ti,
-    ipfw_table *tbl)
-{
-	struct table_config *tc;
-	struct table_algo *ta;
-	struct dump_args da;
-
-	tbl->cnt = 0;
-
-	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
-		return (0);	/* XXX: We should return ESRCH */
-
-	ta = tc->ta;
-
-	/* This dump format supports IPv4 only */
-	if (tc->no.subtype != IPFW_TABLE_ADDR)
-		return (0);
-
-	memset(&da, 0, sizeof(da));
-	da.ch = ch;
-	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
-	da.tc = tc;
-	da.ent = &tbl->ent[0];
-	da.size = tbl->size;
-
-	tbl->cnt = 0;
-	ta->foreach(tc->astate, da.ti, dump_table_entry, &da);
-	tbl->cnt = da.cnt;
-
-	return (0);
-}
-
-/*
  * Dumps table entry in eXtended format (v1)(current).
  */
 static int
@@ -2433,52 +2179,6 @@ dump_table_tentry(void *e, void *arg)
 }
 
 /*
- * Dumps table entry in eXtended format (v0).
- */
-static int
-dump_table_xentry(void *e, void *arg)
-{
-	struct dump_args *da;
-	struct table_config *tc;
-	struct table_algo *ta;
-	ipfw_table_xentry *xent;
-	ipfw_obj_tentry *tent;
-	struct table_value *pval;
-	int error;
-
-	da = (struct dump_args *)arg;
-
-	tc = da->tc;
-	ta = tc->ta;
-
-	xent = (ipfw_table_xentry *)ipfw_get_sopt_space(da->sd, sizeof(*xent));
-	/* Out of memory, returning */
-	if (xent == NULL)
-		return (1);
-	xent->len = sizeof(ipfw_table_xentry);
-	xent->tbl = da->uidx;
-
-	memset(&da->tent, 0, sizeof(da->tent));
-	tent = &da->tent;
-	error = ta->dump_tentry(tc->astate, da->ti, e, tent);
-	if (error != 0)
-		return (error);
-
-	/* Convert current format to previous one */
-	xent->masklen = tent->masklen;
-	pval = get_table_value(da->ch, da->tc, da->tent.v.kidx);
-	xent->value = ipfw_export_table_value_legacy(pval);
-	/* Apply some hacks */
-	if (tc->no.subtype == IPFW_TABLE_ADDR && tent->subtype == AF_INET) {
-		xent->k.addr6.s6_addr32[3] = tent->k.addr.s_addr;
-		xent->flags = IPFW_TCF_INET;
-	} else
-		memcpy(&xent->k, &tent->k, sizeof(xent->k));
-
-	return (0);
-}
-
-/*
  * Helper function to export table algo data
  * to tentry format before calling user function.
  *
@@ -2510,7 +2210,7 @@ prepare_table_tentry(void *e, void *arg)
  * Allow external consumers to read table entries in standard format.
  */
 int
-ipfw_foreach_table_tentry(struct ip_fw_chain *ch, uint16_t kidx,
+ipfw_foreach_table_tentry(struct ip_fw_chain *ch, uint32_t kidx,
     ta_foreach_f *f, void *arg)
 {
 	struct namedobj_instance *ni;
@@ -2540,7 +2240,7 @@ ipfw_foreach_table_tentry(struct ip_fw_chain *ch, uint16_t kidx,
 
 /*
  * Table algorithms
- */ 
+ */
 
 /*
  * Finds algorithm by index, table type or supplied name.
@@ -2720,90 +2420,78 @@ list_table_algo(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 }
 
 static int
-classify_srcdst(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
+classify_srcdst(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)
 {
-	/* Basic IPv4/IPv6 or u32 lookups */
-	*puidx = cmd->arg1;
-	/* Assume ADDR by default */
-	*ptype = IPFW_TABLE_ADDR;
-	int v;
-		
-	if (F_LEN(cmd) > F_INSN_SIZE(ipfw_insn_u32)) {
-		/*
-		 * generic lookup. The key must be
-		 * in 32bit big-endian format.
-		 */
-		v = ((ipfw_insn_u32 *)cmd)->d[1];
-		switch (v) {
-		case LOOKUP_DST_IP:
-		case LOOKUP_SRC_IP:
-			break;
-		case LOOKUP_DST_PORT:
-		case LOOKUP_SRC_PORT:
-		case LOOKUP_UID:
-		case LOOKUP_JAIL:
-		case LOOKUP_DSCP:
-		case LOOKUP_MARK:
-			*ptype = IPFW_TABLE_NUMBER;
-			break;
-		case LOOKUP_DST_MAC:
-		case LOOKUP_SRC_MAC:
-			*ptype = IPFW_TABLE_MAC;
-			break;
-		}
-	}
+	ipfw_insn_table *cmd;
 
+	/* Basic IPv4/IPv6 or u32 lookups */
+	cmd = insntod(cmd0, table);
+	*puidx = cmd->kidx;
+	switch(cmd0->arg1) {
+	case LOOKUP_DST_IP:
+	case LOOKUP_SRC_IP:
+	default:
+		/* IPv4 src/dst */
+		*ptype = IPFW_TABLE_ADDR;
+		break;
+	case LOOKUP_DST_PORT:
+	case LOOKUP_SRC_PORT:
+	case LOOKUP_UID:
+	case LOOKUP_JAIL:
+	case LOOKUP_DSCP:
+	case LOOKUP_MARK:
+	case LOOKUP_RULENUM:
+		*ptype = IPFW_TABLE_NUMBER;
+		break;
+	case LOOKUP_DST_MAC:
+	case LOOKUP_SRC_MAC:
+		*ptype = IPFW_TABLE_MAC;
+		break;
+	}
 	return (0);
 }
 
 static int
-classify_via(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
+classify_via(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)
 {
 	ipfw_insn_if *cmdif;
 
 	/* Interface table, possibly */
-	cmdif = (ipfw_insn_if *)cmd;
+	cmdif = insntod(cmd0, if);
 	if (cmdif->name[0] != '\1')
 		return (1);
 
 	*ptype = IPFW_TABLE_INTERFACE;
-	*puidx = cmdif->p.kidx;
-
+	*puidx = cmdif->p.kidx; /* XXXAE */
 	return (0);
 }
 
 static int
-classify_flow(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
+classify_flow(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)
 {
-
-	*puidx = cmd->arg1;
+	*puidx = insntod(cmd0, table)->kidx;
 	*ptype = IPFW_TABLE_FLOW;
-
 	return (0);
 }
 
 static int
-classify_mac_lookup(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
+classify_mac_lookup(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)
 {
-	*puidx = cmd->arg1;
+	*puidx = insntod(cmd0, table)->kidx;
 	*ptype = IPFW_TABLE_MAC;
 	return (0);
 }
 
 static void
-update_arg1(ipfw_insn *cmd, uint16_t idx)
+update_kidx(ipfw_insn *cmd0, uint32_t idx)
 {
-
-	cmd->arg1 = idx;
+	insntod(cmd0, table)->kidx = idx;
 }
 
 static void
-update_via(ipfw_insn *cmd, uint16_t idx)
+update_via(ipfw_insn *cmd0, uint32_t idx)
 {
-	ipfw_insn_if *cmdif;
-
-	cmdif = (ipfw_insn_if *)cmd;
-	cmdif->p.kidx = idx;
+	insntod(cmd0, if)->p.kidx = idx;
 }
 
 static int
@@ -2825,7 +2513,7 @@ table_findbyname(struct ip_fw_chain *ch, struct tid_info *ti,
 
 /* XXX: sets-sets! */
 static struct named_object *
-table_findbykidx(struct ip_fw_chain *ch, uint16_t idx)
+table_findbykidx(struct ip_fw_chain *ch, uint32_t idx)
 {
 	struct namedobj_instance *ni;
 	struct table_config *tc;
@@ -2833,13 +2521,13 @@ table_findbykidx(struct ip_fw_chain *ch, uint16_t idx)
 	IPFW_UH_WLOCK_ASSERT(ch);
 	ni = CHAIN_TO_NI(ch);
 	tc = (struct table_config *)ipfw_objhash_lookup_kidx(ni, idx);
-	KASSERT(tc != NULL, ("Table with index %d not found", idx));
+	KASSERT(tc != NULL, ("Table with index %u not found", idx));
 
 	return (&tc->no);
 }
 
 static int
-table_manage_sets(struct ip_fw_chain *ch, uint16_t set, uint8_t new_set,
+table_manage_sets(struct ip_fw_chain *ch, uint32_t set, uint8_t new_set,
     enum ipfw_sets_cmd cmd)
 {
 
@@ -2884,7 +2572,7 @@ table_manage_sets(struct ip_fw_chain *ch, uint16_t set, uint8_t new_set,
  * so it should be called first.
  */
 static int
-table_manage_sets_all(struct ip_fw_chain *ch, uint16_t set, uint8_t new_set,
+table_manage_sets_all(struct ip_fw_chain *ch, uint32_t set, uint8_t new_set,
     enum ipfw_sets_cmd cmd)
 {
 
@@ -2914,7 +2602,7 @@ static struct opcode_obj_rewrite opcodes[] = {
 		.opcode = O_IP_SRC_LOOKUP,
 		.etlv = IPFW_TLV_TBL_NAME,
 		.classifier = classify_srcdst,
-		.update = update_arg1,
+		.update = update_kidx,
 		.find_byname = table_findbyname,
 		.find_bykidx = table_findbykidx,
 		.create_object = create_table_compat,
@@ -2924,7 +2612,7 @@ static struct opcode_obj_rewrite opcodes[] = {
 		.opcode = O_IP_DST_LOOKUP,
 		.etlv = IPFW_TLV_TBL_NAME,
 		.classifier = classify_srcdst,
-		.update = update_arg1,
+		.update = update_kidx,
 		.find_byname = table_findbyname,
 		.find_bykidx = table_findbykidx,
 		.create_object = create_table_compat,
@@ -2934,7 +2622,7 @@ static struct opcode_obj_rewrite opcodes[] = {
 		.opcode = O_IP_FLOW_LOOKUP,
 		.etlv = IPFW_TLV_TBL_NAME,
 		.classifier = classify_flow,
-		.update = update_arg1,
+		.update = update_kidx,
 		.find_byname = table_findbyname,
 		.find_bykidx = table_findbykidx,
 		.create_object = create_table_compat,
@@ -2944,7 +2632,7 @@ static struct opcode_obj_rewrite opcodes[] = {
 		.opcode = O_MAC_SRC_LOOKUP,
 		.etlv = IPFW_TLV_TBL_NAME,
 		.classifier = classify_mac_lookup,
-		.update = update_arg1,
+		.update = update_kidx,
 		.find_byname = table_findbyname,
 		.find_bykidx = table_findbykidx,
 		.create_object = create_table_compat,
@@ -2954,7 +2642,7 @@ static struct opcode_obj_rewrite opcodes[] = {
 		.opcode = O_MAC_DST_LOOKUP,
 		.etlv = IPFW_TLV_TBL_NAME,
 		.classifier = classify_mac_lookup,
-		.update = update_arg1,
+		.update = update_kidx,
 		.find_byname = table_findbyname,
 		.find_bykidx = table_findbykidx,
 		.create_object = create_table_compat,
@@ -3019,7 +2707,7 @@ ipfw_switch_tables_namespace(struct ip_fw_chain *ch, unsigned int sets)
 	struct ip_fw *rule;
 	ipfw_insn *cmd;
 	int cmdlen, i, l;
-	uint16_t kidx;
+	uint32_t kidx;
 	uint8_t subtype;
 
 	IPFW_UH_WLOCK(ch);
@@ -3277,22 +2965,18 @@ unlink_table(struct ip_fw_chain *ch, struct table_config *tc)
 }
 
 static struct ipfw_sopt_handler	scodes[] = {
-	{ IP_FW_TABLE_XCREATE,	0,	HDIR_SET,	create_table },
-	{ IP_FW_TABLE_XDESTROY,	0,	HDIR_SET,	flush_table_v0 },
-	{ IP_FW_TABLE_XFLUSH,	0,	HDIR_SET,	flush_table_v0 },
-	{ IP_FW_TABLE_XMODIFY,	0,	HDIR_BOTH,	modify_table },
-	{ IP_FW_TABLE_XINFO,	0,	HDIR_GET,	describe_table },
-	{ IP_FW_TABLES_XLIST,	0,	HDIR_GET,	list_tables },
-	{ IP_FW_TABLE_XLIST,	0,	HDIR_GET,	dump_table_v0 },
-	{ IP_FW_TABLE_XLIST,	1,	HDIR_GET,	dump_table_v1 },
-	{ IP_FW_TABLE_XADD,	0,	HDIR_BOTH,	manage_table_ent_v0 },
-	{ IP_FW_TABLE_XADD,	1,	HDIR_BOTH,	manage_table_ent_v1 },
-	{ IP_FW_TABLE_XDEL,	0,	HDIR_BOTH,	manage_table_ent_v0 },
-	{ IP_FW_TABLE_XDEL,	1,	HDIR_BOTH,	manage_table_ent_v1 },
-	{ IP_FW_TABLE_XFIND,	0,	HDIR_GET,	find_table_entry },
-	{ IP_FW_TABLE_XSWAP,	0,	HDIR_SET,	swap_table },
-	{ IP_FW_TABLES_ALIST,	0,	HDIR_GET,	list_table_algo },
-	{ IP_FW_TABLE_XGETSIZE,	0,	HDIR_GET,	get_table_size },
+    { IP_FW_TABLE_XCREATE,	IP_FW3_OPVER, HDIR_SET,	create_table },
+    { IP_FW_TABLE_XDESTROY,	IP_FW3_OPVER, HDIR_SET,	flush_table_v0 },
+    { IP_FW_TABLE_XFLUSH,	IP_FW3_OPVER, HDIR_SET,	flush_table_v0 },
+    { IP_FW_TABLE_XMODIFY,	IP_FW3_OPVER, HDIR_BOTH, modify_table },
+    { IP_FW_TABLE_XINFO,	IP_FW3_OPVER, HDIR_GET,	describe_table },
+    { IP_FW_TABLES_XLIST,	IP_FW3_OPVER, HDIR_GET,	list_tables },
+    { IP_FW_TABLE_XLIST,	IP_FW3_OPVER, HDIR_GET,	dump_table_v1 },
+    { IP_FW_TABLE_XADD,		IP_FW3_OPVER, HDIR_BOTH, manage_table_ent_v1 },
+    { IP_FW_TABLE_XDEL,		IP_FW3_OPVER, HDIR_BOTH, manage_table_ent_v1 },
+    { IP_FW_TABLE_XFIND,	IP_FW3_OPVER, HDIR_GET,	find_table_entry },
+    { IP_FW_TABLE_XSWAP,	IP_FW3_OPVER, HDIR_SET,	swap_table },
+    { IP_FW_TABLES_ALIST,	IP_FW3_OPVER, HDIR_GET,	list_table_algo },
 };
 
 static int
@@ -3348,7 +3032,8 @@ ipfw_init_tables(struct ip_fw_chain *ch, int first)
 	    M_IPFW, M_WAITOK | M_ZERO);
 
 	tcfg = malloc(sizeof(struct tables_config), M_IPFW, M_WAITOK | M_ZERO);
-	tcfg->namehash = ipfw_objhash_create(V_fw_tables_max);
+	tcfg->namehash = ipfw_objhash_create(V_fw_tables_max,
+	    DEFAULT_OBJHASH_SIZE);
 	ch->tblcfg = tcfg;
 
 	ipfw_table_value_init(ch, first);

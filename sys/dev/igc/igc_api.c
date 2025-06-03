@@ -109,6 +109,8 @@ s32 igc_set_mac_type(struct igc_hw *hw)
 	case IGC_DEV_ID_I220_V:
 	case IGC_DEV_ID_I225_K2:
 	case IGC_DEV_ID_I225_LMVP:
+	case IGC_DEV_ID_I226_K:
+	case IGC_DEV_ID_I226_LMVP:
 	case IGC_DEV_ID_I225_IT:
 	case IGC_DEV_ID_I226_LM:
 	case IGC_DEV_ID_I226_V:

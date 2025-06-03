@@ -85,7 +85,7 @@ static struct cdevsw adf_state_cdevsw = {
 	.d_name = ADF_DEV_STATE_NAME,
 };
 
-static struct filterops adf_state_read_filterops = {
+static const struct filterops adf_state_read_filterops = {
 	.f_isfd = 1,
 	.f_attach = NULL,
 	.f_detach = adf_state_kqread_detach,

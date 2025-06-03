@@ -1,7 +1,7 @@
 PACKAGE=	kerberos-lib
 
 LIB=	kdc
-LDFLAGS=	-Wl,--no-undefined
+LDFLAGS+=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/kdc/version-script.map
 LIBADD=	roken hdb hx509 krb5 heimntlm asn1 crypto
 

@@ -1,0 +1,1 @@
+nat on vtnet0 proto tcp from 192.0.2.1 to 192.0.2.2 -> 203.0.113.0/24

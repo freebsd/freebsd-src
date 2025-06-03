@@ -315,9 +315,12 @@ static int
 zy7_ehci_detach(device_t dev)
 {
 	ehci_softc_t *sc = device_get_softc(dev);
+	int error;
 
 	/* during module unload there are lots of children leftover */
-	device_delete_children(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	if ((sc->sc_flags & EHCI_SCFLG_DONEINIT) != 0) {
 		ehci_detach(sc);

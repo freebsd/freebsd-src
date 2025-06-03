@@ -855,6 +855,7 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 					if (ep->refcount_alloc != 0)
 						return (USB_ERR_IN_USE);
 				}
+				ep++;
 			}
 		}
 
@@ -2060,7 +2061,7 @@ repeat_set_config:
 		}
 #endif
 	}
-#if USB_HAVE_MSCTEST
+#if USB_HAVE_MSCTEST_AUTOQUIRK
 	if (set_config_failed == 0 && config_index == 0 &&
 	    usb_test_quirk(&uaa, UQ_MSC_NO_START_STOP) == 0 &&
 	    usb_test_quirk(&uaa, UQ_MSC_NO_PREVENT_ALLOW) == 0 &&

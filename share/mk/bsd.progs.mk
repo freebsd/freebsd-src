@@ -110,7 +110,7 @@ _PROGS_ALL_SRCS+=	${s}
 .if !empty(_PROGS_COMMON_SRCS)
 _PROGS_COMMON_OBJS=	${_PROGS_COMMON_SRCS:M*.[dhly]}
 .if !empty(_PROGS_COMMON_SRCS:N*.[dhly])
-_PROGS_COMMON_OBJS+=	${_PROGS_COMMON_SRCS:N*.[dhly]:${OBJS_SRCS_FILTER:ts:}:S/$/.o/g}
+_PROGS_COMMON_OBJS+=	${_PROGS_COMMON_SRCS:N*.[dhly]:${OBJS_SRCS_FILTER:ts:}:S/$/.${OBJ_EXT}/g}
 .endif
 .endif
 

@@ -31,7 +31,7 @@ conf_file=${wpa_supplicant_conf_file}
 pidfile="/var/run/${name}/${ifn}.pid"
 command_args="-B -i $ifn -c $conf_file -D $driver -P $pidfile"
 required_files=$conf_file
-required_modules="wlan_wep wlan_tkip wlan_ccmp"
+required_modules="wlan_wep wlan_tkip wlan_ccmp wlan_gcmp"
 
 # doesn't make sense to run in a svcj: nojail keyword
 wpa_supplicant_svcj="NO"

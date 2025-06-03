@@ -40,6 +40,7 @@
 #define	NVME_RESET_CONTROLLER		_IO('n', 1)
 #define	NVME_GET_NSID			_IOR('n', 2, struct nvme_get_nsid)
 #define	NVME_GET_MAX_XFER_SIZE		_IOR('n', 3, uint64_t)
+#define	NVME_GET_CONTROLLER_DATA	_IOR('n', 4, struct nvme_controller_data)
 
 #define	NVME_IO_TEST			_IOWR('n', 100, struct nvme_io_test)
 #define	NVME_BIO_TEST			_IOWR('n', 101, struct nvme_io_test)

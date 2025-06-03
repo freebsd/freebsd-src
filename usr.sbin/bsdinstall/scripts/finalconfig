@@ -36,8 +36,9 @@ while true; do
 	exec 5>&1
 	REVISIT=$(bsddialog --backtitle "$OSNAME Installer" \
 	    --title "Final Configuration" --ok-label "Select" \
-	    --cancel-label "Finish" --default-no --menu \
+	    --no-cancel --menu \
 	    "Setup of your $OSNAME system is nearly complete. You can now modify your configuration choices. After this screen, you will have an opportunity to make more complex changes using a shell." 0 0 0 \
+		"Finish" "Apply configuration and exit installer" \
 		"Add User" "Add a user to the system" \
 		"Root Password" "Change root password" \
 		"Hostname" "Set system hostname" \
@@ -45,6 +46,7 @@ while true; do
 		"Services" "Set daemons to run on startup" \
 		"System Hardening" "Set security options" \
 		"Time Zone" "Set system timezone" \
+		"Firmware" "Install Firmware (requires network)" \
 		"Handbook" "Install $OSNAME Handbook (requires network)" 2>&1 1>&5)
 	retval=$?
 	exec 5>&-
@@ -54,6 +56,9 @@ while true; do
 	fi
 
 	case "$REVISIT" in
+	"Finish")
+		break
+		;;
 	"Add User")
 		bsdinstall adduser
 		;;
@@ -74,6 +79,9 @@ while true; do
 		;;
 	"Time Zone")
 		bsdinstall time
+		;;
+	"Firmware")
+		bsdinstall firmware
 		;;
 	"Handbook")
 		bsdinstall docsinstall

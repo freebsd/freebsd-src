@@ -314,8 +314,8 @@ fwohci_pci_attach(device_t self)
 	}
 
 	/* probe and attach a child device(firewire) */
-	bus_generic_probe(self);
-	bus_generic_attach(self);
+	bus_identify_children(self);
+	bus_attach_children(self);
 
 	return 0;
 }
@@ -332,11 +332,6 @@ fwohci_pci_detach(device_t self)
 		fwohci_stop(sc, self);
 
 	bus_generic_detach(self);
-
-	if (sc->fc.bdev) {
-		device_delete_child(self, sc->fc.bdev);
-		sc->fc.bdev = NULL;
-	}
 
 	/* disable interrupts that might have been switched on */
 	if (sc->bst && sc->bsh)

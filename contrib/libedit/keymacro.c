@@ -1,4 +1,4 @@
-/*	$NetBSD: keymacro.c,v 1.24 2019/07/23 10:18:52 christos Exp $	*/
+/*	$NetBSD: keymacro.c,v 1.25 2025/01/03 00:40:08 rillig Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: keymacro.c,v 1.24 2019/07/23 10:18:52 christos Exp $");
+__RCSID("$NetBSD: keymacro.c,v 1.25 2025/01/03 00:40:08 rillig Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -346,7 +346,6 @@ node__try(EditLine *el, keymacro_node_t *ptr, const wchar_t *str,
 		default:
 			EL_ABORT((el->el_errfile, "Bad XK_ type %d\n",
 			    ptr->type));
-			break;
 		}
 
 		switch (ptr->type = ntype) {
@@ -359,7 +358,6 @@ node__try(EditLine *el, keymacro_node_t *ptr, const wchar_t *str,
 			break;
 		default:
 			EL_ABORT((el->el_errfile, "Bad XK_ type %d\n", ntype));
-			break;
 		}
 	} else {
 		/* still more chars to go */
@@ -444,7 +442,6 @@ node__put(EditLine *el, keymacro_node_t *ptr)
 		break;
 	default:
 		EL_ABORT((el->el_errfile, "Bad XK_ type %d\n", ptr->type));
-		break;
 	}
 	el_free(ptr);
 }
@@ -614,7 +611,6 @@ keymacro_kprint(EditLine *el, const wchar_t *key, keymacro_value_t *val,
 			break;
 		default:
 			EL_ABORT((el->el_errfile, "Bad XK_ type %d\n", ntype));
-			break;
 		}
 	else
 		(void) fprintf(el->el_outfile, fmt, ct_encode_string(key,

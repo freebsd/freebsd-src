@@ -6634,8 +6634,7 @@ sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
 		case AF_INET:
 			incr = sizeof(struct sockaddr_in);
 			sin = (struct sockaddr_in *)sa;
-			if ((sin->sin_addr.s_addr == INADDR_ANY) ||
-			    (sin->sin_addr.s_addr == INADDR_BROADCAST) ||
+			if (in_broadcast(sin->sin_addr) ||
 			    IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 				SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
 				(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,

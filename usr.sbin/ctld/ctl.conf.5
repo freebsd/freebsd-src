@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 13, 2020
+.Dd February 26, 2025
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -543,23 +543,10 @@ portal-group {
 }
 
 lun {
-	example_0 {
-		path = /dev/zvol/tank/example_0
-		blocksize = 4096
-		size = 4GB
-	}
-
 	example_1 {
 		path = /dev/zvol/tank/example_1
 		options {
 			naa = "0x50015178f369f093"
-		}
-	}
-
-	example_2 {
-		path = /dev/zvol/tank/example_2
-		options {
-			vendor = "FreeBSD"
 		}
 	}
 }
@@ -568,25 +555,34 @@ target {
 	"iqn.2012-06.com.example:target0" {
 		alias = "Example target"
 		auth-group = no-authentication
-		lun = [
-			{ number = 0, name = example_0 },
-		]
+		lun = {
+			0 {
+				path = /dev/zvol/tank/example_0
+				blocksize = 4096
+				size = 4GB
+			}
+		}
 	}
 
 	"iqn.2012-06.com.example:target1" {
 		auth-group = ag0
-		portal-group { name = pg0 }
-		lun = [
-			{ number = 0, name = example_1 },
-			{ number = 1, name = example_2 }
-		]
+		portal-group = pg0
+		lun {
+			0 = example_1
+			1 {
+				path = /dev/zvol/tank/example_2
+				options {
+					vendor = "FreeBSD"
+				}
+			}
+		}
 	}
 
 	naa.50015178f369f092 {
 		port = isp0
-		lun = [
-			{ number = 0, name = example_1 }
-		]
+		lun {
+			0 = example_1
+		}
 	}
 }
 .Ed

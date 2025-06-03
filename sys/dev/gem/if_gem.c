@@ -413,7 +413,7 @@ gem_detach(struct gem_softc *sc)
 	callout_drain(&sc->sc_rx_ch);
 #endif
 	if_free(ifp);
-	device_delete_child(sc->sc_dev, sc->sc_miibus);
+	bus_generic_detach(sc->sc_dev);
 
 	for (i = 0; i < GEM_NRXDESC; i++)
 		if (sc->sc_rxsoft[i].rxs_dmamap != NULL)

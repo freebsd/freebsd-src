@@ -621,3 +621,174 @@ ieee80211_compute_duration_ht(uint32_t frameLen, uint16_t rate,
 #undef	HT_L_LTF
 #undef	HT_L_STF
 #undef	OFDM_PLCP_BITS
+
+
+/*
+ * A bitmask of allowable rates for each spatial stream
+ * and bandwidth.
+ *
+ * This is based on 802.11-2020 21.5 (Parameters for VHT-MCSs.)
+ *
+ * Not all MCS rate / channel widths are valid, as there needs
+ * to be an integer number of symbols and the number of tones
+ * available for each channel bandwidth doesn't result in
+ * an integer value.
+ */
+static uint16_t ieee80211_vht_mcs_allowed_list_20[] = {
+	0x01ff, 0x01ff, 0x03ff, 0x01ff, 0x01ff, 0x03ff, 0x01ff, 0x01ff,
+};
+
+static uint16_t ieee80211_vht_mcs_allowed_list_40[] = {
+	0x03ff, 0x03ff, 0x03ff, 0x03ff, 0x03ff, 0x03ff, 0x03ff, 0x03ff,
+};
+
+static uint16_t ieee80211_vht_mcs_allowed_list_80[] = {
+	0x03ff, 0x03ff, 0x03bf, 0x03ff, 0x03ff, 0x01ff, 0x03bf, 0x03ff,
+};
+
+static uint16_t ieee80211_vht_mcs_allowed_list_160[] = {
+	0x03ff, 0x03ff, 0x01ff, 0x03ff, 0x03ff, 0x03ff, 0x03ff, 0x03ff,
+};
+
+/**
+ * @brief Fetch the allowable MCS mask for the given channel bandwidth and NSS
+ *
+ * Return a bitmask of valid MCS rates from 0..9 given a channel bandwith
+ * and number of spatial streams.
+ *
+ * See 802.11-2020 21.5 (Parameters for VHT-MCSs) for more details.
+ *
+ * @param bw	channel bandwidth, via enum ieee80211_sta_rx_bw
+ * @param nss	number of spatial streams, 1..8
+ * @returns	bitmask of valid MCS rates from 0..9
+ */
+uint16_t
+ieee80211_phy_vht_get_mcs_mask(enum ieee80211_sta_rx_bw bw, uint8_t nss)
+{
+	if (nss == 0 || nss > 8)
+		return (0);
+
+	switch (bw) {
+	case IEEE80211_STA_RX_BW_20:
+		return (ieee80211_vht_mcs_allowed_list_20[nss - 1]);
+	case IEEE80211_STA_RX_BW_40:
+		return (ieee80211_vht_mcs_allowed_list_40[nss - 1]);
+	case IEEE80211_STA_RX_BW_80:
+		return (ieee80211_vht_mcs_allowed_list_80[nss - 1]);
+	case IEEE80211_STA_RX_BW_160:
+		return (ieee80211_vht_mcs_allowed_list_160[nss - 1]);
+	case IEEE80211_STA_RX_BW_320:
+		/* invalid for VHT */
+		return (0);
+	}
+}
+
+/**
+ * @brief Check if the given NSS/MCS combination is valid for the given channel
+ * bandwidth
+ *
+ * See 802.11-2020 21.5 (Parameters for VHT-MCSs) for more details.
+ *
+ * @param bw	channel bandwidth, via enum ieee80211_sta_rx_bw
+ * @param nss	number of spatial streams, 1..8
+ * @param mcs	MCS rate, 0..9
+ * @retval true		if the NSS / MCS / bandwidth combination is valid
+ * @retval false	if the NSS / MCS / bandwidth combination is not valid
+ */
+bool
+ieee80211_phy_vht_validate_mcs(enum ieee80211_sta_rx_bw bw, uint8_t nss,
+    uint8_t mcs)
+{
+	uint16_t mask;
+
+	mask = ieee80211_phy_vht_get_mcs_mask(bw, nss);
+	if (mask == 0)
+		return (false);
+
+	return ((mask & (1 << mcs)) != 0);
+}
+
+struct mcs_entry {
+	int n_sym;	/* Number of bits per symbol */
+	int cod_n;	/* Coding rate numerator */
+	int cod_d;	/* Coding rate denominator */
+};
+
+/*
+ * These parameters are taken from 802.11-2020 Table 21-29
+ * (VHT-MCSs for Mandatory 20 MHZ, Nss=1).
+ *
+ * n_sym corresponds to "Nbpscs", cod_n/cod_d corresponds to
+ * "R".
+ */
+static struct mcs_entry mcs_entries[] = {
+	{ 1, 1, 2 },    /* MCS0 */
+	{ 2, 1, 2 },
+	{ 2, 3, 4 },
+	{ 4, 1, 2 },
+	{ 4, 3, 4 },
+	{ 6, 2, 3 },
+	{ 6, 3, 4 },
+	{ 6, 5, 6 },
+	{ 8, 3, 4 },
+	{ 8, 5, 6 },    /* MCS9 */
+};
+
+/**
+ * @brief Calculate the bitrate of the given VHT MCS rate.
+ *
+ * @param bw		Channel bandwidth (enum ieee80211_sta_rx_bw)
+ * @param nss		Number of spatial streams, 1..8
+ * @param mcs		MCS, 0..9
+ * @param is_shortgi	True if short guard-interval (400nS)
+ *			false otherwise (800nS)
+ *
+ * @returns		The bitrate in kbit/sec.
+ */
+uint32_t
+ieee80211_phy_vht_get_mcs_kbit(enum ieee80211_sta_rx_bw bw,
+    uint8_t nss, uint8_t mcs, bool is_shortgi)
+{
+	uint32_t sym_len, n_carriers;
+
+	/* Validate MCS 0..9, NSS 1..8 */
+	if (mcs > 9)
+		return (0);
+	if (nss == 0 || nss > 8)
+		return (0);
+
+	/*
+	 * Short-GI - 3.6uS symbol time, long-GI - 4.0uS symbol time
+	 *
+	 * See 802.11-2020 Table 21-5 (Timing-related constraints.)
+	 */
+	if (is_shortgi)
+		sym_len = 36;
+	else
+		sym_len = 40;
+
+	/*
+	 * Calculate the number of carriers for the given channel bandwidth
+	 *
+	 * See 802.11-2020 Table 21-5 (Timing-related constraints.)
+	 */
+	switch (bw) {
+	case IEEE80211_STA_RX_BW_20:
+		n_carriers = 52;
+		break;
+	case IEEE80211_STA_RX_BW_40:
+		n_carriers = 108;
+		break;
+	case IEEE80211_STA_RX_BW_80:
+		n_carriers = 234;
+		break;
+	case IEEE80211_STA_RX_BW_160:
+		n_carriers = 468;
+		break;
+	default:
+		return (0);
+	}
+
+	return ((n_carriers * mcs_entries[mcs].n_sym * mcs_entries[mcs].cod_n *
+	    nss * 10000) / (mcs_entries[mcs].cod_d * sym_len));
+}

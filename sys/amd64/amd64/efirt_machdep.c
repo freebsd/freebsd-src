@@ -54,6 +54,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_radix.h>
 
 static pml5_entry_t *efi_pml5;
 static pml4_entry_t *efi_pml4;
@@ -64,11 +65,13 @@ static vm_pindex_t efi_1t1_idx;
 void
 efi_destroy_1t1_map(void)
 {
+	struct pctrie_iter pages;
 	vm_page_t m;
 
 	if (obj_1t1_pt != NULL) {
+		vm_page_iter_init(&pages, obj_1t1_pt);
 		VM_OBJECT_RLOCK(obj_1t1_pt);
-		TAILQ_FOREACH(m, &obj_1t1_pt->memq, listq)
+		VM_RADIX_FOREACH(m, &pages)
 			m->ref_count = VPRC_OBJREF;
 		vm_wire_sub(obj_1t1_pt->resident_page_count);
 		VM_OBJECT_RUNLOCK(obj_1t1_pt);

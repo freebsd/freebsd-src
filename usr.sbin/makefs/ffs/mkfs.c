@@ -579,13 +579,21 @@ ffs_write_superblock(struct fs *fs, const fsinfo_t *fsopts)
 {
 	int size, blks, i, saveflag;
 	uint32_t cylno;
-	void *space;
+	void *info, *space;
 	char *wrbuf;
 
 	saveflag = fs->fs_flags & FS_INTERNAL;
 	fs->fs_flags &= ~FS_INTERNAL;
 
-        memcpy(writebuf, &sblock, sbsize);
+	/*
+	 * Write out the superblock.  Blank out the summary info field, as it's
+	 * a random pointer that would make the resulting image unreproducible.
+	 */
+	info = fs->fs_si;
+	fs->fs_si = NULL;
+	memcpy(writebuf, fs, sbsize);
+	fs->fs_si = info;
+
 	if (fsopts->needswap)
 		ffs_sb_swap(fs, (struct fs*)writebuf);
 	ffs_wtfs(fs->fs_sblockloc / sectorsize, sbsize, writebuf, fsopts);

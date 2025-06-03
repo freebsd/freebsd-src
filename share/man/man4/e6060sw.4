@@ -23,12 +23,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 5, 2017
+.Dd May 10, 2025
 .Dt E6060SW 4
 .Os
 .Sh NAME
 .Nm e6060sw
-.Nd driver for Marvell 88E6060 and 88E6065 fast ethernet switch chip
+.Nd Marvell 88E6060/88E6063/88E6065 Fast Ethernet switch driver
 .Sh SYNOPSIS
 .Cd "device mdio"
 .Cd "device etherswitch"
@@ -44,6 +44,19 @@ This driver use smi interface by ethernet interface.
 88E6060 support is only port vlan.
 88E6065 support is port and dot1q vlan.
 dot1q support group base tag/untag.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following Fast Ethernet switch controllers:
+.Pp
+.Bl -bullet -compact
+.It
+Marvell 88E6060
+.It
+Marvell 88E6063
+.It
+Marvell 88E6065
+.El
 .Sh EXAMPLES
 Configure dot1q vlan on 88E6065 by etherswitchcfg command.
 .Pp

@@ -138,6 +138,7 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ EXC_VEC,	"altivec unavailable" },
 	{ EXC_VSX,	"vsx unavailable" },
 	{ EXC_FAC,	"facility unavailable" },
+	{ EXC_HFAC,	"hypervisor facility unavailable" },
 	{ EXC_ITMISS,	"instruction tlb miss" },
 	{ EXC_DLMISS,	"data load tlb miss" },
 	{ EXC_DSMISS,	"data store tlb miss" },
@@ -147,6 +148,7 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ EXC_THRM,	"thermal management" },
 	{ EXC_RUNMODETRC,	"run mode/trace" },
 	{ EXC_SOFT_PATCH, "soft patch exception" },
+	{ EXC_HVI,	"hypervisor virtualization" },
 	{ EXC_LAST,	NULL }
 };
 
@@ -351,6 +353,7 @@ trap(struct trapframe *frame)
 			mtspr(SPR_FSCR, fscr & ~FSCR_IC_MASK);
 			break;
 		case EXC_HEA:
+		case EXC_HFAC:
 			sig = SIGILL;
 			ucode =	ILL_ILLOPC;
 			break;
@@ -791,7 +794,7 @@ trap_pfault(struct trapframe *frame, bool user, int *signo, int *ucode)
 		return (true);
 #endif
 
-	if (__predict_false((td->td_pflags & TDP_NOFAULTING) == 0)) {
+	if (__predict_true((td->td_pflags & TDP_NOFAULTING) == 0)) {
 		/*
 		 * If we get a page fault while in a critical section, then
 		 * it is most likely a fatal kernel page fault.  The kernel

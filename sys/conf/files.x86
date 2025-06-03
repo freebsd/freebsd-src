@@ -344,6 +344,12 @@ x86/cpufreq/hwpstate_amd.c	optional	cpufreq
 x86/cpufreq/hwpstate_intel.c	optional	cpufreq
 x86/cpufreq/p4tcc.c		optional	cpufreq
 x86/cpufreq/powernow.c		optional	cpufreq
+x86/iommu/amd_cmd.c		optional	acpi iommu pci
+x86/iommu/amd_ctx.c		optional	acpi iommu pci
+x86/iommu/amd_drv.c		optional	acpi iommu pci
+x86/iommu/amd_event.c		optional	acpi iommu pci
+x86/iommu/amd_idpgtbl.c		optional	acpi iommu pci
+x86/iommu/amd_intrmap.c		optional	acpi iommu pci
 x86/iommu/intel_ctx.c		optional	acpi iommu pci
 x86/iommu/intel_drv.c		optional	acpi iommu pci
 x86/iommu/intel_fault.c		optional	acpi iommu pci

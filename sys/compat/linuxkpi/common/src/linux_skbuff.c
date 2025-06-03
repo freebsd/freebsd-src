@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2020-2022 The FreeBSD Foundation
+ * Copyright (c) 2020-2025 The FreeBSD Foundation
  * Copyright (c) 2021-2022 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
@@ -42,6 +42,8 @@
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 
+#include <vm/uma.h>
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
@@ -63,67 +65,81 @@ SYSCTL_INT(_compat_linuxkpi_skb, OID_AUTO, debug, CTLFLAG_RWTUN,
     &linuxkpi_debug_skb, 0, "SKB debug level");
 #endif
 
-#ifdef __LP64__
+static uma_zone_t skbzone;
+
+#define	SKB_DMA32_MALLOC
+#ifdef	SKB_DMA32_MALLOC
 /*
  * Realtek wireless drivers (e.g., rtw88) require 32bit DMA in a single segment.
  * busdma(9) has a hard time providing this currently for 3-ish pages at large
  * quantities (see lkpi_pci_nseg1_fail in linux_pci.c).
  * Work around this for now by allowing a tunable to enforce physical addresses
- * allocation limits on 64bit platforms using "old-school" contigmalloc(9) to
- * avoid bouncing.
+ * allocation limits using "old-school" contigmalloc(9) to avoid bouncing.
+ * Note: with the malloc/contigmalloc + kmalloc changes also providing physical
+ * contiguous memory, and the nseg=1 limit for bouncing we should in theory be
+ * fine now and not need any of this anymore, however busdma still has troubles
+ * boncing three contiguous pages so for now this stays.
  */
 static int linuxkpi_skb_memlimit;
 SYSCTL_INT(_compat_linuxkpi_skb, OID_AUTO, mem_limit, CTLFLAG_RDTUN,
     &linuxkpi_skb_memlimit, 0, "SKB memory limit: 0=no limit, "
     "1=32bit, 2=36bit, other=undef (currently 32bit)");
-#endif
 
 static MALLOC_DEFINE(M_LKPISKB, "lkpiskb", "Linux KPI skbuff compat");
+#endif
 
 struct sk_buff *
 linuxkpi_alloc_skb(size_t size, gfp_t gfp)
 {
 	struct sk_buff *skb;
+	void *p;
 	size_t len;
 
-	len = sizeof(*skb) + size + sizeof(struct skb_shared_info);
+	skb = uma_zalloc(skbzone, linux_check_m_flags(gfp) | M_ZERO);
+	if (skb == NULL)
+		return (NULL);
+
+	skb->prev = skb->next = skb;
+	skb->truesize = size;
+	skb->shinfo = (struct skb_shared_info *)(skb + 1);
+
+	if (size == 0)
+		return (skb);
+
+	len = size;
+#ifdef	SKB_DMA32_MALLOC
 	/*
 	 * Using our own type here not backing my kmalloc.
 	 * We assume no one calls kfree directly on the skb.
 	 */
-#ifdef __LP64__
-	if (__predict_true(linuxkpi_skb_memlimit == 0)) {
-		skb = malloc(len, M_LKPISKB, linux_check_m_flags(gfp) | M_ZERO);
-	} else {
+	if (__predict_false(linuxkpi_skb_memlimit != 0)) {
 		vm_paddr_t high;
 
 		switch (linuxkpi_skb_memlimit) {
+#ifdef __LP64__
 		case 2:
 			high = (0xfffffffff);	/* 1<<36 really. */
 			break;
+#endif
 		case 1:
 		default:
 			high = (0xffffffff);	/* 1<<32 really. */
 			break;
 		}
 		len = roundup_pow_of_two(len);
-		skb = contigmalloc(len, M_LKPISKB,
+		p = contigmalloc(len, M_LKPISKB,
 		    linux_check_m_flags(gfp) | M_ZERO, 0, high, PAGE_SIZE, 0);
-	}
-#else
-	skb = malloc(len, M_LKPISKB, linux_check_m_flags(gfp) | M_ZERO);
+	} else
 #endif
-	if (skb == NULL)
-		return (skb);
-	skb->_alloc_len = len;
-	skb->truesize = size;
+	p = __kmalloc(len, linux_check_m_flags(gfp) | M_ZERO);
+	if (p == NULL) {
+		uma_zfree(skbzone, skb);
+		return (NULL);
+	}
 
-	skb->head = skb->data = skb->tail = (uint8_t *)(skb+1);
+	skb->head = skb->data = (uint8_t *)p;
+	skb_reset_tail_pointer(skb);
 	skb->end = skb->head + size;
-
-	skb->prev = skb->next = skb;
-
-	skb->shinfo = (struct skb_shared_info *)(skb->end);
 
 	SKB_TRACE_FMT(skb, "data %p size %zu", (skb) ? skb->data : NULL, size);
 	return (skb);
@@ -162,14 +178,14 @@ linuxkpi_build_skb(void *data, size_t fragsz)
 	skb->_flags |= _SKB_FLAGS_SKBEXTFRAG;
 	skb->truesize = fragsz;
 	skb->head = skb->data = data;
-	skb_reset_tail_pointer(skb);	/* XXX is that correct? */
-	skb->end = (void *)((uintptr_t)skb->head + fragsz);
+	skb_reset_tail_pointer(skb);
+	skb->end = skb->head + fragsz;
 
 	return (skb);
 }
 
 struct sk_buff *
-linuxkpi_skb_copy(struct sk_buff *skb, gfp_t gfp)
+linuxkpi_skb_copy(const struct sk_buff *skb, gfp_t gfp)
 {
 	struct sk_buff *new;
 	struct skb_shared_info *shinfo;
@@ -256,17 +272,34 @@ linuxkpi_kfree_skb(struct sk_buff *skb)
 
 		p = skb->head;
 		skb_free_frag(p);
+		skb->head = NULL;
 	}
 
-#ifdef __LP64__
-	if (__predict_true(linuxkpi_skb_memlimit == 0))
-		free(skb, M_LKPISKB);
+#ifdef	SKB_DMA32_MALLOC
+	if (__predict_false(linuxkpi_skb_memlimit != 0))
+		free(skb->head, M_LKPISKB);
 	else
-		contigfree(skb, skb->_alloc_len, M_LKPISKB);
-#else
-	free(skb, M_LKPISKB);
 #endif
+	kfree(skb->head);
+	uma_zfree(skbzone, skb);
 }
+
+static void
+lkpi_skbuff_init(void *arg __unused)
+{
+	skbzone = uma_zcreate("skbuff",
+	    sizeof(struct sk_buff) + sizeof(struct skb_shared_info),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	/* Do we need to apply limits? */
+}
+SYSINIT(linuxkpi_skbuff, SI_SUB_DRIVERS, SI_ORDER_FIRST, lkpi_skbuff_init, NULL);
+
+static void
+lkpi_skbuff_destroy(void *arg __unused)
+{
+	uma_zdestroy(skbzone);
+}
+SYSUNINIT(linuxkpi_skbuff, SI_SUB_DRIVERS, SI_ORDER_SECOND, lkpi_skbuff_destroy, NULL);
 
 #ifdef DDB
 DB_SHOW_COMMAND(skb, db_show_skb)
@@ -284,9 +317,8 @@ DB_SHOW_COMMAND(skb, db_show_skb)
 	db_printf("skb %p\n", skb);
 	db_printf("\tnext %p prev %p\n", skb->next, skb->prev);
 	db_printf("\tlist %p\n", &skb->list);
-	db_printf("\t_alloc_len %u len %u data_len %u truesize %u mac_len %u\n",
-	    skb->_alloc_len, skb->len, skb->data_len, skb->truesize,
-	    skb->mac_len);
+	db_printf("\tlen %u data_len %u truesize %u mac_len %u\n",
+	    skb->len, skb->data_len, skb->truesize, skb->mac_len);
 	db_printf("\tcsum %#06x l3hdroff %u l4hdroff %u priority %u qmap %u\n",
 	    skb->csum, skb->l3hdroff, skb->l4hdroff, skb->priority, skb->qmap);
 	db_printf("\tpkt_type %d dev %p sk %p\n",

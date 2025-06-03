@@ -1,4 +1,4 @@
-PACKAGE=	runtime
+PACKAGE= rc
 SCRIPTS=service.sh
 MAN=	service.8
 

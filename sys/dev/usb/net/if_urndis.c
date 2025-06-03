@@ -20,7 +20,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>

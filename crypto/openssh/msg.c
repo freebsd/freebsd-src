@@ -1,4 +1,4 @@
-/* $OpenBSD: msg.c,v 1.20 2020/10/18 11:32:01 djm Exp $ */
+/* $OpenBSD: msg.c,v 1.21 2024/05/17 00:30:24 djm Exp $ */
 /*
  * Copyright (c) 2002 Markus Friedl.  All rights reserved.
  *
@@ -47,7 +47,7 @@ ssh_msg_send(int fd, u_char type, struct sshbuf *m)
 	u_char buf[5];
 	u_int mlen = sshbuf_len(m);
 
-	debug3_f("type %u", (unsigned int)type & 0xff);
+	debug3_f("type %u len %zu", (unsigned int)type & 0xff, sshbuf_len(m));
 
 	put_u32(buf, mlen + 1);
 	buf[4] = type;		/* 1st byte of payload is mesg-type */
@@ -59,6 +59,7 @@ ssh_msg_send(int fd, u_char type, struct sshbuf *m)
 		error_f("write: %s", strerror(errno));
 		return (-1);
 	}
+	debug3_f("done");
 	return (0);
 }
 

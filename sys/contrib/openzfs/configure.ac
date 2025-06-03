@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * This file is part of OpenZFS.
  *
@@ -87,3 +88,5 @@ AC_CONFIG_FILES([
 
 
 AC_OUTPUT
+
+ZFS_AC_KERNEL_VERSION_WARNING

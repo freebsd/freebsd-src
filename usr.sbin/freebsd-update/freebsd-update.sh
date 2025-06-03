@@ -1099,6 +1099,26 @@ IDS_check_params () {
 	fetch_setup_verboselevel
 }
 
+# Packaged base and freebsd-update are incompatible.  Exit with an error if
+# packaged base is in use.
+check_pkgbase()
+{
+	# Packaged base requires that pkg is bootstrapped.
+	if ! pkg -c ${BASEDIR} -N >/dev/null 2>/dev/null; then
+		return
+	fi
+	# uname(1) is used by pkg to determine ABI, so it should exist.
+	# If it comes from a package then this system uses packaged base.
+	if ! pkg -c ${BASEDIR} which /usr/bin/uname >/dev/null; then
+		return
+	fi
+	cat <<EOF
+freebsd-update is incompatible with the use of packaged base.  Please see
+https://wiki.freebsd.org/PkgBase for more information.
+EOF
+	exit 1
+}
+
 #### Core functionality -- the actual work gets done here
 
 # Use an SRV query to pick a server.  If the SRV query doesn't provide
@@ -3594,6 +3614,9 @@ export LC_ALL=C
 
 # Clear environment variables that may affect operation of tools that we use.
 unset GREP_OPTIONS
+
+# Disallow use with packaged base.
+check_pkgbase
 
 get_params $@
 for COMMAND in ${COMMANDS}; do

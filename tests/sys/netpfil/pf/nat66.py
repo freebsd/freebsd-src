@@ -29,22 +29,9 @@ import ipaddress
 import pytest
 import re
 import socket
-import threading
-import time
+from utils import DelayedSend
 from atf_python.sys.net.tools import ToolsHelper
 from atf_python.sys.net.vnet import VnetTestTemplate
-
-class DelayedSend(threading.Thread):
-    def __init__(self, packet):
-        threading.Thread.__init__(self)
-        self._packet = packet
-
-        self.start()
-
-    def run(self):
-        import scapy.all as sp
-        time.sleep(1)
-        sp.send(self._packet)
 
 class TestNAT66(VnetTestTemplate):
     REQUIRED_MODULES = [ "pf" ]
@@ -140,6 +127,7 @@ class TestNAT66(VnetTestTemplate):
         assert found
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_npt_icmp(self):
         cl_vnet = self.vnet_map["vnet1"]
         ifname = cl_vnet.iface_alias_map["if1"].name
@@ -168,6 +156,7 @@ class TestNAT66(VnetTestTemplate):
         self.check_icmp_too_big(sp, 12000, 5000)
 
     @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_npt_route_to_icmp(self):
         cl_vnet = self.vnet_map["vnet1"]
         ifname = cl_vnet.iface_alias_map["if1"].name

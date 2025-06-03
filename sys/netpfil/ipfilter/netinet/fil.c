@@ -1330,8 +1330,8 @@ ipf_pr_tcpcommon(fr_info_t *fin)
 		return (1);
 	}
 
-	flags = tcp->th_flags;
-	fin->fin_tcpf = tcp->th_flags;
+	flags = tcp_get_flags(tcp);
+	fin->fin_tcpf = tcp_get_flags(tcp);
 
 	/*
 	 * If the urgent flag is set, then the urgent pointer must
@@ -5952,7 +5952,7 @@ ipf_updateipid(fr_info_t *fin)
 		id = (u_short)sum;
 		ip->ip_id = htons(id);
 	} else {
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip_random_id);
 		id = ntohs(ip->ip_id);
 		if ((fin->fin_flx & FI_FRAG) != 0)
 			(void) ipf_frag_ipidnew(fin, (u_32_t)id);

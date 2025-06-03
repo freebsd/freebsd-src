@@ -210,7 +210,6 @@ struct age_softc {
 #define	AGE_FLAG_PCIX		0x0002
 #define	AGE_FLAG_MSI		0x0004
 #define	AGE_FLAG_MSIX		0x0008
-#define	AGE_FLAG_PMCAP		0x0010
 #define	AGE_FLAG_DETACH		0x4000
 #define	AGE_FLAG_LINK		0x8000
 

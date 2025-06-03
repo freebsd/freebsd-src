@@ -376,6 +376,8 @@ t4_stop_l2t(struct adapter *sc)
 {
 	struct l2t_data *d = sc->l2t;
 
+	if (d == NULL)
+		return (0);
 	rw_wlock(&d->lock);
 	d->l2t_stopped = true;
 	rw_wunlock(&d->lock);
@@ -388,6 +390,8 @@ t4_restart_l2t(struct adapter *sc)
 {
 	struct l2t_data *d = sc->l2t;
 
+	if (d == NULL)
+		return (0);
 	rw_wlock(&d->lock);
 	d->l2t_stopped = false;
 	rw_wunlock(&d->lock);

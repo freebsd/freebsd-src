@@ -441,9 +441,12 @@ static int
 udl_detach(device_t dev)
 {
 	struct udl_softc *sc = device_get_softc(dev);
+	int error;
 
 	/* delete all child devices */
-	device_delete_children(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	UDL_LOCK(sc);
 	sc->sc_gone = 1;

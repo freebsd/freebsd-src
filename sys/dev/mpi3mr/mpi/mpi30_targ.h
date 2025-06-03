@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2016-2024, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2016-2025, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Broadcom Inc. (Broadcom) MPI3MR Adapter FreeBSD
  *
  */
+
 #ifndef MPI30_TARG_H
 #define MPI30_TARG_H     1
 
@@ -122,6 +123,7 @@ typedef struct _MPI3_TARGET_CMD_BUF_POST_BASE_REQUEST
 
 /**** Defines for the BufferPostFlags field ****/
 #define MPI3_CMD_BUF_POST_BASE_FLAGS_DLAS_MASK              (0x0C)
+#define MPI3_CMD_BUF_POST_BASE_FLAGS_DLAS_SHIFT             (2)
 #define MPI3_CMD_BUF_POST_BASE_FLAGS_DLAS_SYSTEM            (0x00)
 #define MPI3_CMD_BUF_POST_BASE_FLAGS_DLAS_IOCUDP            (0x04)
 #define MPI3_CMD_BUF_POST_BASE_FLAGS_DLAS_IOCCTL            (0x08)
@@ -206,13 +208,17 @@ typedef struct _MPI3_TARGET_ASSIST_REQUEST
 
 /**** Defines for the Flags field ****/
 #define MPI3_TARGET_ASSIST_FLAGS_IOC_USE_ONLY_23_MASK       (0x00800000)
+#define MPI3_TARGET_ASSIST_FLAGS_IOC_USE_ONLY_23_SHIFT      (23)
 #define MPI3_TARGET_ASSIST_FLAGS_IOC_USE_ONLY_22_MASK       (0x00400000)
+#define MPI3_TARGET_ASSIST_FLAGS_IOC_USE_ONLY_22_SHIFT      (22)
 #define MPI3_TARGET_ASSIST_FLAGS_REPOST_CMD_BUFFER          (0x00200000)
 #define MPI3_TARGET_ASSIST_FLAGS_AUTO_STATUS                (0x00100000)
 #define MPI3_TARGET_ASSIST_FLAGS_DATADIRECTION_MASK         (0x000C0000)
+#define MPI3_TARGET_ASSIST_FLAGS_DATADIRECTION_SHIFT        (18)
 #define MPI3_TARGET_ASSIST_FLAGS_DATADIRECTION_WRITE        (0x00040000)
 #define MPI3_TARGET_ASSIST_FLAGS_DATADIRECTION_READ         (0x00080000)
 #define MPI3_TARGET_ASSIST_FLAGS_DMAOPERATION_MASK          (0x00030000)
+#define MPI3_TARGET_ASSIST_FLAGS_DMAOPERATION_SHIFT         (16)
 #define MPI3_TARGET_ASSIST_FLAGS_DMAOPERATION_HOST_PI       (0x00010000)
 
 /**** Defines for the SGL field ****/
@@ -245,6 +251,7 @@ typedef struct _MPI3_TARGET_STATUS_SEND_REQUEST
 
 /**** Defines for the Flags field ****/
 #define MPI3_TSS_FLAGS_IOC_USE_ONLY_6_MASK              (0x0040)
+#define MPI3_TSS_FLAGS_IOC_USE_ONLY_6_SHIFT             (6)
 #define MPI3_TSS_FLAGS_REPOST_CMD_BUFFER                (0x0020)
 #define MPI3_TSS_FLAGS_AUTO_SEND_GOOD_STATUS            (0x0010)
 
@@ -294,7 +301,7 @@ typedef struct _MPI3_TARGET_MODE_ABORT_REQUEST
 #define MPI3_TARGET_MODE_ABORT_ALL_CMD_BUFFERS              (0x00)
 #define MPI3_TARGET_MODE_ABORT_EXACT_IO_REQUEST             (0x01)
 #define MPI3_TARGET_MODE_ABORT_ALL_COMMANDS                 (0x02)
-
+#define MPI3_TARGET_MODE_ABORT_ALL_COMMANDS_DEVHANDLE       (0x03)
 
 /*****************************************************************************
  *              Target Mode Abort Reply Message                              *

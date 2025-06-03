@@ -170,11 +170,13 @@ freebsd_brand_info_la57_img_compat(const struct image_params *imgp,
 {
 	if ((imgp->proc->p_md.md_flags & P_MD_LA57) != 0)
 		return (true);
+	if (fctl0 != NULL && (*fctl0 & NT_FREEBSD_FCTL_LA57) != 0)
+		return (true);
 	if (fctl0 == NULL || (*fctl0 & NT_FREEBSD_FCTL_LA48) != 0)
 		return (false);
 	if ((imgp->proc->p_md.md_flags & P_MD_LA48) != 0)
 		return (false);
-	return (true);
+	return (!prefer_uva_la48);
 }
 
 static Elf64_Brandinfo freebsd_brand_info_la48 = {

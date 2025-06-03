@@ -33,12 +33,13 @@
 
 #include <capsicum_helpers.h>
 #include <err.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 #include "extern.h"
 
-void
+int
 c_special(int fd1, const char *file1, off_t skip1,
     int fd2, const char *file2, off_t skip2, off_t limit)
 {
@@ -97,7 +98,7 @@ c_special(int fd1, const char *file1, off_t skip1,
 					    (long long)byte, ch1, ch2);
 			} else {
 				diffmsg(file1, file2, byte, line, ch1, ch2);
-				/* NOTREACHED */
+				return (DIFF_EXIT);
 			}
 		}
 		if (ch1 == '\n')
@@ -109,13 +110,17 @@ eof:	if (ferror(fp1))
 	if (ferror(fp2))
 		err(ERR_EXIT, "%s", file2);
 	if (feof(fp1)) {
-		if (!feof(fp2))
+		if (!feof(fp2)) {
 			eofmsg(file1);
-	} else
-		if (feof(fp2))
+			return (DIFF_EXIT);
+		}
+	} else {
+		if (feof(fp2)) {
 			eofmsg(file2);
+			return (DIFF_EXIT);
+		}
+	}
 	fclose(fp2);
 	fclose(fp1);
-	if (dfound)
-		exit(DIFF_EXIT);
+	return (dfound ? DIFF_EXIT : 0);
 }

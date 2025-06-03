@@ -1195,7 +1195,7 @@ mpr_get_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 {
 	MPI2_DEFAULT_REPLY *reply;
 	MPI2_IOC_FACTS_REQUEST request;
-	int error, req_sz, reply_sz;
+	int error, req_sz, reply_sz, retry = 0;
 
 	MPR_FUNCTRACE(sc);
 	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
@@ -1204,13 +1204,26 @@ mpr_get_iocfacts(struct mpr_softc *sc, MPI2_IOC_FACTS_REPLY *facts)
 	reply_sz = sizeof(MPI2_IOC_FACTS_REPLY);
 	reply = (MPI2_DEFAULT_REPLY *)facts;
 
+	/*
+	 * Retry sending the initialization sequence. Sometimes, especially with
+	 * older firmware, the initialization process fails. Retrying allows the
+	 * error to clear in the firmware.
+	 */
 	bzero(&request, req_sz);
 	request.Function = MPI2_FUNCTION_IOC_FACTS;
-	error = mpr_request_sync(sc, &request, reply, req_sz, reply_sz, 5);
+	while (retry < 5) {
+		error = mpr_request_sync(sc, &request, reply, req_sz, reply_sz, 5);
+		if (error == 0)
+			break;
+		mpr_dprint(sc, MPR_FAULT, "%s failed retry %d\n", __func__, retry);
+		DELAY(1000);
+                retry++;
+	}
 
-	adjust_iocfacts_endianness(facts);
-	mpr_dprint(sc, MPR_TRACE, "facts->IOCCapabilities 0x%x\n", facts->IOCCapabilities);
-
+	if (error == 0) {
+		adjust_iocfacts_endianness(facts);
+		mpr_dprint(sc, MPR_TRACE, "facts->IOCCapabilities 0x%x\n", facts->IOCCapabilities);
+	}
 	mpr_dprint(sc, MPR_INIT, "%s exit, error= %d\n", __func__, error);
 	return (error);
 }

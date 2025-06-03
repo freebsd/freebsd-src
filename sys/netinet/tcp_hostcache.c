@@ -99,23 +99,23 @@ struct hc_head {
 
 struct hc_metrics {
 	/* housekeeping */
-	CK_SLIST_ENTRY(hc_metrics) rmx_q;
+	CK_SLIST_ENTRY(hc_metrics) hc_q;
 	struct		in_addr ip4;	/* IP address */
 	struct		in6_addr ip6;	/* IP6 address */
 	uint32_t	ip6_zoneid;	/* IPv6 scope zone id */
 	/* endpoint specific values for tcp */
-	uint32_t	rmx_mtu;	/* MTU for this path */
-	uint32_t	rmx_ssthresh;	/* outbound gateway buffer limit */
-	uint32_t	rmx_rtt;	/* estimated round trip time */
-	uint32_t	rmx_rttvar;	/* estimated rtt variance */
-	uint32_t	rmx_cwnd;	/* congestion window */
-	uint32_t	rmx_sendpipe;	/* outbound delay-bandwidth product */
-	uint32_t	rmx_recvpipe;	/* inbound delay-bandwidth product */
+	uint32_t	hc_mtu;		/* MTU for this path */
+	uint32_t	hc_ssthresh;	/* outbound gateway buffer limit */
+	uint32_t	hc_rtt;		/* estimated round trip time */
+	uint32_t	hc_rttvar;	/* estimated rtt variance */
+	uint32_t	hc_cwnd;	/* congestion window */
+	uint32_t	hc_sendpipe;	/* outbound delay-bandwidth product */
+	uint32_t	hc_recvpipe;	/* inbound delay-bandwidth product */
 	/* TCP hostcache internal data */
-	int		rmx_expire;	/* lifetime for object */
+	int		hc_expire;	/* lifetime for object */
 #ifdef	TCP_HC_COUNTERS
-	u_long		rmx_hits;	/* number of hits */
-	u_long		rmx_updates;	/* number of updates */
+	u_long		hc_hits;	/* number of hits */
+	u_long		hc_updates;	/* number of updates */
 #endif
 };
 
@@ -146,7 +146,7 @@ VNET_DEFINE_STATIC(struct tcp_hostcache, tcp_hostcache);
 VNET_DEFINE_STATIC(struct callout, tcp_hc_callout);
 #define	V_tcp_hc_callout	VNET(tcp_hc_callout)
 
-static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);
+static struct hc_metrics *tcp_hc_lookup(const struct in_conninfo *);
 static int sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_hc_histo(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_hc_purgenow(SYSCTL_HANDLER_ARGS);
@@ -312,7 +312,7 @@ tcp_hc_destroy(void)
  * Internal function: compare cache entry to a connection.
  */
 static bool
-tcp_hc_cmp(struct hc_metrics *hc_entry, struct in_conninfo *inc)
+tcp_hc_cmp(struct hc_metrics *hc_entry, const struct in_conninfo *inc)
 {
 
 	if (inc->inc_flags & INC_ISIPV6) {
@@ -334,7 +334,7 @@ tcp_hc_cmp(struct hc_metrics *hc_entry, struct in_conninfo *inc)
  * On success returns in SMR section.
  */
 static struct hc_metrics *
-tcp_hc_lookup(struct in_conninfo *inc)
+tcp_hc_lookup(const struct in_conninfo *inc)
 {
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry;
@@ -347,17 +347,17 @@ tcp_hc_lookup(struct in_conninfo *inc)
 	 * Iterate through entries in bucket row looking for a match.
 	 */
 	smr_enter(V_tcp_hostcache.smr);
-	CK_SLIST_FOREACH(hc_entry, &hc_head->hch_bucket, rmx_q)
+	CK_SLIST_FOREACH(hc_entry, &hc_head->hch_bucket, hc_q)
 		if (tcp_hc_cmp(hc_entry, inc))
 			break;
 
 	if (hc_entry != NULL) {
-		if (atomic_load_int(&hc_entry->rmx_expire) !=
+		if (atomic_load_int(&hc_entry->hc_expire) !=
 		    V_tcp_hostcache.expire)
-			atomic_store_int(&hc_entry->rmx_expire,
+			atomic_store_int(&hc_entry->hc_expire,
 			    V_tcp_hostcache.expire);
 #ifdef	TCP_HC_COUNTERS
-		hc_entry->rmx_hits++;
+		hc_entry->hc_hits++;
 #endif
 	} else
 		smr_exit(V_tcp_hostcache.smr);
@@ -371,7 +371,8 @@ tcp_hc_lookup(struct in_conninfo *inc)
  * a value is not set.
  */
 void
-tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
+tcp_hc_get(const struct in_conninfo *inc,
+    struct hc_metrics_lite *hc_metrics_lite)
 {
 	struct hc_metrics *hc_entry;
 
@@ -393,13 +394,13 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
 		return;
 	}
 
-	hc_metrics_lite->rmx_mtu = atomic_load_32(&hc_entry->rmx_mtu);
-	hc_metrics_lite->rmx_ssthresh = atomic_load_32(&hc_entry->rmx_ssthresh);
-	hc_metrics_lite->rmx_rtt = atomic_load_32(&hc_entry->rmx_rtt);
-	hc_metrics_lite->rmx_rttvar = atomic_load_32(&hc_entry->rmx_rttvar);
-	hc_metrics_lite->rmx_cwnd = atomic_load_32(&hc_entry->rmx_cwnd);
-	hc_metrics_lite->rmx_sendpipe = atomic_load_32(&hc_entry->rmx_sendpipe);
-	hc_metrics_lite->rmx_recvpipe = atomic_load_32(&hc_entry->rmx_recvpipe);
+	hc_metrics_lite->hc_mtu = atomic_load_32(&hc_entry->hc_mtu);
+	hc_metrics_lite->hc_ssthresh = atomic_load_32(&hc_entry->hc_ssthresh);
+	hc_metrics_lite->hc_rtt = atomic_load_32(&hc_entry->hc_rtt);
+	hc_metrics_lite->hc_rttvar = atomic_load_32(&hc_entry->hc_rttvar);
+	hc_metrics_lite->hc_cwnd = atomic_load_32(&hc_entry->hc_cwnd);
+	hc_metrics_lite->hc_sendpipe = atomic_load_32(&hc_entry->hc_sendpipe);
+	hc_metrics_lite->hc_recvpipe = atomic_load_32(&hc_entry->hc_recvpipe);
 
 	smr_exit(V_tcp_hostcache.smr);
 }
@@ -410,7 +411,7 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
  * set.
  */
 uint32_t
-tcp_hc_getmtu(struct in_conninfo *inc)
+tcp_hc_getmtu(const struct in_conninfo *inc)
 {
 	struct hc_metrics *hc_entry;
 	uint32_t mtu;
@@ -423,7 +424,7 @@ tcp_hc_getmtu(struct in_conninfo *inc)
 		return (0);
 	}
 
-	mtu = atomic_load_32(&hc_entry->rmx_mtu);
+	mtu = atomic_load_32(&hc_entry->hc_mtu);
 	smr_exit(V_tcp_hostcache.smr);
 
 	return (mtu);
@@ -434,9 +435,9 @@ tcp_hc_getmtu(struct in_conninfo *inc)
  * Creates a new entry if none was found.
  */
 void
-tcp_hc_updatemtu(struct in_conninfo *inc, uint32_t mtu)
+tcp_hc_updatemtu(const struct in_conninfo *inc, uint32_t mtu)
 {
-	struct hc_metrics_lite hcml = { .rmx_mtu = mtu };
+	struct hc_metrics_lite hcml = { .hc_mtu = mtu };
 
 	return (tcp_hc_update(inc, &hcml));
 }
@@ -446,7 +447,7 @@ tcp_hc_updatemtu(struct in_conninfo *inc, uint32_t mtu)
  * Creates a new entry if none was found.
  */
 void
-tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
+tcp_hc_update(const struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 {
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry, *hc_prev;
@@ -460,20 +461,20 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 	hc_prev = NULL;
 
 	THC_LOCK(hc_head);
-	CK_SLIST_FOREACH(hc_entry, &hc_head->hch_bucket, rmx_q) {
+	CK_SLIST_FOREACH(hc_entry, &hc_head->hch_bucket, hc_q) {
 		if (tcp_hc_cmp(hc_entry, inc))
 			break;
-		if (CK_SLIST_NEXT(hc_entry, rmx_q) != NULL)
+		if (CK_SLIST_NEXT(hc_entry, hc_q) != NULL)
 			hc_prev = hc_entry;
 	}
 
 	if (hc_entry != NULL) {
-		if (atomic_load_int(&hc_entry->rmx_expire) !=
+		if (atomic_load_int(&hc_entry->hc_expire) !=
 		    V_tcp_hostcache.expire)
-			atomic_store_int(&hc_entry->rmx_expire,
+			atomic_store_int(&hc_entry->hc_expire,
 			    V_tcp_hostcache.expire);
 #ifdef	TCP_HC_COUNTERS
-		hc_entry->rmx_updates++;
+		hc_entry->hc_updates++;
 #endif
 		new = false;
 	} else {
@@ -491,18 +492,18 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 		    atomic_load_int(&V_tcp_hostcache.cache_count) >=
 		    V_tcp_hostcache.cache_limit) {
 			if (hc_prev != NULL) {
-				hc_entry = CK_SLIST_NEXT(hc_prev, rmx_q);
-				KASSERT(CK_SLIST_NEXT(hc_entry, rmx_q) == NULL,
+				hc_entry = CK_SLIST_NEXT(hc_prev, hc_q);
+				KASSERT(CK_SLIST_NEXT(hc_entry, hc_q) == NULL,
 				    ("%s: %p is not one to last",
 				    __func__, hc_prev));
-				CK_SLIST_REMOVE_AFTER(hc_prev, rmx_q);
+				CK_SLIST_REMOVE_AFTER(hc_prev, hc_q);
 			} else if ((hc_entry =
 			    CK_SLIST_FIRST(&hc_head->hch_bucket)) != NULL) {
-				KASSERT(CK_SLIST_NEXT(hc_entry, rmx_q) == NULL,
+				KASSERT(CK_SLIST_NEXT(hc_entry, hc_q) == NULL,
 				    ("%s: %p is not the only element",
 				    __func__, hc_entry));
 				CK_SLIST_REMOVE_HEAD(&hc_head->hch_bucket,
-				    rmx_q);
+				    hc_q);
 			} else {
 				THC_UNLOCK(hc_head);
 				return;
@@ -535,7 +536,7 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 			hc_entry->ip6_zoneid = inc->inc6_zoneid;
 		} else
 			hc_entry->ip4 = inc->inc_faddr;
-		hc_entry->rmx_expire = V_tcp_hostcache.expire;
+		hc_entry->hc_expire = V_tcp_hostcache.expire;
 		new = true;
 	}
 
@@ -543,60 +544,60 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 	 * Fill in data.  Use atomics, since an existing entry is
 	 * accessible by readers in SMR section.
 	 */
-	if (hcml->rmx_mtu != 0) {
-		atomic_store_32(&hc_entry->rmx_mtu, hcml->rmx_mtu);
+	if (hcml->hc_mtu != 0) {
+		atomic_store_32(&hc_entry->hc_mtu, hcml->hc_mtu);
 	}
-	if (hcml->rmx_rtt != 0) {
-		if (hc_entry->rmx_rtt == 0)
-			v = hcml->rmx_rtt;
+	if (hcml->hc_rtt != 0) {
+		if (hc_entry->hc_rtt == 0)
+			v = hcml->hc_rtt;
 		else
-			v = ((uint64_t)hc_entry->rmx_rtt +
-			    (uint64_t)hcml->rmx_rtt) / 2;
-		atomic_store_32(&hc_entry->rmx_rtt, v);
+			v = ((uint64_t)hc_entry->hc_rtt +
+			    (uint64_t)hcml->hc_rtt) / 2;
+		atomic_store_32(&hc_entry->hc_rtt, v);
 		TCPSTAT_INC(tcps_cachedrtt);
 	}
-	if (hcml->rmx_rttvar != 0) {
-	        if (hc_entry->rmx_rttvar == 0)
-			v = hcml->rmx_rttvar;
+	if (hcml->hc_rttvar != 0) {
+	        if (hc_entry->hc_rttvar == 0)
+			v = hcml->hc_rttvar;
 		else
-			v = ((uint64_t)hc_entry->rmx_rttvar +
-			    (uint64_t)hcml->rmx_rttvar) / 2;
-		atomic_store_32(&hc_entry->rmx_rttvar, v);
+			v = ((uint64_t)hc_entry->hc_rttvar +
+			    (uint64_t)hcml->hc_rttvar) / 2;
+		atomic_store_32(&hc_entry->hc_rttvar, v);
 		TCPSTAT_INC(tcps_cachedrttvar);
 	}
-	if (hcml->rmx_ssthresh != 0) {
-		if (hc_entry->rmx_ssthresh == 0)
-			v = hcml->rmx_ssthresh;
+	if (hcml->hc_ssthresh != 0) {
+		if (hc_entry->hc_ssthresh == 0)
+			v = hcml->hc_ssthresh;
 		else
-			v = (hc_entry->rmx_ssthresh + hcml->rmx_ssthresh) / 2;
-		atomic_store_32(&hc_entry->rmx_ssthresh, v);
+			v = (hc_entry->hc_ssthresh + hcml->hc_ssthresh) / 2;
+		atomic_store_32(&hc_entry->hc_ssthresh, v);
 		TCPSTAT_INC(tcps_cachedssthresh);
 	}
-	if (hcml->rmx_cwnd != 0) {
-		if (hc_entry->rmx_cwnd == 0)
-			v = hcml->rmx_cwnd;
+	if (hcml->hc_cwnd != 0) {
+		if (hc_entry->hc_cwnd == 0)
+			v = hcml->hc_cwnd;
 		else
-			v = ((uint64_t)hc_entry->rmx_cwnd +
-			    (uint64_t)hcml->rmx_cwnd) / 2;
-		atomic_store_32(&hc_entry->rmx_cwnd, v);
+			v = ((uint64_t)hc_entry->hc_cwnd +
+			    (uint64_t)hcml->hc_cwnd) / 2;
+		atomic_store_32(&hc_entry->hc_cwnd, v);
 		/* TCPSTAT_INC(tcps_cachedcwnd); */
 	}
-	if (hcml->rmx_sendpipe != 0) {
-		if (hc_entry->rmx_sendpipe == 0)
-			v = hcml->rmx_sendpipe;
+	if (hcml->hc_sendpipe != 0) {
+		if (hc_entry->hc_sendpipe == 0)
+			v = hcml->hc_sendpipe;
 		else
-			v = ((uint64_t)hc_entry->rmx_sendpipe +
-			    (uint64_t)hcml->rmx_sendpipe) /2;
-		atomic_store_32(&hc_entry->rmx_sendpipe, v);
+			v = ((uint64_t)hc_entry->hc_sendpipe +
+			    (uint64_t)hcml->hc_sendpipe) /2;
+		atomic_store_32(&hc_entry->hc_sendpipe, v);
 		/* TCPSTAT_INC(tcps_cachedsendpipe); */
 	}
-	if (hcml->rmx_recvpipe != 0) {
-		if (hc_entry->rmx_recvpipe == 0)
-			v = hcml->rmx_recvpipe;
+	if (hcml->hc_recvpipe != 0) {
+		if (hc_entry->hc_recvpipe == 0)
+			v = hcml->hc_recvpipe;
 		else
-			v = ((uint64_t)hc_entry->rmx_recvpipe +
-			    (uint64_t)hcml->rmx_recvpipe) /2;
-		atomic_store_32(&hc_entry->rmx_recvpipe, v);
+			v = ((uint64_t)hc_entry->hc_recvpipe +
+			    (uint64_t)hcml->hc_recvpipe) /2;
+		atomic_store_32(&hc_entry->hc_recvpipe, v);
 		/* TCPSTAT_INC(tcps_cachedrecvpipe); */
 	}
 
@@ -604,17 +605,17 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 	 * Put it upfront.
 	 */
 	if (new) {
-		CK_SLIST_INSERT_HEAD(&hc_head->hch_bucket, hc_entry, rmx_q);
+		CK_SLIST_INSERT_HEAD(&hc_head->hch_bucket, hc_entry, hc_q);
 		hc_head->hch_length++;
 		KASSERT(hc_head->hch_length <= V_tcp_hostcache.bucket_limit,
 		    ("tcp_hostcache: bucket length too high at %p", hc_head));
 		atomic_add_int(&V_tcp_hostcache.cache_count, 1);
 		TCPSTAT_INC(tcps_hc_added);
 	} else if (hc_entry != CK_SLIST_FIRST(&hc_head->hch_bucket)) {
-		KASSERT(CK_SLIST_NEXT(hc_prev, rmx_q) == hc_entry,
+		KASSERT(CK_SLIST_NEXT(hc_prev, hc_q) == hc_entry,
 		    ("%s: %p next is not %p", __func__, hc_prev, hc_entry));
-		CK_SLIST_REMOVE_AFTER(hc_prev, rmx_q);
-		CK_SLIST_INSERT_HEAD(&hc_head->hch_bucket, hc_entry, rmx_q);
+		CK_SLIST_REMOVE_AFTER(hc_prev, hc_q);
+		CK_SLIST_INSERT_HEAD(&hc_head->hch_bucket, hc_entry, hc_q);
 	}
 	THC_UNLOCK(hc_head);
 }
@@ -667,7 +668,7 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 	for (i = 0; i < V_tcp_hostcache.hashsize; i++) {
 		THC_LOCK(&V_tcp_hostcache.hashbase[i]);
 		CK_SLIST_FOREACH(hc_entry,
-		    &V_tcp_hostcache.hashbase[i].hch_bucket, rmx_q) {
+		    &V_tcp_hostcache.hashbase[i].hch_bucket, hc_q) {
 			sbuf_printf(&sb,
 			    "%-15s %5u %8u %6lums %6lums %8u %8u %8u "
 #ifdef	TCP_HC_COUNTERS
@@ -681,20 +682,20 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 #else
 				"IPv6?",
 #endif
-			    hc_entry->rmx_mtu,
-			    hc_entry->rmx_ssthresh,
-			    msec((u_long)hc_entry->rmx_rtt *
+			    hc_entry->hc_mtu,
+			    hc_entry->hc_ssthresh,
+			    msec((u_long)hc_entry->hc_rtt *
 				(RTM_RTTUNIT / (hz * TCP_RTT_SCALE))),
-			    msec((u_long)hc_entry->rmx_rttvar *
+			    msec((u_long)hc_entry->hc_rttvar *
 				(RTM_RTTUNIT / (hz * TCP_RTTVAR_SCALE))),
-			    hc_entry->rmx_cwnd,
-			    hc_entry->rmx_sendpipe,
-			    hc_entry->rmx_recvpipe,
+			    hc_entry->hc_cwnd,
+			    hc_entry->hc_sendpipe,
+			    hc_entry->hc_recvpipe,
 #ifdef	TCP_HC_COUNTERS
-			    hc_entry->rmx_hits,
-			    hc_entry->rmx_updates,
+			    hc_entry->hc_hits,
+			    hc_entry->hc_updates,
 #endif
-			    hc_entry->rmx_expire);
+			    hc_entry->hc_expire);
 		}
 		THC_UNLOCK(&V_tcp_hostcache.hashbase[i]);
 		sbuf_drain(&sb);
@@ -761,33 +762,33 @@ tcp_hc_purge_internal(int all)
 		head = &V_tcp_hostcache.hashbase[i];
 		hc_prev = NULL;
 		THC_LOCK(head);
-		CK_SLIST_FOREACH_SAFE(hc_entry, &head->hch_bucket, rmx_q,
+		CK_SLIST_FOREACH_SAFE(hc_entry, &head->hch_bucket, hc_q,
 		    hc_next) {
 			KASSERT(head->hch_length > 0 && head->hch_length <=
 			    V_tcp_hostcache.bucket_limit, ("tcp_hostcache: "
 			    "bucket length out of range at %u: %u", i,
 			    head->hch_length));
 			if (all ||
-			    atomic_load_int(&hc_entry->rmx_expire) <= 0) {
+			    atomic_load_int(&hc_entry->hc_expire) <= 0) {
 				if (hc_prev != NULL) {
 					KASSERT(hc_entry ==
-					    CK_SLIST_NEXT(hc_prev, rmx_q),
+					    CK_SLIST_NEXT(hc_prev, hc_q),
 					    ("%s: %p is not next to %p",
 					    __func__, hc_entry, hc_prev));
-					CK_SLIST_REMOVE_AFTER(hc_prev, rmx_q);
+					CK_SLIST_REMOVE_AFTER(hc_prev, hc_q);
 				} else {
 					KASSERT(hc_entry ==
 					    CK_SLIST_FIRST(&head->hch_bucket),
 					    ("%s: %p is not first",
 					    __func__, hc_entry));
 					CK_SLIST_REMOVE_HEAD(&head->hch_bucket,
-					    rmx_q);
+					    hc_q);
 				}
 				uma_zfree_smr(V_tcp_hostcache.zone, hc_entry);
 				head->hch_length--;
 				atomic_subtract_int(&V_tcp_hostcache.cache_count, 1);
 			} else {
-				atomic_subtract_int(&hc_entry->rmx_expire,
+				atomic_subtract_int(&hc_entry->hc_expire,
 				    V_tcp_hostcache.prune);
 				hc_prev = hc_entry;
 			}

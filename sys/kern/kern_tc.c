@@ -1916,9 +1916,9 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, tick, CTLFLAG_RD, &tc_tick, 0,
     "Approximate number of hardclock ticks in a millisecond");
 
 void
-tc_ticktock(int cnt)
+tc_ticktock(long cnt)
 {
-	static int count;
+	static long count;
 
 	if (mtx_trylock_spin(&tc_setclock_mtx)) {
 		count += cnt;

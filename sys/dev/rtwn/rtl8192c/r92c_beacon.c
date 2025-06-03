@@ -64,15 +64,34 @@ r92c_beacon_init(struct rtwn_softc *sc, void *buf, int id)
 
 	rtwn_r92c_tx_setup_macid(sc, buf, id);
 	txd->txdw4 |= htole32(R92C_TXDW4_DRVRATE);
-	txd->txdw4 |= htole32(SM(R92C_TXDW4_SEQ_SEL, id));
 	txd->txdw4 |= htole32(SM(R92C_TXDW4_PORT_ID, id));
 	txd->txdw5 |= htole32(SM(R92C_TXDW5_DATARATE, RTWN_RIDX_CCK1));
 }
 
+/*
+ * Enable/disable beacon generation in AP/IBSS/mesh modes.
+ */
 void
 r92c_beacon_enable(struct rtwn_softc *sc, int id, int enable)
 {
 
+	if (enable) {
+		rtwn_setbits_1(sc, R92C_BCN_CTRL(id),
+		    0, R92C_BCN_CTRL_EN_BCN);
+	} else {
+		rtwn_setbits_1(sc, R92C_BCN_CTRL(id),
+		    R92C_BCN_CTRL_EN_BCN, 0);
+	}
+}
+
+/*
+ * Enable/disable beacon processing in STA mode.
+ *
+ * This is required for firmware rate control.
+ */
+void
+r92c_sta_beacon_enable(struct rtwn_softc *sc, int id, bool enable)
+{
 	if (enable) {
 		rtwn_setbits_1(sc, R92C_BCN_CTRL(id),
 		    0, R92C_BCN_CTRL_EN_BCN);

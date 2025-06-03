@@ -21,14 +21,8 @@ SYSENT_CONF?=	syscalls.conf
 SRCS+=	${SYSENT_FILE}
 SRCS+=	${SYSENT_CONF}
 
-# Ensure that the target gets updated if the capabilities file is modified,
-# even though it is not an explicit input to makesyscalls.lua.  For some
-# targets, like Linux system calls, this is unnecessary, but a spurious rebuild
-# is both rare and harmless.
-SRCS+=	${CAPABILITIES_CONF}
-
 MAKESYSCALLS_INTERP?=	${LUA}
-MAKESYSCALLS_SCRIPT?=	${SYSDIR}/tools/makesyscalls.lua
+MAKESYSCALLS_SCRIPT?=	${SYSDIR}/tools/syscalls/main.lua
 MAKESYSCALLS=	${MAKESYSCALLS_INTERP} ${MAKESYSCALLS_SCRIPT}
 
 all:
@@ -39,9 +33,8 @@ all:
 .ORDER: ${GENERATED}
 sysent: ${GENERATED}
 
-# We slap a .PHONY on makesyscalls.lua so that we regenerate every single time,
-# for now, which can be less painful across rebases or other things that may
-# have odd effects on mtimes.
+# We slap a .PHONY on MAKESYSCALLS_SCRIPT so that we regenerate every
+# single time rather than tracking all internal dependencies for now.
 ${MAKESYSCALLS_SCRIPT}: .PHONY
 
 ${GENERATED}: ${MAKESYSCALLS_SCRIPT} ${SRCS}

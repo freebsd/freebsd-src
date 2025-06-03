@@ -15,6 +15,7 @@ doc.mk
 dpadd.mk
 files.mk
 final.mk
+genfiles.mk
 host-target.mk
 host.libnames.mk
 inc.mk
@@ -42,7 +43,9 @@ prlist.mk
 prog.mk
 progs.mk
 rst2htm.mk
+rust.mk
 scripts.mk
+setopts.sh
 srctop.mk
 stage-install.sh
 subdir.mk

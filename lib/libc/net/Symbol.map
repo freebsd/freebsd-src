@@ -138,6 +138,10 @@ FBSD_1.3 {
 	sctp_sendv;
 };
 
+FBSD_1.8 {
+	link_ntoa_r;
+};
+
 FBSDprivate_1.0 {
 	_nsdispatch;
 	_nsyyerror;	/* generated from nslexer.l */

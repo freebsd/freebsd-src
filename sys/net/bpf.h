@@ -37,6 +37,7 @@
 #ifndef _NET_BPF_H_
 #define _NET_BPF_H_
 
+#include <sys/types.h>
 #include <sys/_eventhandler.h>
 #include <sys/ck.h>
 #include <net/dlt.h>
@@ -428,6 +429,7 @@ void	bpfdetach(struct ifnet *);
 bool	bpf_peers_present_if(struct ifnet *);
 #ifdef VIMAGE
 int	bpf_get_bp_params(struct bpf_if *, u_int *, u_int *);
+void	bpf_ifdetach(struct ifnet *);
 #endif
 
 void	bpfilterattach(int);

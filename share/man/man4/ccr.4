@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 3, 2019
+.Dd November 25, 2024
 .Dt CCR 4
 .Os
 .Sh NAME
@@ -52,7 +52,10 @@ The driver accelerates AES-CBC, AES-CCM, AES-CTR, AES-GCM, AES-XTS,
 SHA1, SHA2-224, SHA2-256, SHA2-384, SHA2-512,
 SHA1-HMAC, SHA2-224-HMAC, SHA2-256-HMAC, SHA2-384-HMAC, and SHA2-512-HMAC
 operations for
-.Xr crypto 4
+.Xr crypto 9
+consumers such as
+.Xr ktls 4 ,
+.Xr geli 4 ,
 and
 .Xr ipsec 4 .
 The driver also supports chaining one of AES-CBC, AES-CTR, or AES-XTS with
@@ -97,7 +100,11 @@ email all the specific information related to the issue to
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr cxgbe 4 ,
-.Xr ipsec 4
+.Xr geli 4 ,
+.Xr ipsec 4 ,
+.Xr ktls 4 ,
+.Xr crypto 7 ,
+.Xr crypto 9
 .Sh HISTORY
 The
 .Nm

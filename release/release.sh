@@ -62,7 +62,7 @@ env_setup() {
 	# The default version control system command to obtain the sources.
 	for _dir in /usr/bin /usr/local/bin; do
 		[ -x "${_dir}/git" ] && VCSCMD="/${_dir}/git"
-		[ ! -z "${VCSCMD}" ] && break 2
+		[ -n "${VCSCMD}" ] && break 2
 	done
 
 	if [ -z "${VCSCMD}" -a -z "${NOGIT}" ]; then
@@ -119,6 +119,9 @@ env_setup() {
 	# Set to non-empty value to build virtual machine images for various
 	# cloud providers as part of the release.
 	WITH_CLOUDWARE=
+
+	# Set to non-empty to build OCI images as part of the release
+	WITH_OCIIMAGES=
 
 	return 0
 } # env_setup()
@@ -179,7 +182,7 @@ env_check() {
 	fi
 
 	# Unset CHROOTBUILD_SKIP if the chroot(8) does not appear to exist.
-	if [ ! -z "${CHROOTBUILD_SKIP}" -a ! -e ${CHROOTDIR}/bin/sh ]; then
+	if [ -n "${CHROOTBUILD_SKIP}" -a ! -e ${CHROOTDIR}/bin/sh ]; then
 		CHROOTBUILD_SKIP=
 	fi
 
@@ -195,7 +198,8 @@ env_check() {
 	RELEASE_RMAKEFLAGS="${ARCH_FLAGS} ${RELEASE_FLAGS} \
 		KERNCONF=\"${KERNEL}\" ${CONF_FILES} ${SRCPORTS} \
 		WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES} \
-		WITH_CLOUDWARE=${WITH_CLOUDWARE} XZ_THREADS=${XZ_THREADS}"
+		WITH_CLOUDWARE=${WITH_CLOUDWARE} WITH_OCIIMAGES=${WITH_OCIIMAGES} \
+		XZ_THREADS=${XZ_THREADS}"
 
 	return 0
 } # env_check()
@@ -288,7 +292,7 @@ extra_chroot_setup() {
 		fi
 	fi
 
-	if [ ! -z "${EMBEDDEDPORTS}" ]; then
+	if [ -n "${EMBEDDEDPORTS}" ]; then
 		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
 		REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
 		BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
@@ -313,7 +317,7 @@ extra_chroot_setup() {
 # chroot_build_target(): Build the userland and kernel for the build target.
 chroot_build_target() {
 	load_target_env
-	if [ ! -z "${EMBEDDEDBUILD}" ]; then
+	if [ -n "${EMBEDDEDBUILD}" ]; then
 		RELEASE_WMAKEFLAGS="${RELEASE_WMAKEFLAGS} \
 			TARGET=${EMBEDDED_TARGET} \
 			TARGET_ARCH=${EMBEDDED_TARGET_ARCH}"
@@ -323,6 +327,9 @@ chroot_build_target() {
 	fi
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
 	eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
+	if [ -n "${WITH_OCIIMAGES}" ]; then
+		eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} packages
+	fi
 
 	return 0
 } # chroot_build_target
@@ -330,7 +337,7 @@ chroot_build_target() {
 # chroot_build_release(): Invoke the 'make release' target.
 chroot_build_release() {
 	load_target_env
-	if [ ! -z "${WITH_VMIMAGES}" ]; then
+	if [ -n "${WITH_VMIMAGES}" ]; then
 		if [ -z "${VMFORMATS}" ]; then
 			VMFORMATS="$(eval chroot ${CHROOTDIR} \
 				make -C /usr/src/release -V VMFORMATS)"
@@ -382,7 +389,7 @@ chroot_arm_build_release() {
 		*)
 			;;
 	esac
-	[ ! -z "${RELEASECONF}" ] && . "${RELEASECONF}"
+	[ -n "${RELEASECONF}" ] && . "${RELEASECONF}"
 	export MAKE_FLAGS="${MAKE_FLAGS} TARGET=${EMBEDDED_TARGET}"
 	export MAKE_FLAGS="${MAKE_FLAGS} TARGET_ARCH=${EMBEDDED_TARGET_ARCH}"
 	export MAKE_FLAGS="${MAKE_FLAGS} ${CONF_FILES}"
@@ -432,7 +439,7 @@ main() {
 		esac
 	done
 	shift $(($OPTIND - 1))
-	if [ ! -z "${RELEASECONF}" ]; then
+	if [ -n "${RELEASECONF}" ]; then
 		if [ -e "${RELEASECONF}" ]; then
 			. ${RELEASECONF}
 		else

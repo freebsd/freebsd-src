@@ -60,6 +60,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
+#include <vm/vm_radix.h>
 
 MALLOC_DEFINE(M_KCOV_INFO, "kcovinfo", "KCOV info type");
 
@@ -396,20 +397,19 @@ kcov_alloc(struct kcov_info *info, size_t entries)
 static void
 kcov_free(struct kcov_info *info)
 {
+	struct pctrie_iter pages;
 	vm_page_t m;
-	size_t i;
 
 	if (info->kvaddr != 0) {
 		pmap_qremove(info->kvaddr, info->bufsize / PAGE_SIZE);
 		kva_free(info->kvaddr, info->bufsize);
 	}
 	if (info->bufobj != NULL) {
+		vm_page_iter_limit_init(&pages, info->bufobj,
+		    info->bufsize / PAGE_SIZE);
 		VM_OBJECT_WLOCK(info->bufobj);
-		m = vm_page_lookup(info->bufobj, 0);
-		for (i = 0; i < info->bufsize / PAGE_SIZE; i++) {
+		VM_RADIX_FORALL(m, &pages)
 			vm_page_unwire_noq(m);
-			m = vm_page_next(m);
-		}
 		VM_OBJECT_WUNLOCK(info->bufobj);
 		vm_object_deallocate(info->bufobj);
 	}

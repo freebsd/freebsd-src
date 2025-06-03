@@ -259,6 +259,14 @@ vmm_hyp_reg_store(struct hypctx *hypctx, struct hyp *hyp, bool guest)
 	hypctx->hcr_el2 = READ_SPECIALREG(hcr_el2);
 	hypctx->vpidr_el2 = READ_SPECIALREG(vpidr_el2);
 	hypctx->vmpidr_el2 = READ_SPECIALREG(vmpidr_el2);
+
+#ifndef VMM_VHE
+	/* hcrx_el2 depends on feat_hcx */
+	uint64_t mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
+	if (ID_AA64MMFR1_HCX_VAL(mmfr1) >> ID_AA64MMFR1_HCX_SHIFT) {
+		hypctx->hcrx_el2 = READ_SPECIALREG(MRS_REG_ALT_NAME(HCRX_EL2));
+	}
+#endif
 }
 
 static void
@@ -268,6 +276,13 @@ vmm_hyp_reg_restore(struct hypctx *hypctx, struct hyp *hyp, bool guest)
 
 	/* Restore the special registers */
 	WRITE_SPECIALREG(hcr_el2, hypctx->hcr_el2);
+
+	if (guest_or_nonvhe(guest)) {
+		uint64_t mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
+		if (ID_AA64MMFR1_HCX_VAL(mmfr1) >> ID_AA64MMFR1_HCX_SHIFT) {
+			WRITE_SPECIALREG(MRS_REG_ALT_NAME(HCRX_EL2), hypctx->hcrx_el2);
+		}
+	}
 	isb();
 
 	WRITE_SPECIALREG(sp_el0, hypctx->sp_el0);

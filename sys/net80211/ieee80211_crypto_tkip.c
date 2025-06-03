@@ -361,16 +361,17 @@ finish:
 	 * are required to.
 	 */
 	if (! ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_IV_STRIP))) {
+		/* XXX this assumes the header + IV are contiguous in an mbuf. */
 		memmove(mtod(m, uint8_t *) + tkip.ic_header, mtod(m, void *),
 		    hdrlen);
 		m_adj(m, tkip.ic_header);
 	}
 
 	/*
-	 * XXX TODO: do we need an option to potentially not strip the
-	 * WEP trailer?  Does "MMIC_STRIP" also mean this? Or?
+	 * Strip the ICV if hardware has not done so already.
 	 */
-	m_adj(m, -tkip.ic_trailer);
+	if ((rxs == NULL) || (rxs->c_pktflags & IEEE80211_RX_F_ICV_STRIP) == 0)
+		m_adj(m, -tkip.ic_trailer);
 
 	return 1;
 }
@@ -394,7 +395,7 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 	 * directly notify as a michael failure to the upper
 	 * layers.
 	 */
-	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MIC)) {
+	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_FAIL_MMIC)) {
 		struct ieee80211vap *vap = ctx->tc_vap;
 		ieee80211_notify_michael_failure(vap, wh,
 		    k->wk_rxkeyix != IEEE80211_KEYIX_NONE ?
@@ -403,7 +404,7 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 	}
 
 	/*
-	 * If IV has been stripped, we skip most of the below.
+	 * If MMIC has been stripped, we skip most of the below.
 	 */
 	if ((rxs != NULL) && (rxs->c_pktflags & IEEE80211_RX_F_MMIC_STRIP))
 		goto finish;
@@ -860,7 +861,8 @@ michael_mic_hdr(const struct ieee80211_frame *wh0, uint8_t hdr[16])
 		break;
 	}
 
-	if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS_DATA) {
+	/* Match on any QOS frame, not just data */
+	if (IEEE80211_IS_QOS_ANY(wh)) {
 		const struct ieee80211_qosframe *qwh =
 			(const struct ieee80211_qosframe *) wh;
 		hdr[12] = qwh->i_qos[0] & IEEE80211_QOS_TID;

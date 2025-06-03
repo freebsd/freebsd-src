@@ -25,6 +25,9 @@ static const struct fun
   F(memset, 0)
 #if __aarch64__
   F(__memset_aarch64, 1)
+# if __ARM_FEATURE_SVE
+  F(__memset_aarch64_sve, 1)
+# endif
 # if WANT_MOPS
   F(__memset_aarch64_mops, 1)
 # endif

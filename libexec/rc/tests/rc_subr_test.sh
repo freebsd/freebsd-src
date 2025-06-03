@@ -35,6 +35,10 @@ oomprotect_all_head()
 
 oomprotect_all_body()
 {
+	if [ "$(sysctl -n security.jail.jailed)" != 0 ]; then
+		atf_skip "protect(1) cannot be used in a jail"
+	fi
+
 	__name="$(atf_get ident)"
 	__pidfile="$(mktemp -t "${__name}.pid")"
 	__childpidfile="$(mktemp -t "${__name}.childpid")"
@@ -55,9 +59,9 @@ oomprotect_all_body()
 	atf_check -s exit:0 -o inline:"Starting ${__name}.\n" -e empty \
 		/bin/sh "$__script" "$__name" "$__pidfile" "$__childpidfile" onestart
 	atf_check -s exit:0 -o match:'^..1..... .......1$' -e empty \
-		ps -p "$(cat "$__pidfile")" -ax -o flags,flags2
+		ps -p "$(cat "$__pidfile")" -o flags,flags2
 	atf_check -s exit:0 -o match:'^..1..... .......1$' -e empty \
-		ps -p "$(cat "$__childpidfile")" -ax -o flags,flags2
+		ps -p "$(cat "$__childpidfile")" -o flags,flags2
 	atf_check -s exit:0 -o ignore -e empty \
 		/bin/sh "$__script" "$__name" "$__pidfile" "$__childpidfile" onestop
 }
@@ -72,6 +76,10 @@ oomprotect_yes_head()
 
 oomprotect_yes_body()
 {
+	if [ "$(sysctl -n security.jail.jailed)" != 0 ]; then
+		atf_skip "protect(1) cannot be used in a jail"
+	fi
+
 	__name="$(atf_get ident)"
 	__pidfile="$(mktemp -t "${__name}.pid")"
 	__script=$(mktemp -t "${__name}.script")

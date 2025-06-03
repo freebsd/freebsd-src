@@ -243,6 +243,9 @@ print_state(struct pfctl_state *s, int opts)
 	int min, sec;
 	sa_family_t af;
 	uint8_t proto;
+	int afto = (s->key[PF_SK_STACK].af != s->key[PF_SK_WIRE].af);
+	int idx;
+	const char *sn_type_names[] = PF_SN_TYPE_NAMES;
 #ifndef __NO_STRICT_ALIGNMENT
 	struct pfctl_state_key aligned_key[2];
 
@@ -276,22 +279,26 @@ print_state(struct pfctl_state *s, int opts)
 	else
 		printf("%u ", proto);
 
-	print_host(&nk->addr[1], nk->port[1], af, opts);
-	if (PF_ANEQ(&nk->addr[1], &sk->addr[1], af) ||
+	print_host(&nk->addr[1], nk->port[1], nk->af, opts);
+	if (nk->af != sk->af || PF_ANEQ(&nk->addr[1], &sk->addr[1], nk->af) ||
 	    nk->port[1] != sk->port[1]) {
+		idx = afto ? 0 : 1;
 		printf(" (");
-		print_host(&sk->addr[1], sk->port[1], af, opts);
+		print_host(&sk->addr[idx], sk->port[idx], sk->af,
+		    opts);
 		printf(")");
 	}
-	if (s->direction == PF_OUT)
+	if (s->direction == PF_OUT || (afto && s->direction == PF_IN))
 		printf(" -> ");
 	else
 		printf(" <- ");
-	print_host(&nk->addr[0], nk->port[0], af, opts);
-	if (PF_ANEQ(&nk->addr[0], &sk->addr[0], af) ||
+	print_host(&nk->addr[0], nk->port[0], nk->af, opts);
+	if (nk->af != sk->af || PF_ANEQ(&nk->addr[0], &sk->addr[0], nk->af) ||
 	    nk->port[0] != sk->port[0]) {
+		idx = afto ? 1 : 0;
 		printf(" (");
-		print_host(&sk->addr[0], sk->port[0], af, opts);
+		print_host(&sk->addr[idx], sk->port[idx], sk->af,
+		    opts);
 		printf(")");
 	}
 
@@ -399,10 +406,14 @@ print_state(struct pfctl_state *s, int opts)
 				printf(", dummynet queue (%d %d)",
 				s->dnpipe, s->dnrpipe);
 		}
-		if (s->sync_flags & PFSYNC_FLAG_SRCNODE)
-			printf(", source-track");
-		if (s->sync_flags & PFSYNC_FLAG_NATSRCNODE)
-			printf(", sticky-address");
+		if (s->src_node_flags & PFSTATE_SRC_NODE_LIMIT)
+			printf(", %s", sn_type_names[PF_SN_LIMIT]);
+		if (s->src_node_flags & PFSTATE_SRC_NODE_LIMIT_GLOBAL)
+			printf(" global");
+		if (s->src_node_flags & PFSTATE_SRC_NODE_NAT)
+			printf(", %s", sn_type_names[PF_SN_NAT]);
+		if (s->src_node_flags & PFSTATE_SRC_NODE_ROUTE)
+			printf(", %s", sn_type_names[PF_SN_ROUTE]);
 		if (s->log)
 			printf(", log");
 		if (s->log & PF_LOG_ALL)

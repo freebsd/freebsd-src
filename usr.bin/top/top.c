@@ -266,8 +266,8 @@ main(int argc, const char *argv[])
 #endif
 
     if (setlocale(LC_ALL, "") == NULL) {
-        fprintf(stderr, "invalid locale.\n");
-	exit(1);
+	warnx("invalid locale, check your environment");
+	sleep(2);
     }
 
     mypid = getpid();
@@ -463,7 +463,7 @@ main(int argc, const char *argv[])
 
 	      default:
 		errx(1, 
-"[-abCHIijnPqStuvwz] [-d count] [-J jail] [-m cpu | io] [-o field]\n"
+"[-abCHIijnPqSTtuvwz] [-d count] [-J jail] [-m cpu | io] [-o field]\n"
 "     [-p pid] [-s time] [-U username] [number]");
 	    }
 	}

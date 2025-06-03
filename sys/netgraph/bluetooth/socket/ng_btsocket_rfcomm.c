@@ -384,7 +384,7 @@ ng_btsocket_rfcomm_attach(struct socket *so, int proto, struct thread *td)
 	if (so->so_type != SOCK_STREAM)
 		return (ESOCKTNOSUPPORT);
 
-#if 0 /* XXX sonewconn() calls "pru_attach" with proto == 0 */
+#if 0 /* XXX sonewconn() calls pr_attach() with proto == 0 */
 	if (proto != 0) 
 		if (proto != BLUETOOTH_PROTO_RFCOMM)
 			return (EPROTONOSUPPORT);

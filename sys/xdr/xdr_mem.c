@@ -44,6 +44,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 
 #include <rpc/types.h>
 #include <rpc/xdr.h>
@@ -55,6 +56,7 @@ static bool_t xdrmem_getlong_unaligned(XDR *, long *);
 static bool_t xdrmem_putlong_unaligned(XDR *, const long *);
 static bool_t xdrmem_getbytes(XDR *, char *, u_int);
 static bool_t xdrmem_putbytes(XDR *, const char *, u_int);
+static bool_t xdrmem_putmbuf(XDR *, struct mbuf *);
 /* XXX: w/64-bit pointers, u_int not enough! */
 static u_int xdrmem_getpos(XDR *);
 static bool_t xdrmem_setpos(XDR *, u_int);
@@ -63,27 +65,29 @@ static int32_t *xdrmem_inline_unaligned(XDR *, u_int);
 static bool_t xdrmem_control(XDR *xdrs, int request, void *info);
 
 static const struct	xdr_ops xdrmem_ops_aligned = {
-	xdrmem_getlong_aligned,
-	xdrmem_putlong_aligned,
-	xdrmem_getbytes,
-	xdrmem_putbytes,
-	xdrmem_getpos,
-	xdrmem_setpos,
-	xdrmem_inline_aligned,
-	xdrmem_destroy,
-	xdrmem_control
+	.x_getlong =	xdrmem_getlong_aligned,
+	.x_putlong =	xdrmem_putlong_aligned,
+	.x_getbytes =	xdrmem_getbytes,
+	.x_putbytes =	xdrmem_putbytes,
+	.x_putmbuf =	xdrmem_putmbuf,
+	.x_getpostn =	xdrmem_getpos,
+	.x_setpostn =	xdrmem_setpos,
+	.x_inline =	xdrmem_inline_aligned,
+	.x_destroy = 	xdrmem_destroy,
+	.x_control =	xdrmem_control,
 };
 
 static const struct	xdr_ops xdrmem_ops_unaligned = {
-	xdrmem_getlong_unaligned,
-	xdrmem_putlong_unaligned,
-	xdrmem_getbytes,
-	xdrmem_putbytes,
-	xdrmem_getpos,
-	xdrmem_setpos,
-	xdrmem_inline_unaligned,
-	xdrmem_destroy,
-	xdrmem_control
+	.x_getlong =	xdrmem_getlong_unaligned,
+	.x_putlong =	xdrmem_putlong_unaligned,
+	.x_getbytes =	xdrmem_getbytes,
+	.x_putbytes =	xdrmem_putbytes,
+	.x_putmbuf =	xdrmem_putmbuf,
+	.x_getpostn =	xdrmem_getpos,
+	.x_setpostn =	xdrmem_setpos,
+	.x_inline =	xdrmem_inline_unaligned,
+	.x_destroy =	xdrmem_destroy,
+	.x_control =	xdrmem_control
 };
 
 /*
@@ -180,6 +184,27 @@ xdrmem_putbytes(XDR *xdrs, const char *addr, u_int len)
 		return (FALSE);
 	xdrs->x_handy -= len;
 	memmove(xdrs->x_private, addr, len);
+	xdrs->x_private = (char *)xdrs->x_private + len;
+	return (TRUE);
+}
+
+/*
+ * Append mbuf.  May fail if not enough space.  Caller owns the mbuf.
+ */
+static bool_t
+xdrmem_putmbuf(XDR *xdrs, struct mbuf *m)
+{
+	u_int len;
+
+	if (__predict_false(m == NULL))
+		return (TRUE);
+
+	len = m_length(m, NULL);
+
+	if (__predict_false(xdrs->x_handy < len))
+		return (FALSE);
+	xdrs->x_handy -= len;
+	m_copydata(m, 0, len, xdrs->x_private);
 	xdrs->x_private = (char *)xdrs->x_private + len;
 	return (TRUE);
 }

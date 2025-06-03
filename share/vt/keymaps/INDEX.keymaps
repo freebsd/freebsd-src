@@ -83,6 +83,9 @@ br.noacc.kbd:fr:Brésilien (sans accents)
 br.noacc.kbd:pt:Brasileiro (without accent keys)
 br.noacc.kbd:es:Brasileño (without accent keys)
 
+br.lenovo.kbd:en:Brazilian Lenovo Laptop (accent keys, with slash in place of right Ctrl)
+br.lenovo.kbd:pt:Brasileiro Lenovo Laptop (com acentos, com barra no lugar do Ctrl da direita)
+
 by.kbd:en:Belarusian
 by.kbd:da:Hviderussisk
 by.kbd:de:Weißrussisch
@@ -207,6 +210,9 @@ ca-fr.kbd:de:Französisch Kanada (mit Akzenten)
 ca-fr.kbd:fr:Français Canadien (avec accents)
 ca-fr.kbd:es:Francocanadiense (con acentos)
 ca-fr.kbd:uk:Французько-канадська (accent keys)
+
+ca-multi.kbd:en:Canadian Mulitlingual Standard
+ca-multi.kbd:fr:Canadien multilingue standard
 
 de.kbd:en:German
 de.kbd:da:Tysk
@@ -540,6 +546,13 @@ us.acc.kbd:de:US-amerikanisch (mit Akzenten)
 us.acc.kbd:fr:États Unis d'Amérique (avec accents)
 us.acc.kbd:pt:Estados Unidos da América (com acentos)
 us.acc.kbd:es:Estadounidense (con acentos)
+
+us.intl.acc.kbd:en:United States of America International (accent keys)
+us.intl.acc.kbd:da:USA international (accenttaster)
+us.intl.acc.kbd:de:US-amerikanisch international (mit Akzenten)
+us.intl.acc.kbd:fr:États Unis d'Amérique International (avec accents)
+us.intl.acc.kbd:pt:Estados Unidos da América Internacional (com acentos)
+us.intl.acc.kbd:es:Estadounidense Internacional (con acentos)
 
 us.dvorak.kbd:en:United States of America dvorak
 us.dvorak.kbd:da:USA dvorak

@@ -105,7 +105,7 @@ struct global_state {
     std::vector< std::pair< logging::level, std::string > > backlog;
 
     /// Stream to the currently open log file.
-    std::auto_ptr< std::ostream > logfile;
+    std::unique_ptr< std::ostream > logfile;
 
     global_state() :
         log_level(logging::level_debug),
@@ -245,7 +245,7 @@ logging::set_inmemory(void)
     if (globals->logfile.get() != NULL) {
         INV(globals->backlog.empty());
         globals->logfile->flush();
-        globals->logfile.reset(NULL);
+        globals->logfile.reset();
     }
 }
 

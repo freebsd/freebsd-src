@@ -1,28 +1,32 @@
 #!/usr/bin/env bash
 
+LIBEXPAT_FNAME=expat-2.7.0
+LIBEXPAT_VERSION_DIR=R_2_7_0
+
 echo "Downloading Expat"
-if ! curl -L -k -s -o expat-2.2.9.tar.gz https://github.com/libexpat/libexpat/releases/download/R_2_2_9/expat-2.2.9.tar.gz;
+if ! curl -L -k -s -o $LIBEXPAT_FNAME.tar.gz https://github.com/libexpat/libexpat/releases/download/$LIBEXPAT_VERSION_DIR/$LIBEXPAT_FNAME.tar.gz;
 then
     echo "Failed to download Expat"
     exit 1
 fi
 
 echo "Unpacking Expat"
-rm -rf ./expat-2.2.9
-if ! tar -xf expat-2.2.9.tar.gz;
+rm -rf ./$LIBEXPAT_FNAME
+if ! tar -xf $LIBEXPAT_FNAME.tar.gz;
 then
     echo "Failed to unpack Expat"
     exit 1
 fi
 
-cd expat-2.2.9 || exit 1
+cd $LIBEXPAT_FNAME || exit 1
 
 export PKG_CONFIG_PATH="$IOS_PREFIX/lib/pkgconfig"
 
 echo "Configuring Expat"
-if ! ./configure \
-       --build="$AUTOTOOLS_BUILD" --host="$AUTOTOOLS_HOST" \
-       --prefix="$IOS_PREFIX" ; then
+if ! ./configure --without-tests				\
+       --build="$AUTOTOOLS_BUILD" --host="$AUTOTOOLS_HOST"	\
+       --prefix="$IOS_PREFIX" ;
+then
     echo "Error: Failed to configure Expat"
     cat config.log
     exit 1

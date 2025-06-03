@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
+#include <assert.h>
 #include <aio.h>
 #include <err.h>
 #include <errno.h>
@@ -192,6 +193,7 @@ main (int argc, char *argv[])
 
 			for (j = 0; j < max_queue_per_proc && iocb[j] != kq_iocb;
 			   j++) ;
+			assert(j < max_queue_per_proc);
 #ifdef DEBUG
 			printf("kq_iocb %p\n", kq_iocb);
 

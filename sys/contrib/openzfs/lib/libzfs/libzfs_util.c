@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -784,6 +785,12 @@ zpool_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 	return (-1);
 }
 
+int
+zfs_ioctl(libzfs_handle_t *hdl, int request, zfs_cmd_t *zc)
+{
+	return (lzc_ioctl_fd(hdl->libzfs_fd, request, zc));
+}
+
 /*
  * Display an out of memory error message and abort the current program.
  */
@@ -932,6 +939,7 @@ libzfs_run_process_impl(const char *path, char *argv[], char *env[], int flags,
 	pid = fork();
 	if (pid == 0) {
 		/* Child process */
+		setpgid(0, 0);
 		devnull_fd = open("/dev/null", O_WRONLY | O_CLOEXEC);
 
 		if (devnull_fd < 0)
@@ -1618,15 +1626,17 @@ static int
 str2shift(libzfs_handle_t *hdl, const char *buf)
 {
 	const char *ends = "BKMGTPEZ";
-	int i;
+	int i, len;
 
 	if (buf[0] == '\0')
 		return (0);
-	for (i = 0; i < strlen(ends); i++) {
+
+	len = strlen(ends);
+	for (i = 0; i < len; i++) {
 		if (toupper(buf[0]) == ends[i])
 			break;
 	}
-	if (i == strlen(ends)) {
+	if (i == len) {
 		if (hdl)
 			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 			    "invalid numeric suffix '%s'"), buf);

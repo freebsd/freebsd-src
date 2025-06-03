@@ -81,7 +81,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/* Allow overriding the FDT using the environment. */
 	class = &uart_ns8250_class;
 	err = uart_getenv(devtype, di, class);
-	if (!err)
+	if (err == 0)
 		return (0);
 
 	err = uart_cpu_fdt_probe(&class, &bst, &bsh, &br, &rclk,

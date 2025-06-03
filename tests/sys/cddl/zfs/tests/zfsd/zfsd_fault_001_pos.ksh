@@ -78,6 +78,10 @@ for type in "raidz" "mirror"; do
 		$DD if=/dev/zero bs=128k count=1 >> \
 			/$TESTPOOL/$TESTFS/$TESTFILE 2> /dev/null
 		$FSYNC /$TESTPOOL/$TESTFS/$TESTFILE
+		# Due to a bug outside of zfsd, it may be necessary to reopen
+		# the pool before it will become DEGRADED.
+		# https://github.com/openzfs/zfs/issues/16245
+		$ZPOOL reopen $TESTPOOL
 		# Check to see if the pool is faulted yet
 		$ZPOOL status $TESTPOOL | grep -q 'state: DEGRADED'
 		if [ $? == 0 ]

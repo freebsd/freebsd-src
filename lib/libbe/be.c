@@ -680,8 +680,20 @@ be_deep_clone_prop(int prop, void *cb)
 
 	dccb = cb;
 	/* Skip some properties we don't want to touch */
-	if (prop == ZFS_PROP_CANMOUNT)
+	switch (prop) {
+		/*
+		 * libzfs insists on these being naturally inherited in the
+		 * cloning process.
+		 */
+	case ZFS_PROP_KEYFORMAT:
+	case ZFS_PROP_KEYLOCATION:
+	case ZFS_PROP_ENCRYPTION:
+	case ZFS_PROP_PBKDF2_ITERS:
+
+		/* FALLTHROUGH */
+	case ZFS_PROP_CANMOUNT:		/* Forced by libbe */
 		return (ZPROP_CONT);
+	}
 
 	/* Don't copy readonly properties */
 	if (zfs_prop_readonly(prop))

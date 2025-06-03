@@ -1,0 +1,99 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd April 28, 2025
+.Dt FLUA 1
+.Os
+.Sh NAME
+.Nm flua
+.Nd Lua interpreter for the FreeBSD base system
+.Sh SYNOPSIS
+.Nm flua
+.Op Fl EWiv
+.Op Fl e Ar string
+.Op Fl l Ar module
+.Op Fl l Ar g=module
+.Op Ar script Op Ar args
+.Op Fl -
+.Op Fl
+.Sh DESCRIPTION
+.Nm
+is a minimal Lua interpreter integrated into the FreeBSD base system.
+It is derived from Lua 5.4 with modifications to suit the needs of
+.Fx
+build infrastructure and system tooling.
+.Nm
+is intended for internal use within the base system and is
+.Em not
+designed for general-purpose scripting or use by third-party applications.
+.Pp
+Unlike full Lua installations provided by the Ports Collection,
+.Nm
+has a reduced feature set and is limited to meeting the requirements of
+base system environments such as the bootloader.
+.Sh USAGE
+.Nm
+is typically invoked internally by FreeBSD base system tools and build scripts.
+While it accepts Lua source files and arguments in a standard fashion, its
+limited environment and module support make it unsuitable for general scripting
+use.
+.Sh INCLUDED MODULES
+.Nm
+includes a subset of functionality from a small number of standard Lua modules
+as well as bespoke modules necessary for the base system:
+.Bl -bullet
+.It
+lfs (LuaFileSystem) – file attribute and directory manipulation
+.It
+lposix - basic POSIX system calls
+.It
+.Xr freebsd.kenv 3lua
+.It
+.Xr freebsd.sys.linker 3lua
+.It
+.Xr hash 3lua
+.It
+.Xr jail 3lua
+.El
+.Sh NOTES
+.Nm
+should not be used as a replacement for
+.Xr lua 1
+from the Ports Collection (e.g.,
+.Pa lang/lua54 )
+as it may be modified or updated to a newer Lua version in the future without
+retaining backwards compatibility.
+.Sh SEE ALSO
+.Xr freebsd.kenv 3lua ,
+.Xr freebsd.sys.linker 3lua ,
+.Xr hash 3lua ,
+.Xr jail 3lua ,
+.Xr style.lua 9
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 14.0 .

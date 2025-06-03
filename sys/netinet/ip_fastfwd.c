@@ -278,14 +278,12 @@ ip_tryforward(struct mbuf *m)
 	 */
 	if ((m->m_flags & (M_BCAST|M_MCAST)) ||
 	    (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) ||
-	    ntohl(ip->ip_src.s_addr) == (u_long)INADDR_BROADCAST ||
-	    ntohl(ip->ip_dst.s_addr) == (u_long)INADDR_BROADCAST ||
+	    in_broadcast(ip->ip_src) ||
+	    in_broadcast(ip->ip_dst) ||
 	    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
 	    IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 	    IN_LINKLOCAL(ntohl(ip->ip_src.s_addr)) ||
-	    IN_LINKLOCAL(ntohl(ip->ip_dst.s_addr)) ||
-	    ip->ip_src.s_addr == INADDR_ANY ||
-	    ip->ip_dst.s_addr == INADDR_ANY )
+	    IN_LINKLOCAL(ntohl(ip->ip_dst.s_addr)) )
 		return m;
 
 	/*
@@ -401,7 +399,7 @@ passin:
 	if (!PFIL_HOOKED_OUT(V_inet_pfil_head))
 		goto passout;
 
-	if (pfil_mbuf_out(V_inet_pfil_head, &m, nh->nh_ifp,
+	if (pfil_mbuf_fwd(V_inet_pfil_head, &m, nh->nh_ifp,
 	    NULL) != PFIL_PASS)
 		goto drop;
 

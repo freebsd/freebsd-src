@@ -3,13 +3,10 @@
 
 .include <src.opts.mk>
 
-.PATH:	${.CURDIR:H}/mount
-
 PACKAGE=ufs
 PROG=   growfs
-SRCS=   growfs.c getmntopts.c
+SRCS=   growfs.c
 MAN=	growfs.8
-CFLAGS+=-I${.CURDIR:H}/mount
 
 .if defined(GFSDBG)
 SRCS+=	debug.c

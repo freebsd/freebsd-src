@@ -7461,16 +7461,20 @@ ctl_report_supported_opcodes(struct ctl_scsiio *ctsio)
 		total_len = sizeof(struct scsi_report_supported_opcodes_one) + 32;
 		break;
 	case RSO_OPTIONS_OC_SA:
-		if ((ctl_cmd_table[opcode].flags & CTL_CMD_FLAG_SA5) == 0 ||
-		    service_action >= 32) {
+		if ((ctl_cmd_table[opcode].flags & CTL_CMD_FLAG_SA5) == 0) {
 			goto invalid_options;
 		}
-		total_len = sizeof(struct scsi_report_supported_opcodes_one) + 32;
-		break;
+		/* FALLTHROUGH */
 	case RSO_OPTIONS_OC_ASA:
-		if ((ctl_cmd_table[opcode].flags & CTL_CMD_FLAG_SA5) != 0 &&
-		    service_action >= 32) {
-			goto invalid_options;
+		if (service_action >= 32) {
+			ctl_set_invalid_field(/*ctsio*/ ctsio,
+					      /*sks_valid*/ 1,
+					      /*command*/ 1,
+					      /*field*/ 4,
+					      /*bit_valid*/ 0,
+					      /*bit*/ 0);
+			ctl_done((union ctl_io *)ctsio);
+			return (CTL_RETVAL_COMPLETE);
 		}
 		total_len = sizeof(struct scsi_report_supported_opcodes_one) + 32;
 		break;
@@ -8268,6 +8272,18 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 	}
 
 	param_len = scsi_4btoul(cdb->length);
+
+	/* validate the parameter length */
+	if (param_len != 24) {
+		ctl_set_invalid_field(ctsio,
+				/*sks_valid*/ 1,
+				/*command*/ 1,
+				/*field*/ 5,
+				/*bit_valid*/ 1,
+				/*bit*/ 0);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
 
 	if ((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
 		ctsio->kern_data_ptr = malloc(param_len, M_CTL, M_WAITOK);

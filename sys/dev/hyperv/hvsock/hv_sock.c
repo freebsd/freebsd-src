@@ -1461,7 +1461,7 @@ hvsock_open_conn_passive(struct vmbus_channel *chan, struct socket *so,
 	}
 
 	/*
-	 * Create a new socket. This will call pru_attach to complete
+	 * Create a new socket. This will call pr_attach() to complete
 	 * the socket initialization and put the new socket onto
 	 * listening socket's sol_incomp list, waiting to be promoted
 	 * to sol_comp list.

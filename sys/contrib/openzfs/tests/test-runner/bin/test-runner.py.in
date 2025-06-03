@@ -1,4 +1,5 @@
 #!/usr/bin/env @PYTHON_SHEBANG@
+# SPDX-License-Identifier: CDDL-1.0
 
 #
 # This file and its contents are supplied under the terms of the
@@ -238,7 +239,15 @@ User: %s
             if os.path.isfile(cmd+'.sh') and os.access(cmd+'.sh', os.X_OK):
                 cmd += '.sh'
 
-        ret = '%s -E -u %s %s' % (SUDO, user, cmd)
+        # glibc (at least) will not pass TMPDIR through to setuid programs.
+        # if set, arrange for it to be reset before running the target cmd
+        tmpdir = os.getenv('TMPDIR')
+        if tmpdir:
+            tmpdirarg = 'env TMPDIR=%s' % tmpdir
+        else:
+            tmpdirarg = ''
+
+        ret = '%s -E -u %s %s %s' % (SUDO, user, tmpdirarg, cmd)
         return ret.split(' ')
 
     def collect_output(self, proc, debug=False):
@@ -291,6 +300,18 @@ User: %s
             try:
                 kp = Popen([SUDO, "sh", "-c",
                             f"echo ZTS run {self.pathname} > /dev/kmsg"])
+                kp.wait()
+            except Exception:
+                pass
+
+        """
+        Log each test we run to /dev/ttyu0 (on FreeBSD), so if there's a kernel
+        warning we'll be able to match it up to a particular test.
+        """
+        if options.kmsg is True and exists("/dev/ttyu0"):
+            try:
+                kp = Popen([SUDO, "sh", "-c",
+                            f"echo ZTS run {self.pathname} > /dev/ttyu0"])
                 kp.wait()
             except Exception:
                 pass
@@ -734,8 +755,11 @@ class TestRun(object):
 
         for opt in TestRun.props:
             if config.has_option('DEFAULT', opt):
-                setattr(self, opt, config.get('DEFAULT', opt))
-        self.outputdir = os.path.join(self.outputdir, self.timestamp)
+                if opt == 'outputdir':
+                    outputdir = config.get('DEFAULT', opt)
+                    setattr(self, opt, os.path.join(outputdir, self.timestamp))
+                else:
+                    setattr(self, opt, config.get('DEFAULT', opt))
 
         testdir = options.testdir
 
@@ -763,6 +787,11 @@ class TestRun(object):
                                 failsafe = config.get(sect, prop)
                                 setattr(testgroup, prop,
                                         os.path.join(testdir, failsafe))
+                            elif prop == 'outputdir':
+                                outputdir = config.get(sect, prop)
+                                setattr(self, opt,
+                                        os.path.join(outputdir,
+                                                     self.timestamp))
                             else:
                                 setattr(testgroup, prop,
                                         config.get(sect, prop))
@@ -781,6 +810,11 @@ class TestRun(object):
                                 failsafe = config.get(sect, prop)
                                 setattr(test, prop,
                                         os.path.join(testdir, failsafe))
+                            elif prop == 'outputdir':
+                                outputdir = config.get(sect, prop)
+                                setattr(self, opt,
+                                        os.path.join(outputdir,
+                                                     self.timestamp))
                             else:
                                 setattr(test, prop, config.get(sect, prop))
 
@@ -824,9 +858,10 @@ class TestRun(object):
 
     def complete_outputdirs(self):
         """
-        Collect all the pathnames for Tests, and TestGroups. Work
-        backwards one pathname component at a time, to create a unique
-        directory name in which to deposit test output. Tests will be able
+        Collect all the pathnames for Tests, and TestGroups. Strip off all
+        common leading path components, and append what remains to the top
+        "output" dir, to create a tree of output directories that match
+        the test and group names in structure. Tests will be able
         to write output files directly in the newly modified outputdir.
         TestGroups will be able to create one subdirectory per test in the
         outputdir, and are guaranteed uniqueness because a group can only
@@ -835,24 +870,30 @@ class TestRun(object):
         question for their output. Failsafe scripts will create a directory
         rooted at the outputdir of each Test for their output.
         """
-        done = False
-        components = 0
-        tmp_dict = dict(list(self.tests.items()) +
-                        list(self.testgroups.items()))
-        total = len(tmp_dict)
-        base = self.outputdir
 
-        while not done:
-            paths = []
-            components -= 1
-            for testfile in list(tmp_dict.keys()):
-                uniq = '/'.join(testfile.split('/')[components:]).lstrip('/')
-                if uniq not in paths:
-                    paths.append(uniq)
-                    tmp_dict[testfile].outputdir = os.path.join(base, uniq)
-                else:
-                    break
-            done = total == len(paths)
+        alltests = dict(list(self.tests.items()) +
+                        list(self.testgroups.items()))
+        base = os.path.join(self.outputdir, 'output')
+
+        seen = []
+
+        for path in list(alltests.keys()):
+            frag = path.split('/')
+            for i in range(0, len(frag)):
+                if len(seen) == i:
+                    seen.append({})
+                seen[i][frag[i]] = 1
+
+        cut = 0
+        for i in range(0, len(seen)):
+            if len(list(seen[i].keys())) == 1:
+                cut += 1
+            else:
+                break
+
+        for path in list(alltests.keys()):
+            uniq = path.split('/', cut)[-1]
+            alltests[path].outputdir = os.path.join(base, uniq)
 
     def setup_logging(self, options):
         """

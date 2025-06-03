@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
  *  Copyright (C) 2007 The Regents of the University of California.
@@ -26,7 +27,6 @@
 #include <sys/kmem.h>
 #include <sys/vmem.h>
 
-/* BEGIN CSTYLED */
 /*
  * As a general rule kmem_alloc() allocations should be small, preferably
  * just a few pages since they must by physically contiguous.  Therefore, a
@@ -62,7 +62,6 @@ module_param(spl_kmem_alloc_max, uint, 0644);
 MODULE_PARM_DESC(spl_kmem_alloc_max,
 	"Maximum size in bytes for a kmem_alloc()");
 EXPORT_SYMBOL(spl_kmem_alloc_max);
-/* END CSTYLED */
 
 int
 kmem_debugging(void)
@@ -134,7 +133,6 @@ EXPORT_SYMBOL(kmem_strfree);
 void *
 spl_kvmalloc(size_t size, gfp_t lflags)
 {
-#ifdef HAVE_KVMALLOC
 	/*
 	 * GFP_KERNEL allocations can safely use kvmalloc which may
 	 * improve performance by avoiding a) high latency caused by
@@ -146,7 +144,6 @@ spl_kvmalloc(size_t size, gfp_t lflags)
 	 */
 	if ((lflags & GFP_KERNEL) == GFP_KERNEL)
 		return (kvmalloc(size, lflags));
-#endif
 
 	gfp_t kmalloc_lflags = lflags;
 

@@ -118,8 +118,8 @@ struct ieee80211_key {
 	 IEEE80211_KEY_NOIVMGT|IEEE80211_KEY_NOMIC|IEEE80211_KEY_NOMICMGT)
 
 #define	IEEE80211_KEY_BITS \
-	"\20\1XMIT\2RECV\3GROUP\4SWENCRYPT\5SWDECRYPT\6SWENMIC\7SWDEMIC" \
-	"\10DEVKEY\11CIPHER0\12CIPHER1"
+	"\20\1XMIT\2RECV\3GROUP\4NOREPLAY\5SWENCRYPT\6SWDECRYPT\7SWENMIC\10SWDEMIC" \
+	"\11DEVKEY\12CIPHER0\13CIPHER1\14NOIV\15NOIVMGT\16NOMIC\17NOMICMGT"
 
 #define	IEEE80211_KEYIX_NONE	((ieee80211_keyix) -1)
 
@@ -216,6 +216,11 @@ struct ieee80211_cipher {
 	void	(*ic_setiv)(struct ieee80211_key *, uint8_t *);
 	int	(*ic_encap)(struct ieee80211_key *, struct mbuf *);
 	int	(*ic_decap)(struct ieee80211_key *, struct mbuf *, int);
+	/*
+	 * ic_enmic() and ic_demic() are currently only used by TKIP.
+	 * Please see ieee80211_crypto_enmic() and ieee80211_crypto_demic()
+	 * for more information.
+	 */
 	int	(*ic_enmic)(struct ieee80211_key *, struct mbuf *, int);
 	int	(*ic_demic)(struct ieee80211_key *, struct mbuf *, int);
 };
@@ -240,8 +245,24 @@ int	ieee80211_crypto_decap(struct ieee80211_node *,
 		struct mbuf *, int, struct ieee80211_key **);
 int ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
 		struct mbuf *, int);
-/*
- * Add any MIC.
+/**
+ * @brief Add any pre-fragmentation MIC to an MSDU.
+ *
+ * This is called before 802.11 fragmentation.  Crypto types that implement
+ * a MIC/ICV check per MSDU will not implement this function.
+ *
+ * As an example, TKIP implements a Michael MIC check over the entire
+ * unencrypted MSDU before fragmenting it into MPDUs and passing each
+ * MPDU to be separately encrypted with their own MIC/ICV.
+ *
+ * Please see 802.11-2020 12.5.2.1.2 (TKIP cryptographic encapsulation)
+ * for more information.
+ *
+ * @param vap	the current VAP
+ * @param k	the current key
+ * @param m	the mbuf representing the MSDU
+ * @param f	set to 1 to force a MSDU MIC check, even if HW encrypted
+ * @returns	0 if error / MIC encap failed, 1 if OK
  */
 static __inline int
 ieee80211_crypto_enmic(struct ieee80211vap *vap,
@@ -273,6 +294,11 @@ void	ieee80211_notify_replay_failure(struct ieee80211vap *,
 		const struct ieee80211_frame *, const struct ieee80211_key *,
 		uint64_t rsc, int tid);
 void	ieee80211_notify_michael_failure(struct ieee80211vap *,
-		const struct ieee80211_frame *, u_int keyix);
+		const struct ieee80211_frame *, ieee80211_keyix keyix);
+
+/* AAD assembly for CCMP/GCMP. */
+uint16_t	ieee80211_crypto_init_aad(const struct ieee80211_frame *,
+		uint8_t *, int);
+
 #endif /* defined(__KERNEL__) || defined(_KERNEL) */
 #endif /* _NET80211_IEEE80211_CRYPTO_H_ */

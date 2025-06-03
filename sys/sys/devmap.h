@@ -33,6 +33,7 @@
 #error "no user-serviceable parts inside"
 #endif
 
+#ifdef __HAVE_STATIC_DEVMAP
 /*
  * This structure is used by MD code to describe static mappings of devices
  * which are established as part of bringing up the MMU early in the boot.
@@ -76,21 +77,8 @@ void devmap_register_table(const struct devmap_entry * _table);
  */
 void devmap_bootstrap(void);
 
-/*
- * Translate between virtual and physical addresses within a region that is
- * static-mapped by the devmap code.  If the given address range isn't
- * static-mapped, then ptov returns NULL and vtop returns DEVMAP_PADDR_NOTFOUND.
- * The latter implies that you can't vtop just the last byte of physical address
- * space.  This is not as limiting as it might sound, because even if a device
- * occupies the end of the physical address space, you're only prevented from
- * doing vtop for that single byte.  If you vtop a size bigger than 1 it works.
- */
-#define	DEVMAP_PADDR_NOTFOUND	((vm_paddr_t)(-1))
-
-void *     devmap_ptov(vm_paddr_t _pa, vm_size_t _sz);
-vm_paddr_t devmap_vtop(void * _va, vm_size_t _sz);
-
 /* Print the static mapping table; used for bootverbose output. */
 void devmap_print_table(void);
+#endif
 
 #endif /* !_SYS_DEVMAP_H_ */

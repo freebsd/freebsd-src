@@ -1,3 +1,4 @@
+.\" SPDX-License-Identifier: CDDL-1.0
 .\"
 .\" CDDL HEADER START
 .\"
@@ -25,9 +26,9 @@
 .\" Copyright (c) 2018 George Melikov. All Rights Reserved.
 .\" Copyright 2017 Nexenta Systems, Inc.
 .\" Copyright (c) 2017 Open-E, Inc. All Rights Reserved.
-.\" Copyright (c) 2024, Klara Inc.
+.\" Copyright (c) 2024, 2025, Klara, Inc.
 .\"
-.Dd February 28, 2024
+.Dd May 27, 2025
 .Dt ZPOOL-EVENTS 8
 .Os
 .
@@ -97,6 +98,20 @@ module parameter.
 This can be an indicator of problems with the underlying storage device.
 The number of delay events is ratelimited by the
 .Sy zfs_slow_io_events_per_second
+module parameter.
+.It Sy dio_verify_rd
+Issued when there was a checksum verify error after a Direct I/O read has been
+issued.
+.It Sy dio_verify_wr
+Issued when there was a checksum verify error after a Direct I/O write has been
+issued.
+This event can only take place if the module parameter
+.Sy zfs_vdev_direct_write_verify
+is not set to zero.
+See
+.Xr zfs 4
+for more details on the
+.Sy zfs_vdev_direct_write_verify
 module parameter.
 .It Sy config
 Issued every time a vdev change have been done to the pool.
@@ -293,6 +308,16 @@ The valid pipeline stages for the I/O.
 See the
 .Sy I/O STAGES
 section for a full list of all the I/O stages.
+.It Sy zio_priority
+The queue priority of the I/O request.
+See the
+.Sy I/O PRIORITIES
+section for a full list of all the I/O priorities.
+.It Sy zio_tyoe
+The type of the I/O request.
+See the
+.Sy I/O TYPES
+section for a full list of all the I/O types.
 .It Sy zio_delay
 The time elapsed (in nanoseconds) waiting for the block layer to complete the
 I/O request.
@@ -408,8 +433,9 @@ ZIO_STAGE_VDEV_IO_DONE:0x00400000:RW--XT
 ZIO_STAGE_VDEV_IO_ASSESS:0x00800000:RW--XT
 
 ZIO_STAGE_CHECKSUM_VERIFY:0x01000000:R-----
+ZIO_STAGE_DIO_CHECKSUM_VERIFY:0x02000000:-W----
 
-ZIO_STAGE_DONE:0x02000000:RWFCXT
+ZIO_STAGE_DONE:0x04000000:RWFCXT
 .TE
 .
 .Sh I/O FLAGS
@@ -459,6 +485,51 @@ ZIO_FLAG_NOPWRITE:0x10000000
 ZIO_FLAG_REEXECUTED:0x20000000
 ZIO_FLAG_DELEGATED:0x40000000
 ZIO_FLAG_FASTWRITE:0x80000000
+.TE
+.
+.Sh I/O TYPES
+Every I/O request in the pipeline has a single type value.
+This value describes the kind of low-level work the I/O represents.
+This value will be set in an event as a
+.Sy zio_type
+payload entry.
+.Pp
+.TS
+tab(:);
+l l l .
+Type:Value:Description
+_:_:_
+ZIO_TYPE_NULL:0x0:internal I/O sync point
+ZIO_TYPE_READ:0x1:data read
+ZIO_TYPE_WRITE:0x2:data write
+ZIO_TYPE_FREE:0x3:block free
+ZIO_TYPE_CLAIM:0x4:block claim (ZIL replay)
+ZIO_TYPE_FLUSH:0x5:disk cache flush request
+ZIO_TYPE_TRIM:0x6:trim (discard)
+.TE
+.
+.Sh I/O PRIORITIES
+Every I/O request in the pipeline has a single priority value.
+This value is used by the queuing code to decide which I/O to issue next.
+This value will be set in an event as a
+.Sy zio_priority
+payload entry.
+.Pp
+.TS
+tab(:);
+l l l .
+Type:Value:Description
+_:_:_
+ZIO_PRIORITY_SYNC_READ:0x0:
+ZIO_PRIORITY_SYNC_WRITE:0x1:ZIL
+ZIO_PRIORITY_ASYNC_READ:0x2:prefetch
+ZIO_PRIORITY_ASYNC_WRITE:0x3:spa_sync()
+ZIO_PRIORITY_SCRUB:0x4:asynchronous scrub/resilver reads
+ZIO_PRIORITY_REMOVAL:0x5:reads/writes for vdev removal
+ZIO_PRIORITY_INITIALIZING:0x6:initializing I/O
+ZIO_PRIORITY_TRIM:0x7:trim I/O (discard)
+ZIO_PRIORITY_REBUILD:0x8:reads/writes for vdev rebuild
+ZIO_PRIORITY_NOW:0xa:non-queued i/os (e.g. free)
 .TE
 .
 .Sh SEE ALSO

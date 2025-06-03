@@ -110,4 +110,4 @@ struct archive_rb_node *
 	__archive_rb_tree_iterate(struct archive_rb_tree *,
 	struct archive_rb_node *, const unsigned int);
 
-#endif	/* ARCHIVE_RB_H_*/
+#endif	/* !ARCHIVE_RB_H_INCLUDED */

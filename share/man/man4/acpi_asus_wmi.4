@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 2, 2012
+.Dd March 25, 2024
 .Dt ACPI_ASUS_WMI 4
 .Os
 .Sh NAME
@@ -72,11 +72,19 @@ Number of other variables under the same sysctl branch are model-specific.
 Defaults for these variables can be set in
 .Xr sysctl.conf 5 ,
 which is parsed at boot-time.
+.Sh FILES
+.Bl -tag -width "/dev/backlight/acpi_asus_wmi0" -compact
+.It Pa /dev/backlight/acpi_asus_wmi0
+Keyboard
+.Xr backlight 8
+device node.
+.El
 .Sh SEE ALSO
 .Xr acpi 4 ,
 .Xr acpi_asus 4 ,
 .Xr acpi_video 4 ,
 .Xr sysctl.conf 5 ,
+.Xr backlight 8 ,
 .Xr devd 8 ,
 .Xr sysctl 8
 .Sh HISTORY

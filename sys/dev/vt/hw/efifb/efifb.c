@@ -77,17 +77,13 @@ vt_efifb_probe(struct vt_device *vd)
 {
 	int		disabled;
 	struct efi_fb	*efifb;
-	caddr_t		kmdp;
 
 	disabled = 0;
 	TUNABLE_INT_FETCH("hw.syscons.disable", &disabled);
 	if (disabled != 0)
 		return (CN_DEAD);
 
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	efifb = (struct efi_fb *)preload_search_info(kmdp,
+	efifb = (struct efi_fb *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_FB);
 	if (efifb == NULL)
 		return (CN_DEAD);
@@ -100,10 +96,11 @@ vt_efifb_init(struct vt_device *vd)
 {
 	struct fb_info	*info;
 	struct efi_fb	*efifb;
-	caddr_t		kmdp;
-	int		memattr;
+	vm_memattr_t	memattr;
 	int		roff, goff, boff;
-	char		attr[16];
+
+#ifdef VM_MEMATTR_WRITE_COMBINING
+	char attr[16];
 
 	/*
 	 * XXX TODO: I think there's more nuance here than we're acknowledging,
@@ -127,15 +124,15 @@ vt_efifb_init(struct vt_device *vd)
 			memattr = VM_MEMATTR_UNCACHEABLE;
 		}
 	}
+#else
+	memattr = VM_MEMATTR_UNCACHEABLE;
+#endif
 
 	info = vd->vd_softc;
 	if (info == NULL)
 		info = vd->vd_softc = (void *)&local_info;
 
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	efifb = (struct efi_fb *)preload_search_info(kmdp,
+	efifb = (struct efi_fb *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_FB);
 	if (efifb == NULL)
 		return (CN_DEAD);

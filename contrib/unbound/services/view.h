@@ -54,7 +54,8 @@ struct respip_set;
  * Views storage, shared.
  */
 struct views {
-	/** lock on the view tree */
+	/** lock on the view tree. When locking order, the views lock
+	 * is before the forwards,hints,anchors,localzones lock. */
 	lock_rw_type lock;
 	/** rbtree of struct view */
 	rbtree_type vtree;
@@ -134,5 +135,28 @@ void views_print(struct views* v);
  * @return: locked view or NULL. 
  */
 struct view* views_find_view(struct views* vs, const char* name, int write);
+
+/**
+ * Calculate memory usage of views.
+ * @param vs: the views tree. The routine locks and unlocks the structure
+ * 	for reading.
+ * @return memory in bytes.
+ */
+size_t views_get_mem(struct views* vs);
+
+/**
+ * Calculate memory usage of view.
+ * @param v: the view. The routine locks and unlocks the structure for reading.
+ * @return memory in bytes.
+ */
+size_t view_get_mem(struct view* v);
+
+/**
+ * Swap internal tree with preallocated entries. Caller should manage
+ * the locks.
+ * @param vs: views tree
+ * @param data: preallocated information.
+ */
+void views_swap_tree(struct views* vs, struct views* data);
 
 #endif /* SERVICES_VIEW_H */

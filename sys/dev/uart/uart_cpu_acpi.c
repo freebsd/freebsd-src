@@ -167,38 +167,58 @@ uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 	if (error != 0)
 		goto out;
 
-	switch (spcr->BaudRate) {
-	case 0:
-		/* Special value; means "keep current value unchanged". */
-		di->baudrate = 0;
-		break;
-	case 3:
-		di->baudrate = 9600;
-		break;
-	case 4:
-		di->baudrate = 19200;
-		break;
-	case 6:
-		di->baudrate = 57600;
-		break;
-	case 7:
-		di->baudrate = 115200;
-		break;
-	default:
-		printf("SPCR has reserved BaudRate value: %d!\n",
-		    (int)spcr->BaudRate);
-		goto out;
+	/*
+	 * SPCR Rev 4 and newer allow a precise baudrate to be passed in for
+	 * things like 1.5M or 2.0M. If we have that, then use that value,
+	 * otherwise try to decode the older enumeration.
+	 */
+	if (spcr->Header.Revision >= 4 && spcr->PreciseBaudrate != 0) {
+		di->baudrate = spcr->PreciseBaudrate;
+	} else {
+		switch (spcr->BaudRate) {
+		case 0:
+			/* Special value; means "keep current value unchanged". */
+			di->baudrate = 0;
+			break;
+		case 3:
+			di->baudrate = 9600;
+			break;
+		case 4:
+			di->baudrate = 19200;
+			break;
+		case 6:
+			di->baudrate = 57600;
+			break;
+		case 7:
+			di->baudrate = 115200;
+			break;
+		default:
+			printf("SPCR has reserved BaudRate value: %d!\n",
+			    (int)spcr->BaudRate);
+			goto out;
+		}
 	}
+
+	/*
+	 * Rev 3 and newer can specify a rclk, use it if it's there. It's
+	 * defined to be 0 when it's not known, and we've initialized rclk to 0
+	 * in uart_cpu_acpi_init_devinfo, so we don't have to test for it.
+	 */
+	if (spcr->Header.Revision >= 3)
+		di->bas.rclk = spcr->UartClkFreq;
+
+	/*
+	 * If no rclk is set, then we will assume the BIOS has configured the
+	 * hardware at the stated baudrate, so we can use it to guess the rclk
+	 * relatively accurately, so make a note for later.
+	 */
+	if (di->bas.rclk == 0)
+		di->bas.rclk_guess = 1;
+
 	if (spcr->PciVendorId != PCIV_INVALID &&
 	    spcr->PciDeviceId != PCIV_INVALID) {
 		di->pci_info.vendor = spcr->PciVendorId;
 		di->pci_info.device = spcr->PciDeviceId;
-	}
-
-	/* Apply device tweaks. */
-	if ((cd->cd_quirks & UART_F_IGNORE_SPCR_REGSHFT) ==
-	    UART_F_IGNORE_SPCR_REGSHFT) {
-		di->bas.regshft = cd->cd_regshft;
 	}
 
 	/* Create a bus space handle. */
@@ -222,7 +242,7 @@ uart_cpu_acpi_dbg2(struct uart_devinfo *di)
 	int error;
 	bool found;
 
-	/* Look for the SPCR table. */
+	/* Look for the DBG2 table. */
 	dbg2_physaddr = acpi_find_table(ACPI_SIG_DBG2);
 	if (dbg2_physaddr == 0)
 		return (ENXIO);
@@ -269,12 +289,6 @@ next:
 
 	/* XXX: Find the correct value */
 	di->baudrate = 115200;
-
-	/* Apply device tweaks. */
-	if ((cd->cd_quirks & UART_F_IGNORE_SPCR_REGSHFT) ==
-	    UART_F_IGNORE_SPCR_REGSHFT) {
-		di->bas.regshft = cd->cd_regshft;
-	}
 
 	/* Create a bus space handle. */
 	error = bus_space_map(di->bas.bst, base_address->Address,

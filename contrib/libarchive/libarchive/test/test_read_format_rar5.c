@@ -27,7 +27,6 @@
 /* Some tests will want to calculate some CRC32's, and this header can
  * help. */
 #define __LIBARCHIVE_BUILD
-#include <archive_crc32.h>
 #include <archive_endian.h>
 
 #define PROLOGUE(reffile) \
@@ -82,7 +81,7 @@ int verify_data(const uint8_t* data_ptr, int magic, int size) {
 		/* *lptr is a value inside unpacked test file, val is the
 		 * value that should be in the unpacked test file. */
 
-		if(archive_le32dec(lptr) != (uint32_t) val)
+		if(i4le(lptr) != (uint32_t) val)
 			return 0;
 	}
 
@@ -107,7 +106,7 @@ int extract_one(struct archive* a, struct archive_entry* ae, uint32_t crc) {
 		goto fn_exit;
 	}
 
-	computed_crc = crc32(0, buf, fsize);
+	computed_crc = bitcrc32(0, buf, fsize);
 	assertEqualInt(computed_crc, crc);
 	ret = 0;
 
@@ -336,7 +335,7 @@ DEFINE_TEST(test_read_format_rar5_blake2)
 	assertA(proper_size == archive_read_data(a, buf, proper_size));
 
 	/* To be extra pedantic, let's also check crc32 of the poem. */
-	assertEqualInt(crc32(0, buf, proper_size), 0x7E5EC49E);
+	assertEqualInt(bitcrc32(0, buf, proper_size), 0x7E5EC49E);
 
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 	EPILOGUE();
@@ -359,7 +358,7 @@ DEFINE_TEST(test_read_format_rar5_arm_filter)
 	/* Yes, RARv5 unpacker itself should calculate the CRC, but in case
 	 * the DONT_FAIL_ON_CRC_ERROR define option is enabled during compilation,
 	 * let's still fail the test if the unpacked data is wrong. */
-	assertEqualInt(crc32(0, buf, proper_size), 0x886F91EB);
+	assertEqualInt(bitcrc32(0, buf, proper_size), 0x886F91EB);
 
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 	EPILOGUE();
@@ -843,7 +842,7 @@ DEFINE_TEST(test_read_format_rar5_block_by_block)
 	struct archive_entry *ae;
 	struct archive *a;
 	uint8_t buf[173];
-	int bytes_read;
+	ssize_t bytes_read;
 	uint32_t computed_crc = 0;
 
 	extract_reference_file("test_read_format_rar5_compressed.rar");
@@ -870,7 +869,7 @@ DEFINE_TEST(test_read_format_rar5_block_by_block)
 		if(bytes_read <= 0)
 			break;
 
-		computed_crc = crc32(computed_crc, buf, bytes_read);
+		computed_crc = bitcrc32(computed_crc, buf, bytes_read);
 	}
 
 	assertEqualInt(computed_crc, 0x7CCA70CD);
@@ -932,19 +931,22 @@ DEFINE_TEST(test_read_format_rar5_symlink)
 	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 	assertEqualString("file.txt", archive_entry_symlink(ae));
 	assertEqualInt(AE_SYMLINK_TYPE_FILE, archive_entry_symlink_type(ae));
-	assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertA(0 == archive_read_data(a, NULL, (size_t)archive_entry_size(ae)));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("dirlink", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFLNK, archive_entry_filetype(ae));
 	assertEqualString("dir", archive_entry_symlink(ae));
 	assertEqualInt(AE_SYMLINK_TYPE_DIRECTORY, archive_entry_symlink_type(ae));
-	assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertA(0 == archive_read_data(a, NULL, (size_t)archive_entry_size(ae)));
 
 	assertA(0 == archive_read_next_header(a, &ae));
 	assertEqualString("dir", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
-	assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertA(0 == archive_read_data(a, NULL, (size_t)archive_entry_size(ae)));
 
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 
@@ -969,7 +971,8 @@ DEFINE_TEST(test_read_format_rar5_hardlink)
 	assertEqualString("hardlink.txt", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assertEqualString("file.txt", archive_entry_hardlink(ae));
-	assertA(0 == archive_read_data(a, NULL, archive_entry_size(ae)));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertA(0 == archive_read_data(a, NULL, (size_t)archive_entry_size(ae)));
 
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
 
@@ -1123,7 +1126,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_READONLY;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_READONLY;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1135,7 +1138,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_HIDDEN;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_HIDDEN;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1146,8 +1149,8 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	assertEqualString("system", archive_entry_fflags_text(ae));
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
-	flag = UF_SYSTEM;;
-#elif defined(_WIN32) && !defined(CYGWIN)
+	flag = UF_SYSTEM;
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_SYSTEM;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1159,7 +1162,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_READONLY | UF_HIDDEN;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1171,7 +1174,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_READONLY;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_READONLY;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1183,7 +1186,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_HIDDEN;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_HIDDEN;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1195,7 +1198,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_SYSTEM;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_SYSTEM;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1207,7 +1210,7 @@ DEFINE_TEST(test_read_format_rar5_fileattr)
 	archive_entry_fflags(ae, &set, &clear);
 #if defined(__FreeBSD__)
 	flag = UF_READONLY | UF_HIDDEN;
-#elif defined(_WIN32) && !defined(CYGWIN)
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 	flag = FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_HIDDEN;
 #endif
 	assertEqualInt(flag, set & flag);
@@ -1340,7 +1343,7 @@ DEFINE_TEST(test_read_format_rar5_sfx)
 
 	assertA(size == archive_read_data(a, buff, size));
 	assertEqualMem(buff, test_txt, size);
-	
+
 	EPILOGUE();
 }
 
@@ -1399,6 +1402,29 @@ DEFINE_TEST(test_read_format_rar5_read_data_block_uninitialized_offset)
 	/* The test archive doesn't contain a sparse file. And because of that, here
 	 * we assume that the first returned offset should be 0. */
 	assertEqualInt(0, offset);
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_data_ready_pointer_leak)
+{
+	/* oss fuzz 70024 */
+
+	char buf[4096];
+	PROLOGUE("test_read_format_rar5_data_ready_pointer_leak.rar");
+
+	/* Return codes of those calls are ignored, because this sample file
+	 * is invalid. However, the unpacker shouldn't produce any SIGSEGV
+	 * errors during processing. */
+
+	(void) archive_read_next_header(a, &ae);
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_next_header(a, &ae);
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_data(a, buf, sizeof(buf));
+	(void) archive_read_next_header(a, &ae);
+	/* This call shouldn't produce SIGSEGV. */
+	(void) archive_read_data(a, buf, sizeof(buf));
 
 	EPILOGUE();
 }

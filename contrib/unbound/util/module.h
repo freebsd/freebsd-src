@@ -177,6 +177,7 @@ struct val_anchors;
 struct val_neg_cache;
 struct iter_forwards;
 struct iter_hints;
+struct views;
 struct respip_set;
 struct respip_client_info;
 struct respip_addr_info;
@@ -319,13 +320,15 @@ typedef int inplace_cb_query_response_func_type(struct module_qstate* qstate,
 /**
  * Function called when looking for (expired) cached answers during the serve
  * expired logic.
- * Called as func(qstate, lookup_qinfo)
+ * Called as func(qstate, lookup_qinfo, &is_expired)
  * Where:
  *	qstate: the query state.
  *	lookup_qinfo: the qinfo to lookup for.
+ *      is_expired: set if the cached answer is expired.
  */
 typedef struct dns_msg* serve_expired_lookup_func_type(
-	struct module_qstate* qstate, struct query_info* lookup_qinfo);
+	struct module_qstate* qstate, struct query_info* lookup_qinfo,
+	int* is_expired);
 
 /**
  * Module environment.
@@ -522,6 +525,10 @@ struct module_env {
 	 * data structure. 
 	 */
 	struct iter_hints* hints;
+	/** views structure containing view tree */
+	struct views* views;
+	/** response-ip set with associated actions and tags. */
+	struct respip_set* respip_set;
 	/** module specific data. indexed by module id. */
 	void* modinfo[MAX_MODULE];
 
@@ -696,6 +703,8 @@ struct module_qstate {
 	/** Extended result of response-ip action processing, mainly
 	 *  for logging purposes. */
 	struct respip_action_info* respip_action_info;
+	/** if the query has been modified by rpz processing. */
+	int rpz_applied;
 	/** if the query is rpz passthru, no further rpz processing for it */
 	int rpz_passthru;
 	/* Flag tcp required. */

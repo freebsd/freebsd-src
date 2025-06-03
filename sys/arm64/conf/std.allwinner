@@ -8,7 +8,7 @@ options 	SOC_ALLWINNER_H5
 options 	SOC_ALLWINNER_H6
 
 # Timer drivers
-device		a10_timer
+device		aw_timer
 
 # DMA controller
 device		a31_dmac

@@ -25,7 +25,7 @@
 .\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd October 13, 2014
+.Dd March 25, 2025
 .Dt KYUA-DEBUG 1
 .Os
 .Sh NAME
@@ -35,6 +35,8 @@
 .Nm
 .Op Fl -build-root Ar path
 .Op Fl -kyuafile Ar file
+.Op Fl -pause-before-cleanup-upon-fail
+.Op Fl -pause-before-cleanup
 .Op Fl -stdout Ar path
 .Op Fl -stderr Ar path
 .Ar test_case
@@ -84,6 +86,23 @@ Specifies the Kyuafile to process.
 Defaults to
 .Pa Kyuafile
 file in the current directory.
+.It Fl -pause-before-cleanup-upon-fail , Fl p
+Causes Kyua to pause right before the test cleanup routine is invoked if the
+test fails.
+When paused, Kyua waits for input on stdin, and any key press resumes
+execution.
+.sp
+This can be useful for debugging system or end-to-end tests
+which alter the system by creating artifacts such as files, network
+interfaces, routing entries, firewall configuration, containers, etc.
+This flag makes it possible to preserve such artifacts immediately after a test
+failure, simplifying debugging.
+Otherwise, these artifacts would be removed by the test cleanup routine or
+by Kyua built-in cleanup mechanism.
+.It Fl -pause-before-cleanup
+The unconditional variant of the previous option.
+This can be helpful for reproducing the infrastructure or fixture of a passing
+test for further development or additional analysis.
 .It Fl -stderr Ar path
 Specifies the file to which to send the standard error of the test
 program's body.

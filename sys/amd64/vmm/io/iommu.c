@@ -58,6 +58,8 @@ static const struct iommu_ops *ops;
 static void *host_domain;
 static eventhandler_tag add_tag, delete_tag;
 
+static void iommu_cleanup_int(bool iommu_disable);
+
 static __inline int
 IOMMU_INIT(void)
 {
@@ -92,48 +94,51 @@ IOMMU_DESTROY_DOMAIN(void *dom)
 		(*ops->destroy_domain)(dom);
 }
 
-static __inline uint64_t
-IOMMU_CREATE_MAPPING(void *domain, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len)
+static __inline int
+IOMMU_CREATE_MAPPING(void *domain, vm_paddr_t gpa, vm_paddr_t hpa,
+    uint64_t len, uint64_t *res_len)
 {
 
 	if (ops != NULL && iommu_avail)
-		return ((*ops->create_mapping)(domain, gpa, hpa, len));
-	else
-		return (len);		/* XXX */
+		return ((*ops->create_mapping)(domain, gpa, hpa, len, res_len));
+	return (EOPNOTSUPP);
 }
 
 static __inline uint64_t
-IOMMU_REMOVE_MAPPING(void *domain, vm_paddr_t gpa, uint64_t len)
+IOMMU_REMOVE_MAPPING(void *domain, vm_paddr_t gpa, uint64_t len,
+    uint64_t *res_len)
 {
 
 	if (ops != NULL && iommu_avail)
-		return ((*ops->remove_mapping)(domain, gpa, len));
-	else
-		return (len);		/* XXX */
+		return ((*ops->remove_mapping)(domain, gpa, len, res_len));
+	return (EOPNOTSUPP);
 }
 
-static __inline void
-IOMMU_ADD_DEVICE(void *domain, uint16_t rid)
+static __inline int
+IOMMU_ADD_DEVICE(void *domain, device_t dev, uint16_t rid)
 {
 
 	if (ops != NULL && iommu_avail)
-		(*ops->add_device)(domain, rid);
+		return ((*ops->add_device)(domain, dev, rid));
+	return (EOPNOTSUPP);
 }
 
-static __inline void
-IOMMU_REMOVE_DEVICE(void *domain, uint16_t rid)
+static __inline int
+IOMMU_REMOVE_DEVICE(void *domain, device_t dev, uint16_t rid)
 {
 
 	if (ops != NULL && iommu_avail)
-		(*ops->remove_device)(domain, rid);
+		return ((*ops->remove_device)(domain, dev, rid));
+	return (0);	/* To allow ppt_attach() to succeed. */
 }
 
-static __inline void
+static __inline int
 IOMMU_INVALIDATE_TLB(void *domain)
 {
 
 	if (ops != NULL && iommu_avail)
-		(*ops->invalidate_tlb)(domain);
+		return ((*ops->invalidate_tlb)(domain));
+	return (0);
 }
 
 static __inline void
@@ -157,14 +162,14 @@ iommu_pci_add(void *arg, device_t dev)
 {
 
 	/* Add new devices to the host domain. */
-	iommu_add_device(host_domain, pci_get_rid(dev));
+	iommu_add_device(host_domain, dev, pci_get_rid(dev));
 }
 
 static void
 iommu_pci_delete(void *arg, device_t dev)
 {
 
-	iommu_remove_device(host_domain, pci_get_rid(dev));
+	iommu_remove_device(host_domain, dev, pci_get_rid(dev));
 }
 
 static void
@@ -230,17 +235,24 @@ iommu_init(void)
 				 * Everything else belongs to the host
 				 * domain.
 				 */
-				iommu_add_device(host_domain,
+				error = iommu_add_device(host_domain, dev,
 				    pci_get_rid(dev));
+				if (error != 0 && error != ENXIO) {
+					printf(
+			"iommu_add_device(%s rid %#x) failed,  error %d\n",
+					    device_get_name(dev),
+					    pci_get_rid(dev), error);
+					iommu_cleanup_int(false);
+					return;
+				}
 			}
 		}
 	}
 	IOMMU_ENABLE();
-
 }
 
-void
-iommu_cleanup(void)
+static void
+iommu_cleanup_int(bool iommu_disable)
 {
 
 	if (add_tag != NULL) {
@@ -251,10 +263,17 @@ iommu_cleanup(void)
 		EVENTHANDLER_DEREGISTER(pci_delete_device, delete_tag);
 		delete_tag = NULL;
 	}
-	IOMMU_DISABLE();
+	if (iommu_disable)
+		IOMMU_DISABLE();
 	IOMMU_DESTROY_DOMAIN(host_domain);
 	host_domain = NULL;
 	IOMMU_CLEANUP();
+}
+
+void
+iommu_cleanup(void)
+{
+	iommu_cleanup_int(true);
 }
 
 void *
@@ -280,33 +299,39 @@ iommu_destroy_domain(void *dom)
 	IOMMU_DESTROY_DOMAIN(dom);
 }
 
-void
+int
 iommu_create_mapping(void *dom, vm_paddr_t gpa, vm_paddr_t hpa, size_t len)
 {
 	uint64_t mapped, remaining;
+	int error;
 
-	remaining = len;
-
-	while (remaining > 0) {
-		mapped = IOMMU_CREATE_MAPPING(dom, gpa, hpa, remaining);
-		gpa += mapped;
-		hpa += mapped;
-		remaining -= mapped;
+	for (remaining = len; remaining > 0; gpa += mapped, hpa += mapped,
+	    remaining -= mapped) {
+		error = IOMMU_CREATE_MAPPING(dom, gpa, hpa, remaining,
+		    &mapped);
+		if (error != 0) {
+			/* XXXKIB rollback */
+			return (error);
+		}
 	}
+	return (0);
 }
 
-void
+int
 iommu_remove_mapping(void *dom, vm_paddr_t gpa, size_t len)
 {
 	uint64_t unmapped, remaining;
+	int error;
 
-	remaining = len;
-
-	while (remaining > 0) {
-		unmapped = IOMMU_REMOVE_MAPPING(dom, gpa, remaining);
-		gpa += unmapped;
-		remaining -= unmapped;
+	for (remaining = len; remaining > 0; gpa += unmapped,
+	    remaining -= unmapped) {
+		error = IOMMU_REMOVE_MAPPING(dom, gpa, remaining, &unmapped);
+		if (error != 0) {
+			/* XXXKIB ? */
+			return (error);
+		}
 	}
+	return (0);
 }
 
 void *
@@ -316,23 +341,23 @@ iommu_host_domain(void)
 	return (host_domain);
 }
 
-void
-iommu_add_device(void *dom, uint16_t rid)
+int
+iommu_add_device(void *dom, device_t dev, uint16_t rid)
 {
 
-	IOMMU_ADD_DEVICE(dom, rid);
+	return (IOMMU_ADD_DEVICE(dom, dev, rid));
 }
 
-void
-iommu_remove_device(void *dom, uint16_t rid)
+int
+iommu_remove_device(void *dom, device_t dev, uint16_t rid)
 {
 
-	IOMMU_REMOVE_DEVICE(dom, rid);
+	return (IOMMU_REMOVE_DEVICE(dom, dev, rid));
 }
 
-void
+int
 iommu_invalidate_tlb(void *domain)
 {
 
-	IOMMU_INVALIDATE_TLB(domain);
+	return (IOMMU_INVALIDATE_TLB(domain));
 }

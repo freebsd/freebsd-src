@@ -91,41 +91,89 @@ update_reason_bogus(struct reply_info* rep, sldns_ede_code reason_bogus)
 
 /** fill up nsec3 key iterations config entry */
 static int
-fill_nsec3_iter(struct val_env* ve, char* s, int c)
+fill_nsec3_iter(size_t** keysize, size_t** maxiter, char* s, int c)
 {
 	char* e;
 	int i;
-	free(ve->nsec3_keysize);
-	free(ve->nsec3_maxiter);
-	ve->nsec3_keysize = (size_t*)calloc(sizeof(size_t), (size_t)c);
-	ve->nsec3_maxiter = (size_t*)calloc(sizeof(size_t), (size_t)c);
-	if(!ve->nsec3_keysize || !ve->nsec3_maxiter) {
+	*keysize = (size_t*)calloc((size_t)c, sizeof(size_t));
+	*maxiter = (size_t*)calloc((size_t)c, sizeof(size_t));
+	if(!*keysize || !*maxiter) {
+		free(*keysize);
+		*keysize = NULL;
+		free(*maxiter);
+		*maxiter = NULL;
 		log_err("out of memory");
 		return 0;
 	}
 	for(i=0; i<c; i++) {
-		ve->nsec3_keysize[i] = (size_t)strtol(s, &e, 10);
+		(*keysize)[i] = (size_t)strtol(s, &e, 10);
 		if(s == e) {
 			log_err("cannot parse: %s", s);
+			free(*keysize);
+			*keysize = NULL;
+			free(*maxiter);
+			*maxiter = NULL;
 			return 0;
 		}
 		s = e;
-		ve->nsec3_maxiter[i] = (size_t)strtol(s, &e, 10);
+		(*maxiter)[i] = (size_t)strtol(s, &e, 10);
 		if(s == e) {
 			log_err("cannot parse: %s", s);
+			free(*keysize);
+			*keysize = NULL;
+			free(*maxiter);
+			*maxiter = NULL;
 			return 0;
 		}
 		s = e;
-		if(i>0 && ve->nsec3_keysize[i-1] >= ve->nsec3_keysize[i]) {
+		if(i>0 && (*keysize)[i-1] >= (*keysize)[i]) {
 			log_err("nsec3 key iterations not ascending: %d %d",
-				(int)ve->nsec3_keysize[i-1], 
-				(int)ve->nsec3_keysize[i]);
+				(int)(*keysize)[i-1], (int)(*keysize)[i]);
+			free(*keysize);
+			*keysize = NULL;
+			free(*maxiter);
+			*maxiter = NULL;
 			return 0;
 		}
 		verbose(VERB_ALGO, "validator nsec3cfg keysz %d mxiter %d",
-			(int)ve->nsec3_keysize[i], (int)ve->nsec3_maxiter[i]);
+			(int)(*keysize)[i], (int)(*maxiter)[i]);
 	}
 	return 1;
+}
+
+int
+val_env_parse_key_iter(char* val_nsec3_key_iterations, size_t** keysize,
+	size_t** maxiter, int* keyiter_count)
+{
+	int c;
+	c = cfg_count_numbers(val_nsec3_key_iterations);
+	if(c < 1 || (c&1)) {
+		log_err("validator: unparsable or odd nsec3 key "
+			"iterations: %s", val_nsec3_key_iterations);
+		return 0;
+	}
+	*keyiter_count = c/2;
+	if(!fill_nsec3_iter(keysize, maxiter, val_nsec3_key_iterations, c/2)) {
+		log_err("validator: cannot apply nsec3 key iterations");
+		return 0;
+	}
+	return 1;
+}
+
+void
+val_env_apply_cfg(struct val_env* val_env, struct config_file* cfg,
+	size_t* keysize, size_t* maxiter, int keyiter_count)
+{
+	free(val_env->nsec3_keysize);
+	free(val_env->nsec3_maxiter);
+	val_env->nsec3_keysize = keysize;
+	val_env->nsec3_maxiter = maxiter;
+	val_env->nsec3_keyiter_count = keyiter_count;
+	val_env->bogus_ttl = (uint32_t)cfg->bogus_ttl;
+	val_env->date_override = cfg->val_date_override;
+	val_env->skew_min = cfg->val_sig_skew_min;
+	val_env->skew_max = cfg->val_sig_skew_max;
+	val_env->max_restart = cfg->val_max_restart;
 }
 
 /** apply config settings to validator */
@@ -133,8 +181,8 @@ static int
 val_apply_cfg(struct module_env* env, struct val_env* val_env, 
 	struct config_file* cfg)
 {
-	int c;
-	val_env->bogus_ttl = (uint32_t)cfg->bogus_ttl;
+	size_t* keysize=NULL, *maxiter=NULL;
+	int keyiter_count = 0;
 	if(!env->anchors)
 		env->anchors = anchors_create();
 	if(!env->anchors) {
@@ -154,21 +202,11 @@ val_apply_cfg(struct module_env* env, struct val_env* val_env,
 		log_err("validator: error in trustanchors config");
 		return 0;
 	}
-	val_env->date_override = cfg->val_date_override;
-	val_env->skew_min = cfg->val_sig_skew_min;
-	val_env->skew_max = cfg->val_sig_skew_max;
-	val_env->max_restart = cfg->val_max_restart;
-	c = cfg_count_numbers(cfg->val_nsec3_key_iterations);
-	if(c < 1 || (c&1)) {
-		log_err("validator: unparsable or odd nsec3 key "
-			"iterations: %s", cfg->val_nsec3_key_iterations);
+	if(!val_env_parse_key_iter(cfg->val_nsec3_key_iterations,
+		&keysize, &maxiter, &keyiter_count)) {
 		return 0;
 	}
-	val_env->nsec3_keyiter_count = c/2;
-	if(!fill_nsec3_iter(val_env, cfg->val_nsec3_key_iterations, c/2)) {
-		log_err("validator: cannot apply nsec3 key iterations");
-		return 0;
-	}
+	val_env_apply_cfg(val_env, cfg, keysize, maxiter, keyiter_count);
 	if (env->neg_cache)
 		val_env->neg_cache = env->neg_cache;
 	if(!val_env->neg_cache)
@@ -210,7 +248,7 @@ val_init(struct module_env* env, int id)
 		struct trust_anchor* anchor = anchors_find_any_noninsecure(
 			env->anchors);
 		if(anchor) {
-			char b[LDNS_MAX_DOMAINLEN+2];
+			char b[LDNS_MAX_DOMAINLEN];
 			dname_str(anchor->name, b);
 			log_warn("validator: disable-edns-do is enabled, but there is a trust anchor for '%s'. Since DNSSEC could not work, the disable-edns-do setting is turned off. Continuing without it.", b);
 			lock_basic_unlock(&anchor->lock);
@@ -2435,6 +2473,8 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 	/* if the result is bogus - set message ttl to bogus ttl to avoid
 	 * endless bogus revalidation */
 	if(vq->orig_msg->rep->security == sec_status_bogus) {
+		struct msgreply_entry* e;
+
 		/* see if we can try again to fetch data */
 		if(vq->restart_count < ve->max_restart) {
 			verbose(VERB_ALGO, "validation failed, "
@@ -2449,10 +2489,51 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 			return 0;
 		}
 
+		if(qstate->env->cfg->serve_expired &&
+			(e=msg_cache_lookup(qstate->env, qstate->qinfo.qname,
+			qstate->qinfo.qname_len, qstate->qinfo.qtype,
+			qstate->qinfo.qclass, qstate->query_flags,
+			0 /*now; allow expired*/,
+			1 /*wr; we may update the data*/))) {
+			struct reply_info* rep = (struct reply_info*)e->entry.data;
+			if(rep && rep->security > sec_status_bogus &&
+				(!qstate->env->cfg->serve_expired_ttl ||
+				 qstate->env->cfg->serve_expired_ttl_reset ||
+				*qstate->env->now <= rep->serve_expired_ttl)) {
+				verbose(VERB_ALGO, "validation failed but "
+					"previously cached valid response "
+					"exists; set serve-expired-norec-ttl "
+					"for response in cache");
+				rep->serve_expired_norec_ttl = NORR_TTL +
+					*qstate->env->now;
+				if(qstate->env->cfg->serve_expired_ttl_reset &&
+					*qstate->env->now + qstate->env->cfg->serve_expired_ttl
+					> rep->serve_expired_ttl) {
+					verbose(VERB_ALGO, "reset serve-expired-ttl for "
+						"valid response in cache");
+					rep->serve_expired_ttl = *qstate->env->now +
+						qstate->env->cfg->serve_expired_ttl;
+				}
+				/* Return an error response.
+				 * If serve-expired-client-timeout is enabled,
+				 * the client-timeout logic will try to find an
+				 * (expired) answer in the cache as last
+				 * resort. If it is not enabled, expired
+				 * answers are already used before the mesh
+				 * activation. */
+				qstate->return_rcode = LDNS_RCODE_SERVFAIL;
+				qstate->return_msg = NULL;
+				qstate->ext_state[id] = module_finished;
+				lock_rw_unlock(&e->entry.lock);
+				return 0;
+			}
+			lock_rw_unlock(&e->entry.lock);
+		}
+
 		vq->orig_msg->rep->ttl = ve->bogus_ttl;
 		vq->orig_msg->rep->prefetch_ttl = 
 			PREFETCH_TTL_CALC(vq->orig_msg->rep->ttl);
-		vq->orig_msg->rep->serve_expired_ttl = 
+		vq->orig_msg->rep->serve_expired_ttl =
 			vq->orig_msg->rep->ttl + qstate->env->cfg->serve_expired_ttl;
 		if((qstate->env->cfg->val_log_level >= 1 ||
 			qstate->env->cfg->log_servfail) &&
@@ -2518,8 +2599,9 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 		 * to check if from parentNS */
 		if(!qstate->no_cache_store) {
 			if(!dns_cache_store(qstate->env, &vq->orig_msg->qinfo,
-				vq->orig_msg->rep, 0, qstate->prefetch_leeway, 0, NULL,
-				qstate->query_flags, qstate->qstarttime)) {
+				vq->orig_msg->rep, 0, qstate->prefetch_leeway,
+				0, qstate->region, qstate->query_flags,
+				qstate->qstarttime, qstate->is_valrec)) {
 				log_err("out of memory caching validator results");
 			}
 		}
@@ -2527,8 +2609,9 @@ processFinished(struct module_qstate* qstate, struct val_qstate* vq,
 		/* for a referral, store the verified RRsets */
 		/* and this does not get prefetched, so no leeway */
 		if(!dns_cache_store(qstate->env, &vq->orig_msg->qinfo,
-			vq->orig_msg->rep, 1, 0, 0, NULL,
-			qstate->query_flags, qstate->qstarttime)) {
+			vq->orig_msg->rep, 1, 0, 0, qstate->region,
+			qstate->query_flags, qstate->qstarttime,
+			qstate->is_valrec)) {
 			log_err("out of memory caching validator results");
 		}
 	}
@@ -2614,6 +2697,14 @@ val_operate(struct module_qstate* qstate, enum module_ev event, int id,
 			return;
 		}
 		if(already_validated(qstate->return_msg)) {
+			qstate->ext_state[id] = module_finished;
+			return;
+		}
+		if(qstate->rpz_applied) {
+			verbose(VERB_ALGO, "rpz applied, mark it as insecure");
+			if(qstate->return_msg)
+				qstate->return_msg->rep->security =
+					sec_status_insecure;
 			qstate->ext_state[id] = module_finished;
 			return;
 		}
@@ -3053,6 +3144,14 @@ process_ds_response(struct module_qstate* qstate, struct val_qstate* vq,
 	int ret;
 	*suspend = 0;
 	vq->empty_DS_name = NULL;
+	if(sub_qstate && sub_qstate->rpz_applied) {
+		verbose(VERB_ALGO, "rpz was applied to the DS lookup, "
+			"make it insecure");
+		vq->key_entry = NULL;
+		vq->state = VAL_FINISHED_STATE;
+		vq->chase_reply->security = sec_status_insecure;
+		return;
+	}
 	ret = ds_response_to_ke(qstate, vq, id, rcode, msg, qinfo, &dske,
 		sub_qstate);
 	if(ret != 0) {
@@ -3145,6 +3244,15 @@ process_dnskey_response(struct module_qstate* qstate, struct val_qstate* vq,
 	char reasonbuf[256];
 	char* reason = NULL;
 	sldns_ede_code reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
+
+	if(sub_qstate && sub_qstate->rpz_applied) {
+		verbose(VERB_ALGO, "rpz was applied to the DNSKEY lookup, "
+			"make it insecure");
+		vq->key_entry = NULL;
+		vq->state = VAL_FINISHED_STATE;
+		vq->chase_reply->security = sec_status_insecure;
+		return;
+	}
 
 	if(rcode == LDNS_RCODE_NOERROR)
 		dnskey = reply_find_answer_rrset(qinfo, msg->rep);

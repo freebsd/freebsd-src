@@ -303,6 +303,9 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		return (ENOMEM);
 	}
 
+	/* Initialize the new map */
+	STAILQ_INIT(&((*mapp)->bpages));
+
 	/*
 	 * Bouncing might be required if the driver asks for an active
 	 * exclusion region, a data alignment that is stricter than 1, and/or
@@ -318,9 +321,6 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 				return (error);
 		}
 		bz = dmat->bounce_zone;
-
-		/* Initialize the new map */
-		STAILQ_INIT(&((*mapp)->bpages));
 
 		/*
 		 * Attempt to add pages to our pool on a per-instance

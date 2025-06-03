@@ -146,6 +146,7 @@
 #include <vm/uma.h>
 
 #include <machine/asan.h>
+#include <machine/cpu_feat.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -181,7 +182,8 @@
 #define	pmap_l2_pindex(v)	((v) >> L2_SHIFT)
 
 #ifdef __ARM_FEATURE_BTI_DEFAULT
-#define	ATTR_KERN_GP		ATTR_S1_GP
+pt_entry_t __read_mostly pmap_gp_attr;
+#define	ATTR_KERN_GP		pmap_gp_attr
 #else
 #define	ATTR_KERN_GP		0
 #endif
@@ -355,7 +357,7 @@ static u_int physmap_idx;
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM/pmap parameters");
 
-static bool pmap_lpa_enabled __read_mostly = false;
+bool pmap_lpa_enabled __read_mostly = false;
 pt_entry_t pmap_sh_attr __read_mostly = ATTR_SH(ATTR_SH_IS);
 
 #if PAGE_SIZE == PAGE_SIZE_4K
@@ -409,7 +411,6 @@ SYSCTL_INT(_vm_pmap_vmid, OID_AUTO, epoch, CTLFLAG_RD, &vmids.asid_epoch, 0,
     "The current epoch number");
 
 void (*pmap_clean_stage2_tlbi)(void);
-void (*pmap_invalidate_vpipt_icache)(void);
 void (*pmap_stage2_invalidate_range)(uint64_t, vm_offset_t, vm_offset_t, bool);
 void (*pmap_stage2_invalidate_all)(uint64_t);
 
@@ -1210,10 +1211,27 @@ pmap_bootstrap_l3_page(struct pmap_bootstrap_state *state, int i)
 	MPASS(state->va == (state->pa - dmap_phys_base + DMAP_MIN_ADDRESS));
 }
 
-static void
-pmap_bootstrap_dmap(void)
+void
+pmap_bootstrap_dmap(vm_size_t kernlen)
 {
+	vm_paddr_t start_pa, pa;
+	uint64_t tcr;
 	int i;
+
+	tcr = READ_SPECIALREG(tcr_el1);
+
+	/* Verify that the ASID is set through TTBR0. */
+	KASSERT((tcr & TCR_A1) == 0, ("pmap_bootstrap: TCR_EL1.A1 != 0"));
+
+	if ((tcr & TCR_DS) != 0)
+		pmap_lpa_enabled = true;
+
+	pmap_l1_supported = L1_BLOCKS_SUPPORTED;
+
+	start_pa = pmap_early_vtophys(KERNBASE);
+
+	bs_state.freemempos = KERNBASE + kernlen;
+	bs_state.freemempos = roundup2(bs_state.freemempos, PAGE_SIZE);
 
 	/* Fill in physmap array. */
 	physmap_idx = physmem_avail(physmap, nitems(physmap));
@@ -1274,6 +1292,12 @@ pmap_bootstrap_dmap(void)
 	}
 
 	cpu_tlb_flushID();
+
+	bs_state.dmap_valid = true;
+
+	/* Exclude the kernel and DMAP region */
+	pa = pmap_early_vtophys(bs_state.freemempos);
+	physmem_exclude_region(start_pa, pa - start_pa, EXFLAG_NOALLOC);
 }
 
 static void
@@ -1304,21 +1328,11 @@ pmap_bootstrap_l3(vm_offset_t va)
  *	Bootstrap the system enough to run with virtual memory.
  */
 void
-pmap_bootstrap(vm_size_t kernlen)
+pmap_bootstrap(void)
 {
 	vm_offset_t dpcpu, msgbufpv;
 	vm_paddr_t start_pa, pa;
-	uint64_t tcr;
-
-	tcr = READ_SPECIALREG(tcr_el1);
-
-	/* Verify that the ASID is set through TTBR0. */
-	KASSERT((tcr & TCR_A1) == 0, ("pmap_bootstrap: TCR_EL1.A1 != 0"));
-
-	if ((tcr & TCR_DS) != 0)
-		pmap_lpa_enabled = true;
-
-	pmap_l1_supported = L1_BLOCKS_SUPPORTED;
+	size_t largest_phys_size;
 
 	/* Set this early so we can use the pagetable walking functions */
 	kernel_pmap_store.pm_l0 = pagetable_l0_ttbr1;
@@ -1333,12 +1347,13 @@ pmap_bootstrap(vm_size_t kernlen)
 	kernel_pmap->pm_ttbr = kernel_pmap->pm_l0_paddr;
 	kernel_pmap->pm_asid_set = &asids;
 
-	bs_state.freemempos = KERNBASE + kernlen;
-	bs_state.freemempos = roundup2(bs_state.freemempos, PAGE_SIZE);
+	/* Reserve some VA space for early BIOS/ACPI mapping */
+	preinit_map_va = roundup2(bs_state.freemempos, L2_SIZE);
 
-	/* Create a direct map region early so we can use it for pa -> va */
-	pmap_bootstrap_dmap();
-	bs_state.dmap_valid = true;
+	virtual_avail = preinit_map_va + PMAP_PREINIT_MAPPING_SIZE;
+	virtual_avail = roundup2(virtual_avail, L1_SIZE);
+	virtual_end = VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE;
+	kernel_vm_end = virtual_avail;
 
 	/*
 	 * We only use PXN when we know nothing will be executed from it, e.g.
@@ -1346,7 +1361,28 @@ pmap_bootstrap(vm_size_t kernlen)
 	 */
 	bs_state.table_attrs &= ~TATTR_PXN_TABLE;
 
-	start_pa = pa = pmap_early_vtophys(KERNBASE);
+	/*
+	 * Find the physical memory we could use. This needs to be after we
+	 * exclude any memory that is mapped into the DMAP region but should
+	 * not be used by the kernel, e.g. some UEFI memory types.
+	 */
+	physmap_idx = physmem_avail(physmap, nitems(physmap));
+
+	/*
+	 * Find space for early allocations. We search for the largest
+	 * region. This is because the user may choose a large msgbuf.
+	 * This could be smarter, e.g. to allow multiple regions to be
+	 * used & switch to the next when one is full.
+	 */
+	largest_phys_size = 0;
+	for (int i = 0; i < physmap_idx; i += 2) {
+		if ((physmap[i + 1] - physmap[i]) > largest_phys_size) {
+			largest_phys_size = physmap[i + 1] - physmap[i];
+			bs_state.freemempos = PHYS_TO_DMAP(physmap[i]);
+		}
+	}
+
+	start_pa = pmap_early_vtophys(bs_state.freemempos);
 
 	/*
 	 * Create the l2 tables up to VM_MAX_KERNEL_ADDRESS.  We assume that the
@@ -1372,19 +1408,9 @@ pmap_bootstrap(vm_size_t kernlen)
 	alloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 	msgbufp = (void *)msgbufpv;
 
-	/* Reserve some VA space for early BIOS/ACPI mapping */
-	preinit_map_va = roundup2(bs_state.freemempos, L2_SIZE);
-
-	virtual_avail = preinit_map_va + PMAP_PREINIT_MAPPING_SIZE;
-	virtual_avail = roundup2(virtual_avail, L1_SIZE);
-	virtual_end = VM_MAX_KERNEL_ADDRESS - (PMAP_MAPDEV_EARLY_SIZE);
-	kernel_vm_end = virtual_avail;
-
 	pa = pmap_early_vtophys(bs_state.freemempos);
 
 	physmem_exclude_region(start_pa, pa - start_pa, EXFLAG_NOALLOC);
-
-	cpu_tlb_flushID();
 }
 
 #if defined(KASAN) || defined(KMSAN)
@@ -1546,11 +1572,11 @@ pmap_init_pv_table(void)
 	int domain, i, j, pages;
 
 	/*
-	 * We strongly depend on the size being a power of two, so the assert
-	 * is overzealous. However, should the struct be resized to a
-	 * different power of two, the code below needs to be revisited.
+	 * We depend on the size being evenly divisible into a page so
+	 * that the pv_table array can be indexed directly while
+	 * safely spanning multiple pages from different domains.
 	 */
-	CTASSERT((sizeof(*pvd) == 64));
+	CTASSERT(PAGE_SIZE % sizeof(*pvd) == 0);
 
 	/*
 	 * Calculate the size of the array.
@@ -1623,6 +1649,75 @@ pmap_init_pv_table(void)
 		}
 	}
 }
+
+static bool
+pmap_dbm_check(const struct cpu_feat *feat __unused, u_int midr __unused)
+{
+	uint64_t id_aa64mmfr1;
+
+	id_aa64mmfr1 = READ_SPECIALREG(id_aa64mmfr1_el1);
+	return (ID_AA64MMFR1_HAFDBS_VAL(id_aa64mmfr1) >=
+	    ID_AA64MMFR1_HAFDBS_AF_DBS);
+}
+
+static bool
+pmap_dbm_has_errata(const struct cpu_feat *feat __unused, u_int midr,
+    u_int **errata_list, u_int *errata_count)
+{
+	/* Disable on Cortex-A55 for erratum 1024718 - all revisions */
+	if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK, CPU_IMPL_ARM,
+	    CPU_PART_CORTEX_A55, 0, 0)) {
+		static u_int errata_id = 1024718;
+
+		*errata_list = &errata_id;
+		*errata_count = 1;
+		return (true);
+	}
+
+	/* Disable on Cortex-A510 for erratum 2051678 - r0p0 to r0p2 */
+	if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK | CPU_VAR_MASK,
+	    CPU_IMPL_ARM, CPU_PART_CORTEX_A510, 0, 0)) {
+		if (CPU_REV(PCPU_GET(midr)) < 3) {
+			static u_int errata_id = 2051678;
+
+			*errata_list = &errata_id;
+			*errata_count = 1;
+			return (true);
+		}
+	}
+
+	return (false);
+}
+
+static void
+pmap_dbm_enable(const struct cpu_feat *feat __unused,
+    cpu_feat_errata errata_status, u_int *errata_list __unused,
+    u_int errata_count)
+{
+	uint64_t tcr;
+
+	/* Skip if there is an erratum affecting DBM */
+	if (errata_status != ERRATA_NONE)
+		return;
+
+	tcr = READ_SPECIALREG(tcr_el1) | TCR_HD;
+	WRITE_SPECIALREG(tcr_el1, tcr);
+	isb();
+	/* Flush the local TLB for the TCR_HD flag change */
+	dsb(nshst);
+	__asm __volatile("tlbi vmalle1");
+	dsb(nsh);
+	isb();
+}
+
+static struct cpu_feat feat_dbm = {
+	.feat_name		= "FEAT_HAFDBS (DBM)",
+	.feat_check		= pmap_dbm_check,
+	.feat_has_errata	= pmap_dbm_has_errata,
+	.feat_enable		= pmap_dbm_enable,
+	.feat_flags		= CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU,
+};
+DATA_SET(cpu_feat_set, feat_dbm);
 
 /*
  *	Initialize the pmap module.
@@ -2013,6 +2108,56 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	}
 	PMAP_UNLOCK(pmap);
 	return (m);
+}
+
+/*
+ * Returns true if the entire kernel virtual address range is mapped
+ */
+static bool
+pmap_kmapped_range(vm_offset_t sva, vm_size_t size)
+{
+	pt_entry_t *pte, tpte;
+	vm_offset_t eva;
+
+	KASSERT(sva >= VM_MIN_KERNEL_ADDRESS,
+	    ("%s: Invalid virtual address: %lx", __func__, sva));
+	MPASS(size != 0);
+	eva = sva + size - 1;
+	KASSERT(eva > sva, ("%s: Size too large: sva %lx, size %lx", __func__,
+	    sva, size));
+
+	while (sva <= eva) {
+		pte = pmap_l1(kernel_pmap, sva);
+		if (pte == NULL)
+			return (false);
+		tpte = pmap_load(pte);
+		if (tpte == 0)
+			return (false);
+		if ((tpte & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_BLOCK) {
+			sva = (sva & ~L1_OFFSET) + L1_SIZE;
+			continue;
+		}
+
+		pte = pmap_l1_to_l2(&tpte, sva);
+		tpte = pmap_load(pte);
+		if (tpte == 0)
+			return (false);
+		if ((tpte & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_BLOCK) {
+			sva = (sva & ~L2_OFFSET) + L2_SIZE;
+			continue;
+		}
+		pte = pmap_l2_to_l3(&tpte, sva);
+		tpte = pmap_load(pte);
+		if (tpte == 0)
+			return (false);
+		MPASS((tpte & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_PAGE);
+		if ((tpte & ATTR_CONTIGUOUS) == ATTR_CONTIGUOUS)
+			sva = (sva & ~L3C_OFFSET) + L3C_SIZE;
+		else
+			sva = (sva & ~L3_OFFSET) + L3_SIZE;
+	}
+
+	return (true);
 }
 
 /*
@@ -4618,7 +4763,7 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *ptep, pd_entry_t newpte,
 /*
  * Performs a break-before-make update of an ATTR_CONTIGUOUS mapping.
  */
-static void
+static void __nosanitizecoverage
 pmap_update_strided(pmap_t pmap, pd_entry_t *ptep, pd_entry_t *ptep_end,
     pd_entry_t newpte, vm_offset_t va, vm_offset_t stride, vm_size_t size)
 {
@@ -5939,32 +6084,33 @@ void
 pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
     vm_page_t m_start, vm_prot_t prot)
 {
+	struct pctrie_iter pages;
 	struct rwlock *lock;
 	vm_offset_t va;
 	vm_page_t m, mpte;
-	vm_pindex_t diff, psize;
 	int rv;
 
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
-	psize = atop(end - start);
 	mpte = NULL;
-	m = m_start;
+	vm_page_iter_limit_init(&pages, m_start->object,
+	    m_start->pindex + atop(end - start));
+	m = vm_radix_iter_lookup(&pages, m_start->pindex);
 	lock = NULL;
 	PMAP_LOCK(pmap);
-	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
-		va = start + ptoa(diff);
+	while (m != NULL) {
+		va = start + ptoa(m->pindex - m_start->pindex);
 		if ((va & L2_OFFSET) == 0 && va + L2_SIZE <= end &&
 		    m->psind == 2 && pmap_ps_enabled(pmap) &&
 		    ((rv = pmap_enter_l2_rx(pmap, va, m, prot, &lock)) ==
-		    KERN_SUCCESS || rv == KERN_NO_SPACE))
-			m = &m[L2_SIZE / PAGE_SIZE - 1];
-		else if ((va & L3C_OFFSET) == 0 && va + L3C_SIZE <= end &&
+		    KERN_SUCCESS || rv == KERN_NO_SPACE)) {
+			m = vm_radix_iter_jump(&pages, L2_SIZE / PAGE_SIZE);
+		} else if ((va & L3C_OFFSET) == 0 && va + L3C_SIZE <= end &&
 		    m->psind >= 1 && pmap_ps_enabled(pmap) &&
 		    ((rv = pmap_enter_l3c_rx(pmap, va, m, &mpte, prot,
-		    &lock)) == KERN_SUCCESS || rv == KERN_NO_SPACE))
-			m = &m[L3C_ENTRIES - 1];
-		else {
+		    &lock)) == KERN_SUCCESS || rv == KERN_NO_SPACE)) {
+			m = vm_radix_iter_jump(&pages, L3C_ENTRIES);
+		} else {
 			/*
 			 * In general, if a superpage mapping were possible,
 			 * it would have been created above.  That said, if
@@ -5976,8 +6122,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 			 */
 			mpte = pmap_enter_quick_locked(pmap, va, m, prot |
 			    VM_PROT_NO_PROMOTE, mpte, &lock);
+			m = vm_radix_iter_step(&pages);
 		}
-		m = TAILQ_NEXT(m, listq);
 	}
 	if (lock != NULL)
 		rw_wunlock(lock);
@@ -7690,6 +7836,11 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 	pt_entry_t *l2;
 	int i, lvl, l2_blocks, free_l2_count, start_idx;
 
+	/* Use the DMAP region if we can */
+	if (PHYS_IN_DMAP(pa) && PHYS_IN_DMAP(pa + size - 1) &&
+	    pmap_kmapped_range(PHYS_TO_DMAP(pa), size))
+		return ((void *)PHYS_TO_DMAP(pa));
+
 	if (!vm_initialized) {
 		/*
 		 * No L3 ptables so map entire L2 blocks where start VA is:
@@ -7805,10 +7956,25 @@ pmap_unmapbios(void *p, vm_size_t size)
 	vm_offset_t offset, va, va_trunc;
 	pd_entry_t *pde;
 	pt_entry_t *l2;
-	int i, lvl, l2_blocks, block;
+	int error __diagused, i, lvl, l2_blocks, block;
 	bool preinit_map;
 
 	va = (vm_offset_t)p;
+	if (VIRT_IN_DMAP(va)) {
+		KASSERT(VIRT_IN_DMAP(va + size - 1),
+		    ("%s: End address not in DMAP region: %lx", __func__,
+		    va + size - 1));
+		/* Ensure the attributes are as expected for the DMAP region */
+		PMAP_LOCK(kernel_pmap);
+		error = pmap_change_props_locked(va, size,
+		    PROT_READ | PROT_WRITE, VM_MEMATTR_DEFAULT, false);
+		PMAP_UNLOCK(kernel_pmap);
+		KASSERT(error == 0, ("%s: Failed to reset DMAP attributes: %d",
+		    __func__, error));
+
+		return;
+	}
+
 	l2_blocks =
 	   (roundup2(va + size, L2_SIZE) - rounddown2(va, L2_SIZE)) >> L2_SHIFT;
 	KASSERT(l2_blocks > 0, ("pmap_unmapbios: invalid size %lx", size));
@@ -9076,20 +9242,16 @@ pmap_stage2_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 		ptep = pmap_pte(pmap, far, &lvl);
 fault_exec:
 		if (ptep != NULL && (pte = pmap_load(ptep)) != 0) {
-			if (icache_vmid) {
-				pmap_invalidate_vpipt_icache();
-			} else {
-				/*
-				 * If accessing an executable page invalidate
-				 * the I-cache so it will be valid when we
-				 * continue execution in the guest. The D-cache
-				 * is assumed to already be clean to the Point
-				 * of Coherency.
-				 */
-				if ((pte & ATTR_S2_XN_MASK) !=
-				    ATTR_S2_XN(ATTR_S2_XN_NONE)) {
-					invalidate_icache();
-				}
+			/*
+			 * If accessing an executable page invalidate
+			 * the I-cache so it will be valid when we
+			 * continue execution in the guest. The D-cache
+			 * is assumed to already be clean to the Point
+			 * of Coherency.
+			 */
+			if ((pte & ATTR_S2_XN_MASK) !=
+			    ATTR_S2_XN(ATTR_S2_XN_NONE)) {
+				invalidate_icache();
 			}
 			pmap_set_bits(ptep, ATTR_AF | ATTR_DESCR_VALID);
 			rv = KERN_SUCCESS;
@@ -9178,12 +9340,23 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 			if (pmap_klookup(far, NULL))
 				rv = KERN_SUCCESS;
 		} else {
-			PMAP_LOCK(pmap);
+			bool owned;
+
+			/*
+			 * In the EFIRT driver we lock the pmap before
+			 * calling into the runtime service. As the lock
+			 * is already owned by the current thread skip
+			 * locking it again.
+			 */
+			owned = PMAP_OWNED(pmap);
+			if (!owned)
+				PMAP_LOCK(pmap);
 			/* Ask the MMU to check the address. */
 			intr = intr_disable();
 			par = arm64_address_translate_s1e0r(far);
 			intr_restore(intr);
-			PMAP_UNLOCK(pmap);
+			if (!owned)
+				PMAP_UNLOCK(pmap);
 
 			/*
 			 * If the translation was successful, then we can

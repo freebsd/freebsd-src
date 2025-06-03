@@ -1,0 +1,63 @@
+.\"
+.\" Copyright (c) 2025 Rick Macklem
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd April 15, 2025
+.Dt RUNAT 1
+.Os
+.Sh NAME
+.Nm runat
+.Nd run a shell command on a named attribute directory
+.Sh SYNOPSIS
+.Nm
+.Op Ar file
+.Op Ar shell command
+.Sh DESCRIPTION
+The
+.Nm
+utility runs the shell command on the named attribute directory for the
+.Ar file
+argument.
+It does a
+.Xr fchdir 2
+system call to change the current working directory into the
+named attribute directory for the
+.Ar file
+argument and then performs the shell command via
+.Xr sh 1 .
+.Pp
+If a named attribute directory does not exist for
+.Ar file ,
+an empty one will be created.
+If an application needs to determine if a named attribute
+exists for the
+.Ar file ,
+.Xr pathconf 2
+with the name
+.Fa _PC_HAS_NAMEDATTR
+may be used.
+This will not create an empty named attribute directory
+if one does not exist for
+.Ar file .
+.Sh EXAMPLES
+For a
+.Ar file
+called
+.Dq myfile :
+.Bd -literal
+$ runat myfile ls -l			# lists the attributes for myfile
+$ runat myfile cp /etc/hosts attrhosts	# creates attrhosts
+$ runat myfile cat attrhosts		# displays contents of attrhosts
+.Ed
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr fchdir 2 ,
+.Xr pathconf 2 ,
+.Xr open 2 ,
+.Xr named_attribute 7
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 15.0 .

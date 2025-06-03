@@ -258,17 +258,22 @@ WANT_MAKE_VERSION= 20160604
 # 20160220 - support .dinclude for FAST_DEPEND.
 WANT_MAKE_VERSION= 20160220
 .endif
+.if defined(MYMAKE)
+.error MYMAKE cannot be overridden, use as command name instead
+.endif
 MYMAKE=		${OBJROOT}make.${MACHINE}/bmake
 .if defined(ALWAYS_BOOTSTRAP_MAKE) || \
     (defined(WANT_MAKE_VERSION) && ${MAKE_VERSION} < ${WANT_MAKE_VERSION})
 NEED_MAKE_UPGRADE= t
 .endif
-.if exists(${MYMAKE})
+.if defined(NEED_MAKE_UPGRADE)
+. if exists(${MYMAKE})
 SUB_MAKE:= ${MYMAKE} -m ${.CURDIR}/share/mk
-.elif defined(NEED_MAKE_UPGRADE)
+. else
 # It may not exist yet but we may cause it to.
 SUB_MAKE= `test -x ${MYMAKE} && echo ${MYMAKE} || echo ${MAKE}` \
 	-m ${.CURDIR}/share/mk
+. endif
 .else
 SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
 .endif
@@ -359,15 +364,16 @@ _assert_target: .PHONY .MAKE
 .endfor
 
 #
-# Make sure we have an up-to-date make(1). Only world and buildworld
-# should do this as those are the initial targets used for upgrades.
-# The user can define ALWAYS_CHECK_MAKE to have this check performed
-# for all targets.
+# Make sure we have an up-to-date make(1). Only world, buildworld and
+# kernel-toolchain should do this as those are the initial targets used
+# for upgrades. The user can define ALWAYS_CHECK_MAKE to have this check
+# performed for all targets.
 #
 .if defined(ALWAYS_CHECK_MAKE)
 ${TGTS}: upgrade_checks
 .else
 buildworld: upgrade_checks
+kernel-toolchain: upgrade_checks
 .endif
 
 #
@@ -457,6 +463,9 @@ kernel: buildkernel installkernel .PHONY
 upgrade_checks: .PHONY
 .if defined(NEED_MAKE_UPGRADE)
 	@${_+_}(cd ${.CURDIR} && ${MAKE} bmake)
+.elif exists(${MYMAKE:H})
+	@echo "Removing stale bmake(1)"
+	rm -r ${MYMAKE:H}
 .endif
 
 #
@@ -531,13 +540,15 @@ TARGET_ARCHES_${target}= ${MACHINE_ARCH_LIST_${target}}
 .endfor
 
 .if defined(USE_GCC_TOOLCHAINS)
-TOOLCHAINS_amd64=	amd64-gcc12
-TOOLCHAINS_arm=		armv7-gcc12
-TOOLCHAINS_arm64=	aarch64-gcc12
-TOOLCHAINS_i386=	i386-gcc12
-TOOLCHAINS_powerpc=	powerpc-gcc12 powerpc64-gcc12
-TOOLCHAIN_powerpc64=	powerpc64-gcc12
-TOOLCHAINS_riscv=	riscv64-gcc12
+_DEFAULT_GCC_VERSION=	gcc14
+_GCC_VERSION=		${"${USE_GCC_TOOLCHAINS:Mgcc*}" != "":?${USE_GCC_TOOLCHAINS}:${_DEFAULT_GCC_VERSION}}
+TOOLCHAINS_amd64=	amd64-${_GCC_VERSION}
+TOOLCHAINS_arm=		armv7-${_GCC_VERSION}
+TOOLCHAINS_arm64=	aarch64-${_GCC_VERSION}
+TOOLCHAINS_i386=	i386-${_GCC_VERSION}
+TOOLCHAINS_powerpc=	powerpc-${_GCC_VERSION} powerpc64-${_GCC_VERSION}
+TOOLCHAIN_powerpc64=	powerpc64-${_GCC_VERSION}
+TOOLCHAINS_riscv=	riscv64-${_GCC_VERSION}
 .endif
 
 # If a target is using an external toolchain, set MAKE_PARAMS to enable use

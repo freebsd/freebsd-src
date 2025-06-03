@@ -15,7 +15,10 @@ ATF_TESTS_C+=	kcov
 .endif
 ATF_TESTS_C+=	kern_copyin
 ATF_TESTS_C+=	kern_descrip_test
+# One test modifies the maxfiles limit, which can cause spurious test failures.
+TEST_METADATA.kern_descrip_test+= is_exclusive="true"
 ATF_TESTS_C+=	fdgrowtable_test
+ATF_TESTS_C+=	jail_lookup_root
 ATF_TESTS_C+=	kill_zombie
 .if ${MK_OPENSSL} != "no"
 ATF_TESTS_C+=	ktls_test
@@ -23,6 +26,7 @@ ATF_TESTS_C+=	ktls_test
 ATF_TESTS_C+=	ktrace_test
 ATF_TESTS_C+=	listener_wakeup
 ATF_TESTS_C+=	module_test
+ATF_TESTS_C+=	prace
 ATF_TESTS_C+=	ptrace_test
 TEST_METADATA.ptrace_test+=		timeout="15"
 ATF_TESTS_C+=	reaper
@@ -57,13 +61,14 @@ ATF_TESTS_C+=	sigsys
 TEST_METADATA.sigsys+=	is_exclusive="true"
 
 ATF_TESTS_SH+=	coredump_phnum_test
+ATF_TESTS_SH+=	logsigexit_test
+ATF_TESTS_SH+=	jailmeta
 ATF_TESTS_SH+=	sonewconn_overflow
 TEST_METADATA.sonewconn_overflow+=	required_programs="python"
 TEST_METADATA.sonewconn_overflow+=	required_user="root"
 TEST_METADATA.sonewconn_overflow+=	is_exclusive="true"
 ATF_TESTS_SH+=	sendfile_test
 ATF_TESTS_SH+=	sysctl_security_jail_children
-TEST_METADATA.sysctl_security_jail_children+=	is_exclusive="true"
 
 ${PACKAGE}FILES+=	sonewconn_overflow.py
 ${PACKAGE}FILESMODE_sonewconn_overflow.py=0555
@@ -73,6 +78,7 @@ PROGS+=		coredump_phnum_helper
 PROGS+=		pdeathsig_helper
 PROGS+=		sendfile_helper
 
+LIBADD.jail_lookup_root+=		jail util
 CFLAGS.sys_getrandom+=			-I${SRCTOP}/sys/contrib/zstd/lib
 LIBADD.sys_getrandom+=			zstd
 LIBADD.sys_getrandom+=			c
@@ -90,6 +96,7 @@ LIBADD.sendfile_helper+=		pthread
 LIBADD.fdgrowtable_test+=		util pthread kvm procstat
 LIBADD.sigwait+=			rt
 LIBADD.ktrace_test+=			sysdecode
+LIBADD.unix_stream+=			pthread
 
 NETBSD_ATF_TESTS_C+=	lockf_test
 NETBSD_ATF_TESTS_C+=	mqueue_test
@@ -127,6 +134,7 @@ WARNS?=	3
 TESTS_SUBDIRS+=	acct
 TESTS_SUBDIRS+=	execve
 TESTS_SUBDIRS+=	pipe
+TESTS_SUBDIRS+=	tty
 
 .include <netbsd-tests.test.mk>
 

@@ -9,7 +9,6 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/ncurses/ncurses \
 	lib/ncurses/tinfo \
-	usr.bin/awk.host \
 
 
 .include <dirdeps.mk>

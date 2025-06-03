@@ -25,12 +25,29 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 31, 2019
+.Dd January 1, 2025
 .Dt SHAR 1
 .Os
 .Sh NAME
 .Nm shar
 .Nd create a shell archive of files
+.Sh DEPRECATION NOTICE
+.Nm
+is obsolete and may not be present in
+.Fx 15
+and later.
+Because shell archives are simultaneously data and code and are typically
+interpreted by
+.Xr sh 1 ,
+they can easily be trojan-horsed and pose a significant security risk to users.
+The
+.Xr tar 1
+utility can still produce shar encodings of files if needed.
+The
+.Pa sysutils/freebsd-shar
+port has been created to maintain this version of
+.Nm
+past its deprecation in base.
 .Sh SYNOPSIS
 .Nm
 .Ar

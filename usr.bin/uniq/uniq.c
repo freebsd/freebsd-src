@@ -225,12 +225,13 @@ main (int argc, char *argv[])
 						fputc('\n', ofp);
 					show(ofp, prevline);
 				}
-				show(ofp, thisline);
 			} else if (dflag && !cflag) {
 				if (repeats == 0)
 					show(ofp, prevline);
 			}
 			++repeats;
+			if (Dflag)
+				show(ofp, thisline);
 		}
 	}
 	if (ferror(ifp))
@@ -366,7 +367,7 @@ obsolete(char *argv[])
 static void
 usage(void)
 {
-	(void)fprintf(stderr,
-"usage: uniq [-c | -d | -D | -u] [-i] [-f fields] [-s chars] [input [output]]\n");
+	(void)fprintf(stderr, "usage: uniq [-cdiu] [-D[septype]] "
+	    "[-f fields] [-s chars] [input [output]]\n");
 	exit(1);
 }

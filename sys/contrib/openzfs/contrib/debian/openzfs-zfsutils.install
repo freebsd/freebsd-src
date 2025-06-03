@@ -73,6 +73,7 @@ usr/share/man/man8/zfs-recv.8
 usr/share/man/man8/zfs-redact.8
 usr/share/man/man8/zfs-release.8
 usr/share/man/man8/zfs-rename.8
+usr/share/man/man8/zfs-rewrite.8
 usr/share/man/man8/zfs-rollback.8
 usr/share/man/man8/zfs-send.8
 usr/share/man/man8/zfs-set.8
@@ -98,6 +99,7 @@ usr/share/man/man8/zpool-attach.8
 usr/share/man/man8/zpool-checkpoint.8
 usr/share/man/man8/zpool-clear.8
 usr/share/man/man8/zpool-create.8
+usr/share/man/man8/zpool-ddtprune.8
 usr/share/man/man8/zpool-destroy.8
 usr/share/man/man8/zpool-detach.8
 usr/share/man/man8/zpool-ddtprune.8
@@ -112,6 +114,7 @@ usr/share/man/man8/zpool-labelclear.8
 usr/share/man/man8/zpool-list.8
 usr/share/man/man8/zpool-offline.8
 usr/share/man/man8/zpool-online.8
+usr/share/man/man8/zpool-prefetch.8
 usr/share/man/man8/zpool-prefetch.8
 usr/share/man/man8/zpool-reguid.8
 usr/share/man/man8/zpool-remove.8

@@ -33,11 +33,8 @@
  */
 #include "if_wtapvar.h"
 #include <sys/uio.h>    /* uio struct */
-#include <sys/jail.h>
 #include <net/if_var.h>
-#include <net/vnet.h>
 
-#include <net80211/ieee80211_ratectl.h>
 #include "if_medium.h"
 #include "wtap_hal/hal.h"
 
@@ -395,13 +392,13 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	ieee80211_vap_attach(vap, ieee80211_media_change,
 	    ieee80211_media_status, mac);
 	avp->av_dev = make_dev(&wtap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "%s", (const char *)vap->iv_ifp->if_xname);
+	    "%s", if_name(vap->iv_ifp));
 	avp->av_dev->si_drv1 = sc;
 	callout_init(&avp->av_swba, 0);
 
 	/* TODO this is a hack to force it to choose the rate we want */
 	ni = ieee80211_ref_node(vap->iv_bss);
-	ni->ni_txrate = 130;
+	ieee80211_node_set_txrate_ht_mcsrate(ni, 2);
 	ieee80211_free_node(ni);
 	return vap;
 }
@@ -617,8 +614,7 @@ wtap_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	    M_NOWAIT|M_ZERO);
 	if (ni == NULL)
 		return (NULL);
-
-	ni->ni_txrate = 130;
+	ieee80211_node_set_txrate_ht_mcsrate(ni, 2);
 	return ni;
 }
 

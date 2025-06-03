@@ -1,7 +1,7 @@
 
-##############################################################################
-#
-#    Magic ids for biomedical signal file formats 
+#------------------------------------------------------------------------------
+# $File: biosig,v 1.4 2024/06/10 23:09:52 christos Exp $
+#    file(1) magic for biomedical signal file formats 
 #    Copyright (C) 2018 Alois Schloegl <alois.schloegl@gmail.com>
 #
 #    The list has been derived from biosig projects

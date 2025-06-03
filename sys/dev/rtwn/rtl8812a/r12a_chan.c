@@ -60,30 +60,10 @@
 #include <dev/rtwn/rtl8812a/r12a_var.h>
 
 static void
-r12a_write_txpower(struct rtwn_softc *sc, int chain,
+r12a_write_txpower_ht(struct rtwn_softc *sc, int chain,
     struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
 {
 
-	if (IEEE80211_IS_CHAN_2GHZ(c)) {
-		/* Write per-CCK rate Tx power. */
-		rtwn_bb_write(sc, R12A_TXAGC_CCK11_1(chain),
-		    SM(R12A_TXAGC_CCK1,  power[RTWN_RIDX_CCK1]) |
-		    SM(R12A_TXAGC_CCK2,  power[RTWN_RIDX_CCK2]) |
-		    SM(R12A_TXAGC_CCK55, power[RTWN_RIDX_CCK55]) |
-		    SM(R12A_TXAGC_CCK11, power[RTWN_RIDX_CCK11]));
-	}
-
-	/* Write per-OFDM rate Tx power. */
-	rtwn_bb_write(sc, R12A_TXAGC_OFDM18_6(chain),
-	    SM(R12A_TXAGC_OFDM06, power[RTWN_RIDX_OFDM6]) |
-	    SM(R12A_TXAGC_OFDM09, power[RTWN_RIDX_OFDM9]) |
-	    SM(R12A_TXAGC_OFDM12, power[RTWN_RIDX_OFDM12]) |
-	    SM(R12A_TXAGC_OFDM18, power[RTWN_RIDX_OFDM18]));
-	rtwn_bb_write(sc, R12A_TXAGC_OFDM54_24(chain),
-	    SM(R12A_TXAGC_OFDM24, power[RTWN_RIDX_OFDM24]) |
-	    SM(R12A_TXAGC_OFDM36, power[RTWN_RIDX_OFDM36]) |
-	    SM(R12A_TXAGC_OFDM48, power[RTWN_RIDX_OFDM48]) |
-	    SM(R12A_TXAGC_OFDM54, power[RTWN_RIDX_OFDM54]));
 	/* Write per-MCS Tx power. */
 	rtwn_bb_write(sc, R12A_TXAGC_MCS3_0(chain),
 	    SM(R12A_TXAGC_MCS0, power[RTWN_RIDX_HT_MCS(0)]) |
@@ -108,7 +88,139 @@ r12a_write_txpower(struct rtwn_softc *sc, int chain,
 		    SM(R12A_TXAGC_MCS15, power[RTWN_RIDX_HT_MCS(15)]));
 	}
 
-	/* TODO: VHT rates */
+	/* TODO: HT MCS 16 -> 31 */
+}
+
+static void
+r12a_write_txpower_vht(struct rtwn_softc *sc, int chain,
+    struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
+{
+
+	/* 1SS, MCS 0..3 */
+	rtwn_bb_write(sc, R12A_TXAGC_NSS1IX3_1IX0(chain),
+	    SM(R12A_TXAGC_NSS1_MCS0, power[RTWN_RIDX_VHT_MCS(0, 0)]) |
+	    SM(R12A_TXAGC_NSS1_MCS1, power[RTWN_RIDX_VHT_MCS(0, 1)]) |
+	    SM(R12A_TXAGC_NSS1_MCS2, power[RTWN_RIDX_VHT_MCS(0, 2)]) |
+	    SM(R12A_TXAGC_NSS1_MCS3, power[RTWN_RIDX_VHT_MCS(0, 3)]));
+
+	/* 1SS, MCS 4..7 */
+	rtwn_bb_write(sc, R12A_TXAGC_NSS1IX7_1IX4(chain),
+	    SM(R12A_TXAGC_NSS1_MCS4, power[RTWN_RIDX_VHT_MCS(0, 4)]) |
+	    SM(R12A_TXAGC_NSS1_MCS5, power[RTWN_RIDX_VHT_MCS(0, 5)]) |
+	    SM(R12A_TXAGC_NSS1_MCS6, power[RTWN_RIDX_VHT_MCS(0, 6)]) |
+	    SM(R12A_TXAGC_NSS1_MCS7, power[RTWN_RIDX_VHT_MCS(0, 7)]));
+
+	/* 1SS, MCS 8,9 ; 2SS MCS0, 1 */
+	if (sc->ntxchains == 1) {
+		rtwn_bb_write(sc, R12A_TXAGC_NSS2IX1_1IX8(chain),
+		    SM(R12A_TXAGC_NSS1_MCS8, power[RTWN_RIDX_VHT_MCS(0, 8)]) |
+		    SM(R12A_TXAGC_NSS1_MCS9, power[RTWN_RIDX_VHT_MCS(0, 9)]) |
+		    SM(R12A_TXAGC_NSS2_MCS0, 0) |
+		    SM(R12A_TXAGC_NSS2_MCS1, 0));
+	} else {
+		rtwn_bb_write(sc, R12A_TXAGC_NSS2IX1_1IX8(chain),
+		    SM(R12A_TXAGC_NSS1_MCS8, power[RTWN_RIDX_VHT_MCS(0, 8)]) |
+		    SM(R12A_TXAGC_NSS1_MCS9, power[RTWN_RIDX_VHT_MCS(0, 9)]) |
+		    SM(R12A_TXAGC_NSS2_MCS0, power[RTWN_RIDX_VHT_MCS(1, 0)]) |
+		    SM(R12A_TXAGC_NSS2_MCS1, power[RTWN_RIDX_VHT_MCS(1, 1)]));
+	}
+
+	/* 2SS MCS 2..5 */
+	if (sc->ntxchains > 1) {
+		rtwn_bb_write(sc, R12A_TXAGC_NSS2IX5_2IX2(chain),
+		    SM(R12A_TXAGC_NSS2_MCS2, power[RTWN_RIDX_VHT_MCS(1, 2)]) |
+		    SM(R12A_TXAGC_NSS2_MCS3, power[RTWN_RIDX_VHT_MCS(1, 3)]) |
+		    SM(R12A_TXAGC_NSS2_MCS4, power[RTWN_RIDX_VHT_MCS(1, 4)]) |
+		    SM(R12A_TXAGC_NSS2_MCS5, power[RTWN_RIDX_VHT_MCS(1, 5)]));
+	}
+
+	/* 2SS MCS 6..9 */
+	if (sc->ntxchains > 1) {
+		rtwn_bb_write(sc, R12A_TXAGC_NSS2IX9_2IX6(chain),
+		    SM(R12A_TXAGC_NSS2_MCS2, power[RTWN_RIDX_VHT_MCS(1, 6)]) |
+		    SM(R12A_TXAGC_NSS2_MCS3, power[RTWN_RIDX_VHT_MCS(1, 7)]) |
+		    SM(R12A_TXAGC_NSS2_MCS4, power[RTWN_RIDX_VHT_MCS(1, 8)]) |
+		    SM(R12A_TXAGC_NSS2_MCS5, power[RTWN_RIDX_VHT_MCS(1, 9)]));
+	}
+
+	/* TODO: 3SS, 4SS VHT rates */
+}
+
+
+static void
+r12a_write_txpower_cck(struct rtwn_softc *sc, int chain,
+    struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
+{
+
+	if (IEEE80211_IS_CHAN_2GHZ(c)) {
+		/* Write per-CCK rate Tx power. */
+		rtwn_bb_write(sc, R12A_TXAGC_CCK11_1(chain),
+		    SM(R12A_TXAGC_CCK1,  power[RTWN_RIDX_CCK1]) |
+		    SM(R12A_TXAGC_CCK2,  power[RTWN_RIDX_CCK2]) |
+		    SM(R12A_TXAGC_CCK55, power[RTWN_RIDX_CCK55]) |
+		    SM(R12A_TXAGC_CCK11, power[RTWN_RIDX_CCK11]));
+	}
+}
+
+static void
+r12a_write_txpower_ofdm(struct rtwn_softc *sc, int chain,
+    struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
+{
+
+	/* Write per-OFDM rate Tx power. */
+	rtwn_bb_write(sc, R12A_TXAGC_OFDM18_6(chain),
+	    SM(R12A_TXAGC_OFDM06, power[RTWN_RIDX_OFDM6]) |
+	    SM(R12A_TXAGC_OFDM09, power[RTWN_RIDX_OFDM9]) |
+	    SM(R12A_TXAGC_OFDM12, power[RTWN_RIDX_OFDM12]) |
+	    SM(R12A_TXAGC_OFDM18, power[RTWN_RIDX_OFDM18]));
+	rtwn_bb_write(sc, R12A_TXAGC_OFDM54_24(chain),
+	    SM(R12A_TXAGC_OFDM24, power[RTWN_RIDX_OFDM24]) |
+	    SM(R12A_TXAGC_OFDM36, power[RTWN_RIDX_OFDM36]) |
+	    SM(R12A_TXAGC_OFDM48, power[RTWN_RIDX_OFDM48]) |
+	    SM(R12A_TXAGC_OFDM54, power[RTWN_RIDX_OFDM54]));
+}
+
+static void
+r12a_tx_power_training(struct rtwn_softc *sc, int chain,
+    const struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
+{
+	uint32_t write_data;
+	int32_t power_level;
+	int i;
+
+	write_data = 0;
+
+	power_level = (int32_t) power[RTWN_RIDX_HT_MCS(7)];
+	for (i = 0; i < 3; i++) {
+		if (i == 0)
+			power_level -= 10;
+		else if (i == 1)
+			power_level -= 8;
+		else
+			power_level -= 6;
+
+		/* Handle underflow and the minimum value (2) */
+		if (power_level < 2)
+			power_level = 2;
+
+		write_data |= ((power_level & 0xff) << (i * 8));
+	}
+
+	rtwn_bb_setbits(sc, R12A_TX_PWR_TRAINING(chain),
+	    0x00ffffff, write_data);
+}
+
+static void
+r12a_write_txpower(struct rtwn_softc *sc, int chain,
+    struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
+{
+
+	r12a_write_txpower_cck(sc, chain, c, power);
+	r12a_write_txpower_ofdm(sc, chain, c, power);
+	r12a_write_txpower_ht(sc, chain, c, power);
+	r12a_write_txpower_vht(sc, chain, c, power);
+
+	r12a_tx_power_training(sc, chain, c, power);
 }
 
 static int
@@ -163,7 +275,7 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
     struct ieee80211_channel *c, uint8_t power[RTWN_RIDX_COUNT])
 {
 	struct r12a_softc *rs = sc->sc_priv;
-	int i, ridx, group, max_mcs;
+	int i, ridx, group, max_mcs, max_vht_mcs;
 
 	/* Determine channel group. */
 	group = r12a_get_power_group(sc, c);
@@ -172,8 +284,8 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 		return;
 	}
 
-	/* TODO: VHT rates. */
 	max_mcs = RTWN_RIDX_HT_MCS(sc->ntxchains * 8 - 1);
+	max_vht_mcs = RTWN_RIDX_VHT_MCS(sc->ntxchains, 9) - 1;
 
 	/* XXX regulatory */
 	/* XXX net80211 regulatory */
@@ -191,13 +303,11 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 			uint8_t min_mcs;
 			uint8_t pwr_diff;
 
-#ifdef notyet
-			if (IEEE80211_IS_CHAN_HT80(c)) {
+			if (IEEE80211_IS_CHAN_VHT80(c)) {
 				/* Vendor driver uses HT40 values here. */
 				pwr_diff = rs->bw40_tx_pwr_diff_2g[chain][i];
 			} else
-#endif
-			if (IEEE80211_IS_CHAN_HT40(c))
+			if (IEEE80211_IS_CHAN_HT40(c) || IEEE80211_IS_CHAN_VHT40(c))
 				pwr_diff = rs->bw40_tx_pwr_diff_2g[chain][i];
 			else
 				pwr_diff = rs->bw20_tx_pwr_diff_2g[chain][i];
@@ -207,9 +317,14 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 				power[ridx] += pwr_diff;
 		}
 	} else {	/* 5GHz */
+		/* OFDM + HT */
 		for (ridx = RTWN_RIDX_OFDM6; ridx <= max_mcs; ridx++)
 			power[ridx] = rs->ht40_tx_pwr_5g[chain][group];
+		/* VHT */
+		for (ridx = RTWN_RIDX_VHT_MCS_SHIFT; ridx <= max_vht_mcs; ridx++)
+			power[ridx] = rs->ht40_tx_pwr_5g[chain][group];
 
+		/* Add power for OFDM rates */
 		for (ridx = RTWN_RIDX_OFDM6; ridx <= RTWN_RIDX_OFDM54; ridx++)
 			power[ridx] += rs->ofdm_tx_pwr_diff_5g[chain][0];
 
@@ -217,25 +332,37 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 			uint8_t min_mcs;
 			uint8_t pwr_diff;
 
-#ifdef notyet
-			if (IEEE80211_IS_CHAN_HT80(c)) {
+			if (IEEE80211_IS_CHAN_VHT80(c)) {
 				/* TODO: calculate base value. */
 				pwr_diff = rs->bw80_tx_pwr_diff_5g[chain][i];
 			} else
-#endif
-			if (IEEE80211_IS_CHAN_HT40(c))
+			if (IEEE80211_IS_CHAN_HT40(c) || IEEE80211_IS_CHAN_VHT40(c))
 				pwr_diff = rs->bw40_tx_pwr_diff_5g[chain][i];
 			else
 				pwr_diff = rs->bw20_tx_pwr_diff_5g[chain][i];
 
+			/* Adjust HT rates */
 			min_mcs = RTWN_RIDX_HT_MCS(i * 8);
 			for (ridx = min_mcs; ridx <= max_mcs; ridx++)
 				power[ridx] += pwr_diff;
+
+			/* Adjust VHT rates */
+			for (ridx = RTWN_RIDX_VHT_MCS(i, 0);
+			    ridx <= RTWN_RIDX_VHT_MCS(i, 9);
+			    ridx++)
+				power[ridx] += pwr_diff;
+
 		}
 	}
 
 	/* Apply max limit. */
 	for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++) {
+		if (power[ridx] > R92C_MAX_TX_PWR)
+			power[ridx] = R92C_MAX_TX_PWR;
+	}
+	for (ridx = RTWN_RIDX_VHT_MCS(0, 0);
+	    ridx <= RTWN_RIDX_VHT_MCS(3, 9);
+	    ridx++) {
 		if (power[ridx] > R92C_MAX_TX_PWR)
 			power[ridx] = R92C_MAX_TX_PWR;
 	}
@@ -246,6 +373,7 @@ r12a_get_txpower(struct rtwn_softc *sc, int chain,
 		printf("Tx power for chain %d:\n", chain);
 		for (ridx = RTWN_RIDX_CCK1; ridx <= max_mcs; ridx++)
 			printf("Rate %d = %u\n", ridx, power[ridx]);
+		/* TODO: dump VHT 0..9 for each spatial stream */
 	}
 #endif
 }
@@ -278,12 +406,20 @@ r12a_fix_spur(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		} else {
 			rtwn_bb_setbits(sc, R12A_RFMOD, 0x400, 0x800);
 
-			if (!IEEE80211_IS_CHAN_HT40(c) &&	/* 20 MHz */
+			if ((IEEE80211_IS_CHAN_B(c) ||
+			    IEEE80211_IS_CHAN_ANYG(c) ||
+			    IEEE80211_IS_CHAN_HT20(c)) &&	/* 2GHz, 20 MHz */
 			    (chan == 13 || chan == 14)) {
 				rtwn_bb_setbits(sc, R12A_RFMOD, 0, 0x300);
 				rtwn_bb_setbits(sc, R12A_ADC_BUF_CLK,
 				    0, 0x40000000);
-			} else {	/* !80 Mhz */
+			} else if (IEEE80211_IS_CHAN_HT40(c) ||
+			    IEEE80211_IS_CHAN_VHT40(c)) {
+				/* XXX double check! */
+				rtwn_bb_setbits(sc, R12A_ADC_BUF_CLK,
+				    0, 0x40000000);
+			} else if (IEEE80211_IS_CHAN_VHT80(c)) {
+				/* XXX double check! */
 				rtwn_bb_setbits(sc, R12A_RFMOD, 0x100, 0x200);
 				rtwn_bb_setbits(sc, R12A_ADC_BUF_CLK,
 				    0x40000000, 0);
@@ -291,7 +427,9 @@ r12a_fix_spur(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		}
 	} else {
 		/* Set ADC clock to 160M to resolve 2480 MHz spur. */
-		if (!IEEE80211_IS_CHAN_HT40(c) &&	/* 20 MHz */
+		if ((IEEE80211_IS_CHAN_B(c) ||
+		    IEEE80211_IS_CHAN_ANYG(c) ||
+		    IEEE80211_IS_CHAN_HT20(c)) &&	/* 2GHz, 20 MHz */
 		    (chan == 13 || chan == 14))
 			rtwn_bb_setbits(sc, R12A_RFMOD, 0, 0x300);
 		else if (IEEE80211_IS_CHAN_2GHZ(c))
@@ -314,8 +452,9 @@ r12a_set_band(struct rtwn_softc *sc, struct ieee80211_channel *c)
 	    !(rtwn_read_1(sc, R12A_CCK_CHECK) & R12A_CCK_CHECK_5GHZ))
 		return;
 
+	/* Note: this only fetches the basic rates, not the full rateset */
 	rtwn_get_rates(sc, ieee80211_get_suprates(ic, c), NULL, &basicrates,
-	    NULL, 1);
+	    NULL, NULL, 1);
 	if (IEEE80211_IS_CHAN_2GHZ(c)) {
 		rtwn_r12a_set_band_2ghz(sc, basicrates);
 		swing = rs->tx_bbswing_2g;
@@ -393,16 +532,67 @@ r12a_set_chan(struct rtwn_softc *sc, struct ieee80211_channel *c)
 		rtwn_rf_setbits(sc, i, R92C_RF_CHNLBW, 0xff, chan);
 	}
 
-#ifdef notyet
-	if (IEEE80211_IS_CHAN_HT80(c)) {	/* 80 MHz */
-		rtwn_setbits_2(sc, R92C_WMAC_TRXPTCL_CTL, 0x80, 0x100);
+	if (IEEE80211_IS_CHAN_VHT80(c)) {	/* 80 MHz */
+		uint8_t ext20 = 0, ext40 = 0;
+		uint8_t txsc;
+		/* calculate ext20/ext40 */
+		if (c->ic_ieee > c->ic_vht_ch_freq1) {
+			if (c->ic_ieee - c->ic_vht_ch_freq1 == 2) {
+				ext20 = R12A_DATA_SEC_PRIM_UP_20;
+				ext40 = R12A_DATA_SEC_PRIM_UP_40;
+			} else {
+				ext20 = R12A_DATA_SEC_PRIM_UPPER_20;
+				ext40 = R12A_DATA_SEC_PRIM_UP_40;
+			}
+		} else {
+			if (c->ic_vht_ch_freq1 - c->ic_ieee == 2) {
+				ext20 = R12A_DATA_SEC_PRIM_DOWN_20;
+				ext40 = R12A_DATA_SEC_PRIM_DOWN_40;
+			} else {
+				ext20 = R12A_DATA_SEC_PRIM_LOWER_20;
+				ext40 = R12A_DATA_SEC_PRIM_DOWN_40;
+			}
+		}
+		/* Form txsc from sec20/sec40 config */
+		txsc = SM(R12A_DATA_SEC_TXSC_20M, ext20);
+		txsc |= SM(R12A_DATA_SEC_TXSC_40M, ext40);
 
-		/* TODO */
+		rtwn_setbits_2(sc, R92C_WMAC_TRXPTCL_CTL, 0x180, 0x100);
 
+		/* DATA_SEC, for ext20/ext40 */
+		rtwn_write_1(sc, R12A_DATA_SEC, txsc);
+
+		/* ADCCLK */
+		rtwn_bb_setbits(sc, R12A_RFMOD, 0x003003c3, 0x00300202);
+
+		/* ADC160 - Set bit 30 */
+		rtwn_bb_setbits(sc, R12A_ADC_BUF_CLK, 0, 0x40000000);
+
+		/* ADCCLK, ext20 */
+		/* discard high 4 bits */
+		val = rtwn_bb_read(sc, R12A_RFMOD);
+		val = RW(val, R12A_RFMOD_EXT_CHAN, ext20);
+		rtwn_bb_write(sc, R12A_RFMOD, val);
+
+		/* CCA2ND, ext20 */
+		val = rtwn_bb_read(sc, R12A_CCA_ON_SEC);
+		val = RW(val, R12A_CCA_ON_SEC_EXT_CHAN, ext20);
+		rtwn_bb_write(sc, R12A_CCA_ON_SEC, val);
+
+		/* PEAK_TH */
+		if (rtwn_read_1(sc, 0x837) & 0x04)
+			val = 0x01400000;
+		else if (sc->nrxchains == 2 && sc->ntxchains == 2)
+			val = 0x01800000;
+		else
+			val = 0x01c00000;
+
+		rtwn_bb_setbits(sc, R12A_L1_PEAK_TH, 0x03c00000, val);
+		/* BWMASK */
 		val = 0x0;
-	} else
-#endif
-	if (IEEE80211_IS_CHAN_HT40(c)) {	/* 40 MHz */
+
+	} else if (IEEE80211_IS_CHAN_HT40(c) ||
+	    IEEE80211_IS_CHAN_VHT40(c)) {	/* 40 MHz */
 		uint8_t ext_chan;
 
 		if (IEEE80211_IS_CHAN_HT40U(c))

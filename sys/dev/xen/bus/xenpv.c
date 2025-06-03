@@ -126,13 +126,10 @@ xenpv_attach(device_t dev)
 	 * can find.  Once that is done attach any devices that we
 	 * found.
 	 */
-	error = bus_generic_probe(dev);
-	if (error)
-		return (error);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 
-	error = bus_generic_attach(dev);
-
-	return (error);
+	return (0);
 }
 
 static int

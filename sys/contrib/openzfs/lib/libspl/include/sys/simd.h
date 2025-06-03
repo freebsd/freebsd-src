@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -591,5 +592,8 @@ zfs_isa207_available(void)
 #define	kfpu_end()		do {} while (0)
 
 #endif
+
+extern void simd_stat_init(void);
+extern void simd_stat_fini(void);
 
 #endif /* _LIBSPL_SYS_SIMD_H */

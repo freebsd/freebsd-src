@@ -1,6 +1,6 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2015-2023 Amazon.com, Inc. or its affiliates.
+.\" Copyright (c) 2015-2024 Amazon.com, Inc. or its affiliates.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -27,12 +27,12 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 4, 2021
+.Dd November 14, 2024
 .Dt ENA 4
 .Os
 .Sh NAME
 .Nm ena
-.Nd "FreeBSD kernel driver for Elastic Network Adapter (ENA) family"
+.Nd AWS EC2 Elastic Network Adapter (ENA) driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in the
@@ -93,7 +93,9 @@ framework is provided by the
 driver.
 Kernel must be built with the DEV_NETMAP option to be able to use this feature.
 .Sh HARDWARE
-Supported PCI vendor ID/device IDs:
+The
+.Nm
+driver supports the following PCI vendor ID/device IDs:
 .Pp
 .Bl -bullet -compact
 .It
@@ -133,17 +135,17 @@ This can further lead to OS instability, together with ENA driver reset and NVMe
 timeouts.
 If network performance is critical and memory capacity is sufficient, the 9k
 mbufs can be used.
-.It Va hw.ena.force_large_llq_headers
-Force the driver to use large LLQ headers (224 bytes).
-The default is 0.
+.It Va hw.ena.force_large_llq_header
+Force the driver to use large (224 bytes) or regular (96 bytes) LLQ header size.
+The default value is 2 and the recommended LLQ header size will be used.
 If the node value is set to 0, the regular size LLQ header will be used, which
 is 96B.
 In some cases, the packet header can be bigger than this (for example -
 IPv6 with multiple extensions).
-In such a situation, the large LLQ headers should be used by setting this node
-value to 1.
-This will take effect only if the device supports both LLQ and large LLQ
-headers.
+In such a situation, the large LLQ header size which is 224B should be used,
+and can be forced by setting this node value to 1.
+Using large LLQ header size will take effect only if the device supports
+both LLQ and large LLQ headers.
 Otherwise, it will fallback to the no LLQ mode or regular header size.
 .Pp
 Increasing LLQ header size reduces the size of the Tx queue by half, so it may

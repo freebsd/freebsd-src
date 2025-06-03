@@ -351,6 +351,11 @@ typedef enum {
 } cam_error_ata_flags;
 
 typedef enum {
+	CAM_ENF_PRINT_NONE	= 0x00,
+	CAM_ENF_PRINT_STATUS	= 0x10,
+} cam_error_nvme_flags;
+
+typedef enum {
 	CAM_STRVIS_FLAG_NONE		= 0x00,
 	CAM_STRVIS_FLAG_NONASCII_MASK	= 0x03,
 	CAM_STRVIS_FLAG_NONASCII_TRIM	= 0x00,

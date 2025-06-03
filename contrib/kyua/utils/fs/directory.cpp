@@ -138,7 +138,7 @@ struct utils::fs::detail::directory_iterator::impl : utils::noncopyable {
     /// This is separate from _dirent because this is the type we return to the
     /// user.  We must keep this as a pointer so that we can support the common
     /// operators (* and ->) over iterators.
-    std::auto_ptr< directory_entry > _entry;
+    std::unique_ptr< directory_entry > _entry;
 
     /// Constructs an iterator pointing to the "end" of the directory.
     impl(void) : _path("invalid-directory-entry"), _dirp(NULL)
@@ -204,7 +204,7 @@ struct utils::fs::detail::directory_iterator::impl : utils::noncopyable {
                                    original_errno);
         }
         if (result == NULL) {
-            _entry.reset(NULL);
+            _entry.reset();
             close();
         } else {
             _entry.reset(new directory_entry(_dirent.d_name));

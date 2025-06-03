@@ -283,8 +283,8 @@ mmc_scan_lun(struct cam_periph *periph, struct cam_path *path,
 					  path, NULL, 0,
 					  request_ccb);
                 if (status != CAM_REQ_CMP) {
-			xpt_print(path, "xpt_scan_lun: cam_alloc_periph "
-                                  "returned an error, can't continue probe\n");
+			xpt_print(path,
+	"xpt_scan_lun: cam_alloc_periph returned an error, can't continue probe\n");
 		}
 		request_ccb->ccb_h.status = status;
 		xpt_done(request_ccb);
@@ -516,16 +516,16 @@ mmcprobe_register(struct cam_periph *periph, void *arg)
 
 	request_ccb = (union ccb *)arg;
 	if (request_ccb == NULL) {
-		printf("mmcprobe_register: no probe CCB, "
-		       "can't register device\n");
+		printf(
+		    "mmcprobe_register: no probe CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
 	}
 
 	softc = (mmcprobe_softc *)malloc(sizeof(*softc), M_CAMXPT, M_NOWAIT);
 
 	if (softc == NULL) {
-		printf("proberegister: Unable to probe new device. "
-		       "Unable to allocate softc\n");
+		printf(
+	"proberegister: Unable to probe new device. Unable to allocate softc\n");
 		return(CAM_REQ_CMP_ERR);
 	}
 
@@ -539,8 +539,9 @@ mmcprobe_register(struct cam_periph *periph, void *arg)
 
         memset(&periph->path->device->mmc_ident_data, 0, sizeof(struct mmc_params));
 	if (status != 0) {
-		printf("proberegister: cam_periph_acquire failed (status=%d)\n",
-			status);
+		printf(
+		    "proberegister: cam_periph_acquire failed (status=%d)\n",
+		    status);
 		return (CAM_REQ_CMP_ERR);
 	}
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));

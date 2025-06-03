@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 29, 2021
+.Dd September 30, 2021
 .Dt LOADER_SIMP 8
 .Os
 .Sh NAME
@@ -339,6 +339,21 @@ In a running system, the state of console muting can be manipulated by the
 utility.
 .It Va boot_pause
 During the device probe, pause after each line is printed.
+.It Va boot_safe
+Force userland to boot in
+.Dq safe mode ,
+which may disable or limit the functionality of some services that may not be
+desired in safe mode.
+This is typically set by selecting
+.Dq safe mode
+in the loader menu, which also sets some other hints for the kernel.
+Applications wishing to respect safe mode should
+.Sy only
+test for the presence of
+.Va boot_safe
+in
+.Xr kenv 1 ,
+not for any particular value.
 .It Va boot_serial
 Force the use of a serial console even when an internal console
 is present.
@@ -659,6 +674,7 @@ command line by booting unconditionally in
 .Pa loader.rc .
 In order for this to be effective, one should also configure the firmware
 (BIOS or UEFI) to prevent booting from unauthorized devices.
+.El
 .Sh FILES
 .Bl -tag -width /boot/loader_simp -compact
 .It Pa /boot/loader_simp
@@ -668,6 +684,7 @@ itself.
 The script run by
 .Nm
 on startup.
+.El
 .Sh EXAMPLES
 Boot in single user mode:
 .Pp

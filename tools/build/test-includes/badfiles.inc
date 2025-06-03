@@ -65,20 +65,15 @@ BADHDRS= \
 	sys/kobj.h \
 	sys/ksem.h \
 	sys/ktls.h \
-	sys/ktrace.h \
 	sys/libkern.h \
 	sys/link_aout.h \
-	sys/linker.h \
-	sys/linker_set.h \
 	sys/lock.h \
 	sys/lock_profile.h \
 	sys/lockf.h \
 	sys/lockmgr.h \
 	sys/loginclass.h \
-	sys/mac.h \
 	sys/mbuf.h \
 	sys/md4.h \
-	sys/md5.h \
 	sys/mdioctl.h \
 	sys/memdesc.h \
 	sys/memrange.h \
@@ -86,7 +81,6 @@ BADHDRS= \
 	sys/module_khelp.h \
 	sys/mpt_ioctl.h \
 	sys/msgbuf.h \
-	sys/mutex.h \
 	sys/namei.h \
 	sys/osd.h \
 	sys/pciio.h \
@@ -100,7 +94,6 @@ BADHDRS= \
 	sys/prng.h \
 	sys/qmath.h \
 	sys/racct.h \
-	sys/refcount.h \
 	sys/resourcevar.h \
 	sys/rman.h \
 	sys/rmlock.h \
@@ -108,7 +101,6 @@ BADHDRS= \
 	sys/runq.h \
 	sys/rwlock.h \
 	sys/sbuf.h \
-	sys/sema.h \
 	sys/sf_buf.h \
 	sys/sglist.h \
 	sys/sigio.h \
@@ -119,10 +111,8 @@ BADHDRS= \
 	sys/sockopt.h \
 	sys/stack.h \
 	sys/stats.h \
-	sys/sx.h \
 	sys/syscallsubr.h \
 	sys/syslimits.h \
-	sys/systm.h \
 	sys/taskqueue.h \
 	sys/terminal.h \
 	sys/termios.h \
@@ -142,7 +132,6 @@ BADHDRS= \
 	sys/vdso.h \
 	sys/vmmeter.h \
 	sys/vnode.h \
-	net/bpf.h \
 	net/bpf_buffer.h \
 	net/bpf_jitter.h \
 	net/bpf_zerocopy.h \
@@ -157,13 +146,11 @@ BADHDRS= \
 	net/if_llc.h \
 	net/if_media.h \
 	net/if_mib.h \
-	net/if_pfsync.h \
 	net/if_tap.h \
 	net/if_tun.h \
 	net/if_var.h \
 	net/if_vlan_var.h \
 	net/iflib.h \
-	net/iflib_private.h \
 	net/ifq.h \
 	net/mp_ring.h \
 	net/mppc.h \
@@ -174,9 +161,7 @@ BADHDRS= \
 	net/paravirt.h \
 	net/pfil.h \
 	net/pfkeyv2.h \
-	net/pfvar.h \
 	net/radix.h \
-	net/raw_cb.h \
 	net/rndis.h \
 	net/route.h \
 	net/rss_config.h \
@@ -258,9 +243,7 @@ BADHDRS= \
 	netinet/in_pcb.h \
 	netinet/in_pcb_var.h \
 	netinet/in_rss.h \
-	netinet/in_systm.h \
 	netinet/in_var.h \
-	netinet/ip.h \
 	netinet/ip6.h \
 	netinet/ip_carp.h \
 	netinet/ip_dummynet.h \
@@ -277,14 +260,11 @@ BADHDRS= \
 	netinet/sctp_pcb.h \
 	netinet/sctp_structs.h \
 	netinet/sctp_sysctl.h \
-	netinet/tcp_debug.h \
 	netinet/tcp_hpts.h \
 	netinet/tcp_log_buf.h \
 	netinet/tcp_lro.h \
 	netinet/tcp_offload.h \
-	netinet/tcp_pcap.h \
 	netinet/tcp_ratelimit.h \
-	netinet/tcp_var.h \
 	netinet/tcpip.h \
 	netinet/toecore.h \
 	netinet/udplite.h \
@@ -296,7 +276,6 @@ BADHDRS= \
 	netinet6/ip6.h \
 	netinet6/ip6_mroute.h \
 	netinet6/ip6_var.h \
-	netinet6/ip6protosw.h \
 	netinet6/ip_fw_nat64.h \
 	netinet6/ip_fw_nptv6.h \
 	netinet6/mld6.h \
@@ -316,7 +295,6 @@ BADHDRS= \
 	netipsec/ipsec6.h \
 	netipsec/key_debug.h \
 	netipsec/keysock.h \
-	netipsec/xform.h \
 	netsmb/netbios.h \
 	netsmb/smb.h \
 	netsmb/smb_conn.h \

@@ -49,7 +49,6 @@
 
 #define MAC_GRANTBYLABEL_FULLNAME   "MAC/grantbylabel"
 
-SYSCTL_DECL(_security_mac);
 SYSCTL_NODE(_security_mac, OID_AUTO, grantbylabel, CTLFLAG_RW, 0,
     "MAC/grantbylabel policy controls");
 
@@ -410,6 +409,10 @@ cleanup_file:
 			proc = pfind(gbl_args.u.pid);
 			if (proc == NULL)
 				return (EINVAL);
+			else if (proc->p_textvp == NULL) {
+				PROC_UNLOCK(proc);
+				return (EINVAL);
+			}
 			proc_locked = 1;
 		}
 		gbl_args.gbl = (SLOT(proc->p_textvp->v_label) |

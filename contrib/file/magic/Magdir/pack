@@ -1,0 +1,101 @@
+#------------------------------------------------------------------------------
+# $File: pack,v 1.1 2024/08/30 17:29:28 christos Exp $
+# file(1) magic for things that have PACK as magic
+
+0	string	PACK
+# Type: Git pack
+# From: Adam Buchbinder <adam.buchbinder@gmail.com>
+# Update: Joerg Jenderek
+# URL: http://fileformats.archiveteam.org/wiki/Git
+# reference: https://github.com/git/git/blob/master/Documentation/technical/pack-format.txt
+# The actual magic is 'PACK', but that clashes with Doom/Quake packs. However,
+# those have a little-endian offset immediately following the magic 'PACK',
+# the first byte of which is never 0, while the first byte of the Git pack
+# version, since it's a tiny number stored in big-endian format, is always 0.
+# GRR: line above is too general as it matches also PackDir archive ./acorn
+# test for major version. Git 2017 accepts version number 2 or 3
+>4	ubelong	<9
+# Acorn PackDir with method 0 compression has root like ADFS::HardDisc4.$.AsylumSrc
+# or SystemDevice::foobar
+>>9	search/13 ::
+# but in git binary
+>>9	default	x	Git pack
+!:mime	application/x-git
+!:ext	pack
+# 4 GB limit implies unsigned integer
+>>>4	ubelong	x		\b, version %u
+>>>8	ubelong	x		\b, %u objects
+
+# From: Joerg Jenderek
+# URL: https://www.kyzer.me.uk/pack/xad/#PackDir
+# reference: https://www.kyzer.me.uk/pack/xad/xad_PackDir.lha/PackDir.c
+# GRR: line below is too general as it matches also "Git pack" in ./revision
+# check for valid compression method 0-4
+>5	ulelong	<5
+# https://www.riscosopen.org/wiki/documentation/show/Introduction%20To%20Filing%20Systems
+# To skip "Git pack" version 0 test for root directory object like
+# ADFS::RPC.$.websitezip.FONTFIX
+>>9	string	>ADFS\  PackDir archive (RISC OS)
+# TrID labels above as "Acorn PackDir compressed Archive"
+# compression mode y (0 - 4) for GIF LZW with a maximum n bits
+# (y~n,0~12,1~13,2~14,3~15,4~16)
+>>>5	ulelong+12 x	\b, LZW %u-bits compression
+# https://www.filebase.org.uk/filetypes
+# !Packdir compressed archive has three hexadecimal digits code 68E
+!:mime	application/x-acorn-68E
+!:ext	pkd/bin
+# null terminated root directory object like IDEFS::IDE-4.$.Apps.GRAPHICS.!XFMPdemo
+>>>9	string	x	\b, root "%s"
+# load address 0xFFFtttdd, ttt is the object filetype and dddddddddd is time
+>>>>&1	ulelong	x	\b, load address %#x
+# execution address 0xdddddddd dddddddddd is 40 bit unsigned centiseconds since 1.1.1900 UTC
+>>>>&5	ulelong	x	\b, exec address %#x
+# attributes (bits: 0~owner read,1~owner write,3~no delete,4~public read,5~public write)
+>>>>&9	ulelong	x	\b, attributes %#x 
+# number of entries in this directory. for root dir 0
+#>>>&13	ulelong	x	\b, entries %#x 
+# the entries start here with object name
+>>>>&17	string	x	\b, 1st object "%s"
+
+# Update: Joerg Jenderek
+# URL: http://fileformats.archiveteam.org/wiki/PAK
+# reference: https://quakewiki.org/wiki/.pak
+# GRR: line below is too general as it matches also Acorn PackDir compressed Archive
+# real Quake examples like pak0.pak have only some hundreds like 150 files
+# So test for few files
+>8	ulelong <0x01000000	
+# in file version 5.32 test for null terminator is only true for
+# offset ~< FILE_BYTES_MAX = 1 MB defined in ../../src/file.h 
+# look for null terminator of 1st entry name
+>>(4.l+55)	ubyte	0	Quake I or II world or extension
+!:mime	application/x-dzip
+!:ext	pak
+#>>>8	ulelong	x	\b, table size %u
+# dividing this by entry size (64) gives number of files
+>>>8	ulelong/64 x	\b, %u files
+# offset to the beginning of the file table
+>>>4	ulelong	x	\b, offset %#x
+# 1st file entry
+>>>(4.l)	use	pak-entry
+# 2nd file entry
+#>>>4	ulelong+64	x	\b, offset %#x
+#>>>(4.l+64)	use	pak-entry
+#
+#	display file table entry of Quake PAK archive
+0	name		pak-entry
+# normally entry start after header which implies offset 12 or higher
+>56	ulelong	>11	
+# the offset from the beginning of pak to beginning of this entry file contents
+>>56	ulelong	x	at %#x
+# the size of file for this entry 
+>>60	ulelong	x	%u bytes
+# 56 byte null-terminated entry name string includes path like maps/e1m1.bsp
+>>0	string	x	'%-.56s'
+# inspect entry content by jumping to entry offset
+>>(56)	indirect x	\b: 
+
+#0       string  -1\x0a  Quake I demo
+#>30     string  x        version %.4s
+#>61     string  x        level %s
+
+#0       string  5\x0a   Quake I save

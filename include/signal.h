@@ -115,6 +115,7 @@ int	siginterrupt(int, int);
 #endif
 
 #if __POSIX_VISIBLE >= 200809
+void	psiginfo(const siginfo_t *, const char *);
 void	psignal(int, const char *);
 #endif
 

@@ -67,7 +67,7 @@ public:
     virtual base_node*
     deep_copy(void) const
     {
-        std::auto_ptr< custom_node > new_node(new custom_node());
+        std::unique_ptr< custom_node > new_node(new custom_node());
         new_node->_value = _value;
         return new_node.release();
     }

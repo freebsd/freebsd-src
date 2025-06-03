@@ -1,7 +1,7 @@
-/* $Id: man_macro.c,v 1.145 2020/09/09 17:01:10 schwarze Exp $ */
+/* $Id: man_macro.c,v 1.150 2023/11/13 19:13:01 schwarze Exp $ */
 /*
+ * Copyright (c) 2012-2015,2017-2020,2022 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2012-2015, 2017-2020 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2013 Franco Fichtner <franco@lastsummer.de>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -26,6 +26,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if DEBUG_MEMORY
+#include "mandoc_dbg.h"
+#endif
 #include "mandoc.h"
 #include "roff.h"
 #include "man.h"
@@ -65,10 +68,10 @@ static const struct man_macro man_macros[MAN_MAX - MAN_TH] = {
 	{ in_line_eoln, 0 }, /* RI */
 	{ blk_close, MAN_XSCOPE }, /* RE */
 	{ blk_exp, MAN_XSCOPE }, /* RS */
-	{ in_line_eoln, 0 }, /* DT */
-	{ in_line_eoln, 0 }, /* UC */
+	{ in_line_eoln, MAN_NSCOPED }, /* DT */
+	{ in_line_eoln, MAN_NSCOPED }, /* UC */
 	{ in_line_eoln, MAN_NSCOPED }, /* PD */
-	{ in_line_eoln, 0 }, /* AT */
+	{ in_line_eoln, MAN_NSCOPED }, /* AT */
 	{ in_line_eoln, MAN_NSCOPED }, /* in */
 	{ blk_imp, MAN_XSCOPE }, /* SY */
 	{ blk_close, MAN_XSCOPE }, /* YS */
@@ -79,6 +82,7 @@ static const struct man_macro man_macros[MAN_MAX - MAN_TH] = {
 	{ blk_close, MAN_XSCOPE }, /* UE */
 	{ blk_exp, MAN_XSCOPE }, /* MT */
 	{ blk_close, MAN_XSCOPE }, /* ME */
+	{ in_line_eoln, 0 }, /* MR */
 };
 
 
@@ -108,7 +112,8 @@ man_unscope(struct roff_man *man, const struct roff_node *to)
 				    n->line, n->pos,
 				    "EOF breaks %s", roff_name[n->tok]);
 				if (man->flags & MAN_ELINE) {
-					if ((man_macro(n->parent->tok)->flags &
+					if (n->parent->type == ROFFT_ROOT ||
+					    (man_macro(n->parent->tok)->flags &
 					    MAN_ESCOPED) == 0)
 						man->flags &= ~MAN_ELINE;
 				} else {
@@ -312,7 +317,7 @@ blk_exp(MACRO_PROT_ARGS)
 		if (tok == MAN_RS) {
 			if (roff_getreg(man->roff, "an-margin") == 0)
 				roff_setreg(man->roff, "an-margin",
-				    7 * 24, '=');
+				    5 * 24, '=');
 			if ((head->aux = strtod(p, NULL) * 24.0) > 0)
 				roff_setreg(man->roff, "an-margin",
 				    head->aux, '+');
@@ -392,6 +397,11 @@ in_line_eoln(MACRO_PROT_ARGS)
 		man->flags |= ROFF_NOFILL;
 	else if (tok == MAN_EE)
 		man->flags &= ~ROFF_NOFILL;
+
+#if DEBUG_MEMORY
+	if (tok == MAN_TH)
+		mandoc_dbg_name(buf);
+#endif
 
 	for (;;) {
 		if (buf[*pos] != '\0' && man->last != n && tok == MAN_PD) {

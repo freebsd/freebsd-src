@@ -31,7 +31,7 @@ void start_pam(struct ssh *);
 void finish_pam(void);
 u_int do_pam_account(void);
 void do_pam_session(struct ssh *);
-void do_pam_setcred(int );
+void do_pam_setcred(void);
 void do_pam_chauthtok(void);
 int do_pam_putenv(char *, char *);
 char ** fetch_pam_environment(void);

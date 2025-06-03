@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
@@ -93,7 +94,9 @@ translate_opts(char *oldopts, FILE *out)
 		return (EOF);
 	newopts[0] = '\0';
 	s = oldopts;
-	while ((o = strsep(&s, "-, ")) != NULL) {
+	while ((o = strsep(&s, ", ")) != NULL) {
+		if (o[0] == '-')
+			o++;
 		if (o[0] == '\0')
 			continue;
 		for (i = 0; i < ARRAY_SIZE(known_opts); ++i) {

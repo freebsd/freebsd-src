@@ -1,0 +1,101 @@
+.\"
+.\" SPDX-Copyright-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (C) 2024 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.Dd March 2, 2024
+.Dt LIBDER_READ 3
+.Os
+.Sh NAME
+.Nm libder_read ,
+.Nm libder_read_fd ,
+.Nm libder_read_file
+.Nd reading DER encoded streams
+.Sh LIBRARY
+.Lb libder
+.Sh SYNOPSIS
+.In libder.h
+.Ft struct libder_object *
+.Fn libder_read "struct libder_ctx *ctx" "const uint8_t *buf" "size_t *bufsz"
+.Ft struct libder_object *
+.Fn libder_read_fd "struct libder_ctx *ctx" "int fd" "size_t *readsz"
+.Ft struct libder_object *
+.Fn libder_read_file "struct libder_ctx *ctx" "FILE *fp" "size_t *readsz"
+.Sh DESCRIPTION
+The
+.Nm
+family of functions are used to parse BER/DER encoded data into an object tree
+that
+.Xr libder 3
+can work with.
+All of these functions will return an object on success and update
+.Fa *readsz
+with the number of bytes consumed, or
+.Dv NULL
+on failure.
+.Pp
+The
+.Fn libder_read
+function will read from a buffer
+.Fa buf
+of known size
+.Fa bufsz .
+It is not considered an error for
+.Fa buf
+to have contents past the first valid object encountered.
+The application is
+expected to check
+.Fa *bufsz
+upon success and determine if any residual buffer exists, and if that residual
+is OK.
+.Pp
+.Xr libder 3
+can also stream a BER encoded object with either of the
+.Fn libder_read_fd
+or
+.Fn libder_read_file
+functions from a file descriptor or
+.Xr stdio 3
+stream respectively.
+Both functions will try very hard not to over-read from the stream to avoid
+putting it in a precarious state, but bogus looking data may still cause them
+to consume more of the stream than intended.
+.Pp
+Note that
+.Fn libder_read_fd
+will ignore an
+.Ev EINTR
+return value from
+.Xr read 2
+by default and continue reading from the
+.Fa fd .
+If the application is signalled, it can abort the
+.Xr read 2
+operation instead with
+.Xr libder_abort 3 .
+Note that
+.Nm libder
+does not currently have other points that an abort can be signalled from, so if
+.Fn libder_read_fd
+is not specifically waiting for data from the
+.Va fd
+when a signal hits, then the operation will continue until successful with
+one exception.
+If
+.Xr libder_abort 3
+is called at any other point in the middle of
+.Fn libder_read_fd ,
+then the abort flag will not be cleared until it does receive an interrupted
+.Xr read 2
+call, or until the next call to one of the
+.Nm
+family of functions.
+In the future,
+.Nm
+may support resuming an aborted operation and allow cancellation at other
+specific points within the operation.
+.Sh SEE ALSO
+.Xr libder 3 ,
+.Xr libder_obj 3 ,
+.Xr libder_type 3 ,
+.Xr libder_write 3

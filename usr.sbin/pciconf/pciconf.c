@@ -110,7 +110,7 @@ main(int argc, char **argv)
 	bars = bridge = caps = errors = verbose = vpd= 0;
 	width = 4;
 
-	while ((c = getopt(argc, argv, "aBbcDehlrwVv")) != -1) {
+	while ((c = getopt(argc, argv, "aBbcDehlrwVvx")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;
@@ -1153,7 +1153,7 @@ dump_bar(const char *name, const char *reg, const char *bar_start,
 	case 1:
 		db = (uint8_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
 		    pbm.pbm_bar_off + start * width);
-		for (a = 0; a < count; a += width, db++) {
+		for (a = 0; a < count; a++, db++) {
 			res = fwrite(db, width, 1, stdout);
 			if (res != 1) {
 				errx(1, "error writing to stdout");
@@ -1164,7 +1164,7 @@ dump_bar(const char *name, const char *reg, const char *bar_start,
 	case 2:
 		dh = (uint16_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
 		    pbm.pbm_bar_off + start * width);
-		for (a = 0; a < count; a += width, dh++) {
+		for (a = 0; a < count; a++, dh++) {
 			res = fwrite(dh, width, 1, stdout);
 			if (res != 1) {
 				errx(1, "error writing to stdout");
@@ -1175,7 +1175,7 @@ dump_bar(const char *name, const char *reg, const char *bar_start,
 	case 4:
 		dd = (uint32_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
 		    pbm.pbm_bar_off + start * width);
-		for (a = 0; a < count; a += width, dd++) {
+		for (a = 0; a < count; a ++, dd++) {
 			res = fwrite(dd, width, 1, stdout);
 			if (res != 1) {
 				errx(1, "error writing to stdout");
@@ -1186,7 +1186,7 @@ dump_bar(const char *name, const char *reg, const char *bar_start,
 	case 8:
 		dx = (uint64_t *)(uintptr_t)((uintptr_t)pbm.pbm_map_base +
 		    pbm.pbm_bar_off + start * width);
-		for (a = 0; a < count; a += width, dx++) {
+		for (a = 0; a < count; a++, dx++) {
 			res = fwrite(dx, width, 1, stdout);
 			if (res != 1) {
 				errx(1, "error writing to stdout");

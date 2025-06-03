@@ -115,8 +115,7 @@ chipc_spi_attach(device_t dev)
 
 	/* Let spibus perform full attach before we try to call
 	 * BUS_ADD_CHILD() */
-	if ((error = bus_generic_attach(dev)))
-		goto failed;
+	bus_attach_children(dev);
 
 	/* Determine flash type and add the flash child */
 	ccaps = BHND_CHIPC_GET_CAPS(device_get_parent(dev));

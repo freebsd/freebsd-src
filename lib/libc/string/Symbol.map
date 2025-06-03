@@ -116,6 +116,10 @@ FBSD_1.7 {
 	wmempcpy;
 };
 
+FBSD_1.8 {
+	memset_explicit;
+};
+
 FBSDprivate_1.0 {
 	__strtok_r;
 };

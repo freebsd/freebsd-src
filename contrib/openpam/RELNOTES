@@ -1,6 +1,6 @@
 
-		  Release notes for OpenPAM Ximenia
-		  =================================
+		  Release notes for OpenPAM Zingiber
+		  ==================================
 
 OpenPAM is developed primarily on FreeBSD, but is expected to work on
 almost any POSIX-like platform that has GNU autotools, GNU make and
@@ -18,4 +18,4 @@ The OpenPAM distribution consists of the following components:
 
  - Unit tests for limited portions of the library.
 
-Please direct bug reports and inquiries to <des@des.no>.
+Please direct bug reports and inquiries to <des@des.dev>.

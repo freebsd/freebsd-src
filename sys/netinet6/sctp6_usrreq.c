@@ -375,6 +375,8 @@ sctp6_getcred(SYSCTL_HANDLER_ARGS)
 
 	vrf_id = SCTP_DEFAULT_VRFID;
 
+	if (req->newptr == NULL)
+		return (EINVAL);
 	error = priv_check(req->td, PRIV_NETINET_GETCRED);
 	if (error)
 		return (error);
@@ -1094,7 +1096,6 @@ sctp6_getpeeraddr(struct socket *so, struct sockaddr *sa)
 	.pr_control =	in6_control,					\
 	.pr_close =	sctp6_close,					\
 	.pr_detach =	sctp6_close,					\
-	.pr_sopoll =	sopoll_generic,					\
 	.pr_disconnect = sctp_disconnect,				\
 	.pr_listen =	sctp_listen,					\
 	.pr_peeraddr =	sctp6_getpeeraddr,				\

@@ -1,5 +1,3 @@
-include $(srcdir)/%D%/include/Makefile.am
-
 libzpool_la_CFLAGS  = $(AM_CFLAGS) $(KERNEL_CFLAGS) $(LIBRARY_CFLAGS)
 libzpool_la_CFLAGS += $(ZLIB_CFLAGS)
 
@@ -12,9 +10,13 @@ CPPCHECKTARGETS += libzpool.la
 
 dist_libzpool_la_SOURCES = \
 	%D%/abd_os.c \
+	%D%/arc_os.c \
 	%D%/kernel.c \
 	%D%/taskq.c \
-	%D%/util.c
+	%D%/util.c \
+	%D%/vdev_label_os.c \
+	%D%/zfs_racct.c \
+	%D%/zfs_debug.c
 
 nodist_libzpool_la_SOURCES = \
 	module/lua/lapi.c \
@@ -42,16 +44,10 @@ nodist_libzpool_la_SOURCES = \
 	module/lua/lvm.c \
 	module/lua/lzio.c \
 	\
-	module/os/linux/zfs/arc_os.c \
-	module/os/linux/zfs/trace.c \
-	module/os/linux/zfs/vdev_file.c \
-	module/os/linux/zfs/vdev_label_os.c \
-	module/os/linux/zfs/zfs_debug.c \
-	module/os/linux/zfs/zfs_racct.c \
-	module/os/linux/zfs/zfs_znode.c \
 	module/os/linux/zfs/zio_crypt.c \
 	\
 	module/zcommon/cityhash.c \
+	module/zcommon/simd_stat.c \
 	module/zcommon/zfeature_common.c \
 	module/zcommon/zfs_comutil.c \
 	module/zcommon/zfs_deleg.c \
@@ -87,6 +83,7 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/ddt_zap.c \
 	module/zfs/dmu.c \
 	module/zfs/dmu_diff.c \
+	module/zfs/dmu_direct.c \
 	module/zfs/dmu_object.c \
 	module/zfs/dmu_objset.c \
 	module/zfs/dmu_recv.c \
@@ -143,6 +140,7 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/vdev.c \
 	module/zfs/vdev_draid.c \
 	module/zfs/vdev_draid_rand.c \
+	module/zfs/vdev_file.c \
 	module/zfs/vdev_indirect.c \
 	module/zfs/vdev_indirect_births.c \
 	module/zfs/vdev_indirect_mapping.c \
@@ -178,11 +176,13 @@ nodist_libzpool_la_SOURCES = \
 	module/zfs/zfeature.c \
 	module/zfs/zfs_byteswap.c \
 	module/zfs/zfs_chksum.c \
+	module/zfs/zfs_debug_common.c \
 	module/zfs/zfs_fm.c \
 	module/zfs/zfs_fuid.c \
 	module/zfs/zfs_ratelimit.c \
 	module/zfs/zfs_rlock.c \
 	module/zfs/zfs_sa.c \
+	module/zfs/zfs_znode.c \
 	module/zfs/zil.c \
 	module/zfs/zio.c \
 	module/zfs/zio_checksum.c \
@@ -211,7 +211,7 @@ if BUILD_FREEBSD
 libzpool_la_LIBADD += -lgeom
 endif
 
-libzpool_la_LDFLAGS += -version-info 5:0:0
+libzpool_la_LDFLAGS += -version-info 6:0:0
 
 if TARGET_CPU_POWERPC
 module/zfs/libzpool_la-vdev_raidz_math_powerpc_altivec.$(OBJEXT) : CFLAGS += -maltivec

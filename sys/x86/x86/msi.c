@@ -723,6 +723,7 @@ again:
 	if (error != 0) {
 		msi->msi_dev = NULL;
 		apic_free_vector(cpu, vector, i);
+		mtx_unlock(&msi_lock);
 		return (error);
 	}
 	msi->msi_remap_cookie = cookie;

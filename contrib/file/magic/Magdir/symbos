@@ -1,6 +1,7 @@
 
 #------------------------------------------------------------------------------
-# msx:  file(1) magic for the SymbOS operating system
+# $File: symbos,v 1.3 2024/06/10 23:09:52 christos Exp $
+# symbos:  file(1) magic for the SymbOS operating system
 # http://www.symbos.de
 # Fabio R. Schmidlin <frs@pop.com.br>
 

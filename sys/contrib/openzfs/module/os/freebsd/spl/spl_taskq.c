@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2009 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
@@ -357,7 +358,7 @@ taskq_cancel_id(taskq_t *tq, taskqid_t tid)
 	taskq_ent_t *ent;
 
 	if ((ent = taskq_lookup(tid)) == NULL)
-		return (0);
+		return (ENOENT);
 
 	if (ent->tqent_type == NORMAL_TASK) {
 		rc = taskqueue_cancel(tq->tq_queue, &ent->tqent_task, &pend);
@@ -380,7 +381,7 @@ taskq_cancel_id(taskq_t *tq, taskqid_t tid)
 	}
 	/* Free the extra reference we added with taskq_lookup. */
 	taskq_free(ent);
-	return (rc);
+	return (pend ? 0 : ENOENT);
 }
 
 static void

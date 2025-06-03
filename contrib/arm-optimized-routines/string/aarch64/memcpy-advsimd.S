@@ -52,9 +52,6 @@
 
 ENTRY_ALIAS (__memmove_aarch64_simd)
 ENTRY (__memcpy_aarch64_simd)
-	PTR_ARG (0)
-	PTR_ARG (1)
-	SIZE_ARG (2)
 	add	srcend, src, count
 	cmp	count, 128
 	b.hi	L(copy_long)

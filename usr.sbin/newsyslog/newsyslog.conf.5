@@ -18,7 +18,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd December 25, 2023
+.Dd November 11, 2024
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -116,8 +116,10 @@ Specify the maximum number of archive files which may exist.
 This does not consider the current log file.
 .It Ar size
 When the size of the log file reaches
-.Ar size
-in kilobytes, the log file will be trimmed as described above.
+.Ar size ,
+in kilobytes by default, or with suffixes like k, M, G, ... as supported by
+.Xr expand_number 3 ,
+the log file will be trimmed as described above.
 If this field contains an asterisk
 .Pq Ql * ,
 the log file will not be trimmed based on size.
@@ -305,7 +307,7 @@ flag is mostly useful in conjunction with
 .Cm B
 flag to prevent
 .Xr newsyslog 8
-from inserting an informational 
+from inserting an informational
 .Tn ASCII
 message into the new file.
 .It Cm G
@@ -438,6 +440,7 @@ entry:
 .Xr gzip 1 ,
 .Xr xz 1 ,
 .Xr zstd 1 ,
+.Xr expand_number 3 ,
 .Xr syslog 3 ,
 .Xr chown 8 ,
 .Xr newsyslog 8 ,

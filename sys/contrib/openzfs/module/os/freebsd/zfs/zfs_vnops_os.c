@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -142,14 +143,14 @@ typedef ulong_t cookie_t;
  *  (3)	All range locks must be grabbed before calling dmu_tx_assign(),
  *	as they can span dmu_tx_assign() calls.
  *
- *  (4) If ZPL locks are held, pass TXG_NOWAIT as the second argument to
+ *  (4) If ZPL locks are held, pass DMU_TX_NOWAIT as the second argument to
  *      dmu_tx_assign().  This is critical because we don't want to block
  *      while holding locks.
  *
- *	If no ZPL locks are held (aside from zfs_enter()), use TXG_WAIT.  This
- *	reduces lock contention and CPU usage when we must wait (note that if
- *	throughput is constrained by the storage, nearly every transaction
- *	must wait).
+ *	If no ZPL locks are held (aside from zfs_enter()), use DMU_TX_WAIT.
+ *	This reduces lock contention and CPU usage when we must wait (note
+ *	that if throughput is constrained by the storage, nearly every
+ *	transaction must wait).
  *
  *      Note, in particular, that if a lock is sometimes acquired before
  *      the tx assigns, and sometimes after (e.g. z_lock), then failing
@@ -157,15 +158,16 @@ typedef ulong_t cookie_t;
  *
  *	Thread A has grabbed a lock before calling dmu_tx_assign().
  *	Thread B is in an already-assigned tx, and blocks for this lock.
- *	Thread A calls dmu_tx_assign(TXG_WAIT) and blocks in txg_wait_open()
- *	forever, because the previous txg can't quiesce until B's tx commits.
+ *	Thread A calls dmu_tx_assign(DMU_TX_WAIT) and blocks in
+ *	txg_wait_open() forever, because the previous txg can't quiesce
+ *	until B's tx commits.
  *
- *	If dmu_tx_assign() returns ERESTART and zfsvfs->z_assign is TXG_NOWAIT,
- *	then drop all locks, call dmu_tx_wait(), and try again.  On subsequent
- *	calls to dmu_tx_assign(), pass TXG_NOTHROTTLE in addition to TXG_NOWAIT,
- *	to indicate that this operation has already called dmu_tx_wait().
- *	This will ensure that we don't retry forever, waiting a short bit
- *	each time.
+ *	If dmu_tx_assign() returns ERESTART and zfsvfs->z_assign is
+ *	DMU_TX_NOWAIT, then drop all locks, call dmu_tx_wait(), and try
+ *	again.  On subsequent calls to dmu_tx_assign(), pass
+ *	DMU_TX_NOTHROTTLE in addition to DMU_TX_NOWAIT, to indicate that
+ *	this operation has already called dmu_tx_wait().  This will ensure
+ *	that we don't retry forever, waiting a short bit each time.
  *
  *  (5)	If the operation succeeded, generate the intent log entry for it
  *	before dropping locks.  This ensures that the ordering of events
@@ -187,7 +189,8 @@ typedef ulong_t cookie_t;
  *	rw_enter(...);			// grab any other locks you need
  *	tx = dmu_tx_create(...);	// get DMU tx
  *	dmu_tx_hold_*();		// hold each object you might modify
- *	error = dmu_tx_assign(tx, (waited ? TXG_NOTHROTTLE : 0) | TXG_NOWAIT);
+ *	error = dmu_tx_assign(tx,
+ *	    (waited ? DMU_TX_NOTHROTTLE : 0) | DMU_TX_NOWAIT);
  *	if (error) {
  *		rw_exit(...);		// drop locks
  *		zfs_dirent_unlock(dl);	// unlock directory entry
@@ -291,12 +294,28 @@ zfs_ioctl(vnode_t *vp, ulong_t com, intptr_t data, int flag, cred_t *cred,
 	case F_SEEK_HOLE:
 	{
 		off = *(offset_t *)data;
+		error = vn_lock(vp, LK_SHARED);
+		if (error)
+			return (error);
 		/* offset parameter is in/out */
 		error = zfs_holey(VTOZ(vp), com, &off);
+		VOP_UNLOCK(vp);
 		if (error)
 			return (error);
 		*(offset_t *)data = off;
 		return (0);
+	}
+	case ZFS_IOC_REWRITE: {
+		zfs_rewrite_args_t *args = (zfs_rewrite_args_t *)data;
+		if ((flag & FWRITE) == 0)
+			return (SET_ERROR(EBADF));
+		error = vn_lock(vp, LK_SHARED);
+		if (error)
+			return (error);
+		error = zfs_rewrite(VTOZ(vp), args->off, args->len,
+		    args->flags, args->arg);
+		VOP_UNLOCK(vp);
+		return (error);
 	}
 	}
 	return (SET_ERROR(ENOTTY));
@@ -452,8 +471,10 @@ mappedread_sf(znode_t *zp, int nbytes, zfs_uio_t *uio)
 				if (!vm_page_wired(pp) && pp->valid == 0 &&
 				    vm_page_busy_tryupgrade(pp))
 					vm_page_free(pp);
-				else
+				else {
+					vm_page_deactivate_noreuse(pp);
 					vm_page_sunbusy(pp);
+				}
 				zfs_vmobject_wunlock(obj);
 			}
 		} else {
@@ -509,7 +530,7 @@ mappedread(znode_t *zp, int nbytes, zfs_uio_t *uio)
 			page_unhold(pp);
 		} else {
 			error = dmu_read_uio_dbuf(sa_get_db(zp->z_sa_hdl),
-			    uio, bytes);
+			    uio, bytes, DMU_READ_PREFETCH);
 		}
 		len -= bytes;
 		off = 0;
@@ -774,6 +795,8 @@ zfs_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp,
 	}
 	if (zfs_has_ctldir(zdp) && strcmp(nm, ZFS_CTLDIR_NAME) == 0) {
 		zfs_exit(zfsvfs, FTAG);
+		if (zfsvfs->z_show_ctldir == ZFS_SNAPDIR_DISABLED)
+			return (SET_ERROR(ENOENT));
 		if ((cnp->cn_flags & ISLASTCN) != 0 && nameiop != LOOKUP)
 			return (SET_ERROR(ENOTSUP));
 		error = zfsctl_root(zfsvfs, cnp->cn_lkflags, vpp);
@@ -892,6 +915,14 @@ zfs_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp,
 	return (error);
 }
 
+static inline bool
+is_nametoolong(zfsvfs_t *zfsvfs, const char *name)
+{
+	size_t dlen = strlen(name);
+	return ((!zfsvfs->z_longname && dlen >= ZAP_MAXNAMELEN) ||
+	    dlen >= ZAP_MAXNAMELEN_NEW);
+}
+
 /*
  * Attempt to create a new entry in a directory.  If the entry
  * already exists, truncate the file if permissible, else return
@@ -936,6 +967,9 @@ zfs_create(znode_t *dzp, const char *name, vattr_t *vap, int excl, int mode,
 #ifdef DEBUG_VFS_LOCKS
 	vnode_t	*dvp = ZTOV(dzp);
 #endif
+
+	if (is_nametoolong(zfsvfs, name))
+		return (SET_ERROR(ENAMETOOLONG));
 
 	/*
 	 * If we have an ephemeral id, ACL, or XVATTR then
@@ -1025,7 +1059,7 @@ zfs_create(znode_t *dzp, const char *name, vattr_t *vap, int excl, int mode,
 		dmu_tx_hold_write(tx, DMU_NEW_OBJECT,
 		    0, acl_ids.z_aclp->z_acl_bytes);
 	}
-	error = dmu_tx_assign(tx, TXG_WAIT);
+	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error) {
 		zfs_acl_ids_free(&acl_ids);
 		dmu_tx_abort(tx);
@@ -1166,7 +1200,7 @@ zfs_remove_(vnode_t *dvp, vnode_t *vp, const char *name, cred_t *cr)
 	 */
 	dmu_tx_mark_netfree(tx);
 
-	error = dmu_tx_assign(tx, TXG_WAIT);
+	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error) {
 		dmu_tx_abort(tx);
 		zfs_exit(zfsvfs, FTAG);
@@ -1301,6 +1335,9 @@ zfs_mkdir(znode_t *dzp, const char *dirname, vattr_t *vap, znode_t **zpp,
 
 	ASSERT3U(vap->va_type, ==, VDIR);
 
+	if (is_nametoolong(zfsvfs, dirname))
+		return (SET_ERROR(ENAMETOOLONG));
+
 	/*
 	 * If we have an ephemeral id, ACL, or XVATTR then
 	 * make sure file system is at proper version
@@ -1386,7 +1423,7 @@ zfs_mkdir(znode_t *dzp, const char *dirname, vattr_t *vap, znode_t **zpp,
 	dmu_tx_hold_sa_create(tx, acl_ids.z_aclp->z_acl_bytes +
 	    ZFS_SA_BASE_ATTR_SIZE);
 
-	error = dmu_tx_assign(tx, TXG_WAIT);
+	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error) {
 		zfs_acl_ids_free(&acl_ids);
 		dmu_tx_abort(tx);
@@ -1488,7 +1525,7 @@ zfs_rmdir_(vnode_t *dvp, vnode_t *vp, const char *name, cred_t *cr)
 	zfs_sa_upgrade_txholds(tx, zp);
 	zfs_sa_upgrade_txholds(tx, dzp);
 	dmu_tx_mark_netfree(tx);
-	error = dmu_tx_assign(tx, TXG_WAIT);
+	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error) {
 		dmu_tx_abort(tx);
 		zfs_exit(zfsvfs, FTAG);
@@ -1568,7 +1605,7 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 	caddr_t		outbuf;
 	size_t		bufsize;
 	zap_cursor_t	zc;
-	zap_attribute_t	zap;
+	zap_attribute_t	*zap;
 	uint_t		bytes_wanted;
 	uint64_t	offset; /* must be unsigned; checks for < 1 */
 	uint64_t	parent;
@@ -1616,6 +1653,7 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 	os = zfsvfs->z_os;
 	offset = zfs_uio_offset(uio);
 	prefetch = zp->z_zn_prefetch;
+	zap = zap_attribute_long_alloc();
 
 	/*
 	 * Initialize the iterator cursor.
@@ -1671,33 +1709,33 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 		 * Special case `.', `..', and `.zfs'.
 		 */
 		if (offset == 0) {
-			(void) strcpy(zap.za_name, ".");
-			zap.za_normalization_conflict = 0;
+			(void) strcpy(zap->za_name, ".");
+			zap->za_normalization_conflict = 0;
 			objnum = zp->z_id;
 			type = DT_DIR;
 		} else if (offset == 1) {
-			(void) strcpy(zap.za_name, "..");
-			zap.za_normalization_conflict = 0;
+			(void) strcpy(zap->za_name, "..");
+			zap->za_normalization_conflict = 0;
 			objnum = parent;
 			type = DT_DIR;
 		} else if (offset == 2 && zfs_show_ctldir(zp)) {
-			(void) strcpy(zap.za_name, ZFS_CTLDIR_NAME);
-			zap.za_normalization_conflict = 0;
+			(void) strcpy(zap->za_name, ZFS_CTLDIR_NAME);
+			zap->za_normalization_conflict = 0;
 			objnum = ZFSCTL_INO_ROOT;
 			type = DT_DIR;
 		} else {
 			/*
 			 * Grab next entry.
 			 */
-			if ((error = zap_cursor_retrieve(&zc, &zap))) {
+			if ((error = zap_cursor_retrieve(&zc, zap))) {
 				if ((*eofp = (error == ENOENT)) != 0)
 					break;
 				else
 					goto update;
 			}
 
-			if (zap.za_integer_length != 8 ||
-			    zap.za_num_integers != 1) {
+			if (zap->za_integer_length != 8 ||
+			    zap->za_num_integers != 1) {
 				cmn_err(CE_WARN, "zap_readdir: bad directory "
 				    "entry, obj = %lld, offset = %lld\n",
 				    (u_longlong_t)zp->z_id,
@@ -1706,15 +1744,15 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 				goto update;
 			}
 
-			objnum = ZFS_DIRENT_OBJ(zap.za_first_integer);
+			objnum = ZFS_DIRENT_OBJ(zap->za_first_integer);
 			/*
 			 * MacOS X can extract the object type here such as:
 			 * uint8_t type = ZFS_DIRENT_TYPE(zap.za_first_integer);
 			 */
-			type = ZFS_DIRENT_TYPE(zap.za_first_integer);
+			type = ZFS_DIRENT_TYPE(zap->za_first_integer);
 		}
 
-		reclen = DIRENT64_RECLEN(strlen(zap.za_name));
+		reclen = DIRENT64_RECLEN(strlen(zap->za_name));
 
 		/*
 		 * Will this entry fit in the buffer?
@@ -1734,10 +1772,10 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 		 */
 		odp->d_ino = objnum;
 		odp->d_reclen = reclen;
-		odp->d_namlen = strlen(zap.za_name);
+		odp->d_namlen = strlen(zap->za_name);
 		/* NOTE: d_off is the offset for the *next* entry. */
 		next = &odp->d_off;
-		strlcpy(odp->d_name, zap.za_name, odp->d_namlen + 1);
+		strlcpy(odp->d_name, zap->za_name, odp->d_namlen + 1);
 		odp->d_type = type;
 		dirent_terminate(odp);
 		odp = (dirent64_t *)((intptr_t)odp + reclen);
@@ -1788,6 +1826,7 @@ zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
 
 update:
 	zap_cursor_fini(&zc);
+	zap_attribute_free(zap);
 	if (zfs_uio_segflg(uio) != UIO_SYSSPACE || zfs_uio_iovcnt(uio) != 1)
 		kmem_free(outbuf, bufsize);
 
@@ -2518,7 +2557,7 @@ zfs_setattr(znode_t *zp, vattr_t *vap, int flags, cred_t *cr, zidmap_t *mnt_ns)
 
 	zfs_sa_upgrade_txholds(tx, zp);
 
-	err = dmu_tx_assign(tx, TXG_WAIT);
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (err)
 		goto out;
 
@@ -3219,7 +3258,7 @@ zfs_do_rename_impl(vnode_t *sdvp, vnode_t **svpp, struct componentname *scnp,
 
 	zfs_sa_upgrade_txholds(tx, szp);
 	dmu_tx_hold_zap(tx, zfsvfs->z_unlinkedobj, FALSE, NULL);
-	error = dmu_tx_assign(tx, TXG_WAIT);
+	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error) {
 		dmu_tx_abort(tx);
 		goto out_seq;
@@ -3292,6 +3331,9 @@ zfs_rename(znode_t *sdzp, const char *sname, znode_t *tdzp, const char *tname,
 	int error;
 	svp = tvp = NULL;
 
+	if (is_nametoolong(tdzp->z_zfsvfs, tname))
+		return (SET_ERROR(ENAMETOOLONG));
+
 	if (rflags != 0 || wo_vap != NULL)
 		return (SET_ERROR(EINVAL));
 
@@ -3356,6 +3398,9 @@ zfs_symlink(znode_t *dzp, const char *name, vattr_t *vap,
 
 	ASSERT3S(vap->va_type, ==, VLNK);
 
+	if (is_nametoolong(zfsvfs, name))
+		return (SET_ERROR(ENAMETOOLONG));
+
 	if ((error = zfs_enter_verify_zp(zfsvfs, dzp, FTAG)) != 0)
 		return (error);
 	zilog = zfsvfs->z_log;
@@ -3414,7 +3459,7 @@ zfs_symlink(znode_t *dzp, const char *name, vattr_t *vap,
 	}
 	if (fuid_dirtied)
 		zfs_fuid_txhold(zfsvfs, tx);
-	error = dmu_tx_assign(tx, TXG_WAIT);
+	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error) {
 		zfs_acl_ids_free(&acl_ids);
 		dmu_tx_abort(tx);
@@ -3538,6 +3583,9 @@ zfs_link(znode_t *tdzp, znode_t *szp, const char *name, cred_t *cr,
 
 	ASSERT3S(ZTOV(tdzp)->v_type, ==, VDIR);
 
+	if (is_nametoolong(zfsvfs, name))
+		return (SET_ERROR(ENAMETOOLONG));
+
 	if ((error = zfs_enter_verify_zp(zfsvfs, tdzp, FTAG)) != 0)
 		return (error);
 	zilog = zfsvfs->z_log;
@@ -3630,7 +3678,7 @@ zfs_link(znode_t *tdzp, znode_t *szp, const char *name, cred_t *cr,
 	dmu_tx_hold_zap(tx, tdzp->z_id, TRUE, name);
 	zfs_sa_upgrade_txholds(tx, szp);
 	zfs_sa_upgrade_txholds(tx, tdzp);
-	error = dmu_tx_assign(tx, TXG_WAIT);
+	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error) {
 		dmu_tx_abort(tx);
 		zfs_exit(zfsvfs, FTAG);
@@ -3759,7 +3807,7 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 
 		dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
 		zfs_sa_upgrade_txholds(tx, zp);
-		error = dmu_tx_assign(tx, TXG_WAIT);
+		error = dmu_tx_assign(tx, DMU_TX_WAIT);
 		if (error) {
 			dmu_tx_abort(tx);
 		} else {
@@ -3901,6 +3949,7 @@ zfs_getpages(struct vnode *vp, vm_page_t *ma, int count, int *rbehind,
 	if (zfs_enter_verify_zp(zfsvfs, zp, FTAG) != 0)
 		return (zfs_vm_pagerret_error);
 
+	object = ma[0]->object;
 	start = IDX_TO_OFF(ma[0]->pindex);
 	end = IDX_TO_OFF(ma[count - 1]->pindex + 1);
 
@@ -3909,33 +3958,45 @@ zfs_getpages(struct vnode *vp, vm_page_t *ma, int count, int *rbehind,
 	 * Note that we need to handle the case of the block size growing.
 	 */
 	for (;;) {
+		uint64_t len;
+
 		blksz = zp->z_blksz;
+		len = roundup(end, blksz) - rounddown(start, blksz);
+
 		lr = zfs_rangelock_tryenter(&zp->z_rangelock,
-		    rounddown(start, blksz),
-		    roundup(end, blksz) - rounddown(start, blksz), RL_READER);
+		    rounddown(start, blksz), len, RL_READER);
 		if (lr == NULL) {
-			if (rahead != NULL) {
-				*rahead = 0;
-				rahead = NULL;
-			}
-			if (rbehind != NULL) {
-				*rbehind = 0;
-				rbehind = NULL;
-			}
-			break;
+			/*
+			 * Avoid a deadlock with update_pages().  We need to
+			 * hold the range lock when copying from the DMU, so
+			 * give up the busy lock to allow update_pages() to
+			 * proceed.  We might need to allocate new pages, which
+			 * isn't quite right since this allocation isn't subject
+			 * to the page fault handler's OOM logic, but this is
+			 * the best we can do for now.
+			 */
+			for (int i = 0; i < count; i++)
+				vm_page_xunbusy(ma[i]);
+
+			lr = zfs_rangelock_enter(&zp->z_rangelock,
+			    rounddown(start, blksz), len, RL_READER);
+
+			zfs_vmobject_wlock(object);
+			(void) vm_page_grab_pages(object, OFF_TO_IDX(start),
+			    VM_ALLOC_NORMAL | VM_ALLOC_WAITOK | VM_ALLOC_ZERO,
+			    ma, count);
+			zfs_vmobject_wunlock(object);
 		}
 		if (blksz == zp->z_blksz)
 			break;
 		zfs_rangelock_exit(lr);
 	}
 
-	object = ma[0]->object;
 	zfs_vmobject_wlock(object);
 	obj_size = object->un_pager.vnp.vnp_size;
 	zfs_vmobject_wunlock(object);
 	if (IDX_TO_OFF(ma[count - 1]->pindex) >= obj_size) {
-		if (lr != NULL)
-			zfs_rangelock_exit(lr);
+		zfs_rangelock_exit(lr);
 		zfs_exit(zfsvfs, FTAG);
 		return (zfs_vm_pagerret_bad);
 	}
@@ -3960,11 +4021,33 @@ zfs_getpages(struct vnode *vp, vm_page_t *ma, int count, int *rbehind,
 	 * ZFS will panic if we request DMU to read beyond the end of the last
 	 * allocated block.
 	 */
-	error = dmu_read_pages(zfsvfs->z_os, zp->z_id, ma, count, &pgsin_b,
-	    &pgsin_a, MIN(end, obj_size) - (end - PAGE_SIZE));
+	for (int i = 0; i < count; i++) {
+		int dummypgsin, count1, j, last_size;
 
-	if (lr != NULL)
-		zfs_rangelock_exit(lr);
+		if (vm_page_any_valid(ma[i])) {
+			ASSERT(vm_page_all_valid(ma[i]));
+			continue;
+		}
+		for (j = i + 1; j < count; j++) {
+			if (vm_page_any_valid(ma[j])) {
+				ASSERT(vm_page_all_valid(ma[j]));
+				break;
+			}
+		}
+		count1 = j - i;
+		dummypgsin = 0;
+		last_size = j == count ?
+		    MIN(end, obj_size) - (end - PAGE_SIZE) : PAGE_SIZE;
+		error = dmu_read_pages(zfsvfs->z_os, zp->z_id, &ma[i], count1,
+		    i == 0 ? &pgsin_b : &dummypgsin,
+		    j == count ? &pgsin_a : &dummypgsin,
+		    last_size);
+		if (error != 0)
+			break;
+		i += count1 - 1;
+	}
+
+	zfs_rangelock_exit(lr);
 	ZFS_ACCESSTIME_STAMP(zfsvfs, zp);
 
 	dataset_kstats_update_read_kstats(&zfsvfs->z_kstat, count*PAGE_SIZE);
@@ -4095,7 +4178,7 @@ zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
 
 	dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
 	zfs_sa_upgrade_txholds(tx, zp);
-	err = dmu_tx_assign(tx, TXG_WAIT);
+	err = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (err != 0) {
 		dmu_tx_abort(tx);
 		goto out;
@@ -4131,7 +4214,7 @@ zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
 		 * but that would make the locking messier
 		 */
 		zfs_log_write(zfsvfs->z_log, tx, TX_WRITE, zp, off,
-		    len, commit, NULL, NULL);
+		    len, commit, B_FALSE, NULL, NULL);
 
 		zfs_vmobject_wlock(object);
 		for (i = 0; i < ncount; i++) {
@@ -4266,6 +4349,8 @@ ioflags(int ioflags)
 		flags |= O_APPEND;
 	if (ioflags & IO_NDELAY)
 		flags |= O_NONBLOCK;
+	if (ioflags & IO_DIRECT)
+		flags |= O_DIRECT;
 	if (ioflags & IO_SYNC)
 		flags |= O_SYNC;
 
@@ -4285,9 +4370,36 @@ static int
 zfs_freebsd_read(struct vop_read_args *ap)
 {
 	zfs_uio_t uio;
+	int error = 0;
 	zfs_uio_init(&uio, ap->a_uio);
-	return (zfs_read(VTOZ(ap->a_vp), &uio, ioflags(ap->a_ioflag),
-	    ap->a_cred));
+	error = zfs_read(VTOZ(ap->a_vp), &uio, ioflags(ap->a_ioflag),
+	    ap->a_cred);
+	/*
+	 * XXX We occasionally get an EFAULT for Direct I/O reads on
+	 * FreeBSD 13. This still needs to be resolved. The EFAULT comes
+	 * from:
+	 * zfs_uio_get__dio_pages_alloc() ->
+	 * zfs_uio_get_dio_pages_impl() ->
+	 * zfs_uio_iov_step() ->
+	 * zfs_uio_get_user_pages().
+	 * We return EFAULT from zfs_uio_iov_step(). When a Direct I/O
+	 * read fails to map in the user pages (returning EFAULT) the
+	 * Direct I/O request is broken up into two separate IO requests
+	 * and issued separately using Direct I/O.
+	 */
+#ifdef ZFS_DEBUG
+	if (error == EFAULT && uio.uio_extflg & UIO_DIRECT) {
+#if 0
+		printf("%s(%d): Direct I/O read returning EFAULT "
+		    "uio = %p, zfs_uio_offset(uio) = %lu "
+		    "zfs_uio_resid(uio) = %lu\n",
+		    __FUNCTION__, __LINE__, &uio, zfs_uio_offset(&uio),
+		    zfs_uio_resid(&uio));
+#endif
+	}
+
+#endif
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -5943,6 +6055,78 @@ zfs_freebsd_aclcheck(struct vop_aclcheck_args *ap)
 	return (EOPNOTSUPP);
 }
 
+#ifndef _SYS_SYSPROTO_H_
+struct vop_advise_args {
+	struct vnode *a_vp;
+	off_t a_start;
+	off_t a_end;
+	int a_advice;
+};
+#endif
+
+static int
+zfs_freebsd_advise(struct vop_advise_args *ap)
+{
+	vnode_t *vp = ap->a_vp;
+	off_t start = ap->a_start;
+	off_t end = ap->a_end;
+	int advice = ap->a_advice;
+	off_t len;
+	znode_t *zp;
+	zfsvfs_t *zfsvfs;
+	objset_t *os;
+	int error = 0;
+
+	if (end < start)
+		return (EINVAL);
+
+	error = vn_lock(vp, LK_SHARED);
+	if (error)
+		return (error);
+
+	zp = VTOZ(vp);
+	zfsvfs = zp->z_zfsvfs;
+	os = zp->z_zfsvfs->z_os;
+
+	if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
+		goto out_unlock;
+
+	/* kern_posix_fadvise points to the last byte, we want one past */
+	if (end != OFF_MAX)
+		end += 1;
+	len = end - start;
+
+	switch (advice) {
+	case POSIX_FADV_WILLNEED:
+		/*
+		 * Pass on the caller's size directly, but note that
+		 * dmu_prefetch_max will effectively cap it.  If there really
+		 * is a larger sequential access pattern, perhaps dmu_zfetch
+		 * will detect it.
+		 */
+		dmu_prefetch(os, zp->z_id, 0, start, len,
+		    ZIO_PRIORITY_ASYNC_READ);
+		break;
+	case POSIX_FADV_NORMAL:
+	case POSIX_FADV_RANDOM:
+	case POSIX_FADV_SEQUENTIAL:
+	case POSIX_FADV_DONTNEED:
+	case POSIX_FADV_NOREUSE:
+		/* ignored for now */
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	zfs_exit(zfsvfs, FTAG);
+
+out_unlock:
+	VOP_UNLOCK(vp);
+
+	return (error);
+}
+
 static int
 zfs_vptocnp(struct vop_vptocnp_args *ap)
 {
@@ -5965,7 +6149,8 @@ zfs_vptocnp(struct vop_vptocnp_args *ap)
 		znode_t *dzp;
 		size_t len;
 
-		error = zfs_znode_parent_and_name(zp, &dzp, name);
+		error = zfs_znode_parent_and_name(zp, &dzp, name,
+		    sizeof (name));
 		if (error == 0) {
 			len = strlen(name);
 			if (*ap->a_buflen < len)
@@ -6102,7 +6287,7 @@ zfs_freebsd_copy_file_range(struct vop_copy_file_range_args *ap)
 	} else {
 #if (__FreeBSD_version >= 1302506 && __FreeBSD_version < 1400000) || \
 	__FreeBSD_version >= 1400086
-		vn_lock_pair(invp, false, LK_EXCLUSIVE, outvp, false,
+		vn_lock_pair(invp, false, LK_SHARED, outvp, false,
 		    LK_EXCLUSIVE);
 #else
 		vn_lock_pair(invp, false, outvp, false);
@@ -6158,7 +6343,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_fplookup_vexec = zfs_freebsd_fplookup_vexec,
 	.vop_fplookup_symlink = zfs_freebsd_fplookup_symlink,
 	.vop_access =		zfs_freebsd_access,
-	.vop_allocate =		VOP_EINVAL,
+	.vop_allocate =		VOP_EOPNOTSUPP,
 #if __FreeBSD_version >= 1400032
 	.vop_deallocate =	zfs_deallocate,
 #endif
@@ -6178,6 +6363,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_link =		zfs_freebsd_link,
 	.vop_symlink =		zfs_freebsd_symlink,
 	.vop_readlink =		zfs_freebsd_readlink,
+	.vop_advise =		zfs_freebsd_advise,
 	.vop_read =		zfs_freebsd_read,
 	.vop_write =		zfs_freebsd_write,
 	.vop_remove =		zfs_freebsd_remove,

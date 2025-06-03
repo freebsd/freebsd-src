@@ -63,8 +63,6 @@ get_segbases(struct regset *rs, struct thread *td, void *buf,
 		reg = buf;
 
 		pcb = td->td_pcb;
-		if (td == curthread)
-			update_pcb_bases(pcb);
 		reg->r_fsbase = pcb->pcb_fsbase;
 		reg->r_gsbase = pcb->pcb_gsbase;
 	}
@@ -113,8 +111,6 @@ get_segbases32(struct regset *rs, struct thread *td, void *buf,
 		reg = buf;
 
 		pcb = td->td_pcb;
-		if (td == curthread)
-			update_pcb_bases(pcb);
 		reg->r_fsbase = (uint32_t)pcb->pcb_fsbase;
 		reg->r_gsbase = (uint32_t)pcb->pcb_gsbase;
 	}
@@ -370,6 +366,27 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 			break;
 		}
 		cpu_ptrace_setbase(td, req, rv);
+		break;
+
+	case PT_GETTLSBASE:
+		pcb = td->td_pcb;
+		if ((pcb->pcb_flags & PCB_TLSBASE) != 0)
+			error = copyout(&pcb->pcb_tlsbase, addr, sizeof(*r));
+		else
+			error = ESRCH;
+		break;
+
+	case PT_SETTLSBASE:
+		pcb = td->td_pcb;
+		error = copyin(addr, &rv, sizeof(rv));
+		if (error != 0)
+			break;
+		if (rv >= td->td_proc->p_sysent->sv_maxuser) {
+			error = EINVAL;
+			break;
+		}
+		pcb->pcb_tlsbase = rv;
+		set_pcb_flags(pcb, PCB_TLSBASE);
 		break;
 
 	default:

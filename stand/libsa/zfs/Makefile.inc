@@ -76,7 +76,7 @@ CFLAGS.$i+=	-U__BMI__ ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
 
 CFLAGS.zfs_zstd.c+= -DIN_BASE -DIN_LIBSA
 
-CFLAGS.blake3_impl.c+= -I${OZFS}/module/icp/algs/blake3 -I${OZFS}/module/icp/include
+CFLAGS.blake3_impl.c+= -I${OZFS}/module/icp/algs/blake3 -I${OZFS}/module/icp/include -DIN_LIBSA
 
 # Do not unroll skein loops, reduce code size
 CFLAGS.skein_block.c+=	-DSKEIN_LOOP=111

@@ -113,14 +113,17 @@ tegra_ehci_detach(device_t dev)
 {
 	struct tegra_ehci_softc *sc;
 	ehci_softc_t *esc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 
 	esc = &sc->ehci_softc;
 	if (sc->clk != NULL)
 		clk_release(sc->clk);
-	if (esc->sc_bus.bdev != NULL)
-		device_delete_child(dev, esc->sc_bus.bdev);
 	if (esc->sc_flags & EHCI_SCFLG_DONEINIT)
 		ehci_detach(esc);
 	if (esc->sc_intr_hdl != NULL)
@@ -134,9 +137,6 @@ tegra_ehci_detach(device_t dev)
 		    sc->ehci_mem_res);
 	if (sc->usb_alloc_called)
 		usb_bus_mem_free_all(&esc->sc_bus, &ehci_iterate_hw_softc);
-
-	/* During module unload there are lots of children leftover. */
-	device_delete_children(dev);
 
 	return (0);
 }

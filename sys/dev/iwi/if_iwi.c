@@ -927,8 +927,8 @@ iwi_media_status(if_t ifp, struct ifmediareq *imr)
 
 	/* read current transmission rate from adapter */
 	ni = ieee80211_ref_node(vap->iv_bss);
-	ni->ni_txrate =
-	    iwi_cvtrate(CSR_READ_4(sc, IWI_CSR_CURRENT_TX_RATE));
+	ieee80211_node_set_txrate_dot11rate(ni,
+	    iwi_cvtrate(CSR_READ_4(sc, IWI_CSR_CURRENT_TX_RATE)));
 	ieee80211_free_node(ni);
 	ieee80211_media_status(ifp, imr);
 }

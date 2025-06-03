@@ -47,6 +47,7 @@ struct atu_opt {
 #define	MV88E6172	0x1720
 #define	MV88E6176	0x1760
 #define	MV88E6190	0x1900
+#define	MV88E6190X	0x0a00
 
 #define	MVSWITCH(_sc, id)	((_sc)->swid == (id))
 #define	MVSWITCH_MULTICHIP(_sc)	((_sc)->sw_addr != 0)
@@ -56,7 +57,7 @@ struct atu_opt {
  */
 #define	REG_GLOBAL			0x1b
 #define	REG_GLOBAL2			0x1c
-#define	REG_PORT(_sc, p)		((MVSWITCH((_sc), MV88E6190) ? 0 : 0x10) + (p))
+#define	REG_PORT(_sc, p)		(((MVSWITCH((_sc), MV88E6190) || MVSWITCH((_sc), MV88E6190X)) ? 0 : 0x10) + (p))
 
 #define	REG_NUM_MAX			31
 
@@ -138,13 +139,13 @@ struct atu_opt {
 #define	VTU_DATA			7
 #define	VTU_DATA2			8
 
-#define	VTU_FID_MASK(_sc)		(MVSWITCH((_sc), MV88E6190) ? 0xfff : 0xff)
+#define	VTU_FID_MASK(_sc)		((MVSWITCH((_sc), MV88E6190) || MVSWITCH((_sc), MV88E6190X)) ? 0xfff : 0xff)
 #define	VTU_FID_POLICY			(1 << 12)
 #define	VTU_PORT_UNMODIFIED		0
 #define	VTU_PORT_UNTAGGED		1
 #define	VTU_PORT_TAGGED			2
 #define	VTU_PORT_DISCARD		3
-#define	VTU_PPREG(_sc)			(MVSWITCH((_sc), MV88E6190) ? 8 : 4)
+#define	VTU_PPREG(_sc)			((MVSWITCH((_sc), MV88E6190) || MVSWITCH((_sc), MV88E6190X)) ? 8 : 4)
 #define	VTU_PORT(_sc, p)		(((p) % VTU_PPREG(_sc)) * (16 / VTU_PPREG(_sc)))
 #define	VTU_PORT_MASK			3
 #define	VTU_BUSY			(1 << 15)
@@ -174,7 +175,7 @@ struct atu_opt {
 #define	ATU_MAC_ADDR45			15
 
 #define	ATU_DATA_LAG                    (1 << 15)
-#define	ATU_PORT_MASK(_sc)		(MVSWITCH((_sc), MV88E6190) ? 0xfff0 : 0xff0)
+#define	ATU_PORT_MASK(_sc)		((MVSWITCH((_sc), MV88E6190) || MVSWITCH((_sc), MV88E6190X)) ? 0xfff0 : 0xff0)
 #define	ATU_PORT_SHIFT                  4
 #define	ATU_LAG_MASK                    0xf0
 #define	ATU_LAG_SHIFT                   4

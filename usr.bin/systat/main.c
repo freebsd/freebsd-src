@@ -301,9 +301,9 @@ display(void)
 	    size_t size = sizeof(arc[0]);
 	    if (sysctlbyname("kstat.zfs.misc.arcstats.size",
 		&arc[0], &size, NULL, 0) == 0 ) {
-		    GETSYSCTL("vfs.zfs.mfu_size", arc[1]);
-		    GETSYSCTL("vfs.zfs.mru_size", arc[2]);
-		    GETSYSCTL("vfs.zfs.anon_size", arc[3]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.mfu_size", arc[1]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.mru_size", arc[2]);
+		    GETSYSCTL("kstat.zfs.misc.arcstats.anon_size", arc[3]);
 		    GETSYSCTL("kstat.zfs.misc.arcstats.hdr_size", arc[4]);
 		    GETSYSCTL("kstat.zfs.misc.arcstats.l2_hdr_size", arc[5]);
 		    GETSYSCTL("kstat.zfs.misc.arcstats.bonus_size", arc[6]);

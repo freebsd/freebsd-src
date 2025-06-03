@@ -150,7 +150,7 @@ typedef struct {
 // Discover() definitions
 //
 
-#define EFI_PXE_BASE_CODE_BOOT_TYPE_BOOTSTRAP           0   
+#define EFI_PXE_BASE_CODE_BOOT_TYPE_BOOTSTRAP           0
 #define EFI_PXE_BASE_CODE_BOOT_TYPE_MS_WINNT_RIS        1
 #define EFI_PXE_BASE_CODE_BOOT_TYPE_INTEL_LCM           2
 #define EFI_PXE_BASE_CODE_BOOT_TYPE_DOSUNDI             3
@@ -355,7 +355,7 @@ typedef
 EFI_STATUS
 (EFIAPI *EFI_PXE_BASE_CODE_ARP) (
     IN struct _EFI_PXE_BASE_CODE    *This,
-    IN EFI_IP_ADDRESS               *IpAddr,      
+    IN EFI_IP_ADDRESS               *IpAddr,
     IN EFI_MAC_ADDRESS              *MacAddr      OPTIONAL
     );
 
@@ -454,7 +454,7 @@ typedef enum {
 } EFI_PXE_BASE_CODE_CALLBACK_STATUS;
 
 typedef
-EFI_PXE_BASE_CODE_CALLBACK_STATUS 
+EFI_PXE_BASE_CODE_CALLBACK_STATUS
 (EFIAPI *EFI_PXE_CALLBACK) (
     IN struct _EFI_PXE_BASE_CODE_CALLBACK   *This,
     IN EFI_PXE_BASE_CODE_FUNCTION           Function,

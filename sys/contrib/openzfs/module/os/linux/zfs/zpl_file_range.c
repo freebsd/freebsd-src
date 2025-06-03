@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -83,8 +84,6 @@ zpl_clone_file_range_impl(struct file *src_file, loff_t src_off,
 	return ((ssize_t)len_o);
 }
 
-#if defined(HAVE_VFS_COPY_FILE_RANGE) || \
-    defined(HAVE_VFS_FILE_OPERATIONS_EXTEND)
 /*
  * Entry point for copy_file_range(). Copy len bytes from src_off in src_file
  * to dst_off in dst_file. We are permitted to do this however we like, so we
@@ -134,7 +133,6 @@ zpl_copy_file_range(struct file *src_file, loff_t src_off,
 
 	return (ret);
 }
-#endif /* HAVE_VFS_COPY_FILE_RANGE || HAVE_VFS_FILE_OPERATIONS_EXTEND */
 
 #ifdef HAVE_VFS_REMAP_FILE_RANGE
 /*
@@ -179,8 +177,7 @@ zpl_remap_file_range(struct file *src_file, loff_t src_off,
 }
 #endif /* HAVE_VFS_REMAP_FILE_RANGE */
 
-#if defined(HAVE_VFS_CLONE_FILE_RANGE) || \
-    defined(HAVE_VFS_FILE_OPERATIONS_EXTEND)
+#if defined(HAVE_VFS_CLONE_FILE_RANGE)
 /*
  * Entry point for FICLONE and FICLONERANGE, before Linux 4.20.
  */
@@ -201,7 +198,7 @@ zpl_clone_file_range(struct file *src_file, loff_t src_off,
 
 	return (ret);
 }
-#endif /* HAVE_VFS_CLONE_FILE_RANGE || HAVE_VFS_FILE_OPERATIONS_EXTEND */
+#endif /* HAVE_VFS_CLONE_FILE_RANGE */
 
 #ifdef HAVE_VFS_DEDUPE_FILE_RANGE
 /*
@@ -215,85 +212,3 @@ zpl_dedupe_file_range(struct file *src_file, loff_t src_off,
 	return (-EOPNOTSUPP);
 }
 #endif /* HAVE_VFS_DEDUPE_FILE_RANGE */
-
-/* Entry point for FICLONE, before Linux 4.5. */
-long
-zpl_ioctl_ficlone(struct file *dst_file, void *arg)
-{
-	unsigned long sfd = (unsigned long)arg;
-
-	struct file *src_file = fget(sfd);
-	if (src_file == NULL)
-		return (-EBADF);
-
-	if (dst_file->f_op != src_file->f_op) {
-		fput(src_file);
-		return (-EXDEV);
-	}
-
-	size_t len = i_size_read(file_inode(src_file));
-
-	ssize_t ret = zpl_clone_file_range_impl(src_file, 0, dst_file, 0, len);
-
-	fput(src_file);
-
-	if (ret < 0) {
-		if (ret == -EOPNOTSUPP)
-			return (-ENOTTY);
-		return (ret);
-	}
-
-	if (ret != len)
-		return (-EINVAL);
-
-	return (0);
-}
-
-/* Entry point for FICLONERANGE, before Linux 4.5. */
-long
-zpl_ioctl_ficlonerange(struct file *dst_file, void __user *arg)
-{
-	zfs_ioc_compat_file_clone_range_t fcr;
-
-	if (copy_from_user(&fcr, arg, sizeof (fcr)))
-		return (-EFAULT);
-
-	struct file *src_file = fget(fcr.fcr_src_fd);
-	if (src_file == NULL)
-		return (-EBADF);
-
-	if (dst_file->f_op != src_file->f_op) {
-		fput(src_file);
-		return (-EXDEV);
-	}
-
-	size_t len = fcr.fcr_src_length;
-	if (len == 0)
-		len = i_size_read(file_inode(src_file)) - fcr.fcr_src_offset;
-
-	ssize_t ret = zpl_clone_file_range_impl(src_file, fcr.fcr_src_offset,
-	    dst_file, fcr.fcr_dest_offset, len);
-
-	fput(src_file);
-
-	if (ret < 0) {
-		if (ret == -EOPNOTSUPP)
-			return (-ENOTTY);
-		return (ret);
-	}
-
-	if (ret != len)
-		return (-EINVAL);
-
-	return (0);
-}
-
-/* Entry point for FIDEDUPERANGE, before Linux 4.5. */
-long
-zpl_ioctl_fideduperange(struct file *filp, void *arg)
-{
-	(void) arg;
-
-	/* No support for dedup yet */
-	return (-ENOTTY);
-}

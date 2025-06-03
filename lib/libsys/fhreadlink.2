@@ -60,7 +60,7 @@ code in the global variable
 .Va errno .
 .Sh ERRORS
 The
-.Fn readlink
+.Fn fhreadlink
 system call
 will fail if:
 .Bl -tag -width Er
@@ -86,8 +86,9 @@ The file handle
 is no longer valid
 .El
 .Sh SEE ALSO
-.Xr fhstat 2 ,
 .Xr fhlink 2 ,
+.Xr fhstat 2 ,
+.Xr readlink 2
 .Sh HISTORY
 The
 .Fn fhreadlink

@@ -385,7 +385,7 @@ null_lookup(struct vop_lookup_args *ap)
 {
 	struct componentname *cnp = ap->a_cnp;
 	struct vnode *dvp = ap->a_dvp;
-	int flags = cnp->cn_flags;
+	uint64_t flags = cnp->cn_flags;
 	struct vnode *vp, *ldvp, *lvp;
 	struct mount *mp;
 	int error;
@@ -403,17 +403,25 @@ null_lookup(struct vop_lookup_args *ap)
 
 	/*
 	 * Renames in the lower mounts might create an inconsistent
-	 * configuration where lower vnode is moved out of the
-	 * directory tree remounted by our null mount.  Do not try to
-	 * handle it fancy, just avoid VOP_LOOKUP() with DOTDOT name
-	 * which cannot be handled by VOP, at least passing over lower
-	 * root.
+	 * configuration where lower vnode is moved out of the directory tree
+	 * remounted by our null mount.
+	 *
+	 * Do not try to handle it fancy, just avoid VOP_LOOKUP() with DOTDOT
+	 * name which cannot be handled by the VOP.
 	 */
-	if ((ldvp->v_vflag & VV_ROOT) != 0 && (flags & ISDOTDOT) != 0) {
-		KASSERT((dvp->v_vflag & VV_ROOT) == 0,
-		    ("ldvp %p fl %#x dvp %p fl %#x flags %#x",
-		    ldvp, ldvp->v_vflag, dvp, dvp->v_vflag, flags));
-		return (ENOENT);
+	if ((flags & ISDOTDOT) != 0) {
+		struct nameidata *ndp;
+
+		if ((ldvp->v_vflag & VV_ROOT) != 0) {
+			KASSERT((dvp->v_vflag & VV_ROOT) == 0,
+			    ("ldvp %p fl %#x dvp %p fl %#x flags %#jx",
+			    ldvp, ldvp->v_vflag, dvp, dvp->v_vflag,
+			    (uintmax_t)flags));
+			return (ENOENT);
+		}
+		ndp = vfs_lookup_nameidata(cnp);
+		if (ndp != NULL && vfs_lookup_isroot(ndp, ldvp))
+			return (ENOENT);
 	}
 
 	/*

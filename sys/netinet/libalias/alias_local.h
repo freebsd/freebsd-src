@@ -94,10 +94,12 @@ struct libalias {
 	 * if no aliasing link already exists */
 	struct in_addr	targetAddress;
 	/* Lookup table of pointers to chains of link records.
-	 * Each link record is doubly indexed into input and
-	 * output lookup tables. */
+	 * Each link record is indexed into input,
+	 * output and "internal endpoint" lookup tables. */
 	SPLAY_HEAD(splay_out, alias_link) linkSplayOut;
 	SPLAY_HEAD(splay_in,  group_in)   linkSplayIn;
+	SPLAY_HEAD(splay_internal_endpoint, alias_link)
+	    linkSplayInternalEndpoint;
 	LIST_HEAD (, alias_link) pptpList;
 	/* HouseKeeping */
 	TAILQ_HEAD    (, alias_link) checkExpire;
@@ -237,12 +239,12 @@ struct alias_link *
 AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
     struct in_addr alias_addr, u_short src_port, u_short dst_port,
     int alias_param, int link_type);
-struct alias_link *
+int
 FindIcmpIn(struct libalias *la, struct in_addr _dst_addr, struct in_addr _alias_addr,
-    u_short _id_alias, int _create);
-struct alias_link *
+    u_short _id_alias, int _create, struct alias_link **_lnkp);
+int
 FindIcmpOut(struct libalias *la, struct in_addr _src_addr, struct in_addr _dst_addr,
-    u_short _id, int _create);
+    u_short _id, int _create, struct alias_link **_lnkp);
 struct alias_link *
 FindFragmentIn1(struct libalias *la, struct in_addr _dst_addr, struct in_addr _alias_addr,
     u_short _ip_id);
@@ -253,18 +255,20 @@ struct alias_link *
 AddFragmentPtrLink(struct libalias *la, struct in_addr _dst_addr, u_short _ip_id);
 struct alias_link *
 FindFragmentPtr(struct libalias *la, struct in_addr _dst_addr, u_short _ip_id);
-struct alias_link *
+int
 FindProtoIn(struct libalias *la, struct in_addr _dst_addr, struct in_addr _alias_addr,
-    u_char _proto);
-struct alias_link *
+    u_char _proto, struct alias_link **_lnkp);
+int
 FindProtoOut(struct libalias *la, struct in_addr _src_addr, struct in_addr _dst_addr,
-    u_char _proto);
-struct alias_link *
+    u_char _proto, struct alias_link **_lnkp);
+int
 FindUdpTcpIn(struct libalias *la, struct in_addr _dst_addr, struct in_addr _alias_addr,
-    u_short _dst_port, u_short _alias_port, u_char _proto, int _create);
-struct alias_link *
+    u_short _dst_port, u_short _alias_port, u_char _proto, int _create,
+    struct alias_link **_lnkp);
+int
 FindUdpTcpOut(struct libalias *la, struct in_addr _src_addr, struct in_addr _dst_addr,
-    u_short _src_port, u_short _dst_port, u_char _proto, int _create);
+    u_short _src_port, u_short _dst_port, u_char _proto, int _create,
+    struct alias_link **_lnkp);
 struct alias_link *
 AddPptp(struct libalias *la, struct in_addr _src_addr, struct in_addr _dst_addr,
     struct in_addr _alias_addr, u_int16_t _src_call_id);

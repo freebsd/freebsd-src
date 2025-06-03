@@ -3,6 +3,7 @@
 [![Packaging status](https://repology.org/badge/tiny-repos/expat.svg)](https://repology.org/metapackage/expat/versions)
 [![Downloads SourceForge](https://img.shields.io/sourceforge/dt/expat?label=Downloads%20SourceForge)](https://sourceforge.net/projects/expat/files/)
 [![Downloads GitHub](https://img.shields.io/github/downloads/libexpat/libexpat/total?label=Downloads%20GitHub)](https://github.com/libexpat/libexpat/releases)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10205/badge)](https://www.bestpractices.dev/projects/10205)
 
 > [!CAUTION]
 >
@@ -11,7 +12,7 @@
 > at the top of the `Changes` file.
 
 
-# Expat, Release 2.6.3
+# Expat, Release 2.7.1
 
 This is Expat, a C99 library for parsing
 [XML 1.0 Fourth Edition](https://www.w3.org/TR/2006/REC-xml-20060816/), started by
@@ -22,9 +23,9 @@ are called when the parser discovers the associated structures in the
 document being parsed.  A start tag is an example of the kind of
 structures for which you may register handlers.
 
-Expat supports the following compilers:
+Expat supports the following C99 compilers:
 
-- GNU GCC >=4.5
+- GNU GCC >=4.5 (for use from C) or GNU GCC >=4.8.1 (for use from C++)
 - LLVM Clang >=3.5
 - Microsoft Visual Studio >=16.0/2019 (rolling `${today} minus 5 years`)
 
@@ -43,16 +44,16 @@ This license is the same as the MIT/X Consortium license.
 
 ## Using libexpat in your CMake-Based Project
 
-There are two ways of using libexpat with CMake:
+There are three documented ways of using libexpat with CMake:
 
-### a) Module Mode
+### a) `find_package` with Module Mode
 
 This approach leverages CMake's own [module `FindEXPAT`](https://cmake.org/cmake/help/latest/module/FindEXPAT.html).
 
 Notice the *uppercase* `EXPAT` in the following example:
 
 ```cmake
-cmake_minimum_required(VERSION 3.0)  # or 3.10, see below
+cmake_minimum_required(VERSION 3.10)
 
 project(hello VERSION 1.0.0)
 
@@ -62,15 +63,10 @@ add_executable(hello
     hello.c
 )
 
-# a) for CMake >=3.10 (see CMake's FindEXPAT docs)
 target_link_libraries(hello PUBLIC EXPAT::EXPAT)
-
-# b) for CMake >=3.0
-target_include_directories(hello PRIVATE ${EXPAT_INCLUDE_DIRS})
-target_link_libraries(hello PUBLIC ${EXPAT_LIBRARIES})
 ```
 
-### b) Config Mode
+### b) `find_package` with Config Mode
 
 This approach requires files from…
 
@@ -85,7 +81,7 @@ or
 Notice the *lowercase* `expat` in the following example:
 
 ```cmake
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 
 project(hello VERSION 1.0.0)
 
@@ -96,6 +92,45 @@ add_executable(hello
 )
 
 target_link_libraries(hello PUBLIC expat::expat)
+```
+
+### c) The `FetchContent` module
+
+This approach — as demonstrated below — requires CMake >=3.18 for both the
+[`FetchContent` module](https://cmake.org/cmake/help/latest/module/FetchContent.html)
+and its support for the `SOURCE_SUBDIR` option to be available.
+
+Please note that:
+- Use of the `FetchContent` module with *non-release* SHA1s or `master`
+  of libexpat is neither advised nor considered officially supported.
+- Pinning to a specific commit is great for robust CI.
+- Pinning to a specific commit needs updating every time there is a new
+  release of libexpat — either manually or through automation —,
+  to not miss out on libexpat security updates.
+
+For an example that pulls in libexpat via Git:
+
+```cmake
+cmake_minimum_required(VERSION 3.18)
+
+include(FetchContent)
+
+project(hello VERSION 1.0.0)
+
+FetchContent_Declare(
+    expat
+    GIT_REPOSITORY https://github.com/libexpat/libexpat/
+    GIT_TAG        000000000_GIT_COMMIT_SHA1_HERE_000000000  # i.e. Git tag R_0_Y_Z
+    SOURCE_SUBDIR  expat/
+)
+
+FetchContent_MakeAvailable(expat)
+
+add_executable(hello
+    hello.c
+)
+
+target_link_libraries(hello PUBLIC expat)
 ```
 
 
@@ -256,7 +291,7 @@ EXPAT_ENABLE_INSTALL:BOOL=ON
 // Use /MT flag (static CRT) when compiling in MSVC
 EXPAT_MSVC_STATIC_CRT:BOOL=OFF
 
-// Build fuzzers via ossfuzz for the expat library
+// Build fuzzers via OSS-Fuzz for the expat library
 EXPAT_OSSFUZZ_BUILD:BOOL=OFF
 
 // Build a shared expat library

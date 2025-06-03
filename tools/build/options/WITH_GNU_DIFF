@@ -1,2 +1,4 @@
 Build and install GNU
+.Xr diff3 1
+instead of BSD
 .Xr diff3 1 .

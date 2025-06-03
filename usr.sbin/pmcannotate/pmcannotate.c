@@ -34,6 +34,7 @@
 #include <sys/queue.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,7 +59,7 @@
 	exit(EXIT_FAILURE);						\
 } while (0)
 
-#define	PERCSAMP(x)	((x) * 100 / totalsamples)
+#define	PERCSAMP(x)	((float)(x) * 100 / totalsamples)
 
 struct entry {
         TAILQ_ENTRY(entry)	en_iter;
@@ -108,7 +109,9 @@ static TAILQ_HEAD(, aggent) fqueue = TAILQ_HEAD_INITIALIZER(fqueue);
  * Use a float value in order to automatically promote operations
  * to return a float value rather than use casts.
  */
-static float totalsamples;
+static u_int totalsamples;
+
+static enum { RAW, BLOCK_PERCENT, GLOBAL_PERCENT } print_mode;
 
 /*
  * Identifies a string cointaining objdump's assembly printout.
@@ -501,6 +504,30 @@ general_insertent(struct entry *entry)
 }
 
 /*
+ * Return a string either holding a percentage or the raw count value.
+ */
+static const char *
+print_count(u_int nsamples, u_int totsamples)
+{
+	static char buf[16];
+
+	switch (print_mode) {
+	case RAW:
+		snprintf(buf, sizeof(buf), "%u", nsamples);
+		break;
+	case BLOCK_PERCENT:
+		snprintf(buf, sizeof(buf), "%.2f%%", (float)nsamples * 100 /
+		    totsamples);
+		break;
+	case GLOBAL_PERCENT:
+		snprintf(buf, sizeof(buf), "%.2f%%", (float)nsamples * 100 /
+		    totalsamples);
+		break;
+	}
+	return (buf);
+}
+
+/*
  * Printout the body of an "objdump -d" assembly function.
  * It does simply stops when a new function is encountered,
  * bringing back the file position in order to not mess up
@@ -528,8 +555,8 @@ general_printasm(FILE *fp, struct aggent *agg)
 		if (obj == NULL)
 			printf("\t| %s", buffer);
 		else
-			printf("%.2f%%\t| %s",
-			    (float)obj->en_nsamples * 100 / agg->ag_nsamples,
+			printf("%7s | %s",
+			    print_count(obj->en_nsamples, agg->ag_nsamples),
 			    buffer);
 	}
 }
@@ -622,8 +649,8 @@ printblock(FILE *fp, struct aggent *agg)
 			printf("\t| %s", buffer);
 		else {
 			done = 1;
-			printf("%.2f%%\t| %s",
-			    (float)tnsamples * 100 / agg->ag_nsamples, buffer);
+			printf("%7s | %s",
+			    print_count(tnsamples, agg->ag_nsamples), buffer);
 		}
 	}
 
@@ -656,7 +683,7 @@ usage(const char *progname)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-a] [-h] [-k kfile] [-l lb] pmcraw.out binary\n",
+	    "usage: %s [-a] [-h] [-k kfile] [-l lb] [-m mode] pmcraw.out binary\n",
 	    progname);
 	exit(EXIT_SUCCESS);
 }
@@ -681,7 +708,8 @@ main(int argc, char *argv[])
 	kfile = NULL;
 	asmsrc = 0;
 	limit = 0.5;
-	while ((cget = getopt(argc, argv, "ahl:k:")) != -1)
+	print_mode = BLOCK_PERCENT;
+	while ((cget = getopt(argc, argv, "ahl:m:k:")) != -1)
 		switch(cget) {
 		case 'a':
 			asmsrc = 1;
@@ -691,6 +719,16 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			limit = (float)atof(optarg);
+			break;
+		case 'm':
+			if (strcasecmp(optarg, "raw") == 0)
+				print_mode = RAW;
+			else if (strcasecmp(optarg, "global") == 0)
+				print_mode = GLOBAL_PERCENT;
+			else if (strcasecmp(optarg, "block") == 0)
+				print_mode = BLOCK_PERCENT;
+			else
+				errx(1, "Invalid mode %s", optarg);
 			break;
 		case 'h':
 		case '?':

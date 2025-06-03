@@ -11,6 +11,7 @@ SRCS=	procstat.c		\
 	procstat_cred.c		\
 	procstat_cs.c		\
 	procstat_files.c	\
+	procstat_kqueue.c	\
 	procstat_kstack.c	\
 	procstat_penv.c		\
 	procstat_ptlwpinfo.c	\

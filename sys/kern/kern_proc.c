@@ -38,10 +38,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bitstring.h>
+#include <sys/conf.h>
 #include <sys/elf.h>
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
+#include <sys/ipc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -60,6 +62,7 @@
 #include <sys/sbuf.h>
 #include <sys/sysent.h>
 #include <sys/sched.h>
+#include <sys/shm.h>
 #include <sys/smp.h>
 #include <sys/stack.h>
 #include <sys/stat.h>
@@ -88,6 +91,8 @@
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_radix.h>
 #include <vm/uma.h>
 
 #include <fs/devfs/devfs.h>
@@ -409,7 +414,7 @@ pidhash_sunlockall(void)
 }
 
 /*
- * Similar to pfind_any(), this function finds zombies.
+ * Similar to pfind(), this function locate a process by number.
  */
 struct proc *
 pfind_any_locked(pid_t pid)
@@ -722,7 +727,7 @@ jobc_parent(struct proc *p, struct proc *p_exiting)
 	return (jobc_reaper(pp));
 }
 
-static int
+int
 pgrp_calc_jobc(struct pgrp *pgrp)
 {
 	struct proc *q;
@@ -1343,6 +1348,9 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	thread_unlock(td);
 	if (preferthread)
 		PROC_STATUNLOCK(p);
+
+	if ((td->td_pflags & TDP2_UEXTERR) != 0)
+		kp->ki_uerrmsg = td->td_exterr_ptr;
 }
 
 /*
@@ -1498,6 +1506,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	PTRTRIM_CP(*ki, *ki32, ki_tdaddr);
 	CP(*ki, *ki32, ki_sflag);
 	CP(*ki, *ki32, ki_tdflags);
+	PTRTRIM_CP(*ki, *ki32, ki_uerrmsg);
 }
 #endif
 
@@ -2556,7 +2565,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 			pi_adv = atop(entry->end - addr);
 			pindex = pi;
 			for (tobj = obj;; tobj = tobj->backing_object) {
-				m = vm_page_find_least(tobj, pindex);
+				m = vm_radix_lookup_ge(&tobj->rtree, pindex);
 				if (m != NULL) {
 					if (m->pindex == pindex)
 						break;
@@ -2615,6 +2624,8 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 	vm_offset_t addr;
 	unsigned int last_timestamp;
 	int error;
+	key_t key;
+	unsigned short seq;
 	bool guard, super;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -2674,6 +2685,12 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			kve->kve_protection |= KVME_PROT_WRITE;
 		if (entry->protection & VM_PROT_EXECUTE)
 			kve->kve_protection |= KVME_PROT_EXEC;
+		if (entry->max_protection & VM_PROT_READ)
+			kve->kve_protection |= KVME_MAX_PROT_READ;
+		if (entry->max_protection & VM_PROT_WRITE)
+			kve->kve_protection |= KVME_MAX_PROT_WRITE;
+		if (entry->max_protection & VM_PROT_EXECUTE)
+			kve->kve_protection |= KVME_MAX_PROT_EXEC;
 
 		if (entry->eflags & MAP_ENTRY_COW)
 			kve->kve_flags |= KVME_FLAG_COW;
@@ -2681,8 +2698,6 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
 		if (entry->eflags & MAP_ENTRY_NOCOREDUMP)
 			kve->kve_flags |= KVME_FLAG_NOCOREDUMP;
-		if (entry->eflags & MAP_ENTRY_GROWS_UP)
-			kve->kve_flags |= KVME_FLAG_GROWS_UP;
 		if (entry->eflags & MAP_ENTRY_GROWS_DOWN)
 			kve->kve_flags |= KVME_FLAG_GROWS_DOWN;
 		if (entry->eflags & MAP_ENTRY_USER_WIRED)
@@ -2704,7 +2719,23 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 
 			kve->kve_ref_count = obj->ref_count;
 			kve->kve_shadow_count = obj->shadow_count;
+			if (obj->type == OBJT_DEVICE ||
+			    obj->type == OBJT_MGTDEVICE) {
+				cdev_pager_get_path(obj, kve->kve_path,
+				    sizeof(kve->kve_path));
+			}
 			VM_OBJECT_RUNLOCK(obj);
+			if ((lobj->flags & OBJ_SYSVSHM) != 0) {
+				kve->kve_flags |= KVME_FLAG_SYSVSHM;
+				shmobjinfo(lobj, &key, &seq);
+				kve->kve_vn_fileid = key;
+				kve->kve_vn_fsid_freebsd11 = seq;
+			}
+			if ((lobj->flags & OBJ_POSIXSHM) != 0) {
+				kve->kve_flags |= KVME_FLAG_POSIXSHM;
+				shm_get_path(lobj, kve->kve_path,
+				    sizeof(kve->kve_path));
+			}
 			if (vp != NULL) {
 				vn_fullpath(vp, &fullpath, &freepath);
 				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
@@ -2724,6 +2755,9 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 					kve->kve_status = KF_ATTR_VALID;
 				}
 				vput(vp);
+				strlcpy(kve->kve_path, fullpath, sizeof(
+				    kve->kve_path));
+				free(freepath, M_TEMP);
 			}
 		} else {
 			kve->kve_type = guard ? KVME_TYPE_GUARD :
@@ -2731,10 +2765,6 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			kve->kve_ref_count = 0;
 			kve->kve_shadow_count = 0;
 		}
-
-		strlcpy(kve->kve_path, fullpath, sizeof(kve->kve_path));
-		if (freepath != NULL)
-			free(freepath, M_TEMP);
 
 		/* Pack record size down */
 		if ((flags & KERN_VMMAP_PACK_KINFO) != 0)

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: riff,v 1.45 2022/07/24 23:47:49 christos Exp $
+# $File: riff,v 1.50 2024/04/13 16:40:48 christos Exp $
 # riff:  file(1) magic for RIFF format
 # See
 #
@@ -140,24 +140,39 @@
 >>&(4.l+4)  use riff-walk
 >0  string  fact
 >>&(4.l+4)  use riff-walk
->0  string  VP8
+# https://developers.google.com/speed/webp/docs/riff_container
+>0  string  VP8\x20
 >>11		byte		0x9d
 >>>12		byte		0x01
 >>>>13		byte		0x2a	\b, VP8 encoding
 >>>>>14		leshort&0x3fff	x	\b, %d
 >>>>>16		leshort&0x3fff	x	\bx%d, Scaling:
 >>>>>14		leshort&0xc000	0x0000	\b [none]
->>>>>14		leshort&0xc000	0x1000	\b [5/4]
->>>>>14		leshort&0xc000	0x2000	\b [5/3]
->>>>>14		leshort&0xc000	0x3000	\b [2]
->>>>>14		leshort&0xc000	0x0000	\bx[none]
->>>>>14		leshort&0xc000	0x1000	\bx[5/4]
->>>>>14		leshort&0xc000	0x2000	\bx[5/3]
->>>>>14		leshort&0xc000	0x3000	\bx[2]
+>>>>>14		leshort&0xc000	0x4000	\b [5/4]
+>>>>>14		leshort&0xc000	0x8000	\b [5/3]
+>>>>>14		leshort&0xc000	0xc000	\b [2]
+>>>>>16		leshort&0xc000	0x0000	\bx[none]
+>>>>>16		leshort&0xc000	0x4000	\bx[5/4]
+>>>>>16		leshort&0xc000	0x8000	\bx[5/3]
+>>>>>16		leshort&0xc000	0xc000	\bx[2]
 >>>>>15		byte&0x80	=0x00	\b, YUV color
 >>>>>15		byte&0x80	=0x80	\b, bad color specification
 >>>>>15		byte&0x40	=0x40	\b, no clamping required
 >>>>>15		byte&0x40	=0x00	\b, decoders should clamp
+>0  string  VP8L
+>>8		byte		0x2f	\b, lossless
+>>>11		byte		&0x01	\b, with alpha
+>0  string  VP8X
+>>4		lelong		0x0a
+>>>8		byte		&0x02	\b, animated
+>>>8		byte		&0x04	\b, XMP metadata
+>>>8		byte		&0x08	\b, EXIF metadata
+>>>8		byte		&0x10	\b, with alpha
+>>>8		byte		&0x20	\b, ICC profile
+# TODO: These two values are off-by-one, for a 64x64 WebP they contain
+# 63x63 as there can be no 0x0 file.
+>>>12		lelong&0xffffff	x	\b, %d+1
+>>>15		lelong&0xffffff	x	\bx%d+1
 #>0  string  x		we got %s
 #>>&(4.l+4)  use riff-walk
 
@@ -332,6 +347,35 @@
 # MORE TESTS NEEDED HERE!
 #>>>0	use		corel-des
 #>>>0	use		corel-draw
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/SHW_(Corel)
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/shw-corel.trid.xml
+# Note:		called "CorelSHOW presentation (v4)" by TrID
+#		and "Corel Presentation" by DROID via PUID fmt/877
+>8	string		shw4		\b, CorelSHOW presentation, version 4
+#!:mime	application/octet-stream
+!:mime	application/x-corel-shw
+!:ext	shw
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/shw-corel-5.trid.xml
+# Note:		called "CorelSHOW presentation (v5)" by TrID
+>8	string		shw5		\b, CorelSHOW presentation, version 5
+#!:mime	application/octet-stream
+!:mime	application/x-corel-shw
+!:ext	shw
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/shb-corel.trid.xml
+# Note:		called "CorelSHOW Background (v5)" by TrID
+>8	string		shl5		\b, CorelSHOW Background, version 5
+#!:mime	application/octet-stream
+!:mime	application/x-corel-shb
+# GRR: no example
+!:ext	shb
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/s/shr-corel.trid.xml
+# Note:		called "CorelSHOW player data (v5)" by TrID
+>8	string		shr5		\b, CorelSHOW player data, version 5
+#!:mime	application/octet-stream
+!:mime	application/x-corel-shr
+# GRR: no example
+!:ext	shr
 >8	string		NUNDROOT	\b, Steinberg CuBase
 # From:		Joerg Jenderek
 # URL:		http://fileformats.archiveteam.org/wiki/MIDI_Instrument_Definition_File
@@ -354,6 +398,17 @@
 >>0x31	search/256	inst		by
 # probably manufacture name like: "Unspecified Company" "NVidia Corporation"
 >>>&0x24	string	x		"%s"
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Microsoft_Flight_Simulator
+# Reference:	https://www.fsdeveloper.com/wiki/index.php?title=MDL_file_format_(FSX)
+#		http://mark0.net/download/triddefs_xml.7z/defs/m/mdl-fs-gen.trid.xml
+# Note:		called "Microsoft Flight Simulator 3D model (generic)" by TrID
+>8	string		MDL
+>>12	string		MDLH		\b, Microsoft Flight Simulator 3D model
+#!:mime	application/x-riff
+!:mime	application/x-ms-mdl
+!:ext	mdl
+#>>>8	string		MDL8		\b, version 8?
 # AVI == Audio Video Interleave
 # Reference:	http://fileformats.archiveteam.org/wiki/AVI
 >8	string		AVI\040		\b, AVI
@@ -649,6 +704,22 @@
 >8      string          TRID            \b, TrID defs package
 !:mime	application/x-trid-trd
 !:ext	trd
+# From:		Joerg Jenderek
+# URL:		http://fileformats.archiveteam.org/wiki/Easy_CD_Creator
+#		https://en.wikipedia.org/wiki/Roxio
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/i/img-cif.trid.xml
+# Note:		called "Easy CD Creator disk image" by TrID,
+#		"Adaptec CD Image File" by Adaptec CD Creator 2.1.082 1995-1996 and
+#		"Easy CD/DVD Creator image" by PowerISO 8.5
+>8      string          imag            \b, Easy CD Creator disk image
+#!:mime	application/octet-stream
+#!:mime	application/x-riff
+!:mime	application/x-corel-cif
+!:ext	cif
+# contains also 2 strings disc info
+# look for ISO 9660 CD-ROM tag handled by ./filesystems
+>>32769	search/4565/s	CD001	\b; with
+>>>&-32769	use	cdrom
 # From:		Joerg Jenderek
 # URL:		https://en.wikipedia.org/wiki/CorelDRAW
 # Reference:	http://fileformats.archiveteam.org/wiki/CorelDRAW

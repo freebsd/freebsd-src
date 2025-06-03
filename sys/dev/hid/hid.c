@@ -69,7 +69,7 @@ hid_test_quirk_t *hid_test_quirk_p = &hid_test_quirk_w;
 #define	MAXLOCCNT 2048
 
 struct hid_pos_data {
-	int32_t rid;
+	uint32_t rid;
 	uint32_t pos;
 };
 
@@ -79,9 +79,9 @@ struct hid_data {
 	const uint8_t *p;
 	struct hid_item cur[MAXPUSH];
 	struct hid_pos_data last_pos[MAXID];
-	int32_t	usages_min[MAXUSAGE];
-	int32_t	usages_max[MAXUSAGE];
-	int32_t usage_last;	/* last seen usage */
+	uint32_t usages_min[MAXUSAGE];
+	uint32_t usages_max[MAXUSAGE];
+	uint32_t usage_last;	/* last seen usage */
 	uint32_t loc_size;	/* last seen size */
 	uint32_t loc_count;	/* last seen count */
 	uint32_t ncount;	/* end usage item count */
@@ -117,7 +117,7 @@ hid_clear_local(struct hid_item *c)
 }
 
 static void
-hid_switch_rid(struct hid_data *s, struct hid_item *c, int32_t next_rID)
+hid_switch_rid(struct hid_data *s, struct hid_item *c, uint32_t next_rID)
 {
 	uint8_t i;
 
@@ -242,6 +242,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 	uint32_t oldpos;
 	int32_t mask;
 	int32_t dval;
+	uint32_t uval;
 
 	if (s == NULL)
 		return (0);
@@ -253,10 +254,10 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 	if (s->icount < s->ncount) {
 		/* get current usage */
 		if (s->iusage < s->nusage) {
-			dval = s->usages_min[s->iusage] + s->ousage;
-			c->usage = dval;
-			s->usage_last = dval;
-			if (dval == s->usages_max[s->iusage]) {
+			uval = s->usages_min[s->iusage] + s->ousage;
+			c->usage = uval;
+			s->usage_last = uval;
+			if (uval == s->usages_max[s->iusage]) {
 				s->iusage ++;
 				s->ousage = 0;
 			} else {
@@ -264,7 +265,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 			}
 		} else {
 			DPRINTFN(1, "Using last usage\n");
-			dval = s->usage_last;
+			uval = s->usage_last;
 		}
 		c->nusages = 1;
 		/* array type HID item may have multiple usages */
@@ -318,28 +319,32 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 		}
 		switch (bSize) {
 		case 0:
-			dval = 0;
+			uval = 0;
+			dval = uval;
 			mask = 0;
 			break;
 		case 1:
-			dval = (int8_t)hid_get_byte(s, 1);
+			uval = hid_get_byte(s, 1);
+			dval = (int8_t)uval;
 			mask = 0xFF;
 			break;
 		case 2:
-			dval = hid_get_byte(s, 1);
-			dval |= hid_get_byte(s, 1) << 8;
-			dval = (int16_t)dval;
+			uval = hid_get_byte(s, 1);
+			uval |= hid_get_byte(s, 1) << 8;
+			dval = (int16_t)uval;
 			mask = 0xFFFF;
 			break;
 		case 4:
-			dval = hid_get_byte(s, 1);
-			dval |= hid_get_byte(s, 1) << 8;
-			dval |= hid_get_byte(s, 1) << 16;
-			dval |= hid_get_byte(s, 1) << 24;
+			uval = hid_get_byte(s, 1);
+			uval |= hid_get_byte(s, 1) << 8;
+			uval |= hid_get_byte(s, 1) << 16;
+			uval |= hid_get_byte(s, 1) << 24;
+			dval = uval;
 			mask = 0xFFFFFFFF;
 			break;
 		default:
-			dval = hid_get_byte(s, bSize);
+			uval = hid_get_byte(s, bSize);
+			dval = uval;
 			DPRINTFN(0, "bad length %u (data=0x%02x)\n",
 			    bSize, dval);
 			continue;
@@ -351,7 +356,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 			case 8:	/* Input */
 				c->kind = hid_input;
 		ret:
-				c->flags = dval;
+				c->flags = uval;
 				c->loc.count = s->loc_count;
 				c->loc.size = s->loc_size;
 
@@ -381,7 +386,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				goto ret;
 			case 10:	/* Collection */
 				c->kind = hid_collection;
-				c->collection = dval;
+				c->collection = uval;
 				c->collevel++;
 				c->usage = s->usage_last;
 				c->nusages = 1;
@@ -407,7 +412,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 		case 1:		/* Global */
 			switch (bTag) {
 			case 0:
-				c->_usage_page = dval << 16;
+				c->_usage_page = uval << 16;
 				break;
 			case 1:
 				c->logical_minimum = dval;
@@ -422,21 +427,21 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				c->physical_maximum = dval;
 				break;
 			case 5:
-				c->unit_exponent = dval;
+				c->unit_exponent = uval;
 				break;
 			case 6:
-				c->unit = dval;
+				c->unit = uval;
 				break;
 			case 7:
 				/* mask because value is unsigned */
-				s->loc_size = dval & mask;
+				s->loc_size = uval & mask;
 				break;
 			case 8:
-				hid_switch_rid(s, c, dval & mask);
+				hid_switch_rid(s, c, uval & mask);
 				break;
 			case 9:
 				/* mask because value is unsigned */
-				s->loc_count = dval & mask;
+				s->loc_count = uval & mask;
 				break;
 			case 10:	/* Push */
 				/* stop parsing, if invalid push level */
@@ -479,14 +484,14 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 			switch (bTag) {
 			case 0:
 				if (bSize != 4)
-					dval = (dval & mask) | c->_usage_page;
+					uval = (uval & mask) | c->_usage_page;
 
 				/* set last usage, in case of a collection */
-				s->usage_last = dval;
+				s->usage_last = uval;
 
 				if (s->nusage < MAXUSAGE) {
-					s->usages_min[s->nusage] = dval;
-					s->usages_max[s->nusage] = dval;
+					s->usages_min[s->nusage] = uval;
+					s->usages_max[s->nusage] = uval;
 					s->nusage ++;
 				} else {
 					DPRINTFN(0, "max usage reached\n");
@@ -499,16 +504,16 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				s->susage |= 1;
 
 				if (bSize != 4)
-					dval = (dval & mask) | c->_usage_page;
-				c->usage_minimum = dval;
+					uval = (uval & mask) | c->_usage_page;
+				c->usage_minimum = uval;
 
 				goto check_set;
 			case 2:
 				s->susage |= 2;
 
 				if (bSize != 4)
-					dval = (dval & mask) | c->_usage_page;
-				c->usage_maximum = dval;
+					uval = (uval & mask) | c->_usage_page;
+				c->usage_maximum = uval;
 
 			check_set:
 				if (s->susage != 3)
@@ -529,25 +534,25 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				s->susage = 0;
 				break;
 			case 3:
-				c->designator_index = dval;
+				c->designator_index = uval;
 				break;
 			case 4:
-				c->designator_minimum = dval;
+				c->designator_minimum = uval;
 				break;
 			case 5:
-				c->designator_maximum = dval;
+				c->designator_maximum = uval;
 				break;
 			case 7:
-				c->string_index = dval;
+				c->string_index = uval;
 				break;
 			case 8:
-				c->string_minimum = dval;
+				c->string_minimum = uval;
 				break;
 			case 9:
-				c->string_maximum = dval;
+				c->string_maximum = uval;
 				break;
 			case 10:
-				c->set_delimiter = dval;
+				c->set_delimiter = uval;
 				break;
 			default:
 				DPRINTFN(0, "Local bTag=%d\n", bTag);

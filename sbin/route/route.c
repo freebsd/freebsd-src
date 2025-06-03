@@ -1663,6 +1663,7 @@ static const char *const msgtypes[] = {
 	"RTM_DELMADDR: multicast group membership removed from iface",
 	"RTM_IFANNOUNCE: interface arrival/departure",
 	"RTM_IEEE80211: IEEE 802.11 wireless event",
+	"RTM_IPFWLOG: IPFW log",
 };
 
 static const char metricnames[] =

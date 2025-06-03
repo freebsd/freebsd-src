@@ -359,15 +359,14 @@ ssif_startup(struct ipmi_softc *sc)
 }
 
 static int
-ssif_driver_request(struct ipmi_softc *sc, struct ipmi_request *req, int timo)
+ssif_driver_request(struct ipmi_softc *sc, struct ipmi_request *req)
 {
 	int error;
 
 	IPMI_LOCK(sc);
 	error = ipmi_polled_enqueue_request(sc, req);
 	if (error == 0)
-		error = msleep(req, &sc->ipmi_requests_lock, 0, "ipmireq",
-		    timo);
+		error = msleep(req, &sc->ipmi_requests_lock, 0, "ipmireq", 0);
 	if (error == 0)
 		error = req->ir_error;
 	IPMI_UNLOCK(sc);

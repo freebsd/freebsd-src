@@ -187,6 +187,8 @@ typedef enum {
 	PJT_GETTHREADID_NP,
 	PJT_ATTR_GET_NP,
 	PJT_GETNAME_NP,
+	PJT_SUSPEND_ALL_NP,
+	PJT_RESUME_ALL_NP,
 	PJT_MAX
 } pjt_index_t;
 
@@ -249,6 +251,7 @@ enum {
 	INTERPOS_clock_nanosleep,
 	INTERPOS_distribute_static_tls,
 	INTERPOS_pdfork,
+	INTERPOS_uexterr_gettext,
 	INTERPOS_MAX
 };
 
@@ -343,6 +346,7 @@ struct __ucontext;
 struct __wrusage;
 enum idtype;
 
+int		__libc_execvpe(const char *, char * const *, char * const *);
 int		__libc_sigaction(int, const struct sigaction *,
 		    struct sigaction *) __hidden;
 int		__libc_sigprocmask(int, const __sigset_t *, __sigset_t *)
@@ -376,5 +380,9 @@ struct __nl_cat_d *__catopen_l(const char *name, int type,
 	    struct _xlocale *locale);
 int __strerror_rl(int errnum, char *strerrbuf, size_t buflen,
 	    struct _xlocale *locale);
+
+struct uexterror;
+int __uexterr_format(const struct uexterror *ue, char *buf, size_t bufsz);
+int __libc_uexterr_gettext(char *buf, size_t bufsz);
 
 #endif /* _LIBC_PRIVATE_H_ */

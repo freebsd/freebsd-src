@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.540 2021/09/21 11:04:40 schwarze Exp $
+# $Id: Makefile,v 1.543 2023/10/19 11:45:42 schwarze Exp $
 #
-# Copyright (c) 2011, 2013-2021 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2011, 2013-2022 Ingo Schwarze <schwarze@openbsd.org>
 # Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -100,6 +100,7 @@ SRCS		 = arch.c \
 		   man_validate.c \
 		   mandoc.c \
 		   mandoc_aux.c \
+		   mandoc_dbg.c \
 		   mandoc_msg.c \
 		   mandoc_ohash.c \
 		   mandoc_xr.c \
@@ -121,6 +122,7 @@ SRCS		 = arch.c \
 		   preconv.c \
 		   read.c \
 		   roff.c \
+		   roff_escape.c \
 		   roff_html.c \
 		   roff_term.c \
 		   roff_validate.c \
@@ -186,6 +188,8 @@ DISTFILES	 = INSTALL \
 		   mandoc.h \
 		   mandoc_aux.h \
 		   mandoc_char.7 \
+		   mandoc_dbg.h \
+		   mandoc_dbg_init.3 \
 		   mandoc_escape.3 \
 		   mandoc_headers.3 \
 		   mandoc_html.3 \
@@ -232,6 +236,7 @@ LIBMDOC_OBJS	 = att.o \
 
 LIBROFF_OBJS	 = eqn.o \
 		   roff.o \
+		   roff_escape.o \
 		   roff_validate.o \
 		   tbl.o \
 		   tbl_data.o \
@@ -241,6 +246,7 @@ LIBROFF_OBJS	 = eqn.o \
 LIBMANDOC_OBJS	 = $(LIBMAN_OBJS) \
 		   $(LIBMDOC_OBJS) \
 		   $(LIBROFF_OBJS) \
+		   $(DEBUG_OBJS) \
 		   arch.o \
 		   chars.o \
 		   mandoc.o \
@@ -333,6 +339,7 @@ WWW_MANS	 = apropos.1.html \
 		   soelim.1.html \
 		   man.cgi.3.html \
 		   mandoc.3.html \
+		   mandoc_dbg_init.3.html \
 		   mandoc_escape.3.html \
 		   mandoc_headers.3.html \
 		   mandoc_html.3.html \
@@ -409,6 +416,7 @@ base-install: mandoc demandoc soelim
 	mkdir -p $(DESTDIR)$(MANDIR)/man5
 	mkdir -p $(DESTDIR)$(MANDIR)/man7
 	mkdir -p $(DESTDIR)$(MANDIR)/man8
+	mkdir -p $(DESTDIR)$(MISCDIR)
 	$(INSTALL_PROGRAM) mandoc demandoc $(DESTDIR)$(BINDIR)
 	$(INSTALL_PROGRAM) soelim $(DESTDIR)$(BINDIR)/$(BINM_SOELIM)
 	cd $(DESTDIR)$(BINDIR) && $(LN) mandoc $(BINM_MAN)
@@ -431,6 +439,7 @@ base-install: mandoc demandoc soelim
 	$(INSTALL_MAN) mandoc_char.7 $(DESTDIR)$(MANDIR)/man7
 	$(INSTALL_MAN) makewhatis.8 \
 		$(DESTDIR)$(MANDIR)/man8/$(BINM_MAKEWHATIS).8
+	$(INSTALL_DATA) mandoc.css $(DESTDIR)$(MISCDIR)
 
 lib-install: libmandoc.a
 	mkdir -p $(DESTDIR)$(LIBDIR)

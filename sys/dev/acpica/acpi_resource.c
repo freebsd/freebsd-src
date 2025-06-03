@@ -67,24 +67,48 @@ struct lookup_irq_request {
 
 static char *pcilink_ids[] = { "PNP0C0F", NULL };
 
+/*
+ * Devices with invalid memory resources
+ */
+static char *bad_memresource_ids[] = {
+    /* PRCx on Radxa Orion O6 conflicts with the PCI resource range */
+    "CIXH2020",
+    NULL
+};
+
+
 static ACPI_STATUS
 acpi_lookup_irq_handler(ACPI_RESOURCE *res, void *context)
 {
     struct lookup_irq_request *req;
     size_t len;
-    u_int irqnum, irq, trig, pol;
+    u_int irqnum, trig, pol;
+    bool found;
+
+    found = false;
+    req = (struct lookup_irq_request *)context;
 
     switch (res->Type) {
     case ACPI_RESOURCE_TYPE_IRQ:
 	irqnum = res->Data.Irq.InterruptCount;
-	irq = res->Data.Irq.Interrupts[0];
+	for (int i = 0; i < irqnum; i++) {
+	    if (res->Data.Irq.Interrupts[i] == req->irq) {
+		found = true;
+		break;
+	    }
+	}
 	len = ACPI_RS_SIZE(ACPI_RESOURCE_IRQ);
 	trig = res->Data.Irq.Triggering;
 	pol = res->Data.Irq.Polarity;
 	break;
     case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 	irqnum = res->Data.ExtendedIrq.InterruptCount;
-	irq = res->Data.ExtendedIrq.Interrupts[0];
+	for (int i = 0; i < irqnum; i++) {
+	    if (res->Data.ExtendedIrq.Interrupts[i] == req->irq) {
+		found = true;
+		break;
+	    }
+	}
 	len = ACPI_RS_SIZE(ACPI_RESOURCE_EXTENDED_IRQ);
 	trig = res->Data.ExtendedIrq.Triggering;
 	pol = res->Data.ExtendedIrq.Polarity;
@@ -92,18 +116,13 @@ acpi_lookup_irq_handler(ACPI_RESOURCE *res, void *context)
     default:
 	return (AE_OK);
     }
-    if (irqnum != 1)
+    if (!found)
 	return (AE_OK);
-    req = (struct lookup_irq_request *)context;
     if (req->checkrid) {
 	if (req->counter != req->rid) {
 	    req->counter++;
 	    return (AE_OK);
 	}
-	KASSERT(irq == req->irq, ("IRQ resources do not match"));
-    } else {
-	if (req->irq != irq)
-	    return (AE_OK);
     }
     req->found = 1;
     req->pol = pol;
@@ -611,6 +630,11 @@ acpi_res_ignore(device_t dev, int type, rman_res_t start, rman_res_t count)
      * access.
      */
     if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+	if (type == SYS_RES_MEMORY &&
+	    ACPI_ID_PROBE(device_get_parent(dev), dev, bad_memresource_ids,
+	    NULL) <= 0)
+		return (true);
+
 	if (ACPI_SUCCESS(AcpiGetObjectInfo(ad->ad_handle, &devinfo))) {
 	    if ((devinfo->Flags & ACPI_PCI_ROOT_BRIDGE) != 0) {
 #if defined(__i386__) || defined(__amd64__)

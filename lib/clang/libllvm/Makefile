@@ -1,8 +1,22 @@
 .include <bsd.init.mk>
 .include "../llvm.pre.mk"
 
+.if defined(TOOLS_PREFIX)
+# Build static library during cross-tools stage
 LIB=		llvm
 INTERNALLIB=
+.else
+PACKAGE=	clang
+SHLIB_CXX=	llvm
+SHLIB_MAJOR=	19
+PRIVATELIB=
+.if ${MACHINE} == "powerpc"
+# Work around "relocation R_PPC_GOT16 out of range" errors
+PICFLAG=        -fPIC
+.endif
+.endif
+
+SHARED_CXXFLAGS+=	-UPIC # To avoid compile errors
 
 CFLAGS+=	-I${.OBJDIR}
 CFLAGS+=	-I${SRCTOP}/sys/contrib/zstd/lib
@@ -99,8 +113,6 @@ SRCS_MIN+=	Analysis/InstCount.cpp
 SRCS_MIN+=	Analysis/InstructionPrecedenceTracking.cpp
 SRCS_MIN+=	Analysis/InstructionSimplify.cpp
 SRCS_MIN+=	Analysis/InteractiveModelRunner.cpp
-SRCS_MIN+=	Analysis/Interval.cpp
-SRCS_MIN+=	Analysis/IntervalPartition.cpp
 SRCS_MIN+=	Analysis/LazyBlockFrequencyInfo.cpp
 SRCS_MIN+=	Analysis/LazyBranchProbabilityInfo.cpp
 SRCS_MIN+=	Analysis/LazyCallGraph.cpp
@@ -140,7 +152,6 @@ SRCS_MIN+=	Analysis/RegionInfo.cpp
 SRCS_MIN+=	Analysis/RegionPass.cpp
 SRCS_MIN+=	Analysis/RegionPrinter.cpp
 SRCS_MIN+=	Analysis/ReplayInlineAdvisor.cpp
-SRCS_MIN+=	Analysis/ScalarEvolution.cpp
 SRCS_MIN+=	Analysis/ScalarEvolution.cpp
 SRCS_MIN+=	Analysis/ScalarEvolutionAliasAnalysis.cpp
 SRCS_MIN+=	Analysis/ScalarEvolutionDivision.cpp
@@ -264,6 +275,7 @@ SRCS_MIN+=	CodeGen/GlobalISel/CSEMIRBuilder.cpp
 SRCS_MIN+=	CodeGen/GlobalISel/CallLowering.cpp
 SRCS_MIN+=	CodeGen/GlobalISel/Combiner.cpp
 SRCS_MIN+=	CodeGen/GlobalISel/CombinerHelper.cpp
+SRCS_MIN+=	CodeGen/GlobalISel/CombinerHelperVectorOps.cpp
 SRCS_MIN+=	CodeGen/GlobalISel/GIMatchTableExecutor.cpp
 SRCS_MIN+=	CodeGen/GlobalISel/GISelChangeObserver.cpp
 SRCS_MIN+=	CodeGen/GlobalISel/GISelKnownBits.cpp
@@ -289,6 +301,7 @@ SRCS_MIN+=	CodeGen/HardwareLoops.cpp
 SRCS_MIN+=	CodeGen/IfConversion.cpp
 SRCS_MIN+=	CodeGen/ImplicitNullChecks.cpp
 SRCS_MIN+=	CodeGen/IndirectBrExpandPass.cpp
+SRCS_MIN+=	CodeGen/InitUndef.cpp
 SRCS_MIN+=	CodeGen/InlineSpiller.cpp
 SRCS_MIN+=	CodeGen/InterferenceCache.cpp
 SRCS_MIN+=	CodeGen/InterleavedAccessPass.cpp
@@ -318,7 +331,6 @@ SRCS_MIN+=	CodeGen/LiveStacks.cpp
 SRCS_MIN+=	CodeGen/LiveVariables.cpp
 SRCS_MIN+=	CodeGen/LocalStackSlotAllocation.cpp
 SRCS_MIN+=	CodeGen/LoopTraversal.cpp
-SRCS_MIN+=	CodeGen/LowLevelType.cpp
 SRCS_MIN+=	CodeGen/LowLevelTypeUtils.cpp
 SRCS_MIN+=	CodeGen/LowerEmuTLS.cpp
 SRCS_MIN+=	CodeGen/MBFIWrapper.cpp
@@ -342,6 +354,7 @@ SRCS_MIN+=	CodeGen/MachineCFGPrinter.cpp
 SRCS_MIN+=	CodeGen/MachineCSE.cpp
 SRCS_MIN+=	CodeGen/MachineCheckDebugify.cpp
 SRCS_MIN+=	CodeGen/MachineCombiner.cpp
+SRCS_MIN+=	CodeGen/MachineConvergenceVerifier.cpp
 SRCS_MIN+=	CodeGen/MachineCopyPropagation.cpp
 SRCS_MIN+=	CodeGen/MachineCycleAnalysis.cpp
 SRCS_MIN+=	CodeGen/MachineDebugify.cpp
@@ -349,6 +362,7 @@ SRCS_MIN+=	CodeGen/MachineDominanceFrontier.cpp
 SRCS_MIN+=	CodeGen/MachineDominators.cpp
 SRCS_MIN+=	CodeGen/MachineFrameInfo.cpp
 SRCS_MIN+=	CodeGen/MachineFunction.cpp
+SRCS_MIN+=	CodeGen/MachineFunctionAnalysis.cpp
 SRCS_MIN+=	CodeGen/MachineFunctionPass.cpp
 SRCS_MIN+=	CodeGen/MachineFunctionPrinterPass.cpp
 SRCS_MIN+=	CodeGen/MachineFunctionSplitter.cpp
@@ -386,7 +400,6 @@ SRCS_EXT+=	CodeGen/NonRelocatableStringpool.cpp
 SRCS_MIN+=	CodeGen/OptimizePHIs.cpp
 SRCS_MIN+=	CodeGen/PHIElimination.cpp
 SRCS_MIN+=	CodeGen/PHIEliminationUtils.cpp
-SRCS_MIN+=	CodeGen/ParallelCG.cpp
 SRCS_MIN+=	CodeGen/PatchableFunction.cpp
 SRCS_MIN+=	CodeGen/PeepholeOptimizer.cpp
 SRCS_MIN+=	CodeGen/PostRAHazardRecognizer.cpp
@@ -485,7 +498,9 @@ SRCS_MIN+=	CodeGen/ValueTypes.cpp
 SRCS_MIN+=	CodeGen/VirtRegMap.cpp
 SRCS_MIN+=	CodeGen/WasmEHPrepare.cpp
 SRCS_MIN+=	CodeGen/WinEHPrepare.cpp
+SRCS_MIN+=	CodeGen/WindowScheduler.cpp
 SRCS_MIN+=	CodeGen/XRayInstrumentation.cpp
+SRCS_MIN+=	CodeGenTypes/LowLevelType.cpp
 SRCS_EXT+=	DWARFLinker/Classic/DWARFLinker.cpp
 SRCS_EXT+=	DWARFLinker/Classic/DWARFLinkerCompileUnit.cpp
 SRCS_EXT+=	DWARFLinker/Classic/DWARFLinkerDeclContext.cpp
@@ -507,24 +522,24 @@ SRCS_EXT+=	DWP/DWP.cpp
 SRCS_EXT+=	DWP/DWPError.cpp
 SRCS_MIW+=	DebugInfo/BTF/BTFContext.cpp
 SRCS_MIW+=	DebugInfo/BTF/BTFParser.cpp
-SRCS_EXT+=	DebugInfo/CodeView/AppendingTypeTableBuilder.cpp
+SRCS_MIN+=	DebugInfo/CodeView/AppendingTypeTableBuilder.cpp
 SRCS_MIN+=	DebugInfo/CodeView/CVSymbolVisitor.cpp
 SRCS_MIN+=	DebugInfo/CodeView/CVTypeVisitor.cpp
 SRCS_MIN+=	DebugInfo/CodeView/CodeViewError.cpp
 SRCS_MIN+=	DebugInfo/CodeView/CodeViewRecordIO.cpp
 SRCS_MIN+=	DebugInfo/CodeView/ContinuationRecordBuilder.cpp
 SRCS_MIN+=	DebugInfo/CodeView/DebugChecksumsSubsection.cpp
-SRCS_EXT+=	DebugInfo/CodeView/DebugCrossExSubsection.cpp
-SRCS_EXT+=	DebugInfo/CodeView/DebugCrossImpSubsection.cpp
+SRCS_MIN+=	DebugInfo/CodeView/DebugCrossExSubsection.cpp
+SRCS_MIN+=	DebugInfo/CodeView/DebugCrossImpSubsection.cpp
 SRCS_MIN+=	DebugInfo/CodeView/DebugFrameDataSubsection.cpp
 SRCS_MIN+=	DebugInfo/CodeView/DebugInlineeLinesSubsection.cpp
 SRCS_MIN+=	DebugInfo/CodeView/DebugLinesSubsection.cpp
 SRCS_MIN+=	DebugInfo/CodeView/DebugStringTableSubsection.cpp
-SRCS_MIW+=	DebugInfo/CodeView/DebugSubsection.cpp
-SRCS_EXT+=	DebugInfo/CodeView/DebugSubsectionRecord.cpp
-SRCS_EXT+=	DebugInfo/CodeView/DebugSubsectionVisitor.cpp
-SRCS_EXT+=	DebugInfo/CodeView/DebugSymbolRVASubsection.cpp
-SRCS_EXT+=	DebugInfo/CodeView/DebugSymbolsSubsection.cpp
+SRCS_MIN+=	DebugInfo/CodeView/DebugSubsection.cpp
+SRCS_MIN+=	DebugInfo/CodeView/DebugSubsectionRecord.cpp
+SRCS_MIN+=	DebugInfo/CodeView/DebugSubsectionVisitor.cpp
+SRCS_MIN+=	DebugInfo/CodeView/DebugSymbolRVASubsection.cpp
+SRCS_MIN+=	DebugInfo/CodeView/DebugSymbolsSubsection.cpp
 SRCS_MIN+=	DebugInfo/CodeView/EnumTables.cpp
 SRCS_MIN+=	DebugInfo/CodeView/Formatters.cpp
 SRCS_MIN+=	DebugInfo/CodeView/GlobalTypeTableBuilder.cpp
@@ -538,7 +553,7 @@ SRCS_EXT+=	DebugInfo/CodeView/StringsAndChecksums.cpp
 SRCS_MIN+=	DebugInfo/CodeView/SymbolDumper.cpp
 SRCS_MIN+=	DebugInfo/CodeView/SymbolRecordHelpers.cpp
 SRCS_MIN+=	DebugInfo/CodeView/SymbolRecordMapping.cpp
-SRCS_EXT+=	DebugInfo/CodeView/SymbolSerializer.cpp
+SRCS_MIN+=	DebugInfo/CodeView/SymbolSerializer.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeDumpVisitor.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeHashing.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeIndex.cpp
@@ -547,37 +562,37 @@ SRCS_EXT+=	DebugInfo/CodeView/TypeRecordHelpers.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeRecordMapping.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeStreamMerger.cpp
 SRCS_MIN+=	DebugInfo/CodeView/TypeTableCollection.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFAbbreviationDeclaration.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFAcceleratorTable.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFAddressRange.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFCompileUnit.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFContext.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDataExtractor.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugAbbrev.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugAddr.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugArangeSet.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugAranges.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugFrame.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugInfoEntry.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugLine.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugLoc.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugMacro.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugPubTable.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugRangeList.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDebugRnglists.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFDie.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFAbbreviationDeclaration.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFAcceleratorTable.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFAddressRange.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFCompileUnit.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFContext.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDataExtractor.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDebugAbbrev.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDebugAddr.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDebugArangeSet.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDebugAranges.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDebugFrame.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDebugInfoEntry.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDebugLine.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDebugLoc.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDebugMacro.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDebugPubTable.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDebugRangeList.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDebugRnglists.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFDie.cpp
 SRCS_MIN+=	DebugInfo/DWARF/DWARFExpression.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFFormValue.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFGdbIndex.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFListTable.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFTypePrinter.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFTypeUnit.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFUnit.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFUnitIndex.cpp
-SRCS_MIW+=	DebugInfo/DWARF/DWARFVerifier.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFFormValue.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFGdbIndex.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFListTable.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFTypePrinter.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFTypeUnit.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFUnit.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFUnitIndex.cpp
+SRCS_MIN+=	DebugInfo/DWARF/DWARFVerifier.cpp
 SRCS_MIN+=	DebugInfo/MSF/MSFBuilder.cpp
 SRCS_MIN+=	DebugInfo/MSF/MSFCommon.cpp
-SRCS_EXT+=	DebugInfo/MSF/MSFError.cpp
+SRCS_MIN+=	DebugInfo/MSF/MSFError.cpp
 SRCS_MIN+=	DebugInfo/MSF/MappedBlockStream.cpp
 SRCS_EXT+=	DebugInfo/PDB/GenericError.cpp
 SRCS_EXT+=	DebugInfo/PDB/IPDBSourceFile.cpp
@@ -795,11 +810,13 @@ SRCS_MIN+=	IR/BuiltinGCs.cpp
 SRCS_MIN+=	IR/Comdat.cpp
 SRCS_MIN+=	IR/ConstantFold.cpp
 SRCS_MIN+=	IR/ConstantRange.cpp
+SRCS_MIN+=	IR/ConstantRangeList.cpp
 SRCS_MIN+=	IR/Constants.cpp
 SRCS_MIN+=	IR/ConvergenceVerifier.cpp
 SRCS_MIN+=	IR/Core.cpp
 SRCS_MIN+=	IR/CycleInfo.cpp
 SRCS_MIN+=	IR/DIBuilder.cpp
+SRCS_MIN+=	IR/DIExpressionOptimizer.cpp
 SRCS_MIN+=	IR/DataLayout.cpp
 SRCS_MIN+=	IR/DebugInfo.cpp
 SRCS_MIN+=	IR/DebugInfoMetadata.cpp
@@ -827,6 +844,7 @@ SRCS_MIN+=	IR/LLVMRemarkStreamer.cpp
 SRCS_MIN+=	IR/LegacyPassManager.cpp
 SRCS_MIN+=	IR/MDBuilder.cpp
 SRCS_MIN+=	IR/Mangler.cpp
+SRCS_MIN+=	IR/MemoryModelRelaxationAnnotations.cpp
 SRCS_MIN+=	IR/Metadata.cpp
 SRCS_MIN+=	IR/Module.cpp
 SRCS_MIN+=	IR/ModuleSummaryIndex.cpp
@@ -842,6 +860,7 @@ SRCS_MIN+=	IR/ProfDataUtils.cpp
 SRCS_MIN+=	IR/ProfileSummary.cpp
 SRCS_MIN+=	IR/PseudoProbe.cpp
 SRCS_MIN+=	IR/ReplaceConstant.cpp
+SRCS_MIN+=	IR/RuntimeLibcalls.cpp
 SRCS_MIN+=	IR/SSAContext.cpp
 SRCS_MIN+=	IR/SafepointIRVerifier.cpp
 SRCS_MIN+=	IR/Statepoint.cpp
@@ -853,6 +872,7 @@ SRCS_MIN+=	IR/User.cpp
 SRCS_MIN+=	IR/VFABIDemangler.cpp
 SRCS_MIN+=	IR/Value.cpp
 SRCS_MIN+=	IR/ValueSymbolTable.cpp
+SRCS_MIN+=	IR/VectorBuilder.cpp
 SRCS_MIN+=	IR/Verifier.cpp
 SRCS_MIN+=	IRPrinter/IRPrintingPasses.cpp
 SRCS_MIN+=	IRReader/IRReader.cpp
@@ -860,7 +880,7 @@ SRCS_MIN+=	LTO/LTO.cpp
 SRCS_MIN+=	LTO/LTOBackend.cpp
 SRCS_EXL+=	LTO/LTOCodeGenerator.cpp
 SRCS_EXL+=	LTO/LTOModule.cpp
-SRCS_EXL+=	LTO/SummaryBasedOptimizations.cpp
+SRCS_MIN+=	LTO/SummaryBasedOptimizations.cpp
 SRCS_EXL+=	LTO/ThinLTOCodeGenerator.cpp
 SRCS_MIN+=	LTO/UpdateCompilerUsed.cpp
 SRCS_MIN+=	Linker/IRMover.cpp
@@ -885,7 +905,7 @@ SRCS_MIN+=	MC/MCContext.cpp
 SRCS_MIN+=	MC/MCDXContainerStreamer.cpp
 SRCS_MIN+=	MC/MCDXContainerWriter.cpp
 SRCS_XDL+=	MC/MCDisassembler/Disassembler.cpp
-SRCS_XDW+=	MC/MCDisassembler/MCDisassembler.cpp
+SRCS_MIN+=	MC/MCDisassembler/MCDisassembler.cpp
 SRCS_XDW+=	MC/MCDisassembler/MCExternalSymbolizer.cpp
 SRCS_MIN+=	MC/MCDisassembler/MCRelocationInfo.cpp
 SRCS_XDW+=	MC/MCDisassembler/MCSymbolizer.cpp
@@ -999,9 +1019,9 @@ SRCS_MIW+=	ObjCopy/wasm/WasmWriter.cpp
 SRCS_MIN+=	Object/Archive.cpp
 SRCS_MIN+=	Object/ArchiveWriter.cpp
 SRCS_MIN+=	Object/Binary.cpp
-SRCS_MIW+=	Object/BuildID.cpp
+SRCS_MIN+=	Object/BuildID.cpp
 SRCS_MIN+=	Object/COFFImportFile.cpp
-SRCS_MIW+=	Object/COFFModuleDefinition.cpp
+SRCS_MIN+=	Object/COFFModuleDefinition.cpp
 SRCS_MIN+=	Object/COFFObjectFile.cpp
 SRCS_MIN+=	Object/Decompressor.cpp
 SRCS_MIN+=	Object/ELF.cpp
@@ -1011,31 +1031,34 @@ SRCS_MIW+=	Object/FaultMapParser.cpp
 SRCS_MIN+=	Object/IRObjectFile.cpp
 SRCS_MIN+=	Object/IRSymtab.cpp
 SRCS_MIN+=	Object/MachOObjectFile.cpp
-SRCS_MIW+=	Object/MachOUniversal.cpp
+SRCS_MIN+=	Object/MachOUniversal.cpp
 SRCS_MIW+=	Object/MachOUniversalWriter.cpp
-SRCS_MIW+=	Object/Minidump.cpp
+SRCS_MIN+=	Object/Minidump.cpp
 SRCS_MIN+=	Object/ModuleSymbolTable.cpp
 SRCS_EXT+=	Object/Object.cpp
 SRCS_MIN+=	Object/ObjectFile.cpp
-SRCS_MIW+=	Object/OffloadBinary.cpp
+SRCS_MIN+=	Object/OffloadBinary.cpp
 SRCS_MIN+=	Object/RecordStreamer.cpp
-SRCS_MIW+=	Object/RelocationResolver.cpp
+SRCS_MIN+=	Object/RelocationResolver.cpp
 SRCS_MIW+=	Object/SymbolSize.cpp
 SRCS_MIN+=	Object/SymbolicFile.cpp
-SRCS_MIW+=	Object/TapiFile.cpp
-SRCS_MIW+=	Object/TapiUniversal.cpp
+SRCS_MIN+=	Object/TapiFile.cpp
+SRCS_MIN+=	Object/TapiUniversal.cpp
 SRCS_MIN+=	Object/WasmObjectFile.cpp
 SRCS_MIW+=	Object/WindowsMachineFlag.cpp
 SRCS_MIN+=	Object/WindowsResource.cpp
 SRCS_MIN+=	Object/XCOFFObjectFile.cpp
 SRCS_MIN+=	ObjectYAML/COFFYAML.cpp
-SRCS_EXT+=	ObjectYAML/CodeViewYAMLDebugSections.cpp
-SRCS_EXT+=	ObjectYAML/CodeViewYAMLSymbols.cpp
-SRCS_EXT+=	ObjectYAML/CodeViewYAMLTypes.cpp
+SRCS_MIN+=	ObjectYAML/CodeViewYAMLDebugSections.cpp
+SRCS_MIN+=	ObjectYAML/CodeViewYAMLSymbols.cpp
+SRCS_MIN+=	ObjectYAML/CodeViewYAMLTypeHashing.cpp
+SRCS_MIN+=	ObjectYAML/CodeViewYAMLTypes.cpp
+SRCS_MIN+=	ObjectYAML/DWARFEmitter.cpp
 SRCS_MIN+=	ObjectYAML/DWARFYAML.cpp
+SRCS_MIN+=	ObjectYAML/ELFEmitter.cpp
 SRCS_MIN+=	ObjectYAML/ELFYAML.cpp
 SRCS_MIN+=	ObjectYAML/MachOYAML.cpp
-SRCS_EXT+=	ObjectYAML/YAML.cpp
+SRCS_MIN+=	ObjectYAML/YAML.cpp
 SRCS_MIN+=	Option/Arg.cpp
 SRCS_MIN+=	Option/ArgList.cpp
 SRCS_MIN+=	Option/OptTable.cpp
@@ -1055,8 +1078,8 @@ SRCS_MIN+=	ProfileData/InstrProfReader.cpp
 SRCS_MIN+=	ProfileData/InstrProfWriter.cpp
 SRCS_MIN+=	ProfileData/ItaniumManglingCanonicalizer.cpp
 SRCS_MIN+=	ProfileData/MemProf.cpp
+SRCS_COV+=	ProfileData/MemProfReader.cpp
 SRCS_MIN+=	ProfileData/ProfileSummaryBuilder.cpp
-SRCS_MIW+=	ProfileData/RawMemProfReader.cpp
 SRCS_MIN+=	ProfileData/SampleProf.cpp
 SRCS_MIN+=	ProfileData/SampleProfReader.cpp
 SRCS_MIN+=	ProfileData/SampleProfWriter.cpp
@@ -1125,9 +1148,10 @@ SRCS_MIN+=	Support/ELFAttributes.cpp
 SRCS_MIN+=	Support/Errno.cpp
 SRCS_MIN+=	Support/Error.cpp
 SRCS_MIN+=	Support/ErrorHandling.cpp
+SRCS_MIN+=	Support/ExponentialBackoff.cpp
 SRCS_MIN+=	Support/ExtensibleRTTI.cpp
 SRCS_MIN+=	Support/FileCollector.cpp
-SRCS_MIW+=	Support/FileOutputBuffer.cpp
+SRCS_MIN+=	Support/FileOutputBuffer.cpp
 SRCS_MIN+=	Support/FileUtilities.cpp
 SRCS_MIN+=	Support/FloatingPointMode.cpp
 SRCS_MIN+=	Support/FoldingSet.cpp
@@ -1135,7 +1159,8 @@ SRCS_MIN+=	Support/FormatVariadic.cpp
 SRCS_MIN+=	Support/FormattedStream.cpp
 SRCS_MIN+=	Support/GlobPattern.cpp
 SRCS_MIN+=	Support/GraphWriter.cpp
-SRCS_MIN+=	Support/Hashing.cpp
+SRCS_MIN+=	Support/HexagonAttributeParser.cpp
+SRCS_MIN+=	Support/HexagonAttributes.cpp
 SRCS_MIN+=	Support/InitLLVM.cpp
 SRCS_MIN+=	Support/InstructionCost.cpp
 SRCS_MIN+=	Support/IntEqClasses.cpp
@@ -1152,7 +1177,7 @@ SRCS_MIW+=	Support/MSP430Attributes.cpp
 SRCS_MIN+=	Support/ManagedStatic.cpp
 SRCS_MIN+=	Support/MathExtras.cpp
 SRCS_MIN+=	Support/MemAlloc.cpp
-SRCS_MIW+=	Support/Memory.cpp
+SRCS_MIN+=	Support/Memory.cpp
 SRCS_MIN+=	Support/MemoryBuffer.cpp
 SRCS_MIN+=	Support/MemoryBufferRef.cpp
 SRCS_MIN+=	Support/NativeFormatting.cpp
@@ -1167,7 +1192,7 @@ SRCS_MIN+=	Support/Process.cpp
 SRCS_MIN+=	Support/Program.cpp
 SRCS_MIN+=	Support/RISCVAttributeParser.cpp
 SRCS_MIN+=	Support/RISCVAttributes.cpp
-SRCS_MIN+=	Support/RISCVISAInfo.cpp
+SRCS_MIN+=	Support/RISCVISAUtils.cpp
 SRCS_MIN+=	Support/RWMutex.cpp
 SRCS_MIN+=	Support/RandomNumberGenerator.cpp
 SRCS_MIN+=	Support/Regex.cpp
@@ -1177,6 +1202,7 @@ SRCS_MIN+=	Support/ScaledNumber.cpp
 SRCS_MIN+=	Support/ScopedPrinter.cpp
 SRCS_MIN+=	Support/Signals.cpp
 SRCS_MIN+=	Support/Signposts.cpp
+SRCS_MIN+=	Support/SipHash.cpp
 SRCS_MIN+=	Support/SmallPtrSet.cpp
 SRCS_MIN+=	Support/SmallVector.cpp
 SRCS_MIN+=	Support/SourceMgr.cpp
@@ -1190,7 +1216,7 @@ SRCS_MIN+=	Support/SuffixTree.cpp
 SRCS_MIN+=	Support/SuffixTreeNode.cpp
 SRCS_EXT+=	Support/SystemUtils.cpp
 SRCS_LLD+=	Support/TarWriter.cpp
-SRCS_MIW+=	Support/ThreadPool.cpp
+SRCS_MIN+=	Support/ThreadPool.cpp
 SRCS_MIN+=	Support/Threading.cpp
 SRCS_MIN+=	Support/TimeProfiler.cpp
 SRCS_MIN+=	Support/Timer.cpp
@@ -1254,7 +1280,6 @@ SRCS_MIN+=	Target/AArch64/AArch64ISelDAGToDAG.cpp
 SRCS_MIN+=	Target/AArch64/AArch64ISelLowering.cpp
 SRCS_MIN+=	Target/AArch64/AArch64InstrInfo.cpp
 SRCS_MIN+=	Target/AArch64/AArch64LoadStoreOptimizer.cpp
-SRCS_MIN+=	Target/AArch64/AArch64LoopIdiomTransform.cpp
 SRCS_MIN+=	Target/AArch64/AArch64LowerHomogeneousPrologEpilog.cpp
 SRCS_MIN+=	Target/AArch64/AArch64MCInstLower.cpp
 SRCS_MIN+=	Target/AArch64/AArch64MIPeepholeOpt.cpp
@@ -1263,6 +1288,7 @@ SRCS_MIN+=	Target/AArch64/AArch64MachineScheduler.cpp
 SRCS_MIN+=	Target/AArch64/AArch64MacroFusion.cpp
 SRCS_MIN+=	Target/AArch64/AArch64PBQPRegAlloc.cpp
 SRCS_MIN+=	Target/AArch64/AArch64PointerAuth.cpp
+SRCS_MIN+=	Target/AArch64/AArch64PostCoalescerPass.cpp
 SRCS_MIN+=	Target/AArch64/AArch64PromoteConstant.cpp
 SRCS_MIN+=	Target/AArch64/AArch64RedundantCopyElimination.cpp
 SRCS_MIN+=	Target/AArch64/AArch64RegisterInfo.cpp
@@ -1378,6 +1404,7 @@ SRCS_MIN+=	Target/ARM/Utils/ARMBaseInfo.cpp
 .endif # MK_LLVM_TARGET_ARM
 .if ${MK_LLVM_TARGET_BPF} != "no"
 SRCS_MIN+=	Target/BPF/AsmParser/BPFAsmParser.cpp
+SRCS_MIN+=	Target/BPF/BPFASpaceCastSimplifyPass.cpp
 SRCS_MIN+=	Target/BPF/BPFAbstractMemberAccess.cpp
 SRCS_MIN+=	Target/BPF/BPFAdjustOpt.cpp
 SRCS_MIN+=	Target/BPF/BPFAsmPrinter.cpp
@@ -1556,7 +1583,6 @@ SRCS_MIN+=	Target/RISCV/RISCVCodeGenPrepare.cpp
 SRCS_MIN+=	Target/RISCV/RISCVDeadRegisterDefinitions.cpp
 SRCS_MIN+=	Target/RISCV/RISCVExpandAtomicPseudoInsts.cpp
 SRCS_MIN+=	Target/RISCV/RISCVExpandPseudoInsts.cpp
-SRCS_MIN+=	Target/RISCV/RISCVFoldMasks.cpp
 SRCS_MIN+=	Target/RISCV/RISCVFrameLowering.cpp
 SRCS_MIN+=	Target/RISCV/RISCVGatherScatterLowering.cpp
 SRCS_MIN+=	Target/RISCV/RISCVISelDAGToDAG.cpp
@@ -1572,13 +1598,13 @@ SRCS_MIN+=	Target/RISCV/RISCVMoveMerger.cpp
 SRCS_MIN+=	Target/RISCV/RISCVOptWInstrs.cpp
 SRCS_MIN+=	Target/RISCV/RISCVPostRAExpandPseudoInsts.cpp
 SRCS_MIN+=	Target/RISCV/RISCVPushPopOptimizer.cpp
-SRCS_MIN+=	Target/RISCV/RISCVRVVInitUndef.cpp
 SRCS_MIN+=	Target/RISCV/RISCVRedundantCopyElimination.cpp
 SRCS_MIN+=	Target/RISCV/RISCVRegisterInfo.cpp
 SRCS_MIN+=	Target/RISCV/RISCVSubtarget.cpp
 SRCS_MIN+=	Target/RISCV/RISCVTargetMachine.cpp
 SRCS_MIN+=	Target/RISCV/RISCVTargetObjectFile.cpp
 SRCS_MIN+=	Target/RISCV/RISCVTargetTransformInfo.cpp
+SRCS_MIN+=	Target/RISCV/RISCVVectorPeephole.cpp
 SRCS_MIN+=	Target/RISCV/TargetInfo/RISCVTargetInfo.cpp
 .endif # MK_LLVM_TARGET_RISCV
 SRCS_MIN+=	Target/Target.cpp
@@ -1671,6 +1697,7 @@ SRCS_MIN+=	Target/X86/X86TargetTransformInfo.cpp
 SRCS_MIN+=	Target/X86/X86TileConfig.cpp
 SRCS_MIN+=	Target/X86/X86VZeroUpper.cpp
 SRCS_MIN+=	Target/X86/X86WinEHState.cpp
+SRCS_MIN+=	Target/X86/X86WinFixupBufferSecurityCheck.cpp
 .endif # MK_LLVM_TARGET_X86
 SRCS_MIN+=	TargetParser/AArch64TargetParser.cpp
 SRCS_MIN+=	TargetParser/ARMTargetParser.cpp
@@ -1678,26 +1705,28 @@ SRCS_MIN+=	TargetParser/ARMTargetParserCommon.cpp
 SRCS_MIN+=	TargetParser/CSKYTargetParser.cpp
 SRCS_MIN+=	TargetParser/Host.cpp
 SRCS_MIN+=	TargetParser/LoongArchTargetParser.cpp
+SRCS_MIN+=	TargetParser/RISCVISAInfo.cpp
 SRCS_MIN+=	TargetParser/RISCVTargetParser.cpp
 SRCS_MIN+=	TargetParser/SubtargetFeature.cpp
 SRCS_MIN+=	TargetParser/TargetParser.cpp
 SRCS_MIN+=	TargetParser/Triple.cpp
 SRCS_MIN+=	TargetParser/X86TargetParser.cpp
-SRCS_MIW+=	TextAPI/Architecture.cpp
-SRCS_MIW+=	TextAPI/ArchitectureSet.cpp
+SRCS_MIN+=	TextAPI/Architecture.cpp
+SRCS_MIN+=	TextAPI/ArchitectureSet.cpp
 SRCS_MIW+=	TextAPI/BinaryReader/DylibReader.cpp
-SRCS_MIW+=	TextAPI/InterfaceFile.cpp
-SRCS_MIW+=	TextAPI/PackedVersion.cpp
-SRCS_MIW+=	TextAPI/Platform.cpp
+SRCS_MIN+=	TextAPI/InterfaceFile.cpp
+SRCS_MIN+=	TextAPI/PackedVersion.cpp
+SRCS_MIN+=	TextAPI/Platform.cpp
 SRCS_MIW+=	TextAPI/RecordVisitor.cpp
-SRCS_MIW+=	TextAPI/Symbol.cpp
-SRCS_MIW+=	TextAPI/SymbolSet.cpp
-SRCS_MIW+=	TextAPI/Target.cpp
-SRCS_MIW+=	TextAPI/TextAPIError.cpp
-SRCS_MIW+=	TextAPI/TextStub.cpp
-SRCS_MIW+=	TextAPI/TextStubCommon.cpp
-SRCS_MIW+=	TextAPI/TextStubV5.cpp
-SRCS_MIW+=	TextAPI/Utils.cpp
+SRCS_MIW+=	TextAPI/RecordsSlice.cpp
+SRCS_MIN+=	TextAPI/Symbol.cpp
+SRCS_MIN+=	TextAPI/SymbolSet.cpp
+SRCS_MIN+=	TextAPI/Target.cpp
+SRCS_MIN+=	TextAPI/TextAPIError.cpp
+SRCS_MIN+=	TextAPI/TextStub.cpp
+SRCS_MIN+=	TextAPI/TextStubCommon.cpp
+SRCS_MIN+=	TextAPI/TextStubV5.cpp
+SRCS_MIN+=	TextAPI/Utils.cpp
 SRCS_MIN+=	ToolDrivers/llvm-dlltool/DlltoolDriver.cpp
 SRCS_MIW+=	ToolDrivers/llvm-lib/LibDriver.cpp
 SRCS_MIN+=	Transforms/AggressiveInstCombine/AggressiveInstCombine.cpp
@@ -1724,6 +1753,7 @@ SRCS_MIN+=	Transforms/IPO/CrossDSOCFI.cpp
 SRCS_MIN+=	Transforms/IPO/DeadArgumentElimination.cpp
 SRCS_MIN+=	Transforms/IPO/ElimAvailExtern.cpp
 SRCS_MIN+=	Transforms/IPO/EmbedBitcodePass.cpp
+SRCS_MIN+=	Transforms/IPO/ExpandVariadics.cpp
 SRCS_MIN+=	Transforms/IPO/ExtractGV.cpp
 SRCS_MIN+=	Transforms/IPO/ForceFunctionAttrs.cpp
 SRCS_MIN+=	Transforms/IPO/FunctionAttrs.cpp
@@ -1748,6 +1778,7 @@ SRCS_MIN+=	Transforms/IPO/PartialInlining.cpp
 SRCS_MIN+=	Transforms/IPO/SCCP.cpp
 SRCS_MIN+=	Transforms/IPO/SampleContextTracker.cpp
 SRCS_MIN+=	Transforms/IPO/SampleProfile.cpp
+SRCS_MIN+=	Transforms/IPO/SampleProfileMatcher.cpp
 SRCS_MIN+=	Transforms/IPO/SampleProfileProbe.cpp
 SRCS_MIN+=	Transforms/IPO/StripDeadPrototypes.cpp
 SRCS_MIN+=	Transforms/IPO/StripSymbols.cpp
@@ -1782,8 +1813,12 @@ SRCS_MIN+=	Transforms/Instrumentation/InstrOrderFile.cpp
 SRCS_MIN+=	Transforms/Instrumentation/InstrProfiling.cpp
 SRCS_MIN+=	Transforms/Instrumentation/Instrumentation.cpp
 SRCS_MIN+=	Transforms/Instrumentation/KCFI.cpp
+SRCS_MIN+=	Transforms/Instrumentation/LowerAllowCheckPass.cpp
 SRCS_MIN+=	Transforms/Instrumentation/MemProfiler.cpp
 SRCS_MIN+=	Transforms/Instrumentation/MemorySanitizer.cpp
+SRCS_MIN+=	Transforms/Instrumentation/NumericalStabilitySanitizer.cpp
+SRCS_MIN+=	Transforms/Instrumentation/PGOCtxProfLowering.cpp
+SRCS_MIN+=	Transforms/Instrumentation/PGOForceFunctionAttrs.cpp
 SRCS_MIN+=	Transforms/Instrumentation/PGOInstrumentation.cpp
 SRCS_MIN+=	Transforms/Instrumentation/PGOMemOPSizeOpt.cpp
 SRCS_MIN+=	Transforms/Instrumentation/PoisonChecking.cpp
@@ -1825,6 +1860,7 @@ SRCS_MIN+=	Transforms/Scalar/InductiveRangeCheckElimination.cpp
 SRCS_MIN+=	Transforms/Scalar/InferAddressSpaces.cpp
 SRCS_MIN+=	Transforms/Scalar/InferAlignment.cpp
 SRCS_MIN+=	Transforms/Scalar/InstSimplifyPass.cpp
+SRCS_MIN+=	Transforms/Scalar/JumpTableToSwitch.cpp
 SRCS_MIN+=	Transforms/Scalar/JumpThreading.cpp
 SRCS_MIN+=	Transforms/Scalar/LICM.cpp
 SRCS_MIN+=	Transforms/Scalar/LoopAccessAnalysisPrinter.cpp
@@ -1840,7 +1876,6 @@ SRCS_MIN+=	Transforms/Scalar/LoopInterchange.cpp
 SRCS_MIN+=	Transforms/Scalar/LoopLoadElimination.cpp
 SRCS_MIN+=	Transforms/Scalar/LoopPassManager.cpp
 SRCS_MIN+=	Transforms/Scalar/LoopPredication.cpp
-SRCS_MIN+=	Transforms/Scalar/LoopRerollPass.cpp
 SRCS_MIN+=	Transforms/Scalar/LoopRotation.cpp
 SRCS_MIN+=	Transforms/Scalar/LoopSimplifyCFG.cpp
 SRCS_MIN+=	Transforms/Scalar/LoopSink.cpp
@@ -1967,6 +2002,7 @@ SRCS_EXT+=	Transforms/Utils/Utils.cpp
 SRCS_MIN+=	Transforms/Utils/VNCoercion.cpp
 SRCS_MIN+=	Transforms/Utils/ValueMapper.cpp
 SRCS_MIN+=	Transforms/Vectorize/LoadStoreVectorizer.cpp
+SRCS_MIN+=	Transforms/Vectorize/LoopIdiomVectorize.cpp
 SRCS_MIN+=	Transforms/Vectorize/LoopVectorizationLegality.cpp
 SRCS_MIN+=	Transforms/Vectorize/LoopVectorize.cpp
 SRCS_MIN+=	Transforms/Vectorize/SLPVectorizer.cpp
@@ -2042,12 +2078,6 @@ llvm/Frontend/OpenMP/OMP.inc: ${LLVM_SRCS}/include/llvm/Frontend/OpenMP/OMP.td
 	    ${LLVM_SRCS}/include/llvm/Frontend/OpenMP/OMP.td
 TGHDRS+=	llvm/Frontend/OpenMP/OMP.inc
 
-OMP.cpp: ${LLVM_SRCS}/include/llvm/Frontend/OpenMP/OMP.td
-	${LLVM_TBLGEN} --gen-directive-impl \
-	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
-	    ${LLVM_SRCS}/include/llvm/Frontend/OpenMP/OMP.td
-GENSRCS+=	OMP.cpp
-
 llvm/IR/Attributes.inc: ${LLVM_SRCS}/include/llvm/IR/Attributes.td
 	${LLVM_TBLGEN} -gen-attrs \
 	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
@@ -2069,8 +2099,8 @@ TGHDRS+=	llvm/IR/IntrinsicImpl.inc
 .for arch in \
 	AArch64/aarch64 AMDGPU/amdgcn ARM/arm BPF/bpf DirectX/dx \
 	Hexagon/hexagon LoongArch/loongarch Mips/mips NVPTX/nvvm PowerPC/ppc \
-	R600/r600 RISCV/riscv S390/s390 VE/ve WebAssembly/wasm X86/x86 \
-	XCore/xcore
+	R600/r600 RISCV/riscv S390/s390 SPIRV/spv VE/ve WebAssembly/wasm \
+	X86/x86 XCore/xcore
 llvm/IR/Intrinsics${arch:H}.h: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
 	${LLVM_TBLGEN} -gen-intrinsic-enums -intrinsic-prefix=${arch:T} \
 	    -I ${LLVM_SRCS}/include -d ${.TARGET}.d -o ${.TARGET} \
@@ -2078,11 +2108,13 @@ llvm/IR/Intrinsics${arch:H}.h: ${LLVM_SRCS}/include/llvm/IR/Intrinsics.td
 TGHDRS+=	llvm/IR/Intrinsics${arch:H}.h
 .endfor
 
-llvm/TargetParser/RISCVTargetParserDef.inc: ${LLVM_SRCS}/lib/Target/RISCV/RISCV.td
-	${LLVM_TBLGEN} -gen-riscv-target-def \
-	    -I ${LLVM_SRCS}/include -I ${LLVM_SRCS}/lib/Target/RISCV \
-	    -d ${.TARGET}.d -o ${.TARGET} ${LLVM_SRCS}/lib/Target/RISCV/RISCV.td
-TGHDRS+=	llvm/TargetParser/RISCVTargetParserDef.inc
+.for arch in AArch64/arm ARM/arm RISCV/riscv
+llvm/TargetParser/${arch:H}TargetParserDef.inc: ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:H}.td
+	${LLVM_TBLGEN} -gen-${arch:T}-target-def \
+	    -I ${LLVM_SRCS}/include -I ${LLVM_SRCS}/lib/Target/${arch:H} \
+	    -d ${.TARGET}.d -o ${.TARGET} ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:H}.td
+TGHDRS+=	llvm/TargetParser/${arch:H}TargetParserDef.inc
+.endfor
 
 llvm-lib/Options.inc: ${LLVM_SRCS}/lib/ToolDrivers/llvm-lib/Options.td
 	${LLVM_TBLGEN} -gen-opt-parser-defs \
@@ -2126,7 +2158,6 @@ beforebuild:
 	AsmWriter1/-gen-asm-writer,-asmwriternum=1 \
 	CallingConv/-gen-callingconv \
 	CodeEmitter/-gen-emitter \
-	CompressEVEXTables/-gen-x86-compress-evex-tables \
 	CompressInstEmitter/-gen-compress-inst-emitter \
 	DAGISel/-gen-dag-isel \
 	DisassemblerTables/-gen-disassembler \
@@ -2134,6 +2165,7 @@ beforebuild:
 	FoldTables/-gen-x86-fold-tables,-asmwriternum=1 \
 	GlobalISel/-gen-global-isel \
 	InstrInfo/-gen-instr-info${arch:MX86/X86:C/X86\/X86/,-instr-info-expand-mi-operand-info=0/} \
+	InstrMapping/-gen-x86-instr-mapping \
 	MCCodeEmitter/-gen-emitter \
 	MCPseudoLowering/-gen-pseudo-lowering \
 	MacroFusion/-gen-macro-fusion-pred \
@@ -2267,13 +2299,13 @@ TGHDRS+=	X86GenAsmMatcher.inc
 TGHDRS+=	X86GenAsmWriter.inc
 TGHDRS+=	X86GenAsmWriter1.inc
 TGHDRS+=	X86GenCallingConv.inc
-TGHDRS+=	X86GenCompressEVEXTables.inc
 TGHDRS+=	X86GenDAGISel.inc
 TGHDRS+=	X86GenDisassemblerTables.inc
 TGHDRS+=	X86GenFastISel.inc
 TGHDRS+=	X86GenFoldTables.inc
 TGHDRS+=	X86GenGlobalISel.inc
 TGHDRS+=	X86GenInstrInfo.inc
+TGHDRS+=	X86GenInstrMapping.inc
 TGHDRS+=	X86GenMnemonicTables.inc
 TGHDRS+=	X86GenRegisterBank.inc
 TGHDRS+=	X86GenRegisterInfo.inc

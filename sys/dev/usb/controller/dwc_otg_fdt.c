@@ -140,10 +140,6 @@ dwc_otg_attach(device_t dev)
 	if (sc->sc_otg.sc_irq_res == NULL)
 		goto error;
 
-	sc->sc_otg.sc_bus.bdev = device_add_child(dev, "usbus", DEVICE_UNIT_ANY);
-	if (sc->sc_otg.sc_bus.bdev == NULL)
-		goto error;
-
 	err = dwc_otg_init(&sc->sc_otg);
 	if (err == 0) {
 		err = device_probe_and_attach(sc->sc_otg.sc_bus.bdev);
@@ -162,9 +158,12 @@ int
 dwc_otg_detach(device_t dev)
 {
 	struct dwc_otg_fdt_softc *sc = device_get_softc(dev);
+	int error;
 
 	/* during module unload there are lots of children leftover */
-	device_delete_children(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	if (sc->sc_otg.sc_irq_res && sc->sc_otg.sc_intr_hdl) {
 		/*

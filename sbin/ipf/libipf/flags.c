@@ -18,7 +18,10 @@
 #ifndef TH_CWR
 # define	TH_CWR  0x80
 #endif
+#ifndef TH_AE
+# define	TH_AE  0x100
+#endif
 
-char	flagset[] = "FSRPAUEC";
-u_char	flags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH, TH_ACK, TH_URG,
-		    TH_ECN, TH_CWR };
+char	flagset[] = "FSRPAUEWe";
+uint16_t flags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH, TH_ACK, TH_URG,
+		    TH_ECN, TH_CWR, TH_AE };

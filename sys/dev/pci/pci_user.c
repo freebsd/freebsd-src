@@ -692,7 +692,7 @@ pci_conf_size(u_long cmd)
 static void
 pci_conf_io_init(struct pci_conf_io *cio, caddr_t data, u_long cmd)
 {
-#if defined(COMPAT_FREEBSD32)
+#ifdef COMPAT_FREEBSD32
 	struct pci_conf_io32 *cio32;
 #endif
 
@@ -709,17 +709,17 @@ pci_conf_io_init(struct pci_conf_io *cio, caddr_t data, u_long cmd)
 #ifdef PRE7_COMPAT
 	case PCIOCGETCONF_FREEBSD6_32:
 #endif
-               cio32 = (struct pci_conf_io32 *)data;
-               cio->pat_buf_len = cio32->pat_buf_len;
-               cio->num_patterns = cio32->num_patterns;
-               cio->patterns = (void *)(uintptr_t)cio32->patterns;
-               cio->match_buf_len = cio32->match_buf_len;
-               cio->num_matches = cio32->num_matches;
-               cio->matches = (void *)(uintptr_t)cio32->matches;
-               cio->offset = cio32->offset;
-               cio->generation = cio32->generation;
-               cio->status = cio32->status;
-               return;
+		cio32 = (struct pci_conf_io32 *)data;
+		cio->pat_buf_len = cio32->pat_buf_len;
+		cio->num_patterns = cio32->num_patterns;
+		cio->patterns = (void *)(uintptr_t)cio32->patterns;
+		cio->match_buf_len = cio32->match_buf_len;
+		cio->num_matches = cio32->num_matches;
+		cio->matches = (void *)(uintptr_t)cio32->matches;
+		cio->offset = cio32->offset;
+		cio->generation = cio32->generation;
+		cio->status = cio32->status;
+		return;
 #endif
 
 	default:
@@ -733,7 +733,7 @@ pci_conf_io_update_data(const struct pci_conf_io *cio, caddr_t data,
     u_long cmd)
 {
 	struct pci_conf_io *d_cio;
-#if defined(COMPAT_FREEBSD32)
+#ifdef COMPAT_FREEBSD32
 	struct pci_conf_io32 *cio32;
 #endif
 
@@ -1172,7 +1172,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 			 */
 			cio->status = PCI_GETCONF_ERROR;
 			error = EINVAL;
-                       goto getconfexit;
+			goto getconfexit;
 		}
 
 		/*

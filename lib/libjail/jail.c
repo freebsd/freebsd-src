@@ -59,6 +59,7 @@ static int jailparam_type(struct jailparam *jp);
 static int kldload_param(const char *name);
 static char *noname(const char *name);
 static char *nononame(const char *name);
+static char *kvname(const char *name);
 
 char jail_errmsg[JAIL_ERRMSGLEN];
 
@@ -521,6 +522,11 @@ jailparam_set(struct jailparam *jp, unsigned njp, int flags)
 				jiov[i - 1].iov_len = strlen(nname) + 1;
 				
 			}
+		} else if (jp[j].jp_flags & JP_KEYVALUE &&
+		    jp[j].jp_value == NULL) {
+			/* No value means key removal. */
+			jiov[i].iov_base = NULL;
+			jiov[i].iov_len = 0;
 		} else {
 			/*
 			 * Try to fill in missing values with an empty string.
@@ -907,22 +913,41 @@ jailparam_type(struct jailparam *jp)
 		 * the "no" counterpart to a boolean.
 		 */
 		nname = nononame(name);
-		if (nname == NULL) {
-		unknown_parameter:
-			snprintf(jail_errmsg, JAIL_ERRMSGLEN,
-			    "unknown parameter: %s", jp->jp_name);
-			errno = ENOENT;
-			return (-1);
+		if (nname != NULL) {
+			snprintf(desc.s, sizeof(desc.s), SJPARAM ".%s", nname);
+			miblen = sizeof(mib) - 2 * sizeof(int);
+			if (sysctl(mib, 2, mib + 2, &miblen, desc.s,
+			    strlen(desc.s)) >= 0) {
+				name = alloca(strlen(nname) + 1);
+				strcpy(name, nname);
+				free(nname);
+				jp->jp_flags |= JP_NOBOOL;
+				goto mib_desc;
+			}
+			free(nname);
 		}
-		name = alloca(strlen(nname) + 1);
-		strcpy(name, nname);
-		free(nname);
-		snprintf(desc.s, sizeof(desc.s), SJPARAM ".%s", name);
-		miblen = sizeof(mib) - 2 * sizeof(int);
-		if (sysctl(mib, 2, mib + 2, &miblen, desc.s,
-		    strlen(desc.s)) < 0)
-			goto unknown_parameter;
-		jp->jp_flags |= JP_NOBOOL;
+		/*
+		 * It might be an assumed sub-node of a fmt='A,keyvalue' sysctl.
+		 */
+		nname = kvname(name);
+		if (nname != NULL) {
+			snprintf(desc.s, sizeof(desc.s), SJPARAM ".%s", nname);
+			miblen = sizeof(mib) - 2 * sizeof(int);
+			if (sysctl(mib, 2, mib + 2, &miblen, desc.s,
+			    strlen(desc.s)) >= 0) {
+				name = alloca(strlen(nname) + 1);
+				strcpy(name, nname);
+				free(nname);
+				jp->jp_flags |= JP_KEYVALUE;
+				goto mib_desc;
+			}
+			free(nname);
+		}
+unknown_parameter:
+		snprintf(jail_errmsg, JAIL_ERRMSGLEN,
+		    "unknown parameter: %s", jp->jp_name);
+		errno = ENOENT;
+		return (-1);
 	}
  mib_desc:
 	mib[1] = 4;
@@ -941,6 +966,12 @@ jailparam_type(struct jailparam *jp)
 			return (0);
 		}
 		else if ((desc.i & CTLTYPE) != CTLTYPE_NODE)
+			goto unknown_parameter;
+	}
+	/* Make sure it is a valid keyvalue param. */
+	if (jp->jp_flags & JP_KEYVALUE) {
+		if ((desc.i & CTLTYPE) != CTLTYPE_STRING ||
+		    strcmp(desc.s, "A,keyvalue") != 0)
 			goto unknown_parameter;
 	}
 	/* See if this is an array type. */
@@ -1118,4 +1149,27 @@ nononame(const char *name)
 	else
 		strcpy(nname, name + 2);
 	return (nname);
+}
+
+static char *
+kvname(const char *name)
+{
+	const char *p;
+	char *kvname;
+	size_t len;
+
+	p = strchr(name, '.');
+	if (p == NULL)
+		return (NULL);
+
+	len = p - name;
+	kvname = malloc(len + 1);
+	if (kvname == NULL) {
+		strerror_r(errno, jail_errmsg, JAIL_ERRMSGLEN);
+		return (NULL);
+	}
+	strncpy(kvname, name, len);
+	kvname[len] = '\0';
+
+	return (kvname);
 }

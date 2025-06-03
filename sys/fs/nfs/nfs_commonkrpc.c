@@ -670,7 +670,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
     struct thread *td, struct ucred *cred, u_int32_t prog, u_int32_t vers,
     u_char *retsum, int toplevel, u_int64_t *xidp, struct nfsclsession *dssep)
 {
-	uint32_t retseq, retval, slotseq, *tl;
+	uint32_t retseq, retval, retval0, slotseq, *tl;
 	int i = 0, j = 0, opcnt, set_sigset = 0, slot;
 	int error = 0, usegssname = 0, secflavour = AUTH_SYS;
 	int freeslot, maxslot, reterr, slotpos, timeo;
@@ -1039,7 +1039,7 @@ tryagain:
 			sep->nfsess_badslots |= (0x1ULL << nd->nd_slotid);
 			mtx_unlock(&sep->nfsess_mtx);
 			/* And free the slot. */
-			nfsv4_freeslot(sep, nd->nd_slotid, false);
+			nfsv4_freeslot(sep, nd->nd_slotid, true);
 		}
 		if (stat == RPC_INTR)
 			error = EINTR;
@@ -1192,15 +1192,22 @@ tryagain:
 					if (retseq != sep->nfsess_slotseq[slot])
 						printf("retseq diff 0x%x\n",
 						    retseq);
-					retval = fxdr_unsigned(uint32_t, *++tl);
+					retval0 = fxdr_unsigned(uint32_t,*tl++);
+					retval = fxdr_unsigned(uint32_t, *tl);
 					if ((retval + 1) < sep->nfsess_foreslots
-					    )
+					    ) {
 						sep->nfsess_foreslots = (retval
 						    + 1);
-					else if ((retval + 1) >
-					    sep->nfsess_foreslots)
-						sep->nfsess_foreslots = (retval
-						    < 64) ? (retval + 1) : 64;
+						nfs_resetslots(sep);
+					} else if ((retval + 1) >
+					    sep->nfsess_foreslots) {
+						if (retval0 > retval)
+							printf("Sess:highest > "
+							    "target_highest\n");
+						sep->nfsess_foreslots =
+						    (retval < NFSV4_SLOTS) ?
+						    (retval + 1) : NFSV4_SLOTS;
+					}
 				}
 				mtx_unlock(&sep->nfsess_mtx);
 
@@ -1461,6 +1468,25 @@ nfsmout:
 	if (set_sigset)
 		newnfs_restore_sigmask(td, &oldset);
 	return (error);
+}
+
+/*
+ * Reset slots above nfsess_foreslots that are not busy.
+ */
+void
+nfs_resetslots(struct nfsclsession *sep)
+{
+	int i;
+	uint64_t bitval;
+
+	mtx_assert(&sep->nfsess_mtx, MA_OWNED);
+	bitval = (1 << sep->nfsess_foreslots);
+	for (i = sep->nfsess_foreslots; i < NFSV4_SLOTS; i++) {
+		if ((sep->nfsess_slots & bitval) == 0 &&
+		    (sep->nfsess_badslots & bitval) == 0)
+			sep->nfsess_slotseq[i] = 0;
+		bitval <<= 1;
+	}
 }
 
 /*

@@ -88,7 +88,7 @@
 			reg = <0x10000000 0x20000>;
 			ranges;
 
-			dma: dma@10001000 {
+			dma: dma-controller@10001000 {
 				compatible = "fsl,imx27-dma";
 				reg = <0x10001000 0x1000>;
 				interrupts = <32>;
@@ -568,7 +568,7 @@
 			status = "disabled";
 		};
 
-		weim: weim@d8002000 {
+		weim: memory-controller@d8002000 {
 			#address-cells = <2>;
 			#size-cells = <1>;
 			compatible = "fsl,imx27-weim";

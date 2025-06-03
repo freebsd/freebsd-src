@@ -72,7 +72,7 @@
 #include <dev/ichiic/ig4_reg.h>
 #include <dev/ichiic/ig4_var.h>
 
-#define DO_POLL(sc)	(cold || kdb_active || SCHEDULER_STOPPED() || sc->poll)
+#define DO_POLL(sc)	(cold || kdb_active || SCHEDULER_STOPPED())
 
 /*
  * tLOW, tHIGH periods of the SCL clock and maximal falling time of both
@@ -720,14 +720,11 @@ ig4iic_callback(device_t dev, int index, caddr_t data)
 		if ((how & IIC_WAIT) == 0) {
 			if (sx_try_xlock(&sc->call_lock) == 0)
 				error = IIC_EBUSBSY;
-			else
-				sc->poll = true;
 		} else
 			sx_xlock(&sc->call_lock);
 		break;
 
 	case IIC_RELEASE_BUS:
-		sc->poll = false;
 		sx_unlock(&sc->call_lock);
 		break;
 
@@ -1069,11 +1066,7 @@ ig4iic_attach(ig4iic_softc_t *sc)
 			      "Unable to setup irq: error %d\n", error);
 	}
 
-	error = bus_generic_attach(sc->dev);
-	if (error) {
-		device_printf(sc->dev,
-			      "failed to attach child: error %d\n", error);
-	}
+	bus_attach_children(sc->dev);
 
 done:
 	return (error);
@@ -1084,13 +1077,9 @@ ig4iic_detach(ig4iic_softc_t *sc)
 {
 	int error;
 
-	if (device_is_attached(sc->dev)) {
-		error = bus_generic_detach(sc->dev);
-		if (error)
-			return (error);
-	}
-	if (sc->iicbus)
-		device_delete_child(sc->dev, sc->iicbus);
+	error = bus_generic_detach(sc->dev);
+	if (error)
+		return (error);
 	if (sc->intr_handle)
 		bus_teardown_intr(sc->dev, sc->intr_res, sc->intr_handle);
 

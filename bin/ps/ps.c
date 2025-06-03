@@ -3,6 +3,11 @@
  *
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Olivier Certner
+ * <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+ * Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,7 +51,6 @@
 #include <sys/mount.h>
 
 #include <ctype.h>
-#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
@@ -69,14 +73,6 @@
 #define	W_SEP	" \t"		/* "Whitespace" list separators */
 #define	T_SEP	","		/* "Terminate-element" list separators */
 
-#ifdef LAZY_PS
-#define	DEF_UREAD	0
-#define	OPT_LAZY_f	"f"
-#else
-#define	DEF_UREAD	1	/* Always do the more-expensive read. */
-#define	OPT_LAZY_f		/* I.e., the `-f' option is not added. */
-#endif
-
 /*
  * isdigit takes an `int', but expects values in the range of unsigned char.
  * This wrapper ensures that values from a 'char' end up in the correct range.
@@ -91,9 +87,22 @@ int	 sumrusage;		/* -S */
 int	 termwidth;		/* Width of the screen (0 == infinity). */
 int	 showthreads;		/* will threads be shown? */
 
-struct velisthead varlist = STAILQ_HEAD_INITIALIZER(varlist);
+struct keyword_info {
+	/*
+	 * Whether there is (at least) one column referencing this keyword that
+	 * must be kept.
+	 */
+#define	KWI_HAS_MUST_KEEP_COLUMN	(1 << 0)
+	/*
+	 * Whether a column with such a keyword has been seen.
+	 */
+#define	KWI_SEEN			(1 << 1)
+	u_int flags;
+};
 
-static int	 forceuread = DEF_UREAD; /* Do extra work to get u-area. */
+struct velisthead varlist = STAILQ_HEAD_INITIALIZER(varlist);
+static struct velisthead Ovarlist = STAILQ_HEAD_INITIALIZER(Ovarlist);
+
 static kvm_t	*kd;
 static int	 needcomm;	/* -o "command" */
 static int	 needenv;	/* -e */
@@ -139,23 +148,21 @@ static void	 init_list(struct listinfo *, addelem_rtn, int, const char *);
 static char	*kludge_oldps_options(const char *, char *, const char *);
 static int	 pscomp(const void *, const void *);
 static void	 saveuser(KINFO *);
-static void	 scanvars(void);
-static void	 sizevars(void);
+static void	 scan_vars(struct keyword_info *);
+static void	 remove_redundant_columns(struct keyword_info *);
 static void	 pidmax_init(void);
 static void	 usage(void);
 
-static char dfmt[] = "pid,tt,state,time,command";
-static char jfmt[] = "user,pid,ppid,pgid,sid,jobc,state,tt,time,command";
-static char lfmt[] = "uid,pid,ppid,cpu,pri,nice,vsz,rss,mwchan,state,"
-			"tt,time,command";
-static char   o1[] = "pid";
-static char   o2[] = "tt,state,time,command";
-static char ufmt[] = "user,pid,%cpu,%mem,vsz,rss,tt,state,start,time,command";
-static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,"
-			"%cpu,%mem,command";
-static char Zfmt[] = "label";
+static const char dfmt[] = "pid,tt,state,time,command";
+static const char jfmt[] = "user,pid,ppid,pgid,sid,jobc,state,tt,time,command";
+static const char lfmt[] = "uid,pid,ppid,cpu,pri,nice,vsz,rss,mwchan,state,"
+			   "tt,time,command";
+static const char ufmt[] = "user,pid,%cpu,%mem,vsz,rss,tt,state,start,time,command";
+static const char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,"
+			   "%cpu,%mem,command";
+static const char Zfmt[] = "label";
 
-#define	PS_ARGS	"AaCcD:de" OPT_LAZY_f "G:gHhjJ:LlM:mN:O:o:p:rSTt:U:uvwXxZ"
+#define	PS_ARGS	"AaCcD:defG:gHhjJ:LlM:mN:O:o:p:rSTt:U:uvwXxZ"
 
 int
 main(int argc, char *argv[])
@@ -177,6 +184,7 @@ main(int argc, char *argv[])
 	char fmtbuf[_POSIX2_LINE_MAX];
 	enum { NONE = 0, UP = 1, DOWN = 2, BOTH = 1 | 2 } directions = NONE;
 	struct { int traversed; int initial; } pid_count;
+	struct keyword_info *keywords_info;
 
 	(void) setlocale(LC_ALL, "");
 	time(&now);			/* Used by routines in print.c. */
@@ -214,6 +222,13 @@ main(int argc, char *argv[])
 
 	pidmax_init();
 
+#ifdef PS_CHECK_KEYWORDS
+	/* Check for obvious problems in the keywords array. */
+	check_keywords();
+	/* Resolve all aliases at start to spot errors. */
+	resolve_aliases();
+#endif
+
 	all = descendancy = _fmt = nselectors = optfatal = 0;
 	prtheader = showthreads = wflag = xkeep_implied = 0;
 	xkeep = -1;			/* Neither -x nor -X. */
@@ -235,11 +250,6 @@ main(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, PS_ARGS)) != -1)
 		switch (ch) {
 		case 'A':
-			/*
-			 * Exactly the same as `-ax'.   This has been
-			 * added for compatibility with SUSv3, but for
-			 * now it will not be described in the man page.
-			 */
 			all = xkeep = 1;
 			break;
 		case 'a':
@@ -273,12 +283,9 @@ main(int argc, char *argv[])
 		case 'e':			/* XXX set ufmt */
 			needenv = 1;
 			break;
-#ifdef LAZY_PS
 		case 'f':
-			if (getuid() == 0 || getgid() == 0)
-				forceuread = 1;
+			/* compat */
 			break;
-#endif
 		case 'G':
 			add_list(&gidlist, optarg);
 			xkeep_implied = 1;
@@ -286,17 +293,24 @@ main(int argc, char *argv[])
 			break;
 		case 'g':
 #if 0
-			/*-
-			 * XXX - This SUSv3 behavior is still under debate
-			 *	since it conflicts with the (undocumented)
-			 *	`-g' option.  So we skip it for now.
+			/*
+			 * XXX - This behavior is still under debate since it
+			 *	conflicts with the (undocumented) `-g' option
+			 *	and is non-standard.  However, it is the
+			 *	behavior of most UNIX systems except
+			 *	SunOS/Solaris/illumos (see next comment; see
+			 *	also comment for '-s' below).
 			 */
 			add_list(&pgrplist, optarg);
 			xkeep_implied = 1;
 			nselectors++;
 			break;
 #else
-			/* The historical BSD-ish (from SunOS) behavior. */
+			/*
+			 * The historical BSD-ish (from SunOS) behavior: Also
+			 * display process group leaders (but we do not filter
+			 * them out).
+			 */
 			break;			/* no-op */
 #endif
 		case 'H':
@@ -311,17 +325,15 @@ main(int argc, char *argv[])
 			nselectors++;
 			break;
 		case 'j':
-			parsefmt(jfmt, 0);
+			parsefmt(jfmt, &varlist, 0);
 			_fmt = 1;
-			jfmt[0] = '\0';
 			break;
 		case 'L':
 			showkey();
 			exit(0);
 		case 'l':
-			parsefmt(lfmt, 0);
+			parsefmt(lfmt, &varlist, 0);
 			_fmt = 1;
-			lfmt[0] = '\0';
 			break;
 		case 'M':
 			memf = optarg;
@@ -333,14 +345,10 @@ main(int argc, char *argv[])
 			nlistf = optarg;
 			break;
 		case 'O':
-			parsefmt(o1, 1);
-			parsefmt(optarg, 1);
-			parsefmt(o2, 1);
-			o1[0] = o2[0] = '\0';
-			_fmt = 1;
+			parsefmt(optarg, &Ovarlist, 1);
 			break;
 		case 'o':
-			parsefmt(optarg, 1);
+			parsefmt(optarg, &varlist, 1);
 			_fmt = 1;
 			break;
 		case 'p':
@@ -353,20 +361,6 @@ main(int argc, char *argv[])
 			 */
 			nselectors++;
 			break;
-#if 0
-		case 'R':
-			/*-
-			 * XXX - This un-standard option is still under
-			 *	debate.  This is what SUSv3 defines as
-			 *	the `-U' option, and while it would be
-			 *	nice to have, it could cause even more
-			 *	confusion to implement it as `-R'.
-			 */
-			add_list(&ruidlist, optarg);
-			xkeep_implied = 1;
-			nselectors++;
-			break;
-#endif
 		case 'r':
 			sortby = SORTCPU;
 			break;
@@ -375,11 +369,13 @@ main(int argc, char *argv[])
 			break;
 #if 0
 		case 's':
-			/*-
-			 * XXX - This non-standard option is still under
-			 *	debate.  This *is* supported on Solaris,
-			 *	Linux, and IRIX, but conflicts with `-s'
-			 *	on NetBSD and maybe some older BSD's.
+			/*
+			 * XXX - This non-standard option is still under debate.
+			 *	It is supported on Solaris, Linux, IRIX, and
+			 *	OpenBSD but conflicts with '-s' on NetBSD.  This
+			 *	is the same functionality as POSIX option '-g',
+			 *	but the cited systems do not provide it under
+			 *	'-g', only under '-s'.
 			 */
 			add_list(&sesslist, optarg);
 			xkeep_implied = 1;
@@ -396,22 +392,38 @@ main(int argc, char *argv[])
 			nselectors++;
 			break;
 		case 'U':
-			/* This is what SUSv3 defines as the `-u' option. */
-			add_list(&uidlist, optarg);
+			add_list(&ruidlist, optarg);
 			xkeep_implied = 1;
 			nselectors++;
 			break;
 		case 'u':
-			parsefmt(ufmt, 0);
+#if 0
+			/*
+			 * POSIX's '-u' behavior.
+			 *
+			 * This has not been activated because:
+			 * 1. Option '-U' is a substitute for most users, and
+			 *    those that care seem more likely to want to match
+			 *    on the real user ID to display all processes
+			 *    launched by some users.
+			 * 2. '-u' has been a canned display on the BSDs for
+			 *    a very long time (POLA).
+			 */
+			add_list(&uidlist, optarg);
+			xkeep_implied = 1;
+			nselectors++;
+			break;
+#else
+			/* Historical BSD's '-u'. */
+			parsefmt(ufmt, &varlist, 0);
 			sortby = SORTCPU;
 			_fmt = 1;
-			ufmt[0] = '\0';
 			break;
+#endif
 		case 'v':
-			parsefmt(vfmt, 0);
+			parsefmt(vfmt, &varlist, 0);
 			sortby = SORTMEM;
 			_fmt = 1;
-			vfmt[0] = '\0';
 			break;
 		case 'w':
 			if (wflag)
@@ -438,8 +450,7 @@ main(int argc, char *argv[])
 			xkeep = 1;
 			break;
 		case 'Z':
-			parsefmt(Zfmt, 0);
-			Zfmt[0] = '\0';
+			parsefmt(Zfmt, &varlist, 0);
 			break;
 		case '?':
 		default:
@@ -472,22 +483,60 @@ main(int argc, char *argv[])
 		xo_errx(1, "%s", errbuf);
 
 	if (!_fmt)
-		parsefmt(dfmt, 0);
+		parsefmt(dfmt, &varlist, 0);
 
-	if (!all && nselectors == 0) {
-		uidlist.l.ptr = malloc(sizeof(uid_t));
-		if (uidlist.l.ptr == NULL)
-			xo_errx(1, "malloc failed");
-		nselectors = 1;
-		uidlist.count = uidlist.maxcount = 1;
-		*uidlist.l.uids = getuid();
+	if (!STAILQ_EMPTY(&Ovarlist)) {
+		VARENT *const pid_entry = find_varentry("pid");
+
+		/*
+		 * We insert the keywords passed by '-O' after the process ID if
+		 * specified, else at start.
+		 */
+		if (pid_entry != NULL) {
+			struct velisthead rest;
+
+			STAILQ_SPLIT_AFTER(&varlist, pid_entry, &rest, next_ve);
+			STAILQ_CONCAT(&varlist, &Ovarlist);
+			STAILQ_CONCAT(&varlist, &rest);
+		}
+		else {
+			STAILQ_SWAP(&varlist, &Ovarlist, varent);
+			STAILQ_CONCAT(&varlist, &Ovarlist);
+		}
 	}
 
+	keywords_info = calloc(known_keywords_nb, sizeof(struct keyword_info));
+	if (keywords_info == NULL)
+		xo_errx(1, "malloc failed");
 	/*
-	 * scan requested variables, noting what structures are needed,
-	 * and adjusting header widths as appropriate.
+	 * Scan requested variables, noting which structures are needed and
+	 * which keywords are specified.
 	 */
-	scanvars();
+	scan_vars(keywords_info);
+	/*
+	 * Remove redundant columns from "canned" displays (see the callee's
+	 * herald comment for more details).
+	 */
+	remove_redundant_columns(keywords_info);
+	free(keywords_info);
+	keywords_info = NULL;
+
+	if (all)
+		/*
+		 * We have to display all processes, regardless of other
+		 * options.
+		 */
+		nselectors = 0;
+	else if (nselectors == 0) {
+		/*
+		 * Default is to request our processes only.  As per POSIX, we
+		 * match processes by their effective user IDs and we use our
+		 * effective user ID as our own identity.
+		 */
+		expand_list(&uidlist);
+		uidlist.l.uids[uidlist.count++] = geteuid();
+		nselectors = 1;
+	}
 
 	/*
 	 * Get process list.  If the user requested just one selector-
@@ -653,11 +702,10 @@ main(int argc, char *argv[])
 		}
 	}
 
-	sizevars();
-
 	if (nkept == 0) {
 		printheader();
-		xo_finish();
+		if (xo_finish() < 0)
+			xo_err(1, "stdout");
 		exit(1);
 	}
 
@@ -712,7 +760,7 @@ main(int argc, char *argv[])
 			/* No padding for the last column, if it's LJUST. */
 			fwidthmin = (xo_get_style(NULL) != XO_STYLE_TEXT ||
 			    (STAILQ_NEXT(vent, next_ve) == NULL &&
-			    (vent->var->flag & LJUST))) ? 0 : vent->var->width;
+			    (vent->var->flag & LJUST))) ? 0 : vent->width;
 			snprintf(fmtbuf, sizeof(fmtbuf), "{:%s/%%%s%d..%dhs}",
 			    vent->var->field ? vent->var->field : vent->var->name,
 			    (vent->var->flag & LJUST) ? "-" : "",
@@ -742,7 +790,8 @@ main(int argc, char *argv[])
 	}
 	xo_close_list("process");
 	xo_close_container("process-information");
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(1, "stdout");
 
 	free_list(&gidlist);
 	free_list(&jidlist);
@@ -812,14 +861,14 @@ addelem_jid(struct listinfo *inf, const char *elem)
 	int tempid;
 
 	if (*elem == '\0') {
-		warnx("Invalid (zero-length) jail id");
+		xo_warnx("Invalid (zero-length) jail id");
 		optfatal = 1;
 		return (0);		/* Do not add this value. */
 	}
 
 	tempid = jail_getid(elem);
 	if (tempid < 0) {
-		warnx("Invalid %s: %s", inf->lname, elem);
+		xo_warnx("Invalid %s: %s", inf->lname, elem);
 		optfatal = 1;
 		return (0);
 	}
@@ -861,7 +910,7 @@ addelem_pid(struct listinfo *inf, const char *elem)
 	return (1);
 }
 
-/*-
+/*
  * The user can specify a device via one of three formats:
  *     1) fully qualified, e.g.:     /dev/ttyp0 /dev/console	/dev/pts/0
  *     2) missing "/dev", e.g.:      ttyp0      console		pts/0
@@ -1196,22 +1245,22 @@ init_list(struct listinfo *inf, addelem_rtn artn, int elemsize,
 }
 
 VARENT *
-find_varentry(VAR *v)
+find_varentry(const char *name)
 {
 	struct varent *vent;
 
 	STAILQ_FOREACH(vent, &varlist, next_ve) {
-		if (strcmp(vent->var->name, v->name) == 0)
+		if (strcmp(vent->var->name, name) == 0)
 			return vent;
 	}
 	return NULL;
 }
 
 static void
-scanvars(void)
+scan_vars(struct keyword_info *const keywords_info)
 {
 	struct varent *vent;
-	VAR *v;
+	const VAR *v;
 
 	STAILQ_FOREACH(vent, &varlist, next_ve) {
 		v = vent->var;
@@ -1219,6 +1268,47 @@ scanvars(void)
 			needuser = 1;
 		if (v->flag & COMM)
 			needcomm = 1;
+		if ((vent->flags & VE_KEEP) != 0)
+			keywords_info[aliased_keyword_index(v)].flags |=
+			    KWI_HAS_MUST_KEEP_COLUMN;
+	}
+}
+
+/*
+ * For each explicitly requested keyword, remove all the same keywords
+ * from "canned" displays.  If the same keyword appears multiple times
+ * only in "canned displays", then keep the first (leftmost) occurence
+ * only (with the reasoning that columns requested first are the most
+ * important as their positions catch the eye more).
+ */
+static void
+remove_redundant_columns(struct keyword_info *const keywords_info)
+{
+	struct varent *prev_vent, *vent, *next_vent;
+
+	prev_vent = NULL;
+	STAILQ_FOREACH_SAFE(vent, &varlist, next_ve, next_vent) {
+		const VAR *const v = vent->var;
+		struct keyword_info *const kwi =
+		    &keywords_info[aliased_keyword_index(v)];
+
+		/*
+		 * If the current column is not marked as to absolutely keep,
+		 * and we have either already output one with the same keyword
+		 * or know we will output one later, remove it.
+		 */
+		if ((vent->flags & VE_KEEP) == 0 &&
+		    (kwi->flags & (KWI_HAS_MUST_KEEP_COLUMN | KWI_SEEN)) != 0) {
+			if (prev_vent == NULL)
+				STAILQ_REMOVE_HEAD(&varlist, next_ve);
+			else
+				STAILQ_REMOVE_AFTER(&varlist, prev_vent,
+				    next_ve);
+		} else
+			prev_vent = vent;
+
+
+		kwi->flags |= KWI_SEEN;
 	}
 }
 
@@ -1226,10 +1316,10 @@ static void
 format_output(KINFO *ki)
 {
 	struct varent *vent;
-	VAR *v;
+	const VAR *v;
 	KINFO_STR *ks;
 	char *str;
-	int len;
+	u_int len;
 
 	STAILQ_INIT(&ki->ki_ks);
 	STAILQ_FOREACH(vent, &varlist, next_ve) {
@@ -1244,23 +1334,8 @@ format_output(KINFO *ki)
 			len = strlen(str);
 		} else
 			len = 1; /* "-" */
-		if (v->width < len)
-			v->width = len;
-	}
-}
-
-static void
-sizevars(void)
-{
-	struct varent *vent;
-	VAR *v;
-	int i;
-
-	STAILQ_FOREACH(vent, &varlist, next_ve) {
-		v = vent->var;
-		i = strlen(vent->header);
-		if (v->width < i)
-			v->width = i;
+		if (vent->width < len)
+			vent->width = len;
 	}
 }
 
@@ -1275,38 +1350,24 @@ fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
 	return (s);
 }
 
-#define UREADOK(ki)	(forceuread || (ki->ki_p->ki_flag & P_INMEM))
-
 static void
 saveuser(KINFO *ki)
 {
 	char tdname[COMMLEN + 1];
-	char *argsp;
 
-	if (ki->ki_p->ki_flag & P_INMEM) {
-		/*
-		 * The u-area might be swapped out, and we can't get
-		 * at it because we have a crashdump and no swap.
-		 * If it's here fill in these fields, otherwise, just
-		 * leave them 0.
-		 */
-		ki->ki_valid = 1;
-	} else
-		ki->ki_valid = 0;
+	ki->ki_valid = 1;
+
 	/*
 	 * save arguments if needed
 	 */
 	if (needcomm) {
 		if (ki->ki_p->ki_stat == SZOMB) {
 			ki->ki_args = strdup("<defunct>");
-		} else if (UREADOK(ki) || (ki->ki_p->ki_args != NULL)) {
+		} else {
 			(void)snprintf(tdname, sizeof(tdname), "%s%s",
 			    ki->ki_p->ki_tdname, ki->ki_p->ki_moretdname);
 			ki->ki_args = fmt(kvm_getargv, ki,
 			    ki->ki_p->ki_comm, tdname, COMMLEN * 2 + 1);
-		} else {
-			asprintf(&argsp, "(%s)", ki->ki_p->ki_comm);
-			ki->ki_args = argsp;
 		}
 		if (ki->ki_args == NULL)
 			xo_errx(1, "malloc failed");
@@ -1314,11 +1375,8 @@ saveuser(KINFO *ki)
 		ki->ki_args = NULL;
 	}
 	if (needenv) {
-		if (UREADOK(ki))
-			ki->ki_env = fmt(kvm_getenvv, ki,
-			    (char *)NULL, (char *)NULL, 0);
-		else
-			ki->ki_env = strdup("()");
+		ki->ki_env = fmt(kvm_getenvv, ki, (char *)NULL,
+		    (char *)NULL, 0);
 		if (ki->ki_env == NULL)
 			xo_errx(1, "malloc failed");
 	} else {
@@ -1329,7 +1387,7 @@ saveuser(KINFO *ki)
 /* A macro used to improve the readability of pscomp(). */
 #define	DIFF_RETURN(a, b, field) do {	\
 	if ((a)->field != (b)->field)	\
-		return (((a)->field < (b)->field) ? -1 : 1); 	\
+		return (((a)->field < (b)->field) ? -1 : 1);	\
 } while (0)
 
 static int
@@ -1478,9 +1536,9 @@ pidmax_init(void)
 static void __dead2
 usage(void)
 {
-#define	SINGLE_OPTS	"[-aCcde" OPT_LAZY_f "HhjlmrSTuvwXxZ]"
+#define	SINGLE_OPTS	"[-aCcdeHhjlmrSTuvwXxZ]"
 
-	(void)xo_error("%s\n%s\n%s\n%s\n%s\n",
+	xo_error("%s\n%s\n%s\n%s\n%s\n",
 	    "usage: ps [--libxo] " SINGLE_OPTS " [-O fmt | -o fmt]",
 	    "          [-G gid[,gid...]] [-J jid[,jid...]] [-M core] [-N system]",
 	    "          [-p pid[,pid...]] [-t tty[,tty...]] [-U user[,user...]]",

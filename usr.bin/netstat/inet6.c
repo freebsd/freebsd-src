@@ -54,7 +54,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include <err.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>

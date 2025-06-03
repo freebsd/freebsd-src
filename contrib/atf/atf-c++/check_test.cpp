@@ -52,7 +52,7 @@ extern "C" {
 // ------------------------------------------------------------------------
 
 static
-std::auto_ptr< atf::check::check_result >
+std::unique_ptr< atf::check::check_result >
 do_exec(const atf::tests::tc* tc, const char* helper_name)
 {
     std::vector< std::string > argv;
@@ -65,7 +65,7 @@ do_exec(const atf::tests::tc* tc, const char* helper_name)
 }
 
 static
-std::auto_ptr< atf::check::check_result >
+std::unique_ptr< atf::check::check_result >
 do_exec(const atf::tests::tc* tc, const char* helper_name, const char *carg2)
 {
     std::vector< std::string > argv;
@@ -248,11 +248,11 @@ ATF_TEST_CASE_HEAD(exec_cleanup)
 }
 ATF_TEST_CASE_BODY(exec_cleanup)
 {
-    std::auto_ptr< atf::fs::path > out;
-    std::auto_ptr< atf::fs::path > err;
+    std::unique_ptr< atf::fs::path > out;
+    std::unique_ptr< atf::fs::path > err;
 
     {
-        std::auto_ptr< atf::check::check_result > r =
+        std::unique_ptr< atf::check::check_result > r =
             do_exec(this, "exit-success");
         out.reset(new atf::fs::path(r->stdout_path()));
         err.reset(new atf::fs::path(r->stderr_path()));
@@ -272,7 +272,7 @@ ATF_TEST_CASE_HEAD(exec_exitstatus)
 ATF_TEST_CASE_BODY(exec_exitstatus)
 {
     {
-        std::auto_ptr< atf::check::check_result > r =
+        std::unique_ptr< atf::check::check_result > r =
             do_exec(this, "exit-success");
         ATF_REQUIRE(r->exited());
         ATF_REQUIRE(!r->signaled());
@@ -280,7 +280,7 @@ ATF_TEST_CASE_BODY(exec_exitstatus)
     }
 
     {
-        std::auto_ptr< atf::check::check_result > r =
+        std::unique_ptr< atf::check::check_result > r =
             do_exec(this, "exit-failure");
         ATF_REQUIRE(r->exited());
         ATF_REQUIRE(!r->signaled());
@@ -288,7 +288,7 @@ ATF_TEST_CASE_BODY(exec_exitstatus)
     }
 
     {
-        std::auto_ptr< atf::check::check_result > r =
+        std::unique_ptr< atf::check::check_result > r =
             do_exec(this, "exit-signal");
         ATF_REQUIRE(!r->exited());
         ATF_REQUIRE(r->signaled());
@@ -321,12 +321,12 @@ ATF_TEST_CASE_HEAD(exec_stdout_stderr)
 }
 ATF_TEST_CASE_BODY(exec_stdout_stderr)
 {
-    std::auto_ptr< atf::check::check_result > r1 =
+    std::unique_ptr< atf::check::check_result > r1 =
         do_exec(this, "stdout-stderr", "result1");
     ATF_REQUIRE(r1->exited());
     ATF_REQUIRE_EQ(r1->exitcode(), EXIT_SUCCESS);
 
-    std::auto_ptr< atf::check::check_result > r2 =
+    std::unique_ptr< atf::check::check_result > r2 =
         do_exec(this, "stdout-stderr", "result2");
     ATF_REQUIRE(r2->exited());
     ATF_REQUIRE_EQ(r2->exitcode(), EXIT_SUCCESS);
@@ -372,7 +372,7 @@ ATF_TEST_CASE_BODY(exec_unknown)
     argv.push_back("/foo/bar/non-existent");
 
     atf::process::argv_array argva(argv);
-    std::auto_ptr< atf::check::check_result > r = atf::check::exec(argva);
+    std::unique_ptr< atf::check::check_result > r = atf::check::exec(argva);
     ATF_REQUIRE(r->exited());
     ATF_REQUIRE_EQ(r->exitcode(), 127);
 }

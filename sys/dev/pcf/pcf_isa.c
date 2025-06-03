@@ -164,7 +164,7 @@ pcf_isa_attach(device_t dev)
 		device_printf(dev, "could not allocate iicbus instance\n");
 
 	/* probe and attach the iicbus */
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 
@@ -190,9 +190,6 @@ pcf_isa_detach(device_t dev)
 	sc = DEVTOSOFTC(dev);
 
 	if ((rv = bus_generic_detach(dev)) != 0)
-		return (rv);
-
-	if ((rv = device_delete_child(dev, sc->iicbus)) != 0)
 		return (rv);
 
 	if (sc->res_irq != 0) {

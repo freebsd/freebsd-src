@@ -127,6 +127,12 @@ read_linker_hints(void)
 			err(1, "Can't open %s for reading", fn);
 	}
 
+	if (len < sizeof(int)) {
+		warnx("Linker hints file too short.");
+		free(hints);
+		hints = NULL;
+		return;
+	}
 	if (*(int *)(intptr_t)hints != LINKER_HINTS_VERSION) {
 		warnx("Linker hints version %d doesn't match expected %d.",
 		    *(int *)(intptr_t)hints, LINKER_HINTS_VERSION);

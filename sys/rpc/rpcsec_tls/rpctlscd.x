@@ -29,20 +29,16 @@
 
 
 struct rpctlscd_connect_arg {
+	uint64_t socookie;
 	char certname<>;
 };
 
 struct rpctlscd_connect_res {
 	uint32_t reterr;
-	uint64_t sec;
-	uint64_t usec;
-	uint64_t ssl;
 };
 
 struct rpctlscd_handlerecord_arg {
-	uint64_t sec;
-	uint64_t usec;
-	uint64_t ssl;
+	uint64_t socookie;
 };
 
 struct rpctlscd_handlerecord_res {
@@ -50,9 +46,7 @@ struct rpctlscd_handlerecord_res {
 };
 
 struct rpctlscd_disconnect_arg {
-	uint64_t sec;
-	uint64_t usec;
-	uint64_t ssl;
+	uint64_t socookie;
 };
 
 struct rpctlscd_disconnect_res {
@@ -71,5 +65,5 @@ program RPCTLSCD {
 
 		rpctlscd_disconnect_res
 		RPCTLSCD_DISCONNECT(rpctlscd_disconnect_arg) = 3;
-	} = 1;
+	} = 2;
 } = 0x40677374;

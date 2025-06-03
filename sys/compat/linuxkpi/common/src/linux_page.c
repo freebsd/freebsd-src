@@ -83,7 +83,7 @@ si_meminfo(struct sysinfo *si)
 }
 
 void *
-linux_page_address(struct page *page)
+linux_page_address(const struct page *page)
 {
 
 	if (page->object != kernel_object) {
@@ -117,7 +117,8 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 			page = vm_page_alloc_noobj_contig(req, npages, 0, pmax,
 			    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 			if (page == NULL) {
-				if (flags & M_WAITOK) {
+				if ((flags & (M_WAITOK | __GFP_NORETRY)) ==
+				    M_WAITOK) {
 					int err = vm_page_reclaim_contig(req,
 					    npages, 0, pmax, PAGE_SIZE, 0);
 					if (err == ENOMEM)
@@ -164,8 +165,24 @@ linux_free_pages(struct page *page, unsigned int order)
 		for (x = 0; x != npages; x++) {
 			vm_page_t pgo = page + x;
 
-			if (vm_page_unwire_noq(pgo))
-				vm_page_free(pgo);
+			/*
+			 * The "free page" function is used in several
+			 * contexts.
+			 *
+			 * Some pages are allocated by `linux_alloc_pages()`
+			 * above, but not all of them are. For instance in the
+			 * DRM drivers, some pages come from
+			 * `shmem_read_mapping_page_gfp()`.
+			 *
+			 * That's why we need to check if the page is managed
+			 * or not here.
+			 */
+			if ((pgo->oflags & VPO_UNMANAGED) == 0) {
+				vm_page_unwire(pgo, PQ_ACTIVE);
+			} else {
+				if (vm_page_unwire_noq(pgo))
+					vm_page_free(pgo);
+			}
 		}
 	} else {
 		vm_offset_t vaddr;
@@ -176,18 +193,27 @@ linux_free_pages(struct page *page, unsigned int order)
 	}
 }
 
+void
+linux_release_pages(release_pages_arg arg, int nr)
+{
+	int i;
+
+	CTASSERT(offsetof(struct folio, page) == 0);
+
+	for (i = 0; i < nr; i++)
+		__free_page(arg.pages[i]);
+}
+
 vm_offset_t
 linux_alloc_kmem(gfp_t flags, unsigned int order)
 {
 	size_t size = ((size_t)PAGE_SIZE) << order;
 	void *addr;
 
-	if ((flags & GFP_DMA32) == 0) {
-		addr = kmem_malloc(size, flags & GFP_NATIVE_MASK);
-	} else {
-		addr = kmem_alloc_contig(size, flags & GFP_NATIVE_MASK, 0,
-		    BUS_SPACE_MAXADDR_32BIT, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	}
+	addr = kmem_alloc_contig(size, flags & GFP_NATIVE_MASK, 0,
+	    ((flags & GFP_DMA32) == 0) ? -1UL : BUS_SPACE_MAXADDR_32BIT,
+	    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+
 	return ((vm_offset_t)addr);
 }
 
@@ -297,23 +323,27 @@ vm_fault_t
 lkpi_vmf_insert_pfn_prot_locked(struct vm_area_struct *vma, unsigned long addr,
     unsigned long pfn, pgprot_t prot)
 {
+	struct pctrie_iter pages;
 	vm_object_t vm_obj = vma->vm_obj;
 	vm_object_t tmp_obj;
 	vm_page_t page;
 	vm_pindex_t pindex;
 
 	VM_OBJECT_ASSERT_WLOCKED(vm_obj);
+	vm_page_iter_init(&pages, vm_obj);
 	pindex = OFF_TO_IDX(addr - vma->vm_start);
 	if (vma->vm_pfn_count == 0)
 		vma->vm_pfn_first = pindex;
 	MPASS(pindex <= OFF_TO_IDX(vma->vm_end));
 
 retry:
-	page = vm_page_grab(vm_obj, pindex, VM_ALLOC_NOCREAT);
+	page = vm_page_grab_iter(vm_obj, pindex, VM_ALLOC_NOCREAT, &pages);
 	if (page == NULL) {
 		page = PHYS_TO_VM_PAGE(IDX_TO_OFF(pfn));
-		if (!vm_page_busy_acquire(page, VM_ALLOC_WAITFAIL))
+		if (!vm_page_busy_acquire(page, VM_ALLOC_WAITFAIL)) {
+			pctrie_iter_reset(&pages);
 			goto retry;
+		}
 		if (page->object != NULL) {
 			tmp_obj = page->object;
 			vm_page_xunbusy(page);
@@ -337,10 +367,11 @@ retry:
 				vm_page_remove(page);
 			}
 			VM_OBJECT_WUNLOCK(tmp_obj);
+			pctrie_iter_reset(&pages);
 			VM_OBJECT_WLOCK(vm_obj);
 			goto retry;
 		}
-		if (vm_page_insert(page, vm_obj, pindex)) {
+		if (vm_page_iter_insert(page, vm_obj, pindex, &pages) != 0) {
 			vm_page_xunbusy(page);
 			return (VM_FAULT_OOM);
 		}
@@ -418,27 +449,13 @@ lkpi_io_mapping_map_user(struct io_mapping *iomap,
  */
 void
 lkpi_unmap_mapping_range(void *obj, loff_t const holebegin __unused,
-    loff_t const holelen, int even_cows __unused)
+    loff_t const holelen __unused, int even_cows __unused)
 {
 	vm_object_t devobj;
-	vm_page_t page;
-	int i, page_count;
 
 	devobj = cdev_pager_lookup(obj);
 	if (devobj != NULL) {
-		page_count = OFF_TO_IDX(holelen);
-
-		VM_OBJECT_WLOCK(devobj);
-retry:
-		for (i = 0; i < page_count; i++) {
-			page = vm_page_lookup(devobj, i);
-			if (page == NULL)
-				continue;
-			if (!vm_page_busy_acquire(page, VM_ALLOC_WAITFAIL))
-				goto retry;
-			cdev_mgtdev_pager_free_page(devobj, page);
-		}
-		VM_OBJECT_WUNLOCK(devobj);
+		cdev_mgtdev_pager_free_pages(devobj);
 		vm_object_deallocate(devobj);
 	}
 }

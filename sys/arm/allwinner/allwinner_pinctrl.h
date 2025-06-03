@@ -26,13 +26,13 @@
 #ifndef _ALLWINNER_PINCTRL_H_
 #define	_ALLWINNER_PINCTRL_H_
 
-#define AW_MAX_FUNC_BY_PIN	8
+#define AW_MAX_FUNC_BY_PIN	15
 
 struct allwinner_pins {
 	const char *name;
 	uint8_t port;
 	uint8_t pin;
-	const char *functions[8];
+	const char *functions[AW_MAX_FUNC_BY_PIN];
 	uint8_t eint_func;
 	uint8_t eint_num;
 	uint8_t eint_bank;

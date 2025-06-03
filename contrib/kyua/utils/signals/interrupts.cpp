@@ -65,11 +65,11 @@ static pids_set pids_to_kill;
 
 
 /// Programmer status for the SIGHUP signal.
-static std::auto_ptr< signals::programmer > sighup_handler;
+static std::unique_ptr< signals::programmer > sighup_handler;
 /// Programmer status for the SIGINT signal.
-static std::auto_ptr< signals::programmer > sigint_handler;
+static std::unique_ptr< signals::programmer > sigint_handler;
 /// Programmer status for the SIGTERM signal.
-static std::auto_ptr< signals::programmer > sigterm_handler;
+static std::unique_ptr< signals::programmer > sigterm_handler;
 
 
 /// Signal mask to restore after exiting a signal inhibited section.
@@ -127,17 +127,17 @@ setup_handlers(void)
 
     // Create the handlers on the stack first so that, if any of them fails, the
     // stack unwinding cleans things up.
-    std::auto_ptr< signals::programmer > tmp_sighup_handler(
+    std::unique_ptr< signals::programmer > tmp_sighup_handler(
         new signals::programmer(SIGHUP, signal_handler));
-    std::auto_ptr< signals::programmer > tmp_sigint_handler(
+    std::unique_ptr< signals::programmer > tmp_sigint_handler(
         new signals::programmer(SIGINT, signal_handler));
-    std::auto_ptr< signals::programmer > tmp_sigterm_handler(
+    std::unique_ptr< signals::programmer > tmp_sigterm_handler(
         new signals::programmer(SIGTERM, signal_handler));
 
     // Now, update the global pointers, which is an operation that cannot fail.
-    sighup_handler = tmp_sighup_handler;
-    sigint_handler = tmp_sigint_handler;
-    sigterm_handler = tmp_sigterm_handler;
+    sighup_handler = std::move(tmp_sighup_handler);
+    sigint_handler = std::move(tmp_sigint_handler);
+    sigterm_handler = std::move(tmp_sigterm_handler);
 }
 
 
@@ -145,9 +145,9 @@ setup_handlers(void)
 static void
 cleanup_handlers(void)
 {
-    sighup_handler->unprogram(); sighup_handler.reset(NULL);
-    sigint_handler->unprogram(); sigint_handler.reset(NULL);
-    sigterm_handler->unprogram(); sigterm_handler.reset(NULL);
+    sighup_handler->unprogram(); sighup_handler.reset();
+    sigint_handler->unprogram(); sigint_handler.reset();
+    sigterm_handler->unprogram(); sigterm_handler.reset();
 }
 
 

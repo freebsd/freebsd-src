@@ -670,6 +670,11 @@ ipreass_drain(void)
 	VNET_LIST_RUNLOCK();
 }
 
+static void
+ipreass_drain_lowmem(void *arg __unused, int flags __unused)
+{
+	ipreass_drain();
+}
 
 /*
  * Initialize IP reassembly structures.
@@ -711,10 +716,10 @@ ipreass_init(void)
 	maxfrags = IP_MAXFRAGS;
 	EVENTHANDLER_REGISTER(nmbclusters_change, ipreass_zone_change,
 	    NULL, EVENTHANDLER_PRI_ANY);
-	EVENTHANDLER_REGISTER(vm_lowmem, ipreass_drain, NULL,
+	EVENTHANDLER_REGISTER(vm_lowmem, ipreass_drain_lowmem, NULL,
 	    LOWMEM_PRI_DEFAULT);
-	EVENTHANDLER_REGISTER(mbuf_lowmem, ipreass_drain, NULL,
-		LOWMEM_PRI_DEFAULT);
+	EVENTHANDLER_REGISTER(mbuf_lowmem, ipreass_drain_lowmem, NULL,
+	    LOWMEM_PRI_DEFAULT);
 }
 
 /*

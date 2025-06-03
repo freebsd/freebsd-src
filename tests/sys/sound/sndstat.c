@@ -148,10 +148,10 @@ ATF_TC_BODY(sndstat_nv, tc)
 		NV(number, UNIT);
 		NV(string, STATUS);
 		NV(bool, BITPERFECT);
-		NV(number, PVCHAN);
+		NV(bool, PVCHAN);
 		NV(number, PVCHANRATE);
 		NV(number, PVCHANFORMAT);
-		NV(number, RVCHAN);
+		NV(bool, RVCHAN);
 		NV(number, PVCHANRATE);
 		NV(number, PVCHANFORMAT);
 #undef NV
@@ -184,12 +184,14 @@ ATF_TC_BODY(sndstat_nv, tc)
 			NV(number, LEFTVOL);
 			NV(number, RIGHTVOL);
 			NV(number, HWBUF_FORMAT);
+			NV(number, HWBUF_RATE);
 			NV(number, HWBUF_SIZE);
 			NV(number, HWBUF_BLKSZ);
 			NV(number, HWBUF_BLKCNT);
 			NV(number, HWBUF_FREE);
 			NV(number, HWBUF_READY);
 			NV(number, SWBUF_FORMAT);
+			NV(number, SWBUF_RATE);
 			NV(number, SWBUF_SIZE);
 			NV(number, SWBUF_BLKSZ);
 			NV(number, SWBUF_BLKCNT);

@@ -106,6 +106,7 @@
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_radix.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
@@ -170,6 +171,7 @@ static void
 vm_swapout_object_deactivate(pmap_t pmap, vm_object_t first_object,
     long desired)
 {
+	struct pctrie_iter pages;
 	vm_object_t backing_object, object;
 	vm_page_t m;
 	bool unmap;
@@ -192,7 +194,8 @@ vm_swapout_object_deactivate(pmap_t pmap, vm_object_t first_object,
 		/*
 		 * Scan the object's entire memory queue.
 		 */
-		TAILQ_FOREACH(m, &object->memq, listq) {
+		vm_page_iter_init(&pages, object);
+		VM_RADIX_FOREACH(m, &pages) {
 			if (pmap_resident_count(pmap) <= desired)
 				goto unlock_return;
 			if (should_yield())

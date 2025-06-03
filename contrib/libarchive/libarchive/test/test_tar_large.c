@@ -99,7 +99,7 @@ memory_write(struct archive *a, void *_private, const void *buff, size_t size)
 	} else {
 		/* Yes, we're assuming the very first write is metadata. */
 		/* It's header or metadata, copy and save it. */
-		block = (struct memblock *)malloc(sizeof(*block));
+		block = malloc(sizeof(*block));
 		memset(block, 0, sizeof(*block));
 		block->size = size;
 		block->buff = malloc(size);
@@ -175,7 +175,7 @@ memory_read_skip(struct archive *a, void *_private, int64_t skip)
 	}
 	if (private->filebytes > 0) {
 		if (private->filebytes < skip)
-			skip = (off_t)private->filebytes;
+			skip = private->filebytes;
 		private->filebytes -= skip;
 	} else {
 		skip = 0;

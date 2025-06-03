@@ -63,6 +63,7 @@
 #include <sysexits.h>
 #include <unistd.h>
 #include <ifaddrs.h>
+#include <inttypes.h>
 
 /* XXX */
 enum ieee80211_notify_cac_event {
@@ -74,7 +75,7 @@ enum ieee80211_notify_cac_event {
 
 static	void print_rtmsg(struct rt_msghdr *rtm, int msglen);
 
-int	nflag = 0;
+static int	nflag = 0;
 
 int
 main(int argc, char *argv[])
@@ -121,22 +122,17 @@ bprintf(FILE *fp, int b, char *s)
 		putc('>', fp);
 }
 
-char metricnames[] =
-"\011pksent\010rttvar\7rtt\6ssthresh\5sendpipe\4recvpipe\3expire\2hopcount"
-"\1mtu";
-char routeflags[] =
-"\1UP\2GATEWAY\3HOST\4REJECT\5DYNAMIC\6MODIFIED\7DONE\010MASK_PRESENT"
-"\011CLONING\012XRESOLVE\013LLINFO\014STATIC\015BLACKHOLE\016b016"
-"\017PROTO2\020PROTO1\021PRCLONING\022WASCLONED\023PROTO3\024CHAINDELETE"
-"\025PINNED\026LOCAL\027BROADCAST\030MULTICAST";
-char ifnetflags[] =
+static char ifnetflags[] =
 "\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5PTP\6b6\7RUNNING\010NOARP"
 "\011PPROMISC\012ALLMULTI\013OACTIVE\014SIMPLEX\015LINK0\016LINK1"
 "\017LINK2\020MULTICAST";
-char addrnames[] =
+static char addrnames[] =
 "\1DST\2GATEWAY\3NETMASK\4GENMASK\5IFP\6IFA\7AUTHOR\010BRD";
 
-char defaultname[] = "default";
+static char defaultname[] = "default";
+
+#define	SOCKADDR_CNV_CONST(sa, sa_fam) \
+	((struct sa_fam *)(void *) (sa))
 
 static const char *
 routename(struct sockaddr *sa)
@@ -165,7 +161,7 @@ routename(struct sockaddr *sa)
 	    {	struct in_addr in;
 		char *cp;
 
-		in = ((struct sockaddr_in *)sa)->sin_addr;
+		in = SOCKADDR_CNV_CONST(sa, sockaddr_in)->sin_addr;
 
 		cp = NULL;
 		if (in.s_addr == INADDR_ANY || sa->sa_len < 4)
@@ -220,10 +216,10 @@ routename(struct sockaddr *sa)
 #endif
 
 	case AF_LINK:
-		return (link_ntoa((struct sockaddr_dl *)sa));
+		return (link_ntoa(SOCKADDR_CNV_CONST(sa, sockaddr_dl)));
 
 	default:
-	    {	u_short *s = (u_short *)sa;
+	    {	u_short *s = (u_short *)(void *)sa;
 		u_short *slim = s + ((sa->sa_len + 1) >> 1);
 		char *cp = line + sprintf(line, "(%d)", sa->sa_family);
 		char *cpe = line + sizeof(line);
@@ -340,7 +336,7 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 		fflush(stdout);
 		break;
 	case RTM_IEEE80211:
-#define	V(type)	((struct type *)(&ifan[1]))
+#define	V(type)	((struct type *)(void *)(&ifan[1]))
 		ifan = (struct if_announcemsghdr *)rtm;
 		printf("%.19s RTM_IEEE80211: if# %d, ", cnow, ifan->ifan_index);
 		switch (ifan->ifan_what) {
@@ -373,7 +369,8 @@ print_rtmsg(struct rt_msghdr *rtm, int msglen)
 			printf("replay failure: src %s "
 			    , ether_sprintf(V(ieee80211_replay_event)->iev_src)
 			);
-			printf("dst %s cipher %u keyix %u keyrsc %llu rsc %llu"
+			printf("dst %s cipher %u keyix %u keyrsc %" PRIu64
+			    " rsc %" PRIu64
 			    , ether_sprintf(V(ieee80211_replay_event)->iev_dst)
 			    , V(ieee80211_replay_event)->iev_cipher
 			    , V(ieee80211_replay_event)->iev_keyix

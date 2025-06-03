@@ -33,6 +33,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/msan.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/dtrace_impl.h>
@@ -67,6 +68,8 @@ dtrace_invop(uintptr_t addr, struct trapframe *frame, void **scratch)
 	struct thread *td;
 	dtrace_invop_hdlr_t *hdlr;
 	int rval;
+
+	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
 
 	td = curthread;
 	td->t_dtrace_trapframe = frame;

@@ -451,6 +451,8 @@ vop_stdpathconf(struct vop_pathconf_args *ap)
 		case _PC_DEALLOC_PRESENT:
 		case _PC_INF_PRESENT:
 		case _PC_MAC_PRESENT:
+		case _PC_NAMEDATTR_ENABLED:
+		case _PC_HAS_NAMEDATTR:
 			*ap->a_retval = 0;
 			return (0);
 		default:
@@ -1158,7 +1160,7 @@ static int
 vop_stdis_text(struct vop_is_text_args *ap)
 {
 
-	return (atomic_load_int(&ap->a_vp->v_writecount) < 0);
+	return ((int)atomic_load_int(&ap->a_vp->v_writecount) < 0);
 }
 
 int
@@ -1511,6 +1513,8 @@ vop_stdstat(struct vop_stat_args *a)
 	vap->va_fsid = VNOVAL;
 	vap->va_gen = 0;
 	vap->va_rdev = NODEV;
+	vap->va_filerev = 0;
+	vap->va_bsdflags = 0;
 
 	error = VOP_GETATTR(vp, vap, a->a_active_cred);
 	if (error)
@@ -1587,6 +1591,8 @@ vop_stdstat(struct vop_stat_args *a)
 	sb->st_flags = vap->va_flags;
 	sb->st_blocks = vap->va_bytes / S_BLKSIZE;
 	sb->st_gen = vap->va_gen;
+	sb->st_filerev = vap->va_filerev;
+	sb->st_bsdflags = vap->va_bsdflags;
 out:
 	return (vop_stat_helper_post(a, error));
 }

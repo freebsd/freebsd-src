@@ -938,7 +938,7 @@ create_socket(const char *name, int socktype)
 	return (fd);
 }
 
-static unsigned int max_clients = 10;	/* Default, can be overridden on cmdline. */
+static unsigned int max_clients = 50;	/* Default, can be overridden on cmdline. */
 static unsigned int num_clients;
 
 static list<client_t> clients;

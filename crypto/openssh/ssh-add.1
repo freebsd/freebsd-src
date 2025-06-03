@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.86 2023/12/19 06:57:34 jmc Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.87 2024/06/17 08:30:29 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: December 19 2023 $
+.Dd $Mdocdate: June 17 2024 $
 .Dt SSH-ADD 1
 .Os
 .Sh NAME
@@ -67,10 +67,9 @@ When run without arguments, it adds the files
 .Pa ~/.ssh/id_rsa ,
 .Pa ~/.ssh/id_ecdsa ,
 .Pa ~/.ssh/id_ecdsa_sk ,
-.Pa ~/.ssh/id_ed25519 ,
-.Pa ~/.ssh/id_ed25519_sk ,
+.Pa ~/.ssh/id_ed25519
 and
-.Pa ~/.ssh/id_dsa .
+.Pa ~/.ssh/id_ed25519_sk .
 After loading a private key,
 .Nm
 will try to load corresponding certificate information from the
@@ -314,13 +313,12 @@ the built-in USB HID support.
 .El
 .Sh FILES
 .Bl -tag -width Ds -compact
-.It Pa ~/.ssh/id_dsa
 .It Pa ~/.ssh/id_ecdsa
 .It Pa ~/.ssh/id_ecdsa_sk
 .It Pa ~/.ssh/id_ed25519
 .It Pa ~/.ssh/id_ed25519_sk
 .It Pa ~/.ssh/id_rsa
-Contains the DSA, ECDSA, authenticator-hosted ECDSA, Ed25519,
+Contains the ECDSA, authenticator-hosted ECDSA, Ed25519,
 authenticator-hosted Ed25519 or RSA authentication identity of the user.
 .El
 .Pp

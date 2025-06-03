@@ -620,6 +620,7 @@ extern int dt_version_defined(dt_version_t);
  */
 extern char *dt_cpp_add_arg(dtrace_hdl_t *, const char *);
 extern char *dt_cpp_pop_arg(dtrace_hdl_t *);
+extern int dt_cpu_maxid(dtrace_hdl_t *);
 
 #ifdef illumos
 extern int dt_set_errno(dtrace_hdl_t *, int);

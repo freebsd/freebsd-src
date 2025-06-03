@@ -121,7 +121,7 @@ void
 pbnumbase(int n, int base, int d)
 {
 	static char digits[36] = "0123456789abcdefghijklmnopqrstuvwxyz";
-	int num;
+	unsigned int num;
 	int printed = 0;
 
 	if (base > 36)

@@ -16,9 +16,10 @@ SRCS=	_secure_path.c auth.c cpuset.c expand_number.c flopen.c fparseln.c \
 	kinfo_getvmobject.c kld.c \
 	login_auth.c login_cap.c \
 	login_class.c login_crypt.c login_ok.c login_times.c login_tty.c \
+	mntopts.c \
 	pidfile.c property.c pty.c pw_scan.c pw_util.c quotafile.c \
 	realhostname.c stub.c trimdomain.c uucplock.c
-INCS=	libutil.h login_cap.h
+INCS=	libutil.h login_cap.h mntopts.h
 
 CFLAGS+= -DNO__SCCSID
 
@@ -32,7 +33,8 @@ MAN+=	cpuset.3 expand_number.3 flopen.3 fparseln.3 ftime.3 getlocalbase.3 \
 	hexdump.3 humanize_number.3 kinfo_getallproc.3 kinfo_getfile.3 \
 	kinfo_getproc.3 kinfo_getvmmap.3 kinfo_getvmobject.3 kld.3 \
 	login_auth.3 login_cap.3 \
-	login_class.3 login_ok.3 login_times.3 login_tty.3 pidfile.3 \
+	login_class.3 login_ok.3 login_times.3 login_tty.3 mntopts.3 \
+	pidfile.3 \
 	property.3 pty.3 quotafile.3 realhostname.3 realhostname_sa.3 \
 	_secure_path.3 trimdomain.3 uucplock.3 pw_util.3
 MAN+=	login.conf.5
@@ -54,6 +56,14 @@ MLINKS+=login_times.3 in_lt.3 login_times.3 in_ltm.3 \
 	login_times.3 in_ltms.3 \
 	login_times.3 in_lts.3 \
 	login_times.3 parse_lt.3
+MLINKS+=mntopts.3 getmntopts.3 \
+	mntopts.3 getmntpoint.3 \
+	mntopts.3 chkdoreload.3 \
+	mntopts.3 build_iovec.3 \
+	mntopts.3 build_iovec_argf.3 \
+	mntopts.3 free_iovec.3 \
+	mntopts.3 checkpath.3 \
+	mntopts.3 rmslashes.3
 MLINKS+=pidfile.3 pidfile_close.3 \
 	pidfile.3 pidfile_fileno.3 \
 	pidfile.3 pidfile_open.3 \

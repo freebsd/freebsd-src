@@ -238,8 +238,7 @@ lpt_port_test(device_t ppbus, u_char data, u_char mask)
 	do {
 		DELAY(10);
 		temp = ppb_rdtr(ppbus) & mask;
-	}
-	while (temp != data && --timeout);
+	} while (temp != data && --timeout);
 	lprintf(("out=%x\tin=%x\ttout=%d\n", data, temp, timeout));
 	return (temp == data);
 }
@@ -560,9 +559,7 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		}
 
 		/* is printer online and ready for output */
-	} while ((ppb_rstr(ppbus) &
-			(LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
-					(LPS_SEL|LPS_NBSY|LPS_NERR));
+	} while ((ppb_rstr(ppbus) & RDY_MASK) != LP_READY);
 
 	sc->sc_control = LPC_SEL|LPC_NINIT;
 	if (sc->sc_flags & LP_AUTOLF)
@@ -619,9 +616,7 @@ lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	/* if the last write was interrupted, don't complete it */
 	if ((!(sc->sc_state  & INTERRUPTED)) && (sc->sc_irq & LP_USE_IRQ))
-		while ((ppb_rstr(ppbus) &
-			(LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
-			(LPS_SEL|LPS_NBSY|LPS_NERR) || sc->sc_xfercnt)
+		while ((ppb_rstr(ppbus) & RDY_MASK) != LP_READY || sc->sc_xfercnt)
 			/* wait 1 second, give up if we get a signal */
 			if (ppb_sleep(ppbus, lptdev, LPPRI | PCATCH, "lpclose",
 			    hz) != EWOULDBLOCK)

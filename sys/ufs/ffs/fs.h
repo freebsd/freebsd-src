@@ -411,7 +411,8 @@ struct fs {
 	int64_t	 fs_unrefs;		/* number of unreferenced inodes */
 	int64_t  fs_providersize;	/* size of underlying GEOM provider */
 	int64_t	 fs_metaspace;		/* size of area reserved for metadata */
-	int64_t	 fs_sparecon64[13];	/* old rotation block list head */
+	uint64_t fs_save_maxfilesize;	/* save old UFS1 maxfilesize */
+	int64_t	 fs_sparecon64[12];	/* old rotation block list head */
 	int64_t	 fs_sblockactualloc;	/* byte offset of this superblock */
 	int64_t	 fs_sblockloc;		/* byte offset of standard superblock */
 	struct	csum_total fs_cstotal;	/* (u) cylinder summary information */
@@ -424,7 +425,7 @@ struct fs {
 	uint32_t fs_snapinum[FSMAXSNAP];/* list of snapshot inode numbers */
 	uint32_t fs_avgfilesize;	/* expected average file size */
 	uint32_t fs_avgfpdir;		/* expected # of files per directory */
-	int32_t	 fs_save_cgsize;	/* save real cg size to use fs_bsize */
+	uint32_t fs_available_spare;	/* old scratch space */
 	ufs_time_t fs_mtime;		/* Last mount or fsck time. */
 	int32_t  fs_sujfree;		/* SUJ free list */
 	int32_t	 fs_sparecon32[21];	/* reserved for future constants */

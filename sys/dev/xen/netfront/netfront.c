@@ -1029,27 +1029,6 @@ out:
 	return (error);
 }
 
-#ifdef INET
-static u_int
-netfront_addr_cb(void *arg, struct ifaddr *a, u_int count)
-{
-	arp_ifinit((if_t)arg, a);
-	return (1);
-}
-/**
- * If this interface has an ipv4 address, send an arp for it. This
- * helps to get the network going again after migrating hosts.
- */
-static void
-netfront_send_fake_arp(device_t dev, struct netfront_info *info)
-{
-	if_t ifp;
-
-	ifp = info->xn_ifp;
-	if_foreach_addr_type(ifp, AF_INET, netfront_addr_cb, ifp);
-}
-#endif
-
 /**
  * Callback received when the backend's state changes.
  */
@@ -1090,7 +1069,12 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		break;
 	case XenbusStateConnected:
 #ifdef INET
-		netfront_send_fake_arp(dev, sc);
+		/*
+		 * If this interface has an ipv4 address, send an arp for it.
+		 * This helps to get the network going again after migrating
+		 * hosts.
+		 */
+		EVENTHANDLER_INVOKE(iflladdr_event, sc->xn_ifp);
 #endif
 		break;
 	}

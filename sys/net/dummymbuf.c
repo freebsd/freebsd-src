@@ -37,8 +37,11 @@
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_private.h>
 #include <net/vnet.h>
 #include <net/pfil.h>
+
+static int validate_rules(const char *);
 
 /*
  * Separate sysctl sub-tree
@@ -65,6 +68,7 @@ VNET_DEFINE_STATIC(struct sx,	dmb_rules_lock);
 #define DMB_RULES_SUNLOCK()	sx_sunlock(&V_dmb_rules_lock)
 #define DMB_RULES_XLOCK()	sx_xlock(&V_dmb_rules_lock)
 #define DMB_RULES_XUNLOCK()	sx_xunlock(&V_dmb_rules_lock)
+#define DMB_RULES_LOCK_ASSERT()	sx_assert(&V_dmb_rules_lock, SA_LOCKED)
 
 static int
 dmb_sysctl_handle_rules(SYSCTL_HANDLER_ARGS)
@@ -86,12 +90,14 @@ dmb_sysctl_handle_rules(SYSCTL_HANDLER_ARGS)
 	} else {
 		/* read and write */
 		DMB_RULES_XLOCK();
-		if (*rulesp == NULL) {
-			*rulesp = malloc(arg2, M_DUMMYMBUF_RULES,
-			    M_WAITOK | M_ZERO);
-		}
-		arg1 = *rulesp;
+		arg1 = malloc(arg2, M_DUMMYMBUF_RULES, M_WAITOK | M_ZERO);
 		error = sysctl_handle_string(oidp, arg1, arg2, req);
+		if (error == 0 && (error = validate_rules(arg1)) == 0) {
+			free(*rulesp, M_DUMMYMBUF_RULES);
+			*rulesp = arg1;
+			arg1 = NULL;
+		}
+		free(arg1, M_DUMMYMBUF_RULES);
 		DMB_RULES_XUNLOCK();
 	}
 
@@ -101,7 +107,7 @@ dmb_sysctl_handle_rules(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_dummymbuf, OID_AUTO, rules,
     CTLTYPE_STRING | CTLFLAG_MPSAFE | CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(dmb_rules), RULES_MAXLEN, dmb_sysctl_handle_rules, "A",
-    "{inet | inet6 | ethernet} {in | out} <ifname> <opname>[<opargs>]; ...;");
+    "{inet|inet6|ethernet} {in|out} <ifname> <opname>[ <opargs>]; ...;");
 
 /*
  * Statistics
@@ -135,12 +141,18 @@ VNET_DEFINE_STATIC(pfil_hook_t,		dmb_pfil_ethernet_hook);
  * Logging
  */
 
-#define FEEDBACK(pfil_type, pfil_flags, ifp, rule, msg)			\
+#define FEEDBACK_RULE(rule, msg)					\
+	printf("dummymbuf: %s: %.*s\n",					\
+	    (msg),							\
+	    (rule).syntax_len, (rule).syntax_begin			\
+	)
+
+#define FEEDBACK_PFIL(pfil_type, pfil_flags, ifp, rule, msg)		\
 	printf("dummymbuf: %s %b %s: %s: %.*s\n",			\
-	    (pfil_type == PFIL_TYPE_IP4 ?	"PFIL_TYPE_IP4" :	\
-	     pfil_type == PFIL_TYPE_IP6 ?	"PFIL_TYPE_IP6" :	\
-	     pfil_type == PFIL_TYPE_ETHERNET ?	"PFIL_TYPE_ETHERNET" :	\
-						"PFIL_TYPE_UNKNOWN"),	\
+	    ((pfil_type) == PFIL_TYPE_IP4 ?	 "PFIL_TYPE_IP4" :	\
+	     (pfil_type) == PFIL_TYPE_IP6 ?	 "PFIL_TYPE_IP6" :	\
+	     (pfil_type) == PFIL_TYPE_ETHERNET ? "PFIL_TYPE_ETHERNET" :	\
+						 "PFIL_TYPE_UNKNOWN"),	\
 	    (pfil_flags), "\20\21PFIL_IN\22PFIL_OUT",			\
 	    (ifp)->if_xname,						\
 	    (msg),							\
@@ -197,10 +209,41 @@ bad:
 	return (NULL);
 }
 
-static bool
-read_rule(const char **cur, struct rule *rule)
+static struct mbuf *
+dmb_m_enlarge(struct mbuf *m, struct rule *rule)
 {
-	// {inet | inet6 | ethernet} {in | out} <ifname> <opname>[ <opargs>];
+	struct mbuf *n;
+	int size;
+
+	size = (int)strtol(rule->opargs, NULL, 10);
+	if (size < 0 || size > MJUM16BYTES)
+		goto bad;
+
+	if (!(m->m_flags & M_PKTHDR))
+		goto bad;
+	if (m->m_pkthdr.len <= 0)
+		return (m);
+
+	if ((n = m_get3(size, M_NOWAIT, MT_DATA, M_PKTHDR)) == NULL)
+		goto bad;
+
+	m_move_pkthdr(n, m);
+	m_copydata(m, 0, m->m_pkthdr.len, n->m_ext.ext_buf);
+	n->m_len = m->m_pkthdr.len;
+
+	n->m_next = m;
+
+	return (n);
+
+bad:
+	m_freem(m);
+	return (NULL);
+}
+
+static bool
+read_rule(const char **cur, struct rule *rule, bool *eof)
+{
+	/* {inet|inet6|ethernet} {in|out} <ifname> <opname>[ <opargs>]; */
 
 	rule->syntax_begin = NULL;
 	rule->syntax_len = 0;
@@ -208,18 +251,19 @@ read_rule(const char **cur, struct rule *rule)
 	if (*cur == NULL)
 		return (false);
 
-	// syntax_begin
+	/* syntax_begin */
 	while (**cur == ' ')
 		(*cur)++;
 	rule->syntax_begin = *cur;
+	rule->syntax_len = strlen(rule->syntax_begin);
 
-	// syntax_len
+	/* syntax_len */
 	char *delim = strchr(*cur, ';');
 	if (delim == NULL)
 		return (false);
 	rule->syntax_len = (int)(delim - *cur + 1);
 
-	// pfil_type
+	/* pfil_type */
 	if (strstr(*cur, "inet6") == *cur) {
 		rule->pfil_type = PFIL_TYPE_IP6;
 		*cur += strlen("inet6");
@@ -235,7 +279,7 @@ read_rule(const char **cur, struct rule *rule)
 	while (**cur == ' ')
 		(*cur)++;
 
-	// pfil_dir
+	/* pfil_dir */
 	if (strstr(*cur, "in") == *cur) {
 		rule->pfil_dir = PFIL_IN;
 		*cur += strlen("in");
@@ -248,7 +292,7 @@ read_rule(const char **cur, struct rule *rule)
 	while (**cur == ' ')
 		(*cur)++;
 
-	// ifname
+	/* ifname */
 	char *sp = strchr(*cur, ' ');
 	if (sp == NULL || sp > delim)
 		return (false);
@@ -261,24 +305,53 @@ read_rule(const char **cur, struct rule *rule)
 	while (**cur == ' ')
 		(*cur)++;
 
-	// opname
+	/* opname */
 	if (strstr(*cur, "pull-head") == *cur) {
 		rule->op = dmb_m_pull_head;
 		*cur += strlen("pull-head");
+	} else if (strstr(*cur, "enlarge") == *cur) {
+		rule->op = dmb_m_enlarge;
+		*cur += strlen("enlarge");
 	} else {
 		return (false);
 	}
 	while (**cur == ' ')
 		(*cur)++;
 
-	// opargs
+	/* opargs */
 	if (*cur > delim)
 		return (false);
 	rule->opargs = *cur;
 
+	/* the next rule & eof */
 	*cur = delim + 1;
+	while (**cur == ' ')
+		(*cur)++;
+	*eof = strlen(*cur) == 0;
 
 	return (true);
+}
+
+static int
+validate_rules(const char *rules)
+{
+	const char *cursor = rules;
+	bool parsed;
+	struct rule rule;
+	bool eof = false;
+
+	DMB_RULES_LOCK_ASSERT();
+
+	while (!eof && (parsed = read_rule(&cursor, &rule, &eof))) {
+		/* noop */
+	}
+
+	if (!parsed) {
+		FEEDBACK_RULE(rule, "rule parsing failed");
+		return (EINVAL);
+	}
+
+	return (0);
 }
 
 static pfil_return_t
@@ -289,26 +362,26 @@ dmb_pfil_mbuf_chk(int pfil_type, struct mbuf **mp, struct ifnet *ifp,
 	const char *cursor;
 	bool parsed;
 	struct rule rule;
+	bool eof = false;
 
 	DMB_RULES_SLOCK();
 	cursor = V_dmb_rules;
-	while ((parsed = read_rule(&cursor, &rule))) {
+	while (!eof && (parsed = read_rule(&cursor, &rule, &eof))) {
 		if (rule.pfil_type == pfil_type &&
 		    rule.pfil_dir == (flags & rule.pfil_dir)  &&
 		    strcmp(rule.ifname, ifp->if_xname) == 0) {
 			m = rule.op(m, &rule);
 			if (m == NULL) {
-				FEEDBACK(pfil_type, flags, ifp, rule,
+				FEEDBACK_PFIL(pfil_type, flags, ifp, rule,
 				    "mbuf operation failed");
 				break;
 			}
 			counter_u64_add(V_dmb_hits, 1);
 		}
-		if (strlen(cursor) == 0)
-			break;
 	}
 	if (!parsed) {
-		FEEDBACK(pfil_type, flags, ifp, rule, "rule parsing failed");
+		FEEDBACK_PFIL(pfil_type, flags, ifp, rule,
+		    "rule parsing failed");
 		m_freem(m);
 		m = NULL;
 	}
@@ -398,7 +471,7 @@ dmb_pfil_uninit(void)
 }
 
 static void
-vnet_dmb_init(void *unused __unused)
+vnet_dmb_init(const void *unused __unused)
 {
 	sx_init(&V_dmb_rules_lock, "dummymbuf rules");
 	V_dmb_hits = counter_u64_alloc(M_WAITOK);
@@ -408,7 +481,7 @@ VNET_SYSINIT(vnet_dmb_init, SI_SUB_PROTO_PFIL, SI_ORDER_ANY,
     vnet_dmb_init, NULL);
 
 static void
-vnet_dmb_uninit(void *unused __unused)
+vnet_dmb_uninit(const void *unused __unused)
 {
 	dmb_pfil_uninit();
 	counter_u64_free(V_dmb_hits);

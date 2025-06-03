@@ -278,19 +278,18 @@ static void	if_input_default(struct ifnet *, struct mbuf *);
 static int	if_requestencap_default(struct ifnet *, struct if_encap_req *);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
 static int	if_transmit_default(struct ifnet *ifp, struct mbuf *m);
-static void	if_unroute(struct ifnet *, int flag, int fam);
 static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
 static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
 static void	if_attach_internal(struct ifnet *, bool);
-static int	if_detach_internal(struct ifnet *, bool);
+static void	if_detach_internal(struct ifnet *, bool);
 static void	if_siocaddmulti(void *, int);
 static void	if_link_ifnet(struct ifnet *);
 static bool	if_unlink_ifnet(struct ifnet *, bool);
 #ifdef VIMAGE
-static int	if_vmove(struct ifnet *, struct vnet *);
+static void	if_vmove(struct ifnet *, struct vnet *);
 #endif
 
 #ifdef INET6
@@ -433,7 +432,6 @@ vnet_if_init(const void *unused __unused)
 
 	CK_STAILQ_INIT(&V_ifnet);
 	CK_STAILQ_INIT(&V_ifg_head);
-	vnet_if_clone_init();
 }
 VNET_SYSINIT(vnet_if_init, SI_SUB_INIT_IF, SI_ORDER_SECOND, vnet_if_init,
     NULL);
@@ -832,6 +830,7 @@ if_attach_internal(struct ifnet *ifp, bool vmove)
 	MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
 
 #ifdef VIMAGE
+	CURVNET_ASSERT_SET();
 	ifp->if_vnet = curvnet;
 	if (ifp->if_home_vnet == NULL)
 		ifp->if_home_vnet = curvnet;
@@ -871,7 +870,7 @@ if_attach_internal(struct ifnet *ifp, bool vmove)
 		 */
 		namelen = strlen(ifp->if_xname);
 		/*
-		 * Always save enough space for any possiable name so we
+		 * Always save enough space for any possible name so we
 		 * can do a rename in place later.
 		 */
 		masklen = offsetof(struct sockaddr_dl, sdl_data[0]) + IFNAMSIZ;
@@ -947,10 +946,10 @@ if_attach_internal(struct ifnet *ifp, bool vmove)
 	}
 #endif
 
-	if_link_ifnet(ifp);
-
 	if (domain_init_status >= 2)
 		if_attachdomain1(ifp);
+
+	if_link_ifnet(ifp);
 
 	EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
 	if (IS_DEFAULT_VNET(curvnet))
@@ -1112,7 +1111,7 @@ if_detach(struct ifnet *ifp)
  * on a vnet instance shutdown without this flag being set, e.g., when
  * the cloned interfaces are destoyed as first thing of teardown.
  */
-static int
+static void
 if_detach_internal(struct ifnet *ifp, bool vmove)
 {
 	struct ifaddr *ifa;
@@ -1243,7 +1242,7 @@ finish_vnet_shutdown:
 	ifp->if_afdata_initialized = 0;
 	IF_AFDATA_UNLOCK(ifp);
 	if (i == 0)
-		return (0);
+		return;
 	SLIST_FOREACH(dp, &domains, dom_next) {
 		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family]) {
 			(*dp->dom_ifdetach)(ifp,
@@ -1251,8 +1250,6 @@ finish_vnet_shutdown:
 			ifp->if_afdata[dp->dom_family] = NULL;
 		}
 	}
-
-	return (0);
 }
 
 #ifdef VIMAGE
@@ -1260,19 +1257,21 @@ finish_vnet_shutdown:
  * if_vmove() performs a limited version of if_detach() in current
  * vnet and if_attach()es the ifnet to the vnet specified as 2nd arg.
  */
-static int
+static void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
-	int rc;
+#ifdef DEV_BPF
+	/*
+	 * Detach BPF file descriptors from its interface.
+	 */
+	bpf_ifdetach(ifp);
+#endif
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
 	 * mark as dead etc. so that the ifnet can be reattached later.
-	 * If we cannot find it, we lost the race to someone else.
 	 */
-	rc = if_detach_internal(ifp, true);
-	if (rc != 0)
-		return (rc);
+	if_detach_internal(ifp, true);
 
 	/*
 	 * Perform interface-specific reassignment tasks, if provided by
@@ -1287,7 +1286,6 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	CURVNET_SET_QUIET(new_vnet);
 	if_attach_internal(ifp, true);
 	CURVNET_RESTORE();
-	return (0);
 }
 
 /*
@@ -1298,8 +1296,7 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 {
 	struct prison *pr;
 	struct ifnet *difp;
-	int error;
-	bool found __diagused;
+	bool found;
 	bool shutdown;
 
 	MPASS(ifindex_table[ifp->if_index].ife_ifnet == ifp);
@@ -1346,16 +1343,15 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	}
 
 	/* Move the interface into the child jail/vnet. */
-	error = if_vmove(ifp, pr->pr_vnet);
+	if_vmove(ifp, pr->pr_vnet);
 
-	/* Report the new if_xname back to the userland on success. */
-	if (error == 0)
-		sprintf(ifname, "%s", ifp->if_xname);
+	/* Report the new if_xname back to the userland. */
+	sprintf(ifname, "%s", ifp->if_xname);
 
 	sx_xunlock(&ifnet_detach_sxlock);
 
 	prison_free(pr);
-	return (error);
+	return (0);
 }
 
 static int
@@ -1364,7 +1360,7 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	struct prison *pr;
 	struct vnet *vnet_dst;
 	struct ifnet *ifp;
-	int error, found __diagused;
+	int found __diagused;
  	bool shutdown;
 
 	/* Try to find the prison within our visibility. */
@@ -1405,16 +1401,15 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	found = if_unlink_ifnet(ifp, true);
 	MPASS(found);
 	sx_xlock(&ifnet_detach_sxlock);
-	error = if_vmove(ifp, vnet_dst);
+	if_vmove(ifp, vnet_dst);
 	sx_xunlock(&ifnet_detach_sxlock);
 	CURVNET_RESTORE();
 
-	/* Report the new if_xname back to the userland on success. */
-	if (error == 0)
-		sprintf(ifname, "%s", ifp->if_xname);
+	/* Report the new if_xname back to the userland. */
+	sprintf(ifname, "%s", ifp->if_xname);
 
 	prison_free(pr);
-	return (error);
+	return (0);
 }
 #endif /* VIMAGE */
 
@@ -1798,13 +1793,16 @@ ifa_free(struct ifaddr *ifa)
  * structs used to represent other address families, it is necessary
  * to perform a different comparison.
  */
+static bool
+sa_dl_equal(const struct sockaddr *a, const struct sockaddr *b)
+{
+	const struct sockaddr_dl *sdl1 = (const struct sockaddr_dl *)a;
+	const struct sockaddr_dl *sdl2 = (const struct sockaddr_dl *)b;
 
-#define	sa_dl_equal(a1, a2)	\
-	((((const struct sockaddr_dl *)(a1))->sdl_len ==		\
-	 ((const struct sockaddr_dl *)(a2))->sdl_len) &&		\
-	 (bcmp(CLLADDR((const struct sockaddr_dl *)(a1)),		\
-	       CLLADDR((const struct sockaddr_dl *)(a2)),		\
-	       ((const struct sockaddr_dl *)(a1))->sdl_alen) == 0))
+	return (sdl1->sdl_len == sdl2->sdl_len &&
+	    bcmp(sdl1->sdl_data + sdl1->sdl_nlen,
+	    sdl2->sdl_data + sdl2->sdl_nlen, sdl1->sdl_alen) == 0);
+}
 
 /*
  * Locate an interface based on a complete address.
@@ -2098,25 +2096,6 @@ link_init_sdl(struct ifnet *ifp, struct sockaddr *paddr, u_char iftype)
 	return (sdl);
 }
 
-/*
- * Mark an interface down and notify protocols of
- * the transition.
- */
-static void
-if_unroute(struct ifnet *ifp, int flag, int fam)
-{
-
-	KASSERT(flag == IFF_UP, ("if_unroute: flag != IFF_UP"));
-
-	ifp->if_flags &= ~flag;
-	getmicrotime(&ifp->if_lastchange);
-	ifp->if_qflush(ifp);
-
-	if (ifp->if_carp)
-		(*carp_linkstate_p)(ifp);
-	rt_ifmsg(ifp, IFF_UP);
-}
-
 void	(*vlan_link_state_p)(struct ifnet *);	/* XXX: private from if_vlan */
 void	(*vlan_trunk_cap_p)(struct ifnet *);		/* XXX: private from if_vlan */
 struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
@@ -2191,7 +2170,14 @@ if_down(struct ifnet *ifp)
 {
 
 	EVENTHANDLER_INVOKE(ifnet_event, ifp, IFNET_EVENT_DOWN);
-	if_unroute(ifp, IFF_UP, AF_UNSPEC);
+
+	ifp->if_flags &= ~IFF_UP;
+	getmicrotime(&ifp->if_lastchange);
+	ifp->if_qflush(ifp);
+
+	if (ifp->if_carp)
+		(*carp_linkstate_p)(ifp);
+	rt_ifmsg(ifp, IFF_UP);
 }
 
 /*
@@ -4884,7 +4870,7 @@ if_setifheaderlen(if_t ifp, int len)
 	return (0);
 }
 
-caddr_t
+char *
 if_getlladdr(const if_t ifp)
 {
 	return (IF_LLADDR(ifp));

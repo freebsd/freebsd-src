@@ -43,11 +43,22 @@
 
 #include "clkdev_if.h"
 
+#define ARMADA38X_GATECLK_MAXREG 0
+
+static struct resource_spec armada38x_gateclk_specs[] = {
+	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
+	{ -1, 0 }
+};
+
+#define	RD4(_sc, addr)		bus_read_4(_sc->res, addr)
+#define	WR4(_sc, addr, val)	bus_write_4(_sc->res, addr, val)
+
 struct armada38x_gateclk_softc
 {
-	struct clkdom   *clkdom;
-	struct mtx  mtx;
-	const char* parent;
+	struct resource	*res;
+	struct clkdom	*clkdom;
+	struct mtx	mtx;
+	const char*	parent;
 };
 
 static struct clk_gate_def gateclk_nodes[] =
@@ -219,9 +230,74 @@ static struct clk_gate_def gateclk_nodes[] =
 static int armada38x_gateclk_probe(device_t dev);
 static int armada38x_gateclk_attach(device_t dev);
 
+static int
+armada38x_gateclk_write_4(device_t dev, bus_addr_t addr, uint32_t val)
+{
+	struct armada38x_gateclk_softc *sc = device_get_softc(dev);
+
+	if (addr > ARMADA38X_GATECLK_MAXREG)
+		return (EINVAL);
+
+	WR4(sc, addr, val);
+	return (0);
+}
+
+static int
+armada38x_gateclk_read_4(device_t dev, bus_addr_t addr, uint32_t *val)
+{
+	struct armada38x_gateclk_softc *sc = device_get_softc(dev);
+
+	if (addr > ARMADA38X_GATECLK_MAXREG)
+		return (EINVAL);
+
+	*val = RD4(sc, addr);
+	return (0);
+}
+
+static int
+armada38x_gateclk_modify_4(device_t dev, bus_addr_t addr, uint32_t clr,
+    uint32_t set)
+{
+	struct armada38x_gateclk_softc *sc = device_get_softc(dev);
+	uint32_t reg;
+
+	if (addr > ARMADA38X_GATECLK_MAXREG)
+		return (EINVAL);
+
+	reg = RD4(sc, addr);
+	reg &= ~clr;
+	reg |= set;
+	WR4(sc, addr, reg);
+
+	return (0);
+}
+
+static void
+armada38x_gateclk_device_lock(device_t dev)
+{
+	struct armada38x_gateclk_softc *sc = device_get_softc(dev);
+
+	mtx_lock(&sc->mtx);
+}
+
+static void
+armada38x_gateclk_device_unlock(device_t dev)
+{
+	struct armada38x_gateclk_softc *sc = device_get_softc(dev);
+
+	mtx_unlock(&sc->mtx);
+}
+
 static device_method_t armada38x_gateclk_methods[] = {
 	DEVMETHOD(device_probe,		armada38x_gateclk_probe),
 	DEVMETHOD(device_attach,	armada38x_gateclk_attach),
+
+	/* clkdev interface */
+	DEVMETHOD(clkdev_write_4,	armada38x_gateclk_write_4),
+	DEVMETHOD(clkdev_read_4,	armada38x_gateclk_read_4),
+	DEVMETHOD(clkdev_modify_4,	armada38x_gateclk_modify_4),
+	DEVMETHOD(clkdev_device_lock,	armada38x_gateclk_device_lock),
+	DEVMETHOD(clkdev_device_unlock,	armada38x_gateclk_device_unlock),
 
 	DEVMETHOD_END
 };
@@ -254,12 +330,18 @@ static int
 armada38x_gateclk_attach(device_t dev)
 {
 	struct armada38x_gateclk_softc *sc;
+	struct clk_gate_def *defp;
 	phandle_t node;
 	int i, error;
 	clk_t clock;
 
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
+
+	if (bus_alloc_resources(dev, armada38x_gateclk_specs, &sc->res) != 0) {
+		device_printf(dev, "Cannot allocate resources.\n");
+		return (ENXIO);
+	}
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
@@ -276,8 +358,15 @@ armada38x_gateclk_attach(device_t dev)
 	sc->parent = clk_get_name(clock);
 
 	for (i = 0; i < nitems(gateclk_nodes); ++i) {
-		gateclk_nodes[i].clkdef.parent_names = &sc->parent;
-		error = clknode_gate_register(sc->clkdom, &gateclk_nodes[i]);
+		/* Fill clk_gate fields. */
+		defp = &gateclk_nodes[i];
+		defp->clkdef.parent_names = &sc->parent;
+		defp->offset = 0;
+		defp->mask = 0x1;
+		defp->on_value = 1;
+		defp->off_value = 0;
+
+		error = clknode_gate_register(sc->clkdom, defp);
 		if (error != 0) {
 			device_printf(dev, "Cannot create gate nodes\n");
 			return (error);

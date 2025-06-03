@@ -8,6 +8,7 @@
 #ifndef __NVMF_TRANSPORT_INTERNAL_H__
 #define	__NVMF_TRANSPORT_INTERNAL_H__
 
+#include <sys/_nv.h>
 #include <sys/memdesc.h>
 
 /*
@@ -21,7 +22,7 @@ struct nvmf_io_request;
 struct nvmf_transport_ops {
 	/* Queue pair management. */
 	struct nvmf_qpair *(*allocate_qpair)(bool controller,
-	    const struct nvmf_handoff_qpair_params *params);
+	    const nvlist_t *nvl);
 	void (*free_qpair)(struct nvmf_qpair *qp);
 
 	/* Capsule operations. */

@@ -47,8 +47,8 @@
 #include <fs/cd9660/iso_rrip.h>
 
 struct cd9660_ino_alloc_arg {
-	cd_ino_t ino;
-	cd_ino_t i_ino;
+	ino_t ino;
+	ino_t i_ino;
 	struct iso_directory_record *ep;
 };
 
@@ -115,7 +115,7 @@ cd9660_lookup(struct vop_cachedlookup_args *ap)
 	struct cd9660_ino_alloc_arg dd_arg;
 	u_long bmask;			/* block offset mask */
 	int error;
-	cd_ino_t ino, i_ino;
+	ino_t ino, i_ino;
 	int ltype, reclen;
 	u_short namelen;
 	int isoflags;
@@ -125,7 +125,7 @@ cd9660_lookup(struct vop_cachedlookup_args *ap)
 	char *name;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
-	int flags = cnp->cn_flags;
+	uint64_t flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 
 	ep2 = ep = NULL;

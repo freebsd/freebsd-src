@@ -287,18 +287,22 @@ linux_pci_find(device_t dev, const struct pci_device_id **idp)
 struct pci_dev *
 lkpi_pci_get_device(uint16_t vendor, uint16_t device, struct pci_dev *odev)
 {
-	struct pci_dev *pdev;
+	struct pci_dev *pdev, *found;
 
 	KASSERT(odev == NULL, ("%s: odev argument not yet supported\n", __func__));
 
+	found = NULL;
 	spin_lock(&pci_lock);
 	list_for_each_entry(pdev, &pci_devices, links) {
-		if (pdev->vendor == vendor && pdev->device == device)
+		if (pdev->vendor == vendor && pdev->device == device) {
+			found = pdev;
 			break;
+		}
 	}
+	pci_dev_get(found);
 	spin_unlock(&pci_lock);
 
-	return (pdev);
+	return (found);
 }
 
 static void
@@ -309,9 +313,18 @@ lkpi_pci_dev_release(struct device *dev)
 	spin_lock_destroy(&dev->devres_lock);
 }
 
-static void
+static int
 lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 {
+	int error;
+
+	error = kobject_init_and_add(&pdev->dev.kobj, &linux_dev_ktype,
+	    &linux_root_device.kobj, device_get_nameunit(dev));
+	if (error != 0) {
+		printf("%s:%d: kobject_init_and_add returned %d\n",
+		    __func__, __LINE__, error);
+		return (error);
+	}
 
 	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
 	pdev->vendor = pci_get_vendor(dev);
@@ -341,12 +354,10 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 		pdev->msi_desc = malloc(pci_msi_count(dev) *
 		    sizeof(*pdev->msi_desc), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
-	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
-	kobject_add(&pdev->dev.kobj, &linux_root_device.kobj,
-	    kobject_name(&pdev->dev.kobj));
 	spin_lock_init(&pdev->dev.devres_lock);
 	INIT_LIST_HEAD(&pdev->dev.devres_head);
+
+	return (0);
 }
 
 static void
@@ -374,9 +385,14 @@ struct pci_dev *
 lkpinew_pci_dev(device_t dev)
 {
 	struct pci_dev *pdev;
+	int error;
 
 	pdev = malloc(sizeof(*pdev), M_DEVBUF, M_WAITOK|M_ZERO);
-	lkpifill_pci_dev(dev, pdev);
+	error = lkpifill_pci_dev(dev, pdev);
+	if (error != 0) {
+		free(pdev, M_DEVBUF);
+		return (NULL);
+	}
 	pdev->dev.release = lkpinew_pci_dev_release;
 
 	return (pdev);
@@ -393,6 +409,24 @@ lkpi_pci_get_class(unsigned int class, struct pci_dev *from)
 		devfrom = from->dev.bsddev;
 
 	dev = pci_find_class_from(class >> 16, (class >> 8) & 0xFF, devfrom);
+	if (dev == NULL)
+		return (NULL);
+
+	pdev = lkpinew_pci_dev(dev);
+	return (pdev);
+}
+
+struct pci_dev *
+lkpi_pci_get_base_class(unsigned int baseclass, struct pci_dev *from)
+{
+	device_t dev;
+	device_t devfrom = NULL;
+	struct pci_dev *pdev;
+
+	if (from != NULL)
+		devfrom = from->dev.bsddev;
+
+	dev = pci_find_base_class_from(baseclass, devfrom);
 	if (dev == NULL)
 		return (NULL);
 
@@ -507,7 +541,10 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 		device_set_ivars(dev, dinfo);
 	}
 
-	lkpifill_pci_dev(dev, pdev);
+	error = lkpifill_pci_dev(dev, pdev);
+	if (error != 0)
+		return (error);
+
 	if (isdrm)
 		PCI_GET_ID(device_get_parent(parent), parent, PCI_ID_RID, &rid);
 	else
@@ -1306,7 +1343,7 @@ out:
 		if (error == 0 && pdev->msi_enabled)
 			return (pdev->dev.irq_end - pdev->dev.irq_start);
 	}
-	if (flags & PCI_IRQ_LEGACY) {
+	if (flags & PCI_IRQ_INTX) {
 		if (pdev->irq)
 			return (1);
 	}
@@ -1453,14 +1490,19 @@ linux_dma_map_phys_common(struct device *dev, vm_paddr_t phys, size_t len,
 	}
 
 	nseg = -1;
-	if (_bus_dmamap_load_phys(obj->dmat, obj->dmamap, phys, len,
-	    BUS_DMA_NOWAIT, &seg, &nseg) != 0) {
+	error = _bus_dmamap_load_phys(obj->dmat, obj->dmamap, phys, len,
+	    BUS_DMA_NOWAIT, &seg, &nseg);
+	if (error != 0) {
 		bus_dmamap_destroy(obj->dmat, obj->dmamap);
 		DMA_PRIV_UNLOCK(priv);
 		uma_zfree(linux_dma_obj_zone, obj);
 		counter_u64_add(lkpi_pci_nseg1_fail, 1);
-		if (linuxkpi_debug)
+		if (linuxkpi_debug) {
+			device_printf(dev->bsddev, "%s: _bus_dmamap_load_phys "
+			    "error %d, phys %#018jx len %zu\n", __func__,
+			    error, (uintmax_t)phys, len);
 			dump_stack();
+		}
 		return (0);
 	}
 

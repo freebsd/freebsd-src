@@ -314,6 +314,8 @@ jng_bridge()
 			ngctl name $iface:lower ${iface}bridge || return
 		fi
 
+		mtu=$(ifconfig ${iface} | sed -n '1s/^.*mtu //p;') || return
+
 		# Optionally create a secondary bridge
 		if [ "$bridge" != "bridge" ] &&
 		   ! ngctl info "$iface$bridge:" > /dev/null 2>&1
@@ -346,6 +348,7 @@ jng_bridge()
 			echo $2 ) || return
 		ngctl name "$iface$bridge:link$num" $eiface || return
 		ifconfig $new name $eiface || return
+		ifconfig $eiface mtu $mtu || return
 		ifconfig $eiface up || return
 
 		#

@@ -1,4 +1,4 @@
-# $NetBSD: var-op-shell.mk,v 1.10 2024/07/11 20:09:16 sjg Exp $
+# $NetBSD: var-op-shell.mk,v 1.11 2025/01/11 21:21:33 rillig Exp $
 #
 # Tests for the != variable assignment operator, which runs its right-hand
 # side through the shell.
@@ -107,6 +107,15 @@ OUTPUT_LONG!=	echo "$$0" || : ${:U:range=1000}
 .if !${OUTPUT_LONG:M*/make*}
 .  error
 .endif
+
+
+# An undefined expression results in an empty string.
+.MAKEFLAGS: -dv
+OUTPUT_OF_UNDEF!=	echo x${UNDEF}y
+.if ${OUTPUT_OF_UNDEF} != "xy"
+.  error
+.endif
+.MAKEFLAGS: -d0
 
 
 all:

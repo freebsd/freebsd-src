@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -24,6 +25,7 @@
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2017, Intel Corporation.
+ * Copyright (c) 2024, Klara, Inc.
  */
 
 #ifndef _ZFEATURE_COMMON_H
@@ -83,6 +85,8 @@ typedef enum spa_feature {
 	SPA_FEATURE_REDACTION_LIST_SPILL,
 	SPA_FEATURE_RAIDZ_EXPANSION,
 	SPA_FEATURE_FAST_DEDUP,
+	SPA_FEATURE_LONGNAME,
+	SPA_FEATURE_LARGE_MICROZAP,
 	SPA_FEATURES
 } spa_feature_t;
 

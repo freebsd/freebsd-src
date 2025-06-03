@@ -1,4 +1,3 @@
-#include <sys/cdefs.h>
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *

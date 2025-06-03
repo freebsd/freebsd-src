@@ -1,0 +1,46 @@
+.\"
+.\" Copyright (c) 2025 Alexander Ziaee
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd May 10, 2025
+.Dt E6000SW 4
+.Sh NAME
+.Nm e6000sw
+.Nd Marvell 88E6000 series Gigabit Ethernet switch driver
+.Sh SYNOPSIS
+.Cd device mdio
+.Cd etherswitch
+.Cd e6000sw
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Marvell Gigabit Ethernet switch controllers.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following Gigabit Ethernet switch controllers:
+.Pp
+.Bl -bullet -compact
+.It
+Marvell 88E6190X
+.It
+Marvell 88E6190
+.It
+Marvell 88E6176
+.It
+Marvell 88E6172
+.It
+Marvell 88E6341
+.It
+Marvell 88E6141
+.El
+.Sh SEE ALSO
+.Xr e6060sw 4 ,
+.Xr etherswitch 4 ,
+.Xr etherswitchcfg 8
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 11.0 .

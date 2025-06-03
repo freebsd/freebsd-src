@@ -19,8 +19,8 @@
 
 # What version of FreeBSD to we snag the ISOs from to extract the binaries
 # we are testing
-FREEBSD_VERSION=13.1
-# eg https://download.freebsd.org/releases/amd64/amd64/ISO-IMAGES/13.1/FreeBSD-13.1-RELEASE-amd64-bootonly.iso.xz
+FREEBSD_VERSION=14.2
+# eg https://download.freebsd.org/releases/amd64/amd64/ISO-IMAGES/14.2/FreeBSD-14.2-RELEASE-amd64-bootonly.iso.xz
 URLBASE="https://download.freebsd.org/releases"
 : ${STAND_ROOT:="${HOME}/stand-test-root"}
 CACHE=${STAND_ROOT}/cache
@@ -30,22 +30,58 @@ BIOS=${STAND_ROOT}/bios
 SCRIPTS=${STAND_ROOT}/scripts
 OVERRIDE=${STAND_ROOT}/override
 
-# hack -- I have extra junk in my qemu, but it's not needed to recreate things
-if [ $(whoami) = imp ]; then
-    qemu_bin=/home/imp/git/qemu/00-build
-else
-    qemu_bin=/usr/local/bin
-fi
+# Find make
+case $(uname) in
+    Darwin)
+	t=$(realpath $(dirname $0)/../..)
+	# Use the python wrapper to find make
+	if [ -f ${t}/tools/build/make.py ]; then
+	    MAKE="${t}/tools/build/make.py"
+	    case $(uname -m) in
+		arm64)
+		    DEFARCH="TARGET_ARCH=aarch64 TARGET=arm64"
+		    ;;
+		x86_64)
+		    DEFARCH="TARGET_ARCH=amd64 TARGET=amd64"
+		    ;;
+		*)
+		    die "Do not know about $(uanme -p)"
+		    ;;
+	    esac
+	else
+	    die "Can't find the make wrapper"
+	fi
+	qemu_bin=/opt/homebrew/bin
+	;;
+    FreeBSD)
+	MAKE=make
+	qemu_bin=/usr/local/bin
+	;;
+    # linux) not yet
+    *)
+	die "Do not know about system $(uname)"
+	;;
+esac
+
+SRCTOP=$(${MAKE} ${DEFARCH} -v SRCTOP)
+echo $SRCTOP
+
+# Find makefs and mkimg
+MAKEFS=$(SHELL="which makefs" ${MAKE} ${DEFARCH} buildenv | tail -1) || die "No makefs try WITH_DISK_IMAGE_TOOLS_BOOTSTRAP=y"
+MKIMG=$(SHELL="which mkimg" ${MAKE} ${DEFARCH} buildenv | tail -1) || die "No mkimg, try buildworld first"
+MTREE=$(SHELL="which mtree" ${MAKE} ${DEFARCH} buildenv | tail -1) || die "No mtree, try buildworld first"
+
+# MAKE=$(SHELL="which make" ${MAKE} ${DEFARCH} buildenv | tail -1) || die "No make, try buildworld first"
+
 
 # All the architectures under test
 # Note: we can't yet do armv7 because we don't have a good iso for it and would
 # need root to extract the files.
-ARCHES="amd64:amd64 i386:i386 powerpc:powerpc powerpc:powerpc64 powerpc:powerpc64le powerpc:powerpcspe arm64:aarch64 riscv:riscv64"
+#ARCHES="amd64:amd64 i386:i386 powerpc:powerpc powerpc:powerpc64 powerpc:powerpc64le powerpc:powerpcspe arm64:aarch64 riscv:riscv64"
+ARCHES="amd64:amd64 arm64:aarch64"
 
 # The smallest FAT32 filesystem is 33292 KB
 espsize=33292
-
-SRCTOP=$(make -v SRCTOP)
 
 mkdir -p ${CACHE} ${TREES} ${IMAGES} ${BIOS}
 
@@ -123,9 +159,8 @@ make_minimal_freebsd_tree()
     # Pretend we don't have a separate /usr
     ln -s . ${dir}/usr
     # snag the binaries for my simple /etc/rc file
-    tar -C ${dir} -xf ${CACHE}/$file sbin/reboot sbin/halt sbin/init bin/sh sbin/sysctl \
-	lib/libncursesw.so.9 lib/libc.so.7 lib/libedit.so.8 libexec/ld-elf.so.1
-
+    tar -C ${dir} -xf ${CACHE}/$file sbin/fastboot sbin/reboot sbin/halt sbin/init bin/sh sbin/sysctl \
+	lib/libtinfow.so.9 lib/libncursesw.so.9 lib/libc.so.7 lib/libedit.so.8 libexec/ld-elf.so.1
     # My simple etc/rc
     cat > ${dir}/etc/rc <<EOF
 #!/bin/sh
@@ -196,14 +231,15 @@ make_freebsd_test_trees()
 	[ "${m}" != "${ma}" ] && ma_combo="${m}-${ma}"
 	dir=${TREES}/${ma_combo}/test-stand
 	mkdir -p ${dir}
-	mtree -deUW -f ${SRCTOP}/etc/mtree/BSD.root.dist -p ${dir}
+	${MTREE} -deUW -f ${SRCTOP}/etc/mtree/BSD.root.dist -p ${dir}
 	echo "Creating tree for ${m}:${ma}"
-	cd ${SRCTOP}/stand
+	cd ${SRCTOP}
 	# Indirection needed because our build system is too complex
-#	SHELL="make clean" make buildenv TARGET=${m} TARGET_ARCH=${ma}
-	SHELL="make -j 100 all" make buildenv TARGET=${m} TARGET_ARCH=${ma}
-	SHELL="make install DESTDIR=${dir} MK_MAN=no MK_INSTALL_AS_USER=yes WITHOUT_DEBUG_FILES=yes" \
-	     make buildenv TARGET=${m} TARGET_ARCH=${ma}
+	# Also, bare make for 'inside' the buildenv ${MAKE} for outside
+#	SHELL="make clean" ${MAKE} buildenv TARGET=${m} TARGET_ARCH=${ma}
+	SHELL="sh -c 'cd stand ; make -j 100 all'" ${MAKE} TARGET=${m} TARGET_ARCH=${ma} buildenv
+	DESTDIR=${dir} SHELL="sh -c 'cd stand ; make install MK_MAN=no MK_INSTALL_AS_USER=yes WITHOUT_DEBUG_FILES=yes'" \
+	     ${MAKE} buildenv TARGET=${m} TARGET_ARCH=${ma}
 	rm -rf ${dir}/bin ${dir}/[ac-z]*	# Don't care about anything here
     done
 }
@@ -278,14 +314,14 @@ make_linuxboot_images()
 	img2=${IMAGES}/${ma_combo}/linuxboot-${ma_combo}-zfs.img
 	pool="linuxboot"
 	mkdir -p ${IMAGES}/${ma_combo}
-	makefs -t msdos -o fat_type=32 -o sectors_per_cluster=1 \
+	${MAKEFS} -t msdos -o fat_type=32 -o sectors_per_cluster=1 \
 	       -o volume_label=EFISYS -s80m ${esp} ${src}
-	makefs -t ffs -B little -s 200m -o label=root ${ufs} ${dir} ${dir2}
-	mkimg -s gpt -p efi:=${esp} -p freebsd-ufs:=${ufs} -o ${img}
-	makefs -t zfs -s 200m \
+	${MAKEFS} -t ffs -B little -s 200m -o label=root ${ufs} ${dir} ${dir2}
+	${MKIMG} -s gpt -p efi:=${esp} -p freebsd-ufs:=${ufs} -o ${img}
+	${MAKEFS} -t zfs -s 200m \
 	       -o poolname=${pool} -o bootfs=${pool} -o rootpath=/ \
 		${zfs} ${dir} ${dir2}
-	mkimg -s gpt \
+	${MKIMG} -s gpt \
 	      -p efi:=${esp} \
 	      -p freebsd-zfs:=${zfs} -o ${img2}
 	rm -f ${esp}	# Don't need to keep this around
@@ -325,7 +361,7 @@ make_linuxboot_scripts()
 		if [ ${bios_code} -ot /usr/local/share/qemu/edk2-x86_64-code.fd ]; then
 		    cp /usr/local/share/qemu/edk2-x86_64-code.fd ${bios_code}
 		    # vars file works on both 32 and 64 bit x86
-		    cp /usr/local/share/qemu/edk2-i386-vars.fd ${bios_vars}
+#		    cp /usr/local/share/qemu/edk2-i386-vars.fd ${bios_vars}
 		fi
 		;;
 	    aarch64)
@@ -407,7 +443,8 @@ EOF
 make_freebsd_esps()
 {
     # At the moment, we have just three (armv7 could also be here too, but we're not doing that)
-    for a in amd64:amd64 arm64:aarch64 riscv:riscv64; do
+#   for a in amd64:amd64 arm64:aarch64 riscv:riscv64; do
+    for a in amd64:amd64 arm64:aarch64; do
 	m=${a%%:*}
 	ma=${a##*:}
 	ma_combo="${m}"
@@ -429,7 +466,8 @@ make_freebsd_images()
 {
     # ESP variant: In this variant, riscv, amd64 and arm64 are created more or
     # less the same way. UEFI + ACPI implementations
-    for a in amd64:amd64 arm64:aarch64 riscv:riscv64; do
+#   for a in amd64:amd64 arm64:aarch64 riscv:riscv64; do
+    for a in amd64:amd64 arm64:aarch64; do
 	m=${a%%:*}
 	ma=${a##*:}
 	ma_combo="${m}"
@@ -445,15 +483,16 @@ make_freebsd_images()
 	cat > ${dir2}/etc/fstab <<EOF
 /dev/ufs/root	/		ufs	rw	1	1
 EOF
-	makefs -t msdos -o fat_type=32 -o sectors_per_cluster=1 \
+	${MAKEFS} -t msdos -o fat_type=32 -o sectors_per_cluster=1 \
 	       -o volume_label=EFISYS -s100m ${esp} ${src}
-	makefs -t ffs -B little -s 200m -o label=root ${ufs} ${dir} ${dir2}
-	mkimg -s gpt -p efi:=${esp} -p freebsd-ufs:=${ufs} -o ${img}
+	${MAKEFS} -t ffs -B little -s 200m -o label=root ${ufs} ${dir} ${dir2}
+	${MKIMG} -s gpt -p efi:=${esp} -p freebsd-ufs:=${ufs} -o ${img}
 	# rm -f ${esp} ${ufs}	# Don't need to keep this around
     done
 
     set -x
 
+if false; then
     # BIOS i386
     a=i386:i386
     m=${a%%:*}
@@ -469,10 +508,10 @@ EOF
     cat > ${dir2}/etc/fstab <<EOF
 /dev/ufs/root	/		ufs	rw	1	1
 EOF
-    makefs -t ffs -B little -s 200m \
+    ${MAKEFS} -t ffs -B little -s 200m \
 	   -o label=root,version=2,bsize=32768,fsize=4096,density=16384 \
 	   ${ufs} ${dir} ${dir2}
-    mkimg -s gpt -b ${dir2}/boot/pmbr \
+    ${MKIMG} -s gpt -b ${dir2}/boot/pmbr \
 	  -p freebsd-boot:=${dir2}/boot/gptboot \
 	  -p freebsd-ufs:=${ufs} \
 	  -o ${img}
@@ -493,13 +532,14 @@ EOF
     cat > ${dir2}/etc/fstab <<EOF
 /dev/ufs/root	/		ufs	rw	1	1
 EOF
-    makefs -t ffs -B big -s 200m \
+    ${MAKEFS} -t ffs -B big -s 200m \
 	   -o label=root,version=2,bsize=32768,fsize=4096,density=16384 \
 	   ${ufs} ${dir} ${dir2}
-    mkimg -a 1 -s apm \
+    ${MKIMG} -a 1 -s apm \
         -p freebsd-boot:=${dir2}/boot/boot1.hfs \
         -p freebsd-ufs:=${ufs} \
         -o ${img}
+fi
 
     set +x
 }
@@ -521,7 +561,7 @@ make_freebsd_scripts()
 		if [ ${bios_code} -ot /usr/local/share/qemu/edk2-x86_64-code.fd ]; then
 		    cp /usr/local/share/qemu/edk2-x86_64-code.fd ${bios_code}
 		    # vars file works on both 32 and 64 bit x86
-		    cp /usr/local/share/qemu/edk2-i386-vars.fd ${bios_vars}
+#		    cp /usr/local/share/qemu/edk2-i386-vars.fd ${bios_vars}
 		fi
 		;;
 	    aarch64)
@@ -568,6 +608,7 @@ EOF
 	esac
     done
 
+if false; then
     set -x
     a=powerpc:powerpc
     m=${a%%:*}
@@ -603,6 +644,7 @@ ${qemu_bin}/qemu-system-i386 -m 1g \\
         -monitor telnet::4444,server,nowait \\
         -serial stdio \$*
 EOF
+fi
 }
 
 # The smallest FAT32 filesystem is 33292 KB

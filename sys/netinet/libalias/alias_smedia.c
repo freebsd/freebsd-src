@@ -402,7 +402,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 
 	tc->th_sum = 0;
 #ifdef _KERNEL
-	tc->th_x2 = (TH_RES1 >> 8);
+	tcp_set_flags(tc, tcp_get_flags(tc) | TH_RES1);
 #else
 	tc->th_sum = TcpChecksum(pip);
 #endif
@@ -435,8 +435,8 @@ alias_pna_out(struct libalias *la, struct ip *pip,
 
 		if ((ntohs(msg_id) == 1) || (ntohs(msg_id) == 7)) {
 			memcpy(&port, work, 2);
-			pna_links = FindUdpTcpOut(la, pip->ip_src, GetDestAddress(lnk),
-			    port, 0, IPPROTO_UDP, 1);
+			(void)FindUdpTcpOut(la, pip->ip_src, GetDestAddress(lnk),
+			    port, 0, IPPROTO_UDP, 1, &pna_links);
 			if (pna_links != NULL) {
 #ifndef NO_FW_PUNCH
 				/* Punch hole in firewall */
@@ -449,7 +449,7 @@ alias_pna_out(struct libalias *la, struct ip *pip,
 				/* Compute TCP checksum for revised packet */
 				tc->th_sum = 0;
 #ifdef _KERNEL
-				tc->th_x2 = (TH_RES1 >> 8);
+				tcp_set_flags(tc, tcp_get_flags(tc) | TH_RES1);
 #else
 				tc->th_sum = TcpChecksum(pip);
 #endif

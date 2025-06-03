@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -84,6 +85,7 @@ zpool_get_all_props(zpool_handle_t *zhp)
 		fnvlist_add_string_array(innvl, ZPOOL_GET_PROPS_NAMES,
 		    zhp->zpool_propnames, zhp->zpool_n_propnames);
 		zcmd_write_src_nvlist(hdl, &zc, innvl);
+		fnvlist_free(innvl);
 	}
 
 	zcmd_alloc_dst_nvlist(hdl, &zc, 0);
@@ -331,7 +333,7 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf,
 	 */
 	if (prop == ZPOOL_PROP_DEDUPCACHED) {
 		zpool_add_propname(zhp, ZPOOL_DEDUPCACHED_PROP_NAME);
-		(void) zpool_get_all_props(zhp);
+		(void) zpool_props_refresh(zhp);
 	}
 
 	if (zhp->zpool_props == NULL && zpool_get_all_props(zhp) &&
@@ -471,13 +473,15 @@ int
 zpool_get_userprop(zpool_handle_t *zhp, const char *propname, char *buf,
     size_t len, zprop_source_t *srctype)
 {
-	nvlist_t *nv, *nvl;
+	nvlist_t *nv;
 	uint64_t ival;
 	const char *value;
 	zprop_source_t source = ZPROP_SRC_LOCAL;
 
-	nvl = zhp->zpool_props;
-	if (nvlist_lookup_nvlist(nvl, propname, &nv) == 0) {
+	if (zhp->zpool_props == NULL)
+		zpool_get_all_props(zhp);
+
+	if (nvlist_lookup_nvlist(zhp->zpool_props, propname, &nv) == 0) {
 		if (nvlist_lookup_uint64(nv, ZPROP_SOURCE, &ival) == 0)
 			source = ival;
 		verify(nvlist_lookup_string(nv, ZPROP_VALUE, &value) == 0);
@@ -2757,6 +2761,11 @@ zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func, pool_scrub_cmd_t cmd)
 	 * 1. we resumed a paused scrub.
 	 * 2. we resumed a paused error scrub.
 	 * 3. Error scrub is not run because of no error log.
+	 *
+	 * Note that we no longer return ECANCELED in case 1 or 2. However, in
+	 * order to prevent problems where we have a newer userland than
+	 * kernel, we keep this check in place. That prevents erroneous
+	 * failures when an older kernel returns ECANCELED in those cases.
 	 */
 	if (err == ECANCELED && (func == POOL_SCAN_SCRUB ||
 	    func == POOL_SCAN_ERRORSCRUB) && cmd == POOL_SCRUB_NORMAL)
@@ -2796,7 +2805,7 @@ zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func, pool_scrub_cmd_t cmd)
 	}
 
 	/*
-	 * With EBUSY, five cases are possible:
+	 * With EBUSY, six cases are possible:
 	 *
 	 * Current state		Requested
 	 * 1. Normal Scrub Running	Normal Scrub or Error Scrub
@@ -2956,6 +2965,18 @@ vdev_to_nvlist_iter(nvlist_t *nv, nvlist_t *search, boolean_t *avail_spare,
 			}
 			idx = p + 1;
 			*p = '\0';
+
+			/*
+			 * draid names are presented like: draid2:4d:6c:0s
+			 * We match them up to the first ':' so we can still
+			 * do the parity check below, but the other params
+			 * are ignored.
+			 */
+			if ((p = strchr(type, ':')) != NULL) {
+				if (strncmp(type, VDEV_TYPE_DRAID,
+				    strlen(VDEV_TYPE_DRAID)) == 0)
+					*p = '\0';
+			}
 
 			/*
 			 * If the types don't match then keep looking.
@@ -5340,7 +5361,8 @@ zpool_get_vdev_prop_value(nvlist_t *nvprop, vdev_prop_t prop, char *prop_name,
 			strval = fnvlist_lookup_string(nv, ZPROP_VALUE);
 		} else {
 			/* user prop not found */
-			return (-1);
+			src = ZPROP_SRC_DEFAULT;
+			strval = "-";
 		}
 		(void) strlcpy(buf, strval, len);
 		if (srctype)

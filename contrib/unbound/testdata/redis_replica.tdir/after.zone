@@ -1,0 +1,2 @@
+redis.com. IN SOA server. ma.il 1 2 3 4 5
+redis.com. IN A 2.2.2.2

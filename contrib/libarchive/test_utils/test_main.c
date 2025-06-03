@@ -85,6 +85,10 @@
 #include <membership.h>
 #endif
 
+#ifndef nitems
+#define nitems(arr) (sizeof(arr) / sizeof((arr)[0]))
+#endif
+
 /*
  *
  * Windows support routines
@@ -121,6 +125,8 @@
 #define access _access
 #undef chdir
 #define chdir _chdir
+#undef chmod
+#define chmod _chmod
 #endif
 #ifndef fileno
 #define fileno _fileno
@@ -217,7 +223,8 @@ my_CreateSymbolicLinkA(const char *linkname, const char *target,
 	static BOOLEAN (WINAPI *f)(LPCSTR, LPCSTR, DWORD);
 	DWORD attrs;
 	static int set;
-	int ret, tmpflags, llen, tlen;
+	int ret, tmpflags;
+	size_t llen, tlen;
 	int flags = 0;
 	char *src, *tgt, *p;
 	if (!set) {
@@ -233,10 +240,10 @@ my_CreateSymbolicLinkA(const char *linkname, const char *target,
 	if (tlen == 0 || llen == 0)
 		return (0);
 
-	tgt = malloc((tlen + 1) * sizeof(char));
+	tgt = malloc(tlen + 1);
 	if (tgt == NULL)
 		return (0);
-	src = malloc((llen + 1) * sizeof(char));
+	src = malloc(llen + 1);
 	if (src == NULL) {
 		free(tgt);
 		return (0);
@@ -363,6 +370,8 @@ invalid_parameter_handler(const wchar_t * expression,
 static int dump_on_failure = 0;
 /* Default is to remove temp dirs and log data for successful tests. */
 static int keep_temp_files = 0;
+/* Default is to only return a failure code (1) if there were test failures. If enabled, exit with code 2 if there were no failures, but some tests were skipped. */
+static int fail_if_tests_skipped = 0;
 /* Default is to run the specified tests once and report errors. */
 static int until_failure = 0;
 /* Default is to just report pass/fail for each test. */
@@ -602,9 +611,10 @@ int
 assertion_chmod(const char *file, int line, const char *pathname, int mode)
 {
 	assertion_count(file, line);
-	if (chmod(pathname, mode) == 0)
+	if (chmod(pathname, (mode_t)mode) == 0)
 		return (1);
-	failure_start(file, line, "chmod(\"%s\", %4.o)", pathname, mode);
+	failure_start(file, line, "chmod(\"%s\", %4.o)", pathname,
+	    (unsigned int)mode);
 	failure_finish(NULL);
 	return (0);
 
@@ -619,8 +629,10 @@ assertion_equal_int(const char *file, int line,
 	if (v1 == v2)
 		return (1);
 	failure_start(file, line, "%s != %s", e1, e2);
-	logprintf("      %s=%lld (0x%llx, 0%llo)\n", e1, v1, v1, v1);
-	logprintf("      %s=%lld (0x%llx, 0%llo)\n", e2, v2, v2, v2);
+	logprintf("      %s=%lld (0x%llx, 0%llo)\n", e1, v1,
+	    (unsigned long long)v1, (unsigned long long)v1);
+	logprintf("      %s=%lld (0x%llx, 0%llo)\n", e2, v2,
+	    (unsigned long long)v2, (unsigned long long)v2);
 	failure_finish(extra);
 	return (0);
 }
@@ -748,7 +760,7 @@ static void strdump(const char *e, const char *p, int ewidth, int utf8)
 		case '\r': logprintf("\\r"); break;
 		default:
 			if (c >= 32 && c < 127)
-				logprintf("%c", c);
+				logprintf("%c", (int)c);
 			else
 				logprintf("\\x%02X", c);
 		}
@@ -822,7 +834,7 @@ wcsdump(const char *e, const wchar_t *w)
 	while (*w != L'\0') {
 		unsigned int c = *w++;
 		if (c >= 32 && c < 127)
-			logprintf("%c", c);
+			logprintf("%c", (int)c);
 		else if (c < 256)
 			logprintf("\\x%02X", c);
 		else if (c < 0x10000)
@@ -889,7 +901,7 @@ hexdump(const char *p, const char *ref, size_t l, size_t offset)
 		for (j = 0; j < 16 && i + j < l; j++) {
 			if (ref != NULL && p[i + j] != ref[i + j])
 				sep = '_';
-			logprintf("%c%02x", sep, 0xff & (int)p[i+j]);
+			logprintf("%c%02x", sep, 0xff & (unsigned int)p[i+j]);
 			if (ref != NULL && p[i + j] == ref[i + j])
 				sep = ' ';
 		}
@@ -1237,16 +1249,19 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 	}
 	expected_count = i;
 	if (expected_count) {
-		expected = malloc(sizeof(char *) * expected_count);
+		expected = calloc(expected_count, sizeof(*expected));
 		if (expected == NULL) {
 			failure_start(pathname, line, "Can't allocate memory");
 			failure_finish(NULL);
-			free(expected);
-			free(buff);
-			return (0);
+			goto cleanup;
 		}
 		for (i = 0; lines[i] != NULL; ++i) {
 			expected[i] = strdup(lines[i]);
+			if (expected[i] == NULL) {
+				failure_start(pathname, line, "Can't allocate memory");
+				failure_finish(NULL);
+				goto cleanup;
+			}
 		}
 	}
 
@@ -1264,9 +1279,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		if (actual == NULL) {
 			failure_start(pathname, line, "Can't allocate memory");
 			failure_finish(NULL);
-			free(expected);
-			free(buff);
-			return (0);
+			goto cleanup;
 		}
 		for (j = 0, p = buff; p < buff + buff_size;
 		    p += 1 + strlen(p)) {
@@ -1279,8 +1292,6 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 
 	/* Erase matching lines from both lists */
 	for (i = 0; i < expected_count; ++i) {
-		if (expected[i] == NULL)
-			continue;
 		for (j = 0; j < actual_count; ++j) {
 			if (actual[j] == NULL)
 				continue;
@@ -1303,9 +1314,9 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 			++actual_failure;
 	}
 	if (expected_failure == 0 && actual_failure == 0) {
-		free(buff);
-		free(expected);
 		free(actual);
+		free(expected);
+		free(buff);
 		return (1);
 	}
 	failure_start(file, line, "File doesn't match: %s", pathname);
@@ -1313,6 +1324,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		if (expected[i] != NULL) {
 			logprintf("  Expected but not present: %s\n", expected[i]);
 			free(expected[i]);
+			expected[i] = NULL;
 		}
 	}
 	for (j = 0; j < actual_count; ++j) {
@@ -1320,9 +1332,15 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 			logprintf("  Present but not expected: %s\n", actual[j]);
 	}
 	failure_finish(NULL);
-	free(buff);
-	free(expected);
+cleanup:
 	free(actual);
+	if (expected != NULL) {
+		for (i = 0; i < expected_count; ++i)
+			if (expected[i] != NULL)
+				free(expected[i]);
+		free(expected);
+	}
+	free(buff);
 	return (0);
 }
 
@@ -1587,7 +1605,7 @@ assertion_file_mode(const char *file, int line, const char *pathname, int expect
 	if (r == 0 && mode == expected_mode)
 			return (1);
 	failure_start(file, line, "File %s has mode %o, expected %o",
-	    pathname, mode, expected_mode);
+	    pathname, (unsigned int)mode, (unsigned int)expected_mode);
 #endif
 	failure_finish(NULL);
 	return (0);
@@ -1697,8 +1715,8 @@ assertion_is_dir(const char *file, int line, const char *pathname, int mode)
 	/* TODO: Can we do better here? */
 	if (mode >= 0 && (mode_t)mode != (st.st_mode & 07777)) {
 		failure_start(file, line, "Dir %s has wrong mode", pathname);
-		logprintf("  Expected: 0%3o\n", mode);
-		logprintf("  Found: 0%3o\n", st.st_mode & 07777);
+		logprintf("  Expected: 0%3o\n", (unsigned int)mode);
+		logprintf("  Found: 0%3o\n", (unsigned int)st.st_mode & 07777);
 		failure_finish(NULL);
 		return (0);
 	}
@@ -1730,8 +1748,8 @@ assertion_is_reg(const char *file, int line, const char *pathname, int mode)
 	/* TODO: Can we do better here? */
 	if (mode >= 0 && (mode_t)mode != (st.st_mode & 07777)) {
 		failure_start(file, line, "File %s has wrong mode", pathname);
-		logprintf("  Expected: 0%3o\n", mode);
-		logprintf("  Found: 0%3o\n", st.st_mode & 07777);
+		logprintf("  Expected: 0%3o\n", (unsigned int)mode);
+		logprintf("  Found: 0%3o\n", (unsigned int)st.st_mode & 07777);
 		failure_finish(NULL);
 		return (0);
 	}
@@ -1766,16 +1784,17 @@ is_symlink(const char *file, int line,
 	    FILE_FLAG_OPEN_REPARSE_POINT;
 
 	/* Replace slashes with backslashes in pathname */
-	pn = malloc((strlen(pathname) + 1) * sizeof(char));
-	p = pathname;
-	s = pn;
-	while(*p != '\0') {
-		if(*p == '/')
+	pn = malloc(strlen(pathname) + 1);
+	if (pn == NULL) {
+		failure_start(file, line, "Can't allocate memory");
+		failure_finish(NULL);
+		return (0);
+	}
+	for (p = pathname, s = pn; *p != '\0'; p++, s++) {
+		if (*p == '/')
 			*s = '\\';
 		else
 			*s = *p;
-		p++;
-		s++;
 	}
 	*s = '\0';
 
@@ -1931,8 +1950,8 @@ assertion_make_dir(const char *file, int line, const char *dirname, int mode)
 	if (0 == _mkdir(dirname))
 		return (1);
 #else
-	if (0 == mkdir(dirname, mode)) {
-		if (0 == chmod(dirname, mode)) {
+	if (0 == mkdir(dirname, (mode_t)mode)) {
+		if (0 == chmod(dirname, (mode_t)mode)) {
 			assertion_file_mode(file, line, dirname, mode);
 			return (1);
 		}
@@ -1986,9 +2005,9 @@ assertion_make_file(const char *file, int line,
 		return (0);
 	}
 #ifdef HAVE_FCHMOD
-	if (0 != fchmod(fd, mode))
+	if (0 != fchmod(fd, (mode_t)mode))
 #else
-	if (0 != chmod(path, mode))
+	if (0 != chmod(path, (mode_t)mode))
 #endif
 	{
 		failure_start(file, line, "Could not chmod %s", path);
@@ -2077,19 +2096,19 @@ assertion_umask(const char *file, int line, int mask)
 	assertion_count(file, line);
 	(void)file; /* UNUSED */
 	(void)line; /* UNUSED */
-	umask(mask);
+	umask((mode_t)mask);
 	return (1);
 }
 
 /* Set times, report failures. */
 int
-assertion_utimes(const char *file, int line,
-    const char *pathname, long at, long at_nsec, long mt, long mt_nsec)
+assertion_utimes(const char *file, int line, const char *pathname,
+    time_t at, suseconds_t at_nsec, time_t mt, suseconds_t mt_nsec)
 {
 	int r;
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
+#define WINTIME(sec, nsec) (((sec * 10000000LL) + EPOC_TIME)\
 	 + (((nsec)/1000)*10))
 	HANDLE h;
 	ULARGE_INTEGER wintm;
@@ -2437,7 +2456,7 @@ void assertVersion(const char *prog, const char *base)
 
 	/* Skip arbitrary third-party version numbers. */
 	while (s > 0 && (*q == ' ' || *q == '-' || *q == '/' || *q == '.' ||
-	    isalnum((unsigned char)*q))) {
+	    *q == '_' || isalnum((unsigned char)*q))) {
 		++q;
 		--s;
 	}
@@ -2950,7 +2969,6 @@ setTestAcl(const char *path)
 	acl_permset_t permset;
 	const uid_t uid = 1;
 	uuid_t uuid;
-	int i;
 	const acl_perm_t acl_perms[] = {
 		ACL_READ_DATA,
 		ACL_WRITE_DATA,
@@ -2992,7 +3010,7 @@ setTestAcl(const char *path)
 	failure("acl_get_permset() error: %s", strerror(errno));
 	if (assertEqualInt(r, 0) == 0)
 		goto testacl_free;
-	for (i = 0; i < (int)(sizeof(acl_perms) / sizeof(acl_perms[0])); i++) {
+	for (size_t i = 0; i < nitems(acl_perms); i++) {
 		r = acl_add_perm(permset, acl_perms[i]);
 		failure("acl_add_perm() error: %s", strerror(errno));
 		if (assertEqualInt(r, 0) == 0)
@@ -3304,7 +3322,8 @@ assertion_entry_set_acls(const char *file, int line, struct archive_entry *ae,
 			ret = 1;
 			failure_start(file, line, "type=%#010x, "
 			    "permset=%#010x, tag=%d, qual=%d name=%s",
-			    acls[i].type, acls[i].permset, acls[i].tag,
+			    (unsigned int)acls[i].type,
+			    (unsigned int)acls[i].permset, acls[i].tag,
 			    acls[i].qual, acls[i].name);
 			failure_finish(NULL);
 		}
@@ -3398,8 +3417,9 @@ assertion_entry_compare_acls(const char *file, int line,
 			}
 			if ((permset << 6) != (mode & 0700)) {
 				failure_start(file, line, "USER_OBJ permset "
-				    "(%02o) != user mode (%02o)", permset,
-				    07 & (mode >> 6));
+				    "(%02o) != user mode (%02o)",
+				    (unsigned int)permset,
+				    (unsigned int)(07 & (mode >> 6)));
 				failure_finish(NULL);
 				ret = 1;
 			}
@@ -3413,8 +3433,9 @@ assertion_entry_compare_acls(const char *file, int line,
 			}
 			if ((permset << 3) != (mode & 0070)) {
 				failure_start(file, line, "GROUP_OBJ permset "
-				    "(%02o) != group mode (%02o)", permset,
-				    07 & (mode >> 3));
+				    "(%02o) != group mode (%02o)",
+				    (unsigned int)permset,
+				    (unsigned int)(07 & (mode >> 3)));
 				failure_finish(NULL);
 				ret = 1;
 			}
@@ -3428,15 +3449,17 @@ assertion_entry_compare_acls(const char *file, int line,
 			}
 			if ((permset << 0) != (mode & 0007)) {
 				failure_start(file, line, "OTHER permset "
-				    "(%02o) != other mode (%02o)", permset,
-				    mode & 07);
+				    "(%02o) != other mode (%02o)",
+				    (unsigned int)permset,
+				    (unsigned int)mode & 07);
 				failure_finish(NULL);
 				ret = 1;
 			}
 		} else if (matched != 1) {
 			failure_start(file, line, "Could not find match for "
 			    "ACL (type=%#010x,permset=%#010x,tag=%d,qual=%d,"
-			    "name=``%s'')", type, permset, tag, qual, name);
+			    "name=``%s'')", (unsigned int)type,
+			    (unsigned int)permset, tag, qual, name);
 			failure_finish(NULL);
 			ret = 1;
 		}
@@ -3449,14 +3472,16 @@ assertion_entry_compare_acls(const char *file, int line,
 	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0 &&
 	    (mode_t)(mode & 0777) != (archive_entry_mode(ae) & 0777)) {
 		failure_start(file, line, "Mode (%02o) and entry mode (%02o) "
-		    "mismatch", mode, archive_entry_mode(ae));
+		    "mismatch", (unsigned int)mode,
+		    (unsigned int)archive_entry_mode(ae));
 		failure_finish(NULL);
 		ret = 1;
 	}
 	if (n != 0) {
 		failure_start(file, line, "Could not find match for ACL "
 		    "(type=%#010x,permset=%#010x,tag=%d,qual=%d,name=``%s'')",
-		    acls[marker[0]].type, acls[marker[0]].permset,
+		    (unsigned int)acls[marker[0]].type,
+		    (unsigned int)acls[marker[0]].permset,
 		    acls[marker[0]].tag, acls[marker[0]].qual,
 		    acls[marker[0]].name);
 		failure_finish(NULL);
@@ -3513,7 +3538,7 @@ test_summarize(int failed, int skips_num)
 		fflush(stdout);
 		break;
 	case VERBOSITY_PASSFAIL:
-		printf(failed ? "FAIL\n" : skips_num ? "ok (S)\n" : "ok\n");
+		printf(failed ? "FAIL\n" : skips_num ? "skipped\n" : "ok\n");
 		break;
 	}
 
@@ -3521,12 +3546,65 @@ test_summarize(int failed, int skips_num)
 
 	for (i = 0; i < sizeof(failed_lines)/sizeof(failed_lines[0]); i++) {
 		if (failed_lines[i].count > 1 && !failed_lines[i].skip)
-			logprintf("%s:%d: Summary: Failed %d times\n",
+			logprintf("%s:%u: Summary: Failed %d times\n",
 			    failed_filename, i, failed_lines[i].count);
 	}
 	/* Clear the failure history for the next file. */
 	failed_filename = NULL;
 	memset(failed_lines, 0, sizeof(failed_lines));
+}
+
+/*
+ * Set or unset environment variable.
+ */
+static void
+set_environment(const char *key, const char *value)
+{
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (!SetEnvironmentVariable(key, value)) {
+		fprintf(stderr, "SetEnvironmentVariable failed with %d\n",
+		    (int)GetLastError());
+	}
+#else
+	if (value == NULL) {
+		if (unsetenv(key) == -1)
+			fprintf(stderr, "unsetenv: %s\n", strerror(errno));
+	} else {
+		if (setenv(key, value, 1) == -1)
+			fprintf(stderr, "setenv: %s\n", strerror(errno));
+	}
+#endif
+}
+
+/*
+ * Enforce C locale for (sub)processes.
+ */
+static void
+set_c_locale(void)
+{
+	static const char *lcs[] = {
+		"LC_ADDRESS",
+		"LC_ALL",
+		"LC_COLLATE",
+		"LC_CTYPE",
+		"LC_IDENTIFICATION",
+		"LC_MEASUREMENT",
+		"LC_MESSAGES",
+		"LC_MONETARY",
+		"LC_NAME",
+		"LC_NUMERIC",
+		"LC_PAPER",
+		"LC_TELEPHONE",
+		"LC_TIME",
+		NULL
+	};
+	size_t i;
+
+	setlocale(LC_ALL, "C");
+	set_environment("LANG", "C");
+	for (i = 0; lcs[i] != NULL; i++)
+		set_environment(lcs[i], NULL);
 }
 
 /*
@@ -3540,10 +3618,11 @@ test_run(int i, const char *tmpdir)
 #else
 	char workdir[1024 * 2];
 #endif
-	char logfilename[64];
+	char logfilename[256];
 	int failures_before = failures;
 	int skips_before = skips;
-	int oldumask;
+	int tmp;
+	mode_t oldumask;
 
 	switch (verbosity) {
 	case VERBOSITY_SUMMARY_ONLY: /* No per-test reports at all */
@@ -3563,11 +3642,38 @@ test_run(int i, const char *tmpdir)
 		exit(1);
 	}
 	/* Create a log file for this test. */
-	snprintf(logfilename, sizeof(logfilename), "%s.log", tests[i].name);
+	tmp = snprintf(logfilename, sizeof(logfilename), "%s.log", tests[i].name);
+	if (tmp < 0) {
+		fprintf(stderr,
+			"ERROR can't create %s.log: %s\n",
+			tests[i].name, strerror(errno));
+		exit(1);
+	}
+	if ((size_t)tmp >= sizeof(logfilename)) {
+		fprintf(stderr,
+			"ERROR can't create %s.log: Name too long. "
+				"Length %d; Max allowed length %zu\n",
+			tests[i].name, tmp, sizeof(logfilename) - 1);
+		exit(1);
+	}
 	logfile = fopen(logfilename, "w");
 	fprintf(logfile, "%s\n\n", tests[i].name);
 	/* Chdir() to a work dir for this specific test. */
-	snprintf(workdir, sizeof(workdir), "%s/%s", tmpdir, tests[i].name);
+	tmp = snprintf(workdir,
+		sizeof(workdir), "%s/%s", tmpdir, tests[i].name);
+	if (tmp < 0) {
+		fprintf(stderr,
+			"ERROR can't create %s/%s: %s\n",
+			tmpdir, tests[i].name, strerror(errno));
+		exit(1);
+	}
+	if ((size_t)tmp >= sizeof(workdir)) {
+		fprintf(stderr,
+			"ERROR can't create %s/%s: Path too long. "
+			"Length %d; Max allowed length %zu\n",
+			tmpdir, tests[i].name, tmp, sizeof(workdir) - 1);
+		exit(1);
+	}
 	testworkdir = workdir;
 	if (!assertMakeDir(testworkdir, 0755)
 	    || !assertChdir(testworkdir)) {
@@ -3576,7 +3682,7 @@ test_run(int i, const char *tmpdir)
 		exit(1);
 	}
 	/* Explicitly reset the locale before each test. */
-	setlocale(LC_ALL, "C");
+	set_c_locale();
 	/* Record the umask before we run the test. */
 	umask(oldumask = umask(0));
 	/*
@@ -3590,7 +3696,7 @@ test_run(int i, const char *tmpdir)
 	/* Restore umask */
 	umask(oldumask);
 	/* Reset locale. */
-	setlocale(LC_ALL, "C");
+	set_c_locale();
 	/* Reset directory. */
 	if (!assertChdir(tmpdir)) {
 		fprintf(stderr, "ERROR: Couldn't chdir to temp dir %s\n",
@@ -3642,7 +3748,7 @@ test_run(int i, const char *tmpdir)
 static void
 usage(const char *program)
 {
-	static const int limit = sizeof(tests) / sizeof(tests[0]);
+	static const int limit = nitems(tests);
 	int i;
 
 	printf("Usage: %s [options] <test> <test> ...\n", program);
@@ -3659,7 +3765,8 @@ usage(const char *program)
 	printf("  -q  Quiet.\n");
 	printf("  -r <dir>   Path to dir containing reference files.\n");
 	printf("      Default: Current directory.\n");
-	printf("  -u  Keep running specifies tests until one fails.\n");
+	printf("  -s  Exit with code 2 if any tests were skipped.\n");
+	printf("  -u  Keep running specified tests until one fails.\n");
 	printf("  -v  Verbose.\n");
 	printf("Available tests:\n");
 	for (i = 0; i < limit; i++)
@@ -3874,12 +3981,13 @@ get_test_set(int *test_set, int limit, const char *test)
 int
 main(int argc, char **argv)
 {
-	static const int limit = sizeof(tests) / sizeof(tests[0]);
-	int test_set[sizeof(tests) / sizeof(tests[0])];
+	static const int limit = nitems(tests);
+	int test_set[nitems(tests)];
 	int i = 0, j = 0, tests_run = 0, tests_failed = 0, option;
-	int testprogdir_len;
+	size_t testprogdir_len;
+	size_t tmplen;
 #ifdef PROGRAM
-	int tmp2_len;
+	size_t tmp2_len;
 #endif
 	time_t now;
 	struct tm *tmptr;
@@ -3922,7 +4030,7 @@ main(int argc, char **argv)
 	 */
 	progname = p = argv[0];
 	testprogdir_len = strlen(progname) + 1;
-	if ((testprogdir = (char *)malloc(testprogdir_len)) == NULL)
+	if ((testprogdir = malloc(testprogdir_len)) == NULL)
 	{
 		fprintf(stderr, "ERROR: Out of memory.");
 		exit(1);
@@ -3950,7 +4058,7 @@ main(int argc, char **argv)
 #endif
 	{
 		/* Fixup path for relative directories. */
-		if ((testprogdir = (char *)realloc(testprogdir,
+		if ((testprogdir = realloc(testprogdir,
 			strlen(pwd) + 1 + strlen(testprogdir) + 1)) == NULL)
 		{
 			fprintf(stderr, "ERROR: Out of memory.");
@@ -3977,6 +4085,9 @@ main(int argc, char **argv)
 		tmp = getenv("TEMPDIR");
 	else
 		tmp = "/tmp";
+	tmplen = strlen(tmp);
+	while (tmplen > 0 && tmp[tmplen - 1] == '/')
+		tmplen--;
 
 	/* Allow -d to be controlled through the environment. */
 	if (getenv(ENVBASE "_DEBUG") != NULL)
@@ -4048,6 +4159,9 @@ main(int argc, char **argv)
 			case 'r':
 				refdir = option_arg;
 				break;
+			case 's':
+				fail_if_tests_skipped = 1;
+				break;
 			case 'u':
 				until_failure++;
 				break;
@@ -4070,7 +4184,7 @@ main(int argc, char **argv)
 	if (testprogfile == NULL)
 	{
 		tmp2_len = strlen(testprogdir) + 1 + strlen(PROGRAM) + 1;
-		if ((tmp2 = (char *)malloc(tmp2_len)) == NULL)
+		if ((tmp2 = malloc(tmp2_len)) == NULL)
 		{
 			fprintf(stderr, "ERROR: Out of memory.");
 			exit(1);
@@ -4083,7 +4197,7 @@ main(int argc, char **argv)
 
 	{
 		char *testprg;
-		int testprg_len;
+		size_t testprg_len;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 		/* Command.com sometimes rejects '/' separators. */
 		testprg = strdup(testprogfile);
@@ -4100,6 +4214,19 @@ main(int argc, char **argv)
 		strncat(testprg, testprogfile, testprg_len);
 		strncat(testprg, "\"", testprg_len);
 		testprog = testprg;
+	}
+
+	/* Sanity check: reject a relative path for refdir. */
+	if (refdir != NULL) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		/* TODO: probably use PathIsRelative() from <shlwapi.h>. */
+#else
+		if (refdir[0] != '/') {
+			fprintf(stderr,
+			    "ERROR: Cannot use relative path for refdir\n");
+			exit(1);
+		}
+#endif
 	}
 #endif
 
@@ -4129,16 +4256,16 @@ main(int argc, char **argv)
 #endif
 		strftime(tmpdir_timestamp, sizeof(tmpdir_timestamp),
 		    "%Y-%m-%dT%H.%M.%S", tmptr);
-		if ((strlen(tmp) + 1 + strlen(progname) + 1 +
-		    strlen(tmpdir_timestamp) + 1 + 3) >
-		    (sizeof(tmpdir) / sizeof(char))) {
+		if (tmplen + 1 + strlen(progname) + 1 +
+		    strlen(tmpdir_timestamp) + 1 + 3 >=
+		    nitems(tmpdir)) {
 			fprintf(stderr,
 			    "ERROR: Temp directory pathname too long\n");
 			exit(1);
 		}
-		snprintf(tmpdir, sizeof(tmpdir), "%s/%s.%s-%03d", tmp,
-		    progname, tmpdir_timestamp, i);
-		if (assertMakeDir(tmpdir,0755))
+		snprintf(tmpdir, sizeof(tmpdir), "%.*s/%s.%s-%03d",
+		    (int)tmplen, tmp, progname, tmpdir_timestamp, i);
+		if (assertMakeDir(tmpdir, 0755))
 			break;
 		if (i >= 999) {
 			fprintf(stderr,
@@ -4246,5 +4373,9 @@ finish:
 	assertChdir("..");
 	rmdir(tmpdir);
 
-	return (tests_failed ? 1 : 0);
+	if (tests_failed) return 1;
+
+	if (fail_if_tests_skipped == 1 && skips > 0) return 2;
+
+	return 0;
 }

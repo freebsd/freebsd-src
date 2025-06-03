@@ -43,7 +43,7 @@
   038   'l'    'L'    ff     ff     'l'    'L'    ff     ff      C
   039   'm'    'M'    cr     cr     'm'    'M'    cr     cr      C
   040   0xf9   '%'    nul    nul    '''    '@'    nul    nul     O
-  041   0xb2   nop    nop    nop    '|'    '|'    nop    nop     O
+  041   0xb2   '~'    nop    nop    '|'    '|'    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   '*'    0xb5   nop    nop    '#'    '~'    nop    nop     O
   044   'w'    'W'    etb    etb    'w'    'W'    sub    sub     C

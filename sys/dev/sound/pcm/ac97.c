@@ -32,13 +32,14 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
-#include <dev/sound/pcm/ac97_patch.h>
 
 #include <dev/pci/pcivar.h>
 
 #include "mixer_if.h"
 
 static MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
+
+typedef void (*ac97_patch)(struct ac97_info *);
 
 struct ac97mixtable_entry {
 	int reg;		/* register index		*/
@@ -132,6 +133,12 @@ static const struct ac97_vendorid ac97vendorid[] = {
 	{ 0x01408300, "Creative" },
 	{ 0x00000000, NULL }
 };
+
+static void ad1886_patch(struct ac97_info *);
+static void ad198x_patch(struct ac97_info *);
+static void ad1981b_patch(struct ac97_info *);
+static void cmi9739_patch(struct ac97_info *);
+static void alc655_patch(struct ac97_info *);
 
 static struct ac97_codecid ac97codecid[] = {
 	{ 0x41445303, 0x00, 0, "AD1819",	0 },
@@ -315,12 +322,6 @@ ac97_rdcd(struct ac97_info *codec, int reg)
 		i[1] = AC97_READ(codec->methods, codec->devinfo, reg);
 		while (i[0] != i[1] && j)
 			i[j-- & 1] = AC97_READ(codec->methods, codec->devinfo, reg);
-#if 0
-		if (j < 100) {
-			device_printf(codec->dev, "%s(): Inconsistent register value at"
-					" 0x%08x (retry: %d)\n", __func__, reg, 100 - j);
-		}
-#endif
 		return i[!(j & 1)];
 	}
 	return AC97_READ(codec->methods, codec->devinfo, reg);
@@ -505,9 +506,6 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 		snd_mtxunlock(codec->lock);
 		return left | (right << 8);
 	} else {
-#if 0
-		printf("ac97_setmixer: reg=%d, bits=%d, enable=%d\n", e->reg, e->bits, e->enable);
-#endif
 		return -1;
 	}
 }
@@ -730,10 +728,6 @@ ac97_initmixer(struct ac97_info *codec)
 				for (j = 0; k >> j; j++)
 					;
 				if (j != 0) {
-#if 0
-					device_printf(codec->dev, "%2d: [ac97_rdcd() = %d] [Testbit = %d] %d -> %d\n",
-						i, k, bit, codec->mix[i].bits, j);
-#endif
 					codec->mix[i].enable = 1;
 					codec->mix[i].bits = j;
 				} else if (reg == AC97_MIX_BEEP) {
@@ -749,9 +743,6 @@ ac97_initmixer(struct ac97_info *codec)
 				codec->mix[i].enable = 0;
 			ac97_wrcd(codec, reg, old);
 		}
-#if 0
-		printf("mixch %d, en=%d, b=%d\n", i, codec->mix[i].enable, codec->mix[i].bits);
-#endif
 	}
 
 	device_printf(codec->dev, "<%s>\n",
@@ -870,6 +861,93 @@ u_int32_t
 ac97_getflags(struct ac97_info *codec)
 {
 	return codec->flags;
+}
+
+static void
+ad1886_patch(struct ac97_info *codec)
+{
+#define AC97_AD_JACK_SPDIF 0x72
+	/*
+	 *    Presario700 workaround
+	 *     for Jack Sense/SPDIF Register misetting causing
+	 *    no audible output
+	 *    by Santiago Nullo 04/05/2002
+	 */
+	ac97_wrcd(codec, AC97_AD_JACK_SPDIF, 0x0010);
+}
+
+static void
+ad198x_patch(struct ac97_info *codec)
+{
+	switch (ac97_getsubvendor(codec)) {
+	case 0x11931043:	/* Not for ASUS A9T (probably else too). */
+		break;
+	default:
+		ac97_wrcd(codec, 0x76, ac97_rdcd(codec, 0x76) | 0x0420);
+		break;
+	}
+}
+
+static void
+ad1981b_patch(struct ac97_info *codec)
+{
+	/*
+	 * Enable headphone jack sensing.
+	 */
+	switch (ac97_getsubvendor(codec)) {
+	case 0x02d91014:	/* IBM Thinkcentre */
+	case 0x099c103c:	/* HP nx6110 */
+		ac97_wrcd(codec, AC97_AD_JACK_SPDIF,
+		    ac97_rdcd(codec, AC97_AD_JACK_SPDIF) | 0x0800);
+		break;
+	default:
+		break;
+	}
+}
+
+static void
+cmi9739_patch(struct ac97_info *codec)
+{
+	/*
+	 * Few laptops need extra register initialization
+	 * to power up the internal speakers.
+	 */
+	switch (ac97_getsubvendor(codec)) {
+	case 0x18431043:	/* ASUS W1000N */
+		ac97_wrcd(codec, AC97_REG_POWER, 0x000f);
+		ac97_wrcd(codec, AC97_MIXEXT_CLFE, 0x0000);
+		ac97_wrcd(codec, 0x64, 0x7110);
+		break;
+	default:
+		break;
+	}
+}
+
+static void
+alc655_patch(struct ac97_info *codec)
+{
+	/*
+	 * MSI (Micro-Star International) specific EAPD quirk.
+	 */
+	switch (ac97_getsubvendor(codec)) {
+	case 0x00611462:	/* MSI S250 */
+	case 0x01311462:	/* MSI S270 */
+	case 0x01611462:	/* LG K1 Express */
+	case 0x03511462:	/* MSI L725 */
+		ac97_wrcd(codec, 0x7a, ac97_rdcd(codec, 0x7a) & 0xfffd);
+		break;
+	case 0x10ca1734:
+		/*
+		 * Amilo Pro V2055 with ALC655 has phone out by default
+		 * disabled (surround on), leaving us only with internal
+		 * speakers. This should really go to mixer. We write the
+		 * Data Flow Control reg.
+		 */
+		ac97_wrcd(codec, 0x6a, ac97_rdcd(codec, 0x6a) | 0x0001);
+		break;
+	default:
+		break;
+	}
 }
 
 /* -------------------------------------------------------------------- */
@@ -1003,13 +1081,6 @@ ac97mix_init(struct snd_mixer *m)
 
 	if (pcm_getflags(codec->dev) & SD_F_SOFTPCMVOL)
 		ac97_wrcd(codec, AC97_MIX_PCM, 0);
-#if 0
-	/* XXX For the sake of debugging purposes */
-	mix_setparentchild(m, SOUND_MIXER_VOLUME,
-	    SOUND_MASK_PCM | SOUND_MASK_CD);
-	mix_setrealdev(m, SOUND_MIXER_VOLUME, SOUND_MIXER_NONE);
-	ac97_wrcd(codec, AC97_MIX_MASTER, 0);
-#endif
 
 	mask = 0;
 	for (i = 0; i < AC97_MIXER_SIZE; i++)

@@ -52,6 +52,19 @@
 struct slabhash;
 struct config_file;
 
+/** number of timeouts for a type when the domain can be blocked ;
+ * even if another type has completely rtt maxed it, the different type
+ * can do this number of packets (until those all timeout too) */
+#define TIMEOUT_COUNT_MAX 3
+
+
+/** Timeout when only a single probe query per IP is allowed.
+ *  Any RTO above this number is considered a probe.
+ *  It is synchronized (caped) with USEFUL_SERVER_TOP_TIMEOUT so that probing
+ *  keeps working even if that configurable number drops below the default
+ *  12000 ms of probing. */
+extern int PROBE_MAXRTO;
+
 /**
  * Host information kept for every server, per zone.
  */
@@ -501,5 +514,23 @@ void infra_wait_limit_inc(struct infra_cache* infra, struct comm_reply* rep,
 /** Decrement number of waiting replies for IP */
 void infra_wait_limit_dec(struct infra_cache* infra, struct comm_reply* rep,
 	struct config_file* cfg);
+
+/** setup wait limits tree (0 on failure) */
+int setup_wait_limits(struct rbtree_type* wait_limits_netblock,
+	struct rbtree_type* wait_limits_cookie_netblock,
+	struct config_file* cfg);
+
+/** Free the wait limits and wait cookie limits tree. */
+void wait_limits_free(struct rbtree_type* wait_limits_tree);
+
+/** setup domain limits tree (0 on failure) */
+int setup_domain_limits(struct rbtree_type* domain_limits,
+	struct config_file* cfg);
+
+/** Free the domain limits tree. */
+void domain_limits_free(struct rbtree_type* domain_limits);
+
+/** exported for unit test */
+int still_useful_timeout();
 
 #endif /* SERVICES_CACHE_INFRA_H */

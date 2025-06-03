@@ -106,8 +106,6 @@ static const struct {
 	{ HDA_INTEL_CMLKS,   "Intel Comet Lake-S",	0, 0 },
 	{ HDA_INTEL_CNLK,    "Intel Cannon Lake",	0, 0 },
 	{ HDA_INTEL_ICLK,    "Intel Ice Lake",		0, 0 },
-	{ HDA_INTEL_CMLKLP,  "Intel Comet Lake-LP",	0, 0 },
-	{ HDA_INTEL_CMLKH,   "Intel Comet Lake-H",	0, 0 },
 	{ HDA_INTEL_TGLK,    "Intel Tiger Lake",	0, 0 },
 	{ HDA_INTEL_TGLKH,   "Intel Tiger Lake-H",	0, 0 },
 	{ HDA_INTEL_GMLK,    "Intel Gemini Lake",	0, 0 },
@@ -119,6 +117,7 @@ static const struct {
 	{ HDA_INTEL_ALLKPS,  "Intel Alder Lake-PS",	0, 0 },
 	{ HDA_INTEL_RPTLK1,  "Intel Raptor Lake-P",	0, 0 },
 	{ HDA_INTEL_RPTLK2,  "Intel Raptor Lake-P",	0, 0 },
+	{ HDA_INTEL_RPTLK3,  "Intel Raptor Lake-S",	0, 0 },
 	{ HDA_INTEL_MTL,     "Intel Meteor Lake-P",	0, 0 },
 	{ HDA_INTEL_ARLS,    "Intel Arrow Lake-S",	0, 0 },
 	{ HDA_INTEL_ARL,     "Intel Arrow Lake",	0, 0 },
@@ -1627,7 +1626,7 @@ hdac_attach2(void *arg)
 			sc->codecs[i].dev = child;
 		}
 	}
-	bus_generic_attach(sc->dev);
+	bus_attach_children(sc->dev);
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
@@ -1637,6 +1636,35 @@ hdac_attach2(void *arg)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
 	    "polling", CTLTYPE_INT | CTLFLAG_RW, sc->dev,
 	    sizeof(sc->dev), sysctl_hdac_polling, "I", "Enable polling mode");
+}
+
+/****************************************************************************
+ * int hdac_shutdown(device_t)
+ *
+ * Power down HDA bus and codecs.
+ ****************************************************************************/
+static int
+hdac_shutdown(device_t dev)
+{
+	struct hdac_softc *sc = device_get_softc(dev);
+
+	HDA_BOOTHVERBOSE(
+		device_printf(dev, "Shutdown...\n");
+	);
+	callout_drain(&sc->poll_callout);
+	taskqueue_drain(taskqueue_thread, &sc->unsolq_task);
+	bus_generic_shutdown(dev);
+
+	hdac_lock(sc);
+	HDA_BOOTHVERBOSE(
+		device_printf(dev, "Reset controller...\n");
+	);
+	hdac_reset(sc, false);
+	hdac_unlock(sc);
+	HDA_BOOTHVERBOSE(
+		device_printf(dev, "Shutdown done\n");
+	);
+	return (0);
 }
 
 /****************************************************************************
@@ -1742,24 +1770,17 @@ static int
 hdac_detach(device_t dev)
 {
 	struct hdac_softc *sc = device_get_softc(dev);
-	device_t *devlist;
-	int cad, i, devcount, error;
+	int i, error;
 
-	if ((error = device_get_children(dev, &devlist, &devcount)) != 0)
+	error = bus_generic_detach(dev);
+	if (error != 0)
 		return (error);
-	for (i = 0; i < devcount; i++) {
-		cad = (intptr_t)device_get_ivars(devlist[i]);
-		if ((error = device_delete_child(dev, devlist[i])) != 0) {
-			free(devlist, M_TEMP);
-			return (error);
-		}
-		sc->codecs[cad].dev = NULL;
-	}
-	free(devlist, M_TEMP);
 
 	hdac_lock(sc);
+	callout_stop(&sc->poll_callout);
 	hdac_reset(sc, false);
 	hdac_unlock(sc);
+	callout_drain(&sc->poll_callout);
 	taskqueue_drain(taskqueue_thread, &sc->unsolq_task);
 	hdac_irq_free(sc);
 
@@ -2156,6 +2177,7 @@ static device_method_t hdac_methods[] = {
 	DEVMETHOD(device_probe,		hdac_probe),
 	DEVMETHOD(device_attach,	hdac_attach),
 	DEVMETHOD(device_detach,	hdac_detach),
+	DEVMETHOD(device_shutdown,	hdac_shutdown),
 	DEVMETHOD(device_suspend,	hdac_suspend),
 	DEVMETHOD(device_resume,	hdac_resume),
 	/* Bus interface */

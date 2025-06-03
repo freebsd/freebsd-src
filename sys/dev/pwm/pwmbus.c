@@ -182,20 +182,10 @@ pwmbus_attach(device_t dev)
 	}
 
 	bus_enumerate_hinted_children(dev);
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 
-	return (bus_generic_attach(dev));
-}
-
-static int
-pwmbus_detach(device_t dev)
-{
-	int rv;
-
-	if ((rv = bus_generic_detach(dev)) == 0)
-		rv = device_delete_children(dev);
-
-	return (rv);
+	return (0);
 }
 
 /*
@@ -248,7 +238,7 @@ static device_method_t pwmbus_methods[] = {
 	/* device_if */
 	DEVMETHOD(device_probe,  pwmbus_probe),
 	DEVMETHOD(device_attach, pwmbus_attach),
-	DEVMETHOD(device_detach, pwmbus_detach),
+	DEVMETHOD(device_detach, bus_generic_detach),
 
         /* bus_if */
 	DEVMETHOD(bus_add_child,		pwmbus_add_child),

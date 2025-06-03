@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -25,7 +25,8 @@ static POSITION *table = NULL;  /* The position table */
 static int table_size = 0;
 
 extern int sc_width, sc_height;
-extern int header_lines;
+extern int hshift;
+extern int shell_lines;
 
 /*
  * Return the starting file position of a line displayed on the screen.
@@ -46,6 +47,9 @@ public POSITION position(int sindex)
 	case BOTTOM_PLUS_ONE:
 		sindex = sc_height - 1;
 		break;
+	case BOTTOM_OFFSET:
+		sindex = sc_height - shell_lines;
+		break;
 	case MIDDLE:
 		sindex = (sc_height - 1) / 2;
 		break;
@@ -56,15 +60,18 @@ public POSITION position(int sindex)
 /*
  * Add a new file position to the bottom of the position table.
  */
-public void add_forw_pos(POSITION pos)
+public void add_forw_pos(POSITION pos, lbool no_scroll)
 {
 	int i;
 
 	/*
 	 * Scroll the position table up.
 	 */
-	for (i = 1;  i < sc_height;  i++)
-		table[i-1] = table[i];
+	if (!no_scroll)
+	{
+		for (i = 1;  i < sc_height;  i++)
+			table[i-1] = table[i];
+	}
 	table[sc_height - 1] = pos;
 }
 
@@ -113,7 +120,7 @@ public void pos_init(void)
 		free((char*)table);
 	} else
 		scrpos.pos = NULL_POSITION;
-	table = (POSITION *) ecalloc(sc_height, sizeof(POSITION));
+	table = (POSITION *) ecalloc((size_t) sc_height, sizeof(POSITION)); /*{{type-issue}}*/
 	table_size = sc_height;
 	pos_clear();
 	if (scrpos.pos != NULL_POSITION)
@@ -235,4 +242,68 @@ public int sindex_from_sline(int sline)
 	 * Return zero-based line number, not one-based.
 	 */
 	return (sline-1);
+}
+
+/*
+ * Given a line that starts at linepos,
+ * and the character at byte offset choff into that line,
+ * return the number of characters (not bytes) between the
+ * beginning of the line and the first byte of the choff character.
+ */
+static int pos_shift(POSITION linepos, size_t choff)
+{
+	constant char *line;
+	size_t line_len;
+	POSITION pos;
+	int cvt_ops;
+	char *cline;
+
+	pos = forw_raw_line_len(linepos, choff, &line, &line_len);
+	if (pos == NULL_POSITION || line_len != choff)
+		return -1;
+	cvt_ops = get_cvt_ops(0); /* {{ Passing 0 ignores SRCH_NO_REGEX; does it matter? }} */
+	/* {{ It would be nice to be able to call cvt_text with dst=NULL, to avoid need to alloc a useless cline. }} */
+	cline = (char *) ecalloc(1, cvt_length(line_len, cvt_ops));
+	cvt_text(cline, line, NULL, &line_len, cvt_ops);
+	free(cline);
+	return (int) line_len;  /*{{type-issue}}*/
+}
+
+/*
+ * Return the position of the first char of the line containing tpos.
+ * Thus if tpos is the first char of its line, just return tpos.
+ */
+static POSITION beginning_of_line(POSITION tpos)
+{
+	ch_seek(tpos);
+	while (ch_tell() != ch_zero())
+	{
+		int ch = ch_back_get();
+		if (ch == '\n')
+		{
+			(void) ch_forw_get();
+			break;
+		}
+	}
+	return ch_tell();
+}
+
+/*
+ * When viewing long lines, it may be that the first char in the top screen
+ * line is not the first char in its (file) line (the table is "beheaded").
+ * This function sets that entry to the position of the first char in the line,
+ * and sets hshift so that the first char in the first line is unchanged.
+ */
+public void pos_rehead(void)
+{
+	POSITION linepos;
+	POSITION tpos = table[TOP];
+	if (tpos == NULL_POSITION)
+		return;
+	linepos = beginning_of_line(tpos);
+	if (linepos == tpos)
+		return;
+	table[TOP] = linepos;
+	hshift = pos_shift(linepos, (size_t) (tpos - linepos));
+	screen_trashed();
 }

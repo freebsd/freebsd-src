@@ -92,11 +92,11 @@ makeoptions	DESTDIR=/tmp
 # The soft limits can be modified during normal system operation, but
 # the hard limits are set at boot time.  Their default values are
 # in sys/<arch>/include/vmparam.h.  There are two ways to change them:
-# 
+#
 # 1.  Set the values at kernel build time.  The options below are one
 #     way to allow that limit to grow to 1GB.  They can be increased
 #     further by changing the parameters:
-#	
+#
 # 2.  In /boot/loader.conf, set the tunables kern.maxswzone,
 #     kern.maxbcache, kern.maxtsiz, kern.dfldsiz, kern.maxdsiz,
 #     kern.dflssiz, kern.maxssiz and kern.sgrowsiz.
@@ -177,7 +177,6 @@ options 	GEOM_RAID3		# RAID3 functionality.
 options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_UZIP		# Read-only compressed disks
-options 	GEOM_VINUM		# Vinum logical volume manager
 options 	GEOM_VIRSTOR		# Virtual storage.
 options 	GEOM_ZERO		# Performance testing helper.
 
@@ -202,7 +201,7 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 #
 # SCHED_ULE provides significant performance advantages over 4BSD on many
 # workloads on SMP machines.  It supports cpu-affinity, per-cpu runqueues
-# and scheduler locks.  It also has a stronger notion of interactivity 
+# and scheduler locks.  It also has a stronger notion of interactivity
 # which leads to better responsiveness even on uniprocessor machines.  This
 # is the default scheduler.
 #
@@ -296,7 +295,7 @@ options 	SX_NOINLINE
 #	  frequency.
 # TURNSTILE_PROFILING enables rudimentary profiling of the hash table
 #	  used to hold active lock queues.
-# UMTX_PROFILING enables rudimentary profiling of the hash table used 
+# UMTX_PROFILING enables rudimentary profiling of the hash table used
 #	  to hold active lock queues.
 # WITNESS enables the witness code which detects deadlocks and cycles
 #         during locking operations.
@@ -681,11 +680,11 @@ options  	TCP_RFC7413		# TCP Fast Open
 
 options  	TCPHPTS
 
-# In order to enable IPSEC you MUST also add device crypto to 
+# In order to enable IPSEC you MUST also add device crypto to
 # your kernel configuration
 options 	IPSEC			#IP security (requires device crypto)
 
-# Option IPSEC_SUPPORT does not enable IPsec, but makes it possible to 
+# Option IPSEC_SUPPORT does not enable IPsec, but makes it possible to
 # load it as a kernel module. You still MUST add device crypto to your kernel
 # configuration.
 options 	IPSEC_SUPPORT
@@ -723,7 +722,7 @@ options 	LIBALIAS
 # and is quite well tested.
 #
 # Note YOU MUST have both INET and INET6 defined.
-# You don't have to enable V6, but SCTP is 
+# You don't have to enable V6, but SCTP is
 # dual stacked and so far we have not torn apart
 # the V6 and V4.. since an association can span
 # both a V6 and V4 address at the SAME time :-)
@@ -751,9 +750,9 @@ options 	SCTP_DEBUG
 # All that options after that turn on specific types of
 # logging. You can monitor CWND growth, flight size
 # and all sorts of things. Go look at the code and
-# see. I have used this to produce interesting 
+# see. I have used this to produce interesting
 # charts and graphs as well :->
-# 
+#
 # I have not yet committed the tools to get and print
 # the logs, I will do that eventually .. before then
 # if you want them send me an email rrs@freebsd.org
@@ -890,10 +889,11 @@ options 	IEEE80211_SUPPORT_MESH	#enable 802.11s D3.0 support
 options 	IEEE80211_SUPPORT_TDMA	#enable TDMA support
 
 #  The `wlan_wep', `wlan_tkip', and `wlan_ccmp' devices provide
-#  support for WEP, TKIP, and AES-CCMP crypto protocols optionally
+#  support for WEP, TKIP, AES-CCMP and AES-GCMP crypto protocols optionally
 #  used with 802.11 devices that depend on the `wlan' module.
 device		wlan_wep
 device		wlan_ccmp
+device		wlan_gcmp
 device		wlan_tkip
 
 #  The `wlan_xauth' device provides support for external (i.e. user-mode)
@@ -1025,9 +1025,6 @@ device		dummymbuf
 #
 # PF_DEFAULT_TO_DROP causes the default pf(4) rule to deny everything.
 #
-# TCPPCAP enables code which keeps the last n packets sent and received
-# on a TCP socket.
-#
 # TCP_BLACKBOX enables enhanced TCP event logging.
 #
 # TCP_HHOOK enables the hhook(9) framework hooks for the TCP stack.
@@ -1050,7 +1047,6 @@ options 	IPFILTER_LOOKUP		#ipfilter pools
 options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
 options 	PF_DEFAULT_TO_DROP	#drop everything by default
-options 	TCPPCAP
 options 	TCP_BLACKBOX
 options 	TCP_HHOOK
 options		SOCKET_HHOOK
@@ -1253,6 +1249,7 @@ options 	MAC
 options 	MAC_BIBA
 options 	MAC_BSDEXTENDED
 options 	MAC_DDB
+options		MAC_DO
 options 	MAC_IFOFF
 options 	MAC_IPACL
 options 	MAC_LOMAC
@@ -1596,6 +1593,8 @@ envvar		hint.isp.0.topology="nport-only"
 envvar		hint.isp.0.portwnn="w50000000aaaa0000"
 envvar		hint.isp.0.nodewnn="w50000000aaaa0001"
 device		ispfw
+# Only works on aarch64 and amd64
+#device		mpi3mr			# LSI-Logic MPT-Fusion 4
 device		mpr			# LSI-Logic MPT-Fusion 3
 device		mps			# LSI-Logic MPT-Fusion 2
 device		mpt			# LSI-Logic MPT-Fusion
@@ -2059,7 +2058,8 @@ device		rtwnfw
 # mismatch between the mbuf size assumed by the kernel and the mbuf size
 # assumed by a module.  The only driver that currently has the ability to
 # detect a mismatch is ti(4).
-options 	MCLSHIFT=11	# mbuf cluster shift in bits, 11 == 2KB
+options 	MCLSHIFT=12	# mbuf cluster shift in bits, 12 == 4 kB
+				#   default is 11 == 2 kB
 options 	MSIZE=256	# mbuf size in bytes
 
 #
@@ -2357,7 +2357,7 @@ device  	pwmc		# userland control access to pwm outputs
 #
 # etherswitch	The etherswitch(4) framework
 # miiproxy	Proxy device for miibus(4) functionality
-# 
+#
 # Switch hardware support:
 # arswitch	Atheros switches
 # ip17x 	IC+ 17x family switches
@@ -2592,7 +2592,7 @@ device		zyd
 # Sierra USB wireless driver
 device		usie
 
-# 
+#
 # debugging options for the USB subsystem
 #
 options 	USB_DEBUG
@@ -2840,7 +2840,7 @@ options 	ZSTDIO
 # BHND(4) drivers
 options 	BHND_LOGLEVEL	# Logging threshold level
 
-# evdev interface 
+# evdev interface
 device		evdev		# input event device support
 options 	EVDEV_SUPPORT	# evdev support in legacy drivers
 options 	EVDEV_DEBUG	# enable event debug msgs
@@ -2853,9 +2853,9 @@ options 	EKCD
 # Serial Peripheral Interface (SPI) support.
 device		spibus		# Bus support.
 device		at45d		# DataFlash driver
-device		cqspi		# 
+device		cqspi		#
 device		mx25l		# SPIFlash driver
-device		n25q		# 
+device		n25q		#
 device		spigen		# Generic access to SPI devices from userland.
 # Enable legacy /dev/spigenN name aliases for /dev/spigenX.Y devices.
 options 	SPIGEN_LEGACY_CDEVNAME # legacy device names for spigen

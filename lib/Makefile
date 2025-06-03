@@ -15,6 +15,7 @@ SUBDIR_BOOTSTRAP= \
 	libc++ \
 	libc++experimental \
 	libcxxrt \
+	libder \
 	libdiff \
 	libelf \
 	libssp \
@@ -66,6 +67,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libiscsiutil \
 	libjail \
 	libkiconv \
+	libkldelf \
 	libkvm \
 	liblua \
 	liblzma \
@@ -127,6 +129,7 @@ SUBDIR_DEPEND_libc++:= libcxxrt
 SUBDIR_DEPEND_libc= libsys libcompiler_rt libssp_nonshared
 SUBDIR_DEPEND_libcam= libsbuf
 SUBDIR_DEPEND_libcasper= libnv
+SUBDIR_DEPEND_libcrypt= libmd
 SUBDIR_DEPEND_libdevstat= libkvm
 SUBDIR_DEPEND_libdpv= libfigpar ncurses libutil
 SUBDIR_DEPEND_libedit= ncurses
@@ -183,7 +186,10 @@ _libclang_rt=	libclang_rt
 .error Requested build with sanitizers but cannot build runtime libraries!
 .endif
 
+# This construct disables libefivar for 32-bit build.
+.if ${MACHINE_CPUARCH} != "i386"
 SUBDIR.${MK_EFI}+=	libefivar
+.endif
 SUBDIR.${MK_GOOGLETEST}+=	googletest
 SUBDIR.${MK_NETGRAPH}+=	libnetgraph
 SUBDIR.${MK_NIS}+=	libypclnt
@@ -200,7 +206,8 @@ SUBDIR.${MK_PMC}+=	libopencsd
 SUBDIR.${MK_PMC}+=	libipt
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64" || \
+    ${MACHINE_CPUARCH} == "riscv"
 SUBDIR.${MK_BHYVE}+=	libvmmapi
 .endif
 

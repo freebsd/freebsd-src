@@ -1,28 +1,32 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
+
+/*
+ * This data would fit onto one line, but it's easier to understand when it's
+ * on mulitple lines (and thus matches the output files).
+ */
+static const char *cvf_err =
+"a f\n"
+"a l\n";
+
+static const char *tf_out =
+"f\n"
+"l\n";
+
+static const char *xvf_err =
+"x f\n"
+"x l\n";
+
+/*
+ * This string should appear in the verbose listing regardless of platform,
+ * locale, username, or groupname.
+ */
+static const char * tvf_contains = "l link to f";
 
 DEFINE_TEST(test_stdio)
 {
@@ -65,35 +69,43 @@ DEFINE_TEST(test_stdio)
 	failure("'cv' writes filenames to stderr, nothing to stdout (SUSv2)\n"
 	    "Note that GNU tar writes the file list to stdout by default.");
 	assertEmptyFile("cvf.out");
-	/* TODO: Verify cvf.err has file list in SUSv2-prescribed format. */
+	assertTextFileContents(cvf_err, "cvf.err");
 
 	/* 'cvf -' should generate file list on stderr, archive on stdout. */
 	r = systemf("%s cvf - f l >cvf-.out 2>cvf-.err", testprog);
 	assertEqualInt(r, 0);
 	failure("cvf - should write archive to stdout");
-	/* TODO: Verify cvf-.out has archive. */
 	failure("cvf - should write file list to stderr (SUSv2)");
-	/* TODO: Verify cvf-.err has verbose file list. */
+	assertEqualFile("cvf.err", "cvf-.err");
+	/* Check that stdout from 'cvf -' was a valid archive. */
+	r = systemf("%s tf cvf-.out >cvf-tf.out 2>cvf-tf.err", testprog);
+	assertEqualInt(r, 0);
+	assertEmptyFile("cvf-tf.err");
+	assertTextFileContents(tf_out, "cvf-tf.out");
 
 	/* 'tf' should generate file list on stdout, empty stderr. */
 	r = systemf("%s tf archive >tf.out 2>tf.err", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("tf.err");
 	failure("'t' mode should write results to stdout");
-	/* TODO: Verify tf.out has file list. */
+	assertTextFileContents(tf_out, "tf.out");
 
 	/* 'tvf' should generate file list on stdout, empty stderr. */
 	r = systemf("%s tvf archive >tvf.out 2>tvf.err", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("tvf.err");
 	failure("'tv' mode should write results to stdout");
-	/* TODO: Verify tvf.out has file list. */
+	/* Check that it contains a string only found in the verbose listing. */
+	p = slurpfile(&s, "%s", "tvf.out");
+	assert(strstr(p, tvf_contains) != NULL);
+	free(p);
 
 	/* 'tvf -' uses stdin, file list on stdout, empty stderr. */
 	r = systemf("%s tvf - < archive >tvf-.out 2>tvf-.err", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("tvf-.err");
-	/* TODO: Verify tvf-.out has file list. */
+	failure("'tvf-' mode should write the same results as 'tvf'");
+	assertEqualFile("tvf.out", "tvf-.out");
 
 	/* Basic 'xf' should generate no output on stdout or stderr. */
 	r = systemf("%s xf archive >xf.out 2>xf.err", testprog);
@@ -105,7 +117,7 @@ DEFINE_TEST(test_stdio)
 	r = systemf("%s xvf archive >xvf.out 2>xvf.err", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("xvf.out");
-	/* TODO: Verify xvf.err */
+	assertTextFileContents(xvf_err, "xvf.err");
 
 	/* 'xvOf' should generate list on stderr, file contents on stdout. */
 	r = systemf("%s xvOf archive >xvOf.out 2>xvOf.err", testprog);
@@ -114,12 +126,12 @@ DEFINE_TEST(test_stdio)
 	p = slurpfile(&s, "xvOf.out");
 	assertEqualInt((int)s, 3);
 	assertEqualMem(p, "abc", 3);
-	/* TODO: Verify xvf.err */
+	assertEqualFile("xvf.err", "xvOf.err");
 	free(p);
 
 	/* 'xvf -' should generate list on stderr, empty stdout. */
 	r = systemf("%s xvf - < archive >xvf-.out 2>xvf-.err", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("xvf-.out");
-	/* TODO: Verify xvf-.err */
+	assertEqualFile("xvf.err", "xvf-.err");
 }

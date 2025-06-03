@@ -25,27 +25,25 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/limits.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/types.h>
-#include <sys/user.h>
+#include <sys/event.h>
+#include <sys/eventfd.h>
+#include <sys/errno.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
-#include <sys/stat.h>
-#include <sys/errno.h>
-#include <sys/event.h>
+#include <sys/kernel.h>
+#include <sys/limits.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
-#include <sys/uio.h>
 #include <sys/selinfo.h>
-#include <sys/eventfd.h>
+#include <sys/stat.h>
+#include <sys/uio.h>
+#include <sys/user.h>
 
 #include <security/audit/audit.h>
 
@@ -63,7 +61,7 @@ static fo_stat_t	eventfd_stat;
 static fo_close_t	eventfd_close;
 static fo_fill_kinfo_t	eventfd_fill_kinfo;
 
-static struct fileops eventfdops = {
+static const struct fileops eventfdops = {
 	.fo_read = eventfd_read,
 	.fo_write = eventfd_write,
 	.fo_truncate = invfo_truncate,
@@ -84,13 +82,13 @@ static void	filt_eventfddetach(struct knote *kn);
 static int	filt_eventfdread(struct knote *kn, long hint);
 static int	filt_eventfdwrite(struct knote *kn, long hint);
 
-static struct filterops eventfd_rfiltops = {
+static const struct filterops eventfd_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_eventfddetach,
 	.f_event = filt_eventfdread
 };
 
-static struct filterops eventfd_wfiltops = {
+static const struct filterops eventfd_wfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_eventfddetach,
 	.f_event = filt_eventfdwrite

@@ -380,16 +380,16 @@ out:
 uint16_t
 p9_tag_create(struct p9_client *clnt)
 {
-        int tag;
+	int tag;
 
-        tag = alloc_unr(&clnt->tagpool);
-        P9_DEBUG(LPROTO, "%s: clnt %p: tag %d\n", __func__, clnt, tag);
+	tag = alloc_unr(&clnt->tagpool);
+	P9_DEBUG(LPROTO, "%s: clnt %p: tag %d\n", __func__, clnt, tag);
 
-        /* Alloc_unr returning -1 is an error for no units left */
-        if (tag == -1) {
-                return (P9_NOTAG);
-        }
-        return (tag);
+	/* Alloc_unr returning -1 is an error for no units left */
+	if (tag == -1) {
+		return (P9_NOTAG);
+	}
+	return (tag);
 }
 
 /* Clean up tag structures */
@@ -397,10 +397,10 @@ void
 p9_tag_destroy(struct p9_client *clnt, uint16_t tag)
 {
 
-        P9_DEBUG(LPROTO, "%s: clnt %p: tag %d\n", __func__, clnt, tag);
+	P9_DEBUG(LPROTO, "%s: clnt %p: tag %d\n", __func__, clnt, tag);
 
-        /* Release to the pool */
-        free_unr(&clnt->tagpool, tag);
+	/* Release to the pool */
+	free_unr(&clnt->tagpool, tag);
 }
 
 /* Allocate a new fid from the fidpool */
@@ -662,6 +662,27 @@ p9_client_remove(struct p9_fid *fid)
 	req = p9_client_request(clnt, P9PROTO_TREMOVE, &error, "d", fid->fid);
 	if (error != 0) {
 		P9_DEBUG(PROTO, "RREMOVE fid %d\n", fid->fid);
+		return (error);
+	}
+
+	p9_free_req(clnt, req);
+	return (error);
+}
+
+int
+p9_client_unlink(struct p9_fid *dfid, const char *name, int32_t flags)
+{
+	int error;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	error = 0;
+	clnt = dfid->clnt;
+
+	req = p9_client_request(clnt, P9PROTO_TUNLINKAT, &error, "dsd",
+	    dfid->fid, name, flags);
+	if (error != 0) {
+		P9_DEBUG(PROTO, "RUNLINKAT fid %d\n", dfid->fid);
 		return (error);
 	}
 

@@ -82,8 +82,13 @@
 #define	EOFFSET	(ELAST+8)	/* relative seek not supported */
 #define	ESALAST	(ELAST+8)	/* */
 
-/* Partial signal emulation for sig_atomic_t */
-#include <machine/signal.h>
+/*
+ * LUA needs sig_atomic_t. This is defined to be long or int on all our
+ * platforms. On all but powerpc, these are all the same thing as long. 64-bit
+ * powerpc defines this as int, but long can also be accessed atomically. It's
+ * also OK because we don't have signal handlers in the boot loader.
+ */
+typedef long sig_atomic_t;
 
 __BEGIN_DECLS
 

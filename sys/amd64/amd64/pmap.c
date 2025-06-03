@@ -431,6 +431,15 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, la57, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &la57, 0,
     "5-level paging for host is enabled");
 
+/*
+ * The default value is needed in order to preserve compatibility with
+ * some userspace programs that put tags into sign-extended bits.
+ */
+int prefer_uva_la48 = 1;
+SYSCTL_INT(_vm_pmap, OID_AUTO, prefer_uva_la48, CTLFLAG_RDTUN,
+    &prefer_uva_la48, 0,
+    "Userspace maps are limited to LA48 unless otherwise configured");
+
 static bool
 pmap_is_la57(pmap_t pmap)
 {
@@ -2182,6 +2191,7 @@ pmap_bootstrap_la57(void *arg __unused)
 
 	if ((cpu_stdext_feature2 & CPUID_STDEXT2_LA57) == 0)
 		return;
+	la57 = 1;
 	TUNABLE_INT_FETCH("vm.pmap.la57", &la57);
 	if (!la57)
 		return;
@@ -2498,7 +2508,7 @@ pmap_init(void)
 				ret = vm_page_blacklist_add(0x40000000 +
 				    ptoa(i), false);
 				if (!ret && bootverbose)
-					printf("page at %#lx already used\n",
+					printf("page at %#x already used\n",
 					    0x40000000 + ptoa(i));
 			}
 		}
@@ -4082,7 +4092,19 @@ pmap_qremove(vm_offset_t sva, int count)
 
 	va = sva;
 	while (count-- > 0) {
+		/*
+		 * pmap_enter() calls within the kernel virtual
+		 * address space happen on virtual addresses from
+		 * subarenas that import superpage-sized and -aligned
+		 * address ranges.  So, the virtual address that we
+		 * allocate to use with pmap_qenter() can't be close
+		 * enough to one of those pmap_enter() calls for it to
+		 * be caught up in a promotion.
+		 */
 		KASSERT(va >= VM_MIN_KERNEL_ADDRESS, ("usermode va %lx", va));
+		KASSERT((*vtopde(va) & X86_PG_PS) == 0,
+		    ("pmap_qremove on promoted va %#lx", va));
+
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
@@ -7684,30 +7706,32 @@ void
 pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
     vm_page_t m_start, vm_prot_t prot)
 {
+	struct pctrie_iter pages;
 	struct rwlock *lock;
 	vm_offset_t va;
 	vm_page_t m, mpte;
-	vm_pindex_t diff, psize;
 	int rv;
 
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
-	psize = atop(end - start);
 	mpte = NULL;
-	m = m_start;
+	vm_page_iter_limit_init(&pages, m_start->object,
+	    m_start->pindex + atop(end - start));
+	m = vm_radix_iter_lookup(&pages, m_start->pindex);
 	lock = NULL;
 	PMAP_LOCK(pmap);
-	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
-		va = start + ptoa(diff);
+	while (m != NULL) {
+		va = start + ptoa(m->pindex - m_start->pindex);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
 		    m->psind == 1 && pmap_ps_enabled(pmap) &&
 		    ((rv = pmap_enter_2mpage(pmap, va, m, prot, &lock)) ==
 		    KERN_SUCCESS || rv == KERN_NO_SPACE))
-			m = &m[NBPDR / PAGE_SIZE - 1];
-		else
+			m = vm_radix_iter_jump(&pages, NBPDR / PAGE_SIZE);
+		else {
 			mpte = pmap_enter_quick_locked(pmap, va, m, prot,
 			    mpte, &lock);
-		m = TAILQ_NEXT(m, listq);
+			m = vm_radix_iter_step(&pages);
+		}
 	}
 	if (lock != NULL)
 		rw_wunlock(lock);
@@ -7881,6 +7905,7 @@ void
 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
     vm_pindex_t pindex, vm_size_t size)
 {
+	struct pctrie_iter pages;
 	pd_entry_t *pde;
 	pt_entry_t PG_A, PG_M, PG_RW, PG_V;
 	vm_paddr_t pa, ptepa;
@@ -7900,7 +7925,8 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 			return;
 		if (!vm_object_populate(object, pindex, pindex + atop(size)))
 			return;
-		p = vm_page_lookup(object, pindex);
+		vm_page_iter_init(&pages, object);
+		p = vm_radix_iter_lookup(&pages, pindex);
 		KASSERT(vm_page_all_valid(p),
 		    ("pmap_object_init_pt: invalid page %p", p));
 		pat_mode = p->md.pat_mode;
@@ -7918,15 +7944,14 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 		 * the pages are not physically contiguous or have differing
 		 * memory attributes.
 		 */
-		p = TAILQ_NEXT(p, listq);
 		for (pa = ptepa + PAGE_SIZE; pa < ptepa + size;
 		    pa += PAGE_SIZE) {
+			p = vm_radix_iter_next(&pages);
 			KASSERT(vm_page_all_valid(p),
 			    ("pmap_object_init_pt: invalid page %p", p));
 			if (pa != VM_PAGE_TO_PHYS(p) ||
 			    pat_mode != p->md.pat_mode)
 				return;
-			p = TAILQ_NEXT(p, listq);
 		}
 
 		/*
@@ -10506,8 +10531,7 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 {
 	vm_paddr_t paddr;
 	bool needs_mapping;
-	pt_entry_t *pte;
-	int cache_bits, error __unused, i;
+	int error __unused, i;
 
 	/*
 	 * Allocate any KVA space that we need, this is done in a separate
@@ -10552,11 +10576,8 @@ pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
 				 */
 				pmap_qenter(vaddr[i], &page[i], 1);
 			} else {
-				pte = vtopte(vaddr[i]);
-				cache_bits = pmap_cache_bits(kernel_pmap,
-				    page[i]->md.pat_mode, false);
-				pte_store(pte, paddr | X86_PG_RW | X86_PG_V |
-				    cache_bits);
+				pmap_kenter_attr(vaddr[i], paddr,
+				    page[i]->md.pat_mode);
 				pmap_invlpg(kernel_pmap, vaddr[i]);
 			}
 		}

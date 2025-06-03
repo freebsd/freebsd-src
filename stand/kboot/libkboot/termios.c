@@ -22,7 +22,7 @@ int
 host_tcsetattr(int fd, int act, const struct host_termios *tio)
 {
 	if (act < 0 || act > 2) {
-//		errno = EINVAL;	/* XXX ?? */
+		errno = EINVAL;	/* XXX ?? */
 		return -1;
 	}
 	return host_ioctl(fd, HOST_TCSETS+act, (uintptr_t)tio);

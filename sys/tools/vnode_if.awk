@@ -325,7 +325,7 @@ while ((getline < srcfile) > 0) {
 
 		# Print out function prototypes.
 		printh("int " uname "_AP(struct " name "_args *);");
-		printh("int " uname "_APV(struct vop_vector *vop, struct " name "_args *);");
+		printh("int " uname "_APV(const struct vop_vector *vop, struct " name "_args *);");
 		printh("");
 		printh("static __inline int " uname "(");
 		for (i = 0; i < numargs; ++i) {
@@ -389,7 +389,7 @@ while ((getline < srcfile) > 0) {
 		printc("");
 		printc("\treturn(" uname "_APV(a->a_" args[0] "->v_op, a));");
 		printc("}");
-		printc("\nint\n" uname "_APV(struct vop_vector *vop, struct " name "_args *a)");
+		printc("\nint\n" uname "_APV(const struct vop_vector *vop, struct " name "_args *a)");
 		printc("{");
 		printc("\tint rc;");
 		printc("");
@@ -401,13 +401,9 @@ while ((getline < srcfile) > 0) {
 		add_pre(name);
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "Entry", "\t");
-		printc("\tif (!SDT_PROBES_ENABLED()) {");
-		printc("\t\trc = vop->"name"(a);")
-		printc("\t} else {")
-		printc("\t\tSDT_PROBE2(vfs, vop, " name ", entry, a->a_" args[0] ", a);");
-		printc("\t\trc = vop->"name"(a);")
-		printc("\t\tSDT_PROBE3(vfs, vop, " name ", return, a->a_" args[0] ", a, rc);");
-		printc("\t}")
+		printc("\tSDT_PROBE2(vfs, vop, " name ", entry, a->a_" args[0] ", a);");
+		printc("\trc = vop->"name"(a);")
+		printc("\tSDT_PROBE3(vfs, vop, " name ", return, a->a_" args[0] ", a, rc);");
 		printc("\tif (rc == 0) {");
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "OK", "\t\t");

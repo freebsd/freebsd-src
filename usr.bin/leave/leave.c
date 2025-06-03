@@ -29,13 +29,15 @@
  * SUCH DAMAGE.
  */
 
-#include <err.h>
 #include <ctype.h>
+#include <err.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <capsicum_helpers.h>
 
 static void doalarm(u_int);
 static void usage(void) __dead2;
@@ -61,12 +63,17 @@ main(int argc, char **argv)
 	if (setlocale(LC_TIME, "") == NULL)
 		warn("setlocale");
 
+	caph_cache_tzdata();
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0 || caph_enter() < 0)
+		err(EXIT_FAILURE, "capsicum");
+
 	if (argc < 2) {
 #define	MSG1	"When do you have to leave? "
 		(void)write(STDOUT_FILENO, MSG1, sizeof(MSG1) - 1);
 		cp = fgets(buf, sizeof(buf), stdin);
 		if (cp == NULL || *cp == '\n')
-			exit(0);
+			exit(EXIT_SUCCESS);
 	} else if (argc > 2)
 		usage();
 	else
@@ -108,7 +115,7 @@ main(int argc, char **argv)
 			t_12_hour = t->tm_hour;
 
 		if (hours < t_12_hour ||
-	 	   (hours == t_12_hour && minutes <= t->tm_min))
+		   (hours == t_12_hour && minutes <= t->tm_min))
 			/* Leave time is in the past so we add 12 hrs */
 			hours += 12;
 
@@ -117,7 +124,7 @@ main(int argc, char **argv)
 		secs -= now % 60;	/* truncate (now + secs) to min */
 	}
 	doalarm(secs);
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 void
@@ -133,7 +140,7 @@ doalarm(u_int secs)
 		daytime += secs;
 		strftime(tb, sizeof(tb), "%+", localtime(&daytime));
 		printf("Alarm set for %s. (pid %d)\n", tb, pid);
-		exit(0);
+		exit(EXIT_SUCCESS);
 	}
 	sleep((u_int)2);		/* let parent print set message */
 	if (secs >= 2)
@@ -148,7 +155,7 @@ doalarm(u_int secs)
 	if (secs >= FIVEMIN) {
 		sleep(secs - FIVEMIN);
 		if (write(STDOUT_FILENO, MSG2, sizeof(MSG2) - 1) != sizeof(MSG2) - 1)
-			exit(0);
+			exit(EXIT_SUCCESS);
 		secs = FIVEMIN;
 	}
 
@@ -157,24 +164,24 @@ doalarm(u_int secs)
 	if (secs >= ONEMIN) {
 		sleep(secs - ONEMIN);
 		if (write(STDOUT_FILENO, MSG3, sizeof(MSG3) - 1) != sizeof(MSG3) - 1)
-			exit(0);
+			exit(EXIT_SUCCESS);
 	}
 
 #define	MSG4	"\07\07Time to leave!\n"
 	for (bother = 10; bother--;) {
 		sleep((u_int)ONEMIN);
 		if (write(STDOUT_FILENO, MSG4, sizeof(MSG4) - 1) != sizeof(MSG4) - 1)
-			exit(0);
+			exit(EXIT_SUCCESS);
 	}
 
 #define	MSG5	"\07\07That was the last time I'll tell you.  Bye.\n"
 	(void)write(STDOUT_FILENO, MSG5, sizeof(MSG5) - 1);
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 static void
 usage(void)
 {
 	fprintf(stderr, "usage: leave [[+]hhmm]\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }

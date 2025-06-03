@@ -353,8 +353,8 @@ bcm_sdhci_attach(device_t dev)
 	sc->sc_sdhci_buffer_phys = rman_get_start(sc->sc_mem_res) +
 	    SDHCI_BUFFER;
 
-	bus_generic_probe(dev);
-	bus_generic_attach(dev);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 
 	sdhci_start_slot(&sc->sc_slot);
 

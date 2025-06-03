@@ -251,9 +251,7 @@ authunix_marshal(AUTH *auth, uint32_t xid, XDR *xdrs, struct mbuf *args)
 	if (!XDR_PUTBYTES(xdrs, au->au_marshed, au->au_mpos))
 		return (FALSE);
 
-	xdrmbuf_append(xdrs, args);
-
-	return (TRUE);
+	return (xdr_putmbuf(xdrs, args));
 }
 
 static bool_t

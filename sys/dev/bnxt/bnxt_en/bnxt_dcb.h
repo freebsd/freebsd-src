@@ -40,13 +40,17 @@
 #define BNXT_DCB_CAP_DCBX_VER_IEEE		0x08
 #define BNXT_DCB_CAP_DCBX_STATIC		0x10
 
+#ifndef	__struct_group
 #define __struct_group(TAG, NAME, ATTRS, MEMBERS...) \
 	union { \
 		struct { MEMBERS } ATTRS; \
 		struct TAG { MEMBERS } ATTRS NAME; \
 	}
+#endif
+#ifndef	struct_group_attr
 #define struct_group_attr(NAME, ATTRS, MEMBERS...) \
 	__struct_group(/* no tag */, NAME, ATTRS, MEMBERS)
+#endif
 
 struct bnxt_cos2bw_cfg {
 	uint8_t			pad[3];

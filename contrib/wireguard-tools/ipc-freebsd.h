@@ -15,7 +15,7 @@ static int get_dgram_socket(void)
 {
 	static int sock = -1;
 	if (sock < 0)
-		sock = socket(AF_INET, SOCK_DGRAM, 0);
+		sock = socket(AF_LOCAL, SOCK_DGRAM, 0);
 	return sock;
 }
 
@@ -307,6 +307,11 @@ static int kernel_set_device(struct wgdevice *dev)
 			nvl_aips[j] = nvlist_create(0);
 			if (!nvl_aips[j])
 				goto err_peer;
+			if (aip->flags) {
+				//TODO: implement me
+				ret = -EOPNOTSUPP;
+				goto err_peer;
+			}
 			nvlist_add_number(nvl_aips[j], "cidr", aip->cidr);
 			if (aip->family == AF_INET)
 				nvlist_add_binary(nvl_aips[j], "ipv4", &aip->ip4, sizeof(aip->ip4));

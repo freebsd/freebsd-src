@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2005-2017 Dag-Erling Smørgrav
+.\" Copyright (c) 2005-2025 Dag-Erling Smørgrav
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 27, 2023
+.Dd May 31, 2025
 .Dt PAM.CONF 5
 .Os
 .Sh NAME
@@ -54,8 +54,8 @@ policy is used instead, if it exists.
 Entries in per-service policy files must be of one of the two forms
 below:
 .Bd -unfilled -offset indent
-.Ar facility control-flag module-path Op Ar arguments ...
-.Ar facility Cm include Ar other-service-name
+.Oo "-" Oc Ns Ar facility control-flag module-path Op Ar arguments ...
+.Oo "-" Oc Ns Ar facility Cm include Ar other-service-name
 .Ed
 .Pp
 Entries in
@@ -92,6 +92,19 @@ Session handling functions
 Password management functions
 .Pq Xr pam_chauthtok 3
 .El
+.Pp
+The
+.Ar facility
+field may optionally be preceded by a dash
+.Pq Ql - ,
+which indicates that failure to load the specified module (or policy
+if the
+.Ar control-flag is
+.Cm include )
+should not be considered a fatal error.
+This is intended for situations where it is desirable to share a
+single policy across multiple systems, but certain additional modules
+or policies may only be present on some of them.
 .Pp
 The
 .Ar control-flag
@@ -210,4 +223,4 @@ DARPA/SPAWAR contract N66001-01-C-8035
 as part of the DARPA CHATS research program.
 .Pp
 The OpenPAM library is maintained by
-.An Dag-Erling Sm\(/orgrav Aq Mt des@des.no .
+.An Dag-Erling Sm\(/orgrav Aq Mt des@des.dev .

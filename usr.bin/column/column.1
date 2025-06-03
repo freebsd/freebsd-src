@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 29, 2004
+.Dd May 13, 2025
 .Dt COLUMN 1
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Nm
 .Op Fl tx
 .Op Fl c Ar columns
+.Op Fl l Ar tblcols
 .Op Fl s Ar sep
 .Op Ar
 .Sh DESCRIPTION
@@ -53,6 +54,14 @@ The options are as follows:
 Output is formatted for a display
 .Ar columns
 wide.
+.It Fl l
+When used with
+.Fl t ,
+limit the table to
+.Ar tblcols
+columns in width.
+The last column will contain the rest of the line,
+including any delimiters.
 .It Fl s
 Specify a set of characters to be used to delimit columns for the
 .Fl t

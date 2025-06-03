@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -947,8 +948,6 @@ icp_gcm_impl_get(char *buffer, zfs_kernel_param_t *kp)
 	char *fmt;
 	const uint32_t impl = GCM_IMPL_READ(icp_gcm_impl);
 
-	ASSERT(gcm_impl_initialized);
-
 	/* list mandatory options */
 	for (i = 0; i < ARRAY_SIZE(gcm_impl_opts); i++) {
 #ifdef CAN_USE_GCM_ASM
@@ -1426,7 +1425,6 @@ gcm_init_avx(gcm_ctx_t *ctx, const uint8_t *iv, size_t iv_len,
 	    B_FALSE);
 
 	/* Init H (encrypt zero block) and create the initial counter block. */
-	memset(ctx->gcm_ghash, 0, sizeof (ctx->gcm_ghash));
 	memset(H, 0, sizeof (ctx->gcm_H));
 	kfpu_begin();
 	aes_encrypt_intel(keysched, aes_rounds,
@@ -1454,6 +1452,8 @@ gcm_init_avx(gcm_ctx_t *ctx, const uint8_t *iv, size_t iv_len,
 		    aes_copy_block, aes_xor_block);
 		kfpu_begin();
 	}
+
+	memset(ctx->gcm_ghash, 0, sizeof (ctx->gcm_ghash));
 
 	/* Openssl post increments the counter, adjust for that. */
 	gcm_incr_counter_block(ctx);

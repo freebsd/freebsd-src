@@ -42,7 +42,7 @@ struct nat64clat_cfg {
 	char			name[64];
 };
 
-VNET_DECLARE(uint16_t, nat64clat_eid);
+VNET_DECLARE(uint32_t, nat64clat_eid);
 #define	V_nat64clat_eid	VNET(nat64clat_eid)
 #define	IPFW_TLV_NAT64CLAT_NAME	IPFW_TLV_EACTION_NAME(V_nat64clat_eid)
 

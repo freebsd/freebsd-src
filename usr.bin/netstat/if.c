@@ -49,7 +49,6 @@
 #include <net/if_pfsync.h>
 #endif
 
-#include <err.h>
 #include <errno.h>
 #include <ifaddrs.h>
 #include <libutil.h>
@@ -395,9 +394,9 @@ intpr(void (*pfunc)(char *), int af)
 		return sidewaysintpr();
 
 	if (getifaddrs(&ifap) != 0)
-		err(EX_OSERR, "getifaddrs");
+		xo_err(EX_OSERR, "getifaddrs");
 	if (aflag && getifmaddrs(&ifmap) != 0)
-		err(EX_OSERR, "getifmaddrs");
+		xo_err(EX_OSERR, "getifmaddrs");
 
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		if (interface != NULL &&

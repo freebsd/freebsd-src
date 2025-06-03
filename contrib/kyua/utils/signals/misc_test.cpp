@@ -99,7 +99,7 @@ run_reset_all(void)
 ATF_TEST_CASE_WITHOUT_HEAD(reset__ok);
 ATF_TEST_CASE_BODY(reset__ok)
 {
-    std::auto_ptr< process::child > child = process::child::fork_files(
+    std::unique_ptr< process::child > child = process::child::fork_files(
         program_reset_raise, fs::path("/dev/stdout"), fs::path("/dev/stderr"));
     process::status status = child->wait();
     ATF_REQUIRE(status.signaled());
@@ -117,7 +117,7 @@ ATF_TEST_CASE_BODY(reset__invalid)
 ATF_TEST_CASE_WITHOUT_HEAD(reset_all);
 ATF_TEST_CASE_BODY(reset_all)
 {
-    std::auto_ptr< process::child > child = process::child::fork_files(
+    std::unique_ptr< process::child > child = process::child::fork_files(
         run_reset_all, fs::path("/dev/stdout"), fs::path("/dev/stderr"));
     process::status status = child->wait();
     ATF_REQUIRE(status.exited());

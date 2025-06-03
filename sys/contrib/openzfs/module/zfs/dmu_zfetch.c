@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -63,8 +64,8 @@ static unsigned int	zfetch_min_distance = 4 * 1024 * 1024;
 /* max bytes to prefetch per stream (default 64MB) */
 unsigned int	zfetch_max_distance = 64 * 1024 * 1024;
 #endif
-/* max bytes to prefetch indirects for per stream (default 64MB) */
-unsigned int	zfetch_max_idistance = 64 * 1024 * 1024;
+/* max bytes to prefetch indirects for per stream (default 128MB) */
+unsigned int	zfetch_max_idistance = 128 * 1024 * 1024;
 /* max request reorder distance within a stream (default 16MB) */
 unsigned int	zfetch_max_reorder = 16 * 1024 * 1024;
 /* Max log2 fraction of holes in a stream */
@@ -472,6 +473,7 @@ dmu_zfetch_prepare(zfetch_t *zf, uint64_t blkid, uint64_t nblks,
 	zstream_t *zs;
 	spa_t *spa = zf->zf_dnode->dn_objset->os_spa;
 	zfs_prefetch_type_t os_prefetch = zf->zf_dnode->dn_objset->os_prefetch;
+	int64_t ipf_start, ipf_end;
 
 	if (zfs_prefetch_disable || os_prefetch == ZFS_PREFETCH_NONE)
 		return (NULL);
@@ -571,13 +573,13 @@ dmu_zfetch_prepare(zfetch_t *zf, uint64_t blkid, uint64_t nblks,
 	 * This access is not part of any existing stream.  Create a new
 	 * stream for it unless we are at the end of file.
 	 */
+	ASSERT0P(zs);
 	if (end_blkid < maxblkid)
 		dmu_zfetch_stream_create(zf, end_blkid);
 	mutex_exit(&zf->zf_lock);
-	if (!have_lock)
-		rw_exit(&zf->zf_dnode->dn_struct_rwlock);
 	ZFETCHSTAT_BUMP(zfetchstat_misses);
-	return (NULL);
+	ipf_start = 0;
+	goto prescient;
 
 hit:
 	nblks = dmu_zfetch_hit(zs, nblks);
@@ -650,6 +652,7 @@ out:
 	pf_nblks = zs->zs_ipf_dist >> dbs;
 	if (zs->zs_ipf_start < zs->zs_pf_end)
 		zs->zs_ipf_start = zs->zs_pf_end;
+	ipf_start = zs->zs_ipf_end;
 	if (zs->zs_ipf_end < zs->zs_pf_end + pf_nblks)
 		zs->zs_ipf_end = zs->zs_pf_end + pf_nblks;
 
@@ -658,14 +661,36 @@ out:
 	zfs_refcount_add(&zs->zs_callers, NULL);
 	mutex_exit(&zf->zf_lock);
 
+prescient:
+	/*
+	 * Prefetch the following indirect blocks for this access to reduce
+	 * dbuf_hold() sync read delays in dmu_buf_hold_array_by_dnode().
+	 * This covers the gap during the first couple accesses when we can
+	 * not predict the future yet, but know what is needed right now.
+	 * This should be very rare for reads/writes to need more than one
+	 * indirect, but more useful for cloning due to much bigger accesses.
+	 */
+	ipf_start = MAX(ipf_start, blkid + 1);
+	int epbs = zf->zf_dnode->dn_indblkshift - SPA_BLKPTRSHIFT;
+	ipf_start = P2ROUNDUP(ipf_start, 1 << epbs) >> epbs;
+	ipf_end = P2ROUNDUP(end_blkid, 1 << epbs) >> epbs;
+
+	int issued = 0;
+	for (int64_t iblk = ipf_start; iblk < ipf_end; iblk++) {
+		issued += dbuf_prefetch(zf->zf_dnode, 1, iblk,
+		    ZIO_PRIORITY_SYNC_READ, ARC_FLAG_PRESCIENT_PREFETCH);
+	}
+
 	if (!have_lock)
 		rw_exit(&zf->zf_dnode->dn_struct_rwlock);
+	if (issued)
+		ZFETCHSTAT_ADD(zfetchstat_io_issued, issued);
 	return (zs);
 }
 
 void
 dmu_zfetch_run(zfetch_t *zf, zstream_t *zs, boolean_t missed,
-    boolean_t have_lock)
+    boolean_t have_lock, boolean_t uncached)
 {
 	int64_t pf_start, pf_end, ipf_start, ipf_end;
 	int epbs, issued;
@@ -720,7 +745,8 @@ dmu_zfetch_run(zfetch_t *zf, zstream_t *zs, boolean_t missed,
 	issued = 0;
 	for (int64_t blk = pf_start; blk < pf_end; blk++) {
 		issued += dbuf_prefetch_impl(zf->zf_dnode, 0, blk,
-		    ZIO_PRIORITY_ASYNC_READ, 0, dmu_zfetch_done, zs);
+		    ZIO_PRIORITY_ASYNC_READ, uncached ?
+		    ARC_FLAG_UNCACHED : 0, dmu_zfetch_done, zs);
 	}
 	for (int64_t iblk = ipf_start; iblk < ipf_end; iblk++) {
 		issued += dbuf_prefetch_impl(zf->zf_dnode, 1, iblk,
@@ -736,13 +762,13 @@ dmu_zfetch_run(zfetch_t *zf, zstream_t *zs, boolean_t missed,
 
 void
 dmu_zfetch(zfetch_t *zf, uint64_t blkid, uint64_t nblks, boolean_t fetch_data,
-    boolean_t missed, boolean_t have_lock)
+    boolean_t missed, boolean_t have_lock, boolean_t uncached)
 {
 	zstream_t *zs;
 
 	zs = dmu_zfetch_prepare(zf, blkid, nblks, fetch_data, have_lock);
 	if (zs)
-		dmu_zfetch_run(zf, zs, missed, have_lock);
+		dmu_zfetch_run(zf, zs, missed, have_lock, uncached);
 }
 
 ZFS_MODULE_PARAM(zfs_prefetch, zfs_prefetch_, disable, INT, ZMOD_RW,

@@ -2341,9 +2341,14 @@ _dns_getaddrinfo(void *rv, void *cb_data, va_list ap)
 	if (res_searchN(hostname, &q, res) < 0) {
 		free(buf);
 		free(buf2);
-		if (res->res_h_errno == NO_DATA)
+		switch (res->res_h_errno) {
+		case NO_DATA:
 			return (NS_ADDRFAMILY);
-		return (NS_NOTFOUND);
+		case TRY_AGAIN:
+			return (NS_TRYAGAIN);
+		default:
+			return (NS_NOTFOUND);
+		}
 	}
 	/* prefer IPv6 */
 	if (q.next) {
@@ -2705,9 +2710,18 @@ res_queryN(const char *name, struct res_target *target, res_state res)
 	int n;
 	u_int oflags;
 	struct res_target *t;
-	int rcode;
+	u_int rcode;
 	int ancount;
 
+	/*
+	 * Extend rcode values in the scope of this function.  The DNS header
+	 * rcode we use in this function (hp->rcode) is limited by 4 bits, so
+	 * anything starting from 16 is safe wrt aliasing.  However, nameser.h
+	 * already has extended enum __ns_rcode, so for future safety let's use
+	 * even larger values.
+	 */
+#define	RCODE_UNREACH	32
+#define	RCODE_TIMEDOUT	33
 	rcode = NOERROR;
 	ancount = 0;
 
@@ -2768,7 +2782,29 @@ again:
 					printf(";; res_nquery: retry without EDNS0\n");
 				goto again;
 			}
-			rcode = hp->rcode;	/* record most recent error */
+                        /*
+			 * Historically if a DNS server replied with ICMP port
+			 * unreach res_nsend() would signal that with
+			 * ECONNREFUSED and the upper layers would convert that
+			 * into TRY_AGAIN.  See 3a0b3b673936b and deeper.
+			 * Also, res_nsend() may set errno to ECONNREFUSED due
+			 * to internal failures.  This may not be intentional,
+			 * but we also treat that as soft failures.
+			 *
+			 * A more practical case is when a DNS server(s) were
+			 * queried and didn't respond anything, which usually
+			 * indicates a soft network failure.
+			 */
+			switch (errno) {
+			case ECONNREFUSED:
+				rcode = RCODE_UNREACH;
+				break;
+			case ETIMEDOUT:
+				rcode = RCODE_TIMEDOUT;
+				break;
+			default:
+                                rcode = hp->rcode;
+			}
 #ifdef DEBUG
 			if (res->options & RES_DEBUG)
 				printf(";; res_query: send error\n");
@@ -2800,6 +2836,8 @@ again:
 		case NXDOMAIN:
 			RES_SET_H_ERRNO(res, HOST_NOT_FOUND);
 			break;
+		case RCODE_UNREACH:
+		case RCODE_TIMEDOUT:
 		case SERVFAIL:
 			RES_SET_H_ERRNO(res, TRY_AGAIN);
 			break;
@@ -2862,10 +2900,6 @@ res_searchN(const char *name, struct res_target *target, res_state res)
 		ret = res_querydomainN(name, NULL, target, res);
 		if (ret > 0 || trailing_dot)
 			return (ret);
-		if (errno == ECONNREFUSED) {
-			RES_SET_H_ERRNO(res, TRY_AGAIN);
-			return (-1);
-		}
 		switch (res->res_h_errno) {
 		case NO_DATA:
 		case HOST_NOT_FOUND:
@@ -2906,7 +2940,6 @@ res_searchN(const char *name, struct res_target *target, res_state res)
 			ret = res_querydomainN(name, *domain, target, res);
 			if (ret > 0)
 				return (ret);
-
 			/*
 			 * If no server present, give up.
 			 * If name isn't found in this domain,
@@ -2920,11 +2953,6 @@ res_searchN(const char *name, struct res_target *target, res_state res)
 			 * but try the input name below in case it's
 			 * fully-qualified.
 			 */
-			if (errno == ECONNREFUSED) {
-				RES_SET_H_ERRNO(res, TRY_AGAIN);
-				return (-1);
-			}
-
 			switch (res->res_h_errno) {
 			case NO_DATA:
 				got_nodata++;
@@ -2933,8 +2961,8 @@ res_searchN(const char *name, struct res_target *target, res_state res)
 				/* keep trying */
 				break;
 			case TRY_AGAIN:
-				got_servfail++;
 				if (hp->rcode == SERVFAIL) {
+					got_servfail++;
 					/* try next search element, if any */
 					break;
 				}

@@ -1,0 +1,7 @@
+This example Containerfile shows how to add packages to freebsd-runtime while
+minimising the package metadata overhead.
+
+For instance, To build a new image called 'my-new-image:latest' containing the
+nginx package:
+
+# podman build --squash --build-arg packages=nginx --tag my-new-image:latest -f Containerfile.pkg

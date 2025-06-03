@@ -31,12 +31,12 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 7, 2013
+.Dd November 10, 2024
 .Dt ZYD 4
 .Os
 .Sh NAME
 .Nm zyd
-.Nd ZyDAS ZD1211/ZD1211B USB IEEE 802.11b/g wireless network device
+.Nd ZyDAS ZD1211/ZD1211B USB IEEE 802.11b/g wireless network driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -77,51 +77,95 @@ The following devices are known to be supported by the
 .Nm
 driver:
 .Pp
-.Bl -tag -width Ds -offset indent -compact
-.It 3COM 3CRUSB10075
-.It Acer WLAN-G-US1
-.It Airlink+ AWLL3025
-.It Airlink 101 AWLL3026
-.It AOpen 802.11g WL54
-.It Asus A9T integrated wireless
-.It Asus WL-159g
-.It Belkin F5D7050 v.4000
-.It Billion BiPAC 3011G
-.It Buffalo WLI-U2-KG54L
-.It CC&C WL-2203B
-.It DrayTek Vigor 550
-.It Edimax EW-7317UG
-.It Edimax EW-7317LDG
-.It Fiberline Networks WL-43OU
-.It iNexQ UR055g
-.It Linksys WUSBF54G
-.It Longshine LCS-8131G3
-.It MSI US54SE
-.It MyTek MWU-201 USB adapter
-.It Philips SNU5600
-.It Planet WL-U356
-.It Planex GW-US54GZ
-.It Planex GW-US54GZL
-.It Planex GW-US54Mini
-.It Safecom SWMULZ-5400
-.It Sagem XG 760A
-.It Sagem XG 76NA
-.It Sandberg Wireless G54 USB
-.It Sitecom WL-113
-.It SMC SMCWUSB-G
-.It Sweex wireless USB 54 Mbps
-.It Tekram/Siemens USB adapter
-.It Telegent TG54USB
-.It Trendnet TEW-424UB rev A
-.It Trendnet TEW-429UB
-.It TwinMOS G240
-.It Unicorn WL-54G
-.It US Robotics 5423
-.It X-Micro XWL-11GUZX
-.It Yakumo QuickWLAN USB
-.It Zonet ZEW2501
-.It ZyXEL ZyAIR G-202
-.It ZyXEL ZyAIR G-220
+.Bl -bullet -offset indent -compact
+.It
+3COM 3CRUSB10075
+.It
+Acer WLAN-G-US1
+.It
+Airlink+ AWLL3025
+.It
+Airlink 101 AWLL3026
+.It
+AOpen 802.11g WL54
+.It
+Asus A9T integrated wireless
+.It
+Asus WL-159g
+.It
+Belkin F5D7050 v.4000
+.It
+Billion BiPAC 3011G
+.It
+Buffalo WLI-U2-KG54L
+.It
+CC&C WL-2203B
+.It
+DrayTek Vigor 550
+.It
+Edimax EW-7317UG
+.It
+Edimax EW-7317LDG
+.It
+Fiberline Networks WL-43OU
+.It
+iNexQ UR055g
+.It
+Linksys WUSBF54G
+.It
+Longshine LCS-8131G3
+.It
+MSI US54SE
+.It
+MyTek MWU-201 USB adapter
+.It
+Philips SNU5600
+.It
+Planet WL-U356
+.It
+Planex GW-US54GZ
+.It
+Planex GW-US54GZL
+.It
+Planex GW-US54Mini
+.It
+Safecom SWMULZ-5400
+.It
+Sagem XG 760A
+.It
+Sagem XG 76NA
+.It
+Sandberg Wireless G54 USB
+.It
+Sitecom WL-113
+.It
+SMC SMCWUSB-G
+.It
+Sweex wireless USB 54 Mbps
+.It
+Tekram/Siemens USB adapter
+.It
+Telegent TG54USB
+.It
+Trendnet TEW-424UB rev A
+.It
+Trendnet TEW-429UB
+.It
+TwinMOS G240
+.It
+Unicorn WL-54G
+.It
+US Robotics 5423
+.It
+X-Micro XWL-11GUZX
+.It
+Yakumo QuickWLAN USB
+.It
+Zonet ZEW2501
+.It
+ZyXEL ZyAIR G-202
+.It
+ZyXEL ZyAIR G-220
 .El
 .Sh EXAMPLES
 The following
@@ -131,14 +175,14 @@ channel 11:
 .Bd -literal -offset indent
 ifconfig wlan create wlandev zyd0 channel 11 \e
     wepmode on wepkey 0x1deadbeef1 weptxkey 1 \e
-    inet 192.168.1.1 netmask 255.255.255.0
+    inet 192.0.2.20/24
 .Ed
 .Pp
 Join an existing BSS network,
-.Dq my_net :
+.Ar my_net :
 .Bd -literal -offset indent
-ifconfig wlan create wlandev zyd0 192.168.0.2 \e
-    netmask 0xffffff00 ssid my_net
+ifconfig wlan create wlandev zyd0 192.0.2.20/24 \e
+    ssid my_net
 .Ed
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -167,6 +211,7 @@ This should not happen.
 .Xr wlan_ccmp 4 ,
 .Xr wlan_tkip 4 ,
 .Xr wlan_wep 4 ,
+.Xr networking 7 ,
 .Xr ifconfig 8 ,
 .Xr wpa_supplicant 8
 .Sh AUTHORS

@@ -32,7 +32,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/devmap.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -1566,8 +1565,9 @@ tegra_pcib_attach(device_t dev)
 		 goto out;
 #endif
 	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
+	bus_attach_children(dev);
 
-	return (bus_generic_attach(dev));
+	return (0);
 
 out:
 

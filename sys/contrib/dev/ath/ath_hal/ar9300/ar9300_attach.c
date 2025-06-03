@@ -2751,7 +2751,7 @@ ar9300_fill_capability_info(struct ath_hal *ah)
     /* FreeBSD: Update number of TX/RX streams */
     p_cap->halTxStreams = owl_get_ntxchains(p_cap->halTxChainMask);
     p_cap->halRxStreams = owl_get_ntxchains(p_cap->halRxChainMask);
-
+#undef owl_get_ntxchains
 
     /*
      * This being a newer chip supports TKIP non-splitmic mode.

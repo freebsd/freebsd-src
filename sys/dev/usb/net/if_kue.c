@@ -32,7 +32,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * Kawasaki LSI KL5KUSB101B USB to ethernet adapter driver.
  *

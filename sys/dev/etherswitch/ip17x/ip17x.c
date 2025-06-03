@@ -257,11 +257,9 @@ ip17x_attach(device_t dev)
 	 */
 	sc->hal.ip17x_set_vlan_mode(sc, ETHERSWITCH_VLAN_PORT);
 
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
-	err = bus_generic_attach(dev);
-	if (err != 0)
-		return (err);
+	bus_attach_children(dev);
 	
 	if (sc->miipoll) {
 		callout_init(&sc->callout_tick, 0);
@@ -276,7 +274,11 @@ static int
 ip17x_detach(device_t dev)
 {
 	struct ip17x_softc *sc;
-	int i, port;
+	int error, i, port;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 	if (sc->miipoll)
@@ -286,8 +288,6 @@ ip17x_detach(device_t dev)
 		if (((1 << i) & sc->phymask) == 0)
 			continue;
 		port = sc->phyport[i];
-		if (sc->miibus[port] != NULL)
-			device_delete_child(dev, (*sc->miibus[port]));
 		if (sc->ifp[port] != NULL)
 			if_free(sc->ifp[port]);
 		free(sc->miibus[port], M_IP17X);
@@ -301,7 +301,6 @@ ip17x_detach(device_t dev)
 	/* Reset the switch. */
 	sc->hal.ip17x_reset(sc);
 
-	bus_generic_detach(dev);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);

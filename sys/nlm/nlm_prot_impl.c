@@ -39,6 +39,7 @@
 #include <sys/mount.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/jail.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syscall.h>
@@ -1711,7 +1712,11 @@ sys_nlm_syscall(struct thread *td, struct nlm_syscall_args *uap)
 	nlm_grace_threshold = time_uptime + uap->grace_period;
 	nlm_next_idle_check = time_uptime + NLM_IDLE_PERIOD;
 
-	return nlm_server_main(uap->addr_count, uap->addrs);
+	CURVNET_SET(TD_TO_VNET(td));
+	error = nlm_server_main(uap->addr_count, uap->addrs);
+	CURVNET_RESTORE();
+
+	return (error);
 }
 
 /**********************************************************************/

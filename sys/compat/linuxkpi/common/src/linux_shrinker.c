@@ -32,9 +32,25 @@
 
 #include <linux/compat.h>
 #include <linux/shrinker.h>
+#include <linux/slab.h>
 
 TAILQ_HEAD(, shrinker) lkpi_shrinkers = TAILQ_HEAD_INITIALIZER(lkpi_shrinkers);
 static struct sx sx_shrinker;
+
+struct shrinker *
+linuxkpi_shrinker_alloc(unsigned int flags, const char *fmt, ...)
+{
+	struct shrinker *shrinker;
+
+	shrinker = kzalloc(sizeof(*shrinker), GFP_KERNEL);
+	if (shrinker == NULL)
+		return (NULL);
+
+	shrinker->flags = flags | SHRINKER_ALLOCATED;
+	shrinker->seeks = DEFAULT_SEEKS;
+
+	return (shrinker);
+}
 
 int
 linuxkpi_register_shrinker(struct shrinker *s)
@@ -44,6 +60,7 @@ linuxkpi_register_shrinker(struct shrinker *s)
 	KASSERT(s->count_objects != NULL, ("NULL shrinker"));
 	KASSERT(s->scan_objects != NULL, ("NULL shrinker"));
 	sx_xlock(&sx_shrinker);
+	s->flags |= SHRINKER_REGISTERED;
 	TAILQ_INSERT_TAIL(&lkpi_shrinkers, s, next);
 	sx_xunlock(&sx_shrinker);
 	return (0);
@@ -55,7 +72,18 @@ linuxkpi_unregister_shrinker(struct shrinker *s)
 
 	sx_xlock(&sx_shrinker);
 	TAILQ_REMOVE(&lkpi_shrinkers, s, next);
+	s->flags &= ~SHRINKER_REGISTERED;
 	sx_xunlock(&sx_shrinker);
+}
+
+void
+linuxkpi_shrinker_free(struct shrinker *shrinker)
+{
+
+	if (shrinker->flags & SHRINKER_REGISTERED)
+		unregister_shrinker(shrinker);
+
+	kfree(shrinker);
 }
 
 void
@@ -92,7 +120,7 @@ shrinker_shrink(struct shrinker *s)
 }
 
 static void
-linuxkpi_vm_lowmem(void *arg __unused)
+linuxkpi_vm_lowmem(void *arg __unused, int flags __unused)
 {
 	struct shrinker *s;
 

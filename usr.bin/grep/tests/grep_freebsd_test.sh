@@ -103,10 +103,25 @@ zflag_body()
 	atf_check grep -qz "foo.*bar" in
 }
 
+atf_test_case color_dupe
+color_dupe_body()
+{
+
+	# This assumes a MAX_MATCHES of exactly 32.  Previously buggy procline()
+	# calls would terminate the line premature every MAX_MATCHES matches,
+	# meaning we'd see the line be output again for the next MAX_MATCHES
+	# number of matches.
+	jot -nb 'A' -s '' 33 > in
+
+	atf_check -o save:color.out grep --color=always . in
+	atf_check -o match:"^ +1 color.out" wc -l color.out
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case grep_r_implied
 	atf_add_test_case rgrep
 	atf_add_test_case gnuext
 	atf_add_test_case zflag
+	atf_add_test_case color_dupe
 }

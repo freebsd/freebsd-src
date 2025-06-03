@@ -155,6 +155,8 @@ int clock_nanosleep(clockid_t, int, const struct timespec *, struct timespec *);
 #if __POSIX_VISIBLE >= 199506
 char *asctime_r(const struct tm *, char *);
 char *ctime_r(const time_t *, char *);
+#endif
+#if __POSIX_VISIBLE >= 199506 || __ISO_C_VISIBLE >= 2023
 struct tm *gmtime_r(const time_t *, struct tm *);
 struct tm *localtime_r(const time_t *, struct tm *);
 #endif

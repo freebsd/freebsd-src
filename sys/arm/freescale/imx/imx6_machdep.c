@@ -35,6 +35,7 @@
 #include <sys/devmap.h>
 
 #include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -310,12 +311,13 @@ imx_soc_type(void)
 		    IMX6_ANALOG_DIGPROG_SOCTYPE_SHIFT;
 		/*printf("digprog = 0x%08x\n", digprog);*/
 		if (hwsoc == HWSOC_MX6DL) {
-			pcr = devmap_ptov(SCU_CONFIG_PHYSADDR, 4);
+			pcr = pmap_mapdev(SCU_CONFIG_PHYSADDR, 4);
 			if (pcr != NULL) {
 				/*printf("scu config = 0x%08x\n", *pcr);*/
 				if ((*pcr & 0x03) == 0) {
 					hwsoc = HWSOC_MX6SOLO;
 				}
+				pmap_unmapdev(pcr, 4);
 			}
 		}
 	}

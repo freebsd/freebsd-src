@@ -34,6 +34,7 @@
 #else
 #include "opt_apic.h"
 #endif
+#include "opt_ddb.h"
 
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -287,12 +288,6 @@ iommu_free_ctx_locked(struct iommu_unit *iommu, struct iommu_ctx *context)
 	x86_iommu->free_ctx_locked(iommu, context);
 }
 
-void
-iommu_free_ctx(struct iommu_ctx *context)
-{
-	x86_iommu->free_ctx(context);
-}
-
 struct iommu_unit *
 iommu_find(device_t dev, bool verbose)
 {
@@ -350,8 +345,8 @@ iommu_qi_seq_processed(struct iommu_unit *unit,
 
 	x86c = IOMMU2X86C(unit);
 	gen = x86c->inv_waitd_gen;
-	return (pseq->gen < gen ||
-	    (pseq->gen == gen && pseq->seq <= x86c->inv_waitd_seq_hw));
+	return (pseq->gen < gen || (pseq->gen == gen && pseq->seq <=
+	    atomic_load_64(&x86c->inv_waitd_seq_hw)));
 }
 
 void
@@ -756,3 +751,91 @@ pglvl_page_size(int total_pglvl, int lvl)
 	KASSERT(rlvl < nitems(pg_sz), ("sizeof pg_sz lvl %d", lvl));
 	return (pg_sz[rlvl]);
 }
+
+void
+iommu_device_set_iommu_prop(device_t dev, device_t iommu)
+{
+	device_t iommu_dev;
+	int error;
+
+	bus_topo_lock();
+	error = device_get_prop(dev, DEV_PROP_NAME_IOMMU, (void **)&iommu_dev);
+	if (error == ENOENT)
+		device_set_prop(dev, DEV_PROP_NAME_IOMMU, iommu, NULL, NULL);
+	bus_topo_unlock();
+}
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#include <ddb/db_lex.h>
+
+void
+iommu_db_print_domain_entry(const struct iommu_map_entry *entry)
+{
+	struct iommu_map_entry *l, *r;
+
+	db_printf(
+	    "    start %jx end %jx first %jx last %jx free_down %jx flags %x ",
+	    entry->start, entry->end, entry->first, entry->last,
+	    entry->free_down, entry->flags);
+	db_printf("left ");
+	l = RB_LEFT(entry, rb_entry);
+	if (l == NULL)
+		db_printf("NULL ");
+	else
+		db_printf("%jx ", l->start);
+	db_printf("right ");
+	r = RB_RIGHT(entry, rb_entry);
+	if (r == NULL)
+		db_printf("NULL");
+	else
+		db_printf("%jx", r->start);
+	db_printf("\n");
+}
+
+void
+iommu_db_print_ctx(struct iommu_ctx *ctx)
+{
+	db_printf(
+	    "    @%p pci%d:%d:%d refs %d flags %#x loads %lu unloads %lu\n",
+	    ctx, pci_get_bus(ctx->tag->owner),
+	    pci_get_slot(ctx->tag->owner),
+	    pci_get_function(ctx->tag->owner), ctx->refs,
+	    ctx->flags, ctx->loads, ctx->unloads);
+}
+
+void
+iommu_db_domain_print_contexts(struct iommu_domain *iodom)
+{
+	struct iommu_ctx *ctx;
+
+	if (LIST_EMPTY(&iodom->contexts))
+		return;
+
+	db_printf("  Contexts:\n");
+	LIST_FOREACH(ctx, &iodom->contexts, link)
+		iommu_db_print_ctx(ctx);
+}
+
+void
+iommu_db_domain_print_mappings(struct iommu_domain *iodom)
+{
+	struct iommu_map_entry *entry;
+
+	db_printf("    mapped:\n");
+	RB_FOREACH(entry, iommu_gas_entries_tree, &iodom->rb_root) {
+		iommu_db_print_domain_entry(entry);
+		if (db_pager_quit)
+			break;
+	}
+	if (db_pager_quit)
+		return;
+	db_printf("    unloading:\n");
+	TAILQ_FOREACH(entry, &iodom->unload_entries, dmamap_link) {
+		iommu_db_print_domain_entry(entry);
+		if (db_pager_quit)
+			break;
+	}
+}
+
+#endif

@@ -1,4 +1,4 @@
-# $NetBSD: varmod-sysv.mk,v 1.19 2024/07/04 17:47:54 rillig Exp $
+# $NetBSD: varmod-sysv.mk,v 1.24 2025/03/30 00:35:52 rillig Exp $
 #
 # Tests for the variable modifier ':from=to', which replaces the suffix
 # "from" with "to".  It can also use '%' as a wildcard.
@@ -211,8 +211,7 @@
 # XXX: As of 2024-06-30, this expression generates an "Unfinished modifier"
 # error, while the correct error message would be "Unknown modifier" since
 # there is no modifier named "fromto".
-# expect+2: while evaluating variable "word216" with value "word216": Unfinished modifier ('=' missing)
-# expect+1: Malformed conditional (${word216:L:from${:D=}to})
+# expect+1: Unfinished modifier after "from${:D=}to}", expecting "="
 .if ${word216:L:from${:D=}to}
 .  error
 .endif
@@ -256,9 +255,31 @@ INDIRECT=	1:${VALUE} 2:$${VALUE} 4:$$$${VALUE}
 
 # The error case of an unfinished ':from=to' modifier after the '=' requires
 # an expression that is missing the closing '}'.
-# expect+2: while evaluating variable "error" with value "error": Unfinished modifier ('}' missing)
-# expect+1: Malformed conditional (${error:L:from=$(}))
+# expect+1: Unfinished modifier after "$(})", expecting "}"
 .if ${error:L:from=$(})
+.endif
+
+
+# The various ":t..." modifiers fall back to the ":from=to" modifier.
+.if ${:Utarget:target=source} != "source"
+.  error
+.endif
+.if ${:Ufile.ts:ts=js} != "file.js"
+.  error
+.endif
+.if ${:Ufile.tsx:tsx=jsx} != "file.jsx"
+.  error
+.endif
+.if ${:Ufile.ts\\part:ts\part=replaced} != "file.replaced"
+.  error
+.endif
+.if ${:Ufile.ts\\123xyz:ts\123xyz=gone} != "file.gone"
+.  error
+.endif
+# Since the ":ts=" modifier is a valid form of the ":ts" modifier, don't fall
+# back to the ":from=to" modifier.
+.if ${:U1 2 3 file.ts:ts=} != "1=2=3=file.ts"
+.  error
 .endif
 
 

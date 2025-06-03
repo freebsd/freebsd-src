@@ -58,7 +58,6 @@
  * giving me an opportunity to do this work.
  */
 
-#include <sys/cdefs.h>
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>

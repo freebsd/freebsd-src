@@ -96,6 +96,7 @@ static const STRUCT_USB_HOST_ID ure_devs[] = {
   USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i), \
   USB_IFACE_CLASS(UICLASS_VENDOR), \
   USB_IFACE_SUBCLASS(UISUBCLASS_VENDOR) }
+	URE_DEV(ELECOM, EDCQUA3C, 0),
 	URE_DEV(LENOVO, RTL8153, URE_FLAG_8153),
 	URE_DEV(LENOVO, TBT3LANGEN2, 0),
 	URE_DEV(LENOVO, ONELINK, 0),
@@ -706,7 +707,13 @@ ure_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				/* set the necessary flags for rx checksum */
 				ure_rxcsum(caps, &pkt, m);
 
-				uether_rxmbuf(ue, m, len - ETHER_CRC_LEN);
+				/*
+				 * len has been known to be bogus at times,
+				 * which leads to problems when passed to
+				 * uether_rxmbuf().  Better understanding why we
+				 * can get there make for good future work.
+				 */
+				uether_rxmbuf(ue, m, 0);
 			}
 
 			off += roundup(len, URE_RXPKT_ALIGN);

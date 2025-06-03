@@ -1,0 +1,18 @@
+
+#------------------------------------------------------------------------------
+# $File: uxn,v 1.1 2024/07/30 22:25:24 christos Exp $
+# uxn:  file(1) magic for Uxn ROM files
+#
+# https://100r.co/site/uxn.html
+# https://wiki.xxiivv.com/site/uxn.html
+#
+# Created by Samuel Dionne-Riel <samuel@dionne-riel.com>
+
+# https://wiki.xxiivv.com/site/metadata.html
+0x00			byte 		=0xa0
+>0x01			ubeshort 	x
+>>0x03			byte 		=0x80
+>>>0x04			byte 		=0x06
+>>>>0x05		byte 		=0x37	Varvara Uxn ROM
+>>>>>0x01		ubeshort 	x       with metadata at 0x%x
+>>>>>>(0x01.S-0x0ff)	string 		x 	(%s)

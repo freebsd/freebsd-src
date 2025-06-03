@@ -230,7 +230,7 @@ static uma_zone_t		mqueue_zone;
 static uma_zone_t		mvdata_zone;
 static uma_zone_t		mqnoti_zone;
 static struct vop_vector	mqfs_vnodeops;
-static struct fileops		mqueueops;
+static const struct fileops	mqueueops;
 static unsigned			mqfs_osd_jail_slot;
 
 /*
@@ -277,12 +277,12 @@ static void	filt_mqdetach(struct knote *kn);
 static int	filt_mqread(struct knote *kn, long hint);
 static int	filt_mqwrite(struct knote *kn, long hint);
 
-struct filterops mq_rfiltops = {
+static const struct filterops mq_rfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_mqdetach,
 	.f_event = filt_mqread,
 };
-struct filterops mq_wfiltops = {
+static const struct filterops mq_wfiltops = {
 	.f_isfd = 1,
 	.f_detach = filt_mqdetach,
 	.f_event = filt_mqwrite,
@@ -851,7 +851,8 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 	struct mqfs_node *pd;
 	struct mqfs_node *pn;
 	struct mqfs_info *mqfs;
-	int nameiop, flags, error, namelen;
+	uint64_t flags;
+	int nameiop, error, namelen;
 	char *pname;
 	struct thread *td;
 
@@ -2169,13 +2170,14 @@ sys_kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 	return (error);
 }
 
-typedef int (*_fgetf)(struct thread *, int, cap_rights_t *, struct file **);
+typedef int (*_fgetf)(struct thread *, int, const cap_rights_t *,
+    struct file **);
 
 /*
  * Get message queue by giving file slot
  */
 static int
-_getmq(struct thread *td, int fd, cap_rights_t *rightsp, _fgetf func,
+_getmq(struct thread *td, int fd, const cap_rights_t *rightsp, _fgetf func,
        struct file **fpp, struct mqfs_node **ppn, struct mqueue **pmq)
 {
 	struct mqfs_node *pn;
@@ -2681,7 +2683,7 @@ mqf_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	return (0);
 }
 
-static struct fileops mqueueops = {
+static const struct fileops mqueueops = {
 	.fo_read		= invfo_rdwr,
 	.fo_write		= invfo_rdwr,
 	.fo_truncate		= invfo_truncate,

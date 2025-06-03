@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.230 2023/09/04 10:29:58 job Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.233 2024/08/17 08:35:04 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: September 4 2023 $
+.Dd $Mdocdate: August 17 2024 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -51,7 +51,7 @@
 .Op Fl m Ar format
 .Op Fl N Ar new_passphrase
 .Op Fl O Ar option
-.Op Fl t Cm dsa | ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa
+.Op Fl t Cm ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa
 .Op Fl w Ar provider
 .Op Fl Z Ar cipher
 .Nm ssh-keygen
@@ -205,7 +205,6 @@ section for details.
 Normally each user wishing to use SSH
 with public key authentication runs this once to create the authentication
 key in
-.Pa ~/.ssh/id_dsa ,
 .Pa ~/.ssh/id_ecdsa ,
 .Pa ~/.ssh/id_ecdsa_sk ,
 .Pa ~/.ssh/id_ed25519 ,
@@ -296,7 +295,6 @@ Show the bubblebabble digest of specified private or public key file.
 Specifies the number of bits in the key to create.
 For RSA keys, the minimum size is 1024 bits and the default is 3072 bits.
 Generally, 3072 bits is considered sufficient.
-DSA keys must be exactly 1024 bits as specified by FIPS 186-2.
 For ECDSA keys, the
 .Fl b
 flag determines the key length by selecting from one of three elliptic
@@ -414,9 +412,8 @@ section.
 Prints the contents of one or more certificates.
 .It Fl l
 Show fingerprint of specified public key file.
-For RSA and DSA keys
 .Nm
-tries to find the matching public key file and prints its fingerprint.
+will try to find the matching public key file and prints its fingerprint.
 If combined with
 .Fl v ,
 a visual ASCII art representation of the key is supplied with the
@@ -579,13 +576,12 @@ by key ID or serial number.
 See the
 .Sx KEY REVOCATION LISTS
 section for details.
-.It Fl t Cm dsa | ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa
+.It Fl t Cm ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa
 Specifies the type of key to create.
 The possible values are
-.Dq dsa ,
 .Dq ecdsa ,
 .Dq ecdsa-sk ,
-.Dq ed25519 ,
+.Dq ed25519 (the default),
 .Dq ed25519-sk ,
 or
 .Dq rsa .
@@ -598,7 +594,7 @@ The available RSA signature variants are
 .Dq rsa-sha2-256 ,
 and
 .Dq rsa-sha2-512
-(the default).
+(the default for RSA keys).
 .It Fl U
 When used in combination with
 .Fl s
@@ -1290,13 +1286,12 @@ the built-in USB HID support.
 .El
 .Sh FILES
 .Bl -tag -width Ds -compact
-.It Pa ~/.ssh/id_dsa
 .It Pa ~/.ssh/id_ecdsa
 .It Pa ~/.ssh/id_ecdsa_sk
 .It Pa ~/.ssh/id_ed25519
 .It Pa ~/.ssh/id_ed25519_sk
 .It Pa ~/.ssh/id_rsa
-Contains the DSA, ECDSA, authenticator-hosted ECDSA, Ed25519,
+Contains the ECDSA, authenticator-hosted ECDSA, Ed25519,
 authenticator-hosted Ed25519 or RSA authentication identity of the user.
 This file should not be readable by anyone but the user.
 It is possible to
@@ -1308,13 +1303,12 @@ but it is offered as the default file for the private key.
 .Xr ssh 1
 will read this file when a login attempt is made.
 .Pp
-.It Pa ~/.ssh/id_dsa.pub
 .It Pa ~/.ssh/id_ecdsa.pub
 .It Pa ~/.ssh/id_ecdsa_sk.pub
 .It Pa ~/.ssh/id_ed25519.pub
 .It Pa ~/.ssh/id_ed25519_sk.pub
 .It Pa ~/.ssh/id_rsa.pub
-Contains the DSA, ECDSA, authenticator-hosted ECDSA, Ed25519,
+Contains the ECDSA, authenticator-hosted ECDSA, Ed25519,
 authenticator-hosted Ed25519 or RSA public key for authentication.
 The contents of this file should be added to
 .Pa ~/.ssh/authorized_keys

@@ -53,6 +53,7 @@ CFLAGS+=-D_PTHREAD_FORCED_UNWIND
 .endif
 
 LDFLAGS+=-Wl,-znodelete
+LDFLAGS+=-Wl,-zinitfirst
 LDFLAGS+=-Wl,--auxiliary,libsys.so.7
 
 VERSION_DEF=${SRCTOP}/lib/libc/Versions.def
@@ -90,9 +91,6 @@ SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
 .endif
 .if !defined(NO_PIC)
 SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
-.endif
-.if ${MK_PROFILE} != "no"
-SYMLINKS+=lib${LIB}_p.a ${LIBDIR}/libpthread_p.a
 .endif
 
 HAS_TESTS=

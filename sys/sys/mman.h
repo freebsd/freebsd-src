@@ -310,8 +310,9 @@ void	shm_drop(struct shmfd *shmfd);
 int	shm_dotruncate(struct shmfd *shmfd, off_t length);
 bool	shm_largepage(struct shmfd *shmfd);
 void	shm_remove_prison(struct prison *pr);
+int	shm_get_path(struct vm_object *obj, char *path, size_t sz);
 
-extern struct fileops shm_ops;
+extern const struct fileops shm_ops;
 
 #define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
 

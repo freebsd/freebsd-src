@@ -96,6 +96,12 @@ lzma_bufcpy(const uint8_t *restrict in, size_t *restrict in_pos,
 		size_t in_size, uint8_t *restrict out,
 		size_t *restrict out_pos, size_t out_size)
 {
+	assert(in != NULL || *in_pos == in_size);
+	assert(out != NULL || *out_pos == out_size);
+
+	assert(*in_pos <= in_size);
+	assert(*out_pos <= out_size);
+
 	const size_t in_avail = in_size - *in_pos;
 	const size_t out_avail = out_size - *out_pos;
 	const size_t copy_size = my_min(in_avail, out_avail);
@@ -348,7 +354,7 @@ lzma_code(lzma_stream *strm, lzma_action action)
 		else
 			strm->internal->sequence = ISEQ_END;
 
-	// Fall through
+		FALLTHROUGH;
 
 	case LZMA_NO_CHECK:
 	case LZMA_UNSUPPORTED_CHECK:

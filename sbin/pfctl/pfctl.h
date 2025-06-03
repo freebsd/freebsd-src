@@ -36,6 +36,8 @@
 
 #include <libpfctl.h>
 
+extern struct pfctl_handle	*pfh;
+
 struct pfctl;
 
 enum pfctl_show { PFCTL_SHOW_RULES, PFCTL_SHOW_LABELS, PFCTL_SHOW_NOTHING };
@@ -54,12 +56,10 @@ struct pfr_buffer {
 	    (var) = pfr_buf_next((buf), (var)))
 
 int	 pfr_get_fd(void);
-int	 pfr_clr_tables(struct pfr_table *, int *, int);
-int	 pfr_add_tables(struct pfr_table *, int, int *, int);
-int	 pfr_del_tables(struct pfr_table *, int, int *, int);
+int	 pfr_add_table(struct pfr_table *, int *, int);
+int	 pfr_del_table(struct pfr_table *, int *, int);
 int	 pfr_get_tables(struct pfr_table *, struct pfr_table *, int *, int);
-int	 pfr_get_tstats(struct pfr_table *, struct pfr_tstats *, int *, int);
-int	 pfr_clr_tstats(struct pfr_table *, int, int *, int);
+int	 pfr_clr_astats(struct pfr_table *, struct pfr_addr *, int, int *, int);
 int	 pfr_clr_addrs(struct pfr_table *, int *, int);
 int	 pfr_add_addrs(struct pfr_table *, struct pfr_addr *, int, int *, int);
 int	 pfr_del_addrs(struct pfr_table *, struct pfr_addr *, int, int *, int);
@@ -81,7 +81,7 @@ int	 pfi_get_ifaces(const char *, struct pfi_kif *, int *);
 int	 pfi_clr_istats(const char *, int *, int);
 
 void	 pfctl_print_title(char *);
-int	 pfctl_clear_tables(const char *, int);
+int	 pfctl_do_clear_tables(const char *, int);
 int	 pfctl_show_tables(const char *, int);
 int	 pfctl_command_tables(int, char *[], char *, const char *, char *,
 	    const char *, int);

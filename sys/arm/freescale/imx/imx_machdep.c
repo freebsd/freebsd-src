@@ -31,7 +31,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
-#include <sys/devmap.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -66,7 +65,7 @@ imx_wdog_cpu_reset(vm_offset_t wdcr_physaddr)
 {
 	volatile uint16_t cr, *pcr;
 
-	if ((pcr = devmap_ptov(wdcr_physaddr, sizeof(*pcr))) == NULL) {
+	if ((pcr = pmap_mapdev(wdcr_physaddr, sizeof(*pcr))) == NULL) {
 		printf("imx_wdog_cpu_reset(): "
 		    "cannot find control register... locking up now.");
 		for (;;)
@@ -116,7 +115,7 @@ imx_wdog_init_last_reset(vm_offset_t wdsr_phys)
 {
 	volatile uint16_t * psr;
 
-	if ((psr = devmap_ptov(wdsr_phys, sizeof(*psr))) == NULL)
+	if ((psr = pmap_mapdev(wdsr_phys, sizeof(*psr))) == NULL)
 		return;
 	last_reset_status = *psr;
 	if (last_reset_status & WDOG_RSR_SFTW) {
@@ -126,4 +125,5 @@ imx_wdog_init_last_reset(vm_offset_t wdsr_phys)
 	} else if (last_reset_status & WDOG_RSR_POR) {
 		sysctl___hw_imx_last_reset_reason.oid_arg1 = "PowerOnReset";
 	}
+	pmap_unmapdev((void *)(uintptr_t)psr, sizeof(*psr));
 }

@@ -334,7 +334,7 @@ struct _Elftc_Bfd_Target _libelftc_targets[] = {
 	{
 		.bt_name      = "elf64-riscv-freebsd",
 		.bt_type      = ETF_ELF,
-		.bt_byteorder = ELFDATA2MSB,
+		.bt_byteorder = ELFDATA2LSB,
 		.bt_elfclass  = ELFCLASS64,
 		.bt_machine   = EM_RISCV,
 		.bt_osabi     = ELFOSABI_FREEBSD,

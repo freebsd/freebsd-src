@@ -1,0 +1,1 @@
+pass in on vtnet0 inet6 from any to 64:ff9b::/96 flags S/SA keep state af-to inet from 203.0.113.1 to 203.0.113.2

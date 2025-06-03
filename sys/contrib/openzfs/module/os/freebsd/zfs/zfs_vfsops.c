@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -144,12 +145,14 @@ struct vfsops zfs_vfsops = {
 	.vfs_quotactl =		zfs_quotactl,
 };
 
+VFS_SET(zfs_vfsops, zfs, VFCF_DELEGADMIN | VFCF_JAIL
 #ifdef VFCF_CROSS_COPY_FILE_RANGE
-VFS_SET(zfs_vfsops, zfs,
-    VFCF_DELEGADMIN | VFCF_JAIL | VFCF_CROSS_COPY_FILE_RANGE);
-#else
-VFS_SET(zfs_vfsops, zfs, VFCF_DELEGADMIN | VFCF_JAIL);
+	| VFCF_CROSS_COPY_FILE_RANGE
 #endif
+#ifdef VFCF_FILEREVINC
+	| VFCF_FILEREVINC
+#endif
+);
 
 /*
  * We need to keep a count of active fs's.
@@ -238,35 +241,40 @@ zfs_getquota(zfsvfs_t *zfsvfs, uid_t id, int isgroup, struct dqblk64 *dqp)
 {
 	int error = 0;
 	char buf[32];
-	uint64_t usedobj, quotaobj;
+	uint64_t usedobj, quotaobj, defaultquota;
 	uint64_t quota, used = 0;
 	timespec_t now;
 
 	usedobj = isgroup ? DMU_GROUPUSED_OBJECT : DMU_USERUSED_OBJECT;
 	quotaobj = isgroup ? zfsvfs->z_groupquota_obj : zfsvfs->z_userquota_obj;
+	defaultquota = isgroup ? zfsvfs->z_defaultgroupquota :
+	    zfsvfs->z_defaultuserquota;
 
-	if (quotaobj == 0 || zfsvfs->z_replay) {
-		error = ENOENT;
-		goto done;
-	}
+	if (zfsvfs->z_replay)
+		return (ENOENT);
+
 	(void) sprintf(buf, "%llx", (longlong_t)id);
-	if ((error = zap_lookup(zfsvfs->z_os, quotaobj,
-	    buf, sizeof (quota), 1, &quota)) != 0) {
-		dprintf("%s(%d): quotaobj lookup failed\n",
-		    __FUNCTION__, __LINE__);
-		goto done;
+	if (quotaobj == 0) {
+		if (defaultquota == 0)
+			return (ENOENT);
+		quota = defaultquota;
+	} else {
+		error = zap_lookup(zfsvfs->z_os, quotaobj, buf, sizeof (quota),
+		    1, &quota);
+		if (error && (quota = defaultquota) == 0)
+			return (error);
 	}
+
 	/*
 	 * quota(8) uses bsoftlimit as "quoota", and hardlimit as "limit".
 	 * So we set them to be the same.
 	 */
 	dqp->dqb_bsoftlimit = dqp->dqb_bhardlimit = btodb(quota);
 	error = zap_lookup(zfsvfs->z_os, usedobj, buf, sizeof (used), 1, &used);
-	if (error && error != ENOENT) {
-		dprintf("%s(%d):  usedobj failed; %d\n",
-		    __FUNCTION__, __LINE__, error);
-		goto done;
-	}
+	if (error == ENOENT)
+		error = 0;
+	if (error)
+		return (error);
 	dqp->dqb_curblocks = btodb(used);
 	dqp->dqb_ihardlimit = dqp->dqb_isoftlimit = 0;
 	vfs_timestamp(&now);
@@ -276,7 +284,6 @@ zfs_getquota(zfsvfs_t *zfsvfs, uid_t id, int isgroup, struct dqblk64 *dqp)
 	 * particularly useful.
 	 */
 	dqp->dqb_btime = dqp->dqb_itime = now.tv_sec;
-done:
 	return (error);
 }
 
@@ -614,6 +621,14 @@ acl_type_changed_cb(void *arg, uint64_t newval)
 	zfsvfs->z_acl_type = newval;
 }
 
+static void
+longname_changed_cb(void *arg, uint64_t newval)
+{
+	zfsvfs_t *zfsvfs = arg;
+
+	zfsvfs->z_longname = newval;
+}
+
 static int
 zfs_register_callbacks(vfs_t *vfsp)
 {
@@ -751,6 +766,8 @@ zfs_register_callbacks(vfs_t *vfsp)
 	error = error ? error : dsl_prop_register(ds,
 	    zfs_prop_to_name(ZFS_PROP_ACLINHERIT), acl_inherit_changed_cb,
 	    zfsvfs);
+	error = error ? error : dsl_prop_register(ds,
+	    zfs_prop_to_name(ZFS_PROP_LONGNAME), longname_changed_cb, zfsvfs);
 	dsl_pool_config_exit(dmu_objset_pool(os), FTAG);
 	if (error)
 		goto unregister;
@@ -847,6 +864,36 @@ zfsvfs_init(zfsvfs_t *zfsvfs, objset_t *os)
 		if (error == 0 && val == ZFS_XATTR_SA)
 			zfsvfs->z_xattr_sa = B_TRUE;
 	}
+
+	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTUSERQUOTA,
+	    &zfsvfs->z_defaultuserquota);
+	if (error != 0)
+		return (error);
+
+	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTGROUPQUOTA,
+	    &zfsvfs->z_defaultgroupquota);
+	if (error != 0)
+		return (error);
+
+	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTPROJECTQUOTA,
+	    &zfsvfs->z_defaultprojectquota);
+	if (error != 0)
+		return (error);
+
+	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTUSEROBJQUOTA,
+	    &zfsvfs->z_defaultuserobjquota);
+	if (error != 0)
+		return (error);
+
+	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTGROUPOBJQUOTA,
+	    &zfsvfs->z_defaultgroupobjquota);
+	if (error != 0)
+		return (error);
+
+	error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTPROJECTOBJQUOTA,
+	    &zfsvfs->z_defaultprojectobjquota);
+	if (error != 0)
+		return (error);
 
 	error = sa_setup(os, sa_obj, zfs_attr_table, ZPL_END,
 	    &zfsvfs->z_attr_table);
@@ -1489,7 +1536,8 @@ zfs_statfs(vfs_t *vfsp, struct statfs *statp)
 	strlcpy(statp->f_mntonname, vfsp->mnt_stat.f_mntonname,
 	    sizeof (statp->f_mntonname));
 
-	statp->f_namemax = MAXNAMELEN - 1;
+	statp->f_namemax =
+	    zfsvfs->z_longname ? (ZAP_MAXNAMELEN_NEW - 1) : (MAXNAMELEN - 1);
 
 	zfs_exit(zfsvfs, FTAG);
 	return (0);
@@ -2184,7 +2232,7 @@ zfs_set_version(zfsvfs_t *zfsvfs, uint64_t newvers)
 		    ZFS_SA_ATTRS);
 		dmu_tx_hold_zap(tx, DMU_NEW_OBJECT, FALSE, NULL);
 	}
-	error = dmu_tx_assign(tx, TXG_WAIT);
+	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error) {
 		dmu_tx_abort(tx);
 		return (error);
@@ -2225,6 +2273,62 @@ zfs_set_version(zfsvfs_t *zfsvfs, uint64_t newvers)
 	zfs_set_fuid_feature(zfsvfs);
 
 	return (0);
+}
+
+int
+zfs_set_default_quota(zfsvfs_t *zfsvfs, zfs_prop_t prop, uint64_t quota)
+{
+	int error;
+	objset_t *os = zfsvfs->z_os;
+	const char *propstr = zfs_prop_to_name(prop);
+	dmu_tx_t *tx;
+
+	tx = dmu_tx_create(os);
+	dmu_tx_hold_zap(tx, MASTER_NODE_OBJ, B_FALSE, propstr);
+	error = dmu_tx_assign(tx, DMU_TX_WAIT);
+	if (error) {
+		dmu_tx_abort(tx);
+		return (error);
+	}
+
+	if (quota == 0) {
+		error = zap_remove(os, MASTER_NODE_OBJ, propstr, tx);
+		if (error == ENOENT)
+			error = 0;
+	} else {
+		error = zap_update(os, MASTER_NODE_OBJ, propstr, 8, 1,
+		    &quota, tx);
+	}
+
+	if (error)
+		goto out;
+
+	switch (prop) {
+	case ZFS_PROP_DEFAULTUSERQUOTA:
+		zfsvfs->z_defaultuserquota = quota;
+		break;
+	case ZFS_PROP_DEFAULTGROUPQUOTA:
+		zfsvfs->z_defaultgroupquota = quota;
+		break;
+	case ZFS_PROP_DEFAULTPROJECTQUOTA:
+		zfsvfs->z_defaultprojectquota = quota;
+		break;
+	case ZFS_PROP_DEFAULTUSEROBJQUOTA:
+		zfsvfs->z_defaultuserobjquota = quota;
+		break;
+	case ZFS_PROP_DEFAULTGROUPOBJQUOTA:
+		zfsvfs->z_defaultgroupobjquota = quota;
+		break;
+	case ZFS_PROP_DEFAULTPROJECTOBJQUOTA:
+		zfsvfs->z_defaultprojectobjquota = quota;
+		break;
+	default:
+		break;
+	}
+
+out:
+	dmu_tx_commit(tx);
+	return (error);
 }
 
 /*

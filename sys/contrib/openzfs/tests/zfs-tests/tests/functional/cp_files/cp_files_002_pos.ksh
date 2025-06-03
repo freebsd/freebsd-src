@@ -1,4 +1,5 @@
 #! /bin/ksh -p
+# SPDX-License-Identifier: CDDL-1.0
 #
 # CDDL HEADER START
 #
@@ -46,7 +47,6 @@
 #
 
 verify_runnable "global"
-verify_block_cloning
 
 if ! is_linux; then
 	log_unsupported "cp --reflink is a GNU coreutils option"
@@ -61,8 +61,8 @@ function cleanup
 
 function verify_copy
 {
-	src_cksum=$(sha256digest $1)
-	dst_cksum=$(sha256digest $2)
+	src_cksum=$(xxh128digest $1)
+	dst_cksum=$(xxh128digest $2)
 
 	if [[ "$src_cksum" != "$dst_cksum" ]]; then
 		log_must ls -l $CP_TESTDIR

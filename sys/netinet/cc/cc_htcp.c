@@ -193,6 +193,7 @@ static void
 htcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 {
 	struct htcp *htcp_data;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	htcp_data = ccv->cc_data;
 	htcp_record_rtt(ccv);
@@ -220,7 +221,7 @@ htcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 			if (V_tcp_do_rfc3465) {
 				/* Increment cwnd by alpha segments. */
 				CCV(ccv, snd_cwnd) += htcp_data->alpha *
-				    CCV(ccv, t_maxseg);
+				    mss;
 				ccv->flags &= ~CCF_ABC_SENTAWND;
 			} else
 				/*
@@ -230,8 +231,8 @@ htcp_ack_received(struct cc_var *ccv, ccsignal_t type)
 				 */
 				CCV(ccv, snd_cwnd) += (((htcp_data->alpha <<
 				    HTCP_SHIFT) / (max(1,
-				    CCV(ccv, snd_cwnd) / CCV(ccv, t_maxseg)))) *
-				    CCV(ccv, t_maxseg))  >> HTCP_SHIFT;
+				    CCV(ccv, snd_cwnd) / mss))) *
+				    mss)  >> HTCP_SHIFT;
 		}
 	}
 }
@@ -324,13 +325,7 @@ htcp_cong_signal(struct cc_var *ccv, ccsignal_t type)
 
 	case CC_RTO:
 		if (CCV(ccv, t_rxtshift) == 1) {
-			if (V_tcp_do_newsack) {
-				pipe = tcp_compute_pipe(ccv->tp);
-			} else {
-				pipe = CCV(ccv, snd_max) -
-					CCV(ccv, snd_fack) +
-					CCV(ccv, sackhint.sack_bytes_rexmit);
-			}
+			pipe = tcp_compute_pipe(ccv->tp);
 			CCV(ccv, snd_ssthresh) = max(2,
 				min(CCV(ccv, snd_wnd), pipe) / 2 / mss) * mss;
 		}
@@ -370,6 +365,7 @@ htcp_post_recovery(struct cc_var *ccv)
 {
 	int pipe;
 	struct htcp *htcp_data;
+	uint32_t mss = tcp_fixed_maxseg(ccv->tp);
 
 	pipe = 0;
 	htcp_data = ccv->cc_data;
@@ -379,25 +375,18 @@ htcp_post_recovery(struct cc_var *ccv)
 		 * If inflight data is less than ssthresh, set cwnd
 		 * conservatively to avoid a burst of data, as suggested in the
 		 * NewReno RFC. Otherwise, use the HTCP method.
-		 *
-		 * XXXLAS: Find a way to do this without needing curack
 		 */
-		if (V_tcp_do_newsack)
-			pipe = tcp_compute_pipe(ccv->tp);
-		else
-			pipe = CCV(ccv, snd_max) - ccv->curack;
-
+		pipe = tcp_compute_pipe(ccv->tp);
 		if (pipe < CCV(ccv, snd_ssthresh))
 			/*
 			 * Ensure that cwnd down not collape to 1 MSS under
 			 * adverse conditions. Implements RFC6582
 			 */
-			CCV(ccv, snd_cwnd) = max(pipe, CCV(ccv, t_maxseg)) +
-			    CCV(ccv, t_maxseg);
+			CCV(ccv, snd_cwnd) = max(pipe, mss) + mss;
 		else
 			CCV(ccv, snd_cwnd) = max(1, ((htcp_data->beta *
-			    htcp_data->prev_cwnd / CCV(ccv, t_maxseg))
-			    >> HTCP_SHIFT)) * CCV(ccv, t_maxseg);
+			    htcp_data->prev_cwnd / mss)
+			    >> HTCP_SHIFT)) * mss;
 	}
 }
 

@@ -1,15 +1,12 @@
 name: Style Checker
 
-# Runs my simple style(9) checker on any pushes or pull requests.  It could be
-# optimized by fetching the pull request head branch back to main revisions and
-# running on that. That would reduce the run time from 3-4 minutes down to 30-40
-# seconds. Getting the right series of clone + fetches to get that iteratively
-# is proving elusive, so optimizations welcome.
+# Runs my simple style(9) checker on pull requests.
 
 on:
   pull_request: # maybe pull_request_target
     branches: [ main ]
     types: [ opened, reopened, edited, synchronize ]
+    paths: [ '**.S', '**.c', '**.cc', '**.cpp', '**.h', '**.hh', '**.hpp' ]
 
 permissions:
   contents: read
@@ -19,10 +16,15 @@ jobs:
     name: Style Checker
     runs-on: ubuntu-latest
     steps:
+      # Unfortunately there doesn't seem to be a way to
+      # do this without an extra step.
+      - name: Get depth
+        run: |
+          echo "DEPTH=$(( ${{ github.event.pull_request.commits }} + 1 ))" >> $GITHUB_ENV
       - name: checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ env.DEPTH }}
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Install packages
         run: |
@@ -30,5 +32,5 @@ jobs:
           sudo apt-get -yq --no-install-suggests --no-install-recommends install perl
       - name: Run checker
         run: |
-          sha=$(git merge-base ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+          sha=$(git rev-parse HEAD~${{ github.event.pull_request.commits }})
           tools/build/checkstyle9.pl --github ${sha}..${{ github.event.pull_request.head.sha }}

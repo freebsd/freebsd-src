@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -512,18 +513,19 @@ get_usage(zpool_help_t idx)
 		return (gettext("\tinitialize [-c | -s | -u] [-w] <pool> "
 		    "[<device> ...]\n"));
 	case HELP_SCRUB:
-		return (gettext("\tscrub [-s | -p] [-w] [-e] <pool> ...\n"));
+		return (gettext("\tscrub [-e | -s | -p | -C] [-w] "
+		    "<pool> ...\n"));
 	case HELP_RESILVER:
 		return (gettext("\tresilver <pool> ...\n"));
 	case HELP_TRIM:
 		return (gettext("\ttrim [-dw] [-r <rate>] [-c | -s] <pool> "
 		    "[<device> ...]\n"));
 	case HELP_STATUS:
-		return (gettext("\tstatus [--power] [-j [--json-int, "
-		    "--json-flat-vdevs, ...\n"
-		    "\t    --json-pool-key-guid]] [-c [script1,script2,...]] "
-		    "[-DegiLpPstvx] ...\n"
-		    "\t    [-T d|u] [pool] [interval [count]]\n"));
+		return (gettext("\tstatus [-DdegiLPpstvx] "
+		    "[-c script1[,script2,...]] ...\n"
+		    "\t    [-j|--json [--json-flat-vdevs] [--json-int] "
+		    "[--json-pool-key-guid]] ...\n"
+		    "\t    [-T d|u] [--power] [pool] [interval [count]]\n"));
 	case HELP_UPGRADE:
 		return (gettext("\tupgrade\n"
 		    "\tupgrade -v\n"
@@ -2602,6 +2604,7 @@ typedef struct status_cbdata {
 	boolean_t	cb_print_unhealthy;
 	boolean_t	cb_print_status;
 	boolean_t	cb_print_slow_ios;
+	boolean_t	cb_print_dio_verify;
 	boolean_t	cb_print_vdev_init;
 	boolean_t	cb_print_vdev_trim;
 	vdev_cmd_data_list_t	*vcdl;
@@ -2879,7 +2882,7 @@ print_status_config(zpool_handle_t *zhp, status_cbdata_t *cb, const char *name,
 	uint_t c, i, vsc, children;
 	pool_scan_stat_t *ps = NULL;
 	vdev_stat_t *vs;
-	char rbuf[6], wbuf[6], cbuf[6];
+	char rbuf[6], wbuf[6], cbuf[6], dbuf[6];
 	char *vname;
 	uint64_t notpresent;
 	spare_cbdata_t spare_cb;
@@ -2996,6 +2999,17 @@ print_status_config(zpool_handle_t *zhp, status_cbdata_t *cb, const char *name,
 			} else {
 				printf(" %5s", "-");
 			}
+		}
+		if (VDEV_STAT_VALID(vs_dio_verify_errors, vsc) &&
+		    cb->cb_print_dio_verify) {
+			zfs_nicenum(vs->vs_dio_verify_errors, dbuf,
+			    sizeof (dbuf));
+
+			if (cb->cb_literal)
+				printf(" %5llu",
+				    (u_longlong_t)vs->vs_dio_verify_errors);
+			else
+				printf(" %5s", dbuf);
 		}
 	}
 
@@ -6870,8 +6884,13 @@ collect_pool(zpool_handle_t *zhp, list_cbdata_t *cb)
 		if (cb->cb_json) {
 			if (pl->pl_prop == ZPOOL_PROP_NAME)
 				continue;
+			const char *prop_name;
+			if (pl->pl_prop != ZPROP_USERPROP)
+				prop_name = zpool_prop_to_name(pl->pl_prop);
+			else
+				prop_name = pl->pl_user_prop;
 			(void) zprop_nvlist_one_property(
-			    zpool_prop_to_name(pl->pl_prop), propstr,
+			    prop_name, propstr,
 			    sourcetype, NULL, NULL, props, cb->cb_json_as_int);
 		} else {
 			/*
@@ -7328,6 +7347,7 @@ zpool_do_list(int argc, char **argv)
 	current_prop_type = ZFS_TYPE_POOL;
 
 	struct option long_options[] = {
+		{"json", no_argument, NULL, 'j'},
 		{"json-int", no_argument, NULL, ZPOOL_OPTION_JSON_NUMS_AS_INT},
 		{"json-pool-key-guid", no_argument, NULL,
 		    ZPOOL_OPTION_POOL_KEY_GUID},
@@ -7953,8 +7973,11 @@ zpool_do_online(int argc, char **argv)
 
 	poolname = argv[0];
 
-	if ((zhp = zpool_open(g_zfs, poolname)) == NULL)
+	if ((zhp = zpool_open(g_zfs, poolname)) == NULL) {
+		(void) fprintf(stderr, gettext("failed to open pool "
+		    "\"%s\""), poolname);
 		return (1);
+	}
 
 	for (i = 1; i < argc; i++) {
 		vdev_state_t oldstate;
@@ -7975,12 +7998,15 @@ zpool_do_online(int argc, char **argv)
 		    &l2cache, NULL);
 		if (tgt == NULL) {
 			ret = 1;
+			(void) fprintf(stderr, gettext("couldn't find device "
+			"\"%s\" in pool \"%s\"\n"), argv[i], poolname);
 			continue;
 		}
 		uint_t vsc;
 		oldstate = ((vdev_stat_t *)fnvlist_lookup_uint64_array(tgt,
 		    ZPOOL_CONFIG_VDEV_STATS, &vsc))->vs_state;
-		if (zpool_vdev_online(zhp, argv[i], flags, &newstate) == 0) {
+		if ((rc = zpool_vdev_online(zhp, argv[i], flags,
+		    &newstate)) == 0) {
 			if (newstate != VDEV_STATE_HEALTHY) {
 				(void) printf(gettext("warning: device '%s' "
 				    "onlined, but remains in faulted state\n"),
@@ -8006,6 +8032,9 @@ zpool_do_online(int argc, char **argv)
 				}
 			}
 		} else {
+			(void) fprintf(stderr, gettext("Failed to online "
+			    "\"%s\" in pool \"%s\": %d\n"),
+			    argv[i], poolname, rc);
 			ret = 1;
 		}
 	}
@@ -8090,8 +8119,11 @@ zpool_do_offline(int argc, char **argv)
 
 	poolname = argv[0];
 
-	if ((zhp = zpool_open(g_zfs, poolname)) == NULL)
+	if ((zhp = zpool_open(g_zfs, poolname)) == NULL) {
+		(void) fprintf(stderr, gettext("failed to open pool "
+		    "\"%s\""), poolname);
 		return (1);
+	}
 
 	for (i = 1; i < argc; i++) {
 		uint64_t guid = zpool_vdev_path_to_guid(zhp, argv[i]);
@@ -8399,12 +8431,13 @@ wait_callback(zpool_handle_t *zhp, void *data)
 }
 
 /*
- * zpool scrub [-s | -p] [-w] [-e] <pool> ...
+ * zpool scrub [-e | -s | -p | -C] [-w] <pool> ...
  *
  *	-e	Only scrub blocks in the error log.
  *	-s	Stop.  Stops any in-progress scrub.
  *	-p	Pause. Pause in-progress scrub.
  *	-w	Wait.  Blocks until scrub has completed.
+ *	-C	Scrub from last saved txg.
  */
 int
 zpool_do_scrub(int argc, char **argv)
@@ -8420,9 +8453,10 @@ zpool_do_scrub(int argc, char **argv)
 	boolean_t is_error_scrub = B_FALSE;
 	boolean_t is_pause = B_FALSE;
 	boolean_t is_stop = B_FALSE;
+	boolean_t is_txg_continue = B_FALSE;
 
 	/* check options */
-	while ((c = getopt(argc, argv, "spwe")) != -1) {
+	while ((c = getopt(argc, argv, "spweC")) != -1) {
 		switch (c) {
 		case 'e':
 			is_error_scrub = B_TRUE;
@@ -8436,6 +8470,9 @@ zpool_do_scrub(int argc, char **argv)
 		case 'w':
 			wait = B_TRUE;
 			break;
+		case 'C':
+			is_txg_continue = B_TRUE;
+			break;
 		case '?':
 			(void) fprintf(stderr, gettext("invalid option '%c'\n"),
 			    optopt);
@@ -8445,7 +8482,19 @@ zpool_do_scrub(int argc, char **argv)
 
 	if (is_pause && is_stop) {
 		(void) fprintf(stderr, gettext("invalid option "
-		    "combination :-s and -p are mutually exclusive\n"));
+		    "combination: -s and -p are mutually exclusive\n"));
+		usage(B_FALSE);
+	} else if (is_pause && is_txg_continue) {
+		(void) fprintf(stderr, gettext("invalid option "
+		    "combination: -p and -C are mutually exclusive\n"));
+		usage(B_FALSE);
+	} else if (is_stop && is_txg_continue) {
+		(void) fprintf(stderr, gettext("invalid option "
+		    "combination: -s and -C are mutually exclusive\n"));
+		usage(B_FALSE);
+	} else if (is_error_scrub && is_txg_continue) {
+		(void) fprintf(stderr, gettext("invalid option "
+		    "combination: -e and -C are mutually exclusive\n"));
 		usage(B_FALSE);
 	} else {
 		if (is_error_scrub)
@@ -8455,6 +8504,8 @@ zpool_do_scrub(int argc, char **argv)
 			cb.cb_scrub_cmd = POOL_SCRUB_PAUSE;
 		} else if (is_stop) {
 			cb.cb_type = POOL_SCAN_NONE;
+		} else if (is_txg_continue) {
+			cb.cb_scrub_cmd = POOL_SCRUB_FROM_LAST_TXG;
 		} else {
 			cb.cb_scrub_cmd = POOL_SCRUB_NORMAL;
 		}
@@ -9210,6 +9261,12 @@ vdev_stats_nvlist(zpool_handle_t *zhp, status_cbdata_t *cb, nvlist_t *nv,
 				fnvlist_add_string(vds, "power_state", "-");
 			}
 		}
+	}
+
+	if (cb->cb_print_dio_verify) {
+		nice_num_str_nvlist(vds, "dio_verify_errors",
+		    vs->vs_dio_verify_errors, cb->cb_literal,
+		    cb->cb_json_as_int, ZFS_NICENUM_1024);
 	}
 
 	if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_NOT_PRESENT,
@@ -9998,9 +10055,8 @@ print_removal_status(zpool_handle_t *zhp, pool_removal_stat_t *prs)
 		(void) printf(gettext("Removal of %s canceled on %s"),
 		    vdev_name, ctime(&end));
 	} else {
-		uint64_t copied, total, elapsed, mins_left, hours_left;
+		uint64_t copied, total, elapsed, rate, mins_left, hours_left;
 		double fraction_done;
-		uint_t rate;
 
 		assert(prs->prs_state == DSS_SCANNING);
 
@@ -10096,9 +10152,8 @@ print_raidz_expand_status(zpool_handle_t *zhp, pool_raidz_expand_stat_t *pres)
 		    copied_buf, time_buf, ctime((time_t *)&end));
 	} else {
 		char examined_buf[7], total_buf[7], rate_buf[7];
-		uint64_t copied, total, elapsed, secs_left;
+		uint64_t copied, total, elapsed, rate, secs_left;
 		double fraction_done;
-		uint_t rate;
 
 		assert(pres->pres_state == DSS_SCANNING);
 
@@ -10377,10 +10432,9 @@ print_status_reason(zpool_handle_t *zhp, status_cbdata_t *cbp,
 		break;
 
 	case ZPOOL_STATUS_REMOVED_DEV:
-		snprintf(status, ST_SIZE, gettext("One or more devices has "
-		    "been removed by the administrator.\n\tSufficient "
-		    "replicas exist for the pool to continue functioning in "
-		    "a\n\tdegraded state.\n"));
+		snprintf(status, ST_SIZE, gettext("One or more devices have "
+		    "been removed.\n\tSufficient replicas exist for the pool "
+		    "to continue functioning in a\n\tdegraded state.\n"));
 		snprintf(action, AC_SIZE, gettext("Online the device "
 		    "using zpool online' or replace the device with\n\t'zpool "
 		    "replace'.\n"));
@@ -10873,6 +10927,10 @@ status_callback(zpool_handle_t *zhp, void *data)
 			printf_color(ANSI_BOLD, " %5s", gettext("POWER"));
 		}
 
+		if (cbp->cb_print_dio_verify) {
+			printf_color(ANSI_BOLD, " %5s", gettext("DIO"));
+		}
+
 		if (cbp->vcdl != NULL)
 			print_cmd_columns(cbp->vcdl, 0);
 
@@ -10921,27 +10979,30 @@ status_callback(zpool_handle_t *zhp, void *data)
 }
 
 /*
- * zpool status [-c [script1,script2,...]] [-DegiLpPstvx] [--power] [-T d|u] ...
- *              [pool] [interval [count]]
+ * zpool status [-dDegiLpPstvx] [-c [script1,script2,...]] ...
+ * 				[-j|--json [--json-flat-vdevs] [--json-int] ...
+ * 				[--json-pool-key-guid]] [--power] [-T d|u] ...
+ * 				[pool] [interval [count]]
  *
  *	-c CMD	For each vdev, run command CMD
  *	-D	Display dedup status (undocumented)
+ *	-d	Display Direct I/O write verify errors
  *	-e	Display only unhealthy vdevs
  *	-g	Display guid for individual vdev name.
  *	-i	Display vdev initialization status.
+ *	-j [...]	Display output in JSON format
+ *	   --json-flat-vdevs Display vdevs in flat hierarchy
+ *	   --json-int Display numbers in integer format instead of string
+ *	   --json-pool-key-guid Use pool GUID as key for pool objects
  *	-L	Follow links when resolving vdev path name.
- *	-p	Display values in parsable (exact) format.
  *	-P	Display full path for vdev name.
+ *	-p	Display values in parsable (exact) format.
+ *	--power	Display vdev enclosure slot power status
  *	-s	Display slow IOs column.
- *	-t	Display vdev TRIM status.
  *	-T	Display a timestamp in date(1) or Unix format
+ *	-t	Display vdev TRIM status.
  *	-v	Display complete error logs
  *	-x	Display only pools with potential problems
- *	-j	Display output in JSON format
- *	--power	Display vdev enclosure slot power status
- *	--json-int Display numbers in inteeger format instead of string
- *	--json-flat-vdevs Display vdevs in flat hierarchy
- *	--json-pool-key-guid Use pool GUID as key for pool objects
  *
  * Describes the health status of all pools or some subset.
  */
@@ -10958,6 +11019,7 @@ zpool_do_status(int argc, char **argv)
 
 	struct option long_options[] = {
 		{"power", no_argument, NULL, ZPOOL_OPTION_POWER},
+		{"json", no_argument, NULL, 'j'},
 		{"json-int", no_argument, NULL, ZPOOL_OPTION_JSON_NUMS_AS_INT},
 		{"json-flat-vdevs", no_argument, NULL,
 		    ZPOOL_OPTION_JSON_FLAT_VDEVS},
@@ -10967,7 +11029,7 @@ zpool_do_status(int argc, char **argv)
 	};
 
 	/* check options */
-	while ((c = getopt_long(argc, argv, "c:jDegiLpPstT:vx", long_options,
+	while ((c = getopt_long(argc, argv, "c:jdDegiLpPstT:vx", long_options,
 	    NULL)) != -1) {
 		switch (c) {
 		case 'c':
@@ -10993,6 +11055,9 @@ zpool_do_status(int argc, char **argv)
 				exit(1);
 			}
 			cmd = optarg;
+			break;
+		case 'd':
+			cb.cb_print_dio_verify = B_TRUE;
 			break;
 		case 'D':
 			if (++cb.cb_dedup_stats  > 2)
@@ -12005,6 +12070,11 @@ zpool_do_events_nvprint(nvlist_t *nvl, int depth)
 				    sizeof (flagstr));
 				printf(gettext("0x%x [%s]"), i32, flagstr);
 			} else if (strcmp(name,
+			    FM_EREPORT_PAYLOAD_ZFS_ZIO_TYPE) == 0) {
+				zfs_valstr_zio_type(i32, flagstr,
+				    sizeof (flagstr));
+				printf(gettext("0x%x [%s]"), i32, flagstr);
+			} else if (strcmp(name,
 			    FM_EREPORT_PAYLOAD_ZFS_ZIO_PRIORITY) == 0) {
 				zfs_valstr_zio_priority(i32, flagstr,
 				    sizeof (flagstr));
@@ -12563,6 +12633,7 @@ zpool_do_get(int argc, char **argv)
 	current_prop_type = cb.cb_type;
 
 	struct option long_options[] = {
+		{"json", no_argument, NULL, 'j'},
 		{"json-int", no_argument, NULL, ZPOOL_OPTION_JSON_NUMS_AS_INT},
 		{"json-pool-key-guid", no_argument, NULL,
 		    ZPOOL_OPTION_POOL_KEY_GUID},
@@ -12682,11 +12753,13 @@ found:
 
 			if (strcmp(argv[1], "root") == 0)
 				vdev = strdup("root-0");
-			else
-				vdev = strdup(argv[1]);
 
 			/* ... and the rest are vdev names */
-			cb.cb_vdevs.cb_names = &vdev;
+			if (vdev == NULL)
+				cb.cb_vdevs.cb_names = argv + 1;
+			else
+				cb.cb_vdevs.cb_names = &vdev;
+
 			cb.cb_vdevs.cb_names_count = argc - 1;
 			cb.cb_type = ZFS_TYPE_VDEV;
 			argc = 1; /* One pool to process */
@@ -13477,7 +13550,12 @@ zpool_do_version(int argc, char **argv)
 	int c;
 	nvlist_t *jsobj = NULL, *zfs_ver = NULL;
 	boolean_t json = B_FALSE;
-	while ((c = getopt(argc, argv, "j")) != -1) {
+
+	struct option long_options[] = {
+		{"json", no_argument, NULL, 'j'},
+	};
+
+	while ((c = getopt_long(argc, argv, "j", long_options, NULL)) != -1) {
 		switch (c) {
 		case 'j':
 			json = B_TRUE;
@@ -13593,7 +13671,7 @@ main(int argc, char **argv)
 	 * Special case '-V|--version'
 	 */
 	if ((strcmp(cmdname, "-V") == 0) || (strcmp(cmdname, "--version") == 0))
-		return (zpool_do_version(argc, argv));
+		return (zfs_version_print() != 0);
 
 	/*
 	 * Special case 'help'

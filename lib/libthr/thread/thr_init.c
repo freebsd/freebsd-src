@@ -271,6 +271,8 @@ static pthread_func_t jmp_table[][2] = {
 	[PJT_GETTHREADID_NP] = {DUAL_ENTRY(_thr_getthreadid_np)},
 	[PJT_ATTR_GET_NP] = {DUAL_ENTRY(_thr_attr_get_np)},
 	[PJT_GETNAME_NP] = {DUAL_ENTRY(_thr_getname_np)},
+	[PJT_SUSPEND_ALL_NP] = {DUAL_ENTRY(_thr_suspend_all_np)},
+	[PJT_RESUME_ALL_NP] = {DUAL_ENTRY(_thr_resume_all_np)},
 };
 
 static int init_once = 0;
@@ -332,6 +334,8 @@ _libpthread_init(struct pthread *curthread)
 	/* Set the initial thread. */
 	if (curthread == NULL) {
 		first = 1;
+		/* Force _get_curthread() return NULL until set. */
+		_tcb_get()->tcb_thread = NULL;
 		/* Create and initialize the initial thread. */
 		curthread = _thr_alloc(NULL);
 		if (curthread == NULL)
@@ -429,6 +433,9 @@ init_main_thread(struct pthread *thread)
 	thread->unwind_stackend = _usrstack;
 #endif
 
+	thread->uexterr.ver = UEXTERROR_VER;
+	exterrctl(EXTERRCTL_ENABLE, EXTERRCTLF_FORCE, &thread->uexterr);
+
 	/* Others cleared to zero by thr_alloc() */
 }
 
@@ -519,7 +526,6 @@ init_private(void)
 		env = getenv("LIBPTHREAD_QUEUE_FIFO");
 		if (env)
 			_thr_queuefifo = atoi(env);
-		TAILQ_INIT(&_thr_atfork_list);
 		env = getenv("LIBPTHREAD_UMTX_MIN_TIMEOUT");
 		if (env) {
 			char *endptr;

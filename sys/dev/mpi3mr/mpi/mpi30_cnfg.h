@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2016-2024, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2016-2025, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -64,6 +64,7 @@
  *              Configuration Page Attributes                                *
  ****************************************************************************/
 #define MPI3_CONFIG_PAGEATTR_MASK                       (0xF0)
+#define MPI3_CONFIG_PAGEATTR_SHIFT                      (4)
 #define MPI3_CONFIG_PAGEATTR_READ_ONLY                  (0x00)
 #define MPI3_CONFIG_PAGEATTR_CHANGEABLE                 (0x10)
 #define MPI3_CONFIG_PAGEATTR_PERSISTENT                 (0x20)
@@ -84,58 +85,79 @@
 
 /**** Device PageAddress Format ****/
 #define MPI3_DEVICE_PGAD_FORM_MASK                      (0xF0000000)
+#define MPI3_DEVICE_PGAD_FORM_SHIFT                     (28)
 #define MPI3_DEVICE_PGAD_FORM_GET_NEXT_HANDLE           (0x00000000)
 #define MPI3_DEVICE_PGAD_FORM_HANDLE                    (0x20000000)
 #define MPI3_DEVICE_PGAD_HANDLE_MASK                    (0x0000FFFF)
+#define MPI3_DEVICE_PGAD_HANDLE_SHIFT                   (0)
 
 /**** SAS Expander PageAddress Format ****/
 #define MPI3_SAS_EXPAND_PGAD_FORM_MASK                  (0xF0000000)
+#define MPI3_SAS_EXPAND_PGAD_FORM_SHIFT                 (28)
 #define MPI3_SAS_EXPAND_PGAD_FORM_GET_NEXT_HANDLE       (0x00000000)
 #define MPI3_SAS_EXPAND_PGAD_FORM_HANDLE_PHY_NUM        (0x10000000)
 #define MPI3_SAS_EXPAND_PGAD_FORM_HANDLE                (0x20000000)
 #define MPI3_SAS_EXPAND_PGAD_PHYNUM_MASK                (0x00FF0000)
 #define MPI3_SAS_EXPAND_PGAD_PHYNUM_SHIFT               (16)
 #define MPI3_SAS_EXPAND_PGAD_HANDLE_MASK                (0x0000FFFF)
+#define MPI3_SAS_EXPAND_PGAD_HANDLE_SHIFT               (0)
 
 /**** SAS Phy PageAddress Format ****/
 #define MPI3_SAS_PHY_PGAD_FORM_MASK                     (0xF0000000)
+#define MPI3_SAS_PHY_PGAD_FORM_SHIFT                    (28)
 #define MPI3_SAS_PHY_PGAD_FORM_PHY_NUMBER               (0x00000000)
 #define MPI3_SAS_PHY_PGAD_PHY_NUMBER_MASK               (0x000000FF)
+#define MPI3_SAS_PHY_PGAD_PHY_NUMBER_SHIFT              (0)
 
 /**** SAS Port PageAddress Format ****/
 #define MPI3_SASPORT_PGAD_FORM_MASK                     (0xF0000000)
+#define MPI3_SASPORT_PGAD_FORM_SHIFT                    (28)
 #define MPI3_SASPORT_PGAD_FORM_GET_NEXT_PORT            (0x00000000)
 #define MPI3_SASPORT_PGAD_FORM_PORT_NUM                 (0x10000000)
 #define MPI3_SASPORT_PGAD_PORT_NUMBER_MASK              (0x000000FF)
+#define MPI3_SASPORT_PGAD_PORT_NUMBER_SHIFT             (0)
 
 /**** Enclosure PageAddress Format ****/
 #define MPI3_ENCLOS_PGAD_FORM_MASK                      (0xF0000000)
+#define MPI3_ENCLOS_PGAD_FORM_SHIFT                     (28)
 #define MPI3_ENCLOS_PGAD_FORM_GET_NEXT_HANDLE           (0x00000000)
 #define MPI3_ENCLOS_PGAD_FORM_HANDLE                    (0x10000000)
 #define MPI3_ENCLOS_PGAD_HANDLE_MASK                    (0x0000FFFF)
+#define MPI3_ENCLOS_PGAD_HANDLE_SHIFT                   (0)
 
 /**** PCIe Switch PageAddress Format ****/
 #define MPI3_PCIE_SWITCH_PGAD_FORM_MASK                 (0xF0000000)
+#define MPI3_PCIE_SWITCH_PGAD_FORM_SHIFT                (28)
 #define MPI3_PCIE_SWITCH_PGAD_FORM_GET_NEXT_HANDLE      (0x00000000)
 #define MPI3_PCIE_SWITCH_PGAD_FORM_HANDLE_PORT_NUM      (0x10000000)
 #define MPI3_PCIE_SWITCH_PGAD_FORM_HANDLE               (0x20000000)
 #define MPI3_PCIE_SWITCH_PGAD_PORTNUM_MASK              (0x00FF0000)
 #define MPI3_PCIE_SWITCH_PGAD_PORTNUM_SHIFT             (16)
 #define MPI3_PCIE_SWITCH_PGAD_HANDLE_MASK               (0x0000FFFF)
+#define MPI3_PCIE_SWITCH_PGAD_HANDLE_SHIFT              (0)
 
 /**** PCIe Link PageAddress Format ****/
 #define MPI3_PCIE_LINK_PGAD_FORM_MASK                   (0xF0000000)
+#define MPI3_PCIE_LINK_PGAD_FORM_SHIFT                  (28)
 #define MPI3_PCIE_LINK_PGAD_FORM_GET_NEXT_LINK          (0x00000000)
 #define MPI3_PCIE_LINK_PGAD_FORM_LINK_NUM               (0x10000000)
 #define MPI3_PCIE_LINK_PGAD_LINKNUM_MASK                (0x000000FF)
+#define MPI3_PCIE_LINK_PGAD_LINKNUM_SHIFT               (0)
 
 /**** Security PageAddress Format ****/
 #define MPI3_SECURITY_PGAD_FORM_MASK                    (0xF0000000)
+#define MPI3_SECURITY_PGAD_FORM_SHIFT                   (28)
 #define MPI3_SECURITY_PGAD_FORM_GET_NEXT_SLOT           (0x00000000)
 #define MPI3_SECURITY_PGAD_FORM_SLOT_NUM                (0x10000000)
 #define MPI3_SECURITY_PGAD_SLOT_GROUP_MASK              (0x0000FF00)
 #define MPI3_SECURITY_PGAD_SLOT_GROUP_SHIFT             (8)
 #define MPI3_SECURITY_PGAD_SLOT_MASK                    (0x000000FF)
+#define MPI3_SECURITY_PGAD_SLOT_SHIFT                   (0)
+
+/**** Instance PageAddress Format ****/
+#define MPI3_INSTANCE_PGAD_INSTANCE_MASK                (0x0000FFFF)
+#define MPI3_INSTANCE_PGAD_INSTANCE_SHIFT               (0)
+
 
 /*****************************************************************************
  *              Configuration Request Message                                *
@@ -149,7 +171,8 @@ typedef struct _MPI3_CONFIG_REQUEST
     U8              IOCUseOnly06;                       /* 0x06 */
     U8              MsgFlags;                           /* 0x07 */
     U16             ChangeCount;                        /* 0x08 */
-    U16             Reserved0A;                         /* 0x0A */
+    U8              ProxyIOCNumber;                     /* 0x0A */
+    U8              Reserved0B;                         /* 0x0B */
     U8              PageVersion;                        /* 0x0C */
     U8              PageNumber;                         /* 0x0D */
     U8              PageType;                           /* 0x0E */
@@ -212,6 +235,7 @@ typedef struct _MPI3_CONFIG_PAGE_HEADER
 #define MPI3_SAS_APHYINFO_BREAK_REPLY_CAPABLE                 (0x00000010)
 
 #define MPI3_SAS_APHYINFO_REASON_MASK                         (0x0000000F)
+#define MPI3_SAS_APHYINFO_REASON_SHIFT                        (0)
 #define MPI3_SAS_APHYINFO_REASON_UNKNOWN                      (0x00000000)
 #define MPI3_SAS_APHYINFO_REASON_POWER_ON                     (0x00000001)
 #define MPI3_SAS_APHYINFO_REASON_HARD_RESET                   (0x00000002)
@@ -231,6 +255,7 @@ typedef struct _MPI3_CONFIG_PAGE_HEADER
 #define MPI3_SAS_PHYINFO_STATUS_VACANT                        (0x80000000)
 
 #define MPI3_SAS_PHYINFO_PHY_POWER_CONDITION_MASK             (0x18000000)
+#define MPI3_SAS_PHYINFO_PHY_POWER_CONDITION_SHIFT            (27)
 #define MPI3_SAS_PHYINFO_PHY_POWER_CONDITION_ACTIVE           (0x00000000)
 #define MPI3_SAS_PHYINFO_PHY_POWER_CONDITION_PARTIAL          (0x08000000)
 #define MPI3_SAS_PHYINFO_PHY_POWER_CONDITION_SLUMBER          (0x10000000)
@@ -247,6 +272,7 @@ typedef struct _MPI3_CONFIG_PAGE_HEADER
 #define MPI3_SAS_PHYINFO_ZONING_ENABLED                       (0x00100000)
 
 #define MPI3_SAS_PHYINFO_REASON_MASK                          (0x000F0000)
+#define MPI3_SAS_PHYINFO_REASON_SHIFT                         (16)
 #define MPI3_SAS_PHYINFO_REASON_UNKNOWN                       (0x00000000)
 #define MPI3_SAS_PHYINFO_REASON_POWER_ON                      (0x00010000)
 #define MPI3_SAS_PHYINFO_REASON_HARD_RESET                    (0x00020000)
@@ -266,12 +292,14 @@ typedef struct _MPI3_CONFIG_PAGE_HEADER
 #define MPI3_SAS_PHYINFO_PARTIAL_PATHWAY_TIME_SHIFT           (8)
 
 #define MPI3_SAS_PHYINFO_ROUTING_ATTRIBUTE_MASK               (0x000000F0)
+#define MPI3_SAS_PHYINFO_ROUTING_ATTRIBUTE_SHIFT              (4)
 #define MPI3_SAS_PHYINFO_ROUTING_ATTRIBUTE_DIRECT             (0x00000000)
 #define MPI3_SAS_PHYINFO_ROUTING_ATTRIBUTE_SUBTRACTIVE        (0x00000010)
 #define MPI3_SAS_PHYINFO_ROUTING_ATTRIBUTE_TABLE              (0x00000020)
 
 /**** Defines for the ProgrammedLinkRate field ****/
 #define MPI3_SAS_PRATE_MAX_RATE_MASK                          (0xF0)
+#define MPI3_SAS_PRATE_MAX_RATE_SHIFT                         (4)
 #define MPI3_SAS_PRATE_MAX_RATE_NOT_PROGRAMMABLE              (0x00)
 #define MPI3_SAS_PRATE_MAX_RATE_1_5                           (0x80)
 #define MPI3_SAS_PRATE_MAX_RATE_3_0                           (0x90)
@@ -279,6 +307,7 @@ typedef struct _MPI3_CONFIG_PAGE_HEADER
 #define MPI3_SAS_PRATE_MAX_RATE_12_0                          (0xB0)
 #define MPI3_SAS_PRATE_MAX_RATE_22_5                          (0xC0)
 #define MPI3_SAS_PRATE_MIN_RATE_MASK                          (0x0F)
+#define MPI3_SAS_PRATE_MIN_RATE_SHIFT                         (0)
 #define MPI3_SAS_PRATE_MIN_RATE_NOT_PROGRAMMABLE              (0x00)
 #define MPI3_SAS_PRATE_MIN_RATE_1_5                           (0x08)
 #define MPI3_SAS_PRATE_MIN_RATE_3_0                           (0x09)
@@ -288,12 +317,14 @@ typedef struct _MPI3_CONFIG_PAGE_HEADER
 
 /**** Defines for the HwLinkRate field ****/
 #define MPI3_SAS_HWRATE_MAX_RATE_MASK                         (0xF0)
+#define MPI3_SAS_HWRATE_MAX_RATE_SHIFT                        (4)
 #define MPI3_SAS_HWRATE_MAX_RATE_1_5                          (0x80)
 #define MPI3_SAS_HWRATE_MAX_RATE_3_0                          (0x90)
 #define MPI3_SAS_HWRATE_MAX_RATE_6_0                          (0xA0)
 #define MPI3_SAS_HWRATE_MAX_RATE_12_0                         (0xB0)
 #define MPI3_SAS_HWRATE_MAX_RATE_22_5                         (0xC0)
 #define MPI3_SAS_HWRATE_MIN_RATE_MASK                         (0x0F)
+#define MPI3_SAS_HWRATE_MIN_RATE_SHIFT                        (0)
 #define MPI3_SAS_HWRATE_MIN_RATE_1_5                          (0x08)
 #define MPI3_SAS_HWRATE_MIN_RATE_3_0                          (0x09)
 #define MPI3_SAS_HWRATE_MIN_RATE_6_0                          (0x0A)
@@ -331,6 +362,9 @@ typedef struct _MPI3_CONFIG_PAGE_HEADER
 #define MPI3_MFGPAGE_DEVID_SAS5116_MPI_NS                     (0x00B5)
 #define MPI3_MFGPAGE_DEVID_SAS5116_NVME_NS                    (0x00B6)
 #define MPI3_MFGPAGE_DEVID_SAS5116_PCIE_SWITCH                (0x00B8)
+#define MPI3_MFGPAGE_DEVID_SAS5248_MPI                        (0x00F0)
+#define MPI3_MFGPAGE_DEVID_SAS5248_MPI_NS                     (0x00F1)
+#define MPI3_MFGPAGE_DEVID_SAS5248_PCIE_SWITCH                (0x00F2)
 
 /*****************************************************************************
  *              Manufacturing Page 0                                         *
@@ -478,19 +512,27 @@ typedef struct _MPI3_MAN6_GPIO_ENTRY
 
 /**** Defines for FunctionFlags when FunctionCode is ISTWI_RESET ****/
 #define MPI3_MAN6_GPIO_ISTWI_RESET_FUNCTIONFLAGS_DEVSELECT_MASK               (0x01)
+#define MPI3_MAN6_GPIO_ISTWI_RESET_FUNCTIONFLAGS_DEVSELECT_SHIFT              (0)
 #define MPI3_MAN6_GPIO_ISTWI_RESET_FUNCTIONFLAGS_DEVSELECT_ISTWI              (0x00)
 #define MPI3_MAN6_GPIO_ISTWI_RESET_FUNCTIONFLAGS_DEVSELECT_RECEPTACLEID       (0x01)
 
 /**** Defines for Param1 (Flags) when FunctionCode is EXT_INTERRUPT ****/
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_SOURCE_MASK                        (0xF0)
+#define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_SOURCE_SHIFT                       (4)
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_SOURCE_GENERIC                     (0x00)
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_SOURCE_CABLE_MGMT                  (0x10)
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_SOURCE_ACTIVE_CABLE_OVERCURRENT    (0x20)
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_ACK_REQUIRED                       (0x02)
 
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_TRIGGER_MASK                       (0x01)
+#define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_TRIGGER_SHIFT                      (0)
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_TRIGGER_EDGE                       (0x00)
 #define MPI3_MAN6_GPIO_EXTINT_PARAM1_FLAGS_TRIGGER_LEVEL                      (0x01)
+
+/**** Defines for Param1 (LEVEL) when FunctionCode is OVER_TEMPERATURE ****/
+#define MPI3_MAN6_GPIO_OVER_TEMP_PARAM1_LEVEL_WARNING                         (0x00)
+#define MPI3_MAN6_GPIO_OVER_TEMP_PARAM1_LEVEL_CRITICAL                        (0x01)
+#define MPI3_MAN6_GPIO_OVER_TEMP_PARAM1_LEVEL_FATAL                           (0x02)
 
 /**** Defines for Param1 (PHY STATE) when FunctionCode is PORT_STATUS_GREEN ****/
 #define MPI3_MAN6_GPIO_PORT_GREEN_PARAM1_PHY_STATUS_ALL_UP                    (0x00)
@@ -507,9 +549,11 @@ typedef struct _MPI3_MAN6_GPIO_ENTRY
 
 /**** Defines for the Flags field ****/
 #define MPI3_MAN6_GPIO_FLAGS_SLEW_RATE_MASK                                   (0x0100)
+#define MPI3_MAN6_GPIO_FLAGS_SLEW_RATE_SHIFT                                  (8)
 #define MPI3_MAN6_GPIO_FLAGS_SLEW_RATE_FAST_EDGE                              (0x0100)
 #define MPI3_MAN6_GPIO_FLAGS_SLEW_RATE_SLOW_EDGE                              (0x0000)
 #define MPI3_MAN6_GPIO_FLAGS_DRIVE_STRENGTH_MASK                              (0x00C0)
+#define MPI3_MAN6_GPIO_FLAGS_DRIVE_STRENGTH_SHIFT                             (6)
 #define MPI3_MAN6_GPIO_FLAGS_DRIVE_STRENGTH_100OHM                            (0x0000)
 #define MPI3_MAN6_GPIO_FLAGS_DRIVE_STRENGTH_66OHM                             (0x0040)
 #define MPI3_MAN6_GPIO_FLAGS_DRIVE_STRENGTH_50OHM                             (0x0080)
@@ -519,6 +563,7 @@ typedef struct _MPI3_MAN6_GPIO_ENTRY
 #define MPI3_MAN6_GPIO_FLAGS_ACTIVE_HIGH                                      (0x0008)
 #define MPI3_MAN6_GPIO_FLAGS_BI_DIR_ENABLED                                   (0x0004)
 #define MPI3_MAN6_GPIO_FLAGS_DIRECTION_MASK                                   (0x0003)
+#define MPI3_MAN6_GPIO_FLAGS_DIRECTION_SHIFT                                  (0)
 #define MPI3_MAN6_GPIO_FLAGS_DIRECTION_INPUT                                  (0x0000)
 #define MPI3_MAN6_GPIO_FLAGS_DIRECTION_OPEN_DRAIN_OUTPUT                      (0x0001)
 #define MPI3_MAN6_GPIO_FLAGS_DIRECTION_OPEN_SOURCE_OUTPUT                     (0x0002)
@@ -571,9 +616,11 @@ typedef struct _MPI3_MAN7_RECEPTACLE_INFO
 
 /**** Defines for PEDClk field ****/
 #define MPI3_MAN7_PEDCLK_ROUTING_MASK                      (0x10)
+#define MPI3_MAN7_PEDCLK_ROUTING_SHIFT                     (4)
 #define MPI3_MAN7_PEDCLK_ROUTING_DIRECT                    (0x00)
 #define MPI3_MAN7_PEDCLK_ROUTING_CLOCK_BUFFER              (0x10)
 #define MPI3_MAN7_PEDCLK_ID_MASK                           (0x0F)
+#define MPI3_MAN7_PEDCLK_ID_SHIFT                          (0)
 
 #ifndef MPI3_MAN7_RECEPTACLE_INFO_MAX
 #define MPI3_MAN7_RECEPTACLE_INFO_MAX                      (1)
@@ -595,6 +642,7 @@ typedef struct _MPI3_MAN_PAGE7
 
 /**** Defines for Flags field ****/
 #define MPI3_MAN7_FLAGS_BASE_ENCLOSURE_LEVEL_MASK          (0x01)
+#define MPI3_MAN7_FLAGS_BASE_ENCLOSURE_LEVEL_SHIFT         (0)
 #define MPI3_MAN7_FLAGS_BASE_ENCLOSURE_LEVEL_0             (0x00)
 #define MPI3_MAN7_FLAGS_BASE_ENCLOSURE_LEVEL_1             (0x01)
 
@@ -966,6 +1014,7 @@ typedef struct _MPI3_MAN11_BOARD_FAN_DEVICE_FORMAT
 
 /**** Defines for the Flags field ****/
 #define MPI3_MAN11_BOARD_FAN_FLAGS_FAN_CTRLR_TYPE_MASK        (0x07)
+#define MPI3_MAN11_BOARD_FAN_FLAGS_FAN_CTRLR_TYPE_SHIFT       (0)
 #define MPI3_MAN11_BOARD_FAN_FLAGS_FAN_CTRLR_TYPE_AMC6821     (0x00)
 
 typedef union _MPI3_MAN11_DEVICE_SPECIFIC_FORMAT
@@ -1068,9 +1117,11 @@ typedef struct _MPI3_MAN_PAGE12
 #define MPI3_MAN12_FLAGS_GROUP_ID_DISABLED                           (0x0100)
 #define MPI3_MAN12_FLAGS_SIO_CLK_FILTER_ENABLED                      (0x0004)
 #define MPI3_MAN12_FLAGS_SCLOCK_SLOAD_TYPE_MASK                      (0x0002)
+#define MPI3_MAN12_FLAGS_SCLOCK_SLOAD_TYPE_SHIFT                     (1)
 #define MPI3_MAN12_FLAGS_SCLOCK_SLOAD_TYPE_PUSH_PULL                 (0x0000)
 #define MPI3_MAN12_FLAGS_SCLOCK_SLOAD_TYPE_OPEN_DRAIN                (0x0002)
 #define MPI3_MAN12_FLAGS_SDATAOUT_TYPE_MASK                          (0x0001)
+#define MPI3_MAN12_FLAGS_SDATAOUT_TYPE_SHIFT                         (0)
 #define MPI3_MAN12_FLAGS_SDATAOUT_TYPE_PUSH_PULL                     (0x0000)
 #define MPI3_MAN12_FLAGS_SDATAOUT_TYPE_OPEN_DRAIN                    (0x0001)
 
@@ -1090,6 +1141,7 @@ typedef struct _MPI3_MAN_PAGE12
 
 /*** Defines for the Pattern field ****/
 #define MPI3_MAN12_PATTERN_RATE_MASK                                 (0xE0000000)
+#define MPI3_MAN12_PATTERN_RATE_SHIFT                                (29)
 #define MPI3_MAN12_PATTERN_RATE_2_HZ                                 (0x00000000)
 #define MPI3_MAN12_PATTERN_RATE_4_HZ                                 (0x20000000)
 #define MPI3_MAN12_PATTERN_RATE_8_HZ                                 (0x40000000)
@@ -1301,14 +1353,17 @@ typedef struct _MPI3_MAN_PAGE20
 
 /**** Defines for the AllowedPersonalities field ****/
 #define MPI3_MAN20_ALLOWEDPERSON_RAID_MASK                           (0x02)
+#define MPI3_MAN20_ALLOWEDPERSON_RAID_SHIFT                          (1)
 #define MPI3_MAN20_ALLOWEDPERSON_RAID_ALLOWED                        (0x02)
 #define MPI3_MAN20_ALLOWEDPERSON_RAID_NOT_ALLOWED                    (0x00)
 #define MPI3_MAN20_ALLOWEDPERSON_EHBA_MASK                           (0x01)
+#define MPI3_MAN20_ALLOWEDPERSON_EHBA_SHIFT                          (0)
 #define MPI3_MAN20_ALLOWEDPERSON_EHBA_ALLOWED                        (0x01)
 #define MPI3_MAN20_ALLOWEDPERSON_EHBA_NOT_ALLOWED                    (0x00)
 
 /**** Defines for the NonpremiumFeatures field ****/
 #define MPI3_MAN20_NONPREMUIM_DISABLE_PD_DEGRADED_MASK               (0x01)
+#define MPI3_MAN20_NONPREMUIM_DISABLE_PD_DEGRADED_SHIFT              (0)
 #define MPI3_MAN20_NONPREMUIM_DISABLE_PD_DEGRADED_ENABLED            (0x00)
 #define MPI3_MAN20_NONPREMUIM_DISABLE_PD_DEGRADED_DISABLED           (0x01)
 
@@ -1329,13 +1384,16 @@ typedef struct _MPI3_MAN_PAGE21
 
 /**** Defines for the Flags field ****/
 #define MPI3_MAN21_FLAGS_UNCERTIFIED_DRIVES_MASK                     (0x00000060)
+#define MPI3_MAN21_FLAGS_UNCERTIFIED_DRIVES_SHIFT                    (5)
 #define MPI3_MAN21_FLAGS_UNCERTIFIED_DRIVES_BLOCK                    (0x00000000)
 #define MPI3_MAN21_FLAGS_UNCERTIFIED_DRIVES_ALLOW                    (0x00000020)
 #define MPI3_MAN21_FLAGS_UNCERTIFIED_DRIVES_WARN                     (0x00000040)
 #define MPI3_MAN21_FLAGS_BLOCK_SSD_WR_CACHE_CHANGE_MASK              (0x00000008)
+#define MPI3_MAN21_FLAGS_BLOCK_SSD_WR_CACHE_CHANGE_SHIFT             (3)
 #define MPI3_MAN21_FLAGS_BLOCK_SSD_WR_CACHE_CHANGE_ALLOW             (0x00000000)
 #define MPI3_MAN21_FLAGS_BLOCK_SSD_WR_CACHE_CHANGE_PREVENT           (0x00000008)
 #define MPI3_MAN21_FLAGS_SES_VPD_ASSOC_MASK                          (0x00000001)
+#define MPI3_MAN21_FLAGS_SES_VPD_ASSOC_SHIFT                         (0)
 #define MPI3_MAN21_FLAGS_SES_VPD_ASSOC_DEFAULT                       (0x00000000)
 #define MPI3_MAN21_FLAGS_SES_VPD_ASSOC_OEM_SPECIFIC                  (0x00000001)
 
@@ -1408,18 +1466,21 @@ typedef struct _MPI3_IO_UNIT_PAGE1
 
 /**** Defines for the Flags field ****/
 #define MPI3_IOUNIT1_FLAGS_NVME_WRITE_CACHE_MASK                   (0x00000030)
+#define MPI3_IOUNIT1_FLAGS_NVME_WRITE_CACHE_SHIFT                  (4)
 #define MPI3_IOUNIT1_FLAGS_NVME_WRITE_CACHE_ENABLE                 (0x00000000)
 #define MPI3_IOUNIT1_FLAGS_NVME_WRITE_CACHE_DISABLE                (0x00000010)
 #define MPI3_IOUNIT1_FLAGS_NVME_WRITE_CACHE_NO_MODIFY              (0x00000020)
 #define MPI3_IOUNIT1_FLAGS_ATA_SECURITY_FREEZE_LOCK                (0x00000008)
 #define MPI3_IOUNIT1_FLAGS_WRITE_SAME_BUFFER                       (0x00000004)
 #define MPI3_IOUNIT1_FLAGS_SATA_WRITE_CACHE_MASK                   (0x00000003)
+#define MPI3_IOUNIT1_FLAGS_SATA_WRITE_CACHE_SHIFT                  (0)
 #define MPI3_IOUNIT1_FLAGS_SATA_WRITE_CACHE_ENABLE                 (0x00000000)
 #define MPI3_IOUNIT1_FLAGS_SATA_WRITE_CACHE_DISABLE                (0x00000001)
 #define MPI3_IOUNIT1_FLAGS_SATA_WRITE_CACHE_UNCHANGED              (0x00000002)
 
 /**** Defines for the DMDReport PCIe/SATA/SAS fields ****/
 #define MPI3_IOUNIT1_DMD_REPORT_DELAY_TIME_MASK                    (0x7F)
+#define MPI3_IOUNIT1_DMD_REPORT_DELAY_TIME_SHIFT                   (0)
 #define MPI3_IOUNIT1_DMD_REPORT_UNIT_16_SEC                        (0x80)
 
 /*****************************************************************************
@@ -1445,6 +1506,7 @@ typedef struct _MPI3_IO_UNIT_PAGE2
 #define MPI3_IOUNIT2_GPIO_FUNCTION_MASK         (0xFFFC)
 #define MPI3_IOUNIT2_GPIO_FUNCTION_SHIFT        (2)
 #define MPI3_IOUNIT2_GPIO_SETTING_MASK          (0x0001)
+#define MPI3_IOUNIT2_GPIO_SETTING_SHIFT         (0)
 #define MPI3_IOUNIT2_GPIO_SETTING_OFF           (0x0000)
 #define MPI3_IOUNIT2_GPIO_SETTING_ON            (0x0001)
 
@@ -1620,6 +1682,7 @@ typedef struct _MPI3_IO_UNIT_PAGE5
 
 /**** Defines for the Phy field ****/
 #define MPI3_IOUNIT5_PHY_SPINUP_GROUP_MASK                 (0x03)
+#define MPI3_IOUNIT5_PHY_SPINUP_GROUP_SHIFT                (0)
 
 /*****************************************************************************
  *              IO Unit Page 6                                               *
@@ -1700,6 +1763,7 @@ typedef struct _MPI3_IO_UNIT_PAGE8
 #define MPI3_IOUNIT8_PAGEVERSION                                  (0x00)
 
 /**** Defines for the SBMode field ****/
+#define MPI3_IOUNIT8_SBMODE_HARD_SECURE_RECERTIFIED               (0x08)
 #define MPI3_IOUNIT8_SBMODE_SECURE_DEBUG                          (0x04)
 #define MPI3_IOUNIT8_SBMODE_HARD_SECURE                           (0x02)
 #define MPI3_IOUNIT8_SBMODE_CONFIG_SECURE                         (0x01)
@@ -1710,9 +1774,14 @@ typedef struct _MPI3_IO_UNIT_PAGE8
 #define MPI3_IOUNIT8_SBSTATE_SECURE_BOOT_ENABLED                  (0x01)
 
 /**** Defines for the Flags field ****/
+#define MPI3_IOUNIT8_FLAGS_CURRENT_KEY_IOUNIT17                   (0x08)
 #define MPI3_IOUNIT8_FLAGS_DIGESTFORM_MASK                        (0x07)
+#define MPI3_IOUNIT8_FLAGS_DIGESTFORM_SHIFT                       (0)
 #define MPI3_IOUNIT8_FLAGS_DIGESTFORM_RAW                         (0x00)
 #define MPI3_IOUNIT8_FLAGS_DIGESTFORM_DIGEST_WITH_METADATA        (0x01)
+
+/**** Use MPI3_ENCRYPTION_ALGORITHM_ defines (see mpi30_image.h) for the CurrentKeyEncryptionAlgo field ****/
+/**** Use MPI3_HASH_ALGORITHM defines (see mpi30_image.h) for the KeyDigestHashAlgo field ****/
 
 /*****************************************************************************
  *              IO Unit Page 9                                               *
@@ -1740,6 +1809,7 @@ typedef struct _MPI3_IO_UNIT_PAGE9
 
 /**** Defines for the FirstDevice field ****/
 #define MPI3_IOUNIT9_FIRSTDEVICE_UNKNOWN                          (0xFFFF)
+#define MPI3_IOUNIT9_FIRSTDEVICE_IN_DRIVER_PAGE_0                 (0xFFFE)
 
 /*****************************************************************************
  *              IO Unit Page 10                                              *
@@ -1765,6 +1835,7 @@ typedef struct _MPI3_IO_UNIT_PAGE10
 /**** Defines for the Flags field ****/
 #define MPI3_IOUNIT10_FLAGS_VALID                  (0x01)
 #define MPI3_IOUNIT10_FLAGS_ACTIVEID_MASK          (0x02)
+#define MPI3_IOUNIT10_FLAGS_ACTIVEID_SHIFT         (1)
 #define MPI3_IOUNIT10_FLAGS_ACTIVEID_FIRST_REGION  (0x00)
 #define MPI3_IOUNIT10_FLAGS_ACTIVEID_SECOND_REGION (0x02)
 #define MPI3_IOUNIT10_FLAGS_PBLP_EXPECTED          (0x80)
@@ -1846,6 +1917,7 @@ typedef struct _MPI3_IO_UNIT_PAGE12
 #define MPI3_IOUNIT12_FLAGS_NUMPASSES_32           (0x00000200)
 #define MPI3_IOUNIT12_FLAGS_NUMPASSES_64           (0x00000300)
 #define MPI3_IOUNIT12_FLAGS_PASSPERIOD_MASK        (0x00000003)
+#define MPI3_IOUNIT12_FLAGS_PASSPERIOD_SHIFT       (0)
 #define MPI3_IOUNIT12_FLAGS_PASSPERIOD_DISABLED    (0x00000000)
 #define MPI3_IOUNIT12_FLAGS_PASSPERIOD_500US       (0x00000001)
 #define MPI3_IOUNIT12_FLAGS_PASSPERIOD_1MS         (0x00000002)
@@ -1956,6 +2028,7 @@ typedef struct _MPI3_IO_UNIT_PAGE15
 /**** Defines for the Flags field ****/
 #define MPI3_IOUNIT15_FLAGS_EPRINIT_INITREQUIRED                    (0x04)
 #define MPI3_IOUNIT15_FLAGS_EPRSUPPORT_MASK                         (0x03)
+#define MPI3_IOUNIT15_FLAGS_EPRSUPPORT_SHIFT                        (0)
 #define MPI3_IOUNIT15_FLAGS_EPRSUPPORT_NOT_SUPPORTED                (0x00)
 #define MPI3_IOUNIT15_FLAGS_EPRSUPPORT_WITHOUT_POWER_BRAKE_GPIO     (0x01)
 #define MPI3_IOUNIT15_FLAGS_EPRSUPPORT_WITH_POWER_BRAKE_GPIO        (0x02)
@@ -1994,6 +2067,90 @@ typedef struct _MPI3_IO_UNIT_PAGE16
 
 /**** Defines for the PageVersion field ****/
 #define MPI3_IOUNIT16_PAGEVERSION                                   (0x00)
+
+/*****************************************************************************
+ *              IO Unit Page 17                                              *
+ ****************************************************************************/
+
+#ifndef MPI3_IOUNIT17_CURRENTKEY_MAX
+#define MPI3_IOUNIT17_CURRENTKEY_MAX                                (1)
+#endif /* MPI3_IOUNIT17_CURRENTKEY_MAX */
+
+typedef struct _MPI3_IO_UNIT_PAGE17
+{
+    MPI3_CONFIG_PAGE_HEADER         Header;                                   /* 0x00 */
+    U8                              NumInstances;                             /* 0x08 */
+    U8                              Instance;                                 /* 0x09 */
+    U16                             Reserved0A;                               /* 0x0A */
+    U32                             Reserved0C[4];                            /* 0x0C */
+    U16                             KeyLength;                                /* 0x1C */
+    U8                              EncryptionAlgorithm;                      /* 0x1E */
+    U8                              Reserved1F;                               /* 0x1F */
+    U32                             CurrentKey[MPI3_IOUNIT17_CURRENTKEY_MAX]; /* 0x20 */ /* variable length */
+} MPI3_IO_UNIT_PAGE17, MPI3_POINTER PTR_MPI3_IO_UNIT_PAGE17,
+  Mpi3IOUnitPage17_t, MPI3_POINTER pMpi3IOUnitPage17_t;
+
+/**** Defines for the PageVersion field ****/
+#define MPI3_IOUNIT17_PAGEVERSION                                   (0x00)
+
+/**** Use MPI3_ENCRYPTION_ALGORITHM_ defines (see mpi30_image.h) for the EncryptionAlgorithm field ****/
+
+/*****************************************************************************
+ *              IO Unit Page 18                                              *
+ ****************************************************************************/
+
+typedef struct _MPI3_IO_UNIT_PAGE18
+{
+    MPI3_CONFIG_PAGE_HEADER         Header;                                   /* 0x00 */
+    U8                              Flags;                                    /* 0x08 */
+    U8                              PollInterval;                             /* 0x09 */
+    U16                             Reserved0A;                               /* 0x0A */
+    U32                             Reserved0C;                               /* 0x0C */
+} MPI3_IO_UNIT_PAGE18, MPI3_POINTER PTR_MPI3_IO_UNIT_PAGE18,
+  Mpi3IOUnitPage18_t, MPI3_POINTER pMpi3IOUnitPage18_t;
+
+/**** Defines for the PageVersion field ****/
+#define MPI3_IOUNIT18_PAGEVERSION                                   (0x00)
+
+/**** Defines for the Flags field ****/
+#define MPI3_IOUNIT18_FLAGS_DIRECTATTACHED_ENABLE                   (0x01)
+
+/**** Defines for the PollInterval field ****/
+#define MPI3_IOUNIT18_POLLINTERVAL_DISABLE                          (0x00)
+
+/*****************************************************************************
+ *              IO Unit Page 19                                              *
+ ****************************************************************************/
+
+#ifndef MPI3_IOUNIT19_DEVICE_MAX
+#define MPI3_IOUNIT19_DEVICE_MAX                                    (1)
+#endif /* MPI3_IOUNIT19_DEVICE_MAX */
+
+typedef struct _MPI3_IOUNIT19_DEVICE_
+{
+    U16                             Temperature;                              /* 0x00 */
+    U16                             DevHandle;                                /* 0x02 */
+    U16                             PersistentID;                             /* 0x04 */
+    U16                             Reserved06;                               /* 0x06 */
+} MPI3_IOUNIT19_DEVICE, MPI3_POINTER PTR_MPI3_IOUNIT19_DEVICE,
+  Mpi3IOUnit19Device_t, MPI3_POINTER pMpi3IOUnit19Device_t;
+
+/**** Defines for the Temperature field ****/
+#define MPI3_IOUNIT19_DEVICE_TEMPERATURE_UNAVAILABLE                (0x8000)
+
+typedef struct _MPI3_IO_UNIT_PAGE19
+{
+    MPI3_CONFIG_PAGE_HEADER         Header;                                   /* 0x00 */
+    U16                             NumDevices;                               /* 0x08 */
+    U16                             Reserved0A;                               /* 0x0A */
+    U32                             Reserved0C;                               /* 0x0C */
+    MPI3_IOUNIT19_DEVICE            Device[MPI3_IOUNIT19_DEVICE_MAX];         /* 0x10 */
+} MPI3_IO_UNIT_PAGE19, MPI3_POINTER PTR_MPI3_IO_UNIT_PAGE19,
+  Mpi3IOUnitPage19_t, MPI3_POINTER pMpi3IOUnitPage19_t;
+
+/**** Defines for the PageVersion field ****/
+#define MPI3_IOUNIT19_PAGEVERSION                                   (0x00)
+
 
 /*****************************************************************************
  *              IOC Configuration Pages                                      *
@@ -2096,9 +2253,11 @@ typedef struct _MPI3_ALLOWED_CMD_NVME
 
 /**** Defines for the NVMeCmdFlags field ****/
 #define MPI3_DRIVER_ALLOWEDCMD_NVMECMDFLAGS_SUBQ_TYPE_MASK     (0x80)
+#define MPI3_DRIVER_ALLOWEDCMD_NVMECMDFLAGS_SUBQ_TYPE_SHIFT    (7)
 #define MPI3_DRIVER_ALLOWEDCMD_NVMECMDFLAGS_SUBQ_TYPE_IO       (0x00)
 #define MPI3_DRIVER_ALLOWEDCMD_NVMECMDFLAGS_SUBQ_TYPE_ADMIN    (0x80)
 #define MPI3_DRIVER_ALLOWEDCMD_NVMECMDFLAGS_CMDSET_MASK        (0x3F)
+#define MPI3_DRIVER_ALLOWEDCMD_NVMECMDFLAGS_CMDSET_SHIFT       (0)
 #define MPI3_DRIVER_ALLOWEDCMD_NVMECMDFLAGS_CMDSET_NVM         (0x00)
 
 typedef union _MPI3_ALLOWED_CMD
@@ -2135,7 +2294,7 @@ typedef struct _MPI3_DRIVER_PAGE0
     U8                              TURInterval;        /* 0x0F */
     U8                              Reserved10;         /* 0x10 */
     U8                              SecurityKeyTimeout; /* 0x11 */
-    U16                             Reserved12;         /* 0x12 */
+    U16                             FirstDevice;        /* 0x12 */
     U32                             Reserved14;         /* 0x14 */
     U32                             Reserved18;         /* 0x18 */
 } MPI3_DRIVER_PAGE0, MPI3_POINTER PTR_MPI3_DRIVER_PAGE0,
@@ -2150,9 +2309,14 @@ typedef struct _MPI3_DRIVER_PAGE0
 #define MPI3_DRIVER0_BSDOPTS_HEADLESS_MODE_ENABLE                   (0x00000008)
 #define MPI3_DRIVER0_BSDOPTS_DIS_HII_CONFIG_UTIL                    (0x00000004)
 #define MPI3_DRIVER0_BSDOPTS_REGISTRATION_MASK                      (0x00000003)
+#define MPI3_DRIVER0_BSDOPTS_REGISTRATION_SHIFT                     (0)
 #define MPI3_DRIVER0_BSDOPTS_REGISTRATION_IOC_AND_DEVS              (0x00000000)
 #define MPI3_DRIVER0_BSDOPTS_REGISTRATION_IOC_ONLY                  (0x00000001)
 #define MPI3_DRIVER0_BSDOPTS_REGISTRATION_IOC_AND_INTERNAL_DEVS     (0x00000002)
+
+/**** Defines for the FirstDevice field ****/
+#define MPI3_DRIVER0_FIRSTDEVICE_IGNORE1                            (0x0000)
+#define MPI3_DRIVER0_FIRSTDEVICE_IGNORE2                            (0xFFFF)
 
 /*****************************************************************************
  *              Driver Page 1                                               *
@@ -2161,7 +2325,8 @@ typedef struct _MPI3_DRIVER_PAGE1
 {
     MPI3_CONFIG_PAGE_HEADER         Header;                                   /* 0x00 */
     U32                             Flags;                                    /* 0x08 */
-    U32                             Reserved0C;                               /* 0x0C */
+    U8                              TimeStampUpdate;                          /* 0x0C */
+    U8                              Reserved0D[3];                            /* 0x0D */
     U16                             HostDiagTraceMaxSize;                     /* 0x10 */
     U16                             HostDiagTraceMinSize;                     /* 0x12 */
     U16                             HostDiagTraceDecrementSize;               /* 0x14 */
@@ -2387,6 +2552,7 @@ typedef struct _MPI3_SECURITY_PAGE0
 
 /**** Defines for the CertChainFlags field ****/
 #define MPI3_SECURITY0_CERTCHAIN_FLAGS_AUTH_API_MASK       (0x0E)
+#define MPI3_SECURITY0_CERTCHAIN_FLAGS_AUTH_API_SHIFT      (1)
 #define MPI3_SECURITY0_CERTCHAIN_FLAGS_AUTH_API_UNUSED     (0x00)
 #define MPI3_SECURITY0_CERTCHAIN_FLAGS_AUTH_API_CERBERUS   (0x02)
 #define MPI3_SECURITY0_CERTCHAIN_FLAGS_AUTH_API_SPDM       (0x04)
@@ -2425,6 +2591,7 @@ typedef struct _MPI3_SECURITY1_KEY_RECORD
 
 /**** Defines for the Flags field ****/
 #define MPI3_SECURITY1_KEY_RECORD_FLAGS_TYPE_MASK            (0x1F)
+#define MPI3_SECURITY1_KEY_RECORD_FLAGS_TYPE_SHIFT           (0)
 #define MPI3_SECURITY1_KEY_RECORD_FLAGS_TYPE_NOT_VALID       (0x00)
 #define MPI3_SECURITY1_KEY_RECORD_FLAGS_TYPE_HMAC            (0x01)
 #define MPI3_SECURITY1_KEY_RECORD_FLAGS_TYPE_AES             (0x02)
@@ -2560,6 +2727,7 @@ typedef struct _MPI3_SAS_IO_UNIT_PAGE0
 /**** Defines for the PortFlags field ****/
 #define MPI3_SASIOUNIT0_PORTFLAGS_DISC_IN_PROGRESS           (0x08)
 #define MPI3_SASIOUNIT0_PORTFLAGS_AUTO_PORT_CONFIG_MASK      (0x03)
+#define MPI3_SASIOUNIT0_PORTFLAGS_AUTO_PORT_CONFIG_SHIFT     (0)
 #define MPI3_SASIOUNIT0_PORTFLAGS_AUTO_PORT_CONFIG_IOUNIT1   (0x00)
 #define MPI3_SASIOUNIT0_PORTFLAGS_AUTO_PORT_CONFIG_DYNAMIC   (0x01)
 #define MPI3_SASIOUNIT0_PORTFLAGS_AUTO_PORT_CONFIG_BACKPLANE (0x02)
@@ -2624,6 +2792,7 @@ typedef struct _MPI3_SAS_IO_UNIT_PAGE1
 #define MPI3_SASIOUNIT1_CONTROL_SUBTRACTIVE_ILLEGAL                 (0x0004)
 #define MPI3_SASIOUNIT1_CONTROL_FIRST_LVL_DISC_ONLY                 (0x0002)
 #define MPI3_SASIOUNIT1_CONTROL_HARD_RESET_MASK                     (0x0001)
+#define MPI3_SASIOUNIT1_CONTROL_HARD_RESET_SHIFT                    (0)
 #define MPI3_SASIOUNIT1_CONTROL_HARD_RESET_DEVICE_NAME              (0x0000)
 #define MPI3_SASIOUNIT1_CONTROL_HARD_RESET_SAS_ADDRESS              (0x0001)
 
@@ -2653,6 +2822,7 @@ typedef struct _MPI3_SAS_IO_UNIT_PAGE1
 #define MPI3_SASIOUNIT1_MMLR_MAX_RATE_12_0                          (0xB0)
 #define MPI3_SASIOUNIT1_MMLR_MAX_RATE_22_5                          (0xC0)
 #define MPI3_SASIOUNIT1_MMLR_MIN_RATE_MASK                          (0x0F)
+#define MPI3_SASIOUNIT1_MMLR_MIN_RATE_SHIFT                         (0)
 #define MPI3_SASIOUNIT1_MMLR_MIN_RATE_6_0                           (0x0A)
 #define MPI3_SASIOUNIT1_MMLR_MIN_RATE_12_0                          (0x0B)
 #define MPI3_SASIOUNIT1_MMLR_MIN_RATE_22_5                          (0x0C)
@@ -3147,6 +3317,7 @@ typedef struct _MPI3_SAS_PHY_PAGE4
 #define MPI3_PCIE_LINK_RETIMERS_MASK                    (0x30)
 #define MPI3_PCIE_LINK_RETIMERS_SHIFT                   (4)
 #define MPI3_PCIE_NEG_LINK_RATE_MASK                    (0x0F)
+#define MPI3_PCIE_NEG_LINK_RATE_SHIFT                   (0)
 #define MPI3_PCIE_NEG_LINK_RATE_UNKNOWN                 (0x00)
 #define MPI3_PCIE_NEG_LINK_RATE_PHY_DISABLED            (0x01)
 #define MPI3_PCIE_NEG_LINK_RATE_2_5                     (0x02)
@@ -3190,6 +3361,7 @@ typedef struct _MPI3_PCIE_IO_UNIT0_PHY_DATA
 
 /**** Defines for the LinkFlags field ****/
 #define MPI3_PCIEIOUNIT0_LINKFLAGS_CONFIG_SOURCE_MASK      (0x10)
+#define MPI3_PCIEIOUNIT0_LINKFLAGS_CONFIG_SOURCE_SHIFT     (4)
 #define MPI3_PCIEIOUNIT0_LINKFLAGS_CONFIG_SOURCE_IOUNIT1   (0x00)
 #define MPI3_PCIEIOUNIT0_LINKFLAGS_CONFIG_SOURCE_BKPLANE   (0x10)
 #define MPI3_PCIEIOUNIT0_LINKFLAGS_ENUM_IN_PROGRESS        (0x08)
@@ -3266,6 +3438,7 @@ typedef struct _MPI3_PCIE_IO_UNIT1_PHY_DATA
 
 /**** Defines for the LinkFlags field ****/
 #define MPI3_PCIEIOUNIT1_LINKFLAGS_PCIE_CLK_MODE_MASK                     (0x03)
+#define MPI3_PCIEIOUNIT1_LINKFLAGS_PCIE_CLK_MODE_SHIFT                    (0)
 #define MPI3_PCIEIOUNIT1_LINKFLAGS_PCIE_CLK_MODE_DIS_SEPARATE_REFCLK      (0x00)
 #define MPI3_PCIEIOUNIT1_LINKFLAGS_PCIE_CLK_MODE_EN_SRIS                  (0x01)
 #define MPI3_PCIEIOUNIT1_LINKFLAGS_PCIE_CLK_MODE_EN_SRNS                  (0x02)
@@ -3304,11 +3477,13 @@ typedef struct _MPI3_PCIE_IO_UNIT_PAGE1
 
 /**** Defines for the ControlFlags field ****/
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_PERST_OVERRIDE_MASK                     (0xE0000000)
+#define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_PERST_OVERRIDE_SHIFT                    (29)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_PERST_OVERRIDE_NONE                     (0x00000000)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_PERST_OVERRIDE_DEASSERT                 (0x20000000)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_PERST_OVERRIDE_ASSERT                   (0x40000000)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_PERST_OVERRIDE_BACKPLANE_ERROR          (0x60000000)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_REFCLK_OVERRIDE_MASK                    (0x1C000000)
+#define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_REFCLK_OVERRIDE_SHIFT                   (26)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_REFCLK_OVERRIDE_NONE                    (0x00000000)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_REFCLK_OVERRIDE_ENABLE                  (0x04000000)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_REFCLK_OVERRIDE_DISABLE                 (0x08000000)
@@ -3322,6 +3497,7 @@ typedef struct _MPI3_PCIE_IO_UNIT_PAGE1
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_CLOCK_OVERRIDE_MODE_SRIS_ENABLED        (0x00000010)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_CLOCK_OVERRIDE_MODE_SRNS_ENABLED        (0x00000020)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_LINK_RATE_OVERRIDE_MASK                 (0x0000000F)
+#define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_LINK_RATE_OVERRIDE_SHIFT                (0)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_LINK_RATE_OVERRIDE_USE_BACKPLANE        (0x00000000)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_LINK_RATE_OVERRIDE_MAX_2_5              (0x00000002)
 #define MPI3_PCIEIOUNIT1_CONTROL_FLAGS_LINK_RATE_OVERRIDE_MAX_5_0              (0x00000003)
@@ -3557,14 +3733,17 @@ typedef struct _MPI3_ENCLOSURE_PAGE0
 
 /**** Defines for the Flags field ****/
 #define MPI3_ENCLS0_FLAGS_ENCL_TYPE_MASK                (0xC000)
+#define MPI3_ENCLS0_FLAGS_ENCL_TYPE_SHIFT               (0xC000)
 #define MPI3_ENCLS0_FLAGS_ENCL_TYPE_VIRTUAL             (0x0000)
 #define MPI3_ENCLS0_FLAGS_ENCL_TYPE_SAS                 (0x4000)
 #define MPI3_ENCLS0_FLAGS_ENCL_TYPE_PCIE                (0x8000)
 #define MPI3_ENCLS0_FLAGS_CHASSIS_SLOT_VALID            (0x0020)
 #define MPI3_ENCLS0_FLAGS_ENCL_DEV_PRESENT_MASK         (0x0010)
+#define MPI3_ENCLS0_FLAGS_ENCL_DEV_PRESENT_SHIFT        (4)
 #define MPI3_ENCLS0_FLAGS_ENCL_DEV_NOT_FOUND            (0x0000)
 #define MPI3_ENCLS0_FLAGS_ENCL_DEV_PRESENT              (0x0010)
 #define MPI3_ENCLS0_FLAGS_MNG_MASK                      (0x000F)
+#define MPI3_ENCLS0_FLAGS_MNG_SHIFT                     (0)
 #define MPI3_ENCLS0_FLAGS_MNG_UNKNOWN                   (0x0000)
 #define MPI3_ENCLS0_FLAGS_MNG_IOC_SES                   (0x0001)
 #define MPI3_ENCLS0_FLAGS_MNG_SES_ENCLOSURE             (0x0002)
@@ -3646,6 +3825,7 @@ typedef struct _MPI3_DEVICE0_PCIE_FORMAT
 
 /**** Defines for DeviceInfo bitfield ****/
 #define MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_MASK             (0x0007)
+#define MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_SHIFT            (0)
 #define MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_NO_DEVICE        (0x0000)
 #define MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_NVME_DEVICE      (0x0001)
 #define MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_SWITCH_DEVICE    (0x0002)
@@ -3675,9 +3855,11 @@ typedef struct _MPI3_DEVICE0_PCIE_FORMAT
 
 /**** Defines for the RecoveryInfo field ****/
 #define MPI3_DEVICE0_PCIE_RECOVER_METHOD_MASK               (0xE0)
+#define MPI3_DEVICE0_PCIE_RECOVER_METHOD_SHIFT              (5)
 #define MPI3_DEVICE0_PCIE_RECOVER_METHOD_NS_MGMT            (0x00)
 #define MPI3_DEVICE0_PCIE_RECOVER_METHOD_FORMAT             (0x20)
 #define MPI3_DEVICE0_PCIE_RECOVER_REASON_MASK               (0x1F)
+#define MPI3_DEVICE0_PCIE_RECOVER_REASON_SHIFT              (0)
 #define MPI3_DEVICE0_PCIE_RECOVER_REASON_NO_NS              (0x00)
 #define MPI3_DEVICE0_PCIE_RECOVER_REASON_NO_NSID_1          (0x01)
 #define MPI3_DEVICE0_PCIE_RECOVER_REASON_TOO_MANY_NS        (0x02)
@@ -3724,6 +3906,11 @@ typedef struct _MPI3_DEVICE0_VD_FORMAT
 /**** Defines for the Flags field ****/
 #define MPI3_DEVICE0_VD_FLAGS_IO_THROTTLE_GROUP_QD_MASK     (0xF000)
 #define MPI3_DEVICE0_VD_FLAGS_IO_THROTTLE_GROUP_QD_SHIFT    (12)
+#define MPI3_DEVICE0_VD_FLAGS_OSEXPOSURE_MASK               (0x0003)
+#define MPI3_DEVICE0_VD_FLAGS_OSEXPOSURE_SHIFT              (0)
+#define MPI3_DEVICE0_VD_FLAGS_OSEXPOSURE_HDD                (0x0000)
+#define MPI3_DEVICE0_VD_FLAGS_OSEXPOSURE_SSD                (0x0001)
+#define MPI3_DEVICE0_VD_FLAGS_OSEXPOSURE_NO_GUIDANCE        (0x0002)
 
 typedef union _MPI3_DEVICE0_DEV_SPEC_FORMAT
 {
@@ -3801,6 +3988,7 @@ typedef struct _MPI3_DEVICE_PAGE0
 #define MPI3_DEVICE0_ASTATUS_SIF_UDMA_SN                            (0x27)
 #define MPI3_DEVICE0_ASTATUS_SIF_ZONING_VIOLATION                   (0x28)
 #define MPI3_DEVICE0_ASTATUS_SIF_NOT_ADDRESSABLE                    (0x29)
+#define MPI3_DEVICE0_ASTATUS_SIF_DEVICE_FAULT                       (0x2A)
 #define MPI3_DEVICE0_ASTATUS_SIF_MAX                                (0x2F)
 /* PCIe Access Status Codes  */
 #define MPI3_DEVICE0_ASTATUS_PCIE_UNKNOWN                           (0x30)
@@ -3836,6 +4024,7 @@ typedef struct _MPI3_DEVICE_PAGE0
 
 /**** Defines for the Flags field ****/
 #define MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_MASK          (0xE000)
+#define MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_SHIFT         (13)
 #define MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_NO_LIMIT      (0x0000)
 #define MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_256_LB        (0x2000)
 #define MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_2048_LB       (0x4000)
@@ -3869,7 +4058,8 @@ typedef struct _MPI3_DEVICE1_PCIE_FORMAT
     U16                             DeviceID;               /* 0x02 */
     U16                             SubsystemVendorID;      /* 0x04 */
     U16                             SubsystemID;            /* 0x06 */
-    U32                             Reserved08;             /* 0x08 */
+    U16                             ReadyTimeout;           /* 0x08 */
+    U16                             Reserved0A;             /* 0x0A */
     U8                              RevisionID;             /* 0x0C */
     U8                              Reserved0D;             /* 0x0D */
     U16                             PCIParameters;          /* 0x0E */

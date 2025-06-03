@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 6, 2024
+.Dd December 30, 2024
 .Dt VMM 4
 .Os
 .Sh NAME
@@ -45,15 +45,22 @@ kldload vmm
 provides the kernel portion of the
 .Xr bhyve 4
 hypervisor.
-.Pp
-An Intel CPU with VT-x/EPT or AMD CPU with SVM support is required.
+The following platforms are supported:
+.Bl -bullet -compat
+.It
+amd64: An Intel CPU with VT-x/EPT or AMD CPU with SVM support is required.
+.It
+arm64: The boot CPU must start in EL2 and the system must have a GICv3 interrupt
+controller.
+VHE support will be used if available.
+.It
+riscv: The CPUs must implement the H (hypervisor) RISC-V ISA extension.
+.El
 .Pp
 PCI device passthrough to a virtual machine requires
-hardware with VT-d support.
+hardware with VT-d support and is available only on amd64.
 .Sh PCI PASSTHROUGH
-When the hardware supports VT-d, and
-.Nm
-has been loaded at boot time,
+On amd64 where the hardware supports VT-d,
 PCI devices can be reserved for use by the hypervisor.
 Entries consisting of the PCI
 .Ar bus Ns / Ns Ar slot Ns / Ns Ar function
@@ -108,16 +115,43 @@ bus 6 slot 5 function 0, and bus 6 slot 5 function 1.
 .Bd -literal -offset indent
 pptdevs="10/0/0 6/5/0 6/5/1"
 .Ed
+.Pp
+It is possible to detach
+.Va ppt
+from a PCI device without rebooting the host machine and then attach a host
+driver, using the
+.Xr devctl 8
+utility.
+Suppose
+.Va ppt
+is currently attached to
+.Va pci0:0:1:0
+and we want the host's
+.Xr xhci 4
+driver to be attached instead:
+.Bd -literal -offset indent
+# devctl set driver -f pci0:0:1:0 xhci
+.Ed
+.Pp
+The same can be applied to attach
+.Va ppt
+back:
+.Bd -literal -offset indent
+# devctl set driver -f pci0:0:1:0 ppt
+.Ed
 .Sh SEE ALSO
 .Xr bhyve 4 ,
 .Xr loader.conf 5 ,
 .Xr bhyve 8 ,
 .Xr bhyveload 8 ,
+.Xr devctl 8 ,
 .Xr kldload 8
 .Sh HISTORY
 .Nm vmm.ko
 first appeared in
 .Fx 10.0 .
+arm64 and riscv support first appeared in
+.Fx 15.0 .
 .Sh AUTHORS
 .An Neel Natu Aq neel@freebsd.org
 .An Peter Grehan Aq grehan@freebsd.org

@@ -115,6 +115,7 @@ static struct g_part_scheme g_part_mbr_scheme = {
 	sizeof(struct g_part_mbr_table),
 	.gps_entrysz = sizeof(struct g_part_mbr_entry),
 	.gps_minent = NDOSPART,
+	.gps_defent = NDOSPART,
 	.gps_maxent = NDOSPART,
 	.gps_bootcodesz = MBRSIZE,
 };

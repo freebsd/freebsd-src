@@ -1960,7 +1960,7 @@ static void mlx4_allocate_port_vpps(struct mlx4_dev *dev, int port)
 
 	err = mlx4_ALLOCATE_VPP_get(dev, port, &availible_vpp, vpp_param);
 	if (err) {
-		mlx4_info(dev, "Failed query availible VPPs\n");
+		mlx4_info(dev, "Failed query available VPPs\n");
 		return;
 	}
 
@@ -1982,12 +1982,12 @@ static void mlx4_allocate_port_vpps(struct mlx4_dev *dev, int port)
 	/* Query actual allocated VPP, just to make sure */
 	err = mlx4_ALLOCATE_VPP_get(dev, port, &availible_vpp, vpp_param);
 	if (err) {
-		mlx4_info(dev, "Failed query availible VPPs\n");
+		mlx4_info(dev, "Failed query available VPPs\n");
 		return;
 	}
 
 	port_qos->num_of_qos_vfs = num_vfs;
-	mlx4_dbg(dev, "Port %d Availible VPPs %d\n", port, availible_vpp);
+	mlx4_dbg(dev, "Port %d Available VPPs %d\n", port, availible_vpp);
 
 	for (i = 0; i < MLX4_NUM_UP; i++)
 		mlx4_dbg(dev, "Port %d UP %d Allocated %d VPPs\n", port, i,
@@ -2884,7 +2884,7 @@ static int mlx4_set_vport_qos(struct mlx4_priv *priv, int slave, int port,
 	memset(vpp_qos, 0, sizeof(struct mlx4_vport_qos_param) * MLX4_NUM_UP);
 
 	if (slave > port_qos->num_of_qos_vfs) {
-		mlx4_info(dev, "No availible VPP resources for this VF\n");
+		mlx4_info(dev, "No available VPP resources for this VF\n");
 		return -EINVAL;
 	}
 

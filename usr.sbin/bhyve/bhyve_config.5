@@ -160,15 +160,6 @@ Message (e.g. TightVNC).
 .It Va pci.enable_bars Ta bool Ta Ta
 Enable and map PCI BARs before executing any guest code.
 This setting is false by default when using a boot ROM and true otherwise.
-.It Va tpm.path Ta string Ta Ta
-Path to the host TPM device.
-This is typically /dev/tpm0.
-.It Va tpm.type Ta string Ta Ta
-Type of the TPM device passed to the guest.
-Currently, only "passthru" is supported.
-.It Va tpm.version Ta string Ta 2.0 Ta
-Version of the TPM device according to the TCG specification.
-Currently, only version 2.0 is supported.
 .It Va rtc.use_localtime Ta bool Ta true Ta
 The real time clock uses the local time of the host.
 If this is set to false, the real time clock uses UTC.
@@ -249,6 +240,11 @@ By default, writes are ignored and reads return all bits set.
 Inject a general protection fault if a guest accesses a Model Specific
 Register (MSR) that is not emulated.
 If this is false, writes are ignored and reads return zero.
+.It Va x86.verbosemsr Ta bool Ta false Ta
+Enable verbose MSR print out. When this option is true,
+messages related to reading from (rdmsr) and writing to (wrmsr)
+MSRs on virtual CPUs will be printed out. This can be useful for
+debugging purposes.
 .It Va x86.vmexit_on_hlt Ta bool Ta false Ta
 Force a VM exit when a guest CPU executes the
 .Dv HLT
@@ -275,7 +271,7 @@ All PCI device nodes must contain a configuration variable named
 .Dq device
 which specifies the device model to use.
 The following PCI device models are supported:
-.Bl -tag -indent
+.Bl -tag -width indent
 .It Li hostbridge
 Provide a simple PCI-Host bridge device.
 This is usually configured at pci0:0:0 and is required by most guest
@@ -288,9 +284,8 @@ Intel e82545 network interface.
 VGA framebuffer device attached to VNC server.
 .It Li lpc
 LPC PCI-ISA bridge with COM1-COM4 16550 serial ports,
-a boot ROM,
-an optional fwcfg type,
-and an optional debug/test device.
+a boot ROM, and, optionally, a TPM module, a fwcfg type,
+and a debug/test device.
 This device must be configured on bus 0.
 .It Li hda
 High Definition audio controller.
@@ -330,7 +325,7 @@ All USB device nodes must contain a configuration variable named
 .Dq device
 which specifies the device model to use.
 The following USB device models are supported:
-.Bl -tag -indent
+.Bl -tag -width indent
 .It Li tablet
 A USB tablet device which provides precise cursor synchronization
 when using VNC.
@@ -601,6 +596,37 @@ This value is required for the Intel GOP driver to work properly.
 .It Va subvendor Ta 0
 .It Va subdevice Ta 0
 .El
+.El
+.Ss TPM Device Settings
+The TPM device stores its configuration under a top-level
+.Va tpm
+node rather than under the LPC TPM device's node.
+Only one TPM device is supported.
+The following nodes are available under
+.Va tpm :
+.Bl -column "tpm.version" "Format" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va tpm.path Ta string Ta Ta
+Path to the TPM backend.
+Depending on the
+.Va tpm.type ,
+this is either the host TPM device, typically
+.Pa /dev/tpm0 ,
+or any UNIX domain socket on which a
+.Cm swtpm
+process is listening.
+.It Va tpm.type Ta string Ta Ta
+Type of the TPM device passed to the guest.
+This can be either
+.Dq passthru
+to use the host TPM devices, or
+.Dq swtpm
+to connect to a running
+.Cm swtpm
+process.
+.It Va tpm.version Ta string Ta 2.0 Ta
+Version of the TPM device according to the TCG specification.
+Currently, only version 2.0 is supported.
 .El
 .Ss NVMe Controller Settings
 Each NVMe controller supports a single storage device.

@@ -31,7 +31,7 @@ forward_v4_head()
 {
 	atf_set descr 'Test IPv4 forwarding with rtable'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 forward_v4_body()
@@ -78,7 +78,7 @@ forward_v6_head()
 {
 	atf_set descr 'Test IPv6 forwarding with rtable'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 forward_v6_body()

@@ -1459,10 +1459,7 @@ emu_pcm_attach(device_t dev)
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
 
 	/* XXX we should better get number of available channels from parent */
-	if (pcm_register(dev, sc, (route == RT_FRONT) ? MAX_CHANNELS : 1, (route == RT_FRONT) ? 1 : 0)) {
-		device_printf(dev, "can't register PCM channels!\n");
-		goto bad;
-	}
+	pcm_init(dev, sc);
 	sc->pnum = 0;
 	if (route != RT_MCHRECORD)
 		pcm_addchan(dev, PCMDIR_PLAY, &emupchan_class, sc);
@@ -1476,7 +1473,8 @@ emu_pcm_attach(device_t dev)
 
 	snprintf(status, SND_STATUSLEN, "on %s",
 	    device_get_nameunit(device_get_parent(dev)));
-	pcm_setstatus(dev, status);
+	if (pcm_register(dev, status))
+		goto bad;
 
 	return (0);
 

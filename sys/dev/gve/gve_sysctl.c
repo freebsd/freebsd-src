@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2023 Google LLC
+ * Copyright (c) 2023-2024 Google LLC
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -29,6 +29,21 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "gve.h"
+
+static SYSCTL_NODE(_hw, OID_AUTO, gve, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "GVE driver parameters");
+
+bool gve_disable_hw_lro = false;
+SYSCTL_BOOL(_hw_gve, OID_AUTO, disable_hw_lro, CTLFLAG_RDTUN,
+    &gve_disable_hw_lro, 0, "Controls if hardware LRO is used");
+
+char gve_queue_format[8];
+SYSCTL_STRING(_hw_gve, OID_AUTO, queue_format, CTLFLAG_RD,
+    &gve_queue_format, 0, "Queue format being used by the iface");
+
+char gve_version[8];
+SYSCTL_STRING(_hw_gve, OID_AUTO, driver_version, CTLFLAG_RD,
+    &gve_version, 0, "Driver version");
 
 static void
 gve_setup_rxq_sysctl(struct sysctl_ctx_list *ctx,
@@ -69,9 +84,21 @@ gve_setup_rxq_sysctl(struct sysctl_ctx_list *ctx,
 	    &stats->rx_dropped_pkt_desc_err,
 	    "Packets dropped due to descriptor error");
 	SYSCTL_ADD_COUNTER_U64(ctx, list, OID_AUTO,
+	    "rx_dropped_pkt_buf_post_fail", CTLFLAG_RD,
+	    &stats->rx_dropped_pkt_buf_post_fail,
+	    "Packets dropped due to failure to post enough buffers");
+	SYSCTL_ADD_COUNTER_U64(ctx, list, OID_AUTO,
 	    "rx_dropped_pkt_mbuf_alloc_fail", CTLFLAG_RD,
 	    &stats->rx_dropped_pkt_mbuf_alloc_fail,
 	    "Packets dropped due to failed mbuf allocation");
+	SYSCTL_ADD_COUNTER_U64(ctx, list, OID_AUTO,
+	    "rx_mbuf_dmamap_err", CTLFLAG_RD,
+	    &stats->rx_mbuf_dmamap_err,
+	    "Number of rx mbufs which could not be dma mapped");
+	SYSCTL_ADD_COUNTER_U64(ctx, list, OID_AUTO,
+	    "rx_mbuf_mclget_null", CTLFLAG_RD,
+	    &stats->rx_mbuf_mclget_null,
+	    "Number of times when there were no cluster mbufs");
 	SYSCTL_ADD_U32(ctx, list, OID_AUTO,
 	    "rx_completed_desc", CTLFLAG_RD,
 	    &rxq->cnt, 0, "Number of descriptors completed");
@@ -113,9 +140,9 @@ gve_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 	    "tx_bytes", CTLFLAG_RD,
 	    &stats->tbytes, "Bytes transmitted");
 	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
-	    "tx_dropped_pkt_nospace_device", CTLFLAG_RD,
-	    &stats->tx_dropped_pkt_nospace_device,
-	    "Packets dropped due to no space in device");
+	    "tx_delayed_pkt_nospace_device", CTLFLAG_RD,
+	    &stats->tx_delayed_pkt_nospace_device,
+	    "Packets delayed due to no space in device");
 	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
 	    "tx_dropped_pkt_nospace_bufring", CTLFLAG_RD,
 	    &stats->tx_dropped_pkt_nospace_bufring,
@@ -124,6 +151,46 @@ gve_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 	    "tx_dropped_pkt_vlan", CTLFLAG_RD,
 	    &stats->tx_dropped_pkt_vlan,
 	    "Dropped VLAN packets");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_delayed_pkt_nospace_descring", CTLFLAG_RD,
+	    &stats->tx_delayed_pkt_nospace_descring,
+	    "Packets delayed due to no space in desc ring");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_delayed_pkt_nospace_compring", CTLFLAG_RD,
+	    &stats->tx_delayed_pkt_nospace_compring,
+	    "Packets delayed due to no space in comp ring");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_delayed_pkt_nospace_qpl_bufs", CTLFLAG_RD,
+	    &stats->tx_delayed_pkt_nospace_qpl_bufs,
+	    "Packets delayed due to not enough qpl bufs");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_delayed_pkt_tsoerr", CTLFLAG_RD,
+	    &stats->tx_delayed_pkt_tsoerr,
+	    "TSO packets delayed due to err in prep errors");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_mbuf_collapse", CTLFLAG_RD,
+	    &stats->tx_mbuf_collapse,
+	    "tx mbufs that had to be collapsed");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_mbuf_defrag", CTLFLAG_RD,
+	    &stats->tx_mbuf_defrag,
+	    "tx mbufs that had to be defragged");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_mbuf_defrag_err", CTLFLAG_RD,
+	    &stats->tx_mbuf_defrag_err,
+	    "tx mbufs that failed defrag");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_mbuf_dmamap_enomem_err", CTLFLAG_RD,
+	    &stats->tx_mbuf_dmamap_enomem_err,
+	    "tx mbufs that could not be dma-mapped due to low mem");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_mbuf_dmamap_err", CTLFLAG_RD,
+	    &stats->tx_mbuf_dmamap_err,
+	    "tx mbufs that could not be dma-mapped");
+	SYSCTL_ADD_COUNTER_U64(ctx, tx_list, OID_AUTO,
+	    "tx_timeout", CTLFLAG_RD,
+	    &stats->tx_timeout,
+	    "detections of timed out packets on tx queues");
 }
 
 static void
@@ -185,6 +252,9 @@ gve_setup_adminq_stat_sysctl(struct sysctl_ctx_list *ctx,
 	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO, "adminq_destroy_rx_queue_cnt",
 	    CTLFLAG_RD, &priv->adminq_destroy_rx_queue_cnt, 0,
 	    "adminq_destroy_rx_queue_cnt");
+	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO, "adminq_get_ptype_map_cnt",
+	    CTLFLAG_RD, &priv->adminq_get_ptype_map_cnt, 0,
+	    "adminq_get_ptype_map_cnt");
 	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO,
 	    "adminq_dcfg_device_resources_cnt", CTLFLAG_RD,
 	    &priv->adminq_dcfg_device_resources_cnt, 0,
@@ -219,6 +289,175 @@ gve_setup_main_stat_sysctl(struct sysctl_ctx_list *ctx,
 	    &priv->reset_cnt, 0, "Times reset");
 }
 
+static int
+gve_check_num_queues(struct gve_priv *priv, int val, bool is_rx)
+{
+	if (val < 1) {
+		device_printf(priv->dev,
+		    "Requested num queues (%u) must be a positive integer\n", val);
+		return (EINVAL);
+	}
+
+	if (val > (is_rx ? priv->rx_cfg.max_queues : priv->tx_cfg.max_queues)) {
+		device_printf(priv->dev,
+		    "Requested num queues (%u) is too large\n", val);
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
+gve_sysctl_num_tx_queues(SYSCTL_HANDLER_ARGS)
+{
+	struct gve_priv *priv = arg1;
+	int val;
+	int err;
+
+	val = priv->tx_cfg.num_queues;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	err = gve_check_num_queues(priv, val, /*is_rx=*/false);
+	if (err != 0)
+		return (err);
+
+	if (val != priv->tx_cfg.num_queues) {
+		GVE_IFACE_LOCK_LOCK(priv->gve_iface_lock);
+		err = gve_adjust_tx_queues(priv, val);
+		GVE_IFACE_LOCK_UNLOCK(priv->gve_iface_lock);
+	}
+
+	return (err);
+}
+
+static int
+gve_sysctl_num_rx_queues(SYSCTL_HANDLER_ARGS)
+{
+	struct gve_priv *priv = arg1;
+	int val;
+	int err;
+
+	val = priv->rx_cfg.num_queues;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	err = gve_check_num_queues(priv, val, /*is_rx=*/true);
+
+	if (err != 0)
+		return (err);
+
+	if (val != priv->rx_cfg.num_queues) {
+		GVE_IFACE_LOCK_LOCK(priv->gve_iface_lock);
+		err = gve_adjust_rx_queues(priv, val);
+		GVE_IFACE_LOCK_UNLOCK(priv->gve_iface_lock);
+	}
+
+	return (err);
+}
+
+static int
+gve_check_ring_size(struct gve_priv *priv, int val, bool is_rx)
+{
+	if (!powerof2(val) || val == 0) {
+		device_printf(priv->dev,
+		    "Requested ring size (%u) must be a power of 2\n", val);
+		return (EINVAL);
+	}
+
+	if (val < (is_rx ? priv->min_rx_desc_cnt : priv->min_tx_desc_cnt)) {
+		device_printf(priv->dev,
+		    "Requested ring size (%u) cannot be less than %d\n", val,
+		    (is_rx ? priv->min_rx_desc_cnt : priv->min_tx_desc_cnt));
+		return (EINVAL);
+	}
+
+
+	if (val > (is_rx ? priv->max_rx_desc_cnt : priv->max_tx_desc_cnt)) {
+		device_printf(priv->dev,
+		    "Requested ring size (%u) cannot be greater than %d\n", val,
+		    (is_rx ? priv->max_rx_desc_cnt : priv->max_tx_desc_cnt));
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
+gve_sysctl_tx_ring_size(SYSCTL_HANDLER_ARGS)
+{
+	struct gve_priv *priv = arg1;
+	int val;
+	int err;
+
+	val = priv->tx_desc_cnt;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	err = gve_check_ring_size(priv, val, /*is_rx=*/false);
+	if (err != 0)
+		return (err);
+
+	if (val != priv->tx_desc_cnt) {
+		GVE_IFACE_LOCK_LOCK(priv->gve_iface_lock);
+		err = gve_adjust_ring_sizes(priv, val, /*is_rx=*/false);
+		GVE_IFACE_LOCK_UNLOCK(priv->gve_iface_lock);
+	}
+
+	return (err);
+}
+
+static int
+gve_sysctl_rx_ring_size(SYSCTL_HANDLER_ARGS)
+{
+	struct gve_priv *priv = arg1;
+	int val;
+	int err;
+
+	val = priv->rx_desc_cnt;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	err = gve_check_ring_size(priv, val, /*is_rx=*/true);
+	if (err != 0)
+		return (err);
+
+	if (val != priv->rx_desc_cnt) {
+		GVE_IFACE_LOCK_LOCK(priv->gve_iface_lock);
+		err = gve_adjust_ring_sizes(priv, val, /*is_rx=*/true);
+		GVE_IFACE_LOCK_UNLOCK(priv->gve_iface_lock);
+	}
+
+	return (err);
+}
+
+static void
+gve_setup_sysctl_writables(struct sysctl_ctx_list *ctx,
+    struct sysctl_oid_list *child, struct gve_priv *priv)
+{
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "num_tx_queues",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+	    gve_sysctl_num_tx_queues, "I", "Number of TX queues");
+
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "num_rx_queues",
+	    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+	    gve_sysctl_num_rx_queues, "I", "Number of RX queues");
+
+	if (priv->modify_ringsize_enabled) {
+		SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_ring_size",
+		    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+		    gve_sysctl_tx_ring_size, "I", "TX ring size");
+
+		SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_ring_size",
+		    CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+		    gve_sysctl_rx_ring_size, "I", "RX ring size");
+	}
+}
+
 void gve_setup_sysctl(struct gve_priv *priv)
 {
 	device_t dev;
@@ -234,6 +473,7 @@ void gve_setup_sysctl(struct gve_priv *priv)
 	gve_setup_queue_stat_sysctl(ctx, child, priv);
 	gve_setup_adminq_stat_sysctl(ctx, child, priv);
 	gve_setup_main_stat_sysctl(ctx, child, priv);
+	gve_setup_sysctl_writables(ctx, child, priv);
 }
 
 void

@@ -42,6 +42,7 @@
 
 #include <machine/atomic.h>
 #include <machine/cpu.h>
+#include <machine/cpu_feat.h>
 #include <machine/cpufunc.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
@@ -50,6 +51,9 @@
 static MALLOC_DEFINE(M_IDENTCPU, "CPU ID", "arm64 CPU identification memory");
 
 struct cpu_desc;
+#ifdef INVARIANTS
+static bool hwcaps_set = false;
+#endif
 
 static void print_cpu_midr(struct sbuf *sb, u_int cpu);
 static void print_cpu_features(u_int cpu, struct cpu_desc *desc,
@@ -76,8 +80,12 @@ static int allow_idc = 1;
 SYSCTL_INT(_machdep_cache, OID_AUTO, allow_idc, CTLFLAG_RDTUN, &allow_idc, 0,
     "Allow optimizations based on the IDC cache bit");
 
+static bool emulate_ctr = false;
+
 static void check_cpu_regs(u_int cpu, struct cpu_desc *desc,
     struct cpu_desc *prev_desc);
+static uint64_t update_special_reg_field(uint64_t user_reg, u_int type,
+    uint64_t value, u_int width, u_int shift, bool sign);
 
 /*
  * The default implementation of I-cache sync assumes we have an
@@ -290,13 +298,19 @@ const struct cpu_implementers cpu_implementers[] = {
 };
 
 #define	MRS_TYPE_MASK		0xf
-#define	MRS_TYPE_FBSD_SHIFT	0
-#define	MRS_TYPE_LNX_SHIFT	8
 #define	MRS_INVALID		0
 #define	MRS_EXACT		1
-#define	MRS_EXACT_VAL(x)	(MRS_EXACT | ((x) << 4))
-#define	MRS_EXACT_FIELD(x)	(((x) >> 4) & 0xf)
-#define	MRS_LOWER		2
+#define	MRS_EXACT_IF_DIFFERENT	2
+#define	MRS_LOWER		3
+#define	MRS_HIGHER_OR_ZERO	4
+#define	MRS_HIGHER		5
+#define	MRS_SAFE_SHIFT		4
+#define	MRS_SAFE_MASK		(0xfu << MRS_SAFE_SHIFT)
+#define	MRS_SAFE(x)		(((x) << MRS_SAFE_SHIFT) & MRS_SAFE_MASK)
+#define	MRS_SAFE_VAL(x)		(((x) & MRS_SAFE_MASK) >> MRS_SAFE_SHIFT)
+#define	MRS_FREEBSD		(1u << 8)
+#define	MRS_LINUX		(1u << 9)
+#define	MRS_USERSPACE		(MRS_FREEBSD | MRS_LINUX)
 
 struct mrs_field_value {
 	uint64_t	value;
@@ -331,6 +345,28 @@ struct mrs_field_value {
 	MRS_FIELD_VALUE(14ul<< _reg ## _ ## _field ## _SHIFT, "15 "_desc "s"), \
 	MRS_FIELD_VALUE(15ul<< _reg ## _ ## _field ## _SHIFT, "16 "_desc "s")
 
+/*
+ * Used for printing I/D cache line sizes & CWG/ERG, as 0 is a special case
+ * in some cases the decoded string needs to be passed in.
+ */
+#define	MRS_FIELD_VALUE_CACHE(_reg, _field, _0desc, _desc)		\
+	MRS_FIELD_VALUE(0ul << _reg ## _ ## _field ## _SHIFT, _0desc), \
+	MRS_FIELD_VALUE(1ul << _reg ## _ ## _field ## _SHIFT, "8 "   _desc), \
+	MRS_FIELD_VALUE(2ul << _reg ## _ ## _field ## _SHIFT, "16 "  _desc), \
+	MRS_FIELD_VALUE(3ul << _reg ## _ ## _field ## _SHIFT, "32 "  _desc), \
+	MRS_FIELD_VALUE(4ul << _reg ## _ ## _field ## _SHIFT, "64 "  _desc), \
+	MRS_FIELD_VALUE(5ul << _reg ## _ ## _field ## _SHIFT, "128 " _desc), \
+	MRS_FIELD_VALUE(6ul << _reg ## _ ## _field ## _SHIFT, "256 " _desc), \
+	MRS_FIELD_VALUE(7ul << _reg ## _ ## _field ## _SHIFT, "512 " _desc), \
+	MRS_FIELD_VALUE(8ul << _reg ## _ ## _field ## _SHIFT, "1k "  _desc), \
+	MRS_FIELD_VALUE(9ul << _reg ## _ ## _field ## _SHIFT, "2k "  _desc), \
+	MRS_FIELD_VALUE(10ul<< _reg ## _ ## _field ## _SHIFT, "4k "  _desc), \
+	MRS_FIELD_VALUE(11ul<< _reg ## _ ## _field ## _SHIFT, "8k "  _desc), \
+	MRS_FIELD_VALUE(12ul<< _reg ## _ ## _field ## _SHIFT, "16k " _desc), \
+	MRS_FIELD_VALUE(13ul<< _reg ## _ ## _field ## _SHIFT, "32k " _desc), \
+	MRS_FIELD_VALUE(14ul<< _reg ## _ ## _field ## _SHIFT, "64k " _desc), \
+	MRS_FIELD_VALUE(15ul<< _reg ## _ ## _field ## _SHIFT, "128k "_desc)
+
 #define	MRS_FIELD_VALUE_END	{ .desc = NULL }
 
 struct mrs_field_hwcap {
@@ -355,30 +391,94 @@ struct mrs_field {
 	uint64_t	mask;
 	bool		sign;
 	u_int		type;
+	u_int		width;
 	u_int		shift;
 };
 
-#define	MRS_FIELD_HWCAP_SPLIT(_register, _name, _sign, _fbsd_type,	\
-    _lnx_type, _values, _hwcap)						\
+#define	MRS_FIELD_RES1(_width, _shift)					\
+	{								\
+		.sign = false,						\
+		.type =	MRS_EXACT | MRS_SAFE((1u << (_width)) - 1) |	\
+		    MRS_USERSPACE,					\
+		.width = (_width),					\
+		.shift = (_shift),					\
+	}
+
+#define	MRS_FIELD_HWCAP(_register, _name, _sign, _type, _visibility,	\
+    _values, _hwcap)							\
 	{								\
 		.name = #_name,						\
 		.sign = (_sign),					\
-		.type = ((_fbsd_type) << MRS_TYPE_FBSD_SHIFT) |		\
-		    ((_lnx_type) << MRS_TYPE_LNX_SHIFT),		\
+		.type = ((_type) | (_visibility)),			\
+		.width = _register ## _ ## _name ## _WIDTH,		\
 		.shift = _register ## _ ## _name ## _SHIFT,		\
 		.mask = _register ## _ ## _name ## _MASK,		\
 		.values = (_values),					\
 		.hwcaps = (_hwcap),					\
 	}
 
-#define	MRS_FIELD_HWCAP(_register, _name, _sign, _type, _values, _hwcap) \
-	MRS_FIELD_HWCAP_SPLIT(_register, _name, _sign, _type, _type,	\
-	    _values, _hwcap)
-
-#define	MRS_FIELD(_register, _name, _sign, _type, _values)		\
-	MRS_FIELD_HWCAP(_register, _name, _sign, _type, _values, NULL)
+#define	MRS_FIELD(_register, _name, _sign, _type, _visibility, _values)	\
+	MRS_FIELD_HWCAP(_register, _name, _sign, _type, _visibility,	\
+	    _values, NULL)
 
 #define	MRS_FIELD_END	{ .type = MRS_INVALID, }
+
+/* CTR_EL0 */
+static const struct mrs_field_value ctr_dic[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(CTR, DIC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value ctr_idc[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(CTR, IDC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value ctr_cwg[] = {
+	MRS_FIELD_VALUE_CACHE(CTR, CWG, "Unknown CWG",
+	    "byte CWG"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value ctr_erg[] = {
+	MRS_FIELD_VALUE_CACHE(CTR, ERG, "Unknown ERG",
+	    "byte ERG"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value ctr_dline[] = {
+	MRS_FIELD_VALUE_CACHE(CTR, DLINE, "4 byte D-cacheline",
+	    "byte D-cacheline"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value ctr_l1ip[] = {
+	MRS_FIELD_VALUE(CTR_L1IP_VIPT, "VIPT I-cache"),
+	MRS_FIELD_VALUE(CTR_L1IP_PIPT, "PIPT I-cache"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value ctr_iline[] = {
+	MRS_FIELD_VALUE_CACHE(CTR, ILINE, "4 byte I-cacheline",
+	    "byte I-cacheline"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field ctr_fields[] = {
+	/* Bit 31 is RES1 */
+	MRS_FIELD_RES1(1, 31),
+	MRS_FIELD(CTR, DIC, false, MRS_LOWER, MRS_USERSPACE, ctr_dic),
+	MRS_FIELD(CTR, IDC, false, MRS_LOWER, MRS_USERSPACE, ctr_idc),
+	MRS_FIELD(CTR, CWG, false, MRS_HIGHER_OR_ZERO, MRS_USERSPACE, ctr_cwg),
+	MRS_FIELD(CTR, ERG, false, MRS_HIGHER_OR_ZERO, MRS_USERSPACE, ctr_erg),
+	MRS_FIELD(CTR, DLINE, false, MRS_LOWER, MRS_USERSPACE, ctr_dline),
+	/* If the ICache types are different report the safe option */
+	MRS_FIELD(CTR, L1IP, false, MRS_EXACT_IF_DIFFERENT |
+	    MRS_SAFE(CTR_L1IP_VIPT >> CTR_L1IP_SHIFT), MRS_USERSPACE,
+	    ctr_l1ip),
+	MRS_FIELD(CTR, ILINE, false, MRS_LOWER, MRS_USERSPACE, ctr_iline),
+	MRS_FIELD_END,
+};
 
 /* ID_AA64AFR0_EL1 */
 static const struct mrs_field id_aa64afr0_fields[] = {
@@ -433,6 +533,7 @@ static const struct mrs_field_value id_aa64dfr0_pmsver[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_1_1, "SPEv1p1"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_1_2, "SPEv1p2"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_1_3, "SPEv1p3"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMSVer_SPE_1_4, "SPEv1p4"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -443,6 +544,11 @@ static const struct mrs_field_value id_aa64dfr0_ctx_cmps[] = {
 
 static const struct mrs_field_value id_aa64dfr0_wrps[] = {
 	MRS_FIELD_VALUE_COUNT(ID_AA64DFR0, WRPs, "Watchpoint"),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64dfr0_pmss[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64DFR0, PMSS, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -459,6 +565,7 @@ static const struct mrs_field_value id_aa64dfr0_pmuver[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_5, "PMUv3p5"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_7, "PMUv3p7"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_8, "PMUv3p8"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_3_9, "PMUv3p9"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_PMUVer_IMPL, "IMPL PMU"),
 	MRS_FIELD_VALUE_END,
 };
@@ -475,35 +582,57 @@ static const struct mrs_field_value id_aa64dfr0_debugver[] = {
 	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_2, "Debugv8p2"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_4, "Debugv8p4"),
 	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_8, "Debugv8p8"),
+	MRS_FIELD_VALUE(ID_AA64DFR0_DebugVer_8_9, "Debugv8p9"),
 	MRS_FIELD_VALUE_END,
 };
 
 static const struct mrs_field id_aa64dfr0_fields[] = {
-	MRS_FIELD(ID_AA64DFR0, HPMN0, false, MRS_EXACT, id_aa64dfr0_hpmn0),
-	MRS_FIELD(ID_AA64DFR0, BRBE, false, MRS_EXACT, id_aa64dfr0_brbe),
-	MRS_FIELD(ID_AA64DFR0, MTPMU, true, MRS_EXACT, id_aa64dfr0_mtpmu),
-	MRS_FIELD(ID_AA64DFR0, TraceBuffer, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64DFR0, HPMN0, false, MRS_LOWER, 0, id_aa64dfr0_hpmn0),
+	MRS_FIELD(ID_AA64DFR0, BRBE, false, MRS_LOWER, 0, id_aa64dfr0_brbe),
+	MRS_FIELD(ID_AA64DFR0, MTPMU, true, MRS_LOWER, 0, id_aa64dfr0_mtpmu),
+	MRS_FIELD(ID_AA64DFR0, TraceBuffer, false, MRS_LOWER, 0,
 	    id_aa64dfr0_tracebuffer),
-	MRS_FIELD(ID_AA64DFR0, TraceFilt, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64DFR0, TraceFilt, false, MRS_LOWER, 0,
 	    id_aa64dfr0_tracefilt),
-	MRS_FIELD(ID_AA64DFR0, DoubleLock, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64DFR0, DoubleLock, false, MRS_LOWER, 0,
 	    id_aa64dfr0_doublelock),
-	MRS_FIELD(ID_AA64DFR0, PMSVer, false, MRS_EXACT, id_aa64dfr0_pmsver),
-	MRS_FIELD(ID_AA64DFR0, CTX_CMPs, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64DFR0, PMSVer, false, MRS_LOWER, 0, id_aa64dfr0_pmsver),
+	MRS_FIELD(ID_AA64DFR0, CTX_CMPs, false, MRS_LOWER, 0,
 	    id_aa64dfr0_ctx_cmps),
-	MRS_FIELD(ID_AA64DFR0, WRPs, false, MRS_LOWER, id_aa64dfr0_wrps),
-	MRS_FIELD(ID_AA64DFR0, BRPs, false, MRS_LOWER, id_aa64dfr0_brps),
-	MRS_FIELD(ID_AA64DFR0, PMUVer, false, MRS_EXACT, id_aa64dfr0_pmuver),
-	MRS_FIELD(ID_AA64DFR0, TraceVer, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64DFR0, WRPs, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64dfr0_wrps),
+	MRS_FIELD(ID_AA64DFR0, PMSS, false, MRS_LOWER, 0, id_aa64dfr0_pmss),
+	MRS_FIELD(ID_AA64DFR0, BRPs, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64dfr0_brps),
+	MRS_FIELD(ID_AA64DFR0, PMUVer, false, MRS_LOWER, 0, id_aa64dfr0_pmuver),
+	MRS_FIELD(ID_AA64DFR0, TraceVer, false, MRS_LOWER, 0,
 	    id_aa64dfr0_tracever),
-	MRS_FIELD(ID_AA64DFR0, DebugVer, false, MRS_EXACT_VAL(0x6),
+	MRS_FIELD(ID_AA64DFR0, DebugVer, false, MRS_LOWER | MRS_SAFE(0x6), 0,
 	    id_aa64dfr0_debugver),
 	MRS_FIELD_END,
 };
 
 
 /* ID_AA64DFR1_EL1 */
+static const struct mrs_field_value id_aa64dfr1_dpfzs[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64DFR1, DPFZS, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64dfr1_pmicntr[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64DFR1, PMICNTR, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64dfr1_spmu[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64DFR1, SPMU, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field id_aa64dfr1_fields[] = {
+	MRS_FIELD(ID_AA64DFR1, DPFZS, false, MRS_LOWER, 0, id_aa64dfr1_dpfzs),
+	MRS_FIELD(ID_AA64DFR1, PMICNTR, false, MRS_LOWER, 0, id_aa64dfr1_pmicntr),
+	MRS_FIELD(ID_AA64DFR1, SPMU, false, MRS_LOWER, 0, id_aa64dfr1_spmu),
 	MRS_FIELD_END,
 };
 
@@ -660,34 +789,34 @@ static const struct mrs_field_hwcap id_aa64isar0_aes_caps[] = {
 };
 
 static const struct mrs_field id_aa64isar0_fields[] = {
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, RNDR, false, MRS_LOWER,
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, RNDR, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64isar0_rndr, id_aa64isar0_rndr_caps),
-	MRS_FIELD(ID_AA64ISAR0, TLB, false, MRS_EXACT, id_aa64isar0_tlb),
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, TS, false, MRS_LOWER, id_aa64isar0_ts,
-	    id_aa64isar0_ts_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, FHM, false, MRS_LOWER, id_aa64isar0_fhm,
-	    id_aa64isar0_fhm_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, DP, false, MRS_LOWER, id_aa64isar0_dp,
-	    id_aa64isar0_dp_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, SM4, false, MRS_LOWER, id_aa64isar0_sm4,
-	    id_aa64isar0_sm4_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, SM3, false, MRS_LOWER, id_aa64isar0_sm3,
-	    id_aa64isar0_sm3_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, SHA3, false, MRS_LOWER, id_aa64isar0_sha3,
-	    id_aa64isar0_sha3_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, RDM, false, MRS_LOWER, id_aa64isar0_rdm,
-	    id_aa64isar0_rdm_caps),
-	MRS_FIELD(ID_AA64ISAR0, TME, false, MRS_EXACT, id_aa64isar0_tme),
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, Atomic, false, MRS_LOWER,
+	MRS_FIELD(ID_AA64ISAR0, TLB, false, MRS_LOWER, 0, id_aa64isar0_tlb),
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, TS, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar0_ts, id_aa64isar0_ts_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, FHM, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar0_fhm, id_aa64isar0_fhm_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, DP, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar0_dp, id_aa64isar0_dp_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, SM4, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar0_sm4, id_aa64isar0_sm4_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, SM3, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar0_sm3, id_aa64isar0_sm3_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, SHA3, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar0_sha3, id_aa64isar0_sha3_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, RDM, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar0_rdm, id_aa64isar0_rdm_caps),
+	MRS_FIELD(ID_AA64ISAR0, TME, false, MRS_LOWER, 0, id_aa64isar0_tme),
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, Atomic, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64isar0_atomic, id_aa64isar0_atomic_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, CRC32, false, MRS_LOWER,
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, CRC32, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64isar0_crc32, id_aa64isar0_crc32_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, SHA2, false, MRS_LOWER, id_aa64isar0_sha2,
-	    id_aa64isar0_sha2_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, SHA1, false, MRS_LOWER,
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, SHA2, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar0_sha2, id_aa64isar0_sha2_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, SHA1, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64isar0_sha1, id_aa64isar0_sha1_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR0, AES, false, MRS_LOWER, id_aa64isar0_aes,
-	    id_aa64isar0_aes_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR0, AES, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar0_aes, id_aa64isar0_aes_caps),
 	MRS_FIELD_END,
 };
 
@@ -738,7 +867,8 @@ static const struct mrs_field_hwcap id_aa64isar1_bf16_caps[] = {
 
 static const struct mrs_field_value id_aa64isar1_specres[] = {
 	MRS_FIELD_VALUE(ID_AA64ISAR1_SPECRES_NONE, ""),
-	MRS_FIELD_VALUE(ID_AA64ISAR1_SPECRES_IMPL, "PredInv"),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_SPECRES_8_5, "PredInv v8.5"),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_SPECRES_8_9, "PredInv v8.9"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -861,41 +991,66 @@ static const struct mrs_field_hwcap id_aa64isar1_dpb_caps[] = {
 };
 
 static const struct mrs_field id_aa64isar1_fields[] = {
-	MRS_FIELD(ID_AA64ISAR1, LS64, false, MRS_EXACT, id_aa64isar1_ls64),
-	MRS_FIELD(ID_AA64ISAR1, XS, false, MRS_EXACT, id_aa64isar1_xs),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, I8MM, false, MRS_LOWER,
+	MRS_FIELD(ID_AA64ISAR1, LS64, false, MRS_LOWER, 0, id_aa64isar1_ls64),
+	MRS_FIELD(ID_AA64ISAR1, XS, false, MRS_LOWER, 0, id_aa64isar1_xs),
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, I8MM, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64isar1_i8mm, id_aa64isar1_i8mm_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, DGH, false, MRS_LOWER, id_aa64isar1_dgh,
-	    id_aa64isar1_dgh_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, BF16, false, MRS_LOWER,
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, DGH, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar1_dgh, id_aa64isar1_dgh_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, BF16, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64isar1_bf16, id_aa64isar1_bf16_caps),
-	MRS_FIELD(ID_AA64ISAR1, SPECRES, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64ISAR1, SPECRES, false, MRS_LOWER, 0,
 	    id_aa64isar1_specres),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, SB, false, MRS_LOWER, id_aa64isar1_sb,
-	    id_aa64isar1_sb_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, FRINTTS, false, MRS_LOWER,
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, SB, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar1_sb, id_aa64isar1_sb_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, FRINTTS, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64isar1_frintts, id_aa64isar1_frintts_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, GPI, false, MRS_EXACT, id_aa64isar1_gpi,
-	    id_aa64isar1_gpi_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, GPA, false, MRS_EXACT, id_aa64isar1_gpa,
-	    id_aa64isar1_gpa_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, LRCPC, false, MRS_LOWER,
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, GPI, false, MRS_LOWER, 0,
+	    id_aa64isar1_gpi, id_aa64isar1_gpi_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, GPA, false, MRS_LOWER, 0,
+	    id_aa64isar1_gpa, id_aa64isar1_gpa_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, LRCPC, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64isar1_lrcpc, id_aa64isar1_lrcpc_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, FCMA, false, MRS_LOWER,
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, FCMA, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64isar1_fcma, id_aa64isar1_fcma_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, JSCVT, false, MRS_LOWER,
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, JSCVT, false, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64isar1_jscvt, id_aa64isar1_jscvt_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, API, false, MRS_EXACT, id_aa64isar1_api,
-	    id_aa64isar1_api_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, APA, false, MRS_EXACT, id_aa64isar1_apa,
-	    id_aa64isar1_apa_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR1, DPB, false, MRS_LOWER, id_aa64isar1_dpb,
-	    id_aa64isar1_dpb_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, API, false, MRS_LOWER, 0,
+	    id_aa64isar1_api, id_aa64isar1_api_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, APA, false, MRS_LOWER, 0,
+	    id_aa64isar1_apa, id_aa64isar1_apa_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR1, DPB, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar1_dpb, id_aa64isar1_dpb_caps),
 	MRS_FIELD_END,
 };
 
 
 /* ID_AA64ISAR2_EL1 */
+static const struct mrs_field_value id_aa64isar2_ats1a[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, ATS1A, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64isar2_cssc[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, CSSC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64isar2_rprfm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, RPRFM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64isar2_prfmslc[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, PRFMSLC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64isar2_clrbhb[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, CLRBHB, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64isar2_pac_frac[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, PAC_frac, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -942,22 +1097,39 @@ static const struct mrs_field_value id_aa64isar2_rpres[] = {
 	MRS_FIELD_VALUE_END,
 };
 
+static const struct mrs_field_hwcap id_aa64isar2_rpres_caps[] = {
+	MRS_HWCAP(2, HWCAP2_RPRES, ID_AA64ISAR2_RPRES_IMPL),
+	MRS_HWCAP_END
+};
+
 static const struct mrs_field_value id_aa64isar2_wfxt[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR2, WFxT, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
 };
 
+static const struct mrs_field_hwcap id_aa64isar2_wfxt_caps[] = {
+	MRS_HWCAP(2, HWCAP2_WFXT, ID_AA64ISAR2_WFxT_IMPL),
+	MRS_HWCAP_END
+};
+
 static const struct mrs_field id_aa64isar2_fields[] = {
-	MRS_FIELD(ID_AA64ISAR2, PAC_frac, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64ISAR2, ATS1A, false, MRS_LOWER, 0, id_aa64isar2_ats1a),
+	MRS_FIELD(ID_AA64ISAR2, CSSC, false, MRS_LOWER, 0, id_aa64isar2_cssc),
+	MRS_FIELD(ID_AA64ISAR2, RPRFM, false, MRS_LOWER, 0, id_aa64isar2_rprfm),
+	MRS_FIELD(ID_AA64ISAR2, PRFMSLC, false, MRS_LOWER, 0, id_aa64isar2_prfmslc),
+	MRS_FIELD(ID_AA64ISAR2, CLRBHB, false, MRS_LOWER, 0, id_aa64isar2_clrbhb),
+	MRS_FIELD(ID_AA64ISAR2, PAC_frac, false, MRS_LOWER, 0,
 	    id_aa64isar2_pac_frac),
-	MRS_FIELD(ID_AA64ISAR2, BC, false, MRS_EXACT, id_aa64isar2_bc),
-	MRS_FIELD(ID_AA64ISAR2, MOPS, false, MRS_EXACT, id_aa64isar2_mops),
-	MRS_FIELD_HWCAP(ID_AA64ISAR2, APA3, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64ISAR2, BC, false, MRS_LOWER, 0, id_aa64isar2_bc),
+	MRS_FIELD(ID_AA64ISAR2, MOPS, false, MRS_LOWER, 0, id_aa64isar2_mops),
+	MRS_FIELD_HWCAP(ID_AA64ISAR2, APA3, false, MRS_LOWER, 0,
 	    id_aa64isar2_apa3, id_aa64isar2_apa3_caps),
-	MRS_FIELD_HWCAP(ID_AA64ISAR2, GPA3, false, MRS_EXACT,
+	MRS_FIELD_HWCAP(ID_AA64ISAR2, GPA3, false, MRS_LOWER, 0,
 	    id_aa64isar2_gpa3, id_aa64isar2_gpa3_caps),
-	MRS_FIELD(ID_AA64ISAR2, RPRES, false, MRS_EXACT, id_aa64isar2_rpres),
-	MRS_FIELD(ID_AA64ISAR2, WFxT, false, MRS_EXACT, id_aa64isar2_wfxt),
+	MRS_FIELD_HWCAP(ID_AA64ISAR2, RPRES, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64isar2_rpres, id_aa64isar2_rpres_caps),
+	MRS_FIELD_HWCAP(ID_AA64ISAR2, WFxT, false, MRS_LOWER, 0,
+		id_aa64isar2_wfxt, id_aa64isar2_wfxt_caps),
 	MRS_FIELD_END,
 };
 
@@ -970,7 +1142,9 @@ static const struct mrs_field_value id_aa64mmfr0_ecv[] = {
 };
 
 static const struct mrs_field_value id_aa64mmfr0_fgt[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, FGT, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_FGT_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_FGT_8_6, "FGT v8.6"),
+	MRS_FIELD_VALUE(ID_AA64MMFR0_FGT_8_9, "FGT v8.9"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1052,33 +1226,41 @@ static const struct mrs_field_value id_aa64mmfr0_parange[] = {
 };
 
 static const struct mrs_field id_aa64mmfr0_fields[] = {
-	MRS_FIELD(ID_AA64MMFR0, ECV, false, MRS_EXACT, id_aa64mmfr0_ecv),
-	MRS_FIELD(ID_AA64MMFR0, FGT, false, MRS_EXACT, id_aa64mmfr0_fgt),
-	MRS_FIELD(ID_AA64MMFR0, ExS, false, MRS_EXACT, id_aa64mmfr0_exs),
-	MRS_FIELD(ID_AA64MMFR0, TGran4_2, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64MMFR0, ECV, false, MRS_LOWER, 0, id_aa64mmfr0_ecv),
+	MRS_FIELD(ID_AA64MMFR0, FGT, false, MRS_LOWER, 0, id_aa64mmfr0_fgt),
+	MRS_FIELD(ID_AA64MMFR0, ExS, false, MRS_LOWER, 0, id_aa64mmfr0_exs),
+	MRS_FIELD(ID_AA64MMFR0, TGran4_2, false, MRS_LOWER, 0,
 	    id_aa64mmfr0_tgran4_2),
-	MRS_FIELD(ID_AA64MMFR0, TGran64_2, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64MMFR0, TGran64_2, false, MRS_LOWER, 0,
 	    id_aa64mmfr0_tgran64_2),
-	MRS_FIELD(ID_AA64MMFR0, TGran16_2, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64MMFR0, TGran16_2, false, MRS_LOWER, 0,
 	    id_aa64mmfr0_tgran16_2),
-	MRS_FIELD(ID_AA64MMFR0, TGran4, false, MRS_EXACT, id_aa64mmfr0_tgran4),
-	MRS_FIELD(ID_AA64MMFR0, TGran64, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64MMFR0, TGran4, false, MRS_LOWER, 0,
+	    id_aa64mmfr0_tgran4),
+	MRS_FIELD(ID_AA64MMFR0, TGran64, false, MRS_LOWER, 0,
 	    id_aa64mmfr0_tgran64),
-	MRS_FIELD(ID_AA64MMFR0, TGran16, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64MMFR0, TGran16, false, MRS_LOWER, 0,
 	    id_aa64mmfr0_tgran16),
-	MRS_FIELD(ID_AA64MMFR0, BigEndEL0, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64MMFR0, BigEndEL0, false, MRS_LOWER, 0,
 	    id_aa64mmfr0_bigendel0),
-	MRS_FIELD(ID_AA64MMFR0, SNSMem, false, MRS_EXACT, id_aa64mmfr0_snsmem),
-	MRS_FIELD(ID_AA64MMFR0, BigEnd, false, MRS_EXACT, id_aa64mmfr0_bigend),
-	MRS_FIELD(ID_AA64MMFR0, ASIDBits, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64MMFR0, SNSMem, false, MRS_LOWER, 0,
+	    id_aa64mmfr0_snsmem),
+	MRS_FIELD(ID_AA64MMFR0, BigEnd, false, MRS_LOWER, 0,
+	    id_aa64mmfr0_bigend),
+	MRS_FIELD(ID_AA64MMFR0, ASIDBits, false, MRS_LOWER, 0,
 	    id_aa64mmfr0_asidbits),
-	MRS_FIELD(ID_AA64MMFR0, PARange, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64MMFR0, PARange, false, MRS_LOWER, 0,
 	    id_aa64mmfr0_parange),
 	MRS_FIELD_END,
 };
 
 
 /* ID_AA64MMFR1_EL1 */
+static const struct mrs_field_value id_aa64mmfr1_ecbhb[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, ECBHB, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64mmfr1_cmovw[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, CMOVW, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -1099,13 +1281,20 @@ static const struct mrs_field_value id_aa64mmfr1_afp[] = {
 	MRS_FIELD_VALUE_END,
 };
 
+static const struct mrs_field_hwcap id_aa64mmfr1_afp_caps[] = {
+	MRS_HWCAP(2, HWCAP2_AFP, ID_AA64MMFR1_AFP_IMPL),
+	MRS_HWCAP_END
+};
+
 static const struct mrs_field_value id_aa64mmfr1_hcx[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, HCX, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
 };
 
 static const struct mrs_field_value id_aa64mmfr1_ets[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, ETS, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_ETS_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_ETS_NONE2, ""),
+	MRS_FIELD_VALUE(ID_AA64MMFR1_ETS_IMPL, "ETS2"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1162,23 +1351,34 @@ static const struct mrs_field_value id_aa64mmfr1_hafdbs[] = {
 };
 
 static const struct mrs_field id_aa64mmfr1_fields[] = {
-	MRS_FIELD(ID_AA64MMFR1, CMOVW, false, MRS_EXACT, id_aa64mmfr1_cmovw),
-	MRS_FIELD(ID_AA64MMFR1, TIDCP1, false, MRS_EXACT, id_aa64mmfr1_tidcp1),
-	MRS_FIELD(ID_AA64MMFR1, nTLBPA, false, MRS_EXACT, id_aa64mmfr1_ntlbpa),
-	MRS_FIELD(ID_AA64MMFR1, AFP, false, MRS_EXACT, id_aa64mmfr1_afp),
-	MRS_FIELD(ID_AA64MMFR1, HCX, false, MRS_EXACT, id_aa64mmfr1_hcx),
-	MRS_FIELD(ID_AA64MMFR1, ETS, false, MRS_EXACT, id_aa64mmfr1_ets),
-	MRS_FIELD(ID_AA64MMFR1, TWED, false, MRS_EXACT, id_aa64mmfr1_twed),
-	MRS_FIELD(ID_AA64MMFR1, XNX, false, MRS_EXACT, id_aa64mmfr1_xnx),
-	MRS_FIELD(ID_AA64MMFR1, SpecSEI, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64MMFR1, ECBHB, false, MRS_LOWER, 0, id_aa64mmfr1_ecbhb),
+	MRS_FIELD(ID_AA64MMFR1, CMOVW, false, MRS_LOWER, 0, id_aa64mmfr1_cmovw),
+	MRS_FIELD(ID_AA64MMFR1, TIDCP1, false, MRS_LOWER, 0,
+	    id_aa64mmfr1_tidcp1),
+	MRS_FIELD(ID_AA64MMFR1, nTLBPA, false, MRS_LOWER, 0,
+	    id_aa64mmfr1_ntlbpa),
+	MRS_FIELD_HWCAP(ID_AA64MMFR1, AFP, false, MRS_LOWER, 0,
+	    id_aa64mmfr1_afp, id_aa64mmfr1_afp_caps),
+	MRS_FIELD(ID_AA64MMFR1, HCX, false, MRS_LOWER, 0, id_aa64mmfr1_hcx),
+	MRS_FIELD(ID_AA64MMFR1, ETS, false, MRS_LOWER, 0, id_aa64mmfr1_ets),
+	MRS_FIELD(ID_AA64MMFR1, TWED, false, MRS_LOWER, 0, id_aa64mmfr1_twed),
+	MRS_FIELD(ID_AA64MMFR1, XNX, false, MRS_LOWER, 0, id_aa64mmfr1_xnx),
+	/*
+	 * SpecSEI != 0 indicates the CPU might generate an external abort
+	 * under speculation, while 0 indicates it can't happen. It's safer
+	 * to incorrectly indicate it might happen when it can't rather than
+	 * say it can't happen when it could. As such use the largest value
+	 * found in the system.
+	 */
+	MRS_FIELD(ID_AA64MMFR1, SpecSEI, false, MRS_HIGHER, 0,
 	    id_aa64mmfr1_specsei),
-	MRS_FIELD(ID_AA64MMFR1, PAN, false, MRS_EXACT, id_aa64mmfr1_pan),
-	MRS_FIELD(ID_AA64MMFR1, LO, false, MRS_EXACT, id_aa64mmfr1_lo),
-	MRS_FIELD(ID_AA64MMFR1, HPDS, false, MRS_EXACT, id_aa64mmfr1_hpds),
-	MRS_FIELD(ID_AA64MMFR1, VH, false, MRS_EXACT, id_aa64mmfr1_vh),
-	MRS_FIELD(ID_AA64MMFR1, VMIDBits, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64MMFR1, PAN, false, MRS_LOWER, 0, id_aa64mmfr1_pan),
+	MRS_FIELD(ID_AA64MMFR1, LO, false, MRS_LOWER, 0, id_aa64mmfr1_lo),
+	MRS_FIELD(ID_AA64MMFR1, HPDS, false, MRS_LOWER, 0, id_aa64mmfr1_hpds),
+	MRS_FIELD(ID_AA64MMFR1, VH, false, MRS_LOWER, 0, id_aa64mmfr1_vh),
+	MRS_FIELD(ID_AA64MMFR1, VMIDBits, false, MRS_LOWER, 0,
 	    id_aa64mmfr1_vmidbits),
-	MRS_FIELD(ID_AA64MMFR1, HAFDBS, false, MRS_EXACT, id_aa64mmfr1_hafdbs),
+	MRS_FIELD(ID_AA64MMFR1, HAFDBS, false, MRS_LOWER, 0, id_aa64mmfr1_hafdbs),
 	MRS_FIELD_END,
 };
 
@@ -1272,23 +1472,23 @@ static const struct mrs_field_value id_aa64mmfr2_cnp[] = {
 };
 
 static const struct mrs_field id_aa64mmfr2_fields[] = {
-	MRS_FIELD(ID_AA64MMFR2, E0PD, false, MRS_EXACT, id_aa64mmfr2_e0pd),
-	MRS_FIELD(ID_AA64MMFR2, EVT, false, MRS_EXACT, id_aa64mmfr2_evt),
-	MRS_FIELD(ID_AA64MMFR2, BBM, false, MRS_EXACT, id_aa64mmfr2_bbm),
-	MRS_FIELD(ID_AA64MMFR2, TTL, false, MRS_EXACT, id_aa64mmfr2_ttl),
-	MRS_FIELD(ID_AA64MMFR2, FWB, false, MRS_EXACT, id_aa64mmfr2_fwb),
-	MRS_FIELD(ID_AA64MMFR2, IDS, false, MRS_EXACT, id_aa64mmfr2_ids),
-	MRS_FIELD_HWCAP(ID_AA64MMFR2, AT, false, MRS_LOWER, id_aa64mmfr2_at,
-	    id_aa64mmfr2_at_caps),
-	MRS_FIELD(ID_AA64MMFR2, ST, false, MRS_EXACT, id_aa64mmfr2_st),
-	MRS_FIELD(ID_AA64MMFR2, NV, false, MRS_EXACT, id_aa64mmfr2_nv),
-	MRS_FIELD(ID_AA64MMFR2, CCIDX, false, MRS_EXACT, id_aa64mmfr2_ccidx),
-	MRS_FIELD(ID_AA64MMFR2, VARange, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64MMFR2, E0PD, false, MRS_LOWER, 0, id_aa64mmfr2_e0pd),
+	MRS_FIELD(ID_AA64MMFR2, EVT, false, MRS_LOWER, 0, id_aa64mmfr2_evt),
+	MRS_FIELD(ID_AA64MMFR2, BBM, false, MRS_LOWER, 0, id_aa64mmfr2_bbm),
+	MRS_FIELD(ID_AA64MMFR2, TTL, false, MRS_LOWER, 0, id_aa64mmfr2_ttl),
+	MRS_FIELD(ID_AA64MMFR2, FWB, false, MRS_LOWER, 0, id_aa64mmfr2_fwb),
+	MRS_FIELD(ID_AA64MMFR2, IDS, false, MRS_LOWER, 0, id_aa64mmfr2_ids),
+	MRS_FIELD_HWCAP(ID_AA64MMFR2, AT, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64mmfr2_at, id_aa64mmfr2_at_caps),
+	MRS_FIELD(ID_AA64MMFR2, ST, false, MRS_LOWER, 0, id_aa64mmfr2_st),
+	MRS_FIELD(ID_AA64MMFR2, NV, false, MRS_LOWER, 0, id_aa64mmfr2_nv),
+	MRS_FIELD(ID_AA64MMFR2, CCIDX, false, MRS_LOWER, 0, id_aa64mmfr2_ccidx),
+	MRS_FIELD(ID_AA64MMFR2, VARange, false, MRS_LOWER, 0,
 	    id_aa64mmfr2_varange),
-	MRS_FIELD(ID_AA64MMFR2, IESB, false, MRS_EXACT, id_aa64mmfr2_iesb),
-	MRS_FIELD(ID_AA64MMFR2, LSM, false, MRS_EXACT, id_aa64mmfr2_lsm),
-	MRS_FIELD(ID_AA64MMFR2, UAO, false, MRS_EXACT, id_aa64mmfr2_uao),
-	MRS_FIELD(ID_AA64MMFR2, CnP, false, MRS_EXACT, id_aa64mmfr2_cnp),
+	MRS_FIELD(ID_AA64MMFR2, IESB, false, MRS_LOWER, 0, id_aa64mmfr2_iesb),
+	MRS_FIELD(ID_AA64MMFR2, LSM, false, MRS_LOWER, 0, id_aa64mmfr2_lsm),
+	MRS_FIELD(ID_AA64MMFR2, UAO, false, MRS_LOWER, 0, id_aa64mmfr2_uao),
+	MRS_FIELD(ID_AA64MMFR2, CnP, false, MRS_LOWER, 0, id_aa64mmfr2_cnp),
 	MRS_FIELD_END,
 };
 
@@ -1299,8 +1499,53 @@ static const struct mrs_field_value id_aa64mmfr3_spec_fpacc[] = {
 	MRS_FIELD_VALUE_END,
 };
 
+static const struct mrs_field_value id_aa64mmfr3_aderr[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, ADERR, NONE, SOME),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_sderr[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, SDERR, NONE, ALL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_anerr[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, ANERR, NONE, SOME),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_snerr[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, SNERR, NONE, ALL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64mmfr3_mec[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, MEC, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_aie[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, AIE, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_s2poe[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, S2POE, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_s1poe[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, S1POE, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_s2pie[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, S2PIE, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64mmfr3_s1pie[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR3, S1PIE, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1315,11 +1560,21 @@ static const struct mrs_field_value id_aa64mmfr3_tcrx[] = {
 };
 
 static const struct mrs_field id_aa64mmfr3_fields[] = {
-	MRS_FIELD(ID_AA64MMFR3, Spec_FPACC, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64MMFR3, Spec_FPACC, false, MRS_LOWER, 0,
 	    id_aa64mmfr3_spec_fpacc),
-	MRS_FIELD(ID_AA64MMFR3, MEC, false, MRS_EXACT, id_aa64mmfr3_mec),
-	MRS_FIELD(ID_AA64MMFR3, SCTLRX, false, MRS_EXACT, id_aa64mmfr3_sctlrx),
-	MRS_FIELD(ID_AA64MMFR3, TCRX, false, MRS_EXACT, id_aa64mmfr3_tcrx),
+	MRS_FIELD(ID_AA64MMFR3, ADERR, false, MRS_LOWER, 0, id_aa64mmfr3_aderr),
+	MRS_FIELD(ID_AA64MMFR3, SDERR, false, MRS_LOWER, 0, id_aa64mmfr3_sderr),
+	MRS_FIELD(ID_AA64MMFR3, ANERR, false, MRS_LOWER, 0, id_aa64mmfr3_anerr),
+	MRS_FIELD(ID_AA64MMFR3, SNERR, false, MRS_LOWER, 0, id_aa64mmfr3_snerr),
+	MRS_FIELD(ID_AA64MMFR3, MEC, false, MRS_LOWER, 0, id_aa64mmfr3_mec),
+	MRS_FIELD(ID_AA64MMFR3, AIE, false, MRS_LOWER, 0, id_aa64mmfr3_aie),
+	MRS_FIELD(ID_AA64MMFR3, S2POE, false, MRS_LOWER, 0, id_aa64mmfr3_s2poe),
+	MRS_FIELD(ID_AA64MMFR3, S1POE, false, MRS_LOWER, 0, id_aa64mmfr3_s1poe),
+	MRS_FIELD(ID_AA64MMFR3, S2PIE, false, MRS_LOWER, 0, id_aa64mmfr3_s2pie),
+	MRS_FIELD(ID_AA64MMFR3, S1PIE, false, MRS_LOWER, 0, id_aa64mmfr3_s1pie),
+	MRS_FIELD(ID_AA64MMFR3, SCTLRX, false, MRS_LOWER, 0,
+	    id_aa64mmfr3_sctlrx),
+	MRS_FIELD(ID_AA64MMFR3, TCRX, false, MRS_LOWER, 0, id_aa64mmfr3_tcrx),
 	MRS_FIELD_END,
 };
 
@@ -1383,18 +1638,16 @@ static const struct mrs_field_value id_aa64pfr0_sve[] = {
 	MRS_FIELD_VALUE_END,
 };
 
-#if 0
-/* Enable when we add SVE support */
 static const struct mrs_field_hwcap id_aa64pfr0_sve_caps[] = {
 	MRS_HWCAP(1, HWCAP_SVE, ID_AA64PFR0_SVE_IMPL),
 	MRS_HWCAP_END
 };
-#endif
 
 static const struct mrs_field_value id_aa64pfr0_ras[] = {
 	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_NONE, ""),
 	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_IMPL, "RAS"),
 	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_8_4, "RAS v8.4"),
+	MRS_FIELD_VALUE(ID_AA64PFR0_RAS_8_9, "RAS v8.9"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -1455,30 +1708,58 @@ static const struct mrs_field_value id_aa64pfr0_el0[] = {
 };
 
 static const struct mrs_field id_aa64pfr0_fields[] = {
-	MRS_FIELD(ID_AA64PFR0, CSV3, false, MRS_EXACT, id_aa64pfr0_csv3),
-	MRS_FIELD(ID_AA64PFR0, CSV2, false, MRS_EXACT, id_aa64pfr0_csv2),
-	MRS_FIELD(ID_AA64PFR0, RME, false, MRS_EXACT, id_aa64pfr0_rme),
-	MRS_FIELD_HWCAP(ID_AA64PFR0, DIT, false, MRS_LOWER, id_aa64pfr0_dit,
-	    id_aa64pfr0_dit_caps),
-	MRS_FIELD(ID_AA64PFR0, AMU, false, MRS_EXACT, id_aa64pfr0_amu),
-	MRS_FIELD(ID_AA64PFR0, MPAM, false, MRS_EXACT, id_aa64pfr0_mpam),
-	MRS_FIELD(ID_AA64PFR0, SEL2, false, MRS_EXACT, id_aa64pfr0_sel2),
-	MRS_FIELD(ID_AA64PFR0, SVE, false, MRS_EXACT, id_aa64pfr0_sve),
-	MRS_FIELD(ID_AA64PFR0, RAS, false, MRS_EXACT, id_aa64pfr0_ras),
-	MRS_FIELD(ID_AA64PFR0, GIC, false, MRS_EXACT, id_aa64pfr0_gic),
-	MRS_FIELD_HWCAP(ID_AA64PFR0, AdvSIMD, true, MRS_LOWER,
+	MRS_FIELD(ID_AA64PFR0, CSV3, false, MRS_LOWER, 0, id_aa64pfr0_csv3),
+	MRS_FIELD(ID_AA64PFR0, CSV2, false, MRS_LOWER, 0, id_aa64pfr0_csv2),
+	MRS_FIELD(ID_AA64PFR0, RME, false, MRS_LOWER, 0, id_aa64pfr0_rme),
+	MRS_FIELD_HWCAP(ID_AA64PFR0, DIT, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64pfr0_dit, id_aa64pfr0_dit_caps),
+	MRS_FIELD(ID_AA64PFR0, AMU, false, MRS_LOWER, 0, id_aa64pfr0_amu),
+	MRS_FIELD(ID_AA64PFR0, MPAM, false, MRS_LOWER, 0, id_aa64pfr0_mpam),
+	MRS_FIELD(ID_AA64PFR0, SEL2, false, MRS_LOWER, 0, id_aa64pfr0_sel2),
+	MRS_FIELD_HWCAP(ID_AA64PFR0, SVE, false, MRS_LOWER,
+	    MRS_FREEBSD, id_aa64pfr0_sve, id_aa64pfr0_sve_caps),
+	MRS_FIELD(ID_AA64PFR0, RAS, false, MRS_LOWER, 0, id_aa64pfr0_ras),
+	MRS_FIELD(ID_AA64PFR0, GIC, false, MRS_LOWER, 0, id_aa64pfr0_gic),
+	MRS_FIELD_HWCAP(ID_AA64PFR0, AdvSIMD, true, MRS_LOWER, MRS_USERSPACE,
 	    id_aa64pfr0_advsimd, id_aa64pfr0_advsimd_caps),
-	MRS_FIELD_HWCAP(ID_AA64PFR0, FP, true,  MRS_LOWER, id_aa64pfr0_fp,
-	    id_aa64pfr0_fp_caps),
-	MRS_FIELD(ID_AA64PFR0, EL3, false, MRS_EXACT, id_aa64pfr0_el3),
-	MRS_FIELD(ID_AA64PFR0, EL2, false, MRS_EXACT, id_aa64pfr0_el2),
-	MRS_FIELD(ID_AA64PFR0, EL1, false, MRS_LOWER, id_aa64pfr0_el1),
-	MRS_FIELD(ID_AA64PFR0, EL0, false, MRS_LOWER, id_aa64pfr0_el0),
+	MRS_FIELD_HWCAP(ID_AA64PFR0, FP, true,  MRS_LOWER, MRS_USERSPACE,
+	    id_aa64pfr0_fp, id_aa64pfr0_fp_caps),
+	MRS_FIELD(ID_AA64PFR0, EL3, false, MRS_LOWER, 0, id_aa64pfr0_el3),
+	MRS_FIELD(ID_AA64PFR0, EL2, false, MRS_LOWER, 0, id_aa64pfr0_el2),
+	MRS_FIELD(ID_AA64PFR0, EL1, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64pfr0_el1),
+	MRS_FIELD(ID_AA64PFR0, EL0, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64pfr0_el0),
 	MRS_FIELD_END,
 };
 
 
 /* ID_AA64PFR1_EL1 */
+static const struct mrs_field_value id_aa64pfr1_pfar[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, PFAR, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_df2[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, DF2, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_mtex[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, MTEX, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_the[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, THE, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_value id_aa64pfr1_mtefrac[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, MTE_frac, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static const struct mrs_field_value id_aa64pfr1_nmi[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR1, NMI, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -1547,21 +1828,26 @@ static const struct mrs_field_hwcap id_aa64pfr1_bt_caps[] = {
 };
 
 static const struct mrs_field id_aa64pfr1_fields[] = {
-	MRS_FIELD(ID_AA64PFR1, NMI, false, MRS_EXACT, id_aa64pfr1_nmi),
-	MRS_FIELD(ID_AA64PFR1, CSV2_frac, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64PFR1, PFAR, false, MRS_LOWER, 0, id_aa64pfr1_pfar),
+	MRS_FIELD(ID_AA64PFR1, DF2, false, MRS_LOWER, 0, id_aa64pfr1_df2),
+	MRS_FIELD(ID_AA64PFR1, MTEX, false, MRS_LOWER, 0, id_aa64pfr1_mtex),
+	MRS_FIELD(ID_AA64PFR1, THE, false, MRS_LOWER, 0, id_aa64pfr1_the),
+	MRS_FIELD(ID_AA64PFR1, MTE_frac, false, MRS_LOWER, 0, id_aa64pfr1_mtefrac),
+	MRS_FIELD(ID_AA64PFR1, NMI, false, MRS_LOWER, 0, id_aa64pfr1_nmi),
+	MRS_FIELD(ID_AA64PFR1, CSV2_frac, false, MRS_LOWER, 0,
 	    id_aa64pfr1_csv2_frac),
-	MRS_FIELD(ID_AA64PFR1, RNDR_trap, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64PFR1, RNDR_trap, false, MRS_LOWER, 0,
 	    id_aa64pfr1_rndr_trap),
-	MRS_FIELD(ID_AA64PFR1, SME, false, MRS_EXACT, id_aa64pfr1_sme),
-	MRS_FIELD(ID_AA64PFR1, MPAM_frac, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64PFR1, SME, false, MRS_LOWER, 0, id_aa64pfr1_sme),
+	MRS_FIELD(ID_AA64PFR1, MPAM_frac, false, MRS_LOWER, 0,
 	    id_aa64pfr1_mpam_frac),
-	MRS_FIELD(ID_AA64PFR1, RAS_frac, false, MRS_EXACT,
+	MRS_FIELD(ID_AA64PFR1, RAS_frac, false, MRS_LOWER, 0,
 	    id_aa64pfr1_ras_frac),
-	MRS_FIELD(ID_AA64PFR1, MTE, false, MRS_EXACT, id_aa64pfr1_mte),
-	MRS_FIELD_HWCAP(ID_AA64PFR1, SSBS, false, MRS_LOWER, id_aa64pfr1_ssbs,
-	    id_aa64pfr1_ssbs_caps),
-	MRS_FIELD_HWCAP_SPLIT(ID_AA64PFR1, BT, false, MRS_LOWER, MRS_EXACT,
-	    id_aa64pfr1_bt, id_aa64pfr1_bt_caps),
+	MRS_FIELD(ID_AA64PFR1, MTE, false, MRS_LOWER, 0, id_aa64pfr1_mte),
+	MRS_FIELD_HWCAP(ID_AA64PFR1, SSBS, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64pfr1_ssbs, id_aa64pfr1_ssbs_caps),
+	MRS_FIELD_HWCAP(ID_AA64PFR1, BT, false, MRS_LOWER,
+	    MRS_FREEBSD, id_aa64pfr1_bt, id_aa64pfr1_bt_caps),
 	MRS_FIELD_END,
 };
 
@@ -1578,9 +1864,19 @@ static const struct mrs_field_value id_aa64zfr0_f64mm[] = {
 	MRS_FIELD_VALUE_END,
 };
 
+static const struct mrs_field_hwcap id_aa64zfr0_f64mm_caps[] = {
+	MRS_HWCAP(2, HWCAP2_SVEF64MM, ID_AA64ZFR0_F64MM_IMPL),
+	MRS_HWCAP_END,
+};
+
 static const struct mrs_field_value id_aa64zfr0_f32mm[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, F32MM, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_hwcap id_aa64zfr0_f32mm_caps[] = {
+	MRS_HWCAP(2, HWCAP2_SVEF32MM, ID_AA64ZFR0_F32MM_IMPL),
+	MRS_HWCAP_END,
 };
 
 static const struct mrs_field_value id_aa64zfr0_i8mm[] = {
@@ -1588,14 +1884,29 @@ static const struct mrs_field_value id_aa64zfr0_i8mm[] = {
 	MRS_FIELD_VALUE_END,
 };
 
+static const struct mrs_field_hwcap id_aa64zfr0_i8mm_caps[] = {
+	MRS_HWCAP(2, HWCAP2_SVEI8MM, ID_AA64ZFR0_I8MM_IMPL),
+	MRS_HWCAP_END,
+};
+
 static const struct mrs_field_value id_aa64zfr0_sm4[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, SM4, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
 };
 
+static const struct mrs_field_hwcap id_aa64zfr0_sm4_caps[] = {
+	MRS_HWCAP(2, HWCAP2_SVESM4, ID_AA64ZFR0_SM4_IMPL),
+	MRS_HWCAP_END,
+};
+
 static const struct mrs_field_value id_aa64zfr0_sha3[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, SHA3, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_hwcap id_aa64zfr0_sha3_caps[] = {
+	MRS_HWCAP(2, HWCAP2_SVESHA3, ID_AA64ZFR0_SHA3_IMPL),
+	MRS_HWCAP_END,
 };
 
 static const struct mrs_field_value id_aa64zfr0_bf16[] = {
@@ -1604,9 +1915,20 @@ static const struct mrs_field_value id_aa64zfr0_bf16[] = {
 	MRS_FIELD_VALUE_END,
 };
 
+static const struct mrs_field_hwcap id_aa64zfr0_bf16_caps[] = {
+	MRS_HWCAP(2, HWCAP2_SVEBF16, ID_AA64ZFR0_BF16_BASE),
+	MRS_HWCAP(2, HWCAP2_SVE_EBF16, ID_AA64ZFR0_BF16_EBF),
+	MRS_HWCAP_END,
+};
+
 static const struct mrs_field_value id_aa64zfr0_bitperm[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ZFR0, BitPerm, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field_hwcap id_aa64zfr0_bitperm_caps[] = {
+	MRS_HWCAP(2, HWCAP2_SVEBITPERM, ID_AA64ZFR0_BitPerm_IMPL),
+	MRS_HWCAP_END,
 };
 
 static const struct mrs_field_value id_aa64zfr0_aes[] = {
@@ -1615,22 +1937,44 @@ static const struct mrs_field_value id_aa64zfr0_aes[] = {
 	MRS_FIELD_VALUE_END,
 };
 
+static const struct mrs_field_hwcap id_aa64zfr0_aes_caps[] = {
+	MRS_HWCAP(2, HWCAP2_SVEAES, ID_AA64ZFR0_AES_BASE),
+	MRS_HWCAP(2, HWCAP2_SVEPMULL, ID_AA64ZFR0_AES_PMULL),
+	MRS_HWCAP_END,
+};
+
 static const struct mrs_field_value id_aa64zfr0_svever[] = {
 	MRS_FIELD_VALUE(ID_AA64ZFR0_SVEver_SVE1, "SVE1"),
 	MRS_FIELD_VALUE(ID_AA64ZFR0_SVEver_SVE2, "SVE2"),
+	MRS_FIELD_VALUE(ID_AA64ZFR0_SVEver_SVE2P1, "SVE2P1"),
 	MRS_FIELD_VALUE_END,
 };
 
+static const struct mrs_field_hwcap id_aa64zfr0_svever_caps[] = {
+	MRS_HWCAP(2, HWCAP2_SVE2, ID_AA64ZFR0_SVEver_SVE2),
+	MRS_HWCAP(2, HWCAP2_SVE2P1, ID_AA64ZFR0_SVEver_SVE2P1),
+	MRS_HWCAP_END,
+};
+
 static const struct mrs_field id_aa64zfr0_fields[] = {
-	MRS_FIELD(ID_AA64ZFR0, F64MM, false, MRS_EXACT, id_aa64zfr0_f64mm),
-	MRS_FIELD(ID_AA64ZFR0, F32MM, false, MRS_EXACT, id_aa64zfr0_f32mm),
-	MRS_FIELD(ID_AA64ZFR0, I8MM, false, MRS_EXACT, id_aa64zfr0_i8mm),
-	MRS_FIELD(ID_AA64ZFR0, SM4, false, MRS_EXACT, id_aa64zfr0_sm4),
-	MRS_FIELD(ID_AA64ZFR0, SHA3, false, MRS_EXACT, id_aa64zfr0_sha3),
-	MRS_FIELD(ID_AA64ZFR0, BF16, false, MRS_EXACT, id_aa64zfr0_bf16),
-	MRS_FIELD(ID_AA64ZFR0, BitPerm, false, MRS_EXACT, id_aa64zfr0_bitperm),
-	MRS_FIELD(ID_AA64ZFR0, AES, false, MRS_EXACT, id_aa64zfr0_aes),
-	MRS_FIELD(ID_AA64ZFR0, SVEver, false, MRS_EXACT, id_aa64zfr0_svever),
+	MRS_FIELD_HWCAP(ID_AA64ZFR0, F64MM, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64zfr0_f64mm, id_aa64zfr0_f64mm_caps),
+	MRS_FIELD_HWCAP(ID_AA64ZFR0, F32MM, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64zfr0_f32mm, id_aa64zfr0_f32mm_caps),
+	MRS_FIELD_HWCAP(ID_AA64ZFR0, I8MM, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64zfr0_i8mm, id_aa64zfr0_i8mm_caps),
+	MRS_FIELD_HWCAP(ID_AA64ZFR0, SM4, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64zfr0_sm4, id_aa64zfr0_sm4_caps),
+	MRS_FIELD_HWCAP(ID_AA64ZFR0, SHA3, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64zfr0_sha3, id_aa64zfr0_sha3_caps),
+	MRS_FIELD_HWCAP(ID_AA64ZFR0, BF16, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64zfr0_bf16, id_aa64zfr0_bf16_caps),
+	MRS_FIELD_HWCAP(ID_AA64ZFR0, BitPerm, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64zfr0_bitperm, id_aa64zfr0_bitperm_caps),
+	MRS_FIELD_HWCAP(ID_AA64ZFR0, AES, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64zfr0_aes, id_aa64zfr0_aes_caps),
+	MRS_FIELD_HWCAP(ID_AA64ZFR0, SVEver, false, MRS_LOWER, MRS_USERSPACE,
+	    id_aa64zfr0_svever, id_aa64zfr0_svever_caps),
 	MRS_FIELD_END,
 };
 
@@ -1695,17 +2039,19 @@ static const struct mrs_field_value id_isar5_sevl[] = {
 };
 
 static const struct mrs_field id_isar5_fields[] = {
-	MRS_FIELD(ID_ISAR5, VCMA, false, MRS_LOWER, id_isar5_vcma),
-	MRS_FIELD(ID_ISAR5, RDM, false, MRS_LOWER, id_isar5_rdm),
-	MRS_FIELD_HWCAP(ID_ISAR5, CRC32, false, MRS_LOWER, id_isar5_crc32,
-	    id_isar5_crc32_caps),
-	MRS_FIELD_HWCAP(ID_ISAR5, SHA2, false, MRS_LOWER, id_isar5_sha2,
-	    id_isar5_sha2_caps),
-	MRS_FIELD_HWCAP(ID_ISAR5, SHA1, false, MRS_LOWER, id_isar5_sha1,
-	    id_isar5_sha1_caps),
-	MRS_FIELD_HWCAP(ID_ISAR5, AES, false, MRS_LOWER, id_isar5_aes,
-	    id_isar5_aes_caps),
-	MRS_FIELD(ID_ISAR5, SEVL, false, MRS_LOWER, id_isar5_sevl),
+	MRS_FIELD(ID_ISAR5, VCMA, false, MRS_LOWER,MRS_USERSPACE,
+	    id_isar5_vcma),
+	MRS_FIELD(ID_ISAR5, RDM, false, MRS_LOWER, MRS_USERSPACE, id_isar5_rdm),
+	MRS_FIELD_HWCAP(ID_ISAR5, CRC32, false, MRS_LOWER, MRS_USERSPACE,
+	    id_isar5_crc32, id_isar5_crc32_caps),
+	MRS_FIELD_HWCAP(ID_ISAR5, SHA2, false, MRS_LOWER, MRS_USERSPACE,
+	    id_isar5_sha2, id_isar5_sha2_caps),
+	MRS_FIELD_HWCAP(ID_ISAR5, SHA1, false, MRS_LOWER, MRS_USERSPACE,
+	    id_isar5_sha1, id_isar5_sha1_caps),
+	MRS_FIELD_HWCAP(ID_ISAR5, AES, false, MRS_LOWER, MRS_USERSPACE,
+	    id_isar5_aes, id_isar5_aes_caps),
+	MRS_FIELD(ID_ISAR5, SEVL, false, MRS_LOWER, MRS_USERSPACE,
+	    id_isar5_sevl),
 	MRS_FIELD_END,
 };
 
@@ -1758,14 +2104,19 @@ static const struct mrs_field_value mvfr0_simdreg[] = {
 };
 
 static const struct mrs_field mvfr0_fields[] = {
-	MRS_FIELD(MVFR0, FPRound, false, MRS_LOWER, mvfr0_fpround),
-	MRS_FIELD(MVFR0, FPSqrt, false, MRS_LOWER, mvfr0_fpsqrt),
-	MRS_FIELD(MVFR0, FPDivide, false, MRS_LOWER, mvfr0_fpdivide),
-	MRS_FIELD(MVFR0, FPTrap, false, MRS_LOWER, mvfr0_fptrap),
-	MRS_FIELD_HWCAP(MVFR0, FPDP, false, MRS_LOWER, mvfr0_fpdp,
-	    mvfr0_fpdp_caps),
-	MRS_FIELD(MVFR0, FPSP, false, MRS_LOWER, mvfr0_fpsp),
-	MRS_FIELD(MVFR0, SIMDReg, false, MRS_LOWER, mvfr0_simdreg),
+	MRS_FIELD(MVFR0, FPRound, false, MRS_LOWER, MRS_USERSPACE,
+	    mvfr0_fpround),
+	MRS_FIELD(MVFR0, FPSqrt, false, MRS_LOWER, MRS_USERSPACE,
+	    mvfr0_fpsqrt),
+	MRS_FIELD(MVFR0, FPDivide, false, MRS_LOWER, MRS_USERSPACE,
+	    mvfr0_fpdivide),
+	MRS_FIELD(MVFR0, FPTrap, false, MRS_LOWER, MRS_USERSPACE,
+	    mvfr0_fptrap),
+	MRS_FIELD_HWCAP(MVFR0, FPDP, false, MRS_LOWER, MRS_USERSPACE,
+	    mvfr0_fpdp, mvfr0_fpdp_caps),
+	MRS_FIELD(MVFR0, FPSP, false, MRS_LOWER, MRS_USERSPACE, mvfr0_fpsp),
+	MRS_FIELD(MVFR0, SIMDReg, false, MRS_LOWER, MRS_USERSPACE,
+	    mvfr0_simdreg),
 	MRS_FIELD_END,
 };
 
@@ -1826,24 +2177,26 @@ static const struct mrs_field_value mvfr1_fpftz[] = {
 };
 
 static const struct mrs_field mvfr1_fields[] = {
-	MRS_FIELD_HWCAP(MVFR1, SIMDFMAC, false, MRS_LOWER, mvfr1_simdfmac,
-	    mvfr1_simdfmac_caps),
-	MRS_FIELD(MVFR1, FPHP, false, MRS_LOWER, mvfr1_fphp),
-	MRS_FIELD(MVFR1, SIMDHP, false, MRS_LOWER, mvfr1_simdhp),
-	MRS_FIELD(MVFR1, SIMDSP, false, MRS_LOWER, mvfr1_simdsp),
-	MRS_FIELD(MVFR1, SIMDInt, false, MRS_LOWER, mvfr1_simdint),
-	MRS_FIELD_HWCAP(MVFR1, SIMDLS, false, MRS_LOWER, mvfr1_simdls,
-	    mvfr1_simdls_caps),
-	MRS_FIELD(MVFR1, FPDNaN, false, MRS_LOWER, mvfr1_fpdnan),
-	MRS_FIELD(MVFR1, FPFtZ, false, MRS_LOWER, mvfr1_fpftz),
+	MRS_FIELD_HWCAP(MVFR1, SIMDFMAC, false, MRS_LOWER, MRS_USERSPACE,
+	    mvfr1_simdfmac, mvfr1_simdfmac_caps),
+	MRS_FIELD(MVFR1, FPHP, false, MRS_LOWER, MRS_USERSPACE, mvfr1_fphp),
+	MRS_FIELD(MVFR1, SIMDHP, false, MRS_LOWER, MRS_USERSPACE, mvfr1_simdhp),
+	MRS_FIELD(MVFR1, SIMDSP, false, MRS_LOWER, MRS_USERSPACE, mvfr1_simdsp),
+	MRS_FIELD(MVFR1, SIMDInt, false, MRS_LOWER, MRS_USERSPACE,
+	    mvfr1_simdint),
+	MRS_FIELD_HWCAP(MVFR1, SIMDLS, false, MRS_LOWER, MRS_USERSPACE,
+	    mvfr1_simdls, mvfr1_simdls_caps),
+	MRS_FIELD(MVFR1, FPDNaN, false, MRS_LOWER, MRS_USERSPACE,
+	    mvfr1_fpdnan),
+	MRS_FIELD(MVFR1, FPFtZ, false, MRS_LOWER, MRS_USERSPACE,
+	    mvfr1_fpftz),
 	MRS_FIELD_END,
 };
 #endif /* COMPAT_FREEBSD32 */
 
 struct mrs_user_reg {
 	u_int		reg;
-	u_int		CRm;
-	u_int		Op2;
+	u_int		iss;
 	bool		is64bit;
 	size_t		offset;
 	const struct mrs_field *fields;
@@ -1852,8 +2205,7 @@ struct mrs_user_reg {
 #define	USER_REG(name, field_name, _is64bit)				\
 	{								\
 		.reg = name,						\
-		.CRm = name##_CRm,					\
-		.Op2 = name##_op2,					\
+		.iss = name##_ISS,					\
 		.offset = __offsetof(struct cpu_desc, field_name),	\
 		.fields = field_name##_fields,				\
 		.is64bit = _is64bit,					\
@@ -1881,6 +2233,8 @@ static const struct mrs_user_reg user_regs[] = {
 
 	USER_REG(ID_AA64ZFR0_EL1, id_aa64zfr0, true),
 
+	USER_REG(CTR_EL0, ctr, true),
+
 #ifdef COMPAT_FREEBSD32
 	USER_REG(ID_ISAR5_EL1, id_isar5, false),
 
@@ -1892,48 +2246,187 @@ static const struct mrs_user_reg user_regs[] = {
 #define	CPU_DESC_FIELD(desc, idx)					\
     *(uint64_t *)((char *)&(desc) + user_regs[(idx)].offset)
 
-static int
-user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
-    uint32_t esr)
+static bool
+user_ctr_has_neoverse_n1_1542419(uint32_t midr, uint64_t ctr)
 {
-	uint64_t value;
-	int CRm, Op2, i, reg;
+	/* Skip non-Neoverse-N1 */
+	if (!CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK, CPU_IMPL_ARM,
+	    CPU_PART_NEOVERSE_N1, 0, 0))
+		return (false);
 
-	if ((insn & MRS_MASK) != MRS_VALUE)
-		return (0);
-
-	/*
-	 * We only emulate Op0 == 3, Op1 == 0, CRn == 0, CRm == {0, 4-7}.
-	 * These are in the EL1 CPU identification space.
-	 * CRm == 0 holds MIDR_EL1, MPIDR_EL1, and REVID_EL1.
-	 * CRm == {4-7} holds the ID_AA64 registers.
-	 *
-	 * For full details see the ARMv8 ARM (ARM DDI 0487C.a)
-	 * Table D9-2 System instruction encodings for non-Debug System
-	 * register accesses.
-	 */
-	if (mrs_Op0(insn) != 3 || mrs_Op1(insn) != 0 || mrs_CRn(insn) != 0)
-		return (0);
-
-	CRm = mrs_CRm(insn);
-	if (CRm > 7 || (CRm < 4 && CRm != 0))
-		return (0);
-
-	Op2 = mrs_Op2(insn);
-	value = 0;
-
-	for (i = 0; i < nitems(user_regs); i++) {
-		if (user_regs[i].CRm == CRm && user_regs[i].Op2 == Op2) {
-			if (SV_CURPROC_ABI() == SV_ABI_FREEBSD)
-				value = CPU_DESC_FIELD(user_cpu_desc, i);
-			else
-				value = CPU_DESC_FIELD(l_user_cpu_desc, i);
+	switch (CPU_VAR(midr)) {
+	default:
+		break;
+	case 4:
+		/* Fixed in r4p1 */
+		if (CPU_REV(midr) > 0)
 			break;
-		}
+		/* FALLTHROUGH */
+	case 3:
+		/* If DIC is enabled (coherent icache) then we are affected */
+		return (CTR_DIC_VAL(ctr) != 0);
 	}
 
-	if (CRm == 0) {
-		switch (Op2) {
+	return (false);
+}
+
+static bool
+user_ctr_check(const struct cpu_feat *feat __unused, u_int midr __unused)
+{
+	if (emulate_ctr)
+		return (true);
+
+	if (user_ctr_has_neoverse_n1_1542419(midr, READ_SPECIALREG(ctr_el0)))
+		return (true);
+
+	return (false);
+}
+
+static bool
+user_ctr_has_errata(const struct cpu_feat *feat __unused, u_int midr,
+    u_int **errata_list, u_int *errata_count)
+{
+	if (user_ctr_has_neoverse_n1_1542419(midr, READ_SPECIALREG(ctr_el0))) {
+		static u_int errata_id = 1542419;
+
+		*errata_list = &errata_id;
+		*errata_count = 1;
+		return (true);
+	}
+
+	return (false);
+}
+
+static void
+user_ctr_enable(const struct cpu_feat *feat __unused,
+    cpu_feat_errata errata_status, u_int *errata_list, u_int errata_count)
+{
+	MPASS(emulate_ctr || errata_status != ERRATA_NONE);
+
+	/*
+	 * The Errata Management Firmware Interface may incorrectly mark
+	 * this as firmware mitigated. We should ignore that as there is
+	 * a kernel component to the mitigation.
+	 */
+	if (errata_status != ERRATA_NONE && PCPU_GET(cpuid) == 0 &&
+	    cpu_feat_has_erratum(errata_list, errata_count, 1542419)) {
+		/* Clear fields we will change */
+		user_cpu_desc.ctr &= ~(CTR_DIC_MASK | CTR_ILINE_WIDTH);
+
+		/*
+		 * Set DIC to none so userspace will execute an 'ic ivau'
+		 * instruction that can be trapped by EL3.
+		 */
+		user_cpu_desc.ctr |= CTR_DIC_NONE;
+		/*
+		 * Set the i-cache line size to be page size to reduce the
+		 * number of times userspace needs to execute the 'ic ivau'
+		 * instruction. The ctr_el0.IminLine is log2 the number of
+		 * 4-byte words the instruction covers. As PAGE_SHIFT is log2
+		 * of the number of bytes in a page we need to subtract 2.
+		 */
+		user_cpu_desc.ctr |= (PAGE_SHIFT - 2) << CTR_ILINE_SHIFT;
+
+		l_user_cpu_desc.ctr = user_cpu_desc.ctr;
+	}
+
+	WRITE_SPECIALREG(sctlr_el1,
+	    READ_SPECIALREG(sctlr_el1) & ~SCTLR_UCT);
+	isb();
+}
+
+static struct cpu_feat user_ctr = {
+	.feat_name		= "Trap CTR_EL0",
+	.feat_check		= user_ctr_check,
+	.feat_has_errata	= user_ctr_has_errata,
+	.feat_enable		= user_ctr_enable,
+	.feat_flags		= CPU_FEAT_AFTER_DEV | CPU_FEAT_PER_CPU,
+};
+DATA_SET(cpu_feat_set, user_ctr);
+
+static bool
+user_ctr_handler(uint64_t esr, struct trapframe *frame)
+{
+	uint64_t value;
+	int reg;
+
+	if (ESR_ELx_EXCEPTION(esr) != EXCP_MSR)
+		return (false);
+
+	/* Only support reading from ctr_el0 */
+	if ((esr & ISS_MSR_DIR) == 0)
+		return (false);
+
+	/* Check if this is the ctr_el0 register */
+	if ((esr & ISS_MSR_REG_MASK) != CTR_EL0_ISS)
+		return (false);
+
+	if (SV_CURPROC_ABI() == SV_ABI_FREEBSD)
+		value = user_cpu_desc.ctr;
+	else
+		value = l_user_cpu_desc.ctr;
+	/*
+	 * We will handle this instruction, move to the next so we
+	 * don't trap here again.
+	 */
+	frame->tf_elr += INSN_SIZE;
+
+	reg = ISS_MSR_Rt(esr);
+	/* If reg is 31 then write to xzr, i.e. do nothing */
+	if (reg == 31)
+		return (true);
+
+	if (reg < nitems(frame->tf_x))
+		frame->tf_x[reg] = value;
+	else if (reg == 30)
+		frame->tf_lr = value;
+
+	return (true);
+}
+
+static bool
+user_idreg_handler(uint64_t esr, struct trapframe *frame)
+{
+	uint64_t value;
+	int reg;
+
+	if (ESR_ELx_EXCEPTION(esr) != EXCP_MSR)
+		return (false);
+
+	/* Only support reading from ID registers */
+	if ((esr & ISS_MSR_DIR) == 0)
+		return (false);
+
+	/*
+	 * This only handles the ID register space and a few registers that
+	 * are safe to pass through to userspace.
+	 *
+	 * These registers are all in the space op0 == 3, op1 == 0,
+	 * CRn == 0. We support the following CRm:
+	 *  - CRm == 0: midr_el1, mpidr_el1, and revidr_el1.
+	 *  - CRm in {4-7}: sanitized ID registers.
+	 *
+	 * Registers in the ID register space (CRm in {4-7}) are all
+	 * read-only and have either defined fields, or are read as
+	 * zero (RAZ). For these we return 0 for any unknown register.
+	 */
+	if (ISS_MSR_OP0(esr) != 3 || ISS_MSR_OP1(esr) != 0 ||
+	    ISS_MSR_CRn(esr) != 0)
+		return (false);
+
+	value = 0;
+	if (ISS_MSR_CRm(esr) >= 4 && ISS_MSR_CRm(esr) <= 7) {
+		for (int i = 0; i < nitems(user_regs); i++) {
+			if (user_regs[i].iss == (esr & ISS_MSR_REG_MASK)) {
+				if (SV_CURPROC_ABI() == SV_ABI_FREEBSD)
+					value = CPU_DESC_FIELD(user_cpu_desc, i);
+				else
+					value = CPU_DESC_FIELD(l_user_cpu_desc, i);
+				break;
+			}
+		}
+	} else if (ISS_MSR_CRm(esr) == 0) {
+		switch (ISS_MSR_OP2(esr)) {
 		case 0:
 			value = READ_SPECIALREG(midr_el1);
 			break;
@@ -1944,8 +2437,10 @@ user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 			value = READ_SPECIALREG(revidr_el1);
 			break;
 		default:
-			return (0);
+			return (false);
 		}
+	} else {
+		return (false);
 	}
 
 	/*
@@ -1954,7 +2449,7 @@ user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	 */
 	frame->tf_elr += INSN_SIZE;
 
-	reg = MRS_REGISTER(insn);
+	reg = ISS_MSR_Rt(esr);
 	/* If reg is 31 then write to xzr, i.e. do nothing */
 	if (reg == 31)
 		return (1);
@@ -1964,7 +2459,7 @@ user_mrs_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	else if (reg == 30)
 		frame->tf_lr = value;
 
-	return (1);
+	return (true);
 }
 
 /*
@@ -1999,27 +2494,6 @@ mrs_field_cmp(uint64_t a, uint64_t b, u_int shift, int width, bool sign)
 	}
 
 	return (a - b);
-}
-
-static uint64_t
-update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
-    int width, bool sign)
-{
-	uint64_t mask;
-
-	KASSERT(width > 0 && width < 64, ("%s: Invalid width %d", __func__,
-	    width));
-
-	/*
-	 * If the new value is less than the existing value update it.
-	 */
-	if (mrs_field_cmp(new_val, val, shift, width, sign) < 0) {
-		mask = (1ul << width) - 1;
-		val &= ~(mask << shift);
-		val |= new_val & (mask << shift);
-	}
-
-	return (val);
 }
 
 bool
@@ -2069,8 +2543,9 @@ get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
 			val = CPU_DESC_FIELD(kern_cpu_desc, i);
 			fields = user_regs[i].fields;
 			for (int j = 0; fields[j].type != 0; j++) {
-				mask = update_lower_register(mask, val,
-				    fields[j].shift, 4, fields[j].sign);
+				mask = update_special_reg_field(mask,
+				    fields[j].type, val, fields[j].width,
+				    fields[j].shift, fields[j].sign);
 			}
 			*valp = mask;
 			return (true);
@@ -2082,31 +2557,102 @@ get_kernel_reg_masked(u_int reg, uint64_t *valp, uint64_t mask)
 
 static uint64_t
 update_special_reg_field(uint64_t user_reg, u_int type, uint64_t value,
-    u_int shift, bool sign)
+    u_int width, u_int shift, bool sign)
 {
+	uint64_t cur, mask, new_val;
+
+	mask = ((1ul << width) - 1) << shift;
+	cur = user_reg & mask;
+	new_val = value & mask;
+
 	switch (type & MRS_TYPE_MASK) {
+	case MRS_EXACT_IF_DIFFERENT:
+		if (mrs_field_cmp(new_val, cur, shift, width, sign) == 0)
+			break;
+		/* FALLTHROUGH */
 	case MRS_EXACT:
-		user_reg &= ~(0xful << shift);
-		user_reg |= (uint64_t)MRS_EXACT_FIELD(type) << shift;
+		cur = (uint64_t)MRS_SAFE_VAL(type) << shift;
 		break;
 	case MRS_LOWER:
-		user_reg = update_lower_register(user_reg, value, shift, 4,
-		    sign);
+		if (mrs_field_cmp(new_val, cur, shift, width, sign) < 0)
+			cur = new_val;
+		break;
+	case MRS_HIGHER_OR_ZERO:
+		if (cur == 0 || new_val == 0) {
+			cur = 0;
+			break;
+		}
+		/* FALLTHROUGH */
+	case MRS_HIGHER:
+		if (mrs_field_cmp(new_val, cur, shift, width, sign) > 0)
+			cur = new_val;
 		break;
 	default:
 		panic("Invalid field type: %d", type);
 	}
 
+	user_reg &= ~mask;
+	user_reg |= cur;
+
 	return (user_reg);
+}
+
+static void
+clear_set_special_reg_idx(int idx, uint64_t clear, uint64_t set)
+{
+	const struct mrs_field *fields;
+	uint64_t k_old, k_new;
+	uint64_t f_old, f_new;
+	uint64_t l_old, l_new;
+
+	MPASS(idx < nitems(user_regs));
+
+	k_old = CPU_DESC_FIELD(kern_cpu_desc, idx);
+	k_new = (k_old & ~clear) | set;
+
+	f_old = CPU_DESC_FIELD(user_cpu_desc, idx);
+	f_new = (f_old & ~clear) | set;
+
+	l_old = CPU_DESC_FIELD(l_user_cpu_desc, idx);
+	l_new = (l_old & ~clear) | set;
+
+	fields = user_regs[idx].fields;
+	for (int j = 0; fields[j].type != 0; j++) {
+		u_int type;
+
+		/* Update the FreeBSD userspace ID register view */
+		type = ((fields[j].type & MRS_FREEBSD) != 0) ?
+		    fields[j].type :
+		    (MRS_EXACT | (fields[j].type & MRS_SAFE_MASK));
+		f_new = update_special_reg_field(f_new,
+		    type, f_old, fields[j].width, fields[j].shift,
+		    fields[j].sign);
+
+		/* Update the Linux userspace ID register view */
+		type = ((fields[j].type & MRS_LINUX) != 0) ?
+		    fields[j].type :
+		    (MRS_EXACT | (fields[j].type & MRS_SAFE_MASK));
+		l_new = update_special_reg_field(l_new,
+		    type, l_old, fields[j].width, fields[j].shift,
+		    fields[j].sign);
+
+		/* Update the kernel ID register view */
+		k_new = update_special_reg_field(k_new,
+		    fields[j].type, k_old, fields[j].width,
+		    fields[j].shift, fields[j].sign);
+	}
+
+	CPU_DESC_FIELD(kern_cpu_desc, idx) = k_new;
+	CPU_DESC_FIELD(user_cpu_desc, idx) = f_new;
+	CPU_DESC_FIELD(l_user_cpu_desc, idx) = l_new;
 }
 
 void
 update_special_regs(u_int cpu)
 {
 	struct cpu_desc *desc;
-	const struct mrs_field *fields;
-	uint64_t l_user_reg, user_reg, kern_reg, value;
-	int i, j;
+	uint64_t value;
+	int i;
 
 	if (cpu == 0) {
 		/* Create a user visible cpu description with safe values */
@@ -2124,35 +2670,42 @@ update_special_regs(u_int cpu)
 	for (i = 0; i < nitems(user_regs); i++) {
 		value = CPU_DESC_FIELD(*desc, i);
 		if (cpu == 0) {
-			kern_reg = value;
-			user_reg = value;
-			l_user_reg = value;
-		} else {
-			kern_reg = CPU_DESC_FIELD(kern_cpu_desc, i);
-			user_reg = CPU_DESC_FIELD(user_cpu_desc, i);
-			l_user_reg = CPU_DESC_FIELD(l_user_cpu_desc, i);
+			CPU_DESC_FIELD(kern_cpu_desc, i) = value;
+			CPU_DESC_FIELD(user_cpu_desc, i) = value;
+			CPU_DESC_FIELD(l_user_cpu_desc, i) = value;
 		}
 
-		fields = user_regs[i].fields;
-		for (j = 0; fields[j].type != 0; j++) {
-			/* Update the FreeBSD userspace ID register view */
-			user_reg = update_special_reg_field(user_reg,
-			    fields[j].type >> MRS_TYPE_FBSD_SHIFT, value,
-			    fields[j].shift, fields[j].sign);
+		clear_set_special_reg_idx(i, UINT64_MAX, value);
+	}
+}
 
-			/* Update the Linux userspace ID register view */
-			l_user_reg = update_special_reg_field(l_user_reg,
-			    fields[j].type >> MRS_TYPE_LNX_SHIFT, value,
-			    fields[j].shift, fields[j].sign);
+/*
+ * Updates a special register in all views. This creates a copy of the
+ * register then clears it and sets new bits. It will then compare this
+ * with the old version as if it was the ID register for a new CPU.
+ *
+ * It is intended to let code that disables features, e.g. due to errata,
+ * to clear the user visible field.
+ *
+ * This needs to be called before the HWCAPs are set. If called from a CPU
+ * feature handler this safe to call from CPU_FEAT_EARLY_BOOT. It also needs
+ * to be before link_elf_late_ireloc is called. As this is called after the
+ * HWCAPs are set the check for these is enough.
+ */
+void
+update_special_reg(u_int reg, uint64_t clear, uint64_t set)
+{
+	MPASS(hwcaps_set == false);
+	/* There is no locking here, so we only support changing this on CPU0 */
+	/* TODO: Add said locking */
+	MPASS(PCPU_GET(cpuid) == 0);
 
-			/* Update the kernel ID register view */
-			kern_reg = update_lower_register(kern_reg, value,
-			    fields[j].shift, 4, fields[j].sign);
-		}
+	for (int i = 0; i < nitems(user_regs); i++) {
+		if (user_regs[i].reg != reg)
+			continue;
 
-		CPU_DESC_FIELD(kern_cpu_desc, i) = kern_reg;
-		CPU_DESC_FIELD(user_cpu_desc, i) = user_reg;
-		CPU_DESC_FIELD(l_user_cpu_desc, i) = l_user_reg;
+		clear_set_special_reg_idx(i, clear, set);
+		return;
 	}
 }
 
@@ -2254,6 +2807,11 @@ identify_cpu_sysinit(void *dummy __unused)
 		prev_desc = desc;
 	}
 
+#ifdef INVARIANTS
+	/* Check we dont update the special registers after this point */
+	hwcaps_set = true;
+#endif
+
 	/* Find the values to export to userspace as AT_HWCAP and AT_HWCAP2 */
 	parse_cpu_features(true, &user_cpu_desc, &elf_hwcap, &elf_hwcap2);
 	parse_cpu_features(true, &l_user_cpu_desc, &linux_elf_hwcap,
@@ -2291,9 +2849,15 @@ identify_cpu_sysinit(void *dummy __unused)
 		panic("CPU does not support LSE atomic instructions");
 #endif
 
-	install_undef_handler(true, user_mrs_handler);
+	install_sys_handler(user_ctr_handler);
+	install_sys_handler(user_idreg_handler);
 }
-SYSINIT(identify_cpu, SI_SUB_CPU, SI_ORDER_MIDDLE, identify_cpu_sysinit, NULL);
+/*
+ * This needs to be after the APs have stareted as they may have errata that
+ * means we need to mask out ID registers & that could affect hwcaps, etc.
+ */
+SYSINIT(identify_cpu, SI_SUB_CONFIGURE, SI_ORDER_ANY, identify_cpu_sysinit,
+    NULL);
 
 static void
 cpu_features_sysinit(void *dummy __unused)
@@ -2365,46 +2929,6 @@ parse_cpu_features_hwcap32(void)
 #endif /* COMPAT_FREEBSD32 */
 
 static void
-print_ctr_fields(struct sbuf *sb, uint64_t reg, const void *arg __unused)
-{
-
-	sbuf_printf(sb, "%u byte D-cacheline,", CTR_DLINE_SIZE(reg));
-	sbuf_printf(sb, "%u byte I-cacheline,", CTR_ILINE_SIZE(reg));
-	reg &= ~(CTR_DLINE_MASK | CTR_ILINE_MASK);
-
-	switch(CTR_L1IP_VAL(reg)) {
-	case CTR_L1IP_VPIPT:
-		sbuf_printf(sb, "VPIPT");
-		break;
-	case CTR_L1IP_AIVIVT:
-		sbuf_printf(sb, "AIVIVT");
-		break;
-	case CTR_L1IP_VIPT:
-		sbuf_printf(sb, "VIPT");
-		break;
-	case CTR_L1IP_PIPT:
-		sbuf_printf(sb, "PIPT");
-		break;
-	}
-	sbuf_printf(sb, " ICache,");
-	reg &= ~CTR_L1IP_MASK;
-
-	sbuf_printf(sb, "%d byte ERG,", CTR_ERG_SIZE(reg));
-	sbuf_printf(sb, "%d byte CWG", CTR_CWG_SIZE(reg));
-	reg &= ~(CTR_ERG_MASK | CTR_CWG_MASK);
-
-	if (CTR_IDC_VAL(reg) != 0)
-		sbuf_printf(sb, ",IDC");
-	if (CTR_DIC_VAL(reg) != 0)
-		sbuf_printf(sb, ",DIC");
-	reg &= ~(CTR_IDC_MASK | CTR_DIC_MASK);
-	reg &= ~CTR_RES1;
-
-	if (reg != 0)
-		sbuf_printf(sb, ",%lx", reg);
-}
-
-static void
 print_register(struct sbuf *sb, const char *reg_name, uint64_t reg,
     void (*print_fields)(struct sbuf *, uint64_t, const void *),
     const void *arg)
@@ -2431,9 +2955,8 @@ print_id_fields(struct sbuf *sb, uint64_t reg, const void *arg)
 	for (i = 0; fields[i].type != 0; i++) {
 		fv = fields[i].values;
 
-		/* TODO: Handle with an unknown message */
 		if (fv == NULL)
-			continue;
+			goto next;
 
 		field = (reg & fields[i].mask) >> fields[i].shift;
 		for (j = 0; fv[j].desc != NULL; j++) {
@@ -2448,7 +2971,8 @@ print_id_fields(struct sbuf *sb, uint64_t reg, const void *arg)
 			sbuf_printf(sb, "%sUnknown %s(%x)", SEP_STR,
 			    fields[i].name, field);
 
-		reg &= ~(0xful << fields[i].shift);
+next:
+		reg &= ~(((1ul << fields[i].width) - 1) << fields[i].shift);
 	}
 
 	if (reg != 0)
@@ -2627,10 +3151,8 @@ print_cpu_features(u_int cpu, struct cpu_desc *desc,
     (prev_desc == NULL || desc->_reg != prev_desc->_reg)
 
 	/* Cache Type Register */
-	if (SHOULD_PRINT_REG(ctr)) {
-		print_register(sb, "Cache Type",
-		    desc->ctr, print_ctr_fields, NULL);
-	}
+	if (SHOULD_PRINT_REG(ctr))
+		print_id_register(sb, "Cache Type", desc->ctr, ctr_fields);
 
 	/* AArch64 Instruction Set Attribute Register 0 */
 	if (SHOULD_PRINT_REG(id_aa64isar0))
@@ -2749,9 +3271,6 @@ identify_cache(uint64_t ctr)
 	switch (CTR_L1IP_VAL(ctr)) {
 	case CTR_L1IP_PIPT:
 		break;
-	case CTR_L1IP_VPIPT:
-		icache_vmid = true;
-		break;
 	default:
 	case CTR_L1IP_VIPT:
 		icache_aliasing = true;
@@ -2868,6 +3387,12 @@ check_cpu_regs(u_int cpu, struct cpu_desc *desc, struct cpu_desc *prev_desc)
 	}
 
 	if (desc->ctr != prev_desc->ctr) {
+		/*
+		 * If the cache is different on different cores we should
+		 * emulate for userspace to provide a uniform value
+		 */
+		emulate_ctr = true;
+
 		/*
 		 * If the cache type register is different we may
 		 * have a different l1 cache type.

@@ -94,7 +94,8 @@ iop_pci_attach(device_t dev)
 
     if (!iop_init(sc))
 	return 0;
-    return bus_generic_attach(dev);
+    bus_attach_children(dev);
+    return (0);
 }
 
 static int

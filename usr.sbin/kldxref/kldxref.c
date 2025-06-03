@@ -51,7 +51,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "ef.h"
+#include <kldelf.h>
 
 #define	MAXRECSIZE	(64 << 10)	/* 64k */
 #define check(val)	if ((error = (val)) != 0) break

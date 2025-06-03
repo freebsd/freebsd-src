@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 21, 2012
+.Dd January 9, 2025
 .Dt BUS_CHILD_DETACHED 9
 .Os
 .Sh NAME
@@ -39,7 +39,10 @@
 .Sh DESCRIPTION
 The
 .Fn BUS_CHILD_DETACHED
-method is invoked by the new-bus framework after a device is detached.
+method is invoked by the new-bus framework after a device is detached
+or if a driver's attach routine
+.Pq see Xr DEVICE_ATTACH 9
+fails.
 A bus driver can provide an implementation of this method to
 reclaim any resources allocated on behalf of the child or
 to cleanup state not properly released by a

@@ -598,10 +598,10 @@ _rm_wlock_debug(struct rmlock *rm, const char *file, int line)
 		return;
 
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
-	    ("rm_wlock() by idle thread %p on rmlock %s @ %s:%d",
-	    curthread, rm->lock_object.lo_name, file, line));
+	    ("rm_wlock() by idle thread %p on rmlock %p @ %s:%d",
+	    curthread, rm, file, line));
 	KASSERT(!rm_destroyed(rm),
-	    ("rm_wlock() of destroyed rmlock @ %s:%d", file, line));
+	    ("rm_wlock() of destroyed rmlock %p @ %s:%d", rm, file, line));
 	_rm_assert(rm, RA_UNLOCKED, file, line);
 
 	WITNESS_CHECKORDER(&rm->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE,
@@ -622,7 +622,7 @@ _rm_wunlock_debug(struct rmlock *rm, const char *file, int line)
 		return;
 
 	KASSERT(!rm_destroyed(rm),
-	    ("rm_wunlock() of destroyed rmlock @ %s:%d", file, line));
+	    ("rm_wunlock() of destroyed rmlock %p @ %s:%d", rm, file, line));
 	_rm_assert(rm, RA_WLOCKED, file, line);
 	WITNESS_UNLOCK(&rm->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("RMWUNLOCK", &rm->lock_object, 0, 0, file, line);
@@ -643,16 +643,16 @@ _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 		critical_enter();
 		KASSERT(rm_trackers_present(get_pcpu(), rm,
 		    curthread) == 0,
-		    ("rm_rlock: recursed on non-recursive rmlock %s @ %s:%d\n",
-		    rm->lock_object.lo_name, file, line));
+		    ("rm_rlock: recursed on non-recursive rmlock %p @ %s:%d\n",
+		    rm, file, line));
 		critical_exit();
 	}
 #endif
 	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
-	    ("rm_rlock() by idle thread %p on rmlock %s @ %s:%d",
-	    curthread, rm->lock_object.lo_name, file, line));
+	    ("rm_rlock() by idle thread %p on rmlock %p @ %s:%d",
+	    curthread, rm, file, line));
 	KASSERT(!rm_destroyed(rm),
-	    ("rm_rlock() of destroyed rmlock @ %s:%d", file, line));
+	    ("rm_rlock() of destroyed rmlock %p @ %s:%d", rm, file, line));
 	if (!trylock) {
 		KASSERT(!rm_wowned(rm),
 		    ("rm_rlock: wlock already held for %s @ %s:%d",
@@ -686,7 +686,7 @@ _rm_runlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 		return;
 
 	KASSERT(!rm_destroyed(rm),
-	    ("rm_runlock() of destroyed rmlock @ %s:%d", file, line));
+	    ("rm_runlock() of destroyed rmlock %p @ %s:%d", rm, file, line));
 	_rm_assert(rm, RA_RLOCKED, file, line);
 	WITNESS_UNLOCK(&rm->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("RMRUNLOCK", &rm->lock_object, 0, 0, file, line);

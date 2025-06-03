@@ -95,24 +95,6 @@ typedef struct {
 } lzma_check_state;
 
 
-/// lzma_crc32_table[0] is needed by LZ encoder so we need to keep
-/// the array two-dimensional.
-#ifdef HAVE_SMALL
-lzma_attr_visibility_hidden
-extern uint32_t lzma_crc32_table[1][256];
-
-extern void lzma_crc32_init(void);
-
-#else
-
-lzma_attr_visibility_hidden
-extern const uint32_t lzma_crc32_table[8][256];
-
-lzma_attr_visibility_hidden
-extern const uint64_t lzma_crc64_table[4][256];
-#endif
-
-
 /// \brief      Initialize *check depending on type
 extern void lzma_check_init(lzma_check_state *check, lzma_check type);
 

@@ -228,7 +228,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 }
 
 int
-cpu_set_user_tls(struct thread *td, void *tls_base)
+cpu_set_user_tls(struct thread *td, void *tls_base, int thr_flags __unused)
 {
 
 	td->td_pcb->pcb_regs.sf_tpidrurw = (register_t)tls_base;
@@ -276,6 +276,13 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 	td->td_pcb->pcb_regs.sf_r4 = (register_t)func;	/* function */
 	td->td_pcb->pcb_regs.sf_r5 = (register_t)arg;	/* first arg */
+}
+
+void
+cpu_update_pcb(struct thread *td)
+{
+	MPASS(td == curthread);
+	td->td_pcb->pcb_regs.sf_tpidrurw = (register_t)get_tls();
 }
 
 void

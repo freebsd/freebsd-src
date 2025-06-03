@@ -53,7 +53,7 @@
 
 #include <asm/atomic.h>
 
-#define	MAX_SCHEDULE_TIMEOUT	INT_MAX
+#define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
 
 #define	TASK_RUNNING		0x0000
 #define	TASK_INTERRUPTIBLE	0x0001
@@ -160,7 +160,7 @@ void linux_send_sig(int signo, struct task_struct *task);
 	linux_send_sig(signo, task);			\
 } while (0)
 
-int linux_schedule_timeout(int timeout);
+long linux_schedule_timeout(long timeout);
 
 static inline void
 linux_schedule_save_interrupt_value(struct task_struct *task, int value)

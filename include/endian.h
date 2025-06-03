@@ -12,11 +12,12 @@
 #define _ENDIAN_H_
 
 /*
- * POSIX Issue 8 requires that endian.h define uint{16,32,64}_t. Although POSIX
+ * POSIX.1-2024 requires that endian.h define uint{16,32,64}_t. Although POSIX
  * allows stdint.h symbols here, be conservative and only define there required
  * ones. FreeBSD's sys/_endian.h doesn't need to expose those types since it
  * implements all the [bl]eXtoh hto[bl]eX interfaces as macros calling builtin
- * functions. POSIX allows functions, macros or both. We opt for macros only.
+ * functions. POSIX.1-2024 allows functions, macros or both. We opt for macros
+ * only.
  */
 #include <sys/_types.h>
 
@@ -37,7 +38,7 @@ typedef	__uint64_t		uint64_t;
 
 /*
  * FreeBSD's sys/_endian.h is very close to the interface provided on Linux by
- * glibc's endian.h as well as POSIX Issue 8's endian.h.
+ * glibc's endian.h as well as POSIX.1-2024's endian.h.
  */
 #include <sys/_endian.h>
 

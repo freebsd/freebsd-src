@@ -170,11 +170,15 @@ sfF_flag_head()
 }
 sfF_flag_body()
 {
-	atf_check mkdir A B C
+	atf_check mkdir A B C D D/A
 	atf_check ln -sF A C
 	atf_check_symlink_to A C
 	atf_check ln -sfF B C
 	atf_check_symlink_to B C
+	atf_check ln -sfF A D/
+	atf_check_symlink_to A D/A
+	atf_check ln -sfF ../A .
+	atf_check_symlink_to ../A A
 }
 
 atf_test_case s_flag

@@ -58,7 +58,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * RealTek RTL8150 USB to fast ethernet controller driver.
  * Datasheet is available from

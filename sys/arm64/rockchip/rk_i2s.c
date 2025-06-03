@@ -91,16 +91,20 @@
 #define		TXFIFO0LR_MASK		0x3f
 #define	I2S_DMACR	0x0010
 #define		I2S_DMACR_RDE_ENABLE	(1 << 24)
-#define		I2S_DMACR_RDL(n)	((n) << 16)
+#define		I2S_DMACR_RDL(n)	(((n) - 1) << 16)
 #define		I2S_DMACR_TDE_ENABLE	(1 << 8)
 #define		I2S_DMACR_TDL(n)	((n) << 0)
 #define	I2S_INTCR	0x0014
 #define		I2S_INTCR_RFT(n)	(((n) - 1) << 20)
-#define		I2S_INTCR_TFT(n)	(((n) - 1) << 4)
+#define		I2S_INTCR_TFT(n)	((n) << 4)
+#define		I2S_INTCR_RXOIC		(1 << 18)
+#define		I2S_INTCR_RXOIE		(1 << 17)
 #define		I2S_INTCR_RXFIE		(1 << 16)
 #define		I2S_INTCR_TXUIC		(1 << 2)
+#define		I2S_INTCR_TXUIE		(1 << 1)
 #define		I2S_INTCR_TXEIE		(1 << 0)
 #define	I2S_INTSR	0x0018
+#define		I2S_INTSR_RXOI		(1 << 17)
 #define		I2S_INTSR_RXFI		(1 << 16)
 #define		I2S_INTSR_TXUI		(1 << 1)
 #define		I2S_INTSR_TXEI		(1 << 0)

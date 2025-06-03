@@ -1,5 +1,7 @@
 
-# $File: espressif,v 1.3 2021/04/26 15:56:00 christos Exp $
+#------------------------------------------------------------------------------
+# $File: espressif,v 1.4 2024/06/10 23:09:52 christos Exp $
+# espressif:  file(1) magic for ESP8266 based devices
 # configuration dump of Tasmota firmware for ESP8266 based devices by Espressif
 # URL: https://github.com/arendst/Sonoff-Tasmota/
 # Reference: https://codeload.github.com/arendst/Sonoff-Tasmota/zip/release-6.2/

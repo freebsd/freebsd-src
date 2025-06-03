@@ -2,6 +2,10 @@
  * Copyright (c) 2016 Matthew Macy (mmacy@mattmacy.io)
  * Copyright (c) 2017-2021 Hans Petter Selasky (hselasky@freebsd.org)
  * All rights reserved.
+ * Copyright (c) 2024 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Björn Zeeb
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -243,6 +247,33 @@ linux_rcu_read_unlock(unsigned type)
 	critical_exit();
 
 	sched_unpin();
+}
+
+bool
+linux_rcu_read_lock_held(unsigned type)
+{
+#ifdef INVARINATS
+	struct linux_epoch_record *record __diagused;
+	struct task_struct *ts;
+
+	MPASS(type < RCU_TYPE_MAX);
+
+	if (RCU_SKIP())
+		return (false);
+
+	if (__current_unallocated(curthread))
+		return (false);
+
+	ts = current;
+	if (ts->rcu_recurse[type] == 0)
+		return (false);
+
+	MPASS(curthread->td_pinned != 0);
+	MPASS((record = &DPCPU_GET(linux_epoch_record[type])) &&
+	    record->epoch_record.active != 0);
+#endif
+
+	return (true);
 }
 
 static void

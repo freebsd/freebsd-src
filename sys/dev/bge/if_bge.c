@@ -3949,7 +3949,6 @@ bge_detach(device_t dev)
 		ifmedia_removeall(&sc->bge_ifmedia);
 	else if (sc->bge_miibus != NULL) {
 		bus_generic_detach(dev);
-		device_delete_child(dev, sc->bge_miibus);
 	}
 
 	bge_release_resources(sc);

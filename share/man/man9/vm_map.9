@@ -49,15 +49,15 @@ subordinate maps, created using the
 function.
 .Bd -literal -offset indent
 struct vm_map {
-        struct vm_map_entry header;
-        struct sx lock;
-        struct mtx system_mtx;
+	struct vm_map_entry header;
+	union {
+	        struct sx lock;
+		struct mtx system_mtx;
+	};
         int nentries;
         vm_size_t size;
         u_int timestamp;
-        u_char needs_wakeup;
-        u_char system_map;
-        vm_flags_t flags;
+        u_int flags;
         vm_map_entry_t root;
         pmap_t pmap;
         int busy;
@@ -83,12 +83,6 @@ A count of the members in use within the circular map entry list.
 Specifies the size of the virtual address space.
 .It Va timestamp
 Used to determine if the map has changed since its last access.
-.It Va needs_wakeup
-Indicates if a thread is waiting for an allocation within the map.
-Used only by system maps.
-.It Va system_map
-Set to TRUE to indicate that map is a system map; otherwise, it belongs
-to a user process.
 .It Va flags
 Map flags, described below.
 .It Va root
@@ -106,6 +100,12 @@ Possible map flags:
 Wire all future pages in this map.
 .It Dv MAP_BUSY_WAKEUP
 There are waiters for the map busy status.
+.It Va MAP_NEEDS_WAKEUP
+Indicates if a thread is waiting for an allocation within the map.
+Used only by system maps.
+.It Va MAP_SYSTEM_MAP
+If set, indicates that the map is the system map; otherwise, it belongs
+to a user process.
 .El
 .Pp
 The following flags can be passed to

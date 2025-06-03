@@ -156,10 +156,12 @@ rtwn_usb_alloc_tx_list(struct rtwn_softc *sc)
 	if (error != 0)
 		return (error);
 
-	STAILQ_INIT(&uc->uc_tx_active);
-	STAILQ_INIT(&uc->uc_tx_inactive);
-	STAILQ_INIT(&uc->uc_tx_pending);
+	for (i = RTWN_BULK_TX_FIRST; i < RTWN_BULK_EP_COUNT; i++) {
+		STAILQ_INIT(&uc->uc_tx_active[i]);
+		STAILQ_INIT(&uc->uc_tx_pending[i]);
+	}
 
+	STAILQ_INIT(&uc->uc_tx_inactive);
 	for (i = 0; i < RTWN_USB_TX_LIST_COUNT; i++)
 		STAILQ_INSERT_HEAD(&uc->uc_tx_inactive, &uc->uc_tx[i], next);
 
@@ -207,23 +209,29 @@ static void
 rtwn_usb_free_tx_list(struct rtwn_softc *sc)
 {
 	struct rtwn_usb_softc *uc = RTWN_USB_SOFTC(sc);
+	int i;
 
 	rtwn_usb_free_list(sc, uc->uc_tx, RTWN_USB_TX_LIST_COUNT);
 
-	STAILQ_INIT(&uc->uc_tx_active);
+	for (i = RTWN_BULK_TX_FIRST; i < RTWN_BULK_EP_COUNT; i++) {
+		STAILQ_INIT(&uc->uc_tx_active[i]);
+		STAILQ_INIT(&uc->uc_tx_pending[i]);
+	}
 	STAILQ_INIT(&uc->uc_tx_inactive);
-	STAILQ_INIT(&uc->uc_tx_pending);
 }
 
 static void
 rtwn_usb_reset_lists(struct rtwn_softc *sc, struct ieee80211vap *vap)
 {
 	struct rtwn_usb_softc *uc = RTWN_USB_SOFTC(sc);
+	int i;
 
 	RTWN_ASSERT_LOCKED(sc);
 
-	rtwn_usb_reset_tx_list(uc, &uc->uc_tx_active, vap);
-	rtwn_usb_reset_tx_list(uc, &uc->uc_tx_pending, vap);
+	for (i = RTWN_BULK_TX_FIRST; i < RTWN_BULK_EP_COUNT; i++) {
+		rtwn_usb_reset_tx_list(uc, &uc->uc_tx_active[i], vap);
+		rtwn_usb_reset_tx_list(uc, &uc->uc_tx_pending[i], vap);
+	}
 	if (vap == NULL) {
 		rtwn_usb_reset_rx_list(uc);
 		sc->qfullmsk = 0;
@@ -295,7 +303,7 @@ rtwn_usb_abort_xfers(struct rtwn_softc *sc)
 
 	/* abort any pending transfers */
 	RTWN_UNLOCK(sc);
-	for (i = 0; i < RTWN_N_TRANSFER; i++)
+	for (i = 0; i < RTWN_BULK_EP_COUNT; i++)
 		usbd_transfer_drain(uc->uc_xfer[i]);
 	RTWN_LOCK(sc);
 }
@@ -432,7 +440,7 @@ rtwn_usb_detach(device_t self)
 	rtwn_usb_free_rx_list(sc);
 
 	/* Detach all USB transfers. */
-	usbd_transfer_unsetup(uc->uc_xfer, RTWN_N_TRANSFER);
+	usbd_transfer_unsetup(uc->uc_xfer, RTWN_BULK_EP_COUNT);
 
 	rtwn_detach_private(sc);
 	mtx_destroy(&sc->sc_mtx);

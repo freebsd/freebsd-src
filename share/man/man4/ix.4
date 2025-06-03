@@ -1,0 +1,179 @@
+.\" Copyright (c) 2001-2008, Intel Corporation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice,
+.\"    this list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" 3. Neither the name of the Intel Corporation nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" * Other names and brands may be claimed as the property of others.
+.\"
+.Dd October 26, 2024
+.Dt IX 4
+.Os
+.Sh NAME
+.Nm ix
+.Nd Intel 10Gb Ethernet driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iflib"
+.Cd "device ix"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ix_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for Intel(R) 10Gb Ethernet PCIe adapters.
+The driver supports Jumbo Frames, MSIX, TSO, and RSS.
+.Pp
+For questions related to hardware requirements,
+refer to the documentation supplied with your Intel 10GbE adapter.
+All hardware requirements listed apply to use with
+.Fx .
+.Pp
+Support for Jumbo Frames is provided via the interface MTU setting.
+Selecting an MTU larger than 1500 bytes with the
+.Xr ifconfig 8
+utility configures the adapter to receive and transmit Jumbo Frames.
+The maximum MTU size for Jumbo Frames is 9710.
+.Pp
+This driver version supports VLANs.
+For information on enabling VLANs, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Intel 10Gb Ethernet PCIe adapters,
+including:
+.Pp
+.Bl -bullet -compact
+.It
+Intel(R) Ethernet X553
+.It
+Intel(R) Ethernet X552
+.It
+Intel(R) Ethernet X550
+.It
+Intel(R) Ethernet X540 Bypass
+.It
+Intel(R) Ethernet X540
+.It
+Intel(R) Ethernet X520 Bypass (82599)
+.It
+Intel(R) Ethernet X520 (82599)
+.It
+Intel(R) 10 Gigabit Server Adapter (82598EB)
+.El
+.Sh LOADER TUNABLES
+The
+.Nm
+driver supports the following loader tunables:
+.Bl -tag -width "hw.ix.allow_unsupported_sfp"
+.It Va hw.ix.max_interrupt_rate
+Maximum interrupts per second.
+.It Va hw.ix.flow_control
+Default flow control used for all adapters.
+.It Va hw.ix.advertise_speed
+Default advertised speed for all adapters.
+.It Va hw.ix.enable_msix
+Enable Message Signalled Interrupts (MSI-X).
+.It Va hw.ix.allow_unsupported_sfp
+Allow unsupported small form-factor pluggable
+.Pq SFP
+modules.
+Use at your own risk.
+.It Va hw.ix.enable_fdir
+Enable Flow Director.
+Flow Director directs Ethernet packets to the core where the
+packet consuming process, application, container,
+or microservice is running.
+.It Va hw.ix.enable_rss
+Enable Receive-Side Scaling (RSS).
+When RSS is enabled, all of the receive data processing for
+a particular TCP connection is shared across multiple processors
+or processor cores.
+Without RSS, all of the processing is performed by a single
+processor, resulting in inefficient system cache utilization.
+This has no effect if your system has only one processing unit.
+.It Va hw.ix.enable_aim
+Enable Adaptive Interrupt Moderation (AIM).
+Vary the interrupt rate over time based on the traffic for
+that interrupt vector.
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "ix%d: Unable to allocate bus resource: memory"
+A fatal initialization error has occurred.
+.It "ix%d: Unable to allocate bus resource: interrupt"
+A fatal initialization error has occurred.
+.It "ix%d: watchdog timeout -- resetting"
+The device has stopped responding to the network, or there is a problem with
+the network connection (cable).
+.El
+.Sh SUPPORT
+For general information and support,
+go to the Intel support website at:
+.Pa http://support.intel.com .
+.Pp
+If an issue is identified with the released source code on the supported kernel
+with a supported adapter, email the specific information related to the
+issue to
+.Aq Mt freebsd@intel.com .
+.Sh SEE ALSO
+.Xr altq 4 ,
+.Xr arp 4 ,
+.Xr iflib 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr polling 4 ,
+.Xr vlan 4 ,
+.Xr ifconfig 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Intel Corporation Aq Mt freebsd@intel.com .
+.Sh CAVEATS
+Intel (R) Flow director support is not fully implemented in
+.Fx
+at this time and additional work is required
+before those features can be supported.
+.Pp
+Enabling flow director may route traffic to the wrong RX queue of the NIC,
+resulting in sub-optimal performance on the receive side.

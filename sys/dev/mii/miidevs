@@ -63,6 +63,7 @@ oui LEVEL1			0x00207b	Level 1
 oui MARVELL			0x005043	Marvell Semiconductor
 oui MICREL			0x0010a1	Micrel
 oui MOTORCOMM			0x000000	Motorcomm
+oui MOTORCOMM2			0xc82b5e	Motorcomm
 oui MYSON			0x00c0b4	Myson Technology
 oui NATSEMI			0x080017	National Semiconductor
 oui PMCSIERRA			0x00e004	PMC-Sierra
@@ -295,6 +296,7 @@ model MICREL KSZ9031		0x0022 Micrel KSZ9031 10/100/1000 PHY
 
 /* Motorcomm PHYs */
 model MOTORCOMM YT8511		0x010a Motorcomm YT8511 10/100/1000 PHY
+model MOTORCOMM2 YT8531		0x0011 Motorcomm YT8531 10/100/1000 PHY
 
 /* Myson Technology PHYs */
 model xxMYSON MTD972		0x0000 MTD972 10/100 media interface

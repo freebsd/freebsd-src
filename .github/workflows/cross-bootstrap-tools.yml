@@ -18,21 +18,21 @@ jobs:
       fail-fast: false
       matrix:
         target_arch: [ amd64, aarch64 ]
-        os: [ ubuntu-20.04, ubuntu-22.04, macos-latest ]
+        os: [ ubuntu-22.04, ubuntu-24.04, macos-latest ]
         include:
           # TODO: both Ubuntu and macOS have bmake packages, we should try them instead of bootstrapping our own copy.
-          - os: ubuntu-20.04
-            compiler: clang-12
-            cross-bindir: /usr/lib/llvm-12/bin
-            pkgs: bmake libarchive-dev clang-12 lld-12
           - os: ubuntu-22.04
             compiler: clang-14
             cross-bindir: /usr/lib/llvm-14/bin
             pkgs: bmake libarchive-dev clang-14 lld-14
+          - os: ubuntu-24.04
+            compiler: clang-18
+            cross-bindir: /usr/lib/llvm-18/bin
+            pkgs: bmake libarchive-dev clang-18 lld-18
           - os: macos-latest
-            compiler: clang-13
-            cross-bindir: /opt/homebrew/opt/llvm@13/bin
-            pkgs: bmake libarchive llvm@13
+            compiler: clang-18
+            cross-bindir: /opt/homebrew/opt/llvm@18/bin
+            pkgs: bmake libarchive llvm@18
           - target_arch: amd64
             target: amd64
           - target_arch: aarch64

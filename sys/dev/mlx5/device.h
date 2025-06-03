@@ -727,6 +727,7 @@ struct mlx5_cqe64 {
 	u8		signature;
 	u8		op_own;
 };
+_Static_assert(sizeof(struct mlx5_cqe64) == 0x40, "CQE layout broken");
 
 #define	MLX5_CQE_TSTMP_PTP	(1ULL << 63)
 

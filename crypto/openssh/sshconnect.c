@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.366 2024/01/11 01:45:36 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.368 2024/04/30 02:10:49 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -57,6 +57,7 @@
 #include "sshkey.h"
 #include "sshconnect.h"
 #include "log.h"
+#include "match.h"
 #include "misc.h"
 #include "readconf.h"
 #include "atomicio.h"
@@ -647,7 +648,7 @@ get_hostfile_hostname_ipaddr(char *hostname, struct sockaddr *hostaddr,
 		if (options.proxy_command == NULL) {
 			if (getnameinfo(hostaddr, addrlen,
 			    ntop, sizeof(ntop), NULL, 0, NI_NUMERICHOST) != 0)
-			fatal_f("getnameinfo failed");
+				fatal_f("getnameinfo failed");
 			*hostfile_ipaddr = put_host_port(ntop, port);
 		} else {
 			*hostfile_ipaddr = xstrdup("<no hostip for proxy "
@@ -715,6 +716,29 @@ try_tilde_unexpand(const char *path)
 		l++;
 	xasprintf(&ret, "~/%s", path + l);
 	return ret;
+}
+
+/*
+ * Returns non-zero if the key is accepted by HostkeyAlgorithms.
+ * Made slightly less trivial by the multiple RSA signature algorithm names.
+ */
+int
+hostkey_accepted_by_hostkeyalgs(const struct sshkey *key)
+{
+	const char *ktype = sshkey_ssh_name(key);
+	const char *hostkeyalgs = options.hostkeyalgorithms;
+
+	if (key->type == KEY_UNSPEC)
+		return 0;
+	if (key->type == KEY_RSA &&
+	    (match_pattern_list("rsa-sha2-256", hostkeyalgs, 0) == 1 ||
+	    match_pattern_list("rsa-sha2-512", hostkeyalgs, 0) == 1))
+		return 1;
+	if (key->type == KEY_RSA_CERT &&
+	    (match_pattern_list("rsa-sha2-512-cert-v01@openssh.com", hostkeyalgs, 0) == 1 ||
+	    match_pattern_list("rsa-sha2-256-cert-v01@openssh.com", hostkeyalgs, 0) == 1))
+		return 1;
+	return match_pattern_list(ktype, hostkeyalgs, 0) == 1;
 }
 
 static int
@@ -1017,6 +1041,12 @@ check_host_key(char *hostname, const struct ssh_conn_info *cinfo,
 	}
 
  retry:
+	if (!hostkey_accepted_by_hostkeyalgs(host_key)) {
+		error("host key %s not permitted by HostkeyAlgorithms",
+		    sshkey_ssh_name(host_key));
+		goto fail;
+	}
+
 	/* Reload these as they may have changed on cert->key downgrade */
 	want_cert = sshkey_is_cert(host_key);
 	type = sshkey_type(host_key);

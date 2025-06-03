@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
@@ -46,13 +47,6 @@ secpolicy_nfs(cred_t *cr)
 
 int
 secpolicy_zfs(cred_t *cr)
-{
-
-	return (priv_check_cred(cr, PRIV_VFS_MOUNT));
-}
-
-int
-secpolicy_zfs_proc(cred_t *cr, proc_t *proc)
 {
 
 	return (priv_check_cred(cr, PRIV_VFS_MOUNT));

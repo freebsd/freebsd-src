@@ -1,6 +1,0 @@
-; example rpz file
-rpz.example.com. 3600 IN SOA ns1.rpz.example.com. hostmaster.rpz.example.com. 1379078166 28800 7200 604800 7200
-	NS ns1.rpz.example.com.
-	NS ns2.rpz.example.com.
-foo.example.net	CNAME .
-www.example.net	A	1.2.3.4

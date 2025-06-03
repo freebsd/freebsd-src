@@ -6,7 +6,7 @@ SRCS=	rpc.tlsservd.c rpc.tlscommon.c rpctlssd.h rpctlssd_svc.c rpctlssd_xdr.c
 
 CFLAGS+= -I.
 
-LIBADD=	ssl crypto util
+LIBADD=	ssl crypto util pthread
 
 CLEANFILES= rpctlssd_svc.c rpctlssd_xdr.c rpctlssd.h
 

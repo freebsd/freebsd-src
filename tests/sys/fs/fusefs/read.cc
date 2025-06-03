@@ -111,6 +111,13 @@ class ReadAhead: public Read,
 	}
 };
 
+class ReadMaxRead: public Read {
+	virtual void SetUp() {
+		m_maxread = 16384;
+		Read::SetUp();
+	}
+};
+
 class ReadNoatime: public Read {
 	virtual void SetUp() {
 		m_noatime = true;
@@ -837,6 +844,52 @@ TEST_F(Read, mmap)
 	ASSERT_EQ(0, memcmp(p, CONTENTS, bufsize));
 
 	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
+	leak(fd);
+}
+
+
+/* When max_read is set, large reads will be split up as necessary */
+TEST_F(ReadMaxRead, split)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = 65536;
+	ssize_t fragsize = bufsize / 4;
+	char *rbuf, *frag0, *frag1, *frag2, *frag3;
+
+	rbuf = new char[bufsize]();
+	frag0 = new char[fragsize]();
+	frag1 = new char[fragsize]();
+	frag2 = new char[fragsize]();
+	frag3 = new char[fragsize]();
+	memset(frag0, '0', fragsize);
+	memset(frag1, '1', fragsize);
+	memset(frag2, '2', fragsize);
+	memset(frag3, '3', fragsize);
+
+	expect_lookup(RELPATH, ino, bufsize);
+	expect_open(ino, 0, 1);
+	expect_read(ino,            0, fragsize, fragsize, frag0);
+	expect_read(ino,     fragsize, fragsize, fragsize, frag1);
+	expect_read(ino, 2 * fragsize, fragsize, fragsize, frag2);
+	expect_read(ino, 3 * fragsize, fragsize, fragsize, frag3);
+
+	fd = open(FULLPATH, O_RDONLY);
+	ASSERT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(bufsize, read(fd, rbuf, bufsize)) << strerror(errno);
+	ASSERT_EQ(0, memcmp(rbuf,                frag0, fragsize));
+	ASSERT_EQ(0, memcmp(rbuf + fragsize,     frag1, fragsize));
+	ASSERT_EQ(0, memcmp(rbuf + 2 * fragsize, frag2, fragsize));
+	ASSERT_EQ(0, memcmp(rbuf + 3 * fragsize, frag3, fragsize));
+
+	delete[] frag3;
+	delete[] frag2;
+	delete[] frag1;
+	delete[] frag0;
+	delete[] rbuf;
 	leak(fd);
 }
 

@@ -496,7 +496,8 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	    P2_ASLR_IGNSTART | P2_NOTRACE | P2_NOTRACE_EXEC |
 	    P2_PROTMAX_ENABLE | P2_PROTMAX_DISABLE | P2_TRAPCAP |
 	    P2_STKGAP_DISABLE | P2_STKGAP_DISABLE_EXEC | P2_NO_NEW_PRIVS |
-	    P2_WXORX_DISABLE | P2_WXORX_ENABLE_EXEC);
+	    P2_WXORX_DISABLE | P2_WXORX_ENABLE_EXEC | P2_LOGSIGEXIT_CTL |
+	    P2_LOGSIGEXIT_ENABLE);
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
@@ -607,7 +608,8 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	 * been preserved.
 	 */
 	p2->p_flag |= p1->p_flag & P_SUGID;
-	td2->td_pflags |= (td->td_pflags & (TDP_ALTSTACK | TDP_SIGFASTBLOCK));
+	td2->td_pflags |= td->td_pflags & (TDP_ALTSTACK | TDP_SIGFASTBLOCK);
+	td2->td_pflags2 |= td->td_pflags2 & TDP2_UEXTERR;
 	SESS_LOCK(p1->p_session);
 	if (p1->p_session->s_ttyvp != NULL && p1->p_flag & P_CONTROLT)
 		p2->p_flag |= P_CONTROLT;
@@ -1085,7 +1087,7 @@ fail0:
 #endif
 	racct_proc_exit(newproc);
 fail1:
-	proc_unset_cred(newproc);
+	proc_unset_cred(newproc, false);
 fail2:
 	if (vm2 != NULL)
 		vmspace_free(vm2);

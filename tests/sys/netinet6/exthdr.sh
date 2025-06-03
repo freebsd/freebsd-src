@@ -32,7 +32,7 @@ exthdr_head() {
 
 	atf_set descr 'Test IPv6 extension header code paths'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 exthdr_body() {

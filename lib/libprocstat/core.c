@@ -57,22 +57,62 @@ struct procstat_core
 	GElf_Phdr	pc_phdr;
 };
 
-static struct psc_type_info {
+static const struct psc_type_info {
 	unsigned int	n_type;
 	int		structsize;
 } psc_type_info[PSC_TYPE_MAX] = {
-	{ .n_type  = NT_PROCSTAT_PROC, .structsize = sizeof(struct kinfo_proc) },
-	{ .n_type = NT_PROCSTAT_FILES, .structsize = sizeof(struct kinfo_file) },
-	{ .n_type = NT_PROCSTAT_VMMAP, .structsize = sizeof(struct kinfo_vmentry) },
-	{ .n_type = NT_PROCSTAT_GROUPS, .structsize = sizeof(gid_t) },
-	{ .n_type = NT_PROCSTAT_UMASK, .structsize = sizeof(u_short) },
-	{ .n_type = NT_PROCSTAT_RLIMIT, .structsize = sizeof(struct rlimit) * RLIM_NLIMITS },
-	{ .n_type = NT_PROCSTAT_OSREL, .structsize = sizeof(int) },
-	{ .n_type = NT_PROCSTAT_PSSTRINGS, .structsize = sizeof(vm_offset_t) },
-	{ .n_type = NT_PROCSTAT_PSSTRINGS, .structsize = sizeof(vm_offset_t) },
-	{ .n_type = NT_PROCSTAT_PSSTRINGS, .structsize = sizeof(vm_offset_t) },
-	{ .n_type = NT_PROCSTAT_AUXV, .structsize = sizeof(Elf_Auxinfo) },
-	{ .n_type = NT_PTLWPINFO, .structsize = sizeof(struct ptrace_lwpinfo) },
+	[PSC_TYPE_PROC] = {
+		.n_type  = NT_PROCSTAT_PROC,
+		.structsize = sizeof(struct kinfo_proc)
+	},
+	[PSC_TYPE_FILES] = {
+		.n_type = NT_PROCSTAT_FILES,
+		.structsize = sizeof(struct kinfo_file)
+	},
+	[PSC_TYPE_VMMAP] = {
+		.n_type = NT_PROCSTAT_VMMAP,
+		.structsize = sizeof(struct kinfo_vmentry)
+	},
+	[PSC_TYPE_GROUPS] = {
+		.n_type = NT_PROCSTAT_GROUPS,
+		.structsize = sizeof(gid_t)
+	},
+	[PSC_TYPE_UMASK] = {
+		.n_type = NT_PROCSTAT_UMASK,
+		.structsize = sizeof(u_short)
+	},
+	[PSC_TYPE_RLIMIT] = {
+		.n_type = NT_PROCSTAT_RLIMIT,
+		.structsize = sizeof(struct rlimit) * RLIM_NLIMITS
+	},
+	[PSC_TYPE_OSREL] = {
+		.n_type = NT_PROCSTAT_OSREL,
+		.structsize = sizeof(int)
+	},
+	[PSC_TYPE_PSSTRINGS] = {
+		.n_type = NT_PROCSTAT_PSSTRINGS,
+		.structsize = sizeof(vm_offset_t)
+	},
+	[PSC_TYPE_ARGV] = {
+		.n_type = NT_PROCSTAT_PSSTRINGS,
+		.structsize = sizeof(vm_offset_t)
+	},
+	[PSC_TYPE_ENVV] = {
+		.n_type = NT_PROCSTAT_PSSTRINGS,
+		.structsize = sizeof(vm_offset_t)
+	},
+	[PSC_TYPE_AUXV] = {
+		.n_type = NT_PROCSTAT_AUXV,
+		.structsize = sizeof(Elf_Auxinfo)
+	},
+	[PSC_TYPE_PTLWPINFO] = {
+		.n_type = NT_PTLWPINFO,
+		.structsize = sizeof(struct ptrace_lwpinfo)
+	},
+	[PSC_TYPE_KQUEUES] = {
+		.n_type = NT_PROCSTAT_KQUEUES,
+		.structsize = sizeof(struct kinfo_knote)
+	},
 };
 
 static bool	core_offset(struct procstat_core *core, off_t offset);

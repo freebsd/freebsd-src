@@ -34,10 +34,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_capsicum.h"
 #include "opt_ktrace.h"
 
+#define	EXTERR_CATEGORY	EXTERR_CAT_FILEDESC
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -46,9 +46,11 @@
 #include <sys/filio.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/exterrvar.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/protosw.h>
 #include <sys/socketvar.h>
 #include <sys/uio.h>
 #include <sys/eventfd.h>
@@ -1049,14 +1051,26 @@ kern_pselect(struct thread *td, int nd, fd_set *in, fd_set *ou, fd_set *ex,
 		if (error != 0)
 			return (error);
 		td->td_pflags |= TDP_OLDMASK;
+	}
+	error = kern_select(td, nd, in, ou, ex, tvp, abi_nfdbits);
+	if (uset != NULL) {
 		/*
 		 * Make sure that ast() is called on return to
 		 * usermode and TDP_OLDMASK is cleared, restoring old
-		 * sigmask.
+		 * sigmask.  If we didn't get interrupted, then the caller is
+		 * likely not expecting a signal to hit that should normally be
+		 * blocked by its signal mask, so we restore the mask before
+		 * any signals could be delivered.
 		 */
-		ast_sched(td, TDA_SIGSUSPEND);
+		if (error == EINTR) {
+			ast_sched(td, TDA_SIGSUSPEND);
+		} else {
+			/* *select(2) should never restart. */
+			MPASS(error != ERESTART);
+			ast_sched(td, TDA_PSELECT);
+		}
 	}
-	error = kern_select(td, nd, in, ou, ex, tvp, abi_nfdbits);
+
 	return (error);
 }
 
@@ -1528,12 +1542,6 @@ kern_poll_kfds(struct thread *td, struct pollfd *kfds, u_int nfds,
 		if (error)
 			return (error);
 		td->td_pflags |= TDP_OLDMASK;
-		/*
-		 * Make sure that ast() is called on return to
-		 * usermode and TDP_OLDMASK is cleared, restoring old
-		 * sigmask.
-		 */
-		ast_sched(td, TDA_SIGSUSPEND);
 	}
 
 	seltdinit(td);
@@ -1556,6 +1564,22 @@ kern_poll_kfds(struct thread *td, struct pollfd *kfds, u_int nfds,
 		error = EINTR;
 	if (error == EWOULDBLOCK)
 		error = 0;
+
+	if (uset != NULL) {
+		/*
+		 * Make sure that ast() is called on return to
+		 * usermode and TDP_OLDMASK is cleared, restoring old
+		 * sigmask.  If we didn't get interrupted, then the caller is
+		 * likely not expecting a signal to hit that should normally be
+		 * blocked by its signal mask, so we restore the mask before
+		 * any signals could be delivered.
+		 */
+		if (error == EINTR)
+			ast_sched(td, TDA_SIGSUSPEND);
+		else
+			ast_sched(td, TDA_PSELECT);
+	}
+
 	return (error);
 }
 
@@ -1795,7 +1819,7 @@ selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
 	 */
 	for (;;) {
 		selfdalloc(td, NULL);
-		if (sopoll(so, events, NULL, td) != 0) {
+		if (so->so_proto->pr_sopoll(so, events, td) != 0) {
 			error = 0;
 			break;
 		}
@@ -2176,4 +2200,84 @@ file_kcmp_generic(struct file *fp1, struct file *fp2, struct thread *td)
 	if (fp1->f_type != fp2->f_type)
 		return (3);
 	return (kcmp_cmp((uintptr_t)fp1->f_data, (uintptr_t)fp2->f_data));
+}
+
+int
+exterr_to_ue(struct thread *td, struct uexterror *ue)
+{
+	if ((td->td_pflags2 & TDP2_EXTERR) == 0)
+		return (ENOENT);
+
+	memset(ue, 0, sizeof(*ue));
+	ue->error = td->td_kexterr.error;
+	ue->cat = td->td_kexterr.cat;
+	ue->src_line = td->td_kexterr.src_line;
+	ue->p1 = td->td_kexterr.p1;
+	ue->p2 = td->td_kexterr.p2;
+	if (td->td_kexterr.msg != NULL)
+		strlcpy(ue->msg, td->td_kexterr.msg, sizeof(ue->msg));
+	return (0);
+}
+
+void
+exterr_copyout(struct thread *td)
+{
+	struct uexterror ue;
+	ksiginfo_t ksi;
+	void *uloc;
+	size_t sz;
+	int error;
+
+	MPASS((td->td_pflags2 & TDP2_UEXTERR) != 0);
+
+	uloc = (char *)td->td_exterr_ptr + __offsetof(struct uexterror,
+	    error);
+	error = exterr_to_ue(td, &ue);
+	if (error != 0) {
+		ue.error = 0;
+		sz = sizeof(ue.error);
+	} else {
+		sz = sizeof(ue) - __offsetof(struct uexterror, error);
+	}
+	error = copyout(&ue.error, uloc, sz);
+	if (error != 0) {
+		td->td_pflags2 &= ~TDP2_UEXTERR;
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGSEGV;
+		ksi.ksi_code = SEGV_ACCERR;
+		ksi.ksi_addr = uloc;
+		trapsignal(td, &ksi);
+	}
+}
+
+int
+sys_exterrctl(struct thread *td, struct exterrctl_args *uap)
+{
+	uint32_t ver;
+	int error;
+
+	if ((uap->flags & ~(EXTERRCTLF_FORCE)) != 0)
+		return (EINVAL);
+	switch (uap->op) {
+	case EXTERRCTL_ENABLE:
+		if ((td->td_pflags2 & TDP2_UEXTERR) != 0 &&
+		    (uap->flags & EXTERRCTLF_FORCE) == 0)
+			return (EBUSY);
+		td->td_pflags2 &= ~TDP2_UEXTERR;
+		error = copyin(uap->ptr, &ver, sizeof(ver));
+		if (error != 0)
+			return (error);
+		if (ver != UEXTERROR_VER)
+			return (EINVAL);
+		td->td_pflags2 |= TDP2_UEXTERR;
+		td->td_exterr_ptr = uap->ptr;
+		return (0);
+	case EXTERRCTL_DISABLE:
+		if ((td->td_pflags2 & TDP2_UEXTERR) == 0)
+			return (EINVAL);
+		td->td_pflags2 &= ~TDP2_UEXTERR;
+		return (0);
+	default:
+		return (EINVAL);
+	}
 }

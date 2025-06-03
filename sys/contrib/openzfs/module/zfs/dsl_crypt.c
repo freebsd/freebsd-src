@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -717,7 +718,7 @@ spa_keystore_dsl_key_hold_dd(spa_t *spa, dsl_dir_t *dd, const void *tag,
 		avl_insert(&spa->spa_keystore.sk_dsl_keys, dck_io, where);
 		*dck_out = dck_io;
 	} else {
-		dsl_crypto_key_free(dck_io);
+		dsl_crypto_key_rele(dck_io, tag);
 		*dck_out = dck_ks;
 	}
 
@@ -1497,7 +1498,7 @@ spa_keystore_change_key_sync_impl(uint64_t rddobj, uint64_t ddobj,
 	}
 
 	zc = kmem_alloc(sizeof (zap_cursor_t), KM_SLEEP);
-	za = kmem_alloc(sizeof (zap_attribute_t), KM_SLEEP);
+	za = zap_attribute_alloc();
 
 	/* Recurse into all child dsl dirs. */
 	for (zap_cursor_init(zc, dp->dp_meta_objset,
@@ -1529,7 +1530,7 @@ spa_keystore_change_key_sync_impl(uint64_t rddobj, uint64_t ddobj,
 	}
 	zap_cursor_fini(zc);
 
-	kmem_free(za, sizeof (zap_attribute_t));
+	zap_attribute_free(za);
 	kmem_free(zc, sizeof (zap_cursor_t));
 
 	dsl_dir_rele(dd, FTAG);
@@ -2738,8 +2739,11 @@ spa_do_crypt_objset_mac_abd(boolean_t generate, spa_t *spa, uint64_t dsobj,
 	}
 
 	if (memcmp(portable_mac, osp->os_portable_mac,
-	    ZIO_OBJSET_MAC_LEN) != 0 ||
-	    memcmp(local_mac, osp->os_local_mac, ZIO_OBJSET_MAC_LEN) != 0) {
+	    ZIO_OBJSET_MAC_LEN) != 0) {
+		abd_return_buf(abd, buf, datalen);
+		return (SET_ERROR(ECKSUM));
+	}
+	if (memcmp(local_mac, osp->os_local_mac, ZIO_OBJSET_MAC_LEN) != 0) {
 		/*
 		 * If the MAC is zeroed out, we failed to decrypt it.
 		 * This should only arise, at least on Linux,

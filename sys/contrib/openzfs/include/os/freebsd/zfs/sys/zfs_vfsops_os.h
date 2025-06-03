@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -76,13 +77,14 @@ struct zfsvfs {
 	list_t		z_all_znodes;	/* all vnodes in the fs */
 	kmutex_t	z_znodes_lock;	/* lock for z_all_znodes */
 	struct zfsctl_root	*z_ctldir;	/* .zfs directory pointer */
-	boolean_t	z_show_ctldir;	/* expose .zfs in the root dir */
+	uint_t		z_show_ctldir;	/* how to expose .zfs in the root dir */
 	boolean_t	z_issnap;	/* true if this is a snapshot */
 	boolean_t	z_use_fuids;	/* version allows fuids */
 	boolean_t	z_replay;	/* set during ZIL replay */
 	boolean_t	z_use_sa;	/* version allow system attributes */
 	boolean_t	z_xattr_sa;	/* allow xattrs to be stores as SA */
 	boolean_t	z_use_namecache; /* make use of FreeBSD name cache */
+	boolean_t	z_longname;	/* Dataset supports long names */
 	uint8_t		z_xattr;	/* xattr type in use */
 	uint64_t	z_version;	/* ZPL version */
 	uint64_t	z_shares_dir;	/* hidden shares dir */
@@ -94,6 +96,12 @@ struct zfsvfs {
 	uint64_t	z_groupobjquota_obj;
 	uint64_t	z_projectquota_obj;
 	uint64_t	z_projectobjquota_obj;
+	uint64_t	z_defaultuserquota;
+	uint64_t	z_defaultgroupquota;
+	uint64_t	z_defaultprojectquota;
+	uint64_t	z_defaultuserobjquota;
+	uint64_t	z_defaultgroupobjquota;
+	uint64_t	z_defaultprojectobjquota;
 	uint64_t	z_replay_eof;	/* New end of file - replay only */
 	sa_attr_type_t	*z_attr_table;	/* SA attr mapping->id */
 #define	ZFS_OBJ_MTX_SZ	64
@@ -224,6 +232,8 @@ extern boolean_t zfs_is_readonly(zfsvfs_t *zfsvfs);
 extern int zfs_get_temporary_prop(struct dsl_dataset *ds, zfs_prop_t zfs_prop,
     uint64_t *val, char *setpoint);
 extern int zfs_busy(void);
+extern int zfs_set_default_quota(zfsvfs_t *zfsvfs, zfs_prop_t zfs_prop,
+    uint64_t quota);
 
 #ifdef	__cplusplus
 }

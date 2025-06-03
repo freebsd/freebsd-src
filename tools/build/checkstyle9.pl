@@ -12,7 +12,7 @@ use Term::ANSIColor qw(:constants);
 my $P = $0;
 $P =~ s@.*/@@g;
 
-our $SrcFile    = qr{\.(?:h|c|cpp|s|S|pl|py|sh)$};
+our $SrcFile    = qr{\.(?:h|c|cpp|hpp|hh|cc|S|sh)$};
 
 my $V = '0.31';
 
@@ -1253,7 +1253,6 @@ sub process {
 
 	my $in_header_lines = $file ? 0 : 1;
 	my $in_commit_log = 0;		#Scanning lines before patch
-	my $has_sob = 0;
 	my $non_utf8_charset = 0;
 
 	our @report = ();
@@ -1439,7 +1438,7 @@ sub process {
 # Check for incorrect file permissions
 		if ($line =~ /^new (file )?mode.*[7531]\d{0,2}$/) {
 			my $permhere = $here . "FILE: $realfile\n";
-			if ($realfile =~ /(\bMakefile(?:\.objs)?|\.c|\.cc|\.cpp|\.h|\.mak|\.[sS])$/) {
+			if ($realfile =~ /(\bMakefile(?:\.objs)?|\.c|\.cc|\.cpp|\.h|\.hpp|\.mak|\.[sS])$/) {
 				ERROR("do not set execute permissions for source files\n" . $permhere);
 			}
 		}
@@ -1447,29 +1446,6 @@ sub process {
 # Accept git diff extended headers as valid patches
 		if ($line =~ /^(?:rename|copy) (?:from|to) [\w\/\.\-]+\s*$/) {
 			$is_patch = 1;
-		}
-
-# Filter out bad email addresses.
-		if ($line =~ /^(Author|From): .*noreply.*/) {
-		    ERROR("Real email adress is needed\n" . $herecurr);
-		}
-
-#check the patch for a signoff:
-		if ($line =~ /^\s*signed-off-by:/i) {
-			# This is a signoff, if ugly, so do not double report.
-			$in_commit_log = 0;
-			$has_sob = 1;
-
-			if (!($line =~ /^\s*Signed-off-by:/)) {
-				ERROR("The correct form is \"Signed-off-by\"\n" .
-					$herecurr);
-				$has_sob = 0;
-			}
-			if ($line =~ /^\s*signed-off-by:\S/i) {
-				ERROR("space required after Signed-off-by:\n" .
-					$herecurr);
-				$has_sob = 0;
-			}
 		}
 
 # Check for wrappage within a valid hunk of the file
@@ -1572,7 +1548,7 @@ sub process {
 		}
 
 # check we are in a valid C source file if not then ignore this hunk
-		next if ($realfile !~ /\.(h|c|cpp)$/);
+		next if ($realfile !~ /\.(h|hpp|c|cpp|cc|hh)$/);
 
 # Block comment styles
 
@@ -1971,7 +1947,7 @@ sub process {
 			{
 
 			# Ignore 'catch (...)' in C++
-			} elsif ($name =~ /^catch$/ && $realfile =~ /(\.cpp|\.h)$/) {
+			} elsif ($name =~ /^catch$/ && $realfile =~ /\.(cpp|h|hpp|hh|cc)$/) {
 
 			# cpp #define statements have non-optional spaces, ie
 			# if there is a space between the name and the open
@@ -2068,7 +2044,7 @@ sub process {
 
 				# Ignore : used in class declaration in C++
 				} elsif ($opv eq ':B' && $ctx =~ /Wx[WE]/ &&
-						 $line =~ /class/ && $realfile =~ /(\.cpp|\.h)$/) {
+						 $line =~ /class/ && $realfile =~ /\.(cpp|h|hpp|hh|cc)$/) {
 
 				# No spaces for:
 				#   ->
@@ -2096,7 +2072,7 @@ sub process {
 				} elsif ($op eq '!' || $op eq '~' ||
 					 $opv eq '*U' || $opv eq '-U' ||
 					 $opv eq '&U' || $opv eq '&&U') {
-					if ($op eq '~' && $ca =~ /::$/ && $realfile =~ /(\.cpp|\.h)$/) {
+					if ($op eq '~' && $ca =~ /::$/ && $realfile =~ /\.(cpp|h|hpp|cc|hh)$/) {
 						# '~' used as a name of Destructor
 
 					} elsif ($ctx !~ /[WEBC]x./ && $ca !~ /(?:\)|!|~|\*|-|\&|\||\+\+|\-\-|\{)$/) {
@@ -2133,7 +2109,7 @@ sub process {
 				} elsif ($ctx !~ /[EWC]x[CWE]/) {
 					my $ok = 0;
 
-					if ($realfile =~ /\.cpp|\.h$/) {
+					if ($realfile =~ /\.(cpp|h|hpp|cc|hh)$/) {
 						# Ignore template arguments <...> in C++
 						if (($op eq '<' || $op eq '>') && $line =~ /<.*>/) {
 							$ok = 1;
@@ -2652,10 +2628,6 @@ sub process {
 		}
 	}
 
-	}
-
-	if ($has_sob == 0) {
-	    WARN("Missing Signed-off-by: line");
 	}
 
 	# If we have no input at all, then there is nothing to report on

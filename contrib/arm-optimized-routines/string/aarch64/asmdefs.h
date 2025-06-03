@@ -21,19 +21,6 @@
 #define FEATURE_1_PAC 2
 
 /* Add a NT_GNU_PROPERTY_TYPE_0 note.  */
-#ifdef __ILP32__
-#define GNU_PROPERTY(type, value)	\
-  .section .note.gnu.property, "a";	\
-  .p2align 2;				\
-  .word 4;				\
-  .word 12;				\
-  .word 5;				\
-  .asciz "GNU";				\
-  .word type;				\
-  .word 4;				\
-  .word value;				\
-  .text
-#else
 #define GNU_PROPERTY(type, value)	\
   .section .note.gnu.property, "a";	\
   .p2align 3;				\
@@ -46,7 +33,6 @@
   .word value;				\
   .word 0;				\
   .text
-#endif
 
 /* If set then the GNU Property Note section will be added to
    mark objects to support BTI and PAC-RET.  */
@@ -79,28 +65,5 @@ GNU_PROPERTY (FEATURE_1_AND, FEATURE_1_BTI|FEATURE_1_PAC)
   .size name, .-name;
 
 #define L(l) .L ## l
-
-#ifdef __ILP32__
-  /* Sanitize padding bits of pointer arguments as per aapcs64 */
-#define PTR_ARG(n)  mov w##n, w##n
-#else
-#define PTR_ARG(n)
-#endif
-
-#ifdef __ILP32__
-  /* Sanitize padding bits of size arguments as per aapcs64 */
-#define SIZE_ARG(n)  mov w##n, w##n
-#else
-#define SIZE_ARG(n)
-#endif
-
-/* Compiler supports SVE instructions  */
-#ifndef HAVE_SVE
-# if __aarch64__ && (__GNUC__ >= 8 || __clang_major__ >= 5)
-#   define HAVE_SVE 1
-# else
-#   define HAVE_SVE 0
-# endif
-#endif
 
 #endif

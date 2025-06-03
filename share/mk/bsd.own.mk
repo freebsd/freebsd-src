@@ -146,7 +146,7 @@
 # SYMLINKMODE	Symbolic link mode [755]
 
 .if !target(__<bsd.own.mk>__)
-__<bsd.own.mk>__:
+__<bsd.own.mk>__:	.NOTMAIN
 
 .include <bsd.opts.mk>		# options now here or src.opts.mk
 
@@ -272,8 +272,10 @@ XZ_THREADS?=	0
 
 .if !empty(XZ_THREADS)
 XZ_CMD?=	xz -T ${XZ_THREADS}
+TAR_XZ_CMD?=	${TAR_CMD} -J --options xz:threads=${XZ_THREADS}
 .else
 XZ_CMD?=	xz
+TAR_XZ_CMD?=	${TAR_CMD} -J
 .endif
 
 PKG_CMD?=	pkg

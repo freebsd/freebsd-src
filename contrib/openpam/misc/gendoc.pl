@@ -53,11 +53,11 @@ DARPA/SPAWAR contract N66001-01-C-8035
 as part of the DARPA CHATS research program.
 .Pp
 The OpenPAM library is maintained by
-.An Dag-Erling Sm\\(/orgrav Aq Mt des\@des.no .",
+.An Dag-Erling Sm\\(/orgrav Aq Mt des\@des.dev .",
     UIO => "developed for the University of Oslo by
-.An Dag-Erling Sm\\(/orgrav Aq Mt des\@des.no .",
+.An Dag-Erling Sm\\(/orgrav Aq Mt des\@des.dev .",
     DES => "developed by
-.An Dag-Erling Sm\\(/orgrav Aq Mt des\@des.no .",
+.An Dag-Erling Sm\\(/orgrav Aq Mt des\@des.dev .",
 );
 
 %PAMERR = (

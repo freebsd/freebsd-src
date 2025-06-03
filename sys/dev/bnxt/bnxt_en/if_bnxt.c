@@ -147,6 +147,14 @@ static const pci_vendor_info_t bnxt_vendor_info_array[] =
 	"Broadcom BCM57504 NetXtreme-E Ethernet Partition"),
     PVID(BROADCOM_VENDOR_ID, BCM57502,
 	"Broadcom BCM57502 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57608,
+	"Broadcom BCM57608 NetXtreme-E 25Gb/50Gb/100Gb/200Gb/400Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57604,
+	"Broadcom BCM57604 NetXtreme-E 25Gb/50Gb/100Gb/200Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57602,
+	"Broadcom BCM57602 NetXtreme-E 25Gb/50Gb Ethernet"),
+    PVID(BROADCOM_VENDOR_ID, BCM57601,
+	"Broadcom BCM57601 NetXtreme-E 25Gb/50Gb Ethernet"),
     PVID(BROADCOM_VENDOR_ID, NETXTREME_C_VF1,
 	"Broadcom NetXtreme-C Ethernet Virtual Function"),
     PVID(BROADCOM_VENDOR_ID, NETXTREME_C_VF2,
@@ -229,7 +237,7 @@ static void bnxt_clear_ids(struct bnxt_softc *softc);
 static void inline bnxt_do_enable_intr(struct bnxt_cp_ring *cpr);
 static void inline bnxt_do_disable_intr(struct bnxt_cp_ring *cpr);
 static void bnxt_mark_cpr_invalid(struct bnxt_cp_ring *cpr);
-static void bnxt_def_cp_task(void *context);
+static void bnxt_def_cp_task(void *context, int pending);
 static void bnxt_handle_async_event(struct bnxt_softc *softc,
     struct cmpl_base *cmpl);
 static uint64_t bnxt_get_baudrate(struct bnxt_link_info *link);
@@ -419,6 +427,18 @@ bnxt_nq_free(struct bnxt_softc *softc)
 	softc->nq_rings = NULL;
 }
 
+
+static void
+bnxt_set_db_mask(struct bnxt_softc *bp, struct bnxt_ring *db,
+		 u32 ring_type)
+{
+	if (BNXT_CHIP_P7(bp)) {
+		db->db_epoch_mask = db->db_ring_mask + 1;
+		db->db_epoch_shift = DBR_EPOCH_SFT - ilog2(db->db_epoch_mask);
+
+	}
+}
+
 /*
  * Device Dependent Configuration Functions
 */
@@ -434,7 +454,7 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 
 	softc = iflib_get_softc(ctx);
 
-	if (BNXT_CHIP_P5(softc)) {
+	if (BNXT_CHIP_P5_PLUS(softc)) {
 		bnxt_nq_alloc(softc, ntxqsets);
 		if (!softc->nq_rings) {
 			device_printf(iflib_get_dev(ctx),
@@ -479,12 +499,15 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->tx_cp_rings[i].ring.idx = i;
 		softc->tx_cp_rings[i].ring.id =
 		    (softc->scctx->isc_nrxqsets * 2) + 1 + i;
-		softc->tx_cp_rings[i].ring.doorbell = (BNXT_CHIP_P5(softc)) ?
-			DB_PF_OFFSET_P5: softc->tx_cp_rings[i].ring.id * 0x80;
+		softc->tx_cp_rings[i].ring.doorbell = (BNXT_CHIP_P5_PLUS(softc)) ?
+			softc->legacy_db_size: softc->tx_cp_rings[i].ring.id * 0x80;
 		softc->tx_cp_rings[i].ring.ring_size =
 		    softc->scctx->isc_ntxd[0];
+		softc->tx_cp_rings[i].ring.db_ring_mask =
+		    softc->tx_cp_rings[i].ring.ring_size - 1;
 		softc->tx_cp_rings[i].ring.vaddr = vaddrs[i * ntxqs];
 		softc->tx_cp_rings[i].ring.paddr = paddrs[i * ntxqs];
+
 
 		/* Set up the TX ring */
 		softc->tx_rings[i].phys_id = (uint16_t)HWRM_NA_SIGNATURE;
@@ -492,15 +515,16 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->tx_rings[i].idx = i;
 		softc->tx_rings[i].id =
 		    (softc->scctx->isc_nrxqsets * 2) + 1 + i;
-		softc->tx_rings[i].doorbell = (BNXT_CHIP_P5(softc)) ?
-			DB_PF_OFFSET_P5 : softc->tx_rings[i].id * 0x80;
+		softc->tx_rings[i].doorbell = (BNXT_CHIP_P5_PLUS(softc)) ?
+			softc->legacy_db_size : softc->tx_rings[i].id * 0x80;
 		softc->tx_rings[i].ring_size = softc->scctx->isc_ntxd[1];
+		softc->tx_rings[i].db_ring_mask = softc->tx_rings[i].ring_size - 1;
 		softc->tx_rings[i].vaddr = vaddrs[i * ntxqs + 1];
 		softc->tx_rings[i].paddr = paddrs[i * ntxqs + 1];
 
 		bnxt_create_tx_sysctls(softc, i);
 
-		if (BNXT_CHIP_P5(softc)) {
+		if (BNXT_CHIP_P5_PLUS(softc)) {
 			/* Set up the Notification ring (NQ) */
 			softc->nq_rings[i].stats_ctx_id = HWRM_NA_SIGNATURE;
 			softc->nq_rings[i].ring.phys_id =
@@ -508,11 +532,13 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 			softc->nq_rings[i].ring.softc = softc;
 			softc->nq_rings[i].ring.idx = i;
 			softc->nq_rings[i].ring.id = i;
-			softc->nq_rings[i].ring.doorbell = (BNXT_CHIP_P5(softc)) ?
-				DB_PF_OFFSET_P5 : softc->nq_rings[i].ring.id * 0x80;
+			softc->nq_rings[i].ring.doorbell = (BNXT_CHIP_P5_PLUS(softc)) ?
+				softc->legacy_db_size : softc->nq_rings[i].ring.id * 0x80;
 			softc->nq_rings[i].ring.ring_size = softc->scctx->isc_ntxd[2];
+			softc->nq_rings[i].ring.db_ring_mask = softc->nq_rings[i].ring.ring_size - 1;
 			softc->nq_rings[i].ring.vaddr = vaddrs[i * ntxqs + 2];
 			softc->nq_rings[i].ring.paddr = paddrs[i * ntxqs + 2];
+			softc->nq_rings[i].type = Q_TYPE_TX;
 		}
 	}
 
@@ -667,13 +693,16 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->rx_cp_rings[i].ring.softc = softc;
 		softc->rx_cp_rings[i].ring.idx = i;
 		softc->rx_cp_rings[i].ring.id = i + 1;
-		softc->rx_cp_rings[i].ring.doorbell = (BNXT_CHIP_P5(softc)) ?
-			DB_PF_OFFSET_P5 : softc->rx_cp_rings[i].ring.id * 0x80;
+		softc->rx_cp_rings[i].ring.doorbell = (BNXT_CHIP_P5_PLUS(softc)) ?
+			softc->legacy_db_size : softc->rx_cp_rings[i].ring.id * 0x80;
 		/*
 		 * If this ring overflows, RX stops working.
 		 */
 		softc->rx_cp_rings[i].ring.ring_size =
 		    softc->scctx->isc_nrxd[0];
+		softc->rx_cp_rings[i].ring.db_ring_mask =
+		    softc->rx_cp_rings[i].ring.ring_size - 1;
+
 		softc->rx_cp_rings[i].ring.vaddr = vaddrs[i * nrxqs];
 		softc->rx_cp_rings[i].ring.paddr = paddrs[i * nrxqs];
 
@@ -682,9 +711,11 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->rx_rings[i].softc = softc;
 		softc->rx_rings[i].idx = i;
 		softc->rx_rings[i].id = i + 1;
-		softc->rx_rings[i].doorbell = (BNXT_CHIP_P5(softc)) ?
-			DB_PF_OFFSET_P5 : softc->rx_rings[i].id * 0x80;
+		softc->rx_rings[i].doorbell = (BNXT_CHIP_P5_PLUS(softc)) ?
+			softc->legacy_db_size : softc->rx_rings[i].id * 0x80;
 		softc->rx_rings[i].ring_size = softc->scctx->isc_nrxd[1];
+		softc->rx_rings[i].db_ring_mask =
+			softc->rx_rings[i].ring_size -1;
 		softc->rx_rings[i].vaddr = vaddrs[i * nrxqs + 1];
 		softc->rx_rings[i].paddr = paddrs[i * nrxqs + 1];
 
@@ -703,9 +734,10 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->ag_rings[i].softc = softc;
 		softc->ag_rings[i].idx = i;
 		softc->ag_rings[i].id = nrxqsets + i + 1;
-		softc->ag_rings[i].doorbell = (BNXT_CHIP_P5(softc)) ?
-			DB_PF_OFFSET_P5 : softc->ag_rings[i].id * 0x80;
+		softc->ag_rings[i].doorbell = (BNXT_CHIP_P5_PLUS(softc)) ?
+			softc->legacy_db_size : softc->ag_rings[i].id * 0x80;
 		softc->ag_rings[i].ring_size = softc->scctx->isc_nrxd[2];
+		softc->ag_rings[i].db_ring_mask = softc->ag_rings[i].ring_size - 1;
 		softc->ag_rings[i].vaddr = vaddrs[i * nrxqs + 2];
 		softc->ag_rings[i].paddr = paddrs[i * nrxqs + 2];
 
@@ -1043,6 +1075,8 @@ static int bnxt_setup_ctxm_pg_tbls(struct bnxt_softc *softc,
 		rc = bnxt_alloc_ctx_pg_tbls(softc, &ctx_pg[i], mem_size, pg_lvl,
 					    ctxm->init_value ? ctxm : NULL);
 	}
+	if (!rc)
+		ctxm->mem_valid = 1;
 	return rc;
 }
 
@@ -1075,6 +1109,54 @@ static void bnxt_free_ctx_mem(struct bnxt_softc *softc)
 	softc->ctx_mem = NULL;
 }
 
+static int
+bnxt_backing_store_cfg_v2(struct bnxt_softc *softc, u32 ena)
+{
+	struct bnxt_ctx_mem_info *ctx = softc->ctx_mem;
+	struct bnxt_ctx_mem_type *ctxm;
+	u16 last_type = BNXT_CTX_INV;
+	int rc = 0;
+	u16 type;
+
+	if (BNXT_PF(softc)) {
+		for (type = BNXT_CTX_SRT_TRACE; type <= BNXT_CTX_ROCE_HWRM_TRACE; type++) {
+			ctxm = &ctx->ctx_arr[type];
+			if (!(ctxm->flags & BNXT_CTX_MEM_TYPE_VALID))
+				continue;
+			rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, ctxm->max_entries, 1);
+			if (rc) {
+				device_printf(softc->dev, "Unable to setup ctx page for type:0x%x.\n", type);
+				rc = 0;
+				continue;
+			}
+			/* ckp TODO: this is trace buffer related stuff, so keeping it diabled now. needs revisit */
+			//bnxt_bs_trace_init(bp, ctxm, type - BNXT_CTX_SRT_TRACE);
+			last_type = type;
+		}
+	}
+
+	if (last_type == BNXT_CTX_INV) {
+		if (!ena)
+			return 0;
+		else if (ena & HWRM_FUNC_BACKING_STORE_CFG_INPUT_ENABLES_TIM)
+			last_type = BNXT_CTX_MAX - 1;
+		else
+			last_type = BNXT_CTX_L2_MAX - 1;
+	}
+	ctx->ctx_arr[last_type].last = 1;
+
+	for (type = 0 ; type < BNXT_CTX_V2_MAX; type++) {
+		ctxm = &ctx->ctx_arr[type];
+
+		if (!ctxm->mem_valid)
+			continue;
+		rc = bnxt_hwrm_func_backing_store_cfg_v2(softc, ctxm, ctxm->last);
+		if (rc)
+			return rc;
+	}
+	return 0;
+}
+
 static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 {
 	struct bnxt_ctx_pg_info *ctx_pg;
@@ -1089,7 +1171,7 @@ static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 	u8 pg_lvl = 1;
 	int i, rc;
 
-	if (!BNXT_CHIP_P5(softc))
+	if (!BNXT_CHIP_P5_PLUS(softc))
 		return 0;
 
 	rc = bnxt_hwrm_func_backing_store_qcaps(softc);
@@ -1101,6 +1183,10 @@ static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 	ctx = softc->ctx_mem;
 	if (!ctx || (ctx->flags & BNXT_CTX_FLAG_INITED))
 		return 0;
+
+	ena = 0;
+	if (BNXT_VF(softc))
+		goto skip_legacy;
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_QP];
 	l2_qps = ctxm->qp_l2_entries;
@@ -1142,7 +1228,6 @@ static int bnxt_alloc_ctx_mem(struct bnxt_softc *softc)
 	if (rc)
 		return rc;
 
-	ena = 0;
 	if (!(softc->flags & BNXT_FLAG_ROCE_CAP))
 		goto skip_rdma;
 
@@ -1191,10 +1276,16 @@ skip_rdma:
 	}
 	ena |= HWRM_FUNC_BACKING_STORE_CFG_INPUT_DFLT_ENABLES;
 
-	rc = bnxt_hwrm_func_backing_store_cfg(softc, ena);
+skip_legacy:
+	if (BNXT_CHIP_P7(softc)) {
+		if (softc->fw_cap & BNXT_FW_CAP_BACKING_STORE_V2)
+			rc = bnxt_backing_store_cfg_v2(softc, ena);
+	} else {
+		rc = bnxt_hwrm_func_backing_store_cfg(softc, ena);
+	}
 	if (rc) {
 		device_printf(softc->dev, "Failed configuring context mem, rc = %d.\n",
-			   rc);
+			      rc);
 		return rc;
 	}
 	ctx->flags |= BNXT_CTX_FLAG_INITED;
@@ -1344,6 +1435,141 @@ static void bnxt_thor_db_nq(void *db_ptr, bool enable_irq)
 			BUS_SPACE_BARRIER_WRITE);
 }
 
+static void
+bnxt_thor2_db_rx(void *db_ptr, uint16_t idx)
+{
+	struct bnxt_ring *ring = (struct bnxt_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &ring->softc->doorbell_bar;
+	uint64_t db_val;
+
+	if (idx >= ring->ring_size) {
+		device_printf(ring->softc->dev, "%s: BRCM DBG: idx: %d crossed boundary\n", __func__, idx);
+		return;
+	}
+
+	db_val = ((DBR_PATH_L2 | DBR_TYPE_SRQ | DBR_VALID | idx) |
+				((uint64_t)ring->phys_id << DBR_XID_SFT));
+
+	/* Add the PI index */
+	db_val |= DB_RING_IDX(ring, idx, ring->epoch_arr[idx]);
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, ring->doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, ring->doorbell,
+			htole64(db_val));
+}
+
+static void
+bnxt_thor2_db_tx(void *db_ptr, uint16_t idx)
+{
+	struct bnxt_ring *ring = (struct bnxt_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &ring->softc->doorbell_bar;
+	uint64_t db_val;
+
+	if (idx >= ring->ring_size) {
+		device_printf(ring->softc->dev, "%s: BRCM DBG: idx: %d crossed boundary\n", __func__, idx);
+		return;
+	}
+
+	db_val = ((DBR_PATH_L2 | DBR_TYPE_SQ | DBR_VALID | idx) |
+				((uint64_t)ring->phys_id << DBR_XID_SFT));
+
+	/* Add the PI index */
+	db_val |= DB_RING_IDX(ring, idx, ring->epoch_arr[idx]);
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, ring->doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, ring->doorbell,
+			htole64(db_val));
+}
+
+static void
+bnxt_thor2_db_rx_cq(void *db_ptr, bool enable_irq)
+{
+	struct bnxt_cp_ring *cpr = (struct bnxt_cp_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &cpr->ring.softc->doorbell_bar;
+	u64 db_msg = { 0 };
+	uint32_t cons = cpr->raw_cons;
+	uint32_t toggle = 0;
+
+	if (cons == UINT32_MAX)
+		cons = 0;
+
+	if (enable_irq == true)
+		toggle = cpr->toggle;
+
+	db_msg = DBR_PATH_L2 | ((u64)cpr->ring.phys_id << DBR_XID_SFT) | DBR_VALID |
+			DB_RING_IDX_CMP(&cpr->ring, cons) | DB_TOGGLE(toggle);
+
+	if (enable_irq)
+		db_msg |= DBR_TYPE_CQ_ARMALL;
+	else
+		db_msg |= DBR_TYPE_CQ;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, cpr->ring.doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, cpr->ring.doorbell,
+			htole64(*(uint64_t *)&db_msg));
+	bus_space_barrier(db_bar->tag, db_bar->handle, 0, db_bar->size,
+			BUS_SPACE_BARRIER_WRITE);
+}
+
+static void
+bnxt_thor2_db_tx_cq(void *db_ptr, bool enable_irq)
+{
+	struct bnxt_cp_ring *cpr = (struct bnxt_cp_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &cpr->ring.softc->doorbell_bar;
+	u64 db_msg = { 0 };
+	uint32_t cons = cpr->raw_cons;
+	uint32_t toggle = 0;
+
+	if (enable_irq == true)
+		toggle = cpr->toggle;
+
+	db_msg = DBR_PATH_L2 | ((u64)cpr->ring.phys_id << DBR_XID_SFT) | DBR_VALID |
+			DB_RING_IDX_CMP(&cpr->ring, cons) | DB_TOGGLE(toggle);
+
+	if (enable_irq)
+		db_msg |= DBR_TYPE_CQ_ARMALL;
+	else
+		db_msg |= DBR_TYPE_CQ;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, cpr->ring.doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, cpr->ring.doorbell,
+			htole64(*(uint64_t *)&db_msg));
+	bus_space_barrier(db_bar->tag, db_bar->handle, 0, db_bar->size,
+			BUS_SPACE_BARRIER_WRITE);
+}
+
+static void
+bnxt_thor2_db_nq(void *db_ptr, bool enable_irq)
+{
+	struct bnxt_cp_ring *cpr = (struct bnxt_cp_ring *) db_ptr;
+	struct bnxt_bar_info *db_bar = &cpr->ring.softc->doorbell_bar;
+	u64 db_msg = { 0 };
+	uint32_t cons = cpr->raw_cons;
+	uint32_t toggle = 0;
+
+	if (enable_irq == true)
+		toggle = cpr->toggle;
+
+	db_msg = DBR_PATH_L2 | ((u64)cpr->ring.phys_id << DBR_XID_SFT) | DBR_VALID |
+			DB_RING_IDX_CMP(&cpr->ring, cons) | DB_TOGGLE(toggle);
+
+	if (enable_irq)
+		db_msg |= DBR_TYPE_NQ_ARM;
+	else
+		db_msg |= DBR_TYPE_NQ_MASK;
+
+	bus_space_barrier(db_bar->tag, db_bar->handle, cpr->ring.doorbell, 8,
+			BUS_SPACE_BARRIER_WRITE);
+	bus_space_write_8(db_bar->tag, db_bar->handle, cpr->ring.doorbell,
+			htole64(*(uint64_t *)&db_msg));
+	bus_space_barrier(db_bar->tag, db_bar->handle, 0, db_bar->size,
+			BUS_SPACE_BARRIER_WRITE);
+}
+
 struct bnxt_softc *bnxt_find_dev(uint32_t domain, uint32_t bus, uint32_t dev_fn, char *dev_name)
 {
 	struct bnxt_softc_list *sc = NULL;
@@ -1480,7 +1706,7 @@ static void bnxt_fw_reset_close(struct bnxt_softc *bp)
 	bnxt_hwrm_func_drv_unrgtr(bp, false);
 
 	for (i = bp->nrxqsets-1; i>=0; i--) {
-		if (BNXT_CHIP_P5(bp))
+		if (BNXT_CHIP_P5_PLUS(bp))
 			iflib_irq_free(bp->ctx, &bp->nq_rings[i].irq);
 		else
 			iflib_irq_free(bp->ctx, &bp->rx_cp_rings[i].irq);
@@ -1831,7 +2057,7 @@ static int bnxt_open(struct bnxt_softc *bp)
 			bp->flags |= BNXT_FLAG_FW_CAP_NEW_RM;
 	}
 
-	if (BNXT_CHIP_P5(bp))
+	if (BNXT_CHIP_P5_PLUS(bp))
 		bnxt_hwrm_reserve_pf_rings(bp);
 	/* Get the current configuration of this function */
 	rc = bnxt_hwrm_func_qcfg(bp);
@@ -2174,16 +2400,22 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if ((softc->ver_info->chip_num == BCM57508) ||
 	    (softc->ver_info->chip_num == BCM57504) ||
 	    (softc->ver_info->chip_num == BCM57504_NPAR) ||
-	    (softc->ver_info->chip_num == BCM57502))
+	    (softc->ver_info->chip_num == BCM57502) ||
+	    (softc->ver_info->chip_num == BCM57601) ||
+	    (softc->ver_info->chip_num == BCM57602) ||
+	    (softc->ver_info->chip_num == BCM57604))
 		softc->flags |= BNXT_FLAG_CHIP_P5;
+
+	if (softc->ver_info->chip_num == BCM57608)
+		softc->flags |= BNXT_FLAG_CHIP_P7;
 
 	softc->flags |= BNXT_FLAG_TPA;
 
-	if (BNXT_CHIP_P5(softc) && (!softc->ver_info->chip_rev) &&
+	if (BNXT_CHIP_P5_PLUS(softc) && (!softc->ver_info->chip_rev) &&
 			(!softc->ver_info->chip_metal))
 		softc->flags &= ~BNXT_FLAG_TPA;
 
-	if (BNXT_CHIP_P5(softc))
+	if (BNXT_CHIP_P5_PLUS(softc))
 		softc->flags &= ~BNXT_FLAG_TPA;
 
 	/* Get NVRAM info */
@@ -2219,6 +2451,12 @@ bnxt_attach_pre(if_ctx_t ctx)
 		softc->db_ops.bnxt_db_rx_cq = bnxt_thor_db_rx_cq;
 		softc->db_ops.bnxt_db_tx_cq = bnxt_thor_db_tx_cq;
 		softc->db_ops.bnxt_db_nq = bnxt_thor_db_nq;
+	} else if (BNXT_CHIP_P7(softc)) {
+		softc->db_ops.bnxt_db_tx = bnxt_thor2_db_tx;
+		softc->db_ops.bnxt_db_rx = bnxt_thor2_db_rx;
+		softc->db_ops.bnxt_db_rx_cq = bnxt_thor2_db_rx_cq;
+		softc->db_ops.bnxt_db_tx_cq = bnxt_thor2_db_tx_cq;
+		softc->db_ops.bnxt_db_nq = bnxt_thor2_db_nq;
 	} else {
 		softc->db_ops.bnxt_db_tx = bnxt_cuw_db_tx;
 		softc->db_ops.bnxt_db_rx = bnxt_cuw_db_rx;
@@ -2302,7 +2540,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 
 	/* Get the queue config */
 	bnxt_get_wol_settings(softc);
-	if (BNXT_CHIP_P5(softc))
+	if (BNXT_CHIP_P5_PLUS(softc))
 		bnxt_hwrm_reserve_pf_rings(softc);
 	rc = bnxt_hwrm_func_qcfg(softc);
 	if (rc) {
@@ -2375,17 +2613,17 @@ bnxt_attach_pre(if_ctx_t ctx)
 	softc->def_cp_ring.ring.phys_id = (uint16_t)HWRM_NA_SIGNATURE;
 	softc->def_cp_ring.ring.softc = softc;
 	softc->def_cp_ring.ring.id = 0;
-	softc->def_cp_ring.ring.doorbell = (BNXT_CHIP_P5(softc)) ?
-		DB_PF_OFFSET_P5 : softc->def_cp_ring.ring.id * 0x80;
+	softc->def_cp_ring.ring.doorbell = (BNXT_CHIP_P5_PLUS(softc)) ?
+		softc->legacy_db_size : softc->def_cp_ring.ring.id * 0x80;
 	softc->def_cp_ring.ring.ring_size = PAGE_SIZE /
 	    sizeof(struct cmpl_base);
+	softc->def_cp_ring.ring.db_ring_mask = softc->def_cp_ring.ring.ring_size -1 ;
 	rc = iflib_dma_alloc(ctx,
 	    sizeof(struct cmpl_base) * softc->def_cp_ring.ring.ring_size,
 	    &softc->def_cp_ring_mem, 0);
 	softc->def_cp_ring.ring.vaddr = softc->def_cp_ring_mem.idi_vaddr;
 	softc->def_cp_ring.ring.paddr = softc->def_cp_ring_mem.idi_paddr;
-	iflib_config_gtask_init(ctx, &softc->def_cp_task, bnxt_def_cp_task,
-	    "dflt_cp");
+	iflib_config_task_init(ctx, &softc->def_cp_task, bnxt_def_cp_task);
 
 	rc = bnxt_init_sysctl_ctx(softc);
 	if (rc)
@@ -2512,10 +2750,9 @@ bnxt_detach(if_ctx_t ctx)
 	bnxt_free_ctx_mem(softc);
 	bnxt_clear_ids(softc);
 	iflib_irq_free(ctx, &softc->def_cp_ring.irq);
-	iflib_config_gtask_deinit(&softc->def_cp_task);
 	/* We need to free() these here... */
 	for (i = softc->nrxqsets-1; i>=0; i--) {
-		if (BNXT_CHIP_P5(softc))
+		if (BNXT_CHIP_P5_PLUS(softc))
 			iflib_irq_free(ctx, &softc->nq_rings[i].irq);
 		else
 			iflib_irq_free(ctx, &softc->rx_cp_rings[i].irq);
@@ -2621,7 +2858,7 @@ bnxt_hwrm_resource_free(struct bnxt_softc *softc)
 		if (rc)
 			goto fail;
 
-		if (BNXT_CHIP_P5(softc)) {
+		if (BNXT_CHIP_P5_PLUS(softc)) {
 			rc = bnxt_hwrm_ring_free(softc,
 					HWRM_RING_ALLOC_INPUT_RING_TYPE_NQ,
 					&softc->nq_rings[i].ring,
@@ -2644,7 +2881,7 @@ static void
 bnxt_func_reset(struct bnxt_softc *softc)
 {
 
-	if (!BNXT_CHIP_P5(softc)) {
+	if (!BNXT_CHIP_P5_PLUS(softc)) {
 		bnxt_hwrm_func_reset(softc);
 		return;
 	}
@@ -2660,7 +2897,7 @@ bnxt_rss_grp_tbl_init(struct bnxt_softc *softc)
 	int i, j;
 
 	for (i = 0, j = 0; i < HW_HASH_INDEX_SIZE; i++) {
-		if (BNXT_CHIP_P5(softc)) {
+		if (BNXT_CHIP_P5_PLUS(softc)) {
 			rgt[i++] = htole16(softc->rx_rings[j].phys_id);
 			rgt[i] = htole16(softc->rx_cp_rings[j].ring.phys_id);
 		} else {
@@ -2778,7 +3015,7 @@ bnxt_init(if_ctx_t ctx)
 	int i;
 	int rc;
 
-	if (!BNXT_CHIP_P5(softc)) {
+	if (!BNXT_CHIP_P5_PLUS(softc)) {
 		rc = bnxt_hwrm_func_reset(softc);
 		if (rc)
 			return;
@@ -2789,7 +3026,7 @@ bnxt_init(if_ctx_t ctx)
 	softc->is_dev_init = true;
 	bnxt_clear_ids(softc);
 
-	if (BNXT_CHIP_P5(softc))
+	if (BNXT_CHIP_P5_PLUS(softc))
 		goto skip_def_cp_ring;
 	/* Allocate the default completion ring */
 	softc->def_cp_ring.cons = UINT32_MAX;
@@ -2798,6 +3035,8 @@ bnxt_init(if_ctx_t ctx)
 	rc = bnxt_hwrm_ring_alloc(softc,
 			HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
 			&softc->def_cp_ring.ring);
+	bnxt_set_db_mask(softc, &softc->def_cp_ring.ring,
+			HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL);
 	if (rc)
 		goto fail;
 skip_def_cp_ring:
@@ -2808,15 +3047,18 @@ skip_def_cp_ring:
 		if (rc)
 			goto fail;
 
-		if (BNXT_CHIP_P5(softc)) {
+		if (BNXT_CHIP_P5_PLUS(softc)) {
 			/* Allocate the NQ */
 			softc->nq_rings[i].cons = 0;
+			softc->nq_rings[i].raw_cons = 0;
 			softc->nq_rings[i].v_bit = 1;
 			softc->nq_rings[i].last_idx = UINT32_MAX;
 			bnxt_mark_cpr_invalid(&softc->nq_rings[i]);
 			rc = bnxt_hwrm_ring_alloc(softc,
 					HWRM_RING_ALLOC_INPUT_RING_TYPE_NQ,
 					&softc->nq_rings[i].ring);
+			bnxt_set_db_mask(softc, &softc->nq_rings[i].ring,
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_NQ);
 			if (rc)
 				goto fail;
 
@@ -2824,21 +3066,27 @@ skip_def_cp_ring:
 		}
 		/* Allocate the completion ring */
 		softc->rx_cp_rings[i].cons = UINT32_MAX;
+		softc->rx_cp_rings[i].raw_cons = UINT32_MAX;
 		softc->rx_cp_rings[i].v_bit = 1;
 		softc->rx_cp_rings[i].last_idx = UINT32_MAX;
+		softc->rx_cp_rings[i].toggle = 0;
 		bnxt_mark_cpr_invalid(&softc->rx_cp_rings[i]);
 		rc = bnxt_hwrm_ring_alloc(softc,
 				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
 				&softc->rx_cp_rings[i].ring);
+		bnxt_set_db_mask(softc, &softc->rx_cp_rings[i].ring,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL);
 		if (rc)
 			goto fail;
 
-		if (BNXT_CHIP_P5(softc))
+		if (BNXT_CHIP_P5_PLUS(softc))
 			softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[i], 1);
 
 		/* Allocate the RX ring */
 		rc = bnxt_hwrm_ring_alloc(softc,
 		    HWRM_RING_ALLOC_INPUT_RING_TYPE_RX, &softc->rx_rings[i]);
+		bnxt_set_db_mask(softc, &softc->rx_rings[i],
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX);
 		if (rc)
 			goto fail;
 		softc->db_ops.bnxt_db_rx(&softc->rx_rings[i], 0);
@@ -2847,6 +3095,8 @@ skip_def_cp_ring:
 		rc = bnxt_hwrm_ring_alloc(softc,
 				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG,
 				&softc->ag_rings[i]);
+		bnxt_set_db_mask(softc, &softc->ag_rings[i],
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG);
 		if (rc)
 			goto fail;
 		softc->db_ops.bnxt_db_rx(&softc->ag_rings[i], 0);
@@ -2909,21 +3159,27 @@ skip_def_cp_ring:
 
 		/* Allocate the completion ring */
 		softc->tx_cp_rings[i].cons = UINT32_MAX;
+		softc->tx_cp_rings[i].raw_cons = UINT32_MAX;
 		softc->tx_cp_rings[i].v_bit = 1;
+		softc->tx_cp_rings[i].toggle = 0;
 		bnxt_mark_cpr_invalid(&softc->tx_cp_rings[i]);
 		rc = bnxt_hwrm_ring_alloc(softc,
 				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
 				&softc->tx_cp_rings[i].ring);
+		bnxt_set_db_mask(softc, &softc->tx_cp_rings[i].ring,
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL);
 		if (rc)
 			goto fail;
 
-		if (BNXT_CHIP_P5(softc))
+		if (BNXT_CHIP_P5_PLUS(softc))
 			softc->db_ops.bnxt_db_tx_cq(&softc->tx_cp_rings[i], 1);
 
 		/* Allocate the TX ring */
 		rc = bnxt_hwrm_ring_alloc(softc,
 				HWRM_RING_ALLOC_INPUT_RING_TYPE_TX,
 				&softc->tx_rings[i]);
+		bnxt_set_db_mask(softc, &softc->tx_rings[i],
+				HWRM_RING_ALLOC_INPUT_RING_TYPE_TX);
 		if (rc)
 			goto fail;
 		softc->db_ops.bnxt_db_tx(&softc->tx_rings[i], 0);
@@ -3061,17 +3317,15 @@ bnxt_media_change(if_ctx_t ctx)
 	struct ifmedia *ifm = iflib_get_media(ctx);
 	struct ifmediareq ifmr;
 	int rc;
+	struct bnxt_link_info *link_info = &softc->link_info;
 
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
 		return EINVAL;
 
-	softc->link_info.req_signal_mode =
-			HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4;
-
 	switch (IFM_SUBTYPE(ifm->ifm_media)) {
 	case IFM_100_T:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+		link_info->req_link_speed =
 		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_100MB;
 		break;
 	case IFM_1000_KX:
@@ -3079,103 +3333,229 @@ bnxt_media_change(if_ctx_t ctx)
 	case IFM_1000_CX:
 	case IFM_1000_SX:
 	case IFM_1000_LX:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_1GB;
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_1GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_1GB;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_1GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_1GB;
+			link_info->force_speed2_nrz = true;
+		}
+
 		break;
+
 	case IFM_2500_KX:
 	case IFM_2500_T:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+		link_info->req_link_speed =
 		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_2_5GB;
 		break;
 	case IFM_10G_CR1:
 	case IFM_10G_KR:
 	case IFM_10G_LR:
 	case IFM_10G_SR:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_10GB;
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds & HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_10GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_10GB;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_10GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_10GB;
+			link_info->force_speed2_nrz = true;
+		}
+
 		break;
 	case IFM_20G_KR2:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+		link_info->req_link_speed =
 		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_20GB;
 		break;
 	case IFM_25G_CR:
 	case IFM_25G_KR:
 	case IFM_25G_SR:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_25GB;
+	case IFM_25G_LR:
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds & HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_25GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_25GB;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_25GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_25GB;
+			link_info->force_speed2_nrz = true;
+		}
+
 		break;
+
 	case IFM_40G_CR4:
 	case IFM_40G_KR4:
 	case IFM_40G_LR4:
 	case IFM_40G_SR4:
 	case IFM_40G_XLAUI:
 	case IFM_40G_XLAUI_AC:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_40GB;
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds & HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_40GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_40GB;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_40GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_40GB;
+			link_info->force_speed2_nrz = true;
+		}
+
 		break;
+
 	case IFM_50G_CR2:
 	case IFM_50G_KR2:
+	case IFM_50G_KR4:
 	case IFM_50G_SR2:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-		    HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_50GB;
+	case IFM_50G_LR2:
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_50GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_50GB;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_50GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_50GB;
+			link_info->force_speed2_nrz = true;
+		}
+
 		break;
+
 	case IFM_50G_CP:
 	case IFM_50G_LR:
 	case IFM_50G_SR:
 	case IFM_50G_KR_PAM4:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-		    HWRM_PORT_PHY_CFG_INPUT_FORCE_PAM4_LINK_SPEED_50GB;
-		softc->link_info.req_signal_mode =
-			HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4;
-		softc->link_info.force_pam4_speed_set_by_user = true;
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_pam4_speeds & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_PAM4_SPEEDS_50G) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_PAM4_LINK_SPEED_50GB;
+			link_info->force_pam4_speed = true;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_50GB_PAM4_56) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_50GB_PAM4_56;
+			link_info->force_pam4_56_speed2 = true;
+		}
+
 		break;
+
 	case IFM_100G_CR4:
 	case IFM_100G_KR4:
 	case IFM_100G_LR4:
 	case IFM_100G_SR4:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-			HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_100GB;
+	case IFM_100G_AUI4:
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS_100GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEED_100GB;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_100GB) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_100GB;
+			link_info->force_speed2_nrz = true;
+		}
+
 		break;
+
 	case IFM_100G_CP2:
 	case IFM_100G_SR2:
-	case IFM_100G_KR_PAM4:
 	case IFM_100G_KR2_PAM4:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-			HWRM_PORT_PHY_CFG_INPUT_FORCE_PAM4_LINK_SPEED_100GB;
-		softc->link_info.req_signal_mode =
-			HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4;
-		softc->link_info.force_pam4_speed_set_by_user = true;
+	case IFM_100G_AUI2:
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_pam4_speeds & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_PAM4_SPEEDS_100G) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_PAM4_LINK_SPEED_100GB;
+			link_info->force_pam4_speed = true;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_100GB_PAM4_56) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_100GB_PAM4_56;
+			link_info->force_pam4_56_speed2 = true;
+		}
+
 		break;
+
+	case IFM_100G_KR_PAM4:
+	case IFM_100G_CR_PAM4:
+	case IFM_100G_DR:
+	case IFM_100G_AUI2_AC:
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_100GB_PAM4_112) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_100GB_PAM4_112;
+			link_info->force_pam4_112_speed2 = true;
+		}
+
+		break;
+
 	case IFM_200G_SR4:
 	case IFM_200G_FR4:
 	case IFM_200G_LR4:
 	case IFM_200G_DR4:
 	case IFM_200G_CR4_PAM4:
 	case IFM_200G_KR4_PAM4:
-		softc->link_info.autoneg &= ~BNXT_AUTONEG_SPEED;
-		softc->link_info.req_link_speed =
-			HWRM_PORT_PHY_CFG_INPUT_FORCE_PAM4_LINK_SPEED_200GB;
-		softc->link_info.force_pam4_speed_set_by_user = true;
-		softc->link_info.req_signal_mode =
-			HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4;
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_pam4_speeds & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_PAM4_SPEEDS_200G) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_PAM4_LINK_SPEED_200GB;
+			link_info->force_pam4_speed = true;
+
+		} else if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_200GB_PAM4_56) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_200GB_PAM4_56;
+			link_info->force_pam4_56_speed2 = true;
+		}
+
 		break;
+
+	case IFM_200G_AUI4:
+
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_200GB_PAM4_112) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_200GB_PAM4_112;
+			link_info->force_pam4_112_speed2 = true;
+		}
+
+		break;
+
+	case IFM_400G_FR8:
+	case IFM_400G_LR8:
+	case IFM_400G_AUI8:
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_400GB_PAM4_56) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_400GB_PAM4_56;
+			link_info->force_pam4_56_speed2 = true;
+		}
+
+		break;
+
+	case IFM_400G_AUI8_AC:
+	case IFM_400G_DR4:
+		link_info->autoneg &= ~BNXT_AUTONEG_SPEED;
+
+		if (link_info->support_speeds2 & HWRM_PORT_PHY_QCFG_OUTPUT_SUPPORT_SPEEDS2_400GB_PAM4_112) {
+			link_info->req_link_speed = HWRM_PORT_PHY_CFG_INPUT_FORCE_LINK_SPEEDS2_400GB_PAM4_112;
+			link_info->force_pam4_112_speed2 = true;
+		}
+
+		break;
+
 	case IFM_1000_T:
-		softc->link_info.advertising = HWRM_PORT_PHY_CFG_INPUT_AUTO_LINK_SPEED_MASK_1GB;
-		softc->link_info.autoneg |= BNXT_AUTONEG_SPEED;
+		link_info->advertising = HWRM_PORT_PHY_CFG_INPUT_AUTO_LINK_SPEED_MASK_1GB;
+		link_info->autoneg |= BNXT_AUTONEG_SPEED;
 		break;
 	case IFM_10G_T:
-		softc->link_info.advertising = HWRM_PORT_PHY_CFG_INPUT_AUTO_LINK_SPEED_MASK_10GB;
-		softc->link_info.autoneg |= BNXT_AUTONEG_SPEED;
+		link_info->advertising = HWRM_PORT_PHY_CFG_INPUT_AUTO_LINK_SPEED_MASK_10GB;
+		link_info->autoneg |= BNXT_AUTONEG_SPEED;
 		break;
 	default:
 		device_printf(softc->dev,
@@ -3183,9 +3563,10 @@ bnxt_media_change(if_ctx_t ctx)
 		/* Fall-through */
 	case IFM_AUTO:
 		// Auto
-		softc->link_info.autoneg |= BNXT_AUTONEG_SPEED;
+		link_info->autoneg |= BNXT_AUTONEG_SPEED;
 		break;
 	}
+
 	rc = bnxt_hwrm_set_link_setting(softc, true, true, true);
 	bnxt_media_status(softc->ctx, &ifmr);
 	return rc;
@@ -3244,11 +3625,11 @@ bnxt_update_admin_status(if_ctx_t ctx)
 
 	bnxt_hwrm_port_qstats(softc);
 
-	if (BNXT_CHIP_P5(softc) &&
+	if (BNXT_CHIP_P5_PLUS(softc) &&
 	    (softc->flags & BNXT_FLAG_FW_CAP_EXT_STATS))
 		bnxt_hwrm_port_qstats_ext(softc);
 
-	if (BNXT_CHIP_P5(softc)) {
+	if (BNXT_CHIP_P5_PLUS(softc)) {
 		struct ifmediareq ifmr;
 
 		if (bit_test(softc->state_bv, BNXT_STATE_LINK_CHANGE)) {
@@ -3281,10 +3662,11 @@ bnxt_do_enable_intr(struct bnxt_cp_ring *cpr)
 {
 	struct bnxt_softc *softc = cpr->ring.softc;
 
+
 	if (cpr->ring.phys_id == (uint16_t)HWRM_NA_SIGNATURE)
 		return;
 
-	if (BNXT_CHIP_P5(softc))
+	if (BNXT_CHIP_P5_PLUS(softc))
 		softc->db_ops.bnxt_db_nq(cpr, 1);
 	else
 		softc->db_ops.bnxt_db_rx_cq(cpr, 1);
@@ -3298,7 +3680,7 @@ bnxt_do_disable_intr(struct bnxt_cp_ring *cpr)
 	if (cpr->ring.phys_id == (uint16_t)HWRM_NA_SIGNATURE)
 		return;
 
-	if (BNXT_CHIP_P5(softc))
+	if (BNXT_CHIP_P5_PLUS(softc))
 		softc->db_ops.bnxt_db_nq(cpr, 0);
 	else
 		softc->db_ops.bnxt_db_rx_cq(cpr, 0);
@@ -3313,7 +3695,7 @@ bnxt_intr_enable(if_ctx_t ctx)
 
 	bnxt_do_enable_intr(&softc->def_cp_ring);
 	for (i = 0; i < softc->nrxqsets; i++)
-		if (BNXT_CHIP_P5(softc))
+		if (BNXT_CHIP_P5_PLUS(softc))
 			softc->db_ops.bnxt_db_nq(&softc->nq_rings[i], 1);
 		else
 			softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[i], 1);
@@ -3327,7 +3709,7 @@ bnxt_tx_queue_intr_enable(if_ctx_t ctx, uint16_t qid)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
-	if (BNXT_CHIP_P5(softc))
+	if (BNXT_CHIP_P5_PLUS(softc))
 		softc->db_ops.bnxt_db_nq(&softc->nq_rings[qid], 1);
 	else
 		softc->db_ops.bnxt_db_rx_cq(&softc->tx_cp_rings[qid], 1);
@@ -3368,25 +3750,35 @@ process_nq(struct bnxt_softc *softc, uint16_t nqid)
 {
 	struct bnxt_cp_ring *cpr = &softc->nq_rings[nqid];
 	nq_cn_t *cmp = (nq_cn_t *) cpr->ring.vaddr;
+	struct bnxt_cp_ring *tx_cpr = &softc->tx_cp_rings[nqid];
+	struct bnxt_cp_ring *rx_cpr = &softc->rx_cp_rings[nqid];
 	bool v_bit = cpr->v_bit;
 	uint32_t cons = cpr->cons;
+	uint32_t raw_cons = cpr->raw_cons;
 	uint16_t nq_type, nqe_cnt = 0;
 
 	while (1) {
-		if (!NQ_VALID(&cmp[cons], v_bit))
+		if (!NQ_VALID(&cmp[cons], v_bit)) {
 			goto done;
+		}
 
 		nq_type = NQ_CN_TYPE_MASK & cmp[cons].type;
 
-		if (nq_type != NQ_CN_TYPE_CQ_NOTIFICATION)
+		if (NQE_CN_TYPE(nq_type) != NQ_CN_TYPE_CQ_NOTIFICATION) {
 			 bnxt_process_async_msg(cpr, (tx_cmpl_t *)&cmp[cons]);
+		} else {
+			tx_cpr->toggle = NQE_CN_TOGGLE(cmp[cons].type);
+			rx_cpr->toggle = NQE_CN_TOGGLE(cmp[cons].type);
+		}
 
 		NEXT_CP_CONS_V(&cpr->ring, cons, v_bit);
+		raw_cons++;
 		nqe_cnt++;
 	}
 done:
 	if (nqe_cnt) {
 		cpr->cons = cons;
+		cpr->raw_cons = raw_cons;
 		cpr->v_bit = v_bit;
 	}
 }
@@ -3396,7 +3788,7 @@ bnxt_rx_queue_intr_enable(if_ctx_t ctx, uint16_t qid)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
-	if (BNXT_CHIP_P5(softc)) {
+	if (BNXT_CHIP_P5_PLUS(softc)) {
 		process_nq(softc, qid);
 		softc->db_ops.bnxt_db_nq(&softc->nq_rings[qid], 1);
 	}
@@ -3416,7 +3808,7 @@ bnxt_disable_intr(if_ctx_t ctx)
 	 * update the index
 	 */
 	for (i = 0; i < softc->nrxqsets; i++)
-		if (BNXT_CHIP_P5(softc))
+		if (BNXT_CHIP_P5_PLUS(softc))
 			softc->db_ops.bnxt_db_nq(&softc->nq_rings[i], 0);
 		else
 			softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[i], 0);
@@ -3436,7 +3828,7 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 	int i;
 	char irq_name[16];
 
-	if (BNXT_CHIP_P5(softc))
+	if (BNXT_CHIP_P5_PLUS(softc))
 		goto skip_default_cp;
 
 	rc = iflib_irq_alloc_generic(ctx, &softc->def_cp_ring.irq,
@@ -3450,7 +3842,7 @@ bnxt_msix_intr_assign(if_ctx_t ctx, int msix)
 
 skip_default_cp:
 	for (i=0; i<softc->scctx->isc_nrxqsets; i++) {
-		if (BNXT_CHIP_P5(softc)) {
+		if (BNXT_CHIP_P5_PLUS(softc)) {
 			irq = &softc->nq_rings[i].irq;
 			id = softc->nq_rings[i].ring.id;
 			ring = &softc->nq_rings[i];
@@ -3897,7 +4289,7 @@ bnxt_i2c_req(if_ctx_t ctx, struct ifi2creq *i2c)
 		return -EOPNOTSUPP;
 
 	/* This feature is not supported in older firmware versions */
-	if (!BNXT_CHIP_P5(softc) ||
+	if (!BNXT_CHIP_P5_PLUS(softc) ||
 	    (softc->hwrm_spec_code < 0x10202))
 		return -EOPNOTSUPP;
 
@@ -3956,57 +4348,161 @@ bnxt_probe_phy(struct bnxt_softc *softc)
 }
 
 static void
-add_media(struct bnxt_softc *softc, uint8_t media_type, uint16_t supported,
-	  uint16_t supported_pam4)
+add_media(struct bnxt_softc *softc, u8 media_type, u16 supported_NRZ_speeds,
+	  u16 supported_pam4_speeds, u16 supported_speeds2)
 {
+
 	switch (media_type) {
 		case BNXT_MEDIA_CR:
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_50G, IFM_50G_CP);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_100G, IFM_100G_CP2);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_200G, IFM_200G_CR4_PAM4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_100GB, IFM_100G_CR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_50GB, IFM_50G_CR2);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_CR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_CR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_CR1);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_CX);
+
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_50G, IFM_50G_CP);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_100G, IFM_100G_CP2);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_200G, IFM_200G_CR4_PAM4);
+
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100GB, IFM_100G_CR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_50GB, IFM_50G_CR2);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_CR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_25GB, IFM_25G_CR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_CR1);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_CX);
+			/* thor2 nrz*/
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB, IFM_100G_CR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB, IFM_50G_CR2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_40GB, IFM_40G_CR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_25GB, IFM_25G_CR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_10GB, IFM_10G_CR1);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_1GB, IFM_1000_CX);
+			/* thor2 PAM56 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB_PAM4_56, IFM_50G_CP);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_56, IFM_100G_CP2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_56, IFM_200G_CR4_PAM4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_AUI8);
+			/* thor2 PAM112 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_CR_PAM4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_AUI8_AC);
+
 			break;
 
 		case BNXT_MEDIA_LR:
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_50G, IFM_50G_LR);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_200G, IFM_200G_LR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_100GB, IFM_100G_LR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_50GB, IFM_50G_LR2);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_LR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_LR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_LR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_LX);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_50G, IFM_50G_LR);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_200G, IFM_200G_LR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100GB, IFM_100G_LR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_50GB, IFM_50G_LR2);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_LR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_25GB, IFM_25G_LR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_LR);
+			/* thor2 nrz*/
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB, IFM_100G_LR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB, IFM_50G_LR2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_40GB, IFM_40G_LR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_25GB, IFM_25G_LR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_10GB, IFM_10G_LR);
+			/* thor2 PAM56 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB_PAM4_56, IFM_50G_LR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_56, IFM_100G_AUI2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_56, IFM_200G_LR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_LR8);
+			/* thor2 PAM112 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_AUI2_AC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_AUI8_AC);
+
 			break;
 
 		case BNXT_MEDIA_SR:
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_50G, IFM_50G_SR);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_100G, IFM_100G_SR2);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_200G, IFM_200G_SR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_100GB, IFM_100G_SR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_50GB, IFM_50G_SR2);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_SR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_SR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_SR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_SX);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_50G, IFM_50G_SR);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_100G, IFM_100G_SR2);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_200G, IFM_200G_SR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100GB, IFM_100G_SR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_50GB, IFM_50G_SR2);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_SR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_25GB, IFM_25G_SR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_SR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_SX);
+			/* thor2 nrz*/
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB, IFM_100G_SR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB, IFM_50G_SR2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_40GB, IFM_40G_SR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_25GB, IFM_25G_SR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_10GB, IFM_10G_SR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_1GB, IFM_1000_SX);
+			/* thor2 PAM56 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB_PAM4_56, IFM_50G_SR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_56, IFM_100G_SR2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_56, IFM_200G_SR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_AUI8);
+			/* thor2 PAM112 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_AUI2_AC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_DR4);
+			break;
+
+		case BNXT_MEDIA_ER:
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_ER4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100GB, IFM_100G_AUI4);
+			/* thor2 PAM56 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_50GB_PAM4_56, IFM_50G_LR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_56, IFM_100G_AUI2);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_56, IFM_200G_LR4);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_56, IFM_400G_FR8);
+			/* thor2 PAM112 */
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_100GB_PAM4_112, IFM_100G_AUI2_AC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_200GB_PAM4_112, IFM_200G_AUI4_AC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_400GB_PAM4_112, IFM_400G_AUI8_AC);
 			break;
 
 		case BNXT_MEDIA_KR:
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_50G, IFM_50G_KR_PAM4);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_100G, IFM_100G_KR2_PAM4);
-			BNXT_IFMEDIA_ADD(supported_pam4, PAM4_SPEEDS_200G, IFM_200G_KR4_PAM4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_100GB, IFM_100G_KR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_50GB, IFM_50G_KR2);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_50GB, IFM_50G_KR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_KR4);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_KR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_20GB, IFM_20G_KR2);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_KR);
-			BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_KX);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_50G, IFM_50G_KR_PAM4);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_100G, IFM_100G_KR2_PAM4);
+			BNXT_IFMEDIA_ADD(supported_pam4_speeds, PAM4_SPEEDS_200G, IFM_200G_KR4_PAM4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100GB, IFM_100G_KR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_50GB, IFM_50G_KR2);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_50GB, IFM_50G_KR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_KR4);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_25GB, IFM_25G_KR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_20GB, IFM_20G_KR2);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_KR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_KX);
+			break;
+
+		case BNXT_MEDIA_AC:
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_25GB, IFM_25G_ACC);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_AOC);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_XLAUI);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_40GB, IFM_40G_XLAUI_AC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_25GB, IFM_25G_ACC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_10GB, IFM_10G_AOC);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_40GB, IFM_40G_XLAUI);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_40GB, IFM_40G_XLAUI_AC);
+			break;
+
+		case BNXT_MEDIA_BASECX:
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_CX);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_1GB, IFM_1000_CX);
+			break;
+
+		case BNXT_MEDIA_BASET:
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_T);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_2_5GB, IFM_2500_T);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_T);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_100MB, IFM_100_T);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10MB, IFM_10_T);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_10GB, IFM_10G_T);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_1GB, IFM_1000_T);
+			break;
+
+		case BNXT_MEDIA_BASEKX:
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_10GB, IFM_10G_KR);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_2_5GB, IFM_2500_KX);
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_KX);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_10GB, IFM_10G_KR);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_1GB, IFM_1000_KX);
+			break;
+
+		case BNXT_MEDIA_BASESGMII:
+			BNXT_IFMEDIA_ADD(supported_NRZ_speeds, SPEEDS_1GB, IFM_1000_SGMII);
+			BNXT_IFMEDIA_ADD(supported_speeds2, SPEEDS2_1GB, IFM_1000_SGMII);
 			break;
 
 		default:
@@ -4021,11 +4517,12 @@ static void
 bnxt_add_media_types(struct bnxt_softc *softc)
 {
 	struct bnxt_link_info *link_info = &softc->link_info;
-	uint16_t supported = 0, supported_pam4 = 0;
+	uint16_t supported_NRZ_speeds = 0, supported_pam4_speeds = 0, supported_speeds2 = 0;
 	uint8_t phy_type = get_phy_type(softc), media_type;
 
-	supported = link_info->support_speeds;
-	supported_pam4 = link_info->support_pam4_speeds;
+	supported_NRZ_speeds = link_info->support_speeds;
+	supported_speeds2 = link_info->support_speeds2;
+	supported_pam4_speeds = link_info->support_pam4_speeds;
 
 	/* Auto is always supported */
 	ifmedia_add(softc->media, IFM_ETHER | IFM_AUTO, 0, NULL);
@@ -4034,38 +4531,73 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		return;
 
 	switch (phy_type) {
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASECR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASECR4:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASECR2:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASECR:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASECR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_25G_BASECR_CA_L:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_25G_BASECR_CA_S:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_25G_BASECR_CA_N:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASECR:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASECR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASECR2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASECR4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASECR8:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASECR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASECR2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASECR4:
+
 		media_type = BNXT_MEDIA_CR;
 		break;
 
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASELR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASELR4:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASELR:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASELR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASELR:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASELR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASELR2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASELR4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASELR8:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASELR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASELR2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASELR4:
+
 		media_type = BNXT_MEDIA_LR;
 		break;
 
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASESR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASESR10:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASESR4:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASESR:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASESR4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASESR:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASEER4:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASEER4:
-	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASEER4:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_25G_BASESR:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASESX:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASESR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASESR2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASESR4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASESR8:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASESR:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASESR2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASESR4:
+
 		media_type = BNXT_MEDIA_SR;
+		break;
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_BASEER4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASEER4:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_50G_BASEER:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASEER2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASEER4:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASEER8:
+
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_100G_BASEER:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_200G_BASEER2:
+	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_400G_BASEER4:
+
+		media_type = BNXT_MEDIA_ER;
 		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKR4:
@@ -4075,34 +4607,25 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_ACTIVE_CABLE:
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_25GB, IFM_25G_ACC);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_AOC);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_XLAUI);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_40GB, IFM_40G_XLAUI_AC);
+		media_type = BNXT_MEDIA_AC;
 		return;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASECX:
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GBHD, IFM_1000_CX);
+		media_type = BNXT_MEDIA_BASECX;
 		return;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASET:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASET:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASETE:
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_T);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_2_5GB, IFM_2500_T);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_T);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_100MB, IFM_100_T);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_10MB, IFM_10_T);
+		media_type = BNXT_MEDIA_BASET;
 		return;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_KR);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_2_5GB, IFM_2500_KX);
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_KX);
+		media_type = BNXT_MEDIA_BASEKX;
 		return;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_SGMIIEXTPHY:
-		BNXT_IFMEDIA_ADD(supported, SPEEDS_1GB, IFM_1000_SGMII);
+		media_type = BNXT_MEDIA_BASESGMII;
 		return;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_UNKNOWN:
@@ -4115,17 +4638,22 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		return;
 	}
 
-	/* add_media is invoked twice, once with a firmware speed mask of 0 and a valid
-	 * value for both NRZ and PAM4 sig mode. This ensures accurate display of all
-	 * supported medias and currently configured media in the "ifconfig -m" output
-	 */
-
-	if (link_info->sig_mode == BNXT_SIG_MODE_PAM4) {
-		add_media(softc, media_type, supported, 0);
-		add_media(softc, media_type, 0, supported_pam4);
-	} else {
-		add_media(softc, media_type, 0, supported_pam4);
-		add_media(softc, media_type, supported, 0);
+	switch (link_info->sig_mode) {
+	case BNXT_SIG_MODE_NRZ:
+		if (supported_NRZ_speeds != 0)
+			add_media(softc, media_type, supported_NRZ_speeds, 0, 0);
+		else
+			add_media(softc, media_type, 0, 0, supported_speeds2);
+		break;
+	case BNXT_SIG_MODE_PAM4:
+		if (supported_pam4_speeds != 0)
+			add_media(softc, media_type, 0, supported_pam4_speeds, 0);
+		else
+			add_media(softc, media_type, 0, 0, supported_speeds2);
+		break;
+	case BNXT_SIG_MODE_PAM4_112:
+		add_media(softc, media_type, 0, 0, supported_speeds2);
+		break;
 	}
 
 	return;
@@ -4298,7 +4826,10 @@ bnxt_report_link(struct bnxt_softc *softc)
 				signal_mode = "(NRZ) ";
 				break;
 			case BNXT_SIG_MODE_PAM4:
-				signal_mode = "(PAM4) ";
+				signal_mode = "(PAM4 56Gbps) ";
+				break;
+			case BNXT_SIG_MODE_PAM4_112:
+				signal_mode = "(PAM4 112Gbps) ";
 				break;
 			default:
 				break;
@@ -4336,7 +4867,7 @@ bnxt_handle_isr(void *arg)
 
 	cpr->int_count++;
 	/* Disable further interrupts for this queue */
-	if (!BNXT_CHIP_P5(softc))
+	if (!BNXT_CHIP_P5_PLUS(softc))
 		softc->db_ops.bnxt_db_rx_cq(cpr, 0);
 
 	return FILTER_SCHEDULE_THREAD;
@@ -4348,7 +4879,7 @@ bnxt_handle_def_cp(void *arg)
 	struct bnxt_softc *softc = arg;
 
 	softc->db_ops.bnxt_db_rx_cq(&softc->def_cp_ring, 0);
-	GROUPTASK_ENQUEUE(&softc->def_cp_task);
+	iflib_config_task_enqueue(softc->ctx, &softc->def_cp_task);
 	return FILTER_HANDLED;
 }
 
@@ -4495,7 +5026,7 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE:
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CHANGE:
 	case HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_SPEED_CFG_CHANGE:
-		if (BNXT_CHIP_P5(softc))
+		if (BNXT_CHIP_P5_PLUS(softc))
 			bit_set(softc->state_bv, BNXT_STATE_LINK_CHANGE);
 		else
 			bnxt_media_status(softc->ctx, &ifmr);
@@ -4597,8 +5128,8 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 		    "Unhandled async completion type %u\n", async_id);
 		break;
 	default:
-		device_printf(softc->dev,
-		    "Unknown async completion type %u\n", async_id);
+		dev_dbg(softc->dev, "Unknown Async event completion type %u\n",
+			async_id);
 		break;
 	}
 	bnxt_queue_sp_work(softc);
@@ -4608,7 +5139,7 @@ async_event_process_exit:
 }
 
 static void
-bnxt_def_cp_task(void *context)
+bnxt_def_cp_task(void *context, int pending)
 {
 	if_ctx_t ctx = context;
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
@@ -4638,8 +5169,10 @@ bnxt_def_cp_task(void *context)
 			break;
 		case CMPL_BASE_TYPE_TX_L2:
 		case CMPL_BASE_TYPE_RX_L2:
+		case CMPL_BASE_TYPE_RX_L2_V3:
 		case CMPL_BASE_TYPE_RX_AGG:
 		case CMPL_BASE_TYPE_RX_TPA_START:
+		case CMPL_BASE_TYPE_RX_TPA_START_V3:
 		case CMPL_BASE_TYPE_RX_TPA_END:
 		case CMPL_BASE_TYPE_STAT_EJECT:
 		case CMPL_BASE_TYPE_HWRM_DONE:
@@ -4650,12 +5183,12 @@ bnxt_def_cp_task(void *context)
 		case CMPL_BASE_TYPE_DBQ_EVENT:
 		case CMPL_BASE_TYPE_QP_EVENT:
 		case CMPL_BASE_TYPE_FUNC_EVENT:
-			device_printf(softc->dev,
-			    "Unhandled completion type %u\n", type);
+			dev_dbg(softc->dev, "Unhandled Async event completion type %u\n",
+				type);
 			break;
 		default:
-			device_printf(softc->dev,
-			    "Unknown completion type %u\n", type);
+			dev_dbg(softc->dev, "Unknown Async event completion type %u\n",
+				type);
 			break;
 		}
 	}
@@ -4760,6 +5293,8 @@ bnxt_get_baudrate(struct bnxt_link_info *link)
 		return IF_Mbps(10);
 	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_200GB:
 		return IF_Gbps(200);
+	case HWRM_PORT_PHY_QCFG_OUTPUT_LINK_SPEED_400GB:
+		return IF_Gbps(400);
 	}
 	return IF_Gbps(100);
 }

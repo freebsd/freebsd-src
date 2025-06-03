@@ -62,10 +62,6 @@
 SYSCTL_NODE(_hw, OID_AUTO, fdt, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Flattened Device Tree");
 
-vm_paddr_t fdt_immr_pa;
-vm_offset_t fdt_immr_va;
-vm_offset_t fdt_immr_size;
-
 struct fdt_ic_list fdt_ic_list_head = SLIST_HEAD_INITIALIZER(fdt_ic_list_head);
 
 static int
@@ -200,38 +196,6 @@ fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 }
 
 int
-fdt_immr_addr(vm_offset_t immr_va)
-{
-	phandle_t node;
-	u_long base, size;
-	int r;
-
-	/*
-	 * Try to access the SOC node directly i.e. through /aliases/.
-	 */
-	if ((node = OF_finddevice("soc")) != -1)
-		if (ofw_bus_node_is_compatible(node, "simple-bus"))
-			goto moveon;
-	/*
-	 * Find the node the long way.
-	 */
-	if ((node = OF_finddevice("/")) == -1)
-		return (ENXIO);
-
-	if ((node = fdt_find_compatible(node, "simple-bus", 0)) == 0)
-		return (ENXIO);
-
-moveon:
-	if ((r = fdt_get_range(node, 0, &base, &size)) == 0) {
-		fdt_immr_pa = base;
-		fdt_immr_va = immr_va;
-		fdt_immr_size = size;
-	}
-
-	return (r);
-}
-
-int
 fdt_is_compatible_strict(phandle_t node, const char *compatible)
 {
 	char compat[FDT_COMPAT_LEN];
@@ -303,13 +267,13 @@ fdt_parent_addr_cells(phandle_t node)
 }
 
 u_long
-fdt_data_get(void *data, int cells)
+fdt_data_get(const void *data, int cells)
 {
 
 	if (cells == 1)
-		return (fdt32_to_cpu(*((uint32_t *)data)));
+		return (fdt32_to_cpu(*((const uint32_t *)data)));
 
-	return (fdt64_to_cpu(*((uint64_t *)data)));
+	return (fdt64_to_cpu(*((const uint64_t *)data)));
 }
 
 int
@@ -336,22 +300,22 @@ fdt_addrsize_cells(phandle_t node, int *addr_cells, int *size_cells)
 }
 
 int
-fdt_data_to_res(pcell_t *data, int addr_cells, int size_cells, u_long *start,
-    u_long *count)
+fdt_data_to_res(const pcell_t *data, int addr_cells, int size_cells,
+    u_long *start, u_long *count)
 {
 
 	/* Address portion. */
 	if (addr_cells > 2)
 		return (ERANGE);
 
-	*start = fdt_data_get((void *)data, addr_cells);
+	*start = fdt_data_get((const void *)data, addr_cells);
 	data += addr_cells;
 
 	/* Size portion. */
 	if (size_cells > 2)
 		return (ERANGE);
 
-	*count = fdt_data_get((void *)data, size_cells);
+	*count = fdt_data_get((const void *)data, size_cells);
 	return (0);
 }
 
@@ -443,8 +407,9 @@ fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 }
 
 int
-fdt_get_reserved_regions(struct mem_region *mr, int *mrcnt)
+fdt_foreach_reserved_region(fdt_mem_region_cb cb, void *arg)
 {
+	struct mem_region mr;
 	pcell_t reserve[FDT_REG_CELLS * FDT_MEM_REGIONS];
 	pcell_t *reservep;
 	phandle_t memory, root;
@@ -453,64 +418,56 @@ fdt_get_reserved_regions(struct mem_region *mr, int *mrcnt)
 
 	root = OF_finddevice("/");
 	memory = OF_finddevice("/memory");
-	if (memory == -1) {
-		rv = ENXIO;
-		goto out;
-	}
+	if (memory == -1)
+		return (ENXIO);
 
 	if ((rv = fdt_addrsize_cells(OF_parent(memory), &addr_cells,
 	    &size_cells)) != 0)
-		goto out;
+		return (rv);
 
-	if (addr_cells > 2) {
-		rv = ERANGE;
-		goto out;
-	}
+	if (addr_cells > 2)
+		return (ERANGE);
 
 	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
 
 	res_len = OF_getproplen(root, "memreserve");
-	if (res_len <= 0 || res_len > sizeof(reserve)) {
-		rv = ERANGE;
-		goto out;
-	}
+	if (res_len <= 0 || res_len > sizeof(reserve))
+		return (ERANGE);
 
-	if (OF_getprop(root, "memreserve", reserve, res_len) <= 0) {
-		rv = ENXIO;
-		goto out;
-	}
+	if (OF_getprop(root, "memreserve", reserve, res_len) <= 0)
+		return (ENXIO);
 
 	tuples = res_len / tuple_size;
 	reservep = (pcell_t *)&reserve;
 	for (i = 0; i < tuples; i++) {
 
+		memset(&mr, 0, sizeof(mr));
 		rv = fdt_data_to_res(reservep, addr_cells, size_cells,
-			(u_long *)&mr[i].mr_start, (u_long *)&mr[i].mr_size);
+			(u_long *)&mr.mr_start, (u_long *)&mr.mr_size);
 
 		if (rv != 0)
-			goto out;
+			return (rv);
+
+		cb(&mr, arg);
 
 		reservep += addr_cells + size_cells;
 	}
 
-	*mrcnt = i;
-	rv = 0;
-out:
-	return (rv);
+	return (0);
 }
 
 int
-fdt_get_reserved_mem(struct mem_region *reserved, int *mreserved)
+fdt_foreach_reserved_mem(fdt_mem_region_cb cb, void *arg)
 {
+	struct mem_region mr;
 	pcell_t reg[FDT_REG_CELLS];
 	phandle_t child, root;
 	int addr_cells, size_cells;
-	int i, rv;
+	int rv;
 
 	root = OF_finddevice("/reserved-memory");
-	if (root == -1) {
+	if (root == -1)
 		return (ENXIO);
-	}
 
 	if ((rv = fdt_addrsize_cells(root, &addr_cells, &size_cells)) != 0)
 		return (rv);
@@ -519,7 +476,6 @@ fdt_get_reserved_mem(struct mem_region *reserved, int *mreserved)
 		panic("Too many address and size cells %d %d", addr_cells,
 		    size_cells);
 
-	i = 0;
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
 		if (!OF_hasprop(child, "no-map"))
 			continue;
@@ -529,80 +485,62 @@ fdt_get_reserved_mem(struct mem_region *reserved, int *mreserved)
 			/* XXX: Does a no-map of a dynamic range make sense? */
 			continue;
 
+		memset(&mr, 0, sizeof(mr));
 		fdt_data_to_res(reg, addr_cells, size_cells,
-		    (u_long *)&reserved[i].mr_start,
-		    (u_long *)&reserved[i].mr_size);
-		i++;
-	}
+		    (u_long *)&mr.mr_start, (u_long *)&mr.mr_size);
 
-	*mreserved = i;
+		cb(&mr, arg);
+	}
 
 	return (0);
 }
 
 int
-fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint64_t *memsize)
+fdt_foreach_mem_region(fdt_mem_region_cb cb, void *arg)
 {
+	struct mem_region mr;
 	pcell_t reg[FDT_REG_CELLS * FDT_MEM_REGIONS];
 	pcell_t *regp;
 	phandle_t memory;
-	uint64_t memory_size;
 	int addr_cells, size_cells;
 	int i, reg_len, rv, tuple_size, tuples;
 
 	memory = OF_finddevice("/memory");
-	if (memory == -1) {
-		rv = ENXIO;
-		goto out;
-	}
+	if (memory == -1)
+		return (ENXIO);
 
 	if ((rv = fdt_addrsize_cells(OF_parent(memory), &addr_cells,
 	    &size_cells)) != 0)
-		goto out;
+		return (rv);
 
-	if (addr_cells > 2) {
-		rv = ERANGE;
-		goto out;
-	}
+	if (addr_cells > 2)
+		return (ERANGE);
 
 	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
 	reg_len = OF_getproplen(memory, "reg");
-	if (reg_len <= 0 || reg_len > sizeof(reg)) {
-		rv = ERANGE;
-		goto out;
-	}
+	if (reg_len <= 0 || reg_len > sizeof(reg))
+		return (ERANGE);
 
-	if (OF_getprop(memory, "reg", reg, reg_len) <= 0) {
-		rv = ENXIO;
-		goto out;
-	}
+	if (OF_getprop(memory, "reg", reg, reg_len) <= 0)
+		return (ENXIO);
 
-	memory_size = 0;
 	tuples = reg_len / tuple_size;
 	regp = (pcell_t *)&reg;
 	for (i = 0; i < tuples; i++) {
 
+		memset(&mr, 0, sizeof(mr));
 		rv = fdt_data_to_res(regp, addr_cells, size_cells,
-			(u_long *)&mr[i].mr_start, (u_long *)&mr[i].mr_size);
+			(u_long *)&mr.mr_start, (u_long *)&mr.mr_size);
 
 		if (rv != 0)
-			goto out;
+			return (rv);
+
+		cb(&mr, arg);
 
 		regp += addr_cells + size_cells;
-		memory_size += mr[i].mr_size;
 	}
 
-	if (memory_size == 0) {
-		rv = ERANGE;
-		goto out;
-	}
-
-	*mrcnt = i;
-	if (memsize != NULL)
-		*memsize = memory_size;
-	rv = 0;
-out:
-	return (rv);
+	return (0);
 }
 
 int

@@ -1,8 +1,10 @@
 
 #------------------------------------------------------------------------------
-# $File: claris,v 1.8 2016/07/18 19:23:38 christos Exp $
+# $File: claris,v 1.9 2024/07/07 14:36:49 christos Exp $
 # claris:  file(1) magic for claris
 # "H. Nanosecond" <aldomel@ix.netcom.com>
+# Update:	Joerg Jenderek 2024 May
+# URL:		https://en.wikipedia.org/wiki/AppleWorks
 # Claris Works a word processor, etc.
 # Version 3.0
 
@@ -12,8 +14,14 @@
 #0001000 #010 250 377 377 377 377 000 213 000 230 000 021 002 377 014 000
 #null to byte 1000 octal
 514	string	\377\377\377\377\000
+# https://sembiance.com/fileFormatSamples/image/pict/
+# Claris clip art (strength=80) after few Macintosh QuickDraw (strength=81=70+11 ./images) with corner coordinates -1/-1  and Y=0x00?? like PICT_2012.pict
+#!:strength +0
 >0	string	\0\0\0\0\0\0\0\0\0\0\0\0\0	Claris clip art
 514	string	\377\377\377\377\001
+# https://sembiance.com/fileFormatSamples/image/pict/
+# Claris clip art (strength=80) after few Macintosh QuickDraw (strength=81=70+11 ./images) with corner coordinates -1/-1 and Y=0x01?? like PICT_129.pict
+#!:strength +0
 >0	string	\0\0\0\0\0\0\0\0\0\0\0\0\0	Claris clip art
 
 # Claris works files

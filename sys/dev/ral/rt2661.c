@@ -1326,9 +1326,7 @@ rt2661_tx_mgt(struct rt2661_softc *sc, struct mbuf *m0,
 		*(uint16_t *)wh->i_dur = htole16(dur);
 
 		/* tell hardware to add timestamp in probe responses */
-		if ((wh->i_fc[0] &
-		    (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
-		    (IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP))
+		if (IEEE80211_IS_MGMT_PROBE_RESP(wh))
 			flags |= RT2661_TX_TIMESTAMP;
 	}
 
@@ -1433,7 +1431,7 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 		rate = tp->ucastrate;
 	} else {
 		(void) ieee80211_ratectl_rate(ni, NULL, 0);
-		rate = ni->ni_txrate;
+		rate = ieee80211_node_get_txrate_dot11rate(ni);
 	}
 	rate &= IEEE80211_RATE_VAL;
 
@@ -1517,7 +1515,7 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 
 	/* remember link conditions for rate adaptation algorithm */
 	if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE) {
-		data->rix = ni->ni_txrate;
+		data->rix = ieee80211_node_get_txrate_dot11rate(ni);
 		/* XXX probably need last rssi value and not avg */
 		data->rssi = ic->ic_node_getrssi(ni);
 	} else

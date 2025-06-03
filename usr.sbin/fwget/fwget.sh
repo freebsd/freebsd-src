@@ -38,7 +38,8 @@ Supported subsystems
   pci
 
 Options:
-  -n		-- Do not install package, only print the results
+  -n		-- Do not install packages, only print the results
+  -q		-- Quiet mode.  If used with -n only prints a package a line
   -v		-- More verbose
 EOF
 	exit 1
@@ -46,7 +47,9 @@ EOF
 
 log()
 {
-	echo "$@"
+	if [ "${QUIET}" != "y" ]; then
+		echo "$@"
+	fi
 }
 
 log_verbose()
@@ -75,22 +78,27 @@ addpkg()
 }
 
 DRY_RUN=n
+QUIET=n
 VERBOSE=n
 
-while [ $# -gt 0 ]; do
-	case $1 in
-		-n)
-			DRY_RUN=y
-			;;
-		-v)
-			VERBOSE=y
-			;;
-		*)
-			subsystems="${subsystems} $1"
-			;;
+while getopts ":nqv" _arg; do
+	case ${_arg} in
+	n)
+		DRY_RUN=y
+		;;
+	q)
+		QUIET=y
+		;;
+	v)
+		VERBOSE=y
+		;;
+	?)
+		usage
+		;;
 	esac
-	shift
 done
+shift $(($OPTIND - 1))
+subsystems="$@"
 
 # Default searching PCI subsystem
 if [ -z "${subsystems}" ]; then
@@ -112,13 +120,21 @@ done
 
 case "${packages}" in
 ""|^[[:space:]]*$)
-	echo "No firmware packages to install."
+	log "No firmware packages to install."
 	exit 0
 	;;
 esac
 
-echo "Needed firmware packages: '${packages}'"
+log "Needed firmware packages: '${packages}'"
 if [ "${DRY_RUN}" = "y" ]; then
+	if [ "${QUIET}" = "y" ]; then
+		for pkg in ${packages}; do
+			case "${pkg}" in
+			""|^[[:space:]]*$) continue ;;
+			esac
+			echo "${pkg}"
+		done
+	fi
 	exit 0
 fi
 

@@ -1,476 +1,244 @@
-/* crypto/sha/sha1dgst.c */
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
+/*-
+ * Copyright (c) 2009 The Go Authors. All rights reserved.
+ * Copyright (c) 2024 Robert Clausecker <fuz@freebsd.org>
  *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- * 
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- * 
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- * 
+ * Adapted from Go's crypto/sha1/sha1.go.
+ *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the routines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from 
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- * 
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- * 
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ * copyright notice, this list of conditions and the following disclaimer
+ * in the documentation and/or other materials provided with the
+ * distribution.
+ *   * Neither the name of Google Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/types.h>
-
-#include <stdio.h>
+#include <assert.h>
+#include <sha.h>
+#include <stdint.h>
 #include <string.h>
+#include <strings.h>
+#include <sys/endian.h>
 
-#if 0
-#include <machine/ansi.h>	/* we use the __ variants of bit-sized types */
-#endif
-#include <machine/endian.h>
-
-#undef  SHA_0
-#define SHA_1
-#include "sha.h"
-#include "sha_locl.h"
-
-/*
- * The assembly-language code is not position-independent, so don't
- * try to use it in a shared library.
- */
-#ifdef PIC
-#undef SHA1_ASM
-#endif
-
-static char *SHA1_version="SHA1 part of SSLeay 0.9.0b 11-Oct-1998";
-
-/* Implemented from SHA-1 document - The Secure Hash Algorithm
- */
-
-#define INIT_DATA_h0 (unsigned long)0x67452301L
-#define INIT_DATA_h1 (unsigned long)0xefcdab89L
-#define INIT_DATA_h2 (unsigned long)0x98badcfeL
-#define INIT_DATA_h3 (unsigned long)0x10325476L
-#define INIT_DATA_h4 (unsigned long)0xc3d2e1f0L
-
-#define K_00_19	0x5a827999L
-#define K_20_39 0x6ed9eba1L
-#define K_40_59 0x8f1bbcdcL
-#define K_60_79 0xca62c1d6L
-
-#ifndef NOPROTO
-#  ifdef SHA1_ASM
-     void sha1_block_x86(SHA_CTX *c, const u_int32_t *p, int num);
-#    define sha1_block sha1_block_x86
-#  else
-     void sha1_block(SHA_CTX *c, const u_int32_t *p, int num);
-#  endif
+#ifdef SHA1_ASM
+extern void	sha1_block(SHA1_CTX *, const void *, size_t);
 #else
-#  ifdef SHA1_ASM
-     void sha1_block_x86();
-#    define sha1_block sha1_block_x86
-#  else
-     void sha1_block();
-#  endif
+static void	sha1_block(SHA1_CTX *, const void *, size_t);
 #endif
 
+#define INIT0 0x67452301
+#define INIT1 0xEFCDAB89
+#define INIT2 0x98BADCFE
+#define INIT3 0x10325476
+#define INIT4 0xC3D2E1F0
 
-#if BYTE_ORDER == LITTLE_ENDIAN && defined(SHA1_ASM)
-#  define	M_c2nl 		c2l
-#  define	M_p_c2nl 	p_c2l
-#  define	M_c2nl_p	c2l_p
-#  define	M_p_c2nl_p	p_c2l_p
-#  define	M_nl2c		l2c
-#else
-#  define	M_c2nl 		c2nl
-#  define	M_p_c2nl	p_c2nl
-#  define	M_c2nl_p	c2nl_p
-#  define	M_p_c2nl_p	p_c2nl_p
-#  define	M_nl2c		nl2c
-#endif
-
-void SHA1_Init(SHA_CTX *c)
-	{
-	c->h0=INIT_DATA_h0;
-	c->h1=INIT_DATA_h1;
-	c->h2=INIT_DATA_h2;
-	c->h3=INIT_DATA_h3;
-	c->h4=INIT_DATA_h4;
-	c->Nl=0;
-	c->Nh=0;
-	c->num=0;
-	}
+#define K0 0x5A827999
+#define K1 0x6ED9EBA1
+#define K2 0x8F1BBCDC
+#define K3 0xCA62C1D6
 
 void
-SHA1_Update(SHA_CTX *c, const void *in, size_t len)
+SHA1_Init(SHA1_CTX *c)
 {
-	u_int32_t *p;
-	int ew,ec,sw,sc;
-	u_int32_t l;
-	const unsigned char *data = in;
+	c->h0 = INIT0;
+	c->h1 = INIT1;
+	c->h2 = INIT2;
+	c->h3 = INIT3;
+	c->h4 = INIT4;
+	c->Nl = 0;
+	c->Nh = 0;
+	c->num = 0;
+}
 
-	if (len == 0) return;
+void
+SHA1_Update(SHA1_CTX *c, const void *data, size_t len)
+{
+	uint64_t nn;
+	const char *p = data;
 
-	l=(c->Nl+(len<<3))&0xffffffffL;
-	if (l < c->Nl) /* overflow */
-		c->Nh++;
-	c->Nh+=(len>>29);
-	c->Nl=l;
+	nn = (uint64_t)c->Nl | (uint64_t)c->Nh << 32;
+	nn += len;
+	c->Nl = (uint32_t)nn;
+	c->Nh = (uint32_t)(nn >> 32);
 
-	if (c->num != 0)
-		{
-		p=c->data;
-		sw=c->num>>2;
-		sc=c->num&0x03;
+	if (c->num > 0) {
+		size_t n = SHA_CBLOCK - c->num;
 
-		if ((c->num+len) >= SHA_CBLOCK)
-			{
-			l= p[sw];
-			M_p_c2nl(data,l,sc);
-			p[sw++]=l;
-			for (; sw<SHA_LBLOCK; sw++)
-				{
-				M_c2nl(data,l);
-				p[sw]=l;
-				}
-			len-=(SHA_CBLOCK-c->num);
+		if (n > len)
+			n = len;
 
-			sha1_block(c,p,64);
-			c->num=0;
-			/* drop through and do the rest */
-			}
-		else
-			{
-			c->num+=(int)len;
-			if ((sc+len) < 4) /* ugly, add char's to a word */
-				{
-				l= p[sw];
-				M_p_c2nl_p(data,l,sc,len);
-				p[sw]=l;
-				}
-			else
-				{
-				ew=(c->num>>2);
-				ec=(c->num&0x03);
-				l= p[sw];
-				M_p_c2nl(data,l,sc);
-				p[sw++]=l;
-				for (; sw < ew; sw++)
-					{ M_c2nl(data,l); p[sw]=l; }
-				if (ec)
-					{
-					M_c2nl_p(data,l,ec);
-					p[sw]=l;
-					}
-				}
-			return;
-			}
+		memcpy((char *)c->data + c->num, p, n);
+		c->num += n;
+		if (c->num == SHA_CBLOCK) {
+			sha1_block(c, (void *)c->data, SHA_CBLOCK);
+			c->num = 0;
 		}
-	/* We can only do the following code for assember, the reason
-	 * being that the sha1_block 'C' version changes the values
-	 * in the 'data' array.  The assember code avoids this and
-	 * copies it to a local array.  I should be able to do this for
-	 * the C version as well....
-	 */
-#if 1
-#if BYTE_ORDER == BIG_ENDIAN || defined(SHA1_ASM)
-	if ((((unsigned int)data)%sizeof(u_int32_t)) == 0)
-		{
-		sw=len/SHA_CBLOCK;
-		if (sw)
-			{
-			sw*=SHA_CBLOCK;
-			sha1_block(c,(u_int32_t *)data,sw);
-			data+=sw;
-			len-=sw;
-			}
-		}
-#endif
-#endif
-	/* we now can process the input data in blocks of SHA_CBLOCK
-	 * chars and save the leftovers to c->data. */
-	p=c->data;
-	while (len >= SHA_CBLOCK)
-		{
-#if BYTE_ORDER == BIG_ENDIAN || BYTE_ORDER == LITTLE_ENDIAN
-		if (p != (u_int32_t *)data)
-			memcpy(p,data,SHA_CBLOCK);
-		data+=SHA_CBLOCK;
-#  if BYTE_ORDER == LITTLE_ENDIAN
-#    ifndef SHA1_ASM /* Will not happen */
-		for (sw=(SHA_LBLOCK/4); sw; sw--)
-			{
-			Endian_Reverse32(p[0]);
-			Endian_Reverse32(p[1]);
-			Endian_Reverse32(p[2]);
-			Endian_Reverse32(p[3]);
-			p+=4;
-			}
-		p=c->data;
-#    endif
-#  endif
-#else
-		for (sw=(SHA_BLOCK/4); sw; sw--)
-			{
-			M_c2nl(data,l); *(p++)=l;
-			M_c2nl(data,l); *(p++)=l;
-			M_c2nl(data,l); *(p++)=l;
-			M_c2nl(data,l); *(p++)=l;
-			}
-		p=c->data;
-#endif
-		sha1_block(c,p,64);
-		len-=SHA_CBLOCK;
-		}
-	ec=(int)len;
-	c->num=ec;
-	ew=(ec>>2);
-	ec&=0x03;
 
-	for (sw=0; sw < ew; sw++)
-		{ M_c2nl(data,l); p[sw]=l; }
-	M_c2nl_p(data,l,ec);
-	p[sw]=l;
+		p += n;
+		len -= n;
 	}
 
-static void SHA1_Transform(SHA_CTX *c, unsigned char *b)
-	{
-	u_int32_t p[16];
-#if BYTE_ORDER != BIG_ENDIAN
-	u_int32_t *q;
-	int i;
-#endif
+	if (len >= SHA_CBLOCK) {
+		size_t n = len & ~(size_t)(SHA_CBLOCK - 1);
 
-#if BYTE_ORDER == BIG_ENDIAN || BYTE_ORDER == LITTLE_ENDIAN
-	memcpy(p,b,64);
-#if BYTE_ORDER == LITTLE_ENDIAN
-	q=p;
-	for (i=(SHA_LBLOCK/4); i; i--)
-		{
-		Endian_Reverse32(q[0]);
-		Endian_Reverse32(q[1]);
-		Endian_Reverse32(q[2]);
-		Endian_Reverse32(q[3]);
-		q+=4;
-		}
-#endif
-#else
-	q=p;
-	for (i=(SHA_LBLOCK/4); i; i--)
-		{
-		u_int32_t l;
-		c2nl(b,l); *(q++)=l;
-		c2nl(b,l); *(q++)=l;
-		c2nl(b,l); *(q++)=l;
-		c2nl(b,l); *(q++)=l; 
-		} 
-#endif
-	sha1_block(c,p,64);
+		sha1_block(c, p, n);
+		p += n;
+		len -= n;
 	}
+
+	if (len > 0) {
+		memcpy(c->data, p, len);
+		c->num = len;
+	}
+}
+
+void
+SHA1_Final(unsigned char *md, SHA1_CTX *c)
+{
+	uint64_t len;
+	size_t t;
+	unsigned char tmp[SHA_CBLOCK + sizeof(uint64_t)] = {0x80, 0};
+
+	len = (uint64_t)c->Nl | (uint64_t)c->Nh << 32;
+	t = 64 + 56 - c->Nl % 64;
+	if (t > 64)
+		t -= 64;
+
+	/* length in bits */
+	len <<= 3;
+	be64enc(tmp + t, len);
+	SHA1_Update(c, tmp, t + 8);
+	assert(c->num == 0);
+
+	be32enc(md +  0, c->h0);
+	be32enc(md +  4, c->h1);
+	be32enc(md +  8, c->h2);
+	be32enc(md + 12, c->h3);
+	be32enc(md + 16, c->h4);
+
+	explicit_bzero(c, sizeof(*c));
+}
 
 #ifndef SHA1_ASM
-
-void 
-sha1_block(SHA_CTX *c, const u_int32_t *W, int num)
+static void
+/* invariant: len is a multiple of SHA_CBLOCK */
+sha1_block(SHA1_CTX *c, const void *data, size_t len)
 {
-	u_int32_t A,B,C,D,E,T;
-	u_int32_t X[16];
+	uint32_t w[16];
+	uint32_t h0 = c->h0, h1 = c->h1, h2 = c->h2, h3 = c->h3, h4 = c->h4;
+	const char *p = data;
 
-	A=c->h0;
-	B=c->h1;
-	C=c->h2;
-	D=c->h3;
-	E=c->h4;
+	while (len >= SHA_CBLOCK) {
+		size_t i;
+		uint32_t a = h0, b = h1, c = h2, d = h3, e = h4;
+		uint32_t f, t, tmp;
 
-	for (;;)
-		{
-	BODY_00_15( 0,A,B,C,D,E,T,W);
-	BODY_00_15( 1,T,A,B,C,D,E,W);
-	BODY_00_15( 2,E,T,A,B,C,D,W);
-	BODY_00_15( 3,D,E,T,A,B,C,W);
-	BODY_00_15( 4,C,D,E,T,A,B,W);
-	BODY_00_15( 5,B,C,D,E,T,A,W);
-	BODY_00_15( 6,A,B,C,D,E,T,W);
-	BODY_00_15( 7,T,A,B,C,D,E,W);
-	BODY_00_15( 8,E,T,A,B,C,D,W);
-	BODY_00_15( 9,D,E,T,A,B,C,W);
-	BODY_00_15(10,C,D,E,T,A,B,W);
-	BODY_00_15(11,B,C,D,E,T,A,W);
-	BODY_00_15(12,A,B,C,D,E,T,W);
-	BODY_00_15(13,T,A,B,C,D,E,W);
-	BODY_00_15(14,E,T,A,B,C,D,W);
-	BODY_00_15(15,D,E,T,A,B,C,W);
-	BODY_16_19(16,C,D,E,T,A,B,W,W,W,W);
-	BODY_16_19(17,B,C,D,E,T,A,W,W,W,W);
-	BODY_16_19(18,A,B,C,D,E,T,W,W,W,W);
-	BODY_16_19(19,T,A,B,C,D,E,W,W,W,X);
+#		pragma unroll
+		for (i = 0; i < 16; i++)
+			w[i] = be32dec(p + 4*i);
 
-	BODY_20_31(20,E,T,A,B,C,D,W,W,W,X);
-	BODY_20_31(21,D,E,T,A,B,C,W,W,W,X);
-	BODY_20_31(22,C,D,E,T,A,B,W,W,W,X);
-	BODY_20_31(23,B,C,D,E,T,A,W,W,W,X);
-	BODY_20_31(24,A,B,C,D,E,T,W,W,X,X);
-	BODY_20_31(25,T,A,B,C,D,E,W,W,X,X);
-	BODY_20_31(26,E,T,A,B,C,D,W,W,X,X);
-	BODY_20_31(27,D,E,T,A,B,C,W,W,X,X);
-	BODY_20_31(28,C,D,E,T,A,B,W,W,X,X);
-	BODY_20_31(29,B,C,D,E,T,A,W,W,X,X);
-	BODY_20_31(30,A,B,C,D,E,T,W,X,X,X);
-	BODY_20_31(31,T,A,B,C,D,E,W,X,X,X);
-	BODY_32_39(32,E,T,A,B,C,D,X);
-	BODY_32_39(33,D,E,T,A,B,C,X);
-	BODY_32_39(34,C,D,E,T,A,B,X);
-	BODY_32_39(35,B,C,D,E,T,A,X);
-	BODY_32_39(36,A,B,C,D,E,T,X);
-	BODY_32_39(37,T,A,B,C,D,E,X);
-	BODY_32_39(38,E,T,A,B,C,D,X);
-	BODY_32_39(39,D,E,T,A,B,C,X);
-
-	BODY_40_59(40,C,D,E,T,A,B,X);
-	BODY_40_59(41,B,C,D,E,T,A,X);
-	BODY_40_59(42,A,B,C,D,E,T,X);
-	BODY_40_59(43,T,A,B,C,D,E,X);
-	BODY_40_59(44,E,T,A,B,C,D,X);
-	BODY_40_59(45,D,E,T,A,B,C,X);
-	BODY_40_59(46,C,D,E,T,A,B,X);
-	BODY_40_59(47,B,C,D,E,T,A,X);
-	BODY_40_59(48,A,B,C,D,E,T,X);
-	BODY_40_59(49,T,A,B,C,D,E,X);
-	BODY_40_59(50,E,T,A,B,C,D,X);
-	BODY_40_59(51,D,E,T,A,B,C,X);
-	BODY_40_59(52,C,D,E,T,A,B,X);
-	BODY_40_59(53,B,C,D,E,T,A,X);
-	BODY_40_59(54,A,B,C,D,E,T,X);
-	BODY_40_59(55,T,A,B,C,D,E,X);
-	BODY_40_59(56,E,T,A,B,C,D,X);
-	BODY_40_59(57,D,E,T,A,B,C,X);
-	BODY_40_59(58,C,D,E,T,A,B,X);
-	BODY_40_59(59,B,C,D,E,T,A,X);
-
-	BODY_60_79(60,A,B,C,D,E,T,X);
-	BODY_60_79(61,T,A,B,C,D,E,X);
-	BODY_60_79(62,E,T,A,B,C,D,X);
-	BODY_60_79(63,D,E,T,A,B,C,X);
-	BODY_60_79(64,C,D,E,T,A,B,X);
-	BODY_60_79(65,B,C,D,E,T,A,X);
-	BODY_60_79(66,A,B,C,D,E,T,X);
-	BODY_60_79(67,T,A,B,C,D,E,X);
-	BODY_60_79(68,E,T,A,B,C,D,X);
-	BODY_60_79(69,D,E,T,A,B,C,X);
-	BODY_60_79(70,C,D,E,T,A,B,X);
-	BODY_60_79(71,B,C,D,E,T,A,X);
-	BODY_60_79(72,A,B,C,D,E,T,X);
-	BODY_60_79(73,T,A,B,C,D,E,X);
-	BODY_60_79(74,E,T,A,B,C,D,X);
-	BODY_60_79(75,D,E,T,A,B,C,X);
-	BODY_60_79(76,C,D,E,T,A,B,X);
-	BODY_60_79(77,B,C,D,E,T,A,X);
-	BODY_60_79(78,A,B,C,D,E,T,X);
-	BODY_60_79(79,T,A,B,C,D,E,X);
-	
-	c->h0=(c->h0+E)&0xffffffffL; 
-	c->h1=(c->h1+T)&0xffffffffL;
-	c->h2=(c->h2+A)&0xffffffffL;
-	c->h3=(c->h3+B)&0xffffffffL;
-	c->h4=(c->h4+C)&0xffffffffL;
-
-	num-=64;
-	if (num <= 0) break;
-
-	A=c->h0;
-	B=c->h1;
-	C=c->h2;
-	D=c->h3;
-	E=c->h4;
-
-	W+=16;
+#		pragma unroll
+		for (i = 0; i < 16; i++) {
+			f = b & c | ~b & d;
+			t = (a << 5 | a >> 32 - 5) + f + e + w[i & 0xf] + K0;
+			e = d;
+			d = c;
+			c = b << 30 | b >> 32 - 30;
+			b = a;
+			a = t;
 		}
-	}
-#endif
 
-void SHA1_Final(unsigned char *md, SHA_CTX *c)
-	{
-	int i,j;
-	u_int32_t l;
-	u_int32_t *p;
-	static unsigned char end[4]={0x80,0x00,0x00,0x00};
-	unsigned char *cp=end;
+#		pragma unroll
+		for (; i < 20; i++) {
+			tmp = w[i - 3 & 0xf] ^ w[i - 8 & 0xf] ^ w[i - 14 & 0xf] ^ w[i & 0xf];
+			w[i & 0xf] = tmp << 1 | tmp >> 32 - 1;
 
-	/* c->num should definitly have room for at least one more byte. */
-	p=c->data;
-	j=c->num;
-	i=j>>2;
-#ifdef PURIFY
-	if ((j&0x03) == 0) p[i]=0;
-#endif
-	l=p[i];
-	M_p_c2nl(cp,l,j&0x03);
-	p[i]=l;
-	i++;
-	/* i is the next 'undefined word' */
-	if (c->num >= SHA_LAST_BLOCK)
-		{
-		for (; i<SHA_LBLOCK; i++)
-			p[i]=0;
-		sha1_block(c,p,64);
-		i=0;
+			f = b & c | ~b & d;
+			t = (a << 5 | a >> 32 - 5) + f + e + w[i & 0xf] + K0;
+			e = d;
+			d = c;
+			c = b << 30 | b >> 32 - 30;
+			b = a;
+			a = t;
 		}
-	for (; i<(SHA_LBLOCK-2); i++)
-		p[i]=0;
-	p[SHA_LBLOCK-2]=c->Nh;
-	p[SHA_LBLOCK-1]=c->Nl;
-#if BYTE_ORDER == LITTLE_ENDIAN && defined(SHA1_ASM)
-	Endian_Reverse32(p[SHA_LBLOCK-2]);
-	Endian_Reverse32(p[SHA_LBLOCK-1]);
-#endif
-	sha1_block(c,p,64);
-	cp=md;
-	l=c->h0; nl2c(l,cp);
-	l=c->h1; nl2c(l,cp);
-	l=c->h2; nl2c(l,cp);
-	l=c->h3; nl2c(l,cp);
-	l=c->h4; nl2c(l,cp);
 
-	/* Clear the context state */
-	explicit_bzero(&c, sizeof(c));
+#		pragma unroll
+		for (; i < 40; i++) {
+			tmp = w[i - 3 & 0xf] ^ w[i - 8 & 0xf] ^ w[i - 14 & 0xf] ^ w[i & 0xf];
+			w[i & 0xf] = tmp << 1 | tmp >> 32 - 1;
+
+			f = b ^ c ^ d;
+			t = (a << 5 | a >> 32 - 5) + f + e + w[i & 0xf] + K1;
+			e = d;
+			d = c;
+			c = b << 30 | b >> 32 - 30;
+			b = a;
+			a = t;
+		}
+
+#		pragma unroll
+		for (; i < 60; i++) {
+			tmp = w[i - 3 & 0xf] ^ w[i - 8 & 0xf] ^ w[i - 14 & 0xf] ^ w[i & 0xf];
+			w[i & 0xf] = tmp << 1 | tmp >> 32 - 1;
+
+			f = (b | c) & d | b & c;
+			t = (a << 5 | a >> 32 - 5) + f + e + w[i & 0xf] + K2;
+			e = d;
+			d = c;
+			c = b << 30 | b >> 32 - 30;
+			b = a;
+			a = t;
+		}
+
+#		pragma unroll
+		for (; i < 80; i++) {
+			tmp = w[i - 3 & 0xf] ^ w[i - 8 & 0xf] ^ w[i - 14 & 0xf] ^ w[i & 0xf];
+			w[i & 0xf] = tmp << 1 | tmp >> 32 - 1;
+
+			f = b ^ c ^ d;
+			t = (a << 5 | a >> 32 - 5) + f + e + w[i & 0xf] + K3;
+			e = d;
+			d = c;
+			c = b << 30 | b >> 32 - 30;
+			b = a;
+			a = t;
+		}
+
+		h0 += a;
+		h1 += b;
+		h2 += c;
+		h3 += d;
+		h4 += e;
+
+		p += SHA_CBLOCK;
+		len -= SHA_CBLOCK;
 	}
+
+	c->h0 = h0;
+	c->h1 = h1;
+	c->h2 = h2;
+	c->h3 = h3;
+	c->h4 = h4;
+}
+#endif
 
 #ifdef WEAK_REFS
 /* When building libmd, provide weak references. Note: this is not

@@ -1,7 +1,7 @@
 /*
  * Double-precision log2(x) function.
  *
- * Copyright (c) 2018-2019, Arm Limited.
+ * Copyright (c) 2018-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -9,6 +9,8 @@
 #include <math.h>
 #include <stdint.h>
 #include "math_config.h"
+#include "test_defs.h"
+#include "test_sig.h"
 
 #define T __log2_data.tab
 #define T2 __log2_data.tab2
@@ -139,3 +141,10 @@ hidden_alias (log2, __ieee754_log2)
 long double log2l (long double x) { return log2 (x); }
 # endif
 #endif
+
+TEST_SIG (S, D, 1, log2, 0.01, 11.1)
+TEST_ULP (log2, 0.05)
+TEST_ULP_NONNEAREST (log2, 0.5)
+TEST_INTERVAL (log2, 0, 0xffff000000000000, 10000)
+TEST_INTERVAL (log2, 0x1p-4, 0x1p4, 40000)
+TEST_INTERVAL (log2, 0, inf, 40000)

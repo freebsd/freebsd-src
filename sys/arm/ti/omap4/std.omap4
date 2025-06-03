@@ -1,7 +1,0 @@
-# Omap4430 generic configuration
-files		"../ti/omap4/files.omap4"
-include		"../ti/std.ti"
-
-cpu 		CPU_CORTEXA
-
-options		SOC_OMAP4

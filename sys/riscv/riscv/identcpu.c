@@ -52,6 +52,8 @@
 #include <machine/cpufunc.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
+#include <machine/thead.h>
+#include <machine/cbo.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
@@ -72,9 +74,15 @@ register_t mimpid;	/* The implementation ID */
 u_int mmu_caps;
 
 /* Supervisor-mode extension support. */
+bool has_hyp;
 bool __read_frequently has_sstc;
 bool __read_frequently has_sscofpmf;
 bool has_svpbmt;
+
+/* Z-extensions support. */
+bool has_zicbom;
+bool has_zicboz;
+bool has_zicbop;
 
 struct cpu_desc {
 	const char	*cpu_mvendor_name;
@@ -87,6 +95,12 @@ struct cpu_desc {
 #define	 SV_SVPBMT	(1 << 2)
 #define	 SV_SVINVAL	(1 << 3)
 #define	 SV_SSCOFPMF	(1 << 4)
+	u_int		z_extensions;		/* Multi-letter extensions. */
+#define	 Z_ZICBOM	(1 << 0)
+#define	 Z_ZICBOZ	(1 << 1)
+#define	 Z_ZICBOP	(1 << 2)
+	int		cbom_block_size;
+	int		cboz_block_size;
 };
 
 struct cpu_desc cpu_desc[MAXCPU];
@@ -112,6 +126,7 @@ static const struct marchid_entry global_marchids[] = {
 
 static const struct marchid_entry sifive_marchids[] = {
 	{ MARCHID_SIFIVE_U7,	"6/7/P200/X200-Series Processor" },
+	{ MARCHID_SIFIVE_P5,	"P550/P650 Processor" },
 	MARCHID_END
 };
 
@@ -194,11 +209,24 @@ parse_ext_x(struct cpu_desc *desc __unused, char *isa, int idx, int len)
 static __inline int
 parse_ext_z(struct cpu_desc *desc __unused, char *isa, int idx, int len)
 {
+#define	CHECK_Z_EXT(str, flag)						\
+	do {								\
+		if (strncmp(&isa[idx], (str),				\
+		    MIN(strlen(str), len - idx)) == 0) {		\
+			desc->z_extensions |= flag;			\
+			return (idx + strlen(str));			\
+		}							\
+	} while (0)
+
+	/* Check for known/supported extensions. */
+	CHECK_Z_EXT("zicbom",	Z_ZICBOM);
+	CHECK_Z_EXT("zicboz",	Z_ZICBOZ);
+	CHECK_Z_EXT("zicbop",	Z_ZICBOP);
+
+#undef CHECK_Z_EXT
 	/*
 	 * Proceed to the next multi-letter extension or the end of the
 	 * string.
-	 *
-	 * TODO: parse some of these.
 	 */
 	while (isa[idx] != '_' && idx < len) {
 		idx++;
@@ -249,6 +277,7 @@ parse_riscv_isa(struct cpu_desc *desc, char *isa, int len)
 		case 'c':
 		case 'd':
 		case 'f':
+		case 'h':
 		case 'i':
 		case 'm':
 			desc->isa_extensions |= HWCAP_ISA_BIT(isa[i]);
@@ -319,6 +348,22 @@ parse_mmu_fdt(struct cpu_desc *desc, phandle_t node)
 }
 
 static void
+parse_cbo_fdt(struct cpu_desc *desc, phandle_t node)
+{
+	int error;
+
+	error = OF_getencprop(node, "riscv,cbom-block-size",
+	    &desc->cbom_block_size, sizeof(desc->cbom_block_size));
+	if (error == -1)
+		desc->cbom_block_size = 0;
+
+	error = OF_getencprop(node, "riscv,cboz-block-size",
+	    &desc->cboz_block_size, sizeof(desc->cboz_block_size));
+	if (error == -1)
+		desc->cboz_block_size = 0;
+}
+
+static void
 identify_cpu_features_fdt(u_int cpu, struct cpu_desc *desc)
 {
 	char isa[1024];
@@ -369,6 +414,9 @@ identify_cpu_features_fdt(u_int cpu, struct cpu_desc *desc)
 		/* Check MMU features. */
 		parse_mmu_fdt(desc, node);
 
+		/* Cache-block operations (CBO). */
+		parse_cbo_fdt(desc, node);
+
 		/* We are done. */
 		break;
 	}
@@ -414,9 +462,15 @@ update_global_capabilities(u_int cpu, struct cpu_desc *desc)
 	UPDATE_CAP(mmu_caps, desc->mmu_caps);
 
 	/* Supervisor-mode extension support. */
+	UPDATE_CAP(has_hyp, (desc->isa_extensions & HWCAP_ISA_H) != 0);
 	UPDATE_CAP(has_sstc, (desc->smode_extensions & SV_SSTC) != 0);
 	UPDATE_CAP(has_sscofpmf, (desc->smode_extensions & SV_SSCOFPMF) != 0);
 	UPDATE_CAP(has_svpbmt, (desc->smode_extensions & SV_SVPBMT) != 0);
+
+	/* Z extension support. */
+	UPDATE_CAP(has_zicbom, (desc->z_extensions & Z_ZICBOM) != 0);
+	UPDATE_CAP(has_zicboz, (desc->z_extensions & Z_ZICBOZ) != 0);
+	UPDATE_CAP(has_zicbop, (desc->z_extensions & Z_ZICBOP) != 0);
 
 #undef UPDATE_CAP
 }
@@ -460,6 +514,38 @@ identify_cpu_ids(struct cpu_desc *desc)
 	}
 }
 
+static void
+handle_thead_quirks(u_int cpu, struct cpu_desc *desc)
+{
+	if (cpu != 0)
+		return;
+
+	/*
+	 * For now, it is assumed that T-HEAD CPUs have both marchid and mimpid
+	 * values of zero (although we leave this unchecked). It is true in
+	 * practice for the early generations of this hardware (C906, C910,
+	 * C920). In the future, the identity checks may need to become more
+	 * granular, but until then all known T-HEAD quirks are applied
+	 * indiscriminantly.
+	 *
+	 * Note: any changes in this function relating to has_errata_thead_pbmt
+	 * may need to be applied to get_pte_fixup_bits (in locore.S) as well.
+	 */
+
+	has_errata_thead_pbmt = true;
+	thead_setup_cache();
+}
+
+static void
+handle_cpu_quirks(u_int cpu, struct cpu_desc *desc)
+{
+	switch (mvendorid) {
+	case MVENDORID_THEAD:
+		handle_thead_quirks(cpu, desc);
+		break;
+	}
+}
+
 void
 identify_cpu(u_int cpu)
 {
@@ -469,6 +555,10 @@ identify_cpu(u_int cpu)
 	identify_cpu_features(cpu, desc);
 
 	update_global_capabilities(cpu, desc);
+	handle_cpu_quirks(cpu, desc);
+
+	if (has_zicbom && cpu == 0)
+		cbo_zicbom_setup_cache(desc->cbom_block_size);
 }
 
 void
@@ -514,6 +604,7 @@ printcpuinfo(u_int cpu)
 		    "\03Compressed"
 		    "\04Double"
 		    "\06Float"
+		    "\10Hypervisor"
 		    "\15Mult/Div");
 	}
 

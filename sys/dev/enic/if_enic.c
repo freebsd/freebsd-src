@@ -201,11 +201,11 @@ static struct if_shared_ctx enic_sctx_init = {
 							 * descriptor */
 	.isc_rx_nsegments = 1,	/* One mapping per descriptor */
 	.isc_rx_maxsegsize = ENIC_DEFAULT_RX_MAX_PKT_SIZE,
-	.isc_admin_intrcnt = 3,
+	.isc_admin_intrcnt = 2,
 	.isc_vendor_info = enic_vendor_info_array,
 	.isc_driver_version = "1",
 	.isc_driver = &enic_iflib_driver,
-	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ,
+	.isc_flags = IFLIB_HAS_RXCQ | IFLIB_HAS_TXCQ | IFLIB_SKIP_MSIX,
 
 	/*
 	 * Number of receive queues per receive queue set, with associated
@@ -233,6 +233,99 @@ static void *
 enic_register(device_t dev)
 {
 	return (&enic_sctx_init);
+}
+
+static int
+enic_allocate_msix(struct enic_softc *softc) {
+	if_ctx_t ctx;
+	if_softc_ctx_t scctx;
+	if_shared_ctx_t sctx;
+	device_t dev;
+	cpuset_t cpus;
+	int queues, vectors, requested;
+	int err = 0;
+
+	dev = softc->dev;
+	ctx = softc->ctx;
+	scctx = softc->scctx;
+	sctx = iflib_get_sctx(ctx);
+
+	if (bus_get_cpus(dev, INTR_CPUS, sizeof(cpus), &cpus) != 0) {
+		device_printf(dev, "Unable to fetch CPU list\n");
+		CPU_COPY(&all_cpus, &cpus);
+	}
+
+
+	queues = CPU_COUNT(&cpus);
+	queues = imin(queues, scctx->isc_nrxqsets);
+	queues = imin(queues, scctx->isc_ntxqsets);
+	requested = queues * 2 + sctx->isc_admin_intrcnt;
+	scctx->isc_nrxqsets = queues;
+	scctx->isc_ntxqsets = queues;
+
+	vectors = requested;
+	if ((err = pci_alloc_msix(dev, &vectors)) != 0) {
+		device_printf(dev,
+                    "failed to allocate %d MSI-X vectors, err: %d\n", requested,
+                    err);
+		err = 1;
+		goto enic_allocate_msix_out;
+	} else {
+		if (vectors != requested) {
+			device_printf(dev,
+			    "Unable to allocate sufficient MSI-X vectors "
+			     "(got %d, need %d)\n", requested, vectors);
+			pci_release_msi(dev);
+			err = 1;
+			goto enic_allocate_msix_out;
+		}
+	}
+
+	device_printf(dev, "Using MSI-X interrupts with %d vectors\n",
+	    vectors);
+
+	scctx->isc_intr = IFLIB_INTR_MSIX;
+	scctx->isc_vectors = vectors;
+
+enic_allocate_msix_out:
+	return (err);
+
+}
+
+static struct enic_intr_mod_range mod_range[ENIC_MAX_LINK_SPEEDS] = {
+	{0,  0}, /* 0  - 4  Gbps */
+	{0,  3}, /* 4  - 10 Gbps */
+	{3,  6}, /* 10 - 40 Gbps */
+};
+
+static void enic_set_rx_coal_setting(struct enic *enic)
+{
+	unsigned int speed;
+	int index = -1;
+	struct enic_rx_coal *rx_coal = &enic->rx_coalesce_setting;
+
+	/* 1. Read the link speed from fw
+	 * 2. Pick the default range for the speed
+	 * 3. Update it in enic->rx_coalesce_setting
+	 */
+	speed = vnic_dev_port_speed(enic->vdev);
+	if (ENIC_LINK_SPEED_10G < speed)
+		index = ENIC_LINK_40G_INDEX;
+	else if (ENIC_LINK_SPEED_4G < speed)
+		index = ENIC_LINK_10G_INDEX;
+	else
+		index = ENIC_LINK_4G_INDEX;
+
+	rx_coal->small_pkt_range_start = mod_range[index].small_pkt_range_start;
+	rx_coal->large_pkt_range_start = mod_range[index].large_pkt_range_start;
+	rx_coal->range_end = ENIC_RX_COALESCE_RANGE_END;
+
+	/* Start with the value provided by UCSM */
+	for (index = 0; index < enic->rq_count; index++)
+		enic->cq[index].cur_rx_coal_timeval =
+		enic->config.intr_timer_usec;
+
+	rx_coal->use_adaptive_rx_coalesce = 1;
 }
 
 static int
@@ -283,6 +376,8 @@ enic_attach_pre(if_ctx_t ctx)
 	ENIC_LOCK(softc);
 	vnic_dev_register(vdev, &softc->mem, 1);
 	enic->vdev = vdev;
+	vnic_dev_cmd_init(enic->vdev);
+
 	vdev->devcmd = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD, 0);
 
 	vnic_dev_cmd(vdev, CMD_INIT_v1, &a0, &a1, wait);
@@ -326,6 +421,7 @@ enic_attach_pre(if_ctx_t ctx)
 
 	/* Set ingress vlan rewrite mode before vnic initialization */
 	enic->ig_vlan_rewrite_mode = IG_VLAN_REWRITE_MODE_UNTAG_DEFAULT_VLAN;
+	enic->ig_vlan_rewrite_mode = IG_VLAN_REWRITE_MODE_PRIORITY_TAG_DEFAULT_VLAN;
 	err = vnic_dev_set_ig_vlan_rewrite_mode(enic->vdev,
 						enic->ig_vlan_rewrite_mode);
 	if (err) {
@@ -360,8 +456,10 @@ enic_attach_pre(if_ctx_t ctx)
 	softc->scctx = iflib_get_softc_ctx(ctx);
 	scctx = softc->scctx;
 	scctx->isc_txrx = &enic_txrx;
-	scctx->isc_capabilities = scctx->isc_capenable = 0;
+	scctx->isc_capabilities = scctx->isc_capenable = \
+		IFCAP_HWCSUM;
 	scctx->isc_tx_csum_flags = 0;
+	if_setmtu(softc->ifp, enic->config.mtu);
 	scctx->isc_max_frame_size = enic->config.mtu + ETHER_HDR_LEN + \
 		ETHER_CRC_LEN;
 	scctx->isc_nrxqsets_max = enic->conf_rq_count;
@@ -389,7 +487,6 @@ enic_attach_pre(if_ctx_t ctx)
 	}
 	scctx->isc_tx_nsegments = 31;
 
-	scctx->isc_vectors = enic->conf_cq_count;
 	scctx->isc_msix_bar = -1;
 
 	ifmedia_add(softc->media, IFM_ETHER | IFM_AUTO, 0, NULL);
@@ -397,8 +494,7 @@ enic_attach_pre(if_ctx_t ctx)
 	ifmedia_add(softc->media, IFM_ETHER | IFM_10_FL, 0, NULL);
 
 	/*
-	 * Allocate the CQ here since TX is called first before RX for now
-	 * assume RX and TX are the same
+	 * Allocate the CQ here since TX is called first before RX.
 	 */
 	if (softc->enic.cq == NULL)
 		softc->enic.cq = malloc(sizeof(struct vnic_cq) *
@@ -407,8 +503,6 @@ enic_attach_pre(if_ctx_t ctx)
 	if (softc->enic.cq == NULL)
 		return (ENOMEM);
 
-	softc->enic.cq->ntxqsets = softc->enic.wq_count + softc->enic.rq_count;
-
 	/*
 	 * Allocate the consistent memory for stats and counters upfront so
 	 * both primary and secondary processes can access them.
@@ -416,12 +510,20 @@ enic_attach_pre(if_ctx_t ctx)
 	err = vnic_dev_alloc_stats_mem(enic->vdev);
 	if (err) {
 		dev_err(enic, "Failed to allocate cmd memory, aborting\n");
+		goto err_out_dev_close;
+	}
+
+        err = enic_allocate_msix(softc);
+        if (err) {
+		dev_err(enic, "Failed to allocate MSIX, aborting\n");
+		goto err_out_dev_close;
 	}
 
 	return (rc);
 
 err_out_dev_close:
 	vnic_dev_close(enic->vdev);
+	vnic_dev_deinit_devcmd2(enic->vdev);
 err_out_unregister:
 	free(softc->vdev.devcmd, M_DEVBUF);
 	free(softc->enic.intr_queues, M_DEVBUF);
@@ -482,9 +584,10 @@ enic_msix_intr_assign(if_ctx_t ctx, int msix)
 		snprintf(irq_name, sizeof(irq_name), "etxq%d:%d", i -
 		    scctx->isc_nrxqsets, device_get_unit(softc->dev));
 
-
-		iflib_softirq_alloc_generic(ctx, &enic->intr_queues[i].intr_irq, IFLIB_INTR_TX, &enic->wq[i - scctx->isc_nrxqsets], i - scctx->isc_nrxqsets, irq_name);
-
+		iflib_softirq_alloc_generic(ctx,
+		    &enic->intr_queues[i].intr_irq, IFLIB_INTR_TX,
+		    &enic->wq[i - scctx->isc_nrxqsets], i - scctx->isc_nrxqsets,
+		    irq_name);
 
 		enic->intr[i].index = i;
 		enic->intr[i].vdev = enic->vdev;
@@ -567,6 +670,7 @@ enic_attach_post(if_ctx_t ctx)
 	enic_setup_sysctl(softc);
 
 	enic_init_vnic_resources(enic);
+	enic_set_rx_coal_setting(enic);
 	enic_setup_finish(enic);
 
 	ifmedia_add(softc->media, IFM_ETHER | IFM_AUTO, 0, NULL);
@@ -589,7 +693,9 @@ enic_detach(if_ctx_t ctx)
 	enic_free_irqs(softc);
 
 	ENIC_LOCK(softc);
+	vnic_dev_deinit(enic->vdev);
 	vnic_dev_close(enic->vdev);
+	vnic_dev_deinit_devcmd2(enic->vdev);
 	free(softc->vdev.devcmd, M_DEVBUF);
 	pci_disable_busmaster(softc->dev);
 	enic_pci_mapping_free(softc);
@@ -626,7 +732,7 @@ enic_tx_queues_alloc(if_ctx_t ctx, caddr_t * vaddrs, uint64_t * paddrs,
 	for (q = 0; q < ntxqsets; q++) {
 		struct vnic_wq *wq;
 		struct vnic_cq *cq;
-		unsigned int	cq_wq;
+		unsigned int cq_wq;
 
 		wq = &softc->enic.wq[q];
 		cq_wq = enic_cq_wq(&softc->enic, q);
@@ -646,7 +752,6 @@ enic_tx_queues_alloc(if_ctx_t ctx, caddr_t * vaddrs, uint64_t * paddrs,
 		wq->head_idx = 0;
 		wq->tail_idx = 0;
 
-		wq->ring.size = wq->ring.desc_count * wq->ring.desc_size;
 		wq->ring.descs = vaddrs[q * ntxqs + 0];
 		wq->ring.base_addr = paddrs[q * ntxqs + 0];
 
@@ -659,7 +764,6 @@ enic_tx_queues_alloc(if_ctx_t ctx, caddr_t * vaddrs, uint64_t * paddrs,
 		cq->ring.desc_count = softc->scctx->isc_ntxd[q];
 		cq->ring.desc_avail = cq->ring.desc_count - 1;
 
-		cq->ring.size = cq->ring.desc_count * cq->ring.desc_size;
 		cq->ring.descs = vaddrs[q * ntxqs + 1];
 		cq->ring.base_addr = paddrs[q * ntxqs + 1];
 
@@ -715,7 +819,6 @@ enic_rx_queues_alloc(if_ctx_t ctx, caddr_t * vaddrs, uint64_t * paddrs,
 		cq->ring.desc_count = softc->scctx->isc_nrxd[1];
 		cq->ring.desc_avail = cq->ring.desc_count - 1;
 
-		cq->ring.size = cq->ring.desc_count * cq->ring.desc_size;
 		cq->ring.descs = vaddrs[q * nrxqs + 0];
 		cq->ring.base_addr = paddrs[q * nrxqs + 0];
 
@@ -731,7 +834,6 @@ enic_rx_queues_alloc(if_ctx_t ctx, caddr_t * vaddrs, uint64_t * paddrs,
 		rq->ring.desc_count = softc->scctx->isc_nrxd[0];
 		rq->ring.desc_avail = rq->ring.desc_count - 1;
 
-		rq->ring.size = rq->ring.desc_count * rq->ring.desc_size;
 		rq->ring.descs = vaddrs[q * nrxqs + 1];
 		rq->ring.base_addr = paddrs[q * nrxqs + 1];
 		rq->need_initial_post = true;
@@ -807,6 +909,11 @@ enic_stop(if_ctx_t ctx)
 	struct enic    *enic;
 	if_softc_ctx_t	scctx;
 	unsigned int	index;
+	struct vnic_wq *wq;
+	struct vnic_rq *rq;
+	struct vnic_cq *cq;
+	unsigned int	cq_wq, cq_rq;
+
 
 	softc = iflib_get_softc(ctx);
 	scctx = softc->scctx;
@@ -817,15 +924,36 @@ enic_stop(if_ctx_t ctx)
 	softc->link_active = 0;
 	softc->stopped = 1;
 
+	enic_dev_disable(enic);
+
 	for (index = 0; index < scctx->isc_ntxqsets; index++) {
 		enic_stop_wq(enic, index);
 		vnic_wq_clean(&enic->wq[index]);
 		vnic_cq_clean(&enic->cq[enic_cq_rq(enic, index)]);
+
+		wq = &softc->enic.wq[index];
+		wq->ring.desc_avail = wq->ring.desc_count - 1;
+		wq->ring.last_count = wq->ring.desc_count;
+		wq->head_idx = 0;
+		wq->tail_idx = 0;
+
+		cq_wq = enic_cq_wq(&softc->enic, index);
+		cq = &softc->enic.cq[cq_wq];
+		cq->ring.desc_avail = cq->ring.desc_count - 1;
 	}
 
 	for (index = 0; index < scctx->isc_nrxqsets; index++) {
+		enic_stop_rq(enic, index);
 		vnic_rq_clean(&enic->rq[index]);
 		vnic_cq_clean(&enic->cq[enic_cq_wq(enic, index)]);
+
+		rq = &softc->enic.rq[index];
+		cq_rq = enic_cq_rq(&softc->enic, index);
+		cq = &softc->enic.cq[cq_rq];
+
+		cq->ring.desc_avail = cq->ring.desc_count - 1;
+		rq->ring.desc_avail = rq->ring.desc_count - 1;
+		rq->need_initial_post = true;
 	}
 
 	for (index = 0; index < scctx->isc_vectors; index++) {
@@ -845,6 +973,9 @@ enic_init(if_ctx_t ctx)
 	scctx = softc->scctx;
 	enic = &softc->enic;
 
+
+	enic_init_vnic_resources(enic);
+
 	for (index = 0; index < scctx->isc_ntxqsets; index++)
 		enic_prep_wq_for_simple_tx(&softc->enic, index);
 
@@ -861,6 +992,8 @@ enic_init(if_ctx_t ctx)
 	ENIC_LOCK(softc);
 	vnic_dev_enable_wait(enic->vdev);
 	ENIC_UNLOCK(softc);
+
+	softc->stopped = 0;
 
 	enic_link_status(softc);
 }
@@ -942,12 +1075,14 @@ enic_mtu_set(if_ctx_t ctx, uint32_t mtu)
 	softc = iflib_get_softc(ctx);
 	enic = &softc->enic;
 
+	enic_stop(softc->ctx);
 	if (mtu > enic->port_mtu){
 		return (EINVAL);
 	}
 
 	enic->config.mtu = mtu;
 	scctx->isc_max_frame_size = mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
+	enic_init(softc->ctx);
 
 	return (0);
 }
@@ -1026,7 +1161,6 @@ static void
 enic_update_admin_status(if_ctx_t ctx)
 {
 	struct enic_softc *softc;
-
 	softc = iflib_get_softc(ctx);
 
 	enic_link_status(softc);
@@ -1100,7 +1234,9 @@ enic_setup_txq_sysctl(struct vnic_wq *wq, int i, struct sysctl_ctx_list *ctx,
 {
 	struct sysctl_oid *txsnode;
 	struct sysctl_oid_list *txslist;
-	struct vnic_stats *stats = wq[i].vdev->stats;
+	struct vnic_stats *stats;
+
+	stats = wq[i].vdev->stats;
 
 	txsnode = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "hstats",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Host Statistics");
@@ -1136,7 +1272,9 @@ enic_setup_rxq_sysctl(struct vnic_rq *rq, int i, struct sysctl_ctx_list *ctx,
 {
 	struct sysctl_oid *rxsnode;
 	struct sysctl_oid_list *rxslist;
-	struct vnic_stats *stats = rq[i].vdev->stats;
+	struct vnic_stats *stats;
+
+	stats = rq[i].vdev->stats;
 
 	rxsnode = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "hstats",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "Host Statistics");
@@ -1357,7 +1495,7 @@ enic_dev_init(struct enic *enic)
 		if (vnic_dev_overlay_offload_cfg(enic->vdev,
 		   OVERLAY_CFG_VXLAN_PORT_UPDATE, ENIC_DEFAULT_VXLAN_PORT)) {
 			dev_err(enic, "failed to update vxlan port\n");
-			return -EINVAL;
+			return (EINVAL);
 		}
 	}
 	return 0;
@@ -1441,7 +1579,7 @@ enic_dev_wait(struct vnic_dev *vdev, int (*start) (struct vnic_dev *, int),
 			return 0;
 		usleep(1000);
 	}
-	return -ETIMEDOUT;
+	return (ETIMEDOUT);
 }
 
 static int
@@ -1452,7 +1590,7 @@ enic_map_bar(struct enic_softc *softc, struct enic_bar_info *bar, int bar_num,
 
 	if (bar->res != NULL) {
 		device_printf(softc->dev, "Bar %d already mapped\n", bar_num);
-		return EDOOFUS;
+		return (EDOOFUS);
 	}
 
 	bar->rid = PCIR_BAR(bar_num);
@@ -1481,20 +1619,18 @@ enic_init_vnic_resources(struct enic *enic)
 	unsigned int rxq_interrupt_enable = 0;
 	unsigned int rxq_interrupt_offset = ENICPMD_RXQ_INTR_OFFSET;
 	unsigned int txq_interrupt_enable = 0;
-	unsigned int txq_interrupt_offset = ENICPMD_RXQ_INTR_OFFSET;
+	unsigned int txq_interrupt_offset;
 	unsigned int index = 0;
 	unsigned int cq_idx;
 	if_softc_ctx_t scctx;
 
 	scctx = enic->softc->scctx;
 
-
 	rxq_interrupt_enable = 1;
-	txq_interrupt_enable = 1;
+	txq_interrupt_enable = 0;
 
 	rxq_interrupt_offset = 0;
-	txq_interrupt_offset = enic->intr_count - 2;
-	txq_interrupt_offset = 1;
+	txq_interrupt_offset = scctx->isc_nrxqsets;
 
 	for (index = 0; index < enic->intr_count; index++) {
 		vnic_intr_alloc(enic->vdev, &enic->intr[index], index);
@@ -1568,7 +1704,7 @@ enic_update_packet_filter(struct enic *enic)
 }
 
 static bool
-enic_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
+enic_if_needs_restart(if_ctx_t ctx, enum iflib_restart_event event)
 {
 	switch (event) {
 	case IFLIB_RESTART_VLAN_CONFIG:

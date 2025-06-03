@@ -142,6 +142,22 @@ edns_string_addr_lookup(rbtree_type* tree, struct sockaddr_storage* addr,
 	socklen_t addrlen);
 
 /**
+ * Get memory usage of edns strings.
+ * @param edns_strings: the edns strings
+ * @return memory usage
+ */
+size_t edns_strings_get_mem(struct edns_strings* edns_strings);
+
+/**
+ * Swap internal tree with preallocated entries.
+ * @param edns_strings: the edns strings structure.
+ * @param data: the data structure used to take elements from. This contains
+ * 	the old elements on return.
+ */
+void edns_strings_swap_tree(struct edns_strings* edns_strings,
+	struct edns_strings* data);
+
+/**
  * Compute the interoperable DNS cookie (RFC9018) hash.
  * @param in: buffer input for the hash generation. It needs to be:
  *	Client Cookie | Version | Reserved | Timestamp | Client-IP

@@ -43,12 +43,24 @@ done
 shift $((OPTIND - 1))
 
 LC_ALL=C; export LC_ALL
-u=${USER-root} h=${HOSTNAME-`hostname`} t=`date`
+u=${USER-root} h=${HOSTNAME-`hostname`}
+if [ -n "$SOURCE_DATE_EPOCH" ]; then
+	if ! t=$(date -ur $SOURCE_DATE_EPOCH 2>/dev/null); then
+		echo "Invalid SOURCE_DATE_EPOCH" >&2
+		exit 1
+	fi
+else
+	t="${NEWVERS_DATE:-`date`}"
+fi
 r=`awk -F: ' /^[0-9]\.[0-9]+:/ { print $1; exit }' $1`
 
 bootprog_info="FreeBSD/${3} ${2}, Revision ${r}\\n"
 if [ -n "${include_metadata}" ]; then
 	bootprog_info="$bootprog_info(${t} ${u}@${h})\\n"
+	if [ -n "$BUILD_UTC" ]; then
+		# We can use what(1) to extract BUILD_UTC
+		bootprog_info="$bootprog_info\\0@(#)BUILD_UTC=$BUILD_UTC"
+	fi
 fi
 
 cat > $tempfile <<EOF

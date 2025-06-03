@@ -5,7 +5,7 @@
  * Copyright (c) 2001 Cameron Grant <cg@FreeBSD.org>
  * Copyright (c) 2020 The FreeBSD Foundation
  * All rights reserved.
- * Copyright (c) 2024 The FreeBSD Foundation
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
  *
  * Portions of this software were developed by Christos Margiolis
  * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
@@ -47,7 +47,6 @@
 #include <sys/sx.h>
 
 #include <dev/sound/pcm/sound.h>
-#include <dev/sound/pcm/pcm.h>
 
 #include "feeder_if.h"
 
@@ -150,10 +149,7 @@ sndstat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 	pf = malloc(sizeof(*pf), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	if (sbuf_new(&pf->sbuf, NULL, 4096, SBUF_AUTOEXTEND) == NULL) {
-		free(pf, M_DEVBUF);
-		return (ENOMEM);
-	}
+	sbuf_new(&pf->sbuf, NULL, 4096, SBUF_AUTOEXTEND);
 
 	pf->fflags = flags;
 	TAILQ_INIT(&pf->userdev_list);
@@ -444,12 +440,14 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 	nvlist_add_string(sound4di, SNDST_DSPS_SOUND4_STATUS, d->status);
 	nvlist_add_bool(
 	    sound4di, SNDST_DSPS_SOUND4_BITPERFECT, d->flags & SD_F_BITPERFECT);
-	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHAN, d->pvchancount);
+	nvlist_add_bool(sound4di, SNDST_DSPS_SOUND4_PVCHAN,
+	    d->flags & SD_F_PVCHANS);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHANRATE,
 	    d->pvchanrate);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_PVCHANFORMAT,
 	    d->pvchanformat);
-	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHAN, d->rvchancount);
+	nvlist_add_bool(sound4di, SNDST_DSPS_SOUND4_RVCHAN,
+	    d->flags & SD_F_RVCHANS);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHANRATE,
 	    d->rvchanrate);
 	nvlist_add_number(sound4di, SNDST_DSPS_SOUND4_RVCHANFORMAT,
@@ -495,6 +493,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		    CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FR));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_FORMAT,
 		    sndbuf_getfmt(c->bufhard));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_RATE,
+		    sndbuf_getspd(c->bufhard));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_SIZE,
 		    sndbuf_getsize(c->bufhard));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_BLKSZ,
@@ -507,6 +507,8 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		    sndbuf_getready(c->bufhard));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_FORMAT,
 		    sndbuf_getfmt(c->bufsoft));
+		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_RATE,
+		    sndbuf_getspd(c->bufsoft));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_SIZE,
 		    sndbuf_getsize(c->bufsoft));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_SWBUF_BLKSZ,
@@ -1109,7 +1111,7 @@ sndstat_line2userdev(struct sndstat_file *pf, const char *line, int n)
 	if (e == NULL)
 		goto fail;
 	ud->nameunit = strndup(line, e - line, M_DEVBUF);
-	ud->devnode = (char *)malloc(e - line + 1, M_DEVBUF, M_WAITOK | M_ZERO);
+	ud->devnode = malloc(e - line + 1, M_DEVBUF, M_WAITOK | M_ZERO);
 	strlcat(ud->devnode, ud->nameunit, e - line + 1);
 	line = e + 1;
 
@@ -1283,12 +1285,12 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		}
 		sbuf_printf(s, "\n\t");
 
-		sbuf_printf(s, "interrupts %d, ", c->interrupts);
+		sbuf_printf(s, "\tinterrupts %d, ", c->interrupts);
 
 		if (c->direction == PCMDIR_REC)	{
 			sbuf_printf(s,
 			    "overruns %d, feed %u, hfree %d, "
-			    "sfree %d [b:%d/%d/%d|bs:%d/%d/%d]",
+			    "sfree %d\n\t\t[b:%d/%d/%d|bs:%d/%d/%d]",
 				c->xruns, c->feedcount,
 				sndbuf_getfree(c->bufhard),
 				sndbuf_getfree(c->bufsoft),
@@ -1301,7 +1303,7 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		} else {
 			sbuf_printf(s,
 			    "underruns %d, feed %u, ready %d "
-			    "[b:%d/%d/%d|bs:%d/%d/%d]",
+			    "\n\t\t[b:%d/%d/%d|bs:%d/%d/%d]",
 				c->xruns, c->feedcount,
 				sndbuf_getready(c->bufsoft),
 				sndbuf_getsize(c->bufhard),
@@ -1313,14 +1315,14 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 		}
 		sbuf_printf(s, "\n\t");
 
-		sbuf_printf(s, "channel flags=0x%b", c->flags, CHN_F_BITS);
+		sbuf_printf(s, "\tchannel flags=0x%b", c->flags, CHN_F_BITS);
 		sbuf_printf(s, "\n\t");
 
 		if (c->parentchannel != NULL) {
-			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
+			sbuf_printf(s, "\t{%s}", (c->direction == PCMDIR_REC) ?
 			    c->parentchannel->name : "userland");
 		} else {
-			sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC) ?
+			sbuf_printf(s, "\t{%s}", (c->direction == PCMDIR_REC) ?
 			    "hardware" : "userland");
 		}
 		sbuf_printf(s, " -> ");

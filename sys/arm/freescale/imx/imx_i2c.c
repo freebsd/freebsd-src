@@ -469,7 +469,8 @@ no_recovery:
 	/* We don't do a hardware reset here because iicbus_attach() does it. */
 
 	/* Probe and attach the iicbus when interrupts are available. */
-	return (bus_delayed_attach_children(dev));
+	bus_delayed_attach_children(dev);
+	return (0);
 }
 
 static int
@@ -492,9 +493,6 @@ i2c_detach(device_t dev)
 		device_printf(sc->dev, "cannot detach child devices\n");
 		return (error);
 	}
-
-	if (sc->iicbus != NULL)
-		device_delete_child(dev, sc->iicbus);
 
 	/* Release bus-recover pins; gpio_pin_release() handles NULL args. */
 	gpio_pin_release(sc->rb_sclpin);

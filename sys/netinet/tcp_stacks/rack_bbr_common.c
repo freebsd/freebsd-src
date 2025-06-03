@@ -361,26 +361,15 @@ ctf_process_inbound_raw(struct tcpcb *tp, struct mbuf *m, int has_pkt)
 	int32_t retval, nxt_pkt, tlen, off;
 	int etype = 0;
 	uint16_t drop_hdrlen;
-	uint8_t iptos, no_vn=0;
+	uint8_t iptos;
 
 	inp = tptoinpcb(tp);
 	INP_WLOCK_ASSERT(inp);
 	NET_EPOCH_ASSERT();
-
-	if (m)
-		ifp = m_rcvif(m);
-	else
-		ifp = NULL;
-	if (ifp == NULL) {
-		/*
-		 * We probably should not work around
-		 * but kassert, since lro alwasy sets rcvif.
-		 */
-		no_vn = 1;
-		goto skip_vnet;
-	}
+	KASSERT(m != NULL, ("ctf_process_inbound_raw: m == NULL"));
+	ifp = m_rcvif(m);
+	KASSERT(ifp != NULL, ("ctf_process_inbound_raw: ifp == NULL"));
 	CURVNET_SET(ifp->if_vnet);
-skip_vnet:
 	tcp_get_usecs(&tv);
 	while (m) {
 		m_save = m->m_nextpkt;
@@ -466,19 +455,15 @@ skip_vnet:
 				m_freem(m);
 				m = m_save;
 			}
-			if (no_vn == 0) {
-				CURVNET_RESTORE();
-			}
+			CURVNET_RESTORE();
 			INP_UNLOCK_ASSERT(inp);
-			return(retval);
+			return (retval);
 		}
 skipped_pkt:
 		m = m_save;
 	}
-	if (no_vn == 0) {
-		CURVNET_RESTORE();
-	}
-	return(retval);
+	CURVNET_RESTORE();
+	return (0);
 }
 
 int

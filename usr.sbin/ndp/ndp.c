@@ -103,7 +103,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <paths.h>
-#include <err.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -122,7 +121,6 @@
 static pid_t pid;
 static int32_t thiszone;	/* time difference with gmt */
 static int s = -1;
-static int repeat = 0;
 
 static char host_buf[NI_MAXHOST];	/* getnameinfo() */
 static char ifix_buf[IFNAMSIZ];		/* if_indextoname() */
@@ -250,8 +248,8 @@ main(int argc, char **argv)
 				/*NOTREACHED*/
 			}
 			mode = 'a';
-			repeat = atoi(optarg);
-			if (repeat < 0) {
+			opts.repeat = atoi(optarg);
+			if (opts.repeat < 0) {
 				usage();
 				/*NOTREACHED*/
 			}
@@ -350,7 +348,8 @@ main(int argc, char **argv)
 		break;
 	}
 	xo_close_container("ndp");
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(1, "stdout");
 
 	return (ret);
 }
@@ -638,7 +637,7 @@ dump_rtsock(struct sockaddr_in6 *addr, int cflag)
 		xo_emit(xobuf, "Neighbor", "Linklayer Address", "Netif", "Expire", "S", "Flags");
 	}
 	xo_open_list("neighbor-cache");
-again:;
+again:
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
 	mib[2] = 0;
@@ -828,10 +827,10 @@ again:;
 	if (buf != NULL)
 		free(buf);
 
-	if (repeat) {
+	if (opts.repeat) {
 		xo_emit("\n");
 		xo_flush();
-		sleep(repeat);
+		sleep(opts.repeat);
 		goto again;
 	}
 
@@ -921,16 +920,16 @@ ndp_ether_aton(char *a, u_char *n)
 static void
 usage(void)
 {
-	printf("usage: ndp [-nt] hostname\n");
-	printf("       ndp [-nt] -a | -c | -p | -r | -H | -P | -R\n");
-	printf("       ndp [-nt] -A wait\n");
-	printf("       ndp [-nt] -d hostname\n");
-	printf("       ndp [-nt] -f filename\n");
-	printf("       ndp [-nt] -i interface [flags...]\n");
+	xo_error("usage: ndp [-nt] hostname\n");
+	xo_error("       ndp [-nt] -a | -c | -p | -r | -H | -P | -R\n");
+	xo_error("       ndp [-nt] -A wait\n");
+	xo_error("       ndp [-nt] -d hostname\n");
+	xo_error("       ndp [-nt] -f filename\n");
+	xo_error("       ndp [-nt] -i interface [flags...]\n");
 #ifdef SIOCSDEFIFACE_IN6
-	printf("       ndp [-nt] -I [interface|delete]\n");
+	xo_error("       ndp [-nt] -I [interface|delete]\n");
 #endif
-	printf("       ndp [-nt] -s nodename etheraddr [temp] [proxy]\n");
+	xo_error("       ndp [-nt] -s nodename etheraddr [temp] [proxy]\n");
 	exit(1);
 }
 

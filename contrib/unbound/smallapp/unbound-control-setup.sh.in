@@ -104,7 +104,7 @@ while getopts 'd:hr' arg; do
 done
 shift $((OPTIND - 1))
 
-if ! openssl >/dev/null 2>&1; then
+if ! openssl version </dev/null >/dev/null 2>&1; then
     echo "$0 requires openssl to be installed for keys/certificates generation." >&2
     exit 1
 fi
@@ -204,7 +204,8 @@ fi
 # remove unused permissions
 chmod o-rw \
       "$SVR_BASE.pem" \
-      "$SVR_BASE.key" \
+      "$SVR_BASE.key"
+chmod g+r,o-rw \
       "$CTL_BASE.pem" \
       "$CTL_BASE.key"
 

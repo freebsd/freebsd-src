@@ -89,14 +89,13 @@
 #define	MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE                0xa
 #define	MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE                0xe
 
-#define	MLX5E_MAX_BUSDMA_RX_SEGS 15
+#define	MLX5E_MAX_BUSDMA_RX_SEGS 31
 
 #ifndef MLX5E_MAX_RX_BYTES
 #define	MLX5E_MAX_RX_BYTES MCLBYTES
 #endif
 
-#define	MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ \
-    MIN(65535, 7 * MLX5E_MAX_RX_BYTES)
+#define	MLX5E_PARAMS_DEFAULT_LRO_WQE_SZ			65535
 
 #define	MLX5E_DIM_DEFAULT_PROFILE 3
 #define	MLX5E_DIM_MAX_RX_CQ_MODERATION_PKTS_WITH_LRO	16
@@ -773,6 +772,7 @@ struct mlx5e_rq {
 	struct mlx5e_cq cq;
 	struct lro_ctrl lro;
 	volatile int enabled;
+	int processing;
 	int	ix;
 
 	/* Dynamic Interrupt Moderation */
@@ -1301,6 +1301,7 @@ void	mlx5e_refresh_sq_inline(struct mlx5e_priv *priv);
 int	mlx5e_update_buf_lossy(struct mlx5e_priv *priv);
 int	mlx5e_fec_update(struct mlx5e_priv *priv);
 int	mlx5e_hw_temperature_update(struct mlx5e_priv *priv);
+int	mlx5e_hw_lro_update_tirs(struct mlx5e_priv *priv);
 
 /* Internal Queue, IQ, API functions */
 void	mlx5e_iq_send_nop(struct mlx5e_iq *, u32);

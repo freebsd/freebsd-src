@@ -214,7 +214,7 @@ alias_skinny_reg_msg(struct RegisterMessage *reg_msg, struct ip *pip,
 
 	tc->th_sum = 0;
 #ifdef _KERNEL
-	tc->th_x2 = (TH_RES1 >> 8);
+	tcp_set_flags(tc, tcp_get_flags(tc) | TH_RES1);
 #else
 	tc->th_sum = TcpChecksum(pip);
 #endif
@@ -257,7 +257,7 @@ alias_skinny_port_msg(struct IpPortMessage *port_msg, struct ip *pip,
 
 	tc->th_sum = 0;
 #ifdef _KERNEL
-	tc->th_x2 = (TH_RES1 >> 8);
+	tcp_set_flags(tc, tcp_get_flags(tc) | TH_RES1);
 #else
 	tc->th_sum = TcpChecksum(pip);
 #endif
@@ -279,15 +279,15 @@ alias_skinny_opnrcvch_ack(struct libalias *la, struct OpenReceiveChannelAck *opn
 	*localIpAddr = (u_int32_t)opnrcvch_ack->ipAddr;
 
 	null_addr.s_addr = INADDR_ANY;
-	opnrcv_lnk = FindUdpTcpOut(la, pip->ip_src, null_addr,
+	(void)FindUdpTcpOut(la, pip->ip_src, null_addr,
 	    htons((u_short) opnrcvch_ack->port), 0,
-	    IPPROTO_UDP, 1);
+	    IPPROTO_UDP, 1, &opnrcv_lnk);
 	opnrcvch_ack->ipAddr = (u_int32_t)GetAliasAddress(opnrcv_lnk).s_addr;
 	opnrcvch_ack->port = (u_int32_t)ntohs(GetAliasPort(opnrcv_lnk));
 
 	tc->th_sum = 0;
 #ifdef _KERNEL
-	tc->th_x2 = (TH_RES1 >> 8);
+	tcp_set_flags(tc, tcp_get_flags(tc) | TH_RES1);
 #else
 	tc->th_sum = TcpChecksum(pip);
 #endif

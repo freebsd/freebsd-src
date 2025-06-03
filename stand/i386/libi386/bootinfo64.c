@@ -136,16 +136,14 @@ bi_load64(char *args, vm_offset_t *modulep,
             addr = xp->f_addr + xp->f_size;
     }
     /* pad to a page boundary */
-    addr = roundup(addr, PAGE_SIZE);
+    addr = md_align(addr);
 
     addr = build_font_module(addr);
 
     /* place the metadata before anything */
     module = *modulep = addr;
 
-    kfp = file_findfile(NULL, "elf kernel");
-    if (kfp == NULL)
-      kfp = file_findfile(NULL, "elf64 kernel");
+    kfp = file_findfile(NULL, md_kerntype);
     if (kfp == NULL)
 	panic("can't find kernel file");
     kernend = 0;	/* fill it in later */
@@ -163,11 +161,11 @@ bi_load64(char *args, vm_offset_t *modulep,
     size = md_copymodules(0, true);
 
     /* copy our environment */
-    envp = roundup(addr + size, PAGE_SIZE);
+    envp = md_align(addr + size);
     addr = md_copyenv(envp);
 
     /* set kernend */
-    kernend = roundup(addr, PAGE_SIZE);
+    kernend = md_align(addr);
     *kernendp = kernend;
 
     /* patch MODINFOMD_KERNEND */

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: fonts,v 1.51 2022/08/16 11:16:39 christos Exp $
+# $File: fonts,v 1.52 2024/11/09 23:52:53 christos Exp $
 # fonts:  file(1) magic for font data
 #
 0	search/1	FONT		ASCII vfont text
@@ -447,3 +447,37 @@
 #>20	belong		x	\b, totalCompressedSize %d
 >24	beshort		x	\b, version %d
 >26	beshort		x	\b.%d
+
+### fontconfig cache files
+
+# fontconfig cache files: little-endian
+0	name		fc-cache-le
+# size is at offset 8, and is intptr_t
+# hence, if offset 12 is zero, this is likely 64-bit
+# NOTE: cannot determine double alignment here
+>12	ulelong		0	le64
+>12	ulelong		!0	le32
+# version number
+>4	lelong		x	\b-%d
+
+# fontconfig cache files: big-endian
+0	name		fc-cache-be
+# size is at offset 8, and is intptr_t
+# hence, if offset 12 is zero, this is likely 64-bit
+# NOTE: cannot determine double alignment here
+>12	ubelong		0	be64
+>12	ubelong		!0	be32
+# version number
+>4	belong		x	\b-%d
+
+# fontconfig cache files
+# https://gitlab.freedesktop.org/fontconfig/fontconfig
+# https://www.microsoft.com/typography/otspec/otff.htm
+0	ulelong		0xFC02FC04	fontconfig cache file:
+>0	use		fc-cache-le
+0	ulelong		0xFC02FC05	fontconfig cache file (mmap):
+>0	use		fc-cache-le
+0	ubelong		0xFC02FC04	fontconfig cache file:
+>0	use		fc-cache-be
+0	ubelong		0xFC02FC05	fontconfig cache file (mmap):
+>0	use		fc-cache-be

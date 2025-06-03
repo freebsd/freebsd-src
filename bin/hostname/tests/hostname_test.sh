@@ -42,9 +42,6 @@ test_jail_conf='%%test_jail_name%% {
 
 init()
 {
-    if ! which -s jail; then
-        atf_skip "This test requires jail"
-    fi
     echo "${test_jail_conf}" | \
 	    sed -e "s/%%test_jail_name%%/${test_jail_name}/" > "./jail.conf"
     jail -f "./jail.conf" -c ${test_jail_name}
@@ -61,6 +58,7 @@ basic_head()
 {
     atf_set require.user root
     atf_set "descr" "basic test for getting hostname"
+    atf_set execenv jail
 }
 basic_body()
 {
@@ -81,9 +79,6 @@ basic_body()
 }
 basic_cleanup()
 {
-    if ! which -s jail; then
-        atf_skip "This test requires jail"
-    fi
     recycle
 }
 

@@ -75,7 +75,7 @@ struct acpi_iicbus_ivars {
 	ACPI_HANDLE		handle;
 };
 
-static int install_space_handler = 0;
+static int install_space_handler = 1;
 TUNABLE_INT("hw.iicbus.enable_acpi_space_handler", &install_space_handler);
 
 static inline bool

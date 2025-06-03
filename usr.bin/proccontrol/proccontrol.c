@@ -51,6 +51,7 @@ enum mode {
 	MODE_LA57,
 	MODE_LA48,
 #endif
+	MODE_LOGSIGEXIT,
 };
 
 static const struct {
@@ -71,6 +72,7 @@ static const struct {
 	{ MODE_LA57,		"la57" },
 	{ MODE_LA48,		"la48" },
 #endif
+	{ MODE_LOGSIGEXIT,	"logsigexit" },
 };
 
 static pid_t
@@ -194,6 +196,10 @@ main(int argc, char *argv[])
 			error = procctl(P_PID, pid, PROC_LA_STATUS, &arg);
 			break;
 #endif
+		case MODE_LOGSIGEXIT:
+			error = procctl(P_PID, pid, PROC_LOGSIGEXIT_STATUS,
+			    &arg);
+			break;
 		default:
 			usage();
 			break;
@@ -331,6 +337,19 @@ main(int argc, char *argv[])
 				printf(", la57 active\n");
 			break;
 #endif
+		case MODE_LOGSIGEXIT:
+			switch (arg) {
+			case PROC_LOGSIGEXIT_CTL_NOFORCE:
+				printf("not forced\n");
+				break;
+			case PROC_LOGSIGEXIT_CTL_FORCE_ENABLE:
+				printf("force enabled\n");
+				break;
+			case PROC_LOGSIGEXIT_CTL_FORCE_DISABLE:
+				printf("force disabled\n");
+				break;
+			}
+			break;
 		}
 	} else {
 		switch (mode) {
@@ -390,6 +409,11 @@ main(int argc, char *argv[])
 			error = procctl(P_PID, pid, PROC_LA_CTL, &arg);
 			break;
 #endif
+		case MODE_LOGSIGEXIT:
+			arg = enable ? PROC_LOGSIGEXIT_CTL_FORCE_ENABLE :
+			    PROC_LOGSIGEXIT_CTL_FORCE_DISABLE;
+			error = procctl(P_PID, pid, PROC_LOGSIGEXIT_CTL, &arg);
+			break;
 		default:
 			usage();
 			break;

@@ -425,7 +425,7 @@ ofw_gpiobus_attach(device_t dev)
 	err = gpiobus_init_softc(dev);
 	if (err != 0)
 		return (err);
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 	/*
 	 * Attach the children represented in the device tree.
@@ -440,7 +440,8 @@ ofw_gpiobus_attach(device_t dev)
 			continue;
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static device_t

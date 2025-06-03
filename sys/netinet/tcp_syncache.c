@@ -229,7 +229,7 @@ syncache_free(struct syncache *sc)
 {
 
 	if (sc->sc_ipopts)
-		(void) m_free(sc->sc_ipopts);
+		(void)m_free(sc->sc_ipopts);
 	if (sc->sc_cred)
 		crfree(sc->sc_cred);
 #ifdef MAC
@@ -898,7 +898,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		sin.sin_port = sc->sc_inc.inc_fport;
 		bzero((caddr_t)sin.sin_zero, sizeof(sin.sin_zero));
 		INP_HASH_WLOCK(&V_tcbinfo);
-		error = in_pcbconnect(inp, &sin, thread0.td_ucred, false);
+		error = in_pcbconnect(inp, &sin, thread0.td_ucred);
 		INP_HASH_WUNLOCK(&V_tcbinfo);
 		if (error != 0)
 			goto abort;
@@ -1520,7 +1520,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			 * forget it and use the new one we've been given.
 			 */
 			if (sc->sc_ipopts)
-				(void) m_free(sc->sc_ipopts);
+				(void)m_free(sc->sc_ipopts);
 			sc->sc_ipopts = ipopts;
 		}
 		/*
@@ -1567,51 +1567,46 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		goto donenoprobe;
 	}
 
-	if (tfo_cookie_valid) {
-		bzero(&scs, sizeof(scs));
-		sc = &scs;
-		goto skip_alloc;
-	}
-
+	KASSERT(sc == NULL, ("sc(%p) != NULL", sc));
 	/*
 	 * Skip allocating a syncache entry if we are just going to discard
 	 * it later.
 	 */
-	if (!locked) {
+	if (!locked || tfo_cookie_valid) {
 		bzero(&scs, sizeof(scs));
 		sc = &scs;
-	} else
-		sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
-	if (sc == NULL) {
-		/*
-		 * The zone allocator couldn't provide more entries.
-		 * Treat this as if the cache was full; drop the oldest
-		 * entry and insert the new one.
-		 */
-		TCPSTAT_INC(tcps_sc_zonefail);
-		if ((sc = TAILQ_LAST(&sch->sch_bucket, sch_head)) != NULL) {
-			sch->sch_last_overflow = time_uptime;
-			syncache_drop(sc, sch);
-			syncache_pause(inc);
-		}
+	} else {
 		sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
 		if (sc == NULL) {
-			if (V_tcp_syncookies) {
-				bzero(&scs, sizeof(scs));
-				sc = &scs;
-			} else {
-				KASSERT(locked,
-				    ("%s: bucket unexpectedly unlocked",
-				    __func__));
-				SCH_UNLOCK(sch);
-				if (ipopts)
-					(void) m_free(ipopts);
-				goto done;
+			/*
+			 * The zone allocator couldn't provide more entries.
+			 * Treat this as if the cache was full; drop the oldest
+			 * entry and insert the new one.
+			 */
+			TCPSTAT_INC(tcps_sc_zonefail);
+			sc = TAILQ_LAST(&sch->sch_bucket, sch_head);
+			if (sc != NULL) {
+				sch->sch_last_overflow = time_uptime;
+				syncache_drop(sc, sch);
+				syncache_pause(inc);
+			}
+			sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
+			if (sc == NULL) {
+				if (V_tcp_syncookies) {
+					bzero(&scs, sizeof(scs));
+					sc = &scs;
+				} else {
+					KASSERT(locked,
+					    ("%s: bucket unexpectedly unlocked",
+					    __func__));
+					SCH_UNLOCK(sch);
+					goto done;
+				}
 			}
 		}
 	}
 
-skip_alloc:
+	KASSERT(sc != NULL, ("sc == NULL"));
 	if (!tfo_cookie_valid && tfo_response_cookie_valid)
 		sc->sc_tfo_cookie = &tfo_response_cookie;
 
@@ -1775,6 +1770,8 @@ tfo_expanded:
 #ifdef MAC
 		mac_syncache_destroy(&maclabel);
 #endif
+		if (ipopts)
+			(void)m_free(ipopts);
 	}
 	return (rv);
 }

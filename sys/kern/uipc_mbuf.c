@@ -1887,7 +1887,7 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 	 * ciphersuites.
 	 */
 	if (__predict_false(total == 0)) {
-		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs);
+		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs, 0);
 		if (mb == NULL)
 			return (NULL);
 		mb->m_epg_flags = EPG_FLAG_ANON;
@@ -1899,7 +1899,7 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 	 */
 	m = NULL;
 	while (total > 0) {
-		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs);
+		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs, 0);
 		if (mb == NULL)
 			goto failed;
 		if (m == NULL)
@@ -1986,7 +1986,6 @@ m_uiotombuf(struct uio *uio, int how, int len, int lspace, int flags)
 
 /*
  * Copy the contents of uio into a properly sized mbuf chain.
- * In case of failure state of mchain is inconsistent.
  * @param length Limit copyout length.  If 0 entire uio_resid is copied.
  * @param lspace Provide leading space in the first mbuf in the chain.
  */
@@ -2032,6 +2031,7 @@ mc_uiotomc(struct mchain *mc, struct uio *uio, u_int length, u_int lspace,
 		error = uiomove(mtod(mb, void *), mlen, uio);
 		if (__predict_false(error)) {
 			mc_freem(mc);
+			*mc = MCHAIN_INITIALIZER(mc);
 			return (error);
 		}
 		mb->m_len = mlen;

@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 6, 2024
+.Dd May 26, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -132,8 +132,8 @@ Tables can also be used for the redirect address of
 .Ar nat
 and
 .Ar rdr
-rules and in the routing options of filter rules, but only for
-.Ar round-robin
+and in the routing options of filter rules, but not for
+.Ar bitmask
 pools.
 .Pp
 Tables can be defined with any of the following
@@ -167,7 +167,7 @@ will be cleared on load.
 .El
 .Pp
 Tables may be defined with the following attributes:
-.Bl -tag -width persist
+.Bl -tag -width counters
 .It Ar persist
 The
 .Ar persist
@@ -195,9 +195,9 @@ Note that this feature carries significant memory overhead for large tables.
 .Pp
 For example,
 .Bd -literal -offset indent
-table \*(Ltprivate\*(Gt const { 10/8, 172.16/12, 192.168/16 }
-table \*(Ltbadhosts\*(Gt persist
-block on fxp0 from { \*(Ltprivate\*(Gt, \*(Ltbadhosts\*(Gt } to any
+table <private> const { 10/8, 172.16/12, 192.168/16 }
+table <badhosts> persist
+block on fxp0 from { <private>, <badhosts> } to any
 .Ed
 .Pp
 creates a table called private, to hold RFC 1918 private network
@@ -215,8 +215,8 @@ these hosts can be blocked by using
 A table can also be initialized with an address list specified in one or more
 external files, using the following syntax:
 .Bd -literal -offset indent
-table \*(Ltspam\*(Gt persist file \&"/etc/spammers\&" file \&"/etc/openrelays\&"
-block on fxp0 from \*(Ltspam\*(Gt to any
+table <spam> persist file \&"/etc/spammers\&" file \&"/etc/openrelays\&"
+block on fxp0 from <spam> to any
 .Ed
 .Pp
 The files
@@ -265,7 +265,8 @@ firewall at the risk of dropping valid idle connections.
 .It Ar tcp.first
 The state after the first packet.
 .It Ar tcp.opening
-The state before the destination host ever sends a packet.
+The state after the second packet but before both endpoints have
+acknowledged the connection.
 .It Ar tcp.established
 The fully established state.
 .It Ar tcp.closing
@@ -706,7 +707,7 @@ For each packet processed by the packet filter, the filter rules are
 evaluated in sequential order, from first to last.
 The last matching rule decides what action is taken.
 If no rule matches the packet, the default action is to pass
-the packet.
+the packet without creating a state.
 .Pp
 The following actions can be used in the filter:
 .Bl -tag -width xxxx
@@ -723,6 +724,9 @@ A packet always comes in on, or goes out through, one interface.
 Most parameters are optional.
 If a parameter is specified, the rule only applies to packets with
 matching attributes.
+The matching for some parameters can be inverted with the
+.Cm !\&
+operator.
 Certain parameters can be expressed as lists, in which case
 .Xr pfctl 8
 generates all needed rule combinations.
@@ -748,6 +752,8 @@ see the
 .Ic group
 keyword in
 .Xr ifconfig 8 .
+.Ar any
+will match any existing interface except loopback ones.
 .It Ar bridge-to Aq interface
 Packets matching this rule will be sent out of the specified interface without
 further processing.
@@ -1330,15 +1336,175 @@ If the
 .Xr dummynet 4
 module is not loaded any traffic sent into a queue or pipe will be dropped.
 .Sh TRANSLATION
-Translation rules modify either the source or destination address of the
-packets associated with a stateful connection.
+Translation options modify either the source or destination address and
+port of the packets associated with a stateful connection.
+.Xr pf 4
+modifies the specified address and/or port in the packet and recalculates
+IP, TCP, and UDP checksums as necessary.
+.Pp
+If specified on a
+.Ic match
+rule, subsequent rules will see packets as they look
+after any addresses and ports have been translated.
+These rules will therefore have to filter based on the translated
+address and port number.
+.Pp
+The state entry created permits
+.Xr pf 4
+to keep track of the original address for traffic associated with that state
+and correctly direct return traffic for that connection.
+.Pp
+Various types of translation are possible with pf:
+.Bl -tag -width xxxx
+.It Ar af-to
+Translation between different address families (NAT64) is handled
+using
+.Ar af-to
+rules.
+Because address family translation overrides the routing table, it's
+only possible to use
+.Ar af-to
+on inbound rules, and a source address of the resulting translation
+must always be specified.
+.Pp
+The optional second argument is the host or subnet the original
+addresses are translated into for the destination.
+The lowest bits of the original destination address form the host
+part of the new destination address according to the specified subnet.
+It is possible to embed a complete IPv4 address into an IPv6 address
+using a network prefix of /96 or smaller.
+.Pp
+When a destination address is not specified it is assumed that the host
+part is 32-bit long.
+For IPv6 to IPv4 translation this would mean using only the lower 32
+bits of the original IPv6 destination address.
+For IPv4 to IPv6 translation the destination subnet defaults to the
+subnet of the new IPv6 source address with a prefix length of /96.
+See RFC 6052 Section 2.2 for details on how the prefix determines the
+destination address encoding.
+.Pp
+For example, the following rules are identical:
+.Bd -literal -offset indent
+pass in inet af-to inet6 from 2001:db8::1 to 2001:db8::/96
+pass in inet af-to inet6 from 2001:db8::1
+.Ed
+.Pp
+In the above example the matching IPv4 packets will be modified to
+have a source address of 2001:db8::1 and a destination address will
+get prefixed with 2001:db8::/96, e.g. 198.51.100.100 will be
+translated to 2001:db8::c633:6464.
+.Pp
+In the reverse case the following rules are identical:
+.Bd -literal -offset indent
+pass in inet6 from any to 64:ff9b::/96 af-to inet \e
+       from 198.51.100.1 to 0.0.0.0/0
+pass in inet6 from any to 64:ff9b::/96 af-to inet \e
+       from 198.51.100.1
+.Ed
+.Pp
+The destination IPv4 address is assumed to be embedded inside the
+original IPv6 destination address, e.g. 64:ff9b::c633:6464 will be
+translated to 198.51.100.100.
+.Pp
+The current implementation will only extract IPv4 addresses from the
+IPv6 addresses with a prefix length of /96 and greater.
+.It Ar binat
+A
+.Ar binat-to
+rule specifies a bidirectional mapping between an external IP netblock
+and an internal IP netblock.
+It expands to an outbound
+.Ar nat-to
+rule and an inbound
+.Ar rdr-to
+rule.
+.It Ar nat-to
+A
+.Ar nat-to
+option specifies that IP addresses are to be changed as the packet
+traverses the given interface.
+This technique allows one or more IP addresses
+on the translating host to support network traffic for a larger range of
+machines on an "inside" network.
+Although in theory any IP address can be used on the inside, it is strongly
+recommended that one of the address ranges defined by RFC 1918 be used.
+These netblocks are:
+.Bd -literal -offset indent
+10.0.0.0 - 10.255.255.255 (all of net 10.0.0.0, i.e., 10.0.0.0/8)
+172.16.0.0 - 172.31.255.255 (i.e., 172.16.0.0/12)
+192.168.0.0 - 192.168.255.255 (i.e., 192.168.0.0/16)
+.Ed
+.Pp
+.Ar nat-to
+is usually applied outbound.
+If applied inbound, nat-to to a local IP address is not supported.
+.It Pa rdr-to
+The packet is redirected to another destination and possibly a
+different port.
+.Ar rdr-to
+can optionally specify port ranges instead of single ports.
+For instance:
+.Bd -literal -offset indent
+match in ... port 2000:2999 rdr-to ... port 4000
+.Ed
+redirects ports 2000 to 2999 (inclusive) to port 4000.
+.Bd -literal -offset indent
+qmatch in ... port 2000:2999 rdr-to ... port 4000:*
+.Ed
+redirects port 2000 to 4000, 2001 to 4001, ..., 2999 to 4999.
+.El
+.Pp
+.Ar rdr-to
+is usually applied inbound.
+If applied outbound, rdr-to to a local IP address is not supported.
+In addition to modifying the address, some translation rules may modify
+source or destination ports for
+.Xr tcp 4
+or
+.Xr udp 4
+connections; implicitly in the case of
+.Ar nat-to
+options and both implicitly and explicitly in the case of
+.Ar rdr-to
+ones.
+A
+.Ar rdr-to
+opion may cause the source port to be modified if doing so avoids a conflict
+with an existing connection.
+A random source port in the range 50001-65535 is chosen in this case; to
+avoid excessive CPU consumption, the number of searches for a free port is
+limited by the
+.Va net.pf.rdqr_srcport_rewrite_tries
+sysctl.
+Port numbers are never translated with a
+.Ar binat-to
+option.
+.Pp
+Note that redirecting external incoming connections to the loopback
+address, as in
+.Bd -literal -offset indent
+pass in on egress proto tcp from any to any port smtp \e
+      rdr-to 127.0.0.1 port spamd
+.Ed
+.Pp
+will effectively allow an external host to connect to daemons
+bound solely to the loopback address, circumventing the traditional
+blocking of such connections on a real interface.
+Unless this effect is desired, any of the local non-loopback addresses
+should be used as redirection target instead, which allows external
+connections only to daemons bound to this address or not bound to
+any address.
+.Pp
+See
+.Sx TRANSLATION EXAMPLES
+below.
+.Ss NAT ruleset (pre-FreeBSD 15)
+In order to maintain compatibility with older releases of FreeBSD
+.Ar NAT
+rules can also be specified in their own ruleset.
 A stateful connection is automatically created to track packets matching
 such a rule as long as they are not blocked by the filtering section of
 .Nm pf.conf .
-The translation engine modifies the specified address and/or port in the
-packet, recalculates IP, TCP and UDP checksums as necessary, and passes
-it to the packet filter for evaluation.
-.Pp
 Since translation occurs before filtering the filter
 engine will see packets as they look after any
 addresses and ports have been translated.
@@ -1354,67 +1520,25 @@ and
 .Ar pass
 rules.
 .Pp
-The state entry created permits
-.Xr pf 4
-to keep track of the original address for traffic associated with that state
-and correctly direct return traffic for that connection.
+The following rules can be defined in the NAT ruleset:
+.Ar binat ,
+.Ar nat ,
+and
+.Ar rdr .
+They have the same effect as
+.Ar binat-to ,
+.Ar nat-to
+and
+.Ar rdr-to
+options for filter rules.
 .Pp
-Various types of translation are possible with pf:
-.Bl -tag -width xxxx
-.It Ar binat
-A
-.Ar binat
-rule specifies a bidirectional mapping between an external IP netblock
-and an internal IP netblock.
-.It Ar nat
-A
-.Ar nat
-rule specifies that IP addresses are to be changed as the packet
-traverses the given interface.
-This technique allows one or more IP addresses
-on the translating host to support network traffic for a larger range of
-machines on an "inside" network.
-Although in theory any IP address can be used on the inside, it is strongly
-recommended that one of the address ranges defined by RFC 1918 be used.
-These netblocks are:
-.Bd -literal
-10.0.0.0 - 10.255.255.255 (all of net 10, i.e., 10/8)
-172.16.0.0 - 172.31.255.255 (i.e., 172.16/12)
-192.168.0.0 - 192.168.255.255 (i.e., 192.168/16)
-.Ed
-.It Pa rdr
-The packet is redirected to another destination and possibly a
-different port.
-.Ar rdr
-rules can optionally specify port ranges instead of single ports.
-rdr ... port 2000:2999 -\*(Gt ... port 4000
-redirects ports 2000 to 2999 (inclusive) to port 4000.
-rdr ... port 2000:2999 -\*(Gt ... port 4000:*
-redirects port 2000 to 4000, 2001 to 4001, ..., 2999 to 4999.
-.El
-.Pp
-In addition to modifying the address, some translation rules may modify
-source or destination ports for
-.Xr tcp 4
-or
-.Xr udp 4
-connections; implicitly in the case of
-.Ar nat
-rules and both implicitly and explicitly in the case of
-.Ar rdr
-rules.
-A
-.Ar rdr
-rule may cause the source port to be modified if doing so avoids a conflict
-with an existing connection.
-A random source port in the range 50001-65535 is chosen in this case; to
-avoid excessive CPU consumption, the number of searches for a free port is
-limited by the
-.Va net.pf.rdr_srcport_rewrite_tries
-sysctl.
-Port numbers are never translated with a
-.Ar binat
-rule.
+The
+.Ar no
+option prefixed to a translation rule causes packets to remain untranslated,
+much in the same way as
+.Ar drop quick
+works in the packet filter.
+If no rule matches the packet it is passed to the filter engine unmodified.
 .Pp
 Evaluation order of the translation rules is dependent on the type
 of the translation rules and of the direction of a packet.
@@ -1429,14 +1553,6 @@ Rules of the same type are evaluated in the same order in which they
 appear in the ruleset.
 The first matching rule decides what action is taken.
 .Pp
-The
-.Ar no
-option prefixed to a translation rule causes packets to remain untranslated,
-much in the same way as
-.Ar drop quick
-works in the packet filter (see below).
-If no rule matches the packet it is passed to the filter engine unmodified.
-.Pp
 Translation rules apply only to packets that pass through
 the specified interface, and if no interface is specified,
 translation is applied to packets on all interfaces.
@@ -1449,22 +1565,8 @@ Redirections cannot reflect packets back through the interface they arrive
 on, they can only be redirected to hosts connected to different interfaces
 or to the firewall itself.
 .Pp
-Note that redirecting external incoming connections to the loopback
-address, as in
-.Bd -literal -offset indent
-rdr on ne3 inet proto tcp to port smtp -\*(Gt 127.0.0.1 port spamd
-.Ed
-.Pp
-will effectively allow an external host to connect to daemons
-bound solely to the loopback address, circumventing the traditional
-blocking of such connections on a real interface.
-Unless this effect is desired, any of the local non-loopback addresses
-should be used as redirection target instead, which allows external
-connections only to daemons bound to this address or not bound to
-any address.
-.Pp
 See
-.Sx TRANSLATION EXAMPLES
+.Sx COMPATIBILITY TRANSLATION EXAMPLES
 below.
 .Sh PACKET FILTERING
 .Xr pf 4
@@ -1560,6 +1662,9 @@ rules in that parameters are set for every rule a packet matches, not only
 on the last matching rule.
 For the following parameters, this means that the parameter effectively becomes
 "sticky" until explicitly overridden:
+.Ar nat-to ,
+.Ar binat-to ,
+.Ar rdr-to ,
 .Ar queue ,
 .Ar dnpipe ,
 .Ar dnqueue ,
@@ -1606,10 +1711,6 @@ allows echo requests (such as those created by
 out statefully, and matches incoming echo replies correctly to states.
 .Pp
 Also, looking up states is usually faster than evaluating rules.
-If there are 50 rules, all of them are evaluated sequentially in O(n).
-Even with 50000 states, only 16 comparisons are needed to match a
-state, since states are stored in a binary search tree that allows
-searches in O(log2 n).
 .Pp
 Furthermore, correct handling of ICMP error messages is critical to
 many protocols, particularly TCP.
@@ -1658,36 +1759,49 @@ If neither
 nor
 .Ar out
 are specified, the rule will match packets in both directions.
-.It Ar log
-In addition to the action specified, a log message is generated.
+.It Ar log Pq Cm all | matches | to Ao Ar interface Ac | Cm user
+In addition to any action specified,
+log the packet.
 Only the packet that establishes the state is logged,
 unless the
 .Ar no state
 option is specified.
 The logged packets are sent to a
 .Xr pflog 4
-interface, by default
-.Ar pflog0 .
-This interface is monitored by the
+interface, by default pflog0;
+pflog0 is monitored by the
 .Xr pflogd 8
-logging daemon, which dumps the logged packets to the file
+logging daemon which logs to the file
 .Pa /var/log/pflog
 in
 .Xr pcap 3
 binary format.
-.It Ar log (all)
-Used to force logging of all packets for a connection.
+.Pp
+The keywords
+.Cm all , matches , to ,
+and
+.Cm user
+are optional and can be combined using commas,
+but must be enclosed in parentheses if given.
+.Pp
+Use
+.Cm all
+to force logging of all packets for a connection.
 This is not necessary when
 .Ar no state
 is explicitly specified.
-As with
-.Ar log ,
-packets are logged to
-.Xr pflog 4 .
-.It Ar log (matches)
-Used to force logging of this packet on all subsequent matching rules.
-.It Ar log (user)
-Logs the
+.Pp
+If
+.Cm matches
+is specified,
+it logs the packet on all subsequent matching rules.
+It is often combined with
+.Cm to Aq Ar interface
+to avoid adding noise to the default log file.
+.Pp
+The keyword
+.Cm user
+logs the
 .Ux
 user ID of the user that owns the socket and the PID of the process that
 has the socket open where the packet is sourced from or destined to
@@ -1698,11 +1812,10 @@ Only the first packet
 logged via
 .Ar log (all, user)
 will have the user credentials logged when using stateful matching.
-.It Ar log (to Aq Ar interface )
-Send logs to the specified
-.Xr pflog 4
-interface instead of
-.Ar pflog0 .
+.Pp
+To specify a logging interface other than pflog0,
+use the syntax
+.Cm to Aq Ar interface .
 .It Ar quick
 If a packet matches a rule which has the
 .Ar quick
@@ -1717,6 +1830,8 @@ see the
 .Ic group
 keyword in
 .Xr ifconfig 8 .
+.Ar any
+will match any existing interface except loopback ones.
 .It Aq Ar af
 This rule applies only to packets of this address family.
 Supported values are
@@ -1759,6 +1874,8 @@ Any address which is not currently routable.
 Any source address that fails a unicast reverse path forwarding (URPF)
 check, i.e. packets coming in on an interface other than that which holds
 the route back to the packet's source address.
+.It Ar self
+Expands to all addresses assigned to all interfaces.
 .It Aq Ar table
 Any address that matches the given table.
 .El
@@ -1771,7 +1888,9 @@ For instance:
 means all addresses from 10.1.1.10 to 10.1.1.12,
 hence addresses 10.1.1.10, 10.1.1.11, and 10.1.1.12.
 .Pp
-Interface names and interface group names can have modifiers appended:
+Interface names and interface group names, and
+.Ar self
+can have modifiers appended:
 .Pp
 .Bl -tag -width xxxxxxxxxxxx -compact
 .It Ar :network
@@ -1814,17 +1933,17 @@ Ports and ranges of ports are specified by using these operators:
 .Bd -literal -offset indent
 =	(equal)
 !=	(unequal)
-\*(Lt	(less than)
-\*(Le	(less than or equal)
-\*(Gt	(greater than)
-\*(Ge	(greater than or equal)
+<	(less than)
+<=	(less than or equal)
+>	(greater than)
+>=	(greater than or equal)
 :	(range including boundaries)
-\*(Gt\*(Lt	(range excluding boundaries)
-\*(Lt\*(Gt	(except range)
+><	(range excluding boundaries)
+<>	(except range)
 .Ed
 .Pp
-.Sq \*(Gt\*(Lt ,
-.Sq \*(Lt\*(Gt
+.Sq >< ,
+.Sq <>
 and
 .Sq \&:
 are binary operators (they take two arguments).
@@ -1832,15 +1951,15 @@ For instance:
 .Bl -tag -width Fl
 .It Ar port 2000:2004
 means
-.Sq all ports \*(Ge 2000 and \*(Le 2004 ,
+.Sq all ports >= 2000 and <= 2004 ,
 hence ports 2000, 2001, 2002, 2003 and 2004.
-.It Ar port 2000 \*(Gt\*(Lt 2004
+.It Ar port 2000 >< 2004
 means
-.Sq all ports \*(Gt 2000 and \*(Lt 2004 ,
+.Sq all ports > 2000 and < 2004 ,
 hence ports 2001, 2002 and 2003.
-.It Ar port 2000 \*(Lt\*(Gt 2004
+.It Ar port 2000 <> 2004
 means
-.Sq all ports \*(Lt 2000 or \*(Gt 2004 ,
+.Sq all ports < 2000 or > 2004 ,
 hence ports 1-1999 and 2005-65535.
 .El
 .Pp
@@ -1856,9 +1975,9 @@ The host, port and OS specifications are optional, as in the following examples:
 .Bd -literal -offset indent
 pass in all
 pass in from any to any
-pass in proto tcp from any port \*(Le 1024 to any
+pass in proto tcp from any port < 1024 to any
 pass in proto tcp from any to any port 25
-pass in proto tcp from 10.0.0.0/8 port \*(Gt 1024 \e
+pass in proto tcp from 10.0.0.0/8 port >= 1024 \e
       to ! 10.1.2.3 port != ssh
 pass in proto tcp from any os "OpenBSD"
 .Ed
@@ -1917,7 +2036,7 @@ The following example allows only selected users to open outgoing
 connections:
 .Bd -literal -offset indent
 block out proto { tcp, udp } all
-pass  out proto { tcp, udp } all user { \*(Lt 1000, dhartmei }
+pass  out proto { tcp, udp } all user { < 1000, dhartmei }
 .Ed
 .It Xo Ar flags Aq Ar a
 .Pf / Ns Aq Ar b
@@ -1968,7 +2087,10 @@ if one flushes the state table.
 However, states created from such intermediate packets may be missing
 connection details such as the TCP window scaling factor.
 States which modify the packet flow, such as those affected by
-.Ar nat , binat No or Ar rdr
+.Ar af-to ,
+.Ar nat ,
+.Ar binat or
+.Ar rdr
 rules,
 .Ar modulate No or Ar synproxy state
 options, or scrubbed with
@@ -2068,15 +2190,15 @@ For example:
 .Bd -literal -offset indent
 ips = \&"{ 1.2.3.4, 1.2.3.5 }\&"
 pass in proto tcp from any to $ips \e
-      port \*(Gt 1023 label \&"$dstaddr:$dstport\&"
+      port > 1023 label \&"$dstaddr:$dstport\&"
 .Ed
 .Pp
 expands to
 .Bd -literal -offset indent
 pass in inet proto tcp from any to 1.2.3.4 \e
-      port \*(Gt 1023 label \&"1.2.3.4:\*(Gt1023\&"
+      port > 1023 label \&"1.2.3.4:>1023\&"
 pass in inet proto tcp from any to 1.2.3.5 \e
-      port \*(Gt 1023 label \&"1.2.3.5:\*(Gt1023\&"
+      port > 1023 label \&"1.2.3.5:>1023\&"
 .Ed
 .Pp
 The macro expansion for the
@@ -2120,11 +2242,12 @@ For example:
 pass in proto tcp to port 25 set prio 2
 pass in proto tcp to port 22 set prio (2, 5)
 .Ed
-.It Ar received-on Aq Ar interface
+.It Oo Cm \&! Oc Ns Cm received-on Ar interface
 Only match packets which were received on the specified
 .Ar interface
 (or interface group).
-.Ed
+.Ar any
+will match any existing interface except loopback ones.
 .It Ar tag Aq Ar string
 Packets matching this rule will be tagged with the
 specified string.
@@ -2152,12 +2275,6 @@ Tags take the same macros as labels (see above).
 Used with filter, translation or scrub rules
 to specify that packets must already
 be tagged with the given tag in order to match the rule.
-Inverse tag matching can also be done
-by specifying the
-.Cm !\&
-operator before the
-.Ar tagged
-keyword.
 .It Ar rtable Aq Ar number
 Used to select an alternate routing table for the routing lookup.
 Only effective before the route lookup happened, i.e. when filtering inbound.
@@ -2272,8 +2389,8 @@ The
 option loops through the redirection address(es).
 .Pp
 When more than one redirection address is specified,
-.Ar round-robin
-is the only permitted pool type.
+.Ar bitmask
+is not permitted as a pool type.
 .It Ar static-port
 With
 .Ar nat
@@ -2289,16 +2406,6 @@ from modifying the source port on TCP and UDP packets.
 With
 .Ar nat
 rules, the
-.It Ar endpoint-independent
-With
-.Ar nat
-rules, the
-.Ar endpoint-independent
-option caues
-.Xr pf 4
-to always map connections from a UDP source address and port to the same
-NAT address and port.
-This feature implements "full-cone" NAT behavior.
 .Ar map-e-portset
 option enables the source port translation of MAP-E (RFC 7597) Customer Edge.
 In order to make the host act as a MAP-E Customer Edge, setting up a tunneling
@@ -2312,6 +2419,16 @@ nat on $gif_mape_if from $int_if:network to any \e
 .Ed
 .Pp
 sets PSID offset 6, PSID length 8, PSID 0x34.
+.It Ar endpoint-independent
+With
+.Ar nat
+rules, the
+.Ar endpoint-independent
+option caues
+.Xr pf 4
+to always map connections from a UDP source address and port to the same
+NAT address and port.
+This feature implements "full-cone" NAT behavior.
 .El
 .Pp
 Additionally, the
@@ -2433,7 +2550,7 @@ must be specified explicitly to apply options to a rule.
 .It Ar max Aq Ar number
 Limits the number of concurrent states the rule may create.
 When this limit is reached, further packets that would create
-state will not match this rule until existing states time out.
+state are dropped until existing states time out.
 .It Ar no-sync
 Prevent state changes for states created by this rule from appearing on the
 .Xr pfsync 4
@@ -2456,6 +2573,10 @@ Cannot be used with modulate or synproxy state.
 States created by this rule are exported on the
 .Xr pflow 4
 interface.
+.It Ar allow-related
+Automatically allow connections related to this one, regardless of rules that
+might otherwise affect them.
+This currently only applies to SCTP multihomed connection.
 .El
 .Pp
 Multiple options can be specified, separated by commas:
@@ -2515,6 +2636,9 @@ Limit the rate of new connections over a time interval.
 The connection rate is an approximation calculated as a moving average.
 .El
 .Pp
+When one of these limits is reached, further packets that would create
+state are dropped until existing states time out.
+.Pp
 Because the 3-way handshake ensures that the source address is not being
 spoofed, more aggressive action can be taken based on these limits.
 With the
@@ -2543,9 +2667,9 @@ table and have all states originating from it flushed.
 Any new packets arriving from this host will be dropped unconditionally
 by the block rule.
 .Bd -literal -offset indent
-block quick from \*(Ltbad_hosts\*(Gt
+block quick from <bad_hosts>
 pass in on $ext_if proto tcp to $webserver port www keep state \e
-	(max-src-conn-rate 100/10, overload \*(Ltbad_hosts\*(Gt flush global)
+	(max-src-conn-rate 100/10, overload <bad_hosts> flush global)
 .Ed
 .Sh OPERATING SYSTEM FINGERPRINTING
 Passive OS Fingerprinting is a mechanism to inspect nuances of a TCP
@@ -2971,21 +3095,24 @@ Doing so would break SCTP multihoming.
 This example maps incoming requests on port 80 to port 8080, on
 which a daemon is running (because, for example, it is not run as root,
 and therefore lacks permission to bind to port 80).
-.Bd -literal
+.Bd -literal -offset indent
 # use a macro for the interface name, so it can be changed easily
 ext_if = \&"ne3\&"
 
 # map daemon on 8080 to appear to be on 80
-rdr on $ext_if proto tcp from any to any port 80 -\*(Gt 127.0.0.1 port 8080
+match in on $ext_if proto tcp from any to any port 80 \e
+      rdr-to 127.0.0.1 port 8080
 .Ed
 .Pp
-If the
+If a
 .Ar pass
-modifier is given, packets matching the translation rule are passed without
-inspecting the filter rules:
-.Bd -literal
-rdr pass on $ext_if proto tcp from any to any port 80 -\*(Gt 127.0.0.1 \e
-      port 8080
+rule is used with the
+.Ar quick
+modifier, packets matching the translation rule are passed without
+inspecting subsequent filter rules:
+.Bd -literal -offset indent
+pass in quick on $ext_if proto tcp from any to any port 80 \e
+      rdr-to 127.0.0.1 port 8080
 .Ed
 .Pp
 In the example below, vlan12 is configured as 192.168.168.1;
@@ -2996,29 +3123,8 @@ network appear as though it is the Internet routable address
 204.92.77.111 to nodes behind any interface on the router except
 for the nodes on vlan12.
 (Thus, 192.168.168.1 can talk to the 192.168.168.0/24 nodes.)
-.Bd -literal
-nat on ! vlan12 from 192.168.168.0/24 to any -\*(Gt 204.92.77.111
-.Ed
-.Pp
-In the example below, the machine sits between a fake internal 144.19.74.*
-network, and a routable external IP of 204.92.77.100.
-The
-.Ar no nat
-rule excludes protocol AH from being translated.
-.Bd -literal
-# NO NAT
-no nat on $ext_if proto ah from 144.19.74.0/24 to any
-nat on $ext_if from 144.19.74.0/24 to any -\*(Gt 204.92.77.100
-.Ed
-.Pp
-In the example below, packets bound for one specific server, as well as those
-generated by the sysadmins are not proxied; all other connections are.
-.Bd -literal
-# NO RDR
-no rdr on $int_if proto { tcp, udp } from any to $server port 80
-no rdr on $int_if proto { tcp, udp } from $sysadmins to any port 80
-rdr on $int_if proto { tcp, udp } from any to any port 80 -\*(Gt 127.0.0.1 \e
-      port 80
+.Bd -literal -offset indent
+match out on ! vlan12 from 192.168.168.0/24 to any nat-to 204.92.77.111
 .Ed
 .Pp
 This longer example uses both a NAT and a redirection.
@@ -3031,62 +3137,84 @@ The three mandatory anchors for
 are omitted from this example; see the
 .Xr ftp-proxy 8
 manpage.
-.Bd -literal
+.Bd -literal -offset indent
 # NAT
 # Translate outgoing packets' source addresses (any protocol).
 # In this case, any address but the gateway's external address is mapped.
-nat on $ext_if inet from ! ($ext_if) to any -\*(Gt ($ext_if)
+pass out on $ext_if inet from ! ($ext_if) to any nat-to ($ext_if)
 
 # NAT PROXYING
 # Map outgoing packets' source port to an assigned proxy port instead of
 # an arbitrary port.
 # In this case, proxy outgoing isakmp with port 500 on the gateway.
-nat on $ext_if inet proto udp from any port = isakmp to any -\*(Gt ($ext_if) \e
-      port 500
+pass out on $ext_if inet proto udp from any port = isakmp to any \e
+      nat-to ($ext_if) port 500
 
 # BINAT
 # Translate outgoing packets' source address (any protocol).
 # Translate incoming packets' destination address to an internal machine
 # (bidirectional).
-binat on $ext_if from 10.1.2.150 to any -\*(Gt $ext_if
+pass on $ext_if from 10.1.2.150 to any binat-to $ext_if
 
 # Translate packets arriving on $peer_if addressed to 172.22.16.0/20
 # to the corresponding address in 172.21.16.0/20 (bidirectional).
-binat on $peer_if from 172.21.16.0/20 to any -> 172.22.16.0/20
+pass on $peer_if from 172.21.16.0/20 to any binat-to 172.22.16.0/20
 
 # RDR
 # Translate incoming packets' destination addresses.
 # As an example, redirect a TCP and UDP port to an internal machine.
-rdr on $ext_if inet proto tcp from any to ($ext_if) port 8080 \e
-      -\*(Gt 10.1.2.151 port 22
-rdr on $ext_if inet proto udp from any to ($ext_if) port 8080 \e
-      -\*(Gt 10.1.2.151 port 53
+pass in on $ext_if inet proto tcp from any to ($ext_if) port 8080 \e
+      rdr-to 10.1.2.151 port 22
+pass in on $ext_if inet proto udp from any to ($ext_if) port 8080 \e
+      rdr-to 10.1.2.151 port 53
 
 # RDR
 # Translate outgoing ftp control connections to send them to localhost
 # for proxying with ftp-proxy(8) running on port 8021.
-rdr on $int_if proto tcp from any to any port 21 -\*(Gt 127.0.0.1 port 8021
+pass in on $int_if proto tcp from any to any port 21 \e
+      rdr-to 127.0.0.1 port 8021
 .Ed
 .Pp
 In this example, a NAT gateway is set up to translate internal addresses
 using a pool of public addresses (192.0.2.16/28) and to redirect
 incoming web server connections to a group of web servers on the internal
 network.
-.Bd -literal
+.Bd -literal -offset indent
 # NAT LOAD BALANCE
 # Translate outgoing packets' source addresses using an address pool.
 # A given source address is always translated to the same pool address by
 # using the source-hash keyword.
-nat on $ext_if inet from any to any -\*(Gt 192.0.2.16/28 source-hash
+pass out on $ext_if inet from any to any nat-to 192.0.2.16/28 source-hash
 
 # RDR ROUND ROBIN
 # Translate incoming web server connections to a group of web servers on
 # the internal network.
-rdr on $ext_if proto tcp from any to any port 80 \e
-      -\*(Gt { 10.1.2.155, 10.1.2.160, 10.1.2.161 } round-robin
+pass in on $ext_if proto tcp from any to any port 80 \e
+      rdr-to { 10.1.2.155, 10.1.2.160, 10.1.2.161 } round-robin
+.Ed
+.Sh COMPATIBILITY TRANSLATION EXAMPLES
+In the example below, the machine sits between a fake internal 144.19.74.*
+network, and a routable external IP of 204.92.77.100.
+The
+.Ar no nat
+rule excludes protocol AH from being translated.
+.Bd -literal -offset indent
+# NAT
+no nat on $ext_if proto ah from 144.19.74.0/24 to any
+nat on $ext_if from 144.19.74.0/24 to any -> 204.92.77.100
+.Ed
+.Pp
+In the example below, packets bound for one specific server, as well as those
+generated by the sysadmins are not proxied; all other connections are.
+.Bd -literal -offset indent
+# RDR
+no rdr on $int_if proto { tcp, udp } from any to $server port 80
+no rdr on $int_if proto { tcp, udp } from $sysadmins to any port 80
+rdr on $int_if proto { tcp, udp } from any to any port 80 \e
+      -> 127.0.0.1 port 80
 .Ed
 .Sh FILTER EXAMPLES
-.Bd -literal
+.Bd -literal -offset indent
 # The external interface is kue0
 # (157.161.48.183, the only routable address)
 # and the private network is 10.0.0.0/8, for which we are doing NAT.
@@ -3176,11 +3304,25 @@ pass out on $ext_if proto tcp from any to any port 80
 # tag incoming packets as they are redirected to spamd(8). use the tag
 # to pass those packets through the packet filter.
 
-rdr on $ext_if inet proto tcp from \*(Ltspammers\*(Gt to port smtp \e
-	tag SPAMD -\*(Gt 127.0.0.1 port spamd
+rdr on $ext_if inet proto tcp from <spammers> to port smtp \e
+	tag SPAMD -> 127.0.0.1 port spamd
 
 block in on $ext_if
 pass in on $ext_if inet proto tcp tagged SPAMD
+.Ed
+.Pp
+In the example below, a router handling both address families
+translates an internal IPv4 subnet to IPv6 using the well-known
+64:ff9b::/96 prefix:
+.Bd -literal -offset 4n
+pass in on $v4_if inet af-to inet6 from ($v6_if) to 64:ff9b::/96
+.Ed
+.Pp
+Paired with the example above, the example below can be used on
+another router handling both address families to translate back
+to IPv4:
+.Bd -literal -offset 4n
+pass in on $v6_if inet6 to 64:ff9b::/96 af-to inet from ($v4_if)
 .Ed
 .Sh GRAMMAR
 Syntax for
@@ -3210,13 +3352,13 @@ option         = "set" ( [ "timeout" ( timeout | "{" timeout-list "}" ) ] |
 
 ether-rule     = "ether" etheraction [ ( "in" | "out" ) ]
                  [ "quick" ] [ "on" ifspec ] [ "bridge-to" interface-name ]
-                 [ etherprotospec ] etherhosts [ "l3" hosts ]
+                 [ etherprotospec ] [ etherhosts ] [ "l3" hosts ]
                  [ etherfilteropt-list ]
 
 pf-rule        = action [ ( "in" | "out" ) ]
                  [ "log" [ "(" logopts ")"] ] [ "quick" ]
                  [ "on" ifspec ] [ route ] [ af ] [ protospec ]
-                 hosts [ filteropt-list ]
+                 [ hosts ] [ filteropt-list ]
 
 logopts        = logopt [ "," logopts ]
 logopt         = "all" | "matches" | "user" | "to" interface-name
@@ -3227,24 +3369,26 @@ etherfilteropt = "tag" string | "tagged" string | "queue" ( string ) |
 
 filteropt-list = filteropt-list filteropt | filteropt
 filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
+                 "af-to" af "from" ( redirhost | "{" redirhost-list "}" )
+                 [ "to" ( redirhost | "{" redirhost-list "}" ) ] |
                  ( "no" | "keep" | "modulate" | "synproxy" ) "state"
                  [ "(" state-opts ")" ] |
                  "fragment" | "no-df" | "min-ttl" number | "set-tos" tos |
                  "max-mss" number | "random-id" | "reassemble tcp" |
                  fragmentation | "allow-opts" |
-                 "label" string | "tag" string | [ ! ] "tagged" string |
+                 "label" string | "tag" string | [ "!" ] "tagged" string |
                  "set prio" ( number | "(" number [ [ "," ] number ] ")" ) |
                  "queue" ( string | "(" string [ [ "," ] string ] ")" ) |
                  "rtable" number | "probability" number"%" | "prio" number |
                  "dnpipe" ( number | "(" number "," number ")" ) |
                  "dnqueue" ( number | "(" number "," number ")" ) |
                  "ridentifier" number |
-                 "received-on" ( interface-name | interface-group )
+                 [ ! ] "received-on" ( interface-name | interface-group )
 
 nat-rule       = [ "no" ] "nat" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
                  [ "on" ifspec ] [ af ]
                  [ protospec ] hosts [ "tag" string ] [ "tagged" string ]
-                 [ "-\*(Gt" ( redirhost | "{" redirhost-list "}" )
+                 [ "->" ( redirhost | "{" redirhost-list "}" )
                  [ portspec ] [ pooltype ] [ "static-port" ]
                  [ "map-e-portset" number "/" number "/" number ] ]
 
@@ -3253,19 +3397,19 @@ binat-rule     = [ "no" ] "binat" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
                  [ "proto" ( proto-name | proto-number ) ]
                  "from" address [ "/" mask-bits ] "to" ipspec
                  [ "tag" string ] [ "tagged" string ]
-                 [ "-\*(Gt" address [ "/" mask-bits ] ]
+                 [ "->" address [ "/" mask-bits ] ]
 
 rdr-rule       = [ "no" ] "rdr" [ "pass" [ "log" [ "(" logopts ")" ] ] ]
                  [ "on" ifspec ] [ af ]
                  [ protospec ] hosts [ "tag" string ] [ "tagged" string ]
-                 [ "-\*(Gt" ( redirhost | "{" redirhost-list "}" )
+                 [ "->" ( redirhost | "{" redirhost-list "}" )
                  [ portspec ] [ pooltype ] ]
 
 antispoof-rule = "antispoof" [ "log" ] [ "quick" ]
                  "for" ifspec [ af ] [ "label" string ]
                  [ "ridentifier" number ]
 
-table-rule     = "table" "\*(Lt" string "\*(Gt" [ tableopts-list ]
+table-rule     = "table" "<" string ">" [ tableopts-list ]
 tableopts-list = tableopts-list tableopts | tableopts
 tableopts      = "persist" | "const" | "counters" | "file" string |
                  "{" [ tableaddr-list ] "}"
@@ -3329,7 +3473,7 @@ hosts          = "all" |
                  "{" host-list "}" ) [ port ]
 
 ipspec         = "any" | host | "{" host-list "}"
-host           = [ "!" ] ( address [ "/" mask-bits ] | "\*(Lt" string "\*(Gt" )
+host           = [ "!" ] ( address [ "/" mask-bits ] | "<" string ">" )
 redirhost      = address [ "/" mask-bits ]
 routehost      = "(" interface-name [ address [ "/" mask-bits ] ] ")"
 address        = ( interface-name | interface-group |
@@ -3345,9 +3489,9 @@ os             = "os"  ( os-name | "{" os-list "}" )
 user           = "user" ( unary-op | binary-op | "{" op-list "}" )
 group          = "group" ( unary-op | binary-op | "{" op-list "}" )
 
-unary-op       = [ "=" | "!=" | "\*(Lt" | "\*(Le" | "\*(Gt" | "\*(Ge" ]
+unary-op       = [ "=" | "!=" | "<" | "<=" | ">" | ">=" ]
                  ( name | number )
-binary-op      = number ( "\*(Lt\*(Gt" | "\*(Gt\*(Lt" | ":" ) number
+binary-op      = number ( "<>" | "><" | ":" ) number
 op-list        = ( unary-op | binary-op ) [ [ "," ] op-list ]
 
 os-name        = operating-system-name
@@ -3372,7 +3516,7 @@ state-opt      = ( "max" number | "no-sync" | timeout | "sloppy" |
                  "max-src-nodes" number | "max-src-states" number |
                  "max-src-conn" number |
                  "max-src-conn-rate" number "/" number |
-                 "overload" "\*(Lt" string "\*(Gt" [ "flush" ] |
+                 "overload" "<" string ">" [ "flush" ] |
                  "if-bound" | "floating" | "pflow" )
 
 fragmentation  = [ "fragment reassemble" ]
@@ -3436,8 +3580,8 @@ Service name database.
 .Xr pf 4 ,
 .Xr pflow 4 ,
 .Xr pfsync 4 ,
-.Xr tcp 4 ,
 .Xr sctp 4 ,
+.Xr tcp 4 ,
 .Xr udp 4 ,
 .Xr hosts 5 ,
 .Xr pf.os 5 ,

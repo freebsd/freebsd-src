@@ -119,6 +119,11 @@ inet6_in_mbuf_len_body()
 		"pass quick inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }"
 	atf_check -s not-exit:0 -o ignore ping -c1 -t1 2001:db8::2
 
+	# Avoid redundant ICMPv6 packets to avoid false positives during
+	# counting of net.dummymbuf.hits.
+	ndp -i ${epair}a -- -nud
+	jexec alcatraz ndp -i ${epair}b -- -nud
+
 	# Should be allowed by from/to addresses
 	pft_set_rules alcatraz \
 		"block" \

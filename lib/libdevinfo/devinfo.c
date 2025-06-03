@@ -420,7 +420,7 @@ devinfo_handle_to_device(devinfo_handle_t handle)
 	 */
 	if (handle == DEVINFO_ROOT_DEVICE) {
 		TAILQ_FOREACH(dd, &devinfo_dev, dd_link)
-		    if (dd->dd_dev.dd_parent == DEVINFO_ROOT_DEVICE)
+		    if (dd->dd_dev.dd_parent == 0)
 			    return(&dd->dd_dev);
 		return(NULL);
 	}

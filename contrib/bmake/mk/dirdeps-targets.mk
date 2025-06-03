@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # RCSid:
-#       $Id: dirdeps-targets.mk,v 1.27 2024/02/25 19:12:13 sjg Exp $
+#       $Id: dirdeps-targets.mk,v 1.28 2024/10/19 00:47:38 sjg Exp $
 #
 #       @(#) Copyright (c) 2019-2020 Simon J. Gerraty
 #
@@ -160,6 +160,9 @@ MK_DIRDEPS_CACHE = yes
 .endfor
 .if defined(STATIC_DIRDEPS_CACHE)
 .export STATIC_DIRDEPS_CACHE
+.if !empty(DEBUG_DIRDEPS_TARGETS)
+.info STATIC_DIRDEPS_CACHE=${STATIC_DIRDEPS_CACHE:S,${SRCTOP}/,,}
+.endif
 .endif
 .endif
 

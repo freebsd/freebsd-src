@@ -132,9 +132,11 @@ ATF_TC_BODY(test_autoalloc, tc)
 	/* Open a FILE * using a wrong mode */
 	fp = fmemopen(NULL, 512, "r");
 	ATF_REQUIRE(fp == NULL);
+	ATF_REQUIRE(errno == EINVAL);
 
 	fp = fmemopen(NULL, 512, "w");
 	ATF_REQUIRE(fp == NULL);
+	ATF_REQUIRE(errno == EINVAL);
 }
 
 ATF_TC_WITHOUT_HEAD(test_data_length);
@@ -271,6 +273,36 @@ ATF_TC_BODY(test_size_0, tc)
 	ATF_REQUIRE(errno == EINVAL);
 }
 
+/*
+ * PR281953 - ensure we cannot write in read-only only mode, and cannot read in
+ * write-only mode.
+ */
+ATF_TC_WITHOUT_HEAD(test_rdonly_wronly);
+ATF_TC_BODY(test_rdonly_wronly, tc)
+{
+	FILE *fp;
+	char buf[16];
+	char buf_orig[16] = "input data";
+	char buf_write[16] = "write";
+	size_t sz;
+
+	memcpy(buf, buf_orig, sizeof(buf));
+	fp = fmemopen(buf, sizeof(buf), "r");
+	ATF_REQUIRE(fp != NULL);
+	sz = fwrite(buf_write, 1, strlen(buf_write), fp);
+	ATF_REQUIRE(sz == 0);
+	ATF_REQUIRE(errno == EBADF);
+	ATF_REQUIRE(memcmp(buf, buf_orig, sizeof(buf)) == 0);
+	fclose(fp);
+
+	fp = fmemopen(buf_orig, sizeof(buf), "w");
+	ATF_REQUIRE(fp != NULL);
+	sz = fread(buf, sizeof(buf), 1, fp);
+	ATF_REQUIRE(sz == 0);
+	ATF_REQUIRE(errno == EBADF);
+	fclose(fp);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -280,6 +312,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, test_binary);
 	ATF_TP_ADD_TC(tp, test_append_binary_pos);
 	ATF_TP_ADD_TC(tp, test_size_0);
+	ATF_TP_ADD_TC(tp, test_rdonly_wronly);
 
 	return (atf_no_error());
 }

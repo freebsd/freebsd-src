@@ -187,10 +187,12 @@ svc_getcred(struct svc_req *rqst, struct ucred **crp, int *flavorp)
 	if ((xprt->xp_tls & (RPCTLS_FLAGS_CERTUSER |
 	    RPCTLS_FLAGS_DISABLED)) == RPCTLS_FLAGS_CERTUSER &&
 	    flavor == AUTH_UNIX) {
+		if (xprt->xp_ngrps <= 0)
+			return (FALSE);
 		cr = crget();
 		cr->cr_uid = cr->cr_ruid = cr->cr_svuid = xprt->xp_uid;
 		crsetgroups(cr, xprt->xp_ngrps, xprt->xp_gidp);
-		cr->cr_rgid = cr->cr_svgid = xprt->xp_gidp[0];
+		cr->cr_rgid = cr->cr_svgid = cr->cr_gid;
 		cr->cr_prison = curthread->td_ucred->cr_prison;
 		prison_hold(cr->cr_prison);
 		*crp = cr;
@@ -200,10 +202,12 @@ svc_getcred(struct svc_req *rqst, struct ucred **crp, int *flavorp)
 	switch (flavor) {
 	case AUTH_UNIX:
 		xcr = (struct xucred *) rqst->rq_clntcred;
+		if (xcr->cr_ngroups <= 0)
+			return (FALSE);
 		cr = crget();
 		cr->cr_uid = cr->cr_ruid = cr->cr_svuid = xcr->cr_uid;
 		crsetgroups(cr, xcr->cr_ngroups, xcr->cr_groups);
-		cr->cr_rgid = cr->cr_svgid = cr->cr_groups[0];
+		cr->cr_rgid = cr->cr_svgid = cr->cr_gid;
 		cr->cr_prison = curthread->td_ucred->cr_prison;
 		prison_hold(cr->cr_prison);
 		*crp = cr;

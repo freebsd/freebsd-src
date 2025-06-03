@@ -87,4 +87,4 @@ int _archive_entry_copy_symlink_l(struct archive_entry *,
 int _archive_entry_copy_uname_l(struct archive_entry *,
     const char *, size_t, struct archive_string_conv *);
 
-#endif /* ARCHIVE_ENTRY_LOCALE_H_INCLUDED */
+#endif /* !ARCHIVE_ENTRY_LOCALE_H_INCLUDED */

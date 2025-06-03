@@ -64,7 +64,7 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 	if ((uint64_t)desc >= VM_MAXUSER_ADDRESS)
 		return (EPERM);
 
-	return (cpu_set_user_tls(td, desc));
+	return (cpu_set_user_tls(td, desc, 0));
 }
 
 void

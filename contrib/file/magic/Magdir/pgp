@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: pgp,v 1.25 2021/04/26 15:56:00 christos Exp $
+# $File: pgp,v 1.26 2024/09/01 15:51:51 christos Exp $
 # pgp:  file(1) magic for Pretty Good Privacy
 
 # Handling of binary PGP keys is in pgp-binary-keys.
@@ -108,15 +108,15 @@
 >7	belong	x			%08X
 >11	byte	0x01			RSA (Encrypt or Sign) 1024b
 >11	byte	0x02			RSA Encrypt-Only 1024b
->12	string	\x04\x00
->12	string	\x03\xff
->12	string	\x03\xfe
->12	string	\x03\xfd
->12	string	\x03\xfc
->12	string	\x03\xfb
->12	string	\x03\xfa
->12	string	\x03\xf9
->142	byte	0xd2			.
+#>12	string	\x04\x00
+#>12	string	\x03\xff
+#>12	string	\x03\xfe
+#>12	string	\x03\xfd
+#>12	string	\x03\xfc
+#>12	string	\x03\xfb
+#>12	string	\x03\xfa
+#>12	string	\x03\xf9
+#>142	byte	0xd2			.
 
 # 2048b RSA encrypted data
 
@@ -125,15 +125,15 @@
 >8	belong	x			%08X
 >12	byte	0x01			RSA (Encrypt or Sign) 2048b
 >12	byte	0x02			RSA Encrypt-Only 2048b
->13	string	\x08\x00
->13	string	\x07\xff
->13	string	\x07\xfe
->13	string	\x07\xfd
->13	string	\x07\xfc
->13	string	\x07\xfb
->13	string	\x07\xfa
->13	string	\x07\xf9
->271	byte	0xd2			.
+#>13	string	\x08\x00
+#>13	string	\x07\xff
+#>13	string	\x07\xfe
+#>13	string	\x07\xfd
+#>13	string	\x07\xfc
+#>13	string	\x07\xfb
+#>13	string	\x07\xfa
+#>13	string	\x07\xf9
+#>271	byte	0xd2			.
 
 # 3072b RSA encrypted data
 
@@ -142,15 +142,15 @@
 >8	belong	x			%08X
 >12	byte	0x01			RSA (Encrypt or Sign) 3072b
 >12	byte	0x02			RSA Encrypt-Only 3072b
->13	string	\x0c\x00
->13	string	\x0b\xff
->13	string	\x0b\xfe
->13	string	\x0b\xfd
->13	string	\x0b\xfc
->13	string	\x0b\xfb
->13	string	\x0b\xfa
->13	string	\x0b\xf9
->399	byte	0xd2			.
+#>13	string	\x0c\x00
+#>13	string	\x0b\xff
+#>13	string	\x0b\xfe
+#>13	string	\x0b\xfd
+#>13	string	\x0b\xfc
+#>13	string	\x0b\xfb
+#>13	string	\x0b\xfa
+#>13	string	\x0b\xf9
+#>399	byte	0xd2			.
 
 # 4096b RSA encrypted data
 
@@ -159,15 +159,15 @@
 >8	belong	x			%08X
 >12	byte	0x01			RSA (Encrypt or Sign) 4096b
 >12	byte	0x02			RSA Encrypt-Only 4096b
->13	string	\x10\x00
->13	string	\x0f\xff
->13	string	\x0f\xfe
->13	string	\x0f\xfd
->13	string	\x0f\xfc
->13	string	\x0f\xfb
->13	string	\x0f\xfa
->13	string	\x0f\xf9
->527	byte	0xd2			.
+#>13	string	\x10\x00
+#>13	string	\x0f\xff
+#>13	string	\x0f\xfe
+#>13	string	\x0f\xfd
+#>13	string	\x0f\xfc
+#>13	string	\x0f\xfb
+#>13	string	\x0f\xfa
+#>13	string	\x0f\xf9
+#>527	byte	0xd2			.
 
 # 8192b RSA encrypted data
 
@@ -176,15 +176,15 @@
 >8	belong	x			%08X
 >12	byte	0x01			RSA (Encrypt or Sign) 8192b
 >12	byte	0x02			RSA Encrypt-Only 8192b
->13	string	\x20\x00
->13	string	\x1f\xff
->13	string	\x1f\xfe
->13	string	\x1f\xfd
->13	string	\x1f\xfc
->13	string	\x1f\xfb
->13	string	\x1f\xfa
->13	string	\x1f\xf9
->1039	byte	0xd2			.
+#>13	string	\x20\x00
+#>13	string	\x1f\xff
+#>13	string	\x1f\xfe
+#>13	string	\x1f\xfd
+#>13	string	\x1f\xfc
+#>13	string	\x1f\xfb
+#>13	string	\x1f\xfa
+#>13	string	\x1f\xf9
+#>1039	byte	0xd2			.
 
 # 1024b Elgamal encrypted data
 
@@ -192,14 +192,14 @@
 >4	belong	x			keyid: %08X
 >8	belong	x			%08X
 >12	byte	0x10			Elgamal Encrypt-Only 1024b.
->13	string	\x04\x00
->13	string	\x03\xff
->13	string	\x03\xfe
->13	string	\x03\xfd
->13	string	\x03\xfc
->13	string	\x03\xfb
->13	string	\x03\xfa
->13	string	\x03\xf9
+#>13	string	\x04\x00
+#>13	string	\x03\xff
+#>13	string	\x03\xfe
+#>13	string	\x03\xfd
+#>13	string	\x03\xfc
+#>13	string	\x03\xfb
+#>13	string	\x03\xfa
+#>13	string	\x03\xf9
 
 # 2048b Elgamal encrypted data
 
@@ -207,14 +207,14 @@
 >4	belong	x			keyid: %08X
 >8	belong	x			%08X
 >12	byte	0x10			Elgamal Encrypt-Only 2048b.
->13	string	\x08\x00
->13	string	\x07\xff
->13	string	\x07\xfe
->13	string	\x07\xfd
->13	string	\x07\xfc
->13	string	\x07\xfb
->13	string	\x07\xfa
->13	string	\x07\xf9
+#>13	string	\x08\x00
+#>13	string	\x07\xff
+#>13	string	\x07\xfe
+#>13	string	\x07\xfd
+#>13	string	\x07\xfc
+#>13	string	\x07\xfb
+#>13	string	\x07\xfa
+#>13	string	\x07\xf9
 
 # 3072b Elgamal encrypted data
 
@@ -222,14 +222,14 @@
 >4	belong	x			keyid: %08X
 >8	belong	x			%08X
 >12	byte	0x10			Elgamal Encrypt-Only 3072b.
->13	string	\x0c\x00
->13	string	\x0b\xff
->13	string	\x0b\xfe
->13	string	\x0b\xfd
->13	string	\x0b\xfc
->13	string	\x0b\xfb
->13	string	\x0b\xfa
->13	string	\x0b\xf9
+#>13	string	\x0c\x00
+#>13	string	\x0b\xff
+#>13	string	\x0b\xfe
+#>13	string	\x0b\xfd
+#>13	string	\x0b\xfc
+#>13	string	\x0b\xfb
+#>13	string	\x0b\xfa
+#>13	string	\x0b\xf9
 
 # crypto algo mapper
 

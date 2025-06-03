@@ -29,6 +29,13 @@
 #ifndef _LINUXKPI_LINUX_PAGEFLAGS_H_
 #define _LINUXKPI_LINUX_PAGEFLAGS_H_
 
+#include <linux/mm_types.h>
+
 #define	PageHighMem(p)		(0)
+
+#define	page_folio(p) \
+	(_Generic((p), \
+	      const struct page *: (const struct folio *)(p), \
+	      struct page *: (struct folio *)(p)))
 
 #endif	/* _LINUXKPI_LINUX_PAGEFLAGS_H_ */

@@ -122,6 +122,7 @@ of the test program and a collection of optional metadata settings for all
 the test cases in the test program.
 Any metadata properties defined by the test cases themselves override the
 metadata values defined here.
+The mapping to ATF metadata naming for each property is provided below.
 .Pp
 .Em Plain test programs
 are those that return 0 on success and non-0 on failure; in general, most test
@@ -153,10 +154,16 @@ The following metadata properties can be passed to any test program definition:
 Whitespace-separated list of machine architecture names allowed by the test.
 If empty or not defined, the test is allowed to run on any machine
 architecture.
+.Pp
+ATF:
+.Va require.arch
 .It Va allowed_platforms
 Whitespace-separated list of machine platform names allowed by the test.
 If empty or not defined, the test is allowed to run on any machine
 platform.
+.Pp
+ATF:
+.Va require.machine
 .It Va custom.NAME
 Custom variable defined by the test where
 .Sq NAME
@@ -171,8 +178,14 @@ in it, you will have to use a special Lua syntax to define the property.
 Refer to the
 .Sx EXAMPLES
 section below for clarification.
+.Pp
+ATF:
+.Va X-NAME
 .It Va description
 Textual description of the test.
+.Pp
+ATF:
+.Va descr
 .It Va execenv
 The name of the execution environment to be used for running the test.
 If empty or not defined, the
@@ -220,6 +233,9 @@ All non-alphanumeric characters are replaced with
 .Sq kyua_usr_tests_sys_netpfil_pf_pass_block_v4
 is an example for /usr/tests/sys/netpfil/pf/pass_block:v4 test case.
 .El
+.Pp
+ATF:
+.Va execenv
 .It Va execenv_jail_params
 Additional test-specific whitespace-separated parameters of
 .Fx
@@ -242,6 +258,9 @@ configuration.
 It can be overridden via
 .Va execenv_jail_params
 if needed.
+.Pp
+ATF:
+.Va execenv.jail.params
 .It Va is_exclusive
 If true, indicates that this test program cannot be executed along any other
 programs at the same time.
@@ -251,19 +270,37 @@ value of a
 setting, must set themselves as exclusive to prevent failures due to race
 conditions.
 Defaults to false.
+.Pp
+ATF:
+.Va is.exclusive
 .It Va required_configs
 Whitespace-separated list of configuration variables that the test requires
 to be defined before it can run.
+.Pp
+ATF:
+.Va require.config
 .It Va required_disk_space
 Amount of available disk space that the test needs to run successfully.
+.Pp
+ATF:
+.Va require.diskspace
 .It Va required_files
 Whitespace-separated list of paths that the test requires to exist before
 it can run.
+.Pp
+ATF:
+.Va require.files
 .It Va required_memory
 Amount of physical memory that the test needs to run successfully.
+.Pp
+ATF:
+.Va require.memory
 .It Va required_programs
 Whitespace-separated list of basenames or absolute paths pointing to executable
 binaries that the test requires to exist before it can run.
+.Pp
+ATF:
+.Va require.progs
 .It Va required_user
 If empty, the test has no restrictions on the calling user for it to run.
 If set to
@@ -272,8 +309,14 @@ the test needs to not run as root.
 If set to
 .Sq root ,
 the test must run as root.
+.Pp
+ATF:
+.Va require.user
 .It Va timeout
 Amount of seconds that the test is allowed to execute before being killed.
+.Pp
+ATF:
+.Va timeout
 .El
 .Ss Recursion
 To reference test programs in another subdirectory, a different
@@ -450,7 +493,8 @@ but required_user='root' metadata property reminds that the jail execution
 environment requires
 .Xr kyua 1
 being running with root privileges, and the test is skipped otherwise with
-the respective message. The combination of
+the respective message.
+The combination of
 .Va execenv
 set to
 .Sq jail

@@ -1010,10 +1010,6 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 				data->dataflags |= FSESS_POSIX_LOCKS;
 			if (fiio->flags & FUSE_EXPORT_SUPPORT)
 				data->dataflags |= FSESS_EXPORT_SUPPORT;
-			if (fiio->flags & FUSE_NO_OPEN_SUPPORT)
-				data->dataflags |= FSESS_NO_OPEN_SUPPORT;
-			if (fiio->flags & FUSE_NO_OPENDIR_SUPPORT)
-				data->dataflags |= FSESS_NO_OPENDIR_SUPPORT;
 			/* 
 			 * Don't bother to check FUSE_BIG_WRITES, because it's
 			 * redundant with max_write

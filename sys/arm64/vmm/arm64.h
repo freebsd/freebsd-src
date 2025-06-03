@@ -94,6 +94,7 @@ struct hypctx {
 	/* EL2 control registers */
 	uint64_t	cptr_el2;	/* Architectural Feature Trap Register */
 	uint64_t	hcr_el2;	/* Hypervisor Configuration Register */
+	uint64_t	hcrx_el2;	/* Extended Hypervisor Configuration Register */
 	uint64_t	mdcr_el2;	/* Monitor Debug Configuration Register */
 	uint64_t	vpidr_el2;	/* Virtualization Processor ID Register */
 	uint64_t	vmpidr_el2;	/* Virtualization Multiprocessor ID Register */

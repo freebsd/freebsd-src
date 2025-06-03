@@ -417,7 +417,7 @@ g_free(void *ptr)
 	static moduledata_t name##_mod = {			\
 		#name, g_modevent, &class			\
 	};							\
-	DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);
+	DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 
 int g_is_geom_thread(struct thread *td);
 

@@ -299,4 +299,11 @@ struct val_neg_zone* neg_create_zone(struct val_neg_cache* neg,
  */
 void val_neg_zone_take_inuse(struct val_neg_zone* zone);
 
+/**
+ * Adjust the size of the negative cache.
+ * @param neg: negative cache
+ * @param max: new size for max mem.
+ */
+void val_neg_adjust_size(struct val_neg_cache* neg, size_t max);
+
 #endif /* VALIDATOR_VAL_NEG_H */

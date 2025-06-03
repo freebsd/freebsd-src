@@ -388,22 +388,17 @@ main(int argc, char *argv[])
 	if (vmname == NULL)
 		usage(opts);
 
-	error = 0;
 
-	if (!error && create)
-		error = vm_create(vmname);
-
-	if (!error) {
-		ctx = vm_open(vmname);
-		if (ctx == NULL) {
-			fprintf(stderr,
-			    "vm_open: %s could not be opened: %s\n",
-			    vmname, strerror(errno));
-			exit(1);
-		}
-		vcpu = vm_vcpu_open(ctx, vcpuid);
+	ctx = vm_openf(vmname, create ? VMMAPI_OPEN_CREATE : 0);
+	if (ctx == NULL) {
+		fprintf(stderr,
+		    "vm_open: %s could not be opened: %s\n",
+		    vmname, strerror(errno));
+		exit(1);
 	}
+	vcpu = vm_vcpu_open(ctx, vcpuid);
 
+	error = 0;
 	if (!error && memsize)
 		error = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
 

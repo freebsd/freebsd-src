@@ -50,10 +50,10 @@
 void
 arm_hv_set_vreg(u32 msr, u64 value)
 {
-	arm_smccc_hvc(HV_FUNC_ID,
+	arm_smccc_invoke_hvc(HV_FUNC_ID,
 	    HVCALL_SET_VP_REGISTERS | HV_HYPERCALL_FAST_BIT |
 		HV_HYPERCALL_REP_COMP_1,
-	    HV_PARTITION_ID_SELF, HV_VP_INDEX_SELF, msr, 0, value, 0, NULL);
+	    HV_PARTITION_ID_SELF, HV_VP_INDEX_SELF, msr, 0, value, NULL);
 }
 
 void
@@ -95,8 +95,7 @@ hypercall_md(volatile void *hc_addr, uint64_t in_val, uint64_t in_paddr,
 {
 	struct arm_smccc_res res;
 
-	arm_smccc_hvc(HV_FUNC_ID, in_val, in_paddr, out_paddr, 0, 0, 0, 0,
-	    &res);
+	arm_smccc_invoke_hvc(HV_FUNC_ID, in_val, in_paddr, out_paddr, &res);
 
 	return (res.a0);
 }

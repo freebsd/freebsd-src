@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 1, 2022
+.Dd December 11, 2024
 .Dt ICMP 4
 .Os
 .Sh NAME
@@ -169,10 +169,31 @@ Defaults to false.
 Enable/disable dropping of ICMP Redirect packets.
 Defaults to false.
 .It Va icmplim
-.Pq Vt integer
-Bandwidth limit for ICMP replies in packets/second.
+.Pq Vt unsigned integer
+Mean rate limit for replies in packets/second.
+The actual limit is
+.Va icmplim
+plus a random jitter limited by
+.Va icmplim_jitter .
 If set to zero, no limiting will occur.
 Defaults to 200.
+.It Va icmplim_jitter
+.Pq Vt unsigned integer
+A random jitter between the negative of
+.Va icmplim_jitter
+and
+.Va icmplim_jitter
+is applied to
+.Va icmplim
+for limiting the sending rate of replies.
+.Va icmplim_jitter
+must be smaller than
+.Va icmplim ,
+if
+.Va icmplim
+is not zero.
+If set to zero, no jitter will be applied.
+Defaults to 16.
 .It Va icmplim_output
 .Pq Vt boolean
 Enable/disable logging of ICMP replies bandwidth limiting.

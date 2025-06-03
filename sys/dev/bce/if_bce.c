@@ -1544,7 +1544,6 @@ bce_detach(device_t dev)
 		ifmedia_removeall(&sc->bce_ifmedia);
 	else {
 		bus_generic_detach(dev);
-		device_delete_child(dev, sc->bce_miibus);
 	}
 
 	/* Release all remaining resources. */
@@ -1595,7 +1594,7 @@ bce_shutdown(device_t dev)
 static u32
 bce_reg_rd(struct bce_softc *sc, u32 offset)
 {
-	u32 val = REG_RD(sc, offset);
+	u32 val = bus_space_read_4(sc->bce_btag, sc->bce_bhandle, offset);
 	DBPRINT(sc, BCE_INSANE_REG, "%s(); offset = 0x%08X, val = 0x%08X\n",
 		__FUNCTION__, offset, val);
 	return val;
@@ -1612,7 +1611,7 @@ bce_reg_wr16(struct bce_softc *sc, u32 offset, u16 val)
 {
 	DBPRINT(sc, BCE_INSANE_REG, "%s(); offset = 0x%08X, val = 0x%04X\n",
 		__FUNCTION__, offset, val);
-	REG_WR16(sc, offset, val);
+	bus_space_write_2(sc->bce_btag, sc->bce_bhandle, offset, val);
 }
 
 /****************************************************************************/
@@ -1626,7 +1625,7 @@ bce_reg_wr(struct bce_softc *sc, u32 offset, u32 val)
 {
 	DBPRINT(sc, BCE_INSANE_REG, "%s(); offset = 0x%08X, val = 0x%08X\n",
 		__FUNCTION__, offset, val);
-	REG_WR(sc, offset, val);
+	bus_space_write_4(sc->bce_btag, sc->bce_bhandle, offset, val);
 }
 #endif
 
@@ -5781,7 +5780,7 @@ bce_fill_rx_chain(struct bce_softc *sc)
 	/* We should never end up pointing to a next page pointer. */
 	DBRUNIF(((prod & USABLE_RX_BD_PER_PAGE) == USABLE_RX_BD_PER_PAGE),
 	    BCE_PRINTF("%s(): Invalid rx_prod value: 0x%04X\n",
-	    __FUNCTION__, rx_prod));
+	    __FUNCTION__, sc->rx_prod));
 
 	/* Write the mailbox and tell the chip about the waiting rx_bd's. */
 	REG_WR16(sc, MB_GET_CID_ADDR(RX_CID) + BCE_L2MQ_RX_HOST_BDIDX, prod);
@@ -5945,7 +5944,7 @@ bce_fill_pg_chain(struct bce_softc *sc)
 
 	DBRUNIF(((prod & USABLE_RX_BD_PER_PAGE) == USABLE_RX_BD_PER_PAGE),
 	    BCE_PRINTF("%s(): Invalid pg_prod value: 0x%04X\n",
-	    __FUNCTION__, pg_prod));
+	    __FUNCTION__, sc->pg_prod));
 
 	/*
 	 * Write the mailbox and tell the chip about
@@ -9031,7 +9030,7 @@ bce_add_sysctls(struct bce_softc *sc)
 	    CTLFLAG_RW, &bootcode_running_failure_sim_control,
 	    0, "Debug control to force bootcode running failures");
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO,
 	    "rx_low_watermark",
 	    CTLFLAG_RD, &sc->rx_low_watermark,
 	    0, "Lowest level of free rx_bd's");
@@ -9041,7 +9040,7 @@ bce_add_sysctls(struct bce_softc *sc)
 	    CTLFLAG_RD, &sc->rx_empty_count,
 	    "Number of times the RX chain was empty");
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
+	SYSCTL_ADD_U16(ctx, children, OID_AUTO,
 	    "tx_hi_watermark",
 	    CTLFLAG_RD, &sc->tx_hi_watermark,
 	    0, "Highest level of used tx_bd's");
@@ -11083,7 +11082,7 @@ bce_dump_rxp_state(struct bce_softc *sc, int regs)
 
 		for (int i = BCE_RXP_CPU_MODE; i < 0xe8fff; i += 0x10) {
 			/* Skip the big blank sapces */
-			if (i < 0xc5400 && i > 0xdffff)
+			if (i < 0xc5400 || i > 0xdffff)
 				BCE_PRINTF("0x%04X: 0x%08X 0x%08X "
 				    "0x%08X 0x%08X\n", i,
 				    REG_RD_IND(sc, i),
@@ -11201,7 +11200,7 @@ bce_dump_cp_state(struct bce_softc *sc, int regs)
 
 		for (int i = BCE_CP_CPU_MODE; i < 0x1aa000; i += 0x10) {
 			/* Skip the big blank spaces */
-			if (i < 0x185400 && i > 0x19ffff)
+			if (i < 0x185400 || i > 0x19ffff)
 				BCE_PRINTF("0x%04X: 0x%08X 0x%08X "
 				    "0x%08X 0x%08X\n", i,
 				    REG_RD_IND(sc, i),

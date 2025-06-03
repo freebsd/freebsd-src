@@ -25,7 +25,7 @@
 #
 
 .if !target(__<bsd.linker.mk>__)
-__<bsd.linker.mk>__:
+__<bsd.linker.mk>__:	.NOTMAIN
 
 _ld_vars=LD $${_empty_var_}
 .if !empty(_WANT_TOOLCHAIN_CROSS_VARS)

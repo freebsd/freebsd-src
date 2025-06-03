@@ -321,7 +321,7 @@ DEFINE_TEST(test_write_format_iso9660_filename)
 	 */
 	fcnt = create_iso_image(buff, buffsize, &used, NULL);
 
-	fns.names = (char **)malloc(sizeof(char *) * fcnt);
+	fns.names = malloc(sizeof(char *) * fcnt);
 	assert(fns.names != NULL);
 	if (fns.names == NULL) {
 		free(buff);

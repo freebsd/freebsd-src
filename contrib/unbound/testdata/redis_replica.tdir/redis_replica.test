@@ -1,0 +1,78 @@
+# #-- redis_replica.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+# do the test
+
+# Check number of keys in the db
+# $1: socket to connect to
+# $2: expected number of keys
+redis_cli_check_keys () {
+	echo "> redis-cli connecting to $1 to check number of keys; expecting $2"
+	keys=$(redis-cli --no-raw -s $1 keys "*" | grep -vF empty | wc -l)
+	if test $keys -ne $2
+	then
+		echo "Expected $2 keys, got $keys"
+		exit 1
+	fi
+	echo "OK"
+}
+
+# Query and check the expected result
+# $1: query
+# $2: expected answer
+expect_answer () {
+	echo "> dig @127.0.0.1 -p $UNBOUND_PORT $1"
+	dig @127.0.0.1 -p $UNBOUND_PORT $1 > tmp.answer
+	if ! grep -F $2 tmp.answer
+	then
+		echo "Expected $2 in the answer, got:"
+		cat tmp.answer
+		exit 1
+	fi
+	echo "OK"
+}
+
+# Start test
+
+# check Redis server has no keys
+redis_cli_check_keys $REDIS_SOCKET 0
+
+# check Redis replica server has no keys
+redis_cli_check_keys $REDIS_REPLICA_SOCKET 0
+
+# query and check answer
+expect_answer redis.com 1.1.1.1
+
+# check Redis server has 1 key
+redis_cli_check_keys $REDIS_SOCKET 1
+
+# check Redis replica server has no keys
+redis_cli_check_keys $REDIS_REPLICA_SOCKET 0
+
+# change auth zone and reload
+cp after.zone redis.zone
+echo "$PRE/unbound-control -c ub.conf reload"
+$PRE/unbound-control -c ub.conf reload
+if test $? -ne 0; then
+	echo "wrong exit value after success"
+	exit 1
+fi
+
+# query and check answer
+# we are writing to server but reading from replica; which is not actually
+# replicating so the new answer will come through while overwriting the record
+# in the server.
+expect_answer redis.com 2.2.2.2
+
+# check Redis server has 1 key
+redis_cli_check_keys $REDIS_SOCKET 1
+
+# check Redis replica server has no keys
+redis_cli_check_keys $REDIS_REPLICA_SOCKET 0
+
+echo "> OK"
+exit 0

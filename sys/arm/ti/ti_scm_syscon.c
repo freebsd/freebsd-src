@@ -185,12 +185,13 @@ ti_scm_syscon_attach(device_t dev)
 
 	simplebus_init(sc->dev, node);
 
-	bus_generic_probe(sc->dev);
+	bus_identify_children(sc->dev);
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
 		simplebus_add_device(sc->dev, child, 0, NULL, -1, NULL);
 	}
 
-	return (bus_generic_attach(sc->dev));
+	bus_attach_children(sc->dev);
+	return (0);
 }
 
 /* syscon interface */

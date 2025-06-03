@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2014 Yandex LLC.
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2014-2025 Yandex LLC.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -69,7 +71,7 @@ static int list_ifaces(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 
 static struct ipfw_sopt_handler	scodes[] = {
-	{ IP_FW_XIFLIST,	0,	HDIR_GET,	list_ifaces },
+    { IP_FW_XIFLIST,	IP_FW3_OPVER,	HDIR_GET,	list_ifaces },
 };
 
 /*
@@ -231,7 +233,7 @@ vnet_ipfw_iface_init(struct ip_fw_chain *ch)
 {
 	struct namedobj_instance *ii;
 
-	ii = ipfw_objhash_create(DEFAULT_IFACES);
+	ii = ipfw_objhash_create(DEFAULT_IFACES, DEFAULT_OBJHASH_SIZE);
 	IPFW_UH_WLOCK(ch);
 	if (ch->ifcfg == NULL) {
 		ch->ifcfg = ii;
@@ -485,7 +487,7 @@ export_iface_internal(struct namedobj_instance *ii, struct named_object *no,
 
 /*
  * Lists all interface currently tracked by ipfw.
- * Data layout (v0)(current):
+ * Data layout (v1)(current):
  * Request: [ ipfw_obj_lheader ], size = ipfw_obj_lheader.size
  * Reply: [ ipfw_obj_lheader ipfw_iface_info x N ]
  *

@@ -29,153 +29,110 @@
 
 #include "stand.h"
 #include "host_syscall.h"
+#include "efi.h"
 #include "kboot.h"
 #include "bootstrap.h"
 
-/* Refactor when we do arm64 */
+/*
+ * Abbreviated x86 Linux struct boot_param for the so-called zero-page.
+ * We have to use this to get systab and memmap since neither of those
+ * are exposed in a sane way. We only define what we need and pad for
+ * everything else to minimize cross-coupling.
+ *
+ * Transcribed in FreeBSD-ese from Linux's asm/bootparam.h for x86 as of
+ * 6.15, but these details haven't changed in a long time.
+ */
 
-enum types {
-	system_ram = 1,
-	acpi_tables,
-	acpi_nv_storage,
-	unusable,
-	persistent_old,
-	persistent,
-	soft_reserved,
-	reserved,
-};
+struct linux_efi_info {
+	uint32_t efi_loader_signature;	/* 0x00 */
+	uint32_t efi_systab;		/* 0x04 */
+	uint32_t efi_memdesc_size;	/* 0x08 */
+	uint32_t efi_memdesc_version;	/* 0x0c */
+	uint32_t efi_memmap;		/* 0x10 */
+	uint32_t efi_memmap_size;	/* 0x14 */
+	uint32_t efi_systab_hi;		/* 0x18 */
+	uint32_t efi_memmap_hi;		/* 0x1c */
+} __packed;
 
-struct kv
-{
-	uint64_t	type;
-	char *		name;
-} str2type_kv[] = {
-	{ system_ram,		"System RAM" },
-	{ acpi_tables,		"ACPI Tables" },
-	{ acpi_nv_storage,	"ACPI Non-volatile Storage" },
-	{ unusable,		"Unusable memory" },
-	{ persistent_old,	"Persistent Memory (legacy)" },
-	{ persistent,		"Persistent Memory" },
-	{ soft_reserved,	"Soft Reserved" },
-	{ reserved,		"reserved" },
-	{ 0, NULL },
-};
-
-#define MEMMAP "/sys/firmware/memmap"
-
-static struct memory_segments segs[64];	/* make dynamic later */
-static int nr_seg;
-
-static bool
-str2type(struct kv *kv, const char *buf, uint64_t *value)
-{
-	while (kv->name != NULL) {
-		if (strcmp(kv->name, buf) == 0) {
-			*value = kv->type;
-			return true;
-		}
-		kv++;
-	}
-
-	return false;
-}
+struct linux_boot_params {
+	uint8_t _pad1[0x1c0];				/* 0x000 */
+	struct linux_efi_info efi_info;			/* 0x1c0 */
+	uint8_t _pad2[0x1000 - 0x1c0 - sizeof(struct linux_efi_info)]; /* 0x1e0 */
+} __packed;	/* Total size 4k, the page size on x86 */
 
 bool
 enumerate_memory_arch(void)
 {
-	int n;
-	char name[MAXPATHLEN];
-	char buf[80];
+	struct linux_boot_params bp;
 
-	for (n = 0; n < nitems(segs); n++) {
-		snprintf(name, sizeof(name), "%s/%d/start", MEMMAP, n);
-		if (!file2u64(name, &segs[n].start))
-			break;
-		snprintf(name, sizeof(name), "%s/%d/end", MEMMAP, n);
-		if (!file2u64(name, &segs[n].end))
-			break;
-		snprintf(name, sizeof(name), "%s/%d/type", MEMMAP, n);
-		if (!file2str(name, buf, sizeof(buf)))
-			break;
-		if (!str2type(str2type_kv, buf, &segs[n].type))
-			break;
+	/*
+	 * Sadly, there's no properly exported data for the EFI memory map nor
+	 * the system table. systab is passed in from the original boot loader.
+	 * memmap is obtained from boot time services (which are long gone) and
+	 * then modified and passed to SetVirtualAddressMap. Even though the
+	 * latter is in runtime services, it can only be called once and Linux
+	 * has already called it. So unless we can dig all this out from the
+	 * Linux kernel, there's no other wy to get it. A proper way would be to
+	 * publish these in /sys/firmware/efi, but that's not done yet. We can
+	 * only get the runtime subset and can't get systbl at all from today's
+	 * (6.15) Linux kernel. Linux's pandora boot loader will copy this same
+	 * information when it calls the new kernel, but since we don't use the
+	 * bzImage kexec vector, we have to harvest it here.
+	 */
+	if (data_from_kernel("boot_params", &bp, sizeof(bp))) {
+		uint64_t systbl, memmap;
+
+		systbl = (uint64_t)bp.efi_info.efi_systab_hi << 32 |
+		    bp.efi_info.efi_systab;
+		memmap = (uint64_t)bp.efi_info.efi_memmap_hi << 32 |
+		    bp.efi_info.efi_memmap;
+
+		efi_set_systbl(systbl);
+		efi_read_from_pa(memmap, bp.efi_info.efi_memmap_size,
+		    bp.efi_info.efi_memdesc_size, bp.efi_info.efi_memdesc_version);
+		printf("UEFI SYSTAB PA: %#lx\n", systbl);
+		printf("UEFI MMAP: Ver %d Ent Size %d Tot Size %d PA %#lx\n",
+		    bp.efi_info.efi_memdesc_version, bp.efi_info.efi_memdesc_size,
+		    bp.efi_info.efi_memmap_size, memmap);
 	}
-
-	nr_seg = n;
-
-	return true;
+	/*
+	 * So, we can't use the EFI map for this, so we have to fall back to
+	 * the proc iomem stuff to at least get started...
+	 */
+	if (!populate_avail_from_iomem()) {
+		printf("Populate from avail also failed.\n");
+		return (false);
+	} else {
+		printf("Populate worked...\n");
+	}
+	print_avail();
+	return (true);
 }
 
-#define BAD_SEG ~0ULL
-
-#define SZ(s) (((s).end - (s).start) + 1)
-
-static uint64_t
-find_ram(struct memory_segments *segs, int nr_seg, uint64_t minpa, uint64_t align,
-    uint64_t sz, uint64_t maxpa)
-{
-	uint64_t start;
-
-	printf("minpa %#jx align %#jx sz %#jx maxpa %#jx\n",
-	    (uintmax_t)minpa,
-	    (uintmax_t)align,
-	    (uintmax_t)sz,
-	    (uintmax_t)maxpa);
-	/* XXX assume segs are sorted in numeric order -- assumed not ensured */
-	for (int i = 0; i < nr_seg; i++) {
-		if (segs[i].type != system_ram ||
-		    SZ(segs[i]) < sz ||
-		    minpa + sz > segs[i].end ||
-		    maxpa < segs[i].start)
-			continue;
-		start = roundup(segs[i].start, align);
-		if (start < minpa)	/* Too small, round up and try again */
-			start = (roundup(minpa, align));
-		if (start + sz > segs[i].end)	/* doesn't fit in seg */
-			continue;
-		if (start > maxpa ||		/* Over the edge */
-		    start + sz > maxpa)		/* on the edge */
-			break;			/* No hope to continue */
-		return start;
-	}
-
-	return BAD_SEG;
-}
-
+/* XXX refactor with aarch64 */
 uint64_t
 kboot_get_phys_load_segment(void)
 {
-	static uint64_t base_seg = BAD_SEG;
+#define HOLE_SIZE	(64ul << 20)
+#define KERN_ALIGN	(2ul << 20)
+	static uint64_t	s = 0;
 
-	if (base_seg != BAD_SEG)
-		return (base_seg);
+	if (s != 0)
+		return (s);
 
-	if (nr_seg > 0)
-		base_seg = find_ram(segs, nr_seg, 2ULL << 20, 2ULL << 20,
-		    64ULL << 20, 4ULL << 30);
-	if (base_seg == BAD_SEG) {
-		/* XXX Should fall back to using /proc/iomem maybe? */
-		/* XXX PUNT UNTIL I NEED SOMETHING BETTER */
-		base_seg = 300ULL * (1 << 20);
-	}
-	return (base_seg);
+	print_avail();
+	s = first_avail(KERN_ALIGN, HOLE_SIZE, SYSTEM_RAM);
+	printf("KBOOT GET PHYS Using %#llx\n", (long long)s);
+	if (s != 0)
+		return (s);
+	s = 0x40000000 | 0x4200000;	/* should never get here */
+	/* XXX PANIC? XXX */
+	printf("Falling back to the crazy address %#lx which works in qemu\n", s);
+	return (s);
 }
 
 void
 bi_loadsmap(struct preloaded_file *kfp)
 {
-	struct bios_smap smap[32], *sm;
-	struct memory_segments *s;
-	int smapnum, len;
-
-	for (smapnum = 0; smapnum < min(32, nr_seg); smapnum++) {
-		sm = &smap[smapnum];
-		s = &segs[smapnum];
-		sm->base = s->start;
-		sm->length = s->end - s->start + 1;
-		sm->type = SMAP_TYPE_MEMORY;
-	}
-
-        len = smapnum * sizeof(struct bios_smap);
-        file_addmetadata(kfp, MODINFOMD_SMAP, len, &smap[0]);
+	efi_bi_loadsmap(kfp);
 }

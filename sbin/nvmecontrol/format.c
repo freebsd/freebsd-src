@@ -73,7 +73,7 @@ static struct options {
 static const struct opts format_opts[] = {
 #define OPT(l, s, t, opt, addr, desc) { l, s, t, &opt.addr, desc }
 	OPT("crypto", 'C', arg_none, opt, Cflag,
-	    "Crptographic erase"),
+	    "Cryptographic erase"),
 	OPT("erase", 'E', arg_none, opt, Eflag,
 	    "User data erase"),
 	OPT("lbaf", 'f', arg_uint32, opt, lbaf,

@@ -64,7 +64,9 @@ r92e_rf_read(struct rtwn_softc *sc, int chain, uint8_t addr)
 	    RW(val, R92C_HSSI_PARAM2_READ_ADDR, addr) &
 	    ~R92C_HSSI_PARAM2_READ_EDGE);
 
+	rtwn_delay(sc, 10);
 	rtwn_bb_setbits(sc, R92C_HSSI_PARAM2(0), R92C_HSSI_PARAM2_READ_EDGE, 0);
+	rtwn_delay(sc, 100);
 	rtwn_bb_setbits(sc, R92C_HSSI_PARAM2(0), 0, R92C_HSSI_PARAM2_READ_EDGE);
 	rtwn_delay(sc, 20);
 
@@ -82,5 +84,6 @@ r92e_rf_write(struct rtwn_softc *sc, int chain, uint8_t addr, uint32_t val)
 	rtwn_bb_setbits(sc, 0x818, 0x20000, 0);
 	rtwn_bb_write(sc, R92C_LSSI_PARAM(chain),
 	    SM(R88E_LSSI_PARAM_ADDR, addr) | SM(R92C_LSSI_PARAM_DATA, val));
+	rtwn_delay(sc, 1);
 	rtwn_bb_setbits(sc, 0x818, 0, 0x20000);
 }

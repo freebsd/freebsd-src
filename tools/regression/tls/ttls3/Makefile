@@ -1,6 +1,6 @@
 all: ttls3
 
-LDFLAGS=-shared -Bsymbolic --allow-shlib-undefined
+LDFLAGS+=-shared -Bsymbolic --allow-shlib-undefined
 CFLAGS+= -lpthread
 CFLAGS+= -Wl,--rpath=${.OBJDIR}
 

@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020-2024, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2020-2025, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Authors: Sumit Saxena <sumit.saxena@broadcom.com>
@@ -178,12 +178,15 @@ mpi3mr_get_tunables(struct mpi3mr_softc *sc)
 	sc->reset_in_progress = 0;
 	sc->reset.type = 0;
 	sc->iot_enable = 1;
+	sc->max_sgl_entries = maxphys / PAGE_SIZE;
+
 	/*
 	 * Grab the global variables.
 	 */
 	TUNABLE_INT_FETCH("hw.mpi3mr.debug_level", &sc->mpi3mr_debug);
 	TUNABLE_INT_FETCH("hw.mpi3mr.ctrl_reset", &sc->reset.type);
 	TUNABLE_INT_FETCH("hw.mpi3mr.iot_enable", &sc->iot_enable);
+	TUNABLE_INT_FETCH("hw.mpi3mr.max_sgl_entries", &sc->max_sgl_entries);
 
 	/* Grab the unit-instance variables */
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpi3mr.%d.debug_level",
@@ -197,6 +200,10 @@ mpi3mr_get_tunables(struct mpi3mr_softc *sc)
 	snprintf(tmpstr, sizeof(tmpstr), "dev.mpi3mr.%d.iot_enable",
 	    device_get_unit(sc->mpi3mr_dev));
 	TUNABLE_INT_FETCH(tmpstr, &sc->iot_enable);
+
+	snprintf(tmpstr, sizeof(tmpstr), "dev.mpi3mr.%d.max_sgl_entries",
+	    device_get_unit(sc->mpi3mr_dev));
+	TUNABLE_INT_FETCH(tmpstr, &sc->max_sgl_entries);
 }
 
 static struct mpi3mr_ident *
@@ -325,6 +332,13 @@ mpi3mr_ich_startup(void *arg)
 
 	mtx_unlock(&sc->mpi3mr_mtx);
 
+	error = mpi3mr_kproc_create(mpi3mr_timestamp_thread, sc,
+				    &sc->timestamp_thread_proc, 0, 0,
+				    "mpi3mr_timestamp_thread%d",
+				    device_get_unit(sc->mpi3mr_dev));
+	if (error)
+		device_printf(sc->mpi3mr_dev, "Error %d starting timestamp thread\n", error);
+
 	error = mpi3mr_kproc_create(mpi3mr_watchdog_thread, sc,
 	    &sc->watchdog_thread, 0, 0, "mpi3mr_watchdog%d",
 	    device_get_unit(sc->mpi3mr_dev));
@@ -443,7 +457,16 @@ mpi3mr_pci_attach(device_t dev)
 
 	sc->mpi3mr_dev = dev;
 	mpi3mr_get_tunables(sc);
-	
+
+	if (sc->max_sgl_entries > MPI3MR_MAX_SGL_ENTRIES)
+		sc->max_sgl_entries = MPI3MR_MAX_SGL_ENTRIES;
+	else if (sc->max_sgl_entries < MPI3MR_DEFAULT_SGL_ENTRIES)
+		sc->max_sgl_entries = MPI3MR_DEFAULT_SGL_ENTRIES;
+	else {
+		sc->max_sgl_entries /= MPI3MR_DEFAULT_SGL_ENTRIES;
+		sc->max_sgl_entries *= MPI3MR_DEFAULT_SGL_ENTRIES;
+	}
+
 	if ((error = mpi3mr_initialize_ioc(sc, MPI3MR_INIT_TYPE_INIT)) != 0) {
 		mpi3mr_dprint(sc, MPI3MR_ERROR, "FW initialization failed\n");
 		goto load_failed;
@@ -458,7 +481,7 @@ mpi3mr_pci_attach(device_t dev)
 		mpi3mr_dprint(sc, MPI3MR_ERROR, "CAM attach failed\n");
 		goto load_failed;
 	}
-	
+
 	sc->mpi3mr_ich.ich_func = mpi3mr_ich_startup;
 	sc->mpi3mr_ich.ich_arg = sc;
 	if (config_intrhook_establish(&sc->mpi3mr_ich) != 0) {
@@ -648,10 +671,26 @@ mpi3mr_pci_detach(device_t dev)
 	
 	mtx_lock(&sc->reset_mutex);
 	sc->mpi3mr_flags |= MPI3MR_FLAGS_SHUTDOWN;
+	if (sc->timestamp_thread_active)
+		wakeup(&sc->timestamp_chan);
+
 	if (sc->watchdog_thread_active)
 		wakeup(&sc->watchdog_chan);
 	mtx_unlock(&sc->reset_mutex);
 	
+	i = 0;
+	while (sc->timestamp_thread_active && (i < 180)) {
+		i++;
+		if (!(i % 5)) {
+			mpi3mr_dprint(sc, MPI3MR_INFO,
+			    "[%2d]waiting for "
+			    "timestamp thread to quit reset %d\n", i,
+			    sc->timestamp_thread_active);
+		}
+		pause("mpi3mr_shutdown", hz);
+	}
+
+	i = 0;
 	while (sc->reset_in_progress && (i < PEND_IOCTLS_COMP_WAIT_TIME)) {
 		i++;
 		if (!(i % 5)) {

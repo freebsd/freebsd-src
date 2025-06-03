@@ -1,0 +1,39 @@
+name: libecc
+
+# Run this workflow every time a new commit pushed to your repository
+on: push
+
+jobs:
+  runtime_tests:
+    runs-on: ubuntu-22.04
+    strategy:
+      #max-parallel: 10
+      matrix:
+        cc: [gcc, clang]
+        blinding: [1]
+        cryptofuzz: [1]
+        wordsize: [64, 32, 16]
+    steps:
+      # Checkout repository
+      - name: checkout repository
+        uses: actions/checkout@v2
+      # Run actions
+      # libecc runtime tests
+      - name: libecc runtime tests
+        env:
+          CC: ${{ matrix.cc }}
+          BLINDING: ${{ matrix.blinding }}
+          CRYPTOFUZZ: ${{ matrix.cryptofuzz }}
+          ASSERT_PRINT: 1
+          # We want to parallelize self tests
+          OPENMP_SELF_TESTS: 1
+          WORDSIZE: ${{ matrix.wordsize }}
+        shell: bash
+        run: |
+          # Install OpenMP
+          sudo apt-get update;
+          sudo apt-get -y install libomp-dev;
+          # Vanilla tests
+          #
+          make "${WORDSIZE}" && ./build/ec_self_tests vectors rand;
+        continue-on-error: false

@@ -133,7 +133,6 @@ clnt_reconnect_connect(CLIENT *cl)
 	int one = 1;
 	struct ucred *oldcred;
 	CLIENT *newclient = NULL;
-	uint64_t ssl[3];
 	uint32_t reterr;
 
 	mtx_lock(&rc->rc_lock);
@@ -200,8 +199,10 @@ clnt_reconnect_connect(CLIENT *cl)
 		    (struct sockaddr *) &rc->rc_addr, rc->rc_prog, rc->rc_vers,
 		    rc->rc_sendsz, rc->rc_recvsz, rc->rc_intr);
 		if (rc->rc_tls && newclient != NULL) {
+			CURVNET_SET(so->so_vnet);
 			stat = rpctls_connect(newclient, rc->rc_tlscertname, so,
-			    ssl, &reterr);
+			    &reterr);
+			CURVNET_RESTORE();
 			if (stat != RPC_SUCCESS || reterr != RPCTLSERR_OK) {
 				if (stat == RPC_SUCCESS)
 					stat = RPC_FAILED;
@@ -213,6 +214,8 @@ clnt_reconnect_connect(CLIENT *cl)
 				td->td_ucred = oldcred;
 				goto out;
 			}
+			CLNT_CONTROL(newclient, CLSET_TLS,
+			    &(int){RPCTLS_COMPLETE});
 		}
 		if (newclient != NULL) {
 			int optval = 1;
@@ -239,8 +242,6 @@ clnt_reconnect_connect(CLIENT *cl)
 	CLNT_CONTROL(newclient, CLSET_RETRY_TIMEOUT, &rc->rc_retry);
 	CLNT_CONTROL(newclient, CLSET_WAITCHAN, rc->rc_waitchan);
 	CLNT_CONTROL(newclient, CLSET_INTERRUPTIBLE, &rc->rc_intr);
-	if (rc->rc_tls)
-		CLNT_CONTROL(newclient, CLSET_TLS, ssl);
 	if (rc->rc_backchannel != NULL)
 		CLNT_CONTROL(newclient, CLSET_BACKCHANNEL, rc->rc_backchannel);
 	stat = RPC_SUCCESS;

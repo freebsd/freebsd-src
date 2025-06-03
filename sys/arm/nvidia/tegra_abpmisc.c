@@ -151,7 +151,8 @@ tegra_abpmisc_attach(device_t dev)
 	}
 
 	dev_sc = sc;
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	if (sc->abp_misc_res != NULL)
@@ -166,13 +167,18 @@ static int
 tegra_abpmisc_detach(device_t dev)
 {
 	struct tegra_abpmisc_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 	if (sc->abp_misc_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->abp_misc_res);
 	if (sc->strap_opt_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, 1, sc->strap_opt_res);
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 static device_method_t tegra_abpmisc_methods[] = {

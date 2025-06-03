@@ -17,7 +17,7 @@ SECTIONS
   _etext = .;
   PROVIDE (etext = .);
   .fini      : { *(.fini)    } =0x9090
-  .rodata    : { *(.rodata) *(.gnu.linkonce.r*) }
+  .rodata    : { *(.rodata*) *(.gnu.linkonce.r*) }
   .rodata1   : { *(.rodata1) }
    .interp     : { *(.interp) 	}
   .hash          : { *(.hash)		}
@@ -64,23 +64,37 @@ SECTIONS
   _extab_start = .;
   PROVIDE(extab_start = .);
   .ARM.extab : { *(.ARM.extab) }
-  _extab.end = .;
+  _extab_end = .;
   PROVIDE(extab_end = .);
 
+  . = ALIGN(4);
   _exidx_start = .;
   PROVIDE(exidx_start = .);
   .ARM.exidx : { *(.ARM.exidx) }
   _exidx_end = .;
   PROVIDE(exidx_end = .);
 
-  /* Adjust the address for the data segment.  We want to adjust up to
-     the same address within the page on the next page up.  */
-  . = ALIGN(0x1000) + (. & (0x1000 - 1)) ; 
+  . = ALIGN(0x10000);
   .data    :
   {
     *(.data)
     *(.gnu.linkonce.d*)
   }
+  . = ALIGN(64);
+  .data.read_frequently :
+  {
+    *(SORT_BY_ALIGNMENT(.data.read_frequently))
+  }
+  .data.read_mostly :
+  {
+    *(.data.read_mostly)
+  }
+  . = ALIGN(64);
+  .data.exclusive_cache_line :
+  {
+    *(.data.exclusive_cache_line)
+  }
+  . = ALIGN(64);
   .data1   : { *(.data1) }
   . = ALIGN(32 / 8);
   .init_array    :

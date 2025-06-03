@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-4-Clause
+.\"
 .\"	$NetBSD: bridge.4,v 1.5 2004/01/31 20:14:11 jdc Exp $
 .\"
 .\" Copyright 2001 Wasabi Systems, Inc.
@@ -33,7 +36,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 10, 2023
+.Dd May 13, 2025
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -125,7 +128,8 @@ variable
 to
 .Li 0 .
 .Pp
-All the bridged member interfaces need to be up in order to pass network traffic.
+All the bridged member interfaces need to be up
+in order to pass network traffic.
 These can be enabled using
 .Xr ifconfig 8
 or
@@ -154,6 +158,25 @@ This can be used to multiplex the input of two or more interfaces into a single
 stream.
 This is useful for reconstructing the traffic for network taps
 that transmit the RX/TX signals out through two separate interfaces.
+.Pp
+To allow the host to communicate with bridge members, IP addresses
+should be assigned to the
+.Nm
+interface itself, not to the bridge's member interfaces.
+Attempting to assign an IP address to a bridge member interface, or add
+a member interface with an assigned IP address to a bridge, will return
+an
+.Dv EINVAL
+.Dq ( "Invalid argument" )
+error.
+For compatibility with older releases where this was permitted, setting
+the
+.Xr sysctl 8
+variable
+.Va net.link.bridge.member_ifaddrs
+to 1 will permit this configuration.
+This sysctl variable will be removed in
+.Fx 16.0.
 .Sh IPV6 SUPPORT
 .Nm
 supports the
@@ -164,11 +187,6 @@ The following
 variable configures an IPv6 link-local address on
 .Li bridge0
 interface:
-.Bd -literal -offset indent
-ifconfig_bridge0_ipv6="up"
-.Ed
-.Pp
-or in a more explicit manner:
 .Bd -literal -offset indent
 ifconfig_bridge0_ipv6="inet6 auto_linklocal"
 .Ed
@@ -261,7 +279,7 @@ the appropriate interfaces.
 Either stage can be disabled.
 The filtering behavior can be controlled using
 .Xr sysctl 8 :
-.Bl -tag -width ".Va net.link.bridge.pfil_onlyip"
+.Bl -tag -width indent
 .It Va net.link.bridge.pfil_onlyip
 Controls the handling of non-IP packets which are not passed to
 .Xr pfil 9 .
@@ -470,8 +488,8 @@ ifconfig_fxp0="up"
 .Ed
 .Pp
 Consider a system with two 4-port Ethernet boards.
-The following will cause a bridge consisting of all 8 ports with Rapid Spanning
-Tree enabled to be created:
+The following will cause a bridge consisting of all 8 ports with
+Rapid Spanning Tree enabled to be created:
 .Bd -literal -offset indent
 ifconfig bridge0 create
 ifconfig bridge0 \e

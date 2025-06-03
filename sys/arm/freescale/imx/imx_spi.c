@@ -473,9 +473,6 @@ spi_detach(device_t dev)
 	if ((error = bus_generic_detach(sc->dev)) != 0)
 		return (error);
 
-	if (sc->spibus != NULL)
-		device_delete_child(dev, sc->spibus);
-
 	for (idx = 0; idx < nitems(sc->cspins); ++idx) {
 		if (sc->cspins[idx] != NULL)
 			gpio_pin_release(sc->cspins[idx]);
@@ -564,7 +561,8 @@ spi_attach(device_t dev)
 	 * their attach. We can't do IO until timers and interrupts are working.
 	 */
 	sc->spibus = device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
-	return (bus_delayed_attach_children(dev));
+	bus_delayed_attach_children(dev);
+	return (0);
 }
 
 static int

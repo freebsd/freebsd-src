@@ -52,6 +52,7 @@ pciid		Generate src/share/misc/pci_vendors.
 pciroms		A tool for dumping PCI ROM images. WARNING: alpha quality.
 pirtool		A tool for dumping the $PIR table on i386 machines at runtime.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
+so_splice	Utilities relating to the SO_SPLICE socket option.
 sysdoc		Build a manual page with available sysctls for a specific
 		kernel configuration.
 track		Track the progress of a world / kernel build

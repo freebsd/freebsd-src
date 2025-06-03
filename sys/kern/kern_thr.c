@@ -169,7 +169,7 @@ thr_new_initthr(struct thread *td, void *thunk)
 	if (error != 0)
 		return (error);
 	/* Setup user TLS address and TLS pointer register. */
-	return (cpu_set_user_tls(td, param->tls_base));
+	return (cpu_set_user_tls(td, param->tls_base, param->flags));
 }
 
 int
@@ -178,6 +178,9 @@ kern_thr_new(struct thread *td, struct thr_param *param)
 	struct rtprio rtp, *rtpp;
 	int error;
 
+	if ((param->flags & ~(THR_SUSPENDED | THR_SYSTEM_SCOPE |
+	    THR_C_RUNTIME)) != 0)
+		return (EINVAL);
 	rtpp = NULL;
 	if (param->rtp != 0) {
 		error = copyin(param->rtp, &rtp, sizeof(struct rtprio));

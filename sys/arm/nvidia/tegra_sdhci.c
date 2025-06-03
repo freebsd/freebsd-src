@@ -386,8 +386,8 @@ tegra_sdhci_attach(device_t dev)
 
 	sc->gpio = sdhci_fdt_gpio_setup(sc->dev, &sc->slot);
 
-	bus_generic_probe(dev);
-	bus_generic_attach(dev);
+	bus_identify_children(dev);
+	bus_attach_children(dev);
 
 	sdhci_start_slot(&sc->slot);
 
@@ -417,8 +417,12 @@ tegra_sdhci_detach(device_t dev)
 {
 	struct tegra_sdhci_softc *sc = device_get_softc(dev);
 	struct sdhci_slot *slot = &sc->slot;
+	int error;
 
-	bus_generic_detach(dev);
+	error = bus_detach_children(dev);
+	if (error != 0)
+		return (error);
+
 	sdhci_fdt_gpio_teardown(sc->gpio);
 	clk_release(sc->clk);
 	bus_teardown_intr(dev, sc->irq_res, sc->intr_cookie);

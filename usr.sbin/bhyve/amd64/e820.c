@@ -156,6 +156,7 @@ e820_add_entry(const uint64_t base, const uint64_t end,
 {
 	struct e820_element *new_element;
 	struct e820_element *element;
+	struct e820_element *sib_element;
 	struct e820_element *ram_element;
 
 	assert(end >= base);
@@ -271,6 +272,33 @@ e820_add_entry(const uint64_t base, const uint64_t end,
 		TAILQ_INSERT_BEFORE(element, ram_element, chain);
 		TAILQ_INSERT_BEFORE(element, new_element, chain);
 		element->base = end;
+	}
+
+	/*
+	 * If the previous element has the same type and ends at our base
+	 * boundary, we can merge both entries.
+	 */
+	sib_element = TAILQ_PREV(new_element, e820_table, chain);
+	if (sib_element != NULL &&
+	    sib_element->type == new_element->type &&
+	    sib_element->end == new_element->base) {
+		new_element->base = sib_element->base;
+		TAILQ_REMOVE(&e820_table, sib_element, chain);
+		free(sib_element);
+	}
+
+	/*
+	 * If the next element has the same type and starts at our end
+	 * boundary, we can merge both entries.
+	 */
+	sib_element = TAILQ_NEXT(new_element, chain);
+	if (sib_element != NULL &&
+	    sib_element->type == new_element->type &&
+	    sib_element->base == new_element->end) {
+		/* Merge new element into subsequent one. */
+		new_element->end = sib_element->end;
+		TAILQ_REMOVE(&e820_table, sib_element, chain);
+		free(sib_element);
 	}
 
 	return (0);

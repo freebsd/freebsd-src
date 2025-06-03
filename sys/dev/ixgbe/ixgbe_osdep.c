@@ -33,6 +33,12 @@
 
 #include "ixgbe.h"
 
+inline device_t
+ixgbe_dev_from_hw(struct ixgbe_hw *hw)
+{
+	return ((struct ixgbe_softc *)hw->back)->dev;
+}
+
 inline u16
 ixgbe_read_pci_cfg(struct ixgbe_hw *hw, u32 reg)
 {

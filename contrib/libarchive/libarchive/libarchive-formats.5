@@ -327,10 +327,26 @@ by the usual environment variables.
 Libarchive can read and write zip format archives that have
 uncompressed entries and entries compressed with the
 .Dq deflate
+,
+.Dq LZMA
+,
+.Dq XZ
+,
+.Dq BZIP2
+and
+.Dq ZSTD
+algorithms.
+Libarchive can also read, but not write, zip format archives that
+have entries compressed with the
+.Dq PPMd
 algorithm.
 Other zip compression algorithms are not supported.
-It can extract jar archives, archives that use Zip64 extensions and
-self-extracting zip archives.
+The extensions supported by libarchive are Zip64, Libarchive's
+extensions to better support streaming, PKZIP's traditional
+ZIP encryption, Info-ZIP's Unix extra fields, extra time, and
+Unicode path, as well as WinZIP's AES encryption.
+It can extract jar archives, __MACOSX resource forks extension
+for OS X, and self-extracting zip archives.
 Libarchive can use either of two different strategies for
 reading Zip archives:
 a streaming strategy which is fast and can handle extremely

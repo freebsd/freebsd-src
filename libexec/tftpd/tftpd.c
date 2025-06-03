@@ -121,15 +121,18 @@ main(int argc, char *argv[])
 	struct passwd	*nobody;
 	const char	*chuser = "nobody";
 	char		recvbuffer[MAXPKTSIZE];
-	int		allow_ro = 1, allow_wo = 1, on = 1;
+	int		allow_ro = 1, allow_wo = 1, block = 0, on = 1;
 	pid_t		pid;
 
 	tzset();			/* syslog in localtime */
 	acting_as_client = 0;
 
 	tftp_openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
-	while ((ch = getopt(argc, argv, "cCd::F:lnoOp:s:Su:U:wW")) != -1) {
+	while ((ch = getopt(argc, argv, "bcCd::F:lnoOp:s:Su:U:wW")) != -1) {
 		switch (ch) {
+		case 'b':
+			block = 1;
+			break;
 		case 'c':
 			ipchroot = 1;
 			break;
@@ -213,14 +216,9 @@ main(int argc, char *argv[])
 
 	umask(mask);
 
-	if (ioctl(0, FIONBIO, &on) < 0) {
-		tftp_log(LOG_ERR, "ioctl(FIONBIO): %s", strerror(errno));
-		exit(1);
-	}
-
 	/* Find out who we are talking to and what we are going to do */
 	peerlen = sizeof(peer_sock);
-	n = recvfrom(0, recvbuffer, MAXPKTSIZE, 0,
+	n = recvfrom(0, recvbuffer, MAXPKTSIZE, block ? 0 : MSG_DONTWAIT,
 	    (struct sockaddr *)&peer_sock, &peerlen);
 	if (n < 0) {
 		tftp_log(LOG_ERR, "recvfrom: %s", strerror(errno));
@@ -231,6 +229,11 @@ main(int argc, char *argv[])
 	if ((size_t)n < 4 /* tftphdr */) {
 		tftp_log(LOG_ERR, "Rejecting %zd-byte request from %s",
 		    n, peername);
+		exit(1);
+	}
+
+	if (ioctl(0, FIONBIO, &on) < 0) {
+		tftp_log(LOG_ERR, "ioctl(FIONBIO): %s", strerror(errno));
 		exit(1);
 	}
 

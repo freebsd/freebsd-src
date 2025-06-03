@@ -606,7 +606,7 @@ ioapic_resume(struct pic *pic, bool suspend_cancelled)
 /*
  * Create a plain I/O APIC object.
  */
-void *
+ioapic_drv_t
 ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 {
 	struct ioapic *io;
@@ -727,22 +727,18 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 }
 
 int
-ioapic_get_vector(void *cookie, u_int pin)
+ioapic_get_vector(ioapic_drv_t io, u_int pin)
 {
-	struct ioapic *io;
 
-	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (-1);
 	return (io->io_pins[pin].io_irq);
 }
 
 int
-ioapic_disable_pin(void *cookie, u_int pin)
+ioapic_disable_pin(ioapic_drv_t io, u_int pin)
 {
-	struct ioapic *io;
 
-	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq == IRQ_DISABLED)
@@ -754,11 +750,9 @@ ioapic_disable_pin(void *cookie, u_int pin)
 }
 
 int
-ioapic_remap_vector(void *cookie, u_int pin, int vector)
+ioapic_remap_vector(ioapic_drv_t io, u_int pin, int vector)
 {
-	struct ioapic *io;
 
-	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr || vector < 0)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq < 0)
@@ -771,13 +765,11 @@ ioapic_remap_vector(void *cookie, u_int pin, int vector)
 }
 
 int
-ioapic_set_bus(void *cookie, u_int pin, int bus_type)
+ioapic_set_bus(ioapic_drv_t io, u_int pin, int bus_type)
 {
-	struct ioapic *io;
 
 	if (bus_type < 0 || bus_type > APIC_BUS_MAX)
 		return (EINVAL);
-	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq < 0)
@@ -792,11 +784,9 @@ ioapic_set_bus(void *cookie, u_int pin, int bus_type)
 }
 
 int
-ioapic_set_nmi(void *cookie, u_int pin)
+ioapic_set_nmi(ioapic_drv_t io, u_int pin)
 {
-	struct ioapic *io;
 
-	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq == IRQ_NMI)
@@ -815,11 +805,9 @@ ioapic_set_nmi(void *cookie, u_int pin)
 }
 
 int
-ioapic_set_smi(void *cookie, u_int pin)
+ioapic_set_smi(ioapic_drv_t io, u_int pin)
 {
-	struct ioapic *io;
 
-	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq == IRQ_SMI)
@@ -838,11 +826,9 @@ ioapic_set_smi(void *cookie, u_int pin)
 }
 
 int
-ioapic_set_extint(void *cookie, u_int pin)
+ioapic_set_extint(ioapic_drv_t io, u_int pin)
 {
-	struct ioapic *io;
 
-	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq == IRQ_EXTINT)
@@ -864,12 +850,10 @@ ioapic_set_extint(void *cookie, u_int pin)
 }
 
 int
-ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol)
+ioapic_set_polarity(ioapic_drv_t io, u_int pin, enum intr_polarity pol)
 {
-	struct ioapic *io;
 	int activehi;
 
-	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr || pol == INTR_POLARITY_CONFORM)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq < 0)
@@ -885,12 +869,10 @@ ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol)
 }
 
 int
-ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger)
+ioapic_set_triggermode(ioapic_drv_t io, u_int pin, enum intr_trigger trigger)
 {
-	struct ioapic *io;
 	int edgetrigger;
 
-	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr || trigger == INTR_TRIGGER_CONFORM)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq < 0)
@@ -909,15 +891,13 @@ ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger)
  * Register a complete I/O APIC object with the interrupt subsystem.
  */
 void
-ioapic_register(void *cookie)
+ioapic_register(ioapic_drv_t io)
 {
 	struct ioapic_intsrc *pin;
-	struct ioapic *io;
 	volatile ioapic_t *apic;
 	uint32_t flags;
 	int i;
 
-	io = (struct ioapic *)cookie;
 	apic = io->io_addr;
 	mtx_lock_spin(&icu_lock);
 	flags = ioapic_read(apic, IOAPIC_VER) & IOART_VER_VERSION;
@@ -1052,7 +1032,8 @@ static device_method_t ioapic_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ioapic_pci_probe),
 	DEVMETHOD(device_attach,	ioapic_pci_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(ioapic, ioapic_pci_driver, ioapic_pci_methods, 0);
@@ -1079,6 +1060,22 @@ ioapic_get_rid(u_int apic_id, uint16_t *ridp)
 		return (error);
 	*ridp = rid;
 	return (0);
+}
+
+device_t
+ioapic_get_dev(u_int apic_id)
+{
+	struct ioapic *io;
+
+	mtx_lock_spin(&icu_lock);
+	STAILQ_FOREACH(io, &ioapic_list, io_next) {
+		if (io->io_hw_apic_id == apic_id)
+			break;
+	}
+	mtx_unlock_spin(&icu_lock);
+	if (io != NULL)
+		return (io->pci_dev);
+	return (NULL);
 }
 
 /*
@@ -1142,7 +1139,8 @@ static device_method_t apic_methods[] = {
 	DEVMETHOD(device_identify,	apic_identify),
 	DEVMETHOD(device_probe,		apic_probe),
 	DEVMETHOD(device_attach,	apic_attach),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(apic, apic_driver, apic_methods, 0);

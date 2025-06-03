@@ -43,6 +43,9 @@
 #include <dev/rtwn/rtl8188e/r88e.h>
 #include <dev/rtwn/rtl8188e/r88e_reg.h>
 
+/*
+ * Enable/disable beaconing in AP/IBSS/Mesh modes.
+ */
 void
 r88e_beacon_enable(struct rtwn_softc *sc, int id, int enable)
 {
@@ -56,4 +59,13 @@ r88e_beacon_enable(struct rtwn_softc *sc, int id, int enable)
 		rtwn_setbits_1(sc, R92C_BCN_CTRL(id),
 		    R92C_BCN_CTRL_EN_BCN, 0);
 	}
+}
+
+/*
+ * There's no firmware rate control, beacon processing isn't
+ * needed in STA mode.
+ */
+void
+r88e_sta_beacon_enable(struct rtwn_softc *sc, int id, bool enable)
+{
 }

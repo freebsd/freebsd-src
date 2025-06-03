@@ -60,6 +60,7 @@ SRCS=	\
 	sockstream.c		\
 	tpm_device.c		\
 	tpm_emul_passthru.c	\
+	tpm_emul_swtpm.c	\
 	tpm_intf_crb.c		\
 	tpm_ppi_qemu.c		\
 	uart_backend.c		\

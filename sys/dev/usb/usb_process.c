@@ -361,25 +361,21 @@ usb_proc_is_gone(struct usb_process *up)
 	return (0);
 }
 
-/*------------------------------------------------------------------------*
- *	usb_proc_mwait
- *
- * This function will return when the USB process message pointed to
- * by "pm" is no longer on a queue. This function must be called
- * having "up->up_mtx" locked.
- *------------------------------------------------------------------------*/
-void
-usb_proc_mwait(struct usb_process *up, void *_pm0, void *_pm1)
+static int
+usb_proc_mwait_impl(struct usb_process *up, void *_pm0, void *_pm1,
+    bool interruptible)
 {
 	struct usb_proc_msg *pm0 = _pm0;
 	struct usb_proc_msg *pm1 = _pm1;
+	int error;
 
 	/* check if gone */
 	if (up->up_gone)
-		return;
+		return (ENXIO);
 
 	USB_MTX_ASSERT(up->up_mtx, MA_OWNED);
 
+	error = 0;
 	if (up->up_curtd == curthread) {
 		/* Just remove the messages from the queue. */
 		if (pm0->pm_qentry.tqe_prev) {
@@ -391,14 +387,59 @@ usb_proc_mwait(struct usb_process *up, void *_pm0, void *_pm1)
 			pm1->pm_qentry.tqe_prev = NULL;
 		}
 	} else
-		while (pm0->pm_qentry.tqe_prev ||
-		    pm1->pm_qentry.tqe_prev) {
+		while (error == 0 && (pm0->pm_qentry.tqe_prev ||
+		    pm1->pm_qentry.tqe_prev)) {
 			/* check if config thread is gone */
 			if (up->up_gone)
-				break;
+				return (ENXIO);
 			up->up_dsleep = 1;
-			cv_wait(&up->up_drain, up->up_mtx);
+			if (interruptible) {
+				error = cv_wait_sig(&up->up_drain, up->up_mtx);
+
+				/*
+				 * The fact that we were interrupted doesn't
+				 * matter if our goal was accomplished anyways.
+				 */
+				if (error != 0 && !USB_PROC_MSG_ENQUEUED(pm0) &&
+				    !USB_PROC_MSG_ENQUEUED(pm1))
+					error = 0;
+			} else {
+				cv_wait(&up->up_drain, up->up_mtx);
+			}
 		}
+
+	if (error == ERESTART)
+		error = EINTR;
+	return (error);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_proc_mwait
+ *
+ * This function will return when the USB process message pointed to
+ * by "pm" is no longer on a queue. This function must be called
+ * having "up->up_mtx" locked.
+ *------------------------------------------------------------------------*/
+void
+usb_proc_mwait(struct usb_process *up, void *_pm0, void *_pm1)
+{
+
+	(void)usb_proc_mwait_impl(up, _pm0, _pm1, false);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_proc_mwait_sig
+ *
+ * This function will return when the USB process message pointed to
+ * by "pm" is no longer on a queue. This function must be called
+ * having "up->up_mtx" locked. This version of usb_proc_mwait is
+ * interruptible.
+ *------------------------------------------------------------------------*/
+int
+usb_proc_mwait_sig(struct usb_process *up, void *_pm0, void *_pm1)
+{
+
+	return (usb_proc_mwait_impl(up, _pm0, _pm1, true));
 }
 
 /*------------------------------------------------------------------------*

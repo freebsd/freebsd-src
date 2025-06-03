@@ -263,7 +263,7 @@ mlx5e_add_eth_addr_rule_sub(struct mlx5e_priv *priv,
 	u32 tt_vec;
 	int err = 0;
 	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_RULE_FWD_ACTION_DEST,
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 	};
 	u8 *mc;
 	u8 *mv;
@@ -474,7 +474,7 @@ mlx5e_add_main_vxlan_rules_sub(struct mlx5e_priv *priv,
 	struct mlx5_flow_table *ft = priv->fts.main_vxlan.t;
 	u32 *tirn = priv->tirn_inner_vxlan;
 	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_RULE_FWD_ACTION_DEST,
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 	};
 	int err = 0;
 	u8 *mc;
@@ -670,7 +670,7 @@ mlx5e_add_vlan_rule_sub(struct mlx5e_priv *priv,
 	struct mlx5_flow_handle **rule_p;
 	int err = 0;
 	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_RULE_FWD_ACTION_DEST,
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 	};
 	u8 *mv;
 	u8 *mc;
@@ -1626,7 +1626,7 @@ mlx5e_create_vlan_flow_table(struct mlx5e_priv *priv)
 
 	ft->num_groups = 0;
 	ft_attr.max_fte = MLX5E_VLAN_TABLE_SIZE;
-	ft_attr.level = (priv->ipsec) ? 8 : 0;
+	ft_attr.level = (priv->ipsec) ? 9 : 0;
 	ft->t = mlx5_create_flow_table(priv->fts.ns, &ft_attr);
 
 	if (IS_ERR(ft->t)) {
@@ -1671,7 +1671,7 @@ mlx5e_add_vxlan_rule_sub(struct mlx5e_priv *priv, struct mlx5_flow_spec *spec,
 	struct mlx5_flow_handle **rule_p;
 	int err = 0;
 	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_RULE_FWD_ACTION_DEST,
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 	};
 	u8 *mc;
 	u8 *mv;
@@ -1808,7 +1808,7 @@ mlx5e_add_vxlan_catchall_rule_sub(struct mlx5e_priv *priv,
 	struct mlx5_flow_handle **rule_p;
 	int err = 0;
 	struct mlx5_flow_act flow_act = {
-		.action = MLX5_FLOW_RULE_FWD_ACTION_DEST,
+		.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
 	};
 
 	spec->flow_context.flow_tag = MLX5_FS_ETH_FLOW_TAG;
@@ -2014,7 +2014,7 @@ mlx5e_create_vxlan_flow_table(struct mlx5e_priv *priv)
 
 	ft->num_groups = 0;
 	ft_attr.max_fte = MLX5E_VXLAN_TABLE_SIZE;
-	ft_attr.level = (priv->ipsec) ? 9 : 1;
+	ft_attr.level = (priv->ipsec) ? 10 : 1;
 	ft->t = mlx5_create_flow_table(priv->fts.ns, &ft_attr);
 
 	if (IS_ERR(ft->t)) {

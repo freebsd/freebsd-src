@@ -265,6 +265,10 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 					if (sctp_is_addr_restricted(stcb, sctp_ifa)) {
 						continue;
 					}
+				} else {
+					if (sctp_ifa->localifa_flags & SCTP_ADDR_IFA_UNUSEABLE) {
+						continue;
+					}
 				}
 				switch (sctp_ifa->address.sa.sa_family) {
 #ifdef INET

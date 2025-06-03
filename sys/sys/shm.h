@@ -51,7 +51,7 @@
 
 #define SHM_RDONLY  010000  /* Attach read-only (else read-write) */
 #define SHM_RND     020000  /* Round attach address to SHMLBA */
-#define	SHM_REMAP   030000  /* Unmap before mapping */
+#define	SHM_REMAP   040000  /* Unmap before mapping */
 #define SHMLBA      PAGE_SIZE /* Segment low boundary address multiple */
 
 /* "official" access mode definitions; somewhat braindead since you have
@@ -149,6 +149,7 @@ struct shm_info {
 #ifdef _KERNEL
 struct proc;
 struct vmspace;
+struct vm_object;
 
 extern struct shminfo	shminfo;
 
@@ -158,6 +159,7 @@ extern struct shminfo	shminfo;
 
 void	shmexit(struct vmspace *);
 void	shmfork(struct proc *, struct proc *);
+void	shmobjinfo(struct vm_object *obj, key_t *key, unsigned short *seq);
 int	kern_get_shmsegs(struct thread *td, struct shmid_kernel **res,
 	    size_t *sz);
 

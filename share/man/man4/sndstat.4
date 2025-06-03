@@ -76,15 +76,15 @@ dsps (NVLIST ARRAY): 1
 		unit (NUMBER): 0
 		status (STRING): on hdaa0
 		bitperfect (BOOL): FALSE
-		pvchan (NUMBER): 1
+		pvchan (BOOL): TRUE
 		pvchanrate (NUMBER): 48000
 		pvchanformat (NUMBER): 0x00000010
-		rvchan (NUMBER): 0
+		rvchan (BOOL): TRUE
 		rvchanrate (NUMBER): 48000
 		rvchanformat (NUMBER): 0x00000010
 		channel_info (NVLIST_ARRAY): 1
-			name (STRING): pcm0:virtual_play:dsp0.vp0
-			parentchan (STRING): pcm0:play:dsp0.p0
+			name (STRING): dsp0.virtual_play.0
+			parentchan (STRING): dsp0.play.0
 			unit (NUMBER): 1
 			caps (NUMBER): 0x073200
 			latency (NUMBER): 2
@@ -98,12 +98,14 @@ dsps (NVLIST ARRAY): 1
 			left_volume (NUMBER): 45
 			right_volume (NUMBER): 45
 			hwbuf_fmt (NUMBER): 0x200010
+			hwbuf_rate (NUMBER): 48000
 			hwbuf_size (NUMBER): 0
 			hwbuf_blksz (NUMBER): 0
 			hwbuf_blkcnt (NUMBER): 0
 			hwbuf_free (NUMBER): 0
 			hwbuf_ready (NUMBER): 0
 			swbuf_fmt (NUMBER): 0x201000
+			swbuf_rate (NUMBER): 48000
 			swbuf_size (NUMBER): 16384
 			swbuf_blksz (NUMBER): 2048
 			swbuf_blkcnt (NUMBER): 8
@@ -181,13 +183,13 @@ Usually reports the driver the device is attached on.
 .It Dv bitperfect
 Whether the sound card has bit-perfect mode enabled.
 .It Dv pvchan
-Number of playback virtual channels.
+Playback virtual channels enabled.
 .It Dv pvchanrate
 Playback virtual channel sample rate.
 .It Dv pvchanformat
 Playback virtual channel format.
 .It Dv rvchan
-Number of recording virtual channels.
+Recording virtual channels enabled.
 .It Dv rvchanrate
 Recording virtual channel sample rate.
 .It Dv rvchanformat
@@ -226,6 +228,8 @@ Left volume.
 Right volume.
 .It Dv hwbuf_format
 Hardware buffer format.
+.It Dv hwbuf_rate
+Hardware buffer sample rate;
 .It Dv hwbuf_size
 Hardware buffer size.
 .It Dv hwbuf_blksz
@@ -238,6 +242,8 @@ Free space in hardware buffer (in bytes).
 Number of bytes ready to be read/written from hardware buffer.
 .It Dv swbuf_format
 Software buffer format.
+.It Dv swbuf_rate
+Software buffer sample rate;
 .It Dv swbuf_size
 Software buffer size.
 .It Dv swbuf_blksz

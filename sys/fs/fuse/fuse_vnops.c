@@ -1431,8 +1431,8 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	struct timespec now;
 
 	int nameiop = cnp->cn_nameiop;
-	int flags = cnp->cn_flags;
-	int islastcn = flags & ISLASTCN;
+	bool isdotdot = cnp->cn_flags & ISDOTDOT;
+	bool islastcn = cnp->cn_flags & ISLASTCN;
 	struct mount *mp = vnode_mount(dvp);
 	struct fuse_data *data = fuse_get_mpdata(mp);
 	int default_permissions = data->dataflags & FSESS_DEFAULT_PERMISSIONS;
@@ -1465,8 +1465,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		return err;
 
 	is_dot = cnp->cn_namelen == 1 && *(cnp->cn_nameptr) == '.';
-	if ((flags & ISDOTDOT) && !(data->dataflags & FSESS_EXPORT_SUPPORT))
-	{
+	if (isdotdot && !(data->dataflags & FSESS_EXPORT_SUPPORT)) {
 		if (!(VTOFUD(dvp)->flag & FN_PARENT_NID)) {
 			/*
 			 * Since the file system doesn't support ".." lookups,
@@ -1580,7 +1579,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		}
 	} else {
 		/* Entry was found */
-		if (flags & ISDOTDOT) {
+		if (isdotdot) {
 			struct fuse_lookup_alloc_arg flaa;
 
 			flaa.nid = nid;
@@ -1945,10 +1944,9 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	tresid = uio->uio_resid;
 	err = fuse_filehandle_get_dir(vp, &fufh, cred, pid);
 	if (err == EBADF && mp->mnt_flag & MNT_EXPORTED) {
-		KASSERT(fuse_get_mpdata(mp)->dataflags
-				& FSESS_NO_OPENDIR_SUPPORT,
-			("FUSE file systems that don't set "
-			 "FUSE_NO_OPENDIR_SUPPORT should not be exported"));
+		KASSERT(!fsess_is_impl(mp, FUSE_OPENDIR),
+			("FUSE file systems that implement "
+			 "FUSE_OPENDIR should not be exported"));
 		/* 
 		 * nfsd will do VOP_READDIR without first doing VOP_OPEN.  We
 		 * must implicitly open the directory here.
@@ -2705,6 +2703,7 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 	struct mount *mp = vnode_mount(vp);
 	struct thread *td = ap->a_td;
 	struct ucred *cred = ap->a_cred;
+	size_t struct_size = FUSE_COMPAT_SETXATTR_IN_SIZE;
 	char *prefix;
 	size_t len;
 	char *attr_str;
@@ -2745,17 +2744,26 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 	len = strlen(prefix) + sizeof(extattr_namespace_separator) +
 	    strlen(ap->a_name) + 1;
 
-	fdisp_init(&fdi, len + sizeof(*set_xattr_in) + uio->uio_resid);
+	/* older FUSE servers  use a smaller fuse_setxattr_in struct*/
+	if (fuse_libabi_geq(fuse_get_mpdata(mp), 7, 33))
+		struct_size = sizeof(*set_xattr_in);
+
+	fdisp_init(&fdi, len + struct_size + uio->uio_resid);
 	fdisp_make_vp(&fdi, FUSE_SETXATTR, vp, td, cred);
 
 	set_xattr_in = fdi.indata;
 	set_xattr_in->size = uio->uio_resid;
 
-	attr_str = (char *)fdi.indata + sizeof(*set_xattr_in);
+	if (fuse_libabi_geq(fuse_get_mpdata(mp), 7, 33)) {
+		set_xattr_in->setxattr_flags = 0;
+		set_xattr_in->padding = 0;
+	}
+
+	attr_str = (char *)fdi.indata + struct_size;
 	snprintf(attr_str, len, "%s%c%s", prefix, extattr_namespace_separator,
 	    ap->a_name);
 
-	err = uiomove((char *)fdi.indata + sizeof(*set_xattr_in) + len,
+	err = uiomove((char *)fdi.indata + struct_size + len,
 	    uio->uio_resid, uio);
 	if (err != 0) {
 		goto out;
@@ -3202,21 +3210,21 @@ fuse_vnop_vptofh(struct vop_vptofh_args *ap)
 		return EOPNOTSUPP;
 	}
 	if ((mp->mnt_flag & MNT_EXPORTED) &&
-		!(data->dataflags & FSESS_NO_OPENDIR_SUPPORT))
+		fsess_is_impl(mp, FUSE_OPENDIR))
 	{
 		/*
 		 * NFS is stateless, so nfsd must reopen a directory on every
 		 * call to VOP_READDIR, passing in the d_off field from the
-		 * final dirent of the previous invocation.  But without
-		 * FUSE_NO_OPENDIR_SUPPORT, the FUSE protocol does not
+		 * final dirent of the previous invocation.  But if the server
+		 * implements FUSE_OPENDIR, the FUSE protocol does not
 		 * guarantee that d_off will be valid after a directory is
 		 * closed and reopened.  So prohibit exporting FUSE file
-		 * systems that don't set that flag.
+		 * systems that implement FUSE_OPENDIR.
 		 *
 		 * But userspace NFS servers don't have this problem.
                  */
 		SDT_PROBE2(fusefs, , vnops, trace, 1,
-			"VOP_VPTOFH without FUSE_NO_OPENDIR_SUPPORT");
+			"VOP_VPTOFH with FUSE_OPENDIR");
 		return EOPNOTSUPP;
 	}
 

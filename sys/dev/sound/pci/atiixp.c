@@ -1084,8 +1084,7 @@ atiixp_chip_post_init(void *arg)
 
 	mixer_init(sc->dev, ac97_getmixerclass(), sc->codec);
 
-	if (pcm_register(sc->dev, sc, ATI_IXP_NPCHAN, ATI_IXP_NRCHAN))
-		goto postinitbad;
+	pcm_init(sc->dev, sc);
 
 	for (i = 0; i < ATI_IXP_NPCHAN; i++)
 		pcm_addchan(sc->dev, PCMDIR_PLAY, &atiixp_chan_class, sc);
@@ -1101,7 +1100,8 @@ atiixp_chip_post_init(void *arg)
 	    rman_get_start(sc->reg), rman_get_start(sc->irq),
 	    device_get_nameunit(device_get_parent(sc->dev)));
 
-	pcm_setstatus(sc->dev, status);
+	if (pcm_register(sc->dev, status))
+		goto postinitbad;
 
 	atiixp_lock(sc);
 	if (sc->polling == 0)

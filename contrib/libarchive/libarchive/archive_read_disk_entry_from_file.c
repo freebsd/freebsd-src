@@ -520,6 +520,7 @@ setup_xattr(struct archive_read_disk *a,
 	if (size == -1) {
 		archive_set_error(&a->archive, errno,
 		    "Couldn't read extended attribute");
+		free(value);
 		return (ARCHIVE_WARN);
 	}
 
@@ -887,7 +888,7 @@ setup_sparse_fiemap(struct archive_read_disk *a,
 	count = (sizeof(buff) - sizeof(*fm))/sizeof(*fe);
 	fm = (struct fiemap *)buff;
 	fm->fm_start = 0;
-	fm->fm_length = ~0ULL;;
+	fm->fm_length = ~0ULL;
 	fm->fm_flags = FIEMAP_FLAG_SYNC;
 	fm->fm_extent_count = count;
 	do_fiemap = 1;

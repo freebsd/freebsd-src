@@ -194,7 +194,8 @@ syscon_generic_attach(device_t dev)
 		sc->simplebus_attached = true;
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

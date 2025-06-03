@@ -1,4 +1,4 @@
-/* $OpenBSD: krl.c,v 1.59 2023/07/17 05:22:30 djm Exp $ */
+/* $OpenBSD: krl.c,v 1.60 2025/02/18 08:02:48 djm Exp $ */
 /*
  * Copyright (c) 2012 Damien Miller <djm@mindrot.org>
  *
@@ -674,6 +674,7 @@ revoked_certs_generate(struct revoked_certs *rc, struct sshbuf *buf)
 			break;
 		case KRL_SECTION_CERT_SERIAL_BITMAP:
 			if (rs->lo - bitmap_start > INT_MAX) {
+				r = SSH_ERR_INVALID_FORMAT;
 				error_f("insane bitmap gap");
 				goto out;
 			}
@@ -1059,6 +1060,7 @@ ssh_krl_from_blob(struct sshbuf *buf, struct ssh_krl **krlp)
 	}
 
 	if ((krl = ssh_krl_init()) == NULL) {
+		r = SSH_ERR_ALLOC_FAIL;
 		error_f("alloc failed");
 		goto out;
 	}

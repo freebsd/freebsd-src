@@ -61,8 +61,8 @@
 
 #ifdef INET
 void
-ipsec4_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
-    union sockaddr_union *dst)
+ipsec4_setsockaddrs(const struct mbuf *m, const struct ip *ip1,
+    union sockaddr_union *src, union sockaddr_union *dst)
 {
 	static const struct sockaddr_in template = {
 		sizeof (struct sockaddr_in),
@@ -73,18 +73,8 @@ ipsec4_setsockaddrs(const struct mbuf *m, union sockaddr_union *src,
 	src->sin = template;
 	dst->sin = template;
 
-	if (m->m_len < sizeof (struct ip)) {
-		m_copydata(m, offsetof(struct ip, ip_src),
-			   sizeof (struct  in_addr),
-			   (caddr_t) &src->sin.sin_addr);
-		m_copydata(m, offsetof(struct ip, ip_dst),
-			   sizeof (struct  in_addr),
-			   (caddr_t) &dst->sin.sin_addr);
-	} else {
-		const struct ip *ip = mtod(m, const struct ip *);
-		src->sin.sin_addr = ip->ip_src;
-		dst->sin.sin_addr = ip->ip_dst;
-	}
+	src->sin.sin_addr = ip1->ip_src;
+	dst->sin.sin_addr = ip1->ip_dst;
 }
 #endif
 #ifdef INET6

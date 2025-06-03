@@ -477,7 +477,7 @@ cas_detach(struct cas_softc *sc)
 	taskqueue_drain(sc->sc_tq, &sc->sc_tx_task);
 	if_free(ifp);
 	taskqueue_free(sc->sc_tq);
-	device_delete_child(sc->sc_dev, sc->sc_miibus);
+	bus_generic_detach(sc->sc_dev);
 
 	for (i = 0; i < CAS_NRXDESC; i++)
 		if (sc->sc_rxdsoft[i].rxds_dmamap != NULL)

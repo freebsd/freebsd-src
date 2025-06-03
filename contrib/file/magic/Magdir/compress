@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: compress,v 1.91 2023/06/16 19:37:47 christos Exp $
+# $File: compress,v 1.96 2024/11/09 23:47:04 christos Exp $
 # compress:  file(1) magic for pure-compression formats (no archives)
 #
 # compress, gzip, pack, compact, huf, squeeze, crunch, freeze, yabba, etc.
@@ -203,6 +203,7 @@
 # lzop from <markus.oberhumer@jk.uni-linz.ac.at>
 0	string		\x89\x4c\x5a\x4f\x00\x0d\x0a\x1a\x0a	lzop compressed data
 !:ext	lzo
+!:mime	application/x-lzop
 >9	beshort		<0x0940
 >>9	byte&0xf0	=0x00		- version 0.
 >>9	beshort&0x0fff	x		\b%03x,
@@ -376,18 +377,15 @@
 
 0	string		ArC\x01		FreeArc archive <http://freearc.org>
 
-# Type:	DACT compressed files
-0	long	0x444354C3	DACT compressed data
->4	byte	>-1		(version %i.
->5	byte	>-1		%i.
->6	byte	>-1		%i)
->7	long	>0		, original size: %i bytes
->15	long	>30		, block size: %i bytes
-
 # Valve Pack (VPK) files
+# https://developer.valvesoftware.com/wiki/VPK_(file_format)#File_Format
 0	lelong	0x55aa1234	Valve Pak file
 >0x4	lelong	x		\b, version %u
->0x8	lelong	x		\b, %u entries
+>0x8	lelong	x		\b, tree size %u 
+>0x12	lelong	x		\b, file data size %u 
+>0x16	lelong	x		\b, archive MD5 size %u 
+>0x20	lelong	x		\b, other MD5 size %u 
+>0x24	lelong	x		\b, signature size %u 
 
 # Snappy framing format
 # https://code.google.com/p/snappy/source/browse/trunk/framing_format.txt
@@ -424,11 +422,6 @@
 0	string	bvx2	lzfse compressed, compressed tables
 0	string	bvxn	lzfse encoded, lzvn compressed
 
-# pcxLib.exe compression program
-# http://www.shikadi.net/moddingwiki/PCX_Library
-0	string/b	pcxLib
->0x0A	string/b	Copyright\020(c)\020Genus\020Microprogramming,\020Inc.	pcxLib compressed
-
 # https://support-docs.illumina.com/SW/ORA_Format_Specification/Content/SW/ORA/ORAFormatSpecification.htm
 0	uleshort	0x7c49	
 >2	lelong		0x80	ORA FASTQ compressed file
@@ -459,3 +452,7 @@
 >-125	u8	x	NB reads: %llu,
 >-109	u8	x	NB bases: %llu.
 >-219	u4&0x02	2	File contains interleaved paired reads
+
+# https://github.com/xamarin/xamarin-android/pull/4686
+0	string	XALZ	Xamarin LZ4-compressed assembly
+>8	ulelong	x	\b, uncompressed size %u

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -686,7 +687,7 @@ zfsctl_root_readdir(struct vop_readdir_args *ap)
 	 * The check below facilitates the idiom of repeating calls until the
 	 * count to return is 0.
 	 */
-	if (zfs_uio_offset(&uio) == 3 * sizeof(entry)) {
+	if (zfs_uio_offset(&uio) == 3 * sizeof (entry)) {
 		return (0);
 	}
 

@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
- * Copyright (c) 2020 Vladimir Kondratyev <wulf@FreeBSD.org>
+ * Copyright (c) 2020, 2025 Vladimir Kondratyev <wulf@FreeBSD.org>
  *
  * This code is derived from software contributed to The NetBSD Foundation
  * by Lennart Augustsson (lennart@augustsson.net) at
@@ -172,7 +172,7 @@ static int		hidraw_kqread(struct knote *, long);
 static void		hidraw_kqdetach(struct knote *);
 static void		hidraw_notify(struct hidraw_softc *);
 
-static struct filterops hidraw_filterops_read = {
+static const struct filterops hidraw_filterops_read = {
 	.f_isfd =	1,
 	.f_detach =	hidraw_kqdetach,
 	.f_event =	hidraw_kqread,
@@ -570,8 +570,10 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	struct hidraw_devinfo *hd;
 	const char *devname;
 	uint32_t size;
+	hid_size_t actsize;
 	int id, len;
 	int error = 0;
+	uint8_t reptype;
 
 	DPRINTFN(2, "cmd=%lx\n", cmd);
 
@@ -747,16 +749,16 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		}
 		size = MIN(hgd->hgd_maxlen, size);
 		buf = HIDRAW_LOCAL_ALLOC(local_buf, size);
-		error = hid_get_report(sc->sc_dev, buf, size, NULL,
+		actsize = 0;
+		error = hid_get_report(sc->sc_dev, buf, size, &actsize,
 		    hgd->hgd_report_type, id);
 		if (!error)
-			error = copyout(buf, hgd->hgd_data, size);
+			error = copyout(buf, hgd->hgd_data, actsize);
 		HIDRAW_LOCAL_FREE(local_buf, buf);
+		hgd->hgd_actlen = actsize;
 #ifdef COMPAT_FREEBSD32
-		/*
-		 * HIDRAW_GET_REPORT is declared _IOWR, but hgd is not written
-		 * so we don't call update_hgd32().
-		 */
+		if (hgd32 != NULL)
+			update_hgd32(hgd, hgd32);
 #endif
 		return (error);
 
@@ -827,6 +829,9 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		 */
 		if (size >= HID_MAX_DESCRIPTOR_SIZE)
 			return (EINVAL);
+		mtx_lock(&sc->sc_mtx);
+		sc->sc_state.uhid = false;
+		mtx_unlock(&sc->sc_mtx);
 		buf = HIDRAW_LOCAL_ALLOC(local_buf, size);
 		error = hid_get_rdesc(sc->sc_dev, buf, size);
 		if (error == 0) {
@@ -859,6 +864,8 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		return (0);
 
 	case HIDIOCSFEATURE(0):
+	case HIDIOCSINPUT(0):
+	case HIDIOCSOUTPUT(0):
 		if (!(sc->sc_fflags & FWRITE))
 			return (EPERM);
 		if (len < 2)
@@ -868,10 +875,27 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			addr = (uint8_t *)addr + 1;
 			len--;
 		}
-		return (hid_set_report(sc->sc_dev, addr, len,
-		    HID_FEATURE_REPORT, id));
+		switch (IOCBASECMD(cmd)) {
+			case HIDIOCSFEATURE(0):
+				reptype = HID_FEATURE_REPORT;
+				break;
+			case HIDIOCSINPUT(0):
+				reptype = HID_INPUT_REPORT;
+				break;
+			case HIDIOCSOUTPUT(0):
+				reptype = HID_OUTPUT_REPORT;
+				break;
+			default:
+				panic("Invalid report type");
+		}
+		error = hid_set_report(sc->sc_dev, addr, len, reptype, id);
+		if (error == 0)
+			td->td_retval[0] = IOCPARM_LEN(cmd);
+		return (error);
 
 	case HIDIOCGFEATURE(0):
+	case HIDIOCGINPUT(0):
+	case HIDIOCGOUTPUT(0):
 		if (!(sc->sc_fflags & FREAD))
 			return (EPERM);
 		if (len < 2)
@@ -881,8 +905,27 @@ hidraw_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			addr = (uint8_t *)addr + 1;
 			len--;
 		}
-		return (hid_get_report(sc->sc_dev, addr, len, NULL,
-		    HID_FEATURE_REPORT, id));
+		switch (IOCBASECMD(cmd)) {
+			case HIDIOCGFEATURE(0):
+				reptype = HID_FEATURE_REPORT;
+				break;
+			case HIDIOCGINPUT(0):
+				reptype = HID_INPUT_REPORT;
+				break;
+			case HIDIOCGOUTPUT(0):
+				reptype = HID_OUTPUT_REPORT;
+				break;
+			default:
+				panic("Invalid report type");
+		}
+		error = hid_get_report(sc->sc_dev, addr, len, &actsize,
+		    reptype, id);
+		if (error == 0) {
+			if (id == 0)
+				actsize++;
+			td->td_retval[0] = actsize;
+		}
+		return (error);
 
 	case HIDIOCGRAWUNIQ(0):
 		strlcpy(addr, sc->sc_hw->serial, len);

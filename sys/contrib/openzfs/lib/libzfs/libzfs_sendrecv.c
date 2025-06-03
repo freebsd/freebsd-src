@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -30,6 +31,7 @@
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  * Copyright (c) 2018, loli10K <ezomori.nozomu@gmail.com>. All rights reserved.
  * Copyright (c) 2019 Datto Inc.
+ * Copyright (c) 2024, Klara, Inc.
  */
 
 #include <assert.h>
@@ -2828,7 +2830,12 @@ zfs_send_one_cb_impl(zfs_handle_t *zhp, const char *from, int fd,
 		case EROFS:
 			zfs_error_aux(hdl, "%s", zfs_strerror(errno));
 			return (zfs_error(hdl, EZFS_BADBACKUP, errbuf));
-
+		case ZFS_ERR_STREAM_LARGE_MICROZAP:
+			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+			    "source snapshot contains large microzaps, "
+			    "need -L (--large-block) or -w (--raw) to "
+			    "generate stream"));
+			return (zfs_error(hdl, EZFS_BADBACKUP, errbuf));
 		default:
 			return (zfs_standard_error(hdl, errno, errbuf));
 		}
@@ -3370,65 +3377,77 @@ created_before(libzfs_handle_t *hdl, avl_tree_t *avl,
  */
 static int
 recv_fix_encryption_hierarchy(libzfs_handle_t *hdl, const char *top_zfs,
-    nvlist_t *stream_nv)
+    nvlist_t *stream_nv, avl_tree_t *stream_avl)
 {
 	int err;
 	nvpair_t *fselem = NULL;
-	nvlist_t *stream_fss;
+	nvlist_t *local_nv;
+	avl_tree_t *local_avl;
+	boolean_t recursive;
 
-	stream_fss = fnvlist_lookup_nvlist(stream_nv, "fss");
+	recursive = (nvlist_lookup_boolean(stream_nv, "not_recursive") ==
+	    ENOENT);
 
-	while ((fselem = nvlist_next_nvpair(stream_fss, fselem)) != NULL) {
+	/* Using top_zfs, gather the nvlists for all local filesystems. */
+	if ((err = gather_nvlist(hdl, top_zfs, NULL, NULL,
+	    recursive, B_TRUE, B_FALSE, recursive, B_FALSE, B_FALSE, B_FALSE,
+	    B_FALSE, B_TRUE, &local_nv, &local_avl)) != 0)
+		return (err);
+
+	/*
+	 * Go through the nvlists of the local filesystems and check for
+	 * encryption roots.
+	 */
+	while ((fselem = nvlist_next_nvpair(local_nv, fselem)) != NULL) {
 		zfs_handle_t *zhp = NULL;
 		uint64_t crypt;
-		nvlist_t *snaps, *props, *stream_nvfs = NULL;
-		nvpair_t *snapel = NULL;
+		nvlist_t *stream_props, *snaps, *stream_nvfs = NULL,
+		    *nvfs = NULL;
 		boolean_t is_encroot, is_clone, stream_encroot;
-		char *cp;
-		const char *stream_keylocation = NULL;
+		const char *stream_keylocation = NULL, *fsname;
 		char keylocation[MAXNAMELEN];
-		char fsname[ZFS_MAX_DATASET_NAME_LEN];
+		nvpair_t *snapelem;
 
-		keylocation[0] = '\0';
-		stream_nvfs = fnvpair_value_nvlist(fselem);
-		snaps = fnvlist_lookup_nvlist(stream_nvfs, "snaps");
-		props = fnvlist_lookup_nvlist(stream_nvfs, "props");
-		stream_encroot = nvlist_exists(stream_nvfs, "is_encroot");
-
-		/* find a snapshot from the stream that exists locally */
-		err = ENOENT;
-		while ((snapel = nvlist_next_nvpair(snaps, snapel)) != NULL) {
-			uint64_t guid;
-
-			guid = fnvpair_value_uint64(snapel);
-			err = guid_to_name(hdl, top_zfs, guid, B_FALSE,
-			    fsname);
-			if (err == 0)
-				break;
-		}
-
-		if (err != 0)
-			continue;
-
-		cp = strchr(fsname, '@');
-		if (cp != NULL)
-			*cp = '\0';
-
+		nvfs = fnvpair_value_nvlist(fselem);
+		snaps = fnvlist_lookup_nvlist(nvfs, "snaps");
+		fsname = fnvlist_lookup_string(nvfs, "name");
 		zhp = zfs_open(hdl, fsname, ZFS_TYPE_DATASET);
 		if (zhp == NULL) {
 			err = ENOENT;
 			goto error;
 		}
 
-		crypt = zfs_prop_get_int(zhp, ZFS_PROP_ENCRYPTION);
-		is_clone = zhp->zfs_dmustats.dds_origin[0] != '\0';
-		(void) zfs_crypto_get_encryption_root(zhp, &is_encroot, NULL);
-
 		/* we don't need to do anything for unencrypted datasets */
+		crypt = zfs_prop_get_int(zhp, ZFS_PROP_ENCRYPTION);
 		if (crypt == ZIO_CRYPT_OFF) {
 			zfs_close(zhp);
 			continue;
 		}
+
+		is_clone = zhp->zfs_dmustats.dds_origin[0] != '\0';
+		(void) zfs_crypto_get_encryption_root(zhp, &is_encroot, NULL);
+		keylocation[0] = '\0';
+
+		/*
+		 * Go through the snapshots of the local filesystem and find
+		 * the stream's filesystem.
+		 */
+		for (snapelem = nvlist_next_nvpair(snaps, NULL);
+		    snapelem; snapelem = nvlist_next_nvpair(snaps, snapelem)) {
+			uint64_t thisguid;
+
+			thisguid = fnvpair_value_uint64(snapelem);
+			stream_nvfs = fsavl_find(stream_avl, thisguid, NULL);
+
+			if (stream_nvfs != NULL)
+				break;
+		}
+
+		if (stream_nvfs == NULL)
+			continue;
+
+		stream_props = fnvlist_lookup_nvlist(stream_nvfs, "props");
+		stream_encroot = nvlist_exists(stream_nvfs, "is_encroot");
 
 		/*
 		 * If the dataset is flagged as an encryption root, was not
@@ -3445,7 +3464,7 @@ recv_fix_encryption_hierarchy(libzfs_handle_t *hdl, const char *top_zfs,
 				}
 			}
 
-			stream_keylocation = fnvlist_lookup_string(props,
+			stream_keylocation = fnvlist_lookup_string(stream_props,
 			    zfs_prop_to_name(ZFS_PROP_KEYLOCATION));
 
 			/*
@@ -3512,13 +3531,13 @@ recv_incremental_replication(libzfs_handle_t *hdl, const char *tofs,
 	boolean_t needagain, progress, recursive;
 	const char *s1, *s2;
 
+	if (flags->dryrun)
+		return (0);
+
 	fromsnap = fnvlist_lookup_string(stream_nv, "fromsnap");
 
 	recursive = (nvlist_lookup_boolean(stream_nv, "not_recursive") ==
 	    ENOENT);
-
-	if (flags->dryrun)
-		return (0);
 
 again:
 	needagain = progress = B_FALSE;
@@ -3993,9 +4012,9 @@ zfs_receive_package(libzfs_handle_t *hdl, int fd, const char *destname,
 		    stream_nv, stream_avl, NULL);
 	}
 
-	if (raw && softerr == 0 && *top_zfs != NULL) {
+	if (raw && *top_zfs != NULL && !flags->dryrun) {
 		softerr = recv_fix_encryption_hierarchy(hdl, *top_zfs,
-		    stream_nv);
+		    stream_nv, stream_avl);
 	}
 
 out:

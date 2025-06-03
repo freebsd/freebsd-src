@@ -43,6 +43,7 @@
 #include <sys/mman.h>
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -731,4 +732,262 @@ __collate_equiv_value(locale_t locale, const wchar_t *str, size_t len)
 		}
 	}
 	return (0);
+}
+
+/*
+ * __collate_collating_symbol takes the multibyte string specified by
+ * src and slen, and using ps, converts that to a wide character.  Then
+ * it is checked to verify it is a collating symbol, and then copies
+ * it to the wide character string specified by dst and dlen (the
+ * results are not null terminated).  The length of the wide characters
+ * copied to dst is returned if successful.  Zero is returned if no such
+ * collating symbol exists.  (size_t)-1 is returned if there are wide-character
+ * conversion errors, if the length of the converted string is greater that
+ * COLLATE_STR_LEN or if dlen is too small.  It is up to the calling routine to
+ * preserve the mbstate_t structure as needed.
+ */
+size_t
+__collate_collating_symbol(wchar_t *dst, size_t dlen, const char *src,
+    size_t slen, mbstate_t *ps)
+{
+	wchar_t wname[COLLATE_STR_LEN];
+	wchar_t w, *wp;
+	struct xlocale_collate *table;
+	size_t len, l;
+
+	table =
+	    (struct xlocale_collate *)__get_locale()->components[XLC_COLLATE];
+	/* POSIX locale */
+	if (table->__collate_load_error) {
+		if (dlen < 1)
+			return ((size_t)-1);
+		if (slen != 1 || !isascii(*src))
+			return (0);
+		*dst = *src;
+		return (1);
+	}
+	for (wp = wname, len = 0; slen > 0; len++) {
+		l = mbrtowc(&w, src, slen, ps);
+		if (l == (size_t)-1 || l == (size_t)-2)
+			return ((size_t)-1);
+		if (l == 0)
+			break;
+		if (len >= COLLATE_STR_LEN)
+			return ((size_t)-1);
+		*wp++ = w;
+		src += l;
+		slen -= l;
+	}
+	if (len == 0 || len > dlen)
+		return ((size_t)-1);
+	if (len == 1) {
+		if (*wname <= UCHAR_MAX) {
+			if (table->char_pri_table[*wname].pri[0] >= 0) {
+				if (dlen > 0)
+					*dst = *wname;
+				return (1);
+			}
+			return (0);
+		} else if (table->info->large_count > 0) {
+			collate_large_t *match;
+			match = largesearch(table, *wname);
+			if (match && match->pri.pri[0] >= 0) {
+				if (dlen > 0)
+					*dst = *wname;
+				return (1);
+			}
+		}
+		return (0);
+	}
+	*wp = 0;
+	if (table->info->chain_count > 0) {
+		collate_chain_t *match;
+		int ll;
+		match = chainsearch(table, wname, &ll);
+		if (match) {
+			if (ll < dlen)
+				dlen = ll;
+			wcsncpy(dst, wname, dlen);
+			return (dlen);
+		}
+	}
+	return (0);
+}
+
+/*
+ * __collate_equiv_class returns the equivalence class number for the symbol
+ * specified by src and slen, using ps to convert from multi-byte to wide
+ * character.  Zero is returned if the symbol is not in an equivalence
+ * class.  -1 is returned if there are wide character conversion errors,
+ * if there are any greater-than-8-bit characters or if a multi-byte symbol
+ * is greater or equal to COLLATE_STR_LEN in length.  It is up to the calling
+ * routine to preserve the mbstate_t structure as needed.
+ */
+int
+__collate_equiv_class(const char *src, size_t slen, mbstate_t *ps)
+{
+	wchar_t wname[COLLATE_STR_LEN];
+	wchar_t w, *wp;
+	struct xlocale_collate *table;
+	size_t len, l;
+	int e;
+
+	table =
+	    (struct xlocale_collate *)__get_locale()->components[XLC_COLLATE];
+	/* POSIX locale */
+	if (table->__collate_load_error)
+		return (0);
+	for (wp = wname, len = 0; slen > 0; len++) {
+		l = mbrtowc(&w, src, slen, ps);
+		if (l == (size_t)-1 || l == (size_t)-2)
+			return (-1);
+		if (l == 0)
+			break;
+		if (len >= COLLATE_STR_LEN)
+			return (-1);
+		*wp++ = w;
+		src += l;
+		slen -= l;
+	}
+	if (len == 0)
+		return (-1);
+	if (len == 1) {
+		e = -1;
+		if (*wname <= UCHAR_MAX)
+			e = table->char_pri_table[*wname].pri[0];
+		else if (table->info->large_count > 0) {
+			collate_large_t *match;
+			match = largesearch(table, *wname);
+			if (match)
+				e = match->pri.pri[0];
+		}
+		if (e == 0)
+			return (IGNORE_EQUIV_CLASS);
+		return (e > 0 ? e : 0);
+	}
+	*wp = 0;
+	if (table->info->chain_count > 0) {
+		collate_chain_t *match;
+		int ll;
+		match = chainsearch(table, wname, &ll);
+		if (match) {
+			e = match->pri[0];
+			if (e == 0)
+				return (IGNORE_EQUIV_CLASS);
+			return (e < 0 ? -e : e);
+		}
+	}
+	return (0);
+}
+
+
+/*
+ * __collate_equiv_match tries to match any single or multi-character symbol
+ * in equivalence class equiv_class in the multi-byte string specified by src
+ * and slen.  If start is non-zero, it is taken to be the first (pre-converted)
+ * wide character.  Subsequence wide characters, if needed, will use ps in
+ * the conversion.  On a successful match, the length of the matched string
+ * is returned (including the start character).  If dst is non-NULL, the
+ * matched wide-character string is copied to dst, a wide character array of
+ * length dlen (the results are not zero-terminated).  If rlen is non-NULL,
+ * the number of character in src actually used is returned.  Zero is
+ * returned by __collate_equiv_match if there is no match.  (size_t)-1 is
+ * returned on error: if there were conversion errors or if dlen is too small
+ * to accept the results.  On no match or error, ps is restored to its incoming
+ * state.
+ */
+size_t
+__collate_equiv_match(int equiv_class, wchar_t *dst, size_t dlen, wchar_t start,
+    const char *src, size_t slen, mbstate_t *ps, size_t *rlen)
+{
+	wchar_t w;
+	size_t len, l, clen;
+	int i;
+	wchar_t buf[COLLATE_STR_LEN], *wp;
+	mbstate_t save;
+	const char *s = src;
+	struct xlocale_collate *table;
+	size_t sl = slen;
+	collate_chain_t *ch = NULL;
+
+	table =
+	    (struct xlocale_collate *)__get_locale()->components[XLC_COLLATE];
+	/* POSIX locale */
+	if (table->__collate_load_error)
+		return ((size_t)-1);
+	if (equiv_class == IGNORE_EQUIV_CLASS)
+		equiv_class = 0;
+	if (ps)
+		save = *ps;
+	wp = buf;
+	len = clen = 0;
+	if (start) {
+		*wp++ = start;
+		len = 1;
+	}
+	/* convert up to the max chain length */
+	while (sl > 0 && len < table->info->chain_max_len) {
+		l = mbrtowc(&w, s, sl, ps);
+		if (l == (size_t)-1 || l == (size_t)-2 || l == 0)
+			break;
+		*wp++ = w;
+		s += l;
+		clen += l;
+		sl -= l;
+		len++;
+	}
+	*wp = 0;
+	if (len > 1 && (ch = chainsearch(table, buf, &i)) != NULL) {
+		int e = ch->pri[0];
+		if (e < 0)
+			e = -e;
+		if (e == equiv_class)
+			goto found;
+	}
+	/* try single character */
+	i = 1;
+	if (*buf <= UCHAR_MAX) {
+		if (equiv_class == table->char_pri_table[*buf].pri[0])
+			goto found;
+	} else if (table->info->large_count > 0) {
+		collate_large_t *match;
+		match = largesearch(table, *buf);
+		if (match && equiv_class == match->pri.pri[0])
+			goto found;
+	}
+	/* no match */
+	if (ps)
+		*ps = save;
+	return (0);
+found:
+	/*
+	 * If we converted more than we used, restore to initial
+	 * and reconvert up to what did match.
+	 */
+	if (i < len) {
+		len = i;
+		if (ps)
+			*ps = save;
+		if (start)
+			i--;
+		clen = 0;
+		while (i-- > 0) {
+			l = mbrtowc(&w, src, slen, ps);
+			src += l;
+			clen += l;
+			slen -= l;
+		}
+	}
+	if (dst) {
+		if (dlen < len) {
+			if (ps)
+				*ps = save;
+			return ((size_t)-1);
+		}
+		for (wp = buf; len > 0; len--)
+		    *dst++ = *wp++;
+	}
+	if (rlen)
+		*rlen = clen;
+	return (len);
 }

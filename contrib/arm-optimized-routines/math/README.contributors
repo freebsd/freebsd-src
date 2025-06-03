@@ -1,8 +1,9 @@
 STYLE REQUIREMENTS
 ==================
 
-1. Most code in this sub-directory is expected to be upstreamed into glibc so
-   the GNU Coding Standard and glibc specific conventions should be followed
+1. With the exception of math/aarch64/experimental/, most code in this
+   sub-directory is expected to be upstreamed into glibc so the GNU
+   Coding Standard and glibc specific conventions should be followed
    to ease upstreaming.
 
 2. ABI and symbols: the code should be written so it is suitable for inclusion

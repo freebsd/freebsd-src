@@ -54,6 +54,9 @@ struct sock_list;
 struct ub_packed_rrset_key;
 struct regional;
 
+/** Default value for PROBE_MAXRTO */
+#define PROBE_MAXRTO_DEFAULT 12000
+
 /** List head for strlist processing, used for append operation. */
 struct config_strlist_head {
 	/** first in list of text items */
@@ -160,6 +163,11 @@ struct config_file {
 	int http_nodelay;
 	/** Disable TLS for http sockets downstream */
 	int http_notls_downstream;
+
+	/** port on which to provide DNS over QUIC service */
+	int quic_port;
+	/** size of the quic data, max bytes */
+	size_t quic_size;
 
 	/** outgoing port range number of ports (per thread) */
 	int outgoing_num_ports;
@@ -288,6 +296,8 @@ struct config_file {
 	int harden_large_queries;
 	/** harden against spoofed glue (out of zone data) */
 	int harden_glue;
+	/** harden against unverified glue */
+	int harden_unverified_glue;
 	/** harden against receiving no DNSSEC data for trust anchor */
 	int harden_dnssec_stripped;
 	/** harden against queries that fall under known nxdomain names */
@@ -339,6 +349,8 @@ struct config_file {
 	int use_syslog;
 	/** log timestamp in ascii UTC */
 	int log_time_ascii;
+	/** log timestamp in ISO8601 format */
+	int log_time_iso;
 	/** log queries with one line per query */
 	int log_queries;
 	/** log replies with one line per reply */
@@ -426,8 +438,6 @@ struct config_file {
 	/** serve expired entries only after trying to update the entries and this
 	 *  timeout (in milliseconds) is reached */
 	int serve_expired_client_timeout;
-	/** serve EDE code 3 - Stale Answer (RFC8914) for expired entries */
-	int ede_serve_expired;
 	/** serve original TTLs rather than decrementing ones */
 	int serve_original_ttl;
 	/** nsec3 maximum iterations per key size, string */
@@ -729,18 +739,30 @@ struct config_file {
 #ifdef USE_REDIS
 	/** redis server's IP address or host name */
 	char* redis_server_host;
+	char* redis_replica_server_host;
 	/** redis server's TCP port */
 	int redis_server_port;
+	int redis_replica_server_port;
 	/** redis server's unix path. Or "", NULL if unused */
 	char* redis_server_path;
+	char* redis_replica_server_path;
 	/** redis server's AUTH password. Or "", NULL if unused */
 	char* redis_server_password;
+	char* redis_replica_server_password;
 	/** timeout (in ms) for communication with the redis server */
 	int redis_timeout;
+	int redis_replica_timeout;
+	/** timeout (in ms) for redis commands */
+	int redis_command_timeout;
+	int redis_replica_command_timeout;
+	/** timeout (in ms) for redis connection set up */
+	int redis_connect_timeout;
+	int redis_replica_connect_timeout;
 	/** set timeout on redis records based on DNS response ttl */
 	int redis_expire_records;
 	/** set the redis logical database upon connection */
 	int redis_logical_db;
+	int redis_replica_logical_db;
 #endif
 #endif
 	/** Downstream DNS Cookies */
@@ -760,6 +782,16 @@ struct config_file {
 #endif
 	/** respond with Extended DNS Errors (RFC8914) */
 	int ede;
+	/** serve EDE code 3 - Stale Answer (RFC8914) for expired entries */
+	int ede_serve_expired;
+	/** send DNS Error Reports to upstream reporting agent (RFC9567) */
+	int dns_error_reporting;
+	/** limit on NS RRs in RRset for the iterator scrubber. */
+	size_t iter_scrub_ns;
+	/** limit on CNAME, DNAME RRs in answer for the iterator scrubber. */
+	int iter_scrub_cname;
+	/** limit on upstream queries for an incoming query and subqueries. */
+	int max_global_quota;
 };
 
 /** from cfg username, after daemonize setup performed */
@@ -956,6 +988,10 @@ void config_delete(struct config_file* config);
  * @param config: to apply. Side effect: global constants change.
  */
 void config_apply(struct config_file* config);
+
+/** Apply the relevant changes that rely upon RTT_MAX_TIMEOUT;
+ *  exported for unit test */
+int config_apply_max_rtt(int max_rtt);
 
 /**
  * Find username, sets cfg_uid and cfg_gid.
@@ -1376,8 +1412,39 @@ void w_config_adjust_directory(struct config_file* cfg);
 /** debug option for unit tests. */
 extern int fake_dsa, fake_sha1;
 
-/** see if interface is https, its port number == the https port number */
-int if_is_https(const char* ifname, const char* port, int https_port);
+/** Return true if interface will listen to specific port(s).
+ * @param ifname: the interface as configured in the configuration file.
+ * @param default_port: the default port to use as the interface port if ifname
+ *	does not include a port via the '@' notation.
+ * @param port: port to check for, if 0 it will not be checked.
+ * @param additional_ports: additional configured ports, if any (nonNULL) to
+ *	be checked against.
+ * @return true if one of (port, additional_ports) matches the interface port.
+ */
+int if_listens_on(const char* ifname, int default_port, int port,
+	struct config_strlist* additional_ports);
+
+/** see if interface will listen on https;
+ *  its port number == the https port number */
+int if_is_https(const char* ifname, int default_port, int https_port);
+
+/** see if interface will listen on ssl;
+ *  its port number == the ssl port number or any of the additional ports */
+int if_is_ssl(const char* ifname, int default_port, int ssl_port,
+	struct config_strlist* tls_additional_port);
+
+/** see if interface will listen on PROXYv2;
+ *  its port number == any of the proxy ports number */
+int if_is_pp2(const char* ifname, int default_port,
+	struct config_strlist* proxy_protocol_port);
+
+/** see if interface will listen on DNSCRYPT;
+ *  its port number == the dnscrypt port number */
+int if_is_dnscrypt(const char* ifname, int default_port, int dnscrypt_port);
+
+/** see if interface will listen on quic;
+ *  its port number == the quic port number */
+int if_is_quic(const char* ifname, int default_port, int quic_port);
 
 /**
  * Return true if the config contains settings that enable https.
@@ -1386,14 +1453,18 @@ int if_is_https(const char* ifname, const char* port, int https_port);
  */
 int cfg_has_https(struct config_file* cfg);
 
-/** see if interface is PROXYv2, its port number == the proxy port number */
-int if_is_pp2(const char* ifname, const char* port,
-	struct config_strlist* proxy_protocol_port);
+/**
+ * Return true if the config contains settings that enable quic.
+ * @param cfg: config information.
+ * @return true if quic ports are used for server.
+ */
+int cfg_has_quic(struct config_file* cfg);
 
-/** see if interface is DNSCRYPT, its port number == the dnscrypt port number */
-int if_is_dnscrypt(const char* ifname, const char* port, int dnscrypt_port);
 #ifdef USE_LINUX_IP_LOCAL_PORT_RANGE
 #define LINUX_IP_LOCAL_PORT_RANGE_PATH "/proc/sys/net/ipv4/ip_local_port_range"
 #endif
+
+/** get memory for string */
+size_t getmem_str(char* str);
 
 #endif /* UTIL_CONFIG_FILE_H */

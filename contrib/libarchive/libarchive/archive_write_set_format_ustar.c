@@ -183,7 +183,7 @@ archive_write_set_format_ustar(struct archive *_a)
 		return (ARCHIVE_FATAL);
 	}
 
-	ustar = (struct ustar *)calloc(1, sizeof(*ustar));
+	ustar = calloc(1, sizeof(*ustar));
 	if (ustar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate ustar data");
@@ -254,7 +254,11 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 		sconv = ustar->opt_sconv;
 
 	/* Sanity check. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (archive_entry_pathname_w(entry) == NULL) {
+#else
 	if (archive_entry_pathname(entry) == NULL) {
+#endif
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Can't record entry in tar file without pathname");
 		return (ARCHIVE_FAILED);
@@ -263,7 +267,7 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 	/* Only regular files (not hardlinks) have data. */
 	if (archive_entry_hardlink(entry) != NULL ||
 	    archive_entry_symlink(entry) != NULL ||
-	    !(archive_entry_filetype(entry) == AE_IFREG))
+	    archive_entry_filetype(entry) != AE_IFREG)
 		archive_entry_set_size(entry, 0);
 
 	if (AE_IFDIR == archive_entry_filetype(entry)) {

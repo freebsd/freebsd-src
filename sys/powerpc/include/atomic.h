@@ -502,7 +502,7 @@ atomic_readandclear_long(volatile u_long *addr)
  */
 #define	ATOMIC_STORE_LOAD(TYPE)					\
 static __inline u_##TYPE					\
-atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
+atomic_load_acq_##TYPE(const volatile u_##TYPE *p)		\
 {								\
 	u_##TYPE v;						\
 								\
@@ -534,10 +534,10 @@ ATOMIC_STORE_LOAD(long)
 #define	atomic_store_rel_ptr	atomic_store_rel_long
 #else
 static __inline u_long
-atomic_load_acq_long(volatile u_long *addr)
+atomic_load_acq_long(const volatile u_long *addr)
 {
 
-	return ((u_long)atomic_load_acq_int((volatile u_int *)addr));
+	return ((u_long)atomic_load_acq_int((const volatile u_int *)addr));
 }
 
 static __inline void
@@ -1093,11 +1093,15 @@ atomic_testandset_acq_long(volatile u_long *p, u_int v)
 	return (a);
 }
 
-#define	atomic_testandclear_int		atomic_testandclear_int
-#define	atomic_testandset_int		atomic_testandset_int
-#define	atomic_testandclear_long	atomic_testandclear_long
-#define	atomic_testandset_long		atomic_testandset_long
-#define	atomic_testandset_acq_long	atomic_testandset_acq_long
+#ifdef __powerpc64__
+#define	atomic_testandclear_ptr		atomic_testandclear_long
+#define	atomic_testandset_ptr		atomic_testandset_long
+#else
+#define	atomic_testandclear_ptr(p,v)					\
+	atomic_testandclear_32((volatile u_int *)(p), v)
+#define	atomic_testandset_ptr(p,v)					\
+	atomic_testandset_32((volatile u_int *)(p), v)
+#endif
 
 static __inline void
 atomic_thread_fence_acq(void)

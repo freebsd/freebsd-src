@@ -1,0 +1,108 @@
+server:
+	verbosity: 4
+	num-threads: 1
+	interface: 127.0.0.1
+	port: @PORT@
+	use-syslog: no
+	directory: ""
+	pidfile: "unbound.pid"
+	chroot: ""
+	username: ""
+	do-not-query-localhost: no
+	trust-anchor: "ta1.example.com DS 55566 8 2 9c148338951ce1c3b5cd3da532f3d90dfcf92595148022f2c2fd98e5deee90af"
+	trust-anchor: "ta3.example.com DS 55567 8 2 9c148338951ce1c3b5cd3da532f3d90dfcf92595148022f2c2fd98e5deee90af"
+	trust-anchor: "ta4.example.com DS 55566 8 2 9c148338951ce1c3b5cd3da532f3d90dfcf92595148022f2c2fd98e5deee90af"
+	domain-insecure: "insec1.ta1.example.com"
+	domain-insecure: "insec3.ta1.example.com"
+	domain-insecure: "insec4.ta1.example.com"
+
+forward-zone:
+	name: "."
+	# No addresses makes the server return SERVFAIL for deleted zones.
+	#forward-addr: "127.0.0.1@12345"
+
+remote-control:
+	control-enable: yes
+	control-interface: @CONTROL_PATH@/controlpipe.@CONTROL_PID@
+	control-use-cert: no
+
+forward-zone:
+	name: "example1.org"
+	forward-addr: "127.0.0.1@@NS2_PORT@"
+
+forward-zone:
+	name: "example2.org"
+	forward-addr: "127.0.0.1@@NS1_PORT@"
+
+forward-zone:
+	name: "example3.org"
+	forward-addr: "127.0.0.1@@NS2_PORT@"
+
+forward-zone:
+	name: "example4.org"
+	forward-addr: "127.0.0.1@@NS1_PORT@"
+
+forward-zone:
+	name: "example5.org"
+	forward-addr: "127.0.0.1@@NS2_PORT@"
+
+forward-zone:
+	name: "example6.org"
+	forward-addr: "127.0.0.1@@NS1_PORT@"
+
+stub-zone:
+	name: "stub1.org"
+	stub-addr: "127.0.0.1@@NS2_PORT@"
+	stub-prime: no
+
+stub-zone:
+	name: "stub2.org"
+	stub-addr: "127.0.0.1@@NS1_PORT@"
+	stub-prime: no
+
+stub-zone:
+	name: "stub3.org"
+	stub-addr: "127.0.0.1@@NS2_PORT@"
+	stub-prime: no
+
+stub-zone:
+	name: "stub4.org"
+	stub-addr: "127.0.0.1@@NS1_PORT@"
+	stub-prime: no
+
+stub-zone:
+	name: "stub5.org"
+	stub-addr: "127.0.0.1@@NS2_PORT@"
+	stub-prime: no
+
+stub-zone:
+	name: "stub6.org"
+	stub-addr: "127.0.0.1@@NS1_PORT@"
+	stub-prime: no
+
+auth-zone:
+	name: "auth1.org"
+	zonefile: "auth1.zone"
+
+auth-zone:
+	name: "auth3.org"
+	zonefile: "auth2.zone"
+
+auth-zone:
+	name: "auth4.org"
+	zonefile: "auth2.zone"
+
+auth-zone:
+	name: "auth5.org"
+	zonefile: "auth5.zone"
+	primary: 127.0.0.1@@NS1_PORT@
+
+auth-zone:
+	name: "auth7.org"
+	zonefile: "auth7.zone"
+	primary: 127.0.0.1@@NS2_PORT@
+
+auth-zone:
+	name: "auth8.org"
+	zonefile: "auth8.zone"
+	primary: 127.0.0.1@@NS1_PORT@

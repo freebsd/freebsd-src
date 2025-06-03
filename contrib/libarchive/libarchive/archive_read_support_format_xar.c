@@ -36,6 +36,10 @@
 #include <bsdxml.h>
 #elif HAVE_EXPAT_H
 #include <expat.h>
+#elif HAVE_XMLLITE_H
+#include <objidl.h>
+#include <initguid.h>
+#include <xmllite.h>
 #endif
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
@@ -56,12 +60,13 @@
 #include "archive_read_private.h"
 
 #if (!defined(HAVE_LIBXML_XMLREADER_H) && \
-     !defined(HAVE_BSDXML_H) && !defined(HAVE_EXPAT_H)) ||\
+     !defined(HAVE_BSDXML_H) && !defined(HAVE_EXPAT_H) && \
+     !defined(HAVE_XMLLITE_H)) ||\
 	!defined(HAVE_ZLIB_H) || \
 	!defined(ARCHIVE_HAS_MD5) || !defined(ARCHIVE_HAS_SHA1)
 /*
  * xar needs several external libraries.
- *   o libxml2 or expat --- XML parser
+ *   o libxml2, expat or (Windows only) xmllite --- XML parser
  *   o openssl or MD5/SHA1 hash function
  *   o zlib
  *   o bzlib2 (option)
@@ -416,7 +421,7 @@ static void	unknowntag_end(struct xar *, const char *);
 static int	xml_start(struct archive_read *,
     const char *, struct xmlattr_list *);
 static void	xml_end(void *, const char *);
-static void	xml_data(void *, const char *, int);
+static void	xml_data(void *, const char *, size_t);
 static int	xml_parse_file_flags(struct xar *, const char *);
 static int	xml_parse_file_ext2(struct xar *, const char *);
 #if defined(HAVE_LIBXML_XMLREADER_H)
@@ -438,6 +443,8 @@ static void	expat_start_cb(void *, const XML_Char *, const XML_Char **);
 static void	expat_end_cb(void *, const XML_Char *);
 static void	expat_data_cb(void *, const XML_Char *, int);
 static int	expat_read_toc(struct archive_read *);
+#elif defined(HAVE_XMLLITE_H)
+static int	xmllite_read_toc(struct archive_read *);
 #endif
 
 int
@@ -450,7 +457,7 @@ archive_read_support_format_xar(struct archive *_a)
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_xar");
 
-	xar = (struct xar *)calloc(1, sizeof(*xar));
+	xar = calloc(1, sizeof(*xar));
 	if (xar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate xar data");
@@ -589,6 +596,8 @@ read_toc(struct archive_read *a)
 	r = xml2_read_toc(a);
 #elif defined(HAVE_BSDXML_H) || defined(HAVE_EXPAT_H)
 	r = expat_read_toc(a);
+#elif defined(HAVE_XMLLITE_H)
+	r = xmllite_read_toc(a);
 #endif
 	if (r != ARCHIVE_OK)
 		return (r);
@@ -1110,17 +1119,17 @@ atohex(unsigned char *b, size_t bsize, const char *p, size_t psize)
 	while (bsize && psize > 1) {
 		unsigned char x;
 
-		if (p[0] >= 'a' && p[0] <= 'z')
+		if (p[0] >= 'a' && p[0] <= 'f')
 			x = (p[0] - 'a' + 0x0a) << 4;
-		else if (p[0] >= 'A' && p[0] <= 'Z')
+		else if (p[0] >= 'A' && p[0] <= 'F')
 			x = (p[0] - 'A' + 0x0a) << 4;
 		else if (p[0] >= '0' && p[0] <= '9')
 			x = (p[0] - '0') << 4;
 		else
 			return (-1);
-		if (p[1] >= 'a' && p[1] <= 'z')
+		if (p[1] >= 'a' && p[1] <= 'f')
 			x |= p[1] - 'a' + 0x0a;
-		else if (p[1] >= 'A' && p[1] <= 'Z')
+		else if (p[1] >= 'A' && p[1] <= 'F')
 			x |= p[1] - 'A' + 0x0a;
 		else if (p[1] >= '0' && p[1] <= '9')
 			x |= p[1] - '0';
@@ -1242,7 +1251,7 @@ heap_add_entry(struct archive_read *a,
 			return (ARCHIVE_FATAL);
 		}
 		new_pending_files = (struct xar_file **)
-		    malloc(new_size * sizeof(new_pending_files[0]));
+		    calloc(new_size, sizeof(new_pending_files[0]));
 		if (new_pending_files == NULL) {
 			archive_set_error(&a->archive,
 			    ENOMEM, "Out of memory");
@@ -1616,9 +1625,9 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 	switch (xar->rd_encoding) {
 	case GZIP:
 		xar->stream.next_in = (Bytef *)(uintptr_t)b;
-		xar->stream.avail_in = avail_in;
+		xar->stream.avail_in = (uInt)avail_in;
 		xar->stream.next_out = (unsigned char *)outbuff;
-		xar->stream.avail_out = avail_out;
+		xar->stream.avail_out = (uInt)avail_out;
 		r = inflate(&(xar->stream), 0);
 		switch (r) {
 		case Z_OK: /* Decompressor made some progress.*/
@@ -1635,9 +1644,9 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	case BZIP2:
 		xar->bzstream.next_in = (char *)(uintptr_t)b;
-		xar->bzstream.avail_in = avail_in;
+		xar->bzstream.avail_in = (unsigned int)avail_in;
 		xar->bzstream.next_out = (char *)outbuff;
-		xar->bzstream.avail_out = avail_out;
+		xar->bzstream.avail_out = (unsigned int)avail_out;
 		r = BZ2_bzDecompress(&(xar->bzstream));
 		switch (r) {
 		case BZ_STREAM_END: /* Found end of stream. */
@@ -1745,15 +1754,6 @@ decompression_cleanup(struct archive_read *a)
 #if defined(HAVE_LZMA_H) && defined(HAVE_LIBLZMA)
 	if (xar->lzstream_valid)
 		lzma_end(&(xar->lzstream));
-#elif defined(HAVE_LZMA_H) && defined(HAVE_LIBLZMA)
-	if (xar->lzstream_valid) {
-		if (lzmadec_end(&(xar->lzstream)) != LZMADEC_OK) {
-			archive_set_error(&a->archive,
-			    ARCHIVE_ERRNO_MISC,
-			    "Failed to clean up lzmadec decompressor");
-			r = ARCHIVE_FATAL;
-		}
-	}
 #endif
 	return (r);
 }
@@ -2070,7 +2070,7 @@ xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 					if (xar->file->link > 0)
 						if (add_link(a, xar, xar->file) != ARCHIVE_OK) {
 							return (ARCHIVE_FATAL);
-						};
+						}
 				}
 			}
 		}
@@ -2674,7 +2674,7 @@ is_string(const char *known, const char *data, size_t len)
 }
 
 static void
-xml_data(void *userData, const char *s, int len)
+xml_data(void *userData, const char *s, size_t len)
 {
 	struct archive_read *a;
 	struct xar *xar;
@@ -2707,6 +2707,9 @@ xml_data(void *userData, const char *s, int len)
 
 	switch (xar->xmlsts) {
 	case FILE_NAME:
+		if (xar->file->has & HAS_PATHNAME)
+			break;
+
 		if (xar->file->parent != NULL) {
 			archive_string_concat(&(xar->file->pathname),
 			    &(xar->file->parent->pathname));
@@ -2847,7 +2850,6 @@ xml_data(void *userData, const char *s, int len)
 	case FILE_EA_FSTYPE:
 		xar->file->has |= HAS_XATTR;
 		archive_strncpy(&(xar->xattr->fstype), s, len);
-		break;
 		break;
 	case FILE_ACL_DEFAULT:
 	case FILE_ACL_ACCESS:
@@ -3190,8 +3192,11 @@ xml2_read_toc(struct archive_read *a)
 			if (r == ARCHIVE_OK)
 				r = xml_start(a, name, &list);
 			xmlattr_cleanup(&list);
-			if (r != ARCHIVE_OK)
+			if (r != ARCHIVE_OK) {
+				xmlFreeTextReader(reader);
+				xmlCleanupParser();
 				return (r);
+			}
 			if (empty)
 				xml_end(a, name);
 			break;
@@ -3280,7 +3285,7 @@ expat_data_cb(void *userData, const XML_Char *s, int len)
 {
 	struct expat_userData *ud = (struct expat_userData *)userData;
 
-	xml_data(ud->archive, s, len);
+	xml_data(ud->archive, s, (size_t)len);
 }
 
 static int
@@ -3316,14 +3321,16 @@ expat_read_toc(struct archive_read *a)
 
 		d = NULL;
 		r = rd_contents(a, &d, &outbytes, &used, xar->toc_remaining);
-		if (r != ARCHIVE_OK)
+		if (r != ARCHIVE_OK) {
+			XML_ParserFree(parser);
 			return (r);
+		}
 		xar->toc_remaining -= used;
 		xar->offset += used;
 		xar->toc_total += outbytes;
 		PRINT_TOC(d, outbytes);
 
-		xr = XML_Parse(parser, d, outbytes, xar->toc_remaining == 0);
+		xr = XML_Parse(parser, d, (int)outbytes, xar->toc_remaining == 0);
 		__archive_read_consume(a, used);
 		if (xr == XML_STATUS_ERROR) {
 			XML_ParserFree(parser);
@@ -3335,6 +3342,326 @@ expat_read_toc(struct archive_read *a)
 	XML_ParserFree(parser);
 	return (ud.state);
 }
-#endif /* defined(HAVE_BSDXML_H) || defined(HAVE_EXPAT_H) */
+
+#elif defined(HAVE_XMLLITE_H)
+
+struct ArchiveStreamAdapter {
+	const ISequentialStreamVtbl *lpVtbl; /* see asaStaticVtable */
+	struct archive_read *a;
+};
+
+static HRESULT STDMETHODCALLTYPE
+asaQueryInterface(ISequentialStream *this, REFIID riid, void **ppv)
+{
+	if (!IsEqualIID(riid, &IID_ISequentialStream)) {
+		*ppv = NULL;
+		return E_NOINTERFACE;
+	}
+	*ppv = this;
+	return S_OK;
+}
+
+/*
+ * We can dispense with reference counting as we tightly manage the lifetime
+ * of an ArchiveStreamAdapter.
+ */
+static ULONG STDMETHODCALLTYPE
+asaAddRef(ISequentialStream *this)
+{
+	(void)this; /* UNUSED */
+	return ULONG_MAX;
+}
+
+static ULONG STDMETHODCALLTYPE
+asaRelease(ISequentialStream *this)
+{
+	(void)this; /* UNUSED */
+	return ULONG_MAX;
+}
+
+static HRESULT STDMETHODCALLTYPE
+asaRead(ISequentialStream *this, void *pv, ULONG cb, ULONG *pcbRead)
+{
+	struct ArchiveStreamAdapter *asa = (struct ArchiveStreamAdapter *)this;
+	struct archive_read *a;
+	struct xar *xar;
+	const void *d = pv;
+	size_t outbytes = cb;
+	size_t used = 0;
+	int r;
+
+	a = asa->a;
+	xar = (struct xar *)(a->format->data);
+
+	*pcbRead = 0;
+
+	if (xar->toc_remaining <= 0)
+		return cb != 0 ? S_FALSE : S_OK;
+
+	r = rd_contents(a, &d, &outbytes, &used, xar->toc_remaining);
+	if (r != ARCHIVE_OK)
+		return E_FAIL;
+	__archive_read_consume(a, used);
+	xar->toc_remaining -= used;
+	xar->offset += used;
+	xar->toc_total += outbytes;
+	PRINT_TOC(pv, outbytes);
+
+	*pcbRead = (ULONG)outbytes;
+	return outbytes < cb ? S_FALSE : S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+asaWrite(ISequentialStream *this, const void *pv, ULONG cb, ULONG *pcbWritten)
+{
+	(void)this; /* UNUSED */
+	(void)pv; /* UNUSED */
+	(void)cb; /* UNUSED */
+	if (!pcbWritten) return E_INVALIDARG;
+	*pcbWritten = 0;
+	return E_NOTIMPL;
+}
+
+static const ISequentialStreamVtbl asaStaticVtable = {
+	.QueryInterface = asaQueryInterface,
+	.AddRef = asaAddRef,
+	.Release = asaRelease,
+	.Read = asaRead,
+	.Write = asaWrite,
+};
+
+static int
+xmllite_create_stream_adapter(struct archive_read *a,
+    struct ArchiveStreamAdapter **pasa)
+{
+	struct ArchiveStreamAdapter *asa =
+	    calloc(1, sizeof(struct ArchiveStreamAdapter));
+	if (!asa) {
+		archive_set_error(&(a->archive), ENOMEM, "Out of memory");
+		return (ARCHIVE_FATAL);
+	}
+	asa->lpVtbl = &asaStaticVtable;
+	asa->a = a;
+	*pasa = asa;
+	return (ARCHIVE_OK);
+}
+
+typedef HRESULT(STDMETHODCALLTYPE *xmllite_wstr_func)(IXmlReader *, LPCWSTR *,
+    UINT *);
+
+/*
+ * Returns an narrow-char archive_string in *as after calling
+ * the wide-char COM API callee() on the XmlReader reader.
+ * Sets an appropriate error on the archive if it fails.
+ */
+static int
+xmllite_call_return_as(struct archive_read *a, struct archive_string *as,
+    IXmlReader *reader, xmllite_wstr_func callee)
+{
+	LPCWSTR wcs;
+	UINT wlen;
+
+	if (FAILED(callee(reader, &wcs, &wlen))) {
+		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+		    "Failed to read XML data");
+		return (ARCHIVE_FATAL);
+	}
+
+	archive_string_init(as);
+	if (archive_string_append_from_wcs(as, wcs, (size_t)wlen) < 0) {
+		archive_string_free(as);
+		archive_set_error(&(a->archive), ENOMEM, "Out of memory");
+		return (ARCHIVE_FATAL);
+	}
+
+	return (ARCHIVE_OK);
+}
+
+static char *
+xmllite_call_return_mbs(struct archive_read *a, IXmlReader *reader,
+    xmllite_wstr_func callee)
+{
+	char *ret;
+	struct archive_string as;
+
+	if (xmllite_call_return_as(a, &as, reader, callee) < 0) {
+		return NULL;
+	}
+
+	ret = strdup(as.s);
+	archive_string_free(&as);
+	if (ret == NULL) {
+		archive_set_error(&(a->archive), ENOMEM, "Out of memory");
+		return NULL;
+	}
+	return ret;
+}
+
+static int
+xmllite_xmlattr_setup(struct archive_read *a,
+    struct xmlattr_list *list, IXmlReader *reader)
+{
+	struct xmlattr *attr;
+	HRESULT hr;
+
+	list->first = NULL;
+	list->last = &(list->first);
+	hr = reader->lpVtbl->MoveToFirstAttribute(reader);
+	/* Contrary to other checks, we're not using SUCCEEDED/FAILED
+	 * because MoveToNextAttribute returns *S_FALSE* (success!)
+	 * when it runs out of attributes.
+	 */
+	while (hr == S_OK) {
+		/* Attributes implied as being default by the DTD are ignored */
+		if (reader->lpVtbl->IsDefault(reader))
+			continue;
+
+		attr = malloc(sizeof*(attr));
+		if (attr == NULL) {
+			archive_set_error(&(a->archive), ENOMEM,
+			    "Out of memory");
+			return (ARCHIVE_FATAL);
+		}
+
+		attr->name = xmllite_call_return_mbs(a, reader,
+		    reader->lpVtbl->GetLocalName);
+		if (attr->name == NULL) {
+			free(attr);
+			/* xmllite_call_return_mbs sets an appropriate error */
+			return (ARCHIVE_FATAL);
+		}
+
+		attr->value = xmllite_call_return_mbs(a, reader,
+		    reader->lpVtbl->GetValue);
+		if (attr->value == NULL) {
+			free(attr->name);
+			free(attr);
+			/* xmllite_call_return_mbs sets an appropriate error */
+			return (ARCHIVE_FATAL);
+		}
+
+		attr->next = NULL;
+		*list->last = attr;
+		list->last = &(attr->next);
+		hr = reader->lpVtbl->MoveToNextAttribute(reader);
+	}
+
+	if (FAILED(hr)) {
+		archive_set_error(&(a->archive), ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Failed to parse XML document");
+		return (ARCHIVE_FAILED);
+	}
+
+	return (ARCHIVE_OK);
+}
+
+static int
+xmllite_read_toc(struct archive_read *a)
+{
+	struct ArchiveStreamAdapter *asa = NULL;
+	char *name;
+	struct archive_string as;
+	BOOL empty;
+	XmlNodeType type;
+	struct xmlattr_list list;
+	IXmlReader *reader = NULL;
+	int r = ARCHIVE_OK;
+
+	if ((r = xmllite_create_stream_adapter(a, &asa)) < 0) {
+		goto out;
+	}
+
+	if (FAILED(CreateXmlReader(&IID_IXmlReader, (void **)&reader, NULL))) {
+		r = ARCHIVE_FATAL;
+		goto out;
+	}
+
+	if (FAILED(reader->lpVtbl->SetInput(reader, (IUnknown *)asa))) {
+		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+		    "Failed to prepare XML stream");
+		r = ARCHIVE_FATAL;
+		goto out;
+	}
+
+	while (!reader->lpVtbl->IsEOF(reader)) {
+		if (FAILED(reader->lpVtbl->Read(reader, &type))) {
+			archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+			    "Failed to read XML stream");
+			r = ARCHIVE_FATAL;
+			goto out;
+		}
+
+		switch (type) {
+		case XmlNodeType_Element:
+			empty = reader->lpVtbl->IsEmptyElement(reader);
+
+			name = xmllite_call_return_mbs(a, reader,
+			    reader->lpVtbl->GetLocalName);
+			if (name == NULL) {
+				/* xmllite_call_return_mbs sets an appropriate error */
+				r = ARCHIVE_FATAL;
+				goto out;
+			}
+
+			r = xmllite_xmlattr_setup(a, &list, reader);
+			if (r == ARCHIVE_OK) {
+				r = xml_start(a, name, &list);
+			}
+			xmlattr_cleanup(&list);
+			if (r == ARCHIVE_OK && empty) {
+				xml_end(a, name);
+			}
+
+			free(name);
+			if (r != ARCHIVE_OK) {
+				goto out;
+			}
+
+			break;
+		case XmlNodeType_EndElement:
+			name = xmllite_call_return_mbs(a, reader,
+			    reader->lpVtbl->GetLocalName);
+			if (name == NULL) {
+				/* xmllite_call_return_mbs sets an appropriate error */
+				r = ARCHIVE_FATAL;
+				goto out;
+			}
+
+			xml_end(a, name);
+			free(name);
+			break;
+		case XmlNodeType_Text:
+			r = xmllite_call_return_as(a, &as, reader,
+			    reader->lpVtbl->GetValue);
+			if (r != ARCHIVE_OK) {
+				/* xmllite_call_return_as sets an appropriate error */
+				goto out;
+			}
+
+			xml_data(a, as.s, (int)archive_strlen(&as));
+			archive_string_free(&as);
+
+		case XmlNodeType_None:
+		case XmlNodeType_Attribute:
+		case XmlNodeType_CDATA:
+		case XmlNodeType_ProcessingInstruction:
+		case XmlNodeType_Comment:
+		case XmlNodeType_DocumentType:
+		case XmlNodeType_Whitespace:
+		case XmlNodeType_XmlDeclaration:
+		default:
+			break;
+		}
+	}
+
+out:
+	if (reader)
+		reader->lpVtbl->Release(reader);
+
+	free(asa);
+
+	return r;
+}
+#endif /* defined(XMLLITE) */
 
 #endif /* Support xar format */

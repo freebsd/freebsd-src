@@ -3678,10 +3678,13 @@ nextepid:
 	 */
 	buf->dtbd_drops = 0;
 
-	xo_open_instance("probes");
-	dt_oformat_drop(dtp, cpu);
+	if (dtp->dt_oformat) {
+		xo_open_instance("probes");
+		dt_oformat_drop(dtp, cpu);
+	}
 	rval = dt_handle_cpudrop(dtp, cpu, DTRACEDROP_PRINCIPAL, drops);
-	xo_close_instance("probes");
+	if (dtp->dt_oformat)
+		xo_close_instance("probes");
 
 	return (rval);
 }
@@ -3949,8 +3952,8 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp,
 		return (rval);
 	}
 
-	if (max_ncpus == 0)
-		max_ncpus = dt_sysconf(dtp, _SC_CPUID_MAX) + 1;
+	if (max_ncpus == 0 && (max_ncpus = dt_cpu_maxid(dtp) + 1) <= 0)
+		return (-1);
 
 	for (i = 0; i < max_ncpus; i++) {
 		dtrace_bufdesc_t *nbuf;
@@ -4040,8 +4043,8 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 	if (!dtp->dt_active)
 		return (dt_set_errno(dtp, EINVAL));
 
-	if (max_ncpus == 0)
-		max_ncpus = dt_sysconf(dtp, _SC_CPUID_MAX) + 1;
+	if (max_ncpus == 0 && (max_ncpus = dt_cpu_maxid(dtp) + 1) <= 0)
+		return (-1);
 
 	if (pf == NULL)
 		pf = (dtrace_consume_probe_f *)dt_nullprobe;
@@ -4187,11 +4190,15 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 		for (i = 0; i < max_ncpus; i++) {
 			if (drops[i] != 0) {
 				int error;
-				xo_open_instance("probes");
-				dt_oformat_drop(dtp, i);
+
+				if (dtp->dt_oformat) {
+					xo_open_instance("probes");
+					dt_oformat_drop(dtp, i);
+				}
 				error = dt_handle_cpudrop(dtp, i,
 				    DTRACEDROP_PRINCIPAL, drops[i]);
-				xo_close_instance("probes");
+				if (dtp->dt_oformat)
+					xo_close_instance("probes");
 				if (error != 0)
 					return (error);
 			}

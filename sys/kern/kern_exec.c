@@ -225,8 +225,7 @@ sys_execve(struct thread *td, struct execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
-	    uap->argv, uap->envv);
+	error = exec_copyin_args(&args, uap->fname, uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &args, NULL, oldvmspace);
 	post_execve(td, error, oldvmspace);
@@ -251,8 +250,7 @@ sys_fexecve(struct thread *td, struct fexecve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_args(&args, NULL, UIO_SYSSPACE,
-	    uap->argv, uap->envv);
+	error = exec_copyin_args(&args, NULL, uap->argv, uap->envv);
 	if (error == 0) {
 		args.fd = uap->fd;
 		error = kern_execve(td, &args, NULL, oldvmspace);
@@ -282,8 +280,7 @@ sys___mac_execve(struct thread *td, struct __mac_execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
-	    uap->argv, uap->envv);
+	error = exec_copyin_args(&args, uap->fname, uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &args, uap->mac_p, oldvmspace);
 	post_execve(td, error, oldvmspace);
@@ -354,7 +351,16 @@ kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	    exec_args_get_begin_envv(args) - args->begin_argv);
 	AUDIT_ARG_ENVV(exec_args_get_begin_envv(args), args->envc,
 	    args->endp - exec_args_get_begin_envv(args));
-
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_ARGS)) {
+		ktrdata(KTR_ARGS, args->begin_argv,
+		    exec_args_get_begin_envv(args) - args->begin_argv);
+        }
+	if (KTRPOINT(td, KTR_ENVS)) {
+		ktrdata(KTR_ENVS, exec_args_get_begin_envv(args),
+		    args->endp - exec_args_get_begin_envv(args));
+        }
+#endif
 	/* Must have at least one argument. */
 	if (args->argc == 0) {
 		exec_free_args(args);
@@ -803,6 +809,7 @@ interpret:
 	 * it that it now has its own resources back
 	 */
 	p->p_flag |= P_EXEC;
+	td->td_pflags2 &= ~TDP2_UEXTERR;
 	if ((p->p_flag2 & P2_NOTRACE_EXEC) == 0)
 		p->p_flag2 &= ~P2_NOTRACE;
 	if ((p->p_flag2 & P2_STKGAP_DISABLE_EXEC) == 0)
@@ -1231,7 +1238,7 @@ exec_map_stack(struct image_params *imgp)
 	}
 	error = vm_map_find(map, NULL, 0, &stack_addr, (vm_size_t)ssiz,
 	    sv->sv_usrstack, find_space, stack_prot, VM_PROT_ALL,
-	    MAP_STACK_GROWS_DOWN);
+	    MAP_STACK_AREA);
 	if (error != KERN_SUCCESS) {
 		uprintf("exec_new_vmspace: mapping stack size %#jx prot %#x "
 		    "failed, mach error %d errno %d\n", (uintmax_t)ssiz,
@@ -1319,7 +1326,7 @@ out:
  */
 int
 exec_copyin_args(struct image_args *args, const char *fname,
-    enum uio_seg segflg, char **argv, char **envv)
+    char **argv, char **envv)
 {
 	u_long arg, env;
 	int error;
@@ -1339,7 +1346,7 @@ exec_copyin_args(struct image_args *args, const char *fname,
 	/*
 	 * Copy the file name.
 	 */
-	error = exec_args_add_fname(args, fname, segflg);
+	error = exec_args_add_fname(args, fname, UIO_USERSPACE);
 	if (error != 0)
 		goto err_exit;
 
@@ -1466,7 +1473,7 @@ exec_free_args_kva(void *cookie)
 }
 
 static void
-exec_args_kva_lowmem(void *arg __unused)
+exec_args_kva_lowmem(void *arg __unused, int flags __unused)
 {
 	SLIST_HEAD(, exec_args_kva) head;
 	struct exec_args_kva *argkva;

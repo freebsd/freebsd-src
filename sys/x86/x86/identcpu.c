@@ -111,12 +111,16 @@ char	cpu_vendor[20];		/* CPU Origin code */
 u_int	cpu_vendor_id;		/* CPU vendor ID */
 u_int	cpu_mxcsr_mask;		/* Valid bits in mxcsr */
 u_int	cpu_clflush_line_size = 32;
+/* leaf 7 %ecx = 0 */
 u_int	cpu_stdext_feature;	/* %ebx */
 u_int	cpu_stdext_feature2;	/* %ecx */
 u_int	cpu_stdext_feature3;	/* %edx */
+/* leaf 7 %ecx = 1 */
+u_int	cpu_stdext_feature4;	/* %eax */
 uint64_t cpu_ia32_arch_caps;
 u_int	cpu_max_ext_state_size;
 u_int	cpu_mon_mwait_flags;	/* MONITOR/MWAIT flags (CPUID.05H.ECX) */
+u_int	cpu_mon_mwait_edx;	/* MONITOR/MWAIT supported on AMD (CPUID.05H.EDX) */
 u_int	cpu_mon_min_size;	/* MONITOR minimum range size, bytes */
 u_int	cpu_mon_max_size;	/* MONITOR minimum range size, bytes */
 u_int	cpu_maxphyaddr;		/* Max phys addr width in bits */
@@ -1042,6 +1046,16 @@ printcpuinfo(void)
 				       "\040SSBD"
 				       );
 			}
+#define	STDEXT4_MASK	(CPUID_STDEXT4_LASS | CPUID_STDEXT4_LAM)
+			if ((cpu_stdext_feature4 & STDEXT4_MASK) != 0) {
+				printf("\n  Structured Extended Features4=0x%b",
+				    cpu_stdext_feature4 & STDEXT4_MASK,
+				       "\020"
+				       "\007LASS"
+				       "\033LAM"
+				       );
+			}
+#undef STDEXT4_MASK
 
 			if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
 				cpuid_count(0xd, 0x1, regs);
@@ -1561,7 +1575,7 @@ identify_cpu1(void)
 void
 identify_cpu2(void)
 {
-	u_int regs[4], cpu_stdext_disable;
+	u_int regs[4], cpu_stdext_disable, max_eax_l7;
 
 	if (cpu_high >= 6) {
 		cpuid_count(6, 0, regs);
@@ -1574,6 +1588,7 @@ identify_cpu2(void)
 	if (cpu_high >= 7) {
 		cpuid_count(7, 0, regs);
 		cpu_stdext_feature = regs[1];
+		max_eax_l7 = regs[0];
 
 		/*
 		 * Some hypervisors failed to filter out unsupported
@@ -1590,6 +1605,11 @@ identify_cpu2(void)
 
 		if ((cpu_stdext_feature3 & CPUID_STDEXT3_ARCH_CAP) != 0)
 			cpu_ia32_arch_caps = rdmsr(MSR_IA32_ARCH_CAP);
+
+		if (max_eax_l7 >= 1) {
+			cpuid_count(7, 1, regs);
+			cpu_stdext_feature4 = regs[0];
+		}
 	}
 }
 
@@ -1634,6 +1654,7 @@ finishidentcpu(void)
 	if (cpu_high >= 5 && (cpu_feature2 & CPUID2_MON) != 0) {
 		do_cpuid(5, regs);
 		cpu_mon_mwait_flags = regs[2];
+		cpu_mon_mwait_edx = regs[3];
 		cpu_mon_min_size = regs[0] &  CPUID5_MON_MIN_SIZE;
 		cpu_mon_max_size = regs[1] &  CPUID5_MON_MAX_SIZE;
 	}

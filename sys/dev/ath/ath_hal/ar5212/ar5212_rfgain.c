@@ -324,7 +324,7 @@ ar5212GetRfgain(struct ath_hal *ah)
 				ahp->ah_rfgainState = HAL_RFGAIN_NEED_CHANGE;
 				/* for ap51 */
 				ahp->ah_cwCalRequire = AH_TRUE;
-				/* Request IQ recalibration for temperature chang */
+				/* Request IQ recalibration for temperature change */
 				ahp->ah_bIQCalibration = IQ_CAL_INACTIVE;
 			}
 		}

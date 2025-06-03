@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-hostbased.c,v 1.52 2023/03/05 05:34:09 dtucker Exp $ */
+/* $OpenBSD: auth2-hostbased.c,v 1.53 2024/05/17 00:30:23 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -54,6 +54,7 @@
 
 /* import */
 extern ServerOptions options;
+extern struct authmethod_cfg methodcfg_hostbased;
 
 static int
 userauth_hostbased(struct ssh *ssh, const char *method)
@@ -145,10 +146,10 @@ userauth_hostbased(struct ssh *ssh, const char *method)
 
 	/* test for allowed key and correct signature */
 	authenticated = 0;
-	if (PRIVSEP(hostbased_key_allowed(ssh, authctxt->pw, cuser,
-	    chost, key)) &&
-	    PRIVSEP(sshkey_verify(key, sig, slen,
-	    sshbuf_ptr(b), sshbuf_len(b), pkalg, ssh->compat, NULL)) == 0)
+	if (mm_hostbased_key_allowed(ssh, authctxt->pw, cuser,
+	    chost, key) &&
+	    mm_sshkey_verify(key, sig, slen,
+	    sshbuf_ptr(b), sshbuf_len(b), pkalg, ssh->compat, NULL) == 0)
 		authenticated = 1;
 
 	auth2_record_key(authctxt, authenticated, key);
@@ -252,8 +253,6 @@ hostbased_key_allowed(struct ssh *ssh, struct passwd *pw,
 }
 
 Authmethod method_hostbased = {
-	"hostbased",
-	NULL,
+	&methodcfg_hostbased,
 	userauth_hostbased,
-	&options.hostbased_authentication
 };

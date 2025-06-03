@@ -10,8 +10,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "check.h"
+#include "crc_common.h"
 
 
+// The table is used by the LZ encoder too, thus it's not static like
+// in crc64_small.c.
 uint32_t lzma_crc32_table[1][256];
 
 

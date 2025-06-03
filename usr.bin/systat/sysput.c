@@ -25,13 +25,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 
 #include <err.h>
 #include <inttypes.h>
 #include <libutil.h>
-#include <machine/param.h>
 #include <string.h>
 
 #include "systat.h"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -53,6 +54,7 @@ extern "C" {
 /*
  * Forward references that lots of things need.
  */
+typedef struct brt_vdev brt_vdev_t;
 typedef struct spa spa_t;
 typedef struct vdev vdev_t;
 typedef struct metaslab metaslab_t;
@@ -669,7 +671,6 @@ typedef struct blkptr {
 			    (u_longlong_t)DVA_GET_ASIZE(dva),		\
 			    ws);					\
 		}							\
-		ASSERT3S(copies, >, 0);					\
 		if (BP_IS_ENCRYPTED(bp)) {				\
 			len += func(buf + len, size - len,		\
 			    "salt=%llx iv=%llx:%llx%c",			\
@@ -678,10 +679,6 @@ typedef struct blkptr {
 			    (u_longlong_t)BP_GET_IV2(bp),		\
 			    ws);					\
 		}							\
-		if (BP_IS_GANG(bp) &&					\
-		    DVA_GET_ASIZE(&bp->blk_dva[2]) <=			\
-		    DVA_GET_ASIZE(&bp->blk_dva[1]) / 2)			\
-			copies--;					\
 		len += func(buf + len, size - len,			\
 		    "[L%llu %s] %s %s %s %s %s %s %s%c"			\
 		    "size=%llxL/%llxP birth=%lluL/%lluP fill=%llu%c"	\
@@ -787,6 +784,7 @@ extern int bpobj_enqueue_free_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx);
 #define	SPA_ASYNC_L2CACHE_TRIM			0x1000
 #define	SPA_ASYNC_REBUILD_DONE			0x2000
 #define	SPA_ASYNC_DETACH_SPARE			0x4000
+#define	SPA_ASYNC_REMOVE_BY_USER		0x8000
 
 /* device manipulation */
 extern int spa_vdev_add(spa_t *spa, nvlist_t *nvroot, boolean_t ashift_check);
@@ -821,6 +819,8 @@ extern void spa_l2cache_drop(spa_t *spa);
 
 /* scanning */
 extern int spa_scan(spa_t *spa, pool_scan_func_t func);
+extern int spa_scan_range(spa_t *spa, pool_scan_func_t func, uint64_t txgstart,
+    uint64_t txgend);
 extern int spa_scan_stop(spa_t *spa);
 extern int spa_scrub_pause_resume(spa_t *spa, pool_scrub_cmd_t flag);
 
@@ -949,6 +949,14 @@ typedef struct spa_iostats {
 	kstat_named_t	simple_trim_bytes_skipped;
 	kstat_named_t	simple_trim_extents_failed;
 	kstat_named_t	simple_trim_bytes_failed;
+	kstat_named_t	arc_read_count;
+	kstat_named_t	arc_read_bytes;
+	kstat_named_t	arc_write_count;
+	kstat_named_t	arc_write_bytes;
+	kstat_named_t	direct_read_count;
+	kstat_named_t	direct_read_bytes;
+	kstat_named_t	direct_write_count;
+	kstat_named_t	direct_write_bytes;
 } spa_iostats_t;
 
 extern void spa_stats_init(spa_t *spa);
@@ -972,6 +980,10 @@ extern void spa_iostats_trim_add(spa_t *spa, trim_type_t type,
     uint64_t extents_written, uint64_t bytes_written,
     uint64_t extents_skipped, uint64_t bytes_skipped,
     uint64_t extents_failed, uint64_t bytes_failed);
+extern void spa_iostats_read_add(spa_t *spa, uint64_t size, uint64_t iops,
+    dmu_flags_t flags);
+extern void spa_iostats_write_add(spa_t *spa, uint64_t size, uint64_t iops,
+    dmu_flags_t flags);
 extern void spa_import_progress_add(spa_t *spa);
 extern void spa_import_progress_remove(uint64_t spa_guid);
 extern int spa_import_progress_set_mmp_check(uint64_t pool_guid,
@@ -1067,6 +1079,7 @@ extern uint64_t spa_get_deadman_failmode(spa_t *spa);
 extern void spa_set_deadman_failmode(spa_t *spa, const char *failmode);
 extern boolean_t spa_suspended(spa_t *spa);
 extern uint64_t spa_bootfs(spa_t *spa);
+extern uint64_t spa_get_last_scrubbed_txg(spa_t *spa);
 extern uint64_t spa_delegation(spa_t *spa);
 extern objset_t *spa_meta_objset(spa_t *spa);
 extern space_map_t *spa_syncing_log_sm(spa_t *spa);
@@ -1090,6 +1103,7 @@ extern boolean_t spa_guid_exists(uint64_t pool_guid, uint64_t device_guid);
 extern char *spa_strdup(const char *);
 extern void spa_strfree(char *);
 extern uint64_t spa_generate_guid(spa_t *spa);
+extern uint64_t spa_generate_load_guid(void);
 extern void snprintf_blkptr(char *buf, size_t buflen, const blkptr_t *bp);
 extern void spa_freeze(spa_t *spa);
 extern int spa_change_guid(spa_t *spa, const uint64_t *guidp);
@@ -1166,7 +1180,7 @@ extern void zfs_ereport_taskq_fini(void);
 extern void zfs_ereport_clear(spa_t *spa, vdev_t *vd);
 extern nvlist_t *zfs_event_create(spa_t *spa, vdev_t *vd, const char *type,
     const char *name, nvlist_t *aux);
-extern void zfs_post_remove(spa_t *spa, vdev_t *vd);
+extern void zfs_post_remove(spa_t *spa, vdev_t *vd, boolean_t by_kernel);
 extern void zfs_post_state_change(spa_t *spa, vdev_t *vd, uint64_t laststate);
 extern void zfs_post_autoreplace(spa_t *spa, vdev_t *vd);
 extern uint64_t spa_approx_errlog_size(spa_t *spa);
@@ -1197,7 +1211,7 @@ extern void vdev_mirror_stat_fini(void);
 /* Initialization and termination */
 extern void spa_init(spa_mode_t mode);
 extern void spa_fini(void);
-extern void spa_boot_init(void);
+extern void spa_boot_init(void *);
 
 /* properties */
 extern int spa_prop_set(spa_t *spa, nvlist_t *nvp);

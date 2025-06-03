@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2024 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2025 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -41,6 +41,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/intr.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
@@ -50,7 +51,6 @@
 #include <sys/watchdog.h>
 
 #include <machine/cpufunc.h>
-#include <machine/intr.h>
 #include <machine/md_var.h>
 #include <machine/sbi.h>
 
@@ -146,7 +146,7 @@ riscv_timer_intr(void *arg)
 	if (has_sstc)
 		csr_write(stimecmp, -1UL);
 	else
-		csr_clear(sip, SIP_STIP);
+		sbi_set_timer(-1UL);
 
 	if (sc->et.et_active)
 		sc->et.et_event_cb(&sc->et, sc->et.et_arg);

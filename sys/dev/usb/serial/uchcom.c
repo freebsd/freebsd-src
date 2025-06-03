@@ -57,7 +57,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * Driver for WinChipHead CH341/340, the worst USB-serial chip in the
  * world.

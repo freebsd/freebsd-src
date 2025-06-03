@@ -133,7 +133,7 @@ struct ipmi_softc {
 	driver_intr_t		*ipmi_intr;
 	int			(*ipmi_startup)(struct ipmi_softc *);
 	int			(*ipmi_enqueue_request)(struct ipmi_softc *, struct ipmi_request *);
-	int			(*ipmi_driver_request)(struct ipmi_softc *, struct ipmi_request *, int);
+	int			(*ipmi_driver_request)(struct ipmi_softc *, struct ipmi_request *);
 };
 
 #define	ipmi_ssif_smbus_address		_iface.ssif.smbus_address
@@ -247,8 +247,7 @@ struct ipmi_request *ipmi_dequeue_request(struct ipmi_softc *);
 void	ipmi_free_request(struct ipmi_request *);
 int	ipmi_polled_enqueue_request(struct ipmi_softc *, struct ipmi_request *);
 int	ipmi_polled_enqueue_request_highpri(struct ipmi_softc *, struct ipmi_request *);
-int	ipmi_submit_driver_request(struct ipmi_softc *, struct ipmi_request *,
-	    int);
+int	ipmi_submit_driver_request(struct ipmi_softc *, struct ipmi_request *);
 
 /* Identify BMC interface via SMBIOS. */
 int	ipmi_smbios_identify(struct ipmi_get_info *);

@@ -87,11 +87,11 @@ struct sysctl_req {
 #define	MOD_UNLOAD 2
 #define	DEVMETHOD(what,func) { #what, (void *)&func }
 #define	DEVMETHOD_END {0,0}
-#define	EARLY_DRIVER_MODULE(a, b, c, d, e, f, g)	DRIVER_MODULE(a, b, c, d, e, f)
-#define	DRIVER_MODULE(name, busname, driver, devclass, evh, arg)	\
+#define	EARLY_DRIVER_MODULE(a, b, c, d, e, f)	DRIVER_MODULE(a, b, c, d, e)
+#define	DRIVER_MODULE(name, busname, driver, evh, arg)	\
   static struct module_data bsd_##name##_##busname##_driver_mod = {	\
 	evh, arg, #busname, #name, #busname "/" #name,			\
-	&driver, &devclass, { 0, 0 } };					\
+	&driver, { 0, 0 } };					\
 SYSINIT(bsd_##name##_##busname##_driver_mod, SI_SUB_DRIVERS,		\
   SI_ORDER_MIDDLE, module_register,					\
   &bsd_##name##_##busname##_driver_mod)
@@ -135,6 +135,7 @@ SYSINIT_ENTRY(uniq##_entry, "sysuninit", (subs),	\
 #define	cold 0
 #define	BUS_PROBE_GENERIC 0
 #define	BUS_PROBE_DEFAULT (-20)
+#define	DEVICE_UNIT_ANY -1
 #define	CALLOUT_RETURNUNLOCKED 0x1
 #undef ffs
 #define	ffs(x) __builtin_ffs(x)
@@ -406,6 +407,7 @@ struct device {
 	TAILQ_HEAD(device_list, device) dev_children;
 	TAILQ_ENTRY(device) dev_link;
 
+	devclass_t dev_class;
 	struct device *dev_parent;
 	const struct module_data *dev_module;
 	void   *dev_sc;
@@ -429,6 +431,8 @@ struct device {
 };
 
 struct devclass {
+	TAILQ_ENTRY(devclass) link;
+	const char *name;
 	device_t dev_list[DEVCLASS_MAXUNIT];
 };
 
@@ -445,7 +449,6 @@ struct module_data {
 	const char *mod_name;
 	const char *long_name;
 	const struct driver *driver;
-	struct devclass **devclass_pp;
 	TAILQ_ENTRY(module_data) entry;
 };
 
@@ -646,7 +649,8 @@ int bus_release_resource(device_t, int, int, struct resource *);
 void bus_release_resources(device_t, const struct resource_spec *,
     struct resource **);
 struct resource *bus_alloc_resource_any(device_t, int, int *, unsigned int);
-int bus_generic_attach(device_t);
+void bus_attach_children(device_t);
+int bus_detach_children(device_t);
 bus_space_tag_t rman_get_bustag(struct resource *);
 bus_space_handle_t rman_get_bushandle(struct resource *);
 u_long rman_get_size(struct resource *);

@@ -1,4 +1,5 @@
 #!/bin/ksh -p
+# SPDX-License-Identifier: CDDL-1.0
 #
 # CDDL HEADER START
 #
@@ -25,10 +26,10 @@
 #
 
 # DESCRIPTION:
-#	Verify that delay events from multiple vdevs doesnt degrade
+#	Verify that delay events from multiple vdevs doesn't degrade
 #
 # STRATEGY:
-#	1. Create a pool with a 3 disk raidz vdev
+#	1. Create a pool with a 4 disk raidz vdev
 #	2. Inject slow io errors
 #	3. Verify that ZED detects slow I/Os but doesn't degrade any vdevs
 #

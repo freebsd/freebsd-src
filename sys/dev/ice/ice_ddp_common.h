@@ -134,6 +134,7 @@ struct ice_generic_seg_hdr {
 #define SEGMENT_TYPE_METADATA	0x00000001
 #define SEGMENT_TYPE_ICE_E810	0x00000010
 #define SEGMENT_TYPE_SIGNING	0x00001001
+#define SEGMENT_TYPE_ICE_E830	0x00000017
 #define SEGMENT_TYPE_ICE_RUN_TIME_CFG 0x00000020
 	__le32 seg_type;
 	struct ice_pkg_ver seg_format_ver;
@@ -203,7 +204,10 @@ struct ice_sign_seg {
 	__le32 signed_seg_idx;
 	__le32 signed_buf_start;
 	__le32 signed_buf_count;
-#define ICE_SIGN_SEG_RESERVED_COUNT	44
+#define ICE_SIGN_SEG_FLAGS_VALID	0x80000000
+#define ICE_SIGN_SEG_FLAGS_LAST		0x00000001
+	__le32 flags;
+#define ICE_SIGN_SEG_RESERVED_COUNT	40
 	u8 reserved[ICE_SIGN_SEG_RESERVED_COUNT];
 	struct ice_buf_table buf_tbl;
 };
@@ -413,26 +417,26 @@ struct ice_pkg_enum {
 
 struct ice_hw;
 
-enum ice_status
+int
 ice_acquire_change_lock(struct ice_hw *hw, enum ice_aq_res_access_type access);
 void ice_release_change_lock(struct ice_hw *hw);
 
 struct ice_buf_build *ice_pkg_buf_alloc(struct ice_hw *hw);
 void *
 ice_pkg_buf_alloc_section(struct ice_buf_build *bld, u32 type, u16 size);
-enum ice_status
+int
 ice_pkg_buf_reserve_section(struct ice_buf_build *bld, u16 count);
-enum ice_status
+int
 ice_get_sw_fv_list(struct ice_hw *hw, struct ice_prot_lkup_ext *lkups,
 		   ice_bitmap_t *bm, struct LIST_HEAD_TYPE *fv_list);
-enum ice_status
+int
 ice_pkg_buf_unreserve_section(struct ice_buf_build *bld, u16 count);
 u16 ice_pkg_buf_get_free_space(struct ice_buf_build *bld);
 u16 ice_pkg_buf_get_active_sections(struct ice_buf_build *bld);
 
-enum ice_status
+int
 ice_update_pkg(struct ice_hw *hw, struct ice_buf *bufs, u32 count);
-enum ice_status
+int
 ice_update_pkg_no_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 count);
 void ice_release_global_cfg_lock(struct ice_hw *hw);
 struct ice_generic_seg_hdr *
@@ -444,7 +448,7 @@ enum ice_ddp_state
 ice_get_pkg_info(struct ice_hw *hw);
 void ice_init_pkg_hints(struct ice_hw *hw, struct ice_seg *ice_seg);
 struct ice_buf_table *ice_find_buf_table(struct ice_seg *ice_seg);
-enum ice_status
+int
 ice_acquire_global_cfg_lock(struct ice_hw *hw,
 			    enum ice_aq_res_access_type access);
 
@@ -473,6 +477,6 @@ ice_pkg_buf_alloc_single_section(struct ice_hw *hw, u32 type, u16 size,
 struct ice_buf *ice_pkg_buf(struct ice_buf_build *bld);
 void ice_pkg_buf_free(struct ice_hw *hw, struct ice_buf_build *bld);
 
-enum ice_status ice_cfg_tx_topo(struct ice_hw *hw, u8 *buf, u32 len);
+int ice_cfg_tx_topo(struct ice_hw *hw, u8 *buf, u32 len);
 
-#endif /* _ICE_DDP_COMMON_H_ */
+#endif /* _ICE_DDP_H_ */

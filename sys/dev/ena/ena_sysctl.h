@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2015-2023 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2024 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,6 @@ extern int ena_enable_9k_mbufs;
 #define ena_mbuf_sz (ena_enable_9k_mbufs ? MJUM9BYTES : MJUMPAGESIZE)
 
 /* Force the driver to use large LLQ (Low Latency Queue) headers. */
-extern bool ena_force_large_llq_header;
+extern int ena_force_large_llq_header;
 
 #endif /* !(ENA_SYSCTL_H) */

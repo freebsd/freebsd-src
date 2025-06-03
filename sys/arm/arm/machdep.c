@@ -56,6 +56,7 @@
 #include <sys/cpu.h>
 #include <sys/devmap.h>
 #include <sys/efi.h>
+#include <sys/efi_map.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -104,8 +105,8 @@
 #endif
 
 
-#if __ARM_ARCH < 6
-#error FreeBSD requires ARMv6 or later
+#if __ARM_ARCH < 7
+#error FreeBSD requires ARMv7 or later
 #endif
 
 struct pcpu __pcpu[MAXCPU];
@@ -414,15 +415,26 @@ arm_kdb_init(void)
 }
 
 #ifdef FDT
+static void
+fdt_physmem_hardware_region_cb(const struct mem_region *mr, void *arg __unused)
+{
+	physmem_hardware_region(mr->mr_start, mr->mr_size);
+}
+
+static void
+fdt_physmem_exclude_region_cb(const struct mem_region *mr, void *arg __unused)
+{
+	physmem_exclude_region(mr->mr_start, mr->mr_size,
+	    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+}
+
 void *
 initarm(struct arm_boot_params *abp)
 {
-	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	vm_paddr_t lastaddr;
 	vm_offset_t dtbp, kernelstack, dpcpu;
 	char *env;
-	void *kmdp;
-	int err_devmap, mem_regions_sz;
+	int err_devmap;
 	phandle_t root;
 	char dts_version[255];
 #ifdef EFI
@@ -439,8 +451,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * Find the dtb passed in by the boot loader.
 	 */
-	kmdp = preload_search_by_type("elf kernel");
-	dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+	dtbp = MD_FETCH(preload_kmdp, MODINFOMD_DTBP, vm_offset_t);
 #if defined(FDT_DTB_STATIC)
 	/*
 	 * In case the device tree blob was not retrieved (from metadata) try
@@ -461,23 +472,23 @@ initarm(struct arm_boot_params *abp)
 #endif
 
 #ifdef EFI
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	efihdr = (struct efi_map_header *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr != NULL) {
-		arm_add_efi_map_entries(efihdr, mem_regions, &mem_regions_sz);
+		efi_map_add_entries(efihdr);
+		efi_map_exclude_entries(efihdr);
 	} else
 #endif
 	{
 		/* Grab physical memory regions information from device tree. */
-		if (fdt_get_mem_regions(mem_regions, &mem_regions_sz,NULL) != 0)
+		if (fdt_foreach_mem_region(fdt_physmem_hardware_region_cb,
+		    NULL) != 0)
 			panic("Cannot get physical memory regions");
-	}
-	physmem_hardware_regions(mem_regions, mem_regions_sz);
 
-	/* Grab reserved memory regions information from device tree. */
-	if (fdt_get_reserved_regions(mem_regions, &mem_regions_sz) == 0)
-		physmem_exclude_regions(mem_regions, mem_regions_sz,
-		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
+		/* Grab reserved memory regions information from device tree. */
+		fdt_foreach_reserved_region(fdt_physmem_exclude_region_cb,
+		    NULL);
+	}
 
 	/*
 	 * Set TEX remapping registers.
@@ -571,7 +582,7 @@ initarm(struct arm_boot_params *abp)
 #endif
 
 	debugf("initarm: console initialized\n");
-	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
+	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)preload_kmdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
 	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 	debugf(" lastaddr1: 0x%08x\n", lastaddr);
@@ -634,6 +645,14 @@ initarm(struct arm_boot_params *abp)
 	arm_kdb_init();
 	/* Apply possible BP hardening. */
 	cpuinfo_init_bp_hardening();
+
+#ifdef EFI
+	if (boothowto & RB_VERBOSE) {
+		if (efihdr != NULL)
+			efi_map_print_entries(efihdr);
+	}
+#endif
+
 	return ((void *)STACKALIGN(thread0.td_pcb));
 
 }

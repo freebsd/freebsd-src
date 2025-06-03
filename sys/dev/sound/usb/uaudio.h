@@ -64,8 +64,4 @@ extern void	uaudio_mixer_set(struct uaudio_softc *, struct snd_mixer *,
 extern uint32_t	uaudio_mixer_setrecsrc(struct uaudio_softc *, struct snd_mixer *,
 		    uint32_t src);
 
-int	uaudio_get_vendor(device_t dev);
-int	uaudio_get_product(device_t dev);
-int	uaudio_get_release(device_t dev);
-
 #endif			/* _UAUDIO_H_ */

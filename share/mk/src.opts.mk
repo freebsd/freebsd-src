@@ -29,7 +29,7 @@
 #
 
 .if !target(__<src.opts.mk>__)
-__<src.opts.mk>__:
+__<src.opts.mk>__:	.NOTMAIN
 
 .include <bsd.own.mk>
 
@@ -101,7 +101,6 @@ __DEFAULT_YES_OPTIONS = \
     FREEBSD_UPDATE \
     FTP \
     GAMES \
-    GH_BC \
     GNU_DIFF \
     GOOGLETEST \
     GPIO \
@@ -125,8 +124,10 @@ __DEFAULT_YES_OPTIONS = \
     LLD \
     LLD_BOOTSTRAP \
     LLVM_ASSERTIONS \
+    LLVM_BINUTILS \
     LLVM_COV \
     LLVM_CXXFILT \
+    LOADER_BIOS_TEXTONLY \
     LOADER_GELI \
     LOADER_KBOOT \
     LOADER_LUA \
@@ -206,10 +207,8 @@ __DEFAULT_NO_OPTIONS = \
     DTRACE_TESTS \
     EXPERIMENTAL \
     HESIOD \
-    LOADER_BIOS_TEXTONLY \
     LOADER_VERBOSE \
     LOADER_VERIEXEC_PASS_MANIFEST \
-    LLVM_BINUTILS \
     LLVM_FULL_DEBUGINFO \
     MALLOC_PRODUCTION \
     OFED_EXTRA \

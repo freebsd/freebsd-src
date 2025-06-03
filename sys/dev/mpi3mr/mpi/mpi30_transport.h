@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2016-2024, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2016-2025, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
  * Mail to: Broadcom Inc 1320 Ridder Park Dr, San Jose, CA 95131
  *
  * Broadcom Inc. (Broadcom) MPI3MR Adapter FreeBSD
+ *
  *
  *
  *  Version History
@@ -75,7 +76,15 @@
  *  08-18-23  03.00.30.01  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 30 - Interim Release 1.
  *  11-17-23  03.00.31.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 31
  *  02-16-24  03.00.32.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 32
+ *  02-23-24  03.00.32.01  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 32 - Interim Release 1.
+ *  04-19-24  03.00.32.02  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 32 - Interim Release 2.
+ *  05-10-24  03.00.33.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 33
+ *  06-14-24  03.00.33.01  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 33 - Interim Release 1.
+ *  07-26-24  03.00.34.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 34
+ *  11-08-24  03.00.35.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 35
+ *  02-14-25  03.00.36.00  Corresponds to Fusion-MPT MPI 3.0 Specification Rev 36
  */
+
 #ifndef MPI30_TRANSPORT_H
 #define MPI30_TRANSPORT_H     1
 
@@ -103,7 +112,7 @@ typedef union _MPI3_VERSION_UNION
 /****** Version constants for this revision ****/
 #define MPI3_VERSION_MAJOR                                              (3)
 #define MPI3_VERSION_MINOR                                              (0)
-#define MPI3_VERSION_UNIT                                               (32)
+#define MPI3_VERSION_UNIT                                               (36)
 #define MPI3_VERSION_DEV                                                (0)
 
 /****** DevHandle definitions *****/
@@ -178,6 +187,7 @@ typedef volatile struct _MPI3_SYSIF_REGISTERS
 #define MPI3_SYSIF_IOC_CONFIG_OPER_REQ_ENT_SZ                           (0x000F0000)
 #define MPI3_SYSIF_IOC_CONFIG_OPER_REQ_ENT_SZ_SHIFT                     (16)
 #define MPI3_SYSIF_IOC_CONFIG_SHUTDOWN_MASK                             (0x0000C000)
+#define MPI3_SYSIF_IOC_CONFIG_SHUTDOWN_SHIFT                            (14)
 #define MPI3_SYSIF_IOC_CONFIG_SHUTDOWN_NO                               (0x00000000)
 #define MPI3_SYSIF_IOC_CONFIG_SHUTDOWN_NORMAL                           (0x00004000)
 #define MPI3_SYSIF_IOC_CONFIG_DEVICE_SHUTDOWN_SEND_REQ                  (0x00002000)
@@ -198,6 +208,7 @@ typedef volatile struct _MPI3_SYSIF_REGISTERS
 /**** Defines for the AdminQueueNumEntries register ****/
 #define MPI3_SYSIF_ADMIN_Q_NUM_ENTRIES_OFFSET                           (0x00000024)
 #define MPI3_SYSIF_ADMIN_Q_NUM_ENTRIES_REQ_MASK                         (0x0FFF)
+#define MPI3_SYSIF_ADMIN_Q_NUM_ENTRIES_REQ_SHIFT                        (0)
 #define MPI3_SYSIF_ADMIN_Q_NUM_ENTRIES_REPLY_OFFSET                     (0x00000026)
 #define MPI3_SYSIF_ADMIN_Q_NUM_ENTRIES_REPLY_MASK                       (0x0FFF0000)
 #define MPI3_SYSIF_ADMIN_Q_NUM_ENTRIES_REPLY_SHIFT                      (16)
@@ -213,6 +224,7 @@ typedef volatile struct _MPI3_SYSIF_REGISTERS
 /**** Defines for the CoalesceControl register ****/
 #define MPI3_SYSIF_COALESCE_CONTROL_OFFSET                              (0x00000040)
 #define MPI3_SYSIF_COALESCE_CONTROL_ENABLE_MASK                         (0xC0000000)
+#define MPI3_SYSIF_COALESCE_CONTROL_ENABLE_SHIFT                        (30)
 #define MPI3_SYSIF_COALESCE_CONTROL_ENABLE_NO_CHANGE                    (0x00000000)
 #define MPI3_SYSIF_COALESCE_CONTROL_ENABLE_DISABLE                      (0x40000000)
 #define MPI3_SYSIF_COALESCE_CONTROL_ENABLE_ENABLE                       (0xC0000000)
@@ -241,6 +253,7 @@ typedef volatile struct _MPI3_SYSIF_REGISTERS
 /**** Defines for the WriteSequence register *****/
 #define MPI3_SYSIF_WRITE_SEQUENCE_OFFSET                                (0x00001C04)
 #define MPI3_SYSIF_WRITE_SEQUENCE_KEY_VALUE_MASK                        (0x0000000F)
+#define MPI3_SYSIF_WRITE_SEQUENCE_KEY_VALUE_SHIFT                       (0)
 #define MPI3_SYSIF_WRITE_SEQUENCE_KEY_VALUE_FLUSH                       (0x0)
 #define MPI3_SYSIF_WRITE_SEQUENCE_KEY_VALUE_1ST                         (0xF)
 #define MPI3_SYSIF_WRITE_SEQUENCE_KEY_VALUE_2ND                         (0x4)
@@ -252,6 +265,7 @@ typedef volatile struct _MPI3_SYSIF_REGISTERS
 /**** Defines for the HostDiagnostic register *****/
 #define MPI3_SYSIF_HOST_DIAG_OFFSET                                     (0x00001C08)
 #define MPI3_SYSIF_HOST_DIAG_RESET_ACTION_MASK                          (0x00000700)
+#define MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SHIFT                         (8)
 #define MPI3_SYSIF_HOST_DIAG_RESET_ACTION_NO_RESET                      (0x00000000)
 #define MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET                    (0x00000100)
 #define MPI3_SYSIF_HOST_DIAG_RESET_ACTION_HOST_CONTROL_BOOT_RESET       (0x00000200)
@@ -269,6 +283,7 @@ typedef volatile struct _MPI3_SYSIF_REGISTERS
 /**** Defines for the Fault register ****/
 #define MPI3_SYSIF_FAULT_OFFSET                                         (0x00001C10)
 #define MPI3_SYSIF_FAULT_CODE_MASK                                      (0x0000FFFF)
+#define MPI3_SYSIF_FAULT_CODE_SHIFT                                     (0)
 #define MPI3_SYSIF_FAULT_CODE_DIAG_FAULT_RESET                          (0x0000F000)
 #define MPI3_SYSIF_FAULT_CODE_CI_ACTIVATION_RESET                       (0x0000F001)
 #define MPI3_SYSIF_FAULT_CODE_SOFT_RESET_IN_PROGRESS                    (0x0000F002)
@@ -276,6 +291,7 @@ typedef volatile struct _MPI3_SYSIF_REGISTERS
 #define MPI3_SYSIF_FAULT_CODE_SOFT_RESET_NEEDED                         (0x0000F004)
 #define MPI3_SYSIF_FAULT_CODE_POWER_CYCLE_REQUIRED                      (0x0000F005)
 #define MPI3_SYSIF_FAULT_CODE_TEMP_THRESHOLD_EXCEEDED                   (0x0000F006)
+#define MPI3_SYSIF_FAULT_CODE_INSUFFICIENT_PCI_SLOT_POWER               (0x0000F007)
 
 /**** Defines for FaultCodeAdditionalInfo registers ****/
 #define MPI3_SYSIF_FAULT_INFO0_OFFSET                                   (0x00001C14)
@@ -309,12 +325,14 @@ typedef volatile struct _MPI3_SYSIF_REGISTERS
 /**** Defines for DiagRWControl register ****/
 #define MPI3_SYSIF_DIAG_RW_CONTROL_OFFSET                               (0x00001C60)
 #define MPI3_SYSIF_DIAG_RW_CONTROL_LEN_MASK                             (0x00000030)
+#define MPI3_SYSIF_DIAG_RW_CONTROL_LEN_SHIFT                            (4)
 #define MPI3_SYSIF_DIAG_RW_CONTROL_LEN_1BYTE                            (0x00000000)
 #define MPI3_SYSIF_DIAG_RW_CONTROL_LEN_2BYTES                           (0x00000010)
 #define MPI3_SYSIF_DIAG_RW_CONTROL_LEN_4BYTES                           (0x00000020)
 #define MPI3_SYSIF_DIAG_RW_CONTROL_LEN_8BYTES                           (0x00000030)
 #define MPI3_SYSIF_DIAG_RW_CONTROL_RESET                                (0x00000004)
 #define MPI3_SYSIF_DIAG_RW_CONTROL_DIR_MASK                             (0x00000002)
+#define MPI3_SYSIF_DIAG_RW_CONTROL_DIR_SHIFT                            (1)
 #define MPI3_SYSIF_DIAG_RW_CONTROL_DIR_READ                             (0x00000000)
 #define MPI3_SYSIF_DIAG_RW_CONTROL_DIR_WRITE                            (0x00000002)
 #define MPI3_SYSIF_DIAG_RW_CONTROL_START                                (0x00000001)
@@ -322,6 +340,7 @@ typedef volatile struct _MPI3_SYSIF_REGISTERS
 /**** Defines for DiagRWStatus register ****/
 #define MPI3_SYSIF_DIAG_RW_STATUS_OFFSET                                (0x00001C62)
 #define MPI3_SYSIF_DIAG_RW_STATUS_STATUS_MASK                           (0x0000000E)
+#define MPI3_SYSIF_DIAG_RW_STATUS_STATUS_SHIFT                          (1)
 #define MPI3_SYSIF_DIAG_RW_STATUS_STATUS_SUCCESS                        (0x00000000)
 #define MPI3_SYSIF_DIAG_RW_STATUS_STATUS_INV_ADDR                       (0x00000002)
 #define MPI3_SYSIF_DIAG_RW_STATUS_STATUS_ACC_ERR                        (0x00000004)
@@ -359,7 +378,9 @@ typedef struct _MPI3_DEFAULT_REPLY_DESCRIPTOR
 
 /**** Defines for the ReplyFlags field ****/
 #define MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK                       (0x0001)
+#define MPI3_REPLY_DESCRIPT_FLAGS_PHASE_SHIFT                      (0)
 #define MPI3_REPLY_DESCRIPT_FLAGS_TYPE_MASK                        (0xF000)
+#define MPI3_REPLY_DESCRIPT_FLAGS_TYPE_SHIFT                       (12)
 #define MPI3_REPLY_DESCRIPT_FLAGS_TYPE_ADDRESS_REPLY               (0x0000)
 #define MPI3_REPLY_DESCRIPT_FLAGS_TYPE_SUCCESS                     (0x1000)
 #define MPI3_REPLY_DESCRIPT_FLAGS_TYPE_TARGET_COMMAND_BUFFER       (0x2000)
@@ -512,6 +533,7 @@ typedef union _MPI3_SGE_UNION
 
 /**** Definitions for the Flags field ****/
 #define MPI3_SGE_FLAGS_ELEMENT_TYPE_MASK        (0xF0)
+#define MPI3_SGE_FLAGS_ELEMENT_TYPE_SHIFT       (4)
 #define MPI3_SGE_FLAGS_ELEMENT_TYPE_SIMPLE      (0x00)
 #define MPI3_SGE_FLAGS_ELEMENT_TYPE_BIT_BUCKET  (0x10)
 #define MPI3_SGE_FLAGS_ELEMENT_TYPE_CHAIN       (0x20)
@@ -520,6 +542,7 @@ typedef union _MPI3_SGE_UNION
 #define MPI3_SGE_FLAGS_END_OF_LIST              (0x08)
 #define MPI3_SGE_FLAGS_END_OF_BUFFER            (0x04)
 #define MPI3_SGE_FLAGS_DLAS_MASK                (0x03)
+#define MPI3_SGE_FLAGS_DLAS_SHIFT               (0)
 #define MPI3_SGE_FLAGS_DLAS_SYSTEM              (0x00)
 #define MPI3_SGE_FLAGS_DLAS_IOC_UDP             (0x01)
 #define MPI3_SGE_FLAGS_DLAS_IOC_CTL             (0x02)
@@ -528,30 +551,33 @@ typedef union _MPI3_SGE_UNION
 #define MPI3_SGE_EXT_OPER_EEDP                  (0x00)
 
 /**** Definitions for the EEDPFlags field of Extended EEDP element ****/
-#define MPI3_EEDPFLAGS_INCR_PRI_REF_TAG             (0x8000)
-#define MPI3_EEDPFLAGS_INCR_SEC_REF_TAG             (0x4000)
-#define MPI3_EEDPFLAGS_INCR_PRI_APP_TAG             (0x2000)
-#define MPI3_EEDPFLAGS_INCR_SEC_APP_TAG             (0x1000)
-#define MPI3_EEDPFLAGS_ESC_PASSTHROUGH              (0x0800)
-#define MPI3_EEDPFLAGS_CHK_REF_TAG                  (0x0400)
-#define MPI3_EEDPFLAGS_CHK_APP_TAG                  (0x0200)
-#define MPI3_EEDPFLAGS_CHK_GUARD                    (0x0100)
-#define MPI3_EEDPFLAGS_ESC_MODE_MASK                (0x00C0)
-#define MPI3_EEDPFLAGS_ESC_MODE_DO_NOT_DISABLE      (0x0040)
-#define MPI3_EEDPFLAGS_ESC_MODE_APPTAG_DISABLE      (0x0080)
+#define MPI3_EEDPFLAGS_INCR_PRI_REF_TAG                 (0x8000)
+#define MPI3_EEDPFLAGS_INCR_SEC_REF_TAG                 (0x4000)
+#define MPI3_EEDPFLAGS_INCR_PRI_APP_TAG                 (0x2000)
+#define MPI3_EEDPFLAGS_INCR_SEC_APP_TAG                 (0x1000)
+#define MPI3_EEDPFLAGS_ESC_PASSTHROUGH                  (0x0800)
+#define MPI3_EEDPFLAGS_CHK_REF_TAG                      (0x0400)
+#define MPI3_EEDPFLAGS_CHK_APP_TAG                      (0x0200)
+#define MPI3_EEDPFLAGS_CHK_GUARD                        (0x0100)
+#define MPI3_EEDPFLAGS_ESC_MODE_MASK                    (0x00C0)
+#define MPI3_EEDPFLAGS_ESC_MODE_SHIFT                   (6)
+#define MPI3_EEDPFLAGS_ESC_MODE_DO_NOT_DISABLE          (0x0040)
+#define MPI3_EEDPFLAGS_ESC_MODE_APPTAG_DISABLE          (0x0080)
 #define MPI3_EEDPFLAGS_ESC_MODE_APPTAG_REFTAG_DISABLE   (0x00C0)
-#define MPI3_EEDPFLAGS_HOST_GUARD_MASK              (0x0030)
-#define MPI3_EEDPFLAGS_HOST_GUARD_T10_CRC           (0x0000)
-#define MPI3_EEDPFLAGS_HOST_GUARD_IP_CHKSUM         (0x0010)
-#define MPI3_EEDPFLAGS_HOST_GUARD_OEM_SPECIFIC      (0x0020)
-#define MPI3_EEDPFLAGS_PT_REF_TAG                   (0x0008)
-#define MPI3_EEDPFLAGS_EEDP_OP_MASK                 (0x0007)
-#define MPI3_EEDPFLAGS_EEDP_OP_CHECK                (0x0001)
-#define MPI3_EEDPFLAGS_EEDP_OP_STRIP                (0x0002)
-#define MPI3_EEDPFLAGS_EEDP_OP_CHECK_REMOVE         (0x0003)
-#define MPI3_EEDPFLAGS_EEDP_OP_INSERT               (0x0004)
-#define MPI3_EEDPFLAGS_EEDP_OP_REPLACE              (0x0006)
-#define MPI3_EEDPFLAGS_EEDP_OP_CHECK_REGEN          (0x0007)
+#define MPI3_EEDPFLAGS_HOST_GUARD_MASK                  (0x0030)
+#define MPI3_EEDPFLAGS_HOST_GUARD_SHIFT                 (4)
+#define MPI3_EEDPFLAGS_HOST_GUARD_T10_CRC               (0x0000)
+#define MPI3_EEDPFLAGS_HOST_GUARD_IP_CHKSUM             (0x0010)
+#define MPI3_EEDPFLAGS_HOST_GUARD_OEM_SPECIFIC          (0x0020)
+#define MPI3_EEDPFLAGS_PT_REF_TAG                       (0x0008)
+#define MPI3_EEDPFLAGS_EEDP_OP_MASK                     (0x0007)
+#define MPI3_EEDPFLAGS_EEDP_OP_SHIFT                    (0)
+#define MPI3_EEDPFLAGS_EEDP_OP_CHECK                    (0x0001)
+#define MPI3_EEDPFLAGS_EEDP_OP_STRIP                    (0x0002)
+#define MPI3_EEDPFLAGS_EEDP_OP_CHECK_REMOVE             (0x0003)
+#define MPI3_EEDPFLAGS_EEDP_OP_INSERT                   (0x0004)
+#define MPI3_EEDPFLAGS_EEDP_OP_REPLACE                  (0x0006)
+#define MPI3_EEDPFLAGS_EEDP_OP_CHECK_REGEN              (0x0007)
 
 /**** Definitions for the UserDataSize field of Extended EEDP element ****/
 #define MPI3_EEDP_UDS_512                           (0x01)
@@ -650,6 +676,7 @@ typedef struct _MPI3_DEFAULT_REPLY
 /**** Defines for IOCStatus ****/
 #define MPI3_IOCSTATUS_LOG_INFO_AVAILABLE           (0x8000)
 #define MPI3_IOCSTATUS_STATUS_MASK                  (0x7FFF)
+#define MPI3_IOCSTATUS_STATUS_SHIFT                 (0)
 
 /* Common IOCStatus values for all replies */
 #define MPI3_IOCSTATUS_SUCCESS                      (0x0000)
@@ -660,6 +687,7 @@ typedef struct _MPI3_DEFAULT_REPLY
 #define MPI3_IOCSTATUS_INSUFFICIENT_RESOURCES       (0x0006)
 #define MPI3_IOCSTATUS_INVALID_FIELD                (0x0007)
 #define MPI3_IOCSTATUS_INVALID_STATE                (0x0008)
+#define MPI3_IOCSTATUS_SHUTDOWN_ACTIVE              (0x0009)
 #define MPI3_IOCSTATUS_INSUFFICIENT_POWER           (0x000A)
 #define MPI3_IOCSTATUS_INVALID_CHANGE_COUNT         (0x000B)
 #define MPI3_IOCSTATUS_ALLOWED_CMD_BLOCK            (0x000C)
@@ -737,6 +765,7 @@ typedef struct _MPI3_DEFAULT_REPLY
 #define MPI3_IOCLOGINFO_TYPE_NONE               (0x0)
 #define MPI3_IOCLOGINFO_TYPE_SAS                (0x3)
 #define MPI3_IOCLOGINFO_LOG_DATA_MASK           (0x0FFFFFFF)
+#define MPI3_IOCLOGINFO_LOG_DATA_SHIFT          (0)
 
 #endif  /* MPI30_TRANSPORT_H */
 

@@ -338,7 +338,8 @@ rk_spi_attach(device_t dev)
 	RK_SPI_WRITE_4(sc, RK_SPI_TXFTLR, sc->fifo_size/2 - 1);
 	RK_SPI_WRITE_4(sc, RK_SPI_RXFTLR, sc->fifo_size/2 - 1);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	rk_spi_detach(dev);
@@ -353,8 +354,6 @@ rk_spi_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	bus_generic_detach(sc->dev);
-	if (sc->spibus != NULL)
-		device_delete_child(dev, sc->spibus);
 
 	if (sc->clk_spi != NULL)
 		clk_release(sc->clk_spi);

@@ -1,0 +1,288 @@
+/*
+ *  Copyright (C) 2017 - This file is part of libecc project
+ *
+ *  Authors:
+ *      Ryad BENADJILA <ryadbenadjila@gmail.com>
+ *      Arnaud EBALARD <arnaud.ebalard@ssi.gouv.fr>
+ *      Jean-Pierre FLORI <jean-pierre.flori@ssi.gouv.fr>
+ *
+ *  Contributors:
+ *      Nicolas VIVET <nicolas.vivet@ssi.gouv.fr>
+ *      Karim KHALFALLAH <karim.khalfallah@ssi.gouv.fr>
+ *
+ *  This software is licensed under a dual BSD and GPL v2 license.
+ *  See LICENSE file at the root folder of the project.
+ */
+#ifndef __LIB_ECC_TYPES_H__
+#define __LIB_ECC_TYPES_H__
+
+#include <libecc/lib_ecc_config.h>
+
+/* Signature algorithm types */
+typedef enum {
+	UNKNOWN_ALG = 0,
+#ifdef WITH_SIG_ECDSA
+	ECDSA = 1,
+#endif
+#ifdef WITH_SIG_ECKCDSA
+	ECKCDSA = 2,
+#endif
+#ifdef WITH_SIG_ECSDSA
+	ECSDSA = 3,
+#endif
+#ifdef WITH_SIG_ECOSDSA
+	ECOSDSA = 4,
+#endif
+#ifdef WITH_SIG_ECFSDSA
+	ECFSDSA = 5,
+#endif
+#ifdef WITH_SIG_ECGDSA
+	ECGDSA = 6,
+#endif
+#ifdef WITH_SIG_ECRDSA
+	ECRDSA = 7,
+#endif
+#ifdef WITH_SIG_SM2
+        SM2 = 8,
+#endif
+#ifdef WITH_SIG_EDDSA25519
+	EDDSA25519    = 9,
+	EDDSA25519CTX = 10,
+	EDDSA25519PH  = 11,
+#endif
+#ifdef WITH_SIG_EDDSA448
+	EDDSA448   = 12,
+	EDDSA448PH = 13,
+#endif
+#ifdef WITH_SIG_DECDSA
+	DECDSA = 14,
+#endif
+	/* ECDH types */
+#ifdef WITH_ECCCDH
+	ECCCDH = 15,
+#endif
+#ifdef WITH_X25519
+	X25519 = 16,
+#endif
+#ifdef WITH_X448
+	X448 = 17,
+#endif
+#ifdef WITH_SIG_BIGN
+	BIGN = 18,
+#endif
+#ifdef WITH_SIG_DBIGN
+	DBIGN = 19,
+#endif
+#ifdef WITH_SIG_BIP0340
+	BIP0340 = 20,
+#endif
+} ec_alg_type;
+
+/* Hash algorithm types */
+typedef enum {
+	UNKNOWN_HASH_ALG = 0,
+#ifdef WITH_HASH_SHA224
+	SHA224 = 1,
+#endif
+#ifdef WITH_HASH_SHA256
+	SHA256 = 2,
+#endif
+#ifdef WITH_HASH_SHA384
+	SHA384 = 3,
+#endif
+#ifdef WITH_HASH_SHA512
+	SHA512 = 4,
+#endif
+#ifdef WITH_HASH_SHA3_224
+	SHA3_224 = 5,
+#endif
+#ifdef WITH_HASH_SHA3_256
+	SHA3_256 = 6,
+#endif
+#ifdef WITH_HASH_SHA3_384
+	SHA3_384 = 7,
+#endif
+#ifdef WITH_HASH_SHA3_512
+	SHA3_512 = 8,
+#endif
+#ifdef WITH_HASH_SHA512_224
+	SHA512_224 = 9,
+#endif
+#ifdef WITH_HASH_SHA512_256
+	SHA512_256 = 10,
+#endif
+#ifdef WITH_HASH_SM3
+        SM3 = 11,
+#endif
+#ifdef WITH_HASH_SHAKE256
+	SHAKE256 = 12,
+#endif
+#ifdef WITH_HASH_STREEBOG256
+	STREEBOG256 = 13,
+#endif
+#ifdef WITH_HASH_STREEBOG512
+	STREEBOG512 = 14,
+#endif
+#ifdef WITH_HASH_RIPEMD160
+	RIPEMD160 = 15,
+#endif
+#ifdef WITH_HASH_BELT_HASH
+	BELT_HASH = 16,
+#endif
+#ifdef WITH_HASH_BASH224
+	BASH224 = 17,
+#endif
+#ifdef WITH_HASH_BASH256
+	BASH256 = 18,
+#endif
+#ifdef WITH_HASH_BASH384
+	BASH384 = 19,
+#endif
+#ifdef WITH_HASH_BASH512
+	BASH512 = 20,
+#endif
+} hash_alg_type;
+
+/* All curves we support */
+typedef enum {
+	UNKNOWN_CURVE = 0,
+#ifdef WITH_CURVE_FRP256V1
+	FRP256V1 = 1,
+#endif
+#ifdef WITH_CURVE_SECP192R1
+	SECP192R1 = 2,
+#endif
+#ifdef WITH_CURVE_SECP224R1
+	SECP224R1 = 3,
+#endif
+#ifdef WITH_CURVE_SECP256R1
+	SECP256R1 = 4,
+#endif
+#ifdef WITH_CURVE_SECP384R1
+	SECP384R1 = 5,
+#endif
+#ifdef WITH_CURVE_SECP521R1
+	SECP521R1 = 6,
+#endif
+#ifdef WITH_CURVE_BRAINPOOLP224R1
+	BRAINPOOLP224R1 = 7,
+#endif
+#ifdef WITH_CURVE_BRAINPOOLP256R1
+	BRAINPOOLP256R1 = 8,
+#endif
+#ifdef WITH_CURVE_BRAINPOOLP512R1
+	BRAINPOOLP512R1 = 9,
+#endif
+#ifdef WITH_CURVE_GOST256
+	GOST256 = 10,
+#endif
+#ifdef WITH_CURVE_GOST512
+	GOST512 = 11,
+#endif
+#ifdef WITH_CURVE_BRAINPOOLP384R1
+	BRAINPOOLP384R1 = 12,
+#endif
+#ifdef WITH_CURVE_BRAINPOOLP192R1
+	BRAINPOOLP192R1 = 13,
+#endif
+#ifdef WITH_CURVE_WEI25519
+	WEI25519 = 14,
+#endif
+#ifdef WITH_CURVE_WEI448
+	WEI448 = 15,
+#endif
+#ifdef WITH_CURVE_SM2P256TEST
+	SM2P256TEST = 16,
+#endif
+#ifdef WITH_CURVE_SM2P256V1
+	SM2P256V1 = 17,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2012_256_PARAMSETA
+	GOST_R3410_2012_256_PARAMSETA = 18,
+#endif
+#ifdef WITH_CURVE_SECP256K1
+	SECP256K1 = 19,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2001_TESTPARAMSET
+	GOST_R3410_2001_TESTPARAMSET = 20,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2001_CRYPTOPRO_A_PARAMSET
+	GOST_R3410_2001_CRYPTOPRO_A_PARAMSET = 21,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2001_CRYPTOPRO_B_PARAMSET
+	GOST_R3410_2001_CRYPTOPRO_B_PARAMSET = 22,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2001_CRYPTOPRO_C_PARAMSET
+	GOST_R3410_2001_CRYPTOPRO_C_PARAMSET = 23,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2001_CRYPTOPRO_XCHA_PARAMSET
+	GOST_R3410_2001_CRYPTOPRO_XCHA_PARAMSET = 24,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2001_CRYPTOPRO_XCHB_PARAMSET
+	GOST_R3410_2001_CRYPTOPRO_XCHB_PARAMSET = 25,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2012_256_PARAMSETB
+	GOST_R3410_2012_256_PARAMSETB = 26,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2012_256_PARAMSETC
+	GOST_R3410_2012_256_PARAMSETC = 27,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2012_256_PARAMSETD
+	GOST_R3410_2012_256_PARAMSETD = 28,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2012_512_PARAMSETTEST
+	GOST_R3410_2012_512_PARAMSETTEST = 29,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2012_512_PARAMSETA
+	GOST_R3410_2012_512_PARAMSETA = 30,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2012_512_PARAMSETB
+	GOST_R3410_2012_512_PARAMSETB = 31,
+#endif
+#ifdef WITH_CURVE_GOST_R3410_2012_512_PARAMSETC
+	GOST_R3410_2012_512_PARAMSETC = 32,
+#endif
+#ifdef WITH_CURVE_SECP192K1
+	SECP192K1 = 33,
+#endif
+#ifdef WITH_CURVE_SECP224K1
+	SECP224K1 = 34,
+#endif
+#ifdef WITH_CURVE_BRAINPOOLP192T1
+	BRAINPOOLP192T1 = 35,
+#endif
+#ifdef WITH_CURVE_BRAINPOOLP224T1
+	BRAINPOOLP224T1 = 36,
+#endif
+#ifdef WITH_CURVE_BRAINPOOLP256T1
+	BRAINPOOLP256T1 = 37,
+#endif
+#ifdef WITH_CURVE_BRAINPOOLP320R1
+	BRAINPOOLP320R1 = 38,
+#endif
+#ifdef WITH_CURVE_BRAINPOOLP320T1
+	BRAINPOOLP320T1 = 39,
+#endif
+#ifdef WITH_CURVE_BRAINPOOLP384T1
+	BRAINPOOLP384T1 = 40,
+#endif
+#ifdef WITH_CURVE_BRAINPOOLP512T1
+	BRAINPOOLP512T1 = 41,
+#endif
+#ifdef WITH_CURVE_BIGN256V1
+	BIGN256V1 = 42,
+#endif
+#ifdef WITH_CURVE_BIGN384V1
+	BIGN384V1 = 43,
+#endif
+#ifdef WITH_CURVE_BIGN512V1
+	BIGN512V1 = 44,
+#endif
+/* ADD curves type here */
+/* XXX: Do not remove the comment above, as it is
+ * used by external tools as a placeholder to add or
+ * remove automatically generated code.
+ */
+} ec_curve_type;
+
+#endif /* __LIB_ECC_TYPES_H__ */

@@ -162,6 +162,7 @@ struct nfsnode {
 #define	NDSCOMMIT	0x00100000  /* Commit is done via the DS. */
 #define	NVNSETSZSKIP	0x00200000  /* Skipped vnode_pager_setsize() */
 #define	NMIGHTBELOCKED	0x00400000  /* Might be file locked. */
+#define	NNAMEDNOTSUPP	0x00800000  /* Openattr is not supported. */
 
 /*
  * Convert between nfsnode pointers and vnode pointers

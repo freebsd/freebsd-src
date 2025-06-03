@@ -112,6 +112,9 @@ s32 ixgbe_poll_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
  *
  * returns SUCCESS if it successfully copied message into the buffer and
  * received an ACK to that message within specified period
+ *
+ * Note that the caller to this function must lock before calling, since
+ * multiple threads can destroy each other messages.
  **/
 s32 ixgbe_write_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 {
@@ -297,7 +300,7 @@ static u32 ixgbe_read_mailbox_vf(struct ixgbe_hw *hw)
 	u32 vf_mailbox = IXGBE_READ_REG(hw, IXGBE_VFMAILBOX);
 
 	vf_mailbox |= hw->mbx.vf_mailbox;
-	hw->mbx.vf_mailbox |= vf_mailbox % IXGBE_VFMAILBOX_R2C_BITS;
+	hw->mbx.vf_mailbox |= vf_mailbox & IXGBE_VFMAILBOX_R2C_BITS;
 
 	return vf_mailbox;
 }
@@ -866,6 +869,11 @@ static s32 ixgbe_obtain_mbx_lock_pf(struct ixgbe_hw *hw, u16 vf_id)
 	while (countdown--) {
 		/* Reserve mailbox for PF use */
 		pf_mailbox = IXGBE_READ_REG(hw, IXGBE_PFMAILBOX(vf_id));
+
+		/* Check if other thread holds the PF lock already */
+		if (pf_mailbox & IXGBE_PFMAILBOX_PFU)
+			goto retry;
+
 		pf_mailbox |= IXGBE_PFMAILBOX_PFU;
 		IXGBE_WRITE_REG(hw, IXGBE_PFMAILBOX(vf_id), pf_mailbox);
 
@@ -876,6 +884,7 @@ static s32 ixgbe_obtain_mbx_lock_pf(struct ixgbe_hw *hw, u16 vf_id)
 			break;
 		}
 
+	retry:
 		/* Wait a bit before trying again */
 		usec_delay(mbx->usec_delay);
 	}
@@ -978,13 +987,14 @@ static s32 ixgbe_write_mbx_pf(struct ixgbe_hw *hw, u32 *msg, u16 size,
 	for (i = 0; i < size; i++)
 		IXGBE_WRITE_REG_ARRAY(hw, IXGBE_PFMBMEM(vf_id), i, msg[i]);
 
-	/* Interrupt VF to tell it a message has been sent */
+	/* interrupt VF to tell it a message has been sent */
 	pf_mailbox = IXGBE_READ_REG(hw, IXGBE_PFMAILBOX(vf_id));
 	pf_mailbox |= IXGBE_PFMAILBOX_STS;
 	IXGBE_WRITE_REG(hw, IXGBE_PFMAILBOX(vf_id), pf_mailbox);
 
 	/* if msg sent wait until we receive an ack */
-	ixgbe_poll_for_ack(hw, vf_id);
+	if (msg[0] & IXGBE_VT_MSGTYPE_CTS)
+		ixgbe_poll_for_ack(hw, vf_id);
 
 	/* update stats */
 	hw->mbx.stats.msgs_tx++;

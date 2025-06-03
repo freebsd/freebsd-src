@@ -1,4 +1,4 @@
-# $NetBSD: cond-op-or.mk,v 1.12 2024/07/06 21:21:10 rillig Exp $
+# $NetBSD: cond-op-or.mk,v 1.14 2025/01/11 21:21:33 rillig Exp $
 #
 # Tests for the || operator in .if conditions.
 
@@ -32,15 +32,15 @@
 # Test combinations of outer '&&' with inner '||', to ensure that the operands
 # of the inner '||' are only evaluated if necessary.
 DEF=	defined
-# expect+1: Malformed conditional (1 && (!${DEF} || ${UNDEF}))
+# expect+1: Variable "UNDEF" is undefined
 .if 1 && (!${DEF} || ${UNDEF})
 .endif
 .if 1 && (${DEF} || ${UNDEF})
 .endif
-# expect+1: Malformed conditional (1 && (!${UNDEF} || ${UNDEF}))
+# expect+1: Variable "UNDEF" is undefined
 .if 1 && (!${UNDEF} || ${UNDEF})
 .endif
-# expect+1: Malformed conditional (1 && (${UNDEF} || ${UNDEF}))
+# expect+1: Variable "UNDEF" is undefined
 .if 1 && (${UNDEF} || ${UNDEF})
 .endif
 .if 0 && (!${DEF} || ${UNDEF})

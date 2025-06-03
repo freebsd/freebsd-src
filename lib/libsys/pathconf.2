@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 6, 2021
+.Dd May 3, 2025
 .Dt PATHCONF 2
 .Os
 .Sh NAME
@@ -175,6 +175,10 @@ hole size but still reports holes.
 Return 1 if a file system supports hole-punching (see
 .Xr fspacectl 2 ) ,
 otherwise 0.
+.It Li _PC_NAMEDATTR_ENABLED
+Return 1 if named attributes are enabled for the file system, otherwise 0.
+.It Li _PC_HAS_NAMEDATTR
+Return 1 if one or more named attributes exist for the file, otherwise 0.
 .El
 .Sh RETURN VALUES
 If the call to

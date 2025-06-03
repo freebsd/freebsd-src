@@ -240,7 +240,7 @@ svc_dg_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 		if (!xdr_replymsg(&xdrs, msg))
 			stat = FALSE;
 		else
-			xdrmbuf_append(&xdrs, m);
+			(void)xdr_putmbuf(&xdrs, m);
 	} else {
 		stat = xdr_replymsg(&xdrs, msg);
 	}

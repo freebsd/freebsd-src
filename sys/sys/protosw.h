@@ -31,17 +31,7 @@
 
 #ifndef _SYS_PROTOSW_H_
 #define _SYS_PROTOSW_H_
-
-/* Forward declare these structures referenced from prototypes below. */
-struct kaiocb;
-struct mbuf;
-struct thread;
-struct sockaddr;
-struct socket;
-struct sockopt;
-enum shutdown_how;
-
-/*#ifdef _KERNEL*/
+#if defined(_KERNEL) || defined(_WANT_PROTOSW)
 /*
  * Protocol switch table.
  *
@@ -51,10 +41,18 @@ enum shutdown_how;
  * In retrospect, it would be a lot nicer to use an interface
  * similar to the vnode VOP interface.
  */
+struct socket;
+struct sockopt;
+struct thread;
+struct sockaddr;
 struct ifnet;
+struct mbuf;
 struct stat;
 struct ucred;
 struct uio;
+struct kaiocb;
+struct knote;
+enum shutdown_how;
 
 /* USE THESE FOR YOUR PROTOTYPES ! */
 typedef int	pr_ctloutput_t(struct socket *, struct sockopt *);
@@ -83,6 +81,7 @@ typedef enum {
 } pr_send_flags_t;
 typedef int	pr_send_t(struct socket *, int, struct mbuf *,
 		    struct sockaddr *, struct mbuf *, struct thread *);
+typedef	int	pr_sendfile_wait_t(struct socket *, off_t, int *);
 typedef int	pr_ready_t(struct socket *, struct mbuf *, int);
 typedef int	pr_sense_t(struct socket *, struct stat *);
 typedef int	pr_shutdown_t(struct socket *, enum shutdown_how);
@@ -91,8 +90,8 @@ typedef int	pr_sosend_t(struct socket *, struct sockaddr *, struct uio *,
 		    struct mbuf *, struct mbuf *, int, struct thread *);
 typedef int	pr_soreceive_t(struct socket *, struct sockaddr **,
 		    struct uio *, struct mbuf **, struct mbuf **, int *);
-typedef int	pr_sopoll_t(struct socket *, int, struct ucred *,
-		    struct thread *);
+typedef int	pr_sopoll_t(struct socket *, int, struct thread *);
+typedef int	pr_kqfilter_t(struct socket *, struct knote *);
 typedef void	pr_sosetlabel_t(struct socket *);
 typedef void	pr_close_t(struct socket *);
 typedef int	pr_bindat_t(int, struct socket *, struct sockaddr *,
@@ -100,6 +99,8 @@ typedef int	pr_bindat_t(int, struct socket *, struct sockaddr *,
 typedef int	pr_connectat_t(int, struct socket *, struct sockaddr *,
 		    struct thread *);
 typedef int	pr_aio_queue_t(struct socket *, struct kaiocb *);
+typedef int	pr_chmod_t(struct socket *, __mode_t, struct ucred *,
+		    struct thread *);
 
 struct protosw {
 	short	pr_type;		/* socket type used for */
@@ -109,9 +110,9 @@ struct protosw {
 	struct	domain	*pr_domain;	/* domain protocol a member of */
 
 	pr_soreceive_t	*pr_soreceive;	/* recv(2) */
-	pr_rcvd_t	*pr_rcvd;	/* soreceive_generic() if PR_WANTRCVD */
 	pr_sosend_t	*pr_sosend;	/* send(2) */
 	pr_send_t	*pr_send;	/* send(2) via sosend_generic() */
+	pr_sendfile_wait_t  *pr_sendfile_wait;	/* sendfile helper */
 	pr_ready_t	*pr_ready;	/* sendfile/ktls readyness */
 	pr_sopoll_t	*pr_sopoll;	/* poll(2) */
 /* Cache line #2 */
@@ -121,7 +122,7 @@ struct protosw {
 	pr_disconnect_t	*pr_disconnect;	/* sodisconnect() */
 	pr_close_t	*pr_close;	/* close(2) */
 	pr_shutdown_t	*pr_shutdown;	/* shutdown(2) */
-	pr_abort_t	*pr_abort;	/* abrupt tear down: soabort() */
+	pr_rcvd_t	*pr_rcvd;	/* soreceive_generic() if PR_WANTRCVD */
 	pr_aio_queue_t	*pr_aio_queue;	/* aio(9) */
 /* Cache line #3 */
 	pr_bind_t	*pr_bind;	/* bind(2) */
@@ -133,14 +134,18 @@ struct protosw {
 	pr_control_t	*pr_control;	/* ioctl(2) */
 	pr_rcvoob_t	*pr_rcvoob;	/* soreceive_rcvoob() */
 /* Cache line #4 */
+	pr_abort_t	*pr_abort;	/* abrupt tear down: soabort() */
 	pr_ctloutput_t	*pr_ctloutput;	/* control output (from above) */
 	pr_peeraddr_t	*pr_peeraddr;	/* getpeername(2) */
 	pr_sockaddr_t	*pr_sockaddr;	/* getsockname(2) */
 	pr_sense_t	*pr_sense;	/* stat(2) */
 	pr_sosetlabel_t	*pr_sosetlabel;	/* MAC, XXXGL: remove */
 	pr_setsbopt_t	*pr_setsbopt;	/* Socket buffer ioctls */
+	pr_chmod_t	*pr_chmod;	/* fchmod(2) */
+	pr_kqfilter_t	*pr_kqfilter;	/* kevent(2) */
 };
-/*#endif*/
+#endif	/* defined(_KERNEL) || defined(_WANT_PROTOSW) */
+#ifdef _KERNEL
 
 /*
  * Values for pr_flags.
@@ -163,7 +168,6 @@ struct protosw {
 #define	PR_CAPATTACH	0x80		/* socket can attach in cap mode */
 #define	PR_SOCKBUF	0x100		/* private implementation of buffers */
 
-#ifdef _KERNEL
 struct domain *pffinddomain(int family);
 struct protosw *pffindproto(int family, int type, int proto);
 int protosw_register(struct domain *, struct protosw *);
@@ -173,5 +177,4 @@ int protosw_unregister(struct protosw *);
 extern struct domain inetdomain;
 extern struct domain inet6domain;
 #endif
-
 #endif

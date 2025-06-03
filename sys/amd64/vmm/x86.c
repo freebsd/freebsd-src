@@ -150,8 +150,6 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 				 * pkg_id_shift and other OSes may rely on it.
 				 */
 				width = MIN(0xF, log2(threads * cores));
-				if (width < 0x4)
-					width = 0;
 				logical_cpus = MIN(0xFF, threads * cores - 1);
 				regs[2] = (width << AMDID_COREID_SIZE_SHIFT) | logical_cpus;
 			}
@@ -256,7 +254,7 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 				func = 3;	/* unified cache */
 				break;
 			default:
-				logical_cpus = 0;
+				logical_cpus = sockets * threads * cores;
 				level = 0;
 				func = 0;
 				break;
@@ -266,7 +264,14 @@ x86_emulate_cpuid(struct vcpu *vcpu, uint64_t *rax, uint64_t *rbx,
 			regs[0] = (logical_cpus << 14) | (1 << 8) |
 			    (level << 5) | func;
 			regs[1] = (func > 0) ? (CACHE_LINE_SIZE - 1) : 0;
+
+			/*
+			 * ecx: Number of cache ways for non-fully
+			 * associative cache, minus 1.  Reported value
+			 * of zero means there is one way.
+			 */
 			regs[2] = 0;
+
 			regs[3] = 0;
 			break;
 

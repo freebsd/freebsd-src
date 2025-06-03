@@ -565,7 +565,8 @@ nsec3_get_hashed(sldns_buffer* buf, uint8_t* nm, size_t nmlen, int algo,
 	sldns_buffer_clear(buf);
 	sldns_buffer_write(buf, nm, nmlen);
 	query_dname_tolower(sldns_buffer_begin(buf));
-	sldns_buffer_write(buf, salt, saltlen);
+	if(saltlen != 0)
+		sldns_buffer_write(buf, salt, saltlen);
 	sldns_buffer_flip(buf);
 	hash_len = nsec3_hash_algo_size_supported(algo);
 	if(hash_len == 0) {
@@ -580,7 +581,8 @@ nsec3_get_hashed(sldns_buffer* buf, uint8_t* nm, size_t nmlen, int algo,
 	for(i=0; i<iter; i++) {
 		sldns_buffer_clear(buf);
 		sldns_buffer_write(buf, res, hash_len);
-		sldns_buffer_write(buf, salt, saltlen);
+		if(saltlen != 0)
+			sldns_buffer_write(buf, salt, saltlen);
 		sldns_buffer_flip(buf);
 		if(!secalgo_nsec3_hash(algo,
 			(unsigned char*)sldns_buffer_begin(buf),

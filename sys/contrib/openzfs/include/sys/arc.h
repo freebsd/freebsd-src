@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -63,8 +64,15 @@ extern "C" {
 	(hdr)->b_psize = ((x) >> SPA_MINBLOCKSHIFT); \
 } while (0)
 
+/* The l2size in the header is only used by L2 cache */
+#define	HDR_SET_L2SIZE(hdr, x) do { \
+	ASSERT(IS_P2ALIGNED((x), 1U << SPA_MINBLOCKSHIFT)); \
+	(hdr)->b_l2size = ((x) >> SPA_MINBLOCKSHIFT); \
+} while (0)
+
 #define	HDR_GET_LSIZE(hdr)	((hdr)->b_lsize << SPA_MINBLOCKSHIFT)
 #define	HDR_GET_PSIZE(hdr)	((hdr)->b_psize << SPA_MINBLOCKSHIFT)
+#define	HDR_GET_L2SIZE(hdr)	((hdr)->b_l2size << SPA_MINBLOCKSHIFT)
 
 typedef struct arc_buf_hdr arc_buf_hdr_t;
 typedef struct arc_buf arc_buf_t;
@@ -120,7 +128,7 @@ typedef enum arc_flags
 
 	/*
 	 * Private ARC flags.  These flags are private ARC only flags that
-	 * will show up in b_flags in the arc_hdr_buf_t. These flags should
+	 * will show up in b_flags in the arc_buf_hdr_t. These flags should
 	 * only be set by ARC code.
 	 */
 	ARC_FLAG_IN_HASH_TABLE		= 1 << 7,	/* buffer is hashed */
@@ -179,7 +187,6 @@ typedef enum arc_flags
 	ARC_FLAG_COMPRESS_4		= 1 << 28,
 	ARC_FLAG_COMPRESS_5		= 1 << 29,
 	ARC_FLAG_COMPRESS_6		= 1 << 30
-
 } arc_flags_t;
 
 typedef enum arc_buf_flags {
@@ -323,8 +330,10 @@ void arc_freed(spa_t *spa, const blkptr_t *bp);
 int arc_cached(spa_t *spa, const blkptr_t *bp);
 
 void arc_flush(spa_t *spa, boolean_t retry);
+void arc_flush_async(spa_t *spa);
 void arc_tempreserve_clear(uint64_t reserve);
 int arc_tempreserve_space(spa_t *spa, uint64_t reserve, uint64_t txg);
+boolean_t arc_async_flush_guid_inuse(uint64_t load_guid);
 
 uint64_t arc_all_memory(void);
 uint64_t arc_default_max(uint64_t min, uint64_t allmem);
@@ -348,6 +357,7 @@ void l2arc_fini(void);
 void l2arc_start(void);
 void l2arc_stop(void);
 void l2arc_spa_rebuild_start(spa_t *spa);
+void l2arc_spa_rebuild_stop(spa_t *spa);
 
 #ifndef _KERNEL
 extern boolean_t arc_watch;

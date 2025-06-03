@@ -333,7 +333,7 @@ ida_startup(void *arg)
 	config_intrhook_disestablish(&ida->ich);
 
 	bus_topo_lock();
-	bus_generic_attach(ida->dev);
+	bus_attach_children(ida->dev);
 	bus_topo_unlock();
 }
 
@@ -346,9 +346,6 @@ ida_detach(device_t dev)
 	ida = (struct ida_softc *)device_get_softc(dev);
 
 	error = bus_generic_detach(dev);
-	if (error)
-		return (error);
-	error = device_delete_children(dev);
 	if (error)
 		return (error);
 

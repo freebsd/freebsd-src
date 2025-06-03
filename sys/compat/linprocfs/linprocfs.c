@@ -446,9 +446,6 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 }
 #endif /* __i386__ || __amd64__ */
 
-static const char *path_slash_sys = "/sys";
-static const char *fstype_sysfs = "sysfs";
-
 static int
 _mtab_helper(const struct pfs_node *pn, const struct statfs *sp,
     const char **mntfrom, const char **mntto, const char **fstype)
@@ -476,8 +473,7 @@ _mtab_helper(const struct pfs_node *pn, const struct statfs *sp,
 	}
 
 	if (strcmp(*fstype, "linsysfs") == 0) {
-		*mntfrom = path_slash_sys;
-		*fstype = fstype_sysfs;
+		*mntfrom = *fstype = "sysfs";
 	} else {
 		/* For Linux msdosfs is called vfat */
 		if (strcmp(*fstype, "msdosfs") == 0)
@@ -537,9 +533,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	error = kern_getfsstat(td, &buf, SIZE_T_MAX, &count,
 	    UIO_SYSSPACE, MNT_WAIT);
 	if (error != 0) {
-		free(buf, M_TEMP);
-		free(flep, M_TEMP);
-		return (error);
+		goto out;
 	}
 
 	for (sp = buf; count > 0; sp++, count--) {
@@ -559,6 +553,8 @@ linprocfs_domtab(PFS_FILL_ARGS)
 		sbuf_printf(sb, " 0 0\n");
 	}
 
+	error = 0;
+out:
 	free(buf, M_TEMP);
 	free(flep, M_TEMP);
 	return (error);

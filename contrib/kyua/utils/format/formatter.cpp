@@ -118,7 +118,7 @@ to_int(const std::string& format, const std::string& str, const char* what)
 static std::ostringstream*
 new_ostringstream(const std::string& format)
 {
-    std::auto_ptr< std::ostringstream > output(new std::ostringstream());
+    std::unique_ptr< std::ostringstream > output(new std::ostringstream());
 
     if (format.length() <= 2) {
         // If the format is empty, we create a new stream so that we don't have

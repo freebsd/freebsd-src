@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -1509,7 +1510,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag, int slots,
 	 * if we get the encrypted or decrypted version.
 	 */
 	err = dbuf_read(db, NULL, DB_RF_CANFAIL |
-	    DB_RF_NO_DECRYPT | DB_RF_NOPREFETCH);
+	    DMU_READ_NO_PREFETCH | DMU_READ_NO_DECRYPT);
 	if (err) {
 		DNODE_STAT_BUMP(dnode_hold_dbuf_read);
 		dbuf_rele(db, FTAG);
@@ -2435,11 +2436,11 @@ done:
 	{
 		int txgoff = tx->tx_txg & TXG_MASK;
 		if (dn->dn_free_ranges[txgoff] == NULL) {
-			dn->dn_free_ranges[txgoff] = range_tree_create(NULL,
-			    RANGE_SEG64, NULL, 0, 0);
+			dn->dn_free_ranges[txgoff] = zfs_range_tree_create(NULL,
+			    ZFS_RANGE_SEG64, NULL, 0, 0);
 		}
-		range_tree_clear(dn->dn_free_ranges[txgoff], blkid, nblks);
-		range_tree_add(dn->dn_free_ranges[txgoff], blkid, nblks);
+		zfs_range_tree_clear(dn->dn_free_ranges[txgoff], blkid, nblks);
+		zfs_range_tree_add(dn->dn_free_ranges[txgoff], blkid, nblks);
 	}
 	dprintf_dnode(dn, "blkid=%llu nblks=%llu txg=%llu\n",
 	    (u_longlong_t)blkid, (u_longlong_t)nblks,
@@ -2482,7 +2483,7 @@ dnode_block_freed(dnode_t *dn, uint64_t blkid)
 	mutex_enter(&dn->dn_mtx);
 	for (i = 0; i < TXG_SIZE; i++) {
 		if (dn->dn_free_ranges[i] != NULL &&
-		    range_tree_contains(dn->dn_free_ranges[i], blkid, 1))
+		    zfs_range_tree_contains(dn->dn_free_ranges[i], blkid, 1))
 			break;
 	}
 	mutex_exit(&dn->dn_mtx);
@@ -2577,7 +2578,7 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 		}
 		error = dbuf_read(db, NULL,
 		    DB_RF_CANFAIL | DB_RF_HAVESTRUCT |
-		    DB_RF_NO_DECRYPT | DB_RF_NOPREFETCH);
+		    DMU_READ_NO_PREFETCH | DMU_READ_NO_DECRYPT);
 		if (error) {
 			dbuf_rele(db, FTAG);
 			return (error);

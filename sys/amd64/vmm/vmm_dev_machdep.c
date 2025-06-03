@@ -441,7 +441,7 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 		break;
 	case VM_GET_GPA_PMAP:
 		gpapte = (struct vm_gpa_pte *)data;
-		pmap_get_mapping(vmspace_pmap(vm_get_vmspace(vm)),
+		pmap_get_mapping(vmspace_pmap(vm_vmspace(vm)),
 				 gpapte->gpa, gpapte->pte, &gpapte->ptenum);
 		error = 0;
 		break;

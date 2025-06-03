@@ -46,6 +46,7 @@
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/abi_compat.h>
 #include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
@@ -68,6 +69,7 @@
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 #include <security/mac/mac_policy.h>
+#include <security/mac/mac_syscalls.h>
 
 #ifdef MAC
 
@@ -78,26 +80,104 @@ static int	kern___mac_get_path(struct thread *td, const char *path_p,
 static int	kern___mac_set_path(struct thread *td, const char *path_p,
 		    struct mac *mac_p, int follow);
 
+#ifdef COMPAT_FREEBSD32
+struct mac32 {
+	uint32_t	m_buflen;	/* size_t */
+	uint32_t	m_string;	/* char * */
+};
+#endif
+
+/*
+ * Copyin a 'struct mac', including the string pointed to by 'm_string'.
+ *
+ * On success (0 returned), fills '*mac', whose associated storage must be freed
+ * after use by calling free_copied_label() (which see).  On success, 'u_string'
+ * if not NULL is filled with the userspace address for 'u_mac->m_string'.
+ */
+static int
+mac_label_copyin_impl(const void *const u_mac, struct mac *const mac,
+    char **const u_string, bool is_32bit)
+{
+	char *buffer;
+	int error;
+
+#ifdef COMPAT_FREEBSD32
+	if (is_32bit) {
+		struct mac32 mac32;
+
+		error = copyin(u_mac, &mac32, sizeof(mac32));
+		if (error != 0)
+			return (error);
+
+		CP(mac32, *mac, m_buflen);
+		PTRIN_CP(mac32, *mac, m_string);
+	} else
+#endif
+	{
+		error = copyin(u_mac, mac, sizeof(*mac));
+		if (error != 0)
+			return (error);
+	}
+
+	error = mac_check_structmac_consistent(mac);
+	if (error != 0)
+		return (error);
+
+	/* 'm_buflen' not too big checked by function call above. */
+	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK);
+	error = copyinstr(mac->m_string, buffer, mac->m_buflen, NULL);
+	if (error != 0) {
+		free(buffer, M_MACTEMP);
+		return (error);
+	}
+
+	MPASS(error == 0);
+	if (u_string != NULL)
+		*u_string = mac->m_string;
+	mac->m_string = buffer;
+	return (0);
+}
+
+int
+mac_label_copyin(const struct mac *const u_mac, struct mac *const mac,
+    char **const u_string)
+{
+	return (mac_label_copyin_impl(u_mac, mac, u_string, false));
+}
+
+void
+free_copied_label(const struct mac *const mac)
+{
+	free(mac->m_string, M_MACTEMP);
+}
+
+#ifdef COMPAT_FREEBSD32
+int
+mac_label_copyin32(const struct mac32 *const u_mac,
+    struct mac *const mac, char **const u_string)
+{
+	return (mac_label_copyin_impl(u_mac, mac, u_string, true));
+}
+#endif
+
 int
 sys___mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 {
-	char *elements, *buffer;
+	char *buffer, *u_buffer;
 	struct mac mac;
 	struct proc *tproc;
 	struct ucred *tcred;
 	int error;
 
-	error = copyin(uap->mac_p, &mac, sizeof(mac));
-	if (error)
-		return (error);
-
-	error = mac_check_structmac_consistent(&mac);
+	error = mac_label_copyin(uap->mac_p, &mac, &u_buffer);
 	if (error)
 		return (error);
 
 	tproc = pfind(uap->pid);
-	if (tproc == NULL)
-		return (ESRCH);
+	if (tproc == NULL) {
+		error = ESRCH;
+		goto free_mac_and_exit;
+	}
 
 	tcred = NULL;				/* Satisfy gcc. */
 	error = p_cansee(td, tproc);
@@ -105,126 +185,170 @@ sys___mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 		tcred = crhold(tproc->p_ucred);
 	PROC_UNLOCK(tproc);
 	if (error)
-		return (error);
-
-	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
-	if (error) {
-		free(elements, M_MACTEMP);
-		crfree(tcred);
-		return (error);
-	}
+		goto free_mac_and_exit;
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-	error = mac_cred_externalize_label(tcred->cr_label, elements,
+	error = mac_cred_externalize_label(tcred->cr_label, mac.m_string,
 	    buffer, mac.m_buflen);
 	if (error == 0)
-		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
-
+		error = copyout(buffer, u_buffer, strlen(buffer)+1);
 	free(buffer, M_MACTEMP);
-	free(elements, M_MACTEMP);
 	crfree(tcred);
+
+free_mac_and_exit:
+	free_copied_label(&mac);
 	return (error);
 }
 
 int
 sys___mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 {
-	char *elements, *buffer;
+	char *buffer, *u_buffer;
 	struct mac mac;
 	int error;
 
-	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	error = mac_label_copyin(uap->mac_p, &mac, &u_buffer);
 	if (error)
 		return (error);
-
-	error = mac_check_structmac_consistent(&mac);
-	if (error)
-		return (error);
-
-	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
-	if (error) {
-		free(elements, M_MACTEMP);
-		return (error);
-	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
 	error = mac_cred_externalize_label(td->td_ucred->cr_label,
-	    elements, buffer, mac.m_buflen);
+	    mac.m_string, buffer, mac.m_buflen);
 	if (error == 0)
-		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
+		error = copyout(buffer, u_buffer, strlen(buffer)+1);
 
 	free(buffer, M_MACTEMP);
-	free(elements, M_MACTEMP);
+	free_copied_label(&mac);
 	return (error);
+}
+
+/*
+ * Performs preparation (including allocations) for mac_set_proc().
+ *
+ * No lock should be held while calling this function.  On success,
+ * mac_set_proc_finish() must be called to free the data associated to
+ * 'mac_set_proc_data', even if mac_set_proc_core() fails.  'mac_set_proc_data'
+ * is not set in case of error, and is set to a non-NULL value on success.
+ */
+int
+mac_set_proc_prepare(struct thread *const td, const struct mac *const mac,
+    void **const mac_set_proc_data)
+{
+	struct label *intlabel;
+	int error;
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
+
+	if (!(mac_labeled & MPC_OBJECT_CRED))
+		return (EINVAL);
+
+	intlabel = mac_cred_label_alloc();
+	error = mac_cred_internalize_label(intlabel, mac->m_string);
+	if (error) {
+		mac_cred_label_free(intlabel);
+		return (error);
+	}
+
+	*mac_set_proc_data = intlabel;
+	return (0);
+}
+
+/*
+ * Actually sets the MAC label on 'newcred'.
+ *
+ * The current process' lock *must* be held.  This function only sets the label
+ * on 'newcred', but does not put 'newcred' in place on the current process'
+ * (consequently, it also does not call setsugid()).  'mac_set_proc_data' must
+ * be the pointer returned by mac_set_proc_prepare().  If called, this function
+ * must be so between a successful call to mac_set_proc_prepare() and
+ * mac_set_proc_finish(), but calling it is not mandatory (e.g., if some other
+ * error occured under the process lock that obsoletes setting the MAC label).
+ */
+int
+mac_set_proc_core(struct thread *const td, struct ucred *const newcred,
+    void *const mac_set_proc_data)
+{
+	struct label *const intlabel = mac_set_proc_data;
+	struct proc *const p = td->td_proc;
+	int error;
+
+	MPASS(td == curthread);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	error = mac_cred_check_relabel(p->p_ucred, intlabel);
+	if (error)
+		return (error);
+
+	mac_cred_relabel(newcred, intlabel);
+	return (0);
+}
+
+/*
+ * Performs mac_set_proc() last operations, without the process lock.
+ *
+ * 'proc_label_set' indicates whether the label was actually set by a call to
+ * mac_set_proc_core() that succeeded.  'mac_set_proc_data' must be the pointer
+ * returned by mac_set_proc_prepare(), and its associated data will be freed.
+ */
+void
+mac_set_proc_finish(struct thread *const td, bool proc_label_set,
+    void *const mac_set_proc_data)
+{
+	struct label *const intlabel = mac_set_proc_data;
+
+	PROC_LOCK_ASSERT(td->td_proc, MA_NOTOWNED);
+
+	if (proc_label_set)
+		mac_proc_vm_revoke(td);
+	mac_cred_label_free(intlabel);
 }
 
 int
 sys___mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 {
 	struct ucred *newcred, *oldcred;
-	struct label *intlabel;
-	struct proc *p;
+	void *intlabel;
+	struct proc *const p = td->td_proc;
 	struct mac mac;
-	char *buffer;
 	int error;
 
-	if (!(mac_labeled & MPC_OBJECT_CRED))
-		return (EINVAL);
-
-	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	error = mac_label_copyin(uap->mac_p, &mac, NULL);
 	if (error)
 		return (error);
 
-	error = mac_check_structmac_consistent(&mac);
+	error = mac_set_proc_prepare(td, &mac, &intlabel);
 	if (error)
-		return (error);
-
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
-	if (error) {
-		free(buffer, M_MACTEMP);
-		return (error);
-	}
-
-	intlabel = mac_cred_label_alloc();
-	error = mac_cred_internalize_label(intlabel, buffer);
-	free(buffer, M_MACTEMP);
-	if (error)
-		goto out;
+		goto free_label;
 
 	newcred = crget();
 
-	p = td->td_proc;
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
+	crcopy(newcred, oldcred);
 
-	error = mac_cred_check_relabel(oldcred, intlabel);
+	error = mac_set_proc_core(td, newcred, intlabel);
 	if (error) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
-		goto out;
+		goto finish;
 	}
 
 	setsugid(p);
-	crcopy(newcred, oldcred);
-	mac_cred_relabel(newcred, intlabel);
 	proc_set_cred(p, newcred);
-
 	PROC_UNLOCK(p);
-	crfree(oldcred);
-	mac_proc_vm_revoke(td);
 
-out:
-	mac_cred_label_free(intlabel);
+	crfree(oldcred);
+finish:
+	mac_set_proc_finish(td, error == 0, intlabel);
+free_label:
+	free_copied_label(&mac);
 	return (error);
 }
 
 int
 sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 {
-	char *elements, *buffer;
+	char *u_buffer, *buffer;
 	struct label *intlabel;
 	struct file *fp;
 	struct mac mac;
@@ -234,20 +358,9 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	cap_rights_t rights;
 	int error;
 
-	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	error = mac_label_copyin(uap->mac_p, &mac, &u_buffer);
 	if (error)
 		return (error);
-
-	error = mac_check_structmac_consistent(&mac);
-	if (error)
-		return (error);
-
-	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
-	if (error) {
-		free(elements, M_MACTEMP);
-		return (error);
-	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
 	error = fget(td, uap->fd, cap_rights_init_one(&rights, CAP_MAC_GET),
@@ -267,7 +380,7 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		mac_vnode_copy_label(vp->v_label, intlabel);
 		VOP_UNLOCK(vp);
-		error = mac_vnode_externalize_label(intlabel, elements,
+		error = mac_vnode_externalize_label(intlabel, mac.m_string,
 		    buffer, mac.m_buflen);
 		mac_vnode_label_free(intlabel);
 		break;
@@ -282,7 +395,7 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 		PIPE_LOCK(pipe);
 		mac_pipe_copy_label(pipe->pipe_pair->pp_label, intlabel);
 		PIPE_UNLOCK(pipe);
-		error = mac_pipe_externalize_label(intlabel, elements,
+		error = mac_pipe_externalize_label(intlabel, mac.m_string,
 		    buffer, mac.m_buflen);
 		mac_pipe_label_free(intlabel);
 		break;
@@ -297,7 +410,7 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 		SOCK_LOCK(so);
 		mac_socket_copy_label(so->so_label, intlabel);
 		SOCK_UNLOCK(so);
-		error = mac_socket_externalize_label(intlabel, elements,
+		error = mac_socket_externalize_label(intlabel, mac.m_string,
 		    buffer, mac.m_buflen);
 		mac_socket_label_free(intlabel);
 		break;
@@ -306,12 +419,12 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 		error = EINVAL;
 	}
 	if (error == 0)
-		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
+		error = copyout(buffer, u_buffer, strlen(buffer)+1);
 out_fdrop:
 	fdrop(fp, td);
 out:
 	free(buffer, M_MACTEMP);
-	free(elements, M_MACTEMP);
+	free_copied_label(&mac);
 	return (error);
 }
 
@@ -333,7 +446,7 @@ static int
 kern___mac_get_path(struct thread *td, const char *path_p, struct mac *mac_p,
    int follow)
 {
-	char *elements, *buffer;
+	char *u_buffer, *buffer;
 	struct nameidata nd;
 	struct label *intlabel;
 	struct mac mac;
@@ -342,20 +455,9 @@ kern___mac_get_path(struct thread *td, const char *path_p, struct mac *mac_p,
 	if (!(mac_labeled & MPC_OBJECT_VNODE))
 		return (EINVAL);
 
-	error = copyin(mac_p, &mac, sizeof(mac));
+	error = mac_label_copyin(mac_p, &mac, &u_buffer);
 	if (error)
 		return (error);
-
-	error = mac_check_structmac_consistent(&mac);
-	if (error)
-		return (error);
-
-	elements = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-	error = copyinstr(mac.m_string, elements, mac.m_buflen, NULL);
-	if (error) {
-		free(elements, M_MACTEMP);
-		return (error);
-	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
 	NDINIT(&nd, LOOKUP, LOCKLEAF | follow, UIO_USERSPACE, path_p);
@@ -365,18 +467,18 @@ kern___mac_get_path(struct thread *td, const char *path_p, struct mac *mac_p,
 
 	intlabel = mac_vnode_label_alloc();
 	mac_vnode_copy_label(nd.ni_vp->v_label, intlabel);
-	error = mac_vnode_externalize_label(intlabel, elements, buffer,
+	error = mac_vnode_externalize_label(intlabel, mac.m_string, buffer,
 	    mac.m_buflen);
 	vput(nd.ni_vp);
 	NDFREE_PNBUF(&nd);
 	mac_vnode_label_free(intlabel);
 
 	if (error == 0)
-		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
+		error = copyout(buffer, u_buffer, strlen(buffer)+1);
 
 out:
 	free(buffer, M_MACTEMP);
-	free(elements, M_MACTEMP);
+	free_copied_label(&mac);
 
 	return (error);
 }
@@ -392,23 +494,11 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 	struct vnode *vp;
 	struct mac mac;
 	cap_rights_t rights;
-	char *buffer;
 	int error;
 
-	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	error = mac_label_copyin(uap->mac_p, &mac, NULL);
 	if (error)
 		return (error);
-
-	error = mac_check_structmac_consistent(&mac);
-	if (error)
-		return (error);
-
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
-	if (error) {
-		free(buffer, M_MACTEMP);
-		return (error);
-	}
 
 	error = fget(td, uap->fd, cap_rights_init_one(&rights, CAP_MAC_SET),
 	    &fp);
@@ -423,7 +513,7 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 			goto out_fdrop;
 		}
 		intlabel = mac_vnode_label_alloc();
-		error = mac_vnode_internalize_label(intlabel, buffer);
+		error = mac_vnode_internalize_label(intlabel, mac.m_string);
 		if (error) {
 			mac_vnode_label_free(intlabel);
 			break;
@@ -447,7 +537,7 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 			goto out_fdrop;
 		}
 		intlabel = mac_pipe_label_alloc();
-		error = mac_pipe_internalize_label(intlabel, buffer);
+		error = mac_pipe_internalize_label(intlabel, mac.m_string);
 		if (error == 0) {
 			pipe = fp->f_data;
 			PIPE_LOCK(pipe);
@@ -464,7 +554,7 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 			goto out_fdrop;
 		}
 		intlabel = mac_socket_label_alloc(M_WAITOK);
-		error = mac_socket_internalize_label(intlabel, buffer);
+		error = mac_socket_internalize_label(intlabel, mac.m_string);
 		if (error == 0) {
 			so = fp->f_data;
 			error = mac_socket_label_set(td->td_ucred, so,
@@ -479,7 +569,7 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 out_fdrop:
 	fdrop(fp, td);
 out:
-	free(buffer, M_MACTEMP);
+	free_copied_label(&mac);
 	return (error);
 }
 
@@ -505,30 +595,18 @@ kern___mac_set_path(struct thread *td, const char *path_p, struct mac *mac_p,
 	struct nameidata nd;
 	struct mount *mp;
 	struct mac mac;
-	char *buffer;
 	int error;
 
 	if (!(mac_labeled & MPC_OBJECT_VNODE))
 		return (EINVAL);
 
-	error = copyin(mac_p, &mac, sizeof(mac));
+	error = mac_label_copyin(mac_p, &mac, NULL);
 	if (error)
 		return (error);
-
-	error = mac_check_structmac_consistent(&mac);
-	if (error)
-		return (error);
-
-	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK);
-	error = copyinstr(mac.m_string, buffer, mac.m_buflen, NULL);
-	if (error) {
-		free(buffer, M_MACTEMP);
-		return (error);
-	}
 
 	intlabel = mac_vnode_label_alloc();
-	error = mac_vnode_internalize_label(intlabel, buffer);
-	free(buffer, M_MACTEMP);
+	error = mac_vnode_internalize_label(intlabel, mac.m_string);
+	free_copied_label(&mac);
 	if (error)
 		goto out;
 

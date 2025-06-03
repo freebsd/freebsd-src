@@ -256,7 +256,7 @@ icmp_nat_head()
 {
 	atf_set descr 'Test that ICMP packets are correct for route-to + NAT'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 icmp_nat_body()
@@ -516,6 +516,7 @@ ifbound_reply_to_head()
 {
 	atf_set descr 'Test that reply-to states bind to the expected interface'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 ifbound_reply_to_body()
@@ -571,6 +572,7 @@ ifbound_reply_to_v6_head()
 {
 	atf_set descr 'Test that reply-to states bind to the expected interface for IPv6'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 ifbound_reply_to_v6_body()
@@ -630,6 +632,7 @@ ifbound_reply_to_rdr_dummynet_head()
 {
 	atf_set descr 'Test that reply-to states bind to the expected non-default-route interface after rdr and dummynet'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 ifbound_reply_to_rdr_dummynet_body()

@@ -250,18 +250,18 @@ There is insufficient swap space for the new process.
 .Xr vfork 2 ,
 .Xr wait 2 ,
 .Xr pthread_atfork 3
+.Sh STANDARDS
+The
+.Fn fork
+and
+.Fn _Fork
+functions conform to
+.St -p1003.1-2024 .
 .Sh HISTORY
 The
 .Fn fork
 function appeared in
 .At v1 .
-.Pp
-The
-.Fn _Fork
-function was defined by Austin Group together with the removal
-of a requirement that the
-.Fn fork
-implementation must be async-signal safe.
 The
 .Fn _Fork
 function appeared in

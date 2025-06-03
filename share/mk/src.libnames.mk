@@ -7,7 +7,7 @@
 .endif
 
 .if !target(__<src.libnames.mk>__)
-__<src.libnames.mk>__:
+__<src.libnames.mk>__:	.NOTMAIN
 
 .include <src.opts.mk>
 
@@ -27,6 +27,7 @@ _PRIVATELIBS=	\
 		gtest_main \
 		heimipcc \
 		heimipcs \
+		kldelf \
 		ldns \
 		sqlite3 \
 		ssh \
@@ -43,6 +44,7 @@ _INTERNALLIBS=	\
 		bsnmptools \
 		c_nossp_pic \
 		cron \
+		der \
 		diff \
 		elftc \
 		fdt \
@@ -62,6 +64,7 @@ _INTERNALLIBS=	\
 		parse \
 		pe \
 		pfctl \
+		pkgecc \
 		pmcstat \
 		sl \
 		sm \
@@ -312,6 +315,7 @@ _DP_bsnmp=	crypto
 .endif
 _DP_geom=	bsdxml sbuf
 _DP_cam=	sbuf
+_DP_kldelf=	elf
 _DP_kvm=	elf
 _DP_casper=	nv
 _DP_cap_dns=	nv
@@ -320,6 +324,7 @@ _DP_cap_grp=	nv
 _DP_cap_pwd=	nv
 _DP_cap_sysctl=	nv
 _DP_cap_syslog=	nv
+_DP_crypt=	md
 .if ${MK_OFED} != "no"
 _DP_pcap=	ibverbs mlx5
 .endif
@@ -343,6 +348,7 @@ _DP_mp=	crypto
 _DP_memstat=	kvm
 _DP_magic=	z
 _DP_mt=		sbuf bsdxml
+_DP_nvmf=	nv
 _DP_ldns=	ssl crypto
 _DP_lua=	m
 _DP_lutok=	lua
@@ -488,7 +494,7 @@ LDADD_${_l}_L+=		-L${LIB${_l:tu}DIR}
 .endif
 DPADD_${_l}?=	${LIB${_l:tu}}
 .if ${_PRIVATELIBS:M${_l}}
-LDADD_${_l}?=	-lprivate${_l}
+LDADD_${_l}?=	${LDADD_${_l}_L} -lprivate${_l}
 .elif ${_INTERNALLIBS:M${_l}}
 LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l:S/${PIE_SUFFIX}//}${PIE_SUFFIX}
 .else
@@ -610,6 +616,9 @@ LIBTELNET?=	${LIBTELNETDIR}/libtelnet${PIE_SUFFIX}.a
 LIBCRONDIR=	${_LIB_OBJTOP}/usr.sbin/cron/lib
 LIBCRON?=	${LIBCRONDIR}/libcron${PIE_SUFFIX}.a
 
+LIBDERDIR=	${_LIB_OBJTOP}/lib/libder
+LIBDER?=	${LIBDERDIR}/libder${PIE_SUFFIX}.a
+
 LIBNTPDIR=	${_LIB_OBJTOP}/usr.sbin/ntp/libntp
 LIBNTP?=	${LIBNTPDIR}/libntp${PIE_SUFFIX}.a
 
@@ -635,6 +644,9 @@ LIBBSNMPTOOLSDIR=	${_LIB_OBJTOP}/usr.sbin/bsnmpd/tools/libbsnmptools
 LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools${PIE_SUFFIX}.a
 
 LIBBE?=		${LIBBEDIR}/libbe${PIE_SUFFIX}.a
+
+LIBPKGECCDIR=	${_LIB_OBJTOP}/secure/lib/libpkgecc
+LIBPKGECC?=	${LIBPKGECCDIR}/libpkgecc${PIE_SUFFIX}.a
 
 LIBPMCSTATDIR=	${_LIB_OBJTOP}/lib/libpmcstat
 LIBPMCSTAT?=	${LIBPMCSTATDIR}/libpmcstat${PIE_SUFFIX}.a
@@ -689,6 +701,9 @@ LIBWPAWPS?=	${LIBWPAWPSDIR}/libwpawps${PIE_SUFFIX}.a
 
 LIBC_NOSSP_PICDIR=	${_LIB_OBJTOP}/lib/libc
 LIBC_NOSSP_PIC?=	${LIBC_NOSSP_PICDIR}/libc_nossp_pic.a
+
+LIBSYS_PICDIR=	${_LIB_OBJTOP}/lib/libsys
+LIBSYS_PIC?=	${LIBSYS_PICDIR}/libsys_pic.a
 
 # Define a directory for each library.  This is useful for adding -L in when
 # not using a --sysroot or for meta mode bootstrapping when there is no

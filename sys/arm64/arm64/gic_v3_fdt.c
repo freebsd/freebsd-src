@@ -376,7 +376,8 @@ gic_v3_ofw_bus_attach(device_t dev)
 		}
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static struct resource_list *

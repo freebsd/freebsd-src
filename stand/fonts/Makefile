@@ -1,5 +1,6 @@
 .include <bsd.init.mk>
 
+.PATH: ${SRCTOP}/contrib/spleen
 .PATH: ${SRCTOP}/contrib/terminus
 
 FONTS=	\
@@ -15,6 +16,7 @@ FONTS=	\
 	12x24.fnt.gz \
 	14x28.fnt.gz \
 	16x32.fnt.gz \
+	32x64.fnt.gz \
 
 FILES=	${FONTS} INDEX.fonts
 FILESDIR=	/boot/fonts
@@ -44,6 +46,8 @@ CLEANFILES+=	${FONTS} ${FONTS:T:S/${COMPRESS_EXT}//g}
 14x28.fnt.gz: 14x28.fnt
 	${COMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
 16x32.fnt.gz: 16x32.fnt
+	${COMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
+32x64.fnt.gz: 32x64.fnt
 	${COMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
 
 6x12.fnt: ter-u12n.bdf ter-u12b.bdf
@@ -80,6 +84,9 @@ CLEANFILES+=	${FONTS} ${FONTS:T:S/${COMPRESS_EXT}//g}
 	vtfontcvt -o ${.TARGET} ${.ALLSRC}
 
 16x32.fnt: ter-u32n.bdf ter-u32b.bdf
+	vtfontcvt -o ${.TARGET} ${.ALLSRC}
+
+32x64.fnt: spleen-32x64.bdf
 	vtfontcvt -o ${.TARGET} ${.ALLSRC}
 
 .include <bsd.prog.mk>

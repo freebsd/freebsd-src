@@ -40,6 +40,7 @@
 #include <sys/queue.h>
 #include <sys/param.h>
 #include <sys/cpuset.h>
+#include <sys/exterrvar.h>
 #include <machine/atomic.h>
 #include <errno.h>
 #include <limits.h>
@@ -562,8 +563,12 @@ struct pthread {
 
 	/* Deferred threads from pthread_cond_signal. */
 	unsigned int 		*defer_waiters[MAX_DEFER_WAITERS];
-#define _pthread_endzero	wake_addr
 
+	/* rtld thread-local dlerror message and seen control */
+	char			dlerror_msg[512];
+	int			dlerror_seen;
+
+#define _pthread_endzero	wake_addr
 	struct wake_addr	*wake_addr;
 #define WAKE_ADDR(td)           ((td)->wake_addr)
 
@@ -573,9 +578,7 @@ struct pthread {
 	/* pthread_set/get_name_np */
 	char			*name;
 
-	/* rtld thread-local dlerror message and seen control */
-	char			dlerror_msg[512];
-	int			dlerror_seen;
+	struct uexterror	uexterr;
 };
 
 #define THR_SHOULD_GC(thrd) 						\
@@ -840,6 +843,8 @@ void	_thr_signal_postfork(void) __hidden;
 void	_thr_signal_postfork_child(void) __hidden;
 void	_thr_suspend_all_lock(struct pthread *) __hidden;
 void	_thr_suspend_all_unlock(struct pthread *) __hidden;
+void	_thr_suspend_all_np(void) __hidden;
+void	_thr_resume_all_np(void) __hidden;
 void	_thr_try_gc(struct pthread *, struct pthread *) __hidden;
 int	_rtp_to_schedparam(const struct rtprio *rtp, int *policy,
 		struct sched_param *param) __hidden;
@@ -1012,6 +1017,7 @@ void __thr_pshared_destroy(void *key) __hidden;
 void __thr_pshared_atfork_pre(void) __hidden;
 void __thr_pshared_atfork_post(void) __hidden;
 
+void *__thr_aligned_alloc_offset(size_t align, size_t size, size_t offset);
 void *__thr_calloc(size_t num, size_t size);
 void __thr_free(void *cp);
 void *__thr_malloc(size_t nbytes);

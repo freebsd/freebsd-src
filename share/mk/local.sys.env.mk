@@ -43,6 +43,12 @@ TIME_STAMP_END?= ${TIME_STAMP_DATE}
 # error spam and show a proper error.
 Mkdirs= Mkdirs() { mkdir -p $$* || :; }
 
+# jobs.mk wants this
+.if empty(NEWLOG_SH)
+NEWLOG_SH:= ${SRCTOP}/contrib/bmake/mk/newlog.sh
+.export NEWLOG_SH
+.endif
+
 .if !empty(.MAKEFLAGS:M-s)
 ECHO_TRACE?=	true
 .endif

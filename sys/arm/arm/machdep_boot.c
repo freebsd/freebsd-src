@@ -270,7 +270,6 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 {
 	vm_offset_t lastaddr = 0;
 	void *mdp;
-	void *kmdp;
 #ifdef DDB
 	vm_offset_t ksym_start;
 	vm_offset_t ksym_end;
@@ -287,17 +286,19 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 	if ((mdp = (void *)(abp->abp_r0 & ~PAGE_MASK)) == NULL)
 		return 0;
 	preload_metadata = mdp;
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
+
+	/* Initialize preload_kmdp */
+	preload_initkmdp(false);
+	if (preload_kmdp == NULL)
 		return 0;
 
-	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	loader_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	boothowto = MD_FETCH(preload_kmdp, MODINFOMD_HOWTO, int);
+	loader_envp = MD_FETCH(preload_kmdp, MODINFOMD_ENVP, char *);
 	init_static_kenv(loader_envp, 0);
-	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+	lastaddr = MD_FETCH(preload_kmdp, MODINFOMD_KERNEND, vm_offset_t);
 #ifdef DDB
-	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+	ksym_start = MD_FETCH(preload_kmdp, MODINFOMD_SSYM, uintptr_t);
+	ksym_end = MD_FETCH(preload_kmdp, MODINFOMD_ESYM, uintptr_t);
 	db_fetch_ksymtab(ksym_start, ksym_end, 0);
 #endif
 	return lastaddr;
@@ -355,12 +356,12 @@ fake_preload_metadata(struct arm_boot_params *abp __unused, void *dtb_ptr,
 
 	fake_preload[i++] = MODINFO_NAME;
 	fake_preload[i++] = strlen("kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "kernel");
+	strcpy((char *)&fake_preload[i++], "kernel");
 	i += 1;
 	fake_preload[i++] = MODINFO_TYPE;
-	fake_preload[i++] = strlen("elf kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "elf kernel");
-	i += 2;
+	fake_preload[i++] = strlen(preload_kerntype) + 1;
+	strcpy((char *)&fake_preload[i], preload_kerntype);
+	i += howmany(fake_preload[i - 1], sizeof(uint32_t));
 	fake_preload[i++] = MODINFO_ADDR;
 	fake_preload[i++] = sizeof(vm_offset_t);
 	fake_preload[i++] = KERNVIRTADDR;
@@ -381,114 +382,10 @@ fake_preload_metadata(struct arm_boot_params *abp __unused, void *dtb_ptr,
 	fake_preload[i] = 0;
 	preload_metadata = (void *)fake_preload;
 
+	/* Initialize preload_kmdp */
+	preload_initkmdp(true);
+
 	init_static_kenv(NULL, 0);
 
 	return (lastaddr);
 }
-
-#ifdef EFI
-void
-arm_add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
-    int *mrcnt)
-{
-	struct efi_md *map, *p;
-	const char *type;
-	size_t efisz;
-	int ndesc, i, j;
-
-	static const char *types[] = {
-		"Reserved",
-		"LoaderCode",
-		"LoaderData",
-		"BootServicesCode",
-		"BootServicesData",
-		"RuntimeServicesCode",
-		"RuntimeServicesData",
-		"ConventionalMemory",
-		"UnusableMemory",
-		"ACPIReclaimMemory",
-		"ACPIMemoryNVS",
-		"MemoryMappedIO",
-		"MemoryMappedIOPortSpace",
-		"PalCode",
-		"PersistentMemory"
-	};
-
-	*mrcnt = 0;
-
-	/*
-	 * Memory map data provided by UEFI via the GetMemoryMap
-	 * Boot Services API.
-	 */
-	efisz = roundup2(sizeof(struct efi_map_header), 0x10);
-	map = (struct efi_md *)((uint8_t *)efihdr + efisz);
-
-	if (efihdr->descriptor_size == 0)
-		return;
-	ndesc = efihdr->memory_size / efihdr->descriptor_size;
-
-	if (boothowto & RB_VERBOSE)
-		printf("%23s %12s %12s %8s %4s\n",
-		    "Type", "Physical", "Virtual", "#Pages", "Attr");
-
-	for (i = 0, j = 0, p = map; i < ndesc; i++,
-	    p = efi_next_descriptor(p, efihdr->descriptor_size)) {
-		if (boothowto & RB_VERBOSE) {
-			if (p->md_type < nitems(types))
-				type = types[p->md_type];
-			else
-				type = "<INVALID>";
-			printf("%23s %012llx %012llx %08llx ", type, p->md_phys,
-			    p->md_virt, p->md_pages);
-			if (p->md_attr & EFI_MD_ATTR_UC)
-				printf("UC ");
-			if (p->md_attr & EFI_MD_ATTR_WC)
-				printf("WC ");
-			if (p->md_attr & EFI_MD_ATTR_WT)
-				printf("WT ");
-			if (p->md_attr & EFI_MD_ATTR_WB)
-				printf("WB ");
-			if (p->md_attr & EFI_MD_ATTR_UCE)
-				printf("UCE ");
-			if (p->md_attr & EFI_MD_ATTR_WP)
-				printf("WP ");
-			if (p->md_attr & EFI_MD_ATTR_RP)
-				printf("RP ");
-			if (p->md_attr & EFI_MD_ATTR_XP)
-				printf("XP ");
-			if (p->md_attr & EFI_MD_ATTR_NV)
-				printf("NV ");
-			if (p->md_attr & EFI_MD_ATTR_MORE_RELIABLE)
-				printf("MORE_RELIABLE ");
-			if (p->md_attr & EFI_MD_ATTR_RO)
-				printf("RO ");
-			if (p->md_attr & EFI_MD_ATTR_RT)
-				printf("RUNTIME");
-			printf("\n");
-		}
-
-		switch (p->md_type) {
-		case EFI_MD_TYPE_CODE:
-		case EFI_MD_TYPE_DATA:
-		case EFI_MD_TYPE_BS_CODE:
-		case EFI_MD_TYPE_BS_DATA:
-		case EFI_MD_TYPE_FREE:
-			/*
-			 * We're allowed to use any entry with these types.
-			 */
-			break;
-		default:
-			continue;
-		}
-
-		j++;
-		if (j >= FDT_MEM_REGIONS)
-			break;
-
-		mr[j].mr_start = p->md_phys;
-		mr[j].mr_size = p->md_pages * EFI_PAGE_SIZE;
-	}
-
-	*mrcnt = j;
-}
-#endif /* EFI */

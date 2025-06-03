@@ -30,7 +30,6 @@
 
 extern "C" {
 #include <sys/types.h>
-#include <sys/sysctl.h>
 
 #include <fcntl.h>
 #include <pthread.h>

@@ -177,6 +177,13 @@ fsnode_isroot(const fsnode *cur)
 	return (strcmp(cur->name, ".") == 0);
 }
 
+static bool
+fsnode_valid(const fsnode *cur)
+{
+	return (cur->type == S_IFREG || cur->type == S_IFDIR ||
+	    cur->type == S_IFLNK);
+}
+
 /*
  * Visit each node in a directory hierarchy, in pre-order depth-first order.
  */
@@ -186,9 +193,11 @@ fsnode_foreach(fsnode *root, int (*cb)(fsnode *, void *), void *arg)
 	assert(root->type == S_IFDIR);
 
 	for (fsnode *cur = root; cur != NULL; cur = cur->next) {
-		assert(cur->type == S_IFREG || cur->type == S_IFDIR ||
-		    cur->type == S_IFLNK);
-
+		if (!fsnode_valid(cur)) {
+			warnx("skipping unhandled %s %s/%s",
+			    inode_type(cur->type), cur->path, cur->name);
+			continue;
+		}
 		if (cb(cur, arg) == 0)
 			continue;
 		if (cur->type == S_IFDIR && cur->child != NULL)
@@ -381,9 +390,15 @@ fs_populate_sattrs(struct fs_populate_arg *arg, const fsnode *cur,
 		 */
 		for (fsnode *c = fsnode_isroot(cur) ? cur->next : cur->child;
 		    c != NULL; c = c->next) {
-			if (c->type == S_IFDIR)
+			switch (c->type) {
+			case S_IFDIR:
 				links++;
-			objsize++;
+				/* FALLTHROUGH */
+			case S_IFREG:
+			case S_IFLNK:
+				objsize++;
+				break;
+			}
 		}
 
 		/* The root directory is its own parent. */
@@ -652,6 +667,16 @@ fs_populate_symlink(fsnode *cur, struct fs_populate_arg *arg)
 	fs_populate_sattrs(arg, cur, dnode);
 }
 
+static fsnode *
+fsnode_next(fsnode *cur)
+{
+	for (cur = cur->next; cur != NULL; cur = cur->next) {
+		if (fsnode_valid(cur))
+			return (cur);
+	}
+	return (NULL);
+}
+
 static int
 fs_foreach_populate(fsnode *cur, void *_arg)
 {
@@ -678,7 +703,7 @@ fs_foreach_populate(fsnode *cur, void *_arg)
 
 	ret = (cur->inode->flags & FI_ROOT) != 0 ? 0 : 1;
 
-	if (cur->next == NULL &&
+	if (fsnode_next(cur) == NULL &&
 	    (cur->child == NULL || (cur->inode->flags & FI_ROOT) != 0)) {
 		/*
 		 * We reached a terminal node in a subtree.  Walk back up and
@@ -694,7 +719,7 @@ fs_foreach_populate(fsnode *cur, void *_arg)
 				eclose(dir->dirfd);
 			free(dir);
 			cur = cur->parent;
-		} while (cur != NULL && cur->next == NULL &&
+		} while (cur != NULL && fsnode_next(cur) == NULL &&
 		    (cur->inode->flags & FI_ROOT) == 0);
 	}
 

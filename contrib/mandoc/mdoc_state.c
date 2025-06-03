@@ -1,6 +1,6 @@
-/* $Id: mdoc_state.c,v 1.17 2020/06/22 19:20:40 schwarze Exp $ */
+/* $Id: mdoc_state.c,v 1.19 2022/08/19 12:59:26 schwarze Exp $ */
 /*
- * Copyright (c) 2014, 2015, 2017 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2014,2015,2017,2018,2022 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,6 +23,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if DEBUG_MEMORY
+#include "mandoc_dbg.h"
+#endif
 #include "mandoc.h"
 #include "roff.h"
 #include "mdoc.h"
@@ -34,6 +37,7 @@
 
 typedef	void	(*state_handler)(STATE_ARGS);
 
+static	void	 setsec(struct roff_node *, enum roff_sec);
 static	void	 state_bl(STATE_ARGS);
 static	void	 state_sh(STATE_ARGS);
 static	void	 state_sm(STATE_ARGS);
@@ -205,35 +209,36 @@ state_bl(STATE_ARGS)
 }
 
 static void
-state_sh(STATE_ARGS)
+setsec(struct roff_node *n, enum roff_sec sec)
 {
 	struct roff_node *nch;
-	char		 *secname;
+
+	n->sec = sec;
+	for (nch = n->child; nch != NULL; nch = nch->next)
+		setsec(nch, sec);
+}
+
+/*
+ * Set the section attribute for the BLOCK, HEAD, and HEAD children.
+ * For other nodes, including the .Sh BODY, this is done when allocating
+ * the node data structures, but for .Sh BLOCK and HEAD, the section is
+ * still unknown at that time.
+ */
+static void
+state_sh(STATE_ARGS)
+{
+	enum roff_sec sec;
 
 	if (n->type != ROFFT_HEAD)
 		return;
 
-	if ( ! (n->flags & NODE_VALID)) {
-		secname = NULL;
-		deroff(&secname, n);
-
-		/*
-		 * Set the section attribute for the BLOCK, HEAD,
-		 * and HEAD children; the latter can only be TEXT
-		 * nodes, so no recursion is needed.  For other
-		 * nodes, including the .Sh BODY, this is done
-		 * when allocating the node data structures, but
-		 * for .Sh BLOCK and HEAD, the section is still
-		 * unknown at that time.
-		 */
-
-		n->sec = n->parent->sec = secname == NULL ?
-		    SEC_CUSTOM : mdoc_a2sec(secname);
-		for (nch = n->child; nch != NULL; nch = nch->next)
-			nch->sec = n->sec;
-		free(secname);
+	if ((n->flags & NODE_VALID) == 0) {
+		sec = n->child != NULL && n->child->type == ROFFT_TEXT &&
+		    n->child->next == NULL ? mdoc_a2sec(n->child->string) :
+		    SEC_CUSTOM;
+		n->parent->sec = sec;
+		setsec(n, sec);
 	}
-
 	if ((mdoc->lastsec = n->sec) == SEC_SYNOPSIS) {
 		roff_setreg(mdoc->roff, "nS", 1, '=');
 		mdoc->flags |= MDOC_SYNOPSIS;

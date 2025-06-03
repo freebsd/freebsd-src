@@ -41,8 +41,6 @@ breakpoint(void)
 #ifdef _KERNEL
 #include <machine/armreg.h>
 
-void pan_enable(void);
-
 static __inline register_t
 dbg_disable(void)
 {
@@ -158,6 +156,26 @@ invalidate_local_icache(void)
 	    "ic iallu          \n"
 	    "dsb nsh           \n"
 	    "isb               \n");
+}
+
+static __inline void
+wfet(uint64_t val)
+{
+	__asm __volatile(
+		"msr s0_3_c1_c0_0, %0\n"
+		:
+		: "r" ((val))
+		: "memory");
+}
+
+static __inline void
+wfit(uint64_t val)
+{
+	__asm __volatile(
+		"msr s0_3_c1_c0_1, %0\n"
+		:
+		: "r" ((val))
+		: "memory");
 }
 
 extern bool icache_aliasing;

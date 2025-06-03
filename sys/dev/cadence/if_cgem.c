@@ -1909,10 +1909,7 @@ cgem_detach(device_t dev)
 		ether_ifdetach(sc->ifp);
 	}
 
-	if (sc->miibus != NULL) {
-		device_delete_child(dev, sc->miibus);
-		sc->miibus = NULL;
-	}
+	bus_generic_detach(dev);
 
 	/* Release resources. */
 	if (sc->mem_res != NULL) {
@@ -1964,8 +1961,6 @@ cgem_detach(device_t dev)
 		bus_dma_tag_destroy(sc->mbuf_dma_tag);
 		sc->mbuf_dma_tag = NULL;
 	}
-
-	bus_generic_detach(dev);
 
 	if (sc->clk_tsuclk)
 		clk_release(sc->clk_tsuclk);

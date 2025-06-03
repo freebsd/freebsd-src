@@ -1,4 +1,4 @@
-/* $OpenBSD: kexsntrup761x25519.c,v 1.2 2021/12/05 12:28:27 jsg Exp $ */
+/* $OpenBSD: kexsntrup761x25519.c,v 1.3 2024/09/15 02:20:51 djm Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl.  All rights reserved.
  *
@@ -38,6 +38,10 @@
 #include "sshbuf.h"
 #include "digest.h"
 #include "ssherr.h"
+
+volatile crypto_int16 crypto_int16_optblocker = 0;
+volatile crypto_int32 crypto_int32_optblocker = 0;
+volatile crypto_int64 crypto_int64_optblocker = 0;
 
 int
 kex_kem_sntrup761x25519_keypair(struct kex *kex)

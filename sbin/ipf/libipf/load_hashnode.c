@@ -53,9 +53,28 @@ load_hashnode(int unit, char *name, iphtent_t *node, int ttl,
 
 	if (err != 0)
 		if (!(opts & OPT_DONOTHING)) {
-			char msg[80];
+			char msg[255];
+			char ipaddr[80], mask_msg[10], mask[8];
 
-			snprintf(msg, sizeof(msg), "%s node from lookup hash table", what);
+			inet_ntop(ipe.ipe_family,
+				ipe.ipe_addr.vptr, ipaddr,
+				sizeof(ipaddr));
+#ifdef USE_INET6
+			if (ipe.ipe_family == AF_INET) {
+#endif
+				inet_ntop(ipe.ipe_family,
+					ipe.ipe_mask.vptr, mask,
+					sizeof(mask));
+				mask_msg[0]='/';
+				mask_msg[1]='\0';
+				strlcat(mask_msg, mask, sizeof(mask_msg));
+#ifdef USE_INET6
+			} else {
+				mask_msg[0]='\0';
+			}
+#endif
+
+			snprintf(msg, sizeof(msg), "%s node from lookup hash table(%s) node(%s%s)", what, name, ipaddr, mask_msg);
 			return (ipf_perror_fd(pool_fd(), iocfunc, msg));
 		}
 	return (0);

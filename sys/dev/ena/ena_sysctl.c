@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2015-2023 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2024 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -148,17 +148,17 @@ SYSCTL_INT(_hw_ena, OID_AUTO, enable_9k_mbufs, CTLFLAG_RDTUN,
     &ena_enable_9k_mbufs, 0, "Use 9 kB mbufs for Rx descriptors");
 
 /*
- * Force the driver to use large LLQ (Low Latency Queue) header. Defaults to
- * false. This option may be important for platforms, which often handle packet
- * headers on Tx with total header size greater than 96B, as it may
- * reduce the latency.
+ * Force the driver to use large or regular LLQ (Low Latency Queue) header size.
+ * Defaults to ENA_LLQ_HEADER_SIZE_POLICY_DEFAULT. This option may be
+ * important for platforms, which often handle packet headers on Tx with total
+ * header size greater than 96B, as it may reduce the latency.
  * It also reduces the maximum Tx queue size by half, so it may cause more Tx
  * packet drops.
  */
-bool ena_force_large_llq_header = false;
-SYSCTL_BOOL(_hw_ena, OID_AUTO, force_large_llq_header, CTLFLAG_RDTUN,
+int ena_force_large_llq_header = ENA_LLQ_HEADER_SIZE_POLICY_DEFAULT;
+SYSCTL_INT(_hw_ena, OID_AUTO, force_large_llq_header, CTLFLAG_RDTUN,
     &ena_force_large_llq_header, 0,
-    "Increases maximum supported header size in LLQ mode to 224 bytes, while reducing the maximum Tx queue size by half.\n");
+    "Change default LLQ entry size received from the device");
 
 int ena_rss_table_size = ENA_RX_RSS_TABLE_SIZE;
 
@@ -275,11 +275,36 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    &dev_stats->wd_expired, "Watchdog expiry count");
 	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "interface_up", CTLFLAG_RD,
 	    &dev_stats->interface_up, "Network interface up count");
-	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "interface_down",
-	    CTLFLAG_RD, &dev_stats->interface_down,
-	    "Network interface down count");
-	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "admin_q_pause",
-	    CTLFLAG_RD, &dev_stats->admin_q_pause, "Admin queue pauses");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "interface_down", CTLFLAG_RD,
+	    &dev_stats->interface_down, "Network interface down count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "admin_q_pause", CTLFLAG_RD,
+	    &dev_stats->admin_q_pause, "Admin queue pauses");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "os_trigger", CTLFLAG_RD,
+	    &dev_stats->os_trigger, "OS trigger count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "missing_tx_cmpl", CTLFLAG_RD,
+	    &dev_stats->missing_tx_cmpl, "Missing TX completions resets count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "bad_rx_req_id", CTLFLAG_RD,
+	    &dev_stats->bad_rx_req_id, "Bad RX req id count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "bad_tx_req_id", CTLFLAG_RD,
+	    &dev_stats->bad_tx_req_id, "Bad TX req id count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "bad_rx_desc_num", CTLFLAG_RD,
+	    &dev_stats->bad_rx_desc_num, "Bad RX descriptors number count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "invalid_state", CTLFLAG_RD,
+	    &dev_stats->invalid_state, "Driver invalid state count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "missing_intr", CTLFLAG_RD,
+	    &dev_stats->missing_intr, "Missing interrupt count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "tx_desc_malformed", CTLFLAG_RD,
+	    &dev_stats->tx_desc_malformed, "TX descriptors malformed count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "rx_desc_malformed", CTLFLAG_RD,
+	    &dev_stats->rx_desc_malformed, "RX descriptors malformed count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "missing_admin_interrupt", CTLFLAG_RD,
+	    &dev_stats->missing_admin_interrupt, "Missing admin interrupts count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "admin_to", CTLFLAG_RD,
+	    &dev_stats->admin_to, "Admin queue timeouts count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "device_request_reset", CTLFLAG_RD,
+	    &dev_stats->device_request_reset, "Device reset requests count");
+	SYSCTL_ADD_COUNTER_U64(ctx, child, OID_AUTO, "total_resets", CTLFLAG_RD,
+	    &dev_stats->total_resets, "Total resets count");
 
 	for (i = 0; i < adapter->num_io_queues; ++i, ++tx_ring, ++rx_ring) {
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);

@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.394 2024/02/21 06:01:13 djm Exp $
-.Dd $Mdocdate: February 21 2024 $
+.\" $OpenBSD: ssh_config.5,v 1.402 2024/09/09 14:41:21 naddy Exp $
+.Dd $Mdocdate: September 9 2024 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -548,8 +548,6 @@ If the option is set to
 .Cm no
 (the default),
 the check will not be executed.
-The default is
-.Cm no .
 .It Cm Ciphers
 Specifies the ciphers allowed and their order of preference.
 Multiple ciphers must be comma-separated.
@@ -1116,7 +1114,7 @@ section and environment variables as described in the
 .Sx ENVIRONMENT VARIABLES
 section.
 .It Cm IdentityFile
-Specifies a file from which the user's DSA, ECDSA, authenticator-hosted ECDSA,
+Specifies a file from which the user's ECDSA, authenticator-hosted ECDSA,
 Ed25519, authenticator-hosted Ed25519 or RSA authentication identity is read.
 You can also specify a public key file to use the corresponding
 private key that is loaded in
@@ -1126,10 +1124,9 @@ The default is
 .Pa ~/.ssh/id_rsa ,
 .Pa ~/.ssh/id_ecdsa ,
 .Pa ~/.ssh/id_ecdsa_sk ,
-.Pa ~/.ssh/id_ed25519 ,
-.Pa ~/.ssh/id_ed25519_sk
+.Pa ~/.ssh/id_ed25519
 and
-.Pa ~/.ssh/id_dsa .
+.Pa ~/.ssh/id_ed25519_sk .
 Additionally, any identities represented by the authentication agent
 will be used for authentication unless
 .Cm IdentitiesOnly
@@ -1185,7 +1182,12 @@ to unknown options that appear before it.
 Include the specified configuration file(s).
 Multiple pathnames may be specified and each pathname may contain
 .Xr glob 7
-wildcards and, for user configurations, shell-like
+wildcards,
+tokens as described in the
+.Sx TOKENS
+section, environment variables as described in the
+.Sx ENVIRONMENT VARIABLES
+section and, for user configurations, shell-like
 .Sq ~
 references to user home directories.
 Wildcards will be expanded and processed in lexical order.
@@ -1263,8 +1265,12 @@ it may be zero or more of:
 and
 .Cm pam .
 .It Cm KexAlgorithms
-Specifies the available KEX (Key Exchange) algorithms.
+Specifies the permitted KEX (Key Exchange) algorithms that will be used and
+their preference order.
+The selected algorithm will be the first algorithm in this list that
+the server also supports.
 Multiple algorithms must be comma-separated.
+.Pp
 If the specified list begins with a
 .Sq +
 character, then the specified algorithms will be appended to the default set
@@ -1277,9 +1283,11 @@ If the specified list begins with a
 .Sq ^
 character, then the specified algorithms will be placed at the head of the
 default set.
+.Pp
 The default is:
 .Bd -literal -offset indent
-sntrup761x25519-sha512@openssh.com,
+sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,
+mlkem768x25519-sha256,
 curve25519-sha256,curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
@@ -1288,7 +1296,7 @@ diffie-hellman-group18-sha512,
 diffie-hellman-group14-sha256
 .Ed
 .Pp
-The list of available key exchange algorithms may also be obtained using
+The list of supported key exchange algorithms may also be obtained using
 .Qq ssh -Q kex .
 .It Cm KnownHostsCommand
 Specifies a command to use to obtain a list of host keys, in addition to
@@ -1380,8 +1388,8 @@ DEBUG and DEBUG1 are equivalent.
 DEBUG2 and DEBUG3 each specify higher levels of verbose output.
 .It Cm LogVerbose
 Specify one or more overrides to LogLevel.
-An override consists of a pattern lists that matches the source file, function
-and line number to force detailed logging for.
+An override consists of one or more pattern lists that matches the
+source file, function and line number to force detailed logging for.
 For example, an override pattern of:
 .Bd -literal -offset indent
 kex.c:*:1000,*:kex_exchange_identification():*,packet.c:*
@@ -2268,6 +2276,7 @@ The local username.
 .Cm ControlPath ,
 .Cm IdentityAgent ,
 .Cm IdentityFile ,
+.Cm Include ,
 .Cm KnownHostsCommand ,
 .Cm LocalForward ,
 .Cm Match exec ,
@@ -2316,6 +2325,7 @@ The keywords
 .Cm ControlPath ,
 .Cm IdentityAgent ,
 .Cm IdentityFile ,
+.Cm Include ,
 .Cm KnownHostsCommand ,
 and
 .Cm UserKnownHostsFile

@@ -46,7 +46,6 @@
 #endif
 
 #include <ctype.h>
-#include <err.h>
 #include <errno.h>
 #ifdef JAIL
 #include <jail.h>
@@ -61,6 +60,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include "netstat.h"
 #include "nl_defs.h"
@@ -194,33 +194,33 @@ static int kresolve_list(struct nlist *_nl);
 static kvm_t *kvmd;
 static char *nlistf = NULL, *memf = NULL;
 
-int	Aflag;		/* show addresses of protocol control block */
-int	aflag;		/* show all sockets (including servers) */
-static int	Bflag;		/* show information about bpf consumers */
-int	bflag;		/* show i/f total bytes in/out */
-int	cflag;		/* show TCP congestion control stack */
-int	Cflag;		/* show congestion control algo and vars */
-int	dflag;		/* show i/f dropped packets */
-int	gflag;		/* show group (multicast) routing or stats */
-int	hflag;		/* show counters in human readable format */
-int	iflag;		/* show interfaces */
-int	Lflag;		/* show size of listen queues */
-int	mflag;		/* show memory stats */
+bool	Aflag;		/* show addresses of protocol control block */
+bool	aflag;		/* show all sockets (including servers) */
+static bool	Bflag;		/* show information about bpf consumers */
+bool	bflag;		/* show i/f total bytes in/out */
+bool	cflag;		/* show TCP congestion control stack */
+bool	Cflag;		/* show congestion control algo and vars */
+bool	dflag;		/* show i/f dropped packets */
+bool	gflag;		/* show group (multicast) routing or stats */
+bool	hflag;		/* show counters in human readable format */
+bool	iflag;		/* show interfaces */
+bool	Lflag;		/* show size of listen queues */
+bool	mflag;		/* show memory stats */
 int	noutputs = 0;	/* how much outputs before we exit */
-int	numeric_addr;	/* show addresses numerically */
-int	numeric_port;	/* show ports numerically */
-int	Oflag;		/* show nhgrp objects*/
-int	oflag;		/* show nexthop objects*/
-int	Pflag;		/* show TCP log ID */
-static int pflag;	/* show given protocol */
-static int	Qflag;		/* show netisr information */
-int	rflag;		/* show routing tables (or routing stats) */
-int	Rflag;		/* show flow / RSS statistics */
+u_int	numeric_addr = 0; /* show addresses numerically */
+bool	numeric_port;	/* show ports numerically */
+bool	Oflag;		/* show nhgrp objects*/
+bool	oflag;		/* show nexthop objects*/
+bool	Pflag;		/* show TCP log ID */
+static bool pflag;	/* show given protocol */
+static bool Qflag;	/* show netisr information */
+bool	rflag;		/* show routing tables (or routing stats) */
+bool	Rflag;		/* show flow / RSS statistics */
 int	sflag;		/* show protocol statistics */
-int	Wflag;		/* wide display */
-int	Tflag;		/* TCP Information */
-int	xflag;		/* extra information, includes all socket buffer info */
-int	zflag;		/* zero stats */
+bool	Wflag;		/* wide display */
+bool	Tflag;		/* TCP Information */
+bool	xflag;		/* extra information, includes all socket buffer info */
+bool	zflag;		/* zero stats */
 
 int	interval;	/* repeat interval for i/f stats */
 
@@ -258,42 +258,42 @@ main(int argc, char *argv[])
 #ifdef INET
 			af = AF_INET;
 #else
-			errx(1, "IPv4 support is not compiled in");
+			xo_errx(EX_UNAVAILABLE, "IPv4 support is not compiled in");
 #endif
 			break;
 		case '6':
 #ifdef INET6
 			af = AF_INET6;
 #else
-			errx(1, "IPv6 support is not compiled in");
+			xo_errx(EX_UNAVAILABLE, "IPv6 support is not compiled in");
 #endif
 			break;
 		case 'A':
-			Aflag = 1;
+			Aflag = true;
 			break;
 		case 'a':
-			aflag = 1;
+			aflag = true;
 			break;
 		case 'B':
-			Bflag = 1;
+			Bflag = true;
 			break;
 		case 'b':
-			bflag = 1;
+			bflag = true;
 			break;
 		case 'c':
-			cflag = 1;
+			cflag = true;
 			break;
 		case 'C':
-			Cflag = 1;
+			Cflag = true;
 			break;
 		case 'd':
-			dflag = 1;
+			dflag = true;
 			break;
 		case 'F':
 			fib = strtol(optarg, &endptr, 0);
 			if (*endptr != '\0' ||
 			    (fib == 0 && (errno == EINVAL || errno == ERANGE)))
-				xo_errx(1, "%s: invalid fib", optarg);
+				xo_errx(EX_DATAERR, "%s: invalid fib", optarg);
 			break;
 		case 'f':
 			if (strcmp(optarg, "inet") == 0)
@@ -317,27 +317,27 @@ main(int argc, char *argv[])
 			else if (strcmp(optarg, "link") == 0)
 				af = AF_LINK;
 			else {
-				xo_errx(1, "%s: unknown address family",
+				xo_errx(EX_DATAERR, "%s: unknown address family",
 				    optarg);
 			}
 			break;
 		case 'g':
-			gflag = 1;
+			gflag = true;
 			break;
 		case 'h':
-			hflag = 1;
+			hflag = true;
 			break;
 		case 'I': {
 			char *cp;
 
-			iflag = 1;
+			iflag = true;
 			for (cp = interface = optarg; isalpha(*cp); cp++)
 				continue;
 			unit = atoi(cp);
 			break;
 		}
 		case 'i':
-			iflag = 1;
+			iflag = true;
 			break;
 		case 'j':
 #ifdef JAIL
@@ -345,42 +345,43 @@ main(int argc, char *argv[])
 				usage();
 			jail_name = optarg;
 #else
-			errx(1, "Jail support is not compiled in");
+			xo_errx(EX_UNAVAILABLE, "Jail support is not compiled in");
 #endif
 			break;
 		case 'L':
-			Lflag = 1;
+			Lflag = true;
 			break;
 		case 'M':
 			memf = optarg;
 			break;
 		case 'm':
-			mflag = 1;
+			mflag = true;
 			break;
 		case 'N':
 			nlistf = optarg;
 			break;
 		case 'n':
-			numeric_addr = numeric_port = 1;
+			numeric_addr++;
+			numeric_port = true;
 			break;
 		case 'o':
-			oflag = 1;
+			oflag = true;
 			break;
 		case 'O':
-			Oflag = 1;
+			Oflag = true;
 			break;
 		case 'P':
-			Pflag = 1;
+			Pflag = true;
 			break;
 		case 'p':
 			if ((tp = name2protox(optarg)) == NULL) {
-				xo_errx(1, "%s: unknown or uninstrumented "
+				xo_errx(EX_DATAERR, "%s: unknown or uninstrumented "
 				    "protocol", optarg);
 			}
-			pflag = 1;
+			pflag = true;
 			break;
 		case 'Q':
-			Qflag = 1;
+			Qflag = true;
 			break;
 		case 'q':
 			noutputs = atoi(optarg);
@@ -388,10 +389,10 @@ main(int argc, char *argv[])
 				noutputs++;
 			break;
 		case 'r':
-			rflag = 1;
+			rflag = true;
 			break;
 		case 'R':
-			Rflag = 1;
+			Rflag = true;
 			break;
 		case 's':
 			++sflag;
@@ -404,20 +405,20 @@ main(int argc, char *argv[])
 			break;
 		case 'W':
 		case 'l':
-			Wflag = 1;
+			Wflag = true;
 			break;
 		case 'w':
 			interval = atoi(optarg);
-			iflag = 1;
+			iflag = true;
 			break;
 		case 'T':
-			Tflag = 1;
+			Tflag = true;
 			break;
 		case 'x':
-			xflag = 1;
+			xflag = true;
 			break;
 		case 'z':
-			zflag = 1;
+			zflag = true;
 			break;
 		case '?':
 		default:
@@ -434,7 +435,7 @@ main(int argc, char *argv[])
 			if (interval <= 0)
 				usage();
 			++argv;
-			iflag = 1;
+			iflag = true;
 		}
 		if (*argv) {
 			nlistf = *argv;
@@ -448,33 +449,27 @@ main(int argc, char *argv[])
 	if (jail_name != NULL) {
 		jid = jail_getid(jail_name);
 		if (jid == -1)
-			errx(1, "Jail not found");
+			xo_errx(EX_UNAVAILABLE, "Jail not found");
 		if (jail_attach(jid) != 0)
-			errx(1, "Cannot attach to jail");
+			xo_errx(EX_UNAVAILABLE, "Cannot attach to jail");
 	}
 #endif
 
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
 	live = (nlistf == NULL && memf == NULL);
-	if (!live) {
-		if (setgid(getgid()) != 0)
-			xo_err(-1, "setgid");
-		/* Load all necessary kvm symbols */
+	/* Load all necessary kvm symbols */
+	if (!live)
 		kresolve_list(nl);
-	}
 
 	if (xflag && Tflag)
-		xo_errx(1, "-x and -T are incompatible, pick one.");
+		xo_errx(EX_USAGE, "-x and -T are incompatible, pick one.");
 
 	if (Bflag) {
 		if (!live)
 			usage();
 		bpf_stats(interface);
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 	if (mflag) {
 		if (!live) {
@@ -482,8 +477,9 @@ main(int argc, char *argv[])
 				mbpr(kvmd, nl[N_SFSTAT].n_value);
 		} else
 			mbpr(NULL, 0);
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 	if (Qflag) {
 		if (!live) {
@@ -491,8 +487,9 @@ main(int argc, char *argv[])
 				netisr_stats();
 		} else
 			netisr_stats();
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 #if 0
 	/*
@@ -513,38 +510,39 @@ main(int argc, char *argv[])
 		xo_set_version(NETSTAT_XO_VERSION);
 		intpr(NULL, af);
 		xo_close_container("statistics");
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 	if (rflag) {
 		xo_open_container("statistics");
 		xo_set_version(NETSTAT_XO_VERSION);
-		if (sflag) {
-			if (live) {
-				kresolve_list(nl);
-			}
+		if (sflag)
 			rt_stats();
-		} else
+		else
 			routepr(fib, af);
 		xo_close_container("statistics");
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 	if (oflag) {
 		xo_open_container("statistics");
 		xo_set_version(NETSTAT_XO_VERSION);
 		nhops_print(fib, af);
 		xo_close_container("statistics");
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 	if (Oflag) {
 		xo_open_container("statistics");
 		xo_set_version(NETSTAT_XO_VERSION);
 		nhgrp_print(fib, af);
 		xo_close_container("statistics");
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 
 
@@ -568,8 +566,9 @@ main(int argc, char *argv[])
 #endif
 		}
 		xo_close_container("statistics");
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 
 	if (tp) {
@@ -579,8 +578,9 @@ main(int argc, char *argv[])
 		if (!first)
 			xo_close_list("socket");
 		xo_close_container("statistics");
-		xo_finish();
-		exit(0);
+		if (xo_finish() < 0)
+			xo_err(EX_IOERR, "stdout");
+		exit(EX_OK);
 	}
 
 	xo_open_container("statistics");
@@ -611,8 +611,9 @@ main(int argc, char *argv[])
 	if (!first)
 		xo_close_list("socket");
 	xo_close_container("statistics");
-	xo_finish();
-	exit(0);
+	if (xo_finish() < 0)
+		xo_err(EX_IOERR, "stdout");
+	exit(EX_OK);
 }
 
 static int
@@ -731,9 +732,6 @@ kvmd_init(void)
 		return (0);
 
 	kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
-	if (setgid(getgid()) != 0)
-		xo_err(-1, "setgid");
-
 	if (kvmd == NULL) {
 		xo_warnx("kvm not available: %s", errbuf);
 		return (-1);
@@ -757,10 +755,10 @@ kresolve_list(struct nlist *_nl)
 
 	if (kvm_nlist(kvmd, _nl) < 0) {
 		if (nlistf)
-			xo_errx(1, "%s: kvm_nlist: %s", nlistf,
+			xo_errx(EX_UNAVAILABLE, "%s: kvm_nlist: %s", nlistf,
 			    kvm_geterr(kvmd));
 		else
-			xo_errx(1, "kvm_nlist: %s", kvm_geterr(kvmd));
+			xo_errx(EX_UNAVAILABLE, "kvm_nlist: %s", kvm_geterr(kvmd));
 	}
 
 	return (0);
@@ -774,10 +772,10 @@ kset_dpcpu(u_int cpuid)
 {
 
 	if ((kvmd == NULL) && (kvmd_init() != 0))
-		xo_errx(-1, "%s: kvm is not available", __func__);
+		xo_errx(EX_UNAVAILABLE, "%s: kvm is not available", __func__);
 
 	if (kvm_dpcpu_setcpu(kvmd, cpuid) < 0)
-		xo_errx(-1, "%s: kvm_dpcpu_setcpu(%u): %s", __func__,
+		xo_errx(EX_UNAVAILABLE, "%s: kvm_dpcpu_setcpu(%u): %s", __func__,
 		    cpuid, kvm_geterr(kvmd)); 
 	return;
 }
@@ -834,7 +832,7 @@ kread_counters(u_long addr, void *buf, size_t size)
 
 	n = size / sizeof(uint64_t);
 	if ((counters = malloc(n * sizeof(u_long))) == NULL)
-		xo_err(-1, "malloc");
+		xo_err(EX_OSERR, "malloc");
 	if (kread(addr, counters, n * sizeof(u_long)) < 0) {
 		free(counters);
 		return (-1);
@@ -914,7 +912,7 @@ name2protox(const char *name)
 static void
 usage(void)
 {
-	(void)xo_error("%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+	xo_error("%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: netstat [-j jail] [-46AaCcLnRSTWx] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat [-j jail] -i | -I interface [-46abdhnW] [-f address_family]\n"
@@ -933,6 +931,5 @@ usage(void)
 "       netstat [-j jail] -g [-46W] [-f address_family] [-M core] [-N system]",
 "       netstat [-j jail] -gs [-46s] [-f address_family] [-M core] [-N system]",
 "       netstat [-j jail] -Q");
-	xo_finish();
-	exit(1);
+	exit(EX_USAGE);
 }

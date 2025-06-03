@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: audio,v 1.127 2023/03/05 20:15:49 christos Exp $
+# $File: audio,v 1.133 2024/09/04 19:07:20 christos Exp $
 # audio:  file(1) magic for sound formats (see also "iff")
 #
 # Jan Nicolai Langfeldt (janl@ifi.uio.no), Dan Quinlan (quinlan@yggdrasil.com),
@@ -99,8 +99,8 @@
 !:mime	audio/x-unknown
 # is this next line right?  it came this way...
 >19	byte	0x1A
->23	byte	>0			- version %d
->22	byte	>0			\b.%d
+>>23	byte	>0			- version %d
+>>22	byte	>0			\b.%d
 
 # first entry is also the string "NTRK"
 0	belong		0x4e54524b	MultiTrack sound data
@@ -276,13 +276,12 @@
 # http://www-mmsp.ece.mcgill.ca/documents/AudioFormats/IRCAM/IRCAM.html
 0	belong		0x64a30100		IRCAM file (VAX little-endian)
 0	belong		0x0001a364		IRCAM file (VAX big-endian)
-0	belong		0x64a30200		IRCAM file (Sun big-endian)
 0	belong		0x0002a364		IRCAM file (Sun little-endian)
+0	belong		0x64a30200		IRCAM file (Sun big-endian)
 0	belong		0x64a30300		IRCAM file (MIPS little-endian)
 0	belong		0x0003a364		IRCAM file (MIPS big-endian)
-0	belong		0x64a30400		IRCAM file (NeXT big-endian)
-0	belong		0x64a30400		IRCAM file (NeXT big-endian)
 0	belong		0x0004a364		IRCAM file (NeXT little-endian)
+0	belong		0x64a30400		IRCAM file (NeXT big-endian)
 
 # NIST SPHERE <mpruett@sgi.com>
 0	string		NIST_1A\n\ \ \ 1024\n	NIST SPHERE file
@@ -487,7 +486,7 @@
 # Sharp Jisaku Melody format for PDC
 0	string		\001Sharp\040JisakuMelody	SHARP Cell-Phone ringing Melody
 >20	string		Ver01.00	Ver. 1.00
->>32	byte		x		, %d tracks
+>>32	byte		x		\b, %d tracks
 
 # Free lossless audio codec <http://flac.sourceforge.net>
 # From: Przemyslaw Augustyniak <silvathraec@rpg.pl>
@@ -644,6 +643,7 @@
 0	string	[Equalizer\ preset]	XMMS equalizer preset
 # .m3u
 0	search/1	#EXTM3U 	M3U playlist text
+!:mime  audio/x-mpegurl
 # .pls
 0	search/1	[playlist]	PLS playlist text
 # licq.conf
@@ -713,10 +713,36 @@
 
 # Type: Adaptive Multi-Rate Codec
 # URL:  http://filext.com/detaillist.php?extdetail=AMR
+#		http://fileformats.archiveteam.org/wiki/Adaptive_Multi-Rate_Audio
+# Reference:	https://datatracker.ietf.org/doc/html/rfc4867
+#		http://mark0.net/download/triddefs_xml.7z/defs/a/audio-amr.trid.xml
+# Update:	Joerg Jenderek
 # From: Russell Coker <russell@coker.com.au>
-0	string	#!AMR		Adaptive Multi-Rate Codec (GSM telephony)
-!:mime	audio/amr
+# Note:		called "AMR (Adaptive Multi Rate) encoded audio" by TrID and
+#		"Adaptive Multi-Rate Audio" by DROID via PUID fmt/356 and
+#		"AMR" "AMR audio" or "Adaptive Multi-Rate" by shared MIME-info database from freedesktop.org
+0	string	#!AMR		Adaptive Multi-Rate Codec
+# Adaptive Multi-Rate Codec (strength=80) before wrong "a AMR script executable (binary data)" (strength=20=60/3) by ./varied.script
+#!:strength +0
+# Reference:	http://mark0.net/download/triddefs_xml.7z/defs/a/audio-awb.trid.xml
+# Note:		called "Adaptive Multi-Rate Wideband ACELP codec" by TrID and
+#		"Adaptive Multi-Rate Wideband Audio" bY DROID via PUID fmt/954 and
+#		"AMR-WB" "AMR-WB audio" or "Adaptive Multi-Rate Wideband" by shared MIME-info database from freedesktop.org
+>5	string	-WB		(Wideband)
+# https://www.iana.org/assignments/media-types/audio/AMR-WB
+!:mime	audio/AMR-WB
+#!:mime	audio/amr-wb-encrypted
+!:apple	????amrw
+!:ext	awb
+# variant without Wideband
+>5	default	x		(GSM telephony)
+# https://www.iana.org/assignments/media-types/audio/AMR
+!:mime	audio/AMR
+# last character in type code is space
+!:apple	????amr 
 !:ext  amr
+# GRR: maybe also 3ga suffix?		https://telparia.com/fileFormatSamples/audio/amr/example.3ga
+#!:ext  amr/3ga
 
 # Type: SuperCollider 3 Synth Definition File Format
 # From: Mario Lang <mlang@debian.org>
@@ -907,16 +933,16 @@
 # From Martin Mueller Skarbiniks Pedersen
 0		string		GDM
 >0x3		byte		0xFE	General Digital Music.
->0x4		string		>\0	title: "%s"
->0x24		string		>\0	musician: "%s"
->>0x44		beshort		0x0D0A
->>>0x46		byte		0x1A
->>>>0x47	string		GMFS	Version
->>>>0x4B	byte		x	%d.
->>>>0x4C	byte		x	\b%02d
->>>>0x4D	beshort		0x000	(2GDM v
->>>>0x4F	byte		x	\b%d.
->>>>>0x50	byte		x	\b%d)
+>>0x4		string		>\0	title: "%s"
+>>0x24		string		>\0	musician: "%s"
+>>>0x44		beshort		0x0D0A
+>>>>0x46	byte		0x1A
+>>>>>0x47	string		GMFS	Version
+>>>>>0x4B	byte		x	%d.
+>>>>>0x4C	byte		x	\b%02d
+>>>>>0x4D	beshort		0x000	(2GDM v
+>>>>>0x4F	byte		x	\b%d.
+>>>>>>0x50	byte		x	\b%d)
 
 0		string		MTM	Multitracker
 >0x3		byte/16		x	Version %d.
@@ -939,18 +965,18 @@
 >4		string		"ArtOfNoise by Bastian Spiegel(twice/lego)"
 >0x2e		string		NAME	Art of Noise Tracker Song
 >3		string		<9
->3		string		4	(4 voices)
->3		string		8	(8 voices)
+>>3		string		4	(4 voices)
+>>3		string		8	(8 voices)
 >>0x36		string		>\0	Title: "%s"
 
 0		string		FAR
 >0x2c		byte		0x0d
->0x2d		byte		0x0a
->0x2e		byte		0x1a
->>0x3		byte		0xFE	Farandole Tracker Song
->>>0x31		byte/16		x	Version %d.
->>>0x31		byte&0x0F	x	\b%02d
->>>>0x4		string		>\0	\b, title: "%s"
+>>0x2d		byte		0x0a
+>>>0x2e		byte		0x1a
+>>>>0x3		byte		0xFE	Farandole Tracker Song
+>>>>>0x31		byte/16		x	Version %d.
+>>>>>0x31		byte&0x0F	x	\b%02d
+>>>>>0x4		string		>\0	\b, title: "%s"
 
 # magic for Klystrack, https://kometbomb.github.io/klystrack/
 # from Alex Myczko <alex@aiei.ch>
@@ -1034,25 +1060,37 @@
 # Added by David Korth <gerbilsoft@gerbilsoft.com>
 0	string	PSF
 >3	byte	0x01
+>>0	use	portable_sound_format
 >3	byte	0x02
+>>0	use	portable_sound_format
 >3	byte	0x11
+>>0	use	portable_sound_format
 >3	byte	0x12
+>>0	use	portable_sound_format
 >3	byte	0x13
+>>0	use	portable_sound_format
 >3	byte	0x21
+>>0	use	portable_sound_format
 >3	byte	0x22
+>>0	use	portable_sound_format
 >3	byte	0x23
+>>0	use	portable_sound_format
 >3	byte	0x41
->>0	string	PSF	Portable Sound Format
+>>0	use	portable_sound_format
+
+
+0	name	portable_sound_format
+>0	string	PSF	Portable Sound Format
 !:mime	audio/x-psf
->>>3	byte	0x01	(Sony PlayStation)
->>>3	byte	0x02	(Sony PlayStation 2)
->>>3	byte	0x11	(Sega Saturn)
->>>3	byte	0x12	(Sega Dreamcast)
->>>3	byte	0x13	(Sega Mega Drive)
->>>3	byte	0x21	(Nintendo 64)
->>>3	byte	0x22	(Game Boy Advance)
->>>3	byte	0x23	(Super NES)
->>>3	byte	0x41	(Capcom QSound)
+>>3	byte	0x01	(Sony PlayStation)
+>>3	byte	0x02	(Sony PlayStation 2)
+>>3	byte	0x11	(Sega Saturn)
+>>3	byte	0x12	(Sega Dreamcast)
+>>3	byte	0x13	(Sega Mega Drive)
+>>3	byte	0x21	(Nintendo 64)
+>>3	byte	0x22	(Game Boy Advance)
+>>3	byte	0x23	(Super NES)
+>>3	byte	0x41	(Capcom QSound)
 
 # Atari 8-bit SAP audio format
 # http://asap.sourceforge.net/sap-format.html
@@ -1289,3 +1327,14 @@
 
 # version > 1 or 0
 >>&0		default		x		\b, unknown version
+
+# https://moddingwiki.shikadi.net/wiki/ROL_Format
+4	string	\\roll\\default	AdLib Visual Composer ROL file
+>0	leshort	x		\b, version %d.
+>2	leshort	x		\b%d
+>44	leshort	x		\b, tickBeat %d
+>46	leshort	x		\b, beatMeasure %d
+>48	leshort	x		\b, scaleY %d
+>50	leshort	x		\b, scaleX %d
+>52	byte	0		\b, percussive
+>52	byte	1		\b, melodic

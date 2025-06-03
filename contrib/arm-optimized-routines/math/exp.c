@@ -1,7 +1,7 @@
 /*
  * Double-precision e^x function.
  *
- * Copyright (c) 2018-2019, Arm Limited.
+ * Copyright (c) 2018-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -9,6 +9,8 @@
 #include <math.h>
 #include <stdint.h>
 #include "math_config.h"
+#include "test_defs.h"
+#include "test_sig.h"
 
 #define N (1 << EXP_TABLE_BITS)
 #define InvLn2N __exp_data.invln2N
@@ -77,7 +79,7 @@ top12 (double x)
 /* Computes exp(x+xtail) where |xtail| < 2^-8/N and |xtail| <= |x|.
    If hastail is 0 then xtail is assumed to be 0 too.  */
 static inline double
-exp_inline (double x, double xtail, int hastail)
+exp_inline (double x, double xtail)
 {
   uint32_t abstop;
   uint64_t ki, idx, top, sbits;
@@ -125,7 +127,7 @@ exp_inline (double x, double xtail, int hastail)
 #endif
   r = x + kd * NegLn2hiN + kd * NegLn2loN;
   /* The code assumes 2^-200 < |xtail| < 2^-8/N.  */
-  if (hastail)
+  if (!__builtin_constant_p (xtail) || xtail != 0.0)
     r += xtail;
   /* 2^(k/N) ~= scale * (1 + tail).  */
   idx = 2 * (ki % N);
@@ -156,21 +158,20 @@ exp_inline (double x, double xtail, int hastail)
 double
 exp (double x)
 {
-  return exp_inline (x, 0, 0);
+  return exp_inline (x, 0);
 }
 
-/* May be useful for implementing pow where more than double
-   precision input is needed.  */
-double
-__exp_dd (double x, double xtail)
-{
-  return exp_inline (x, xtail, 1);
-}
 #if USE_GLIBC_ABI
 strong_alias (exp, __exp_finite)
 hidden_alias (exp, __ieee754_exp)
-hidden_alias (__exp_dd, __exp1)
 # if LDBL_MANT_DIG == 53
 long double expl (long double x) { return exp (x); }
 # endif
 #endif
+
+TEST_SIG (S, D, 1, exp, -9.9, 9.9)
+TEST_ULP (exp, 0.01)
+TEST_ULP_NONNEAREST (exp, 0.5)
+TEST_INTERVAL (exp, 0, 0xffff000000000000, 10000)
+TEST_SYM_INTERVAL (exp, 0x1p-6, 0x1p6, 400000)
+TEST_SYM_INTERVAL (exp, 633.3, 733.3, 10000)

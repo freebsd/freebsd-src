@@ -301,8 +301,6 @@ linux_clone_thread(struct thread *td, struct l_clone_args *args)
 	else
 		em->child_clear_tid = NULL;
 
-	cpu_thread_clean(newtd);
-
 	linux_set_upcall(newtd, args->stack);
 
 	PROC_LOCK(p);

@@ -38,8 +38,6 @@ static device_probe_t umass_probe;
 static device_attach_t umass_attach;
 static device_detach_t umass_detach;
 
-static devclass_t umass_devclass;
-
 static device_method_t umass_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, umass_probe),
@@ -54,7 +52,7 @@ static driver_t umass_driver = {
 	.methods = umass_methods,
 };
 
-DRIVER_MODULE(umass, uhub, umass_driver, umass_devclass, NULL, 0);
+DRIVER_MODULE(umass, uhub, umass_driver, NULL, 0);
 
 static int
 umass_probe(device_t dev)

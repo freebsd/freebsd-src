@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2020 iXsystems, Inc.
  * All rights reserved.
@@ -39,7 +40,6 @@
 #define	kfpu_fini()		do {} while (0)
 #define	kfpu_allowed()		1
 #define	kfpu_initialize(tsk)	do {} while (0)
-
 
 #define	kfpu_begin() {					\
 	if (__predict_false(!is_fpu_kern_thread(0)))		\

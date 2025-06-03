@@ -864,6 +864,9 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "ccall",	    ficlCcall,	    FW_DEFAULT);
     dictAppendWord(dp, "uuid-from-string", ficlUuidFromString, FW_DEFAULT);
     dictAppendWord(dp, "uuid-to-string", ficlUuidToString, FW_DEFAULT);
+#ifndef TESTMAIN
+    dictAppendWord(dp, "isvirtualized?", ficlIsvirtualizedQ, FW_DEFAULT);
+#endif
     
     SET_FOREACH(fnpp, X4th_compile_set)
 	(*fnpp)(pSys);

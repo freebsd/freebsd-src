@@ -37,7 +37,7 @@ v4_head()
 	atf_set require.user root
 
 	# We need scapy to be installed for out test scripts to work
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 v4_body()
@@ -122,7 +122,7 @@ v6_head()
 	atf_set require.user root
 
 	# We need scapy to be installed for out test scripts to work
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 v6_body()
@@ -191,6 +191,22 @@ v6_body()
 		--to 2001:db8:192::2 \
 		--replyif ${epair}a \
 		--expect-tc 0
+
+	# We can set tos on pass rules
+	pft_set_rules alcatraz "pass out set tos 13"
+	atf_check -s exit:0 -o ignore -e ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 2001:db8:192::2 \
+		--replyif ${epair}a \
+		--expect-tc 13
+
+	# And that still works with 'scrub' options too
+	pft_set_rules alcatraz "pass out set tos 14 scrub (min-ttl 64)"
+	atf_check -s exit:0 -o ignore -e ignore ${common_dir}/pft_ping.py \
+		--sendif ${epair}a \
+		--to 2001:db8:192::2 \
+		--replyif ${epair}a \
+		--expect-tc 14
 }
 
 v6_cleanup()

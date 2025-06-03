@@ -14,7 +14,7 @@ CFLAGS+=-I${.OBJDIR:H:H}/lib/libkrb5
 LIBADD=	hdb krb5 roken vers
 DPADD=	${LDAPDPADD}
 LDADD=	${LDAPLDADD}
-LDFLAGS=${LDAPLDFLAGS}
+LDFLAGS+=${LDAPLDFLAGS}
 
 .include <bsd.prog.mk>
 

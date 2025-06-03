@@ -63,6 +63,7 @@ bhyve_init_config(void)
 	set_config_bool("acpi_tables_in_memory", true);
 	set_config_value("memory.size", "256M");
 	set_config_bool("x86.strictmsr", true);
+	set_config_bool("x86.verbosemsr", false);
 	set_config_value("lpc.fwcfg", "bhyve");
 }
 

@@ -2,16 +2,10 @@
 .include "${SRCTOP}/secure/ssh.mk"
 
 PROG=	ssh-keyscan
-SRCS=	ssh-keyscan.c
+SRCS=	ssh-keyscan.c $(SKSRCS)
 PACKAGE=	ssh
 
 LIBADD=	ssh
-
-.if ${MK_LDNS} != "no"
-CFLAGS+=	-DHAVE_LDNS=1
-#DPADD+=	${LIBLDNS}
-#LDADD+=	-lldns
-.endif
 
 .include <bsd.prog.mk>
 

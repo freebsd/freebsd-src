@@ -41,6 +41,7 @@
 #include <sys/errno.h>
 
 #include <err.h>
+#include <mntopts.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,8 +49,6 @@
 #include <unistd.h>
 #include <grp.h>
 #include <pwd.h>
-
-#include "mntopts.h"
 
 static int 
 subdir(const char *p, const char *dir)

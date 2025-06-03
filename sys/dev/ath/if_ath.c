@@ -2446,7 +2446,7 @@ ath_bmiss_vap(struct ieee80211vap *vap)
 	 * against the next beacon.
 	 *
 	 * This handles three common beacon miss cases in STA powersave mode -
-	 * (a) the beacon TBTT isnt a multiple of bintval;
+	 * (a) the beacon TBTT isn't a multiple of bintval;
 	 * (b) the beacon was missed; and
 	 * (c) the beacons are being delayed because the AP is busy and
 	 *     isn't reliably able to meet its TBTT.

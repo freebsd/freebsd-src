@@ -58,6 +58,11 @@ STAGE_TARGETS+=		ci-images-stage
 CI_DIR=			${TLD}/CI-IMAGES/${REVISION}-${BRANCH}/${TARGET_ARCH}
 .endif
 
+.if defined(WITH_OCIIMAGES) && !empty(WITH_OCIIMAGES)
+STAGE_TARGETS+=		oci-images-stage
+OCI_DIR=		${TLD}/OCI-IMAGES/${REVISION}-${BRANCH}/${TARGET_ARCH}
+.endif
+
 CLEANFILES+=		${STAGE_TARGETS}
 CHECKSUM_FILES?=	SHA512 SHA256
 SNAP_SUFFIX!=		echo ${_SNAP_SUFFIX:S,^-,,1} | tr -d ' '
@@ -207,13 +212,13 @@ vm-images-stage:
 .    for VMFORMAT in ${${CW}_FORMAT}
 .     for FS in ${${CW}_FSLIST}
 	cd ${RELEASEDIR}/vmimages && \
-		mv ${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz \
-		${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
-	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
-		${VM_DIR}/${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
+		mv ${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz \
+		${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz
+	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz \
+		${VM_DIR}/${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz
 	cd ${VM_DIR}/Latest && \
-		ln -s ../${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
-		${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+		ln -s ../${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz \
+		${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz
 .     endfor
 .    endfor
 .   endif
@@ -245,8 +250,8 @@ vm-images-stage:
 .   if ${CW} == BASIC-CLOUDINIT
 .    for VMFORMAT in ${${CW}_FORMAT}
 .     for FS in ${${CW}_FSLIST}
-	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz \
-		${VM_DIR}/Latest/${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+	cp -p ${RELEASEDIR}/vmimages/${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz \
+		${VM_DIR}/Latest/${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz
 .     endfor
 .    endfor
 .   endif
@@ -272,12 +277,12 @@ ci-images-stage:
 .    for FS in ${${CW}_FSLIST}
 	cd ${RELEASEDIR}/ciimages && \
 		mv ${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz \
-		${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
-	cp -p ${RELEASEDIR}/ciimages/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
-		${CI_DIR}/${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz
+		${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz
+	cp -p ${RELEASEDIR}/ciimages/${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz \
+		${CI_DIR}/${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz
 	cd ${CI_DIR}/Latest && \
-		ln -s ../${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}.${FS}.${VMFORMAT}.xz \
-		${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+		ln -s ../${BUILDDATE}/${OSRELEASE}-${CW}-${SNAP_SUFFIX}-${FS}.${VMFORMAT}.xz \
+		${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz
 .    endfor
 .   endfor
 .  endif
@@ -302,7 +307,7 @@ ci-images-stage:
 .   for VMFORMAT in ${${CW}_FORMAT}
 .    for FS in ${${CW}_FSLIST}
 	cp -p ${RELEASEDIR}/ciimages/${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz \
-		${CI_DIR}/Latest/${OSRELEASE}-${CW}.${FS}.${VMFORMAT}.xz
+		${CI_DIR}/Latest/${OSRELEASE}-${CW}-${FS}.${VMFORMAT}.xz
 .    endfor
 .   endfor
 .  endif
@@ -310,6 +315,54 @@ ci-images-stage:
 . for CHECKSUM in ${CHECKSUM_FILES}
 	cp -p ${RELEASEDIR}/ciimages/CHECKSUM.${CHECKSUM} \
 		${CI_DIR}/Latest/CHECKSUM.${CHECKSUM}
+. endfor
+.endif
+
+oci-images-stage:
+	mkdir -p ${OCI_DIR}
+.if defined(SNAPSHOT) && !empty(SNAPSHOT)
+. if exists(${OCI_DIR}/Latest)
+	rm -rf ${OCI_DIR}/Latest
+. endif
+	mkdir -p ${OCI_DIR}/Latest
+	mkdir -p ${OCI_DIR}/${BUILDDATE}
+. for _IMG in ${OCI_IMAGES}
+	cd ${RELEASEDIR}/ociimages && \
+		mv container-image-${_IMG}.txz \
+		${OSRELEASE}-container-image-${SNAP_SUFFIX}-${_IMG}.txz
+	cp ${RELEASEDIR}/ociimages/${OSRELEASE}-container-image-${SNAP_SUFFIX}-${_IMG}.txz \
+		${OCI_DIR}/${BUILDDATE}/${OSRELEASE}-container-image-${SNAP_SUFFIX}-${_IMG}.txz
+	cd ${OCI_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/${OSRELEASE}-container-image-${SNAP_SUFFIX}-${_IMG}.txz \
+		${OSRELEASE}-container-image-${_IMG}.txz
+. endfor
+	cd ${RELEASEDIR}/ociimages && rm -f CHECKSUM.*
+. for CHECKSUM in ${CHECKSUM_FILES}
+	cd ${RELEASEDIR}/ociimages && \
+		${CHECKSUM:tl} ${OSRELEASE}* > CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+	cp -p ${RELEASEDIR}/ociimages/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		${OCI_DIR}/${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX}
+	cd ${OCI_DIR}/Latest && \
+		ln -s ../${BUILDDATE}/CHECKSUM.${CHECKSUM}-${SNAP_SUFFIX} \
+		CHECKSUM.${CHECKSUM}
+. endfor
+.else # not snapshot
+. if exists(${OCI_DIR}/Latest)
+	rm -rf ${OCI_DIR}/Latest
+. endif
+	mkdir -p ${OCI_DIR}/Latest
+. for _IMG in ${OCI_IMAGES}
+	cd ${RELEASEDIR}/ociimages && \
+		mv container-image-${_IMG}.txz \
+		${OSRELEASE}-container-image-${_IMG}.txz
+	cp ${RELEASEDIR}/ociimages/${OSRELEASE}-container-image-${_IMG}.txz \
+		${OCI_DIR}/Latest/${OSRELEASE}-container-image-${_IMG}.txz
+. endfor
+. for CHECKSUM in ${CHECKSUM_FILES}
+	cd ${RELEASEDIR}/ociimages && \
+		${CHECKSUM:tl} ${OSRELEASE}* > CHECKSUM.${CHECKSUM}
+	cp -p ${RELEASEDIR}/ociimages/CHECKSUM.${CHECKSUM} \
+		${OCI_DIR}/Latest/CHECKSUM.${CHECKSUM}
 . endfor
 .endif
 

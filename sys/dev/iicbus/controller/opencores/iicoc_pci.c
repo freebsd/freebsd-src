@@ -50,7 +50,6 @@ iicoc_detach(device_t dev)
 	struct iicoc_softc *sc;
 
 	sc = device_get_softc(dev);
-	device_delete_children(dev);
 	bus_generic_detach(dev);
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem_res);
 	mtx_destroy(&sc->sc_mtx);
@@ -88,7 +87,7 @@ iicoc_attach(device_t dev)
 		mtx_destroy(&sc->sc_mtx);
 		return (-1);
 	}
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }

@@ -24,6 +24,7 @@ SSH_PROGRAM=@bindir@/ssh
 ASKPASS_PROGRAM=$(libexecdir)/ssh-askpass
 SFTP_SERVER=$(libexecdir)/sftp-server
 SSH_KEYSIGN=$(libexecdir)/ssh-keysign
+SSHD_SESSION=$(libexecdir)/sshd-session
 SSH_PKCS11_HELPER=$(libexecdir)/ssh-pkcs11-helper
 SSH_SK_HELPER=$(libexecdir)/ssh-sk-helper
 PRIVSEP_PATH=@PRIVSEP_PATH@
@@ -37,6 +38,7 @@ PATHS= -DSSHDIR=\"$(sysconfdir)\" \
 	-D_PATH_SSH_ASKPASS_DEFAULT=\"$(ASKPASS_PROGRAM)\" \
 	-D_PATH_SFTP_SERVER=\"$(SFTP_SERVER)\" \
 	-D_PATH_SSH_KEY_SIGN=\"$(SSH_KEYSIGN)\" \
+	-D_PATH_SSHD_SESSION=\"$(SSHD_SESSION)\" \
 	-D_PATH_SSH_PKCS11_HELPER=\"$(SSH_PKCS11_HELPER)\" \
 	-D_PATH_SSH_SK_HELPER=\"$(SSH_SK_HELPER)\" \
 	-D_PATH_SSH_PIDDIR=\"$(piddir)\" \
@@ -69,7 +71,7 @@ MKDIR_P=@MKDIR_P@
 
 .SUFFIXES: .lo
 
-TARGETS=ssh$(EXEEXT) sshd$(EXEEXT) ssh-add$(EXEEXT) ssh-keygen$(EXEEXT) ssh-keyscan${EXEEXT} ssh-keysign${EXEEXT} ssh-pkcs11-helper$(EXEEXT) ssh-agent$(EXEEXT) scp$(EXEEXT) sftp-server$(EXEEXT) sftp$(EXEEXT) ssh-sk-helper$(EXEEXT)
+TARGETS=ssh$(EXEEXT) sshd$(EXEEXT) sshd-session$(EXEEXT) ssh-add$(EXEEXT) ssh-keygen$(EXEEXT) ssh-keyscan${EXEEXT} ssh-keysign${EXEEXT} ssh-pkcs11-helper$(EXEEXT) ssh-agent$(EXEEXT) scp$(EXEEXT) sftp-server$(EXEEXT) sftp$(EXEEXT) ssh-sk-helper$(EXEEXT)
 
 XMSS_OBJS=\
 	ssh-xmss.o \
@@ -107,9 +109,9 @@ LIBSSH_OBJS=${LIBOPENSSH_OBJS} \
 	poly1305.o chacha.o cipher-chachapoly.o cipher-chachapoly-libcrypto.o \
 	ssh-ed25519.o digest-openssl.o digest-libc.o \
 	hmac.o ed25519.o hash.o \
-	kex.o kexdh.o kexgex.o kexecdh.o kexc25519.o \
+	kex.o kex-names.o kexdh.o kexgex.o kexecdh.o kexc25519.o \
 	kexgexc.o kexgexs.o \
-	kexsntrup761x25519.o sntrup761.o kexgen.o \
+	kexsntrup761x25519.o kexmlkem768x25519.o sntrup761.o kexgen.o \
 	sftp-realpath.o platform-pledge.o platform-tracing.o platform-misc.o \
 	sshbuf-io.o
 
@@ -118,17 +120,23 @@ SKOBJS=	ssh-sk-client.o
 SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
 	sshconnect.o sshconnect2.o mux.o $(SKOBJS)
 
-SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o \
+SSHDOBJS=sshd.o \
+	platform-listen.o \
+	servconf.o sshpty.o srclimit.o groupaccess.o auth2-methods.o \
+	dns.o fatal.o compat.o utf8.o authfd.o canohost.o \
+	$(SKOBJS)
+
+SSHD_SESSION_OBJS=sshd-session.o auth-rhosts.o auth-passwd.o \
 	audit.o audit-bsm.o audit-linux.o platform.o \
 	sshpty.o sshlogin.o servconf.o serverloop.o \
-	auth.o auth2.o auth-options.o session.o \
+	auth.o auth2.o auth2-methods.o auth-options.o session.o \
 	auth2-chall.o groupaccess.o \
 	auth-bsdauth.o auth2-hostbased.o auth2-kbdint.o \
 	auth2-none.o auth2-passwd.o auth2-pubkey.o auth2-pubkeyfile.o \
 	monitor.o monitor_wrap.o auth-krb5.o \
 	auth2-gss.o gss-serv.o gss-serv-krb5.o \
 	loginrec.o auth-pam.o auth-shadow.o auth-sia.o \
-	srclimit.o sftp-server.o sftp-common.o \
+	sftp-server.o sftp-common.o \
 	sandbox-null.o sandbox-rlimit.o sandbox-systrace.o sandbox-darwin.o \
 	sandbox-seccomp-filter.o sandbox-capsicum.o sandbox-pledge.o \
 	sandbox-solaris.o uidswap.o $(SKOBJS)
@@ -207,7 +215,10 @@ ssh$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHOBJS)
 	$(LD) -o $@ $(SSHOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(GSSLIBS) $(CHANNELLIBS)
 
 sshd$(EXEEXT): libssh.a	$(LIBCOMPAT) $(SSHDOBJS)
-	$(LD) -o $@ $(SSHDOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHDLIBS) $(LIBS) $(GSSLIBS) $(K5LIBS) $(CHANNELLIBS)
+	$(LD) -o $@ $(SSHDOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHDLIBS) $(LIBS) $(CHANNELLIBS)
+
+sshd-session$(EXEEXT): libssh.a	$(LIBCOMPAT) $(SSHD_SESSION_OBJS)
+	$(LD) -o $@ $(SSHD_SESSION_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHDLIBS) $(LIBS) $(GSSLIBS) $(K5LIBS) $(CHANNELLIBS)
 
 scp$(EXEEXT): $(LIBCOMPAT) libssh.a $(SCP_OBJS)
 	$(LD) -o $@ $(SCP_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
@@ -399,6 +410,7 @@ install-files:
 	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-keygen$(EXEEXT) $(DESTDIR)$(bindir)/ssh-keygen$(EXEEXT)
 	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-keyscan$(EXEEXT) $(DESTDIR)$(bindir)/ssh-keyscan$(EXEEXT)
 	$(INSTALL) -m 0755 $(STRIP_OPT) sshd$(EXEEXT) $(DESTDIR)$(sbindir)/sshd$(EXEEXT)
+	$(INSTALL) -m 0755 $(STRIP_OPT) sshd-session$(EXEEXT) $(DESTDIR)$(SSHD_SESSION)$(EXEEXT)
 	$(INSTALL) -m 4711 $(STRIP_OPT) ssh-keysign$(EXEEXT) $(DESTDIR)$(SSH_KEYSIGN)$(EXEEXT)
 	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-pkcs11-helper$(EXEEXT) $(DESTDIR)$(SSH_PKCS11_HELPER)$(EXEEXT)
 	$(INSTALL) -m 0755 $(STRIP_OPT) ssh-sk-helper$(EXEEXT) $(DESTDIR)$(SSH_SK_HELPER)$(EXEEXT)
@@ -741,6 +753,7 @@ interop-tests t-exec file-tests extra-tests: regress-prep regress-binaries $(TAR
 		TEST_SSH_SCP="$(BUILDDIR)/scp" \
 		TEST_SSH_SSH="$(BUILDDIR)/ssh" \
 		TEST_SSH_SSHD="$(BUILDDIR)/sshd" \
+		TEST_SSH_SSHD_SESSION="$(BUILDDIR)/sshd-session" \
 		TEST_SSH_SSHAGENT="$(BUILDDIR)/ssh-agent" \
 		TEST_SSH_SSHADD="$(BUILDDIR)/ssh-add" \
 		TEST_SSH_SSHKEYGEN="$(BUILDDIR)/ssh-keygen" \

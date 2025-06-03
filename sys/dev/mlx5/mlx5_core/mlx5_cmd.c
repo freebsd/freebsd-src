@@ -247,7 +247,7 @@ static void poll_timeout(struct mlx5_cmd_work_ent *ent)
 {
 	struct mlx5_core_dev *dev = container_of(ent->cmd,
 						 struct mlx5_core_dev, cmd);
-	int poll_end = jiffies +
+	long poll_end = jiffies +
 				msecs_to_jiffies(MLX5_CMD_TIMEOUT_MSEC + 1000);
 	u8 own;
 
@@ -417,6 +417,7 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_QUERY_VPORT_COUNTER:
 	case MLX5_CMD_OP_ALLOC_Q_COUNTER:
 	case MLX5_CMD_OP_QUERY_Q_COUNTER:
+	case MLX5_CMD_OP_QUERY_FLOW_COUNTER:
 	case MLX5_CMD_OP_ALLOC_PD:
 	case MLX5_CMD_OP_ALLOC_UAR:
 	case MLX5_CMD_OP_CONFIG_INT_MODERATION:
@@ -950,7 +951,7 @@ static const char *deliv_status_to_str(u8 status)
 
 static int wait_func(struct mlx5_core_dev *dev, struct mlx5_cmd_work_ent *ent)
 {
-	int timeout = msecs_to_jiffies(MLX5_CMD_TIMEOUT_MSEC);
+	unsigned long timeout = msecs_to_jiffies(MLX5_CMD_TIMEOUT_MSEC);
 	int err;
 
 	if (ent->polling) {

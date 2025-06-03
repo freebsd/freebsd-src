@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -28,6 +29,7 @@
  * Copyright 2013 Saso Kiselkov. All rights reserved.
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2022 Hewlett Packard Enterprise Development LP.
+ * Copyright (c) 2025, Klara, Inc.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -48,7 +50,6 @@
 #include <sys/cred.h>
 #include <sys/fs/zfs.h>
 #include <sys/zio_compress.h>
-#include <sys/zio_priority.h>
 #include <sys/uio.h>
 #include <sys/zfs_file.h>
 
@@ -143,9 +144,9 @@ typedef enum dmu_object_byteswap {
 #define	DMU_OT_IS_DDT(ot) \
 	((ot) == DMU_OT_DDT_ZAP)
 
-#define	DMU_OT_IS_CRITICAL(ot) \
+#define	DMU_OT_IS_CRITICAL(ot, level) \
 	(DMU_OT_IS_METADATA(ot) && \
-	(ot) != DMU_OT_DNODE && \
+	((ot) != DMU_OT_DNODE || (level) > 0) && \
 	(ot) != DMU_OT_DIRECTORY_CONTENTS && \
 	(ot) != DMU_OT_SA)
 
@@ -276,13 +277,34 @@ typedef enum dmu_object_type {
 } dmu_object_type_t;
 
 /*
- * These flags are intended to be used to specify the "txg_how"
- * parameter when calling the dmu_tx_assign() function. See the comment
- * above dmu_tx_assign() for more details on the meaning of these flags.
+ * These flags are for the dmu_tx_assign() function and describe what to do if
+ * the transaction is full. See the comment above dmu_tx_assign() for more
+ * details on the meaning of these flags.
  */
-#define	TXG_NOWAIT	(0ULL)
-#define	TXG_WAIT	(1ULL<<0)
-#define	TXG_NOTHROTTLE	(1ULL<<1)
+typedef enum {
+	/*
+	 * If the tx cannot be assigned to a transaction for any reason, do
+	 * not block but return immediately.
+	 */
+	DMU_TX_NOWAIT		= 0,
+
+	/*
+	 * Assign the tx to the open transaction. If the open transaction is
+	 * full, or the write throttle is active, block until the next
+	 * transaction and try again. If the pool suspends while waiting
+	 * and failmode=continue, return an error.
+	 */
+	DMU_TX_WAIT		= (1 << 0),
+
+	/* If the write throttle would prevent the assignment, ignore it. */
+	DMU_TX_NOTHROTTLE	= (1 << 1),
+
+	/*
+	 * With DMU_TX_WAIT, always block if the pool suspends during
+	 * assignment, regardless of the value of the failmode= property.
+	 */
+	DMU_TX_SUSPEND		= (1 << 2),
+} dmu_tx_flag_t;
 
 void byteswap_uint64_array(void *buf, size_t size);
 void byteswap_uint32_array(void *buf, size_t size);
@@ -381,6 +403,7 @@ typedef struct dmu_buf {
 #define	DMU_POOL_CREATION_VERSION	"creation_version"
 #define	DMU_POOL_SCAN			"scan"
 #define	DMU_POOL_ERRORSCRUB		"error_scrub"
+#define	DMU_POOL_LAST_SCRUBBED_TXG	"last_scrubbed_txg"
 #define	DMU_POOL_FREE_BPOBJ		"free_bpobj"
 #define	DMU_POOL_BPTREE_OBJ		"bptree_obj"
 #define	DMU_POOL_EMPTY_BPOBJ		"empty_bpobj"
@@ -525,9 +548,30 @@ void dmu_redact(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 #define	WP_NOFILL	0x1
 #define	WP_DMU_SYNC	0x2
 #define	WP_SPILL	0x4
+#define	WP_DIRECT_WR	0x8
 
 void dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp,
     struct zio_prop *zp);
+
+/*
+ * DB_RF_* are to be used for dbuf_read() or in limited other cases.
+ */
+typedef enum dmu_flags {
+	DB_RF_MUST_SUCCEED	= 0,	  /* Suspend on I/O errors. */
+	DB_RF_CANFAIL		= 1 << 0, /* Return on I/O errors. */
+	DB_RF_HAVESTRUCT	= 1 << 1, /* dn_struct_rwlock is locked. */
+	DB_RF_NEVERWAIT		= 1 << 2,
+	DMU_READ_PREFETCH	= 0,	  /* Try speculative prefetch. */
+	DMU_READ_NO_PREFETCH	= 1 << 3, /* Don't prefetch speculatively. */
+	DB_RF_NOPREFETCH	= DMU_READ_NO_PREFETCH,
+	DMU_READ_NO_DECRYPT	= 1 << 4, /* Don't decrypt. */
+	DB_RF_NO_DECRYPT	= DMU_READ_NO_DECRYPT,
+	DMU_DIRECTIO		= 1 << 5, /* Bypass ARC. */
+	DMU_UNCACHEDIO		= 1 << 6, /* Reduce caching. */
+	DMU_PARTIAL_FIRST	= 1 << 7, /* First partial access. */
+	DMU_PARTIAL_MORE	= 1 << 8, /* Following partial access. */
+	DMU_KEEP_CACHING	= 1 << 9, /* Don't affect caching. */
+} dmu_flags_t;
 
 /*
  * The bonus data is accessed more or less like a regular buffer.
@@ -544,7 +588,7 @@ void dmu_write_policy(objset_t *os, dnode_t *dn, int level, int wp,
 int dmu_bonus_hold(objset_t *os, uint64_t object, const void *tag,
     dmu_buf_t **dbp);
 int dmu_bonus_hold_by_dnode(dnode_t *dn, const void *tag, dmu_buf_t **dbp,
-    uint32_t flags);
+    dmu_flags_t flags);
 int dmu_bonus_max(void);
 int dmu_set_bonus(dmu_buf_t *, int, dmu_tx_t *);
 int dmu_set_bonustype(dmu_buf_t *, dmu_object_type_t, dmu_tx_t *);
@@ -555,9 +599,9 @@ int dmu_rm_spill(objset_t *, uint64_t, dmu_tx_t *);
  * Special spill buffer support used by "SA" framework
  */
 
-int dmu_spill_hold_by_bonus(dmu_buf_t *bonus, uint32_t flags, const void *tag,
-    dmu_buf_t **dbp);
-int dmu_spill_hold_by_dnode(dnode_t *dn, uint32_t flags,
+int dmu_spill_hold_by_bonus(dmu_buf_t *bonus, dmu_flags_t flags,
+    const void *tag, dmu_buf_t **dbp);
+int dmu_spill_hold_by_dnode(dnode_t *dn, dmu_flags_t flags,
     const void *tag, dmu_buf_t **dbp);
 int dmu_spill_hold_existing(dmu_buf_t *bonus, const void *tag, dmu_buf_t **dbp);
 
@@ -576,19 +620,20 @@ int dmu_spill_hold_existing(dmu_buf_t *bonus, const void *tag, dmu_buf_t **dbp);
  * The object number must be a valid, allocated object number.
  */
 int dmu_buf_hold(objset_t *os, uint64_t object, uint64_t offset,
-    const void *tag, dmu_buf_t **, int flags);
+    const void *tag, dmu_buf_t **, dmu_flags_t flags);
 int dmu_buf_hold_array(objset_t *os, uint64_t object, uint64_t offset,
     uint64_t length, int read, const void *tag, int *numbufsp,
     dmu_buf_t ***dbpp);
 int dmu_buf_hold_noread(objset_t *os, uint64_t object, uint64_t offset,
     const void *tag, dmu_buf_t **dbp);
 int dmu_buf_hold_by_dnode(dnode_t *dn, uint64_t offset,
-    const void *tag, dmu_buf_t **dbp, int flags);
+    const void *tag, dmu_buf_t **dbp, dmu_flags_t flags);
 int dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset,
     uint64_t length, boolean_t read, const void *tag, int *numbufsp,
-    dmu_buf_t ***dbpp, uint32_t flags);
+    dmu_buf_t ***dbpp, dmu_flags_t flags);
 int dmu_buf_hold_noread_by_dnode(dnode_t *dn, uint64_t offset, const void *tag,
     dmu_buf_t **dbp);
+
 /*
  * Add a reference to a dmu buffer that has already been held via
  * dmu_buf_hold() in the current context.
@@ -777,6 +822,7 @@ struct blkptr *dmu_buf_get_blkptr(dmu_buf_t *db);
  * (ie. you've called dmu_tx_hold_object(tx, db->db_object)).
  */
 void dmu_buf_will_dirty(dmu_buf_t *db, dmu_tx_t *tx);
+void dmu_buf_will_dirty_flags(dmu_buf_t *db, dmu_tx_t *tx, dmu_flags_t flags);
 boolean_t dmu_buf_is_dirty(dmu_buf_t *db, dmu_tx_t *tx);
 void dmu_buf_set_crypt_params(dmu_buf_t *db_fake, boolean_t byteorder,
     const uint8_t *salt, const uint8_t *iv, const uint8_t *mac, dmu_tx_t *tx);
@@ -824,7 +870,7 @@ void dmu_tx_hold_spill(dmu_tx_t *tx, uint64_t object);
 void dmu_tx_hold_sa(dmu_tx_t *tx, struct sa_handle *hdl, boolean_t may_grow);
 void dmu_tx_hold_sa_create(dmu_tx_t *tx, int total_size);
 void dmu_tx_abort(dmu_tx_t *tx);
-int dmu_tx_assign(dmu_tx_t *tx, uint64_t txg_how);
+int dmu_tx_assign(dmu_tx_t *tx, dmu_tx_flag_t flags);
 void dmu_tx_wait(dmu_tx_t *tx);
 void dmu_tx_commit(dmu_tx_t *tx);
 void dmu_tx_mark_netfree(dmu_tx_t *tx);
@@ -870,36 +916,36 @@ int dmu_free_long_object(objset_t *os, uint64_t object);
  * Canfail routines will return 0 on success, or an errno if there is a
  * nonrecoverable I/O error.
  */
-#define	DMU_READ_PREFETCH	0 /* prefetch */
-#define	DMU_READ_NO_PREFETCH	1 /* don't prefetch */
-#define	DMU_READ_NO_DECRYPT	2 /* don't decrypt */
 int dmu_read(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
-	void *buf, uint32_t flags);
+    void *buf, dmu_flags_t flags);
 int dmu_read_by_dnode(dnode_t *dn, uint64_t offset, uint64_t size, void *buf,
-    uint32_t flags);
+    dmu_flags_t flags);
 void dmu_write(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
-	const void *buf, dmu_tx_t *tx);
-void dmu_write_by_dnode(dnode_t *dn, uint64_t offset, uint64_t size,
     const void *buf, dmu_tx_t *tx);
+int dmu_write_by_dnode(dnode_t *dn, uint64_t offset, uint64_t size,
+    const void *buf, dmu_tx_t *tx, dmu_flags_t flags);
 void dmu_prealloc(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
-	dmu_tx_t *tx);
+    dmu_tx_t *tx);
 #ifdef _KERNEL
-int dmu_read_uio(objset_t *os, uint64_t object, zfs_uio_t *uio, uint64_t size);
-int dmu_read_uio_dbuf(dmu_buf_t *zdb, zfs_uio_t *uio, uint64_t size);
-int dmu_read_uio_dnode(dnode_t *dn, zfs_uio_t *uio, uint64_t size);
+int dmu_read_uio(objset_t *os, uint64_t object, zfs_uio_t *uio, uint64_t size,
+    dmu_flags_t flags);
+int dmu_read_uio_dbuf(dmu_buf_t *zdb, zfs_uio_t *uio, uint64_t size,
+    dmu_flags_t flags);
+int dmu_read_uio_dnode(dnode_t *dn, zfs_uio_t *uio, uint64_t size,
+    dmu_flags_t flags);
 int dmu_write_uio(objset_t *os, uint64_t object, zfs_uio_t *uio, uint64_t size,
-	dmu_tx_t *tx);
+	dmu_tx_t *tx, dmu_flags_t flags);
 int dmu_write_uio_dbuf(dmu_buf_t *zdb, zfs_uio_t *uio, uint64_t size,
-	dmu_tx_t *tx);
+	dmu_tx_t *tx, dmu_flags_t flags);
 int dmu_write_uio_dnode(dnode_t *dn, zfs_uio_t *uio, uint64_t size,
-	dmu_tx_t *tx);
+	dmu_tx_t *tx, dmu_flags_t flags);
 #endif
 struct arc_buf *dmu_request_arcbuf(dmu_buf_t *handle, int size);
 void dmu_return_arcbuf(struct arc_buf *buf);
 int dmu_assign_arcbuf_by_dnode(dnode_t *dn, uint64_t offset,
-    struct arc_buf *buf, dmu_tx_t *tx);
+    struct arc_buf *buf, dmu_tx_t *tx, dmu_flags_t flags);
 int dmu_assign_arcbuf_by_dbuf(dmu_buf_t *handle, uint64_t offset,
-    struct arc_buf *buf, dmu_tx_t *tx);
+    struct arc_buf *buf, dmu_tx_t *tx, dmu_flags_t flags);
 #define	dmu_assign_arcbuf	dmu_assign_arcbuf_by_dbuf
 extern uint_t zfs_max_recordsize;
 
@@ -972,6 +1018,11 @@ void dmu_object_size_from_db(dmu_buf_t *db, uint32_t *blksize,
 
 void dmu_object_dnsize_from_db(dmu_buf_t *db, int *dnsize);
 
+typedef enum {
+	DDS_FLAG_ENCRYPTED = (1<<0),
+	DDS_FLAG_HAS_ENCRYPTED = (1<<7),
+} dmu_objset_flag_t;
+
 typedef struct dmu_objset_stats {
 	uint64_t dds_num_clones; /* number of clones of this */
 	uint64_t dds_creation_txg;
@@ -981,6 +1032,7 @@ typedef struct dmu_objset_stats {
 	uint8_t dds_inconsistent;
 	uint8_t dds_redacted;
 	char dds_origin[ZFS_MAX_DATASET_NAME_LEN];
+	uint8_t dds_flags; /* dmu_objset_flag_t */
 } dmu_objset_stats_t;
 
 /*

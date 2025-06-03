@@ -50,4 +50,4 @@
 #define ARCHIVE_ACL_SUPPORT     1
 #endif
 
-#endif	/* ARCHIVE_PLATFORM_ACL_H_INCLUDED */
+#endif	/* !ARCHIVE_PLATFORM_ACL_H_INCLUDED */

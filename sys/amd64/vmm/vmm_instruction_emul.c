@@ -39,6 +39,8 @@
 
 #include <machine/vmparam.h>
 #include <machine/vmm.h>
+
+#include <dev/vmm/vmm_mem.h>
 #else	/* !_KERNEL */
 #include <sys/types.h>
 #include <sys/errno.h>
@@ -233,6 +235,12 @@ static const struct vie_op one_byte_opcodes[256] = {
 		/* XXX Group 1A extended opcode - not just POP */
 		.op_byte = 0x8F,
 		.op_type = VIE_OP_TYPE_POP,
+	},
+	[0xF6] = {
+		/* XXX Group 3 extended opcode - not just TEST */
+		.op_byte = 0xF6,
+		.op_type = VIE_OP_TYPE_TEST,
+		.op_flags = VIE_OP_F_IMM8,
 	},
 	[0xF7] = {
 		/* XXX Group 3 extended opcode - not just TEST */
@@ -1282,6 +1290,12 @@ emulate_test(struct vcpu *vcpu, uint64_t gpa, struct vie *vie,
 	error = EINVAL;
 
 	switch (vie->op.op_byte) {
+	case 0xF6:
+		/*
+		 * F6 /0		test r/m8, imm8
+		 */
+		size = 1;	/* override for byte operation */
+		/* FALLTHROUGH */
 	case 0xF7:
 		/*
 		 * F7 /0		test r/m16, imm16

@@ -227,8 +227,8 @@ static int rtw_sub_pwr_seq_parser(struct rtw_dev *rtwdev, u8 intf_mask,
 	return 0;
 }
 
-static int rtw_pwr_seq_parser(struct rtw_dev *rtwdev,
-			      const struct rtw_pwr_seq_cmd **cmd_seq)
+int rtw_pwr_seq_parser(struct rtw_dev *rtwdev,
+		       const struct rtw_pwr_seq_cmd * const *cmd_seq)
 {
 	u8 cut_mask;
 	u8 intf_mask;
@@ -267,11 +267,12 @@ static int rtw_pwr_seq_parser(struct rtw_dev *rtwdev,
 
 	return 0;
 }
+EXPORT_SYMBOL(rtw_pwr_seq_parser);
 
 static int rtw_mac_power_switch(struct rtw_dev *rtwdev, bool pwr_on)
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
-	const struct rtw_pwr_seq_cmd **pwr_seq;
+	const struct rtw_pwr_seq_cmd * const *pwr_seq;
 	u32 imr = 0;
 	u8 rpwm;
 	bool cur_pwr;
@@ -308,6 +309,13 @@ static int rtw_mac_power_switch(struct rtw_dev *rtwdev, bool pwr_on)
 
 	pwr_seq = pwr_on ? chip->pwr_on_seq : chip->pwr_off_seq;
 	ret = rtw_pwr_seq_parser(rtwdev, pwr_seq);
+
+	if (pwr_on && rtw_hci_type(rtwdev) == RTW_HCI_TYPE_USB) {
+		if (chip->id == RTW_CHIP_TYPE_8822C ||
+		    chip->id == RTW_CHIP_TYPE_8822B ||
+		    chip->id == RTW_CHIP_TYPE_8821C)
+			rtw_write8_clr(rtwdev, REG_SYS_STATUS1 + 1, BIT(0));
+	}
 
 	if (rtw_hci_type(rtwdev) == RTW_HCI_TYPE_SDIO)
 		rtw_write32(rtwdev, REG_SDIO_HIMR, imr);
@@ -936,6 +944,12 @@ static int __rtw_download_firmware_legacy(struct rtw_dev *rtwdev,
 {
 	int ret = 0;
 
+	/* reset firmware if still present */
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8703B &&
+	    rtw_read8_mask(rtwdev, REG_MCUFW_CTRL, BIT_RAM_DL_SEL)) {
+		rtw_write8(rtwdev, REG_MCUFW_CTRL, 0x00);
+	}
+
 	en_download_firmware_legacy(rtwdev, true);
 	ret = download_firmware_legacy(rtwdev, fw->firmware->data, fw->firmware->size);
 	en_download_firmware_legacy(rtwdev, false);
@@ -981,6 +995,7 @@ int rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
 
 	return 0;
 }
+EXPORT_SYMBOL(rtw_download_firmware);
 
 static u32 get_priority_queues(struct rtw_dev *rtwdev, u32 queues)
 {
@@ -1026,14 +1041,15 @@ static void __rtw_mac_flush_prio_queue(struct rtw_dev *rtwdev,
 		msleep(20);
 	}
 
-	/* priority queue is still not empty, throw a warning,
+	/* priority queue is still not empty, throw a debug message
 	 *
 	 * Note that if we want to flush the tx queue when having a lot of
 	 * traffic (ex, 100Mbps up), some of the packets could be dropped.
 	 * And it requires like ~2secs to flush the full priority queue.
 	 */
 	if (!drop)
-		rtw_warn(rtwdev, "timed out to flush queue %d\n", prio_queue);
+		rtw_dbg(rtwdev, RTW_DBG_UNEXP,
+			"timed out to flush queue %d\n", prio_queue);
 }
 
 static void rtw_mac_flush_prio_queues(struct rtw_dev *rtwdev,
@@ -1113,7 +1129,7 @@ static int txdma_queue_mapping(struct rtw_dev *rtwdev)
 	return 0;
 }
 
-static int set_trx_fifo_info(struct rtw_dev *rtwdev)
+int rtw_set_trx_fifo_info(struct rtw_dev *rtwdev)
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_fifo_conf *fifo = &rtwdev->fifo;
@@ -1122,7 +1138,7 @@ static int set_trx_fifo_info(struct rtw_dev *rtwdev)
 
 	/* config rsvd page num */
 	fifo->rsvd_drv_pg_num = chip->rsvd_drv_pg_num;
-	fifo->txff_pg_num = chip->txff_size >> 7;
+	fifo->txff_pg_num = chip->txff_size / chip->page_size;
 	if (rtw_chip_wcpu_11n(rtwdev))
 		fifo->rsvd_pg_num = fifo->rsvd_drv_pg_num;
 	else
@@ -1165,6 +1181,7 @@ static int set_trx_fifo_info(struct rtw_dev *rtwdev)
 
 	return 0;
 }
+EXPORT_SYMBOL(rtw_set_trx_fifo_info);
 
 static int __priority_queue_cfg(struct rtw_dev *rtwdev,
 				const struct rtw_page_table *pg_tbl,
@@ -1187,6 +1204,15 @@ static int __priority_queue_cfg(struct rtw_dev *rtwdev,
 	rtw_write16(rtwdev, REG_FIFOPAGE_CTRL_2 + 2, fifo->rsvd_boundary);
 	rtw_write16(rtwdev, REG_BCNQ1_BDNY_V1, fifo->rsvd_boundary);
 	rtw_write32(rtwdev, REG_RXFF_BNDY, chip->rxff_size - C2H_PKT_BUF - 1);
+
+	if (rtwdev->hci.type == RTW_HCI_TYPE_USB) {
+		rtw_write8_mask(rtwdev, REG_AUTO_LLT_V1, BIT_MASK_BLK_DESC_NUM,
+				chip->usb_tx_agg_desc_num);
+
+		rtw_write8(rtwdev, REG_AUTO_LLT_V1 + 3, chip->usb_tx_agg_desc_num);
+		rtw_write8_set(rtwdev, REG_TXDMA_OFFSET_CHK + 1, BIT(1));
+	}
+
 	rtw_write8_set(rtwdev, REG_AUTO_LLT_V1, BIT_AUTO_INIT_LLT_V1);
 
 	if (!check_hw_ready(rtwdev, REG_AUTO_LLT_V1, BIT_AUTO_INIT_LLT_V1, 0))
@@ -1233,7 +1259,7 @@ static int priority_queue_cfg(struct rtw_dev *rtwdev)
 	u16 pubq_num;
 	int ret;
 
-	ret = set_trx_fifo_info(rtwdev);
+	ret = rtw_set_trx_fifo_info(rtwdev);
 	if (ret)
 		return ret;
 

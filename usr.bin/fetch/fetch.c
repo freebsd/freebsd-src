@@ -1059,7 +1059,7 @@ main(int argc, char *argv[])
 			setenv("SSL_CLIENT_KEY_FILE", optarg, 1);
 			break;
 		case OPTION_SSL_CRL_FILE:
-			setenv("SSL_CLIENT_CRL_FILE", optarg, 1);
+			setenv("SSL_CRL_FILE", optarg, 1);
 			break;
 		case OPTION_SSL_NO_SSL3:
 			setenv("SSL_NO_SSL3", "", 1);

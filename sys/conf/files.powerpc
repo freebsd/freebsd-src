@@ -17,8 +17,17 @@ contrib/openzfs/module/icp/asm-ppc64/blake3/b3_ppc64le_sse41.S	optional zfs comp
 # zfs sha2 hash support
 contrib/openzfs/module/icp/asm-ppc64/sha2/sha256-p8.S		optional zfs compile-with "${ZFS_S}"
 contrib/openzfs/module/icp/asm-ppc64/sha2/sha512-p8.S		optional zfs compile-with "${ZFS_S}"
-contrib/openzfs/module/icp/asm-ppc64/sha2/sha256-ppc.S		optional zfs compile-with "${ZFS_S}"
-contrib/openzfs/module/icp/asm-ppc64/sha2/sha512-ppc.S		optional zfs compile-with "${ZFS_S}"
+zfs-sha256-ppc.o		optional	zfs			\
+	dependency "$S/contrib/openzfs/module/icp/asm-ppc64/sha2/sha256-ppc.S" \
+	compile-with	"${CC} -c ${ZFS_ASM_CFLAGS} -o ${.TARGET} ${WERROR} $S/contrib/openzfs/module/icp/asm-ppc64/sha2/sha256-ppc.S" \
+	no-implicit-rule \
+	clean "zfs-sha256-ppc.o"
+
+zfs-sha512-ppc.o		optional	zfs			\
+	dependency "$S/contrib/openzfs/module/icp/asm-ppc64/sha2/sha512-ppc.S" \
+	compile-with	"${CC} -c ${ZFS_ASM_CFLAGS} -o ${.TARGET} ${WERROR} $S/contrib/openzfs/module/icp/asm-ppc64/sha2/sha512-ppc.S" \
+	no-implicit-rule \
+	clean "zfs-sha512-ppc.o"
 
 # openssl ppc common files
 crypto/openssl/ossl_ppc.c	optional	ossl powerpc64 | ossl powerpc64le
@@ -138,7 +147,7 @@ dev/ice/irdma_di_if.m		optional	ice pci powerpc64 | ice pci powerpc64le \
 dev/ice/ice_ddp_common.c	optional	ice pci powerpc64 | ice pci powerpc64le \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 ice_ddp.c			optional	ice_ddp powerpc64 | ice pci powerpc64le \
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01032400 -mice_ddp -c${.TARGET}"	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01032900 -mice_ddp -c${.TARGET}"	\
 	no-ctfconvert no-implicit-rule before-depend local  \
 	clean		"ice_ddp.c"
 ice_ddp.fwo			optional	ice_ddp powerpc64 | ice pci powerpc64le \
@@ -147,8 +156,8 @@ ice_ddp.fwo			optional	ice_ddp powerpc64 | ice pci powerpc64le \
 	no-implicit-rule				\
 	clean		"ice_ddp.fwo"
 ice_ddp.fw			optional	ice_ddp powerpc64 | ice pci powerpc64le \
-	dependency	"$S/contrib/dev/ice/ice-1.3.36.0.pkg" \
-	compile-with	"${CP} $S/contrib/dev/ice/ice-1.3.36.0.pkg ice_ddp.fw" \
+	dependency	"$S/contrib/dev/ice/ice-1.3.41.0.pkg" \
+	compile-with	"${CP} $S/contrib/dev/ice/ice-1.3.41.0.pkg ice_ddp.fw" \
 	no-obj no-implicit-rule				\
 	clean		"ice_ddp.fw"
 dev/ixl/if_ixl.c		optional	ixl pci powerpc64 \

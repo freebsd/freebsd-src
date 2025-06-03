@@ -761,8 +761,8 @@ static inline int fw_initializing(struct mlx5_core_dev *dev)
 static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili,
 			u32 warn_time_mili)
 {
-	int warn = jiffies + msecs_to_jiffies(warn_time_mili);
-	int end = jiffies + msecs_to_jiffies(max_wait_mili);
+	unsigned long warn = jiffies + msecs_to_jiffies(warn_time_mili);
+	unsigned long end = jiffies + msecs_to_jiffies(max_wait_mili);
 	int err = 0;
 
 	MPASS(max_wait_mili > warn_time_mili);
@@ -774,8 +774,8 @@ static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili,
 		}
 		if (warn_time_mili && time_after(jiffies, warn)) {
 			mlx5_core_warn(dev,
-			    "Waiting for FW initialization, timeout abort in %u s\n",
-			    (unsigned)(jiffies_to_msecs(end - warn) / 1000));
+			    "Waiting for FW initialization, timeout abort in %lu s\n",
+			    (unsigned long)(jiffies_to_msecs(end - warn) / 1000));
 			warn = jiffies + msecs_to_jiffies(warn_time_mili);
 		}
 		msleep(FW_INIT_WAIT_MS);
@@ -2142,7 +2142,7 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0xa2d3) }, /* BlueField integrated ConnectX-5 network controller VF */
 	{ PCI_VDEVICE(MELLANOX, 0xa2d6) }, /* BlueField-2 integrated ConnectX-6 Dx network controller */
 	{ PCI_VDEVICE(MELLANOX, 0xa2dc) }, /* BlueField-3 integrated ConnectX-7 network controller */
-	{ PCI_VDEVICE(MELLANOX, 0xa2df) }, /* BlueField-4 integrated ConnectX-8 network controller */
+	{ PCI_VDEVICE(MELLANOX, 0xa2df) }, /* BlueField-4 Family integrated network controller */
 	{ }
 };
 

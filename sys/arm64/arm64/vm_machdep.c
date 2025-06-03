@@ -225,7 +225,7 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 }
 
 int
-cpu_set_user_tls(struct thread *td, void *tls_base)
+cpu_set_user_tls(struct thread *td, void *tls_base, int thr_flags __unused)
 {
 	struct pcb *pcb;
 
@@ -288,6 +288,14 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 
 	td->td_pcb->pcb_x[PCB_X19] = (uintptr_t)func;
 	td->td_pcb->pcb_x[PCB_X20] = (uintptr_t)arg;
+}
+
+void
+cpu_update_pcb(struct thread *td)
+{
+	MPASS(td == curthread);
+	td->td_pcb->pcb_tpidr_el0 = READ_SPECIALREG(tpidr_el0);
+	td->td_pcb->pcb_tpidrro_el0 = READ_SPECIALREG(tpidrro_el0);
 }
 
 void

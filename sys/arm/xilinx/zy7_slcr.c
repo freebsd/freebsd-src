@@ -673,8 +673,11 @@ static int
 zy7_slcr_detach(device_t dev)
 {
 	struct zy7_slcr_softc *sc = device_get_softc(dev);
+	int error;
 
-	bus_generic_detach(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	/* Release memory resource. */
 	if (sc->mem_res != NULL)

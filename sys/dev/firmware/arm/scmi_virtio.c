@@ -76,26 +76,26 @@ scmi_virtio_callback(void *msg, unsigned int len, void *priv)
 	}
 
 	hdr = le32toh(*((uint32_t *)msg));
-	scmi_rx_irq_callback(sc->base.dev, msg, hdr);
+	scmi_rx_irq_callback(sc->base.dev, msg, hdr, len);
 }
 
 static void *
 scmi_virtio_p2a_pool_init(device_t dev, unsigned int max_msg)
 {
 	struct scmi_virtio_softc *sc;
+	unsigned int max_msg_sz;
 	void *pool;
 	uint8_t *buf;
 	int i;
 
 	sc = device_get_softc(dev);
+	max_msg_sz = SCMI_MAX_MSG_SIZE(&sc->base);
+	pool = mallocarray(max_msg, max_msg_sz, M_DEVBUF, M_ZERO | M_WAITOK);
 
-	pool = mallocarray(max_msg, SCMI_MAX_MSG_SIZE, M_DEVBUF,
-	    M_ZERO | M_WAITOK);
-
-	for (i = 0, buf = pool; i < max_msg; i++, buf += SCMI_MAX_MSG_SIZE) {
+	for (i = 0, buf = pool; i < max_msg; i++, buf += max_msg_sz) {
 		/* Feed platform with pre-allocated P2A buffers */
 		virtio_scmi_message_enqueue(sc->virtio_dev,
-		    VIRTIO_SCMI_CHAN_P2A, buf, 0, SCMI_MAX_MSG_SIZE);
+		    VIRTIO_SCMI_CHAN_P2A, buf, 0, max_msg_sz);
 	}
 
 	device_printf(dev,
@@ -111,7 +111,7 @@ scmi_virtio_clear_channel(device_t dev, void *msg)
 
 	sc = device_get_softc(dev);
 	virtio_scmi_message_enqueue(sc->virtio_dev, VIRTIO_SCMI_CHAN_P2A,
-	    msg, 0, SCMI_MAX_MSG_SIZE);
+	    msg, 0, SCMI_MAX_MSG_SIZE(&sc->base));
 }
 
 static int
@@ -225,7 +225,6 @@ scmi_virtio_poll_msg(device_t dev, struct scmi_msg *msg, unsigned int tmo_ms)
 		}
 
 		rx_msg = hdr_to_msg(rx_buf);
-		rx_msg->rx_len = rx_len;
 		/* Complete the polling on any poll path */
 		if (rx_msg->polling)
 			atomic_store_rel_int(&rx_msg->poll_done, 1);
@@ -242,7 +241,7 @@ scmi_virtio_poll_msg(device_t dev, struct scmi_msg *msg, unsigned int tmo_ms)
 		    rx_msg->hdr, rx_msg->polling);
 
 		if (!rx_msg->polling)
-			scmi_rx_irq_callback(sc->base.dev, rx_msg, rx_msg->hdr);
+			scmi_rx_irq_callback(sc->base.dev, rx_msg, rx_msg->hdr, rx_len);
 	}
 
 	return (tmo_loops > 0 ? 0 : ETIMEDOUT);

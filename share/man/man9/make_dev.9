@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 1999 Chris Costello
 .\" All rights reserved.
 .\"
@@ -22,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 2, 2016
+.Dd January 19, 2025
 .Dt MAKE_DEV 9
 .Os
 .Sh NAME
@@ -38,9 +41,7 @@
 .Nm destroy_dev_sched_cb ,
 .Nm destroy_dev_drain ,
 .Nm dev_depends
-.Nd manage
-.Vt cdev Ns 's
-and DEVFS registration for devices
+.Nd create and destroy character devices including devfs registration
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/conf.h
@@ -105,6 +106,7 @@ struct make_dev_args {
 	void		*mda_si_drv2;
 };
 .Ed
+.Pp
 Before use and filling with the desired values, the structure must be
 initialized by the
 .Fn make_dev_args_init
@@ -166,10 +168,10 @@ member of the initialized
 The
 .Va args.mda_flags
 argument alters the operation of
-.Fn make_dev_s.
+.Fn make_dev_s .
 The following values are currently accepted:
 .Pp
-.Bl -tag -width "It Dv MAKEDEV_CHECKNAME" -compact -offset indent
+.Bl -tag -width "MAKEDEV_CHECKNAME" -compact -offset indent
 .It Dv MAKEDEV_REF
 reference the created device
 .It Dv MAKEDEV_NOWAIT
@@ -200,12 +202,13 @@ is specified.
 .Pp
 The
 .Xr dev_clone 9
-event handler shall specify
+event handler shall specify the
 .Dv MAKEDEV_REF
-flag when creating a device in response to lookup, to avoid race where
-the device created is destroyed immediately after
-.Xr devfs_lookup 9
-drops his reference to cdev.
+flag when creating a device in response to lookup, to avoid a race where
+the created device is immediately destroyed after
+.Fn devfs_lookup
+drops its reference to
+.Fa cdev .
 .Pp
 The
 .Dv MAKEDEV_ETERNAL
@@ -226,13 +229,14 @@ and the device name is invalid or already exists.
 .Pp
 The
 .Fn make_dev_p
-use of the form
+use of the form:
 .Bd -literal -offset indent
 struct cdev *dev;
 int res;
 res = make_dev_p(flags, &dev, cdevsw, cred, uid, gid, perms, name);
 .Ed
-is equivalent to the code
+.Pp
+is equivalent to the code:
 .Bd -literal -offset indent
 struct cdev *dev;
 struct make_dev_args args;
@@ -241,7 +245,7 @@ int res;
 make_dev_args_init(&args);
 args.mda_flags = flags;
 args.mda_devsw = cdevsw;
-args.mda_cred = cred;
+args.mda_cr = cred;
 args.mda_uid = uid;
 args.mda_gid = gid;
 args.mda_mode = perms;
@@ -250,10 +254,11 @@ res = make_dev_s(&args, &dev, name);
 .Pp
 Similarly, the
 .Fn make_dev_credf
-function call is equivalent to
+function call is equivalent to:
 .Bd -literal -offset indent
-	(void) make_dev_s(&args, &dev, name);
+(void) make_dev_s(&args, &dev, name);
 .Ed
+.Pp
 In other words,
 .Fn make_dev_credf
 does not allow the caller to obtain the return value, and in
@@ -263,14 +268,14 @@ options, the function asserts that the device creation succeeded.
 .Pp
 The
 .Fn make_dev_cred
-function is equivalent to the call
+function is equivalent to the call:
 .Bd -literal -offset indent
 make_dev_credf(0, cdevsw, unit, cr, uid, gid, perms, fmt, ...);
 .Ed
 .Pp
 The
 .Fn make_dev
-function call is the same as
+function call is the same as:
 .Bd -literal -offset indent
 make_dev_credf(0, cdevsw, unit, NULL, uid, gid, perms, fmt, ...);
 .Ed
@@ -377,7 +382,7 @@ is called, with argument
 .Fa arg .
 The
 .Fn destroy_dev_sched
-function is the same as
+function is the same as:
 .Bd -literal -offset indent
 destroy_dev_sched_cb(cdev, NULL, NULL);
 .Ed

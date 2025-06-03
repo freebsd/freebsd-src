@@ -22,14 +22,13 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#include <stdbool.h>
-#include <stdio.h>
-
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include <atf-c.h>
 
@@ -134,29 +133,37 @@ ATF_TC_BODY(seqpacket, tc)
 ATF_TC_WITHOUT_HEAD(stream);
 ATF_TC_BODY(stream, tc)
 {
+	char *event;
 	int s;
 	bool got_create_event = false;
 	bool got_destroy_event = false;
-	ssize_t len = 0;
+	size_t len = 0, sz;
 
 	s = common_setup(SOCK_STREAM, "/var/run/devd.pipe");
+
+	/*
+	 * Use a large buffer: we're reading from a stream socket so can't rely
+	 * on record boundaries.  Instead, we just keep appending to the buffer.
+	 */
+	sz = 1024 * 1024;
+	event = malloc(sz);
+	ATF_REQUIRE(event != NULL);
+
 	/*
 	 * Loop until both events are detected on the same or different reads.
 	 * There may be extra events due to unrelated system activity.
 	 * If we never get both events, then the test will timeout.
 	 */
-	while (!(got_create_event && got_destroy_event)) {
-		char event[1024];
+	while (!(got_create_event && got_destroy_event) && len < sz - 1) {
 		ssize_t newlen;
 		char *create_pos, *destroy_pos;
 
 		/* Read 1 less than sizeof(event) to allow space for NULL */
-		newlen = read(s, &event[len], sizeof(event) - len - 1);
-		ATF_REQUIRE(newlen != -1);
+		newlen = read(s, &event[len], sz - len - 1);
+		ATF_REQUIRE(newlen > 0);
 		len += newlen;
 		/* NULL terminate the result */
 		event[len] = '\0';
-		printf("%s", event);
 
 		create_pos = strstr(event, create_pat);
 		if (create_pos != NULL)
@@ -166,7 +173,11 @@ ATF_TC_BODY(stream, tc)
 		if (destroy_pos != NULL)
 			got_destroy_event = true;
 	}
+	printf("%s", event);
+	if (len >= sz - 1)
+		atf_tc_fail("Event buffer overflowed");
 
+	free(event);
 	close(s);
 }
 

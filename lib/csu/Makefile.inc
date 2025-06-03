@@ -1,4 +1,4 @@
-PACKAGE=	clibs-dev
+PACKAGE?=	clibs-dev
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 # Can't instrument these files since that breaks non-sanitized programs.

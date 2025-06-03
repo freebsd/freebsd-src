@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2016-2024, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2016-2025, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Broadcom Inc. (Broadcom) MPI3MR Adapter FreeBSD
  *
  */
+
 #ifndef MPI30_INIT_H
 #define MPI30_INIT_H     1
 
@@ -91,12 +92,15 @@ typedef struct _MPI3_SCSI_IO_REQUEST
 
 /**** Defines for the Flags field ****/
 #define MPI3_SCSIIO_FLAGS_LARGE_CDB_MASK                      (0x60000000)
+#define MPI3_SCSIIO_FLAGS_LARGE_CDB_SHIFT                     (29)
 #define MPI3_SCSIIO_FLAGS_CDB_16_OR_LESS                      (0x00000000)
 #define MPI3_SCSIIO_FLAGS_CDB_GREATER_THAN_16                 (0x20000000)
 #define MPI3_SCSIIO_FLAGS_CDB_IN_SEPARATE_BUFFER              (0x40000000)
 #define MPI3_SCSIIO_FLAGS_CDB_PRODUCT_SPECIFIC                (0x60000000)
 #define MPI3_SCSIIO_FLAGS_IOC_USE_ONLY_27_MASK                (0x18000000)
+#define MPI3_SCSIIO_FLAGS_IOC_USE_ONLY_27_SHIFT               (27)
 #define MPI3_SCSIIO_FLAGS_TASKATTRIBUTE_MASK                  (0x07000000)
+#define MPI3_SCSIIO_FLAGS_TASKATTRIBUTE_SHIFT                 (24)
 #define MPI3_SCSIIO_FLAGS_TASKATTRIBUTE_SIMPLEQ               (0x00000000)
 #define MPI3_SCSIIO_FLAGS_TASKATTRIBUTE_HEADOFQ               (0x01000000)
 #define MPI3_SCSIIO_FLAGS_TASKATTRIBUTE_ORDEREDQ              (0x02000000)
@@ -104,12 +108,15 @@ typedef struct _MPI3_SCSI_IO_REQUEST
 #define MPI3_SCSIIO_FLAGS_CMDPRI_MASK                         (0x00F00000)
 #define MPI3_SCSIIO_FLAGS_CMDPRI_SHIFT                        (20)
 #define MPI3_SCSIIO_FLAGS_DATADIRECTION_MASK                  (0x000C0000)
+#define MPI3_SCSIIO_FLAGS_DATADIRECTION_SHIFT                 (18)
 #define MPI3_SCSIIO_FLAGS_DATADIRECTION_NO_DATA_TRANSFER      (0x00000000)
 #define MPI3_SCSIIO_FLAGS_DATADIRECTION_WRITE                 (0x00040000)
 #define MPI3_SCSIIO_FLAGS_DATADIRECTION_READ                  (0x00080000)
 #define MPI3_SCSIIO_FLAGS_DMAOPERATION_MASK                   (0x00030000)
+#define MPI3_SCSIIO_FLAGS_DMAOPERATION_SHIFT                  (16)
 #define MPI3_SCSIIO_FLAGS_DMAOPERATION_HOST_PI                (0x00010000)
 #define MPI3_SCSIIO_FLAGS_DIVERT_REASON_MASK                  (0x000000F0)
+#define MPI3_SCSIIO_FLAGS_DIVERT_REASON_SHIFT                 (4)
 #define MPI3_SCSIIO_FLAGS_DIVERT_REASON_IO_THROTTLING         (0x00000010)
 #define MPI3_SCSIIO_FLAGS_DIVERT_REASON_WRITE_SAME_TOO_LARGE  (0x00000020)
 #define MPI3_SCSIIO_FLAGS_DIVERT_REASON_PROD_SPECIFIC         (0x00000080)
@@ -167,6 +174,7 @@ typedef struct _MPI3_SCSI_IO_REPLY
 
 /**** Defines for the SCSIState field ****/
 #define MPI3_SCSI_STATE_SENSE_MASK              (0x03)
+#define MPI3_SCSI_STATE_SENSE_SHIFT             (0)
 #define MPI3_SCSI_STATE_SENSE_VALID             (0x00)
 #define MPI3_SCSI_STATE_SENSE_FAILED            (0x01)
 #define MPI3_SCSI_STATE_SENSE_BUFF_Q_EMPTY      (0x02)

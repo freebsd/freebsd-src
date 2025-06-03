@@ -4168,8 +4168,8 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 
 	dev_info(rdev_to_dev(rdev), "%s: Event = %s (0x%lx), rdev %s (real_dev %s)\n",
 		 __func__, bnxt_re_netevent(event), event,
-		 rdev ? rdev->netdev ? rdev->netdev->if_dname : "->netdev = NULL" : "= NULL",
-		 (real_dev == netdev) ? "= netdev" : real_dev->if_dname);
+		 rdev ? rdev->netdev ? if_getdname(rdev->netdev) : "->netdev = NULL" : "= NULL",
+		 (real_dev == netdev) ? "= netdev" : if_getdname(real_dev));
 
 	if (!test_bit(BNXT_RE_FLAG_IBDEV_REGISTERED, &rdev->flags))
 		goto exit;

@@ -40,11 +40,13 @@
 struct uart_bas {
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
+	void	*driver1;
 	u_int	chan;
 	u_int	rclk;
 	u_int	regshft;
 	u_int	regiowidth;
 	u_int	busy_detect;
+	u_int	rclk_guess;/* if rclk == 0, use baud + divisor to compute rclk */
 };
 
 #define	uart_regofs(bas, reg)		((reg) << (bas)->regshft)

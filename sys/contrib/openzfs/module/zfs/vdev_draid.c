@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -577,7 +578,7 @@ vdev_draid_permute_id(vdev_draid_config_t *vdc,
  * i.e. vdev_draid_psize_to_asize().
  */
 static uint64_t
-vdev_draid_asize(vdev_t *vd, uint64_t psize, uint64_t txg)
+vdev_draid_psize_to_asize(vdev_t *vd, uint64_t psize, uint64_t txg)
 {
 	(void) txg;
 	vdev_draid_config_t *vdc = vd->vdev_tsd;
@@ -598,8 +599,9 @@ vdev_draid_asize(vdev_t *vd, uint64_t psize, uint64_t txg)
  * Deflate the asize to the psize, this includes stripping parity.
  */
 uint64_t
-vdev_draid_asize_to_psize(vdev_t *vd, uint64_t asize)
+vdev_draid_asize_to_psize(vdev_t *vd, uint64_t asize, uint64_t txg)
 {
+	(void) txg;
 	vdev_draid_config_t *vdc = vd->vdev_tsd;
 
 	ASSERT0(asize % vdc->vdc_groupwidth);
@@ -961,7 +963,7 @@ vdev_draid_map_alloc_row(zio_t *zio, raidz_row_t **rrp, uint64_t io_offset,
 	vdev_draid_config_t *vdc = vd->vdev_tsd;
 	uint64_t ashift = vd->vdev_top->vdev_ashift;
 	uint64_t io_size = abd_size;
-	uint64_t io_asize = vdev_draid_asize(vd, io_size, 0);
+	uint64_t io_asize = vdev_draid_psize_to_asize(vd, io_size, 0);
 	uint64_t group = vdev_draid_offset_to_group(vd, io_offset);
 	uint64_t start_offset = vdev_draid_group_to_offset(vd, group + 1);
 
@@ -971,7 +973,7 @@ vdev_draid_map_alloc_row(zio_t *zio, raidz_row_t **rrp, uint64_t io_offset,
 	 */
 	if (io_offset + io_asize > start_offset) {
 		io_size = vdev_draid_asize_to_psize(vd,
-		    start_offset - io_offset);
+		    start_offset - io_offset, 0);
 	}
 
 	/*
@@ -1026,7 +1028,7 @@ vdev_draid_map_alloc_row(zio_t *zio, raidz_row_t **rrp, uint64_t io_offset,
 
 	ASSERT3U(vdc->vdc_nparity, >, 0);
 
-	raidz_row_t *rr = vdev_raidz_row_alloc(groupwidth);
+	raidz_row_t *rr = vdev_raidz_row_alloc(groupwidth, zio);
 	rr->rr_bigcols = bc;
 	rr->rr_firstdatacol = vdc->vdc_nparity;
 #ifdef ZFS_DEBUG
@@ -1116,7 +1118,7 @@ vdev_draid_map_alloc(zio_t *zio)
 	if (size < abd_size) {
 		vdev_t *vd = zio->io_vd;
 
-		io_offset += vdev_draid_asize(vd, size, 0);
+		io_offset += vdev_draid_psize_to_asize(vd, size, 0);
 		abd_offset += size;
 		abd_size -= size;
 		nrows++;
@@ -1769,7 +1771,7 @@ vdev_draid_need_resilver(vdev_t *vd, const dva_t *dva, size_t psize,
     uint64_t phys_birth)
 {
 	uint64_t offset = DVA_GET_OFFSET(dva);
-	uint64_t asize = vdev_draid_asize(vd, psize, 0);
+	uint64_t asize = vdev_draid_psize_to_asize(vd, psize, 0);
 
 	if (phys_birth == TXG_UNKNOWN) {
 		/*
@@ -1823,10 +1825,10 @@ static void
 vdev_draid_io_verify(vdev_t *vd, raidz_row_t *rr, int col)
 {
 #ifdef ZFS_DEBUG
-	range_seg64_t logical_rs, physical_rs, remain_rs;
+	zfs_range_seg64_t logical_rs, physical_rs, remain_rs;
 	logical_rs.rs_start = rr->rr_offset;
 	logical_rs.rs_end = logical_rs.rs_start +
-	    vdev_draid_asize(vd, rr->rr_size, 0);
+	    vdev_draid_psize_to_asize(vd, rr->rr_size, 0);
 
 	raidz_col_t *rc = &rr->rr_col[col];
 	vdev_t *cvd = vd->vdev_child[rc->rc_devidx];
@@ -2080,8 +2082,8 @@ vdev_draid_state_change(vdev_t *vd, int faulted, int degraded)
 }
 
 static void
-vdev_draid_xlate(vdev_t *cvd, const range_seg64_t *logical_rs,
-    range_seg64_t *physical_rs, range_seg64_t *remain_rs)
+vdev_draid_xlate(vdev_t *cvd, const zfs_range_seg64_t *logical_rs,
+    zfs_range_seg64_t *physical_rs, zfs_range_seg64_t *remain_rs)
 {
 	vdev_t *raidvd = cvd->vdev_parent;
 	ASSERT(raidvd->vdev_ops == &vdev_draid_ops);
@@ -2310,7 +2312,8 @@ vdev_ops_t vdev_draid_ops = {
 	.vdev_op_fini = vdev_draid_fini,
 	.vdev_op_open = vdev_draid_open,
 	.vdev_op_close = vdev_draid_close,
-	.vdev_op_asize = vdev_draid_asize,
+	.vdev_op_psize_to_asize = vdev_draid_psize_to_asize,
+	.vdev_op_asize_to_psize = vdev_draid_asize_to_psize,
 	.vdev_op_min_asize = vdev_draid_min_asize,
 	.vdev_op_min_alloc = vdev_draid_min_alloc,
 	.vdev_op_io_start = vdev_draid_io_start,
@@ -2800,7 +2803,8 @@ vdev_ops_t vdev_draid_spare_ops = {
 	.vdev_op_fini = vdev_draid_spare_fini,
 	.vdev_op_open = vdev_draid_spare_open,
 	.vdev_op_close = vdev_draid_spare_close,
-	.vdev_op_asize = vdev_default_asize,
+	.vdev_op_psize_to_asize = vdev_default_asize,
+	.vdev_op_asize_to_psize = vdev_default_psize,
 	.vdev_op_min_asize = vdev_default_min_asize,
 	.vdev_op_min_alloc = NULL,
 	.vdev_op_io_start = vdev_draid_spare_io_start,

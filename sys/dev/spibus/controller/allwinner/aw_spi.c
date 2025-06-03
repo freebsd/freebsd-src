@@ -237,7 +237,8 @@ aw_spi_attach(device_t dev)
 
 	sc->spibus = device_add_child(dev, "spibus", DEVICE_UNIT_ANY);
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	aw_spi_detach(dev);
@@ -252,8 +253,6 @@ aw_spi_detach(device_t dev)
 	sc = device_get_softc(dev);
 
 	bus_generic_detach(sc->dev);
-	if (sc->spibus != NULL)
-		device_delete_child(dev, sc->spibus);
 
 	if (sc->clk_mod != NULL)
 		clk_release(sc->clk_mod);

@@ -462,6 +462,7 @@
 #define	LINUX_IXOFF		0x0001000
 
 #define	LINUX_IMAXBEL		0x0002000
+#define	LINUX_IUTF8		0x0004000
 
 /* Linux c_oflag masks */
 #define	LINUX_OPOST		0x0000001

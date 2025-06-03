@@ -25,6 +25,15 @@ definitions:
       capture-only:
         description: port connection used only for capture
         $ref: /schemas/types.yaml#/definitions/flag
+      link-trigger-order:
+        description: trigger order for both start/stop
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+      link-trigger-order-start:
+        description: trigger order for start
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+      link-trigger-order-stop:
+        description: trigger order for stop
+        $ref: /schemas/types.yaml#/definitions/uint32-array
 
   endpoint-base:
     allOf:
@@ -51,7 +60,7 @@ definitions:
           - $ref: /schemas/types.yaml#/definitions/phandle
       clocks:
         description: Indicates system clock
-        $ref: /schemas/types.yaml#/definitions/phandle
+        maxItems: 1
       system-clock-frequency:
         $ref: simple-card.yaml#/definitions/system-clock-frequency
       system-clock-direction-out:

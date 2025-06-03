@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -36,6 +37,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <sys/debug.h>
+#include <dirent.h>
 #include <errno.h>
 #include <getopt.h>
 #include <libgen.h>
@@ -120,6 +122,7 @@ static int zfs_do_change_key(int argc, char **argv);
 static int zfs_do_project(int argc, char **argv);
 static int zfs_do_version(int argc, char **argv);
 static int zfs_do_redact(int argc, char **argv);
+static int zfs_do_rewrite(int argc, char **argv);
 static int zfs_do_wait(int argc, char **argv);
 
 #ifdef __FreeBSD__
@@ -192,6 +195,7 @@ typedef enum {
 	HELP_CHANGE_KEY,
 	HELP_VERSION,
 	HELP_REDACT,
+	HELP_REWRITE,
 	HELP_JAIL,
 	HELP_UNJAIL,
 	HELP_WAIT,
@@ -226,7 +230,7 @@ static zfs_command_t command_table[] = {
 	{ "promote",	zfs_do_promote,		HELP_PROMOTE		},
 	{ "rename",	zfs_do_rename,		HELP_RENAME		},
 	{ "bookmark",	zfs_do_bookmark,	HELP_BOOKMARK		},
-	{ "program",    zfs_do_channel_program, HELP_CHANNEL_PROGRAM    },
+	{ "diff",	zfs_do_diff,		HELP_DIFF		},
 	{ NULL },
 	{ "list",	zfs_do_list,		HELP_LIST		},
 	{ NULL },
@@ -248,27 +252,31 @@ static zfs_command_t command_table[] = {
 	{ NULL },
 	{ "send",	zfs_do_send,		HELP_SEND		},
 	{ "receive",	zfs_do_receive,		HELP_RECEIVE		},
+	{ "redact",	zfs_do_redact,		HELP_REDACT		},
 	{ NULL },
 	{ "allow",	zfs_do_allow,		HELP_ALLOW		},
-	{ NULL },
 	{ "unallow",	zfs_do_unallow,		HELP_UNALLOW		},
 	{ NULL },
 	{ "hold",	zfs_do_hold,		HELP_HOLD		},
 	{ "holds",	zfs_do_holds,		HELP_HOLDS		},
 	{ "release",	zfs_do_release,		HELP_RELEASE		},
-	{ "diff",	zfs_do_diff,		HELP_DIFF		},
+	{ NULL },
 	{ "load-key",	zfs_do_load_key,	HELP_LOAD_KEY		},
 	{ "unload-key",	zfs_do_unload_key,	HELP_UNLOAD_KEY		},
 	{ "change-key",	zfs_do_change_key,	HELP_CHANGE_KEY		},
-	{ "redact",	zfs_do_redact,		HELP_REDACT		},
+	{ NULL },
+	{ "program",	zfs_do_channel_program,	HELP_CHANNEL_PROGRAM	},
+	{ "rewrite",	zfs_do_rewrite,		HELP_REWRITE		},
 	{ "wait",	zfs_do_wait,		HELP_WAIT		},
 
 #ifdef __FreeBSD__
+	{ NULL },
 	{ "jail",	zfs_do_jail,		HELP_JAIL		},
 	{ "unjail",	zfs_do_unjail,		HELP_UNJAIL		},
 #endif
 
 #ifdef __linux__
+	{ NULL },
 	{ "zone",	zfs_do_zone,		HELP_ZONE		},
 	{ "unzone",	zfs_do_unzone,		HELP_UNZONE		},
 #endif
@@ -431,6 +439,9 @@ get_usage(zfs_help_t idx)
 	case HELP_REDACT:
 		return (gettext("\tredact <snapshot> <bookmark> "
 		    "<redaction_snapshot> ...\n"));
+	case HELP_REWRITE:
+		return (gettext("\trewrite [-rvx] [-o <offset>] [-l <length>] "
+		    "<directory|file ...>\n"));
 	case HELP_JAIL:
 		return (gettext("\tjail <jailid|jailname> <filesystem>\n"));
 	case HELP_UNJAIL:
@@ -500,7 +511,7 @@ usage_prop_cb(int prop, void *cb)
 {
 	FILE *fp = cb;
 
-	(void) fprintf(fp, "\t%-15s ", zfs_prop_to_name(prop));
+	(void) fprintf(fp, "\t%-22s ", zfs_prop_to_name(prop));
 
 	if (zfs_prop_readonly(prop))
 		(void) fprintf(fp, " NO    ");
@@ -561,40 +572,40 @@ usage(boolean_t requested)
 		(void) fprintf(fp, "%s",
 		    gettext("\nThe following properties are supported:\n"));
 
-		(void) fprintf(fp, "\n\t%-14s %s  %s   %s\n\n",
+		(void) fprintf(fp, "\n\t%-21s %s  %s   %s\n\n",
 		    "PROPERTY", "EDIT", "INHERIT", "VALUES");
 
 		/* Iterate over all properties */
 		(void) zprop_iter(usage_prop_cb, fp, B_FALSE, B_TRUE,
 		    ZFS_TYPE_DATASET);
 
-		(void) fprintf(fp, "\t%-15s ", "userused@...");
+		(void) fprintf(fp, "\t%-22s ", "userused@...");
 		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-15s ", "groupused@...");
+		(void) fprintf(fp, "\t%-22s ", "groupused@...");
 		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-15s ", "projectused@...");
+		(void) fprintf(fp, "\t%-22s ", "projectused@...");
 		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-15s ", "userobjused@...");
+		(void) fprintf(fp, "\t%-22s ", "userobjused@...");
 		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-15s ", "groupobjused@...");
+		(void) fprintf(fp, "\t%-22s ", "groupobjused@...");
 		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-15s ", "projectobjused@...");
+		(void) fprintf(fp, "\t%-22s ", "projectobjused@...");
 		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-15s ", "userquota@...");
+		(void) fprintf(fp, "\t%-22s ", "userquota@...");
 		(void) fprintf(fp, "YES       NO   <size> | none\n");
-		(void) fprintf(fp, "\t%-15s ", "groupquota@...");
+		(void) fprintf(fp, "\t%-22s ", "groupquota@...");
 		(void) fprintf(fp, "YES       NO   <size> | none\n");
-		(void) fprintf(fp, "\t%-15s ", "projectquota@...");
+		(void) fprintf(fp, "\t%-22s ", "projectquota@...");
 		(void) fprintf(fp, "YES       NO   <size> | none\n");
-		(void) fprintf(fp, "\t%-15s ", "userobjquota@...");
+		(void) fprintf(fp, "\t%-22s ", "userobjquota@...");
 		(void) fprintf(fp, "YES       NO   <size> | none\n");
-		(void) fprintf(fp, "\t%-15s ", "groupobjquota@...");
+		(void) fprintf(fp, "\t%-22s ", "groupobjquota@...");
 		(void) fprintf(fp, "YES       NO   <size> | none\n");
-		(void) fprintf(fp, "\t%-15s ", "projectobjquota@...");
+		(void) fprintf(fp, "\t%-22s ", "projectobjquota@...");
 		(void) fprintf(fp, "YES       NO   <size> | none\n");
-		(void) fprintf(fp, "\t%-15s ", "written@<snap>");
+		(void) fprintf(fp, "\t%-22s ", "written@<snap>");
 		(void) fprintf(fp, " NO       NO   <size>\n");
-		(void) fprintf(fp, "\t%-15s ", "written#<bookmark>");
+		(void) fprintf(fp, "\t%-22s ", "written#<bookmark>");
 		(void) fprintf(fp, " NO       NO   <size>\n");
 
 		(void) fprintf(fp, gettext("\nSizes are specified in bytes "
@@ -2162,6 +2173,7 @@ zfs_do_get(int argc, char **argv)
 	cb.cb_type = ZFS_TYPE_DATASET;
 
 	struct option long_options[] = {
+		{"json", no_argument, NULL, 'j'},
 		{"json-int", no_argument, NULL, ZFS_OPTION_JSON_NUMS_AS_INT},
 		{0, 0, 0, 0}
 	};
@@ -2984,7 +2996,8 @@ us_type2str(unsigned field_type)
 }
 
 static int
-userspace_cb(void *arg, const char *domain, uid_t rid, uint64_t space)
+userspace_cb(void *arg, const char *domain, uid_t rid, uint64_t space,
+    uint64_t default_quota)
 {
 	us_cbdata_t *cb = (us_cbdata_t *)arg;
 	zfs_userquota_prop_t prop = cb->cb_prop;
@@ -3140,7 +3153,7 @@ userspace_cb(void *arg, const char *domain, uid_t rid, uint64_t space)
 	    prop == ZFS_PROP_PROJECTUSED) {
 		propname = "used";
 		if (!nvlist_exists(props, "quota"))
-			(void) nvlist_add_uint64(props, "quota", 0);
+			(void) nvlist_add_uint64(props, "quota", default_quota);
 	} else if (prop == ZFS_PROP_USERQUOTA || prop == ZFS_PROP_GROUPQUOTA ||
 	    prop == ZFS_PROP_PROJECTQUOTA) {
 		propname = "quota";
@@ -3149,8 +3162,10 @@ userspace_cb(void *arg, const char *domain, uid_t rid, uint64_t space)
 	} else if (prop == ZFS_PROP_USEROBJUSED ||
 	    prop == ZFS_PROP_GROUPOBJUSED || prop == ZFS_PROP_PROJECTOBJUSED) {
 		propname = "objused";
-		if (!nvlist_exists(props, "objquota"))
-			(void) nvlist_add_uint64(props, "objquota", 0);
+		if (!nvlist_exists(props, "objquota")) {
+			(void) nvlist_add_uint64(props, "objquota",
+			    default_quota);
+		}
 	} else if (prop == ZFS_PROP_USEROBJQUOTA ||
 	    prop == ZFS_PROP_GROUPOBJQUOTA ||
 	    prop == ZFS_PROP_PROJECTOBJQUOTA) {
@@ -3760,8 +3775,13 @@ collect_dataset(zfs_handle_t *zhp, list_cbdata_t *cb)
 		if (cb->cb_json) {
 			if (pl->pl_prop == ZFS_PROP_NAME)
 				continue;
+			const char *prop_name;
+			if (pl->pl_prop != ZPROP_USERPROP)
+				prop_name = zfs_prop_to_name(pl->pl_prop);
+			else
+				prop_name = pl->pl_user_prop;
 			if (zprop_nvlist_one_property(
-			    zfs_prop_to_name(pl->pl_prop), propstr,
+			    prop_name, propstr,
 			    sourcetype, source, NULL, props,
 			    cb->cb_json_as_int) != 0)
 				nomem();
@@ -3852,6 +3872,7 @@ zfs_do_list(int argc, char **argv)
 	nvlist_t *data = NULL;
 
 	struct option long_options[] = {
+		{"json", no_argument, NULL, 'j'},
 		{"json-int", no_argument, NULL, ZFS_OPTION_JSON_NUMS_AS_INT},
 		{0, 0, 0, 0}
 	};
@@ -4432,7 +4453,7 @@ zfs_do_rollback(int argc, char **argv)
 	if (cb.cb_create > 0)
 		min_txg = cb.cb_create;
 
-	if ((ret = zfs_iter_snapshots_v2(zhp, 0, rollback_check, &cb,
+	if ((ret = zfs_iter_snapshots_sorted_v2(zhp, 0, rollback_check, &cb,
 	    min_txg, 0)) != 0)
 		goto out;
 	if ((ret = zfs_iter_bookmarks_v2(zhp, 0, rollback_check, &cb)) != 0)
@@ -5285,6 +5306,7 @@ zfs_do_receive(int argc, char **argv)
 #define	ZFS_DELEG_PERM_SHARE		"share"
 #define	ZFS_DELEG_PERM_SEND		"send"
 #define	ZFS_DELEG_PERM_RECEIVE		"receive"
+#define	ZFS_DELEG_PERM_RECEIVE_APPEND	"receive:append"
 #define	ZFS_DELEG_PERM_ALLOW		"allow"
 #define	ZFS_DELEG_PERM_USERPROP		"userprop"
 #define	ZFS_DELEG_PERM_VSCAN		"vscan" /* ??? */
@@ -7436,9 +7458,15 @@ share_mount(int op, int argc, char **argv)
 	uint_t nthr;
 	jsobj = data = item = NULL;
 
+	struct option long_options[] = {
+		{"json", no_argument, NULL, 'j'},
+		{0, 0, 0, 0}
+	};
+
 	/* check options */
-	while ((c = getopt(argc, argv, op == OP_MOUNT ? ":ajRlvo:Of" : "al"))
-	    != -1) {
+	while ((c = getopt_long(argc, argv,
+	    op == OP_MOUNT ? ":ajRlvo:Of" : "al",
+	    op == OP_MOUNT ? long_options : NULL, NULL)) != -1) {
 		switch (c) {
 		case 'a':
 			do_all = 1;
@@ -8374,8 +8402,14 @@ zfs_do_channel_program(int argc, char **argv)
 	boolean_t sync_flag = B_TRUE, json_output = B_FALSE;
 	zpool_handle_t *zhp;
 
+	struct option long_options[] = {
+		{"json", no_argument, NULL, 'j'},
+		{0, 0, 0, 0}
+	};
+
 	/* check options */
-	while ((c = getopt(argc, argv, "nt:m:j")) != -1) {
+	while ((c = getopt_long(argc, argv, "nt:m:j", long_options,
+	    NULL)) != -1) {
 		switch (c) {
 		case 't':
 		case 'm': {
@@ -8993,6 +9027,192 @@ zfs_do_project(int argc, char **argv)
 }
 
 static int
+zfs_rewrite_file(const char *path, boolean_t verbose, zfs_rewrite_args_t *args)
+{
+	int fd, ret = 0;
+
+	fd = open(path, O_WRONLY);
+	if (fd < 0) {
+		ret = errno;
+		(void) fprintf(stderr, gettext("failed to open %s: %s\n"),
+		    path, strerror(errno));
+		return (ret);
+	}
+
+	if (ioctl(fd, ZFS_IOC_REWRITE, args) < 0) {
+		ret = errno;
+		(void) fprintf(stderr, gettext("failed to rewrite %s: %s\n"),
+		    path, strerror(errno));
+	} else if (verbose) {
+		printf("%s\n", path);
+	}
+
+	close(fd);
+	return (ret);
+}
+
+static int
+zfs_rewrite_dir(const char *path, boolean_t verbose, boolean_t xdev, dev_t dev,
+    zfs_rewrite_args_t *args, nvlist_t *dirs)
+{
+	struct dirent *ent;
+	DIR *dir;
+	int ret = 0, err;
+
+	dir = opendir(path);
+	if (dir == NULL) {
+		if (errno == ENOENT)
+			return (0);
+		ret = errno;
+		(void) fprintf(stderr, gettext("failed to opendir %s: %s\n"),
+		    path, strerror(errno));
+		return (ret);
+	}
+
+	size_t plen = strlen(path) + 1;
+	while ((ent = readdir(dir)) != NULL) {
+		char *fullname;
+		struct stat st;
+
+		if (ent->d_type != DT_REG && ent->d_type != DT_DIR)
+			continue;
+
+		if (strcmp(ent->d_name, ".") == 0 ||
+		    strcmp(ent->d_name, "..") == 0)
+			continue;
+
+		if (plen + strlen(ent->d_name) >= PATH_MAX) {
+			(void) fprintf(stderr, gettext("path too long %s/%s\n"),
+			    path, ent->d_name);
+			ret = ENAMETOOLONG;
+			continue;
+		}
+
+		if (asprintf(&fullname, "%s/%s", path, ent->d_name) == -1) {
+			(void) fprintf(stderr,
+			    gettext("failed to allocate memory\n"));
+			ret = ENOMEM;
+			continue;
+		}
+
+		if (xdev) {
+			if (lstat(fullname, &st) < 0) {
+				ret = errno;
+				(void) fprintf(stderr,
+				    gettext("failed to stat %s: %s\n"),
+				    fullname, strerror(errno));
+				free(fullname);
+				continue;
+			}
+			if (st.st_dev != dev) {
+				free(fullname);
+				continue;
+			}
+		}
+
+		if (ent->d_type == DT_REG) {
+			err = zfs_rewrite_file(fullname, verbose, args);
+			if (err)
+				ret = err;
+		} else { /* DT_DIR */
+			fnvlist_add_uint64(dirs, fullname, dev);
+		}
+
+		free(fullname);
+	}
+
+	closedir(dir);
+	return (ret);
+}
+
+static int
+zfs_rewrite_path(const char *path, boolean_t verbose, boolean_t recurse,
+    boolean_t xdev, zfs_rewrite_args_t *args, nvlist_t *dirs)
+{
+	struct stat st;
+	int ret = 0;
+
+	if (lstat(path, &st) < 0) {
+		ret = errno;
+		(void) fprintf(stderr, gettext("failed to stat %s: %s\n"),
+		    path, strerror(errno));
+		return (ret);
+	}
+
+	if (S_ISREG(st.st_mode)) {
+		ret = zfs_rewrite_file(path, verbose, args);
+	} else if (S_ISDIR(st.st_mode) && recurse) {
+		ret = zfs_rewrite_dir(path, verbose, xdev, st.st_dev, args,
+		    dirs);
+	}
+	return (ret);
+}
+
+static int
+zfs_do_rewrite(int argc, char **argv)
+{
+	int ret = 0, err, c;
+	boolean_t recurse = B_FALSE, verbose = B_FALSE, xdev = B_FALSE;
+
+	if (argc < 2)
+		usage(B_FALSE);
+
+	zfs_rewrite_args_t args;
+	memset(&args, 0, sizeof (args));
+
+	while ((c = getopt(argc, argv, "l:o:rvx")) != -1) {
+		switch (c) {
+		case 'l':
+			args.len = strtoll(optarg, NULL, 0);
+			break;
+		case 'o':
+			args.off = strtoll(optarg, NULL, 0);
+			break;
+		case 'r':
+			recurse = B_TRUE;
+			break;
+		case 'v':
+			verbose = B_TRUE;
+			break;
+		case 'x':
+			xdev = B_TRUE;
+			break;
+		default:
+			(void) fprintf(stderr, gettext("invalid option '%c'\n"),
+			    optopt);
+			usage(B_FALSE);
+		}
+	}
+
+	argv += optind;
+	argc -= optind;
+	if (argc == 0) {
+		(void) fprintf(stderr,
+		    gettext("missing file or directory target(s)\n"));
+		usage(B_FALSE);
+	}
+
+	nvlist_t *dirs = fnvlist_alloc();
+	for (int i = 0; i < argc; i++) {
+		err = zfs_rewrite_path(argv[i], verbose, recurse, xdev, &args,
+		    dirs);
+		if (err)
+			ret = err;
+	}
+	nvpair_t *dir;
+	while ((dir = nvlist_next_nvpair(dirs, NULL)) != NULL) {
+		err = zfs_rewrite_dir(nvpair_name(dir), verbose, xdev,
+		    fnvpair_value_uint64(dir), &args, dirs);
+		if (err)
+			ret = err;
+		fnvlist_remove_nvpair(dirs, dir);
+	}
+	fnvlist_free(dirs);
+
+	return (ret);
+}
+
+static int
 zfs_do_wait(int argc, char **argv)
 {
 	boolean_t enabled[ZFS_WAIT_NUM_ACTIVITIES];
@@ -9083,7 +9303,13 @@ zfs_do_version(int argc, char **argv)
 	int c;
 	nvlist_t *jsobj = NULL, *zfs_ver = NULL;
 	boolean_t json = B_FALSE;
-	while ((c = getopt(argc, argv, "j")) != -1) {
+
+	struct option long_options[] = {
+		{"json", no_argument, NULL, 'j'},
+		{0, 0, 0, 0}
+	};
+
+	while ((c = getopt_long(argc, argv, "j", long_options, NULL)) != -1) {
 		switch (c) {
 		case 'j':
 			json = B_TRUE;
@@ -9187,7 +9413,7 @@ main(int argc, char **argv)
 	 * Special case '-V|--version'
 	 */
 	if ((strcmp(cmdname, "-V") == 0) || (strcmp(cmdname, "--version") == 0))
-		return (zfs_do_version(argc, argv));
+		return (zfs_version_print() != 0);
 
 	/*
 	 * Special case 'help'

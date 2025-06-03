@@ -197,32 +197,60 @@ _Static_assert(nitems(iwm_nvm_channels_8000) <= IWM_NUM_CHANNELS_8000,
 #define IWM_NUM_2GHZ_CHANNELS	14
 #define IWM_N_HW_ADDR_MASK	0xF
 
-/*
- * XXX For now, there's simply a fixed set of rate table entries
- * that are populated.
- */
 const struct iwm_rate {
-	uint8_t rate;
+	uint16_t rate;
 	uint8_t plcp;
+	uint8_t ht_plcp;
 } iwm_rates[] = {
-	{   2,	IWM_RATE_1M_PLCP  },
-	{   4,	IWM_RATE_2M_PLCP  },
-	{  11,	IWM_RATE_5M_PLCP  },
-	{  22,	IWM_RATE_11M_PLCP },
-	{  12,	IWM_RATE_6M_PLCP  },
-	{  18,	IWM_RATE_9M_PLCP  },
-	{  24,	IWM_RATE_12M_PLCP },
-	{  36,	IWM_RATE_18M_PLCP },
-	{  48,	IWM_RATE_24M_PLCP },
-	{  72,	IWM_RATE_36M_PLCP },
-	{  96,	IWM_RATE_48M_PLCP },
-	{ 108,	IWM_RATE_54M_PLCP },
+		/* Legacy */		/* HT */
+	{   2,	IWM_RATE_1M_PLCP,	IWM_RATE_HT_SISO_MCS_INV_PLCP  },
+	{   4,	IWM_RATE_2M_PLCP,	IWM_RATE_HT_SISO_MCS_INV_PLCP },
+	{  11,	IWM_RATE_5M_PLCP,	IWM_RATE_HT_SISO_MCS_INV_PLCP  },
+	{  22,	IWM_RATE_11M_PLCP,	IWM_RATE_HT_SISO_MCS_INV_PLCP },
+	{  12,	IWM_RATE_6M_PLCP,	IWM_RATE_HT_SISO_MCS_0_PLCP },
+	{  18,	IWM_RATE_9M_PLCP,	IWM_RATE_HT_SISO_MCS_INV_PLCP  },
+	{  24,	IWM_RATE_12M_PLCP,	IWM_RATE_HT_SISO_MCS_1_PLCP },
+	{  26,	IWM_RATE_INVM_PLCP,	IWM_RATE_HT_MIMO2_MCS_8_PLCP },
+	{  36,	IWM_RATE_18M_PLCP,	IWM_RATE_HT_SISO_MCS_2_PLCP },
+	{  48,	IWM_RATE_24M_PLCP,	IWM_RATE_HT_SISO_MCS_3_PLCP },
+	{  52,	IWM_RATE_INVM_PLCP,	IWM_RATE_HT_MIMO2_MCS_9_PLCP },
+	{  72,	IWM_RATE_36M_PLCP,	IWM_RATE_HT_SISO_MCS_4_PLCP },
+	{  78,	IWM_RATE_INVM_PLCP,	IWM_RATE_HT_MIMO2_MCS_10_PLCP },
+	{  96,	IWM_RATE_48M_PLCP,	IWM_RATE_HT_SISO_MCS_5_PLCP },
+	{ 104,	IWM_RATE_INVM_PLCP,	IWM_RATE_HT_MIMO2_MCS_11_PLCP },
+	{ 108,	IWM_RATE_54M_PLCP,	IWM_RATE_HT_SISO_MCS_6_PLCP },
+	{ 128,	IWM_RATE_INVM_PLCP,	IWM_RATE_HT_SISO_MCS_7_PLCP },
+	{ 156,	IWM_RATE_INVM_PLCP,	IWM_RATE_HT_MIMO2_MCS_12_PLCP },
+	{ 208,	IWM_RATE_INVM_PLCP,	IWM_RATE_HT_MIMO2_MCS_13_PLCP },
+	{ 234,	IWM_RATE_INVM_PLCP,	IWM_RATE_HT_MIMO2_MCS_14_PLCP },
+	{ 260,	IWM_RATE_INVM_PLCP,	IWM_RATE_HT_MIMO2_MCS_15_PLCP },
 };
 #define IWM_RIDX_CCK	0
 #define IWM_RIDX_OFDM	4
 #define IWM_RIDX_MAX	(nitems(iwm_rates)-1)
 #define IWM_RIDX_IS_CCK(_i_) ((_i_) < IWM_RIDX_OFDM)
 #define IWM_RIDX_IS_OFDM(_i_) ((_i_) >= IWM_RIDX_OFDM)
+#define IWM_RVAL_IS_OFDM(_i_) ((_i_) >= 12 && (_i_) != 22)
+
+/* Convert an MCS index into an iwm_rates[] index. */
+const int iwm_mcs2ridx[] = {
+	IWM_RATE_MCS_0_INDEX,
+	IWM_RATE_MCS_1_INDEX,
+	IWM_RATE_MCS_2_INDEX,
+	IWM_RATE_MCS_3_INDEX,
+	IWM_RATE_MCS_4_INDEX,
+	IWM_RATE_MCS_5_INDEX,
+	IWM_RATE_MCS_6_INDEX,
+	IWM_RATE_MCS_7_INDEX,
+	IWM_RATE_MCS_8_INDEX,
+	IWM_RATE_MCS_9_INDEX,
+	IWM_RATE_MCS_10_INDEX,
+	IWM_RATE_MCS_11_INDEX,
+	IWM_RATE_MCS_12_INDEX,
+	IWM_RATE_MCS_13_INDEX,
+	IWM_RATE_MCS_14_INDEX,
+	IWM_RATE_MCS_15_INDEX,
+};
 
 struct iwm_nvm_section {
 	uint16_t length;
@@ -2192,7 +2220,8 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 	sku = iwm_get_sku(sc, nvm_sw, phy_sku);
 	data->sku_cap_band_24GHz_enable = sku & IWM_NVM_SKU_CAP_BAND_24GHZ;
 	data->sku_cap_band_52GHz_enable = sku & IWM_NVM_SKU_CAP_BAND_52GHZ;
-	data->sku_cap_11n_enable = 0;
+	data->sku_cap_11n_enable = sku & IWM_NVM_SKU_CAP_11N_ENABLE;
+	data->sku_cap_mimo_disable = sku & IWM_NVM_SKU_CAP_MIMO_DISABLE;
 
 	data->n_hw_addrs = iwm_get_n_hw_addrs(sc, nvm_sw);
 
@@ -3416,7 +3445,7 @@ iwm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	struct ieee80211_node *ni = &in->in_ni;
 	struct ieee80211vap *vap = ni->ni_vap;
 	int status = le16toh(tx_resp->status.status) & IWM_TX_STATUS_MSK;
-	int new_rate, cur_rate = vap->iv_bss->ni_txrate;
+	int new_rate, cur_rate;
 	boolean_t rate_matched;
 	uint8_t tx_resp_rate;
 
@@ -3434,6 +3463,7 @@ iwm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	    le32toh(tx_resp->initial_rate),
 	    (int) le16toh(tx_resp->wireless_media_time));
 
+	cur_rate = ieee80211_node_get_txrate_dot11rate(vap->iv_bss);
 	tx_resp_rate = iwm_rate_from_ucode_rate(le32toh(tx_resp->initial_rate));
 
 	/* For rate control, ignore frames sent at different initial rate */
@@ -3472,11 +3502,11 @@ iwm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	if (rate_matched) {
 		ieee80211_ratectl_tx_complete(ni, txs);
 
-		int rix = ieee80211_ratectl_rate(vap->iv_bss, NULL, 0);
-		new_rate = vap->iv_bss->ni_txrate;
+		ieee80211_ratectl_rate(vap->iv_bss, NULL, 0);
+		new_rate = ieee80211_node_get_txrate_dot11rate(vap->iv_bss);
 		if (new_rate != 0 && new_rate != cur_rate) {
 			struct iwm_node *in = IWM_NODE(vap->iv_bss);
-			iwm_setrates(sc, in, rix);
+			iwm_setrates(sc, in, new_rate);
 			iwm_send_lq_cmd(sc, &in->in_lq, FALSE);
 		}
  	}
@@ -3666,7 +3696,8 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 	} else {
 		/* for data frames, use RS table */
 		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE, "%s: DATA\n", __func__);
-		ridx = iwm_rate2ridx(sc, ni->ni_txrate);
+		ridx = iwm_rate2ridx(sc,
+		    ieee80211_node_get_txrate_dot11rate(ni));
 		if (ridx == -1)
 			ridx = 0;
 
@@ -4239,7 +4270,7 @@ iwm_rate2ridx(struct iwm_softc *sc, uint8_t rate)
 
 
 static void
-iwm_setrates(struct iwm_softc *sc, struct iwm_node *in, int rix)
+iwm_setrates(struct iwm_softc *sc, struct iwm_node *in, int dot11rate)
 {
 	struct ieee80211_node *ni = &in->in_ni;
 	struct iwm_lq_cmd *lq = &in->in_lq;
@@ -4247,8 +4278,27 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in, int rix)
 	int nrates = rs->rs_nrates;
 	int i, ridx, tab = 0;
 //	int txant = 0;
+	int rix;
 
-	KASSERT(rix >= 0 && rix < nrates, ("invalid rix"));
+	/*
+	 * Look up the rate index for the given legacy rate from
+	 * the rs_rates table.  Default to the lowest rate if it's
+	 * not found (which is obviously hugely problematic.)
+	 */
+	rix = -1;
+	for (i = 0; i < nrates; i++) {
+		int rate = rs->rs_rates[i] & IEEE80211_RATE_VAL;
+		if (rate == dot11rate) {
+			rix = i;
+			break;
+		}
+	}
+	if (rix < 0) {
+		device_printf(sc->sc_dev,
+		    "%s: failed to lookup dot11rate (%d)\n",
+		    __func__, dot11rate);
+		rix = 0;
+	}
 
 	if (nrates > nitems(lq->rs_table)) {
 		device_printf(sc->sc_dev,
@@ -4528,8 +4578,9 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		iwm_enable_beacon_filter(sc, ivp);
 		iwm_power_update_mac(sc);
 		iwm_update_quotas(sc, ivp);
-		int rix = ieee80211_ratectl_rate(&in->in_ni, NULL, 0);
-		iwm_setrates(sc, in, rix);
+		ieee80211_ratectl_rate(&in->in_ni, NULL, 0);
+		iwm_setrates(sc, in,
+		    ieee80211_node_get_txrate_dot11rate(&in->in_ni));
 
 		if ((error = iwm_send_lq_cmd(sc, &in->in_lq, TRUE)) != 0) {
 			device_printf(sc->sc_dev,

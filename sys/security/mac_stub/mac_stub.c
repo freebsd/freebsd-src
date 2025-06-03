@@ -88,8 +88,6 @@
 
 #include <security/mac/mac_policy.h>
 
-SYSCTL_DECL(_security_mac);
-
 static SYSCTL_NODE(_security_mac, OID_AUTO, stub,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD mac_stub policy controls");
@@ -222,6 +220,23 @@ stub_cred_check_setauid(struct ucred *cred, uid_t auid)
 {
 
 	return (0);
+}
+
+static void
+stub_cred_setcred_enter(void)
+{
+}
+
+static int
+stub_cred_check_setcred(u_int flags, const struct ucred *old_cred,
+    struct ucred *new_cred)
+{
+	return (0);
+}
+
+static void
+stub_cred_setcred_exit(void)
+{
 }
 
 static int
@@ -1690,6 +1705,9 @@ static struct mac_policy_ops stub_ops =
 	.mpo_cred_check_setaudit = stub_cred_check_setaudit,
 	.mpo_cred_check_setaudit_addr = stub_cred_check_setaudit_addr,
 	.mpo_cred_check_setauid = stub_cred_check_setauid,
+	.mpo_cred_setcred_enter = stub_cred_setcred_enter,
+	.mpo_cred_check_setcred = stub_cred_check_setcred,
+	.mpo_cred_setcred_exit = stub_cred_setcred_exit,
 	.mpo_cred_check_setegid = stub_cred_check_setegid,
 	.mpo_cred_check_seteuid = stub_cred_check_seteuid,
 	.mpo_cred_check_setgid = stub_cred_check_setgid,

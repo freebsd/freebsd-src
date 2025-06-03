@@ -1,26 +1,8 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef BSDTAR_H_INCLUDED
@@ -60,10 +42,13 @@ struct bsdtar {
 	int		  uid;  /* --uid */
 	const char	 *uname; /* --uname */
 	const char	 *passphrase; /* --passphrase */
-	char		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
+	int		  mode; /* Program mode: 'c', 't', 'r', 'u', 'x' */
 	char		  symlink_mode; /* H or L, per BSD conventions */
 	const char	 *option_options; /* --options */
 	char		  day_first; /* show day before month in -tv output */
+	char		has_mtime; /* --mtime exists (0 or 1) */
+	char		clamp_mtime; /* --clamp-mtime (0 or 1)*/
+	time_t		mtime; /* --mtime */
 	struct creation_set *cset;
 
 	/* Option parser state */
@@ -132,7 +117,7 @@ struct bsdtar {
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
-	OPTION_ACLS = 1,
+	OPTION_ACLS = 256,
 	OPTION_B64ENCODE,
 	OPTION_CHECK_LINKS,
 	OPTION_CHROOT,
@@ -193,14 +178,17 @@ enum {
 	OPTION_VERSION,
 	OPTION_XATTRS,
 	OPTION_ZSTD,
+	OPTION_MTIME,
+	OPTION_CLAMP_MTIME,
 };
 
 int	bsdtar_getopt(struct bsdtar *);
 void	do_chdir(struct bsdtar *);
 int	edit_pathname(struct bsdtar *, struct archive_entry *);
+void	edit_mtime(struct bsdtar *, struct archive_entry *);
 int	need_report(void);
 int	pathcmp(const char *a, const char *b);
-void	safe_fprintf(FILE *, const char *fmt, ...) __LA_PRINTF(2, 3);
+void	safe_fprintf(FILE * restrict, const char * restrict fmt, ...) __LA_PRINTF(2, 3);
 void	set_chdir(struct bsdtar *, const char *newdir);
 const char *tar_i64toa(int64_t);
 void	tar_mode_c(struct bsdtar *bsdtar);

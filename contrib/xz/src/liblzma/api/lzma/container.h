@@ -306,7 +306,7 @@ extern LZMA_API(uint64_t) lzma_easy_decoder_memusage(uint32_t preset)
  *                      number and zero or more flags. Usually flags aren't
  *                      used, so preset is simply a number [0, 9] which match
  *                      the options -0 ... -9 of the xz command line tool.
- *                      Additional flags can be be set using bitwise-or with
+ *                      Additional flags can be set using bitwise-or with
  *                      the preset level number, e.g. 6 | LZMA_PRESET_EXTREME.
  * \param       check   Integrity check type to use. See check.h for available
  *                      checks. The xz command line tool defaults to
@@ -573,7 +573,7 @@ extern LZMA_API(lzma_ret) lzma_stream_buffer_encode(
  * The action argument must be LZMA_FINISH and the return value will never be
  * LZMA_OK. Thus the encoding is always done with a single lzma_code() after
  * the initialization. The benefit of the combination of initialization
- * function and lzma_code() is that memory allocations can be re-used for
+ * function and lzma_code() is that memory allocations can be reused for
  * better performance.
  *
  * lzma_code() will try to encode as much input as is possible to fit into

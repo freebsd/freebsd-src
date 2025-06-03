@@ -1,5 +1,5 @@
 PACKAGE=geom
-.PATH: ${.CURDIR:H:H}/misc ${SRCTOP}/sys/geom/virstor
+.PATH: ${SRCTOP}/sys/geom/virstor
 
 GEOM_CLASS=	virstor
 

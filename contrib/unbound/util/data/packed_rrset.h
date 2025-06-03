@@ -68,6 +68,8 @@ typedef uint64_t rrset_id_type;
  * actual network. But messages with these records in it can be stored in
  * the cache and retrieved for a reply. */
 #define PACKED_RRSET_RPZ 0x8
+/** this rrset is A/AAAA and is an unverified glue record */
+#define PACKED_RRSET_UNVERIFIED_GLUE 0x10
 
 /** number of rrs and rrsets for integer overflow protection.  More than
  * this is not really possible (64K packet has much less RRs and RRsets) in
@@ -96,6 +98,7 @@ struct packed_rrset_key {
 	 * 	o PACKED_RRSET_SOA_NEG
 	 * 	o PACKED_RRSET_FIXEDTTL (not supposed to be cached)
 	 * 	o PACKED_RRSET_RPZ
+	 * 	o PACKED_RRSET_UNVERIFIED_GLUE
 	 */
 	uint32_t flags;
 	/** the rrset type in network format */

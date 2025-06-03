@@ -1,5 +1,7 @@
 .\"-
-.\" Copyright (c) 2022 Bjoern A. Zeeb
+.\" SPDX-License-Identifer: BSD-2-Clause
+.\"
+.\" Copyright (c) 2022-2024 Bjoern A. Zeeb
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 06, 2023
+.Dd November 10, 2024
 .Dt RTW88 4
 .Os
 .Sh NAME
@@ -47,15 +49,7 @@ It is discouraged to load the driver from
 .Sh DESCRIPTION
 The
 .Nm
-driver is derived from Realtek's Linux rtw88 driver and provides support for
-the following chipsets:
-.Pp
-.Bl -tag -width Ds -offset indent -compact
-.It Realtek 802.11n  wireless 8723de (RTL8723DE)
-.It Realtek 802.11ac wireless 8821ce (RTL8821CE)
-.It Realtek 802.11ac wireless 8822be (RTL8822BE)
-.It Realtek 802.11ac wireless 8822ce (RTL8822CE)
-.El
+driver is derived from Realtek's Linux rtw88 driver.
 .Pp
 This driver requires firmware to be loaded before it will work.
 The package
@@ -73,21 +67,30 @@ to install the correct firmware package.
 .Pp
 The driver uses the
 .\" No LinuxKPI man pages so no .Xr here.
-.Em linuxkpi_wlan
+.Sy linuxkpi_wlan
 and
-.Em linuxkpi
+.Sy linuxkpi
 compat framework to bridge between the Linux and
 native
 .Fx
 driver code as well as to the native
 .Xr net80211 4
 wireless stack.
-.Pp
-While
+.Sh HARDWARE
+The
 .Nm
-supports all 802.11 a/b/g/n and ac
-the compatibility code currently only supports 802.11 a/b/g modes.
-Support for 802.11 n/ac is to come.
+driver supports PCIe devices with the following chipsets:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Realtek 802.11n  wireless 8723de (RTL8723DE)
+.It
+Realtek 802.11ac wireless 8821ce (RTL8821CE)
+.It
+Realtek 802.11ac wireless 8822be (RTL8822BE)
+.It
+Realtek 802.11ac wireless 8822ce (RTL8822CE)
+.El
 .Sh LOADER TUNABLES
 .Bl -tag -width indent
 .It Va compat.linuxkpi.skb.mem_limit
@@ -101,17 +104,10 @@ This tunable will work around a problem with DMA and limit allocations
 for network buffer memory to the lower 32bit of physical memory and
 make the driver work.
 .El
-.Sh BUGS
-Certainly.
-.Pp
-Does not seem to work (reliably) on machines with more than 4GB of
-main memory.
-See in the
-.Sx LOADER TUNABLES
-section above.
 .Sh SEE ALSO
 .Xr rtw88fw 4 ,
 .Xr wlan 4 ,
+.Xr networking 7 ,
 .Xr fwget 8 ,
 .Xr ifconfig 8 ,
 .Xr wpa_supplicant 8
@@ -120,3 +116,17 @@ The
 .Nm
 driver first appeared in
 .Fx 13.2 .
+.Sh BUGS
+Certainly.
+.Pp
+Does not seem to work (reliably) on machines with more than 4GB of
+main memory.
+See in the
+.Sx LOADER TUNABLES
+section above.
+.Pp
+While
+.Nm
+supports 802.11a/b/g/n/ac modes,
+the compatibility code currently only supports 802.11a/b/g modes.
+Support for 802.11n/ac is yet to come.

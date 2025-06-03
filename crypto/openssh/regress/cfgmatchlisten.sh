@@ -1,4 +1,4 @@
-#	$OpenBSD: cfgmatchlisten.sh,v 1.3 2018/07/02 14:13:30 dtucker Exp $
+#	$OpenBSD: cfgmatchlisten.sh,v 1.4 2024/03/25 01:40:47 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="sshd_config matchlisten"

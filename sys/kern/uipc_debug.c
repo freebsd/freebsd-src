@@ -237,9 +237,6 @@ db_print_domain(struct domain *d, const char *domain_name, int indent)
 	db_printf("dom_name: %s\n", d->dom_name);
 
 	db_print_indent(indent);
-	db_printf("dom_externalize: %p   ", d->dom_externalize);
-
-	db_print_indent(indent);
 	db_printf("dom_protosw: %p   ", d->dom_protosw);
 	db_printf("dom_next: %p\n", d->dom_next.sle_next);
 
@@ -326,10 +323,6 @@ db_print_sbflags(short sb_flags)
 	}
 	if (sb_flags & SB_UPCALL) {
 		db_printf("%sSB_UPCALL", comma ? ", " : "");
-		comma = 1;
-	}
-	if (sb_flags & SB_NOINTR) {
-		db_printf("%sSB_NOINTR", comma ? ", " : "");
 		comma = 1;
 	}
 	if (sb_flags & SB_AIO) {

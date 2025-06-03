@@ -4,6 +4,7 @@ server:
 	qname-minimisation: no
 	minimal-responses: yes
 	serve-expired: yes
+	serve-expired-client-timeout: 0
 	;module-config: "subnetcache validator cachedb iterator"
 	module-config: "validator cachedb iterator"
 

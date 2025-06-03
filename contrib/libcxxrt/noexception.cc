@@ -30,7 +30,7 @@ namespace std
 	 * Returns whether there are any exceptions currently being thrown that
 	 * have not been caught. Without exception support this is always false.
 	 */
-	bool uncaught_exception() throw()
+	bool uncaught_exception() _LIBCXXRT_NOEXCEPT
 	{
 		return false;
 	}
@@ -38,7 +38,7 @@ namespace std
 	 * Returns the number of exceptions currently being thrown that have not
 	 * been caught. Without exception support this is always 0.
 	 */
-	int uncaught_exceptions() throw()
+	int uncaught_exceptions() _LIBCXXRT_NOEXCEPT
 	{
 		return 0;
 	}

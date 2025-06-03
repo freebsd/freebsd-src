@@ -2916,7 +2916,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	uint32_t mac_ctrl;
 	uint16_t phy_ctrl;
 	bus_addr_t paddr;
-	int type, ismcast, pkt_len, error, rix;
+	int type, ismcast, pkt_len, error;
 #if 0
 	const uint8_t *p;
 	int i;
@@ -2943,15 +2943,10 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
 		rate = rate_fb = tp->ucastrate;
 	} else {
-		rix = ieee80211_ratectl_rate(ni, NULL, pkt_len);
-		rate = ni->ni_txrate;
-
-		if (rix > 0) {
-			rate_fb = ni->ni_rates.rs_rates[rix-1] &
-				  IEEE80211_RATE_VAL;
-		} else {
-			rate_fb = rate;
-		}
+		ieee80211_ratectl_rate(ni, NULL, pkt_len);
+		rate = ieee80211_node_get_txrate_dot11rate(ni);
+		/* TODO: assign rate_fb the previous rate, if available */
+		rate_fb = rate;
 	}
 	tb->tb_rate[0] = rate;
 	tb->tb_rate[1] = rate_fb;

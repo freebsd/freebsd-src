@@ -318,27 +318,30 @@ xdrrec_putbytes(XDR *xdrs, const char *addr, u_int len)
 	return (TRUE);
 }
 
+/*
+ * XXX: xdrrec operates on a TCP stream and doesn't keep record of how many
+ * bytes were sent/received overall.  Thus, the XDR_GETPOS() and XDR_SETPOS()
+ * can operate only within small internal buffer.  So far, the limited set of
+ * consumers of this xdr are fine with that.  It also seems that methods are
+ * never called in the XDR_DECODE mode.
+ */
 static u_int
 xdrrec_getpos(XDR *xdrs)
 {
 	RECSTREAM *rstrm = (RECSTREAM *)xdrs->x_private;
-	off_t pos;
+	ptrdiff_t pos;
 
-	pos = lseek((int)(u_long)rstrm->tcp_handle, (off_t)0, 1);
-	if (pos == -1)
-		pos = 0;
 	switch (xdrs->x_op) {
-
 	case XDR_ENCODE:
-		pos += rstrm->out_finger - rstrm->out_base;
+		pos = rstrm->out_finger - rstrm->out_base;
 		break;
 
 	case XDR_DECODE:
-		pos -= rstrm->in_boundry - rstrm->in_finger;
+		pos = rstrm->in_finger - rstrm->in_base;
 		break;
 
-	default:
-		pos = (off_t) -1;
+	case XDR_FREE:
+		pos = -1;
 		break;
 	}
 	return ((u_int) pos);
@@ -352,32 +355,30 @@ xdrrec_setpos(XDR *xdrs, u_int pos)
 	int delta = currpos - pos;
 	char *newpos;
 
-	if ((int)currpos != -1)
-		switch (xdrs->x_op) {
-
-		case XDR_ENCODE:
-			newpos = rstrm->out_finger - delta;
-			if ((newpos > (char *)(void *)(rstrm->frag_header)) &&
-				(newpos < rstrm->out_boundry)) {
-				rstrm->out_finger = newpos;
-				return (TRUE);
-			}
-			break;
-
-		case XDR_DECODE:
-			newpos = rstrm->in_finger - delta;
-			if ((delta < (int)(rstrm->fbtbc)) &&
-				(newpos <= rstrm->in_boundry) &&
-				(newpos >= rstrm->in_base)) {
-				rstrm->in_finger = newpos;
-				rstrm->fbtbc -= delta;
-				return (TRUE);
-			}
-			break;
-
-		case XDR_FREE:
-			break;
+	switch (xdrs->x_op) {
+	case XDR_ENCODE:
+		newpos = rstrm->out_finger - delta;
+		if ((newpos > (char *)(void *)(rstrm->frag_header)) &&
+			(newpos < rstrm->out_boundry)) {
+			rstrm->out_finger = newpos;
+			return (TRUE);
 		}
+		break;
+
+	case XDR_DECODE:
+		newpos = rstrm->in_finger - delta;
+		if ((delta < (int)(rstrm->fbtbc)) &&
+			(newpos <= rstrm->in_boundry) &&
+			(newpos >= rstrm->in_base)) {
+			rstrm->in_finger = newpos;
+			rstrm->fbtbc -= delta;
+			return (TRUE);
+		}
+		break;
+
+	case XDR_FREE:
+		break;
+	}
 	return (FALSE);
 }
 

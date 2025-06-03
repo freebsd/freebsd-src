@@ -115,7 +115,7 @@ struct in6_ifextra {
 SLIST_HEAD(in6_multi_head, in6_multi);
 MALLOC_DECLARE(M_IP6MADDR);
 
-struct	in6_ifaddr {
+struct in6_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */
 #define	ia_ifp		ia_ifa.ifa_ifp
 #define ia_flags	ia_ifa.ifa_flags
@@ -549,9 +549,6 @@ do {								\
 		    ((ifp)->if_afdata[AF_INET6]))->in6_ifstat[	\
 		    offsetof(struct in6_ifstat, tag) / sizeof(uint64_t)], 1);\
 } while (/*CONSTCOND*/ 0)
-
-VNET_DECLARE(unsigned long, in6_maxmtu);
-#define	V_in6_maxmtu			VNET(in6_maxmtu)
 #endif /* _KERNEL */
 
 /*
@@ -875,7 +872,6 @@ void	in6_domifdetach(struct ifnet *, void *);
 int	in6_domifmtu(struct ifnet *);
 struct rib_head *in6_inithead(uint32_t fibnum);
 void	in6_detachhead(struct rib_head *rh);
-void	in6_setmaxmtu(void);
 int	in6_if2idlen(struct ifnet *);
 struct in6_ifaddr *in6ifa_ifpforlinklocal(struct ifnet *, int);
 struct in6_ifaddr *in6ifa_ifpwithaddr(struct ifnet *, const struct in6_addr *);

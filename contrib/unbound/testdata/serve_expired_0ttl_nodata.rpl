@@ -4,7 +4,7 @@ server:
 	qname-minimisation: "no"
 	minimal-responses: no
 	serve-expired: yes
-	log-servfail: yes
+	serve-expired-client-timeout: 0
 	ede: yes
 	ede-serve-expired: yes
 

@@ -28,13 +28,14 @@
 #ifndef _SYS_SYSCALLSUBR_H_
 #define _SYS_SYSCALLSUBR_H_
 
-#include <sys/signal.h>
-#include <sys/socket.h>
-#include <sys/mac.h>
-#include <sys/mount.h>
+#include <sys/types.h>
 #include <sys/_cpuset.h>
 #include <sys/_domainset.h>
 #include <sys/_uio.h>
+#include <sys/mac.h>
+#include <sys/mount.h>
+#include <sys/signal.h>
+#include <sys/socket.h>
 
 struct __wrusage;
 struct cpuset_copy_cb;
@@ -320,7 +321,9 @@ int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp, int abi_nfdbits);
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	    struct mbuf *control, enum uio_seg segflg);
-int	kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups);
+int	kern_setcred(struct thread *const td, const u_int flags,
+	    struct setcred *const wcred, gid_t *preallocated_groups);
+int	kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups);
 int	kern_setitimer(struct thread *, u_int, struct itimerval *,
 	    struct itimerval *);
 int	kern_setpriority(struct thread *td, int which, int who, int prio);

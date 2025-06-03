@@ -64,9 +64,6 @@
 #include "geliboot.h"
 #endif
 
-int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
-    bool exit_bs);
-
 static int
 bi_getboothowto(char *kargs)
 {
@@ -185,7 +182,7 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 	struct efi_map_header *efihdr;
 	bool do_vmap;
 
-#if defined(__amd64__) || defined(__aarch64__) || defined(__i386__)
+#ifdef MODINFOMD_EFI_FB
 	struct efi_fb efifb;
 
 	efifb.fb_addr = gfx_state.tg_fb.fb_addr;
@@ -392,18 +389,18 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	}
 
 	/* Pad to a page boundary. */
-	addr = roundup(addr, PAGE_SIZE);
+	addr = md_align(addr);
 
 #ifdef EFI
 	addr = build_font_module(addr);
 
 	/* Pad to a page boundary. */
-	addr = roundup(addr, PAGE_SIZE);
+	addr = md_align(addr);
 
 	addr = build_splash_module(addr);
 
 	/* Pad to a page boundary. */
-	addr = roundup(addr, PAGE_SIZE);
+	addr = md_align(addr);
 #endif
 
 	/* Copy our environment. */
@@ -411,21 +408,19 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	addr = md_copyenv(addr);
 
 	/* Pad to a page boundary. */
-	addr = roundup(addr, PAGE_SIZE);
+	addr = md_align(addr);
 
 #if defined(LOADER_FDT_SUPPORT)
 	/* Handle device tree blob */
 	dtbp = addr;
 	dtb_size = fdt_copy(addr);
-		
+
 	/* Pad to a page boundary */
 	if (dtb_size)
-		addr += roundup(dtb_size, PAGE_SIZE);
+		addr += md_align(dtb_size);
 #endif
 
-	kfp = file_findfile(NULL, "elf kernel");
-	if (kfp == NULL)
-		kfp = file_findfile(NULL, "elf64 kernel");
+	kfp = file_findfile(NULL, md_kerntype);
 	if (kfp == NULL)
 		panic("can't find kernel file");
 	kernend = 0;	/* fill it in later */
@@ -466,7 +461,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 #endif
 
 	size = md_copymodules(0, is64);	/* Find the size of the modules */
-	kernend = roundup(addr + size, PAGE_SIZE);
+	kernend = md_align(addr + size);
 	*kernendp = kernend;
 
 	/* patch MODINFOMD_KERNEND */

@@ -1,4 +1,4 @@
-.\"	$NetBSD: editline.7,v 1.5 2016/05/09 21:27:55 christos Exp $
+.\"	$NetBSD: editline.7,v 1.6 2024/04/06 13:36:11 christos Exp $
 .\"	$OpenBSD: editline.7,v 1.1 2016/04/20 01:11:45 schwarze Exp $
 .\"
 .\" Copyright (c) 2016 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd May 7, 2016
+.Dd April 6, 2024
 .Dt EDITLINE 7
 .Os
 .Sh NAME
@@ -546,7 +546,7 @@ It is an error if the cursor is already at the end of the edit
 buffer.
 .It Ic em-set-mark Pq emacs: Ctrl-Q, NUL
 Set the mark at the current cursor position.
-.It Ic em-toggle-overwrite Pq not bound by default
+.It Ic em-toggle-overwrite Pq insert
 Switch from insert to overwrite mode or vice versa.
 .It Ic em-universal-argument Pq not bound by default
 If in argument input mode, multiply the argument by 4.

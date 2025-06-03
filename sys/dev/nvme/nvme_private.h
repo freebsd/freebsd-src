@@ -299,6 +299,7 @@ struct nvme_controller {
 
 	uint32_t			is_resetting;
 	uint32_t			notification_sent;
+	u_int				fail_on_reset;
 
 	bool				is_failed;
 	bool				is_failed_admin;
@@ -485,11 +486,14 @@ nvme_single_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 }
 
 static __inline struct nvme_request *
-_nvme_allocate_request(nvme_cb_fn_t cb_fn, void *cb_arg)
+_nvme_allocate_request(const int how, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request *req;
 
-	req = malloc(sizeof(*req), M_NVME, M_NOWAIT | M_ZERO);
+	KASSERT(how == M_WAITOK || how == M_NOWAIT,
+	    ("nvme_allocate_request: invalid how %d", how));
+
+	req = malloc(sizeof(*req), M_NVME, how | M_ZERO);
 	if (req != NULL) {
 		req->cb_fn = cb_fn;
 		req->cb_arg = cb_arg;
@@ -500,11 +504,11 @@ _nvme_allocate_request(nvme_cb_fn_t cb_fn, void *cb_arg)
 
 static __inline struct nvme_request *
 nvme_allocate_request_vaddr(void *payload, uint32_t payload_size,
-    nvme_cb_fn_t cb_fn, void *cb_arg)
+    const int how, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request *req;
 
-	req = _nvme_allocate_request(cb_fn, cb_arg);
+	req = _nvme_allocate_request(how, cb_fn, cb_arg);
 	if (req != NULL) {
 		req->payload = memdesc_vaddr(payload, payload_size);
 		req->payload_valid = true;
@@ -513,20 +517,21 @@ nvme_allocate_request_vaddr(void *payload, uint32_t payload_size,
 }
 
 static __inline struct nvme_request *
-nvme_allocate_request_null(nvme_cb_fn_t cb_fn, void *cb_arg)
+nvme_allocate_request_null(const int how, nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request *req;
 
-	req = _nvme_allocate_request(cb_fn, cb_arg);
+	req = _nvme_allocate_request(how, cb_fn, cb_arg);
 	return (req);
 }
 
 static __inline struct nvme_request *
-nvme_allocate_request_bio(struct bio *bio, nvme_cb_fn_t cb_fn, void *cb_arg)
+nvme_allocate_request_bio(struct bio *bio, const int how, nvme_cb_fn_t cb_fn,
+    void *cb_arg)
 {
 	struct nvme_request *req;
 
-	req = _nvme_allocate_request(cb_fn, cb_arg);
+	req = _nvme_allocate_request(how, cb_fn, cb_arg);
 	if (req != NULL) {
 		req->payload = memdesc_bio(bio);
 		req->payload_valid = true;
@@ -535,16 +540,16 @@ nvme_allocate_request_bio(struct bio *bio, nvme_cb_fn_t cb_fn, void *cb_arg)
 }
 
 static __inline struct nvme_request *
-nvme_allocate_request_ccb(union ccb *ccb, nvme_cb_fn_t cb_fn, void *cb_arg)
+nvme_allocate_request_ccb(union ccb *ccb, const int how, nvme_cb_fn_t cb_fn,
+    void *cb_arg)
 {
 	struct nvme_request *req;
 
-	req = _nvme_allocate_request(cb_fn, cb_arg);
+	req = _nvme_allocate_request(how, cb_fn, cb_arg);
 	if (req != NULL) {
 		req->payload = memdesc_ccb(ccb);
 		req->payload_valid = true;
 	}
-
 	return (req);
 }
 

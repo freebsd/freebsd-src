@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020-2024, Broadcom Inc. All rights reserved.
+ * Copyright (c) 2020-2025, Broadcom Inc. All rights reserved.
  * Support: <fbsd-storage-driver.pdl@broadcom.com>
  *
  * Authors: Sumit Saxena <sumit.saxena@broadcom.com>
@@ -797,6 +797,8 @@ mpi3mr_app_mptcmds(struct cdev *dev, u_long cmd, void *uarg,
 	struct mpi3mr_ioctl_mpt_dma_buffer *dma_buffers = NULL, *dma_buff = NULL;
 	struct mpi3mr_ioctl_mpirepbuf *mpirepbuf = NULL;
 	struct mpi3mr_ioctl_mptcmd *karg = (struct mpi3mr_ioctl_mptcmd *)uarg;
+	struct mpi3mr_target *tgtdev = NULL;
+	Mpi3SCSITaskMgmtRequest_t *tm_req = NULL;
 
 
 	sc = mpi3mr_app_get_adp_instance(karg->mrioc_id);
@@ -1060,6 +1062,18 @@ mpi3mr_app_mptcmds(struct cdev *dev, u_long cmd, void *uarg,
 		}
 	}
 
+	if (mpi_header->Function == MPI3_FUNCTION_SCSI_TASK_MGMT) {
+		tm_req = (Mpi3SCSITaskMgmtRequest_t *)mpi_request;
+		if (tm_req->TaskType != MPI3_SCSITASKMGMT_TASKTYPE_ABORT_TASK) {
+			tgtdev = mpi3mr_find_target_by_dev_handle(sc->cam_sc, tm_req->DevHandle);
+			if (!tgtdev) {
+				rval = ENODEV;
+				goto out;
+			}
+			mpi3mr_atomic_inc(&tgtdev->block_io);
+		}
+	}
+
 	sc->ioctl_cmds.state = MPI3MR_CMD_PENDING;
 	sc->ioctl_cmds.is_waiting = 1;
 	sc->ioctl_cmds.callback = NULL;
@@ -1178,6 +1192,9 @@ mpi3mr_app_mptcmds(struct cdev *dev, u_long cmd, void *uarg,
 		sc->mpi3mr_aen_triggered = 0;
 
 out_failed:
+	if (tgtdev)
+		mpi3mr_atomic_dec(&tgtdev->block_io);
+
 	sc->ioctl_cmds.is_senseprst = 0;
 	sc->ioctl_cmds.sensebuf = NULL;
 	sc->ioctl_cmds.state = MPI3MR_CMD_NOTUSED;
@@ -2079,7 +2096,7 @@ mpi3mr_get_adpinfo(struct mpi3mr_softc *sc,
 	adpinfo.pci_dev_hw_rev = pci_read_config(sc->mpi3mr_dev, PCIR_REVID, 1);
 	adpinfo.pci_subsys_dev_id = pci_get_subdevice(sc->mpi3mr_dev);
 	adpinfo.pci_subsys_ven_id = pci_get_subvendor(sc->mpi3mr_dev);
-	adpinfo.pci_bus = pci_get_bus(sc->mpi3mr_dev);;
+	adpinfo.pci_bus = pci_get_bus(sc->mpi3mr_dev);
 	adpinfo.pci_dev = pci_get_slot(sc->mpi3mr_dev);
 	adpinfo.pci_func = pci_get_function(sc->mpi3mr_dev);
 	adpinfo.pci_seg_id = pci_get_domain(sc->mpi3mr_dev);

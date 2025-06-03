@@ -24,6 +24,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+static void
+ifunc_init(const Elf_Auxinfo *aux __unused)
+{
+}
+
 static void
 crt1_handle_rela(const Elf_Rela *r)
 {

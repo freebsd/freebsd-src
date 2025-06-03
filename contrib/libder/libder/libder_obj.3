@@ -1,0 +1,138 @@
+.\"
+.\" SPDX-Copyright-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (C) 2024 Kyle Evans <kevans@FreeBSD.org>
+.\"
+.Dd March 2, 2024
+.Dt LIBDER_OBJ 3
+.Os
+.Sh NAME
+.Nm libder_obj ,
+.Nm libder_obj_alloc ,
+.Nm libder_obj_alloc_simple ,
+.Nm libder_obj_free ,
+.Nm libder_obj_append ,
+.Nm libder_obj_child ,
+.Nm libder_obj_next ,
+.Nm libder_obj_type ,
+.Nm libder_obj_type_simple ,
+.Nm libder_obj_data ,
+.Nm libder_obj_dump
+.Nd inspecting and creating libder objects
+.Sh LIBRARY
+.Lb libder
+.Sh SYNOPSIS
+.In libder.h
+.Ft struct libder_object *
+.Fn libder_obj_alloc "struct libder_ctx *ctx" "struct libder_tag *type" "const uint8_t *data" "size_t datasz"
+.Ft struct libder_object *
+.Fn libder_obj_alloc_simple "struct libder_ctx *ctx" "uint8_t type" "const uint8_t *data" "size_t datasz"
+.Ft void
+.Fn libder_obj_free "struct libder_object *ctx"
+.Ft bool
+.Fn libder_obj_append "struct libder_object *parent" "struct libder_object *child"
+.Ft struct libder_object *
+.Fn libder_obj_child "const struct libder_object *obj" "size_t which"
+.Ft struct libder_object *
+.Fn libder_obj_next "const struct libder_object *obj"
+.Fn "DER_FOREACH_CHILD" "struct libder_obj *iter" "struct libder_obj *obj"
+.Fn "DER_FOREACH_CHILD_SAFE" "struct libder_obj *iter" "struct libder_obj *obj" "struct libder_obj *tmp"
+.Ft struct libder_tag *
+.Fn libder_obj_type "const struct libder_object *obj"
+.Ft uint8_t
+.Fn libder_obj_type_simple "const struct libder_object *obj"
+.Ft const uint8_t *
+.Fn libder_obj_data "const struct libder_object *obj" "size_t *sz"
+.Ft void
+.Fn libder_obj_dump "const struct libder_object *obj" "FILE *fp"
+.Sh DESCRIPTION
+The
+.Nm
+family of functions may be used by the application to create its own objects and
+object hierarchy, rather than reading them from an existing stream.
+.Pp
+The
+.Fn libder_obj_alloc
+and
+.Fn libder_obj_alloc_simple
+functions allocate a new object with the specified
+.Fa type
+and
+.Fa data .
+Most applications will likely prefer to use the
+.Dq simple
+variant to avoid having to manage a
+.Xr libder_type 3
+lifecycle and associated boilerplate.
+The base variant remains around for when
+.Xr libder_type 3
+grows the necessary API to create arbitrarily large tags.
+.Pp
+The
+.Fn libder_obj_append
+function is used to append
+.Fa obj
+to the
+.Fa parent
+object's children.
+For example, to add an object to a sequence.
+.Pp
+The
+.Fn libder_obj_child
+and
+.Fn libder_obj_next
+functions are used to iterate through the children of
+.Fa obj .
+The
+.Fa which
+argument to
+.Fn libder_obj_child
+specifies the index of the child requested, starting at
+.Dv 0 .
+The
+.Fn DER_FOREACH_CHILD
+and
+.Fn DER_FOREACH_CHILD_SAFE
+macros are provided for convenience.
+The difference between these two is that it is safe to free the iterator in the
+.Fn DER_FOREACH_CHILD_SAFE
+loop body.
+.Pp
+The
+.Fn libder_obj_type
+and
+.Fn libder_obj_type_simple
+functions are used to get the type information about an
+.Fa obj .
+As usual, the
+.Dq simple
+variant will return the one-byte encoding of a tag between 0 and 30.
+If the tag is actually larger than 30, then all of the lower 5 bits will be set
+to indicate that it's a long tag, and that the application should have used
+.Fn libder_obj_type
+instead.
+.Pp
+The
+.Fn libder_obj_data
+function returns a pointer to the
+.Fa data
+from
+.Fa obj ,
+and updates
+.Fa *sz
+with the data's size.
+Note that the data is not copied out here, the application is responsible for
+making its own copy of the returned buffer.
+.Pp
+The
+.Fn libder_obj_dump
+function is a debugging function that likely shouldn't be used.
+A human readable representation of the provided
+.Fa obj
+will be written to the stream
+.Fa fp .
+.Sh SEE ALSO
+.Xr libder 3 ,
+.Xr libder_read 3 ,
+.Xr libder_type 3 ,
+.Xr libder_write 3

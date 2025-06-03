@@ -292,6 +292,7 @@ typedef	__useconds_t	useconds_t;
 #define	_SC_NPROCESSORS_CONF	57
 #define	_SC_NPROCESSORS_ONLN	58
 #define	_SC_CPUSET_SIZE		122
+#define	_SC_UEXTERR_MAXLEN	123 /* user */
 #endif
 
 /* Extensions found in Solaris and Linux. */
@@ -507,6 +508,7 @@ int	 exect(const char *, char * const *, char * const *);
 int	 execvP(const char *, const char *, char * const *);
 int	 execvpe(const char *, char * const *, char * const *);
 int	 feature_present(const char *);
+int	 fchroot(int);
 char	*fflagstostr(u_long);
 int	 getdomainname(char *, int);
 int	 getentropy(void *, size_t);

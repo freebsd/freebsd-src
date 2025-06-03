@@ -194,7 +194,7 @@ zero_geli_intake_keys(void)
 }
 
 static void
-zero_intake_passcache(void *dummy)
+zero_intake_passcache(void *dummy __unused)
 {
 	zero_boot_passcache();
 	zero_geli_intake_keys();

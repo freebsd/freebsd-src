@@ -79,6 +79,7 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/user.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/watchdog.h>
@@ -323,9 +324,10 @@ DPCPU_DEFINE_STATIC(struct vdbatch, vd);
 static void	vdbatch_dequeue(struct vnode *vp);
 
 /*
- * When shutting down the syncer, run it at four times normal speed.
+ * The syncer will require at least SYNCER_MAXDELAY iterations to shutdown;
+ * we probably don't want to pause for the whole second each time.
  */
-#define SYNCER_SHUTDOWN_SPEEDUP		4
+#define SYNCER_SHUTDOWN_SPEEDUP		32
 static int sync_vnode_count;
 static int syncer_worklist_len;
 static enum { SYNCER_RUNNING, SYNCER_SHUTTING_DOWN, SYNCER_FINAL_DELAY }
@@ -538,6 +540,42 @@ PCTRIE_DEFINE_SMR(BUF, buf, b_lblkno, buf_trie_alloc, buf_trie_free,
     buf_trie_smr);
 
 /*
+ * Lookup the next element greater than or equal to lblkno, accounting for the
+ * fact that, for pctries, negative values are greater than nonnegative ones.
+ */
+static struct buf *
+buf_lookup_ge(struct bufv *bv, daddr_t lblkno)
+{
+	struct buf *bp;
+
+	bp = BUF_PCTRIE_LOOKUP_GE(&bv->bv_root, lblkno);
+	if (bp == NULL && lblkno < 0)
+		bp = BUF_PCTRIE_LOOKUP_GE(&bv->bv_root, 0);
+	if (bp != NULL && bp->b_lblkno < lblkno)
+		bp = NULL;
+	return (bp);
+}
+
+/*
+ * Insert bp, and find the next element smaller than bp, accounting for the fact
+ * that, for pctries, negative values are greater than nonnegative ones.
+ */
+static int
+buf_insert_lookup_le(struct bufv *bv, struct buf *bp, struct buf **n)
+{
+	int error;
+
+	error = BUF_PCTRIE_INSERT_LOOKUP_LE(&bv->bv_root, bp, n);
+	if (error != EEXIST) {
+		if (*n == NULL && bp->b_lblkno >= 0)
+			*n = BUF_PCTRIE_LOOKUP_LE(&bv->bv_root, ~0L);
+		if (*n != NULL && (*n)->b_lblkno >= bp->b_lblkno)
+			*n = NULL;
+	}
+	return (error);
+}
+
+/*
  * Initialize the vnode management data structures.
  *
  * Reevaluate the following cap on the number of vnodes after the physical
@@ -719,18 +757,17 @@ vntblinit(void *dummy __unused)
 	int cpu, physvnodes, virtvnodes;
 
 	/*
-	 * Desiredvnodes is a function of the physical memory size and the
-	 * kernel's heap size.  Generally speaking, it scales with the
-	 * physical memory size.  The ratio of desiredvnodes to the physical
-	 * memory size is 1:16 until desiredvnodes exceeds 98,304.
-	 * Thereafter, the
-	 * marginal ratio of desiredvnodes to the physical memory size is
-	 * 1:64.  However, desiredvnodes is limited by the kernel's heap
-	 * size.  The memory required by desiredvnodes vnodes and vm objects
-	 * must not exceed 1/10th of the kernel's heap size.
+	 * 'desiredvnodes' is the minimum of a function of the physical memory
+	 * size and another of the kernel heap size (UMA limit, a portion of the
+	 * KVA).
+	 *
+	 * Currently, on 64-bit platforms, 'desiredvnodes' is set to
+	 * 'virtvnodes' up to a physical memory cutoff of ~1722MB, after which
+	 * 'physvnodes' applies instead.  With the current automatic tuning for
+	 * 'maxfiles' (32 files/MB), 'desiredvnodes' is always greater than it.
 	 */
-	physvnodes = maxproc + pgtok(vm_cnt.v_page_count) / 64 +
-	    3 * min(98304 * 16, pgtok(vm_cnt.v_page_count)) / 64;
+	physvnodes = maxproc + pgtok(vm_cnt.v_page_count) / 32 +
+	    min(98304 * 16, pgtok(vm_cnt.v_page_count)) / 32;
 	virtvnodes = vm_kmem_size / (10 * (sizeof(struct vm_object) +
 	    sizeof(struct vnode) + NC_SZ * ncsizefactor + NFS_NCLNODE_SZ));
 	desiredvnodes = min(physvnodes, virtvnodes);
@@ -1163,6 +1200,8 @@ vattr_null(struct vattr *vap)
 	vap->va_flags = VNOVAL;
 	vap->va_gen = VNOVAL;
 	vap->va_vaflags = 0;
+	vap->va_filerev = VNOVAL;
+	vap->va_bsdflags = 0;
 }
 
 /*
@@ -1956,23 +1995,22 @@ vn_alloc_hard(struct mount *mp, u_long rnumvnodes, bool bumped)
 
 	mtx_lock(&vnode_list_mtx);
 
-	if (vn_alloc_cyclecount != 0) {
-		rnumvnodes = atomic_load_long(&numvnodes);
-		if (rnumvnodes + 1 < desiredvnodes) {
-			vn_alloc_cyclecount = 0;
-			mtx_unlock(&vnode_list_mtx);
-			goto alloc;
-		}
+	/*
+	 * Reload 'numvnodes', as since we acquired the lock, it may have
+	 * changed significantly if we waited, and 'rnumvnodes' above was only
+	 * actually passed if 'bumped' is true (else it is 0).
+	 */
+	rnumvnodes = atomic_load_long(&numvnodes);
+	if (rnumvnodes + !bumped < desiredvnodes) {
+		vn_alloc_cyclecount = 0;
+		mtx_unlock(&vnode_list_mtx);
+		goto alloc;
+	}
 
-		rfreevnodes = vnlru_read_freevnodes();
-		if (rfreevnodes < wantfreevnodes) {
-			if (vn_alloc_cyclecount++ >= rfreevnodes) {
-				vn_alloc_cyclecount = 0;
-				vstir = true;
-			}
-		} else {
-			vn_alloc_cyclecount = 0;
-		}
+	rfreevnodes = vnlru_read_freevnodes();
+	if (vn_alloc_cyclecount++ >= rfreevnodes) {
+		vn_alloc_cyclecount = 0;
+		vstir = true;
 	}
 
 	/*
@@ -2489,9 +2527,8 @@ bnoreuselist(struct bufv *bufv, struct bufobj *bo, daddr_t startn, daddr_t endn)
 
 	for (lblkno = startn;;) {
 again:
-		bp = BUF_PCTRIE_LOOKUP_GE(&bufv->bv_root, lblkno);
-		if (bp == NULL || bp->b_lblkno >= endn ||
-		    bp->b_lblkno < startn)
+		bp = buf_lookup_ge(bufv, lblkno);
+		if (bp == NULL || bp->b_lblkno >= endn)
 			break;
 		error = BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
 		    LK_INTERLOCK, BO_LOCKPTR(bo), "brlsfl", 0, 0);
@@ -2616,17 +2653,24 @@ static int
 v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
     daddr_t startlbn, daddr_t endlbn)
 {
+	struct bufv *bv;
 	struct buf *bp, *nbp;
-	bool anyfreed;
+	uint8_t anyfreed;
+	bool clean;
 
 	ASSERT_VOP_LOCKED(vp, "v_inval_buf_range_locked");
 	ASSERT_BO_LOCKED(bo);
 
+	anyfreed = 1;
+	clean = true;
 	do {
-		anyfreed = false;
-		TAILQ_FOREACH_SAFE(bp, &bo->bo_clean.bv_hd, b_bobufs, nbp) {
-			if (bp->b_lblkno < startlbn || bp->b_lblkno >= endlbn)
-				continue;
+		bv = clean ? &bo->bo_clean : &bo->bo_dirty;
+		bp = buf_lookup_ge(bv, startlbn);
+		if (bp == NULL)
+			continue;
+		TAILQ_FOREACH_FROM_SAFE(bp, &bv->bv_hd, b_bobufs, nbp) {
+			if (bp->b_lblkno >= endlbn)
+				break;
 			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
 			    BO_LOCKPTR(bo)) == ENOLCK) {
@@ -2638,39 +2682,17 @@ v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
 			bp->b_flags |= B_INVAL | B_RELBUF;
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
-			anyfreed = true;
+			anyfreed = 2;
 
 			BO_LOCK(bo);
 			if (nbp != NULL &&
-			    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
+			    (((nbp->b_xflags &
+			    (clean ? BX_VNCLEAN : BX_VNDIRTY)) == 0) ||
 			    nbp->b_vp != vp ||
-			    (nbp->b_flags & B_DELWRI) != 0))
+			    (nbp->b_flags & B_DELWRI) == (clean? B_DELWRI: 0)))
 				return (EAGAIN);
 		}
-
-		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
-			if (bp->b_lblkno < startlbn || bp->b_lblkno >= endlbn)
-				continue;
-			if (BUF_LOCK(bp,
-			    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK,
-			    BO_LOCKPTR(bo)) == ENOLCK) {
-				BO_LOCK(bo);
-				return (EAGAIN);
-			}
-			bremfree(bp);
-			bp->b_flags |= B_INVAL | B_RELBUF;
-			bp->b_flags &= ~B_ASYNC;
-			brelse(bp);
-			anyfreed = true;
-
-			BO_LOCK(bo);
-			if (nbp != NULL &&
-			    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
-			    (nbp->b_vp != vp) ||
-			    (nbp->b_flags & B_DELWRI) == 0))
-				return (EAGAIN);
-		}
-	} while (anyfreed);
+	} while (clean = !clean, anyfreed-- > 0);
 	return (0);
 }
 
@@ -2723,13 +2745,13 @@ buf_vlist_find_or_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 	else
 		bv = &bo->bo_clean;
 
-	error = BUF_PCTRIE_INSERT_LOOKUP_LE(&bv->bv_root, bp, &n);
+	error = buf_insert_lookup_le(bv, bp, &n);
 	if (n == NULL) {
 		KASSERT(error != EEXIST,
 		    ("buf_vlist_add: EEXIST but no existing buf found: bp %p",
 		    bp));
 	} else {
-		KASSERT((uint64_t)n->b_lblkno <= (uint64_t)bp->b_lblkno,
+		KASSERT(n->b_lblkno <= bp->b_lblkno,
 		    ("buf_vlist_add: out of order insert/lookup: bp %p n %p",
 		    bp, n));
 		KASSERT((n->b_lblkno == bp->b_lblkno) == (error == EEXIST),
@@ -2742,16 +2764,14 @@ buf_vlist_find_or_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 	/* Keep the list ordered. */
 	if (n == NULL) {
 		KASSERT(TAILQ_EMPTY(&bv->bv_hd) ||
-		    (uint64_t)bp->b_lblkno <
-		    (uint64_t)TAILQ_FIRST(&bv->bv_hd)->b_lblkno,
+		    bp->b_lblkno < TAILQ_FIRST(&bv->bv_hd)->b_lblkno,
 		    ("buf_vlist_add: queue order: "
 		    "%p should be before first %p",
 		    bp, TAILQ_FIRST(&bv->bv_hd)));
 		TAILQ_INSERT_HEAD(&bv->bv_hd, bp, b_bobufs);
 	} else {
 		KASSERT(TAILQ_NEXT(n, b_bobufs) == NULL ||
-		    (uint64_t)bp->b_lblkno <
-		    (uint64_t)TAILQ_NEXT(n, b_bobufs)->b_lblkno,
+		    bp->b_lblkno < TAILQ_NEXT(n, b_bobufs)->b_lblkno,
 		    ("buf_vlist_add: queue order: "
 		    "%p should be before next %p",
 		    bp, TAILQ_NEXT(n, b_bobufs)));
@@ -4767,6 +4787,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_FORCE);
 	MNT_FLAG(MNT_SNAPSHOT);
 	MNT_FLAG(MNT_BYFSID);
+	MNT_FLAG(MNT_NAMEDATTR);
 #undef MNT_FLAG
 	if (mflags != 0) {
 		if (buf[0] != '\0')
@@ -6218,6 +6239,7 @@ vop_remove_pre(void *ap)
 	a = ap;
 	dvp = a->a_dvp;
 	vp = a->a_vp;
+	vfs_notify_upper(vp, VFS_NOTIFY_UPPER_UNLINK);
 	vn_seqc_write_begin(dvp);
 	vn_seqc_write_begin(vp);
 }
@@ -6286,6 +6308,7 @@ vop_rmdir_pre(void *ap)
 	a = ap;
 	dvp = a->a_dvp;
 	vp = a->a_vp;
+	vfs_notify_upper(vp, VFS_NOTIFY_UPPER_UNLINK);
 	vn_seqc_write_begin(dvp);
 	vn_seqc_write_begin(vp);
 }
@@ -6471,11 +6494,11 @@ static int	filt_fsattach(struct knote *kn);
 static void	filt_fsdetach(struct knote *kn);
 static int	filt_fsevent(struct knote *kn, long hint);
 
-struct filterops fs_filtops = {
+const struct filterops fs_filtops = {
 	.f_isfd = 0,
 	.f_attach = filt_fsattach,
 	.f_detach = filt_fsdetach,
-	.f_event = filt_fsevent
+	.f_event = filt_fsevent,
 };
 
 static int
@@ -6510,6 +6533,8 @@ sysctl_vfs_ctl(SYSCTL_HANDLER_ARGS)
 	int error;
 	struct mount *mp;
 
+	if (req->newptr == NULL)
+		return (EINVAL);
 	error = SYSCTL_IN(req, &vc, sizeof(vc));
 	if (error)
 		return (error);
@@ -6551,20 +6576,26 @@ static int	filt_vfsread(struct knote *kn, long hint);
 static int	filt_vfswrite(struct knote *kn, long hint);
 static int	filt_vfsvnode(struct knote *kn, long hint);
 static void	filt_vfsdetach(struct knote *kn);
-static struct filterops vfsread_filtops = {
+static int	filt_vfsdump(struct proc *p, struct knote *kn,
+		    struct kinfo_knote *kin);
+
+static const struct filterops vfsread_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_vfsdetach,
-	.f_event = filt_vfsread
+	.f_event = filt_vfsread,
+	.f_userdump = filt_vfsdump,
 };
-static struct filterops vfswrite_filtops = {
+static const struct filterops vfswrite_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_vfsdetach,
-	.f_event = filt_vfswrite
+	.f_event = filt_vfswrite,
+	.f_userdump = filt_vfsdump,
 };
-static struct filterops vfsvnode_filtops = {
+static const struct filterops vfsvnode_filtops = {
 	.f_isfd = 1,
 	.f_detach = filt_vfsdetach,
-	.f_event = filt_vfsvnode
+	.f_event = filt_vfsvnode,
+	.f_userdump = filt_vfsdump,
 };
 
 static void
@@ -6711,6 +6742,41 @@ filt_vfsvnode(struct knote *kn, long hint)
 	res = (kn->kn_fflags != 0);
 	VI_UNLOCK(vp);
 	return (res);
+}
+
+static int
+filt_vfsdump(struct proc *p, struct knote *kn, struct kinfo_knote *kin)
+{
+	struct vattr va;
+	struct vnode *vp;
+	char *fullpath, *freepath;
+	int error;
+
+	kin->knt_extdata = KNOTE_EXTDATA_VNODE;
+
+	vp = kn->kn_fp->f_vnode;
+	kin->knt_vnode.knt_vnode_type = vntype_to_kinfo(vp->v_type);
+
+	va.va_fsid = VNOVAL;
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	error = VOP_GETATTR(vp, &va, curthread->td_ucred);
+	VOP_UNLOCK(vp);
+	if (error != 0)
+		return (error);
+	kin->knt_vnode.knt_vnode_fsid = va.va_fsid;
+	kin->knt_vnode.knt_vnode_fileid = va.va_fileid;
+
+	freepath = NULL;
+	fullpath = "-";
+	error = vn_fullpath(vp, &fullpath, &freepath);
+	if (error == 0) {
+		strlcpy(kin->knt_vnode.knt_vnode_fullpath, fullpath,
+		    sizeof(kin->knt_vnode.knt_vnode_fullpath));
+	}
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
+
+	return (0);
 }
 
 int

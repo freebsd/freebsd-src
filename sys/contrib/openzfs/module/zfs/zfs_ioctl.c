@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -160,7 +161,6 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/errno.h>
-#include <sys/uio_impl.h>
 #include <sys/file.h>
 #include <sys/kmem.h>
 #include <sys/cmn_err.h>
@@ -901,9 +901,18 @@ zfs_secpolicy_recv(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 	(void) innvl;
 	int error;
 
+	/*
+	 * zfs receive -F requires full receive permission,
+	 * otherwise receive:append permission is enough
+	 */
 	if ((error = zfs_secpolicy_write_perms(zc->zc_name,
-	    ZFS_DELEG_PERM_RECEIVE, cr)) != 0)
-		return (error);
+	    ZFS_DELEG_PERM_RECEIVE, cr)) != 0) {
+		if (zc->zc_guid || nvlist_exists(innvl, "force"))
+			return (error);
+		if ((error = zfs_secpolicy_write_perms(zc->zc_name,
+		    ZFS_DELEG_PERM_RECEIVE_APPEND, cr)) != 0)
+			return (error);
+	}
 
 	if ((error = zfs_secpolicy_write_perms(zc->zc_name,
 	    ZFS_DELEG_PERM_MOUNT, cr)) != 0)
@@ -1719,6 +1728,9 @@ zfs_ioc_pool_scrub(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 		error = spa_scrub_pause_resume(spa, POOL_SCRUB_PAUSE);
 	} else if (scan_type == POOL_SCAN_NONE) {
 		error = spa_scan_stop(spa);
+	} else if (scan_cmd == POOL_SCRUB_FROM_LAST_TXG) {
+		error = spa_scan_range(spa, scan_type,
+		    spa_get_last_scrubbed_txg(spa), 0);
 	} else {
 		error = spa_scan(spa, scan_type);
 	}
@@ -2247,7 +2259,19 @@ zfs_ioc_objset_zplprops(zfs_cmd_t *zc)
 		if ((err = nvl_add_zplprop(os, nv, ZFS_PROP_VERSION)) == 0 &&
 		    (err = nvl_add_zplprop(os, nv, ZFS_PROP_NORMALIZE)) == 0 &&
 		    (err = nvl_add_zplprop(os, nv, ZFS_PROP_UTF8ONLY)) == 0 &&
-		    (err = nvl_add_zplprop(os, nv, ZFS_PROP_CASE)) == 0)
+		    (err = nvl_add_zplprop(os, nv, ZFS_PROP_CASE)) == 0 &&
+		    (err = nvl_add_zplprop(os, nv,
+		    ZFS_PROP_DEFAULTUSERQUOTA)) == 0 &&
+		    (err = nvl_add_zplprop(os, nv,
+		    ZFS_PROP_DEFAULTGROUPQUOTA)) == 0 &&
+		    (err = nvl_add_zplprop(os, nv,
+		    ZFS_PROP_DEFAULTPROJECTQUOTA)) == 0 &&
+		    (err = nvl_add_zplprop(os, nv,
+		    ZFS_PROP_DEFAULTUSEROBJQUOTA)) == 0 &&
+		    (err = nvl_add_zplprop(os, nv,
+		    ZFS_PROP_DEFAULTGROUPOBJQUOTA)) == 0 &&
+		    (err = nvl_add_zplprop(os, nv,
+		    ZFS_PROP_DEFAULTPROJECTOBJQUOTA)) == 0)
 			err = put_nvlist(zc, nv);
 		nvlist_free(nv);
 	} else {
@@ -2593,6 +2617,55 @@ zfs_prop_set_special(const char *dsname, zprop_source_t source,
 			(void) zfs_ioc_id_quota_upgrade(zc);
 			kmem_free(zc, sizeof (zfs_cmd_t));
 		}
+		break;
+	}
+	case ZFS_PROP_LONGNAME:
+	{
+		zfsvfs_t *zfsvfs;
+
+		/*
+		 * Ignore the checks if the property is being applied as part of
+		 * 'zfs receive'. Because, we already check if the local pool
+		 * has SPA_FEATURE_LONGNAME enabled in dmu_recv_begin_check().
+		 */
+		if (source == ZPROP_SRC_RECEIVED) {
+			cmn_err(CE_NOTE, "Skipping ZFS_PROP_LONGNAME checks "
+			    "for dsname=%s\n", dsname);
+			err = -1;
+			break;
+		}
+
+		if ((err = zfsvfs_hold(dsname, FTAG, &zfsvfs, B_FALSE)) != 0) {
+			cmn_err(CE_WARN, "%s:%d Failed to hold for dsname=%s "
+			    "err=%d\n", __FILE__, __LINE__, dsname, err);
+			break;
+		}
+
+		if (!spa_feature_is_enabled(zfsvfs->z_os->os_spa,
+		    SPA_FEATURE_LONGNAME)) {
+			err = ENOTSUP;
+		} else {
+			/*
+			 * Set err to -1 to force the zfs_set_prop_nvlist code
+			 * down the default path to set the value in the nvlist.
+			 */
+			err = -1;
+		}
+		zfsvfs_rele(zfsvfs, FTAG);
+		break;
+	}
+	case ZFS_PROP_DEFAULTUSERQUOTA:
+	case ZFS_PROP_DEFAULTGROUPQUOTA:
+	case ZFS_PROP_DEFAULTPROJECTQUOTA:
+	case ZFS_PROP_DEFAULTUSEROBJQUOTA:
+	case ZFS_PROP_DEFAULTGROUPOBJQUOTA:
+	case ZFS_PROP_DEFAULTPROJECTOBJQUOTA:
+	{
+		zfsvfs_t *zfsvfs;
+		if ((err = zfsvfs_hold(dsname, FTAG, &zfsvfs, B_TRUE)) != 0)
+			break;
+		err = zfs_set_default_quota(zfsvfs, prop, intval);
+		zfsvfs_rele(zfsvfs, FTAG);
 		break;
 	}
 	default:
@@ -3284,6 +3357,9 @@ zfs_fill_zplprops_impl(objset_t *os, uint64_t zplver,
 	uint64_t sense = ZFS_PROP_UNDEFINED;
 	uint64_t norm = ZFS_PROP_UNDEFINED;
 	uint64_t u8 = ZFS_PROP_UNDEFINED;
+	uint64_t duq = ZFS_PROP_UNDEFINED, duoq = ZFS_PROP_UNDEFINED;
+	uint64_t dgq = ZFS_PROP_UNDEFINED, dgoq = ZFS_PROP_UNDEFINED;
+	uint64_t dpq = ZFS_PROP_UNDEFINED, dpoq = ZFS_PROP_UNDEFINED;
 	int error;
 
 	ASSERT(zplprops != NULL);
@@ -3310,6 +3386,30 @@ zfs_fill_zplprops_impl(objset_t *os, uint64_t zplver,
 		    zfs_prop_to_name(ZFS_PROP_CASE), &sense);
 		(void) nvlist_remove_all(createprops,
 		    zfs_prop_to_name(ZFS_PROP_CASE));
+		(void) nvlist_lookup_uint64(createprops,
+		    zfs_prop_to_name(ZFS_PROP_DEFAULTUSERQUOTA), &duq);
+		(void) nvlist_remove_all(createprops,
+		    zfs_prop_to_name(ZFS_PROP_DEFAULTUSERQUOTA));
+		(void) nvlist_lookup_uint64(createprops,
+		    zfs_prop_to_name(ZFS_PROP_DEFAULTGROUPQUOTA), &dgq);
+		(void) nvlist_remove_all(createprops,
+		    zfs_prop_to_name(ZFS_PROP_DEFAULTGROUPQUOTA));
+		(void) nvlist_lookup_uint64(createprops,
+		    zfs_prop_to_name(ZFS_PROP_DEFAULTPROJECTQUOTA), &dpq);
+		(void) nvlist_remove_all(createprops,
+		    zfs_prop_to_name(ZFS_PROP_DEFAULTPROJECTQUOTA));
+		(void) nvlist_lookup_uint64(createprops,
+		    zfs_prop_to_name(ZFS_PROP_DEFAULTUSEROBJQUOTA), &duoq);
+		(void) nvlist_remove_all(createprops,
+		    zfs_prop_to_name(ZFS_PROP_DEFAULTUSEROBJQUOTA));
+		(void) nvlist_lookup_uint64(createprops,
+		    zfs_prop_to_name(ZFS_PROP_DEFAULTGROUPOBJQUOTA), &dgoq);
+		(void) nvlist_remove_all(createprops,
+		    zfs_prop_to_name(ZFS_PROP_DEFAULTGROUPOBJQUOTA));
+		(void) nvlist_lookup_uint64(createprops,
+		    zfs_prop_to_name(ZFS_PROP_DEFAULTPROJECTOBJQUOTA), &dpoq);
+		(void) nvlist_remove_all(createprops,
+		    zfs_prop_to_name(ZFS_PROP_DEFAULTPROJECTOBJQUOTA));
 	}
 
 	/*
@@ -3354,6 +3454,47 @@ zfs_fill_zplprops_impl(objset_t *os, uint64_t zplver,
 		return (error);
 	VERIFY(nvlist_add_uint64(zplprops,
 	    zfs_prop_to_name(ZFS_PROP_CASE), sense) == 0);
+
+	if (duq == ZFS_PROP_UNDEFINED &&
+	    (error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTUSERQUOTA, &duq)) != 0)
+		return (error);
+	VERIFY(nvlist_add_uint64(zplprops,
+	    zfs_prop_to_name(ZFS_PROP_DEFAULTUSERQUOTA), duq) == 0);
+
+	if (dgq == ZFS_PROP_UNDEFINED &&
+	    (error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTGROUPQUOTA,
+	    &dgq)) != 0)
+		return (error);
+	VERIFY(nvlist_add_uint64(zplprops,
+	    zfs_prop_to_name(ZFS_PROP_DEFAULTGROUPQUOTA), dgq) == 0);
+
+	if (dpq == ZFS_PROP_UNDEFINED &&
+	    (error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTPROJECTQUOTA,
+	    &dpq)) != 0)
+		return (error);
+	VERIFY(nvlist_add_uint64(zplprops,
+	    zfs_prop_to_name(ZFS_PROP_DEFAULTPROJECTQUOTA), dpq) == 0);
+
+	if (duoq == ZFS_PROP_UNDEFINED &&
+	    (error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTUSEROBJQUOTA,
+	    &duoq)) != 0)
+		return (error);
+	VERIFY(nvlist_add_uint64(zplprops,
+	    zfs_prop_to_name(ZFS_PROP_DEFAULTUSEROBJQUOTA), duoq) == 0);
+
+	if (dgoq == ZFS_PROP_UNDEFINED &&
+	    (error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTGROUPOBJQUOTA,
+	    &dgoq)) != 0)
+		return (error);
+	VERIFY(nvlist_add_uint64(zplprops,
+	    zfs_prop_to_name(ZFS_PROP_DEFAULTGROUPOBJQUOTA), dgoq) == 0);
+
+	if (dpoq == ZFS_PROP_UNDEFINED &&
+	    (error = zfs_get_zplprop(os, ZFS_PROP_DEFAULTPROJECTOBJQUOTA,
+	    &dpoq)) != 0)
+		return (error);
+	VERIFY(nvlist_add_uint64(zplprops,
+	    zfs_prop_to_name(ZFS_PROP_DEFAULTPROJECTOBJQUOTA), dpoq) == 0);
 
 	if (is_ci)
 		*is_ci = (sense == ZFS_CASE_INSENSITIVE);
@@ -6209,7 +6350,7 @@ zfs_ioc_userspace_many(zfs_cmd_t *zc)
 	void *buf = vmem_alloc(bufsize, KM_SLEEP);
 
 	error = zfs_userspace_many(zfsvfs, zc->zc_objset_type, &zc->zc_cookie,
-	    buf, &zc->zc_nvlist_dst_size);
+	    buf, &zc->zc_nvlist_dst_size, &zc->zc_guid);
 
 	if (error == 0) {
 		error = xcopyout(buf,

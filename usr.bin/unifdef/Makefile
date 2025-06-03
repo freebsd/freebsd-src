@@ -1,5 +1,6 @@
 .PATH: ${SRCTOP}/contrib/unifdef
 
+PACKAGE= toolchain
 PROG=	unifdef
 SCRIPTS=unifdefall.sh
 MLINKS=	unifdef.1 unifdefall.1

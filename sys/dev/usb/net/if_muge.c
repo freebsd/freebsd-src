@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * USB-To-Ethernet adapter driver for Microchip's LAN78XX and related families.
  *

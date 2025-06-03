@@ -695,9 +695,6 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 #endif
 #define	IPMINLEN(i, h)	((i)->ip_len >= (IP_HL(i) * 4 + sizeof(struct h)))
 
-#define	TCPF_ALL	(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG|\
-			 TH_ECN|TH_CWR)
-
 #if !SOLARIS && !defined(m_act)
 # define	m_act	m_nextpkt
 #endif
@@ -1128,7 +1125,10 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 #ifndef TH_CWR
 # define	TH_CWR	0x80
 #endif
-#define	TH_ECNALL	(TH_ECN|TH_CWR)
+#ifndef TH_AE
+# define	TH_AE	0x100
+#endif
+#define	TH_ECNALL	(TH_ECN|TH_CWR|TH_AE)
 
 /*
  * TCP States

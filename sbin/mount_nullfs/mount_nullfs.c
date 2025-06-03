@@ -38,13 +38,12 @@
 #include <sys/uio.h>
 
 #include <err.h>
+#include <mntopts.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
-#include "mntopts.h"
 
 static void	usage(void) __dead2;
 

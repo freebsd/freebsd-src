@@ -48,10 +48,13 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
+#if __EXT1_VISIBLE
+/* ISO/IEC 9899:2011 K.3.3.2 */
 #ifndef _RSIZE_T_DEFINED
 #define _RSIZE_T_DEFINED
 typedef size_t rsize_t;
 #endif
+#endif /* __EXT1_VISIBLE */
 
 #if __POSIX_VISIBLE >= 200809
 #ifndef _OFF_T_DECLARED
@@ -502,10 +505,6 @@ extern int __isthreaded;
 #define	feof(p)		(!__isthreaded ? __sfeof(p) : (feof)(p))
 #define	ferror(p)	(!__isthreaded ? __sferror(p) : (ferror)(p))
 #define	clearerr(p)	(!__isthreaded ? __sclearerr(p) : (clearerr)(p))
-
-#if __POSIX_VISIBLE
-#define	fileno(p)	(!__isthreaded ? __sfileno(p) : (fileno)(p))
-#endif
 
 #define	getc(fp)	(!__isthreaded ? __sgetc(fp) : (getc)(fp))
 #define	putc(x, fp)	(!__isthreaded ? __sputc(x, fp) : (putc)(x, fp))

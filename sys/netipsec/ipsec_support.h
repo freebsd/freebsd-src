@@ -30,6 +30,7 @@
 #ifdef _KERNEL
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 struct ifnet;
+struct ip;
 struct mbuf;
 struct inpcb;
 struct tcphdr;
@@ -56,6 +57,7 @@ int udp_ipsec_pcbctl(struct inpcb *, struct sockopt *);
 #endif
 #ifdef INET
 int ipsec4_in_reject(const struct mbuf *, struct inpcb *);
+int ipsec4_in_reject1(const struct mbuf *m, struct ip *ip1, struct inpcb *inp);
 int ipsec4_input(struct mbuf *, int, int);
 int ipsec4_forward(struct mbuf *);
 int ipsec4_pcbctl(struct inpcb *, struct sockopt *);

@@ -49,4 +49,18 @@ device 		gpio
 device 		ether
 device 		mii
 device 		bpf
+device 		vlan
 
+options 	GEOM_UZIP
+device 		xz
+
+# SPI NOR flash
+device 		mx25l
+
+# SPI NAND flash
+device 		w25n
+
+# USB storage
+device 		scbus
+device 		umass
+device 		da

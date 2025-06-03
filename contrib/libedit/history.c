@@ -1,4 +1,4 @@
-/*	$NetBSD: history.c,v 1.63 2019/10/08 19:17:57 christos Exp $	*/
+/*	$NetBSD: history.c,v 1.64 2024/07/11 05:41:24 kre Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)history.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: history.c,v 1.63 2019/10/08 19:17:57 christos Exp $");
+__RCSID("$NetBSD: history.c,v 1.64 2024/07/11 05:41:24 kre Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -45,6 +45,7 @@ __RCSID("$NetBSD: history.c,v 1.63 2019/10/08 19:17:57 christos Exp $");
  * hist.c: TYPE(History) access functions
  */
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -842,8 +843,6 @@ history_save_fp(TYPE(History) *h, size_t nelem, FILE *fp)
 	static ct_buffer_t conv;
 #endif
 
-	if (fchmod(fileno(fp), S_IRUSR|S_IWUSR) == -1)
-		goto done;
 	if (ftell(fp) == 0 && fputs(hist_cookie, fp) == EOF)
 		goto done;
 	ptr = h_malloc((max_size = 1024) * sizeof(*ptr));
@@ -891,7 +890,11 @@ history_save(TYPE(History) *h, const char *fname)
     FILE *fp;
     int i;
 
-    if ((fp = fopen(fname, "w")) == NULL)
+    if ((i = open(fname, O_WRONLY|O_CREAT|O_TRUNC,
+		S_IRUSR|S_IWUSR)) == -1)
+	return -1;
+
+    if ((fp = fdopen(i, "w")) == NULL)
 	return -1;
 
     i = history_save_fp(h, (size_t)-1, fp);

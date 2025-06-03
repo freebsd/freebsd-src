@@ -253,14 +253,7 @@ static struct keybuf empty_keybuf = {
 static void
 keybuf_init(void)
 {
-	caddr_t kmdp;
-
-	kmdp = preload_search_by_type("elf kernel");
-
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-
-	keybuf = (struct keybuf *)preload_search_info(kmdp,
+	keybuf = (struct keybuf *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_KEYBUF);
 
         if (keybuf == NULL)
@@ -1270,8 +1263,6 @@ crp_sanity(struct cryptop *crp)
 	    crp->crp_obuf.cb_type <= CRYPTO_BUF_LAST,
 	    ("incoming crp with invalid output buffer type"));
 	KASSERT(crp->crp_etype == 0, ("incoming crp with error"));
-	KASSERT(!(crp->crp_flags & CRYPTO_F_DONE),
-	    ("incoming crp already done"));
 
 	csp = &crp->crp_session->csp;
 	cb_sanity(&crp->crp_buf, "input");
@@ -1660,7 +1651,6 @@ crypto_clonereq(struct cryptop *crp, crypto_session_t cses, int how)
 {
 	struct cryptop *new;
 
-	MPASS((crp->crp_flags & CRYPTO_F_DONE) == 0);
 	new = crypto_getreq(cses, how);
 	if (new == NULL)
 		return (NULL);
@@ -1676,9 +1666,6 @@ crypto_clonereq(struct cryptop *crp, crypto_session_t cses, int how)
 void
 crypto_done(struct cryptop *crp)
 {
-	KASSERT((crp->crp_flags & CRYPTO_F_DONE) == 0,
-		("crypto_done: op already done, flags 0x%x", crp->crp_flags));
-	crp->crp_flags |= CRYPTO_F_DONE;
 	if (crp->crp_etype != 0)
 		CRYPTOSTAT_INC(cs_errs);
 

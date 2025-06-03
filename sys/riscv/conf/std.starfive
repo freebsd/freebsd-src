@@ -4,6 +4,8 @@
 
 device		uart_snps	# DesignWare Synopsis UART driver
 
+device		eqos
+
 # MMC/SD/SDIO Card slot support
 device		dwmmc
 device		dwmmc_starfive

@@ -415,8 +415,14 @@ $awk 'BEGIN \
 		print "hello, world"
 	}
 }}}' >foo1 2>foo2
-grep 'source line 4' foo2 >/dev/null 2>&1 || echo 'BAD: T.misc continuation line number'
+grep 'source line 5' foo2 >/dev/null 2>&1 || echo 'BAD: T.misc continuation line number'
 
+$awk 'BEGIN {
+	if () {
+		print "foo"
+	}
+}' >foo1 2>foo2
+grep 'syntax error at source line 2' foo2 >/dev/null 2>&1 || echo 'BAD: T.misc syntax error line number'
 
 echo 111 222 333 >foo
 $awk '{ f[1]=1; f[2]=2; print $f[1], $f[1]++, $f[2], f[1], f[2] }' foo >foo2

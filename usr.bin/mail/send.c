@@ -293,8 +293,10 @@ mail1(struct header *hp, int printheaders)
 	 * Collect user's mail from standard input.
 	 * Get the result as mtf.
 	 */
-	if ((mtf = collect(hp, printheaders)) == NULL)
+	if ((mtf = collect(hp, printheaders)) == NULL) {
+		senderr++;
 		return;
+	}
 	if (value("interactive") != NULL) {
 		if (value("askcc") != NULL || value("askbcc") != NULL) {
 			if (value("askcc") != NULL)

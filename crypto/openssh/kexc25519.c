@@ -1,4 +1,4 @@
-/* $OpenBSD: kexc25519.c,v 1.17 2019/01/21 10:40:11 djm Exp $ */
+/* $OpenBSD: kexc25519.c,v 1.18 2024/09/02 12:13:56 djm Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -71,7 +71,7 @@ kexc25519_shared_key_ext(const u_char key[CURVE25519_SIZE],
 		return SSH_ERR_KEY_INVALID_EC_VALUE;
 
 #ifdef DEBUG_KEXECDH
-	dump_digest("shared secret", shared_key, CURVE25519_SIZE);
+	dump_digest("shared secret 25519", shared_key, CURVE25519_SIZE);
 #endif
 	if (raw)
 		r = sshbuf_put(out, shared_key, CURVE25519_SIZE);

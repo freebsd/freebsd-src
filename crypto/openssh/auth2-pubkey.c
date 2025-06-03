@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.119 2023/07/27 22:25:17 djm Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.120 2024/05/17 00:30:23 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -72,6 +72,7 @@
 
 /* import */
 extern ServerOptions options;
+extern struct authmethod_cfg methodcfg_pubkey;
 
 static char *
 format_key(const struct sshkey *key)
@@ -219,11 +220,11 @@ userauth_pubkey(struct ssh *ssh, const char *method)
 #endif
 		/* test for correct signature */
 		authenticated = 0;
-		if (PRIVSEP(user_key_allowed(ssh, pw, key, 1, &authopts)) &&
-		    PRIVSEP(sshkey_verify(key, sig, slen,
+		if (mm_user_key_allowed(ssh, pw, key, 1, &authopts) &&
+		    mm_sshkey_verify(key, sig, slen,
 		    sshbuf_ptr(b), sshbuf_len(b),
 		    (ssh->compat & SSH_BUG_SIGTYPE) == 0 ? pkalg : NULL,
-		    ssh->compat, &sig_details)) == 0) {
+		    ssh->compat, &sig_details) == 0) {
 			authenticated = 1;
 		}
 		if (authenticated == 1 && sig_details != NULL) {
@@ -281,7 +282,7 @@ userauth_pubkey(struct ssh *ssh, const char *method)
 		 * if a user is not allowed to login. is this an
 		 * issue? -markus
 		 */
-		if (PRIVSEP(user_key_allowed(ssh, pw, key, 0, NULL))) {
+		if (mm_user_key_allowed(ssh, pw, key, 0, NULL)) {
 			if ((r = sshpkt_start(ssh, SSH2_MSG_USERAUTH_PK_OK))
 			    != 0 ||
 			    (r = sshpkt_put_cstring(ssh, pkalg)) != 0 ||
@@ -813,8 +814,6 @@ user_key_allowed(struct ssh *ssh, struct passwd *pw, struct sshkey *key,
 }
 
 Authmethod method_pubkey = {
-	"publickey",
-	"publickey-hostbound-v00@openssh.com",
+	&methodcfg_pubkey,
 	userauth_pubkey,
-	&options.pubkey_authentication
 };

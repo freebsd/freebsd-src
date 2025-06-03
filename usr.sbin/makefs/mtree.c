@@ -533,13 +533,11 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 					break;
 				}
 				flset = flclr = 0;
-#if HAVE_STRUCT_STAT_ST_FLAGS
 				if (!strtofflags(&value, &flset, &flclr)) {
-					st->st_flags &= ~flclr;
-					st->st_flags |= flset;
+					FSINODE_ST_FLAGS(*node->inode) &= ~flclr;
+					FSINODE_ST_FLAGS(*node->inode) |= flset;
 				} else
 					error = errno;
-#endif
 			} else
 				error = ENOSYS;
 			break;
@@ -633,6 +631,9 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 				}
 				/* Ignore. */
 			} else if (strcmp(keyword, "time") == 0) {
+				/* Ignore if a default timestamp is present. */
+				if (stampst.st_ino != 0)
+					break;
 				if (value == NULL) {
 					error = ENOATTR;
 					break;
@@ -722,7 +723,9 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 		return (error);
 
 	st->st_mode = (st->st_mode & ~S_IFMT) | node->type;
-
+	/* Store default timestamp, if present. */
+	if (stampst.st_ino != 0)
+		set_tstamp(node);
 	/* Nothing more to do for the global defaults. */
 	if (node->name == NULL)
 		return (0);
@@ -1053,8 +1056,16 @@ read_mtree(const char *fname, fsnode *node)
 	mtree_global.inode = &mtree_global_inode;
 	mtree_global_inode.nlink = 1;
 	mtree_global_inode.st.st_nlink = 1;
-	mtree_global_inode.st.st_atime = mtree_global_inode.st.st_ctime =
-	    mtree_global_inode.st.st_mtime = time(NULL);
+	if (stampst.st_ino != 0) {
+		set_tstamp(&mtree_global);
+	} else {
+#if HAVE_STRUCT_STAT_BIRTHTIME
+		mtree_global_inode.st.st_birthtime =
+#endif
+		    mtree_global_inode.st.st_atime =
+		    mtree_global_inode.st.st_ctime =
+		    mtree_global_inode.st.st_mtime = time(NULL);
+	}
 	errors = warnings = 0;
 
 	setgroupent(1);

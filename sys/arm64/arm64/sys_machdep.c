@@ -30,20 +30,26 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/sysproto.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
+#include <machine/pcb.h>
 #include <machine/sysarch.h>
 #include <machine/vmparam.h>
+
+#include <security/audit/audit.h>
 
 int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	struct arm64_guard_page_args gp_args;
+	struct pcb *pcb;
 	vm_offset_t eva;
+	unsigned long sve_len;
 	int error;
 
 	switch (uap->op) {
@@ -73,6 +79,13 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		error = pmap_bti_set(vmspace_pmap(td->td_proc->p_vmspace),
 		    trunc_page(gp_args.addr), round_page(eva));
 		break;
+	case ARM64_GET_SVE_VL:
+		pcb = td->td_pcb;
+		sve_len = pcb->pcb_sve_len;
+		error = EINVAL;
+		if (sve_len != 0)
+			error = copyout(&sve_len, uap->parms, sizeof(sve_len));
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -80,3 +93,8 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 
 	return (error);
 }
+
+bool arm64_pid_in_contextidr = false;
+SYSCTL_BOOL(_machdep, OID_AUTO, pid_in_contextidr, CTLFLAG_RW,
+    &arm64_pid_in_contextidr, false,
+    "Save PID into CONTEXTIDR_EL1 register on context switch");

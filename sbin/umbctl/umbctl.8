@@ -1,0 +1,161 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2018 by Pierre Pronchery <khorben@defora.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS
+.\" OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" From: pppoectl.8,v 1.30 2016/09/12 05:35:20 sevan Exp $
+.\"
+.\" $NetBSD: umbctl.8,v 1.3 2020/03/22 07:45:02 khorben Exp $
+.\"
+.\" last edit-date: [Fri Dec 20 18:20:00 2024]
+.\"
+.Dd December 20, 2024
+.Dt UMBCTL 8
+.Os
+.Sh NAME
+.Nm umbctl
+.Nd display or set MBIM cellular modem interface parameters (4G/LTE)
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Ar ifname
+.Op Ar parameter Op Ar value
+.Ar ...
+.Nm
+.Op Fl v
+.Fl f Ar config-file
+.Ar ifname
+.Sh DESCRIPTION
+.Nm
+supports the following options:
+.Bl -tag -width "-f config_file"
+.It Fl f Ar config-file
+Parse
+.Ar config-file
+for
+.Ar parameter Ns Op \&= Ns Ar value
+pairs, one per line, as if they had been specified on the command line.
+This allows the password or PIN codes to be not passed as command line
+arguments.
+Comments starting with # to the end of the current line are ignored.
+.It Fl v
+Enables verbose mode.
+.El
+.Pp
+The
+.Xr umb 4
+driver may require a number of additional arguments or optional
+parameters besides the settings that can be adjusted with
+.Xr ifconfig 8 .
+These may be credentials or other tunable connectivity variables.
+The
+.Nm
+utility can be used to display the current settings, or to adjust these
+parameters as required.
+.Pp
+For whatever intent
+.Nm
+is being called, at least the parameter
+.Ar ifname
+needs to be specified, naming the interface for which the settings
+are to be performed or displayed.
+Use
+.Xr ifconfig 8
+or
+.Xr netstat 1
+to see which interfaces are available.
+.Pp
+If no other parameter is given,
+.Nm
+will just list the current status for
+.Ar ifname
+and exit.
+.Pp
+If any additional parameter is supplied, superuser privileges are
+required, and the command works in
+.Ql set
+mode.
+This is normally done quietly, unless the option
+.Fl v
+is also enabled, which will cause a final printout of the status as
+described above once all other actions have been taken.
+.Pp
+The parameters currently supported include:
+.Bl -tag -width "username=username"
+.It Ar apn Ns \&= Ns Em access-point
+Set the APN to
+.Em access-point .
+.It Ar username Ns \&= Ns Em username
+Set the username to
+.Em username .
+.It Ar password Ns \&= Ns Em password
+Set the password to
+.Em password .
+.It Ar pin Ns \&= Ns Em pin-code
+Enter the PIN
+.Em pin-code .
+.It Ar puk Ns \&= Ns Em puk-code
+Enter the PUK
+.Em puk-code .
+.It Ar roaming
+Allow data connections when roaming.
+.It Ar -roaming
+Deny data connections when roaming.
+.El
+.Sh EXAMPLES
+Display the settings for umb0:
+.Bd -literal
+# umbctl umb0
+umb0: state up, mode automatic, registration home network
+	provider "BSD-Net", dataclass LTE, signal good
+	phone number "+15554242", roaming "" (denied)
+	APN "", TX 50000000, RX 100000000
+	firmware "MBIM_FW_V1.0", hardware "MBIM_HW_V1.0"
+.Ed
+.Pp
+Configure the connection parameters for umb0 from the command line:
+.Bd -literal
+# umbctl umb0 apn operator.internet username mobile password mobile
+.Ed
+.Pp
+Configure the connection parameters for umb0 from a file:
+.Bd -literal
+# umbctl -f /dev/stdin umb0 << EOF
+pin=1234
+EOF
+.Ed
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr umb 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Nx 9.0 ,
+and
+.Fx 15.0 .
+.Sh AUTHORS
+The program was written by
+.An Pierre Pronchery .

@@ -15,6 +15,7 @@ nooptions	COVERAGE
 nooptions	KCOV
 nooptions	MALLOC_DEBUG_MAXZONES
 nooptions	QUEUE_MACRO_DEBUG_TRASH
+nooptions	KDTRACE_MIB_SDT
 
 # Net80211 debugging
 nooptions	IEEE80211_DEBUG

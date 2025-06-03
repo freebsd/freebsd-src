@@ -672,10 +672,6 @@ stge_detach(device_t dev)
 		ether_ifdetach(ifp);
 	}
 
-	if (sc->sc_miibus != NULL) {
-		device_delete_child(dev, sc->sc_miibus);
-		sc->sc_miibus = NULL;
-	}
 	bus_generic_detach(dev);
 	stge_dma_free(sc);
 

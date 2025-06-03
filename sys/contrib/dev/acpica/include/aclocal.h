@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2023, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -480,7 +480,7 @@ ACPI_STATUS (*ACPI_INTERNAL_METHOD) (
  */
 typedef struct acpi_name_info
 {
-    char                        Name[ACPI_NAMESEG_SIZE];
+    char                        Name[ACPI_NAMESEG_SIZE] ACPI_NONSTRING;
     UINT16                      ArgumentList;
     UINT8                       ExpectedBtypes;
 
@@ -568,7 +568,7 @@ typedef ACPI_STATUS (*ACPI_OBJECT_CONVERTER) (
 
 typedef struct acpi_simple_repair_info
 {
-    char                        Name[ACPI_NAMESEG_SIZE];
+    char                        Name[ACPI_NAMESEG_SIZE] ACPI_NONSTRING;
     UINT32                      UnexpectedBtypes;
     UINT32                      PackageIndex;
     ACPI_OBJECT_CONVERTER       ObjectConverter;
@@ -772,7 +772,7 @@ typedef struct acpi_field_info
 typedef struct acpi_ged_handler_info
 {
     struct acpi_ged_handler_info    *Next;
-    UINT32                          IntId;      /* The interrupt ID that triggers the execution ofthe EvtMethod. */
+    UINT32                          IntId;      /* The interrupt ID that triggers the execution of the EvtMethod. */
     ACPI_NAMESPACE_NODE             *EvtMethod; /* The _EVT method to be executed when an interrupt with ID = IntID is received */
 
 } ACPI_GED_HANDLER_INFO;
@@ -1411,6 +1411,8 @@ typedef struct acpi_port_info
 #define ACPI_ADDRESS_TYPE_MEMORY_RANGE          0
 #define ACPI_ADDRESS_TYPE_IO_RANGE              1
 #define ACPI_ADDRESS_TYPE_BUS_NUMBER_RANGE      2
+
+#define ACPI_ADDRESS_TYPE_PCC_NUMBER            0xA
 
 /* Resource descriptor types and masks */
 

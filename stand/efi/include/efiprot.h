@@ -308,9 +308,9 @@ typedef struct {
 //
 // The FileName field of the EFI_FILE_INFO data structure is variable length.
 // Whenever code needs to know the size of the EFI_FILE_INFO data structure, it needs to
-// be the size of the data structure without the FileName field.  The following macro 
+// be the size of the data structure without the FileName field.  The following macro
 // computes this size correctly no matter how big the FileName array is declared.
-// This is required to make the EFI_FILE_INFO data structure ANSI compilant. 
+// This is required to make the EFI_FILE_INFO data structure ANSI compilant.
 //
 
 #define SIZE_OF_EFI_FILE_INFO EFI_FIELD_OFFSET(EFI_FILE_INFO,FileName)
@@ -330,9 +330,9 @@ typedef struct {
 //
 // The VolumeLabel field of the EFI_FILE_SYSTEM_INFO data structure is variable length.
 // Whenever code needs to know the size of the EFI_FILE_SYSTEM_INFO data structure, it needs
-// to be the size of the data structure without the VolumeLable field.  The following macro 
+// to be the size of the data structure without the VolumeLable field.  The following macro
 // computes this size correctly no matter how big the VolumeLable array is declared.
-// This is required to make the EFI_FILE_SYSTEM_INFO data structure ANSI compilant. 
+// This is required to make the EFI_FILE_SYSTEM_INFO data structure ANSI compilant.
 //
 
 #define SIZE_OF_EFI_FILE_SYSTEM_INFO EFI_FIELD_OFFSET(EFI_FILE_SYSTEM_INFO,VolumeLabel)
@@ -412,7 +412,7 @@ typedef struct {
     EFI_DEVICE_IO                   Write;
 } EFI_IO_ACCESS;
 
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_PCI_DEVICE_PATH) (
     IN struct _EFI_DEVICE_IO_INTERFACE  *This,
@@ -631,5 +631,32 @@ typedef struct _EFI_COMPONENT_NAME2 {
     EFI_COMPONENT_NAME_GET_CONTROLLER_NAME GetControllerName;
     CHAR8 **SupportedLanguages;
 } EFI_COMPONENT_NAME2;
+
+//
+// RISC-V EFI Boot Protocol
+//
+// https://github.com/riscv-non-isa/riscv-uefi
+//
+
+#define RISCV_EFI_BOOT_PROTOCOL_GUID \
+    { 0xccd15fec, 0x6f73, 0x4eec, {0x83, 0x95, 0x3e, 0x69, 0xe4, 0xb9, 0x40, 0xbf} }
+
+INTERFACE_DECL(_RISCV_EFI_BOOT_PROTOCOL);
+
+#define RISCV_EFI_BOOT_PROTOCOL_REVISION 0x00010000
+#define RISCV_EFI_BOOT_PROTOCOL_LATEST_VERSION \
+        RISCV_EFI_BOOT_PROTOCOL_REVISION
+
+typedef
+EFI_STATUS
+(EFIAPI *EFI_GET_BOOT_HARTID) (
+    IN struct _RISCV_EFI_BOOT_PROTOCOL *This,
+    OUT UINTN                          *BootHartId
+    );
+
+typedef struct _RISCV_EFI_BOOT_PROTOCOL {
+    UINT64                Revision;
+    EFI_GET_BOOT_HARTID   GetBootHartId;
+} RISCV_EFI_BOOT_PROTOCOL;
 
 #endif

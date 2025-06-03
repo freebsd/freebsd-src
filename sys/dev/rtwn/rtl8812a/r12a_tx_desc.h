@@ -138,9 +138,7 @@ struct r12a_tx_desc {
 #define R12A_RAID_11BG		6
 #define R12A_RAID_11G		7	/* "pure" 11g */
 #define R12A_RAID_11B		8
-#define R12A_RAID_11AC_2_80	9
-#define R12A_RAID_11AC_1_80	10
-#define R12A_RAID_11AC_1	11
-#define R12A_RAID_11AC_2	12
+#define R12A_RAID_11AC_2	9
+#define R12A_RAID_11AC_1	10
 
 #endif	/* R12A_TX_DESC_H */

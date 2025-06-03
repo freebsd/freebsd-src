@@ -200,11 +200,13 @@ ve_utc_set(time_t utc)
 	}
 }
 
+#ifdef VERIFY_CERTS_STR
 static void
 free_cert_contents(br_x509_certificate *xc)
 {
 	xfree(xc->data);
 }
+#endif
 
 /*
  * a bit of a dance to get commonName from a certificate
@@ -372,13 +374,15 @@ ve_trust_anchors_add_buf(unsigned char *buf, size_t len)
 	size_t num;
 
 	num = 0;
-	xcs = parse_certificates(buf, len, &num);
-	if (xcs != NULL) {
-		num = ve_trust_anchors_add(xcs, num);
+	if (len > 0) {
+		xcs = parse_certificates(buf, len, &num);
+		if (xcs != NULL) {
+			num = ve_trust_anchors_add(xcs, num);
 #ifdef VE_OPENPGP_SUPPORT
-	} else {
-		num = openpgp_trust_add_buf(buf, len);
+		} else {
+			num = openpgp_trust_add_buf(buf, len);
 #endif
+		}
 	}
 	return (num);
 }
@@ -398,15 +402,17 @@ ve_trust_anchors_revoke(unsigned char *buf, size_t len)
 	size_t num;
 
 	num = 0;
-	xcs = parse_certificates(buf, len, &num);
-	if (xcs != NULL) {
-		num = ve_forbidden_anchors_add(xcs, num);
+	if (len > 0) {
+		xcs = parse_certificates(buf, len, &num);
+		if (xcs != NULL) {
+			num = ve_forbidden_anchors_add(xcs, num);
 #ifdef VE_OPENPGP_SUPPORT
-	} else {
-		if (buf[len - 1] == '\n')
-			buf[len - 1] = '\0';
-		num = openpgp_trust_revoke((char *)buf);
+		} else {
+			if (buf[len - 1] == '\n')
+				buf[len - 1] = '\0';
+			num = openpgp_trust_revoke((char *)buf);
 #endif
+		}
 	}
 	return (num);
 }

@@ -26,6 +26,7 @@
 #include <sys/callout.h>
 #include <sys/endian.h>
 #include <sys/interrupt.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -184,15 +185,28 @@ vnet_pflowattach(void)
 VNET_SYSINIT(vnet_pflowattach, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY,
     vnet_pflowattach, NULL);
 
+static int
+pflow_jail_remove(void *obj, void *data __unused)
+{
+#ifdef VIMAGE
+	const struct prison *pr = obj;
+#endif
+	struct pflow_softc	*sc, *tmp;
+
+	CURVNET_SET(pr->pr_vnet);
+	CK_LIST_FOREACH_SAFE(sc, &V_pflowif_list, sc_next, tmp) {
+		pflow_destroy(sc->sc_id, false);
+	}
+	CURVNET_RESTORE();
+
+	return (0);
+}
+
 static void
 vnet_pflowdetach(void)
 {
-	struct pflow_softc	*sc;
 
-	CK_LIST_FOREACH(sc, &V_pflowif_list, sc_next) {
-		pflow_destroy(sc->sc_id, false);
-	}
-
+	/* Should have been done by pflow_jail_remove() */
 	MPASS(CK_LIST_EMPTY(&V_pflowif_list));
 	delete_unrhdr(V_pflow_unr);
 	mtx_destroy(&V_pflowif_list_mtx);
@@ -641,7 +655,7 @@ copy_flow_data(struct pflow_flow *flow1, struct pflow_flow *flow2,
 	    htonl(st->expire);
 	flow1->tcp_flags = flow2->tcp_flags = 0;
 	flow1->protocol = flow2->protocol = sk->proto;
-	flow1->tos = flow2->tos = st->rule.ptr->tos;
+	flow1->tos = flow2->tos = st->rule->tos;
 }
 
 static void
@@ -678,7 +692,7 @@ copy_flow_ipfix_4_data(struct pflow_ipfix_flow4 *flow1,
 	    (pf_get_uptime() - st->expire)));
 
 	flow1->protocol = flow2->protocol = sk->proto;
-	flow1->tos = flow2->tos = st->rule.ptr->tos;
+	flow1->tos = flow2->tos = st->rule->tos;
 }
 
 static void
@@ -717,7 +731,7 @@ copy_flow_ipfix_6_data(struct pflow_ipfix_flow6 *flow1,
 	    (pf_get_uptime() - st->expire)));
 
 	flow1->protocol = flow2->protocol = sk->proto;
-	flow1->tos = flow2->tos = st->rule.ptr->tos;
+	flow1->tos = flow2->tos = st->rule->tos;
 }
 
 static void
@@ -982,7 +996,8 @@ pflow_pack_flow_ipfix(const struct pf_kstate *st, struct pf_state_key *sk,
 	int				 ret = 0;
 	bool				 nat = false;
 
-	if (sk->af == AF_INET) {
+	switch (sk->af) {
+	case AF_INET:
 		bzero(&flow4_1, sizeof(flow4_1));
 		bzero(&flow4_2, sizeof(flow4_2));
 
@@ -1019,7 +1034,8 @@ pflow_pack_flow_ipfix(const struct pf_kstate *st, struct pf_state_key *sk,
 				    PFIX_NAT_EVENT_SESSION_DELETE, st->expire);
 			}
 		}
-	} else if (sk->af == AF_INET6) {
+		break;
+	case AF_INET6:
 		bzero(&flow6_1, sizeof(flow6_1));
 		bzero(&flow6_2, sizeof(flow6_2));
 
@@ -1035,6 +1051,7 @@ pflow_pack_flow_ipfix(const struct pf_kstate *st, struct pf_state_key *sk,
 
 		if (st->bytes[1] != 0) /* second flow from state */
 			ret = copy_flow_ipfix_6_to_m(&flow6_2, sc);
+		break;
 	}
 	return (ret);
 }
@@ -1199,7 +1216,7 @@ pflow_sendout_ipfix(struct pflow_softc *sc, enum pflow_family_t af)
 		    + sc->sc_count_nat4 * sizeof(struct pflow_ipfix_nat4);
 		break;
 	default:
-		panic("Unsupported AF %d", af);
+		unhandled_af(af);
 	}
 
 	pflowstat_inc(pflow_packets);
@@ -1372,15 +1389,12 @@ pflow_nl_create(struct nlmsghdr *hdr, struct nl_pstate *npt)
 struct pflow_parsed_del {
 	int id;
 };
-#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pflow_parsed_del, _field)
 static const struct nlattr_parser nla_p_del[] = {
 	{ .type = PFLOWNL_DEL_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
 };
-static const struct nlfield_parser nlf_p_del[] = {};
-#undef _IN
 #undef _OUT
-NL_DECLARE_PARSER(del_parser, struct genlmsghdr, nlf_p_del, nla_p_del);
+NL_DECLARE_PARSER(del_parser, struct genlmsghdr, nlf_p_empty, nla_p_del);
 
 static int
 pflow_nl_del(struct nlmsghdr *hdr, struct nl_pstate *npt)
@@ -1400,15 +1414,12 @@ pflow_nl_del(struct nlmsghdr *hdr, struct nl_pstate *npt)
 struct pflow_parsed_get {
 	int id;
 };
-#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pflow_parsed_get, _field)
 static const struct nlattr_parser nla_p_get[] = {
 	{ .type = PFLOWNL_GET_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
 };
-static const struct nlfield_parser nlf_p_get[] = {};
-#undef _IN
 #undef _OUT
-NL_DECLARE_PARSER(get_parser, struct genlmsghdr, nlf_p_get, nla_p_get);
+NL_DECLARE_PARSER(get_parser, struct genlmsghdr, nlf_p_empty, nla_p_get);
 
 static bool
 nlattr_add_sockaddr(struct nl_writer *nw, int attr, const struct sockaddr *s)
@@ -1433,7 +1444,7 @@ nlattr_add_sockaddr(struct nl_writer *nw, int attr, const struct sockaddr *s)
 		break;
 	}
 	default:
-		panic("Unknown address family %d", s->sa_family);
+		unhandled_af(s->sa_family);
 	}
 
 	nlattr_set_len(nw, off);
@@ -1541,7 +1552,6 @@ struct pflow_parsed_set {
 	struct sockaddr_storage dst;
 	uint32_t observation_dom;
 };
-#define	_IN(_field)	offsetof(struct genlmsghdr, _field)
 #define	_OUT(_field)	offsetof(struct pflow_parsed_set, _field)
 static const struct nlattr_parser nla_p_set[] = {
 	{ .type = PFLOWNL_SET_ID, .off = _OUT(id), .cb = nlattr_get_uint32 },
@@ -1550,10 +1560,8 @@ static const struct nlattr_parser nla_p_set[] = {
 	{ .type = PFLOWNL_SET_DST, .off = _OUT(dst), .arg = &addr_parser, .cb = nlattr_get_nested },
 	{ .type = PFLOWNL_SET_OBSERVATION_DOMAIN, .off = _OUT(observation_dom), .cb = nlattr_get_uint32 },
 };
-static const struct nlfield_parser nlf_p_set[] = {};
-#undef _IN
 #undef _OUT
-NL_DECLARE_PARSER(set_parser, struct genlmsghdr, nlf_p_set, nla_p_set);
+NL_DECLARE_PARSER(set_parser, struct genlmsghdr, nlf_p_empty, nla_p_set);
 
 static int
 pflow_set(struct pflow_softc *sc, const struct pflow_parsed_set *pflowr, struct ucred *cred)
@@ -1773,17 +1781,25 @@ static const struct nlhdr_parser *all_parsers[] = {
 	&set_parser,
 };
 
+static unsigned		pflow_do_osd_jail_slot;
+
+static uint16_t family_id;
 static int
 pflow_init(void)
 {
 	bool ret;
-	int family_id __diagused;
 
 	NL_VERIFY_PARSERS(all_parsers);
 
-	family_id = genl_register_family(PFLOWNL_FAMILY_NAME, 0, 2, PFLOWNL_CMD_MAX);
+	static osd_method_t methods[PR_MAXMETHOD] = {
+		[PR_METHOD_REMOVE] = pflow_jail_remove,
+	};
+	pflow_do_osd_jail_slot = osd_jail_register(NULL, methods);
+
+	family_id = genl_register_family(PFLOWNL_FAMILY_NAME, 0, 2,
+	    PFLOWNL_CMD_MAX);
 	MPASS(family_id != 0);
-	ret = genl_register_cmds(PFLOWNL_FAMILY_NAME, pflow_cmds, NL_ARRAY_LEN(pflow_cmds));
+	ret = genl_register_cmds(family_id, pflow_cmds, nitems(pflow_cmds));
 
 	return (ret ? 0 : ENODEV);
 }
@@ -1791,7 +1807,8 @@ pflow_init(void)
 static void
 pflow_uninit(void)
 {
-	genl_unregister_family(PFLOWNL_FAMILY_NAME);
+	osd_jail_deregister(pflow_do_osd_jail_slot);
+	genl_unregister_family(family_id);
 }
 
 static int

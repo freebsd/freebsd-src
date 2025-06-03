@@ -12,11 +12,13 @@
 .\" that you would have purchased it, or if any company wishes to
 .\" redistribute it, contributions to the authors would be appreciated.
 .\"
-.Dd September 25, 2020
+.Dd April 18, 2024
 .Dt VI 1
 .Os
 .Sh NAME
-.Nm ex , vi , view
+.Nm ex ,
+.Nm vi ,
+.Nm view
 .Nd text editors
 .Sh SYNOPSIS
 .Nm ex
@@ -302,7 +304,7 @@ Quit editing and leave
 (if you've modified the file, but not saved your changes,
 .Nm vi
 will refuse to quit).
-.It Cm :q!
+.It Cm :q\&!
 Quit, discarding any modifications that you may have made.
 .El
 .Pp
@@ -706,7 +708,7 @@ Execute the
 .Nm ex
 command being entered, or cancel it if it is only partial.
 .Pp
-.It Aq Cm control-]
+.It Aq Cm control-\(rB
 Push a tag reference onto the tag stack.
 .Pp
 .It Aq Cm control-\(ha
@@ -830,7 +832,7 @@ or
 to the position of the cursor before the last of the following commands:
 .Aq Cm control-A ,
 .Aq Cm control-T ,
-.Aq Cm control-] ,
+.Aq Cm control-\(rB ,
 .Cm % ,
 .Cm \(aq ,
 .Cm \` ,
@@ -1809,8 +1811,8 @@ Display buffers, Cscope connections, screens or tags.
 .Op Ar +cmd
 .Op Ar file
 .Xc
-Edit a different file. The capitalized command opens a new screen below the
-current screen.
+Edit a different file.
+The capitalized command opens a new screen below the current screen.
 .Pp
 .It Xo
 .Cm exu Ns Op Cm sage
@@ -1833,8 +1835,8 @@ Display and optionally change the file name.
 .Xc
 .Nm vi
 mode only.
-Foreground the specified screen. The capitalized command opens a new screen
-below the current screen.
+Foreground the specified screen.
+The capitalized command opens a new screen below the current screen.
 .Pp
 .It Xo
 .Op Ar range
@@ -1921,8 +1923,8 @@ Write the abbreviations, editor options and maps to the specified
 .Op Cm !\&
 .Op Ar
 .Xc
-Edit the next file from the argument list. The capitalized command opens a
-new screen below the current screen.
+Edit the next file from the argument list.
+The capitalized command opens a new screen below the current screen.
 .\" .Pp
 .\" .It Xo
 .\" .Op Ar line
@@ -1943,8 +1945,8 @@ option.
 .Cm rev Ns Op Cm ious Ns
 .Op Cm !\&
 .Xc
-Edit the previous file from the argument list. The capitalized command opens
-a new screen below the current screen.
+Edit the previous file from the argument list.
+The capitalized command opens a new screen below the current screen.
 .Pp
 .It Xo
 .Op Ar range
@@ -2107,8 +2109,8 @@ character is usually
 .Op Cm !\&
 .Ar tagstring
 .Xc
-Edit the file containing the specified tag. The capitalized command opens a
-new screen below the current screen.
+Edit the file containing the specified tag.
+The capitalized command opens a new screen below the current screen.
 .Pp
 .It Xo
 .Cm tagn Ns Op Cm ext Ns
@@ -2178,8 +2180,8 @@ Enter
 .Op Ar file
 .Xc
 .Nm vi
-mode only. Edit a different file by opening a new screen below the current
-screen.
+mode only.
+Edit a different file by opening a new screen below the current screen.
 .Pp
 .It Xo
 .Cm viu Ns Op Cm sage
@@ -2226,7 +2228,8 @@ Write the entire file, or
 .Sq !\&
 overwrites a different, preexisting file.
 .Sq >>
-appends to a file that may preexist. Whitespace followed by
+appends to a file that may preexist.
+Whitespace followed by
 .Sq !\&
 pipes the file to
 .Ar shell-command .
@@ -2479,7 +2482,7 @@ Set the number of lines about which the editor reports changes or yanks.
 .It Cm ruler Bq off
 .Nm vi
 only.
-Display a row/column ruler on the colon command line.
+Display a row/column/percentage ruler on the colon command line.
 .It Cm scroll , scr Bq "window size / 2"
 Set the number of lines scrolled.
 .It Cm searchincr Bq off
@@ -2505,6 +2508,10 @@ Set the meta characters checked to determine if file name expansion
 is necessary.
 .It Cm shiftwidth , sw Bq 8
 Set the autoindent and shift command indentation width.
+.It Cm showfilename Bq off
+.Nm vi
+only.
+Display the file name on the colon command line.
 .It Cm showmatch , sm Bq off
 .Nm vi
 only.
@@ -2773,10 +2780,8 @@ and \*(Gt0 if an error occurs.
 .Xr ctags 1 ,
 .Xr iconv 1 ,
 .Xr re_format 7
-.Rs
-.%T vi/ex reference manual
-.%U https://docs.freebsd.org/44doc/usd/13.viref/paper.pdf
-.Re
+.Pp
+.Lk https://docs.freebsd.org/44doc/usd/13.viref/paper.pdf "Vi/Ex Reference Manual"
 .Sh STANDARDS
 .Nm nex Ns / Ns Nm nvi
 is close to

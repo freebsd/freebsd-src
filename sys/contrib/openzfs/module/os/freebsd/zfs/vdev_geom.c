@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -1014,21 +1015,6 @@ vdev_geom_io_intr(struct bio *bp)
 		zio->io_error = SET_ERROR(EIO);
 
 	switch (zio->io_error) {
-	case ENOTSUP:
-		/*
-		 * If we get ENOTSUP for BIO_FLUSH or BIO_DELETE we know
-		 * that future attempts will never succeed. In this case
-		 * we set a persistent flag so that we don't bother with
-		 * requests in the future.
-		 */
-		switch (bp->bio_cmd) {
-		case BIO_FLUSH:
-			vd->vdev_nowritecache = B_TRUE;
-			break;
-		case BIO_DELETE:
-			break;
-		}
-		break;
 	case ENXIO:
 		if (!vd->vdev_remove_wanted) {
 			/*
@@ -1255,7 +1241,16 @@ vdev_geom_io_done(zio_t *zio)
 	}
 
 	if (bp == NULL) {
-		ASSERT3S(zio->io_error, ==, ENXIO);
+		if (zio_injection_enabled && zio->io_error == EIO)
+			/*
+			 * Convert an injected EIO to ENXIO. This is needed to
+			 * work around zio_handle_device_injection_impl() not
+			 * currently being able to inject ENXIO directly, while
+			 * the assertion below only allows ENXIO here.
+			 */
+			zio->io_error = SET_ERROR(ENXIO);
+		else
+			ASSERT3S(zio->io_error, ==, ENXIO);
 		return;
 	}
 
@@ -1290,7 +1285,8 @@ vdev_ops_t vdev_disk_ops = {
 	.vdev_op_fini = NULL,
 	.vdev_op_open = vdev_geom_open,
 	.vdev_op_close = vdev_geom_close,
-	.vdev_op_asize = vdev_default_asize,
+	.vdev_op_psize_to_asize = vdev_default_asize,
+	.vdev_op_asize_to_psize = vdev_default_psize,
 	.vdev_op_min_asize = vdev_default_min_asize,
 	.vdev_op_min_alloc = NULL,
 	.vdev_op_io_start = vdev_geom_io_start,

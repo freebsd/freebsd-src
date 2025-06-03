@@ -1,7 +1,7 @@
 /*
  * dotest.c - actually generate mathlib test cases
  *
- * Copyright (c) 1999-2019, Arm Limited.
+ * Copyright (c) 1999-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -17,6 +17,35 @@
 #include "random.h"
 
 #define MPFR_PREC 96 /* good enough for float or double + a few extra bits */
+
+#if MPFR_VERSION < MPFR_VERSION_NUM(4, 2, 0)
+int
+mpfr_tanpi (mpfr_t ret, const mpfr_t arg, mpfr_rnd_t rnd)
+{
+  MPFR_DECL_INIT (frd, MPFR_PREC);
+  mpfr_const_pi (frd, GMP_RNDN);
+  mpfr_mul (frd, frd, arg, GMP_RNDN);
+  return mpfr_tan (ret, frd, GMP_RNDN);
+}
+
+int
+mpfr_sinpi (mpfr_t ret, const mpfr_t arg, mpfr_rnd_t rnd)
+{
+  MPFR_DECL_INIT (frd, MPFR_PREC);
+  mpfr_const_pi (frd, GMP_RNDN);
+  mpfr_mul (frd, frd, arg, GMP_RNDN);
+  return mpfr_sin (ret, frd, GMP_RNDN);
+}
+
+int
+mpfr_cospi (mpfr_t ret, const mpfr_t arg, mpfr_rnd_t rnd)
+{
+  MPFR_DECL_INIT (frd, MPFR_PREC);
+  mpfr_const_pi (frd, GMP_RNDN);
+  mpfr_mul (frd, frd, arg, GMP_RNDN);
+  return mpfr_cos (ret, frd, GMP_RNDN);
+}
+#endif
 
 extern int lib_fo, lib_no_arith, ntests;
 
@@ -454,6 +483,7 @@ void universal_wrapper(wrapperctx *ctx)
     }
 }
 
+/* clang-format off */
 Testable functions[] = {
     /*
      * Trig functions: sin, cos, tan. We test the core function
@@ -478,6 +508,18 @@ Testable functions[] = {
     {"sincosf_sinf", (funcptr)mpfr_sin, args1f, {NULL},
         cases_uniform_float, 0x39800000, 0x41800000},
     {"sincosf_cosf", (funcptr)mpfr_cos, args1f, {NULL},
+        cases_uniform_float, 0x39800000, 0x41800000},
+    {"sinpi", (funcptr)mpfr_sinpi, args1, {NULL},
+        cases_uniform, 0x3e400000, 0x40300000},
+    {"sinpif", (funcptr)mpfr_sinpi, args1f, {NULL},
+        cases_uniform_float, 0x39800000, 0x41800000},
+    {"cospi", (funcptr)mpfr_cospi, args1, {NULL},
+        cases_uniform, 0x3e400000, 0x40300000},
+    {"cospif", (funcptr)mpfr_cospi, args1f, {NULL},
+        cases_uniform_float, 0x39800000, 0x41800000},
+    {"tanpi", (funcptr)mpfr_tanpi, args1, {NULL},
+        cases_uniform, 0x3e400000, 0x40300000},
+    {"tanpif", (funcptr)mpfr_tanpi, args1f, {NULL},
         cases_uniform_float, 0x39800000, 0x41800000},
     /*
      * Inverse trig: asin, acos. Between 1 and -1, of course. acos
@@ -708,6 +750,7 @@ Testable functions[] = {
     {"tgammaf", (funcptr)mpfr_gamma, args1f, {NULL}, cases_uniform_float, 0x2f800000, 0x43000000},
     {"tgamma", (funcptr)mpfr_gamma, args1, {NULL}, cases_uniform, 0x3c000000, 0x40800000},
 };
+/* clang-format on */
 
 const int nfunctions = ( sizeof(functions)/sizeof(*functions) );
 

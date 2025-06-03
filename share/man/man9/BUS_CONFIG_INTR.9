@@ -23,12 +23,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 15, 2017
+.Dd January 16, 2025
 .Dt BUS_CONFIG_INTR 9
 .Os
 .\"
 .Sh NAME
-.Nm BUS_CONFIG_INTR
+.Nm BUS_CONFIG_INTR ,
+.Nm bus_config_intr
 .Nd "configure interrupt polarity and trigger mode"
 .\"
 .Sh SYNOPSIS
@@ -36,9 +37,13 @@
 .In sys/bus.h
 .Ft int
 .Fo BUS_CONFIG_INTR
+.Fa "device_t bus" "device_t dev" "int irq" "enum intr_trigger trig"
+.Fa "enum intr_polarity pol"
+.Fc
+.Ft int
+.Fo bus_config_intr
 .Fa "device_t dev" "int irq" "enum intr_trigger trig" "enum intr_polarity pol"
 .Fc
-.\"
 .Sh DESCRIPTION
 The
 .Fn BUS_CONFIG_INTR
@@ -51,6 +56,11 @@ Since the
 method takes an interrupt number, it is assumed but not necessarily required
 that it is called prior to
 .Xr BUS_SETUP_INTR 9 .
+.Pp
+The
+.Fn bus_config_intr
+function is a simple wrapper around
+.Fn BUS_CONFIG_INTR .
 .Pp
 The
 .Fa trig

@@ -35,12 +35,11 @@ ipsend \- sends IP packets
 <\fIwindow\fP>
 ] <destination> [TCP-flags]
 .SH DESCRIPTION
-.PP
 \fBipsend\fP can be compiled in two ways.  The first is used to send one-off
 packets to a destination host, using command line options to specify various
 attributes present in the headers.  The \fIdestination\fP must be given as
 the last command line option, except for when TCP flags are specified as
-a combination of A, S, F, U, P and R, last.
+a combination of A, S, F, U, P, R, E, W and e, last.
 .PP
 The other way it may be compiled, with DOSOCKET defined, is to allow an
 attempt at making a TCP connection using a with ipsend resending the SYN
@@ -103,8 +102,6 @@ enable verbose mode.
 .SH SEE ALSO
 ipsend(1), ipresend(1), iptest(1), protocols(4), bpf(4), dlpi(7p)
 .SH DIAGNOSTICS
-.PP
 Needs to be run as root.
 .SH BUGS
-.PP
 If you find any, please send email to me at darrenr@pobox.com

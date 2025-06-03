@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: firmware,v 1.7 2023/03/11 18:52:03 christos Exp $
+# $File: firmware,v 1.13 2024/09/04 19:04:03 christos Exp $
 # firmware:  file(1) magic for firmware files
 #
 
@@ -111,11 +111,20 @@
 
 # ESP-IDF application image
 # From: Alexandre Iooss <erdnaxe@crans.org>
+# Update:	Joerg Jenderek
 # URL: https://github.com/espressif/esp-idf/blob/v5.0/components/bootloader_support/include/esp_app_format.h
+# Reference:	https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/app_image_format.html
 # Note: Concatenation of esp_image_header_t, esp_image_segment_header_t and esp_app_desc_t
 # 	First segment contains esp_app_desc_t
+# ESP_IMAGE_HEADER_MAGIC at the beginning of esp_image_header_t structure
 0	ubyte		0xE9
+# display ESP-IDF application image (strength=40=40+0) before DOS executable with 16bit JuMP (strength=40) handled by ./msdos
+#!:strength	+0
+# ESP_APP_DESC_MAGIC_WORD; magic for the esp_app_desc_t structure
 >32	ulelong		0xABCD5432	ESP-IDF application image
+#!:mime	application/octet-stream
+!:mime	application/x-espressif-bin
+!:ext	bin
 >>12	uleshort	0x0000		for ESP32
 >>12	uleshort	0x0002		for ESP32-S2
 >>12	uleshort	0x0005		for ESP32-C3
@@ -131,3 +140,138 @@
 >>>112	string/16	x		%s
 >>144	string/32	x		\b, IDF version: %s
 >>4	ulelong		x		\b, entry address: 0x%08X
+
+# AVR firmware
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# URL: https://microchipdeveloper.com/8avr:int
+# Match 4-byte JMP for Reset, Int0-2, PcInt0-3 and WDT
+0		uleshort&0xFE0E	0x940C
+>4		uleshort&0xFE0E	0x940C
+>>8		uleshort&0XFE0E	0x940C
+>>>12		uleshort&0XFE0E	0x940C
+>>>>16		uleshort&0XFE0E	0x940C
+>>>>>20		uleshort&0XFE0E	0x940C
+>>>>>>24	uleshort&0XFE0E	0x940C
+>>>>>>>28	uleshort&0XFE0E	0x940C
+>>>>>>>>32	uleshort&0XFE0E	0x940C	AVR firmware
+# Handle only 16-bit addressing
+>>>>>>>>>0	uleshort	0x940C
+>>>>>>>>>>2	uleshort	x	\b, reset at 0x%04x
+# Match 2-byte RJMP for Reset, Int0-2, PcInt0-3 and WDT for smaller AVR
+1		byte&0xF0	0xC0
+>3		byte&0xF0	0xC0
+>>5		byte&0xF0	0xC0
+>>>7		byte&0xF0	0xC0
+>>>>9		byte&0xF0	0xC0
+>>>>>11		byte&0xF0	0xC0
+>>>>>>13	byte&0xF0	0xC0
+>>>>>>>15	byte&0xF0	0xC0
+>>>>>>>>17	byte&0xF0	0xC0	AVR firmware
+>>>>>>>>>0	uleshort&0x0FFF	x	\b, reset at 0x%04x
+
+# Summary:	Intel HEXadecimal file format
+# URL:		https://en.wikipedia.org/wiki/Intel_HEX
+# Reference:	http://www.piclist.com/techref/fileext/hex/intel.htm
+#		http://mark0.net/download/triddefs_xml.7z/defs/h/hex-intel.trid.xml
+# From:		Joerg Jenderek
+# Note:		called "Intel Hexadecimal object format" by TrID, "Intel® hexadecimal object file" on Linux
+#		and "Intel HEX binary data" by Notepad++
+# look for start code; 1 character, an ASCII colon ':'; all characters preceding this symbol should be ignored
+0	ubyte		0x3A
+# check for valid record type string with range 00 - 05 (3030h - 3035h)
+>&6	ubeshort&0xFFf8	=0x3030
+# check for valid record length string like: 02 04 08 10h 20h 03 (usbdload.hex usbdldv2.hex from Windows Vista)
+#>>1	string		x		LENGTH_STRING=%0.2s
+#>>1	ubeshort	x		LENGTH=%#4.4x
+>>&-8	ubeshort&0xFCf0	=0x3030
+>>>0	use		intel-hex
+#	display information (offset, record length and type) of Intel HEX
+0	name		intel-hex
+# RECORD MARK
+>0	ubyte		x		Intel hexadecimal object
+#!:mime	text/plain
+!:mime	text/x-hex
+!:ext	hex
+# no samples with other suffix found
+# .hex .mcs .int .ihex .ihe .ihx .h80 .h86 .a43 .a90 .obj .obl .obh .rom .eep
+# .hxl-.hxh .h00-.h15 .p00-.pff
+# RECLEN; 2 hex digits for number of bytes in 1st data field; like 0x02 0x03 0x04 0x08 0x10 0x20; maximum 255
+>1	string		x		\b, 0x%2.2s record length
+# OFFSET; 4 hex digits for 1st 16-bit memory offset of data like: 0000 (often) 1C00h 1E00h 3800h 3E00h 76EDh 7800h 7E00h ...
+>3	string		x		\b, 0x%4.4s offset
+# RECTYP; 2 hex digits (00 - 05); meaning of 1st data field; 00~DataRecord (often) 0l~EndOfFileRecord 02~ExtendedSegmentAddressRecord 03~StartSegmentAddressRecord 04~ExtendedLinearAddressRecord 05~StartLinearAddressRecord
+>7	string		x		\b, '%2.2s' type
+# DATA; n bytes of 1st data represented by 2n hex digits followed by 1 byte checksum
+>9	string		x		\b, data+checksum %s
+# last record :00000001FF with RECLEN 0, OFFSET 0, record type 01 for EndOfFile and 1 checksum byte FF
+# samples with CarriageReturnLineFeed terminator
+>-2	ubeshort	=0x0d0a
+# This should not happen!
+>>-13	string		!:00000001FF	\b, last line %s
+>-2	ubeshort	!0x0d0a
+# samples with LineFeed terminator
+>>-1	ubyte		=0x0a
+# This should not happen!
+>>>-12	string		!:00000001FF	\b, last line %s
+
+# Raspberry Pi RP2040 firmware
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# Note: RP2040 flash image starts with stage2 bootloader, then a vector table.
+# URL: https://github.com/raspberrypi/pico-sdk/tree/1.5.1/src/rp2_common/boot_stage2
+# boot2_*.S code (_stage2_boot)
+0		ulelong			0x4B32B500
+>4		ulelong			0x60582021
+>>8		ulelong			0x21026898
+# exit_from_boot2.S code (check_return) `pop {r0}; cmp r0, #0`
+>>>148		ulelong			0x2800bc01
+# Cortex-M vector table with reserved section filled with a default interrupt address
+>>>>259		byte			0x20
+# make sure required vector table entries are ARM Thumb and in flash
+>>>>>260	ulelong&0xE0000001	1
+>>>>>>264	ulelong&0xE0000001	1
+>>>>>>>268	ulelong&0xE0000001	1
+>>>>>>>>300	ulelong&0xE0000001	1
+>>>>>>>>>312	ulelong&0xE0000001	1		Raspberry Pi RP2040 firmware
+>>>>>>>>>>256	ulelong			>0		\b, initial SP at 0x%08x
+>>>>>>>>>>260	ulelong^1		x		\b, reset at 0x%08x
+>>>>>>>>>>264	ulelong^1		x		\b, NMI at 0x%08x
+>>>>>>>>>>268	ulelong^1		x		\b, HardFault at 0x%08x
+>>>>>>>>>>300	ulelong^1		x		\b, SVCall at 0x%08x
+>>>>>>>>>>312	ulelong^1		x		\b, PendSV at 0x%08x
+# optional binary_info in the first 256 bytes, used by picotool
+# https://github.com/raspberrypi/pico-sdk/blob/master/src/common/pico_binary_info/include/pico/binary_info/defs.h
+>>>>>>>>>>256	search/256		\xf2\xeb\x88\x71	\b, with binary_info
+
+# Silicon Labs Gecko Bootloader update image
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# Reference: https://github.com/raboof/gbl
+#            https://github.com/dsyx/emberznet-doc
+# Note: TLV always starting with tag 0x03A617EB of length 8
+0	ulelong		0x03A617EB
+>4	ulelong		8		Silicon Labs Gecko bootloader update image
+!:ext	gbl
+>>12	byte		1		\b, encrypted (AES-CTR-128)
+>>13	byte		1		\b, signed (ECDSA-P256)
+# If not encrypted, indicate first image type
+>>16	ulelong		0xF40A0AF4	\b, application image
+>>16	ulelong		0xF50909F5	\b, bootloader image
+
+# Silicon Labs Gecko Bootloader OTA update with Zigbee EmberZNet SDK
+# URL: https://github.com/SiliconLabs/gecko_sdk
+0	ulelong		0x0BEEF11E
+>6	ulelong		0x38		Silicon Labs Gecko EmberZNet OTA image
+!:ext	ota/zigbee
+>>4	ubeshort	x		v%d
+
+# Device Firmware Upgrade with ST STMicroelectronics extensions
+# From: Alexandre Iooss <erdnaxe@crans.org>
+# Reference: STMicroelectronics note UM0391
+# Reference: https://dfu-util.sourceforge.net/dfuse.html
+# DFU prefix
+0	string		DfuSe\x01	DFU image (STM variant)
+!:ext	dfu
+>6	ulelong		x		\b, size: %d bytes
+# DFU suffix, specification 0x011A
+>-10	string		\x1A\x01UFD
+>>-12	uleshort	x		\b, for device %04X:
+>>-14	uleshort	x		\b%04X

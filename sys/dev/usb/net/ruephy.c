@@ -27,7 +27,6 @@
  *
  */
 
-#include <sys/cdefs.h>
 /*
  * driver for RealTek RTL8150 internal PHY
  */

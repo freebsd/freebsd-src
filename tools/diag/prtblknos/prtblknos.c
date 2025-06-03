@@ -33,10 +33,6 @@
 #include <libufs.h>
 
 #ifdef PRTBLKNOS
-union dinode {
-	struct ufs1_dinode dp1;
-	struct ufs2_dinode dp2;
-};
 extern struct uufsd disk;
 #else /* used by fsdb */
 #include <fsck.h>

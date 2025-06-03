@@ -245,10 +245,10 @@ ieee80211_scan_update_locked(struct ieee80211vap *vap,
 		    "%s: current scanner is <%s:%s>, switch to <%s:%s>\n",
 		    __func__,
 		    ss->ss_vap != NULL ?
-			ss->ss_vap->iv_ifp->if_xname : "none",
+		        ieee80211_get_vap_ifname(ss->ss_vap) : "none",
 		    ss->ss_vap != NULL ?
 			ieee80211_opmode_name[ss->ss_vap->iv_opmode] : "none",
-		    vap->iv_ifp->if_xname,
+		    ieee80211_get_vap_ifname(vap),
 		    ieee80211_opmode_name[vap->iv_opmode]);
 	}
 #endif
@@ -427,6 +427,19 @@ ieee80211_bg_scan(struct ieee80211vap *vap, int flags)
 	const struct ieee80211_scanner *scan;
 
 	// IEEE80211_UNLOCK_ASSERT(sc);
+
+	/*
+	 * If the driver has not announced BGSCAN capabilities
+	 * or BGSCAN is disabled do not attempt to start a bg_scan.
+	 * IEEE80211_F_BGSCAN only gets set if IEEE80211_C_BGSCAN
+	 * was set by the driver, so no need to check for both here.
+	 */
+	if ((vap->iv_flags & IEEE80211_F_BGSCAN) == 0) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+		    "%s: BGSCAN not enabled; not starting bg_scan\n",
+		    __func__);
+		return (0);
+	}
 
 	scan = ieee80211_scanner_get(vap->iv_opmode);
 	if (scan == NULL) {

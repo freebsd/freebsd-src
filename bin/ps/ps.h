@@ -32,7 +32,8 @@
 #include <sys/queue.h>
 
 #define	UNLIMITED	0	/* unlimited terminal width */
-enum type { CHAR, UCHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, KPTR, PGTOK };
+enum type { UNSPEC, /* For output routines that don't care and aliases. */
+	    CHAR, UCHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, KPTR, PGTOK };
 
 typedef struct kinfo_str {
 	STAILQ_ENTRY(kinfo_str) ks_next;
@@ -53,25 +54,39 @@ typedef struct kinfo {
 	STAILQ_HEAD(, kinfo_str) ki_ks;
 } KINFO;
 
-/* Variables. */
+/* Keywords/variables to be printed. */
 typedef struct varent {
-	STAILQ_ENTRY(varent) next_ve;
-	const char *header;
-	struct var *var;
+	STAILQ_ENTRY(varent)	 next_ve;
+	const char		*header;
+	const struct var	*var;
+	u_int			 width;
+#define VE_KEEP		(1 << 0)
+	uint16_t		flags;
 } VARENT;
+STAILQ_HEAD(velisthead, varent);
 
-typedef struct var {
+struct var;
+typedef struct var VAR;
+/* Structure representing one available keyword. */
+struct var {
 	const char *name;	/* name(s) of variable */
+	union {
+		/* Valid field depends on RESOLVED_ALIAS' presence. */
+		const char	*aliased; /* keyword this one is an alias to */
+		const VAR	*final_kw; /* final aliased keyword */
+	};
 	const char *header;	/* default header */
-	const char *alias;	/* aliases */
 	const char *field;	/* xo field name */
-#define	COMM	0x01		/* needs exec arguments and environment (XXX) */
-#define	LJUST	0x02		/* left adjust on output (trailing blanks) */
-#define	USER	0x04		/* needs user structure */
-#define	INF127	0x10		/* values >127 displayed as 127 */
+#define COMM		0x01	/* needs exec arguments and environment (XXX) */
+#define LJUST		0x02	/* left adjust on output (trailing blanks) */
+#define USER		0x04	/* needs user structure */
+#define INF127		0x10	/* values >127 displayed as 127 */
+#define NOINHERIT	0x1000	/* Don't inherit flags from aliased keyword. */
+#define RESOLVING_ALIAS	0x10000	/* Used transiently to resolve aliases. */
+#define RESOLVED_ALIAS	0x20000	/* Mark that an alias has been resolved. */
 	u_int	flag;
-				/* output routine */
-	char 	*(*oproc)(struct kinfo *, struct varent *);
+	/* output routine */
+	char	*(*oproc)(struct kinfo *, struct varent *);
 	/*
 	 * The following (optional) elements are hooks for passing information
 	 * to the generic output routine pvar (which prints simple elements
@@ -79,9 +94,7 @@ typedef struct var {
 	 */
 	size_t	off;		/* offset in structure */
 	enum	type type;	/* type of element */
-	const char *fmt;	/* printf format */
-
-	short	width;		/* calculated width */
-} VAR;
+	const char *fmt;	/* printf format (depends on output routine) */
+};
 
 #include "extern.h"

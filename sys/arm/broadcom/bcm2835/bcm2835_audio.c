@@ -867,14 +867,14 @@ bcm2835_audio_delayed_init(void *xsc)
 		goto no;
 	}
 
-    	if (pcm_register(sc->dev, sc, 1, 0)) {
-		device_printf(sc->dev, "pcm_register failed\n");
-		goto no;
-	}
+	pcm_init(sc->dev, sc);
 
 	pcm_addchan(sc->dev, PCMDIR_PLAY, &bcmchan_class, sc);
     	snprintf(status, SND_STATUSLEN, "at VCHIQ");
-	pcm_setstatus(sc->dev, status);
+	if (pcm_register(sc->dev, status)) {
+		device_printf(sc->dev, "pcm_register failed\n");
+		goto no;
+	}
 
 	bcm2835_audio_reset_channel(&sc->pch);
 	bcm2835_audio_create_worker(sc);

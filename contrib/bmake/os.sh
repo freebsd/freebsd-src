@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.64 2024/03/19 16:03:23 sjg Exp $
+#	$Id: os.sh,v 1.67 2025/02/13 21:04:34 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -38,8 +38,12 @@ _OS_SH=:
 OS=`uname`
 OSREL=`uname -r`
 OSMAJOR=`IFS=.; set $OSREL; echo $1`
-MACHINE=`uname -m`
-MACHINE_ARCH=`uname -p 2>/dev/null || echo $MACHINE`
+# we want to retain the raw output from uname -m and -p
+OS_MACHINE=`uname -m`
+OS_MACHINE_ARCH=`uname -p 2>/dev/null || echo $OS_MACHINE`
+
+MACHINE=$OS_MACHINE
+MACHINE_ARCH=$OS_MACHINE_ARCH
 
 # there is at least one case of `uname -p`
 # and even `uname -m` outputting usless info
@@ -223,10 +227,11 @@ MACHINE_ARCH=${MACHINE_ARCH:-$MACHINE}
 HOST_ARCH=${HOST_ARCH:-$MACHINE_ARCH}
 case "$HOST_ARCH" in
 x86*64|amd64) MACHINE32_ARCH=i386;;
-*64) MACHINE32_ARCH=`echo $MACHINE_ARCH | sed 's,64,32,'`;;
+*64) MACHINE32_ARCH=${MACHINE32_ARCH:-`echo $MACHINE_ARCH | sed 's,64,32,'`};;
 *) MACHINE32_ARCH=$MACHINE_ARCH;;
 esac
 HOST_ARCH32=${HOST_ARCH32:-$MACHINE32_ARCH}
+export HOST_ARCH HOST_ARCH32
 # we mount server:/share/arch/$SHARE_ARCH as /usr/local
 SHARE_ARCH_DEFAULT=$OS/$OSMAJOR.X/$HOST_ARCH
 SHARE_ARCH=${SHARE_ARCH:-$SHARE_ARCH_DEFAULT}
@@ -238,10 +243,12 @@ HOST_TARGET=`echo ${OS}${OSMAJOR}-$HOST_ARCH | tr -d / | toLower`
 HOST_TARGET32=`echo ${OS}${OSMAJOR}-$HOST_ARCH32 | tr -d / | toLower`
 export HOST_TARGET HOST_TARGET32
 
+case `echo -e .` in -e*) echo_e=;; *) echo_e=-e;; esac
 case `echo -n .` in -n*) echo_n=; echo_c="\c";; *) echo_n=-n; echo_c=;; esac
 
 Echo() {
 	case "$1" in
+	-e) shift; echo $echo_e "$@";;
 	-n) shift; echo $echo_n "$@$echo_c";;
 	*)  echo "$@";;
 	esac
@@ -269,4 +276,3 @@ case /$0 in
 */host_target32) echo $HOST_TARGET32;;
 */host_target) echo $HOST_TARGET;;
 esac
-

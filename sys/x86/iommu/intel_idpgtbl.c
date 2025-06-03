@@ -30,12 +30,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
+#include <sys/domainset.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/memdesc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -55,6 +56,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_map.h>
+#include <vm/vm_radix.h>
 #include <dev/pci/pcireg.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
@@ -164,6 +166,7 @@ dmar_idmap_nextlvl(struct idpgtbl *tbl, int lvl, vm_pindex_t idx,
 vm_object_t
 dmar_get_idmap_pgtbl(struct dmar_domain *domain, iommu_gaddr_t maxaddr)
 {
+	struct pctrie_iter pages;
 	struct dmar_unit *unit;
 	struct idpgtbl *tbl;
 	vm_object_t res;
@@ -231,6 +234,10 @@ dmar_get_idmap_pgtbl(struct dmar_domain *domain, iommu_gaddr_t maxaddr)
 	tbl->maxaddr = maxaddr;
 	tbl->pgtbl_obj = vm_pager_allocate(OBJT_PHYS, NULL,
 	    IDX_TO_OFF(pglvl_max_pages(tbl->pglvl)), 0, 0, NULL);
+	/*
+	 * Do not set NUMA policy, the identity table might be used
+	 * by more than one unit.
+	 */
 	VM_OBJECT_WLOCK(tbl->pgtbl_obj);
 	dmar_idmap_nextlvl(tbl, 0, 0, 0);
 	VM_OBJECT_WUNLOCK(tbl->pgtbl_obj);
@@ -255,9 +262,9 @@ end:
 	 */
 	unit = domain->dmar;
 	if (!DMAR_IS_COHERENT(unit)) {
+		vm_page_iter_init(&pages, res);
 		VM_OBJECT_WLOCK(res);
-		for (m = vm_page_lookup(res, 0); m != NULL;
-		     m = vm_page_next(m))
+		VM_RADIX_FORALL(m, &pages)
 			pmap_invalidate_cache_pages(&m, 1);
 		VM_OBJECT_WUNLOCK(res);
 	}
@@ -675,27 +682,34 @@ int
 dmar_domain_alloc_pgtbl(struct dmar_domain *domain)
 {
 	vm_page_t m;
+	struct dmar_unit *unit;
 
 	KASSERT(domain->pgtbl_obj == NULL,
 	    ("already initialized %p", domain));
 
+	unit = domain->dmar;
 	domain->pgtbl_obj = vm_pager_allocate(OBJT_PHYS, NULL,
 	    IDX_TO_OFF(pglvl_max_pages(domain->pglvl)), 0, 0, NULL);
+	if (unit->memdomain != -1) {
+		domain->pgtbl_obj->domain.dr_policy = DOMAINSET_PREF(
+		    unit->memdomain);
+	}
 	DMAR_DOMAIN_PGLOCK(domain);
 	m = iommu_pgalloc(domain->pgtbl_obj, 0, IOMMU_PGF_WAITOK |
 	    IOMMU_PGF_ZERO | IOMMU_PGF_OBJL);
 	/* No implicit free of the top level page table page. */
 	vm_page_wire(m);
 	DMAR_DOMAIN_PGUNLOCK(domain);
-	DMAR_LOCK(domain->dmar);
+	DMAR_LOCK(unit);
 	domain->iodom.flags |= IOMMU_DOMAIN_PGTBL_INITED;
-	DMAR_UNLOCK(domain->dmar);
+	DMAR_UNLOCK(unit);
 	return (0);
 }
 
 void
 dmar_domain_free_pgtbl(struct dmar_domain *domain)
 {
+	struct pctrie_iter pages;
 	vm_object_t obj;
 	vm_page_t m;
 
@@ -717,7 +731,8 @@ dmar_domain_free_pgtbl(struct dmar_domain *domain)
 
 	/* Obliterate ref_counts */
 	VM_OBJECT_ASSERT_WLOCKED(obj);
-	for (m = vm_page_lookup(obj, 0); m != NULL; m = vm_page_next(m)) {
+	vm_page_iter_init(&pages, obj);
+	VM_RADIX_FORALL(m, &pages) {
 		vm_page_clearref(m);
 		vm_wire_sub(1);
 	}

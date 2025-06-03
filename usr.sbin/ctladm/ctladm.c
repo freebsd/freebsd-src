@@ -3227,14 +3227,17 @@ bailout:
 	return (retval);
 }
 
-/*
- * Name/value pair used for per-LUN attributes.
- */
-struct cctl_lun_nv {
-	char *name;
-	char *value;
-	STAILQ_ENTRY(cctl_lun_nv) links;
-};
+/* Helper function to output values from an nvlist of strings. */
+static void
+print_nvlist(const nvlist_t *nvl, const char *fmt)
+{
+	const char *name;
+	void *cookie;
+
+	cookie = NULL;
+	while ((name = nvlist_next(nvl, NULL, &cookie)) != NULL)
+		printf(fmt, name, nvlist_get_string(nvl, name));
+}
 
 /*
  * Backend LUN information.
@@ -3246,7 +3249,7 @@ struct cctl_lun {
 	uint32_t blocksize;
 	char *serial_number;
 	char *device_id;
-	STAILQ_HEAD(,cctl_lun_nv) attr_list;
+	nvlist_t *attr_list;
 	STAILQ_ENTRY(cctl_lun) links;
 };
 
@@ -3288,7 +3291,7 @@ cctl_start_element(void *user_data, const char *name, const char **attr)
 		devlist->num_luns++;
 		devlist->cur_lun = cur_lun;
 
-		STAILQ_INIT(&cur_lun->attr_list);
+		cur_lun->attr_list = nvlist_create(NV_FLAG_NO_UNIQUE);
 		STAILQ_INSERT_TAIL(&devlist->lun_list, cur_lun, links);
 
 		for (i = 0; attr[i] != NULL; i += 2) {
@@ -3308,6 +3311,7 @@ cctl_end_element(void *user_data, const char *name)
 	struct cctl_devlist_data *devlist;
 	struct cctl_lun *cur_lun;
 	char *str;
+	int error;
 
 	devlist = (struct cctl_devlist_data *)user_data;
 	cur_lun = devlist->cur_lun;
@@ -3354,21 +3358,12 @@ cctl_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "ctllunlist") == 0) {
 		/* Nothing. */
 	} else {
-		struct cctl_lun_nv *nv;
-
-		nv = calloc(1, sizeof(*nv));
-		if (nv == NULL)
-			err(1, "%s: can't allocate %zd bytes for nv pair",
-			    __func__, sizeof(*nv));
-
-		nv->name = strdup(name);
-		if (nv->name == NULL)
-			err(1, "%s: can't allocated %zd bytes for string",
-			    __func__, strlen(name));
-
-		nv->value = str;
+		nvlist_move_string(cur_lun->attr_list, name, str);
+		error = nvlist_error(cur_lun->attr_list);
+		if (error != 0)
+			errc(1, error, "%s: can't add lun attribute nv pair",
+			    __func__);
 		str = NULL;
-		STAILQ_INSERT_TAIL(&cur_lun->attr_list, nv, links);
 	}
 
 	free(str);
@@ -3472,8 +3467,6 @@ retry:
 	printf("LUN Backend  %18s %4s %-16s %-16s\n", "Size (Blocks)", "BS",
 	       "Serial Number", "Device ID");
 	STAILQ_FOREACH(lun, &devlist.lun_list, links) {
-		struct cctl_lun_nv *nv;
-
 		if ((backend != NULL)
 		 && (strcmp(lun->backend_type, backend) != 0))
 			continue;
@@ -3486,9 +3479,7 @@ retry:
 		if (verbose == 0)
 			continue;
 
-		STAILQ_FOREACH(nv, &lun->attr_list, links) {
-			printf("      %s=%s\n", nv->name, nv->value);
-		}
+		print_nvlist(lun->attr_list, "      %s=%s\n");
 	}
 bailout:
 	free(lun_str);
@@ -3505,10 +3496,11 @@ struct cctl_port {
 	char *frontend_type;
 	char *name;
 	int pp, vp;
-	char *target, *port, *lun_map;
-	STAILQ_HEAD(,cctl_lun_nv) init_list;
-	STAILQ_HEAD(,cctl_lun_nv) lun_list;
-	STAILQ_HEAD(,cctl_lun_nv) attr_list;
+	char *controller, *target, *port, *lun_map;
+	nvlist_t *host_list;
+	nvlist_t *init_list;
+	nvlist_t *lun_list;
+	nvlist_t *attr_list;
 	STAILQ_ENTRY(cctl_port) links;
 };
 
@@ -3559,9 +3551,10 @@ cctl_start_pelement(void *user_data, const char *name, const char **attr)
 		portlist->num_ports++;
 		portlist->cur_port = cur_port;
 
-		STAILQ_INIT(&cur_port->init_list);
-		STAILQ_INIT(&cur_port->lun_list);
-		STAILQ_INIT(&cur_port->attr_list);
+		cur_port->host_list = nvlist_create(0);
+		cur_port->init_list = nvlist_create(0);
+		cur_port->lun_list = nvlist_create(0);
+		cur_port->attr_list = nvlist_create(NV_FLAG_NO_UNIQUE);
 		cur_port->port_id = portlist->cur_id;
 		STAILQ_INSERT_TAIL(&portlist->port_list, cur_port, links);
 	}
@@ -3572,7 +3565,9 @@ cctl_end_pelement(void *user_data, const char *name)
 {
 	struct cctl_portlist_data *portlist;
 	struct cctl_port *cur_port;
+	char idname[16];
 	char *str;
+	int error;
 
 	portlist = (struct cctl_portlist_data *)user_data;
 	cur_port = portlist->cur_port;
@@ -3617,6 +3612,9 @@ cctl_end_pelement(void *user_data, const char *name)
 	} else if (strcmp(name, "target") == 0) {
 		cur_port->target = str;
 		str = NULL;
+	} else if (strcmp(name, "subnqn") == 0) {
+		cur_port->controller = str;
+		str = NULL;
 	} else if (strcmp(name, "port") == 0) {
 		cur_port->port = str;
 		str = NULL;
@@ -3627,31 +3625,36 @@ cctl_end_pelement(void *user_data, const char *name)
 		portlist->cur_port = NULL;
 	} else if (strcmp(name, "ctlportlist") == 0) {
 		/* Nothing. */
-	} else {
-		struct cctl_lun_nv *nv;
-
-		nv = calloc(1, sizeof(*nv));
-		if (nv == NULL)
-			err(1, "%s: can't allocate %zd bytes for nv pair",
-			    __func__, sizeof(*nv));
-
-		if (strcmp(name, "initiator") == 0 ||
-		    strcmp(name, "lun") == 0)
-			asprintf(&nv->name, "%ju", portlist->cur_id);
-		else
-			nv->name = strdup(name);
-		if (nv->name == NULL)
-			err(1, "%s: can't allocated %zd bytes for string",
-			    __func__, strlen(name));
-
-		nv->value = str;
+	} else if (strcmp(name, "host") == 0) {
+		snprintf(idname, sizeof(idname), "%ju", portlist->cur_id);
+		nvlist_move_string(cur_port->host_list, idname, str);
+		error = nvlist_error(cur_port->host_list);
+		if (error != 0)
+			errc(1, error, "%s: can't add host nv pair",
+			    __func__);
 		str = NULL;
-		if (strcmp(name, "initiator") == 0)
-			STAILQ_INSERT_TAIL(&cur_port->init_list, nv, links);
-		else if (strcmp(name, "lun") == 0)
-			STAILQ_INSERT_TAIL(&cur_port->lun_list, nv, links);
-		else
-			STAILQ_INSERT_TAIL(&cur_port->attr_list, nv, links);
+	} else if (strcmp(name, "initiator") == 0) {
+		snprintf(idname, sizeof(idname), "%ju", portlist->cur_id);
+		nvlist_move_string(cur_port->init_list, idname, str);
+		error = nvlist_error(cur_port->init_list);
+		if (error != 0)
+			errc(1, error, "%s: can't add initiator nv pair",
+			    __func__);
+		str = NULL;
+	} else if (strcmp(name, "lun") == 0) {
+		snprintf(idname, sizeof(idname), "%ju", portlist->cur_id);
+		nvlist_move_string(cur_port->lun_list, idname, str);
+		error = nvlist_error(cur_port->lun_list);
+		if (error != 0)
+			errc(1, error, "%s: can't add LUN nv pair", __func__);
+		str = NULL;
+	} else {
+		nvlist_move_string(cur_port->attr_list, name, str);
+		error = nvlist_error(cur_port->attr_list);
+		if (error != 0)
+			errc(1, error, "%s: can't add lun attribute nv pair",
+			    __func__);
+		str = NULL;
 	}
 
 	free(str);
@@ -3768,8 +3771,6 @@ retry:
 	if (quiet == 0)
 		printf("Port Online Frontend Name     pp vp\n");
 	STAILQ_FOREACH(port, &portlist.port_list, links) {
-		struct cctl_lun_nv *nv;
-
 		if ((frontend != NULL)
 		 && (strcmp(port->frontend_type, frontend) != 0))
 			continue;
@@ -3783,29 +3784,27 @@ retry:
 		    port->port ? port->port : "");
 
 		if (init || verbose) {
+			if (port->controller)
+				printf("  Controller: %s\n", port->controller);
+			print_nvlist(port->host_list, "  Host %s: %s\n");
 			if (port->target)
 				printf("  Target: %s\n", port->target);
-			STAILQ_FOREACH(nv, &port->init_list, links) {
-				printf("  Initiator %s: %s\n",
-				    nv->name, nv->value);
-			}
+			print_nvlist(port->init_list, "  Initiator %s: %s\n");
 		}
 
 		if (lun || verbose) {
 			if (port->lun_map) {
-				STAILQ_FOREACH(nv, &port->lun_list, links)
-					printf("  LUN %s: %s\n",
-					    nv->name, nv->value);
-				if (STAILQ_EMPTY(&port->lun_list))
+				if (nvlist_empty(port->lun_list))
 					printf("  No LUNs mapped\n");
+				else
+					print_nvlist(port->lun_list,
+					    "  LUN %s: %s\n");
 			} else
 				printf("  All LUNs mapped\n");
 		}
 
 		if (verbose) {
-			STAILQ_FOREACH(nv, &port->attr_list, links) {
-				printf("      %s=%s\n", nv->name, nv->value);
-			}
+			print_nvlist(port->attr_list, "      %s=%s\n");
 		}
 	}
 bailout:
@@ -4290,7 +4289,7 @@ usage(int error)
 "-r                       : remove frontend port\n" 
 "portlist options:\n"
 "-f frontend              : specify frontend type\n"
-"-i                       : report target and initiators addresses\n"
+"-i                       : report target and connected initiator names\n"
 "-l                       : report LUN mapping\n"
 "-p targ_port             : specify target port number\n"
 "-q                       : omit header in list output\n"

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: rpm,v 1.12 2013/01/11 16:45:23 christos Exp $
+# $File: rpm,v 1.13 2023/10/31 21:46:28 christos Exp $
 #
 # RPM: file(1) magic for Red Hat Packages   Erik Troan (ewt@redhat.com)
 #
@@ -28,6 +28,11 @@
 >>8	beshort		16		PowerPC64
 >>8	beshort		17		SuperH
 >>8	beshort		18		Xtensa
+>>8	beshort		19		AArch64
+>>8	beshort		20		MIPSr6
+>>8	beshort		21		MIPS64r6
+>>8	beshort		22		RISC-V64
+>>8	beshort		23		LoongArch64
 >>8	beshort		255		noarch
 
 #delta RPM    Daniel Novotny (dnovotny@redhat.com)
@@ -42,4 +47,9 @@
 >>8	beshort		16		PowerPC64
 >>8	beshort		17		SuperH
 >>8	beshort		18		Xtensa
+>>8	beshort		19		AArch64
+>>8	beshort		20		MIPSr6
+>>8	beshort		21		MIPS64r6
+>>8	beshort		22		RISC-V64
+>>8	beshort		23		LoongArch64
 >>10	string		x		%s

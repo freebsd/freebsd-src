@@ -204,16 +204,16 @@ nvme_probe_register(struct cam_periph *periph, void *arg)
 
 	request_ccb = (union ccb *)arg;
 	if (request_ccb == NULL) {
-		printf("nvme_probe_register: no probe CCB, "
-		       "can't register device\n");
+		printf(
+		    "nvme_probe_register: no probe CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
 	}
 
 	softc = (nvme_probe_softc *)malloc(sizeof(*softc), M_CAMXPT, M_ZERO | M_NOWAIT);
 
 	if (softc == NULL) {
-		printf("nvme_probe_register: Unable to probe new device. "
-		       "Unable to allocate softc\n");
+		printf(
+	"nvme_probe_register: Unable to probe new device. Unable to allocate softc\n");
 		return(CAM_REQ_CMP_ERR);
 	}
 	TAILQ_INIT(&softc->request_ccbs);
@@ -579,8 +579,8 @@ nvme_scan_lun(struct cam_periph *periph, struct cam_path *path,
 					  request_ccb);
 
 		if (status != CAM_REQ_CMP) {
-			xpt_print(path, "xpt_scan_lun: cam_alloc_periph "
-			    "returned an error, can't continue probe\n");
+			xpt_print(path,
+	"xpt_scan_lun: cam_alloc_periph returned an error, can't continue probe\n");
 			request_ccb->ccb_h.status = status;
 			xpt_done(request_ccb);
 		}

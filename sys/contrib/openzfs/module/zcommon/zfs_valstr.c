@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -38,7 +39,9 @@
  */
 typedef struct {
 	const char	vb_bit;
-	const char	vb_pair[2];
+
+	/* 2 byte name + 1 byte NULL terminator to make GCC happy */
+	const char	vb_pair[3];
 	const char	*vb_name;
 } valstr_bit_t;
 
@@ -185,7 +188,6 @@ zfs_valstr_ ## name(int v, char *out, size_t outlen)			\
 /* String tables */
 
 /* ZIO flags: zio_flag_t, typically zio->io_flags */
-/* BEGIN CSTYLED */
 _VALSTR_BITFIELD_IMPL(zio_flag,
 	{ '.', "DA", "DONT_AGGREGATE" },
 	{ '.', "RP", "IO_REPAIR" },
@@ -206,6 +208,7 @@ _VALSTR_BITFIELD_IMPL(zio_flag,
 	{ '.', "PR", "PROBE" },
 	{ '.', "TH", "TRYHARD" },
 	{ '.', "OP", "OPTIONAL" },
+	{ '.', "RD", "DIO_READ" },
 	{ '.', "DQ", "DONT_QUEUE" },
 	{ '.', "DP", "DONT_PROPAGATE" },
 	{ '.', "BY", "IO_BYPASS" },
@@ -218,14 +221,14 @@ _VALSTR_BITFIELD_IMPL(zio_flag,
 	{ '.', "NP", "NOPWRITE" },
 	{ '.', "EX", "REEXECUTED" },
 	{ '.', "DG", "DELEGATED" },
+	{ '.', "DC", "DIO_CHKSUM_ERR" },
+	{ '.', "PA", "PREALLOCATED" },
 )
-/* END CSTYLED */
 
 /*
  * ZIO pipeline stage(s): enum zio_stage, typically zio->io_stage or
  *                        zio->io_pipeline.
  */
-/* BEGIN CSTYLED */
 _VALSTR_BITFIELD_IMPL(zio_stage,
 	{ 'O', "O ", "OPEN" },
 	{ 'I', "RI", "READ_BP_INIT" },
@@ -252,12 +255,22 @@ _VALSTR_BITFIELD_IMPL(zio_stage,
 	{ 'V', "VD", "VDEV_IO_DONE" },
 	{ 'V', "VA", "VDEV_IO_ASSESS" },
 	{ 'C', "CV", "CHECKSUM_VERIFY" },
+	{ 'C', "DC", "DIO_CHECKSUM_VERIFY" },
 	{ 'X', "X ", "DONE" },
 )
-/* END CSTYLED */
+
+/* ZIO type: zio_type_t, typically zio->io_type */
+_VALSTR_ENUM_IMPL(zio_type,
+	"NULL",
+	"READ",
+	"WRITE",
+	"FREE",
+	"CLAIM",
+	"FLUSH",
+	"TRIM",
+)
 
 /* ZIO priority: zio_priority_t, typically zio->io_priority */
-/* BEGIN CSTYLED */
 _VALSTR_ENUM_IMPL(zio_priority,
 	"SYNC_READ",
 	"SYNC_WRITE",
@@ -271,7 +284,6 @@ _VALSTR_ENUM_IMPL(zio_priority,
 	"[NUM_QUEUEABLE]",
 	"NOW",
 )
-/* END CSTYLED */
 
 #undef _VALSTR_BITFIELD_IMPL
 #undef _VALSTR_ENUM_IMPL

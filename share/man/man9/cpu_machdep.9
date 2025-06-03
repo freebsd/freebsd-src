@@ -1,0 +1,425 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2024 (holder)
+.\"
+.\" This software was developed by SRI International, the University of
+.\" Cambridge Computer Laboratory (Department of Computer Science and
+.\" Technology), and Capabilities Limited under Defense Advanced Research
+.\" Projects Agency (DARPA) Contract No. FA8750-24-C-B047 ("DEC").
+.\"
+.Dd January 31, 2025
+.Dt cpu_machdep 9
+.Os
+.Sh NAME
+.Nm cpu_machdep ,
+.Nm cpu_copy_thread ,
+.Nm cpu_exec_vmspace_reuse ,
+.Nm cpu_exit ,
+.Nm cpu_fetch_syscall_args ,
+.Nm cpu_fork ,
+.Nm cpu_fork_kthread_handler ,
+.Nm cpu_idle ,
+.Nm cpu_idle_wakeup ,
+.Nm cpu_procctl ,
+.Nm cpu_set_syscall_retval ,
+.Nm cpu_set_upcall ,
+.Nm cpu_set_user_tls ,
+.Nm cpu_switch ,
+.Nm cpu_sync_core ,
+.Nm cpu_thread_alloc ,
+.Nm cpu_thread_clean ,
+.Nm cpu_thread_exit ,
+.Nm cpu_thread_free ,
+.Nm cpu_throw ,
+.Nm cpu_update_pcb
+.Nd machine-dependent interfaces to handle CPU and thread state
+.Sh SYNOPSIS
+.In sys/proc.h
+.In sys/ptrace.h
+.Ft void
+.Fn cpu_copy_thread "struct thread *td" "struct thread *td0"
+.Ft bool
+.Fn cpu_exec_vmspace_reuse "struct proc *p" "struct vm_map *map"
+.Ft void
+.Fn cpu_exit "struct thread *td"
+.Ft int
+.Fn cpu_fetch_syscall_args "struct thread *td"
+.Ft void
+.Fo cpu_fork
+.Fa "struct thread *td1" "struct proc *p2" "struct thread *td2" "int flags"
+.Fc
+.Ft void
+.Fo cpu_fork_kthread_handler
+.Fa "struct thread *td" "void (*func)(void *)" "void *arg"
+.Fc
+.Ft void
+.Fn cpu_idle "int busy"
+.Ft int
+.Fn cpu_idle_wakeup "int cpu"
+.Ft int
+.Fo cpu_procctl
+.Fa "struct thread *td" "int idtype" "id_t id" "int com" "void *data"
+.Fc
+.Ft int
+.Fn cpu_ptrace "struct thread *_td" "int req" "void *addr" "int data"
+.Ft void
+.Fn cpu_set_syscall_retval "struct thread *td" "int error"
+.Ft int
+.Fo cpu_set_upcall
+.Fa "struct thread *td" "void (*entry)(void *)" "void *arg" "stack_t *stack"
+.Fc
+.Ft int
+.Fn cpu_set_user_tls "struct thread *td" "void *tls_base" "int thr_flags"
+.Ft void
+.Fn cpu_switch "struct thread *old" "struct thread *new" "struct mtx *mtx"
+.Ft void
+.Fn cpu_sync_core "void"
+.Ft void
+.Fn cpu_thread_alloc "struct thread *td"
+.Ft void
+.Fn cpu_thread_clean "struct thread *td"
+.Ft void
+.Fn cpu_thread_exit "struct thread *td"
+.Ft void
+.Fn cpu_thread_free "struct thread *td"
+.Ft void
+.Fn cpu_throw "struct thread *old" "struct thread *new"
+.Ft void
+.Fn cpu_update_pcb "struct thread *td"
+.Sh DESCRIPTION
+These functions provide architecture-specific implementations of
+machine-independent abstractions.
+.Pp
+.Fn cpu_exec_vmspace_reuse
+returns true if
+.Fn exec_new_vmspace
+can reuse an existing
+.Vt struct vmspace
+.Pq Fa map
+for the process
+.Fa p
+during
+.Xr execve 2 .
+This is only invoked if
+.Fa map
+is not shared with any other consumers.
+If this returns false,
+.Fn exec_new_vmspace
+will create a new
+.Vt struct vmspace .
+.Pp
+.Fn cpu_exit
+releases machine-dependent resources other than the address space for the
+process containing
+.Fa td
+during process exit.
+.Pp
+.Fn cpu_fork
+copies and updates machine-dependent state
+(for example, the pcb and user registers) from the forking thread
+.Fa td1
+in an existing process to the new thread
+.Fa td2
+in the new process
+.Fa p2 .
+This function must set up the new thread's kernel stack and pcb so that
+.Fa td2
+calls
+.Fn fork_exit
+when it begins execution passing a pointer to
+.Fn fork_return
+as the
+.Fa callout
+argument and
+.Fa td2
+as the
+.Fa arg
+argument.
+.Pp
+.Fn cpu_fork_kthread_handler
+adjusts a new thread's initial pcb and/or kernel stack to pass
+.Fa func
+and
+.Fa arg
+as the
+.Fa callout
+and
+.Fa arg
+arguments to
+.Fn fork_exit .
+This must be called before a new thread is scheduled to run and is
+used to set the
+.Dq main
+function for kernel threads.
+.Pp
+.Fn cpu_copy_thread
+copies machine-dependent state (for example, the pcb and user registers) from
+.Fa td
+to
+.Fa td0
+when creating a new thread in the same process.
+This function must set up the new thread's kernel stack and pcb so that
+.Fa td0
+calls
+.Fn fork_exit
+when it begins execution passing a pointer to
+.Fn fork_return
+as the
+.Fa callout
+argument and
+.Fa td0
+as the
+.Fa arg
+argument.
+.Pp
+.Fn cpu_set_upcall
+updates a new thread's initial user register state to call
+.Fa entry
+with
+.Fa arg
+as the sole argument using the user stack described in
+.Fa stack .
+.Pp
+.Fn cpu_set_user_tls
+sets a new thread's initial user thread pointer register to
+reference the user TLS base pointer
+.Fa tls_base .
+The
+.Fa thr_flags
+argument provides flags bits, from the same namespace as
+.Va flags
+member of the
+.Vt struct thr_param
+argument to the
+.Xr thr_new 2
+syscall.
+.Pp
+.Fn cpu_update_pcb
+updates the pcb of the current thread with current user register values.
+This is invoked before writing out register notes in a core dump.
+This function typically only has to update user registers for the current
+thread that are saved in the pcb during context switches rather than
+in the trapframe on kernel entry.
+.Pp
+Note that when
+.Fn cpu_update_pcb
+is used,
+threads in a process other than the current thread are stopped,
+typically by
+.Fn thread_single .
+The pcbs of those stopped threads should already be updated by
+.Fn cpu_switch .
+.Pp
+.Fn cpu_fetch_syscall_args
+fetches the current system call arguments for the native FreeBSD ABI from the
+current thread's user register state and/or user stack.
+The arguments are saved in the
+.Fa td_sa
+member of
+.Fa td .
+.Pp
+.Fn cpu_set_syscall_retval
+updates the user register state for
+.Fa td
+to store system call error and return values.
+If
+.Fa error
+is 0,
+indicate success and return the two values in
+.Fa td_retval .
+If
+.Fa error
+is
+.Dv ERESTART,
+adjust the user PC to re-invoke the current system call after returning
+to user mode.
+If
+.Fa error
+is
+.Dv EJUSTRETURN ,
+leave the current user register state unchanged.
+For any other value of
+.Fa error ,
+indicate error and return
+.Fa error
+as the error code.
+.Pp
+.Fn cpu_idle
+waits for the next interrupt to occur on the current CPU.
+If an architecture supports low power idling,
+this function should place the CPU into a low power state while waiting.
+.Fa busy
+is a hint from the scheduler.
+If
+.Fa busy
+is non-zero,
+the scheduler expects a short sleep,
+so the CPU should prefer low-latency over maximum power savings.
+If
+.Fa busy
+is zero,
+the CPU should maximumize power savings including deferring unnecessary
+clock interrupts via
+.Fn cpu_idleclock .
+.Pp
+.Fn cpu_idle_wakeup
+awakens the idle CPU with the ID
+.Fa cpu
+from a low-power state.
+.Pp
+.Fn cpu_procctl
+handles any machine-dependent
+.Xr procctl 2
+requests.
+.Pp
+.Fn cpu_ptrace
+handles any machine-dependent
+.Xr ptrace 2
+requests.
+.Pp
+.Fn cpu_switch
+switches the current CPU between threads by swapping register state.
+This function saves the current CPU register state in the pcb of
+.Fa old
+and loads register values from the pcb of
+.Fa new
+before returning.
+While the pcb generally contains caller-save kernel register state,
+it can also contain user registers that are not saved in the trapframe.
+.Pp
+After saving the current CPU register state of
+.Fa old ,
+.Fn cpu_switch
+stores
+.Fa mtx
+in the
+.Fa td_lock
+member of
+.Fa old
+transferring ownership of the old thread.
+No data belonging to
+.Fa old
+can be accessed after that store.
+Specifically, the old thread's kernel stack must not be accessed after
+this point.
+.Pp
+When
+.Dv SCHED_ULE
+is being used,
+this function must wait (via spinning) for the
+.Fa td_lock
+member of
+.Fa new
+to change to a value not equal to
+.Va &blocked_lock
+before loading register values from
+.Fa new
+or accessing its kernel stack.
+.Pp
+From the caller's perspective,
+.Fn cpu_switch
+returns when
+.Fa old
+is rescheduled in the future,
+possibly on a different CPU.
+However, the implementation of
+.Fn cpu_switch
+returns immediately on the same CPU into the previously-saved context of
+.Fa new .
+.Pp
+.Fn cpu_throw
+is similar to
+.Fn cpu_switch
+but does not save any state for
+.Fa old
+or write to the old thread's
+.Fa td_lock
+member.
+.Pp
+.Fn cpu_sync_core
+ensures that all possible speculation and out-of-order execution is
+serialized on the current CPU.
+Note that this is called from an IPI handler so only has to handle
+additional serialization beyond that provided by handling an IPI.
+.Ss Thread Object Lifecycle
+These functions support the management of machine-dependent thread
+state in conjunction with a thread object's lifecycle.
+.Pp
+The general model is that a thread object is allocated each time a
+new kernel thread is created either by system calls like
+.Xr fork 2
+or
+.Xr thr_new 2
+or when kernel-only threads are created via
+.Xr kproc_create 9 ,
+.Xr kproc_kthread_add 9 ,
+or
+.Xr kthread_add 9 .
+When a kernel thread exits,
+the thread object is freed.
+However, there is one special case to support an optimization where each
+free process object caches a thread object.
+When a process exits, the last thread object is not freed but remains
+attached to the process.
+When the process object is later reused for a new process in
+.Xr fork 2 ,
+the kernel recycles that last thread object and uses it as the initial
+thread in the new process.
+When a thread is recycled, some of the steps in the thread allocation
+and free cycle are skipped as an optimization.
+.Pp
+.Fn cpu_thread_alloc
+initializes machine-dependent fields in
+.Fa td
+after allocating a new kernel stack.
+This function typically sets the
+.Fa td_pcb
+and initial
+.Fa td_frame
+pointers.
+.Fn cpu_thread_alloc
+is called both when allocating a new thread object and
+when a recycled thread allocates a new kernel stack.
+Note that this function is
+.Em not
+called if a recycled thread reuses its existing kernel stack.
+.Pp
+.Fn cpu_thread_clean
+releases any machine-dependent resources for the last thread in a
+process during
+.Xr wait 2 .
+The thread is a candidate for recycling so should be reset to run as a
+new thread in case it is recycled by a future
+.Xr fork 2 .
+.Pp
+.Fn cpu_thread_exit
+cleans any machine-dependent state in
+.Fa td
+while it is exiting.
+This is called by the exiting thread so cannot free state needed during
+in-kernel execution.
+.Pp
+.Fn cpu_thread_free
+releases any machine-dependent state in
+.Fa td
+when it is being freed.
+This is called for any thread that was not the last thread in a process
+once it has finished execution.
+.Sh SEE ALSO
+.Xr fork 2 ,
+.Xr procctl 2 ,
+.Xr ptrace 2 ,
+.Xr thr_new 2 ,
+.Xr wait 2 ,
+.Xr kproc_create 9 ,
+.Xr kproc_kthread_add 9 ,
+.Xr kthread_add 9 ,
+.Xr mi_switch 9
+.Sh AUTHORS
+This manual page was
+developed by SRI International, the University of Cambridge Computer
+Laboratory (Department of Computer Science and Technology), and
+Capabilities Limited under contract
+.Pq FA8750-24-C-B047
+.Pq Do DEC Dc .

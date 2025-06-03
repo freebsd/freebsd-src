@@ -155,7 +155,7 @@ iicsmb_attach(device_t dev)
 	sc->smbus = device_add_child(dev, "smbus", DEVICE_UNIT_ANY);
 
 	/* probe and attach the smbus */
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 
 	return (0);
 }
@@ -166,7 +166,6 @@ iicsmb_detach(device_t dev)
 	struct iicsmb_softc *sc = (struct iicsmb_softc *)device_get_softc(dev);
 
 	bus_generic_detach(dev);
-	device_delete_children(dev);
 	mtx_destroy(&sc->lock);
 
 	return (0);

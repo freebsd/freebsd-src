@@ -240,6 +240,8 @@ passwd_fill_test_data(struct passwd_test_data *td,
     int (*cb)(struct passwd *, void *))
 {
 	struct passwd *pwd;
+	const int limit = 1024;
+	int count = 0;
 
 	setpassent(1);
 	while ((pwd = getpwent()) != NULL) {
@@ -250,6 +252,8 @@ passwd_fill_test_data(struct passwd_test_data *td,
 		} else {
 			return (-1);
 		}
+		if (++count >= limit)
+			break;
 	}
 	endpwent();
 

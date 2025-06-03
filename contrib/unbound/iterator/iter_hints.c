@@ -181,7 +181,7 @@ hints_insert(struct iter_hints* hints, uint16_t c, struct delegpt* dp,
 	node->noprime = (uint8_t)noprime;
 	if(!name_tree_insert(&hints->tree, &node->node, dp->name, dp->namelen,
 		dp->namelabs, c)) {
-		char buf[257];
+		char buf[LDNS_MAX_DOMAINLEN];
 		dname_str(dp->name, buf);
 		log_err("second hints for zone %s ignored.", buf);
 		delegpt_free_mlc(dp);
@@ -610,4 +610,15 @@ hints_delete_stub(struct iter_hints* hints, uint16_t c, uint8_t* nm,
 	hints_stub_free(z);
 	name_tree_init_parents(&hints->tree);
 	if(!nolock) { lock_rw_unlock(&hints->lock); }
+}
+
+void
+hints_swap_tree(struct iter_hints* hints, struct iter_hints* data)
+{
+	rbnode_type* oldroot = hints->tree.root;
+	size_t oldcount = hints->tree.count;
+	hints->tree.root = data->tree.root;
+	hints->tree.count = data->tree.count;
+	data->tree.root = oldroot;
+	data->tree.count = oldcount;
 }

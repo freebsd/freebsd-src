@@ -1,0 +1,127 @@
+# about compilation
+option('use_external_rand', type: 'boolean', value: false, description: 'use external get_random() implementation')
+option('use_external_print', type: 'boolean', value: false, description: 'use external ext_printf() implementation')
+option('use_external_time', type: 'boolean', value: false, description: 'use external get_ms_time() implementation')
+option('with_tests', type: 'boolean', value: false, description: 'enable test suites support')
+option('with_rand_source', type: 'string', value: '', description: 'get_random() implementation source')
+option('with_wordsize', type: 'combo',  choices : ['0', '16', '32', '64'], value : '0', description: 'force wordsize, 0 means no forcing')
+option('with_stdlib', type: 'boolean', value : true, description: 'trigger stdlib usage (default to true)')
+option('with_debug', type: 'boolean', value : false, description: 'activate libecc debug assertions and checks')
+option('use_cryptofuzz', type: 'boolean', value : false, description: 'activate cryptofuzz fuzzing tool API (mainly raw signatures)')
+option('assert_print', type: 'boolean', value : false, description: 'activate printing on assertions')
+option('no_warn_unused_ret', type: 'boolean', value : false, description: 'do not trigger a warning for unused functions return values')
+
+# about security
+option('with_sig_blinding', type: 'boolean', value: false, description: 'blind signature against some side channels')
+option('with_complete_formulas', type: 'boolean', value: true, description: 'use complete formulas for point addition and doubling')
+option('with_double_add', type: 'combo', choices: ['unset', 'false', 'true'], value: 'unset', description: 'force Double and Add always usage')
+option('with_monty_ladder', type: 'combo', choices: ['unset', 'false', 'true'], value: 'unset', description: 'force Montgomery Ladder usage')
+option('with_small_stack', type: 'boolean', value: false, description: 'force small stack usage')
+
+# about curves
+option('with_iso14888_3_ecrdsa', type: 'boolean', value: false, description: 'ISO14888-3 version of the ECRDSA algorithm with discrepancies from the Russian RFC references')
+
+# curve, sig and hash selectors. These selectors can be used only if with_override_ecc_config is set to true
+option('with_override_ecc_config', type: 'boolean', value: false, description: 'disable all default config. manually select all cryptographic engines')
+
+
+# All the curves options
+option('with_curves', type: 'array', choices: [
+	'frp256v1',
+	'secp192r1',
+	'secp224r1',
+	'secp256r1',
+	'secp384r1',
+	'secp521r1',
+	'brainpoolp192r1',
+	'brainpoolp224r1',
+	'brainpoolp256r1',
+	'brainpoolp384r1',
+	'brainpoolp512r1',
+	'gost256',
+	'gost512',
+	'sm2p256test',
+	'sm2p256v1',
+	'wei25519',
+	'wei448',
+	'gost_r3410_2012_256_paramseta',
+	'secp256k1',
+	'gost_r3410_2001_testparamset',
+	'gost_r3410_2001_cryptopro_a_paramset',
+	'gost_r3410_2001_cryptopro_b_paramset',
+	'gost_r3410_2001_cryptopro_c_paramset',
+	'gost_r3410_2001_cryptopro_xcha_paramset',
+	'gost_r3410_2001_cryptopro_xchb_paramset',
+	'gost_r3410_2012_256_paramsetb',
+	'gost_r3410_2012_256_paramsetc',
+	'gost_r3410_2012_256_paramsetd',
+	'gost_r3410_2012_512_paramsettest',
+	'gost_r3410_2012_512_paramseta',
+	'gost_r3410_2012_512_paramsetb',
+	'gost_r3410_2012_512_paramsetc',
+	'secp192k1',
+	'secp224k1',
+	'brainpoolp192t1',
+	'brainpoolp224t1',
+	'brainpoolp256t1',
+	'brainpoolp320r1',
+	'brainpoolp320t1',
+	'brainpoolp384t1',
+	'brainpoolp512t1',
+	'bign256v1',
+	'bign384v1',
+	'bign512v1',
+# ADD curves meson option here
+# XXX: Do not remove the comment above, as it is
+# used by external tools as a placeholder to add or
+# remove automatically generated code.
+	],
+value: [], description: 'enable a set of curves when override is set')
+
+# All the hashes options
+option('with_hashes', type: 'array', choices: [
+	'sha224',
+	'sha256',
+	'sha384',
+	'sha512',
+	'sha512_224',
+	'sha512_256',
+	'sha3_224',
+	'sha3_256',
+	'sha3_384',
+	'sha3_512',
+	'sm3',
+	'shake256',
+	'streebog256',
+	'streebog512',
+	'ripemd160',
+	'belt_hash',
+	'bash224',
+	'bash256',
+	'bash384',
+	'bash512',
+	'with_hmac',
+	],
+value: [], description: 'enable a set of hashes when override is set')
+
+# All the algorithms options
+option('with_algs', type: 'array', choices: [
+	'sig_ecdsa',
+	'sig_eckcdsa',
+	'sig_ecsdsa',
+	'sig_ecosdsa',
+	'sig_ecfsdsa',
+	'sig_ecgdsa',
+	'sig_ecrdsa',
+	'sig_sm2',
+	'sig_eddsa25519',
+	'sig_eddsa448',
+	'sig_decdsa',
+	'sig_bign',
+	'sig_dbign',
+	'sig_bip0340',
+	'ecccdh',
+	'x25519',
+	'x448',
+	],
+value: [], description: 'enable a set of algorithms when override is set')

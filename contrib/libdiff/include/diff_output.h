@@ -110,3 +110,7 @@ int diff_output_chunk_right_version(struct diff_output_info **output_info,
 
 const char *diff_output_get_label_left(const struct diff_input_info *info);
 const char *diff_output_get_label_right(const struct diff_input_info *info);
+
+void diff_output_set_colors(bool _color,
+			    const char *_del_code,
+			    const char *_add_code);

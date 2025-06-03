@@ -199,7 +199,7 @@ debugnet_udp_output(struct debugnet_pcb *pcb, struct mbuf *m)
 		return (ENOBUFS);
 	}
 
-	udp = mtod(m, void *);
+	udp = mtod(m, struct udphdr *);
 	udp->uh_ulen = htons(m->m_pkthdr.len);
 	/* Use this src port so that the server can connect() the socket */
 	udp->uh_sport = htons(pcb->dp_client_port);
@@ -226,7 +226,7 @@ debugnet_ack_output(struct debugnet_pcb *pcb, uint32_t seqno /* net endian */)
 	m->m_len = sizeof(*dn_ack);
 	m->m_pkthdr.len = sizeof(*dn_ack);
 	MH_ALIGN(m, sizeof(*dn_ack));
-	dn_ack = mtod(m, void *);
+	dn_ack = mtod(m, struct debugnet_ack *);
 	dn_ack->da_seqno = seqno;
 
 	return (debugnet_udp_output(pcb, m));
@@ -400,7 +400,7 @@ debugnet_handle_rx_msg(struct debugnet_pcb *pcb, struct mbuf **mb)
 		}
 	}
 
-	dnh = mtod(m, const void *);
+	dnh = mtod(m, const struct debugnet_msg_hdr *);
 	if (ntohl(dnh->mh_len) + sizeof(*dnh) > m->m_pkthdr.len) {
 		DNETDEBUG("Dropping short packet.\n");
 		return;
@@ -459,7 +459,7 @@ debugnet_handle_ack(struct debugnet_pcb *pcb, struct mbuf **mb, uint16_t sport)
 			return;
 		}
 	}
-	dn_ack = mtod(m, const void *);
+	dn_ack = mtod(m, const struct debugnet_ack *);
 
 	/* Debugnet processing. */
 	/*
@@ -503,7 +503,7 @@ debugnet_handle_udp(struct debugnet_pcb *pcb, struct mbuf **mb)
 			return;
 		}
 	}
-	udp = mtod(m, const void *);
+	udp = mtod(m, const struct udphdr *);
 
 	/* We expect to receive UDP packets on the configured client port. */
 	if (ntohs(udp->uh_dport) != pcb->dp_client_port) {

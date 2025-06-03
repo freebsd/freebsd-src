@@ -67,7 +67,9 @@ struct SemaRecord {
   bool HasMaskPolicy : 1;
   bool HasFRMRoundModeOp : 1;
   bool IsTuple : 1;
+  LLVM_PREFERRED_TYPE(PolicyScheme)
   uint8_t UnMaskedPolicyScheme : 2;
+  LLVM_PREFERRED_TYPE(PolicyScheme)
   uint8_t MaskedPolicyScheme : 2;
 };
 
@@ -332,10 +334,6 @@ void RVVEmitter::createHeader(raw_ostream &OS) {
   OS << "#include <stdint.h>\n";
   OS << "#include <stddef.h>\n\n";
 
-  OS << "#ifndef __riscv_vector\n";
-  OS << "#error \"Vector intrinsics require the vector extension.\"\n";
-  OS << "#endif\n\n";
-
   OS << "#ifdef __cplusplus\n";
   OS << "extern \"C\" {\n";
   OS << "#endif\n\n";
@@ -578,8 +576,8 @@ void RVVEmitter::createRVVIntrinsics(
             Name, SuffixStr, OverloadedName, OverloadedSuffixStr, IRName,
             /*IsMasked=*/false, /*HasMaskedOffOperand=*/false, HasVL,
             UnMaskedPolicyScheme, SupportOverloading, HasBuiltinAlias,
-            ManualCodegen, *Types, IntrinsicTypes, RequiredFeatures, NF,
-            DefaultPolicy, HasFRMRoundModeOp));
+            ManualCodegen, *Types, IntrinsicTypes, NF, DefaultPolicy,
+            HasFRMRoundModeOp));
         if (UnMaskedPolicyScheme != PolicyScheme::SchemeNone)
           for (auto P : SupportedUnMaskedPolicies) {
             SmallVector<PrototypeDescriptor> PolicyPrototype =
@@ -593,8 +591,8 @@ void RVVEmitter::createRVVIntrinsics(
                 Name, SuffixStr, OverloadedName, OverloadedSuffixStr, IRName,
                 /*IsMask=*/false, /*HasMaskedOffOperand=*/false, HasVL,
                 UnMaskedPolicyScheme, SupportOverloading, HasBuiltinAlias,
-                ManualCodegen, *PolicyTypes, IntrinsicTypes, RequiredFeatures,
-                NF, P, HasFRMRoundModeOp));
+                ManualCodegen, *PolicyTypes, IntrinsicTypes, NF, P,
+                HasFRMRoundModeOp));
           }
         if (!HasMasked)
           continue;
@@ -605,8 +603,7 @@ void RVVEmitter::createRVVIntrinsics(
             Name, SuffixStr, OverloadedName, OverloadedSuffixStr, MaskedIRName,
             /*IsMasked=*/true, HasMaskedOffOperand, HasVL, MaskedPolicyScheme,
             SupportOverloading, HasBuiltinAlias, ManualCodegen, *MaskTypes,
-            IntrinsicTypes, RequiredFeatures, NF, DefaultPolicy,
-            HasFRMRoundModeOp));
+            IntrinsicTypes, NF, DefaultPolicy, HasFRMRoundModeOp));
         if (MaskedPolicyScheme == PolicyScheme::SchemeNone)
           continue;
         for (auto P : SupportedMaskedPolicies) {
@@ -620,8 +617,8 @@ void RVVEmitter::createRVVIntrinsics(
               Name, SuffixStr, OverloadedName, OverloadedSuffixStr,
               MaskedIRName, /*IsMasked=*/true, HasMaskedOffOperand, HasVL,
               MaskedPolicyScheme, SupportOverloading, HasBuiltinAlias,
-              ManualCodegen, *PolicyTypes, IntrinsicTypes, RequiredFeatures, NF,
-              P, HasFRMRoundModeOp));
+              ManualCodegen, *PolicyTypes, IntrinsicTypes, NF, P,
+              HasFRMRoundModeOp));
         }
       } // End for Log2LMULList
     }   // End for TypeRange
@@ -671,6 +668,8 @@ void RVVEmitter::createRVVIntrinsics(
               .Case("Zvknhb", RVV_REQ_Zvknhb)
               .Case("Zvksed", RVV_REQ_Zvksed)
               .Case("Zvksh", RVV_REQ_Zvksh)
+              .Case("Zvfbfwma", RVV_REQ_Zvfbfwma)
+              .Case("Zvfbfmin", RVV_REQ_Zvfbfmin)
               .Case("Experimental", RVV_REQ_Experimental)
               .Default(RVV_REQ_None);
       assert(RequireExt != RVV_REQ_None && "Unrecognized required feature?");

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: meta.autodep.mk,v 1.63 2024/04/24 18:56:41 sjg Exp $
+# $Id: meta.autodep.mk,v 1.65 2025/03/14 20:28:42 sjg Exp $
 
 #
-#	@(#) Copyright (c) 2010, Simon J. Gerraty
+#	@(#) Copyright (c) 2010-2025, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -281,14 +281,26 @@ META_FILES := ${META_XTRAS:U:O:u} ${META_FILES:U:T:O:u:${META_FILE_FILTER:ts:}}
 .export META_FILES
 .endif
 
+_this_dir := ${_PARSEDIR}
+.if ${MAKE_VERSION} < 20230123
 # we might have .../ in MAKESYSPATH
-_makesyspath:= ${_PARSEDIR}
+_makesyspath := ${MAKESYSPATH:U${_this_dir}}
+.if ${.MAKEFLAGS:M-m} != ""
+_makesyspath := ${.MAKEFLAGS:S,-m ,-m,gW:M-m*:S,-m, ,:ts:}:${_makesyspath}
+.endif
+_makesyspath := ${_makesyspath:C,\.\.\./[^:]*,${_this_dir},}
+GENDIRDEPS_ENV += MAKESYSPATH=${_makesyspath}
+.else
+# add this if not already there
+.SYSPATH: ${_this_dir}
+GENDIRDEPS_ENV += MAKESYSPATH=${.SYSPATH:ts:}
+.endif
+
 ${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.META.CREATED}
 	@echo Checking $@: ${.OODATE:T:[1..8]}
 	@(cd . && ${GENDIRDEPS_ENV} \
 	SKIP_GENDIRDEPS='${SKIP_GENDIRDEPS:O:u}' \
 	DPADD='${FORCE_DPADD:O:u}' ${_gendirdeps_mutex} \
-	MAKESYSPATH=${_makesyspath} \
 	${.MAKE} -f gendirdeps.mk RELDIR=${RELDIR} _DEPENDFILE=${_DEPENDFILE})
 	@test -s $@ && touch $@; :
 .endif

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: adventure,v 1.18 2019/04/19 00:42:27 christos Exp $
+# $File: adventure,v 1.19 2023/12/02 13:48:56 christos Exp $
 # adventure: file(1) magic for Adventure game files
 #
 # from Allen Garvin <earendil@faeryland.tamu-commerce.edu>
@@ -10,6 +10,8 @@
 # ALAN
 # I assume there are other, lower versions, but these are the only ones I
 # saw in the archive.
+#
+# FIXME: Conflicts with Microsoft x.out big-endian and PDP-11 binaries (./xenix)
 0	beshort	0x0206	ALAN game data
 >2	byte	<10	version 2.6%d
 

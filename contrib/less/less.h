@@ -1,13 +1,11 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
  * For more information, see the README file.
  */
-
-#define NEWBOT 1
 
 /*
  * Standard include file for "less".
@@ -36,16 +34,6 @@
 #undef HAVE_SIGSETMASK
 #endif
 
-/*
- * Language details.
- */
-#if HAVE_CONST
-#define constant        const
-#else
-#define constant
-#endif
-
-#define public          /* PUBLIC FUNCTION */
 
 /* Library function declarations */
 
@@ -87,11 +75,14 @@
  * These substitutes for C23 stdckdint macros do not set *R on overflow,
  * and they assume A and B are nonnegative.  That is good enough for us.
  */
-#define ckd_add(r, a, b) help_ckd_add(r, a, b, sizeof *(r), signed_expr(*(r)))
-#define ckd_mul(r, a, b) help_ckd_mul(r, a, b, sizeof *(r), signed_expr(*(r)))
+#define ckd_add(r, a, b) help_ckd_add(r, (uintmax)(a), (uintmax)(b), sizeof *(r), signed_expr(*(r)))
+#define ckd_mul(r, a, b) help_ckd_mul(r, (uintmax)(a), (uintmax)(b), sizeof *(r), signed_expr(*(r)))
 /* True if the integer expression E, after promotion, is signed.  */
 #define signed_expr(e) ((TRUE ? 0 : e) - 1 < 0)
 #endif
+#define muldiv(val,num,den) umuldiv((uintmax)(val), (uintmax)(num), (uintmax)(den))
+
+#include "lang.h"
 
 #if defined UINTMAX_MAX
 typedef uintmax_t uintmax;
@@ -146,21 +137,21 @@ void free();
 #undef IS_DIGIT
 
 #if HAVE_WCTYPE
-#define IS_UPPER(c)     iswupper(c)
-#define IS_LOWER(c)     iswlower(c)
-#define TO_UPPER(c)     towupper(c)
-#define TO_LOWER(c)     towlower(c)
+#define IS_UPPER(c)     iswupper((wint_t) (c))
+#define IS_LOWER(c)     iswlower((wint_t) (c))
+#define TO_UPPER(c)     towupper((wint_t) (c))
+#define TO_LOWER(c)     towlower((wint_t) (c))
 #else
 #if HAVE_UPPER_LOWER
-#define IS_UPPER(c)     isupper((unsigned char) (c))
-#define IS_LOWER(c)     islower((unsigned char) (c))
-#define TO_UPPER(c)     toupper((unsigned char) (c))
-#define TO_LOWER(c)     tolower((unsigned char) (c))
+#define IS_UPPER(c)     (is_ascii_char(c) && isupper((unsigned char) (c)))
+#define IS_LOWER(c)     (is_ascii_char(c) && islower((unsigned char) (c)))
+#define TO_UPPER(c)     (is_ascii_char(c) ? toupper((unsigned char) (c)) : (c))
+#define TO_LOWER(c)     (is_ascii_char(c) ? tolower((unsigned char) (c)) : (c))
 #else
-#define IS_UPPER(c)     ASCII_IS_UPPER(c)
-#define IS_LOWER(c)     ASCII_IS_LOWER(c)
-#define TO_UPPER(c)     ASCII_TO_UPPER(c)
-#define TO_LOWER(c)     ASCII_TO_LOWER(c)
+#define IS_UPPER(c)     (is_ascii_char(c) && ASCII_IS_UPPER(c))
+#define IS_LOWER(c)     (is_ascii_char(c) && ASCII_IS_LOWER(c))
+#define TO_UPPER(c)     (is_ascii_char(c) ? ASCII_TO_UPPER(c) : (c))
+#define TO_LOWER(c)     (is_ascii_char(c) ? ASCII_TO_LOWER(c) : (c))
 #endif
 #endif
 
@@ -176,18 +167,7 @@ void free();
 #define IS_DIGIT(c)     ((c) >= '0' && (c) <= '9')
 #endif
 
-#define IS_CSI_START(c) (((LWCHAR)(c)) == ESC || (((LWCHAR)(c)) == CSI))
-
-#ifndef NULL
-#define NULL    0
-#endif
-
-#ifndef TRUE
-#define TRUE            1
-#endif
-#ifndef FALSE
-#define FALSE           0
-#endif
+#define IS_CSI_START(c) (control_char(c) && (((LWCHAR)(c)) == ESC || (((LWCHAR)(c)) == CSI)))
 
 #define OPT_OFF         0
 #define OPT_ON          1
@@ -236,7 +216,20 @@ void free();
  * Special types and constants.
  */
 typedef unsigned long LWCHAR;
-typedef off_t           POSITION;
+#if defined(MINGW) || (defined(_MSC_VER) && _MSC_VER >= 1500)
+typedef long long less_off_t;  /* __int64 */
+typedef struct _stat64 less_stat_t;
+#define less_fstat _fstat64
+#define less_stat _stat64
+#define less_lseek _lseeki64
+#else
+typedef off_t less_off_t;
+typedef struct stat less_stat_t;
+#define less_fstat fstat
+#define less_stat stat
+#define less_lseek lseek
+#endif
+typedef less_off_t      POSITION;
 typedef off_t           LINENUM;
 #define MIN_LINENUM_WIDTH   7   /* Default min printing width of a line number */
 #define MAX_LINENUM_WIDTH   16  /* Max width of a line number */
@@ -295,15 +288,6 @@ typedef off_t           LINENUM;
 #endif
 #endif
 
-/*
- * Does the shell treat "?" as a metacharacter?
- */
-#if MSDOS_COMPILER || OS2 || _OSK
-#define SHELL_META_QUEST 0
-#else
-#define SHELL_META_QUEST 1
-#endif
-
 #define SPACES_IN_FILENAMES 1
 
 /*
@@ -327,7 +311,7 @@ struct scrpos
 
 typedef union parg
 {
-        char *p_string;
+        constant char *p_string;
         int p_int;
         LINENUM p_linenum;
         char p_char;
@@ -348,8 +332,8 @@ struct wchar_range
 
 struct wchar_range_table 
 {
-        struct wchar_range *table;
-        int count;
+	struct wchar_range *table;
+	unsigned int count;
 };
 
 #if HAVE_POLL
@@ -368,6 +352,14 @@ typedef short POLL_EVENTS;
  */
 #define NUM_FRAC_DENOM                  1000000
 #define NUM_LOG_FRAC_DENOM              6
+
+/*
+ * Max expected reasonable duration of a paste.
+ * Increasing this value avoids accidentally reenabling unwanted paste input 
+ * in the middle of a very long paste but risks apparently frozen UI if the 
+ * end bracket is missing.
+ */
+#define MAX_PASTE_IGNORE_SEC            5
 
 /* How quiet should we be? */
 #define NOT_QUIET       0       /* Ring bell at eof and for errors */
@@ -397,13 +389,29 @@ typedef short POLL_EVENTS;
 #define SRCH_FILTER     (1 << 13) /* Search is for '&' (filter) command */
 #define SRCH_AFTER_TARGET (1 << 14) /* Start search after the target line */
 #define SRCH_WRAP       (1 << 15) /* Wrap-around search (continue at BOF/EOF) */
-#define SRCH_SUBSEARCH(i) (1 << (16+(i))) /* Search for subpattern */
+#if OSC8_LINK
+#define SRCH_OSC8       (1 << 16) /* */
+#endif
+#define SRCH_SUBSEARCH(i) (1 << (17+(i))) /* Search for subpattern */
 /* {{ Depends on NUM_SEARCH_COLORS==5 }} */
 #define SRCH_SUBSEARCH_ALL (SRCH_SUBSEARCH(1)|SRCH_SUBSEARCH(2)|SRCH_SUBSEARCH(3)|SRCH_SUBSEARCH(4)|SRCH_SUBSEARCH(5))
 
 #define SRCH_REVERSE(t) (((t) & SRCH_FORW) ? \
                                 (((t) & ~SRCH_FORW) | SRCH_BACK) : \
                                 (((t) & ~SRCH_BACK) | SRCH_FORW))
+/* Parsing position in an OSC8 link: "\e]8;PARAMS;URI\e\\" (final "\e\\" may be "\7") */
+typedef enum osc8_state {
+	OSC_START,    /* Waiting for initial \e */
+	OSC_INTRO,    /* Waiting for intro char, usually ']' */
+	OSC_TYPENUM,  /* Reading OS command type */
+	OSC_STRING,   /* Reading OS command string */
+	OSC_END_CSI,  /* Waiting for backslash after the final ESC. */
+	OSC_END,      /* At end */
+
+	OSC8_PARAMS,  /* In the OSC8 parameters */
+	OSC8_URI,     /* In the OSC8 URI */
+	OSC8_NOT,     /* This is not an OSC8 link */
+} osc8_state;
 
 /* */
 #define NO_MCA          0
@@ -415,7 +423,8 @@ typedef short POLL_EVENTS;
 #define CC_ERROR        2       /* Char could not be accepted due to error */
 #define CC_PASS         3       /* Char was rejected (internal) */
 
-#define CF_QUIT_ON_ERASE 0001   /* Abort cmd if its entirely erased */
+#define CF_QUIT_ON_ERASE (1<<0) /* Abort cmd if its entirely erased */
+#define CF_OPTION        (1<<1) /* A_OPT_TOGGLE */
 
 /* Special char bit-flags used to tell put_line() to do something special */
 #define AT_NORMAL       (0)
@@ -454,10 +463,21 @@ typedef enum {
 	CV_ERROR    = -1
 } COLOR_VALUE;
 
+typedef enum {
+	CATTR_NULL       = 0,
+	CATTR_STANDOUT   = (1 << 0),
+	CATTR_BOLD       = (1 << 1),
+	CATTR_UNDERLINE  = (1 << 2),
+	CATTR_BLINK      = (1 << 3),
+} CHAR_ATTR;
+
 /* ANSI states */
-#define ANSI_MID    1
-#define ANSI_ERR    2
-#define ANSI_END    3
+typedef enum {
+	ANSI_NULL,
+	ANSI_MID,
+	ANSI_ERR,
+	ANSI_END,
+} ansi_state;
 
 #if '0' == 240
 #define IS_EBCDIC_HOST 1
@@ -534,7 +554,6 @@ typedef enum {
 #define ESC             CONTROL('[')
 #define ESCS            "\33"
 #define CSI             ((unsigned char)'\233')
-#define CHAR_END_COMMAND 0x40000000
 
 #if _OSK_MWC32
 #define LSIGNAL(sig,func)       os9_signal(sig,func)
@@ -584,6 +603,7 @@ typedef enum {
 #define CH_POPENED      004
 #define CH_HELPFILE     010
 #define CH_NODATA       020     /* Special case for zero length files */
+#define CH_NOTRUSTSIZE  040     /* For files that claim 0 length size falsely */
 
 #define ch_zero()       ((POSITION)0)
 
@@ -607,9 +627,24 @@ typedef enum {
 #define X11MOUSE_BUTTON2    1 /* Middle button press */
 #define X11MOUSE_BUTTON3    2 /* Right button press */
 #define X11MOUSE_BUTTON_REL 3 /* Button release */
+#define X11MOUSE_DRAG       0x20 /* Drag with button down */
 #define X11MOUSE_WHEEL_UP   0x40 /* Wheel scroll up */
 #define X11MOUSE_WHEEL_DOWN 0x41 /* Wheel scroll down */
 #define X11MOUSE_OFFSET     0x20 /* Added to button & pos bytes to create a char */
+
+/* Security features. */
+#define SF_EDIT             (1<<1)  /* Edit file (v) */
+#define SF_EXAMINE          (1<<2)  /* Examine file (:e) */
+#define SF_GLOB             (1<<3)  /* Expand file pattern */
+#define SF_HISTORY          (1<<4)  /* History file */
+#define SF_LESSKEY          (1<<5)  /* Lesskey files */
+#define SF_LESSOPEN         (1<<6)  /* LESSOPEN */
+#define SF_LOGFILE          (1<<7)  /* Log file (s, -o) */
+#define SF_PIPE             (1<<8)  /* Pipe (|) */
+#define SF_SHELL            (1<<9)  /* Shell command (!) */
+#define SF_STOP             (1<<10) /* Stop signal */
+#define SF_TAGS             (1<<11) /* Tags */
+#define SF_OSC8_OPEN        (1<<12) /* OSC8 open */
 
 #if LESSTEST
 #define LESS_DUMP_CHAR CONTROL(']')
@@ -630,6 +665,9 @@ void inttoa(int, char*, int);
 int lstrtoi(char*, char**, int);
 POSITION lstrtopos(char*, char**, int);
 unsigned long lstrtoul(char*, char**, int);
+int lstrtoic(constant char*, constant char**, int);
+POSITION lstrtoposc(constant char*, constant char**, int);
+unsigned long lstrtoulc(constant char*, constant char**, int);
 #if MSDOS_COMPILER==WIN32C
 int pclose(FILE*);
 #endif

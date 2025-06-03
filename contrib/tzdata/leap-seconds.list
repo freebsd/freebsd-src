@@ -60,15 +60,15 @@
 #
 #	The following line shows the last update of this file in NTP timestamp:
 #
-#$	3929093563
+#$	3945196800
 #
 #	2) Expiration date of the file given on a semi-annual basis: last June or last December
 #
-#	File expires on 28 June 2025
+#	File expires on 28 December 2025
 #
 #	Expire date in NTP timestamp:
 #
-#@	3960057600
+#@	3975868800
 #
 #
 #	LIST OF LEAP SECONDS
@@ -117,4 +117,4 @@
 #	please see the readme file in the 'source' directory :
 #	https://hpiers.obspm.fr/iers/bul/bulc/ntp/sources/README
 #
-#h	be738595 57b0cf1b b0218343 fb77062f 5a775e7
+#h	848434d5 570f7ea8 d79ba227 a00fc821 f608e2d4

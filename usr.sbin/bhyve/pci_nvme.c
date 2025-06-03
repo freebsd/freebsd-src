@@ -265,6 +265,17 @@ struct pci_nvme_aer {
 	uint16_t	cid;	/* Command ID of the submitted AER */
 };
 
+/** Asynchronous Event Information - Error */
+typedef enum {
+	PCI_NVME_AEI_ERROR_INVALID_DB,
+	PCI_NVME_AEI_ERROR_INVALID_DB_VALUE,
+	PCI_NVME_AEI_ERROR_DIAG_FAILURE,
+	PCI_NVME_AEI_ERROR_PERSISTANT_ERR,
+	PCI_NVME_AEI_ERROR_TRANSIENT_ERR,
+	PCI_NVME_AEI_ERROR_FIRMWARE_LOAD_ERR,
+	PCI_NVME_AEI_ERROR_MAX,
+} pci_nvme_async_event_info_error;
+
 /** Asynchronous Event Information - Notice */
 typedef enum {
 	PCI_NVME_AEI_NOTICE_NS_ATTR_CHANGED = 0,
@@ -1398,7 +1409,7 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 	logsize *= sizeof(uint32_t);
 	logoff  = ((uint64_t)(command->cdw13) << 32) | command->cdw12;
 
-	DPRINTF("%s log page %u len %u", __func__, logpage, logsize);
+	DPRINTF("%s log page %u offset %lu len %u", __func__, logpage, logoff, logsize);
 
 	switch (logpage) {
 	case NVME_LOG_ERROR:
@@ -1410,7 +1421,7 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
 		    command->prp2, (uint8_t *)&sc->err_log + logoff,
-		    MIN(logsize - logoff, sizeof(sc->err_log)),
+		    MIN(logsize, sizeof(sc->err_log) - logoff),
 		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_HEALTH_INFORMATION:
@@ -1433,7 +1444,7 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
 		    command->prp2, (uint8_t *)&sc->health_log + logoff,
-		    MIN(logsize - logoff, sizeof(sc->health_log)),
+		    MIN(logsize, sizeof(sc->health_log) - logoff),
 		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_FIRMWARE_SLOT:
@@ -1445,7 +1456,7 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
 		    command->prp2, (uint8_t *)&sc->fw_log + logoff,
-		    MIN(logsize - logoff, sizeof(sc->fw_log)),
+		    MIN(logsize, sizeof(sc->fw_log) - logoff),
 		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_CHANGED_NAMESPACE:
@@ -1457,7 +1468,7 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
 		    command->prp2, (uint8_t *)&sc->ns_log + logoff,
-		    MIN(logsize - logoff, sizeof(sc->ns_log)),
+		    MIN(logsize, sizeof(sc->ns_log) - logoff),
 		    NVME_COPY_TO_PRP);
 		memset(&sc->ns_log, 0, sizeof(sc->ns_log));
 		break;
@@ -2784,6 +2795,38 @@ complete:
 	pthread_mutex_unlock(&sq->mtx);
 }
 
+/*
+ * Check for invalid doorbell write values
+ * See NVM Express Base Specification, revision 2.0
+ * "Asynchronous Event Information - Error Status" for details
+ */
+static bool
+pci_nvme_sq_doorbell_valid(struct nvme_submission_queue *sq, uint64_t value)
+{
+	uint64_t	capacity;
+
+	/*
+	 * Queue empty : head == tail
+	 * Queue full  : head is one more than tail accounting for wrap
+	 * Therefore, can never have more than (size - 1) entries
+	 */
+	if (sq->head == sq->tail)
+		capacity = sq->size - 1;
+	else if (sq->head > sq->tail)
+		capacity = sq->size - (sq->head - sq->tail) - 1;
+	else
+		capacity = sq->tail - sq->head - 1;
+
+	if ((value == sq->tail) ||	/* same as previous */
+	    (value > capacity))	{	/* exceeds queue capacity */
+		EPRINTLN("%s: SQ size=%u head=%u tail=%u capacity=%lu value=%lu",
+		    __func__, sq->size, sq->head, sq->tail, capacity, value);
+		return false;
+	}
+
+	return true;
+}
+
 static void
 pci_nvme_handle_doorbell(struct pci_nvme_softc* sc,
 	uint64_t idx, int is_sq, uint64_t value)
@@ -2796,22 +2839,34 @@ pci_nvme_handle_doorbell(struct pci_nvme_softc* sc,
 			WPRINTF("%s queue index %lu overflow from "
 			         "guest (max %u)",
 			         __func__, idx, sc->num_squeues);
+			pci_nvme_aen_post(sc, PCI_NVME_AE_TYPE_ERROR,
+			    PCI_NVME_AEI_ERROR_INVALID_DB);
+			return;
+		}
+
+		if (sc->submit_queues[idx].qbase == NULL) {
+			WPRINTF("%s write to SQ %lu before created", __func__,
+			    idx);
+			pci_nvme_aen_post(sc, PCI_NVME_AE_TYPE_ERROR,
+			    PCI_NVME_AEI_ERROR_INVALID_DB);
+			return;
+		}
+
+		if (!pci_nvme_sq_doorbell_valid(&sc->submit_queues[idx], value)) {
+			EPRINTLN("%s write to SQ %lu of %lu invalid", __func__,
+			    idx, value);
+			pci_nvme_aen_post(sc, PCI_NVME_AE_TYPE_ERROR,
+			    PCI_NVME_AEI_ERROR_INVALID_DB_VALUE);
 			return;
 		}
 
 		atomic_store_short(&sc->submit_queues[idx].tail,
 		                   (uint16_t)value);
 
-		if (idx == 0) {
+		if (idx == 0)
 			pci_nvme_handle_admin_cmd(sc, value);
-		} else {
+		else {
 			/* submission queue; handle new entries in SQ */
-			if (idx > sc->num_squeues) {
-				WPRINTF("%s SQ index %lu overflow from "
-				         "guest (max %u)",
-				         __func__, idx, sc->num_squeues);
-				return;
-			}
 			pci_nvme_handle_io_cmd(sc, (uint16_t)idx);
 		}
 	} else {
@@ -2819,6 +2874,16 @@ pci_nvme_handle_doorbell(struct pci_nvme_softc* sc,
 			WPRINTF("%s queue index %lu overflow from "
 			         "guest (max %u)",
 			         __func__, idx, sc->num_cqueues);
+			pci_nvme_aen_post(sc, PCI_NVME_AE_TYPE_ERROR,
+			    PCI_NVME_AEI_ERROR_INVALID_DB);
+			return;
+		}
+
+		if (sc->compl_queues[idx].qbase == NULL) {
+			WPRINTF("%s write to CQ %lu before created", __func__,
+			    idx);
+			pci_nvme_aen_post(sc, PCI_NVME_AE_TYPE_ERROR,
+			    PCI_NVME_AEI_ERROR_INVALID_DB);
 			return;
 		}
 

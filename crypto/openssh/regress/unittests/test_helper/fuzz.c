@@ -214,7 +214,7 @@ siginfo(int unused __attribute__((__unused__)))
 struct fuzz *
 fuzz_begin(u_int strategies, const void *p, size_t l)
 {
-	struct fuzz *ret = calloc(sizeof(*ret), 1);
+	struct fuzz *ret = calloc(1, sizeof(*ret));
 
 	assert(p != NULL);
 	assert(ret != NULL);

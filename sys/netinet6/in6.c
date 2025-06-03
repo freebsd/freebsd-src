@@ -86,6 +86,7 @@
 #include <net/if_var.h>
 #include <net/if_private.h>
 #include <net/if_types.h>
+#include <net/if_bridgevar.h>
 #include <net/route.h>
 #include <net/route/route_ctl.h>
 #include <net/route/nhop.h>
@@ -587,7 +588,7 @@ in6_control_ioctl(u_long cmd, void *data,
 #endif
 		error = in6_addifaddr(ifp, ifra, ia);
 		ia = NULL;
-		break;
+		goto out;
 
 	case SIOCDIFADDR_IN6:
 		in6_purgeifaddr(ia);
@@ -1233,6 +1234,13 @@ in6_addifaddr(struct ifnet *ifp, struct in6_aliasreq *ifra, struct in6_ifaddr *i
 	struct nd_prefix *pr;
 	int carp_attached = 0;
 	int error;
+
+	/* Check if this interface is a bridge member */
+	if (ifp->if_bridge && bridge_member_ifaddrs_p &&
+	    !bridge_member_ifaddrs_p()) {
+		error = EINVAL;
+		goto out;
+	}
 
 	/*
 	 * first, make or update the interface address structure,
@@ -2105,31 +2113,6 @@ in6if_do_dad(struct ifnet *ifp)
 }
 
 /*
- * Calculate max IPv6 MTU through all the interfaces and store it
- * to in6_maxmtu.
- */
-void
-in6_setmaxmtu(void)
-{
-	struct epoch_tracker et;
-	unsigned long maxmtu = 0;
-	struct ifnet *ifp;
-
-	NET_EPOCH_ENTER(et);
-	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		/* this function can be called during ifnet initialization */
-		if (!ifp->if_afdata[AF_INET6])
-			continue;
-		if ((ifp->if_flags & IFF_LOOPBACK) == 0 &&
-		    IN6_LINKMTU(ifp) > maxmtu)
-			maxmtu = IN6_LINKMTU(ifp);
-	}
-	NET_EPOCH_EXIT(et);
-	if (maxmtu)	/* update only when maxmtu is positive */
-		V_in6_maxmtu = maxmtu;
-}
-
-/*
  * Provide the length of interface identifiers to be used for the link attached
  * to the given interface.  The length should be defined in "IPv6 over
  * xxx-link" document.  Note that address architecture might also define
@@ -2653,7 +2636,7 @@ in6_domifdetach(struct ifnet *ifp, void *aux)
  * v4 mapped addr or v4 compat addr
  */
 void
-in6_sin6_2_sin(struct sockaddr_in *sin, struct sockaddr_in6 *sin6)
+in6_sin6_2_sin(struct sockaddr_in *sin, const struct sockaddr_in6 *sin6)
 {
 
 	bzero(sin, sizeof(*sin));
@@ -2665,7 +2648,7 @@ in6_sin6_2_sin(struct sockaddr_in *sin, struct sockaddr_in6 *sin6)
 
 /* Convert sockaddr_in to sockaddr_in6 in v4 mapped addr format. */
 void
-in6_sin_2_v4mapsin6(struct sockaddr_in *sin, struct sockaddr_in6 *sin6)
+in6_sin_2_v4mapsin6(const struct sockaddr_in *sin, struct sockaddr_in6 *sin6)
 {
 	bzero(sin6, sizeof(*sin6));
 	sin6->sin6_len = sizeof(struct sockaddr_in6);

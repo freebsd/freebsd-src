@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
  * Device Tree Source for J721S2 SoC Family MCU/WAKEUP Domain peripherals
  *
- * Copyright (C) 2021 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2021-2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 &cbass_mcu_wakeup {
@@ -139,12 +139,16 @@
 		ti,interrupt-ranges = <16 960 16>;
 	};
 
-	mcu_conf: syscon@40f00000 {
-		compatible = "syscon", "simple-mfd";
-		reg = <0x0 0x40f00000 0x0 0x20000>;
+	mcu_conf: bus@40f00000 {
+		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x40f00000 0x20000>;
+
+		cpsw_mac_syscon: ethernet-mac-syscon@200 {
+			compatible = "ti,am62p-cpsw-mac-efuse", "syscon";
+			reg = <0x200 0x8>;
+		};
 
 		phy_gmii_sel: phy@4040 {
 			compatible = "ti,am654-phy-gmii-sel";
@@ -298,7 +302,6 @@
 		compatible = "ti,j721e-uart", "ti,am654-uart";
 		reg = <0x00 0x42300000 0x00 0x200>;
 		interrupts = <GIC_SPI 897 IRQ_TYPE_LEVEL_HIGH>;
-		current-speed = <115200>;
 		clocks = <&k3_clks 359 3>;
 		clock-names = "fclk";
 		power-domains = <&k3_pds 359 TI_SCI_PD_EXCLUSIVE>;
@@ -309,7 +312,6 @@
 		compatible = "ti,j721e-uart", "ti,am654-uart";
 		reg = <0x00 0x40a00000 0x00 0x200>;
 		interrupts = <GIC_SPI 846 IRQ_TYPE_LEVEL_HIGH>;
-		current-speed = <115200>;
 		clocks = <&k3_clks 149 3>;
 		clock-names = "fclk";
 		power-domains = <&k3_pds 149 TI_SCI_PD_EXCLUSIVE>;
@@ -546,7 +548,7 @@
 				reg = <1>;
 				ti,mac-only;
 				label = "port1";
-				ti,syscon-efuse = <&mcu_conf 0x200>;
+				ti,syscon-efuse = <&cpsw_mac_syscon 0x0>;
 				phys = <&phy_gmii_sel 1>;
 			};
 		};
@@ -620,8 +622,8 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges = <0x00 0x47000000 0x00 0x47000000 0x00 0x00068400>,
-			 <0x05 0x00000000 0x05 0x00000000 0x01 0x00000000>,
-			 <0x07 0x00000000 0x07 0x00000000 0x01 0x00000000>;
+			 <0x00 0x50000000 0x00 0x50000000 0x00 0x10000000>,
+			 <0x04 0x00000000 0x04 0x00000000 0x04 0x00000000>;
 
 		ospi0: spi@47040000 {
 			compatible = "ti,am654-ospi", "cdns,qspi-nor";
@@ -663,7 +665,7 @@
 		compatible = "ti,j7200-vtm";
 		reg = <0x00 0x42040000 0x0 0x350>,
 		      <0x00 0x42050000 0x0 0x350>;
-		power-domains = <&k3_pds 154 TI_SCI_PD_SHARED>;
+		power-domains = <&k3_pds 180 TI_SCI_PD_SHARED>;
 		#thermal-sensor-cells = <1>;
 	};
 

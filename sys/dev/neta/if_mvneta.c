@@ -807,8 +807,8 @@ mvneta_attach(device_t self)
 				mvneta_detach(self);
 				return (ENXIO);
 			}
-			bus_generic_attach(sc->dev);
-			bus_generic_attach(child);
+			bus_attach_children(sc->dev);
+			bus_attach_children(child);
 		}
 
 		/* Configure MAC media */
@@ -843,7 +843,7 @@ mvneta_detach(device_t dev)
 	for (q = 0; q < MVNETA_TX_QNUM_MAX; q++)
 		mvneta_ring_dealloc_tx_queue(sc, q);
 
-	device_delete_children(dev);
+	bus_generic_detach(dev);
 
 	if (sc->ih_cookie[0] != NULL)
 		bus_teardown_intr(dev, sc->res[1], sc->ih_cookie[0]);

@@ -762,18 +762,18 @@ sai_attach(device_t dev)
 
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
 
-	err = pcm_register(dev, scp, 1, 0);
-	if (err) {
-		device_printf(dev, "Can't register pcm.\n");
-		return (ENXIO);
-	}
+	pcm_init(dev, scp);
 
 	scp->chnum = 0;
 	pcm_addchan(dev, PCMDIR_PLAY, &saichan_class, scp);
 	scp->chnum++;
 
 	snprintf(status, SND_STATUSLEN, "at simplebus");
-	pcm_setstatus(dev, status);
+	err = pcm_register(dev, status);
+	if (err) {
+		device_printf(dev, "Can't register pcm.\n");
+		return (ENXIO);
+	}
 
 	mixer_init(dev, &saimixer_class, scp);
 

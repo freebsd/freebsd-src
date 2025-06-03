@@ -267,7 +267,7 @@ identify(const struct cmd *f, int argc, char *argv[])
 static const struct opts identify_opts[] = {
 #define OPT(l, s, t, opt, addr, desc) { l, s, t, &opt.addr, desc }
 	OPT("hex", 'x', arg_none, opt, hex,
-	    "Print identiy information in hex"),
+	    "Print identity information in hex"),
 	OPT("verbose", 'v', arg_none, opt, verbose,
 	    "More verbosity: print entire identify table"),
 	OPT("nsid", 'n', arg_uint32, opt, nsid,

@@ -461,7 +461,7 @@ typedef struct {
 	 *
 	 * ext_size_low holds the least significant 32 bits of the
 	 * uncompressed size. The most significant 32 bits must be set
-	 * in ext_size_high. The macro lzma_ext_size_set(opt_lzma, u64size)
+	 * in ext_size_high. The macro lzma_set_ext_size(opt_lzma, u64size)
 	 * can be used to set these members.
 	 *
 	 * The 64-bit uncompressed size is split into two uint32_t variables

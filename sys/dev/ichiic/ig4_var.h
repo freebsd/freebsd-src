@@ -93,7 +93,6 @@ struct ig4iic_softc {
 	bool		platform_attached : 1;
 	bool		use_10bit : 1;
 	bool		slave_valid : 1;
-	bool		poll: 1;
 
 	/*
 	 * Locking semantics:

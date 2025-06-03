@@ -9,4 +9,7 @@
 
 #define MAX_ORDER	11
 
+#define	MAX_PAGE_ORDER	10
+#define	NR_PAGE_ORDERS	(MAX_PAGE_ORDER + 1)
+
 #endif

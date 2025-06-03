@@ -10,6 +10,7 @@ struct ndp_opts {
 	bool tflag;
 	int flags;
 	time_t expire_time;
+	int repeat;
 };
 
 extern struct ndp_opts opts;

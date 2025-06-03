@@ -167,6 +167,7 @@ r92cu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_get_rssi_ofdm		= r92c_get_rssi_ofdm;
 	sc->sc_classify_intr		= r92c_classify_intr;
 	sc->sc_handle_tx_report		= rtwn_nop_softc_uint8_int;
+	sc->sc_handle_tx_report2	= rtwn_nop_softc_uint8_int;
 	sc->sc_handle_c2h_report	= rtwn_nop_softc_uint8_int;
 	sc->sc_check_frame		= rtwn_nop_int_softc_mbuf;
 	sc->sc_rf_read			= r92c_rf_read;
@@ -198,6 +199,7 @@ r92cu_attach(struct rtwn_usb_softc *uc)
 #endif
 	sc->sc_beacon_init		= r92c_beacon_init;
 	sc->sc_beacon_enable		= r92c_beacon_enable;
+	sc->sc_sta_beacon_enable	= r92c_sta_beacon_enable;
 	sc->sc_beacon_set_rate		= rtwn_nop_void_int;
 	sc->sc_beacon_select		= rtwn_nop_softc_int;
 	sc->sc_temp_measure		= r92c_temp_measure;
@@ -212,6 +214,7 @@ r92cu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_init_antsel		= r92c_init_antsel;
 	sc->sc_post_init		= r92cu_post_init;
 	sc->sc_init_bcnq1_boundary	= rtwn_nop_int_softc;
+	sc->sc_set_tx_power		= r92c_set_tx_power;
 
 	sc->mac_prog			= &rtl8192cu_mac[0];
 	sc->mac_size			= nitems(rtl8192cu_mac);

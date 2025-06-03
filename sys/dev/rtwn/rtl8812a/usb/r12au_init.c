@@ -142,7 +142,17 @@ r12au_init_ampdu(struct rtwn_softc *sc)
 
 	/* Setup AMPDU aggregation. */
 	rtwn_write_1(sc, R12A_AMPDU_MAX_TIME, rs->ampdu_max_time);
-	rtwn_write_4(sc, R12A_AMPDU_MAX_LENGTH, 0xffffffff);
+	/*
+	 * Note: The vendor driver (hal/rtl8812a_hal_init.c:SetHwReg8812A())
+	 * also sets bit 31.
+	 */
+	/*
+	 * TODO: this should be limited to the peer in STA mode,
+	 * and perhaps the minimum A-MPDU of all VAPs/peers in
+	 * multi-STA / other operating modes.
+	 */
+	rtwn_write_4(sc, R12A_AMPDU_MAX_LENGTH,
+	    rs->ampdu_max_size | (1<<31));
 
 	/* 80 MHz clock (again?) */
 	rtwn_write_1(sc, R92C_USTIME_TSF, 0x50);

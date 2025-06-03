@@ -32,10 +32,9 @@ extern "C" {
 #include <sys/time.h>
 
 #include <fcntl.h>
+#include <mntopts.h>	// for build_iovec
 #include <signal.h>
 #include <unistd.h>
-
-#include "mntopts.h"	// for build_iovec
 }
 
 #include "mockfs.hh"

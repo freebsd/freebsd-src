@@ -323,7 +323,7 @@ read_cpu_time(long *cp_time)
 
 #include <sys/watchdog.h>
 
-static int watchdog_ticks;
+static long watchdog_ticks;
 static int watchdog_enabled;
 static void watchdog_fire(void);
 static void watchdog_config(void *, u_int, int *);
@@ -369,10 +369,9 @@ watchdog_attach(void)
 int	stathz;
 int	profhz;
 int	profprocs;
-volatile int	ticks;
 int	psratio;
 
-DPCPU_DEFINE_STATIC(int, pcputicks);	/* Per-CPU version of ticks. */
+DPCPU_DEFINE_STATIC(long, pcputicks);	/* Per-CPU version of ticks. */
 #ifdef DEVICE_POLLING
 static int devpoll_run = 0;
 #endif
@@ -480,14 +479,14 @@ hardclock(int cnt, int usermode)
 	struct pstats *pstats;
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
-	int *t = DPCPU_PTR(pcputicks);
-	int global, i, newticks;
+	long global, newticks, *t;
 
 	/*
 	 * Update per-CPU and possibly global ticks values.
 	 */
+	t = DPCPU_PTR(pcputicks);
 	*t += cnt;
-	global = ticks;
+	global = atomic_load_long(&ticksl);
 	do {
 		newticks = *t - global;
 		if (newticks <= 0) {
@@ -496,7 +495,7 @@ hardclock(int cnt, int usermode)
 			newticks = 0;
 			break;
 		}
-	} while (!atomic_fcmpset_int(&ticks, &global, *t));
+	} while (!atomic_fcmpset_long(&ticksl, &global, *t));
 
 	/*
 	 * Run current process's virtual and profile time, as needed.
@@ -525,8 +524,10 @@ hardclock(int cnt, int usermode)
 		}
 #endif /* DEVICE_POLLING */
 		if (watchdog_enabled > 0) {
-			i = atomic_fetchadd_int(&watchdog_ticks, -newticks);
-			if (i > 0 && i <= newticks)
+			long left;
+
+			left = atomic_fetchadd_long(&watchdog_ticks, -newticks);
+			if (left > 0 && left <= newticks)
 				watchdog_fire();
 		}
 		intr_event_handle(clk_intr_event, NULL);
@@ -540,11 +541,12 @@ hardclock(int cnt, int usermode)
 void
 hardclock_sync(int cpu)
 {
-	int *t;
-	KASSERT(!CPU_ABSENT(cpu), ("Absent CPU %d", cpu));
-	t = DPCPU_ID_PTR(cpu, pcputicks);
+	long *t;
 
-	*t = ticks;
+	KASSERT(!CPU_ABSENT(cpu), ("Absent CPU %d", cpu));
+
+	t = DPCPU_ID_PTR(cpu, pcputicks);
+	*t = ticksl;
 }
 
 /*

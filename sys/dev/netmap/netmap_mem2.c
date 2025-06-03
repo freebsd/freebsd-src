@@ -37,8 +37,8 @@
 #endif /* __APPLE__ */
 
 #ifdef __FreeBSD__
-#include <sys/cdefs.h> /* prerequisite */
 #include <sys/types.h>
+#include <sys/domainset.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>		/* MALLOC_DEFINE */
 #include <sys/proc.h>
@@ -174,7 +174,8 @@ struct netmap_mem_d {
 	struct netmap_obj_pool pools[NETMAP_POOLS_NR];
 
 	nm_memid_t nm_id;	/* allocator identifier */
-	int nm_grp;	/* iommu group id */
+	int nm_grp;		/* iommu group id */
+	int nm_numa_domain;	/* local NUMA domain */
 
 	/* list of all existing allocators, sorted by nm_id */
 	struct netmap_mem_d *prev, *next;
@@ -310,7 +311,7 @@ netmap_mem_rings_delete(struct netmap_adapter *na)
 
 static int netmap_mem_map(struct netmap_obj_pool *, struct netmap_adapter *);
 static int netmap_mem_unmap(struct netmap_obj_pool *, struct netmap_adapter *);
-static int nm_mem_check_group(struct netmap_mem_d *, bus_dma_tag_t);
+static int nm_mem_check_group(struct netmap_mem_d *, void *);
 static void nm_mem_release_id(struct netmap_mem_d *);
 
 nm_memid_t
@@ -576,6 +577,7 @@ struct netmap_mem_d nm_mem = {	/* Our memory allocator. */
 
 	.nm_id = 1,
 	.nm_grp = -1,
+	.nm_numa_domain = -1,
 
 	.prev = &nm_mem,
 	.next = &nm_mem,
@@ -615,6 +617,7 @@ static const struct netmap_mem_d nm_blueprint = {
 	},
 
 	.nm_grp = -1,
+	.nm_numa_domain = -1,
 
 	.flags = NETMAP_MEM_PRIVATE,
 
@@ -624,7 +627,6 @@ static const struct netmap_mem_d nm_blueprint = {
 /* memory allocator related sysctls */
 
 #define STRINGIFY(x) #x
-
 
 #define DECLARE_SYSCTLS(id, name) \
 	SYSBEGIN(mem2_ ## name); \
@@ -649,9 +651,14 @@ DECLARE_SYSCTLS(NETMAP_IF_POOL, if);
 DECLARE_SYSCTLS(NETMAP_RING_POOL, ring);
 DECLARE_SYSCTLS(NETMAP_BUF_POOL, buf);
 
+int netmap_port_numa_affinity = 0;
+SYSCTL_INT(_dev_netmap, OID_AUTO, port_numa_affinity,
+    CTLFLAG_RDTUN, &netmap_port_numa_affinity, 0,
+    "Use NUMA-local memory for memory pools when possible");
+
 /* call with nm_mem_list_lock held */
 static int
-nm_mem_assign_id_locked(struct netmap_mem_d *nmd, int grp_id)
+nm_mem_assign_id_locked(struct netmap_mem_d *nmd, int grp_id, int domain)
 {
 	nm_memid_t id;
 	struct netmap_mem_d *scan = netmap_last_mem_d;
@@ -666,6 +673,7 @@ nm_mem_assign_id_locked(struct netmap_mem_d *nmd, int grp_id)
 		if (id != scan->nm_id) {
 			nmd->nm_id = id;
 			nmd->nm_grp = grp_id;
+			nmd->nm_numa_domain = domain;
 			nmd->prev = scan->prev;
 			nmd->next = scan;
 			scan->prev->next = nmd;
@@ -688,7 +696,7 @@ nm_mem_assign_id(struct netmap_mem_d *nmd, int grp_id)
 	int ret;
 
 	NM_MTX_LOCK(nm_mem_list_lock);
-	ret = nm_mem_assign_id_locked(nmd, grp_id);
+	ret = nm_mem_assign_id_locked(nmd, grp_id, -1);
 	NM_MTX_UNLOCK(nm_mem_list_lock);
 
 	return ret;
@@ -728,7 +736,7 @@ netmap_mem_find(nm_memid_t id)
 }
 
 static int
-nm_mem_check_group(struct netmap_mem_d *nmd, bus_dma_tag_t dev)
+nm_mem_check_group(struct netmap_mem_d *nmd, void *dev)
 {
 	int err = 0, id;
 
@@ -1399,7 +1407,7 @@ netmap_config_obj_allocator(struct netmap_obj_pool *p, u_int objtotal, u_int obj
 
 /* call with NMA_LOCK held */
 static int
-netmap_finalize_obj_allocator(struct netmap_obj_pool *p)
+netmap_finalize_obj_allocator(struct netmap_mem_d *nmd, struct netmap_obj_pool *p)
 {
 	int i; /* must be signed */
 
@@ -1440,8 +1448,16 @@ netmap_finalize_obj_allocator(struct netmap_obj_pool *p)
 		 * can live with standard malloc, because the hardware will not
 		 * access the pages directly.
 		 */
-		clust = contigmalloc(p->_clustsize, M_NETMAP, M_NOWAIT | M_ZERO,
-		    (size_t)0, -1UL, PAGE_SIZE, 0);
+		if (nmd->nm_numa_domain == -1) {
+			clust = contigmalloc(p->_clustsize, M_NETMAP,
+			    M_NOWAIT | M_ZERO, (size_t)0, -1UL, PAGE_SIZE, 0);
+		} else {
+			struct domainset *ds;
+
+			ds = DOMAINSET_PREF(nmd->nm_numa_domain);
+			clust = contigmalloc_domainset(p->_clustsize, M_NETMAP,
+			    ds, M_NOWAIT | M_ZERO, (size_t)0, -1UL, PAGE_SIZE, 0);
+		}
 		if (clust == NULL) {
 			/*
 			 * If we get here, there is a severe memory shortage,
@@ -1634,7 +1650,7 @@ netmap_mem_finalize_all(struct netmap_mem_d *nmd)
 	nmd->lasterr = 0;
 	nmd->nm_totalsize = 0;
 	for (i = 0; i < NETMAP_POOLS_NR; i++) {
-		nmd->lasterr = netmap_finalize_obj_allocator(&nmd->pools[i]);
+		nmd->lasterr = netmap_finalize_obj_allocator(nmd, &nmd->pools[i]);
 		if (nmd->lasterr)
 			goto error;
 		nmd->nm_totalsize += nmd->pools[i].memtotal;
@@ -1802,24 +1818,26 @@ netmap_mem_private_new(u_int txr, u_int txd, u_int rxr, u_int rxd,
 	return d;
 }
 
-/* Reference iommu allocator - find existing or create new,
- * for not hw addapeters fallback to global allocator.
+/* Reference IOMMU and NUMA local allocator - find existing or create new,
+ * for non-hw adapters, fall back to global allocator.
  */
 struct netmap_mem_d *
-netmap_mem_get_iommu(struct netmap_adapter *na)
+netmap_mem_get_allocator(struct netmap_adapter *na)
 {
-	int i, err, grp_id;
+	int i, domain, err, grp_id;
 	struct netmap_mem_d *nmd;
 
 	if (na == NULL || na->pdev == NULL)
 		return netmap_mem_get(&nm_mem);
 
+	domain = nm_numa_domain(na->pdev);
 	grp_id = nm_iommu_group_id(na->pdev);
 
 	NM_MTX_LOCK(nm_mem_list_lock);
 	nmd = netmap_last_mem_d;
 	do {
-		if (!(nmd->flags & NETMAP_MEM_HIDDEN) && nmd->nm_grp == grp_id) {
+		if (!(nmd->flags & NETMAP_MEM_HIDDEN) &&
+		    nmd->nm_grp == grp_id && nmd->nm_numa_domain == domain) {
 			nmd->refcount++;
 			NM_DBG_REFC(nmd, __FUNCTION__, __LINE__);
 			NM_MTX_UNLOCK(nm_mem_list_lock);
@@ -1834,7 +1852,7 @@ netmap_mem_get_iommu(struct netmap_adapter *na)
 
 	*nmd = nm_mem_blueprint;
 
-	err = nm_mem_assign_id_locked(nmd, grp_id);
+	err = nm_mem_assign_id_locked(nmd, grp_id, domain);
 	if (err)
 		goto error_free;
 
@@ -2878,7 +2896,7 @@ netmap_mem_pt_guest_create(nm_memid_t mem_id)
 	ptnmd->pt_ifs = NULL;
 
 	/* Assign new id in the guest (We have the lock) */
-	err = nm_mem_assign_id_locked(&ptnmd->up, -1);
+	err = nm_mem_assign_id_locked(&ptnmd->up, -1, -1);
 	if (err)
 		goto error;
 

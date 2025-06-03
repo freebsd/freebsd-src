@@ -33,20 +33,13 @@
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
 
+struct folio_batch;
+
 #define	invalidate_mapping_pages(...) \
   linux_invalidate_mapping_pages(__VA_ARGS__)
 
 unsigned long linux_invalidate_mapping_pages(vm_object_t obj, pgoff_t start,
     pgoff_t end);
-
-static inline void
-release_pages(struct page **pages, int nr)
-{
-	int i;
-
-	for (i = 0; i < nr; i++)
-		put_page(pages[i]);
-}
 
 static inline void
 mapping_clear_unevictable(vm_object_t mapping)

@@ -34,7 +34,7 @@ fwd_ip6_gu_icmp_iface_fast_success_head() {
 
 	atf_set descr 'Test valid IPv6 global unicast fast-forwarding to interface'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip6_gu_icmp_iface_fast_success_body() {
@@ -104,7 +104,7 @@ fwd_ip6_gu_icmp_gw_gu_fast_success_head() {
 
 	atf_set descr 'Test valid IPv6 global unicast fast-forwarding to GU gw'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip6_gu_icmp_gw_gu_fast_success_body() {
@@ -178,7 +178,7 @@ fwd_ip6_gu_icmp_gw_ll_fast_success_head() {
 
 	atf_set descr 'Test valid IPv6 global unicast fast-forwarding to LL gw'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip6_gu_icmp_gw_ll_fast_success_body() {
@@ -253,7 +253,7 @@ fwd_ip6_gu_icmp_iface_slow_success_head() {
 
 	atf_set descr 'Test valid IPv6 global unicast fast-forwarding to interface'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip6_gu_icmp_iface_slow_success_body() {
@@ -322,7 +322,7 @@ fwd_ip6_gu_icmp_gw_gu_slow_success_head() {
 
 	atf_set descr 'Test valid IPv6 global unicast fast-forwarding to GU gw'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip6_gu_icmp_gw_gu_slow_success_body() {
@@ -397,7 +397,7 @@ fwd_ip6_gu_icmp_gw_ll_slow_success_head() {
 
 	atf_set descr 'Test valid IPv6 global unicast fast-forwarding to LL gw'
 	atf_set require.user root
-	atf_set require.progs scapy
+	atf_set require.progs python3 scapy
 }
 
 fwd_ip6_gu_icmp_gw_ll_slow_success_body() {
@@ -466,6 +466,59 @@ fwd_ip6_gu_icmp_gw_ll_slow_success_cleanup() {
 	vnet_cleanup
 }
 
+atf_test_case "fwd_ip6_blackhole" "cleanup"
+fwd_ip6_blackhole_head() {
+
+	atf_set descr 'Test blackhole routing'
+	atf_set require.user root
+}
+
+fwd_ip6_blackhole_body() {
+	jname="v6t-fwd_ip6_blackhole"
+
+	vnet_init
+
+	epair=$(vnet_mkepair)
+	epair_out=$(vnet_mkepair)
+
+	ifconfig ${epair}a inet6 2001:db8::2/64 up no_dad
+
+	vnet_mkjail ${jname} ${epair}b ${epair_out}b
+	jexec ${jname} ifconfig lo0 inet6 ::1/128 up no_dad
+	jexec ${jname} ifconfig ${epair}b inet6 2001:db8::1/64 up no_dad
+	jexec ${jname} ifconfig ${epair_out}b inet6 2001:db8:1::1/64 up no_dad
+	jexec ${jname} sysctl net.inet6.ip6.forwarding=1
+
+	route -6 add default 2001:db8::1
+
+	atf_check -s exit:2 -o ignore \
+	    ping6 -c 1 -t 1 2001:db8:1::2
+	atf_check -s exit:0 -o match:"0 packets not forwardable" \
+	    jexec ${jname} netstat -s -p ip6
+
+	# Create blackhole route
+	jexec ${jname} route -6 add 2001:db8:1::2 -blackhole
+
+	# Force slow path
+	jexec ${jname} sysctl net.inet6.ip6.redirect=1
+	atf_check -s exit:2 -o ignore \
+	    ping6 -c 1 -t 1 2001:db8:1::2
+	atf_check -s exit:0 -o match:"1 packet not forwardable" \
+	    jexec ${jname} netstat -s -p ip6
+
+	# Now try the fast path
+	jexec ${jname} sysctl net.inet6.ip6.redirect=0
+	atf_check -s exit:2 -o ignore \
+	    ping6 -c 1 -t 1 2001:db8:1::2
+	atf_check -s exit:0 -o match:"2 packets not forwardable" \
+	    jexec ${jname} netstat -s -p ip6
+}
+
+fwd_ip6_blackhole_cleanup() {
+
+	vnet_cleanup
+}
+
 atf_init_test_cases()
 {
 
@@ -475,6 +528,7 @@ atf_init_test_cases()
 	atf_add_test_case "fwd_ip6_gu_icmp_iface_slow_success"
 	atf_add_test_case "fwd_ip6_gu_icmp_gw_gu_slow_success"
 	atf_add_test_case "fwd_ip6_gu_icmp_gw_ll_slow_success"
+	atf_add_test_case "fwd_ip6_blackhole"
 }
 
 # end

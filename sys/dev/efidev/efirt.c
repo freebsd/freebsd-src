@@ -123,11 +123,20 @@ efi_status_to_errno(efi_status status)
 }
 
 static struct mtx efi_lock;
-static SYSCTL_NODE(_hw, OID_AUTO, efi, CTLFLAG_RWTUN | CTLFLAG_MPSAFE, NULL,
+SYSCTL_NODE(_hw, OID_AUTO, efi, CTLFLAG_RWTUN | CTLFLAG_MPSAFE, NULL,
     "EFI");
 static bool efi_poweroff = true;
 SYSCTL_BOOL(_hw_efi, OID_AUTO, poweroff, CTLFLAG_RWTUN, &efi_poweroff, 0,
     "If true, use EFI runtime services to power off in preference to ACPI");
+extern int print_efirt_faults;
+SYSCTL_INT(_hw_efi, OID_AUTO, print_faults, CTLFLAG_RWTUN,
+    &print_efirt_faults, 0,
+    "Print fault  information upon trap from EFIRT calls: "
+    "0 - never, 1 - once, 2 - always");
+extern u_long cnt_efirt_faults;
+SYSCTL_ULONG(_hw_efi, OID_AUTO, total_faults, CTLFLAG_RD,
+    &cnt_efirt_faults, 0,
+    "Total number of faults that occurred during EFIRT calls");
 
 static bool
 efi_is_in_map(struct efi_md *map, int ndesc, int descsz, vm_offset_t addr)
@@ -167,7 +176,6 @@ efi_init(void)
 	struct efi_map_header *efihdr;
 	struct efi_md *map;
 	struct efi_rt *rtdm;
-	caddr_t kmdp;
 	size_t efisz;
 	int ndesc, rt_disabled;
 
@@ -197,10 +205,7 @@ efi_init(void)
 			printf("EFI config table is not present\n");
 	}
 
-	kmdp = preload_search_by_type("elf kernel");
-	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	efihdr = (struct efi_map_header *)preload_search_info(preload_kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
 	if (efihdr == NULL) {
 		if (bootverbose)
@@ -309,6 +314,9 @@ efi_enter(void)
 		fpu_kern_leave(td, NULL);
 		mtx_unlock(&efi_lock);
 		PMAP_UNLOCK(curpmap);
+	} else {
+		MPASS((td->td_pflags & TDP_EFIRT) == 0);
+		td->td_pflags |= TDP_EFIRT;
 	}
 	return (error);
 }
@@ -319,17 +327,20 @@ efi_leave(void)
 	struct thread *td;
 	pmap_t curpmap;
 
+	td = curthread;
+	MPASS((td->td_pflags & TDP_EFIRT) != 0);
+	td->td_pflags &= ~TDP_EFIRT;
+
 	efi_arch_leave();
 
 	curpmap = &curproc->p_vmspace->vm_pmap;
-	td = curthread;
 	fpu_kern_leave(td, NULL);
 	mtx_unlock(&efi_lock);
 	PMAP_UNLOCK(curpmap);
 }
 
 static int
-get_table(struct uuid *uuid, void **ptr)
+get_table(efi_guid_t *guid, void **ptr)
 {
 	struct efi_cfgtbl *ct;
 	u_long count;
@@ -343,7 +354,7 @@ get_table(struct uuid *uuid, void **ptr)
 	count = efi_systbl->st_entries;
 	ct = efi_cfgtbl;
 	while (count--) {
-		if (!bcmp(&ct->ct_uuid, uuid, sizeof(*uuid))) {
+		if (!bcmp(&ct->ct_guid, guid, sizeof(*guid))) {
 			*ptr = ct->ct_data;
 			efi_leave();
 			return (0);
@@ -362,13 +373,13 @@ get_table_length(enum efi_table_type type, size_t *table_len, void **taddr)
 	case TYPE_ESRT:
 	{
 		struct efi_esrt_table *esrt = NULL;
-		struct uuid uuid = EFI_TABLE_ESRT;
+		efi_guid_t guid = EFI_TABLE_ESRT;
 		uint32_t fw_resource_count = 0;
 		size_t len = sizeof(*esrt);
 		int error;
 		void *buf;
 
-		error = efi_get_table(&uuid, (void **)&esrt);
+		error = efi_get_table(&guid, (void **)&esrt);
 		if (error != 0)
 			return (error);
 
@@ -404,14 +415,14 @@ get_table_length(enum efi_table_type type, size_t *table_len, void **taddr)
 	}
 	case TYPE_PROP:
 	{
-		struct uuid uuid = EFI_PROPERTIES_TABLE;
+		efi_guid_t guid = EFI_PROPERTIES_TABLE;
 		struct efi_prop_table *prop;
 		size_t len = sizeof(*prop);
 		uint32_t prop_len;
 		int error;
 		void *buf;
 
-		error = efi_get_table(&uuid, (void **)&prop);
+		error = efi_get_table(&guid, (void **)&prop);
 		if (error != 0)
 			return (error);
 
@@ -439,10 +450,10 @@ get_table_length(enum efi_table_type type, size_t *table_len, void **taddr)
 }
 
 static int
-copy_table(struct uuid *uuid, void **buf, size_t buf_len, size_t *table_len)
+copy_table(efi_guid_t *guid, void **buf, size_t buf_len, size_t *table_len)
 {
 	static const struct known_table {
-		struct uuid uuid;
+		efi_guid_t guid;
 		enum efi_table_type type;
 	} tables[] = {
 		{ EFI_TABLE_ESRT,       TYPE_ESRT },
@@ -453,7 +464,7 @@ copy_table(struct uuid *uuid, void **buf, size_t buf_len, size_t *table_len)
 	int rc;
 
 	for (table_idx = 0; table_idx < nitems(tables); table_idx++) {
-		if (!bcmp(&tables[table_idx].uuid, uuid, sizeof(*uuid)))
+		if (!bcmp(&tables[table_idx].guid, guid, sizeof(*guid)))
 			break;
 	}
 
@@ -484,31 +495,32 @@ efi_rt_arch_call_nofault(struct efirt_callinfo *ec)
 
 	switch (ec->ec_argcnt) {
 	case 0:
-		ec->ec_efi_status = ((register_t (*)(void))ec->ec_fptr)();
+		ec->ec_efi_status = ((register_t EFIABI_ATTR (*)(void))
+		    ec->ec_fptr)();
 		break;
 	case 1:
-		ec->ec_efi_status = ((register_t (*)(register_t))ec->ec_fptr)
-		    (ec->ec_arg1);
+		ec->ec_efi_status = ((register_t EFIABI_ATTR (*)(register_t))
+		    ec->ec_fptr)(ec->ec_arg1);
 		break;
 	case 2:
-		ec->ec_efi_status = ((register_t (*)(register_t, register_t))
-		    ec->ec_fptr)(ec->ec_arg1, ec->ec_arg2);
+		ec->ec_efi_status = ((register_t EFIABI_ATTR (*)(register_t,
+		    register_t))ec->ec_fptr)(ec->ec_arg1, ec->ec_arg2);
 		break;
 	case 3:
-		ec->ec_efi_status = ((register_t (*)(register_t, register_t,
-		    register_t))ec->ec_fptr)(ec->ec_arg1, ec->ec_arg2,
-		    ec->ec_arg3);
+		ec->ec_efi_status = ((register_t EFIABI_ATTR (*)(register_t,
+		    register_t, register_t))ec->ec_fptr)(ec->ec_arg1,
+		    ec->ec_arg2, ec->ec_arg3);
 		break;
 	case 4:
-		ec->ec_efi_status = ((register_t (*)(register_t, register_t,
-		    register_t, register_t))ec->ec_fptr)(ec->ec_arg1,
-		    ec->ec_arg2, ec->ec_arg3, ec->ec_arg4);
+		ec->ec_efi_status = ((register_t EFIABI_ATTR (*)(register_t,
+		    register_t, register_t, register_t))ec->ec_fptr)(
+		    ec->ec_arg1, ec->ec_arg2, ec->ec_arg3, ec->ec_arg4);
 		break;
 	case 5:
-		ec->ec_efi_status = ((register_t (*)(register_t, register_t,
-		    register_t, register_t, register_t))ec->ec_fptr)(
-		    ec->ec_arg1, ec->ec_arg2, ec->ec_arg3, ec->ec_arg4,
-		    ec->ec_arg5);
+		ec->ec_efi_status = ((register_t EFIABI_ATTR (*)(register_t,
+		    register_t, register_t, register_t, register_t))
+		    ec->ec_fptr)(ec->ec_arg1, ec->ec_arg2, ec->ec_arg3,
+		    ec->ec_arg4, ec->ec_arg5);
 		break;
 	default:
 		panic("efi_rt_arch_call: %d args", (int)ec->ec_argcnt);
@@ -718,7 +730,7 @@ set_time(struct efi_tm *tm)
 }
 
 static int
-var_get(efi_char *name, struct uuid *vendor, uint32_t *attrib,
+var_get(efi_char *name, efi_guid_t *vendor, uint32_t *attrib,
     size_t *datasize, void *data)
 {
 	struct efirt_callinfo ec;
@@ -742,7 +754,7 @@ var_get(efi_char *name, struct uuid *vendor, uint32_t *attrib,
 }
 
 static int
-var_nextname(size_t *namesize, efi_char *name, struct uuid *vendor)
+var_nextname(size_t *namesize, efi_char *name, efi_guid_t *vendor)
 {
 	struct efirt_callinfo ec;
 	int error;
@@ -763,7 +775,7 @@ var_nextname(size_t *namesize, efi_char *name, struct uuid *vendor)
 }
 
 static int
-var_set(efi_char *name, struct uuid *vendor, uint32_t attrib,
+var_set(efi_char *name, efi_guid_t *vendor, uint32_t attrib,
     size_t datasize, void *data)
 {
 	struct efirt_callinfo ec;

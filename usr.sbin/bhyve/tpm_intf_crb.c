@@ -165,6 +165,15 @@ static_assert(sizeof(struct tpm_crb_regs) == TPM_CRB_REGS_SIZE,
 		regs.rsp_addr = val;  \
 	} while (0)
 
+struct tpm_cmd_hdr {
+	uint16_t tag;
+	uint32_t len;
+	union {
+		uint32_t ordinal;
+		uint32_t errcode;
+	};
+} __packed;
+
 struct tpm_crb {
 	struct tpm_emul *emul;
 	void *emul_sc;
@@ -175,6 +184,7 @@ struct tpm_crb {
 	pthread_cond_t cond;
 	bool closing;
 };
+
 
 static void *
 tpm_crb_thread(void *const arg)
@@ -200,6 +210,26 @@ tpm_crb_thread(void *const arg)
 		const uint32_t cmd_size = CRB_CMD_SIZE_READ(crb->regs);
 		const uint32_t rsp_size = CRB_RSP_SIZE_READ(crb->regs);
 
+		if ((cmd_addr < TPM_CRB_DATA_BUFFER_ADDRESS) ||
+		    (cmd_size < sizeof (struct tpm_cmd_hdr)) ||
+		    (cmd_size > TPM_CRB_DATA_BUFFER_SIZE) ||
+		    (cmd_addr + cmd_size >
+		     TPM_CRB_DATA_BUFFER_ADDRESS + TPM_CRB_DATA_BUFFER_SIZE)) {
+			warnx("%s: invalid cmd [%16lx/%8x] outside of TPM "
+			    "buffer", __func__, cmd_addr, cmd_size);
+			break;
+		}
+
+		if ((rsp_addr < TPM_CRB_DATA_BUFFER_ADDRESS) ||
+		    (rsp_size < sizeof (struct tpm_cmd_hdr)) ||
+		    (rsp_size > TPM_CRB_DATA_BUFFER_SIZE) ||
+		    (rsp_addr + rsp_size >
+		     TPM_CRB_DATA_BUFFER_ADDRESS + TPM_CRB_DATA_BUFFER_SIZE)) {
+			warnx("%s: invalid rsp [%16lx/%8x] outside of TPM "
+			    "buffer", __func__, rsp_addr, rsp_size);
+			break;
+		}
+
 		const uint64_t cmd_off = cmd_addr - TPM_CRB_DATA_BUFFER_ADDRESS;
 		const uint64_t rsp_off = rsp_addr - TPM_CRB_DATA_BUFFER_ADDRESS;
 
@@ -216,6 +246,17 @@ tpm_crb_thread(void *const arg)
 
 		uint8_t cmd[TPM_CRB_DATA_BUFFER_SIZE];
 		memcpy(cmd, crb->regs.data_buffer, TPM_CRB_DATA_BUFFER_SIZE);
+
+		/*
+		 * Do a basic sanity check of the TPM request header. We'll need
+		 * the TPM request length for execute_cmd() below.
+		 */
+		struct tpm_cmd_hdr *req = (struct tpm_cmd_hdr *)&cmd[cmd_off];
+		if (be32toh(req->len) < sizeof (struct tpm_cmd_hdr) ||
+		    be32toh(req->len) > cmd_size) {
+			warnx("%s: invalid TPM request header", __func__);
+			break;
+		}
 
 		/*
 		 * A TPM command can take multiple seconds to execute. As we've
@@ -237,8 +278,8 @@ tpm_crb_thread(void *const arg)
 		 * response.
 		 */
 		uint8_t rsp[TPM_CRB_DATA_BUFFER_SIZE] = { 0 };
-		crb->emul->execute_cmd(crb->emul_sc, &cmd[cmd_off], cmd_size,
-		    &rsp[rsp_off], rsp_size);
+		(void) crb->emul->execute_cmd(crb->emul_sc, req,
+		    be32toh(req->len), &rsp[rsp_off], rsp_size);
 
 		pthread_mutex_lock(&crb->mutex);
 		memset(crb->regs.data_buffer, 0, TPM_CRB_DATA_BUFFER_SIZE);
@@ -337,6 +378,10 @@ tpm_crb_mem_handler(struct vcpu *vcpu __unused, const int dir,
 
 			break;
 		}
+		case offsetof(struct tpm_crb_regs, int_enable):
+			/* No interrupt support. Ignore writes to int_enable. */
+			break;
+
 		case offsetof(struct tpm_crb_regs, ctrl_start): {
 			union tpm_crb_reg_ctrl_start start;
 

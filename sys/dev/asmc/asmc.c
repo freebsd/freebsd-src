@@ -349,6 +349,24 @@ static const struct asmc_model asmc_models[] = {
 	  ASMC_MM52_TEMPS, ASMC_MM52_TEMPNAMES, ASMC_MM52_TEMPDESCS
 	},
 
+	/* The Mac Mini 6,1 has no SMS */
+	{
+	  "Macmini6,1", "Apple SMC Mac Mini 6,1",
+	  NULL, NULL, NULL,
+	  ASMC_FAN_FUNCS2,
+	  NULL, NULL, NULL,
+	  ASMC_MM61_TEMPS, ASMC_MM61_TEMPNAMES, ASMC_MM61_TEMPDESCS
+	},
+
+	/* The Mac Mini 6,2 has no SMS */
+	{
+	  "Macmini6,2", "Apple SMC Mac Mini 6,2",
+	  NULL, NULL, NULL,
+	  ASMC_FAN_FUNCS2,
+	  NULL, NULL, NULL,
+	  ASMC_MM62_TEMPS, ASMC_MM62_TEMPNAMES, ASMC_MM62_TEMPDESCS
+	},
+
 	/* The Mac Mini 7,1 has no SMS */
 	{
 	  "Macmini7,1", "Apple SMC Mac Mini 7,1",

@@ -65,7 +65,6 @@ struct dmar_domain {
 	u_int refs;			/* (u) Refs, including ctx */
 	struct dmar_unit *dmar;		/* (c) */
 	LIST_ENTRY(dmar_domain) link;	/* (u) Member in the dmar list */
-	LIST_HEAD(, dmar_ctx) contexts;	/* (u) */
 	vm_object_t pgtbl_obj;		/* (c) Page table pages */
 	u_int batch_no;
 };
@@ -73,8 +72,6 @@ struct dmar_domain {
 struct dmar_ctx {
 	struct iommu_ctx context;
 	uint64_t last_fault_rec[2];	/* Last fault reported */
-	LIST_ENTRY(dmar_ctx) link;	/* (u) Member in the domain list */
-	u_int refs;			/* (u) References from tags */
 };
 
 #define	DMAR_DOMAIN_PGLOCK(dom)		VM_OBJECT_WLOCK((dom)->pgtbl_obj)
@@ -112,6 +109,7 @@ struct dmar_unit {
 	struct x86_unit_common x86c;
 	uint16_t segment;
 	uint64_t base;
+	int memdomain;
 
 	/* Resources */
 	int reg_rid;
@@ -239,7 +237,6 @@ struct dmar_ctx *dmar_get_ctx_for_devpath(struct dmar_unit *dmar, uint16_t rid,
 int dmar_move_ctx_to_domain(struct dmar_domain *domain, struct dmar_ctx *ctx);
 void dmar_free_ctx_locked_method(struct iommu_unit *dmar,
     struct iommu_ctx *ctx);
-void dmar_free_ctx_method(struct iommu_ctx *ctx);
 struct dmar_ctx *dmar_find_ctx_locked(struct dmar_unit *dmar, uint16_t rid);
 struct iommu_ctx *dmar_get_ctx(struct iommu_unit *iommu, device_t dev,
     uint16_t rid, bool id_mapped, bool rmrr_init);
@@ -265,6 +262,8 @@ int dmar_unmap_msi_intr(device_t src, u_int cookie);
 int dmar_map_ioapic_intr(u_int ioapic_id, u_int cpu, u_int vector, bool edge,
     bool activehi, int irq, u_int *cookie, uint32_t *hi, uint32_t *lo);
 int dmar_unmap_ioapic_intr(u_int ioapic_id, u_int *cookie);
+
+int dmar_is_running(void);
 
 extern int haw;
 extern int dmar_rmrr_enable;

@@ -81,7 +81,6 @@ struct x86_iommu {
 	    device_t dev, uint16_t rid, bool id_mapped, bool rmrr_init);
 	void (*free_ctx_locked)(struct iommu_unit *iommu,
 	    struct iommu_ctx *context);
-	void (*free_ctx)(struct iommu_ctx *context);
 	struct iommu_unit *(*find)(device_t dev, bool verbose);
 	int (*alloc_msi_intr)(device_t src, u_int *cookies, u_int count);
 	int (*map_msi_intr)(device_t src, u_int cpu, u_int vector,
@@ -188,10 +187,16 @@ int iommu_alloc_irq(struct iommu_unit *unit, int idx);
 void iommu_release_intr(struct iommu_unit *unit, int idx);
 
 void iommu_device_tag_init(struct iommu_ctx *ctx, device_t dev);
+void iommu_device_set_iommu_prop(device_t dev, device_t iommu);
 
 int pglvl_pgtbl_pte_off(int pglvl, iommu_gaddr_t base, int lvl);
 vm_pindex_t pglvl_pgtbl_get_pindex(int pglvl, iommu_gaddr_t base, int lvl);
 vm_pindex_t pglvl_max_pages(int pglvl);
 iommu_gaddr_t pglvl_page_size(int total_pglvl, int lvl);
+
+void iommu_db_print_domain_entry(const struct iommu_map_entry *entry);
+void iommu_db_print_ctx(struct iommu_ctx *ctx);
+void iommu_db_domain_print_contexts(struct iommu_domain *iodom);
+void iommu_db_domain_print_mappings(struct iommu_domain *iodom);
 
 #endif

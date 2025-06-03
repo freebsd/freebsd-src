@@ -200,9 +200,9 @@ ar40xx_attach_phys(struct ar40xx_softc *sc)
 	snprintf(name, IFNAMSIZ, "%sport", device_get_nameunit(sc->sc_dev));
 	for (phy = 0; phy < AR40XX_NUM_PHYS; phy++) {
 		sc->sc_phys.ifp[phy] = if_alloc(IFT_ETHER);
-		sc->sc_phys.ifp[phy]->if_softc = sc;
-		sc->sc_phys.ifp[phy]->if_flags |= IFF_UP | IFF_BROADCAST |
-		    IFF_DRV_RUNNING | IFF_SIMPLEX;
+		if_setsoftc(sc->sc_phys.ifp[phy], sc);
+		if_setflagbits(sc->sc_phys.ifp[phy], IFF_UP | IFF_BROADCAST |
+		    IFF_DRV_RUNNING | IFF_SIMPLEX, 0);
 		sc->sc_phys.ifname[phy] = malloc(strlen(name)+1, M_DEVBUF,
 		    M_WAITOK);
 		bcopy(name, sc->sc_phys.ifname[phy], strlen(name)+1);
@@ -215,7 +215,7 @@ ar40xx_attach_phys(struct ar40xx_softc *sc)
 		device_printf(sc->sc_dev,
 		    "%s attached to pseudo interface %s\n",
 		    device_get_nameunit(sc->sc_phys.miibus[phy]),
-		    sc->sc_phys.ifp[phy]->if_xname);
+		    if_name(sc->sc_phys.ifp[phy]));
 		if (err != 0) {
 			device_printf(sc->sc_dev,
 			    "attaching PHY %d failed\n",

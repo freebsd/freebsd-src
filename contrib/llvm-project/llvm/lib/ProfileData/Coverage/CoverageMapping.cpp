@@ -37,6 +37,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <stack>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -223,36 +224,138 @@ Expected<int64_t> CounterMappingContext::evaluate(const Counter &C) const {
   return LastPoppedValue;
 }
 
-Expected<BitVector> CounterMappingContext::evaluateBitmap(
-    const CounterMappingRegion *MCDCDecision) const {
-  unsigned ID = MCDCDecision->MCDCParams.BitmapIdx;
-  unsigned NC = MCDCDecision->MCDCParams.NumConditions;
-  unsigned SizeInBits = llvm::alignTo(uint64_t(1) << NC, CHAR_BIT);
-  unsigned SizeInBytes = SizeInBits / CHAR_BIT;
-
-  assert(ID + SizeInBytes <= BitmapBytes.size() && "BitmapBytes overrun");
-  ArrayRef<uint8_t> Bytes(&BitmapBytes[ID], SizeInBytes);
-
-  // Mask each bitmap byte into the BitVector. Go in reverse so that the
-  // bitvector can just be shifted over by one byte on each iteration.
-  BitVector Result(SizeInBits, false);
-  for (auto Byte = std::rbegin(Bytes); Byte != std::rend(Bytes); ++Byte) {
-    uint32_t Data = *Byte;
-    Result <<= CHAR_BIT;
-    Result.setBitsInMask(&Data, 1);
+mcdc::TVIdxBuilder::TVIdxBuilder(const SmallVectorImpl<ConditionIDs> &NextIDs,
+                                 int Offset)
+    : Indices(NextIDs.size()) {
+  // Construct Nodes and set up each InCount
+  auto N = NextIDs.size();
+  SmallVector<MCDCNode> Nodes(N);
+  for (unsigned ID = 0; ID < N; ++ID) {
+    for (unsigned C = 0; C < 2; ++C) {
+#ifndef NDEBUG
+      Indices[ID][C] = INT_MIN;
+#endif
+      auto NextID = NextIDs[ID][C];
+      Nodes[ID].NextIDs[C] = NextID;
+      if (NextID >= 0)
+        ++Nodes[NextID].InCount;
+    }
   }
-  return Result;
+
+  // Sort key ordered by <-Width, Ord>
+  SmallVector<std::tuple<int,      /// -Width
+                         unsigned, /// Ord
+                         int,      /// ID
+                         unsigned  /// Cond (0 or 1)
+                         >>
+      Decisions;
+
+  // Traverse Nodes to assign Idx
+  SmallVector<int> Q;
+  assert(Nodes[0].InCount == 0);
+  Nodes[0].Width = 1;
+  Q.push_back(0);
+
+  unsigned Ord = 0;
+  while (!Q.empty()) {
+    auto IID = Q.begin();
+    int ID = *IID;
+    Q.erase(IID);
+    auto &Node = Nodes[ID];
+    assert(Node.Width > 0);
+
+    for (unsigned I = 0; I < 2; ++I) {
+      auto NextID = Node.NextIDs[I];
+      assert(NextID != 0 && "NextID should not point to the top");
+      if (NextID < 0) {
+        // Decision
+        Decisions.emplace_back(-Node.Width, Ord++, ID, I);
+        assert(Ord == Decisions.size());
+        continue;
+      }
+
+      // Inter Node
+      auto &NextNode = Nodes[NextID];
+      assert(NextNode.InCount > 0);
+
+      // Assign Idx
+      assert(Indices[ID][I] == INT_MIN);
+      Indices[ID][I] = NextNode.Width;
+      auto NextWidth = int64_t(NextNode.Width) + Node.Width;
+      if (NextWidth > HardMaxTVs) {
+        NumTestVectors = HardMaxTVs; // Overflow
+        return;
+      }
+      NextNode.Width = NextWidth;
+
+      // Ready if all incomings are processed.
+      // Or NextNode.Width hasn't been confirmed yet.
+      if (--NextNode.InCount == 0)
+        Q.push_back(NextID);
+    }
+  }
+
+  llvm::sort(Decisions);
+
+  // Assign TestVector Indices in Decision Nodes
+  int64_t CurIdx = 0;
+  for (auto [NegWidth, Ord, ID, C] : Decisions) {
+    int Width = -NegWidth;
+    assert(Nodes[ID].Width == Width);
+    assert(Nodes[ID].NextIDs[C] < 0);
+    assert(Indices[ID][C] == INT_MIN);
+    Indices[ID][C] = Offset + CurIdx;
+    CurIdx += Width;
+    if (CurIdx > HardMaxTVs) {
+      NumTestVectors = HardMaxTVs; // Overflow
+      return;
+    }
+  }
+
+  assert(CurIdx < HardMaxTVs);
+  NumTestVectors = CurIdx;
+
+#ifndef NDEBUG
+  for (const auto &Idxs : Indices)
+    for (auto Idx : Idxs)
+      assert(Idx != INT_MIN);
+  SavedNodes = std::move(Nodes);
+#endif
 }
 
-class MCDCRecordProcessor {
+namespace {
+
+/// Construct this->NextIDs with Branches for TVIdxBuilder to use it
+/// before MCDCRecordProcessor().
+class NextIDsBuilder {
+protected:
+  SmallVector<mcdc::ConditionIDs> NextIDs;
+
+public:
+  NextIDsBuilder(const ArrayRef<const CounterMappingRegion *> Branches)
+      : NextIDs(Branches.size()) {
+#ifndef NDEBUG
+    DenseSet<mcdc::ConditionID> SeenIDs;
+#endif
+    for (const auto *Branch : Branches) {
+      const auto &BranchParams = Branch->getBranchParams();
+      assert(SeenIDs.insert(BranchParams.ID).second && "Duplicate CondID");
+      NextIDs[BranchParams.ID] = BranchParams.Conds;
+    }
+    assert(SeenIDs.size() == Branches.size());
+  }
+};
+
+class MCDCRecordProcessor : NextIDsBuilder, mcdc::TVIdxBuilder {
   /// A bitmap representing the executed test vectors for a boolean expression.
   /// Each index of the bitmap corresponds to a possible test vector. An index
   /// with a bit value of '1' indicates that the corresponding Test Vector
   /// identified by that index was executed.
-  const BitVector &ExecutedTestVectorBitmap;
+  const BitVector &Bitmap;
 
   /// Decision Region to which the ExecutedTestVectorBitmap applies.
   const CounterMappingRegion &Region;
+  const mcdc::DecisionParameters &DecisionParams;
 
   /// Array of branch regions corresponding each conditions in the boolean
   /// expression.
@@ -261,164 +364,115 @@ class MCDCRecordProcessor {
   /// Total number of conditions in the boolean expression.
   unsigned NumConditions;
 
-  /// Mapping of a condition ID to its corresponding branch region.
-  llvm::DenseMap<unsigned, const CounterMappingRegion *> Map;
-
   /// Vector used to track whether a condition is constant folded.
   MCDCRecord::BoolVector Folded;
 
   /// Mapping of calculated MC/DC Independence Pairs for each condition.
   MCDCRecord::TVPairMap IndependencePairs;
 
-  /// Total number of possible Test Vectors for the boolean expression.
-  MCDCRecord::TestVectors TestVectors;
+  /// Storage for ExecVectors
+  /// ExecVectors is the alias of its 0th element.
+  std::array<MCDCRecord::TestVectors, 2> ExecVectorsByCond;
 
   /// Actual executed Test Vectors for the boolean expression, based on
   /// ExecutedTestVectorBitmap.
-  MCDCRecord::TestVectors ExecVectors;
+  MCDCRecord::TestVectors &ExecVectors;
+
+  /// Number of False items in ExecVectors
+  unsigned NumExecVectorsF;
+
+#ifndef NDEBUG
+  DenseSet<unsigned> TVIdxs;
+#endif
+
+  bool IsVersion11;
 
 public:
   MCDCRecordProcessor(const BitVector &Bitmap,
                       const CounterMappingRegion &Region,
-                      ArrayRef<const CounterMappingRegion *> Branches)
-      : ExecutedTestVectorBitmap(Bitmap), Region(Region), Branches(Branches),
-        NumConditions(Region.MCDCParams.NumConditions),
+                      ArrayRef<const CounterMappingRegion *> Branches,
+                      bool IsVersion11)
+      : NextIDsBuilder(Branches), TVIdxBuilder(this->NextIDs), Bitmap(Bitmap),
+        Region(Region), DecisionParams(Region.getDecisionParams()),
+        Branches(Branches), NumConditions(DecisionParams.NumConditions),
         Folded(NumConditions, false), IndependencePairs(NumConditions),
-        TestVectors((size_t)1 << NumConditions) {}
+        ExecVectors(ExecVectorsByCond[false]), IsVersion11(IsVersion11) {}
 
 private:
-  void recordTestVector(MCDCRecord::TestVector &TV,
-                        MCDCRecord::CondState Result) {
-    // Calculate an index that is used to identify the test vector in a vector
-    // of test vectors.  This index also corresponds to the index values of an
-    // MCDC Region's bitmap (see findExecutedTestVectors()).
-    unsigned Index = 0;
-    for (auto Cond = std::rbegin(TV); Cond != std::rend(TV); ++Cond) {
-      Index <<= 1;
-      Index |= (*Cond == MCDCRecord::MCDC_True) ? 0x1 : 0x0;
+  // Walk the binary decision diagram and try assigning both false and true to
+  // each node. When a terminal node (ID == 0) is reached, fill in the value in
+  // the truth table.
+  void buildTestVector(MCDCRecord::TestVector &TV, mcdc::ConditionID ID,
+                       int TVIdx) {
+    for (auto MCDCCond : {MCDCRecord::MCDC_False, MCDCRecord::MCDC_True}) {
+      static_assert(MCDCRecord::MCDC_False == 0);
+      static_assert(MCDCRecord::MCDC_True == 1);
+      TV.set(ID, MCDCCond);
+      auto NextID = NextIDs[ID][MCDCCond];
+      auto NextTVIdx = TVIdx + Indices[ID][MCDCCond];
+      assert(NextID == SavedNodes[ID].NextIDs[MCDCCond]);
+      if (NextID >= 0) {
+        buildTestVector(TV, NextID, NextTVIdx);
+        continue;
+      }
+
+      assert(TVIdx < SavedNodes[ID].Width);
+      assert(TVIdxs.insert(NextTVIdx).second && "Duplicate TVIdx");
+
+      if (!Bitmap[IsVersion11
+                      ? DecisionParams.BitmapIdx * CHAR_BIT + TV.getIndex()
+                      : DecisionParams.BitmapIdx - NumTestVectors + NextTVIdx])
+        continue;
+
+      // Copy the completed test vector to the vector of testvectors.
+      // The final value (T,F) is equal to the last non-dontcare state on the
+      // path (in a short-circuiting system).
+      ExecVectorsByCond[MCDCCond].push_back({TV, MCDCCond});
     }
 
-    // Copy the completed test vector to the vector of testvectors.
-    TestVectors[Index] = TV;
-
-    // The final value (T,F) is equal to the last non-dontcare state on the
-    // path (in a short-circuiting system).
-    TestVectors[Index].push_back(Result);
-  }
-
-  void shouldCopyOffTestVectorForTruePath(MCDCRecord::TestVector &TV,
-                                          unsigned ID) {
-    // Branch regions are hashed based on an ID.
-    const CounterMappingRegion *Branch = Map[ID];
-
-    TV[ID - 1] = MCDCRecord::MCDC_True;
-    if (Branch->MCDCParams.TrueID > 0)
-      buildTestVector(TV, Branch->MCDCParams.TrueID);
-    else
-      recordTestVector(TV, MCDCRecord::MCDC_True);
-  }
-
-  void shouldCopyOffTestVectorForFalsePath(MCDCRecord::TestVector &TV,
-                                           unsigned ID) {
-    // Branch regions are hashed based on an ID.
-    const CounterMappingRegion *Branch = Map[ID];
-
-    TV[ID - 1] = MCDCRecord::MCDC_False;
-    if (Branch->MCDCParams.FalseID > 0)
-      buildTestVector(TV, Branch->MCDCParams.FalseID);
-    else
-      recordTestVector(TV, MCDCRecord::MCDC_False);
-  }
-
-  /// Starting with the base test vector, build a comprehensive list of
-  /// possible test vectors by recursively walking the branch condition IDs
-  /// provided. Once an end node is reached, record the test vector in a vector
-  /// of test vectors that can be matched against during MC/DC analysis, and
-  /// then reset the positions to 'DontCare'.
-  void buildTestVector(MCDCRecord::TestVector &TV, unsigned ID = 1) {
-    shouldCopyOffTestVectorForTruePath(TV, ID);
-    shouldCopyOffTestVectorForFalsePath(TV, ID);
-
     // Reset back to DontCare.
-    TV[ID - 1] = MCDCRecord::MCDC_DontCare;
+    TV.set(ID, MCDCRecord::MCDC_DontCare);
   }
 
   /// Walk the bits in the bitmap.  A bit set to '1' indicates that the test
   /// vector at the corresponding index was executed during a test run.
-  void findExecutedTestVectors(const BitVector &ExecutedTestVectorBitmap) {
-    for (unsigned Idx = 0; Idx < ExecutedTestVectorBitmap.size(); ++Idx) {
-      if (ExecutedTestVectorBitmap[Idx] == 0)
-        continue;
-      assert(!TestVectors[Idx].empty() && "Test Vector doesn't exist.");
-      ExecVectors.push_back(TestVectors[Idx]);
-    }
+  void findExecutedTestVectors() {
+    // Walk the binary decision diagram to enumerate all possible test vectors.
+    // We start at the root node (ID == 0) with all values being DontCare.
+    // `TVIdx` starts with 0 and is in the traversal.
+    // `Index` encodes the bitmask of true values and is initially 0.
+    MCDCRecord::TestVector TV(NumConditions);
+    buildTestVector(TV, 0, 0);
+    assert(TVIdxs.size() == unsigned(NumTestVectors) &&
+           "TVIdxs wasn't fulfilled");
+
+    // Fill ExecVectors order by False items and True items.
+    // ExecVectors is the alias of ExecVectorsByCond[false], so
+    // Append ExecVectorsByCond[true] on it.
+    NumExecVectorsF = ExecVectors.size();
+    auto &ExecVectorsT = ExecVectorsByCond[true];
+    ExecVectors.append(std::make_move_iterator(ExecVectorsT.begin()),
+                       std::make_move_iterator(ExecVectorsT.end()));
   }
 
-  /// For a given condition and two executed Test Vectors, A and B, see if the
-  /// two test vectors match forming an Independence Pair for the condition.
-  /// For two test vectors to match, the following must be satisfied:
-  /// - The condition's value in each test vector must be opposite.
-  /// - The result's value in each test vector must be opposite.
-  /// - All other conditions' values must be equal or marked as "don't care".
-  bool matchTestVectors(unsigned Aidx, unsigned Bidx, unsigned ConditionIdx) {
-    const MCDCRecord::TestVector &A = ExecVectors[Aidx];
-    const MCDCRecord::TestVector &B = ExecVectors[Bidx];
-
-    // If condition values in both A and B aren't opposites, no match.
-    // Because a value can be 0 (false), 1 (true), or -1 (DontCare), a check
-    // that "XOR != 1" will ensure that the values are opposites and that
-    // neither of them is a DontCare.
-    //  1 XOR  0 ==  1 | 0 XOR  0 ==  0 | -1 XOR  0 == -1
-    //  1 XOR  1 ==  0 | 0 XOR  1 ==  1 | -1 XOR  1 == -2
-    //  1 XOR -1 == -2 | 0 XOR -1 == -1 | -1 XOR -1 ==  0
-    if ((A[ConditionIdx] ^ B[ConditionIdx]) != 1)
-      return false;
-
-    // If the results of both A and B aren't opposites, no match.
-    if ((A[NumConditions] ^ B[NumConditions]) != 1)
-      return false;
-
-    for (unsigned Idx = 0; Idx < NumConditions; ++Idx) {
-      // Look for other conditions that don't match. Skip over the given
-      // Condition as well as any conditions marked as "don't care".
-      const auto ARecordTyForCond = A[Idx];
-      const auto BRecordTyForCond = B[Idx];
-      if (Idx == ConditionIdx ||
-          ARecordTyForCond == MCDCRecord::MCDC_DontCare ||
-          BRecordTyForCond == MCDCRecord::MCDC_DontCare)
-        continue;
-
-      // If there is a condition mismatch with any of the other conditions,
-      // there is no match for the test vectors.
-      if (ARecordTyForCond != BRecordTyForCond)
-        return false;
-    }
-
-    // Otherwise, match.
-    return true;
-  }
-
-  /// Find all possible Independence Pairs for a boolean expression given its
-  /// executed Test Vectors.  This process involves looking at each condition
-  /// and attempting to find two Test Vectors that "match", giving us a pair.
+  // Find an independence pair for each condition:
+  // - The condition is true in one test and false in the other.
+  // - The decision outcome is true one test and false in the other.
+  // - All other conditions' values must be equal or marked as "don't care".
   void findIndependencePairs() {
     unsigned NumTVs = ExecVectors.size();
-
-    // For each condition.
-    for (unsigned C = 0; C < NumConditions; ++C) {
-      bool PairFound = false;
-
-      // For each executed test vector.
-      for (unsigned I = 0; !PairFound && I < NumTVs; ++I) {
-        // Compared to every other executed test vector.
-        for (unsigned J = 0; !PairFound && J < NumTVs; ++J) {
-          if (I == J)
-            continue;
-
-          // If a matching pair of vectors is found, record them.
-          if ((PairFound = matchTestVectors(I, J, C)))
-            IndependencePairs[C] = std::make_pair(I + 1, J + 1);
-        }
+    for (unsigned I = NumExecVectorsF; I < NumTVs; ++I) {
+      const auto &[A, ACond] = ExecVectors[I];
+      assert(ACond == MCDCRecord::MCDC_True);
+      for (unsigned J = 0; J < NumExecVectorsF; ++J) {
+        const auto &[B, BCond] = ExecVectors[J];
+        assert(BCond == MCDCRecord::MCDC_False);
+        // If the two vectors differ in exactly one condition, ignoring DontCare
+        // conditions, we have found an independence pair.
+        auto AB = A.getDifferences(B);
+        if (AB.count() == 1)
+          IndependencePairs.insert(
+              {AB.find_first(), std::make_pair(J + 1, I + 1)});
       }
     }
   }
@@ -449,38 +503,33 @@ public:
     // - Record whether the condition is constant folded so that we exclude it
     //   from being measured.
     for (const auto *B : Branches) {
-      Map[B->MCDCParams.ID] = B;
-      PosToID[I] = B->MCDCParams.ID - 1;
+      const auto &BranchParams = B->getBranchParams();
+      PosToID[I] = BranchParams.ID;
       CondLoc[I] = B->startLoc();
       Folded[I++] = (B->Count.isZero() && B->FalseCount.isZero());
     }
 
-    // Initialize a base test vector as 'DontCare'.
-    MCDCRecord::TestVector TV(NumConditions, MCDCRecord::MCDC_DontCare);
-
-    // Use the base test vector to build the list of all possible test vectors.
-    buildTestVector(TV);
-
     // Using Profile Bitmap from runtime, mark the executed test vectors.
-    findExecutedTestVectors(ExecutedTestVectorBitmap);
+    findExecutedTestVectors();
 
     // Compare executed test vectors against each other to find an independence
     // pairs for each condition.  This processing takes the most time.
     findIndependencePairs();
 
     // Record Test vectors, executed vectors, and independence pairs.
-    MCDCRecord Res(Region, ExecVectors, IndependencePairs, Folded, PosToID,
-                   CondLoc);
-    return Res;
+    return MCDCRecord(Region, std::move(ExecVectors),
+                      std::move(IndependencePairs), std::move(Folded),
+                      std::move(PosToID), std::move(CondLoc));
   }
 };
 
+} // namespace
+
 Expected<MCDCRecord> CounterMappingContext::evaluateMCDCRegion(
     const CounterMappingRegion &Region,
-    const BitVector &ExecutedTestVectorBitmap,
-    ArrayRef<const CounterMappingRegion *> Branches) {
+    ArrayRef<const CounterMappingRegion *> Branches, bool IsVersion11) {
 
-  MCDCRecordProcessor MCDCProcessor(ExecutedTestVectorBitmap, Region, Branches);
+  MCDCRecordProcessor MCDCProcessor(Bitmap, Region, Branches, IsVersion11);
   return MCDCProcessor.processMCDCRecord();
 }
 
@@ -566,22 +615,29 @@ static unsigned getMaxCounterID(const CounterMappingContext &Ctx,
   return MaxCounterID;
 }
 
-static unsigned getMaxBitmapSize(const CounterMappingContext &Ctx,
-                                 const CoverageMappingRecord &Record) {
-  unsigned MaxBitmapID = 0;
+/// Returns the bit count
+static unsigned getMaxBitmapSize(const CoverageMappingRecord &Record,
+                                 bool IsVersion11) {
+  unsigned MaxBitmapIdx = 0;
   unsigned NumConditions = 0;
   // Scan max(BitmapIdx).
   // Note that `<=` is used insted of `<`, because `BitmapIdx == 0` is valid
-  // and `MaxBitmapID is `unsigned`. `BitmapIdx` is unique in the record.
+  // and `MaxBitmapIdx is `unsigned`. `BitmapIdx` is unique in the record.
   for (const auto &Region : reverse(Record.MappingRegions)) {
-    if (Region.Kind == CounterMappingRegion::MCDCDecisionRegion &&
-        MaxBitmapID <= Region.MCDCParams.BitmapIdx) {
-      MaxBitmapID = Region.MCDCParams.BitmapIdx;
-      NumConditions = Region.MCDCParams.NumConditions;
+    if (Region.Kind != CounterMappingRegion::MCDCDecisionRegion)
+      continue;
+    const auto &DecisionParams = Region.getDecisionParams();
+    if (MaxBitmapIdx <= DecisionParams.BitmapIdx) {
+      MaxBitmapIdx = DecisionParams.BitmapIdx;
+      NumConditions = DecisionParams.NumConditions;
     }
   }
-  unsigned SizeInBits = llvm::alignTo(uint64_t(1) << NumConditions, CHAR_BIT);
-  return MaxBitmapID + (SizeInBits / CHAR_BIT);
+
+  if (IsVersion11)
+    MaxBitmapIdx = MaxBitmapIdx * CHAR_BIT +
+                   llvm::alignTo(uint64_t(1) << NumConditions, CHAR_BIT);
+
+  return MaxBitmapIdx;
 }
 
 namespace {
@@ -597,6 +653,7 @@ private:
     const CounterMappingRegion *DecisionRegion;
 
     /// They are reflected from DecisionRegion for convenience.
+    mcdc::DecisionParameters DecisionParams;
     LineColPair DecisionStartLoc;
     LineColPair DecisionEndLoc;
 
@@ -606,7 +663,7 @@ private:
 
     /// IDs that are stored in MCDCBranches
     /// Complete when all IDs (1 to NumConditions) are met.
-    DenseSet<CounterMappingRegion::MCDCConditionID> ConditionIDs;
+    DenseSet<mcdc::ConditionID> ConditionIDs;
 
     /// Set of IDs of Expansion(s) that are relevant to DecisionRegion
     /// and its children (via expansions).
@@ -615,7 +672,9 @@ private:
     DenseSet<unsigned> ExpandedFileIDs;
 
     DecisionRecord(const CounterMappingRegion &Decision)
-        : DecisionRegion(&Decision), DecisionStartLoc(Decision.startLoc()),
+        : DecisionRegion(&Decision),
+          DecisionParams(Decision.getDecisionParams()),
+          DecisionStartLoc(Decision.startLoc()),
           DecisionEndLoc(Decision.endLoc()) {
       assert(Decision.Kind == CounterMappingRegion::MCDCDecisionRegion);
     }
@@ -643,21 +702,20 @@ private:
     Result addBranch(const CounterMappingRegion &Branch) {
       assert(Branch.Kind == CounterMappingRegion::MCDCBranchRegion);
 
-      auto ConditionID = Branch.MCDCParams.ID;
-      assert(ConditionID > 0 && "ConditionID should begin with 1");
+      auto ConditionID = Branch.getBranchParams().ID;
 
       if (ConditionIDs.contains(ConditionID) ||
-          ConditionID > DecisionRegion->MCDCParams.NumConditions)
+          ConditionID >= DecisionParams.NumConditions)
         return NotProcessed;
 
       if (!this->dominates(Branch))
         return NotProcessed;
 
-      assert(MCDCBranches.size() < DecisionRegion->MCDCParams.NumConditions);
+      assert(MCDCBranches.size() < DecisionParams.NumConditions);
 
-      // Put `ID=1` in front of `MCDCBranches` for convenience
+      // Put `ID=0` in front of `MCDCBranches` for convenience
       // even if `MCDCBranches` is not topological.
-      if (ConditionID == 1)
+      if (ConditionID == 0)
         MCDCBranches.insert(MCDCBranches.begin(), &Branch);
       else
         MCDCBranches.push_back(&Branch);
@@ -666,9 +724,8 @@ private:
       ConditionIDs.insert(ConditionID);
 
       // `Completed` when `MCDCBranches` is full
-      return (MCDCBranches.size() == DecisionRegion->MCDCParams.NumConditions
-                  ? Completed
-                  : Processed);
+      return (MCDCBranches.size() == DecisionParams.NumConditions ? Completed
+                                                                  : Processed);
     }
 
     /// Record Expansion if it is relevant to this Decision.
@@ -768,9 +825,12 @@ Error CoverageMapping::loadFunctionRecord(
   }
   Ctx.setCounts(Counts);
 
-  std::vector<uint8_t> BitmapBytes;
-  if (Error E = ProfileReader.getFunctionBitmapBytes(
-          Record.FunctionName, Record.FunctionHash, BitmapBytes)) {
+  bool IsVersion11 =
+      ProfileReader.getVersion() < IndexedInstrProf::ProfVersion::Version12;
+
+  BitVector Bitmap;
+  if (Error E = ProfileReader.getFunctionBitmap(Record.FunctionName,
+                                                Record.FunctionHash, Bitmap)) {
     instrprof_error IPE = std::get<0>(InstrProfError::take(std::move(E)));
     if (IPE == instrprof_error::hash_mismatch) {
       FuncHashMismatches.emplace_back(std::string(Record.FunctionName),
@@ -779,9 +839,9 @@ Error CoverageMapping::loadFunctionRecord(
     }
     if (IPE != instrprof_error::unknown_function)
       return make_error<InstrProfError>(IPE);
-    BitmapBytes.assign(getMaxBitmapSize(Ctx, Record) + 1, 0);
+    Bitmap = BitVector(getMaxBitmapSize(Record, IsVersion11));
   }
-  Ctx.setBitmapBytes(BitmapBytes);
+  Ctx.setBitmap(std::move(Bitmap));
 
   assert(!Record.MappingRegions.empty() && "Function has no regions");
 
@@ -813,7 +873,8 @@ Error CoverageMapping::loadFunctionRecord(
       consumeError(std::move(E));
       return Error::success();
     }
-    Function.pushRegion(Region, *ExecutionCount, *AltExecutionCount);
+    Function.pushRegion(Region, *ExecutionCount, *AltExecutionCount,
+                        ProfileReader.hasSingleByteCoverage());
 
     // Record ExpansionRegion.
     if (Region.Kind == CounterMappingRegion::ExpansionRegion) {
@@ -832,30 +893,18 @@ Error CoverageMapping::loadFunctionRecord(
     auto MCDCDecision = Result->first;
     auto &MCDCBranches = Result->second;
 
-    // Evaluating the test vector bitmap for the decision region entails
-    // calculating precisely what bits are pertinent to this region alone.
-    // This is calculated based on the recorded offset into the global
-    // profile bitmap; the length is calculated based on the recorded
-    // number of conditions.
-    Expected<BitVector> ExecutedTestVectorBitmap =
-        Ctx.evaluateBitmap(MCDCDecision);
-    if (auto E = ExecutedTestVectorBitmap.takeError()) {
-      consumeError(std::move(E));
-      return Error::success();
-    }
-
     // Since the bitmap identifies the executed test vectors for an MC/DC
     // DecisionRegion, all of the information is now available to process.
     // This is where the bulk of the MC/DC progressing takes place.
-    Expected<MCDCRecord> Record = Ctx.evaluateMCDCRegion(
-        *MCDCDecision, *ExecutedTestVectorBitmap, MCDCBranches);
+    Expected<MCDCRecord> Record =
+        Ctx.evaluateMCDCRegion(*MCDCDecision, MCDCBranches, IsVersion11);
     if (auto E = Record.takeError()) {
       consumeError(std::move(E));
       return Error::success();
     }
 
     // Save the MC/DC Record so that it can be visualized later.
-    Function.pushMCDCRecord(*Record);
+    Function.pushMCDCRecord(std::move(*Record));
   }
 
   // Don't create records for (filenames, function) pairs we've already seen.
@@ -1247,8 +1296,14 @@ class SegmentBuilder {
       // value for that area.
       // We add counts of the regions of the same kind as the active region
       // to handle the both situations.
-      if (I->Kind == Active->Kind)
-        Active->ExecutionCount += I->ExecutionCount;
+      if (I->Kind == Active->Kind) {
+        assert(I->HasSingleByteCoverage == Active->HasSingleByteCoverage &&
+               "Regions are generated in different coverage modes");
+        if (I->HasSingleByteCoverage)
+          Active->ExecutionCount = Active->ExecutionCount || I->ExecutionCount;
+        else
+          Active->ExecutionCount += I->ExecutionCount;
+      }
     }
     return Regions.drop_back(std::distance(++Active, End));
   }
@@ -1298,7 +1353,7 @@ std::vector<StringRef> CoverageMapping::getUniqueSourceFiles() const {
   for (const auto &Function : getCoveredFunctions())
     llvm::append_range(Filenames, Function.Filenames);
   llvm::sort(Filenames);
-  auto Last = std::unique(Filenames.begin(), Filenames.end());
+  auto Last = llvm::unique(Filenames);
   Filenames.erase(Last, Filenames.end());
   return Filenames;
 }

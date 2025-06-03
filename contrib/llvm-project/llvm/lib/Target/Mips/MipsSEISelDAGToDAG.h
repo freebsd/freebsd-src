@@ -27,8 +27,6 @@ private:
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override;
-
   void addDSPCtrlRegOperands(bool IsDef, MachineInstr &MI,
                              MachineFunction &MF);
 
@@ -126,6 +124,9 @@ private:
   /// starting at bit zero.
   bool selectVSplatMaskR(SDValue N, SDValue &Imm) const override;
 
+  /// Select constant vector splats whose value is 1.
+  bool selectVSplatImmEq1(SDValue N) const override;
+
   bool trySelect(SDNode *Node) override;
 
   // Emits proper ABI for _mcount profiling calls.
@@ -137,6 +138,12 @@ private:
   bool SelectInlineAsmMemoryOperand(const SDValue &Op,
                                     InlineAsm::ConstraintCode ConstraintID,
                                     std::vector<SDValue> &OutOps) override;
+};
+
+class MipsSEDAGToDAGISelLegacy : public MipsDAGToDAGISelLegacy {
+public:
+  explicit MipsSEDAGToDAGISelLegacy(MipsTargetMachine &TM, CodeGenOptLevel OL);
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
 };
 
 FunctionPass *createMipsSEISelDag(MipsTargetMachine &TM,

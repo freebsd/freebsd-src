@@ -439,7 +439,7 @@ zy7_spi_attach(device_t dev)
 	zy7_spi_add_sysctls(dev);
 
 	/* Attach spibus driver as a child later when interrupts work. */
-	config_intrhook_oneshot((ich_func_t)bus_generic_attach, dev);
+	bus_delayed_attach_children(dev);
 
 	return (0);
 }
@@ -448,13 +448,11 @@ static int
 zy7_spi_detach(device_t dev)
 {
 	struct zy7_spi_softc *sc = device_get_softc(dev);
+	int error;
 
-	if (device_is_attached(dev))
-		bus_generic_detach(dev);
-
-	/* Delete child bus. */
-	if (sc->child)
-		device_delete_child(dev, sc->child);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	/* Disable hardware. */
 	if (sc->mem_res != NULL) {

@@ -68,8 +68,6 @@
 
 static struct mtx ugidfw_mtx;
 
-SYSCTL_DECL(_security_mac);
-
 static SYSCTL_NODE(_security_mac, OID_AUTO, bsdextended,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TrustedBSD extended BSD MAC policy controls");
@@ -88,11 +86,11 @@ static int rule_slots = 0;
 static int rule_version = MB_VERSION;
 
 SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, rule_count, CTLFLAG_RD,
-    &rule_count, 0, "Number of defined rules\n");
+    &rule_count, 0, "Number of defined rules");
 SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, rule_slots, CTLFLAG_RD,
-    &rule_slots, 0, "Number of used rule slots\n");
+    &rule_slots, 0, "Number of used rule slots");
 SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, rule_version, CTLFLAG_RD,
-    &rule_version, 0, "Version number for API\n");
+    &rule_version, 0, "Version number for API");
 
 /*
  * This is just used for logging purposes, eventually we would like to log

@@ -395,25 +395,25 @@ irdma_form_ah_cm_frame(struct irdma_cm_node *cm_node,
 	if (flags & SET_ACK) {
 		cm_node->tcp_cntxt.loc_ack_num = cm_node->tcp_cntxt.rcv_nxt;
 		tcph->th_ack = htonl(cm_node->tcp_cntxt.loc_ack_num);
-		tcph->th_flags |= TH_ACK;
+		tcp_set_flags(tcph, tcp_get_flags(tcph) | TH_ACK);
 	} else {
 		tcph->th_ack = 0;
 	}
 
 	if (flags & SET_SYN) {
 		cm_node->tcp_cntxt.loc_seq_num++;
-		tcph->th_flags |= TH_SYN;
+		tcp_set_flags(tcph, tcp_get_flags(tcph) | TH_SYN);
 	} else {
 		cm_node->tcp_cntxt.loc_seq_num += hdr_len + pd_len;
 	}
 
 	if (flags & SET_FIN) {
 		cm_node->tcp_cntxt.loc_seq_num++;
-		tcph->th_flags |= TH_FIN;
+		tcp_set_flags(tcph, tcp_get_flags(tcph) | TH_FIN);
 	}
 
 	if (flags & SET_RST)
-		tcph->th_flags |= TH_RST;
+		tcp_set_flags(tcph, tcp_get_flags(tcph) | TH_RST);
 
 	tcph->th_off = (u16)((sizeof(*tcph) + opts_len + 3) >> 2);
 	sqbuf->tcphlen = tcph->th_off << 2;
@@ -582,25 +582,25 @@ irdma_form_uda_cm_frame(struct irdma_cm_node *cm_node,
 	if (flags & SET_ACK) {
 		cm_node->tcp_cntxt.loc_ack_num = cm_node->tcp_cntxt.rcv_nxt;
 		tcph->th_ack = htonl(cm_node->tcp_cntxt.loc_ack_num);
-		tcph->th_flags |= TH_ACK;
+		tcp_set_flags(tcph, tcp_get_flags(tcph) | TH_ACK);
 	} else {
 		tcph->th_ack = 0;
 	}
 
 	if (flags & SET_SYN) {
 		cm_node->tcp_cntxt.loc_seq_num++;
-		tcph->th_flags |= TH_SYN;
+		tcp_set_flags(tcph, tcp_get_flags(tcph) | TH_SYN);
 	} else {
 		cm_node->tcp_cntxt.loc_seq_num += hdr_len + pd_len;
 	}
 
 	if (flags & SET_FIN) {
 		cm_node->tcp_cntxt.loc_seq_num++;
-		tcph->th_flags |= TH_FIN;
+		tcp_set_flags(tcph, tcp_get_flags(tcph) | TH_FIN);
 	}
 
 	if (flags & SET_RST)
-		tcph->th_flags |= TH_RST;
+		tcp_set_flags(tcph, tcp_get_flags(tcph) | TH_RST);
 
 	tcph->th_off = (u16)((sizeof(*tcph) + opts_len + 3) >> 2);
 	sqbuf->tcphlen = tcph->th_off << 2;
@@ -796,7 +796,7 @@ irdma_handle_tcp_options(struct irdma_cm_node *cm_node,
 
 	if (optionsize) {
 		ret = irdma_process_options(cm_node, optionsloc, optionsize,
-					    (u32)tcph->th_flags & TH_SYN);
+					    (u32)tcp_get_flags(tcph) & TH_SYN);
 		if (ret) {
 			irdma_debug(&cm_node->iwdev->rf->sc_dev, IRDMA_DEBUG_CM,
 				    "Node %p, Sending Reset\n", cm_node);
@@ -2767,16 +2767,16 @@ irdma_process_pkt(struct irdma_cm_node *cm_node,
 	u32 fin_set = 0;
 	int err;
 
-	if (tcph->th_flags & TH_RST) {
+	if (tcp_get_flags(tcph) & TH_RST) {
 		pkt_type = IRDMA_PKT_TYPE_RST;
-	} else if (tcph->th_flags & TH_SYN) {
+	} else if (tcp_get_flags(tcph) & TH_SYN) {
 		pkt_type = IRDMA_PKT_TYPE_SYN;
-		if (tcph->th_flags & TH_ACK)
+		if (tcp_get_flags(tcph) & TH_ACK)
 			pkt_type = IRDMA_PKT_TYPE_SYNACK;
-	} else if (tcph->th_flags & TH_ACK) {
+	} else if (tcp_get_flags(tcph) & TH_ACK) {
 		pkt_type = IRDMA_PKT_TYPE_ACK;
 	}
-	if (tcph->th_flags & TH_FIN)
+	if (tcp_get_flags(tcph) & TH_FIN)
 		fin_set = 1;
 
 	switch (pkt_type) {
@@ -3067,7 +3067,7 @@ irdma_receive_ilq(struct irdma_sc_vsi *vsi, struct irdma_puda_buf *rbuf)
 		/*
 		 * Only type of packet accepted are for the PASSIVE open (syn only)
 		 */
-		if (!(tcph->th_flags & TH_SYN) || tcph->th_flags & TH_ACK)
+		if (!(tcp_get_flags(tcph) & TH_SYN) || tcp_get_flags(tcph) & TH_ACK)
 			return;
 
 		listener = irdma_find_listener(cm_core,
@@ -3093,7 +3093,7 @@ irdma_receive_ilq(struct irdma_sc_vsi *vsi, struct irdma_puda_buf *rbuf)
 			return;
 		}
 
-		if (!(tcph->th_flags & (TH_RST | TH_FIN))) {
+		if (!(tcp_get_flags(tcph) & (TH_RST | TH_FIN))) {
 			cm_node->state = IRDMA_CM_STATE_LISTENING;
 		} else {
 			irdma_rem_ref_cm_node(cm_node);

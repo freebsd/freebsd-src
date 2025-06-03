@@ -5117,7 +5117,7 @@ ipf_nat_out(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		}
 
 		ip = MTOD(m, ip_t *);
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip_random_id);
 		s2 = ntohs(ip->ip_id);
 
 		s1 = ip->ip_len;
@@ -5560,7 +5560,7 @@ ipf_nat_in(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		}
 
 		ip = MTOD(m, ip_t *);
-		ip_fillid(ip);
+		ip_fillid(ip, V_ip_random_id);
 		sum1 = ntohs(ip->ip_len);
 		ip->ip_len = ntohs(ip->ip_len);
 		ip->ip_len += fin->fin_plen;
@@ -5715,7 +5715,7 @@ ipf_nat_proto(fr_info_t *fin, nat_t *nat, u_int nflags)
 		 * Do a MSS CLAMPING on a SYN packet,
 		 * only deal IPv4 for now.
 		 */
-		if ((nat->nat_mssclamp != 0) && (tcp->th_flags & TH_SYN) != 0)
+		if ((nat->nat_mssclamp != 0) && (tcp_get_flags(tcp) & TH_SYN) != 0)
 			ipf_nat_mssclamp(tcp, nat->nat_mssclamp, fin, csump);
 
 		break;

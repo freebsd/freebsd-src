@@ -58,16 +58,22 @@ main(int argc, char *argv[])
 {
 	int jid;
 	login_cap_t *lcap = NULL;
-	int ch, clean, uflag, Uflag;
+	int ch, clean, dflag, uflag, Uflag;
 	char *cleanenv;
 	const struct passwd *pwd = NULL;
 	const char *username, *shell, *term;
+	const char *workdir;
 
-	ch = clean = uflag = Uflag = 0;
+	ch = clean = dflag = uflag = Uflag = 0;
 	username = NULL;
+	workdir = "/";
 
-	while ((ch = getopt(argc, argv, "lnu:U:")) != -1) {
+	while ((ch = getopt(argc, argv, "d:lnu:U:")) != -1) {
 		switch (ch) {
+		case 'd':
+			workdir = optarg;
+			dflag = 1;
+			break;
 		case 'l':
 			clean = 1;
 			break;
@@ -102,8 +108,8 @@ main(int argc, char *argv[])
 		errx(1, "%s", jail_errmsg);
 	if (jail_attach(jid) == -1)
 		err(1, "jail_attach(%d)", jid);
-	if (chdir("/") == -1)
-		err(1, "chdir(): /");
+	if (chdir(workdir) == -1)
+		err(1, "chdir(): %s", workdir);
 
 	/* Set up user environment */
 	if (clean || username != NULL) {
@@ -129,7 +135,7 @@ main(int argc, char *argv[])
 		setenv("HOME", pwd->pw_dir, 1);
 		setenv("SHELL",
 		    *pwd->pw_shell ? pwd->pw_shell : _PATH_BSHELL, 1);
-		if (clean && username && chdir(pwd->pw_dir) < 0)
+		if (clean && username && !dflag && chdir(pwd->pw_dir) < 0)
 			err(1, "chdir: %s", pwd->pw_dir);
 		endpwent();
 	}
@@ -186,6 +192,7 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n",
-	    "usage: jexec [-l] [-u username | -U username] jail [command ...]");
+	    "usage: jexec [-l] [-d working-directory] [-u username | -U username] jail\n"
+	    "       [command ...]");
 	exit(1);
 }

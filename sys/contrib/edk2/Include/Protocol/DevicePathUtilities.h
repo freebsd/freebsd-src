@@ -33,7 +33,6 @@ UINTN
   IN CONST EFI_DEVICE_PATH_PROTOCOL *DevicePath
   );
 
-
 /**
   Create a duplicate of the specified path.
 
@@ -44,7 +43,7 @@ UINTN
 
 **/
 typedef
-EFI_DEVICE_PATH_PROTOCOL*
+EFI_DEVICE_PATH_PROTOCOL *
 (EFIAPI *EFI_DEVICE_PATH_UTILS_DUP_DEVICE_PATH)(
   IN CONST EFI_DEVICE_PATH_PROTOCOL *DevicePath
   );
@@ -63,7 +62,7 @@ EFI_DEVICE_PATH_PROTOCOL*
 
 **/
 typedef
-EFI_DEVICE_PATH_PROTOCOL*
+EFI_DEVICE_PATH_PROTOCOL *
 (EFIAPI *EFI_DEVICE_PATH_UTILS_APPEND_PATH)(
   IN CONST EFI_DEVICE_PATH_PROTOCOL *Src1,
   IN CONST EFI_DEVICE_PATH_PROTOCOL *Src2
@@ -83,7 +82,7 @@ EFI_DEVICE_PATH_PROTOCOL*
 
 **/
 typedef
-EFI_DEVICE_PATH_PROTOCOL*
+EFI_DEVICE_PATH_PROTOCOL *
 (EFIAPI *EFI_DEVICE_PATH_UTILS_APPEND_NODE)(
   IN CONST EFI_DEVICE_PATH_PROTOCOL *DevicePath,
   IN CONST EFI_DEVICE_PATH_PROTOCOL *DeviceNode
@@ -100,7 +99,7 @@ EFI_DEVICE_PATH_PROTOCOL*
 
 **/
 typedef
-EFI_DEVICE_PATH_PROTOCOL*
+EFI_DEVICE_PATH_PROTOCOL *
 (EFIAPI *EFI_DEVICE_PATH_UTILS_APPEND_INSTANCE)(
   IN CONST EFI_DEVICE_PATH_PROTOCOL *DevicePath,
   IN CONST EFI_DEVICE_PATH_PROTOCOL *DevicePathInstance
@@ -123,7 +122,7 @@ EFI_DEVICE_PATH_PROTOCOL*
 
 **/
 typedef
-EFI_DEVICE_PATH_PROTOCOL*
+EFI_DEVICE_PATH_PROTOCOL *
 (EFIAPI *EFI_DEVICE_PATH_UTILS_GET_NEXT_INSTANCE)(
   IN  OUT EFI_DEVICE_PATH_PROTOCOL  **DevicePathInstance,
   OUT UINTN                         *DevicePathInstanceSize
@@ -145,12 +144,12 @@ EFI_DEVICE_PATH_PROTOCOL*
 
 **/
 typedef
-EFI_DEVICE_PATH_PROTOCOL*
+EFI_DEVICE_PATH_PROTOCOL *
 (EFIAPI *EFI_DEVICE_PATH_UTILS_CREATE_NODE)(
   IN UINT8                          NodeType,
   IN UINT8                          NodeSubType,
   IN UINT16                         NodeLength
-);
+  );
 
 /**
   Returns whether a device path is multi-instance.
@@ -171,16 +170,16 @@ BOOLEAN
 /// This protocol is used to creates and manipulates device paths and device nodes.
 ///
 typedef struct {
-  EFI_DEVICE_PATH_UTILS_GET_DEVICE_PATH_SIZE GetDevicePathSize;
-  EFI_DEVICE_PATH_UTILS_DUP_DEVICE_PATH      DuplicateDevicePath;
-  EFI_DEVICE_PATH_UTILS_APPEND_PATH          AppendDevicePath;
-  EFI_DEVICE_PATH_UTILS_APPEND_NODE          AppendDeviceNode;
-  EFI_DEVICE_PATH_UTILS_APPEND_INSTANCE      AppendDevicePathInstance;
-  EFI_DEVICE_PATH_UTILS_GET_NEXT_INSTANCE    GetNextDevicePathInstance;
-  EFI_DEVICE_PATH_UTILS_IS_MULTI_INSTANCE    IsDevicePathMultiInstance;
-  EFI_DEVICE_PATH_UTILS_CREATE_NODE          CreateDeviceNode;
+  EFI_DEVICE_PATH_UTILS_GET_DEVICE_PATH_SIZE    GetDevicePathSize;
+  EFI_DEVICE_PATH_UTILS_DUP_DEVICE_PATH         DuplicateDevicePath;
+  EFI_DEVICE_PATH_UTILS_APPEND_PATH             AppendDevicePath;
+  EFI_DEVICE_PATH_UTILS_APPEND_NODE             AppendDeviceNode;
+  EFI_DEVICE_PATH_UTILS_APPEND_INSTANCE         AppendDevicePathInstance;
+  EFI_DEVICE_PATH_UTILS_GET_NEXT_INSTANCE       GetNextDevicePathInstance;
+  EFI_DEVICE_PATH_UTILS_IS_MULTI_INSTANCE       IsDevicePathMultiInstance;
+  EFI_DEVICE_PATH_UTILS_CREATE_NODE             CreateDeviceNode;
 } EFI_DEVICE_PATH_UTILITIES_PROTOCOL;
 
-extern EFI_GUID gEfiDevicePathUtilitiesProtocolGuid;
+extern EFI_GUID  gEfiDevicePathUtilitiesProtocolGuid;
 
 #endif

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
  *  Copyright (C) 2007 The Regents of the University of California.
@@ -82,5 +83,11 @@ typedef struct user_namespace	zidmap_t;
 #endif
 
 extern zidmap_t *zfs_init_idmap;
+
+#ifdef HAVE_1ARG_ASSIGN_STR
+#define	__assign_str_impl(a, b)		__assign_str(a)
+#else
+#define	__assign_str_impl(a, b)		__assign_str(a, b)
+#endif
 
 #endif	/* _SPL_TYPES_H */

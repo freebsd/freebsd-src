@@ -34,6 +34,7 @@
 
 #include "namespace.h"
 #include <sys/param.h>
+#include <sys/exterrvar.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/resource.h>
@@ -567,7 +568,7 @@ yesno:
 	case _SC_IPV6:
 #if _POSIX_IPV6 == 0
 		sverrno = errno;
-		value = _socket(PF_INET6, SOCK_DGRAM, 0);
+		value = _socket(PF_INET6, SOCK_CLOEXEC | SOCK_DGRAM, 0);
 		errno = sverrno;
 		if (value >= 0) {
 			_close(value);
@@ -602,6 +603,8 @@ yesno:
 			return (-1);
 		return ((long)value);
 #endif
+	case _SC_UEXTERR_MAXLEN:
+		return (UEXTERROR_MAXLEN);
 
 	default:
 		errno = EINVAL;

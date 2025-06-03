@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2023 Google LLC
+ * Copyright (c) 2023-2024 Google LLC
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -29,6 +29,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "gve.h"
+#include "gve_dqo.h"
 
 uint32_t
 gve_reg_bar_read_4(struct gve_priv *priv, bus_size_t offset)
@@ -46,6 +47,12 @@ void
 gve_db_bar_write_4(struct gve_priv *priv, bus_size_t offset, uint32_t val)
 {
 	bus_write_4(priv->db_bar, offset, htobe32(val));
+}
+
+void
+gve_db_bar_dqo_write_4(struct gve_priv *priv, bus_size_t offset, uint32_t val)
+{
+	bus_write_4(priv->db_bar, offset, val);
 }
 
 void
@@ -227,7 +234,7 @@ gve_free_irqs(struct gve_priv *priv)
 		return;
 	}
 
-	num_irqs = priv->tx_cfg.num_queues + priv->rx_cfg.num_queues + 1;
+	num_irqs = priv->tx_cfg.max_queues + priv->rx_cfg.max_queues + 1;
 
 	for (i = 0; i < num_irqs; i++) {
 		irq = &priv->irq_tbl[i];
@@ -261,8 +268,8 @@ gve_free_irqs(struct gve_priv *priv)
 int
 gve_alloc_irqs(struct gve_priv *priv)
 {
-	int num_tx = priv->tx_cfg.num_queues;
-	int num_rx = priv->rx_cfg.num_queues;
+	int num_tx = priv->tx_cfg.max_queues;
+	int num_rx = priv->rx_cfg.max_queues;
 	int req_nvecs = num_tx + num_rx + 1;
 	int got_nvecs = req_nvecs;
 	struct gve_irq *irq;
@@ -307,7 +314,8 @@ gve_alloc_irqs(struct gve_priv *priv)
 		}
 
 		err = bus_setup_intr(priv->dev, irq->res, INTR_TYPE_NET | INTR_MPSAFE,
-		    gve_tx_intr, NULL, &priv->tx[i], &irq->cookie);
+		    gve_is_gqi(priv) ? gve_tx_intr : gve_tx_intr_dqo, NULL,
+		    &priv->tx[i], &irq->cookie);
 		if (err != 0) {
 			device_printf(priv->dev, "Failed to setup irq %d for Tx queue %d, "
 			    "err: %d\n", rid, i, err);
@@ -334,7 +342,8 @@ gve_alloc_irqs(struct gve_priv *priv)
 		}
 
 		err = bus_setup_intr(priv->dev, irq->res, INTR_TYPE_NET | INTR_MPSAFE,
-		    gve_rx_intr, NULL, &priv->rx[j], &irq->cookie);
+		    gve_is_gqi(priv) ? gve_rx_intr : gve_rx_intr_dqo, NULL,
+		    &priv->rx[j], &irq->cookie);
 		if (err != 0) {
 			device_printf(priv->dev, "Failed to setup irq %d for Rx queue %d, "
 			    "err: %d\n", rid, j, err);
@@ -374,6 +383,24 @@ abort:
 	return (err);
 }
 
+/*
+ * Builds register value to write to DQO IRQ doorbell to enable with specified
+ * ITR interval.
+ */
+static uint32_t
+gve_setup_itr_interval_dqo(uint32_t interval_us)
+{
+	uint32_t result = GVE_ITR_ENABLE_BIT_DQO;
+
+	/* Interval has 2us granularity. */
+	interval_us >>= 1;
+
+	interval_us &= GVE_ITR_INTERVAL_DQO_MASK;
+	result |= (interval_us << GVE_ITR_INTERVAL_DQO_SHIFT);
+
+	return (result);
+}
+
 void
 gve_unmask_all_queue_irqs(struct gve_priv *priv)
 {
@@ -383,11 +410,20 @@ gve_unmask_all_queue_irqs(struct gve_priv *priv)
 
 	for (idx = 0; idx < priv->tx_cfg.num_queues; idx++) {
 		tx = &priv->tx[idx];
-		gve_db_bar_write_4(priv, tx->com.irq_db_offset, 0);
+		if (gve_is_gqi(priv))
+			gve_db_bar_write_4(priv, tx->com.irq_db_offset, 0);
+		else
+			gve_db_bar_dqo_write_4(priv, tx->com.irq_db_offset,
+			    gve_setup_itr_interval_dqo(GVE_TX_IRQ_RATELIMIT_US_DQO));
 	}
+
 	for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
 		rx = &priv->rx[idx];
-		gve_db_bar_write_4(priv, rx->com.irq_db_offset, 0);
+		if (gve_is_gqi(priv))
+			gve_db_bar_write_4(priv, rx->com.irq_db_offset, 0);
+		else
+			gve_db_bar_dqo_write_4(priv, rx->com.irq_db_offset,
+			    gve_setup_itr_interval_dqo(GVE_RX_IRQ_RATELIMIT_US_DQO));
 	}
 }
 
@@ -402,4 +438,47 @@ gve_mask_all_queue_irqs(struct gve_priv *priv)
 		struct gve_rx_ring *rx = &priv->rx[idx];
 		gve_db_bar_write_4(priv, rx->com.irq_db_offset, GVE_IRQ_MASK);
 	}
+}
+
+/*
+ * In some cases, such as tracking timeout events, we must mark a timestamp as
+ * invalid when we do not want to consider its value. Such timestamps must be
+ * checked for validity before reading them.
+ */
+void
+gve_invalidate_timestamp(int64_t *timestamp_sec)
+{
+	atomic_store_64(timestamp_sec, GVE_TIMESTAMP_INVALID);
+}
+
+/*
+ * Returns 0 if the timestamp is invalid, otherwise returns the elapsed seconds
+ * since the timestamp was set.
+ */
+int64_t
+gve_seconds_since(int64_t *timestamp_sec)
+{
+	struct bintime curr_time;
+	int64_t enqueued_time;
+
+	getbintime(&curr_time);
+	enqueued_time = atomic_load_64(timestamp_sec);
+	if (enqueued_time == GVE_TIMESTAMP_INVALID)
+		return (0);
+	return ((int64_t)(curr_time.sec - enqueued_time));
+}
+
+void
+gve_set_timestamp(int64_t *timestamp_sec)
+{
+	struct bintime curr_time;
+
+	getbintime(&curr_time);
+	atomic_store_64(timestamp_sec, curr_time.sec);
+}
+
+bool
+gve_timestamp_valid(int64_t *timestamp_sec)
+{
+	return (atomic_load_64(timestamp_sec) != GVE_TIMESTAMP_INVALID);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -24,28 +24,28 @@ extern int sc_width;
 extern int utf_mode;
 extern int no_hist_dups;
 extern int marks_modified;
-extern int secure;
+extern int no_paste;
+public lbool pasting = FALSE;
 
 static char cmdbuf[CMDBUF_SIZE]; /* Buffer for holding a multi-char command */
 static int cmd_col;              /* Current column of the cursor */
 static int prompt_col;           /* Column of cursor just after prompt */
 static char *cp;                 /* Pointer into cmdbuf */
 static int cmd_offset;           /* Index into cmdbuf of first displayed char */
-static int literal;              /* Next input char should not be interpreted */
-public int updown_match = -1;    /* Prefix length in up/down movement */
+static lbool literal;            /* Next input char should not be interpreted */
+static size_t updown_match;      /* Prefix length in up/down movement */
+static lbool have_updown_match = FALSE;
 
-#if TAB_COMPLETE_FILENAME
 static int cmd_complete(int action);
 /*
  * These variables are statics used by cmd_complete.
  */
-static int in_completion = 0;
+static lbool in_completion = FALSE;
 static char *tk_text;
 static char *tk_original;
-static char *tk_ipoint;
-static char *tk_trial = NULL;
+static constant char *tk_ipoint;
+static constant char *tk_trial = NULL;
 static struct textlist tk_tlist;
-#endif
 
 static int cmd_left();
 static int cmd_right();
@@ -72,7 +72,7 @@ struct mlist
 	struct mlist *prev;
 	struct mlist *curr_mp;
 	char *string;
-	int modified;
+	lbool modified;
 };
 
 /*
@@ -123,9 +123,9 @@ public void cmd_reset(void)
 	*cp = '\0';
 	cmd_col = 0;
 	cmd_offset = 0;
-	literal = 0;
+	literal = FALSE;
 	cmd_mbc_buf_len = 0;
-	updown_match = -1;
+	have_updown_match = FALSE;
 }
 
 /*
@@ -135,7 +135,7 @@ public void clear_cmd(void)
 {
 	cmd_col = prompt_col = 0;
 	cmd_mbc_buf_len = 0;
-	updown_match = -1;
+	have_updown_match = FALSE;
 }
 
 /*
@@ -148,11 +148,11 @@ public void cmd_putstr(constant char *s)
 	constant char *endline = s + strlen(s);
 	while (*s != '\0')
 	{
-		char *ns = (char *) s;
+		constant char *os = s;
 		int width;
-		ch = step_char(&ns, +1, endline);
-		while (s < ns)
-			putchr(*s++);
+		ch = step_charc(&s, +1, endline);
+		while (os < s)
+			putchr(*os++);
 		if (!utf_mode)
 			width = 1;
 		else if (is_composing_char(ch) || is_combining_char(prev_ch, ch))
@@ -170,16 +170,26 @@ public void cmd_putstr(constant char *s)
  */
 public int len_cmdbuf(void)
 {
-	char *s = cmdbuf;
-	char *endline = s + strlen(s);
+	constant char *s = cmdbuf;
+	constant char *endline = s + strlen(s);
 	int len = 0;
 
 	while (*s != '\0')
 	{
-		step_char(&s, +1, endline);
+		step_charc(&s, +1, endline);
 		len++;
 	}
 	return (len);
+}
+
+/*
+ * Is the command buffer empty?
+ * It is considered nonempty if there is any text in it,
+ * or if a multibyte command is being entered but not yet complete.
+ */
+public lbool cmdbuf_empty(void)
+{
+	return cp == cmdbuf && cmd_mbc_buf_len == 0;
 }
 
 /*
@@ -187,14 +197,14 @@ public int len_cmdbuf(void)
  * {{ Returning pwidth and bswidth separately is a historical artifact
  *    since they're always the same. Maybe clean this up someday. }}
  */
-static char * cmd_step_common(char *p, LWCHAR ch, int len, int *pwidth, int *bswidth)
+static constant char * cmd_step_common(char *p, LWCHAR ch, size_t len, int *pwidth, int *bswidth)
 {
-	char *pr;
+	constant char *pr;
 	int width;
 
 	if (len == 1)
 	{
-		pr = prchar((int) ch);
+		pr = prchar(ch);
 		width = (int) strlen(pr);
 	} else
 	{
@@ -222,23 +232,23 @@ static char * cmd_step_common(char *p, LWCHAR ch, int len, int *pwidth, int *bsw
 /*
  * Step a pointer one character right in the command buffer.
  */
-static char * cmd_step_right(char **pp, int *pwidth, int *bswidth)
+static constant char * cmd_step_right(char **pp, int *pwidth, int *bswidth)
 {
 	char *p = *pp;
 	LWCHAR ch = step_char(pp, +1, p + strlen(p));
 
-	return cmd_step_common(p, ch, *pp - p, pwidth, bswidth);
+	return cmd_step_common(p, ch, ptr_diff(*pp, p), pwidth, bswidth);
 }
 
 /*
  * Step a pointer one character left in the command buffer.
  */
-static char * cmd_step_left(char **pp, int *pwidth, int *bswidth)
+static constant char * cmd_step_left(char **pp, int *pwidth, int *bswidth)
 {
 	char *p = *pp;
 	LWCHAR ch = step_char(pp, -1, cmdbuf);
 
-	return cmd_step_common(*pp, ch, p - *pp, pwidth, bswidth);
+	return cmd_step_common(*pp, ch, ptr_diff(p, *pp), pwidth, bswidth);
 }
 
 /*
@@ -279,7 +289,7 @@ public void cmd_repaint(constant char *old_cp)
 	{
 		char *np = cp;
 		int width;
-		char *pr = cmd_step_right(&np, &width, NULL);
+		constant char *pr = cmd_step_right(&np, &width, NULL);
 		if (cmd_col + width >= sc_width)
 			break;
 		cp = np;
@@ -290,7 +300,7 @@ public void cmd_repaint(constant char *old_cp)
 	{
 		char *np = cp;
 		int width;
-		char *pr = cmd_step_right(&np, &width, NULL);
+		constant char *pr = cmd_step_right(&np, &width, NULL);
 		if (width > 0)
 			break;
 		cp = np;
@@ -302,6 +312,16 @@ public void cmd_repaint(constant char *old_cp)
 	 */
 	while (cp > old_cp)
 		cmd_left();
+}
+
+/*
+ * Repaint the entire line, without moving the cursor.
+ */
+static void cmd_repaint_curr(void)
+{
+	char *save_cp = cp;
+	cmd_home();
+	cmd_repaint(save_cp);
 }
 
 /*
@@ -375,7 +395,7 @@ static void cmd_rshift(void)
  */
 static int cmd_right(void)
 {
-	char *pr;
+	constant char *pr;
 	char *ncp;
 	int width;
 	
@@ -437,7 +457,7 @@ static int cmd_left(void)
 /*
  * Insert a char into the command buffer, at the current position.
  */
-static int cmd_ichar(char *cs, int clen)
+static int cmd_ichar(constant char *cs, size_t clen)
 {
 	char *s;
 	
@@ -461,7 +481,7 @@ static int cmd_ichar(char *cs, int clen)
 	/*
 	 * Reprint the tail of the line from the inserted char.
 	 */
-	updown_match = -1;
+	have_updown_match = FALSE;
 	cmd_repaint(cp);
 	cmd_right();
 	return (CC_OK);
@@ -504,7 +524,7 @@ static int cmd_erase(void)
 	/*
 	 * Repaint the buffer after the erased char.
 	 */
-	updown_match = -1;
+	have_updown_match = FALSE;
 	cmd_repaint(cp);
 	
 	/*
@@ -597,7 +617,7 @@ static int cmd_kill(void)
 	cmd_offset = 0;
 	cmd_home();
 	*cp = '\0';
-	updown_match = -1;
+	have_updown_match = FALSE;
 	cmd_repaint(cp);
 
 	/*
@@ -644,9 +664,10 @@ static int cmd_updown(int action)
 		return (CC_OK);
 	}
 
-	if (updown_match < 0)
+	if (!have_updown_match)
 	{
-		updown_match = (int) (cp - cmdbuf);
+		updown_match = ptr_diff(cp, cmdbuf);
+		have_updown_match = TRUE;
 	}
 
 	/*
@@ -687,7 +708,23 @@ static int cmd_updown(int action)
 	bell();
 	return (CC_OK);
 }
-#endif
+
+/*
+ * Yet another lesson in the evils of global variables.
+ */
+public ssize_t save_updown_match(void)
+{
+	if (!have_updown_match)
+		return (ssize_t)(-1);
+	return (ssize_t) updown_match;
+}
+
+public void restore_updown_match(ssize_t udm)
+{
+	updown_match = udm;
+	have_updown_match = (udm != (ssize_t)(-1));
+}
+#endif /* CMD_HISTORY */
 
 /*
  *
@@ -712,7 +749,7 @@ static void ml_unlink(struct mlist *ml)
 /*
  * Add a string to an mlist.
  */
-public void cmd_addhist(struct mlist *mlist, constant char *cmd, int modified)
+public void cmd_addhist(struct mlist *mlist, constant char *cmd, lbool modified)
 {
 #if CMD_HISTORY
 	struct mlist *ml;
@@ -774,8 +811,8 @@ public void cmd_accept(void)
 	 */
 	if (curr_mlist == NULL || curr_mlist == ml_examine)
 		return;
-	cmd_addhist(curr_mlist, cmdbuf, 1);
-	curr_mlist->modified = 1;
+	cmd_addhist(curr_mlist, cmdbuf, TRUE);
+	curr_mlist->modified = TRUE;
 #endif
 }
 
@@ -787,17 +824,13 @@ public void cmd_accept(void)
  *      CC_OK   Line edit function done.
  *      CC_QUIT The char requests the current command to be aborted.
  */
-static int cmd_edit(int c)
+static int cmd_edit(char c, lbool stay_in_completion)
 {
 	int action;
 	int flags;
 
-#if TAB_COMPLETE_FILENAME
-#define not_in_completion()     in_completion = 0
-#else
-#define not_in_completion(void)
-#endif
-	
+#define not_in_completion()     do { if (!stay_in_completion) in_completion = FALSE; } while(0)
+
 	/*
 	 * See if the char is indeed a line-editing command.
 	 */
@@ -809,20 +842,34 @@ static int cmd_edit(int c)
 		 */
 		flags |= ECF_NOHISTORY;
 #endif
+
+	/*
+	 * Don't accept completion cmds in contexts 
+	 * such as search pattern, digits, etc.
+	 */
+	if ((curr_mlist == NULL && (curr_cmdflags & CF_OPTION))
 #if TAB_COMPLETE_FILENAME
-	if (curr_mlist == ml_search || curr_mlist == NULL)
-		/*
-		 * Don't accept file-completion cmds in contexts 
-		 * such as search pattern, digits, long option name, etc.
-		 */
-		flags |= ECF_NOCOMPLETE;
+		|| curr_mlist == ml_examine || curr_mlist == ml_shell
 #endif
+		)
+		; /* allow completion */
+	else
+		flags |= ECF_NOCOMPLETE;
 
 	action = editchar(c, flags);
+	if (is_ignoring_input(action))
+		return (CC_OK);
 
 	switch (action)
 	{
 	case A_NOACTION:
+		return (CC_OK);
+	case EC_START_PASTE:
+		if (no_paste)
+			pasting = TRUE;
+		return (CC_OK);
+	case EC_END_PASTE:
+		stop_ignoring_input();
 		return (CC_OK);
 	case EC_RIGHT:
 		not_in_completion();
@@ -878,7 +925,7 @@ static int cmd_edit(int c)
 		not_in_completion();
 		return (cmd_wdelete());
 	case EC_LITERAL:
-		literal = 1;
+		literal = TRUE;
 		return (CC_OK);
 #if CMD_HISTORY
 	case EC_UP:
@@ -886,39 +933,48 @@ static int cmd_edit(int c)
 		not_in_completion();
 		return (cmd_updown(action));
 #endif
-#if TAB_COMPLETE_FILENAME
 	case EC_F_COMPLETE:
 	case EC_B_COMPLETE:
 	case EC_EXPAND:
 		return (cmd_complete(action));
-#endif
 	default:
 		not_in_completion();
 		return (CC_PASS);
 	}
 }
 
-#if TAB_COMPLETE_FILENAME
 /*
  * Insert a string into the command buffer, at the current position.
  */
-static int cmd_istr(char *str)
+static int cmd_istr(constant char *str)
 {
-	char *s;
+	constant char *endline = str + strlen(str);
+	constant char *s;
 	int action;
-	char *endline = str + strlen(str);
 	
 	for (s = str;  *s != '\0';  )
 	{
-		char *os = s;
-		step_char(&s, +1, endline);
-		action = cmd_ichar(os, s - os);
+		constant char *os = s;
+		step_charc(&s, +1, endline);
+		action = cmd_ichar(os, ptr_diff(s, os));
 		if (action != CC_OK)
 			return (action);
 	}
 	return (CC_OK);
 }
 
+/*
+ * Set tk_original to word.
+ */
+static void set_tk_original(constant char *word)
+{
+	if (tk_original != NULL)
+		free(tk_original);
+	tk_original = (char *) ecalloc(ptr_diff(cp,word)+1, sizeof(char));
+	strncpy(tk_original, word, ptr_diff(cp,word));
+}
+
+#if TAB_COMPLETE_FILENAME
 /*
  * Find the beginning and end of the "current" word.
  * This is the word which the cursor (cp) is inside or at the end of.
@@ -930,10 +986,10 @@ static char * delimit_word(void)
 	char *word;
 #if SPACES_IN_FILENAMES
 	char *p;
-	int delim_quoted = 0;
-	int meta_quoted = 0;
+	int delim_quoted = FALSE;
+	int meta_quoted = FALSE;
 	constant char *esc = get_meta_escape();
-	int esclen = (int) strlen(esc);
+	size_t esclen = strlen(esc);
 #endif
 	
 	/*
@@ -984,20 +1040,20 @@ static char * delimit_word(void)
 	{
 		if (meta_quoted)
 		{
-			meta_quoted = 0;
+			meta_quoted = FALSE;
 		} else if (esclen > 0 && p + esclen < cp &&
 		           strncmp(p, esc, esclen) == 0)
 		{
-			meta_quoted = 1;
+			meta_quoted = TRUE;
 			p += esclen - 1;
 		} else if (delim_quoted)
 		{
 			if (*p == closequote)
-				delim_quoted = 0;
+				delim_quoted = FALSE;
 		} else /* (!delim_quoted) */
 		{
 			if (*p == openquote)
-				delim_quoted = 1;
+				delim_quoted = TRUE;
 			else if (*p == ' ')
 				word = p+1;
 		}
@@ -1007,23 +1063,15 @@ static char * delimit_word(void)
 }
 
 /*
- * Set things up to enter completion mode.
+ * Set things up to enter file completion mode.
  * Expand the word under the cursor into a list of filenames 
  * which start with that word, and set tk_text to that list.
  */
-static void init_compl(void)
+static void init_file_compl(void)
 {
 	char *word;
 	char c;
 	
-	/*
-	 * Get rid of any previous tk_text.
-	 */
-	if (tk_text != NULL)
-	{
-		free(tk_text);
-		tk_text = NULL;
-	}
 	/*
 	 * Find the original (uncompleted) word in the command buffer.
 	 */
@@ -1035,13 +1083,7 @@ static void init_compl(void)
 	 * where the original (uncompleted) word now sits.
 	 */
 	tk_ipoint = word;
-	/*
-	 * Save the original (uncompleted) word
-	 */
-	if (tk_original != NULL)
-		free(tk_original);
-	tk_original = (char *) ecalloc(cp-word+1, sizeof(char));
-	strncpy(tk_original, word, cp-word);
+	set_tk_original(word);
 	/*
 	 * Get the expanded filename.
 	 * This may result in a single filename, or
@@ -1069,11 +1111,22 @@ static void init_compl(void)
 	}
 	*cp = c;
 }
+#endif /* TAB_COMPLETE_FILENAME */
+
+/*
+ * Set things up to enter option completion mode.
+ */
+static void init_opt_compl(void)
+{
+	tk_ipoint = cmdbuf;
+	set_tk_original(cmdbuf);
+	tk_text = findopts_name(cmdbuf);
+}
 
 /*
  * Return the next word in the current completion list.
  */
-static char * next_compl(int action, char *prev)
+static constant char * next_compl(int action, constant char *prev)
 {
 	switch (action)
 	{
@@ -1094,7 +1147,7 @@ static char * next_compl(int action, char *prev)
  */
 static int cmd_complete(int action)
 {
-	char *s;
+	constant char *s;
 
 	if (!in_completion || action == EC_EXPAND)
 	{
@@ -1103,7 +1156,19 @@ static int cmd_complete(int action)
 		 * use the first word in the expansion 
 		 * (or the entire expansion if we're doing EC_EXPAND).
 		 */
-		init_compl();
+		if (tk_text != NULL)
+		{
+			free(tk_text);
+			tk_text = NULL;
+		}
+		if (curr_cmdflags & CF_OPTION)
+			init_opt_compl();
+		else
+#if TAB_COMPLETE_FILENAME
+			init_file_compl();
+#else
+			quit(QUIT_ERROR); /* cannot happen */
+#endif /* TAB_COMPLETE_FILENAME */
 		if (tk_text == NULL)
 		{
 			bell();
@@ -1120,7 +1185,7 @@ static int cmd_complete(int action)
 			/*
 			 * Use the first filename in the list.
 			 */
-			in_completion = 1;
+			in_completion = TRUE;
 			init_textlist(&tk_tlist, tk_text);
 			tk_trial = next_compl(action, (char*)NULL);
 		}
@@ -1145,7 +1210,7 @@ static int cmd_complete(int action)
 		 * There are no more trial completions.
 		 * Insert the original (uncompleted) filename.
 		 */
-		in_completion = 0;
+		in_completion = FALSE;
 		if (cmd_istr(tk_original) != CC_OK)
 			goto fail;
 	} else
@@ -1173,30 +1238,25 @@ static int cmd_complete(int action)
 	return (CC_OK);
 	
 fail:
-	in_completion = 0;
+	in_completion = FALSE;
 	bell();
 	return (CC_OK);
 }
 
-#endif /* TAB_COMPLETE_FILENAME */
-
 /*
- * Process a single character of a multi-character command, such as
- * a number, or the pattern of a search command.
+ * Build a UTF-8 char in cmd_mbc_buf.
  * Returns:
- *      CC_OK           The char was accepted.
- *      CC_QUIT         The char requests the command to be aborted.
- *      CC_ERROR        The char could not be accepted due to an error.
+ *      CC_OK    Char has been stored but we don't have a complete UTF-8 sequence yet.
+ *      CC_ERROR This is an invalid UTF-8 sequence.
+ *      CC_PASS  There is a complete UTF-8 sequence in cmd_mbc_buf.
+ *               The length of the complete sequence is returned in *plen.
  */
-public int cmd_char(int c)
+static int cmd_uchar(char c, size_t *plen)
 {
-	int action;
-	int len;
-
 	if (!utf_mode)
 	{
 		cmd_mbc_buf[0] = c;
-		len = 1;
+		*plen = 1;
 	} else
 	{
 		/* Perform strict validation in all possible cases.  */
@@ -1208,7 +1268,7 @@ public int cmd_char(int c)
 			if (IS_ASCII_OCTET(c))
 				cmd_mbc_buf_len = 1;
 #if MSDOS_COMPILER || OS2
-			else if (c == (unsigned char) '\340' && IS_ASCII_OCTET(peekcc()))
+			else if (c == '\340' && IS_ASCII_OCTET(peekcc()))
 			{
 				/* Assume a special key. */
 				cmd_mbc_buf_len = 1;
@@ -1245,16 +1305,33 @@ public int cmd_char(int c)
 			goto retry;
 		}
 
-		len = cmd_mbc_buf_len;
+		*plen = (size_t) cmd_mbc_buf_len; /*{{type-issue}}*/
 		cmd_mbc_buf_len = 0;
 	}
+	return (CC_PASS);
+}
+
+/*
+ * Process a single character of a multi-character command, such as
+ * a number, or the pattern of a search command.
+ * Returns:
+ *      CC_OK           The char was accepted.
+ *      CC_QUIT         The char requests the command to be aborted.
+ *      CC_ERROR        The char could not be accepted due to an error.
+ */
+static int cmd_char2(char c, lbool stay_in_completion)
+{
+	size_t len;
+	int action = cmd_uchar(c, &len);
+	if (action != CC_PASS)
+		return (action);
 
 	if (literal)
 	{
 		/*
 		 * Insert the char, even if it is a line-editing char.
 		 */
-		literal = 0;
+		literal = FALSE;
 		return (cmd_ichar(cmd_mbc_buf, len));
 	}
 		
@@ -1263,7 +1340,7 @@ public int cmd_char(int c)
 	 */
 	if (in_mca() && len == 1)
 	{
-		action = cmd_edit(c);
+		action = cmd_edit(c, stay_in_completion);
 		switch (action)
 		{
 		case CC_OK:
@@ -1280,14 +1357,38 @@ public int cmd_char(int c)
 	return (cmd_ichar(cmd_mbc_buf, len));
 }
 
+public int cmd_char(char c)
+{
+	return cmd_char2(c, FALSE);
+}
+
+/*
+ * Copy an ASCII string to the command buffer.
+ */
+public int cmd_setstring(constant char *s, lbool uc)
+{
+	while (*s != '\0')
+	{
+		int action;
+		char c = *s++;
+		if (uc && ASCII_IS_LOWER(c))
+			c = ASCII_TO_UPPER(c);
+		action = cmd_char2(c, TRUE);
+		if (action != CC_OK)
+			return (action);
+	}
+	cmd_repaint_curr();
+	return (CC_OK);
+}
+
 /*
  * Return the number currently in the command buffer.
  */
-public LINENUM cmd_int(long *frac)
+public LINENUM cmd_int(mutable long *frac)
 {
-	char *p;
+	constant char *p;
 	LINENUM n = 0;
-	int err;
+	lbool err;
 
 	for (p = cmdbuf;  *p >= '0' && *p <= '9';  p++)
 	{
@@ -1309,7 +1410,7 @@ public LINENUM cmd_int(long *frac)
 /*
  * Return a pointer to the command buffer.
  */
-public char * get_cmdbuf(void)
+public constant char * get_cmdbuf(void)
 {
 	if (cmd_mbc_buf_index < cmd_mbc_buf_len)
 		/* Don't return buffer containing an incomplete multibyte char. */
@@ -1321,7 +1422,7 @@ public char * get_cmdbuf(void)
 /*
  * Return the last (most recent) string in the current command history.
  */
-public char * cmd_lastpattern(void)
+public constant char * cmd_lastpattern(void)
 {
 	if (curr_mlist == NULL)
 		return (NULL);
@@ -1343,9 +1444,9 @@ static int mlist_size(struct mlist *ml)
 /*
  * Get the name of the history file.
  */
-static char * histfile_find(int must_exist)
+static char * histfile_find(lbool must_exist)
 {
-	char *home = lgetenv("HOME");
+	constant char *home = lgetenv("HOME");
 	char *name = NULL;
 
 	/* Try in $XDG_STATE_HOME, then in $HOME/.local/state, then in $XDG_DATA_HOME, then in $HOME. */
@@ -1370,9 +1471,10 @@ static char * histfile_find(int must_exist)
 	return (name);
 }
 
-static char * histfile_name(int must_exist)
+static char * histfile_name(lbool must_exist)
 {
-	char *name;
+	constant char *name;
+	char *wname;
 
 	/* See if filename is explicitly specified by $LESSHISTFILE. */
 	name = lgetenv("LESSHISTFILE");
@@ -1388,30 +1490,29 @@ static char * histfile_name(int must_exist)
 	if (strcmp(LESSHISTFILE, "") == 0 || strcmp(LESSHISTFILE, "-") == 0)
 		return (NULL);
 
-	name = NULL;
+	wname = NULL;
 	if (!must_exist)
 	{
 	 	/* If we're writing the file and the file already exists, use it. */
-		name = histfile_find(1);
+		wname = histfile_find(TRUE);
 	}
-	if (name == NULL)
-		name = histfile_find(must_exist);
-	return (name);
+	if (wname == NULL)
+		wname = histfile_find(must_exist);
+	return (wname);
 }
 
 /*
  * Read a .lesshst file and call a callback for each line in the file.
  */
-static void read_cmdhist2(void (*action)(void*,struct mlist*,char*), void *uparam, int skip_search, int skip_shell)
+static void read_cmdhist2(void (*action)(void*,struct mlist*,constant char*), void *uparam, int skip_search, int skip_shell)
 {
 	struct mlist *ml = NULL;
 	char line[CMDBUF_SIZE];
 	char *filename;
 	FILE *f;
-	char *p;
 	int *skip = NULL;
 
-	filename = histfile_name(1);
+	filename = histfile_name(TRUE);
 	if (filename == NULL)
 		return;
 	f = fopen(filename, "r");
@@ -1426,6 +1527,7 @@ static void read_cmdhist2(void (*action)(void*,struct mlist*,char*), void *upara
 	}
 	while (fgets(line, sizeof(line), f) != NULL)
 	{
+		char *p;
 		for (p = line;  *p != '\0';  p++)
 		{
 			if (*p == '\n' || *p == '\r')
@@ -1446,6 +1548,7 @@ static void read_cmdhist2(void (*action)(void*,struct mlist*,char*), void *upara
 #else
 			ml = NULL;
 			skip = NULL;
+			(void) skip_shell;
 #endif
 		} else if (strcmp(line, HISTFILE_MARK_SECTION) == 0)
 		{
@@ -1467,20 +1570,21 @@ static void read_cmdhist2(void (*action)(void*,struct mlist*,char*), void *upara
 	fclose(f);
 }
 
-static void read_cmdhist(void (*action)(void*,struct mlist*,char*), void *uparam, int skip_search, int skip_shell)
+static void read_cmdhist(void (*action)(void*,struct mlist*,constant char*), void *uparam, lbool skip_search, lbool skip_shell)
 {
-	if (secure)
+	if (!secure_allow(SF_HISTORY))
 		return;
 	read_cmdhist2(action, uparam, skip_search, skip_shell);
 	(*action)(uparam, NULL, NULL); /* signal end of file */
 }
 
-static void addhist_init(void *uparam, struct mlist *ml, char *string)
+static void addhist_init(void *uparam, struct mlist *ml, constant char *string)
 {
+	(void) uparam;
 	if (ml != NULL)
 		cmd_addhist(ml, string, 0);
 	else if (string != NULL)
-		restore_mark((char*)string); /* stupid const cast */
+		restore_mark(string);
 }
 #endif /* CMD_HISTORY */
 
@@ -1518,15 +1622,15 @@ static void write_mlist(struct mlist *ml, FILE *f)
 		if (!ml->modified)
 			continue;
 		fprintf(f, "\"%s\n", ml->string);
-		ml->modified = 0;
+		ml->modified = FALSE;
 	}
-	ml->modified = 0; /* entire mlist is now unmodified */
+	ml->modified = FALSE; /* entire mlist is now unmodified */
 }
 
 /*
  * Make a temp name in the same directory as filename.
  */
-static char * make_tempname(char *filename)
+static char * make_tempname(constant char *filename)
 {
 	char lastch;
 	char *tempname = ecalloc(1, strlen(filename)+1);
@@ -1547,7 +1651,7 @@ struct save_ctx
  * At the end of each mlist, append any new entries
  * created during this session.
  */
-static void copy_hist(void *uparam, struct mlist *ml, char *string)
+static void copy_hist(void *uparam, struct mlist *ml, constant char *string)
 {
 	struct save_ctx *ctx = (struct save_ctx *) uparam;
 
@@ -1591,13 +1695,13 @@ static void copy_hist(void *uparam, struct mlist *ml, char *string)
 static void make_file_private(FILE *f)
 {
 #if HAVE_FCHMOD
-	int do_chmod = 1;
+	lbool do_chmod = TRUE;
 #if HAVE_STAT
 	struct stat statbuf;
 	int r = fstat(fileno(f), &statbuf);
 	if (r < 0 || !S_ISREG(statbuf.st_mode))
 		/* Don't chmod if not a regular file. */
-		do_chmod = 0;
+		do_chmod = FALSE;
 #endif
 	if (do_chmod)
 		fchmod(fileno(f), 0600);
@@ -1608,17 +1712,17 @@ static void make_file_private(FILE *f)
  * Does the history file need to be updated?
  */
 #if CMD_HISTORY
-static int histfile_modified(void)
+static lbool histfile_modified(void)
 {
 	if (mlist_search.modified)
-		return 1;
+		return TRUE;
 #if SHELL_ESCAPE || PIPEC
 	if (mlist_shell.modified)
-		return 1;
+		return TRUE;
 #endif
 	if (marks_modified)
-		return 1;
-	return 0;
+		return TRUE;
+	return FALSE;
 }
 #endif
 
@@ -1633,11 +1737,11 @@ public void save_cmdhist(void)
 	int skip_search;
 	int skip_shell;
 	struct save_ctx ctx;
-	char *s;
+	constant char *s;
 	FILE *fout = NULL;
 	int histsize = 0;
 
-	if (secure || !histfile_modified())
+	if (!secure_allow(SF_HISTORY) || !histfile_modified())
 		return;
 	histname = histfile_name(0);
 	if (histname == NULL)
@@ -1655,6 +1759,8 @@ public void save_cmdhist(void)
 		skip_search = mlist_size(&mlist_search) - histsize;
 #if SHELL_ESCAPE || PIPEC
 		skip_shell = mlist_size(&mlist_shell) - histsize;
+#else
+		skip_shell = 0; /* not actually used */
 #endif
 		fprintf(fout, "%s\n", HISTFILE_FIRST_LINE);
 		ctx.fout = fout;

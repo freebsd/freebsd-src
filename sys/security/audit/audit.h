@@ -98,7 +98,7 @@ void	 audit_arg_rgid(gid_t rgid);
 void	 audit_arg_ruid(uid_t ruid);
 void	 audit_arg_sgid(gid_t sgid);
 void	 audit_arg_suid(uid_t suid);
-void	 audit_arg_groupset(gid_t *gidset, u_int gidset_size);
+void	 audit_arg_groupset(gid_t *gidset, int gidset_size);
 void	 audit_arg_login(char *login);
 void	 audit_arg_ctlname(int *name, int namelen);
 void	 audit_arg_mask(int mask);
@@ -389,9 +389,11 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_vnode2((vp));					\
 } while (0)
 
+#define	AUDIT_SYSCALL_ENABLED()	audit_syscalls_enabled
+
 #define	AUDIT_SYSCALL_ENTER(code, td)	({				\
 	bool _audit_entered = false;					\
-	if (__predict_false(audit_syscalls_enabled)) {			\
+	if (audit_syscalls_enabled) {					\
 		audit_syscall_enter(code, td);				\
 		_audit_entered = true;					\
 	}								\
@@ -468,6 +470,7 @@ void	 audit_thread_free(struct thread *td);
 
 #define	AUDITING_TD(td)		0
 
+#define	AUDIT_SYSCALL_ENABLED()	0
 #define	AUDIT_SYSCALL_ENTER(code, td)	0
 #define	AUDIT_SYSCALL_EXIT(error, td)
 

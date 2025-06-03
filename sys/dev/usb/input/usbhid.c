@@ -30,7 +30,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 /*
  * HID spec: https://www.usb.org/sites/default/files/documents/hid1_11.pdf
  */
@@ -842,12 +841,7 @@ usbhid_attach(device_t dev)
 	}
 
 	device_set_ivars(child, &sc->sc_hw);
-	error = bus_generic_attach(dev);
-	if (error) {
-		device_printf(dev, "failed to attach child: %d\n", error);
-		usbhid_detach(dev);
-		return (error);
-	}
+	bus_attach_children(dev);
 
 	return (0);			/* success */
 }
@@ -856,8 +850,12 @@ static int
 usbhid_detach(device_t dev)
 {
 	struct usbhid_softc *sc = device_get_softc(dev);
+	int error;
 
-	device_delete_children(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
+
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);

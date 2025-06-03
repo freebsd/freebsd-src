@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE
 .
-.Dd June 7, 2024
+.Dd November 18, 2024
 .Dt SIMD 7
 .Os
 .Sh NAME
@@ -51,43 +51,43 @@ can be used to override this mechanism.
 Enhanced functions are present for the following architectures:
 .Bl -column FUNCTION_________ aarch64_ arm_ amd64_ i386_ ppc64_ -offset indent
 .It Em FUNCTION          Ta Em AARCH64 Ta Em ARM Ta Em AMD64  Ta Em I386 Ta Em PPC64
-.It    bcmp              Ta            Ta        Ta    S1     Ta    S
-.It    bcopy             Ta            Ta    S   Ta    S      Ta    S    Ta    SV
-.It    bzero             Ta            Ta    S   Ta    S      Ta    S
+.It    bcmp              Ta    A       Ta        Ta    S1     Ta    S
+.It    bcopy             Ta    A       Ta    S   Ta    S      Ta    S    Ta    SV
+.It    bzero             Ta    A       Ta    S   Ta    S      Ta    S
 .It    div               Ta            Ta        Ta    S      Ta    S
 .It    index             Ta    A       Ta        Ta    S1
 .It    ldiv              Ta            Ta        Ta    S      Ta    S
 .It    lldiv             Ta            Ta        Ta    S
 .It    memchr            Ta    A       Ta        Ta    S1
 .It    memcmp            Ta    A       Ta    S   Ta    S1     Ta    S
-.It    memccpy           Ta            Ta        Ta    S1
-.It    memcpy            Ta    S       Ta    S   Ta    S      Ta    S    Ta    SV
-.It    memmove           Ta    S       Ta    S   Ta    S      Ta    S    Ta    SV
+.It    memccpy           Ta    A       Ta        Ta    S1
+.It    memcpy            Ta    A       Ta    S   Ta    S      Ta    S    Ta    SV
+.It    memmove           Ta    A       Ta    S   Ta    S      Ta    S    Ta    SV
 .It    memrchr           Ta    A       Ta        Ta    S1
 .It    memset            Ta    A       Ta    S   Ta    S      Ta    S
 .It    rindex            Ta    A       Ta        Ta    S1     Ta    S
 .It    stpcpy            Ta    A       Ta        Ta    S1
 .It    stpncpy           Ta            Ta        Ta    S1
-.It    strcat            Ta            Ta        Ta    S1     Ta    S
+.It    strcat            Ta    A       Ta        Ta    S1     Ta    S
 .It    strchr            Ta    A       Ta        Ta    S1     Ta    S
 .It    strchrnul         Ta    A       Ta        Ta    S1
-.It    strcmp            Ta    S       Ta    S   Ta    S1     Ta    S
+.It    strcmp            Ta    A       Ta    S   Ta    S1     Ta    S
 .It    strcpy            Ta    A       Ta        Ta    S1     Ta    S    Ta    S2
-.It    strcspn           Ta            Ta        Ta    S2
-.It    strlcat           Ta            Ta        Ta    S1
-.It    strlcpy           Ta            Ta        Ta    S1
+.It    strcspn           Ta    S       Ta        Ta    S2
+.It    strlcat           Ta    A       Ta        Ta    S1
+.It    strlcpy           Ta    A       Ta        Ta    S1
 .It    strlen            Ta    A       Ta    S   Ta    S1
-.It    strncat           Ta            Ta        Ta    S1
-.It    strncmp           Ta    S       Ta    S   Ta    S1     Ta    S
+.It    strncat           Ta    A       Ta        Ta    S1
+.It    strncmp           Ta    A       Ta    S   Ta    S1     Ta    S
 .It    strncpy           Ta            Ta        Ta    S1     Ta         Ta    S2
 .It    strnlen           Ta    A       Ta        Ta    S1
 .It    strrchr           Ta    A       Ta        Ta    S1     Ta    S
-.It    strpbrk           Ta            Ta        Ta    S2
-.It    strsep            Ta            Ta        Ta    S2
-.It    strspn            Ta            Ta        Ta    S2
+.It    strpbrk           Ta    S       Ta        Ta    S2
+.It    strsep            Ta    S       Ta        Ta    S2
+.It    strspn            Ta    S       Ta        Ta    S2
 .It    swab              Ta            Ta        Ta           Ta    S
-.It    timingsafe_bcmp   Ta            Ta        Ta    S1
-.It    timingsafe_memcmp Ta            Ta        Ta    S
+.It    timingsafe_bcmp   Ta    A       Ta        Ta    S1
+.It    timingsafe_memcmp Ta    S       Ta        Ta    S
 .It    wcschr            Ta            Ta        Ta           Ta    S
 .It    wcscmp            Ta            Ta        Ta           Ta    S
 .It    wcslen            Ta            Ta        Ta           Ta    S

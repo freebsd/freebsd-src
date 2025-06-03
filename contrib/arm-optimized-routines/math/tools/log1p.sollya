@@ -1,0 +1,30 @@
+// polynomial for approximating log(1+x) in double precision
+//
+// Copyright (c) 2022-2024, Arm Limited.
+// SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
+
+deg = 20;
+
+a = sqrt(2)/2-1;
+b = sqrt(2)-1;
+
+f = proc(y) {
+  return log(1+y);
+};
+
+approx = proc(poly, d) {
+  return remez(1 - poly(x)/f(x), deg-d, [a;b], x^d/f(x), 1e-10);
+};
+
+poly = x;
+for i from 2 to deg do {
+  p = roundcoefficients(approx(poly,i), [|D ...|]);
+  poly = poly + x^i*coeff(p,0);
+};
+
+
+print("coeffs:");
+display = hexadecimal;
+for i from 2 to deg do coeff(poly,i);
+print("rel error:", accurateinfnorm(1-poly(x)/f(x), [a;b], 30));
+print("in [",a,b,"]");

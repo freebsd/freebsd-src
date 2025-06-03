@@ -730,17 +730,6 @@ ENTRY(memcpy)
 	pld	[r1]
 	cmp	r2, #0x0c
 	ble	.Lmemcpy_short		/* <= 12 bytes */
-#ifdef FLASHADDR
-#if FLASHADDR > PHYSADDR
-	ldr	r3, =FLASHADDR
-	cmp	r3, pc
-	bls	.Lnormal
-#else
-	ldr	r3, =FLASHADDR
-	cmp	r3, pc
-	bhi	.Lnormal
-#endif
-#endif
 	mov	r3, r0			/* We must not clobber r0 */
 
 	/* Word-align the destination buffer */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -20,7 +20,7 @@ extern int utf_mode;
 /*
  * Compile a search pattern, for future use by match_pattern.
  */
-static int compile_pattern2(char *pattern, int search_type, PATTERN_TYPE *comp_pattern, int show_error)
+static int compile_pattern2(constant char *pattern, int search_type, PATTERN_TYPE *comp_pattern, int show_error)
 {
 	if (search_type & SRCH_NO_REGEX)
 		return (0);
@@ -81,6 +81,7 @@ static int compile_pattern2(char *pattern, int search_type, PATTERN_TYPE *comp_p
 	PCRE2_SIZE erroffset;
 	PARG parg;
 	pcre2_code *comp = pcre2_compile((PCRE2_SPTR)pattern, strlen(pattern),
+			((utf_mode) ? PCRE2_UTF | PCRE2_NO_UTF_CHECK : 0) |
 			(is_caseless ? PCRE2_CASELESS : 0),
 			&errcode, &erroffset, NULL);
 	if (comp == NULL)
@@ -142,21 +143,20 @@ static int compile_pattern2(char *pattern, int search_type, PATTERN_TYPE *comp_p
 /*
  * Like compile_pattern2, but convert the pattern to lowercase if necessary.
  */
-public int compile_pattern(char *pattern, int search_type, int show_error, PATTERN_TYPE *comp_pattern)
+public int compile_pattern(constant char *pattern, int search_type, int show_error, PATTERN_TYPE *comp_pattern)
 {
-	char *cvt_pattern;
 	int result;
 
 	if (caseless != OPT_ONPLUS || (re_handles_caseless && !(search_type & SRCH_NO_REGEX)))
-		cvt_pattern = pattern;
-	else
 	{
-		cvt_pattern = (char*) ecalloc(1, cvt_length(strlen(pattern), CVT_TO_LC));
-		cvt_text(cvt_pattern, pattern, (int *)NULL, (int *)NULL, CVT_TO_LC);
-	}
-	result = compile_pattern2(cvt_pattern, search_type, comp_pattern, show_error);
-	if (cvt_pattern != pattern)
+		result = compile_pattern2(pattern, search_type, comp_pattern, show_error);
+	} else
+	{
+		char *cvt_pattern = (char*) ecalloc(1, cvt_length(strlen(pattern), CVT_TO_LC));
+		cvt_text(cvt_pattern, pattern, NULL, NULL, CVT_TO_LC);
+		result = compile_pattern2(cvt_pattern, search_type, comp_pattern, show_error);
 		free(cvt_pattern);
+	}
 	return (result);
 }
 
@@ -227,7 +227,7 @@ public int valid_pattern(char *pattern)
 /*
  * Is a compiled pattern null?
  */
-public int is_null_pattern(PATTERN_TYPE pattern)
+public lbool is_null_pattern(PATTERN_TYPE pattern)
 {
 #if HAVE_GNU_REGEX
 	return (pattern == NULL);
@@ -258,12 +258,14 @@ public int is_null_pattern(PATTERN_TYPE pattern)
  * Simple pattern matching function.
  * It supports no metacharacters like *, etc.
  */
-static int match(char *pattern, int pattern_len, char *buf, int buf_len, char ***sp, char ***ep, int nsubs)
+static int match(constant char *pattern, size_t pattern_len, constant char *buf, int buf_len, constant char ***sp, constant char ***ep, int nsubs)
 {
-	char *pp, *lp;
-	char *pattern_end = pattern + pattern_len;
-	char *buf_end = buf + buf_len;
+	constant char *pp;
+	constant char *lp;
+	constant char *pattern_end = pattern + pattern_len;
+	constant char *buf_end = buf + buf_len;
 
+	(void) nsubs;
 	for ( ;  buf < buf_end;  buf++)
 	{
 		for (pp = pattern, lp = buf;  ;  pp++, lp++)
@@ -294,15 +296,16 @@ static int match(char *pattern, int pattern_len, char *buf, int buf_len, char **
  * Set sp[i] and ep[i] to the start and end of the i-th matched subpattern.
  * Subpatterns are defined by parentheses in the regex language.
  */
-static int match_pattern1(PATTERN_TYPE pattern, char *tpattern, char *line, int line_len, char **sp, char **ep, int nsp, int notbol, int search_type)
+static lbool match_pattern1(PATTERN_TYPE pattern, constant char *tpattern, constant char *line, size_t aline_len, size_t line_off, constant char **sp, constant char **ep, int nsp, int notbol, int search_type)
 {
 	int matched;
+	int line_len = (int) aline_len; /*{{type-issue}}*/
 
 #if NO_REGEX
 	search_type |= SRCH_NO_REGEX;
 #endif
 	if (search_type & SRCH_NO_REGEX)
-		matched = match(tpattern, strlen(tpattern), line, line_len, &sp, &ep, nsp);
+		matched = match(tpattern, strlen(tpattern), line + line_off, line_len - line_off, &sp, &ep, nsp);
 	else
 	{
 #if HAVE_GNU_REGEX
@@ -310,7 +313,7 @@ static int match_pattern1(PATTERN_TYPE pattern, char *tpattern, char *line, int 
 		struct re_registers search_regs;
 		pattern->not_bol = notbol;
 		pattern->regs_allocated = REGS_UNALLOCATED;
-		matched = re_search(pattern, line, line_len, 0, line_len, &search_regs) >= 0;
+		matched = re_search(pattern, line, line_len, line_off, line_len - line_off, &search_regs) >= 0;
 		if (matched)
 		{
 			*sp++ = line + search_regs.start[0];
@@ -325,8 +328,10 @@ static int match_pattern1(PATTERN_TYPE pattern, char *tpattern, char *line, int 
 		int flags = (notbol) ? REG_NOTBOL : 0;
 #ifdef REG_STARTEND
 		flags |= REG_STARTEND;
-		rm[0].rm_so = 0;
+		rm[0].rm_so = line_off;
 		rm[0].rm_eo = line_len;
+#else
+		line += line_off;
 #endif
 		matched = !regexec(pattern, line, RM_COUNT, rm, flags);
 		if (matched)
@@ -365,7 +370,7 @@ static int match_pattern1(PATTERN_TYPE pattern, char *tpattern, char *line, int 
 		int i;
 		int ecount;
 		int mcount = pcre_exec(pattern, NULL, line, line_len,
-			0, flags, ovector, OVECTOR_COUNT);
+			line_off, flags, ovector, OVECTOR_COUNT);
 		matched = (mcount > 0);
 		ecount = nsp-1;
 		if (ecount > mcount) ecount = mcount;
@@ -388,7 +393,7 @@ static int match_pattern1(PATTERN_TYPE pattern, char *tpattern, char *line, int 
 		int flags = (notbol) ? PCRE2_NOTBOL : 0;
 		pcre2_match_data *md = pcre2_match_data_create(nsp-1, NULL);
 		int mcount = pcre2_match(pattern, (PCRE2_SPTR)line, line_len,
-			0, flags, md, NULL);
+			line_off, flags, md, NULL);
 		matched = (mcount > 0);
 		if (matched)
 		{
@@ -413,21 +418,21 @@ static int match_pattern1(PATTERN_TYPE pattern, char *tpattern, char *line, int 
 	}
 #endif
 #if HAVE_RE_COMP
-	matched = (re_exec(line) == 1);
+	matched = (re_exec(line + line_off) == 1);
 	/*
 	 * re_exec doesn't seem to provide a way to get the matched string.
 	 */
 #endif
 #if HAVE_REGCMP
-	matched = ((*ep++ = regex(pattern, line)) != NULL);
+	matched = ((*ep++ = regex(pattern, line + line_off)) != NULL);
 	if (matched)
 		*sp++ = __loc1;
 #endif
 #if HAVE_V8_REGCOMP
 #if HAVE_REGEXEC2
-	matched = regexec2(pattern, line, notbol);
+	matched = regexec2(pattern, line + line_off, notbol);
 #else
-	matched = regexec(pattern, line);
+	matched = regexec(pattern, line + line_off);
 #endif
 	if (matched)
 	{
@@ -439,25 +444,42 @@ static int match_pattern1(PATTERN_TYPE pattern, char *tpattern, char *line, int 
 	*sp = *ep = NULL;
 	matched = (!(search_type & SRCH_NO_MATCH) && matched) ||
 			((search_type & SRCH_NO_MATCH) && !matched);
-	return (matched);
+	return (matched != 0);
 }
 
-public int match_pattern(PATTERN_TYPE pattern, char *tpattern, char *line, int line_len, char **sp, char **ep, int nsp, int notbol, int search_type)
+/*
+ * Return TRUE if the match satisfies all SUBSEARCH conditions.
+ */
+static lbool subsearch_ok(constant char **sp, constant char **ep, int search_type)
 {
-	int matched = match_pattern1(pattern, tpattern, line, line_len, sp, ep, nsp, notbol, search_type);
 	int i;
 	for (i = 1;  i <= NUM_SEARCH_COLORS;  i++)
 	{
 		if ((search_type & SRCH_SUBSEARCH(i)) && ep[i] == sp[i])
-			matched = 0;
+			return FALSE;
 	}
-	return matched;
+	return TRUE;
+}
+
+public lbool match_pattern(PATTERN_TYPE pattern, constant char *tpattern, constant char *line, size_t line_len, size_t line_off, constant char **sp, constant char **ep, int nsp, int notbol, int search_type)
+{
+	for (;;)
+	{
+		size_t mlen;
+		lbool matched = match_pattern1(pattern, tpattern, line, line_len, line_off, sp, ep, nsp, notbol, search_type);
+		if (!matched || subsearch_ok(sp, ep, search_type))
+			return matched;
+		mlen = ep[0] - line;
+		line += mlen;
+		line_len -= mlen;
+		notbol = 1;
+	}
 }
 
 /*
  * Return the name of the pattern matching library.
  */
-public char * pattern_lib_name(void)
+public constant char * pattern_lib_name(void)
 {
 #if HAVE_GNU_REGEX
 	return ("GNU");

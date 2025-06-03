@@ -81,6 +81,20 @@ struct r88e_tx_rpt_ccx {
 	uint8_t		rptb7;
 } __packed;
 
+/*
+ * The 8188E periodic TX report entries
+ * (type 2 report.)
+ */
+struct r88e_fw_c2h_txreport2_entry {
+	uint16_t retry0;
+	uint8_t retry1;
+	uint8_t retry2;
+	uint8_t retry3;
+	uint8_t retry4;
+	uint8_t drop;
+	uint8_t reserved;
+} __packed;
+
 /* Interrupt message format. */
 /* XXX recheck */
 struct r88e_intr_msg {

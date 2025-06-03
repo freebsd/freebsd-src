@@ -4,6 +4,7 @@
 #define	TMPFILE_SIZE	(1024 * 32)
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/random.h>
 #include <sys/resource.h>
 #include <sys/select.h>
@@ -162,7 +163,10 @@ replace_stdin(void)
 		close(fd);
 }
 
-ATF_TC_WITHOUT_HEAD(getrandom_before_end);
+ATF_TC(getrandom_before_end);
+ATF_TC_HEAD(getrandom_before_end, tc)
+{
+}
 ATF_TC_BODY(getrandom_before_end, tc)
 {
 #define BUF &__stack.__buf
@@ -180,7 +184,10 @@ ATF_TC_BODY(getrandom_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(getrandom_end);
+ATF_TC(getrandom_end);
+ATF_TC_HEAD(getrandom_end, tc)
+{
+}
 ATF_TC_BODY(getrandom_end, tc)
 {
 #define BUF &__stack.__buf
@@ -198,7 +205,10 @@ ATF_TC_BODY(getrandom_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(getrandom_heap_before_end);
+ATF_TC(getrandom_heap_before_end);
+ATF_TC_HEAD(getrandom_heap_before_end, tc)
+{
+}
 ATF_TC_BODY(getrandom_heap_before_end, tc)
 {
 #define BUF __stack.__buf
@@ -218,7 +228,10 @@ ATF_TC_BODY(getrandom_heap_before_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(getrandom_heap_end);
+ATF_TC(getrandom_heap_end);
+ATF_TC_HEAD(getrandom_heap_end, tc)
+{
+}
 ATF_TC_BODY(getrandom_heap_end, tc)
 {
 #define BUF __stack.__buf
@@ -238,7 +251,10 @@ ATF_TC_BODY(getrandom_heap_end, tc)
 
 }
 
-ATF_TC_WITHOUT_HEAD(getrandom_heap_after_end);
+ATF_TC(getrandom_heap_after_end);
+ATF_TC_HEAD(getrandom_heap_after_end, tc)
+{
+}
 ATF_TC_BODY(getrandom_heap_after_end, tc)
 {
 #define BUF __stack.__buf

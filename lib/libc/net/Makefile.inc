@@ -1,7 +1,7 @@
 # machine-independent net sources
 .PATH: ${LIBC_SRCTOP}/net
 
-CONFS+=	net/hosts net/hosts.equiv net/networks net/nsswitch.conf net/protocols
+CONFS+=	net/hosts net/hosts.equiv net/networks ${.OBJDIR}/nsswitch.conf net/protocols
 SRCS+=	base64.c ether_addr.c eui64.c \
 	gai_strerror.c getaddrinfo.c \
 	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
@@ -141,7 +141,8 @@ MLINKS+=inet6_opt_init.3 inet6_opt_append.3 \
 	inet6_rthdr_space.3 inet6_rthdr_reverse.3 \
 	inet6_rthdr_space.3 inet6_rthdr_segments.3
 MLINKS+=linkaddr.3 link_addr.3 \
-	linkaddr.3 link_ntoa.3
+	linkaddr.3 link_ntoa.3 \
+	linkaddr.3 link_ntoa_r.3
 MLINKS+=rcmd.3 iruserok.3 \
 	rcmd.3 iruserok_sa.3 \
 	rcmd.3 rcmd_af.3 \
@@ -176,9 +177,13 @@ MLINKS+=hesiod.3 hesiod_init.3 \
 	hesiod.3 hesiod_end.3
 .endif
 
-afterinstallconfig: modify-nsswitch-conf
-modify-nsswitch-conf: .PHONY
+all: ${.OBJDIR}/nsswitch.conf
+
+# Manually stage nsswitch.conf in the object directory so that we can edit it
+# before installing.
+${.OBJDIR}/nsswitch.conf: ${LIBC_SRCTOP}/net/nsswitch.conf
+	cp -f ${LIBC_SRCTOP}/net/nsswitch.conf ${.TARGET}
 .if ${MK_NIS} == "no"
 	sed -i "" -e 's/.*_compat:/# &/' -e 's/compat$$/files/' \
-		${DESTDIR}/etc/nsswitch.conf
+		${.TARGET}
 .endif

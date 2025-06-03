@@ -30,13 +30,14 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 
+#include <machine/tls.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 
 #include "libc_private.h"
 #include "thr_private.h"
-#include "static_tls.h"
 
 /*#define DEBUG_THREAD_LIST */
 #ifdef DEBUG_THREAD_LIST
@@ -149,16 +150,18 @@ _thr_alloc(struct pthread *curthread)
 	if (thread == NULL) {
 		if (total_threads > MAX_THREADS)
 			return (NULL);
-		atomic_fetchadd_int(&total_threads, 1);
-		thread = calloc(1, sizeof(struct pthread));
+		atomic_add_int(&total_threads, 1);
+		thread = __thr_aligned_alloc_offset(_Alignof(struct pthread),
+		    sizeof(struct pthread), 0);
 		if (thread == NULL) {
-			atomic_fetchadd_int(&total_threads, -1);
+			atomic_add_int(&total_threads, -1);
 			return (NULL);
 		}
+		memset(thread, 0, sizeof(*thread));
 		if ((thread->sleepqueue = _sleepq_alloc()) == NULL ||
 		    (thread->wake_addr = _thr_alloc_wake_addr()) == NULL) {
 			thr_destroy(curthread, thread);
-			atomic_fetchadd_int(&total_threads, -1);
+			atomic_add_int(&total_threads, -1);
 			return (NULL);
 		}
 	} else {
@@ -176,7 +179,7 @@ _thr_alloc(struct pthread *curthread)
 		thread->tcb = tcb;
 	} else {
 		thr_destroy(curthread, thread);
-		atomic_fetchadd_int(&total_threads, -1);
+		atomic_add_int(&total_threads, -1);
 		thread = NULL;
 	}
 	return (thread);
@@ -202,7 +205,7 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 	thread->tcb = NULL;
 	if ((curthread == NULL) || (free_thread_count >= MAX_CACHED_THREADS)) {
 		thr_destroy(curthread, thread);
-		atomic_fetchadd_int(&total_threads, -1);
+		atomic_add_int(&total_threads, -1);
 	} else {
 		/*
 		 * Add the thread to the free thread list, this also avoids
@@ -222,7 +225,7 @@ thr_destroy(struct pthread *curthread __unused, struct pthread *thread)
 		_sleepq_free(thread->sleepqueue);
 	if (thread->wake_addr != NULL)
 		_thr_release_wake_addr(thread->wake_addr);
-	free(thread);
+	__thr_free(thread);
 }
 
 /*
@@ -361,15 +364,13 @@ _thr_find_thread(struct pthread *curthread, struct pthread *thread,
 	return (ret);
 }
 
-#include "pthread_tls.h"
-
 static void
-thr_distribute_static_tls(uintptr_t tlsbase, void *src, size_t len,
+thr_distribute_static_tls(char *tlsbase, void *src, size_t len,
     size_t total_len)
 {
 
-	memcpy((void *)tlsbase, src, len);
-	memset((char *)tlsbase + len, 0, total_len - len);
+	memcpy(tlsbase, src, len);
+	memset(tlsbase + len, 0, total_len - len);
 }
 
 void
@@ -377,17 +378,25 @@ __pthread_distribute_static_tls(size_t offset, void *src, size_t len,
     size_t total_len)
 {
 	struct pthread *curthread, *thrd;
-	uintptr_t tlsbase;
+	char *tlsbase;
 
 	if (!_thr_is_inited()) {
-		tlsbase = _libc_get_static_tls_base(offset);
+#ifdef TLS_VARIANT_I
+		tlsbase = (char *)_tcb_get() + offset;
+#else
+		tlsbase = (char *)_tcb_get() - offset;
+#endif
 		thr_distribute_static_tls(tlsbase, src, len, total_len);
 		return;
 	}
 	curthread = _get_curthread();
 	THREAD_LIST_RDLOCK(curthread);
 	TAILQ_FOREACH(thrd, &_thread_list, tle) {
-		tlsbase = _get_static_tls_base(thrd, offset);
+#ifdef TLS_VARIANT_I
+		tlsbase = (char *)thrd->tcb + offset;
+#else
+		tlsbase = (char *)thrd->tcb - offset;
+#endif
 		thr_distribute_static_tls(tlsbase, src, len, total_len);
 	}
 	THREAD_LIST_UNLOCK(curthread);

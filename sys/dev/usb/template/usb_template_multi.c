@@ -37,7 +37,6 @@
  * USB template for CDC ACM (serial), CDC ECM (network), and CDC MSC (storage).
  */
 
-#include <sys/cdefs.h>
 #ifdef USB_GLOBAL_INCLUDE_FILE
 #include USB_GLOBAL_INCLUDE_FILE
 #else

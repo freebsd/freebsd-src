@@ -137,9 +137,8 @@ fstyp_ntfs(FILE *fp, char *label, size_t size)
 	struct ntfs_filerec *fr;
 	struct ntfs_attr *atr;
 	off_t voloff;
-	char *ap;
 	int8_t mftrecsz;
-	int recsize;
+	size_t recsize;
 #endif /* WITH_ICONV */
 
 	filerecp = NULL;
@@ -152,7 +151,8 @@ fstyp_ntfs(FILE *fp, char *label, size_t size)
 		goto ok;
 
 	mftrecsz = bf->bf_mftrecsz;
-	recsize = (mftrecsz > 0) ? (mftrecsz * bf->bf_bps * bf->bf_spc) : (1 << -mftrecsz);
+	recsize = (mftrecsz > 0) ?
+	    (mftrecsz * bf->bf_bps * bf->bf_spc) : (1 << -mftrecsz);
 
 	voloff = bf->bf_mftcn * bf->bf_spc * bf->bf_bps +
 	    recsize * NTFS_VOLUMEINO;
@@ -165,16 +165,28 @@ fstyp_ntfs(FILE *fp, char *label, size_t size)
 	if (fr->fr_hdrmagic != NTFS_FILEMAGIC)
 		goto fail;
 
-	for (ap = filerecp + fr->fr_attroff;
-	    atr = (struct ntfs_attr *)ap, (int)atr->a_type != -1;
-	    ap += atr->reclen) {
-		if (atr->a_type != NTFS_A_VOLUMENAME)
-			continue;
-
-		convert_label(ap + atr->a_dataoff,
-		    atr->a_datalen, label, size);
-		break;
+	for (size_t ioff = fr->fr_attroff;
+	    ioff + sizeof(struct ntfs_attr) < recsize;
+	    ioff += atr->reclen) {
+		atr = (struct ntfs_attr *)(filerecp + ioff);
+		if ((int)atr->a_type == -1)
+			goto ok;
+		if (atr->a_type == NTFS_A_VOLUMENAME) {
+			if ((size_t)atr->a_dataoff + atr->a_datalen > recsize) {
+				warnx("ntfs: Volume name attribute overflow");
+				goto fail;
+			}
+			convert_label(filerecp + ioff + atr->a_dataoff,
+			    atr->a_datalen, label, size);
+			goto ok;
+		}
+		if (atr->reclen == 0) {
+			warnx("ntfs: Invalid attribute record length");
+			goto fail;
+		}
 	}
+	warnx("ntfs: Volume name not found");
+	goto fail;
 
 ok:
 #else

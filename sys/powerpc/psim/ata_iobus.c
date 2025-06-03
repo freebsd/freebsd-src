@@ -112,7 +112,8 @@ ata_iobus_attach(device_t dev)
 	 * to add two
 	 */
 	device_add_child(dev, "ata", DEVICE_UNIT_ANY);
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

@@ -776,7 +776,7 @@ mfi_attach(struct mfi_softc *sc)
 	    "Don't detach the mfid device for a busy volume that is deleted");
 
 	device_add_child(sc->mfi_dev, "mfip", DEVICE_UNIT_ANY);
-	bus_generic_attach(sc->mfi_dev);
+	bus_attach_children(sc->mfi_dev);
 
 	/* Start the timeout watchdog */
 	callout_init(&sc->mfi_watchdog_callout, 1);
@@ -1932,7 +1932,7 @@ mfi_add_ld_complete(struct mfi_command *cm)
 
 	device_set_ivars(child, ld_info);
 	device_set_desc(child, "MFI Logical Disk");
-	bus_generic_attach(sc->mfi_dev);
+	bus_attach_children(sc->mfi_dev);
 	bus_topo_unlock();
 	mtx_lock(&sc->mfi_io_lock);
 }
@@ -2020,7 +2020,7 @@ mfi_add_sys_pd_complete(struct mfi_command *cm)
 
 	device_set_ivars(child, pd_info);
 	device_set_desc(child, "MFI System PD");
-	bus_generic_attach(sc->mfi_dev);
+	bus_attach_children(sc->mfi_dev);
 	bus_topo_unlock();
 	mtx_lock(&sc->mfi_io_lock);
 }

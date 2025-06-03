@@ -107,7 +107,7 @@ ti_omap4_cm_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	bus_generic_probe(sc->dev);
+	bus_identify_children(sc->dev);
 
 	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
 		cdev = simplebus_add_device(dev, child, 0, NULL, -1, NULL);
@@ -115,7 +115,8 @@ ti_omap4_cm_attach(device_t dev)
 			device_probe_and_attach(cdev);
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 }
 
 static int

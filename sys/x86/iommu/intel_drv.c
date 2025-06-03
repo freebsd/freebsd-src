@@ -38,6 +38,7 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/domainset.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -85,6 +86,7 @@
 
 static device_t *dmar_devs;
 static int dmar_devcnt;
+static bool dmar_running = false;
 
 typedef int (*dmar_iter_t)(ACPI_DMAR_HEADER *, void *);
 
@@ -159,6 +161,27 @@ dmar_count_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 	return (1);
 }
 
+/* Remapping Hardware Static Affinity Structure lookup */
+struct rhsa_iter_arg {
+	uint64_t base;
+	u_int proxim_dom;
+};
+
+static int
+dmar_rhsa_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
+{
+	struct rhsa_iter_arg *ria;
+	ACPI_DMAR_RHSA *adr;
+
+	if (dmarh->Type == ACPI_DMAR_TYPE_HARDWARE_AFFINITY) {
+		ria = arg;
+		adr = (ACPI_DMAR_RHSA *)dmarh;
+		if (adr->BaseAddress == ria->base)
+			ria->proxim_dom = adr->ProximityDomain;
+	}
+	return (1);
+}
+
 int dmar_rmrr_enable = 1;
 
 static int dmar_enable = 0;
@@ -167,6 +190,7 @@ dmar_identify(driver_t *driver, device_t parent)
 {
 	ACPI_TABLE_DMAR *dmartbl;
 	ACPI_DMAR_HARDWARE_UNIT *dmarh;
+	struct rhsa_iter_arg ria;
 	ACPI_STATUS status;
 	int i, error;
 
@@ -216,7 +240,15 @@ dmar_identify(driver_t *driver, device_t parent)
 			    i, (uintmax_t)dmarh->Address, error);
 			device_delete_child(parent, dmar_devs[i]);
 			dmar_devs[i] = NULL;
+			continue;
 		}
+
+		ria.base = dmarh->Address;
+		ria.proxim_dom = -1;
+		dmar_iterate_tbl(dmar_rhsa_iter, &ria);
+		acpi_set_domain(dmar_devs[i], ria.proxim_dom == -1 ?
+		    ACPI_DEV_DOMAIN_UNKNOWN :
+		    acpi_map_pxm_to_vm_domainid(ria.proxim_dom));
 	}
 }
 
@@ -358,7 +390,7 @@ dmar_attach(device_t dev)
 	if (bootverbose)
 		dmar_print_caps(dev, unit, dmaru);
 	dmar_quirks_post_ident(unit);
-
+	unit->memdomain = acpi_get_domain(dev);
 	timeout = dmar_get_timeout();
 	TUNABLE_UINT64_FETCH("hw.iommu.dmar.timeout", &timeout);
 	dmar_update_timeout(timeout);
@@ -424,6 +456,10 @@ dmar_attach(device_t dev)
 
 	unit->ctx_obj = vm_pager_allocate(OBJT_PHYS, NULL, IDX_TO_OFF(1 +
 	    DMAR_CTX_CNT), 0, 0, NULL);
+	if (unit->memdomain != -1) {
+		unit->ctx_obj->domain.dr_policy = DOMAINSET_PREF(
+		    unit->memdomain);
+	}
 
 	/*
 	 * Allocate and load the root entry table pointer.  Enable the
@@ -504,6 +540,7 @@ dmar_attach(device_t dev)
 	DMAR_UNLOCK(unit);
 #endif
 
+	dmar_running = true;
 	return (0);
 }
 
@@ -757,6 +794,7 @@ dmar_find(device_t dev, bool verbose)
 		dmar_print_path(dev_busno, dev_path_len, dev_path);
 		printf("\n");
 	}
+	iommu_device_set_iommu_prop(dev, unit->iommu.dev);
 	return (unit);
 }
 
@@ -826,16 +864,28 @@ dmar_find_nonpci(u_int id, u_int entry_type, uint16_t *rid)
 struct dmar_unit *
 dmar_find_hpet(device_t dev, uint16_t *rid)
 {
+	struct dmar_unit *unit;
 
-	return (dmar_find_nonpci(hpet_get_uid(dev), ACPI_DMAR_SCOPE_TYPE_HPET,
-	    rid));
+	unit = dmar_find_nonpci(hpet_get_uid(dev), ACPI_DMAR_SCOPE_TYPE_HPET,
+	    rid);
+	if (unit != NULL)
+		iommu_device_set_iommu_prop(dev, unit->iommu.dev);
+	return (unit);
 }
 
 struct dmar_unit *
 dmar_find_ioapic(u_int apic_id, uint16_t *rid)
 {
+	struct dmar_unit *unit;
+	device_t apic_dev;
 
-	return (dmar_find_nonpci(apic_id, ACPI_DMAR_SCOPE_TYPE_IOAPIC, rid));
+	unit = dmar_find_nonpci(apic_id, ACPI_DMAR_SCOPE_TYPE_IOAPIC, rid);
+	if (unit != NULL) {
+		apic_dev = ioapic_get_dev(apic_id);
+		if (apic_dev != NULL)
+			iommu_device_set_iommu_prop(apic_dev, unit->iommu.dev);
+	}
+	return (unit);
 }
 
 struct rmrr_iter_args {
@@ -1007,6 +1057,13 @@ dmar_inst_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 
 }
 
+int
+dmar_is_running(void)
+{
+
+	return (dmar_running ? 0 : ENXIO);
+}
+
 /*
  * Pre-create all contexts for the DMAR which have RMRR entries.
  */
@@ -1054,47 +1111,9 @@ dmar_instantiate_rmrr_ctxs(struct iommu_unit *unit)
 #include <ddb/db_lex.h>
 
 static void
-dmar_print_domain_entry(const struct iommu_map_entry *entry)
-{
-	struct iommu_map_entry *l, *r;
-
-	db_printf(
-	    "    start %jx end %jx first %jx last %jx free_down %jx flags %x ",
-	    entry->start, entry->end, entry->first, entry->last,
-	    entry->free_down, entry->flags);
-	db_printf("left ");
-	l = RB_LEFT(entry, rb_entry);
-	if (l == NULL)
-		db_printf("NULL ");
-	else
-		db_printf("%jx ", l->start);
-	db_printf("right ");
-	r = RB_RIGHT(entry, rb_entry);
-	if (r == NULL)
-		db_printf("NULL");
-	else
-		db_printf("%jx", r->start);
-	db_printf("\n");
-}
-
-static void
-dmar_print_ctx(struct dmar_ctx *ctx)
-{
-
-	db_printf(
-	    "    @%p pci%d:%d:%d refs %d flags %x loads %lu unloads %lu\n",
-	    ctx, pci_get_bus(ctx->context.tag->owner),
-	    pci_get_slot(ctx->context.tag->owner),
-	    pci_get_function(ctx->context.tag->owner), ctx->refs,
-	    ctx->context.flags, ctx->context.loads, ctx->context.unloads);
-}
-
-static void
 dmar_print_domain(struct dmar_domain *domain, bool show_mappings)
 {
 	struct iommu_domain *iodom;
-	struct iommu_map_entry *entry;
-	struct dmar_ctx *ctx;
 
 	iodom = DOM2IODOM(domain);
 
@@ -1104,34 +1123,18 @@ dmar_print_domain(struct dmar_domain *domain, bool show_mappings)
 	    domain, domain->domain, domain->mgaw, domain->agaw, domain->pglvl,
 	    (uintmax_t)domain->iodom.end, domain->refs, domain->ctx_cnt,
 	    domain->iodom.flags, domain->pgtbl_obj, domain->iodom.entries_cnt);
-	if (!LIST_EMPTY(&domain->contexts)) {
-		db_printf("  Contexts:\n");
-		LIST_FOREACH(ctx, &domain->contexts, link)
-			dmar_print_ctx(ctx);
-	}
-	if (!show_mappings)
-		return;
-	db_printf("    mapped:\n");
-	RB_FOREACH(entry, iommu_gas_entries_tree, &iodom->rb_root) {
-		dmar_print_domain_entry(entry);
-		if (db_pager_quit)
-			break;
-	}
-	if (db_pager_quit)
-		return;
-	db_printf("    unloading:\n");
-	TAILQ_FOREACH(entry, &domain->iodom.unload_entries, dmamap_link) {
-		dmar_print_domain_entry(entry);
-		if (db_pager_quit)
-			break;
-	}
+
+	iommu_db_domain_print_contexts(iodom);
+
+	if (show_mappings)
+		iommu_db_domain_print_mappings(iodom);
 }
 
 DB_SHOW_COMMAND_FLAGS(dmar_domain, db_dmar_print_domain, CS_OWN)
 {
 	struct dmar_unit *unit;
 	struct dmar_domain *domain;
-	struct dmar_ctx *ctx;
+	struct iommu_ctx *ctx;
 	bool show_mappings, valid;
 	int pci_domain, bus, device, function, i, t;
 	db_expr_t radix;
@@ -1179,13 +1182,12 @@ DB_SHOW_COMMAND_FLAGS(dmar_domain, db_dmar_print_domain, CS_OWN)
 	for (i = 0; i < dmar_devcnt; i++) {
 		unit = device_get_softc(dmar_devs[i]);
 		LIST_FOREACH(domain, &unit->domains, link) {
-			LIST_FOREACH(ctx, &domain->contexts, link) {
+			LIST_FOREACH(ctx, &domain->iodom.contexts, link) {
 				if (pci_domain == unit->segment && 
-				    bus == pci_get_bus(ctx->context.tag->owner) &&
-				    device ==
-				    pci_get_slot(ctx->context.tag->owner) &&
-				    function ==
-				    pci_get_function(ctx->context.tag->owner)) {
+				    bus == pci_get_bus(ctx->tag->owner) &&
+				    device == pci_get_slot(ctx->tag->owner) &&
+				    function == pci_get_function(ctx->tag->
+				    owner)) {
 					dmar_print_domain(domain,
 					    show_mappings);
 					goto out;
@@ -1326,7 +1328,6 @@ static struct x86_iommu dmar_x86_iommu = {
 	.domain_unload = dmar_domain_unload,
 	.get_ctx = dmar_get_ctx,
 	.free_ctx_locked = dmar_free_ctx_locked_method,
-	.free_ctx = dmar_free_ctx_method,
 	.find = dmar_find_method,
 	.alloc_msi_intr = dmar_alloc_msi_intr,
 	.map_msi_intr = dmar_map_msi_intr,

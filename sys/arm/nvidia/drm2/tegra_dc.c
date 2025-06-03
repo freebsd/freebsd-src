@@ -1368,7 +1368,8 @@ dc_attach(device_t dev)
 		goto fail;
 	}
 
-	return (bus_generic_attach(dev));
+	bus_attach_children(dev);
+	return (0);
 
 fail:
 	TEGRA_DRM_DEREGISTER_CLIENT(device_get_parent(sc->dev), sc->dev);
@@ -1393,6 +1394,11 @@ static int
 dc_detach(device_t dev)
 {
 	struct dc_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	sc = device_get_softc(dev);
 
@@ -1412,7 +1418,7 @@ dc_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem_res);
 	LOCK_DESTROY(sc);
 
-	return (bus_generic_detach(dev));
+	return (0);
 }
 
 static device_method_t tegra_dc_methods[] = {

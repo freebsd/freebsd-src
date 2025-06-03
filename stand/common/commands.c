@@ -291,6 +291,63 @@ command_show(int argc, char *argv[])
 	return (CMD_OK);
 }
 
+#ifdef LOADER_VERIEXEC
+static int
+is_restricted_var(const char *var)
+{
+	/*
+	 * We impose restrictions if input is not verified
+	 * allowing for exceptions.
+	 * These entries should include the '='
+	 */
+	const char *allowed[] = {
+		"boot_function=",
+		"boot_phase=",
+		"boot_recover_cli=",
+		"boot_recover_volume=",
+		"boot_safe=",
+		"boot_set=",
+		"boot_single=",
+		"boot_verbose=",
+		NULL,
+	};
+	const char *restricted[] = {
+		"boot",
+		"init",
+		"loader.ve.",
+		"rootfs",
+		"secur",
+		"vfs.",
+		NULL,
+	};
+	const char **cp;
+	int ok = -1;
+
+#ifdef LOADER_VERIEXEC_TESTING
+	printf("Checking: %s\n", var);
+#endif
+	for (cp = restricted; *cp; cp++) {
+		if (strncmp(var, *cp, strlen(*cp)) == 0) {
+			ok = 0;
+			break;
+		}
+	}
+	if (!ok) {
+		/*
+		 * Check for exceptions.
+		 * These should match up to '='.
+		 */
+		for (cp = allowed; *cp; cp++) {
+			if (strncmp(var, *cp, strlen(*cp)) == 0) {
+				ok = 1;
+				break;
+			}
+		}
+	}
+	return (ok == 0);
+}
+#endif
+
 COMMAND_SET(set, "set", "set a variable", command_set);
 
 static int
@@ -303,32 +360,14 @@ command_set(int argc, char *argv[])
 		return (CMD_ERROR);
 	} else {
 #ifdef LOADER_VERIEXEC
-		/*
-		 * Impose restrictions if input is not verified
-		 */
-		const char *restricted[] = {
-			"boot",
-			"init",
-			"loader.ve.",
-			"rootfs",
-			"secur",
-			"vfs.",
-			NULL,
-		};
-		const char **cp;
 		int ves;
 
 		ves = ve_status_get(-1);
 		if (ves == VE_UNVERIFIED_OK) {
-#ifdef LOADER_VERIEXEC_TESTING
-			printf("Checking: %s\n", argv[1]);
-#endif
-			for (cp = restricted; *cp; cp++) {
-				if (strncmp(argv[1], *cp, strlen(*cp)) == 0) {
-					printf("Ignoring restricted variable: %s\n",
-					    argv[1]);
-					return (CMD_OK);
-				}
+			if (is_restricted_var(argv[1])) {
+				printf("Ignoring restricted variable: %s\n",
+				    argv[1]);
+				return (CMD_OK);
 			}
 		}
 #endif
@@ -351,6 +390,18 @@ command_unset(int argc, char *argv[])
 		command_errmsg = "wrong number of arguments";
 		return (CMD_ERROR);
 	} else {
+#ifdef LOADER_VERIEXEC
+		int ves;
+
+		ves = ve_status_get(-1);
+		if (ves == VE_UNVERIFIED_OK) {
+			if (is_restricted_var(argv[1])) {
+				printf("Ignoring restricted variable: %s\n",
+				    argv[1]);
+				return (CMD_OK);
+			}
+		}
+#endif
 		if ((err = unsetenv(argv[1])) != 0) {
 			command_errmsg = strerror(err);
 			return (CMD_ERROR);

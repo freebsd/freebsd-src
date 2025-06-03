@@ -83,7 +83,6 @@
 #include <string.h>
 #include <paths.h>
 #include <devstat.h>
-#include <err.h>
 
 #include <libxo/xo.h>
 
@@ -168,7 +167,7 @@ main(int argc, char **argv)
 						    mntbuf->f_mntfromname,
 						    mntbuf->f_mntonname, buf);
 					else if (errno == EPERM)
-						errx(1, "Only privileged users"
+						xo_errx(1, "Only privileged users"
 						    " can use the -m option");
 				}
 				mntbuf++;
@@ -241,7 +240,8 @@ main(int argc, char **argv)
 		xo_close_container("nfsstat");
 	}
 
-	xo_finish();
+	if (xo_finish() < 0)
+		xo_err(1, "stdout");
 	exit(0);
 }
 
@@ -505,8 +505,7 @@ printhdr(int clientOnly, int serverOnly, int newStats)
 static void
 usage(void)
 {
-	(void)fprintf(stderr,
-	    "usage: nfsstat [-cdEemqszW] [-w wait]\n");
+	xo_error("usage: nfsstat [-cdEemqszW] [-w wait]\n");
 	exit(1);
 }
 
@@ -1131,7 +1130,7 @@ exp_sidewaysintpr(u_int interval, int clientOnly, int serverOnly,
 	ext_nfsstatsp = &lastst;
 	ext_nfsstatsp->vers = NFSSTATS_V1;
 	if (nfssvc(NFSSVC_GETSTATS | NFSSVC_NEWSTRUCT, ext_nfsstatsp) < 0)
-		err(1, "Can't get stats");
+		xo_err(1, "Can't get stats");
 	clock_gettime(CLOCK_MONOTONIC, &lastts);
 	compute_totals(&lasttotal, ext_nfsstatsp);
 	sleep(interval);
@@ -1141,7 +1140,7 @@ exp_sidewaysintpr(u_int interval, int clientOnly, int serverOnly,
 		ext_nfsstatsp->vers = NFSSTATS_V1;
 		if (nfssvc(NFSSVC_GETSTATS | NFSSVC_NEWSTRUCT, ext_nfsstatsp)
 		    < 0)
-			err(1, "Can't get stats");
+			xo_err(1, "Can't get stats");
 		clock_gettime(CLOCK_MONOTONIC, &ts);
 
 		if (--hdrcnt == 0) {

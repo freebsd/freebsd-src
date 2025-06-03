@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+#
+
+# PROVIDE: noshutdown
+# REQUIRE: var
+# BEFORE:  LOGIN
+
+. /etc/rc.subr
+
+name="noshutdown"
+desc="Disable shutdown(8) for precious machines"
+rcvar="precious_machine"
+start_cmd="noshutdown_start"
+stop_cmd="noshutdown_stop"
+
+: ${noshutdown_file:="/var/run/noshutdown"}
+
+noshutdown_start()
+{
+	touch $noshutdown_file
+}
+
+noshutdown_stop()
+{
+	rm -f $noshutdown_file
+}
+
+load_rc_config $name
+
+run_rc_command "$1"

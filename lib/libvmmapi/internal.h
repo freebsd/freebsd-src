@@ -16,7 +16,8 @@ enum {
 };
 
 struct vmctx {
-	int	fd;
+	int	fd;		/* device file descriptor */
+	int	ctlfd;		/* vmm control descriptor */
 	struct {
 		vm_paddr_t base;
 		vm_size_t size;

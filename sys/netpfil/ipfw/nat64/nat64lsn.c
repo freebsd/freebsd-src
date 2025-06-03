@@ -1,9 +1,9 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2015-2019 Yandex LLC
+ * Copyright (c) 2015-2020 Yandex LLC
  * Copyright (c) 2015 Alexander V. Chernikov <melifaro@FreeBSD.org>
- * Copyright (c) 2016-2019 Andrey V. Elsukov <ae@FreeBSD.org>
+ * Copyright (c) 2016-2020 Andrey V. Elsukov <ae@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -84,7 +84,7 @@ static uma_zone_t nat64lsn_job_zone;
 static void nat64lsn_periodic(void *data);
 #define	PERIODIC_DELAY		4
 #define	NAT64_LOOKUP(chain, cmd)	\
-	(struct nat64lsn_cfg *)SRV_OBJECT((chain), (cmd)->arg1)
+    (struct nat64lsn_instance *)SRV_OBJECT((chain), insntod(cmd, kidx)->kidx)
 /*
  * Delayed job queue, used to create new hosts
  * and new portgroups
@@ -178,7 +178,7 @@ nat64lsn_log(struct pfloghdr *plog, struct mbuf *m, sa_family_t family,
 {
 
 	memset(plog, 0, sizeof(*plog));
-	plog->length = PFLOG_HDRLEN;
+	plog->length = PFLOG_REAL_HDRLEN;
 	plog->af = family;
 	plog->action = PF_NAT;
 	plog->dir = PF_IN;
@@ -210,6 +210,21 @@ nat64lsn_get_aliaslink(struct nat64lsn_cfg *cfg __unused,
 	 * XXX: for now we use first available.
 	 */
 	return (CK_SLIST_FIRST(&host->aliases));
+}
+
+static struct nat64lsn_alias*
+nat64lsn_get_alias(struct nat64lsn_cfg *cfg,
+    const struct ipfw_flow_id *f_id __unused)
+{
+	static uint32_t idx = 0;
+
+	/*
+	 * We can choose alias by number of allocated PGs,
+	 * not used yet by other hosts, or some static configured
+	 * by user.
+	 * XXX: for now we choose it using round robin.
+	 */
+	return (&ALIAS_BYHASH(cfg, idx++));
 }
 
 #define	STATE_HVAL(c, d)	HVAL((d), 2, (c)->hash_seed)
@@ -255,53 +270,47 @@ freemask_ffsll(uint32_t *freemask)
 	((uint64_t)ck_pr_load_32(FREEMASK_CHUNK((pg), (n)) + 1) << 32)
 #endif /* !__LP64__ */
 
-#define	NAT64LSN_TRY_PGCNT	32
+
+#define	NAT64LSN_TRY_PGCNT	36
 static struct nat64lsn_pg*
 nat64lsn_get_pg(uint32_t *chunkmask, uint32_t *pgmask,
-    struct nat64lsn_pgchunk **chunks, struct nat64lsn_pg **pgptr,
-    uint32_t *pgidx, in_addr_t faddr)
+    struct nat64lsn_pgchunk **chunks, uint32_t *pgidx, in_addr_t faddr)
 {
-	struct nat64lsn_pg *pg, *oldpg;
+	struct nat64lsn_pg *pg;
 	uint32_t idx, oldidx;
 	int cnt;
 
-	cnt = 0;
-	/* First try last used PG */
-	oldpg = pg = ck_pr_load_ptr(pgptr);
+	/* First try last used PG. */
 	idx = oldidx = ck_pr_load_32(pgidx);
-	/* If pgidx is out of range, reset it to the first pgchunk */
-	if (!ISSET32(*chunkmask, idx / 32))
-		idx = 0;
+	MPASS(idx < 1024);
+	cnt = 0;
 	do {
 		ck_pr_fence_load();
-		if (pg != NULL && FREEMASK_BITCOUNT(pg, faddr) > 0) {
-			/*
-			 * If last used PG has not free states,
-			 * try to update pointer.
-			 * NOTE: it can be already updated by jobs handler,
-			 *	 thus we use CAS operation.
-			 */
+		if (idx > 1023 || !ISSET32(*chunkmask, idx / 32)) {
+			/* If it is first try, reset idx to first PG */
+			idx = 0;
+			/* Stop if idx is out of range */
 			if (cnt > 0)
-				ck_pr_cas_ptr(pgptr, oldpg, pg);
-			return (pg);
+				break;
 		}
-		/* Stop if idx is out of range */
-		if (!ISSET32(*chunkmask, idx / 32))
-			break;
-
-		if (ISSET32(pgmask[idx / 32], idx % 32))
+		if (ISSET32(pgmask[idx / 32], idx % 32)) {
 			pg = ck_pr_load_ptr(
 			    &chunks[idx / 32]->pgptr[idx % 32]);
-		else
-			pg = NULL;
-
+			ck_pr_fence_load();
+			/*
+			 * Make sure that pg did not become DEAD.
+			 */
+			if ((pg->flags & NAT64LSN_DEADPG) == 0 &&
+			    FREEMASK_BITCOUNT(pg, faddr) > 0) {
+				if (cnt > 0)
+					ck_pr_cas_32(pgidx, oldidx, idx);
+				return (pg);
+			}
+		}
 		idx++;
 	} while (++cnt < NAT64LSN_TRY_PGCNT);
-
-	/* If pgidx is out of range, reset it to the first pgchunk */
-	if (!ISSET32(*chunkmask, idx / 32))
-		idx = 0;
-	ck_pr_cas_32(pgidx, oldidx, idx);
+	if (oldidx != idx)
+		ck_pr_cas_32(pgidx, oldidx, idx);
 	return (NULL);
 }
 
@@ -330,27 +339,24 @@ nat64lsn_get_state6to4(struct nat64lsn_cfg *cfg, struct nat64lsn_host *host,
 
 	switch (proto) {
 	case IPPROTO_TCP:
-		pg = nat64lsn_get_pg(
-		    &link->alias->tcp_chunkmask, link->alias->tcp_pgmask,
-		    link->alias->tcp, &link->alias->tcp_pg,
+		pg = nat64lsn_get_pg(&link->alias->tcp_chunkmask,
+		    link->alias->tcp_pgmask, link->alias->tcp,
 		    &link->alias->tcp_pgidx, faddr);
 		break;
 	case IPPROTO_UDP:
-		pg = nat64lsn_get_pg(
-		    &link->alias->udp_chunkmask, link->alias->udp_pgmask,
-		    link->alias->udp, &link->alias->udp_pg,
+		pg = nat64lsn_get_pg(&link->alias->udp_chunkmask,
+		    link->alias->udp_pgmask, link->alias->udp,
 		    &link->alias->udp_pgidx, faddr);
 		break;
 	case IPPROTO_ICMP:
-		pg = nat64lsn_get_pg(
-		    &link->alias->icmp_chunkmask, link->alias->icmp_pgmask,
-		    link->alias->icmp, &link->alias->icmp_pg,
+		pg = nat64lsn_get_pg(&link->alias->icmp_chunkmask,
+		    link->alias->icmp_pgmask, link->alias->icmp,
 		    &link->alias->icmp_pgidx, faddr);
 		break;
 	default:
 		panic("%s: wrong proto %d", __func__, proto);
 	}
-	if (pg == NULL)
+	if (pg == NULL || (pg->flags & NAT64LSN_DEADPG) != 0)
 		return (NULL);
 
 	/* Check that PG has some free states */
@@ -385,14 +391,10 @@ nat64lsn_get_state6to4(struct nat64lsn_cfg *cfg, struct nat64lsn_host *host,
 
 			/* Insert new state into host's hash table */
 			HOST_LOCK(host);
+			SET_AGE(host->timestamp);
 			CK_SLIST_INSERT_HEAD(&STATE_HASH(host, hval),
 			    state, entries);
 			host->states_count++;
-			/*
-			 * XXX: In case if host is going to be expired,
-			 * reset NAT64LSN_DEADHOST flag.
-			 */
-			host->flags &= ~NAT64LSN_DEADHOST;
 			HOST_UNLOCK(host);
 			NAT64STAT_INC(&cfg->base.stats, screated);
 			/* Mark the state as ready for translate4 */
@@ -563,7 +565,7 @@ nat64lsn_reassemble4(struct nat64lsn_cfg *cfg, struct mbuf *m,
 	len = ip->ip_hl << 2;
 	switch (ip->ip_p) {
 	case IPPROTO_ICMP:
-		len += ICMP_MINLEN; /* Enough to get icmp_id */
+		len += ICMP_MINLEN;
 		break;
 	case IPPROTO_TCP:
 		len += sizeof(struct tcphdr);
@@ -740,6 +742,32 @@ nat64lsn_check_state(struct nat64lsn_cfg *cfg, struct nat64lsn_state *state)
 	return (0);
 }
 
+#define	PGCOUNT_ADD(alias, proto, value)			\
+    switch (proto) {						\
+    case IPPROTO_TCP: (alias)->tcp_pgcount += (value); break;	\
+    case IPPROTO_UDP: (alias)->udp_pgcount += (value); break;	\
+    case IPPROTO_ICMP: (alias)->icmp_pgcount += (value); break;	\
+    }
+#define	PGCOUNT_INC(alias, proto)	PGCOUNT_ADD(alias, proto, 1)
+#define	PGCOUNT_DEC(alias, proto)	PGCOUNT_ADD(alias, proto, -1)
+
+static inline void
+nat64lsn_state_cleanup(struct nat64lsn_state *state)
+{
+
+	/*
+	 * Reset READY flag and wait until it become
+	 * safe for translate4.
+	 */
+	ck_pr_btr_32(&state->flags, NAT64_BIT_READY_IPV4);
+	/*
+	 * And set STALE flag for deferred deletion in the
+	 * next pass of nat64lsn_maintain_pg().
+	 */
+	ck_pr_bts_32(&state->flags, NAT64_BIT_STALE);
+	ck_pr_fence_store();
+}
+
 static int
 nat64lsn_maintain_pg(struct nat64lsn_cfg *cfg, struct nat64lsn_pg *pg)
 {
@@ -781,19 +809,12 @@ nat64lsn_maintain_pg(struct nat64lsn_cfg *cfg, struct nat64lsn_pg *pg)
 			HOST_LOCK(host);
 			CK_SLIST_REMOVE(&STATE_HASH(host, state->hval),
 			    state, nat64lsn_state, entries);
+			/*
+			 * Now translate6 will not use this state.
+			 */
 			host->states_count--;
 			HOST_UNLOCK(host);
-
-			/* Reset READY flag */
-			ck_pr_btr_32(&state->flags, NAT64_BIT_READY_IPV4);
-			/* And set STALE flag */
-			ck_pr_bts_32(&state->flags, NAT64_BIT_STALE);
-			ck_pr_fence_store();
-			/*
-			 * Now translate6 will not use this state, wait
-			 * until it become safe for translate4, then mark
-			 * state as free.
-			 */
+			nat64lsn_state_cleanup(state);
 		}
 	}
 
@@ -814,7 +835,7 @@ nat64lsn_expire_portgroups(struct nat64lsn_cfg *cfg,
     struct nat64lsn_pg_slist *portgroups)
 {
 	struct nat64lsn_alias *alias;
-	struct nat64lsn_pg *pg, *tpg, *firstpg, **pgptr;
+	struct nat64lsn_pg *pg, *tpg;
 	uint32_t *pgmask, *pgidx;
 	int i, idx;
 
@@ -827,45 +848,47 @@ nat64lsn_expire_portgroups(struct nat64lsn_cfg *cfg,
 			if (pg->base_port == NAT64_MIN_PORT)
 				continue;
 			/*
-			 * PG is expired, unlink it and schedule for
-			 * deferred destroying.
+			 * PG expires in two passes:
+			 * 1. Reset bit in pgmask, mark it as DEAD.
+			 * 2. Unlink it and schedule for deferred destroying.
 			 */
 			idx = (pg->base_port - NAT64_MIN_PORT) / 64;
 			switch (pg->proto) {
 			case IPPROTO_TCP:
 				pgmask = alias->tcp_pgmask;
-				pgptr = &alias->tcp_pg;
 				pgidx = &alias->tcp_pgidx;
-				firstpg = alias->tcp[0]->pgptr[0];
 				break;
 			case IPPROTO_UDP:
 				pgmask = alias->udp_pgmask;
-				pgptr = &alias->udp_pg;
 				pgidx = &alias->udp_pgidx;
-				firstpg = alias->udp[0]->pgptr[0];
 				break;
 			case IPPROTO_ICMP:
 				pgmask = alias->icmp_pgmask;
-				pgptr = &alias->icmp_pg;
 				pgidx = &alias->icmp_pgidx;
-				firstpg = alias->icmp[0]->pgptr[0];
 				break;
 			}
+			if (pg->flags & NAT64LSN_DEADPG) {
+				/* Unlink PG from alias's chain */
+				ALIAS_LOCK(alias);
+				CK_SLIST_REMOVE(&alias->portgroups, pg,
+				    nat64lsn_pg, entries);
+				PGCOUNT_DEC(alias, pg->proto);
+				ALIAS_UNLOCK(alias);
+				/*
+				 * Link it to job's chain for deferred
+				 * destroying.
+				 */
+				NAT64STAT_INC(&cfg->base.stats, spgdeleted);
+				CK_SLIST_INSERT_HEAD(portgroups, pg, entries);
+				continue;
+			}
+
 			/* Reset the corresponding bit in pgmask array. */
 			ck_pr_btr_32(&pgmask[idx / 32], idx % 32);
+			pg->flags |= NAT64LSN_DEADPG;
 			ck_pr_fence_store();
 			/* If last used PG points to this PG, reset it. */
-			ck_pr_cas_ptr(pgptr, pg, firstpg);
 			ck_pr_cas_32(pgidx, idx, 0);
-			/* Unlink PG from alias's chain */
-			ALIAS_LOCK(alias);
-			CK_SLIST_REMOVE(&alias->portgroups, pg,
-			    nat64lsn_pg, entries);
-			alias->portgroups_count--;
-			ALIAS_UNLOCK(alias);
-			/* And link to job's chain for deferred destroying */
-			NAT64STAT_INC(&cfg->base.stats, spgdeleted);
-			CK_SLIST_INSERT_HEAD(portgroups, pg, entries);
 		}
 	}
 }
@@ -882,7 +905,9 @@ nat64lsn_expire_hosts(struct nat64lsn_cfg *cfg,
 		    entries, tmp) {
 			/* Is host was marked in previous call? */
 			if (host->flags & NAT64LSN_DEADHOST) {
-				if (host->states_count > 0) {
+				if (host->states_count > 0 ||
+				    GET_AGE(host->timestamp) <
+				    cfg->host_delete_delay) {
 					host->flags &= ~NAT64LSN_DEADHOST;
 					continue;
 				}
@@ -898,9 +923,8 @@ nat64lsn_expire_hosts(struct nat64lsn_cfg *cfg,
 				CK_SLIST_INSERT_HEAD(hosts, host, entries);
 				continue;
 			}
-			if (GET_AGE(host->timestamp) < cfg->host_delete_delay)
-				continue;
-			if (host->states_count > 0)
+			if (host->states_count > 0 ||
+			    GET_AGE(host->timestamp) < cfg->host_delete_delay)
 				continue;
 			/* Mark host as going to be expired in next pass */
 			host->flags |= NAT64LSN_DEADHOST;
@@ -966,7 +990,7 @@ nat64lsn_maintain_hosts(struct nat64lsn_cfg *cfg)
 #endif
 
 /*
- * This procedure is used to perform various maintenance
+ * This procedure is used to perform various maintance
  * on dynamic hash list. Currently it is called every 4 seconds.
  */
 static void
@@ -1044,14 +1068,11 @@ nat64lsn_alloc_host(struct nat64lsn_cfg *cfg, struct nat64lsn_job_item *ji)
 	host->hval = ji->src6_hval;
 	host->flags = 0;
 	host->states_count = 0;
-	host->states_hashsize = NAT64LSN_HSIZE;
 	CK_SLIST_INIT(&host->aliases);
 	for (i = 0; i < host->states_hashsize; i++)
 		CK_SLIST_INIT(&host->states_hash[i]);
 
-	/* Determine alias from flow hash. */
-	hval = ALIASLINK_HVAL(cfg, &ji->f_id);
-	link->alias = &ALIAS_BYHASH(cfg, hval);
+	link->alias = nat64lsn_get_alias(cfg, &ji->f_id);
 	CK_SLIST_INSERT_HEAD(&host->aliases, link, host_entries);
 
 	ALIAS_LOCK(link->alias);
@@ -1103,9 +1124,8 @@ nat64lsn_find_pg_place(uint32_t *data)
 
 static int
 nat64lsn_alloc_proto_pg(struct nat64lsn_cfg *cfg,
-    struct nat64lsn_alias *alias, uint32_t *chunkmask,
-    uint32_t *pgmask, struct nat64lsn_pgchunk **chunks,
-    struct nat64lsn_pg **pgptr, uint8_t proto)
+    struct nat64lsn_alias *alias, uint32_t *chunkmask, uint32_t *pgmask,
+    struct nat64lsn_pgchunk **chunks, uint32_t *pgidx, uint8_t proto)
 {
 	struct nat64lsn_pg *pg;
 	int i, pg_idx, chunk_idx;
@@ -1163,17 +1183,20 @@ nat64lsn_alloc_proto_pg(struct nat64lsn_cfg *cfg,
 
 	/* Initialize PG and hook it to pgchunk */
 	SET_AGE(pg->timestamp);
+	pg->flags = 0;
 	pg->proto = proto;
 	pg->base_port = NAT64_MIN_PORT + 64 * pg_idx;
 	ck_pr_store_ptr(&chunks[chunk_idx]->pgptr[pg_idx % 32], pg);
 	ck_pr_fence_store();
-	ck_pr_bts_32(&pgmask[pg_idx / 32], pg_idx % 32);
-	ck_pr_store_ptr(pgptr, pg);
+
+	/* Set bit in pgmask and set index of last used PG */
+	ck_pr_bts_32(&pgmask[chunk_idx], pg_idx % 32);
+	ck_pr_store_32(pgidx, pg_idx);
 
 	ALIAS_LOCK(alias);
 	CK_SLIST_INSERT_HEAD(&alias->portgroups, pg, entries);
 	SET_AGE(alias->timestamp);
-	alias->portgroups_count++;
+	PGCOUNT_INC(alias, proto);
 	ALIAS_UNLOCK(alias);
 	NAT64STAT_INC(&cfg->base.stats, spgcreated);
 	return (PG_ERROR(0));
@@ -1210,17 +1233,17 @@ nat64lsn_alloc_pg(struct nat64lsn_cfg *cfg, struct nat64lsn_job_item *ji)
 	case IPPROTO_TCP:
 		ret = nat64lsn_alloc_proto_pg(cfg, alias,
 		    &alias->tcp_chunkmask, alias->tcp_pgmask,
-		    alias->tcp, &alias->tcp_pg, ji->proto);
+		    alias->tcp, &alias->tcp_pgidx, ji->proto);
 		break;
 	case IPPROTO_UDP:
 		ret = nat64lsn_alloc_proto_pg(cfg, alias,
 		    &alias->udp_chunkmask, alias->udp_pgmask,
-		    alias->udp, &alias->udp_pg, ji->proto);
+		    alias->udp, &alias->udp_pgidx, ji->proto);
 		break;
 	case IPPROTO_ICMP:
 		ret = nat64lsn_alloc_proto_pg(cfg, alias,
 		    &alias->icmp_chunkmask, alias->icmp_pgmask,
-		    alias->icmp, &alias->icmp_pg, ji->proto);
+		    alias->icmp, &alias->icmp_pgidx, ji->proto);
 		break;
 	default:
 		panic("%s: wrong proto %d", __func__, ji->proto);
@@ -1362,14 +1385,115 @@ nat64lsn_enqueue_job(struct nat64lsn_cfg *cfg, struct nat64lsn_job_item *ji)
 	JQUEUE_UNLOCK();
 }
 
+/*
+ * This function is used to clean up the result of less likely possible
+ * race condition, when host object was deleted, but some translation
+ * state was created before it is destroyed.
+ *
+ * Since the state expiration removes state from host's hash table,
+ * we need to be sure, that there will not any states, that are linked
+ * with this host entry.
+ */
+static void
+nat64lsn_host_cleanup(struct nat64lsn_host *host)
+{
+	struct nat64lsn_state *state, *ts;
+	int i;
+
+	printf("NAT64LSN: %s: race condition has been detected for host %p\n",
+	    __func__, host);
+	for (i = 0; i < host->states_hashsize; i++) {
+		CK_SLIST_FOREACH_SAFE(state, &host->states_hash[i],
+		    entries, ts) {
+			/*
+			 * We can remove the state without lock,
+			 * because this host entry is unlinked and will
+			 * be destroyed.
+			 */
+			CK_SLIST_REMOVE(&host->states_hash[i], state,
+			    nat64lsn_state, entries);
+			host->states_count--;
+			nat64lsn_state_cleanup(state);
+		}
+	}
+	MPASS(host->states_count == 0);
+}
+
+/*
+ * This function is used to clean up the result of less likely possible
+ * race condition, when portgroup was deleted, but some translation state
+ * was created before it is destroyed.
+ *
+ * Since states entries are accessible via host's hash table, we need
+ * to be sure, that there will not any states from this PG, that are
+ * linked with any host entries.
+ */
+static void
+nat64lsn_pg_cleanup(struct nat64lsn_pg *pg)
+{
+	struct nat64lsn_state *state;
+	uint64_t usedmask;
+	int c, i;
+
+	printf("NAT64LSN: %s: race condition has been detected for pg %p\n",
+	    __func__, pg);
+	for (c = 0; c < pg->chunks_count; c++) {
+		/*
+		 * Use inverted freemask to find what state was created.
+		 */
+		usedmask = ~(*FREEMASK_CHUNK(pg, c));
+		if (usedmask == 0)
+			continue;
+		for (i = 0; i < 64; i++) {
+			if (!ISSET64(usedmask, i))
+				continue;
+			state = &STATES_CHUNK(pg, c)->state[i];
+			/*
+			 * If we have STALE bit, this means that state
+			 * is already unlinked from host's hash table.
+			 * Thus we can just reset the bit in mask and
+			 * schedule destroying in the next epoch call.
+			 */
+			if (ISSET32(state->flags, NAT64_BIT_STALE)) {
+				FREEMASK_BTS(pg, c, i);
+				continue;
+			}
+			/*
+			 * There is  small window, when we have bit
+			 * grabbed from freemask, but state is not yet
+			 * linked into host's hash table.
+			 * Check for READY flag, it is set just after
+			 * linking. If it is not set, defer cleanup
+			 * for next call.
+			 */
+			if (ISSET32(state->flags, NAT64_BIT_READY_IPV4)) {
+				struct nat64lsn_host *host;
+
+				host = state->host;
+				HOST_LOCK(host);
+				CK_SLIST_REMOVE(&STATE_HASH(host,
+				    state->hval), state, nat64lsn_state,
+				    entries);
+				host->states_count--;
+				HOST_UNLOCK(host);
+				nat64lsn_state_cleanup(state);
+			}
+		}
+	}
+}
+
 static void
 nat64lsn_job_destroy(epoch_context_t ctx)
 {
+	struct nat64lsn_hosts_slist hosts;
+	struct nat64lsn_pg_slist portgroups;
 	struct nat64lsn_job_item *ji;
 	struct nat64lsn_host *host;
 	struct nat64lsn_pg *pg;
 	int i;
 
+	CK_SLIST_INIT(&hosts);
+	CK_SLIST_INIT(&portgroups);
 	ji = __containerof(ctx, struct nat64lsn_job_item, epoch_ctx);
 	MPASS(ji->jtype == JTYPE_DESTROY);
 	while (!CK_SLIST_EMPTY(&ji->hosts)) {
@@ -1377,11 +1501,23 @@ nat64lsn_job_destroy(epoch_context_t ctx)
 		CK_SLIST_REMOVE_HEAD(&ji->hosts, entries);
 		if (host->states_count > 0) {
 			/*
-			 * XXX: The state has been created
-			 * during host deletion.
+			 * The state has been created during host deletion.
 			 */
 			printf("NAT64LSN: %s: destroying host with %d "
 			    "states\n", __func__, host->states_count);
+			/*
+			 * We need to cleanup these states to avoid
+			 * possible access to already deleted host in
+			 * the state expiration code.
+			 */
+			nat64lsn_host_cleanup(host);
+			CK_SLIST_INSERT_HEAD(&hosts, host, entries);
+			/*
+			 * Keep host entry for next deferred destroying.
+			 * In the next epoch its states will be not
+			 * accessible.
+			 */
+			continue;
 		}
 		nat64lsn_destroy_host(host);
 	}
@@ -1391,18 +1527,33 @@ nat64lsn_job_destroy(epoch_context_t ctx)
 		for (i = 0; i < pg->chunks_count; i++) {
 			if (FREEMASK_BITCOUNT(pg, i) != 64) {
 				/*
-				 * XXX: The state has been created during
+				 * A state has been created during
 				 * PG deletion.
 				 */
 				printf("NAT64LSN: %s: destroying PG %p "
 				    "with non-empty chunk %d\n", __func__,
 				    pg, i);
+				nat64lsn_pg_cleanup(pg);
+				CK_SLIST_INSERT_HEAD(&portgroups,
+				    pg, entries);
+				i = -1;
+				break;
 			}
 		}
-		nat64lsn_destroy_pg(pg);
+		if (i != -1)
+			nat64lsn_destroy_pg(pg);
 	}
-	uma_zfree(nat64lsn_pgchunk_zone, ji->pgchunk);
-	uma_zfree(nat64lsn_job_zone, ji);
+	if (CK_SLIST_EMPTY(&hosts) &&
+	    CK_SLIST_EMPTY(&portgroups)) {
+		uma_zfree(nat64lsn_pgchunk_zone, ji->pgchunk);
+		uma_zfree(nat64lsn_job_zone, ji);
+		return;
+	}
+
+	/* Schedule job item again */
+	CK_SLIST_MOVE(&ji->hosts, &hosts, entries);
+	CK_SLIST_MOVE(&ji->portgroups, &portgroups, entries);
+	NAT64LSN_EPOCH_CALL(&ji->epoch_ctx, nat64lsn_job_destroy);
 }
 
 static int
@@ -1569,40 +1720,40 @@ int
 ipfw_nat64lsn(struct ip_fw_chain *ch, struct ip_fw_args *args,
     ipfw_insn *cmd, int *done)
 {
-	struct nat64lsn_cfg *cfg;
+	struct nat64lsn_instance *i;
 	ipfw_insn *icmd;
 	int ret;
 
 	IPFW_RLOCK_ASSERT(ch);
 
 	*done = 0;	/* continue the search in case of failure */
-	icmd = cmd + 1;
+	icmd = cmd + F_LEN(cmd);
 	if (cmd->opcode != O_EXTERNAL_ACTION ||
-	    cmd->arg1 != V_nat64lsn_eid ||
+	    insntod(cmd, kidx)->kidx != V_nat64lsn_eid ||
 	    icmd->opcode != O_EXTERNAL_INSTANCE ||
-	    (cfg = NAT64_LOOKUP(ch, icmd)) == NULL)
+	    (i = NAT64_LOOKUP(ch, icmd)) == NULL)
 		return (IP_FW_DENY);
 
 	*done = 1;	/* terminate the search */
 
 	switch (args->f_id.addr_type) {
 	case 4:
-		ret = nat64lsn_translate4(cfg, &args->f_id, &args->m);
+		ret = nat64lsn_translate4(i->cfg, &args->f_id, &args->m);
 		break;
 	case 6:
 		/*
 		 * Check that destination IPv6 address matches our prefix6.
 		 */
-		if ((cfg->base.flags & NAT64LSN_ANYPREFIX) == 0 &&
-		    memcmp(&args->f_id.dst_ip6, &cfg->base.plat_prefix,
-		    cfg->base.plat_plen / 8) != 0) {
-			ret = cfg->nomatch_verdict;
+		if ((i->cfg->base.flags & NAT64LSN_ANYPREFIX) == 0 &&
+		    memcmp(&args->f_id.dst_ip6, &i->cfg->base.plat_prefix,
+		    i->cfg->base.plat_plen / 8) != 0) {
+			ret = i->cfg->nomatch_verdict;
 			break;
 		}
-		ret = nat64lsn_translate6(cfg, &args->f_id, &args->m);
+		ret = nat64lsn_translate6(i->cfg, &args->f_id, &args->m);
 		break;
 	default:
-		ret = cfg->nomatch_verdict;
+		ret = i->cfg->nomatch_verdict;
 	}
 
 	if (ret != IP_FW_PASS && args->m != NULL) {
@@ -1674,7 +1825,7 @@ nat64lsn_start_instance(struct nat64lsn_cfg *cfg)
 }
 
 struct nat64lsn_cfg *
-nat64lsn_init_instance(struct ip_fw_chain *ch, in_addr_t prefix, int plen)
+nat64lsn_init_config(struct ip_fw_chain *ch, in_addr_t prefix, int plen)
 {
 	struct nat64lsn_cfg *cfg;
 	struct nat64lsn_alias *alias;
@@ -1777,7 +1928,7 @@ nat64lsn_destroy_host(struct nat64lsn_host *host)
 }
 
 void
-nat64lsn_destroy_instance(struct nat64lsn_cfg *cfg)
+nat64lsn_destroy_config(struct nat64lsn_cfg *cfg)
 {
 	struct nat64lsn_host *host;
 	int i;
@@ -1805,3 +1956,4 @@ nat64lsn_destroy_instance(struct nat64lsn_cfg *cfg)
 	free(cfg->aliases, M_NAT64LSN);
 	free(cfg, M_NAT64LSN);
 }
+

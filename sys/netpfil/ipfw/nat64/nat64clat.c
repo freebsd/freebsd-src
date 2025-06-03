@@ -59,7 +59,7 @@
 #include "nat64clat.h"
 
 #define	NAT64_LOOKUP(chain, cmd)	\
-	(struct nat64clat_cfg *)SRV_OBJECT((chain), (cmd)->arg1)
+    (struct nat64clat_cfg *)SRV_OBJECT((chain), insntod(cmd, kidx)->kidx)
 
 static void
 nat64clat_log(struct pfloghdr *plog, struct mbuf *m, sa_family_t family,
@@ -68,7 +68,7 @@ nat64clat_log(struct pfloghdr *plog, struct mbuf *m, sa_family_t family,
 	static uint32_t pktid = 0;
 
 	memset(plog, 0, sizeof(*plog));
-	plog->length = PFLOG_HDRLEN;
+	plog->length = PFLOG_REAL_HDRLEN;
 	plog->af = family;
 	plog->action = PF_NAT;
 	plog->dir = PF_IN;
@@ -210,9 +210,9 @@ ipfw_nat64clat(struct ip_fw_chain *chain, struct ip_fw_args *args,
 	IPFW_RLOCK_ASSERT(chain);
 
 	*done = 0; /* try next rule if not matched */
-	icmd = cmd + 1;
+	icmd = cmd + F_LEN(cmd);
 	if (cmd->opcode != O_EXTERNAL_ACTION ||
-	    cmd->arg1 != V_nat64clat_eid ||
+	    insntod(cmd, kidx)->kidx != V_nat64clat_eid ||
 	    icmd->opcode != O_EXTERNAL_INSTANCE ||
 	    (cfg = NAT64_LOOKUP(chain, icmd)) == NULL)
 		return (0);

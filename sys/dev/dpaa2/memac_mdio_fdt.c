@@ -238,7 +238,7 @@ memac_mdio_fdt_attach(device_t dev)
 		return (error);
 
 	/* Attach the *phy* children represented in the device tree. */
-	bus_generic_probe(dev);
+	bus_identify_children(dev);
 	bus_enumerate_hinted_children(dev);
 	node = ofw_bus_get_node(dev);
 	simplebus_init(dev, node);

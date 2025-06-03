@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2008 Ben Rockwood <benr@cuddletech.com>,
 # Copyright (c) 2010 Martin Matuska <mm@FreeBSD.org>,
@@ -566,7 +567,7 @@ def section_arc(kstats_dict):
     l2_hdr_size = arc_stats['l2_hdr_size']
     abd_chunk_waste_size = arc_stats['abd_chunk_waste_size']
 
-    prt_1('ARC structal breakdown (current size):', f_bytes(arc_size))
+    prt_1('ARC structural breakdown (current size):', f_bytes(arc_size))
     prt_i2('Compressed size:',
            f_perc(compressed_size, arc_size), f_bytes(compressed_size))
     prt_i2('Overhead size:',
@@ -662,10 +663,7 @@ def section_arc(kstats_dict):
     print()
 
     print('ARC hash breakdown:')
-    prt_i1('Elements max:', f_hits(arc_stats['hash_elements_max']))
-    prt_i2('Elements current:',
-           f_perc(arc_stats['hash_elements'], arc_stats['hash_elements_max']),
-           f_hits(arc_stats['hash_elements']))
+    prt_i1('Elements:', f_hits(arc_stats['hash_elements']))
     prt_i1('Collisions:', f_hits(arc_stats['hash_collisions']))
 
     prt_i1('Chain max:', f_hits(arc_stats['hash_chain_max']))

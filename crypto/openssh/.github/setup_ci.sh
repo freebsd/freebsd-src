@@ -14,7 +14,7 @@ case "$host" in
 	echo Removing extended ACLs so umask works as expected.
 	setfacl -b . regress
 	PACKAGES="$PACKAGES,autoconf,automake,cygwin-devel,gcc-core"
-	PACKAGES="$PACKAGES,make,openssl-devel,zlib-devel"
+	PACKAGES="$PACKAGES,make,openssl,libssl-devel,zlib-devel"
 	;;
 *-darwin*)
 	PACKAGER=brew

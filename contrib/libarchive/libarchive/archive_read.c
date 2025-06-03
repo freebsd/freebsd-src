@@ -92,7 +92,7 @@ archive_read_new(void)
 {
 	struct archive_read *a;
 
-	a = (struct archive_read *)calloc(1, sizeof(*a));
+	a = calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
 	a->archive.magic = ARCHIVE_READ_MAGIC;
@@ -176,15 +176,9 @@ client_skip_proxy(struct archive_read_filter *self, int64_t request)
 		return 0;
 
 	if (self->archive->client.skipper != NULL) {
-		/* Seek requests over 1GiB are broken down into
-		 * multiple seeks.  This avoids overflows when the
-		 * requests get passed through 32-bit arguments. */
-		int64_t skip_limit = (int64_t)1 << 30;
 		int64_t total = 0;
 		for (;;) {
 			int64_t get, ask = request;
-			if (ask > skip_limit)
-				ask = skip_limit;
 			get = (self->archive->client.skipper)
 				(&self->archive->archive, self->data, ask);
 			total += get;
@@ -582,7 +576,7 @@ choose_filters(struct archive_read *a)
 		}
 
 		filter
-		    = (struct archive_read_filter *)calloc(1, sizeof(*filter));
+		    = calloc(1, sizeof(*filter));
 		if (filter == NULL)
 			return (ARCHIVE_FATAL);
 		filter->bidder = best_bidder;
@@ -1382,7 +1376,7 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
 		if (filter->client_avail <= 0) {
 			if (filter->end_of_file) {
 				if (avail != NULL)
-					*avail = 0;
+					*avail = filter->avail;
 				return (NULL);
 			}
 			bytes_read = (filter->vtable->read)(filter,
@@ -1451,7 +1445,7 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
 					s = t;
 				}
 				/* Now s >= min, so allocate a new buffer. */
-				p = (char *)malloc(s);
+				p = malloc(s);
 				if (p == NULL) {
 					archive_set_error(
 						&filter->archive->archive,

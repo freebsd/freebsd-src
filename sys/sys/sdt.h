@@ -161,28 +161,26 @@ SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 	sdt_provider_##prov
 
 #define SDT_PROVIDER_DEFINE(_prov)					\
-	struct sdt_provider _SDT_PROVIDER_NAME(_prov)[1] = {		\
-		[0] = { .name = #_prov },				\
+	struct sdt_provider _SDT_PROVIDER_NAME(_prov) = {		\
+		.name = #_prov,						\
 	};								\
 	DATA_SET(sdt_providers_set, _SDT_PROVIDER_NAME(_prov))
 
 #define SDT_PROVIDER_DECLARE(prov)					\
-	extern struct sdt_provider _SDT_PROVIDER_NAME(prov)[1]
+	extern struct sdt_provider _SDT_PROVIDER_NAME(prov)
 
 #define SDT_PROBE_DEFINE(_prov, _mod, _func, _name)			\
-	struct sdt_probe _SDT_PROBE_NAME(_prov, _mod, _func, _name)[1] = { \
-		[0] = {							\
-		    .version = sizeof(struct sdt_probe),		\
-		    .prov = _SDT_PROVIDER_NAME(_prov),			\
-		    .mod = #_mod,					\
-		    .func = #_func,					\
-		    .name = #_name,					\
-		},							\
+	struct sdt_probe _SDT_PROBE_NAME(_prov, _mod, _func, _name) = {	\
+		.version = sizeof(struct sdt_probe),			\
+		.prov = &_SDT_PROVIDER_NAME(_prov),			\
+		.mod = #_mod,						\
+		.func = #_func,						\
+		.name = #_name,						\
 	};								\
 	DATA_SET(sdt_probes_set, _SDT_PROBE_NAME(_prov, _mod, _func, _name))
 
 #define SDT_PROBE_DECLARE(prov, mod, func, name)			\
-	extern struct sdt_probe _SDT_PROBE_NAME(prov, mod, func, name)[1]
+	extern struct sdt_probe _SDT_PROBE_NAME(prov, mod, func, name)
 
 #define	SDT_PROBES_ENABLED()	__predict_false(sdt_probes_enabled)
 
@@ -223,13 +221,13 @@ struct sdt_tracepoint {
 	    _SDT_ASM_WORD " 0\n"					\
 	    ".popsection\n"						\
 	    :								\
-	    : _SDT_ASM_PROBE_CONSTRAINT (_SDT_PROBE_NAME(prov, mod,	\
+	    : _SDT_ASM_PROBE_CONSTRAINT (&_SDT_PROBE_NAME(prov, mod,	\
 	    func, name))						\
 	    :								\
 	    : __sdt_probe##uniq);					\
 	if (0) {							\
 __sdt_probe##uniq:;							\
-		f(_SDT_PROBE_NAME(prov, mod, func, name)->id, __VA_ARGS__); \
+		f(_SDT_PROBE_NAME(prov, mod, func, name).id, __VA_ARGS__); \
 	}								\
 } while (0)
 #define _SDT_PROBE(prov, mod, func, name, uniq, f, ...)			\
@@ -246,7 +244,7 @@ __sdt_probe##uniq:;							\
 		    .ndx = _num,					\
 		    .type = _type,					\
 		    .xtype = _xtype,					\
-		    .probe = _SDT_PROBE_NAME(_prov, _mod, _func, _name), \
+		    .probe = &_SDT_PROBE_NAME(_prov, _mod, _func, _name), \
 		},							\
 	};								\
 	DATA_SET(sdt_argtypes_set,					\
@@ -359,7 +357,7 @@ __sdt_probe##uniq:;							\
 	    (uintptr_t)arg0, (uintptr_t)arg1, (uintptr_t)arg2,		\
 	    (uintptr_t)arg3, (uintptr_t)arg4, (uintptr_t)arg5)
 
-#ifndef KDTRACE_NO_MIB_SDT
+#ifdef KDTRACE_MIB_SDT
 #define	MIB_SDT_PROBE1(...)	SDT_PROBE1(mib, __VA_ARGS__)
 #define	MIB_SDT_PROBE2(...)	SDT_PROBE2(mib, __VA_ARGS__)
 #else

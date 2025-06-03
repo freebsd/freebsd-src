@@ -32,7 +32,7 @@
 .\"
 .\" Author: Archie Cobbs <archie@FreeBSD.org>
 .\"
-.Dd January 9, 2012
+.Dd January 9, 2025
 .Dt NG_KSOCKET 4
 .Os
 .Sh NAME
@@ -183,7 +183,8 @@ in the argument field, the normal
 equivalent of the C structure
 is an acceptable form.
 For the
-.Dv PF_INET
+.Dv PF_INET ,
+.Dv PF_INET6
 and
 .Dv PF_LOCAL
 address families, a more convenient form is also used, which is
@@ -191,7 +192,11 @@ the protocol family name, followed by a slash, followed by the actual
 address.
 For
 .Dv PF_INET ,
-the address is an IP address followed by an optional colon and port number.
+the address is an IPv4 address followed by an optional colon and port number.
+For
+.Dv PF_INET6 ,
+the address is an IPv6 address enclosed in square brackets followed
+by an optional colon and port number.
 For
 .Dv PF_LOCAL ,
 the address is the pathname as a doubly quoted string.
@@ -202,6 +207,8 @@ Examples:
 local/"/tmp/foo.socket"
 .It Dv PF_INET
 inet/192.168.1.1:1234
+.It Dv PF_INET6
+inet6/[2001::1]:1234
 .It Other
 .Dv "\&{ family=16 len=16 data=[0x70 0x00 0x01 0x23] \&}"
 .El

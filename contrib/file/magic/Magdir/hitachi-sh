@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: hitachi-sh,v 1.10 2020/12/12 20:01:47 christos Exp $
+# $File: hitachi-sh,v 1.11 2024/02/18 14:15:22 christos Exp $
 # hitach-sh: file(1) magic for Hitachi Super-H
 #
 # Super-H COFF
@@ -28,3 +28,19 @@
 >>0	use				display-coff
 !:strength -10
 
+# Hitachi SH COFF object file
+0	leshort		0x01a2
+>16	leshort		0
+>>0	use		display-coff
+0	leshort		0x01a3
+>16	leshort		0
+>>0	use		display-coff
+0	leshort		0x01a4
+>16	leshort		0
+>>0	use		display-coff
+0	leshort		0x01a6
+>16	leshort		0
+>>0	use		display-coff
+0	leshort		0x01a8
+>16	leshort		0
+>>0	use		display-coff

@@ -98,6 +98,7 @@ node [color=lightblue2, style=filled, bgcolor=black];
 
 # Current src committers go here. Try to keep things sorted.
 
+"0mp" [label="Mateusz Piotrowski\n0mp@FreeBSD.org\n2024/10/07"]
 ache [label="Andrey Chernov\nache@FreeBSD.org\n1993/10/31"]
 achim [label="Achim Leubner\nachim@FreeBSD.org\n2013/01/23"]
 adrian [label="Adrian Chadd\nadrian@FreeBSD.org\n2000/07/03"]
@@ -207,6 +208,7 @@ iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 igoro [label="Igor Ostapenko\nigoro@FreeBSD.org\n2024/08/22"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
 ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
+ivy [label="Lexi Winter\nivy@FreeBSD.org\n2025/04/18"]
 jah [label="Jason A. Harmening\njah@FreeBSD.org\n2015/03/08"]
 jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
 jasone [label="Jason Evans\njasone@FreeBSD.org\n1999/03/03"]
@@ -224,6 +226,7 @@ jimharris [label="Jim Harris\njimharris@FreeBSD.org\n2011/12/09"]
 jinmei [label="JINMEI Tatuya\njinmei@FreeBSD.org\n2007/03/17"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2005/07/06"]
 jkoshy [label="A. Joseph Koshy\njkoshy@FreeBSD.org\n1998/05/13"]
+jlduran [label="Jose Luis Duran\njlduran@FreeBSD.org\n2024/09/05"]
 jlh [label="Jeremie Le Hen\njlh@FreeBSD.org\n2012/04/22"]
 jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
 jmcneill [label="Jared McNeill\njmcneill@FreeBSD.org\n2016/02/24"]
@@ -242,12 +245,15 @@ kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kaktus [label="Pawel Biernacki\nkaktus@FreeBSD.org\n2019/09/26"]
 kan [label="Alexander Kabaev\nkan@FreeBSD.org\n2002/07/21"]
 karels [label="Mike Karels\nkarels@FreeBSD.org\n2016/06/09"]
+kbowling [label="Kevin Bowling\nkbowling@FreeBSD.org\n2024/10/15"]
 kd [label="Kornel Dulęba\nkd@FreeBSD.org\n2022/06/22"]
 ken [label="Ken Merry\nken@FreeBSD.org\n1998/09/08"]
 kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevans [label="Kyle Evans\nkevans@FreeBSD.org\n2017/06/20"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
+kgalazka [label="Krzysztof Galazka\nkgalazka@FreeBSD.org\n2025/04/07"]
 khng [label="Ka Ho Ng\nkhng@FreeBSD.org\n2021/03/15"]
+khorben [label="Pierre Pronchery\nkhorben@FreeBSD.org\n2025/05/06"]
 kib [label="Konstantin Belousov\nkib@FreeBSD.org\n2006/06/03"]
 kibab [label="Ilya Bakulin\nkibab@FreeBSD.org\n2017/09/02"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
@@ -307,7 +313,7 @@ philip [label="Philip Paeps\nphilip@FreeBSD.org\n2004/01/21"]
 phk [label="Poul-Henning Kamp\nphk@FreeBSD.org\n1994/02/21"]
 pho [label="Peter Holm\npho@FreeBSD.org\n2008/11/16"]
 pjd [label="Pawel Jakub Dawidek\npjd@FreeBSD.org\n2004/02/02"]
-pkelsey [label="Patrick Kelsey\pkelsey@FreeBSD.org\n2014/05/29"]
+pkelsey [label="Patrick Kelsey\npkelsey@FreeBSD.org\n2014/05/29"]
 pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2010/10/05"]
 ps [label="Paul Saab\nps@FreeBSD.org\n2000/02/23"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
@@ -468,6 +474,8 @@ bms -> dhartmei
 bms -> mlaier
 bms -> thompsa
 
+bnovkov -> "0mp"
+
 brian -> joe
 
 brooks -> bushman
@@ -480,6 +488,8 @@ bz -> anchie
 bz -> jamie
 bz -> syrinx
 bz -> dsl
+
+christos -> "0mp"
 
 cognet -> br
 cognet -> jceel
@@ -509,6 +519,7 @@ delphij -> sephe
 
 des -> anholt
 des -> hmp
+des -> ivy
 des -> mike
 des -> olli
 des -> ru
@@ -541,6 +552,7 @@ eivind -> rwatson
 emaste -> achim
 emaste -> bwidawsk
 emaste -> dteske
+emaste -> jlduran
 emaste -> kd
 emaste -> kevans
 emaste -> lwhsu
@@ -553,6 +565,7 @@ emaste -> scottph
 emax -> markus
 
 erj -> jeb
+erj -> kgalazka
 
 fjoe -> versus
 
@@ -704,12 +717,15 @@ julian -> mp
 
 kan -> kib
 
+kbowling -> kgalazka
+
 ken -> asomers
 ken -> chuck
 ken -> ram
 ken -> slm
 ken -> will
 
+kevans -> ivy
 kevans -> rew
 
 kib -> ae
@@ -758,6 +774,7 @@ marcel -> marius
 marcel -> nwhitehorn
 marcel -> sjg
 
+markj -> "0mp"
 markj -> bnovkov
 markj -> cem
 markj -> christos
@@ -836,6 +853,7 @@ philip -> donner
 philip -> ed
 philip -> jls
 philip -> khng
+philip -> khorben
 philip -> matteo
 philip -> uqs
 philip -> kp

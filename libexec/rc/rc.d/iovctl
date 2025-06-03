@@ -3,7 +3,7 @@
 #
 
 # PROVIDE: iovctl
-# REQUIRE: FILESYSTEMS sysctl
+# REQUIRE: FILESYSTEMS sysctl kld
 
 . /etc/rc.subr
 

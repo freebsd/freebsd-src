@@ -68,9 +68,10 @@ main(int argc, char **argv)
 
 	skipclean = 1;
 	allow_mmap = 1;
-	while ((ch = getopt(argc, argv, "CfFnpyM")) != -1) {
+	while ((ch = getopt(argc, argv, "BCfFnpyM")) != -1) {
 		switch (ch) {
-		case 'C': /* for fsck_ffs compatibility */
+		case 'B': /* for fsck_ffs compatibility */
+		case 'C':
 			break;
 		case 'f':
 			skipclean = 0;

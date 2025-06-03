@@ -46,6 +46,7 @@
 ;	NOPROTO	same as STD except do not create structure or
 ;		function prototype in sys/sysproto.h.  Does add a
 ;		definition to syscall.h besides adding a sysent.
+;	NOLIB	don't create stubs in libc or libsys
 ;	NOTSTATIC syscall is loadable
 ;	SYSMUX	syscall multiplexer.  No prototype, argument struct, or
 ;		handler is declared or used.  Handled in MD syscall code.
@@ -58,10 +59,10 @@
 ;  - Use u_int and u_long rather than "unsigned (int|long)".
 ;  - size_t is allowed.
 ;  - typedefs are allowed, but new signed types that vary between 32- and
-;    64-bit ABIs must be added to makesyscalls.lua so it knows they require
-;    handling.
+;    64-bit ABIs must be added to config.known_abi_flags in
+;    sys/tools/syscalls/config.lua so it knows they require handling.
 ;  - Always-64-bit types other than dev_t, id_t, and off_t must be added to
-;    makesyscalls.lua.
+;    util.is64bitType in sys/tools/syscalls/tools/util.lua.
 ; For pointers:
 ;  - Prefer structs to typedefs so an ABI-specific suffix (e.g., "32") can
 ;    be prepended (e.g., ucontext_t -> struct ucontext -> struct ucontext32).
@@ -106,9 +107,11 @@
 ;	timet_	Object contains a time_t and varies between i386 and other
 ;		ABIs.
 
-; #include's, #defines's, etc. may be included, and are copied to the output
-; files. However, #ifdef, etc will be copied, but any lines that don't start
-; with # will not. Caveat Emptor.
+; #include's, #defines's, etc. may be included, and are copied to a
+; limited set of output files.  Before the first syscalls, #include lines will
+; be copied and %%ABI_HEADERS%% expanded.  Between system call entries,
+; all lines beginning with # will be copied.  Caveat Emptor.
+; WARNING: this functionality is deprecated.
 
 #include <sys/param.h>
 #include <sys/sysent.h>
@@ -1679,7 +1682,7 @@
 		    _In_opt_ _Contains_ptr_ struct osigevent *sig
 		);
 	}
-321	AUE_NULL	STD|CAPENABLED {
+321	AUE_NULL	STD|CAPENABLED|NOLIB {
 		int yield(void);
 	}
 322	AUE_NULL	OBSOL	thr_sleep
@@ -2767,12 +2770,7 @@
 		    int flags
 		);
 	}
-; 505 is initialised by the kgssapi code, if present.
-505	AUE_NULL	NOSTD {
-		int gssd_syscall(
-		    _In_z_ const char *path
-		);
-	}
+505	AUE_NULL	OBSOL	kgssapi
 506	AUE_JAIL_GET	STD {
 		int jail_get(
 		    _In_reads_(iovcnt) _Contains_long_ptr_ struct iovec *iovp,
@@ -3253,8 +3251,7 @@
 ; 576 is initialised by the krpc code, if present.
 576	AUE_NULL	NOSTD {
 		int rpctls_syscall(
-		    int op,
-		    _In_z_ const char *path
+		    uint64_t socookie
 		);
 	}
 577	AUE_SPECIALFD	STD|CAPENABLED {
@@ -3340,5 +3337,23 @@
 		    _Out_ rlim_t *res
 		);
 	}
-
+590	AUE_NULL	STD {
+		int fchroot(
+		    int fd
+		);
+	}
+591	AUE_SETCRED	STD|CAPENABLED {
+		int setcred(
+		    u_int flags,
+		    _In_reads_bytes_(size) _Contains_ptr_ const struct setcred *wcred,
+		    size_t size
+		);
+	}
+592	AUE_NULL	STD {
+		int exterrctl(
+		    u_int op,
+		    u_int flags,
+		    _In_reads_bytes_(4) void *ptr
+		);
+	}
 ; vim: syntax=off

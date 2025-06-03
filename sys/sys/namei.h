@@ -70,7 +70,7 @@ struct nameidata {
 	 */
 	const	char *ni_dirp;		/* pathname pointer */
 	enum	uio_seg ni_segflg;	/* location of pathname */
-	cap_rights_t *ni_rightsneeded;	/* rights required to look up vnode */
+	const cap_rights_t *ni_rightsneeded; /* rights needed to look up vnode */
 	/*
 	 * Arguments to lookup.
 	 */
@@ -152,6 +152,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	LOCKSHARED	0x0100	/* Shared lock leaf */
 #define	NOFOLLOW	0x0000	/* do not follow symbolic links (pseudo) */
 #define	RBENEATH	0x100000000ULL /* No escape, even tmp, from start dir */
+#define	NAMEILOOKUP	0x200000000ULL /* cnp is embedded in nameidata */
 #define	MODMASK		0xf000001ffULL	/* mask of operational modifiers */
 
 /*
@@ -172,14 +173,15 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	OPENREAD	0x00200000 /* open for reading */
 #define	OPENWRITE	0x00400000 /* open for writing */
 #define	WANTIOCTLCAPS	0x00800000 /* leave ioctl caps for the caller */
-/* UNUSED		0x01000000 */
+#define	OPENNAMED	0x01000000 /* opening a named attribute (dir) */
 #define	NOEXECCHECK	0x02000000 /* do not perform exec check on dir */
 #define	MAKEENTRY	0x04000000 /* entry is to be added to name cache */
 #define	ISSYMLINK	0x08000000 /* symlink needs interpretation */
 #define	ISLASTCN	0x10000000 /* this is last component of pathname */
 #define	ISDOTDOT	0x20000000 /* current component name is .. */
 #define	TRAILINGSLASH	0x40000000 /* path ended in a slash */
-#define	PARAMASK	0x7ffffe00 /* mask of parameter descriptors */
+#define	CREATENAMED	0x80000000 /* create a named attribute dir */
+#define	PARAMASK	0xfffffe00 /* mask of parameter descriptors */
 
 /*
  * Flags which must not be passed in by callers.
@@ -243,12 +245,12 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, startdir, rightsp)	\
 do {										\
 	struct nameidata *_ndp = (ndp);						\
-	cap_rights_t *_rightsp = (rightsp);					\
+	const cap_rights_t *_rightsp = (rightsp);					\
 	MPASS(_rightsp != NULL);						\
 	NDINIT_PREFILL(_ndp);							\
 	NDINIT_DBG(_ndp);							\
 	_ndp->ni_cnd.cn_nameiop = op;						\
-	_ndp->ni_cnd.cn_flags = flags;						\
+	_ndp->ni_cnd.cn_flags = (flags) | NAMEILOOKUP;				\
 	_ndp->ni_segflg = segflg;						\
 	_ndp->ni_dirp = namep;							\
 	_ndp->ni_dirfd = dirfd;							\
@@ -264,6 +266,7 @@ do {										\
 	filecaps_free(&_ndp->ni_filecaps);					\
 	_ndp->ni_resflags = 0;							\
 	_ndp->ni_startdir = NULL;						\
+	_ndp->ni_cnd.cn_flags &= ~NAMEI_INTERNAL_FLAGS;				\
 } while (0)
 
 #define	NDPREINIT(ndp) do {							\
@@ -285,6 +288,8 @@ do {										\
 
 int	namei(struct nameidata *ndp);
 int	vfs_lookup(struct nameidata *ndp);
+bool	vfs_lookup_isroot(struct nameidata *ndp, struct vnode *dvp);
+struct nameidata *vfs_lookup_nameidata(struct componentname *cnp);
 int	vfs_relookup(struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp, bool refstart);
 

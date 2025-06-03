@@ -453,8 +453,10 @@ mca_log(const struct mca_record *rec)
 			switch ((rec->mr_status & MC_STATUS_TES_STATUS) >> 53) {
 			case 0x1:
 				printf("(Green) ");
+				break;
 			case 0x2:
 				printf("(Yellow) ");
+				break;
 			}
 		}
 	}

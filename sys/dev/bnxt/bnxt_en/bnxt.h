@@ -88,6 +88,10 @@
 #define BCM57504  	0x1751
 #define BCM57504_NPAR	0x1801
 #define BCM57502  	0x1752
+#define BCM57608  	0x1760
+#define BCM57604  	0x1761
+#define BCM57602  	0x1762
+#define BCM57601  	0x1763
 #define NETXTREME_C_VF1	0x16cb
 #define NETXTREME_C_VF2	0x16e1
 #define NETXTREME_C_VF3	0x16e5
@@ -186,32 +190,36 @@
 #define BNXT_NO_MORE_WOL_FILTERS	0xFFFF
 #define bnxt_wol_supported(softc)	(!((softc)->flags & BNXT_FLAG_VF) && \
 					  ((softc)->flags & BNXT_FLAG_WOL_CAP ))
-
 /* 64-bit doorbell */
-#define DBR_INDEX_MASK                                  0x0000000000ffffffULL
-#define DBR_PI_LO_MASK                                  0xff000000UL
-#define DBR_PI_LO_SFT                                   24
-#define DBR_XID_MASK                                    0x000fffff00000000ULL
-#define DBR_XID_SFT                                     32
-#define DBR_PI_HI_MASK                                  0xf0000000000000ULL
-#define DBR_PI_HI_SFT                                   52
-#define DBR_PATH_L2                                     (0x1ULL << 56)
-#define DBR_VALID                                       (0x1ULL << 58)
-#define DBR_TYPE_SQ                                     (0x0ULL << 60)
-#define DBR_TYPE_RQ                                     (0x1ULL << 60)
-#define DBR_TYPE_SRQ                                    (0x2ULL << 60)
-#define DBR_TYPE_SRQ_ARM                                (0x3ULL << 60)
-#define DBR_TYPE_CQ                                     (0x4ULL << 60)
-#define DBR_TYPE_CQ_ARMSE                               (0x5ULL << 60)
-#define DBR_TYPE_CQ_ARMALL                              (0x6ULL << 60)
-#define DBR_TYPE_CQ_ARMENA                              (0x7ULL << 60)
-#define DBR_TYPE_SRQ_ARMENA                             (0x8ULL << 60)
-#define DBR_TYPE_CQ_CUTOFF_ACK                          (0x9ULL << 60)
-#define DBR_TYPE_NQ                                     (0xaULL << 60)
-#define DBR_TYPE_NQ_ARM                                 (0xbULL << 60)
-#define DBR_TYPE_PUSH_START                             (0xcULL << 60)
-#define DBR_TYPE_PUSH_END                               (0xdULL << 60)
-#define DBR_TYPE_NULL                                   (0xfULL << 60)
+#define DBR_INDEX_MASK					0x0000000000ffffffULL
+#define DBR_PI_LO_MASK					0xff000000UL
+#define DBR_PI_LO_SFT					24
+#define DBR_EPOCH_MASK					0x01000000UL
+#define DBR_EPOCH_SFT					24
+#define DBR_TOGGLE_MASK					0x06000000UL
+#define DBR_TOGGLE_SFT					25
+#define DBR_XID_MASK					0x000fffff00000000ULL
+#define DBR_XID_SFT					32
+#define DBR_PI_HI_MASK					0xf0000000000000ULL
+#define DBR_PI_HI_SFT					52
+#define DBR_PATH_L2					(0x1ULL << 56)
+#define DBR_VALID					(0x1ULL << 58)
+#define DBR_TYPE_SQ					(0x0ULL << 60)
+#define DBR_TYPE_RQ					(0x1ULL << 60)
+#define DBR_TYPE_SRQ					(0x2ULL << 60)
+#define DBR_TYPE_SRQ_ARM				(0x3ULL << 60)
+#define DBR_TYPE_CQ					(0x4ULL << 60)
+#define DBR_TYPE_CQ_ARMSE				(0x5ULL << 60)
+#define DBR_TYPE_CQ_ARMALL				(0x6ULL << 60)
+#define DBR_TYPE_CQ_ARMENA				(0x7ULL << 60)
+#define DBR_TYPE_SRQ_ARMENA				(0x8ULL << 60)
+#define DBR_TYPE_CQ_CUTOFF_ACK				(0x9ULL << 60)
+#define DBR_TYPE_NQ					(0xaULL << 60)
+#define DBR_TYPE_NQ_ARM					(0xbULL << 60)
+#define DBR_TYPE_PUSH_START				(0xcULL << 60)
+#define DBR_TYPE_PUSH_END				(0xdULL << 60)
+#define DBR_TYPE_NQ_MASK				(0xeULL << 60)
+#define DBR_TYPE_NULL					(0xfULL << 60)
 
 #define BNXT_MAX_L2_QUEUES				128
 #define BNXT_ROCE_IRQ_COUNT				9
@@ -224,6 +232,13 @@
 
 /* Chip class phase 5 */
 #define BNXT_CHIP_P5(sc) ((sc->flags & BNXT_FLAG_CHIP_P5))
+
+/* Chip class phase 7 */
+#define BNXT_CHIP_P7(sc) ((sc->flags & BNXT_FLAG_CHIP_P7))
+
+/* Chip class phase 5 plus */
+#define BNXT_CHIP_P5_PLUS(sc)                   \
+	(BNXT_CHIP_P5(sc) || BNXT_CHIP_P7(sc))
 
 #define DB_PF_OFFSET_P5                                 0x10000
 #define DB_VF_OFFSET_P5                                 0x4000
@@ -400,12 +415,19 @@ struct bnxt_link_info {
 
 	uint16_t	link_speed;
 	uint16_t	support_speeds;
+	uint16_t	support_speeds2;
 	uint16_t	support_pam4_speeds;
 	uint16_t	auto_link_speeds;
+	uint16_t	auto_link_speeds2;
 	uint16_t	auto_pam4_link_speeds;
 	uint16_t	force_link_speed;
+	uint16_t	force_link_speeds2;
 	uint16_t	force_pam4_link_speed;
-	bool		force_pam4_speed_set_by_user;
+
+	bool		force_pam4_speed;
+	bool		force_speed2_nrz;
+	bool		force_pam4_56_speed2;
+	bool		force_pam4_112_speed2;
 
 	uint16_t	advertising;
 	uint16_t	advertising_pam4;
@@ -415,8 +437,11 @@ struct bnxt_link_info {
 	uint16_t	support_force_speeds;
 	uint16_t	support_pam4_auto_speeds;
 	uint16_t	support_pam4_force_speeds;
+	uint16_t	support_auto_speeds2;
+	uint16_t	support_force_speeds2;
 #define BNXT_SIG_MODE_NRZ	HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_NRZ
 #define BNXT_SIG_MODE_PAM4	HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4
+#define BNXT_SIG_MODE_PAM4_112 HWRM_PORT_PHY_QCFG_OUTPUT_SIGNAL_MODE_PAM4_112
 	uint8_t		req_signal_mode;
 
 	uint8_t		active_fec_sig_mode;
@@ -436,7 +461,13 @@ enum bnxt_phy_type {
 	BNXT_MEDIA_CR = 0,
 	BNXT_MEDIA_LR,
 	BNXT_MEDIA_SR,
+	BNXT_MEDIA_ER,
 	BNXT_MEDIA_KR,
+	BNXT_MEDIA_AC,
+	BNXT_MEDIA_BASECX,
+	BNXT_MEDIA_BASET,
+	BNXT_MEDIA_BASEKX,
+	BNXT_MEDIA_BASESGMII,
 	BNXT_MEDIA_END
 };
 
@@ -555,6 +586,8 @@ struct bnxt_grp_info {
 	uint16_t	ag_ring_id;
 };
 
+#define	EPOCH_ARR_SZ	4096
+
 struct bnxt_ring {
 	uint64_t		paddr;
 	vm_offset_t		doorbell;
@@ -565,12 +598,24 @@ struct bnxt_ring {
 	uint16_t		phys_id;
 	uint16_t		idx;
 	struct bnxt_full_tpa_start *tpa_start;
+	union {
+		u64             db_key64;
+		u32             db_key32;
+	};
+	uint32_t                db_ring_mask;
+	uint32_t                db_epoch_mask;
+	uint8_t                 db_epoch_shift;
+
+	uint64_t		epoch_arr[EPOCH_ARR_SZ];
+	bool                    epoch_bit;
+
 };
 
 struct bnxt_cp_ring {
 	struct bnxt_ring	ring;
 	struct if_irq		irq;
 	uint32_t		cons;
+	uint32_t		raw_cons;
 	bool			v_bit;		/* Value of valid bit */
 	struct ctx_hw_stats	*stats;
 	uint32_t		stats_ctx_id;
@@ -578,6 +623,10 @@ struct bnxt_cp_ring {
 						 * set to the last read pidx
 						 */
 	uint64_t 		int_count;
+	uint8_t			toggle;
+	uint8_t			type;
+#define Q_TYPE_TX		1
+#define Q_TYPE_RX		2
 };
 
 struct bnxt_full_tpa_start {
@@ -716,11 +765,11 @@ struct bnxt_ctx_pg_info {
 #define BNXT_SET_CTX_PAGE_ATTR(attr)					\
 do {									\
 	if (BNXT_PAGE_SIZE == 0x2000)					\
-		attr = HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_SRQ_PG_SIZE_PG_8K;	\
+		attr = HWRM_FUNC_BACKING_STORE_CFG_INPUT_SRQ_PG_SIZE_PG_8K;	\
 	else if (BNXT_PAGE_SIZE == 0x10000)				\
-		attr = HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_QPC_PG_SIZE_PG_64K;	\
+		attr = HWRM_FUNC_BACKING_STORE_CFG_INPUT_SRQ_PG_SIZE_PG_64K;	\
 	else								\
-		attr = HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_QPC_PG_SIZE_PG_4K;	\
+		attr = HWRM_FUNC_BACKING_STORE_CFG_INPUT_SRQ_PG_SIZE_PG_4K;	\
 } while (0)
 
 struct bnxt_ctx_mem_type {
@@ -735,6 +784,8 @@ struct bnxt_ctx_mem_type {
 #define	BNXT_CTX_INIT_INVALID_OFFSET	0xffff
 	u32	max_entries;
 	u32	min_entries;
+	u8	last:1;
+	u8	mem_valid:1;
 	u8	split_entry_cnt;
 #define BNXT_MAX_SPLIT_ENTRY	4
 	union {
@@ -773,13 +824,19 @@ struct bnxt_ctx_mem_type {
 #define BNXT_CTX_QTKC	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_QUIC_TKC
 #define BNXT_CTX_QRKC	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_QUIC_RKC
 #define BNXT_CTX_MAX	(BNXT_CTX_TIM + 1)
+#define BNXT_CTX_L2_MAX (BNXT_CTX_FTQM + 1)
+
+#define BNXT_CTX_V2_MAX (HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_ROCE_HWRM_TRACE + 1)
+#define BNXT_CTX_SRT_TRACE		HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_SRT_TRACE
+#define BNXT_CTX_ROCE_HWRM_TRACE	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_ROCE_HWRM_TRACE
+#define BNXT_CTX_INV	((u16)-1)
 
 struct bnxt_ctx_mem_info {
 	u8	tqm_fp_rings_count;
 
 	u32	flags;
 	#define BNXT_CTX_FLAG_INITED	0x01
-	struct bnxt_ctx_mem_type	ctx_arr[BNXT_CTX_MAX];
+	struct bnxt_ctx_mem_type	ctx_arr[BNXT_CTX_V2_MAX];
 };
 
 struct bnxt_hw_resc {
@@ -970,6 +1027,22 @@ struct bnxt_fw_health {
 
 #define BNXT_GRC_BASE_MASK			0xfffff000
 #define BNXT_GRC_OFFSET_MASK			0x00000ffc
+
+#define NQE_CN_TYPE(type)	((type) & NQ_CN_TYPE_MASK)
+#define NQE_CN_TOGGLE(type)	(((type) & NQ_CN_TOGGLE_MASK) >>        \
+				 NQ_CN_TOGGLE_SFT)
+
+#define DB_EPOCH(ring, idx)	(((idx) & (ring)->db_epoch_mask) <<       \
+				 ((ring)->db_epoch_shift))
+
+#define DB_TOGGLE(tgl)		((tgl) << DBR_TOGGLE_SFT)
+
+#define DB_RING_IDX_CMP(ring, idx)    (((idx) & (ring)->db_ring_mask) |         \
+				       DB_EPOCH(ring, idx))
+
+#define DB_RING_IDX(ring, idx, bit)    (((idx) & (ring)->db_ring_mask) | \
+                                       ((bit) << (24)))
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
@@ -1002,6 +1075,7 @@ struct bnxt_softc {
 #define BNXT_FLAG_ROCEV1_CAP			0x0400
 #define BNXT_FLAG_ROCEV2_CAP			0x0800
 #define BNXT_FLAG_ROCE_CAP			(BNXT_FLAG_ROCEV1_CAP | BNXT_FLAG_ROCEV2_CAP)
+#define BNXT_FLAG_CHIP_P7			0x1000
 	uint32_t		flags;
 #define BNXT_STATE_LINK_CHANGE  (0)
 #define BNXT_STATE_MAX		(BNXT_STATE_LINK_CHANGE + 1)
@@ -1091,7 +1165,7 @@ struct bnxt_softc {
 	struct bnxt_cp_ring	def_nq_ring;
 	struct iflib_dma_info	def_cp_ring_mem;
 	struct iflib_dma_info	def_nq_ring_mem;
-	struct grouptask	def_cp_task;
+	struct task		def_cp_task;
 	int			db_size;
 	int			legacy_db_size;
 	struct bnxt_doorbell_ops db_ops;
@@ -1310,6 +1384,7 @@ int bnxt_dcb_ieee_getpfc(struct bnxt_softc *softc, struct bnxt_ieee_pfc *pfc);
 int bnxt_dcb_ieee_setpfc(struct bnxt_softc *softc, struct bnxt_ieee_pfc *pfc);
 int bnxt_dcb_ieee_setapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app);
 int bnxt_dcb_ieee_delapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app);
-int bnxt_dcb_ieee_listapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app, int *num_inputs);
+int bnxt_dcb_ieee_listapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
+    size_t nitems, int *num_inputs);
 
 #endif /* _BNXT_H */

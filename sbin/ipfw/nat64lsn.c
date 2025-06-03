@@ -380,6 +380,8 @@ static struct _s_x nat64newcmds[] = {
       { "-log",		TOK_LOGOFF },
       { "allow_private", TOK_PRIVATE },
       { "-allow_private", TOK_PRIVATEOFF },
+      { "swap_conf",	TOK_SWAPCONF },
+      { "-swap_conf",	TOK_SWAPCONFOFF },
       /* for compatibility with old configurations */
       { "max_ports",	TOK_MAX_PORTS },	/* unused */
       { NULL, 0 }
@@ -514,6 +516,12 @@ nat64lsn_create(const char *name, uint8_t set, int ac, char **av)
 		case TOK_PRIVATEOFF:
 			cfg->flags &= ~NAT64_ALLOW_PRIVATE;
 			break;
+		case TOK_SWAPCONF:
+			cfg->flags |= NAT64LSN_ALLOW_SWAPCONF;
+			break;
+		case TOK_SWAPCONFOFF:
+			cfg->flags &= ~NAT64LSN_ALLOW_SWAPCONF;
+			break;
 		}
 	}
 
@@ -630,6 +638,12 @@ nat64lsn_config(const char *name, uint8_t set, int ac, char **av)
 			break;
 		case TOK_PRIVATEOFF:
 			cfg->flags &= ~NAT64_ALLOW_PRIVATE;
+			break;
+		case TOK_SWAPCONF:
+			cfg->flags |= NAT64LSN_ALLOW_SWAPCONF;
+			break;
+		case TOK_SWAPCONFOFF:
+			cfg->flags &= ~NAT64LSN_ALLOW_SWAPCONF;
 			break;
 		default:
 			errx(EX_USAGE, "Can't change %s option", opt);
@@ -796,6 +810,8 @@ nat64lsn_show_cb(ipfw_nat64lsn_cfg *cfg, const char *name, uint8_t set)
 		printf(" icmp_age %u", cfg->st_icmp_ttl);
 	if (g_co.verbose || cfg->jmaxlen != NAT64LSN_JMAXLEN)
 		printf(" jmaxlen %u", cfg->jmaxlen);
+	if (cfg->flags & NAT64LSN_ALLOW_SWAPCONF)
+		printf(" swap_conf");
 	if (cfg->flags & NAT64_LOG)
 		printf(" log");
 	if (cfg->flags & NAT64_ALLOW_PRIVATE)

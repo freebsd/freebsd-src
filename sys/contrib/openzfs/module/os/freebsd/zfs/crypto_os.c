@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BSD-2-Clause
 /*
  * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * Copyright (c) 2018 Sean Eric Fagan <sef@ixsystems.com>
@@ -195,7 +196,6 @@ zfs_crypto_dispatch(freebsd_crypt_session_t *session, struct cryptop *crp)
 			break;
 		}
 		crp->crp_etype = 0;
-		crp->crp_flags &= ~CRYPTO_F_DONE;
 		session->fs_done = false;
 	}
 	return (error);

@@ -1,11 +1,13 @@
 /*
  * Double-precision 10^x function.
  *
- * Copyright (c) 2023, Arm Limited.
+ * Copyright (c) 2023-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include "math_config.h"
+#include "test_defs.h"
+#include "test_sig.h"
 
 #define N (1 << EXP_TABLE_BITS)
 #define IndexMask (N - 1)
@@ -22,7 +24,7 @@ special_case (uint64_t sbits, double_t tmp, uint64_t ki)
 {
   double_t scale, y;
 
-  if (ki - (1ull << 16) < 0x80000000)
+  if ((ki & 0x80000000) == 0)
     {
       /* The exponent of scale might have overflowed by 1.  */
       sbits -= 1ull << 52;
@@ -84,14 +86,14 @@ exp10 (double x)
   /* Reduce x: z = x * N / log10(2), k = round(z).  */
   double_t z = __exp_data.invlog10_2N * x;
   double_t kd;
-  int64_t ki;
+  uint64_t ki;
 #if TOINT_INTRINSICS
   kd = roundtoint (z);
   ki = converttoint (z);
 #else
   kd = eval_as_double (z + Shift);
+  ki = asuint64 (kd);
   kd -= Shift;
-  ki = kd;
 #endif
 
   /* r = x - k * log10(2), r in [-0.5, 0.5].  */
@@ -127,3 +129,15 @@ exp10 (double x)
   double_t s = asdouble (sbits);
   return eval_as_double (s * y + s);
 }
+
+#if WANT_EXP10_TESTS
+TEST_SIG (S, D, 1, exp10, -9.9, 9.9)
+TEST_ULP (exp10, 0.02)
+TEST_ULP_NONNEAREST (exp10, 0.5)
+TEST_SYM_INTERVAL (exp10, 0, 0x1p-47, 5000)
+TEST_SYM_INTERVAL (exp10, 0x1p47, 1, 50000)
+TEST_INTERVAL (exp10, 1, OFlowBound, 50000)
+TEST_INTERVAL (exp10, -1, UFlowBound, 50000)
+TEST_INTERVAL (exp10, OFlowBound, inf, 5000)
+TEST_INTERVAL (exp10, UFlowBound, -inf, 5000)
+#endif

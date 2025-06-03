@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.325 2023/09/19 20:37:07 deraadt Exp $
-.Dd $Mdocdate: September 19 2023 $
+.\" $OpenBSD: sshd.8,v 1.327 2024/09/15 01:19:56 djm Exp $
+.Dd $Mdocdate: September 15 2024 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -115,6 +115,10 @@ and
 .Dq rdomain
 and correspond to source address, user, resolved source host name,
 local address, local port number and routing domain respectively.
+Additionally the
+.Dq invalid-user
+flag (which does not take a value argument) may be specified to simulate
+a connection from an unrecognised username.
 .It Fl c Ar host_certificate_file
 Specifies a path to a certificate file to identify
 .Nm
@@ -466,8 +470,6 @@ sk-ssh-ed25519@openssh.com
 .It
 ssh-ed25519
 .It
-ssh-dss
-.It
 ssh-rsa
 .El
 .Pp
@@ -478,7 +480,6 @@ Note that lines in this file can be several hundred bytes long
 (because of the size of the public key encoding) up to a limit of
 8 kilobytes, which permits RSA keys up to 16 kilobits.
 You don't want to type them in; instead, copy the
-.Pa id_dsa.pub ,
 .Pa id_ecdsa.pub ,
 .Pa id_ecdsa_sk.pub ,
 .Pa id_ed25519.pub ,
@@ -882,7 +883,7 @@ secret, but the recommended permissions are read/write/execute for the user,
 and not accessible by others.
 .Pp
 .It Pa ~/.ssh/authorized_keys
-Lists the public keys (DSA, ECDSA, Ed25519, RSA)
+Lists the public keys (ECDSA, Ed25519, RSA)
 that can be used for logging in as this user.
 The format of this file is described above.
 The content of the file is not highly sensitive, but the recommended

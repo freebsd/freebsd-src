@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.175 2023/11/13 09:18:19 tobhe Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.176 2024/05/17 02:39:11 jsg Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -2440,7 +2440,7 @@ handle_dest_replies(struct sftp_conn *to, const char *to_path, int synchronous,
 		 * server not to have reordered replies that could have
 		 * inserted holes where none existed in the source file.
 		 *
-		 * XXX we could get a more accutate progress bar if we updated
+		 * XXX we could get a more accurate progress bar if we updated
 		 * the counter based on the reply from the destination...
 		 */
 		(*nreqsp)--;

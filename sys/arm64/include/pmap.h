@@ -101,6 +101,8 @@ extern struct pmap	kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)
 #define	pmap_kernel()	kernel_pmap
 
+extern bool		pmap_lpa_enabled;
+
 #define	PMAP_ASSERT_LOCKED(pmap) \
 				mtx_assert(&(pmap)->pm_mtx, MA_OWNED)
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
@@ -139,7 +141,8 @@ extern pt_entry_t pmap_sh_attr;
 #define	pmap_vm_page_alloc_check(m)
 
 void	pmap_activate_vm(pmap_t);
-void	pmap_bootstrap(vm_size_t);
+void	pmap_bootstrap_dmap(vm_size_t);
+void	pmap_bootstrap(void);
 int	pmap_change_attr(vm_offset_t va, vm_size_t size, int mode);
 int	pmap_change_prot(vm_offset_t va, vm_size_t size, vm_prot_t prot);
 void	pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode);
@@ -172,7 +175,6 @@ int	pmap_fault(pmap_t, uint64_t, uint64_t);
 struct pcb *pmap_switch(struct thread *);
 
 extern void (*pmap_clean_stage2_tlbi)(void);
-extern void (*pmap_invalidate_vpipt_icache)(void);
 extern void (*pmap_stage2_invalidate_range)(uint64_t, vm_offset_t, vm_offset_t,
     bool);
 extern void (*pmap_stage2_invalidate_all)(uint64_t);

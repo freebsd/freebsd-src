@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2007-2010 Lawrence Livermore National Security, LLC.
  *  Copyright (C) 2007 The Regents of the University of California.
@@ -38,8 +39,7 @@
 #include <sys/rwlock.h>
 #include <sys/wait.h>
 #include <sys/wmsum.h>
-
-typedef struct kstat_s kstat_t;
+#include <sys/kstat.h>
 
 #define	TASKQ_NAMELEN		31
 
@@ -131,8 +131,8 @@ typedef struct taskq {
 	struct list_head	tq_prio_list;	/* priority taskq_ent_t's */
 	struct list_head	tq_delay_list;	/* delayed taskq_ent_t's */
 	struct list_head	tq_taskqs;	/* all taskq_t's */
-	spl_wait_queue_head_t	tq_work_waitq;	/* new work waitq */
-	spl_wait_queue_head_t	tq_wait_waitq;	/* wait waitq */
+	wait_queue_head_t	tq_work_waitq;	/* new work waitq */
+	wait_queue_head_t	tq_wait_waitq;	/* wait waitq */
 	tq_lock_role_t		tq_lock_class;	/* class when taking tq_lock */
 	/* list node for the cpu hotplug callback */
 	struct hlist_node	tq_hp_cb_node;
@@ -144,7 +144,7 @@ typedef struct taskq {
 
 typedef struct taskq_ent {
 	spinlock_t		tqent_lock;
-	spl_wait_queue_head_t	tqent_waitq;
+	wait_queue_head_t	tqent_waitq;
 	struct timer_list	tqent_timer;
 	struct list_head	tqent_list;
 	taskqid_t		tqent_id;

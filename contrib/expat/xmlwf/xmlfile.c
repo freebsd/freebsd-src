@@ -15,6 +15,7 @@
    Copyright (c) 2017      Rhodri James <rhodri@wildebeest.org.uk>
    Copyright (c) 2019      David Loffredo <loffredo@steptools.com>
    Copyright (c) 2021      Donghee Na <donghee.na@python.org>
+   Copyright (c) 2024      Hanno Böck <hanno@gentoo.org>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -91,7 +92,8 @@ reportError(XML_Parser parser, const XML_Char *filename) {
              filename, XML_GetErrorLineNumber(parser),
              XML_GetErrorColumnNumber(parser), message);
   else
-    ftprintf(stderr, T("%s: (unknown message %d)\n"), filename, code);
+    ftprintf(stderr, T("%s: (unknown message %u)\n"), filename,
+             (unsigned int)code);
 }
 
 /* This implementation will give problems on files larger than INT_MAX. */

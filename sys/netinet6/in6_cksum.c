@@ -247,14 +247,15 @@ in6_cksum_partial_one(void *_arg, void *data, u_int len)
 
 /*
  * m MUST contain a contiguous IP6 header.
- * off is an offset where TCP/UDP/ICMP6 header starts.
+ * off_l3 is an offset where ipv6 header starts.
+ * off_l4 is an offset where TCP/UDP/ICMP6 header starts.
  * len is a total length of a transport segment.
  * (e.g. TCP header + TCP payload)
  * cov is the number of bytes to be taken into account for the checksum
  */
 int
-in6_cksum_partial(struct mbuf *m, uint8_t nxt, uint32_t off, uint32_t len,
-    uint32_t cov)
+in6_cksum_partial_l2(struct mbuf *m, uint8_t nxt, uint32_t off_l3,
+    uint32_t off_l4, uint32_t len, uint32_t cov)
 {
 	struct in6_cksum_partial_arg arg;
 	union l_util l_util;
@@ -272,9 +273,10 @@ in6_cksum_partial(struct mbuf *m, uint8_t nxt, uint32_t off, uint32_t len,
 	} uph;
 
 	/* Sanity check. */
-	KASSERT(m->m_pkthdr.len >= off + len, ("%s: mbuf len (%d) < off(%d)+"
-	    "len(%d)", __func__, m->m_pkthdr.len, off, len));
-	KASSERT(m->m_len >= sizeof(*ip6),
+	KASSERT(m->m_pkthdr.len >= off_l4 + len,
+	    ("%s: mbuf len (%d) < off(%d)+len(%d)",
+	    __func__, m->m_pkthdr.len, off_l4, len));
+	KASSERT(m->m_len >= off_l3 + sizeof(*ip6),
 	    ("%s: mbuf len %d < sizeof(ip6)", __func__, m->m_len));
 
 	/*
@@ -288,7 +290,7 @@ in6_cksum_partial(struct mbuf *m, uint8_t nxt, uint32_t off, uint32_t len,
 	sum = uph.phs[0];  sum += uph.phs[1];
 	sum += uph.phs[2];  sum += uph.phs[3];
 
-	ip6 = mtod(m, struct ip6_hdr *);
+	ip6 = mtodo(m, off_l3);
 
 	/* IPv6 source address. */
 	scope = in6_getscope(&ip6->ip6_src);
@@ -312,7 +314,7 @@ in6_cksum_partial(struct mbuf *m, uint8_t nxt, uint32_t off, uint32_t len,
 	 */
 	arg.sum = sum;
 	arg.rlen = 0;
-	(void)m_apply(m, off, cov, in6_cksum_partial_one, &arg);
+	(void)m_apply(m, off_l4, cov, in6_cksum_partial_one, &arg);
 	sum = arg.sum;
 
 	/*
@@ -325,6 +327,13 @@ in6_cksum_partial(struct mbuf *m, uint8_t nxt, uint32_t off, uint32_t len,
 	}
 	REDUCE;
 	return (~sum & 0xffff);
+}
+
+int
+in6_cksum_partial(struct mbuf *m, uint8_t nxt, uint32_t off, uint32_t len,
+    uint32_t cov)
+{
+	return (in6_cksum_partial_l2(m, nxt, 0, off, len, cov));
 }
 
 int

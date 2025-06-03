@@ -52,7 +52,7 @@ int __libarchive_hmac_build_hack(void);
 
 typedef	CCHmacContext archive_hmac_sha1_ctx;
 
-#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H)
+#elif defined(_WIN32) && !defined(__CYGWIN__) && defined(HAVE_BCRYPT_H) && _WIN32_WINNT >= _WIN32_WINNT_VISTA
 #include <bcrypt.h>
 
 typedef struct {
@@ -116,4 +116,4 @@ struct archive_hmac {
 };
 
 extern const struct archive_hmac __archive_hmac;
-#endif /* ARCHIVE_HMAC_PRIVATE_H_INCLUDED */
+#endif /* !ARCHIVE_HMAC_PRIVATE_H_INCLUDED */

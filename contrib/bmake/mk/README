@@ -1,9 +1,9 @@
-#	$Id: README,v 1.2 2020/08/19 17:51:53 sjg Exp $
+#	$Id: README,v 1.3 2024/12/10 22:15:02 sjg Exp $
 
-This directory contains some macro's derrived from the NetBSD bsd.*.mk
-macros.  They have the same names but without the bsd., separate macro
-files are needed to ensure we can make them do what we want for
-builing things outside of /usr/src.  Nearly all the comments below
+This directory contains some makefiles derrived from the NetBSD bsd.*.mk
+ones.  They have the same names but without the bsd., separate 
+makefiles are needed to ensure we can make them do what we want for
+building things outside of /usr/src.  Nearly all the comments below
 apply.
 
 #	$NetBSD: bsd.README,v 1.18 1997/01/13 00:54:23 mark Exp $

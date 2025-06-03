@@ -13,6 +13,7 @@
 #include "fw.h"
 #include "mac.h"
 #include "pci.h"
+#include "phy.h"
 #include "ps.h"
 #include "reg.h"
 #include "sar.h"
@@ -59,6 +60,27 @@ struct rtw89_debugfs_priv {
 			u8 sel;
 		} mac_mem;
 	};
+};
+
+struct rtw89_debugfs {
+	struct rtw89_debugfs_priv read_reg;
+	struct rtw89_debugfs_priv write_reg;
+	struct rtw89_debugfs_priv read_rf;
+	struct rtw89_debugfs_priv write_rf;
+	struct rtw89_debugfs_priv rf_reg_dump;
+	struct rtw89_debugfs_priv txpwr_table;
+	struct rtw89_debugfs_priv mac_reg_dump;
+	struct rtw89_debugfs_priv mac_mem_dump;
+	struct rtw89_debugfs_priv mac_dbg_port_dump;
+	struct rtw89_debugfs_priv send_h2c;
+	struct rtw89_debugfs_priv early_h2c;
+	struct rtw89_debugfs_priv fw_crash;
+	struct rtw89_debugfs_priv btc_info;
+	struct rtw89_debugfs_priv btc_manual;
+	struct rtw89_debugfs_priv fw_log_manual;
+	struct rtw89_debugfs_priv phy_info;
+	struct rtw89_debugfs_priv stations;
+	struct rtw89_debugfs_priv disable_dm;
 };
 
 static const u16 rtw89_rate_info_bw_to_mhz_map[] = {
@@ -376,7 +398,11 @@ static int rtw89_debug_priv_rf_reg_dump_get(struct seq_file *m, void *v)
 }
 
 struct txpwr_ent {
-	const char *txt;
+	bool nested;
+	union {
+		const char *txt;
+		const struct txpwr_ent *ptr;
+	};
 	u8 len;
 };
 
@@ -387,6 +413,12 @@ struct txpwr_map {
 	u32 addr_to;
 	u32 addr_to_1ss;
 };
+
+#define __GEN_TXPWR_ENT_NESTED(_e) \
+	{ .nested = true, .ptr = __txpwr_ent_##_e, \
+	  .len = ARRAY_SIZE(__txpwr_ent_##_e) }
+
+#define __GEN_TXPWR_ENT0(_t) { .len = 0, .txt = _t }
 
 #define __GEN_TXPWR_ENT2(_t, _e0, _e1) \
 	{ .len = 2, .txt = _t "\t-  " _e0 "  " _e1 }
@@ -399,7 +431,7 @@ struct txpwr_map {
 	  _e0 "  " _e1 "  " _e2 "  " _e3 "  " \
 	  _e4 "  " _e5 "  " _e6 "  " _e7 }
 
-static const struct txpwr_ent __txpwr_ent_byr[] = {
+static const struct txpwr_ent __txpwr_ent_byr_ax[] = {
 	__GEN_TXPWR_ENT4("CCK       ", "1M   ", "2M   ", "5.5M ", "11M  "),
 	__GEN_TXPWR_ENT4("LEGACY    ", "6M   ", "9M   ", "12M  ", "18M  "),
 	__GEN_TXPWR_ENT4("LEGACY    ", "24M  ", "36M  ", "48M  ", "54M  "),
@@ -416,21 +448,21 @@ static const struct txpwr_ent __txpwr_ent_byr[] = {
 };
 
 #if defined(__linux__)
-static_assert((ARRAY_SIZE(__txpwr_ent_byr) * 4) ==
+static_assert((ARRAY_SIZE(__txpwr_ent_byr_ax) * 4) ==
 #elif defined(__FreeBSD__)
-rtw89_static_assert((ARRAY_SIZE(__txpwr_ent_byr) * 4) ==
+rtw89_static_assert((ARRAY_SIZE(__txpwr_ent_byr_ax) * 4) ==
 #endif
 	(R_AX_PWR_BY_RATE_MAX - R_AX_PWR_BY_RATE + 4));
 
-static const struct txpwr_map __txpwr_map_byr = {
-	.ent = __txpwr_ent_byr,
-	.size = ARRAY_SIZE(__txpwr_ent_byr),
+static const struct txpwr_map __txpwr_map_byr_ax = {
+	.ent = __txpwr_ent_byr_ax,
+	.size = ARRAY_SIZE(__txpwr_ent_byr_ax),
 	.addr_from = R_AX_PWR_BY_RATE,
 	.addr_to = R_AX_PWR_BY_RATE_MAX,
 	.addr_to_1ss = R_AX_PWR_BY_RATE_1SS_MAX,
 };
 
-static const struct txpwr_ent __txpwr_ent_lmt[] = {
+static const struct txpwr_ent __txpwr_ent_lmt_ax[] = {
 	/* 1TX */
 	__GEN_TXPWR_ENT2("CCK_1TX_20M    ", "NON_BF", "BF"),
 	__GEN_TXPWR_ENT2("CCK_1TX_40M    ", "NON_BF", "BF"),
@@ -476,21 +508,21 @@ static const struct txpwr_ent __txpwr_ent_lmt[] = {
 };
 
 #if defined(__linux__)
-static_assert((ARRAY_SIZE(__txpwr_ent_lmt) * 2) ==
+static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ax) * 2) ==
 #elif defined(__FreeBSD__)
-rtw89_static_assert((ARRAY_SIZE(__txpwr_ent_lmt) * 2) ==
+rtw89_static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ax) * 2) ==
 #endif
 	(R_AX_PWR_LMT_MAX - R_AX_PWR_LMT + 4));
 
-static const struct txpwr_map __txpwr_map_lmt = {
-	.ent = __txpwr_ent_lmt,
-	.size = ARRAY_SIZE(__txpwr_ent_lmt),
+static const struct txpwr_map __txpwr_map_lmt_ax = {
+	.ent = __txpwr_ent_lmt_ax,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_ax),
 	.addr_from = R_AX_PWR_LMT,
 	.addr_to = R_AX_PWR_LMT_MAX,
 	.addr_to_1ss = R_AX_PWR_LMT_1SS_MAX,
 };
 
-static const struct txpwr_ent __txpwr_ent_lmt_ru[] = {
+static const struct txpwr_ent __txpwr_ent_lmt_ru_ax[] = {
 	/* 1TX */
 	__GEN_TXPWR_ENT8("1TX", "RU26__0", "RU26__1", "RU26__2", "RU26__3",
 			 "RU26__4", "RU26__5", "RU26__6", "RU26__7"),
@@ -508,28 +540,210 @@ static const struct txpwr_ent __txpwr_ent_lmt_ru[] = {
 };
 
 #if defined(__linux__)
-static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ru) * 8) ==
+static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ru_ax) * 8) ==
 #elif defined(__FreeBSD__)
-rtw89_static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ru) * 8) ==
+rtw89_static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ru_ax) * 8) ==
 #endif
 	(R_AX_PWR_RU_LMT_MAX - R_AX_PWR_RU_LMT + 4));
 
-static const struct txpwr_map __txpwr_map_lmt_ru = {
-	.ent = __txpwr_ent_lmt_ru,
-	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru),
+static const struct txpwr_map __txpwr_map_lmt_ru_ax = {
+	.ent = __txpwr_ent_lmt_ru_ax,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru_ax),
 	.addr_from = R_AX_PWR_RU_LMT,
 	.addr_to = R_AX_PWR_RU_LMT_MAX,
 	.addr_to_1ss = R_AX_PWR_RU_LMT_1SS_MAX,
 };
 
-static u8 __print_txpwr_ent(struct seq_file *m, const struct txpwr_ent *ent,
-			    const s8 *buf, const u8 cur)
+static const struct txpwr_ent __txpwr_ent_byr_mcs_be[] = {
+	__GEN_TXPWR_ENT4("MCS_1SS       ", "MCS0  ", "MCS1  ", "MCS2 ", "MCS3 "),
+	__GEN_TXPWR_ENT4("MCS_1SS       ", "MCS4  ", "MCS5  ", "MCS6 ", "MCS7 "),
+	__GEN_TXPWR_ENT4("MCS_1SS       ", "MCS8  ", "MCS9  ", "MCS10", "MCS11"),
+	__GEN_TXPWR_ENT2("MCS_1SS       ", "MCS12 ", "MCS13 \t"),
+	__GEN_TXPWR_ENT4("HEDCM_1SS     ", "MCS0  ", "MCS1  ", "MCS3 ", "MCS4 "),
+	__GEN_TXPWR_ENT4("DLRU_MCS_1SS  ", "MCS0  ", "MCS1  ", "MCS2 ", "MCS3 "),
+	__GEN_TXPWR_ENT4("DLRU_MCS_1SS  ", "MCS4  ", "MCS5  ", "MCS6 ", "MCS7 "),
+	__GEN_TXPWR_ENT4("DLRU_MCS_1SS  ", "MCS8  ", "MCS9  ", "MCS10", "MCS11"),
+	__GEN_TXPWR_ENT2("DLRU_MCS_1SS  ", "MCS12 ", "MCS13 \t"),
+	__GEN_TXPWR_ENT4("DLRU_HEDCM_1SS", "MCS0  ", "MCS1  ", "MCS3 ", "MCS4 "),
+	__GEN_TXPWR_ENT4("MCS_2SS       ", "MCS0  ", "MCS1  ", "MCS2 ", "MCS3 "),
+	__GEN_TXPWR_ENT4("MCS_2SS       ", "MCS4  ", "MCS5  ", "MCS6 ", "MCS7 "),
+	__GEN_TXPWR_ENT4("MCS_2SS       ", "MCS8  ", "MCS9  ", "MCS10", "MCS11"),
+	__GEN_TXPWR_ENT2("MCS_2SS       ", "MCS12 ", "MCS13 \t"),
+	__GEN_TXPWR_ENT4("HEDCM_2SS     ", "MCS0  ", "MCS1  ", "MCS3 ", "MCS4 "),
+	__GEN_TXPWR_ENT4("DLRU_MCS_2SS  ", "MCS0  ", "MCS1  ", "MCS2 ", "MCS3 "),
+	__GEN_TXPWR_ENT4("DLRU_MCS_2SS  ", "MCS4  ", "MCS5  ", "MCS6 ", "MCS7 "),
+	__GEN_TXPWR_ENT4("DLRU_MCS_2SS  ", "MCS8  ", "MCS9  ", "MCS10", "MCS11"),
+	__GEN_TXPWR_ENT2("DLRU_MCS_2SS  ", "MCS12 ", "MCS13 \t"),
+	__GEN_TXPWR_ENT4("DLRU_HEDCM_2SS", "MCS0  ", "MCS1  ", "MCS3 ", "MCS4 "),
+};
+
+static const struct txpwr_ent __txpwr_ent_byr_be[] = {
+	__GEN_TXPWR_ENT0("BW20"),
+	__GEN_TXPWR_ENT4("CCK       ", "1M    ", "2M    ", "5.5M ", "11M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "6M    ", "9M    ", "12M  ", "18M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "24M   ", "36M   ", "48M  ", "54M  "),
+	__GEN_TXPWR_ENT2("EHT       ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT2("DLRU_EHT  ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT_NESTED(byr_mcs_be),
+
+	__GEN_TXPWR_ENT0("BW40"),
+	__GEN_TXPWR_ENT4("CCK       ", "1M    ", "2M    ", "5.5M ", "11M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "6M    ", "9M    ", "12M  ", "18M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "24M   ", "36M   ", "48M  ", "54M  "),
+	__GEN_TXPWR_ENT2("EHT       ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT2("DLRU_EHT  ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT_NESTED(byr_mcs_be),
+
+	/* there is no CCK section after BW80 */
+	__GEN_TXPWR_ENT0("BW80"),
+	__GEN_TXPWR_ENT4("LEGACY    ", "6M    ", "9M    ", "12M  ", "18M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "24M   ", "36M   ", "48M  ", "54M  "),
+	__GEN_TXPWR_ENT2("EHT       ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT2("DLRU_EHT  ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT_NESTED(byr_mcs_be),
+
+	__GEN_TXPWR_ENT0("BW160"),
+	__GEN_TXPWR_ENT4("LEGACY    ", "6M    ", "9M    ", "12M  ", "18M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "24M   ", "36M   ", "48M  ", "54M  "),
+	__GEN_TXPWR_ENT2("EHT       ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT2("DLRU_EHT  ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT_NESTED(byr_mcs_be),
+
+	__GEN_TXPWR_ENT0("BW320"),
+	__GEN_TXPWR_ENT4("LEGACY    ", "6M    ", "9M    ", "12M  ", "18M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "24M   ", "36M   ", "48M  ", "54M  "),
+	__GEN_TXPWR_ENT2("EHT       ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT2("DLRU_EHT  ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT_NESTED(byr_mcs_be),
+};
+
+static const struct txpwr_map __txpwr_map_byr_be = {
+	.ent = __txpwr_ent_byr_be,
+	.size = ARRAY_SIZE(__txpwr_ent_byr_be),
+	.addr_from = R_BE_PWR_BY_RATE,
+	.addr_to = R_BE_PWR_BY_RATE_MAX,
+	.addr_to_1ss = 0, /* not support */
+};
+
+static const struct txpwr_ent __txpwr_ent_lmt_mcs_be[] = {
+	__GEN_TXPWR_ENT2("MCS_20M_0  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_1  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_2  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_3  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_4  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_5  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_6  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_7  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_8  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_9  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_10 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_11 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_12 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_13 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_14 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_15 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_0  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_1  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_2  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_3  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_4  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_5  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_6  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_7  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_80M_0  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_80M_1  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_80M_2  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_80M_3  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_160M_0 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_160M_1 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_320M   ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_0p5", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_2p5", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_4p5", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_6p5", "NON_BF", "BF"),
+};
+
+static const struct txpwr_ent __txpwr_ent_lmt_be[] = {
+	__GEN_TXPWR_ENT0("1TX"),
+	__GEN_TXPWR_ENT2("CCK_20M    ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("CCK_40M    ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("OFDM       ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT_NESTED(lmt_mcs_be),
+
+	__GEN_TXPWR_ENT0("2TX"),
+	__GEN_TXPWR_ENT2("CCK_20M    ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("CCK_40M    ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("OFDM       ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT_NESTED(lmt_mcs_be),
+};
+
+static const struct txpwr_map __txpwr_map_lmt_be = {
+	.ent = __txpwr_ent_lmt_be,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_be),
+	.addr_from = R_BE_PWR_LMT,
+	.addr_to = R_BE_PWR_LMT_MAX,
+	.addr_to_1ss = 0, /* not support */
+};
+
+static const struct txpwr_ent __txpwr_ent_lmt_ru_indexes_be[] = {
+	__GEN_TXPWR_ENT8("RU26    ", "IDX_0 ", "IDX_1 ", "IDX_2 ", "IDX_3 ",
+			 "IDX_4 ", "IDX_5 ", "IDX_6 ", "IDX_7 "),
+	__GEN_TXPWR_ENT8("RU26    ", "IDX_8 ", "IDX_9 ", "IDX_10", "IDX_11",
+			 "IDX_12", "IDX_13", "IDX_14", "IDX_15"),
+	__GEN_TXPWR_ENT8("RU52    ", "IDX_0 ", "IDX_1 ", "IDX_2 ", "IDX_3 ",
+			 "IDX_4 ", "IDX_5 ", "IDX_6 ", "IDX_7 "),
+	__GEN_TXPWR_ENT8("RU52    ", "IDX_8 ", "IDX_9 ", "IDX_10", "IDX_11",
+			 "IDX_12", "IDX_13", "IDX_14", "IDX_15"),
+	__GEN_TXPWR_ENT8("RU106   ", "IDX_0 ", "IDX_1 ", "IDX_2 ", "IDX_3 ",
+			 "IDX_4 ", "IDX_5 ", "IDX_6 ", "IDX_7 "),
+	__GEN_TXPWR_ENT8("RU106   ", "IDX_8 ", "IDX_9 ", "IDX_10", "IDX_11",
+			 "IDX_12", "IDX_13", "IDX_14", "IDX_15"),
+	__GEN_TXPWR_ENT8("RU52_26 ", "IDX_0 ", "IDX_1 ", "IDX_2 ", "IDX_3 ",
+			 "IDX_4 ", "IDX_5 ", "IDX_6 ", "IDX_7 "),
+	__GEN_TXPWR_ENT8("RU52_26 ", "IDX_8 ", "IDX_9 ", "IDX_10", "IDX_11",
+			 "IDX_12", "IDX_13", "IDX_14", "IDX_15"),
+	__GEN_TXPWR_ENT8("RU106_26", "IDX_0 ", "IDX_1 ", "IDX_2 ", "IDX_3 ",
+			 "IDX_4 ", "IDX_5 ", "IDX_6 ", "IDX_7 "),
+	__GEN_TXPWR_ENT8("RU106_26", "IDX_8 ", "IDX_9 ", "IDX_10", "IDX_11",
+			 "IDX_12", "IDX_13", "IDX_14", "IDX_15"),
+};
+
+static const struct txpwr_ent __txpwr_ent_lmt_ru_be[] = {
+	__GEN_TXPWR_ENT0("1TX"),
+	__GEN_TXPWR_ENT_NESTED(lmt_ru_indexes_be),
+
+	__GEN_TXPWR_ENT0("2TX"),
+	__GEN_TXPWR_ENT_NESTED(lmt_ru_indexes_be),
+};
+
+static const struct txpwr_map __txpwr_map_lmt_ru_be = {
+	.ent = __txpwr_ent_lmt_ru_be,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru_be),
+	.addr_from = R_BE_PWR_RU_LMT,
+	.addr_to = R_BE_PWR_RU_LMT_MAX,
+	.addr_to_1ss = 0, /* not support */
+};
+
+static unsigned int
+__print_txpwr_ent(struct seq_file *m, const struct txpwr_ent *ent,
+		  const s8 *buf, const unsigned int cur)
 {
+	unsigned int cnt, i;
 	char *fmt;
 
+	if (ent->nested) {
+		for (cnt = 0, i = 0; i < ent->len; i++)
+			cnt += __print_txpwr_ent(m, ent->ptr + i, buf,
+						 cur + cnt);
+		return cnt;
+	}
+
 	switch (ent->len) {
+	case 0:
+		seq_printf(m, "\t<< %s >>\n", ent->txt);
+		return 0;
 	case 2:
-		fmt = "%s\t| %3d, %3d,\tdBm\n";
+		fmt = "%s\t| %3d, %3d,\t\tdBm\n";
 		seq_printf(m, fmt, ent->txt, buf[cur], buf[cur + 1]);
 		return 2;
 	case 4:
@@ -553,10 +767,10 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 {
 	u8 fct = rtwdev->chip->txpwr_factor_mac;
 	u8 path_num = rtwdev->chip->rf_path_num;
+	unsigned int cur, i;
 	u32 max_valid_addr;
 	u32 val, addr;
 	s8 *buf, tmp;
-	u8 cur, i;
 	int ret;
 
 	buf = vzalloc(map->addr_to - map->addr_from + 4);
@@ -567,6 +781,9 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 		max_valid_addr = map->addr_to_1ss;
 	else
 		max_valid_addr = map->addr_to;
+
+	if (max_valid_addr == 0)
+		return -EOPNOTSUPP;
 
 	for (addr = map->addr_from; addr <= max_valid_addr; addr += 4) {
 		ret = rtw89_mac_txpwr_read32(rtwdev, RTW89_PHY_0, addr, &val);
@@ -593,9 +810,9 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 		seq_puts(m, #_regd "\n"); \
 		break
 
-static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev)
+static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev,
+			 const struct rtw89_chan *chan)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 
@@ -616,38 +833,101 @@ static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev)
 	case_REGD(MEXICO);
 	case_REGD(UKRAINE);
 	case_REGD(CN);
+	case_REGD(QATAR);
+	case_REGD(UK);
+	case_REGD(THAILAND);
 	}
 }
 
 #undef case_REGD
 
+struct dbgfs_txpwr_table {
+	const struct txpwr_map *byr;
+	const struct txpwr_map *lmt;
+	const struct txpwr_map *lmt_ru;
+};
+
+static const struct dbgfs_txpwr_table dbgfs_txpwr_table_ax = {
+	.byr = &__txpwr_map_byr_ax,
+	.lmt = &__txpwr_map_lmt_ax,
+	.lmt_ru = &__txpwr_map_lmt_ru_ax,
+};
+
+static const struct dbgfs_txpwr_table dbgfs_txpwr_table_be = {
+	.byr = &__txpwr_map_byr_be,
+	.lmt = &__txpwr_map_lmt_be,
+	.lmt_ru = &__txpwr_map_lmt_ru_be,
+};
+
+static const struct dbgfs_txpwr_table *dbgfs_txpwr_tables[RTW89_CHIP_GEN_NUM] = {
+	[RTW89_CHIP_AX] = &dbgfs_txpwr_table_ax,
+	[RTW89_CHIP_BE] = &dbgfs_txpwr_table_be,
+};
+
+static
+void rtw89_debug_priv_txpwr_table_get_regd(struct seq_file *m,
+					   struct rtw89_dev *rtwdev,
+					   const struct rtw89_chan *chan)
+{
+	const struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_reg_6ghz_tpe *tpe6 = &regulatory->reg_6ghz_tpe;
+
+	seq_printf(m, "[Chanctx] band %u, ch %u, bw %u\n",
+		   chan->band_type, chan->channel, chan->band_width);
+
+	seq_puts(m, "[Regulatory] ");
+	__print_regd(m, rtwdev, chan);
+
+	if (chan->band_type == RTW89_BAND_6G) {
+		seq_printf(m, "[reg6_pwr_type] %u\n", regulatory->reg_6ghz_power);
+
+		if (tpe6->valid)
+			seq_printf(m, "[TPE] %d dBm\n", tpe6->constraint);
+	}
+}
+
 static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
+	const struct dbgfs_txpwr_table *tbl;
+	const struct rtw89_chan *chan;
 	int ret = 0;
 
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_ps_mode(rtwdev);
+	chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 
-	seq_puts(m, "[Regulatory] ");
-	__print_regd(m, rtwdev);
+	rtw89_debug_priv_txpwr_table_get_regd(m, rtwdev, chan);
 
 	seq_puts(m, "[SAR]\n");
-	rtw89_print_sar(m, rtwdev);
+	rtw89_print_sar(m, rtwdev, chan->freq);
+
+	seq_puts(m, "[TAS]\n");
+	rtw89_print_tas(m, rtwdev);
+
+	seq_puts(m, "[DAG]\n");
+	rtw89_print_ant_gain(m, rtwdev, chan);
+
+	tbl = dbgfs_txpwr_tables[chip_gen];
+	if (!tbl) {
+		ret = -EOPNOTSUPP;
+		goto err;
+	}
 
 	seq_puts(m, "\n[TX power byrate]\n");
-	ret = __print_txpwr_map(m, rtwdev, &__txpwr_map_byr);
+	ret = __print_txpwr_map(m, rtwdev, tbl->byr);
 	if (ret)
 		goto err;
 
 	seq_puts(m, "\n[TX power limit]\n");
-	ret = __print_txpwr_map(m, rtwdev, &__txpwr_map_lmt);
+	ret = __print_txpwr_map(m, rtwdev, tbl->lmt);
 	if (ret)
 		goto err;
 
 	seq_puts(m, "\n[TX power limit_ru]\n");
-	ret = __print_txpwr_map(m, rtwdev, &__txpwr_map_lmt_ru);
+	ret = __print_txpwr_map(m, rtwdev, tbl->lmt_ru);
 	if (ret)
 		goto err;
 
@@ -811,6 +1091,9 @@ static void rtw89_debug_dump_mac_mem(struct seq_file *m,
 				     struct rtw89_dev *rtwdev,
 				     u8 sel, u32 start_addr, u32 len)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 filter_model_addr = mac->filter_model_addr;
+	u32 indir_access_addr = mac->indir_access_addr;
 	u32 base_addr, start_page, residue;
 	u32 i, j, p, pages;
 	u32 dump_len, remain;
@@ -820,17 +1103,17 @@ static void rtw89_debug_dump_mac_mem(struct seq_file *m,
 	pages = len / MAC_MEM_DUMP_PAGE_SIZE + 1;
 	start_page = start_addr / MAC_MEM_DUMP_PAGE_SIZE;
 	residue = start_addr % MAC_MEM_DUMP_PAGE_SIZE;
-	base_addr = rtw89_mac_mem_base_addrs[sel];
+	base_addr = mac->mem_base_addrs[sel];
 	base_addr += start_page * MAC_MEM_DUMP_PAGE_SIZE;
 
 	for (p = 0; p < pages; p++) {
 		dump_len = min_t(u32, remain, MAC_MEM_DUMP_PAGE_SIZE);
-		rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, base_addr);
-		for (i = R_AX_INDIR_ACCESS_ENTRY + residue;
-		     i < R_AX_INDIR_ACCESS_ENTRY + dump_len;) {
+		rtw89_write32(rtwdev, filter_model_addr, base_addr);
+		for (i = indir_access_addr + residue;
+		     i < indir_access_addr + dump_len;) {
 			seq_printf(m, "%08xh:", i);
 			for (j = 0;
-			     j < 4 && i < R_AX_INDIR_ACCESS_ENTRY + dump_len;
+			     j < 4 && i < indir_access_addr + dump_len;
 			     j++, i += 4) {
 				val = rtw89_read32(rtwdev, i);
 				seq_printf(m, "  %08x", val);
@@ -2783,7 +3066,7 @@ static bool is_dbg_port_valid(struct rtw89_dev *rtwdev, u32 sel)
 	    sel >= RTW89_DBG_PORT_SEL_PCIE_TXDMA &&
 	    sel <= RTW89_DBG_PORT_SEL_PCIE_MISC2)
 		return false;
-	if (rtwdev->chip->chip_id == RTL8852B &&
+	if (rtw89_is_rtl885xb(rtwdev) &&
 	    sel >= RTW89_DBG_PORT_SEL_PTCL_C1 &&
 	    sel <= RTW89_DBG_PORT_SEL_TXTF_INFOH_C1)
 		return false;
@@ -3117,13 +3400,14 @@ out:
 
 static int rtw89_dbg_trigger_ctrl_error(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct rtw89_cpuio_ctrl ctrl_para = {0};
 	u16 pkt_id;
 	int ret;
 
 	rtw89_leave_ps_mode(rtwdev);
 
-	ret = rtw89_mac_dle_buf_req(rtwdev, 0x20, true, &pkt_id);
+	ret = mac->dle_buf_req(rtwdev, 0x20, true, &pkt_id);
 	if (ret)
 		return ret;
 
@@ -3135,7 +3419,7 @@ static int rtw89_dbg_trigger_ctrl_error(struct rtw89_dev *rtwdev)
 	ctrl_para.dst_pid = WDE_DLE_PORT_ID_WDRLS;
 	ctrl_para.dst_qid = WDE_DLE_QUEID_NO_REPORT;
 
-	if (rtw89_mac_set_cpuio(rtwdev, &ctrl_para, true))
+	if (mac->set_cpuio(rtwdev, &ctrl_para, true))
 		return -EFAULT;
 
 	return 0;
@@ -3213,21 +3497,24 @@ static ssize_t rtw89_debug_priv_btc_manual_set(struct file *filp,
 	struct rtw89_debugfs_priv *debugfs_priv = filp->private_data;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
 	struct rtw89_btc *btc = &rtwdev->btc;
-	bool btc_manual;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	int ret;
 
-	ret = kstrtobool_from_user(user_buf, count, &btc_manual);
+	ret = kstrtobool_from_user(user_buf, count, &btc->manual_ctrl);
 	if (ret)
 		return ret;
 
-	btc->ctrl.manual = btc_manual;
+	if (ver->fcxctrl == 7)
+		btc->ctrl.ctrl_v7.manual = btc->manual_ctrl;
+	else
+		btc->ctrl.ctrl.manual = btc->manual_ctrl;
 
 	return count;
 }
 
-static ssize_t rtw89_debug_fw_log_manual_set(struct file *filp,
-					     const char __user *user_buf,
-					     size_t count, loff_t *loff)
+static ssize_t rtw89_debug_priv_fw_log_manual_set(struct file *filp,
+						  const char __user *user_buf,
+						  size_t count, loff_t *loff)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = filp->private_data;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
@@ -3247,27 +3534,40 @@ out:
 	return count;
 }
 
-static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
+static void rtw89_sta_link_info_get_iter(struct seq_file *m,
+					 struct rtw89_dev *rtwdev,
+					 struct rtw89_sta_link *rtwsta_link)
 {
 	static const char * const he_gi_str[] = {
 		[NL80211_RATE_INFO_HE_GI_0_8] = "0.8",
 		[NL80211_RATE_INFO_HE_GI_1_6] = "1.6",
 		[NL80211_RATE_INFO_HE_GI_3_2] = "3.2",
 	};
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
-	struct rate_info *rate = &rtwsta->ra_report.txrate;
-	struct ieee80211_rx_status *status = &rtwsta->rx_status;
-	struct seq_file *m = (struct seq_file *)data;
-	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+	static const char * const eht_gi_str[] = {
+		[NL80211_RATE_INFO_EHT_GI_0_8] = "0.8",
+		[NL80211_RATE_INFO_EHT_GI_1_6] = "1.6",
+		[NL80211_RATE_INFO_EHT_GI_3_2] = "3.2",
+	};
+	struct rate_info *rate = &rtwsta_link->ra_report.txrate;
+	struct ieee80211_rx_status *status = &rtwsta_link->rx_status;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	u8 ant_num = hal->ant_diversity ? 2 : rtwdev->chip->rf_path_num;
 	bool ant_asterisk = hal->tx_path_diversity || hal->ant_diversity;
-	u8 evm_min, evm_max;
+	struct ieee80211_link_sta *link_sta;
+	u8 evm_min, evm_max, evm_1ss;
+	u16 max_rc_amsdu_len;
 	u8 rssi;
 	u8 snr;
 	int i;
 
-	seq_printf(m, "TX rate [%d]: ", rtwsta->mac_id);
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+	max_rc_amsdu_len = link_sta->agg.max_rc_amsdu_len;
+
+	rcu_read_unlock();
+
+	seq_printf(m, "TX rate [%u, %u]: ", rtwsta_link->mac_id, rtwsta_link->link_id);
 
 	if (rate->flags & RATE_INFO_FLAGS_MCS)
 		seq_printf(m, "HT MCS-%d%s", rate->mcs,
@@ -3279,15 +3579,19 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 		seq_printf(m, "HE %dSS MCS-%d GI:%s", rate->nss, rate->mcs,
 			   rate->he_gi <= NL80211_RATE_INFO_HE_GI_3_2 ?
 			   he_gi_str[rate->he_gi] : "N/A");
+	else if (rate->flags & RATE_INFO_FLAGS_EHT_MCS)
+		seq_printf(m, "EHT %dSS MCS-%d GI:%s", rate->nss, rate->mcs,
+			   rate->eht_gi < ARRAY_SIZE(eht_gi_str) ?
+			   eht_gi_str[rate->eht_gi] : "N/A");
 	else
 		seq_printf(m, "Legacy %d", rate->legacy);
-	seq_printf(m, "%s", rtwsta->ra_report.might_fallback_legacy ? " FB_G" : "");
+	seq_printf(m, "%s", rtwsta_link->ra_report.might_fallback_legacy ? " FB_G" : "");
 	seq_printf(m, " BW:%u", rtw89_rate_info_bw_to_mhz(rate->bw));
-	seq_printf(m, "\t(hw_rate=0x%x)", rtwsta->ra_report.hw_rate);
-	seq_printf(m, "\t==> agg_wait=%d (%d)\n", rtwsta->max_agg_wait,
-		   sta->deflink.agg.max_rc_amsdu_len);
+	seq_printf(m, " (hw_rate=0x%x)", rtwsta_link->ra_report.hw_rate);
+	seq_printf(m, " ==> agg_wait=%d (%d)\n", rtwsta_link->max_agg_wait,
+		   max_rc_amsdu_len);
 
-	seq_printf(m, "RX rate [%d]: ", rtwsta->mac_id);
+	seq_printf(m, "RX rate [%u, %u]: ", rtwsta_link->mac_id, rtwsta_link->link_id);
 
 	switch (status->encoding) {
 	case RX_ENC_LEGACY:
@@ -3305,27 +3609,33 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	case RX_ENC_HE:
 		seq_printf(m, "HE %dSS MCS-%d GI:%s", status->nss, status->rate_idx,
 			   status->he_gi <= NL80211_RATE_INFO_HE_GI_3_2 ?
-			   he_gi_str[rate->he_gi] : "N/A");
+			   he_gi_str[status->he_gi] : "N/A");
+		break;
+	case RX_ENC_EHT:
+		seq_printf(m, "EHT %dSS MCS-%d GI:%s", status->nss, status->rate_idx,
+			   status->eht.gi < ARRAY_SIZE(eht_gi_str) ?
+			   eht_gi_str[status->eht.gi] : "N/A");
 		break;
 	}
 	seq_printf(m, " BW:%u", rtw89_rate_info_bw_to_mhz(status->bw));
-	seq_printf(m, "\t(hw_rate=0x%x)\n", rtwsta->rx_hw_rate);
+	seq_printf(m, " (hw_rate=0x%x)\n", rtwsta_link->rx_hw_rate);
 
-	rssi = ewma_rssi_read(&rtwsta->avg_rssi);
+	rssi = ewma_rssi_read(&rtwsta_link->avg_rssi);
 	seq_printf(m, "RSSI: %d dBm (raw=%d, prev=%d) [",
-		   RTW89_RSSI_RAW_TO_DBM(rssi), rssi, rtwsta->prev_rssi);
+		   RTW89_RSSI_RAW_TO_DBM(rssi), rssi, rtwsta_link->prev_rssi);
 	for (i = 0; i < ant_num; i++) {
-		rssi = ewma_rssi_read(&rtwsta->rssi[i]);
+		rssi = ewma_rssi_read(&rtwsta_link->rssi[i]);
 		seq_printf(m, "%d%s%s", RTW89_RSSI_RAW_TO_DBM(rssi),
 			   ant_asterisk && (hal->antenna_tx & BIT(i)) ? "*" : "",
 			   i + 1 == ant_num ? "" : ", ");
 	}
 	seq_puts(m, "]\n");
 
-	seq_puts(m, "EVM: [");
+	evm_1ss = ewma_evm_read(&rtwsta_link->evm_1ss);
+	seq_printf(m, "EVM: [%2u.%02u, ", evm_1ss >> 2, (evm_1ss & 0x3) * 25);
 	for (i = 0; i < (hal->ant_diversity ? 2 : 1); i++) {
-		evm_min = ewma_evm_read(&rtwsta->evm_min[i]);
-		evm_max = ewma_evm_read(&rtwsta->evm_max[i]);
+		evm_min = ewma_evm_read(&rtwsta_link->evm_min[i]);
+		evm_max = ewma_evm_read(&rtwsta_link->evm_max[i]);
 
 		seq_printf(m, "%s(%2u.%02u, %2u.%02u)", i == 0 ? "" : " ",
 			   evm_min >> 2, (evm_min & 0x3) * 25,
@@ -3333,8 +3643,20 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	}
 	seq_puts(m, "]\t");
 
-	snr = ewma_snr_read(&rtwsta->avg_snr);
+	snr = ewma_snr_read(&rtwsta_link->avg_snr);
 	seq_printf(m, "SNR: %u\n", snr);
+}
+
+static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct seq_file *m = (struct seq_file *)data;
+	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
+	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+	struct rtw89_sta_link *rtwsta_link;
+	unsigned int link_id;
+
+	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id)
+		rtw89_sta_link_info_get_iter(m, rtwdev, rtwsta_link);
 }
 
 static void
@@ -3378,14 +3700,22 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 	struct rtw89_pkt_stat *pkt_stat = &rtwdev->phystat.last_pkt_stat;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_rx_rate_cnt_info *info;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_hw_rate first_rate;
+	u8 rssi;
 	int i;
 
-	seq_printf(m, "TP TX: %u [%u] Mbps (lv: %d), RX: %u [%u] Mbps (lv: %d)\n",
-		   stats->tx_throughput, stats->tx_throughput_raw, stats->tx_tfc_lv,
+	rssi = ewma_rssi_read(&rtwdev->phystat.bcn_rssi);
+
+	seq_printf(m, "TP TX: %u [%u] Mbps (lv: %d",
+		   stats->tx_throughput, stats->tx_throughput_raw, stats->tx_tfc_lv);
+	if (hal->thermal_prot_lv)
+		seq_printf(m, ", duty: %d%%",
+			   100 - hal->thermal_prot_lv * RTW89_THERMAL_PROT_STEP);
+	seq_printf(m, "), RX: %u [%u] Mbps (lv: %d)\n",
 		   stats->rx_throughput, stats->rx_throughput_raw, stats->rx_tfc_lv);
-	seq_printf(m, "Beacon: %u, TF: %u\n", pkt_stat->beacon_nr,
-		   stats->rx_tf_periodic);
+	seq_printf(m, "Beacon: %u (%d dBm), TF: %u\n", pkt_stat->beacon_nr,
+		   RTW89_RSSI_RAW_TO_DBM(rssi), stats->rx_tf_periodic);
 	seq_printf(m, "Avg packet length: TX=%u, RX=%u\n", stats->tx_avg_len,
 		   stats->rx_avg_len);
 
@@ -3414,17 +3744,21 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 }
 
 static void rtw89_dump_addr_cam(struct seq_file *m,
+				struct rtw89_dev *rtwdev,
 				struct rtw89_addr_cam_entry *addr_cam)
 {
-	struct rtw89_sec_cam_entry *sec_entry;
+	struct rtw89_cam_info *cam_info = &rtwdev->cam_info;
+	const struct rtw89_sec_cam_entry *sec_entry;
+	u8 sec_cam_idx;
 	int i;
 
 	seq_printf(m, "\taddr_cam_idx=%u\n", addr_cam->addr_cam_idx);
 	seq_printf(m, "\t-> bssid_cam_idx=%u\n", addr_cam->bssid_cam_idx);
 	seq_printf(m, "\tsec_cam_bitmap=%*ph\n", (int)sizeof(addr_cam->sec_cam_map),
 		   addr_cam->sec_cam_map);
-	for (i = 0; i < RTW89_SEC_CAM_IN_ADDR_CAM; i++) {
-		sec_entry = addr_cam->sec_entries[i];
+	for_each_set_bit(i, addr_cam->sec_cam_map, RTW89_SEC_CAM_IN_ADDR_CAM) {
+		sec_cam_idx = addr_cam->sec_ent[i];
+		sec_entry = cam_info->sec_entries[sec_cam_idx];
 		if (!sec_entry)
 			continue;
 		seq_printf(m, "\tsec[%d]: sec_cam_idx %u", i, sec_entry->sec_cam_idx);
@@ -3459,27 +3793,41 @@ static void rtw89_dump_pkt_offload(struct seq_file *m, struct list_head *pkt_lis
 	seq_puts(m, "\n");
 }
 
+static void rtw89_vif_link_ids_get(struct seq_file *m, u8 *mac,
+				   struct rtw89_dev *rtwdev,
+				   struct rtw89_vif_link *rtwvif_link)
+{
+	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif_link->bssid_cam;
+
+	seq_printf(m, "    [%u] %pM\n", rtwvif_link->mac_id, rtwvif_link->mac_addr);
+	seq_printf(m, "\tlink_id=%u\n", rtwvif_link->link_id);
+	seq_printf(m, "\tbssid_cam_idx=%u\n", bssid_cam->bssid_cam_idx);
+	rtw89_dump_addr_cam(m, rtwdev, &rtwvif_link->addr_cam);
+	rtw89_dump_pkt_offload(m, &rtwvif_link->general_pkt_list,
+			       "\tpkt_ofld[GENERAL]: ");
+}
+
 static
 void rtw89_vif_ids_get_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 {
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct seq_file *m = (struct seq_file *)data;
-	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif->bssid_cam;
+	struct rtw89_vif *rtwvif = vif_to_rtwvif(vif);
+	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
+	struct rtw89_vif_link *rtwvif_link;
+	unsigned int link_id;
 
-	seq_printf(m, "VIF [%d] %pM\n", rtwvif->mac_id, rtwvif->mac_addr);
-	seq_printf(m, "\tbssid_cam_idx=%u\n", bssid_cam->bssid_cam_idx);
-	rtw89_dump_addr_cam(m, &rtwvif->addr_cam);
-	rtw89_dump_pkt_offload(m, &rtwvif->general_pkt_list, "\tpkt_ofld[GENERAL]: ");
+	seq_printf(m, "VIF %pM\n", rtwvif->mac_addr);
+	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
+		rtw89_vif_link_ids_get(m, mac, rtwdev, rtwvif_link);
 }
 
-static void rtw89_dump_ba_cam(struct seq_file *m, struct rtw89_sta *rtwsta)
+static void rtw89_dump_ba_cam(struct seq_file *m, struct rtw89_dev *rtwdev,
+			      struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
-	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
 	struct rtw89_ba_cam_entry *entry;
 	bool first = true;
 
-	list_for_each_entry(entry, &rtwsta->ba_cam_list, list) {
+	list_for_each_entry(entry, &rtwsta_link->ba_cam_list, list) {
 		if (first) {
 			seq_puts(m, "\tba_cam ");
 			first = false;
@@ -3492,15 +3840,36 @@ static void rtw89_dump_ba_cam(struct seq_file *m, struct rtw89_sta *rtwsta)
 	seq_puts(m, "\n");
 }
 
+static void rtw89_sta_link_ids_get(struct seq_file *m,
+				   struct rtw89_dev *rtwdev,
+				   struct rtw89_sta_link *rtwsta_link)
+{
+	struct ieee80211_link_sta *link_sta;
+
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+
+	seq_printf(m, "    [%u] %pM\n", rtwsta_link->mac_id, link_sta->addr);
+
+	rcu_read_unlock();
+
+	seq_printf(m, "\tlink_id=%u\n", rtwsta_link->link_id);
+	rtw89_dump_addr_cam(m, rtwdev, &rtwsta_link->addr_cam);
+	rtw89_dump_ba_cam(m, rtwdev, rtwsta_link);
+}
+
 static void rtw89_sta_ids_get_iter(void *data, struct ieee80211_sta *sta)
 {
-	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct seq_file *m = (struct seq_file *)data;
+	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
+	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+	struct rtw89_sta_link *rtwsta_link;
+	unsigned int link_id;
 
-	seq_printf(m, "STA [%d] %pM %s\n", rtwsta->mac_id, sta->addr,
-		   sta->tdls ? "(TDLS)" : "");
-	rtw89_dump_addr_cam(m, &rtwsta->addr_cam);
-	rtw89_dump_ba_cam(m, rtwsta);
+	seq_printf(m, "STA %pM %s\n", sta->addr, sta->tdls ? "(TDLS)" : "");
+	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id)
+		rtw89_sta_link_ids_get(m, rtwdev, rtwsta_link);
 }
 
 static int rtw89_debug_priv_stations_get(struct seq_file *m, void *v)
@@ -3543,87 +3912,108 @@ static int rtw89_debug_priv_stations_get(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_read_reg = {
-	.cb_read = rtw89_debug_priv_read_reg_get,
-	.cb_write = rtw89_debug_priv_read_reg_select,
+#define DM_INFO(type) {RTW89_DM_ ## type, #type}
+
+static const struct rtw89_disabled_dm_info {
+	enum rtw89_dm_type type;
+	const char *name;
+} rtw89_disabled_dm_infos[] = {
+	DM_INFO(DYNAMIC_EDCCA),
+	DM_INFO(THERMAL_PROTECT),
 };
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_write_reg = {
-	.cb_write = rtw89_debug_priv_write_reg_set,
-};
+static int
+rtw89_debug_priv_disable_dm_get(struct seq_file *m, void *v)
+{
+	struct rtw89_debugfs_priv *debugfs_priv = m->private;
+	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	const struct rtw89_disabled_dm_info *info;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 disabled;
+	int i;
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_read_rf = {
-	.cb_read = rtw89_debug_priv_read_rf_get,
-	.cb_write = rtw89_debug_priv_read_rf_select,
-};
+	seq_printf(m, "Disabled DM: 0x%x\n", hal->disabled_dm_bitmap);
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_write_rf = {
-	.cb_write = rtw89_debug_priv_write_rf_set,
-};
+	for (i = 0; i < ARRAY_SIZE(rtw89_disabled_dm_infos); i++) {
+		info = &rtw89_disabled_dm_infos[i];
+		disabled = BIT(info->type) & hal->disabled_dm_bitmap;
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_rf_reg_dump = {
-	.cb_read = rtw89_debug_priv_rf_reg_dump_get,
-};
+		seq_printf(m, "[%d] %s: %c\n", info->type, info->name,
+			   disabled ? 'X' : 'O');
+	}
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_txpwr_table = {
-	.cb_read = rtw89_debug_priv_txpwr_table_get,
-};
+	return 0;
+}
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_mac_reg_dump = {
-	.cb_read = rtw89_debug_priv_mac_reg_dump_get,
-	.cb_write = rtw89_debug_priv_mac_reg_dump_select,
-};
+static ssize_t
+rtw89_debug_priv_disable_dm_set(struct file *filp, const char __user *user_buf,
+				size_t count, loff_t *loff)
+{
+	struct seq_file *m = (struct seq_file *)filp->private_data;
+	struct rtw89_debugfs_priv *debugfs_priv = m->private;
+	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 conf;
+	int ret;
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_mac_mem_dump = {
-	.cb_read = rtw89_debug_priv_mac_mem_dump_get,
-	.cb_write = rtw89_debug_priv_mac_mem_dump_select,
-};
+	ret = kstrtou32_from_user(user_buf, count, 0, &conf);
+	if (ret)
+		return -EINVAL;
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_mac_dbg_port_dump = {
-	.cb_read = rtw89_debug_priv_mac_dbg_port_dump_get,
-	.cb_write = rtw89_debug_priv_mac_dbg_port_dump_select,
-};
+	hal->disabled_dm_bitmap = conf;
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_send_h2c = {
-	.cb_write = rtw89_debug_priv_send_h2c_set,
-};
+	return count;
+}
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_early_h2c = {
-	.cb_read = rtw89_debug_priv_early_h2c_get,
-	.cb_write = rtw89_debug_priv_early_h2c_set,
-};
+#define rtw89_debug_priv_get(name)				\
+{								\
+	.cb_read = rtw89_debug_priv_ ##name## _get,		\
+}
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_fw_crash = {
-	.cb_read = rtw89_debug_priv_fw_crash_get,
-	.cb_write = rtw89_debug_priv_fw_crash_set,
-};
+#define rtw89_debug_priv_set(name)				\
+{								\
+	.cb_write = rtw89_debug_priv_ ##name## _set,		\
+}
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_btc_info = {
-	.cb_read = rtw89_debug_priv_btc_info_get,
-};
+#define rtw89_debug_priv_select_and_get(name)			\
+{								\
+	.cb_write = rtw89_debug_priv_ ##name## _select,		\
+	.cb_read = rtw89_debug_priv_ ##name## _get,		\
+}
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_btc_manual = {
-	.cb_write = rtw89_debug_priv_btc_manual_set,
-};
+#define rtw89_debug_priv_set_and_get(name)			\
+{								\
+	.cb_write = rtw89_debug_priv_ ##name## _set,		\
+	.cb_read = rtw89_debug_priv_ ##name## _get,		\
+}
 
-static struct rtw89_debugfs_priv rtw89_debug_priv_fw_log_manual = {
-	.cb_write = rtw89_debug_fw_log_manual_set,
-};
-
-static struct rtw89_debugfs_priv rtw89_debug_priv_phy_info = {
-	.cb_read = rtw89_debug_priv_phy_info_get,
-};
-
-static struct rtw89_debugfs_priv rtw89_debug_priv_stations = {
-	.cb_read = rtw89_debug_priv_stations_get,
+static const struct rtw89_debugfs rtw89_debugfs_templ = {
+	.read_reg = rtw89_debug_priv_select_and_get(read_reg),
+	.write_reg = rtw89_debug_priv_set(write_reg),
+	.read_rf = rtw89_debug_priv_select_and_get(read_rf),
+	.write_rf = rtw89_debug_priv_set(write_rf),
+	.rf_reg_dump = rtw89_debug_priv_get(rf_reg_dump),
+	.txpwr_table = rtw89_debug_priv_get(txpwr_table),
+	.mac_reg_dump = rtw89_debug_priv_select_and_get(mac_reg_dump),
+	.mac_mem_dump = rtw89_debug_priv_select_and_get(mac_mem_dump),
+	.mac_dbg_port_dump = rtw89_debug_priv_select_and_get(mac_dbg_port_dump),
+	.send_h2c = rtw89_debug_priv_set(send_h2c),
+	.early_h2c = rtw89_debug_priv_set_and_get(early_h2c),
+	.fw_crash = rtw89_debug_priv_set_and_get(fw_crash),
+	.btc_info = rtw89_debug_priv_get(btc_info),
+	.btc_manual = rtw89_debug_priv_set(btc_manual),
+	.fw_log_manual = rtw89_debug_priv_set(fw_log_manual),
+	.phy_info = rtw89_debug_priv_get(phy_info),
+	.stations = rtw89_debug_priv_get(stations),
+	.disable_dm = rtw89_debug_priv_set_and_get(disable_dm),
 };
 
 #define rtw89_debugfs_add(name, mode, fopname, parent)				\
 	do {									\
-		rtw89_debug_priv_ ##name.rtwdev = rtwdev;			\
-		if (!debugfs_create_file(#name, mode,				\
-					 parent, &rtw89_debug_priv_ ##name,	\
-					 &file_ops_ ##fopname))			\
+		struct rtw89_debugfs_priv *priv = &rtwdev->debugfs->name;	\
+		priv->rtwdev = rtwdev;						\
+		if (IS_ERR(debugfs_create_file(#name, mode, parent, priv,	\
+					       &file_ops_ ##fopname)))		\
 			pr_debug("Unable to initialize debugfs:%s\n", #name);	\
 	} while (0)
 
@@ -3634,13 +4024,9 @@ static struct rtw89_debugfs_priv rtw89_debug_priv_stations = {
 #define rtw89_debugfs_add_r(name)						\
 	rtw89_debugfs_add(name, S_IFREG | 0444, single_r, debugfs_topdir)
 
-void rtw89_debugfs_init(struct rtw89_dev *rtwdev)
+static
+void rtw89_debugfs_add_sec0(struct rtw89_dev *rtwdev, struct dentry *debugfs_topdir)
 {
-	struct dentry *debugfs_topdir;
-
-	debugfs_topdir = debugfs_create_dir("rtw89",
-					    rtwdev->hw->wiphy->debugfsdir);
-
 	rtw89_debugfs_add_rw(read_reg);
 	rtw89_debugfs_add_w(write_reg);
 	rtw89_debugfs_add_rw(read_rf);
@@ -3650,6 +4036,11 @@ void rtw89_debugfs_init(struct rtw89_dev *rtwdev)
 	rtw89_debugfs_add_rw(mac_reg_dump);
 	rtw89_debugfs_add_rw(mac_mem_dump);
 	rtw89_debugfs_add_rw(mac_dbg_port_dump);
+}
+
+static
+void rtw89_debugfs_add_sec1(struct rtw89_dev *rtwdev, struct dentry *debugfs_topdir)
+{
 	rtw89_debugfs_add_w(send_h2c);
 	rtw89_debugfs_add_rw(early_h2c);
 	rtw89_debugfs_add_rw(fw_crash);
@@ -3658,13 +4049,38 @@ void rtw89_debugfs_init(struct rtw89_dev *rtwdev)
 	rtw89_debugfs_add_w(fw_log_manual);
 	rtw89_debugfs_add_r(phy_info);
 	rtw89_debugfs_add_r(stations);
+	rtw89_debugfs_add_rw(disable_dm);
+}
+
+void rtw89_debugfs_init(struct rtw89_dev *rtwdev)
+{
+	struct dentry *debugfs_topdir;
+
+	rtwdev->debugfs = kmemdup(&rtw89_debugfs_templ,
+				  sizeof(rtw89_debugfs_templ), GFP_KERNEL);
+	if (!rtwdev->debugfs)
+		return;
+
+#if defined(__linux__)
+	debugfs_topdir = debugfs_create_dir("rtw89",
+#elif defined(__FreeBSD__)
+	debugfs_topdir = debugfs_create_dir(dev_name(rtwdev->dev),
+#endif
+					    rtwdev->hw->wiphy->debugfsdir);
+
+	rtw89_debugfs_add_sec0(rtwdev, debugfs_topdir);
+	rtw89_debugfs_add_sec1(rtwdev, debugfs_topdir);
+}
+
+void rtw89_debugfs_deinit(struct rtw89_dev *rtwdev)
+{
+	kfree(rtwdev->debugfs);
 }
 #endif
 
 #ifdef CONFIG_RTW89_DEBUGMSG
-void __rtw89_debug(struct rtw89_dev *rtwdev,
-		   enum rtw89_debug_mask mask,
-		   const char *fmt, ...)
+void rtw89_debug(struct rtw89_dev *rtwdev, enum rtw89_debug_mask mask,
+		 const char *fmt, ...)
 {
 	struct va_format vaf = {
 	.fmt = fmt,
@@ -3689,5 +4105,5 @@ void __rtw89_debug(struct rtw89_dev *rtwdev,
 
 	va_end(args);
 }
-EXPORT_SYMBOL(__rtw89_debug);
+EXPORT_SYMBOL(rtw89_debug);
 #endif

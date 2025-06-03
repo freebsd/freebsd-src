@@ -102,7 +102,8 @@ struct lagg_snd_tag {
 	struct m_snd_tag *tag;
 };
 
-VNET_DEFINE_STATIC(SLIST_HEAD(__trhead, lagg_softc), lagg_list); /* list of laggs */
+VNET_DEFINE_STATIC(SLIST_HEAD(__trhead, lagg_softc), lagg_list) =
+    SLIST_HEAD_INITIALIZER(); /* list of laggs */
 #define	V_lagg_list	VNET(lagg_list)
 VNET_DEFINE_STATIC(struct mtx, lagg_list_mtx);
 #define	V_lagg_list_mtx	VNET(lagg_list_mtx)
@@ -299,7 +300,6 @@ vnet_lagg_init(const void *unused __unused)
 {
 
 	LAGG_LIST_LOCK_INIT();
-	SLIST_INIT(&V_lagg_list);
 	struct if_clone_addreq req = {
 		.create_f = lagg_clone_create,
 		.destroy_f = lagg_clone_destroy,
@@ -692,6 +692,7 @@ lagg_capabilities(struct lagg_softc *sc)
 			ena2 &= lp->lp_ifp->if_capenable2;
 		}
 	} while (pena != ena || pena2 != ena2);
+	ena2 &= ~IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD);
 
 	/* Get other capabilities from the lagg ports */
 	cap = cap2 = ~0;
@@ -703,6 +704,7 @@ lagg_capabilities(struct lagg_softc *sc)
 		hwa &= lp->lp_ifp->if_hwassist;
 		if_hw_tsomax_common(lp->lp_ifp, &hw_tsomax);
 	}
+	cap2 &= ~IFCAP2_BIT(IFCAP2_IPSEC_OFFLOAD);
 	if (CK_SLIST_FIRST(&sc->sc_ports) == NULL)
 		cap = cap2 = hwa = 0;
 

@@ -1,4 +1,4 @@
-%global ver 9.7p1
+%global ver 9.9p2
 %global rel 1%{?dist}
 
 # OpenSSH privilege separation requires a user & group ID
@@ -33,10 +33,10 @@
 
 %global without_openssl 0
 # build without openssl where 1.1.1 is not available
-%if 0%{?fedora} <= 28
+%if %{defined fedora} && 0%{?fedora} <= 28
 %global without_openssl 1
 %endif
-%if 0%{?rhel} <= 7
+%if %{defined rhel} && 0%{?rhel} <= 7
 %global without_openssl 1
 %endif
 
@@ -393,6 +393,7 @@ fi
 %defattr(-,root,root)
 %dir %attr(0111,root,root) %{_var}/empty/sshd
 %attr(0755,root,root) %{_sbindir}/sshd
+%attr(0755,root,root) %{_libexecdir}/openssh/sshd-session
 %attr(0755,root,root) %{_libexecdir}/openssh/sftp-server
 %attr(0644,root,root) %{_mandir}/man8/sshd.8*
 %attr(0644,root,root) %{_mandir}/man5/moduli.5*

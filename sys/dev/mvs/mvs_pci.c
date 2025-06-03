@@ -168,7 +168,7 @@ mvs_attach(device_t dev)
 		else
 			device_set_ivars(child, (void *)(intptr_t)unit);
 	}
-	bus_generic_attach(dev);
+	bus_attach_children(dev);
 	return 0;
 }
 
@@ -176,9 +176,12 @@ static int
 mvs_detach(device_t dev)
 {
 	struct mvs_controller *ctlr = device_get_softc(dev);
+	int error;
 
 	/* Detach & delete all children */
-	device_delete_children(dev);
+	error = bus_generic_detach(dev);
+	if (error != 0)
+		return (error);
 
 	/* Free interrupt. */
 	if (ctlr->irq.r_irq) {

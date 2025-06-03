@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2023  Mark Nudelman
+ * Copyright (C) 1984-2025  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -16,11 +16,11 @@
 #include "position.h"
 
 extern int jump_sline;
-extern int squished;
-extern int screen_trashed;
+extern lbool squished;
 extern int sc_width, sc_height;
 extern int show_attn;
 extern int top_scroll;
+extern POSITION header_start_pos;
 
 /*
  * Jump to the end of the file.
@@ -53,7 +53,7 @@ public void jump_forw(void)
 	 * to get to the beginning of the last line.
 	 */
 	pos_clear();
-	pos = back_line(end_pos);
+	pos = back_line(end_pos, NULL);
 	if (pos == NULL_POSITION)
 		jump_loc(ch_zero(), sc_height-1);
 	else
@@ -184,6 +184,38 @@ public void jump_line_loc(POSITION pos, int sline)
 	jump_loc(pos, sline);
 }
 
+static void after_header_message(void)
+{
+#if HAVE_TIME
+#define MSG_FREQ 1 /* seconds */
+    static time_type last_msg = (time_type) 0;
+    time_type now = get_time();
+    if (now < last_msg + MSG_FREQ)
+        return;
+    last_msg = now;
+#endif
+    bell();
+    /* {{ This message displays before the file text is updated, which is not a good UX. }} */
+    /** error("Cannot display text before header; use --header=- to disable header", NULL_PARG); */
+}
+
+/*
+ * Ensure that a position is not before the header.
+ * If it is, print a message and return the position of the start of the header.
+ * {{ This is probably not being used correctly in all cases. 
+ *    It does not account for the location of pos on the screen, 
+ *    so lines before pos could be displayed. }}
+ */
+public POSITION after_header_pos(POSITION pos)
+{
+	if (header_start_pos != NULL_POSITION && pos < header_start_pos)
+	{
+        after_header_message();
+        pos = header_start_pos;
+	}
+	return pos;
+}
+
 /*
  * Jump to a specified position in the file.
  * The position must be the first character in a line.
@@ -199,6 +231,8 @@ public void jump_loc(POSITION pos, int sline)
 	/*
 	 * Normalize sline.
 	 */
+	pos = after_header_pos(pos);
+	pos = next_unfiltered(pos);
 	sindex = sindex_from_sline(sline);
 
 	if ((nline = onscreen(pos)) >= 0)
@@ -209,12 +243,12 @@ public void jump_loc(POSITION pos, int sline)
 		 */
 		nline -= sindex;
 		if (nline > 0)
-			forw(nline, position(BOTTOM_PLUS_ONE), 1, 0, 0);
+			forw(nline, position(BOTTOM_PLUS_ONE), TRUE, FALSE, FALSE, 0);
 		else
-			back(-nline, position(TOP), 1, 0);
+			back(-nline, position(TOP), TRUE, FALSE, FALSE);
 #if HILITE_SEARCH
 		if (show_attn)
-			repaint_hilite(1);
+			repaint_hilite(TRUE);
 #endif
 		return;
 	}
@@ -252,14 +286,14 @@ public void jump_loc(POSITION pos, int sline)
 				 * close enough to the current screen
 				 * that we can just scroll there after all.
 				 */
-				forw(sc_height-sindex+nline-1, bpos, 1, 0, 0);
+				forw(sc_height-sindex+nline-1, bpos, TRUE, FALSE, FALSE, 0);
 #if HILITE_SEARCH
 				if (show_attn)
-					repaint_hilite(1);
+					repaint_hilite(TRUE);
 #endif
 				return;
 			}
-			pos = back_line(pos);
+			pos = back_line(pos, NULL);
 			if (pos == NULL_POSITION)
 			{
 				/*
@@ -272,9 +306,9 @@ public void jump_loc(POSITION pos, int sline)
 			}
 		}
 		lastmark();
-		squished = 0;
-		screen_trashed = 0;
-		forw(sc_height-1, pos, 1, 0, sindex-nline);
+		squished = FALSE;
+		screen_trashed_num(0);
+		forw(sc_height-1, pos, TRUE, FALSE, FALSE, sindex-nline);
 	} else
 	{
 		/*
@@ -285,7 +319,8 @@ public void jump_loc(POSITION pos, int sline)
 		 */
 		for (nline = sindex;  nline < sc_height - 1;  nline++)
 		{
-			pos = forw_line(pos);
+			POSITION linepos;
+			pos = forw_line(pos, &linepos, NULL);
 			if (pos == NULL_POSITION)
 			{
 				/*
@@ -295,20 +330,17 @@ public void jump_loc(POSITION pos, int sline)
 				 */
 				break;
 			}
-#if HILITE_SEARCH
-			pos = next_unfiltered(pos);
-#endif
-			if (pos >= tpos)
+			if (linepos >= tpos)
 			{
 				/* 
 				 * Surprise!  The desired line is
 				 * close enough to the current screen
 				 * that we can just scroll there after all.
 				 */
-				back(nline+1, tpos, 1, 0);
+				back(nline, tpos, TRUE, FALSE, FALSE);
 #if HILITE_SEARCH
 				if (show_attn)
-					repaint_hilite(1);
+					repaint_hilite(TRUE);
 #endif
 				return;
 			}
@@ -318,8 +350,8 @@ public void jump_loc(POSITION pos, int sline)
 			clear();
 		else
 			home();
-		screen_trashed = 0;
+		screen_trashed_num(0);
 		add_back_pos(pos);
-		back(sc_height-1, pos, 1, 0);
+		back(sc_height-1, pos, TRUE, FALSE, FALSE);
 	}
 }

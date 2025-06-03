@@ -164,6 +164,9 @@ typedef struct ubt_softc *	ubt_softc_p;
 usb_error_t	ubt_do_hci_request(struct usb_device *, struct ubt_hci_cmd *,
 		    void *, usb_timeout_t);
 
+extern	const STRUCT_USB_HOST_ID	ubt_rtl_devs[];
+extern	const size_t			ubt_rtl_devs_sizeof;
+
 extern	driver_t	ubt_driver;
 
 #endif /* ndef _NG_UBT_VAR_H_ */

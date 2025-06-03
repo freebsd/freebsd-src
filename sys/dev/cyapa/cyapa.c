@@ -1100,7 +1100,7 @@ again:
 static void cyapafiltdetach(struct knote *);
 static int cyapafilt(struct knote *, long);
 
-static struct filterops cyapa_filtops = {
+static const struct filterops cyapa_filtops = {
 	    .f_isfd = 1,
 	    .f_detach = cyapafiltdetach,
 	    .f_event = cyapafilt

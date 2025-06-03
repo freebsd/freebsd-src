@@ -56,7 +56,7 @@ namespace
 		/**
 		 * Constructor, takes a value.
 		 */
-		atomic(T init) : val(init) {}
+		constexpr atomic(T init) : val(init) {}
 
 		/**
 		 * Atomically load with the specified memory order.

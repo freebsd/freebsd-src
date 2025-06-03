@@ -388,11 +388,12 @@ static int
 mlx5e_tls_rx_tag_import(void *arg, void **store, int cnt, int domain, int flags)
 {
 	struct mlx5e_tls_rx_tag *ptag;
+	struct mlx5_core_dev *mdev = arg;
 	int i;
 
 	for (i = 0; i != cnt; i++) {
 		ptag = malloc_domainset(sizeof(*ptag), M_MLX5E_TLS_RX,
-		    mlx5_dev_domainset(arg), flags | M_ZERO);
+		    mlx5_dev_domainset(mdev), flags | M_ZERO);
 		mtx_init(&ptag->mtx, "mlx5-tls-rx-tag-mtx", NULL, MTX_DEF);
 		INIT_WORK(&ptag->work, mlx5e_tls_rx_work);
 		store[i] = ptag;

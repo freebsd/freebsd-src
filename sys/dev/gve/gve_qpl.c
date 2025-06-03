@@ -32,31 +32,13 @@
 
 #include "gve.h"
 #include "gve_adminq.h"
+#include "gve_dqo.h"
 
 static MALLOC_DEFINE(M_GVE_QPL, "gve qpl", "gve qpl allocations");
 
-static uint32_t
-gve_num_tx_qpls(struct gve_priv *priv)
+void
+gve_free_qpl(struct gve_priv *priv, struct gve_queue_page_list *qpl)
 {
-	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
-		return (0);
-
-	return (priv->tx_cfg.max_queues);
-}
-
-static uint32_t
-gve_num_rx_qpls(struct gve_priv *priv)
-{
-	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
-		return (0);
-
-	return (priv->rx_cfg.max_queues);
-}
-
-static void
-gve_free_qpl(struct gve_priv *priv, uint32_t id)
-{
-	struct gve_queue_page_list *qpl = &priv->qpls[id];
 	int i;
 
 	for (i = 0; i < qpl->num_dmas; i++) {
@@ -91,12 +73,14 @@ gve_free_qpl(struct gve_priv *priv, uint32_t id)
 
 	if (qpl->dmas != NULL)
 		free(qpl->dmas, M_GVE_QPL);
+
+	free(qpl, M_GVE_QPL);
 }
 
-static int
+struct gve_queue_page_list *
 gve_alloc_qpl(struct gve_priv *priv, uint32_t id, int npages, bool single_kva)
 {
-	struct gve_queue_page_list *qpl = &priv->qpls[id];
+	struct gve_queue_page_list *qpl;
 	int err;
 	int i;
 
@@ -104,8 +88,11 @@ gve_alloc_qpl(struct gve_priv *priv, uint32_t id, int npages, bool single_kva)
 		device_printf(priv->dev, "Reached max number of registered pages %ju > %ju\n",
 		    (uintmax_t)npages + priv->num_registered_pages,
 		    (uintmax_t)priv->max_registered_pages);
-		return (EINVAL);
+		return (NULL);
 	}
+
+	qpl = malloc(sizeof(struct gve_queue_page_list), M_GVE_QPL,
+	    M_WAITOK | M_ZERO);
 
 	qpl->id = id;
 	qpl->num_pages = 0;
@@ -162,124 +149,111 @@ gve_alloc_qpl(struct gve_priv *priv, uint32_t id, int npages, bool single_kva)
 		priv->num_registered_pages++;
 	}
 
-	return (0);
+	return (qpl);
 
 abort:
-	gve_free_qpl(priv, id);
-	return (err);
-}
-
-void
-gve_free_qpls(struct gve_priv *priv)
-{
-	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
-	int i;
-
-	if (num_qpls == 0)
-		return;
-
-	if (priv->qpls != NULL) {
-		for (i = 0; i < num_qpls; i++)
-			gve_free_qpl(priv, i);
-		free(priv->qpls, M_GVE_QPL);
-		priv->qpls = NULL;
-	}
-}
-
-int gve_alloc_qpls(struct gve_priv *priv)
-{
-	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
-	int err;
-	int i;
-
-	if (num_qpls == 0)
-		return (0);
-
-	priv->qpls = malloc(num_qpls * sizeof(*priv->qpls), M_GVE_QPL,
-	    M_WAITOK | M_ZERO);
-
-	for (i = 0; i < gve_num_tx_qpls(priv); i++) {
-		err = gve_alloc_qpl(priv, i, priv->tx_desc_cnt / GVE_QPL_DIVISOR,
-		    /*single_kva=*/true);
-		if (err != 0)
-			goto abort;
-	}
-
-	for (; i < num_qpls; i++) {
-		err = gve_alloc_qpl(priv, i, priv->rx_desc_cnt, /*single_kva=*/false);
-		if (err != 0)
-			goto abort;
-	}
-
-	return (0);
-
-abort:
-	gve_free_qpls(priv);
-	return (err);
-}
-
-static int
-gve_unregister_n_qpls(struct gve_priv *priv, int n)
-{
-	int err;
-	int i;
-
-	for (i = 0; i < n; i++) {
-		err = gve_adminq_unregister_page_list(priv, priv->qpls[i].id);
-		if (err != 0) {
-			device_printf(priv->dev,
-			    "Failed to unregister qpl %d, err: %d\n",
-			    priv->qpls[i].id, err);
-		}
-	}
-
-	if (err != 0)
-		return (err);
-
-	return (0);
+	gve_free_qpl(priv, qpl);
+	return (NULL);
 }
 
 int
 gve_register_qpls(struct gve_priv *priv)
 {
-	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
+	struct gve_ring_com *com;
+	struct gve_tx_ring *tx;
+	struct gve_rx_ring *rx;
 	int err;
 	int i;
 
 	if (gve_get_state_flag(priv, GVE_STATE_FLAG_QPLREG_OK))
 		return (0);
 
-	for (i = 0; i < num_qpls; i++) {
-		err = gve_adminq_register_page_list(priv, &priv->qpls[i]);
+	/* Register TX qpls */
+	for (i = 0; i < priv->tx_cfg.num_queues; i++) {
+		tx = &priv->tx[i];
+		com = &tx->com;
+		err = gve_adminq_register_page_list(priv, com->qpl);
 		if (err != 0) {
 			device_printf(priv->dev,
 			    "Failed to register qpl %d, err: %d\n",
-			    priv->qpls[i].id, err);
-			goto abort;
+			    com->qpl->id, err);
+			/* Caller schedules a reset when this fails */
+			return (err);
 		}
 	}
 
+	/* Register RX qpls */
+	for (i = 0; i < priv->rx_cfg.num_queues; i++) {
+		rx = &priv->rx[i];
+		com = &rx->com;
+		err = gve_adminq_register_page_list(priv, com->qpl);
+		if (err != 0) {
+			device_printf(priv->dev,
+			    "Failed to register qpl %d, err: %d\n",
+			    com->qpl->id, err);
+			/* Caller schedules a reset when this fails */
+			return (err);
+		}
+	}
 	gve_set_state_flag(priv, GVE_STATE_FLAG_QPLREG_OK);
 	return (0);
-
-abort:
-	gve_unregister_n_qpls(priv, i);
-	return (err);
 }
 
 int
 gve_unregister_qpls(struct gve_priv *priv)
 {
-	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
 	int err;
+	int i;
+	struct gve_ring_com *com;
+	struct gve_tx_ring *tx;
+	struct gve_rx_ring *rx;
 
 	if (!gve_get_state_flag(priv, GVE_STATE_FLAG_QPLREG_OK))
 		return (0);
 
-	err = gve_unregister_n_qpls(priv, num_qpls);
+	for (i = 0; i < priv->tx_cfg.num_queues; i++) {
+		tx = &priv->tx[i];
+		com = &tx->com;
+		err = gve_adminq_unregister_page_list(priv, com->qpl->id);
+		if (err != 0) {
+			device_printf(priv->dev,
+			    "Failed to unregister qpl %d, err: %d\n",
+			    com->qpl->id, err);
+		}
+	}
+
+	for (i = 0; i < priv->rx_cfg.num_queues; i++) {
+		rx = &priv->rx[i];
+		com = &rx->com;
+		err = gve_adminq_unregister_page_list(priv, com->qpl->id);
+		if (err != 0) {
+			device_printf(priv->dev,
+			    "Failed to unregister qpl %d, err: %d\n",
+			    com->qpl->id, err);
+		}
+	}
+
 	if (err != 0)
 		return (err);
 
 	gve_clear_state_flag(priv, GVE_STATE_FLAG_QPLREG_OK);
 	return (0);
+}
+
+void
+gve_mextadd_free(struct mbuf *mbuf)
+{
+	vm_page_t page = (vm_page_t)mbuf->m_ext.ext_arg1;
+	vm_offset_t va = (vm_offset_t)mbuf->m_ext.ext_arg2;
+
+	/*
+	 * Free the page only if this is the last ref.
+	 * The interface might no longer exist by the time
+	 * this callback is called, see gve_free_qpl.
+	 */
+	if (__predict_false(vm_page_unwire_noq(page))) {
+		pmap_qremove(va, 1);
+		kva_free(va, PAGE_SIZE);
+		vm_page_free(page);
+	}
 }

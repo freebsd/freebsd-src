@@ -1378,7 +1378,7 @@ main(int argc, char *argv[])
 					    argv[0], optarg);
 					return (usage(stderr));
 				}
-				g_oflags &= ~DTRACE_O_LP64;
+				g_oflags &= ~DTRACE_O_MODEL_MASK;
 				g_oflags |= DTRACE_O_ILP32;
 				break;
 
@@ -1389,7 +1389,7 @@ main(int argc, char *argv[])
 					    argv[0], optarg);
 					return (usage(stderr));
 				}
-				g_oflags &= ~DTRACE_O_ILP32;
+				g_oflags &= ~DTRACE_O_MODEL_MASK;
 				g_oflags |= DTRACE_O_LP64;
 				break;
 
@@ -1460,8 +1460,7 @@ main(int argc, char *argv[])
 	 * files. We ignore certain errors since we'll catch them later when
 	 * we actually process the object files.
 	 */
-	if (g_mode == DMODE_LINK &&
-	    (g_oflags & (DTRACE_O_ILP32 | DTRACE_O_LP64)) == 0 &&
+	if (g_mode == DMODE_LINK && (g_oflags & DTRACE_O_MODEL_MASK) == 0 &&
 	    elf_version(EV_CURRENT) != EV_NONE) {
 		int fd;
 		Elf *elf;

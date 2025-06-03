@@ -106,6 +106,9 @@ void atf_tc_fail_nonfatal(const char *, ...)
     ATF_DEFS_ATTRIBUTE_FORMAT_PRINTF(1, 2);
 void atf_tc_pass(void)
     ATF_DEFS_ATTRIBUTE_NORETURN;
+#ifdef __FreeBSD__
+void atf_tc_require_kmod(const char *);
+#endif
 void atf_tc_require_prog(const char *);
 void atf_tc_skip(const char *, ...)
     ATF_DEFS_ATTRIBUTE_FORMAT_PRINTF(1, 2)

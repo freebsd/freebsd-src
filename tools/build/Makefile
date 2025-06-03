@@ -212,8 +212,11 @@ CFLAGS.closefrom.c+=	-DSTDC_HEADERS -DHAVE_SYS_DIR_H -DHAVE_DIRENT_H \
 	-DHAVE_DIRFD -DHAVE_SYSCONF
 # Provide getprogname/setprograme
 SRCS+=	progname.c
-# Stub implementations of fflagstostr/strtofflags
-SRCS+=	fflags.c
+# Provide fflagstostr/strtofflags for mtree and makefs
+# On macOS we use the host's so conflate host and target flags, which ideally
+# we'd avoid, but in practice these align for many flags, including
+# SF_IMMUTABLE, the only flag we currently set during install.
+SRCS+=	strtofflags.c
 
 # macOS has a standalone cross-build implementation, but Linux can use the same
 # ELF one as FreeBSD
@@ -275,6 +278,7 @@ MSDOSFSINCS+=	${SRCTOP}/sys/fs/msdosfs/msdosfsmount.h
 DISKINCS+=	${SRCTOP}/sys/sys/disk/bsd.h
 
 # Needed to build config (since it uses libnv)
+SYSINCS+=	${SRCTOP}/sys/sys/_nv.h
 SYSINCS+=	${SRCTOP}/sys/sys/nv.h ${SRCTOP}/sys/sys/cnv.h \
 		${SRCTOP}/sys/sys/dnv.h ${SRCTOP}/sys/sys/nv_namespace.h
 
@@ -304,6 +308,10 @@ SYSINCS+=	${SRCTOP}/sys/sys/ctf.h
 SYSINCS+=	${SRCTOP}/sys/sys/kbio.h
 # for kldxref:
 SYSINCS+=	${SRCTOP}/sys/sys/module.h
+.if ${.MAKE.OS} != "FreeBSD"
+# for libmd:
+SYSINCS+=	${SRCTOP}/sys/sys/md4.h
+.endif
 
 # We want to run the build with only ${WORLDTMP} in $PATH to ensure we don't
 # accidentally run tools that are incompatible but happen to be in $PATH.

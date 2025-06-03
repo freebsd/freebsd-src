@@ -64,6 +64,7 @@ struct pcie_range {
 #define	FLAG_TYPE_MEM		0x2
 #define	FLAG_TYPE_PMEM		0x3
 	struct resource *res;
+	int rid;
 };
 
 struct generic_pcie_core_softc {
@@ -97,5 +98,6 @@ struct resource *pci_host_generic_core_alloc_resource(device_t, device_t, int,
     int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 int pci_host_generic_core_release_resource(device_t, device_t,
     struct resource *);
+int generic_pcie_read_ivar(device_t, device_t, int, uintptr_t *);
 
 #endif /* __PCI_HOST_GENERIC_H_ */

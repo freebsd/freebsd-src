@@ -93,13 +93,13 @@ static struct cdevsw uinput_cdevsw = {
 
 static struct cdev *uinput_cdev;
 
-static struct evdev_methods uinput_ev_methods = {
+static const struct evdev_methods uinput_ev_methods = {
 	.ev_open = NULL,
 	.ev_close = NULL,
 	.ev_event = uinput_ev_event,
 };
 
-static struct filterops uinput_filterops = {
+static const struct filterops uinput_filterops = {
 	.f_isfd = 1,
 	.f_attach = NULL,
 	.f_detach = uinput_kqdetach,

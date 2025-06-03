@@ -429,18 +429,15 @@ sdt_kld_load(void *arg __unused, struct linker_file *lf)
 	sdt_kld_load_probes(lf);
 }
 
-static void
-sdt_kld_unload_try(void *arg __unused, struct linker_file *lf, int *error)
+static bool
+sdt_kld_unload_providers(struct linker_file *lf)
 {
 	struct sdt_provider *prov, **curr, **begin, **end, *tmp;
 
-	if (*error != 0)
-		/* We already have an error, so don't do anything. */
-		return;
-	else if (linker_file_lookup_set(lf, "sdt_providers_set", &begin, &end,
+	if (linker_file_lookup_set(lf, "sdt_providers_set", &begin, &end,
 	    NULL))
 		/* No DTrace providers are declared in this file. */
-		return;
+		return (true);
 
 	/*
 	 * Go through all the providers declared in this linker file and
@@ -453,8 +450,7 @@ sdt_kld_unload_try(void *arg __unused, struct linker_file *lf, int *error)
 
 			if (prov->sdt_refs == 1) {
 				if (dtrace_unregister(prov->id) != 0) {
-					*error = 1;
-					return;
+					return (false);
 				}
 				TAILQ_REMOVE(&sdt_prov_list, prov, prov_entry);
 				free(prov->name, M_SDT);
@@ -464,6 +460,103 @@ sdt_kld_unload_try(void *arg __unused, struct linker_file *lf, int *error)
 			break;
 		}
 	}
+
+	return (true);
+}
+
+static bool
+sdt_kld_unload_probes(struct linker_file *lf)
+{
+	struct sdt_probe **p_begin, **p_end;
+	struct sdt_argtype **a_begin, **a_end;
+	struct sdt_tracepoint *tp_begin, *tp_end;
+
+	if (linker_file_lookup_set(lf, __XSTRING(_SDT_TRACEPOINT_SET),
+	    &tp_begin, &tp_end, NULL) == 0) {
+		for (struct sdt_tracepoint *tp = tp_begin; tp < tp_end; tp++) {
+			struct sdt_tracepoint *tp2;
+
+			if (!sdt_tracepoint_valid(tp->patchpoint, tp->target))
+				continue;
+
+			/* Only remove the entry if it is in the list. */
+			tp2 = STAILQ_FIRST(&tp->probe->tracepoint_list);
+			if (tp2 == tp) {
+				STAILQ_REMOVE_HEAD(&tp->probe->tracepoint_list,
+				    tracepoint_entry);
+			} else if (tp2 != NULL) {
+				struct sdt_tracepoint *tp3;
+
+				for (;;) {
+					tp3 = STAILQ_NEXT(tp2,
+					    tracepoint_entry);
+					if (tp3 == NULL)
+						break;
+					if (tp3 == tp) {
+						STAILQ_REMOVE_AFTER(
+						    &tp->probe->tracepoint_list,
+						    tp2, tracepoint_entry);
+						break;
+					}
+					tp2 = tp3;
+				}
+			}
+		}
+	}
+
+	if (linker_file_lookup_set(lf, "sdt_argtypes_set", &a_begin, &a_end,
+	    NULL) == 0) {
+		for (struct sdt_argtype **argtype = a_begin; argtype < a_end;
+		    argtype++) {
+			struct sdt_argtype *argtype2;
+
+			/* Only remove the entry if it is in the list. */
+			TAILQ_FOREACH(argtype2,
+			    &(*argtype)->probe->argtype_list, argtype_entry) {
+				if (argtype2 == *argtype) {
+					(*argtype)->probe->n_args--;
+					TAILQ_REMOVE(
+					    &(*argtype)->probe->argtype_list,
+					    *argtype, argtype_entry);
+					break;
+				}
+			}
+		}
+	}
+
+	if (linker_file_lookup_set(lf, "sdt_probes_set", &p_begin, &p_end,
+	    NULL) == 0) {
+		for (struct sdt_probe **probe = p_begin; probe < p_end;
+		    probe++) {
+			if ((*probe)->sdtp_lf == lf) {
+				if (!TAILQ_EMPTY(&(*probe)->argtype_list))
+					return (false);
+				if (!STAILQ_EMPTY(&(*probe)->tracepoint_list))
+					return (false);
+
+				/*
+				 * Don't destroy the probe as there
+				 * might be multiple instances of the
+				 * same probe in different modules.
+				 */
+			}
+		}
+	}
+
+	return (true);
+}
+
+static void
+sdt_kld_unload_try(void *arg __unused, struct linker_file *lf, int *error)
+{
+	if (*error != 0)
+		/* We already have an error, so don't do anything. */
+		return;
+
+	if (!sdt_kld_unload_probes(lf))
+		*error = 1;
+	else if (!sdt_kld_unload_providers(lf))
+		*error = 1;
 }
 
 static int

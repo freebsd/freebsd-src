@@ -1,8 +1,9 @@
 /*
- * System call argument to DTrace register array converstion.
+ * System call argument to DTrace register array conversion.
+ *
+ * This file is part of the DTrace syscall provider.
  *
  * DO NOT EDIT-- this file is automatically @generated.
- * This file is part of the DTrace syscall provider.
  */
 
 static void
@@ -2742,13 +2743,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* gssd_syscall */
-	case 505: {
-		struct gssd_syscall_args *p = params;
-		uarg[a++] = (intptr_t)p->path; /* const char * */
-		*n_args = 1;
-		break;
-	}
 	/* jail_get */
 	case 506: {
 		struct jail_get_args *p = params;
@@ -3350,9 +3344,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* rpctls_syscall */
 	case 576: {
 		struct rpctls_syscall_args *p = params;
-		iarg[a++] = p->op; /* int */
-		uarg[a++] = (intptr_t)p->path; /* const char * */
-		*n_args = 2;
+		uarg[a++] = p->socookie; /* uint64_t */
+		*n_args = 1;
 		break;
 	}
 	/* __specialfd */
@@ -3461,6 +3454,31 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[a++] = p->which; /* u_int */
 		iarg[a++] = p->flags; /* int */
 		uarg[a++] = (intptr_t)p->res; /* rlim_t * */
+		*n_args = 3;
+		break;
+	}
+	/* fchroot */
+	case 590: {
+		struct fchroot_args *p = params;
+		iarg[a++] = p->fd; /* int */
+		*n_args = 1;
+		break;
+	}
+	/* setcred */
+	case 591: {
+		struct setcred_args *p = params;
+		uarg[a++] = p->flags; /* u_int */
+		uarg[a++] = (intptr_t)p->wcred; /* const struct setcred * */
+		uarg[a++] = p->size; /* size_t */
+		*n_args = 3;
+		break;
+	}
+	/* exterrctl */
+	case 592: {
+		struct exterrctl_args *p = params;
+		uarg[a++] = p->op; /* u_int */
+		uarg[a++] = p->flags; /* u_int */
+		uarg[a++] = (intptr_t)p->ptr; /* void * */
 		*n_args = 3;
 		break;
 	}
@@ -7986,16 +8004,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* gssd_syscall */
-	case 505:
-		switch (ndx) {
-		case 0:
-			p = "userland const char *";
-			break;
-		default:
-			break;
-		};
-		break;
 	/* jail_get */
 	case 506:
 		switch (ndx) {
@@ -9078,10 +9086,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 576:
 		switch (ndx) {
 		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "userland const char *";
+			p = "uint64_t";
 			break;
 		default:
 			break;
@@ -9265,6 +9270,48 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "userland rlim_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* fchroot */
+	case 590:
+		switch (ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setcred */
+	case 591:
+		switch (ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		case 1:
+			p = "userland const struct setcred *";
+			break;
+		case 2:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* exterrctl */
+	case 592:
+		switch (ndx) {
+		case 0:
+			p = "u_int";
+			break;
+		case 1:
+			p = "u_int";
+			break;
+		case 2:
+			p = "userland void *";
 			break;
 		default:
 			break;
@@ -10854,11 +10901,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* gssd_syscall */
-	case 505:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 	/* jail_get */
 	case 506:
 		if (ndx == 0 || ndx == 1)
@@ -11245,6 +11287,21 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* getrlimitusage */
 	case 589:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* fchroot */
+	case 590:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* setcred */
+	case 591:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* exterrctl */
+	case 592:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -189,7 +190,7 @@ zfs_get_deleteq(objset_t *os)
 	objlist_t *deleteq_objlist = objlist_create();
 	uint64_t deleteq_obj;
 	zap_cursor_t zc;
-	zap_attribute_t za;
+	zap_attribute_t *za;
 	dmu_object_info_t doi;
 
 	ASSERT3U(os->os_phys->os_type, ==, DMU_OST_ZFS);
@@ -208,13 +209,15 @@ zfs_get_deleteq(objset_t *os)
 	avl_create(&at, objnode_compare, sizeof (struct objnode),
 	    offsetof(struct objnode, node));
 
+	za = zap_attribute_alloc();
 	for (zap_cursor_init(&zc, os, deleteq_obj);
-	    zap_cursor_retrieve(&zc, &za) == 0; zap_cursor_advance(&zc)) {
+	    zap_cursor_retrieve(&zc, za) == 0; zap_cursor_advance(&zc)) {
 		struct objnode *obj = kmem_zalloc(sizeof (*obj), KM_SLEEP);
-		obj->obj = za.za_first_integer;
+		obj->obj = za->za_first_integer;
 		avl_add(&at, obj);
 	}
 	zap_cursor_fini(&zc);
+	zap_attribute_free(za);
 
 	struct objnode *next, *found = avl_first(&at);
 	while (found != NULL) {
@@ -565,7 +568,7 @@ commit_rl_updates(objset_t *os, struct merge_data *md, uint64_t object,
 {
 	dmu_tx_t *tx = dmu_tx_create_dd(spa_get_dsl(os->os_spa)->dp_mos_dir);
 	dmu_tx_hold_space(tx, sizeof (struct redact_block_list_node));
-	VERIFY0(dmu_tx_assign(tx, TXG_WAIT));
+	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT | DMU_TX_SUSPEND));
 	uint64_t txg = dmu_tx_get_txg(tx);
 	if (!md->md_synctask_txg[txg & TXG_MASK]) {
 		dsl_sync_task_nowait(dmu_tx_pool(tx),

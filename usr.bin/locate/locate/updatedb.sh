@@ -96,5 +96,5 @@ then
 		echo "updatedb: locate database $tmp is empty" >&2
 		exit 1
 	fi
-	install $tmp $FCODES
+	cat $tmp >$FCODES
 fi

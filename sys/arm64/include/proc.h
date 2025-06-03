@@ -65,7 +65,11 @@ struct mdthread {
 		struct ptrauth_key apia;
 	} md_ptrauth_kern;
 
-	uint64_t md_reserved[4];
+	uint64_t md_efirt_tmp;
+	int md_efirt_dis_pf;
+
+	int md_reserved0;
+	uint64_t md_reserved[2];
 };
 
 struct mdproc {

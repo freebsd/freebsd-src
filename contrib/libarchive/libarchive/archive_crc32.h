@@ -30,6 +30,8 @@
 #error This header is only to be used internally to libarchive.
 #endif
 
+#include <stddef.h>
+
 /*
  * When zlib is unavailable, we should still be able to validate
  * uncompressed zip archives.  That requires us to be able to compute
@@ -45,6 +47,9 @@ crc32(unsigned long crc, const void *_p, size_t len)
 	const unsigned char *p = _p;
 	static volatile int crc_tbl_inited = 0;
 	static unsigned long crc_tbl[256];
+
+	if (_p == NULL)
+		return (0);
 
 	if (!crc_tbl_inited) {
 		for (b = 0; b < 256; ++b) {

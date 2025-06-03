@@ -46,8 +46,6 @@
 #include "util/data/msgreply.h"
 #include "util/module.h"
 struct delegpt;
-struct iter_hints;
-struct iter_forwards;
 struct iter_donotq;
 struct iter_prep_list;
 struct iter_priv;
@@ -57,7 +55,7 @@ struct rbtree_type;
 #define MAX_TARGET_COUNT	64
 /** max number of upstream queries for a query and its subqueries, it is
  * never reset. */
-#define MAX_GLOBAL_QUOTA	128
+extern int MAX_GLOBAL_QUOTA;
 /** max number of target lookups per qstate, per delegation point */
 #define MAX_DP_TARGET_COUNT	16
 /** max number of nxdomains allowed for target lookups for a query and
@@ -108,15 +106,9 @@ extern int BLACKLIST_PENALTY;
 #define EMPTY_NODATA_RETRY_COUNT 2
 
 /**
- * Global state for the iterator.
+ * Iterator global state for nat64.
  */
-struct iter_env {
-	/** A flag to indicate whether or not we have an IPv6 route */
-	int supports_ipv6;
-
-	/** A flag to indicate whether or not we have an IPv4 route */
-	int supports_ipv4;
-
+struct iter_nat64 {
 	/** A flag to locally apply NAT64 to make IPv4 addrs into IPv6 */
 	int use_nat64;
 
@@ -128,6 +120,20 @@ struct iter_env {
 
 	/** CIDR mask length of NAT64 prefix */
 	int nat64_prefix_net;
+};
+
+/**
+ * Global state for the iterator.
+ */
+struct iter_env {
+	/** A flag to indicate whether or not we have an IPv6 route */
+	int supports_ipv6;
+
+	/** A flag to indicate whether or not we have an IPv4 route */
+	int supports_ipv4;
+
+	/** State for nat64 */
+	struct iter_nat64 nat64;
 
 	/** A set of inetaddrs that should never be queried. */
 	struct iter_donotq* donotq;

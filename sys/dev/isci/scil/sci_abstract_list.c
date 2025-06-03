@@ -230,13 +230,6 @@ void  sci_abstract_list_print(
 
    while (alElement_p != NULL)
    {
-#ifdef UNIT_TEST_DEBUG
-      /* Check to see if we found the object for which we are searching. */
-      printf("ITEM next_p 0x%x prev_p 0x%x obj_p 0x%x, 0x%x\n",
-             alElement_p->next_p,
-             alElement_p->previous_p,
-             (U32*) (alElement_p->object_p));
-#endif
       alElement_p = alElement_p->next_p;
    }
 }

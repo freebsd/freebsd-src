@@ -43,15 +43,22 @@
 
 #undef assert
 #undef _assert
+#undef __assert_unreachable
 
 #ifdef NDEBUG
 #define	assert(e)	((void)0)
 #define	_assert(e)	((void)0)
+#if __BSD_VISIBLE
+#define	__assert_unreachable()	__unreachable()
+#endif	/* __BSD_VISIBLE */
 #else
 #define	_assert(e)	assert(e)
 
 #define	assert(e)	((e) ? (void)0 : __assert(__func__, __FILE__, \
 			    __LINE__, #e))
+#if __BSD_VISIBLE
+#define	__assert_unreachable()	assert(0 && "unreachable segment reached")
+#endif	/* __BSD_VISIBLE */
 #endif /* NDEBUG */
 
 #ifndef _ASSERT_H_

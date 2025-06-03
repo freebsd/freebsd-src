@@ -1273,7 +1273,7 @@ vlan_clone_create_nl(struct if_clone *ifc, char *name, size_t len,
 	error = nl_parse_nested(lattrs->ifla_idata, &vlan_parser, npt, &attrs);
 	if (error != 0)
 		return (error);
-	if (attrs.vlan_id > 4095) {
+	if (attrs.vlan_id > DOT1Q_VID_MAX) {
 		nlmsg_report_err_msg(npt, "Invalid VID: %d", attrs.vlan_id);
 		return (EINVAL);
 	}

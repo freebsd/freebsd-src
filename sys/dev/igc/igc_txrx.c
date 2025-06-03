@@ -44,29 +44,27 @@
 /*********************************************************************
  *  Local Function prototypes
  *********************************************************************/
-static int igc_isc_txd_encap(void *arg, if_pkt_info_t pi);
-static void igc_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx);
-static int igc_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear);
+static int igc_isc_txd_encap(void *, if_pkt_info_t);
+static void igc_isc_txd_flush(void *, uint16_t, qidx_t);
+static int igc_isc_txd_credits_update(void *, uint16_t, bool);
 
-static void igc_isc_rxd_refill(void *arg, if_rxd_update_t iru);
+static void igc_isc_rxd_refill(void *, if_rxd_update_t);
 
-static void igc_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused,
-    qidx_t pidx);
-static int igc_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx,
-    qidx_t budget);
+static void igc_isc_rxd_flush(void *, uint16_t, uint8_t, qidx_t);
+static int igc_isc_rxd_available(void *, uint16_t, qidx_t, qidx_t);
 
-static int igc_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri);
+static int igc_isc_rxd_pkt_get(void *, if_rxd_info_t);
 
-static int igc_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi,
-    uint32_t *cmd_type_len, uint32_t *olinfo_status);
-static int igc_tso_setup(struct tx_ring *txr, if_pkt_info_t pi,
-    uint32_t *cmd_type_len, uint32_t *olinfo_status);
+static int igc_tx_ctx_setup(struct tx_ring *, if_pkt_info_t, uint32_t *,
+    uint32_t *);
+static int igc_tso_setup(struct tx_ring *, if_pkt_info_t, uint32_t *,
+    uint32_t *);
 
-static void igc_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype);
-static int igc_determine_rsstype(uint16_t pkt_info);
+static void igc_rx_checksum(uint32_t, if_rxd_info_t, uint32_t);
+static int igc_determine_rsstype(uint16_t);
 
-extern void igc_if_enable_intr(if_ctx_t ctx);
-extern int igc_intr(void *arg);
+extern void igc_if_enable_intr(if_ctx_t);
+extern int igc_intr(void *);
 
 struct if_txrx igc_txrx = {
 	.ift_txd_encap = igc_isc_txd_encap,
@@ -80,9 +78,9 @@ struct if_txrx igc_txrx = {
 };
 
 void
-igc_dump_rs(struct igc_adapter *adapter)
+igc_dump_rs(struct igc_softc *sc)
 {
-	if_softc_ctx_t scctx = adapter->shared;
+	if_softc_ctx_t scctx = sc->shared;
 	struct igc_tx_queue *que;
 	struct tx_ring *txr;
 	qidx_t i, ntxd, qid, cur;
@@ -91,23 +89,27 @@ igc_dump_rs(struct igc_adapter *adapter)
 
 	printf("\n");
 	ntxd = scctx->isc_ntxd[0];
-	for (qid = 0; qid < adapter->tx_num_queues; qid++) {
-		que = &adapter->tx_queues[qid];
+	for (qid = 0; qid < sc->tx_num_queues; qid++) {
+		que = &sc->tx_queues[qid];
 		txr =  &que->txr;
 		rs_cidx = txr->tx_rs_cidx;
 		if (rs_cidx != txr->tx_rs_pidx) {
 			cur = txr->tx_rsq[rs_cidx];
 			status = txr->tx_base[cur].upper.fields.status;
 			if (!(status & IGC_TXD_STAT_DD))
-				printf("qid[%d]->tx_rsq[%d]: %d clear ", qid, rs_cidx, cur);
+				printf("qid[%d]->tx_rsq[%d]: %d clear ",
+				    qid, rs_cidx, cur);
 		} else {
 			rs_cidx = (rs_cidx-1)&(ntxd-1);
 			cur = txr->tx_rsq[rs_cidx];
-			printf("qid[%d]->tx_rsq[rs_cidx-1=%d]: %d  ", qid, rs_cidx, cur);
+			printf("qid[%d]->tx_rsq[rs_cidx-1=%d]: %d  ",
+			    qid, rs_cidx, cur);
 		}
-		printf("cidx_prev=%d rs_pidx=%d ",txr->tx_cidx_processed, txr->tx_rs_pidx);
+		printf("cidx_prev=%d rs_pidx=%d ",txr->tx_cidx_processed,
+		    txr->tx_rs_pidx);
 		for (i = 0; i < ntxd; i++) {
-			if (txr->tx_base[i].upper.fields.status & IGC_TXD_STAT_DD)
+			if (txr->tx_base[i].upper.fields.status &
+			    IGC_TXD_STAT_DD)
 				printf("%d set ", i);
 		}
 		printf("\n");
@@ -140,14 +142,15 @@ igc_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
 		break;
 	default:
 		panic("%s: CSUM_TSO but no supported IP version (0x%04x)",
-		      __func__, ntohs(pi->ipi_etype));
+		    __func__, ntohs(pi->ipi_etype));
 		break;
 	}
 
 	TXD = (struct igc_adv_tx_context_desc *) &txr->tx_base[pi->ipi_pidx];
 
 	/* This is used in the transmit desc in encap */
-	paylen = pi->ipi_len - pi->ipi_ehdrlen - pi->ipi_ip_hlen - pi->ipi_tcp_hlen;
+	paylen = pi->ipi_len - pi->ipi_ehdrlen - pi->ipi_ip_hlen -
+	    pi->ipi_tcp_hlen;
 
 	/* VLAN MACLEN IPLEN */
 	if (pi->ipi_mflags & M_VLANTAG) {
@@ -182,8 +185,8 @@ igc_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
  *
  **********************************************************************/
 static int
-igc_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
-    uint32_t *olinfo_status)
+igc_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi,
+    uint32_t *cmd_type_len, uint32_t *olinfo_status)
 {
 	struct igc_adv_tx_context_desc *TXD;
 	uint32_t vlan_macip_lens, type_tucmd_mlhl;
@@ -263,7 +266,7 @@ igc_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
 static int
 igc_isc_txd_encap(void *arg, if_pkt_info_t pi)
 {
-	struct igc_adapter *sc = arg;
+	struct igc_softc *sc = arg;
 	if_softc_ctx_t scctx = sc->shared;
 	struct igc_tx_queue *que = &sc->tx_queues[pi->ipi_qsidx];
 	struct tx_ring *txr = &que->txr;
@@ -277,7 +280,7 @@ igc_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	pidx_last = olinfo_status = 0;
 	/* Basic descriptor defines */
 	cmd_type_len = (IGC_ADVTXD_DTYP_DATA |
-			IGC_ADVTXD_DCMD_IFCS | IGC_ADVTXD_DCMD_DEXT);
+	    IGC_ADVTXD_DCMD_IFCS | IGC_ADVTXD_DCMD_DEXT);
 
 	if (pi->ipi_mflags & M_VLANTAG)
 		cmd_type_len |= IGC_ADVTXD_DCMD_VLE;
@@ -316,25 +319,29 @@ igc_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	txd->read.cmd_type_len |= htole32(IGC_ADVTXD_DCMD_EOP | txd_flags);
 	pi->ipi_new_pidx = i;
 
+	/* Sent data accounting for AIM */
+	txr->tx_bytes += pi->ipi_len;
+	++txr->tx_packets;
+
 	return (0);
 }
 
 static void
 igc_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 {
-	struct igc_adapter *adapter	= arg;
-	struct igc_tx_queue *que	= &adapter->tx_queues[txqid];
-	struct tx_ring *txr	= &que->txr;
+	struct igc_softc *sc = arg;
+	struct igc_tx_queue *que = &sc->tx_queues[txqid];
+	struct tx_ring *txr = &que->txr;
 
-	IGC_WRITE_REG(&adapter->hw, IGC_TDT(txr->me), pidx);
+	IGC_WRITE_REG(&sc->hw, IGC_TDT(txr->me), pidx);
 }
 
 static int
 igc_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 {
-	struct igc_adapter *adapter = arg;
-	if_softc_ctx_t scctx = adapter->shared;
-	struct igc_tx_queue *que = &adapter->tx_queues[txqid];
+	struct igc_softc *sc = arg;
+	if_softc_ctx_t scctx = sc->shared;
+	struct igc_tx_queue *que = &sc->tx_queues[txqid];
 	struct tx_ring *txr = &que->txr;
 
 	qidx_t processed = 0;
@@ -368,12 +375,13 @@ igc_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 		MPASS(delta > 0);
 
 		processed += delta;
-		prev  = cur;
+		prev = cur;
 		rs_cidx = (rs_cidx + 1) & (ntxd-1);
-		if (rs_cidx  == txr->tx_rs_pidx)
+		if (rs_cidx == txr->tx_rs_pidx)
 			break;
 		cur = txr->tx_rsq[rs_cidx];
-		status = ((union igc_adv_tx_desc *)&txr->tx_base[cur])->wb.status;
+		status =
+		    ((union igc_adv_tx_desc *)&txr->tx_base[cur])->wb.status;
 	} while ((status & IGC_TXD_STAT_DD));
 
 	txr->tx_rs_cidx = rs_cidx;
@@ -384,7 +392,7 @@ igc_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 static void
 igc_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 {
-	struct igc_adapter *sc = arg;
+	struct igc_softc *sc = arg;
 	if_softc_ctx_t scctx = sc->shared;
 	uint16_t rxqid = iru->iru_qsidx;
 	struct igc_rx_queue *que = &sc->rx_queues[rxqid];
@@ -409,9 +417,10 @@ igc_isc_rxd_refill(void *arg, if_rxd_update_t iru)
 }
 
 static void
-igc_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused, qidx_t pidx)
+igc_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused,
+    qidx_t pidx)
 {
-	struct igc_adapter *sc = arg;
+	struct igc_softc *sc = arg;
 	struct igc_rx_queue *que = &sc->rx_queues[rxqid];
 	struct rx_ring *rxr = &que->rxr;
 
@@ -421,7 +430,7 @@ igc_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused, qidx_t pidx)
 static int
 igc_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 {
-	struct igc_adapter *sc = arg;
+	struct igc_softc *sc = arg;
 	if_softc_ctx_t scctx = sc->shared;
 	struct igc_rx_queue *que = &sc->rx_queues[rxqid];
 	struct rx_ring *rxr = &que->rxr;
@@ -453,9 +462,9 @@ igc_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 static int
 igc_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 {
-	struct igc_adapter *adapter = arg;
-	if_softc_ctx_t scctx = adapter->shared;
-	struct igc_rx_queue *que = &adapter->rx_queues[ri->iri_qsidx];
+	struct igc_softc *sc = arg;
+	if_softc_ctx_t scctx = sc->shared;
+	struct igc_rx_queue *que = &sc->rx_queues[ri->iri_qsidx];
 	struct rx_ring *rxr = &que->rxr;
 	union igc_adv_rx_desc *rxd;
 
@@ -475,7 +484,8 @@ igc_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		MPASS ((staterr & IGC_RXD_STAT_DD) != 0);
 
 		len = le16toh(rxd->wb.upper.length);
-		ptype = le32toh(rxd->wb.lower.lo_dword.data) &  IGC_PKTTYPE_MASK;
+		ptype =
+		    le32toh(rxd->wb.lower.lo_dword.data) & IGC_PKTTYPE_MASK;
 
 		ri->iri_len += len;
 		rxr->rx_bytes += ri->iri_len;
@@ -485,7 +495,7 @@ igc_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		/* Make sure bad packets are discarded */
 		if (eop && ((staterr & IGC_RXDEXT_STATERR_RXE) != 0)) {
-			adapter->dropped_pkts++;
+			sc->dropped_pkts++;
 			++rxr->rx_discarded;
 			return (EBADMSG);
 		}
@@ -556,7 +566,8 @@ igc_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 		    (ptype & IGC_RXDADV_PKTTYPE_SCTP) != 0)) {
 			ri->iri_csum_flags |= CSUM_SCTP_VALID;
 		} else {
-			ri->iri_csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			ri->iri_csum_flags |=
+			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 			ri->iri_csum_data = htons(0xffff);
 		}
 	}

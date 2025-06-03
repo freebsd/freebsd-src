@@ -105,7 +105,6 @@ struct uufsd disk;		/* libufs disk structure */
 static char	device[MAXPATHLEN];
 static u_char   bootarea[BBSIZE];
 static int	is_file;		/* work on a file, not a device */
-static char	*dkname;
 static char	*disktype;
 
 static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
@@ -328,9 +327,7 @@ main(int argc, char *argv[])
 	if (fstat(disk.d_fd, &st) < 0)
 		err(1, "%s", special);
 	if ((st.st_mode & S_IFMT) != S_IFCHR) {
-		warn("%s: not a character-special device", special);
 		is_file = 1;	/* assume it is a file */
-		dkname = special;
 		if (sectorsize == 0)
 			sectorsize = 512;
 		mediasize = st.st_size;
@@ -344,6 +341,11 @@ main(int argc, char *argv[])
 	}
 	pp = NULL;
 	lp = getdisklabel();
+	/*
+	 * set filesystem size from file size when a bsdlabel isn't present
+	 */
+	if (lp == NULL && is_file)
+		fssize = mediasize / sectorsize;
 	if (lp != NULL) {
 		if (!is_file) /* already set for files */
 			part_name = special[strlen(special) - 1];
@@ -433,7 +435,7 @@ getdisklabel(void)
 		    bootarea + (0 /* labeloffset */ +
 				1 /* labelsoffset */ * sectorsize),
 		    &lab, MAXPARTITIONS))
-			errx(1, "no valid label found");
+			return (NULL);
 
 		lp = &lab;
 		return &lab;

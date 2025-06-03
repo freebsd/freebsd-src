@@ -1792,7 +1792,7 @@ snmp_discover_engine(char *passwd)
 	if (snmp_client.user.auth_proto == SNMP_AUTH_NOAUTH)
 		return (0);
 
-	if (passwd == NULL ||
+	if (passwd == NULL || strlen(passwd) == 0 ||
 	    snmp_passwd_to_keys(&snmp_client.user, passwd) != SNMP_CODE_OK ||
 	    snmp_get_local_keys(&snmp_client.user, snmp_client.engine.engine_id,
 	    snmp_client.engine.engine_len) != SNMP_CODE_OK)

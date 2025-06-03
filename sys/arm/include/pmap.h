@@ -135,7 +135,7 @@ extern ttb_entry_t pmap_kern_ttb; 	/* TTB for kernel pmap */
  * vtopte2().
  */
 void pmap_bootstrap(vm_offset_t);
-void pmap_kenter(vm_offset_t, vm_paddr_t);
+void pmap_kenter(vm_offset_t, vm_size_t, vm_paddr_t, int);
 void pmap_kremove(vm_offset_t);
 bool pmap_page_is_mapped(vm_page_t);
 bool	pmap_ps_enabled(pmap_t pmap);
@@ -172,14 +172,8 @@ void pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 #define	pmap_map_delete(pmap, sva, eva)	pmap_remove(pmap, sva, eva)
 
 void *pmap_mapdev(vm_paddr_t, vm_size_t);
+void *pmap_mapdev_attr(vm_paddr_t, vm_size_t, vm_memattr_t);
 void pmap_unmapdev(void *, vm_size_t);
-
-static inline void *
-pmap_mapdev_attr(vm_paddr_t addr __unused, vm_size_t size __unused,
-    int attr __unused)
-{
-	panic("%s is not implemented yet!\n", __func__);
-}
 
 struct pcb;
 void pmap_set_pcb_pagedir(pmap_t, struct pcb *);

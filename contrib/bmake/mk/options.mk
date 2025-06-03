@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# $Id: options.mk,v 1.20 2024/02/17 17:26:57 sjg Exp $
+# $Id: options.mk,v 1.22 2024/10/27 17:33:03 sjg Exp $
 #
 #	@(#) Copyright (c) 2012, Simon J. Gerraty
 #
@@ -62,6 +62,9 @@ ${OPTION_PREFIX}${o:H} ?= no
 ${OPTION_PREFIX}${o:H} ?= yes
 .endif
 .endif
+.if defined(DEBUG_OPTIONS) && ${DEBUG_OPTIONS:@x@${o:H:M$x}@} != ""
+.info ${.INCLUDEDFROMFILE}: ${OPTION_PREFIX}${o:H}=${${OPTION_PREFIX}${o:H}}
+.endif
 .endfor
 
 # OPTIONS_DEFAULT_DEPENDENT += FOO_UTILS/FOO
@@ -81,6 +84,9 @@ ${OPTION_PREFIX}${o:H} ?= yes
 ${OPTION_PREFIX}${o:H} ?= no
 .else
 ${OPTION_PREFIX}${o:H} ?= ${${OPTION_PREFIX}${o:T}}
+.endif
+.if defined(DEBUG_OPTIONS) && ${DEBUG_OPTIONS:@x@${o:H:M$x}@} != ""
+.info ${.INCLUDEDFROMFILE}: ${OPTION_PREFIX}${o:H}=${${OPTION_PREFIX}${o:H}} (${OPTION_PREFIX}${o:T}=${${OPTION_PREFIX}${o:T}})
 .endif
 .endfor
 

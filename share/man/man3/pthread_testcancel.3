@@ -34,6 +34,7 @@ are
 .Dv PTHREAD_CANCEL_ENABLE
 and
 .Dv PTHREAD_CANCEL_DISABLE .
+The function is async-signal-safe.
 .Pp
 The
 .Fn pthread_setcanceltype
@@ -248,6 +249,11 @@ function conforms to
 .St -p1003.1-96 .
 The standard allows implementations to make many more functions
 cancellation points.
+.Pp
+The
+.Fn pthread_setcancelstate
+function is async-signal-safe as required by
+.St -p1003.1-2024 .
 .Sh AUTHORS
 This manual page was written by
 .An David Leonard Aq Mt d@openbsd.org

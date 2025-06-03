@@ -18,7 +18,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/cdefs.h>
 /*
  * ZyDAS ZD1211/ZD1211B USB WLAN driver.
  */
@@ -2460,7 +2459,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 			rate = tp->ucastrate;
 		else {
 			(void) ieee80211_ratectl_rate(ni, NULL, 0);
-			rate = ni->ni_txrate;
+			rate = ieee80211_node_get_txrate_dot11rate(ni);
 		}
 	}
 
@@ -2505,9 +2504,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		}
 	} else
 		desc->flags |= ZYD_TX_FLAG_MULTICAST;
-	if ((wh->i_fc[0] &
-	    (IEEE80211_FC0_TYPE_MASK | IEEE80211_FC0_SUBTYPE_MASK)) ==
-	    (IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_PS_POLL))
+	if (IEEE80211_IS_CTL_PS_POLL(wh))
 		desc->flags |= ZYD_TX_FLAG_TYPE(ZYD_TX_TYPE_PS_POLL);
 
 	/* actual transmit length (XXX why +10?) */

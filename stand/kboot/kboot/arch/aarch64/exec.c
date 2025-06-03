@@ -41,8 +41,8 @@
 #include <machine/metadata.h>
 
 #include "bootstrap.h"
+#include "efi.h"
 #include "kboot.h"
-#include "bootstrap.h"
 
 #include "platform/acfreebsd.h"
 #include "acconfig.h"
@@ -66,12 +66,11 @@ static int elf64_obj_exec(struct preloaded_file *amp);
 
 bool do_mem_map = false;
 
-extern uint32_t efi_map_size;
-extern vm_paddr_t efi_map_phys_src;	/* From DTB */
-extern vm_paddr_t efi_map_phys_dst;	/* From our memory map metadata module */
-
+/* Usually provided by loader_efi.h -- maybe just delete? */
+#ifndef EFI
 int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
     bool exit_bs);
+#endif
 
 static struct file_format arm64_elf = {
 	elf64_loadfile,
@@ -189,9 +188,9 @@ elf64_exec(struct preloaded_file *fp)
 	/*
 	 * Figure out where to put it.
 	 *
-	 * Linux does not allow us to kexec_load into any part of memory. Ask
-	 * arch_loadaddr to resolve the first available chunk of physical memory
-	 * where loading is possible (load_addr).
+	 * Linux does not allow us to kexec_load into any part of memory. Find
+	 * the first available chunk of physical memory where loading is
+	 * possible (staging).
 	 *
 	 * The kernel is loaded at the 'base' address in continguous physical
 	 * memory. We use the 2MB in front of the kernel as a place to put our
@@ -288,4 +287,3 @@ elf64_obj_exec(struct preloaded_file *fp)
 	    fp->f_name);
 	return (ENOSYS);
 }
-

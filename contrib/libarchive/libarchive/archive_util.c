@@ -77,7 +77,9 @@
 #define O_CLOEXEC	0
 #endif
 
-static int archive_utility_string_sort_helper(char **, unsigned int);
+#if ARCHIVE_VERSION_NUMBER < 4000000
+static int __LA_LIBC_CC archive_utility_string_sort_helper(const void *, const void *);
+#endif
 
 /* Generic initialization of 'struct archive' objects. */
 int
@@ -280,7 +282,8 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 			if (archive_wstring_append_from_mbs(&temp_name, tmpdir,
 			    strlen(tmpdir)) < 0)
 				goto exit_tmpfile;
-			if (temp_name.s[temp_name.length-1] != L'/')
+			if (temp_name.length == 0 ||
+			    temp_name.s[temp_name.length-1] != L'/')
 				archive_wstrappend_wchar(&temp_name, L'/');
 		}
 
@@ -454,7 +457,7 @@ get_tempdir(struct archive_string *temppath)
                 tmp = "/tmp";
 #endif
 	archive_strcpy(temppath, tmp);
-	if (temppath->s[temppath->length-1] != '/')
+	if (temppath->length == 0 || temppath->s[temppath->length-1] != '/')
 		archive_strappend_char(temppath, '/');
 	return (ARCHIVE_OK);
 }
@@ -477,7 +480,8 @@ __archive_mktemp(const char *tmpdir)
 			goto exit_tmpfile;
 	} else {
 		archive_strcpy(&temp_name, tmpdir);
-		if (temp_name.s[temp_name.length-1] != '/')
+		if (temp_name.length == 0 ||
+		    temp_name.s[temp_name.length-1] != '/')
 			archive_strappend_char(&temp_name, '/');
 	}
 #ifdef O_TMPFILE
@@ -538,7 +542,7 @@ __archive_mktempx(const char *tmpdir, char *template)
 				goto exit_tmpfile;
 		} else
 			archive_strcpy(&temp_name, tmpdir);
-		if (temp_name.s[temp_name.length-1] == '/') {
+		if (temp_name.length > 0 && temp_name.s[temp_name.length-1] == '/') {
 			temp_name.s[temp_name.length-1] = '\0';
 			temp_name.length --;
 		}
@@ -627,76 +631,28 @@ __archive_ensure_cloexec_flag(int fd)
 #endif
 }
 
+#if ARCHIVE_VERSION_NUMBER < 4000000
 /*
- * Utility function to sort a group of strings using quicksort.
+ * Utility functions to sort a group of strings using quicksort.
  */
 static int
-archive_utility_string_sort_helper(char **strings, unsigned int n)
+__LA_LIBC_CC
+archive_utility_string_sort_helper(const void *p1, const void *p2)
 {
-	unsigned int i, lesser_count, greater_count;
-	char **lesser, **greater, **tmp, *pivot;
-	int retval1, retval2;
+	const char * const * const s1 = p1;
+	const char * const * const s2 = p2;
 
-	/* A list of 0 or 1 elements is already sorted */
-	if (n <= 1)
-		return (ARCHIVE_OK);
-
-	lesser_count = greater_count = 0;
-	lesser = greater = NULL;
-	pivot = strings[0];
-	for (i = 1; i < n; i++)
-	{
-		if (strcmp(strings[i], pivot) < 0)
-		{
-			lesser_count++;
-			tmp = (char **)realloc(lesser,
-				lesser_count * sizeof(char *));
-			if (!tmp) {
-				free(greater);
-				free(lesser);
-				return (ARCHIVE_FATAL);
-			}
-			lesser = tmp;
-			lesser[lesser_count - 1] = strings[i];
-		}
-		else
-		{
-			greater_count++;
-			tmp = (char **)realloc(greater,
-				greater_count * sizeof(char *));
-			if (!tmp) {
-				free(greater);
-				free(lesser);
-				return (ARCHIVE_FATAL);
-			}
-			greater = tmp;
-			greater[greater_count - 1] = strings[i];
-		}
-	}
-
-	/* quicksort(lesser) */
-	retval1 = archive_utility_string_sort_helper(lesser, lesser_count);
-	for (i = 0; i < lesser_count; i++)
-		strings[i] = lesser[i];
-	free(lesser);
-
-	/* pivot */
-	strings[lesser_count] = pivot;
-
-	/* quicksort(greater) */
-	retval2 = archive_utility_string_sort_helper(greater, greater_count);
-	for (i = 0; i < greater_count; i++)
-		strings[lesser_count + 1 + i] = greater[i];
-	free(greater);
-
-	return (retval1 < retval2) ? retval1 : retval2;
+	return strcmp(*s1, *s2);
 }
 
 int
 archive_utility_string_sort(char **strings)
 {
-	  unsigned int size = 0;
-	  while (strings[size] != NULL)
+	size_t size = 0;
+	while (strings[size] != NULL)
 		size++;
-	  return archive_utility_string_sort_helper(strings, size);
+	qsort(strings, size, sizeof(char *),
+	      archive_utility_string_sort_helper);
+	return (ARCHIVE_OK);
 }
+#endif

@@ -62,7 +62,7 @@ _sleepq_alloc(void)
 {
 	struct sleepqueue *sq;
 
-	sq = calloc(1, sizeof(struct sleepqueue));
+	sq = __thr_calloc(1, sizeof(struct sleepqueue));
 	TAILQ_INIT(&sq->sq_blocked);
 	SLIST_INIT(&sq->sq_freeq);
 	return (sq);
@@ -71,7 +71,7 @@ _sleepq_alloc(void)
 void
 _sleepq_free(struct sleepqueue *sq)
 {
-	free(sq);
+	__thr_free(sq);
 }
 
 void

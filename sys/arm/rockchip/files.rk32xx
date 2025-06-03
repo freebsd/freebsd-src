@@ -6,6 +6,7 @@ dev/iicbus/controller/rockchip/rk_i2c.c	standard
 arm64/rockchip/rk_iodomain.c		standard
 arm64/rockchip/rk_gpio.c		standard
 arm64/rockchip/rk_grf.c			standard
+arm64/rockchip/rk_grf_gpio.c		standard
 arm64/rockchip/rk_pinctrl.c		standard
 arm64/rockchip/rk_pmu.c			standard
 dev/pwm/controller/rockchip/rk_pwm.c	standard
@@ -27,3 +28,4 @@ dev/iicbus/pmic/act8846_regulator.c	standard
 dev/iicbus/pmic/fan53555.c		standard
 dev/iicbus/rtc/hym8563.c		standard
 dev/mmc/host/dwmmc_rockchip.c		optional	dwmmc
+dev/sdhci/sdhci_fdt_rockchip.c		optional	sdhci

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2019 The FreeBSD Foundation, Inc.
+ * Copyright (c) 2019 The FreeBSD Foundation
  *
  * This driver was written by Gerald ND Aryeetey <gndaryee@uwaterloo.ca>
  * under sponsorship from the FreeBSD Foundation.
@@ -482,8 +482,7 @@ mgb_detach(if_ctx_t ctx)
 	iflib_irq_free(ctx, &sc->rx_irq);
 	iflib_irq_free(ctx, &sc->admin_irq);
 
-	if (sc->miibus != NULL)
-		device_delete_child(sc->dev, sc->miibus);
+	bus_generic_detach(sc->dev);
 
 	if (sc->pba != NULL)
 		error = bus_release_resource(sc->dev, SYS_RES_MEMORY,

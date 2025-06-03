@@ -113,14 +113,14 @@ dunit:
 
 	TAILQ_INIT(&m->devs);
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
-		if (!MIX_ISDEV(m, i))
+		if (!MIX_ISDEV(m, i) && !MIX_ISREC(m, i))
 			continue;
 		if ((dp = calloc(1, sizeof(struct mix_dev))) == NULL)
 			goto fail;
 		dp->parent_mixer = m;
 		dp->devno = i;
 		dp->nctl = 0;
-		if (_mixer_readvol(dp) < 0)
+		if (MIX_ISDEV(m, i) && _mixer_readvol(dp) < 0)
 			goto fail;
 		(void)strlcpy(dp->name, names[i], sizeof(dp->name));
 		TAILQ_INIT(&dp->ctls);

@@ -4,8 +4,8 @@ server:
 	qname-minimisation: "no"
 	minimal-responses: no
 	serve-expired: yes
+	serve-expired-client-timeout: 0
 	serve-expired-reply-ttl: 123
-	log-servfail: yes
 	ede: yes
 	ede-serve-expired: yes
 
@@ -38,7 +38,7 @@ RANGE_BEGIN 0 20
 RANGE_END
 
 ; ns.example.com.
-RANGE_BEGIN 30 100
+RANGE_BEGIN 40 100
 	ADDRESS 1.2.3.4
 	ENTRY_BEGIN
 		MATCH opcode qtype qname

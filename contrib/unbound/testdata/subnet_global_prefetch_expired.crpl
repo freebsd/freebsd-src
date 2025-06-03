@@ -14,6 +14,7 @@ server:
 	qname-minimisation: no
 	minimal-responses: no
 	serve-expired: yes
+	serve-expired-client-timeout: 0
 	serve-expired-ttl: 1
 	prefetch: yes
 

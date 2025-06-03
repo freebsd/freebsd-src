@@ -592,13 +592,13 @@ do { \
 // *_only = rc_asm_y or _n to include or exclude code marked with them
 #define rc_asm_bittree(a, b, first_only, middle_only, last_only) \
 	first_only( \
-		"movzw	2(%[probs_base]), %[prob" #a "]\n\t" \
+		"movzwl	2(%[probs_base]), %[prob" #a "]\n\t" \
 		"mov	$2, %[symbol]\n\t" \
-		"movzw	4(%[probs_base]), %[prob" #b "]\n\t" \
+		"movzwl	4(%[probs_base]), %[prob" #b "]\n\t" \
 	) \
 	middle_only( \
 		/* Note the scaling of 4 instead of 2: */ \
-		"movzw	(%[probs_base], %q[symbol], 4), %[prob" #b "]\n\t" \
+		"movzwl	(%[probs_base], %q[symbol], 4), %[prob" #b "]\n\t" \
 	) \
 	last_only( \
 		"add	%[symbol], %[symbol]\n\t" \
@@ -610,11 +610,11 @@ do { \
 		"cmovae	%[t0], %[range]\n\t" \
 		\
 	first_only( \
-		"movzw	6(%[probs_base]), %[t0]\n\t" \
+		"movzwl	6(%[probs_base]), %[t0]\n\t" \
 		"cmovae	%[t0], %[prob" #b "]\n\t" \
 	) \
 	middle_only( \
-		"movzw	2(%[probs_base], %q[symbol], 4), %[t0]\n\t" \
+		"movzwl	2(%[probs_base], %q[symbol], 4), %[t0]\n\t" \
 		"lea	(%q[symbol], %q[symbol]), %[symbol]\n\t" \
 		"cmovae	%[t0], %[prob" #b "]\n\t" \
 	) \
@@ -716,12 +716,12 @@ do { \
 #define rc_asm_bittree_rev(a, b, add, dcur, dnext0, dnext1, \
 		first_only, middle_only, last_only) \
 	first_only( \
-		"movzw	2(%[probs_base]), %[prob" #a "]\n\t" \
+		"movzwl	2(%[probs_base]), %[prob" #a "]\n\t" \
 		"xor	%[symbol], %[symbol]\n\t" \
-		"movzw	4(%[probs_base]), %[prob" #b "]\n\t" \
+		"movzwl	4(%[probs_base]), %[prob" #b "]\n\t" \
 	) \
 	middle_only( \
-		"movzw	" #dnext0 "(%[probs_base], %q[symbol], 2), " \
+		"movzwl	" #dnext0 "(%[probs_base], %q[symbol], 2), " \
 			"%[prob" #b "]\n\t" \
 	) \
 		\
@@ -731,11 +731,11 @@ do { \
 		"cmovae	%[t0], %[range]\n\t" \
 		\
 	first_only( \
-		"movzw	6(%[probs_base]), %[t0]\n\t" \
+		"movzwl	6(%[probs_base]), %[t0]\n\t" \
 		"cmovae	%[t0], %[prob" #b "]\n\t" \
 	) \
 	middle_only( \
-		"movzw	" #dnext1 "(%[probs_base], %q[symbol], 2), %[t0]\n\t" \
+		"movzwl	" #dnext1 "(%[probs_base], %q[symbol], 2), %[t0]\n\t" \
 		"cmovae	%[t0], %[prob" #b "]\n\t" \
 	) \
 		\
@@ -788,7 +788,7 @@ do { \
 	uint32_t t_index; \
 	\
 	__asm__( \
-		"movzw	(%[probs_base], %q[symbol], 2), %[prob]\n\t" \
+		"movzwl	(%[probs_base], %q[symbol], 2), %[prob]\n\t" \
 		"mov	%[symbol], %[index]\n\t" \
 		\
 		"add	%[dest], %[t2]\n\t" \
@@ -844,7 +844,7 @@ do { \
 		"and	%[offset], %[match_bit]\n\t" \
 		"add	%[match_bit], %[symbol]\n\t" \
 		\
-		"movzw	(%[probs_base], %q[symbol], 2), %[prob]\n\t" \
+		"movzwl	(%[probs_base], %q[symbol], 2), %[prob]\n\t" \
 		\
 		"add	%[symbol], %[symbol]\n\t" \
 		\

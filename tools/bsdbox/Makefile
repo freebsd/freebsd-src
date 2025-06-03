@@ -2,6 +2,7 @@ MAN=
 
 .include <bsd.own.mk>
 MK_SSP=	no
+MK_PIE=	no
 
 PROG=	bsdbox
 BINDIR?=/sbin
@@ -52,7 +53,7 @@ CRUNCH_SRCDIRS+= bin
 # setuid binaries - they use these libraries. PAM needs to be
 # built dynamically or it tries to build _all_ of the modules
 # statically - and that ends very badly.
-CRUNCH_SHLIBS+=	-lc -lutil -lcrypt -lxo -lgpio
+CRUNCH_SHLIBS+=	-lc -lsys -lutil -lcrypt -lxo -lgpio
 CRUNCH_LIBS+= -lkvm -lmemstat -lnetgraph
 CRUNCH_LIBS+= -lcrypt -ledit -ltermcapw
 
@@ -69,7 +70,7 @@ CRUNCH_SRCDIRS+= sbin
 
 CRUNCH_LIBS+= -l80211 -lalias -lcam -lcursesw -ldevstat -lipsec
 # Don't forget this - ifconfig, etc -adrian
-CRUNCH_LIBS+= ${LDADD_ifconfig}
+CRUNCH_LIBS+= ${OBJTOP}/lib/libifconfig/libifconfig.a
 CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lsbuf -lufs
 CRUNCH_BUILDOPTS+= CRUNCH_CFLAGS+=-I${OBJTOP}/lib/libifconfig
 

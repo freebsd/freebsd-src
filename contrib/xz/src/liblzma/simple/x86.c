@@ -143,6 +143,18 @@ lzma_simple_x86_encoder_init(lzma_next_coder *next,
 {
 	return x86_coder_init(next, allocator, filters, true);
 }
+
+
+extern LZMA_API(size_t)
+lzma_bcj_x86_encode(uint32_t start_offset, uint8_t *buf, size_t size)
+{
+	lzma_simple_x86 simple = {
+		.prev_mask = 0,
+		.prev_pos = (uint32_t)(-5),
+	};
+
+	return x86_code(&simple, start_offset, true, buf, size);
+}
 #endif
 
 
@@ -153,5 +165,17 @@ lzma_simple_x86_decoder_init(lzma_next_coder *next,
 		const lzma_filter_info *filters)
 {
 	return x86_coder_init(next, allocator, filters, false);
+}
+
+
+extern LZMA_API(size_t)
+lzma_bcj_x86_decode(uint32_t start_offset, uint8_t *buf, size_t size)
+{
+	lzma_simple_x86 simple = {
+		.prev_mask = 0,
+		.prev_pos = (uint32_t)(-5),
+	};
+
+	return x86_code(&simple, start_offset, false, buf, size);
 }
 #endif

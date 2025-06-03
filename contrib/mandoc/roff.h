@@ -1,6 +1,6 @@
-/* $Id: roff.h,v 1.74 2020/04/08 11:56:03 schwarze Exp $	*/
+/* $Id: roff.h,v 1.76 2023/10/24 20:53:12 schwarze Exp $	*/
 /*
- * Copyright (c) 2013-2015, 2017-2020 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013-2015,2017-2020,2022 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -71,7 +71,7 @@ enum	roff_type {
 };
 
 enum	roff_tok {
-	ROFF_br = 0,
+	ROFF_br = 0,	/* Beginning of roff(7) requests. */
 	ROFF_ce,
 	ROFF_fi,
 	ROFF_ft,
@@ -83,8 +83,8 @@ enum	roff_tok {
 	ROFF_sp,
 	ROFF_ta,
 	ROFF_ti,
-	ROFF_MAX,
-	ROFF_ab,
+	ROFF_MAX,	/* End of requests that generate nodes. */
+	ROFF_ab,	/* Requests only used during preprocessing. */
 	ROFF_ad,
 	ROFF_af,
 	ROFF_aln,
@@ -313,11 +313,11 @@ enum	roff_tok {
 	ROFF_writec,
 	ROFF_writem,
 	ROFF_xflag,
-	ROFF_cblock,
-	ROFF_RENAMED,
-	ROFF_USERDEF,
-	TOKEN_NONE,
-	MDOC_Dd,
+	ROFF_cblock,	/* Block end marker "..". */
+	ROFF_RENAMED,	/* New name of a renamed request or macro. */
+	ROFF_USERDEF,	/* User defined macro. */
+	TOKEN_NONE,	/* Undefined macro or text/tbl/eqn/comment node. */
+	MDOC_Dd,	/* Beginning of mdoc(7) macros. */
 	MDOC_Dt,
 	MDOC_Os,
 	MDOC_Sh,
@@ -438,8 +438,8 @@ enum	roff_tok {
 	MDOC__U,
 	MDOC_Ta,
 	MDOC_Tg,
-	MDOC_MAX,
-	MAN_TH,
+	MDOC_MAX,	/* End of mdoc(7) macros. */
+	MAN_TH,		/* Beginning of man(7) macros. */
 	MAN_SH,
 	MAN_SS,
 	MAN_TP,
@@ -476,7 +476,8 @@ enum	roff_tok {
 	MAN_UE,
 	MAN_MT,
 	MAN_ME,
-	MAN_MAX
+	MAN_MR,
+	MAN_MAX		/* End of man(7) macros. */
 };
 
 /*

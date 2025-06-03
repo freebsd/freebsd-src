@@ -614,8 +614,10 @@ process_hc_baseband_params(ng_hci_unit_p unit, u_int16_t ocf,
 	case NG_HCI_OCF_READ_LOCAL_NAME:
 	case NG_HCI_OCF_READ_UNIT_CLASS:
 	case NG_HCI_OCF_WRITE_UNIT_CLASS:
+	case NG_HCI_OCF_WRITE_SIMPLE_PAIRING:
 	case NG_HCI_OCF_READ_LE_HOST_SUPPORTED:
 	case NG_HCI_OCF_WRITE_LE_HOST_SUPPORTED:
+	case NG_HCI_OCF_WRITE_SECURE_CONNECTIONS_HOST_SUPPORT:
 		/* These do not need post processing */
 		break;
 

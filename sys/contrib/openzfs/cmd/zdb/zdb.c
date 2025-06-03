@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CDDL-1.0
 /*
  * CDDL HEADER START
  *
@@ -122,7 +123,7 @@ static int flagbits[256];
 
 static uint64_t max_inflight_bytes = 256 * 1024 * 1024; /* 256MB */
 static int leaked_objects = 0;
-static range_tree_t *mos_refd_objs;
+static zfs_range_tree_t *mos_refd_objs;
 static spa_t *spa;
 static objset_t *os;
 static boolean_t kernel_init_done;
@@ -325,7 +326,7 @@ typedef struct metaslab_verify {
 	/*
 	 * What's currently allocated for this metaslab.
 	 */
-	range_tree_t *mv_allocated;
+	zfs_range_tree_t *mv_allocated;
 } metaslab_verify_t;
 
 typedef void ll_iter_t(dsl_deadlist_t *ll, void *arg);
@@ -417,7 +418,7 @@ metaslab_spacemap_validation_cb(space_map_entry_t *sme, void *arg)
 	uint64_t txg = sme->sme_txg;
 
 	if (sme->sme_type == SM_ALLOC) {
-		if (range_tree_contains(mv->mv_allocated,
+		if (zfs_range_tree_contains(mv->mv_allocated,
 		    offset, size)) {
 			(void) printf("ERROR: DOUBLE ALLOC: "
 			    "%llu [%llx:%llx] "
@@ -426,11 +427,11 @@ metaslab_spacemap_validation_cb(space_map_entry_t *sme, void *arg)
 			    (u_longlong_t)size, (u_longlong_t)mv->mv_vdid,
 			    (u_longlong_t)mv->mv_msid);
 		} else {
-			range_tree_add(mv->mv_allocated,
+			zfs_range_tree_add(mv->mv_allocated,
 			    offset, size);
 		}
 	} else {
-		if (!range_tree_contains(mv->mv_allocated,
+		if (!zfs_range_tree_contains(mv->mv_allocated,
 		    offset, size)) {
 			(void) printf("ERROR: DOUBLE FREE: "
 			    "%llu [%llx:%llx] "
@@ -439,7 +440,7 @@ metaslab_spacemap_validation_cb(space_map_entry_t *sme, void *arg)
 			    (u_longlong_t)size, (u_longlong_t)mv->mv_vdid,
 			    (u_longlong_t)mv->mv_msid);
 		} else {
-			range_tree_remove(mv->mv_allocated,
+			zfs_range_tree_remove(mv->mv_allocated,
 			    offset, size);
 		}
 	}
@@ -614,11 +615,11 @@ livelist_metaslab_validate(spa_t *spa)
 			    (longlong_t)vd->vdev_ms_count);
 
 			uint64_t shift, start;
-			range_seg_type_t type =
+			zfs_range_seg_type_t type =
 			    metaslab_calculate_range_tree_type(vd, m,
 			    &start, &shift);
 			metaslab_verify_t mv;
-			mv.mv_allocated = range_tree_create(NULL,
+			mv.mv_allocated = zfs_range_tree_create(NULL,
 			    type, NULL, start, shift);
 			mv.mv_vdid = vd->vdev_id;
 			mv.mv_msid = m->ms_id;
@@ -633,8 +634,8 @@ livelist_metaslab_validate(spa_t *spa)
 			spacemap_check_ms_sm(m->ms_sm, &mv);
 			spacemap_check_sm_log(spa, &mv);
 
-			range_tree_vacate(mv.mv_allocated, NULL, NULL);
-			range_tree_destroy(mv.mv_allocated);
+			zfs_range_tree_vacate(mv.mv_allocated, NULL, NULL);
+			zfs_range_tree_destroy(mv.mv_allocated);
 			zfs_btree_clear(&mv.mv_livelist_allocs);
 			zfs_btree_destroy(&mv.mv_livelist_allocs);
 		}
@@ -1117,7 +1118,7 @@ dump_zap(objset_t *os, uint64_t object, void *data, size_t size)
 {
 	(void) data, (void) size;
 	zap_cursor_t zc;
-	zap_attribute_t attr;
+	zap_attribute_t *attrp = zap_attribute_long_alloc();
 	void *prop;
 	unsigned i;
 
@@ -1125,53 +1126,54 @@ dump_zap(objset_t *os, uint64_t object, void *data, size_t size)
 	(void) printf("\n");
 
 	for (zap_cursor_init(&zc, os, object);
-	    zap_cursor_retrieve(&zc, &attr) == 0;
+	    zap_cursor_retrieve(&zc, attrp) == 0;
 	    zap_cursor_advance(&zc)) {
 		boolean_t key64 =
 		    !!(zap_getflags(zc.zc_zap) & ZAP_FLAG_UINT64_KEY);
 
 		if (key64)
-			(void) printf("\t\t0x%010llx = ",
-			    (u_longlong_t)*(uint64_t *)attr.za_name);
+			(void) printf("\t\t0x%010" PRIu64 "x = ",
+			    *(uint64_t *)attrp->za_name);
 		else
-			(void) printf("\t\t%s = ", attr.za_name);
+			(void) printf("\t\t%s = ", attrp->za_name);
 
-		if (attr.za_num_integers == 0) {
+		if (attrp->za_num_integers == 0) {
 			(void) printf("\n");
 			continue;
 		}
-		prop = umem_zalloc(attr.za_num_integers *
-		    attr.za_integer_length, UMEM_NOFAIL);
+		prop = umem_zalloc(attrp->za_num_integers *
+		    attrp->za_integer_length, UMEM_NOFAIL);
 
 		if (key64)
 			(void) zap_lookup_uint64(os, object,
-			    (const uint64_t *)attr.za_name, 1,
-			    attr.za_integer_length, attr.za_num_integers,
+			    (const uint64_t *)attrp->za_name, 1,
+			    attrp->za_integer_length, attrp->za_num_integers,
 			    prop);
 		else
-			(void) zap_lookup(os, object, attr.za_name,
-			    attr.za_integer_length, attr.za_num_integers,
+			(void) zap_lookup(os, object, attrp->za_name,
+			    attrp->za_integer_length, attrp->za_num_integers,
 			    prop);
 
-		if (attr.za_integer_length == 1 && !key64) {
-			if (strcmp(attr.za_name,
+		if (attrp->za_integer_length == 1 && !key64) {
+			if (strcmp(attrp->za_name,
 			    DSL_CRYPTO_KEY_MASTER_KEY) == 0 ||
-			    strcmp(attr.za_name,
+			    strcmp(attrp->za_name,
 			    DSL_CRYPTO_KEY_HMAC_KEY) == 0 ||
-			    strcmp(attr.za_name, DSL_CRYPTO_KEY_IV) == 0 ||
-			    strcmp(attr.za_name, DSL_CRYPTO_KEY_MAC) == 0 ||
-			    strcmp(attr.za_name, DMU_POOL_CHECKSUM_SALT) == 0) {
+			    strcmp(attrp->za_name, DSL_CRYPTO_KEY_IV) == 0 ||
+			    strcmp(attrp->za_name, DSL_CRYPTO_KEY_MAC) == 0 ||
+			    strcmp(attrp->za_name,
+			    DMU_POOL_CHECKSUM_SALT) == 0) {
 				uint8_t *u8 = prop;
 
-				for (i = 0; i < attr.za_num_integers; i++) {
+				for (i = 0; i < attrp->za_num_integers; i++) {
 					(void) printf("%02x", u8[i]);
 				}
 			} else {
 				(void) printf("%s", (char *)prop);
 			}
 		} else {
-			for (i = 0; i < attr.za_num_integers; i++) {
-				switch (attr.za_integer_length) {
+			for (i = 0; i < attrp->za_num_integers; i++) {
+				switch (attrp->za_integer_length) {
 				case 1:
 					(void) printf("%u ",
 					    ((uint8_t *)prop)[i]);
@@ -1192,9 +1194,11 @@ dump_zap(objset_t *os, uint64_t object, void *data, size_t size)
 			}
 		}
 		(void) printf("\n");
-		umem_free(prop, attr.za_num_integers * attr.za_integer_length);
+		umem_free(prop,
+		    attrp->za_num_integers * attrp->za_integer_length);
 	}
 	zap_cursor_fini(&zc);
+	zap_attribute_free(attrp);
 }
 
 static void
@@ -1295,26 +1299,27 @@ dump_sa_attrs(objset_t *os, uint64_t object, void *data, size_t size)
 {
 	(void) data, (void) size;
 	zap_cursor_t zc;
-	zap_attribute_t attr;
+	zap_attribute_t *attrp = zap_attribute_alloc();
 
 	dump_zap_stats(os, object);
 	(void) printf("\n");
 
 	for (zap_cursor_init(&zc, os, object);
-	    zap_cursor_retrieve(&zc, &attr) == 0;
+	    zap_cursor_retrieve(&zc, attrp) == 0;
 	    zap_cursor_advance(&zc)) {
-		(void) printf("\t\t%s = ", attr.za_name);
-		if (attr.za_num_integers == 0) {
+		(void) printf("\t\t%s = ", attrp->za_name);
+		if (attrp->za_num_integers == 0) {
 			(void) printf("\n");
 			continue;
 		}
 		(void) printf(" %llx : [%d:%d:%d]\n",
-		    (u_longlong_t)attr.za_first_integer,
-		    (int)ATTR_LENGTH(attr.za_first_integer),
-		    (int)ATTR_BSWAP(attr.za_first_integer),
-		    (int)ATTR_NUM(attr.za_first_integer));
+		    (u_longlong_t)attrp->za_first_integer,
+		    (int)ATTR_LENGTH(attrp->za_first_integer),
+		    (int)ATTR_BSWAP(attrp->za_first_integer),
+		    (int)ATTR_NUM(attrp->za_first_integer));
 	}
 	zap_cursor_fini(&zc);
+	zap_attribute_free(attrp);
 }
 
 static void
@@ -1322,7 +1327,7 @@ dump_sa_layouts(objset_t *os, uint64_t object, void *data, size_t size)
 {
 	(void) data, (void) size;
 	zap_cursor_t zc;
-	zap_attribute_t attr;
+	zap_attribute_t *attrp = zap_attribute_alloc();
 	uint16_t *layout_attrs;
 	unsigned i;
 
@@ -1330,29 +1335,30 @@ dump_sa_layouts(objset_t *os, uint64_t object, void *data, size_t size)
 	(void) printf("\n");
 
 	for (zap_cursor_init(&zc, os, object);
-	    zap_cursor_retrieve(&zc, &attr) == 0;
+	    zap_cursor_retrieve(&zc, attrp) == 0;
 	    zap_cursor_advance(&zc)) {
-		(void) printf("\t\t%s = [", attr.za_name);
-		if (attr.za_num_integers == 0) {
+		(void) printf("\t\t%s = [", attrp->za_name);
+		if (attrp->za_num_integers == 0) {
 			(void) printf("\n");
 			continue;
 		}
 
-		VERIFY(attr.za_integer_length == 2);
-		layout_attrs = umem_zalloc(attr.za_num_integers *
-		    attr.za_integer_length, UMEM_NOFAIL);
+		VERIFY(attrp->za_integer_length == 2);
+		layout_attrs = umem_zalloc(attrp->za_num_integers *
+		    attrp->za_integer_length, UMEM_NOFAIL);
 
-		VERIFY(zap_lookup(os, object, attr.za_name,
-		    attr.za_integer_length,
-		    attr.za_num_integers, layout_attrs) == 0);
+		VERIFY(zap_lookup(os, object, attrp->za_name,
+		    attrp->za_integer_length,
+		    attrp->za_num_integers, layout_attrs) == 0);
 
-		for (i = 0; i != attr.za_num_integers; i++)
+		for (i = 0; i != attrp->za_num_integers; i++)
 			(void) printf(" %d ", (int)layout_attrs[i]);
 		(void) printf("]\n");
 		umem_free(layout_attrs,
-		    attr.za_num_integers * attr.za_integer_length);
+		    attrp->za_num_integers * attrp->za_integer_length);
 	}
 	zap_cursor_fini(&zc);
+	zap_attribute_free(attrp);
 }
 
 static void
@@ -1360,7 +1366,7 @@ dump_zpldir(objset_t *os, uint64_t object, void *data, size_t size)
 {
 	(void) data, (void) size;
 	zap_cursor_t zc;
-	zap_attribute_t attr;
+	zap_attribute_t *attrp = zap_attribute_long_alloc();
 	const char *typenames[] = {
 		/* 0 */ "not specified",
 		/* 1 */ "FIFO",
@@ -1384,13 +1390,14 @@ dump_zpldir(objset_t *os, uint64_t object, void *data, size_t size)
 	(void) printf("\n");
 
 	for (zap_cursor_init(&zc, os, object);
-	    zap_cursor_retrieve(&zc, &attr) == 0;
+	    zap_cursor_retrieve(&zc, attrp) == 0;
 	    zap_cursor_advance(&zc)) {
 		(void) printf("\t\t%s = %lld (type: %s)\n",
-		    attr.za_name, ZFS_DIRENT_OBJ(attr.za_first_integer),
-		    typenames[ZFS_DIRENT_TYPE(attr.za_first_integer)]);
+		    attrp->za_name, ZFS_DIRENT_OBJ(attrp->za_first_integer),
+		    typenames[ZFS_DIRENT_TYPE(attrp->za_first_integer)]);
 	}
 	zap_cursor_fini(&zc);
+	zap_attribute_free(attrp);
 }
 
 static int
@@ -1627,9 +1634,9 @@ static void
 dump_metaslab_stats(metaslab_t *msp)
 {
 	char maxbuf[32];
-	range_tree_t *rt = msp->ms_allocatable;
+	zfs_range_tree_t *rt = msp->ms_allocatable;
 	zfs_btree_t *t = &msp->ms_allocatable_by_size;
-	int free_pct = range_tree_space(rt) * 100 / msp->ms_size;
+	int free_pct = zfs_range_tree_space(rt) * 100 / msp->ms_size;
 
 	/* max sure nicenum has enough space */
 	_Static_assert(sizeof (maxbuf) >= NN_NUMBUF_SZ, "maxbuf truncated");
@@ -1640,7 +1647,7 @@ dump_metaslab_stats(metaslab_t *msp)
 	    "segments", zfs_btree_numnodes(t), "maxsize", maxbuf,
 	    "freepct", free_pct);
 	(void) printf("\tIn-memory histogram:\n");
-	dump_histogram(rt->rt_histogram, RANGE_TREE_HISTOGRAM_SIZE, 0);
+	dump_histogram(rt->rt_histogram, ZFS_RANGE_TREE_HISTOGRAM_SIZE, 0);
 }
 
 static void
@@ -1662,7 +1669,7 @@ dump_metaslab(metaslab_t *msp)
 	if (dump_opt['m'] > 2 && !dump_opt['L']) {
 		mutex_enter(&msp->ms_lock);
 		VERIFY0(metaslab_load(msp));
-		range_tree_stat_verify(msp->ms_allocatable);
+		zfs_range_tree_stat_verify(msp->ms_allocatable);
 		dump_metaslab_stats(msp);
 		metaslab_unload(msp);
 		mutex_exit(&msp->ms_lock);
@@ -1763,7 +1770,8 @@ dump_metaslab_groups(spa_t *spa, boolean_t show_special)
 			(void) printf("%3llu%%\n",
 			    (u_longlong_t)mg->mg_fragmentation);
 		}
-		dump_histogram(mg->mg_histogram, RANGE_TREE_HISTOGRAM_SIZE, 0);
+		dump_histogram(mg->mg_histogram,
+		    ZFS_RANGE_TREE_HISTOGRAM_SIZE, 0);
 	}
 
 	(void) printf("\tpool %s\tfragmentation", spa_name(spa));
@@ -1772,7 +1780,7 @@ dump_metaslab_groups(spa_t *spa, boolean_t show_special)
 		(void) printf("\t%3s\n", "-");
 	else
 		(void) printf("\t%3llu%%\n", (u_longlong_t)fragmentation);
-	dump_histogram(mc->mc_histogram, RANGE_TREE_HISTOGRAM_SIZE, 0);
+	dump_histogram(mc->mc_histogram, ZFS_RANGE_TREE_HISTOGRAM_SIZE, 0);
 }
 
 static void
@@ -1961,17 +1969,53 @@ dump_dedup_ratio(const ddt_stat_t *dds)
 static void
 dump_ddt_log(ddt_t *ddt)
 {
+	if (ddt->ddt_version != DDT_VERSION_FDT ||
+	    !(ddt->ddt_flags & DDT_FLAG_LOG))
+		return;
+
 	for (int n = 0; n < 2; n++) {
 		ddt_log_t *ddl = &ddt->ddt_log[n];
 
+		char flagstr[64] = {0};
+		if (ddl->ddl_flags > 0) {
+			flagstr[0] = ' ';
+			int c = 1;
+			if (ddl->ddl_flags & DDL_FLAG_FLUSHING)
+				c += strlcpy(&flagstr[c], " FLUSHING",
+				    sizeof (flagstr) - c);
+			if (ddl->ddl_flags & DDL_FLAG_CHECKPOINT)
+				c += strlcpy(&flagstr[c], " CHECKPOINT",
+				    sizeof (flagstr) - c);
+			if (ddl->ddl_flags &
+			    ~(DDL_FLAG_FLUSHING|DDL_FLAG_CHECKPOINT))
+				c += strlcpy(&flagstr[c], " UNKNOWN",
+				    sizeof (flagstr) - c);
+			flagstr[1] = '[';
+			flagstr[c++] = ']';
+		}
+
 		uint64_t count = avl_numnodes(&ddl->ddl_tree);
-		if (count == 0)
-			continue;
 
-		printf(DMU_POOL_DDT_LOG ": %" PRIu64 " log entries\n",
-		    zio_checksum_table[ddt->ddt_checksum].ci_name, n, count);
+		printf(DMU_POOL_DDT_LOG ": flags=0x%02x%s; obj=%llu; "
+		    "len=%llu; txg=%llu; entries=%llu\n",
+		    zio_checksum_table[ddt->ddt_checksum].ci_name, n,
+		    ddl->ddl_flags, flagstr,
+		    (u_longlong_t)ddl->ddl_object,
+		    (u_longlong_t)ddl->ddl_length,
+		    (u_longlong_t)ddl->ddl_first_txg, (u_longlong_t)count);
 
-		if (dump_opt['D'] < 4)
+		if (ddl->ddl_flags & DDL_FLAG_CHECKPOINT) {
+			const ddt_key_t *ddk = &ddl->ddl_checkpoint;
+			printf("    checkpoint: "
+			    "%016llx:%016llx:%016llx:%016llx:%016llx\n",
+			    (u_longlong_t)ddk->ddk_cksum.zc_word[0],
+			    (u_longlong_t)ddk->ddk_cksum.zc_word[1],
+			    (u_longlong_t)ddk->ddk_cksum.zc_word[2],
+			    (u_longlong_t)ddk->ddk_cksum.zc_word[3],
+			    (u_longlong_t)ddk->ddk_prop);
+		}
+
+		if (count == 0 || dump_opt['D'] < 4)
 			continue;
 
 		ddt_lightweight_entry_t ddlwe;
@@ -1985,7 +2029,7 @@ dump_ddt_log(ddt_t *ddt)
 }
 
 static void
-dump_ddt(ddt_t *ddt, ddt_type_t type, ddt_class_t class)
+dump_ddt_object(ddt_t *ddt, ddt_type_t type, ddt_class_t class)
 {
 	char name[DDT_NAMELEN];
 	ddt_lightweight_entry_t ddlwe;
@@ -2010,15 +2054,14 @@ dump_ddt(ddt_t *ddt, ddt_type_t type, ddt_class_t class)
 
 	ddt_object_name(ddt, type, class, name);
 
-	(void) printf("%s: %llu entries, size %llu on disk, %llu in core\n",
-	    name,
-	    (u_longlong_t)count,
-	    (u_longlong_t)dspace,
-	    (u_longlong_t)mspace);
+	(void) printf("%s: dspace=%llu; mspace=%llu; entries=%llu\n", name,
+	    (u_longlong_t)dspace, (u_longlong_t)mspace, (u_longlong_t)count);
 
 	if (dump_opt['D'] < 3)
 		return;
 
+	(void) printf("%s: object=%llu\n", name,
+	    (u_longlong_t)ddt->ddt_object[type][class]);
 	zpool_dump_ddt(NULL, &ddt->ddt_histogram[type][class]);
 
 	if (dump_opt['D'] < 4)
@@ -2038,23 +2081,51 @@ dump_ddt(ddt_t *ddt, ddt_type_t type, ddt_class_t class)
 }
 
 static void
+dump_ddt(ddt_t *ddt)
+{
+	if (!ddt || ddt->ddt_version == DDT_VERSION_UNCONFIGURED)
+		return;
+
+	char flagstr[64] = {0};
+	if (ddt->ddt_flags > 0) {
+		flagstr[0] = ' ';
+		int c = 1;
+		if (ddt->ddt_flags & DDT_FLAG_FLAT)
+			c += strlcpy(&flagstr[c], " FLAT",
+			    sizeof (flagstr) - c);
+		if (ddt->ddt_flags & DDT_FLAG_LOG)
+			c += strlcpy(&flagstr[c], " LOG",
+			    sizeof (flagstr) - c);
+		if (ddt->ddt_flags & ~DDT_FLAG_MASK)
+			c += strlcpy(&flagstr[c], " UNKNOWN",
+			    sizeof (flagstr) - c);
+		flagstr[1] = '[';
+		flagstr[c] = ']';
+	}
+
+	printf("DDT-%s: version=%llu [%s]; flags=0x%02llx%s; rootobj=%llu\n",
+	    zio_checksum_table[ddt->ddt_checksum].ci_name,
+	    (u_longlong_t)ddt->ddt_version,
+	    (ddt->ddt_version == 0) ? "LEGACY" :
+	    (ddt->ddt_version == 1) ? "FDT" : "UNKNOWN",
+	    (u_longlong_t)ddt->ddt_flags, flagstr,
+	    (u_longlong_t)ddt->ddt_dir_object);
+
+	for (ddt_type_t type = 0; type < DDT_TYPES; type++)
+		for (ddt_class_t class = 0; class < DDT_CLASSES; class++)
+			dump_ddt_object(ddt, type, class);
+
+	dump_ddt_log(ddt);
+}
+
+static void
 dump_all_ddts(spa_t *spa)
 {
 	ddt_histogram_t ddh_total = {{{0}}};
 	ddt_stat_t dds_total = {0};
 
-	for (enum zio_checksum c = 0; c < ZIO_CHECKSUM_FUNCTIONS; c++) {
-		ddt_t *ddt = spa->spa_ddt[c];
-		if (!ddt || ddt->ddt_version == DDT_VERSION_UNCONFIGURED)
-			continue;
-		for (ddt_type_t type = 0; type < DDT_TYPES; type++) {
-			for (ddt_class_t class = 0; class < DDT_CLASSES;
-			    class++) {
-				dump_ddt(ddt, type, class);
-			}
-		}
-		dump_ddt_log(ddt);
-	}
+	for (enum zio_checksum c = 0; c < ZIO_CHECKSUM_FUNCTIONS; c++)
+		dump_ddt(spa->spa_ddt[c]);
 
 	ddt_get_dedup_stats(spa, &dds_total);
 
@@ -2113,9 +2184,6 @@ dump_brt(spa_t *spa)
 		return;
 	}
 
-	brt_t *brt = spa->spa_brt;
-	VERIFY(brt);
-
 	char count[32], used[32], saved[32];
 	zdb_nicebytes(brt_get_used(spa), used, sizeof (used));
 	zdb_nicebytes(brt_get_saved(spa), saved, sizeof (saved));
@@ -2126,11 +2194,8 @@ dump_brt(spa_t *spa)
 	if (dump_opt['T'] < 2)
 		return;
 
-	for (uint64_t vdevid = 0; vdevid < brt->brt_nvdevs; vdevid++) {
-		brt_vdev_t *brtvd = &brt->brt_vdevs[vdevid];
-		if (brtvd == NULL)
-			continue;
-
+	for (uint64_t vdevid = 0; vdevid < spa->spa_brt_nvdevs; vdevid++) {
+		brt_vdev_t *brtvd = spa->spa_brt_vdevs[vdevid];
 		if (!brtvd->bv_initiated) {
 			printf("BRT: vdev %" PRIu64 ": empty\n", vdevid);
 			continue;
@@ -2146,32 +2211,54 @@ dump_brt(spa_t *spa)
 	if (dump_opt['T'] < 3)
 		return;
 
-	char dva[64];
-	printf("\n%-16s %-10s\n", "DVA", "REFCNT");
+	/* -TTT shows a per-vdev histograms; -TTTT shows all entries */
+	boolean_t do_histo = dump_opt['T'] == 3;
 
-	for (uint64_t vdevid = 0; vdevid < brt->brt_nvdevs; vdevid++) {
-		brt_vdev_t *brtvd = &brt->brt_vdevs[vdevid];
-		if (brtvd == NULL || !brtvd->bv_initiated)
+	char dva[64];
+
+	if (!do_histo)
+		printf("\n%-16s %-10s\n", "DVA", "REFCNT");
+
+	for (uint64_t vdevid = 0; vdevid < spa->spa_brt_nvdevs; vdevid++) {
+		brt_vdev_t *brtvd = spa->spa_brt_vdevs[vdevid];
+		if (!brtvd->bv_initiated)
 			continue;
 
+		uint64_t counts[64] = {};
+
 		zap_cursor_t zc;
-		zap_attribute_t za;
-		for (zap_cursor_init(&zc, brt->brt_mos, brtvd->bv_mos_entries);
-		    zap_cursor_retrieve(&zc, &za) == 0;
+		zap_attribute_t *za = zap_attribute_alloc();
+		for (zap_cursor_init(&zc, spa->spa_meta_objset,
+		    brtvd->bv_mos_entries);
+		    zap_cursor_retrieve(&zc, za) == 0;
 		    zap_cursor_advance(&zc)) {
 			uint64_t refcnt;
-			VERIFY0(zap_lookup_uint64(brt->brt_mos,
+			VERIFY0(zap_lookup_uint64(spa->spa_meta_objset,
 			    brtvd->bv_mos_entries,
-			    (const uint64_t *)za.za_name, 1,
-			    za.za_integer_length, za.za_num_integers, &refcnt));
+			    (const uint64_t *)za->za_name, 1,
+			    za->za_integer_length, za->za_num_integers,
+			    &refcnt));
 
-			uint64_t offset = *(const uint64_t *)za.za_name;
+			if (do_histo)
+				counts[highbit64(refcnt)]++;
+			else {
+				uint64_t offset =
+				    *(const uint64_t *)za->za_name;
 
-			snprintf(dva, sizeof (dva), "%" PRIu64 ":%llx", vdevid,
-			    (u_longlong_t)offset);
-			printf("%-16s %-10llu\n", dva, (u_longlong_t)refcnt);
+				snprintf(dva, sizeof (dva), "%" PRIu64 ":%llx",
+				    vdevid, (u_longlong_t)offset);
+				printf("%-16s %-10llu\n", dva,
+				    (u_longlong_t)refcnt);
+			}
 		}
 		zap_cursor_fini(&zc);
+		zap_attribute_free(za);
+
+		if (do_histo) {
+			printf("\nBRT: vdev %" PRIu64
+			    ": DVAs with 2^n refcnts:\n", vdevid);
+			dump_histogram(counts, 64, 0);
+		}
 	}
 }
 
@@ -2209,12 +2296,12 @@ dump_dtl(vdev_t *vd, int indent)
 	    required ? "DTL-required" : "DTL-expendable");
 
 	for (int t = 0; t < DTL_TYPES; t++) {
-		range_tree_t *rt = vd->vdev_dtl[t];
-		if (range_tree_space(rt) == 0)
+		zfs_range_tree_t *rt = vd->vdev_dtl[t];
+		if (zfs_range_tree_space(rt) == 0)
 			continue;
 		(void) snprintf(prefix, sizeof (prefix), "\t%*s%s",
 		    indent + 2, "", name[t]);
-		range_tree_walk(rt, dump_dtl_seg, prefix);
+		zfs_range_tree_walk(rt, dump_dtl_seg, prefix);
 		if (dump_opt['d'] > 5 && vd->vdev_children == 0)
 			dump_spacemap(spa->spa_meta_objset,
 			    vd->vdev_dtl_sm);
@@ -2458,12 +2545,14 @@ snprintf_blkptr_compact(char *blkbuf, size_t buflen, const blkptr_t *bp,
 
 	blkbuf[0] = '\0';
 
-	for (i = 0; i < ndvas; i++)
+	for (i = 0; i < ndvas; i++) {
 		(void) snprintf(blkbuf + strlen(blkbuf),
-		    buflen - strlen(blkbuf), "%llu:%llx:%llx ",
+		    buflen - strlen(blkbuf), "%llu:%llx:%llx%s ",
 		    (u_longlong_t)DVA_GET_VDEV(&dva[i]),
 		    (u_longlong_t)DVA_GET_OFFSET(&dva[i]),
-		    (u_longlong_t)DVA_GET_ASIZE(&dva[i]));
+		    (u_longlong_t)DVA_GET_ASIZE(&dva[i]),
+		    (DVA_GET_GANG(&dva[i]) ? "G" : ""));
+	}
 
 	if (BP_IS_HOLE(bp)) {
 		(void) snprintf(blkbuf + strlen(blkbuf),
@@ -2953,28 +3042,30 @@ static void
 dump_bookmarks(objset_t *os, int verbosity)
 {
 	zap_cursor_t zc;
-	zap_attribute_t attr;
+	zap_attribute_t *attrp;
 	dsl_dataset_t *ds = dmu_objset_ds(os);
 	dsl_pool_t *dp = spa_get_dsl(os->os_spa);
 	objset_t *mos = os->os_spa->spa_meta_objset;
 	if (verbosity < 4)
 		return;
+	attrp = zap_attribute_alloc();
 	dsl_pool_config_enter(dp, FTAG);
 
 	for (zap_cursor_init(&zc, mos, ds->ds_bookmarks_obj);
-	    zap_cursor_retrieve(&zc, &attr) == 0;
+	    zap_cursor_retrieve(&zc, attrp) == 0;
 	    zap_cursor_advance(&zc)) {
 		char osname[ZFS_MAX_DATASET_NAME_LEN];
 		char buf[ZFS_MAX_DATASET_NAME_LEN];
 		int len;
 		dmu_objset_name(os, osname);
 		len = snprintf(buf, sizeof (buf), "%s#%s", osname,
-		    attr.za_name);
+		    attrp->za_name);
 		VERIFY3S(len, <, ZFS_MAX_DATASET_NAME_LEN);
 		(void) dump_bookmark(dp, buf, verbosity >= 5, verbosity >= 6);
 	}
 	zap_cursor_fini(&zc);
 	dsl_pool_config_exit(dp, FTAG);
+	zap_attribute_free(attrp);
 }
 
 static void
@@ -4255,6 +4346,10 @@ dump_uberblock(uberblock_t *ub, const char *header, const char *footer)
 	(void) printf("\tguid_sum = %llu\n", (u_longlong_t)ub->ub_guid_sum);
 	(void) printf("\ttimestamp = %llu UTC = %s",
 	    (u_longlong_t)ub->ub_timestamp, ctime(&timestamp));
+
+	char blkbuf[BP_SPRINTF_LEN];
+	snprintf_blkptr(blkbuf, sizeof (blkbuf), &ub->ub_rootbp);
+	(void) printf("\tbp = %s\n", blkbuf);
 
 	(void) printf("\tmmp_magic = %016llx\n",
 	    (u_longlong_t)ub->ub_mmp_magic);
@@ -5772,7 +5867,7 @@ zdb_count_block(zdb_cb_t *zcb, zilog_t *zilog, const blkptr_t *bp,
 		 * Find the block. This will create the entry in memory, but
 		 * we'll know if that happened by its refcount.
 		 */
-		ddt_entry_t *dde = ddt_lookup(ddt, bp);
+		ddt_entry_t *dde = ddt_lookup(ddt, bp, B_TRUE);
 
 		/*
 		 * ddt_lookup() can return NULL if this block didn't exist
@@ -6169,9 +6264,9 @@ load_unflushed_svr_segs_cb(spa_t *spa, space_map_entry_t *sme,
 		return (0);
 
 	if (sme->sme_type == SM_ALLOC)
-		range_tree_add(svr->svr_allocd_segs, offset, size);
+		zfs_range_tree_add(svr->svr_allocd_segs, offset, size);
 	else
-		range_tree_remove(svr->svr_allocd_segs, offset, size);
+		zfs_range_tree_remove(svr->svr_allocd_segs, offset, size);
 
 	return (0);
 }
@@ -6225,18 +6320,20 @@ zdb_claim_removing(spa_t *spa, zdb_cb_t *zcb)
 	vdev_t *vd = vdev_lookup_top(spa, svr->svr_vdev_id);
 	vdev_indirect_mapping_t *vim = vd->vdev_indirect_mapping;
 
-	ASSERT0(range_tree_space(svr->svr_allocd_segs));
+	ASSERT0(zfs_range_tree_space(svr->svr_allocd_segs));
 
-	range_tree_t *allocs = range_tree_create(NULL, RANGE_SEG64, NULL, 0, 0);
+	zfs_range_tree_t *allocs = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
+	    NULL, 0, 0);
 	for (uint64_t msi = 0; msi < vd->vdev_ms_count; msi++) {
 		metaslab_t *msp = vd->vdev_ms[msi];
 
-		ASSERT0(range_tree_space(allocs));
+		ASSERT0(zfs_range_tree_space(allocs));
 		if (msp->ms_sm != NULL)
 			VERIFY0(space_map_load(msp->ms_sm, allocs, SM_ALLOC));
-		range_tree_vacate(allocs, range_tree_add, svr->svr_allocd_segs);
+		zfs_range_tree_vacate(allocs, zfs_range_tree_add,
+		    svr->svr_allocd_segs);
 	}
-	range_tree_destroy(allocs);
+	zfs_range_tree_destroy(allocs);
 
 	iterate_through_spacemap_logs(spa, load_unflushed_svr_segs_cb, svr);
 
@@ -6245,12 +6342,12 @@ zdb_claim_removing(spa_t *spa, zdb_cb_t *zcb)
 	 * because we have not allocated mappings for
 	 * it yet.
 	 */
-	range_tree_clear(svr->svr_allocd_segs,
+	zfs_range_tree_clear(svr->svr_allocd_segs,
 	    vdev_indirect_mapping_max_offset(vim),
 	    vd->vdev_asize - vdev_indirect_mapping_max_offset(vim));
 
-	zcb->zcb_removing_size += range_tree_space(svr->svr_allocd_segs);
-	range_tree_vacate(svr->svr_allocd_segs, claim_segment_cb, vd);
+	zcb->zcb_removing_size += zfs_range_tree_space(svr->svr_allocd_segs);
+	zfs_range_tree_vacate(svr->svr_allocd_segs, claim_segment_cb, vd);
 
 	spa_config_exit(spa, SCL_CONFIG, FTAG);
 }
@@ -6353,7 +6450,8 @@ checkpoint_sm_exclude_entry_cb(space_map_entry_t *sme, void *arg)
 	 * also verify that the entry is there to begin with.
 	 */
 	mutex_enter(&ms->ms_lock);
-	range_tree_remove(ms->ms_allocatable, sme->sme_offset, sme->sme_run);
+	zfs_range_tree_remove(ms->ms_allocatable, sme->sme_offset,
+	    sme->sme_run);
 	mutex_exit(&ms->ms_lock);
 
 	cseea->cseea_checkpoint_size += sme->sme_run;
@@ -6484,9 +6582,9 @@ load_unflushed_cb(spa_t *spa, space_map_entry_t *sme, uint64_t txg, void *arg)
 		return (0);
 
 	if (*uic_maptype == sme->sme_type)
-		range_tree_add(ms->ms_allocatable, offset, size);
+		zfs_range_tree_add(ms->ms_allocatable, offset, size);
 	else
-		range_tree_remove(ms->ms_allocatable, offset, size);
+		zfs_range_tree_remove(ms->ms_allocatable, offset, size);
 
 	return (0);
 }
@@ -6520,7 +6618,7 @@ load_concrete_ms_allocatable_trees(spa_t *spa, maptype_t maptype)
 			    (longlong_t)vd->vdev_ms_count);
 
 			mutex_enter(&msp->ms_lock);
-			range_tree_vacate(msp->ms_allocatable, NULL, NULL);
+			zfs_range_tree_vacate(msp->ms_allocatable, NULL, NULL);
 
 			/*
 			 * We don't want to spend the CPU manipulating the
@@ -6553,7 +6651,7 @@ load_indirect_ms_allocatable_tree(vdev_t *vd, metaslab_t *msp,
 	vdev_indirect_mapping_t *vim = vd->vdev_indirect_mapping;
 
 	mutex_enter(&msp->ms_lock);
-	range_tree_vacate(msp->ms_allocatable, NULL, NULL);
+	zfs_range_tree_vacate(msp->ms_allocatable, NULL, NULL);
 
 	/*
 	 * We don't want to spend the CPU manipulating the
@@ -6577,7 +6675,7 @@ load_indirect_ms_allocatable_tree(vdev_t *vd, metaslab_t *msp,
 		 */
 		ASSERT3U(ent_offset + ent_len, <=,
 		    msp->ms_start + msp->ms_size);
-		range_tree_add(msp->ms_allocatable, ent_offset, ent_len);
+		zfs_range_tree_add(msp->ms_allocatable, ent_offset, ent_len);
 	}
 
 	if (!msp->ms_loaded)
@@ -6723,7 +6821,7 @@ zdb_check_for_obsolete_leaks(vdev_t *vd, zdb_cb_t *zcb)
 		for (uint64_t inner_offset = 0;
 		    inner_offset < DVA_GET_ASIZE(&vimep->vimep_dst);
 		    inner_offset += 1ULL << vd->vdev_ashift) {
-			if (range_tree_contains(msp->ms_allocatable,
+			if (zfs_range_tree_contains(msp->ms_allocatable,
 			    offset + inner_offset, 1ULL << vd->vdev_ashift)) {
 				obsolete_bytes += 1ULL << vd->vdev_ashift;
 			}
@@ -6806,10 +6904,10 @@ zdb_leak_fini(spa_t *spa, zdb_cb_t *zcb)
 			 * not referenced, which is not a bug.
 			 */
 			if (vd->vdev_ops == &vdev_indirect_ops) {
-				range_tree_vacate(msp->ms_allocatable,
+				zfs_range_tree_vacate(msp->ms_allocatable,
 				    NULL, NULL);
 			} else {
-				range_tree_vacate(msp->ms_allocatable,
+				zfs_range_tree_vacate(msp->ms_allocatable,
 				    zdb_leak, vd);
 			}
 			if (msp->ms_loaded) {
@@ -6857,18 +6955,19 @@ iterate_deleted_livelists(spa_t *spa, ll_iter_t func, void *arg)
 	ASSERT0(err);
 
 	zap_cursor_t zc;
-	zap_attribute_t attr;
+	zap_attribute_t *attrp = zap_attribute_alloc();
 	dsl_deadlist_t ll;
 	/* NULL out os prior to dsl_deadlist_open in case it's garbage */
 	ll.dl_os = NULL;
 	for (zap_cursor_init(&zc, mos, zap_obj);
-	    zap_cursor_retrieve(&zc, &attr) == 0;
+	    zap_cursor_retrieve(&zc, attrp) == 0;
 	    (void) zap_cursor_advance(&zc)) {
-		dsl_deadlist_open(&ll, mos, attr.za_first_integer);
+		VERIFY0(dsl_deadlist_open(&ll, mos, attrp->za_first_integer));
 		func(&ll, arg);
 		dsl_deadlist_close(&ll);
 	}
 	zap_cursor_fini(&zc);
+	zap_attribute_free(attrp);
 }
 
 static int
@@ -7706,7 +7805,7 @@ verify_checkpoint_sm_entry_cb(space_map_entry_t *sme, void *arg)
 	 * their respective ms_allocateable trees should not contain them.
 	 */
 	mutex_enter(&ms->ms_lock);
-	range_tree_verify_not_present(ms->ms_allocatable,
+	zfs_range_tree_verify_not_present(ms->ms_allocatable,
 	    sme->sme_offset, sme->sme_run);
 	mutex_exit(&ms->ms_lock);
 
@@ -7857,8 +7956,9 @@ verify_checkpoint_ms_spacemaps(spa_t *checkpoint, spa_t *current)
 			 * This way we ensure that none of the blocks that
 			 * are part of the checkpoint were freed by mistake.
 			 */
-			range_tree_walk(ckpoint_msp->ms_allocatable,
-			    (range_tree_func_t *)range_tree_verify_not_present,
+			zfs_range_tree_walk(ckpoint_msp->ms_allocatable,
+			    (zfs_range_tree_func_t *)
+			    zfs_range_tree_verify_not_present,
 			    current_msp->ms_allocatable);
 		}
 	}
@@ -7998,7 +8098,7 @@ static void
 mos_obj_refd(uint64_t obj)
 {
 	if (obj != 0 && mos_refd_objs != NULL)
-		range_tree_add(mos_refd_objs, obj, 1);
+		zfs_range_tree_add(mos_refd_objs, obj, 1);
 }
 
 /*
@@ -8008,8 +8108,8 @@ static void
 mos_obj_refd_multiple(uint64_t obj)
 {
 	if (obj != 0 && mos_refd_objs != NULL &&
-	    !range_tree_contains(mos_refd_objs, obj, 1))
-		range_tree_add(mos_refd_objs, obj, 1);
+	    !zfs_range_tree_contains(mos_refd_objs, obj, 1))
+		zfs_range_tree_add(mos_refd_objs, obj, 1);
 }
 
 static void
@@ -8082,13 +8182,14 @@ static void
 errorlog_count_refd(objset_t *mos, uint64_t errlog)
 {
 	zap_cursor_t zc;
-	zap_attribute_t za;
+	zap_attribute_t *za = zap_attribute_alloc();
 	for (zap_cursor_init(&zc, mos, errlog);
-	    zap_cursor_retrieve(&zc, &za) == 0;
+	    zap_cursor_retrieve(&zc, za) == 0;
 	    zap_cursor_advance(&zc)) {
-		mos_obj_refd(za.za_first_integer);
+		mos_obj_refd(za->za_first_integer);
 	}
 	zap_cursor_fini(&zc);
+	zap_attribute_free(za);
 }
 
 static int
@@ -8192,14 +8293,11 @@ dump_mos_leaks(spa_t *spa)
 		}
 	}
 
-	if (spa->spa_brt != NULL) {
-		brt_t *brt = spa->spa_brt;
-		for (uint64_t vdevid = 0; vdevid < brt->brt_nvdevs; vdevid++) {
-			brt_vdev_t *brtvd = &brt->brt_vdevs[vdevid];
-			if (brtvd != NULL && brtvd->bv_initiated) {
-				mos_obj_refd(brtvd->bv_mos_brtvdev);
-				mos_obj_refd(brtvd->bv_mos_entries);
-			}
+	for (uint64_t vdevid = 0; vdevid < spa->spa_brt_nvdevs; vdevid++) {
+		brt_vdev_t *brtvd = spa->spa_brt_vdevs[vdevid];
+		if (brtvd->bv_initiated) {
+			mos_obj_refd(brtvd->bv_mos_brtvdev);
+			mos_obj_refd(brtvd->bv_mos_entries);
 		}
 	}
 
@@ -8208,8 +8306,8 @@ dump_mos_leaks(spa_t *spa)
 	 */
 	uint64_t object = 0;
 	while (dmu_object_next(mos, &object, B_FALSE, 0) == 0) {
-		if (range_tree_contains(mos_refd_objs, object, 1)) {
-			range_tree_remove(mos_refd_objs, object, 1);
+		if (zfs_range_tree_contains(mos_refd_objs, object, 1)) {
+			zfs_range_tree_remove(mos_refd_objs, object, 1);
 		} else {
 			dmu_object_info_t doi;
 			const char *name;
@@ -8227,11 +8325,11 @@ dump_mos_leaks(spa_t *spa)
 			rv = 2;
 		}
 	}
-	(void) range_tree_walk(mos_refd_objs, mos_leaks_cb, NULL);
-	if (!range_tree_is_empty(mos_refd_objs))
+	(void) zfs_range_tree_walk(mos_refd_objs, mos_leaks_cb, NULL);
+	if (!zfs_range_tree_is_empty(mos_refd_objs))
 		rv = 2;
-	range_tree_vacate(mos_refd_objs, NULL, NULL);
-	range_tree_destroy(mos_refd_objs);
+	zfs_range_tree_vacate(mos_refd_objs, NULL, NULL);
+	zfs_range_tree_destroy(mos_refd_objs);
 	return (rv);
 }
 
@@ -8353,8 +8451,8 @@ dump_zpool(spa_t *spa)
 
 	if (dump_opt['d'] || dump_opt['i']) {
 		spa_feature_t f;
-		mos_refd_objs = range_tree_create(NULL, RANGE_SEG64, NULL, 0,
-		    0);
+		mos_refd_objs = zfs_range_tree_create(NULL, ZFS_RANGE_SEG64,
+		    NULL, 0, 0);
 		dump_objset(dp->dp_meta_objset);
 
 		if (dump_opt['d'] >= 3) {
@@ -8788,7 +8886,7 @@ zdb_read_block(char *thing, spa_t *spa)
 	void *lbuf, *buf;
 	char *s, *p, *dup, *flagstr, *sizes, *tmp = NULL;
 	const char *vdev, *errmsg = NULL;
-	int i, error;
+	int i, len, error;
 	boolean_t borrowed = B_FALSE, found = B_FALSE;
 
 	dup = strdup(thing);
@@ -8816,7 +8914,8 @@ zdb_read_block(char *thing, spa_t *spa)
 	for (s = strtok_r(flagstr, ":", &tmp);
 	    s != NULL;
 	    s = strtok_r(NULL, ":", &tmp)) {
-		for (i = 0; i < strlen(flagstr); i++) {
+		len = strlen(flagstr);
+		for (i = 0; i < len; i++) {
 			int bit = flagbits[(uchar_t)flagstr[i]];
 
 			if (bit == 0) {
@@ -8884,7 +8983,7 @@ zdb_read_block(char *thing, spa_t *spa)
 
 	DVA_SET_VDEV(&dva[0], vd->vdev_id);
 	DVA_SET_OFFSET(&dva[0], offset);
-	DVA_SET_GANG(&dva[0], !!(flags & ZDB_FLAG_GBH));
+	DVA_SET_GANG(&dva[0], 0);
 	DVA_SET_ASIZE(&dva[0], vdev_psize_to_asize(vd, psize));
 
 	BP_SET_BIRTH(bp, TXG_INITIAL, TXG_INITIAL);
@@ -8899,7 +8998,7 @@ zdb_read_block(char *thing, spa_t *spa)
 	BP_SET_BYTEORDER(bp, ZFS_HOST_BYTEORDER);
 
 	spa_config_enter(spa, SCL_STATE, FTAG, RW_READER);
-	zio = zio_root(spa, NULL, NULL, 0);
+	zio = zio_root(spa, NULL, NULL, ZIO_FLAG_CANFAIL);
 
 	if (vd == vd->vdev_top) {
 		/*
@@ -8949,7 +9048,7 @@ zdb_read_block(char *thing, spa_t *spa)
 		const blkptr_t *b = (const blkptr_t *)(void *)
 		    ((uintptr_t)buf + (uintptr_t)blkptr_offset);
 		if (zfs_blkptr_verify(spa, b,
-		    BLK_CONFIG_NEEDED, BLK_VERIFY_ONLY) == B_FALSE) {
+		    BLK_CONFIG_NEEDED, BLK_VERIFY_ONLY)) {
 			abd_return_buf_copy(pabd, buf, lsize);
 			borrowed = B_FALSE;
 			buf = lbuf;
@@ -8958,7 +9057,7 @@ zdb_read_block(char *thing, spa_t *spa)
 			b = (const blkptr_t *)(void *)
 			    ((uintptr_t)buf + (uintptr_t)blkptr_offset);
 			if (lsize == -1 || zfs_blkptr_verify(spa, b,
-			    BLK_CONFIG_NEEDED, BLK_VERIFY_LOG) == B_FALSE) {
+			    BLK_CONFIG_NEEDED, BLK_VERIFY_LOG)) {
 				printf("invalid block pointer at this DVA\n");
 				goto out;
 			}
@@ -9086,13 +9185,14 @@ zdb_embedded_block(char *thing)
 static boolean_t
 zdb_numeric(char *str)
 {
-	int i = 0;
+	int i = 0, len;
 
-	if (strlen(str) == 0)
+	len = strlen(str);
+	if (len == 0)
 		return (B_FALSE);
 	if (strncmp(str, "0x", 2) == 0 || strncmp(str, "0X", 2) == 0)
 		i = 2;
-	for (; i < strlen(str); i++) {
+	for (; i < len; i++) {
 		if (!isxdigit(str[i]))
 			return (B_FALSE);
 	}

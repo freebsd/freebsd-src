@@ -17,7 +17,8 @@ SUBDIR_PARALLEL=
 INCS=	a.out.h ar.h assert.h bitstring.h byteswap.h \
 	complex.h cpio.h _ctype.h ctype.h \
 	db.h \
-	dirent.h dlfcn.h elf.h elf-hints.h endian.h err.h fmtmsg.h fnmatch.h \
+	dirent.h dlfcn.h elf.h elf-hints.h endian.h err.h exterr.h \
+	fmtmsg.h fnmatch.h \
 	fstab.h fts.h ftw.h getopt.h glob.h grp.h \
 	ieeefp.h ifaddrs.h \
 	inttypes.h iso646.h kenv.h langinfo.h libgen.h limits.h link.h \
@@ -308,6 +309,13 @@ INCS+=		iconv.h
 
 .if ${MK_USB} != "no"
 LSUBDIRS+=	dev/usb
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64" || \
+    ${MACHINE_CPUARCH} == "riscv"
+.if ${MK_BHYVE} != "no"
+LSUBDIRS+=	dev/vmm
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc" && ${MACHINE_ARCH} != "powerpcspe"

@@ -55,3 +55,9 @@ psignal(int sig, const char *s)
 	(void)_write(STDERR_FILENO, c, strlen(c));
 	(void)_write(STDERR_FILENO, "\n", 1);
 }
+
+void
+psiginfo(const siginfo_t *si, const char *s)
+{
+	psignal(si->si_signo, s);
+}

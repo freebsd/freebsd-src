@@ -60,7 +60,7 @@ def parse_ipfix(p):
 		c = datafl.payload
 
 def receive(recvif, recvport):
-	pkts = sp.sniff(iface=recvif, timeout=65)
+	pkts = sp.sniff(iface=recvif, timeout=65, filter="udp port 2055")
 
 	if len(pkts) == 0:
 		print("No data")

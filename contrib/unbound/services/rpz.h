@@ -269,4 +269,11 @@ void rpz_enable(struct rpz* r);
  */
 void rpz_disable(struct rpz* r);
 
+/**
+ * Get memory usage of rpz. Caller must manage locks.
+ * @param r: RPZ struct.
+ * @return memory usage.
+ */
+size_t rpz_get_mem(struct rpz* r);
+
 #endif /* SERVICES_RPZ_H */
