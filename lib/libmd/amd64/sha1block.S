@@ -1220,7 +1220,7 @@ END(_libmd_sha1block_scalar)
 
 .macro	calc116
 	calc_f2_pre	0x130, %eax, %edx, %edi
-	precalc37	%ymm5
+	precalc36	%ymm5
 	calc_f2_post	%eax, %ecx, %ebx, %edi
 .endm
 
@@ -1354,7 +1354,7 @@ END(_libmd_sha1block_scalar)
 .endm
 
 .macro	calc139
-	calc_f2_pre	0x1cc, %edx, %ecx, %eax
+	calc_f2_pre	0x1dc, %edx, %ecx, %eax
 	precalc35	%ymm14
 	calc_f2_post	%edx, %ebx, %esi, %eax
 .endm
@@ -1586,7 +1586,7 @@ ENTRY(_libmd_sha1block_avx2)
 
 	add		$128, %r10		// move to the next even-64-byte block
 	cmp		%r11, %r10		// is the current block the last one?
-	cmovae		%r10, %r8		// signal the last iteration smartly
+	cmovae		%r8, %r10		// signal the last iteration smartly
 
 	calc60
 	calc61
