@@ -73,6 +73,12 @@ OBJROOT:=	${OBJROOT:H:tA}/${OBJROOT:T}
 .endif
 # Must export since OBJDIR will dynamically be based on it
 .export OBJROOT SRCTOP
+# if we didn't get SB_OBJROOT from env,
+# it is handy to set it now, so we can remember it
+.if empty(SB_OBJROOT)
+SB_OBJROOT:= ${OBJROOT}
+.export SB_OBJROOT
+.endif
 .endif
 
 .if ${MK_DIRDEPS_BUILD} == "no"

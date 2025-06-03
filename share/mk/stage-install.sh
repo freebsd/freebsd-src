@@ -28,22 +28,28 @@
 #	"file".dirdep placed in "dest" or "dest".dirdep if it happed
 #	to be a file rather than a directory.
 #
+#	Before we run install(1), we check if "dest" needs to be a
+#	directory (more than one file in "args") and create it
+#	if necessary.
+#
 # SEE ALSO:
 #	meta.stage.mk
-#	
+#
 
 # RCSid:
-#	$Id: stage-install.sh,v 1.5 2013/04/19 16:32:24 sjg Exp $
+#	$Id: stage-install.sh,v 1.11 2024/02/17 17:26:57 sjg Exp $
 #
-#	@(#) Copyright (c) 2013, Simon J. Gerraty
+#	SPDX-License-Identifier: BSD-2-Clause
+#
+#	@(#) Copyright (c) 2013-2020, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -58,6 +64,45 @@ do
     *) break;;
     esac
 done
+
+# get last entry from "$@" without side effects
+last_entry() {
+    while [ $# -gt 8 ]
+    do
+        shift 8
+    done
+    eval last=\$$#
+    echo $last
+}
+
+# mkdir $dest if needed (more than one file)
+mkdir_if_needed() {
+    (
+        lf=
+        while [ $# -gt 8 ]
+        do
+            shift 4
+        done
+        for f in "$@"
+        do
+            [ -f $f ] || continue
+            [ $f = $dest ] && continue
+            if [ -n "$lf" ]; then
+                # dest must be a directory
+                mkdir -p $dest
+                break
+            fi
+            lf=$f
+        done
+    )
+}
+
+args="$@"
+dest=`last_entry "$@"`
+case " $args " in
+*" -d "*) ;;
+*) [ -e $dest ] || mkdir_if_needed "$@";;
+esac
 
 # if .dirdep doesn't exist, just run install and be done
 _DIRDEP=${_DIRDEP:-$OBJDIR/.dirdep}
@@ -74,18 +119,16 @@ StageDirdep() {
   t=$1
   if [ -s $t.dirdep ]; then
       cmp -s $_DIRDEP $t.dirdep && return
-      echo "ERROR: $t installed by `cat $t.dirdep` not `cat $_DIRDEP`" >&2
-      exit 1
+      case "${STAGE_CONFLICT:-error}" in
+      [Ee]*) STAGE_CONFLICT=ERROR action=exit;;
+      *) STAGE_CONFLICT=WARNING action=: ;;
+      esac
+      echo "$STAGE_CONFLICT: $t installed by `cat $t.dirdep` not `cat $_DIRDEP`" >&2
+      $action 1
   fi
   LnCp $_DIRDEP $t.dirdep || exit 1
 }
 
-args="$@"
-while [ $# -gt 8 ]
-do
-    shift 8
-done
-eval dest=\$$#
 if [ -f $dest ]; then
     # a file, there can be only one .dirdep needed
     StageDirdep $dest

@@ -1,6 +1,8 @@
-# $Id: jobs.mk,v 1.14 2023/09/11 16:52:44 sjg Exp $
+# SPDX-License-Identifier: BSD-2-Clause
 #
-#	@(#) Copyright (c) 2012-2023, Simon J. Gerraty
+# $Id: jobs.mk,v 1.19 2025/02/03 21:18:44 sjg Exp $
+#
+#	@(#) Copyright (c) 2012-2025, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -66,7 +68,7 @@ NEWLOG_SH := ${(type newlog.sh) 2> /dev/null:L:sh:M/*}
 .endif
 .endif
 .if !empty(NEWLOG_SH) && exists(${NEWLOG_SH})
-NEWLOG := sh ${NEWLOG_SH}
+NEWLOG := ${.SHELL:Ush} ${NEWLOG_SH}
 JOB_NEWLOG_ARGS ?= -S -n ${JOB_LOG_GENS}
 .else
 NEWLOG = :
@@ -78,7 +80,8 @@ JOB_MAX = ${.MAKE.JOBS}
 # This should be derrived from number of cpu's
 .if ${.MAKE.JOBS.C:Uno} == "yes"
 # 1.2 - 1.5 times nCPU works well on most machines that support -jC
-JOB_MAX_C ?= 1.33C
+# if the factor is floating point, the C suffix isn't needed
+JOB_MAX_C ?= 1.33
 JOB_MAX ?= ${JOB_MAX_C}
 .endif
 JOB_MAX ?= 8
