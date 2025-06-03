@@ -342,6 +342,11 @@ main(int argc, char *argv[])
 	}
 	pp = NULL;
 	lp = getdisklabel();
+	/*
+	 * set filesystem size from file size when a bsdlabel isn't present
+	 */
+	if (lp == NULL && is_file)
+		fssize = mediasize / sectorsize;
 	if (lp != NULL) {
 		if (!is_file) /* already set for files */
 			part_name = special[strlen(special) - 1];
@@ -431,7 +436,7 @@ getdisklabel(void)
 		    bootarea + (0 /* labeloffset */ +
 				1 /* labelsoffset */ * sectorsize),
 		    &lab, MAXPARTITIONS))
-			errx(1, "no valid label found");
+			return (NULL);
 
 		lp = &lab;
 		return &lab;
