@@ -36,7 +36,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 5, 2025
+.Dd May 28, 2025
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -79,10 +79,12 @@ command or using the
 variable in
 .Xr rc.conf 5 .
 .Pp
-The
+When it is created, the
 .Nm
-interface randomly chooses a link (MAC) address in the range reserved for
-locally administered addresses when it is created.
+interface gets assigned a link (MAC) address in the range of universally
+administered addresses reserved for the FreeBSD Foundation by hashing
+the host UUID, jail name, and the interface name.
+If this fails, a random, locally administered address is generated instead.
 This address is guaranteed to be unique
 .Em only
 across all
