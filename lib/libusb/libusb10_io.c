@@ -108,7 +108,7 @@ libusb10_handle_events_sub(struct libusb_context *ctx, struct timeval *tv)
 	int i;
 	int err;
 
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb10_handle_events_sub enter");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb10_handle_events_sub enter");
 
 	nfds = 0;
 	i = 0;
@@ -230,7 +230,7 @@ do_done:
 
 	/* Wakeup other waiters */
 	pthread_cond_broadcast(&ctx->ctx_cond);
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb10_handle_events_sub complete");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb10_handle_events_sub complete");
 
 	return (err);
 }
@@ -314,7 +314,7 @@ libusb_wait_for_event(libusb_context *ctx, struct timeval *tv)
 	int err;
 
 	ctx = GET_CONTEXT(ctx);
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_wait_for_event enter");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_wait_for_event enter");
 
 	if (tv == NULL) {
 		pthread_cond_wait(&ctx->ctx_cond,
@@ -358,7 +358,7 @@ libusb_handle_events_timeout_completed(libusb_context *ctx,
 
 	ctx = GET_CONTEXT(ctx);
 
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_timeout_completed enter");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_handle_events_timeout_completed enter");
 
 	libusb_lock_events(ctx);
 
@@ -374,7 +374,7 @@ libusb_handle_events_timeout_completed(libusb_context *ctx,
 
 	libusb_unlock_events(ctx);
 
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_timeout_completed exit");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_handle_events_timeout_completed exit");
 
 	return (err);
 }
@@ -523,7 +523,7 @@ libusb10_do_transfer_cb(struct libusb_transfer *transfer)
 
 	ctx = libusb10_get_context_by_device_handle(transfer->dev_handle);
 
-	DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "sync I/O done");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_DEBUG, "sync I/O done");
 
 	pdone = transfer->user_data;
 	*pdone = 1;
@@ -613,12 +613,12 @@ libusb_bulk_transfer(libusb_device_handle *devh,
 
 	ctx = libusb10_get_context_by_device_handle(devh);
 
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_bulk_transfer enter");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_bulk_transfer enter");
 
 	ret = libusb10_do_transfer(devh, endpoint, data, length, transferred,
 	    timeout, LIBUSB_TRANSFER_TYPE_BULK);
 
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_bulk_transfer leave");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_bulk_transfer leave");
 	return (ret);
 }
 
@@ -632,12 +632,12 @@ libusb_interrupt_transfer(libusb_device_handle *devh,
 
 	ctx = libusb10_get_context_by_device_handle(devh);
 
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_interrupt_transfer enter");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_interrupt_transfer enter");
 
 	ret = libusb10_do_transfer(devh, endpoint, data, length, transferred,
 	    timeout, LIBUSB_TRANSFER_TYPE_INTERRUPT);
 
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_interrupt_transfer leave");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_interrupt_transfer leave");
 	return (ret);
 }
 
