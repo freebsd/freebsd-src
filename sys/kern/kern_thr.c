@@ -26,11 +26,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_ktrace.h"
 #include "opt_posix.h"
 #include "opt_hwpmc_hooks.h"
 
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -188,6 +192,10 @@ kern_thr_new(struct thread *td, struct thr_param *param)
 			return (error);
 		rtpp = &rtp;
 	}
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_STRUCT))
+		ktrthrparam(param);
+#endif
 	return (thread_create(td, rtpp, thr_new_initthr, param));
 }
 
