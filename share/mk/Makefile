@@ -62,6 +62,7 @@ FILES=	\
 	dirdeps-targets.mk \
 	gendirdeps.mk \
 	host-target.mk \
+	host.test.mk \
 	install-new.mk \
 	jobs.mk \
 	meta.autodep.mk \
