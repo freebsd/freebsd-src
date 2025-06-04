@@ -34,7 +34,7 @@
         zfs
         ..
     ..
-    dev             mode=0555
+    dev             mode=0555 tags=package=runtime
     ..
     etc
         X11
@@ -132,7 +132,7 @@
     ..
     sbin
     ..
-    tmp             mode=01777
+    tmp             mode=01777 tags=package=runtime
     ..
     usr
     ..
