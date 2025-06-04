@@ -1028,7 +1028,8 @@ ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
 				narg--;
 				break;
 			case SYS_kill:
-				print_number(ip, narg, c);
+				*ip = (pid_t)*ip;
+				print_decimal_number(ip, narg, c);
 				putchar(',');
 				print_signal(*ip);
 				ip++;
