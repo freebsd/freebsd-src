@@ -531,6 +531,12 @@ void	ieee80211_node_leave(struct ieee80211_node *);
 int8_t	ieee80211_getrssi(struct ieee80211vap *);
 void	ieee80211_getsignal(struct ieee80211vap *, int8_t *, int8_t *);
 
+/* TX sequence space related routines */
+ieee80211_seq	ieee80211_tx_seqno_fetch_incr(struct ieee80211_node *,
+	uint8_t);
+ieee80211_seq	ieee80211_tx_seqno_fetch(const struct ieee80211_node *,
+	uint8_t);
+
 /*
  * Node transmit rate specific manipulation.
  *
