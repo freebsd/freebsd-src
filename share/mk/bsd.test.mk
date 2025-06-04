@@ -91,6 +91,11 @@ MAN=
 .include <suite.test.mk>
 .endif
 
+.if ${MK_RUN_TESTS} == "yes"
+# Run tests as part of the build
+.include <host.test.mk>
+.endif
+
 .if !target(realcheck)
 realcheck: .PHONY
 	@echo "$@ not defined; skipping"
