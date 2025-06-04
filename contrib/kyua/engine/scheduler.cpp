@@ -86,11 +86,11 @@ using utils::optional;
 ///
 /// TODO(jmmv): This is here only for testing purposes.  Maybe we should expose
 /// this setting as part of the user_config.
-datetime::delta scheduler::cleanup_timeout(60, 0);
+datetime::delta scheduler::cleanup_timeout(300, 0);
 
 
 /// Timeout for the test case execenv cleanup operation.
-datetime::delta scheduler::execenv_cleanup_timeout(60, 0);
+datetime::delta scheduler::execenv_cleanup_timeout(300, 0);
 
 
 /// Timeout for the test case listing operation.
