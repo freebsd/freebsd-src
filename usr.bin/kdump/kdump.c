@@ -50,6 +50,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysent.h>
+#include <sys/thr.h>
 #include <sys/umtx.h>
 #include <sys/un.h>
 #include <sys/queue.h>
@@ -109,6 +110,7 @@ static void ktrsockaddr(struct sockaddr *);
 static void ktrsplice(struct splice *);
 static void ktrstat(struct stat *);
 static void ktrstruct(char *, size_t);
+static void ktrthrparam(struct thr_param *);
 static void ktrcapfail(struct ktr_cap_fail *);
 static void ktrfault(struct ktr_fault *);
 static void ktrfaultend(struct ktr_faultend *);
@@ -1953,6 +1955,18 @@ ktrsplice(struct splice *sp)
 }
 
 static void
+ktrthrparam(struct thr_param *tp)
+{
+	printf("thr param { start=%p arg=%p stack_base=%p "
+	    "stack_size=%#zx tls_base=%p tls_size=%#zx child_tidp=%p "
+	    "parent_tidp=%p flags=",
+	    tp->start_func, tp->arg, tp->stack_base, tp->stack_size,
+	    tp->tls_base, tp->tls_size, tp->child_tid, tp->parent_tid);
+	print_mask_arg(sysdecode_thr_create_flags, tp->flags);
+	printf(" rtp=%p }\n", tp->rtp);
+}
+
+static void
 ktrstat(struct stat *statp)
 {
 	char mode[12], timestr[PATH_MAX + 4];
@@ -2147,6 +2161,13 @@ ktrstruct(char *buf, size_t buflen)
 			goto invalid;
 		memcpy(&sp, data, datalen);
 		ktrsplice(&sp);
+	} else if (strcmp(name, "thrparam") == 0) {
+		struct thr_param tp;
+
+		if (datalen != sizeof(tp))
+			goto invalid;
+		memcpy(&tp, data, datalen);
+		ktrthrparam(&tp);
 	} else {
 #ifdef SYSDECODE_HAVE_LINUX
 		if (ktrstruct_linux(name, data, datalen) == false)
