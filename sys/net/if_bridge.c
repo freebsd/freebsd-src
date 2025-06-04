@@ -2778,22 +2778,19 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	do { GRAB_OUR_PACKETS(bifp) } while (0);
 
 	/*
-	 * We only need to check members interfaces if member_ifaddrs is
-	 * enabled; otherwise we should have never traffic destined for a
-	 * member's lladdr.
+	 * Check the interface the packet arrived on.  For tagged frames,
+	 * we need to do this even if member_ifaddrs is disabled because
+	 * vlan(4) might need to handle the traffic.
 	 */
-
-	if (V_member_ifaddrs) {
-		/*
-		 * Give a chance for ifp at first priority. This will help when
-		 * the packet comes through the interface like VLAN's with the
-		 * same MACs on several interfaces from the same bridge. This
-		 * also will save some CPU cycles in case the destination
-		 * interface and the input interface (eq ifp) are the same.
-		 */
+	if (V_member_ifaddrs || (vlan && ifp->if_vlantrunk))
 		do { GRAB_OUR_PACKETS(ifp) } while (0);
 
-		/* Now check the all bridge members. */
+	/*
+	 * We only need to check other members interface if member_ifaddrs
+	 * is enabled; otherwise we should have never traffic destined for
+	 * a member's lladdr.
+	 */
+	if (V_member_ifaddrs) {
 		CK_LIST_FOREACH(bif2, &sc->sc_iflist, bif_next) {
 			GRAB_OUR_PACKETS(bif2->bif_ifp)
 		}
