@@ -35,6 +35,8 @@
 #ifndef __ARM64_INCLUDE_EFI_H_
 #define __ARM64_INCLUDE_EFI_H_
 
+#include <sys/types.h>
+
 #define	EFIABI_ATTR
 
 #ifdef _KERNEL
