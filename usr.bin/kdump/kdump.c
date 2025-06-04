@@ -937,7 +937,8 @@ ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
 				narg -= 2;
 				break;
 			case SYS_wait4:
-				print_number(ip, narg, c);
+				*ip = (pid_t)*ip;
+				print_decimal_number(ip, narg, c);
 				print_number(ip, narg, c);
 				putchar(',');
 				print_mask_arg0(sysdecode_wait4_options, *ip);
@@ -950,7 +951,7 @@ ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
 				c = ',';
 				ip++;
 				narg--;
-				print_number64(first, ip, narg, c);
+				print_decimal_number64(first, ip, narg, c);
 				print_number(ip, narg, c);
 				putchar(',');
 				print_mask_arg(sysdecode_wait6_options, *ip);
