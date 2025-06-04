@@ -261,10 +261,15 @@ AcpiUtDeleteInternalObj (
      */
     case ACPI_TYPE_DEVICE:
 
+#ifndef _STANDALONE 
+	/* 
+	 * XXX - Is AcpiEvDeleteGpeBlock needed in the loader?
+	 */
         if (Object->Device.GpeBlock)
         {
             (void) AcpiEvDeleteGpeBlock (Object->Device.GpeBlock);
         }
+#endif
 
         ACPI_FALLTHROUGH;
 

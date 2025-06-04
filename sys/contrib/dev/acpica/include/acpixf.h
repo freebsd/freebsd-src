@@ -261,7 +261,11 @@ ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_AutoSerializeMethods, TRUE);
  * because ACPICA is fully compatible with other ACPI implementations.
  * Changing this will revert ACPICA (and machine ASL) to pre-OSI behavior.
  */
+#ifndef _STANDALONE
 ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_CreateOsiMethod, TRUE);
+#else
+ACPI_INIT_GLOBAL (UINT8,            AcpiGbl_CreateOsiMethod, FALSE);
+#endif
 
 /*
  * Optionally use default values for the ACPI register widths. Set this to
