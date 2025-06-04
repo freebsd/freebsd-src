@@ -833,14 +833,13 @@ nvme_proto_denounce_sbuf(struct cam_ed *device, struct sbuf *sb)
 static void
 nvme_proto_debug_out(union ccb *ccb)
 {
-	char cdb_str[(sizeof(struct nvme_command) * 3) + 1];
+	char command_str[128];
 
 	if (ccb->ccb_h.func_code != XPT_NVME_IO &&
 	    ccb->ccb_h.func_code != XPT_NVME_ADMIN)
 		return;
 
 	CAM_DEBUG(ccb->ccb_h.path,
-	    CAM_DEBUG_CDB,("%s. NCB: %s\n", nvme_op_string(&ccb->nvmeio.cmd,
-		ccb->ccb_h.func_code == XPT_NVME_ADMIN),
-		nvme_cmd_string(&ccb->nvmeio.cmd, cdb_str, sizeof(cdb_str))));
+	    CAM_DEBUG_CDB,("%s\n", nvme_command_string(&ccb->nvmeio,
+		command_str, sizeof(command_str))));
 }

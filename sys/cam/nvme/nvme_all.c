@@ -269,22 +269,7 @@ nvme_print_ident_short(const struct nvme_controller_data *cdata,
 }
 
 const char *
-nvme_op_string(const struct nvme_command *cmd, int admin)
-{
-	const char *s;
-
-	if (admin)
-		s = admin_opcode[cmd->opc];
-	else
-		s = nvm_opcode[cmd->opc];
-	if (s == NULL)
-		return ("UNKNOWN");
-	else
-		return (s);
-}
-
-const char *
-nvme_cmd_string(const struct nvme_command *cmd, char *cmd_string, size_t len)
+nvme_command_string(struct ccb_nvmeio *nvmeio, char *cmd_string, size_t len)
 {
 	struct sbuf sb;
 	int error;
@@ -293,7 +278,7 @@ nvme_cmd_string(const struct nvme_command *cmd, char *cmd_string, size_t len)
 		return ("");
 
 	sbuf_new(&sb, cmd_string, len, SBUF_FIXEDLEN);
-	nvme_cmd_sbuf(cmd, &sb);
+	nvme_command_sbuf(nvmeio, &sb);
 
 	error = sbuf_finish(&sb);
 	if (error != 0 &&
