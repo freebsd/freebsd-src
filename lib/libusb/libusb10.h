@@ -29,6 +29,7 @@
 #define	__LIBUSB10_H__
 
 #ifndef LIBUSB_GLOBAL_INCLUDE_FILE
+#include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <netlink/netlink.h>
 #include <netlink/netlink_generic.h>
@@ -46,24 +47,11 @@
 #define	HOTPLUG_LOCK(ctx) pthread_mutex_lock(&(ctx)->hotplug_lock)
 #define	HOTPLUG_UNLOCK(ctx) pthread_mutex_unlock(&(ctx)->hotplug_lock)
 
-#define	DPRINTF(ctx, dbg, format, ...) do {			\
-	switch (dbg) {						\
-	case LIBUSB_DEBUG_FUNCTION:				\
-		if ((ctx)->debug & LIBUSB_DEBUG_FUNCTION) {	\
-			printf("LIBUSB_FUNCTION: "		\
-			       format "\n", ## __VA_ARGS__);	\
-		}						\
-		break;						\
-	case LIBUSB_DEBUG_TRANSFER:				\
-		if ((ctx)->debug & LIBUSB_DEBUG_TRANSFER) { 	\
-			printf("LIBUSB_TRANSFER: "		\
-			       format "\n", ## __VA_ARGS__);	\
-		}						\
-		break;						\
-	default:						\
-		break;						\
-	}							\
-} while (0)
+void libusb_log_va_args(struct libusb_context *ctx, enum libusb_log_level level,
+    const char *fmt, ...) __printflike(3, 4);
+
+#define DPRINTF(ctx, dbg, format, ...) \
+	libusb_log_va_args(ctx, dbg, format, ##__VA_ARGS__)
 
 /* internal structures */
 

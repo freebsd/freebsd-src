@@ -243,17 +243,6 @@ enum libusb_log_level {
        LIBUSB_LOG_LEVEL_DEBUG
 };
 
-/* XXX */
-/* libusb_set_debug should take parameters from libusb_log_level
- * above according to
- *   https://libusb.sourceforge.io/api-1.0/group__libusb__lib.html
- */
-enum libusb_debug_level {
-	LIBUSB_DEBUG_NO=0,
-	LIBUSB_DEBUG_FUNCTION=1,
-	LIBUSB_DEBUG_TRANSFER=2,
-};
-
 #define	LIBUSB_HOTPLUG_MATCH_ANY -1
 
 typedef enum {

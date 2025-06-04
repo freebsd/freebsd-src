@@ -35,6 +35,7 @@
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,6 +49,7 @@
 #endif
 
 #define	libusb_device_handle libusb20_device
+#define	LIBUSB_LOG_BUFFER_SIZE 1024
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -128,7 +130,7 @@ libusb_interrupt_event_handler(libusb_context *ctx)
 	err = eventfd_write(ctx->event, 1);
 	if (err < 0) {
 		/* ignore error, if any */
-		DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "Waking up event loop failed!");
+		DPRINTF(ctx, LIBUSB_LOG_LEVEL_ERROR, "Waking up event loop failed!");
 	}
 }
 
@@ -253,7 +255,7 @@ libusb_init_context(libusb_context **context,
 	if (context)
 		*context = ctx;
 
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_init complete");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_INFO, "libusb_init complete");
 
 	signal(SIGPIPE, SIG_IGN);
 
@@ -625,7 +627,7 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 	if (ctx == NULL)
 		return (NULL);		/* be NULL safe */
 
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_with_vid_pid enter");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_open_device_with_vid_pid enter");
 
 	if ((i = libusb_get_device_list(ctx, &devs)) < 0)
 		return (NULL);
@@ -649,7 +651,7 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 	}
 
 	libusb_free_device_list(devs, 1);
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_with_vid_pid leave");
+	DPRINTF(ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_open_device_with_vid_pid leave");
 	return (pdev);
 }
 
@@ -1536,7 +1538,7 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 
 	dev = libusb_get_device(uxfer->dev_handle);
 
-	DPRINTF(dev->ctx, LIBUSB_DEBUG_FUNCTION, "libusb_submit_transfer enter");
+	DPRINTF(dev->ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_submit_transfer enter");
 
 	sxfer = (struct libusb_super_transfer *)(
 	    (uint8_t *)uxfer - sizeof(*sxfer));
@@ -1571,7 +1573,7 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 
 	CTX_UNLOCK(dev->ctx);
 
-	DPRINTF(dev->ctx, LIBUSB_DEBUG_FUNCTION, "libusb_submit_transfer leave %d", err);
+	DPRINTF(dev->ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_submit_transfer leave %d", err);
 
 	return (err);
 }
@@ -1600,7 +1602,7 @@ libusb_cancel_transfer(struct libusb_transfer *uxfer)
 
 	dev = libusb_get_device(devh);
 
-	DPRINTF(dev->ctx, LIBUSB_DEBUG_FUNCTION, "libusb_cancel_transfer enter");
+	DPRINTF(dev->ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_cancel_transfer enter");
 
 	sxfer = (struct libusb_super_transfer *)(
 	    (uint8_t *)uxfer - sizeof(*sxfer));
@@ -1661,7 +1663,7 @@ libusb_cancel_transfer(struct libusb_transfer *uxfer)
 
 	CTX_UNLOCK(dev->ctx);
 
-	DPRINTF(dev->ctx, LIBUSB_DEBUG_FUNCTION, "libusb_cancel_transfer leave");
+	DPRINTF(dev->ctx, LIBUSB_LOG_LEVEL_DEBUG, "libusb_cancel_transfer leave");
 
 	return (retval);
 }
@@ -1810,4 +1812,33 @@ libusb_has_capability(uint32_t capability)
 	default:
 		return (0);
 	}
+}
+
+void
+libusb_log_va_args(struct libusb_context *ctx, enum libusb_log_level level,
+    const char *fmt, ...)
+{
+	static const char *log_prefix[5] = {
+		[LIBUSB_LOG_LEVEL_ERROR] = "LIBUSB_ERROR",
+		[LIBUSB_LOG_LEVEL_WARNING] = "LIBUSB_WARN",
+		[LIBUSB_LOG_LEVEL_INFO] = "LIBUSB_INFO",
+		[LIBUSB_LOG_LEVEL_DEBUG] = "LIBUSB_DEBUG",
+	};
+
+	char buffer[LIBUSB_LOG_BUFFER_SIZE];
+	char new_fmt[LIBUSB_LOG_BUFFER_SIZE];
+	va_list args;
+
+	ctx = GET_CONTEXT(ctx);
+
+	if (ctx->debug < level)
+		return;
+
+	va_start(args, fmt);
+
+	snprintf(new_fmt, sizeof(new_fmt), "%s: %s\n", log_prefix[level], fmt);
+	vsnprintf(buffer, sizeof(buffer), new_fmt, args);
+	fputs(buffer, stdout);
+
+	va_end(args);
 }
