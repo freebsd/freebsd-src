@@ -29,6 +29,7 @@
 # mk-vmimage.sh: Create virtual machine disk images in various formats.
 #
 #
+set -e
 
 usage() {
 	echo "${0} usage:"
