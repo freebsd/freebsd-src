@@ -1,0 +1,20 @@
+# Test use_pkinit with an initial prompt.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth = no_ccache use_pkinit pkinit_user=FILE:%0 pkinit_prompt
+
+[run]
+    authenticate = PAM_SUCCESS
+
+[prompts]
+    echo_off = Insert smart card and press Enter: |
+
+[output]
+    INFO user %u authenticated as %u

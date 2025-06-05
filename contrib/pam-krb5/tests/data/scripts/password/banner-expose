@@ -1,0 +1,23 @@
+# Test password change with banner and expose_account.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    password = expose_account banner=realm
+
+[run]
+    chauthtok(PRELIM_CHECK)   = PAM_SUCCESS
+    chauthtok(UPDATE_AUTHTOK) = PAM_SUCCESS
+
+[prompts]
+    echo_off = Current realm password for %0: |%p
+    echo_off = Enter new realm password for %0: |%n
+    echo_off = Retype new realm password for %0: |%n
+
+[output]
+    INFO user %u changed Kerberos password

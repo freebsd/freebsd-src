@@ -1,0 +1,46 @@
+# Test list for pam-krb5.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2017, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2011-2012
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved.  This file is offered as-is, without any
+# warranty.
+#
+# SPDX-License-Identifier: FSFAP
+
+# Exclude the tests that use the pkinit.so MIT Kerberos module from valgrind
+# testing (module/fast-anon and module/pkinit) because they cause valgrind to
+# go into an infinite loop.
+
+docs/pod
+docs/pod-spelling
+docs/spdx-license
+module/alt-auth         valgrind
+module/bad-authtok      valgrind
+module/basic            valgrind
+module/cache            valgrind
+module/cache-cleanup    valgrind
+module/expired          valgrind
+module/fast             valgrind
+module/fast-anon
+module/long             valgrind
+module/no-cache         valgrind
+module/pam-user         valgrind
+module/password         valgrind
+module/pkinit
+module/realm            valgrind
+module/stacked          valgrind
+pam-util/args           valgrind
+pam-util/fakepam        valgrind
+pam-util/logging        valgrind
+pam-util/options        valgrind
+pam-util/vector         valgrind
+portable/asprintf       valgrind
+portable/mkstemp        valgrind
+portable/strndup        valgrind
+style/obsolete-strings
+valgrind/logs

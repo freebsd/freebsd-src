@@ -1,0 +1,276 @@
+                          PAM Testing Framework
+
+Overview
+
+    The files in this directory provide a shim PAM library that's used for
+    testing and a test framework used to exercise a PAM module.
+
+    This library and its include files define the minimum amount
+    of the PAM module interface so that PAM modules can be tested without
+    such problems as needing configuration files in /etc/pam.d or needing
+    changes to the system configuration to run a testing PAM module
+    instead of the normal system PAM modules.
+
+    The goal of this library is that all PAM code should be able to be
+    left unchanged and the code just linked with the fakepam library
+    rather than the regular PAM library.  The testing code can then call
+    pam_start and pam_end as defined in the fakepam/pam.h header file and
+    inspect internal PAM state as needed.
+
+    The library also provides an interface to exercise a PAM module via an
+    interaction script, so that as much of the testing process as possible
+    is moved into simple text files instead of C code.  That test script
+    format supports specifying the PAM configuration, the PAM interfaces
+    to run, the expected prompts and replies, and the expected log
+    messages.  That interface is defined in fakepam/script.h.
+
+Fake PAM Library
+
+    Unfortunately, the standard PAM library for most operating systems
+    does not provide a reasonable testing framework.  The primary problem
+    is configuration: the PAM library usually hard-codes a configuration
+    location such as /etc/pam.conf or /etc/pam.d/<application>.  But there
+    are other problems as well, such as capturing logging rather than
+    having it go to syslog and inspecting PAM internal state to make sure
+    that it's updated properly by the module.
+
+    This library implements some of the same API as the system PAM library
+    and uses the system PAM library headers, but the underlying
+    implementation does not call the system PAM library or dynamically
+    load modules.  Instead, it's meant to be linked into a single
+    executable along with the implementation of a PAM module.  It does not
+    provide most of the application-level PAM interfaces (so one cannot
+    link a PAM-using application against it), just the interfaces called
+    by a module.  The caller of the library can then call the module API
+    (such as pam_sm_authenticate) directly.
+
+    All of the internal state maintained by the PAM library is made
+    available to the test program linked with this library.  See
+    fakepam/pam.h for the data structures.  This allows verification that
+    the PAM module is setting the internal PAM state properly.
+
+  User Handling
+
+    In order to write good test suites, one often has to be able to
+    authenticate as a variety of users, but PAM modules may expect the
+    authenticating user to exist on the system.  The fakepam library
+    provides a pam_modutil_getpwnam (if available) or a getpwnam
+    implementation that returns information for a single user (and user
+    unknown for everyone else).  To set the information for the one valid
+    user, call the pam_set_pwd function and provide a struct passwd that
+    will be returned by pam_modutil_getpwnam.
+
+    The fakepam library also provides a replacement krb5_kuserok function
+    for testing PAM modules that use Kerberos.  This source file should
+    only be included in packages that are building with Kerberos.  It
+    implements the same functionality as the default krb5_kuserok
+    function, but looks for .k5login in the home directory configured by
+    the test framework instead of using getpwnam.
+
+    Only those two functions are intercepted, so if the module looks up
+    users in other ways, it may still bypass the fakepam library and look
+    at system users.
+
+  Output Handling
+
+    The fakepam library intercepts the PAM functions that would normally
+    log to syslog and instead accumulates the output in a static string
+    variable.  To retrieve the logging output so far, call pam_output,
+    which returns a struct of all the output strings up to that point and
+    resets the accumulated output.
+
+Scripted PAM Testing
+
+    Also provided as part of the fakepam library is a test framework for
+    testing PAM modules.  This test framework allows most of the testing
+    process to be encapsulated in a text configuration file per test,
+    rather than in a tedious set of checks and calls written in C.
+
+  Test API
+
+    The basic test API is to call either run_script (to run a single test
+    script) or run_script_dir (to run all scripts in a particular
+    directory).  Both take a configuration struct that controls how the
+    PAM library is set up and called.
+
+    That configuration struct takes the following elements:
+
+    user
+        The user as which to authenticate, passed into pam_start and also
+        substituted for the %u escape.  This should match the user whose
+        home directory information is configured using pam_set_pwd if that
+        function is in use.
+
+    password
+        Only used for the %p escape.  This is not used to set the
+        authentication token in the PAM library (see authtok below).
+
+    newpass
+        Only used for the %n escape.
+
+    extra
+        An array of up to 10 additional strings used by the %0 through %9
+        escapes when parsing the configuration file, as discussed below.
+
+    authtok
+        Sets the default value of the PAM_AUTHTOK data item.  This will be
+        set immediately after initializing the PAM library and before
+        calling any PAM module functions.
+
+    authtok
+        Like authtok, but for the PAM_OLDAUTHTOK data item.
+
+    callback
+        This, and the associated data element, specifies a callback that's
+        called at the end of processing of the script before calling
+        pam_end.  This can be used to inspect and verify the internal
+        state of PAM.  The data element is an opaque pointer passed into
+        the callback.
+
+  Test Script Basic Format
+
+    Test scripts are composed of one or more sections.  Each section
+    begins with:
+
+        [<section>]
+
+    starting in column 1, where <section> is the name of the section.  The
+    valid section types and the format of their contents are described
+    below.
+
+    Blank lines and lines starting with # are ignored.
+
+    Several strings undergo %-escape expansion as mentioned below.  For
+    any such string, the following escapes are supported:
+
+        %i      Current UID (not the UID of the target user)
+        %n      New password
+        %p      Password
+        %u      Username
+        %0      extra[0]
+        ...
+        %9      extra[9]
+
+    All of these are set in the script_config struct.
+
+    Regular expression matching is supported for output lines and for
+    prompts.  To mark an expected prompt or output line as a regular
+    expression, it must begin and end with a slash (/).  Slashes inside
+    the regular expression do not need to be escaped.  If regular
+    expression support is not available in the C library, those matching
+    tests will be skipped.
+
+  The [options] Section
+
+    The [options] section contains the PAM configuration that will be
+    passed to the module.  These are the options that are normally listed
+    in the PAM configuration file after the name of the module.  The
+    syntax of this section is one or more lines of the form:
+
+        <group> = <options>
+
+    where <group> is one of "account", "auth", "password", or "session".
+    The options are space-delimited and may be either option names or
+    option=value pairs.
+
+  The [run] Section
+
+    The [run] section specifies what PAM interfaces to call.  It consists
+    of one or more lines in the format:
+
+        <call> = <status>
+
+    where <call> is the PAM call to make and <status> is the status code
+    that it should return.  <call> is one of the PAM module interface
+    functions without the leading "pam_sm_", so one of "acct_mgmt",
+    "authenticate", "setcred", "chauthtok", "open_session", or
+    "close_session".  The return status is one of the PAM constants
+    defined for return status, such as PAM_IGNORE or PAM_SUCCESS.  The
+    test framework will ensure that the PAM call returns the appropriate
+    status.
+
+    The <call> may be optionally followed by an open parentheses and then
+    a list of flags separated by |, or syntactically:
+
+        <call>(<flag>|<flag>|...) = <status>
+
+    In this form, rather than passing a flags value of 0 to the PAM call,
+    the test framework will pass the combination of the provided flags.
+    The flags are PAM constants without the leading PAM_, so (for example)
+    DELETE_CRED, ESTABLISH_CRED, REFRESH_CRED, or REINITIALIZE_CRED for
+    the "setcred" call.
+
+    As a special case, <call> may be "end" to specify flags to pass to the
+    pam_end call (such as PAM_DATA_SILENT).
+
+  The [end] Section
+
+    The [end] section defines how to call pam_end.  It currently takes
+    only one setting, flags, the syntax of which is:
+
+        flags = <flag>|<flag>
+
+    This allows PAM_DATA_SILENT or other flags to be passed to pam_end
+    when running the test script.
+
+  The [output] Section
+
+    The [output] section defines the logging output expected from the
+    module.  It consists of zero or more lines in the format:
+
+        <priority> <output>
+        <priority> /<regex>/
+
+    where <priority> is a syslog priority and <output> is the remaining
+    output or a regular expression to match against the output.  Valid
+    values for <priority> are DEBUG, INFO, NOTICE, ERR, and CRIT.
+    <output> and <regex> may contain spaces and undergoes %-escape
+    expansion.
+
+    The replacement values are taken from the script_config struct passed
+    as a parameter to run_script or run_script_dir.
+
+    If the [output] section is missing entirely, the test framework will
+    expect there to be no logging output from the PAM module.
+
+    This defines the logging output, not the prompts returned through the
+    conversation function.  For that, see the next section.
+
+  The [prompts] Section
+
+    The [prompts] section defines the prompts that the PAM module is
+    expected to send via the conversation function, and the responses that
+    the test harness will send back (if any).  This consists of zero or
+    more lines in one of the following formats:
+
+        <type> = <prompt>
+        <type> = /<prompt>/
+        <type> = <prompt>|<response>
+        <type> = /<prompt>/|<response>
+
+    The <type> is the style of prompt, chosen from "echo_off", "echo_on",
+    "error_msg", and "info".  The <prompt> is the actual prompt sent and
+    undergoes %-escape expansion.  It may be enclosed in slashes (/) to
+    indicate that it's a regular expression instead of literal text.  The
+    <response> if present (and its presence is signaled by the |
+    character) contains the response sent back by the test framework and
+    also undergoes %-escape expansion.  The response starts with the final
+    | character on the line, so <prompt> regular expressions may freely
+    use | inside the regular expression.
+
+    If the [prompts] section is present and empty, the test harness will
+    check that the PAM module does not send any prompts.  If the [prompts]
+    section is absent entirely, the conversation function passed to the
+    PAM module will be NULL.
+
+License
+
+    This file is part of the documentation of rra-c-util, which can be
+    found at <https://www.eyrie.org/~eagle/software/rra-c-util/>.
+
+    Copyright 2011-2012, 2020-2021 Russ Allbery <eagle@eyrie.org>
+
+    Copying and distribution of this file, with or without modification,
+    are permitted in any medium without royalty provided the copyright
+    notice and this notice are preserved.  This file is offered as-is,
+    without any warranty.

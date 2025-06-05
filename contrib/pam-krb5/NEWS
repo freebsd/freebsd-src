@@ -1,0 +1,1215 @@
+                      User-Visible pam-krb5 Changes
+
+pam-krb5 4.11 (2021-10-17)
+
+    Properly support calling pam_end with PAM_DATA_SILENT by not deleting
+    the underlying ticket cache.  This flag is used when the application
+    is closing the PAM session after a fork to free memory resources, but
+    doesn't intend to free resources external to the process because
+    another process may still depend on them.  Thanks to Andrew G. Morgan
+    for the report.  (GitHub #21)
+
+    Stop attempting to guess the correct PAM module installation path on
+    Linux systems when --prefix is set to /usr and instead document that
+    --libdir will probably need to be set explicitly.  The previous logic
+    is now broken on Debian usrmerge systems and the guesswork seems too
+    fragile to maintain.
+
+    Update to rra-c-util 10.0:
+
+    * Support Autoconf 2.71 without warnings.
+    * Tests written in Perl now require Perl 5.10 or later.
+
+pam-krb5 4.10 (2021-03-20)
+
+    When re-retrieving the authenticated principal from the current cache,
+    ensure the stored principal in the authentication context is always
+    either valid or NULL.  Otherwise, a failure of krb5_cc_get_principal
+    could result in a double free.  Thanks to Michael Muehle for the
+    report.
+
+    Update to rra-c-util 9.0:
+
+    * Check that at least one Kerberos header file was found and works.
+    * Use AS_ECHO in all Autoconf macros in preference to echo.
+    * Fix portability of reallocarray on NetBSD systems.
+    * Stop providing a replacement for a broken snprintf.
+
+    Update to C TAP Harness 4.7:
+
+    * Fix warnings with GCC 10.
+
+pam-krb5 4.9 (2020-03-30)
+
+    SECURITY: All previous versions of this module could overflow the
+    buffer provided by the underlying Kerberos library for the response to
+    a prompt by writing a single nul character past the end of the buffer.
+    (CVE-2020-10595)
+
+    Support use_pkinit with MIT Kerberos.  (Debian Bug#871699)
+
+    Reject passwords as long or longer than PAM_MAX_RESP_SIZE (normally
+    512 octets), since extremely long passwords can be used for a denial
+    of service attack via the Kerberos string to key function.  Thanks to
+    Florian Best for pointing out this issue and suggesting a good fix.
+
+    Use explicit_bzero instead of memset, where available, to overwrite
+    the memory used by PAM responses before freeing.  This reduces the
+    lifetime of passwords and other secrets in memory.
+
+    Return more accurate errors from the Kerberos prompter function if it
+    was unable to prompt for the password.  This may translate into better
+    debug log messages and, in some situations, returning the slightly
+    more accurate PAM_AUTHINFO_UNAVAIL instead of PAM_AUTH_ERR.
+
+    Fix an edge-case memory leak in pam_chauthtok when prompting for a new
+    password for an ignored user.
+
+    Ensure the module/basic test will run properly when the system
+    krb5.conf file does not specify a default realm.  Reported by TBK.
+
+    Update to rra-c-util 8.2:
+
+    * Fix support for configuring the test suite with a krb5.conf file.
+    * Drop support for Perl 5.6.
+    * Reformat all C source using clang-format 10.
+    * Remove bogus snprintf tests.
+    * Fix misplaced va_end in the pam-util putil_log_failure function.
+    * Skip checking for krb5-config on the path if a prefix was given.
+    * Add SPDX-License-Identifier headers to all substantial source files.
+
+    Update to C TAP Harness 4.6:
+
+    * Fixed malloc error checking in bstrndup.
+    * Fix (harmless) allocation error in runtests driver.
+    * Add support for valgrind testing via test list options.
+    * Report test failures as left and right, not wanted and seen.
+    * Fix is_string comparisons involving NULL pointers and "(null)".
+    * Add SPDX-License-Identifier headers to all substantial source files.
+
+pam-krb5 4.8 (2017-12-30)
+
+    When verifying that an expired password can still be used to get
+    kadmin/changepw credentials, correctly set the credential options for
+    getting password change credentials, not for getting initial
+    credentials.  This should fix password change issues when, for
+    example, krb5.conf requests that all tickets be proxiable but
+    kadmin/changepw doesn't allow proxiable credentials.  Thanks to
+    Florian Best for the bug report.
+
+    When built against recent versions of Heimdal with richer status codes
+    from PKINIT attempts, report to the user the reason for a PKINIT
+    failure.  Based on work by Henry Jacques.
+
+    Document the test suite configuration files required to run the PKINIT
+    tests.
+
+    Fix expired password tests to work with Heimdal 7.0.1 and later.
+
+    Better document that the default Kerberos library ticket cache
+    location is not used (and why), and how to set configuration
+    parameters in krb5.conf.  Thanks, Matthew Gabeler-Lee.  (Debian
+    Bug#872943)
+
+    Compile cleanly under GCC 7 and Clang warnings and Clang's static
+    analyzer.
+
+    Rename the script to bootstrap from a Git checkout to bootstrap,
+    matching the emerging consensus in the Autoconf world.
+
+    Update to rra-c-util 7.0:
+
+    * Fix new warnings in GCC 7.
+    * Support a warning build under Clang.
+    * Avoid zero-length allocations in reallocarray and vector.
+    * Probe for warning flags instead of hard-coding a list.
+    * New test for obsolete URLs and email addresses.
+    * Remove unused portable replacements for strlcpy and strlcat.
+    * Use C_TAP_SOURCE and C_TAP_BUILD environment variables in tests.
+    * Fix portability defines for anonymous principal strings.
+    * Clear errno on pam_modutil_getpwnam to improve other testing.
+    * Add portability defines for macOS's PAM implementation.
+    * Add new Autoconf macro to probe for pam_strerror const usage.
+    * Support Solaris 10's included Kerberos.
+
+    Update to C TAP Harness 4.2:
+
+    * Avoid zero-length allocations in breallocarray.
+    * Add is_blob and is_bool functions.
+    * Use C_TAP_SOURCE and C_TAP_BUILD environment variables in tests.
+    * Fix segfault in runtests with an empty test list.
+    * Display verbose test results with -v or C_TAP_VERBOSE.
+    * Test infrastructure builds cleanly with Clang warnings.
+
+pam-krb5 4.7 (2014-12-25)
+
+    Add a no_update_user option that disables the normal update of the
+    PAM_USER PAM variable after canonicalization of the username.  When
+    this is set, pam-krb5 will not convert full principal names to local
+    usernames where possible for the rest of the PAM stack.
+
+    Suppress spurious password prompt from Heimdal when authenticating
+    with PKINIT.
+
+    Map unknown realm errors from the Kerberos libraries to the PAM error
+    code PAM_AUTHINFO_UNAVAIL instead of PAM_AUTH_ERR.
+
+    Treat an KRB5_GET_IN_TKT_LOOP error as an incorrect password.  Heimdal
+    KDCs sometimes return it, and Heimdal kinit treats it this way.
+    Similarly, treat a KRB5_BAD_ENCTYPE error as an incorrect password,
+    since this error is returned by a Heimdal 1.6-rc2 KDC for incorrect
+    preauth from a MIT Kerberos 1.12.1 client.
+
+    Add the version number at which each module option was added with its
+    current meaning to the documentatation.
+
+    Update to rra-c-util 5.6:
+
+    * Suppress warnings from Kerberos headers in non-system paths.
+    * Fix probing for Heimdal's libroken to work with older versions.
+    * Fix Kerberos header detection if root or include paths are given.
+    * Pass --deps to krb5-config in the non-reduced-dependencies case.
+    * Provide a reallocarray replacement for platforms without it.
+    * Use reallocarray where appropriate.
+    * Drop checks for NULL before freeing pointers.
+    * Drop explicit pointer initialization to NULL and rely on calloc.
+    * Check the return status of snprintf and vsnprintf properly.
+    * Preserve errno if snprintf fails in vasprintf replacement.
+    * Suppress a dummy symbol in the client library that could leak.
+    * Fix syntax errors when building with a C++ compiler.
+    * Avoid test suite failures where tested functions are macros.
+
+    Update to C TAP Harness 3.2:
+
+    * Reopen standard input to /dev/null when running a test list.
+    * Don't leak extraneous file descriptors to tests.
+    * Suppress lazy plans and test summaries if the test failed with bail.
+    * bail and sysbail now exit with status 255 to match Test::More.
+    * runtests now treats the command line as a list of tests by default.
+    * The full test executable path can now be passed to runtests -o.
+    * Improved harness output for tests with lazy plans.
+    * Improved harness output to a terminal for some abort cases.
+    * Flush harness output after each test even when not on a terminal.
+
+pam-krb5 4.6 (2012-06-02)
+
+    Add an anon_fast option that attempts anonymous authentication
+    (generally implemented via anonymous PKINIT inside the Kerberos
+    library) and then, if successful, uses those credentials for FAST
+    armor.  If fast_ccache and anon_fast are both specified, anonymous
+    authentication will be used as a fallback if the specified FAST ticket
+    cache doesn't exist.  Based on patches from Yair Yarom.
+
+    Add a user_realm option to only set the realm for unqualified user
+    principals.  This differs from the existing realm option in that realm
+    also changes the default realm for authorization decisions and for
+    verification of credentials.  Update the realm option documentation to
+    clarify the differences and remove incorrect information.  Patch from
+    Roland C. Dowdeswell.
+
+    Add a no_prompt option to suppress the PAM module's prompt for the
+    user's password and defer all prompting to the Kerberos library.  This
+    allows the Kerberos library to have complete control of the prompting
+    process, which may be desirable if authentication mechanisms other
+    than password are in use.  Be aware that, with this option set, the
+    PAM module has no control over the contents of the prompt and cannot
+    store the user's password in the PAM data.  Based on a patch by Yair
+    Yarom.
+
+    Add a silent option to force the module to behave as if the
+    application had passed in PAM_SILENT and suppress text messages and
+    errors from the Kerberos library.  Patch from Yair Yarom.
+
+    Add preliminary support for Kerberos trace logging via a trace option
+    that enables trace logging if supported by the underlying Kerberos
+    library.  The option takes as an argument the file name to which to
+    log trace output.  This option does not yet work with any released
+    version of Kerberos, but may work with the next release of MIT
+    Kerberos.
+
+    MIT Kerberos does not add a colon and space to its password prompts,
+    but Heimdal does.  pam-krb5 previously unconditionally added a colon
+    and space, resulting in doubled colons with Heimdal.  Work around this
+    inconsistency by not adding the colon and space if already present.
+
+    Fix alt_auth_map support to preserve the realm of the authentication
+    identity when forming the alternate authentication principal, matching
+    the documentation.
+
+    Document that the alt_auth_map format may contain a realm to force all
+    mapped principals to be in that realm.  In that case, don't add the
+    realm of the authentication identity.  Note that this can be used as a
+    simple way to attempt authentication in an alternate realm first and
+    then fall back to the local realm, although any complex attempt at
+    authentication in multiple realms should instead run the module
+    multiple times with different realm settings.
+
+    Avoid a NULL pointer dereference if krb5_init_context fails.
+
+    Fix initialization of time values in the module configuration on
+    platforms (like S/390X) where krb5_deltat is not equivalent to long.
+
+    Close a memory leak when search_k5login is set but the user has no
+    .k5login file.
+
+    Close several memory leaks in alt_auth_map support.
+
+    Suppress bogus error messages about unknown option for the realm
+    option.  The option was being parsed and honored despite the error.
+
+    Retry authentication under try_first_pass on several other errors in
+    addition to decrypt integrity check errors to handle a wider array of
+    possible "password incorrect" error messages from the KDC.
+
+    Update to rra-c-util 4.4:
+
+    * Replacement strndup now works with non-nul-terminated strings.
+    * New Kerberos test setup that simplifies writing tests.
+    * Add -D_FORTIFY_SOURCE=2 to the make warnings flags.
+    * Use --deps flag to krb5-config by default.
+    * Suppress __alloc_size__ attribute with older versions of gcc.
+    * Suppress attribute warnings for non-gcc compilers.
+
+    Update to C TAP Harness 1.12:
+
+    * Add bstrndup to the basic C TAP library.
+    * Only use feature-test macros when requested or built with gcc -ansi.
+    * New tests/tap/macros.h header with some common definitions.
+    * Drop is_double from the C TAP library to avoid requiring -lm.
+    * Avoid using local in the shell libtap.sh library.
+
+pam-krb5 4.5 (2011-12-24)
+
+    Suppress the notice that the password is being changed because it's
+    expired if force_first_pass or use_first_pass is set in the password
+    stack, indicating that it's stacked with another module that's also
+    doing password changes.  This is arguable, but without this change the
+    notification message of why the password is being changed shows up
+    confusingly in the middle of the password change interaction.  Based
+    on a patch by William Yang.
+
+    Some old versions of Heimdal (0.7.2 in OpenBSD 4.9, specifically)
+    reportedly return KRB5KDC_ERR_KEY_EXP for accounts with expired
+    keys even if the supplied password is wrong.  Work around this by
+    confirming that the PAM module can obtain tickets for kadmin/changepw
+    before returning a password expiration error instead of an invalid
+    password error.  Based on a patch by William Yang.
+
+    The location of the temporary root-owned ticket cache created during
+    the authentication process is now also controlled by the ccache_dir
+    option (but not the ccache option) rather than forced to be in /tmp.
+    This will allow system administrators to configure an alternative
+    cache directory so that pam-krb5 can continue working when /tmp is
+    full.
+
+    Report more specific errors in syslog if authorization checks (such as
+    .k5login checks) fail.
+
+    Pass a NULL principal to krb5_set_password with MIT client libraries
+    to prefer the older change password protocol for compatibility with
+    older KDCs.  This is not necessary on Heimdal since Heimdal's
+    krb5_set_password tries both protocols.
+
+    Improve logging and authorization checks when defer_pwchange is set
+    and a user authenticates with an expired password.
+
+    When probing for Kerberos libraries, always add any supplemental
+    libraries found to that point to the link command.  This will fix
+    configure failures on platforms without working transitive shared
+    library dependencies.
+
+    Close some memory leaks where unparsed Kerberos principal names were
+    never freed.
+
+    Restructure the code to work with OpenPAM's default PAM build
+    machinery, which exports a struct containing module entry points
+    rather than public pam_sm_* functions.  Thanks to Fredrik Pettai for
+    the information.
+
+    In debug logging, report symbolic names for PAM flags on PAM function
+    entry rather than the numeric PAM flags.  This helps with automated
+    testing and with debugging PAM problems on different operating
+    systems.
+
+    Include <krb5/krb5.h> if <krb5.h> is missing, which permits finding
+    the header file on NetBSD systems.  Thanks to Fredrik Pettai for the
+    report.
+
+    Replace the Kerberos compatibility layer with equivalent but
+    better-structured code from rra-c-util 4.0.
+
+    Avoid krb5-config and use manual library probing if --with-krb5-lib or
+    --with-krb5-include were given to configure.  This avoids having to
+    point configure at a nonexistent krb5-config to override its results.
+
+    Use PATH_KRB5_CONFIG instead of KRB5_CONFIG to locate krb5-config in
+    configure, to avoid a conflict with the variable used by the Kerberos
+    libraries to find krb5.conf.
+
+    Change references to Kerberos v5 to just Kerberos in the
+    documentation.  Kerberos v5 has been the default version of Kerberos
+    for over ten years now.
+
+    Update to rra-c-util 4.0:
+
+    * Add notices to all files copied over from rra-c-util.
+    * Include strings.h for additional POSIX functions where found.
+    * Fix detection of whether PAM uses const on FreeBSD.
+    * Update warning flags for make warnings for GCC 4.6.1.
+    * Limit symbol exports even on systems without GNU ld.
+    * Fix replacement mkstemp to use long long where available.
+    * Improve stripping of /usr/include from krb5-config results.
+    * Use issetugid where available, not the misnamed issetuidgid.
+
+    Update to C TAP Harness 1.9:
+
+    * Add bmalloc, bcalloc, brealloc, and bstrdup TAP library functions.
+    * Fix runtests to honor -s even if BUILD and -b aren't given.
+    * Add test_tmpdir and test_tmpdir_free to TAP library.
+    * runtests now frees all allocated resources on exit.
+
+pam-krb5 4.4 (2010-12-31)
+
+    Do not prompt for a password when try_pkinit is set and the module is
+    built against MIT Kerberos.  This fixes a spurious password prompt
+    introduced in 4.1, but partly reintroduces the bug fixed in 4.1 where
+    the user's password is not saved in the PAM data if the authentication
+    falls back to password when PKINIT fails.  This requires more work
+    to fix and will be addressed in a subsequent release.  Thanks to
+    Бранко Мајић (Branko Majic) for the report.
+
+    Reorganize the configuration section of the pam_krb5 man page to
+    divide the many PAM module options into sections.
+
+    When probing for <ibm_svc/krb5_svc.h> (part of AIX's bundled Kerberos
+    implementation), include <krb5.h> before attempting to include that
+    header to quiet confusing Autoconf warnings.  Reported by Wilfried
+    Weiss.
+
+    Update to rra-c-util 3.0:
+
+    * Fix compilation of the replacement snprintf for old systems.
+    * Look for krb5-config in /usr/kerberos/bin for Red Hat systems.
+    * Fix compilation with OpenBSD's Heimdal without separate libroken.
+
+pam-krb5 4.3 (2010-06-09)
+
+    Add a fast_ccache option that, if set, points to a Kerberos ticket
+    cache used for Flexible Authentication Secure Tunneling (FAST) to
+    protect the authentication.  FAST is a mechanism to protect Kerberos
+    against password guessing attacks and provide other security
+    improvements.  This option is only available when built against
+    Kerberos libraries with FAST support (currently only MIT Kerberos 1.7
+    or later).  Patch from Sam Hartman.
+
+    Fix error in freeing a previous alt_auth_map setting when parsing
+    configuration options.  Patch from Sam Hartman.
+
+    Fix the linker flags for Solaris with the native compiler.  Thanks,
+    Kevin Sumner.
+
+pam-krb5 4.2 (2009-11-25)
+
+    Add a new fail_pwchange option, which suppresses password changes for
+    expired passwords and treats expired passwords the same as incorrect
+    passwords.
+
+    Include all the new header files from the portability code so that
+    it will actually compile on non-Linux platforms.
+
+pam-krb5 4.1 (2009-11-20)
+
+    Return PAM_SUCCESS, not PAM_USER_UNKNOWN, for ignored users in
+    pam_setcred.  It's safe to return success when doing nothing in
+    pam_setcred because the stack has already been frozen after the
+    authentication step, and returning an error causes the stack to fail
+    on some other Linux PAM implementations.  Thanks, Ian Ward Comfort.
+
+    In the second pass through the password group, prompt for the new
+    password and store it in the PAM data even if the user is being
+    ignored.  This is required to allow this module to be stacked with
+    another module that uses use_authtok.  Without this behavior, the
+    second module won't be able to work for any ignored user since it will
+    see no saved password and use_authtok will reject the password change.
+
+    Fix return status from pam_sm_acct_mgmt if we were unable to retrieve
+    PAM_USER.
+
+    Log successful authentications to syslog with priority LOG_INFO,
+    including the Kerberos principal used for authentication.
+
+    Log failed authentication to syslog with priority LOG_NOTICE,
+    including roughly the same additional information that the Linux PAM
+    pam_unix logs by default.
+
+    Use pam_syslog for logging where available.  This means pam-krb5 log
+    messages will look like all other log messages for Linux PAM modules
+    on Linux.  Change the format of log messages on all platforms to
+    hopefully be somewhat clearer.
+
+    Rationalize logging.  The module should now follow the recommendations
+    of the Linux PAM Module Writers' Guide for log levels.  More errors
+    are logged at LOG_ERR instead of LOG_DEBUG, and system resource errors
+    are now logged at LOG_CRIT instead of LOG_ERR.
+
+    Add additional error and debug logging in places where significant
+    actions or failures may happen without previously being logged.  Also
+    add failure information from PAM or Kerberos libraries to messages
+    where appropriate.
+
+    Add replacement snprintf, vsnprintf, and mkstemp functions for
+    pointless portability to ancient systems.
+
+pam-krb5 4.0 (2009-11-13)
+
+    UPGRADE WARNING: If you were using pam_krb5 with the use_authtok
+    parameter in the password group, you will need to add use_first_pass
+    to your configuration to keep the same behavior.  See below for
+    details.
+
+    UPGRADE WARNING: If you used the use_authtok parameter in the
+    authentication group, you should change it to force_first_pass.
+
+    Previous versions of this module incorrectly implemented the standard
+    use_authtok parameter.  use_authtok applies only to the password group
+    and says to use the new password stored in the PAM data rather than
+    prompting for a new password.  It doesn't imply anything about where
+    to obtain the old password, but it was implemented as requiring both
+    the old and new password be in the PAM stack already.  This doesn't
+    work when stacked with pam_cracklib.  Change use_authtok to have the
+    correct meaning, which means that password group configurations may
+    need to add use_first_pass to use_authtok to get the desired behavior.
+
+    use_first_pass and try_first_pass no longer affect how the new
+    password is obtained during password changes.  To use a password
+    obtained by a previous module, use use_authtok instead.
+
+    A new option, force_first_pass, is now supported for both the
+    authentication and password groups.  It tells the module to always get
+    the user's current password from the PAM data and fail without
+    prompting if it isn't already set.  This is the meaning that
+    use_authtok previously had for the current password.
+
+    use_authtok no longer has any meaning for the authentication stack.
+    Use force_first_pass instead, which does the same as use_authtok used
+    to do.  use_authtok will be temporarily converted to force_first_pass
+    in the authentication group and log a diagnostic, but this will be
+    removed in the future.
+
+    Stop returning PAM_IGNORE from pam_setcred if the user is ignored or
+    didn't log in via Kerberos and instead return PAM_USER_UNKNOWN.  This
+    fixes problems with the Linux PAM library where returning PAM_IGNORE
+    would cause pam_setcred to fail even if other modules succeeded.
+    Since pam_authenticate never returned PAM_IGNORE, this change should
+    not cause any differences in behavior.
+
+    Do not use issetugid on Solaris to determine when to avoid refreshing
+    the ticket cache named in KRB5CCNAME during pam_setcred.  Instead,
+    compare effective and real UID and GID and permit KRB5CCNAME to be
+    trusted if they match.  This allows setuid screensavers on Solaris to
+    refresh ticket caches and makes behavior on Solaris match other
+    platforms.  Using issetugid is arguably safer since it protects
+    programs that switch users via setuid to a user other than the calling
+    user but still should not trust the original environment, but such
+    programs are rare in the PAM context and should not be calling
+    pam_setcred anyway unless the calling user is permitted to generally
+    act as the target user.  Thanks, William Yang.
+
+    Do the same logging in pam_sm_open_session and pam_sm_close_session as
+    we do with the other functions.  This will mean pam_sm_open_session
+    calls will be logged as pam_sm_open_session, not as pam_sm_setcred as
+    before.
+
+    pam-krb5 is now built using Automake and Libtool to bring it more in
+    line with other software packages.  This means that it now relies on
+    Libtool to know how to generate a loadable module rather than
+    hand-configured linker rules.  This may improve portability on some
+    platforms and may hurt it on other platforms.
+
+    If configured with a prefix of /usr on Linux, use /lib, /lib32, or
+    /lib64 as an installation path based on the size of an integer in the
+    compilation environment rather than based on known 64-bit Linux
+    variants.
+
+    Update to rra-c-util 2.0:
+
+    * Sanity-check the results of krb5-config before proceeding.
+    * Fall back on manual probing if krb5-config results don't work.
+    * Don't break if the user clobbers CPPFLAGS at build time.
+
+pam-krb5 3.15 (2009-07-21)
+
+    Fix a segfault (null pointer dereference) if pam-krb5 is configured
+    with use_first_pass or use_authtok and there is no password stored in
+    the PAM stack.  Thanks to Jonathan Guthrie for the bug report.
+
+pam-krb5 3.14 (2009-07-18)
+
+    Return PAM_IGNORE instead of PAM_PERM_DENIED from pam_chauthtok for
+    ignored users.  This allows making the Kerberos PAM module mandatory
+    for password changes and still falling back to other PAM modules for
+    ignored users.  Thanks, Steve Langasek.
+
+    Always treat the empty password as an authentication failure rather
+    than passing it to the Kerberos libraries.  The Kerberos libraries
+    may treat it as equivalent to no password and prompt for a password
+    without our knowledge, leading to the user authenticating with a
+    different password than the one stored in the PAM stack.  This could
+    cause unexpected problems with some PAM configurations.  It's safer
+    to make the assumption that the empty password is always invalid and
+    reject it outside of the Kerberos libraries.  Thanks, Sanjay Sha.
+
+    Fix error handling if ticket cache initialization fails.
+    Authentication will still fail, but this avoids a segfault from a
+    double-free of the ticket cache structure.  The most common cause of
+    this problem was having the attempt to initialize the ticket cache
+    be blocked by AppArmor.  Thanks to Alex Mauer for the report.
+
+    Call krb5_free_error_string correctly, fixing a portability issue
+    when building against Heimdal.  Thanks, Andrew Drake.
+
+    Work around a deficiency in pam_putenv on FreeBSD 7.2 that doesn't
+    allow deleting environment variables, only setting them to empty
+    values.  Thanks, Andrew Elble.
+
+pam-krb5 3.13 (2009-02-11)
+
+    SECURITY: When built against MIT Kerberos, if pam_krb5 is called in a
+    setuid context (effective UID or GID doesn't match the real UID or
+    GID), use krb5_init_secure_context instead of krb5_init_context.  This
+    ignores environment variable settings for the local Kerberos
+    configuration and keytab.  Previous versions could allow a local
+    attacker to point a setuid program that used PAM authentication at a
+    different Kerberos configuration under the attacker's control,
+    possibly resulting in privilege escalation.  Heimdal handles this
+    logic within the Kerberos libraries and therefore was not affected.
+    (CVE-2009-0360)
+
+    SECURITY: Disable pam_setcred(PAM_REINITIALIZE_CREDS) for setuid
+    applications.  If pam_krb5 detects this call in a setuid context, it
+    now logs an error and returns success without doing anything.  Solaris
+    su calls pam_setcred with that option rather than PAM_ESTABLISH_CREDS
+    after authentication and without wiping the environment, leading
+    previous versions of pam_krb5 to trust the KRB5CCNAME environment
+    variable for the ticket cache location.  This permitted an attacker to
+    use previous versions of pam_krb5 to overwrite arbitrary files with
+    Kerberos credential caches that were left owned by the attacker.
+    Setuid screen lock programs may also be affected.  Discovered by Derek
+    Chan and reported by Steven Luo.  Thanks to Sam Hartman and Jeffrey
+    Hutzelman for additional analysis.  (CVE-2009-0361)
+
+    If a prefix of /usr is requested at configure time, install the PAM
+    module into /lib/security or /lib64/security on Linux, matching the
+    standard Linux-PAM module location.  Use lib64 instead of lib on
+    64-bit SPARC, PowerPC, and S390 Linux as well as x86_64.  Patch from
+    Peter Breitenlohner.
+
+    Fix a build problem when builddir != srcdir introduced in 3.11.  Patch
+    from Peter Breitenlohner.
+
+    Add support for the old Heimdal krb5_get_error_string interface.
+    Thanks, Chaskiel Grundman.
+
+    Add --with-krb5-include and --with-krb5-lib configure options to allow
+    more specific setting of paths if necessary.
+
+    If krb5-config isn't available, attempt to determine if the library
+    directory for the Kerberos libraries is lib32 or lib64 instead of lib
+    and set LDFLAGS accordingly.  Based on an idea from the CMU Autoconf
+    macros.
+
+pam-krb5 3.12 (2008-11-13)
+
+    Add alt_auth_map configuration option, which allows mapping of
+    usernames to alternative Kerberos principals, useful primarily for
+    using particular instances for access to a given PAM-authenticated
+    service.  Also added force_alt_auth and only_alt_auth options to
+    control when alternative Kerberos principals are used.  Patch from
+    Booker Bense.
+
+    Fix incorrect error handling for bad .k5login ownership when
+    search_k5login is set, leading to a NULL pointer dereference and a
+    segfault.  Thanks, Andrew Deason.
+
+    Fix double-free of the ticket cache structure if creation of the
+    ticket cache in the session module fails.  Thanks, Jens Jorgensen.
+
+    Log all syslog messages to LOG_AUTHPRIV, or LOG_AUTH if the system
+    doesn't define LOG_AUTHPRIV.  Thanks, Mark Painter.
+
+    Fix portability to AIX's bundled Kerberos.  Thanks, Markus Moeller.
+
+    When debugging is enabled, log an exit status of PAM_IGNORE as ignore
+    rather than failure.
+
+    Document that pam-krb5 must be listed in the session group as well as
+    the auth group for interactive logins or OpenSSH won't set up the
+    user's credential cache properly.
+
+    Document adding ignore=ignore to complex [] action configuration for
+    the session and account groups since the module now returns PAM_IGNORE
+    instead of PAM_SUCCESS for accounts that didn't use Kerberos.
+
+pam-krb5 3.11 (2008-07-10)
+
+    pam_setcred, pam_open_session, and pam_acct_mgmt now return PAM_IGNORE
+    for ignored users or non-Kerberos logins rather than PAM_SUCCESS.
+    This return code tells the PAM library to continue as if the module
+    were not present in the configuration and allows sufficient to be
+    meaningful for pam-krb5 in account and session groups.
+    pam_authenticate continues to return failure for ignored users;
+    PAM_IGNORE would arguably be more correct, but increases the risk of
+    security holes through incorrect configuration.
+
+    Support correct password expiration handling according to the PAM
+    standard (returning success from pam_authenticate and an error from
+    pam_acct_mgmt and completing the authentication after pam_chauthotk).
+    This is not the default since it opens security holes with broken
+    applications that don't call pam_acct_mgmt or ignore its exit status.
+    To enable it, set the PAM option defer_pwchange for applications known
+    to make the correct PAM calls and check return codes.
+
+    Add a new option to attempt change of expired passwords during
+    pam_authenticate if Kerberos authentication returns a password expired
+    error.  Normally, the Kerberos library will do this for you, but some
+    Kerberos libraries (notably Solaris) disable that code.  This option
+    allows simulation of the normal Kerberos library behavior on those
+    platforms.
+
+    Work around an apparent Heimdal bug when krb5_free_cred_contents is
+    called on an all-zero credential structure.  It's not clear what's
+    going on here and the Heimdal code looks correct, but avoiding the
+    call fixes the problem.
+
+    Warn if more than one of use_authtok, use_first_pass, and
+    try_first_pass is set and use the strongest of the one set.
+
+    Remove the workaround for versions of MIT Kerberos that didn't
+    initialize a krb5_get_init_creds_opt structure on opt_alloc.  This bug
+    was only present in early versions of 1.6; the correct fix is to
+    upgrade.
+
+    Add an additional header check for AIX's bundled Kerberos.
+
+    If KRB5_CONFIG was explicitly set in the environment, don't use a
+    different krb5-config based on --with-krb5.  If krb5-config isn't
+    executable, don't use it.  This allows one to force library probing by
+    setting KRB5_CONFIG to point to a nonexistent file.
+
+    Sanity-check the results of krb5-config before proceeding and error
+    out in configure if they don't work.
+
+    For Kerberos libraries without krb5-config, also check for networking
+    libraries (-lsocket and friends) before checking for Kerberos
+    libraries in case shared library dependencies are broken.
+
+    Fix Autoconf syntax error when probing for libkrb5support.  Thanks,
+    Mike Garrison.
+
+    Set an explicit visibility of hidden for all internal functions at
+    compile time if gcc is used to permit better optimization.  Hide all
+    functions except the official interfaces using a version script on
+    Linux.  This protects against leaking symbols into the application
+    namespace and provides some mild optimization benefit.
+
+    Fix the probing of PAM headers for const on Mac OS X.  This will
+    suppress some harmless compiler warnings there.  Thanks, Markus
+    Moeller.
+
+pam-krb5 3.10 (2007-12-28)
+
+    The workaround for krb5_get_init_creds_opt_alloc problems in MIT
+    Kerberos 1.6 broke PKINIT support with Heimdal.  Only apply that
+    workaround when building against the MIT Kerberos libraries.  Thanks
+    to Jaakko Pero for the detailed report.
+
+    If no_ccache is set, always exit successfully from pam_setcred or
+    pam_open_session, even if we couldn't retrieve module data.  Thanks,
+    Markus Moeller.
+
+    When keytab is set, properly handle failure to create a keytab cursor
+    and don't assume that the cursor is valid.  Thanks, Markus Moeller.
+
+    Define _ALL_SOURCE on AIX to get prototypes for snprintf.
+
+    Add additional portability glue and Autoconf probes to support
+    building against the version of Kerberos bundled with AIX.  Support
+    for this should be considered alpha in this release.  Thanks to Markus
+    Moeller for the initial patch.
+
+pam-krb5 3.9 (2007-11-12)
+
+    If use_authtok is set, fail even if we can retrieve the stored PAM
+    password if that password is set to NULL.  Apparently that can happen
+    in some cases, such as with pam_cracklib.  Thanks to Christian Holler
+    for the diagnosis and a patch.
+
+    Add a new clear_on_fail option for the password group.  If set, when a
+    password change fails, set PAM_AUTHTOK to NULL so that subsequent
+    modules in the PAM stack with use_authtok set will also fail.  Just
+    returning failure doesn't abort the stack on the second pass when
+    actual password changes are made.  This is not the default since it
+    interferes with other desirable PAM configurations.  It's useful
+    primarily when using the PAM stack to synchronize passwords between
+    multiple environments.  Thanks to Christian Holler and Tomas Mraz for
+    the analysis.
+
+    Fix portability issues with Heimdal, versions of PAM that don't
+    provide pam_modutil_getpwnam, and compiler warnings when building
+    PKINIT support.  Thanks, Martin von Gagern.
+
+    Fix parsing of the keytab PAM option.  Thanks, Markus Moeller.
+
+    Return PAM_AUTHINFO_UNAVAIL instead of PAM_AUTH_ERR when unable to
+    resolve the Kerberos realm.  Thanks, Frank Cornelissen.
+
+    Add a new debugging section to the README.
+
+pam-krb5 3.8 (2007-09-30)
+
+    krb5_get_init_creds_opt_alloc doesn't initialize the returned
+    structure with the default flags in MIT Kerberos 1.6, which meant that
+    users with expired passwords were not being prompted to change their
+    password but just rejected.  Fixed by always calling _init before
+    setting the credential flags, regardless of the provenance of the opt
+    structure.  Thanks, Michael Richters.
+
+    Fix configure and Makefile glue so that Mac OS X and HP-UX have a
+    chance of working (still untested).
+
+    Add a make warnings target with aggressive gcc warning options.  Treat
+    negative minimum UIDs as zero so that UID comparisons can always be
+    done unsigned.  Add casts and unused attributes as needed.
+
+pam-krb5 3.7 (2007-09-29)
+
+    If given an explicit keytab path to use for credential verification,
+    use the first principal found in that keytab as the principal for
+    verification rather than the library default (which is normally the
+    host/* principal for the local system and may not be found in that
+    keytab).
+
+    When authenticating, don't store our context data until after
+    authentication has succeeded.  Otherwise, we may destroy the ticket
+    cache of a previous successful authentication.  This bug would only
+    affect configurations where pam_krb5 was run multiple times with
+    different settings, such as multiple realms.  Thanks to Dave Botsch
+    for the report.
+
+    Use pam_modutil_getpwnam instead of getpwnam if available for better
+    thread safety.
+
+    Don't store PAM data unless we're saving a ticket cache.  All other
+    calls use it for is to find the ticket cache, so without a cache it's
+    pointless and means we run the risk of stomping on ourselves in
+    multithreaded programs.
+
+    Still canonicalize the PAM user before returning when not saving a
+    ticket cache.
+
+    Fix determination of linker flags on non-x86_64 Linux.  Always link
+    with -fPIC when using GCC, just in case.
+
+    Add compilation options for Mac OS X and HP-UX (untested).
+
+    Use pam_krb5 instead of ctx for our PAM data name to reduce the
+    chances of collision.
+
+pam-krb5 3.6 (2007-09-18)
+
+    When the local user doesn't exist and search_k5login is enabled, fall
+    back to simple Kerberos authentication just as if the account existed
+    with no .k5login file.  This avoids trying to verify an all-zero
+    credentials structure, leading to non-expoloitable segfaults on x86_64
+    systems.  Be more careful in general about setting error codes in the
+    search_k5login implementation.
+
+    Explicitly clear the forwardable and proxiable options and don't ask
+    for renewable tickets when getting a ticket for the password changing
+    service.  Otherwise, system-wide defaults and PAM configuration will
+    apply to those tickets as well and the resulting ticket request may be
+    rejected based on KDC configuration.  Based on a patch by Sergio
+    Gelato.
+
+    Do username canonicalization earlier so that .k5login checking and
+    similar work uses the correct username but only change the PAM
+    username if authentication succeeds.  Document that username
+    canonicalization won't work with unmodified OpenSSH and with several
+    common PAM modules.  Thanks to R. Scott Bailey for the bug report and
+    analysis.
+
+    Add a prompt_principal option which, if set, causes the PAM module to
+    prompt the user for the Kerberos principal to use for authentication
+    before prompting for the password.
+
+    Try to determine whether the PAM headers use const in the prototypes
+    of such things as pam_get_item and adjust accordingly.  This should
+    address most compiler warnings on Solaris.  Thanks, Markus Moeller.
+
+    Change lib to lib64 on x86_64 Linux to allow for the magical $ISA
+    parameter in Red Hat's PAM configuration.  Hopefully this won't cause
+    problems elsewhere.
+
+    Support DESTDIR for make install.
+
+pam-krb5 3.5 (2007-04-10)
+
+    Don't try to chown non-FILE ticket caches, which among other things
+    breaks using pam-krb5 with Heimdal KCM caches.  Thanks, Jeremy
+    Jackson.
+
+    When logging session deletion via pam_setcred or pam_close_session,
+    don't look for the username in the PAM context after it's been freed.
+    Thanks, Markus Moeller.
+
+    Map more Kerberos status codes to PAM status codes for authentication
+    errors.
+
+pam-krb5 3.4 (2007-01-28)
+
+    More compilation fixes for Heimdal 0.7, which has a pkinit function
+    but takes a different number of arguments.  Thanks, Morgan LEFIEUX.
+
+    Never call error_message directly on Heimdal.  krb5_get_err_text can
+    cope with a NULL context and krb5-config on Heimdal doesn't include
+    -lcom_err.
+
+    Handle a NULL return from krb5_get_error_message, since that seems
+    possible in some edge cases.
+
+    Call krb5_get_error_message on Heimdal as well if it's available,
+    since it's supported by the 0.8 release candidates.
+
+pam-krb5 3.3 (2007-01-24)
+
+    Support the new MIT Kerberos error message functions.
+
+    Fix compilation errors in the Heimdal PKINIT support and don't be
+    confused by a similar function in the MIT Kerberos PKINIT branch.
+    Thanks to Douglas E. Engert for the testing and patch.
+
+    Fix compilation errors with Heimdal 0.7, which has some of the PKINIT
+    functions but doesn't define the same error codes.  Thanks, Morgan
+    LEFIEUX.
+
+    Initial support for the MIT Kerberos PKINIT branch, which uses a
+    different mechanism for configuring PKINIT support than Heimdal.  Also
+    support configuration of general preauth parameters for the MIT
+    preauth plugin system via the preauth_opt option.  Thanks to Douglas
+    E. Engert for the initial patch.
+
+    If use_pkinit is set in the PAM configuration and PKINIT isn't
+    available or cannot be forced, always fail authentication.
+
+pam-krb5 3.2 (2007-01-16)
+
+    This release fixes numerous bugs all identified by Douglas E. Engert
+    while testing with Heimdal and PKINIT support.  Thank you!
+
+    Rewrite the code to drop the credlist data structure since we only
+    ever have one set of credentials, allocate new krb5_creds objects, and
+    do proper memory management, which should plug some memory leaks of
+    the contents of krb5_creds objects.
+
+    Probe for the correct Heimdal function to set default initial
+    credential options.
+
+    Prefix the default cache path with "FILE:" to make the cache type
+    explicit.
+
+    Fix installation of the manual page when building from a different
+    directory than the source directory.
+
+    Fix several compilation errors with the PKINIT support with Heimdal
+    0.8rc1 or later.  This code should still be considered alpha-quality.
+
+pam-krb5 3.1 (2007-01-03)
+
+    Fix an infinite loop with failed Kerberos authentication and a doubled
+    colon that causes a syntax error with some compilers.  Thanks, Markus
+    Moeller.
+
+    Move the check for users we should ignore to pam_sm_authenticate
+    from pamk5_password_auth so that it's consistently done in the API
+    function.  This also avoids bogus log messages when authenticating as
+    an ignored user with debug enabled.
+
+pam-krb5 3.0 (2006-12-18)
+
+    Add preliminary PKINIT support, contributed by Douglas E. Engert.
+    I reorganized and refactored the code extensively and it therefore may
+    not compile; until it has received more testing, it should be
+    considered alpha-quality.  Currently, PKINIT support requires Heimdal
+    0.8rc1 or later.
+
+    Add a keytab configuration option to use a different keytab for
+    initial credential validation.
+
+    Add a ticket_lifetime configuration option to set the lifetime of
+    obtained credentials.
+
+    Add the banner and expose_account configuration options, which control
+    the prompts for authentication and password changing.  Provide more
+    informative prompts when changing passwords.
+
+    Work around a bug in MIT Kerberos prior to 1.4 causing the library to
+    cache the default realm and assume a particular realm even if the
+    default realm is later changed.  This bug prevented running two
+    instances of pam-krb5 with different realm settings in the same PAM
+    stack.  Thanks, Dave Botsch.
+
+    Honor PAM_SILENT when the Kerberos library prompts for more
+    information, passing to the application only prompts.
+
+    If PAM_USER is set to a fully-qualified principal that the Kerberos
+    library can map to a local account name, reset PAM_USER to that local
+    account name after authentication.
+
+    Avoid memory leaks in the Kerberos prompter by freeing the PAM
+    response strings.  We were already doing this elsewhere and the world
+    didn't end, so assume that it's safe for the PAM module to do this.
+    Also avoid memory leaks in some unusual error conditions.
+
+    Return unknown user rather than internal error when attempting
+    authentication of a user we're supposed to ignore.
+
+    When debug is enabled, report the principal for which we're attempting
+    authentication to help catch realm configuration errors.
+
+    Document the broken behavior of old versions of OpenSSH, which tell
+    PAM to refresh credentials rather than opening a session.  Thanks,
+    Michael C. Garrison.
+
+    Add a link to the distribution page to the pam-krb5 man page.
+
+    Extensive refactoring and reorganization of the code.
+
+pam-krb5 2.6 (2006-11-28)
+
+    Don't assume the pointer set by pam_get_user is usable over the life
+    of the PAM module; instead, save a local copy.
+
+    Avoid a use of already freed memory when debugging is enabled.
+
+    Use __func__ instead of __FUNCTION__ and provide a fallback for older
+    versions of gcc and for systems that support neither.  Should fix
+    compilation issues with Sun's C compiler.
+
+    On platforms where we know the appropriate compiler flags, try to
+    build the module so that symbols are resolved within the module in
+    preference to any externally available symbols.  Also add the
+    hopefully correct compiler flags for Sun's C compiler.
+
+pam-krb5 2.5 (2006-11-03)
+
+    Don't free the results of pam_get_item(PAM_AUTHTOK) when changing
+    passwords.  Thanks, Arne Nordmark.
+
+    Be a bit more thorough when checking authorization in
+    pam_sm_acct_mgmt.  Re-retrieve the value of user in case the
+    application changed it, and if we have a ticket cache (we may not even
+    after a successful authentication if no_ccache was specified),
+    retrieve the principal from it rather than using the principal from
+    the context.
+
+    Overwrite passwords with 0 before freeing them, just out of paranoia
+    (and because PAM also does this internally).
+
+pam-krb5 2.4 (2006-10-05)
+
+    Fix compilation problems with Heimdal.  Thanks, Matthijs Mohlmann and
+    Douglas Engert.
+
+    Check for memory allocation failures when parsing PAM options rather
+    than segfaulting.
+
+    Fix several places where an uninitialized context could have been
+    passed into the argument parsing function.
+
+    Refactor the code to read configuration from krb5.conf to be easier
+    to read and understand.  Parse renew_lifetime immediately and always
+    report an error rather than deferring time parsing until acquiring
+    tickets.
+
+    Log errors (not just authentication failures) at the LOG_ERR level
+    to match (some of) the recommendations of the Linux PAM documentation.
+
+    Log an error when an unknown option is passed via the PAM
+    configuration.
+
+pam-krb5 2.3 (2006-09-03)
+
+    Fix the interface between the Kerberos prompting function and the
+    PAM conversation function on Linux.  Prior to this fix, the PAM module
+    would only work on Solaris if Kerberos passed multiple prompts, which
+    happens when an account requires a password change.  Solaris and Linux
+    PAM implementations expect a different structure of pam_message
+    structs in the conversation function; use a workaround to cater to
+    both of them.  Based on a patch by Joachim Keltsch.
+
+    Implement retain_after_close, which specifies that the PAM module
+    should never destroy the user's ticket cache, even on session end.
+
+    Adjust for the differences in Solaris's PAM libraries:  Include
+    pam_appl.h everywhere for structure and type definitions, and add
+    portability workarounds for the return statuses missing from the
+    Solaris implementation.
+
+pam-krb5 2.2 (2006-08-28)
+
+    Allow the default realm to be overridden in the PAM options.
+
+    Use the realm, default or otherwise, when reading options from
+    krb5.conf so that realm-specific sections in [appdefaults] work
+    correctly.
+
+    Update the build and installation documentation for the new
+    Autoconf-based build system.  This should have been in the last
+    release but was missed.
+
+    Initialize ticket options correctly when built with Heimdal.
+
+    Fix a typo that caused the Heimdal support not to compile.  Thanks,
+    Matthijs Mohlmann.
+
+pam-krb5 2.1 (2006-08-26)
+
+    Strip off a FILE: prefix from the cache path before creating it in
+    case the user set ccache or ccache_dir with a cache type prefix.
+    Thanks to Björn Torkelsson for the patch.
+
+    Added an Autoconf script to distinguish between Heimdal and MIT
+    Kerberos and take care of other portability issues.  Rewrote the
+    Makefile accordingly.
+
+    Added portability and error reporting fixes for Heimdal, thanks to
+    Matthijs Mohlmann.
+
+pam-krb5 2.0 (2006-08-11)
+
+    Always use a disk cache for temporary storage of credentials between
+    authentication and setcred or session initialization.  This allows the
+    module to work correctly with OpenSSH ChallengeResponseAuthentication.
+
+    Add support for some PAM options that were supported by the
+    Sourceforge K5 PAM module, most notably minimum_uid and
+    renew_lifetime.
+
+    Support setting many PAM options from krb5.conf as well as on the PAM
+    command line, using the same application section as the Sourceforge
+    PAM module.  Use the profile reading functions provided by the
+    Kerberos libraries.
+
+    Add support for use_authtok, which is like use_first_pass except that
+    it will never prompt even if no password is currently set.
+
+    Add a search_k5login option to check the user's password against every
+    principal listed in .k5login, to support use of this module to
+    authenticate user access to shared accounts.
+
+    Add an ignore_k5login option that bypasses all checks of .k5login
+    files entirely and relies solely on krb5_aname_to_localname checks.
+
+    Re-add the ccache option to specify the exact file name of the ticket
+    cache, and allow for randomization using mkstemp even when this option
+    is used.
+
+    Only call krb5_kuserok (the .k5login check) when the account to which
+    the user is authenticating is a local account.  It's up to the
+    application to handle authorization checks for non-local accounts.
+
+    Support preliminary checks for password changing by using that to
+    obtain the user's current credentials.  Correctly handle saved
+    passwords from previous authentications or password changes when
+    changing passwords, and correctly set the saved passwords for
+    subsequent password changes in the PAM stack.
+
+    Only initialize the ticket cache once, no matter how many times
+    setcred is called.  This saves duplicate work and works around a bug
+    in X.org xdm that otherwise causes it to lose the PAM environment.
+
+    When reinitializing a ticket cache, never reinitialize the temporary
+    cache created by the authentication call.  Instead, fall back to the
+    default ticket cache name if KRB5CCNAME isn't set.
+
+    Improve support for no_ccache.  Now, it doesn't even generate a
+    temporary ticket cache during authentication but only uses an
+    in-memory credential list.
+
+    Do user ticket validation using the standard Kerberos library call
+    rather than rolling our own code.  This means that the user can now
+    set options in krb5.conf to control whether that call should fail if
+    the local keytab isn't readable or contains no usable keys.
+
+    Completely rewrite the man page.  Clean it up and make it more
+    readable and fully document all of the options.  Also rewrite the
+    README file and clean up the rest of the package documentation.
+
+    Don't create a ticket cache until after successful authentication.
+
+    Understand the FILE: prefix to Kerberos ticket cache names and compare
+    and chown ticket caches properly with that prefix.
+
+    Add a trailing nul to the password in the Kerberos prompter function,
+    since some code relies on it being there.
+
+    Review the return status of each PAM function and ensure that we only
+    return failure statuses that are supported for that function.
+
+    Rename all internal functions with a pamk5_* prefix to avoid
+    conflicting with any application or system library functions.
+
+    Eliminate global variables in the PAM module and do a better job at
+    cleaning up memory usage.  There are still a few places where the PAM
+    conversation functions may leak memory due to an incomplete
+    specification in the PAM API on who should free what memory.
+
+    The logging messages produced when debug is set should now be more
+    consistent and more complete.
+
+pam-krb5 1.2 (2005-09-27)
+
+    Don't reinitialize the ticket cache if the old and new cache have the
+    same name, since otherwise we end up destroying it.
+
+    Always set KRB5CCNAME, even when reinitializing.
+
+    When reinitializing, look for the ticket cache in the saved context
+    even if KRB5CCNAME isn't set.  OpenSSH calls it this way.
+
+    Drop the ccache option and add ccache_dir instead, which only
+    specifies the directory for ticket caches and is therefore easier to
+    implement.
+
+pam-krb5 1.1 (2005-08-31)
+
+    Add support for reinitialization/refreshing of credentials in
+    pam_sm_setcred.
+
+    Set PAM_AUTHTOK and PAM_OLDAUTHTOK when authenticating to better
+    support stacking this module with others.
+
+    Add an ignore_root option to not do anything when the account to which
+    the user is authenticating is root.  This allows one to log in via
+    console as root even when the network is down (thereby breaking the
+    PAM module in ways that login doesn't like due to timeouts in the
+    Kerberos libraries).
+
+    Store the entire context structure in PAM's memory rather than just
+    the name of the ticket cache so that we can pass around more data to
+    ourself.
+
+    Bring errors more in line with the official PAM specification.
+
+    Move prompt generation into the PAM module rather than letting the
+    Kerberos library generate the prompt.  This way we don't leak
+    principal information to the caller, and the non-standard prompt also
+    broke some applications like gksudo.
+
+    Support session management and destruction of the ticket cache on
+    close of session.
+
+    Don't require that the user have a local account on the system.
+
+    Include the user UID in the default ticket cache name so that rpc.gssd
+    and similar programs can find it.

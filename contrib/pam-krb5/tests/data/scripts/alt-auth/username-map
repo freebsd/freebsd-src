@@ -1,0 +1,19 @@
+# Test username mapping of alternative authentication principal.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth    = alt_auth_map=%%s@%2 force_first_pass no_ccache
+    account = alt_auth_map=%%s@%2 no_ccache
+
+[run]
+    authenticate  = PAM_SUCCESS
+    acct_mgmt     = PAM_SUCCESS
+
+[output]
+    INFO user %u authenticated as %1

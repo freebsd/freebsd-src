@@ -1,0 +1,58 @@
+# Basic test of enabling trace logging.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth    = force_first_pass no_ccache trace=%0 debug
+    account = no_ccache trace=%0 debug
+    session = no_ccache trace=%0 debug
+
+[run]
+    authenticate               = PAM_AUTH_ERR
+    acct_mgmt                  = PAM_IGNORE
+    setcred(DELETE_CRED)       = PAM_SUCCESS
+    setcred(ESTABLISH_CRED)    = PAM_SUCCESS
+    setcred(REFRESH_CRED)      = PAM_SUCCESS
+    setcred(REINITIALIZE_CRED) = PAM_SUCCESS
+    open_session               = PAM_SUCCESS
+    close_session              = PAM_SUCCESS
+
+[output]
+    DEBUG enabled trace logging to %0
+    DEBUG pam_sm_authenticate: entry
+    DEBUG (user %u) no stored password
+    NOTICE authentication failure; logname=%u uid=%i euid=%i tty= ruser= rhost=
+    DEBUG pam_sm_authenticate: exit (failure)
+    DEBUG enabled trace logging to %0
+    DEBUG pam_sm_acct_mgmt: entry
+    DEBUG skipping non-Kerberos login
+    DEBUG pam_sm_acct_mgmt: exit (ignore)
+    DEBUG enabled trace logging to %0
+    DEBUG pam_sm_setcred: entry (delete)
+    DEBUG pam_sm_setcred: exit (success)
+    DEBUG enabled trace logging to %0
+    DEBUG pam_sm_setcred: entry (establish)
+    DEBUG no context found, creating one
+    DEBUG (user root) unable to get PAM_KRB5CCNAME, assuming non-Kerberos login
+    DEBUG pam_sm_setcred: exit (success)
+    DEBUG enabled trace logging to %0
+    DEBUG pam_sm_setcred: entry (refresh)
+    DEBUG no context found, creating one
+    DEBUG (user root) unable to get PAM_KRB5CCNAME, assuming non-Kerberos login
+    DEBUG pam_sm_setcred: exit (success)
+    DEBUG enabled trace logging to %0
+    DEBUG pam_sm_setcred: entry (reinit)
+    DEBUG no context found, creating one
+    DEBUG (user root) unable to get PAM_KRB5CCNAME, assuming non-Kerberos login
+    DEBUG pam_sm_setcred: exit (success)
+    DEBUG enabled trace logging to %0
+    DEBUG pam_sm_open_session: entry
+    DEBUG pam_sm_open_session: exit (success)
+    DEBUG enabled trace logging to %0
+    DEBUG pam_sm_close_session: entry
+    DEBUG pam_sm_close_session: exit (success)

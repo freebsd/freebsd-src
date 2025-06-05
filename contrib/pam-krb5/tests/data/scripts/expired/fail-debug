@@ -1,0 +1,24 @@
+# Test default handling of expired passwords.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth = ignore_k5login fail_pwchange debug
+
+[run]
+    authenticate = PAM_AUTH_ERR
+
+[prompts]
+    echo_off = Password: |%p
+
+[output]
+    DEBUG pam_sm_authenticate: entry
+    DEBUG (user %u) attempting authentication as %0
+    DEBUG /^\(user %u\) krb5_get_init_creds_password: /
+    NOTICE authentication failure; logname=%u uid=%i euid=%i tty= ruser= rhost=
+    DEBUG pam_sm_authenticate: exit (failure)

@@ -1,0 +1,86 @@
+#!/bin/sh
+
+# Generate a krb5.conf file in the current directory for testing purposes.
+# Takes one command-line argument: the default realm to use.  Strips out the
+# entire [appdefaults] section to avoid picking up any local configuration and
+# sets the default realm as indicated.
+#
+# The canonical version of this file is maintained in the rra-c-util package,
+# which can be found at <https://www.eyrie.org/~eagle/software/rra-c-util/>.
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2016, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2006-2008, 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to
+# deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+# sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+# IN THE SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+set -e
+
+# Load the test library.
+. "$C_TAP_SOURCE/tap/libtap.sh"
+cd "$C_TAP_BUILD"
+
+# If there is no default realm specified on the command line, we leave the
+# realm information alone.
+realm="$1"
+
+# Locate the krb5.conf file to use as a base.  Prefer the one in the test
+# configuration area, if it exists.
+krb5conf=`test_file_path config/krb5.conf`
+if [ -z "$krb5conf" ] ; then
+    for p in /etc/krb5.conf /usr/local/etc/krb5.conf ; do
+        if [ -r "$p" ] ; then
+            krb5conf="$p"
+            break
+        fi
+    done
+fi
+if [ -z "$krb5conf" ] ; then
+    echo 'no krb5.conf found, see test instructions' >&2
+    exit 1
+fi
+
+# We found a krb5.conf file.  Generate our munged one.
+mkdir -p tmp
+awk '
+    BEGIN                             { skip = 0 }
+    /^ *\[appdefaults\]/              { skip = 1 }
+    !/^ *\[appdefaults\]/ && / *\[/   { skip = 0 }
+
+    { if (skip == 0) print }
+' "$krb5conf" > tmp/krb5.conf.tmp
+if [ -n "$realm" ] ; then
+    pattern='^[ 	]*default_realm.*='
+    if grep "$pattern" tmp/krb5.conf.tmp >/dev/null 2>/dev/null; then
+        sed -e "s/\\(default_realm.*=\\) .*/\\1 $realm/" \
+            tmp/krb5.conf.tmp >tmp/krb5.conf
+    else
+        (
+            cat tmp/krb5.conf.tmp
+            echo "[libdefaults]"
+            echo "    default_realm = $realm"
+        ) >tmp/krb5.conf
+    fi
+    rm tmp/krb5.conf.tmp
+else
+    mv tmp/krb5.conf.tmp tmp/krb5.conf
+fi

@@ -1,0 +1,47 @@
+# Test account and session behavior with no context.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth    = debug
+    account = debug
+    session = debug
+
+[run]
+    acct_mgmt                  = PAM_IGNORE
+    setcred(DELETE_CRED)       = PAM_SUCCESS
+    setcred(ESTABLISH_CRED)    = PAM_SUCCESS
+    setcred(REFRESH_CRED)      = PAM_SUCCESS
+    setcred(REINITIALIZE_CRED) = PAM_SUCCESS
+    open_session               = PAM_IGNORE
+    close_session              = PAM_SUCCESS
+
+[output]
+    DEBUG pam_sm_acct_mgmt: entry
+    DEBUG skipping non-Kerberos login
+    DEBUG pam_sm_acct_mgmt: exit (ignore)
+    DEBUG pam_sm_setcred: entry (delete)
+    DEBUG pam_sm_setcred: exit (success)
+    DEBUG pam_sm_setcred: entry (establish)
+    DEBUG no context found, creating one
+    DEBUG (user root) unable to get PAM_KRB5CCNAME, assuming non-Kerberos login
+    DEBUG pam_sm_setcred: exit (success)
+    DEBUG pam_sm_setcred: entry (refresh)
+    DEBUG no context found, creating one
+    DEBUG (user root) unable to get PAM_KRB5CCNAME, assuming non-Kerberos login
+    DEBUG pam_sm_setcred: exit (success)
+    DEBUG pam_sm_setcred: entry (reinit)
+    DEBUG no context found, creating one
+    DEBUG (user root) unable to get PAM_KRB5CCNAME, assuming non-Kerberos login
+    DEBUG pam_sm_setcred: exit (success)
+    DEBUG pam_sm_open_session: entry
+    DEBUG no context found, creating one
+    DEBUG (user root) unable to get PAM_KRB5CCNAME, assuming non-Kerberos login
+    DEBUG pam_sm_open_session: exit (ignore)
+    DEBUG pam_sm_close_session: entry
+    DEBUG pam_sm_close_session: exit (success)

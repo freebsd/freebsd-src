@@ -1,0 +1,57 @@
+# Test deferring handling of expired passwords.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth     = defer_pwchange use_first_pass debug
+    account  = ignore_k5login debug
+    password = ignore_k5login use_first_pass debug
+    session  = debug
+
+[run]
+    authenticate              = PAM_SUCCESS
+    acct_mgmt                 = PAM_NEW_AUTHTOK_REQD
+    chauthtok(PRELIM_CHECK)   = PAM_SUCCESS
+    chauthtok(UPDATE_AUTHTOK) = PAM_SUCCESS
+    acct_mgmt                 = PAM_SUCCESS
+    open_session              = PAM_SUCCESS
+    close_session             = PAM_SUCCESS
+
+[prompts]
+    echo_off = Current Kerberos password: |%p
+    echo_off = Enter new Kerberos password: |%n
+    echo_off = Retype new Kerberos password: |%n
+
+[output]
+    DEBUG pam_sm_authenticate: entry
+    DEBUG (user %u) attempting authentication as %0
+    DEBUG (user %u) krb5_get_init_creds_password: Password has expired
+    DEBUG (user %u) expired account, deferring failure
+    INFO user %u authenticated as %0 (expired)
+    DEBUG pam_sm_authenticate: exit (success)
+    DEBUG pam_sm_acct_mgmt: entry
+    INFO user %u account password is expired
+    DEBUG pam_sm_acct_mgmt: exit (failure)
+    DEBUG pam_sm_chauthtok: entry (prelim)
+    DEBUG (user %u) attempting authentication as %0 for kadmin/changepw
+    DEBUG pam_sm_chauthtok: exit (success)
+    DEBUG pam_sm_chauthtok: entry (update)
+    INFO user %u changed Kerberos password
+    DEBUG (user %u) obtaining credentials with new password
+    DEBUG (user %u) attempting authentication as %0
+    INFO user %u authenticated as %0
+    DEBUG /^\(user %u\) temporarily storing credentials in /tmp/krb5cc_pam_/
+    DEBUG pam_sm_chauthtok: exit (success)
+    DEBUG pam_sm_acct_mgmt: entry
+    DEBUG (user %u) retrieving principal from cache
+    DEBUG pam_sm_acct_mgmt: exit (success)
+    DEBUG pam_sm_open_session: entry
+    DEBUG /^\(user %u\) initializing ticket cache FILE:/tmp/krb5cc_/
+    DEBUG pam_sm_open_session: exit (success)
+    DEBUG pam_sm_close_session: entry
+    DEBUG pam_sm_close_session: exit (success)

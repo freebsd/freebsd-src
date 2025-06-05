@@ -1,0 +1,18 @@
+# Test password prompt saving for ignored users.  -*- conf -*-
+#
+# Copyright 2020 Russ Allbery <eagle@eyrie.org>
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    password = ignore_root
+
+[run]
+    chauthtok(PRELIM_CHECK)   = PAM_IGNORE
+    chauthtok(UPDATE_AUTHTOK) = PAM_IGNORE
+
+[prompts]
+    echo_off = Enter new password: |%n
+    echo_off = Retype new password: |%n
+
+[output]

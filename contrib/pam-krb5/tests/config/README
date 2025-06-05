@@ -1,0 +1,70 @@
+This directory contains configuration required to run the complete
+pam-krb5 test suite.  If there is no configuration in this directory, many
+of the tests will be skipped.  To enable the full test suite, create the
+following files:
+
+admin-keytab
+
+    A keytab for a principal (in the same realm as the test principal
+    configured in password) that has admin access to inspect and modify
+    that test principal.  For an MIT Kerberos KDC, it needs "mci"
+    permissions in kadm5.acl for that principal.  For a Heimdal KDC, it
+    needs "cpw,list,modify" permissions (obviously, "all" will do).  This
+    file is optional; if not present, the tests requiring admin
+    modification of a principal will be skipped.
+
+krb5.conf
+
+    This is optional and not required if the Kerberos realm used for
+    testing is configured in DNS or your system krb5.conf file and that
+    file is in either /etc/krb5.conf or /usr/local/etc/krb5.conf.
+    Otherwise, create a krb5.conf file that contains the realm information
+    (KDC, kpasswd server, and admin server) for the realm you're using for
+    testing.  You don't need to worry about setting the default realm;
+    this will be done automatically in the generated file used by the test
+    suite.
+
+keytab
+
+    An optional keytab for a principal, which generally should be in the
+    same realm as the user configured in the password file.  This is used
+    to test FAST support with a ticket cache.
+
+password
+
+    This file should contain two lines.  The first line is the
+    fully-qualified principal (including the realm) of a Kerberos
+    principal to use for testing authentication.  The second line is the
+    password for that principal.
+
+    If the realm of the principal is not configured in either DNS or in
+    your system krb5.conf file (/usr/local/etc/krb5.conf or
+    /etc/krb5.conf) with the KDC, kpasswd server, and admin server, you
+    will need to also provide a krb5.conf file in this directory.  See
+    below.
+
+pkinit-cert
+
+    Certificate and private key (concatenated together) for PKINIT
+    authentication for the user listed in the pkinit-principal file.
+    Optional; PKINIT checks will be skipped if this file isn't present.
+
+pkinit-principal
+
+    Principal to use to test PKINIT authentication.  Must be the Kerberos
+    identity corresponding to the certificate and private key given in
+    pkinit-cert.  Optional; PKINIT checks will be skipped if this file
+    isn't present.
+
+-----
+
+Copyright 2017, 2020 Russ Allbery <eagle@eyrie.org>
+Copyright 2011-2012
+    The Board of Trustees of the Leland Stanford Junior University
+
+Copying and distribution of this file, with or without modification, are
+permitted in any medium without royalty provided the copyright notice and
+this notice are preserved.  This file is offered as-is, without any
+warranty.
+
+SPDX-License-Identifier: FSFAP

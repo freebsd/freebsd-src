@@ -1,0 +1,23 @@
+# Test use_authtok with an excessively long password.  -*- conf -*-
+#
+# Copyright 2020 Russ Allbery <eagle@eyrie.org>
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    password = use_authtok debug
+
+[run]
+    chauthtok(PRELIM_CHECK)   = PAM_SUCCESS
+    chauthtok(UPDATE_AUTHTOK) = PAM_AUTHTOK_ERR
+
+[prompts]
+    echo_off = Current Kerberos password: |%p
+
+[output]
+    DEBUG pam_sm_chauthtok: entry (prelim)
+    DEBUG (user %u) attempting authentication as %0 for kadmin/changepw
+    DEBUG pam_sm_chauthtok: exit (success)
+    DEBUG pam_sm_chauthtok: entry (update)
+    DEBUG /^\(user %u\) rejecting password longer than [0-9]+$/
+    DEBUG pam_sm_chauthtok: exit (failure)

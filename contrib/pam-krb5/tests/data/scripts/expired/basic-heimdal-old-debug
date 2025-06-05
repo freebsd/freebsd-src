@@ -1,0 +1,43 @@
+# Test default handling of expired passwords.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth     = ignore_k5login debug
+    account  = ignore_k5login debug
+    password = ignore_k5login debug
+    session  = debug
+
+[run]
+    authenticate  = PAM_SUCCESS
+    acct_mgmt     = PAM_SUCCESS
+    open_session  = PAM_SUCCESS
+    close_session = PAM_SUCCESS
+
+[prompts]
+    echo_off = Password: |%p
+    info     = Your password will expire at %1
+    info     = Changing password
+    echo_off = New password: |%n
+    echo_off = Repeat new password: |%n
+    info     = Success: Password changed
+
+[output]
+    DEBUG pam_sm_authenticate: entry
+    DEBUG (user %u) attempting authentication as %0
+    INFO user %u authenticated as %0
+    DEBUG /^\(user %u\) temporarily storing credentials in /tmp/krb5cc_pam_/
+    DEBUG pam_sm_authenticate: exit (success)
+    DEBUG pam_sm_acct_mgmt: entry
+    DEBUG (user %u) retrieving principal from cache
+    DEBUG pam_sm_acct_mgmt: exit (success)
+    DEBUG pam_sm_open_session: entry
+    DEBUG /^\(user %u\) initializing ticket cache FILE:/tmp/krb5cc_/
+    DEBUG pam_sm_open_session: exit (success)
+    DEBUG pam_sm_close_session: entry
+    DEBUG pam_sm_close_session: exit (success)

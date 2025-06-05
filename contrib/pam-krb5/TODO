@@ -1,0 +1,101 @@
+                           pam-krb5 To-Do List
+
+PAM API:
+
+ * Support PAM_CHANGE_EXPIRED_AUTHTOK properly in pam_chauthtok.  This
+   will require prompting for the current password (if it's not already
+   available in the PAM data) and trying a regular authentication first to
+   see if the account is expired.
+
+ * Tighter verification that all of our flags are valid might be a good
+   idea.
+
+ * For informational messages followed by a prompt, find a way to combine
+   these into one PAM conversation call for better GUI presentation
+   behavior.
+
+Functionality:
+
+ * Change the authentication flow so that both Heimdal and MIT use the
+   same logic for attempting PKINIT first and then falling back to
+   password.  This will fix failure to store passwords in the PAM data
+   with try_pkinit and MIT Kerberos on password fallback and will allow
+   implementation of use_pkinit for MIT.  Based on discussion with MIT
+   Kerberos upstream, the best approach is probably to configure a custom
+   prompter that refuses to reply to any prompt.
+
+ * Add a daemon that can be used to verify TGTs that can be used when
+   pam-krb5 is run as a non-root user and hence doesn't have access to the
+   system keytab.  Jeff Hutzelman has a daemon and protocol for doing this
+   developed for a different PAM authentication module, and it would be
+   good to stay consistent with that protocol if possible.  (Debian
+   Bug#399001)
+
+ * The alt_auth_map parsing to find realms doesn't take into account
+   escaped @-signs and doesn't do proper principal parsing.
+
+ * Fix password expiration handling for the search_k5login and
+   alt_auth_map cases.  Right now, we may return expired password errors
+   that would trigger password expiration handling, which probably isn't
+   correct.
+
+ * Support authentication from a keytab.
+
+ * Support disabling of user canonicalization so that the PAM user is
+   retained even if the module did an aname to lname mapping.
+
+ * Use set_out_ccache to write the resulting ticket cache, if it is
+   available.  This ensures the correct flags are set in the ticket cache.
+   This poses some challenges due to the two-step ticket cache mechanism
+   currently used.  Perhaps there's a cache copying API?
+
+ * Use krb5_chpw_message to parse password change messages from Active
+   Directory.
+
+ * Consider exposing the Kerberos principal in the password prompt for a
+   password change.  (Debian Bug#667928)
+
+Code Cleanup:
+
+ * The PKINIT code for Heimdal involves too many #ifdefs right now for my
+   taste.  Find a way to restructure it to only wrap the main PKINIT
+   function for Heimdal.
+
+ * The current handling of error return codes is a mess.  We need to find
+   a way to return a rich set of error codes from the underlying functions
+   and then map error codes appropriately in the interface functions.
+   Helpful for this would be improved documentation of what error codes
+   are permitted and where.
+
+ * Tracking when to free the Kerberos context and other things stored in
+   the PAM context is currently too complicated.  It should be possible to
+   simplify it with a reference counting scheme.
+
+Documentation:
+
+ * Document PKINIT configuration with MIT in krb5.conf.  It looks like the
+   library supports configuration in [realms] with similar names to the
+   PAM module configuration.
+
+Portability:
+
+ * If pam_modutil_getpwnam is not available but getpwnam_r is, roll our
+   own using getpwnam_r.
+
+Logging:
+
+ * Log the information that the Kerberos library asks us to display, or at
+   least the info and error messages.
+
+ * Log unknown PAM flags on module entry.  Currently, only the symbolic
+   flags we know about will be logged.
+
+Test suite:
+
+ * Ensure that the test suite covers all possible PAM options.
+
+ * Figure out why the pin-mit script for module/pkinit prompts twice and
+   check if it's a bug in the module.
+
+ * Find a way of testing the PKINIT identity selection for MIT Kerberos
+   with use_pkinit enabled.

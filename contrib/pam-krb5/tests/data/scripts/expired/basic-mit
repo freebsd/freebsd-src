@@ -1,0 +1,28 @@
+# Test default handling of expired passwords.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth     = ignore_k5login
+    account  = ignore_k5login
+    password = ignore_k5login
+
+[run]
+    authenticate  = PAM_SUCCESS
+    acct_mgmt     = PAM_SUCCESS
+    open_session  = PAM_SUCCESS
+    close_session = PAM_SUCCESS
+
+[prompts]
+    echo_off = Password: |%p
+    info     = Password expired.  You must change it now.
+    echo_off = Enter new password: |%n
+    echo_off = Enter it again: |%n
+
+[output]
+    INFO user %u authenticated as %0

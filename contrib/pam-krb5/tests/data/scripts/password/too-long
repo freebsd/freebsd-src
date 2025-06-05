@@ -1,0 +1,15 @@
+# Test password change to an excessively long password.  -*- conf -*-
+#
+# Copyright 2020 Russ Allbery <eagle@eyrie.org>
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[run]
+    chauthtok(PRELIM_CHECK)   = PAM_SUCCESS
+    chauthtok(UPDATE_AUTHTOK) = PAM_AUTHTOK_ERR
+
+[prompts]
+    echo_off = Current Kerberos password: |%p
+    echo_off = Enter new Kerberos password: |%n
+
+[output]

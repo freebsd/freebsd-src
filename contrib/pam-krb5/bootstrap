@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# Run this shell script to bootstrap as necessary after a fresh checkout.
+
+set -e
+
+autoreconf -i --force
+rm -rf autom4te.cache
+
+# Generate manual pages.
+version=`grep '^pam-krb5' NEWS | head -1 | cut -d' ' -f2`
+pod2man --release="$version" --center=pam-krb5 -s 5 docs/pam_krb5.pod \
+    >docs/pam_krb5.5

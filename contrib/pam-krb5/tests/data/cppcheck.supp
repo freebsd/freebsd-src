@@ -1,0 +1,72 @@
+// Suppressions file for cppcheck.  -*- conf -*-
+//
+// This includes suppressions for all of my projects, including files that
+// aren't in rra-c-util, for ease of sharing between projects.  The ones that
+// don't apply to a particular project should hopefully be harmless.
+//
+// To determine the correct suppression to add for a new error, run cppcheck
+// with the --xml flag and then add a suppression for the error id, file
+// location, and line.
+//
+// Copyright 2018-2021 Russ Allbery <eagle@eyrie.org>
+//
+// Copying and distribution of this file, with or without modification, are
+// permitted in any medium without royalty provided the copyright notice and
+// this notice are preserved.  This file is offered as-is, without any
+// warranty.
+//
+// SPDX-License-Identifier: FSFAP
+
+// I like declaring variables at the top of a function rather than cluttering
+// every if and loop body with declarations.
+variableScope
+
+// strlen of a constant string is more maintainable code than hard-coding the
+// string length.
+constArgument:tests/runtests.c:804
+
+// False positive due to recursive function.
+knownConditionTrueFalse:portable/getopt.c:146
+
+// Bug in cppcheck 2.3.  cppcheck can't see the assignment because of the
+// void * cast.
+knownConditionTrueFalse:portable/k_haspag.c:61
+
+// False positive since the string comes from a command-line define.
+knownConditionTrueFalse:tests/tap/process.c:415
+knownConditionTrueFalse:tests/tap/remctl.c:79
+
+// Stored in the returned ai struct, but cppcheck can't see the assignment
+// because of the struct sockaddr * cast.
+memleak:portable/getaddrinfo.c:236
+
+// Bug in cppcheck 1.89 (fixed in 2.3).  The address of this variable is
+// passed to a Windows function (albeit through a cast).
+nullPointer:portable/winsock.c:61
+
+// Bug in cppcheck 2.3.
+nullPointerRedundantCheck:portable/krb5-profile.c:61
+
+// Bug in cppcheck 2.3.
+nullPointerRedundantCheck:portable/krb5-renew.c:82
+nullPointerRedundantCheck:portable/krb5-renew.c:83
+
+// Setting the variable to NULL explicitly after deallocation.
+redundantAssignment:tests/pam-util/options-t.c
+
+// (remctl) Bug in cppcheck 1.89 (fixed in 2.3).  The address of these
+// variables are passed to a PHP function.
+uninitvar:php/php_remctl.c:119
+uninitvar:php/php_remctl.c:123
+uninitvar:php/php_remctl.c:315
+uninitvar:php/php5_remctl.c:125
+uninitvar:php/php5_remctl.c:129
+uninitvar:php/php5_remctl.c:321
+
+// (remctl) Bug in cppcheck 1.82.  A pointer to this array is stored in a
+// struct that's passed to another function.
+redundantAssignment:tests/server/acl-t.c
+
+// (pam-krb5) cppcheck doesn't recognize the unused attribute on labels.
+unusedLabel:module/auth.c:895
+unusedLabelConfiguration:module/auth.c:895

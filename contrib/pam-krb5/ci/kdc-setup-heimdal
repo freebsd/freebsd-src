@@ -1,0 +1,105 @@
+#!/bin/sh
+#
+# Build a Kerberos test realm for Heimdal.
+#
+# This script automates the process of setting up a Kerberos test realm from
+# scratch suitable for testing pam-krb5.  It is primarily intended to be run
+# from inside CI in a VM or container from the top of the pam-krb5 source
+# tree, and must be run as root.  It expects to be operating on the Debian
+# Heimdal package.
+#
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+#
+# SPDX-License-Identifier: MIT
+
+set -eux
+
+# Install the KDC.
+apt-get install heimdal-kdc
+
+# Install its configuration files.
+cp ci/files/heimdal/heimdal-kdc /etc/default/heimdal-kdc
+cp ci/files/heimdal/kadmind.acl /etc/heimdal-kdc/kadmind.acl
+cp ci/files/heimdal/kdc.conf /etc/heimdal-kdc/kdc.conf
+cp ci/files/heimdal/krb5.conf /etc/krb5.conf
+cp ci/files/heimdal/pki-mapping /etc/heimdal-kdc/pki-mapping
+
+# Some versions of heimdal-kdc require this.
+ln -s /etc/heimdal-kdc/kadmind.acl /var/lib/heimdal-kdc/kadmind.acl
+
+# Add domain-realm mappings for the local host, since otherwise Heimdal and
+# MIT Kerberos may attempt to discover the realm of the local domain, and the
+# DNS server for GitHub Actions has a habit of just not responding and causing
+# the test to hang.
+cat <<EOF >>/etc/krb5.conf
+[domain_realm]
+    $(hostname -f) = HEIMDAL.TEST
+EOF
+cat <<EOF >>/etc/heimdal-kdc/kdc.conf
+[domain_realm]
+    $(hostname -f) = HEIMDAL.TEST
+EOF
+
+# Create the basic KDC.
+kstash --random-key
+kadmin -l init --realm-max-ticket-life='1 day 1 hour' \
+    --realm-max-renewable-life='1 week' HEIMDAL.TEST
+
+# Set default principal policies.
+kadmin -l modify --attributes=requires-pre-auth,disallow-svr \
+    default@HEIMDAL.TEST
+
+# Create and store the keytabs.
+kadmin -l add -r --use-defaults --attributes=requires-pre-auth \
+    test/admin@HEIMDAL.TEST
+kadmin -l ext_keytab -k tests/config/admin-keytab test/admin@HEIMDAL.TEST
+kadmin -l add -r --use-defaults --attributes=requires-pre-auth \
+    test/keytab@HEIMDAL.TEST
+kadmin -l ext_keytab -k tests/config/keytab test/keytab@HEIMDAL.TEST
+
+# Create a user principal with a known password.
+password="iceedKaicVevjunwiwyd"
+kadmin -l add --use-defaults --password="$password" testuser@HEIMDAL.TEST
+echo 'testuser@HEIMDAL.TEST' >tests/config/password
+echo "$password" >>tests/config/password
+
+# Create the root CA for PKINIT.
+mkdir -p /etc/heimdal-kdc/ca
+hxtool issue-certificate --self-signed --issue-ca --generate-key=rsa    \
+    --subject=CN=CA,DC=HEIMDAL,DC=TEST --lifetime=10years               \
+    --certificate=FILE:/etc/heimdal-kdc/ca/ca.pem
+chmod 644 /etc/heimdal-kdc/ca/ca.pem
+
+# Create the certificate for the Heimdal Kerberos KDC.
+hxtool issue-certificate --ca-certificate=FILE:/etc/heimdal-kdc/ca/ca.pem \
+    --generate-key=rsa --type=pkinit-kdc                                  \
+    --pk-init-principal=krbtgt/HEIMDAL.TEST@HEIMDAL.TEST                  \
+    --subject=uid=kdc,DC=HEIMDAL,DC=TEST                                  \
+    --certificate=FILE:/etc/heimdal-kdc/kdc.pem
+chmod 644 /etc/heimdal-kdc/kdc.pem
+
+# Create the certificate for the Heimdal client.
+hxtool issue-certificate --ca-certificate=FILE:/etc/heimdal-kdc/ca/ca.pem \
+    --generate-key=rsa --type=pkinit-client                               \
+    --pk-init-principal=testuser@HEIMDAL.TEST                             \
+    --subject=UID=testuser,DC=HEIMDAL,DC=TEST                             \
+    --certificate=FILE:tests/config/pkinit-cert
+echo 'testuser@HEIMDAL.TEST' >tests/config/pkinit-principal
+
+# Fix permissions on all the newly-created files.
+chmod 644 tests/config/*
+
+# Restart the Heimdal KDC and services.
+systemctl stop heimdal-kdc
+systemctl start heimdal-kdc
+
+# Ensure that the KDC is running.
+for n in $(seq 1 5); do
+    if echo "$password" \
+            | kinit --password-file=STDIN testuser@HEIMDAL.TEST; then
+        break
+    fi
+    sleep 1
+done
+klist
+kdestroy

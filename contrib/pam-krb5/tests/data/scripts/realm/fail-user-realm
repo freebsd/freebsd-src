@@ -1,0 +1,18 @@
+# Test authentication failure with different user_realm.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth = force_first_pass no_ccache user_realm=%0
+
+[run]
+    authenticate = PAM_AUTH_ERR
+
+[output]
+    ERR /^\(user %u\) cannot convert principal to user: /
+    NOTICE failed authorization check; logname=%u uid=%i euid=%i tty= ruser= rhost=
