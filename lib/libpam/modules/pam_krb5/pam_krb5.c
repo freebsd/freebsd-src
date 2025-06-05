@@ -60,6 +60,10 @@
 
 #include <krb5.h>
 #include <com_err.h>
+#ifdef MK_MITKRB5
+/* For MIT KRB5 only. */
+#include <k5-int.h>
+#endif
 
 #define	PAM_SM_AUTH
 #define	PAM_SM_ACCOUNT
