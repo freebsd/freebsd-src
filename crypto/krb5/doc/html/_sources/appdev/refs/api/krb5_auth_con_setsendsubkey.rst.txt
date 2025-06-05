@@ -1,0 +1,51 @@
+krb5_auth_con_setsendsubkey -  Set the send subkey in an auth context with a keyblock. 
+=======================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_setsendsubkey(krb5_context ctx, krb5_auth_context ac, krb5_keyblock * keyblock)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **ac** - Authentication context
+
+	          **[in]** **keyblock** - Send subkey
+
+
+..
+
+
+:retval:
+         -   0   Success. Otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function sets the send subkey in *ac* to a copy of *keyblock* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

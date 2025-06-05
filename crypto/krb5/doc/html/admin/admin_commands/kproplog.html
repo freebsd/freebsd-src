@@ -1,0 +1,242 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>kproplog &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="next" title="ktutil" href="ktutil.html" />
+    <link rel="prev" title="kpropd" href="kpropd.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="kpropd.html" title="kpropd"
+            accesskey="P">previous</a> |
+        <a href="ktutil.html" title="ktutil"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kproplog">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="kproplog">
+<span id="kproplog-8"></span><h1>kproplog<a class="headerlink" href="#kproplog" title="Permalink to this headline">¶</a></h1>
+<section id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>kproplog</strong> [<strong>-h</strong>] [<strong>-e</strong> <em>num</em>] [-v]
+<strong>kproplog</strong> [-R]</p>
+</section>
+<section id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The kproplog command displays the contents of the KDC database update
+log to standard output.  It can be used to keep track of incremental
+updates to the principal database.  The update log file contains the
+update log maintained by the <a class="reference internal" href="kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> process on the primary
+KDC server and the <a class="reference internal" href="kpropd.html#kpropd-8"><span class="std std-ref">kpropd</span></a> process on the replica KDC
+servers.  When updates occur, they are logged to this file.
+Subsequently any KDC replica configured for incremental updates will
+request the current data from the primary KDC and update their log
+file with any updates returned.</p>
+<p>The kproplog command requires read access to the update log file.  It
+will display update entries only for the KDC it runs on.</p>
+<p>If no options are specified, kproplog displays a summary of the update
+log.  If invoked on the primary, kproplog also displays all of the
+update entries.  If invoked on a replica KDC server, kproplog displays
+only a summary of the updates, which includes the serial number of the
+last update received and the associated time stamp of the last update.</p>
+</section>
+<section id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl>
+<dt><strong>-R</strong></dt><dd><p>Reset the update log.  This forces full resynchronization.  If
+used on a replica then that replica will request a full resync.
+If used on the primary then all replicas will request full
+resyncs.</p>
+</dd>
+<dt><strong>-h</strong></dt><dd><p>Display a summary of the update log.  This information includes
+the database version number, state of the database, the number of
+updates in the log, the time stamp of the first and last update,
+and the version number of the first and last update entry.</p>
+</dd>
+<dt><strong>-e</strong> <em>num</em></dt><dd><p>Display the last <em>num</em> update entries in the log.  This is useful
+when debugging synchronization between KDC servers.</p>
+</dd>
+<dt><strong>-v</strong></dt><dd><p>Display individual attributes per update.  An example of the
+output generated for one entry:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Update</span> <span class="n">Entry</span>
+   <span class="n">Update</span> <span class="n">serial</span> <span class="c1"># : 4</span>
+   <span class="n">Update</span> <span class="n">operation</span> <span class="p">:</span> <span class="n">Add</span>
+   <span class="n">Update</span> <span class="n">principal</span> <span class="p">:</span> <span class="n">test</span><span class="nd">@EXAMPLE</span><span class="o">.</span><span class="n">COM</span>
+   <span class="n">Update</span> <span class="n">size</span> <span class="p">:</span> <span class="mi">424</span>
+   <span class="n">Update</span> <span class="n">committed</span> <span class="p">:</span> <span class="kc">True</span>
+   <span class="n">Update</span> <span class="n">time</span> <span class="n">stamp</span> <span class="p">:</span> <span class="n">Fri</span> <span class="n">Feb</span> <span class="mi">20</span> <span class="mi">23</span><span class="p">:</span><span class="mi">37</span><span class="p">:</span><span class="mi">42</span> <span class="mi">2004</span>
+   <span class="n">Attributes</span> <span class="n">changed</span> <span class="p">:</span> <span class="mi">6</span>
+         <span class="n">Principal</span>
+         <span class="n">Key</span> <span class="n">data</span>
+         <span class="n">Password</span> <span class="n">last</span> <span class="n">changed</span>
+         <span class="n">Modifying</span> <span class="n">principal</span>
+         <span class="n">Modification</span> <span class="n">time</span>
+         <span class="n">TL</span> <span class="n">data</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="environment">
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
+</section>
+<section id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="kpropd.html#kpropd-8"><span class="std std-ref">kpropd</span></a>, <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a></p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">kproplog</a><ul>
+<li><a class="reference internal" href="#synopsis">SYNOPSIS</a></li>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#options">OPTIONS</a></li>
+<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Administration  programs</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="kadmin_local.html">kadmin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kadmind.html">kadmind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdb5_util.html">kdb5_util</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdb5_ldap_util.html">kdb5_ldap_util</a></li>
+<li class="toctree-l3"><a class="reference internal" href="krb5kdc.html">krb5kdc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kprop.html">kprop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kpropd.html">kpropd</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kproplog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ktutil.html">ktutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="k5srvutil.html">k5srvutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="sserver.html">sserver</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="kpropd.html" title="kpropd"
+            >previous</a> |
+        <a href="ktutil.html" title="ktutil"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kproplog">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

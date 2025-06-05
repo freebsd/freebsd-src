@@ -1,0 +1,62 @@
+krb5_get_init_creds_keytab -  Get initial credentials using a key table. 
+=========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_init_creds_keytab(krb5_context context, krb5_creds * creds, krb5_principal client, krb5_keytab arg_keytab, krb5_deltat start_time, const char * in_tkt_service, krb5_get_init_creds_opt * k5_gic_options)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **creds** - New credentials
+
+	          **[in]** **client** - Client principal
+
+	          **[in]** **arg_keytab** - Key table handle
+
+	          **[in]** **start_time** - Time when ticket becomes valid (0 for now)
+
+	          **[in]** **in_tkt_service** - Service name of initial credentials (or NULL)
+
+	          **[in]** **k5_gic_options** - Initial credential options
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function requests KDC for an initial credentials for *client* using a client key stored in *arg_keytab* . If *in_tkt_service* is specified, it is parsed as a principal name (with the realm ignored) and used as the service principal for the request; otherwise the ticket-granting service is used.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,69 @@
+mydir=lib$(S)krb5$(S)keytab
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR=keytab
+##DOS##OBJFILE=..\$(OUTPRE)$(PREFIXDIR).lst
+
+STLIBOBJS= \
+	ktadd.o		\
+	ktbase.o	\
+	ktdefault.o	\
+	ktfr_entry.o	\
+	ktremove.o	\
+	ktfns.o		\
+	kt_file.o	\
+	kt_memory.o	\
+	read_servi.o
+
+OBJS=	\
+	$(OUTPRE)ktadd.$(OBJEXT)		\
+	$(OUTPRE)ktbase.$(OBJEXT)	\
+	$(OUTPRE)ktdefault.$(OBJEXT)	\
+	$(OUTPRE)ktfr_entry.$(OBJEXT)	\
+	$(OUTPRE)ktremove.$(OBJEXT)	\
+	$(OUTPRE)ktfns.$(OBJEXT)	\
+	$(OUTPRE)kt_file.$(OBJEXT)	\
+	$(OUTPRE)kt_memory.$(OBJEXT)	\
+	$(OUTPRE)read_servi.$(OBJEXT)
+
+SRCS=	\
+	$(srcdir)/ktadd.c	\
+	$(srcdir)/ktbase.c	\
+	$(srcdir)/ktdefault.c	\
+	$(srcdir)/ktfr_entry.c	\
+	$(srcdir)/ktremove.c	\
+	$(srcdir)/ktfns.c	\
+	$(srcdir)/kt_file.c	\
+	$(srcdir)/kt_memory.c	\
+	$(srcdir)/read_servi.c
+
+EXTRADEPSRCS= \
+	$(srcdir)/t_keytab.c 
+
+all-windows: $(OBJFILE)
+
+##DOS$(OBJFILE): $(OBJS)
+##DOS	$(RM) $(OBJFILE)
+##WIN32##	$(LIBECHO) -p $(PREFIXDIR)\ $(OUTPRE)*.obj > $(OBJFILE)
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+
+check-unix: t_keytab
+	$(RUN_TEST) ./t_keytab
+
+T_KEYTAB_OBJS = t_keytab.o
+t_keytab: $(T_KEYTAB_OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ $(T_KEYTAB_OBJS) $(KRB5_BASE_LIBS)
+
+clean-unix::
+	$(RM) t_keytab t_keytab.o
+
+clean-windows::
+	@echo Making clean in krb5\keytab
+	$(RM) $(OBJFILE)
+
+
+@libobj_frag@
+

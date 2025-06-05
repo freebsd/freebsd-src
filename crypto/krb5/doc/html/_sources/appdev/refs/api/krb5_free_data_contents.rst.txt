@@ -1,0 +1,42 @@
+krb5_free_data_contents -  Free the contents of a krb5_data structure and zero the data field. 
+===============================================================================================
+
+..
+
+.. c:function:: void krb5_free_data_contents(krb5_context context, krb5_data * val)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **val** - Data structure to free contents of
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function frees the contents of *val* , but not the structure itself. It sets the structure's data pointer to null and (beginning in release 1.19) sets its length to zero.
+
+
+
+
+
+
+..
+
+
+
+
+

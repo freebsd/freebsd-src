@@ -1,0 +1,306 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Application servers &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Host configuration" href="host_config.html" />
+    <link rel="prev" title="Configuring Kerberos with OpenLDAP back-end" href="conf_ldap.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="conf_ldap.html" title="Configuring Kerberos with OpenLDAP back-end"
+            accesskey="P">previous</a> |
+        <a href="host_config.html" title="Host configuration"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Application servers">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="application-servers">
+<h1>Application servers<a class="headerlink" href="#application-servers" title="Permalink to this headline">¶</a></h1>
+<p>If you need to install the Kerberos V5 programs on an application
+server, please refer to the Kerberos V5 Installation Guide.  Once you
+have installed the software, you need to add that host to the Kerberos
+database (see <a class="reference internal" href="database.html#principals"><span class="std std-ref">Principals</span></a>), and generate a keytab for that host,
+that contains the host’s key.  You also need to make sure the host’s
+clock is within your maximum clock skew of the KDCs.</p>
+<section id="keytabs">
+<h2>Keytabs<a class="headerlink" href="#keytabs" title="Permalink to this headline">¶</a></h2>
+<p>A keytab is a host’s copy of its own keylist, which is analogous to a
+user’s password.  An application server that needs to authenticate
+itself to the KDC has to have a keytab that contains its own principal
+and key.  Just as it is important for users to protect their
+passwords, it is equally important for hosts to protect their keytabs.
+You should always store keytab files on local disk, and make them
+readable only by root, and you should never send a keytab file over a
+network in the clear.  Ideally, you should run the <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>
+command to extract a keytab on the host on which the keytab is to
+reside.</p>
+<section id="adding-principals-to-keytabs">
+<span id="add-princ-kt"></span><h3>Adding principals to keytabs<a class="headerlink" href="#adding-principals-to-keytabs" title="Permalink to this headline">¶</a></h3>
+<p>To generate a keytab, or to add a principal to an existing keytab, use
+the <strong>ktadd</strong> command from kadmin.  Here is a sample session, using
+configuration files that enable only AES encryption:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span> <span class="n">ktadd</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">2</span><span class="p">,</span> <span class="n">encryption</span> <span class="nb">type</span> <span class="n">aes256</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">2</span><span class="p">,</span> <span class="n">encryption</span> <span class="nb">type</span> <span class="n">aes128</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span>
+</pre></div>
+</div>
+</section>
+<section id="removing-principals-from-keytabs">
+<h3>Removing principals from keytabs<a class="headerlink" href="#removing-principals-from-keytabs" title="Permalink to this headline">¶</a></h3>
+<p>To remove a principal from an existing keytab, use the kadmin
+<strong>ktremove</strong> command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kadmin</span><span class="p">:</span>  <span class="n">ktremove</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">2</span> <span class="n">removed</span> <span class="kn">from</span> <span class="nn">keytab</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">2</span> <span class="n">removed</span> <span class="kn">from</span> <span class="nn">keytab</span> <span class="n">FILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+</pre></div>
+</div>
+</section>
+<section id="using-a-keytab-to-acquire-client-credentials">
+<h3>Using a keytab to acquire client credentials<a class="headerlink" href="#using-a-keytab-to-acquire-client-credentials" title="Permalink to this headline">¶</a></h3>
+<p>While keytabs are ordinarily used to accept credentials from clients,
+they can also be used to acquire initial credentials, allowing one
+service to authenticate to another.</p>
+<p>To manually obtain credentials using a keytab, use the <a class="reference internal" href="../user/user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a>
+<strong>-k</strong> option, together with the <strong>-t</strong> option if the keytab is not in
+the default location.</p>
+<p>Beginning with release 1.11, GSSAPI applications can be configured to
+automatically obtain initial credentials from a keytab as needed.  The
+recommended configuration is as follows:</p>
+<ol class="arabic simple">
+<li><p>Create a keytab containing a single entry for the desired client
+identity.</p></li>
+<li><p>Place the keytab in a location readable by the service, and set the
+<strong>KRB5_CLIENT_KTNAME</strong> environment variable to its filename.
+Alternatively, use the <strong>default_client_keytab_name</strong> profile
+variable in <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>, or use the default location of
+<a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">DEFCKTNAME</span></a>.</p></li>
+<li><p>Set <strong>KRB5CCNAME</strong> to a filename writable by the service, which
+will not be used for any other purpose.  Do not manually obtain
+credentials at this location.  (Another credential cache type
+besides <strong>FILE</strong> can be used if desired, as long the cache will not
+conflict with another use.  A <strong>MEMORY</strong> cache can be used if the
+service runs as a long-lived process.  See <a class="reference internal" href="../basic/ccache_def.html#ccache-definition"><span class="std std-ref">Credential cache</span></a>
+for details.)</p></li>
+<li><p>Start the service.  When it authenticates using GSSAPI, it will
+automatically obtain credentials from the client keytab into the
+specified credential cache, and refresh them before they expire.</p></li>
+</ol>
+</section>
+</section>
+<section id="clock-skew">
+<h2>Clock Skew<a class="headerlink" href="#clock-skew" title="Permalink to this headline">¶</a></h2>
+<p>A Kerberos application server host must keep its clock synchronized or
+it will reject authentication requests from clients.  Modern operating
+systems typically provide a facility to maintain the correct time;
+make sure it is enabled.  This is especially important on virtual
+machines, where clocks tend to drift more rapidly than normal machine
+clocks.</p>
+<p>The default allowable clock skew is controlled by the <strong>clockskew</strong>
+variable in <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a>.</p>
+</section>
+<section id="getting-dns-information-correct">
+<h2>Getting DNS information correct<a class="headerlink" href="#getting-dns-information-correct" title="Permalink to this headline">¶</a></h2>
+<p>Several aspects of Kerberos rely on name service.  When a hostname is
+used to name a service, clients may canonicalize the hostname using
+forward and possibly reverse name resolution.  The result of this
+canonicalization must match the principal entry in the host’s keytab,
+or authentication will fail.  To work with all client canonicalization
+configurations, each host’s canonical name must be the fully-qualified
+host name (including the domain), and each host’s IP address must
+reverse-resolve to the canonical name.</p>
+<p>Configuration of hostnames varies by operating system.  On the
+application server itself, canonicalization will typically use the
+<code class="docutils literal notranslate"><span class="pre">/etc/hosts</span></code> file rather than the DNS.  Ensure that the line for the
+server’s hostname is in the following form:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">IP</span> <span class="n">address</span>      <span class="n">fully</span><span class="o">-</span><span class="n">qualified</span> <span class="n">hostname</span>        <span class="n">aliases</span>
+</pre></div>
+</div>
+<p>Here is a sample <code class="docutils literal notranslate"><span class="pre">/etc/hosts</span></code> file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># this is a comment</span>
+<span class="mf">127.0.0.1</span>      <span class="n">localhost</span> <span class="n">localhost</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span>
+<span class="mf">10.0.0.6</span>       <span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span> <span class="n">daffodil</span> <span class="n">trillium</span> <span class="n">wake</span><span class="o">-</span><span class="n">robin</span>
+</pre></div>
+</div>
+<p>The output of <code class="docutils literal notranslate"><span class="pre">klist</span> <span class="pre">-k</span></code> for this example host should look like:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">viola</span><span class="c1"># klist -k</span>
+<span class="n">Keytab</span> <span class="n">name</span><span class="p">:</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span>
+<span class="n">KVNO</span> <span class="n">Principal</span>
+<span class="o">----</span> <span class="o">------------------------------------------------------------</span>
+   <span class="mi">2</span> <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+</pre></div>
+</div>
+<p>If you were to ssh to this host with a fresh credentials cache (ticket
+file), and then <a class="reference internal" href="../user/user_commands/klist.html#klist-1"><span class="std std-ref">klist</span></a>, the output should list a service
+principal of <code class="docutils literal notranslate"><span class="pre">host/daffodil.mit.edu&#64;ATHENA.MIT.EDU</span></code>.</p>
+</section>
+<section id="configuring-your-firewall-to-work-with-kerberos-v5">
+<span id="conf-firewall"></span><h2>Configuring your firewall to work with Kerberos V5<a class="headerlink" href="#configuring-your-firewall-to-work-with-kerberos-v5" title="Permalink to this headline">¶</a></h2>
+<p>If you need off-site users to be able to get Kerberos tickets in your
+realm, they must be able to get to your KDC.  This requires either
+that you have a replica KDC outside your firewall, or that you
+configure your firewall to allow UDP requests into at least one of
+your KDCs, on whichever port the KDC is running.  (The default is port
+88; other ports may be specified in the KDC’s <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>
+file.)  Similarly, if you need off-site users to be able to change
+their passwords in your realm, they must be able to get to your
+Kerberos admin server on the kpasswd port (which defaults to 464).  If
+you need off-site users to be able to administer your Kerberos realm,
+they must be able to get to your Kerberos admin server on the
+administrative port (which defaults to 749).</p>
+<p>If your on-site users inside your firewall will need to get to KDCs in
+other realms, you will also need to configure your firewall to allow
+outgoing TCP and UDP requests to port 88, and to port 464 to allow
+password changes.  If your on-site users inside your firewall will
+need to get to Kerberos admin servers in other realms, you will also
+need to allow outgoing TCP and UDP requests to port 749.</p>
+<p>If any of your KDCs are outside your firewall, you will need to allow
+kprop requests to get through to the remote KDC.  <a class="reference internal" href="admin_commands/kprop.html#kprop-8"><span class="std std-ref">kprop</span></a> uses
+the <code class="docutils literal notranslate"><span class="pre">krb5_prop</span></code> service on port 754 (tcp).</p>
+<p>The book <em>UNIX System Security</em>, by David Curry, is a good starting
+point for learning to configure firewalls.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Application servers</a><ul>
+<li><a class="reference internal" href="#keytabs">Keytabs</a><ul>
+<li><a class="reference internal" href="#adding-principals-to-keytabs">Adding principals to keytabs</a></li>
+<li><a class="reference internal" href="#removing-principals-from-keytabs">Removing principals from keytabs</a></li>
+<li><a class="reference internal" href="#using-a-keytab-to-acquire-client-credentials">Using a keytab to acquire client credentials</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#clock-skew">Clock Skew</a></li>
+<li><a class="reference internal" href="#getting-dns-information-correct">Getting DNS information correct</a></li>
+<li><a class="reference internal" href="#configuring-your-firewall-to-work-with-kerberos-v5">Configuring your firewall to work with Kerberos V5</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="conf_ldap.html" title="Configuring Kerberos with OpenLDAP back-end"
+            >previous</a> |
+        <a href="host_config.html" title="Host configuration"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Application servers">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

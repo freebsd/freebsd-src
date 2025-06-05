@@ -1,0 +1,43 @@
+krb5_c_is_keyed_cksum -  Test whether a checksum type is keyed. 
+================================================================
+
+..
+
+.. c:function:: krb5_boolean krb5_c_is_keyed_cksum(krb5_cksumtype ctype)
+
+..
+
+
+:param:
+
+	          **[in]** **ctype** - Checksum type
+
+
+..
+
+
+
+:return:
+         -  TRUE if ctype is a keyed checksum type, FALSE otherwise. 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

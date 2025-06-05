@@ -1,0 +1,63 @@
+krb5_set_trace_callback -  Specify a callback function for trace events. 
+=========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_set_trace_callback(krb5_context context, krb5_trace_callback fn, void * cb_data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **fn** - Callback function
+
+	          **[in]** **cb_data** - Callback data
+
+
+..
+
+
+
+:return:
+         -  Returns KRB5_TRACE_NOSUPP if tracing is not supported in the library (unless fn is NULL). 
+
+..
+
+
+
+
+
+
+
+Specify a callback for trace events occurring in krb5 operations performed within *context* . *fn* will be invoked with *context* as the first argument, *cb_data* as the last argument, and a pointer to a krb5_trace_info as the second argument. If the trace callback is reset via this function or *context* is destroyed, *fn* will be invoked with a NULL second argument so it can clean up *cb_data* . Supply a NULL value for *fn* to disable trace callbacks within *context* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 This function overrides the information passed through the *KRB5_TRACE* environment variable.
+ 
+
+
+.. note::
+
+	 New in 1.9
+ 
+

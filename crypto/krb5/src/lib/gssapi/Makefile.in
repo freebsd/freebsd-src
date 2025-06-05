@@ -1,0 +1,104 @@
+mydir=lib$(S)gssapi
+BUILDTOP=$(REL)..$(S)..
+SUBDIRS= generic krb5 spnego mechglue
+DEFINES=-D_GSS_STATIC_LINK=1
+
+##DOSLIBNAME=$(OUTPRE)gssapi.lib
+##DOSOBJFILELIST=@$(OUTPRE)mechglue.lst @$(OUTPRE)spnego.lst @$(OUTPRE)generic.lst @$(OUTPRE)krb5.lst # @$(OUTPRE)gssapi.lst
+##DOSOBJFILEDEP=$(OUTPRE)mechglue.lst $(OUTPRE)spnego.lst $(OUTPRE)generic.lst $(OUTPRE)krb5.lst # $(OUTPRE)gssapi.lst
+
+###DOSOBJFILE=$(OUTPRE)gssapi.lst
+##DOSLIBOBJS=$(OBJS)
+
+##DOS##DLL_EXP_TYPE=GSS
+
+LOCALINCLUDES = -Igeneric -I$(srcdir)/generic -Ikrb5 -I$(srcdir)/krb5 -I$(srcdir)/mechglue
+STLIBOBJS=
+
+OBJS=
+SRCS=
+
+LIBBASE=gssapi_krb5
+LIBMAJOR=2
+LIBMINOR=2
+#LIBINITFUNC=gssint_lib_init
+#LIBFINIFUNC=gssint_lib_fini
+SUBDIROBJLISTS=generic/OBJS.ST mechglue/OBJS.ST krb5/OBJS.ST spnego/OBJS.ST
+STOBJLISTS=OBJS.ST $(SUBDIROBJLISTS)
+SHLIB_EXPDEPS=\
+	$(KRB5_DEPLIB) $(CRYPTO_DEPLIB) $(SUPPORT_DEPLIB) $(COM_ERR_DEPLIB)
+SHLIB_EXPLIBS=-lkrb5 -lk5crypto $(COM_ERR_LIB) $(SUPPORT_LIB) $(DL_LIB) $(LIBS)
+RELDIR=gssapi
+
+all-unix: all-liblinks @MAINT@ verify-calling-conventions-gssapi
+
+install-unix: install-libs
+
+clean-unix:: clean-liblinks clean-libs clean-libobjs clean-misc-unix
+
+clean-windows::
+	$(RM) gssapi.lib gssapi.bak
+
+clean-misc-unix: clean-recurse
+	$(RM) merged-gssapi-header.h
+	$(RM) -r $(EHDRDIR)
+
+EHDRDIR=$(BUILDTOP)$(S)include$(S)gssapi
+EXPORTED_HEADERS= \
+	$(EHDRDIR)$(S)gssapi_krb5.h \
+	$(EHDRDIR)$(S)gssapi_generic.h \
+	$(EHDRDIR)$(S)gssapi.h \
+	$(EHDRDIR)$(S)gssapi_alloc.h \
+	$(EHDRDIR)$(S)gssapi_ext.h
+merged-gssapi-header.h: $(EXPORTED_HEADERS)
+	cat $(EXPORTED_HEADERS) > merged.tmp
+	$(MV) merged.tmp merged-gssapi-header.h
+verify-calling-conventions-gssapi: merged-gssapi-header.h
+	$(PERL) -w $(top_srcdir)/util/def-check.pl merged-gssapi-header.h $(srcdir)/../gssapi32.def
+
+# These rules are an attempt to handle several different problems:
+#
+# Certain files in subdirectories must be made current by the
+# recursion step before we can build files in this directory that
+# depend on them.  Existing but out-of-date versions must not be used.
+#
+# In a parallel make, nothing should be built more than once.  This
+# effect can be exaggerated for testing by sticking "sleep 5" into the
+# rules for generating the files in subdirectories.  For example, in
+# between testing for a directory and creating it -- do you then get
+# mkdir complaining that the directory exists?  Adding the sleep
+# command may also exaggerate the build-with-outdated-headers problem,
+# by causing the timestamp on the newly generated header to be several
+# seconds newer than object files built with its old version, even on
+# fast machines where the UNIX filesystem's one-second granularity
+# would mask the problem.
+#
+# We must not cause these files to always be considered newly updated
+# when it comes time to build the object files in this directory.
+# Otherwise, we wind up recompiling some files every time we run make.
+
+# This set of rules fails the parallel make case; it can build
+# gssapi-include and all-recurse at the same time, and both will
+# create include/gssapi and gssapi.h.
+#$(BUILDTOP)/include/gssapi/gssapi.h: generic/gssapi.h
+#	(cd generic && $(MAKE) gssapi-include)
+#generic/gssapi.h: generic/gssapi.hin
+#	(cd generic && $(MAKE) gssapi.h)
+#generic/gssapi_err_generic.h: generic/gssapi_err_generic.et
+#	(cd generic && $(MAKE) gssapi_err_generic.h)
+#krb5/gssapi_err_krb5.h: krb5/gssapi_err_krb5.et
+#	(cd krb5 && $(MAKE) gssapi_err_krb5.h)
+
+# This version, without the no-op command to run, reportedly caused
+# repeated rebuilds in certain cases.  With the no-op command, it
+# appears to be properly serializing the subdir processing and local
+# compiles... so far.
+##DOS##!if 0
+$(EXPORTED_HEADERS) generic/gssapi.h krb5/gssapi_err_krb5.h generic/gssapi_err_generic.h krb5/gssapi_krb5.h: all-recurse
+	: $@ updated by recursion rule
+##DOS##!endif
+
+
+@lib_frag@
+@libobj_frag@
+

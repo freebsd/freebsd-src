@@ -1,0 +1,362 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Host configuration &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Backups of secure hosts" href="backup_host.html" />
+    <link rel="prev" title="Application servers" href="appl_servers.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="appl_servers.html" title="Application servers"
+            accesskey="P">previous</a> |
+        <a href="backup_host.html" title="Backups of secure hosts"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Host configuration">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="host-configuration">
+<h1>Host configuration<a class="headerlink" href="#host-configuration" title="Permalink to this headline">¶</a></h1>
+<p>All hosts running Kerberos software, whether they are clients,
+application servers, or KDCs, can be configured using
+<a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.  Here we describe some of the behavior changes
+you might want to make.</p>
+<section id="default-realm">
+<h2>Default realm<a class="headerlink" href="#default-realm" title="Permalink to this headline">¶</a></h2>
+<p>In the <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a> section, the <strong>default_realm</strong> realm
+relation sets the default Kerberos realm.  For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">libdefaults</span><span class="p">]</span>
+    <span class="n">default_realm</span> <span class="o">=</span> <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+</pre></div>
+</div>
+<p>The default realm affects Kerberos behavior in the following ways:</p>
+<ul class="simple">
+<li><p>When a principal name is parsed from text, the default realm is used
+if no <code class="docutils literal notranslate"><span class="pre">&#64;REALM</span></code> component is specified.</p></li>
+<li><p>The default realm affects login authorization as described below.</p></li>
+<li><p>For programs which operate on a Kerberos database, the default realm
+is used to determine which database to operate on, unless the <strong>-r</strong>
+parameter is given to specify a realm.</p></li>
+<li><p>A server program may use the default realm when looking up its key
+in a <a class="reference internal" href="install_appl_srv.html#keytab-file"><span class="std std-ref">keytab file</span></a>, if its realm is not
+determined by <a class="reference internal" href="conf_files/krb5_conf.html#domain-realm"><span class="std std-ref">[domain_realm]</span></a> configuration or by the server
+program itself.</p></li>
+<li><p>If <a class="reference internal" href="../user/user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a> is passed the <strong>-n</strong> flag, it requests anonymous
+tickets from the default realm.</p></li>
+</ul>
+<p>In some situations, these uses of the default realm might conflict.
+For example, it might be desirable for principal name parsing to use
+one realm by default, but for login authorization to use a second
+realm.  In this situation, the first realm can be configured as the
+default realm, and <strong>auth_to_local</strong> relations can be used as
+described below to use the second realm for login authorization.</p>
+</section>
+<section id="login-authorization">
+<span id="id1"></span><h2>Login authorization<a class="headerlink" href="#login-authorization" title="Permalink to this headline">¶</a></h2>
+<p>If a host runs a Kerberos-enabled login service such as OpenSSH with
+GSSAPIAuthentication enabled, login authorization rules determine
+whether a Kerberos principal is allowed to access a local account.</p>
+<p>By default, a Kerberos principal is allowed access to an account if
+its realm matches the default realm and its name matches the account
+name.  (For historical reasons, access is also granted by default if
+the name has two components and the second component matches the
+default realm; for instance, <code class="docutils literal notranslate"><span class="pre">alice/ATHENA.MIT.EDU&#64;ATHENA.MIT.EDU</span></code>
+is granted access to the <code class="docutils literal notranslate"><span class="pre">alice</span></code> account if <code class="docutils literal notranslate"><span class="pre">ATHENA.MIT.EDU</span></code> is
+the default realm.)</p>
+<p>The simplest way to control local access is using <a class="reference internal" href="../user/user_config/k5login.html#k5login-5"><span class="std std-ref">.k5login</span></a>
+files.  To use these, place a <code class="docutils literal notranslate"><span class="pre">.k5login</span></code> file in the home directory
+of each account listing the principal names which should have login
+access to that account.  If it is not desirable to use <code class="docutils literal notranslate"><span class="pre">.k5login</span></code>
+files located in account home directories, the <strong>k5login_directory</strong>
+relation in the <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a> section can specify a directory
+containing one file per account uname.</p>
+<p>By default, if a <code class="docutils literal notranslate"><span class="pre">.k5login</span></code> file is present, it controls
+authorization both positively and negatively–any principal name
+contained in the file is granted access and any other principal name
+is denied access, even if it would have had access if the <code class="docutils literal notranslate"><span class="pre">.k5login</span></code>
+file didn’t exist.  The <strong>k5login_authoritative</strong> relation in the
+<a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a> section can be set to false to make <code class="docutils literal notranslate"><span class="pre">.k5login</span></code>
+files provide positive authorization only.</p>
+<p>The <strong>auth_to_local</strong> relation in the <a class="reference internal" href="conf_files/krb5_conf.html#realms"><span class="std std-ref">[realms]</span></a> section for the
+default realm can specify pattern-matching rules to control login
+authorization.  For example, the following configuration allows access
+to principals from a different realm than the default realm:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[realms]
+    DEFAULT.REALM = {
+        # Allow access to principals from OTHER.REALM.
+        #
+        # [1:$1@$0] matches single-component principal names and creates
+        # a selection string containing the principal name and realm.
+        #
+        # (.*@OTHER\.REALM) matches against the selection string, so that
+        # only principals in OTHER.REALM are matched.
+        #
+        # s/@OTHER\.REALM$// removes the realm name, leaving behind the
+        # principal name as the account name.
+        auth_to_local = RULE:[1:$1@$0](.*@OTHER\.REALM)s/@OTHER\.REALM$//
+
+        # Also allow principals from the default realm.  Omit this line
+        # to only allow access to principals in OTHER.REALM.
+        auth_to_local = DEFAULT
+    }
+</pre></div>
+</div>
+<p>The <strong>auth_to_local_names</strong> subsection of the <a class="reference internal" href="conf_files/krb5_conf.html#realms"><span class="std std-ref">[realms]</span></a> section
+for the default realm can specify explicit mappings from principal
+names to local accounts.  The key used in this subsection is the
+principal name without realm, so it is only safe to use in a Kerberos
+environment with a single realm or a tightly controlled set of realms.
+An example use of <strong>auth_to_local_names</strong> might be:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">realms</span><span class="p">]</span>
+    <span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">auth_to_local_names</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="c1"># Careful, these match principals in any realm!</span>
+            <span class="n">host</span><span class="o">/</span><span class="n">example</span><span class="o">.</span><span class="n">com</span> <span class="o">=</span> <span class="n">hostaccount</span>
+            <span class="n">fred</span> <span class="o">=</span> <span class="n">localfred</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>Local authorization behavior can also be modified using plugin
+modules; see <a class="reference internal" href="../plugindev/hostrealm.html#hostrealm-plugin"><span class="std std-ref">Host-to-realm interface (hostrealm)</span></a> for details.</p>
+</section>
+<section id="plugin-module-configuration">
+<span id="plugin-config"></span><h2>Plugin module configuration<a class="headerlink" href="#plugin-module-configuration" title="Permalink to this headline">¶</a></h2>
+<p>Many aspects of Kerberos behavior, such as client preauthentication
+and KDC service location, can be modified through the use of plugin
+modules.  For most of these behaviors, you can use the <a class="reference internal" href="conf_files/krb5_conf.html#plugins"><span class="std std-ref">[plugins]</span></a>
+section of krb5.conf to register third-party modules, and to switch
+off registered or built-in modules.</p>
+<p>A plugin module takes the form of a Unix shared object
+(<code class="docutils literal notranslate"><span class="pre">modname.so</span></code>) or Windows DLL (<code class="docutils literal notranslate"><span class="pre">modname.dll</span></code>).  If you have
+installed a third-party plugin module and want to register it, you do
+so using the <strong>module</strong> relation in the appropriate subsection of the
+[plugins] section.  The value for <strong>module</strong> must give the module name
+and the path to the module, separated by a colon.  The module name
+will often be the same as the shared object’s name, but in unusual
+cases (such as a shared object which implements multiple modules for
+the same interface) it might not be.  For example, to register a
+client preauthentication module named <code class="docutils literal notranslate"><span class="pre">mypreauth</span></code> installed at
+<code class="docutils literal notranslate"><span class="pre">/path/to/mypreauth.so</span></code>, you could write:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">plugins</span><span class="p">]</span>
+    <span class="n">clpreauth</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">module</span> <span class="o">=</span> <span class="n">mypreauth</span><span class="p">:</span><span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">mypreauth</span><span class="o">.</span><span class="n">so</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>Many of the pluggable behaviors in MIT krb5 contain built-in modules
+which can be switched off.  You can disable a built-in module (or one
+you have registered) using the <strong>disable</strong> directive in the
+appropriate subsection of the [plugins] section.  For example, to
+disable the use of .k5identity files to select credential caches, you
+could write:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">plugins</span><span class="p">]</span>
+    <span class="n">ccselect</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">disable</span> <span class="o">=</span> <span class="n">k5identity</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>If you want to disable multiple modules, specify the <strong>disable</strong>
+directive multiple times, giving one module to disable each time.</p>
+<p>Alternatively, you can explicitly specify which modules you want to be
+enabled for that behavior using the <strong>enable_only</strong> directive.  For
+example, to make <a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> check password quality using only a
+module you have registered, and no other mechanism, you could write:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">plugins</span><span class="p">]</span>
+    <span class="n">pwqual</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">module</span> <span class="o">=</span> <span class="n">mymodule</span><span class="p">:</span><span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">mymodule</span><span class="o">.</span><span class="n">so</span>
+        <span class="n">enable_only</span> <span class="o">=</span> <span class="n">mymodule</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>Again, if you want to specify multiple modules, specify the
+<strong>enable_only</strong> directive multiple times, giving one module to enable
+each time.</p>
+<p>Some Kerberos interfaces use different mechanisms to register plugin
+modules.</p>
+<section id="kdc-location-modules">
+<h3>KDC location modules<a class="headerlink" href="#kdc-location-modules" title="Permalink to this headline">¶</a></h3>
+<p>For historical reasons, modules to control how KDC servers are located
+are registered simply by placing the shared object or DLL into the
+“libkrb5” subdirectory of the krb5 plugin directory, which defaults to
+<a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">LIBDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5/plugins</span></code>.  For example, Samba’s winbind krb5
+locator plugin would be registered by placing its shared object in
+<a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">LIBDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5/plugins/libkrb5/winbind_krb5_locator.so</span></code>.</p>
+</section>
+<section id="gssapi-mechanism-modules">
+<span id="gssapi-plugin-config"></span><h3>GSSAPI mechanism modules<a class="headerlink" href="#gssapi-mechanism-modules" title="Permalink to this headline">¶</a></h3>
+<p>GSSAPI mechanism modules are registered using the file
+<a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">SYSCONFDIR</span></a><code class="docutils literal notranslate"><span class="pre">/gss/mech</span></code> or configuration files in the
+<a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">SYSCONFDIR</span></a><code class="docutils literal notranslate"><span class="pre">/gss/mech.d</span></code> directory with a <code class="docutils literal notranslate"><span class="pre">.conf</span></code>
+suffix.  Each line in these files has the form:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">name</span>  <span class="n">oid</span>  <span class="n">pathname</span>  <span class="p">[</span><span class="n">options</span><span class="p">]</span>  <span class="o">&lt;</span><span class="nb">type</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>Only the name, oid, and pathname are required.  <em>name</em> is the
+mechanism name, which may be used for debugging or logging purposes.
+<em>oid</em> is the object identifier of the GSSAPI mechanism to be
+registered.  <em>pathname</em> is a path to the module shared object or DLL.
+<em>options</em> (if present) are options provided to the plugin module,
+surrounded in square brackets.  <em>type</em> (if present) can be used to
+indicate a special type of module.  Currently the only special module
+type is “interposer”, for a module designed to intercept calls to
+other mechanisms.</p>
+<p>If the environment variable <strong>GSS_MECH_CONFIG</strong> is set, its value is
+used as the sole mechanism configuration filename.</p>
+</section>
+<section id="configuration-profile-modules">
+<span id="profile-plugin-config"></span><h3>Configuration profile modules<a class="headerlink" href="#configuration-profile-modules" title="Permalink to this headline">¶</a></h3>
+<p>A configuration profile module replaces the information source for
+<a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> itself.  To use a profile module, begin krb5.conf
+with the line:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">module</span> <span class="n">PATHNAME</span><span class="p">:</span><span class="n">STRING</span>
+</pre></div>
+</div>
+<p>where <em>PATHNAME</em> is a path to the module shared object or DLL, and
+<em>STRING</em> is a string to provide to the module.  The module will then
+take over, and the rest of krb5.conf will be ignored.</p>
+</section>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Host configuration</a><ul>
+<li><a class="reference internal" href="#default-realm">Default realm</a></li>
+<li><a class="reference internal" href="#login-authorization">Login authorization</a></li>
+<li><a class="reference internal" href="#plugin-module-configuration">Plugin module configuration</a><ul>
+<li><a class="reference internal" href="#kdc-location-modules">KDC location modules</a></li>
+<li><a class="reference internal" href="#gssapi-mechanism-modules">GSSAPI mechanism modules</a></li>
+<li><a class="reference internal" href="#configuration-profile-modules">Configuration profile modules</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="appl_servers.html" title="Application servers"
+            >previous</a> |
+        <a href="backup_host.html" title="Backups of secure hosts"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Host configuration">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

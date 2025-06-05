@@ -1,0 +1,44 @@
+/*
+ * lib/krb5/os/win-pwd.h
+ *
+ * Copyright 1997 by the Massachusetts Institute of Technology.
+ * All Rights Reserved.
+ *
+ * Export of this software from the United States of America may
+ *   require a specific license from the United States Government.
+ *   It is the responsibility of any person or organization contemplating
+ *   export to obtain such a license before exporting.
+ * 
+ * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
+ * distribute this software and its documentation for any purpose and
+ * without fee is hereby granted, provided that the above copyright
+ * notice appear in all copies and that both that copyright notice and
+ * this permission notice appear in supporting documentation, and that
+ * the name of M.I.T. not be used in advertising or publicity pertaining
+ * to distribution of the software without specific, written prior
+ * permission.  Furthermore if you modify this software you must label
+ * your software as modified software and not distribute it in such a
+ * fashion that it might be confused with the original M.I.T. software.
+ * M.I.T. makes no representations about the suitability of
+ * this software for any purpose.  It is provided "as is" without express
+ * or implied warranty.
+ *
+ */
+
+#include "win-mac.h"
+
+ID_READ_PWD_DIALOG DIALOG 60, 72, 200, 84
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU |
+	DS_SETFONT
+CAPTION "Kerberos Password/Challenge"
+FONT 8, "Helv"
+{
+  LTEXT "", ID_READ_PWD_PROMPT, 10, 8, 180, 10
+  LTEXT "", ID_READ_PWD_PROMPT2, 10, 24, 180, 10
+  EDITTEXT ID_READ_PWD_PWD, 10, 42, 180, 12, ES_AUTOHSCROLL | ES_PASSWORD |
+	WS_BORDER | WS_TABSTOP
+  DEFPUSHBUTTON "&OK", IDOK, 55, 61, 40, 14
+  PUSHBUTTON "&Cancel", IDCANCEL, 107, 61, 40, 14
+}
+
+#include "..\windows\version.rc"

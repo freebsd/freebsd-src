@@ -1,0 +1,167 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>krb5_tkt_creds_init - Create a context to get credentials from a KDC’s Ticket Granting Service. &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../../copyright.html" />
+    <link rel="next" title="krb5_tkt_creds_step - Get the next KDC request in a TGS exchange." href="krb5_tkt_creds_step.html" />
+    <link rel="prev" title="krb5_tkt_creds_get_times - Retrieve ticket times from a TGS request context." href="krb5_tkt_creds_get_times.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="krb5_tkt_creds_get_times.html" title="krb5_tkt_creds_get_times - Retrieve ticket times from a TGS request context."
+            accesskey="P">previous</a> |
+        <a href="krb5_tkt_creds_step.html" title="krb5_tkt_creds_step - Get the next KDC request in a TGS exchange."
+            accesskey="N">next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_tkt_creds_init -  Create a context to get credentials from a KDC’s Ticket Granting Service.">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="krb5-tkt-creds-init-create-a-context-to-get-credentials-from-a-kdc-s-ticket-granting-service">
+<h1>krb5_tkt_creds_init -  Create a context to get credentials from a KDC’s Ticket Granting Service.<a class="headerlink" href="#krb5-tkt-creds-init-create-a-context-to-get-credentials-from-a-kdc-s-ticket-granting-service" title="Permalink to this headline">¶</a></h1>
+<dl class="c function">
+<dt class="sig sig-object c" id="c.krb5_tkt_creds_init">
+<a class="reference internal" href="../types/krb5_error_code.html#c.krb5_error_code" title="krb5_error_code"><span class="n"><span class="pre">krb5_error_code</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_tkt_creds_init</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="../types/krb5_context.html#c.krb5_context" title="krb5_context"><span class="n"><span class="pre">krb5_context</span></span></a><span class="w"> </span><span class="n"><span class="pre">context</span></span>, <a class="reference internal" href="../types/krb5_ccache.html#c.krb5_ccache" title="krb5_ccache"><span class="n"><span class="pre">krb5_ccache</span></span></a><span class="w"> </span><span class="n"><span class="pre">ccache</span></span>, <a class="reference internal" href="../types/krb5_creds.html#c.krb5_creds" title="krb5_creds"><span class="n"><span class="pre">krb5_creds</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">creds</span></span>, <a class="reference internal" href="../types/krb5_flags.html#c.krb5_flags" title="krb5_flags"><span class="n"><span class="pre">krb5_flags</span></span></a><span class="w"> </span><span class="n"><span class="pre">options</span></span>, <a class="reference internal" href="../types/krb5_tkt_creds_context.html#c.krb5_tkt_creds_context" title="krb5_tkt_creds_context"><span class="n"><span class="pre">krb5_tkt_creds_context</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">ctx</span></span><span class="sig-paren">)</span><a class="headerlink" href="#c.krb5_tkt_creds_init" title="Permalink to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="field-list">
+<dt class="field-odd">param</dt>
+<dd class="field-odd"><p><strong>[in]</strong> <strong>context</strong> - Library context</p>
+<p><strong>[in]</strong> <strong>ccache</strong> - Credential cache handle</p>
+<p><strong>[in]</strong> <strong>creds</strong> - Input credentials</p>
+<p><strong>[in]</strong> <strong>options</strong> - Options (see KRB5_GC macros)</p>
+<p><strong>[out]</strong> <strong>ctx</strong> - New TGS request context</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">retval</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p>0   Success; otherwise - Kerberos error codes</p></li>
+</ul>
+</dd>
+</dl>
+<p>This function prepares to obtain credentials matching <em>creds</em> , either by retrieving them from <em>ccache</em> or by making requests to ticket-granting services beginning with a ticket-granting ticket for the client principal’s realm.</p>
+<p>The resulting TGS acquisition context can be used asynchronously with krb5_tkt_creds_step() or synchronously with krb5_tkt_creds_get(). See also krb5_get_credentials() for synchronous use.</p>
+<p>Use krb5_tkt_creds_free() to free <em>ctx</em> when it is no longer needed.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>New in 1.9</p>
+</div>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">krb5_tkt_creds_init -  Create a context to get credentials from a KDC’s Ticket Granting Service.</a></li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../admin/index.html">For administrators</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">For application developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../../gssapi.html">Developing with GSSAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../y2038.html">Year 2038 considerations for uses of krb5_timestamp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../init_creds.html">Initial credentials</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../princ_handle.html">Principal manipulation and parsing</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html">Complete reference - API and datatypes</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">krb5 API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../types/index.html">krb5 types and structures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../macros/index.html">krb5 simple macros</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="krb5_tkt_creds_get_times.html" title="krb5_tkt_creds_get_times - Retrieve ticket times from a TGS request context."
+            >previous</a> |
+        <a href="krb5_tkt_creds_step.html" title="krb5_tkt_creds_step - Get the next KDC request in a TGS exchange."
+            >next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_tkt_creds_init -  Create a context to get credentials from a KDC’s Ticket Granting Service.">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

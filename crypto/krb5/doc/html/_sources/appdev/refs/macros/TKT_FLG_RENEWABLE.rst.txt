@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _TKT-FLG-RENEWABLE-data:
+
+TKT_FLG_RENEWABLE
+=================
+
+..
+.. data:: TKT_FLG_RENEWABLE
+..
+
+
+
+
+======================== ======================
+``TKT_FLG_RENEWABLE``       ``0x00800000``
+======================== ======================

@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-PK-AS-REP-OLD-data:
+
+KRB5_PADATA_PK_AS_REP_OLD
+=========================
+
+..
+.. data:: KRB5_PADATA_PK_AS_REP_OLD
+..
+
+PKINIT.
+
+
+
+================================ ======================
+``KRB5_PADATA_PK_AS_REP_OLD``       ``15``
+================================ ======================

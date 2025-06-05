@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-RESPONDER-OTP-FORMAT-HEXADECIMAL-data:
+
+KRB5_RESPONDER_OTP_FORMAT_HEXADECIMAL
+=====================================
+
+..
+.. data:: KRB5_RESPONDER_OTP_FORMAT_HEXADECIMAL
+..
+
+
+
+
+============================================ ======================
+``KRB5_RESPONDER_OTP_FORMAT_HEXADECIMAL``       ``1``
+============================================ ======================

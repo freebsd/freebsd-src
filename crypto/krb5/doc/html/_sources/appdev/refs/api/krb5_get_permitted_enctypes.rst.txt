@@ -1,0 +1,53 @@
+krb5_get_permitted_enctypes -  Return a list of encryption types permitted for session keys. 
+=============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_permitted_enctypes(krb5_context context, krb5_enctype ** ktypes)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **ktypes** - Zero-terminated list of encryption types
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function returns the list of encryption types permitted for session keys within *context* , as determined by configuration or by a previous call to krb5_set_default_tgs_enctypes().
+
+
+
+Use krb5_free_enctypes() to free *ktypes* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

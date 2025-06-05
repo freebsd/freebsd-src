@@ -1,0 +1,373 @@
+.\" Copyright (c) 1994, 1995
+.\"	The President and Fellows of Harvard University.  All rights reserved.
+.\" Copyright (c) 1994, 1995
+.\"	Margo I. Selzer.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)db_txn.3	8.8 (Harvard) 8/1/95
+.\"
+.TH DB_TXN 3 "August 1, 1995"
+.UC 7
+.SH NAME
+db_txn \- transaction management functions
+.SH SYNOPSIS
+.nf
+.ft B
+#include <db.h>
+#include <db_lock.h>
+
+int
+txn_create(const char *path, mode_t mode, u_int maxtxns, u_int flags);
+
+TXNMGR *
+txn_open(const char *path, DBT *logp, LOCK_TABLE_T *lockp,
+.ti +5
+int (*recover)(DBT *lsn, DBT *log_entry, int isundo));
+
+TXN *
+txn_begin(TXNMGR *txnp);
+
+int
+txn_commit(TXN *tid);
+
+int
+txn_prepare(TXN *tid);
+
+int
+txn_abort(TXN *tid);
+
+int
+txn_close(TXNMGR *txnp);
+
+int
+txn_unlink(const char *path, int force);
+.ft R
+.fi
+.SH DESCRIPTION
+.so db.so
+specific details of the transaction support.
+.PP
+.I Db_txn
+is the library interface that provides transaction semantics.
+Full transaction support is provided by a collection of modules
+that provide well defined interfaces to the services required for
+transaction processing.
+These services are recovery (see
+.IR db_log (3)),
+concurrency control (see
+.IR db_lock (3)),
+and the management of shared data (see
+.IR db_mpool (3)).
+Transaction semantics can be applied to the access methods described in
+.IR db (3)
+through function call parameters.
+.PP
+The model intended for transactional use (and that is used by the
+access methods) is that write-ahead logging is provided by
+.IR db_log (3)
+to record both before- and after-image logging.
+Locking follows a two-phase protocol and is implemented by
+.IR db_lock (3).
+.PP
+.CR "transaction region" txn
+Any necessary,
+associated log and lock regions are created as well (see
+.IR db_log (3)
+and
+.IR db_lock (3)).
+.PP
+The
+.I maxtxns
+argument specifies the maximum number of simultaneous transactions that
+are supported.
+This bounds the size of backing files and is used to derive limits for
+the size of the lock region and logfiles.
+When there are more than
+.I maxtxns
+concurrent transactions, calls to
+.I txn_begin
+may fail.
+.PP
+Default locking and logging protocols are provided only if the
+backing files exist.
+If the backing files do not exist, the
+.I flags
+parameter must indicate both a logging mode and locking mode specified by 
+.IR or 'ing
+together at most one flag from each of the TXN_LOCK and TXN_LOG classes
+as follows:
+.TP 5
+TXN_LOCK_2PL
+Use two-phase locking.
+.TP 5
+TXN_LOCK_OPTIMISTIC
+Use optimistic locking (not currently implemented).
+.TP 5
+TXN_LOG_REDO
+Provide redo-only logging (not currently implemented).
+.TP 5
+TXN_LOG_UNDO
+Provide undo-only logging (not currently implemented).
+.TP 5
+TXN_LOG_UNDOREDO
+Provide undo/redo write-ahead logging.
+.PP
+.RT txn_create
+.PP
+.OP "transaction region" txn
+.PP
+The
+.I recover
+argument specifies a function that is called by
+.I txn_abort
+during transaction abort.
+This function takes three arguments:
+.TP 5
+lsn
+A log sequence number (LSN).
+.TP 5
+log_entry
+A log record.
+.TP 5
+isundo
+An undo flag set to 0 if the operation is a redo and set to 1 if the
+operation an undo.
+.PP
+As discussed in the
+.I db_log (3)
+manual page,
+the application is responsible for providing any necessary structure
+to the log record.
+For example, the application must understand what part of the log
+record is an operation code, what part is redo information, and what
+part is undo information.
+.PP
+The
+.I txn_begin 
+function creates a new transaction in the designated transaction
+manager, returning a pointer to a TXN that uniquely identifies it.
+.PP
+The
+.I txn_commit
+function ends the transaction specified by the
+.I tid
+argument.
+Any locks held by the transaction are released.
+If logging is enabled, a commit log record is written and flushed to disk.
+.PP
+The
+.I txn_abort
+function causes an abnormal termination of the transaction.
+If logging is enabled, the log is played backwards and any recovery
+operations are initiated through the
+.I recover
+function specified to
+.IR txn_open .
+After recovery is completed, all locks held by the transaction are released.
+.PP
+The 
+.I txn_close
+function detaches a process from the transaction environment specified
+by the TXNMGR pointer.
+All mapped regions are unmapped and any allocated resources are freed.
+Any uncommitted transactions are aborted.
+.PP
+.UN "transaction region" txn
+.PP
+The
+.I txn_prepare
+function initiates the beginning of a two phase commit.
+In a distributed transaction,
+the prepare directive should be issued to all participating
+transaction managers.
+Each manager must take whatever action is necessary to guarantee
+that a future call to
+.I txn_commit
+on the specified
+.I tid
+will succeed.
+.SH "SYSTEM INTEGRATION"
+This model can be applied to data bases other than the provided access
+methods.
+For example, consider an application that provides transaction semantics
+to data stored in regular files accessed using the 
+.IR read (2)
+and
+.IR write (2)
+system calls.
+The operations for which transaction protection is desired are bracketed
+by calls to
+.I txn_begin
+and
+.IR txn_commit .
+.PP
+Before data are referenced, a call is made to the lock manager,
+.IR db_lock ,
+for a lock of the appropriate type (e.g. read)
+on the object being locked.
+The object might be a page in the file, a byte, a range of bytes,
+or some key.
+Before a write is performed, the application makes a call to the
+log manager,
+.IR db_log ,
+to record enough information to redo the operation in case of
+failure after commit and to undo the operation in case of abort.
+After the log message is written, the write system calls are issued.
+After all requests are issued, the application calls
+.IR txn_commit .
+When
+.I txn_commit
+returns, the caller is guaranteed that all necessary log writes have
+been written to disk. 
+.PP
+At any time, the application may call
+.IR txn_abort ,
+which will result in the appropriate calls to the
+.I recover
+routine to restore the ``database'' to a consistent pre-transaction
+state.
+(The recover routine must be able to either reapply or undo the update
+depending on the context, for each different type of log record.)
+.PP
+If the application should crash, the recovery process uses the
+.I db_log
+interface to read the log and call the
+.I recover
+routine to restore the database to a consistent state.
+.PP
+The
+.I txn_prepare 
+function provides the core functionality to implement distributed
+transactions,
+but it does not actually manage the notification of distributed
+transaction managers.
+The caller is responsible for issuing 
+.I txn_prepare
+calls to all sites participating in the transaction.
+If all responses are positive, the caller can issue a
+.IR txn_commit .
+If any of the responses are negative, the caller should issue a
+.IR txn_abort .
+In general, the 
+.I txn_prepare
+call requires that the transaction log be flushed to disk.
+.PP
+The structure of the transaction support allows application designers
+to trade off performance and protection.
+Since DB manages many structures in shared memory,
+its information is subject to corruption by applications when the library
+is linked directly with the application.
+For this reason, DB is designed to allow compilation into a separate
+server process that may be accessed via a socket interface.
+In this way DB's data structures are protected from application code,
+but communication overhead is increased.
+When applications are trusted, DB may be compiled directly into the
+application for increased performance.
+.SH ERRORS
+The
+.I txn_create
+function may fail and set
+.I errno
+for any of the errors specified for the library functions
+.IR open (2),
+.IR write (2),
+.IR malloc (3),
+.IR lock_create (3),
+and
+.IR log_create (3).
+.PP
+The
+.I txn_open
+function may fail and set
+.I errno
+to any of the errors specified for the library functions
+.IR open (2),
+.IR write (2),
+.IR malloc (3),
+.IR lock_open (3),
+and
+.IR log_open (3).
+.PP
+The
+.I txn_begin
+function may fail and set
+.I errno
+to ENOSPC indicating that the maximum number of concurrent
+transactions has been reached.
+.PP
+The
+.I txn_commit
+function may fail and set
+.I errno
+to EINVAL indicating that the transaction was aborted.
+.PP
+The
+.I txn_close
+function may fail and set
+.I errno
+to any of the errors specified for the library functions
+.IR close (2),
+.IR read (2),
+.IR write (2),
+.IR free (3),
+.IR fsync (2),
+.IR lock_close (3)
+or
+.IR log_close (3).
+.PP
+The
+.I txn_unlink
+function may fail and set
+.I errno
+to any of the errors specified for the library functions
+.IR unlink (2),
+.IR lock_unlink (3),
+and
+.IR log_unlink (3),
+or the following:
+.TP 5
+[EBUSY]
+The transaction region was in use and the force flag was not set.
+.SH "SEE ALSO"
+.IR db_btree (3),
+.IR db_hash (3),
+.IR db_lock (3),
+.IR db_log (3),
+.IR db_mpool (3),
+.IR db_open (3),
+.IR db_recno (3)
+.sp
+.IR "LIBTP: Portable, Modular Transactions for UNIX" ,
+Margo Seltzer, Michael Olson, USENIX proceedings, Winter 1992.
+.SH BUGS
+The
+.I maxtxns
+parameter is a kluge, and should be deleted in favor of dynamically
+expanding the transaction region.

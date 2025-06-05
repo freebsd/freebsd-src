@@ -1,0 +1,52 @@
+krb5_set_kdc_send_hook -  Set a KDC pre-send hook function. 
+============================================================
+
+..
+
+.. c:function:: void krb5_set_kdc_send_hook(krb5_context context, krb5_pre_send_fn send_hook, void * data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **send_hook** - Hook function (or NULL to disable the hook)
+
+	          **[in]** **data** - Callback data to be passed to *send_hook*
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+ *send_hook* will be called before messages are sent to KDCs by library functions such as krb5_get_credentials(). The hook function may inspect, override, or synthesize its own reply to the message.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.15
+ 
+

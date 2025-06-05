@@ -1,0 +1,45 @@
+krb5_is_config_principal -  Test whether a principal is a configuration principal. 
+===================================================================================
+
+..
+
+.. c:function:: krb5_boolean krb5_is_config_principal(krb5_context context, krb5_const_principal principal)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **principal** - Principal to check
+
+
+..
+
+
+
+:return:
+         -  TRUE if the principal is a configuration principal (generated part of krb5_cc_set_config()); FALSE otherwise. 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

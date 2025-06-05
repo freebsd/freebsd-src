@@ -1,0 +1,39 @@
+.. highlight:: c
+
+.. _passwd-phrase-element-struct:
+
+passwd_phrase_element
+=====================
+
+..
+.. c:type:: passwd_phrase_element
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _passwd_phrase_element passwd_phrase_element
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	passwd_phrase_element.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_data  *	passwd_phrase_element.passwd
+
+                                             
+                                             
+
+.. c:member:: krb5_data  *	passwd_phrase_element.phrase
+
+                                             
+                                             
+

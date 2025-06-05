@@ -1,0 +1,29 @@
+.. highlight:: c
+
+.. _krb5-responder-pkinit-challenge-struct:
+
+krb5_responder_pkinit_challenge
+===============================
+
+..
+.. c:type:: krb5_responder_pkinit_challenge
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_responder_pkinit_challenge krb5_responder_pkinit_challenge
+
+
+Members
+---------
+
+
+.. c:member:: krb5_responder_pkinit_identity  **	krb5_responder_pkinit_challenge.identities
+
+                                             
+                                             
+

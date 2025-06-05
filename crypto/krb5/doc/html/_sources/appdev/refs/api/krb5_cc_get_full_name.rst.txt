@@ -1,0 +1,52 @@
+krb5_cc_get_full_name -  Retrieve the full name of a credential cache. 
+=======================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_get_full_name(krb5_context context, krb5_ccache cache, char ** fullname_out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **cache** - Credential cache handle
+
+	          **[out]** **fullname_out** - Full name of cache
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+Use krb5_free_string() to free *fullname_out* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.10
+ 
+

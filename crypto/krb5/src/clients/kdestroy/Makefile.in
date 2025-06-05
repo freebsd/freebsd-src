@@ -1,0 +1,35 @@
+mydir=clients$(S)kdestroy
+BUILDTOP=$(REL)..$(S)..
+
+##WIN32##LOCALINCLUDES=-I$(BUILDTOP)\util\windows\
+
+SRCS=kdestroy.c
+
+##WIN32##VERSIONRC = $(BUILDTOP)\windows\version.rc
+##WIN32##RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+##WIN32##KDESTROY=$(OUTPRE)kdestroy.exe
+
+##WIN32##EXERES=$(KDESTROY:.exe=.res)
+
+##WIN32##$(EXERES): $(VERSIONRC)
+##WIN32##        $(RC) $(RCFLAGS) -DKDESTROY_APP -fo $@ -r $**
+
+all-unix: kdestroy
+##WIN32##all-windows: $(KDESTROY)
+
+kdestroy: kdestroy.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ kdestroy.o $(KRB5_BASE_LIBS)
+
+##WIN32##$(KDESTROY): $(OUTPRE)kdestroy.obj $(SLIB) $(KLIB) $(CLIB) $(EXERES)
+##WIN32##	link $(EXE_LINKOPTS) -out:$@ $**
+##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
+
+clean-unix::
+	$(RM) kdestroy.o kdestroy
+
+install-unix:
+	for f in kdestroy; do \
+	  $(INSTALL_PROGRAM) $$f \
+		$(DESTDIR)$(CLIENT_BINDIR)/`echo $$f|sed '$(transform)'`; \
+	done

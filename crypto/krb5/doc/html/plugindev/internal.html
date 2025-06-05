@@ -1,0 +1,171 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Internal pluggable interfaces &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="PKINIT certificate authorization interface (certauth)" href="certauth.html" />
+    <link rel="prev" title="GSSAPI mechanism interface" href="gssapi.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="gssapi.html" title="GSSAPI mechanism interface"
+            accesskey="P">previous</a> |
+        <a href="certauth.html" title="PKINIT certificate authorization interface (certauth)"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Internal pluggable interfaces">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="internal-pluggable-interfaces">
+<h1>Internal pluggable interfaces<a class="headerlink" href="#internal-pluggable-interfaces" title="Permalink to this headline">¶</a></h1>
+<p>Following are brief discussions of pluggable interfaces which have not
+yet been made public.  These interfaces are functional, but the
+interfaces are likely to change in incompatible ways from release to
+release.  In some cases, it may be necessary to copy header files from
+the krb5 source tree to use an internal interface.  Use these with
+care, and expect to need to update your modules for each new release
+of MIT krb5.</p>
+<section id="kerberos-database-interface-kdb">
+<h2>Kerberos database interface (KDB)<a class="headerlink" href="#kerberos-database-interface-kdb" title="Permalink to this headline">¶</a></h2>
+<p>A KDB module implements a database back end for KDC principal and
+policy information, and can also control many aspects of KDC behavior.
+For a full description of the interface, see the header file
+<code class="docutils literal notranslate"><span class="pre">&lt;kdb.h&gt;</span></code>.</p>
+<p>The KDB pluggable interface is often referred to as the DAL (Database
+Access Layer).</p>
+</section>
+<section id="authorization-data-interface-authdata">
+<h2>Authorization data interface (authdata)<a class="headerlink" href="#authorization-data-interface-authdata" title="Permalink to this headline">¶</a></h2>
+<p>The authdata interface allows a module to provide (from the KDC) or
+consume (in application servers) authorization data of types beyond
+those handled by the core MIT krb5 code base.  The interface is
+defined in the header file <code class="docutils literal notranslate"><span class="pre">&lt;krb5/authdata_plugin.h&gt;</span></code>, which is not
+installed by the build.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Internal pluggable interfaces</a><ul>
+<li><a class="reference internal" href="#kerberos-database-interface-kdb">Kerberos database interface (KDB)</a></li>
+<li><a class="reference internal" href="#authorization-data-interface-authdata">Authorization data interface (authdata)</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For plugin module developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="general.html">General plugin concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="clpreauth.html">Client preauthentication interface (clpreauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kdcpreauth.html">KDC preauthentication interface (kdcpreauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ccselect.html">Credential cache selection interface (ccselect)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pwqual.html">Password quality interface (pwqual)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kadm5_hook.html">KADM5 hook interface (kadm5_hook)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kadm5_auth.html">kadmin authorization interface (kadm5_auth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hostrealm.html">Host-to-realm interface (hostrealm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localauth.html">Local authorization interface (localauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="locate.html">Server location interface (locate)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="profile.html">Configuration interface (profile)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gssapi.html">GSSAPI mechanism interface</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Internal pluggable interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="certauth.html">PKINIT certificate authorization interface (certauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kdcpolicy.html">KDC policy interface (kdcpolicy)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="gssapi.html" title="GSSAPI mechanism interface"
+            >previous</a> |
+        <a href="certauth.html" title="PKINIT certificate authorization interface (certauth)"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Internal pluggable interfaces">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

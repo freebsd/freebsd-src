@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-PA-FX-COOKIE-data:
+
+KRB5_KEYUSAGE_PA_FX_COOKIE
+==========================
+
+..
+.. data:: KRB5_KEYUSAGE_PA_FX_COOKIE
+..
+
+Used for encrypted FAST cookies.
+
+
+
+================================= ======================
+``KRB5_KEYUSAGE_PA_FX_COOKIE``       ``513``
+================================= ======================

@@ -1,0 +1,43 @@
+krb5_c_is_coll_proof_cksum -  Test whether a checksum type is collision-proof. 
+===============================================================================
+
+..
+
+.. c:function:: krb5_boolean krb5_c_is_coll_proof_cksum(krb5_cksumtype ctype)
+
+..
+
+
+:param:
+
+	          **[in]** **ctype** - Checksum type
+
+
+..
+
+
+
+:return:
+         -  TRUE if ctype is collision-proof, FALSE if it is not collision-proof or not a valid checksum type. 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

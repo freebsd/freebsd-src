@@ -1,0 +1,270 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Doing the build &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Options to configure" href="options2configure.html" />
+    <link rel="prev" title="Organization of the source directory" href="directory_org.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="directory_org.html" title="Organization of the source directory"
+            accesskey="P">previous</a> |
+        <a href="options2configure.html" title="Options to configure"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Doing the build">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="doing-the-build">
+<h1>Doing the build<a class="headerlink" href="#doing-the-build" title="Permalink to this headline">¶</a></h1>
+<section id="building-within-a-single-tree">
+<span id="do-build"></span><h2>Building within a single tree<a class="headerlink" href="#building-within-a-single-tree" title="Permalink to this headline">¶</a></h2>
+<p>If you only need to build Kerberos for one platform, using a single
+directory tree which contains both the source files and the object
+files is the simplest.  However, if you need to maintain Kerberos for
+a large number of platforms, you will probably want to use separate
+build trees for each platform.  We recommend that you look at OS
+Incompatibilities, for notes that we have on particular operating
+systems.</p>
+<p>If you don’t want separate build trees for each architecture, then use
+the following abbreviated procedure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">/</span><span class="n">u1</span><span class="o">/</span><span class="n">krb5</span><span class="o">-</span><span class="n">VERSION</span><span class="o">/</span><span class="n">src</span>
+<span class="o">./</span><span class="n">configure</span>
+<span class="n">make</span>
+</pre></div>
+</div>
+<p>That’s it!</p>
+</section>
+<section id="building-with-separate-build-directories">
+<h2>Building with separate build directories<a class="headerlink" href="#building-with-separate-build-directories" title="Permalink to this headline">¶</a></h2>
+<p>If you wish to keep separate build directories for each platform, you
+can do so using the following procedure.  (Note, this requires that
+your make program support VPATH.  GNU’s make will provide this
+functionality, for example.)  If your make program does not support
+this, see the next section.</p>
+<p>For example, if you wish to store the binaries in <code class="docutils literal notranslate"><span class="pre">tmpbuild</span></code> build
+directory you might use the following procedure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mkdir</span> <span class="o">/</span><span class="n">u1</span><span class="o">/</span><span class="n">tmpbuild</span>
+<span class="n">cd</span> <span class="o">/</span><span class="n">u1</span><span class="o">/</span><span class="n">tmpbuild</span>
+<span class="o">/</span><span class="n">u1</span><span class="o">/</span><span class="n">krb5</span><span class="o">-</span><span class="n">VERSION</span><span class="o">/</span><span class="n">src</span><span class="o">/</span><span class="n">configure</span>
+<span class="n">make</span>
+</pre></div>
+</div>
+</section>
+<section id="building-using-lndir">
+<h2>Building using lndir<a class="headerlink" href="#building-using-lndir" title="Permalink to this headline">¶</a></h2>
+<p>If you wish to keep separate build directories for each platform, and
+you do not have access to a make program which supports VPATH, all is
+not lost.  You can use the lndir program to create symbolic link trees
+in your build directory.</p>
+<p>For example, if you wish to create a build directory for solaris
+binaries you might use the following procedure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>mkdir /u1/krb5-VERSION/solaris
+cd /u1/krb5-VERSION/solaris
+/u1/krb5-VERSION/src/util/lndir `pwd`/../src
+./configure
+make
+</pre></div>
+</div>
+<p>You must give an absolute pathname to lndir because it has a bug that
+makes it fail for relative pathnames.  Note that this version differs
+from the latest version as distributed and installed by the
+XConsortium with X11R6.  Either version should be acceptable.</p>
+</section>
+<section id="installing-the-binaries">
+<h2>Installing the binaries<a class="headerlink" href="#installing-the-binaries" title="Permalink to this headline">¶</a></h2>
+<p>Once you have built Kerberos, you should install the binaries. You can
+do this by running:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">install</span>
+</pre></div>
+</div>
+<p>If you want to install the binaries into a destination directory that
+is not their final destination, which may be convenient if you want to
+build a binary distribution to be deployed on multiple hosts, you may
+use:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">install</span> <span class="n">DESTDIR</span><span class="o">=/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">destdir</span>
+</pre></div>
+</div>
+<p>This will install the binaries under <em>DESTDIR/PREFIX</em>, e.g., the user
+programs will install into <em>DESTDIR/PREFIX/bin</em>, the libraries into
+<em>DESTDIR/PREFIX/lib</em>, etc.  <em>DESTDIR</em> must be an absolute path.</p>
+<p>Some implementations of make allow multiple commands to be run in
+parallel, for faster builds.  We test our Makefiles in parallel builds
+with GNU make only; they may not be compatible with other parallel
+build implementations.</p>
+</section>
+<section id="testing-the-build">
+<h2>Testing the build<a class="headerlink" href="#testing-the-build" title="Permalink to this headline">¶</a></h2>
+<p>The Kerberos V5 distribution comes with built-in regression tests.  To
+run them, simply type the following command while in the top-level
+build directory (i.e., the directory where you sent typed make to
+start building Kerberos; see <a class="reference internal" href="#do-build"><span class="std std-ref">Building within a single tree</span></a>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">check</span>
+</pre></div>
+</div>
+<p>On some operating systems, you have to run <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">install</span></code> before
+running <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">check</span></code>, or the test suite will pick up installed
+versions of Kerberos libraries rather than the newly built ones.  You
+can install into a prefix that isn’t in the system library search
+path, though.  Alternatively, you can configure with
+<strong>-</strong><strong>-disable-rpath</strong>, which renders the build tree less suitable
+for installation, but allows testing without interference from
+previously installed libraries.</p>
+<p>There are additional regression tests available, which are not run
+by <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">check</span></code>.  These tests require manual setup and teardown of
+support infrastructure which is not easily automated, or require
+excessive resources for ordinary use.  The procedure for running
+the manual tests is documented at
+<a class="reference external" href="https://k5wiki.kerberos.org/wiki/Manual_Testing">https://k5wiki.kerberos.org/wiki/Manual_Testing</a>.</p>
+</section>
+<section id="cleaning-up-the-build">
+<h2>Cleaning up the build<a class="headerlink" href="#cleaning-up-the-build" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">clean</span></code> to remove all files generated by running make
+command.</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">distclean</span></code> to remove all files generated by running
+./configure script.  After running <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">distclean</span></code> your source
+tree (ideally) should look like the raw (just un-tarred) source
+tree.</p></li>
+</ul>
+</section>
+<section id="using-autoconf">
+<h2>Using autoconf<a class="headerlink" href="#using-autoconf" title="Permalink to this headline">¶</a></h2>
+<p>(If you are not a developer, you can ignore this section.)</p>
+<p>In the Kerberos V5 source directory, there is a configure script which
+automatically determines the compilation environment and creates the
+proper Makefiles for a particular platform.  This configure script is
+generated using autoconf, which you should already have installed if
+you will be making changes to <code class="docutils literal notranslate"><span class="pre">src/configure.in</span></code>.</p>
+<p>Normal users will not need to worry about running autoconf; the
+distribution comes with the configure script already prebuilt.</p>
+<p>The autoconf package comes with a script called <code class="docutils literal notranslate"><span class="pre">autoreconf</span></code> that
+will automatically run <code class="docutils literal notranslate"><span class="pre">autoconf</span></code> and <code class="docutils literal notranslate"><span class="pre">autoheader</span></code> as needed.  You
+should run <code class="docutils literal notranslate"><span class="pre">autoreconf</span></code> from the top source directory, e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="o">/</span><span class="n">u1</span><span class="o">/</span><span class="n">krb5</span><span class="o">-</span><span class="n">VERSION</span><span class="o">/</span><span class="n">src</span>
+<span class="n">autoreconf</span> <span class="o">--</span><span class="n">verbose</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Doing the build</a><ul>
+<li><a class="reference internal" href="#building-within-a-single-tree">Building within a single tree</a></li>
+<li><a class="reference internal" href="#building-with-separate-build-directories">Building with separate build directories</a></li>
+<li><a class="reference internal" href="#building-using-lndir">Building using lndir</a></li>
+<li><a class="reference internal" href="#installing-the-binaries">Installing the binaries</a></li>
+<li><a class="reference internal" href="#testing-the-build">Testing the build</a></li>
+<li><a class="reference internal" href="#cleaning-up-the-build">Cleaning up the build</a></li>
+<li><a class="reference internal" href="#using-autoconf">Using autoconf</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Building Kerberos V5</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="directory_org.html">Organization of the source directory</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Doing the build</a></li>
+<li class="toctree-l2"><a class="reference internal" href="options2configure.html">Options to <em>configure</em></a></li>
+<li class="toctree-l2"><a class="reference internal" href="osconf.html">osconf.hin</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="directory_org.html" title="Organization of the source directory"
+            >previous</a> |
+        <a href="options2configure.html" title="Options to configure"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Doing the build">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

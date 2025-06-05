@@ -1,0 +1,48 @@
+krb5_cccol_have_content -  Check if the credential cache collection contains any initialized caches. 
+=====================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cccol_have_content(krb5_context context)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+
+..
+
+
+:retval:
+         -   0   At least one initialized cache is present in the collection
+         -   KRB5_CC_NOTFOUND   The collection contains no caches
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.11
+ 
+

@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PRINCIPAL-COMPARE-IGNORE-REALM-data:
+
+KRB5_PRINCIPAL_COMPARE_IGNORE_REALM
+===================================
+
+..
+.. data:: KRB5_PRINCIPAL_COMPARE_IGNORE_REALM
+..
+
+ignore realm component
+
+
+
+========================================== ======================
+``KRB5_PRINCIPAL_COMPARE_IGNORE_REALM``       ``1``
+========================================== ======================

@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-expire-callback-func-struct:
+
+krb5_expire_callback_func
+=========================
+
+..
+.. c:type:: krb5_expire_callback_func
+..
+
+
+
+
+Declaration
+------------
+
+typedef void( \* krb5_expire_callback_func) (krb5_context context, void \*data, krb5_timestamp password_expiration, krb5_timestamp account_expiration, krb5_boolean is_last_req)
+
+

@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KDC-OPT-FORWARDED-data:
+
+KDC_OPT_FORWARDED
+=================
+
+..
+.. data:: KDC_OPT_FORWARDED
+..
+
+
+
+
+======================== ======================
+``KDC_OPT_FORWARDED``       ``0x20000000``
+======================== ======================

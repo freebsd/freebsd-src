@@ -1,0 +1,43 @@
+.. highlight:: c
+
+.. $composite.struct_reference($composite.name):
+
+#set $title = $composite.name
+$title
+#echo ''.join(['=']*len($title)) #
+
+..
+.. c:type:: $composite.name
+..
+
+#if $composite.short_description is not None and len($composite.short_description)
+$composite.short_description
+#end if
+
+$composite.long_description
+
+Declaration
+------------
+
+$composite.definition
+
+#if $composite.Id is not None
+#if len($composite.attributes)
+
+Members
+---------
+
+#end if
+
+#for $attr in $composite.attributes:
+#if $attr.name is not None
+.. c:member:: $attr.type	$composite.name.$attr.name
+
+                                             $attr.short_description
+#if $attr.long_description is not None
+                                             $attr.long_description
+#end if
+
+#end if
+#end for
+#end if

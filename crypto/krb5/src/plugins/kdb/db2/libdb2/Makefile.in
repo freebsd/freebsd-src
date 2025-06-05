@@ -1,0 +1,32 @@
+mydir=plugins$(S)kdb$(S)db2$(S)libdb2
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+SUBDIRS=hash btree db mpool recno test
+
+LIBBASE=db
+LIBMAJOR=1
+LIBMINOR=1
+STOBJLISTS=hash/OBJS.ST btree/OBJS.ST db/OBJS.ST mpool/OBJS.ST \
+	recno/OBJS.ST
+SUBDIROBJLISTS=$(STOBJLISTS)
+RELDIR=../plugins/kdb/db2/libdb2
+
+HDRDIR=$(BUILDTOP)/include
+HDRS =	$(HDRDIR)/db.h $(HDRDIR)/db-config.h
+
+SHLIB_EXPDEPS=$(SUPPORT_DEPLIB)
+SHLIB_EXPLIBS=$(SUPPORT_LIB) $(LIBS)
+
+all-unix: includes all-libs
+all-prerecurse depend-prerecurse: $(HDRS)
+clean-unix:: clean-libs clean-includes
+
+includes: $(HDRS)
+
+$(HDRDIR)/db.h: $(srcdir)/include/db.hin
+	$(CP) $(srcdir)/include/db.hin $@
+$(HDRDIR)/db-config.h: include/db-config.hin
+	$(CP) $(srcdir)/include/db-config.hin $@
+
+clean-includes:
+	$(RM) $(HDRS) include/*.stmp
+@lib_frag@

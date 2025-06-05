@@ -1,0 +1,191 @@
+;----------------------------------------------------
+;   GSSAPI32.DEF - GSSAPI32.DLL module definition file
+;----------------------------------------------------
+
+;LIBRARY		GSSAPI32
+DESCRIPTION	'Base Generic Security Service API'
+HEAPSIZE	8192
+
+EXPORTS
+	gss_acquire_cred			@10
+	gss_release_cred			@54
+	gss_init_sec_context			@27
+	gss_accept_sec_context			@9
+	gss_process_context_token		@52
+	gss_delete_sec_context			@17
+	gss_context_time			@15
+	gss_sign				@59
+	gss_verify				@64
+	gss_seal				@58
+	gss_unseal				@62
+	gss_display_status			@19
+	gss_indicate_mechs			@26
+	gss_compare_name			@14
+	gss_display_name			@18
+	gss_import_name				@24
+	gss_release_name			@55
+	gss_release_buffer			@53
+	gss_release_oid_set			@57
+	gss_inquire_cred			@29
+;
+; GSS-API v2  additional credential calls
+;
+	gss_add_cred				@11
+	gss_inquire_cred_by_mech		@30
+;
+; GSS-API v2  additional context-level calls
+;
+	gss_inquire_context			@28
+	gss_wrap_size_limit			@67
+	gss_export_sec_context			@22
+	gss_import_sec_context			@25
+;
+; GSS-API v2  additional calls for OID and OID_set operations
+;
+	gss_release_oid
+	gss_create_empty_oid_set		@16
+	gss_add_oid_set_member			@12
+	gss_test_oid_set_member			@61
+	gss_oid_to_str				@51
+	gss_str_to_oid				@60
+;
+; GSS-API v2  renamed message protection calls
+;
+	gss_wrap				@66
+	gss_unwrap				@63
+	gss_get_mic				@23
+	gss_verify_mic				@65
+;
+; GSS-API v2  future extensions
+;
+	gss_inquire_names_for_mech		@32
+	gss_inquire_mechs_for_name		@31
+	gss_canonicalize_name			@13
+	gss_export_name				@21
+	gss_duplicate_name			@20
+;
+; Krb5 specific function extensions
+;
+	gss_krb5_get_tkt_flags 			@37
+	gss_krb5_copy_ccache			@34
+	gss_krb5_ccache_name			@33
+        gss_krb5_set_allowable_enctypes		@38
+        gss_krb5_export_lucid_sec_context	@35
+        gss_krb5_free_lucid_sec_context		@36
+	krb5_gss_register_acceptor_identity	@69
+;
+; GSS-API variables
+;
+        gss_nt_krb5_name               	@45	DATA
+        gss_nt_krb5_principal          	@46	DATA
+	gss_nt_user_name	       	@50	DATA
+	gss_nt_machine_uid_name	       	@47	DATA
+	gss_nt_string_uid_name	       	@49	DATA
+	gss_nt_service_name	       	@48	DATA
+        GSS_C_NT_USER_NAME             	@7 	DATA
+        GSS_C_NT_MACHINE_UID_NAME      	@5 	DATA
+        GSS_C_NT_STRING_UID_NAME       	@6 	DATA
+        GSS_C_NT_HOSTBASED_SERVICE     	@3 	DATA
+        GSS_C_NT_HOSTBASED_SERVICE_X   	@4 	DATA
+        GSS_C_NT_ANONYMOUS             	@1 	DATA
+        GSS_C_NT_EXPORT_NAME           	@2 	DATA
+        krb5_gss_oid_array             	@68 	DATA
+        gss_mech_krb5                  	@39	DATA
+        gss_mech_krb5_old              	@40	DATA
+        gss_mech_set_krb5              	@42	DATA
+        gss_mech_set_krb5_old          	@44	DATA
+        gss_mech_set_krb5_both         	@43	DATA
+	GSS_KRB5_NT_PRINCIPAL_NAME     	@8 	DATA
+	gss_mech_krb5_wrong	       	@41	DATA	
+
+; Added in krb5 1.7-1.9
+	gss_acquire_cred_impersonate_name		@70
+	gss_acquire_cred_with_password			@71
+	gss_add_buffer_set_member			@72
+	gss_add_cred_impersonate_name			@73
+	gss_complete_auth_token				@74
+	gss_create_empty_buffer_set			@75
+	gss_delete_name_attribute			@76
+	gss_display_mech_attr				@77
+	gss_display_name_ext				@78
+	gss_export_name_composite			@79
+	gss_get_name_attribute				@80
+	gss_indicate_mechs_by_attrs			@81
+	gss_inquire_attrs_for_mech			@82
+	gss_inquire_cred_by_oid				@83
+	gss_inquire_mech_for_saslname			@84
+	gss_inquire_name				@85
+	gss_inquire_saslname_for_mech			@86
+	gss_inquire_sec_context_by_oid			@87
+	gsskrb5_extract_authtime_from_sec_context	@88
+	gsskrb5_extract_authz_data_from_sec_context	@89
+	gss_krb5_import_cred				@90
+	gss_krb5_set_cred_rcache			@91
+	gss_map_name_to_any				@92
+	gss_pseudo_random				@93
+	gss_release_any_name_mapping			@94
+	gss_release_buffer_set				@95
+	gss_release_iov_buffer				@96
+	gss_set_cred_option				@97
+	gss_set_name_attribute				@98
+	gss_set_neg_mechs				@99
+	gss_set_sec_context_option			@100
+	gss_store_cred					@101
+	gss_unwrap_aead					@102
+	gss_unwrap_iov					@103
+	gss_wrap_aead					@104
+	gss_wrap_iov					@105
+	gss_wrap_iov_length				@106
+
+	GSS_C_INQ_SSPI_SESSION_KEY			@107	DATA
+	GSS_C_MA_AUTH_INIT				@108	DATA
+	GSS_C_MA_AUTH_INIT_ANON				@109	DATA
+	GSS_C_MA_AUTH_INIT_INIT				@110	DATA
+	GSS_C_MA_AUTH_TARG				@111	DATA
+	GSS_C_MA_AUTH_TARG_ANON				@112	DATA
+	GSS_C_MA_AUTH_TARG_INIT				@113	DATA
+	GSS_C_MA_CBINDINGS				@114	DATA
+	GSS_C_MA_COMPRESS				@115	DATA
+	GSS_C_MA_CONF_PROT				@116	DATA
+	GSS_C_MA_CTX_TRANS				@117	DATA
+	GSS_C_MA_DELEG_CRED				@118	DATA
+	GSS_C_MA_DEPRECATED				@119	DATA
+	GSS_C_MA_INTEG_PROT				@120	DATA
+	GSS_C_MA_ITOK_FRAMED				@121	DATA
+	GSS_C_MA_MECH_COMPOSITE				@122	DATA
+	GSS_C_MA_MECH_CONCRETE				@123	DATA
+	GSS_C_MA_MECH_GLUE				@124	DATA
+	GSS_C_MA_MECH_NEGO				@125	DATA
+	GSS_C_MA_MECH_PSEUDO				@126	DATA
+	GSS_C_MA_MIC					@127	DATA
+	GSS_C_MA_NOT_DFLT_MECH				@128	DATA
+	GSS_C_MA_NOT_MECH				@129	DATA
+	GSS_C_MA_OOS_DET				@130	DATA
+	GSS_C_MA_PFS					@131	DATA
+	GSS_C_MA_PROT_READY				@132	DATA
+	GSS_C_MA_REPLAY_DET				@133	DATA
+	GSS_C_MA_WRAP					@134	DATA
+	gss_mech_iakerb					@135	DATA
+	gss_nt_exported_name				@136	DATA
+	gss_nt_service_name_v2				@137	DATA
+; Added in 1.10
+	gss_localname					@138
+; Added in 1.11
+	gss_acquire_cred_from				@139
+	gss_add_cred_from				@140
+	gss_store_cred_into				@141
+	gss_export_cred					@142
+	gss_import_cred					@143
+; Added in 1.12
+	gss_get_mic_iov					@144
+	gss_get_mic_iov_length				@145
+	gss_verify_mic_iov				@146
+; Added in 1.14
+	GSS_KRB5_CRED_NO_CI_FLAGS_X			@147	DATA
+; Added in 1.16
+	GSS_KRB5_GET_CRED_IMPERSONATOR			@148	DATA
+	GSS_C_SEC_CONTEXT_SASL_SSF			@149	DATA
+; Added in 1.17
+	GSS_KRB5_NT_ENTERPRISE_NAME			@150 	DATA
+; Added in 1.19
+	GSS_KRB5_NT_X509_CERT				@151	DATA

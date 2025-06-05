@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-AS-CHECKSUM-data:
+
+KRB5_PADATA_AS_CHECKSUM
+=======================
+
+..
+.. data:: KRB5_PADATA_AS_CHECKSUM
+..
+
+AS checksum.
+
+
+
+============================== ======================
+``KRB5_PADATA_AS_CHECKSUM``       ``132``
+============================== ======================

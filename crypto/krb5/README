@@ -1,0 +1,578 @@
+                   Kerberos Version 5, Release 1.21
+
+                            Release Notes
+                        The MIT Kerberos Team
+
+Copyright and Other Notices
+---------------------------
+
+Copyright (C) 1985-2024 by the Massachusetts Institute of Technology
+and its contributors.  All rights reserved.
+
+Please see the file named NOTICE for additional notices.
+
+Documentation
+-------------
+
+Unified documentation for Kerberos V5 is available in both HTML and
+PDF formats.  The table of contents of the HTML format documentation
+is at doc/html/index.html, and the PDF format documentation is in the
+doc/pdf directory.
+
+Additionally, you may find copies of the HTML format documentation
+online at
+
+    https://web.mit.edu/kerberos/krb5-latest/doc/
+
+for the most recent supported release, or at
+
+    https://web.mit.edu/kerberos/krb5-devel/doc/
+
+for the release under development.
+
+More information about Kerberos may be found at
+
+    https://web.mit.edu/kerberos/
+
+and at the MIT Kerberos Consortium web site
+
+    https://kerberos.org/
+
+Building and Installing Kerberos 5
+----------------------------------
+
+Build documentation is in doc/html/build/index.html or
+doc/pdf/build.pdf.
+
+The installation guide is in doc/html/admin/install.html or
+doc/pdf/install.pdf.
+
+If you are attempting to build under Windows, please see the
+src/windows/README file.
+
+Reporting Bugs
+--------------
+
+Please report any problems/bugs/comments by sending email to
+krb5-bugs@mit.edu.
+
+You may view bug reports by visiting
+
+https://krbdev.mit.edu/rt/
+
+and using the "Guest Login" button.  Please note that the web
+interface to our bug database is read-only for guests, and the primary
+way to interact with our bug database is via email.
+
+PAC transitions
+---------------
+
+Beginning with release 1.20, the KDC will include minimal PACs in
+tickets instead of AD-SIGNEDPATH authdata.  S4U requests (protocol
+transition and constrained delegation) must now contain valid PACs in
+the incoming tickets.  Beginning with release 1.21, service ticket
+PACs will contain a new KDC checksum buffer, to mitigate a hash
+collision attack against the old KDC checksum.  If only some KDCs in a
+realm have been upgraded across versions 1.20 or 1.21, the upgraded
+KDCs will reject S4U requests containing tickets from non-upgraded
+KDCs and vice versa.
+
+Triple-DES and RC4 transitions
+------------------------------
+
+Beginning with the krb5-1.21 release, the KDC will not issue tickets
+with triple-DES or RC4 session keys unless explicitly configured using
+the new allow_des3 and allow_rc4 variables in [libdefaults].  To
+facilitate the negotiation of session keys, the KDC will assume that
+all services can handle aes256-sha1 session keys unless the service
+principal has a session_enctypes string attribute.
+
+Beginning with the krb5-1.19 release, a warning will be issued if
+initial credentials are acquired using the des3-cbc-sha1 encryption
+type.  Beginning with the krb5-1.21 release, a warning will also be
+issued for the arcfour-hmac encryption type.  In future releases,
+these encryption types will be disabled by default and eventually
+removed.
+
+Beginning with the krb5-1.18 release, all support for single-DES
+encryption types has been removed.
+
+Major changes in 1.21.3 (2024-06-26)
+------------------------------------
+
+This is a bug fix release.
+
+* Fix vulnerabilities in GSS message token handling [CVE-2024-37370,
+  CVE-2024-37371].
+
+* Fix a potential bad pointer free in krb5_cccol_have_contents().
+
+* Fix a memory leak in the macOS ccache type.
+
+krb5-1.21.2 changes by ticket ID
+--------------------------------
+
+9102    Eliminate sim_client include of getopt.h
+9103    segfault trying to free a garbage pointer
+9104    Work around Doxygen 1.9.7 change
+9107    In PKINIT, check for null PKCS7 enveloped fields
+9109    memory leak on macos
+9115    Fix leak in KDC NDR encoding
+9125    Formatting error in realm_config.rst
+9128    Fix vulnerabilities in GSS message token handling
+
+Major changes in 1.21.2 (2023-08-14)
+------------------------------------
+
+This is a bug fix release.
+
+* Fix double-free in KDC TGS processing [CVE-2023-39975].
+
+krb5-1.21.2 changes by ticket ID
+--------------------------------
+
+9101    Fix double-free in KDC TGS processing
+
+Major changes in 1.21.1 (2023-07-10)
+------------------------------------
+
+This is a bug fix release.
+
+* Fix potential uninitialized pointer free in kadm5 XDR parsing
+  [CVE-2023-36054].
+
+krb5-1.21.1 changes by ticket ID
+--------------------------------
+
+9099    Ensure array count consistency in kadm5 RPC
+
+Major changes in 1.21 (2023-06-05)
+----------------------------------
+
+User experience:
+
+* Added a credential cache type providing compatibility with the macOS
+  11 native credential cache.
+
+Developer experience:
+
+* libkadm5 will use the provided krb5_context object to read
+  configuration values, instead of creating its own.
+
+* Added an interface to retrieve the ticket session key from a GSS
+  context.
+
+Protocol evolution:
+
+* The KDC will no longer issue tickets with RC4 or triple-DES session
+  keys unless explicitly configured with the new allow_rc4 or
+  allow_des3 variables respectively.
+
+* The KDC will assume that all services can handle aes256-sha1 session
+  keys unless the service principal has a session_enctypes string
+  attribute.
+
+* Support for PAC full KDC checksums has been added to mitigate an
+  S4U2Proxy privilege escalation attack.
+
+* The PKINIT client will advertise a more modern set of supported CMS
+  algorithms.
+
+Code quality:
+
+* Removed unused code in libkrb5, libkrb5support, and the PKINIT
+  module.
+
+* Modernized the KDC code for processing TGS requests, the code for
+  encrypting and decrypting key data, the PAC handling code, and the
+  GSS library packet parsing and composition code.
+
+* Improved the test framework's detection of memory errors in daemon
+  processes when used with asan.
+
+krb5-1.21 changes by ticket ID
+------------------------------
+
+9052    Support macOS 11 native credential cache
+9053    Make kprop work for dump files larger than 4GB
+9054    Replace macros with typedefs in gssrpc types.h
+9055    Use SHA-256 instead of SHA-1 for PKINIT CMS digest
+9057    Omit LDFLAGS from krb5-config --libs output
+9058    Add configure variable for default PKCS#11 module
+9059    Use context profile for libkadm5 configuration
+9066    Set reasonable supportedCMSTypes in PKINIT
+9069    Update error checking for OpenSSL CMS_verify
+9071    Add and use ts_interval() helper
+9072    Avoid small read overrun in UTF8 normalization
+9076    Use memmove() in Unicode functions
+9077    Fix aclocal.m4 syntax error for autoconf 2.72
+9078    Fix profile crash on memory exhaustion
+9079    Fix preauth crash on memory exhaustion
+9080    Fix gic_keytab crash on memory exhaustion
+9082    Fix policy DB fallback error handling
+9083    Fix kpropd crash with unrecognized option
+9084    Add PAC full checksums
+9085    Fix read overruns in SPNEGO parsing
+9086    Fix possible double-free during KDB creation
+9087    Fix meridian type in getdate.y
+9088    Use control flow guard flag in Windows builds
+9089    Add pac_privsvr_enctype string attribute
+9090    Convey realm names to certauth modules
+9091    Add GSS_C_INQ_ODBC_SESSION_KEY
+9092    Fix maintainer-mode build for binutils 2.37
+9093    Add PA-REDHAT-PASSKEY padata type
+
+Acknowledgements
+----------------
+
+Past Sponsors of the MIT Kerberos Consortium:
+
+    Apple
+    Carnegie Mellon University
+    Centrify Corporation
+    Columbia University
+    Cornell University
+    The Department of Defense of the United States of America (DoD)
+    Fidelity Investments
+    Google
+    Iowa State University
+    MIT
+    Michigan State University
+    Microsoft
+    MITRE Corporation
+    Morgan-Stanley
+    The National Aeronautics and Space Administration
+        of the United States of America (NASA)
+    Network Appliance (NetApp)
+    Nippon Telephone and Telegraph (NTT)
+    US Government Office of the National Coordinator for Health
+        Information Technology (ONC)
+    Oracle
+    Pennsylvania State University
+    Red Hat
+    Stanford University
+    TeamF1, Inc.
+    The University of Alaska
+    The University of Michigan
+    The University of Pennsylvania
+
+Past and present members of the Kerberos Team at MIT:
+
+    Danilo Almeida
+    Jeffrey Altman
+    Justin Anderson
+    Richard Basch
+    Mitch Berger
+    Jay Berkenbilt
+    Andrew Boardman
+    Bill Bryant
+    Steve Buckley
+    Joe Calzaretta
+    John Carr
+    Mark Colan
+    Don Davis
+    Sarah Day
+    Alexandra Ellwood
+    Carlos Garay
+    Dan Geer
+    Nancy Gilman
+    Matt Hancher
+    Thomas Hardjono
+    Sam Hartman
+    Paul Hill
+    Marc Horowitz
+    Eva Jacobus
+    Miroslav Jurisic
+    Barry Jaspan
+    Benjamin Kaduk
+    Geoffrey King
+    Kevin Koch
+    John Kohl
+    HaoQi Li
+    Jonathan Lin
+    Peter Litwack
+    Scott McGuire
+    Steve Miller
+    Kevin Mitchell
+    Cliff Neuman
+    Paul Park
+    Ezra Peisach
+    Chris Provenzano
+    Ken Raeburn
+    Jon Rochlis
+    Jeff Schiller
+    Jen Selby
+    Robert Silk
+    Bill Sommerfeld
+    Jennifer Steiner
+    Ralph Swick
+    Brad Thompson
+    Harry Tsai
+    Zhanna Tsitkova
+    Ted Ts'o
+    Marshall Vale
+    Taylor Yu
+
+The following external contributors have provided code, patches, bug
+reports, suggestions, and valuable resources:
+
+    Ian Abbott
+    Daniel Albers
+    Brandon Allbery
+    Russell Allbery
+    Brian Almeida
+    Michael B Allen
+    Pooja Anil
+    Jeffrey Arbuckle
+    Heinz-Ado Arnolds
+    Derek Atkins
+    Mark Bannister
+    David Bantz
+    Alex Baule
+    Nikhil Benesch
+    David Benjamin
+    Thomas Bernard
+    Adam Bernstein
+    Arlene Berry
+    Jeff Blaine
+    Toby Blake
+    Radoslav Bodo
+    Alexander Bokovoy
+    Sumit Bose
+    Emmanuel Bouillon
+    Isaac Boukris
+    Ulf Bremer
+    Pavel Březina
+    Philip Brown
+    Samuel Cabrero
+    Michael Calmer
+    Andrea Campi
+    Julien Chaffraix
+    Jacob Champion
+    Puran Chand
+    Ravi Channavajhala
+    Srinivas Cheruku
+    Leonardo Chiquitto
+    Rachit Chokshi
+    Seemant Choudhary
+    Howard Chu
+    Andrea Cirulli
+    Christopher D. Clausen
+    Kevin Coffman
+    Simon Cooper
+    Sylvain Cortes
+    Ian Crowther
+    Arran Cudbard-Bell
+    Adam Dabrowski
+    Jeff D'Angelo
+    Nalin Dahyabhai
+    Mark Davies
+    Dennis Davis
+    Alex Dehnert
+    Misty De Meo
+    Mark Deneen
+    Günther Deschner
+    John Devitofranceschi
+    Marc Dionne
+    Roland Dowdeswell
+    Ken Dreyer
+    Dorian Ducournau
+    Viktor Dukhovni
+    Jason Edgecombe
+    Mark Eichin
+    Shawn M. Emery
+    Douglas E. Engert
+    Peter Eriksson
+    Juha Erkkilä
+    Gilles Espinasse
+    Sergey Fedorov
+    Ronni Feldt
+    Bill Fellows
+    JC Ferguson
+    Remi Ferrand
+    Paul Fertser
+    Fabiano Fidêncio
+    Frank Filz
+    William Fiveash
+    Jacques Florent
+    Oliver Freyermuth
+    Ákos Frohner
+    Sebastian Galiano
+    Marcus Granado
+    Dylan Gray
+    Norm Green
+    Scott Grizzard
+    Helmut Grohne
+    Steve Grubb
+    Philip Guenther
+    Timo Gurr
+    Dominic Hargreaves
+    Robbie Harwood
+    John Hascall
+    Jakob Haufe
+    Matthieu Hautreux
+    Jochen Hein
+    Paul B. Henson
+    Kihong Heo
+    Jeff Hodges
+    Christopher Hogan
+    Love Hörnquist Åstrand
+    Ken Hornstein
+    Henry B. Hotz
+    Luke Howard
+    Jakub Hrozek
+    Shumon Huque
+    Jeffrey Hutzelman
+    Sergey Ilinykh
+    Wyllys Ingersoll
+    Holger Isenberg
+    Spencer Jackson
+    Diogenes S. Jesus
+    Mike Jetzer
+    Pavel Jindra
+    Brian Johannesmeyer
+    Joel Johnson
+    Lutz Justen
+    Ganesh Kamath
+    Alexander Karaivanov
+    Anders Kaseorg
+    Bar Katz
+    Zentaro Kavanagh
+    Mubashir Kazia
+    W. Trevor King
+    Patrik Kis
+    Martin Kittel
+    Thomas Klausner
+    Tomasz Kłoczko
+    Matthew Krupcale
+    Mikkel Kruse
+    Reinhard Kugler
+    Harshawardhan Kulkarni
+    Tomas Kuthan
+    Pierre Labastie
+    Andreas Ladanyi
+    Chris Leick
+    Volker Lendecke
+    Jan iankko Lieskovsky
+    Todd Lipcon
+    Oliver Loch
+    Chris Long
+    Kevin Longfellow
+    Frank Lonigro
+    Jon Looney
+    Nuno Lopes
+    Todd Lubin
+    Ryan Lynch
+    Glenn Machin
+    Roland Mainz
+    Sorin Manolache
+    Robert Marshall
+    Andrei Maslennikov
+    Michael Mattioli
+    Nathaniel McCallum
+    Greg McClement
+    Cameron Meadors
+    Vipul Mehta
+    Alexey Melnikov
+    Ivan A. Melnikov
+    Franklyn Mendez
+    Mantas Mikulėnas
+    Markus Moeller
+    Kyle Moffett
+    Jon Moore
+    Paul Moore
+    Keiichi Mori
+    Michael Morony
+    Robert Morris
+    Sam Morris
+    Zbysek Mraz
+    Edward Murrell
+    Joshua Neuheisel
+    Nikos Nikoleris
+    Demi Obenour
+    Felipe Ortega
+    Michael Osipov
+    Andrej Ota
+    Dmitri Pal
+    Javier Palacios
+    Dilyan Palauzov
+    Tom Parker
+    Eric Pauly
+    Leonard Peirce
+    Ezra Peisach
+    Alejandro Perez
+    Zoran Pericic
+    W. Michael Petullo
+    Mark Phalan
+    Sharwan Ram
+    Brett Randall
+    Jonathan Reams
+    Jonathan Reed
+    Robert Relyea
+    Tony Reix
+    Martin Rex
+    Pat Riehecky
+    Julien Rische
+    Jason Rogers
+    Matt Rogers
+    Nate Rosenblum
+    Solly Ross
+    Mike Roszkowski
+    Guillaume Rousse
+    Joshua Schaeffer
+    Alexander Scheel
+    Jens Schleusener
+    Ryan Schmidt
+    Andreas Schneider
+    Paul Seyfert
+    Tom Shaw
+    Jim Shi
+    Jerry Shipman
+    Peter Shoults
+    Richard Silverman
+    Cel Skeggs
+    Simo Sorce
+    Anthony Sottile
+    Michael Spang
+    Michael Ströder
+    Bjørn Tore Sund
+    Ondřej Surý
+    Joseph Sutton
+    Joe Travaglini
+    Sergei Trofimovich
+    Greg Troxel
+    Fraser Tweedale
+    Tim Uglow
+    Rathor Vipin
+    Denis Vlasenko
+    Thomas Wagner
+    Jorgen Wahlsten
+    Stef Walter
+    Max (Weijun) Wang
+    John Washington
+    Stef Walter
+    Xi Wang
+    Nehal J Wani
+    Kevin Wasserman
+    Margaret Wasserman
+    Marcus Watts
+    Andreas Wiese
+    Simon Wilkinson
+    Nicolas Williams
+    Ross Wilper
+    Augustin Wolf
+    Garrett Wollman
+    David Woodhouse
+    Tsu-Phong Wu
+    Xu Qiang
+    Neng Xue
+    Zhaomo Yang
+    Tianjiao Yin
+    Nickolai Zeldovich
+    Bean Zhang
+    ChenChen Zhou
+    Hanz van Zijst
+    Gertjan Zwartjes
+
+The above is not an exhaustive list; many others have contributed in
+various ways to the MIT Kerberos development effort over the years.

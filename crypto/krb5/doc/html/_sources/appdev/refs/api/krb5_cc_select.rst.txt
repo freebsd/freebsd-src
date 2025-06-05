@@ -1,0 +1,73 @@
+krb5_cc_select -  Select a credential cache to use with a server principal. 
+============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_select(krb5_context context, krb5_principal server, krb5_ccache * cache_out, krb5_principal * princ_out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **server** - Server principal
+
+	          **[out]** **cache_out** - Credential cache handle
+
+	          **[out]** **princ_out** - Client principal
+
+
+..
+
+
+
+:return:
+         -  If an appropriate cache is found, 0 is returned, cache_out is set to the selected cache, and princ_out is set to the default principal of that cache. 
+
+..
+
+
+
+
+
+
+
+Select a cache within the collection containing credentials most appropriate for use with *server* , according to configured rules and heuristics.
+
+
+
+Use krb5_cc_close() to release *cache_out* when it is no longer needed. Use krb5_free_principal() to release *princ_out* when it is no longer needed. Note that *princ_out* is set in some error conditions.
+
+
+
+If the appropriate client principal can be authoritatively determined but the cache collection contains no credentials for that principal, then KRB5_CC_NOTFOUND is returned, *cache_out* is set to NULL, and *princ_out* is set to the appropriate client principal.
+
+
+
+If no configured mechanism can determine the appropriate cache or principal, KRB5_CC_NOTFOUND is returned and *cache_out* and *princ_out* are set to NULL.
+
+
+
+Any other error code indicates a fatal error in the processing of a cache selection mechanism.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.10
+ 
+

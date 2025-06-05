@@ -1,0 +1,47 @@
+krb5_address_compare -  Compare two Kerberos addresses. 
+========================================================
+
+..
+
+.. c:function:: krb5_boolean krb5_address_compare(krb5_context context, const krb5_address * addr1, const krb5_address * addr2)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **addr1** - First address to be compared
+
+	          **[in]** **addr2** - Second address to be compared
+
+
+..
+
+
+
+:return:
+         -  TRUE if the addresses are the same, FALSE otherwise 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

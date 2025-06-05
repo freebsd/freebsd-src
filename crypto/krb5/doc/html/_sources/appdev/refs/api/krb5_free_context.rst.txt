@@ -1,0 +1,40 @@
+krb5_free_context -  Free a krb5 library context. 
+==================================================
+
+..
+
+.. c:function:: void krb5_free_context(krb5_context context)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function frees a *context* that was created by krb5_init_context() or krb5_init_secure_context().
+
+
+
+
+
+
+..
+
+
+
+
+

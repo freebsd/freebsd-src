@@ -1,0 +1,76 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html><head>
+<meta name="GENERATOR" content="Microsoft® HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css">
+
+<title>What is Kerberos?</title></head>
+
+<body>
+
+<h1> Kerberos </h1>
+<h2>What is Kerberos? </h2>
+<p>
+Kerberos is a network authentication protocol that allows users to
+securely access services over a physically insecure network. Kerberos,
+or MIT Kerberos, is also the name of this application. MIT Kerberos
+provides an easy interface to the Kerberos protocol.</p>
+
+<p>
+In addition to providing secure access to services, Kerberos adds
+convenience by allowing you to sign on just once to use many network
+resources such as servers, hosts, or other services.</p>
+<p>
+Kerberos gives you this convenience and security through the use of
+single sign on, mutual authentication, and secret key encryption. </p>
+
+<p>
+<table>
+<tbody><tr>
+<th>Single Sign On </th>
+</tr>
+<tr>
+<td>  Your Kerberos identity (your <em><a href="JavaScript:popup.TextPopup(popupPrincipal, popfont,9,9,-1,-1)">principal</a></em>)
+and your password allow you to log on just once to access all of the
+servers, hosts, and other resources that use the Kerberos installation.
+No matter how many resources you use, you will not need to enter your
+password again. </td>
+</tr>
+<tr>
+<th>Mutual Authentication </th>
+</tr>
+<tr>
+<td> Authentication is proof of identity. Any protocol or service that
+demands a password is authenticating the user. However, Kerberos
+provides <i>mutual</i> authentication, so in addition to proving your
+identity to the server, it proves that the server you are communicating
+with is what it claims to be. This protects you against <a href="JavaScript:popup.TextPopup(popupPhishing, popfont,9,9,-1,-1)"> phishing </a> and <a href="JavaScript:popup.TextPopup(popupSpoofing, popfont,9,9,-1,-1)"> spoofing. </a></td>
+</tr>
+<tr>
+<th>Secret-Key Encryption </th>
+</tr>
+<tr>
+<td>
+Kerberos prevents malicious attempts to intercept your password by
+encrypting your password before transmitting it. In addition, once you
+and the server have proved your identities to each other, Kerberos uses
+secret-key cryptography to secure the rest of your communications. This
+helps maintain your privacy and the integrity of your data.</td>
+</tr>
+ </tbody></table>
+</p><h2>Related Help</h2>
+<ul id="helpul">
+<li><a href="HTML/Kerberos_Terminology.htm">Kerberos terminology</a></li>
+<li><a href="HTML/Encryption_Types.htm">Encryption types</a></li>
+<li><a href="HTML/How_Kerberos_Works.htm">How does Kerberos work?</a></li>
+</ul>
+
+<script language="JavaScript">
+popfont="Arial,.725,"
+popupPhishing="A type of email scam. The scammer sends an email that appears  to come from a legitimate company asking you to log on to the company website using the included link. The link takes you instead to a fake website modeled after that of the real company. If you try to log on, the fake website harvests your username and password for later malicious use."
+popupSpoofing="To 'spoof' means to fake. Hackers can spoof email (making you think the email came from a trusted source), websites (making you think a website is legitimate), and IP addresses. IP spoofing can be used to hijack your browser and take you to fradulent web page that looks legitimate and can be used harvest your username and password."
+popupPrincipal="Your principal is your Kerberos identity. It is your user name combined with the Kerberos realm you are using. For example: 'jdoe@SALES.WIDGET.COM' "
+</script>
+
+<object id="popup" type="application/x-oleobject" classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11">
+</object>
+</body></html>

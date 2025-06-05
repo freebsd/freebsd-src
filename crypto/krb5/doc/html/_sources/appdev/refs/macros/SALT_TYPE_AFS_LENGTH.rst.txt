@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _SALT-TYPE-AFS-LENGTH-data:
+
+SALT_TYPE_AFS_LENGTH
+====================
+
+..
+.. data:: SALT_TYPE_AFS_LENGTH
+..
+
+
+
+
+=========================== ======================
+``SALT_TYPE_AFS_LENGTH``       ``UINT_MAX``
+=========================== ======================

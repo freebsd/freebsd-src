@@ -1,0 +1,20 @@
+mydir=plugins$(S)kdcpolicy$(S)test
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+LIBBASE=kdcpolicy_test
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/kdcpolicy/test
+SHLIB_EXPDEPS=$(KRB5_BASE_DEPLIBS)
+SHLIB_EXPLIBS=$(KRB5_BASE_LIBS)
+
+STLIBOBJS=main.o
+
+SRCS=$(srcdir)/main.c
+
+all-unix: all-libs
+install-unix:
+clean-unix:: clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@

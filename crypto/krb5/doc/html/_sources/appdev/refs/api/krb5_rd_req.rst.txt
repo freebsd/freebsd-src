@@ -1,0 +1,105 @@
+krb5_rd_req -  Parse and decrypt a KRB_AP_REQ message. 
+=======================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_rd_req(krb5_context context, krb5_auth_context * auth_context, const krb5_data * inbuf, krb5_const_principal server, krb5_keytab keytab, krb5_flags * ap_req_options, krb5_ticket ** ticket)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[inout]** **auth_context** - Pre-existing or newly created auth context
+
+	          **[in]** **inbuf** - AP-REQ message to be parsed
+
+	          **[in]** **server** - Matching principal for server, or NULL to allow any principal in keytab
+
+	          **[in]** **keytab** - Key table, or NULL to use the default
+
+	          **[out]** **ap_req_options** - If non-null, the AP-REQ flags on output
+
+	          **[out]** **ticket** - If non-null, ticket from the AP-REQ message
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function parses, decrypts and verifies a AP-REQ message from *inbuf* and stores the authenticator in *auth_context* .
+
+
+
+If a keyblock was specified in *auth_context* using krb5_auth_con_setuseruserkey(), that key is used to decrypt the ticket in AP-REQ message and *keytab* is ignored. In this case, *server* should be specified as a complete principal name to allow for proper transited-path checking and replay cache selection.
+
+
+
+Otherwise, the decryption key is obtained from *keytab* , or from the default keytab if it is NULL. In this case, *server* may be a complete principal name, a matching principal (see krb5_sname_match()), or NULL to match any principal name. The keys tried against the encrypted part of the ticket are determined as follows:
+
+
+
+ 
+ 
+	 - If *server* is a complete principal name, then its entry in *keytab* is tried.
+ 
+ 
+	 - Otherwise, if *keytab* is iterable, then all entries in *keytab* which match *server* are tried.
+ 
+ 
+	 - Otherwise, the server principal in the ticket must match *server* , and its entry in *keytab* is tried.
+ 
+ 
+
+
+
+The client specified in the decrypted authenticator must match the client specified in the decrypted ticket.
+
+
+
+If the *remote_addr* field of *auth_context* is set, the request must come from that address.
+
+
+
+If a replay cache handle is provided in the *auth_context* , the authenticator and ticket are verified against it. If no conflict is found, the new authenticator is then stored in the replay cache of *auth_context* .
+
+
+
+Various other checks are performed on the decoded data, including cross-realm policy, clockskew, and ticket validation times.
+
+
+
+On success the authenticator, subkey, and remote sequence number of the request are stored in *auth_context* . If the #AP_OPTS_MUTUAL_REQUIRED bit is set, the local sequence number is XORed with the remote sequence number in the request.
+
+
+
+Use krb5_free_ticket() to free *ticket* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

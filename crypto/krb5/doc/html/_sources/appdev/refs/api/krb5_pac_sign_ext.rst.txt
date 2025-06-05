@@ -1,0 +1,56 @@
+krb5_pac_sign_ext
+=================
+
+..
+
+.. c:function:: krb5_error_code krb5_pac_sign_ext(krb5_context context, krb5_pac pac, krb5_timestamp authtime, krb5_const_principal principal, const krb5_keyblock * server_key, const krb5_keyblock * privsvr_key, krb5_boolean with_realm, krb5_data * data)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **pac**
+
+	          **authtime**
+
+	          **principal**
+
+	          **server_key**
+
+	          **privsvr_key**
+
+	          **with_realm**
+
+	          **data**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Use krb5_kdc_sign_ticket() instead. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

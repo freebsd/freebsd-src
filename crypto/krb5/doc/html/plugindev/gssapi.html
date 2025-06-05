@@ -1,0 +1,259 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>GSSAPI mechanism interface &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Internal pluggable interfaces" href="internal.html" />
+    <link rel="prev" title="Configuration interface (profile)" href="profile.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="profile.html" title="Configuration interface (profile)"
+            accesskey="P">previous</a> |
+        <a href="internal.html" title="Internal pluggable interfaces"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__GSSAPI mechanism interface">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="gssapi-mechanism-interface">
+<h1>GSSAPI mechanism interface<a class="headerlink" href="#gssapi-mechanism-interface" title="Permalink to this headline">¶</a></h1>
+<p>The GSSAPI library in MIT krb5 can load mechanism modules to augment
+the set of built-in mechanisms.</p>
+<p>A mechanism module is a Unix shared object or Windows DLL, built
+separately from the krb5 tree.  Modules are loaded according to the
+GSS mechanism config files described in <a class="reference internal" href="../admin/host_config.html#gssapi-plugin-config"><span class="std std-ref">GSSAPI mechanism modules</span></a>.</p>
+<p>For the most part, a GSSAPI mechanism module exports the same
+functions as would a GSSAPI implementation itself, with the same
+function signatures.  The mechanism selection layer within the GSSAPI
+library (called the “mechglue”) will dispatch calls from the
+application to the module if the module’s mechanism is requested.  If
+a module does not wish to implement a GSSAPI extension, it can simply
+refrain from exporting it, and the mechglue will fail gracefully if
+the application calls that function.</p>
+<p>The mechglue does not invoke a module’s <strong>gss_add_cred</strong>,
+<strong>gss_add_cred_from</strong>, <strong>gss_add_cred_impersonate_name</strong>, or
+<strong>gss_add_cred_with_password</strong> function.  A mechanism only needs to
+implement the “acquire” variants of those functions.</p>
+<p>A module does not need to coordinate its minor status codes with those
+of other mechanisms.  If the mechglue detects conflicts, it will map
+the mechanism’s status codes onto unique values, and then map them
+back again when <strong>gss_display_status</strong> is called.</p>
+<section id="negoex-modules">
+<h2>NegoEx modules<a class="headerlink" href="#negoex-modules" title="Permalink to this headline">¶</a></h2>
+<p>Some Windows GSSAPI mechanisms can only be negotiated via a Microsoft
+extension to SPNEGO called NegoEx.  Beginning with release 1.18,
+mechanism modules can support NegoEx as follows:</p>
+<ul class="simple">
+<li><p>Implement the gssspi_query_meta_data(), gssspi_exchange_meta_data(),
+and gssspi_query_mechanism_info() SPIs declared in
+<code class="docutils literal notranslate"><span class="pre">&lt;gssapi/gssapi_ext.h&gt;</span></code>.</p></li>
+<li><p>Implement gss_inquire_sec_context_by_oid() and answer the
+<strong>GSS_C_INQ_NEGOEX_KEY</strong> and <strong>GSS_C_INQ_NEGOEX_VERIFY_KEY</strong> OIDs
+to provide the checksum keys for outgoing and incoming checksums,
+respectively.  The answer must be in two buffers: the first buffer
+contains the key contents, and the second buffer contains the key
+encryption type as a four-byte little-endian integer.</p></li>
+</ul>
+<p>By default, NegoEx mechanisms will not be directly negotiated via
+SPNEGO.  If direct SPNEGO negotiation is required for
+interoperability, implement gss_inquire_attrs_for_mech() and assert
+the GSS_C_MA_NEGOEX_AND_SPNEGO attribute (along with any applicable
+RFC 5587 attributes).</p>
+</section>
+<section id="interposer-modules">
+<h2>Interposer modules<a class="headerlink" href="#interposer-modules" title="Permalink to this headline">¶</a></h2>
+<p>The mechglue also supports a kind of loadable module, called an
+interposer module, which intercepts calls to existing mechanisms
+rather than implementing a new mechanism.</p>
+<p>An interposer module must export the symbol <strong>gss_mech_interposer</strong>
+with the following signature:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">gss_OID_set</span> <span class="n">gss_mech_interposer</span><span class="p">(</span><span class="n">gss_OID</span> <span class="n">mech_type</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This function is invoked with the OID of the interposer mechanism as
+specified in the mechanism config file, and returns a set of mechanism
+OIDs to be interposed.  The returned OID set must have been created
+using the mechglue’s gss_create_empty_oid_set and
+gss_add_oid_set_member functions.</p>
+<p>An interposer module must use the prefix <code class="docutils literal notranslate"><span class="pre">gssi_</span></code> for the GSSAPI
+functions it exports, instead of the prefix <code class="docutils literal notranslate"><span class="pre">gss_</span></code>.  In most cases,
+unexported <code class="docutils literal notranslate"><span class="pre">gssi_</span></code> functions will result in failure from their
+corresponding <code class="docutils literal notranslate"><span class="pre">gss_</span></code> calls.</p>
+<p>An interposer module can link against the GSSAPI library in order to
+make calls to the original mechanism.  To do so, it must specify a
+special mechanism OID which is the concatention of the interposer’s
+own OID byte string and the original mechanism’s OID byte string.</p>
+<p>Functions that do not accept a mechanism argument directly require no
+special handling, with the following exceptions:</p>
+<p>Since <strong>gss_accept_sec_context</strong> does not accept a mechanism argument,
+an interposer mechanism must, in order to invoke the original
+mechanism’s function, acquire a credential for the concatenated OID
+and pass that as the <em>verifier_cred_handle</em> parameter.</p>
+<p>Since <strong>gss_import_name</strong>, <strong>gss_import_cred</strong>, and
+<strong>gss_import_sec_context</strong> do not accept mechanism parameters, the SPI
+has been extended to include variants which do.  This allows the
+interposer module to know which mechanism should be used to interpret
+the token.  These functions have the following signatures:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">OM_uint32</span> <span class="n">gssi_import_sec_context_by_mech</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
+    <span class="n">gss_OID</span> <span class="n">desired_mech</span><span class="p">,</span> <span class="n">gss_buffer_t</span> <span class="n">interprocess_token</span><span class="p">,</span>
+    <span class="n">gss_ctx_id_t</span> <span class="o">*</span><span class="n">context_handle</span><span class="p">);</span>
+
+<span class="n">OM_uint32</span> <span class="n">gssi_import_name_by_mech</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
+    <span class="n">gss_OID</span> <span class="n">mech_type</span><span class="p">,</span> <span class="n">gss_buffer_t</span> <span class="n">input_name_buffer</span><span class="p">,</span>
+    <span class="n">gss_OID</span> <span class="n">input_name_type</span><span class="p">,</span> <span class="n">gss_name_t</span> <span class="n">output_name</span><span class="p">);</span>
+
+<span class="n">OM_uint32</span> <span class="n">gssi_import_cred_by_mech</span><span class="p">(</span><span class="n">OM_uint32</span> <span class="o">*</span><span class="n">minor_status</span><span class="p">,</span>
+    <span class="n">gss_OID</span> <span class="n">mech_type</span><span class="p">,</span> <span class="n">gss_buffer_t</span> <span class="n">token</span><span class="p">,</span>
+    <span class="n">gss_cred_id_t</span> <span class="o">*</span><span class="n">cred_handle</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>To re-enter the original mechanism when importing tokens for the above
+functions, the interposer module must wrap the mechanism token in the
+mechglue’s format, using the concatenated OID (except in
+<strong>gss_import_name</strong>).  The mechglue token formats are:</p>
+<ul class="simple">
+<li><p>For <strong>gss_import_sec_context</strong>, a four-byte OID length in big-endian
+order, followed by the concatenated OID, followed by the mechanism
+token.</p></li>
+<li><p>For <strong>gss_import_name</strong>, the bytes 04 01, followed by a two-byte OID
+length in big-endian order, followed by the mechanism OID, followed
+by a four-byte token length in big-endian order, followed by the
+mechanism token.  Unlike most uses of OIDs in the API, the mechanism
+OID encoding must include the DER tag and length for an object
+identifier (06 followed by the DER length of the OID byte string),
+and this prefix must be included in the two-byte OID length.
+input_name_type must also be set to GSS_C_NT_EXPORT_NAME.</p></li>
+<li><p>For <strong>gss_import_cred</strong>, a four-byte OID length in big-endian order,
+followed by the concatenated OID, followed by a four-byte token
+length in big-endian order, followed by the mechanism token.  This
+sequence may be repeated multiple times.</p></li>
+</ul>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">GSSAPI mechanism interface</a><ul>
+<li><a class="reference internal" href="#negoex-modules">NegoEx modules</a></li>
+<li><a class="reference internal" href="#interposer-modules">Interposer modules</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For plugin module developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="general.html">General plugin concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="clpreauth.html">Client preauthentication interface (clpreauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kdcpreauth.html">KDC preauthentication interface (kdcpreauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ccselect.html">Credential cache selection interface (ccselect)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pwqual.html">Password quality interface (pwqual)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kadm5_hook.html">KADM5 hook interface (kadm5_hook)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kadm5_auth.html">kadmin authorization interface (kadm5_auth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hostrealm.html">Host-to-realm interface (hostrealm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localauth.html">Local authorization interface (localauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="locate.html">Server location interface (locate)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="profile.html">Configuration interface (profile)</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">GSSAPI mechanism interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="internal.html">Internal pluggable interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="certauth.html">PKINIT certificate authorization interface (certauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kdcpolicy.html">KDC policy interface (kdcpolicy)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="profile.html" title="Configuration interface (profile)"
+            >previous</a> |
+        <a href="internal.html" title="Internal pluggable interfaces"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__GSSAPI mechanism interface">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

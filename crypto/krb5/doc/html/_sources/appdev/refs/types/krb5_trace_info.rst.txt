@@ -1,0 +1,30 @@
+.. highlight:: c
+
+.. _krb5-trace-info-struct:
+
+krb5_trace_info
+===============
+
+..
+.. c:type:: krb5_trace_info
+..
+
+A wrapper for passing information to a *krb5_trace_callback* .
+
+Currently, it only contains the formatted message as determined the the format string and arguments of the tracing macro, but it may be extended to contain more fields in the future.
+
+Declaration
+------------
+
+typedef struct _krb5_trace_info krb5_trace_info
+
+
+Members
+---------
+
+
+.. c:member:: const char *	krb5_trace_info.message
+
+                                             
+                                             
+

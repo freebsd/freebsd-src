@@ -1,0 +1,46 @@
+krb5_use_enctype
+================
+
+..
+
+.. c:function:: krb5_error_code krb5_use_enctype(krb5_context context, krb5_encrypt_block * eblock, krb5_enctype enctype)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **eblock**
+
+	          **enctype**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Replaced by krb5_c_* API family. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

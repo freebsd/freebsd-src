@@ -1,0 +1,207 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>KDC preauthentication interface (kdcpreauth) &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Credential cache selection interface (ccselect)" href="ccselect.html" />
+    <link rel="prev" title="Client preauthentication interface (clpreauth)" href="clpreauth.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="clpreauth.html" title="Client preauthentication interface (clpreauth)"
+            accesskey="P">previous</a> |
+        <a href="ccselect.html" title="Credential cache selection interface (ccselect)"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__KDC preauthentication interface (kdcpreauth)">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="kdc-preauthentication-interface-kdcpreauth">
+<h1>KDC preauthentication interface (kdcpreauth)<a class="headerlink" href="#kdc-preauthentication-interface-kdcpreauth" title="Permalink to this headline">¶</a></h1>
+<p>The kdcpreauth interface allows the addition of KDC support for
+preauthentication mechanisms beyond those included in the core MIT
+krb5 code base.  For a detailed description of the kdcpreauth
+interface, see the header file <code class="docutils literal notranslate"><span class="pre">&lt;krb5/kdcpreauth_plugin.h&gt;</span></code> (or
+<code class="docutils literal notranslate"><span class="pre">&lt;krb5/preauth_plugin.h&gt;</span></code> before release 1.12).</p>
+<p>A kdcpreauth module is generally responsible for:</p>
+<ul class="simple">
+<li><p>Supplying a list of preauth type numbers used by the module in the
+<strong>pa_type_list</strong> field of the vtable structure.</p></li>
+<li><p>Indicating what kind of preauthentication mechanism it implements,
+with the <strong>flags</strong> method.  If the mechanism computes a new reply
+key, it must specify the <code class="docutils literal notranslate"><span class="pre">PA_REPLACES_KEY</span></code> flag.  If the mechanism
+is generally only used with hardware tokens, the <code class="docutils literal notranslate"><span class="pre">PA_HARDWARE</span></code>
+flag allows the mechanism to work with principals which have the
+<strong>requires_hwauth</strong> flag set.</p></li>
+<li><p>Producing a padata value to be sent with a preauth_required error,
+with the <strong>edata</strong> method.</p></li>
+<li><p>Examining a padata value sent by a client and verifying that it
+proves knowledge of the appropriate client credential information.
+This is done with the <strong>verify</strong> method.</p></li>
+<li><p>Producing a padata response value for the client, and possibly
+computing a reply key.  This is done with the <strong>return_padata</strong>
+method.</p></li>
+</ul>
+<p>A module can create and destroy per-KDC state objects by implementing
+the <strong>init</strong> and <strong>fini</strong> methods.  Per-KDC state objects have the
+type krb5_kdcpreauth_moddata, which is an abstract pointer types.  A
+module should typically cast this to an internal type for the state
+object.</p>
+<p>A module can create a per-request state object by returning one in the
+<strong>verify</strong> method, receiving it in the <strong>return_padata</strong> method, and
+destroying it in the <strong>free_modreq</strong> method.  Note that these state
+objects only apply to the processing of a single AS request packet,
+not to an entire authentication exchange (since an authentication
+exchange may remain unfinished by the client or may involve multiple
+different KDC hosts).  Per-request state objects have the type
+krb5_kdcpreauth_modreq, which is an abstract pointer type.</p>
+<p>The <strong>edata</strong>, <strong>verify</strong>, and <strong>return_padata</strong> methods have access
+to a callback function and handle (called a “rock”) which can be used
+to get additional information about the current request, including the
+maximum allowable clock skew, the client’s long-term keys, the
+DER-encoded request body, the FAST armor key, string attributes on the
+client’s database entry, and the client’s database entry itself.  The
+<strong>verify</strong> method can assert one or more authentication indicators to
+be included in the issued ticket using the <code class="docutils literal notranslate"><span class="pre">add_auth_indicator</span></code>
+callback (new in release 1.14).</p>
+<p>A module can generate state information to be included with the next
+client request using the <code class="docutils literal notranslate"><span class="pre">set_cookie</span></code> callback (new in release
+1.14).  On the next request, the module can read this state
+information using the <code class="docutils literal notranslate"><span class="pre">get_cookie</span></code> callback.  Cookie information is
+encrypted, timestamped, and transmitted to the client in a
+<code class="docutils literal notranslate"><span class="pre">PA-FX-COOKIE</span></code> pa-data item.  Older clients may not support cookies
+and therefore may not transmit the cookie in the next request; in this
+case, <code class="docutils literal notranslate"><span class="pre">get_cookie</span></code> will not yield the saved information.</p>
+<p>If a module implements a mechanism which requires multiple round
+trips, its <strong>verify</strong> method can respond with the code
+<code class="docutils literal notranslate"><span class="pre">KRB5KDC_ERR_MORE_PREAUTH_DATA_REQUIRED</span></code> and a list of pa-data in
+the <em>e_data</em> parameter to be processed by the client.</p>
+<p>The <strong>edata</strong> and <strong>verify</strong> methods can be implemented
+asynchronously.  Because of this, they do not return values directly
+to the caller, but must instead invoke responder functions with their
+results.  A synchronous implementation can invoke the responder
+function immediately.  An asynchronous implementation can use the
+callback to get an event context for use with the <a class="reference external" href="https://fedorahosted.org/libverto/">libverto</a> API.</p>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">KDC preauthentication interface (kdcpreauth)</a></li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For plugin module developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="general.html">General plugin concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="clpreauth.html">Client preauthentication interface (clpreauth)</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">KDC preauthentication interface (kdcpreauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ccselect.html">Credential cache selection interface (ccselect)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pwqual.html">Password quality interface (pwqual)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kadm5_hook.html">KADM5 hook interface (kadm5_hook)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kadm5_auth.html">kadmin authorization interface (kadm5_auth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hostrealm.html">Host-to-realm interface (hostrealm)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="localauth.html">Local authorization interface (localauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="locate.html">Server location interface (locate)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="profile.html">Configuration interface (profile)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gssapi.html">GSSAPI mechanism interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="internal.html">Internal pluggable interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="certauth.html">PKINIT certificate authorization interface (certauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kdcpolicy.html">KDC policy interface (kdcpolicy)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="clpreauth.html" title="Client preauthentication interface (clpreauth)"
+            >previous</a> |
+        <a href="ccselect.html" title="Credential cache selection interface (ccselect)"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__KDC preauthentication interface (kdcpreauth)">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

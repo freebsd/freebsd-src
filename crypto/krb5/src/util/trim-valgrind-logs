@@ -1,0 +1,71 @@
+#!/bin/sh
+
+files=vg.*
+
+logname() {
+#	sed -n -e 7p $1 | awk '{print $2}'
+#	head -7 $1 | tail -1 | awk '{print $2}'
+	awk '{ if (NR == 9) { print $2; exit 0; } }' $1
+}
+
+show_names() {
+	if test "$*" = "$files" ; then
+		return
+	fi
+	for f in $* ; do
+		echo $f : `logname $f`
+	done
+}
+
+discard_list="/bin/ps /bin/sh /bin/stty /usr/bin/cmp awk cat chmod cmp cp env expr find grep kill mv rev rlogin rm sed sh sleep sort tail test touch wc whoami xargs"
+discard_list="$discard_list tcsh tokens"
+#discard_list="$discard_list ./rtest ./dbtest"
+# The t_inetd program's logs seem to always wind up incomplete for some
+# reason.  It's also not terribly important.
+discard_list="$discard_list /path/to/.../t_inetd"
+
+filter() {
+	if test "$*" = "$files" ; then
+		return
+	fi
+	for f in $* ; do
+		n=`logname $f`
+		for d in $discard_list; do
+			if test "$n" = "$d"; then
+				echo rm $f : $n
+				rm $f
+				break
+			fi
+		done
+	done
+}
+
+kill_error_free_logs() {
+	if test "$*" = "$files" ; then
+		return
+	fi
+	grep -l "ERROR SUMMARY: 0 errors" $* | while read name ; do
+		echo rm $name : no errors in `logname $name`
+		rm $name
+	done
+}
+
+kill_no_leak_logs() {
+	if test "$*" = "$files" ; then
+	    return
+	fi
+	grep -l "ERROR SUMMARY: 0 errors" $* | \
+	    grep -l "definitely lost: 0 bytes" $* | \
+	    xargs grep -l "possibly lost: 0 bytes" | \
+	    xargs grep -l "still reachable: 0 bytes in 0 blocks" | \
+	    while read name ; do
+	    echo rm $name : no leaks or errors in `logname $name`
+	    rm $name
+	done
+}
+
+filter $files
+kill_error_free_logs $files
+#kill_no_leak_logs $files
+echo Remaining files:
+show_names $files

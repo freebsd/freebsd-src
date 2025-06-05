@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _ENCTYPE-ARCFOUR-HMAC-data:
+
+ENCTYPE_ARCFOUR_HMAC
+====================
+
+..
+.. data:: ENCTYPE_ARCFOUR_HMAC
+..
+
+RFC 4757.
+
+
+
+=========================== ======================
+``ENCTYPE_ARCFOUR_HMAC``       ``0x0017``
+=========================== ======================

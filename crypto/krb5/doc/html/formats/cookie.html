@@ -1,0 +1,222 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>KDC cookie format &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="PKINIT freshness tokens" href="freshness_token.html" />
+    <link rel="prev" title="Replay cache file format" href="rcache_file_format.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="rcache_file_format.html" title="Replay cache file format"
+            accesskey="P">previous</a> |
+        <a href="freshness_token.html" title="PKINIT freshness tokens"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__KDC cookie format">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="kdc-cookie-format">
+<h1>KDC cookie format<a class="headerlink" href="#kdc-cookie-format" title="Permalink to this headline">¶</a></h1>
+<p><span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6113.html"><strong>RFC 6113</strong></a> section 5.2 specifies a pa-data type PA-FX-COOKIE, which
+clients are required to reflect back to the KDC during
+pre-authentication.  The MIT krb5 KDC uses the following formats for
+cookies.</p>
+<section id="trivial-cookie-version-0">
+<h2>Trivial cookie (version 0)<a class="headerlink" href="#trivial-cookie-version-0" title="Permalink to this headline">¶</a></h2>
+<p>If there is no pre-authentication mechanism state information to save,
+a trivial cookie containing the value “MIT” is used.  A trivial cookie
+is needed to indicate that the conversation can continue.</p>
+</section>
+<section id="secure-cookie-version-1">
+<h2>Secure cookie (version 1)<a class="headerlink" href="#secure-cookie-version-1" title="Permalink to this headline">¶</a></h2>
+<p>In release 1.14 and later, a secure cookie can be sent if there is any
+mechanism state to save for the next request.  A secure cookie
+contains the concatenation of the following:</p>
+<ul class="simple">
+<li><p>the four bytes “MIT1”</p></li>
+<li><p>a four-byte big-endian kvno value</p></li>
+<li><p>an <span class="target" id="index-1"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc3961.html"><strong>RFC 3961</strong></a> ciphertext</p></li>
+</ul>
+<p>The ciphertext is encrypted in the cookie key with key usage
+number 513.  The cookie key is derived from a key in the local krbtgt
+principal entry for the realm (e.g. <code class="docutils literal notranslate"><span class="pre">krbtgt/KRBTEST.COM&#64;KRBTEST.COM</span></code>
+if the request is to the <code class="docutils literal notranslate"><span class="pre">KRBTEST.COM</span></code> realm).  The first krbtgt key
+for the indicated kvno value is combined with the client principal as
+follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cookie</span><span class="o">-</span><span class="n">key</span> <span class="o">&lt;-</span> <span class="n">random</span><span class="o">-</span><span class="n">to</span><span class="o">-</span><span class="n">key</span><span class="p">(</span><span class="n">PRF</span><span class="o">+</span><span class="p">(</span><span class="n">tgt</span><span class="o">-</span><span class="n">key</span><span class="p">,</span> <span class="s2">&quot;COOKIE&quot;</span> <span class="o">|</span> <span class="n">client</span><span class="o">-</span><span class="n">princ</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>where <strong>random-to-key</strong> is the <span class="target" id="index-2"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc3961.html"><strong>RFC 3961</strong></a> random-to-key operation for
+the krbtgt key’s encryption type, <strong>PRF+</strong> is defined in <span class="target" id="index-3"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6113.html"><strong>RFC 6113</strong></a>,
+and <code class="docutils literal notranslate"><span class="pre">|</span></code> denotes concatenation.  <em>client-princ</em> is the request client
+principal name with realm, marshalled according to <span class="target" id="index-4"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc1964.html"><strong>RFC 1964</strong></a> section
+2.1.1.</p>
+<p>The plain text of the encrypted part of a cookie is the DER encoding
+of the following ASN.1 type:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">SecureCookie</span> <span class="p">:</span><span class="o">:=</span> <span class="n">SEQUENCE</span> <span class="p">{</span>
+    <span class="n">time</span>     <span class="n">INTEGER</span><span class="p">,</span>
+    <span class="n">data</span>     <span class="n">SEQUENCE</span> <span class="n">OF</span> <span class="n">PA</span><span class="o">-</span><span class="n">DATA</span><span class="p">,</span>
+    <span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The time field represents the cookie creation time; for brevity, it is
+encoded as an integer giving the POSIX timestamp rather than as an
+ASN.1 GeneralizedTime value.  The data field contains one element for
+each pre-authentication type which requires saved state.  For
+mechanisms which have separate request and reply types, the request
+type is used; this allows the KDC to determine whether a cookie is
+relevant to a request by comparing the request pa-data types to the
+cookie data types.</p>
+</section>
+<section id="spake-cookie-format-version-1">
+<h2>SPAKE cookie format (version 1)<a class="headerlink" href="#spake-cookie-format-version-1" title="Permalink to this headline">¶</a></h2>
+<p>Inside the SecureCookie wrapper, a data value of type 151 contains
+state for SPAKE pre-authentication.  This data is the concatenation of
+the following:</p>
+<ul class="simple">
+<li><p>a two-byte big-endian version number with the value 1</p></li>
+<li><p>a two-byte big-endian stage number</p></li>
+<li><p>a four-byte big-endian group number</p></li>
+<li><p>a four-byte big-endian length and data for the SPAKE value</p></li>
+<li><p>a four-byte big-endian length and data for the transcript hash</p></li>
+<li><p>zero or more second factor records, each consisting of:
+- a four-byte big-endian second-factor type
+- a four-byte big-endian length and data</p></li>
+</ul>
+<p>The stage value is 0 if the cookie was sent with a challenge message.
+Otherwise it is 1 for the first encdata message sent by the KDC during
+an exchange, 2 for the second, etc..</p>
+<p>The group value indicates the group number used in the SPAKE challenge.</p>
+<p>For a stage-0 cookie, the SPAKE value is the KDC private key,
+represented in the scalar marshalling form of the group.  For other
+cookies, the SPAKE value is the SPAKE result K, represented in the
+group element marshalling form.</p>
+<p>For a stage-0 cookie, the transcript hash is the intermediate hash
+after updating with the client support message (if one was sent) and
+challenge.  For other cookies it is the final hash.</p>
+<p>For a stage-0 cookie, there may be any number of second-factor
+records, including none; a second-factor type need not create a state
+field if it does not need one, and no record is created for SF-NONE.
+For other cookies, there must be exactly one second-factor record
+corresponding to the factor type chosen by the client.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">KDC cookie format</a><ul>
+<li><a class="reference internal" href="#trivial-cookie-version-0">Trivial cookie (version 0)</a></li>
+<li><a class="reference internal" href="#secure-cookie-version-1">Secure cookie (version 1)</a></li>
+<li><a class="reference internal" href="#spake-cookie-format-version-1">SPAKE cookie format (version 1)</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Protocols and file formats</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ccache_file_format.html">Credential cache file format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="keytab_file_format.html">Keytab file format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rcache_file_format.html">Replay cache file format</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">KDC cookie format</a></li>
+<li class="toctree-l2"><a class="reference internal" href="freshness_token.html">PKINIT freshness tokens</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="rcache_file_format.html" title="Replay cache file format"
+            >previous</a> |
+        <a href="freshness_token.html" title="PKINIT freshness tokens"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__KDC cookie format">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

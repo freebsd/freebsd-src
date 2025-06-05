@@ -1,0 +1,86 @@
+# 
+# Generated makefile dependencies follow.
+#
+ccapi_ccache.so ccapi_ccache.po $(OUTPRE)ccapi_ccache.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  $(top_srcdir)/include/CredentialsCache2.h $(top_srcdir)/include/k5-ipc_stream.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(srcdir)/../common/cci_common.h $(srcdir)/../common/cci_cred_union.h \
+  $(srcdir)/../common/cci_debugging.h $(srcdir)/../common/cci_identifier.h \
+  $(srcdir)/../common/cci_message.h $(srcdir)/../common/cci_types.h \
+  ccapi_ccache.c ccapi_ccache.h ccapi_credentials.h ccapi_credentials_iterator.h \
+  ccapi_ipc.h ccapi_string.h
+ccapi_ccache_iterator.so ccapi_ccache_iterator.po $(OUTPRE)ccapi_ccache_iterator.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  $(top_srcdir)/include/CredentialsCache2.h $(top_srcdir)/include/k5-ipc_stream.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(srcdir)/../common/cci_common.h $(srcdir)/../common/cci_cred_union.h \
+  $(srcdir)/../common/cci_debugging.h $(srcdir)/../common/cci_identifier.h \
+  $(srcdir)/../common/cci_message.h $(srcdir)/../common/cci_types.h \
+  ccapi_ccache.h ccapi_ccache_iterator.c ccapi_ccache_iterator.h \
+  ccapi_ipc.h
+ccapi_context.so ccapi_context.po $(OUTPRE)ccapi_context.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  $(top_srcdir)/include/CredentialsCache2.h $(top_srcdir)/include/k5-ipc_stream.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(srcdir)/../common/cci_common.h $(srcdir)/../common/cci_cred_union.h \
+  $(srcdir)/../common/cci_debugging.h $(srcdir)/../common/cci_identifier.h \
+  $(srcdir)/../common/cci_message.h $(srcdir)/../common/cci_types.h \
+  ccapi_ccache.h ccapi_ccache_iterator.h ccapi_context.c \
+  ccapi_context.h ccapi_context_change_time.h ccapi_err.h \
+  ccapi_ipc.h ccapi_string.h
+ccapi_context_change_time.so ccapi_context_change_time.po \
+  $(OUTPRE)ccapi_context_change_time.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  $(top_srcdir)/include/CredentialsCache2.h $(top_srcdir)/include/k5-ipc_stream.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(srcdir)/../common/cci_common.h $(srcdir)/../common/cci_cred_union.h \
+  $(srcdir)/../common/cci_debugging.h $(srcdir)/../common/cci_identifier.h \
+  $(srcdir)/../common/cci_message.h $(srcdir)/../common/cci_types.h \
+  ccapi_context_change_time.c ccapi_context_change_time.h
+ccapi_credentials.so ccapi_credentials.po $(OUTPRE)ccapi_credentials.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  $(top_srcdir)/include/CredentialsCache2.h $(top_srcdir)/include/k5-ipc_stream.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(srcdir)/../common/cci_common.h $(srcdir)/../common/cci_cred_union.h \
+  $(srcdir)/../common/cci_debugging.h $(srcdir)/../common/cci_identifier.h \
+  $(srcdir)/../common/cci_message.h $(srcdir)/../common/cci_types.h \
+  ccapi_credentials.c ccapi_credentials.h ccapi_string.h
+ccapi_credentials_iterator.so ccapi_credentials_iterator.po \
+  $(OUTPRE)ccapi_credentials_iterator.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  $(top_srcdir)/include/CredentialsCache2.h $(top_srcdir)/include/k5-ipc_stream.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(srcdir)/../common/cci_common.h $(srcdir)/../common/cci_cred_union.h \
+  $(srcdir)/../common/cci_debugging.h $(srcdir)/../common/cci_identifier.h \
+  $(srcdir)/../common/cci_message.h $(srcdir)/../common/cci_types.h \
+  ccapi_credentials.h ccapi_credentials_iterator.c ccapi_credentials_iterator.h \
+  ccapi_ipc.h
+ccapi_err.so ccapi_err.po $(OUTPRE)ccapi_err.$(OBJEXT): \
+  $(COM_ERR_DEPS) ccapi_err.c
+ccapi_ipc.so ccapi_ipc.po $(OUTPRE)ccapi_ipc.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  $(top_srcdir)/include/CredentialsCache2.h $(top_srcdir)/include/k5-ipc_stream.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(srcdir)/../common/cci_common.h $(srcdir)/../common/cci_cred_union.h \
+  $(srcdir)/../common/cci_debugging.h $(srcdir)/../common/cci_identifier.h \
+  $(srcdir)/../common/cci_message.h $(srcdir)/../common/cci_types.h \
+  ccapi_ipc.c ccapi_ipc.h ccapi_os_ipc.h
+ccapi_string.so ccapi_string.po $(OUTPRE)ccapi_string.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  $(top_srcdir)/include/CredentialsCache2.h $(top_srcdir)/include/k5-ipc_stream.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(srcdir)/../common/cci_common.h $(srcdir)/../common/cci_cred_union.h \
+  $(srcdir)/../common/cci_debugging.h $(srcdir)/../common/cci_identifier.h \
+  $(srcdir)/../common/cci_message.h $(srcdir)/../common/cci_types.h \
+  ccapi_string.c ccapi_string.h
+ccapi_v2.so ccapi_v2.po $(OUTPRE)ccapi_v2.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(COM_ERR_DEPS) $(top_srcdir)/include/CredentialsCache.h \
+  $(top_srcdir)/include/CredentialsCache2.h $(top_srcdir)/include/k5-ipc_stream.h \
+  $(top_srcdir)/include/k5-platform.h $(top_srcdir)/include/k5-thread.h \
+  $(srcdir)/../common/cci_common.h $(srcdir)/../common/cci_cred_union.h \
+  $(srcdir)/../common/cci_debugging.h $(srcdir)/../common/cci_identifier.h \
+  $(srcdir)/../common/cci_message.h $(srcdir)/../common/cci_types.h \
+  ccapi_ccache.h ccapi_ccache_iterator.h ccapi_context.h \
+  ccapi_credentials.h ccapi_credentials_iterator.h ccapi_string.h \
+  ccapi_v2.c

@@ -1,0 +1,42 @@
+krb5_copy_error_message -  Copy the most recent extended error message from one context to another. 
+====================================================================================================
+
+..
+
+.. c:function:: void krb5_copy_error_message(krb5_context dest_ctx, krb5_context src_ctx)
+
+..
+
+
+:param:
+
+	          **[in]** **dest_ctx** - Library context to copy message to
+
+	          **[in]** **src_ctx** - Library context with current message
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

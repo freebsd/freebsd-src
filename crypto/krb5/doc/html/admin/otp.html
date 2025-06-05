@@ -1,0 +1,241 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>OTP Preauthentication &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="SPAKE Preauthentication" href="spake.html" />
+    <link rel="prev" title="PKINIT configuration" href="pkinit.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="pkinit.html" title="PKINIT configuration"
+            accesskey="P">previous</a> |
+        <a href="spake.html" title="SPAKE Preauthentication"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__OTP Preauthentication">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="otp-preauthentication">
+<span id="otp-preauth"></span><h1>OTP Preauthentication<a class="headerlink" href="#otp-preauthentication" title="Permalink to this headline">¶</a></h1>
+<p>OTP is a preauthentication mechanism for Kerberos 5 which uses One
+Time Passwords (OTP) to authenticate the client to the KDC.  The OTP
+is passed to the KDC over an encrypted FAST channel in clear-text.
+The KDC uses the password along with per-user configuration to proxy
+the request to a third-party RADIUS system.  This enables
+out-of-the-box compatibility with a large number of already widely
+deployed proprietary systems.</p>
+<p>Additionally, our implementation of the OTP system allows for the
+passing of RADIUS requests over a UNIX domain stream socket.  This
+permits the use of a local companion daemon which can handle the
+details of authentication.</p>
+<section id="defining-token-types">
+<h2>Defining token types<a class="headerlink" href="#defining-token-types" title="Permalink to this headline">¶</a></h2>
+<p>Token types are defined in either <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> or
+<a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> according to the following format:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">otp</span><span class="p">]</span>
+    <span class="o">&lt;</span><span class="n">name</span><span class="o">&gt;</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">server</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">host</span><span class="p">:</span><span class="n">port</span> <span class="ow">or</span> <span class="n">filename</span><span class="o">&gt;</span> <span class="p">(</span><span class="n">default</span><span class="p">:</span> <span class="n">see</span> <span class="n">below</span><span class="p">)</span>
+        <span class="n">secret</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">filename</span><span class="o">&gt;</span>
+        <span class="n">timeout</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">integer</span><span class="o">&gt;</span> <span class="p">(</span><span class="n">default</span><span class="p">:</span> <span class="mi">5</span> <span class="p">[</span><span class="n">seconds</span><span class="p">])</span>
+        <span class="n">retries</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">integer</span><span class="o">&gt;</span> <span class="p">(</span><span class="n">default</span><span class="p">:</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">strip_realm</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">boolean</span><span class="o">&gt;</span> <span class="p">(</span><span class="n">default</span><span class="p">:</span> <span class="n">true</span><span class="p">)</span>
+        <span class="n">indicator</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">string</span><span class="o">&gt;</span> <span class="p">(</span><span class="n">default</span><span class="p">:</span> <span class="n">none</span><span class="p">)</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>If the server field begins with ‘/’, it will be interpreted as a UNIX
+socket.  Otherwise, it is assumed to be in the format host:port.  When
+a UNIX domain socket is specified, the secret field is optional and an
+empty secret is used by default.  If the server field is not
+specified, it defaults to <a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">RUNSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code><code class="docutils literal notranslate"><span class="pre">/&lt;name&gt;.socket</span></code>.</p>
+<p>When forwarding the request over RADIUS, by default the principal is
+used in the User-Name attribute of the RADIUS packet.  The strip_realm
+parameter controls whether the principal is forwarded with or without
+the realm portion.</p>
+<p>If an indicator field is present, tickets issued using this token type
+will be annotated with the specified authentication indicator (see
+<a class="reference internal" href="auth_indicator.html#auth-indicator"><span class="std std-ref">Authentication indicators</span></a>).  This key may be specified multiple times to
+add multiple indicators.</p>
+</section>
+<section id="the-default-token-type">
+<h2>The default token type<a class="headerlink" href="#the-default-token-type" title="Permalink to this headline">¶</a></h2>
+<p>A default token type is used internally when no token type is specified for a
+given user.  It is defined as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">otp</span><span class="p">]</span>
+    <span class="n">DEFAULT</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">strip_realm</span> <span class="o">=</span> <span class="n">false</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>The administrator may override the internal <code class="docutils literal notranslate"><span class="pre">DEFAULT</span></code> token type
+simply by defining a configuration with the same name.</p>
+</section>
+<section id="token-instance-configuration">
+<h2>Token instance configuration<a class="headerlink" href="#token-instance-configuration" title="Permalink to this headline">¶</a></h2>
+<p>To enable OTP for a client principal, the administrator must define
+the <strong>otp</strong> string attribute for that principal.  (See
+<a class="reference internal" href="admin_commands/kadmin_local.html#set-string"><span class="std std-ref">set_string</span></a>.)  The <strong>otp</strong> user string is a JSON string of the
+format:</p>
+<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span>[{
+    &quot;type&quot;: <span class="nt">&lt;string&gt;</span>,
+    &quot;username&quot;: <span class="nt">&lt;string&gt;</span>,
+    &quot;indicators&quot;: [<span class="nt">&lt;string&gt;</span>, ...]
+ }, ...]
+</pre></div>
+</div>
+<p>This is an array of token objects.  Both fields of token objects are
+optional.  The <strong>type</strong> field names the token type of this token; if
+not specified, it defaults to <code class="docutils literal notranslate"><span class="pre">DEFAULT</span></code>.  The <strong>username</strong> field
+specifies the value to be sent in the User-Name RADIUS attribute.  If
+not specified, the principal name is sent, with or without realm as
+defined in the token type.  The <strong>indicators</strong> field specifies a list
+of authentication indicators to annotate tickets with, overriding any
+indicators specified in the token type.</p>
+<p>For ease of configuration, an empty array (<code class="docutils literal notranslate"><span class="pre">[]</span></code>) is treated as
+equivalent to one DEFAULT token (<code class="docutils literal notranslate"><span class="pre">[{}]</span></code>).</p>
+</section>
+<section id="other-considerations">
+<h2>Other considerations<a class="headerlink" href="#other-considerations" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li><p>FAST is required for OTP to work.</p></li>
+</ol>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">OTP Preauthentication</a><ul>
+<li><a class="reference internal" href="#defining-token-types">Defining token types</a></li>
+<li><a class="reference internal" href="#the-default-token-type">The default token type</a></li>
+<li><a class="reference internal" href="#token-instance-configuration">Token instance configuration</a></li>
+<li><a class="reference internal" href="#other-considerations">Other considerations</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="pkinit.html" title="PKINIT configuration"
+            >previous</a> |
+        <a href="spake.html" title="SPAKE Preauthentication"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__OTP Preauthentication">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

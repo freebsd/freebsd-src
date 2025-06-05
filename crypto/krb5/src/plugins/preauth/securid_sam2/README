@@ -1,0 +1,17 @@
+SecurID Preauth Support
+
+In order to build this library you will need the RSA 's ACE Agent
+SDK. Set the LDFLAGS and CPPFLAGS environment variables to include the
+appropriate paths for your SDK before running configure. If libaceclnt
+is found then the plugin will be enabled.
+For example:
+
+../src/configure CC='gcc -m32' CFLAGS=-g --prefix=/usr/local/krb5 \
+     --disable-rpath LDFLAGS=-L/home/developer/ace/ACEAgentSDK/lib/lnx \
+    CPPFLAGS=-I/home/developer/ace/ACEAgentSDK/inc
+
+
+Once the plugin is installed, set the requires_preauth and potentially
+requires_hwauth flags for a principal.  Then create principal/SECURID
+as a new principal with a random key. That principal will now require
+SecurID authentication.

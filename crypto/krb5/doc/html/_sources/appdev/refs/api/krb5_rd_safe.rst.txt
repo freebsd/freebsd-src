@@ -1,0 +1,79 @@
+krb5_rd_safe -  Process KRB-SAFE message. 
+==========================================
+
+..
+
+.. c:function:: krb5_error_code krb5_rd_safe(krb5_context context, krb5_auth_context auth_context, const krb5_data * inbuf, krb5_data * userdata_out, krb5_replay_data * rdata_out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **inbuf** - **KRB-SAFE** message to be parsed
+
+	          **[out]** **userdata_out** - Data parsed from **KRB-SAFE** message
+
+	          **[out]** **rdata_out** - Replay data. Specify NULL if not needed
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function parses a **KRB-SAFE** message, verifies its integrity, and stores its data into *userdata_out* .
+
+
+
+If *auth_context* has a remote address set, the address will be used to verify the sender address in the KRB-SAFE message. If *auth_context* has a local address set, it will be used to verify the receiver address in the KRB-SAFE message if the message contains one.
+
+
+
+If the #KRB5_AUTH_CONTEXT_DO_SEQUENCE flag is set in *auth_context* , the sequence number of the KRB-SAFE message is checked against the remote sequence number field of *auth_context* . Otherwise, the sequence number is not used.
+
+
+
+If the #KRB5_AUTH_CONTEXT_DO_TIME flag is set in *auth_context* , then the timestamp in the message is verified to be within the permitted clock skew of the current time, and the message is checked against an in-memory replay cache to detect reflections or replays.
+
+
+
+Use krb5_free_data_contents() to free *userdata_out* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 The *rdata_out* argument is required if the #KRB5_AUTH_CONTEXT_RET_TIME or #KRB5_AUTH_CONTEXT_RET_SEQUENCE flag is set in *auth_context* .
+ 
+
+
+

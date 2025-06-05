@@ -1,0 +1,69 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>Principals</Title>
+</HEAD>
+<BODY>
+<H1> <a name="top">About Principals </a></H1>
+<p>
+Your principal is your Kerberos identity. It is your user name plus the Kerberos <a href="JavaScript:popup.TextPopup(popupRealm, popfont, 9,9,-1,-1)">realm</a> (or Windows domain)  you are part of. For example, if your user name is <span class="typed">jdoe</span> and you are part of the <span class="typed">SALES.WIDGET.COM</span> realm, your principal is <span class="typed">jdoe@SALES.WIDGET.COM.</span>
+</p>
+<table>
+<tr>
+<th id="th2">Learn about...</th>
+<td>
+<ul id="helpul">
+<li><a href=#single-principal>  Using a single principal </a></li>
+<li><a href=#manage-multiple> Multiple principals</a></li>
+<li><a href=#default-principal> Default principal</a></li>
+</td>
+</tr>
+</table>
+<H2><a name="single-principal">Using a Single Principal</a></H2>
+<p>
+If like many users you just have one Kerberos identity, you will have just one principal.
+</p><p>
+In most installations, MIT Kerberos knows your realm, so when you start to enter your principal in the Get Ticket window it will auto-complete the realm for you. If you select the "Remember this principal" checkbox, the next time you get tickets Kerberos will auto-complete your principal as soon as you start to type. </p>
+<p>
+The main window shows your principal, along with information about tickets issued to it. <br>
+   <a href="HTML/View_Tickets.htm"> How to: View Tickets </a>
+</p>
+<p>
+<a href=#top>Back to top</a></p>
+
+<H2><a name="manage-multiple">Multiple principals</a></H2>
+<p>
+Some users have multiple principals. For example, administrators often have one principal with standard access and an administrative principal with administrative access. Also, some Kerberos installations require multiple principals to access multiple realms.
+<br>
+ <a href="HTML/Manage_Multiple_Principals.htm">How to:  Manage Multiple Principals</a> <br> <a href="HTML/Make_Default.htm">How to: Make  Default Principal</a>
+</p>
+<p>
+<a href=#top>Back to top</a></p>
+
+<H2> <a name="default-principal">Default Principal</a></H2>
+<p>
+Your default principal appears in bold font in the main window. If you have a single principal, that principal is always the default. But if you have multiple principals you will need to change the default principal depending on what service or host you need to access. </p>
+<p>
+When you try to use a Kerberized application, the application attempts to authenticate you by requesting your credentials from Kerberos. Some applications do this by asking for a specific principal's credentials, but others ask generically.
+<p>
+When applications make a generic request, Kerberos does not know which of your principals is being authenticated and checks the default principal for tickets. If the default principal is not the correct one, the application will usually simply fail to work with no warning or notice.
+</p>
+<p>
+To set your default principal, select a principal in the main window and then click the Make Default button.<br>
+ <a href="HTML/Make_Default.htm">How to: Make Default Principal </a>
+</p>
+<p>
+<a href=#top>Back to top</a></p>
+<SCRIPT Language=JavaScript>
+popfont="Arial,.725,"
+popupRealm="The Kerberos realm is the group of network resources that you gain access to when you log on with a Kerberos username and password. Often it is named after the DNS domain it corrosponds to. In Windows, realms are called 'domains.' "
+popupKeyboardShortcut="To use a keyboard shortcut, hold down the [Ctrl] key on your computer keyboard and press the appropriate letter.  "
+</SCRIPT>
+
+<OBJECT id=popup type="application/x-oleobject"
+classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11">
+</OBJECT>
+</BODY>
+</HTML>

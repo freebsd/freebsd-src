@@ -1,0 +1,42 @@
+krb5_free_authenticator -  Free a krb5_authenticator structure. 
+================================================================
+
+..
+
+.. c:function:: void krb5_free_authenticator(krb5_context context, krb5_authenticator * val)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **val** - Authenticator structure to be freed
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function frees the contents of *val* and the structure itself.
+
+
+
+
+
+
+..
+
+
+
+
+

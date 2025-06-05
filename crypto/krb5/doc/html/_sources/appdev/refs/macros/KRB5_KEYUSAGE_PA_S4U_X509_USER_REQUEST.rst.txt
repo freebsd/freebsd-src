@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-PA-S4U-X509-USER-REQUEST-data:
+
+KRB5_KEYUSAGE_PA_S4U_X509_USER_REQUEST
+======================================
+
+..
+.. data:: KRB5_KEYUSAGE_PA_S4U_X509_USER_REQUEST
+..
+
+
+
+
+============================================= ======================
+``KRB5_KEYUSAGE_PA_S4U_X509_USER_REQUEST``       ``26``
+============================================= ======================

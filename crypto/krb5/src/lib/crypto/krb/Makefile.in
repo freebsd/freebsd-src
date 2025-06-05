@@ -1,0 +1,188 @@
+mydir=lib$(S)crypto$(S)krb
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR = krb
+##DOS##OBJFILE = ..\$(OUTPRE)krb.lst
+
+STLIBOBJS=\
+	aead.o		 	\
+	block_size.o		\
+	cf2.o 			\
+	checksum_dk_cmac.o	\
+	checksum_dk_hmac.o	\
+	checksum_etm.o		\
+	checksum_hmac_md5.o	\
+	checksum_unkeyed.o	\
+	checksum_length.o	\
+	cksumtype_to_string.o	\
+	cksumtypes.o		\
+	coll_proof_cksum.o	\
+	crypto_length.o		\
+	default_state.o 	\
+	decrypt.o		\
+	decrypt_iov.o		\
+	derive.o		\
+	encrypt.o		\
+	encrypt_iov.o		\
+	encrypt_length.o	\
+	enctype_util.o		\
+	enc_dk_cmac.o		\
+	enc_dk_hmac.o		\
+	enc_etm.o		\
+	enc_raw.o		\
+	enc_rc4.o		\
+	etypes.o		\
+	key.o			\
+	keyblocks.o 		\
+	keyed_cksum.o		\
+	keyed_checksum_types.o	\
+	keylengths.o		\
+	make_checksum.o		\
+	make_checksum_iov.o	\
+	make_random_key.o	\
+	mandatory_sumtype.o	\
+	nfold.o			\
+	old_api_glue.o		\
+	prf.o			\
+	prf_aes2.o		\
+	prf_cmac.o		\
+	prf_des.o		\
+	prf_dk.o		\
+	prf_rc4.o		\
+	prng.o			\
+	random_to_key.o		\
+	s2k_pbkdf2.o		\
+	s2k_rc4.o		\
+	state.o 		\
+	string_to_cksumtype.o	\
+	string_to_key.o		\
+	valid_cksumtype.o	\
+	verify_checksum.o	\
+	verify_checksum_iov.o
+
+OBJS=\
+	$(OUTPRE)aead.$(OBJEXT)		 	\
+	$(OUTPRE)block_size.$(OBJEXT)		\
+	$(OUTPRE)cf2.$(OBJEXT) 			\
+	$(OUTPRE)checksum_dk_cmac.$(OBJEXT)	\
+	$(OUTPRE)checksum_dk_hmac.$(OBJEXT)	\
+	$(OUTPRE)checksum_etm.$(OBJEXT)		\
+	$(OUTPRE)checksum_hmac_md5.$(OBJEXT)	\
+	$(OUTPRE)checksum_unkeyed.$(OBJEXT)	\
+	$(OUTPRE)checksum_length.$(OBJEXT)	\
+	$(OUTPRE)cksumtype_to_string.$(OBJEXT)	\
+	$(OUTPRE)cksumtypes.$(OBJEXT)		\
+	$(OUTPRE)coll_proof_cksum.$(OBJEXT)	\
+	$(OUTPRE)crypto_length.$(OBJEXT)	\
+	$(OUTPRE)default_state.$(OBJEXT) 	\
+	$(OUTPRE)decrypt.$(OBJEXT)		\
+	$(OUTPRE)decrypt_iov.$(OBJEXT)		\
+	$(OUTPRE)derive.$(OBJEXT)		\
+	$(OUTPRE)encrypt.$(OBJEXT)		\
+	$(OUTPRE)encrypt_iov.$(OBJEXT)		\
+	$(OUTPRE)encrypt_length.$(OBJEXT)	\
+	$(OUTPRE)enctype_util.$(OBJEXT)		\
+	$(OUTPRE)enc_dk_cmac.$(OBJEXT)		\
+	$(OUTPRE)enc_dk_hmac.$(OBJEXT)		\
+	$(OUTPRE)enc_etm.$(OBJEXT)		\
+	$(OUTPRE)enc_raw.$(OBJEXT)		\
+	$(OUTPRE)enc_rc4.$(OBJEXT)		\
+	$(OUTPRE)etypes.$(OBJEXT)		\
+	$(OUTPRE)key.$(OBJEXT)			\
+	$(OUTPRE)keyblocks.$(OBJEXT) 		\
+	$(OUTPRE)keyed_cksum.$(OBJEXT)		\
+	$(OUTPRE)keyed_checksum_types.$(OBJEXT)	\
+	$(OUTPRE)keylengths.$(OBJEXT)		\
+	$(OUTPRE)make_checksum.$(OBJEXT)	\
+	$(OUTPRE)make_checksum_iov.$(OBJEXT)	\
+	$(OUTPRE)make_random_key.$(OBJEXT)	\
+	$(OUTPRE)mandatory_sumtype.$(OBJEXT)	\
+	$(OUTPRE)nfold.$(OBJEXT)		\
+	$(OUTPRE)old_api_glue.$(OBJEXT)		\
+	$(OUTPRE)prf.$(OBJEXT)			\
+	$(OUTPRE)prf_aes2.$(OBJEXT)		\
+	$(OUTPRE)prf_cmac.$(OBJEXT)		\
+	$(OUTPRE)prf_des.$(OBJEXT)		\
+	$(OUTPRE)prf_dk.$(OBJEXT)		\
+	$(OUTPRE)prf_rc4.$(OBJEXT)		\
+	$(OUTPRE)prng.$(OBJEXT)			\
+	$(OUTPRE)random_to_key.$(OBJEXT)	\
+	$(OUTPRE)s2k_pbkdf2.$(OBJEXT)		\
+	$(OUTPRE)s2k_rc4.$(OBJEXT)		\
+	$(OUTPRE)state.$(OBJEXT) 		\
+	$(OUTPRE)string_to_cksumtype.$(OBJEXT)	\
+	$(OUTPRE)string_to_key.$(OBJEXT)	\
+	$(OUTPRE)valid_cksumtype.$(OBJEXT)	\
+	$(OUTPRE)verify_checksum.$(OBJEXT)	\
+	$(OUTPRE)verify_checksum_iov.$(OBJEXT)
+
+SRCS=\
+	$(srcdir)/aead.c		\
+	$(srcdir)/block_size.c		\
+	$(srcdir)/cf2.c 			\
+	$(srcdir)/checksum_dk_cmac.c	\
+	$(srcdir)/checksum_dk_hmac.c	\
+	$(srcdir)/checksum_etm.c	\
+	$(srcdir)/checksum_hmac_md5.c	\
+	$(srcdir)/checksum_unkeyed.c	\
+	$(srcdir)/checksum_length.c	\
+	$(srcdir)/cksumtype_to_string.c	\
+	$(srcdir)/cksumtypes.c		\
+	$(srcdir)/coll_proof_cksum.c	\
+	$(srcdir)/crypto_length.c	\
+	$(srcdir)/default_state.c 	\
+	$(srcdir)/decrypt.c		\
+	$(srcdir)/decrypt_iov.c		\
+	$(srcdir)/derive.c		\
+	$(srcdir)/encrypt.c		\
+	$(srcdir)/encrypt_iov.c		\
+	$(srcdir)/encrypt_length.c	\
+	$(srcdir)/enctype_util.c	\
+	$(srcdir)/enc_dk_cmac.c		\
+	$(srcdir)/enc_dk_hmac.c		\
+	$(srcdir)/enc_etm.c		\
+	$(srcdir)/enc_raw.c		\
+	$(srcdir)/enc_rc4.c		\
+	$(srcdir)/etypes.c		\
+	$(srcdir)/key.c			\
+	$(srcdir)/keyblocks.c 		\
+	$(srcdir)/keyed_cksum.c		\
+	$(srcdir)/keyed_checksum_types.c\
+	$(srcdir)/keylengths.c		\
+	$(srcdir)/make_checksum.c	\
+	$(srcdir)/make_checksum_iov.c	\
+	$(srcdir)/make_random_key.c	\
+	$(srcdir)/mandatory_sumtype.c	\
+	$(srcdir)/nfold.c		\
+	$(srcdir)/old_api_glue.c	\
+	$(srcdir)/prf.c			\
+	$(srcdir)/prf_aes2.c		\
+	$(srcdir)/prf_cmac.c		\
+	$(srcdir)/prf_des.c		\
+	$(srcdir)/prf_dk.c		\
+	$(srcdir)/prf_rc4.c		\
+	$(srcdir)/prng.c 		\
+	$(srcdir)/cf2.c 		\
+	$(srcdir)/random_to_key.c	\
+	$(srcdir)/s2k_pbkdf2.c		\
+	$(srcdir)/s2k_rc4.c		\
+	$(srcdir)/state.c 		\
+	$(srcdir)/string_to_cksumtype.c	\
+	$(srcdir)/string_to_key.c	\
+	$(srcdir)/valid_cksumtype.c	\
+	$(srcdir)/verify_checksum.c	\
+	$(srcdir)/verify_checksum_iov.c
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+includes: depend
+
+depend: $(SRCS)
+
+clean-unix:: clean-libobjs
+
+@lib_frag@
+@libobj_frag@
+

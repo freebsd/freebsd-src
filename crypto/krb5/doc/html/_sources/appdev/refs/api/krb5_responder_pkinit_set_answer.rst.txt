@@ -1,0 +1,50 @@
+krb5_responder_pkinit_set_answer -  Answer the KRB5_RESPONDER_QUESTION_PKINIT question for one identity. 
+=========================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_responder_pkinit_set_answer(krb5_context ctx, krb5_responder_context rctx, const char * identity, const char * pin)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **rctx** - Responder context
+
+	          **[in]** **identity** - The identity for which a PIN is being supplied
+
+	          **[in]** **pin** - The provided PIN, or NULL for none
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.12
+ 
+

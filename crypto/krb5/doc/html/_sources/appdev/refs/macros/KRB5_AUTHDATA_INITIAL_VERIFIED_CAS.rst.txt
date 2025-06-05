@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-AUTHDATA-INITIAL-VERIFIED-CAS-data:
+
+KRB5_AUTHDATA_INITIAL_VERIFIED_CAS
+==================================
+
+..
+.. data:: KRB5_AUTHDATA_INITIAL_VERIFIED_CAS
+..
+
+
+
+
+========================================= ======================
+``KRB5_AUTHDATA_INITIAL_VERIFIED_CAS``       ``9``
+========================================= ======================

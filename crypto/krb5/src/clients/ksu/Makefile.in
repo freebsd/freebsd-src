@@ -1,0 +1,35 @@
+mydir=clients$(S)ksu
+BUILDTOP=$(REL)..$(S)..
+DEFINES = -DGET_TGT_VIA_PASSWD -DPRINC_LOOK_AHEAD -DCMD_PATH='"/usr/local/sbin /usr/local/bin /sbin /bin /usr/sbin /usr/bin"'
+
+KSU_LIBS=@KSU_LIBS@
+
+SRCS = \
+	$(srcdir)/krb_auth_su.c \
+	$(srcdir)/ccache.c \
+	$(srcdir)/authorization.c \
+	$(srcdir)/main.c \
+	$(srcdir)/heuristic.c \
+	$(srcdir)/xmalloc.c \
+	$(srcdir)/setenv.c
+OBJS = \
+	krb_auth_su.o \
+	ccache.o \
+	authorization.o \
+	main.o \
+	heuristic.o \
+	xmalloc.o @SETENVOBJ@
+
+all: ksu
+
+ksu: $(OBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ $(OBJS) $(KRB5_BASE_LIBS) $(KSU_LIBS)
+
+clean:
+	$(RM) ksu
+
+install:
+	-for f in ksu; do \
+	  $(INSTALL_SETUID) $$f \
+		$(DESTDIR)$(CLIENT_BINDIR)/`echo $$f|sed '$(transform)'`; \
+	done

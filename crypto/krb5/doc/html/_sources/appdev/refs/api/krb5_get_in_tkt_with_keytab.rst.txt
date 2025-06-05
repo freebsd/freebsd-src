@@ -1,0 +1,58 @@
+krb5_get_in_tkt_with_keytab
+===========================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_in_tkt_with_keytab(krb5_context context, krb5_flags options, krb5_address *const * addrs, krb5_enctype * ktypes, krb5_preauthtype * pre_auth_types, krb5_keytab arg_keytab, krb5_ccache ccache, krb5_creds * creds, krb5_kdc_rep ** ret_as_reply)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **options**
+
+	          **addrs**
+
+	          **ktypes**
+
+	          **pre_auth_types**
+
+	          **arg_keytab**
+
+	          **ccache**
+
+	          **creds**
+
+	          **ret_as_reply**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Replaced by krb5_get_init_creds_keytab(). 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

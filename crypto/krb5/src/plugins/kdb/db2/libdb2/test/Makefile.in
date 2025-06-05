@@ -1,0 +1,37 @@
+mydir=plugins$(S)kdb$(S)db2$(S)libdb2$(S)test
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..$(S)..
+
+FCTSH = @FCTSH@
+TMPDIR=.
+
+LOCALINCLUDES=	-I. -I$(srcdir)/../include -I../include -I$(srcdir)/../mpool \
+		-I$(srcdir)/../btree -I$(srcdir)/../hash -I$(srcdir)/../db
+
+PROG_LIBPATH=-L.. -L$(TOPLIBD)
+
+DB_LIB		= -ldb $(SUPPORT_LIB)
+DB_DEPLIB	= ../libdb$(DEPLIBEXT) $(SUPPORT_DEPLIB)
+
+all:
+
+dbtest: dbtest.o $(DB_DEPLIB)
+	$(CC_LINK) -o $@ dbtest.o $(STRERROR_OBJ) $(DB_LIB)
+
+t.be.db: $(srcdir)/t.be.txt
+t.le.db: $(srcdir)/t.le.txt
+t.be.db t.le.db:
+	$(PERL) -ne 'chomp; print pack("H*", $$_);' $? > $@
+
+check: dbtest t.be.db t.le.db runenv.sh
+	$(RUN_SETUP) srcdir=$(srcdir) TMPDIR=$(TMPDIR) $(VALGRIND) $(FCTSH) $(srcdir)/run.test
+
+bttest.o: $(srcdir)/btree.tests/main.c
+	$(CC) $(ALL_CFLAGS) -c $(srcdir)/btree.tests/main.c -o $@
+
+bttest: bttest.o $(DB_DEPLIB)
+	$(CC_LINK) -o $@ bttest.o $(STRERROR_OBJ) $(DB_LIB)
+
+clean-unix::
+	$(RM) dbtest.o dbtest __dbtest
+	$(RM) bttest.o bttest
+	$(RM) t.be.db t.le.db

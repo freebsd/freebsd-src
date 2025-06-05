@@ -1,0 +1,80 @@
+.. highlight:: c
+
+.. _krb5-get-init-creds-opt-struct:
+
+krb5_get_init_creds_opt
+=======================
+
+..
+.. c:type:: krb5_get_init_creds_opt
+..
+
+Store options for *_krb5_get_init_creds* .
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_get_init_creds_opt krb5_get_init_creds_opt
+
+
+Members
+---------
+
+
+.. c:member:: krb5_flags	krb5_get_init_creds_opt.flags
+
+                                             
+                                             
+
+.. c:member:: krb5_deltat	krb5_get_init_creds_opt.tkt_life
+
+                                             
+                                             
+
+.. c:member:: krb5_deltat	krb5_get_init_creds_opt.renew_life
+
+                                             
+                                             
+
+.. c:member:: int	krb5_get_init_creds_opt.forwardable
+
+                                             
+                                             
+
+.. c:member:: int	krb5_get_init_creds_opt.proxiable
+
+                                             
+                                             
+
+.. c:member:: krb5_enctype *	krb5_get_init_creds_opt.etype_list
+
+                                             
+                                             
+
+.. c:member:: int	krb5_get_init_creds_opt.etype_list_length
+
+                                             
+                                             
+
+.. c:member:: krb5_address  **	krb5_get_init_creds_opt.address_list
+
+                                             
+                                             
+
+.. c:member:: krb5_preauthtype *	krb5_get_init_creds_opt.preauth_list
+
+                                             
+                                             
+
+.. c:member:: int	krb5_get_init_creds_opt.preauth_list_length
+
+                                             
+                                             
+
+.. c:member:: krb5_data  *	krb5_get_init_creds_opt.salt
+
+                                             
+                                             
+

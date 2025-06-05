@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-keytab-struct:
+
+krb5_keytab
+===========
+
+..
+.. c:type:: krb5_keytab
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_kt\* krb5_keytab
+
+
