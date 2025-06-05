@@ -443,11 +443,6 @@ retry:
 	if (err == EWOULDBLOCK) {
 		SDT_PROBE2(fusefs, , ipc, trace, 3,
 			"fticket_wait_answer: EWOULDBLOCK");
-#ifdef XXXIP				/* die conditionally */
-		if (!fdata_get_dead(data)) {
-			fdata_set_dead(data);
-		}
-#endif
 		err = ETIMEDOUT;
 		fticket_set_answered(ftick);
 	} else if ((err == EINTR || err == ERESTART)) {

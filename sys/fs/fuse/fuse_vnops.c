@@ -1936,10 +1936,8 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
 	}
-	if (				/* XXXIP ((uio_iovcnt(uio) > 1)) || */
-	    (uio_resid(uio) < sizeof(struct dirent))) {
+	if (uio_resid(uio) < sizeof(struct dirent))
 		return EINVAL;
-	}
 
 	tresid = uio->uio_resid;
 	err = fuse_filehandle_get_dir(vp, &fufh, cred, pid);
