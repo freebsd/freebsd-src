@@ -65,8 +65,6 @@ LIBADD+=	ldns
 CFLAGS+= -D_PATH_SSH_ASKPASS_DEFAULT='"${LOCALBASE}/bin/ssh-askpass"'
 .endif
 
-NO_LINT=
-
 LIBADD+=	crypto crypt z
 
 .include <bsd.lib.mk>
