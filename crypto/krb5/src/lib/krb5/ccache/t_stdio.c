@@ -27,6 +27,7 @@
 #include "scc.h"
 
 krb5_data client1 = {
+    0,
 #define DATA "client1-comp1"
     sizeof(DATA),
     DATA,
@@ -34,6 +35,7 @@ krb5_data client1 = {
 };
 
 krb5_data client2 = {
+    0,
 #define DATA "client1-comp2"
     sizeof(DATA),
     DATA,
@@ -41,6 +43,7 @@ krb5_data client2 = {
 };
 
 krb5_data server1 = {
+    0,
 #define DATA "server1-comp1"
     sizeof(DATA),
     DATA,
@@ -48,6 +51,7 @@ krb5_data server1 = {
 };
 
 krb5_data server2 = {
+    0,
 #define DATA "server1-comp2"
     sizeof(DATA),
     DATA,
