@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 3, 2024
+.Dd June 5, 2025
 .Dt CAPSICUM 4
 .Os
 .Sh NAME
@@ -100,6 +100,20 @@ restrict access to global namespaces:
 .It process IDs
 Processes can only act upon their own process ID with syscalls such as
 .Xr cpuset_setaffinity 2 .
+.El
+.Pp
+.Fx
+provides some additional functionality to support application sandboxing that
+is not part of
+.Nm
+itself:
+.Bl -tag -width indent
+.It Xr capsicum_helpers 3
+A set of a inline functions which simplify modifying programs to use
+.Nm .
+.It Xr libcasper 3
+A library that provides services for sandboxed applications, such as operating
+on files specified on a command line or establishing network connections.
 .El
 .Sh SEE ALSO
 .Xr cap_enter 2 ,
