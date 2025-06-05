@@ -36,8 +36,6 @@
 #include <dev/nvme/nvme.h>
 
 #ifdef _KERNEL
-/* XXX: This duplicates lists in nvme_qpair.c. */
-
 #define OPC_ENTRY(x)		[NVME_OPC_ ## x] = #x
 
 static const char *admin_opcode[256] = {
@@ -211,13 +209,13 @@ nvme_opcode_sbuf(bool admin, uint8_t opc, struct sbuf *sb)
 		type = "NVM";
 	}
 	if (s == NULL)
-		sbuf_printf(sb, "%s:0x%02x", type, opc);
+		sbuf_printf(sb, "%s (%02x)", type, opc);
 	else
 		sbuf_printf(sb, "%s", s);
 }
 
 void
-nvme_cpl_sbuf(const struct nvme_completion *cpl, struct sbuf *sb)
+nvme_sc_sbuf(const struct nvme_completion *cpl, struct sbuf *sb)
 {
 	const char *s, *type;
 	uint16_t status;
@@ -245,15 +243,27 @@ nvme_cpl_sbuf(const struct nvme_completion *cpl, struct sbuf *sb)
 		type = "VENDOR SPECIFIC";
 		break;
 	default:
-		s = "RESERVED";
+		s = NULL;
 		type = NULL;
 		break;
 	}
 
-	if (s == NULL)
-		sbuf_printf(sb, "%s:0x%02x", type, NVME_STATUS_GET_SC(status));
+	if (type == NULL)
+		sbuf_printf(sb, "RESERVED (%02x/%02x)",
+		    NVME_STATUS_GET_SCT(status), NVME_STATUS_GET_SC(status));
+	else if (s == NULL)
+		sbuf_printf(sb, "%s (%02x)", type, NVME_STATUS_GET_SC(status));
 	else
 		sbuf_printf(sb, "%s", s);
+}
+
+void
+nvme_cpl_sbuf(const struct nvme_completion *cpl, struct sbuf *sb)
+{
+	uint16_t status;
+
+	status = le16toh(cpl->status);
+	nvme_sc_sbuf(cpl, sb);
 	if (NVME_STATUS_GET_M(status) != 0)
 		sbuf_printf(sb, " M");
 	if (NVME_STATUS_GET_DNR(status) != 0)

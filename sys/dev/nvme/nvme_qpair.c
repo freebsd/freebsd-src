@@ -31,6 +31,7 @@
 #include <sys/conf.h>
 #include <sys/domainset.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 
 #include <dev/pci/pcivar.h>
 
@@ -43,96 +44,36 @@ static void	_nvme_qpair_submit_request(struct nvme_qpair *qpair,
 					   struct nvme_request *req);
 static void	nvme_qpair_destroy(struct nvme_qpair *qpair);
 
-#define DEFAULT_INDEX	256
-#define DEFAULT_ENTRY(x)	[DEFAULT_INDEX] = x
-#define OPC_ENTRY(x)		[NVME_OPC_ ## x] = #x
-
-static const char *admin_opcode[DEFAULT_INDEX + 1] = {
-	OPC_ENTRY(DELETE_IO_SQ),
-	OPC_ENTRY(CREATE_IO_SQ),
-	OPC_ENTRY(GET_LOG_PAGE),
-	OPC_ENTRY(DELETE_IO_CQ),
-	OPC_ENTRY(CREATE_IO_CQ),
-	OPC_ENTRY(IDENTIFY),
-	OPC_ENTRY(ABORT),
-	OPC_ENTRY(SET_FEATURES),
-	OPC_ENTRY(GET_FEATURES),
-	OPC_ENTRY(ASYNC_EVENT_REQUEST),
-	OPC_ENTRY(NAMESPACE_MANAGEMENT),
-	OPC_ENTRY(FIRMWARE_ACTIVATE),
-	OPC_ENTRY(FIRMWARE_IMAGE_DOWNLOAD),
-	OPC_ENTRY(DEVICE_SELF_TEST),
-	OPC_ENTRY(NAMESPACE_ATTACHMENT),
-	OPC_ENTRY(KEEP_ALIVE),
-	OPC_ENTRY(DIRECTIVE_SEND),
-	OPC_ENTRY(DIRECTIVE_RECEIVE),
-	OPC_ENTRY(VIRTUALIZATION_MANAGEMENT),
-	OPC_ENTRY(NVME_MI_SEND),
-	OPC_ENTRY(NVME_MI_RECEIVE),
-	OPC_ENTRY(CAPACITY_MANAGEMENT),
-	OPC_ENTRY(LOCKDOWN),
-	OPC_ENTRY(DOORBELL_BUFFER_CONFIG),
-	OPC_ENTRY(FABRICS_COMMANDS),
-	OPC_ENTRY(FORMAT_NVM),
-	OPC_ENTRY(SECURITY_SEND),
-	OPC_ENTRY(SECURITY_RECEIVE),
-	OPC_ENTRY(SANITIZE),
-	OPC_ENTRY(GET_LBA_STATUS),
-	DEFAULT_ENTRY("ADMIN COMMAND"),
-};
-
-static const char *io_opcode[DEFAULT_INDEX + 1] = {
-	OPC_ENTRY(FLUSH),
-	OPC_ENTRY(WRITE),
-	OPC_ENTRY(READ),
-	OPC_ENTRY(WRITE_UNCORRECTABLE),
-	OPC_ENTRY(COMPARE),
-	OPC_ENTRY(WRITE_ZEROES),
-	OPC_ENTRY(DATASET_MANAGEMENT),
-	OPC_ENTRY(VERIFY),
-	OPC_ENTRY(RESERVATION_REGISTER),
-	OPC_ENTRY(RESERVATION_REPORT),
-	OPC_ENTRY(RESERVATION_ACQUIRE),
-	OPC_ENTRY(RESERVATION_RELEASE),
-	OPC_ENTRY(COPY),
-	DEFAULT_ENTRY("IO COMMAND"),
-};
-
 static const char *
-get_opcode_string(const char *op[DEFAULT_INDEX + 1], uint16_t opc)
+get_opcode_string(bool admin, uint8_t opc, char *buf, size_t len)
 {
-	const char *nm = opc < DEFAULT_INDEX ? op[opc] : op[DEFAULT_INDEX];
+	struct sbuf sb;
 
-	return (nm != NULL ? nm : op[DEFAULT_INDEX]);
-}
-
-static const char *
-get_admin_opcode_string(uint16_t opc)
-{
-	return (get_opcode_string(admin_opcode, opc));
-}
-
-static const char *
-get_io_opcode_string(uint16_t opc)
-{
-	return (get_opcode_string(io_opcode, opc));
+	sbuf_new(&sb, buf, len, SBUF_FIXEDLEN);
+	nvme_opcode_sbuf(admin, opc, &sb);
+	if (sbuf_finish(&sb) != 0)
+		return ("");
+	return (buf);
 }
 
 static void
 nvme_admin_qpair_print_command(struct nvme_qpair *qpair,
     struct nvme_command *cmd)
 {
+	char buf[64];
 
-	nvme_printf(qpair->ctrlr, "%s (%02x) sqid:%d cid:%d nsid:%x "
+	nvme_printf(qpair->ctrlr, "%s sqid:%d cid:%d nsid:%x "
 	    "cdw10:%08x cdw11:%08x\n",
-	    get_admin_opcode_string(cmd->opc), cmd->opc, qpair->id, cmd->cid,
-	    le32toh(cmd->nsid), le32toh(cmd->cdw10), le32toh(cmd->cdw11));
+	    get_opcode_string(true, cmd->opc, buf, sizeof(buf)), qpair->id,
+	    cmd->cid, le32toh(cmd->nsid), le32toh(cmd->cdw10),
+	    le32toh(cmd->cdw11));
 }
 
 static void
 nvme_io_qpair_print_command(struct nvme_qpair *qpair,
     struct nvme_command *cmd)
 {
+	char buf[64];
 
 	switch (cmd->opc) {
 	case NVME_OPC_WRITE:
@@ -143,23 +84,15 @@ nvme_io_qpair_print_command(struct nvme_qpair *qpair,
 	case NVME_OPC_VERIFY:
 		nvme_printf(qpair->ctrlr, "%s sqid:%d cid:%d nsid:%d "
 		    "lba:%llu len:%d\n",
-		    get_io_opcode_string(cmd->opc), qpair->id, cmd->cid, le32toh(cmd->nsid),
+		    get_opcode_string(false, cmd->opc, buf, sizeof(buf)),
+		    qpair->id, cmd->cid, le32toh(cmd->nsid),
 		    ((unsigned long long)le32toh(cmd->cdw11) << 32) + le32toh(cmd->cdw10),
 		    (le32toh(cmd->cdw12) & 0xFFFF) + 1);
 		break;
-	case NVME_OPC_FLUSH:
-	case NVME_OPC_DATASET_MANAGEMENT:
-	case NVME_OPC_RESERVATION_REGISTER:
-	case NVME_OPC_RESERVATION_REPORT:
-	case NVME_OPC_RESERVATION_ACQUIRE:
-	case NVME_OPC_RESERVATION_RELEASE:
-		nvme_printf(qpair->ctrlr, "%s sqid:%d cid:%d nsid:%d\n",
-		    get_io_opcode_string(cmd->opc), qpair->id, cmd->cid, le32toh(cmd->nsid));
-		break;
 	default:
-		nvme_printf(qpair->ctrlr, "%s (%02x) sqid:%d cid:%d nsid:%d\n",
-		    get_io_opcode_string(cmd->opc), cmd->opc, qpair->id,
-		    cmd->cid, le32toh(cmd->nsid));
+		nvme_printf(qpair->ctrlr, "%s sqid:%d cid:%d nsid:%d\n",
+		    get_opcode_string(false, cmd->opc, buf, sizeof(buf)),
+		    qpair->id, cmd->cid, le32toh(cmd->nsid));
 		break;
 	}
 }
@@ -183,170 +116,33 @@ nvme_qpair_print_command(struct nvme_qpair *qpair, struct nvme_command *cmd)
 	}
 }
 
-struct nvme_status_string {
-	uint16_t	sc;
-	const char *	str;
-};
-
-static struct nvme_status_string generic_status[] = {
-	{ NVME_SC_SUCCESS, "SUCCESS" },
-	{ NVME_SC_INVALID_OPCODE, "INVALID OPCODE" },
-	{ NVME_SC_INVALID_FIELD, "INVALID_FIELD" },
-	{ NVME_SC_COMMAND_ID_CONFLICT, "COMMAND ID CONFLICT" },
-	{ NVME_SC_DATA_TRANSFER_ERROR, "DATA TRANSFER ERROR" },
-	{ NVME_SC_ABORTED_POWER_LOSS, "ABORTED - POWER LOSS" },
-	{ NVME_SC_INTERNAL_DEVICE_ERROR, "INTERNAL DEVICE ERROR" },
-	{ NVME_SC_ABORTED_BY_REQUEST, "ABORTED - BY REQUEST" },
-	{ NVME_SC_ABORTED_SQ_DELETION, "ABORTED - SQ DELETION" },
-	{ NVME_SC_ABORTED_FAILED_FUSED, "ABORTED - FAILED FUSED" },
-	{ NVME_SC_ABORTED_MISSING_FUSED, "ABORTED - MISSING FUSED" },
-	{ NVME_SC_INVALID_NAMESPACE_OR_FORMAT, "INVALID NAMESPACE OR FORMAT" },
-	{ NVME_SC_COMMAND_SEQUENCE_ERROR, "COMMAND SEQUENCE ERROR" },
-	{ NVME_SC_INVALID_SGL_SEGMENT_DESCR, "INVALID SGL SEGMENT DESCRIPTOR" },
-	{ NVME_SC_INVALID_NUMBER_OF_SGL_DESCR, "INVALID NUMBER OF SGL DESCRIPTORS" },
-	{ NVME_SC_DATA_SGL_LENGTH_INVALID, "DATA SGL LENGTH INVALID" },
-	{ NVME_SC_METADATA_SGL_LENGTH_INVALID, "METADATA SGL LENGTH INVALID" },
-	{ NVME_SC_SGL_DESCRIPTOR_TYPE_INVALID, "SGL DESCRIPTOR TYPE INVALID" },
-	{ NVME_SC_INVALID_USE_OF_CMB, "INVALID USE OF CONTROLLER MEMORY BUFFER" },
-	{ NVME_SC_PRP_OFFET_INVALID, "PRP OFFET INVALID" },
-	{ NVME_SC_ATOMIC_WRITE_UNIT_EXCEEDED, "ATOMIC WRITE UNIT EXCEEDED" },
-	{ NVME_SC_OPERATION_DENIED, "OPERATION DENIED" },
-	{ NVME_SC_SGL_OFFSET_INVALID, "SGL OFFSET INVALID" },
-	{ NVME_SC_HOST_ID_INCONSISTENT_FORMAT, "HOST IDENTIFIER INCONSISTENT FORMAT" },
-	{ NVME_SC_KEEP_ALIVE_TIMEOUT_EXPIRED, "KEEP ALIVE TIMEOUT EXPIRED" },
-	{ NVME_SC_KEEP_ALIVE_TIMEOUT_INVALID, "KEEP ALIVE TIMEOUT INVALID" },
-	{ NVME_SC_ABORTED_DUE_TO_PREEMPT, "COMMAND ABORTED DUE TO PREEMPT AND ABORT" },
-	{ NVME_SC_SANITIZE_FAILED, "SANITIZE FAILED" },
-	{ NVME_SC_SANITIZE_IN_PROGRESS, "SANITIZE IN PROGRESS" },
-	{ NVME_SC_SGL_DATA_BLOCK_GRAN_INVALID, "SGL_DATA_BLOCK_GRANULARITY_INVALID" },
-	{ NVME_SC_NOT_SUPPORTED_IN_CMB, "COMMAND NOT SUPPORTED FOR QUEUE IN CMB" },
-	{ NVME_SC_NAMESPACE_IS_WRITE_PROTECTED, "NAMESPACE IS WRITE PROTECTED" },
-	{ NVME_SC_COMMAND_INTERRUPTED, "COMMAND INTERRUPTED" },
-	{ NVME_SC_TRANSIENT_TRANSPORT_ERROR, "TRANSIENT TRANSPORT ERROR" },
-
-	{ NVME_SC_LBA_OUT_OF_RANGE, "LBA OUT OF RANGE" },
-	{ NVME_SC_CAPACITY_EXCEEDED, "CAPACITY EXCEEDED" },
-	{ NVME_SC_NAMESPACE_NOT_READY, "NAMESPACE NOT READY" },
-	{ NVME_SC_RESERVATION_CONFLICT, "RESERVATION CONFLICT" },
-	{ NVME_SC_FORMAT_IN_PROGRESS, "FORMAT IN PROGRESS" },
-	{ 0xFFFF, "GENERIC" }
-};
-
-static struct nvme_status_string command_specific_status[] = {
-	{ NVME_SC_COMPLETION_QUEUE_INVALID, "INVALID COMPLETION QUEUE" },
-	{ NVME_SC_INVALID_QUEUE_IDENTIFIER, "INVALID QUEUE IDENTIFIER" },
-	{ NVME_SC_MAXIMUM_QUEUE_SIZE_EXCEEDED, "MAX QUEUE SIZE EXCEEDED" },
-	{ NVME_SC_ABORT_COMMAND_LIMIT_EXCEEDED, "ABORT CMD LIMIT EXCEEDED" },
-	{ NVME_SC_ASYNC_EVENT_REQUEST_LIMIT_EXCEEDED, "ASYNC LIMIT EXCEEDED" },
-	{ NVME_SC_INVALID_FIRMWARE_SLOT, "INVALID FIRMWARE SLOT" },
-	{ NVME_SC_INVALID_FIRMWARE_IMAGE, "INVALID FIRMWARE IMAGE" },
-	{ NVME_SC_INVALID_INTERRUPT_VECTOR, "INVALID INTERRUPT VECTOR" },
-	{ NVME_SC_INVALID_LOG_PAGE, "INVALID LOG PAGE" },
-	{ NVME_SC_INVALID_FORMAT, "INVALID FORMAT" },
-	{ NVME_SC_FIRMWARE_REQUIRES_RESET, "FIRMWARE REQUIRES RESET" },
-	{ NVME_SC_INVALID_QUEUE_DELETION, "INVALID QUEUE DELETION" },
-	{ NVME_SC_FEATURE_NOT_SAVEABLE, "FEATURE IDENTIFIER NOT SAVEABLE" },
-	{ NVME_SC_FEATURE_NOT_CHANGEABLE, "FEATURE NOT CHANGEABLE" },
-	{ NVME_SC_FEATURE_NOT_NS_SPECIFIC, "FEATURE NOT NAMESPACE SPECIFIC" },
-	{ NVME_SC_FW_ACT_REQUIRES_NVMS_RESET, "FIRMWARE ACTIVATION REQUIRES NVM SUBSYSTEM RESET" },
-	{ NVME_SC_FW_ACT_REQUIRES_RESET, "FIRMWARE ACTIVATION REQUIRES RESET" },
-	{ NVME_SC_FW_ACT_REQUIRES_TIME, "FIRMWARE ACTIVATION REQUIRES MAXIMUM TIME VIOLATION" },
-	{ NVME_SC_FW_ACT_PROHIBITED, "FIRMWARE ACTIVATION PROHIBITED" },
-	{ NVME_SC_OVERLAPPING_RANGE, "OVERLAPPING RANGE" },
-	{ NVME_SC_NS_INSUFFICIENT_CAPACITY, "NAMESPACE INSUFFICIENT CAPACITY" },
-	{ NVME_SC_NS_ID_UNAVAILABLE, "NAMESPACE IDENTIFIER UNAVAILABLE" },
-	{ NVME_SC_NS_ALREADY_ATTACHED, "NAMESPACE ALREADY ATTACHED" },
-	{ NVME_SC_NS_IS_PRIVATE, "NAMESPACE IS PRIVATE" },
-	{ NVME_SC_NS_NOT_ATTACHED, "NS NOT ATTACHED" },
-	{ NVME_SC_THIN_PROV_NOT_SUPPORTED, "THIN PROVISIONING NOT SUPPORTED" },
-	{ NVME_SC_CTRLR_LIST_INVALID, "CONTROLLER LIST INVALID" },
-	{ NVME_SC_SELF_TEST_IN_PROGRESS, "DEVICE SELF-TEST IN PROGRESS" },
-	{ NVME_SC_BOOT_PART_WRITE_PROHIB, "BOOT PARTITION WRITE PROHIBITED" },
-	{ NVME_SC_INVALID_CTRLR_ID, "INVALID CONTROLLER IDENTIFIER" },
-	{ NVME_SC_INVALID_SEC_CTRLR_STATE, "INVALID SECONDARY CONTROLLER STATE" },
-	{ NVME_SC_INVALID_NUM_OF_CTRLR_RESRC, "INVALID NUMBER OF CONTROLLER RESOURCES" },
-	{ NVME_SC_INVALID_RESOURCE_ID, "INVALID RESOURCE IDENTIFIER" },
-	{ NVME_SC_SANITIZE_PROHIBITED_WPMRE, "SANITIZE PROHIBITED WRITE PERSISTENT MEMORY REGION ENABLED" },
-	{ NVME_SC_ANA_GROUP_ID_INVALID, "ANA GROUP IDENTIFIED INVALID" },
-	{ NVME_SC_ANA_ATTACH_FAILED, "ANA ATTACH FAILED" },
-
-	{ NVME_SC_CONFLICTING_ATTRIBUTES, "CONFLICTING ATTRIBUTES" },
-	{ NVME_SC_INVALID_PROTECTION_INFO, "INVALID PROTECTION INFO" },
-	{ NVME_SC_ATTEMPTED_WRITE_TO_RO_PAGE, "WRITE TO RO PAGE" },
-	{ 0xFFFF, "COMMAND SPECIFIC" }
-};
-
-static struct nvme_status_string media_error_status[] = {
-	{ NVME_SC_WRITE_FAULTS, "WRITE FAULTS" },
-	{ NVME_SC_UNRECOVERED_READ_ERROR, "UNRECOVERED READ ERROR" },
-	{ NVME_SC_GUARD_CHECK_ERROR, "GUARD CHECK ERROR" },
-	{ NVME_SC_APPLICATION_TAG_CHECK_ERROR, "APPLICATION TAG CHECK ERROR" },
-	{ NVME_SC_REFERENCE_TAG_CHECK_ERROR, "REFERENCE TAG CHECK ERROR" },
-	{ NVME_SC_COMPARE_FAILURE, "COMPARE FAILURE" },
-	{ NVME_SC_ACCESS_DENIED, "ACCESS DENIED" },
-	{ NVME_SC_DEALLOCATED_OR_UNWRITTEN, "DEALLOCATED OR UNWRITTEN LOGICAL BLOCK" },
-	{ 0xFFFF, "MEDIA ERROR" }
-};
-
-static struct nvme_status_string path_related_status[] = {
-	{ NVME_SC_INTERNAL_PATH_ERROR, "INTERNAL PATH ERROR" },
-	{ NVME_SC_ASYMMETRIC_ACCESS_PERSISTENT_LOSS, "ASYMMETRIC ACCESS PERSISTENT LOSS" },
-	{ NVME_SC_ASYMMETRIC_ACCESS_INACCESSIBLE, "ASYMMETRIC ACCESS INACCESSIBLE" },
-	{ NVME_SC_ASYMMETRIC_ACCESS_TRANSITION, "ASYMMETRIC ACCESS TRANSITION" },
-	{ NVME_SC_CONTROLLER_PATHING_ERROR, "CONTROLLER PATHING ERROR" },
-	{ NVME_SC_HOST_PATHING_ERROR, "HOST PATHING ERROR" },
-	{ NVME_SC_COMMAND_ABORTED_BY_HOST, "COMMAND ABORTED BY HOST" },
-	{ 0xFFFF, "PATH RELATED" },
-};
-
 static const char *
-get_status_string(uint16_t sct, uint16_t sc)
+get_status_string(const struct nvme_completion *cpl, char *buf, size_t len)
 {
-	struct nvme_status_string *entry;
+	struct sbuf sb;
 
-	switch (sct) {
-	case NVME_SCT_GENERIC:
-		entry = generic_status;
-		break;
-	case NVME_SCT_COMMAND_SPECIFIC:
-		entry = command_specific_status;
-		break;
-	case NVME_SCT_MEDIA_ERROR:
-		entry = media_error_status;
-		break;
-	case NVME_SCT_PATH_RELATED:
-		entry = path_related_status;
-		break;
-	case NVME_SCT_VENDOR_SPECIFIC:
-		return ("VENDOR SPECIFIC");
-	default:
-		return ("RESERVED");
-	}
-
-	while (entry->sc != 0xFFFF) {
-		if (entry->sc == sc)
-			return (entry->str);
-		entry++;
-	}
-	return (entry->str);
+	sbuf_new(&sb, buf, len, SBUF_FIXEDLEN);
+	nvme_sc_sbuf(cpl, &sb);
+	if (sbuf_finish(&sb) != 0)
+		return ("");
+	return (buf);
 }
 
 void
 nvme_qpair_print_completion(struct nvme_qpair *qpair,
     struct nvme_completion *cpl)
 {
-	uint8_t sct, sc, crd, m, dnr, p;
+	char buf[64];
+	uint8_t crd, m, dnr, p;
 
-	sct = NVME_STATUS_GET_SCT(cpl->status);
-	sc = NVME_STATUS_GET_SC(cpl->status);
 	crd = NVME_STATUS_GET_CRD(cpl->status);
 	m = NVME_STATUS_GET_M(cpl->status);
 	dnr = NVME_STATUS_GET_DNR(cpl->status);
 	p = NVME_STATUS_GET_P(cpl->status);
 
-	nvme_printf(qpair->ctrlr, "%s (%02x/%02x) crd:%x m:%x dnr:%x p:%d "
+	nvme_printf(qpair->ctrlr, "%s crd:%x m:%x dnr:%x p:%d "
 	    "sqid:%d cid:%d cdw0:%x\n",
-	    get_status_string(sct, sc), sct, sc, crd, m, dnr, p,
+	    get_status_string(cpl, buf, sizeof(buf)), crd, m, dnr, p,
 	    cpl->sqid, cpl->cid, cpl->cdw0);
 }
 
