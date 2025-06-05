@@ -1298,6 +1298,16 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	int error;
 
 	ic = vap->iv_ic;
+	lhw = ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+	lvif = VAP_TO_LVIF(vap);
+
+	/*
+	 * Make sure we do not make it here without going through
+	 * lkpi_iv_key_update_begin() first.
+	 */
+	lockdep_assert_wiphy(hw->wiphy);
+
 	if (IEEE80211_KEY_UNDEFINED(k)) {
 		ic_printf(ic, "%s: vap %p key %p is undefined: %p %u\n",
 		    __func__, vap, k, k->wk_cipher, k->wk_keyix);
@@ -1331,18 +1341,7 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		ieee80211_free_node(ni);
 		return (1);
 	}
-
 	kc = lsta->kc[k->wk_keyix];
-	/* Re-check under lock. */
-	if (kc == NULL) {
-#ifdef LINUXKPI_DEBUG_80211
-		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-			ic_printf(ic, "%s: sta %6D and key information vanished, "
-			    "returning success\n", __func__, sta->addr, ":");
-#endif
-		error = 1;
-		goto out;
-	}
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
@@ -1353,9 +1352,6 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
-	lhw = ic->ic_softc;
-	hw = LHW_TO_HW(lhw);
-	lvif = VAP_TO_LVIF(vap);
 	vif = LVIF_TO_VIF(lvif);
 	error = lkpi_80211_mo_set_key(hw, DISABLE_KEY, vif, sta, kc);
 	if (error != 0) {
@@ -1400,6 +1396,15 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	int error;
 
 	ic = vap->iv_ic;
+	lhw = ic->ic_softc;
+	hw = LHW_TO_HW(lhw);
+
+	/*
+	 * Make sure we do not make it here without going through
+	 * lkpi_iv_key_update_begin() first.
+	 */
+	lockdep_assert_wiphy(hw->wiphy);
+
 	if (IEEE80211_KEY_UNDEFINED(k)) {
 		ic_printf(ic, "%s: vap %p key %p is undefined: %p %u\n",
 		    __func__, vap, k, k->wk_cipher, k->wk_keyix);
@@ -1492,8 +1497,6 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 		    kc->keylen, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
-	lhw = ic->ic_softc;
-	hw = LHW_TO_HW(lhw);
 	lvif = VAP_TO_LVIF(vap);
 	vif = LVIF_TO_VIF(lvif);
 	error = lkpi_80211_mo_set_key(hw, SET_KEY, vif, sta, kc);
