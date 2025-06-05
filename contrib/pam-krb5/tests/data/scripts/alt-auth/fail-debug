@@ -1,0 +1,28 @@
+# Test failure of alternative authentication principal.  -*- conf -*-
+#
+# Written by Russ Allbery <eagle@eyrie.org>
+# Copyright 2014, 2020 Russ Allbery <eagle@eyrie.org>
+# Copyright 2010-2011
+#     The Board of Trustees of the Leland Stanford Junior University
+#
+# SPDX-License-Identifier: BSD-3-clause or GPL-1+
+
+[options]
+    auth    = alt_auth_map=bogus force_first_pass no_ccache debug
+    account = alt_auth_map=bogus no_ccache debug
+
+[run]
+    authenticate  = PAM_AUTHINFO_UNAVAIL
+    acct_mgmt     = PAM_IGNORE
+
+[output]
+    DEBUG pam_sm_authenticate: entry
+    DEBUG (user %u) mapping bogus-nonexistent-account to bogus@%2
+    DEBUG /^\(user %u\) alternate authentication failed: /
+    DEBUG (user %u) attempting authentication as %u@%2
+    DEBUG /^\(user %u\) krb5_get_init_creds_password: /
+    NOTICE authentication failure; logname=%u uid=%i euid=%i tty= ruser= rhost=
+    DEBUG pam_sm_authenticate: exit (failure)
+    DEBUG pam_sm_acct_mgmt: entry
+    DEBUG skipping non-Kerberos login
+    DEBUG pam_sm_acct_mgmt: exit (ignore)
