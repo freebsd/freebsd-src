@@ -1906,6 +1906,7 @@ void	nvme_strvis(uint8_t *dst, const uint8_t *src, int dstlen, int srclen);
 #ifdef _KERNEL
 
 struct bio;
+struct sbuf;
 struct thread;
 
 struct nvme_namespace;
@@ -1925,6 +1926,9 @@ enum nvme_namespace_flags {
 	NVME_NS_DEALLOCATE_SUPPORTED	= 0x1,
 	NVME_NS_FLUSH_SUPPORTED		= 0x2,
 };
+
+void	nvme_cpl_sbuf(const struct nvme_completion *cpl, struct sbuf *sbuf);
+void	nvme_opcode_sbuf(bool admin, uint8_t opc, struct sbuf *sb);
 
 int	nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 				   struct nvme_pt_command *pt,
