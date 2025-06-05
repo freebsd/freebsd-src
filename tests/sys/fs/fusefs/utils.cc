@@ -124,6 +124,7 @@ bool is_unsafe_aio_enabled(void) {
 
 class FuseEnv: public Environment {
 	virtual void SetUp() {
+		check_environment();
 	}
 };
 
@@ -131,14 +132,6 @@ void FuseTest::SetUp() {
 	const char *maxbcachebuf_node = "vfs.maxbcachebuf";
 	const char *maxphys_node = "kern.maxphys";
 	size_t size;
-
-	/*
-	 * XXX check_environment should be called from FuseEnv::SetUp, but
-	 * can't due to https://github.com/google/googletest/issues/2189
-	 */
-	check_environment();
-	if (IsSkipped())
-		return;
 
 	size = sizeof(m_maxbcachebuf);
 	ASSERT_EQ(0, sysctlbyname(maxbcachebuf_node, &m_maxbcachebuf, &size,
