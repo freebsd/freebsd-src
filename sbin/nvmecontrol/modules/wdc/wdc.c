@@ -30,6 +30,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <libxo/xo.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -202,7 +203,7 @@ wdc_do_dump_e6(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 			if (len == 0)
 				errx(EX_PROTOCOL, "No data for %s", suffix);
 
-			printf("Dumping %d bytes of version %d.%d log to %s\n", len,
+			xo_emit("Dumping {:length/%d} bytes of version {:buffer8/%d}.{:buffer9/%d} log to {:template/%s}\n", len,
 			    buf[8], buf[9], tmpl);
 			/*
 			 * Adjust amount to dump if total dump < 1MB,
@@ -347,7 +348,7 @@ wdc_do_dump_dui(int fd, char *tmpl, uint8_t data_area,
 		if (first) {
 			hdr_ver = ((buf[len_off] & 0xF) != 0) ?
 			    (buf[len_off]) : (le16dec(buf + len_off));
-			printf("Dumping %jd bytes of version %d log to %s\n",
+			xo_emit("Dumping {:log-length/%jd} bytes of version {:hdr-version/%d} log to {:template/%s}\n",
 			    (uintmax_t)log_len, hdr_ver, tmpl);
 			first = 0;
 		}
@@ -469,7 +470,7 @@ print_hgst_info_subpage_gen(void *buf, uint16_t subtype __unused, uint32_t size,
 		param = 0;
 		for (i = 0; i < plen && wsp < esp; i++)
 			param |= (uint64_t)*wsp++ << (i * 8);
-		printf("  %-30s: %jd\n", kv_lookup(kv, kv_count, ptype), (uintmax_t)param);
+		xo_emit("{P:  }{:kv-lookup/%-30s}: {:parameter/%jd}\n", kv_lookup(kv, kv_count, ptype), (uintmax_t)param);
 	}
 }
 
@@ -489,7 +490,7 @@ print_hgst_info_write_errors(void *buf, uint16_t subtype, uint8_t res __unused, 
 		{ 0x8001, "HGST Special" },
 	};
 
-	printf("Write Errors Subpage:\n");
+	xo_emit("{d:subpage-errors-page-name/Write Errors Subpage:}{e:subpage-errors-page/write-errors}\n");
 	print_hgst_info_subpage_gen(buf, subtype, size, kv, nitems(kv));
 }
 
@@ -510,7 +511,7 @@ print_hgst_info_read_errors(void *buf, uint16_t subtype, uint8_t res __unused, u
 		{ 0x8002, "Total Corrected Bits" },
 	};
 
-	printf("Read Errors Subpage:\n");
+	xo_emit("{d:subpage-errors-page-name/Read Errors Subpage:}{e:subpage-errors-page/read-errors}\n");
 	print_hgst_info_subpage_gen(buf, subtype, size, kv, nitems(kv));
 }
 
@@ -529,7 +530,7 @@ print_hgst_info_verify_errors(void *buf, uint16_t subtype, uint8_t res __unused,
 		{ 0x8000, "Commands Processed" },
 	};
 
-	printf("Verify Errors Subpage:\n");
+	xo_emit("{d:subpage-errors-page-name/Verify Errors Subpage:}{e:subpage-errors-page/verify-errors}\n");
 	print_hgst_info_subpage_gen(buf, subtype, size, kv, nitems(kv));
 }
 
@@ -541,7 +542,7 @@ print_hgst_info_self_test(void *buf, uint16_t subtype __unused, uint8_t res __un
 	uint16_t code, hrs;
 	uint32_t lba;
 
-	printf("Self Test Subpage:\n");
+	xo_emit("{d:self-test-page-name/Self Test Subpage:}{e:self-test-page/self-test}\n");
 	for (i = 0; i < size / 20; i++) {	/* Each entry is 20 bytes */
 		code = le16dec(walker);
 		walker += 2;
@@ -549,24 +550,24 @@ print_hgst_info_self_test(void *buf, uint16_t subtype __unused, uint8_t res __un
 		if (*walker == 0)		/* Last entry is zero length */
 			break;
 		if (*walker++ != 0x10) {
-			printf("Bad length for self test report\n");
+			xo_emit("{d:self-test-page-name/Bad length for self test report}{e:self-test-page/bad-length}\n");
 			return;
 		}
-		printf("  %-30s: %d\n", "Recent Test", code);
-		printf("    %-28s: %#x\n", "Self-Test Results", *walker & 0xf);
-		printf("    %-28s: %#x\n", "Self-Test Code", (*walker >> 5) & 0x7);
+		xo_emit("{P:  }{:recent-test/%-30s}: {:code/%d}\n", "Recent Test", code);
+		xo_emit("{P:    }{:results/%-28s}: {:walker/%#x}\n", "Self-Test Results", *walker & 0xf);
+		xo_emit("{P:    }{:code/%-28s}: {:walker/%#x}\n", "Self-Test Code", (*walker >> 5) & 0x7);
 		walker++;
-		printf("    %-28s: %#x\n", "Self-Test Number", *walker++);
+		xo_emit("{P:    }{:number/%-28s}: {:walker/%#x}\n", "Self-Test Number", *walker++);
 		hrs = le16dec(walker);
 		walker += 2;
 		lba = le32dec(walker);
 		walker += 4;
-		printf("    %-28s: %u\n", "Total Power On Hrs", hrs);
-		printf("    %-28s: %#jx (%jd)\n", "LBA", (uintmax_t)lba, (uintmax_t)lba);
-		printf("    %-28s: %#x\n", "Sense Key", *walker++ & 0xf);
-		printf("    %-28s: %#x\n", "Additional Sense Code", *walker++);
-		printf("    %-28s: %#x\n", "Additional Sense Qualifier", *walker++);
-		printf("    %-28s: %#x\n", "Vendor Specific Detail", *walker++);
+		xo_emit("{P:    }{:power-on-hours/%-28s}: {:hours/%u}\n", "Total Power On Hrs", hrs);
+		xo_emit("{P:    }{:lba-label/%-28s}: {:lba/%#jx} ({:lba/%jd})\n", "LBA", (uintmax_t)lba, (uintmax_t)lba);
+		xo_emit("{P:    }{:sense-key-label/%-28s}: {:walker/%#x}\n", "Sense Key", *walker++ & 0xf);
+		xo_emit("{P:    }{:sense-code/%-28s}: {:walker/%#x}\n", "Additional Sense Code", *walker++);
+		xo_emit("{P:    }{:sense-qualifier/%-28s}: {:walker/%#x}\n", "Additional Sense Qualifier", *walker++);
+		xo_emit("{P:    }{:vendor-detail/%-28s}: {:walker/%#x}\n", "Vendor Specific Detail", *walker++);
 	}
 }
 
@@ -578,17 +579,17 @@ print_hgst_info_background_scan(void *buf, uint16_t subtype __unused, uint8_t re
 	uint16_t code, nscan, progress;
 	uint32_t pom, nand;
 
-	printf("Background Media Scan Subpage:\n");
+	xo_emit("{d:subpage-info-page-name/Background Media Scan Subpage:}{e:subpage-info-page/media-scan}\n");
 	/* Decode the header */
 	code = le16dec(walker);
 	walker += 2;
 	walker++;			/* Ignore fixed flags */
 	if (*walker++ != 0x10) {
-		printf("Bad length for background scan header\n");
+		xo_emit("{d:subpage-info-page-name/Bad length for background scan header}{e:subpage-info-page/bad-length-scan}\n");
 		return;
 	}
 	if (code != 0) {
-		printf("Expected code 0, found code %#x\n", code);
+		xo_emit("Expected code 0, found code {:code/%#x}\n", code);
 		return;
 	}
 	pom = le32dec(walker);
@@ -600,24 +601,24 @@ print_hgst_info_background_scan(void *buf, uint16_t subtype __unused, uint8_t re
 	progress = le16dec(walker);
 	walker += 2;
 	walker += 6;			/* Reserved */
-	printf("  %-30s: %d\n", "Power On Minutes", pom);
-	printf("  %-30s: %x (%s)\n", "BMS Status", status,
+	xo_emit("{P:  }{:power-on-minutes-label/%-30s}: {:power-on-minutes/%d}\n", "Power On Minutes", pom);
+	xo_emit("{P:  }{:bms-status-label/%-30s}: {:bms-status/%x} ({:bms-state/%s})\n", "BMS Status", status,
 	    status == 0 ? "idle" : (status == 1 ? "active" : (status == 8 ? "suspended" : "unknown")));
-	printf("  %-30s: %d\n", "Number of BMS", nscan);
-	printf("  %-30s: %d\n", "Progress Current BMS", progress);
+	xo_emit("{P:  }{:bms-quatity-label/%-30s}: {:bms-quatity/%d}\n", "Number of BMS", nscan);
+	xo_emit("{P:  }{:bms-progress-label/%-30s}: {:bms-progress/%d}\n", "Progress Current BMS", progress);
 	/* Report retirements */
 	if (walker - (uint8_t *)buf != 20) {
-		printf("Coding error, offset not 20\n");
+		xo_emit("Coding error, offset not 20\n");
 		return;
 	}
 	size -= 20;
-	printf("  %-30s: %d\n", "BMS retirements", size / 0x18);
+	xo_emit("{P:  }{:bms-retirements-label/%-30s}: {:bms-retirements/%d}\n", "BMS retirements", size / 0x18);
 	while (size > 0) {
 		code = le16dec(walker);
 		walker += 2;
 		walker++;
 		if (*walker++ != 0x14) {
-			printf("Bad length parameter\n");
+			xo_emit("{d:subpage-info-page-name/Bad length parameter}{e:subpage-info-page/bad-length-parameter}\n");
 			return;
 		}
 		pom = le32dec(walker);
@@ -638,10 +639,10 @@ print_hgst_info_background_scan(void *buf, uint16_t subtype __unused, uint8_t re
 			walker += 4;	/* Skip reserved */
 			nand = le32dec(walker);
 			walker += 4;
-			printf("  %-30s: %d\n", "Retirement number", code);
-			printf("    %-28s: %#x\n", "NAND (C/T)BBBPPP", nand);
+			xo_emit("{P:  }{:restirement-num-label/%-30s}: {:restirement-num/%d}\n", "Retirement number", code);
+			xo_emit("{P:    }{:nand-label/%-28s}: {:nand/%#x}\n", "NAND (C/T)BBBPPP", nand);
 		} else {
-			printf("Parameter %#x entry corrupt\n", code);
+			xo_emit("Parameter {:entry-corrupt-code/%#x} entry corrupt\n", code);
 			walker += 16;
 		}
 	}
@@ -666,7 +667,7 @@ print_hgst_info_erase_errors(void *buf, uint16_t subtype __unused, uint8_t res _
 		{ 0x8004, "Erase Count -- System" },
 	};
 
-	printf("Erase Errors Subpage:\n");
+	xo_emit("{d:Erase Errors Subpage:}{e:subpage-erase-errors}\n");
 	print_hgst_info_subpage_gen(buf, subtype, size, kv, nitems(kv));
 }
 
@@ -674,7 +675,7 @@ static void
 print_hgst_info_erase_counts(void *buf, uint16_t subtype, uint8_t res __unused, uint32_t size)
 {
 	/* My drive doesn't export this -- so not coding up */
-	printf("XXX: Erase counts subpage: %p, %#x %d\n", buf, subtype, size);
+	xo_emit("XXX: Erase counts erase: {:erase-buffer/%p}, {:erase-subtype/%#x} {:erase-size/%d}\n", buf, subtype, size);
 }
 
 static void
@@ -683,20 +684,20 @@ print_hgst_info_temp_history(void *buf, uint16_t subtype __unused, uint8_t res _
 	uint8_t *walker = buf;
 	uint32_t min;
 
-	printf("Temperature History:\n");
-	printf("  %-30s: %d C\n", "Current Temperature", *walker++);
-	printf("  %-30s: %d C\n", "Reference Temperature", *walker++);
-	printf("  %-30s: %d C\n", "Maximum Temperature", *walker++);
-	printf("  %-30s: %d C\n", "Minimum Temperature", *walker++);
+	xo_emit("{Lc:Temperature History}\n");
+	xo_emit("{P:  }{:current-temp-label/%-30s}: {:current-temp/%d} C\n", "Current Temperature", *walker++);
+	xo_emit("{P:  }{:reference-temp-label/%-30s}: {:reference-temp/%d} C\n", "Reference Temperature", *walker++);
+	xo_emit("{P:  }{:max-temp-label/%-30s}: {:max-temp/%d} C\n", "Maximum Temperature", *walker++);
+	xo_emit("{P:  }{:min-temp-label/%-30s}: {:min-temp/%d} C\n", "Minimum Temperature", *walker++);
 	min = le32dec(walker);
 	walker += 4;
-	printf("  %-30s: %d:%02d:00\n", "Max Temperature Time", min / 60, min % 60);
+	xo_emit("{P:  }{:max-temp-time-label/%-30s}: {:max-temp-time-hours/%d}:{:max-temp-time-minutes/%02d}:00\n", "Max Temperature Time", min / 60, min % 60);
 	min = le32dec(walker);
 	walker += 4;
-	printf("  %-30s: %d:%02d:00\n", "Over Temperature Duration", min / 60, min % 60);
+	xo_emit("{P:  }{:over-temp-duration-label/%-30s}: {:over-temp-duration-hours/%d}:{:over-temp-duration-minutes/%02d}:00\n", "Over Temperature Duration", min / 60, min % 60);
 	min = le32dec(walker);
 	walker += 4;
-	printf("  %-30s: %d:%02d:00\n", "Min Temperature Time", min / 60, min % 60);
+	xo_emit("{P:  }{:min-temp-time-label/%-30s}: {:min-temp-time-hours/%d}:{:min-temp-time-minutes/%02d}:00\n", "Min Temperature Time", min / 60, min % 60);
 }
 
 static void
@@ -705,52 +706,52 @@ print_hgst_info_ssd_perf(void *buf, uint16_t subtype __unused, uint8_t res, uint
 	uint8_t *walker = buf;
 	uint64_t val;
 
-	printf("SSD Performance Subpage Type %d:\n", res);
+	xo_emit("{L:SSD Performance Subpage Type}{P: }{:performance-type/%d}:\n", res);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "Host Read Commands", val);
+	xo_emit("{P:  }{:read-commands-label/%-30s}: {:host-read-commands/%ju}\n", "Host Read Commands", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "Host Read Blocks", val);
+	xo_emit("{P:  }{:read-block-label/%-30s}: {:host-read-block/%ju}\n", "Host Read Blocks", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "Host Cache Read Hits Commands", val);
+	xo_emit("{P:  }{:read-hits-commands-label/%-30s}: {:read-hits-commands/%ju}\n", "Host Cache Read Hits Commands", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "Host Cache Read Hits Blocks", val);
+	xo_emit("{P:  }{:read-hits-blocks-label/%-30s}: {:read-hits-blocks/%ju}\n", "Host Cache Read Hits Blocks", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "Host Read Commands Stalled", val);
+	xo_emit("{P:  }{:read-commands-stalled-label/%-30s}: {:read-commands-stalled/%ju}\n", "Host Read Commands Stalled", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "Host Write Commands", val);
+	xo_emit("{P:  }{:host-write-commands-label/%-30s}: {:host-write-commands/%ju}\n", "Host Write Commands", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "Host Write Blocks", val);
+	xo_emit("{P:  }{:host-write-blocks-label/%-30s}: {:host-write-blocks/%ju}\n", "Host Write Blocks", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "Host Write Odd Start Commands", val);
+	xo_emit("{P:  }{:host-write-odd-stage-label/%-30s}: {:host-write-odd-stage/%ju}\n", "Host Write Odd Start odd-stage", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "Host Write Odd End Commands", val);
+	xo_emit("{P:  }{:host-write-odd-end-label/%-30s}: {:host-write-odd-end/%ju}\n", "Host Write Odd End odd-end", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "Host Write Commands Stalled", val);
+	xo_emit("{P:  }{:host-write-commands-stalled-label/%-30s}: {:host-write-commands-stalled/%ju}\n", "Host Write commands-stalled Stalled", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "NAND Read Commands", val);
+	xo_emit("{P:  }{:nand-read-commands-label/%-30s}: {:nand-read-commands/%ju}\n", "NAND Read Commands", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "NAND Read Blocks", val);
+	xo_emit("{P:  }{:nand-read-blocks-label/%-30s}: {:nand-read-blocks/%ju}\n", "NAND Read Blocks", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "NAND Write Commands", val);
+	xo_emit("{P:  }{:nand-write-commands-label/%-30s}: {:nand-write-commands/%ju}\n", "NAND Write Commands", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "NAND Write Blocks", val);
+	xo_emit("{P:  }{:nand-write-blocks-label/%-30s}: {:nand-write-blocks/%ju}\n", "NAND Write Blocks", val);
 	val = le64dec(walker);
 	walker += 8;
-	printf("  %-30s: %ju\n", "NAND Read Before Writes", val);
+	xo_emit("{P:  }{:nand-before-reads-label/%-30s}: {:nand-before-reads/%ju}\n", "NAND Read Before reads", val);
 }
 
 static void
@@ -758,8 +759,8 @@ print_hgst_info_firmware_load(void *buf, uint16_t subtype __unused, uint8_t res 
 {
 	uint8_t *walker = buf;
 
-	printf("Firmware Load Subpage:\n");
-	printf("  %-30s: %d\n", "Firmware Downloads", le32dec(walker));
+	xo_emit("Firmware Load Subpage:\n");
+	xo_emit("{P:  }{:foo/%-30s}: {:foo/%d}\n", "Firmware Downloads", le32dec(walker));
 }
 
 static void
@@ -773,7 +774,7 @@ kv_indirect(void *buf, uint32_t subtype, uint8_t res, uint32_t size, struct subp
 			return;
 		}
 	}
-	printf("No handler for page type %x\n", subtype);
+	xo_emit("{:error/No handler for page type}{P: }{:subtype/%x}\n", subtype);
 }
 
 static void
@@ -783,8 +784,8 @@ print_hgst_info_log(const struct nvme_controller_data *cdata __unused, void *buf
 	uint16_t len;
 	uint8_t subtype, res;
 
-	printf("HGST Extra Info Log\n");
-	printf("===================\n");
+	xo_emit("{T:HGST Extra Info Log}\n");
+	xo_emit("{T:===================}\n");
 
 	walker = buf;
 	walker += 2;			/* Page count */
@@ -799,7 +800,7 @@ print_hgst_info_log(const struct nvme_controller_data *cdata __unused, void *buf
 		len = le16dec(walker);
 		walker += len + 2;		/* Length, not incl header */
 		if (walker > end) {
-			printf("Ooops! Off the end of the list\n");
+			xo_emit("{:error/Ooops! Off the end of the list}\n");
 			break;
 		}
 		kv_indirect(subpage, subtype, res, len, hgst_subpage, nitems(hgst_subpage));
