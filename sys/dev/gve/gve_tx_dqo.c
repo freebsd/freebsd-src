@@ -987,11 +987,8 @@ gve_tx_clear_desc_ring_dqo(struct gve_tx_ring *tx)
 	struct gve_ring_com *com = &tx->com;
 	int i;
 
-	for (i = 0; i < com->priv->tx_desc_cnt; i++) {
+	for (i = 0; i < com->priv->tx_desc_cnt; i++)
 		tx->dqo.desc_ring[i] = (union gve_tx_desc_dqo){};
-		gve_invalidate_timestamp(
-		    &tx->dqo.pending_pkts[i].enqueue_time_sec);
-	}
 
 	bus_dmamap_sync(tx->desc_ring_mem.tag, tx->desc_ring_mem.map,
 	    BUS_DMASYNC_PREWRITE);
@@ -1033,6 +1030,8 @@ gve_clear_tx_ring_dqo(struct gve_priv *priv, int i)
 	for (j = 0; j < tx->dqo.num_pending_pkts; j++) {
 		if (gve_is_qpl(tx->com.priv))
 			gve_clear_qpl_pending_pkt(&tx->dqo.pending_pkts[j]);
+		gve_invalidate_timestamp(
+		    &tx->dqo.pending_pkts[j].enqueue_time_sec);
 		tx->dqo.pending_pkts[j].next =
 		    (j == tx->dqo.num_pending_pkts - 1) ? -1 : j + 1;
 		tx->dqo.pending_pkts[j].state = GVE_PACKET_STATE_FREE;
