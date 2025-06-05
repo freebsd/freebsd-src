@@ -283,7 +283,6 @@ BROKEN_HOST_DEP_TESTS += \
 	usr.bin/gzip/tests \
 	usr.bin/printf/tests \
 
-.endif
 
 TESTS_DIR_LIST += tests
 # most of the tree only has Makefile.depend
@@ -305,4 +304,6 @@ ${DEP_RELDIR}/$t.test:
 .endif
 .endif
 .endfor
+.endif
+
 .endif
