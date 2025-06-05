@@ -755,10 +755,6 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 done_pool_mtx:
 	mtx_unlock(&rpool->mtx);
 
-	if (reason) {
-		counter_u64_add(V_pf_status.counters[reason], 1);
-	}
-
 	return (reason);
 }
 
@@ -793,7 +789,7 @@ pf_map_addr_sn(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 		if (nkif)
 			*nkif = sn->rkif;
 		if (V_pf_status.debug >= PF_DEBUG_NOISY) {
-			printf("pf_map_addr: src tracking maps ");
+			printf("%s: src tracking maps ", __func__);
 			pf_print_host(saddr, 0, af);
 			printf(" to ");
 			pf_print_host(naddr, 0, af);
@@ -808,14 +804,16 @@ pf_map_addr_sn(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 	 * Source node has not been found. Find a new address and store it
 	 * in variables given by the caller.
 	 */
-	if (pf_map_addr(af, r, saddr, naddr, nkif, init_addr, rpool) != 0) {
-		/* pf_map_addr() sets reason counters on its own */
+	if ((reason = pf_map_addr(af, r, saddr, naddr, nkif, init_addr,
+	    rpool)) != 0) {
+		if (V_pf_status.debug >= PF_DEBUG_MISC)
+			printf("%s: pf_map_addr has failed\n", __func__);
 		goto done;
 	}
 
 	if (V_pf_status.debug >= PF_DEBUG_NOISY &&
 	    (rpool->opts & PF_POOL_TYPEMASK) != PF_POOL_NONE) {
-		printf("pf_map_addr: selected address ");
+		printf("%s: selected address ", __func__);
 		pf_print_host(naddr, 0, af);
 		if (nkif)
 			printf("@%s", (*nkif)->pfik_name);
@@ -825,10 +823,6 @@ pf_map_addr_sn(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 done:
 	if (sn != NULL)
 		PF_SRC_NODE_UNLOCK(sn);
-
-	if (reason) {
-		counter_u64_add(V_pf_status.counters[reason], 1);
-	}
 
 	return (reason);
 }

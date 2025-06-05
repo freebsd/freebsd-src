@@ -859,6 +859,40 @@ ttl_cleanup()
 	pft_cleanup
 }
 
+
+atf_test_case "empty_pool" "cleanup"
+empty_pool_head()
+{
+	atf_set descr 'Route-to with empty pool'
+	atf_set require.user root
+}
+
+empty_pool_body()
+{
+	pft_init
+	setup_router_server_ipv6
+
+
+	pft_set_rules router \
+		"block" \
+		"pass inet6 proto icmp6 icmp6-type { neighbrsol, neighbradv }" \
+		"pass in  on ${epair_tester}b route-to (${epair_server}a <nonexistent>) inet6 from any to ${net_server_host_server}" \
+		"pass out on ${epair_server}a"
+
+	# pf_map_addr_sn() won't be able to pick a target address, because
+	# the table used in redireciton pool is empty. Packet will not be
+	# forwarded, error counter will be increased.
+	ping_server_check_reply exit:1
+	# Ignore warnings about not-loaded ALTQ
+	atf_check -o "match:map-failed +1 +" -x "jexec router pfctl -qvvsi 2> /dev/null"
+}
+
+empty_pool_cleanup()
+{
+	pft_cleanup
+}
+
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
@@ -877,4 +911,5 @@ atf_init_test_cases()
 	atf_add_test_case "dummynet_double"
 	atf_add_test_case "sticky"
 	atf_add_test_case "ttl"
+	atf_add_test_case "empty_pool"
 }
