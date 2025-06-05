@@ -1,0 +1,1 @@
+pass in proto icmp all max-pkt-rate 100/10 keep state
