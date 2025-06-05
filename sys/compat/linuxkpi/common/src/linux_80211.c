@@ -1243,18 +1243,19 @@ lkpi_sta_del_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 #ifdef LINUXKPI_DEBUG_80211
 		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-			ic_printf(lsta->ni->ni_ic, "%s: running set_key cmd %d(%s) for "
+			ic_printf(lsta->ni->ni_ic, "%d %lu %s: running set_key cmd %d(%s) for "
 			    "sta %6D: keyidx %u hw_key_idx %u flags %b\n",
-			    __func__, DISABLE_KEY, "DISABLE", lsta->sta.addr, ":",
+			    curthread->td_tid, jiffies, __func__,
+			    DISABLE_KEY, "DISABLE", lsta->sta.addr, ":",
 			    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
 		err = lkpi_80211_mo_set_key(hw, DISABLE_KEY, vif,
 		    LSTA_TO_STA(lsta), kc);
 		if (err != 0) {
-			ic_printf(lsta->ni->ni_ic, "%s: set_key cmd %d(%s) for "
-			    "sta %6D failed: %d\n", __func__, DISABLE_KEY,
-			    "DISABLE", lsta->sta.addr, ":", err);
+			ic_printf(lsta->ni->ni_ic, "%d %lu %s: set_key cmd %d(%s) for "
+			    "sta %6D failed: %d\n", curthread->td_tid, jiffies, __func__,
+			    DISABLE_KEY, "DISABLE", lsta->sta.addr, ":", err);
 			error++;
 
 			/*
@@ -1266,9 +1267,10 @@ lkpi_sta_del_keys(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		}
 #ifdef LINUXKPI_DEBUG_80211
 		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-			ic_printf(lsta->ni->ni_ic, "%s: set_key cmd %d(%s) for "
+			ic_printf(lsta->ni->ni_ic, "%d %lu %s: set_key cmd %d(%s) for "
 			    "sta %6D succeeded: keyidx %u hw_key_idx %u flags %b\n",
-			    __func__, DISABLE_KEY, "DISABLE", lsta->sta.addr, ":",
+			    curthread->td_tid, jiffies, __func__,
+			    DISABLE_KEY, "DISABLE", lsta->sta.addr, ":",
 			    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
 
@@ -1321,9 +1323,9 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	if (lsta->kc[k->wk_keyix] == NULL) {
 #ifdef LINUXKPI_DEBUG_80211
 		if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-			ic_printf(ic, "%s: sta %6D and no key information, "
+			ic_printf(ic, "%d %lu %s: sta %6D and no key information, "
 			    "keyidx %u wk_macaddr %6D; returning success\n",
-			    __func__, sta->addr, ":",
+			    curthread->td_tid, jiffies, __func__, sta->addr, ":",
 			    k->wk_keyix, k->wk_macaddr, ":");
 #endif
 		ieee80211_free_node(ni);
@@ -1344,8 +1346,9 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(ic, "%s: running  set_key cmd %d(%s) for sta %6D: "
-		    "keyidx %u hw_key_idx %u flags %b\n", __func__,
+		ic_printf(ic, "%d %lu %s: running set_key cmd %d(%s) for sta %6D: "
+		    "keyidx %u hw_key_idx %u flags %b\n",
+		    curthread->td_tid, jiffies, __func__,
 		    DISABLE_KEY, "DISABLE", sta->addr, ":",
 		    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
@@ -1356,16 +1359,18 @@ lkpi_iv_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	vif = LVIF_TO_VIF(lvif);
 	error = lkpi_80211_mo_set_key(hw, DISABLE_KEY, vif, sta, kc);
 	if (error != 0) {
-		ic_printf(ic, "%s: set_key cmd %d(%s) for sta %6D failed: %d\n",
-		    __func__, DISABLE_KEY, "DISABLE", sta->addr, ":", error);
+		ic_printf(ic, "%d %lu %s: set_key cmd %d(%s) for sta %6D failed: %d\n",
+		    curthread->td_tid, jiffies, __func__,
+		    DISABLE_KEY, "DISABLE", sta->addr, ":", error);
 		error = 0;
 		goto out;
 	}
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(ic, "%s: set_key cmd %d(%s) for sta %6D succeeded: "
-		    "keyidx %u hw_key_idx %u flags %b\n", __func__,
+		ic_printf(ic, "%d %lu %s: set_key cmd %d(%s) for sta %6D succeeded: "
+		    "keyidx %u hw_key_idx %u flags %b\n",
+		    curthread->td_tid, jiffies, __func__,
 		    DISABLE_KEY, "DISABLE", sta->addr, ":",
 		    kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
@@ -1480,8 +1485,9 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(ic, "%s: running set_key cmd %d(%s) for sta %6D: "
-		    "kc %p keyidx %u hw_key_idx %u keylen %u flags %b\n", __func__,
+		ic_printf(ic, "%d %lu %s: running set_key cmd %d(%s) for sta %6D: "
+		    "kc %p keyidx %u hw_key_idx %u keylen %u flags %b\n",
+		    curthread->td_tid, jiffies, __func__,
 		    SET_KEY, "SET", sta->addr, ":", kc, kc->keyidx, kc->hw_key_idx,
 		    kc->keylen, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
@@ -1492,8 +1498,9 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 	vif = LVIF_TO_VIF(lvif);
 	error = lkpi_80211_mo_set_key(hw, SET_KEY, vif, sta, kc);
 	if (error != 0) {
-		ic_printf(ic, "%s: set_key cmd %d(%s) for sta %6D failed: %d\n",
-		    __func__, SET_KEY, "SET", sta->addr, ":", error);
+		ic_printf(ic, "%d %lu %s: set_key cmd %d(%s) for sta %6D failed: %d\n",
+		    curthread->td_tid, jiffies, __func__,
+		    SET_KEY, "SET", sta->addr, ":", error);
 		lsta->kc[k->wk_keyix] = NULL;
 		free(kc, M_LKPI80211);
 		ieee80211_free_node(ni);
@@ -1502,8 +1509,9 @@ lkpi_iv_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(ic, "%s: set_key cmd %d(%s) for sta %6D succeeded: "
-		    "kc %p keyidx %u hw_key_idx %u flags %b\n", __func__,
+		ic_printf(ic, "%d %lu %s: set_key cmd %d(%s) for sta %6D succeeded: "
+		    "kc %p keyidx %u hw_key_idx %u flags %b\n",
+		    curthread->td_tid, jiffies, __func__,
 		    SET_KEY, "SET", sta->addr, ":",
 		    kc, kc->keyidx, kc->hw_key_idx, kc->flags, IEEE80211_KEY_FLAG_BITS);
 #endif
@@ -1582,9 +1590,9 @@ lkpi_iv_key_update_begin(struct ieee80211vap *vap)
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(ic, "%s: tid %d vap %p ic %p %slocked nt %p %slocked "
-		    "lvif ic_unlocked %d nt_unlocked %d\n", __func__,
-		    curthread->td_tid, vap,
+		ic_printf(ic, "%d %lu %s: vap %p ic %p %slocked nt %p %slocked "
+		    "lvif ic_unlocked %d nt_unlocked %d\n",
+		    curthread->td_tid, jiffies, __func__, vap,
 		    ic, icislocked ? "" : "un", nt, ntislocked ? "" : "un",
 		    lvif->ic_unlocked, lvif->nt_unlocked);
 #endif
@@ -1645,9 +1653,9 @@ lkpi_iv_key_update_end(struct ieee80211vap *vap)
 
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_HW_CRYPTO)
-		ic_printf(ic, "%s: tid %d vap %p ic %p %slocked nt %p %slocked "
-		    "lvif ic_unlocked %d nt_unlocked %d\n", __func__,
-		    curthread->td_tid, vap,
+		ic_printf(ic, "%d %lu %s: vap %p ic %p %slocked nt %p %slocked "
+		    "lvif ic_unlocked %d nt_unlocked %d\n",
+		    curthread->td_tid, jiffies, __func__, vap,
 		    ic, icislocked ? "" : "un", nt, ntislocked ? "" : "un",
 		    lvif->ic_unlocked, lvif->nt_unlocked);
 #endif
