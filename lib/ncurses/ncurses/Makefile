@@ -8,8 +8,6 @@ SHLIBDIR?=	/lib
 LIB=		ncursesw
 SHLIB_MAJOR=	9
 
-NO_LINT=
-
 GENSRCS=	\
 	expanded.c \
 	lib_gen.c

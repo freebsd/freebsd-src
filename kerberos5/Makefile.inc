@@ -1,7 +1,5 @@
 .include <src.opts.mk>
 
-NO_LINT=
-
 KRB5DIR=	${SRCTOP}/crypto/heimdal
 
 CFLAGS+=	-DHAVE_CONFIG_H -I${.CURDIR:H:H}/include

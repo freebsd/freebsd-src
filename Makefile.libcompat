@@ -64,7 +64,6 @@ build${libcompat}: .PHONY
 	    OBJROOT='$${OBJTOP}/' \
 	    UNIVERSE_TOOLCHAIN_PATH=${UNIVERSE_TOOLCHAIN_PATH} \
 	    MAKEOBJDIRPREFIX= \
-	    -DNO_LINT \
 	    -DNO_CPU_CFLAGS \
 	    MK_ASAN=no \
 	    MK_CTF=no \
