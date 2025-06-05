@@ -1728,23 +1728,18 @@ pf_handle_get_ruleset(struct nlmsghdr *hdr, struct nl_pstate *npt)
 
 static bool
 nlattr_add_pf_threshold(struct nl_writer *nw, int attrtype,
-    struct pf_threshold *t, int secs)
+    struct pf_kthreshold *t)
 {
 	int	 off = nlattr_add_nested(nw, attrtype);
-	int	 diff, conn_rate_count;
+	int	 conn_rate_count = 0;
 
 	/* Adjust the connection rate estimate. */
-	conn_rate_count = t->count;
-	diff = secs - t->last;
-	if (diff >= t->seconds)
-		conn_rate_count = 0;
-	else
-		conn_rate_count -= t->count * diff / t->seconds;
+	if (t->cr != NULL)
+		conn_rate_count = counter_rate_get(t->cr);
 
 	nlattr_add_u32(nw, PF_TH_LIMIT, t->limit);
 	nlattr_add_u32(nw, PF_TH_SECONDS, t->seconds);
 	nlattr_add_u32(nw, PF_TH_COUNT, conn_rate_count);
-	nlattr_add_u32(nw, PF_TH_LAST, t->last);
 
 	nlattr_set_len(nw, off);
 
@@ -1803,7 +1798,7 @@ pf_handle_get_srcnodes(struct nlmsghdr *hdr, struct nl_pstate *npt)
 				nlattr_add_u64(nw, PF_SN_EXPIRE, 0);
 
 			nlattr_add_pf_threshold(nw, PF_SN_CONNECTION_RATE,
-			    &n->conn_rate, secs);
+			    &n->conn_rate);
 
 			nlattr_add_u8(nw, PF_SN_NODE_TYPE, n->type);
 
