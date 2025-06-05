@@ -24,6 +24,22 @@ atf_test_case nocloud_userdata_cloudconfig_chpasswd
 atf_test_case nocloud_userdata_cloudconfig_chpasswd_list_string
 atf_test_case nocloud_userdata_cloudconfig_chpasswd_list_list
 
+setup_test_adduser()
+{
+	here=$(pwd)
+	export NUAGE_FAKE_ROOTDIR=$(pwd)
+	mkdir -p etc/ssh
+	cat > etc/master.passwd << EOF
+root:*:0:0::0:0:Charlie &:/root:/bin/csh
+sys:*:1:0::0:0:Sys:/home/sys:/bin/csh
+EOF
+	pwd_mkdb -d etc ${here}/etc/master.passwd
+	cat > etc/group << EOF
+wheel:*:0:root
+users:*:1:
+EOF
+}
+
 args_body()
 {
 	atf_check -s exit:1 -e inline:"Usage: /usr/libexec/nuageinit <cloud-init-directory> (<config-2> | <nocloud>)\n" /usr/libexec/nuageinit
