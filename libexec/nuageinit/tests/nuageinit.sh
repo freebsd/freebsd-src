@@ -23,6 +23,7 @@ atf_test_case nocloud_userdata_cloudconfig_ssh_pwauth
 atf_test_case nocloud_userdata_cloudconfig_chpasswd
 atf_test_case nocloud_userdata_cloudconfig_chpasswd_list_string
 atf_test_case nocloud_userdata_cloudconfig_chpasswd_list_list
+atf_test_case config2_userdata_runcmd
 
 setup_test_adduser()
 {
@@ -700,6 +701,41 @@ EOF
 	atf_check -o match:'root:\$.*:0:0::0:0:Charlie &:/root:/bin/sh$' pw -R $(pwd) usershow root
 }
 
+config2_userdata_runcmd_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_runcmd_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+runcmd:
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -s exit:1 -e match:"attempt to index a nil value" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+runcmd:
+  - plop
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -s exit:0 -e inline:"sh: plop: not found\nnuageinit: Failed to execute 'plop'\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+runcmd:
+  - echo "yeah!" > "${PWD}"/media/nuageinit/runcmd_echo
+  - uname -s > "${PWD}"/media/nuageinit/runcmd_uname
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -s exit:0 -o inline:"yeah!\n" cat "${PWD}"/media/nuageinit/runcmd_echo
+	atf_check -s exit:0 -o inline:"FreeBSD\n" cat "${PWD}"/media/nuageinit/runcmd_uname
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case args
@@ -719,4 +755,5 @@ atf_init_test_cases()
 	atf_add_test_case nocloud_userdata_cloudconfig_chpasswd
 	atf_add_test_case nocloud_userdata_cloudconfig_chpasswd_list_string
 	atf_add_test_case nocloud_userdata_cloudconfig_chpasswd_list_list
+	atf_add_test_case config2_userdata_runcmd
 }
