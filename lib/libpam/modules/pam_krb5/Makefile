@@ -23,6 +23,56 @@
 # SUCH DAMAGE.
 #
 
+.include <src.opts.mk>
+
+.if ${MK_MITKRB5} != "no"
+SRCDIR= ${SRCTOP}/contrib/pam-krb5
+.PATH:	${SRCDIR}/module \
+	${SRCDIR}/portable \
+	${SRCDIR}/pam-util \
+	${SRCDIR}
+
+PACKAGE=	krb5
+LIB=	pam_krb5
+LIBADD=	com_err krb5
+
+SRCS=	account.c \
+	alt-auth.c \
+	args.c \
+	auth.c \
+	cache.c \
+	context.c \
+	dummy.c \
+	fast.c \
+	krb5-extra.c \
+	logging.c \
+	pam-util_options.c \
+	module_options.c \
+	pam_syslog.c \
+	pam_vsyslog.c \
+	password.c \
+	prompting.c \
+	public.c \
+	setcred.c \
+	support.c \
+	vector.c
+
+CFLAGS=	-I${SRCDIR} \
+	-I${.CURDIR} \
+	-fno-strict-aliasing \
+	-Wno-error=incompatible-pointer-types-discards-qualifiers \
+	-DHAVE_CONFIG_H
+
+WARNS?=	3
+
+CLEANFILES=	pam-util_options.c module_options.c
+
+pam-util_options.c:	.PHONY
+	cp ${SRCDIR}/pam-util/options.c pam-util_options.c
+
+module_options.c:	.PHONY
+	cp ${SRCDIR}/module/options.c module_options.c
+.else
 PACKAGE=	kerberos
 
 LIB=	pam_krb5
@@ -34,5 +84,7 @@ WARNS?=	3
 .endif
 
 LIBADD+=	krb5
+
+.endif
 
 .include <bsd.lib.mk>
