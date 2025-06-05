@@ -4118,12 +4118,26 @@ lkpi_scan_ies_add(uint8_t *p, struct ieee80211_scan_ies *scan_ies,
 		channels = supband->channels;
 		chan = NULL;
 		for (i = 0; i < supband->n_channels; i++) {
+			uint32_t flags;
 
 			if (channels[i].flags & IEEE80211_CHAN_DISABLED)
 				continue;
 
+			flags = 0;
+			switch (band) {
+			case NL80211_BAND_2GHZ:
+				flags |= IEEE80211_CHAN_G;
+				break;
+			case NL80211_BAND_5GHZ:
+				flags |= IEEE80211_CHAN_A;
+				break;
+			default:
+				panic("%s:%d: unupported band %d\n",
+				    __func__, __LINE__, band);
+			}
+
 			chan = ieee80211_find_channel(ic,
-			    channels[i].center_freq, 0);
+			    channels[i].center_freq, flags);
 			if (chan != NULL)
 				break;
 		}
