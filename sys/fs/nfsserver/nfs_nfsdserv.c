@@ -3087,7 +3087,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 					tverf[0] = nva2.na_atime.tv_sec;
 					tverf[1] = nva2.na_atime.tv_nsec;
 					if (cverf[0] != tverf[0] ||
-					     cverf[1] != tverf[1]))
+					     cverf[1] != tverf[1])
 						nd->nd_repstat = EEXIST;
 				}
 				if (nd->nd_repstat != 0)
