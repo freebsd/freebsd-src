@@ -366,12 +366,16 @@ class MockFS {
 		enum poll_method pm, uint32_t flags,
 		uint32_t kernel_minor_version, uint32_t max_write, bool async,
 		bool no_clusterr, unsigned time_gran, bool nointr,
-		bool noatime, const char *fsname, const char *subtype);
+		bool noatime, const char *fsname, const char *subtype,
+		bool no_auto_init);
 
 	virtual ~MockFS();
 
 	/* Kill the filesystem daemon without unmounting the filesystem */
 	void kill_daemon();
+
+	/* Wait until the daemon thread terminates */
+	void join_daemon();
 
 	/* Process FUSE requests endlessly */
 	void loop();

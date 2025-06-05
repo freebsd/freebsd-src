@@ -69,6 +69,7 @@ class FuseTest : public ::testing::Test {
 	bool m_async;
 	bool m_noclusterr;
 	bool m_nointr;
+	bool m_no_auto_init;
 	unsigned m_time_gran;
 	MockFS *m_mock = NULL;
 	const static uint64_t FH = 0xdeadbeef1a7ebabe;
@@ -95,6 +96,7 @@ class FuseTest : public ::testing::Test {
 		m_async(false),
 		m_noclusterr(false),
 		m_nointr(false),
+		m_no_auto_init(false),
 		m_time_gran(1),
 		m_fsname(""),
 		m_subtype(""),
