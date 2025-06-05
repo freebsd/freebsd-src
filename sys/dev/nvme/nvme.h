@@ -1929,6 +1929,7 @@ enum nvme_namespace_flags {
 
 void	nvme_cpl_sbuf(const struct nvme_completion *cpl, struct sbuf *sbuf);
 void	nvme_opcode_sbuf(bool admin, uint8_t opc, struct sbuf *sb);
+void	nvme_sc_sbuf(const struct nvme_completion *cpl, struct sbuf *sbuf);
 
 int	nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 				   struct nvme_pt_command *pt,
