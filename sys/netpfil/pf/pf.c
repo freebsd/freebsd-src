@@ -5906,11 +5906,12 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		 * it is applied only from the last pass rule.
 		 */
 		pd->act.rt = r->rt;
-		/* Don't use REASON_SET, pf_map_addr increases the reason counters */
-		ctx.reason = pf_map_addr_sn(pd->af, r, pd->src, &pd->act.rt_addr,
-		    &pd->act.rt_kif, NULL, &(r->route), PF_SN_ROUTE);
-		if (ctx.reason != 0)
+		if ((transerror = pf_map_addr_sn(pd->af, r, pd->src,
+		    &pd->act.rt_addr, &pd->act.rt_kif, NULL, &(r->route),
+		    PF_SN_ROUTE)) != PFRES_MATCH) {
+			REASON_SET(&ctx.reason, transerror);
 			goto cleanup;
+		}
 	}
 
 	if (pd->virtual_proto != PF_VPROTO_FRAGMENT &&
