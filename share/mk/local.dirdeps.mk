@@ -306,4 +306,3 @@ ${DEP_RELDIR}/$t.test:
 .endfor
 .endif
 
-.endif
