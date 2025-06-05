@@ -25,6 +25,7 @@
 
 #include <sys/soundcard.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -203,6 +204,9 @@ main(int argc, char **argv)
 	f = open(oss_dev, O_WRONLY);
 	if (f < 0)
 		err(1, "Failed to open '%s'", oss_dev);
+
+	if (caph_enter() == -1)
+		err(1, "Failed to enter capability mode");
 
 	c = 1;				/* mono */
 	if (ioctl(f, SOUND_PCM_WRITE_CHANNELS, &c) != 0)
