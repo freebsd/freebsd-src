@@ -1064,10 +1064,15 @@ lkpi_net80211_to_l80211_cipher_suite(uint32_t cipher, uint8_t keylen)
 
 	switch (cipher) {
 	case IEEE80211_CIPHER_WEP:
-		if (keylen < 8)
+		if (keylen == (40/NBBY))
 			return (WLAN_CIPHER_SUITE_WEP40);
-		else
+		else if (keylen == (104/NBBY))
 			return (WLAN_CIPHER_SUITE_WEP104);
+		else {
+			printf("%s: WEP with unsupported keylen %d\n",
+			    __func__, keylen * NBBY);
+			return (0);
+		}
 		break;
 	case IEEE80211_CIPHER_TKIP:
 		return (WLAN_CIPHER_SUITE_TKIP);
