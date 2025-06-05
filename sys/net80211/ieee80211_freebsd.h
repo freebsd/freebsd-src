@@ -93,12 +93,22 @@ typedef struct {
 } while (0)
 #define	IEEE80211_TX_LOCK_OBJ(_ic)	(&(_ic)->ic_txlock.mtx)
 #define	IEEE80211_TX_LOCK_DESTROY(_ic) mtx_destroy(IEEE80211_TX_LOCK_OBJ(_ic))
-#define	IEEE80211_TX_LOCK(_ic)	   mtx_lock(IEEE80211_TX_LOCK_OBJ(_ic))
-#define	IEEE80211_TX_UNLOCK(_ic)	   mtx_unlock(IEEE80211_TX_LOCK_OBJ(_ic))
-#define	IEEE80211_TX_LOCK_ASSERT(_ic) \
-	mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_OWNED)
-#define	IEEE80211_TX_UNLOCK_ASSERT(_ic) \
-	mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_NOTOWNED)
+#define	IEEE80211_TX_LOCK(_ic) do { \
+	if (!IEEE80211_CONF_SEQNO_OFFLOAD(_ic)) \
+		mtx_lock(IEEE80211_TX_LOCK_OBJ(_ic)); \
+	} while (0);
+#define	IEEE80211_TX_UNLOCK(_ic) do { \
+	if (!IEEE80211_CONF_SEQNO_OFFLOAD(_ic)) \
+		mtx_unlock(IEEE80211_TX_LOCK_OBJ(_ic)); \
+	} while (0);
+#define	IEEE80211_TX_LOCK_ASSERT(_ic) do { \
+	if (!IEEE80211_CONF_SEQNO_OFFLOAD(_ic)) \
+		mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_OWNED); \
+	} while (0)
+#define	IEEE80211_TX_UNLOCK_ASSERT(_ic) { \
+	if (!IEEE80211_CONF_SEQNO_OFFLOAD(_ic)) \
+		mtx_assert(IEEE80211_TX_LOCK_OBJ(_ic), MA_NOTOWNED); \
+	} while (0)
 
 /*
  * Stageq / ni_tx_superg lock

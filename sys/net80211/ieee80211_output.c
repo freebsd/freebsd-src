@@ -974,7 +974,7 @@ ieee80211_send_setup(
 
 		/* NB: zero out i_seq field (for s/w encryption etc) */
 		*(uint16_t *)&wh->i_seq[0] = 0;
-	} else
+	} else if (!IEEE80211_CONF_SEQNO_OFFLOAD(ni->ni_ic))
 		ieee80211_output_seqno_assign(ni, tid, m);
 
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
@@ -1810,7 +1810,8 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		 * and we don't need the TX lock held.
 		 */
 		if ((m->m_flags & M_AMPDU_MPDU) == 0) {
-			ieee80211_output_seqno_assign(ni, tid, m);
+			if (!IEEE80211_CONF_SEQNO_OFFLOAD(ic))
+				ieee80211_output_seqno_assign(ni, tid, m);
 		} else {
 			/*
 			 * NB: don't assign a sequence # to potential
@@ -1828,7 +1829,9 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			*(uint16_t *)wh->i_seq = 0;
 		}
 	} else {
-		ieee80211_output_seqno_assign(ni, IEEE80211_NONQOS_TID, m);
+		if (!IEEE80211_CONF_SEQNO_OFFLOAD(ic))
+			ieee80211_output_seqno_assign(ni, IEEE80211_NONQOS_TID,
+			    m);
 		/*
 		 * XXX TODO: we shouldn't allow EAPOL, etc that would
 		 * be forced to be non-QoS traffic to be A-MSDU encapsulated.
@@ -3856,6 +3859,8 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 	 * If the driver identifies it does its own TX seqno management then
 	 * we can skip this (and still not do the TX seqno.)
 	 */
+
+	/* TODO: IEEE80211_CONF_SEQNO_OFFLOAD() */
 	ieee80211_output_beacon_seqno_assign(ni, m);
 
 	/* XXX faster to recalculate entirely or just changes? */
