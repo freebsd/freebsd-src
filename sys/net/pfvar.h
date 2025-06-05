@@ -793,6 +793,12 @@ struct pf_keth_rule {
 	uint32_t		ridentifier;
 };
 
+struct pf_kthreshold {
+	uint32_t		 limit;
+	uint32_t		 seconds;
+	struct counter_rate	*cr;
+};
+
 RB_HEAD(pf_krule_global, pf_krule);
 RB_PROTOTYPE(pf_krule_global, pf_krule, entry_global, pf_krule_compare);
 
@@ -926,7 +932,7 @@ struct pf_ksrc_node {
 	counter_u64_t		 packets[2];
 	u_int32_t		 states;
 	u_int32_t		 conn;
-	struct pf_threshold	 conn_rate;
+	struct pf_kthreshold	 conn_rate;
 	u_int32_t		 creation;
 	u_int32_t		 expire;
 	sa_family_t		 af;
@@ -2520,6 +2526,8 @@ struct pf_state_key *pf_alloc_state_key(int);
 int	pf_translate(struct pf_pdesc *, struct pf_addr *, u_int16_t,
 	    struct pf_addr *, u_int16_t, u_int16_t, int);
 int	pf_translate_af(struct pf_pdesc *);
+bool	pf_init_threshold(struct pf_kthreshold *, uint32_t, uint32_t);
+
 void	pfr_initialize(void);
 void	pfr_cleanup(void);
 int	pfr_match_addr(struct pfr_ktable *, struct pf_addr *, sa_family_t);
