@@ -1,0 +1,32 @@
+mydir=lib$(S)crypto$(S)builtin$(S)md5
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+LOCALINCLUDES=-I$(srcdir)/../../krb $(CRYPTO_IMPL_CFLAGS)
+
+##DOS##BUILDTOP = ..\..\..\..
+##DOS##PREFIXDIR = builtin\md5
+##DOS##OBJFILE = ..\..\$(OUTPRE)md5.lst
+
+STLIBOBJS= md5.o
+
+OBJS= $(OUTPRE)md5.$(OBJEXT) 
+
+SRCS= $(srcdir)/md5.c
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+
+includes: depend
+
+depend: $(SRCS)
+
+check-unix:
+
+check-windows:
+
+clean:
+
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+

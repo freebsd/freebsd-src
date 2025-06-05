@@ -1,0 +1,9 @@
+OpenV*Secure V1.0	
+princ	host/equal-rites.mit.edu@KRBTEST.COM		0	0	0	2
+princ	kadmin/admin@KRBTEST.COM		0	0	0	2
+princ	kadmin/changepw@KRBTEST.COM		0	0	0	2
+princ	kadmin/equal-rites.mit.edu@KRBTEST.COM		0	0	0	2
+princ	nokeys@KRBTEST.COM		0	0	0	2
+princ	user/admin@KRBTEST.COM		0	0	0	2
+princ	user@KRBTEST.COM	testpol	800	0	0	2
+policy	testpol	0	0	1	3	1	0

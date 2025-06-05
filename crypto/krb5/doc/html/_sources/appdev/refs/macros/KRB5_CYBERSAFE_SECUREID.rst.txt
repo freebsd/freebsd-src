@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-CYBERSAFE-SECUREID-data:
+
+KRB5_CYBERSAFE_SECUREID
+=======================
+
+..
+.. data:: KRB5_CYBERSAFE_SECUREID
+..
+
+Cybersafe.
+
+RFC 4120
+
+============================== ======================
+``KRB5_CYBERSAFE_SECUREID``       ``9``
+============================== ======================

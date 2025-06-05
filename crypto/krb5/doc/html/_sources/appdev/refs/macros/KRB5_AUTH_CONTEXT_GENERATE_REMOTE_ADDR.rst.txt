@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-AUTH-CONTEXT-GENERATE-REMOTE-ADDR-data:
+
+KRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR
+======================================
+
+..
+.. data:: KRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR
+..
+
+Generate the remote network address.
+
+
+
+============================================= ======================
+``KRB5_AUTH_CONTEXT_GENERATE_REMOTE_ADDR``       ``0x00000002``
+============================================= ======================

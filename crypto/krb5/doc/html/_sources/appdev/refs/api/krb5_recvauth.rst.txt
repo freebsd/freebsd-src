@@ -1,0 +1,68 @@
+krb5_recvauth -  Server function for sendauth protocol. 
+========================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_recvauth(krb5_context context, krb5_auth_context * auth_context, krb5_pointer fd, char * appl_version, krb5_principal server, krb5_int32 flags, krb5_keytab keytab, krb5_ticket ** ticket)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[inout]** **auth_context** - Pre-existing or newly created auth context
+
+	          **[in]** **fd** - File descriptor
+
+	          **[in]** **appl_version** - Application protocol version to be matched against the client's application version
+
+	          **[in]** **server** - Server principal (NULL for any in *keytab* )
+
+	          **[in]** **flags** - Additional specifications
+
+	          **[in]** **keytab** - Key table containing service keys
+
+	          **[out]** **ticket** - Ticket (NULL if not needed)
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function performs the server side of a sendauth/recvauth exchange by sending and receiving messages over *fd* .
+
+
+
+Use krb5_free_ticket() to free *ticket* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         krb5_sendauth()
+ 
+
+
+
+

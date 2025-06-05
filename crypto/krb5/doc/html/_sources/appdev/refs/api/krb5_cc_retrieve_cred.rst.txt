@@ -1,0 +1,94 @@
+krb5_cc_retrieve_cred -  Retrieve a specified credentials from a credential cache. 
+===================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_retrieve_cred(krb5_context context, krb5_ccache cache, krb5_flags flags, krb5_creds * mcreds, krb5_creds * creds)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **cache** - Credential cache handle
+
+	          **[in]** **flags** - Flags bit mask
+
+	          **[in]** **mcreds** - Credentials to match
+
+	          **[out]** **creds** - Credentials matching the requested value
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function searches a credential cache for credentials matching *mcreds* and returns it if found.
+
+
+
+Valid values for *flags* are:
+
+
+
+ 
+ 
+	 - #KRB5_TC_MATCH_TIMES The requested lifetime must be at least as great as in *mcreds* .
+ 
+ 
+	 - #KRB5_TC_MATCH_IS_SKEY The *is_skey* field much match exactly.
+ 
+ 
+	 - #KRB5_TC_MATCH_FLAGS Flags set in *mcreds* must be set.
+ 
+ 
+	 - #KRB5_TC_MATCH_TIMES_EXACT The requested lifetime must match exactly.
+ 
+ 
+	 - #KRB5_TC_MATCH_FLAGS_EXACT Flags must match exactly.
+ 
+ 
+	 - #KRB5_TC_MATCH_AUTHDATA The authorization data must match.
+ 
+ 
+	 - #KRB5_TC_MATCH_SRV_NAMEONLY Only the name portion of the principal name must match, not the realm.
+ 
+ 
+	 - #KRB5_TC_MATCH_2ND_TKT The second tickets must match.
+ 
+ 
+	 - #KRB5_TC_MATCH_KTYPE The encryption key types must match.
+ 
+ 
+	 - #KRB5_TC_SUPPORTED_KTYPES Check all matching entries that have any supported encryption type and return the one with the encryption type listed earliest.
+ 
+ Use krb5_free_cred_contents() to free *creds* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

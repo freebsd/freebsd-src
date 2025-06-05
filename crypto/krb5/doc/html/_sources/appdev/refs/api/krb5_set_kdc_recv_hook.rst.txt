@@ -1,0 +1,52 @@
+krb5_set_kdc_recv_hook -  Set a KDC post-receive hook function. 
+================================================================
+
+..
+
+.. c:function:: void krb5_set_kdc_recv_hook(krb5_context context, krb5_post_recv_fn recv_hook, void * data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - The library context.
+
+	          **[in]** **recv_hook** - Hook function (or NULL to disable the hook)
+
+	          **[in]** **data** - Callback data to be passed to *recv_hook*
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+ *recv_hook* will be called after a reply is received from a KDC during a call to a library function such as krb5_get_credentials(). The hook function may inspect or override the reply. This hook will not be executed if the pre-send hook returns a synthetic reply.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.15
+ 
+

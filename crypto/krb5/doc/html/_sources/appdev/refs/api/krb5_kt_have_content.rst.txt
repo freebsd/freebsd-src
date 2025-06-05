@@ -1,0 +1,50 @@
+krb5_kt_have_content -  Check if a keytab exists and contains entries. 
+=======================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_kt_have_content(krb5_context context, krb5_keytab keytab)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **keytab** - Key table handle
+
+
+..
+
+
+:retval:
+         -   0   Keytab exists and contains entries
+         -   KRB5_KT_NOTFOUND   Keytab does not contain entries
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.11
+ 
+

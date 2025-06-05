@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-TC-MATCH-TIMES-data:
+
+KRB5_TC_MATCH_TIMES
+===================
+
+..
+.. data:: KRB5_TC_MATCH_TIMES
+..
+
+The requested lifetime must be at least as great as the time specified.
+
+
+
+========================== ======================
+``KRB5_TC_MATCH_TIMES``       ``0x00000001``
+========================== ======================

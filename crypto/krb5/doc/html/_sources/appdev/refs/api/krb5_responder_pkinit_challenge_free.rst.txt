@@ -1,0 +1,48 @@
+krb5_responder_pkinit_challenge_free -  Free the value returned by krb5_responder_pkinit_get_challenge(). 
+==========================================================================================================
+
+..
+
+.. c:function:: void krb5_responder_pkinit_challenge_free(krb5_context ctx, krb5_responder_context rctx, krb5_responder_pkinit_challenge * chl)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **rctx** - Responder context
+
+	          **[in]** **chl** - The challenge to free
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.12
+ 
+

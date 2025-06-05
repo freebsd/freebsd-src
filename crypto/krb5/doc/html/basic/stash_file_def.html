@@ -1,0 +1,150 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>stash file &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Supported date and time formats" href="date_format.html" />
+    <link rel="prev" title="replay cache" href="rcache_def.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="rcache_def.html" title="replay cache"
+            accesskey="P">previous</a> |
+        <a href="date_format.html" title="Supported date and time formats"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__stash file">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="stash-file">
+<span id="stash-definition"></span><h1>stash file<a class="headerlink" href="#stash-file" title="Permalink to this headline">¶</a></h1>
+<p>The stash file is a local copy of the master key that resides in
+encrypted form on the KDC’s local disk.  The stash file is used to
+authenticate the KDC to itself automatically before starting the
+<a class="reference internal" href="../admin/admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> and <a class="reference internal" href="../admin/admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> daemons (e.g., as part of the
+machine’s boot sequence).  The stash file, like the keytab file (see
+<a class="reference internal" href="../admin/install_appl_srv.html#keytab-file"><span class="std std-ref">The keytab file</span></a>) is a potential point-of-entry for a break-in, and
+if compromised, would allow unrestricted access to the Kerberos
+database.  If you choose to install a stash file, it should be
+readable only by root, and should exist only on the KDC’s local disk.
+The file should not be part of any backup of the machine, unless
+access to the backup data is secured as tightly as access to the
+master password itself.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you choose not to install a stash file, the KDC will prompt you for the master key each time it starts up.
+This means that the KDC will not be able to start automatically, such as after a system reboot.</p>
+</div>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">stash file</a></li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Kerberos V5 concepts</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ccache_def.html">Credential cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="keytab_def.html">keytab</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rcache_def.html">replay cache</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">stash file</a></li>
+<li class="toctree-l2"><a class="reference internal" href="date_format.html">Supported date and time formats</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="rcache_def.html" title="replay cache"
+            >previous</a> |
+        <a href="date_format.html" title="Supported date and time formats"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__stash file">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

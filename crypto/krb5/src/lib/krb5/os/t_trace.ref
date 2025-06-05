@@ -1,0 +1,48 @@
+simple format
+int, in decimal: -1
+long, in decimal: -2
+const char *, display as C string: example.data
+size_t and const char *, as a counted string: example.data
+size_t and const char *, as a counted string: (null)
+size_t and const char *, as hex bytes: 6578616D706C652E64617461
+size_t and const char *, as hex bytes: (null)
+size_t and const char *, as four-character hex hash: 7B9A
+size_t and const char *, as four-character hex hash: (null)
+struct remote_address *, show socket type, address, port: stream 0.0.0.0:88
+struct remote_address *, show socket type, address, port: dgram 0.0.0.0:88
+struct remote_address *, show socket type, address, port: transport1234 AF_UNSPEC
+struct remote_address *, show socket type, address, port: transport1234 af5678
+krb5_data *, display as counted string: example.data
+krb5_data *, display as counted string: (null)
+krb5_data *, display as hex bytes: 6578616D706C652E64617461
+krb5_data *, display as hex bytes: (null)
+int, display as number/errorstring: 2/No such file or directory
+krb5_error_code, display as number/errorstring: 0/Success
+const krb5_keyblock *, display enctype and hash of key: 511/7B9A
+const krb5_keyblock *, display enctype and hash of key: (null)
+krb5_key, display enctype and hash of key: 511/7B9A
+krb5_key, display enctype and hash of key: (null)
+const krb5_checksum *, display cksumtype and hex checksum: -1/6578616D706C652E64617461
+krb5_principal, unparse and display: @ATHENA.MIT.EDU
+int, krb5_principal type: unknown
+int, krb5_principal type: principal
+int, krb5_principal type: service instance
+int, krb5_principal type: service with host as instance
+int, krb5_principal type: service with host as components
+int, krb5_principal type: unique ID
+int, krb5_principal type: X.509
+int, krb5_principal type: SMTP email
+int, krb5_principal type: Windows 2000 UPN
+int, krb5_principal type: well-known
+int, krb5_principal type: Windows 2000 UPN and SID
+int, krb5_principal type: NT 4 style name
+int, krb5_principal type: NT 4 style name and SID
+int, krb5_principal type: ?
+krb5_pa_data **, display list of padata type numbers: PA-PW-SALT (3), 0
+krb5_pa_data **, display list of padata type numbers: (empty)
+krb5_enctype, display shortest name of enctype: aes128-cts
+krb5_enctype *, display list of enctypes: 5, rc4-hmac-exp, 511
+krb5_enctype *, display list of enctypes: (empty)
+krb5_ccache, display type:name: FILE:/path/to/ccache
+krb5_keytab, display name: FILE:/etc/krb5.keytab
+krb5_creds *, display clientprinc -> serverprinc: @ATHENA.MIT.EDU -> @ZEUS.MIT.EDU

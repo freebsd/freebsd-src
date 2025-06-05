@@ -1,0 +1,149 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>KLIST</Title>
+</HEAD>
+<BODY>
+<H1>KLIST Command</H1>
+
+<table>
+<tr><th id="th2"> The following information reproduces the information from UNIX man page for the KLIST command.</th>
+</tr>
+</table>
+<H2>SYNOPSIS</H2>
+<table>
+<tr>
+<th id="th2">klist</th>
+<td>
+<span class="command">[<B>-e</B>]    </span>
+<span class="command">  [[<B>-c</B>]  [<B>-l</B>]  [<B>-A</B>]  [<B>-f</B>]  [<B>-s</B>]  [<B>-a</B>   [<B>-n</B>]]] </span>
+<span class="command">  [<B>-k</B> [<B>-t</B>] [<B>-K</B>]]   </span>
+<span class="command"> [<I>cache</I><B>_</B><I>name</I> | <I>keytab</I><B>_</B><I>name</I>]   </span>
+</td>
+</tr>
+</table>
+
+<H2>DESCRIPTION</H2>
+<p>
+       <span class="command">  <em>klist</em></span>  lists the Kerberos principal and Kerberos tickets held in a  credentials cache, or the keys held in a <B>keytab</B> file.
+</p>
+
+<H2>OPTIONS</H2>
+
+<table>
+<tr>
+<th id="th2"><span class="command">  <B>-e</B>  </span></th>
+<td> Displays  the encryption types of the session key and the ticket
+              for each credential in the credential cache, or each key in  the
+              keytab file.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"> <B>-c</B>  </span></th>
+<td> List  tickets  held in a credentials cache.  This is the default
+              if neither <B>-c</B> nor <B>-k</B> is specified.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"> <B>-l</B>   </span></th>
+<td>          If a cache collection is available, displays a table summarizing
+              the caches present in the collection.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"> <B>-A &nbsp; &nbsp</B>   </span></th>
+<td>       If a cache collection is available, displays the contents of all
+              of the caches in the collection.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command">  <B>-f</B>  </span></th>
+<td>         Shows the flags present in the credentials, using the  following
+              abbreviations:
+<table class="noborder" >
+
+              <tr><td>   F</td><td><B>F</B>orwardable </td></tr>
+                  <tr><td> f</td><td><B>f</B>orwarded </td></tr>
+                 <tr><td>  P</td><td><B>P</B>roxiable</td></tr>
+               <tr><td>    p</td><td><B>p</B>roxy</td></tr>
+                 <tr><td>  D</td><td>post<B>D</B>ateable</td></tr>
+                 <tr><td>  d</td><td> post<B>d</B>ated</td></tr>
+              <tr><td>     R</td><td><B>R</B>enewable</td></tr>
+                 <tr><td>  I</td><td><B>I</B>nitial</td></tr>
+                <tr><td>   i</td><td><B>i</B>nvalid</td></tr>
+            <tr><td>       H</td><td><B>H</B>ardware authenticated</td></tr>
+               <tr><td>    A </td><td>pre<B>A</B>uthenticated</td></tr>
+              <tr><td>     T</td><td><B>T</B>ransit policy checked</td></tr>
+             <tr><td>      O</td><td><B>O</B>kay as delegate</td></tr>
+                 <tr><td>  a</td><td><B>a</B>nonymous</td></tr>
+</table>
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"> <B>-s</B>   </span></th>
+<td>           Causes  <B>klist</B>  to run silently (produce no output), but to still
+              set the exit status according to whether it  finds  the  credentials
+              cache.   The  exit status is `0' if <B>klist</B> finds a credentials
+              cache, and `1' if it does not or if the tickets are
+               expired.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command">  <B>-a</B> </span></th>
+<td>Display list of addresses in credentials.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"> <B>-n</B>  </span></th>
+<td>Show numeric addresses instead of reverse-resolving addresses.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"> <B>-k</B>  </span></th>
+<td>List keys held in a <B>keytab</B> file.
+</td>
+</tr>
+
+      </table>
+
+
+<H2>ENVIRONMENT</H2>
+<p>     <B>Klist</B> uses the following environment variables:</p>
+<table>
+<tr>
+<th id="th2"> KRB5CCNAME</th>
+<td>      Location of the default Kerberos 5 credentials (ticket)
+                       cache, in the form <I>type</I>:<I>residual</I>.  If no type prefix is
+                       present,  the  <B>FILE</B>  type  is assumed.  The type of the
+                       default cache may determine the availability of a cache
+                       collection;  for  instance, a default cache of type <B>DIR</B>
+                       causes caches within the directory to be present in the
+                       collection. </td>
+</tr>
+</table>
+
+<H2>FILES</H2>
+<table>
+<tr>
+  <th id="th2">     <span class="command">   /tmp/krb5cc_[uid] </span></th>
+<td>       default  location  of  Kerberos  5 credentials cache ([uid] is the decimal UID of the user). </td></tr>
+<tr>
+  <th id="th2">     <span class="command">    /etc/krb5.keytab  </span></th>
+<td>    default location for the local host's <B>keytab</B> file.</td></tr>
+</table>
+
+<H2>SEE ALSO</H2>
+<ul id="helpul">
+<li><a href="HTML/KINIT.htm"><B>kinit(1)</B></a> </li>
+<li><a href="HTML/KDESTROY.htm"><B>kdestroy(1)</B></a></li>
+<li><B>krb5(3)</B></li>
+
+<PRE>
+
+                                                                      <B>KLIST(1)</B>
+
+</PRE>
+</BODY>
+</HTML>

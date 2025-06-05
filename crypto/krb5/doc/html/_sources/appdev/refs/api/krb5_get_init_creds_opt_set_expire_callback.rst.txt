@@ -1,0 +1,78 @@
+krb5_get_init_creds_opt_set_expire_callback -  Set an expiration callback in initial credential options. 
+=========================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_init_creds_opt_set_expire_callback(krb5_context context, krb5_get_init_creds_opt * opt, krb5_expire_callback_func cb, void * data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **cb** - Callback function
+
+	          **[in]** **data** - Callback argument
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+Set a callback to receive password and account expiration times.
+
+
+
+ *cb* will be invoked if and only if credentials are successfully acquired. The callback will receive the *context* from the calling function and the *data* argument supplied with this API. The remaining arguments should be interpreted as follows:
+
+
+
+If *is_last_req* is true, then the KDC reply contained last-req entries which unambiguously indicated the password expiration, account expiration, or both. (If either value was not present, the corresponding argument will be 0.) Furthermore, a non-zero *password_expiration* should be taken as a suggestion from the KDC that a warning be displayed.
+
+
+
+If *is_last_req* is false, then *account_expiration* will be 0 and *password_expiration* will contain the expiration time of either the password or account, or 0 if no expiration time was indicated in the KDC reply. The callback should independently decide whether to display a password expiration warning.
+
+
+
+Note that *cb* may be invoked even if credentials are being acquired for the kadmin/changepw service in order to change the password. It is the caller's responsibility to avoid displaying a password expiry warning in this case.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+.. warning::
+
+	 Setting an expire callback with this API will cause krb5_get_init_creds_password() not to send password expiry warnings to the prompter, as it ordinarily may.
+ 
+
+
+
+.. note::
+
+	 New in 1.9
+ 
+

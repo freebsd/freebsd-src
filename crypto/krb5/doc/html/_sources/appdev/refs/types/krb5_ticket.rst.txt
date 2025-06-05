@@ -1,0 +1,45 @@
+.. highlight:: c
+
+.. _krb5-ticket-struct:
+
+krb5_ticket
+===========
+
+..
+.. c:type:: krb5_ticket
+..
+
+Ticket structure.
+
+The C representation of the ticket message, with a pointer to the C representation of the encrypted part.
+
+Declaration
+------------
+
+typedef struct _krb5_ticket krb5_ticket
+
+
+Members
+---------
+
+
+.. c:member:: krb5_magic	krb5_ticket.magic
+
+                                             
+                                             
+
+.. c:member:: krb5_principal	krb5_ticket.server
+
+                                             server name/realm
+                                             
+
+.. c:member:: krb5_enc_data	krb5_ticket.enc_part
+
+                                             encryption type, kvno, encrypted encoding
+                                             
+
+.. c:member:: krb5_enc_tkt_part  *	krb5_ticket.enc_part2
+
+                                             ptr to decrypted version, if available
+                                             
+

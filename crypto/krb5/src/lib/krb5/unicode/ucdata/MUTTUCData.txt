@@ -1,0 +1,303 @@
+#
+# $Id: MUTTUCData.txt,v 1.3 1999/10/29 00:04:35 mleisher Exp $
+#
+# Copyright 1999 Computing Research Labs, New Mexico State University
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+# THE COMPUTING RESEARCH LAB OR NEW MEXICO STATE UNIVERSITY BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
+# OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+# THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+#
+# Implementation specific character properties.
+#
+#
+# Space, other.
+#
+0009;;Ss;;;;;;;;;;;;
+000A;;Ss;;;;;;;;;;;;
+000B;;Ss;;;;;;;;;;;;
+000C;;Ss;;;;;;;;;;;;
+000D;;Ss;;;;;;;;;;;;
+#
+# Non-breaking.
+#
+00A0;;Nb;;;;;;;;;;;;
+2007;;Nb;;;;;;;;;;;;
+2011;;Nb;;;;;;;;;;;;
+FEFF;;Nb;;;;;;;;;;;;
+#
+# Symmetric.
+#
+0028;;Sy;;;;;;;;;;;;
+0029;;Sy;;;;;;;;;;;;
+005B;;Sy;;;;;;;;;;;;
+005D;;Sy;;;;;;;;;;;;
+007B;;Sy;;;;;;;;;;;;
+007D;;Sy;;;;;;;;;;;;
+00AB;;Sy;;;;;;;;;;;;
+00BB;;Sy;;;;;;;;;;;;
+0F3A;;Sy;;;;;;;;;;;;
+0F3B;;Sy;;;;;;;;;;;;
+0F3C;;Sy;;;;;;;;;;;;
+0F3D;;Sy;;;;;;;;;;;;
+0F3E;;Sy;;;;;;;;;;;;
+0F3F;;Sy;;;;;;;;;;;;
+2018;;Sy;;;;;;;;;;;;
+2019;;Sy;;;;;;;;;;;;
+201A;;Sy;;;;;;;;;;;;
+201B;;Sy;;;;;;;;;;;;
+201C;;Sy;;;;;;;;;;;;
+201D;;Sy;;;;;;;;;;;;
+201E;;Sy;;;;;;;;;;;;
+201F;;Sy;;;;;;;;;;;;
+2039;;Sy;;;;;;;;;;;;
+203A;;Sy;;;;;;;;;;;;
+2045;;Sy;;;;;;;;;;;;
+2046;;Sy;;;;;;;;;;;;
+207D;;Sy;;;;;;;;;;;;
+207E;;Sy;;;;;;;;;;;;
+208D;;Sy;;;;;;;;;;;;
+208E;;Sy;;;;;;;;;;;;
+2329;;Sy;;;;;;;;;;;;
+232A;;Sy;;;;;;;;;;;;
+3008;;Sy;;;;;;;;;;;;
+3009;;Sy;;;;;;;;;;;;
+300A;;Sy;;;;;;;;;;;;
+300B;;Sy;;;;;;;;;;;;
+300C;;Sy;;;;;;;;;;;;
+300D;;Sy;;;;;;;;;;;;
+300E;;Sy;;;;;;;;;;;;
+300F;;Sy;;;;;;;;;;;;
+3010;;Sy;;;;;;;;;;;;
+3011;;Sy;;;;;;;;;;;;
+3014;;Sy;;;;;;;;;;;;
+3015;;Sy;;;;;;;;;;;;
+3016;;Sy;;;;;;;;;;;;
+3017;;Sy;;;;;;;;;;;;
+3018;;Sy;;;;;;;;;;;;
+3019;;Sy;;;;;;;;;;;;
+301A;;Sy;;;;;;;;;;;;
+301B;;Sy;;;;;;;;;;;;
+301D;;Sy;;;;;;;;;;;;
+301E;;Sy;;;;;;;;;;;;
+301F;;Sy;;;;;;;;;;;;
+FD3E;;Sy;;;;;;;;;;;;
+FD3F;;Sy;;;;;;;;;;;;
+FE35;;Sy;;;;;;;;;;;;
+FE36;;Sy;;;;;;;;;;;;
+FE37;;Sy;;;;;;;;;;;;
+FE38;;Sy;;;;;;;;;;;;
+FE39;;Sy;;;;;;;;;;;;
+FE3A;;Sy;;;;;;;;;;;;
+FE3B;;Sy;;;;;;;;;;;;
+FE3C;;Sy;;;;;;;;;;;;
+FE3D;;Sy;;;;;;;;;;;;
+FE3E;;Sy;;;;;;;;;;;;
+FE3F;;Sy;;;;;;;;;;;;
+FE40;;Sy;;;;;;;;;;;;
+FE41;;Sy;;;;;;;;;;;;
+FE42;;Sy;;;;;;;;;;;;
+FE43;;Sy;;;;;;;;;;;;
+FE44;;Sy;;;;;;;;;;;;
+FE59;;Sy;;;;;;;;;;;;
+FE5A;;Sy;;;;;;;;;;;;
+FE5B;;Sy;;;;;;;;;;;;
+FE5C;;Sy;;;;;;;;;;;;
+FE5D;;Sy;;;;;;;;;;;;
+FE5E;;Sy;;;;;;;;;;;;
+FF08;;Sy;;;;;;;;;;;;
+FF09;;Sy;;;;;;;;;;;;
+FF3B;;Sy;;;;;;;;;;;;
+FF3D;;Sy;;;;;;;;;;;;
+FF5B;;Sy;;;;;;;;;;;;
+FF5D;;Sy;;;;;;;;;;;;
+FF62;;Sy;;;;;;;;;;;;
+FF63;;Sy;;;;;;;;;;;;
+#
+# Hex digit.
+#
+0030;;Hd;;;;;;;;;;;;
+0031;;Hd;;;;;;;;;;;;
+0032;;Hd;;;;;;;;;;;;
+0033;;Hd;;;;;;;;;;;;
+0034;;Hd;;;;;;;;;;;;
+0035;;Hd;;;;;;;;;;;;
+0036;;Hd;;;;;;;;;;;;
+0037;;Hd;;;;;;;;;;;;
+0038;;Hd;;;;;;;;;;;;
+0039;;Hd;;;;;;;;;;;;
+0041;;Hd;;;;;;;;;;;;
+0042;;Hd;;;;;;;;;;;;
+0043;;Hd;;;;;;;;;;;;
+0044;;Hd;;;;;;;;;;;;
+0045;;Hd;;;;;;;;;;;;
+0046;;Hd;;;;;;;;;;;;
+0061;;Hd;;;;;;;;;;;;
+0062;;Hd;;;;;;;;;;;;
+0063;;Hd;;;;;;;;;;;;
+0064;;Hd;;;;;;;;;;;;
+0065;;Hd;;;;;;;;;;;;
+0066;;Hd;;;;;;;;;;;;
+FF10;;Hd;;;;;;;;;;;;
+FF11;;Hd;;;;;;;;;;;;
+FF12;;Hd;;;;;;;;;;;;
+FF13;;Hd;;;;;;;;;;;;
+FF14;;Hd;;;;;;;;;;;;
+FF15;;Hd;;;;;;;;;;;;
+FF16;;Hd;;;;;;;;;;;;
+FF17;;Hd;;;;;;;;;;;;
+FF18;;Hd;;;;;;;;;;;;
+FF19;;Hd;;;;;;;;;;;;
+FF21;;Hd;;;;;;;;;;;;
+FF22;;Hd;;;;;;;;;;;;
+FF23;;Hd;;;;;;;;;;;;
+FF24;;Hd;;;;;;;;;;;;
+FF25;;Hd;;;;;;;;;;;;
+FF26;;Hd;;;;;;;;;;;;
+FF41;;Hd;;;;;;;;;;;;
+FF42;;Hd;;;;;;;;;;;;
+FF43;;Hd;;;;;;;;;;;;
+FF44;;Hd;;;;;;;;;;;;
+FF45;;Hd;;;;;;;;;;;;
+FF46;;Hd;;;;;;;;;;;;
+#
+# Quote marks.
+#
+0022;;Qm;;;;;;;;;;;;
+0027;;Qm;;;;;;;;;;;;
+00AB;;Qm;;;;;;;;;;;;
+00BB;;Qm;;;;;;;;;;;;
+2018;;Qm;;;;;;;;;;;;
+2019;;Qm;;;;;;;;;;;;
+201A;;Qm;;;;;;;;;;;;
+201B;;Qm;;;;;;;;;;;;
+201C;;Qm;;;;;;;;;;;;
+201D;;Qm;;;;;;;;;;;;
+201E;;Qm;;;;;;;;;;;;
+201F;;Qm;;;;;;;;;;;;
+2039;;Qm;;;;;;;;;;;;
+203A;;Qm;;;;;;;;;;;;
+300C;;Qm;;;;;;;;;;;;
+300D;;Qm;;;;;;;;;;;;
+300E;;Qm;;;;;;;;;;;;
+300F;;Qm;;;;;;;;;;;;
+301D;;Qm;;;;;;;;;;;;
+301E;;Qm;;;;;;;;;;;;
+301F;;Qm;;;;;;;;;;;;
+FE41;;Qm;;;;;;;;;;;;
+FE42;;Qm;;;;;;;;;;;;
+FE43;;Qm;;;;;;;;;;;;
+FE44;;Qm;;;;;;;;;;;;
+FF02;;Qm;;;;;;;;;;;;
+FF07;;Qm;;;;;;;;;;;;
+FF62;;Qm;;;;;;;;;;;;
+FF63;;Qm;;;;;;;;;;;;
+#
+# Special Devanagari forms
+#
+E900;DEVANAGARI KSHA LIGATURE;Lo;0;L;0915 094D 0937;;;;N;;;;;
+E901;DEVANAGARI GNYA LIGATURE;Lo;0;L;091C 094D 091E;;;;N;;;;;
+E902;DEVANAGARI TTA LIGATURE;Lo;0;L;0924 094D 0924;;;;N;;;;;
+E903;DEVANAGARI TRA LIGATURE;Lo;0;L;0924 094D 0930;;;;N;;;;;
+E904;DEVANAGARI SHCHA LIGATURE;Lo;0;L;0936 094D 091B;;;;N;;;;;
+E905;DEVANAGARI SHRA LIGATURE;Lo;0;L;0936 094D 0930;;;;N;;;;;
+E906;DEVANAGARI SHVA LIGATURE;Lo;0;L;0936 094D 0935;;;;N;;;;;
+E907;DEVANAGARI KRA LIGATURE;Lo;0;L;;;;;N;;;;;
+E908;DEVANAGARI JRA LIGATURE;Lo;0;L;;;;;N;;;;;
+E909;DEVANAGARI ZRA LIGATURE;Lo;0;L;;;;;N;;;;;
+E90A;DEVANAGARI PHRA LIGATURE;Lo;0;L;;;;;N;;;;;
+E90B;DEVANAGARI FRA LIGATURE;Lo;0;L;;;;;N;;;;;
+E90C;DEVANAGARI PRA LIGATURE;Lo;0;L;;;;;N;;;;;
+E90D;DEVANAGARI SRA LIGATURE;Lo;0;L;;;;;N;;;;;
+E90E;DEVANAGARI RU LIGATURE;Lo;0;L;;;;;N;;;;;
+E90F;DEVANAGARI RUU LIGATURE;Lo;0;L;;;;;N;;;;;
+E915;DEVANAGARI HALF LETTER KA;Lo;0;L;;;;;N;;;;;
+E916;DEVANAGARI HALF LETTER KHA;Lo;0;L;;;;;N;;;;;
+E917;DEVANAGARI HALF LETTER GA;Lo;0;L;;;;;N;;;;;
+E918;DEVANAGARI HALF LETTER GHA;Lo;0;L;;;;;N;;;;;
+E919;DEVANAGARI HALF LETTER NGA;Lo;0;L;;;;;N;;;;;
+E91A;DEVANAGARI HALF LETTER CA;Lo;0;L;;;;;N;;;;;
+E91B;DEVANAGARI HALF LETTER CHA;Lo;0;L;;;;;N;;;;;
+E91C;DEVANAGARI HALF LETTER JA;Lo;0;L;;;;;N;;;;;
+E91D;DEVANAGARI HALF LETTER JHA;Lo;0;L;;;;;N;;;;;
+E91E;DEVANAGARI HALF LETTER NYA;Lo;0;L;;;;;N;;;;;
+E91F;DEVANAGARI HALF LETTER TTA;Lo;0;L;;;;;N;;;;;
+E920;DEVANAGARI HALF LETTER TTHA;Lo;0;L;;;;;N;;;;;
+E921;DEVANAGARI HALF LETTER DDA;Lo;0;L;;;;;N;;;;;
+E922;DEVANAGARI HALF LETTER DDHA;Lo;0;L;;;;;N;;;;;
+E923;DEVANAGARI HALF LETTER NNA;Lo;0;L;;;;;N;;;;;
+E924;DEVANAGARI HALF LETTER TA;Lo;0;L;;;;;N;;;;;
+E925;DEVANAGARI HALF LETTER THA;Lo;0;L;;;;;N;;;;;
+E926;DEVANAGARI HALF LETTER DA;Lo;0;L;;;;;N;;;;;
+E927;DEVANAGARI HALF LETTER DHA;Lo;0;L;;;;;N;;;;;
+E928;DEVANAGARI HALF LETTER NA;Lo;0;L;;;;;N;;;;;
+E929;DEVANAGARI HALF LETTER NNNA;Lo;0;L;0928 093C;;;;N;;;;;
+E92A;DEVANAGARI HALF LETTER PA;Lo;0;L;;;;;N;;;;;
+E92B;DEVANAGARI HALF LETTER PHA;Lo;0;L;;;;;N;;;;;
+E92C;DEVANAGARI HALF LETTER BA;Lo;0;L;;;;;N;;;;;
+E92D;DEVANAGARI HALF LETTER BHA;Lo;0;L;;;;;N;;;;;
+E92E;DEVANAGARI HALF LETTER MA;Lo;0;L;;;;;N;;;;;
+E92F;DEVANAGARI HALF LETTER YA;Lo;0;L;;;;;N;;;;;
+E930;DEVANAGARI HALF LETTER RA;Lo;0;L;;;;;N;;;;;
+E931;DEVANAGARI HALF LETTER RRA;Lo;0;L;0930 093C;;;;N;;;;;
+E932;DEVANAGARI HALF LETTER LA;Lo;0;L;;;;;N;;;;;
+E933;DEVANAGARI HALF LETTER LLA;Lo;0;L;;;;;N;;;;;
+E934;DEVANAGARI HALF LETTER LLLA;Lo;0;L;0933 093C;;;;N;;;;;
+E935;DEVANAGARI HALF LETTER VA;Lo;0;L;;;;;N;;;;;
+E936;DEVANAGARI HALF LETTER SHA;Lo;0;L;;;;;N;;;;;
+E937;DEVANAGARI HALF LETTER SSA;Lo;0;L;;;;;N;;;;;
+E938;DEVANAGARI HALF LETTER SA;Lo;0;L;;;;;N;;;;;
+E939;DEVANAGARI HALF LETTER HA;Lo;0;L;;;;;N;;;;;
+E940;DEVANAGARI KKA LIGATURE;Lo;0;L;0915 094D 0915;;;;N;;;;;
+E941;DEVANAGARI KTA LIGATURE;Lo;0;L;0915 094D 0924;;;;N;;;;;
+E942;DEVANAGARI NGKA LIGATURE;Lo;0;L;0919 094D 0915;;;;N;;;;;
+E943;DEVANAGARI NGKHA LIGATURE;Lo;0;L;0919 094D 0916;;;;N;;;;;
+E944;DEVANAGARI NGGA LIGATURE;Lo;0;L;0919 094D 0917;;;;N;;;;;
+E945;DEVANAGARI NGGHA LIGATURE;Lo;0;L;0919 094D 0918;;;;N;;;;;
+E946;DEVANAGARI NYJA LIGATURE;Lo;0;L;091E 094D 091C;;;;N;;;;;
+E947;DEVANAGARI DGHA LIGATURE;Lo;0;L;0926 094D 0918;;;;N;;;;;
+E948;DEVANAGARI DDA LIGATURE;Lo;0;L;0926 094D 0926;;;;N;;;;;
+E949;DEVANAGARI DDHA LIGATURE;Lo;0;L;0926 094D 0927;;;;N;;;;;
+E94A;DEVANAGARI DBA LIGATURE;Lo;0;L;0926 094D 092C;;;;N;;;;;
+E94B;DEVANAGARI DBHA LIGATURE;Lo;0;L;0926 094D 092D;;;;N;;;;;
+E94C;DEVANAGARI DMA LIGATURE;Lo;0;L;0926 094D 092E;;;;N;;;;;
+E94D;DEVANAGARI DYA LIGATURE;Lo;0;L;0926 094D 092F;;;;N;;;;;
+E94E;DEVANAGARI DVA LIGATURE;Lo;0;L;0926 094D 0935;;;;N;;;;;
+E94F;DEVANAGARI TT-TTA LIGATURE;Lo;0;L;091F 094D 091F;;;;N;;;;;
+E950;DEVANAGARI TT-TTHA LIGATURE;Lo;0;L;091F 094D 0920;;;;N;;;;;
+E951;DEVANAGARI TTH-TTHA LIGATURE;Lo;0;L;0920 094D 0920;;;;N;;;;;
+E952;DEVANAGARI DD-GA LIGATURE;Lo;0;L;0921 094D 0917;;;;N;;;;;
+E953;DEVANAGARI DD-DDA LIGATURE;Lo;0;L;0921 094D 0921;;;;N;;;;;
+E954;DEVANAGARI DD-DDHA LIGATURE;Lo;0;L;0921 094D 0922;;;;N;;;;;
+E955;DEVANAGARI NNA LIGATURE;Lo;0;L;0928 094D 0928;;;;N;;;;;
+E956;DEVANAGARI HMA LIGATURE;Lo;0;L;0939 094D 092E;;;;N;;;;;
+E957;DEVANAGARI HYA LIGATURE;Lo;0;L;0939 094D 092F;;;;N;;;;;
+E958;DEVANAGARI HLA LIGATURE;Lo;0;L;0939 094D 0932;;;;N;;;;;
+E959;DEVANAGARI HVA LIGATURE;Lo;0;L;0939 094D 0935;;;;N;;;;;
+E95A;DEVANAGARI STRA LIGATURE;Lo;0;L;0938 094D 0924 094D 0930;;;;N;;;;;
+E970;DEVANAGARI HALF KSHA LIGATURE;Lo;0;L;0915 094D 0937;;;;N;;;;;
+E971;DEVANAGARI HALF GNYA LIGATURE;Lo;0;L;091C 094D 091E;;;;N;;;;;
+E972;DEVANAGARI HALF TTA LIGATURE;Lo;0;L;0924 094D 0924;;;;N;;;;;
+E973;DEVANAGARI HALF TRA LIGATURE;Lo;0;L;0924 094D 0930;;;;N;;;;;
+E974;DEVANAGARI HALF SHCHA LIGATURE;Lo;0;L;0936 094D 091B;;;;N;;;;;
+E975;DEVANAGARI HALF SHRA LIGATURE;Lo;0;L;0936 094D 0930;;;;N;;;;;
+E976;DEVANAGARI HALF SHVA LIGATURE;Lo;0;L;0936 094D 0935;;;;N;;;;;
+E97B;DEVANAGARI SIGN RRA-REPHA;Mn;36;L;;;;;N;;;;;
+E97C;DEVANAGARI HAR LIGATURE;Lo;0;L;0939 0943;;;;N;;;;;
+E97D;DEVANAGARI SIGN EYELASH RA;Lo;0;L;;;;;N;;;;;
+E97E;DEVANAGARI SIGN REPHA;Mn;36;L;;;;;N;;;;;
+E97F;DEVANAGARI SIGN SUBJOINED RA;Mn;36;L;;;;;N;;;;;

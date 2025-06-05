@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PAC-LOGON-INFO-data:
+
+KRB5_PAC_LOGON_INFO
+===================
+
+..
+.. data:: KRB5_PAC_LOGON_INFO
+..
+
+Logon information.
+
+
+
+========================== ======================
+``KRB5_PAC_LOGON_INFO``       ``1``
+========================== ======================

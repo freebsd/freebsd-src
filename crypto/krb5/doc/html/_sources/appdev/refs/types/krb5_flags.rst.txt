@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-flags-struct:
+
+krb5_flags
+==========
+
+..
+.. c:type:: krb5_flags
+..
+
+
+
+
+Declaration
+------------
+
+typedef krb5_int32 krb5_flags
+
+

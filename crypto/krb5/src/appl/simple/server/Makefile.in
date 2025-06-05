@@ -1,0 +1,15 @@
+mydir=appl$(S)simple$(S)server
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+LOCALINCLUDES= -I$(srcdir)/..
+
+all: sim_server
+
+sim_server: sim_server.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o sim_server sim_server.o $(KRB5_BASE_LIBS)
+
+install:
+	$(INSTALL_PROGRAM) sim_server $(DESTDIR)$(SERVER_BINDIR)/sim_server
+
+clean:
+	$(RM) sim_server.o sim_server

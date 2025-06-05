@@ -1,0 +1,78 @@
+krb5_parse_name -  Convert a string principal name to a krb5_principal structure. 
+==================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_parse_name(krb5_context context, const char * name, krb5_principal * principal_out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **name** - String representation of a principal name
+
+	          **[out]** **principal_out** - New principal
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Convert a string representation of a principal name to a krb5_principal structure.
+
+
+
+A string representation of a Kerberos name consists of one or more principal name components, separated by slashes, optionally followed by the @ character and a realm name. If the realm name is not specified, the local realm is used.
+
+
+
+To use the slash and @ symbols as part of a component (quoted) instead of using them as a component separator or as a realm prefix), put a backslash () character in front of the symbol. Similarly, newline, tab, backspace, and NULL characters can be included in a component by using **n** , **t** , **b** or **0** , respectively.
+
+
+
+Beginning with release 1.20, the name type of the principal will be inferred as **KRB5_NT_SRV_INST** or **KRB5_NT_WELLKNOWN** based on the principal name. The type will be **KRB5_NT_PRINCIPAL** if a type cannot be inferred.
+
+
+
+Use krb5_free_principal() to free *principal_out* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 The realm in a Kerberos *name* cannot contain slash, colon, or NULL characters.
+ 
+
+
+

@@ -1,0 +1,87 @@
+
+Private Const BlkLenMax = 32        ' maximum block length in bytes
+Private Const KeyLenMax = 32        ' maximum block length in bytes
+Private Const KeySchLenMax = 128    ' maximum key schedule length in bytes
+Private BlkLen As Integer           ' actual block length
+Private KeyLen As Integer           ' actual key length
+
+Private Type AESctx     ' Type to hold the AES context data
+  Ekey(0 To KeySchLenMax - 1) As Long
+  Nrnd As Long
+  Ncol As Long
+End Type
+
+Private Type KeyBlk     ' Type to hold user key data
+ K(0 To KeyLenMax - 1) As Byte
+End Type
+
+Private Type IoBlk      ' Type to hold cipher input and output blocks
+ IO(0 To BlkLenMax - 1) As Byte
+End Type
+
+Rem Change "d:\dll_pth" in the following lines to the directory path where the AES DLL is located
+Private Declare Function AesBlkLen Lib "d:\dll_path\aes.dll" Alias "_aes_blk_len@8" (ByVal N As Long, C As AESctx) As Integer
+Private Declare Function AesEncKey Lib "d:\dll_path\aes.dll" Alias "_aes_enc_key@12" (K As KeyBlk, ByVal N As Long, C As AESctx) As Integer
+Private Declare Function AesDecKey Lib "d:\dll_path\aes.dll" Alias "_aes_dec_key@12" (K As KeyBlk, ByVal N As Long, C As AESctx) As Integer
+Private Declare Function AesEncBlk Lib "d:\dll_path\aes.dll" Alias "_aes_enc_blk@12" (Ib As IoBlk, Ob As IoBlk, C As AESctx) As Integer
+Private Declare Function AesDecBlk Lib "d:\dll_path\aes.dll" Alias "_aes_dec_blk@12" (Ib As IoBlk, Ob As IoBlk, C As AESctx) As Integer
+
+Private Sub Hex(X As Byte)  ' Output a byte in hexadecimal format
+Dim H As Byte
+H = Int(X / 16)
+If H < 10 Then
+    Debug.Print Chr(48 + H);
+Else
+    Debug.Print Chr(87 + H);
+End If
+H = Int(X Mod 16)
+If H < 10 Then
+    Debug.Print Chr(48 + H);
+Else
+    Debug.Print Chr(87 + H);
+End If
+End Sub
+
+Private Sub OutKey(S As String, B As KeyBlk)    ' Display a key value
+Debug.Print: Debug.Print S;
+For i = 0 To KeyLen - 1
+   Hex B.K(i)
+Next i
+End Sub
+
+Private Sub OutBlock(S As String, B As IoBlk)   ' Display an input/output block
+Debug.Print: Debug.Print S;
+For i = 0 To BlkLen - 1
+   Hex B.IO(i)
+Next i
+End Sub
+
+Rem The following Main routine should output the following in the immediate window:
+Rem Key =            00000000000000000000000000000000
+Rem Input =          00000000000000000000000000000000
+Rem Encrypted Text = 66e94bd4ef8a2c3b884cfa59ca342b2e
+Rem Decrypted Text = 00000000000000000000000000000000
+
+Sub Main()
+Dim Key As KeyBlk   ' These variables are automatically
+Dim Ib As IoBlk, Ob As IoBlk, Rb As IoBlk
+Dim Cx As AESctx    ' initialised to zero values in VBA
+Dim RetVal As Integer
+
+BlkLen = 16: KeyLen = 16
+
+Rem RetVal = AesBlkLen(BlkLen, Cx)          ' include if the cipher block size is variable
+
+OutKey "Key =            ", Key
+OutBlock "Input =          ", Ib
+
+RetVal = AesEncKey(Key, KeyLen, Cx)     ' set an all zero encryption key
+RetVal = AesEncBlk(Ib, Ob, Cx)          ' encrypt Ib to Ob
+OutBlock "Encrypted Text = ", Ob
+
+RetVal = AesDecKey(Key, KeyLen, Cx)     ' set an all zero decryption key
+RetVal = AesDecBlk(Ob, Rb, Cx)          ' decrypt Ob to Rb
+OutBlock "Decrypted Text = ", Rb
+Debug.Print
+
+End Sub

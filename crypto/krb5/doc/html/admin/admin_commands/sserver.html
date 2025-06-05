@@ -1,0 +1,271 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>sserver &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="next" title="MIT Kerberos defaults" href="../../mitK5defaults.html" />
+    <link rel="prev" title="k5srvutil" href="k5srvutil.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="k5srvutil.html" title="k5srvutil"
+            accesskey="P">previous</a> |
+        <a href="../../mitK5defaults.html" title="MIT Kerberos defaults"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__sserver">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="sserver">
+<span id="sserver-8"></span><h1>sserver<a class="headerlink" href="#sserver" title="Permalink to this headline">¶</a></h1>
+<section id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>sserver</strong>
+[ <strong>-p</strong> <em>port</em> ]
+[ <strong>-S</strong> <em>keytab</em> ]
+[ <em>server_port</em> ]</p>
+</section>
+<section id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>sserver and <a class="reference internal" href="../../user/user_commands/sclient.html#sclient-1"><span class="std std-ref">sclient</span></a> are a simple demonstration client/server
+application.  When sclient connects to sserver, it performs a Kerberos
+authentication, and then sserver returns to sclient the Kerberos
+principal which was used for the Kerberos authentication.  It makes a
+good test that Kerberos has been successfully installed on a machine.</p>
+<p>The service name used by sserver and sclient is sample.  Hence,
+sserver will require that there be a keytab entry for the service
+<code class="docutils literal notranslate"><span class="pre">sample/hostname.domain.name&#64;REALM.NAME</span></code>.  This keytab is generated
+using the <a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> program.  The keytab file is usually
+installed as <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">DEFKTNAME</span></a>.</p>
+<p>The <strong>-S</strong> option allows for a different keytab than the default.</p>
+<p>sserver is normally invoked out of inetd(8), using a line in
+<code class="docutils literal notranslate"><span class="pre">/etc/inetd.conf</span></code> that looks like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sample</span> <span class="n">stream</span> <span class="n">tcp</span> <span class="n">nowait</span> <span class="n">root</span> <span class="o">/</span><span class="n">usr</span><span class="o">/</span><span class="n">local</span><span class="o">/</span><span class="n">sbin</span><span class="o">/</span><span class="n">sserver</span> <span class="n">sserver</span>
+</pre></div>
+</div>
+<p>Since <code class="docutils literal notranslate"><span class="pre">sample</span></code> is normally not a port defined in <code class="docutils literal notranslate"><span class="pre">/etc/services</span></code>,
+you will usually have to add a line to <code class="docutils literal notranslate"><span class="pre">/etc/services</span></code> which looks
+like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sample</span>          <span class="mi">13135</span><span class="o">/</span><span class="n">tcp</span>
+</pre></div>
+</div>
+<p>When using sclient, you will first have to have an entry in the
+Kerberos database, by using <a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>, and then you have to get
+Kerberos tickets, by using <a class="reference internal" href="../../user/user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a>.  Also, if you are running
+the sclient program on a different host than the sserver it will be
+connecting to, be sure that both hosts have an entry in /etc/services
+for the sample tcp port, and that the same port number is in both
+files.</p>
+<p>When you run sclient you should see something like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sendauth</span> <span class="n">succeeded</span><span class="p">,</span> <span class="n">reply</span> <span class="ow">is</span><span class="p">:</span>
+<span class="n">reply</span> <span class="nb">len</span> <span class="mi">32</span><span class="p">,</span> <span class="n">contents</span><span class="p">:</span>
+<span class="n">You</span> <span class="n">are</span> <span class="n">nlgilman</span><span class="nd">@JIMI</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+</pre></div>
+</div>
+</section>
+<section id="common-error-messages">
+<h2>COMMON ERROR MESSAGES<a class="headerlink" href="#common-error-messages" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic">
+<li><p>kinit returns the error:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kinit</span><span class="p">:</span> <span class="n">Client</span> <span class="ow">not</span> <span class="n">found</span> <span class="ow">in</span> <span class="n">Kerberos</span> <span class="n">database</span> <span class="k">while</span> <span class="n">getting</span>
+       <span class="n">initial</span> <span class="n">credentials</span>
+</pre></div>
+</div>
+<p>This means that you didn’t create an entry for your username in the
+Kerberos database.</p>
+</li>
+<li><p>sclient returns the error:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">unknown</span> <span class="n">service</span> <span class="n">sample</span><span class="o">/</span><span class="n">tcp</span><span class="p">;</span> <span class="n">check</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">services</span>
+</pre></div>
+</div>
+<p>This means that you don’t have an entry in /etc/services for the
+sample tcp port.</p>
+</li>
+<li><p>sclient returns the error:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">connect</span><span class="p">:</span> <span class="n">Connection</span> <span class="n">refused</span>
+</pre></div>
+</div>
+<p>This probably means you didn’t edit /etc/inetd.conf correctly, or
+you didn’t restart inetd after editing inetd.conf.</p>
+</li>
+<li><p>sclient returns the error:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sclient</span><span class="p">:</span> <span class="n">Server</span> <span class="ow">not</span> <span class="n">found</span> <span class="ow">in</span> <span class="n">Kerberos</span> <span class="n">database</span> <span class="k">while</span> <span class="n">using</span>
+         <span class="n">sendauth</span>
+</pre></div>
+</div>
+<p>This means that the <code class="docutils literal notranslate"><span class="pre">sample/hostname&#64;LOCAL.REALM</span></code> service was not
+defined in the Kerberos database; it should be created using
+<a class="reference internal" href="kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>, and a keytab file needs to be generated to make
+the key for that service principal available for sclient.</p>
+</li>
+<li><p>sclient returns the error:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sendauth</span> <span class="n">rejected</span><span class="p">,</span> <span class="n">error</span> <span class="n">reply</span> <span class="ow">is</span><span class="p">:</span>
+    <span class="s2">&quot;No such file or directory&quot;</span>
+</pre></div>
+</div>
+<p>This probably means sserver couldn’t find the keytab file.  It was
+probably not installed in the proper directory.</p>
+</li>
+</ol>
+</section>
+<section id="environment">
+<h2>ENVIRONMENT<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a> for a description of Kerberos environment
+variables.</p>
+</section>
+<section id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="../../user/user_commands/sclient.html#sclient-1"><span class="std std-ref">sclient</span></a>, <a class="reference internal" href="../../user/user_config/kerberos.html#kerberos-7"><span class="std std-ref">kerberos</span></a>, services(5), inetd(8)</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">sserver</a><ul>
+<li><a class="reference internal" href="#synopsis">SYNOPSIS</a></li>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#common-error-messages">COMMON ERROR MESSAGES</a></li>
+<li><a class="reference internal" href="#environment">ENVIRONMENT</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Administration  programs</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="kadmin_local.html">kadmin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kadmind.html">kadmind</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdb5_util.html">kdb5_util</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kdb5_ldap_util.html">kdb5_ldap_util</a></li>
+<li class="toctree-l3"><a class="reference internal" href="krb5kdc.html">krb5kdc</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kprop.html">kprop</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kpropd.html">kpropd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="kproplog.html">kproplog</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ktutil.html">ktutil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="k5srvutil.html">k5srvutil</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">sserver</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="k5srvutil.html" title="k5srvutil"
+            >previous</a> |
+        <a href="../../mitK5defaults.html" title="MIT Kerberos defaults"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__sserver">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

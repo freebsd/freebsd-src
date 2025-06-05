@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-OTP-PIN-CHANGE-data:
+
+KRB5_PADATA_OTP_PIN_CHANGE
+==========================
+
+..
+.. data:: KRB5_PADATA_OTP_PIN_CHANGE
+..
+
+RFC 6560 section 4.3.
+
+
+
+================================= ======================
+``KRB5_PADATA_OTP_PIN_CHANGE``       ``144``
+================================= ======================

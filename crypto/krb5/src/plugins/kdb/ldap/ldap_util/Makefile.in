@@ -1,0 +1,29 @@
+mydir=plugins$(S)kdb$(S)ldap$(S)ldap_util
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+DEFINES = -DKDB4_DISABLE
+LOCALINCLUDES = -I. -I$(srcdir)/../libkdb_ldap -I$(top_srcdir)/lib/kdb
+#KDB_DEP_LIB=$(DL_LIB) $(THREAD_LINKOPTS)
+KDB_DEP_LIB=$(DL_LIB) -lkdb_ldap $(THREAD_LINKOPTS)
+
+PROG = kdb5_ldap_util
+SRCS = kdb5_ldap_util.c kdb5_ldap_list.c kdb5_ldap_realm.c kdb5_ldap_policy.c kdb5_ldap_services.c getdate.c
+OBJS = kdb5_ldap_util.o kdb5_ldap_list.o kdb5_ldap_realm.o kdb5_ldap_policy.o kdb5_ldap_services.o getdate.o
+
+GETDATE = $(srcdir)/../../../../kadmin/cli/getdate.y
+
+all: $(PROG)
+
+$(PROG): $(OBJS) $(KADMSRV_DEPLIBS) $(KRB5_BASE_DEPLIB) $(GETDATE)
+	$(CC_LINK) -o $(PROG) $(OBJS) \
+		$(KADMSRV_LIBS) $(KDB_DEP_LIB) $(KRB5_BASE_LIBS)
+
+getdate.c: $(GETDATE)
+	$(RM) getdate.c y.tab.c
+	$(YACC) $(GETDATE)
+	$(MV) y.tab.c getdate.c
+
+install:
+	$(INSTALL_PROGRAM) $(PROG) ${DESTDIR}$(ADMIN_BINDIR)/$(PROG)
+
+clean:
+	$(RM) $(PROG) $(OBJS) getdate.c

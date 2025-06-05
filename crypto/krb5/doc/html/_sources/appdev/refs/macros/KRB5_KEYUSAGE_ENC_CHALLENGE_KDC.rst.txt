@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-ENC-CHALLENGE-KDC-data:
+
+KRB5_KEYUSAGE_ENC_CHALLENGE_KDC
+===============================
+
+..
+.. data:: KRB5_KEYUSAGE_ENC_CHALLENGE_KDC
+..
+
+
+
+
+====================================== ======================
+``KRB5_KEYUSAGE_ENC_CHALLENGE_KDC``       ``55``
+====================================== ======================

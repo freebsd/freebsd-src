@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _ENCTYPE-CAMELLIA256-CTS-CMAC-data:
+
+ENCTYPE_CAMELLIA256_CTS_CMAC
+============================
+
+..
+.. data:: ENCTYPE_CAMELLIA256_CTS_CMAC
+..
+
+RFC 6803.
+
+
+
+=================================== ======================
+``ENCTYPE_CAMELLIA256_CTS_CMAC``       ``0x001a``
+=================================== ======================

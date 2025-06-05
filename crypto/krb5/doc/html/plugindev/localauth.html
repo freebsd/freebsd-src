@@ -1,0 +1,176 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Local authorization interface (localauth) &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Server location interface (locate)" href="locate.html" />
+    <link rel="prev" title="Host-to-realm interface (hostrealm)" href="hostrealm.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="hostrealm.html" title="Host-to-realm interface (hostrealm)"
+            accesskey="P">previous</a> |
+        <a href="locate.html" title="Server location interface (locate)"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Local authorization interface (localauth)">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="local-authorization-interface-localauth">
+<span id="localauth-plugin"></span><h1>Local authorization interface (localauth)<a class="headerlink" href="#local-authorization-interface-localauth" title="Permalink to this headline">¶</a></h1>
+<p>The localauth interface was first introduced in release 1.12.  It
+allows modules to control the relationship between Kerberos principals
+and local system accounts.  When an application calls
+<a class="reference internal" href="../appdev/refs/api/krb5_kuserok.html#c.krb5_kuserok" title="krb5_kuserok"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_kuserok()</span></code></a> or <a class="reference internal" href="../appdev/refs/api/krb5_aname_to_localname.html#c.krb5_aname_to_localname" title="krb5_aname_to_localname"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_aname_to_localname()</span></code></a>, localauth
+modules are consulted to determine the result.  For a detailed
+description of the localauth interface, see the header file
+<code class="docutils literal notranslate"><span class="pre">&lt;krb5/localauth_plugin.h&gt;</span></code>.</p>
+<p>A module can create and destroy per-library-context state objects
+using the <strong>init</strong> and <strong>fini</strong> methods.  If the module does not need
+any state, it does not need to implement these methods.</p>
+<p>The optional <strong>userok</strong> method allows a module to control the behavior
+of <a class="reference internal" href="../appdev/refs/api/krb5_kuserok.html#c.krb5_kuserok" title="krb5_kuserok"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_kuserok()</span></code></a>.  The module receives the authenticated name
+and the local account name as inputs, and can return either 0 to
+authorize access, KRB5_PLUGIN_NO_HANDLE to defer the decision to other
+modules, or another error (canonically EPERM) to authoritatively deny
+access.  Access is granted if at least one module grants access and no
+module authoritatively denies access.</p>
+<p>The optional <strong>an2ln</strong> method can work in two different ways.  If the
+module sets an array of uppercase type names in <strong>an2ln_types</strong>, then
+the module’s <strong>an2ln</strong> method will only be invoked by
+<a class="reference internal" href="../appdev/refs/api/krb5_aname_to_localname.html#c.krb5_aname_to_localname" title="krb5_aname_to_localname"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_aname_to_localname()</span></code></a> if an <strong>auth_to_local</strong> value in
+<a class="reference internal" href="../admin/conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> refers to one of the module’s types.  In this
+case, the <em>type</em> and <em>residual</em> arguments will give the type name and
+residual string of the <strong>auth_to_local</strong> value.</p>
+<p>If the module does not set <strong>an2ln_types</strong> but does implement
+<strong>an2ln</strong>, the module’s <strong>an2ln</strong> method will be invoked for all
+<a class="reference internal" href="../appdev/refs/api/krb5_aname_to_localname.html#c.krb5_aname_to_localname" title="krb5_aname_to_localname"><code class="xref c c-func docutils literal notranslate"><span class="pre">krb5_aname_to_localname()</span></code></a> operations unless an earlier module
+determines a mapping, with <em>type</em> and <em>residual</em> set to NULL.  The
+module can return KRB5_LNAME_NO_TRANS to defer mapping to later
+modules.</p>
+<p>If a module implements <strong>an2ln</strong>, it must also implement
+<strong>free_string</strong> to ensure that memory is allocated and deallocated
+consistently.</p>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Local authorization interface (localauth)</a></li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For plugin module developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="general.html">General plugin concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="clpreauth.html">Client preauthentication interface (clpreauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kdcpreauth.html">KDC preauthentication interface (kdcpreauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ccselect.html">Credential cache selection interface (ccselect)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pwqual.html">Password quality interface (pwqual)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kadm5_hook.html">KADM5 hook interface (kadm5_hook)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kadm5_auth.html">kadmin authorization interface (kadm5_auth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hostrealm.html">Host-to-realm interface (hostrealm)</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Local authorization interface (localauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="locate.html">Server location interface (locate)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="profile.html">Configuration interface (profile)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gssapi.html">GSSAPI mechanism interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="internal.html">Internal pluggable interfaces</a></li>
+<li class="toctree-l2"><a class="reference internal" href="certauth.html">PKINIT certificate authorization interface (certauth)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kdcpolicy.html">KDC policy interface (kdcpolicy)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="hostrealm.html" title="Host-to-realm interface (hostrealm)"
+            >previous</a> |
+        <a href="locate.html" title="Server location interface (locate)"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Local authorization interface (localauth)">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

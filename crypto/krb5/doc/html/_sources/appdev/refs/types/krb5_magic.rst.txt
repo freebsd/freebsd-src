@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-magic-struct:
+
+krb5_magic
+==========
+
+..
+.. c:type:: krb5_magic
+..
+
+
+
+
+Declaration
+------------
+
+typedef krb5_error_code krb5_magic
+
+

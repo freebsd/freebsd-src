@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-SAM-MUST-PK-ENCRYPT-SAD-data:
+
+KRB5_SAM_MUST_PK_ENCRYPT_SAD
+============================
+
+..
+.. data:: KRB5_SAM_MUST_PK_ENCRYPT_SAD
+..
+
+currently must be zero
+
+
+
+=================================== ======================
+``KRB5_SAM_MUST_PK_ENCRYPT_SAD``       ``0x20000000``
+=================================== ======================

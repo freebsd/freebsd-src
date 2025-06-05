@@ -1,0 +1,15 @@
+mydir=plugins$(S)kdb$(S)db2$(S)libdb2$(S)btree
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..$(S)..
+STLIBOBJS=	bt_close.o bt_conv.o bt_debug.o bt_delete.o bt_get.o \
+		bt_open.o bt_overflow.o bt_page.o bt_put.o bt_search.o \
+		bt_seq.o bt_split.o bt_utils.o
+
+SRCS= $(STLIBOBJS:.o=.c)
+
+LOCALINCLUDES=	-I. -I$(srcdir)/../include -I../include -I$(srcdir)/../mpool \
+		-I$(srcdir)/../db
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+@libobj_frag@
+

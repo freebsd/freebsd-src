@@ -1,0 +1,161 @@
+#
+# This script parses a command_table file into something which is a bit 
+# easier for an awk script to understand.
+#
+# Input syntax: a .ct file
+#
+# Output syntax:
+# (for the command_table line)
+#	command_table  <command_table>
+#
+#(for each request definition)
+#	BOR
+#	sub: <subroutine name>
+#	hlp: <help text>
+#	cmd: <command>
+#	opt: <option>
+#	EOR
+# (there may be more than one 'cmd' or 'opt' line
+#
+# A number sent to the output represents a parse error --- it will be 
+# followed by the next line which will have the form:
+#	ERROR: <error text>
+#
+# The design of this output syntax is such that it should be easy for
+# an awk script to parse.
+
+#
+# The first section of this script is just to cannoicalize the file.  
+# It removes comments, and puts each command_table request onto a single
+# line
+#
+:FIRST
+y/	/ /
+s/^ *//
+s/#.*$//
+/; *$/!{
+N
+y/	/ /
+s/\n */ /
+bFIRST
+}
+s/, */, /g
+/^$/d
+#
+# Now we take care of some syntactic sugar.....
+#
+/^unimplemented/ {
+	s/^unimplemented [A-Za-z_0-9]*/request ss_unimplemented/
+	s/;/, (dont_list, dont_summarize);/
+}
+/^unknown/ {
+	s/^unknown /request ss_unknown, "", /
+}
+#
+# Dispatch based on the keyword....  illegal keywords are prefixed by ERROR:
+# and are handled by the awk script.
+#
+/^command_table /bCMD
+/^request /bREQUEST
+/^end;/bEND
+s/ .*//
+s/^/ERROR: unknown keyword: /
+=
+b
+#
+# Handle the command_table keyword
+#
+:CMD
+s/;$//
+p
+d
+b
+#
+# Handle the request keyword --- this is the heart of the sed script.
+# 
+:REQUEST
+s/^request *//
+h
+i\
+BOR
+# First, parse out the subroutine name
+s/^/sub: /
+s/,.*//
+p
+# Next, parse out the help message, being careful to handle a quoted string
+g
+s/^[^,]*, *//
+h
+/^"/ {
+	s/^"//
+	s/".*//
+	x
+	s/^"[^"]*", *//
+	x
+	b EMITHLP
+}
+s/[^a-zA-Z0-9].*//
+x
+s/[a-zA-Z0-9]*, *//
+x
+:EMITHLP
+s/^/hlp: /
+p
+# Next take care of the command names
+:CMDLIST
+g
+/^(/b OPTIONS
+/^;/b EOR
+/^"/ {
+	s/^"//
+	s/".*//
+	x
+	s/^"[^"]*"//
+	s/, *//
+	x
+	b EMITREQ
+}
+s/[^A-Za-z_0-9].*//
+x
+s/[A-Za-z_0-9]*//
+s/, *//
+x
+:EMITREQ
+s/^/cmd: /
+p
+b CMDLIST
+#
+# Here we parse the list of options.
+#
+: OPTIONS
+g
+s/^(//
+h
+: OPTLIST
+/^)/ b EOR
+/^[^A-Za-z_0-9]/ {
+	=
+	c\
+ERROR: parse error in options list
+}
+s/[^A-Za-z_0-9].*//
+x
+s/[A-Za-z_0-9]*//
+s/, *//
+x
+s/^/opt: /
+p
+g
+b OPTLIST
+: EOR
+c\
+EOR\
+
+d
+b
+#
+# Handle the end keyword --- it's basically ignored.
+#
+:END
+d
+b

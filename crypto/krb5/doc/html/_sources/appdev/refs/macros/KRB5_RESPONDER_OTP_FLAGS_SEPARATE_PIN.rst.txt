@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-RESPONDER-OTP-FLAGS-SEPARATE-PIN-data:
+
+KRB5_RESPONDER_OTP_FLAGS_SEPARATE_PIN
+=====================================
+
+..
+.. data:: KRB5_RESPONDER_OTP_FLAGS_SEPARATE_PIN
+..
+
+This flag indicates that the PIN MUST be returned as a separate item.
+
+This flag only takes effect if KRB5_RESPONDER_OTP_FLAGS_COLLECT_PIN is set. If this flag is not set, the responder may either concatenate PIN + token value and store it as "value" in the answer or it may return them separately. If they are returned separately, they will be concatenated internally.
+
+============================================ ======================
+``KRB5_RESPONDER_OTP_FLAGS_SEPARATE_PIN``       ``0x0008``
+============================================ ======================

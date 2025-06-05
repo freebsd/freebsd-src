@@ -1,0 +1,55 @@
+krb5_524_convert_creds -  Convert a Kerberos V5 credentials to a Kerberos V4 credentials. 
+==========================================================================================
+
+..
+
+.. c:function:: int krb5_524_convert_creds(krb5_context context, krb5_creds * v5creds, struct credentials * v4creds)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **v5creds**
+
+	          **v4creds**
+
+
+..
+
+
+:retval:
+         -   KRB524_KRB4_DISABLED   (always)
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 Not implemented
+ 
+
+
+

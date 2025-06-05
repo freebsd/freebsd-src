@@ -1,0 +1,35 @@
+.. highlight:: c
+
+.. _krb5-crypto-iov-struct:
+
+krb5_crypto_iov
+===============
+
+..
+.. c:type:: krb5_crypto_iov
+..
+
+Structure to describe a region of text to be encrypted or decrypted.
+
+The *flags* member describes the type of the iov. The *data* member points to the memory that will be manipulated. All iov APIs take a pointer to the first element of an array of krb5_crypto_iov's along with the size of that array. Buffer contents are manipulated in-place; data is overwritten. Callers must allocate the right number of krb5_crypto_iov structures before calling into an iov API.
+
+Declaration
+------------
+
+typedef struct _krb5_crypto_iov krb5_crypto_iov
+
+
+Members
+---------
+
+
+.. c:member:: krb5_cryptotype	krb5_crypto_iov.flags
+
+                                             iov type (see KRB5_CRYPTO_TYPE macros)
+                                             
+
+.. c:member:: krb5_data	krb5_crypto_iov.data
+
+                                             
+                                             
+

@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-PK-AS-REQ-data:
+
+KRB5_PADATA_PK_AS_REQ
+=====================
+
+..
+.. data:: KRB5_PADATA_PK_AS_REQ
+..
+
+PKINIT.
+
+RFC 4556
+
+============================ ======================
+``KRB5_PADATA_PK_AS_REQ``       ``16``
+============================ ======================

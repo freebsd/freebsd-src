@@ -1,0 +1,55 @@
+krb5_init_context_profile -  Create a krb5 library context using a specified profile. 
+======================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_init_context_profile(struct _profile_t * profile, krb5_flags flags, krb5_context * context)
+
+..
+
+
+:param:
+
+	          **[in]** **profile** - Profile object (NULL to create default profile)
+
+	          **[in]** **flags** - Context initialization flags
+
+	          **[out]** **context** - Library context
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+Create a context structure, optionally using a specified profile and initialization flags. If *profile* is NULL, the default profile will be created from config files. If *profile* is non-null, a copy of it will be made for the new context; the caller should still clean up its copy. Valid flag values are:
+
+
+
+ 
+ 
+	 - #KRB5_INIT_CONTEXT_SECURE Ignore environment variables
+ 
+ 
+	 - #KRB5_INIT_CONTEXT_KDC Use KDC configuration if creating profile
+ 
+ 
+
+
+
+
+
+
+..
+
+
+
+
+

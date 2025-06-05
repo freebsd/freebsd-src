@@ -1,0 +1,75 @@
+# . is ccapi/test.
+CO      = ..\common
+COWIN   = $(CO)\win
+LIBDIR  = ..\lib
+LIBWIN  = $(LIBDIR)\win
+SRV     = ..\server
+SRVWIN  = ..\server\win
+
+!include <Win32.Mak>
+
+INC = -I..\..\include -I..\..\util\et -I$(CO) -I$(COWIN) -I$(LIBDIR) -I$(LIBWIN)
+
+!if "$(CPU)" == "i386"
+cflags = $(cflags) /EHsc /MTd -D_CRTAPI1=_cdecl -D_CRTAPI2=_cdecl -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 \
+$(INC)
+!else
+cflags = $(cflags) /W3 -D_CRTAPI1= -D_CRTAPI2= $(INC)
+!endif
+LIBS = $(LIBWIN)\ccapi.lib
+
+DSTROOT = .
+SRC = $(DSTROOT)
+#OBJDIR = $(DSTROOT)\obj
+OBJDIR = .
+OBJEXT = obj
+TESTDIR = $(DSTROOT)\tests
+TESTEXT = exe
+DSTDIR = $(DSTROOT)\ccapi_tests
+
+PINGOBJS = pingtest.obj 
+SIMPLEOBJS = simple_lock_test.obj
+
+comobjs =   cci_debugging.obj cci_stream.obj
+cowobjs =   cci_os_debugging.obj 
+libobjs =   ccs_request_c.obj
+        
+#all: build-base simple_lock_test pingtest 
+all: build-base pingtest 
+
+# compile base files used by all tests
+build-base: $(comobjs) $(libobjs) $(srvobjs)
+    @echo "Base objects built."
+
+# rule to compile src files
+.c.obj:
+    $(cc) $(cdebug) $(cflags) /Fo$(OBJDIR)\$(*B).$(OBJEXT) $(SRC)\$(*B).c
+
+$(comobjs) : $(CO)\$(*B).c
+   $(cc) $(cdebug) $(cflags) $(CO)\$(*B).c
+
+$(cowobjs) : $(COWIN)\$(*B).c
+   $(cc) $(cdebug) $(cflags) $(COWIN)\$(*B).c
+
+$(libobjs) : $(LIBWIN)\$(*B).c
+   $(cc) $(cdebug) $(cflags) $(LIBWIN)\$(*B).c
+
+#$(srvobjs) : $(SRVWIN)\$*.c
+#   $(cc) $(cdebug) $(cflags) $(SRVWIN)\$*.c
+
+simple_lock_test: simple_lock_test.obj $(OBJS)
+	@echo R3+ Build $(*B) in $(TESTDIR)
+    $(cc) $(cdebug) $(cflags) $(*B).c
+    $(link) $(linkdebug) $(conflags) -out:$(TESTDIR)\$(*B).exe $(*B).obj \
+        $(LIBS) rpcrt4.lib
+	@echo R3- Built $(*B) in $(TESTDIR)
+
+pingtest: pingtest.obj
+	@echo R4+ Build $(*B) in $(TESTDIR)
+    $(cc) $(cdebug) $(cflags) $(*B).c
+    $(link) $(linkdebug) $(conflags) -out:$(*B).exe $(PINGOBJS) $(libobjs) $(srvobjs) \
+        $(LIBS) rpcrt4.lib
+	@echo R4- Built $(*B) in $(TESTDIR)
+
+clean:
+	DEL *.$(OBJEXT)

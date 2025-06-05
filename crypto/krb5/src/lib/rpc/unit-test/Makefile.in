@@ -1,0 +1,38 @@
+mydir=lib$(S)rpc$(S)unit-test
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+OBJS= client.o rpc_test_clnt.o rpc_test_svc.o server.o
+SRCS= client.c rpc_test_clnt.c rpc_test_svc.c server.c
+
+all: client server
+
+client: client.o rpc_test_clnt.o $(GSSRPC_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o client client.o rpc_test_clnt.o \
+		$(GSSRPC_LIBS) $(KRB5_BASE_LIBS)
+
+server: server.o rpc_test_svc.o $(GSSRPC_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o server server.o rpc_test_svc.o \
+		$(GSSRPC_LIBS) $(KRB5_BASE_LIBS)
+
+client.o server.o: rpc_test.h
+
+# If rpc_test.h and rpc_test_*.c do not work on your system, you can
+# try using rpcgen by uncommenting these lines (be sure to uncomment
+# then in the generated not Makefile.in).
+# rpc_test.h rpc_test_clnt.c rpc_test_svc.c: rpc_test.x
+# 	-rm -f rpc_test_clnt.c rpc_test_svc.c rpc_test.h
+# 	-ln -s $(srcdir)/rpc_test.x .
+# 	rpcgen -l rpc_test.x -o rpc_test_clnt.c
+# 	rpcgen -m rpc_test.x -o rpc_test_svc.c
+# 	rpcgen -h rpc_test.x -o rpc_test.h
+# 
+# clean:
+# 	rm -f rpc_test.h rpc_test_clnt.c rpc_test_svc.c
+# 
+
+check-pytests:
+	$(RUNPYTEST) $(srcdir)/t_rpc.py $(PYTESTFLAGS)
+
+clean:
+	$(RM) server client
+

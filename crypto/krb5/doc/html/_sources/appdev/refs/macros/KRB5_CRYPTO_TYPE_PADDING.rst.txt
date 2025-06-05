@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-CRYPTO-TYPE-PADDING-data:
+
+KRB5_CRYPTO_TYPE_PADDING
+========================
+
+..
+.. data:: KRB5_CRYPTO_TYPE_PADDING
+..
+
+[out] padding
+
+
+
+=============================== ======================
+``KRB5_CRYPTO_TYPE_PADDING``       ``4``
+=============================== ======================

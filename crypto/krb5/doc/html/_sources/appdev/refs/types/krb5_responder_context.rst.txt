@@ -1,0 +1,22 @@
+.. highlight:: c
+
+.. _krb5-responder-context-struct:
+
+krb5_responder_context
+======================
+
+..
+.. c:type:: krb5_responder_context
+..
+
+A container for a set of preauthentication questions and answers.
+
+A responder context is supplied by the krb5 authentication system to a krb5_responder_fn callback. It contains a list of questions and can receive answers. Questions contained in a responder context can be listed using krb5_responder_list_questions(), retrieved using krb5_responder_get_challenge(), or answered using krb5_responder_set_answer(). The form of a question's challenge and answer depend on the question name.
+ 
+
+Declaration
+------------
+
+typedef struct krb5_responder_context_st\* krb5_responder_context
+
+

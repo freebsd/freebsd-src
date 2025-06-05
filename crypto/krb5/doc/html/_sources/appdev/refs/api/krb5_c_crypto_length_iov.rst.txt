@@ -1,0 +1,53 @@
+krb5_c_crypto_length_iov -  Fill in lengths for header, trailer and padding in a IOV array. 
+============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_crypto_length_iov(krb5_context context, krb5_enctype enctype, krb5_crypto_iov * data, size_t num_data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **enctype** - Encryption type
+
+	          **[inout]** **data** - IOV array
+
+	          **[in]** **num_data** - Size of *data*
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Padding is set to the actual padding required based on the provided *data* buffers. Typically this API is used after setting up the data buffers and #KRB5_CRYPTO_TYPE_SIGN_ONLY buffers, but before actually allocating header, trailer and padding.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

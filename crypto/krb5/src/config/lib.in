@@ -1,0 +1,164 @@
+### config/lib.in
+# *** keep this in sync with libnover.in
+#
+# Makefile fragment that creates static, shared, and profiled libraries.
+#
+# The following variables must be set in the Makefile.in:
+#
+# LIBBASE	library name without "lib" or extension
+# LIBMAJOR	library major version
+# LIBMINOR	library minor version
+# SHLIB_EXPDEPS	list of libraries that this one has explicit
+#			dependencies on, pref. in the form libfoo$(SHLIBEXT)
+# SHLIB_EXPLIBS	list of libraries that this one has explicit
+#			dependencies on, in "-lfoo" form.
+# RELDIR	path to this directory relative to $(TOPLIBD)
+#
+# Makefile.in can also override the defaults for SHLIB_DIRS,
+# SHLIB_RDIRS, and STOBJLISTS from pre.in.
+
+LIBPREFIX=lib
+
+SHOBJLISTS=$(STOBJLISTS:.ST=.SH)
+PFOBJLISTS=$(STOBJLISTS:.ST=.PF)
+
+dummy-target-1 $(SUBDIROBJLISTS) $(SUBDIROBJLISTS:.ST=.SH) $(SUBDIROBJLISTS:.ST=.PF): all-recurse
+
+# Gets invoked as $(PARSE_OBJLISTS) list-of-OBJS.*-files
+PARSE_OBJLISTS= set -x && $(PERL) -p -e 'BEGIN { $$SIG{__WARN__} = sub {die @_} }; $$e=$$ARGV; $$e =~ s/OBJS\...$$//; s/^/ /; s/ $$//; s/ / $$e/g;'
+
+lib$(LIBBASE)$(STLIBEXT): $(STOBJLISTS)
+	$(RM) $@
+	@echo "building static $(LIBBASE) library"
+	set -x; objlist=`$(PARSE_OBJLISTS) $(STOBJLISTS)` && $(AR) cq $@ $$objlist
+	$(RANLIB) $@
+
+lib$(LIBBASE)$(SHLIBVEXT): $(SHOBJLISTS) $(SHLIB_EXPDEPS) $(SHLIB_EXPORT_FILE_DEP)
+	$(RM) $@
+	@echo "building shared $(LIBBASE) library ($(LIBMAJOR).$(LIBMINOR))"
+	set -x; objlist=`$(PARSE_OBJLISTS) $(SHOBJLISTS)` && $(MAKE_SHLIB_COMMAND)
+
+lib$(LIBBASE)$(SHLIBSEXT): lib$(LIBBASE)$(SHLIBVEXT)
+	$(RM) $@
+	$(LN_S) lib$(LIBBASE)$(SHLIBVEXT) $@
+lib$(LIBBASE)$(SHLIBEXT): lib$(LIBBASE)$(SHLIBVEXT)
+	$(RM) $@
+	$(LN_S) lib$(LIBBASE)$(SHLIBVEXT) $@
+
+binutils.versions: $(SHLIB_EXPORT_FILE) Makefile
+	base=`echo "$(LIBBASE)" | sed -e 's/-/_/'`; \
+	echo >  binutils.versions "$${base}_$(LIBMAJOR)_MIT {"
+	sed  >> binutils.versions < $(SHLIB_EXPORT_FILE) "s/$$/;/"
+	echo >> binutils.versions "};"
+	echo >> binutils.versions "HIDDEN { local: __*; _rest*; _save*; *; };"
+
+darwin.exports: $(SHLIB_EXPORT_FILE) Makefile
+	sed > darwin-exports.tmp < $(SHLIB_EXPORT_FILE) "s/^/_/"
+	$(MV) darwin-exports.tmp darwin.exports
+
+osf1.exports: $(SHLIB_EXPORT_FILE) Makefile
+	$(RM) osf1.tmp osf1.exports
+	sed "s/^/-exported_symbol /" < $(SHLIB_EXPORT_FILE) > osf1.tmp
+	for f in . $(LIBINITFUNC); do \
+	  if test "$$f" != "." ; then \
+	    echo " -init $$f"__auxinit >> osf1.tmp; \
+	  else :; fi; \
+	done
+	a=""; \
+	for f in . $(LIBFINIFUNC); do \
+	  if test "$$f" != "." ; then \
+	    a="-fini $$f $$a"; \
+	  else :; fi; \
+	done; echo " $$a" >> osf1.tmp
+	mv -f osf1.tmp osf1.exports
+
+hpux.exports: $(SHLIB_EXPORT_FILE) Makefile
+	$(RM) hpux.tmp hpux.exports
+	sed "s/^/+e /" < $(SHLIB_EXPORT_FILE) > hpux.tmp
+	a=""; \
+	for f in . $(LIBFINIFUNC); do \
+	  if test "$$f" != .; then \
+	    a="+I $${f}__auxfini $$a"; \
+	  else :; fi; \
+	done; echo "$$a" >> hpux.tmp
+	echo "+e errno" >> hpux.tmp
+	base=`echo "$(LIBBASE)" | sed -e 's/-/_/'`; \
+	echo "+e _GLOBAL__FD_lib$${base}_$(LIBMAJOR)_$(LIBMINOR)" >> hpux.tmp; \
+	echo "+e _GLOBAL__FI_lib$${base}_$(LIBMAJOR)_$(LIBMINOR)" >> hpux.tmp
+	mv -f hpux.tmp hpux.exports
+
+lib$(LIBBASE)$(PFLIBEXT): $(PFOBJLISTS)
+	$(RM) $@
+	@echo "building profiled $(LIBBASE) library"
+	set -x; objlist=`$(PARSE_OBJLISTS) $(PFOBJLISTS)` && $(AR) cq $@ $$objlist
+	$(RANLIB) $@
+
+$(TOPLIBD)/lib$(LIBBASE)$(STLIBEXT): lib$(LIBBASE)$(STLIBEXT)
+	$(RM) $@
+	(cd $(TOPLIBD) && $(LN_S) $(RELDIR)/lib$(LIBBASE)$(STLIBEXT) .)
+$(TOPLIBD)/lib$(LIBBASE)$(SHLIBEXT): lib$(LIBBASE)$(SHLIBEXT)
+	$(RM) $@
+	(cd $(TOPLIBD) && $(LN_S) $(RELDIR)/lib$(LIBBASE)$(SHLIBEXT) .)
+$(TOPLIBD)/lib$(LIBBASE)$(SHLIBSEXT): lib$(LIBBASE)$(SHLIBSEXT)
+	$(RM) $@
+	(cd $(TOPLIBD) && $(LN_S) $(RELDIR)/lib$(LIBBASE)$(SHLIBSEXT) .)
+$(TOPLIBD)/lib$(LIBBASE)$(SHLIBVEXT): lib$(LIBBASE)$(SHLIBVEXT)
+	$(RM) $@
+	(cd $(TOPLIBD) && $(LN_S) $(RELDIR)/lib$(LIBBASE)$(SHLIBVEXT) .)
+$(TOPLIBD)/lib$(LIBBASE)$(PFLIBEXT): lib$(LIBBASE)$(PFLIBEXT)
+	$(RM) $@
+	(cd $(TOPLIBD) && $(LN_S) $(RELDIR)/lib$(LIBBASE)$(PFLIBEXT) .)
+
+all-libs: $(LIBLIST)
+all-liblinks: $(LIBLINKS)
+
+clean-libs:
+	$(RM) lib$(LIBBASE)$(STLIBEXT)
+	$(RM) lib$(LIBBASE)$(SHLIBVEXT)
+	$(RM) lib$(LIBBASE)$(SHLIBSEXT)
+	$(RM) lib$(LIBBASE)$(SHLIBEXT)
+	$(RM) lib$(LIBBASE)$(PFLIBEXT)
+	$(RM) binutils.versions osf1.exports darwin.exports hpux.exports
+
+clean-liblinks:
+	$(RM) $(TOPLIBD)/lib$(LIBBASE)$(STLIBEXT)
+	$(RM) $(TOPLIBD)/lib$(LIBBASE)$(SHLIBVEXT)
+	$(RM) $(TOPLIBD)/lib$(LIBBASE)$(SHLIBSEXT)
+	$(RM) $(TOPLIBD)/lib$(LIBBASE)$(SHLIBEXT)
+	$(RM) $(TOPLIBD)/lib$(LIBBASE)$(PFLIBEXT)
+
+install-libs: $(LIBINSTLIST)
+install-static:
+	$(RM) $(DESTDIR)$(KRB5_LIBDIR)/lib$(LIBBASE)$(STLIBEXT)
+	$(INSTALL_DATA) lib$(LIBBASE)$(STLIBEXT) $(DESTDIR)$(KRB5_LIBDIR)
+	$(RANLIB) $(DESTDIR)$(KRB5_LIBDIR)/lib$(LIBBASE)$(STLIBEXT)
+install-shared:
+	$(RM) $(DESTDIR)$(KRB5_LIBDIR)/lib$(LIBBASE)$(SHLIBVEXT)
+	$(RM) $(DESTDIR)$(KRB5_LIBDIR)/lib$(LIBBASE)$(SHLIBEXT)
+	$(INSTALL_SHLIB) lib$(LIBBASE)$(SHLIBVEXT) $(DESTDIR)$(KRB5_LIBDIR)
+	(cd $(DESTDIR)$(KRB5_LIBDIR) && $(LN_S) lib$(LIBBASE)$(SHLIBVEXT) \
+		lib$(LIBBASE)$(SHLIBEXT))
+install-shlib-soname: install-shared
+	$(RM) $(DESTDIR)$(KRB5_LIBDIR)/lib$(LIBBASE)$(SHLIBSEXT)
+	(cd $(DESTDIR)$(KRB5_LIBDIR) && $(LN_S) lib$(LIBBASE)$(SHLIBVEXT) \
+		lib$(LIBBASE)$(SHLIBSEXT))
+install-profiled:
+	$(RM) $(DESTDIR)$(KRB5_LIBDIR)/lib$(LIBBASE)$(PFLIBEXT)
+	$(INSTALL_DATA) lib$(LIBBASE)$(PFLIBEXT) $(DESTDIR)$(KRB5_LIBDIR)
+	$(RANLIB) $(DESTDIR)$(KRB5_LIBDIR)/lib$(LIBBASE)$(PFLIBEXT)
+
+Makefile: $(top_srcdir)/config/lib.in
+$(BUILDTOP)/config.status: $(top_srcdir)/config/shlib.conf
+
+# Use the following if links need to be made to $(TOPLIBD):
+# all-unix: all-liblinks
+# install-unix: install-libs
+# clean-unix:: clean-liblinks clean-libs
+
+# Use the following if links need not be made:
+# all-unix: all-libs
+# install-unix: install-libs
+# clean-unix:: clean-libs
+
+###
+### end config/lib.in

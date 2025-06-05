@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PRIV-data:
+
+KRB5_PRIV
+=========
+
+..
+.. data:: KRB5_PRIV
+..
+
+Private application message.
+
+
+
+================ ======================
+``KRB5_PRIV``       ``((krb5_msgtype)21)``
+================ ======================

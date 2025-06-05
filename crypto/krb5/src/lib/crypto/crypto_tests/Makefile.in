@@ -1,0 +1,147 @@
+mydir=lib$(S)crypto$(S)crypto_tests
+BUILDTOP=$(REL)..$(S)..$(S)..
+LOCALINCLUDES = -I$(srcdir)/../krb
+
+EXTRADEPSRCS=\
+	$(srcdir)/t_nfold.c	\
+	$(srcdir)/t_encrypt.c	\
+	$(srcdir)/t_decrypt.c	\
+	$(srcdir)/t_prf.c 	\
+	$(srcdir)/t_cmac.c	\
+	$(srcdir)/t_hmac.c	\
+	$(srcdir)/t_pkcs5.c	\
+	$(srcdir)/t_cts.c	\
+	$(srcdir)/vectors.c	\
+	$(srcdir)/aes-test.c	\
+	$(srcdir)/camellia-test.c	\
+	$(srcdir)/t_cf2.c	\
+	$(srcdir)/t_cksums.c	\
+	$(srcdir)/t_mddriver.c	\
+	$(srcdir)/t_kperf.c	\
+	$(srcdir)/t_sha2.c	\
+	$(srcdir)/t_short.c	\
+	$(srcdir)/t_str2key.c	\
+	$(srcdir)/t_derive.c	\
+	$(srcdir)/t_fork.c
+
+##DOS##BUILDTOP = ..\..\..
+
+check-unix: t_nfold t_encrypt t_decrypt t_prf t_cmac t_hmac \
+		t_cksums \
+		aes-test  \
+		camellia-test  \
+		t_mddriver4 t_mddriver \
+		t_cts t_sha2 t_short t_str2key t_derive t_fork t_cf2
+	$(RUN_TEST) ./t_nfold
+	$(RUN_TEST) ./t_encrypt
+	$(RUN_TEST) ./t_decrypt
+	$(RUN_TEST) ./t_cmac
+	$(RUN_TEST) ./t_hmac
+	$(RUN_TEST) ./t_prf
+	$(RUN_TEST) ./t_cksums
+	$(RUN_TEST) ./t_cts
+	$(RUN_TEST) ./aes-test -k > vk.txt
+	cmp vk.txt $(srcdir)/expect-vk.txt
+	$(RUN_TEST) ./aes-test > vt.txt
+	cmp vt.txt $(srcdir)/expect-vt.txt
+	$(RUN_TEST) ./camellia-test > camellia-vt.txt
+	cmp camellia-vt.txt $(srcdir)/camellia-expect-vt.txt
+	$(RUN_TEST) $(C)t_mddriver4 -x
+	$(RUN_TEST) $(C)t_mddriver -x
+	$(RUN_TEST) ./t_sha2
+	$(RUN_TEST) ./t_short
+	$(RUN_TEST) ./t_str2key
+	$(RUN_TEST) ./t_derive
+	$(RUN_TEST) ./t_fork
+	$(RUN_TEST) ./t_cf2 <$(srcdir)/t_cf2.in >t_cf2.output
+	diff t_cf2.output $(srcdir)/t_cf2.expected
+#	$(RUN_TEST) ./t_pkcs5
+
+t_nfold$(EXEEXT): t_nfold.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_nfold.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+t_encrypt$(EXEEXT): t_encrypt.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_encrypt.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+t_decrypt$(EXEEXT): t_decrypt.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_decrypt.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+t_prf$(EXEEXT): t_prf.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_prf.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+t_cmac$(EXEEXT): t_cmac.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_cmac.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+t_hmac$(EXEEXT): t_hmac.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_hmac.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+#t_pkcs5$(EXEEXT): t_pkcs5.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+#	$(CC_LINK) -o $@ t_pkcs5.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+vectors$(EXEEXT): vectors.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ vectors.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+t_cts$(EXEEXT): t_cts.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_cts.$(OBJEXT) \
+		$(KRB5_BASE_LIBS)
+
+t_sha2$(EXEEXT): t_sha2.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_sha2.$(OBJEXT) \
+		$(KRB5_BASE_LIBS)
+
+t_short$(EXEEXT): t_short.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_short.$(OBJEXT) \
+		$(KRB5_BASE_LIBS)
+
+t_cksums: t_cksums.o $(CRYTPO_DEPLIB)
+	$(CC_LINK) -o t_cksums t_cksums.o -lkrb5 $(KRB5_BASE_LIBS)
+
+aes-test: aes-test.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o aes-test aes-test.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+camellia-test: camellia-test.$(OBJEXT) $(CRYPTO_DEPLIB)
+	$(CC_LINK) -o camellia-test camellia-test.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+t_mddriver4.o: $(srcdir)/t_mddriver.c
+	$(CC) -DMD=4 $(ALL_CFLAGS) -o t_mddriver4.o -c $(srcdir)/t_mddriver.c
+
+t_mddriver4: t_mddriver4.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -DMD4  -o t_mddriver4 t_mddriver4.o $(KRB5_BASE_LIBS)
+
+t_mddriver: t_mddriver.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_mddriver t_mddriver.o $(KRB5_BASE_LIBS)
+
+t_kperf: t_kperf.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o t_kperf t_kperf.o $(KRB5_BASE_LIBS)
+
+t_str2key$(EXEEXT): t_str2key.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_str2key.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+t_derive$(EXEEXT): t_derive.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_derive.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+t_fork$(EXEEXT): t_fork.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_fork.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+t_cf2$(EXEEXT): t_cf2.$(OBJEXT) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_cf2.$(OBJEXT) $(KRB5_BASE_LIBS)
+
+clean:
+	$(RM) t_nfold.o t_nfold t_encrypt t_encrypt.o \
+		t_decrypt.o t_decrypt t_cmac.o t_cmac \
+		t_hmac.o t_hmac t_pkcs5.o t_pkcs5 pbkdf2.o t_prf t_prf.o \
+		aes-test.o aes-test vt.txt vk.txt kresults.out \
+		t_cts.o t_cts \
+		t_mddriver4.o t_mddriver4 t_mddriver.o t_mddriver \
+		t_cksums t_cksums.o \
+		t_kperf.o t_kperf t_sha2.o t_sha2 t_short t_short.o t_str2key \
+		t_str2key.o t_derive t_derive.o t_fork t_fork.o \
+		t_mddriver$(EXEEXT) $(OUTPRE)t_mddriver.$(OBJEXT) \
+		camellia-test camellia-test.o camellia-vt.txt \
+		t_cf2 t_cf2.o t_cf2.output
+
+	-$(RM) t_prf.output
+
+@lib_frag@
+@libobj_frag@
+

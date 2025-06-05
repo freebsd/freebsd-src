@@ -1,0 +1,46 @@
+krb5_vset_error_message -  Set an extended error message for an error code using a va_list. 
+============================================================================================
+
+..
+
+.. c:function:: void krb5_vset_error_message(krb5_context ctx, krb5_error_code code, const char * fmt, va_list args)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **code** - Error code
+
+	          **[in]** **fmt** - Error string for the error code
+
+	          **[in]** **args** - List of vprintf(3) style arguments
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

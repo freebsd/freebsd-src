@@ -1,0 +1,45 @@
+krb5_string_to_enctype -  Convert a string to an encryption type. 
+==================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_string_to_enctype(char * string, krb5_enctype * enctypep)
+
+..
+
+
+:param:
+
+	          **[in]** **string** - String to convert to an encryption type
+
+	          **[out]** **enctypep** - Encryption type
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - EINVAL
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

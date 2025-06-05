@@ -1,0 +1,42 @@
+krb5_get_init_creds_opt_set_proxiable -  Set or unset the proxiable flag in initial credential options. 
+========================================================================================================
+
+..
+
+.. c:function:: void krb5_get_init_creds_opt_set_proxiable(krb5_get_init_creds_opt * opt, int proxiable)
+
+..
+
+
+:param:
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **proxiable** - Whether credentials should be proxiable
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,68 @@
+krb5_kt_read_service_key -  Retrieve a service key from a key table. 
+=====================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_kt_read_service_key(krb5_context context, krb5_pointer keyprocarg, krb5_principal principal, krb5_kvno vno, krb5_enctype enctype, krb5_keyblock ** key)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **keyprocarg** - Name of a key table (NULL to use default name)
+
+	          **[in]** **principal** - Service principal
+
+	          **[in]** **vno** - Key version number (0 for highest available)
+
+	          **[in]** **enctype** - Encryption type (0 for any type)
+
+	          **[out]** **key** - Service key from key table
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error code if not found or keyprocarg is invalid. 
+
+..
+
+
+
+
+
+
+
+Open and search the specified key table for the entry identified by *principal* , *enctype* , and *vno* . If no key is found, return an error code.
+
+
+
+The default key table is used, unless *keyprocarg* is non-null. *keyprocarg* designates a specific key table.
+
+
+
+Use krb5_free_keyblock() to free *key* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

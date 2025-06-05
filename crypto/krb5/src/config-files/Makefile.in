@@ -1,0 +1,8 @@
+mydir=config-files
+BUILDTOP=$(REL)..
+all:
+
+install:
+	$(INSTALL_DATA) $(srcdir)/kdc.conf ${DESTDIR}$(EXAMPLEDIR)/kdc.conf
+	$(INSTALL_DATA) $(srcdir)/krb5.conf ${DESTDIR}$(EXAMPLEDIR)/krb5.conf
+	$(INSTALL_DATA) $(srcdir)/services.append ${DESTDIR}$(EXAMPLEDIR)/services.append

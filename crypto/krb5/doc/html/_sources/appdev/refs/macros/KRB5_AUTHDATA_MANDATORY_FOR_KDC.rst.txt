@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-AUTHDATA-MANDATORY-FOR-KDC-data:
+
+KRB5_AUTHDATA_MANDATORY_FOR_KDC
+===============================
+
+..
+.. data:: KRB5_AUTHDATA_MANDATORY_FOR_KDC
+..
+
+
+
+
+====================================== ======================
+``KRB5_AUTHDATA_MANDATORY_FOR_KDC``       ``8``
+====================================== ======================

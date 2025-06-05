@@ -1,0 +1,54 @@
+krb5_kt_end_seq_get -  Release a keytab cursor. 
+================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_kt_end_seq_get(krb5_context context, krb5_keytab keytab, krb5_kt_cursor * cursor)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **keytab** - Key table handle
+
+	          **[out]** **cursor** - Cursor
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function should be called to release the cursor created by krb5_kt_start_seq_get().
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

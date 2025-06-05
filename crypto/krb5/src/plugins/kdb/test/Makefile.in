@@ -1,0 +1,21 @@
+mydir=plugins$(S)kdb$(S)test
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+LIBBASE=test
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/kdb/test
+SHLIB_EXPDEPS=$(KADMSRV_DEPLIB) $(KRB5_BASE_DEPLIBS)
+SHLIB_EXPLIBS=$(KADMSRV_LIBS) $(KRB5_BASE_LIBS)
+LOCALINCLUDES=-I../../../lib/kdb -I$(srcdir)/../../../lib/kdb
+
+SRCS = $(srcdir)/kdb_test.c
+
+STLIBOBJS = kdb_test.o
+
+all-unix: all-liblinks
+install-unix:
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@

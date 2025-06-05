@@ -1,0 +1,55 @@
+krb5_address_search -  Search a list of addresses for a specified address. 
+===========================================================================
+
+..
+
+.. c:function:: krb5_boolean krb5_address_search(krb5_context context, const krb5_address * addr, krb5_address *const * addrlist)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **addr** - Address to search for
+
+	          **[in]** **addrlist** - Address list to be searched (or NULL)
+
+
+..
+
+
+
+:return:
+         -  TRUE if addr is listed in addrlist , or addrlist is NULL; FALSE otherwise 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 If *addrlist* contains only a NetBIOS addresses, it will be treated as a null list.
+ 
+
+
+

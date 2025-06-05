@@ -1,0 +1,39 @@
+krb5_k_reference_key -  Increment the reference count on a key. 
+================================================================
+
+..
+
+.. c:function:: void krb5_k_reference_key(krb5_context context, krb5_key key)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **key**
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

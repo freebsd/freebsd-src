@@ -1,0 +1,504 @@
+.\"
+.\" $Id: ucdata.man,v 1.5 2001/01/02 18:46:20 mleisher Exp $
+.\"
+.TH ucdata 3 "03 January 2001"
+.SH NAME 
+ucdata \- package for providing Unicode/ISO10646 character information
+
+.SH SYNOPSIS
+#include <ucdata.h>
+.sp
+void ucdata_load(char * paths, int masks)
+.sp
+void ucdata_unload(int masks)
+.sp
+void ucdata_reload(char * paths, int masks)
+.sp
+int ucdecomp(unsigned long code, unsigned long *num, unsigned long **decomp)
+.sp
+int uccanondecomp(const unsigned long *in, int inlen, unsigned long **out,
+int *outlen)
+.sp
+int ucdecomp_hangul(unsigned long code, unsigned long *num,
+unsigned long decomp[])
+.sp
+int uccomp(unsigned long ch1, unsigned long ch2, unsigned long *comp)
+.sp
+int uccomp_hangul(unsigned long *str, int len)
+.sp
+int uccanoncomp(unsiged long *str, int len)
+.nf
+struct ucnumber {
+  int numerator;
+  int denominator;
+};
+.sp
+int ucnumber_lookup(unsigned long code, struct ucnumber *num)
+.sp
+int ucdigit_lookup(unsigned long code, int *digit)
+.sp
+struct ucnumber ucgetnumber(unsigned long code)
+.sp
+int ucgetdigit(unsigned long code)
+.sp
+unsigned long uctoupper(unsigned long code)
+.sp
+unsigned long uctolower(unsigned long code)
+.sp
+unsigned long uctotitle(unsigned long code)
+.sp
+int ucisalpha(unsigned long code)
+.sp
+int ucisalnum(unsigned long code)
+.sp
+int ucisdigit(unsigned long code)
+.sp
+int uciscntrl(unsigned long code)
+.sp
+int ucisspace(unsigned long code)
+.sp
+int ucisblank(unsigned long code)
+.sp
+int ucispunct(unsigned long code)
+.sp
+int ucisgraph(unsigned long code)
+.sp
+int ucisprint(unsigned long code)
+.sp
+int ucisxdigit(unsigned long code)
+.sp
+int ucisupper(unsigned long code)
+.sp
+int ucislower(unsigned long code)
+.sp
+int ucistitle(unsigned long code)
+.sp
+int ucisisocntrl(unsigned long code)
+.sp
+int ucisfmtcntrl(unsigned long code)
+.sp
+int ucissymbol(unsigned long code)
+.sp
+int ucisnumber(unsigned long code)
+.sp
+int ucisnonspacing(unsigned long code)
+.sp
+int ucisopenpunct(unsigned long code)
+.sp
+int ucisclosepunct(unsigned long code)
+.sp
+int ucisinitialpunct(unsigned long code)
+.sp
+int ucisfinalpunct(unsigned long code)
+.sp
+int uciscomposite(unsigned long code)
+.sp
+int ucisquote(unsigned long code)
+.sp
+int ucissymmetric(unsigned long code)
+.sp
+int ucismirroring(unsigned long code)
+.sp
+int ucisnonbreaking(unsigned long code)
+.sp
+int ucisrtl(unsigned long code)
+.sp
+int ucisltr(unsigned long code)
+.sp
+int ucisstrong(unsigned long code)
+.sp
+int ucisweak(unsigned long code)
+.sp
+int ucisneutral(unsigned long code)
+.sp
+int ucisseparator(unsigned long code)
+.sp
+int ucislsep(unsigned long code)
+.sp
+int ucispsep(unsigned long code)
+.sp
+int ucismark(unsigned long code)
+.sp
+int ucisnsmark(unsigned long code)
+.sp
+int ucisspmark(unsigned long code)
+.sp
+int ucismodif(unsigned long code)
+.sp
+int ucismodifsymbol(unsigned long code)
+.sp
+int ucisletnum(unsigned long code)
+.sp
+int ucisconnect(unsigned long code)
+.sp
+int ucisdash(unsigned long code)
+.sp
+int ucismath(unsigned long code)
+.sp
+int uciscurrency(unsigned long code)
+.sp
+int ucisenclosing(unsigned long code)
+.sp
+int ucisprivate(unsigned long code)
+.sp
+int ucissurrogate(unsigned long code)
+.sp
+int ucisidentstart(unsigned long code)
+.sp
+int ucisidentpart(unsigned long code)
+.sp
+int ucisdefined(unsigned long code)
+.sp
+int ucisundefined(unsigned long code)
+.sp
+int ucishan(unsigned long code)
+.sp
+int ucishangul(unsigned long code)
+
+.SH DESCRIPTION
+.TP 4
+.BR Macros
+.br
+UCDATA_CASE
+.br
+UCDATA_CTYPE
+.br
+UCDATA_DECOMP
+.br
+UCDATA_CMBCL
+.br
+UCDATA_NUM
+.br
+UCDATA_ALL
+.br
+.TP 4
+.BR ucdata_load()
+This function initializes the UCData library by locating the data files in one
+of the colon-separated directories in the `paths' parameter.  The data files
+to be loaded are specified in the `masks' parameter as a bitwise combination
+of the macros listed above.
+.sp
+This should be called before using any of the other functions.
+.TP 4
+.BR ucdata_unload()
+This function unloads the data tables specified in the `masks' parameter.
+.sp
+This function should be called when the application is done using the UCData
+package.
+.TP 4
+.BR ucdata_reload()
+This function reloads the data files from one of the colon-separated
+directories in the `paths' parameter.  The data files to be reloaded are
+specified in the `masks' parameter as a bitwise combination of the macros
+listed above.
+.TP 4
+.BR ucdecomp()
+This function determines if a character has a decomposition and returns the
+decomposition information if it exists.
+.sp
+If a zero is returned, there is no decomposition.  If a non-zero is
+returned, then the `num' and `decomp' variables are filled in with the
+appropriate values.
+.sp
+Example call:
+.sp
+.nf
+    unsigned long i, num, *decomp;
+
+    if (ucdecomp(0x1d5, &num, &decomp) != 0) {
+       for (i = 0; i < num; i++)
+         printf("0x%08lX,", decomp[i]);
+       putchar('\n');
+    }
+.TP 4
+.BR uccanondecomp()
+This function will decompose a string, insuring the characters are in
+canonical order for comparison.
+.sp
+If a decomposed string is returned, the caller is responsible for deallocating
+the string.
+.sp
+If a -1 is returned, memory allocation failed.  If a zero is returned, no
+decomposition was done.  Any other value means a decomposition string was
+created and the values returned in the `out' and `outlen' parameters.
+.TP 4
+.BR ucdecomp_hangul()
+This function determines if a Hangul syllable has a
+decomposition and returns the decomposition information.
+.sp
+An array of at least size 3 should be passed to the function
+for the decomposition of the syllable.
+.sp
+If a zero is returned, the character is not a Hangul
+syllable. If a non-zero is returned, the `num' field
+will be 2 or 3 and the syllable will be decomposed into
+the `decomp' array arithmetically.
+.sp
+Example call:
+.sp
+.nf
+    unsigned long i, num, decomp[3];
+
+    if (ucdecomp_hangul(0xb1ba, &num, &decomp) != 0) {
+       for (i = 0; i < num; i++)
+         printf("0x%08lX,", decomp[i]);
+       putchar('\n');
+    }
+.TP 4
+.BR uccomp()
+This function determines if a pair of characters have a composition, and
+returns that composition if one exists.
+.sp
+A zero is returned is no composition exists for the character pair.  Any other
+value indicates the `comp' field holds the character code representing the
+composition of the two character codes.
+.TP 4
+.BR uccomp_hangul()
+This composes the Hangul Jamo in-place in the string.
+.sp
+The returned value is the new length of the string.
+.TP 4
+.BR uccanoncomp()
+This function does a full composition in-place in the string, including the
+Hangul composition.
+.sp
+The returned value is the new length of the string.
+.TP 4
+.BR ucnumber_lookup()
+This function determines if the code is a number and
+fills in the `num' field with the numerator and
+denominator.  If the code happens to be a single digit,
+the numerator and denominator fields will be the same.
+.sp
+If the function returns 0, the code is not a number.
+Any other return value means the code is a number.
+.TP 4
+.BR ucdigit_lookup()
+This function determines if the code is a digit and
+fills in the `digit' field with the digit value.
+.sp
+If the function returns 0, the code is not a number.
+Any other return value means the code is a number.
+.TP 4
+.BR ucgetnumber()
+This is a compatibility function with John Cowan's
+"uctype" package.  It uses ucnumber_lookup().
+.TP 4
+.BR ucgetdigit()
+This is a compatibility function with John Cowan's
+"uctype" package.  It uses ucdigit_lookup().
+.TP 4
+.BR uctoupper()
+This function returns the code unchanged if it is
+already upper case or has no upper case equivalent.
+Otherwise the upper case equivalent is returned.
+.TP 4
+.BR uctolower()
+This function returns the code unchanged if it is
+already lower case or has no lower case equivalent.
+Otherwise the lower case equivalent is returned.
+.TP 4
+.BR uctotitle()
+This function returns the code unchanged if it is
+already title case or has no title case equivalent.
+Otherwise the title case equivalent is returned.
+.TP 4
+.BR ucisalpha()
+Test if \fIcode\fR is an alpha character.
+.TP 4
+.BR ucisalnum()
+Test if \fIcode\fR is an alpha or digit character.
+.TP 4
+.BR ucisdigit()
+Test if \fIcode\fR is a digit character.
+.TP 4
+.BR uciscntrl()
+Test if \fIcode\fR is a control character.
+.TP 4
+.BR ucisspace()
+Test if \fIcode\fR is a space character.
+.TP 4
+.BR ucisblank()
+Test if \fIcode\fR is a blank character.
+.TP 4
+.BR ucispunct()
+Test if \fIcode\fR is a punctuation character.
+.TP 4
+.BR ucisgraph()
+Test if \fIcode\fR is a graphical (visible) character.
+.TP 4
+.BR ucisprint()
+Test if \fIcode\fR is a printable character.
+.TP 4
+.BR ucisxdigit()
+Test if \fIcode\fR is a hexadecimal digit character.
+.TP 4
+.BR ucisupper()
+Test if \fIcode\fR is an upper case character.
+.TP 4
+.BR ucislower()
+Test if \fIcode\fR is a lower case character.
+.TP 4
+.BR ucistitle()
+Test if \fIcode\fR is a title case character.
+.TP 4
+.BR ucisisocntrl()
+Is the character a C0 control character (< 32)?
+.TP 4
+.BR ucisfmtcntrl()
+Is the character a format control character?
+.TP 4
+.BR ucissymbol()
+Is the character a symbol?
+.TP 4
+.BR ucisnumber()
+Is the character a number or digit?
+.TP 4
+.BR ucisnonspacing()
+Is the character non-spacing?
+.TP 4
+.BR ucisopenpunct()
+Is the character an open/left punctuation (i.e. '[')
+.TP 4
+.BR ucisclosepunct()
+Is the character an close/right punctuation (i.e. ']')
+.TP 4
+.BR ucisinitialpunct()
+Is the character an initial punctuation (i.e. U+2018 LEFT
+SINGLE QUOTATION MARK)
+.TP 4
+.BR ucisfinalpunct()
+Is the character a final punctuation (i.e. U+2019 RIGHT
+SINGLE QUOTATION MARK)
+.TP 4
+.BR uciscomposite()
+Can the character be decomposed into a set of other
+characters?
+.TP 4
+.BR ucisquote()
+Is the character one of the many quotation marks?
+.TP 4
+.BR ucissymmetric()
+Is the character one that has an opposite form
+(i.e. <>)
+.TP 4
+.BR ucismirroring()
+Is the character mirroring (superset of symmetric)?
+.TP 4
+.BR ucisnonbreaking()
+Is the character non-breaking (i.e. non-breaking
+space)?
+.TP 4
+.BR ucisrtl()
+Does the character have strong right-to-left
+directionality (i.e. Arabic letters)?
+.TP 4
+.BR ucisltr()
+Does the character have strong left-to-right
+directionality (i.e. Latin letters)?
+.TP 4
+.BR ucisstrong()
+Does the character have strong directionality?
+.TP 4
+.BR ucisweak()
+Does the character have weak directionality
+(i.e. numbers)?
+.TP 4
+.BR ucisneutral()
+Does the character have neutral directionality
+(i.e. whitespace)?
+.TP 4
+.BR ucisseparator()
+Is the character a block or segment separator?
+.TP 4
+.BR ucislsep()
+Is the character a line separator?
+.TP 4
+.BR ucispsep()
+Is the character a paragraph separator?
+.TP 4
+.BR ucismark()
+Is the character a mark of some kind?
+.TP 4
+.BR ucisnsmark()
+Is the character a non-spacing mark?
+.TP 4
+.BR ucisspmark()
+Is the character a spacing mark?
+.TP 4
+.BR ucismodif()
+Is the character a modifier letter?
+.TP 4
+.BR ucismodifsymbol()
+Is the character a modifier symbol?
+.TP 4
+.BR ucisletnum()
+Is the character a number represented by a letter?
+.TP 4
+.BR ucisconnect()
+Is the character connecting punctuation?
+.TP 4
+.BR ucisdash()
+Is the character dash punctuation?
+.TP 4
+.BR ucismath()
+Is the character a math character?
+.TP 4
+.BR uciscurrency()
+Is the character a currency character?
+.TP 4
+.BR ucisenclosing()
+Is the character enclosing (i.e. enclosing box)?
+.TP 4
+.BR ucisprivate()
+Is the character from the Private Use Area?
+.TP 4
+.BR ucissurrogate()
+Is the character one of the surrogate codes?
+.TP 4
+.BR ucisidentstart()
+Is the character a legal initial character of an identifier?
+.TP 4
+.BR ucisidentpart()
+Is the character a legal identifier character?
+.TP 4
+.BR ucisdefined()
+Is the character defined (appeared in one of the data
+files)?
+.TP 4
+.BR ucisundefined()
+Is the character not defined (non-Unicode)?
+.TP 4
+.BR ucishan()
+Is the character a Han ideograph?
+.TP 4
+.BR ucishangul()
+Is the character a pre-composed Hangul syllable?
+
+.SH "SEE ALSO"
+ctype(3)
+
+.SH ACKNOWLEDGMENTS
+These are people who have helped with patches or
+alerted me about problems.
+.sp
+John Cowan <cowan@locke.ccil.org>
+.br
+Bob Verbrugge <bob_verbrugge@nl.compuware.com>
+.br
+Christophe Pierret <cpierret@businessobjects.com>
+.br
+Kent Johnson <kent@pondview.mv.com>
+.br
+Valeriy E. Ushakov <uwe@ptc.spbu.ru>
+.br
+Stig Venaas <Stig.Venaas@uninett.no>
+
+.SH AUTHOR
+Mark Leisher
+.br
+Computing Research Lab
+.br
+New Mexico State University
+.br
+Email: mleisher@crl.nmsu.edu

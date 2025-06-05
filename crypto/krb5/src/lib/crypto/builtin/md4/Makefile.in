@@ -1,0 +1,33 @@
+mydir=lib$(S)crypto$(S)builtin$(S)md4
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+LOCALINCLUDES=-I$(srcdir)/../../krb $(CRYPTO_IMPL_CFLAGS)
+
+##DOS##BUILDTOP = ..\..\..\..
+##DOS##PREFIXDIR = builtin\md4
+##DOS##OBJFILE = ..\..\$(OUTPRE)md4.lst
+
+STLIBOBJS= md4.o
+
+OBJS= $(OUTPRE)md4.$(OBJEXT) 
+
+SRCS= $(srcdir)/md4.c
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+
+includes: depend
+
+depend: $(SRCS)
+
+
+check-unix:
+
+check-windows:
+
+clean:
+
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+

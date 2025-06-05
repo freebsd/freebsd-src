@@ -1,0 +1,402 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Encryption types &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="HTTPS proxy configuration" href="https.html" />
+    <link rel="prev" title="Principal names and DNS" href="princ_dns.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="princ_dns.html" title="Principal names and DNS"
+            accesskey="P">previous</a> |
+        <a href="https.html" title="HTTPS proxy configuration"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Encryption types">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="encryption-types">
+<span id="enctypes"></span><h1>Encryption types<a class="headerlink" href="#encryption-types" title="Permalink to this headline">¶</a></h1>
+<p>Kerberos can use a variety of cipher algorithms to protect data.  A
+Kerberos <strong>encryption type</strong> (also known as an <strong>enctype</strong>) is a
+specific combination of a cipher algorithm with an integrity algorithm
+to provide both confidentiality and integrity to data.</p>
+<section id="enctypes-in-requests">
+<h2>Enctypes in requests<a class="headerlink" href="#enctypes-in-requests" title="Permalink to this headline">¶</a></h2>
+<p>Clients make two types of requests (KDC-REQ) to the KDC: AS-REQs and
+TGS-REQs.  The client uses the AS-REQ to obtain initial tickets
+(typically a Ticket-Granting Ticket (TGT)), and uses the TGS-REQ to
+obtain service tickets.</p>
+<p>The KDC uses three different keys when issuing a ticket to a client:</p>
+<ul class="simple">
+<li><p>The long-term key of the service: the KDC uses this to encrypt the
+actual service ticket.  The KDC only uses the first long-term key in
+the most recent kvno for this purpose.</p></li>
+<li><p>The session key: the KDC randomly chooses this key and places one
+copy inside the ticket and the other copy inside the encrypted part
+of the reply.</p></li>
+<li><p>The reply-encrypting key: the KDC uses this to encrypt the reply it
+sends to the client.  For AS replies, this is a long-term key of the
+client principal.  For TGS replies, this is either the session key of the
+authenticating ticket, or a subsession key.</p></li>
+</ul>
+<p>Each of these keys is of a specific enctype.</p>
+<p>Each request type allows the client to submit a list of enctypes that
+it is willing to accept.  For the AS-REQ, this list affects both the
+session key selection and the reply-encrypting key selection.  For the
+TGS-REQ, this list only affects the session key selection.</p>
+</section>
+<section id="session-key-selection">
+<span id="id1"></span><h2>Session key selection<a class="headerlink" href="#session-key-selection" title="Permalink to this headline">¶</a></h2>
+<p>The KDC chooses the session key enctype by taking the intersection of
+its <strong>permitted_enctypes</strong> list, the list of long-term keys for the
+most recent kvno of the service, and the client’s requested list of
+enctypes.  Starting in krb5-1.21, all services are assumed to support
+aes256-cts-hmac-sha1-96; also, des3-cbc-sha1 and arcfour-hmac session
+keys will not be issued by default.</p>
+<p>Starting in krb5-1.11, it is possible to set a string attribute on a
+service principal to control what session key enctypes the KDC may
+issue for service tickets for that principal, overriding the service’s
+long-term keys and the assumption of aes256-cts-hmac-sha1-96 support.
+See <a class="reference internal" href="admin_commands/kadmin_local.html#set-string"><span class="std std-ref">set_string</span></a> in <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> for details.</p>
+</section>
+<section id="choosing-enctypes-for-a-service">
+<h2>Choosing enctypes for a service<a class="headerlink" href="#choosing-enctypes-for-a-service" title="Permalink to this headline">¶</a></h2>
+<p>Generally, a service should have a key of the strongest
+enctype that both it and the KDC support.  If the KDC is running a
+release earlier than krb5-1.11, it is also useful to generate an
+additional key for each enctype that the service can support.  The KDC
+will only use the first key in the list of long-term keys for encrypting
+the service ticket, but the additional long-term keys indicate the
+other enctypes that the service supports.</p>
+<p>As noted above, starting with release krb5-1.11, there are additional
+configuration settings that control session key enctype selection
+independently of the set of long-term keys that the KDC has stored for
+a service principal.</p>
+</section>
+<section id="configuration-variables">
+<h2>Configuration variables<a class="headerlink" href="#configuration-variables" title="Permalink to this headline">¶</a></h2>
+<p>The following <code class="docutils literal notranslate"><span class="pre">[libdefaults]</span></code> settings in <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> will
+affect how enctypes are chosen.</p>
+<dl class="simple">
+<dt><strong>allow_weak_crypto</strong></dt><dd><p>defaults to <em>false</em> starting with krb5-1.8.  When <em>false</em>, removes
+weak enctypes from <strong>permitted_enctypes</strong>,
+<strong>default_tkt_enctypes</strong>, and <strong>default_tgs_enctypes</strong>.  Do not
+set this to <em>true</em> unless the use of weak enctypes is an
+acceptable risk for your environment and the weak enctypes are
+required for backward compatibility.</p>
+</dd>
+<dt><strong>allow_des3</strong></dt><dd><p>was added in release 1.21 and defaults to <em>false</em>.  Unless this
+flag is set to <em>true</em>, the KDC will not issue tickets with
+des3-cbc-sha1 session keys.  In a future release, this flag will
+control whether des3-cbc-sha1 is permitted in similar fashion to
+weak enctypes.</p>
+</dd>
+<dt><strong>allow_rc4</strong></dt><dd><p>was added in release 1.21 and defaults to <em>false</em>.  Unless this
+flag is set to <em>true</em>, the KDC will not issue tickets with
+arcfour-hmac session keys.  In a future release, this flag will
+control whether arcfour-hmac is permitted in similar fashion to
+weak enctypes.</p>
+</dd>
+<dt><strong>permitted_enctypes</strong></dt><dd><p>controls the set of enctypes that a service will permit for
+session keys and for ticket and authenticator encryption.  The KDC
+and other programs that access the Kerberos database will ignore
+keys of non-permitted enctypes.  Starting in release 1.18, this
+setting also acts as the default for <strong>default_tkt_enctypes</strong> and
+<strong>default_tgs_enctypes</strong>.</p>
+</dd>
+<dt><strong>default_tkt_enctypes</strong></dt><dd><p>controls the default set of enctypes that the Kerberos client
+library requests when making an AS-REQ.  Do not set this unless
+required for specific backward compatibility purposes; stale
+values of this setting can prevent clients from taking advantage
+of new stronger enctypes when the libraries are upgraded.</p>
+</dd>
+<dt><strong>default_tgs_enctypes</strong></dt><dd><p>controls the default set of enctypes that the Kerberos client
+library requests when making a TGS-REQ.  Do not set this unless
+required for specific backward compatibility purposes; stale
+values of this setting can prevent clients from taking advantage
+of new stronger enctypes when the libraries are upgraded.</p>
+</dd>
+</dl>
+<p>The following per-realm setting in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> affects the
+generation of long-term keys.</p>
+<dl class="simple">
+<dt><strong>supported_enctypes</strong></dt><dd><p>controls the default set of enctype-salttype pairs that <a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a>
+will use for generating long-term keys, either randomly or from
+passwords</p>
+</dd>
+</dl>
+</section>
+<section id="enctype-compatibility">
+<h2>Enctype compatibility<a class="headerlink" href="#enctype-compatibility" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference internal" href="conf_files/kdc_conf.html#encryption-types"><span class="std std-ref">Encryption types</span></a> for additional information about enctypes.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 51%" />
+<col style="width: 20%" />
+<col style="width: 16%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>enctype</p></th>
+<th class="head"><p>weak?</p></th>
+<th class="head"><p>krb5</p></th>
+<th class="head"><p>Windows</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>des-cbc-crc</p></td>
+<td><p>weak</p></td>
+<td><p>&lt;1.18</p></td>
+<td><p>&gt;=2000</p></td>
+</tr>
+<tr class="row-odd"><td><p>des-cbc-md4</p></td>
+<td><p>weak</p></td>
+<td><p>&lt;1.18</p></td>
+<td><p>?</p></td>
+</tr>
+<tr class="row-even"><td><p>des-cbc-md5</p></td>
+<td><p>weak</p></td>
+<td><p>&lt;1.18</p></td>
+<td><p>&gt;=2000</p></td>
+</tr>
+<tr class="row-odd"><td><p>des3-cbc-sha1</p></td>
+<td><p>deprecated</p></td>
+<td><p>&gt;=1.1</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-even"><td><p>arcfour-hmac</p></td>
+<td><p>deprecated</p></td>
+<td><p>&gt;=1.3</p></td>
+<td><p>&gt;=2000</p></td>
+</tr>
+<tr class="row-odd"><td><p>arcfour-hmac-exp</p></td>
+<td><p>weak</p></td>
+<td><p>&gt;=1.3</p></td>
+<td><p>&gt;=2000</p></td>
+</tr>
+<tr class="row-even"><td><p>aes128-cts-hmac-sha1-96</p></td>
+<td></td>
+<td><p>&gt;=1.3</p></td>
+<td><p>&gt;=Vista</p></td>
+</tr>
+<tr class="row-odd"><td><p>aes256-cts-hmac-sha1-96</p></td>
+<td></td>
+<td><p>&gt;=1.3</p></td>
+<td><p>&gt;=Vista</p></td>
+</tr>
+<tr class="row-even"><td><p>aes128-cts-hmac-sha256-128</p></td>
+<td></td>
+<td><p>&gt;=1.15</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-odd"><td><p>aes256-cts-hmac-sha384-192</p></td>
+<td></td>
+<td><p>&gt;=1.15</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-even"><td><p>camellia128-cts-cmac</p></td>
+<td></td>
+<td><p>&gt;=1.9</p></td>
+<td><p>none</p></td>
+</tr>
+<tr class="row-odd"><td><p>camellia256-cts-cmac</p></td>
+<td></td>
+<td><p>&gt;=1.9</p></td>
+<td><p>none</p></td>
+</tr>
+</tbody>
+</table>
+<p>krb5 releases 1.18 and later do not support single-DES.  krb5 releases
+1.8 and later disable the single-DES enctypes by default.  Microsoft
+Windows releases Windows 7 and later disable single-DES enctypes by
+default.</p>
+<p>krb5 releases 1.17 and later flag deprecated encryption types
+(including <code class="docutils literal notranslate"><span class="pre">des3-cbc-sha1</span></code> and <code class="docutils literal notranslate"><span class="pre">arcfour-hmac</span></code>) in KDC logs and
+kadmin output.  krb5 release 1.19 issues a warning during initial
+authentication if <code class="docutils literal notranslate"><span class="pre">des3-cbc-sha1</span></code> is used.  Future releases will
+disable <code class="docutils literal notranslate"><span class="pre">des3-cbc-sha1</span></code> by default and eventually remove support for
+it.</p>
+</section>
+<section id="migrating-away-from-older-encryption-types">
+<h2>Migrating away from older encryption types<a class="headerlink" href="#migrating-away-from-older-encryption-types" title="Permalink to this headline">¶</a></h2>
+<p>Administrator intervention may be required to migrate a realm away
+from legacy encryption types, especially if the realm was created
+using krb5 release 1.2 or earlier.  This migration should be performed
+before upgrading to krb5 versions which disable or remove support for
+legacy encryption types.</p>
+<p>If there is a <strong>supported_enctypes</strong> setting in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> on
+the KDC, make sure that it does not include weak or deprecated
+encryption types.  This will ensure that newly created keys do not use
+those encryption types by default.</p>
+<p>Check the <code class="docutils literal notranslate"><span class="pre">krbtgt/REALM</span></code> principal using the <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>
+<strong>getprinc</strong> command.  If it lists a weak or deprecated encryption
+type as the first key, it must be migrated using the procedure in
+<a class="reference internal" href="database.html#changing-krbtgt-key"><span class="std std-ref">Changing the krbtgt key</span></a>.</p>
+<p>Check the <code class="docutils literal notranslate"><span class="pre">kadmin/history</span></code> principal, which should have only one key
+entry.  If it uses a weak or deprecated encryption type, it should be
+upgraded following the notes in <a class="reference internal" href="database.html#updating-history-key"><span class="std std-ref">Updating the history key</span></a>.</p>
+<p>Check the other kadmin principals: kadmin/changepw, kadmin/admin, and
+any kadmin/hostname principals that may exist.  These principals can
+be upgraded with <strong>change_password -randkey</strong> in kadmin.</p>
+<p>Check the <code class="docutils literal notranslate"><span class="pre">K/M</span></code> entry.  If it uses a weak or deprecated encryption
+type, it should be upgraded following the procedure in
+<a class="reference internal" href="database.html#updating-master-key"><span class="std std-ref">Updating the master key</span></a>.</p>
+<p>User and service principals using legacy encryption types can be
+enumerated with the <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a> <strong>tabdump keyinfo</strong> command.</p>
+<p>Service principals can be migrated with a keytab rotation on the
+service host, which can be accomplished using the <a class="reference internal" href="admin_commands/k5srvutil.html#k5srvutil-1"><span class="std std-ref">k5srvutil</span></a>
+<strong>change</strong> and <strong>delold</strong> commands.  Allow enough time for existing
+tickets to expire between the change and delold operations.</p>
+<p>User principals with password-based keys can be migrated with a
+password change.  The realm administrator can set a password
+expiration date using the <a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> <strong>modify_principal
+-pwexpire</strong> command to force a password change.</p>
+<p>If a legacy encryption type has not yet been disabled by default in
+the version of krb5 running on the KDC, it can be disabled
+administratively with the <strong>permitted_enctypes</strong> variable.  For
+example, setting <strong>permitted_enctypes</strong> to <code class="docutils literal notranslate"><span class="pre">DEFAULT</span> <span class="pre">-des3</span> <span class="pre">-rc4</span></code> will
+cause any database keys of the triple-DES and RC4 encryption types to
+be ignored.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Encryption types</a><ul>
+<li><a class="reference internal" href="#enctypes-in-requests">Enctypes in requests</a></li>
+<li><a class="reference internal" href="#session-key-selection">Session key selection</a></li>
+<li><a class="reference internal" href="#choosing-enctypes-for-a-service">Choosing enctypes for a service</a></li>
+<li><a class="reference internal" href="#configuration-variables">Configuration variables</a></li>
+<li><a class="reference internal" href="#enctype-compatibility">Enctype compatibility</a></li>
+<li><a class="reference internal" href="#migrating-away-from-older-encryption-types">Migrating away from older encryption types</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="princ_dns.html" title="Principal names and DNS"
+            >previous</a> |
+        <a href="https.html" title="HTTPS proxy configuration"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Encryption types">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

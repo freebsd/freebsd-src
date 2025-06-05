@@ -1,0 +1,51 @@
+krb5_kuserok -  Determine if a principal is authorized to log in as a local user. 
+==================================================================================
+
+..
+
+.. c:function:: krb5_boolean krb5_kuserok(krb5_context context, krb5_principal principal, const char * luser)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **principal** - Principal name
+
+	          **[in]** **luser** - Local username
+
+
+..
+
+
+:retval:
+         -   TRUE   Principal is authorized to log in as user; FALSE otherwise.
+
+
+..
+
+
+
+
+
+
+
+Determine whether *principal* is authorized to log in as a local user *luser* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

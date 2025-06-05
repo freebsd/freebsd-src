@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _krb5-princ-set-realm-length-data:
+
+krb5_princ_set_realm_length
+===========================
+
+..
+.. data:: krb5_princ_set_realm_length
+..
+
+
+
+
+========================================================= ======================
+``krb5_princ_set_realm_length (context, princ, value)``       ``(princ)->realm.length = (value)``
+========================================================= ======================

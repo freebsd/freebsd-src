@@ -1,0 +1,17 @@
+#!/bin/sh
+# Move file 1 to file 2 if they don't already match.
+# Good for "make depend" for example, where it'd be nice to keep the
+# old datestamp.
+if [ $# != 2 ]; then
+  echo 2>&1 usage: $0 newfile oldfilename
+  exit 1
+fi
+#
+if [ ! -r "$2" ]; then
+  exec mv -f "$1" "$2"
+fi
+if cmp "$1" "$2" >/dev/null; then
+  echo "$2 is unchanged"
+  exec rm -f "$1"
+fi
+exec mv -f "$1" "$2"

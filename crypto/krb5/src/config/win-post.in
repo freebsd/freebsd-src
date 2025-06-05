@@ -1,0 +1,128 @@
+#
+# Start of Win32 post-config lines (config/win-post.in)
+#
+
+setup-msg:
+	@set C_RULE_PRINT=	$(C_RULE_PRINT)
+	@set DO_C_RULE_PRINT=1
+
+!if defined(NO_OUTPRE) || defined(NO_OUTDIR)
+outpre-dir:
+!else
+outpre-dir: $(OUTPRE3)$(DIRNUL)
+!endif
+
+#
+# put all: first just in case no other rules occur here
+#
+all:
+
+#
+# Set the #define to indicate that we are compiling a DLL.  We default to 
+# compiling the Kerberos library
+#
+!if defined(DLL_EXP_TYPE)
+DLL_FILE_DEF=/D$(DLL_EXP_TYPE)_DLL_FILE
+!else
+DLL_FILE_DEF=/DKRB5_DLL_FILE
+!endif
+
+# Build the Makefile unless we are in the top-level
+#(where there is already an explicit rule).
+!if !defined(TOPLEVEL)
+Makefile: Makefile.in $(BUILDTOP)\config\win-pre.in $(BUILDTOP)\config\win-post.in
+	$(WCONFIG) $(BUILDTOP)\config < Makefile.in > Makefile
+!endif
+
+# Recurse into subdirs if WINSUBDIRS or SUBDIRS is defined.  Makefiles
+# can depend on all-recurse, clean-recurse, or check-recurse to perform
+# actions after recursion.
+!if defined(SUBDIRS) && !defined(WINSUBDIRS)
+WINSUBDIRS=$(SUBDIRS)
+!endif
+!ifdef WINSUBDIRS
+
+all-recurse:
+	@for %d in ($(WINSUBDIRS)) do @(echo Making in $(mydir)\%d && \
+		pushd %d && $(MAKE) -$(MFLAGS) && popd) || exit 1
+	@echo Making in $(mydir)
+all-windows: all-recurse
+
+clean-recurse:
+	@for %d in ($(WINSUBDIRS)) do @(echo Making clean in $(mydir)\%d && \
+		pushd %d && $(MAKE) -$(MFLAGS) clean && popd) || exit 1
+	@echo Making clean in $(mydir)
+clean-windows:: clean-recurse
+
+check-recurse:
+	@for %d in ($(WINSUBDIRS)) do @(echo Making check in $(mydir)\%d && \
+		pushd %d && $(MAKE) -$(MFLAGS) check && popd) || exit 1
+	@echo Making check in $(mydir)
+check-windows: check-recurse
+
+!endif # WINSUBDIRS
+
+# Use 64-bit LIBNAME and OBJFILE on 64-bit platforms, if defined.
+!if ("$(CPU)" == "IA64") || ("$(CPU)" == "AMD64") || ("$(CPU)" == "ALPHA64")
+!if defined(WIN64LIBNAME)
+LIBNAME=$(WIN64LIBNAME)
+!endif
+!if defined(WIN64OBJFILE)
+OBJFILE=$(WIN64OBJFILE)
+!endif
+!endif
+
+# Build a library if LIBNAME is defined.
+!if defined(LIBNAME)
+
+!if !defined(OBJFILELIST)
+OBJFILELIST=@$(OBJFILE)
+!endif
+!if !defined(OBJFILEDEP)
+OBJFILEDEP=$(OBJFILE)
+!endif
+
+all-windows: $(LIBNAME)
+$(LIBNAME): $(OBJFILEDEP)
+	$(LIBCMD) /out:$(LIBNAME) /nologo $(OBJFILELIST)
+
+!endif # LIBNAME
+
+
+# Build an object file list if OBJFILE is defined.
+!if defined(OBJFILE)
+all-windows: $(OBJFILE)
+!if defined(LIBOBJS)
+$(OBJFILE): $(LIBOBJS)
+	if exist $(OBJFILE) del $(OBJFILE)
+!if defined(PREFIXDIR)
+	$(LIBECHO) -p $(PREFIXDIR)\ $** > $(OBJFILE)
+!else
+	$(LIBECHO) $** > $(OBJFILE)
+!endif # !PREFIXDIR
+!endif # LIBOBJS
+!endif # OBJFILE
+
+
+check:
+check-windows:
+
+clean-windows:: clean-windows-files clean-windows-dir
+
+
+# This needs to be in the post because we need RM to be defined in terms
+# of BUILDTOP
+clean-windows-files:
+!if "$(OUTPRE3)" == ""
+!error ASSERTION FAILURE: OUTPRE3 must be defined!!!
+!endif
+!if "$(OS)" == "Windows_NT"
+	@if exist $(OUTPRE3)$(DIRNUL) rd /s/q $(OUTPRE3)
+!else
+	@if exist $(OUTPRE3)$(DIRNUL) deltree /y $(OUTPRE3)
+!endif
+
+# Dependencies
+!if exist($(srcdir)/deps)
+!include $(srcdir)/deps
+!endif

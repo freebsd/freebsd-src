@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _LR-TYPE-THIS-SERVER-ONLY-data:
+
+LR_TYPE_THIS_SERVER_ONLY
+========================
+
+..
+.. data:: LR_TYPE_THIS_SERVER_ONLY
+..
+
+
+
+
+=============================== ======================
+``LR_TYPE_THIS_SERVER_ONLY``       ``0x8000``
+=============================== ======================

@@ -1,0 +1,61 @@
+krb5_k_prf -  Generate enctype-specific pseudo-random bytes (operates on opaque key). 
+======================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_k_prf(krb5_context context, krb5_key key, krb5_data * input, krb5_data * output)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **key** - Key
+
+	          **[in]** **input** - Input data
+
+	          **[out]** **output** - Output data
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function selects a pseudo-random function based on *key* and computes its value over *input* , placing the result into *output* . The caller must preinitialize *output* and allocate space for the result.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 This function is similar to krb5_c_prf(), but operates on opaque *key* .
+ 
+
+
+

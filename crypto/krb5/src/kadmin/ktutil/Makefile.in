@@ -1,0 +1,30 @@
+mydir=kadmin$(S)ktutil
+BUILDTOP=$(REL)..$(S)..
+
+OBJS= 	ktutil.o \
+	ktutil_ct.o \
+	ktutil_funcs.o
+
+SRCS= 	$(srcdir)/ktutil.c \
+	ktutil_ct.c \
+	$(srcdir)/ktutil_funcs.c
+
+all: ktutil
+
+ktutil: ktutil.o $(OBJS) $(SS_DEPLIB) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o ktutil $(OBJS) $(SS_LIB) $(KRB5_BASE_LIBS)
+
+install:
+	$(INSTALL_PROGRAM) ktutil ${DESTDIR}$(CLIENT_BINDIR)/ktutil
+
+generate-files-mac: ktutil_ct.c
+
+# needed until we run makedepend
+ktutil_ct.c: ktutil_ct.ct
+
+ktutil_ct.o: ktutil_ct.c
+
+clean:
+	$(RM) ktutil_ct.c ktutil
+
+depend: ktutil_ct.c

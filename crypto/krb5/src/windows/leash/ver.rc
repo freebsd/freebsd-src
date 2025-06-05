@@ -1,0 +1,3 @@
+#define VER_FILEDESCRIPTION_STR 	"Leash Application"
+
+#include "..\version.rc"

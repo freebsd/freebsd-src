@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-ANONYMOUS-REALMSTR-data:
+
+KRB5_ANONYMOUS_REALMSTR
+=======================
+
+..
+.. data:: KRB5_ANONYMOUS_REALMSTR
+..
+
+Anonymous realm.
+
+
+
+============================== ======================
+``KRB5_ANONYMOUS_REALMSTR``       ``"WELLKNOWN:ANONYMOUS"``
+============================== ======================

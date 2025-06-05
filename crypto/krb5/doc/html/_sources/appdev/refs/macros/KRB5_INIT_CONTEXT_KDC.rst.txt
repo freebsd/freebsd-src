@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-INIT-CONTEXT-KDC-data:
+
+KRB5_INIT_CONTEXT_KDC
+=====================
+
+..
+.. data:: KRB5_INIT_CONTEXT_KDC
+..
+
+Use KDC configuration if available.
+
+
+
+============================ ======================
+``KRB5_INIT_CONTEXT_KDC``       ``0x2``
+============================ ======================

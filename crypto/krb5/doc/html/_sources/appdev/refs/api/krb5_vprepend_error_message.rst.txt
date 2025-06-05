@@ -1,0 +1,46 @@
+krb5_vprepend_error_message -  Add a prefix to the message for an error code using a va_list. 
+==============================================================================================
+
+..
+
+.. c:function:: void krb5_vprepend_error_message(krb5_context ctx, krb5_error_code code, const char * fmt, va_list args)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **code** - Error code
+
+	          **[in]** **fmt** - Format string for error message prefix
+
+	          **[in]** **args** - List of vprintf(3) style arguments
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function is similar to krb5_prepend_error_message(), but uses a va_list instead of variadic arguments.
+
+
+
+
+
+
+..
+
+
+
+
+

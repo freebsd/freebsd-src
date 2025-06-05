@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-KPASSWD-SOFTERROR-data:
+
+KRB5_KPASSWD_SOFTERROR
+======================
+
+..
+.. data:: KRB5_KPASSWD_SOFTERROR
+..
+
+Password change rejected.
+
+
+
+============================= ======================
+``KRB5_KPASSWD_SOFTERROR``       ``4``
+============================= ======================

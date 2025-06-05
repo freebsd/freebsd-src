@@ -1,0 +1,104 @@
+name: Build
+
+on:
+    push: {paths: [src/**, .github/workflows/build.yml]}
+    pull_request: {paths: [src/**, .github/workflows/build.yml]}
+
+jobs:
+
+    unix:
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                name: [linux-clang, linux-clang-openssl, linux-gcc]
+                include:
+                    - name: linux-clang
+                      os: ubuntu-latest
+                      compiler: clang
+                      makevars: CPPFLAGS=-Werror
+                      configureopts: --enable-asan
+                    - name: linux-clang-openssl
+                      os: ubuntu-latest
+                      compiler: clang
+                      makevars: CPPFLAGS=-Werror
+                      configureopts: --with-crypto-impl=openssl
+                    - name: linux-gcc
+                      os: ubuntu-latest
+                      compiler: gcc
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v1
+            - name: Linux setup
+              if: startsWith(matrix.os, 'ubuntu')
+              run: |
+                sudo apt-get update -qq
+                sudo apt-get install -y bison gettext keyutils ldap-utils libcmocka-dev libldap2-dev libkeyutils-dev libsasl2-dev libssl-dev python3-kdcproxy python3-pip slapd tcsh
+                pip3 install pyrad
+            - name: Build
+              env:
+                CC: ${{ matrix.compiler }}
+                MAKEVARS: ${{ matrix.makevars }}
+                CONFIGURE_OPTS:  ${{ matrix.configureopts }}
+              run: |
+                cd src
+                autoreconf
+                ./configure --enable-maintainer-mode --with-ldap $CONFIGURE_OPTS --prefix=$HOME/inst
+                make $MAKEVARS
+                make check
+                make install
+            - name: Display skipped tests
+              run: cat src/skiptests
+            - name: Check for files unexpectedly not removed by make distclean
+              run: |
+                cd src
+                make distclean
+                rm -rf autom4te.cache configure include/autoconf.h.in
+                if [ -n "$(git ls-files -o)" ]; then
+                  echo "Files not removed by make distclean:"
+                  git ls-files -o
+                  exit 1
+                fi
+
+    windows:
+        runs-on: windows-latest
+        env:
+            KRB_INSTALL_DIR: C:\kfw
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v1
+            - name: Setup
+              shell: cmd
+              run: |
+                mkdir %KRB_INSTALL_DIR%
+            - uses: ilammy/msvc-dev-cmd@v1
+              with:
+                arch: x86
+            - name: Build 32-bit
+              shell: cmd
+              run: |
+                cd src
+                set
+                set PATH=%PATH%;%wix%bin
+                nmake -f Makefile.in prep-windows
+                nmake
+                nmake install
+                cd windows\installer\wix
+                nmake
+                rename kfw.msi kfw32.msi
+            - uses: ilammy/msvc-dev-cmd@v1
+              with:
+                arch: x64
+            - name: Build 64-bit
+              shell: cmd
+              run: |
+                cd src
+                set
+                set PATH=%PATH%;%wix%bin;"%WindowsSdkVerBinPath%"\x86
+                nmake clean
+                nmake
+                nmake install
+                cd windows\installer\wix
+                nmake clean
+                nmake
+                rename kfw.msi kfw64.msi

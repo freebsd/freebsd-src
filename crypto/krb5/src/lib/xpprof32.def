@@ -1,0 +1,28 @@
+;----------------------------------------------------
+;   XPPROF32.DEF - XPPROF32.DLL 
+;----------------------------------------------------
+
+;LIBRARY		XPPROF32.DLL
+DESCRIPTION	'Cross Platform Profile DLL'
+HEAPSIZE	8192
+
+EXPORTS
+         profile_abandon		  @1
+         profile_add_relation		  @2
+         profile_clear_relation		  @3
+         profile_flush			  @4
+         profile_free_list		  @5
+         profile_get_integer		  @6
+         profile_get_relation_names	  @7
+         profile_get_string		  @8
+         profile_get_subsection_names	  @9
+         profile_get_values		 @10
+         profile_init			 @11
+         profile_init_path		 @12
+         profile_iterator		 @13
+         profile_iterator_create	 @14
+         profile_iterator_free		 @15
+         profile_release		 @16
+         profile_release_string		 @17
+         profile_rename_section		 @18
+         profile_update_relation	 @19

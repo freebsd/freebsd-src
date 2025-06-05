@@ -1,0 +1,251 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>krb5_kdc_req &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/kerb.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../../about.html" />
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../../copyright.html" />
+    <link rel="next" title="krb5_keyblock" href="krb5_keyblock.html" />
+    <link rel="prev" title="krb5_kdc_rep" href="krb5_kdc_rep.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="krb5_kdc_rep.html" title="krb5_kdc_rep"
+            accesskey="P">previous</a> |
+        <a href="krb5_keyblock.html" title="krb5_keyblock"
+            accesskey="N">next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_kdc_req">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="krb5-kdc-req">
+<span id="krb5-kdc-req-struct"></span><h1>krb5_kdc_req<a class="headerlink" href="#krb5-kdc-req" title="Permalink to this headline">¶</a></h1>
+<dl class="c type">
+<dt class="sig sig-object c" id="c.krb5_kdc_req">
+<span class="k"><span class="pre">type</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">krb5_kdc_req</span></span></span><a class="headerlink" href="#c.krb5_kdc_req" title="Permalink to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<p>C representation of KDC-REQ protocol message, including KDC-REQ-BODY.</p>
+<section id="declaration">
+<h2>Declaration<a class="headerlink" href="#declaration" title="Permalink to this headline">¶</a></h2>
+<p>typedef struct _krb5_kdc_req krb5_kdc_req</p>
+</section>
+<section id="members">
+<h2>Members<a class="headerlink" href="#members" title="Permalink to this headline">¶</a></h2>
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.magic">
+<a class="reference internal" href="krb5_magic.html#c.krb5_magic" title="krb5_magic"><span class="n"><span class="pre">krb5_magic</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">magic</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.magic" title="Permalink to this definition">¶</a><br /></dt>
+<dd></dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.msg_type">
+<a class="reference internal" href="krb5_msgtype.html#c.krb5_msgtype" title="krb5_msgtype"><span class="n"><span class="pre">krb5_msgtype</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">msg_type</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.msg_type" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>KRB5_AS_REQ or KRB5_TGS_REQ.</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.padata">
+<a class="reference internal" href="krb5_pa_data.html#c.krb5_pa_data" title="krb5_pa_data"><span class="n"><span class="pre">krb5_pa_data</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">*</span></span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">padata</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.padata" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Preauthentication data.</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.kdc_options">
+<a class="reference internal" href="krb5_flags.html#c.krb5_flags" title="krb5_flags"><span class="n"><span class="pre">krb5_flags</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">kdc_options</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.kdc_options" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Requested options.</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.client">
+<a class="reference internal" href="krb5_principal.html#c.krb5_principal" title="krb5_principal"><span class="n"><span class="pre">krb5_principal</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">client</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.client" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Client principal and realm.</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.server">
+<a class="reference internal" href="krb5_principal.html#c.krb5_principal" title="krb5_principal"><span class="n"><span class="pre">krb5_principal</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">server</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.server" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Server principal and realm.</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.from">
+<a class="reference internal" href="krb5_timestamp.html#c.krb5_timestamp" title="krb5_timestamp"><span class="n"><span class="pre">krb5_timestamp</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">from</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.from" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Requested start time.</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.till">
+<a class="reference internal" href="krb5_timestamp.html#c.krb5_timestamp" title="krb5_timestamp"><span class="n"><span class="pre">krb5_timestamp</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">till</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.till" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Requested end time.</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.rtime">
+<a class="reference internal" href="krb5_timestamp.html#c.krb5_timestamp" title="krb5_timestamp"><span class="n"><span class="pre">krb5_timestamp</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">rtime</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.rtime" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Requested renewable end time.</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.nonce">
+<a class="reference internal" href="krb5_int32.html#c.krb5_int32" title="krb5_int32"><span class="n"><span class="pre">krb5_int32</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">nonce</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.nonce" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Nonce to match request and response.</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.nktypes">
+<span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">nktypes</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.nktypes" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Number of enctypes.</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.ktype">
+<a class="reference internal" href="krb5_enctype.html#c.krb5_enctype" title="krb5_enctype"><span class="n"><span class="pre">krb5_enctype</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">ktype</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.ktype" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Requested enctypes.</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.addresses">
+<a class="reference internal" href="krb5_address.html#c.krb5_address" title="krb5_address"><span class="n"><span class="pre">krb5_address</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">*</span></span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">addresses</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.addresses" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Requested addresses (optional)</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.authorization_data">
+<a class="reference internal" href="krb5_enc_data.html#c.krb5_enc_data" title="krb5_enc_data"><span class="n"><span class="pre">krb5_enc_data</span></span></a><span class="w"> </span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">authorization_data</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.authorization_data" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Encrypted authz data (optional)</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.unenc_authdata">
+<a class="reference internal" href="krb5_authdata.html#c.krb5_authdata" title="krb5_authdata"><span class="n"><span class="pre">krb5_authdata</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">*</span></span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">unenc_authdata</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.unenc_authdata" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Unencrypted authz data.</p>
+</dd></dl>
+
+<dl class="c member">
+<dt class="sig sig-object c" id="c.krb5_kdc_req.second_ticket">
+<a class="reference internal" href="krb5_ticket.html#c.krb5_ticket" title="krb5_ticket"><span class="n"><span class="pre">krb5_ticket</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">*</span></span><span class="sig-prename descclassname"><a class="reference internal" href="#c.krb5_kdc_req" title="krb5_kdc_req"><span class="n"><span class="pre">krb5_kdc_req</span></span></a><span class="p"><span class="pre">.</span></span></span><span class="sig-name descname"><span class="n"><span class="pre">second_ticket</span></span></span><a class="headerlink" href="#c.krb5_kdc_req.second_ticket" title="Permalink to this definition">¶</a><br /></dt>
+<dd><p>Second ticket array (optional)</p>
+</dd></dl>
+
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">krb5_kdc_req</a><ul>
+<li><a class="reference internal" href="#declaration">Declaration</a></li>
+<li><a class="reference internal" href="#members">Members</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../admin/index.html">For administrators</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">For application developers</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../../gssapi.html">Developing with GSSAPI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../y2038.html">Year 2038 considerations for uses of krb5_timestamp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../h5l_mit_apidiff.html">Differences between Heimdal and MIT Kerberos API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../init_creds.html">Initial credentials</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../princ_handle.html">Principal manipulation and parsing</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html">Complete reference - API and datatypes</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../api/index.html">krb5 API</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="index.html">krb5 types and structures</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../macros/index.html">krb5 simple macros</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="krb5_kdc_rep.html" title="krb5_kdc_rep"
+            >previous</a> |
+        <a href="krb5_keyblock.html" title="krb5_keyblock"
+            >next</a> |
+        <a href="../../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__krb5_kdc_req">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

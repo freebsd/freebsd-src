@@ -1,0 +1,66 @@
+krb5_build_principal_alloc_va -  Build a principal name, using a precomputed variable argument list. 
+=====================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_build_principal_alloc_va(krb5_context context, krb5_principal * princ, unsigned int rlen, const char * realm, va_list ap)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **princ** - Principal structure
+
+	          **[in]** **rlen** - Realm name length
+
+	          **[in]** **realm** - Realm name
+
+	          **[in]** **ap** - List of char * components, ending with NULL
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Similar to krb5_build_principal(), this function builds a principal name, but its name components are specified as a va_list.
+
+
+
+Use krb5_free_principal() to deallocate *princ* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

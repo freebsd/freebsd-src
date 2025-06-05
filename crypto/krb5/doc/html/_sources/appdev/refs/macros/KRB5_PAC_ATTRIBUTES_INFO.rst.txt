@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PAC-ATTRIBUTES-INFO-data:
+
+KRB5_PAC_ATTRIBUTES_INFO
+========================
+
+..
+.. data:: KRB5_PAC_ATTRIBUTES_INFO
+..
+
+PAC attributes.
+
+
+
+=============================== ======================
+``KRB5_PAC_ATTRIBUTES_INFO``       ``17``
+=============================== ======================

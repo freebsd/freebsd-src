@@ -1,0 +1,47 @@
+krb5_deltat_to_string -  Convert a relative time value to a string. 
+====================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_deltat_to_string(krb5_deltat deltat, char * buffer, size_t buflen)
+
+..
+
+
+:param:
+
+	          **[in]** **deltat** - Relative time value to convert
+
+	          **[out]** **buffer** - Buffer to hold time string
+
+	          **[in]** **buflen** - Storage available in *buffer*
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

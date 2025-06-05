@@ -1,0 +1,42 @@
+krb5_get_init_creds_opt_init
+============================
+
+..
+
+.. c:function:: void krb5_get_init_creds_opt_init(krb5_get_init_creds_opt * opt)
+
+..
+
+
+:param:
+
+	          **opt**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Use krb5_get_init_creds_opt_alloc() instead. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,61 @@
+krb5_aname_to_localname -  Convert a principal name to a local name. 
+=====================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_aname_to_localname(krb5_context context, krb5_const_principal aname, int lnsize_in, char * lname)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **aname** - Principal name
+
+	          **[in]** **lnsize_in** - Space available in *lname*
+
+	          **[out]** **lname** - Local name buffer to be filled in
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   System   errors
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+If *aname* does not correspond to any local account, KRB5_LNAME_NOTRANS is returned. If *lnsize_in* is too small for the local name, KRB5_CONFIG_NOTENUFSPACE is returned.
+
+
+
+Local names, rather than principal names, can be used by programs that translate to an environment-specific name (for example, a user account name).
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

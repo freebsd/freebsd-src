@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-AS-FRESHNESS-data:
+
+KRB5_PADATA_AS_FRESHNESS
+========================
+
+..
+.. data:: KRB5_PADATA_AS_FRESHNESS
+..
+
+RFC 8070.
+
+
+
+=============================== ======================
+``KRB5_PADATA_AS_FRESHNESS``       ``150``
+=============================== ======================

@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-PA-SAM-CHALLENGE-TRACKID-data:
+
+KRB5_KEYUSAGE_PA_SAM_CHALLENGE_TRACKID
+======================================
+
+..
+.. data:: KRB5_KEYUSAGE_PA_SAM_CHALLENGE_TRACKID
+..
+
+
+
+
+============================================= ======================
+``KRB5_KEYUSAGE_PA_SAM_CHALLENGE_TRACKID``       ``26``
+============================================= ======================

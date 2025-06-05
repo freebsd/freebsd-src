@@ -1,0 +1,47 @@
+krb5_c_free_state -  Free a cipher state previously allocated by krb5_c_init_state(). 
+======================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_free_state(krb5_context context, const krb5_keyblock * key, krb5_data * state)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **key** - Key
+
+	          **[in]** **state** - Cipher state to be freed
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

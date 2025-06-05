@@ -1,0 +1,249 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+#include "leashids.h"
+#include "winver.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+LOGOBITMAP              BITMAP  DISCARDABLE     "res\\islogo.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+LEASHICON               ICON    DISCARDABLE     "res\\leash.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+ENTERPASSWORDDLG DIALOG DISCARDABLE  23, 48, 262, 108
+STYLE DS_MODALFRAME | WS_POPUP | WS_CLIPCHILDREN | WS_CAPTION | WS_SYSMENU
+CAPTION "Enter Password"
+FONT 10, "System"
+BEGIN
+    EDITTEXT        ID_PRINCIPAL,6,17,96,12,ES_AUTOHSCROLL
+    LTEXT           "Enter your username:",ID_PRINCCAPTION,6,7,140,8
+    DEFPUSHBUTTON   "OK",IDOK,110,42,32,14
+    EDITTEXT        ID_OLDPASSWORD,6,43,96,12,ES_PASSWORD | ES_AUTOHSCROLL
+    LTEXT           "Enter your password:",ID_OLDPCAPTION,6,33,91,8
+    EDITTEXT        ID_DURATION,40,59,20,12
+    LTEXT           "Duration:",-1,6,61,30,8
+    LTEXT           "minutes",-1,62,61,64,8
+    ICON            "LeashIcon",-1,6,78,18,20
+    PUSHBUTTON      "&Cancel",IDCANCEL,30,78,32,14
+    PUSHBUTTON      "&Restart",ID_RESTART,70,78,32,14
+    PUSHBUTTON      "&Help",ID_HELP,110,78,32,14
+    CONTROL         "",ID_PICFRAME,"Static",SS_BLACKFRAME,153,4,100,100
+END
+
+CHANGEPASSWORDDLG DIALOG DISCARDABLE  27, 41, 270, 155
+STYLE DS_MODALFRAME | WS_POPUP | WS_CLIPCHILDREN | WS_CAPTION | WS_SYSMENU
+CAPTION "Change Password"
+FONT 8, "System"
+BEGIN
+    EDITTEXT        ID_PRINCIPAL,6,35,96,12,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,110,60,32,14
+    EDITTEXT        ID_OLDPASSWORD,6,61,96,12,ES_PASSWORD | ES_AUTOHSCROLL
+    EDITTEXT        ID_CONFIRMPASSWORD1,6,87,96,12,ES_PASSWORD |
+                    ES_AUTOHSCROLL
+    EDITTEXT        ID_CONFIRMPASSWORD2,6,113,96,12,ES_PASSWORD |
+                    ES_AUTOHSCROLL
+    LTEXT           "Enter your username:",ID_PRINCCAPTION,6,25,140,8
+    LTEXT           "Enter your old password:",ID_OLDPCAPTION,6,51,91,8
+    LTEXT           "Enter your new password:",ID_CONFIRMCAPTION1,6,77,96,8
+    LTEXT           "Retype your new password:",ID_CONFIRMCAPTION2,6,103,100,
+                    8
+    ICON            "LeashIcon",-1,6,134,18,20
+    PUSHBUTTON      "&Cancel",IDCANCEL,30,134,32,14
+    PUSHBUTTON      "&Restart",ID_RESTART,70,134,32,14
+    PUSHBUTTON      "&Help",ID_HELP,110,134,32,14
+    LTEXT           "To change your password, fill in the following fields as they appear.",
+                    -1,6,3,140,21
+    CONTROL         "",ID_PICFRAME,"Static",SS_BLACKFRAME,157,27,100,100
+END
+
+IDD_AUTHENTICATE DIALOGEX 0, 0, 370, 248
+STYLE DS_MODALFRAME | DS_3DLOOK | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Authenticate to Kerberos"
+FONT 8, "Microsoft Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EDIT_PRINCIPAL,89,42,199,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_PASSWORD,89,58,259,14,ES_PASSWORD |
+                    ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,302,219,49,14
+    PUSHBUTTON      "Cancel",IDCANCEL,249,219,49,14
+    PUSHBUTTON      "Hide Advanced",IDC_BUTTON_OPTIONS,146,219,89,14
+    PUSHBUTTON      "Clear History",IDC_BUTTON_CLEAR_HISTORY,288,42,60,14
+    CONTROL         "Remember this principal", IDC_CHECK_REMEMBER_PRINCIPAL,
+                    "Button", BS_AUTOCHECKBOX | WS_TABSTOP,89,72,100,14
+    CONTROL         "Ticket Lifetime",IDC_SLIDER_LIFETIME,"msctls_trackbar32",
+                    TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,90,97,258,15
+    CONTROL         "Forwardable and Proxiable (can be forwarded to other machines)",
+                    IDC_CHECK_FORWARDABLE,"Button",BS_AUTOCHECKBOX |
+                    WS_TABSTOP,89,123,253,10
+    CONTROL         "Renewable (can be renewed during the renewable lifetime)",
+                    IDC_CHECK_RENEWABLE,"Button",BS_AUTOCHECKBOX |
+                    WS_TABSTOP,89,135,253,10
+    CONTROL         "Slider2",IDC_SLIDER_RENEWLIFE,"msctls_trackbar32",
+                    TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,90,178,258,15
+    RTEXT           "Principal:",IDC_STATIC_NAME,13,44,74,8
+    RTEXT           "Password:",IDC_STATIC_PWD,13,60,74,8
+    RTEXT           "Ticket Lifetime:",IDC_STATIC_LIFETIME,23,87,65,8,0,
+                    WS_EX_RIGHT
+    LTEXT           "Flag this ticket as:",IDC_STATIC_KRB5,32,123,56,8
+    LTEXT           "HMS",IDC_STATIC_LIFETIME_VALUE,90,87,131,8
+    LTEXT           "HMS",IDC_STATIC_RENEW_TILL_VALUE,90,164,141,8
+    ICON            LEASHICON,IDC_PICTURE_LEASH,21,15,20,20
+    LTEXT           "Please Authenticate",
+                    IDC_STATIC_NOTICE,51,23,276,8
+    RTEXT           "Renewable Lifetime:",IDC_STATIC_RENEW,10,164,79,8
+END
+
+IDD_PASSWORD DIALOG DISCARDABLE  0, 0, 382, 150
+STYLE DS_MODALFRAME | DS_3DLOOK | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Change Password"
+FONT 8, "Microsoft Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EDIT_PRINCIPAL,99,40,259,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_PASSWORD,99,60,259,14,ES_PASSWORD |
+                    ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_PASSWORD2,99,85,259,14,ES_PASSWORD |
+                    ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_PASSWORD3,99,105,259,14,ES_PASSWORD |
+                    ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK",IDOK,313,125,49,14
+    PUSHBUTTON      "Cancel",IDCANCEL,256,125,49,14
+    RTEXT           "Principal:",IDC_STATIC_NAME,22,43,74,12
+    RTEXT           "Old Password:",IDC_STATIC_PWD,22,63,74,12
+    ICON            LEASHICON,IDC_PICTURE_LEASH,15,15,20,20
+    LTEXT           "Change your Kerberos password or phrase",
+                    IDC_STATIC_NOTICE,48,20,276,8
+    RTEXT           "New Password:",IDC_STATIC_PWD2,22,88,74,12
+    RTEXT           "New Password (again):",IDC_STATIC_PWD3,22,108,74,12
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE
+BEGIN
+    "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""windows.h""\r\n"
+    "#undef APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""leashids.h""\r\n"
+    "#include ""ver.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE
+BEGIN
+    "\r\n"
+    "#include ""..\\version.rc""\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE
+BEGIN
+    IDD_PASSWORD, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 375
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 191
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE
+BEGIN
+    LSH_TIME_HOST           "time"
+    LSH_DEFAULT_TICKET_LIFE "600"
+    LSH_DEFAULT_TICKET_RENEW_TILL "10080"
+    LSH_DEFAULT_TICKET_FORWARD "1"
+    LSH_DEFAULT_TICKET_NOADDRESS "1"
+    LSH_DEFAULT_TICKET_PROXIABLE "0"
+    LSH_DEFAULT_TICKET_PUBLICIP "0"
+    LSH_DEFAULT_DIALOG_KINIT_OPT "1"
+    LSH_DEFAULT_DIALOG_LIFE_MIN "30"
+    LSH_DEFAULT_DIALOG_LIFE_MAX "1440"
+    LSH_DEFAULT_DIALOG_RENEW_MIN "600"
+    LSH_DEFAULT_DIALOG_RENEW_MAX "43200"
+    LSH_DEFAULT_TICKET_RENEW "1"
+    LSH_DEFAULT_UPPERCASEREALM "1"
+    LSH_DEFAULT_PRESERVE_KINIT "0"
+END
+
+STRINGTABLE DISCARDABLE
+BEGIN
+    LSH_DEFAULT_DIALOG_LOCK_LOCATION "0"
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+#include "..\version.rc"
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED

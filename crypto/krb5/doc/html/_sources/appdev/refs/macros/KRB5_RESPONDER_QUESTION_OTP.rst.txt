@@ -1,0 +1,47 @@
+.. highlight:: c
+
+.. _KRB5-RESPONDER-QUESTION-OTP-data:
+
+KRB5_RESPONDER_QUESTION_OTP
+===========================
+
+..
+.. data:: KRB5_RESPONDER_QUESTION_OTP
+..
+
+OTP responder question.
+
+The OTP responder question is asked when the KDC indicates that an OTP value is required in order to complete the authentication. The JSON format of the challenge is:
+::
+
+    {
+      "service": <string (optional)>,
+      "tokenInfo": [
+        {
+          "flags":     <number>,
+          "vendor":    <string (optional)>,
+          "challenge": <string (optional)>,
+          "length":    <number (optional)>,
+          "format":    <number (optional)>,
+          "tokenID":   <string (optional)>,
+          "algID":     <string (optional)>,
+        },
+        ...
+      ]
+    }
+
+The answer to the question MUST be JSON formatted:
+::
+
+    {
+      "tokeninfo": <number>,
+      "value":     <string (optional)>,
+      "pin":       <string (optional)>,
+    }
+
+For more detail, please see RFC 6560.
+ 
+
+================================== ======================
+``KRB5_RESPONDER_QUESTION_OTP``       ``"otp"``
+================================== ======================

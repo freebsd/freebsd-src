@@ -1,0 +1,449 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Ticket management &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="User config files" href="user_config/index.html" />
+    <link rel="prev" title="Password management" href="pwd_mgmt.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="pwd_mgmt.html" title="Password management"
+            accesskey="P">previous</a> |
+        <a href="user_config/index.html" title="User config files"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Ticket management">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="ticket-management">
+<h1>Ticket management<a class="headerlink" href="#ticket-management" title="Permalink to this headline">¶</a></h1>
+<p>On many systems, Kerberos is built into the login program, and you get
+tickets automatically when you log in.  Other programs, such as ssh,
+can forward copies of your tickets to a remote host.  Most of these
+programs also automatically destroy your tickets when they exit.
+However, MIT recommends that you explicitly destroy your Kerberos
+tickets when you are through with them, just to be sure.  One way to
+help ensure that this happens is to add the <a class="reference internal" href="user_commands/kdestroy.html#kdestroy-1"><span class="std std-ref">kdestroy</span></a> command
+to your .logout file.  Additionally, if you are going to be away from
+your machine and are concerned about an intruder using your
+permissions, it is safest to either destroy all copies of your
+tickets, or use a screensaver that locks the screen.</p>
+<section id="kerberos-ticket-properties">
+<h2>Kerberos ticket properties<a class="headerlink" href="#kerberos-ticket-properties" title="Permalink to this headline">¶</a></h2>
+<p>There are various properties that Kerberos tickets can have:</p>
+<p>If a ticket is <strong>forwardable</strong>, then the KDC can issue a new ticket
+(with a different network address, if necessary) based on the
+forwardable ticket.  This allows for authentication forwarding without
+requiring a password to be typed in again.  For example, if a user
+with a forwardable TGT logs into a remote system, the KDC could issue
+a new TGT for that user with the network address of the remote system,
+allowing authentication on that host to work as though the user were
+logged in locally.</p>
+<p>When the KDC creates a new ticket based on a forwardable ticket, it
+sets the <strong>forwarded</strong> flag on that new ticket.  Any tickets that are
+created based on a ticket with the forwarded flag set will also have
+their forwarded flags set.</p>
+<p>A <strong>proxiable</strong> ticket is similar to a forwardable ticket in that it
+allows a service to take on the identity of the client.  Unlike a
+forwardable ticket, however, a proxiable ticket is only issued for
+specific services.  In other words, a ticket-granting ticket cannot be
+issued based on a ticket that is proxiable but not forwardable.</p>
+<p>A <strong>proxy</strong> ticket is one that was issued based on a proxiable ticket.</p>
+<p>A <strong>postdated</strong> ticket is issued with the invalid flag set.  After the
+starting time listed on the ticket, it can be presented to the KDC to
+obtain valid tickets.</p>
+<p>Ticket-granting tickets with the <strong>postdateable</strong> flag set can be used
+to obtain postdated service tickets.</p>
+<p><strong>Renewable</strong> tickets can be used to obtain new session keys without
+the user entering their password again.  A renewable ticket has two
+expiration times.  The first is the time at which this particular
+ticket expires.  The second is the latest possible expiration time for
+any ticket issued based on this renewable ticket.</p>
+<p>A ticket with the <strong>initial flag</strong> set was issued based on the
+authentication protocol, and not on a ticket-granting ticket.
+Application servers that wish to ensure that the user’s key has been
+recently presented for verification could specify that this flag must
+be set to accept the ticket.</p>
+<p>An <strong>invalid</strong> ticket must be rejected by application servers.
+Postdated tickets are usually issued with this flag set, and must be
+validated by the KDC before they can be used.</p>
+<p>A <strong>preauthenticated</strong> ticket is one that was only issued after the
+client requesting the ticket had authenticated itself to the KDC.</p>
+<p>The <strong>hardware authentication</strong> flag is set on a ticket which required
+the use of hardware for authentication.  The hardware is expected to
+be possessed only by the client which requested the tickets.</p>
+<p>If a ticket has the <strong>transit policy</strong> checked flag set, then the KDC
+that issued this ticket implements the transited-realm check policy
+and checked the transited-realms list on the ticket.  The
+transited-realms list contains a list of all intermediate realms
+between the realm of the KDC that issued the first ticket and that of
+the one that issued the current ticket.  If this flag is not set, then
+the application server must check the transited realms itself or else
+reject the ticket.</p>
+<p>The <strong>okay as delegate</strong> flag indicates that the server specified in
+the ticket is suitable as a delegate as determined by the policy of
+that realm.  Some client applications may use this flag to decide
+whether to forward tickets to a remote host, although many
+applications do not honor it.</p>
+<p>An <strong>anonymous</strong> ticket is one in which the named principal is a
+generic principal for that realm; it does not actually specify the
+individual that will be using the ticket.  This ticket is meant only
+to securely distribute a session key.</p>
+</section>
+<section id="obtaining-tickets-with-kinit">
+<span id="obtain-tkt"></span><h2>Obtaining tickets with kinit<a class="headerlink" href="#obtaining-tickets-with-kinit" title="Permalink to this headline">¶</a></h2>
+<p>If your site has integrated Kerberos V5 with the login system, you
+will get Kerberos tickets automatically when you log in.  Otherwise,
+you may need to explicitly obtain your Kerberos tickets, using the
+<a class="reference internal" href="user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a> program.  Similarly, if your Kerberos tickets expire,
+use the kinit program to obtain new ones.</p>
+<p>To use the kinit program, simply type <code class="docutils literal notranslate"><span class="pre">kinit</span></code> and then type your
+password at the prompt. For example, Jennifer (whose username is
+<code class="docutils literal notranslate"><span class="pre">jennifer</span></code>) works for Bleep, Inc. (a fictitious company with the
+domain name mit.edu and the Kerberos realm ATHENA.MIT.EDU).  She would
+type:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kinit</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="n">jennifer</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span><span class="p">:</span> <span class="o">&lt;--</span> <span class="p">[</span><span class="n">Type</span> <span class="n">jennifer</span><span class="s1">&#39;s password here.]</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+<p>If you type your password incorrectly, kinit will give you the
+following error message:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kinit</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="n">jennifer</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span><span class="p">:</span> <span class="o">&lt;--</span> <span class="p">[</span><span class="n">Type</span> <span class="n">the</span> <span class="n">wrong</span> <span class="n">password</span> <span class="n">here</span><span class="o">.</span><span class="p">]</span>
+<span class="n">kinit</span><span class="p">:</span> <span class="n">Password</span> <span class="n">incorrect</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+<p>and you won’t get Kerberos tickets.</p>
+<p>By default, kinit assumes you want tickets for your own username in
+your default realm.  Suppose Jennifer’s friend David is visiting, and
+he wants to borrow a window to check his mail.  David needs to get
+tickets for himself in his own realm, EXAMPLE.COM.  He would type:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kinit</span> <span class="n">david</span><span class="nd">@EXAMPLE</span><span class="o">.</span><span class="n">COM</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="n">david</span><span class="nd">@EXAMPLE</span><span class="o">.</span><span class="n">COM</span><span class="p">:</span> <span class="o">&lt;--</span> <span class="p">[</span><span class="n">Type</span> <span class="n">david</span><span class="s1">&#39;s password here.]</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+<p>David would then have tickets which he could use to log onto his own
+machine.  Note that he typed his password locally on Jennifer’s
+machine, but it never went over the network.  Kerberos on the local
+host performed the authentication to the KDC in the other realm.</p>
+<p>If you want to be able to forward your tickets to another host, you
+need to request forwardable tickets.  You do this by specifying the
+<strong>-f</strong> option:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kinit</span> <span class="o">-</span><span class="n">f</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="n">jennifer</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span><span class="p">:</span> <span class="o">&lt;--</span> <span class="p">[</span><span class="n">Type</span> <span class="n">your</span> <span class="n">password</span> <span class="n">here</span><span class="o">.</span><span class="p">]</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+<p>Note that kinit does not tell you that it obtained forwardable
+tickets; you can verify this using the <a class="reference internal" href="user_commands/klist.html#klist-1"><span class="std std-ref">klist</span></a> command (see
+<a class="reference internal" href="#view-tkt"><span class="std std-ref">Viewing tickets with klist</span></a>).</p>
+<p>Normally, your tickets are good for your system’s default ticket
+lifetime, which is ten hours on many systems.  You can specify a
+different ticket lifetime with the <strong>-l</strong> option.  Add the letter
+<strong>s</strong> to the value for seconds, <strong>m</strong> for minutes, <strong>h</strong> for hours, or
+<strong>d</strong> for days.  For example, to obtain forwardable tickets for
+<code class="docutils literal notranslate"><span class="pre">david&#64;EXAMPLE.COM</span></code> that would be good for three hours, you would
+type:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kinit</span> <span class="o">-</span><span class="n">f</span> <span class="o">-</span><span class="n">l</span> <span class="mi">3</span><span class="n">h</span> <span class="n">david</span><span class="nd">@EXAMPLE</span><span class="o">.</span><span class="n">COM</span>
+<span class="n">Password</span> <span class="k">for</span> <span class="n">david</span><span class="nd">@EXAMPLE</span><span class="o">.</span><span class="n">COM</span><span class="p">:</span> <span class="o">&lt;--</span> <span class="p">[</span><span class="n">Type</span> <span class="n">david</span><span class="s1">&#39;s password here.]</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You cannot mix units; specifying a lifetime of 3h30m would
+result in an error.  Note also that most systems specify a
+maximum ticket lifetime.  If you request a longer ticket
+lifetime, it will be automatically truncated to the maximum
+lifetime.</p>
+</div>
+</section>
+<section id="viewing-tickets-with-klist">
+<span id="view-tkt"></span><h2>Viewing tickets with klist<a class="headerlink" href="#viewing-tickets-with-klist" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference internal" href="user_commands/klist.html#klist-1"><span class="std std-ref">klist</span></a> command shows your tickets.  When you first obtain
+tickets, you will have only the ticket-granting ticket.  The listing
+would look like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">klist</span>
+<span class="n">Ticket</span> <span class="n">cache</span><span class="p">:</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">krb5cc_ttypa</span>
+<span class="n">Default</span> <span class="n">principal</span><span class="p">:</span> <span class="n">jennifer</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+
+<span class="n">Valid</span> <span class="n">starting</span>     <span class="n">Expires</span>            <span class="n">Service</span> <span class="n">principal</span>
+<span class="mi">06</span><span class="o">/</span><span class="mi">07</span><span class="o">/</span><span class="mi">04</span> <span class="mi">19</span><span class="p">:</span><span class="mi">49</span><span class="p">:</span><span class="mi">21</span>  <span class="mi">06</span><span class="o">/</span><span class="mi">08</span><span class="o">/</span><span class="mi">04</span> <span class="mi">05</span><span class="p">:</span><span class="mi">49</span><span class="p">:</span><span class="mi">19</span>  <span class="n">krbtgt</span><span class="o">/</span><span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+<p>The ticket cache is the location of your ticket file. In the above
+example, this file is named <code class="docutils literal notranslate"><span class="pre">/tmp/krb5cc_ttypa</span></code>. The default
+principal is your Kerberos principal.</p>
+<p>The “valid starting” and “expires” fields describe the period of time
+during which the ticket is valid.  The “service principal” describes
+each ticket.  The ticket-granting ticket has a first component
+<code class="docutils literal notranslate"><span class="pre">krbtgt</span></code>, and a second component which is the realm name.</p>
+<p>Now, if <code class="docutils literal notranslate"><span class="pre">jennifer</span></code> connected to the machine <code class="docutils literal notranslate"><span class="pre">daffodil.mit.edu</span></code>,
+and then typed “klist” again, she would have gotten the following
+result:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">klist</span>
+<span class="n">Ticket</span> <span class="n">cache</span><span class="p">:</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">krb5cc_ttypa</span>
+<span class="n">Default</span> <span class="n">principal</span><span class="p">:</span> <span class="n">jennifer</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+
+<span class="n">Valid</span> <span class="n">starting</span>     <span class="n">Expires</span>            <span class="n">Service</span> <span class="n">principal</span>
+<span class="mi">06</span><span class="o">/</span><span class="mi">07</span><span class="o">/</span><span class="mi">04</span> <span class="mi">19</span><span class="p">:</span><span class="mi">49</span><span class="p">:</span><span class="mi">21</span>  <span class="mi">06</span><span class="o">/</span><span class="mi">08</span><span class="o">/</span><span class="mi">04</span> <span class="mi">05</span><span class="p">:</span><span class="mi">49</span><span class="p">:</span><span class="mi">19</span>  <span class="n">krbtgt</span><span class="o">/</span><span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="mi">06</span><span class="o">/</span><span class="mi">07</span><span class="o">/</span><span class="mi">04</span> <span class="mi">20</span><span class="p">:</span><span class="mi">22</span><span class="p">:</span><span class="mi">30</span>  <span class="mi">06</span><span class="o">/</span><span class="mi">08</span><span class="o">/</span><span class="mi">04</span> <span class="mi">05</span><span class="p">:</span><span class="mi">49</span><span class="p">:</span><span class="mi">19</span>  <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+<p>Here’s what happened: when <code class="docutils literal notranslate"><span class="pre">jennifer</span></code> used ssh to connect to the
+host <code class="docutils literal notranslate"><span class="pre">daffodil.mit.edu</span></code>, the ssh program presented her
+ticket-granting ticket to the KDC and requested a host ticket for the
+host <code class="docutils literal notranslate"><span class="pre">daffodil.mit.edu</span></code>.  The KDC sent the host ticket, which ssh
+then presented to the host <code class="docutils literal notranslate"><span class="pre">daffodil.mit.edu</span></code>, and she was allowed
+to log in without typing her password.</p>
+<p>Suppose your Kerberos tickets allow you to log into a host in another
+domain, such as <code class="docutils literal notranslate"><span class="pre">trillium.example.com</span></code>, which is also in another
+Kerberos realm, <code class="docutils literal notranslate"><span class="pre">EXAMPLE.COM</span></code>.  If you ssh to this host, you will
+receive a ticket-granting ticket for the realm <code class="docutils literal notranslate"><span class="pre">EXAMPLE.COM</span></code>, plus
+the new host ticket for <code class="docutils literal notranslate"><span class="pre">trillium.example.com</span></code>.  klist will now
+show:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">klist</span>
+<span class="n">Ticket</span> <span class="n">cache</span><span class="p">:</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">krb5cc_ttypa</span>
+<span class="n">Default</span> <span class="n">principal</span><span class="p">:</span> <span class="n">jennifer</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+
+<span class="n">Valid</span> <span class="n">starting</span>     <span class="n">Expires</span>            <span class="n">Service</span> <span class="n">principal</span>
+<span class="mi">06</span><span class="o">/</span><span class="mi">07</span><span class="o">/</span><span class="mi">04</span> <span class="mi">19</span><span class="p">:</span><span class="mi">49</span><span class="p">:</span><span class="mi">21</span>  <span class="mi">06</span><span class="o">/</span><span class="mi">08</span><span class="o">/</span><span class="mi">04</span> <span class="mi">05</span><span class="p">:</span><span class="mi">49</span><span class="p">:</span><span class="mi">19</span>  <span class="n">krbtgt</span><span class="o">/</span><span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="mi">06</span><span class="o">/</span><span class="mi">07</span><span class="o">/</span><span class="mi">04</span> <span class="mi">20</span><span class="p">:</span><span class="mi">22</span><span class="p">:</span><span class="mi">30</span>  <span class="mi">06</span><span class="o">/</span><span class="mi">08</span><span class="o">/</span><span class="mi">04</span> <span class="mi">05</span><span class="p">:</span><span class="mi">49</span><span class="p">:</span><span class="mi">19</span>  <span class="n">host</span><span class="o">/</span><span class="n">daffodil</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="mi">06</span><span class="o">/</span><span class="mi">07</span><span class="o">/</span><span class="mi">04</span> <span class="mi">20</span><span class="p">:</span><span class="mi">24</span><span class="p">:</span><span class="mi">18</span>  <span class="mi">06</span><span class="o">/</span><span class="mi">08</span><span class="o">/</span><span class="mi">04</span> <span class="mi">05</span><span class="p">:</span><span class="mi">49</span><span class="p">:</span><span class="mi">19</span>  <span class="n">krbtgt</span><span class="o">/</span><span class="n">EXAMPLE</span><span class="o">.</span><span class="n">COM</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+<span class="mi">06</span><span class="o">/</span><span class="mi">07</span><span class="o">/</span><span class="mi">04</span> <span class="mi">20</span><span class="p">:</span><span class="mi">24</span><span class="p">:</span><span class="mi">18</span>  <span class="mi">06</span><span class="o">/</span><span class="mi">08</span><span class="o">/</span><span class="mi">04</span> <span class="mi">05</span><span class="p">:</span><span class="mi">49</span><span class="p">:</span><span class="mi">19</span>  <span class="n">host</span><span class="o">/</span><span class="n">trillium</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="nd">@EXAMPLE</span><span class="o">.</span><span class="n">COM</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+<p>Depending on your host’s and realm’s configuration, you may also see a
+ticket with the service principal <code class="docutils literal notranslate"><span class="pre">host/trillium.example.com&#64;</span></code>.  If
+so, this means that your host did not know what realm
+trillium.example.com is in, so it asked the <code class="docutils literal notranslate"><span class="pre">ATHENA.MIT.EDU</span></code> KDC for
+a referral.  The next time you connect to <code class="docutils literal notranslate"><span class="pre">trillium.example.com</span></code>,
+the odd-looking entry will be used to avoid needing to ask for a
+referral again.</p>
+<p>You can use the <strong>-f</strong> option to view the flags that apply to your
+tickets.  The flags are:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 17%" />
+<col style="width: 83%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>F</p></td>
+<td><p>Forwardable</p></td>
+</tr>
+<tr class="row-even"><td><p>f</p></td>
+<td><p>forwarded</p></td>
+</tr>
+<tr class="row-odd"><td><p>P</p></td>
+<td><p>Proxiable</p></td>
+</tr>
+<tr class="row-even"><td><p>p</p></td>
+<td><p>proxy</p></td>
+</tr>
+<tr class="row-odd"><td><p>D</p></td>
+<td><p>postDateable</p></td>
+</tr>
+<tr class="row-even"><td><p>d</p></td>
+<td><p>postdated</p></td>
+</tr>
+<tr class="row-odd"><td><p>R</p></td>
+<td><p>Renewable</p></td>
+</tr>
+<tr class="row-even"><td><p>I</p></td>
+<td><p>Initial</p></td>
+</tr>
+<tr class="row-odd"><td><p>i</p></td>
+<td><p>invalid</p></td>
+</tr>
+<tr class="row-even"><td><p>H</p></td>
+<td><p>Hardware authenticated</p></td>
+</tr>
+<tr class="row-odd"><td><p>A</p></td>
+<td><p>preAuthenticated</p></td>
+</tr>
+<tr class="row-even"><td><p>T</p></td>
+<td><p>Transit policy checked</p></td>
+</tr>
+<tr class="row-odd"><td><p>O</p></td>
+<td><p>Okay as delegate</p></td>
+</tr>
+<tr class="row-even"><td><p>a</p></td>
+<td><p>anonymous</p></td>
+</tr>
+</tbody>
+</table>
+<p>Here is a sample listing.  In this example, the user <em>jennifer</em>
+obtained her initial tickets (<strong>I</strong>), which are forwardable (<strong>F</strong>)
+and postdated (<strong>d</strong>) but not yet validated (<strong>i</strong>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">klist</span> <span class="o">-</span><span class="n">f</span>
+<span class="n">Ticket</span> <span class="n">cache</span><span class="p">:</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">krb5cc_320</span>
+<span class="n">Default</span> <span class="n">principal</span><span class="p">:</span> <span class="n">jennifer</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+
+<span class="n">Valid</span> <span class="n">starting</span>      <span class="n">Expires</span>             <span class="n">Service</span> <span class="n">principal</span>
+<span class="mi">31</span><span class="o">/</span><span class="mi">07</span><span class="o">/</span><span class="mi">05</span> <span class="mi">19</span><span class="p">:</span><span class="mi">06</span><span class="p">:</span><span class="mi">25</span>  <span class="mi">31</span><span class="o">/</span><span class="mi">07</span><span class="o">/</span><span class="mi">05</span> <span class="mi">19</span><span class="p">:</span><span class="mi">16</span><span class="p">:</span><span class="mi">25</span>  <span class="n">krbtgt</span><span class="o">/</span><span class="n">ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span>
+        <span class="n">Flags</span><span class="p">:</span> <span class="n">FdiI</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+<p>In the following example, the user <em>david</em>’s tickets were forwarded
+(<strong>f</strong>) to this host from another host.  The tickets are reforwardable
+(<strong>F</strong>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">klist</span> <span class="o">-</span><span class="n">f</span>
+<span class="n">Ticket</span> <span class="n">cache</span><span class="p">:</span> <span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">krb5cc_p11795</span>
+<span class="n">Default</span> <span class="n">principal</span><span class="p">:</span> <span class="n">david</span><span class="nd">@EXAMPLE</span><span class="o">.</span><span class="n">COM</span>
+
+<span class="n">Valid</span> <span class="n">starting</span>     <span class="n">Expires</span>            <span class="n">Service</span> <span class="n">principal</span>
+<span class="mi">07</span><span class="o">/</span><span class="mi">31</span><span class="o">/</span><span class="mi">05</span> <span class="mi">11</span><span class="p">:</span><span class="mi">52</span><span class="p">:</span><span class="mi">29</span>  <span class="mi">07</span><span class="o">/</span><span class="mi">31</span><span class="o">/</span><span class="mi">05</span> <span class="mi">21</span><span class="p">:</span><span class="mi">11</span><span class="p">:</span><span class="mi">23</span>  <span class="n">krbtgt</span><span class="o">/</span><span class="n">EXAMPLE</span><span class="o">.</span><span class="n">COM</span><span class="nd">@EXAMPLE</span><span class="o">.</span><span class="n">COM</span>
+        <span class="n">Flags</span><span class="p">:</span> <span class="n">Ff</span>
+<span class="mi">07</span><span class="o">/</span><span class="mi">31</span><span class="o">/</span><span class="mi">05</span> <span class="mi">12</span><span class="p">:</span><span class="mi">03</span><span class="p">:</span><span class="mi">48</span>  <span class="mi">07</span><span class="o">/</span><span class="mi">31</span><span class="o">/</span><span class="mi">05</span> <span class="mi">21</span><span class="p">:</span><span class="mi">11</span><span class="p">:</span><span class="mi">23</span>  <span class="n">host</span><span class="o">/</span><span class="n">trillium</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="nd">@EXAMPLE</span><span class="o">.</span><span class="n">COM</span>
+        <span class="n">Flags</span><span class="p">:</span> <span class="n">Ff</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+</section>
+<section id="destroying-tickets-with-kdestroy">
+<h2>Destroying tickets with kdestroy<a class="headerlink" href="#destroying-tickets-with-kdestroy" title="Permalink to this headline">¶</a></h2>
+<p>Your Kerberos tickets are proof that you are indeed yourself, and
+tickets could be stolen if someone gains access to a computer where
+they are stored.  If this happens, the person who has them can
+masquerade as you until they expire.  For this reason, you should
+destroy your Kerberos tickets when you are away from your computer.</p>
+<p>Destroying your tickets is easy.  Simply type kdestroy:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kdestroy</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+<p>If <a class="reference internal" href="user_commands/kdestroy.html#kdestroy-1"><span class="std std-ref">kdestroy</span></a> fails to destroy your tickets, it will beep and
+give an error message.  For example, if kdestroy can’t find any
+tickets to destroy, it will give the following message:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">shell</span><span class="o">%</span> <span class="n">kdestroy</span>
+<span class="n">kdestroy</span><span class="p">:</span> <span class="n">No</span> <span class="n">credentials</span> <span class="n">cache</span> <span class="n">file</span> <span class="n">found</span> <span class="k">while</span> <span class="n">destroying</span> <span class="n">cache</span>
+<span class="n">shell</span><span class="o">%</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Ticket management</a><ul>
+<li><a class="reference internal" href="#kerberos-ticket-properties">Kerberos ticket properties</a></li>
+<li><a class="reference internal" href="#obtaining-tickets-with-kinit">Obtaining tickets with kinit</a></li>
+<li><a class="reference internal" href="#viewing-tickets-with-klist">Viewing tickets with klist</a></li>
+<li><a class="reference internal" href="#destroying-tickets-with-kdestroy">Destroying tickets with kdestroy</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For users</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="pwd_mgmt.html">Password management</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Ticket management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_config/index.html">User config files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_commands/index.html">User commands</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="pwd_mgmt.html" title="Password management"
+            >previous</a> |
+        <a href="user_config/index.html" title="User config files"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Ticket management">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

@@ -1,0 +1,27 @@
+mydir=plugins$(S)kdb$(S)lmdb
+BUILDTOP=$(REL)..$(S)..$(S)..
+MODULE_INSTALL_DIR = $(KRB5_DB_MODULE_DIR)
+
+LOCALINCLUDES = -I$(srcdir)/../../../lib/kdb
+
+LIBBASE=klmdb
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/kdb/lmdb
+# Depends on libk5crypto and libkrb5
+# Also on gssrpc, for xdr stuff.
+SHLIB_EXPDEPS = $(KADMSRV_DEPLIBS) $(KDB5_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+SHLIB_EXPLIBS = $(KADMSRV_LIBS) $(KRB5_BASE_LIBS) $(LMDB_LIBS)
+
+DBDIR = liblmdb
+
+SRCS=$(srcdir)/kdb_lmdb.c $(srcdir)/lockout.c $(srcdir)/marshal.c
+
+STLIBOBJS=kdb_lmdb.o lockout.o marshal.o
+
+all-unix: all-liblinks
+install-unix: install-libs
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@

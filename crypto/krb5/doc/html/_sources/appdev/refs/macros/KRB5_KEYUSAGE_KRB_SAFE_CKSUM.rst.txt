@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-KRB-SAFE-CKSUM-data:
+
+KRB5_KEYUSAGE_KRB_SAFE_CKSUM
+============================
+
+..
+.. data:: KRB5_KEYUSAGE_KRB_SAFE_CKSUM
+..
+
+
+
+
+=================================== ======================
+``KRB5_KEYUSAGE_KRB_SAFE_CKSUM``       ``15``
+=================================== ======================

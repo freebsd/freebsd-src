@@ -1,0 +1,53 @@
+krb5_free_keytab_entry_contents -  Free the contents of a key table entry. 
+===========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_free_keytab_entry_contents(krb5_context context, krb5_keytab_entry * entry)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **entry** - Key table entry whose contents are to be freed
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 The pointer is not freed.
+ 
+
+
+

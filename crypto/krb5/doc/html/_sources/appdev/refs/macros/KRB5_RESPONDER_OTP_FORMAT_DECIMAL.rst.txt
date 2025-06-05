@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-RESPONDER-OTP-FORMAT-DECIMAL-data:
+
+KRB5_RESPONDER_OTP_FORMAT_DECIMAL
+=================================
+
+..
+.. data:: KRB5_RESPONDER_OTP_FORMAT_DECIMAL
+..
+
+These format constants identify the format of the token value.
+
+
+
+======================================== ======================
+``KRB5_RESPONDER_OTP_FORMAT_DECIMAL``       ``0``
+======================================== ======================

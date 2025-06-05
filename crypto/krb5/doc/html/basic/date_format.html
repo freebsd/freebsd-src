@@ -1,0 +1,331 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Supported date and time formats &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Protocols and file formats" href="../formats/index.html" />
+    <link rel="prev" title="stash file" href="stash_file_def.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="stash_file_def.html" title="stash file"
+            accesskey="P">previous</a> |
+        <a href="../formats/index.html" title="Protocols and file formats"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Supported date and time formats">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="supported-date-and-time-formats">
+<span id="datetime"></span><h1>Supported date and time formats<a class="headerlink" href="#supported-date-and-time-formats" title="Permalink to this headline">¶</a></h1>
+<section id="time-duration">
+<span id="duration"></span><h2>Time duration<a class="headerlink" href="#time-duration" title="Permalink to this headline">¶</a></h2>
+<p>This format is used to express a time duration in the Kerberos
+configuration files and user commands.  The allowed formats are:</p>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 25%" />
+<col style="width: 35%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p>Format</p></td>
+<td><p>Example</p></td>
+<td><p>Value</p></td>
+</tr>
+<tr class="row-even"><td><p>h:m[:s]</p></td>
+<td><p>36:00</p></td>
+<td><p>36 hours</p></td>
+</tr>
+<tr class="row-odd"><td><p>NdNhNmNs</p></td>
+<td><p>8h30s</p></td>
+<td><p>8 hours 30 seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>N (number of seconds)</p></td>
+<td><p>3600</p></td>
+<td><p>1 hour</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Here <em>N</em> denotes a number, <em>d</em> - days, <em>h</em> - hours, <em>m</em> - minutes,
+<em>s</em> - seconds.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The time interval should not exceed 2147483647 seconds.</p>
+</div>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Request</span> <span class="n">a</span> <span class="n">ticket</span> <span class="n">valid</span> <span class="k">for</span> <span class="n">one</span> <span class="n">hour</span><span class="p">,</span> <span class="n">five</span> <span class="n">hours</span><span class="p">,</span> <span class="mi">30</span> <span class="n">minutes</span>
+<span class="ow">and</span> <span class="mi">10</span> <span class="n">days</span> <span class="n">respectively</span><span class="p">:</span>
+
+  <span class="n">kinit</span> <span class="o">-</span><span class="n">l</span> <span class="mi">3600</span>
+  <span class="n">kinit</span> <span class="o">-</span><span class="n">l</span> <span class="mi">5</span><span class="p">:</span><span class="mi">00</span>
+  <span class="n">kinit</span> <span class="o">-</span><span class="n">l</span> <span class="mi">30</span><span class="n">m</span>
+  <span class="n">kinit</span> <span class="o">-</span><span class="n">l</span> <span class="s2">&quot;10d 0h 0m 0s&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="getdate-time">
+<span id="getdate"></span><h2>getdate time<a class="headerlink" href="#getdate-time" title="Permalink to this headline">¶</a></h2>
+<p>Some of the kadmin and kdb5_util commands take a date-time in a
+human-readable format.  Some of the acceptable date-time
+strings are:</p>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 24%" />
+<col style="width: 39%" />
+<col style="width: 37%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"></th>
+<th class="head"><p>Format</p></th>
+<th class="head"><p>Example</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td rowspan="3"><p>Date</p></td>
+<td><p>mm/dd/yy</p></td>
+<td><p>07/27/12</p></td>
+</tr>
+<tr class="row-odd"><td><p>month dd, yyyy</p></td>
+<td><p>Jul 27, 2012</p></td>
+</tr>
+<tr class="row-even"><td><p>yyyy-mm-dd</p></td>
+<td><p>2012-07-27</p></td>
+</tr>
+<tr class="row-odd"><td rowspan="2"><p>Absolute
+time</p></td>
+<td><p>HH:mm[:ss]pp</p></td>
+<td><p>08:30 PM</p></td>
+</tr>
+<tr class="row-even"><td><p>hh:mm[:ss]</p></td>
+<td><p>20:30</p></td>
+</tr>
+<tr class="row-odd"><td><p>Relative
+time</p></td>
+<td><p>N tt</p></td>
+<td><p>30 sec</p></td>
+</tr>
+<tr class="row-even"><td rowspan="2"><p>Time zone</p></td>
+<td><p>Z</p></td>
+<td><p>EST</p></td>
+</tr>
+<tr class="row-odd"><td><p>z</p></td>
+<td><p>-0400</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>(See <a class="reference internal" href="#abbreviation"><span class="std std-ref">Abbreviations used in this document</span></a>.)</p>
+<p>Examples:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Create</span> <span class="n">a</span> <span class="n">principal</span> <span class="n">that</span> <span class="n">expires</span> <span class="n">on</span> <span class="n">the</span> <span class="n">date</span> <span class="n">indicated</span><span class="p">:</span>
+    <span class="n">addprinc</span> <span class="n">test1</span> <span class="o">-</span><span class="n">expire</span> <span class="s2">&quot;3/27/12 10:00:07 EST&quot;</span>
+    <span class="n">addprinc</span> <span class="n">test2</span> <span class="o">-</span><span class="n">expire</span> <span class="s2">&quot;January 23, 2015 10:05pm&quot;</span>
+    <span class="n">addprinc</span> <span class="n">test3</span> <span class="o">-</span><span class="n">expire</span> <span class="s2">&quot;22:00 GMT&quot;</span>
+<span class="n">Add</span> <span class="n">a</span> <span class="n">principal</span> <span class="n">that</span> <span class="n">will</span> <span class="n">expire</span> <span class="ow">in</span> <span class="mi">30</span> <span class="n">minutes</span><span class="p">:</span>
+    <span class="n">addprinc</span> <span class="n">test4</span> <span class="o">-</span><span class="n">expire</span> <span class="s2">&quot;30 minutes&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="absolute-time">
+<span id="abstime"></span><h2>Absolute time<a class="headerlink" href="#absolute-time" title="Permalink to this headline">¶</a></h2>
+<p>This rarely used date-time format can be noted in one of the
+following ways:</p>
+<blockquote>
+<div><table class="docutils align-default">
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 37%" />
+<col style="width: 23%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Format</p></th>
+<th class="head"><p>Example</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>yyyymmddhhmmss</p></td>
+<td><p>20141231235900</p></td>
+<td rowspan="5"><p>One minute
+before 2015</p></td>
+</tr>
+<tr class="row-odd"><td><p>yyyy.mm.dd.hh.mm.ss</p></td>
+<td><p>2014.12.31.23.59.00</p></td>
+</tr>
+<tr class="row-even"><td><p>yymmddhhmmss</p></td>
+<td><p>141231235900</p></td>
+</tr>
+<tr class="row-odd"><td><p>yy.mm.dd.hh.mm.ss</p></td>
+<td><p>14.12.31.23.59.00</p></td>
+</tr>
+<tr class="row-even"><td><p>dd-month-yyyy:hh:mm:ss</p></td>
+<td><p>31-Dec-2014:23:59:00</p></td>
+</tr>
+<tr class="row-odd"><td><p>hh:mm:ss</p></td>
+<td><p>20:00:00</p></td>
+<td rowspan="2"><p>8 o’clock in
+the evening</p></td>
+</tr>
+<tr class="row-even"><td><p>hhmmss</p></td>
+<td><p>200000</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>(See <a class="reference internal" href="#abbreviation"><span class="std std-ref">Abbreviations used in this document</span></a>.)</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Set</span> <span class="n">the</span> <span class="n">default</span> <span class="n">expiration</span> <span class="n">date</span> <span class="n">to</span> <span class="n">July</span> <span class="mi">27</span><span class="p">,</span> <span class="mi">2012</span> <span class="n">at</span> <span class="mi">20</span><span class="p">:</span><span class="mi">30</span>
+<span class="n">default_principal_expiration</span> <span class="o">=</span> <span class="mi">20120727203000</span>
+</pre></div>
+</div>
+<section id="abbreviations-used-in-this-document">
+<span id="abbreviation"></span><h3>Abbreviations used in this document<a class="headerlink" href="#abbreviations-used-in-this-document" title="Permalink to this headline">¶</a></h3>
+<div class="line-block">
+<div class="line"><em>month</em>  : locale’s month name or its abbreviation;</div>
+<div class="line"><em>dd</em>   : day of month (01-31);</div>
+<div class="line"><em>HH</em>   : hours (00-12);</div>
+<div class="line"><em>hh</em>   : hours (00-23);</div>
+<div class="line"><em>mm</em>   : in time - minutes (00-59); in date - month (01-12);</div>
+<div class="line"><em>N</em>    : number;</div>
+<div class="line"><em>pp</em>   : AM or PM;</div>
+<div class="line"><em>ss</em>   : seconds  (00-60);</div>
+<div class="line"><em>tt</em>   : time units (hours, minutes, min, seconds, sec);</div>
+<div class="line"><em>yyyy</em> : year;</div>
+<div class="line"><em>yy</em>   : last two digits of the year;</div>
+<div class="line"><em>Z</em>    : alphabetic time zone abbreviation;</div>
+<div class="line"><em>z</em>    : numeric time zone;</div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><p>If the date specification contains spaces, you may need to
+enclose it in double quotes;</p></li>
+<li><p>All keywords are case-insensitive.</p></li>
+</ul>
+</div>
+</section>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Supported date and time formats</a><ul>
+<li><a class="reference internal" href="#time-duration">Time duration</a></li>
+<li><a class="reference internal" href="#getdate-time">getdate time</a></li>
+<li><a class="reference internal" href="#absolute-time">Absolute time</a><ul>
+<li><a class="reference internal" href="#abbreviations-used-in-this-document">Abbreviations used in this document</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Kerberos V5 concepts</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ccache_def.html">Credential cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="keytab_def.html">keytab</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rcache_def.html">replay cache</a></li>
+<li class="toctree-l2"><a class="reference internal" href="stash_file_def.html">stash file</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Supported date and time formats</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="stash_file_def.html" title="stash file"
+            >previous</a> |
+        <a href="../formats/index.html" title="Protocols and file formats"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Supported date and time formats">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

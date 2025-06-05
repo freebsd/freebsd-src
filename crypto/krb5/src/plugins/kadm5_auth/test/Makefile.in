@@ -1,0 +1,20 @@
+mydir=plugins$(S)kadm5_auth$(S)test
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+LIBBASE=kadm5_auth_test
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/kadm5_auth/test
+SHLIB_EXPDEPS=$(KDB5_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+SHLIB_EXPLIBS=$(KDB5_LIBS) $(KRB5_BASE_LIBS) $(LIBS)
+
+STLIBOBJS=main.o
+
+SRCS=$(srcdir)/main.c
+
+all-unix: all-libs
+install-unix:
+clean-unix:: clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@

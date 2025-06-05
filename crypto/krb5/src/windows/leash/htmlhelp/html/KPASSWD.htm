@@ -1,0 +1,55 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+
+<Title>KPASSWD</Title>
+</HEAD>
+<BODY>
+<H1>KPASSWD Command</H1>
+<table>
+<tr><th id="th2"> The following information reproduces the information from UNIX man page for the KPASSWD command.</th>
+</tr>
+</table>
+
+
+<H2>SYNOPSIS</H2>
+<table>
+<tr>
+<th id="th2">kpasswd</th>
+<td>
+<span class="command">  [principal]  </span>
+</td>
+</tr>
+</table>
+
+
+<H2>DESCRIPTION</H2>
+<p>
+The kpasswd command is used to change a Kerberos principal's password. kpasswd first prompts for the current Kerberos password, then prompts the user twice for the new password, and the password is changed.
+
+If the principal is governed by a policy that specifies the length and/or number of character classes required in the new password, the new password must conform to the policy. (The five character classes are lower case, upper case, numbers, punctuation, and all other characters.)
+</P>
+
+<H2>OPTIONS</H2>
+<table>
+<tr>
+<th id="th2"><span class="command"> principal </span>  </th>
+<td>
+    Change the password for the Kerberos principal principal. Otherwise, kpasswd uses the principal name from an existing ccache if there is one; if not, the principal is derived from the identity of the user invoking the kpasswd command.</td></tr>
+</table>
+
+
+<H2>SEE ALSO</H2>
+<ul id="helpul">
+<li><B>kadmin</B></li>
+<li> <B>kadmind</B></li>
+
+</ul>
+
+
+
+
+</BODY>
+</HTML>

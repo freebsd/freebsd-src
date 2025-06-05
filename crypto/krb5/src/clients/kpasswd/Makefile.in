@@ -1,0 +1,33 @@
+mydir=clients$(S)kpasswd
+BUILDTOP=$(REL)..$(S)..
+
+SRCS=kpasswd.c
+
+kpasswd: kpasswd.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o kpasswd kpasswd.o $(KRB5_BASE_LIBS)
+
+kpasswd.o:	$(srcdir)/kpasswd.c
+
+##WIN32##VERSIONRC = $(BUILDTOP)\windows\version.rc
+##WIN32##RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+##WIN32##KPWD=$(OUTPRE)kpasswd.exe
+
+##WIN32##EXERES=$(KPWD:.exe=.res)
+
+##WIN32##$(EXERES): $(VERSIONRC)
+##WIN32##        $(RC) $(RCFLAGS) -DKPASSWD_APP -fo $@ -r $**
+
+all-unix: kpasswd
+
+clean-unix::
+	$(RM) kpasswd.o kpasswd
+
+install-all install-kdc install-server install-client install-unix:
+	$(INSTALL_PROGRAM) kpasswd $(DESTDIR)$(CLIENT_BINDIR)/`echo kpasswd|sed '$(transform)'`
+
+##WIN32##all-windows: $(KPWD)
+
+##WIN32##$(KPWD): $(OUTPRE)kpasswd.obj $(KLIB) $(CLIB) $(EXERES)
+##WIN32##	link $(EXE_LINKOPTS) -out:$@ $**
+##WIN32##	$(_VC_MANIFEST_EMBED_EXE)

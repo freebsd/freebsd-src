@@ -1,0 +1,21 @@
+mydir=plugins$(S)preauth$(S)test
+BUILDTOP=$(REL)..$(S)..$(S)..
+MODULE_INSTALL_DIR = $(KRB5_PA_MODULE_DIR)
+
+LIBBASE=test
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/preauth/test
+SHLIB_EXPDEPS=$(KRB5_BASE_DEPLIBS)
+SHLIB_EXPLIBS=$(KRB5_BASE_LIBS)
+
+STLIBOBJS=cltest.o kdctest.o common.o
+
+SRCS= $(srcdir)/cltest.c $(srcdir)/kdctest.c $(srcdir)/common.c
+
+all-unix: all-liblinks
+install-unix: install-libs
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@

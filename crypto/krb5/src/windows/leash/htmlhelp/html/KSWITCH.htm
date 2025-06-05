@@ -1,0 +1,80 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>KSWITCH</Title>
+</HEAD>
+<BODY>
+<H1>KSWITCH Command</H1>
+
+<table>
+<tr><th id="th2"> The following information reproduces the information from UNIX man page for the KSWITCH command.</th>
+</tr>
+</table>
+<H2>SYNOPSIS</H2>
+<table>
+<tr>
+<th id="th2">kswitch </th>
+<td>
+
+<span class="command"> { <B>-c</B> <I>cache</I><B>_</B><I>name</I> | <B>-p</B> <I>principal</I> }</span>
+</td>
+</tr>
+</table>
+
+<H2>DESCRIPTION</H2>
+<p>
+       <span class="command">  <I>kswitch </I></span>  makes the specified credential cache the primary cache for the collection, if a cache collection is available.
+</p>
+
+<H2>OPTIONS</H2>
+
+
+<table>
+<tr>
+<th id="th2"><span class="command">  <B>-c</B> <I>cache</I><B>_</B><I>name</I>   </span></th>
+<td> Directly specifies the credential cache to be made primary.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"> <B>-p</B> <I>principal</I>  </span></th>
+<td> Causes the cache collection to be searched for a cache containing credentials for principal. If one is found, that collection is made primary.
+</td>
+</tr>
+      </table>
+
+
+<H2>ENVIRONMENT</H2>
+<p>     <B>kswitch</B> uses the following environment variables:</p>
+<table>
+<tr>
+<th id="th2"> KRB5CCNAME</th>
+<td>      Location of the default Kerberos 5 credentials (ticket)
+                       cache, in the form <I>type</I>:<I>residual</I>.  If no type prefix is
+                       present,  the  <B>FILE</B>  type  is assumed.  The type of the
+                       default cache may determine the availability of a cache
+                       collection;  for  instance, a default cache of type <B>DIR</B>
+                       causes caches within the directory to be present in the
+                       collection. </td>
+</tr>
+</table>
+
+<H2>FILES</H2>
+<table>
+<tr>
+  <th id="th2">     <span class="command">   /tmp/krb5cc_[uid] </span></th>
+<td>       default  location  of  Kerberos  5 credentials cache ([uid] is the decimal UID of the user). </td></tr>
+
+</table>
+
+<H2>SEE ALSO</H2>
+<ul id="helpul">
+<li><a href="HTML/KINIT.htm"><B>kinit</B></a> </li>
+<li><a href="HTML/KDESTROY.htm"><B>kdestroy</B></a></li>
+<li><a href="HTML/KLIST.htm"><B>klist</B></a> </li>
+<li><B>kerberos (1)</B></li>
+
+
+</BODY>
+</HTML>

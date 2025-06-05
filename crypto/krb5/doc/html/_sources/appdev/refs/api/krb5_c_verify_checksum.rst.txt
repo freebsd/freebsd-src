@@ -1,0 +1,65 @@
+krb5_c_verify_checksum -  Verify a checksum (operates on keyblock). 
+====================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_verify_checksum(krb5_context context, const krb5_keyblock * key, krb5_keyusage usage, const krb5_data * data, const krb5_checksum * cksum, krb5_boolean * valid)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **key** - Encryption key for a keyed checksum
+
+	          **[in]** **usage** - *key* usage
+
+	          **[in]** **data** - Data to be used to compute a new checksum using *key* to compare *cksum* against
+
+	          **[in]** **cksum** - Checksum to be verified
+
+	          **[out]** **valid** - Non-zero for success, zero for failure
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function verifies that *cksum* is a valid checksum for *data* . If the checksum type of *cksum* is a keyed checksum, *key* is used to verify the checksum. If the checksum type in *cksum* is 0 and *key* is not NULL, the mandatory checksum type for *key* will be used. The actual checksum key will be derived from *key* and *usage* if key derivation is specified for the checksum type.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 This function is similar to krb5_k_verify_checksum(), but operates on keyblock *key* .
+ 
+
+
+

@@ -1,0 +1,12 @@
+;LIBRARY		COMERR32
+DESCRIPTION	'DLL for ComErr'
+HEAPSIZE	8192
+
+EXPORTS
+	com_err			@2
+	com_err_va		@3
+	error_message		@4
+	add_error_table	   	@1
+	remove_error_table	@5
+	set_com_err_hook	@6
+	reset_com_err_hook	@7

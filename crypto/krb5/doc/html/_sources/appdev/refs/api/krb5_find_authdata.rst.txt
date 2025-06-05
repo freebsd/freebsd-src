@@ -1,0 +1,56 @@
+krb5_find_authdata -  Find authorization data elements. 
+========================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_find_authdata(krb5_context context, krb5_authdata *const * ticket_authdata, krb5_authdata *const * ap_req_authdata, krb5_authdatatype ad_type, krb5_authdata *** results)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **ticket_authdata** - Authorization data list from ticket
+
+	          **[in]** **ap_req_authdata** - Authorization data list from AP request
+
+	          **[in]** **ad_type** - Authorization data type to find
+
+	          **[out]** **results** - List of matching entries
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function searches *ticket_authdata* and *ap_req_authdata* for elements of type *ad_type* . Either input list may be NULL, in which case it will not be searched; otherwise, the input lists must be terminated by NULL entries. This function will search inside AD-IF-RELEVANT containers if found in either list. Use krb5_free_authdata() to free *results* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.10
+ 
+

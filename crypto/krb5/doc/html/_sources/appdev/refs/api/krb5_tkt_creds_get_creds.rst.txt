@@ -1,0 +1,55 @@
+krb5_tkt_creds_get_creds -  Retrieve acquired credentials from a TGS request context. 
+======================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_tkt_creds_get_creds(krb5_context context, krb5_tkt_creds_context ctx, krb5_creds * creds)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **ctx** - TGS request context
+
+	          **[out]** **creds** - Acquired credentials
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function copies the acquired initial credentials from *ctx* into *creds* , after the successful completion of krb5_tkt_creds_get() or krb5_tkt_creds_step(). Use krb5_free_cred_contents() to free *creds* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.9
+ 
+

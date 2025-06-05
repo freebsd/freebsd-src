@@ -1,0 +1,51 @@
+krb5_get_time_offsets -  Return the time offsets from the os context. 
+======================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_time_offsets(krb5_context context, krb5_timestamp * seconds, krb5_int32 * microseconds)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **seconds** - Time offset, seconds portion
+
+	          **[out]** **microseconds** - Time offset, microseconds portion
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function returns the time offsets in *context* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

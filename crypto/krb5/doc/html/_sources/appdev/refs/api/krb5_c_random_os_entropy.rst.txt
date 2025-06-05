@@ -1,0 +1,46 @@
+krb5_c_random_os_entropy
+========================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_random_os_entropy(krb5_context context, int strong, int * success)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **strong**
+
+	          **success**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED This call is no longer necessary. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

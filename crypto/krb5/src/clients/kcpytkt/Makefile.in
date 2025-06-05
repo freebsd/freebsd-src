@@ -1,0 +1,32 @@
+mydir=kcpytkt
+BUILDTOP=$(REL)..$(S)..
+
+##WIN32##VERSIONRC = $(BUILDTOP)\windows\version.rc
+##WIN32##RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+##WIN32##KCPYTKT=$(OUTPRE)kcpytkt.exe
+
+##WIN32##EXERES=$(KCPYTKT:.exe=.res)
+
+##WIN32##$(EXERES): $(VERSIONRC)
+##WIN32##        $(RC) $(RCFLAGS) -DKCPYTKT_APP -fo $@ -r $**
+
+all-unix: kcpytkt
+##WIN32##all-windows: $(KCPYTKT)
+all-mac:
+
+kcpytkt: kcpytkt.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ kcpytkt.o $(KRB5_BASE_LIBS)
+
+##WIN32##$(KCPYTKT): $(OUTPRE)kcpytkt.obj $(SLIB) $(KLIB) $(CLIB) $(EXERES)
+##WIN32##	link $(EXE_LINKOPTS) /out:$@ $**
+##WIN32##	$(_VC_MANIFEST_EMBED_EXE)
+
+clean-unix::
+	$(RM) kcpytkt.o kcpytkt
+
+install-unix:
+	for f in kcpytkt; do \
+	  $(INSTALL_PROGRAM) $$f \
+		$(DESTDIR)$(CLIENT_BINDIR)/`echo $$f|sed '$(transform)'`; \
+	done

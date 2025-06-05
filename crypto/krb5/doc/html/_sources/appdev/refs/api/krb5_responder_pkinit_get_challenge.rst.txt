@@ -1,0 +1,56 @@
+krb5_responder_pkinit_get_challenge -  Decode the KRB5_RESPONDER_QUESTION_PKINIT to a C struct. 
+================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_responder_pkinit_get_challenge(krb5_context ctx, krb5_responder_context rctx, krb5_responder_pkinit_challenge ** chl_out)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **rctx** - Responder context
+
+	          **[out]** **chl_out** - Challenge structure
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+A convenience function which parses the KRB5_RESPONDER_QUESTION_PKINIT question challenge data, making it available in native C. The main feature of this function is the ability to read the challenge without parsing the JSON.
+
+
+
+The returned value must be passed to krb5_responder_pkinit_challenge_free() to be freed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.12
+ 
+

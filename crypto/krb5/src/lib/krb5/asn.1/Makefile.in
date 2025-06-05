@@ -1,0 +1,32 @@
+mydir=lib$(S)krb5$(S)asn.1
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR=asn.1
+##DOS##OBJFILE=..\$(OUTPRE)asn1.lst
+
+EHDRDIR=$(BUILDTOP)/include/krb5/asn.1
+
+STLIBOBJS= \
+	asn1_encode.o\
+	asn1_k_encode.o\
+	ldap_key_seq.o
+
+SRCS= \
+	$(srcdir)/asn1_encode.c\
+	$(srcdir)/asn1_k_encode.c\
+	$(srcdir)/ldap_key_seq.c
+
+OBJS= \
+	$(OUTPRE)asn1_encode.$(OBJEXT)\
+	$(OUTPRE)asn1_k_encode.$(OBJEXT)\
+	$(OUTPRE)ldap_key_seq.$(OBJEXT)
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+

@@ -1,0 +1,275 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Configuring Kerberos with OpenLDAP back-end &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Application servers" href="appl_servers.html" />
+    <link rel="prev" title="Account lockout" href="lockout.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="lockout.html" title="Account lockout"
+            accesskey="P">previous</a> |
+        <a href="appl_servers.html" title="Application servers"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Configuring Kerberos with OpenLDAP back-end">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="configuring-kerberos-with-openldap-back-end">
+<span id="conf-ldap"></span><h1>Configuring Kerberos with OpenLDAP back-end<a class="headerlink" href="#configuring-kerberos-with-openldap-back-end" title="Permalink to this headline">¶</a></h1>
+<blockquote>
+<div><ol class="arabic">
+<li><p>Make sure the LDAP server is using local authentication
+(<code class="docutils literal notranslate"><span class="pre">ldapi://</span></code>) or TLS (<code class="docutils literal notranslate"><span class="pre">ldaps</span></code>).  See
+<a class="reference external" href="https://www.openldap.org/doc/admin/tls.html">https://www.openldap.org/doc/admin/tls.html</a> for instructions on
+configuring TLS support in OpenLDAP.</p></li>
+<li><p>Add the Kerberos schema file to the LDAP Server using the OpenLDAP
+LDIF file from the krb5 source directory
+(<code class="docutils literal notranslate"><span class="pre">src/plugins/kdb/ldap/libkdb_ldap/kerberos.openldap.ldif</span></code>).
+The following example uses local authentication:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ldapadd</span> <span class="o">-</span><span class="n">Y</span> <span class="n">EXTERNAL</span> <span class="o">-</span><span class="n">H</span> <span class="n">ldapi</span><span class="p">:</span><span class="o">///</span> <span class="o">-</span><span class="n">f</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">kerberos</span><span class="o">.</span><span class="n">openldap</span><span class="o">.</span><span class="n">ldif</span>
+</pre></div>
+</div>
+</li>
+<li><p>Choose DNs for the <a class="reference internal" href="admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a> and <a class="reference internal" href="admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a> servers
+to bind to the LDAP server, and create them if necessary.  Specify
+these DNs with the <strong>ldap_kdc_dn</strong> and <strong>ldap_kadmind_dn</strong>
+directives in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.  The kadmind DN will also be
+used for administrative commands such as <a class="reference internal" href="admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>.</p>
+<p>Alternatively, you may configure krb5kdc and kadmind to use SASL
+authentication to access the LDAP server; see the <a class="reference internal" href="conf_files/kdc_conf.html#dbmodules"><span class="std std-ref">[dbmodules]</span></a>
+relations <strong>ldap_kdc_sasl_mech</strong> and similar.</p>
+</li>
+<li><p>Specify a location for the LDAP service password file by setting
+<strong>ldap_service_password_file</strong>.  Use <code class="docutils literal notranslate"><span class="pre">kdb5_ldap_util</span> <span class="pre">stashsrvpw</span></code>
+to stash passwords for the KDC and kadmind DNs chosen above.  For
+example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">kdb5_ldap_util</span> <span class="n">stashsrvpw</span> <span class="o">-</span><span class="n">f</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">service</span><span class="o">.</span><span class="n">keyfile</span> <span class="n">cn</span><span class="o">=</span><span class="n">krbadmin</span><span class="p">,</span><span class="n">dc</span><span class="o">=</span><span class="n">example</span><span class="p">,</span><span class="n">dc</span><span class="o">=</span><span class="n">com</span>
+</pre></div>
+</div>
+<p>Skip this step if you are using SASL authentication and the
+mechanism does not require a password.</p>
+</li>
+<li><p>Choose a DN for the global Kerberos container entry (but do not
+create the entry at this time).  Specify this DN with the
+<strong>ldap_kerberos_container_dn</strong> directive in <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>.
+Realm container entries will be created underneath this DN.
+Principal entries may exist either underneath the realm container
+(the default) or in separate trees referenced from the realm
+container.</p></li>
+<li><p>Configure the LDAP server ACLs to enable the KDC and kadmin server
+DNs to read and write the Kerberos data.  If
+<strong>disable_last_success</strong> and <strong>disable_lockout</strong> are both set to
+true in the <a class="reference internal" href="conf_files/kdc_conf.html#dbmodules"><span class="std std-ref">[dbmodules]</span></a> subsection for the realm, then the
+KDC DN only requires read access to the Kerberos data.</p>
+<p>Sample access control information:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">access</span> <span class="n">to</span> <span class="n">dn</span><span class="o">.</span><span class="n">base</span><span class="o">=</span><span class="s2">&quot;&quot;</span>
+    <span class="n">by</span> <span class="o">*</span> <span class="n">read</span>
+
+<span class="n">access</span> <span class="n">to</span> <span class="n">dn</span><span class="o">.</span><span class="n">base</span><span class="o">=</span><span class="s2">&quot;cn=Subschema&quot;</span>
+    <span class="n">by</span> <span class="o">*</span> <span class="n">read</span>
+
+<span class="c1"># Provide access to the realm container.</span>
+<span class="n">access</span> <span class="n">to</span> <span class="n">dn</span><span class="o">.</span><span class="n">subtree</span><span class="o">=</span> <span class="s2">&quot;cn=EXAMPLE.COM,cn=krbcontainer,dc=example,dc=com&quot;</span>
+    <span class="n">by</span> <span class="n">dn</span><span class="o">.</span><span class="n">exact</span><span class="o">=</span><span class="s2">&quot;cn=kdc-service,dc=example,dc=com&quot;</span> <span class="n">write</span>
+    <span class="n">by</span> <span class="n">dn</span><span class="o">.</span><span class="n">exact</span><span class="o">=</span><span class="s2">&quot;cn=adm-service,dc=example,dc=com&quot;</span> <span class="n">write</span>
+    <span class="n">by</span> <span class="o">*</span> <span class="n">none</span>
+
+<span class="c1"># Provide access to principals, if not underneath the realm container.</span>
+<span class="n">access</span> <span class="n">to</span> <span class="n">dn</span><span class="o">.</span><span class="n">subtree</span><span class="o">=</span> <span class="s2">&quot;ou=users,dc=example,dc=com&quot;</span>
+    <span class="n">by</span> <span class="n">dn</span><span class="o">.</span><span class="n">exact</span><span class="o">=</span><span class="s2">&quot;cn=kdc-service,dc=example,dc=com&quot;</span> <span class="n">write</span>
+    <span class="n">by</span> <span class="n">dn</span><span class="o">.</span><span class="n">exact</span><span class="o">=</span><span class="s2">&quot;cn=adm-service,dc=example,dc=com&quot;</span> <span class="n">write</span>
+    <span class="n">by</span> <span class="o">*</span> <span class="n">none</span>
+
+<span class="n">access</span> <span class="n">to</span> <span class="o">*</span>
+    <span class="n">by</span> <span class="o">*</span> <span class="n">read</span>
+</pre></div>
+</div>
+<p>If the locations of the container and principals or the DNs of the
+service objects for a realm are changed then this information
+should be updated.</p>
+</li>
+<li><p>In <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>, make sure the following relations are set
+in the <a class="reference internal" href="conf_files/kdc_conf.html#dbmodules"><span class="std std-ref">[dbmodules]</span></a> subsection for the realm:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>db_library (set to ``kldap``)
+ldap_kerberos_container_dn
+ldap_kdc_dn
+ldap_kadmind_dn
+ldap_service_password_file
+ldap_servers
+</pre></div>
+</div>
+</li>
+<li><p>Create the realm using <a class="reference internal" href="admin_commands/kdb5_ldap_util.html#kdb5-ldap-util-8"><span class="std std-ref">kdb5_ldap_util</span></a>:</p>
+<blockquote>
+<div><p>kdb5_ldap_util create -subtrees ou=users,dc=example,dc=com -s</p>
+</div></blockquote>
+<p>Use the <strong>-subtrees</strong> option if the principals are to exist in a
+separate subtree from the realm container.  Before executing the
+command, make sure that the subtree mentioned above
+<code class="docutils literal notranslate"><span class="pre">(ou=users,dc=example,dc=com)</span></code> exists.  If the principals will
+exist underneath the realm container, omit the <strong>-subtrees</strong> option
+and do not worry about creating the principal subtree.</p>
+<p>For more information, refer to the section <a class="reference internal" href="database.html#ops-on-ldap"><span class="std std-ref">Operations on the LDAP database</span></a>.</p>
+<p>The realm object is created under the
+<strong>ldap_kerberos_container_dn</strong> specified in the configuration
+file.  This operation will also create the Kerberos container, if
+not present already.  This container can be used to store
+information related to multiple realms.</p>
+</li>
+<li><p>Add an <code class="docutils literal notranslate"><span class="pre">eq</span></code> index for <code class="docutils literal notranslate"><span class="pre">krbPrincipalName</span></code> to speed up principal
+lookup operations.  See
+<a class="reference external" href="https://www.openldap.org/doc/admin/tuning.html#Indexes">https://www.openldap.org/doc/admin/tuning.html#Indexes</a> for
+details.</p></li>
+</ol>
+</div></blockquote>
+<p>With the LDAP back end it is possible to provide aliases for principal
+entries.  Currently we provide no administrative utilities for
+creating aliases, so it must be done by direct manipulation of the
+LDAP entries.</p>
+<p>An entry with aliases contains multiple values of the
+<em>krbPrincipalName</em> attribute.  Since LDAP attribute values are not
+ordered, it is necessary to specify which principal name is canonical,
+by using the <em>krbCanonicalName</em> attribute.  Therefore, to create
+aliases for an entry, first set the <em>krbCanonicalName</em> attribute of
+the entry to the canonical principal name (which should be identical
+to the pre-existing <em>krbPrincipalName</em> value), and then add additional
+<em>krbPrincipalName</em> attributes for the aliases.</p>
+<p>Principal aliases are only returned by the KDC when the client
+requests canonicalization.  Canonicalization is normally requested for
+service principals; for client principals, an explicit flag is often
+required (e.g., <code class="docutils literal notranslate"><span class="pre">kinit</span> <span class="pre">-C</span></code>) and canonicalization is only performed
+for initial ticket requests.</p>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Configuring Kerberos with OpenLDAP back-end</a></li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="lockout.html" title="Account lockout"
+            >previous</a> |
+        <a href="appl_servers.html" title="Application servers"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Configuring Kerberos with OpenLDAP back-end">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

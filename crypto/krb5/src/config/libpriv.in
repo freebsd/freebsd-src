@@ -1,0 +1,12 @@
+# Additional definitions for private libraries, which we build as archive
+# libraries (or equivalent) and do not install.
+#
+# The defaults (for installed shared libraries) are in pre.in.  We
+# override them here, before lib.in uses them.
+LIBLIST=lib$(LIBBASE)$(STLIBEXT)
+LIBLINKS=$(TOPLIBD)/lib$(LIBBASE)$(STLIBEXT)
+OBJLISTS=OBJS.ST
+LIBINSTLIST=
+SHLIBEXT=.so-nobuild
+SHLIBVEXT=.so.v-nobuild
+SHLIBSEXT=.so.s-nobuild

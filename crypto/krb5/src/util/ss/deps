@@ -1,0 +1,59 @@
+#
+# Generated makefile dependencies follow.
+#
+invocation.so invocation.po $(OUTPRE)invocation.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/ss/ss_err.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h copyright.h invocation.c \
+  ss.h ss_internal.h
+help.so help.po $(OUTPRE)help.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/ss/ss_err.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h copyright.h help.c \
+  ss.h ss_internal.h
+execute_cmd.so execute_cmd.po $(OUTPRE)execute_cmd.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/ss/ss_err.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h copyright.h execute_cmd.c \
+  ss.h ss_internal.h
+listen.so listen.po $(OUTPRE)listen.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/ss/ss_err.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h copyright.h listen.c \
+  ss.h ss_internal.h
+parse.so parse.po $(OUTPRE)parse.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/ss/ss_err.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h copyright.h parse.c \
+  ss.h ss_internal.h
+error.so error.po $(OUTPRE)error.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/ss/ss_err.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h copyright.h error.c \
+  ss.h ss_internal.h
+prompt.so prompt.po $(OUTPRE)prompt.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/ss/ss_err.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h copyright.h prompt.c \
+  ss.h ss_internal.h
+request_tbl.so request_tbl.po $(OUTPRE)request_tbl.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/ss/ss_err.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h copyright.h request_tbl.c \
+  ss.h ss_internal.h
+list_rqs.so list_rqs.po $(OUTPRE)list_rqs.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/ss/ss_err.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h copyright.h list_rqs.c \
+  ss.h ss_internal.h
+pager.so pager.po $(OUTPRE)pager.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/ss/ss_err.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h copyright.h pager.c \
+  ss.h ss_internal.h
+requests.so requests.po $(OUTPRE)requests.$(OBJEXT): \
+  $(BUILDTOP)/include/autoconf.h $(BUILDTOP)/include/ss/ss_err.h \
+  $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h requests.c ss.h ss_internal.h
+data.so data.po $(OUTPRE)data.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/ss/ss_err.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h copyright.h data.c \
+  ss.h ss_internal.h
+ss_err.so ss_err.po $(OUTPRE)ss_err.$(OBJEXT): $(COM_ERR_DEPS) \
+  ss_err.c
+std_rqs.so std_rqs.po $(OUTPRE)std_rqs.$(OBJEXT): $(COM_ERR_DEPS) \
+  $(SS_DEPS) std_rqs.c

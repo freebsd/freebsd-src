@@ -1,0 +1,72 @@
+krb5_build_principal -  Build a principal name using null-terminated strings. 
+==============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_build_principal(krb5_context context, krb5_principal * princ, unsigned int rlen, const char * realm, ... )
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **princ** - Principal name
+
+	          **[in]** **rlen** - Realm name length
+
+	          **[in]** **realm** - Realm name
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Call krb5_free_principal() to free *princ* when it is no longer needed.
+
+
+
+Beginning with release 1.20, the name type of the principal will be inferred as **KRB5_NT_SRV_INST** or **KRB5_NT_WELLKNOWN** based on the principal name. The type will be **KRB5_NT_PRINCIPAL** if a type cannot be inferred.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 krb5_build_principal() and krb5_build_principal_alloc_va() perform the same task. krb5_build_principal() takes variadic arguments. krb5_build_principal_alloc_va() takes a pre-computed *varargs* pointer.
+ 
+
+
+

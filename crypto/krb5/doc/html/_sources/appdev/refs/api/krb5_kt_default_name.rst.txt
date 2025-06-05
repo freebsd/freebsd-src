@@ -1,0 +1,55 @@
+krb5_kt_default_name -  Get the default key table name. 
+========================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_kt_default_name(krb5_context context, char * name, int name_size)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[out]** **name** - Default key table name
+
+	          **[in]** **name_size** - Space available in *name*
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   KRB5_CONFIG_NOTENUFSPACE   Buffer is too short
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Fill *name* with the name of the default key table for *context* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

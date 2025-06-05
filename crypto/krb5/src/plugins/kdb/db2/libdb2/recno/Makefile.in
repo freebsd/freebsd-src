@@ -1,0 +1,14 @@
+mydir=plugins$(S)kdb$(S)db2$(S)libdb2$(S)recno
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..$(S)..
+STLIBOBJS=	rec_close.o rec_delete.o rec_get.o rec_open.o rec_put.o \
+		rec_search.o rec_seq.o rec_utils.o
+
+LOCALINCLUDES=	-I. -I$(srcdir)/../include -I../include -I$(srcdir)/../mpool \
+		-I$(srcdir)/../db
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+@libobj_frag@
+
+SRCS= $(STLIBOBJS:.o=.c)
+

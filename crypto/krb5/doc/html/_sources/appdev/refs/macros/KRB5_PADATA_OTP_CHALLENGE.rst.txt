@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-OTP-CHALLENGE-data:
+
+KRB5_PADATA_OTP_CHALLENGE
+=========================
+
+..
+.. data:: KRB5_PADATA_OTP_CHALLENGE
+..
+
+RFC 6560 section 4.1.
+
+
+
+================================ ======================
+``KRB5_PADATA_OTP_CHALLENGE``       ``141``
+================================ ======================

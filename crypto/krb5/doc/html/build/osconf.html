@@ -1,0 +1,156 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>osconf.hin &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Kerberos V5 concepts" href="../basic/index.html" />
+    <link rel="prev" title="Options to configure" href="options2configure.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="options2configure.html" title="Options to configure"
+            accesskey="P">previous</a> |
+        <a href="../basic/index.html" title="Kerberos V5 concepts"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__osconf.hin">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="osconf-hin">
+<h1>osconf.hin<a class="headerlink" href="#osconf-hin" title="Permalink to this headline">¶</a></h1>
+<p>There is one configuration file which you may wish to edit to control
+various compile-time parameters in the Kerberos distribution:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">include</span><span class="o">/</span><span class="n">osconf</span><span class="o">.</span><span class="n">hin</span>
+</pre></div>
+</div>
+<p>The list that follows is by no means complete, just some of the more
+interesting variables.</p>
+<dl class="simple">
+<dt><strong>DEFAULT_PROFILE_PATH</strong></dt><dd><p>The pathname to the file which contains the profiles for the known
+realms, their KDCs, etc. The default value is <code class="docutils literal notranslate"><span class="pre">/etc/krb5.conf</span></code>.</p>
+</dd>
+<dt><strong>DEFAULT_KEYTAB_NAME</strong></dt><dd><p>The type and pathname to the default server keytab file.  The
+default is <a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">DEFKTNAME</span></a>.</p>
+</dd>
+<dt><strong>DEFAULT_KDC_ENCTYPE</strong></dt><dd><p>The default encryption type for the KDC database master key.  The
+default value is <code class="docutils literal notranslate"><span class="pre">aes256-cts-hmac-sha1-96</span></code>.</p>
+</dd>
+<dt><strong>RCTMPDIR</strong></dt><dd><p>The directory which stores replay caches.  The default is
+<code class="docutils literal notranslate"><span class="pre">/var/tmp</span></code>.</p>
+</dd>
+<dt><strong>DEFAULT_KDB_FILE</strong></dt><dd><p>The location of the default database.  The default value is
+<a class="reference internal" href="../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code><code class="docutils literal notranslate"><span class="pre">/principal</span></code>.</p>
+</dd>
+</dl>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">osconf.hin</a></li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Building Kerberos V5</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="directory_org.html">Organization of the source directory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="doing_build.html">Doing the build</a></li>
+<li class="toctree-l2"><a class="reference internal" href="options2configure.html">Options to <em>configure</em></a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">osconf.hin</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="options2configure.html" title="Options to configure"
+            >previous</a> |
+        <a href="../basic/index.html" title="Kerberos V5 concepts"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__osconf.hin">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

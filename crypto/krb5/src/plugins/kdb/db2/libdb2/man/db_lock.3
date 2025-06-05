@@ -1,0 +1,462 @@
+.\" Copyright (c) 1994, 1995
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)db_lock.3	8.14 (Berkeley) 8/1/95
+.\"
+.TH DB_LOCK 3 "August 1, 1995"
+.UC 7
+.SH NAME
+db_lock \- general purpose lock manager
+.SH SYNOPSIS
+.nf
+.ft B
+#include <db_lock.h>
+
+int
+lock_create(const char *path, mode_t mode,
+.ti +5
+int lock_modes, const int8_t conflicts[][], u_int maxlocks);
+
+LOCK_TABLE_T *
+lock_open(const char *path);
+
+int
+lock_vec(LOCK_TABLE_T *lt, DBT *locker, struct timespec *timeout,
+.ti +5
+LOCK_REQ_T list[], int nlist, LOCK_REQ_T **elistp, DBT *conflict);
+
+int
+lock_get(LOCK_TABLE_T *lt, const DBT *locker,
+.ti +5
+const DBT *obj, const lock_mode_t lock_mode, LOCK_T **lockp);
+
+int
+lock_put(LOCK_T *lockp);
+
+int
+lock_close(LOCK_TABLE_T *lt);
+
+int
+lock_unlink(const char *path, int force);
+.ft R
+.fi
+.SH DESCRIPTION
+.so db.so
+.GN
+specific details of the locking interface.
+.PP
+.I Db_lock
+is the library interface intended to provide general-purpose locking. 
+While designed to work with the other DB functions, these functions are
+also useful for more general locking purposes.
+Locks can be shared between processes.
+.PP
+.CR "lock table" lock
+.PP
+The parameter
+.I lock_modes
+is the number of lock modes to be recognized by the lock table
+(including the ``not-granted'' mode).
+The parameter
+.I conflicts
+is an
+.I lock_modes
+by
+.I lock_modes
+array.
+A non-0 value for:
+.sp
+.ti +5
+conflicts[requested_mode][held_mode]
+.sp
+indicates that
+.I requested_mode
+and
+.I held_mode
+conflict.
+The ``not-granted'' mode must be represented by 0.
+.PP
+The include file <db_lock.h> declares two commonly used conflict arrays:
+.TP 5
+int lock_sx_n;
+.br
+.ns
+.TP 5
+const int8_t lock_sx_c[lock_sx_n][lock_sx_n];
+These variables specify a conflict array
+for a simple scheme using shared and exclusive lock modes.
+.TP 5
+int lock_g_n;
+.br
+.ns
+.TP 5
+const int8_t lock_g_c[lock_g_n][lock_g_n];
+These variables specify a conflict array that involves various intent
+lock modes (e.g. intent shared) that are used for multigranularity locking.
+.PP
+In addition,
+<db_lock.h> defines the following macros that name lock modes for use with
+the standard tables above:
+.RS
+.TP 5
+LOCK_IS
+intent shared
+.br
+.ns
+.TP 5
+LOCK_IX
+intent exclusive
+.br
+.ns
+.TP 5
+LOCK_NG
+not granted (always 0)
+.br
+.ns
+.TP 5
+LOCK_S
+shared
+.br
+.ns
+.TP 5
+LOCK_SIX
+shared/intent exclusive
+.br
+.ns
+.TP 5
+LOCK_X
+exclusive
+.RE
+.PP
+.I Maxlocks
+is the maximum number of locks to be held or requested in the table,
+and is used by
+.I lock_create
+to estimate how much space to allocate for various lock-table data
+structures.
+.PP
+.RT lock_create
+.PP
+.OP "lock table" lock
+.PP
+The function
+.I lock_vec
+atomically obtains and releases one or more locks from the designated
+table.
+The function
+.I lock_vec
+is intended to support acquisition or trading of multiple locks
+under one lock table semaphore, as is needed for lock coupling or
+in multigranularity locking for lock escalation.
+.PP
+If any of the requested locks cannot be acquired
+or any of the locks to be released cannot be released,
+no locks are acquired and no locks are released, and
+.I lock_vec
+returns an error.
+The function
+.I lock_vec
+returns 0 on success.
+If an error occurs,
+.I lock_vec
+returns one of the following values.
+In addition, if
+.I elistp
+is not NULL, it is set to point to the LOCK_REQ_T entry which
+was being processed when the error occurred.
+.TP 5
+LOCK_GET_DEADLOCK
+The specified
+.I locker
+was selected as a victim in order to resolve a deadlock.
+In this case, if the
+.I conflict
+argument is non-NULL, it is set to reference the identity of a
+locker holding the lock referenced by
+.I elistp
+at the time the request was denied.
+(This identity resides in static memory and may be overwritten by
+subsequent calls to
+.IR lock_vec ).
+.TP 5
+LOCK_GET_ERROR
+An error occurred and the external variable
+.I errno
+has been set to indicate the error.
+.TP 5
+LOCK_GET_NOTHELD
+The lock cannot be released, as it was not held by the
+.IR locker .
+.TP 5
+LOCK_GET_RESOURCE
+The lock manager is unable to grant the requested locks because of
+limited internal resources.
+(Releasing locks may allow future calls to
+.I lock_vec
+to succeed.)
+.TP 5
+LOCK_GET_TIMEOUT
+A timeout argument was specified, and the requested locks were not
+available soon enough.
+In this case, if the
+.I conflict
+argument is non-NULL, it is set to reference the identity of a
+locker holding the lock referenced by
+.I elistp
+at the time the request was denied.
+(This identity resides in static memory and may be overwritten by
+subsequent calls to
+.IR lock_vec ).
+.PP
+The
+.I locker
+argument specified to
+.I lock_vec
+is a pointer to an untyped byte string which identifies the entity
+requesting or releasing the lock.
+If
+.I locker
+is NULL, the calling process' pid is used instead.
+.PP
+The
+.I timeout
+argument provided to
+.I lock_vec
+specifies a maximum interval to wait for the locks to be granted.
+If
+.I timeout
+is NULL, it is ignored, and
+.I lock_vec
+will not return until all of the locks are acquired or an error has
+occurred.
+.PP
+The
+.I list
+array provided to 
+.I lock_vec
+is typedef'd in <db_lock.h> as LOCK_REQ_T.
+A LOCK_REQ_T structure has at least the following fields,
+which must be initialized before calling
+.IR lock_vec :
+.TP 5
+enum lockop op;
+The operation to be performed, which must be set to one of the
+following values:
+.RS
+.TP 5
+LOCK_GET
+Get a lock, as defined by the values of
+.IR locker ,
+.I obj
+and
+.IR lock_mode .
+Upon return from
+.IR lock_vec ,
+if the
+.I lockp
+field is non-NULL, a reference to the acquired lock is stored there.
+(This reference is invalidated by any call to
+.I lock_vec
+or
+.I lock_put
+which releases the lock.)
+.TP 5
+LOCK_PUT
+The lock referenced by the contents of the
+.I lockp
+field is released.
+.TP 5
+LOCK_PUT_ALL
+All locks held by the
+.I locker
+are released.
+(Any locks acquired as a part of the current call to
+.I lock_vec
+are not considered for this operation).
+.TP 5
+LOCK_PUT_OBJ
+All locks held by the
+.IR locker ,
+on the object
+.IR obj ,
+with the mode specified by
+.IR lock_mode ,
+are released.
+A
+.I lock_mode
+of LOCK_NG indicates that all locks on the object should be released.
+(Any locks acquired as a part of the current call to
+.I lock_vec
+are not considered for this operation).
+.RE
+.TP 5
+const DBT obj;
+An untyped byte string which specifies the object to be locked or
+released.
+.TP 5
+const lock_mode_t lock_mode;
+The lock mode, used as an index into
+.IR lt 's
+conflict array.
+.TP 5
+LOCK_T **lockp;
+A pointer to a pointer to a lock reference.
+.PP
+The
+.I nlist
+argument specifies the number of elements in the
+.I list
+array.
+.PP
+The function
+.I lock_get
+is a simple interface to the
+.I lock_vec
+functionality, and is equivalent to calling the
+.I lock_vec
+function with the
+.I lt
+and
+.I locker
+arguments, NULL
+.IR timeout , 
+.I elistp
+and
+.I conflict
+arguments, and a single element
+.I list
+array, for which the
+.I op
+field is LOCK_GET, and the
+.IR obj ,
+.I lock_mode
+and
+.I lockp
+fields are represented by the arguments of the same name.
+Note that the type of the
+.I obj
+argument to
+.I lock_get
+is different from the
+.I obj
+element found in the LOCK_REQ_T structure.
+The
+.I lock_get
+function returns success and failure as described for the
+.I lock_vec
+function.
+.PP
+The function
+.I lock_put
+is a simple interface to the
+.I lock_vec
+functionality, and is equivalent to calling the
+.I lock_vec 
+function with a single element
+.I list
+array, for which the
+.I op
+field is LOCK_PUT and the
+.I lockp
+field is represented by the argument of the same name.
+Note that the type of the
+.I lockp
+argument to
+.I lock_put
+is different from the
+.I lockp
+element found in the LOCK_REQ_T structure.
+The
+.I lock_put
+function returns success and failure as described for the
+.I lock_vec
+function.
+.PP
+The function
+.I lock_close
+disassociates the calling process from the lock table
+.IR lt ,
+after releasing all locks held or requested by that process.
+.RT lock_close
+.PP
+.UN "lock table" lock
+.SH "ERRORS"
+The
+.I lock_create
+function may fail and set
+.I errno
+for any of the errors specified for the library routines
+.IR mmap (2),
+.IR open (2)
+and
+.IR malloc (3).
+.PP
+The
+.I lock_open
+function may fail and set
+.I errno
+for any of the errors specified for the library routine
+.IR mmap (2)
+and
+.IR open (2).
+.PP
+The
+.I lock_close
+function may fail and set
+.I errno
+for any of the errors specified for the library routine
+.IR close (2)
+and
+.IR munmap (2).
+.PP
+The
+.I lock_unlink
+function may fail and set
+.I errno
+for any of the errors specified for the library function
+.IR unlink (2)
+or the following:
+.TP 5
+[EBUSY]
+The lock table was in use and the force flag was not set.
+.SH "SEE ALSO"
+.IR db_btree (3),
+.IR db_hash (3),
+.IR db_log (3),
+.IR db_mpool (3),
+.IR db_open (3),
+.IR db_recno (3),
+.IR db_txn (3)
+.SH BUGS
+The
+.I maxlocks
+parameter is a kluge, and should be deleted in favor of dynamically
+expanding the lock table.

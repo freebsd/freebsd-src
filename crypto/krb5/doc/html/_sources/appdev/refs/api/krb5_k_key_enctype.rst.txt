@@ -1,0 +1,39 @@
+krb5_k_key_enctype -  Retrieve the enctype of a krb5_key structure. 
+====================================================================
+
+..
+
+.. c:function:: krb5_enctype krb5_k_key_enctype(krb5_context context, krb5_key key)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **key**
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,46 @@
+krb5_c_random_add_entropy
+=========================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_random_add_entropy(krb5_context context, unsigned int randsource, const krb5_data * data)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **randsource**
+
+	          **data**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED This call is no longer necessary. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

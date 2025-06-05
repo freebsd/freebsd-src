@@ -1,0 +1,97 @@
+
+encode_krb5_pa_pk_as_req:
+
+[Sequence/Sequence Of]
+.  [0] <8>
+      6b 72 62 35 64 61 74 61                             krb5data
+.  [1] [Sequence/Sequence Of]
+.  .  [Sequence/Sequence Of]
+.  .  .  [0] <8>
+            6b 72 62 35 64 61 74 61                          krb5data
+.  .  .  [1] <8>
+            6b 72 62 35 64 61 74 61                          krb5data
+.  .  .  [2] <8>
+            6b 72 62 35 64 61 74 61                          krb5data
+.  [2] <8>
+      6b 72 62 35 64 61 74 61                             krb5data
+
+encode_krb5_pa_pk_as_rep(dhInfo):
+
+[CONT 0]
+.  [Sequence/Sequence Of]
+.  .  [0] <8>
+         6b 72 62 35 64 61 74 61                          krb5data
+.  .  [1] [Octet String] "krb5data"
+.  .  [2] [Sequence/Sequence Of]
+.  .  .  [0] [Object Identifier] <8>
+            6b 72 62 35 64 61 74 61                          krb5data
+
+encode_krb5_pa_pk_as_rep(encKeyPack):
+
+[CONT 1] <8>
+   6b 72 62 35 64 61 74 61                                krb5data
+
+encode_krb5_auth_pack:
+
+[Sequence/Sequence Of]
+.  [0] [Sequence/Sequence Of]
+.  .  [0] [Integer] 123456
+.  .  [1] [Generalized Time] "19940610060317Z"
+.  .  [2] [Integer] 42
+.  .  [3] [Octet String] "1234"
+.  .  [4] [Octet String] "krb5data"
+.  [1] [Octet String] "pvalue"
+.  [2] [Sequence/Sequence Of]
+.  .  [Sequence/Sequence Of]
+.  .  .  [Object Identifier] <9>
+            2a 86 48 86 f7 12 01 02 02                       *.H......
+.  .  .  [Octet String] "params"
+.  .  [Sequence/Sequence Of]
+.  .  .  [Object Identifier] <9>
+            2a 86 48 86 f7 12 01 02 02                       *.H......
+.  [3] [Octet String] "krb5data"
+.  [4] [Sequence/Sequence Of]
+.  .  [Sequence/Sequence Of]
+.  .  .  [0] [Object Identifier] <8>
+            6b 72 62 35 64 61 74 61                          krb5data
+
+encode_krb5_kdc_dh_key_info:
+
+[Sequence/Sequence Of]
+.  [0] [Bit String] <9>
+      00 6b 72 62 35 64 61 74 61                          .krb5data
+.  [1] [Integer] 42
+.  [2] [Generalized Time] "19940610060317Z"
+
+encode_krb5_reply_key_pack:
+
+[Sequence/Sequence Of]
+.  [0] [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  .  [1] [Octet String] "12345678"
+.  [1] [Sequence/Sequence Of]
+.  .  [0] [Integer] 1
+.  .  [1] [Octet String] "1234"
+
+encode_krb5_sp80056a_other_info:
+
+[Sequence/Sequence Of]
+.  [Sequence/Sequence Of]
+.  .  [Object Identifier] <9>
+         2a 86 48 86 f7 12 01 02 02                       *.H......
+.  [0] [Octet String] <48>
+      30 2e a0 10 1b 0e 41 54 48 45 4e 41 2e 4d 49 54     0.....ATHENA.MIT
+      2e 45 44 55 a1 1a 30 18 a0 03 02 01 01 a1 11 30     .EDU..0........0
+      0f 1b 06 68 66 74 73 61 69 1b 05 65 78 74 72 61     ...hftsai..extra
+.  [1] [Octet String] <48>
+      30 2e a0 10 1b 0e 41 54 48 45 4e 41 2e 4d 49 54     0.....ATHENA.MIT
+      2e 45 44 55 a1 1a 30 18 a0 03 02 01 01 a1 11 30     .EDU..0........0
+      0f 1b 06 68 66 74 73 61 69 1b 05 65 78 74 72 61     ...hftsai..extra
+.  [2] [Octet String] "krb5data"
+
+encode_krb5_pkinit_supp_pub_info:
+
+[Sequence/Sequence Of]
+.  [0] [Integer] 20
+.  [1] [Octet String] "krb5data"
+.  [2] [Octet String] "krb5data"

@@ -1,0 +1,40 @@
+.. highlight:: c
+
+.. _krb5-replay-data-struct:
+
+krb5_replay_data
+================
+
+..
+.. c:type:: krb5_replay_data
+..
+
+Replay data.
+
+Sequence number and timestamp information output by krb5_rd_priv() and krb5_rd_safe().
+
+Declaration
+------------
+
+typedef struct krb5_replay_data krb5_replay_data
+
+
+Members
+---------
+
+
+.. c:member:: krb5_timestamp	krb5_replay_data.timestamp
+
+                                             Timestamp, seconds portion.
+                                             
+
+.. c:member:: krb5_int32	krb5_replay_data.usec
+
+                                             Timestamp, microseconds portion.
+                                             
+
+.. c:member:: krb5_ui_4	krb5_replay_data.seq
+
+                                             Sequence number.
+                                             
+

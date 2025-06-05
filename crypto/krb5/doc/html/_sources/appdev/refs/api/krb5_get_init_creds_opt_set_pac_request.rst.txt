@@ -1,0 +1,52 @@
+krb5_get_init_creds_opt_set_pac_request -  Ask the KDC to include or not include a PAC in the ticket. 
+======================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_init_creds_opt_set_pac_request(krb5_context context, krb5_get_init_creds_opt * opt, krb5_boolean req_pac)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **req_pac** - Whether to request a PAC or not
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+If this option is set, the AS request will include a PAC-REQUEST pa-data item explicitly asking the KDC to either include or not include a privilege attribute certificate in the ticket authorization data. By default, no request is made; typically the KDC will default to including a PAC if it supports them.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.15
+ 
+

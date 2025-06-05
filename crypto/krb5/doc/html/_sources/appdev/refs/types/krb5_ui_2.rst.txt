@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-ui-2-struct:
+
+krb5_ui_2
+=========
+
+..
+.. c:type:: krb5_ui_2
+..
+
+
+
+
+Declaration
+------------
+
+typedef uint16_t krb5_ui_2
+
+

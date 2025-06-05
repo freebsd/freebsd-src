@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-OSF-DCE-data:
+
+KRB5_PADATA_OSF_DCE
+===================
+
+..
+.. data:: KRB5_PADATA_OSF_DCE
+..
+
+OSF DCE.
+
+RFC 4120
+
+========================== ======================
+``KRB5_PADATA_OSF_DCE``       ``8``
+========================== ======================

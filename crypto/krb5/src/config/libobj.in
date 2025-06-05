@@ -1,0 +1,42 @@
+### config/libobj.in
+#
+# Makefile fragment that builds object files for libraries.
+#
+# The following variables must be set in Makefile.in:
+#
+# STLIBOBJS	list of .o objects; this must not contain variable
+#		references.
+
+.SUFFIXES: .c .so .po
+.c.so:
+	$(CC) $(PICFLAGS) -DSHARED $(ALL_CFLAGS) -c $< -o $*.so.o && $(MV) $*.so.o $*.so
+.c.po:
+	$(CC) $(PROFFLAGS) $(ALL_CFLAGS) -c $< -o $*.po.o && $(MV) $*.po.o $*.po
+
+# rules to generate object file lists
+
+OBJS.ST: $(STLIBOBJS) Makefile
+	@echo $(STLIBOBJS) > $@
+	: updated $@
+
+OBJS.SH: $(SHLIBOBJS) Makefile
+	@echo $(SHLIBOBJS) > $@
+	: updated $@
+
+OBJS.PF: $(PFLIBOBJS) Makefile
+	@echo $(PFLIBOBJS) > $@
+	: updated $@
+
+all-libobjs: $(OBJLISTS)
+
+clean-libobjs:
+	$(RM) OBJS.ST OBJS.SH OBJS.PF $(STLIBOBJS) $(SHLIBOBJS) $(PFLIBOBJS)
+
+Makefile: $(top_srcdir)/config/libobj.in
+config.status: $(top_srcdir)/config/shlib.conf
+
+# clean-unix:: clean-libobjs
+# all-unix: all-libobjs
+
+###
+### end config/libobj.in

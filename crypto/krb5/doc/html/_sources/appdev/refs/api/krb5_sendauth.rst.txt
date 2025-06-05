@@ -1,0 +1,98 @@
+krb5_sendauth -  Client function for sendauth protocol. 
+========================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_sendauth(krb5_context context, krb5_auth_context * auth_context, krb5_pointer fd, char * appl_version, krb5_principal client, krb5_principal server, krb5_flags ap_req_options, krb5_data * in_data, krb5_creds * in_creds, krb5_ccache ccache, krb5_error ** error, krb5_ap_rep_enc_part ** rep_result, krb5_creds ** out_creds)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[inout]** **auth_context** - Pre-existing or newly created auth context
+
+	          **[in]** **fd** - File descriptor that describes network socket
+
+	          **[in]** **appl_version** - Application protocol version to be matched with the receiver's application version
+
+	          **[in]** **client** - Client principal
+
+	          **[in]** **server** - Server principal
+
+	          **[in]** **ap_req_options** - Options (see AP_OPTS macros)
+
+	          **[in]** **in_data** - Data to be sent to the server
+
+	          **[in]** **in_creds** - Input credentials, or NULL to use *ccache*
+
+	          **[in]** **ccache** - Credential cache
+
+	          **[out]** **error** - If non-null, contains KRB_ERROR message returned from server
+
+	          **[out]** **rep_result** - If non-null and *ap_req_options* is #AP_OPTS_MUTUAL_REQUIRED, contains the result of mutual authentication exchange
+
+	          **[out]** **out_creds** - If non-null, the retrieved credentials
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function performs the client side of a sendauth/recvauth exchange by sending and receiving messages over *fd* .
+
+
+
+Credentials may be specified in three ways:
+
+
+
+ 
+ 
+	 - If *in_creds* is NULL, credentials are obtained with krb5_get_credentials() using the principals *client* and *server* . *server* must be non-null; *client* may NULL to use the default principal of *ccache* .
+ 
+ 
+ 
+	 - If *in_creds* is non-null, but does not contain a ticket, credentials for the exchange are obtained with krb5_get_credentials() using *in_creds* . In this case, the values of *client* and *server* are unused.
+ 
+ 
+ 
+	 - If *in_creds* is a complete credentials structure, it used directly. In this case, the values of *client* , *server* , and *ccache* are unused.
+ 
+ If the server is using a different application protocol than that specified in *appl_version* , an error will be returned.
+
+
+
+Use krb5_free_creds() to free *out_creds* , krb5_free_ap_rep_enc_part() to free *rep_result* , and krb5_free_error() to free *error* when they are no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         krb5_recvauth()
+ 
+
+
+
+

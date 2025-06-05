@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-INIT-CONTEXT-SECURE-data:
+
+KRB5_INIT_CONTEXT_SECURE
+========================
+
+..
+.. data:: KRB5_INIT_CONTEXT_SECURE
+..
+
+Use secure context configuration.
+
+
+
+=============================== ======================
+``KRB5_INIT_CONTEXT_SECURE``       ``0x1``
+=============================== ======================

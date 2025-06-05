@@ -1,0 +1,11 @@
+	error_table et1
+
+ec	ET1_M0, "error table 1 message 0"
+
+ec	ET1_M1,
+	"error table 1 message 1"
+
+error_code ET1_M2,
+	"error table 1 message 2"
+
+end

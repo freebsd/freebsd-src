@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-NT-PRINCIPAL-data:
+
+KRB5_NT_PRINCIPAL
+=================
+
+..
+.. data:: KRB5_NT_PRINCIPAL
+..
+
+Just the name of the principal as in DCE, or for users.
+
+
+
+======================== ======================
+``KRB5_NT_PRINCIPAL``       ``1``
+======================== ======================

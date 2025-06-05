@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _TKT-FLG-FORWARDABLE-data:
+
+TKT_FLG_FORWARDABLE
+===================
+
+..
+.. data:: TKT_FLG_FORWARDABLE
+..
+
+
+
+
+========================== ======================
+``TKT_FLG_FORWARDABLE``       ``0x40000000``
+========================== ======================

@@ -1,0 +1,403 @@
+.\" Copyright (c) 1990, 1993, 1994, 1995
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)db_mpool.3	8.14 (Berkeley) 8/1/95
+.\"
+.TH DB_MPOOL 3 "August 1, 1995"
+.UC 7
+.SH NAME
+db_mpool \- general purpose shared memory buffer pool
+.SH SYNOPSIS
+.nf
+.ft B
+#include <db.h>
+#include <mpool.h>
+
+int
+mpool_create(char *path, mode_t mode, size_t cachesize, u_long flags);
+
+MPOOL *
+mpool_open(char *path);
+
+int
+mpool_close(MPOOL *mp);
+
+MPOOLFILE *
+mpool_fopen(MPOOL *mp, char *path, size_t pagesize, void *pgcookie,
+.ti +5
+int (*pgin)(MPOOLFILE *mpf,
+.ti +8
+pgno_t pgno, void *pgaddr, void *pgcookie),
+.ti +5
+int (*pgout)(MPOOLFILE *mpf,
+.ti +8
+pgno_t pgno, void *pgaddr, void *pgcookie);
+
+int
+mpool_fclose(MPOOLFILE *mpf);
+
+void *
+mpool_get(MPOOLFILE *mpf, pgno_t *pgnoaddr, u_long flags,
+.ti +5
+int (*callback)(MPOOLFILE *mpf, pgno_t pgno));
+
+int
+mpool_put(MPOOLFILE *mpf, void *pgaddr, u_long flags);
+
+int
+mpool_sync(MPOOLFILE *mpf);
+
+int
+mpool_unlink(const char *path, int force);
+
+void
+mpool_stat(MPOOL *mp, FILE *fp);
+.ft R
+.fi
+.SH DESCRIPTION
+.so db.so
+.GN
+specific details of the memory pool interface.
+.PP
+The
+.I db_mpool
+function is the library interface intended to provide general-purpose,
+page-oriented buffer management of one or more files.
+While designed to work with the other DB functions, these functions are
+also useful for more general purposes.
+The memory pools (MPOOL's) are referred to in this document as
+simply ``pools''.
+Pools may be shared between processes.
+Pools are usually filled by pages from one or more files (MPOOLFILE's).
+Pages in the pool are replaced in LRU (least-recently-used) order,
+with each new page replacing the page which has been unused the longest.
+Pages retrieved from the pool using
+.I mpool_get
+are ``pinned'' in memory, by default,
+until they are returned to the pool using the
+.I mpool_put
+function.
+.PP
+.CR "memory pool" mpool
+.PP
+The
+.I cachesize
+argument specifies the size of the pool in bytes,
+and should be the size of the normal working set of the application with
+some small amount of additional memory for unusual situations.
+If the number of bytes currently ``pinned'' in memory exceeds
+.IR cachesize ,
+the
+.I db_mpool
+functions will attempt to allocate more memory and do not necessarily fail,
+although they may suffer performance degradation.
+.PP
+The
+.I flags
+argument is set by
+.IR or 'ing
+any of the following values:
+.TP
+MPOOL_PRIVATE
+The pool is not shared by other processes or threads,
+so no locking of pool resources is required.
+.PP
+.OP "memory pool" mpool
+.PP
+The
+.I mpool_close
+function closes the pool indicated by the MPOOL pointer
+.IR mp ,
+as returned by
+.IR mpool_open .
+This function does
+.B not
+imply a call to
+.I mpool_sync
+(or to
+.IR mpool_fclose )
+i.e. no pages are written to the source file as as a result of calling
+.IR mpool_close .
+.RT mpool_close
+.PP
+The function
+.I mpool_fopen
+opens a file for buffering in the pool specified by the MPOOL
+argument.
+The
+.I path
+argument is the name of the file to be opened.
+The
+.I pagesize
+argument is the size, in bytes, of the unit of transfer between the
+application and the pool, although not necessarily the unit of transfer
+between the pool and the source file.
+Applications not knowing the page size of the source file should
+retrieve the metadata from the file using a page size that is correct
+for the metadata, then close and reopen the file, or,
+otherwise determine the page size before calling
+.IR mpool_fopen .
+.PP
+If the
+.I pgin
+function is specified, it is called each time a page is read into
+the memory pool from the source file.
+If the
+.I pgout
+function is specified, it is called each time a page is written
+to the source file.
+Both functions are called with the MPOOLFILE pointer returned from
+.IR mpool_fopen ,
+the page number, a pointer to the page being read or written, and
+the argument
+.IR pgcookie .
+If either function fails, it should return non-zero and set
+.IR errno ,
+in which case the
+.I db_mpool
+function calling it will also fail, leaving
+.I errno
+intact.
+.PP
+The
+.I mpool_fclose
+function closes the source file indicated by the MPOOLFILE pointer
+.IR mpf .
+This function does
+.B not
+imply a call to
+.IR mpool_sync ,
+i.e. no pages are written to the source file as as a result of calling
+.IR mpool_fclose .
+.RT mpool_fclose
+.\"
+.\".PP
+.\"int
+.\"mpool_fd (MPOOLFILE *mpf);
+.\"
+.\".PP
+.\"The function
+.\".I mpool_fd
+.\"takes an MPOOLFILE pointer and returns the file descriptor being
+.\"used to read/write that file
+.\"to/from the pool.
+.PP
+The function
+.I mpool_get
+returns a pointer to the page with the page number specified by
+.IR pgnoaddr ,
+from the source file specified by the MPOOLFILE pointer
+.IR mpf .
+If the page does not exist or cannot be retrieved,
+.I mpool_get
+returns NULL and sets errno.
+.PP
+The
+.I flags
+argument is set by 
+.IR or 'ing
+any of the following values:
+.TP 5
+MPOOL_CALLBACK
+After the page number has been determined, but before any other
+process or thread can access the page, the function specified by
+the
+.I callback
+argument is called.
+If the function fails, it should return non-zero and set
+.IR errno ,
+in which case
+.I mpool_get
+will also fail, leaving
+.I errno
+intact.
+The
+.I callback
+function is called with the MPOOLFILE pointer returned from
+.I mpool_fopen
+and the page number.
+This functionality is commonly used when page locking is required,
+but the page number of the page being retrieved is not known.
+.TP 5
+MPOOL_CREATE
+If the specified page does not exist, create it.
+.TP 5
+MPOOL_LAST
+Return the last page of the source file and copy its page number
+to the location referenced by
+.IR pgnoaddr .
+.TP 5
+MPOOL_NEW
+Create a new page in the file and copy its page number to the location
+referenced by
+.IR pgnoaddr .
+.TP 5
+MPOOL_NOPIN
+Don't pin the page into memory.
+(This flag is intended for debugging purposes, when it's often useful
+to examine pages which are currently held by other parts of the
+application.
+Pages retrieved in this manner don't need to be returned to the
+memory pool, i.e. they should
+.B not
+be specified as arguments to the
+.IR mpool_put
+routine.)
+.PP
+Created pages have all their bytes set to 0.
+.PP
+All pages returned by
+.I mpool_get
+(unless the MPOOL_NOPIN flag is specified),
+will be retained (i.e. ``pinned'') in the pool until a subsequent
+call to
+.IR mpool_put .
+.PP
+The function
+.I mpool_put
+indicates that the page referenced by
+.I pgaddr
+can be evicted from the pool.
+.I Pgaddr
+must be an address previously returned by
+.IR mpool_get .
+.PP
+The flag value is specified by
+.IR or 'ing
+any of the following values:
+.TP 5
+MPOOL_DIRTY
+The page has been modified and must be written to the source file
+before being evicted from the pool.
+.TP 5
+MPOOL_DISCARD
+The page is unlikely to be useful in the near future, and should be
+discarded before other pages in the pool.
+.PP
+.RT mpool_put
+.PP
+The function
+.I mpool_sync
+writes all pages associated with the MPOOLFILE pointer
+.IR mpf ,
+which were specified as arguments to the
+.I mpool_put
+function with an associated flag of
+MPOOL_DIRTY,
+to the source file.
+.RT mpool_sync
+.PP
+.UN "memory pool" mpool
+.PP
+The function
+.I mpool_stat
+writes statistics for the memory pool
+.I mp
+to the file specified by
+.IR fp .
+These statistics include the number of files participating in the pool,
+the active pages in the pool, and numbers as to how effective the cache
+has been.
+.SH ERRORS
+The
+.IR mpool_create ,
+.I mpool_open
+and
+.I mpool_fopen
+functions may fail and set
+.I errno
+for any of the errors specified for the library functions
+.IR open (2),
+.IR read (2),
+and
+.IR malloc (3).
+.PP
+The
+.I mpool_close
+and
+.I mpool_fclose
+functions may fail and set
+.I errno
+for any of the errors specified for the library functions
+.IR close (2)
+and
+.IR free (3).
+.PP
+The
+.I mpool_get
+function may fail and set
+.I errno
+for any of the errors specified for the library functions
+.IR read (2),
+.IR write (2),
+and
+.IR malloc (3)
+or the following:
+.TP 5
+[EINVAL]
+The requested page does not exist and MPOOL_CREATE was not set.
+.PP
+The
+.I mpool_put
+function may fail and set
+.I errno
+for any of the errors specified for the library function
+.IR write (2)
+or the following:
+.TP 5
+[EACCES]
+The source file was not opened for writing.
+.PP
+The
+.I mpool_sync
+function may fail and set
+.I errno
+for any of the errors specified for the library function
+.IR write (2).
+.PP
+The
+.I mpool_unlink
+function may fail and set
+.I errno
+for any of the errors specified for the library function
+.IR unlink (2)
+or the following:
+.TP 5
+[EBUSY]
+The memory pool was in use and the force flag was not set.
+.SH "SEE ALSO"
+.IR db_btree (3),
+.IR db_hash (3),
+.IR db_lock (3),
+.IR db_log (3),
+.IR db_open (3),
+.IR db_recno (3),
+.IR db_txn (3)

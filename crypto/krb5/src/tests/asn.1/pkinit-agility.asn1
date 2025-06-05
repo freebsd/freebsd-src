@@ -1,0 +1,99 @@
+KerberosV5-PK-INIT-Agility-SPEC {
+       iso(1) identified-organization(3) dod(6) internet(1)
+       security(5) kerberosV5(2) modules(4) pkinit(5) agility (1)
+} DEFINITIONS EXPLICIT TAGS ::= BEGIN
+
+IMPORTS
+   AlgorithmIdentifier, SubjectPublicKeyInfo
+       FROM PKIX1Explicit88 { iso (1)
+         identified-organization (3) dod (6) internet (1)
+         security (5) mechanisms (5) pkix (7) id-mod (0)
+         id-pkix1-explicit (18) }
+         -- As defined in RFC 3280.
+
+   Ticket, Int32, Realm, EncryptionKey, Checksum
+       FROM KerberosV5Spec2 { iso(1) identified-organization(3)
+         dod(6) internet(1) security(5) kerberosV5(2)
+         modules(4) krb5spec2(2) }
+         -- as defined in RFC 4120.
+
+   PKAuthenticator, DHNonce
+       FROM KerberosV5-PK-INIT-SPEC {
+         iso(1) identified-organization(3) dod(6) internet(1)
+         security(5) kerberosV5(2) modules(4) pkinit(5) };
+         -- as defined in RFC 4556.
+
+TD-CMS-DIGEST-ALGORITHMS-DATA ::= SEQUENCE OF
+    AlgorithmIdentifier
+        -- Contains the list of CMS algorithm [RFC3852]
+        -- identifiers that identify the digest algorithms
+        -- acceptable by the KDC for signing CMS data in
+        -- the order of decreasing preference.
+
+TD-CERT-DIGEST-ALGORITHMS-DATA ::= SEQUENCE {
+       allowedAlgorithms [0] SEQUENCE OF AlgorithmIdentifier,
+           -- Contains the list of CMS algorithm [RFC3852]
+           -- identifiers that identify the digest algorithms
+           -- that are used by the CA to sign the client's
+           -- X.509 certificate and acceptable by the KDC in
+           -- the process of validating the client's X.509
+           -- certificate, in the order of decreasing
+           -- preference.
+       rejectedAlgorithm [1] AlgorithmIdentifier OPTIONAL,
+           -- This identifies the digest algorithm that was
+           -- used to sign the client's X.509 certificate and
+           -- has been rejected by the KDC in the process of
+           -- validating the client's X.509 certificate
+           -- [RFC3280].
+       ...
+}
+
+OtherInfo ::= SEQUENCE {
+        algorithmID   AlgorithmIdentifier,
+        partyUInfo     [0] OCTET STRING,
+        partyVInfo     [1] OCTET STRING,
+        suppPubInfo    [2] OCTET STRING OPTIONAL,
+        suppPrivInfo   [3] OCTET STRING OPTIONAL
+}
+
+PkinitSuppPubInfo ::= SEQUENCE {
+       enctype           [0] Int32,
+           -- The enctype of the AS reply key.
+       as-REQ            [1] OCTET STRING,
+           -- This contains the AS-REQ in the request.
+       pk-as-rep         [2] OCTET STRING,
+           -- Contains the DER encoding of the type
+           -- PA-PK-AS-REP [RFC4556] in the KDC reply.
+       ...
+}
+
+-- Renamed from AuthPack to allow asn1c to process this and pkinit.asn1
+AuthPack2 ::= SEQUENCE {
+       pkAuthenticator   [0] PKAuthenticator,
+       clientPublicValue [1] SubjectPublicKeyInfo OPTIONAL,
+       supportedCMSTypes [2] SEQUENCE OF AlgorithmIdentifier
+                OPTIONAL,
+       clientDHNonce     [3] DHNonce OPTIONAL,
+       ...,
+       supportedKDFs     [4] SEQUENCE OF KDFAlgorithmId OPTIONAL,
+           -- Contains an unordered set of KDFs supported by the
+           -- client.
+       ...
+}
+
+KDFAlgorithmId ::= SEQUENCE {
+       kdf-id            [0] OBJECT IDENTIFIER,
+           -- The object identifier of the KDF
+       ...
+}
+
+-- Renamed from DHRepInfo to allow asn1c to process this and pkinit.asn1
+DHRepInfo2 ::= SEQUENCE {
+       dhSignedData      [0] IMPLICIT OCTET STRING,
+       serverDHNonce     [1] DHNonce OPTIONAL,
+       ...,
+       kdf               [2] KDFAlgorithmId OPTIONAL,
+           -- The KDF picked by the KDC.
+       ...
+}
+END

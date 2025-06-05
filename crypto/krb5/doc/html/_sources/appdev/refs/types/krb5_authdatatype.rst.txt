@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-authdatatype-struct:
+
+krb5_authdatatype
+=================
+
+..
+.. c:type:: krb5_authdatatype
+..
+
+
+
+
+Declaration
+------------
+
+typedef krb5_int32 krb5_authdatatype
+
+

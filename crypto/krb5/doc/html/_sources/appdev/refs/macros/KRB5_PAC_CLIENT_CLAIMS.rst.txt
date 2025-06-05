@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PAC-CLIENT-CLAIMS-data:
+
+KRB5_PAC_CLIENT_CLAIMS
+======================
+
+..
+.. data:: KRB5_PAC_CLIENT_CLAIMS
+..
+
+Client claims information.
+
+
+
+============================= ======================
+``KRB5_PAC_CLIENT_CLAIMS``       ``13``
+============================= ======================

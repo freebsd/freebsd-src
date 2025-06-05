@@ -1,0 +1,13 @@
+mydir=appl$(S)sample$(S)sserver
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+all: sserver
+
+sserver: sserver.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o sserver sserver.o $(KRB5_BASE_LIBS)
+
+clean:
+	$(RM) sserver.o sserver
+
+install:
+	$(INSTALL_PROGRAM) sserver ${DESTDIR}$(SERVER_BINDIR)/sserver

@@ -1,0 +1,15 @@
+PROJECT_NAME           = Kerberos_doxygen
+OUTPUT_DIRECTORY       = doxy
+JAVADOC_AUTOBRIEF      = YES
+OPTIMIZE_OUTPUT_FOR_C  = YES
+WARN_IF_UNDOCUMENTED   = NO
+SHOW_FILES             = NO
+EXTENSION_MAPPING      = hin=C
+INPUT                  = @SRC@/include/krb5/krb5.hin @DOC@/doxy_examples
+EXAMPLE_PATH           = @DOC@/doxy_examples
+GENERATE_HTML          = NO
+GENERATE_LATEX         = NO
+GENERATE_XML           = YES
+PREDEFINED             = KRB5_DEPRECATED KRB5_OLD_CRYPTO
+CASE_SENSE_NAMES       = NO
+QUIET                  = YES

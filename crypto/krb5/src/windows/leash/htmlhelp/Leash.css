@@ -1,0 +1,215 @@
+body {
+	font-family : Verdana, Geneva, sans-serif;
+	font-size:100%;
+	background-color : white;
+	color : black; }
+p {
+	font-size:.8em;
+	background-color : white;
+	color : black;
+}
+
+
+ h1 {
+	font-family : Verdana, Geneva, sans-serif;
+	font-size : 1.5em;
+	color : black; }
+
+ h2 {
+	font-family : Verdana, Geneva, sans-serif;
+	font-size : 1.12em;
+	color : black; }
+
+ h3 {
+	font-family : Verdana, Geneva, sans-serif;
+	font-size : .9 em;
+	color : black; }
+
+
+ol li {
+	font-size: .8em;
+	margin-top: 4px;
+	margin-bottom: 10px;
+}
+
+ul li {
+	font-size: .8em;
+	margin-top: 4px;
+	margin-bottom: 4px;
+}
+
+table, th, td
+{
+border: 1 solid black;
+border-collapse:collapse;
+}
+
+#table-inner
+{
+border: 0;
+border-collapse:collapse;
+}
+
+#th-inner
+{
+border: 0;
+border-collapse:collapse;
+}
+
+#th-title
+{
+border: 0;
+border-collapse:collapse;
+background-color:#F0F8FF;
+}
+
+#td-inner
+{
+border: 0;
+border-collapse:collapse;
+align-left;
+}
+
+table {
+padding-top: 10px;
+text-align: left;
+width: 100%;
+padding-bottom: 10px;
+	table-layout: auto;
+}
+
+
+th  {
+	font-family : Verdana, Arial, Helvetica, sans-serif;
+	font-size:1em;
+	background-color: #E0E5EB;
+	color : black;
+	padding:8px;
+	width: auto;
+	vertical-align:top;
+
+}
+
+#th2  {
+	font-family : Verdana, Arial, Helvetica, sans-serif;
+	font-size:0.825em;
+	background-color:#F0F8FF;
+	color : black;
+	padding:8px;
+	width: auto;
+	vertical-align:top;
+}
+
+#th2small  {
+	font-family : Verdana, Arial, Helvetica, sans-serif;
+	font-size:0.6em;
+	background-color:#F0F8FF;
+	color : black;
+	padding:6px;
+	width: auto;
+	vertical-align:top;
+}
+
+td {
+	font-family : Verdana, Arial, Helvetica, sans-serif;
+	font-size:0.825em;
+	color : black;
+	padding-left:5px;
+	padding-top:8px;
+	padding-bottom:8px;
+	width: auto;
+	vertical-align:top;
+ }
+
+#helpul
+{
+font-family : Verdana, Geneva, sans-serif;
+list-style:none;
+	font-size: 1em;
+	margin-top: 0;
+	margin-left:0;
+	padding-left: 0;
+}
+
+ol li ul li {
+Verdana, Arial, sans-serif;
+	list-style:none;
+	position:relative;
+	left:-10px;
+	font-size : 1em;
+}
+
+#tableul {
+	Verdana, Geneva, sans-serif;
+	font-size : 1.12em;
+}
+
+#helph2 {
+	font-family : Verdana, Geneva, sans-serif;
+	font-size : 1.12em;
+	color : black;
+	margin-bottom: 4px;
+ }
+
+
+
+#typed
+{
+	font-size: 1em;
+	font-family :"Courier New", Courier, monospace;
+}
+
+#button
+{
+	font-size: 1em;
+	Arial, Helvetica, sans-serif;
+}
+
+.typed
+{
+	font-size: 1em;
+	font-family :"Courier New", Courier, monospace;
+}
+.command
+{
+	font-size: 1em;
+	font-family :"Courier New", Courier, monospace;
+	 white-space: nowrap;
+	}
+
+.noborder, .noborder tr, .noborder th, .noborder td {
+    border: none;
+}
+
+.smallfont {
+	font-family : Verdana, Geneva, sans-serif;
+	font-size:.8em;
+	font-weight:normal;
+}
+
+dl
+{
+	margin:0;
+	padding: 0;
+	font-family: Verdana, Geneva, sans-serif;
+	font-size:0.825em;
+}
+
+dt
+{
+	margin:0;
+	padding: 0;
+	font-weight: bold;
+}
+
+ dd
+{
+	margin: 0 0 1em 0;
+	padding: 0;
+}
+
+ A:link { color : blue; }
+
+ A:visited { color : purple; }
+
+ A:active { color : navy; }

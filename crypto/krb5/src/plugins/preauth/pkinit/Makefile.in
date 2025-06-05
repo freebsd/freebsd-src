@@ -1,0 +1,53 @@
+mydir=plugins$(S)preauth$(S)pkinit
+BUILDTOP=$(REL)..$(S)..$(S)..
+MODULE_INSTALL_DIR = $(KRB5_PA_MODULE_DIR)
+
+LIBBASE=pkinit
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/preauth/pkinit
+# Depends on libk5crypto and libkrb5
+SHLIB_EXPDEPS = \
+	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
+	$(TOPLIBD)/libkrb5$(SHLIBEXT)
+SHLIB_EXPLIBS= -lkrb5 $(COM_ERR_LIB) -lk5crypto -lcrypto $(DL_LIB) $(SUPPORT_LIB) $(LIBS)
+
+STLIBOBJS= \
+	pkinit_accessor.o \
+	pkinit_srv.o \
+	pkinit_lib.o \
+	pkinit_clnt.o \
+	pkinit_constants.o \
+	pkinit_profile.o \
+	pkinit_identity.o \
+	pkinit_matching.o \
+	pkinit_crypto_openssl.o
+
+SRCS= \
+	$(srcdir)/pkinit_accessor.c \
+	$(srcdir)/pkinit_srv.c \
+	$(srcdir)/pkinit_lib.c \
+	$(srcdir)/pkinit_kdf_test.c \
+	$(srcdir)/pkinit_constants.c \
+	$(srcdir)/pkinit_clnt.c \
+	$(srcdir)/pkinit_profile.c \
+	$(srcdir)/pkinit_identity.c \
+	$(srcdir)/pkinit_matching.c \
+	$(srcdir)/pkinit_crypto_openssl.c
+
+all-unix: all-liblinks
+install-unix: install-libs
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+clean:
+	$(RM) pkinit_kdf_test pkinit_kdf_test.o
+
+check-unix: pkinit_kdf_test
+	$(RUN_TEST) ./pkinit_kdf_test
+
+pkinit_kdf_test: pkinit_kdf_test.o $(STLIBOBJS) $(SHLIB_EXPDEPS)
+	$(CC_LINK) -o $@ pkinit_kdf_test.o $(STLIBOBJS) $(SHLIB_EXPLIBS)
+
+@libnover_frag@
+@libobj_frag@
+

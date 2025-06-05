@@ -1,0 +1,43 @@
+krb5_c_valid_cksumtype -  Verify that specified checksum type is a valid Kerberos checksum type. 
+=================================================================================================
+
+..
+
+.. c:function:: krb5_boolean krb5_c_valid_cksumtype(krb5_cksumtype ctype)
+
+..
+
+
+:param:
+
+	          **[in]** **ctype** - Checksum type
+
+
+..
+
+
+
+:return:
+         -  TRUE if ctype is valid, FALSE if not 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

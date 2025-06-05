@@ -1,0 +1,32 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "https://www.w3.org/TR/html4/strict.dtd">
+<html><head><meta content="text/html; charset=ISO-8859-1" http-equiv="content-type"><title>Renew Tickets</title></head><body>
+
+<ul>
+<li><b> Upper Case Realm Name: </b> Turn this option on to convert the realm name you enter in the Initialize Ticket window to all upper case regardless of how you type it. A <i>realm</i> is the area authenticated by a unique Kerberos installation. By convention, the realm is named after the DNS domain it corrosponds to, but uses all upper case letters. Since realm names are case sensitive it is important to use all caps when entering the realm name.
+
+</li>
+<p>
+<li><b> Automatic Ticket Renewal:</b> Turn this on to have MIT Kerberos  automatically renew your Kerberos tickets for their entire renewable lifetime, without promptings or requiring a password. Please note that automatic ticket renewal will not work  if you exit MIT Kerberos.</li>
+ <p>
+<li><b> Expiration Alarm: </b>  Turn this on and MIT Kerberos will provide an audible alarm 15, 10, and 5 minutes before your tickets expire. Regardless of whether this option is on, MIT Kerberos will provide a visual pop up window alerting you to expiring tickets at the same intervals.</li>
+<p>
+<li><b> Destroy Tickets on Exit:</b> Turn this on and MIT Kerberos will destroy your tickets when you exit MIT Kerberos.  If this option is turned off, your tickets are unaffected when you exit MIT Kerberos. </li>
+</ul>
+
+
+<table style="text-align: left; width: 100%;" border="1" cellpadding="2" cellspacing="2"><tbody><tr><td style="text-align: center; width: 181px; background-color: rgb(204, 204, 204);" valign="undefined"><span style="font-weight: bold;">Option</span></td><td style="text-align: center; width: 155px; background-color: rgb(204, 204, 204);" valign="undefined"><span style="font-weight: bold;">Turn this on to...</span></td><td style="width: 259px; text-align: center; background-color: rgb(204, 204, 204);" valign="undefined"><span style="font-weight: bold;">Details</span></td></tr><tr><td style="font-weight: bold; width: 181px; background-color: rgb(204, 255, 255);" align="undefined" valign="undefined">Upper Case Realm Name</td><td style="width: 155px;" align="undefined" valign="undefined">Automatically convert the realm name you enter in the Initialize Ticket window to all upper case regardless of how you type it. </td><td style="width: 259px;" align="undefined" valign="undefined">A&nbsp;<span style="font-style: italic;">realm</span>
+is the area authenticated by a unique Kerberos installation. By
+convention, the realm is named after the DNS domain it corrosponds to,
+but uses all upper case letters. Since realm names are case sensitive
+it is important to use all caps when entering the realm name. <br></td></tr><tr><td style="font-weight: bold; width: 181px; background-color: rgb(204, 255, 255);" align="undefined" valign="undefined">Automatic Ticket Renewal</td><td style="width: 155px;" align="undefined" valign="undefined">Automatically renew your Kerberos tickets for their entire renewable lifetime, without promptings or requiring a password.</td><td style="width: 259px;" align="undefined" valign="undefined">Renewing
+your tickets allows you to run batch jobs without interruption and to
+work through a long session without continually reentering your
+password. Please note that automatic ticket renewal will not work if
+you exit MIT Kerberos or if your current &nbsp;tickets are not renewable.<br></td></tr><tr><td style="font-weight: bold; width: 181px; background-color: rgb(204, 255, 255);" align="undefined" valign="undefined">Expiration Alarm</td><td style="width: 155px;" align="undefined" valign="undefined">Have MIT Kerberos&nbsp; provide an audible alarm 15, 10, and 5 minutes before your tickets expire.</td><td style="width: 259px;" align="undefined" valign="undefined">Regardless
+of whether this option is on, MIT Kerberos will provide a visual pop up window
+alerting you to expiring tickets at the same intervals, but the pop up
+window will not always be visible on a busy desktop.</td></tr><tr><td style="font-weight: bold; width: 181px; background-color: rgb(204, 255, 255);" align="undefined" valign="undefined">Destroy Tickets on Exit</td><td style="width: 155px;" align="undefined" valign="undefined">Have MIT Kerberos destroy your tickets when you exit MIT Kerberos.&nbsp; </td><td style="width: 259px;" align="undefined" valign="undefined">If
+this option is turned off, your tickets are unaffected when you exit
+MIT Kerberos. For highest security you should always destroy your tickets when
+you are finished using them, and this makes it more automatic. </td></tr></tbody></table><br></body></html>

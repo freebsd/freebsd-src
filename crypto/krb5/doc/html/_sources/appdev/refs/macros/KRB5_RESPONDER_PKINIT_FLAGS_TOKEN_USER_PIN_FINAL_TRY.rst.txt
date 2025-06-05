@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-RESPONDER-PKINIT-FLAGS-TOKEN-USER-PIN-FINAL-TRY-data:
+
+KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY
+====================================================
+
+..
+.. data:: KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY
+..
+
+This flag indicates that supplying an incorrect PIN will cause the token to lock itself.
+
+
+
+=========================================================== ======================
+``KRB5_RESPONDER_PKINIT_FLAGS_TOKEN_USER_PIN_FINAL_TRY``       ``(1 << 1)``
+=========================================================== ======================

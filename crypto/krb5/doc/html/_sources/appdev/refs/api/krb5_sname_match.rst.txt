@@ -1,0 +1,59 @@
+krb5_sname_match -  Test whether a principal matches a matching principal. 
+===========================================================================
+
+..
+
+.. c:function:: krb5_boolean krb5_sname_match(krb5_context context, krb5_const_principal matching, krb5_const_principal princ)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **matching** - Matching principal
+
+	          **[in]** **princ** - Principal to test
+
+
+..
+
+
+
+:return:
+         -  TRUE if princ matches matching , FALSE otherwise. 
+
+..
+
+
+
+
+
+
+
+If *matching* is NULL, return TRUE. If *matching* is not a matching principal, return the value of krb5_principal_compare(context, matching, princ).
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 A matching principal is a host-based principal with an empty realm and/or second data component (hostname). Profile configuration may cause the hostname to be ignored even if it is present. A principal matches a matching principal if the former has the same non-empty (and non-ignored) components of the latter.
+ 
+
+
+

@@ -1,0 +1,51 @@
+krb5_cc_default_name -  Return the name of the default credential cache. 
+=========================================================================
+
+..
+
+.. c:function:: const char * krb5_cc_default_name(krb5_context context)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+
+..
+
+
+
+:return:
+         -  Name of default credential cache for the current user. 
+
+..
+
+
+
+
+
+
+
+Return a pointer to the default credential cache name for *context* , as determined by a prior call to krb5_cc_set_default_name(), by the KRB5CCNAME environment variable, by the default_ccache_name profile variable, or by the operating system or build-time default value. The returned value must not be modified or freed by the caller. The returned value becomes invalid when *context* is destroyed krb5_free_context() or if a subsequent call to krb5_cc_set_default_name() is made on *context* .
+
+
+
+The default credential cache name is cached in *context* between calls to this function, so if the value of KRB5CCNAME changes in the process environment after the first call to this function on, that change will not be reflected in later calls with the same context. The caller can invoke krb5_cc_set_default_name() with a NULL value of *name* to clear the cached value and force the default name to be recomputed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

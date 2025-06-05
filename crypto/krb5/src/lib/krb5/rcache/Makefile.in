@@ -1,0 +1,52 @@
+mydir=lib$(S)krb5$(S)rcache
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR=rcache
+##DOS##OBJFILE=..\$(OUTPRE)$(PREFIXDIR).lst
+
+STLIBOBJS = \
+	memrcache.o	\
+	rc_base.o	\
+	rc_dfl.o 	\
+	rc_file2.o	\
+	rc_none.o
+
+OBJS=	\
+	$(OUTPRE)memrcache.$(OBJEXT)	\
+	$(OUTPRE)rc_base.$(OBJEXT)	\
+	$(OUTPRE)rc_dfl.$(OBJEXT) 	\
+	$(OUTPRE)rc_file2.$(OBJEXT) 	\
+	$(OUTPRE)rc_none.$(OBJEXT)
+
+SRCS=	\
+	$(srcdir)/memrcache.c	\
+	$(srcdir)/rc_base.c	\
+	$(srcdir)/rc_dfl.c 	\
+	$(srcdir)/rc_file2.c 	\
+	$(srcdir)/rc_none.c	\
+	$(srcdir)/t_memrcache.c	\
+	$(srcdir)/t_rcfile2.c
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+
+t_memrcache: t_memrcache.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_memrcache.o $(KRB5_BASE_LIBS)
+
+t_rcfile2: t_rcfile2.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o $@ t_rcfile2.o $(KRB5_BASE_LIBS)
+
+check-unix: t_memrcache t_rcfile2
+	$(RUN_TEST) ./t_memrcache
+	$(RUN_TEST) ./t_rcfile2 testrcache expiry 10000
+	$(RUN_TEST) ./t_rcfile2 testrcache concurrent 10 1000
+	$(RUN_TEST) ./t_rcfile2 testrcache race 10 100
+
+clean-unix::
+	$(RM) t_memrcache.o t_memrcache t_rcfile2.o t_rcfile2 testrcache
+
+@libobj_frag@
+

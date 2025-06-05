@@ -1,0 +1,83 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>KCPYTKT</Title>
+</HEAD>
+<BODY>
+<H1>KCPYTKT Command</H1>
+
+<table>
+<tr><th id="th2"> The following information reproduces the information from UNIX man page for the KCPYTKT command.</th>
+</tr>
+</table>
+<H2>SYNOPSIS</H2>
+<table>
+<tr>
+<th id="th2">kcpytkt </th>
+<td>
+<span class="command">[<strong>-h</strong>]</span>
+<span class="command">[<strong>-c</strong>  <em>source_ccache</em></span>
+<span class="command">[<strong>-e</strong> <em>etype</em>]</span>
+<span class="command">[<strong>-f</strong> <em>flags</em>]</span>
+<span class="command"> <em> dest_ccache</em></span>
+<span class="command"><em>service1 service2</em> ..</span>
+</td>
+</tr>
+</table>
+
+<H2>DESCRIPTION</H2>
+<p>
+       <span class="command">  <em>kcpykt </em></span>  copies the specified service tickets to the destination credentials cache.</p>
+
+
+<H2>OPTIONS</H2>
+
+
+<table>
+<tr>
+<th id="th2"><span class="command"><strong>-c</strong> </span></th>
+<td> Specifies the source credentials cache from which service tickets will be
+copied.  If no ccache is specified, the default ccache is used.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"><strong>-e</strong> <em>etype</em></span></th>
+<td> Specifies the session key enctype of the service tickets you wish to delete.
+</td>
+</tr>
+<tr>
+<th id="th2"><span class="command"><strong>-h</strong></span></th>
+<td> Prints a usage statement and exits.
+</td>
+</tr>
+      </table>
+
+
+<H2>ENVIRONMENT</H2>
+<p>     <B>kcpytkt</B> uses the following environment variables:</p>
+<table>
+<tr>
+<th id="th2"> KRB5CCNAME</th>
+<td>      Location of the credentials (ticket) cache. </td>
+</tr>
+</table>
+
+<H2>FILES</H2>
+<table>
+<tr>
+  <th id="th2">     <span class="command">   /tmp/krb5cc_[uid] </span></th>
+<td>       default  location  of  the credentials (ticket) cache ([uid] is the decimal UID of the user). </td></tr>
+
+</table>
+
+<H2>SEE ALSO</H2>
+<ul id="helpul">
+<li><a href="HTML/KINIT.htm"><B>kinit</B></a> </li>
+<li><a href="HTML/KDESTROY.htm"><B>kdestroy</B></a></li>
+<li>krb5(3)</li>
+</ul>
+
+</BODY>
+</HTML>

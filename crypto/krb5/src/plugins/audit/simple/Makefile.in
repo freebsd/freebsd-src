@@ -1,0 +1,27 @@
+mydir=plugins$(S)audit$(S)simple
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+LIBBASE=k5audit
+LIBMAJOR=1
+LIBMINOR=1
+RELDIR=../plugins/audit/simple
+
+#Depends on libkrb5 and libkrb5support.
+SHLIB_EXPDEPS= $(KRB5_BASE_DEPLIBS)
+SHLIB_EXPLIBS= $(KRB5_BASE_LIBS)
+
+STOBJLISTS= OBJS.ST ../OBJS.ST
+STLIBOBJS= au_simple_main.o
+
+SRCS= $(srcdir)/au_simple_main.c
+
+all-unix: all-liblinks
+install-unix: install-libs
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+clean:
+	$(RM) au_simple_main.o kdc_j_encode.o
+	$(RM) lib$(LIBBASE)$(SO_EXT)
+
+@libnover_frag@
+@libobj_frag@

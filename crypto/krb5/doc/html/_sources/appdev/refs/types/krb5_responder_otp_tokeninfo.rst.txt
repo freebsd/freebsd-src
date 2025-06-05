@@ -1,0 +1,59 @@
+.. highlight:: c
+
+.. _krb5-responder-otp-tokeninfo-struct:
+
+krb5_responder_otp_tokeninfo
+============================
+
+..
+.. c:type:: krb5_responder_otp_tokeninfo
+..
+
+
+
+
+Declaration
+------------
+
+typedef struct _krb5_responder_otp_tokeninfo krb5_responder_otp_tokeninfo
+
+
+Members
+---------
+
+
+.. c:member:: krb5_flags	krb5_responder_otp_tokeninfo.flags
+
+                                             
+                                             
+
+.. c:member:: krb5_int32	krb5_responder_otp_tokeninfo.format
+
+                                             
+                                             
+
+.. c:member:: krb5_int32	krb5_responder_otp_tokeninfo.length
+
+                                             
+                                             
+
+.. c:member:: char *	krb5_responder_otp_tokeninfo.vendor
+
+                                             
+                                             
+
+.. c:member:: char *	krb5_responder_otp_tokeninfo.challenge
+
+                                             
+                                             
+
+.. c:member:: char *	krb5_responder_otp_tokeninfo.token_id
+
+                                             
+                                             
+
+.. c:member:: char *	krb5_responder_otp_tokeninfo.alg_id
+
+                                             
+                                             
+

@@ -1,0 +1,20 @@
+mydir=lib$(S)crypto$(S)openssl$(S)hash_provider
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+LOCALINCLUDES = -I$(srcdir)/../../krb $(CRYPTO_IMPL_CFLAGS)
+
+STLIBOBJS=   hash_evp.o
+
+OBJS=   $(OUTPRE)hash_evp.$(OBJEXT)
+
+SRCS=	$(srcdir)/hash_evp.c
+
+all-unix: all-libobjs
+
+includes: depend
+
+depend: $(SRCS)
+
+clean-unix:: clean-libobjs
+
+@libobj_frag@
+

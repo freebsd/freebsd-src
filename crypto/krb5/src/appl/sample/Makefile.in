@@ -1,0 +1,6 @@
+mydir=appl$(S)sample
+SUBDIRS = sclient sserver
+BUILDTOP=$(REL)..$(S)..
+
+check-pytests:
+	$(RUNPYTEST) $(srcdir)/t_sample.py $(PYTESTFLAGS)

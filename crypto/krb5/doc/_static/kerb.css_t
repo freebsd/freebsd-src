@@ -1,0 +1,169 @@
+/*
+ * kerb.css
+ * ~~~~~~~~~~~
+ *
+ * Sphinx stylesheet -- modification to agogo theme.
+ *
+ */
+div.body {
+  padding-right: .5em;
+  text-align: left;
+  overflow-x: hidden;
+}
+
+/* Page layout */
+
+div.header, div.content, div.footer {
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1em;
+  padding-right: 1em;
+  max-width: 60em;
+}
+
+div.header-wrapper {
+  background: white;
+  border-bottom: 3px solid #2e3436;
+  border-top: 13px solid #5d1509;
+}
+
+/* Header */
+
+div.header {
+  padding-top: 10px;
+  padding-bottom: 0px;
+}
+
+div.header h1 {
+  font-family: "Georgia", "Times New Roman", serif,  black;
+  font-weight: normal;
+}
+
+div.header h1 a {
+  color: {{ theme_bgcolor }};
+  font-size: 120%;
+  padding-top: 10px;
+}
+
+div.header div.right a {
+  color: #fcaf3e;
+  letter-spacing: .1em;
+  text-transform: lowercase;
+  float: right;
+}
+
+div.header div.rel {
+  font-family: "Georgia", "Times New Roman", serif, black;
+  font-weight: normal;
+  margin-bottom: 1.6em;
+}
+
+/* Content */
+
+div.document {
+  width: 80%;
+  float: left;
+  margin: 0;
+  background-color: white;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+div.document div.section h1 {
+  margin-bottom: 20px;
+  padding: 1px;
+  line-height: 130%;
+}
+
+div.document div.section dl {
+  margin-top: 15px;
+  margin-bottom: 5px;
+  padding: 1px;
+  text-align: left;
+}
+
+/* Sidebar */
+
+div.sidebar {
+  float: right;
+  font-size: .9em;
+  width: 20%;
+  margin: 0;
+  padding: 0;
+  background-color: #F9F9F9;
+}
+
+div.sidebar ul {
+  list-style-type: none;
+  margin-left: .5em;
+}
+
+div.sidebar li.toctree-l1 a {
+  margin-left: .5em;
+}
+
+div.sidebar li.toctree-l2 a {
+  margin-left: .5em;
+}
+
+div.sidebar li.toctree-l3 a {
+  margin-left: .5em;
+}
+
+div.sidebar li.toctree-l2.current a {
+  border-right: 2px solid #fcaf3e  !important;
+}
+
+div.sidebar li.toctree-l3.current a {
+  font-weight: bold;
+}
+
+div.sidebar li.toctree-l4 a {
+  display: none;
+}
+
+div.sidebar input[type=text] {
+  width: auto;
+}
+
+/* Other body styles */
+
+dt:target, .highlighted {
+  background-color: #c1c1c1;
+}
+
+/* Code displays */
+
+pre {
+    overflow: auto;
+    overflow-y: hidden;
+}
+
+td.linenos pre {
+    padding: 5px 0px;
+    border: 0;
+    background-color: transparent;
+    color: #aaa;
+}
+
+/* ordered lists */
+
+ol.arabic {
+    list-style: decimal;
+}
+
+ol.loweralpha {
+    list-style: lower-alpha;
+}
+
+ol.upperalpha {
+    list-style: upper-alpha;
+}
+
+ol.lowerroman {
+    list-style-type: lower-roman;
+}
+
+ol.upperroman {
+    list-style-type: upper-roman;
+}

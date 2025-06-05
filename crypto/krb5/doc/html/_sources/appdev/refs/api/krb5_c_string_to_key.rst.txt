@@ -1,0 +1,55 @@
+krb5_c_string_to_key -  Convert a string (such a password) to a key. 
+=====================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_string_to_key(krb5_context context, krb5_enctype enctype, const krb5_data * string, const krb5_data * salt, krb5_keyblock * key)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **enctype** - Encryption type
+
+	          **[in]** **string** - String to be converted
+
+	          **[in]** **salt** - Salt value
+
+	          **[out]** **key** - Generated key
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function converts *string* to a *key* of encryption type *enctype* , using the specified *salt* . The newly created *key* must be released by calling krb5_free_keyblock_contents() when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,44 @@
+krb5_eblock_enctype
+===================
+
+..
+
+.. c:function:: krb5_enctype krb5_eblock_enctype(krb5_context context, const krb5_encrypt_block * eblock)
+
+..
+
+
+:param:
+
+	          **context**
+
+	          **eblock**
+
+
+..
+
+
+
+..
+
+
+DEPRECATED Replaced by krb5_c_* API family. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

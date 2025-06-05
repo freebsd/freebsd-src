@@ -1,0 +1,48 @@
+mydir=lib$(S)crypto$(S)builtin
+BUILDTOP=$(REL)..$(S)..$(S)..
+SUBDIRS=camellia des aes md4 md5 sha1 sha2 enc_provider hash_provider
+LOCALINCLUDES=-I$(srcdir)/../krb $(CRYPTO_IMPL_CFLAGS)
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR = builtin
+##DOS##OBJFILE = ..\$(OUTPRE)builtin.lst
+
+STLIBOBJS=\
+	cmac.o	\
+	hmac.o	\
+	kdf.o \
+	pbkdf2.o
+
+OBJS=\
+	$(OUTPRE)cmac.$(OBJEXT)	\
+	$(OUTPRE)hmac.$(OBJEXT)	\
+	$(OUTPRE)kdf.$(OBJEXT) \
+	$(OUTPRE)pbkdf2.$(OBJEXT)
+
+SRCS=\
+	$(srcdir)/cmac.c	\
+	$(srcdir)/hmac.c	\
+	$(srcdir)/kdf.c		\
+	$(srcdir)/pbkdf2.c	
+
+SUBDIROBJLISTS= des/OBJS.ST md4/OBJS.ST 	\
+		md5/OBJS.ST sha1/OBJS.ST sha2/OBJS.ST 	\
+		enc_provider/OBJS.ST 		\
+		hash_provider/OBJS.ST 		\
+		aes/OBJS.ST			\
+		camellia/OBJS.ST 
+
+STOBJLISTS= $(SUBDIROBJLISTS) OBJS.ST
+
+##DOS##LIBOBJS = $(OBJS)
+
+all-unix: all-libobjs
+includes: depend
+
+depend: $(SRCS)
+
+clean-unix:: clean-libobjs
+
+@lib_frag@
+@libobj_frag@
+

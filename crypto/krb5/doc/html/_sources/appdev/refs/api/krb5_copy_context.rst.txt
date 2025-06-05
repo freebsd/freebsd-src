@@ -1,0 +1,52 @@
+krb5_copy_context -  Copy a krb5_context structure. 
+====================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_copy_context(krb5_context ctx, krb5_context * nctx_out)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[out]** **nctx_out** - New context structure
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+The newly created context must be released by calling krb5_free_context() when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

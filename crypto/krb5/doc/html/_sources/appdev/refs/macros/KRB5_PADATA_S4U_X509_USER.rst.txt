@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-S4U-X509-USER-data:
+
+KRB5_PADATA_S4U_X509_USER
+=========================
+
+..
+.. data:: KRB5_PADATA_S4U_X509_USER
+..
+
+certificate protocol transition request
+
+
+
+================================ ======================
+``KRB5_PADATA_S4U_X509_USER``       ``130``
+================================ ======================

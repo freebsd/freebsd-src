@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application xmlns="http://schemas.microsoft.com/windows/2009/Ribbon">
+  <Application.Commands>
+    <Command Name="cmdAppMenu" LabelTitle="Application Menu" />
+    <Command Name="cmdQAT" LabelTitle="" />
+    <Command Name="cmdHelp" LabelTitle="Help" />
+    <Command Name="cmdAbout" LabelTitle="About MIT Kerberos" />
+    <Command Name="cmdExit" LabelTitle="Exit application" />
+    <Command Name="cmdHomeTab" LabelTitle="Home" Keytip="H" />
+    <Command Name="cmdOptionsTab" LabelTitle="Options" Keytip="O" />
+    <Command Name="cmdChangePasswordGroup" LabelTitle="" />
+    <Command Name="cmdTicketGroup" LabelTitle=" " />
+    <Command Name="cmdViewOptionsGroup" LabelTitle="View Options" />
+    <Command Name="cmdTicketOptionsGroup" LabelTitle="Ticket Options" />
+    <Command Name="cmdGetTicketButton"
+             LabelTitle="Get Ticket"
+             Keytip="T">
+      <Command.LargeImages>
+        <Image>res/getticketlarge.bmp</Image>
+      </Command.LargeImages>
+    </Command>
+    <Command Name="cmdRenewTicketButton"
+             LabelTitle="Renew Ticket"
+             Keytip="R">
+      <Command.LargeImages>
+        <Image>res/renewlarge.bmp</Image>
+      </Command.LargeImages>
+    </Command>
+    <Command Name="cmdDestroyTicketButton"
+             LabelTitle="Destroy Ticket"
+             Keytip="D">
+      <Command.LargeImages>
+        <Image>res/destroylarge.bmp</Image>
+      </Command.LargeImages>
+    </Command>
+    <Command Name="cmdMakeDefaultButton"
+             LabelTitle="Make Default"
+             Keytip="M">
+      <Command.LargeImages>
+        <Image>res/makedefaultlarge.bmp</Image>
+      </Command.LargeImages>
+    </Command>
+    <Command Name="cmdChangePasswordButton"
+             LabelTitle="Change Password"
+             Keytip="C">
+      <Command.LargeImages>
+        <Image>res/cpwlarge.bmp</Image>
+      </Command.LargeImages>
+    </Command>
+    <Command Name="cmdIssuedCheckBox"
+             LabelTitle="Issued"
+             Keytip="I" />
+    <Command Name="cmdRenewUntilCheckBox"
+             LabelTitle="Renewable Until"
+             Keytip="R" />
+    <Command Name="cmdValidUntilCheckBox"
+             LabelTitle="Valid Until"
+             Keytip="V" />
+    <Command Name="cmdEncTypeCheckBox"
+             LabelTitle="Encryption Type"
+             Keytip="E" />
+    <Command Name="cmdFlagsCheckBox"
+             LabelTitle="Flags"
+             Keytip="F" />
+    <Command Name="cmdCcacheNameCheckBox"
+             LabelTitle="Credential Cache Name"
+             Keytip="N" />
+    <Command Name="cmdAutoRenewCheckBox"
+             LabelTitle="Automatic Ticket Renewal"
+             Keytip="R" />
+    <Command Name="cmdExpireAlarmCheckBox"
+             LabelTitle="Expiration Alarm"
+             Keytip="A" />
+    <Command Name="cmdDestroyOnExitCheckBox"
+             LabelTitle="Destroy Tickets on Exit"
+             Keytip="D" />
+    <Command Name="cmdMixedCaseCheckBox"
+             LabelTitle="Allow Mixed Case Realm Names"
+             Keytip="M" />
+  </Application.Commands>
+  <Application.Views>
+    <Ribbon>
+      <Ribbon.ApplicationMenu>
+        <ApplicationMenu CommandName="cmdAppMenu">
+          <MenuGroup>
+            <Button CommandName="cmdHelp" />
+            <Button CommandName="cmdAbout" />
+            <Button CommandName="cmdExit" />
+          </MenuGroup>
+        </ApplicationMenu>
+      </Ribbon.ApplicationMenu>
+      <Ribbon.QuickAccessToolbar>
+        <QuickAccessToolbar CommandName="cmdQAT" />
+      </Ribbon.QuickAccessToolbar>
+      <Ribbon.Tabs>
+        <Tab CommandName="cmdHomeTab">
+          <Tab.ScalingPolicy>
+            <ScalingPolicy>
+              <ScalingPolicy.IdealSizes>
+                <Scale Group="cmdTicketGroup" Size="Large" />
+                <Scale Group="cmdChangePasswordGroup" Size="Large" />
+              </ScalingPolicy.IdealSizes>
+            </ScalingPolicy>
+          </Tab.ScalingPolicy>
+          <Group CommandName="cmdTicketGroup" SizeDefinition="FourButtons">
+            <Button CommandName="cmdGetTicketButton" />
+            <Button CommandName="cmdRenewTicketButton" />
+            <Button CommandName="cmdDestroyTicketButton" />
+            <Button CommandName="cmdMakeDefaultButton" />
+          </Group>
+          <Group CommandName="cmdChangePasswordGroup"
+                 SizeDefinition="OneButton">
+            <Button CommandName="cmdChangePasswordButton" />
+          </Group>
+        </Tab>
+        <Tab CommandName="cmdOptionsTab">
+          <Group CommandName="cmdViewOptionsGroup">
+            <CheckBox CommandName="cmdIssuedCheckBox" />
+            <CheckBox CommandName="cmdRenewUntilCheckBox" />
+            <CheckBox CommandName="cmdValidUntilCheckBox" />
+            <CheckBox CommandName="cmdEncTypeCheckBox" />
+            <CheckBox CommandName="cmdFlagsCheckBox" />
+            <CheckBox CommandName="cmdCcacheNameCheckBox" />
+          </Group>
+          <Group CommandName="cmdTicketOptionsGroup" >
+            <CheckBox CommandName="cmdAutoRenewCheckBox" />
+            <CheckBox CommandName="cmdExpireAlarmCheckBox" />
+            <CheckBox CommandName="cmdDestroyOnExitCheckBox" />
+            <CheckBox CommandName="cmdMixedCaseCheckBox" />
+          </Group>
+        </Tab>
+      </Ribbon.Tabs>
+    </Ribbon>
+  </Application.Views>
+</Application>

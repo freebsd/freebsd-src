@@ -1,0 +1,20 @@
+.. highlight:: c
+
+.. _krb5-msgtype-struct:
+
+krb5_msgtype
+============
+
+..
+.. c:type:: krb5_msgtype
+..
+
+
+
+
+Declaration
+------------
+
+typedef unsigned int krb5_msgtype
+
+

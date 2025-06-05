@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KDC-TKT-COMMON-MASK-data:
+
+KDC_TKT_COMMON_MASK
+===================
+
+..
+.. data:: KDC_TKT_COMMON_MASK
+..
+
+
+
+
+========================== ======================
+``KDC_TKT_COMMON_MASK``       ``0x54800000``
+========================== ======================

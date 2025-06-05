@@ -1,0 +1,53 @@
+krb5_c_enctype_compare -  Compare two encryption types. 
+========================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_enctype_compare(krb5_context context, krb5_enctype e1, krb5_enctype e2, krb5_boolean * similar)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **e1** - First encryption type
+
+	          **[in]** **e2** - Second encryption type
+
+	          **[out]** **similar** - **TRUE** if types are similar, **FALSE** if not
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function determines whether two encryption types use the same kind of keys.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

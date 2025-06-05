@@ -1,0 +1,54 @@
+krb5_cc_end_seq_get -  Finish a series of sequential processing credential cache entries. 
+==========================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_end_seq_get(krb5_context context, krb5_ccache cache, krb5_cc_cursor * cursor)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **cache** - Credential cache handle
+
+	          **[in]** **cursor** - Cursor
+
+
+..
+
+
+:retval:
+         -   0   (always)
+
+
+..
+
+
+
+
+
+
+
+This function finishes processing credential cache entries and invalidates *cursor* .
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         krb5_cc_start_seq_get(), krb5_cc_next_cred()
+ 
+
+
+
+

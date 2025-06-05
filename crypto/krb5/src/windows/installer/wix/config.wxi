@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+
+  Copyright (C) 2004, 2005, 2006 by the Massachusetts Institute of Technology.
+  All rights reserved.
+ 
+  Export of this software from the United States of America may
+    require a specific license from the United States Government.
+    It is the responsibility of any person or organization contemplating
+    export to obtain such a license before exporting.
+ 
+  WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
+  distribute this software and its documentation for any purpose and
+  without fee is hereby granted, provided that the above copyright
+  notice appear in all copies and that both that copyright notice and
+  this permission notice appear in supporting documentation, and that
+  the name of M.I.T. not be used in advertising or publicity pertaining
+  to distribution of the software without specific, written prior
+  permission.  Furthermore if you modify this software you must label
+  your software as modified software and not distribute it in such a
+  fashion that it might be confused with the original M.I.T. software.
+  M.I.T. makes no representations about the suitability of
+  this software for any purpose.  It is provided "as is" without express
+  or implied warranty.
+  
+  -->
+<Include xmlns="http://schemas.microsoft.com/wix/2003/01/wi">
+
+    <!-- include site-specific customizations -->
+    <?include site-local.wxi?>
+    
+    <!-- Sanity checks -->
+    <?ifndef var.CL1600?>
+        <?error Must define CL1600 (MSVC10.0)?>
+    <?endif?>
+
+    <!-- Build type specifications -->
+    <?define BinDir="$(env.KRB_INSTALL_DIR)\bin\"?>
+    <?define PreauthDir=$(env.KRB_INSTALL_DIR)\bin\plugins\preauth?>
+    <?define LibDir="$(env.KRB_INSTALL_DIR)\lib\"?>
+    <?define InstallerVersion="450"?>
+    <?ifndef env.VISUALSTUDIOVERSION?>
+        <?define VCVer="100"?>
+    <?elseif $(env.VISUALSTUDIOVERSION) = "11.0"?>
+        <?define VCVer="110"?>
+    <?elseif $(env.VISUALSTUDIOVERSION) = "12.0"?>
+        <?define VCVer="120"?>
+    <?elseif $(env.VISUALSTUDIOVERSION) = "14.0"?>
+        <?define VCVer="140"?>
+    <?elseif $(env.VISUALSTUDIOVERSION) = "15.0"?>
+        <?define VCVer="141"?>
+    <?elseif $(env.VISUALSTUDIOVERSION) = "16.0"?>
+        <?define VCVer="142"?>
+    <?elseif $(env.VISUALSTUDIOVERSION) = "17.0"?>
+        <?define VCVer="143"?>
+    <?else?>
+        <?error Unknown MFC version?>
+    <?endif?>
+    
+    <?define KfwRegRoot="SOFTWARE\MIT\Kerberos"?>
+    <?define KfwRegWow6432Root="SOFTWARE\Wow6432Node\MIT\Kerberos"?>
+
+    <?define DocDir="$(var.TargetDir)doc\"?>
+    <?define IncDir="$(var.TargetDir)include\"?>
+    <?define SrcDir="$(var.TargetDir)"?>
+    <?define InstallDir="$(var.TargetDir)windows\installer\"?>
+    <?define SampleDir="$(var.TargetDir)sample\"?>
+    <?ifdef env.MIT_INTERNAL?>
+      <?define ConfigDir=".\athena\"?>
+    <?else?>
+      <?define ConfigDir=".\"?>
+    <?endif?>
+
+    <?define SystemDir="$(env.SystemRoot)\System32\"?>
+
+    <?include lang\config_$(var.BuildLang).wxi?>
+    
+    <!-- Parameters for the features containing debug symbols -->
+    <?ifdef env.NODEBUG?>
+         <?ifdef env.DEBUG_SYMBOL?>
+              <?define DebugSyms?>
+         <?endif?>
+    <?else?>
+         <?define Debug?>
+         <?define DebugSyms?>
+    <?endif?>
+    <?ifdef DebugSyms?>
+         <?ifdef Debug?>
+             <?define DebugSymInstallDefault="followParent"?>
+             <?define DebugSymLowLevel="30"?>
+             <?define DebugSymHighLevel="130"?>
+         <?else?>
+             <?define DebugSymInstallDefault="followParent"?>
+             <?define DebugSymLowLevel="130"?>
+             <?define DebugSymHighLevel="130"?>
+         <?endif?>
+    <?endif?>
+    
+    <!-- Configuration macros -->
+    <?ifndef LeashCreateMissingConfig?>
+        <?define LeashCreateMissingConfig="0"?>
+    <?endif?>
+    <?ifndef LeashAutoRenewTickets?>
+        <?define LeashAutoRenewTickets="1"?>
+    <?endif?>
+    <?ifndef LeashLockFileLocations?>
+        <?define LeashLockFileLocations="0"?>
+    <?endif?>
+    <?ifndef LeashLifetime?>
+        <?define LeashLifetime="0"?>
+    <?endif?>
+    <?ifndef LeashRenewTill?>
+        <?define LeashRenewTill="0"?>
+    <?endif?>
+    <?ifndef LeashRenewable?>
+        <?define LeashRenewable="0"?>
+    <?endif?>
+    <?ifndef LeashForwardable?>
+        <?define LeashForwardable="1"?>
+    <?endif?>
+    <?ifndef LeashNoAddresses?>
+        <?define LeashNoAddresses="1"?>
+    <?endif?>
+    <?ifndef LeashProxiable?>
+        <?define LeashProxiable="0"?>
+    <?endif?>
+    <?ifndef LeashPublicIp?>
+        <?define LeashPublicIp="0"?>
+    <?endif?>
+    <?ifndef LeashHideKinitOptions?>
+        <?define LeashHideKinitOptions="0"?>
+    <?endif?>
+    <?ifndef LeashLifeMin?>
+        <?define LeashLifeMin="5"?>
+    <?endif?>
+    <?ifndef LeashLifeMax?>
+        <?define LeashLifeMax="1440"?>
+    <?endif?>
+    <?ifndef LeashRenewMin?>
+        <?define LeashRenewMin="600"?>
+    <?endif?>
+    <?ifndef LeashRenewMax?>
+        <?define LeashRenewMax="43200"?>
+    <?endif?>
+    <?ifndef LeashUppercaseRealm?>
+        <?define LeashUppercaseRealm="1"?>
+    <?endif?>
+    <?ifndef LeashTimeHost?>
+        <?define LeashTimeHost="time"?>
+    <?endif?>
+    <?ifndef LeashPreserveKinitOptions?>
+        <?define LeashPreserveKinitOptions="0"?>
+    <?endif?>
+    <!-- These actually have no defaults. -->
+    <?ifndef Krb5Config?>
+        <?define Krb5Config=""?>
+    <?endif?>
+    <?ifndef Krb5CcName?>
+        <?define Krb5CcName=""?>
+    <?endif?>
+    <?ifndef Krb5PreserveIdentity?>
+        <?define Krb5PreserveIdentity="1"?>
+    <?endif?>
+
+    <!-- If neither NetIDMgr or Leash is specified, we default to NetIDMgr -->
+    <?ifndef UseNetIDMgr?>
+        <?ifndef UseLeash?>
+             <?define UseNetIDMgr="1"?>
+        <?endif?>
+    <?endif?>
+</Include>

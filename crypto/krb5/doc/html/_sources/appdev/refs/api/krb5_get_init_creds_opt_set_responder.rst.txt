@@ -1,0 +1,50 @@
+krb5_get_init_creds_opt_set_responder -  Set the responder function in initial credential options. 
+===================================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_init_creds_opt_set_responder(krb5_context context, krb5_get_init_creds_opt * opt, krb5_responder_fn responder, void * data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **responder** - Responder function
+
+	          **[in]** **data** - Responder data argument
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.11
+ 
+

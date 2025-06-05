@@ -1,0 +1,394 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Realm configuration decisions &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/kerb.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="copyright" title="Copyright" href="../copyright.html" />
+    <link rel="next" title="Database administration" href="database.html" />
+    <link rel="prev" title="kadm5.acl" href="conf_files/kadm5_acl.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="conf_files/kadm5_acl.html" title="kadm5.acl"
+            accesskey="P">previous</a> |
+        <a href="database.html" title="Database administration"
+            accesskey="N">next</a> |
+        <a href="../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Realm configuration decisions">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="realm-configuration-decisions">
+<h1>Realm configuration decisions<a class="headerlink" href="#realm-configuration-decisions" title="Permalink to this headline">¶</a></h1>
+<p>Before installing Kerberos V5, it is necessary to consider the
+following issues:</p>
+<ul class="simple">
+<li><p>The name of your Kerberos realm (or the name of each realm, if you
+need more than one).</p></li>
+<li><p>How you will assign your hostnames to Kerberos realms.</p></li>
+<li><p>Which ports your KDC and and kadmind services will use, if they will
+not be using the default ports.</p></li>
+<li><p>How many replica KDCs you need and where they should be located.</p></li>
+<li><p>The hostnames of your primary and replica KDCs.</p></li>
+<li><p>How frequently you will propagate the database from the primary KDC
+to the replica KDCs.</p></li>
+</ul>
+<section id="realm-name">
+<h2>Realm name<a class="headerlink" href="#realm-name" title="Permalink to this headline">¶</a></h2>
+<p>Although your Kerberos realm can be any ASCII string, convention is to
+make it the same as your domain name, in upper-case letters.</p>
+<p>For example, hosts in the domain <code class="docutils literal notranslate"><span class="pre">example.com</span></code> would be in the
+Kerberos realm:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">EXAMPLE</span><span class="o">.</span><span class="n">COM</span>
+</pre></div>
+</div>
+<p>If you need multiple Kerberos realms, MIT recommends that you use
+descriptive names which end with your domain name, such as:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">BOSTON</span><span class="o">.</span><span class="n">EXAMPLE</span><span class="o">.</span><span class="n">COM</span>
+<span class="n">HOUSTON</span><span class="o">.</span><span class="n">EXAMPLE</span><span class="o">.</span><span class="n">COM</span>
+</pre></div>
+</div>
+</section>
+<section id="mapping-hostnames-onto-kerberos-realms">
+<span id="mapping-hostnames"></span><h2>Mapping hostnames onto Kerberos realms<a class="headerlink" href="#mapping-hostnames-onto-kerberos-realms" title="Permalink to this headline">¶</a></h2>
+<p>Mapping hostnames onto Kerberos realms is done in one of three ways.</p>
+<p>The first mechanism works through a set of rules in the
+<a class="reference internal" href="conf_files/krb5_conf.html#domain-realm"><span class="std std-ref">[domain_realm]</span></a> section of <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.  You can specify
+mappings for an entire domain or on a per-hostname basis.  Typically
+you would do this by specifying the mappings for a given domain or
+subdomain and listing the exceptions.</p>
+<p>The second mechanism is to use KDC host-based service referrals.  With
+this method, the KDC’s krb5.conf has a full [domain_realm] mapping for
+hosts, but the clients do not, or have mappings for only a subset of
+the hosts they might contact.  When a client needs to contact a server
+host for which it has no mapping, it will ask the client realm’s KDC
+for the service ticket, and will receive a referral to the appropriate
+service realm.</p>
+<p>To use referrals, clients must be running MIT krb5 1.6 or later, and
+the KDC must be running MIT krb5 1.7 or later.  The
+<strong>host_based_services</strong> and <strong>no_host_referral</strong> variables in the
+<a class="reference internal" href="conf_files/kdc_conf.html#kdc-realms"><span class="std std-ref">[realms]</span></a> section of <a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> can be used to
+fine-tune referral behavior on the KDC.</p>
+<p>It is also possible for clients to use DNS TXT records, if
+<strong>dns_lookup_realm</strong> is enabled in <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.  Such lookups
+are disabled by default because DNS is an insecure protocol and security
+holes could result if DNS records are spoofed.  If enabled, the client
+will try to look up a TXT record formed by prepending the prefix
+<code class="docutils literal notranslate"><span class="pre">_kerberos</span></code> to the hostname in question.  If that record is not
+found, the client will attempt a lookup by prepending <code class="docutils literal notranslate"><span class="pre">_kerberos</span></code> to the
+host’s domain name, then its parent domain, up to the top-level domain.
+For the hostname <code class="docutils literal notranslate"><span class="pre">boston.engineering.example.com</span></code>, the names looked up
+would be:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">_kerberos</span><span class="o">.</span><span class="n">boston</span><span class="o">.</span><span class="n">engineering</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span>
+<span class="n">_kerberos</span><span class="o">.</span><span class="n">engineering</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span>
+<span class="n">_kerberos</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span>
+<span class="n">_kerberos</span><span class="o">.</span><span class="n">com</span>
+</pre></div>
+</div>
+<p>The value of the first TXT record found is taken as the realm name.</p>
+<p>Even if you do not choose to use this mechanism within your site,
+you may wish to set it up anyway, for use when interacting with other sites.</p>
+</section>
+<section id="ports-for-the-kdc-and-admin-services">
+<h2>Ports for the KDC and admin services<a class="headerlink" href="#ports-for-the-kdc-and-admin-services" title="Permalink to this headline">¶</a></h2>
+<p>The default ports used by Kerberos are port 88 for the KDC and port
+749 for the admin server.  You can, however, choose to run on other
+ports, as long as they are specified in each host’s
+<a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> files or in DNS SRV records, and the
+<a class="reference internal" href="conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> file on each KDC.  For a more thorough treatment of
+port numbers used by the Kerberos V5 programs, refer to the
+<a class="reference internal" href="appl_servers.html#conf-firewall"><span class="std std-ref">Configuring your firewall to work with Kerberos V5</span></a>.</p>
+</section>
+<section id="replica-kdcs">
+<h2>Replica KDCs<a class="headerlink" href="#replica-kdcs" title="Permalink to this headline">¶</a></h2>
+<p>Replica KDCs provide an additional source of Kerberos ticket-granting
+services in the event of inaccessibility of the primary KDC.  The
+number of replica KDCs you need and the decision of where to place them,
+both physically and logically, depends on the specifics of your
+network.</p>
+<p>Kerberos authentication requires that each client be able to contact a
+KDC.  Therefore, you need to anticipate any likely reason a KDC might
+be unavailable and have a replica KDC to take up the slack.</p>
+<p>Some considerations include:</p>
+<ul class="simple">
+<li><p>Have at least one replica KDC as a backup, for when the primary KDC
+is down, is being upgraded, or is otherwise unavailable.</p></li>
+<li><p>If your network is split such that a network outage is likely to
+cause a network partition (some segment or segments of the network
+to become cut off or isolated from other segments), have a replica
+KDC accessible to each segment.</p></li>
+<li><p>If possible, have at least one replica KDC in a different building
+from the primary, in case of power outages, fires, or other
+localized disasters.</p></li>
+</ul>
+</section>
+<section id="hostnames-for-kdcs">
+<span id="kdc-hostnames"></span><h2>Hostnames for KDCs<a class="headerlink" href="#hostnames-for-kdcs" title="Permalink to this headline">¶</a></h2>
+<p>MIT recommends that your KDCs have a predefined set of CNAME records
+(DNS hostname aliases), such as <code class="docutils literal notranslate"><span class="pre">kerberos</span></code> for the primary KDC and
+<code class="docutils literal notranslate"><span class="pre">kerberos-1</span></code>, <code class="docutils literal notranslate"><span class="pre">kerberos-2</span></code>, … for the replica KDCs.  This way,
+if you need to swap a machine, you only need to change a DNS entry,
+rather than having to change hostnames.</p>
+<p>As of MIT krb5 1.4, clients can locate a realm’s KDCs through DNS
+using SRV records (<span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc2782.html"><strong>RFC 2782</strong></a>), assuming the Kerberos realm name is
+also a DNS domain name.  These records indicate the hostname and port
+number to contact for that service, optionally with weighting and
+prioritization.  The domain name used in the SRV record name is the
+realm name.  Several different Kerberos-related service names are
+used:</p>
+<dl>
+<dt>_kerberos._udp</dt><dd><p>This is for contacting any KDC by UDP.  This entry will be used
+the most often.  Normally you should list port 88 on each of your
+KDCs.</p>
+</dd>
+<dt>_kerberos._tcp</dt><dd><p>This is for contacting any KDC by TCP.  Normally you should use
+port 88.  This entry should be omitted if the KDC does not listen
+on TCP ports, as was the default prior to release 1.13.</p>
+</dd>
+<dt>_kerberos-master._udp</dt><dd><p>This entry should refer to those KDCs, if any, that will
+immediately see password changes to the Kerberos database.  If a
+user is logging in and the password appears to be incorrect, the
+client will retry with the primary KDC before failing with an
+“incorrect password” error given.</p>
+<p>If you have only one KDC, or for whatever reason there is no
+accessible KDC that would get database changes faster than the
+others, you do not need to define this entry.</p>
+</dd>
+<dt>_kerberos-adm._tcp</dt><dd><p>This should list port 749 on your primary KDC.  Support for it is
+not complete at this time, but it will eventually be used by the
+<a class="reference internal" href="admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> program and related utilities.  For now, you will
+also need the <strong>admin_server</strong> variable in <a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.</p>
+</dd>
+<dt>_kerberos-master._tcp</dt><dd><p>The corresponding TCP port for _kerberos-master._udp, assuming the
+primary KDC listens on a TCP port.</p>
+</dd>
+<dt>_kpasswd._udp</dt><dd><p>This entry should list port 464 on your primary KDC.  It is used
+when a user changes her password.  If this entry is not defined
+but a _kerberos-adm._tcp entry is defined, the client will use the
+_kerberos-adm._tcp entry with the port number changed to 464.</p>
+</dd>
+<dt>_kpasswd._tcp</dt><dd><p>The corresponding TCP port for _kpasswd._udp.</p>
+</dd>
+</dl>
+<p>The DNS SRV specification requires that the hostnames listed be the
+canonical names, not aliases.  So, for example, you might include the
+following records in your (BIND-style) zone file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ORIGIN foobar.com.
+_kerberos               TXT       &quot;FOOBAR.COM&quot;
+kerberos                CNAME     daisy
+kerberos-1              CNAME     use-the-force-luke
+kerberos-2              CNAME     bunny-rabbit
+_kerberos._udp          SRV       0 0 88 daisy
+                        SRV       0 0 88 use-the-force-luke
+                        SRV       0 0 88 bunny-rabbit
+_kerberos-master._udp   SRV       0 0 88 daisy
+_kerberos-adm._tcp      SRV       0 0 749 daisy
+_kpasswd._udp           SRV       0 0 464 daisy
+</pre></div>
+</div>
+<p>Clients can also be configured with the explicit location of services
+using the <strong>kdc</strong>, <strong>master_kdc</strong>, <strong>admin_server</strong>, and
+<strong>kpasswd_server</strong> variables in the <a class="reference internal" href="conf_files/krb5_conf.html#realms"><span class="std std-ref">[realms]</span></a> section of
+<a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>.  Even if some clients will be configured with
+explicit server locations, providing SRV records will still benefit
+unconfigured clients, and be useful for other sites.</p>
+</section>
+<section id="kdc-discovery">
+<span id="id1"></span><h2>KDC Discovery<a class="headerlink" href="#kdc-discovery" title="Permalink to this headline">¶</a></h2>
+<p>As of MIT krb5 1.15, clients can also locate KDCs in DNS through URI
+records (<span class="target" id="index-1"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc7553.html"><strong>RFC 7553</strong></a>).  Limitations with the SRV record format may
+result in extra DNS queries in situations where a client must failover
+to other transport types, or find a primary server.  The URI record
+can convey more information about a realm’s KDCs with a single query.</p>
+<p>The client performs a query for the following URI records:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">_kerberos.REALM</span></code> for finding KDCs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">_kerberos-adm.REALM</span></code> for finding kadmin services.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">_kpasswd.REALM</span></code> for finding password services.</p></li>
+</ul>
+<p>The URI record includes a priority, weight, and a URI string that
+consists of case-insensitive colon separated fields, in the form
+<code class="docutils literal notranslate"><span class="pre">scheme:[flags]:transport:residual</span></code>.</p>
+<ul class="simple">
+<li><p><em>scheme</em> defines the registered URI type.  It should always be
+<code class="docutils literal notranslate"><span class="pre">krb5srv</span></code>.</p></li>
+<li><p><em>flags</em> contains zero or more flag characters.  Currently the only
+valid flag is <code class="docutils literal notranslate"><span class="pre">m</span></code>, which indicates that the record is for a
+primary server.</p></li>
+<li><p><em>transport</em> defines the transport type of the residual URL or
+address.  Accepted values are <code class="docutils literal notranslate"><span class="pre">tcp</span></code>, <code class="docutils literal notranslate"><span class="pre">udp</span></code>, or <code class="docutils literal notranslate"><span class="pre">kkdcp</span></code> for the
+MS-KKDCP type.</p></li>
+<li><p><em>residual</em> contains the hostname, IP address, or URL to be
+contacted using the specified transport, with an optional port
+extension.  The MS-KKDCP transport type uses a HTTPS URL, and can
+include a port and/or path extension.</p></li>
+</ul>
+<p>An example of URI records in a zone file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">_kerberos</span><span class="o">.</span><span class="n">EXAMPLE</span><span class="o">.</span><span class="n">COM</span>  <span class="n">URI</span>  <span class="mi">10</span> <span class="mi">1</span> <span class="n">krb5srv</span><span class="p">:</span><span class="n">m</span><span class="p">:</span><span class="n">tcp</span><span class="p">:</span><span class="n">kdc1</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span>
+                       <span class="n">URI</span>  <span class="mi">20</span> <span class="mi">1</span> <span class="n">krb5srv</span><span class="p">:</span><span class="n">m</span><span class="p">:</span><span class="n">udp</span><span class="p">:</span><span class="n">kdc2</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="p">:</span><span class="mi">89</span>
+                       <span class="n">URI</span>  <span class="mi">40</span> <span class="mi">1</span> <span class="n">krb5srv</span><span class="p">::</span><span class="n">udp</span><span class="p">:</span><span class="mf">10.10.0.23</span>
+                       <span class="n">URI</span>  <span class="mi">30</span> <span class="mi">1</span> <span class="n">krb5srv</span><span class="p">::</span><span class="n">kkdcp</span><span class="p">:</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">proxy</span><span class="p">:</span><span class="mi">89</span><span class="o">/</span><span class="n">auth</span>
+</pre></div>
+</div>
+<p>URI lookups are enabled by default, and can be disabled by setting
+<strong>dns_uri_lookup</strong> in the <a class="reference internal" href="conf_files/krb5_conf.html#libdefaults"><span class="std std-ref">[libdefaults]</span></a> section of
+<a class="reference internal" href="conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> to False.  When enabled, URI lookups take
+precedence over SRV lookups, falling back to SRV lookups if no URI
+records are found.</p>
+</section>
+<section id="database-propagation">
+<span id="db-prop"></span><h2>Database propagation<a class="headerlink" href="#database-propagation" title="Permalink to this headline">¶</a></h2>
+<p>The Kerberos database resides on the primary KDC, and must be
+propagated regularly (usually by a cron job) to the replica KDCs.  In
+deciding how frequently the propagation should happen, you will need
+to balance the amount of time the propagation takes against the
+maximum reasonable amount of time a user should have to wait for a
+password change to take effect.</p>
+<p>If the propagation time is longer than this maximum reasonable time
+(e.g., you have a particularly large database, you have a lot of
+replicas, or you experience frequent network delays), you may wish to
+cut down on your propagation delay by performing the propagation in
+parallel.  To do this, have the primary KDC propagate the database to
+one set of replicas, and then have each of these replicas propagate
+the database to additional replicas.</p>
+<p>See also <a class="reference internal" href="database.html#incr-db-prop"><span class="std std-ref">Incremental database propagation</span></a></p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Realm configuration decisions</a><ul>
+<li><a class="reference internal" href="#realm-name">Realm name</a></li>
+<li><a class="reference internal" href="#mapping-hostnames-onto-kerberos-realms">Mapping hostnames onto Kerberos realms</a></li>
+<li><a class="reference internal" href="#ports-for-the-kdc-and-admin-services">Ports for the KDC and admin services</a></li>
+<li><a class="reference internal" href="#replica-kdcs">Replica KDCs</a></li>
+<li><a class="reference internal" href="#hostnames-for-kdcs">Hostnames for KDCs</a></li>
+<li><a class="reference internal" href="#kdc-discovery">KDC Discovery</a></li>
+<li><a class="reference internal" href="#database-propagation">Database propagation</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="advanced/index.html">Advanced topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="conf_files/kadm5_acl.html" title="kadm5.acl"
+            >previous</a> |
+        <a href="database.html" title="Database administration"
+            >next</a> |
+        <a href="../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Realm configuration decisions">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

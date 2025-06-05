@@ -1,0 +1,548 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Retiring DES &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="next" title="Various links" href="../various_envs.html" />
+    <link rel="prev" title="Advanced topics" href="index.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="index.html" title="Advanced topics"
+            accesskey="P">previous</a> |
+        <a href="../various_envs.html" title="Various links"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Retiring DES">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="retiring-des">
+<span id="id1"></span><h1>Retiring DES<a class="headerlink" href="#retiring-des" title="Permalink to this headline">¶</a></h1>
+<p>Version 5 of the Kerberos protocol was originally implemented using
+the Data Encryption Standard (DES) as a block cipher for encryption.
+While it was considered secure at the time, advancements in computational
+ability have rendered DES vulnerable to brute force attacks on its 56-bit
+keyspace.  As such, it is now considered insecure and should not be
+used (<span class="target" id="index-0"></span><a class="rfc reference external" href="https://tools.ietf.org/html/rfc6649.html"><strong>RFC 6649</strong></a>).</p>
+<section id="history">
+<h2>History<a class="headerlink" href="#history" title="Permalink to this headline">¶</a></h2>
+<p>DES was used in the original Kerberos implementation, and was the
+only cryptosystem in krb5 1.0.  Partial support for triple-DES (3DES) was
+added in version 1.1, with full support following in version 1.2.
+The Advanced Encryption Standard (AES), which supersedes DES, gained
+partial support in version 1.3.0 of krb5 and full support in version 1.3.2.
+However, deployments of krb5 using Kerberos databases created with older
+versions of krb5 will not necessarily start using strong crypto for
+ordinary operation without administrator intervention.</p>
+<p>MIT krb5 began flagging deprecated encryption types with release 1.17,
+and removed DES (single-DES) support in release 1.18.  As a
+consequence, a release prior to 1.18 is required to perform these
+migrations.</p>
+</section>
+<section id="types-of-keys">
+<h2>Types of keys<a class="headerlink" href="#types-of-keys" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>The database master key:  This key is not exposed to user requests,
+but is used to encrypt other key material stored in the kerberos
+database.  The database master key is currently stored as <code class="docutils literal notranslate"><span class="pre">K/M</span></code>
+by default.</p></li>
+<li><p>Password-derived keys:  User principals frequently have keys
+derived from a password.  When a new password is set, the KDC
+uses various string2key functions to generate keys in the database
+for that principal.</p></li>
+<li><p>Keytab keys:  Application server principals generally use random
+keys which are not derived from a password.  When the database
+entry is created, the KDC generates random keys of various enctypes
+to enter in the database, which are conveyed to the application server
+and stored in a keytab.</p></li>
+<li><p>Session keys:  These are short-term keys generated by the KDC while
+processing client requests, with an enctype selected by the KDC.</p></li>
+</ul>
+<p>For details on the various enctypes and how enctypes are selected by the KDC
+for session keys and client/server long-term keys, see <a class="reference internal" href="../enctypes.html#enctypes"><span class="std std-ref">Encryption types</span></a>.
+When using the <a class="reference internal" href="../admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> interface to generate new long-term keys,
+the <strong>-e</strong> argument can be used to force a particular set of enctypes,
+overriding the KDC default values.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When the KDC is selecting a session key, it has no knowledge about the
+kerberos installation on the server which will receive the service ticket,
+only what keys are in the database for the service principal.
+In order to allow uninterrupted operation to
+clients while migrating away from DES, care must be taken to ensure that
+kerberos installations on application server machines are configured to
+support newer encryption types before keys of those new encryption types
+are created in the Kerberos database for those server principals.</p>
+</div>
+</section>
+<section id="upgrade-procedure">
+<h2>Upgrade procedure<a class="headerlink" href="#upgrade-procedure" title="Permalink to this headline">¶</a></h2>
+<p>This procedure assumes that the KDC software has already been upgraded
+to a modern version of krb5 that supports non-DES keys, so that the
+only remaining task is to update the actual keys used to service requests.
+The realm used for demonstrating this procedure, ZONE.MIT.EDU,
+is an example of the worst-case scenario, where all keys in the realm
+are DES.  The realm was initially created with a very old version of krb5,
+and <strong>supported_enctypes</strong> in <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> was set to a value
+appropriate when the KDC was installed, but was not updated as the KDC
+was upgraded:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">realms</span><span class="p">]</span>
+        <span class="n">ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="p">[</span><span class="o">...</span><span class="p">]</span>
+                <span class="n">master_key_type</span> <span class="o">=</span> <span class="n">des</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">crc</span>
+                <span class="n">supported_enctypes</span> <span class="o">=</span> <span class="n">des</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">crc</span><span class="p">:</span><span class="n">normal</span> <span class="n">des</span><span class="p">:</span><span class="n">normal</span> <span class="n">des</span><span class="p">:</span><span class="n">v4</span> <span class="n">des</span><span class="p">:</span><span class="n">norealm</span> <span class="n">des</span><span class="p">:</span><span class="n">onlyrealm</span> <span class="n">des</span><span class="p">:</span><span class="n">afs3</span>
+        <span class="p">}</span>
+</pre></div>
+</div>
+<p>This resulted in the keys for all principals in the realm being forced
+to DES-only, unless specifically requested using <a class="reference internal" href="../admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>.</p>
+<p>Before starting the upgrade, all KDCs were running krb5 1.11,
+and the database entries for some “high-value” principals were:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># kadmin.local -r ZONE.MIT.EDU -q &#39;getprinc krbtgt/ZONE.MIT.EDU&#39;</span>
+<span class="p">[</span><span class="o">...</span><span class="p">]</span>
+<span class="n">Number</span> <span class="n">of</span> <span class="n">keys</span><span class="p">:</span> <span class="mi">1</span>
+<span class="n">Key</span><span class="p">:</span> <span class="n">vno</span> <span class="mi">1</span><span class="p">,</span> <span class="n">des</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">crc</span><span class="p">:</span><span class="n">v4</span>
+<span class="p">[</span><span class="o">...</span><span class="p">]</span>
+<span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># kadmin.local -r ZONE.MIT.EDU -q &#39;getprinc kadmin/admin&#39;</span>
+<span class="p">[</span><span class="o">...</span><span class="p">]</span>
+<span class="n">Number</span> <span class="n">of</span> <span class="n">keys</span><span class="p">:</span> <span class="mi">1</span>
+<span class="n">Key</span><span class="p">:</span> <span class="n">vno</span> <span class="mi">15</span><span class="p">,</span> <span class="n">des</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">crc</span>
+<span class="p">[</span><span class="o">...</span><span class="p">]</span>
+<span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># kadmin.local -r ZONE.MIT.EDU -q &#39;getprinc kadmin/changepw&#39;</span>
+<span class="p">[</span><span class="o">...</span><span class="p">]</span>
+<span class="n">Number</span> <span class="n">of</span> <span class="n">keys</span><span class="p">:</span> <span class="mi">1</span>
+<span class="n">Key</span><span class="p">:</span> <span class="n">vno</span> <span class="mi">14</span><span class="p">,</span> <span class="n">des</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">crc</span>
+<span class="p">[</span><span class="o">...</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">krbtgt/REALM</span></code> key appears to have never been changed since creation
+(its kvno is 1), and all three database entries have only a des-cbc-crc key.</p>
+<section id="the-krbtgt-key-and-kdc-keys">
+<h3>The krbtgt key and KDC keys<a class="headerlink" href="#the-krbtgt-key-and-kdc-keys" title="Permalink to this headline">¶</a></h3>
+<p>Perhaps the biggest single-step improvement in the security of the cell
+is gained by strengthening the key of the ticket-granting service principal,
+<code class="docutils literal notranslate"><span class="pre">krbtgt/REALM</span></code>—if this principal’s key is compromised, so is the
+entire realm.  Since the server that will handle service tickets
+for this principal is the KDC itself, it is easy to guarantee that it
+will be configured to support any encryption types which might be
+selected.  However, the default KDC behavior when creating new keys is to
+remove the old keys, which would invalidate all existing tickets issued
+against that principal, rendering the TGTs cached by clients useless.
+Instead, a new key can be created with the old key retained, so that
+existing tickets will still function until their scheduled expiry
+(see <a class="reference internal" href="../database.html#changing-krbtgt-key"><span class="std std-ref">Changing the krbtgt key</span></a>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># enctypes=aes256-cts-hmac-sha1-96:normal,\</span>
+<span class="o">&gt;</span> <span class="n">aes128</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span><span class="p">:</span><span class="n">normal</span><span class="p">,</span><span class="n">des3</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="p">:</span><span class="n">normal</span><span class="p">,</span><span class="n">des</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">crc</span><span class="p">:</span><span class="n">normal</span>
+<span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># kadmin.local -r ZONE.MIT.EDU -q &quot;cpw -e ${enctypes} -randkey \</span>
+<span class="o">&gt;</span> <span class="o">-</span><span class="n">keepold</span> <span class="n">krbtgt</span><span class="o">/</span><span class="n">ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span><span class="s2">&quot;</span>
+<span class="n">Authenticating</span> <span class="k">as</span> <span class="n">principal</span> <span class="n">root</span><span class="o">/</span><span class="n">admin</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">password</span><span class="o">.</span>
+<span class="n">Key</span> <span class="k">for</span> <span class="s2">&quot;krbtgt/ZONE.MIT.EDU@ZONE.MIT.EDU&quot;</span> <span class="n">randomized</span><span class="o">.</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The new <code class="docutils literal notranslate"><span class="pre">krbtgt&#64;REALM</span></code> key should be propagated to replica KDCs
+immediately so that TGTs issued by the primary KDC can be used to
+issue service tickets on replica KDCs.  Replica KDCs will refuse
+requests using the new TGT kvno until the new krbtgt entry has
+been propagated to them.</p>
+</div>
+<p>It is necessary to explicitly specify the enctypes for the new database
+entry, since <strong>supported_enctypes</strong> has not been changed.  Leaving
+<strong>supported_enctypes</strong> unchanged makes a potential rollback operation
+easier, since all new keys of new enctypes are the result of explicit
+administrator action and can be easily enumerated.
+Upgrading the krbtgt key should have minimal user-visible disruption other
+than that described in the note above, since only clients which list the
+new enctypes as supported will use them, per the procedure
+in <a class="reference internal" href="../enctypes.html#session-key-selection"><span class="std std-ref">Session key selection</span></a>.
+Once the krbtgt key is updated, the session and ticket keys for user
+TGTs will be strong keys, but subsequent requests
+for service tickets will still get DES keys until the service principals
+have new keys generated.  Application service
+remains uninterrupted due to the key-selection procedure on the KDC.</p>
+<p>After the change, the database entry is now:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># kadmin.local -r ZONE.MIT.EDU -q &#39;getprinc krbtgt/ZONE.MIT.EDU&#39;</span>
+<span class="p">[</span><span class="o">...</span><span class="p">]</span>
+<span class="n">Number</span> <span class="n">of</span> <span class="n">keys</span><span class="p">:</span> <span class="mi">5</span>
+<span class="n">Key</span><span class="p">:</span> <span class="n">vno</span> <span class="mi">2</span><span class="p">,</span> <span class="n">aes256</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span>
+<span class="n">Key</span><span class="p">:</span> <span class="n">vno</span> <span class="mi">2</span><span class="p">,</span> <span class="n">aes128</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span>
+<span class="n">Key</span><span class="p">:</span> <span class="n">vno</span> <span class="mi">2</span><span class="p">,</span> <span class="n">des3</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">sha1</span>
+<span class="n">Key</span><span class="p">:</span> <span class="n">vno</span> <span class="mi">2</span><span class="p">,</span> <span class="n">des</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">crc</span>
+<span class="n">Key</span><span class="p">:</span> <span class="n">vno</span> <span class="mi">1</span><span class="p">,</span> <span class="n">des</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">crc</span><span class="p">:</span><span class="n">v4</span>
+<span class="p">[</span><span class="o">...</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Since the expected disruptions from rekeying the krbtgt principal are
+minor, after a short testing period, it is
+appropriate to rekey the other high-value principals, <code class="docutils literal notranslate"><span class="pre">kadmin/admin&#64;REALM</span></code>
+and <code class="docutils literal notranslate"><span class="pre">kadmin/changepw&#64;REALM</span></code>. These are the service principals used for
+changing user passwords and updating application keytabs.  The kadmin
+and password-changing services are regular kerberized services, so the
+session-key-selection algorithm described in <a class="reference internal" href="../enctypes.html#session-key-selection"><span class="std std-ref">Session key selection</span></a>
+applies.  It is particularly important to have strong session keys for
+these services, since user passwords and new long-term keys are conveyed
+over the encrypted channel.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># enctypes=aes256-cts-hmac-sha1-96:normal,\</span>
+<span class="o">&gt;</span> <span class="n">aes128</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span><span class="p">:</span><span class="n">normal</span><span class="p">,</span><span class="n">des3</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="p">:</span><span class="n">normal</span>
+<span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># kadmin.local -r ZONE.MIT.EDU -q &quot;cpw -e ${enctypes} -randkey \</span>
+<span class="o">&gt;</span> <span class="n">kadmin</span><span class="o">/</span><span class="n">admin</span><span class="s2">&quot;</span>
+<span class="n">Authenticating</span> <span class="k">as</span> <span class="n">principal</span> <span class="n">root</span><span class="o">/</span><span class="n">admin</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">password</span><span class="o">.</span>
+<span class="n">Key</span> <span class="k">for</span> <span class="s2">&quot;kadmin/admin@ZONE.MIT.EDU&quot;</span> <span class="n">randomized</span><span class="o">.</span>
+<span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># kadmin.local -r ZONE.MIT.EDU -q &quot;cpw -e ${enctypes} -randkey \</span>
+<span class="o">&gt;</span> <span class="n">kadmin</span><span class="o">/</span><span class="n">changepw</span><span class="s2">&quot;</span>
+<span class="n">Authenticating</span> <span class="k">as</span> <span class="n">principal</span> <span class="n">root</span><span class="o">/</span><span class="n">admin</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">password</span><span class="o">.</span>
+<span class="n">Key</span> <span class="k">for</span> <span class="s2">&quot;kadmin/changepw@ZONE.MIT.EDU&quot;</span> <span class="n">randomized</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>It is not necessary to retain a single-DES key for these services, since
+password changes are not part of normal daily workflow, and disruption
+from a client failure is likely to be minimal.  Furthermore, if a kerberos
+client experiences failure changing a user password or keytab key,
+this indicates that that client will become inoperative once services
+are rekeyed to non-DES enctypes.  Such problems can be detected early
+at this stage, giving more time for corrective action.</p>
+</section>
+<section id="adding-strong-keys-to-application-servers">
+<h3>Adding strong keys to application servers<a class="headerlink" href="#adding-strong-keys-to-application-servers" title="Permalink to this headline">¶</a></h3>
+<p>Before switching the default enctypes for new keys over to strong enctypes,
+it may be desired to test upgrading a handful of services with the
+new configuration before flipping the switch for the defaults.  This
+still requires using the <strong>-e</strong> argument in <a class="reference internal" href="../admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a> to get non-default
+enctypes:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># enctypes=aes256-cts-hmac-sha1-96:normal,\</span>
+<span class="o">&gt;</span> <span class="n">aes128</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span><span class="p">:</span><span class="n">normal</span><span class="p">,</span><span class="n">des3</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">sha1</span><span class="p">:</span><span class="n">normal</span><span class="p">,</span><span class="n">des</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">crc</span><span class="p">:</span><span class="n">normal</span>
+<span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># kadmin -r ZONE.MIT.EDU -p zephyr/zephyr@ZONE.MIT.EDU -k -t \</span>
+<span class="o">&gt;</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">zephyr</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span>  <span class="o">-</span><span class="n">q</span> <span class="s2">&quot;ktadd -e $</span><span class="si">{enctypes}</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">&gt; -k /etc/zephyr/krb5.keytab zephyr/zephyr@ZONE.MIT.EDU&quot;</span>
+<span class="n">Authenticating</span> <span class="k">as</span> <span class="n">principal</span> <span class="n">zephyr</span><span class="o">/</span><span class="n">zephyr</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">keytab</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">zephyr</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">zephyr</span><span class="o">/</span><span class="n">zephyr</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">4</span><span class="p">,</span> <span class="n">encryption</span> <span class="nb">type</span> <span class="n">aes256</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span> <span class="n">WRFILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">zephyr</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">zephyr</span><span class="o">/</span><span class="n">zephyr</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">4</span><span class="p">,</span> <span class="n">encryption</span> <span class="nb">type</span> <span class="n">aes128</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span> <span class="n">WRFILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">zephyr</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">zephyr</span><span class="o">/</span><span class="n">zephyr</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">4</span><span class="p">,</span> <span class="n">encryption</span> <span class="nb">type</span> <span class="n">des3</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">sha1</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span> <span class="n">WRFILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">zephyr</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">zephyr</span><span class="o">/</span><span class="n">zephyr</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">4</span><span class="p">,</span> <span class="n">encryption</span> <span class="nb">type</span> <span class="n">des</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">crc</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span> <span class="n">WRFILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">zephyr</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>Be sure to remove the old keys from the application keytab, per best
+practice.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># k5srvutil -f /etc/zephyr/krb5.keytab delold</span>
+<span class="n">Authenticating</span> <span class="k">as</span> <span class="n">principal</span> <span class="n">zephyr</span><span class="o">/</span><span class="n">zephyr</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">keytab</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">zephyr</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">zephyr</span><span class="o">/</span><span class="n">zephyr</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">3</span> <span class="n">removed</span> <span class="kn">from</span> <span class="nn">keytab</span> <span class="n">WRFILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">zephyr</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+</pre></div>
+</div>
+</section>
+<section id="adding-strong-keys-by-default">
+<h3>Adding strong keys by default<a class="headerlink" href="#adding-strong-keys-by-default" title="Permalink to this headline">¶</a></h3>
+<p>Once the high-visibility services have been rekeyed, it is probably
+appropriate to change <a class="reference internal" href="../conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a> to generate keys with the new
+encryption types by default.  This enables server administrators to generate
+new enctypes with the <strong>change</strong> subcommand of <a class="reference internal" href="../admin_commands/k5srvutil.html#k5srvutil-1"><span class="std std-ref">k5srvutil</span></a>,
+and causes user password
+changes to add new encryption types for their entries.  It will probably
+be necessary to implement administrative controls to cause all user
+principal keys to be updated in a reasonable period of time, whether
+by forcing password changes or a password synchronization service that
+has access to the current password and can add the new keys.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">realms</span><span class="p">]</span>
+        <span class="n">ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">supported_enctypes</span> <span class="o">=</span> <span class="n">aes256</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span><span class="p">:</span><span class="n">normal</span> <span class="n">aes128</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span><span class="p">:</span><span class="n">normal</span> <span class="n">des3</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">sha1</span><span class="p">:</span><span class="n">normal</span> <span class="n">des3</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="p">:</span><span class="n">normal</span> <span class="n">des</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">crc</span><span class="p">:</span><span class="n">normal</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The krb5kdc process must be restarted for these changes to take effect.</p>
+</div>
+<p>At this point, all service administrators can update their services and the
+servers behind them to take advantage of strong cryptography.
+If necessary, the server’s krb5 installation should be configured and/or
+upgraded to a version supporting non-DES keys.  See <a class="reference internal" href="../enctypes.html#enctypes"><span class="std std-ref">Encryption types</span></a> for
+krb5 version and configuration settings.
+Only when the service is configured to accept non-DES keys should
+the key version number be incremented and new keys generated
+(<code class="docutils literal notranslate"><span class="pre">k5srvutil</span> <span class="pre">change</span> <span class="pre">&amp;&amp;</span> <span class="pre">k5srvutil</span> <span class="pre">delold</span></code>).</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">root</span><span class="nd">@dr</span><span class="o">-</span><span class="n">willy</span><span class="p">:</span><span class="o">~</span><span class="c1"># k5srvutil change</span>
+<span class="n">Authenticating</span> <span class="k">as</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">dr</span><span class="o">-</span><span class="n">willy</span><span class="o">.</span><span class="n">xvm</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">keytab</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">dr</span><span class="o">-</span><span class="n">willy</span><span class="o">.</span><span class="n">xvm</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">3</span><span class="p">,</span> <span class="n">encryption</span> <span class="nb">type</span> <span class="n">AES</span><span class="o">-</span><span class="mi">256</span> <span class="n">CTS</span> <span class="n">mode</span> <span class="k">with</span> <span class="mi">96</span><span class="o">-</span><span class="n">bit</span> <span class="n">SHA</span><span class="o">-</span><span class="mi">1</span> <span class="n">HMAC</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span> <span class="n">WRFILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">dr</span><span class="o">-</span><span class="n">willy</span><span class="o">.</span><span class="n">xvm</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">3</span><span class="p">,</span> <span class="n">encryption</span> <span class="nb">type</span> <span class="n">AES</span><span class="o">-</span><span class="mi">128</span> <span class="n">CTS</span> <span class="n">mode</span> <span class="k">with</span> <span class="mi">96</span><span class="o">-</span><span class="n">bit</span> <span class="n">SHA</span><span class="o">-</span><span class="mi">1</span> <span class="n">HMAC</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span> <span class="n">WRFILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">dr</span><span class="o">-</span><span class="n">willy</span><span class="o">.</span><span class="n">xvm</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">3</span><span class="p">,</span> <span class="n">encryption</span> <span class="nb">type</span> <span class="n">Triple</span> <span class="n">DES</span> <span class="n">cbc</span> <span class="n">mode</span> <span class="k">with</span> <span class="n">HMAC</span><span class="o">/</span><span class="n">sha1</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span> <span class="n">WRFILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">dr</span><span class="o">-</span><span class="n">willy</span><span class="o">.</span><span class="n">xvm</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">3</span><span class="p">,</span> <span class="n">encryption</span> <span class="nb">type</span> <span class="n">DES</span> <span class="n">cbc</span> <span class="n">mode</span> <span class="k">with</span> <span class="n">CRC</span><span class="o">-</span><span class="mi">32</span> <span class="n">added</span> <span class="n">to</span> <span class="n">keytab</span> <span class="n">WRFILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+<span class="n">root</span><span class="nd">@dr</span><span class="o">-</span><span class="n">willy</span><span class="p">:</span><span class="o">~</span><span class="c1"># klist -e -k -t /etc/krb5.keytab</span>
+<span class="n">Keytab</span> <span class="n">name</span><span class="p">:</span> <span class="n">WRFILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span>
+<span class="n">KVNO</span> <span class="n">Timestamp</span>         <span class="n">Principal</span>
+<span class="o">----</span> <span class="o">-----------------</span> <span class="o">--------------------------------------------------------</span>
+   <span class="mi">2</span> <span class="mi">10</span><span class="o">/</span><span class="mi">10</span><span class="o">/</span><span class="mi">12</span> <span class="mi">17</span><span class="p">:</span><span class="mi">03</span><span class="p">:</span><span class="mi">59</span> <span class="n">host</span><span class="o">/</span><span class="n">dr</span><span class="o">-</span><span class="n">willy</span><span class="o">.</span><span class="n">xvm</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="p">(</span><span class="n">DES</span> <span class="n">cbc</span> <span class="n">mode</span> <span class="k">with</span> <span class="n">CRC</span><span class="o">-</span><span class="mi">32</span><span class="p">)</span>
+   <span class="mi">3</span> <span class="mi">12</span><span class="o">/</span><span class="mi">12</span><span class="o">/</span><span class="mi">12</span> <span class="mi">15</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mi">19</span> <span class="n">host</span><span class="o">/</span><span class="n">dr</span><span class="o">-</span><span class="n">willy</span><span class="o">.</span><span class="n">xvm</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="p">(</span><span class="n">AES</span><span class="o">-</span><span class="mi">256</span> <span class="n">CTS</span> <span class="n">mode</span> <span class="k">with</span> <span class="mi">96</span><span class="o">-</span><span class="n">bit</span> <span class="n">SHA</span><span class="o">-</span><span class="mi">1</span> <span class="n">HMAC</span><span class="p">)</span>
+   <span class="mi">3</span> <span class="mi">12</span><span class="o">/</span><span class="mi">12</span><span class="o">/</span><span class="mi">12</span> <span class="mi">15</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mi">19</span> <span class="n">host</span><span class="o">/</span><span class="n">dr</span><span class="o">-</span><span class="n">willy</span><span class="o">.</span><span class="n">xvm</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="p">(</span><span class="n">AES</span><span class="o">-</span><span class="mi">128</span> <span class="n">CTS</span> <span class="n">mode</span> <span class="k">with</span> <span class="mi">96</span><span class="o">-</span><span class="n">bit</span> <span class="n">SHA</span><span class="o">-</span><span class="mi">1</span> <span class="n">HMAC</span><span class="p">)</span>
+   <span class="mi">3</span> <span class="mi">12</span><span class="o">/</span><span class="mi">12</span><span class="o">/</span><span class="mi">12</span> <span class="mi">15</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mi">19</span> <span class="n">host</span><span class="o">/</span><span class="n">dr</span><span class="o">-</span><span class="n">willy</span><span class="o">.</span><span class="n">xvm</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="p">(</span><span class="n">Triple</span> <span class="n">DES</span> <span class="n">cbc</span> <span class="n">mode</span> <span class="k">with</span> <span class="n">HMAC</span><span class="o">/</span><span class="n">sha1</span><span class="p">)</span>
+   <span class="mi">3</span> <span class="mi">12</span><span class="o">/</span><span class="mi">12</span><span class="o">/</span><span class="mi">12</span> <span class="mi">15</span><span class="p">:</span><span class="mi">31</span><span class="p">:</span><span class="mi">19</span> <span class="n">host</span><span class="o">/</span><span class="n">dr</span><span class="o">-</span><span class="n">willy</span><span class="o">.</span><span class="n">xvm</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="p">(</span><span class="n">DES</span> <span class="n">cbc</span> <span class="n">mode</span> <span class="k">with</span> <span class="n">CRC</span><span class="o">-</span><span class="mi">32</span><span class="p">)</span>
+<span class="n">root</span><span class="nd">@dr</span><span class="o">-</span><span class="n">willy</span><span class="p">:</span><span class="o">~</span><span class="c1"># k5srvutil delold</span>
+<span class="n">Authenticating</span> <span class="k">as</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">dr</span><span class="o">-</span><span class="n">willy</span><span class="o">.</span><span class="n">xvm</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">keytab</span> <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+<span class="n">Entry</span> <span class="k">for</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">dr</span><span class="o">-</span><span class="n">willy</span><span class="o">.</span><span class="n">xvm</span><span class="o">.</span><span class="n">mit</span><span class="o">.</span><span class="n">edu</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">kvno</span> <span class="mi">2</span> <span class="n">removed</span> <span class="kn">from</span> <span class="nn">keytab</span> <span class="n">WRFILE</span><span class="p">:</span><span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">krb5</span><span class="o">.</span><span class="n">keytab</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>When a single service principal is shared by multiple backend servers in
+a load-balanced environment, it may be necessary to schedule downtime
+or adjust the population in the load-balanced pool in order to propagate
+the updated keytab to all hosts in the pool with minimal service interruption.</p>
+</section>
+<section id="removing-des-keys-from-usage">
+<h3>Removing DES keys from usage<a class="headerlink" href="#removing-des-keys-from-usage" title="Permalink to this headline">¶</a></h3>
+<p>This situation remains something of a testing or transitory state,
+as new DES keys are still being generated, and will be used if requested
+by a client.  To make more progress removing DES from the realm, the KDC
+should be configured to not generate such keys by default.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>An attacker posing as a client can implement a brute force attack against
+a DES key for any principal, if that key is in the current (highest-kvno)
+key list.  This attack is only possible if <strong>allow_weak_crypto = true</strong>
+is enabled on the KDC.  Setting the <strong>+requires_preauth</strong> flag on a
+principal forces this attack to be an online attack, much slower than
+the offline attack otherwise available to the attacker.  However, setting
+this flag on a service principal is not always advisable; see the entry in
+<a class="reference internal" href="../admin_commands/kadmin_local.html#add-principal"><span class="std std-ref">add_principal</span></a> for details.</p>
+</div>
+<p>The following KDC configuration will not generate DES keys by default:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">realms</span><span class="p">]</span>
+        <span class="n">ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">supported_enctypes</span> <span class="o">=</span> <span class="n">aes256</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span><span class="p">:</span><span class="n">normal</span> <span class="n">aes128</span><span class="o">-</span><span class="n">cts</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="o">-</span><span class="mi">96</span><span class="p">:</span><span class="n">normal</span> <span class="n">des3</span><span class="o">-</span><span class="n">cbc</span><span class="o">-</span><span class="n">sha1</span><span class="p">:</span><span class="n">normal</span> <span class="n">des3</span><span class="o">-</span><span class="n">hmac</span><span class="o">-</span><span class="n">sha1</span><span class="p">:</span><span class="n">normal</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>As before, the KDC process must be restarted for this change to take
+effect.  It is best practice to update kdc.conf on all KDCs, not just the
+primary, to avoid unpleasant surprises should the primary fail and a
+replica need to be promoted.</p>
+</div>
+<p>It is now appropriate to remove the legacy single-DES key from the
+<code class="docutils literal notranslate"><span class="pre">krbtgt/REALM</span></code> entry:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># kadmin.local -r ZONE.MIT.EDU -q &quot;cpw -randkey -keepold \</span>
+<span class="o">&gt;</span> <span class="n">krbtgt</span><span class="o">/</span><span class="n">ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span><span class="s2">&quot;</span>
+<span class="n">Authenticating</span> <span class="k">as</span> <span class="n">principal</span> <span class="n">host</span><span class="o">/</span><span class="n">admin</span><span class="nd">@ATHENA</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">password</span><span class="o">.</span>
+<span class="n">Key</span> <span class="k">for</span> <span class="s2">&quot;krbtgt/ZONE.MIT.EDU@ZONE.MIT.EDU&quot;</span> <span class="n">randomized</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>After the maximum ticket lifetime has passed, the old database entry
+should be removed.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">root</span><span class="nd">@casio</span> <span class="n">krb5kdc</span><span class="p">]</span><span class="c1"># kadmin.local -r ZONE.MIT.EDU -q &#39;purgekeys krbtgt/ZONE.MIT.EDU&#39;</span>
+<span class="n">Authenticating</span> <span class="k">as</span> <span class="n">principal</span> <span class="n">root</span><span class="o">/</span><span class="n">admin</span><span class="nd">@ZONE</span><span class="o">.</span><span class="n">MIT</span><span class="o">.</span><span class="n">EDU</span> <span class="k">with</span> <span class="n">password</span><span class="o">.</span>
+<span class="n">Old</span> <span class="n">keys</span> <span class="k">for</span> <span class="n">principal</span> <span class="s2">&quot;krbtgt/ZONE.MIT.EDU@ZONE.MIT.EDU&quot;</span> <span class="n">purged</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>After the KDC is restarted with the new <strong>supported_enctypes</strong>,
+all user password changes and application keytab updates will not
+generate DES keys by default.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>contents-vnder-pressvre:~&gt; kpasswd zonetest@ZONE.MIT.EDU
+Password for zonetest@ZONE.MIT.EDU:  [enter old password]
+Enter new password:                  [enter new password]
+Enter it again:                      [enter new password]
+Password changed.
+contents-vnder-pressvre:~&gt; kadmin -r ZONE.MIT.EDU -q &#39;getprinc zonetest&#39;
+[...]
+Number of keys: 3
+Key: vno 9, aes256-cts-hmac-sha1-96
+Key: vno 9, aes128-cts-hmac-sha1-96
+Key: vno 9, des3-cbc-sha1
+[...]
+
+[kaduk@glossolalia ~]$ kadmin -p kaduk@ZONE.MIT.EDU -r ZONE.MIT.EDU -k \
+&gt; -t kaduk-zone.keytab -q &#39;ktadd -k kaduk-zone.keytab kaduk@ZONE.MIT.EDU&#39;
+Authenticating as principal kaduk@ZONE.MIT.EDU with keytab kaduk-zone.keytab.
+Entry for principal kaduk@ZONE.MIT.EDU with kvno 3, encryption type aes256-cts-hmac-sha1-96 added to keytab WRFILE:kaduk-zone.keytab.
+Entry for principal kaduk@ZONE.MIT.EDU with kvno 3, encryption type aes128-cts-hmac-sha1-96 added to keytab WRFILE:kaduk-zone.keytab.
+Entry for principal kaduk@ZONE.MIT.EDU with kvno 3, encryption type des3-cbc-sha1 added to keytab WRFILE:kaduk-zone.keytab.
+</pre></div>
+</div>
+<p>Once all principals have been re-keyed, DES support can be disabled on the
+KDC (<strong>allow_weak_crypto = false</strong>), and client machines can remove
+<strong>allow_weak_crypto = true</strong> from their <a class="reference internal" href="../conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a> configuration
+files, completing the migration.  <strong>allow_weak_crypto</strong> takes precedence over
+all places where DES enctypes could be explicitly configured.  DES keys will
+not be used, even if they are present, when <strong>allow_weak_crypto = false</strong>.</p>
+</section>
+<section id="support-for-legacy-services">
+<h3>Support for legacy services<a class="headerlink" href="#support-for-legacy-services" title="Permalink to this headline">¶</a></h3>
+<p>If there remain legacy services which do not support non-DES enctypes
+(such as older versions of AFS), <strong>allow_weak_crypto</strong> must remain
+enabled on the KDC.  Client machines need not have this setting,
+though—applications which require DES can use API calls to allow
+weak crypto on a per-request basis, overriding the system krb5.conf.
+However, having <strong>allow_weak_crypto</strong> set on the KDC means that any
+principals which have a DES key in the database could still use those
+keys.  To minimize the use of DES in the realm and restrict it to just
+legacy services which require DES, it is necessary to remove all other
+DES keys.  The realm has been configured such that at password and
+keytab change, no DES keys will be generated by default.  The task
+then reduces to requiring user password changes and having server
+administrators update their service keytabs.  Administrative outreach
+will be necessary, and if the desire to eliminate DES is sufficiently
+strong, the KDC administrators may choose to randkey any principals
+which have not been rekeyed after some timeout period, forcing the
+user to contact the helpdesk for access.</p>
+</section>
+</section>
+<section id="the-database-master-key">
+<h2>The Database Master Key<a class="headerlink" href="#the-database-master-key" title="Permalink to this headline">¶</a></h2>
+<p>This procedure does not alter <code class="docutils literal notranslate"><span class="pre">K/M&#64;REALM</span></code>, the key used to encrypt key
+material in the Kerberos database.  (This is the key stored in the stash file
+on the KDC if stash files are used.)  However, the security risk of
+a single-DES key for <code class="docutils literal notranslate"><span class="pre">K/M</span></code> is minimal, given that access to material
+encrypted in <code class="docutils literal notranslate"><span class="pre">K/M</span></code> (the Kerberos database) is generally tightly controlled.
+If an attacker can gain access to the encrypted database, they likely
+have access to the stash file as well, rendering the weak cryptography
+broken by non-cryptographic means.  As such, upgrading <code class="docutils literal notranslate"><span class="pre">K/M</span></code> to a stronger
+encryption type is unlikely to be a high-priority task.</p>
+<p>Is is possible to upgrade the master key used for the database, if
+desired.  Using <a class="reference internal" href="../admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>’s <strong>add_mkey</strong>, <strong>use_mkey</strong>, and
+<strong>update_princ_encryption</strong> commands, a new master key can be added
+and activated for use on new key material, and the existing entries
+converted to the new master key.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">Retiring DES</a><ul>
+<li><a class="reference internal" href="#history">History</a></li>
+<li><a class="reference internal" href="#types-of-keys">Types of keys</a></li>
+<li><a class="reference internal" href="#upgrade-procedure">Upgrade procedure</a><ul>
+<li><a class="reference internal" href="#the-krbtgt-key-and-kdc-keys">The krbtgt key and KDC keys</a></li>
+<li><a class="reference internal" href="#adding-strong-keys-to-application-servers">Adding strong keys to application servers</a></li>
+<li><a class="reference internal" href="#adding-strong-keys-by-default">Adding strong keys by default</a></li>
+<li><a class="reference internal" href="#removing-des-keys-from-usage">Removing DES keys from usage</a></li>
+<li><a class="reference internal" href="#support-for-legacy-services">Support for legacy services</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#the-database-master-key">The Database Master Key</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../user/index.html">For users</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For administrators</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../install.html">Installation guide</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_files/index.html">Configuration Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../realm_config.html">Realm configuration decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database.html">Database administration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dbtypes.html">Database types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../lockout.html">Account lockout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../conf_ldap.html">Configuring Kerberos with OpenLDAP back-end</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../appl_servers.html">Application servers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../host_config.html">Host configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../backup_host.html">Backups of secure hosts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../pkinit.html">PKINIT configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../otp.html">OTP Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../spake.html">SPAKE Preauthentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../dictionary.html">Addressing dictionary attack risks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../princ_dns.html">Principal names and DNS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../enctypes.html">Encryption types</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../https.html">HTTPS proxy configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auth_indicator.html">Authentication indicators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../admin_commands/index.html">Administration  programs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../mitK5defaults.html">MIT Kerberos defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../env_variables.html">Environment variables</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../troubleshoot.html">Troubleshooting</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">Advanced topics</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Retiring DES</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../various_envs.html">Various links</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="index.html" title="Advanced topics"
+            >previous</a> |
+        <a href="../various_envs.html" title="Various links"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__Retiring DES">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

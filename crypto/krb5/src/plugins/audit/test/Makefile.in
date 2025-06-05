@@ -1,0 +1,21 @@
+mydir=plugins$(S)audit$(S)test
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+LIBBASE=k5audit_test
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/audit/test
+# Depends on libkrb5 and libkrb5support.
+SHLIB_EXPDEPS= $(KRB5_BASE_DEPLIBS)
+SHLIB_EXPLIBS= $(KRB5_BASE_LIBS)
+
+STOBJLISTS= OBJS.ST ../OBJS.ST
+STLIBOBJS= au_test.o
+
+SRCS= $(srcdir)/au_test.c
+
+all-unix: all-liblinks
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@

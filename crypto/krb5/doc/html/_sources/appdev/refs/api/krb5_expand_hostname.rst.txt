@@ -1,0 +1,52 @@
+krb5_expand_hostname -  Canonicalize a hostname, possibly using name service. 
+==============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_expand_hostname(krb5_context context, const char * host, char ** canonhost_out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **host** - Input hostname
+
+	          **[out]** **canonhost_out** - Canonicalized hostname
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function canonicalizes orig_hostname, possibly using name service lookups if configuration permits. Use krb5_free_string() to free *canonhost_out* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.15
+ 
+

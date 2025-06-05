@@ -1,0 +1,35 @@
+mydir=kprop
+BUILDTOP=$(REL)..
+
+all:	kprop kpropd kproplog
+
+CLIENTSRCS= $(srcdir)/kprop.c $(srcdir)/kprop_util.c
+CLIENTOBJS= kprop.o kprop_util.o
+
+SERVERSRCS= $(srcdir)/kpropd.c $(srcdir)/kpropd_rpc.c $(srcdir)/kprop_util.c
+SERVEROBJS= kpropd.o kpropd_rpc.o kprop_util.o
+
+LOGSRCS= $(srcdir)/kproplog.c
+LOGOBJS= kproplog.o
+
+SRCS= $(CLIENTSRCS) $(SERVERSRCS) $(LOGSRCS)
+
+
+kprop: $(CLIENTOBJS) $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o kprop $(CLIENTOBJS) $(KRB5_BASE_LIBS) @LIBUTIL@
+
+kpropd: $(SERVEROBJS) $(KDB5_DEPLIB) $(KADMCLNT_DEPLIBS) $(KRB5_BASE_DEPLIBS) $(APPUTILS_DEPLIB)
+	$(CC_LINK) -o kpropd $(SERVEROBJS) $(KDB5_LIB) $(KADMCLNT_LIBS) $(KRB5_BASE_LIBS) $(APPUTILS_LIB) @LIBUTIL@
+
+kproplog: $(LOGOBJS)
+	$(CC_LINK) -o kproplog $(LOGOBJS) $(KADMSRV_LIBS) $(KRB5_BASE_LIBS)
+
+install:
+	for f in kprop kpropd kproplog; do \
+	  $(INSTALL_PROGRAM) $$f \
+		$(DESTDIR)$(SERVER_BINDIR)/`echo $$f|sed '$(transform)'`; \
+	done
+
+clean:
+	$(RM) $(CLIENTOBJS) $(SERVEROBJS) $(LOGOBJS)
+	$(RM) kprop kpropd kproplog

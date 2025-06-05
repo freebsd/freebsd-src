@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-AS-REQ-data:
+
+KRB5_AS_REQ
+===========
+
+..
+.. data:: KRB5_AS_REQ
+..
+
+Initial authentication request.
+
+
+
+================== ======================
+``KRB5_AS_REQ``       ``((krb5_msgtype)10)``
+================== ======================

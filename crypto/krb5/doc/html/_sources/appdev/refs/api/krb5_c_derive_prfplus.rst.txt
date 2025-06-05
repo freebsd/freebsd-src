@@ -1,0 +1,48 @@
+krb5_c_derive_prfplus -  Derive a key using some input data (via RFC 6113 PRF+). 
+=================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_derive_prfplus(krb5_context context, const krb5_keyblock * k, const krb5_data * input, krb5_enctype enctype, krb5_keyblock ** out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **k** - KDC contribution key
+
+	          **[in]** **input** - Input string
+
+	          **[in]** **enctype** - Output key enctype (or **ENCTYPE_NULL** )
+
+	          **[out]** **out** - Derived keyblock
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function uses PRF+ as defined in RFC 6113 to derive a key from another key and an input string. If *enctype* is **ENCTYPE_NULL** , the output key will have the same enctype as the input key.
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,51 @@
+krb5_k_create_key -  Create a krb5_key from the enctype and key data in a keyblock. 
+====================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_k_create_key(krb5_context context, const krb5_keyblock * key_data, krb5_key * out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **key_data** - Keyblock
+
+	          **[out]** **out** - Opaque key
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - KRB5_BAD_ENCTYPE
+
+
+..
+
+
+
+
+
+
+
+The reference count on a key *out* is set to 1. Use krb5_k_free_key() to free *out* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

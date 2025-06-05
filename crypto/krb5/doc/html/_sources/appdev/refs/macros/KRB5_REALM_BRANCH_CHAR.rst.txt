@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-REALM-BRANCH-CHAR-data:
+
+KRB5_REALM_BRANCH_CHAR
+======================
+
+..
+.. data:: KRB5_REALM_BRANCH_CHAR
+..
+
+
+
+
+============================= ======================
+``KRB5_REALM_BRANCH_CHAR``       ``'.'``
+============================= ======================

@@ -1,0 +1,129 @@
+mydir=util$(S)ss
+BUILDTOP=$(REL)..$(S)..
+SED = sed
+
+INSTALLLIB=cp
+INSTALLFILE=cp
+
+all:
+
+TOP=$(BUILDTOP)
+
+LIBBASE=ss
+LIBMAJOR=1
+LIBMINOR=0
+RELDIR=../util/ss
+
+clean-unix:: clean-liblinks clean-libs clean-libobjs
+install-unix: install-libs
+
+# hard coded srcdir/.. is so that ss/ss.h works
+
+# hard coded .. is so that ss/ss_err.h works
+# hard coded ../et is so com_err.h works
+# CFLAGS= -g
+# CPPFLAGS= -I${INCDIR} -I. -I.. -I../et
+LOCALINCLUDES= -I. -I$(srcdir)/ $(RL_CFLAGS)
+
+# with ss_err.o first, ss_err.h should get rebuilt first too.  should not
+# be relying on this, though.
+STLIBOBJS=\
+	ss_err.o \
+	std_rqs.o \
+	invocation.o help.o \
+	execute_cmd.o listen.o parse.o error.o prompt.o \
+	request_tbl.o list_rqs.o pager.o requests.o \
+	data.o
+
+SRCS=	$(srcdir)/invocation.c $(srcdir)/help.c \
+	$(srcdir)/execute_cmd.c $(srcdir)/listen.c $(srcdir)/parse.c \
+	$(srcdir)/error.c $(srcdir)/prompt.c \
+	$(srcdir)/request_tbl.c $(srcdir)/list_rqs.c $(srcdir)/pager.c \
+	$(srcdir)/requests.c $(srcdir)/data.c
+EXTRADEPSRCS= ss_err.c std_rqs.c
+depend-dependencies: ss_err.h includes
+
+std_rqs.o: std_rqs.c ss_err.h
+
+MKCMDSOBJS=	mk_cmds.o utils.o options.o ct.tab.o cmd_tbl.lex.o
+
+#
+# stuff to build
+#
+
+all-unix:	mk_cmds ct_c.awk ct_c.sed includes # libss_p.a lint
+all-unix: all-liblinks
+all-windows:  all-unix
+
+dist:	archives
+
+install:
+
+includes: mk_cmds ct_c.sed ct_c.awk ss_err.h
+
+HDRDIR=$(BUILDTOP)/include/ss
+HDRS =	$(HDRDIR)/ss.h \
+	$(HDRDIR)/ss_err.h
+
+BUILD_HDRS = ss_err.h
+SRC_HDRS = ss.h 
+SRC_HDRS_DEP = $(srcdir)/ss.h
+
+generate-files-mac: ct_c.awk ct_c.sed std_rqs.c ss_err.h
+
+includes: $(HDRS)
+$(HDRDIR)/timestamp:
+	if [ -d $(HDRDIR) ] ; then :; else mkdir -p $(HDRDIR); fi
+	echo timestamp > $(HDRDIR)/timestamp
+$(HDRDIR)/ss.h: ss.h $(HDRDIR)/timestamp
+	$(RM) $(HDRDIR)/ss.h
+	$(CP) $(srcdir)/ss.h $(HDRDIR)/ss.h
+$(HDRDIR)/ss_err.h: ss_err.h $(HDRDIR)/timestamp
+	$(RM) $(HDRDIR)/ss_err.h
+	$(CP) ss_err.h $(HDRDIR)/ss_err.h
+
+clean-unix::
+	$(RM) $(HDRS) $(HDRDIR)/timestamp
+	$(RM) -r $(HDRDIR)
+
+std_rqs.c: std_rqs.ct mk_cmds ct_c.sed ct_c.awk
+
+ss_err.h: ss_err.et
+
+ss_err.c: ss_err.et
+
+depend: ss_err.h
+
+ct.tab.c ct.tab.h: ct.y
+	$(RM) ct.tab.* y.*
+	$(YACC) -d $(srcdir)/ct.y
+	$(MV) y.tab.c ct.tab.c
+	$(MV) y.tab.h ct.tab.h
+
+# install_library_target(ss,$(OBJS),$(SRCS),)
+
+mk_cmds: $(srcdir)/mk_cmds.sh $(srcdir)/config_script 
+	$(SHELL) $(srcdir)/config_script $(srcdir)/mk_cmds.sh . $(AWK) $(SED) > mk_cmds
+	chmod 755 mk_cmds	
+
+ct_c.awk: $(srcdir)/ct_c_awk.in
+	$(RM) $@
+	$(CP) $(srcdir)/ct_c_awk.in $@
+
+ct_c.sed: $(srcdir)/ct_c_sed.in
+	$(SED) -e '/^#/d' $(srcdir)/ct_c_sed.in > ct_c.sed
+
+clean:
+	$(RM) ss_err.o ss_err.c ss_err.h std_rqs.c
+	$(RM) mk_cmds ct_c.awk ct_c.sed $(MKCMDSOBJS)
+	rm -f *.o *~ \#* *.bak core \
+		ss_err.h ct.tab.c ct.tab.h cmd_tbl.lex.c \
+		lex.yy.c y.tab.c \
+		libss.a libss_p.a llib-lss.ln mk_cmds \
+		ss.ar ss.tar \
+		TAGS test_ss
+
+@libpriv_frag@
+@lib_frag@
+@libobj_frag@
+

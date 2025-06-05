@@ -1,0 +1,42 @@
+*** /tmp/,RCSt1a21720	Wed Apr  3 11:49:55 1996
+--- page.h	Wed Apr  3 08:42:25 1996
+***************
+*** 158,163
+  
+  #define PAIRFITS(P,K,D)	((PAIRSIZE((K),(D))) <= FREESPACE((P)))
+  #define BIGPAIRFITS(P)	((FREESPACE((P)) >= PAIR_OVERHEAD))
+  #define FREESPACE(P) \
+  	((OFFSET((P)) - PAGE_OVERHEAD - (NUM_ENT((P)) * PAIR_OVERHEAD)))
+  
+
+--- 158,169 -----
+  
+  #define PAIRFITS(P,K,D)	((PAIRSIZE((K),(D))) <= FREESPACE((P)))
+  #define BIGPAIRFITS(P)	((FREESPACE((P)) >= PAIR_OVERHEAD))
++ /*
++  * Since these are all unsigned, we need to guarantee that we never go
++  * negative.  Offset values are 0-based and overheads are one based (i.e.
++  * one byte of overhead is 1, not 0), so we need to convert OFFSETs to
++  * 1-based counting before subtraction.
++  */
+  #define FREESPACE(P) \
+  	((OFFSET((P)) + 1 - PAGE_OVERHEAD - (NUM_ENT((P)) * PAIR_OVERHEAD)))
+  
+***************
+*** 159,165
+  #define PAIRFITS(P,K,D)	((PAIRSIZE((K),(D))) <= FREESPACE((P)))
+  #define BIGPAIRFITS(P)	((FREESPACE((P)) >= PAIR_OVERHEAD))
+  #define FREESPACE(P) \
+! 	((OFFSET((P)) - PAGE_OVERHEAD - (NUM_ENT((P)) * PAIR_OVERHEAD)))
+  
+  /* 
+   * Overhead on header pages is just one word -- the length of the
+
+--- 165,171 -----
+   * 1-based counting before subtraction.
+   */
+  #define FREESPACE(P) \
+! 	((OFFSET((P)) + 1 - PAGE_OVERHEAD - (NUM_ENT((P)) * PAIR_OVERHEAD)))
+  
+  /* 
+   * Overhead on header pages is just one word -- the length of the

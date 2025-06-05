@@ -1,0 +1,13 @@
+mydir=appl$(S)sample$(S)sclient
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+all: sclient
+
+sclient: sclient.o $(KRB5_BASE_DEPLIBS)
+	$(CC_LINK) -o sclient sclient.o $(KRB5_BASE_LIBS)
+
+clean:
+	$(RM) sclient.o sclient
+
+install:
+	$(INSTALL_PROGRAM) sclient ${DESTDIR}$(CLIENT_BINDIR)/sclient

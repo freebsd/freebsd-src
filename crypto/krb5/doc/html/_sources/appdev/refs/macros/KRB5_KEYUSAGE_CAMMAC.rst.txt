@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-CAMMAC-data:
+
+KRB5_KEYUSAGE_CAMMAC
+====================
+
+..
+.. data:: KRB5_KEYUSAGE_CAMMAC
+..
+
+
+
+
+=========================== ======================
+``KRB5_KEYUSAGE_CAMMAC``       ``64``
+=========================== ======================

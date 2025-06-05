@@ -1,0 +1,61 @@
+krb5_set_trace_filename -  Specify a file name for directing trace events. 
+===========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_set_trace_filename(krb5_context context, const char * filename)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **filename** - File name
+
+
+..
+
+
+:retval:
+         -   KRB5_TRACE_NOSUPP   Tracing is not supported in the library.
+
+
+..
+
+
+
+
+
+
+
+Open *filename* for appending (creating it, if necessary) and set up a callback to write trace events to it.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 This function overrides the information passed through the *KRB5_TRACE* environment variable.
+ 
+
+
+.. note::
+
+	 New in 1.9
+ 
+

@@ -1,0 +1,114 @@
+# makefile: Constructs the Kerberos for Windows CCAPI server.
+
+#BUILDTOP is krb5/src and is relative to krb5/src/ccapi/server/win, for making Makefile.
+BUILDTOP=..\..\..
+CCAPI   = $(BUILDTOP)\CCAPI
+CO      = $(CCAPI)\common
+COWIN   = $(CCAPI)\common\win
+CCUTIL  = $(CCAPI)\common\win\OldCC
+SRVDIR  = $(CCAPI)\server
+SRVWIN  = $(SRVDIR)\win
+POSIX   = $(BUILDTOP)\lib\krb5\posix
+SRCTMP  = $(SRVWIN)\srctmp
+
+!if defined(KRB5_KFW_COMPILE)
+KFWINC= /I$(BUILDTOP)\..\..\krbcc\include
+!endif
+
+OBJS	= $(OUTPRE)cci_array_internal.$(OBJEXT) \
+          $(OUTPRE)cci_cred_union.$(OBJEXT) \
+          $(OUTPRE)cci_debugging.$(OBJEXT) \
+          $(OUTPRE)cci_identifier.$(OBJEXT) \
+          $(OUTPRE)cci_message.$(OBJEXT) \
+          $(OUTPRE)cci_os_debugging.$(OBJEXT) \
+          $(OUTPRE)cci_os_identifier.$(OBJEXT) \
+          $(OUTPRE)ccs_array.$(OBJEXT) \
+          $(OUTPRE)ccs_cache_collection.$(OBJEXT) \
+          $(OUTPRE)ccs_callback.$(OBJEXT) \
+          $(OUTPRE)ccs_ccache.$(OBJEXT) \
+          $(OUTPRE)ccs_ccache_iterator.$(OBJEXT) \
+          $(OUTPRE)ccs_client.$(OBJEXT) \
+          $(OUTPRE)ccs_credentials.$(OBJEXT) \
+          $(OUTPRE)ccs_credentials_iterator.$(OBJEXT) \
+          $(OUTPRE)ccs_list.$(OBJEXT) \
+          $(OUTPRE)ccs_list_internal.$(OBJEXT) \
+          $(OUTPRE)ccs_lock.$(OBJEXT) \
+          $(OUTPRE)ccs_lock_state.$(OBJEXT) \
+          $(OUTPRE)ccs_os_pipe.$(OBJEXT) \
+          $(OUTPRE)ccs_os_server.$(OBJEXT) \
+          $(OUTPRE)ccs_pipe.$(OBJEXT) \
+          $(OUTPRE)ccs_reply_c.$(OBJEXT) \
+          $(OUTPRE)ccs_request_proc.$(OBJEXT) \
+          $(OUTPRE)ccs_server.$(OBJEXT) \
+          $(OUTPRE)ccs_win_pipe.$(OBJEXT) \
+          $(OUTPRE)ccs_request_s.$(OBJEXT) \
+          $(OUTPRE)ccutils.$(OBJEXT) \
+          $(OUTPRE)init.$(OBJEXT) \
+          $(OUTPRE)opts.$(OBJEXT) \
+          $(OUTPRE)secure.$(OBJEXT) \
+          $(OUTPRE)tls.$(OBJEXT) \
+          $(OUTPRE)util.$(OBJEXT) \
+          $(OUTPRE)win-utils.$(OBJEXT) \
+          $(OUTPRE)WorkItem.$(OBJEXT) \
+          $(OUTPRE)WorkQueue.$(OBJEXT)
+
+##### Options
+
+# Because all the sources are pulled together into the temp directory SRCTMP,
+#  the only includes we need are to directories outside of ccapi.
+LOCALINCLUDES = /I..\$(BUILDTOP) /I..\$(BUILDTOP)\include /I..\$(BUILDTOP)\include\krb5 $(KFWINC) \
+    -I..\$(BUILDTOP)\util\et /I.
+MIDLI  = /I..\$(BUILDTOP)\include
+
+CPPFLAGS = $(CPPFLAGS) /EHsc -D_CRTAPI1=_cdecl -D_CRTAPI2=_cdecl -DWINVER=0x0501 \
+-D_WIN32_WINNT=0x0501 -D_CRT_SECURE_NO_WARNINGS
+
+##### Linker
+LINK	= link
+LIBS	= ..\$(SLIB) rpcrt4.lib advapi32.lib ws2_32.lib user32.lib
+LFLAGS	= /nologo $(LOPTS)
+
+
+all: Makefile copysrc midl $(OUTPRE)ccapiserver.exe finish
+
+ccs_request.h ccs_request_c.c ccs_request_s.c : ccs_request.idl ccs_request.acf
+    midl $(MIDL_OPTIMIZATION) $(MIDLI) -oldnames -cpp_cmd $(CC) -cpp_opt "-E" \
+    ccs_request.idl
+
+ccs_reply.h   ccs_reply_c.c   ccs_reply_s.c   : ccs_reply.idl   ccs_reply.acf
+    midl $(MIDL_OPTIMIZATION) $(MIDLI) -oldnames -cpp_cmd $(CC) -cpp_opt "-E" \
+    ccs_reply.idl
+
+copysrc :
+    echo "Copying all sources needed to build ccapiserver.exe to $(SRCTMP)"
+    if NOT exist $(SRCTMP)\nul mkdir $(SRCTMP)
+    xcopy /D/Y   $(CO)\*.*     $(SRCTMP)
+    xcopy /D/Y   $(COWIN)\*.*  $(SRCTMP)
+    xcopy /D/Y   $(CCUTIL)\*.* $(SRCTMP)
+    xcopy /D/Y   $(SRVDIR)\*.* $(SRCTMP)
+    xcopy /D/Y   $(SRVWIN)\*.* $(SRCTMP)
+    cd $(SRCTMP)
+    if NOT exist $(OUTPRE)\nul mkdir $(OUTPRE)
+
+midl : ccs_request.h ccs_reply.h
+
+VERSIONRC = $(BUILDTOP)\..\windows\version.rc
+CCAPISERVERRES = $(OUTPRE)ccapiserver.res
+$(CCAPISERVERRES): $(VERSIONRC)
+	$(RC) $(RCFLAGS) -DCCAPISERVER_APP -fo $@ -r $**
+
+$(OUTPRE)ccapiserver.exe: $(OBJS) $(CCAPISERVERRES)
+	$(LINK) $(LFLAGS) /map:$*.map /out:$@ $(OBJS) $(LIBS) $(CCAPISERVERRES) $(conlibsdll) $(conflags)
+
+finish :
+    @echo "Finished building ccapiserver.exe"
+    cd
+
+clean:
+	if exist $(OUTPRE)*.exe del $(OUTPRE)*.exe
+	if exist $(OUTPRE)*.obj del $(OUTPRE)*.obj
+	if exist $(OUTPRE)*.res del $(OUTPRE)*.res
+	if exist $(OUTPRE)*.map del $(OUTPRE)*.map
+	if exist $(OUTPRE)*.pdb del $(OUTPRE)*.pdb
+	if exist *.err del *.err
+    if exist $(SRCTMP) rmdir /s /q $(SRCTMP)

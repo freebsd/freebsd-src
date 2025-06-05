@@ -1,0 +1,303 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>kerberos &#8212; MIT Kerberos Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/agogo.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/kerb.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../../about.html" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="copyright" title="Copyright" href="../../copyright.html" />
+    <link rel="next" title=".k5login" href="k5login.html" />
+    <link rel="prev" title="User config files" href="index.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+        <div class="header">
+            
+            
+            <h1><a href="../../index.html">MIT Kerberos Documentation</a></h1>
+            
+            <div class="rel">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            accesskey="C">Contents</a> |
+        <a href="index.html" title="User config files"
+            accesskey="P">previous</a> |
+        <a href="k5login.html" title=".k5login"
+            accesskey="N">next</a> |
+        <a href="../../genindex.html" title="General Index"
+            accesskey="I">index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            accesskey="S">Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kerberos">feedback</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="kerberos">
+<span id="kerberos-7"></span><h1>kerberos<a class="headerlink" href="#kerberos" title="Permalink to this headline">¶</a></h1>
+<section id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The Kerberos system authenticates individual users in a network
+environment.  After authenticating yourself to Kerberos, you can use
+Kerberos-enabled programs without having to present passwords or
+certificates to those programs.</p>
+<p>If you receive the following response from <a class="reference internal" href="../user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a>:</p>
+<p>kinit: Client not found in Kerberos database while getting initial
+credentials</p>
+<p>you haven’t been registered as a Kerberos user.  See your system
+administrator.</p>
+<p>A Kerberos name usually contains three parts.  The first is the
+<strong>primary</strong>, which is usually a user’s or service’s name.  The second
+is the <strong>instance</strong>, which in the case of a user is usually null.
+Some users may have privileged instances, however, such as <code class="docutils literal notranslate"><span class="pre">root</span></code> or
+<code class="docutils literal notranslate"><span class="pre">admin</span></code>.  In the case of a service, the instance is the fully
+qualified name of the machine on which it runs; i.e. there can be an
+ssh service running on the machine ABC (<a class="reference external" href="mailto:ssh/ABC&#37;&#52;&#48;REALM">ssh/ABC<span>&#64;</span>REALM</a>), which is
+different from the ssh service running on the machine XYZ
+(<a class="reference external" href="mailto:ssh/XYZ&#37;&#52;&#48;REALM">ssh/XYZ<span>&#64;</span>REALM</a>).  The third part of a Kerberos name is the <strong>realm</strong>.
+The realm corresponds to the Kerberos service providing authentication
+for the principal.  Realms are conventionally all-uppercase, and often
+match the end of hostnames in the realm (for instance, host01.example.com
+might be in realm EXAMPLE.COM).</p>
+<p>When writing a Kerberos name, the principal name is separated from the
+instance (if not null) by a slash, and the realm (if not the local
+realm) follows, preceded by an “&#64;” sign.  The following are examples
+of valid Kerberos names:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">david</span>
+<span class="n">jennifer</span><span class="o">/</span><span class="n">admin</span>
+<span class="n">joeuser</span><span class="nd">@BLEEP</span><span class="o">.</span><span class="n">COM</span>
+<span class="n">cbrown</span><span class="o">/</span><span class="n">root</span><span class="nd">@FUBAR</span><span class="o">.</span><span class="n">ORG</span>
+</pre></div>
+</div>
+<p>When you authenticate yourself with Kerberos you get an initial
+Kerberos <strong>ticket</strong>.  (A Kerberos ticket is an encrypted protocol
+message that provides authentication.)  Kerberos uses this ticket for
+network utilities such as ssh.  The ticket transactions are done
+transparently, so you don’t have to worry about their management.</p>
+<p>Note, however, that tickets expire.  Administrators may configure more
+privileged tickets, such as those with service or instance of <code class="docutils literal notranslate"><span class="pre">root</span></code>
+or <code class="docutils literal notranslate"><span class="pre">admin</span></code>, to expire in a few minutes, while tickets that carry
+more ordinary privileges may be good for several hours or a day.  If
+your login session extends beyond the time limit, you will have to
+re-authenticate yourself to Kerberos to get new tickets using the
+<a class="reference internal" href="../user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a> command.</p>
+<p>Some tickets are <strong>renewable</strong> beyond their initial lifetime.  This
+means that <code class="docutils literal notranslate"><span class="pre">kinit</span> <span class="pre">-R</span></code> can extend their lifetime without requiring
+you to re-authenticate.</p>
+<p>If you wish to delete your local tickets, use the <a class="reference internal" href="../user_commands/kdestroy.html#kdestroy-1"><span class="std std-ref">kdestroy</span></a>
+command.</p>
+<p>Kerberos tickets can be forwarded.  In order to forward tickets, you
+must request <strong>forwardable</strong> tickets when you kinit.  Once you have
+forwardable tickets, most Kerberos programs have a command line option
+to forward them to the remote host.  This can be useful for, e.g.,
+running kinit on your local machine and then sshing into another to do
+work.  Note that this should not be done on untrusted machines since
+they will then have your tickets.</p>
+</section>
+<section id="environment-variables">
+<h2>ENVIRONMENT VARIABLES<a class="headerlink" href="#environment-variables" title="Permalink to this headline">¶</a></h2>
+<p>Several environment variables affect the operation of Kerberos-enabled
+programs.  These include:</p>
+<dl>
+<dt><strong>KRB5CCNAME</strong></dt><dd><p>Default name for the credentials cache file, in the form
+<em>TYPE</em>:<em>residual</em>.  The type of the default cache may determine
+the availability of a cache collection.  <code class="docutils literal notranslate"><span class="pre">FILE</span></code> is not a
+collection type; <code class="docutils literal notranslate"><span class="pre">KEYRING</span></code>, <code class="docutils literal notranslate"><span class="pre">DIR</span></code>, and <code class="docutils literal notranslate"><span class="pre">KCM</span></code> are.</p>
+<p>If not set, the value of <strong>default_ccache_name</strong> from
+configuration files (see <strong>KRB5_CONFIG</strong>) will be used.  If that
+is also not set, the default <em>type</em> is <code class="docutils literal notranslate"><span class="pre">FILE</span></code>, and the
+<em>residual</em> is the path /tmp/krb5cc_*uid*, where <em>uid</em> is the
+decimal user ID of the user.</p>
+</dd>
+<dt><strong>KRB5_KTNAME</strong></dt><dd><p>Specifies the location of the default keytab file, in the form
+<em>TYPE</em>:<em>residual</em>.  If no <em>type</em> is present, the <strong>FILE</strong> type is
+assumed and <em>residual</em> is the pathname of the keytab file.  If
+unset, <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">DEFKTNAME</span></a> will be used.</p>
+</dd>
+<dt><strong>KRB5_CONFIG</strong></dt><dd><p>Specifies the location of the Kerberos configuration file.  The
+default is <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">SYSCONFDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5.conf</span></code>.  Multiple filenames can
+be specified, separated by a colon; all files which are present
+will be read.</p>
+</dd>
+<dt><strong>KRB5_KDC_PROFILE</strong></dt><dd><p>Specifies the location of the KDC configuration file, which
+contains additional configuration directives for the Key
+Distribution Center daemon and associated programs.  The default
+is <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">LOCALSTATEDIR</span></a><code class="docutils literal notranslate"><span class="pre">/krb5kdc</span></code><code class="docutils literal notranslate"><span class="pre">/kdc.conf</span></code>.</p>
+</dd>
+<dt><strong>KRB5RCACHENAME</strong></dt><dd><p>(New in release 1.18) Specifies the location of the default replay
+cache, in the form <em>type</em>:<em>residual</em>.  The <code class="docutils literal notranslate"><span class="pre">file2</span></code> type with a
+pathname residual specifies a replay cache file in the version-2
+format in the specified location.  The <code class="docutils literal notranslate"><span class="pre">none</span></code> type (residual is
+ignored) disables the replay cache.  The <code class="docutils literal notranslate"><span class="pre">dfl</span></code> type (residual is
+ignored) indicates the default, which uses a file2 replay cache in
+a temporary directory.  The default is <code class="docutils literal notranslate"><span class="pre">dfl:</span></code>.</p>
+</dd>
+<dt><strong>KRB5RCACHETYPE</strong></dt><dd><p>Specifies the type of the default replay cache, if
+<strong>KRB5RCACHENAME</strong> is unspecified.  No residual can be specified,
+so <code class="docutils literal notranslate"><span class="pre">none</span></code> and <code class="docutils literal notranslate"><span class="pre">dfl</span></code> are the only useful types.</p>
+</dd>
+<dt><strong>KRB5RCACHEDIR</strong></dt><dd><p>Specifies the directory used by the <code class="docutils literal notranslate"><span class="pre">dfl</span></code> replay cache type.
+The default is the value of the <strong>TMPDIR</strong> environment variable,
+or <code class="docutils literal notranslate"><span class="pre">/var/tmp</span></code> if <strong>TMPDIR</strong> is not set.</p>
+</dd>
+<dt><strong>KRB5_TRACE</strong></dt><dd><p>Specifies a filename to write trace log output to.  Trace logs can
+help illuminate decisions made internally by the Kerberos
+libraries.  For example, <code class="docutils literal notranslate"><span class="pre">env</span> <span class="pre">KRB5_TRACE=/dev/stderr</span> <span class="pre">kinit</span></code>
+would send tracing information for <a class="reference internal" href="../user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a> to
+<code class="docutils literal notranslate"><span class="pre">/dev/stderr</span></code>.  The default is not to write trace log output
+anywhere.</p>
+</dd>
+<dt><strong>KRB5_CLIENT_KTNAME</strong></dt><dd><p>Default client keytab file name.  If unset, <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">DEFCKTNAME</span></a> will be
+used).</p>
+</dd>
+<dt><strong>KPROP_PORT</strong></dt><dd><p><a class="reference internal" href="../../admin/admin_commands/kprop.html#kprop-8"><span class="std std-ref">kprop</span></a> port to use.  Defaults to 754.</p>
+</dd>
+<dt><strong>GSS_MECH_CONFIG</strong></dt><dd><p>Specifies a filename containing GSSAPI mechanism module
+configuration.  The default is to read <a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">SYSCONFDIR</span></a><code class="docutils literal notranslate"><span class="pre">/gss/mech</span></code>
+and files with a <code class="docutils literal notranslate"><span class="pre">.conf</span></code> suffix within the directory
+<a class="reference internal" href="../../mitK5defaults.html#paths"><span class="std std-ref">SYSCONFDIR</span></a><code class="docutils literal notranslate"><span class="pre">/gss/mech.d</span></code>.</p>
+</dd>
+</dl>
+<p>Most environment variables are disabled for certain programs, such as
+login system programs and setuid programs, which are designed to be
+secure when run within an untrusted process environment.</p>
+</section>
+<section id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="../user_commands/kdestroy.html#kdestroy-1"><span class="std std-ref">kdestroy</span></a>, <a class="reference internal" href="../user_commands/kinit.html#kinit-1"><span class="std std-ref">kinit</span></a>, <a class="reference internal" href="../user_commands/klist.html#klist-1"><span class="std std-ref">klist</span></a>,
+<a class="reference internal" href="../user_commands/kswitch.html#kswitch-1"><span class="std std-ref">kswitch</span></a>, <a class="reference internal" href="../user_commands/kpasswd.html#kpasswd-1"><span class="std std-ref">kpasswd</span></a>, <a class="reference internal" href="../user_commands/ksu.html#ksu-1"><span class="std std-ref">ksu</span></a>,
+<a class="reference internal" href="../../admin/conf_files/krb5_conf.html#krb5-conf-5"><span class="std std-ref">krb5.conf</span></a>, <a class="reference internal" href="../../admin/conf_files/kdc_conf.html#kdc-conf-5"><span class="std std-ref">kdc.conf</span></a>, <a class="reference internal" href="../../admin/admin_commands/kadmin_local.html#kadmin-1"><span class="std std-ref">kadmin</span></a>,
+<a class="reference internal" href="../../admin/admin_commands/kadmind.html#kadmind-8"><span class="std std-ref">kadmind</span></a>, <a class="reference internal" href="../../admin/admin_commands/kdb5_util.html#kdb5-util-8"><span class="std std-ref">kdb5_util</span></a>, <a class="reference internal" href="../../admin/admin_commands/krb5kdc.html#krb5kdc-8"><span class="std std-ref">krb5kdc</span></a></p>
+</section>
+<section id="bugs">
+<h2>BUGS<a class="headerlink" href="#bugs" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="authors">
+<h2>AUTHORS<a class="headerlink" href="#authors" title="Permalink to this headline">¶</a></h2>
+<div class="line-block">
+<div class="line">Steve Miller, MIT Project Athena/Digital Equipment Corporation</div>
+<div class="line">Clifford Neuman, MIT Project Athena</div>
+<div class="line">Greg Hudson, MIT Kerberos Consortium</div>
+<div class="line">Robbie Harwood, Red Hat, Inc.</div>
+</div>
+</section>
+<section id="history">
+<h2>HISTORY<a class="headerlink" href="#history" title="Permalink to this headline">¶</a></h2>
+<p>The MIT Kerberos 5 implementation was developed at MIT, with
+contributions from many outside parties.  It is currently maintained
+by the MIT Kerberos Consortium.</p>
+</section>
+<section id="restrictions">
+<h2>RESTRICTIONS<a class="headerlink" href="#restrictions" title="Permalink to this headline">¶</a></h2>
+<p>Copyright 1985, 1986, 1989-1996, 2002, 2011, 2018 Masachusetts
+Institute of Technology</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          
+    <h2>On this page</h2>
+    <ul>
+<li><a class="reference internal" href="#">kerberos</a><ul>
+<li><a class="reference internal" href="#description">DESCRIPTION</a></li>
+<li><a class="reference internal" href="#environment-variables">ENVIRONMENT VARIABLES</a></li>
+<li><a class="reference internal" href="#see-also">SEE ALSO</a></li>
+<li><a class="reference internal" href="#bugs">BUGS</a></li>
+<li><a class="reference internal" href="#authors">AUTHORS</a></li>
+<li><a class="reference internal" href="#history">HISTORY</a></li>
+<li><a class="reference internal" href="#restrictions">RESTRICTIONS</a></li>
+</ul>
+</li>
+</ul>
+
+    <br/>
+    <h2>Table of contents</h2>
+    <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../index.html">For users</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="../pwd_mgmt.html">Password management</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../tkt_mgmt.html">Ticket management</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="index.html">User config files</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">kerberos</a></li>
+<li class="toctree-l3"><a class="reference internal" href="k5login.html">.k5login</a></li>
+<li class="toctree-l3"><a class="reference internal" href="k5identity.html">.k5identity</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user_commands/index.html">User commands</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../admin/index.html">For administrators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../appdev/index.html">For application developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../plugindev/index.html">For plugin module developers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build/index.html">Building Kerberos V5</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../basic/index.html">Kerberos V5 concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../formats/index.html">Protocols and file formats</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../mitK5features.html">MIT Kerberos features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../build_this.html">How to build this documentation from the source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about.html">Contributing to the MIT Kerberos Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../resources.html">Resources</a></li>
+</ul>
+
+    <br/>
+    <h4><a href="../../index.html">Full Table of Contents</a></h4>
+    <h4>Search</h4>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+        <div class="footer" >
+            <div class="right" ><i>Release: 1.21.3</i><br />
+                &copy; <a href="../../copyright.html">Copyright</a> 1985-2024, MIT.
+            </div>
+            <div class="left">
+                
+        <a href="../../index.html" title="Full Table of Contents"
+            >Contents</a> |
+        <a href="index.html" title="User config files"
+            >previous</a> |
+        <a href="k5login.html" title=".k5login"
+            >next</a> |
+        <a href="../../genindex.html" title="General Index"
+            >index</a> |
+        <a href="../../search.html" title="Enter search criteria"
+            >Search</a> |
+    <a href="mailto:krb5-bugs@mit.edu?subject=Documentation__kerberos">feedback</a>
+            </div>
+        </div>
+    </div>
+
+  </body>
+</html>

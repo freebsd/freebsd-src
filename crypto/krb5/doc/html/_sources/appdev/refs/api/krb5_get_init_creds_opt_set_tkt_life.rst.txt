@@ -1,0 +1,42 @@
+krb5_get_init_creds_opt_set_tkt_life -  Set the ticket lifetime in initial credential options. 
+===============================================================================================
+
+..
+
+.. c:function:: void krb5_get_init_creds_opt_set_tkt_life(krb5_get_init_creds_opt * opt, krb5_deltat tkt_life)
+
+..
+
+
+:param:
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **tkt_life** - Ticket lifetime
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

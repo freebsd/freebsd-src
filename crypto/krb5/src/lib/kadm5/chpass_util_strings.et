@@ -1,0 +1,58 @@
+# this is really a string table for chpass_principal_util
+
+error_table ovku
+
+error_code CHPASS_UTIL_GET_POLICY_INFO, "while getting policy info."
+error_code CHPASS_UTIL_GET_PRINC_INFO, "while getting principal info."
+error_code CHPASS_UTIL_NEW_PASSWORD_MISMATCH, 
+	"New passwords do not match - password not changed.\n"
+
+error_code CHPASS_UTIL_NEW_PASSWORD_PROMPT, "New password"
+error_code CHPASS_UTIL_NEW_PASSWORD_AGAIN_PROMPT, "New password (again)"
+error_code CHPASS_UTIL_NO_PASSWORD_READ, "You must type a password. Passwords must be at least one character long.\n"
+error_code CHPASS_UTIL_NO_POLICY_YET_Q_ERROR, 
+"yet no policy set!  Contact your system security administrator."
+
+error_code CHPASS_UTIL_PASSWORD_CHANGED, "Password changed.\n"
+
+error_code CHPASS_UTIL_PASSWORD_IN_DICTIONARY,
+"New password was found in a dictionary of possible passwords and\n\
+therefore may be easily guessed. Please choose another password.\n\
+See the kpasswd man page for help in choosing a good password."
+
+error_code CHPASS_UTIL_PASSWORD_NOT_CHANGED, "Password not changed."
+
+error_code CHPASS_UTIL_PASSWORD_TOO_SHORT, 
+"New password is too short.\n\
+Please choose a password which is at least %d characters long."
+#	/*  <pw-min-len> */
+
+error_code CHPASS_UTIL_TOO_FEW_CLASSES, 
+"New password does not have enough character classes.\n\
+The character classes are:\n\
+	- lower-case letters,\n\
+	- upper-case letters,\n\
+	- digits,\n\
+	- punctuation, and\n\
+	- all other characters (e.g., control characters).\n\
+Please choose a password with at least %d character classes."
+# /* <min-classes> */
+
+
+error_code CHPASS_UTIL_PASSWORD_TOO_SOON,
+"Password cannot be changed because it was changed too recently.\n\
+Please wait until %s before you change it.\n\
+If you need to change your password before then, contact your system\n\
+security administrator."
+# /* <ctime(last-pw-change+pw-min-life)> */
+
+error_code CHPASS_UTIL_PASSWORD_REUSE, 
+"New password was used previously. Please choose a different password."
+
+error_code CHPASS_UTIL_WHILE_TRYING_TO_CHANGE, 
+"while trying to change password."
+
+error_code CHPASS_UTIL_WHILE_READING_PASSWORD, "while reading new password."
+
+end
+

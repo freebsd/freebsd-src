@@ -1,0 +1,63 @@
+krb5_get_host_realm -  Get the Kerberos realm names for a host. 
+================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_get_host_realm(krb5_context context, const char * host, char *** realmsp)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **host** - Host name (or NULL)
+
+	          **[out]** **realmsp** - Null-terminated list of realm names
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   ENOMEM   Insufficient memory
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Fill in *realmsp* with a pointer to a null-terminated list of realm names. If there are no known realms for the host, a list containing the referral (empty) realm is returned.
+
+
+
+If *host* is NULL, the local host's realms are determined.
+
+
+
+Use krb5_free_host_realm() to release *realmsp* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

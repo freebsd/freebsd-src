@@ -1,0 +1,75 @@
+-*- text -*-
+
+Stuff that should still be done on the ASN.1 encoder conversion:
+
+* Make offsetof uses conforming.  Currently we may use foo.bar or
+  foo[0] as fields.
+
+* Script to generate the tables.  Then each type or field entry can
+  generate multiple bits of code, instead of forcing us to bury the
+  type consistency checking into the structure initializer
+  expression.  For example, we might generate these bits of code from
+  one field descriptor:
+
+  * Field table entry.
+
+  * Type-checking code: Create a pointer of the expected type and a
+    pointer of the actual type (address of field of automatic struct),
+    and verify consistency with comparison, assignment, or conditional
+    expr.  Plenty of comments to indicate what's being compared and
+    what a compiler complain means.
+
+  * Range-checking code for bitfields: Create an automatic field info
+    struct, fill in the computed offset or whatever, read it back,
+    make sure it matches.  Also with comments.
+
+  * Possibly header declarations describing the types that could be
+    imported, with correct handles *and* C types.
+
+  * Static declarations for non-exported types to keep symbol table
+    sizes down.
+
+  Then similar bits of code (e.g., all the field table entries) can be
+  pulled together into the appropriate places.
+
+* Some kind of "module" system for exporting and importing encoders,
+  better than relying on the "type_*" variable names.  Probably use
+  meaningful strings that indicate both the ASN.1 type and the
+  associated C type.  Find a way to fit "imported type" into this
+  scheme so that we can cleanly move the PKINIT types into the PKINIT
+  plugin, the LDAP types into the LDAP plugin, etc., and still let
+  them use the encoders in the code.  Only a subset of types would be
+  exported probably.
+
+* More compact encoding: For struct atype and struct cntype, we could
+  use structures with a common base type (similar to Xlib events)
+  instead of a base structure with a void pointer, to save the cost of
+  a pointer for each type.  Doing this might not be strictly correct
+  C.
+
+* Pie in the sky: A verbose mode that can tell you "missing field
+  KDC-REP.cname.name-string[1].data" or some such.  This would require
+  tracking the stack of pending encodes and adding strings with type
+  and field names.
+
+* For ALL_POINTERS_ARE_THE_SAME mode (which is not strictly conforming
+  with the C standard, and thus not default currently, but makes
+  things a little smaller and faster), eliminate the loadptr structure
+  entry.  (Note that if this infrastructure becomes exposed to
+  plugins, ALL_POINTERS_ARE_THE_SAME changes the ABI.)
+
+* Maybe: Reorganize the data of a "module" so everything needing
+  relocation is put in some tables, referenced by index from other
+  structures without relocations.  E.g., for krb5_data, here's the
+  offset for the data pointer, here's the offset for the length value,
+  here's the index into the pointer reader function table, here's the
+  index into the length reader function table, here's an index into
+  the string-type encoder table.
+
+  Using an index into a set of pointer types, with a single function
+  taking an integer parameter used to switch between various
+  ptr-to-ptr-to-type code paths, will be a lot smaller -- with a good
+  compiler the function will probably collapse to a simple
+  fetch-a-pointer function ignoring the integer argument, while at the
+  C level it's strictly conforming by using the correct types for
+  access.

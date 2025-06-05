@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-TGS-REQ-data:
+
+KRB5_PADATA_TGS_REQ
+===================
+
+..
+.. data:: KRB5_PADATA_TGS_REQ
+..
+
+
+
+
+========================== ======================
+``KRB5_PADATA_TGS_REQ``       ``KRB5_PADATA_AP_REQ``
+========================== ======================

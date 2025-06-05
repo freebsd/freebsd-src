@@ -1,0 +1,55 @@
+krb5_tkt_creds_get_times -  Retrieve ticket times from a TGS request context. 
+==============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_tkt_creds_get_times(krb5_context context, krb5_tkt_creds_context ctx, krb5_ticket_times * times)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **ctx** - TGS request context
+
+	          **[out]** **times** - Ticket times for acquired credentials
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+The TGS request context must have completed obtaining credentials via either krb5_tkt_creds_get() or krb5_tkt_creds_step().
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.9
+ 
+

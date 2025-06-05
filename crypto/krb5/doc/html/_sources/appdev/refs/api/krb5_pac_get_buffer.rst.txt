@@ -1,0 +1,53 @@
+krb5_pac_get_buffer -  Retrieve a buffer value from a PAC. 
+===========================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_pac_get_buffer(krb5_context context, krb5_pac pac, krb5_ui_4 type, krb5_data * data)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **pac** - PAC handle
+
+	          **[in]** **type** - Type of buffer to retrieve
+
+	          **[out]** **data** - Buffer value
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Use krb5_free_data_contents() to free *data* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

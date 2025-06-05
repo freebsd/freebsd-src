@@ -1,0 +1,12 @@
+mydir=plugins$(S)kdb$(S)db2$(S)libdb2$(S)mpool
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..$(S)..
+STLIBOBJS=mpool.o
+
+LOCALINCLUDES=	-I. -I$(srcdir)/../include -I../include -I$(srcdir)/../db
+
+all-unix: all-libobjs
+clean-unix:: clean-libobjs
+@libobj_frag@
+
+SRCS= $(STLIBOBJS:.o=.c)
+

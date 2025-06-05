@@ -1,0 +1,8 @@
+#
+# comerr library Macintosh export file
+#
+# $Header$
+
+error_message
+add_error_table
+remove_error_table

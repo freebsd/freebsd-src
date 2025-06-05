@@ -1,0 +1,62 @@
+krb5_cccol_cursor_next -  Get the next credential cache in the collection. 
+===========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cccol_cursor_next(krb5_context context, krb5_cccol_cursor cursor, krb5_ccache * ccache)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **cursor** - Cursor
+
+	          **[out]** **ccache** - Credential cache handle
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Use krb5_cc_close() to close *ccache* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+.. seealso::
+         krb5_cccol_cursor_new(), krb5_cccol_cursor_free()
+ 
+
+
+
+
+
+.. note::
+
+	 When all caches are iterated over and the end of the list is reached, *ccache* is set to NULL.
+ 
+
+
+

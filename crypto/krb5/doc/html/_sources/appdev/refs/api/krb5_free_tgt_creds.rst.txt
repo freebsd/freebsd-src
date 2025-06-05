@@ -1,0 +1,50 @@
+krb5_free_tgt_creds -  Free an array of credential structures. 
+===============================================================
+
+..
+
+.. c:function:: void krb5_free_tgt_creds(krb5_context context, krb5_creds ** tgts)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **tgts** - Null-terminated array of credentials to free
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 The last entry in the array *tgts* must be a NULL pointer.
+ 
+
+
+

@@ -1,0 +1,56 @@
+krb5_cc_cache_match -  Find a credential cache with a specified client principal. 
+==================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_cache_match(krb5_context context, krb5_principal client, krb5_ccache * cache_out)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **client** - Client principal
+
+	          **[out]** **cache_out** - Credential cache handle
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   KRB5_CC_NOTFOUND   None
+
+
+..
+
+
+
+
+
+
+
+Find a cache within the collection whose default principal is *client* . Use *krb5_cc_close* to close *ccache* when it is no longer needed.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.10
+ 
+

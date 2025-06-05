@@ -1,0 +1,148 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="https://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<title>Windows CCAPI RPC design</title>
+<style type="text/css">
+<!--
+.style2 {color: 0}
+.style3 {font-family: "Courier New", Courier, monospace}
+.style5 {color: #CC3300}
+.style6 {color: #999999}
+.style7 {color: #000099}
+-->
+</style>
+</head>
+
+<body>
+<h2 class="style5">Proposed RPC design for Windows CCAPI clients and server</h2>
+<p>The proposal is for a single user; the solution is replicated for each user logged onto the PC.</p>
+<h2>Conventions &amp; clarifications </h2>
+<p>&quot;Client&quot; and &quot;server&quot; refer to the CCAPI client and server. </p>
+<p>The CCAPI client acts as both an RPC client and RPC server and the CCAPI server acts as both an RPC client and RPC server. </p>
+<ul>
+  <li class="style2">The RPC call from the CCAPI client to the CCAPI server is called the &quot;request.&quot; In this mode, the CCAPI client is the RPC client and the CCAPI server is the RPC server.</li>
+  <li class="style2">The RPC call from the CCAPI server to the CCAPI client is called the &quot;reply.&quot; In this mode, the CCAPI client is the RPC server and the CCAPI server is the RPC client. </li>
+</ul>
+<p>The Windows username is referred to below as &quot;&lt;USER&gt;.&quot; </p>
+<p>The Windows Logon Security Identifier is referred to as &quot;&lt;LSID&gt;.&quot; </p>
+<p>&lt;UUID&gt; means a thread-specific UUID.</p>
+<p>&lt;SST&gt; means <strong>s</strong>erver <strong>s</strong>tart <strong>t</strong>ime, a time_t. </p>
+<p>A description of client and server authentication has not been added yet.</p>
+<h2>Design Requirements </h2>
+<ul>
+  <li>The server's OS-independent code is single threaded, because it must operate on platforms that do not allow multiple threads. </li>
+  <li>The client and server must be able to maintain connections, where state is maintained between individual messages.</li>
+  <li>Individual messages must be handled in a single threaded server. </li>
+  <li>The server must be able to detect when a client dies, so that any connection state can be cleaned up.  </li>
+</ul>
+<h2>Design</h2>
+<p>The server and each client create an RPC endpoint. The server's endpoint is CCS_&lt;LSID&gt; and the client's endpoint is CCAPI_&lt;UUID&gt;, where each client geta a UUID. </p>
+<p>On Windows, the server's ccs_pipe_t type is a char* and is set to the client UUID.</p>
+<h3>How is the request handled in the server and the reply sent to the client? </h3>
+<p>One straightforward way is for the reply to be the returned data in the request RPC call (an [out] parameter). That is, data passed from the RPC server to the RPC client. The request handler calls <span class="style3">ccs_server_handle_request</span>. Eventually, the server code calls <span class="style3">ccs_os_server_send_reply,</span> which saves the reply somewhere. When the server eventually returns to the request handler, the handler  returns the saved reply to the client.</p>
+<p>But this doesn't work. If two clients A and B ask for the same lock, A will acquire the lock and B will have to wait. But if the single threaded server waits for B's lock, it will never handle A's unlock message. Therefore the server must return to B's request handler and <em>not</em> send a reply to B. So this method will not work. </p>
+<p>Instead, there are listener and worker threads in Windows-specific code. </p>
+<p>The client's <span class="style3">cci_os_ipc </span>function waits for <span class="style3">ccs_reply</span>. The client sends the request, including <em>its UUID,</em> from which the server can construct the endpoint on which to call <span class="style3">ccs_reply</span>. </p>
+<p>The server's listener thread listens for RPC requests. The request handler puts each request/<em>reply</em> endpoint in a queue and returns to the client.</p>
+<p>The server's worker thread removes items from the queue, calls <span class="style3">ccs_server_handle_request</span>. <span class="style3">ccs_server_handle_request</span> takes both the request data and the client UUID . Eventually <span class="style3">ccs_os_server_send_reply</span> is called, with the reply data and client UUID in the reply_pipe. <span class="style3">ccs_os_server_send_reply</span> calls <span class="style3">ccs_reply</span> on the client's endpoint, which sends the reply to the client. </p>
+<p>Is there any security issue with the client listening for RPC calls from the server?</p>
+<h3>Connections</h3>
+<p>If the client wants state to be maintained on the server, the client creates a connection. When the connection is closed, the server cleans up any state associated with the connection. </p>
+<p>Any given thread in an application process could want to create a connection. When cci_ipc_thread_init is called, the connection thread-local variables are initialized. New connections are created when cci_os_ipc() (via _cci_ipc_send) is called and no connection was previously established.  Basically we lazily establish connections so the client doesn't talk to the server until it has to.</p>
+<h3>Detecting client exit</h3>
+<p>The server must be able to detect when clients disappear, so the server can free any resources that had been held for the client. </p>
+<p>The Windows RPC API does not appear to provide a notification for an endpoint disappearing. It does provide a way to ask if an endpoint is listening. This is useful for polling, but we want a better performing solution than that. </p>
+<p>The client has an <em>isAlive</em> function on its endpoint. </p>
+<p>To detect the client disappearing without using polling, the server makes an asynchronous call to the <em>isAlive</em> function on the client's endpoint. The <em>isAlive</em> function never returns. When the client exits for any reason, its <em>endpoint</em> will be closed and the server's function call will return an error. The asynchronous call on the server means no additional threads are used. </p>
+<p>Windows provides a number of notification methods to signal I/O completion. Among them are I/O completion ports and callback functions. I chose callback functions because they appear to consume fewer resources. </p>
+<h3>RPC Endpoint / Function summary</h3>
+<ul>
+  <li>The server creates one CCS_&lt;LSID&gt; endpoint to listen for connection requests and client requests. 
+    It has the functions
+    <ul>
+      <li>ccs_rpc_connect(msgtype, UUIDlen, &lt;UUID&gt;, status)</li>
+      <li>ccs_rpc_request(msgtype, UUIDlen, &lt;UUID&gt;, msglen, msg, SST, status) called by client. NB: The windows server sets the <span class="style3">in_client_pipe </span>to the <span class="style3">in_reply_pipe</span>.<br />
+  </li>
+    </ul>
+  </li>
+  <li>Each client thread creates a CCAPI_&lt;UUID&gt; endpoint.  It has the functions
+    <ul>
+      <li>isAlive [function never returns.]    </li>
+      <li>ccs_rpc_request_reply(msgtype, SST, replylen, reply, status)</li>
+      <li>ccs_rpc_connect_reply(msgtype, SST, status</li>
+    </ul>
+  </li>
+</ul>
+<h2>Windows-specific implementation details </h2>
+<h3>Client CCAPI library initialization:</h3>
+<p>This code runs when the CCAPI DLL is loaded. </p>
+<ul>
+  <li>?</li>
+</ul>
+<h3>Client initialization: </h3>
+<p>This code runs when cci_os_ipc_thread_init is called: </p>
+<ul>
+  <li>Generate &lt;UUID&gt; and save in thread-specific storage. This serves as the client ID / ccs_pipe_t. </li>
+  <li>Create client endpoint.</li>
+  <li>Listen on client <em></em>endpoint.</li>
+  <li>Create canonical server connection endpoint from the &lt;LSID&gt;, which the client and server should have in common. </li>
+  <li>Test if server is listening to the CCS_&lt;LSID&gt; endpoint.
+      <ul>
+        <li>If not, quit. (! Start it?) </li>
+      </ul>
+  </li>
+  <li>Call ccs_connect(&lt;UUID&gt;) on the CCS_&lt;LSID&gt; endpoint.</li>
+  <li>Save SST in thread-specific storage. </li>
+</ul>
+<h3>Server initialization:</h3>
+<p class="style6">[old]</p>
+<ul>
+  <li class="style6">Server is initialized by client starting a new process.   There should be only one server process per Windows username. </li>
+</ul>
+<p class="style7">[new]</p>
+<ul>
+  <li class="style7">Server is started by kfwlogon (as is done currently). </li>
+  <li>Capture <strong>s</strong>erver <strong>s</strong>tart <strong>t</strong>ime (SST). </li>
+  <li>Start listener thread, create listener endpoint, listen on CCS_&lt;LSID&gt; endpoint. </li>
+</ul>
+<h3>Establishing a connection: </h3>
+<ul>
+  <li>Client calls ccs_connect(&lt;UUID&gt;) on server's CCS_&lt;LSID&gt; endpoint.</li>
+  <li>Client gets back and stores SST in thread-specific storage.</li>
+  <li>If new connection, server ...
+    <ul>
+      <li>adds connection to connection table</li>
+      <li>calls isAlive on CCAPI_&lt;UUID&gt;.
+        <ul>
+          <li>NB: isAlive never returns. </li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+<h3>Client request:</h3>
+<p>The server's reply to the client's request is not synchronous.</p>
+<ul>
+  <li>Client calls     ccs_rpc_request(msglen, msg, msgtype, UUIDlen, &lt;UUID&gt;, SST, status) on server's endpoint.</li>
+  <li>Server listen thread receives message, queues request.</li>
+  <li>Server worker thread dequeues request, processes, calls ccs_rpc_reply(replylen, reply, msgtype, status) on CCAPI_&lt;UUID&gt;.</li>
+  <li>Server checks SST. If server's SST is different, it means server has restarted since client created connection. </li>
+  <li>Client receives reply.  </li>
+</ul>
+<h3>Detecting client exit</h3>
+<ul>
+  <li>When connection created, client created an endpoint.</li>
+  <li>Server calls isAlive on client's endpoint. </li>
+  <li>When isAlive returns, the server's notification callback will be called. Call back routine queues a DISCONNECT pseudo-message. When the server's worker thread handles the DISCONNECT, it will release connection resources.</li>
+</ul>
+<h3>Detecting server exit </h3>
+<ul>
+  <li>Client's call to ccs_rpc_request will return an error if the server has gone away. </li>
+</ul>
+<p>&nbsp;</p>
+<p>------<br />
+  Stop: <br />
+Start: </p>
+</body>
+</html>

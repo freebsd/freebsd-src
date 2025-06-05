@@ -1,0 +1,64 @@
+krb5_cc_remove_cred -  Remove credentials from a credential cache. 
+===================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_cc_remove_cred(krb5_context context, krb5_ccache cache, krb5_flags flags, krb5_creds * creds)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **cache** - Credential cache handle
+
+	          **[in]** **flags** - Bitwise-ORed search flags
+
+	          **[in]** **creds** - Credentials to be matched
+
+
+..
+
+
+:retval:
+         -   KRB5_CC_NOSUPP   Not implemented for this cache type
+
+
+:return:
+         -  No matches found; Data cannot be deleted; Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function accepts the same flag values as krb5_cc_retrieve_cred().
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+.. warning::
+
+	 This function is not implemented for some cache types.
+ 
+
+
+
+

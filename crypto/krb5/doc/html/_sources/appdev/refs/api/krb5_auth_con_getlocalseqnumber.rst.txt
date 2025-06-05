@@ -1,0 +1,51 @@
+krb5_auth_con_getlocalseqnumber -  Retrieve the local sequence number from an auth context. 
+============================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_auth_con_getlocalseqnumber(krb5_context context, krb5_auth_context auth_context, krb5_int32 * seqnumber)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[out]** **seqnumber** - Local sequence number
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+Retrieve the local sequence number from *auth_context* and return it in *seqnumber* . The #KRB5_AUTH_CONTEXT_DO_SEQUENCE flag must be set in *auth_context* for this function to be useful.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

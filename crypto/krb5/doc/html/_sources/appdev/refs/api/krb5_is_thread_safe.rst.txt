@@ -1,0 +1,43 @@
+krb5_is_thread_safe -  Test whether the Kerberos library was built with multithread support. 
+=============================================================================================
+
+..
+
+.. c:function:: krb5_boolean krb5_is_thread_safe(void None)
+
+..
+
+
+:param:
+
+	          **None**
+
+
+..
+
+
+:retval:
+         -   TRUE   if the library is threadsafe; FALSE otherwise
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

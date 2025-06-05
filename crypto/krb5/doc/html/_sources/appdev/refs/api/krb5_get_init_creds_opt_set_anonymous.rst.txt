@@ -1,0 +1,42 @@
+krb5_get_init_creds_opt_set_anonymous -  Set or unset the anonymous flag in initial credential options. 
+========================================================================================================
+
+..
+
+.. c:function:: void krb5_get_init_creds_opt_set_anonymous(krb5_get_init_creds_opt * opt, int anonymous)
+
+..
+
+
+:param:
+
+	          **[in]** **opt** - Options structure
+
+	          **[in]** **anonymous** - Whether to make an anonymous request
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function may be used to request anonymous credentials from the KDC by setting *anonymous* to non-zero. Note that anonymous credentials are only a request; clients must verify that credentials are anonymous if that is a requirement.
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,7 @@
+#
+# Generated makefile dependencies follow.
+#
+$(OUTPRE)kpasswd.$(OBJEXT): $(BUILDTOP)/include/autoconf.h \
+  $(BUILDTOP)/include/krb5/krb5.h $(COM_ERR_DEPS) $(top_srcdir)/include/k5-platform.h \
+  $(top_srcdir)/include/k5-thread.h $(top_srcdir)/include/krb5.h \
+  kpasswd.c

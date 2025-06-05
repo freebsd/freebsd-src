@@ -1,0 +1,39 @@
+# Makefile for the Microsoft to MIT cache converter.
+# Works for k5 release only.
+#
+
+mydir=.
+BUILDTOP=$(REL)..$(S)..
+DEFINES = 
+PROG_LIBPATH=-L$(TOPLIBD) -L$(KRB5_LIBDIR)
+
+VERSIONRC = $(BUILDTOP)\windows\version.rc
+RCFLAGS=$(CPPFLAGS) -I$(top_srcdir) -D_WIN32 -DRES_ONLY
+
+MS2MIT=$(OUTPRE)ms2mit.exe
+MIT2MS=$(OUTPRE)mit2ms.exe
+
+MS2MITRES=$(MS2MIT:.exe=.res)
+MIT2MSRES=$(MIT2MS:.exe=.res)
+
+$(MS2MITRES): $(VERSIONRC)
+        $(RC) $(RCFLAGS) -DMS2MIT_APP -fo $@ -r $**
+$(MIT2MSRES): $(VERSIONRC)
+        $(RC) $(RCFLAGS) -DMIT2MS_APP -fo $@ -r $**
+
+all-windows: $(MS2MIT) $(MIT2MS)
+
+$(MS2MIT): $(OUTPRE)ms2mit.obj $(MS2MITRES)
+    link $(EXE_LINKOPTS) -out:$@ $(OUTPRE)ms2mit.obj $(SLIB) user32.lib advapi32.lib $(KLIB) $(CLIB) $(MS2MITRES)
+    $(_VC_MANIFEST_EMBED_EXE)
+
+$(MIT2MS): $(OUTPRE)mit2ms.obj $(MIT2MSRES)
+    link $(EXE_LINKOPTS) -out:$@ $(OUTPRE)mit2ms.obj $(SLIB) user32.lib advapi32.lib $(KLIB) $(CLIB) $(MIT2MSRES)
+    $(_VC_MANIFEST_EMBED_EXE)
+
+install:
+	copy $(OUTPRE)ms2mit.exe $(DESTDIR)
+	copy $(OUTPRE)mit2ms.exe $(DESTDIR)
+
+clean:
+	$(RM) $(OUTPRE)*.exe

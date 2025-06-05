@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _TKT-FLG-ANONYMOUS-data:
+
+TKT_FLG_ANONYMOUS
+=================
+
+..
+.. data:: TKT_FLG_ANONYMOUS
+..
+
+
+
+
+======================== ======================
+``TKT_FLG_ANONYMOUS``       ``0x00008000``
+======================== ======================

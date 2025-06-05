@@ -1,0 +1,42 @@
+krb5_free_principal -  Free the storage assigned to a principal. 
+=================================================================
+
+..
+
+.. c:function:: void krb5_free_principal(krb5_context context, krb5_principal val)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **val** - Principal to be freed
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

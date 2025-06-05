@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KDC-OPT-FORWARDABLE-data:
+
+KDC_OPT_FORWARDABLE
+===================
+
+..
+.. data:: KDC_OPT_FORWARDABLE
+..
+
+
+
+
+========================== ======================
+``KDC_OPT_FORWARDABLE``       ``0x40000000``
+========================== ======================

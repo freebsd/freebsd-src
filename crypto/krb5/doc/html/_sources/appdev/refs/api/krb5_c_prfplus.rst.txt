@@ -1,0 +1,61 @@
+krb5_c_prfplus -  Generate pseudo-random bytes using RFC 6113 PRF+. 
+====================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_c_prfplus(krb5_context context, const krb5_keyblock * k, const krb5_data * input, krb5_data * output)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **k** - KDC contribution key
+
+	          **[in]** **input** - Input data
+
+	          **[out]** **output** - Pseudo-random output buffer
+
+
+..
+
+
+
+:return:
+         -  0 on success, E2BIG if output->length is too large for PRF+ to generate, ENOMEM on allocation failure, or an error code from krb5_c_prf() 
+
+..
+
+
+
+
+
+
+
+This function fills *output* with PRF+(k, input) as defined in RFC 6113 section 5.1. The caller must preinitialize *output* and allocate the desired amount of space. The length of the pseudo-random output will match the length of *output* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+
+
+.. note::
+
+	 RFC 4402 defines a different PRF+ operation. This function does not implement that operation.
+ 
+
+
+

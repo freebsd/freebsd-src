@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _ENCTYPE-DES-CBC-RAW-data:
+
+ENCTYPE_DES_CBC_RAW
+===================
+
+..
+.. data:: ENCTYPE_DES_CBC_RAW
+..
+
+
+
+
+========================== ======================
+``ENCTYPE_DES_CBC_RAW``       ``0x0004``
+========================== ======================

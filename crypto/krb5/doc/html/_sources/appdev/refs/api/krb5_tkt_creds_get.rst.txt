@@ -1,0 +1,53 @@
+krb5_tkt_creds_get -  Synchronously obtain credentials using a TGS request context. 
+====================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_tkt_creds_get(krb5_context context, krb5_tkt_creds_context ctx)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **ctx** - TGS request context
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function synchronously obtains credentials using a context created by krb5_tkt_creds_init(). On successful return, the credentials can be retrieved with krb5_tkt_creds_get_creds().
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+.. note::
+
+	 New in 1.9
+ 
+

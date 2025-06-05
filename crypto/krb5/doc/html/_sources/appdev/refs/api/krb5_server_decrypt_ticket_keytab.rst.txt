@@ -1,0 +1,51 @@
+krb5_server_decrypt_ticket_keytab -  Decrypt a ticket using the specified key table. 
+=====================================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_server_decrypt_ticket_keytab(krb5_context context, const krb5_keytab kt, krb5_ticket * ticket)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **kt** - Key table
+
+	          **[in]** **ticket** - Ticket to be decrypted
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function takes a *ticket* as input and decrypts it using key data from *kt* . The result is placed into *ticket->enc_part2* .
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

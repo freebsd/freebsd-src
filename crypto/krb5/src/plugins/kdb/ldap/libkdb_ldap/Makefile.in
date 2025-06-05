@@ -1,0 +1,70 @@
+mydir=plugins$(S)kdb$(S)ldap$(S)libkdb_ldap
+BUILDTOP=$(REL)..$(S)..$(S)..$(S)..
+# Lots of ugliness here because of duplicated symbol names.
+# Can I just punt the duplicates and import from libkdb5, or
+# is keeping them separate important?
+DEFINES = \
+	-Dkrb5_dbe_lookup_last_pwd_change=kdb_ldap_dbe_lookup_last_pwd_change \
+	-Dkrb5_dbe_lookup_tl_data=kdb_ldap_dbe_lookup_tl_data \
+	-Dkrb5_dbe_update_last_pwd_change=kdb_ldap_dbe_update_last_pwd_change \
+	-Dkrb5_dbe_update_tl_data=kdb_ldap_dbe_update_tl_data
+
+LOCALINCLUDES = -I$(top_srcdir)/lib/kdb -I$(top_srcdir)/lib/krb5/asn.1
+
+LIBBASE=kdb_ldap
+LIBMAJOR=1
+LIBMINOR=0
+RELDIR=../plugins/kdb/ldap/libkdb_ldap
+# Depends on libk5crypto and libkrb5
+# Also on gssrpc, for xdr stuff.
+SHLIB_EXPDEPS = \
+	$(GSSRPC_DEPLIBS) \
+	$(TOPLIBD)/libk5crypto$(SHLIBEXT) \
+	$(SUPPORT_DEPLIB) \
+	$(TOPLIBD)/libkrb5$(SHLIBEXT)
+SHLIB_EXPLIBS= $(KADMSRV_LIBS) -lkrb5 -lk5crypto $(COM_ERR_LIB) $(SUPPORT_LIB) $(LDAP_LIBS) $(LIBS)
+
+LIBINITFUNC= kldap_init_fn
+LIBFINIFUNC=
+
+SRCS= 	$(srcdir)/kdb_ldap.c \
+	$(srcdir)/kdb_ldap_conn.c \
+	$(srcdir)/ldap_realm.c \
+	$(srcdir)/ldap_create.c \
+	$(srcdir)/ldap_krbcontainer.c \
+	$(srcdir)/ldap_principal.c \
+	$(srcdir)/ldap_principal2.c \
+	$(srcdir)/ldap_pwd_policy.c \
+	$(srcdir)/ldap_misc.c \
+	$(srcdir)/ldap_handle.c \
+	$(srcdir)/ldap_tkt_policy.c \
+	$(srcdir)/princ_xdr.c \
+	$(srcdir)/ldap_service_stash.c \
+	$(srcdir)/kdb_xdr.c \
+	$(srcdir)/ldap_err.c \
+	$(srcdir)/lockout.c \
+
+STLIBOBJS= kdb_ldap.o \
+	kdb_ldap_conn.o \
+	ldap_realm.o \
+	ldap_create.o \
+	ldap_krbcontainer.o \
+	ldap_principal.o \
+	ldap_principal2.o \
+	ldap_pwd_policy.o \
+	ldap_misc.o \
+	ldap_handle.o \
+	ldap_tkt_policy.o \
+	princ_xdr.o \
+	ldap_service_stash.o \
+	kdb_xdr.o \
+	ldap_err.o \
+	lockout.o
+
+all-unix: all-liblinks
+install-unix: install-libs
+clean-unix:: clean-liblinks clean-libobjs clean-libs
+
+@lib_frag@
+@libobj_frag@
+

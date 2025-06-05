@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-PADATA-SAM-RESPONSE-data:
+
+KRB5_PADATA_SAM_RESPONSE
+========================
+
+..
+.. data:: KRB5_PADATA_SAM_RESPONSE
+..
+
+SAM/OTP.
+
+
+
+=============================== ======================
+``KRB5_PADATA_SAM_RESPONSE``       ``13``
+=============================== ======================

@@ -1,0 +1,25 @@
+mydir=lib$(S)gssapi$(S)spnego
+BUILDTOP=$(REL)..$(S)..$(S)..
+LOCALINCLUDES = -I. -I$(srcdir) -I$(srcdir)/.. -I../generic -I$(srcdir)/../generic -I../mechglue -I$(srcdir)/../mechglue
+DEFINES=-D_GSS_STATIC_LINK=1
+
+##DOS##BUILDTOP = ..\..\..
+##DOS##PREFIXDIR=spnego
+##DOS##OBJFILE = ..\$(OUTPRE)spnego.lst
+
+##DOS##DLL_EXP_TYPE=GSS
+
+SRCS = $(srcdir)/spnego_mech.c $(srcdir)/negoex_ctx.c $(srcdir)/negoex_util.c
+
+OBJS = $(OUTPRE)spnego_mech.$(OBJEXT) $(OUTPRE)negoex_ctx.$(OBJEXT) \
+	$(OUTPRE)negoex_util.$(OBJEXT)
+
+STLIBOBJS = spnego_mech.o negoex_ctx.o negoex_util.o
+
+all-unix: all-libobjs
+
+##DOS##LIBOBJS = $(OBJS)
+
+clean-unix:: clean-libobjs
+
+@libobj_frag@

@@ -1,0 +1,42 @@
+krb5_free_unparsed_name -  Free a string representation of a principal. 
+========================================================================
+
+..
+
+.. c:function:: void krb5_free_unparsed_name(krb5_context context, char * val)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **val** - Name string to be freed
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,20 @@
+mydir=plugins$(S)gssapi$(S)negoextest
+BUILDTOP=$(REL)..$(S)..$(S)..
+
+LIBBASE=gss_negoextest
+LIBMAJOR=0
+LIBMINOR=0
+RELDIR=../plugins/gssapi/negoextest
+SHLIB_EXPDEPS=$(GSS_DEPLIBS) $(KRB5_BASE_DEPLIBS)
+SHLIB_EXPLIBS=$(GSS_LIBS) $(KRB5_BASE_LIBS)
+
+STLIBOBJS=main.o
+
+SRCS=$(srcdir)/main.c
+
+all-unix: all-libs
+install-unix:
+clean-unix:: clean-libs clean-libobjs
+
+@libnover_frag@
+@libobj_frag@

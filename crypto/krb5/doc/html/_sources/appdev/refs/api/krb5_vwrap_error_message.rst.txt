@@ -1,0 +1,48 @@
+krb5_vwrap_error_message -  Add a prefix to a different error code's message using a va_list. 
+==============================================================================================
+
+..
+
+.. c:function:: void krb5_vwrap_error_message(krb5_context ctx, krb5_error_code old_code, krb5_error_code code, const char * fmt, va_list args)
+
+..
+
+
+:param:
+
+	          **[in]** **ctx** - Library context
+
+	          **[in]** **old_code** - Previous error code
+
+	          **[in]** **code** - Error code
+
+	          **[in]** **fmt** - Format string for error message prefix
+
+	          **[in]** **args** - List of vprintf(3) style arguments
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function is similar to krb5_wrap_error_message(), but uses a va_list instead of variadic arguments.
+
+
+
+
+
+
+..
+
+
+
+
+

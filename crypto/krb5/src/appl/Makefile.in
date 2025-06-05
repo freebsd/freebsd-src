@@ -1,0 +1,5 @@
+mydir=appl
+BUILDTOP=$(REL)..
+
+SUBDIRS= sample simple user_user gss-sample
+WINSUBDIRS= gss-sample

@@ -1,0 +1,9 @@
+-*- text -*-
+
+These macros are taken from the autoconf archive at
+https://www.gnu.org/software/autoconf-archive/ .  They are licensed
+under a modified version of the GNU General Public License as noted in
+the comments near the top of each file.
+
+ax_pthread.m4 serial 31 2023-02-20
+ax_recursive_eval.m4 serial 1 2017-01-05

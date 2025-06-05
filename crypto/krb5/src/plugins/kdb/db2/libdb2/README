@@ -1,0 +1,16 @@
+			  IMPORTANT NOTICE:
+
+This directory contains code of somewhat unknown origin that is
+INCOMPATIBLE with both Berkeley DB 1.85 and Sleepycat DB 2.x.  Do NOT
+contact Sleepycat regarding bugs in code found here; they do not
+appreciate it.  All bug reports about this code should go to the MIT
+Kerberos team via email to krb5-bugs@mit.edu, as usual.
+
+It is believed that this "db" code originated from Berkeley DB 1.85
+and was further modified by Cygnus and the MIT Kerberos team.  Some
+significant changes to the hash code occurred at some point.
+
+The file README.db2 contains the README file provided with the
+2.0-alpha release of Berkeley/Sleepycat DB, which may contain
+marginally useful information.  It is not known at this time how well
+this code matches that of the 2.0-alpha release.

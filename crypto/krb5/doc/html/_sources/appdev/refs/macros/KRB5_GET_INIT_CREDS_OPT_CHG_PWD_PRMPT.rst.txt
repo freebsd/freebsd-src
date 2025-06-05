@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-GET-INIT-CREDS-OPT-CHG-PWD-PRMPT-data:
+
+KRB5_GET_INIT_CREDS_OPT_CHG_PWD_PRMPT
+=====================================
+
+..
+.. data:: KRB5_GET_INIT_CREDS_OPT_CHG_PWD_PRMPT
+..
+
+
+
+
+============================================ ======================
+``KRB5_GET_INIT_CREDS_OPT_CHG_PWD_PRMPT``       ``0x0100``
+============================================ ======================

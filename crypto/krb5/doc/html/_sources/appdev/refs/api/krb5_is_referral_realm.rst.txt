@@ -1,0 +1,43 @@
+krb5_is_referral_realm -  Check for a match with KRB5_REFERRAL_REALM. 
+======================================================================
+
+..
+
+.. c:function:: krb5_boolean krb5_is_referral_realm(const krb5_data * r)
+
+..
+
+
+:param:
+
+	          **[in]** **r** - Realm to check
+
+
+..
+
+
+
+:return:
+         -  TRUE if r is zero-length, FALSE otherwise 
+
+..
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KRB5-KEYUSAGE-KRB-PRIV-ENCPART-data:
+
+KRB5_KEYUSAGE_KRB_PRIV_ENCPART
+==============================
+
+..
+.. data:: KRB5_KEYUSAGE_KRB_PRIV_ENCPART
+..
+
+
+
+
+===================================== ======================
+``KRB5_KEYUSAGE_KRB_PRIV_ENCPART``       ``13``
+===================================== ======================

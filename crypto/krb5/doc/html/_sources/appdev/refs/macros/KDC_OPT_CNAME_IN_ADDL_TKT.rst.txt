@@ -1,0 +1,17 @@
+.. highlight:: c
+
+.. _KDC-OPT-CNAME-IN-ADDL-TKT-data:
+
+KDC_OPT_CNAME_IN_ADDL_TKT
+=========================
+
+..
+.. data:: KDC_OPT_CNAME_IN_ADDL_TKT
+..
+
+
+
+
+================================ ======================
+``KDC_OPT_CNAME_IN_ADDL_TKT``       ``0x00020000``
+================================ ======================

@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+
+<Title>KDESTROY</Title>
+</HEAD>
+<BODY>
+<H1>KDESTROY Command</H1>
+<table>
+<tr><th id="th2"> The following information reproduces the information from UNIX man page for the KDESTROY command.</th>
+</tr>
+</table>
+
+<H2>SYNOPSIS</H2>
+<table>
+<tr>
+<th id="th2">kdestroy</th>
+<td>
+<span class="command">[<B>-A</B>]    </span>
+<span class="command"> [<B>-q</B>]  </span>
+<span class="command">   [<B>-c</B> <I>cache</I><B>_</B><I>name]</I>   </span>
+
+</td>
+</tr>
+</table>
+
+
+<H2>DESCRIPTION</H2>
+<p>
+The  <I>kdestroy</I> utility destroys the user's active Kerberos
+authorization tickets by writing zeros to the specified
+credentials cache  that  contains  them.  If  the  credentials
+cache is not specified, the default credentials cache is
+destroyed.
+</P>
+
+<H2>OPTIONS</H2>
+<table>
+<tr>
+<th id="th2"><span class="command"> -A </span>  </th>
+<td>Destroys all caches in the collection, if a cache collection  is available. </td>
+<tr>
+<th id="th2"><span class="command"> -q </span></th>
+<td>Run quietly.  Normally <B>kdestroy</B> beeps if it fails to destroy the user's tickets.   The  <B>-q</B>  flag  suppresses  this behavior.
+</td>
+<tr>
+<th id="th2"> <span class="command"> -c</B=th> <I>cache</I><B>_</B><I>name</I></span></th>
+<td>Use  <span class="command"><I>cache</I><B>_</B><I>name</I></span> as the credentials (ticket) cache name and location; if this option is not used, the  default  cache  name  and location are used.<br>
+The  default credentials cache may vary between systems.  If the KRB5CCNAME environment variable is set, its  value  is  used  to
+name the default ticket cache.
+</td>
+</tr>
+</table>
+<p>
+ Most  installations  recommend  that  you place the <I>kdestroy</I> command
+in  your <I>.logout</I> file, so that your  tickets  are  destroyed  automatically
+when you log out.
+</p>
+
+<H2>ENVIRONMENT</H2>
+<p>
+<B>Kdestroy</B> uses the following environment variables:</p>
+
+<table>
+<tr>
+<th id="th2"> KRB5CCNAME</th>
+<td>      Location of the default Kerberos 5 credentials (ticket)
+                       cache, in the form <I>type</I>:<I>residual</I>.  If no type prefix is
+                       present,  the  <B>FILE</B>  type  is assumed.  The type of the
+                       default cache may determine the availability of a cache
+                       collection;  for  instance, a default cache of type <B>DIR</B>
+                       causes caches within the directory to be present in the
+                       collection. </td>
+</tr>
+</table>
+
+
+
+<H2>FILES</H2>
+<table>
+<tr>
+  <th id="th2">     <span class="command">   /tmp/krb5cc_[uid]  </span></th>
+<td>       default  location  of  Kerberos  5 credentials cache ([uid] is the decimal UID of the user). </td></tr>
+
+</table>
+
+
+<H2>SEE ALSO</H2>
+<ul id="helpul">
+<li><a href="HTML/KINIT.htm"><B>kinit(1)</B></a> </li>
+<li> <a href="HTML/KLIST.htm"><B>klist(1)</B></a></li>
+<li><B>krb5(3)</B></li>
+</ul>
+
+<H2>BUGS</H2><P>
+Only the tickets in the  specified  credentials  cache  are  destroyed.
+Separate  ticket  caches  are  used  to hold root instance and password
+changing tickets.  These should probably be destroyed too, or all of  a
+user's tickets kept in a single credentials cache.
+
+</P>
+
+
+
+</BODY>
+</HTML>

@@ -1,0 +1,63 @@
+krb5_init_creds_init -  Create a context for acquiring initial credentials. 
+============================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_init_creds_init(krb5_context context, krb5_principal client, krb5_prompter_fct prompter, void * data, krb5_deltat start_time, krb5_get_init_creds_opt * options, krb5_init_creds_context * ctx)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **client** - Client principal to get initial creds for
+
+	          **[in]** **prompter** - Prompter callback
+
+	          **[in]** **data** - Prompter callback argument
+
+	          **[in]** **start_time** - Time when credentials become valid (0 for now)
+
+	          **[in]** **options** - Options structure (NULL for default)
+
+	          **[out]** **ctx** - New initial credentials context
+
+
+..
+
+
+:retval:
+         -   0   Success; otherwise - Kerberos error codes
+
+
+..
+
+
+
+
+
+
+
+This function creates a new context for acquiring initial credentials. Use krb5_init_creds_free() to free *ctx* when it is no longer needed.
+
+
+
+Any subsequent calls to krb5_init_creds_step(), krb5_init_creds_get(), or krb5_init_creds_free() for this initial credentials context must use the same *context* argument as the one passed to this function.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

@@ -1,0 +1,18 @@
+.. highlight:: c
+
+.. _KRB5-TC-SUPPORTED-KTYPES-data:
+
+KRB5_TC_SUPPORTED_KTYPES
+========================
+
+..
+.. data:: KRB5_TC_SUPPORTED_KTYPES
+..
+
+The supported key types must match.
+
+
+
+=============================== ======================
+``KRB5_TC_SUPPORTED_KTYPES``       ``0x00000200``
+=============================== ======================

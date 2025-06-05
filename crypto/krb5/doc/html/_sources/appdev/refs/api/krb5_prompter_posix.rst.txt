@@ -1,0 +1,64 @@
+krb5_prompter_posix -  Prompt user for password. 
+=================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_prompter_posix(krb5_context context, void * data, const char * name, const char * banner, int num_prompts, krb5_prompt prompts)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **data** - Unused (callback argument)
+
+	          **[in]** **name** - Name to output during prompt
+
+	          **[in]** **banner** - Banner to output during prompt
+
+	          **[in]** **num_prompts** - Number of prompts in *prompts*
+
+	          **[in]** **prompts** - Array of prompts and replies
+
+
+..
+
+
+:retval:
+         -   0   Success
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+This function is intended to be used as a prompter callback for krb5_get_init_creds_password() or krb5_init_creds_init().
+
+
+
+Writes *name* and *banner* to stdout, each followed by a newline, then writes each prompt field in the *prompts* array, followed by":", and sets the reply field of the entry to a line of input read from stdin. If the hidden flag is set for a prompt, then terminal echoing is turned off when input is read.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

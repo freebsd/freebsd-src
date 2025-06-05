@@ -1,0 +1,42 @@
+krb5_pac_free -  Free a PAC handle. 
+====================================
+
+..
+
+.. c:function:: void krb5_pac_free(krb5_context context, krb5_pac pac)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **pac** - PAC to be freed
+
+
+..
+
+
+
+..
+
+
+
+
+
+
+
+This function frees the contents of *pac* and the structure itself.
+
+
+
+
+
+
+..
+
+
+
+
+

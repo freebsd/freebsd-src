@@ -1,0 +1,91 @@
+[ NOTE: MIT has only incorporated the mechglue and spnego change, and
+not the incremental propagation changes.  The filenames are different
+between the Sun and MIT sources.  The actual MIT filenames appear in
+the top-level README file.  Original text of Sun's LICENSE file
+follows. ]
+
+Subject to the license set forth below, Sun Microsystems, Inc. donates
+the attached files to MIT for the purpose of including these
+modifications and additions in future versions of the Kerberos system.
+
+Many of the files attached are subject to licenses issued by other
+entities, including OpenVision, MIT, and FundsXpress.  See the
+individual files, and/or related Readme files, for these licenses.
+
+In addition Sun requires that the license set forth below be
+incorporated into any future version of the Kerberos system which
+contains portions of the files attached.  The following files must be
+listed, in the top level Readme file, as being provided subject to such
+license:
+
+cmd/krb5/iprop/iprop.x
+cmd/krb5/iprop/iprop_hdr.h
+cmd/krb5/kadmin/server/ipropd_svc.c
+cmd/krb5/kproplog/kproplog.c
+cmd/krb5/slave/kpropd_rpc.c
+lib/gss_mechs/mech_krb5/et/kdb5_err.c
+lib/gss_mechs/mech_spnego/mech/gssapiP_spnego.h
+lib/gss_mechs/mech_spnego/mech/spnego_mech.c
+lib/krb5/kadm5/kadm_host_srv_names.c
+lib/krb5/kdb/kdb_convert.c
+lib/krb5/kdb/kdb_hdr.h
+lib/krb5/kdb/kdb_log.c
+lib/krb5/kdb/kdb_log.h
+lib/libgss/g_accept_sec_context.c
+lib/libgss/g_acquire_cred.c
+lib/libgss/g_canon_name.c
+lib/libgss/g_compare_name.c
+lib/libgss/g_context_time.c
+lib/libgss/g_delete_sec_context.c
+lib/libgss/g_dsp_name.c
+lib/libgss/g_dsp_status.c
+lib/libgss/g_dup_name.c
+lib/libgss/g_exp_sec_context.c
+lib/libgss/g_export_name.c
+lib/libgss/g_glue.c
+lib/libgss/g_imp_name.c
+lib/libgss/g_imp_sec_context.c
+lib/libgss/g_init_sec_context.c
+lib/libgss/g_initialize.c
+lib/libgss/g_inquire_context.c
+lib/libgss/g_inquire_cred.c
+lib/libgss/g_inquire_names.c
+lib/libgss/g_process_context.c
+lib/libgss/g_rel_buffer.c
+lib/libgss/g_rel_cred.c
+lib/libgss/g_rel_name.c
+lib/libgss/g_rel_oid_set.c
+lib/libgss/g_seal.c
+lib/libgss/g_sign.c
+lib/libgss/g_store_cred.c
+lib/libgss/g_unseal.c
+lib/libgss/g_userok.c
+lib/libgss/g_utils.c
+lib/libgss/g_verify.c
+lib/libgss/gssd_pname_to_uid.c
+uts/common/gssapi/include/gssapi_err_generic.h
+uts/common/gssapi/include/mechglueP.h
+
+Sun's License is as follows:
+
+Copyright (c) 2004 Sun Microsystems, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+

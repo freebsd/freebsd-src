@@ -1,0 +1,72 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+
+<link rel="stylesheet" type="text/css" href="Leash.css" />
+<Title>Glossary</Title>
+</HEAD>
+<BODY>
+<H1>Glossary</H1>
+<dl>
+<dt> default principal  </dt>
+<dd> Your default principal is the one whose tickets are used when an application or service asks for tickets without specifying which principal is being authenticated. If you have only one principal, that principal is always the default.  <br><a href="HTML/Principals.htm#default-principal">About: Default Principals</a></dd>
+<dt> domain  </dt>
+<dd>  In Windows, realms are called domains. <br><a href="HTML/Kerberos_Terminology.htm#realm">About: Kerberos Terminology (Realms)</a></dd>
+<dt> encryption key  </dt>
+<dd>  A value that a specific code or algorithm uses to make information unreadable to anyone without a matching key. </dd>
+<dt> encryption type  </dt>
+<dd> The type of encryption used to encode your tickets and session keys.  You can show the encryption types used for your tickets and session keys by selecting that option in the  View Options panel in the Options tab. <br><a href="HTML/Options_Tab.htm#using-view-options"> How to: Use View Options Panel</a>
+  </dd>
+<dt>expiration alarm   </dt>
+<dd> Optional audible alarm that warns you 15, 10, and 5 minutes before your tickets expire. Turn the alarm on or off in the Ticket Options panel in the Options tab.  <br><a href="HTML/Options_Tab.htm#using-ticket-options">How to: Use the Ticket Options Panel</a>
+  </dd>
+<dt>  <a name="flags"> flags</a> </dt>
+<dd>  Properties (renewable and/or forwardable) assigned to a ticket when you obtain it.  Show or hide flags with the  View Options panel in the Options tab. <br>
+<a href="HTML/Options_Tab.htm#using-view-options"> How to: Use View Options Panel</a>
+<br><a href="HTML/Ticket_Settings.htm">About: Ticket Settings and Flags </a>
+ </dd>
+<dt>   forwardable  </dt>
+<dd>  Tickets flagged as forwardable when you obtain them can be forwarded to the remote host when you connect via telnet, ssh, ftp, rlogin, or similar applications, so you will not need to get new tickets to use remote services. <br><a href="HTML/Ticket_Settings.htm">About: Ticket Settings and Flags </a>
+ </dd>
+
+
+ <dt>   issued</dt>
+<dd>The date and time that your tickets were issued. Show or hide this information with the  View Options panel in the Options tab. <br><a href="HTML/Options_Tab.htm#using-view-options"> How to: Use View Options Panel</a>
+   </dd>
+
+<dt> <a name="krbtgt"> krbtgt </a></dt>
+<dd> The Kerberos Ticket Granting Ticket. If you click on a principal in the main window, you will see all of that principal's tickets. The first one will be for <span class="typed">krbtgt</span> because with Kerberos you first obtain a Ticket Granting Ticket that is then used to obtain Service Tickets for each service you use.  <br><a href="HTML/Kerberos_Terminology.htm#ticket">About: Kerberos Terminology (Tickets)</a> </dd>
+<dt>  principal </dt>
+<dd>  A unique identity in Kerberos. For users, it is the identity you use to log on with Kerberos. Principals are a combination of your user name and the name of the realm you belong to. <br><a href="HTML/Principals.htm">About: Principals</a>
+ </dd>
+
+
+<dt> realm  </dt>
+<dd>   Kerberos realms are a way of logically grouping resources and identities that use Kerberos. Your realm is the home of your Kerberos identity and your point of entry to the network resources controlled by Kerberos. In Windows, realms are called <em>domains</em>.
+<br><a href="HTML/Kerberos_Terminology.htm#realm">About: Kerberos Terminology (Realms)</a>
+</dd>
+<dt> <a name="renewable-until">renewable until  </a></dt>
+<dd> The date and time after which your renewable tickets cannot be renewed any more. Show or hide this information with the  View Options panel in the Options tab. <br><a href="HTML/Options_Tab.htm#using-view-options"> How to: Use View Options Panel</a>
+  </dd>
+<dt> RSA SecurID  </dt>
+<dd>A method of using two-factor authentication to control user access to network resources.  The two authentication factors are something the user knows (a secret PIN) and something the user has (an automatically generated code displayed either on a special device or on a device the user already owns, such as a phone). If your company uses RSA SecurID, you will need to enter your SecurID password after you use your Kerberos password to submit a Get Ticket request.   <br><a href="HTML/Get_Tickets.htm">How to: Get tickets</a>
+   </dd>
+<dt>  SecurID </dt>
+<dd>  See RSA SecurID </dd>
+<dt>session key   </dt>
+<dd>
+A key used to encrypt and decrypt communications between computers. View the encryption type of your session keys by selecting Encryption Type  in the  View Options panel in the Options tab. <br>
+<a href="HTML/Options_Tab.htm#using-view-options"> How to: Use View Options Panel</a><br>
+<a href="HTML/Encryption_Types.htm">About: Encryption Types</a>
+  </dd>
+
+<dt>  ticket </dt>
+<dd> Obtain your ticket by entering your user name and password. The ticket is an encrypted block of data that authenticates you to the group of network resources using Kerberos, allowing you to access those resources for the lifetime of the ticket. <br><a href="HTML/Tickets.htm">About:Tickets</a>
+
+  </dd>
+<dt> <a name="valid-until">valid until  </a></dt>
+<dd>  The date and time your ticket will expire. Show or hide this information with the  View Options panel in the Options tab. <br><a href="HTML/Options_Tab.htm#using-view-options"> How to: Use View Options Panel</a>
+ </dd>
+</BODY>
+</HTML>

@@ -1,0 +1,68 @@
+krb5_fwd_tgt_creds -  Get a forwarded TGT and format a KRB-CRED message. 
+=========================================================================
+
+..
+
+.. c:function:: krb5_error_code krb5_fwd_tgt_creds(krb5_context context, krb5_auth_context auth_context, const char * rhost, krb5_principal client, krb5_principal server, krb5_ccache cc, int forwardable, krb5_data * outbuf)
+
+..
+
+
+:param:
+
+	          **[in]** **context** - Library context
+
+	          **[in]** **auth_context** - Authentication context
+
+	          **[in]** **rhost** - Remote host
+
+	          **[in]** **client** - Client principal of TGT
+
+	          **[in]** **server** - Principal of server to receive TGT
+
+	          **[in]** **cc** - Credential cache handle (NULL to use default)
+
+	          **[in]** **forwardable** - Whether TGT should be forwardable
+
+	          **[out]** **outbuf** - KRB-CRED message
+
+
+..
+
+
+:retval:
+         -   0   Success
+         -   ENOMEM   Insufficient memory
+         -   KRB5_PRINC_NOMATCH   Requested principal and ticket do not match
+         -   KRB5_NO_TKT_SUPPLIED   Request did not supply a ticket
+         -   KRB5_CC_BADNAME   Credential cache name or principal name malformed
+
+
+:return:
+         -  Kerberos error codes 
+
+..
+
+
+
+
+
+
+
+Get a TGT for use at the remote host *rhost* and format it into a KRB-CRED message. If *rhost* is NULL and *server* is of type #KRB5_NT_SRV_HST, the second component of *server* will be used.
+
+
+
+
+
+
+
+
+
+
+..
+
+
+
+
+

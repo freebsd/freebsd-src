@@ -1,0 +1,44 @@
+KerberosV5SPAKE {
+        iso(1) identified-organization(3) dod(6) internet(1)
+        security(5) kerberosV5(2) modules(4) spake(8)
+} DEFINITIONS EXPLICIT TAGS ::= BEGIN
+
+IMPORTS
+    EncryptedData, Int32
+      FROM KerberosV5Spec2 { iso(1) identified-organization(3)
+        dod(6) internet(1) security(5) kerberosV5(2) modules(4)
+        krb5spec2(2) };
+        -- as defined in RFC 4120.
+
+SPAKESupport ::= SEQUENCE {
+    groups      [0] SEQUENCE (SIZE(1..MAX)) OF Int32,
+    ...
+}
+
+SPAKEChallenge ::= SEQUENCE {
+    group       [0] Int32,
+    pubkey      [1] OCTET STRING,
+    factors     [2] SEQUENCE (SIZE(1..MAX)) OF SPAKESecondFactor,
+    ...
+}
+
+SPAKESecondFactor ::= SEQUENCE {
+    type        [0] Int32,
+    data        [1] OCTET STRING OPTIONAL
+}
+
+SPAKEResponse ::= SEQUENCE {
+    pubkey      [0] OCTET STRING,
+    factor      [1] EncryptedData, -- SPAKESecondFactor
+    ...
+}
+
+PA-SPAKE ::= CHOICE {
+    support     [0] SPAKESupport,
+    challenge   [1] SPAKEChallenge,
+    response    [2] SPAKEResponse,
+    encdata     [3] EncryptedData,
+    ...
+}
+
+END
