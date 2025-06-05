@@ -39,6 +39,7 @@ GTESTS+=	nfs
 GTESTS+=	notify
 GTESTS+=	open
 GTESTS+=	opendir
+GTESTS+=	pre-init
 GTESTS+=	read
 GTESTS+=	readdir
 GTESTS+=	readlink
