@@ -85,7 +85,9 @@ typedef struct _ss_data {       /* init values */
 #define ss_current_request(sci_idx,code_ptr)            \
     (*code_ptr=0,ss_info(sci_idx)->current_request)
 void ss_unknown_function();
+#ifndef __FreeBSD__
 void ss_delete_info_dir();
+#endif
 char **ss_parse (int, char *, int *);
 ss_abbrev_info *ss_abbrev_initialize (char *, int *);
 void ss_page_stdin (void);

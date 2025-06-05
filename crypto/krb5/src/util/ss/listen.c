@@ -14,6 +14,9 @@
 #include <termios.h>
 #include <sys/param.h>
 
+#ifdef __FreeBSD__
+#include <edit/readline/readline.h>
+#else
 #if defined(HAVE_LIBEDIT)
 #include <editline/readline.h>
 #elif defined(HAVE_READLINE)
@@ -21,6 +24,7 @@
 #include <readline/history.h>
 #else
 #define NO_READLINE
+#endif
 #endif
 
 static ss_data *current_info;
