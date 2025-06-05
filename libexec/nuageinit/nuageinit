@@ -362,7 +362,14 @@ if line == "#cloud-config" then
 	if obj.chpasswd ~= nil then
 		nuage.chpasswd(obj.chpasswd)
 	end
-
+	if obj.runcmd then
+		for _, c in ipairs(obj.runcmd) do
+			if not os.execute(c) then
+				nuage.warn("Failed to execute '" .. c .. "'")
+				-- execute the next command anyway --
+			end
+		end
+	end
 else
 	local res, err = os.execute(path .. "/" .. ud)
 	if not res then
