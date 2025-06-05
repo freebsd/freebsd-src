@@ -7395,6 +7395,7 @@ linuxkpi_ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 	struct lkpi_vif *lvif;
 	struct sk_buff *skb;
 
+	IMPROVE("wiphy_lock? or assert?");
 	skb = NULL;
 	ltxq = TXQ_TO_LTXQ(txq);
 	ltxq->seen_dequeue = true;
@@ -7897,8 +7898,8 @@ lkpi_ieee80211_wake_queues(struct ieee80211_hw *hw, int hwq)
 
 						ltxq->stopped = false;
 
-						/* XXX-BZ see when this explodes with all the locking. taskq? */
-						lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
+						if (!skb_queue_empty(&ltxq->skbq))
+							lkpi_80211_mo_wake_tx_queue(hw, sta->txq[tid]);
 					}
 				}
 				rcu_read_unlock();
@@ -7908,8 +7909,8 @@ lkpi_ieee80211_wake_queues(struct ieee80211_hw *hw, int hwq)
 	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 }
 
-void
-linuxkpi_ieee80211_wake_queues(struct ieee80211_hw *hw)
+static void
+lkpi_ieee80211_wake_queues_locked(struct ieee80211_hw *hw)
 {
 	int i;
 
@@ -7919,13 +7920,23 @@ linuxkpi_ieee80211_wake_queues(struct ieee80211_hw *hw)
 }
 
 void
+linuxkpi_ieee80211_wake_queues(struct ieee80211_hw *hw)
+{
+	wiphy_lock(hw->wiphy);
+	lkpi_ieee80211_wake_queues_locked(hw);
+	wiphy_unlock(hw->wiphy);
+}
+
+void
 linuxkpi_ieee80211_wake_queue(struct ieee80211_hw *hw, int qnum)
 {
 
 	KASSERT(qnum < hw->queues, ("%s: qnum %d >= hw->queues %d, hw %p\n",
 	    __func__, qnum, hw->queues, hw));
 
+	wiphy_lock(hw->wiphy);
 	lkpi_ieee80211_wake_queues(hw, qnum);
+	wiphy_unlock(hw->wiphy);
 }
 
 /* This is just hardware queues. */
