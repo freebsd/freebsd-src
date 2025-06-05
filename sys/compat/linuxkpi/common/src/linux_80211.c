@@ -174,6 +174,7 @@ static void lkpi_ieee80211_free_skb_mbuf(void *);
 #ifdef LKPI_80211_WME
 static int lkpi_wme_update(struct lkpi_hw *, struct ieee80211vap *, bool);
 #endif
+static void lkpi_ieee80211_wake_queues_locked(struct ieee80211_hw *);
 
 static const char *
 lkpi_rate_info_bw_to_str(enum rate_info_bw bw)
@@ -1631,6 +1632,11 @@ lkpi_iv_key_update_begin(struct ieee80211vap *vap)
 		refcount_acquire(&lvif->ic_unlocked);
 	if (ntislocked)
 		refcount_acquire(&lvif->nt_unlocked);
+
+	/*
+	 * Stop the queues while doing key updates.
+	 */
+	ieee80211_stop_queues(hw);
 }
 
 static void
@@ -1648,6 +1654,11 @@ lkpi_iv_key_update_end(struct ieee80211vap *vap)
 	hw = LHW_TO_HW(lhw);
 	lvif = VAP_TO_LVIF(vap);
 	nt = &ic->ic_sta;
+
+	/*
+	 * Re-enabled the queues after the key update.
+	 */
+	lkpi_ieee80211_wake_queues_locked(hw);
 
 	icislocked = IEEE80211_IS_LOCKED(ic);
 	MPASS(!icislocked);
