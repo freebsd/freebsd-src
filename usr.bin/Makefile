@@ -219,7 +219,9 @@ SUBDIR.${MK_ICONV}+=	mkesdb
 SUBDIR.${MK_ISCSI}+=	iscsictl
 SUBDIR.${MK_KDUMP}+=	kdump
 SUBDIR.${MK_KDUMP}+=	truss
+.if ${MK_MITKRB5} == "no"
 SUBDIR.${MK_KERBEROS_SUPPORT}+=	compile_et
+.endif
 SUBDIR.${MK_LDNS_UTILS}+=	drill
 SUBDIR.${MK_LDNS_UTILS}+=	host
 SUBDIR.${MK_LIB32}+=	ldd32
