@@ -40,6 +40,7 @@
 #define _SYS_PARAM_H_
 
 #include <sys/_null.h>
+#include <sys/_param.h>
 
 #define	BSD	199506		/* System version (year & month). */
 #define BSD4_3	1
@@ -251,9 +252,6 @@
 
 #define	NZERO	0		/* default "nice" */
 
-#define	NBBY	8		/* number of bits in a byte */
-#define	NBPW	sizeof(int)	/* number of bytes per word (integer) */
-
 #define	CMASK	022		/* default file mask: S_IWGRP|S_IWOTH */
 
 #define	NODEV	(dev_t)(-1)	/* non-existent device */
@@ -317,16 +315,7 @@
 #define	isclr(a,i)							\
 	((((const unsigned char *)(a))[(i)/NBBY] & (1<<((i)%NBBY))) == 0)
 
-/* Macros for counting and rounding. */
-#ifndef howmany
-#define	howmany(x, y)	(((x)+((y)-1))/(y))
-#endif
-#define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
-#define	rounddown(x, y)	(((x)/(y))*(y))
-#define	rounddown2(x, y) __align_down(x, y) /* if y is power of two */
-#define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))  /* to any y */
-#define	roundup2(x, y)	__align_up(x, y) /* if y is powers of two */
-#define powerof2(x)	((((x)-1)&(x))==0)
+/* Macros for counting and rounding provided by <sys/_param.h>. */
 
 /* Macros for min/max. */
 #define	MIN(a,b) (((a)<(b))?(a):(b))
