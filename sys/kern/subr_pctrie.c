@@ -514,8 +514,7 @@ _pctrie_lookup_node(struct pctrie *ptree, struct pctrie_node *node,
 		parent = node;
 		node = pctrie_node_load(&node->pn_child[slot], smr, access);
 	}
-	if (parent_out != NULL)
-		*parent_out = parent;
+	*parent_out = parent;
 	return (node);
 }
 
