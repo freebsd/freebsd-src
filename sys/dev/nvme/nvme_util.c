@@ -30,12 +30,9 @@
  */
 
 #include <sys/param.h>
-#ifdef _KERNEL
 #include <sys/sbuf.h>
-#endif
 #include <dev/nvme/nvme.h>
 
-#ifdef _KERNEL
 #define OPC_ENTRY(x)		[NVME_OPC_ ## x] = #x
 
 static const char *admin_opcode[256] = {
@@ -269,7 +266,6 @@ nvme_cpl_sbuf(const struct nvme_completion *cpl, struct sbuf *sb)
 	if (NVME_STATUS_GET_DNR(status) != 0)
 		sbuf_printf(sb, " DNR");
 }
-#endif
 
 void
 nvme_strvis(uint8_t *dst, const uint8_t *src, int dstlen, int srclen)

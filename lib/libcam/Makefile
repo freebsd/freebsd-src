@@ -3,7 +3,7 @@ PACKAGE=	runtime
 LIB=		cam
 SHLIBDIR?=	/lib
 SRCS=		camlib.c scsi_cmdparse.c scsi_all.c scsi_da.c scsi_sa.c cam.c \
-		ata_all.c nvme_all.c smp_all.c scsi_wrap.c
+		ata_all.c nvme_all.c nvme_util.c smp_all.c scsi_wrap.c
 INCS=		camlib.h scsi_wrap.h
 
 LIBADD=		sbuf
@@ -39,7 +39,8 @@ MLINKS+=	cam.3 cam_open_device.3 \
 		${SRCTOP}/sys/cam/ata \
 		${SRCTOP}/sys/cam/nvme \
 		${SRCTOP}/sys/cam/mmc \
-		${SRCTOP}/sys/cam/scsi
+		${SRCTOP}/sys/cam/scsi \
+		${SRCTOP}/sys/dev/nvme
 
 CFLAGS+=	-I${.CURDIR} -I${SRCTOP}/sys
 
