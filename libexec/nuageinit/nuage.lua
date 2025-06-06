@@ -389,6 +389,22 @@ local function install_package(package)
 	return os.execute(install_cmd)
 end
 
+local function run_pkg_cmd(subcmd)
+	local cmd = "pkg " .. subcmd .. " -y"
+	if os.getenv("NUAGE_RUN_TESTS") then
+		print(cmd)
+		return true
+	end
+	return os.execute(cmd)
+end
+local function update_packages()
+	return run_pkg_cmd("update")
+end
+
+local function upgrade_packages()
+	return run_pkg_cmd("upgrade")
+end
+
 local n = {
 	warn = warnmsg,
 	err = errmsg,
@@ -401,7 +417,9 @@ local n = {
 	update_sshd_config = update_sshd_config,
 	chpasswd = chpasswd,
 	pkg_bootstrap = pkg_bootstrap,
-	install_package = install_package
+	install_package = install_package,
+	update_packages = update_packages,
+	upgrade_packages = upgrade_packages
 }
 
 return n
