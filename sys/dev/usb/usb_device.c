@@ -2068,7 +2068,8 @@ repeat_set_config:
 	    usb_test_quirk(&uaa, UQ_MSC_NO_SYNC_CACHE) == 0 &&
 	    usb_test_quirk(&uaa, UQ_MSC_NO_TEST_UNIT_READY) == 0 &&
 	    usb_test_quirk(&uaa, UQ_MSC_NO_GETMAXLUN) == 0 &&
-	    usb_test_quirk(&uaa, UQ_MSC_NO_INQUIRY) == 0) {
+	    usb_test_quirk(&uaa, UQ_MSC_NO_INQUIRY) == 0 &&
+		usb_test_quirk(&uaa, UQ_MSC_IGNORE) == 0) {
 		/*
 		 * Try to figure out if there are any MSC quirks we
 		 * should apply automatically:
