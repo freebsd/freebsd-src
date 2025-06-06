@@ -304,7 +304,7 @@ static int		 pf_create_state(struct pf_krule *, struct pf_krule *,
 			    struct pf_krule *, struct pf_pdesc *,
 			    struct pf_ksrc_node *, struct pf_state_key *,
 			    struct pf_state_key *, struct mbuf *, int,
-			    u_int16_t, u_int16_t, int *, struct pfi_kkif *,
+			    int *, struct pfi_kkif *,
 			    struct pf_kstate **, int, u_int16_t, u_int16_t,
 			    int);
 static int		 pf_test_fragment(struct pf_krule **, int,
@@ -3388,7 +3388,7 @@ pf_send_tcp(const struct pf_krule *r, sa_family_t af,
 
 static void
 pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
-    struct pf_state_key *sk, int off, struct mbuf *m, struct tcphdr *th,
+    int off, struct mbuf *m, struct tcphdr *th,
     struct pfi_kkif *kif, u_int16_t bproto_sum, u_int16_t bip_sum, int hdrlen,
     u_short *reason)
 {
@@ -3401,9 +3401,9 @@ pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
 		PF_ACPY(saddr, &pd->osrc, pd->af);
 		PF_ACPY(daddr, &pd->odst, pd->af);
 		if (pd->sport)
-			*pd->sport = sk->port[pd->sidx];
+			*pd->sport = pd->osport;
 		if (pd->dport)
-			*pd->dport = sk->port[pd->didx];
+			*pd->dport = pd->odport;
 		if (pd->proto_sum)
 			*pd->proto_sum = bproto_sum;
 		if (pd->ip_sum)
@@ -4189,6 +4189,9 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, int direction,
 		break;
 	}
 
+	pd->osport = sport;
+	pd->odport = dport;
+
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_FILTER].active.ptr);
 
 	/* check packet for BINAT/NAT/RDR */
@@ -4454,7 +4457,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, int direction,
 	    ((r->rule_flag & PFRULE_RETURNRST) ||
 	    (r->rule_flag & PFRULE_RETURNICMP) ||
 	    (r->rule_flag & PFRULE_RETURN))) {
-		pf_return(r, nr, pd, sk, off, m, th, kif, bproto_sum,
+		pf_return(r, nr, pd, off, m, th, kif, bproto_sum,
 		    bip_sum, hdrlen, &reason);
 	}
 
@@ -4472,13 +4475,13 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm, int direction,
 	    (pd->flags & PFDESC_TCP_NORM))) {
 		int action;
 		action = pf_create_state(r, nr, a, pd, nsn, nk, sk, m, off,
-		    sport, dport, &rewrite, kif, sm, tag, bproto_sum, bip_sum,
+		    &rewrite, kif, sm, tag, bproto_sum, bip_sum,
 		    hdrlen);
 		sk = nk = NULL;
 		if (action != PF_PASS) {
 			if (action == PF_DROP &&
 			    (r->rule_flag & PFRULE_RETURN))
-				pf_return(r, nr, pd, sk, off, m, th, kif,
+				pf_return(r, nr, pd, off, m, th, kif,
 				    bproto_sum, bip_sum, hdrlen, &reason);
 			return (action);
 		}
@@ -4518,8 +4521,8 @@ cleanup:
 static int
 pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
     struct pf_pdesc *pd, struct pf_ksrc_node *nsn, struct pf_state_key *nk,
-    struct pf_state_key *sk, struct mbuf *m, int off, u_int16_t sport,
-    u_int16_t dport, int *rewrite, struct pfi_kkif *kif, struct pf_kstate **sm,
+    struct pf_state_key *sk, struct mbuf *m, int off,
+    int *rewrite, struct pfi_kkif *kif, struct pf_kstate **sm,
     int tag, u_int16_t bproto_sum, u_int16_t bip_sum, int hdrlen)
 {
 	struct pf_kstate	*s = NULL;
@@ -4673,7 +4676,8 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 	if (nr == NULL) {
 		KASSERT((sk == NULL && nk == NULL), ("%s: nr %p sk %p, nk %p",
 		    __func__, nr, sk, nk));
-		sk = pf_state_key_setup(pd, m, off, pd->src, pd->dst, sport, dport);
+		sk = pf_state_key_setup(pd, m, off, pd->src, pd->dst,
+		    pd->osport, pd->odport);
 		if (sk == NULL)
 			goto csfailed;
 		nk = sk;
@@ -4698,15 +4702,12 @@ pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
 		pf_set_protostate(s, PF_PEER_SRC, PF_TCPS_PROXY_SRC);
 		/* undo NAT changes, if they have taken place */
 		if (nr != NULL) {
-			struct pf_state_key *skt = s->key[PF_SK_WIRE];
-			if (pd->dir == PF_OUT)
-				skt = s->key[PF_SK_STACK];
 			PF_ACPY(pd->src, &pd->osrc, pd->af);
 			PF_ACPY(pd->dst, &pd->odst, pd->af);
 			if (pd->sport)
-				*pd->sport = skt->port[pd->sidx];
+				*pd->sport = pd->osport;
 			if (pd->dport)
-				*pd->dport = skt->port[pd->didx];
+				*pd->dport = pd->odport;
 			if (pd->proto_sum)
 				*pd->proto_sum = bproto_sum;
 			if (pd->ip_sum)
