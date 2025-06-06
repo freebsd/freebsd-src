@@ -148,34 +148,52 @@ pci_video_amd()
 			;;
 		# Raphael
 		0x164e)
-			addpkg "gpu-firmware-amd-kmod-gc-10-3-6"
 			addpkg "gpu-firmware-amd-kmod-psp-13-0-5"
 			addpkg "gpu-firmware-amd-kmod-dcn-3-1-5"
+			addpkg "gpu-firmware-amd-kmod-gc-10-3-6"
 			addpkg "gpu-firmware-amd-kmod-sdma-5-2-6"
 			addpkg "gpu-firmware-amd-kmod-vcn-3-1-2"
 			;;
 		# Navi 31
-		0x744c)
+		0x744?|0x745?)
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-0"
+			addpkg "gpu-firmware-amd-kmod-smu-13-0-0"
 			addpkg "gpu-firmware-amd-kmod-dcn-3-2-0"
 			addpkg "gpu-firmware-amd-kmod-gc-11-0-0"
-			addpkg "gpu-firmware-amd-kmod-psp-13-0-0"
 			addpkg "gpu-firmware-amd-kmod-sdma-6-0-0"
-			addpkg "gpu-firmware-amd-kmod-smu-13-0-0"
 			addpkg "gpu-firmware-amd-kmod-vcn-4-0-0"
 			;;
-		# Phoenix1
+		# Navi 33
+		0x73f0|0x748?)
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-7"
+			addpkg "gpu-firmware-amd-kmod-smu-13-0-7"
+			addpkg "gpu-firmware-amd-kmod-dcn-3-2-1"
+			addpkg "gpu-firmware-amd-kmod-gc-11-0-2"
+			addpkg "gpu-firmware-amd-kmod-sdma-6-0-2"
+			addpkg "gpu-firmware-amd-kmod-vcn-4-0-4"
+			;;
+		# Phoenix
 		0x15bf)
-			addpkg "gpu-firmware-amd-kmod-gc-11-0-1"
 			addpkg "gpu-firmware-amd-kmod-psp-13-0-4"
 			addpkg "gpu-firmware-amd-kmod-dcn-3-1-4"
+			addpkg "gpu-firmware-amd-kmod-gc-11-0-1"
 			addpkg "gpu-firmware-amd-kmod-sdma-6-0-1"
 			addpkg "gpu-firmware-amd-kmod-vcn-4-0-2"
 			;;
+		# Navi 32
+		0x747?)
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-10"
+			addpkg "gpu-firmware-amd-kmod-smu-13-0-10"
+			addpkg "gpu-firmware-amd-kmod-dcn-3-2-0"
+			addpkg "gpu-firmware-amd-kmod-gc-11-0-3"
+			addpkg "gpu-firmware-amd-kmod-sdma-6-0-3"
+			addpkg "gpu-firmware-amd-kmod-vcn-4-0-0"
+			;;
 		# Phoenix2
 		0x15c8)
+			addpkg "gpu-firmware-amd-kmod-psp-13-0-11"
 			addpkg "gpu-firmware-amd-kmod-dcn-3-1-4"
 			addpkg "gpu-firmware-amd-kmod-gc-11-0-4"
-			addpkg "gpu-firmware-amd-kmod-psp-13-0-11"
 			addpkg "gpu-firmware-amd-kmod-sdma-6-0-1"
 			addpkg "gpu-firmware-amd-kmod-vcn-4-0-2"
 			;;
