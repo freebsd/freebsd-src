@@ -1010,6 +1010,8 @@ print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numer
 	if (r->pktrate.limit)
 		printf(" max-pkt-rate %u/%u", r->pktrate.limit,
 		    r->pktrate.seconds);
+	if (r->max_pkt_size)
+		printf( " max-pkt-size %u", r->max_pkt_size);
 	if (r->scrub_flags & PFSTATE_SETMASK) {
 		char *comma = "";
 		printf(" set (");

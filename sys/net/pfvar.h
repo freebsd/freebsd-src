@@ -845,6 +845,7 @@ struct pf_krule {
 		u_int32_t		limit;
 		u_int32_t		seconds;
 	}			 max_src_conn_rate;
+	uint16_t		 max_pkt_size;
 	u_int16_t		 qid;
 	u_int16_t		 pqid;
 	u_int16_t		 dnpipe;

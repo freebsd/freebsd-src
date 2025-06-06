@@ -279,6 +279,7 @@ enum pf_rule_type_t {
 	PF_RT_SRC_NODES_NAT	= 80, /* u64 */
 	PF_RT_SRC_NODES_ROUTE	= 81, /* u64 */
 	PF_RT_PKTRATE		= 82, /* nested, pf_threshold_type_t */
+	PF_RT_MAX_PKT_SIZE	= 83, /* u16 */
 };
 
 enum pf_addrule_type_t {

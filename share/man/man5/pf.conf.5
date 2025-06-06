@@ -2227,6 +2227,9 @@ pass in proto icmp max-pkt-rate 100/10
 When the rate is exceeded, all ICMP is blocked until the rate falls below
 100 per 10 seconds again.
 .Pp
+.It Ar max-pkt-size Aq Ar number
+Limit each packet to be no more than the specified number of bytes.
+This includes the IP header, but not any layer 2 header.
 .It Xo Ar queue Aq Ar queue
 .No \*(Ba ( Aq Ar queue ,
 .Aq Ar queue )
@@ -3401,6 +3404,7 @@ filteropt      = user | group | flags | icmp-type | icmp6-type | "tos" tos |
                  "label" string | "tag" string | [ "!" ] "tagged" string |
                  "max-pkt-rate" number "/" seconds |
                  "set prio" ( number | "(" number [ [ "," ] number ] ")" ) |
+                 "max-pkt-size" number |
                  "queue" ( string | "(" string [ [ "," ] string ] ")" ) |
                  "rtable" number | "probability" number"%" | "prio" number |
                  "dnpipe" ( number | "(" number "," number ")" ) |
