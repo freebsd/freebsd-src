@@ -10677,6 +10677,14 @@ done:
 		    ("pf: dropping packet with dangerous headers\n"));
 	}
 
+	if (r && r->max_pkt_size && pd.tot_len > r->max_pkt_size) {
+		action = PF_DROP;
+		REASON_SET(&reason, PFRES_NORM);
+		pd.act.log = PF_LOG_FORCE;
+		DPFPRINTF(PF_DEBUG_MISC,
+		    ("pf: dropping overly long packet\n"));
+	}
+
 	if (s) {
 		uint8_t log = pd.act.log;
 		memcpy(&pd.act, &s->act, sizeof(struct pf_rule_actions));
