@@ -89,6 +89,10 @@ struct vnode;
 int	inotify_create_file(struct thread *, struct file *, int, int *);
 void	inotify_log(struct vnode *, const char *, size_t, int, __uint32_t);
 
+int	kern_inotify_rm_watch(int, uint32_t, struct thread *);
+int	kern_inotify_add_watch(int, int, const char *, uint32_t,
+	    struct thread *);
+
 void	vn_inotify(struct vnode *, struct vnode *, struct componentname *, int,
 	    uint32_t);
 int	vn_inotify_add_watch(struct vnode *, struct inotify_softc *,
