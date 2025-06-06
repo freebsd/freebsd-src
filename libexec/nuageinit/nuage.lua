@@ -361,6 +361,15 @@ local function chpasswd(obj)
 	end
 end
 
+local function pkg_bootstrap()
+	if os.execute("pkg -N 2>/dev/null") then
+		return true
+	end
+	print("Bootstrapping pkg")
+	return os.execute("env ASSUME_ALWAYS_YES=YES pkg bootstrap")
+end
+
+
 local n = {
 	warn = warnmsg,
 	err = errmsg,
@@ -371,7 +380,8 @@ local n = {
 	addgroup = addgroup,
 	addsshkey = addsshkey,
 	update_sshd_config = update_sshd_config,
-	chpasswd = chpasswd
+	chpasswd = chpasswd,
+	pkg_bootstrap = pkg_bootstrap
 }
 
 return n
