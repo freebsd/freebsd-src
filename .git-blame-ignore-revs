@@ -8,6 +8,8 @@
 #
 # This file is sorted in git log order (newest commits first).
 
+# iflib style tweaks
+a2989d11eabeb869b8c845a097d4214755d9a99f
 # queue(3) single space after all #define
 49066283a4c1fc5c9d6c4cbee00cc941f4b09792
 # bin/ps whitespace cleanup
