@@ -282,11 +282,11 @@ function core.kernelList()
 	-- actually find any kernels, we just assume that they know what they're
 	-- doing and leave it alone.
 	if default_kernel and not present[default_kernel] and #kernels > 1 then
-		for i = 1, #kernels do
-			if i == #kernels then
-				kernels[i] = nil
+		for n = 1, #kernels do
+			if n == #kernels then
+				kernels[n] = nil
 			else
-				kernels[i] = kernels[i + 1]
+				kernels[n] = kernels[n + 1]
 			end
 		end
 	end
