@@ -238,6 +238,13 @@ perform_chgpwent(const char *name, struct passwd *pwd, char *nispasswd)
 	}
 }
 
+static void
+pw_check_root(void)
+{
+	if (!conf.altroot && geteuid() != 0)
+		errx(EX_NOPERM, "you must be root");
+}
+
 /*
  * The M_LOCK and M_UNLOCK functions simply add or remove
  * a "*LOCKED*" prefix from in front of the password to
@@ -256,8 +263,7 @@ pw_userlock(char *arg1, int mode)
 	bool locked = false;
 	uid_t id = (uid_t)-1;
 
-	if (geteuid() != 0)
-		errx(EX_NOPERM, "you must be root");
+	pw_check_root();
 
 	if (arg1 == NULL)
 		errx(EX_DATAERR, "username or id required");
@@ -1324,8 +1330,8 @@ pw_user_add(int argc, char **argv, char *arg1)
 	if (argc > 0)
 		usage();
 
-	if (geteuid() != 0 && ! dryrun)
-		errx(EX_NOPERM, "you must be root");
+	if (!dryrun)
+		pw_check_root();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
@@ -1641,8 +1647,8 @@ pw_user_mod(int argc, char **argv, char *arg1)
 	if (argc > 0)
 		usage();
 
-	if (geteuid() != 0 && ! dryrun)
-		errx(EX_NOPERM, "you must be root");
+	if (!dryrun)
+		pw_check_root();
 
 	if (quiet)
 		freopen(_PATH_DEVNULL, "w", stderr);
