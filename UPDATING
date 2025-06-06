@@ -12,6 +12,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20250610:
+	14.3-RELEASE.
+
 20250419:
 	LinuxKPI alloc routines were changed to return physically contiguous
 	memory where expected. These changes may require out-of-tree drivers
