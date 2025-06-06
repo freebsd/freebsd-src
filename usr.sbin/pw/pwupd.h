@@ -79,6 +79,7 @@ struct pwconf {
 	char		 etcpath[MAXPATHLEN];
 	int		 fd;
 	int		 rootfd;
+	bool		 altroot;
 	bool		 checkduplicate;
 };
 

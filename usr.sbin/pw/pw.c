@@ -162,6 +162,7 @@ main(int argc, char *argv[])
 				snprintf(conf.etcpath, sizeof(conf.etcpath),
 				    "%s%s", optarg, arg == 'R' ?
 				    _PATH_PWD : "");
+				conf.altroot = true;
 			} else
 				break;
 		}

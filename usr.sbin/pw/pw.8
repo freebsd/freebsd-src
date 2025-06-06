@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 29, 2024
+.Dd August 19, 2025
 .Dt PW 8
 .Os
 .Sh NAME
@@ -191,7 +191,12 @@ utility handles updating the
 .Xr master.passwd 5 ,
 .Xr group 5
 and the secure and insecure
-password database files, and must be run as root.
+password database files, and must be run as root
+.Po except when using
+.Fl R
+or
+.Fl V
+.Pc .
 .Pp
 The first one or two keywords provided to
 .Nm
