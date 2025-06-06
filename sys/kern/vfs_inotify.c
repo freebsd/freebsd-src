@@ -872,7 +872,7 @@ fget_inotify(struct thread *td, int fd, const cap_rights_t *needrightsp,
 	return (0);
 }
 
-static int
+int
 kern_inotify_add_watch(int fd, int dfd, const char *path, uint32_t mask,
     struct thread *td)
 {
@@ -958,7 +958,7 @@ sys_inotify_add_watch_at(struct thread *td,
 	    uap->mask, td));
 }
 
-static int
+int
 kern_inotify_rm_watch(int fd, uint32_t wd, struct thread *td)
 {
 	struct file *fp;
