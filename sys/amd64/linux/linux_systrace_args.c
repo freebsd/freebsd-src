@@ -1918,12 +1918,19 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_inotify_add_watch */
 	case 254: {
-		*n_args = 0;
+		struct linux_inotify_add_watch_args *p = params;
+		iarg[a++] = p->fd; /* l_int */
+		uarg[a++] = (intptr_t)p->pathname; /* const char * */
+		uarg[a++] = p->mask; /* uint32_t */
+		*n_args = 3;
 		break;
 	}
 	/* linux_inotify_rm_watch */
 	case 255: {
-		*n_args = 0;
+		struct linux_inotify_rm_watch_args *p = params;
+		iarg[a++] = p->fd; /* l_int */
+		uarg[a++] = p->wd; /* uint32_t */
+		*n_args = 2;
 		break;
 	}
 	/* linux_migrate_pages */
@@ -5860,9 +5867,32 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_inotify_add_watch */
 	case 254:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_inotify_rm_watch */
 	case 255:
+		switch (ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_migrate_pages */
 	case 256:
@@ -8353,8 +8383,14 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 253:
 	/* linux_inotify_add_watch */
 	case 254:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_inotify_rm_watch */
 	case 255:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_migrate_pages */
 	case 256:
 	/* linux_openat */
