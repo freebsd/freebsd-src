@@ -362,6 +362,9 @@ local function chpasswd(obj)
 end
 
 local function pkg_bootstrap()
+	if os.getenv("NUAGE_RUN_TESTS") then
+		return true
+	end
 	if os.execute("pkg -N 2>/dev/null") then
 		return true
 	end
@@ -369,6 +372,22 @@ local function pkg_bootstrap()
 	return os.execute("env ASSUME_ALWAYS_YES=YES pkg bootstrap")
 end
 
+local function install_package(package)
+	if package == nil then
+		return true
+	end
+	local install_cmd = "pkg install -y " .. package
+	local test_cmd = "pkg info -q " .. package
+	if os.getenv("NUAGE_RUN_TESTS") then
+		print(install_cmd)
+		print(test_cmd)
+		return true
+	end
+	if os.execute(test_cmd) then
+		return true
+	end
+	return os.execute(install_cmd)
+end
 
 local n = {
 	warn = warnmsg,
@@ -381,7 +400,8 @@ local n = {
 	addsshkey = addsshkey,
 	update_sshd_config = update_sshd_config,
 	chpasswd = chpasswd,
-	pkg_bootstrap = pkg_bootstrap
+	pkg_bootstrap = pkg_bootstrap,
+	install_package = install_package
 }
 
 return n

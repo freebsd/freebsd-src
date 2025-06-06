@@ -24,6 +24,7 @@ atf_test_case nocloud_userdata_cloudconfig_chpasswd
 atf_test_case nocloud_userdata_cloudconfig_chpasswd_list_string
 atf_test_case nocloud_userdata_cloudconfig_chpasswd_list_list
 atf_test_case config2_userdata_runcmd
+atf_test_case config2_userdata_packages
 
 setup_test_adduser()
 {
@@ -736,6 +737,48 @@ EOF
 	atf_check -s exit:0 -o inline:"FreeBSD\n" cat "${PWD}"/media/nuageinit/runcmd_uname
 }
 
+config2_userdata_packages_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_packages_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	export NUAGE_RUN_TESTS=1
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+packages:
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -s exit:1 -e match:"attempt to index a nil value" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+packages:
+  - yeah/plop
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -s exit:0 -o inline:"pkg install -y yeah/plop\npkg info -q yeah/plop\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+packages:
+  - curl
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -o inline:"pkg install -y curl\npkg info -q curl\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+packages:
+  - curl
+  - meh: bla
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -o inline:"pkg install -y curl\npkg info -q curl\n" -e inline:"nuageinit: Invalid type : table for packages entry number 2\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case args
@@ -756,4 +799,5 @@ atf_init_test_cases()
 	atf_add_test_case nocloud_userdata_cloudconfig_chpasswd_list_string
 	atf_add_test_case nocloud_userdata_cloudconfig_chpasswd_list_list
 	atf_add_test_case config2_userdata_runcmd
+	atf_add_test_case config2_userdata_packages
 }

@@ -69,6 +69,22 @@ local function get_ifaces()
 	return myifaces
 end
 
+local function install_packages(packages)
+	if not nuage.pkg_bootstrap() then
+		nuage.warn("Failed to bootstrap pkg, skip installing packages")
+		return
+	end
+	for n, p in pairs(packages) do
+		if type(p) == "string" then
+			if not nuage.install_package(p) then
+				nuage.warn("Failed to install : " .. p)
+			end
+		else
+			nuage.warn("Invalid type : " .. type(p) .. " for packages entry number " .. n)
+		end
+	end
+end
+
 local function config2_network(p)
 	local parser = ucl.parser()
 	local f = io.open(p .. "/network_data.json")
@@ -369,6 +385,9 @@ if line == "#cloud-config" then
 				-- execute the next command anyway --
 			end
 		end
+	end
+	if obj.packages then
+		install_packages(obj.packages)
 	end
 else
 	local res, err = os.execute(path .. "/" .. ud)
