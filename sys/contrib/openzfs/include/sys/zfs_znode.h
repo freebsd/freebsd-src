@@ -163,8 +163,9 @@ extern int zfs_obj_to_pobj(objset_t *osp, sa_handle_t *hdl,
     sa_attr_type_t *sa_table, uint64_t *pobjp, int *is_xattrdir);
 extern int zfs_get_zplprop(objset_t *os, zfs_prop_t prop, uint64_t *value);
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_WANT_ZNODE)
 #include <sys/zfs_znode_impl.h>
+#include <sys/zfs_rlock.h>
 
 /*
  * Directory entry locks control access to directory entries.
@@ -219,7 +220,9 @@ typedef struct znode {
 	 */
 	ZNODE_OS_FIELDS;
 } znode_t;
+#endif
 
+#ifdef _KERNEL
 /* Verifies the znode is valid. */
 static inline int
 zfs_verify_zp(znode_t *zp)
