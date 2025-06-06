@@ -389,6 +389,13 @@ if line == "#cloud-config" then
 	if obj.packages then
 		install_packages(obj.packages)
 	end
+
+	if obj.package_update then
+		nuage.update_packages()
+	end
+	if obj.package_upgrade then
+		nuage.upgrade_packages()
+	end
 else
 	local res, err = os.execute(path .. "/" .. ud)
 	if not res then
