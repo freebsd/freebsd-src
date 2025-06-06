@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
 .\" $OpenBSD: diff.1,v 1.47 2015/11/24 19:35:41 jmc Exp $
 .\"
 .\" Copyright (c) 1980, 1990, 1993
@@ -27,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 26, 2024
+.Dd January 7, 2025
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -95,7 +98,7 @@
 .Op Fl -strip-trailing-cr
 .Op Fl -tabsize Ar number
 .Op Fl -text
-.Fl C Ar number | -context Ar number
+.Fl C Ar number | Fl -context Ar number
 .Ar file1 file2
 .Nm diff
 .Op Fl aBbdiltw
@@ -354,7 +357,7 @@ Files differ and only the second file contains the line.
 .Pp
 Comparison options:
 .Bl -tag -width Ds
-.It Fl A Ar algo, Fl -algorithm Ar algo
+.It Fl A Ar algo , Fl -algorithm Ar algo
 Configure the algorithm used when comparing files.
 .Nm
 supports 3 algorithms:
@@ -420,9 +423,9 @@ environment variable is set to a non-empty string.
 Try very hard to produce a diff as small as possible.
 This may consume a lot of processing power and memory when processing
 large files with many changes.
-.It Fl F Ar pattern, Fl -show-function-line Ar pattern
+.It Fl F Ar pattern , Fl -show-function-line Ar pattern
 Like
-.Fl p,
+.Fl p ,
 but display the last line that matches provided pattern.
 .It Fl I Ar pattern Fl -ignore-matching-lines Ar pattern
 Ignores changes, insertions, and deletions whose lines match the
@@ -483,7 +486,7 @@ Output at most
 columns when using side by side format.
 The default value is 130.
 Note that unless
-.It Fl t
+.Fl t
 was specified,
 .Nm
 will always align the second column to a tab stop, so values of
@@ -695,7 +698,7 @@ number.
 .Bl -tag -width DIFFCOLORS
 .It Ev DIFFCOLORS
 The value of this variable is the form
-.Ar add Ns : Ns Ar rm ,
+.Ar add : Ns Ar rm ,
 where
 .Ar add
 is the ASCII escape sequence for additions and
@@ -818,4 +821,5 @@ by a BSD-licensed implementation written by
 Some GNUisms were lost in the process.
 .Pp
 libdiff was imported from the Game of Trees version control system and default
-algorithm was changed to Myers for FreeBSD 15.
+algorithm was changed to Myers for
+.Fx 15 .
