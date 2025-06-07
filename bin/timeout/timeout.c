@@ -188,16 +188,23 @@ static void
 send_sig(pid_t pid, int signo, bool foreground)
 {
 	struct procctl_reaper_kill rk;
+	int error;
 
 	logv("sending signal %s(%d) to command '%s'",
 	     sys_signame[signo], signo, command);
 	if (foreground) {
-		if (kill(pid, signo) == -1)
-			warnx("kill(%d, %s)", (int)pid, sys_signame[signo]);
+		if (kill(pid, signo) == -1) {
+			if (errno != ESRCH)
+				warnx("kill(%d, %s)", (int)pid,
+				    sys_signame[signo]);
+		}
 	} else {
 		memset(&rk, 0, sizeof(rk));
 		rk.rk_sig = signo;
-		if (procctl(P_PID, getpid(), PROC_REAP_KILL, &rk) == -1)
+		error = procctl(P_PID, getpid(), PROC_REAP_KILL, &rk);
+		if (error == 0 || (error == -1 && errno == ESRCH))
+			;
+		else if (error == -1)
 			warnx("procctl(PROC_REAP_KILL)");
 		else if (rk.rk_fpid > 0)
 			warnx("failed to signal some processes: first pid=%d",
