@@ -131,25 +131,98 @@
 .Fn ATF_TC_WITHOUT_HEAD "name"
 .Fn ATF_TP_ADD_TC "tp_name" "tc_name"
 .Fn ATF_TP_ADD_TCS "tp_name"
-.Fn atf_tc_get_config_var "tc" "varname"
-.Fn atf_tc_get_config_var_wd "tc" "variable_name" "default_value"
-.Fn atf_tc_get_config_var_as_bool "tc" "variable_name"
-.Fn atf_tc_get_config_var_as_bool_wd "tc" "variable_name" "default_value"
-.Fn atf_tc_get_config_var_as_long "tc" "variable_name"
-.Fn atf_tc_get_config_var_as_long_wd "tc" "variable_name" "default_value"
-.Fn atf_no_error
-.Fn atf_tc_expect_death "reason" "..."
-.Fn atf_tc_expect_exit "exitcode" "reason" "..."
-.Fn atf_tc_expect_fail "reason" "..."
-.Fn atf_tc_expect_pass
-.Fn atf_tc_expect_signal "signo" "reason" "..."
-.Fn atf_tc_expect_timeout "reason" "..."
-.Fn atf_tc_fail "reason"
-.Fn atf_tc_fail_nonfatal "reason"
-.Fn atf_tc_pass
-.Fn atf_tc_require_kmod "kmod"
-.Fn atf_tc_require_prog "prog"
-.Fn atf_tc_skip "reason"
+.Ft const char*
+.Fo atf_tc_get_config_var
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
+.Fc
+.Ft const char*
+.Fo atf_tc_get_config_var_wd
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
+.Fa "const char *defval"
+.Fc
+.Ft bool
+.Fo atf_tc_get_config_var_as_bool
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
+.Fc
+.Ft bool
+.Fo atf_tc_get_config_var_as_bool_wd
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
+.Fa "const bool defval"
+.Fc
+.Ft long
+.Fo atf_tc_get_config_var_as_long
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
+.Fc
+.Ft long
+.Fo atf_tc_get_config_var_as_long_wd
+.Fa "const atf_tc_t *tc"
+.Fa "const char *name"
+.Fa "const long defval"
+.Fc
+.Ft void
+.Fo atf_no_error
+.Fa "void"
+.Fc
+.Ft void
+.Fo atf_tc_expect_death
+.Fa "const char *reason"
+.Fa "..."
+.Fc
+.Ft void
+.Fo atf_tc_expect_exit
+.Fa "const int exitcode"
+.Fa "const char *reason"
+.Fa "..."
+.Fc
+.Ft void
+.Fo atf_tc_expect_fail
+.Fa "const char *reason"
+.Fa "..."
+.Fc
+.Ft void
+.Fo atf_tc_expect_pass
+.Fa "void"
+.Fc
+.Ft void
+.Fo atf_tc_expect_signal
+.Fa "const int signo"
+.Fa "const char *reason"
+.Fa "..."
+.Fc
+.Ft void
+.Fo atf_tc_expect_timeout
+.Fa "const char *reason"
+.Fa "..."
+.Fc
+.Ft void
+.Fo atf_tc_fail
+.Fa "const char *reason"
+.Fc
+.Ft void
+.Fo atf_tc_fail_nonfatal
+.Fa "const char *reason"
+.Fc
+.Ft void
+.Fo atf_tc_pass
+.Fa "void"
+.Fc
+.Ft void
+.Fo atf_tc_require_kmod
+.Fa "const char *kmod"
+.Fc
+.Ft void
+.Fo atf_tc_require_prog
+.Fa "const char *prog"
+.Fc
+.Ft void
+.Fo atf_tc_skip
+.Fa "const char *reason"
+.Fc
 .Ft void
 .Fo atf_utils_cat_file
 .Fa "const char *file"
