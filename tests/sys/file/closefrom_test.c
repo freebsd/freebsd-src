@@ -356,5 +356,38 @@ main(void)
 		fail_err("close_range");
 	ok("close_range(..., CLOSE_RANGE_CLOEXEC)");
 
+	/* test CLOSE_RANGE_CLOFORK */
+	for (i = 0; i < 8; i++)
+		(void)devnull();
+	fd = highest_fd();
+	start = fd - 8;
+	if (close_range(start + 1, start + 4, CLOSE_RANGE_CLOFORK) < 0)
+		fail_err("close_range(..., CLOSE_RANGE_CLOFORK)");
+	flags = fcntl(start, F_GETFD);
+	if (flags < 0)
+		fail_err("fcntl(.., F_GETFD)");
+	if ((flags & FD_CLOFORK) != 0)
+		fail("close_range", "CLOSE_RANGE_CLOFORK set close-on-exec "
+		    "when it should not have on fd %d", start);
+	for (i = start + 1; i <= start + 4; i++) {
+		flags = fcntl(i, F_GETFD);
+		if (flags < 0)
+			fail_err("fcntl(.., F_GETFD)");
+		if ((flags & FD_CLOFORK) == 0)
+			fail("close_range", "CLOSE_RANGE_CLOFORK did not set "
+			    "close-on-exec on fd %d", i);
+	}
+	for (; i < start + 8; i++) {
+		flags = fcntl(i, F_GETFD);
+		if (flags < 0)
+			fail_err("fcntl(.., F_GETFD)");
+		if ((flags & FD_CLOFORK) != 0)
+			fail("close_range", "CLOSE_RANGE_CLOFORK set close-on-exec "
+			    "when it should not have on fd %d", i);
+	}
+	if (close_range(start, start + 8, 0) < 0)
+		fail_err("close_range");
+	ok("close_range(..., CLOSE_RANGE_CLOFORK)");
+
 	return (0);
 }
