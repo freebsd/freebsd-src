@@ -148,7 +148,7 @@ ipf_p_rpcb_new(void *arg, fr_info_t *fin, ap_session_t *aps, nat_t *nat)
 {
 	rpcb_session_t *rs;
 
-	nat = nat;	/* LINT */
+	(void)nat;	/* UNUSED */
 
 	if (fin->fin_v != 4)
 		return (-1);
@@ -1025,7 +1025,7 @@ ipf_p_rpcb_lookup(rpcb_session_t *rs, u_32_t xid)
 static void
 ipf_p_rpcb_deref(rpcb_session_t *rs, rpcb_xact_t *rx)
 {
-	rs = rs;	/* LINT */
+	(void)rs;	/* UNUSED */
 
 	if (rx == NULL)
 		return;

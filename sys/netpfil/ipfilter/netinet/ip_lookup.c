@@ -235,7 +235,7 @@ ipf_lookup_ioctl(ipf_main_softc_t *softc, caddr_t data, ioctlcmd_t cmd,
 	int err;
 	SPL_INT(s);
 
-	mode = mode;	/* LINT */
+	(void)mode;	/* UNUSED */
 
 	SPL_NET(s);
 
