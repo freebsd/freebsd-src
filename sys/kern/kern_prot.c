@@ -2150,6 +2150,43 @@ SYSCTL_PROC(_security_bsd, OID_AUTO, unprivileged_proc_debug,
     CTLFLAG_MPSAFE, 0, 0, sysctl_unprivileged_proc_debug, "I",
     "Unprivileged processes may use process debugging facilities");
 
+/*
+ * Return true if the object owner/group ids are subset of the active
+ * credentials.
+ */
+bool
+cr_xids_subset(struct ucred *active_cred, struct ucred *obj_cred)
+{
+	int i;
+	bool grpsubset, uidsubset;
+
+	/*
+	 * Is p's group set a subset of td's effective group set?  This
+	 * includes p's egid, group access list, rgid, and svgid.
+	 */
+	grpsubset = true;
+	for (i = 0; i < obj_cred->cr_ngroups; i++) {
+		if (!groupmember(obj_cred->cr_groups[i], active_cred)) {
+			grpsubset = false;
+			break;
+		}
+	}
+	grpsubset = grpsubset &&
+	    groupmember(obj_cred->cr_rgid, active_cred) &&
+	    groupmember(obj_cred->cr_svgid, active_cred);
+
+	/*
+	 * Are the uids present in obj_cred's credential equal to
+	 * active_cred's effective uid?  This includes obj_cred's
+	 * euid, svuid, and ruid.
+	 */
+	uidsubset = (active_cred->cr_uid == obj_cred->cr_uid &&
+	    active_cred->cr_uid == obj_cred->cr_svuid &&
+	    active_cred->cr_uid == obj_cred->cr_ruid);
+
+	return (uidsubset && grpsubset);
+}
+
 /*-
  * Determine whether td may debug p.
  * Returns: 0 for permitted, an errno value otherwise
@@ -2161,7 +2198,7 @@ SYSCTL_PROC(_security_bsd, OID_AUTO, unprivileged_proc_debug,
 int
 p_candebug(struct thread *td, struct proc *p)
 {
-	int error, grpsubset, i, uidsubset;
+	int error;
 
 	KASSERT(td == curthread, ("%s: td not curthread", __func__));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -2179,34 +2216,11 @@ p_candebug(struct thread *td, struct proc *p)
 		return (error);
 
 	/*
-	 * Is p's group set a subset of td's effective group set?  This
-	 * includes p's egid, group access list, rgid, and svgid.
-	 */
-	grpsubset = 1;
-	for (i = 0; i < p->p_ucred->cr_ngroups; i++) {
-		if (!groupmember(p->p_ucred->cr_groups[i], td->td_ucred)) {
-			grpsubset = 0;
-			break;
-		}
-	}
-	grpsubset = grpsubset &&
-	    groupmember(p->p_ucred->cr_rgid, td->td_ucred) &&
-	    groupmember(p->p_ucred->cr_svgid, td->td_ucred);
-
-	/*
-	 * Are the uids present in p's credential equal to td's
-	 * effective uid?  This includes p's euid, svuid, and ruid.
-	 */
-	uidsubset = (td->td_ucred->cr_uid == p->p_ucred->cr_uid &&
-	    td->td_ucred->cr_uid == p->p_ucred->cr_svuid &&
-	    td->td_ucred->cr_uid == p->p_ucred->cr_ruid);
-
-	/*
 	 * If p's gids aren't a subset, or the uids aren't a subset,
 	 * or the credential has changed, require appropriate privilege
 	 * for td to debug p.
 	 */
-	if (!grpsubset || !uidsubset) {
+	if (!cr_xids_subset(td->td_ucred, p->p_ucred)) {
 		error = priv_check(td, PRIV_DEBUG_DIFFCRED);
 		if (error)
 			return (error);
