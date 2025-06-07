@@ -195,7 +195,7 @@ send_sig(pid_t pid, int signo, bool foreground)
 	if (foreground) {
 		if (kill(pid, signo) == -1) {
 			if (errno != ESRCH)
-				warnx("kill(%d, %s)", (int)pid,
+				warn("kill(%d, %s)", (int)pid,
 				    sys_signame[signo]);
 		}
 	} else {
@@ -204,11 +204,13 @@ send_sig(pid_t pid, int signo, bool foreground)
 		error = procctl(P_PID, getpid(), PROC_REAP_KILL, &rk);
 		if (error == 0 || (error == -1 && errno == ESRCH))
 			;
-		else if (error == -1)
-			warnx("procctl(PROC_REAP_KILL)");
-		else if (rk.rk_fpid > 0)
-			warnx("failed to signal some processes: first pid=%d",
-			      (int)rk.rk_fpid);
+		else if (error == -1) {
+			warn("procctl(PROC_REAP_KILL)");
+			if (rk.rk_fpid > 0)
+				warnx(
+			    "failed to signal some processes: first pid=%d",
+				    (int)rk.rk_fpid);
+		}
 		logv("signaled %u processes", rk.rk_killed);
 	}
 
