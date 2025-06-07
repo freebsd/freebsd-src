@@ -93,7 +93,7 @@ function is called when a new module is loaded into the system but before the
 registration process is complete.
 It should be implemented if a module needs to set up some global state prior to
 being available for use by new connections.
-Returning a non-zero value from
+Returning a nonzero value from
 .Va mod_init
 will cause the loading of the module to fail.
 .Pp
@@ -122,7 +122,7 @@ function is called when a TCP control block
 is created.
 It should be implemented if a module needs to allocate memory for storing
 private per-connection state.
-Returning a non-zero value from
+Returning a nonzero value from
 .Va cb_init
 will cause the connection set up to be aborted, terminating the connection as a
 result.
