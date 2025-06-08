@@ -1657,8 +1657,8 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 	 */
 	(p->p_sysent->sv_set_syscall_retval)(td, EINTR);
 	for (has_sig = 0; !has_sig;) {
-		while (msleep(&p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "pause",
-			0) == 0)
+		while (msleep(&p->p_sigacts, &p->p_mtx, PPAUSE | PCATCH,
+		    "pause", 0) == 0)
 			/* void */;
 		thread_suspend_check(0);
 		mtx_lock(&p->p_sigacts->ps_mtx);
