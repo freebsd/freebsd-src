@@ -3751,7 +3751,14 @@ sigparent(struct proc *p, int reason, int status)
 		if (KSI_ONQ(p->p_ksi))
 			return;
 	}
-	pksignal(p->p_pptr, SIGCHLD, p->p_ksi);
+
+	/*
+	 * Do not consume p_ksi if parent is zombie, since signal is
+	 * dropped immediately.  Instead, keep it since it might be
+	 * useful for reaper.
+	 */
+	if (p->p_pptr->p_state != PRS_ZOMBIE)
+		pksignal(p->p_pptr, SIGCHLD, p->p_ksi);
 }
 
 static void
