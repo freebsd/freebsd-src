@@ -26,7 +26,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <sys/fcntl.h>
 #include <sys/procctl.h>
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -283,6 +283,8 @@ main(int argc, char **argv)
 	int ch, status, sig;
 	int pstat = 0;
 	pid_t pid, cpid;
+	int pp[2], error;
+	char c;
 	double first_kill;
 	double second_kill = 0;
 	bool foreground = false;
@@ -351,6 +353,9 @@ main(int argc, char **argv)
 	if (sigprocmask(SIG_BLOCK, &allmask, &oldmask) == -1)
 		err(EXIT_FAILURE, "sigprocmask()");
 
+	if (pipe2(pp, O_CLOEXEC) == -1)
+		err(EXIT_FAILURE, "pipe2");
+
 	pid = fork();
 	if (pid == -1) {
 		err(EXIT_FAILURE, "fork()");
@@ -366,6 +371,11 @@ main(int argc, char **argv)
 		if (sigprocmask(SIG_SETMASK, &oldmask, NULL) == -1)
 			err(EXIT_FAILURE, "sigprocmask(oldmask)");
 
+		error = read(pp[0], &c, 1);
+		if (error == -1)
+			err(EXIT_FAILURE, "read from control pipe");
+		if (error == 0)
+			errx(EXIT_FAILURE, "eof from control pipe");
 		execvp(argv[0], argv);
 		warn("exec(%s)", argv[0]);
 		_exit(errno == ENOENT ? EXIT_CMD_NOENT : EXIT_CMD_ERROR);
@@ -391,6 +401,11 @@ main(int argc, char **argv)
 	signal(SIGTTOU, SIG_IGN);
 
 	set_interval(first_kill);
+	error = write(pp[1], "a", 1);
+	if (error == -1)
+		err(EXIT_FAILURE, "write to control pipe");
+	if (error == 0)
+		errx(EXIT_FAILURE, "short write to control pipe");
 	sigemptyset(&zeromask);
 
 	for (;;) {
