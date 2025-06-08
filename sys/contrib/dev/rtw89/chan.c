@@ -2612,6 +2612,27 @@ static void rtw89_swap_chanctx(struct rtw89_dev *rtwdev,
 	if (idx1 == idx2)
 		return;
 
+#if defined(__FreeBSD__)
+	/*
+	 * __rtw89_config_entity_chandef() might set RTW89_CHANCTX_0 but no
+	 * cfg assigned.
+	 * A mac80211 (*config)() with IEEE80211_CONF_CHANGE_CHANNEL could do
+	 * that if rtw89_config_default_chandef() from rtw89_entity_init() does
+	 * not already.
+	 * A mac80211: (*assign_vif_chanctx)() following will find idx 0 filled
+	 * and rtw89_chanctx_ops_add() will call here.  Trying to swap results
+	 * in a NULL pointer deref as hal->chanctx[idx1].cfg is NULL.
+	 * Catch this for now until fully understood or a proper solution is
+	 * found.
+	 */
+	if (hal->chanctx[idx1].cfg == NULL || hal->chanctx[idx2].cfg == NULL) {
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "%s: !swapping idx1 %d cfg %p, idx2 %d cfg %p\n", __func__,
+		    idx1, hal->chanctx[idx1].cfg, idx2, hal->chanctx[idx2].cfg);
+		return;
+	}
+#endif
+
 	hal->chanctx[idx1].cfg->idx = idx2;
 	hal->chanctx[idx2].cfg->idx = idx1;
 
