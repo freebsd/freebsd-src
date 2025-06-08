@@ -882,6 +882,7 @@ run_attach(device_t self)
 
 	ic->ic_flags |= IEEE80211_F_DATAPAD;
 	ic->ic_flags_ext |= IEEE80211_FEXT_SWBMISS;
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
 
 	run_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
 	    ic->ic_channels);
@@ -3522,6 +3523,9 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	data->ni = ni;
 	data->ridx = ridx;
 
+	/* Assign sequence number now, regardless of A-MPDU TX or otherwise (for now) */
+	ieee80211_output_seqno_assign(ni, -1, m);
+
 	run_set_tx_desc(sc, data);
 
 	/*
@@ -3626,6 +3630,9 @@ run_tx_mgt(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	data->m = m;
 	data->ni = ni;
 	data->ridx = ridx;
+
+	/* Assign sequence number now, regardless of A-MPDU TX or otherwise (for now) */
+	ieee80211_output_seqno_assign(ni, -1, m);
 
 	run_set_tx_desc(sc, data);
 
@@ -3770,6 +3777,9 @@ run_tx_param(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 		if (rt2860_rates[ridx].rate == rate)
 			break;
 	data->ridx = ridx;
+
+	/* Assign sequence number now, regardless of A-MPDU TX or otherwise (for now) */
+	ieee80211_output_seqno_assign(ni, -1, m);
 
         run_set_tx_desc(sc, data);
 
@@ -6416,6 +6426,10 @@ run_ampdu_enable(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 {
 
 	/* For now, no A-MPDU TX support in the driver */
+	/*
+	 * TODO: maybe we needed to enable seqno generation too?
+	 * What other TX desc bits are missing/needed?
+	 */
 	return (0);
 }
 
