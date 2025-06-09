@@ -75,7 +75,7 @@ void *scmi_buf_get(device_t dev, uint8_t protocol_id, uint8_t message_id,
 		   int tx_payd_sz, int rx_payld_sz);
 void scmi_buf_put(device_t dev, void *buf);
 int scmi_request(device_t dev, void *in, void **);
-void scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr, uint32_t rx_len);
+void scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr);
 
 DECLARE_CLASS(scmi_driver);
 
