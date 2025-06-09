@@ -93,6 +93,7 @@ struct scmi_req {
 	bool		timed_out;
 	bool		use_polling;
 	bool		done;
+	bool		is_raw;
 	struct mtx	mtx;
 	LIST_ENTRY(scmi_req)	next;
 	int		protocol_id;
@@ -139,6 +140,7 @@ static void		scmi_req_free_unlocked(struct scmi_softc *,
 static void		scmi_req_get(struct scmi_softc *, struct scmi_req *);
 static void		scmi_req_put(struct scmi_softc *, struct scmi_req *);
 static int		scmi_token_pick(struct scmi_softc *);
+static int		scmi_token_reserve(struct scmi_softc *, uint16_t);
 static void		scmi_token_release_unlocked(struct scmi_softc *, int);
 static int		scmi_req_track_inflight(struct scmi_softc *,
 			    struct scmi_req *);
@@ -376,6 +378,7 @@ scmi_req_free_unlocked(struct scmi_softc *sc, enum scmi_chan ch_idx,
 	mtx_lock_spin(&rp->mtx);
 	req->timed_out = false;
 	req->done = false;
+	req->is_raw = false;
 	refcount_init(&req->cnt, 0);
 	LIST_INSERT_HEAD(&rp->head, req, next);
 	mtx_unlock_spin(&rp->mtx);
@@ -424,7 +427,6 @@ scmi_token_pick(struct scmi_softc *sc)
 	 */
 	next_msg_id = sc->trs->next_id++ & SCMI_HDR_TOKEN_BF;
 	token = BIT_FFS_AT(SCMI_MAX_TOKEN, &sc->trs->avail_tokens, next_msg_id);
-	/* TODO Account for wrap-arounds and holes */
 	if (token != 0)
 		BIT_CLR(SCMI_MAX_TOKEN, token - 1, &sc->trs->avail_tokens);
 	mtx_unlock_spin(&sc->trs->mtx);
@@ -440,6 +442,28 @@ scmi_token_pick(struct scmi_softc *sc)
 	return ((int)(token - 1));
 }
 
+static int
+scmi_token_reserve(struct scmi_softc *sc, uint16_t candidate)
+{
+	int token = -EBUSY, retries = 3;
+
+	do {
+		mtx_lock_spin(&sc->trs->mtx);
+		if (BIT_ISSET(SCMI_MAX_TOKEN, candidate, &sc->trs->avail_tokens)) {
+			BIT_CLR(SCMI_MAX_TOKEN, candidate, &sc->trs->avail_tokens);
+			token = candidate;
+			sc->trs->next_id++;
+		}
+		mtx_unlock_spin(&sc->trs->mtx);
+		if (token == candidate || retries-- == 0)
+			break;
+
+		pause("scmi_tk_reserve", hz);
+	} while (1);
+
+	return (token);
+}
+
 static void
 scmi_token_release_unlocked(struct scmi_softc *sc, int token)
 {
@@ -450,19 +474,23 @@ scmi_token_release_unlocked(struct scmi_softc *sc, int token)
 static int
 scmi_finalize_req(struct scmi_softc *sc, struct scmi_req *req)
 {
-	uint32_t header = 0;
+	if (!req->is_raw)
+		req->token = scmi_token_pick(sc);
+	else
+		req->token = scmi_token_reserve(sc, SCMI_MSG_TOKEN(req->msg.hdr));
 
-	req->token = scmi_token_pick(sc);
 	if (req->token < 0)
 		return (EBUSY);
 
-	header = req->message_id;
-	header |= SCMI_MSG_TYPE_CMD << SCMI_HDR_MESSAGE_TYPE_S;
-	header |= req->protocol_id << SCMI_HDR_PROTOCOL_ID_S;
-	header |= req->token << SCMI_HDR_TOKEN_S;
+	if (!req->is_raw) {
+		req->msg.hdr = req->message_id;
+		req->msg.hdr |= SCMI_MSG_TYPE_CMD << SCMI_HDR_MESSAGE_TYPE_S;
+		req->msg.hdr |= req->protocol_id << SCMI_HDR_PROTOCOL_ID_S;
+		req->msg.hdr |= req->token << SCMI_HDR_TOKEN_S;
+	}
 
-	req->header = htole32(header);
-	req->msg.hdr = htole32(header);
+	/* Save requested header */
+	req->header = req->msg.hdr;
 
 	return (0);
 }
@@ -669,6 +697,8 @@ scmi_msg_get(device_t dev, int tx_payld_sz, int rx_payld_sz)
 	req = scmi_req_initialized_alloc(dev, tx_payld_sz, rx_payld_sz);
 	if (req == NULL)
 		return (NULL);
+
+	req->is_raw = true;
 
 	return (&req->msg);
 }
