@@ -377,6 +377,8 @@ eventfd
 fifo
 .It h
 shared memory
+.It i
+inotify descriptor
 .It k
 kqueue
 .It m
@@ -862,6 +864,7 @@ procstat: procstat_getprocs()
 .Xr sockstat 1 ,
 .Xr cap_enter 2 ,
 .Xr cap_rights_limit 2 ,
+.Xr inotify 2 ,
 .Xr mlock 2 ,
 .Xr mlockall 2 ,
 .Xr libprocstat 3 ,
