@@ -291,9 +291,9 @@ scmi_reqs_pool_allocate(device_t dev, const int max_msg, const int max_payld_sz)
 static void
 scmi_reqs_pool_free(struct scmi_reqs_pool *rp)
 {
-	struct scmi_req *req;
+	struct scmi_req *req, *tmp;
 
-	LIST_FOREACH(req, &rp->head, next) {
+	LIST_FOREACH_SAFE(req, &rp->head, next, tmp) {
 		mtx_destroy(&req->mtx);
 		free(req, M_DEVBUF);
 	}
