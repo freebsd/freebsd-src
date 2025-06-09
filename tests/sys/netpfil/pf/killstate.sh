@@ -579,6 +579,7 @@ key_head()
 {
 	atf_set descr 'Test killing states by their key'
 	atf_set require.user root
+	atf_set require.progs python3 scapy
 }
 
 key_body()
