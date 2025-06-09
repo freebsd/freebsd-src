@@ -277,12 +277,25 @@ kill_self(int signo)
 	    sys_signame[signo], signo);
 }
 
+static void
+log_termination(const char *name, const siginfo_t *si)
+{
+	if (si->si_code == CLD_EXITED) {
+		logv("%s: pid=%d, exit=%d", name, si->si_pid, si->si_status);
+	} else if (si->si_code == CLD_DUMPED || si->si_code == CLD_KILLED) {
+		logv("%s: pid=%d, sig=%d", name, si->si_pid, si->si_status);
+	} else {
+		logv("%s: pid=%d, reason=%d, status=%d", si->si_pid,
+		    si->si_code, si->si_status);
+	}
+}
+
 int
 main(int argc, char **argv)
 {
-	int ch, status, sig;
+	int ch, sig;
 	int pstat = 0;
-	pid_t pid, cpid;
+	pid_t pid;
 	int pp[2], error;
 	char c;
 	double first_kill;
@@ -295,6 +308,7 @@ main(int argc, char **argv)
 	sigset_t zeromask, allmask, oldmask;
 	struct sigaction sa;
 	struct procctl_reaper_status info;
+	siginfo_t si, child_si;
 
 	const char optstr[] = "+fhk:ps:v";
 	const struct option longopts[] = {
@@ -414,26 +428,27 @@ main(int argc, char **argv)
 		if (sig_chld) {
 			sig_chld = 0;
 
-			while ((cpid = waitpid(-1, &status, WNOHANG)) != 0) {
-				if (cpid < 0) {
+			for (;;) {
+				memset(&si, 0, sizeof(si));
+				error = waitid(P_ALL, -1, &si, WEXITED |
+				    WNOHANG);
+				if (error == -1) {
 					if (errno != EINTR)
 						break;
-				} else if (cpid == pid) {
-					pstat = status;
+				} else if (si.si_pid == pid) {
+					child_si = si;
 					child_done = true;
-					logv("child terminated: pid=%d, "
-					     "exit=%d, signal=%d",
-					     (int)pid, WEXITSTATUS(status),
-					     WTERMSIG(status));
-				} else {
+					log_termination("child terminated",
+					    &child_si);
+				} else if (si.si_pid != 0) {
 					/*
 					 * Collect grandchildren zombies.
 					 * Only effective if we're a reaper.
 					 */
-					logv("collected zombie: pid=%d, "
-					     "exit=%d, signal=%d",
-					     (int)cpid, WEXITSTATUS(status),
-					     WTERMSIG(status));
+					log_termination("collected zombie",
+					    &si);
+				} else /* si.si_pid == 0 */ {
+					break;
 				}
 			}
 			if (child_done) {
@@ -482,13 +497,14 @@ main(int argc, char **argv)
 
 	if (timedout && !preserve) {
 		pstat = EXIT_TIMEOUT;
+	} else if (child_si.si_code == CLD_DUMPED ||
+	    child_si.si_code == CLD_KILLED) {
+		kill_self(child_si.si_status);
+		/* NOTREACHED */
+	} else if (child_si.si_code == CLD_EXITED) {
+		pstat = child_si.si_status;
 	} else {
-		if (WIFSIGNALED(pstat))
-			kill_self(WTERMSIG(pstat));
-			/* NOTREACHED */
-
-		if (WIFEXITED(pstat))
-			pstat = WEXITSTATUS(pstat);
+		pstat = EXIT_FAILURE;
 	}
 
 	return (pstat);
