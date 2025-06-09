@@ -1,6 +1,6 @@
 .\" Copyright 1989 AT&T
 .\" Copyright 1991 Sun Microsystems, Inc.
-.Dd July 11, 2024
+.Dd May 30, 2025
 .Dt RPCBIND 8
 .Os
 .Sh NAME
@@ -8,7 +8,7 @@
 .Nd universal addresses to RPC program number mapper
 .Sh SYNOPSIS
 .Nm
-.Op Fl 6adIiLlNswW
+.Op Fl 6adIiLlNPswW
 .Op Fl h Ar bindip
 .Sh DESCRIPTION
 The
@@ -135,6 +135,10 @@ Run in foreground mode.
 In this mode,
 .Nm
 will not fork when it starts.
+.It Fl P
+Specify alternative location of a file where main process PID will be stored.
+The default location is
+.Pa /var/run/rpcbind.pid .
 .It Fl s
 Cause
 .Nm
