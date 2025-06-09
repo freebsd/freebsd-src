@@ -576,6 +576,7 @@ rsu_attach(device_t self)
 		ic->ic_rxstream = sc->sc_nrxstream;
 	}
 	ic->ic_flags_ext |= IEEE80211_FEXT_SCAN_OFFLOAD;
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
 
 	rsu_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
 	    ic->ic_channels);
@@ -2781,6 +2782,9 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 
 	if (rate != 0)
 		ridx = rate2ridx(rate);
+
+	/* Assign sequence number, A-MPDU or otherwise */
+	ieee80211_output_seqno_assign(ni, -1, m0);
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
