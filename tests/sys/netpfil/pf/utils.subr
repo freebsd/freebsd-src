@@ -274,6 +274,107 @@ setup_router_server_ipv6()
 	jexec server inetd -p ${PWD}/inetd.pid $inetd_conf
 }
 
+# Create a router and 2 server jails for nat64 and rfc5549 test cases.
+# The router is connected to servers, both are dual-stack, and to the
+# tester jail. All links are dual stack.
+setup_router_server_nat64()
+{
+	pft_init
+
+	epair_tester=$(vnet_mkepair)
+	epair_server1=$(vnet_mkepair)
+	epair_server2=$(vnet_mkepair)
+
+	# Funny how IPv4 address space is to small to even assign nice /24
+	# prefixes on all needed networks. On IPv6 we have a separate /64 for
+	# each link, loopback server, and client/SNAT pool. On IPv4 we must
+	# use small /28 prefixes, so even though we define all networks
+	# as variables we can't easily use them in tests if additional addresses
+	# are needed.
+
+	# IP addresses which can be used by the tester jail.
+	# Can be used as SNAT or as source with pft_ping.py. It is up to
+	# the test code to make them accessible from router.
+	net_clients_4=203.0.113
+	net_clients_4_mask=24
+	net_clients_6=2001:db8:44
+	net_clients_6_mask=64
+
+	# IP addresses on loopback interfaces of both servers. They can be
+	# accessed using the route-to targtet.
+	host_server_4=192.0.2.100
+	host_server_6=2001:db8:4203::100
+
+	net_tester_4=198.51.100
+	net_tester_4_mask=28
+	net_tester_4_host_router=198.51.100.1
+	net_tester_4_host_tester=198.51.100.2
+
+	net_tester_6=2001:db8:4200
+	net_tester_6_mask=64
+	net_tester_6_host_router=2001:db8:4200::1
+	net_tester_6_host_tester=2001:db8:4200::2
+
+	net_server1_4=198.51.100
+	net_server1_4_mask=28
+	net_server1_4_host_router=198.51.100.17
+	net_server1_4_host_server=198.51.100.18
+
+	net_server1_6=2001:db8:4201
+	net_server1_6_mask=64
+	net_server1_6_host_router=2001:db8:4201::1
+	net_server1_6_host_server=2001:db8:4201::2
+
+	net_server2_4=198.51.100
+	net_server2_4_mask=28
+	net_server2_4_host_router=198.51.100.33
+	net_server2_4_host_server=198.51.100.34
+
+	net_server2_6=2001:db8:4202
+	net_server2_6_mask=64
+	net_server2_6_host_router=2001:db8:4202::1
+	net_server2_6_host_server=2001:db8:4202::2
+
+	vnet_mkjail router ${epair_tester}b ${epair_server1}a ${epair_server2}a
+	jexec router ifconfig ${epair_tester}b inet  ${net_tester_4_host_router}/${net_tester_4_mask} up
+	jexec router ifconfig ${epair_tester}b inet6 ${net_tester_6_host_router}/${net_tester_6_mask} up no_dad
+	jexec router ifconfig ${epair_server1}a inet  ${net_server1_4_host_router}/${net_server1_4_mask} up
+	jexec router ifconfig ${epair_server1}a inet6 ${net_server1_6_host_router}/${net_server1_6_mask} up no_dad
+	jexec router ifconfig ${epair_server2}a inet  ${net_server2_4_host_router}/${net_server2_4_mask} up
+	jexec router ifconfig ${epair_server2}a inet6 ${net_server2_6_host_router}/${net_server2_6_mask} up no_dad
+	jexec router sysctl net.inet.ip.forwarding=1
+	jexec router sysctl net.inet6.ip6.forwarding=1
+	jexec router pfctl -e
+
+	ifconfig ${epair_tester}a inet  ${net_tester_4_host_tester}/${net_tester_4_mask} up
+	ifconfig ${epair_tester}a inet6 ${net_tester_6_host_tester}/${net_tester_6_mask} up no_dad
+	route add    0.0.0.0/0 ${net_tester_4_host_router}
+	route add -6 ::/0      ${net_tester_6_host_router}
+
+	inetd_conf=$(mktemp)
+	echo "discard stream tcp46 nowait root internal" >> $inetd_conf
+
+	vnet_mkjail server1 ${epair_server1}b
+	jexec server1 /etc/rc.d/netif start lo0
+	jexec server1 ifconfig ${epair_server1}b inet  ${net_server1_4_host_server}/${net_server1_4_mask} up
+	jexec server1 ifconfig ${epair_server1}b inet6 ${net_server1_6_host_server}/${net_server1_6_mask} up no_dad
+	jexec server1 ifconfig lo0                     ${host_server_4}/32  alias
+	jexec server1 ifconfig lo0               inet6 ${host_server_6}/128 alias
+	jexec server1 inetd -p ${PWD}/inetd_1.pid $inetd_conf
+	jexec server1 route add    0.0.0.0/0 ${net_server1_4_host_router}
+
+	jexec server1 route add -6 ::/0      ${net_server1_6_host_router}
+	vnet_mkjail server2 ${epair_server2}b
+	jexec server2 /etc/rc.d/netif start lo0
+	jexec server2 ifconfig ${epair_server2}b inet  ${net_server2_4_host_server}/${net_server2_4_mask} up
+	jexec server2 ifconfig ${epair_server2}b inet6 ${net_server2_6_host_server}/${net_server2_6_mask} up no_dad
+	jexec server2 ifconfig lo0                     ${host_server_4}/32  alias
+	jexec server2 ifconfig lo0               inet6 ${host_server_6}/128 alias
+	jexec server2 inetd -p ${PWD}/inetd_2.pid $inetd_conf
+	jexec server2 route add    0.0.0.0/0 ${net_server2_4_host_router}
+	jexec server2 route add -6 ::/0      ${net_server2_6_host_router}
+}
+
 # Ping the dummy static NDP target.
 # Check for pings being forwarded through the router towards the target.
 ping_dummy_check_request()
