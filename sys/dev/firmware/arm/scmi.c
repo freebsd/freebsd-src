@@ -132,10 +132,9 @@ static int		scmi_transport_init(struct scmi_softc *, phandle_t);
 static void		scmi_transport_cleanup(struct scmi_softc *);
 static struct scmi_reqs_pool *scmi_reqs_pool_allocate(const int, const int);
 static void		scmi_reqs_pool_free(struct scmi_reqs_pool *);
-static struct scmi_req	*scmi_req_alloc(struct scmi_softc *, enum scmi_chan);
-static struct scmi_req	*scmi_req_initialized_alloc(device_t, int, int);
+static struct scmi_req *scmi_req_alloc(struct scmi_softc *, enum scmi_chan);
 static void		scmi_req_free_unlocked(struct scmi_softc *,
-			    enum scmi_chan, struct scmi_req *);
+    enum scmi_chan, struct scmi_req *);
 static void		scmi_req_get(struct scmi_softc *, struct scmi_req *);
 static void		scmi_req_put(struct scmi_softc *, struct scmi_req *);
 static int		scmi_token_pick(struct scmi_softc *);
@@ -321,32 +320,6 @@ scmi_transport_cleanup(struct scmi_softc *sc)
 }
 
 static struct scmi_req *
-scmi_req_initialized_alloc(device_t dev, int tx_payld_sz, int rx_payld_sz)
-{
-	struct scmi_softc *sc;
-	struct scmi_req *req;
-
-	sc = device_get_softc(dev);
-
-	if (tx_payld_sz > SCMI_MAX_MSG_PAYLD_SIZE(sc) ||
-	    rx_payld_sz > SCMI_MAX_MSG_REPLY_SIZE(sc)) {
-		device_printf(dev, "Unsupported payload size. Drop.\n");
-		return (NULL);
-	}
-
-	/* Pick one from free list */
-	req = scmi_req_alloc(sc, SCMI_CHAN_A2P);
-	if (req == NULL)
-		return (NULL);
-
-	req->msg.tx_len = sizeof(req->msg.hdr) + tx_payld_sz;
-	req->msg.rx_len = rx_payld_sz ?
-	    rx_payld_sz + 2 * sizeof(uint32_t) : SCMI_MAX_MSG_SIZE(sc);
-
-	return (req);
-}
-
-static struct scmi_req *
 scmi_req_alloc(struct scmi_softc *sc, enum scmi_chan ch_idx)
 {
 	struct scmi_reqs_pool *rp;
@@ -401,10 +374,6 @@ scmi_req_put(struct scmi_softc *sc, struct scmi_req *req)
 {
 	mtx_lock_spin(&req->mtx);
 	if (!refcount_release_if_not_last(&req->cnt)) {
-		req->protocol_id = 0;
-		req->message_id = 0;
-		req->token = 0;
-		req->header = 0;
 		bzero(&req->msg, sizeof(req->msg) + SCMI_MAX_MSG_PAYLD_SIZE(sc));
 		scmi_req_free_unlocked(sc, SCMI_CHAN_A2P, req);
 	}
@@ -635,15 +604,27 @@ void *
 scmi_buf_get(device_t dev, uint8_t protocol_id, uint8_t message_id,
     int tx_payld_sz, int rx_payld_sz)
 {
+	struct scmi_softc *sc;
 	struct scmi_req *req;
 
-	/* Pick a pre-built req */
-	req = scmi_req_initialized_alloc(dev, tx_payld_sz, rx_payld_sz);
+	sc = device_get_softc(dev);
+
+	if (tx_payld_sz > SCMI_MAX_MSG_PAYLD_SIZE(sc) ||
+	    rx_payld_sz > SCMI_MAX_MSG_REPLY_SIZE(sc)) {
+		device_printf(dev, "Unsupported payload size. Drop.\n");
+		return (NULL);
+	}
+
+	/* Pick one from free list */
+	req = scmi_req_alloc(sc, SCMI_CHAN_A2P);
 	if (req == NULL)
 		return (NULL);
 
 	req->protocol_id = protocol_id & SCMI_HDR_PROTOCOL_ID_BF;
 	req->message_id = message_id & SCMI_HDR_MESSAGE_ID_BF;
+	req->msg.tx_len = sizeof(req->msg.hdr) + tx_payld_sz;
+	req->msg.rx_len = rx_payld_sz ?
+	    rx_payld_sz + 2 * sizeof(uint32_t) : SCMI_MAX_MSG_SIZE(sc);
 
 	return (&req->msg.payld[0]);
 }
@@ -657,32 +638,6 @@ scmi_buf_put(device_t dev, void *buf)
 	sc = device_get_softc(dev);
 
 	req = buf_to_req(buf);
-	scmi_req_put(sc, req);
-}
-
-struct scmi_msg *
-scmi_msg_get(device_t dev, int tx_payld_sz, int rx_payld_sz)
-{
-	struct scmi_req *req;
-
-	/* Pick a pre-built req */
-	req = scmi_req_initialized_alloc(dev, tx_payld_sz, rx_payld_sz);
-	if (req == NULL)
-		return (NULL);
-
-	return (&req->msg);
-}
-
-void
-scmi_msg_put(device_t dev, struct scmi_msg *msg)
-{
-	struct scmi_softc *sc;
-	struct scmi_req *req;
-
-	sc = device_get_softc(dev);
-
-	req = msg_to_req(msg);
-
 	scmi_req_put(sc, req);
 }
 
