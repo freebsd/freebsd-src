@@ -76,7 +76,7 @@ scmi_virtio_callback(void *msg, unsigned int len, void *priv)
 	}
 
 	hdr = le32toh(*((uint32_t *)msg));
-	scmi_rx_irq_callback(sc->base.dev, msg, hdr, len);
+	scmi_rx_irq_callback(sc->base.dev, msg, hdr);
 }
 
 static void *
@@ -225,6 +225,7 @@ scmi_virtio_poll_msg(device_t dev, struct scmi_msg *msg, unsigned int tmo_ms)
 		}
 
 		rx_msg = hdr_to_msg(rx_buf);
+		rx_msg->rx_len = rx_len;
 		/* Complete the polling on any poll path */
 		if (rx_msg->polling)
 			atomic_store_rel_int(&rx_msg->poll_done, 1);
@@ -241,7 +242,7 @@ scmi_virtio_poll_msg(device_t dev, struct scmi_msg *msg, unsigned int tmo_ms)
 		    rx_msg->hdr, rx_msg->polling);
 
 		if (!rx_msg->polling)
-			scmi_rx_irq_callback(sc->base.dev, rx_msg, rx_msg->hdr, rx_len);
+			scmi_rx_irq_callback(sc->base.dev, rx_msg, rx_msg->hdr);
 	}
 
 	return (tmo_loops > 0 ? 0 : ETIMEDOUT);
