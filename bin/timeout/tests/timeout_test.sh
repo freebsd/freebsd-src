@@ -112,7 +112,7 @@ with_a_child_body()
 {
 	out=$(sleep .1 & exec timeout .5 sh -c 'sleep 2; echo foo')
 	status=$?
-	test "$out" = "" && test $status = 124 || atf_fail
+	test "$out" = "" && test $status = 124 || atf_fail "wrong status $status"
 
 }
 
