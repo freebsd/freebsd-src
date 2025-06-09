@@ -432,6 +432,8 @@ uath_attach(device_t dev)
 	/* put a regulatory domain to reveal informations.  */
 	uath_regdomain = sc->sc_devcap.regDomain;
 
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+
 	memset(bands, 0, sizeof(bands));
 	setbit(bands, IEEE80211_MODE_11B);
 	setbit(bands, IEEE80211_MODE_11G);
@@ -1547,6 +1549,8 @@ uath_tx_start(struct uath_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 
 		ieee80211_radiotap_tx(vap, m0);
 	}
+
+	ieee80211_output_seqno_assign(ni, -1, m0);
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {

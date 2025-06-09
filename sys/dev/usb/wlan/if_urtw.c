@@ -884,6 +884,8 @@ urtw_attach(device_t dev)
 
 	/* XXX TODO: setup regdomain if URTW_EPROM_CHANPLAN_BY_HW bit is set.*/
 
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+
 	urtw_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
 	    ic->ic_channels);
 
@@ -1698,6 +1700,10 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+
+
+	/* Assign sequence number */
+	ieee80211_output_seqno_assign(ni, -1, m0);
 
 	/*
 	 * Software crypto.
