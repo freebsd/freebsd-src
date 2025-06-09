@@ -527,11 +527,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		error = kern_dup(td, FDDUP_FIXED, FDDUP_FLAG_CLOEXEC, fd, tmp);
 		break;
 
-	case F_DUP2FD_CLOFORK:
-		tmp = arg;
-		error = kern_dup(td, FDDUP_FIXED, FDDUP_FLAG_CLOFORK, fd, tmp);
-		break;
-
 	case F_GETFD:
 		error = EBADF;
 		FILEDESC_SLOCK(fdp);

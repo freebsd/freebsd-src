@@ -329,7 +329,9 @@ oclo_fdup_common(const clo_create_t *c, int targ_flags, int cmd)
 		break;
 	case F_DUP2FD:
 	case F_DUP2FD_CLOEXEC:
+#ifdef F_DUP2FD_CLOFORK
 	case F_DUP2FD_CLOFORK:
+#endif
 		dup = fcntl(fd, cmd, fd + 1);
 		break;
 	case F_DUP3FD:
@@ -372,11 +374,13 @@ oclo_fdup2fd(const clo_create_t *c)
 	oclo_fdup_common(c, 0, F_DUP2FD);
 }
 
+#ifdef F_DUP2FD_CLOFORK
 static void
 oclo_fdup2fd_fork(const clo_create_t *c)
 {
 	oclo_fdup_common(c, FD_CLOFORK, F_DUP2FD_CLOFORK);
 }
+#endif
 
 static void
 oclo_fdup2fd_exec(const clo_create_t *c)
@@ -857,6 +861,7 @@ static const clo_create_t oclo_create[] = { {
 	.clo_flags = FD_CLOEXEC | FD_CLOFORK,
 	.clo_func = oclo_fdup2fd
 }, {
+#ifdef F_DUP2FD_CLOFORK
 	.clo_desc = "fcntl(F_DUP2FD_CLOFORK) none",
 	.clo_flags = 0,
 	.clo_func = oclo_fdup2fd_fork
@@ -873,6 +878,7 @@ static const clo_create_t oclo_create[] = { {
 	.clo_flags = FD_CLOEXEC | FD_CLOFORK,
 	.clo_func = oclo_fdup2fd_fork
 }, {
+#endif
 	.clo_desc = "fcntl(F_DUP2FD_CLOEXEC) none",
 	.clo_flags = 0,
 	.clo_func = oclo_fdup2fd_exec

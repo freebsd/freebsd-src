@@ -400,6 +400,7 @@ main(int __unused argc, char __unused *argv[])
 		printf("ok %d - fcntl(F_DUPFD_CLOFORK) set close-on-fork\n",
 		    test);
 
+#ifdef F_DUP2FD_CLOFORK
 	/* If fcntl(F_DUP2FD_CLOFORK) ever work? */
 	if ((fd2 = fcntl(fd1, F_DUP2FD_CLOFORK, fd1 + 1)) < 0)
 		err(1, "fcntl(F_DUP2FD_CLOFORK)");
@@ -439,6 +440,7 @@ main(int __unused argc, char __unused *argv[])
 	else
 		printf("ok %d - fcntl(F_DUP2FD_CLOFORK) didn't bypass NOFILE limit\n",
 		    test);
+#endif	/* F_DUP2FD_CLOFORK */
 
 	/* Does dup3(O_CLOFORK) ever work? */
 	if ((fd2 = dup3(fd1, fd1 + 1, O_CLOFORK)) < 0)
