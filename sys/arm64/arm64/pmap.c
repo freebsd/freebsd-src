@@ -8662,10 +8662,10 @@ pmap_demote_l2c(pmap_t pmap, pt_entry_t *l2p, vm_offset_t va)
 	/*
 	 * Remake the mappings, updating the accessed and dirty bits.
 	 */
+	l2e = (pmap_load(l2c_start) & ~mask) | nbits;
 	for (tl2p = l2c_start; tl2p < l2c_end; tl2p++) {
-		l2e = pmap_load(tl2p);
-		while (!atomic_fcmpset_64(tl2p, &l2e, (l2e & ~mask) | nbits))
-			cpu_spinwait();
+		pmap_store(tl2p, l2e);
+		l2e += L2_SIZE;
 	}
 	dsb(ishst);
 
@@ -8751,10 +8751,10 @@ pmap_demote_l3c(pmap_t pmap, pt_entry_t *l3p, vm_offset_t va)
 	/*
 	 * Remake the mappings, updating the accessed and dirty bits.
 	 */
+	l3e = (pmap_load(l3c_start) & ~mask) | nbits;
 	for (tl3p = l3c_start; tl3p < l3c_end; tl3p++) {
-		l3e = pmap_load(tl3p);
-		while (!atomic_fcmpset_64(tl3p, &l3e, (l3e & ~mask) | nbits))
-			cpu_spinwait();
+		pmap_store(tl3p, l3e);
+		l3e += L3_SIZE;
 	}
 	dsb(ishst);
 
