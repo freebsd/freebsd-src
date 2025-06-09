@@ -44,7 +44,6 @@
 #include <sys/queue.h>
 #include <sys/refcount.h>
 #include <sys/sdt.h>
-#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
 #include <dev/clk/clk.h>
@@ -190,7 +189,6 @@ static void		scmi_process_response(struct scmi_softc *, uint32_t,
 int
 scmi_attach(device_t dev)
 {
-	struct sysctl_oid *sysctl_trans;
 	struct scmi_softc *sc;
 	phandle_t node;
 	int error;
@@ -210,17 +208,6 @@ scmi_attach(device_t dev)
 
 	device_printf(dev, "Transport - max_msg:%d  max_payld_sz:%lu  reply_timo_ms:%d\n",
 	    SCMI_MAX_MSG(sc), SCMI_MAX_MSG_PAYLD_SIZE(sc), SCMI_MAX_MSG_TIMEOUT_MS(sc));
-
-	sc->sysctl_root = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_hw),
-	    OID_AUTO, "scmi", CTLFLAG_RD, 0, "SCMI root");
-	sysctl_trans = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(sc->sysctl_root),
-	    OID_AUTO, "transport", CTLFLAG_RD, 0, "SCMI Transport properties");
-	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(sysctl_trans), OID_AUTO, "max_msg",
-	    CTLFLAG_RD, &sc->trs_desc.max_msg, 0, "SCMI Max number of inflight messages");
-	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(sysctl_trans), OID_AUTO, "max_msg_size",
-	    CTLFLAG_RD, &sc->trs_desc.max_payld_sz, 0, "SCMI Max message payload size");
-	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(sysctl_trans), OID_AUTO, "max_rx_timeout_ms",
-	    CTLFLAG_RD, &sc->trs_desc.reply_timo_ms, 0, "SCMI Max message RX timeout ms");
 
 	/*
 	 * Allow devices to identify.
