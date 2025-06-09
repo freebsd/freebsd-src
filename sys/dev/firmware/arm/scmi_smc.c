@@ -122,7 +122,7 @@ scmi_smc_poll_msg(device_t dev, struct scmi_msg *msg, unsigned int tmo)
 	 * Nothing to poll since commands are completed as soon as smc
 	 * returns ... but did we get back what we were poling for ?
 	 */
-	scmi_shmem_read_msg_header(sc->a2p_dev, &msg->hdr);
+	scmi_shmem_read_msg_header(sc->a2p_dev, &msg->hdr, &msg->rx_len);
 
 	return (0);
 }
@@ -136,7 +136,7 @@ scmi_smc_collect_reply(device_t dev, struct scmi_msg *msg)
 	sc = device_get_softc(dev);
 
 	ret = scmi_shmem_read_msg_payload(sc->a2p_dev,
-	    msg->payld, msg->rx_len - SCMI_MSG_HDR_SIZE);
+	    msg->payld, msg->rx_len - SCMI_MSG_HDR_SIZE, msg->rx_len);
 
 	return (ret);
 }
