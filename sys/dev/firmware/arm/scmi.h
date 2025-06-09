@@ -34,14 +34,10 @@
 
 #include "scmi_if.h"
 
-#define SCMI_DEF_MAX_MSG		32
-#define SCMI_DEF_MAX_MSG_PAYLD_SIZE	128
-
-#define SCMI_MAX_MSG_PAYLD_SIZE(sc)	((sc)->trs_desc.max_payld_sz + sizeof(uint32_t))
-#define SCMI_MAX_MSG_REPLY_SIZE(sc)	(SCMI_MAX_MSG_PAYLD_SIZE((sc)) + sizeof(uint32_t))
-#define SCMI_MAX_MSG_SIZE(sc)		(SCMI_MAX_MSG_REPLY_SIZE(sc) + sizeof(uint32_t))
-#define SCMI_MAX_MSG(sc)		((sc)->trs_desc.max_msg)
-#define SCMI_MAX_MSG_TIMEOUT_MS(sc)	((sc)->trs_desc.reply_timo_ms)
+#define SCMI_MAX_MSG		32
+#define SCMI_MAX_MSG_PAYLD_SIZE	128
+#define SCMI_MAX_MSG_REPLY_SIZE	(SCMI_MAX_MSG_PAYLD_SIZE + sizeof(uint32_t))
+#define SCMI_MAX_MSG_SIZE	(SCMI_MAX_MSG_REPLY_SIZE + sizeof(uint32_t))
 
 enum scmi_chan {
 	SCMI_CHAN_A2P,
@@ -51,8 +47,6 @@ enum scmi_chan {
 
 struct scmi_transport_desc {
 	bool no_completion_irq;
-	unsigned int max_msg;
-	unsigned int max_payld_sz;
 	unsigned int reply_timo_ms;
 };
 

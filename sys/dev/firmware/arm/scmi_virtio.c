@@ -83,19 +83,19 @@ static void *
 scmi_virtio_p2a_pool_init(device_t dev, unsigned int max_msg)
 {
 	struct scmi_virtio_softc *sc;
-	unsigned int max_msg_sz;
 	void *pool;
 	uint8_t *buf;
 	int i;
 
 	sc = device_get_softc(dev);
-	max_msg_sz = SCMI_MAX_MSG_SIZE(&sc->base);
-	pool = mallocarray(max_msg, max_msg_sz, M_DEVBUF, M_ZERO | M_WAITOK);
 
-	for (i = 0, buf = pool; i < max_msg; i++, buf += max_msg_sz) {
+	pool = mallocarray(max_msg, SCMI_MAX_MSG_SIZE, M_DEVBUF,
+	    M_ZERO | M_WAITOK);
+
+	for (i = 0, buf = pool; i < max_msg; i++, buf += SCMI_MAX_MSG_SIZE) {
 		/* Feed platform with pre-allocated P2A buffers */
 		virtio_scmi_message_enqueue(sc->virtio_dev,
-		    VIRTIO_SCMI_CHAN_P2A, buf, 0, max_msg_sz);
+		    VIRTIO_SCMI_CHAN_P2A, buf, 0, SCMI_MAX_MSG_SIZE);
 	}
 
 	device_printf(dev,
@@ -111,7 +111,7 @@ scmi_virtio_clear_channel(device_t dev, void *msg)
 
 	sc = device_get_softc(dev);
 	virtio_scmi_message_enqueue(sc->virtio_dev, VIRTIO_SCMI_CHAN_P2A,
-	    msg, 0, SCMI_MAX_MSG_SIZE(&sc->base));
+	    msg, 0, SCMI_MAX_MSG_SIZE);
 }
 
 static int
