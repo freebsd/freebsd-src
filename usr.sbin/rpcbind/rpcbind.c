@@ -39,34 +39,38 @@
  *
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/errno.h>
-#include <sys/time.h>
+#include <sys/param.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/resource.h>
-#include <sys/wait.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/un.h>
+#include <sys/wait.h>
+
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
 #ifdef PORTMAP
 #include <netinet/in.h>
 #endif
 #include <arpa/inet.h>
+
 #include <assert.h>
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <netconfig.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <netconfig.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <syslog.h>
-#include <err.h>
-#include <pwd.h>
 #include <string.h>
-#include <errno.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #include "rpcbind.h"
 
 /* Global variables */
@@ -148,12 +152,15 @@ main(int argc, char *argv[])
 
 	update_bound_sa();
 
+	/* Ensure krpc is loaded */
+	if (modfind("krpc") < 0 && kldload("krpc") < 0)
+		err(1, "krpc");
+
 	/* Check that another rpcbind isn't already running. */
-	if ((rpcbindlockfd = (open(RPCBINDDLOCK,
-	    O_RDONLY|O_CREAT, 0444))) == -1)
+	if ((rpcbindlockfd = open(RPCBINDDLOCK, O_RDONLY|O_CREAT, 0444)) < 0)
 		err(1, "%s", RPCBINDDLOCK);
 
-	if(flock(rpcbindlockfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK)
+	if (flock(rpcbindlockfd, LOCK_EX|LOCK_NB) != 0 && errno == EWOULDBLOCK)
 		errx(1, "another rpcbind is already running. Aborting");
 
 	getrlimit(RLIMIT_NOFILE, &rl);
