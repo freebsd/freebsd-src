@@ -43,7 +43,6 @@
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/refcount.h>
-#include <sys/sdt.h>
 #include <sys/taskqueue.h>
 
 #include <dev/clk/clk.h>
@@ -53,26 +52,6 @@
 
 #include "scmi.h"
 #include "scmi_protocols.h"
-
-SDT_PROVIDER_DEFINE(scmi);
-SDT_PROBE_DEFINE3(scmi, func, scmi_req_alloc, req_alloc,
-    "int", "int", "int");
-SDT_PROBE_DEFINE3(scmi, func, scmi_req_free_unlocked, req_alloc,
-    "int", "int", "int");
-SDT_PROBE_DEFINE3(scmi, func, scmi_req_get, req_alloc,
-    "int", "int", "int");
-SDT_PROBE_DEFINE3(scmi, func, scmi_req_put, req_alloc,
-    "int", "int", "int");
-SDT_PROBE_DEFINE5(scmi, func, scmi_request_tx, xfer_track,
-    "int", "int", "int", "int", "int");
-SDT_PROBE_DEFINE5(scmi, entry, scmi_wait_for_response, xfer_track,
-    "int", "int", "int", "int", "int");
-SDT_PROBE_DEFINE5(scmi, exit, scmi_wait_for_response, xfer_track,
-    "int", "int", "int", "int", "int");
-SDT_PROBE_DEFINE2(scmi, func, scmi_rx_irq_callback, hdr_dump,
-    "int", "int");
-SDT_PROBE_DEFINE5(scmi, func, scmi_process_response, xfer_track,
-    "int", "int", "int", "int", "int");
 
 #define SCMI_MAX_TOKEN		1024
 
@@ -109,12 +88,6 @@ SDT_PROBE_DEFINE5(scmi, func, scmi_process_response, xfer_track,
 
 #define SCMI_MSG_TOKEN(_hdr)		\
     (((_hdr) & SCMI_HDR_TOKEN_M) >> SCMI_HDR_TOKEN_S)
-#define SCMI_MSG_PROTOCOL_ID(_hdr)		\
-    (((_hdr) & SCMI_HDR_PROTOCOL_ID_M) >> SCMI_HDR_PROTOCOL_ID_S)
-#define SCMI_MSG_MESSAGE_ID(_hdr)		\
-    (((_hdr) & SCMI_HDR_MESSAGE_ID_M) >> SCMI_HDR_MESSAGE_ID_S)
-#define SCMI_MSG_TYPE(_hdr)		\
-    (((_hdr) & SCMI_HDR_TYPE_ID_M) >> SCMI_HDR_TYPE_ID_S)
 
 struct scmi_req {
 	int		cnt;
@@ -399,11 +372,8 @@ scmi_req_alloc(struct scmi_softc *sc, enum scmi_chan ch_idx)
 	}
 	mtx_unlock_spin(&rp->mtx);
 
-	if (req != NULL) {
+	if (req != NULL)
 		refcount_init(&req->cnt, 1);
-		SDT_PROBE3(scmi, func, scmi_req_alloc, req_alloc,
-		    req, refcount_load(&req->cnt), -1);
-	}
 
 	return (req);
 }
@@ -422,9 +392,6 @@ scmi_req_free_unlocked(struct scmi_softc *sc, enum scmi_chan ch_idx,
 	refcount_init(&req->cnt, 0);
 	LIST_INSERT_HEAD(&rp->head, req, next);
 	mtx_unlock_spin(&rp->mtx);
-
-	SDT_PROBE3(scmi, func, scmi_req_free_unlocked, req_alloc,
-	    req, refcount_load(&req->cnt), -1);
 }
 
 static void
@@ -438,9 +405,6 @@ scmi_req_get(struct scmi_softc *sc, struct scmi_req *req)
 
 	if (!ok)
 		device_printf(sc->dev, "%s() -- BAD REFCOUNT\n", __func__);
-
-	SDT_PROBE3(scmi, func, scmi_req_get, req_alloc,
-	    req, refcount_load(&req->cnt), SCMI_MSG_TOKEN(req->msg.hdr));
 
 	return;
 }
@@ -456,9 +420,6 @@ scmi_req_put(struct scmi_softc *sc, struct scmi_req *req)
 		req->header = 0;
 		bzero(&req->msg, sizeof(req->msg) + SCMI_MAX_MSG_PAYLD_SIZE(sc));
 		scmi_req_free_unlocked(sc, SCMI_CHAN_A2P, req);
-	} else {
-		SDT_PROBE3(scmi, func, scmi_req_put, req_alloc,
-		    req, refcount_load(&req->cnt), SCMI_MSG_TOKEN(req->msg.hdr));
 	}
 	mtx_unlock_spin(&req->mtx);
 }
@@ -610,10 +571,6 @@ scmi_process_response(struct scmi_softc *sc, uint32_t hdr, uint32_t rx_len)
 		return;
 	}
 
-	SDT_PROBE5(scmi, func, scmi_process_response, xfer_track, req,
-	    SCMI_MSG_PROTOCOL_ID(req->msg.hdr), SCMI_MSG_MESSAGE_ID(req->msg.hdr),
-	    SCMI_MSG_TOKEN(req->msg.hdr), req->timed_out);
-
 	mtx_lock_spin(&req->mtx);
 	req->done = true;
 	req->msg.rx_len = rx_len;
@@ -651,8 +608,6 @@ scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr, uint32_t rx_len)
 
 	sc = device_get_softc(dev);
 
-	SDT_PROBE2(scmi, func, scmi_rx_irq_callback, hdr_dump, hdr, rx_len);
-
 	if (SCMI_IS_MSG_TYPE_NOTIF(hdr) || SCMI_IS_MSG_TYPE_DRESP(hdr)) {
 		device_printf(dev, "DRESP/NOTIF unsupported. Drop.\n");
 		SCMI_CLEAR_CHANNEL(dev, chan);
@@ -667,10 +622,6 @@ scmi_wait_for_response(struct scmi_softc *sc, struct scmi_req *req, void **out)
 {
 	unsigned int reply_timo_ms = SCMI_MAX_MSG_TIMEOUT_MS(sc);
 	int ret;
-
-	SDT_PROBE5(scmi, entry, scmi_wait_for_response, xfer_track, req,
-	    SCMI_MSG_PROTOCOL_ID(req->msg.hdr), SCMI_MSG_MESSAGE_ID(req->msg.hdr),
-	    SCMI_MSG_TOKEN(req->msg.hdr), reply_timo_ms);
 
 	if (req->msg.polling) {
 		bool needs_drop;
@@ -715,10 +666,6 @@ scmi_wait_for_response(struct scmi_softc *sc, struct scmi_req *req, void **out)
 	}
 
 	SCMI_TX_COMPLETE(sc->dev, NULL);
-
-	SDT_PROBE5(scmi, exit, scmi_wait_for_response, xfer_track, req,
-	    SCMI_MSG_PROTOCOL_ID(req->msg.hdr), SCMI_MSG_MESSAGE_ID(req->msg.hdr),
-	    SCMI_MSG_TOKEN(req->msg.hdr), req->timed_out);
 
 	return (ret);
 }
@@ -821,10 +768,6 @@ scmi_request_tx(device_t dev, void *in)
 		scmi_req_drop_inflight(sc, req);
 		return (error);
 	}
-
-	SDT_PROBE5(scmi, func, scmi_request_tx, xfer_track, req,
-	    SCMI_MSG_PROTOCOL_ID(req->msg.hdr), SCMI_MSG_MESSAGE_ID(req->msg.hdr),
-	    SCMI_MSG_TOKEN(req->msg.hdr), req->msg.polling);
 
 	return (0);
 }
