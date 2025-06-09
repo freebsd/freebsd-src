@@ -9,6 +9,8 @@ SRCS=	check_bound.c rpcb_stat.c rpcb_svc_4.c rpcbind.c pmap_svc.c \
 
 CFLAGS+= -DPORTMAP
 
+LIBADD=	util
+
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif
