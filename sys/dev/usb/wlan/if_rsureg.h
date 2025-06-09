@@ -593,7 +593,14 @@ struct r92s_event_join_bss {
 	struct		ndis_wlan_bssid_ex bss;
 } __packed;
 
-#define R92S_MACID_BSS	5	/* XXX hardcoded somewhere */
+/*
+ * This is hard-coded in the firmware for a STA mode
+ * BSS join.  If you turn on FWDEBUG, you'll see this
+ * in the logs:
+ *
+ * rsu0: FWDBG: mac id #5: 0000005b, 000fffff, 00000000
+ */
+#define R92S_MACID_BSS	5
 
 /* Rx MAC descriptor. */
 struct r92s_rx_stat {
