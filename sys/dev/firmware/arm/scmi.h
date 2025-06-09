@@ -84,7 +84,6 @@ struct scmi_msg *scmi_msg_get(device_t dev, int tx_payld_sz, int rx_payld_sz);
 void scmi_msg_put(device_t dev, struct scmi_msg *msg);
 int scmi_request(device_t dev, void *in, void **);
 int scmi_request_tx(device_t dev, void *in);
-int scmi_msg_async_enqueue(struct scmi_msg *msg);
 void scmi_rx_irq_callback(device_t dev, void *chan, uint32_t hdr, uint32_t rx_len);
 
 DECLARE_CLASS(scmi_driver);
