@@ -36,8 +36,8 @@
 
 #define SCMI_MAX_MSG		32
 #define SCMI_MAX_MSG_PAYLD_SIZE	128
-#define SCMI_MAX_MSG_REPLY_SIZE	(SCMI_MAX_MSG_PAYLD_SIZE + sizeof(uint32_t))
-#define SCMI_MAX_MSG_SIZE	(SCMI_MAX_MSG_REPLY_SIZE + sizeof(uint32_t))
+#define SCMI_MAX_MSG_REPLY_SIZE	(SCMI_MAX_MSG_PAYLD_SIZE - sizeof(uint32_t))
+#define SCMI_MAX_MSG_SIZE	(SCMI_MAX_MSG_PAYLD_SIZE + sizeof(uint32_t))
 
 enum scmi_chan {
 	SCMI_CHAN_A2P,
