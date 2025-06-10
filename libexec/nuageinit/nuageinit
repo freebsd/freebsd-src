@@ -379,11 +379,18 @@ if line == "#cloud-config" then
 		nuage.chpasswd(obj.chpasswd)
 	end
 	if obj.runcmd then
+		f = nil
 		for _, c in ipairs(obj.runcmd) do
-			if not os.execute(c) then
-				nuage.warn("Failed to execute '" .. c .. "'")
-				-- execute the next command anyway --
+			if f == nil then
+				nuage.mkdir_p(root .. "/var/cache/nuageinit")
+				f = assert(io.open(root .. "/var/cache/nuageinit/runcmds", "w"))
+				f:write("#!/bin/sh\n")
 			end
+			f:write(c .. "\n")
+		end
+		if f ~= nil then
+			f:close()
+			sys_stat.chmod(root .. "/var/cache/nuageinit/runcmds", 493)
 		end
 	end
 	if obj.packages then
