@@ -3210,7 +3210,12 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent, bool show_bblog)
 	    tp->t_lognum, tp->t_loglimit, tp->t_logsn);
 
 	if (show_bblog) {
+#ifdef TCP_BLACKBOX
 		db_print_bblog_entries(&tp->t_logs, indent);
+#else
+		db_print_indent(indent);
+		db_printf("BBLog not supported\n");
+#endif
 	}
 }
 
