@@ -124,8 +124,6 @@ TAILQ_HEAD(pf_cachequeue, pf_fragment);
 RB_HEAD(pf_frnode_tree, pf_frnode);
 VNET_DEFINE_STATIC(struct pf_fragqueue,	pf_fragqueue);
 #define	V_pf_fragqueue			VNET(pf_fragqueue)
-VNET_DEFINE_STATIC(struct pf_frag_tree,	pf_frag_tree);
-#define	V_pf_frag_tree			VNET(pf_frag_tree)
 static __inline int	pf_frnode_compare(struct pf_frnode *,
 			    struct pf_frnode *);
 VNET_DEFINE_STATIC(struct pf_frnode_tree, pf_frnode_tree);
