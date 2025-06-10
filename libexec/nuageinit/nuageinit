@@ -396,9 +396,14 @@ if line == "#cloud-config" then
 	if obj.package_upgrade then
 		nuage.upgrade_packages()
 	end
-else
-	local res, err = os.execute(path .. "/" .. ud)
-	if not res then
-		nuage.err("error executing user-data script: " .. err)
-	end
+elseif line:sub(1, 2) == "#!" then
+	-- delay for execution at rc.local time --
+	f = io.open(path .. "/" .. ud)
+	local content = f:read("*a")
+	f:close()
+	nuage.mkdir_p(root .. "/var/cache/nuageinit")
+	f = assert(io.open(root .. "/var/cache/nuageinit/user_data", "w"))
+	f:write(content)
+	f:close()
+	sys_stat.chmod(root .. "/var/cache/nuageinit/user_data", 493)
 end

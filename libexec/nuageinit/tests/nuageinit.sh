@@ -27,6 +27,7 @@ atf_test_case config2_userdata_runcmd
 atf_test_case config2_userdata_packages
 atf_test_case config2_userdata_update_packages
 atf_test_case config2_userdata_upgrade_packages
+atf_test_case config2_userdata_shebang
 
 setup_test_adduser()
 {
@@ -73,7 +74,8 @@ nocloud_userdata_script_body()
 	printf "instance-id: iid-local01\n" > "${PWD}"/media/nuageinit/meta-data
 	printf "#!/bin/sh\necho yeah\n" > "${PWD}"/media/nuageinit/user-data
 	chmod 755 "${PWD}"/media/nuageinit/user-data
-	atf_check -s exit:0 -o inline:"yeah\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -s exit:0 /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o inline:"#!/bin/sh\necho yeah\n" cat var/cache/nuageinit/user_data
 }
 
 nocloud_user_data_script_body()
@@ -82,7 +84,8 @@ nocloud_user_data_script_body()
 	printf "instance-id: iid-local01\n" > "${PWD}"/media/nuageinit/meta-data
 	printf "#!/bin/sh\necho yeah\n" > "${PWD}"/media/nuageinit/user_data
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -s exit:0 -o inline:"yeah\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -s exit:0 /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o inline:"#!/bin/sh\necho yeah\n" cat var/cache/nuageinit/user_data
 }
 
 nocloud_userdata_cloudconfig_users_head()
@@ -810,6 +813,28 @@ EOF
 	atf_check -o inline:"pkg upgrade -y\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
 }
 
+config2_userdata_shebang_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#!/we/dont/care
+anything
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	test -f var/cache/nuageinit/user_data || atf_fail "File not created"
+	test -x var/cache/nuageinit/user_data || atf_fail "Missing execution permission"
+	atf_check -o inline:"#!/we/dont/care\nanything\n" cat var/cache/nuageinit/user_data
+	cat > media/nuageinit/user_data <<EOF
+/we/dont/care
+EOF
+	rm var/cache/nuageinit/user_data
+	if [ -f var/cache/nuageinit/user_data ]; then
+		atf_fail "File should not have been created"
+	fi
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case args
@@ -833,4 +858,5 @@ atf_init_test_cases()
 	atf_add_test_case config2_userdata_packages
 	atf_add_test_case config2_userdata_update_packages
 	atf_add_test_case config2_userdata_upgrade_packages
+	atf_add_test_case config2_userdata_shebang
 }
