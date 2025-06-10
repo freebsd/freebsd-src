@@ -893,6 +893,87 @@ empty_pool_cleanup()
 }
 
 
+atf_test_case "table_loop" "cleanup"
+
+table_loop_head()
+{
+	atf_set descr 'Check that iterating over tables poperly loops'
+	atf_set require.user root
+}
+
+table_loop_body()
+{
+	setup_router_server_nat64
+
+	# Clients will connect from another network behind the router.
+	# This allows for using multiple source addresses.
+	jexec router route add -6 ${net_clients_6}::/${net_clients_6_mask} ${net_tester_6_host_tester}
+	jexec router route add    ${net_clients_4}.0/${net_clients_4_mask} ${net_tester_4_host_tester}
+
+	# The servers are reachable over additional IP addresses for
+	# testing of tables and subnets. The addresses are noncontinougnus
+	# for pf_map_addr() counter tests.
+	for i in 0 1 4 5; do
+		a1=$((24 + i))
+		jexec server1 ifconfig ${epair_server1}b inet  ${net_server1_4}.${a1}/32 alias
+		jexec server1 ifconfig ${epair_server1}b inet6 ${net_server1_6}::42:${i}/128 alias
+		a2=$((40 + i))
+		jexec server2 ifconfig ${epair_server2}b inet  ${net_server2_4}.${a2}/32 alias
+		jexec server2 ifconfig ${epair_server2}b inet6 ${net_server2_6}::42:${i}/128 alias
+	done
+
+	jexec router pfctl -e
+	pft_set_rules router \
+		"set debug loud" \
+		"set reassemble yes" \
+		"set state-policy if-bound" \
+		"table <rt_targets_1> { ${net_server1_6}::42:4/127 ${net_server1_6}::42:0/127 }" \
+		"table <rt_targets_2> { ${net_server2_6}::42:4/127 }" \
+		"pass in on ${epair_tester}b \
+			route-to { \
+			(${epair_server1}a <rt_targets_1>) \
+			(${epair_server2}a <rt_targets_2_empty>) \
+			(${epair_server2}a <rt_targets_2>) \
+			} \
+		inet6 proto tcp \
+		keep state"
+
+	# Both hosts of the pool are tables. Each table gets iterated over once,
+	# then the pool iterates to the next host, which is also iterated,
+	# then the pool loops back to the 1st host. If an empty table is found,
+	# it is skipped. Unless that's the only table, that is tested by
+	# the "empty_pool" test.
+	for port in $(seq 1 7); do
+	port=$((4200 + port))
+		atf_check -s exit:0 ${common_dir}/pft_ping.py \
+			--sendif ${epair_tester}a --replyif ${epair_tester}a \
+			--fromaddr ${net_clients_6}::1 --to ${host_server_6} \
+			--ping-type=tcp3way --send-sport=${port}
+	done
+
+	states=$(mktemp) || exit 1
+	jexec router pfctl -qvvss | normalize_pfctl_s > $states
+	cat $states
+
+	for state_regexp in \
+		"${epair_tester}b tcp ${host_server_6}\[9\] <- ${net_clients_6}::1\[4201\] .* route-to: ${net_server1_6}::42:0@${epair_server1}a" \
+		"${epair_tester}b tcp ${host_server_6}\[9\] <- ${net_clients_6}::1\[4202\] .* route-to: ${net_server1_6}::42:1@${epair_server1}a" \
+		"${epair_tester}b tcp ${host_server_6}\[9\] <- ${net_clients_6}::1\[4203\] .* route-to: ${net_server1_6}::42:4@${epair_server1}a" \
+		"${epair_tester}b tcp ${host_server_6}\[9\] <- ${net_clients_6}::1\[4204\] .* route-to: ${net_server1_6}::42:5@${epair_server1}a" \
+		"${epair_tester}b tcp ${host_server_6}\[9\] <- ${net_clients_6}::1\[4205\] .* route-to: ${net_server2_6}::42:4@${epair_server2}a" \
+		"${epair_tester}b tcp ${host_server_6}\[9\] <- ${net_clients_6}::1\[4206\] .* route-to: ${net_server2_6}::42:5@${epair_server2}a" \
+		"${epair_tester}b tcp ${host_server_6}\[9\] <- ${net_clients_6}::1\[4207\] .* route-to: ${net_server1_6}::42:0@${epair_server1}a" \
+	; do
+		grep -qE "${state_regexp}" $states || atf_fail "State not found for '${state_regexp}'"
+	done
+}
+
+table_loop_cleanup()
+{
+	pft_cleanup
+}
+
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
@@ -912,4 +993,5 @@ atf_init_test_cases()
 	atf_add_test_case "sticky"
 	atf_add_test_case "ttl"
 	atf_add_test_case "empty_pool"
+	atf_add_test_case "table_loop"
 }
