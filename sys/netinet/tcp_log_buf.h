@@ -585,5 +585,9 @@ tcp_log_event(struct tcpcb *tp, struct tcphdr *th, struct sockbuf *rxbuf,
 }
 #endif /* TCP_BLACKBOX */
 
+#ifdef DDB
+void db_print_bblog_entries(struct tcp_log_stailq *log_entries, int indent);
+#endif
+
 #endif	/* _KERNEL */
 #endif	/* __tcp_log_buf_h__ */
