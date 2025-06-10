@@ -2294,7 +2294,7 @@ pfr_detach_table(struct pfr_ktable *kt)
 
 int
 pfr_pool_get(struct pfr_ktable *kt, int *pidx, struct pf_addr *counter,
-    sa_family_t af, pf_addr_filter_func_t filter)
+    sa_family_t af, pf_addr_filter_func_t filter, bool loop_once)
 {
 	struct pf_addr		*addr, cur, mask, umask_addr;
 	union sockaddr_union	 uaddr, umask;
@@ -2339,7 +2339,7 @@ _next_block:
 	ke = pfr_kentry_byidx(kt, idx, af);
 	if (ke == NULL) {
 		/* we don't have this idx, try looping */
-		if (loop || (ke = pfr_kentry_byidx(kt, 0, af)) == NULL) {
+		if ((loop || loop_once) || (ke = pfr_kentry_byidx(kt, 0, af)) == NULL) {
 			pfr_kstate_counter_add(&kt->pfrkt_nomatch, 1);
 			return (1);
 		}

@@ -617,7 +617,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 				rpool->tblidx = (int)arc4random_uniform(cnt);
 			memset(&rpool->counter, 0, sizeof(rpool->counter));
 			if (pfr_pool_get(kt, &rpool->tblidx, &rpool->counter,
-			    af, pf_islinklocal)) {
+			    af, pf_islinklocal, false)) {
 				reason = PFRES_MAPFAILED;
 				goto done_pool_mtx; /* unsupported */
 			}
@@ -684,7 +684,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 				rpool->tblidx = (int)(hashidx % cnt);
 			memset(&rpool->counter, 0, sizeof(rpool->counter));
 			if (pfr_pool_get(kt, &rpool->tblidx, &rpool->counter,
-			    af, pf_islinklocal)) {
+			    af, pf_islinklocal, false)) {
 				reason = PFRES_MAPFAILED;
 				goto done_pool_mtx; /* unsupported */
 			}
@@ -701,11 +701,12 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 			if (!pfr_pool_get(rpool->cur->addr.p.tbl,
-			    &rpool->tblidx, &rpool->counter, af, NULL))
+			    &rpool->tblidx, &rpool->counter, af, NULL, true))
 				goto get_addr;
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
 			if (!pfr_pool_get(rpool->cur->addr.p.dyn->pfid_kt,
-			    &rpool->tblidx, &rpool->counter, af, pf_islinklocal))
+			    &rpool->tblidx, &rpool->counter, af, pf_islinklocal,
+			    true))
 				goto get_addr;
 		} else if (pf_match_addr(0, raddr, rmask, &rpool->counter, af))
 			goto get_addr;
@@ -715,9 +716,10 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 			rpool->cur = TAILQ_FIRST(&rpool->list);
 		else
 			rpool->cur = TAILQ_NEXT(rpool->cur, entries);
+		rpool->tblidx = -1;
 		if (rpool->cur->addr.type == PF_ADDR_TABLE) {
 			if (pfr_pool_get(rpool->cur->addr.p.tbl,
-			    &rpool->tblidx, &rpool->counter, af, NULL)) {
+			    &rpool->tblidx, &rpool->counter, af, NULL, true)) {
 				/* table contains no address of type 'af' */
 				if (rpool->cur != acur)
 					goto try_next;
@@ -725,9 +727,9 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 				goto done_pool_mtx;
 			}
 		} else if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
-			rpool->tblidx = -1;
 			if (pfr_pool_get(rpool->cur->addr.p.dyn->pfid_kt,
-			    &rpool->tblidx, &rpool->counter, af, pf_islinklocal)) {
+			    &rpool->tblidx, &rpool->counter, af, pf_islinklocal,
+			    true)) {
 				/* table contains no address of type 'af' */
 				if (rpool->cur != acur)
 					goto try_next;
