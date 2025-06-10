@@ -1304,7 +1304,7 @@ out:
 }
 
 /*
- * Our version of sowakeup(), used by recv(2) and shutdown(2).
+ * Wakeup a writer, used by recv(2) and shutdown(2).
  *
  * @param so	Points to a connected stream socket with receive buffer locked
  *
@@ -1314,7 +1314,7 @@ out:
  * receive lock is protecting us from the peer going away.
  */
 static void
-uipc_wakeup(struct socket *so)
+uipc_wakeup_writer(struct socket *so)
 {
 	struct sockbuf *sb = &so->so_rcv;
 	struct selinfo *sel;
@@ -1347,7 +1347,7 @@ uipc_cantrcvmore(struct socket *so)
 	SOCK_RECVBUF_LOCK(so);
 	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
 	if (so->so_rcv.uxst_peer != NULL)
-		uipc_wakeup(so);
+		uipc_wakeup_writer(so);
 	else
 		SOCK_RECVBUF_UNLOCK(so);
 }
@@ -1503,7 +1503,7 @@ restart:
 			if ((aio = sb->uxst_flags & UXST_PEER_AIO))
 				sb->uxst_flags &= ~UXST_PEER_AIO;
 
-			uipc_wakeup(so);
+			uipc_wakeup_writer(so);
 			/*
 			 * XXXGL: need to go through uipc_lock_peer() after
 			 * the receive buffer lock dropped, it was protecting
