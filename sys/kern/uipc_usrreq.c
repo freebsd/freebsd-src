@@ -1346,6 +1346,8 @@ uipc_cantrcvmore(struct socket *so)
 
 	SOCK_RECVBUF_LOCK(so);
 	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
+	selwakeuppri(&so->so_rdsel, PSOCK);
+	KNOTE_LOCKED(&so->so_rdsel.si_note, 0);
 	if (so->so_rcv.uxst_peer != NULL)
 		uipc_wakeup_writer(so);
 	else
