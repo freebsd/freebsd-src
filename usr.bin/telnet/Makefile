@@ -30,7 +30,8 @@ CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DIPSEC
 LIBADD+=	mp crypto ipsec pam
 .endif
 
-.if ${MK_KERBEROS_SUPPORT} != "no"
+.if ${MK_KERBEROS_SUPPORT} != "no" && ${MK_MITKRB5} != "yes"
+# MIT KRB5 deprecated and removed 3DES. Therefore no telnet support.
 CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
 LIBADD+=	krb5 roken
 .endif
