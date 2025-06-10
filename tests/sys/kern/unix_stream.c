@@ -200,6 +200,25 @@ pthread_wrap(void *arg)
 	return (NULL);
 }
 
+/*
+ * Launch a thread that would block in event mech and return it.
+ */
+static pthread_t
+pthread_create_blocked(struct check_ctx *ctx)
+{
+	pthread_t thr;
+
+	ctx->timeout = false;
+	ctx->nfds = 1;
+	ATF_REQUIRE(pthread_create(&thr, NULL, pthread_wrap, ctx) == 0);
+
+	/* Sleep a bit to make sure that thread is put to sleep. */
+	usleep(10000);
+	ATF_REQUIRE(pthread_peekjoin_np(thr, NULL) == EBUSY);
+
+	return (thr);
+}
+
 static void
 full_writability_check(struct check_ctx *ctx)
 {
@@ -215,14 +234,7 @@ full_writability_check(struct check_ctx *ctx)
 	ctx->nfds = 0;
 	ctx->method(ctx);
 
-	/* Launch blocking thread. */
-	ctx->timeout = false;
-	ctx->nfds = 1;
-	ATF_REQUIRE(pthread_create(&thr, NULL, pthread_wrap, ctx) == 0);
-
-	/* Sleep a bit to make sure that thread is put to sleep. */
-	usleep(10000);
-	ATF_REQUIRE(pthread_peekjoin_np(thr, NULL) == EBUSY);
+	thr = pthread_create_blocked(ctx);
 
 	/* Read some data and re-check, the fd is expected to be returned. */
 	ATF_REQUIRE(read(ctx->sv[1], buf, space) == (ssize_t)space);
@@ -409,6 +421,52 @@ ATF_TC_BODY(peershutdown_readability, tc)
 	close(ctx.sv[1]);
 }
 
+static void
+peershutdown_wakeup(struct check_ctx *ctx)
+{
+	pthread_t thr;
+
+	ctx->timeout = false;
+	ctx->nfds = 1;
+
+	do_socketpair(ctx->sv);
+	thr = pthread_create_blocked(ctx);
+	shutdown(ctx->sv[1], SHUT_WR);
+	ATF_REQUIRE(pthread_join(thr, NULL) == 0);
+
+	close(ctx->sv[0]);
+	close(ctx->sv[1]);
+}
+
+ATF_TC_WITHOUT_HEAD(peershutdown_wakeup_select);
+ATF_TC_BODY(peershutdown_wakeup_select, tc)
+{
+	peershutdown_wakeup(&(struct check_ctx){
+		.method = check_select,
+		.select_what = SELECT_RD,
+	});
+}
+
+ATF_TC_WITHOUT_HEAD(peershutdown_wakeup_poll);
+ATF_TC_BODY(peershutdown_wakeup_poll, tc)
+{
+	peershutdown_wakeup(&(struct check_ctx){
+		.method = check_poll,
+		.poll_events = POLLIN | POLLRDNORM | POLLRDHUP,
+		.poll_revents = POLLRDHUP,
+	});
+}
+
+ATF_TC_WITHOUT_HEAD(peershutdown_wakeup_kevent);
+ATF_TC_BODY(peershutdown_wakeup_kevent, tc)
+{
+	peershutdown_wakeup(&(struct check_ctx){
+		.method = check_kevent,
+		.kev_filter = EVFILT_READ,
+		.kev_flags = EV_EOF,
+	});
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, getpeereid);
@@ -421,6 +479,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, peerclosed_writability);
 	ATF_TP_ADD_TC(tp, peershutdown_writability);
 	ATF_TP_ADD_TC(tp, peershutdown_readability);
+	ATF_TP_ADD_TC(tp, peershutdown_wakeup_select);
+	ATF_TP_ADD_TC(tp, peershutdown_wakeup_poll);
+	ATF_TP_ADD_TC(tp, peershutdown_wakeup_kevent);
 
 	return atf_no_error();
 }
