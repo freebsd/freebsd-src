@@ -112,14 +112,6 @@ struct xswdev {
 #define	KERN_OUT_OF_BOUNDS	9
 #define	KERN_RESTART		10
 
-#ifndef PA_LOCK_COUNT
-#ifdef SMP
-#define	PA_LOCK_COUNT	32
-#else
-#define PA_LOCK_COUNT	1
-#endif	/* !SMP */
-#endif	/* !PA_LOCK_COUNT */
-
 #ifndef KSTACK_MAX_PAGES
 #define KSTACK_MAX_PAGES 32
 #endif

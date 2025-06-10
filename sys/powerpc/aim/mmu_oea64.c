@@ -122,7 +122,7 @@ uintptr_t moea64_get_unique_vsid(void);
  *
  */
 
-#define PV_LOCK_COUNT	PA_LOCK_COUNT
+#define PV_LOCK_COUNT	MAXCPU
 static struct mtx_padalign pv_lock[PV_LOCK_COUNT];
 
 /*

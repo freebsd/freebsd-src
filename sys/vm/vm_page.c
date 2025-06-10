@@ -114,8 +114,6 @@ struct vm_domain vm_dom[MAXMEMDOM];
 
 DPCPU_DEFINE_STATIC(struct vm_batchqueue, pqbatch[MAXMEMDOM][PQ_COUNT]);
 
-struct mtx_padalign __exclusive_cache_line pa_lock[PA_LOCK_COUNT];
-
 struct mtx_padalign __exclusive_cache_line vm_domainset_lock;
 /* The following fields are protected by the domainset lock. */
 domainset_t __exclusive_cache_line vm_min_domains;
@@ -586,8 +584,6 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Initialize the page and queue locks.
 	 */
 	mtx_init(&vm_domainset_lock, "vm domainset lock", NULL, MTX_DEF);
-	for (i = 0; i < PA_LOCK_COUNT; i++)
-		mtx_init(&pa_lock[i], "vm page", NULL, MTX_DEF);
 	for (i = 0; i < vm_ndomains; i++)
 		vm_page_domain_init(i);
 
@@ -5808,43 +5804,6 @@ vm_page_valid(vm_page_t m)
 	else
 		vm_page_bits_set(m, &m->valid, VM_PAGE_BITS_ALL);
 }
-
-void
-vm_page_lock_KBI(vm_page_t m, const char *file, int line)
-{
-
-	mtx_lock_flags_(vm_page_lockptr(m), 0, file, line);
-}
-
-void
-vm_page_unlock_KBI(vm_page_t m, const char *file, int line)
-{
-
-	mtx_unlock_flags_(vm_page_lockptr(m), 0, file, line);
-}
-
-int
-vm_page_trylock_KBI(vm_page_t m, const char *file, int line)
-{
-
-	return (mtx_trylock_flags_(vm_page_lockptr(m), 0, file, line));
-}
-
-#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-void
-vm_page_assert_locked_KBI(vm_page_t m, const char *file, int line)
-{
-
-	vm_page_lock_assert_KBI(m, MA_OWNED, file, line);
-}
-
-void
-vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line)
-{
-
-	mtx_assert_(vm_page_lockptr(m), a, file, line);
-}
-#endif
 
 #ifdef INVARIANTS
 void

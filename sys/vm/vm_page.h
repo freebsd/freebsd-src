@@ -336,8 +336,6 @@ SLIST_HEAD(spglist, vm_page);
 extern vm_page_t bogus_page;
 #endif	/* _KERNEL */
 
-extern struct mtx_padalign pa_lock[];
-
 #if defined(__arm__)
 #define	PDRSHIFT	PDR_SHIFT
 #elif !defined(PDRSHIFT)
@@ -345,40 +343,6 @@ extern struct mtx_padalign pa_lock[];
 #endif
 
 #define	pa_index(pa)	((pa) >> PDRSHIFT)
-#define	PA_LOCKPTR(pa)	((struct mtx *)(&pa_lock[pa_index(pa) % PA_LOCK_COUNT]))
-#define	PA_LOCKOBJPTR(pa)	((struct lock_object *)PA_LOCKPTR((pa)))
-#define	PA_LOCK(pa)	mtx_lock(PA_LOCKPTR(pa))
-#define	PA_TRYLOCK(pa)	mtx_trylock(PA_LOCKPTR(pa))
-#define	PA_UNLOCK(pa)	mtx_unlock(PA_LOCKPTR(pa))
-#define	PA_UNLOCK_COND(pa) 			\
-	do {		   			\
-		if ((pa) != 0) {		\
-			PA_UNLOCK((pa));	\
-			(pa) = 0;		\
-		}				\
-	} while (0)
-
-#define	PA_LOCK_ASSERT(pa, a)	mtx_assert(PA_LOCKPTR(pa), (a))
-
-#if defined(KLD_MODULE) && !defined(KLD_TIED)
-#define	vm_page_lock(m)		vm_page_lock_KBI((m), LOCK_FILE, LOCK_LINE)
-#define	vm_page_unlock(m)	vm_page_unlock_KBI((m), LOCK_FILE, LOCK_LINE)
-#define	vm_page_trylock(m)	vm_page_trylock_KBI((m), LOCK_FILE, LOCK_LINE)
-#else	/* !KLD_MODULE */
-#define	vm_page_lockptr(m)	(PA_LOCKPTR(VM_PAGE_TO_PHYS((m))))
-#define	vm_page_lock(m)		mtx_lock(vm_page_lockptr((m)))
-#define	vm_page_unlock(m)	mtx_unlock(vm_page_lockptr((m)))
-#define	vm_page_trylock(m)	mtx_trylock(vm_page_lockptr((m)))
-#endif
-#if defined(INVARIANTS)
-#define	vm_page_assert_locked(m)		\
-    vm_page_assert_locked_KBI((m), __FILE__, __LINE__)
-#define	vm_page_lock_assert(m, a)		\
-    vm_page_lock_assert_KBI((m), (a), __FILE__, __LINE__)
-#else
-#define	vm_page_assert_locked(m)
-#define	vm_page_lock_assert(m, a)
-#endif
 
 /*
  * The vm_page's aflags are updated using atomic operations.  To set or clear
@@ -713,13 +677,6 @@ vm_page_bits_t vm_page_bits(int base, int size);
 void vm_page_zero_invalid(vm_page_t m, boolean_t setvalid);
 
 void vm_page_dirty_KBI(vm_page_t m);
-void vm_page_lock_KBI(vm_page_t m, const char *file, int line);
-void vm_page_unlock_KBI(vm_page_t m, const char *file, int line);
-int vm_page_trylock_KBI(vm_page_t m, const char *file, int line);
-#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-void vm_page_assert_locked_KBI(vm_page_t m, const char *file, int line);
-void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
-#endif
 
 #define	vm_page_busy_fetch(m)	atomic_load_int(&(m)->busy_lock)
 
