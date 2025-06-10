@@ -433,6 +433,8 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 		| IEEE80211_HTC_SMPS		/* SMPS available */
 		;
 
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+
 	/*
 	 * Mark h/w crypto support.
 	 * XXX no way to query h/w support.
@@ -3086,6 +3088,8 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 		qos = *(uint16_t *)ieee80211_getqos(wh);
 	} else
 		qos = 0;
+
+	ieee80211_output_seqno_assign(ni, -1, m0);
 
 	if (iswep) {
 		const struct ieee80211_cipher *cip;

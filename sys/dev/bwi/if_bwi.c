@@ -498,6 +498,9 @@ bwi_attach(struct bwi_softc *sc)
 		      IEEE80211_C_BGSCAN |
 		      IEEE80211_C_MONITOR;
 	ic->ic_opmode = IEEE80211_M_STA;
+
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+
 	ieee80211_ifattach(ic);
 
 	ic->ic_headroom = sizeof(struct bwi_txbuf_hdr);
@@ -1361,6 +1364,7 @@ bwi_start_locked(struct bwi_softc *sc)
 	    (m = mbufq_dequeue(&sc->sc_snd)) != NULL) {
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		wh = mtod(m, struct ieee80211_frame *);
+		ieee80211_output_seqno_assign(ni, -1, m);
 		if ((wh->i_fc[1] & IEEE80211_FC1_PROTECTED) != 0 &&
 		    ieee80211_crypto_encap(ni, m) == NULL) {
 			if_inc_counter(ni->ni_vap->iv_ifp,
