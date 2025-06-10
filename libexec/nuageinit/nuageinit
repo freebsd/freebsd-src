@@ -12,7 +12,7 @@ local sys_stat = require("posix.sys.stat")
 if #arg ~= 2 then
 	nuage.err("Usage: " .. arg[0] .. " <cloud-init-directory> (<config-2> | <nocloud>)", false)
 end
-local path = arg[1]
+local ni_path = arg[1]
 local citype = arg[2]
 
 local default_user = {
@@ -189,7 +189,7 @@ end
 
 if citype == "config-2" then
 	local parser = ucl.parser()
-	local res, err = parser:parse_file(path .. "/meta_data.json")
+	local res, err = parser:parse_file(ni_path .. "/meta_data.json")
 
 	if not res then
 		nuage.err("error parsing config-2 meta_data.json: " .. err)
@@ -204,9 +204,9 @@ if citype == "config-2" then
 	nuage.sethostname(obj["hostname"])
 
 	-- network
-	config2_network(path)
+	config2_network(ni_path)
 elseif citype == "nocloud" then
-	local f, err = io.open(path .. "/meta-data")
+	local f, err = io.open(ni_path .. "/meta-data")
 	if err then
 		nuage.err("error parsing nocloud meta-data: " .. err)
 	end
@@ -229,9 +229,9 @@ end
 -- deal with user-data
 local ud = nil
 local f = nil
-userdatas = {"user-data", "user_data"}
+local userdatas = {"user-data", "user_data"}
 for _, v in pairs(userdatas) do
-	f = io.open(path .. "/" .. v, "r")
+	f = io.open(ni_path .. "/" .. v, "r")
 	if f then
 		ud = v
 		break
@@ -243,7 +243,7 @@ end
 local line = f:read("*l")
 f:close()
 if line == "#cloud-config" then
-	f = io.open(path .. "/" .. ud)
+	f = io.open(ni_path .. "/" .. ud)
 	local obj = yaml.eval(f:read("*a"))
 	f:close()
 	if not obj then
@@ -405,7 +405,7 @@ if line == "#cloud-config" then
 	end
 elseif line:sub(1, 2) == "#!" then
 	-- delay for execution at rc.local time --
-	f = io.open(path .. "/" .. ud)
+	f = io.open(ni_path .. "/" .. ud)
 	local content = f:read("*a")
 	f:close()
 	nuage.mkdir_p(root .. "/var/cache/nuageinit")
