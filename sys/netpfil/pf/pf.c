@@ -377,10 +377,12 @@ static u_int16_t	 pf_calc_mss(struct pf_addr *, sa_family_t,
 static int		 pf_check_proto_cksum(struct mbuf *, int, int,
 			    u_int8_t, sa_family_t);
 static int		 pf_walk_header(struct pf_pdesc *, struct ip *, u_short *);
+#ifdef INET6
 static int		 pf_walk_option6(struct pf_pdesc *, struct ip6_hdr *,
 			    int, int, u_short *);
 static int		 pf_walk_header6(struct pf_pdesc *, struct ip6_hdr *,
 			    u_short *);
+#endif
 static void		 pf_print_state_parts(struct pf_kstate *,
 			    struct pf_state_key *, struct pf_state_key *);
 static int		 pf_patch_8(struct pf_pdesc *, u_int8_t *, u_int8_t,
