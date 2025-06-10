@@ -774,6 +774,7 @@ bwn_attach_post(struct bwn_softc *sc)
 		;
 
 	ic->ic_flags_ext |= IEEE80211_FEXT_SWBMISS;	/* s/w bmiss */
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
 
 	/* Determine the NVRAM variable containing our MAC address */
 	core_unit = bhnd_get_core_unit(sc->sc_dev);
@@ -999,6 +1000,7 @@ bwn_start(struct bwn_softc *sc)
 			continue;
 		}
 		wh = mtod(m, struct ieee80211_frame *);
+		ieee80211_output_seqno_assign(ni, -1, m);
 		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			k = ieee80211_crypto_encap(ni, m);
 			if (k == NULL) {

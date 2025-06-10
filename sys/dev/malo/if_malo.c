@@ -263,6 +263,8 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	    ;
 	IEEE80211_ADDR_COPY(ic->ic_macaddr, sc->malo_hwspecs.macaddr);
 
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+
 	/*
 	 * Transmit requires space in the packet for a special format transmit
 	 * record and optional padding between this record and the payload.
@@ -1039,6 +1041,8 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 		qos = *(uint16_t *)ieee80211_getqos(wh);
 	} else
 		qos = 0;
+
+	ieee80211_output_seqno_assign(ni, -1, m0);
 
 	if (iswep) {
 		struct ieee80211_key *k;

@@ -924,6 +924,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		| IEEE80211_C_PMGT		/* Station side power mgmt */
 		| IEEE80211_C_SWSLEEP
 		;
+
+	ic->ic_flags_ext |= IEEE80211_FEXT_SEQNO_OFFLOAD;
+
 	/*
 	 * Query the hal to figure out h/w crypto support.
 	 */
