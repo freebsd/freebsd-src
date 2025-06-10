@@ -40,6 +40,15 @@ LDFLAGS+=-L${LIBBLACKLISTDIR}
 
 .if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
 LIBADD+=	gssapi_krb5 gssapi krb5
+.if ${MK_MITKRB5} != "no"
+.include "../../krb5/Makefile.inc"
+CFLAGS+=	-I${KRB5_DIR}/include \
+		-I${KRB5_SRCTOP}/include \
+		-I${KRB5_OBJTOP}/lib \
+		-I${KRB5_DIR}/lib/gssapi/generic \
+		-I${KRB5_DIR}/lib/gssapi/krb5 \
+		-I${KRB5_DIR}/lib/gssapi/mechglue
+.endif
 .endif
 
 .if ${MK_TCP_WRAPPERS} != "no"
