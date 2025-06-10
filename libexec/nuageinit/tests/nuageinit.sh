@@ -728,18 +728,20 @@ runcmd:
   - plop
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -s exit:0 -e inline:"sh: plop: not found\nnuageinit: Failed to execute 'plop'\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -s exit:0 /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	test -f var/cache/nuageinit/runcmds || atf_fail "File not created"
+	test -x var/cache/nuageinit/runcmds || atf_fail "Missing execution permission"
+	atf_check -o inline:"#!/bin/sh\nplop\n" cat var/cache/nuageinit/runcmds
 
 	cat > media/nuageinit/user_data << 'EOF'
 #cloud-config
 runcmd:
-  - echo "yeah!" > "${PWD}"/media/nuageinit/runcmd_echo
-  - uname -s > "${PWD}"/media/nuageinit/runcmd_uname
+  - echo "yeah!"
+  - uname -s
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
 	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
-	atf_check -s exit:0 -o inline:"yeah!\n" cat "${PWD}"/media/nuageinit/runcmd_echo
-	atf_check -s exit:0 -o inline:"FreeBSD\n" cat "${PWD}"/media/nuageinit/runcmd_uname
+	atf_check -o inline:"#!/bin/sh\necho \"yeah!\"\nuname -s\n" cat var/cache/nuageinit/runcmds
 }
 
 config2_userdata_packages_head()
