@@ -570,6 +570,9 @@ void tcp_log_flowend(struct tcpcb *tp);
 void tcp_log_sendfile(struct socket *so, off_t offset, size_t nbytes,
     int flags);
 int tcp_log_apply_ratio(struct tcpcb *tp, int ratio);
+#ifdef DDB
+void db_print_bblog_entries(struct tcp_log_stailq *log_entries, int indent);
+#endif
 #else /* !TCP_BLACKBOX */
 #define tcp_log_verbose	(false)
 
@@ -584,10 +587,6 @@ tcp_log_event(struct tcpcb *tp, struct tcphdr *th, struct sockbuf *rxbuf,
 	return (NULL);
 }
 #endif /* TCP_BLACKBOX */
-
-#ifdef DDB
-void db_print_bblog_entries(struct tcp_log_stailq *log_entries, int indent);
-#endif
 
 #endif	/* _KERNEL */
 #endif	/* __tcp_log_buf_h__ */
