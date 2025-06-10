@@ -1953,7 +1953,7 @@ allocpages(vm_paddr_t *firstaddr, int n)
 
 	ret = *firstaddr;
 	bzero((void *)ret, n * PAGE_SIZE_PT);
-	*firstaddr += n * PAGE_SIZE_PT;
+	*firstaddr += round_page(n * PAGE_SIZE_PT);
 	return (ret);
 }
 
