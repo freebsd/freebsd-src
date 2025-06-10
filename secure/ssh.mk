@@ -11,6 +11,10 @@ CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
 
 .if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
+.if ${MK_MITKRB5} == "no"
+CFLAGS+= -DHEIMDAL=1
+.endif
+
 .endif
 
 CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE:U/usr/local}/bin/xauth\"
