@@ -1005,7 +1005,6 @@ vm_object_page_clean_flush(struct pctrie_iter *pages, vm_page_t p,
 	vm_page_t ma[vm_pageout_page_count];
 	int count, runlen;
 
-	vm_page_lock_assert(p, MA_NOTOWNED);
 	vm_page_assert_xbusied(p);
 	ma[0] = p;
 	runlen = vm_radix_iter_lookup_range(pages, p->pindex + 1,

@@ -406,14 +406,14 @@ vmalloc_to_page(const void *addr)
 static inline int
 trylock_page(struct page *page)
 {
-	return (vm_page_trylock(page));
+	return (vm_page_tryxbusy(page));
 }
 
 static inline void
 unlock_page(struct page *page)
 {
 
-	vm_page_unlock(page);
+	vm_page_xunbusy(page);
 }
 
 extern int is_vmalloc_addr(const void *addr);
