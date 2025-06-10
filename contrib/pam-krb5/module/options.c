@@ -52,6 +52,7 @@ static const struct option options[] = {
     { K(no_ccache),          false, BOOL   (false) },
     { K(no_prompt),          true,  BOOL   (false) },
     { K(no_update_user),     true,  BOOL   (false) },
+    { K(no_warn),	     true,  BOOL   (false) },
     { K(only_alt_auth),      true,  BOOL   (false) },
     { K(pkinit_anchors),     true,  STRING (NULL)  },
     { K(pkinit_prompt),      true,  BOOL   (false) },

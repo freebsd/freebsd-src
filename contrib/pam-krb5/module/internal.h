@@ -109,6 +109,7 @@ struct pam_config {
 
     /* The authentication context, which bundles together Kerberos data. */
     struct context *ctx;
+    bool no_warn;            /* XXX Dummy argument, remove when Heimdal is removed. */
 };
 
 /* Default to a hidden visibility for all internal functions. */
