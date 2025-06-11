@@ -37,6 +37,7 @@
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -293,6 +294,8 @@ libusb_init_context(libusb_context **context,
 	}
 
 	libusb10_add_pollfd(ctx, &ctx->ctx_poll, NULL, ctx->event, POLLIN);
+	ctx->log_cb = NULL;
+	ctx->no_discovery = false;
 
 	pthread_mutex_lock(&default_context_lock);
 	if (usbi_default_context == NULL) {
@@ -1897,7 +1900,11 @@ libusb_log_va_args(struct libusb_context *ctx, enum libusb_log_level level,
 
 	snprintf(new_fmt, sizeof(new_fmt), "%s: %s\n", log_prefix[level], fmt);
 	vsnprintf(buffer, sizeof(buffer), new_fmt, args);
-	fputs(buffer, stdout);
+
+	if (ctx->log_cb != NULL)
+		ctx->log_cb(ctx, level, buffer);
+	else
+		fputs(buffer, stdout);
 
 	va_end(args);
 }
@@ -1946,4 +1953,73 @@ libusb_wrap_sys_device(libusb_context *ctx, intptr_t sys_dev,
     libusb_device_handle **dev_handle)
 {
 	return (LIBUSB_ERROR_NOT_SUPPORTED);
+}
+
+int
+libusb_set_option(libusb_context *ctx, enum libusb_option option, ...)
+{
+	int err = LIBUSB_SUCCESS;
+	enum libusb_log_level level;
+	va_list args;
+	libusb_log_cb callback;
+
+	ctx = GET_CONTEXT(ctx);
+	va_start(args, option);
+
+	switch (option) {
+	case LIBUSB_OPTION_LOG_LEVEL:
+		level = va_arg(args, enum libusb_log_level);
+		if (level < LIBUSB_LOG_LEVEL_NONE ||
+		    level > LIBUSB_LOG_LEVEL_DEBUG) {
+			err = LIBUSB_ERROR_INVALID_PARAM;
+			goto end;
+		}
+		break;
+	case LIBUSB_OPTION_LOG_CB:
+		callback = va_arg(args, libusb_log_cb);
+		break;
+	}
+
+	if (option >= LIBUSB_OPTION_MAX) {
+		err = LIBUSB_ERROR_INVALID_PARAM;
+		goto end;
+	}
+
+	/*
+	 * When it is default context, the context will be accessed by multiple
+	 * instances of libusb_context that will later be taken as the default
+	 * value when new instances are created.
+	 */
+	if (ctx == usbi_default_context)
+		CTX_LOCK(ctx);
+
+	switch (option) {
+	case LIBUSB_OPTION_LOG_LEVEL:
+		if (ctx->debug_fixed)
+			break;
+		ctx->debug = level;
+		break;
+	case LIBUSB_OPTION_LOG_CB:
+		ctx->log_cb = callback;
+		break;
+	case LIBUSB_OPTION_NO_DEVICE_DISCOVERY:
+		ctx->no_discovery = true;
+		break;
+		/*
+		 * We don't handle USBDK as it is a windows
+		 * backend specified SDK
+		 */
+	case LIBUSB_OPTION_USE_USBDK:
+		break;
+	default:
+		err = LIBUSB_ERROR_INVALID_PARAM;
+		break;
+	}
+
+	if (ctx == usbi_default_context)
+		CTX_UNLOCK(ctx);
+
+end:
+	va_end(args);
+	return (err);
 }

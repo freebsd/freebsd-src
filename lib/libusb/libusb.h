@@ -291,7 +291,8 @@ enum libusb_option {
 	LIBUSB_OPTION_USE_USBDK = 1,
 	LIBUSB_OPTION_NO_DEVICE_DISCOVERY = 2,
 	LIBUSB_OPTION_WEAK_AUTHORITY = 2,
-	LIBUSB_OPTION_MAX = 3,
+	LIBUSB_OPTION_LOG_CB = 3,
+	LIBUSB_OPTION_MAX = 4,
 };
 
 /* libusb structures */
@@ -301,6 +302,11 @@ struct libusb_device;
 struct libusb_transfer;
 struct libusb_device_handle;
 struct libusb_hotplug_callback_handle_struct;
+
+typedef struct libusb_context libusb_context;
+
+typedef void (*libusb_log_cb)(libusb_context *ctx, enum libusb_log_level,
+    const char *str);
 
 struct libusb_pollfd {
 	int	fd;
@@ -668,6 +674,7 @@ int	libusb_alloc_streams(libusb_device_handle *dev, uint32_t num_streams, unsign
 int	libusb_free_streams(libusb_device_handle *dev, unsigned char *endpoints, int num_endpoints);
 void	libusb_transfer_set_stream_id(struct libusb_transfer *transfer, uint32_t stream_id);
 uint32_t libusb_transfer_get_stream_id(struct libusb_transfer *transfer);
+int	libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
 
 #if 0
 {					/* indent fix */

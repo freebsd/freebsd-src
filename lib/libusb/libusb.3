@@ -101,6 +101,30 @@ and
 .Fn libusb_attach_kernel_driver .
 .El
 .Pp
+.Ft int
+.Fn libusb_set_option "libusb_context *ctx" "enum libusb_option option" "...value"
+This function sets the
+.Fa option
+from the given
+.Fa value .
+When the
+.Fa ctx
+is NULL, the option will be used as the default option for later created
+.Fa ctx .
+The available options are:
+.Bl -tag -width LIBUSB_OPTION -offset indent
+.It Va LIBUSB_OPTION_LOG_LEVEL
+set the option level to the given
+.Fa value .
+.It Va LIBUSB_OPTION_USE_USBDK
+use USBDK as a libusb backend (Windows only)
+.It Va LIBUSB_OPTION_NO_DEVICE_DISCOVER
+disable the USB enumeration.
+.It Va LIBUSB_OPTION_LOG_CB
+customize default callback function with
+.Fa value .
+.El
+.Pp
 .Ft const char *
 .Fn libusb_strerror "int code"
 Get the ASCII representation of the error given by the

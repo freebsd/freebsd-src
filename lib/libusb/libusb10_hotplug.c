@@ -348,6 +348,9 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 
 	ctx = GET_CONTEXT(ctx);
 
+	if (ctx->no_discovery)
+		return (LIBUSB_SUCCESS);
+
 	if (ctx->usb_event_mode == usb_event_none) {
 		HOTPLUG_LOCK(ctx);
 		if (!netlink_init(ctx) && !devd_init(ctx))
