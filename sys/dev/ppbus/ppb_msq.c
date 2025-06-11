@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #include <sys/param.h>
 #include <sys/lock.h>

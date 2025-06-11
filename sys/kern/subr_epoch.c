@@ -44,7 +44,7 @@
 #include <sys/sysctl.h>
 #include <sys/turnstile.h>
 #ifdef EPOCH_TRACE
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #include <sys/stack.h>
 #include <sys/tree.h>
 #endif

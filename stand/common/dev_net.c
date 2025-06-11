@@ -47,9 +47,10 @@
  * for use by the NFS open code (NFS/lookup).
  */
 
-#include <machine/stdarg.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/stdarg.h>
+
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

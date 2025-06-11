@@ -62,6 +62,7 @@
 #include <sys/rman.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/taskqueue.h>
@@ -74,7 +75,6 @@
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/smp.h>
-#include <machine/stdarg.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>

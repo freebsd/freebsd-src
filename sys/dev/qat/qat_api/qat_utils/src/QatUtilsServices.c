@@ -10,7 +10,7 @@
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/time.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 

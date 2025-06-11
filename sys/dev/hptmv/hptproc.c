@@ -32,8 +32,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
-#include <machine/stdarg.h>
 
 #ifndef __KERNEL__
 #define __KERNEL__

@@ -35,12 +35,12 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>

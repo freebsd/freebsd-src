@@ -41,9 +41,9 @@
 #include <sys/epoch.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/gtaskqueue.h>
 #include <sys/unistd.h>
-#include <machine/stdarg.h>
 
 static MALLOC_DEFINE(M_GTASKQUEUE, "gtaskqueue", "Group Task Queues");
 static void	gtaskqueue_thread_enqueue(void *);

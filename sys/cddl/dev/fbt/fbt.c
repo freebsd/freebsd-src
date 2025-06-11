@@ -49,12 +49,12 @@
 #include <sys/proc.h>
 #include <sys/selinfo.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
 #include <sys/unistd.h>
-#include <machine/stdarg.h>
 
 #include <sys/dtrace.h>
 #include <sys/dtrace_bsd.h>

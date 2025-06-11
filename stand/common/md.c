@@ -28,7 +28,7 @@
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/queue.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #include "bootstrap.h"
 
