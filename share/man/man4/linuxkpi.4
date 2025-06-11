@@ -1,0 +1,42 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Bj\xc3\xb6rn Zeeb under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.Dd June 13, 2025
+.Dt LINUXKPI 4
+.Os
+.Sh NAME
+.Nm linuxkpi
+.Nd Linux Kernel Programming Interface support
+.Sh DESCRIPTION
+The
+.Nm
+kernel module provides a limited KPI (kernel programming interface) to allow
+Linux kernel drivers and other Linux kernel code to be compiled on
+.Fx
+and used along the
+.Fx
+kernel with little or no modification.
+.Pp
+While historically
+.Em OpenFabrics Enterprise Distribution (Infiniband) ,
+and certain vendor drivers have used
+.Nm .
+.Em drm-kmod
+for graphics driver support
+and
+.Xr linuxkpi_wlan 4
+for wireless drivers are prominent consumers.
+.Pp
+.Nm
+is not to be confused with
+.Xr linux 4
+which provides limited Linux ABI (application binary interface) compatibility
+to allow running Linux application binaries unmodified on
+.Fx .
+.Sh SEE ALSO
+.Xr linuxkpi_wlan 4
