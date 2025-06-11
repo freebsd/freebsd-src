@@ -28,13 +28,13 @@
 
 #include <sys/cdefs.h>
 #ifdef _KERNEL
-#include <machine/stdarg.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/rwlock.h>
+#include <sys/stdarg.h>
 #include <sys/syslog.h>
 #else
 #include <stdarg.h>

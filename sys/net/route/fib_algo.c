@@ -44,6 +44,7 @@
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/queue.h>
@@ -66,8 +67,6 @@
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 #include <net/route/fib_algo.h>
-
-#include <machine/stdarg.h>
 
 /*
  * Fib lookup framework.

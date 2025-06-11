@@ -24,8 +24,10 @@
  */
 
 #include <sys/param.h>
+#include <sys/stdarg.h>
+
 #include <machine/elf.h>
-#include <machine/stdarg.h>
+
 #include <stand.h>
 
 #include <efi.h>

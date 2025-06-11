@@ -80,8 +80,7 @@
 #include <sys/filio.h>
 #include <sys/ttycom.h>
 #include <sys/syscallsubr.h>
-
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #if USB_HAVE_UGEN

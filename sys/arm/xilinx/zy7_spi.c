@@ -34,11 +34,11 @@
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/stdarg.h>
 #include <sys/uio.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>

@@ -34,7 +34,7 @@
 #include <sys/refcount.h>
 
 #ifdef _KERNEL
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #else /* !_KERNEL */
 #include <stdarg.h>
 #endif /* _KERNEL */

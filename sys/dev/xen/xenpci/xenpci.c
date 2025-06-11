@@ -31,12 +31,11 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/stdarg.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
-
-#include <machine/stdarg.h>
 
 #include <xen/xen-os.h>
 #include <xen/features.h>

@@ -52,6 +52,7 @@
 #include <sys/module.h>
 #include <sys/sockio.h>
 #include <sys/eventhandler.h>
+#include <sys/stdarg.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
@@ -94,7 +95,6 @@
 #include <sys/smp.h>
 #include <sys/sbuf.h>
 #include <machine/smp.h>
-#include <machine/stdarg.h>
 #include <net/ethernet.h>
 #include <net/iflib.h>
 #include "ifdi_if.h"

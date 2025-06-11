@@ -71,6 +71,7 @@
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/taskqueue.h>
@@ -111,12 +112,6 @@ static int reboot_wait_time = 0;
 SYSCTL_INT(_kern, OID_AUTO, reboot_wait_time, CTLFLAG_RWTUN,
     &reboot_wait_time, 0,
     "Seconds to wait before rebooting");
-
-/*
- * Note that stdarg.h and the ANSI style va_start macro is used for both
- * ANSI and traditional C compilers.
- */
-#include <machine/stdarg.h>
 
 #ifdef KDB
 #ifdef KDB_UNATTENDED

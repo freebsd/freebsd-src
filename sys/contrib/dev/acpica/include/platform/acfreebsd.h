@@ -179,10 +179,10 @@
 
 #include <sys/ctype.h>
 #include <sys/param.h>
+#include <sys/stdarg.h>
 #include <sys/systm.h>
 #include <sys/libkern.h>
 #include <machine/acpica_machdep.h>
-#include <machine/stdarg.h>
 
 #include "opt_acpi.h"
 

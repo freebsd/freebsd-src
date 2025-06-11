@@ -29,7 +29,7 @@
  */
 
 #include <stand.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #include <bootstrap.h>
 #include <isapnp.h>
 #include <btxv86.h>

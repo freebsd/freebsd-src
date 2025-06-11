@@ -41,6 +41,7 @@
 #include <sys/module.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 
@@ -58,8 +59,6 @@
 #include <net/ethernet.h>
 #include <net/route.h>
 #include <net/vnet.h>
-
-#include <machine/stdarg.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>

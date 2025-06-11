@@ -34,11 +34,11 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/stdarg.h>
 #include <sys/gpio.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/gpio/qoriq_gpio.h>

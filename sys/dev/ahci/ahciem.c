@@ -36,7 +36,7 @@
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>

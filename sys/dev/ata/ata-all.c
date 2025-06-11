@@ -37,11 +37,11 @@
 #include <sys/bus.h>
 #include <sys/bio.h>
 #include <sys/malloc.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <vm/uma.h>
-#include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>

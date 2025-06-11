@@ -56,10 +56,10 @@
 #include <sys/taskqueue.h>
 #include <sys/bitstring.h>
 #include <sys/stack.h>
+#include <sys/stdarg.h>
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
-#include <machine/stdarg.h>
 
 #include <dev/pci/pcivar.h>
 

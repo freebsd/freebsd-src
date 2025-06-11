@@ -40,7 +40,7 @@
 
 #include "ice_common.h"
 #include "ice_iflib.h"
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #include <sys/time.h>
 
 /**

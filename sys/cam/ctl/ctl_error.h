@@ -39,7 +39,7 @@
  * Author: Ken Merry <ken@FreeBSD.org>
  */
 
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #ifndef	_CTL_ERROR_H_
 #define	_CTL_ERROR_H_

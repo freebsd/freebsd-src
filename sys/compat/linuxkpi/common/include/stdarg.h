@@ -28,6 +28,6 @@
 #ifndef _LINUXKPI_STDARG_H_
 #define	_LINUXKPI_STDARG_H_
 
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #endif	/* _LINUXKPI_STDARG_H_ */

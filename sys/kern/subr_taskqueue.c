@@ -42,9 +42,9 @@
 #include <sys/epoch.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/taskqueue.h>
 #include <sys/unistd.h>
-#include <machine/stdarg.h>
 
 static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 static void	*taskqueue_giant_ih;

@@ -49,6 +49,7 @@
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/stdarg.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -74,7 +75,6 @@
 
 #include <netipsec/ipsec_support.h>
 
-#include <machine/stdarg.h>
 #include <security/mac/mac_framework.h>
 
 extern ipproto_input_t *ip_protox[];

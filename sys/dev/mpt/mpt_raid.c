@@ -57,9 +57,8 @@
 
 #include <sys/callout.h>
 #include <sys/kthread.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
-
-#include <machine/stdarg.h>
 
 struct mpt_raid_action_result
 {

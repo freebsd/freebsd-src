@@ -43,13 +43,12 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/sbuf.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
 #include <sys/taskqueue.h>
-
-#include <machine/stdarg.h>
 
 #include <xen/xen-os.h>
 #include <xen/gnttab.h>

@@ -58,6 +58,7 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/refcount.h>
+#include <sys/stdarg.h>
 #include <sys/syslog.h>
 
 #include <vm/uma.h>
@@ -93,7 +94,6 @@
 #include <netipsec/xform.h>
 #include <netipsec/ipsec_offload.h>
 #include <machine/in_cksum.h>
-#include <machine/stdarg.h>
 
 /* randomness */
 #include <sys/random.h>

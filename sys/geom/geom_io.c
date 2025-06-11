@@ -48,10 +48,10 @@
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/stack.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/vmem.h>
 #include <machine/stack.h>
-#include <machine/stdarg.h>
 
 #include <sys/errno.h>
 #include <geom/geom.h>

@@ -937,7 +937,7 @@ ieee80211_getbssid(const struct ieee80211vap *vap,
 	return wh->i_addr3;
 }
 
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 void
 ieee80211_note(const struct ieee80211vap *vap, const char *fmt, ...)

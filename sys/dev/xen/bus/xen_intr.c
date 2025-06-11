@@ -45,12 +45,12 @@
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/refcount.h>
+#include <sys/stdarg.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/smp.h>
-#include <machine/stdarg.h>
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>

@@ -41,9 +41,9 @@
 #include <sys/poll.h>
 #include <sys/sx.h>
 #include <sys/ctype.h>
+#include <sys/stdarg.h>
 #include <sys/ucred.h>
 #include <sys/taskqueue.h>
-#include <machine/stdarg.h>
 
 #include <fs/devfs/devfs_int.h>
 #include <vm/vm.h>

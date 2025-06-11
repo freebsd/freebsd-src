@@ -35,10 +35,10 @@
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/gpio.h>
+#include <sys/stdarg.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/gpio/qoriq_gpio.h>

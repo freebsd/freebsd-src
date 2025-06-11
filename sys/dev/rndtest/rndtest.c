@@ -41,8 +41,8 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/random.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
-#include <machine/stdarg.h>
 
 #include <dev/rndtest/rndtest.h>
 

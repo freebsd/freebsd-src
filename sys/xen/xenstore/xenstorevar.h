@@ -37,8 +37,7 @@
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/sbuf.h>
-
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #include <xen/xen-os.h>
 #include <contrib/xen/grant_table.h>

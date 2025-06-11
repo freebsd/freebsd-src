@@ -39,7 +39,7 @@
 #include <sys/uio.h>
 #include <sys/sbuf.h>
 #include <sys/endian.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #include <vm/vm.h>
 
 #include "nvme_private.h"
