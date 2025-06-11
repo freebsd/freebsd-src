@@ -258,6 +258,12 @@
     ..
     gssapi
     ..
+    gssapi_krb5
+        gssapi
+        ..
+    ..
+    gssrpc
+    ..
     infiniband
         complib
         ..
@@ -273,6 +279,8 @@
         ..
     ..
     kadm5
+    ..
+    kdb5
     ..
     krb5
     ..
