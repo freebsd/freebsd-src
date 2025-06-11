@@ -561,6 +561,33 @@ libusb_free_platform_descriptor function.
 .Fn libusb_free_platform_descriptor "struct libusb_platform_descriptor *platform_descriptor"
 This function is NULL safe and frees a parsed platform descriptor given by
 .Fa platform_descriptor .
+.Pp
+.Ft int
+.Fn libusb_get_interface_association_descriptors "libusb_device *dev" "uint8_t config_index" "struct libusb_interface_association_descriptor_array **iad_arr"
+This function parses the interface association descriptor from the descriptor given by
+.Fa dev
+and
+.Fa config_index
+then stores a pointer to the parsed descriptor array into
+.Fa iad_arr .
+Return zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed interface association descriptor must be freed using the
+libusb_free_interface_association_descriptors function.
+.Pp
+.Ft int
+.Fn libusb_get_active_interface_association_descriptors "libusb_device *dev" "struct libusb_interface_association_descriptor_array **iad_arr"
+This function parses the interface association descriptor from the descriptor given by
+.Fa dev
+and active config then stores a pointer to the parsed descriptor array into
+.Fa iad_arr .
+Return zero on success and a LIBUSB_ERROR code on failure.
+On success the parsed interface association descriptor must be freed using the
+libusb_free_interface_association_descriptors function.
+.Pp
+.Ft void
+.Fn libusb_free_interface_association_descriptors "struct libusb_interface_association_descriptor_array *iad_arr"
+This function is NULL safe and frees a parsed interface association descriptor array given by
+.Fa iad_arr .
 .Sh USB ASYNCHRONOUS I/O
 .Ft struct libusb_transfer *
 .Fn libusb_alloc_transfer "int iso_packets"

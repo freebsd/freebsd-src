@@ -763,3 +763,92 @@ libusb_free_platform_descriptor(
 {
 	free(platform_descriptor);
 }
+
+int
+libusb_get_interface_association_descriptors(libusb_device *dev,
+    uint8_t config_index,
+    struct libusb_interface_association_descriptor_array **iad_arr)
+{
+	struct libusb_interface_association_descriptor_array *iads;
+	struct libusb_interface_association_descriptor *iad;
+	struct libusb20_config *config;
+	struct LIBUSB20_INTERFACE_ASSOCIATION_DESC_DECODED *iad_desc;
+
+	int idx;
+	int niad;
+
+	if (!iad_arr)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+
+	if (config_index >= dev->os_priv->ddesc.bNumConfigurations)
+		return (LIBUSB_ERROR_NOT_FOUND);
+
+	config = libusb20_dev_alloc_config(dev->os_priv, config_index);
+	if (config == NULL)
+		return (LIBUSB_ERROR_NO_MEM);
+	niad = config->niad;
+	iads = calloc(1,
+	    sizeof(struct libusb_interface_association_descriptor_array));
+	if (iads == NULL) {
+		free(config);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+	*iad_arr = iads;
+	if (niad == 0) {
+		iads->iad = NULL;
+		iads->length = 0;
+		free(config);
+		return (LIBUSB_SUCCESS);
+	}
+
+	iad = malloc(
+	    sizeof(struct libusb_interface_association_descriptor) * niad);
+	if (iad == NULL) {
+		*iad_arr = NULL;
+		free(iads);
+		free(config);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+
+	for (idx = 0; idx < niad; ++idx) {
+		iad_desc = &config->iad_desc[idx].desc;
+		iad[idx].bLength = iad_desc->bLength;
+		iad[idx].bDescriptorType = iad_desc->bDescriptorType;
+		iad[idx].bFirstInterface = iad_desc->bFirstInterface;
+		iad[idx].bInterfaceCount = iad_desc->bInterfaceCount;
+		iad[idx].bFunctionClass = iad_desc->bFunctionClass;
+		iad[idx].bFunctionSubClass = iad_desc->bFunctionSubClass;
+		iad[idx].bFunctionProtocol = iad_desc->bFunctionProtocol;
+		iad[idx].iFunction = iad_desc->iFunction;
+	}
+	iads->length = niad;
+	iads->iad = iad;
+
+	free(config);
+	return (LIBUSB_SUCCESS);
+}
+
+int
+libusb_get_active_interface_association_descriptors(libusb_device *dev,
+    struct libusb_interface_association_descriptor_array **iad_arr)
+{
+	struct libusb20_device *pdev;
+	uint8_t config_index;
+
+	pdev = dev->os_priv;
+	config_index = libusb20_dev_get_config_index(pdev);
+
+	return (libusb_get_interface_association_descriptors(dev, config_index,
+	    iad_arr));
+}
+
+void
+libusb_free_interface_association_descriptors(
+    struct libusb_interface_association_descriptor_array *iad_arr)
+{
+	if (iad_arr == NULL)
+		return;
+	if (iad_arr->iad)
+		free((void *)iad_arr->iad);
+	free(iad_arr);
+}

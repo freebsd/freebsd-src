@@ -82,6 +82,7 @@ enum libusb_descriptor_type {
 	LIBUSB_DT_STRING = 0x03,
 	LIBUSB_DT_INTERFACE = 0x04,
 	LIBUSB_DT_ENDPOINT = 0x05,
+	LIBUSB_DT_INTERFACE_ASSOCIATION = 0x0b,
 	LIBUSB_DT_HID = 0x21,
 	LIBUSB_DT_REPORT = 0x22,
 	LIBUSB_DT_PHYSICAL = 0x23,
@@ -106,6 +107,7 @@ enum libusb_device_capability_type {
 #define	LIBUSB_DT_HUB_NONVAR_SIZE	7
 #define	LIBUSB_DT_SS_ENDPOINT_COMPANION_SIZE	6
 #define	LIBUSB_DT_BOS_SIZE		5
+#define	LIBUSB_DT_INTERFACE_ASSOCIATION_SIZE		8
 #define	LIBUSB_USB_2_0_EXTENSION_DEVICE_CAPABILITY_SIZE	7
 #define	LIBUSB_SS_USB_DEVICE_CAPABILITY_SIZE	10
 
@@ -367,6 +369,22 @@ typedef struct libusb_ss_endpoint_companion_descriptor {
 	uint16_t wBytesPerInterval;
 }	libusb_ss_endpoint_companion_descriptor __aligned(sizeof(void *));
 
+typedef struct libusb_interface_association_descriptor {
+	uint8_t bLength;
+	uint8_t bDescriptorType;
+	uint8_t bFirstInterface;
+	uint8_t bInterfaceCount;
+	uint8_t bFunctionClass;
+	uint8_t bFunctionSubClass;
+	uint8_t bFunctionProtocol;
+	uint8_t iFunction;
+} libusb_interface_association_descriptor __aligned(sizeof(void *));
+
+typedef struct libusb_interface_association_descriptor_array {
+	const struct libusb_interface_association_descriptor *iad;
+	int length;
+} libusb_interface_association_descriptor_array;
+
 typedef struct libusb_interface_descriptor {
 	uint8_t	bLength;
 	uint8_t	bDescriptorType;
@@ -579,6 +597,9 @@ int	libusb_get_container_id_descriptor(struct libusb_context *ctx, struct libusb
 void	libusb_free_container_id_descriptor(struct libusb_container_id_descriptor *container_id);
 int	libusb_get_platform_descriptor(libusb_context *ctx, struct libusb_bos_dev_capability_descriptor *dev_cap, struct libusb_platform_descriptor **platform_descriptor);
 void	libusb_free_platform_descriptor(struct libusb_platform_descriptor *platform_descriptor);
+int	libusb_get_interface_association_descriptors(libusb_device *dev, uint8_t config_index, struct libusb_interface_association_descriptor_array **iad_arr);
+int	libusb_get_active_interface_association_descriptors(libusb_device *dev, struct libusb_interface_association_descriptor_array **iad_arr);
+void	libusb_free_interface_association_descriptors(struct libusb_interface_association_descriptor_array *iad_arr);
 
 /* Asynchronous device I/O */
 
