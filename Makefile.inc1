@@ -429,7 +429,11 @@ SUBDIR+=cddl
 .endif
 SUBDIR+=gnu include
 .if ${MK_KERBEROS} != "no"
+.if ${MK_MITKRB5} != "no"
+SUBDIR+=krb5
+.else
 SUBDIR+=kerberos5
+.endif
 .endif
 .if ${MK_RESCUE} != "no"
 SUBDIR+=rescue
@@ -2611,6 +2615,22 @@ ${_bt}-usr.bin/mkcsmapper: ${_bt}-usr.bin/yacc ${_bt_lex_depend}
 .endif
 
 .if ${MK_KERBEROS} != "no"
+.if ${MK_MITKRB5} != "no"
+_kerberos5_bootstrap_tools= \
+	krb5/util/build-tools \
+	krb5/util/compile_et \
+	krb5/util/support \
+	krb5/util/et \
+	lib/ncurses/tinfo \
+	lib/libedit \
+	krb5/util/ss \
+	krb5/util/profile \
+	krb5/util/verto
+#	krb5/include \
+#	krb5/lib/crypto \
+#	krb5/lib/krb5 \
+#	krb5/lib/gssapi
+.else
 _kerberos5_bootstrap_tools= \
 	kerberos5/tools/make-roken \
 	kerberos5/lib/libroken \
@@ -2619,6 +2639,7 @@ _kerberos5_bootstrap_tools= \
 	kerberos5/tools/slc \
 	usr.bin/compile_et
 
+.endif
 .ORDER: ${_kerberos5_bootstrap_tools:C/^/${_bt}-/g}
 .for _tool in ${_kerberos5_bootstrap_tools}
 ${_bt}-${_tool}: ${_bt}-usr.bin/yacc ${_bt_lex_depend}
@@ -3185,6 +3206,8 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
 		${_kerberos5_lib_libwind} \
+		${_krb5_util_et} \
+		${_krb5_util_profile} \
 		lib/libbz2 ${_libcom_err} lib/libcrypt \
 		lib/libc++ \
 		lib/libelf lib/libexpat \
@@ -3197,6 +3220,18 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_lib_casper} \
 		lib/ncurses/tinfo \
 		lib/ncurses/ncurses \
+		lib/libedit \
+		${_krb5_util_ss} \
+		${_krb5_util_support} \
+		${_krb5_util_verto} \
+		${_krb5_lib_krb5} \
+		${_krb5_lib_crypto} \
+		${_krb5_lib_gssapikrb5} \
+		${_krb5_lib_gssrpc} \
+		${_krb5_lib_kdb5} \
+		${_krb5_lib_krad} \
+		${_krb5_lib_kadm5srvmit} \
+		${_krb5_lib_kadm5clntmit} \
 		lib/libpam/libpam lib/libthr \
 		${_lib_libradius} lib/libsbuf lib/libtacplus \
 		lib/libgeom \
@@ -3235,6 +3270,8 @@ _lib_libradius=	lib/libradius
 .endif
 
 lib/ncurses/ncurses__L:	lib/ncurses/tinfo__L
+
+lib/libedit__L:		lib/ncurses/ncurses__L
 
 .if ${MK_OFED} != "no"
 _prebuild_libs+= \
@@ -3335,10 +3372,16 @@ secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
 .if ${MK_LDNS} != "no"
 secure/lib/libssh__L: lib/libldns__L
 .endif
+
 .if ${MK_GSSAPI} != "no" && ${MK_KERBEROS_SUPPORT} != "no"
+.if ${MK_MITKRB5} != "no"
+secure/lib/libssh__L: lib/libgssapi__L krb5/lib/krb5__L \
+    krb5/util/et__L lib/libmd__L krb5/util/support__L
+.else
 secure/lib/libssh__L: lib/libgssapi__L kerberos5/lib/libkrb5__L \
     kerberos5/lib/libhx509__L kerberos5/lib/libasn1__L lib/libcom_err__L \
     lib/libmd__L kerberos5/lib/libroken__L
+.endif
 .endif
 .endif
 .endif
@@ -3346,6 +3389,28 @@ _secure_lib=	secure/lib
 .endif
 
 .if ${MK_KERBEROS} != "no"
+.if ${MK_MITKRB5} != "no"
+krb5/util/et__L: krb5/util/support__L
+krb5/util/profile__L: krb5/util/et__L krb5/util/support__L
+krb5/lib/crypto__L:  krb5/util/et__L krb5/util/support__L \
+    secure/lib/libcrypto__L
+krb5/lib/gssapi__L: krb5/lib/krb5__L krb5/lib/crypto__L krb5/util/et__L \
+    krb5/util/support__L
+krb5/lib/kadm5clnt__L: krb5/util/profile__L krb5/lib/rpc__L \
+    krb5/lib/gssapi__L krb5/lib/krb5__L krb5/lib/crypto__L \
+    krb5/util/support__L krb5/util/et__L
+krb5/lib/kadm5srv__L: krb5/util/profile__L krb5/lib/rpc__L \
+    krb5/lib/gssapi__L krb5/lib/kdb__L krb5/lib/krb5 krb5/lib/crypto__L \
+    krb5/util/support__L krb5/util/et__L
+krb5/lib/kdb__L: krb5/util/profile__L krb5/lib/rpc__L krb5/lib/krb5__L \
+    krb5/lib/crypto__L krb5/util/et__L krb5/util/support__L krb5/lib/gssapi__L
+krb5/lib/krad__L: krb5/lib/krb5__L krb5/lib/crypto__L krb5/util/et__L \
+    krb5/util/support__L krb5/util/verto__L
+krb5/lib/krb5__L: krb5/util/profile__L krb5/lib/crypto__L krb5/util/et__L \
+    krb5/util/support__L
+krb5/lib/rpc__L: krb5/lib/gssapi__L krb5/lib/krb5__L krb5/lib/crypto__L \
+    krb5/util/et__L krb5/util/support__L
+.else
 kerberos5/lib/libasn1__L: lib/libcom_err__L kerberos5/lib/libroken__L
 kerberos5/lib/libhdb__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
     kerberos5/lib/libkrb5__L kerberos5/lib/libroken__L \
@@ -3363,6 +3428,7 @@ kerberos5/lib/libwind__L: kerberos5/lib/libroken__L lib/libcom_err__L
 kerberos5/lib/libheimbase__L: lib/libthr__L
 kerberos5/lib/libheimipcc__L: kerberos5/lib/libroken__L kerberos5/lib/libheimbase__L lib/libthr__L
 .endif
+.endif
 
 lib/libsqlite3__L: lib/libthr__L
 
@@ -3371,6 +3437,28 @@ _lib_libgssapi=	lib/libgssapi
 .endif
 
 .if ${MK_KERBEROS} != "no"
+.if ${MK_MITKRB5} != "no"
+_krb5_util=		krb5/util
+_krb5_util_build_tools=	krb5/util/build-tools
+_krb5_util_compileet=	krb5/util/compile_et
+_krb5_util_et=		krb5/util/et
+_krb5_util_profile=	krb5/util/profile
+_krb5_util_ss=		krb5/util/ss
+_krb5_util_support=	krb5/util/support
+_krb5_util_verto=	krb5/util/verto
+_krb5_lib=		krb5/lib
+_krb5_lib_krb5=		krb5/lib/krb5
+_krb5_lib_kdb5=		krb5/lib/kdb
+_krb5_lib_crypto=	krb5/lib/crypto
+_krb5_lib_gssapikrb5=	krb5/lib/gssapi
+_krb5_lib_gssrpc=	krb5/lib/rpc
+_krb5_lib_apputils=	krb5/lib/apputils
+_krb5_lib_kadm5clntmit=	krb5/lib/kadm5clnt
+_krb5_lib_kadm5srvmit=	krb5/lib/kadm5srv
+_krb5_lib_kadm_common=	krb5/lib/kadm_common
+_krb5_lib_kproputil=	krb5/lib/kprop_util
+_krb5_lib_krad=		krb5/lib/krad
+.else
 _kerberos5_lib=	kerberos5/lib
 _kerberos5_lib_libasn1= kerberos5/lib/libasn1
 _kerberos5_lib_libhdb= kerberos5/lib/libhdb
@@ -3383,6 +3471,7 @@ _libsqlite3= lib/libsqlite3
 _kerberos5_lib_libheimipcc= kerberos5/lib/libheimipcc
 _kerberos5_lib_libwind= kerberos5/lib/libwind
 _libcom_err= lib/libcom_err
+.endif
 .endif
 
 .if ${MK_NIS} != "no"
