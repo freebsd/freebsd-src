@@ -1,6 +1,10 @@
 .\"
 .\" Copyright (c) 2004 Sam Leffler
 .\" All rights reserved.
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" Portions of this documentation were written by Bj\xc3\xb6rn Zeeb
+.\" under sponsorship from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,40 +27,46 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 7, 2004
-.Dt WLAN_WEP 4
+.\" Based on wlan_ccmp.4.
+.\"
+.Dd June 13, 2025
+.Dt WLAN_GCMP 4
 .Os
 .Sh NAME
-.Nm wlan_wep
-.Nd WEP crypto support for 802.11 devices
+.Nm wlan_gcmp
+.Nd AES-GCMP crypto support for 802.11 devices
 .Sh SYNOPSIS
-.Cd "device wlan_wep"
+.Cd "device wlan_gcmp"
 .Sh DESCRIPTION
 The
 .Nm
-module handles the WEP cryptographic requirements of the 802.11 protocol.
-It does encapsulation and decapsulation of WEP-encoded 802.11 frames
-and optionally calculates the WEP cipher.
+module handles the
+.Em Galois/Counter Mode Protocol
+cryptographic requirements of the IEEE 802.11ad and WPA2/WPA3 protocols.
+It does encapsulation and decapsulation of GCMP-encoded 802.11 frames
+and optionally calculates the AES-GCMP cipher.
 The
 .Nm
 module is an 802.11 cryptographic plugin module for use by the
 .Xr wlan 4
 module.
-This module is automatically loaded if a WEP key is configured with
-.Xr ifconfig 8 .
-Should the underlying network device not be capable of doing the WEP
+This module is automatically loaded if an AES-GCMP key is configured;
+typically by a WPA supplicant program such as wpa_supplicant,
+or a WPA authenticator program such as
+.Nm hostapd .
+Should the underlying network device not be capable of doing the AES-GCMP
 calculations in hardware, the
 .Nm
 module will do the work.
 .Sh SEE ALSO
 .Xr wlan 4 ,
 .Xr wlan_ccmp 4 ,
-.Xr wlan_gcmp 4 ,
-.Xr wlan_tkip 4
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4
 .Sh STANDARDS
-More information can be found in the IEEE 802.11 Standard.
+More information can be found in the IEEE 802.11, and WPA Standards.
 .Sh HISTORY
 The
 .Nm
 driver first appeared in
-.Fx 6.0 .
+.Fx 15.0 .
