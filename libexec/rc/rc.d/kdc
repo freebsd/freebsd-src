@@ -20,7 +20,22 @@ set_rcvar_obsolete kerberos5_server_enable kdc_enable
 set_rcvar_obsolete kerberos5_server kdc_program
 set_rcvar_obsolete kerberos5_server_flags kdc_flags
 
+default_kdc_programs='/usr/libexec/kdc /usr/libexec/kdc /usr/libexec/krb5kdc /usr/local/sbin/krb5kdc'
+
 load_rc_config $name
+
+# XXX Remove the following block of code when Heimdal is removed
+if [ -z "${kdc_program}" ]; then
+	for i in ${default_kdc_programs}; do
+		if [ -x "${i}" ]; then
+			kdc_program=${i}
+			break
+		fi
+	done
+fi
+
+command="${kdc_program}"
+
 if [ "${kdc_program}" = /usr/libexec/kdc -o \
      "${kdc_program}" = /usr/local/libexec/kdc ]; then
 	detach="--detach"
