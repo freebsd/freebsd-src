@@ -1952,6 +1952,11 @@ do {									\
 		_RETURN_CHAN_BITS(0);
 
 	/*
+	 * TODO: should we bail out if there's no htinfo?
+	 * Or just treat it as if we can't do the HT20/HT40 check?
+	 */
+
+	/*
 	 * The original code was based on
 	 * 802.11ac-2013, Table 8-183x-VHT Operation Information subfields.
 	 * 802.11-2020, Table 9-274-VHT Operation Information subfields
@@ -1962,8 +1967,12 @@ do {									\
 	 */
 
 	htinfo = (const struct ieee80211_ie_htinfo *)ni->ni_ies.htinfo_ie;
-	ht40 = ((htinfo->hi_byte1 & IEEE80211_HTINFO_TXWIDTH) ==
-	    IEEE80211_HTINFO_TXWIDTH_2040);
+	if (htinfo != NULL)
+		ht40 = ((htinfo->hi_byte1 & IEEE80211_HTINFO_TXWIDTH) ==
+		    IEEE80211_HTINFO_TXWIDTH_2040);
+	else
+		ht40 = false;
+
 	can_vht160 = can_vht80p80 = can_vht80 = false;
 
 	/* 20 Mhz */
