@@ -2214,12 +2214,9 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 
 		/* VHT */
 		if (IEEE80211_IS_CHAN_VHT(ni->ni_chan) &&
-		    vhtcap != NULL &&
-		    vhtinfo != NULL) {
-			/* XXX TODO; see below */
-			net80211_vap_printf(vap, "%s: VHT TODO!\n", __func__);
+		    vhtcap != NULL) {
 			ieee80211_vht_node_init(ni);
-			ieee80211_vht_update_cap(ni, vhtcap, vhtinfo);
+			ieee80211_vht_update_cap(ni, vhtcap);
 		} else if (ni->ni_flags & IEEE80211_NODE_VHT)
 			ieee80211_vht_node_cleanup(ni);
 
