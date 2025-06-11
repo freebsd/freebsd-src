@@ -96,6 +96,9 @@ pci_video_amd()
 		0x66a*)
 			addpkg "gpu-firmware-amd-kmod-vega20"
 			;;
+		0x15d8)
+			addpkg "gpu-firmware-amd-kmod-picasso"
+			;;
 		0x15d*)
 			addpkg "gpu-firmware-amd-kmod-raven"
 			;;
