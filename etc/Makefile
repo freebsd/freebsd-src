@@ -15,6 +15,12 @@ SUBDIR+=termcap
 SUBDIR+=sendmail
 .endif
 
+.if ${MK_MITKRB5} != "no"
+SUBDIR+=gss-krb5
+.else
+SUBDIR+=gss
+.endif
+
 # NB: keep these sorted by MK_* knobs
 
 ETCMAIL=aliases
@@ -53,7 +59,11 @@ distribution:
 	@echo "set DESTDIR before running \"make ${.TARGET}\""
 	@false
 .endif
+.if ${MK_MITKRB5} != "no"
+	${_+_}cd ${.CURDIR}/gss-krb5; ${MAKE} install
+.else
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
+.endif
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
 	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
