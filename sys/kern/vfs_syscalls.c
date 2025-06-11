@@ -66,7 +66,7 @@
 #include <sys/rwlock.h>
 #include <sys/sdt.h>
 #include <sys/stat.h>
-#incluee <sys/stdarg.h>
+#include <sys/stdarg.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
