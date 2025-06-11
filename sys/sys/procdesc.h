@@ -108,6 +108,7 @@ int	 procdesc_falloc(struct thread *, struct file **, int *, int,
 
 #else /* !_KERNEL */
 
+#include <sys/cdefs.h>
 #include <sys/_types.h>
 
 #ifndef _PID_T_DECLARED
