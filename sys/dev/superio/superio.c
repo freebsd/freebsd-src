@@ -633,7 +633,7 @@ superio_identify(driver_t *driver, device_t parent)
 	 * Those could be created via isa hints or if this
 	 * driver is loaded, unloaded and then loaded again.
 	 */
-	if (device_find_child(parent, "superio", -1)) {
+	if (device_find_child(parent, "superio", DEVICE_UNIT_ANY)) {
 		if (bootverbose)
 			printf("superio: device(s) already created\n");
 		return;

@@ -125,7 +125,7 @@ viawd_identify(driver_t *driver, device_t parent)
 	if (viawd_find(parent) == NULL)
 		return;
 
-	if (device_find_child(parent, driver->name, -1) == NULL)
+	if (device_find_child(parent, driver->name, DEVICE_UNIT_ANY) == NULL)
 		BUS_ADD_CHILD(parent, 0, driver->name, 0);
 }
 

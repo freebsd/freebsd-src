@@ -920,11 +920,11 @@ est_identify(driver_t *driver, device_t parent)
 	 * future.
 	 */
 	intel_hwpstate_identify(NULL, parent);
-	if (device_find_child(parent, "hwpstate_intel", -1) != NULL)
+	if (device_find_child(parent, "hwpstate_intel", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "est", -1) != NULL)
+	if (device_find_child(parent, "est", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	/* Check that CPUID is supported and the vendor is Intel.*/
@@ -961,7 +961,8 @@ est_probe(device_t dev)
 	 * If the ACPI perf driver has attached and is not just offering
 	 * info, let it manage things.
 	 */
-	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf", -1);
+	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf",
+	    DEVICE_UNIT_ANY);
 	if (perf_dev && device_is_attached(perf_dev)) {
 		error = CPUFREQ_DRV_TYPE(perf_dev, &type);
 		if (error == 0 && (type & CPUFREQ_FLAG_INFO_ONLY) == 0)
@@ -1064,7 +1065,8 @@ est_acpi_info(device_t dev, freq_info **freqs, size_t *freqslen)
 	int count, error, i, j;
 	uint16_t saved_id16;
 
-	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf", -1);
+	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf",
+	    DEVICE_UNIT_ANY);
 	if (perf_dev == NULL || !device_is_attached(perf_dev))
 		return (ENXIO);
 

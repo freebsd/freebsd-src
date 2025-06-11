@@ -1326,12 +1326,13 @@ usb_pci_mod_load(void *arg)
 {
 	uint32_t x;
 
-	usb_pci_root = device_add_child(NULL, "pci", -1);
+	usb_pci_root = device_add_child(NULL, "pci", DEVICE_UNIT_ANY);
 	if (usb_pci_root == NULL)
 		return;
 
 	for (x = 0; x != USB_PCI_USB_MAX; x++) {
-		usb_pci_dev[x] = device_add_child(usb_pci_root, usb_pci_devices[x], -1);
+		usb_pci_dev[x] = device_add_child(usb_pci_root,
+		    usb_pci_devices[x], DEVICE_UNIT_ANY);
 		if (usb_pci_dev[x] == NULL)
 			continue;
 		if (device_probe_and_attach(usb_pci_dev[x])) {

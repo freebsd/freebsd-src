@@ -78,7 +78,7 @@ errata_identify(driver_t *driver, device_t parent)
 	if (version < EM_VERSION_MIN)
 		return;
 
-	if (BUS_ADD_CHILD(parent, 0, "errata", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, "errata", DEVICE_UNIT_ANY) == NULL)
 		device_printf(parent, "add errata child failed\n");
 }
 

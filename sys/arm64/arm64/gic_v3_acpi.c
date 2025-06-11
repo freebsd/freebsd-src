@@ -450,7 +450,7 @@ gic_v3_acpi_bus_attach(device_t dev)
 	    gic_v3_add_children, dev);
 	/* Add the vgic child if needed */
 	if (((uintptr_t)acpi_get_private(dev) & GICV3_PRIV_FLAGS) != 0) {
-		child = device_add_child(dev, "vgic", -1);
+		child = device_add_child(dev, "vgic", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(dev, "Could not add vgic child\n");
 		} else {

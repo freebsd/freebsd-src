@@ -142,7 +142,7 @@ acpi_perf_identify(driver_t *driver, device_t parent)
 	device_t dev;
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "acpi_perf", -1) != NULL)
+	if (device_find_child(parent, "acpi_perf", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	/* Get the handle for the Processor object and check for perf states. */

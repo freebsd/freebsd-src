@@ -454,7 +454,7 @@ acpi_asus_wmi_identify(driver_t *driver, device_t parent)
 		return;
 
 	/* Add only a single device instance. */
-	if (device_find_child(parent, "acpi_asus_wmi", -1) != NULL)
+	if (device_find_child(parent, "acpi_asus_wmi", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	/* Check management GUID to see whether system is compatible. */
@@ -462,7 +462,7 @@ acpi_asus_wmi_identify(driver_t *driver, device_t parent)
 	    ACPI_ASUS_WMI_MGMT_GUID))
 		return;
 
-	if (BUS_ADD_CHILD(parent, 0, "acpi_asus_wmi", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, "acpi_asus_wmi", DEVICE_UNIT_ANY) == NULL)
 		device_printf(parent, "add acpi_asus_wmi child failed\n");
 }
 

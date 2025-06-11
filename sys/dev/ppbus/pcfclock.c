@@ -111,7 +111,7 @@ pcfclock_identify(driver_t *driver, device_t parent)
 
 	device_t dev;
 
-	dev = device_find_child(parent, PCFCLOCK_NAME, -1);
+	dev = device_find_child(parent, PCFCLOCK_NAME, DEVICE_UNIT_ANY);
 	if (!dev)
 		BUS_ADD_CHILD(parent, 0, PCFCLOCK_NAME, DEVICE_UNIT_ANY);
 }

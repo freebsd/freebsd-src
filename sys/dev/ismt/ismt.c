@@ -586,7 +586,8 @@ ismt_attach(device_t dev)
 	sc->pcidev = dev;
 	pci_enable_busmaster(dev);
 
-	if ((sc->smbdev = device_add_child(dev, "smbus", -1)) == NULL) {
+	if ((sc->smbdev = device_add_child(dev, "smbus",
+	    DEVICE_UNIT_ANY)) == NULL) {
 		device_printf(dev, "no smbus child found\n");
 		err = ENXIO;
 		goto fail;

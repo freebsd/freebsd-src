@@ -112,7 +112,8 @@ ichsmb_attach(device_t dev)
 	mtx_init(&sc->mutex, device_get_nameunit(dev), "ichsmb", MTX_DEF);
 
 	/* Add child: an instance of the "smbus" device */
-	if ((sc->smb = device_add_child(dev, DRIVER_SMBUS, -1)) == NULL) {
+	if ((sc->smb = device_add_child(dev, DRIVER_SMBUS,
+	    DEVICE_UNIT_ANY)) == NULL) {
 		device_printf(dev, "no \"%s\" child found\n", DRIVER_SMBUS);
 		error = ENXIO;
 		goto fail;

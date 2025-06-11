@@ -680,7 +680,7 @@ static void
 agp_i810_identify(driver_t *driver, device_t parent)
 {
 
-	if (device_find_child(parent, "agp", -1) == NULL &&
+	if (device_find_child(parent, "agp", DEVICE_UNIT_ANY) == NULL &&
 	    agp_i810_match(parent))
 		device_add_child(parent, "agp", DEVICE_UNIT_ANY);
 }

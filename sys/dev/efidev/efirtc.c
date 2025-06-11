@@ -52,9 +52,9 @@ efirtc_identify(driver_t *driver, device_t parent)
 	/* Don't add the driver unless we have working runtime services. */
 	if (efi_rt_ok() != 0)
 		return;
-	if (device_find_child(parent, "efirtc", -1) != NULL)
+	if (device_find_child(parent, "efirtc", DEVICE_UNIT_ANY) != NULL)
 		return;
-	if (BUS_ADD_CHILD(parent, 0, "efirtc", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, "efirtc", DEVICE_UNIT_ANY) == NULL)
 		device_printf(parent, "add child failed\n");
 }
 

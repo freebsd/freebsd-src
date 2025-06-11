@@ -56,7 +56,7 @@ static void
 ossl_identify(driver_t *driver, device_t parent)
 {
 
-	if (device_find_child(parent, "ossl", -1) == NULL)
+	if (device_find_child(parent, "ossl", DEVICE_UNIT_ANY) == NULL)
 		BUS_ADD_CHILD(parent, 10, "ossl", DEVICE_UNIT_ANY);
 }
 

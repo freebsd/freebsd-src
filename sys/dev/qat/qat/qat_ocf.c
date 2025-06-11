@@ -941,8 +941,8 @@ fail:
 static void
 qat_ocf_identify(driver_t *drv, device_t parent)
 {
-	if (device_find_child(parent, "qat_ocf", -1) == NULL &&
-	    BUS_ADD_CHILD(parent, 200, "qat_ocf", -1) == 0)
+	if (device_find_child(parent, "qat_ocf", DEVICE_UNIT_ANY) == NULL &&
+	    BUS_ADD_CHILD(parent, 200, "qat_ocf", DEVICE_UNIT_ANY) == 0)
 		device_printf(parent, "qat_ocf: could not attach!");
 }
 

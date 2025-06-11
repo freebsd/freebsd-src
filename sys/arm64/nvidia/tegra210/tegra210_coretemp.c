@@ -181,9 +181,9 @@ tegra210_coretemp_identify(driver_t *driver, device_t parent)
 	root = OF_finddevice("/");
 	if (!ofw_bus_node_is_compatible(root, "nvidia,tegra210"))
 		return;
-	if (device_find_child(parent, "tegra210_coretemp", -1) != NULL)
+	if (device_find_child(parent, "tegra210_coretemp", DEVICE_UNIT_ANY) != NULL)
 		return;
-	if (BUS_ADD_CHILD(parent, 0, "tegra210_coretemp", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, "tegra210_coretemp", DEVICE_UNIT_ANY) == NULL)
 		device_printf(parent, "add child failed\n");
 }
 
