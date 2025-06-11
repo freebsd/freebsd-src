@@ -1189,8 +1189,11 @@ gssd_get_cc_from_keytab(const char *name)
 	if (ret == 0)
 		ret = krb5_cc_initialize(context, ccache, principal);
 	if (ret == 0) {
+#ifndef MK_MITKRB5
+		/* For Hemdal only */
 		krb5_get_init_creds_opt_set_default_flags(context, "gssd",
 		    krb5_principal_get_realm(context, principal), opt);
+#endif
 		kt_ret = ret = krb5_kt_default(context, &kt);
 	}
 	if (ret == 0)
