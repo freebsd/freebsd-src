@@ -1219,36 +1219,20 @@ fuse_vnop_getattr(struct vop_getattr_args *ap)
 	struct vattr *vap = ap->a_vap;
 	struct ucred *cred = ap->a_cred;
 	struct thread *td = curthread;
-
 	int err = 0;
-	int dataflags;
 
-	dataflags = fuse_get_mpdata(vnode_mount(vp))->dataflags;
-
-	/* Note that we are not bailing out on a dead file system just yet. */
-
-	if (!(dataflags & FSESS_INITED)) {
-		if (!vnode_isvroot(vp)) {
-			fdata_set_dead(fuse_get_mpdata(vnode_mount(vp)));
-			return (EXTERROR(ENOTCONN, "FUSE daemon is not "
-			    "initialized"));
-		} else {
-			goto fake;
-		}
-	}
 	err = fuse_internal_getattr(vp, vap, cred, td);
 	if (err == ENOTCONN && vnode_isvroot(vp)) {
-		/* see comment in fuse_vfsop_statfs() */
-		goto fake;
-	} else {
-		return err;
+		/*
+		 * We want to seem a legitimate fs even if the daemon is dead,
+		 * so that, eg., we can still do path based unmounting after
+		 * the daemon dies.
+		 */
+		err = 0;
+		bzero(vap, sizeof(*vap));
+		vap->va_type = vnode_vtype(vp);
 	}
-
-fake:
-	bzero(vap, sizeof(*vap));
-	vap->va_type = vnode_vtype(vp);
-
-	return 0;
+	return err;
 }
 
 /*
