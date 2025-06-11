@@ -923,7 +923,7 @@ sdio_newbus_sim_add(struct sdiob_softc *sc)
 	    __func__, sc, sc->periph, sc->periph->sim));
 
 	if (sc->dev == NULL)
-		sc->dev = BUS_ADD_CHILD(pdev, 0, SDIOB_NAME_S, -1);
+		sc->dev = BUS_ADD_CHILD(pdev, 0, SDIOB_NAME_S, DEVICE_UNIT_ANY);
 	if (sc->dev == NULL)
 		return (ENXIO);
 	device_set_softc(sc->dev, sc);

@@ -1204,9 +1204,9 @@ bcm2835_cpufreq_identify(driver_t *driver, device_t parent)
 		return;
 
 	DPRINTF("driver=%p, parent=%p\n", driver, parent);
-	if (device_find_child(parent, "bcm2835_cpufreq", -1) != NULL)
+	if (device_find_child(parent, "bcm2835_cpufreq", DEVICE_UNIT_ANY) != NULL)
 		return;
-	if (BUS_ADD_CHILD(parent, 0, "bcm2835_cpufreq", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, "bcm2835_cpufreq", DEVICE_UNIT_ANY) == NULL)
 		device_printf(parent, "add child failed\n");
 }
 

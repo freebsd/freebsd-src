@@ -870,7 +870,7 @@ pn_identify(driver_t *driver, device_t parent)
 	default:
 		return;
 	}
-	if (device_find_child(parent, "powernow", -1) != NULL)
+	if (device_find_child(parent, "powernow", DEVICE_UNIT_ANY) != NULL)
 		return;
 	if (BUS_ADD_CHILD(parent, 10, "powernow", device_get_unit(parent))
 	    == NULL)
@@ -944,7 +944,8 @@ pn_attach(device_t dev)
 	int rv;
 	device_t child;
 
-	child = device_find_child(device_get_parent(dev), "acpi_perf", -1);
+	child = device_find_child(device_get_parent(dev), "acpi_perf",
+	    DEVICE_UNIT_ANY);
 	if (child) {
 		rv = pn_decode_acpi(dev, child);
 		if (rv)

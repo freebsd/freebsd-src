@@ -342,7 +342,8 @@ ${1}_isa_identify (driver_t *driver, device_t parent)
 		if ((ioport == 0) && (irq == 0))
 			return; /* We've added all our local hints. */
 
-		child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "${1}", -1);
+		child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "${1}",
+		    DEVICE_UNIT_ANY);
 		bus_set_resource(child, SYS_RES_IOPORT,	0, ioport, NUMPORTS);
 		bus_set_resource(child, SYS_RES_IRQ,	0, irq, 1);
 		bus_set_resource(child, SYS_RES_DRQ,	0, res[i].drq, 1);

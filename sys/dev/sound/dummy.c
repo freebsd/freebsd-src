@@ -296,9 +296,9 @@ MIXER_DECLARE(dummy_mixer);
 static void
 dummy_identify(driver_t *driver, device_t parent)
 {
-	if (device_find_child(parent, driver->name, -1) != NULL)
+	if (device_find_child(parent, driver->name, DEVICE_UNIT_ANY) != NULL)
 		return;
-	if (BUS_ADD_CHILD(parent, 0, driver->name, -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, driver->name, DEVICE_UNIT_ANY) == NULL)
 		device_printf(parent, "add child failed\n");
 }
 

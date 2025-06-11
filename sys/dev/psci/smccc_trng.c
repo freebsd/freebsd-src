@@ -78,7 +78,7 @@ trng_identify(driver_t *driver, device_t parent)
 	if (version < TRNG_VERSION_MIN)
 		return;
 
-	if (BUS_ADD_CHILD(parent, 0, "trng", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, "trng", DEVICE_UNIT_ANY) == NULL)
 		device_printf(parent, "add TRNG child failed\n");
 }
 

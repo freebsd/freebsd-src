@@ -1101,7 +1101,7 @@ cpufreq_register(device_t dev)
 	 * must offer the same levels and be switched at the same time.
 	 */
 	cpu_dev = device_get_parent(dev);
-	if ((cf_dev = device_find_child(cpu_dev, "cpufreq", -1))) {
+	if ((cf_dev = device_find_child(cpu_dev, "cpufreq", DEVICE_UNIT_ANY))) {
 		sc = device_get_softc(cf_dev);
 		sc->max_mhz = CPUFREQ_VAL_UNKNOWN;
 		MPASS(sc->cf_drv_dev != NULL);
@@ -1135,7 +1135,8 @@ cpufreq_unregister(device_t dev)
 	 * device as well.  We identify cpufreq children by calling a method
 	 * they support.
 	 */
-	cf_dev = device_find_child(device_get_parent(dev), "cpufreq", -1);
+	cf_dev = device_find_child(device_get_parent(dev), "cpufreq",
+	    DEVICE_UNIT_ANY);
 	if (cf_dev == NULL) {
 		device_printf(dev,
 	"warning: cpufreq_unregister called with no cpufreq device active\n");

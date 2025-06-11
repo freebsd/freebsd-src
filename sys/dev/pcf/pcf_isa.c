@@ -160,7 +160,7 @@ pcf_isa_attach(device_t dev)
 		}
 	}
 
-	if ((sc->iicbus = device_add_child(dev, "iicbus", -1)) == NULL)
+	if ((sc->iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY)) == NULL)
 		device_printf(dev, "could not allocate iicbus instance\n");
 
 	/* probe and attach the iicbus */

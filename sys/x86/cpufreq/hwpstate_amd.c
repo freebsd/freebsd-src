@@ -342,7 +342,7 @@ static void
 hwpstate_identify(driver_t *driver, device_t parent)
 {
 
-	if (device_find_child(parent, "hwpstate", -1) != NULL)
+	if (device_find_child(parent, "hwpstate", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	if ((cpu_vendor_id != CPU_VENDOR_AMD || CPUID_TO_FAMILY(cpu_id) < 0x10) &&
@@ -386,7 +386,8 @@ hwpstate_probe(device_t dev)
 	/*
 	 * Check if acpi_perf has INFO only flag.
 	 */
-	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf", -1);
+	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf",
+	    DEVICE_UNIT_ANY);
 	error = TRUE;
 	if (perf_dev && device_is_attached(perf_dev)) {
 		error = CPUFREQ_DRV_TYPE(perf_dev, &type);

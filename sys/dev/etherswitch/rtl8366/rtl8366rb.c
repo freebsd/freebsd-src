@@ -133,7 +133,7 @@ rtl8366rb_identify(driver_t *driver, device_t parent)
 	device_t child;
 	struct iicbus_ivar *devi;
 
-	if (device_find_child(parent, "rtl8366rb", -1) == NULL) {
+	if (device_find_child(parent, "rtl8366rb", DEVICE_UNIT_ANY) == NULL) {
 		child = BUS_ADD_CHILD(parent, 0, "rtl8366rb", DEVICE_UNIT_ANY);
 		devi = IICBUS_IVAR(child);
 		devi->addr = RTL8366_IIC_ADDR;

@@ -112,7 +112,7 @@ coretemp_identify(driver_t *driver, device_t parent)
 	u_int regs[4];
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "coretemp", -1) != NULL)
+	if (device_find_child(parent, "coretemp", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	/* Check that CPUID 0x06 is supported and the vendor is Intel.*/

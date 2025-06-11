@@ -393,9 +393,9 @@ tegra210_cpufreq_identify(driver_t *driver, device_t parent)
 
 	if (device_get_unit(parent) != 0)
 		return;
-	if (device_find_child(parent, "tegra210_cpufreq", -1) != NULL)
+	if (device_find_child(parent, "tegra210_cpufreq", DEVICE_UNIT_ANY) != NULL)
 		return;
-	if (BUS_ADD_CHILD(parent, 0, "tegra210_cpufreq", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 0, "tegra210_cpufreq", DEVICE_UNIT_ANY) == NULL)
 		device_printf(parent, "add child failed\n");
 }
 

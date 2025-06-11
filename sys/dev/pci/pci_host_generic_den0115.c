@@ -193,7 +193,7 @@ pci_host_acpi_smccc_attach(device_t dev)
 		sc->base.bus_end = MIN(sc->base.bus_end, end);
 	}
 
-	device_add_child(dev, "pci", -1);
+	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 	bus_attach_children(dev);
 	return (0);
 }

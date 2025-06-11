@@ -82,7 +82,7 @@ static struct cdevsw etherswitch_cdevsw = {
 static void
 etherswitch_identify(driver_t *driver, device_t parent)
 {
-	if (device_find_child(parent, "etherswitch", -1) == NULL)
+	if (device_find_child(parent, "etherswitch", DEVICE_UNIT_ANY) == NULL)
 		BUS_ADD_CHILD(parent, 0, "etherswitch", DEVICE_UNIT_ANY);
 }
 

@@ -157,7 +157,7 @@ ps3bus_identify(driver_t *driver, device_t parent)
 	if (strcmp(installed_platform(), "ps3") != 0)
 		return;
 
-	if (device_find_child(parent, "ps3bus", -1) == NULL)
+	if (device_find_child(parent, "ps3bus", DEVICE_UNIT_ANY) == NULL)
 		BUS_ADD_CHILD(parent, 0, "ps3bus", 0);
 }
 

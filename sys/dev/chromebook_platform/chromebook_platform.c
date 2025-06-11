@@ -70,7 +70,7 @@ chromebook_i2c_identify(driver_t *driver, device_t bus)
 		return;
 
 	for (i = 0; i < nitems(slaves); i++) {
-		if (device_find_child(bus, slaves[i].name, -1) != NULL)
+		if (device_find_child(bus, slaves[i].name, DEVICE_UNIT_ANY) != NULL)
 			continue;
 		if (slaves[i].pci_id != pci_get_devid(controller))
 			continue;

@@ -328,7 +328,7 @@ out:
 void
 intel_hwpstate_identify(driver_t *driver, device_t parent)
 {
-	if (device_find_child(parent, "hwpstate_intel", -1) != NULL)
+	if (device_find_child(parent, "hwpstate_intel", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	if (cpu_vendor_id != CPU_VENDOR_INTEL)

@@ -207,7 +207,7 @@ amdsmn_identify(driver_t *driver, device_t parent)
 	device_t child;
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "amdsmn", -1) != NULL)
+	if (device_find_child(parent, "amdsmn", DEVICE_UNIT_ANY) != NULL)
 		return;
 	if (!amdsmn_match(parent, NULL))
 		return;

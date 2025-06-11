@@ -182,7 +182,7 @@ bwn_pci_attach(device_t dev)
 	sc->quirks = ident->quirks;
 
 	/* Attach bridge device */
-	if ((error = bhndb_attach_bridge(dev, &sc->bhndb_dev, -1)))
+	if ((error = bhndb_attach_bridge(dev, &sc->bhndb_dev, DEVICE_UNIT_ANY)))
 		return (ENXIO);
 
 	/* Success */

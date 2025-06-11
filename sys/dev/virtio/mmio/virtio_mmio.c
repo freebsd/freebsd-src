@@ -275,7 +275,7 @@ vtmmio_attach(device_t dev)
 	/* Tell the host we've noticed this device. */
 	vtmmio_set_status(dev, VIRTIO_CONFIG_STATUS_ACK);
 
-	if ((child = device_add_child(dev, NULL, -1)) == NULL) {
+	if ((child = device_add_child(dev, NULL, DEVICE_UNIT_ANY)) == NULL) {
 		device_printf(dev, "Cannot create child device.\n");
 		vtmmio_set_status(dev, VIRTIO_CONFIG_STATUS_FAILED);
 		vtmmio_detach(dev);

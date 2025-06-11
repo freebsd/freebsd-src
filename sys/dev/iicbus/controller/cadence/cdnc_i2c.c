@@ -612,7 +612,7 @@ cdnc_i2c_attach(device_t dev)
 		return (err);
 	}
 
-	sc->iicbus = device_add_child(dev, "iicbus", -1);
+	sc->iicbus = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 
 	cdnc_i2c_add_sysctls(dev);
 

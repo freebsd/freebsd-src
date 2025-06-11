@@ -363,7 +363,7 @@ gic_v3_ofw_bus_attach(device_t dev)
 	 * child so we can use this in the vmm module for bhyve.
 	 */
 	if (OF_hasprop(parent, "interrupts")) {
-		child = device_add_child(dev, "vgic", -1);
+		child = device_add_child(dev, "vgic", DEVICE_UNIT_ANY);
 		if (child == NULL) {
 			device_printf(dev, "Could not add vgic child\n");
 		} else {

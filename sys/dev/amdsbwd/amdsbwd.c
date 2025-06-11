@@ -255,7 +255,7 @@ amdsbwd_identify(driver_t *driver, device_t parent)
 
 	if (resource_disabled("amdsbwd", 0))
 		return;
-	if (device_find_child(parent, "amdsbwd", -1) != NULL)
+	if (device_find_child(parent, "amdsbwd", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	/*
@@ -271,7 +271,8 @@ amdsbwd_identify(driver_t *driver, device_t parent)
 	    pci_get_devid(smb_dev) != HYGONCZ_SMBUS_DEVID)
 		return;
 
-	child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "amdsbwd", DEVICE_UNIT_ANY);
+	child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "amdsbwd",
+	    DEVICE_UNIT_ANY);
 	if (child == NULL)
 		device_printf(parent, "add amdsbwd child failed\n");
 }

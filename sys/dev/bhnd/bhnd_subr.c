@@ -2170,7 +2170,7 @@ bhnd_bus_generic_get_nvram_var(device_t dev, device_t child, const char *name,
 	bus_topo_assert();
 
 	/* Look for a directly-attached NVRAM child */
-	if ((nvram = device_find_child(dev, "bhnd_nvram", -1)) != NULL)
+	if ((nvram = device_find_child(dev, "bhnd_nvram", DEVICE_UNIT_ANY)) != NULL)
 		return BHND_NVRAM_GETVAR(nvram, name, buf, size, type);
 
 	/* Try to delegate to parent */

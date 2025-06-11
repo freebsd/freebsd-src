@@ -127,7 +127,7 @@ static void
 vmbus_et_identify(driver_t *driver, device_t parent)
 {
 	if (device_get_unit(parent) != 0 ||
-	    device_find_child(parent, VMBUS_ET_NAME, -1) != NULL ||
+	    device_find_child(parent, VMBUS_ET_NAME, DEVICE_UNIT_ANY) != NULL ||
 	    (hyperv_features & CPUID_HV_ET_MASK) != CPUID_HV_ET_MASK ||
 	    hyperv_tc64 == NULL)
 		return;

@@ -81,8 +81,8 @@ aesni_identify(driver_t *drv, device_t parent)
 {
 
 	/* NB: order 10 is so we get attached after h/w devices */
-	if (device_find_child(parent, "aesni", -1) == NULL &&
-	    BUS_ADD_CHILD(parent, 10, "aesni", -1) == 0)
+	if (device_find_child(parent, "aesni", DEVICE_UNIT_ANY) == NULL &&
+	    BUS_ADD_CHILD(parent, 10, "aesni", DEVICE_UNIT_ANY) == 0)
 		panic("aesni: could not attach");
 }
 

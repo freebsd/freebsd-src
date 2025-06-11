@@ -851,7 +851,8 @@ ti_i2c_attach(device_t dev)
 		goto out;
 
 	/* Attach the iicbus. */
-	if ((sc->sc_iicbus = device_add_child(dev, "iicbus", -1)) == NULL) {
+	if ((sc->sc_iicbus = device_add_child(dev, "iicbus",
+	    DEVICE_UNIT_ANY)) == NULL) {
 		device_printf(dev, "could not allocate iicbus instance\n");
 		err = ENXIO;
 		goto out;

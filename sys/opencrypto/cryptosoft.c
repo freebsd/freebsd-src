@@ -1686,7 +1686,7 @@ static void
 swcr_identify(driver_t *drv, device_t parent)
 {
 	/* NB: order 10 is so we get attached after h/w devices */
-	if (device_find_child(parent, "cryptosoft", -1) == NULL &&
+	if (device_find_child(parent, "cryptosoft", DEVICE_UNIT_ANY) == NULL &&
 	    BUS_ADD_CHILD(parent, 10, "cryptosoft", 0) == 0)
 		panic("cryptosoft: could not attach");
 }

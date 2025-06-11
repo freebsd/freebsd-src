@@ -127,7 +127,7 @@ intc_identify(driver_t *driver, device_t parent)
 	device_t dev;
 	phandle_t node;
 
-	if (device_find_child(parent, "intc", -1) != NULL)
+	if (device_find_child(parent, "intc", DEVICE_UNIT_ANY) != NULL)
 		return;
 
 	node = intc_ofw_find(parent, PCPU_GET(hart));

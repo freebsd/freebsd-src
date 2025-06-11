@@ -1922,7 +1922,8 @@ mfi_add_ld_complete(struct mfi_command *cm)
 
 	mtx_unlock(&sc->mfi_io_lock);
 	bus_topo_lock();
-	if ((child = device_add_child(sc->mfi_dev, "mfid", -1)) == NULL) {
+	if ((child = device_add_child(sc->mfi_dev, "mfid",
+	    DEVICE_UNIT_ANY)) == NULL) {
 		device_printf(sc->mfi_dev, "Failed to add logical disk\n");
 		free(ld_info, M_MFIBUF);
 		bus_topo_unlock();
@@ -2010,7 +2011,8 @@ mfi_add_sys_pd_complete(struct mfi_command *cm)
 
 	mtx_unlock(&sc->mfi_io_lock);
 	bus_topo_lock();
-	if ((child = device_add_child(sc->mfi_dev, "mfisyspd", -1)) == NULL) {
+	if ((child = device_add_child(sc->mfi_dev, "mfisyspd",
+	    DEVICE_UNIT_ANY)) == NULL) {
 		device_printf(sc->mfi_dev, "Failed to add system pd\n");
 		free(pd_info, M_MFIBUF);
 		bus_topo_unlock();

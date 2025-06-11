@@ -167,7 +167,7 @@ i2ctinyusb_attach(device_t dev)
 	sc->sc_udev = uaa->device;
 	mtx_init(&sc->sc_mtx, "i2ctinyusb lock", NULL, MTX_DEF | MTX_RECURSE);
 
-	sc->iicbus_dev = device_add_child(dev, "iicbus", -1);
+	sc->iicbus_dev = device_add_child(dev, "iicbus", DEVICE_UNIT_ANY);
 	if (sc->iicbus_dev == NULL) {
 		device_printf(dev, "iicbus creation failed\n");
 		err = ENXIO;

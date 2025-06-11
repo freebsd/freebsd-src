@@ -302,7 +302,7 @@ acpi_spibus_enumerate_child(ACPI_HANDLE handle, UINT32 level,
 	if (acpi_spibus_delete_acpi_child(handle) != 0)
 		return (AE_OK);
 
-	child = BUS_ADD_CHILD(spibus, 0, NULL, -1);
+	child = BUS_ADD_CHILD(spibus, 0, NULL, DEVICE_UNIT_ANY);
 	if (child == NULL) {
 		device_printf(spibus, "add child failed\n");
 		return (AE_OK);

@@ -351,10 +351,10 @@ sbi_identify(driver_t *driver, device_t parent)
 {
 	device_t dev;
 
-	if (device_find_child(parent, "sbi", -1) != NULL)
+	if (device_find_child(parent, "sbi", DEVICE_UNIT_ANY) != NULL)
 		return;
 
-	dev = BUS_ADD_CHILD(parent, 0, "sbi", -1);
+	dev = BUS_ADD_CHILD(parent, 0, "sbi", DEVICE_UNIT_ANY);
 	if (dev == NULL)
 		device_printf(parent, "Can't add sbi child\n");
 }
@@ -389,7 +389,7 @@ sbi_attach(device_t dev)
 #ifdef SMP
 	di = malloc(sizeof(*di), M_DEVBUF, M_WAITOK | M_ZERO);
 	resource_list_init(&di->rl);
-	child = device_add_child(dev, "sbi_ipi", -1);
+	child = device_add_child(dev, "sbi_ipi", DEVICE_UNIT_ANY);
 	if (child == NULL) {
 		device_printf(dev, "Could not add sbi_ipi child\n");
 		return (ENXIO);

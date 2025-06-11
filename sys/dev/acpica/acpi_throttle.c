@@ -131,7 +131,7 @@ acpi_throttle_identify(driver_t *driver, device_t parent)
 	ACPI_OBJECT *obj;
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "acpi_throttle", -1))
+	if (device_find_child(parent, "acpi_throttle", DEVICE_UNIT_ANY))
 		return;
 
 	/* Check for a valid duty width and parent CPU type. */
@@ -173,8 +173,8 @@ acpi_throttle_probe(device_t dev)
 	 * Since p4tcc uses the same mechanism (but internal to the CPU),
 	 * we disable acpi_throttle when p4tcc is also present.
 	 */
-	if (device_find_child(device_get_parent(dev), "p4tcc", -1) &&
-	    !resource_disabled("p4tcc", 0))
+	if (device_find_child(device_get_parent(dev), "p4tcc", DEVICE_UNIT_ANY)
+	    && !resource_disabled("p4tcc", 0))
 		return (ENXIO);
 
 	device_set_desc(dev, "ACPI CPU Throttling");

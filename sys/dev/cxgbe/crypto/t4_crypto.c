@@ -1804,7 +1804,7 @@ ccr_identify(driver_t *driver, device_t parent)
 
 	sc = device_get_softc(parent);
 	if (sc->cryptocaps & FW_CAPS_CONFIG_CRYPTO_LOOKASIDE &&
-	    device_find_child(parent, "ccr", -1) == NULL)
+	    device_find_child(parent, "ccr", DEVICE_UNIT_ANY) == NULL)
 		device_add_child(parent, "ccr", DEVICE_UNIT_ANY);
 }
 

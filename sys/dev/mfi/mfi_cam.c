@@ -298,7 +298,7 @@ mfip_cam_rescan(struct mfi_softc *sc, uint32_t tid)
 	device_t mfip_dev;
 
 	bus_topo_lock();
-	mfip_dev = device_find_child(sc->mfi_dev, "mfip", -1);
+	mfip_dev = device_find_child(sc->mfi_dev, "mfip", DEVICE_UNIT_ANY);
 	bus_topo_unlock();
 	if (mfip_dev == NULL) {
 		device_printf(sc->mfi_dev, "Couldn't find mfip child device!\n");

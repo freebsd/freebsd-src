@@ -473,7 +473,7 @@ acpi_pcib_acpi_attach(device_t dev)
     error = 0;
 
     bus_identify_children(dev);
-    if (device_add_child(dev, "pci", -1) == NULL) {
+    if (device_add_child(dev, "pci", DEVICE_UNIT_ANY) == NULL) {
 	bus_dma_tag_destroy(sc->ap_dma_tag);
 	sc->ap_dma_tag = NULL;
 	error = ENXIO;

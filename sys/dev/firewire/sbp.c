@@ -303,7 +303,7 @@ SBP_DEBUG(0)
 	printf("sbp_identify\n");
 END_DEBUG
 
-	if (device_find_child(parent, "sbp", -1) == NULL)
+	if (device_find_child(parent, "sbp", DEVICE_UNIT_ANY) == NULL)
 		BUS_ADD_CHILD(parent, 0, "sbp", DEVICE_UNIT_ANY);
 }
 

@@ -83,7 +83,7 @@ static void ip17x_ifmedia_sts(if_t, struct ifmediareq *);
 static void
 ip17x_identify(driver_t *driver, device_t parent)
 {
-	if (device_find_child(parent, "ip17x", -1) == NULL)
+	if (device_find_child(parent, "ip17x", DEVICE_UNIT_ANY) == NULL)
 	    BUS_ADD_CHILD(parent, 0, "ip17x", DEVICE_UNIT_ANY);
 }
 
