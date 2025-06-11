@@ -1,0 +1,134 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Bj\xc3\xb6rn Zeeb under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.Dd June 13, 2025
+.Dt LINUXKPI_WLAN 4
+.Os
+.Sh NAME
+.Nm linuxkpi_wlan
+.Nd LinuxKPI 802.11 support
+.Sh DESCRIPTION
+The
+.Nm
+kernel module provides an 802.11 compat layer to translate between Linux
+802.11 drivers and the native net8011 wireless stack.
+It currently supports
+.Em mac80211
+based drivers.
+Parts of the
+.Em cfg80211
+exist but there is no code for net80211 to drive it.
+.Pp
+.Nm
+currently supports the following
+.Em wlanmode
+operating modes:
+.Bl -tag -width monitor -compact
+.It Cm sta
+client station in an infrastructure bss (IBSS).
+.El
+.Pp
+Compat code for 802.11n (HT) and 802.11ac (VHT) is implemented but
+support may vary for different drivers due to different KPI usage.
+.Pp
+Crypto support for hardware acceleration needs to be enabled using the
+.Va compat.linuxkpi.80211.hw_crypto
+tunable.
+The following cipher suites are supported:
+.Bl -tag -width CCMP -compact
+.It Cm tkip
+Support for
+.Xr wlan_tkip 4
+has to be manually enabled using the
+.Va compat.linuxkpi.80211.tkip
+tunable.
+.It Cm ccmp
+Support for
+.Xr wlan_ccmp 4
+is available.
+.It Cm gcmp
+Support for
+.Xr wlan_gcmp 4
+is available.
+.El
+Further cipher suites will be implemented as soon as
+.Xr net80211 4
+grows support.
+While it would be possible to implement
+.Xr wlan_wep 4
+support, it was decided not to do so given
+.Em Wired Equivalent Privacy (WEP)
+has been deprecated since 2004.
+.Pp
+The list of supported drivers includes
+.Xr iwlwifi 4 ,
+.Xr rtw88 4 ,
+and
+.Xr rtw89 4 .
+.Sh SYSCTL VARIABLES AND LOADER TUNABLES
+The
+.Nm
+module supports the following
+.Xr loader 8
+tunable and read-only
+.Xr sysctl 8
+variables:
+.Bl -tag -width "compat.linuxkpi.80211.hw_crypto"
+.It Va compat.linuxkpi.80211.hw_crypto
+Turn on hardware crypto offload support.
+Default
+.Ql 0 .
+.It Va compat.linuxkpi.80211.tkip
+Turn on support for
+.Xr wlan_tkip 4
+offloading.
+Default
+.Ql 0 .
+.El
+.Pp
+The
+.Nm
+module supports the following
+.Xr sysctl 8
+variables:
+.Bl -tag -width "compat.linuxkpi.80211.IF.dump_stas"
+.It Va compat.linuxkpi.80211.debug
+If the kernel is compiled with
+.Dv IEEE80211_DEBUG
+or
+.Dv LINUXKPI_DEBUG_80211
+is manually enabled, the sysctl is a bitmask to turn on individual
+debug messages.
+See
+.Pa sys/compat/linuxkpi/common/src/linux_80211.h
+for details.
+.It Va compat.linuxkpi.80211.IF.dump_stas
+Print statistics for a given, associated
+.Xr wlan 4
+interface; typically IF would be
+.Em wlan0 .
+.El
+.Sh SEE ALSO
+.Xr iwlwifi 4 ,
+.Xr linuxkpi 4 ,
+.Xr rtw88 4 ,
+.Xr rtw89 4 ,
+.Xr wlan 4
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 13.1 .
+Support for IEEE 802.11n and 802.11ac in
+.Nm
+first appeared in
+.Fx 14.3 .
+.Sh AUTHORS
+LinuxKPI 802.11 support was developed by
+.An Bjoern A. Zeeb
+under sponsorship from the FreeBSD Foundation.
