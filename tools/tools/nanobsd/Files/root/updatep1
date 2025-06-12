@@ -53,7 +53,7 @@ fsck_ffs -n /dev/${NANO_DRIVE}s1a
 
 gpart set -a active -i 1 ${NANO_DRIVE}
 #
-# KD - If the partition has an EFI partition then set "loader.env"
+# If the partition has an EFI partition then set "loader.env"
 #
 EFI=`gpart show ${NANO_DRIVE}|grep 'efi'`
 if [ $EFI != '' ] ;
