@@ -207,6 +207,8 @@ bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 		    efifb.fb_mask_reserved);
 
 		file_addmetadata(kfp, MODINFOMD_EFI_FB, sizeof(efifb), &efifb);
+	} else {
+		printf("No EFI framebuffer found!\n");
 	}
 #endif
 
