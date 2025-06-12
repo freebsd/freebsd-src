@@ -74,6 +74,10 @@
 #define	CLOCK_PROCESS_CPUTIME_ID 15
 #endif /* __POSIX_VISIBLE >= 199309 */
 
+#ifdef __BSD_VISIBLE
+#define	CLOCK_TAI		16
+#endif
+
 /*
  * Linux compatible names.
  */
