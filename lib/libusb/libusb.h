@@ -210,6 +210,8 @@ enum libusb_error {
 	LIBUSB_ERROR_OTHER = -99,
 };
 
+#define	LIBUSB_ERROR_COUNT 14
+
 enum libusb_speed {
 	LIBUSB_SPEED_UNKNOWN = 0,
 	LIBUSB_SPEED_LOW = 1,
@@ -475,6 +477,7 @@ int	libusb_init(libusb_context ** context);
 int	libusb_init_context(libusb_context **, const struct libusb_init_option [], int num_options);
 void	libusb_exit(struct libusb_context *ctx);
 int	libusb_has_capability(uint32_t capability);
+int	libusb_setlocale(const char *locale);
 
 /* Device handling and enumeration */
 

@@ -139,6 +139,12 @@ struct libusb_device {
 	struct libusb20_device *os_priv;
 };
 
+struct libusb_language_context {
+	const char *lang_name;
+	/* All error Plus 1 UNKNOWN */
+	const char *err_strs[LIBUSB_ERROR_COUNT + 1];
+};
+
 extern struct libusb_context *usbi_default_context;
 
 void	libusb10_add_pollfd(libusb_context *ctx, struct libusb_super_pollfd *pollfd, struct libusb20_device *pdev, int fd, short events);
