@@ -1278,6 +1278,7 @@ hdac_attach(device_t dev)
 		goto hdac_attach_fail;
 
 	/* Get Capabilities */
+	hdac_reset(sc, 1);
 	result = hdac_get_capabilities(sc);
 	if (result != 0)
 		goto hdac_attach_fail;
