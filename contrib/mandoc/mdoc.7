@@ -1,4 +1,4 @@
-.\" $Id: mdoc.7,v 1.294 2024/09/22 10:34:58 schwarze Exp $
+.\" $Id: mdoc.7,v 1.296 2025/01/27 03:17:33 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010, 2011, 2013-2020 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: September 22 2024 $
+.Dd $Mdocdate: January 27 2025 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -2304,13 +2304,14 @@ Close single-quoted context opened by
 Begin a new section.
 For a list of conventional manual sections, see
 .Sx MANUAL STRUCTURE .
-These sections should be used unless it's absolutely necessary that
-custom sections be used.
+Use the conventional sections where applicable.
+For unusually long and complicated manual pages,
+adding custom sections is occasionally useful.
 .Pp
-Section names should be unique so that they may be keyed by
-.Ic \&Sx .
-Although this macro is parsed, it should not consist of child node or it
-may not be linked with
+Avoid using macros inside the
+.Ar TITLE LINE
+and keep that line unique within the manual page,
+such that it can be pointed to with
 .Ic \&Sx .
 .Pp
 See also
@@ -2360,10 +2361,10 @@ the conventional sections described in
 .Sx MANUAL STRUCTURE
 rarely have subsections.
 .Pp
-Sub-section names should be unique so that they may be keyed by
-.Ic \&Sx .
-Although this macro is parsed, it should not consist of child node or it
-may not be linked with
+Avoid using macros inside the
+.Ar Title line
+and keep that line unique within the manual page,
+such that it can be pointed to with
 .Ic \&Sx .
 .Pp
 See also
@@ -2405,12 +2406,17 @@ The original C standard.
 .It \-isoC-99
 .St -isoC-99
 .br
-The second major version of the C language standard.
+Edition 2 of the C language standard.
 .Pp
 .It \-isoC-2011
 .St -isoC-2011
 .br
-The third major version of the C language standard.
+Edition 3 of the C language standard.
+.Pp
+.It \-isoC-2023
+.St -isoC-2023
+.br
+Edition 5 of the C language standard.
 .El
 .It POSIX.1 before XPG4.2
 .Pp
