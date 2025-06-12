@@ -93,18 +93,14 @@ struct hostent *cap_gethostbyaddr(cap_channel_t *chan, const void *addr,
     socklen_t len, int af);
 #else
 /* Capability functions. */
-#define cap_bind(chan, s, addr, addrlen)					\
-	bind(s, addr, addrlen)
-#define cap_connect(chan, s, name, namelen)					\
-	connect(s, name, namelen)
-#define	cap_getaddrinfo(chan, hostname, servname, hints, res)			\
-	getaddrinfo(hostname, servname, hints, res)
-#define	cap_getnameinfo(chan, sa, salen, host, hostlen, serv, servlen, flags)	\
-	getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
+#define	cap_bind(chan, ...)	bind(__VA_ARGS__)
+#define	cap_connect(chan, ...)	connect(__VA_ARGS__)
+#define	cap_getaddrinfo(chan, ...)	getaddrinfo(__VA_ARGS__)
+#define	cap_getnameinfo(chan, ...)	getnameinfo(__VA_ARGS__)
 
 /* Limit functions. */
-#define cap_net_limit_init(chan, mode)	((cap_net_limit_t *)malloc(8))
-#define cap_net_free(limit)		free(limit)
+#define cap_net_limit_init(chan, ...)	((cap_net_limit_t *)malloc(8))
+#define cap_net_free(...)		free(__VA_ARGS__)
 static inline int
 cap_net_limit(cap_net_limit_t *limit)
 {
@@ -155,9 +151,9 @@ cap_net_limit_bind(cap_net_limit_t *limit,
 }
 
 /* Deprecated functions. */
-#define	cap_gethostbyname(chan, name)		 gethostbyname(name)
-#define	cap_gethostbyname2(chan, name, type)	 gethostbyname2(name, type)
-#define	cap_gethostbyaddr(chan, addr, len, type) gethostbyaddr(addr, len, type)
+#define	cap_gethostbyname(chan, ...)	gethostbyname(__VA_ARGS__)
+#define	cap_gethostbyname2(chan, ...)	gethostbyname2(__VA_ARGS__)
+#define	cap_gethostbyaddr(chan, ...)	gethostbyaddr(__VA_ARGS__)
 #endif
 
 #endif	/* !_CAP_NETWORK_H_ */
