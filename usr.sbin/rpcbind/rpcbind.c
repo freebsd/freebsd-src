@@ -160,8 +160,10 @@ main(int argc, char *argv[])
 	update_bound_sa();
 
 	/* Ensure krpc is loaded */
-	if (modfind("krpc") < 0 && kldload("krpc") < 0)
-		err(1, "krpc");
+	if (modfind("krpc") < 0 && kldload("krpc") < 0) {
+		warn("failed to load krpc module, "
+		    "rpcbind services for kernel disabled");
+	}
 
 	/* Check that another rpcbind isn't already running. */
 	if ((rpcbindlockfd = open(RPCBINDDLOCK, O_RDONLY|O_CREAT, 0444)) < 0)
