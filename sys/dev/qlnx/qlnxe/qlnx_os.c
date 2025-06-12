@@ -2387,9 +2387,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 		ha->primary_mac[5] = (rnd >> 16) & 0xFF;
 	}
 
-	ether_ifattach(ifp, ha->primary_mac);
-	bcopy(IF_LLADDR(ha->ifp), ha->primary_mac, ETHER_ADDR_LEN);
-
 	ifp->if_capabilities = IFCAP_HWCSUM;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
 
@@ -2441,6 +2438,9 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
         ifmedia_add(&ha->media, (IFM_ETHER | IFM_AUTO), 0, NULL);
 
         ifmedia_set(&ha->media, (IFM_ETHER | IFM_AUTO));
+
+	ether_ifattach(ifp, ha->primary_mac);
+	bcopy(IF_LLADDR(ha->ifp), ha->primary_mac, ETHER_ADDR_LEN);
 
         QL_DPRINT2(ha, "exit\n");
 
