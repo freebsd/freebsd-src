@@ -519,6 +519,8 @@ void
 allocate_initial_tls(Obj_Entry *objs)
 {
 	void *addr;
+	int osrel;
+
 
 	/*
 	 * Fix the size of the static TLS block by using the maximum
@@ -533,7 +535,9 @@ allocate_initial_tls(Obj_Entry *objs)
 	 * This does not use _tcb_set() as it calls amd64_set_tlsbase()
 	 * which is an ifunc and rtld must not use ifuncs.
 	 */
-	if (__getosreldate() >= P_OSREL_TLSBASE)
+	osrel = __getosreldate();
+	if (osrel >= P_OSREL_TLSBASE ||
+	    (P_OSREL_MAJOR(osrel) == 14 && osrel >= 1403502))
 		sysarch(AMD64_SET_TLSBASE, &addr);
 	else if (__getosreldate() >= P_OSREL_WRFSBASE &&
 	    (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0)
