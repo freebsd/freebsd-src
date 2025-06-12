@@ -59,7 +59,7 @@ EFI=`gpart show ${NANO_DRIVE}|grep 'efi'`
 if [ $EFI != '' ] ;
 then
 	PART=`echo $EFI|awk '{ print $3 }'`
-	mount -t msdosfs /dev/${NANO_DRIVE}s$EFI /mnt
+	mount -t msdosfs /dev/${NANO_DRIVE}s$PART /mnt
 	echo 'rootdev=disk0s1a' >/mnt/EFI/FreeBSD/loader.env
 	umount /mnt
 fi
