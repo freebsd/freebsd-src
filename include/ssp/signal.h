@@ -35,6 +35,7 @@
 
 __BEGIN_DECLS
 
+#if __POSIX_VISIBLE >= 202405 || __BSD_VISIBLE
 __ssp_redirect_raw_impl(int, sig2str, sig2str,
     (int signum, char *__restrict str))
 {
@@ -43,6 +44,7 @@ __ssp_redirect_raw_impl(int, sig2str, sig2str,
 
 	return (__ssp_real(sig2str)(signum, str));
 }
+#endif
 
 __END_DECLS
 
