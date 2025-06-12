@@ -693,6 +693,7 @@ umtx_abs_timeout_init(struct umtx_abs_timeout *timo, int clockid,
 		timo->is_abs_real = clockid == CLOCK_REALTIME ||
 		    clockid == CLOCK_REALTIME_FAST ||
 		    clockid == CLOCK_REALTIME_PRECISE ||
+		    clockid == CLOCK_TAI ||
 		    clockid == CLOCK_SECOND;
 	}
 }
@@ -787,6 +788,7 @@ umtx_abs_timeout_getsbt(struct umtx_abs_timeout *timo, sbintime_t *sbt,
 	case CLOCK_PROF:
 	case CLOCK_THREAD_CPUTIME_ID:
 	case CLOCK_PROCESS_CPUTIME_ID:
+	case CLOCK_TAI: /* Boot time is not necessarily stable in TAI */
 	default:
 		kern_clock_gettime(curthread, timo->clockid, &timo->cur);
 		if (timespeccmp(&timo->end, &timo->cur, <=))
@@ -2953,8 +2955,9 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 			umtx_key_release(&uq->uq_key);
 			return (EFAULT);
 		}
-		if (clockid < CLOCK_REALTIME ||
-		    clockid >= CLOCK_THREAD_CPUTIME_ID) {
+		if ((clockid < CLOCK_REALTIME ||
+		    clockid >= CLOCK_THREAD_CPUTIME_ID) &&
+		    clockid != CLOCK_TAI) {
 			/* hmm, only HW clock id will work. */
 			umtx_key_release(&uq->uq_key);
 			return (EINVAL);

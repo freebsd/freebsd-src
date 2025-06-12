@@ -504,7 +504,7 @@ sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
  * simulation.
  */
 void
-ntp_update_second(int64_t *adjustment, time_t *newsec)
+ntp_update_second(int64_t *adjustment, time_t *newsec, long *tai_off)
 {
 	int tickrate;
 	l_fp ftemp;		/* 32/64-bit temporary */
@@ -624,6 +624,7 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
 		L_ADD(time_adj, ftemp);
 	}
 	*adjustment = time_adj;
+	*tai_off = time_tai;
 		
 #ifdef PPS_SYNC
 	if (pps_valid > 0)
