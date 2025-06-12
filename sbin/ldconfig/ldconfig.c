@@ -57,9 +57,9 @@ main(int argc, char **argv)
 {
 	const char *hints_file;
 	int c;
-	bool is_32, justread, merge, rescan, force_be;
+	bool is_32, justread, merge, rescan, force_be, f_showsource;
 
-	force_be = is_32 = justread = merge = rescan = false;
+	force_be = is_32 = justread = merge = rescan = f_showsource = false;
 
 	while (argc > 1) {
 		if (strcmp(argv[1], "-aout") == 0) {
@@ -80,13 +80,16 @@ main(int argc, char **argv)
 		hints_file = __PATH_ELF_HINTS("32");
 	else
 		hints_file = _PATH_ELF_HINTS;
-	while((c = getopt(argc, argv, "BRf:imrsv")) != -1) {
+	while((c = getopt(argc, argv, "BRSf:imrsv")) != -1) {
 		switch (c) {
 		case 'B':
 			force_be = true;
 			break;
 		case 'R':
 			rescan = true;
+			break;
+		case 'S':
+			f_showsource = true;
 			break;
 		case 'f':
 			hints_file = optarg;
@@ -112,6 +115,11 @@ main(int argc, char **argv)
 		}
 	}
 
+	if (f_showsource && !justread) {
+		warnx("-S is only effective with -r");
+		f_showsource = false;
+	}
+
 	if (justread) {
 		list_elf_hints(hints_file);
 	} else {
@@ -127,7 +135,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: ldconfig [-32] [-BRimr] [-f hints_file]"
+	    "usage: ldconfig [-32] [-BRSimr] [-f hints_file]" /* Added S to usage */
 	    "[directory | file ...]\n");
 	exit(1);
 }

@@ -41,7 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 32
-.Op Fl BRimr
+.Op Fl BRSimr
 .Op Fl f Ar hints_file
 .Op Ar directory | Ar
 .Sh DESCRIPTION
@@ -116,6 +116,22 @@ Appends pathnames on the command line to the directory list from
 the hints file.
 .Pp
 This is the default action when no options are given.
+.It Fl S
+When used with the
+.Fl r
+option, this causes
+.Nm
+to also display the source directory from the hints file for each shared library.
+For example, if a library
+.Pa /usr/local/lib/libfoo.so
+is found because
+.Pa /usr/local/lib
+is in the hints, the output might include
+.Dq Li ... => /usr/local/lib/libfoo.so (from /usr/local/lib) .
+This can be useful for diagnosing which configured path is providing a particular library.
+If used without
+.Fl r ,
+this option has no effect.
 .It Fl f Ar hints_file
 Read and/or update the specified hints file, instead of the standard file.
 This option is provided primarily for testing.

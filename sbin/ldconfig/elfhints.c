@@ -133,8 +133,12 @@ list_elf_hints(const char *hintsfile)
 
 			/* We have a valid shared library name. */
 			namelen = (vers - 4) - name;
-			printf("\t%d:-l%.*s.%s => %s/%s\n", nlibs,
-			    namelen, name, vers, dirs[i], dp->d_name);
+			if (f_showsource)
+				printf("\t%d:-l%.*s.%s => %s/%s (from %s)\n", nlibs,
+				    namelen, name, vers, dirs[i], dp->d_name, dirs[i]);
+			else
+				printf("\t%d:-l%.*s.%s => %s/%s\n", nlibs,
+				    namelen, name, vers, dirs[i], dp->d_name);
 			nlibs++;
 		}
 		closedir(dirp);
