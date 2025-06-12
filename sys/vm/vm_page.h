@@ -336,14 +336,6 @@ SLIST_HEAD(spglist, vm_page);
 extern vm_page_t bogus_page;
 #endif	/* _KERNEL */
 
-#if defined(__arm__)
-#define	PDRSHIFT	PDR_SHIFT
-#elif !defined(PDRSHIFT)
-#define PDRSHIFT	21
-#endif
-
-#define	pa_index(pa)	((pa) >> PDRSHIFT)
-
 /*
  * The vm_page's aflags are updated using atomic operations.  To set or clear
  * these flags, the functions vm_page_aflag_set() and vm_page_aflag_clear()
