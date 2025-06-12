@@ -73,7 +73,7 @@ netlink_init(libusb_context *ctx)
 	if (modfind("nlsysevent") < 0)
 		return (false);
 	if (!snl_init(&ctx->ss, NETLINK_GENERIC) || (group =
-	    snl_get_genl_mcast_group(&ctx->ss, "nlsysevent", "ACPI", NULL)) == 0)
+	    snl_get_genl_mcast_group(&ctx->ss, "nlsysevent", "USB", NULL)) == 0)
 		return (false);
 
 	if (setsockopt(ctx->ss.fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &group,
