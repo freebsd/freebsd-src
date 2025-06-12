@@ -39,6 +39,9 @@
 .Ar string
 .Op Ar suffix
 .Nm
+.Op Fl d
+.Ar string
+.Nm
 .Op Fl a
 .Op Fl s Ar suffix
 .Ar string
@@ -76,6 +79,30 @@ is specified, then the
 .Ar suffix
 is taken as its argument, and all other arguments are treated as a
 .Ar string .
+.Pp
+If the
+.Fl d
+option is specified,
+.Nm
+will operate in a way similar to the
+.Nm dirname
+utility.
+It will treat the
+.Ar string
+operand as a pathname and output the directory portion of
+.Ar string ,
+by deleting the filename portion beginning with the last slash
+.Ql \&/
+character to the end of
+.Ar string
+(after first stripping trailing slashes).
+The
+.Fl d
+option may not be used with the
+.Fl a
+or
+.Fl s
+options.
 .Pp
 The
 .Nm dirname
