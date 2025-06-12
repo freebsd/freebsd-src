@@ -598,7 +598,14 @@ common:
 #endif
 
 	/* Get the number of blocks/pages to allocate, rounded down */
-	lsr	x10, x8, #(PTE_SHIFT)
+	lsr	x14, x8, #(PTE_SHIFT)
+
+	ldr	x25, =etext
+	ldr	x8, =((1 << PTE_SHIFT) - 1)
+	add	x25, x25, x8
+	mov	x8, #(KERNBASE)
+	sub	x25, x25, x8
+	lsr	x25, x25, #(PTE_SHIFT)
 
 	/* Create the kernel space PTE table */
 	adrp	x6, LL_PAGE_TABLE
@@ -606,6 +613,16 @@ common:
 	mov	x7, #(ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK))
 	mov	x8, #(KERNBASE)
 	mov	x9, x28
+	mov	x10, x25
+	bl	BUILD_PTE_FUNC
+
+	/* Create the kernel space XN PTE table */
+	lsl	x10, x25, #(PTE_SHIFT)
+	ldr	x7, =(ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) | ATTR_S1_XN)
+	ldr	x8, =(KERNBASE)
+	add	x8, x8, x10
+	add	x9, x28, x10
+	sub	x10, x14, x25
 	bl	BUILD_PTE_FUNC
 
 #undef PTE_SHIFT
