@@ -144,6 +144,16 @@ typedef	__pid_t		pid_t;
 #endif
 
 /*
+ * !!! DANGER !!!
+ *
+ * There are very few bits left for O_* flags.  Every bit we consume for
+ * local features is one bit we can't use for future source compatibility
+ * with other operating systems.
+ *
+ * All additions should be coordinated with srcmgr@.
+ */
+
+/*
  * XXX missing O_RSYNC.
  */
 
