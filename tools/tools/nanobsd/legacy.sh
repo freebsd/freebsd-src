@@ -2,6 +2,7 @@
 #
 # Copyright (c) 2005 Poul-Henning Kamp All rights reserved.
 # Copyright (c) 2016 M. Warner Losh <imp@FreeBSD.org>
+# Copyright (c) 2025 Karl Denninger <karl@denninger.net>
 #
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,65 +32,47 @@
 [ -n "$NANO_SECTS" ] || NANO_SECTS=63
 [ -n "$NANO_HEADS" ] || NANO_HEADS=16
 
-# Functions and variable definitions used by the legacy nanobsd
-# image building system.
+#
+# If there is no EFI partition size specified make it 40m
+#
+[ -n "$NANO_EFISIZE" ] || NANO_EFISIZE=$((40*1024*1000/512))
+
+
+# Functions and variable definitions used by the new nanobsd
+# image building system.  Align partitions to 1M
+#
 
 calculate_partitioning ( ) (
-	echo $NANO_MEDIASIZE $NANO_IMAGES \
-		$NANO_SECTS $NANO_HEADS \
-		$NANO_CODESIZE $NANO_CONFSIZE $NANO_DATASIZE |
+# Add the data and config sizes together for the last slice;
+# we then use this in the next calculation
+#
+	echo $NANO_CONFSIZE $NANO_DATASIZE |
 	awk '
 	{
-		# size of cylinder in sectors
-		cs = $3 * $4
-
-		# number of full cylinders on media
-		cyl = int ($1 / cs)
-
-		if ($7 > 0) {
-			# size of data partition in full cylinders
-			dsl = int (($7 + cs - 1) / cs)
-		} else {
-			dsl = 0;
-		}
-
-		# size of config partition in full cylinders
-		csl = int (($6 + cs - 1) / cs)
-
-		# size of image partition(s) in full cylinders
-		if ($5 == 0) {
-			isl = int ((cyl - dsl - csl) / $2)
-		} else {
-			isl = int (($5 + cs - 1) / cs)
-		}
-
-		# First image partition start at second track
-		print $3, isl * cs - $3, 1
-		c = isl * cs;
-
-		# Second image partition (if any) also starts offset one
-		# track to keep them identical.
-		if ($2 > 1) {
-			print $3 + c, isl * cs - $3, 2
-			c += isl * cs;
-		}
-
-		# Config partition starts at cylinder boundary.
-		print c, csl * cs, 3
-		c += csl * cs
-
-		# Data partition (if any) starts at cylinder boundary.
-		if ($7 > 0) {
-			print c, dsl * cs, 4
-		} else if ($7 < 0 && $1 > c) {
-			print c, $1 - c, 4
-		} else if ($1 < c) {
-			print "Disk space overcommitted by", \
-			    c - $1, "sectors" > "/dev/stderr"
-			exit 2
-		}
+		ds = ($1 + $2)
+		print ds
 	}
-	' > ${NANO_LOG}/_.partitioning
+	' > ${NANO_LOG}/_.data_size
+
+	DATA_SIZE=`head -n 1 ${NANO_LOG}/_.data_size`
+#
+# Now compute the code partition size after leaving room for the data and
+# EFI partitions, specifically rounding to the integer full megabyte.
+# We prevent gpart from screwing with us on alignment (it likes to fit
+# DOWNWARD!) by doing an explicit resize after we create the two code
+# partitions so the created image will fit exactly.
+#
+	echo $NANO_MEDIASIZE $NANO_IMAGES $DATA_SIZE $NANO_EFISIZE |
+	awk '
+	{
+		if ($2 > 1) {
+			cs = int(((($1 - $3) / 2) - $4) / 1048576) * 1048576
+		} else {
+			cs = int((($1 - $3) - $4) / 1048576) * 1048576
+		}
+		print cs
+	}
+	' > ${NANO_LOG}/_.code_size
 )
 
 create_code_slice ( ) (
@@ -100,7 +83,7 @@ create_code_slice ( ) (
 	IMG=${NANO_DISKIMGDIR}/_.disk.image
 	MNT=${NANO_OBJ}/_.mnt
 	mkdir -p ${MNT}
-	CODE_SIZE=`head -n 1 ${NANO_LOG}/_.partitioning | awk '{ print $2 }'`
+	CODE_SIZE=`head -n 1 ${NANO_LOG}/_.code_size`
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
 		MD=`mdconfig -a -t swap -s ${CODE_SIZE} -x ${NANO_SECTS} \
@@ -166,30 +149,53 @@ create_diskimage ( ) (
 			-y ${NANO_HEADS}`
 	fi
 
-	awk '
-	BEGIN {
-		# Create MBR partition table
-		print "gpart create -s mbr $1"
-	}
-	{
-		# Make partition
-		print "gpart add -t freebsd -b ", $1, " -s ", $2, " -i ", $3, " $1"
-	}
-	END {
-		# Force slice 1 to be marked active. This is necessary
-		# for booting the image from a USB device to work.
-		print "gpart set -a active -i 1 $1"
-	}
-	' ${NANO_LOG}/_.partitioning > ${NANO_OBJ}/_.gpart
+	CODE_SIZE=`head -n 1 ${NANO_LOG}/_.code_size`
+	DATA_SIZE=`head -n 1 ${NANO_LOG}/_.data_size`
+	gpart create -s mbr ${MD}
+	gpart bootcode -b /boot/mbr ${MD}
+	gpart add -t freebsd -a 1m -i 1 -s ${CODE_SIZE} ${MD}
+	gpart resize -i 1 -s ${CODE_SIZE} ${MD}
+	if [ "${NANO_IMAGES}" = 2 ] ; then
+		gpart add -a 1m -t freebsd -i 2 -s ${CODE_SIZE} ${MD}
+		gpart resize -i 2 -s ${CODE_SIZE} ${MD}
+	fi
+	gpart add -a 1m -t efi -i 3 -s ${NANO_EFISIZE} ${MD}
+#
+# Use the rest for the last slice including conf and (if asked for) data
+#
+	gpart add -a 1m -t freebsd -i 4 ${MD}
+	gpart create -s bsd ${MD}s4
+	echo add ${NANO_CONFSIZE} requested
+	gpart add -a 1m -t freebsd-ufs -i 1 -s ${NANO_CONFSIZE} ${MD}s4
+	if [ ${NANO_DATASIZE} != 0 ];
+	then
+		echo add ${NANO_DATASIZE} requested
+		gpart add -a 1m -t freebsd-ufs -i 4 -s ${NANO_DATASIZE} ${MD}s4
+	fi
+
+	gpart set -a active -i 1 ${MD}
 
 	trap "echo 'Running exit trap code' ; df -i ${MNT} ; nano_umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
-	sh ${NANO_OBJ}/_.gpart ${MD}
 	gpart show ${MD}
-	# XXX: params
-	# XXX: pick up cached boot* files, they may not be in image anymore.
-	if [ -f ${NANO_WORLDDIR}/${NANO_BOOTLOADER} ]; then
-		gpart bootcode -b ${NANO_WORLDDIR}/${NANO_BOOTLOADER} ${NANO_BOOTFLAGS} ${MD}
+#
+# If there is an EFI loader (there should be) stick it in the image
+#
+	if [ -f ${NANO_WORLDDIR}/boot/loader.efi ]; then
+		echo "Copying in the EFI loader...."
+		newfs_msdos -F 32 -c 1 ${MD}s3
+		mount -t msdosfs /dev/${MD}s3 ${MNT}
+		mkdir -p ${MNT}/EFI/BOOT
+		mkdir -p ${MNT}/EFI/FreeBSD
+		cp ${NANO_WORLDDIR}/boot/loader.efi ${MNT}/EFI/BOOT/${NANO_EFI_BOOTNAME}
+#
+# Optionally we could put the rootdev in EFI/FreeBSD but.... there
+# is a potential problem with this if the EFI firmware finds something else
+# with a filesystem on it "before" the stick -- so don't.
+#
+#		echo "rootdev=disk0s1a" >${MNT}/EFI/FreeBSD/loader.env
+#
+		umount ${MNT}
 	fi
 
 	echo "Writing code image..."
