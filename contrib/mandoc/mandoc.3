@@ -1,4 +1,4 @@
-.\"	$Id: mandoc.3,v 1.44 2018/12/30 00:49:55 schwarze Exp $
+.\" $Id: mandoc.3,v 1.46 2025/02/25 17:03:54 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010-2017 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: December 30 2018 $
+.Dd $Mdocdate: February 25 2025 $
 .Dt MANDOC 3
 .Os
 .Sh NAME
@@ -33,6 +33,8 @@
 .In sys/types.h
 .In stdio.h
 .In mandoc.h
+.In roff.h
+.In mandoc_parse.h
 .Pp
 .Fd "#define ASCII_NBRSP"
 .Fd "#define ASCII_HYPH"
@@ -141,6 +143,37 @@ or invoke
 .Fn mparse_reset
 and go back to step 2 to parse new files.
 .El
+.Pp
+The design goals of the
+.Nm mandoc
+library are limited to providing the functionality required by the
+.Xr mandoc 1
+program.
+Consequently, the functions documented in the present manual page
+do not aim for API stability.
+Any third-party program using them typically requires adjustments after every
+.Nm mandoc
+release.
+Linking such a program requires
+.Fl lz
+because
+.Fn mparse_readfd
+calls
+.Xr gzdopen 3 ,
+.Xr gzread 3 ,
+.Xr gzerror 3 ,
+and
+.Xr gzclose 3 .
+For
+.Xr mandoc 1
+itself, the
+.Pa ./configure
+script automatically adds
+.Fl lz
+to the
+.Ev LDADD
+.Xr make 1
+variable.
 .Sh REFERENCE
 This section documents the functions, types, and variables available
 via
