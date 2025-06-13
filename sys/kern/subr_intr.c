@@ -405,7 +405,7 @@ intr_isrc_dispatch(struct intr_irqsrc *isrc, struct trapframe *tf)
 	} else
 #endif
 	if (isrc->isrc_event != NULL) {
-		if (intr_event_handle(isrc->isrc_event, tf) == 0)
+		if (intr_event_handle_(isrc->isrc_event, tf) == 0)
 			return (0);
 	}
 
@@ -701,7 +701,9 @@ isrc_event_create(struct intr_irqsrc *isrc)
 	if (isrc->isrc_event != NULL) {
 #endif
 		mtx_unlock(&isrc_table_lock);
-		intr_event_destroy(ie);
+		if ((error = intr_event_destroy_(ie)) != 0)
+			printf("ERROR: %s(): intr_event_destroy() ret = %d!\n",
+			    __func__, error);
 		return (isrc->isrc_event != NULL ? EBUSY : 0);
 	}
 	isrc->isrc_event = ie;
@@ -1216,7 +1218,7 @@ intr_describe_irq(device_t dev, struct resource *res, void *cookie,
 		return (0);
 	}
 #endif
-	error = intr_event_describe_handler(isrc->isrc_event, cookie, descr);
+	error = intr_event_describe_handler_(isrc->isrc_event, cookie, descr);
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
 		intrcnt_updatename(isrc);
