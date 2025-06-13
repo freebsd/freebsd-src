@@ -321,7 +321,7 @@ kern_clock_gettime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 	struct sysclock_snap clk;
 	struct bintime bt;
 	struct proc *p;
-	int err;
+	int error;
 
 	p = td->td_proc;
 	switch (clock_id) {
@@ -334,10 +334,10 @@ kern_clock_gettime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		break;
 	case CLOCK_TAI:
 		sysclock_getsnapshot(&clk, 0);
-		err = sysclock_snap2bintime(&clk, &bt, clk.sysclock_active,
-		    (clk.sysclock_active == SYSCLOCK_FFWD) ? FFCLOCK_LERP : 0);
-		if (err)
-			return (err);
+		error = sysclock_snap2bintime(&clk, &bt, clk.sysclock_active,
+		    clk.sysclock_active == SYSCLOCK_FFWD ? FFCLOCK_LERP : 0);
+		if (error != 0)
+			return (error);
 		bintime2timespec(&bt, ats);
 		break;
 	case CLOCK_VIRTUAL:
@@ -1585,13 +1585,13 @@ static int
 realtimer_gettime(struct itimer *it, struct itimerspec *ovalue)
 {
 	struct timespec cts;
-	int err;
+	int error;
 
 	mtx_assert(&it->it_mtx, MA_OWNED);
 
-	err = kern_clock_gettime(curthread, it->it_clockid, &cts);
-	if (err)
-		return (err);
+	error = kern_clock_gettime(curthread, it->it_clockid, &cts);
+	if (error != 0)
+		return (error);
 
 	*ovalue = it->it_time;
 	if (ovalue->it_value.tv_sec != 0 || ovalue->it_value.tv_nsec != 0) {
@@ -1613,7 +1613,7 @@ realtimer_settime(struct itimer *it, int flags, struct itimerspec *value,
 	struct timespec cts, ts;
 	struct timeval tv;
 	struct itimerspec val;
-	int err;
+	int error;
 
 	mtx_assert(&it->it_mtx, MA_OWNED);
 
@@ -1633,9 +1633,9 @@ realtimer_settime(struct itimer *it, int flags, struct itimerspec *value,
 
 	it->it_time = val;
 	if (timespecisset(&val.it_value)) {
-		err = kern_clock_gettime(curthread, it->it_clockid, &cts);
-		if (err)
-			return (err);
+		error = kern_clock_gettime(curthread, it->it_clockid, &cts);
+		if (error != 0)
+			return (error);
 
 		ts = val.it_value;
 		if ((flags & TIMER_ABSTIME) == 0) {
@@ -1703,12 +1703,12 @@ realtimer_expire_l(struct itimer *it, bool proc_locked)
 	struct timeval tv;
 	struct proc *p;
 	uint64_t interval, now, overruns, value;
-	int err;
+	int error;
 
-	err = kern_clock_gettime(curthread, it->it_clockid, &cts);
+	error = kern_clock_gettime(curthread, it->it_clockid, &cts);
 
 	/* Only fire if time is reached. */
-	if (err == 0 && timespeccmp(&cts, &it->it_time.it_value, >=)) {
+	if (error == 0 && timespeccmp(&cts, &it->it_time.it_value, >=)) {
 		if (timespecisset(&it->it_time.it_interval)) {
 			timespecadd(&it->it_time.it_value,
 			    &it->it_time.it_interval,

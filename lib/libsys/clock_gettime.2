@@ -104,7 +104,9 @@ Increments in SI seconds like a wall clock.
 It uses a 1970 epoch and implements the TAI timescale.
 Similar to CLOCK_REALTIME, but without leap seconds.
 It will increase monotonically during a leap second.
-Will return EINVAL if the current offset between TAI and UTC is not known,
+Will return
+.Er EINVAL
+if the current offset between TAI and UTC is not known,
 which may be the case early in boot before NTP or other time daemon has
 synchronized.
 .El
