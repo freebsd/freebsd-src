@@ -2281,3 +2281,23 @@ sys_exterrctl(struct thread *td, struct exterrctl_args *uap)
 		return (EINVAL);
 	}
 }
+
+int
+exterr_set(int eerror, int category, const char *mmsg, uintptr_t pp1,
+    uintptr_t pp2, int line)
+{
+	struct thread *td;
+
+	td = curthread;
+	if ((td->td_pflags2 & TDP2_UEXTERR) != 0) {
+		td->td_pflags2 |= TDP2_EXTERR;
+		td->td_kexterr.error = eerror;
+		td->td_kexterr.cat = category;
+		td->td_kexterr.msg = mmsg;
+		td->td_kexterr.p1 = pp1;
+		td->td_kexterr.p2 = pp2;
+		td->td_kexterr.src_line = line;
+		ktrexterr(td);
+	}
+	return (eerror);
+}
