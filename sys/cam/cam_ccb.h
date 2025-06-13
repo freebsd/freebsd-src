@@ -298,6 +298,7 @@ typedef enum {
 	XPORT_NVME,	/* NVMe over PCIe */
 	XPORT_MMCSD,	/* MMC, SD, SDIO card */
 	XPORT_NVMF,	/* NVMe over Fabrics */
+	XPORT_UFSHCI,	/* Universal Flash Storage Host Interface */
 } cam_xport;
 
 #define XPORT_IS_NVME(t)	((t) == XPORT_NVME || (t) == XPORT_NVMF)
@@ -1065,6 +1066,24 @@ struct ccb_trans_settings_nvmf
 	uint8_t		trtype;
 };
 
+struct ccb_trans_settings_ufshci
+{
+	u_int     	valid;		/* Which fields to honor */
+	/* 
+	 * Ensure the validity of the information for the Unipro link
+	 * (GEAR, SPEED, LANE)
+	 */
+#define CTS_UFSHCI_VALID_LINK	0x01
+	uint32_t 	speed;
+	uint8_t  	hs_gear;      	/* High Speed Gear (G1, G2, G3...) */
+	uint8_t  	tx_lanes;
+	uint8_t  	rx_lanes;
+	uint8_t		max_hs_gear;	/* Maximum HS Gear */
+	uint8_t		max_tx_lanes;
+	uint8_t		max_rx_lanes;
+};
+
+
 #include <cam/mmc/mmc_bus.h>
 struct ccb_trans_settings_mmc {
 	struct mmc_ios ios;
@@ -1138,6 +1157,7 @@ struct ccb_trans_settings {
 		struct ccb_trans_settings_sata sata;
 		struct ccb_trans_settings_nvme nvme;
 		struct ccb_trans_settings_nvmf nvmf;
+		struct ccb_trans_settings_ufshci ufshci;
 	} xport_specific;
 };
 
