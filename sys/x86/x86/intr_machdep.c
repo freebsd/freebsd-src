@@ -235,7 +235,9 @@ intr_register_source(struct intsrc *isrc)
 	sx_xlock(&intrsrc_lock);
 	if (interrupt_sources[vector] != NULL) {
 		sx_xunlock(&intrsrc_lock);
-		intr_event_destroy(isrc->is_event);
+		if ((error = intr_event_destroy_(isrc->is_event)) != 0)
+			printf("ERROR: %s(): intr_event_destroy() ret = %d!\n",
+			    __func__, error);
 		return (EEXIST);
 	}
 	intrcnt_register(isrc);
@@ -341,6 +343,8 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	struct intr_event *ie;
 	int vector;
 
+	MPASS(isrc != NULL);
+
 	/*
 	 * We count software interrupts when we process them.  The
 	 * code here follows previous practice, but there's an
@@ -351,6 +355,8 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	VM_CNT_INC(v_intr);
 
 	ie = isrc->is_event;
+
+	MPASS(ie != NULL);
 
 	/*
 	 * XXX: We assume that IRQ 0 is only used for the ISA timer
@@ -364,7 +370,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * For stray interrupts, mask and EOI the source, bump the
 	 * stray count, and log the condition.
 	 */
-	if (intr_event_handle(ie, frame) != 0) {
+	if (intr_event_handle_(ie, frame) != 0) {
 		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
 		(*isrc->is_straycount)++;
 		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
@@ -530,7 +536,7 @@ intr_describe(struct intsrc *isrc, void *ih, const char *descr)
 {
 	int error;
 
-	error = intr_event_describe_handler(isrc->is_event, ih, descr);
+	error = intr_event_describe_handler_(isrc->is_event, ih, descr);
 	if (error)
 		return (error);
 	intrcnt_updatename(isrc);
