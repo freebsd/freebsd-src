@@ -369,7 +369,9 @@ local function drawlogo()
 		end
 	end
 
-	-- XXX What the hell is going on here?
+	-- This is a special little hack for the "none" logo to re-align the
+	-- menu and the brand to avoid having a lot of extraneous whitespace on
+	-- the right side.
 	if logodef and logodef.ascii.image == none then
 		shift = logodef.shift
 	else
