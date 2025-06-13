@@ -282,8 +282,7 @@ intr_event_initv(struct intr_event *ie, device_t pic, u_int irq, int flags,
     const char *fmt, __va_list ap)
 {
 
-	if (ie == NULL)
-		return (EINVAL);
+	MPASS(ie != NULL);
 	MPASS(!intr_event_is_valid(ie));
 
 	MPASS(pic != NULL);
@@ -638,8 +637,7 @@ int
 intr_event_shutdown(struct intr_event *ie)
 {
 
-	if (ie == NULL)
-		return (EINVAL);
+	MPASS(ie != NULL);
 	MPASS(intr_event_is_valid(ie));
 
 	mtx_lock(&event_lock);
@@ -726,7 +724,8 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 	struct intr_handler **prevptr;
 	struct intr_thread *it;
 
-	if (ie == NULL || name == NULL || (handler == NULL && filter == NULL))
+	MPASS(ie != NULL);
+	if (name == NULL || (handler == NULL && filter == NULL))
 		return (EINVAL);
 
 	if ((flags & INTR_SLEEPABLE) != 0 && (flags & INTR_EXCL) == 0) {
@@ -963,8 +962,7 @@ intr_event_remove_handler(struct intr_event *ie, struct intr_handler *handler)
 
 	if (handler == NULL)
 		return (EINVAL);
-	if (ie == NULL)
-		return (EINVAL);
+	MPASS(ie != NULL);
 
 	mtx_lock(&ie->ie_lock);
 	CTR3(KTR_INTR, "%s: removing %s from %s", __func__, handler->ih_name,
@@ -1056,11 +1054,12 @@ intr_event_schedule_thread(struct intr_event *ie, struct trapframe *frame)
 	struct thread *td;
 	struct thread *ctd;
 
+	MPASS(ie != NULL);
+
 	/*
 	 * If no ithread or no handlers, then we have a stray interrupt.
 	 */
-	if (ie == NULL || !intr_event_has_handlers(ie) ||
-	    ie->ie_thread == NULL)
+	if (!intr_event_has_handlers(ie) || ie->ie_thread == NULL)
 		return (EINVAL);
 
 	ctd = curthread;
@@ -1475,8 +1474,10 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	intr_prof_stack_use(td, frame);
 #endif
 
-	/* An interrupt with no event or handlers is a stray interrupt. */
-	if (ie == NULL || !intr_event_has_handlers(ie))
+	MPASS(ie != NULL);
+
+	/* An interrupt with no handlers is a stray interrupt. */
+	if (!intr_event_has_handlers(ie))
 		return (EINVAL);
 
 	/*
