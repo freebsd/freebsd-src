@@ -296,7 +296,6 @@ gve_adminq_create_rx_queue(struct gve_priv *priv, uint32_t queue_index)
 		.ntfy_id = htobe32(rx->com.ntfy_id),
 		.queue_resources_addr = htobe64(qres_dma->bus_addr),
 		.rx_ring_size = htobe16(priv->rx_desc_cnt),
-		.packet_buffer_size = htobe16(GVE_DEFAULT_RX_BUFFER_SIZE),
 	};
 
 	if (gve_is_gqi(priv)) {
@@ -308,6 +307,8 @@ gve_adminq_create_rx_queue(struct gve_priv *priv, uint32_t queue_index)
 		    htobe32(queue_index);
 		cmd.create_rx_queue.queue_page_list_id =
 		    htobe32((rx->com.qpl)->id);
+		cmd.create_rx_queue.packet_buffer_size =
+		    htobe16(GVE_DEFAULT_RX_BUFFER_SIZE);
 	} else {
 		cmd.create_rx_queue.queue_page_list_id =
 		    htobe32(GVE_RAW_ADDRESSING_QPL_ID);
@@ -320,6 +321,8 @@ gve_adminq_create_rx_queue(struct gve_priv *priv, uint32_t queue_index)
 		cmd.create_rx_queue.enable_rsc =
 		    !!((if_getcapenable(priv->ifp) & IFCAP_LRO) &&
 			!gve_disable_hw_lro);
+		cmd.create_rx_queue.packet_buffer_size =
+		    htobe16(priv->rx_buf_size_dqo);
 	}
 
 	return (gve_adminq_execute_cmd(priv, &cmd));

@@ -35,7 +35,7 @@
 #define GVE_DRIVER_VERSION "GVE-FBSD-1.3.4\n"
 #define GVE_VERSION_MAJOR 1
 #define GVE_VERSION_MINOR 3
-#define GVE_VERSION_SUB 4
+#define GVE_VERSION_SUB 5
 
 #define GVE_DEFAULT_RX_COPYBREAK 256
 
@@ -383,11 +383,26 @@ gve_adjust_ring_sizes(struct gve_priv *priv, uint16_t new_desc_cnt, bool is_rx)
 }
 
 static int
+gve_get_dqo_rx_buf_size(struct gve_priv *priv, uint16_t mtu)
+{
+	/*
+	 * Use 4k buffers only if mode is DQ, 4k buffers flag is on,
+	 * and either hw LRO is enabled or mtu is greater than 2048
+	 */
+	if (!gve_is_gqi(priv) && gve_allow_4k_rx_buffers &&
+	    (!gve_disable_hw_lro || mtu > GVE_DEFAULT_RX_BUFFER_SIZE))
+		return (GVE_4K_RX_BUFFER_SIZE_DQO);
+
+	return (GVE_DEFAULT_RX_BUFFER_SIZE);
+}
+
+static int
 gve_set_mtu(if_t ifp, uint32_t new_mtu)
 {
 	struct gve_priv *priv = if_getsoftc(ifp);
 	const uint32_t max_problem_range = 8227;
 	const uint32_t min_problem_range = 7822;
+	uint16_t new_rx_buf_size = gve_get_dqo_rx_buf_size(priv, new_mtu);
 	int err;
 
 	if ((new_mtu > priv->max_mtu) || (new_mtu < ETHERMIN)) {
@@ -402,9 +417,10 @@ gve_set_mtu(if_t ifp, uint32_t new_mtu)
 	 * in throughput.
 	 */
 	if (!gve_is_gqi(priv) && !gve_disable_hw_lro &&
-	    new_mtu >= min_problem_range && new_mtu <= max_problem_range) {
+	    new_mtu >= min_problem_range && new_mtu <= max_problem_range &&
+	    new_rx_buf_size != GVE_4K_RX_BUFFER_SIZE_DQO) {
 		device_printf(priv->dev,
-		    "Cannot set to MTU to %d within the range [%d, %d] while hardware LRO is enabled\n",
+		    "Cannot set to MTU to %d within the range [%d, %d] while HW LRO is enabled and not using 4k RX Buffers\n",
 		    new_mtu, min_problem_range, max_problem_range);
 		return (EINVAL);
 	}
@@ -414,6 +430,13 @@ gve_set_mtu(if_t ifp, uint32_t new_mtu)
 		if (bootverbose)
 			device_printf(priv->dev, "MTU set to %d\n", new_mtu);
 		if_setmtu(ifp, new_mtu);
+		/* Need to re-alloc RX queues if RX buffer size changed */
+		if (!gve_is_gqi(priv) &&
+		    new_rx_buf_size != priv->rx_buf_size_dqo) {
+			gve_free_rx_rings(priv, 0, priv->rx_cfg.num_queues);
+			priv->rx_buf_size_dqo = new_rx_buf_size;
+			gve_alloc_rx_rings(priv, 0, priv->rx_cfg.num_queues);
+		}
 	} else {
 		device_printf(priv->dev, "Failed to set MTU to %d\n", new_mtu);
 	}
@@ -1064,6 +1087,7 @@ gve_attach(device_t dev)
 	if (err != 0)
 		goto abort;
 
+	priv->rx_buf_size_dqo = gve_get_dqo_rx_buf_size(priv, priv->max_mtu);
 	err = gve_alloc_rings(priv);
 	if (err != 0)
 		goto abort;

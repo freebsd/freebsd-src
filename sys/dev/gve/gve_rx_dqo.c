@@ -140,15 +140,17 @@ gve_rx_alloc_ring_dqo(struct gve_priv *priv, int i)
 		return (0);
 	}
 
+	bus_size_t max_seg_size = gve_rx_dqo_mbuf_segment_size(priv);
+
 	err = bus_dma_tag_create(
 	    bus_get_dma_tag(priv->dev),	/* parent */
 	    1, 0,			/* alignment, bounds */
 	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    MCLBYTES,			/* maxsize */
+	    max_seg_size,		/* maxsize */
 	    1,				/* nsegments */
-	    MCLBYTES,			/* maxsegsize */
+	    max_seg_size,		/* maxsegsize */
 	    0,				/* flags */
 	    NULL,			/* lockfunc */
 	    NULL,			/* lockarg */
@@ -317,7 +319,8 @@ gve_rx_post_new_mbuf_dqo(struct gve_rx_ring *rx, int how)
 	}
 	SLIST_REMOVE_HEAD(&rx->dqo.free_bufs, slist_entry);
 
-	buf->mbuf = m_getcl(how, MT_DATA, M_PKTHDR);
+	bus_size_t segment_size = gve_rx_dqo_mbuf_segment_size(rx->com.priv);
+	buf->mbuf = m_getjcl(how, MT_DATA, M_PKTHDR, segment_size);
 	if (__predict_false(!buf->mbuf)) {
 		err = ENOMEM;
 		counter_enter();
@@ -325,7 +328,7 @@ gve_rx_post_new_mbuf_dqo(struct gve_rx_ring *rx, int how)
 		counter_exit();
 		goto abort_with_buf;
 	}
-	buf->mbuf->m_len = MCLBYTES;
+	buf->mbuf->m_len = segment_size;
 
 	err = bus_dmamap_load_mbuf_sg(rx->dqo.buf_dmatag, buf->dmamap,
 	    buf->mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
@@ -371,7 +374,7 @@ gve_rx_post_qpl_buf_dqo(struct gve_rx_ring *rx, struct gve_rx_buf_dqo *buf,
 	bus_dmamap_sync(page_dma_handle->tag, page_dma_handle->map,
 	    BUS_DMASYNC_PREREAD);
 	desc->buf_addr = htole64(page_dma_handle->bus_addr +
-	    frag_num * GVE_DEFAULT_RX_BUFFER_SIZE);
+	    frag_num * rx->com.priv->rx_buf_size_dqo);
 
 	buf->num_nic_frags++;
 	gve_rx_advance_head_dqo(rx);
@@ -430,7 +433,7 @@ gve_rx_post_new_dqo_qpl_buf(struct gve_rx_ring *rx)
 	}
 
 	gve_rx_post_qpl_buf_dqo(rx, buf, buf->next_idx);
-	if (buf->next_idx == GVE_DQ_NUM_FRAGS_IN_PAGE - 1)
+	if (buf->next_idx == gve_get_dq_num_frags_in_page(rx->com.priv) - 1)
 		buf->next_idx = 0;
 	else
 		buf->next_idx++;
@@ -742,7 +745,7 @@ gve_get_cpu_addr_for_qpl_buf(struct gve_rx_ring *rx,
 	int page_idx = buf - rx->dqo.bufs;
 	void *va = rx->com.qpl->dmas[page_idx].cpu_addr;
 
-	va = (char *)va + (buf_frag_num * GVE_DEFAULT_RX_BUFFER_SIZE);
+	va = (char *)va + (buf_frag_num * rx->com.priv->rx_buf_size_dqo);
 	return (va);
 }
 
@@ -753,15 +756,16 @@ gve_rx_add_clmbuf_to_ctx(struct gve_rx_ring *rx,
 {
 	void *va = gve_get_cpu_addr_for_qpl_buf(rx, buf, buf_frag_num);
 	struct mbuf *mbuf;
+	bus_size_t segment_size = gve_rx_dqo_mbuf_segment_size(rx->com.priv);
 
 	if (ctx->mbuf_tail == NULL) {
-		mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, segment_size);
 		if (mbuf == NULL)
 			return (ENOMEM);
 		ctx->mbuf_head = mbuf;
 		ctx->mbuf_tail = mbuf;
 	} else {
-		mbuf = m_getcl(M_NOWAIT, MT_DATA, 0);
+		mbuf = m_getjcl(M_NOWAIT, MT_DATA, 0, segment_size);
 		if (mbuf == NULL)
 			return (ENOMEM);
 		ctx->mbuf_tail->m_next = mbuf;
@@ -809,7 +813,7 @@ gve_rx_add_extmbuf_to_ctx(struct gve_rx_ring *rx,
 	page_idx = buf - rx->dqo.bufs;
 	page = rx->com.qpl->pages[page_idx];
 	page_addr = rx->com.qpl->dmas[page_idx].cpu_addr;
-	va = (char *)page_addr + (buf_frag_num * GVE_DEFAULT_RX_BUFFER_SIZE);
+	va = (char *)page_addr + (buf_frag_num * rx->com.priv->rx_buf_size_dqo);
 
 	/*
 	 * Grab an extra ref to the page so that gve_mextadd_free
@@ -855,7 +859,7 @@ gve_rx_dqo_qpl(struct gve_priv *priv, struct gve_rx_ring *rx,
 	}
 	buf = &rx->dqo.bufs[buf_id];
 	if (__predict_false(buf->num_nic_frags == 0 ||
-	    buf_frag_num > GVE_DQ_NUM_FRAGS_IN_PAGE - 1)) {
+	    buf_frag_num > gve_get_dq_num_frags_in_page(priv) - 1)) {
 		device_printf(priv->dev, "Spurious compl for buf id %d on rxq %d "
 		    "with buf_frag_num %d and num_nic_frags %d, issuing reset\n",
 		    buf_id, rx->com.id, buf_frag_num, buf->num_nic_frags);

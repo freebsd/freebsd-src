@@ -230,6 +230,14 @@ The default value is 0, which means hardware LRO is enabled by default.
 The software LRO stack in the kernel is always used.
 This sysctl variable needs to be set before loading the driver, using
 .Xr loader.conf 5 .
+.It Va hw.gve.allow_4k_rx_buffers
+Setting this boot-time tunable to 1 enables support for 4K RX Buffers.
+The default value is 0, which means 2K RX Buffers will be used.
+4K RX Buffers are only supported on DQO_RDA and DQO_QPL queue formats.
+When enabled, 4K RX Buffers will be used either when HW LRO is enabled
+or mtu is greated than 2048.
+This sysctl variable needs to be set before loading the driver, using
+.Xr loader.conf 5 .
 .It Va dev.gve.X.num_rx_queues and dev.gve.X.num_tx_queues
 Run-time tunables that represent the number of currently used RX/TX queues.
 The default value is the max number of RX/TX queues the device can support.

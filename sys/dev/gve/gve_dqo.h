@@ -59,8 +59,6 @@
  */
 #define GVE_RX_DQO_MIN_PENDING_BUFS 128
 
-#define GVE_DQ_NUM_FRAGS_IN_PAGE (PAGE_SIZE / GVE_DEFAULT_RX_BUFFER_SIZE)
-
 /*
  * gve_rx_qpl_buf_id_dqo's 11 bit wide buf_id field limits the total
  * number of pages per QPL to 2048.
@@ -330,4 +328,10 @@ struct gve_rx_compl_desc_dqo {
 
 _Static_assert(sizeof(struct gve_rx_compl_desc_dqo) == 32,
     "gve: bad dqo desc struct length");
+
+static inline uint8_t
+gve_get_dq_num_frags_in_page(struct gve_priv *priv)
+{
+	return (PAGE_SIZE / priv->rx_buf_size_dqo);
+}
 #endif /* _GVE_DESC_DQO_H_ */
