@@ -1385,7 +1385,7 @@ dropwithreset:
 	    ((V_blackhole == 1 && (thflags & TH_SYN)) || V_blackhole > 1))) &&
 	    (V_blackhole_local || (
 #ifdef INET6
-	    isipv6 ? !in6_localaddr(&ip6->ip6_src) :
+	    isipv6 ? !in6_localip(&ip6->ip6_src) :
 #endif
 #ifdef INET
 	    !in_localip(ip->ip_src)
