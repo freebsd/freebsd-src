@@ -545,7 +545,6 @@ ng_iface_constructor(node_p node)
 	ifp->if_ioctl = ng_iface_ioctl;
 	ifp->if_mtu = NG_IFACE_MTU_DEFAULT;
 	ifp->if_flags = (IFF_SIMPLEX|IFF_POINTOPOINT|IFF_NOARP|IFF_MULTICAST);
-	ifp->if_type = IFT_PROPVIRTUAL;		/* XXX */
 	ifp->if_addrlen = 0;			/* XXX */
 	ifp->if_hdrlen = 0;			/* XXX */
 	ifp->if_baudrate = 64000;		/* XXX */

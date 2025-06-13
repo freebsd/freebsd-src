@@ -75,7 +75,7 @@
 
 #include <cam/scsi/scsi_all.h>
 
-#include <machine/stdarg.h>	/* for use by mpt_prt below */
+#include <sys/stdarg.h>	/* for use by mpt_prt below */
 
 struct Error_Map {
 	int 	 Error_Code;

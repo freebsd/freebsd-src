@@ -52,10 +52,10 @@
 #include <sys/fcntl.h>
 #include <sys/limits.h>
 #include <sys/selinfo.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
-#include <machine/stdarg.h>
 
 struct g_dev_softc {
 	struct mtx	 sc_mtx;

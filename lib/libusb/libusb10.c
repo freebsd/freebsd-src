@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2009 Sylvestre Gallon. All rights reserved.
  * Copyright (c) 2009-2023 Hans Petter Selasky
+ * Copyright (c) 2024 Aymeric Wibo
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -311,9 +312,9 @@ ssize_t
 libusb_get_device_list(libusb_context *ctx, libusb_device ***list)
 {
 	struct libusb20_backend *usb_backend;
-	struct libusb20_device *pdev;
+	struct libusb20_device *pdev, *parent_dev;
 	struct libusb_device *dev;
-	int i;
+	int i, j, k;
 
 	ctx = GET_CONTEXT(ctx);
 
@@ -365,6 +366,9 @@ libusb_get_device_list(libusb_context *ctx, libusb_device ***list)
 		/* set context we belong to */
 		dev->ctx = ctx;
 
+		/* assume we have no parent by default */
+		dev->parent_dev = NULL;
+
 		/* link together the two structures */
 		dev->os_priv = pdev;
 		pdev->privLuData = dev;
@@ -373,6 +377,25 @@ libusb_get_device_list(libusb_context *ctx, libusb_device ***list)
 		i++;
 	}
 	(*list)[i] = NULL;
+
+	/* for each device, find its parent */
+	for (j = 0; j < i; j++) {
+		pdev = (*list)[j]->os_priv;
+
+		for (k = 0; k < i; k++) {
+			if (k == j)
+				continue;
+
+			parent_dev = (*list)[k]->os_priv;
+
+			if (parent_dev->bus_number != pdev->bus_number)
+				continue;
+			if (parent_dev->device_address == pdev->parent_address) {
+				(*list)[j]->parent_dev = libusb_ref_device((*list)[k]);
+				break;
+			}
+		}
+	}
 
 	libusb20_be_free(usb_backend);
 	return (i);
@@ -540,6 +563,7 @@ libusb_unref_device(libusb_device *dev)
 	CTX_UNLOCK(dev->ctx);
 
 	if (dev->refcnt == 0) {
+		libusb_unref_device(dev->parent_dev);
 		libusb20_dev_free(dev->os_priv);
 		free(dev);
 	}
@@ -814,6 +838,12 @@ libusb_set_interface_alt_setting(struct libusb20_device *pdev,
 	    POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM);
 
 	return (err ? LIBUSB_ERROR_OTHER : 0);
+}
+
+libusb_device *
+libusb_get_parent(libusb_device *dev)
+{
+	return (dev->parent_dev);
 }
 
 static struct libusb20_transfer *

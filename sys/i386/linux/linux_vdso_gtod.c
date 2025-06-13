@@ -28,6 +28,7 @@
 #include <sys/elf.h>
 #include <sys/errno.h>
 #include <sys/proc.h>
+#include <sys/stdarg.h>
 #include <sys/stddef.h>
 #define	_KERNEL
 #include <sys/vdso.h>
@@ -36,7 +37,6 @@
 
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
-#include <machine/stdarg.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_syscall.h>

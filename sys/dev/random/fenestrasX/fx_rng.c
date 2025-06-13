@@ -34,11 +34,11 @@
 #include <sys/mutex.h>
 #include <sys/random.h>
 #include <sys/sdt.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <machine/cpu.h>
-#include <machine/stdarg.h>
 
 #define CHACHA_EMBED
 #define KEYSTREAM_ONLY

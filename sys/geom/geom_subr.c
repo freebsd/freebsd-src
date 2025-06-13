@@ -51,10 +51,10 @@
 #include <sys/errno.h>
 #include <sys/sbuf.h>
 #include <sys/sdt.h>
+#include <sys/stdarg.h>
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
 #include <geom/geom_int.h>
-#include <machine/stdarg.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>

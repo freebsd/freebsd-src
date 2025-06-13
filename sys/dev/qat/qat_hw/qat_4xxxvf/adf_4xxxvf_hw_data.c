@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include <adf_accel_devices.h>
 #include <adf_cfg.h>
 #include <adf_common_drv.h>
@@ -133,45 +133,74 @@ adf_4xxxvf_get_hw_cap(struct adf_accel_dev *accel_dev)
 {
 	device_t pdev = accel_dev->accel_pci_dev.pci_dev;
 	u32 vffusectl1;
-	u32 capabilities;
-
-	capabilities = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC +
-	    ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC +
-	    ICP_ACCEL_CAPABILITIES_CIPHER +
-	    ICP_ACCEL_CAPABILITIES_AUTHENTICATION +
-	    ICP_ACCEL_CAPABILITIES_COMPRESSION +
-	    ICP_ACCEL_CAPABILITIES_SHA3_EXT + ICP_ACCEL_CAPABILITIES_SM2 +
-	    ICP_ACCEL_CAPABILITIES_SM3 + ICP_ACCEL_CAPABILITIES_SM4 +
-	    ICP_ACCEL_CAPABILITIES_CHACHA_POLY +
-	    ICP_ACCEL_CAPABILITIES_AESGCM_SPC +
-	    ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64 +
-	    ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION +
-	    ICP_ACCEL_CAPABILITIES_LZ4S_COMPRESSION;
+	u32 capabilities_sym, capabilities_sym_cipher, capabilities_sym_auth,
+	    capabilities_asym, capabilities_dc;
 
 	/* Get fused capabilities */
 	vffusectl1 = pci_read_config(pdev, ADF_4XXXIOV_VFFUSECTL1_OFFSET, 4);
 
-	if (vffusectl1 & BIT(7)) {
-		capabilities &=
-		    ~(ICP_ACCEL_CAPABILITIES_SM3 + ICP_ACCEL_CAPABILITIES_SM4);
+	capabilities_sym_cipher = ICP_ACCEL_CAPABILITIES_HKDF |
+	    ICP_ACCEL_CAPABILITIES_SM4 | ICP_ACCEL_CAPABILITIES_CHACHA_POLY |
+	    ICP_ACCEL_CAPABILITIES_AESGCM_SPC | ICP_ACCEL_CAPABILITIES_AES_V2;
+	capabilities_sym_auth = ICP_ACCEL_CAPABILITIES_SM3 |
+	    ICP_ACCEL_CAPABILITIES_SHA3 | ICP_ACCEL_CAPABILITIES_SHA3_EXT;
+
+	/* A set bit in vffusectl1 means the feature is OFF in this SKU */
+	if (vffusectl1 & ICP_ACCEL_4XXXVF_MASK_CIPHER_SLICE) {
+		capabilities_sym_cipher &= ~ICP_ACCEL_CAPABILITIES_HKDF;
+		capabilities_sym_cipher &= ~ICP_ACCEL_CAPABILITIES_SM4;
 	}
-	if (vffusectl1 & BIT(6)) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_SM3;
+
+	if (vffusectl1 & ICP_ACCEL_4XXXVF_MASK_UCS_SLICE) {
+		capabilities_sym_cipher &= ~ICP_ACCEL_CAPABILITIES_CHACHA_POLY;
+		capabilities_sym_cipher &= ~ICP_ACCEL_CAPABILITIES_AESGCM_SPC;
+		capabilities_sym_cipher &= ~ICP_ACCEL_CAPABILITIES_AES_V2;
 	}
-	if (vffusectl1 & BIT(3)) {
-		capabilities &= ~(ICP_ACCEL_CAPABILITIES_COMPRESSION +
-				  ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64);
+
+	if (vffusectl1 & ICP_ACCEL_4XXXVF_MASK_AUTH_SLICE) {
+		capabilities_sym_auth &= ~ICP_ACCEL_CAPABILITIES_SM3;
+		capabilities_sym_auth &= ~ICP_ACCEL_CAPABILITIES_SHA3;
+		capabilities_sym_auth &= ~ICP_ACCEL_CAPABILITIES_SHA3_EXT;
 	}
-	if (vffusectl1 & BIT(2)) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+
+	if (vffusectl1 & ICP_ACCEL_4XXXVF_MASK_SMX_SLICE) {
+		capabilities_sym_cipher &= ~ICP_ACCEL_CAPABILITIES_SM4;
+		capabilities_sym_auth &= ~ICP_ACCEL_CAPABILITIES_SM3;
 	}
-	if (vffusectl1 & BIT(1)) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
+
+	if (capabilities_sym_cipher)
+		capabilities_sym_cipher |= ICP_ACCEL_CAPABILITIES_CIPHER;
+
+	if (capabilities_sym_auth)
+		capabilities_sym_auth |= ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
+
+	capabilities_sym = capabilities_sym_cipher | capabilities_sym_auth;
+
+	if (capabilities_sym)
+		capabilities_sym |= ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
+
+	capabilities_asym = ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
+	    ICP_ACCEL_CAPABILITIES_SM2 | ICP_ACCEL_CAPABILITIES_ECEDMONT;
+
+	if (vffusectl1 & ICP_ACCEL_4XXXVF_MASK_PKE_SLICE) {
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_SM2;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
 	}
-	if (vffusectl1 & BIT(0)) {
-		capabilities &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+
+	capabilities_dc = ICP_ACCEL_CAPABILITIES_COMPRESSION |
+	    ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION |
+	    ICP_ACCEL_CAPABILITIES_LZ4S_COMPRESSION |
+	    ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64;
+
+	if (vffusectl1 & ICP_ACCEL_4XXXVF_MASK_COMPRESS_SLICE) {
+		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_COMPRESSION;
+		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION;
+		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_LZ4S_COMPRESSION;
+		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64;
 	}
-	return capabilities;
+
+	return capabilities_sym | capabilities_dc | capabilities_asym;
 }
 
 static void
@@ -264,6 +293,9 @@ get_ring_to_svc_map(struct adf_accel_dev *accel_dev, u16 *ring_to_svc_map)
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	char val[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	u32 i = 0;
+
+	if (accel_dev->hw_device->get_ring_to_svc_done)
+		return 0;
 
 	/* Get the services enabled by user if provided.
 	 * The function itself will also be called during the driver probe

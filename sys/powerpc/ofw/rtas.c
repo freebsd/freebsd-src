@@ -34,6 +34,7 @@
 #include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/stdarg.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -43,7 +44,6 @@
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/rtas.h>
-#include <machine/stdarg.h>
 
 #include <dev/ofw/openfirm.h>
 

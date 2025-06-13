@@ -43,10 +43,10 @@
 #include <sys/pciio.h>
 #include <sys/queue.h>
 #include <sys/rman.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
-#include <machine/stdarg.h>
 
 #include <sys/nv.h>
 #include <sys/iov_schema.h>

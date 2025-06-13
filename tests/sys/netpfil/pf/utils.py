@@ -28,14 +28,19 @@ import threading
 import time
 
 class DelayedSend(threading.Thread):
-    def __init__(self, packet):
+    def __init__(self, packet, sendif=None):
         threading.Thread.__init__(self)
         self._packet = packet
+        self._sendif = sendif
 
         self.start()
 
     def run(self):
         import scapy.all as sp
         time.sleep(1)
-        sp.send(self._packet)
+
+        if self._sendif:
+            sp.sendp(self._packet, iface=self._sendif)
+        else:
+            sp.send(self._packet)
 

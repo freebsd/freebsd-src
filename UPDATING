@@ -32,6 +32,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	Bump _FreeBSD_version to 1500045 to be able to detect this change.
 
 20250527:
+	pf changed extension header handling. It now treats AH headers on IPv4 just
+	like AH headers on IPv6 and skips over them, allowing filtering on the inner
+	protocol.
+
+20250527:
+	pf now blocks IPv6 packets with a hop-by-hop or destination options header by
+	default. Such packets can be passed by adding "allow-opts" to the rule. IPv6
+	options are now handled just like their IPv4 counterparts.
+
+20250527:
 	The CAM target layer userland, i.e. ctld(8), ctladm(8) and ctlstat(8),
 	has moved to the new FreeBSD-ctl package.  If you use pkgbase and you
 	need the CAM Target Layer, you should install the new package.

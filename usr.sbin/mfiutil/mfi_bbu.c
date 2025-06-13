@@ -50,10 +50,23 @@ mfi_autolearn_period(uint32_t period, char *buf, size_t sz)
 
 	tmp = buf;
 	if (d != 0) {
-		tmp += snprintf(buf, sz, "%u day%s", d, d == 1 ? "" : "s");
+		int fmt_len;
+		fmt_len = snprintf(buf, sz, "%u day%s", d, d == 1 ? "" : "s");
+		if (fmt_len < 0) {
+			*buf = 0;
+			return;
+		}
+		if ((size_t)fmt_len >= sz) {
+			return;
+		}
+		tmp += fmt_len;
 		sz -= tmp - buf;
 		if (h != 0) {
-			tmp += snprintf(tmp, sz, ", ");
+			fmt_len = snprintf(tmp, sz, ", ");
+			if (fmt_len < 0 || (size_t)fmt_len >= sz) {
+				return;
+			}
+			tmp += fmt_len;
 			sz -= 2;
 		}
 	}

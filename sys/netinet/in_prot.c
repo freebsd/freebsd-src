@@ -26,21 +26,17 @@
  */
 
 /*
- * System calls related to processes and protection
+ * Helpers related to visibility and protection of sockets and inpcb.
  */
 
-#include <sys/cdefs.h>
-#include "opt_inet.h"
-#include "opt_inet6.h"
-
-#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
-#include <sys/jail.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -71,4 +67,17 @@ cr_canseeinpcb(struct ucred *cred, struct inpcb *inp)
 		return (ENOENT);
 
 	return (0);
+}
+
+bool
+cr_canexport_ktlskeys(struct thread *td, struct inpcb *inp)
+{
+	int error;
+
+	if (cr_canseeinpcb(td->td_ucred, inp) == 0 &&
+	    cr_xids_subset(td->td_ucred, inp->inp_cred))
+		return (true);
+	error = priv_check(td, PRIV_NETINET_KTLSKEYS);
+	return (error == 0);
+
 }

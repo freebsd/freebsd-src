@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
-
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -85,7 +84,7 @@ static struct cdevsw adf_state_cdevsw = {
 	.d_name = ADF_DEV_STATE_NAME,
 };
 
-static const struct filterops adf_state_read_filterops = {
+static struct filterops adf_state_read_filterops = {
 	.f_isfd = 1,
 	.f_attach = NULL,
 	.f_detach = adf_state_kqread_detach,
@@ -410,17 +409,6 @@ adf_state_set(int dev, enum adf_event event)
 		state->state.dev_state = event;
 		state->state.dev_id = dev;
 		STAILQ_INSERT_TAIL(head, state, entries_state);
-		if (event == ADF_EVENT_STOP) {
-			state = NULL;
-			state = malloc(sizeof(struct entry_state),
-				       M_QAT,
-				       M_NOWAIT | M_ZERO);
-			if (!state)
-				continue;
-			state->state.dev_state = ADF_EVENT_SHUTDOWN;
-			state->state.dev_id = dev;
-			STAILQ_INSERT_TAIL(head, state, entries_state);
-		}
 	}
 	mtx_unlock(&mtx);
 	callout_schedule(&callout, ADF_STATE_CALLOUT_TIME);
@@ -451,7 +439,7 @@ adf_state_event_handler(struct adf_accel_dev *accel_dev, enum adf_event event)
 	case ADF_EVENT_START:
 		return ret;
 	case ADF_EVENT_STOP:
-		break;
+		return ret;
 	case ADF_EVENT_ERROR:
 		break;
 #if defined(QAT_UIO) && defined(QAT_DBG)
@@ -548,6 +536,7 @@ adf_state_destroy(void)
 	struct entry_proc_events *proc_events = NULL;
 
 	adf_service_unregister(&adf_state_hndl);
+	destroy_dev(adf_state_dev);
 	mtx_lock(&callout_mtx);
 	callout_stop(&callout);
 	mtx_unlock(&callout_mtx);
@@ -560,7 +549,6 @@ adf_state_destroy(void)
 	}
 	mtx_unlock(&mtx);
 	mtx_destroy(&mtx);
-	destroy_dev(adf_state_dev);
 }
 
 static int

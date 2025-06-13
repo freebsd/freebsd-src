@@ -114,8 +114,6 @@ struct vm_domain vm_dom[MAXMEMDOM];
 
 DPCPU_DEFINE_STATIC(struct vm_batchqueue, pqbatch[MAXMEMDOM][PQ_COUNT]);
 
-struct mtx_padalign __exclusive_cache_line pa_lock[PA_LOCK_COUNT];
-
 struct mtx_padalign __exclusive_cache_line vm_domainset_lock;
 /* The following fields are protected by the domainset lock. */
 domainset_t __exclusive_cache_line vm_min_domains;
@@ -341,7 +339,7 @@ vm_page_blacklist_add(vm_paddr_t pa, bool verbose)
 	vm_domain_free_unlock(vmd);
 	if (found) {
 		vm_domain_freecnt_inc(vmd, -1);
-		TAILQ_INSERT_TAIL(&blacklist_head, m, listq);
+		TAILQ_INSERT_TAIL(&blacklist_head, m, plinks.q);
 		if (verbose)
 			printf("Skipping page with pa 0x%jx\n", (uintmax_t)pa);
 	}
@@ -411,7 +409,7 @@ sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
-	TAILQ_FOREACH(m, &blacklist_head, listq) {
+	TAILQ_FOREACH(m, &blacklist_head, plinks.q) {
 		sbuf_printf(&sbuf, "%s%#jx", first ? "" : ",",
 		    (uintmax_t)m->phys_addr);
 		first = 0;
@@ -586,8 +584,6 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Initialize the page and queue locks.
 	 */
 	mtx_init(&vm_domainset_lock, "vm domainset lock", NULL, MTX_DEF);
-	for (i = 0; i < PA_LOCK_COUNT; i++)
-		mtx_init(&pa_lock[i], "vm page", NULL, MTX_DEF);
 	for (i = 0; i < vm_ndomains; i++)
 		vm_page_domain_init(i);
 
@@ -2470,6 +2466,13 @@ again:
 	}
 
 found:
+	/*
+	 * If the page comes from the free page cache, then it might still
+	 * have a pending deferred dequeue.  Specifically, when the page is
+	 * imported from a different pool by vm_phys_alloc_npages(), the
+	 * second, third, etc. pages in a non-zero order set could have
+	 * pending deferred dequeues.
+	 */
 	vm_page_dequeue(m);
 	vm_page_alloc_check(m);
 
@@ -2536,17 +2539,18 @@ vm_page_alloc_nofree_domain(int domain, int req)
 			return (NULL);
 		}
 		m->ref_count = count - 1;
-		TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m, listq);
+		TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m, plinks.q);
 		VM_CNT_ADD(v_nofree_count, count);
 	}
 	m = TAILQ_FIRST(&vmd->vmd_nofreeq);
-	TAILQ_REMOVE(&vmd->vmd_nofreeq, m, listq);
+	TAILQ_REMOVE(&vmd->vmd_nofreeq, m, plinks.q);
 	if (m->ref_count > 0) {
 		vm_page_t m_next;
 
 		m_next = &m[1];
+		vm_page_dequeue(m_next);
 		m_next->ref_count = m->ref_count - 1;
-		TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m_next, listq);
+		TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m_next, plinks.q);
 		m->ref_count = 0;
 	}
 	vm_domain_free_unlock(vmd);
@@ -2566,7 +2570,7 @@ vm_page_free_nofree(struct vm_domain *vmd, vm_page_t m)
 {
 	vm_domain_free_lock(vmd);
 	MPASS(m->ref_count == 0);
-	TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m, listq);
+	TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m, plinks.q);
 	vm_domain_free_unlock(vmd);
 	VM_CNT_ADD(v_nofree_count, 1);
 }
@@ -3971,7 +3975,7 @@ vm_page_dequeue(vm_page_t m)
 
 	old = vm_page_astate_load(m);
 	do {
-		if (old.queue == PQ_NONE) {
+		if (__predict_true(old.queue == PQ_NONE)) {
 			KASSERT((old.flags & PGA_QUEUE_STATE_MASK) == 0,
 			    ("%s: page %p has unexpected queue state",
 			    __func__, m));
@@ -5800,43 +5804,6 @@ vm_page_valid(vm_page_t m)
 	else
 		vm_page_bits_set(m, &m->valid, VM_PAGE_BITS_ALL);
 }
-
-void
-vm_page_lock_KBI(vm_page_t m, const char *file, int line)
-{
-
-	mtx_lock_flags_(vm_page_lockptr(m), 0, file, line);
-}
-
-void
-vm_page_unlock_KBI(vm_page_t m, const char *file, int line)
-{
-
-	mtx_unlock_flags_(vm_page_lockptr(m), 0, file, line);
-}
-
-int
-vm_page_trylock_KBI(vm_page_t m, const char *file, int line)
-{
-
-	return (mtx_trylock_flags_(vm_page_lockptr(m), 0, file, line));
-}
-
-#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-void
-vm_page_assert_locked_KBI(vm_page_t m, const char *file, int line)
-{
-
-	vm_page_lock_assert_KBI(m, MA_OWNED, file, line);
-}
-
-void
-vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line)
-{
-
-	mtx_assert_(vm_page_lockptr(m), a, file, line);
-}
-#endif
 
 #ifdef INVARIANTS
 void

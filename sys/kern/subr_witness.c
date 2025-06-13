@@ -105,6 +105,7 @@
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/stack.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
@@ -112,8 +113,6 @@
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
-
-#include <machine/stdarg.h>
 
 #if !defined(DDB) && !defined(STACK)
 #error "DDB or STACK options are required for WITNESS"

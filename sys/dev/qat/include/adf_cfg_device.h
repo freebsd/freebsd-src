@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #ifndef ADF_CFG_DEVICE_H_
 #define ADF_CFG_DEVICE_H_
 
@@ -78,5 +78,7 @@ int adf_cfg_device_init(struct adf_cfg_device *device,
 
 void adf_cfg_device_clear(struct adf_cfg_device *device,
 			  struct adf_accel_dev *accel_dev);
+
+void adf_cfg_device_clear_all(struct adf_accel_dev *accel_dev);
 
 #endif

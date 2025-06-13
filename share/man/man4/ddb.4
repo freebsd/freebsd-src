@@ -24,7 +24,7 @@
 .\" any improvements or extensions that they make and grant Carnegie Mellon
 .\" the rights to redistribute these changes.
 .\"
-.Dd May 28, 2025
+.Dd June 10, 2025
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -604,9 +604,12 @@ The
 modifier will print command line arguments for each process.
 .\"
 .Pp
-.It Ic show Cm all tcpcbs Ns Op Li / Ns Cm l
+.It Ic show Cm all tcpcbs Ns Op Li / Ns Cm b Ns Cm l
 Show the same output as "show tcpcb" does, but for all
 TCP control blocks within the system.
+The
+.Cm b
+modifier will request BBLog entries to be printed.
 Using the
 .Cm l
 modifier will limit the output to TCP control blocks, which are locked.
@@ -1103,7 +1106,7 @@ on i386.)
 Not present on some platforms.
 .\"
 .Pp
-.It Ic show Cm tcpcb Ar addr
+.It Ic show Cm tcpcb Ns Oo Li / Ns Cm b Oc Ar addr
 Print TCP control block
 .Vt struct tcpcb
 lying at address
@@ -1111,6 +1114,9 @@ lying at address
 For exact interpretation of output, visit
 .Pa netinet/tcp.h
 header file.
+The
+.Cm b
+modifier will request BBLog entries to be printed.
 .\"
 .Pp
 .It Ic show Cm thread Op Ar addr | tid

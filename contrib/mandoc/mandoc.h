@@ -1,6 +1,6 @@
-/* $Id: mandoc.h,v 1.282 2023/10/21 17:10:17 schwarze Exp $ */
+/* $Id: mandoc.h,v 1.283 2025/01/05 18:14:39 schwarze Exp $ */
 /*
- * Copyright (c) 2012-2022 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2012-2022, 2025 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2010, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -193,6 +193,7 @@ enum	mandocerr {
 	MANDOCERR_TBLLAYOUT_NONE, /* empty tbl layout */
 	MANDOCERR_TBLLAYOUT_CHAR, /* invalid character in tbl layout: char */
 	MANDOCERR_TBLLAYOUT_PAR, /* unmatched parenthesis in tbl layout */
+	MANDOCERR_TBLLAYOUT_WIDTH, /* invalid column width in tbl layout */
 	MANDOCERR_TBLLAYOUT_SPC, /* ignoring excessive spacing in tbl layout */
 	MANDOCERR_TBLDATA_NONE, /* tbl without any data cells */
 	MANDOCERR_TBLDATA_SPAN, /* ignoring data in spanned tbl cell: data */

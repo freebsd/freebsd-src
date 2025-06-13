@@ -114,6 +114,8 @@
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_crc32.h>
 
+#include <netipsec/ah.h>
+
 #include <machine/in_cksum.h>
 #include <security/mac/mac_framework.h>
 
@@ -177,6 +179,8 @@ VNET_DEFINE(u_int32_t,			 ticket_altqs_active);
 VNET_DEFINE(u_int32_t,			 ticket_altqs_inactive);
 VNET_DEFINE(int,			 altqs_inactive_open);
 VNET_DEFINE(u_int32_t,			 ticket_pabuf);
+
+static const int			 PF_HDR_LIMIT = 20;	/* arbitrary limit */
 
 VNET_DEFINE(SHA512_CTX,			 pf_tcp_secret_ctx);
 #define	V_pf_tcp_secret_ctx		 VNET(pf_tcp_secret_ctx)
@@ -372,10 +376,13 @@ static u_int16_t	 pf_calc_mss(struct pf_addr *, sa_family_t,
 				int, u_int16_t);
 static int		 pf_check_proto_cksum(struct mbuf *, int, int,
 			    u_int8_t, sa_family_t);
+static int		 pf_walk_header(struct pf_pdesc *, struct ip *, u_short *);
+#ifdef INET6
 static int		 pf_walk_option6(struct pf_pdesc *, struct ip6_hdr *,
 			    int, int, u_short *);
 static int		 pf_walk_header6(struct pf_pdesc *, struct ip6_hdr *,
 			    u_short *);
+#endif
 static void		 pf_print_state_parts(struct pf_kstate *,
 			    struct pf_state_key *, struct pf_state_key *);
 static int		 pf_patch_8(struct pf_pdesc *, u_int8_t *, u_int8_t,
@@ -7911,9 +7918,10 @@ pf_test_state_icmp(struct pf_kstate **state, struct pf_pdesc *pd,
 			}
 
 			/* offset of protocol header that follows h2 */
-			pd2.off = ipoff2 + (h2.ip_hl << 2);
+			pd2.off = ipoff2;
+			if (pf_walk_header(&pd2, &h2, reason) != PF_PASS)
+				return (PF_DROP);
 
-			pd2.proto = h2.ip_p;
 			pd2.tot_len = ntohs(h2.ip_len);
 			pd2.src = (struct pf_addr *)&h2.ip_src;
 			pd2.dst = (struct pf_addr *)&h2.ip_dst;
@@ -9689,6 +9697,50 @@ pf_dummynet_route(struct pf_pdesc *pd, struct pf_kstate *s,
 	return (0);
 }
 
+static int
+pf_walk_header(struct pf_pdesc *pd, struct ip *h, u_short *reason)
+{
+	struct ah	 ext;
+	u_int32_t	 hlen, end;
+	int		 hdr_cnt;
+
+	hlen = h->ip_hl << 2;
+	if (hlen < sizeof(struct ip) || hlen > ntohs(h->ip_len)) {
+		REASON_SET(reason, PFRES_SHORT);
+		return (PF_DROP);
+	}
+	if (hlen != sizeof(struct ip))
+		pd->badopts++;
+	end = pd->off + ntohs(h->ip_len);
+	pd->off += hlen;
+	pd->proto = h->ip_p;
+	/* stop walking over non initial fragments */
+	if ((h->ip_off & htons(IP_OFFMASK)) != 0)
+		return (PF_PASS);
+	for (hdr_cnt = 0; hdr_cnt < PF_HDR_LIMIT; hdr_cnt++) {
+		switch (pd->proto) {
+		case IPPROTO_AH:
+			/* fragments may be short */
+			if ((h->ip_off & htons(IP_MF | IP_OFFMASK)) != 0 &&
+			    end < pd->off + sizeof(ext))
+				return (PF_PASS);
+			if (!pf_pull_hdr(pd->m, pd->off, &ext, sizeof(ext),
+				NULL, reason, AF_INET)) {
+				DPFPRINTF(PF_DEBUG_MISC, ("IP short exthdr"));
+				return (PF_DROP);
+			}
+			pd->off += (ext.ah_len + 2) * 4;
+			pd->proto = ext.ah_nxt;
+			break;
+		default:
+			return (PF_PASS);
+		}
+	}
+	DPFPRINTF(PF_DEBUG_MISC, ("IPv4 nested authentication header limit"));
+	REASON_SET(reason, PFRES_IPOPTIONS);
+	return (PF_DROP);
+}
+
 #ifdef INET6
 static int
 pf_walk_option6(struct pf_pdesc *pd, struct ip6_hdr *h, int off, int end,
@@ -9759,14 +9811,18 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 	struct ip6_ext		 ext;
 	struct ip6_rthdr	 rthdr;
 	uint32_t		 end;
-	int			 hdr_cnt = 0, fraghdr_cnt = 0, rthdr_cnt = 0;
+	int			 hdr_cnt, fraghdr_cnt = 0, rthdr_cnt = 0;
 
 	pd->off += sizeof(struct ip6_hdr);
 	end = pd->off + ntohs(h->ip6_plen);
 	pd->fragoff = pd->extoff = pd->jumbolen = 0;
 	pd->proto = h->ip6_nxt;
-	for (;;) {
-		hdr_cnt++;
+	for (hdr_cnt = 0; hdr_cnt < PF_HDR_LIMIT; hdr_cnt++) {
+		switch (pd->proto) {
+		case IPPROTO_HOPOPTS:
+		case IPPROTO_DSTOPTS:
+			pd->badopts++;
+		}
 		switch (pd->proto) {
 		case IPPROTO_FRAGMENT:
 			if (fraghdr_cnt++) {
@@ -9821,7 +9877,7 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 			/* FALLTHROUGH */
 		case IPPROTO_HOPOPTS:
 			/* RFC2460 4.1:  Hop-by-Hop only after IPv6 header */
-			if (pd->proto == IPPROTO_HOPOPTS && hdr_cnt > 1) {
+			if (pd->proto == IPPROTO_HOPOPTS && hdr_cnt > 0) {
 				DPFPRINTF(PF_DEBUG_MISC, ("IPv6 hopopts not first"));
 				REASON_SET(reason, PFRES_IPOPTIONS);
 				return (PF_DROP);
@@ -9880,6 +9936,9 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 			return (PF_PASS);
 		}
 	}
+	DPFPRINTF(PF_DEBUG_MISC, ("IPv6 nested extension header limit"));
+	REASON_SET(reason, PFRES_IPOPTIONS);
+	return (PF_DROP);
 }
 #endif /* INET6 */
 
@@ -9936,29 +9995,29 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		*m0 = pd->m;
 
 		h = mtod(pd->m, struct ip *);
-		pd->off = h->ip_hl << 2;
-		if (pd->off < (int)sizeof(*h)) {
+		if (pd->m->m_pkthdr.len < ntohs(h->ip_len)) {
 			*action = PF_DROP;
 			REASON_SET(reason, PFRES_SHORT);
 			return (-1);
 		}
+
+		if (pf_walk_header(pd, h, reason) != PF_PASS) {
+			*action = PF_DROP;
+			return (-1);
+		}
+
 		pd->src = (struct pf_addr *)&h->ip_src;
 		pd->dst = (struct pf_addr *)&h->ip_dst;
 		PF_ACPY(&pd->osrc, pd->src, af);
 		PF_ACPY(&pd->odst, pd->dst, af);
 		pd->ip_sum = &h->ip_sum;
-		pd->virtual_proto = pd->proto = h->ip_p;
 		pd->tos = h->ip_tos & ~IPTOS_ECN_MASK;
 		pd->ttl = h->ip_ttl;
 		pd->tot_len = ntohs(h->ip_len);
 		pd->act.rtableid = -1;
 		pd->df = h->ip_off & htons(IP_DF);
-
-		if (h->ip_hl > 5)	/* has options */
-			pd->badopts++;
-
-		if (h->ip_off & htons(IP_MF | IP_OFFMASK))
-			pd->virtual_proto = PF_VPROTO_FRAGMENT;
+		pd->virtual_proto = (h->ip_off & htons(IP_MF | IP_OFFMASK)) ?
+		    PF_VPROTO_FRAGMENT : pd->proto;
 
 		break;
 	}
@@ -9978,7 +10037,7 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		}
 
 		h = mtod(pd->m, struct ip6_hdr *);
-		pd->off = 0;
+
 		if (pf_walk_header6(pd, h, reason) != PF_PASS) {
 			*action = PF_DROP;
 			return (-1);
@@ -9993,11 +10052,10 @@ pf_setup_pdesc(sa_family_t af, int dir, struct pf_pdesc *pd, struct mbuf **m0,
 		pd->tos = IPV6_DSCP(h);
 		pd->ttl = h->ip6_hlim;
 		pd->tot_len = ntohs(h->ip6_plen) + sizeof(struct ip6_hdr);
-		pd->virtual_proto = pd->proto = h->ip6_nxt;
 		pd->act.rtableid = -1;
 
-		if (pd->fragoff != 0)
-			pd->virtual_proto = PF_VPROTO_FRAGMENT;
+		pd->virtual_proto = (pd->fragoff != 0) ?
+		    PF_VPROTO_FRAGMENT : pd->proto;
 
 		/*
 		 * we do not support jumbogram.  if we keep going, zero ip6_plen

@@ -42,8 +42,8 @@
 #include <sys/kernel.h> /* hz */
 #include <sys/socket.h> /* for net/if.h */
 #include <sys/sockio.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
-#include <machine/stdarg.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <sys/taskqueue.h>

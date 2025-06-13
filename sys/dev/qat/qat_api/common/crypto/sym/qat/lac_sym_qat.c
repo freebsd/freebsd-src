@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  *****************************************************************************
@@ -244,7 +244,7 @@ LacSymQat_UseSymConstantsTable(lac_session_desc_t *pSession,
 	*pCipherOffset = 0;
 	*pHashOffset = 0;
 
-	/* for chaining can we use the optimised content descritor */
+	/* for chaining can we use the optimised content descriptor */
 	if (pSession->laCmdId == ICP_QAT_FW_LA_CMD_CIPHER_HASH ||
 	    pSession->laCmdId == ICP_QAT_FW_LA_CMD_HASH_CIPHER) {
 		useOptimisedContentDesc =
@@ -297,7 +297,7 @@ LacSymQat_UseSymConstantsTable(lac_session_desc_t *pSession,
 		    (pSession->qatHashMode == ICP_QAT_HW_AUTH_MODE1)) {
 			/* we can only use the SHA1-mode1 in the SHRAM constants
 			 * table when
-			 * we are using the opimised content desc */
+			 * we are using the optimised content desc */
 			return CPA_FALSE;
 		}
 

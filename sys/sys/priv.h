@@ -406,6 +406,7 @@
 #define	PRIV_NETINET_SETHDROPTS	505	/* Set certain IPv4/6 header options. */
 #define	PRIV_NETINET_BINDANY	506	/* Allow bind to any address. */
 #define	PRIV_NETINET_HASHKEY	507	/* Get and set hash keys for IPv4/6. */
+#define	PRIV_NETINET_KTLSKEYS	508	/* Read ktls session keys. */
 
 /*
  * Placeholders for IPX/SPX privileges, not supported any more.

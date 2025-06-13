@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -9,7 +9,7 @@
  *
  * @ingroup LacSym
  *
- * Symetric Common consists of common statistics, buffer and partial packet
+ * Symmetric Common consists of common statistics, buffer and partial packet
  * functionality.
  *
  ***************************************************************************/
@@ -123,7 +123,7 @@ void LacSym_StatsFree(CpaInstanceHandle instanceHandle);
 /**
 *******************************************************************************
 * @ingroup LacSymStats
-*      Inrement a stat
+*      Increment a stat
 *
 * @description
 *      This function incrementes a stat for a specific engine.

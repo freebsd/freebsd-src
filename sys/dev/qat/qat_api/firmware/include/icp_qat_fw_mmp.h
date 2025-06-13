@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /* --- (Automatically generated (build v. 2.7), do not modify manually) --- */
-
 
 /**
  * @file icp_qat_fw_mmp.h
@@ -12,9 +11,8 @@
  * @brief
  *      This file documents the external interfaces that the QAT FW running
  *      on the QAT Acceleration Engine provides to clients wanting to
- *      accelerate crypto assymetric applications
+ *      accelerate crypto asymmetric applications
  */
-
 
 #ifndef __ICP_QAT_FW_MMP__
 #define __ICP_QAT_FW_MMP__
@@ -33,12 +31,12 @@
  * Local constants
  **************************************************************************
  */
-#define ICP_QAT_FW_PKE_INPUT_COUNT_MAX      7
+#define ICP_QAT_FW_PKE_INPUT_COUNT_MAX 7
 /**< @ingroup icp_qat_fw_pke
- * Maximum number of input paramaters in all PKE request */
-#define ICP_QAT_FW_PKE_OUTPUT_COUNT_MAX     5
+ * Maximum number of input parameters in all PKE request */
+#define ICP_QAT_FW_PKE_OUTPUT_COUNT_MAX 5
 /**< @ingroup icp_qat_fw_pke
- * Maximum number of output paramaters in all PKE request */
+ * Maximum number of output parameters in all PKE request */
 
 /**
  * @ingroup icp_qat_fw_mmp

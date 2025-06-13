@@ -101,7 +101,7 @@ class TestFrag6HopHyHop(VnetTestTemplate):
         ToolsHelper.print_output("/sbin/pfctl -x loud")
         ToolsHelper.pf_rules([
             "scrub fragment reassemble min-ttl 10",
-            "pass",
+            "pass allow-opts",
         ])
 
     @pytest.mark.require_user("root")
@@ -244,6 +244,8 @@ class TestFrag6_RouteTo(VnetTestTemplate):
     def vnet3_handler(self, vnet):
         pass
 
+    @pytest.mark.require_user("root")
+    @pytest.mark.require_progs(["scapy"])
     def test_too_big(self):
         ToolsHelper.print_output("/sbin/route add -6 default 2001:db8::2")
 

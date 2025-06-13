@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "adf_c4xxx_hw_data.h"
 #include "adf_c4xxx_pke_replay_stats.h"
 #include "adf_common_drv.h"
 #include "icp_qat_fw_init_admin.h"
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
+#include <sys/priv.h>
 
 #define PKE_REPLAY_DBG_FILE "pke_replay_stats"
 #define LINE                                                                   \
@@ -20,6 +21,9 @@ static int qat_pke_replay_counters_show(SYSCTL_HANDLER_ARGS)
 	int ret = 0;
 	u64 suc_counter = 0;
 	u64 unsuc_counter = 0;
+
+	if (priv_check(curthread, PRIV_DRIVER) != 0)
+		return EPERM;
 
 	sbuf_new_for_sysctl(&sb, NULL, 256, req);
 

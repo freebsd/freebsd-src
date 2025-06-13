@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -18,7 +18,7 @@
  * The symmetric component demuliplexes the following crypto operations to
  * the appropriate sub-components: cipher, hash, algorithm chaining and
  * authentication encryption. It is a common layer between the above
- * mentioned components where common resources are allocated and paramater
+ * mentioned components where common resources are allocated and parameter
  * checks are done. The operation specific resource allocation and parameter
  * checks are done in the sub-component itself.
  *
@@ -32,15 +32,15 @@
  *   chain to ensure it is valid.
  * - \ref LacSymStats "Statistics": Manages statistics for symmetric
  * - \ref LacSymQat "Symmetric QAT": The symmetric qat component is
- *   initialiased by the symmetric component.
- * - \ref LacCipher "Cipher" : demultiplex cipher opertions to this component.
- * - \ref LacHash "Hash" : demultiplex hash opertions to this component.
+ *   initialised by the symmetric component.
+ * - \ref LacCipher "Cipher" : demultiplex cipher operations to this component.
+ * - \ref LacHash "Hash" : demultiplex hash operations to this component.
  *   to this component.
  * - \ref LacAlgChain "Algorithm Chaining": The algorithm chaining component
  * - OSAL : Memory allocation, Mutex's, atomics
  *
  * @lld_initialisation
- * This component is initialied during the LAC initialisation sequence. It
+ * This component is initialized during the LAC initialisation sequence. It
  * initialises the session table, statistics, symmetric QAT, initialises the
  * hash definitions lookup table, the hash alg supported lookup table and
  * registers a callback function with the symmetric response handler to process

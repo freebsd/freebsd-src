@@ -41,7 +41,7 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/dirent.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #include <fs/p9fs/p9_protocol.h>
 

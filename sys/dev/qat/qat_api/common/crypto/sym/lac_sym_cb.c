@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -296,7 +296,7 @@ LacSymCb_ProcessDpCallback(CpaCySymDpOpData *pResponse,
 
 	/* For CCM and GCM, if qatRespStatusOkFlag is false, the data has to be
 	 * cleaned as stated in RFC 3610; in DP mode, it is the user
-	 * responsability to do so */
+	 * responsibility to do so */
 
 	if (((CPA_CY_SYM_OP_CIPHER == pSessionDesc->symOperation) &&
 	     SPC != pSessionDesc->singlePassState) ||
@@ -450,12 +450,11 @@ LacSymCb_PendingReqsDequeue(lac_session_desc_t *pSessionDesc)
 		}
 
 		/*
-		 * Now we'll attempt to send the message directly to QAT. We'll
-		 * keep looing until it succeeds (or at least a very high number
-		 * of retries), as the failure only happens when the ring is
-		 * full, and this is only a temporary situation. After a few
-		 * retries, space will become availble, allowing the putMsg to
-		 * succeed.
+		 * Now we'll attempt to send the message directly to QAT. We'll keep
+		 * looking until it succeeds (or at least a very high number of
+		 * retries), as the failure only happens when the ring is full,
+		 * and this is only a temporary situation. After a few retries,
+		 * space will become available, allowing the putMsg to succeed.
 		 */
 		retries = 0;
 		do {

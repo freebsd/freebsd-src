@@ -36,11 +36,11 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/reboot.h>
+#include <sys/stdarg.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/tty.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>

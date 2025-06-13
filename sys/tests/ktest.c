@@ -34,6 +34,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/stdarg.h>
 #include <sys/priv.h>
 
 #include <netlink/netlink.h>
@@ -41,7 +42,6 @@
 #include <netlink/netlink_generic.h>
 #include <netlink/netlink_message_parser.h>
 
-#include <machine/stdarg.h>
 #include <tests/ktest.h>
 
 struct mtx ktest_mtx;

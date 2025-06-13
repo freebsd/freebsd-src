@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  * @file icp_qat_fw_pke.h
  * @defgroup icp_qat_fw_pke ICP QAT FW PKE Processing Definitions
@@ -8,7 +8,7 @@
  * @brief
  *      This file documents the external interfaces that the QAT FW running
  *      on the QAT Acceleration Engine provides to clients wanting to
- *      accelerate crypto assymetric applications
+ *      accelerate crypto asymmetric applications
  */
 
 #ifndef _ICP_QAT_FW_PKE_

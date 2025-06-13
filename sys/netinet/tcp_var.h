@@ -1234,6 +1234,9 @@ struct tcp_function_info {
 #define	TCPCTL_SACK		14	/* Selective Acknowledgement,rfc 2018 */
 #define	TCPCTL_DROP		15	/* drop tcp connection */
 #define	TCPCTL_STATES		16	/* connection counts by TCP state */
+#define	TCPCTL_KTLSLIST		17	/* connections with active ktls
+					   session */
+#define	TCPCTL_KTLSLIST_WKEYS	18	/* KTLSLIST with key data exported */
 
 #ifdef _KERNEL
 #ifdef SYSCTL_DECL

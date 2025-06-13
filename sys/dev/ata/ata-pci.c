@@ -36,12 +36,15 @@
 #include <sys/malloc.h>
 #include <sys/sbuf.h>
 #include <sys/sema.h>
+#include <sys/stdarg.h>
 #include <sys/taskqueue.h>
+
 #include <vm/uma.h>
-#include <machine/stdarg.h>
+
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/ata/ata-all.h>

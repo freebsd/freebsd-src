@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "qat_freebsd.h"
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -17,6 +17,7 @@
 #include "adf_transport_access_macros.h"
 #include "adf_transport_internal.h"
 #include "adf_pfvf_utils.h"
+#include "adf_pfvf_vf_msg.h"
 
 static TASKQUEUE_DEFINE_THREAD(qat_vf);
 static TASKQUEUE_DEFINE_THREAD(qat_bank_handler);
@@ -65,6 +66,7 @@ adf_dev_stop_async(struct work_struct *work)
 
 	/* Re-enable PF2VF interrupts */
 	hw_data->enable_pf2vf_interrupt(accel_dev);
+	adf_vf2pf_restarting_complete(accel_dev);
 	kfree(stop_data);
 }
 
@@ -119,6 +121,17 @@ adf_pf2vf_handle_pf_rp_reset(struct adf_accel_dev *accel_dev,
 		    msg.data);
 
 	complete(&accel_dev->u1.vf.msg_received);
+
+	return 0;
+}
+
+int
+adf_pf2vf_handle_pf_error(struct adf_accel_dev *accel_dev)
+{
+	device_printf(GET_DEV(accel_dev), "Fatal error received from PF\n");
+
+	if (adf_notify_fatal_error(accel_dev))
+		device_printf(GET_DEV(accel_dev), "Couldn't notify fatal error\n");
 
 	return 0;
 }

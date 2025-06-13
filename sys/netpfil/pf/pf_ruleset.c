@@ -189,13 +189,108 @@ pf_find_kruleset(const char *path)
 	else
 		return (&anchor->ruleset);
 }
+struct pf_kruleset *
+pf_get_leaf_kruleset(char *path, char **path_remainder)
+{
+	struct pf_kruleset	*ruleset;
+	char			*leaf, *p;
+	int			 i = 0;
+
+	p = path;
+	while (*p == '/')
+		p++;
+
+	ruleset = pf_find_kruleset(p);
+	leaf = p;
+	while (ruleset == NULL) {
+		leaf = strrchr(p, '/');
+		if (leaf != NULL) {
+			*leaf = '\0';
+			i++;
+			ruleset = pf_find_kruleset(p);
+		} else {
+			leaf = path;
+			/*
+			 * if no path component exists, then main ruleset is
+			 * our parent.
+			 */
+			ruleset = &pf_main_ruleset;
+		}
+	}
+
+	if (path_remainder != NULL)
+		*path_remainder = leaf;
+
+	/* restore slashes in path.  */
+	while (i != 0) {
+		while (*leaf != '\0')
+			leaf++;
+		*leaf = '/';
+		i--;
+	}
+
+	return (ruleset);
+}
+
+struct pf_kanchor *
+pf_create_kanchor(struct pf_kanchor *parent, const char *aname)
+{
+	struct pf_kanchor	*anchor, *dup;
+
+	if (!*aname || (strlen(aname) >= PF_ANCHOR_NAME_SIZE) ||
+	   ((parent != NULL) && (strlen(parent->path) >= PF_ANCHOR_MAXPATH)))
+		return (NULL);
+
+	anchor = rs_malloc(sizeof(*anchor));
+	if (anchor == NULL)
+		return (NULL);
+
+	RB_INIT(&anchor->children);
+	strlcpy(anchor->name, aname, sizeof(anchor->name));
+	if (parent != NULL) {
+		/*
+		 * Make sure path for levels 2, 3, ... is terminated by '/':
+		 *      1/2/3/...
+		 */
+		strlcpy(anchor->path, parent->path, sizeof(anchor->path));
+		strlcat(anchor->path, "/", sizeof(anchor->path));
+	}
+	strlcat(anchor->path, anchor->name, sizeof(anchor->path));
+
+	if ((dup = RB_INSERT(pf_kanchor_global, &V_pf_anchors, anchor)) !=
+	    NULL) {
+		printf("pf_find_or_create_ruleset: RB_INSERT1 "
+		    "'%s' '%s' collides with '%s' '%s'\n",
+		    anchor->path, anchor->name, dup->path, dup->name);
+		rs_free(anchor);
+		return (NULL);
+	}
+
+	if (parent != NULL) {
+		anchor->parent = parent;
+		if ((dup = RB_INSERT(pf_kanchor_node, &parent->children,
+		    anchor)) != NULL) {
+			printf("pf_find_or_create_ruleset: "
+			    "RB_INSERT2 '%s' '%s' collides with "
+			    "'%s' '%s'\n", anchor->path, anchor->name,
+			    dup->path, dup->name);
+			RB_REMOVE(pf_kanchor_global, &V_pf_anchors,
+			    anchor);
+			rs_free(anchor);
+			return (NULL);
+		}
+	}
+	pf_init_kruleset(&anchor->ruleset);
+	anchor->ruleset.anchor = anchor;
+	return (anchor);
+}
 
 struct pf_kruleset *
 pf_find_or_create_kruleset(const char *path)
 {
-	char			*p, *q, *r;
+	char			*p, *aname, *r;
 	struct pf_kruleset	*ruleset;
-	struct pf_kanchor	*anchor = NULL, *dup, *parent = NULL;
+	struct pf_kanchor	*anchor = NULL;
 
 	if (path[0] == 0)
 		return (&pf_main_ruleset);
@@ -208,76 +303,31 @@ pf_find_or_create_kruleset(const char *path)
 	if (p == NULL)
 		return (NULL);
 	strlcpy(p, path, MAXPATHLEN);
-	while (parent == NULL && (q = strrchr(p, '/')) != NULL) {
-		*q = 0;
-		if ((ruleset = pf_find_kruleset(p)) != NULL) {
-			parent = ruleset->anchor;
-			break;
-		}
-	}
-	if (q == NULL)
-		q = p;
-	else
-		q++;
-	strlcpy(p, path, MAXPATHLEN);
-	if (!*q) {
-		rs_free(p);
-		return (NULL);
-	}
-	while ((r = strchr(q, '/')) != NULL || *q) {
+
+	ruleset = pf_get_leaf_kruleset(p, &aname);
+	anchor = ruleset->anchor;
+
+	while (*aname == '/')
+		aname++;
+	/*
+	 * aname is a path remainder, which contains nodes we must create.  We
+	 * process the aname path from left to right, effectively descending
+	 * from parents to children.
+	 */
+	while ((r = strchr(aname, '/')) != NULL || *aname) {
 		if (r != NULL)
 			*r = 0;
-		if (!*q || strlen(q) >= PF_ANCHOR_NAME_SIZE ||
-		    (parent != NULL && strlen(parent->path) >=
-		    MAXPATHLEN - PF_ANCHOR_NAME_SIZE - 1)) {
-			rs_free(p);
-			return (NULL);
-		}
-		anchor = (struct pf_kanchor *)rs_malloc(sizeof(*anchor));
+		anchor = pf_create_kanchor(anchor, aname);
 		if (anchor == NULL) {
 			rs_free(p);
 			return (NULL);
 		}
-		RB_INIT(&anchor->children);
-		strlcpy(anchor->name, q, sizeof(anchor->name));
-		if (parent != NULL) {
-			strlcpy(anchor->path, parent->path,
-			    sizeof(anchor->path));
-			strlcat(anchor->path, "/", sizeof(anchor->path));
-		}
-		strlcat(anchor->path, anchor->name, sizeof(anchor->path));
-		if ((dup = RB_INSERT(pf_kanchor_global, &V_pf_anchors, anchor)) !=
-		    NULL) {
-			printf("pf_find_or_create_ruleset: RB_INSERT1 "
-			    "'%s' '%s' collides with '%s' '%s'\n",
-			    anchor->path, anchor->name, dup->path, dup->name);
-			rs_free(anchor);
-			rs_free(p);
-			return (NULL);
-		}
-		if (parent != NULL) {
-			anchor->parent = parent;
-			if ((dup = RB_INSERT(pf_kanchor_node, &parent->children,
-			    anchor)) != NULL) {
-				printf("pf_find_or_create_ruleset: "
-				    "RB_INSERT2 '%s' '%s' collides with "
-				    "'%s' '%s'\n", anchor->path, anchor->name,
-				    dup->path, dup->name);
-				RB_REMOVE(pf_kanchor_global, &V_pf_anchors,
-				    anchor);
-				rs_free(anchor);
-				rs_free(p);
-				return (NULL);
-			}
-		}
-		pf_init_kruleset(&anchor->ruleset);
-		anchor->ruleset.anchor = anchor;
-		parent = anchor;
-		if (r != NULL)
-			q = r + 1;
+		if (r == NULL)
+			break;
 		else
-			*q = 0;
+			aname = r + 1;
 	}
+
 	rs_free(p);
 	return (&anchor->ruleset);
 }

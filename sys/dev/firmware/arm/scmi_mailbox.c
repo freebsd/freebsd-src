@@ -159,7 +159,7 @@ scmi_mailbox_poll_msg(device_t dev, struct scmi_msg *msg, unsigned int tmo_ms)
 		DELAY(SCMI_MBOX_POLL_INTERVAL_MS * 1000);
 	} while (tmo_loops--);
 
-	return (tmo_loops ? 0 : 1);
+	return (tmo_loops > 0 ? 0 : ETIMEDOUT);
 }
 
 static int

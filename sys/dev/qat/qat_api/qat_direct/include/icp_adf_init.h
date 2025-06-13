@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /*****************************************************************************
  * @file icp_adf_init.h
  *
@@ -40,7 +40,7 @@ typedef enum icp_adf_ringInfoOperation_e {
 } icp_adf_ringInfoOperation_t;
 
 /*
- * Ring generic serivce info private data
+ * Ring generic service info private data
  */
 typedef enum icp_adf_ringInfoService_e {
 	ICP_ADF_RING_SERVICE_0 = 0,

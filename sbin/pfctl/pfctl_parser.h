@@ -38,22 +38,23 @@
 
 #define PF_OSFP_FILE		"/etc/pf.os"
 
-#define PF_OPT_DISABLE		0x0001
-#define PF_OPT_ENABLE		0x0002
-#define PF_OPT_VERBOSE		0x0004
-#define PF_OPT_NOACTION		0x0008
-#define PF_OPT_QUIET		0x0010
-#define PF_OPT_CLRRULECTRS	0x0020
-#define PF_OPT_USEDNS		0x0040
-#define PF_OPT_VERBOSE2		0x0080
-#define PF_OPT_DUMMYACTION	0x0100
-#define PF_OPT_DEBUG		0x0200
-#define PF_OPT_SHOWALL		0x0400
-#define PF_OPT_OPTIMIZE		0x0800
-#define PF_OPT_NUMERIC		0x1000
-#define PF_OPT_MERGE		0x2000
-#define PF_OPT_RECURSE		0x4000
-#define PF_OPT_KILLMATCH	0x8000
+#define PF_OPT_DISABLE		0x00001
+#define PF_OPT_ENABLE		0x00002
+#define PF_OPT_VERBOSE		0x00004
+#define PF_OPT_NOACTION		0x00008
+#define PF_OPT_QUIET		0x00010
+#define PF_OPT_CLRRULECTRS	0x00020
+#define PF_OPT_USEDNS		0x00040
+#define PF_OPT_VERBOSE2		0x00080
+#define PF_OPT_DUMMYACTION	0x00100
+#define PF_OPT_DEBUG		0x00200
+#define PF_OPT_SHOWALL		0x00400
+#define PF_OPT_OPTIMIZE		0x00800
+#define PF_OPT_NUMERIC		0x01000
+#define PF_OPT_MERGE		0x02000
+#define PF_OPT_RECURSE		0x04000
+#define PF_OPT_KILLMATCH	0x08000
+#define PF_OPT_NODNS		0x10000
 
 #define PF_NAT_PROXY_PORT_LOW	50001
 #define PF_NAT_PROXY_PORT_HIGH	65535
@@ -370,9 +371,9 @@ int			 get_query_socket(void);
 struct node_host	*ifa_exists(char *);
 struct node_host	*ifa_grouplookup(char *ifa_name, int flags);
 struct node_host	*ifa_lookup(char *, int);
-struct node_host	*host(const char *);
+struct node_host	*host(const char *, int);
 
-int			 append_addr(struct pfr_buffer *, char *, int);
+int			 append_addr(struct pfr_buffer *, char *, int, int);
 int			 append_addr_host(struct pfr_buffer *,
 			    struct node_host *, int, int);
 

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  *******************************************************************************
  * @file lac_hooks.h
@@ -9,7 +9,7 @@
  * @ingroup LacCommon
  *
  * Component Init/Shutdown functions. These are:
- *  - an init function which is called during the intialisation sequence,
+ *  - an init function which is called during the initialisation sequence,
  *  - a shutdown function which is called by the overall shutdown function,
  *
  ******************************************************************************/

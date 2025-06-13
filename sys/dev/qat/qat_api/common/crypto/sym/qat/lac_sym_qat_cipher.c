@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -214,6 +214,11 @@ static const uint8_t key_size_f8[] = {
 	ICP_QAT_HW_CIPHER_ALGO_AES256 /* ICP_QAT_HW_AES_256_F8_KEY_SZ */
 };
 
+/* This array must be kept aligned with CpaCySymCipherAlgorithm enum but
+ * offset by -1 as that enum starts at 1. LacSymQat_CipherGetCfgData()
+ * below relies on that alignment and uses that enum -1 to index into this
+ * array.
+ */
 typedef struct _icp_qat_hw_cipher_info {
 	icp_qat_hw_cipher_algo_t algorithm;
 	icp_qat_hw_cipher_mode_t mode;
@@ -478,7 +483,7 @@ LacSymQat_CipherCtrlBlockWrite(icp_qat_la_bulk_req_ftr_t *pMsg,
 	   in this case, and add padding. It makes no sense
 	   to force applications to provide such key length for couple reasons:
 	   1. It won't be possible to distinguish between AES 192 and 256 based
-	      on key lenght only
+	      on key length only
 	   2. Only some modes of AES will use UCS slice, then application will
 	      have to know which ones */
 	if (ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE == sliceType &&
@@ -542,7 +547,7 @@ LacSymQat_CipherGetCfgData(lac_session_desc_t *pSession,
 	sal_crypto_service_t *pService =
 	    (sal_crypto_service_t *)pSession->pInstance;
 
-	CpaCySymCipherAlgorithm cipherAlgorithm = 0;
+	int cipherIdx = 0;
 	icp_qat_hw_cipher_dir_t cipherDirection = 0;
 
 	/* Set defaults */
@@ -551,21 +556,33 @@ LacSymQat_CipherGetCfgData(lac_session_desc_t *pSession,
 	*pMode = ICP_QAT_HW_CIPHER_ECB_MODE;
 	*pDir = ICP_QAT_HW_CIPHER_ENCRYPT;
 
-	/* decrease since it's numbered from 1 instead of 0 */
-	cipherAlgorithm = pSession->cipherAlgorithm - 1;
+	/* offset index as CpaCySymCipherAlgorithm enum starts from 1, not from
+	 * 0 */
+	cipherIdx = pSession->cipherAlgorithm - 1;
 	cipherDirection =
 	    pSession->cipherDirection == CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT ?
 		  ICP_QAT_HW_CIPHER_ENCRYPT :
 		  ICP_QAT_HW_CIPHER_DECRYPT;
 
-	*pAlgorithm = icp_qat_alg_info[cipherAlgorithm].algorithm;
-	*pMode = icp_qat_alg_info[cipherAlgorithm].mode;
-	*pDir = icp_qat_alg_info[cipherAlgorithm].dir[cipherDirection];
-	*pKey_convert =
-	    icp_qat_alg_info[cipherAlgorithm].key_convert[cipherDirection];
+	/* Boundary check against the last value in the algorithm enum */
+	if (!(pSession->cipherAlgorithm <= CPA_CY_SYM_CIPHER_SM4_CTR)) {
+		QAT_UTILS_LOG("Invalid cipherAlgorithm value\n");
+		return;
+	}
 
-	if (IS_KEY_DEP_NO != icp_qat_alg_info[cipherAlgorithm].isKeyLenDepend) {
-		*pAlgorithm = icp_qat_alg_info[cipherAlgorithm]
+	if (!(cipherDirection <= ICP_QAT_HW_CIPHER_DECRYPT)) {
+		QAT_UTILS_LOG("Invalid cipherDirection value\n");
+		return;
+	}
+
+	*pAlgorithm = icp_qat_alg_info[cipherIdx].algorithm;
+	*pMode = icp_qat_alg_info[cipherIdx].mode;
+	*pDir = icp_qat_alg_info[cipherIdx].dir[cipherDirection];
+	*pKey_convert =
+	    icp_qat_alg_info[cipherIdx].key_convert[cipherDirection];
+
+	if (IS_KEY_DEP_NO != icp_qat_alg_info[cipherIdx].isKeyLenDepend) {
+		*pAlgorithm = icp_qat_alg_info[cipherIdx]
 				  .pAlgByKeySize[pSession->cipherKeyLenInBytes];
 	}
 
@@ -657,12 +674,11 @@ LacSymQat_CipherHwBlockPopulateKeySetup(
 		/* Special handling of AES 192 key for UCS slice.
 		   UCS requires it to have 32 bytes - set is as targetKeyLen
 		   in this case, and add padding. It makes no sense
-		   to force applications to provide such key length for couple
-		   reasons:
-		   1. It won't be possible to distinguish between AES 192 and
-		   256 based on key lenght only
-		   2. Only some modes of AES will use UCS slice, then
-		   application will have to know which ones */
+		   to force applications to provide such key length for couple reasons:
+		   1. It won't be possible to distinguish between AES 192 and 256 based
+		      on key length only
+		   2. Only some modes of AES will use UCS slice, then application will
+		      have to know which ones */
 		if (ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE == sliceType &&
 		    ICP_QAT_HW_AES_192_KEY_SZ == targetKeyLenInBytes) {
 			targetKeyLenInBytes = ICP_QAT_HW_UCS_AES_192_KEY_SZ;
@@ -918,10 +934,10 @@ LacSymQat_CipherRequestParamsPopulate(lac_session_desc_t *pSessionDesc,
 		/* Populate the field with the contents of the buffer,
 		 * zero field first as data may be smaller than the field */
 
-		/* In case of XTS mode using UCS slice always embedd IV.
-		 * IV provided by user needs to be encrypted to calculate
-		 * initial tweak, use pCipherReqParams->u.cipher_IV_array as
-		 * destination buffer for tweak value */
+		/* In case of XTS mode using UCS slice always encrypt the embedded IV.
+		 * IV provided by user needs to be encrypted to calculate initial tweak,
+		 * use pCipherReqParams->u.cipher_IV_array as destination buffer for
+		 * tweak value */
 		if (ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE ==
 			pSessionDesc->cipherSliceType &&
 		    LAC_CIPHER_IS_XTS_MODE(pSessionDesc->cipherAlgorithm)) {

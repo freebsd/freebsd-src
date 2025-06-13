@@ -979,6 +979,9 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 	struct fuse_data *data = tick->tk_data;
 	struct fuse_init_out *fiio = NULL;
 
+	if (fdata_get_dead(data))
+		goto out;
+
 	if ((err = tick->tk_aw_ohead.error)) {
 		goto out;
 	}

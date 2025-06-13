@@ -26,7 +26,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <sys/fcntl.h>
 #include <sys/procctl.h>
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -188,20 +188,29 @@ static void
 send_sig(pid_t pid, int signo, bool foreground)
 {
 	struct procctl_reaper_kill rk;
+	int error;
 
 	logv("sending signal %s(%d) to command '%s'",
 	     sys_signame[signo], signo, command);
 	if (foreground) {
-		if (kill(pid, signo) == -1)
-			warnx("kill(%d, %s)", (int)pid, sys_signame[signo]);
+		if (kill(pid, signo) == -1) {
+			if (errno != ESRCH)
+				warn("kill(%d, %s)", (int)pid,
+				    sys_signame[signo]);
+		}
 	} else {
 		memset(&rk, 0, sizeof(rk));
 		rk.rk_sig = signo;
-		if (procctl(P_PID, getpid(), PROC_REAP_KILL, &rk) == -1)
-			warnx("procctl(PROC_REAP_KILL)");
-		else if (rk.rk_fpid > 0)
-			warnx("failed to signal some processes: first pid=%d",
-			      (int)rk.rk_fpid);
+		error = procctl(P_PID, getpid(), PROC_REAP_KILL, &rk);
+		if (error == 0 || (error == -1 && errno == ESRCH))
+			;
+		else if (error == -1) {
+			warn("procctl(PROC_REAP_KILL)");
+			if (rk.rk_fpid > 0)
+				warnx(
+			    "failed to signal some processes: first pid=%d",
+				    (int)rk.rk_fpid);
+		}
 		logv("signaled %u processes", rk.rk_killed);
 	}
 
@@ -268,12 +277,27 @@ kill_self(int signo)
 	    sys_signame[signo], signo);
 }
 
+static void
+log_termination(const char *name, const siginfo_t *si)
+{
+	if (si->si_code == CLD_EXITED) {
+		logv("%s: pid=%d, exit=%d", name, si->si_pid, si->si_status);
+	} else if (si->si_code == CLD_DUMPED || si->si_code == CLD_KILLED) {
+		logv("%s: pid=%d, sig=%d", name, si->si_pid, si->si_status);
+	} else {
+		logv("%s: pid=%d, reason=%d, status=%d", si->si_pid,
+		    si->si_code, si->si_status);
+	}
+}
+
 int
 main(int argc, char **argv)
 {
-	int ch, status, sig;
+	int ch, sig;
 	int pstat = 0;
-	pid_t pid, cpid;
+	pid_t pid;
+	int pp[2], error;
+	char c;
 	double first_kill;
 	double second_kill = 0;
 	bool foreground = false;
@@ -284,6 +308,7 @@ main(int argc, char **argv)
 	sigset_t zeromask, allmask, oldmask;
 	struct sigaction sa;
 	struct procctl_reaper_status info;
+	siginfo_t si, child_si;
 
 	const char optstr[] = "+fhk:ps:v";
 	const struct option longopts[] = {
@@ -342,6 +367,9 @@ main(int argc, char **argv)
 	if (sigprocmask(SIG_BLOCK, &allmask, &oldmask) == -1)
 		err(EXIT_FAILURE, "sigprocmask()");
 
+	if (pipe2(pp, O_CLOEXEC) == -1)
+		err(EXIT_FAILURE, "pipe2");
+
 	pid = fork();
 	if (pid == -1) {
 		err(EXIT_FAILURE, "fork()");
@@ -357,6 +385,11 @@ main(int argc, char **argv)
 		if (sigprocmask(SIG_SETMASK, &oldmask, NULL) == -1)
 			err(EXIT_FAILURE, "sigprocmask(oldmask)");
 
+		error = read(pp[0], &c, 1);
+		if (error == -1)
+			err(EXIT_FAILURE, "read from control pipe");
+		if (error == 0)
+			errx(EXIT_FAILURE, "eof from control pipe");
 		execvp(argv[0], argv);
 		warn("exec(%s)", argv[0]);
 		_exit(errno == ENOENT ? EXIT_CMD_NOENT : EXIT_CMD_ERROR);
@@ -382,6 +415,11 @@ main(int argc, char **argv)
 	signal(SIGTTOU, SIG_IGN);
 
 	set_interval(first_kill);
+	error = write(pp[1], "a", 1);
+	if (error == -1)
+		err(EXIT_FAILURE, "write to control pipe");
+	if (error == 0)
+		errx(EXIT_FAILURE, "short write to control pipe");
 	sigemptyset(&zeromask);
 
 	for (;;) {
@@ -390,26 +428,27 @@ main(int argc, char **argv)
 		if (sig_chld) {
 			sig_chld = 0;
 
-			while ((cpid = waitpid(-1, &status, WNOHANG)) != 0) {
-				if (cpid < 0) {
+			for (;;) {
+				memset(&si, 0, sizeof(si));
+				error = waitid(P_ALL, -1, &si, WEXITED |
+				    WNOHANG);
+				if (error == -1) {
 					if (errno != EINTR)
 						break;
-				} else if (cpid == pid) {
-					pstat = status;
+				} else if (si.si_pid == pid) {
+					child_si = si;
 					child_done = true;
-					logv("child terminated: pid=%d, "
-					     "exit=%d, signal=%d",
-					     (int)pid, WEXITSTATUS(status),
-					     WTERMSIG(status));
-				} else {
+					log_termination("child terminated",
+					    &child_si);
+				} else if (si.si_pid != 0) {
 					/*
 					 * Collect grandchildren zombies.
 					 * Only effective if we're a reaper.
 					 */
-					logv("collected zombie: pid=%d, "
-					     "exit=%d, signal=%d",
-					     (int)cpid, WEXITSTATUS(status),
-					     WTERMSIG(status));
+					log_termination("collected zombie",
+					    &si);
+				} else /* si.si_pid == 0 */ {
+					break;
 				}
 			}
 			if (child_done) {
@@ -458,13 +497,14 @@ main(int argc, char **argv)
 
 	if (timedout && !preserve) {
 		pstat = EXIT_TIMEOUT;
+	} else if (child_si.si_code == CLD_DUMPED ||
+	    child_si.si_code == CLD_KILLED) {
+		kill_self(child_si.si_status);
+		/* NOTREACHED */
+	} else if (child_si.si_code == CLD_EXITED) {
+		pstat = child_si.si_status;
 	} else {
-		if (WIFSIGNALED(pstat))
-			kill_self(WTERMSIG(pstat));
-			/* NOTREACHED */
-
-		if (WIFEXITED(pstat))
-			pstat = WEXITSTATUS(pstat);
+		pstat = EXIT_FAILURE;
 	}
 
 	return (pstat);

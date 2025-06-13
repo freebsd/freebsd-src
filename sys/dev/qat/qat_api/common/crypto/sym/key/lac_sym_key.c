@@ -1,8 +1,5 @@
-/***************************************************************************
- *
- * <COPYRIGHT_TAG>
- *
- ***************************************************************************/
+/* SPDX-License-Identifier: BSD-3-Clause */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  *****************************************************************************
@@ -365,7 +362,6 @@ cpaCyKeyGenQueryStats(CpaInstanceHandle instanceHandle_in,
 {
 	CpaInstanceHandle instanceHandle = NULL;
 
-
 	if (CPA_INSTANCE_HANDLE_SINGLE == instanceHandle_in) {
 		instanceHandle =
 		    Lac_GetFirstHandle(SAL_SERVICE_TYPE_CRYPTO_SYM);
@@ -392,7 +388,6 @@ cpaCyKeyGenQueryStats64(CpaInstanceHandle instanceHandle_in,
 			CpaCyKeyGenStats64 *pSymKeyStats)
 {
 	CpaInstanceHandle instanceHandle = NULL;
-
 
 	if (CPA_INSTANCE_HANDLE_SINGLE == instanceHandle_in) {
 		instanceHandle =
@@ -917,7 +912,6 @@ cpaCyKeyGenMgf(const CpaInstanceHandle instanceHandle_in,
 {
 	CpaInstanceHandle instanceHandle = NULL;
 
-
 	if (CPA_INSTANCE_HANDLE_SINGLE == instanceHandle_in) {
 		instanceHandle =
 		    Lac_GetFirstHandle(SAL_SERVICE_TYPE_CRYPTO_SYM);
@@ -955,7 +949,6 @@ cpaCyKeyGenMgfExt(const CpaInstanceHandle instanceHandle_in,
 		  CpaFlatBuffer *pGeneratedMaskBuffer)
 {
 	CpaInstanceHandle instanceHandle = NULL;
-
 
 	if (CPA_INSTANCE_HANDLE_SINGLE == instanceHandle_in) {
 		instanceHandle =
@@ -2167,6 +2160,14 @@ LacSymKey_CheckParamSslTls(const void *pKeyGenOpData,
 			}
 		}
 
+		/* check 0 secret length as it is not valid for SSL3 Key Gen
+		 * request */
+		if (0 == uSecretLen) {
+			LAC_INVALID_PARAM_LOG1("%u secret.dataLenInBytes",
+					       uSecretLen);
+			return CPA_STATUS_INVALID_PARAM;
+		}
+
 		/* Only seed length for SSL3 Key Gen request */
 		if (maxSeedLen != uSeedLen) {
 			LAC_INVALID_PARAM_LOG("seed.dataLenInBytes");
@@ -2194,11 +2195,11 @@ LacSymKey_CheckParamSslTls(const void *pKeyGenOpData,
 			/* Api max value */
 			/* ICP_QAT_FW_LA_TLS_V1_1_SECRET_LEN_MAX needs to be
 			 * multiplied
-			 * by 4 in order to verifiy the 512 conditions. We did
+			 * by 4 in order to verify the 512 conditions. We did
 			 * not change
 			 * ICP_QAT_FW_LA_TLS_V1_1_SECRET_LEN_MAX as it
 			 * represents
-			 * the max value tha firmware can handle.
+			 * the max value that firmware can handle.
 			 */
 			maxSecretLen =
 			    ICP_QAT_FW_LA_TLS_V1_1_SECRET_LEN_MAX * 4;
@@ -2206,11 +2207,11 @@ LacSymKey_CheckParamSslTls(const void *pKeyGenOpData,
 			/* Api max value */
 			/* ICP_QAT_FW_LA_TLS_V1_2_SECRET_LEN_MAX needs to be
 			 * multiplied
-			 * by 8 in order to verifiy the 512 conditions. We did
+			 * by 8 in order to verify the 512 conditions. We did
 			 * not change
 			 * ICP_QAT_FW_LA_TLS_V1_2_SECRET_LEN_MAX as it
 			 * represents
-			 * the max value tha firmware can handle.
+			 * the max value that firmware can handle.
 			 */
 			maxSecretLen =
 			    ICP_QAT_FW_LA_TLS_V1_2_SECRET_LEN_MAX * 8;
@@ -2596,7 +2597,6 @@ cpaCyKeyGenTls(const CpaInstanceHandle instanceHandle_in,
 {
 	CpaInstanceHandle instanceHandle = NULL;
 
-
 	if (CPA_INSTANCE_HANDLE_SINGLE == instanceHandle_in) {
 		instanceHandle =
 		    Lac_GetFirstHandle(SAL_SERVICE_TYPE_CRYPTO_SYM);
@@ -2668,7 +2668,6 @@ cpaCyKeyGenTls2(const CpaInstanceHandle instanceHandle_in,
 		CpaFlatBuffer *pGeneratedKeyBuffer)
 {
 	CpaInstanceHandle instanceHandle = NULL;
-
 
 	if (CPA_INSTANCE_HANDLE_SINGLE == instanceHandle_in) {
 		instanceHandle =
@@ -2755,7 +2754,6 @@ cpaCyKeyGenTls3(const CpaInstanceHandle instanceHandle_in,
 		LAC_INVALID_PARAM_LOG("HKDF operation not supported");
 		return CPA_STATUS_INVALID_PARAM;
 	}
-
 
 	return LacSymKey_KeyGenSslTls(instanceHandle_in,
 				      pKeyGenCb,

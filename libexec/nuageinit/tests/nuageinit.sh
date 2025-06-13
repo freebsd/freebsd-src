@@ -23,6 +23,27 @@ atf_test_case nocloud_userdata_cloudconfig_ssh_pwauth
 atf_test_case nocloud_userdata_cloudconfig_chpasswd
 atf_test_case nocloud_userdata_cloudconfig_chpasswd_list_string
 atf_test_case nocloud_userdata_cloudconfig_chpasswd_list_list
+atf_test_case config2_userdata_runcmd
+atf_test_case config2_userdata_packages
+atf_test_case config2_userdata_update_packages
+atf_test_case config2_userdata_upgrade_packages
+atf_test_case config2_userdata_shebang
+
+setup_test_adduser()
+{
+	here=$(pwd)
+	export NUAGE_FAKE_ROOTDIR=$(pwd)
+	mkdir -p etc/ssh
+	cat > etc/master.passwd << EOF
+root:*:0:0::0:0:Charlie &:/root:/bin/csh
+sys:*:1:0::0:0:Sys:/home/sys:/bin/csh
+EOF
+	pwd_mkdb -d etc ${here}/etc/master.passwd
+	cat > etc/group << EOF
+wheel:*:0:root
+users:*:1:
+EOF
+}
 
 args_body()
 {
@@ -53,7 +74,8 @@ nocloud_userdata_script_body()
 	printf "instance-id: iid-local01\n" > "${PWD}"/media/nuageinit/meta-data
 	printf "#!/bin/sh\necho yeah\n" > "${PWD}"/media/nuageinit/user-data
 	chmod 755 "${PWD}"/media/nuageinit/user-data
-	atf_check -s exit:0 -o inline:"yeah\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -s exit:0 /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o inline:"#!/bin/sh\necho yeah\n" cat var/cache/nuageinit/user_data
 }
 
 nocloud_user_data_script_body()
@@ -62,7 +84,8 @@ nocloud_user_data_script_body()
 	printf "instance-id: iid-local01\n" > "${PWD}"/media/nuageinit/meta-data
 	printf "#!/bin/sh\necho yeah\n" > "${PWD}"/media/nuageinit/user_data
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -s exit:0 -o inline:"yeah\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -s exit:0 /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o inline:"#!/bin/sh\necho yeah\n" cat var/cache/nuageinit/user_data
 }
 
 nocloud_userdata_cloudconfig_users_head()
@@ -684,6 +707,136 @@ EOF
 	atf_check -o match:'root:\$.*:0:0::0:0:Charlie &:/root:/bin/sh$' pw -R $(pwd) usershow root
 }
 
+config2_userdata_runcmd_head()
+{
+	atf_set "require.user" root
+}
+config2_userdata_runcmd_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+runcmd:
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -s exit:1 -e match:"attempt to index a nil value" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+runcmd:
+  - plop
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -s exit:0 /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	test -f var/cache/nuageinit/runcmds || atf_fail "File not created"
+	test -x var/cache/nuageinit/runcmds || atf_fail "Missing execution permission"
+	atf_check -o inline:"#!/bin/sh\nplop\n" cat var/cache/nuageinit/runcmds
+
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+runcmd:
+  - echo "yeah!"
+  - uname -s
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"#!/bin/sh\necho \"yeah!\"\nuname -s\n" cat var/cache/nuageinit/runcmds
+}
+
+config2_userdata_packages_head()
+{
+	atf_set "require.user" root
+}
+
+config2_userdata_packages_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	export NUAGE_RUN_TESTS=1
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+packages:
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -s exit:1 -e match:"attempt to index a nil value" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+packages:
+  - yeah/plop
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -s exit:0 -o inline:"pkg install -y yeah/plop\npkg info -q yeah/plop\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+packages:
+  - curl
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -o inline:"pkg install -y curl\npkg info -q curl\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+packages:
+  - curl
+  - meh: bla
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -o inline:"pkg install -y curl\npkg info -q curl\n" -e inline:"nuageinit: Invalid type : table for packages entry number 2\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+}
+
+config2_userdata_update_packages_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	export NUAGE_RUN_TESTS=1
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+package_update: true
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -o inline:"pkg update -y\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+}
+
+config2_userdata_upgrade_packages_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	export NUAGE_RUN_TESTS=1
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data << 'EOF'
+#cloud-config
+package_upgrade: true
+EOF
+	chmod 755 "${PWD}"/media/nuageinit/user_data
+	atf_check -o inline:"pkg upgrade -y\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+}
+
+config2_userdata_shebang_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#!/we/dont/care
+anything
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	test -f var/cache/nuageinit/user_data || atf_fail "File not created"
+	test -x var/cache/nuageinit/user_data || atf_fail "Missing execution permission"
+	atf_check -o inline:"#!/we/dont/care\nanything\n" cat var/cache/nuageinit/user_data
+	cat > media/nuageinit/user_data <<EOF
+/we/dont/care
+EOF
+	rm var/cache/nuageinit/user_data
+	if [ -f var/cache/nuageinit/user_data ]; then
+		atf_fail "File should not have been created"
+	fi
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case args
@@ -703,4 +856,9 @@ atf_init_test_cases()
 	atf_add_test_case nocloud_userdata_cloudconfig_chpasswd
 	atf_add_test_case nocloud_userdata_cloudconfig_chpasswd_list_string
 	atf_add_test_case nocloud_userdata_cloudconfig_chpasswd_list_list
+	atf_add_test_case config2_userdata_runcmd
+	atf_add_test_case config2_userdata_packages
+	atf_add_test_case config2_userdata_update_packages
+	atf_add_test_case config2_userdata_upgrade_packages
+	atf_add_test_case config2_userdata_shebang
 }

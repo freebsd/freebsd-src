@@ -209,8 +209,8 @@ beforedepend:
 	for i in ${SAFE_INCS}; do \
 		ln -sf ${SRCTOP}/include/$$i $$i; \
 	done; \
-	ln -sf ${SYSDIR}/${MACHINE}/include/stdarg.h stdarg.h; \
 	ln -sf ${SYSDIR}/sys/errno.h errno.h; \
+	ln -sf ${SYSDIR}/sys/stdarg.h stdarg.h; \
 	ln -sf ${SYSDIR}/sys/stdint.h stdint.h; \
 	ln -sf ${SRCTOP}/include/arpa/inet.h arpa/inet.h; \
 	ln -sf ${SRCTOP}/include/arpa/tftp.h arpa/tftp.h; \

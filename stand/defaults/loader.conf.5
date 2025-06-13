@@ -21,7 +21,7 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.Dd February 9, 2025
+.Dd June 5, 2025
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -414,6 +414,12 @@ the beastie boot menu will be skipped.
 If set to
 .Dq NO ,
 the autoboot menu will not be displayed
+.It Va loader_gfx
+If set to
+.Dq NO ,
+the ASCII art version of the brand and logo will be used even if graphical
+versions are available.
+Additionally, the menu frame will be drawn with ASCII art as well.
 .It Va loader_logo Pq Dq Li orbbw
 Selects a desired logo in the beastie boot menu.
 Possible values are:

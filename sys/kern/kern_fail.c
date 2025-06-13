@@ -66,12 +66,12 @@
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/sleepqueue.h>
+#include <sys/stdarg.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 
 #include <machine/atomic.h>
-#include <machine/stdarg.h>
 
 #ifdef ILOG_DEFINE_FOR_FILE
 ILOG_DEFINE_FOR_FILE(L_ISI_FAIL_POINT, L_ILOG, fail_point);

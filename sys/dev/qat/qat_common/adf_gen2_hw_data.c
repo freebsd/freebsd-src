@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: BSD-3-Clause  */
-/* Copyright(c) 2021 Intel Corporation */
+/* SPDX-License-Identifier: BSD-3-Clause */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "adf_gen2_hw_data.h"
 #include "icp_qat_hw.h"
 
@@ -54,7 +54,7 @@ write_csr_ring_config(struct resource *csr_base_addr,
 	WRITE_CSR_RING_CONFIG(csr_base_addr, bank, ring, value);
 }
 
-static dma_addr_t
+static bus_addr_t
 read_csr_ring_base(struct resource *csr_base_addr, u32 bank, u32 ring)
 {
 	return READ_CSR_RING_BASE(csr_base_addr, bank, ring);

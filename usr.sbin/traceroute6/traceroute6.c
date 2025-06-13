@@ -1009,6 +1009,10 @@ main(int argc, char *argv[])
 								printf(" !");
 							++got_there;
 							break;
+						default:
+							++unreachable;
+							printf(" !<%d>", code & 0xff);
+							break;
 						}
 					} else if (type == ICMP6_PARAM_PROB &&
 					    code == ICMP6_PARAMPROB_NEXTHEADER) {

@@ -29,8 +29,7 @@
 #include <sys/systm.h>
 #include <sys/ctype.h>
 #include <sys/linker.h>
-
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_ctf.h>

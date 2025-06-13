@@ -37,17 +37,12 @@
  */
 
 #include <sys/types.h>
+#include <sys/stdarg.h>
 #include <sys/stddef.h>
 #include <sys/stdint.h>
 #include <limits.h>
 #include <string.h>
 #include "stand.h"
-
-/*
- * Note that stdarg.h and the ANSI style va_start macro is used for both
- * ANSI and traditional C compilers.
- */
-#include <machine/stdarg.h>
 
 #define MAXNBUF (sizeof(intmax_t) * CHAR_BIT + 1)
 

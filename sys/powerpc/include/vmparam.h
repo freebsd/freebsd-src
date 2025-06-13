@@ -216,12 +216,6 @@ extern	int vm_level_0_order;
 #define	VM_LEVEL_0_ORDER_MAX	12
 #endif
 
-#ifdef __powerpc64__
-#ifdef	SMP
-#define	PA_LOCK_COUNT	256
-#endif
-#endif
-
 #ifndef VM_INITIAL_PAGEIN
 #define	VM_INITIAL_PAGEIN	16
 #endif

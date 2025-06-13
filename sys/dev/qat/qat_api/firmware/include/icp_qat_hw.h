@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  *****************************************************************************
  * @file icp_qat_hw.h
@@ -163,7 +163,7 @@ typedef struct icp_qat_hw_auth_config_s {
 
 #define QAT_AUTH_MODE_MASK 0xF
 /**< @ingroup icp_qat_hw_defs
- * Four bit mask used for determing the Auth mode */
+ * Four bit mask used for determining the Auth mode */
 
 #define QAT_AUTH_ALGO_BITPOS 0
 /**< @ingroup icp_qat_hw_defs
@@ -1277,7 +1277,7 @@ typedef struct icp_qat_hw_trng_test_status_s {
 
 #define QAT_TRNG_TEST_STATUS_MASK 0x1
 /**< @ingroup icp_qat_hw_defs
- * Mask of one bit used to determine the TRNG Test staus */
+ * Mask of one bit used to determine the TRNG Test status */
 
 #define QAT_TRNG_TEST_STATUS_BITPOS 1
 /**< @ingroup icp_qat_hw_defs

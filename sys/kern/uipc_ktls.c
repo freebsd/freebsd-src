@@ -595,6 +595,8 @@ start:
 	return (error);
 }
 
+uint64_t ktls_glob_gen = 1;
+
 static int
 ktls_create_session(struct socket *so, struct tls_enable *en,
     struct ktls_session **tlsp, int direction)
@@ -819,6 +821,8 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 			arc4rand(tls->params.iv + 8, sizeof(uint64_t), 0);
 	}
 
+	atomic_thread_fence_rel();
+	tls->gen = atomic_fetchadd_64(&ktls_glob_gen, 1);
 	*tlsp = tls;
 	return (0);
 }
@@ -861,6 +865,8 @@ ktls_clone_session(struct ktls_session *tls, int direction)
 	memcpy(tls_new->params.cipher_key, tls->params.cipher_key,
 	    tls->params.cipher_key_len);
 
+	atomic_thread_fence_rel();
+	tls_new->gen = atomic_fetchadd_64(&ktls_glob_gen, 1);
 	return (tls_new);
 }
 
@@ -1939,6 +1945,8 @@ ktls_destroy(struct ktls_session *tls)
 	bool wlocked;
 
 	MPASS(tls->refcount == 0);
+
+	atomic_add_acq_64(&ktls_glob_gen, 1);
 
 	inp = tls->inp;
 	if (tls->tx) {
@@ -3438,4 +3446,57 @@ ktls_disable_ifnet(void *arg)
 	SOCK_UNLOCK(so);
 	TASK_INIT(&tls->disable_ifnet_task, 0, ktls_disable_ifnet_help, tls);
 	(void)taskqueue_enqueue(taskqueue_thread, &tls->disable_ifnet_task);
+}
+
+void
+ktls_session_to_xktls_onedir(const struct ktls_session *ktls, bool export_keys,
+    struct xktls_session_onedir *xk)
+{
+	if_t ifp;
+	struct m_snd_tag *st;
+
+	xk->gen = ktls->gen;
+#define	A(m) xk->m = ktls->params.m
+	A(cipher_algorithm);
+	A(auth_algorithm);
+	A(cipher_key_len);
+	A(auth_key_len);
+	A(max_frame_len);
+	A(tls_vmajor);
+	A(tls_vminor);
+	A(tls_hlen);
+	A(tls_tlen);
+	A(tls_bs);
+	A(flags);
+	if (export_keys) {
+		memcpy(&xk->iv, &ktls->params.iv, XKTLS_SESSION_IV_BUF_LEN);
+		A(iv_len);
+	} else {
+		memset(&xk->iv, 0, XKTLS_SESSION_IV_BUF_LEN);
+		xk->iv_len = 0;
+	}
+#undef A
+	if ((st = ktls->snd_tag) != NULL &&
+	    (ifp = ktls->snd_tag->ifp) != NULL)
+		strncpy(xk->ifnet, if_name(ifp), sizeof(xk->ifnet));
+}
+
+void
+ktls_session_copy_keys(const struct ktls_session *ktls,
+    uint8_t *data, size_t *sz)
+{
+	size_t t, ta, tc;
+
+	if (ktls == NULL) {
+		*sz = 0;
+		return;
+	}
+	t = *sz;
+	tc = MIN(t, ktls->params.cipher_key_len);
+	if (data != NULL)
+		memcpy(data, ktls->params.cipher_key, tc);
+	ta = MIN(t - tc, ktls->params.auth_key_len);
+	if (data != NULL)
+		memcpy(data + tc, ktls->params.auth_key, ta);
+	*sz = ta + tc;
 }

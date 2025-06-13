@@ -39,34 +39,39 @@
  *
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/errno.h>
-#include <sys/time.h>
+#include <sys/param.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/resource.h>
-#include <sys/wait.h>
 #include <sys/signal.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/un.h>
+#include <sys/wait.h>
+
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
 #ifdef PORTMAP
 #include <netinet/in.h>
 #endif
 #include <arpa/inet.h>
+
 #include <assert.h>
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
+#include <netconfig.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <netconfig.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <syslog.h>
-#include <err.h>
-#include <pwd.h>
 #include <string.h>
-#include <errno.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #include "rpcbind.h"
 
 /* Global variables */
@@ -81,6 +86,11 @@ int rpcbindlockfd;
 #define RUN_AS  "daemon"
 
 #define RPCBINDDLOCK "/var/run/rpcbind.lock"
+
+#define DEFAULT_PIDFILE "/var/run/rpcbind.pid"
+
+char *pidfile_path = DEFAULT_PIDFILE;
+struct pidfh *pidfh = NULL;
 
 static int runasdaemon = 0;
 int insecure = 0;
@@ -131,6 +141,7 @@ static struct t_bind netlink_taddr = {
 static int init_transport(struct netconfig *);
 static void rbllist_add(rpcprog_t, rpcvers_t, struct netconfig *,
 			     struct netbuf *);
+static void cleanup_pidfile(void);
 static void terminate(int);
 static void parseargs(int, char *[]);
 static void update_bound_sa(void);
@@ -148,13 +159,25 @@ main(int argc, char *argv[])
 
 	update_bound_sa();
 
+	/* Ensure krpc is loaded */
+	if (modfind("krpc") < 0 && kldload("krpc") < 0) {
+		warn("failed to load krpc module, "
+		    "rpcbind services for kernel disabled");
+	}
+
 	/* Check that another rpcbind isn't already running. */
-	if ((rpcbindlockfd = (open(RPCBINDDLOCK,
-	    O_RDONLY|O_CREAT, 0444))) == -1)
+	if ((rpcbindlockfd = open(RPCBINDDLOCK, O_RDONLY|O_CREAT, 0444)) < 0)
 		err(1, "%s", RPCBINDDLOCK);
 
-	if(flock(rpcbindlockfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK)
+	if (flock(rpcbindlockfd, LOCK_EX|LOCK_NB) != 0 && errno == EWOULDBLOCK)
 		errx(1, "another rpcbind is already running. Aborting");
+
+	if (pidfile_path != NULL) {
+		pidfh = pidfile_open(pidfile_path, 0600, NULL);
+		if (pidfh == NULL)
+			warn("cannot open pid file");
+		atexit(cleanup_pidfile);
+	}
 
 	getrlimit(RLIMIT_NOFILE, &rl);
 	if (rl.rlim_cur < 128) {
@@ -240,6 +263,9 @@ main(int argc, char *argv[])
 		if (daemon(0, 0))
 			err(1, "fork failed");
 	}
+
+	if (pidfh != NULL && pidfile_write(pidfh) != 0)
+		syslog(LOG_ERR, "pidfile_write(): %m");
 
 	if (runasdaemon) {
 		struct passwd *p;
@@ -775,6 +801,16 @@ rbllist_add(rpcprog_t prog, rpcvers_t vers, struct netconfig *nconf,
 }
 
 /*
+ * atexit callback for pidfh cleanup
+ */
+static void
+cleanup_pidfile(void)
+{
+	if (pidfh != NULL)
+		pidfile_remove(pidfh);
+}
+
+/*
  * Catch the signal and die
  */
 static void
@@ -785,8 +821,15 @@ terminate(int signum)
 
 	doterminate = signum;
 	wr = write(terminate_wfd, &c, 1);
-	if (wr < 1)
+	if (wr < 1) {
+		/*
+		 * The call to cleanup_pidfile should be async-signal safe.
+		 * pidfile_remove calls fstat and funlinkat system calls, and
+		 * we are exiting immediately.
+		 */
+		cleanup_pidfile();
 		_exit(2);
+	}
 }
 
 void
@@ -814,7 +857,7 @@ parseargs(int argc, char *argv[])
 #else
 #define WRAPOP	""
 #endif
-	while ((c = getopt(argc, argv, "6adh:IiLlNs" WRAPOP WSOP)) != -1) {
+	while ((c = getopt(argc, argv, "6adh:IiLlNP:s" WRAPOP WSOP)) != -1) {
 		switch (c) {
 		case '6':
 			ipv6_only = 1;
@@ -853,6 +896,9 @@ parseargs(int argc, char *argv[])
 		case 's':
 			runasdaemon = 1;
 			break;
+		case 'P':
+			pidfile_path = strdup(optarg);
+			break;
 #ifdef LIBWRAP
 		case 'W':
 			libwrap = 1;
@@ -865,7 +911,7 @@ parseargs(int argc, char *argv[])
 #endif
 		default:	/* error */
 			fprintf(stderr,
-			    "usage: rpcbind [-6adIiLls%s%s] [-h bindip]\n",
+			    "usage: rpcbind [-6adIiLlNPs%s%s] [-h bindip]\n",
 			    WRAPOP, WSOP);
 			exit (1);
 		}

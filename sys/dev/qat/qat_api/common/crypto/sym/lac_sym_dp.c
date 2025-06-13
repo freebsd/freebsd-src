@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -962,7 +962,6 @@ cpaCySymDpInitSession(CpaInstanceHandle instanceHandle,
 	CpaStatus status = CPA_STATUS_FAIL;
 	sal_service_t *pService = NULL;
 
-
 	LAC_CHECK_INSTANCE_HANDLE(instanceHandle);
 	SAL_CHECK_INSTANCE_TYPE(instanceHandle,
 				(SAL_SERVICE_TYPE_CRYPTO |
@@ -999,7 +998,6 @@ cpaCySymDpRegCbFunc(const CpaInstanceHandle instanceHandle,
 {
 	sal_crypto_service_t *pService = (sal_crypto_service_t *)instanceHandle;
 
-
 	LAC_CHECK_INSTANCE_HANDLE(instanceHandle);
 	SAL_CHECK_INSTANCE_TYPE(instanceHandle,
 				(SAL_SERVICE_TYPE_CRYPTO |
@@ -1020,7 +1018,6 @@ cpaCySymDpEnqueueOp(CpaCySymDpOpData *pRequest, const CpaBoolean performOpNow)
 	write_ringMsgFunc_t callFunc;
 
 	CpaStatus status = CPA_STATUS_SUCCESS;
-
 
 	LAC_CHECK_NULL_PARAM(pRequest);
 	status = LacDp_EnqueueParamCheck(pRequest);
@@ -1064,7 +1061,6 @@ cpaCySymDpPerformOpNow(const CpaInstanceHandle instanceHandle)
 {
 	icp_comms_trans_handle trans_handle = NULL;
 
-
 	LAC_CHECK_INSTANCE_HANDLE(instanceHandle);
 	SAL_CHECK_INSTANCE_TYPE(instanceHandle,
 				(SAL_SERVICE_TYPE_CRYPTO |
@@ -1096,7 +1092,6 @@ cpaCySymDpEnqueueOpBatch(const Cpa32U numberRequests,
 
 	CpaStatus status = CPA_STATUS_SUCCESS;
 	sal_crypto_service_t *pService = NULL;
-
 
 	LAC_CHECK_NULL_PARAM(pRequests);
 	LAC_CHECK_NULL_PARAM(pRequests[0]);

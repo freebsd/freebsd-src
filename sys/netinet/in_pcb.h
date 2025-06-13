@@ -303,6 +303,30 @@ struct sockopt_parameters {
 	char sop_optval[];
 };
 
+#ifdef _SYS_KTLS_H_
+struct xktls_session {
+	uint32_t tsz;	/* total sz of elm, next elm is at this+tsz */
+	uint32_t fsz;	/* size of the struct up to keys */
+	uint64_t inp_gencnt;
+	kvaddr_t so_pcb;
+	struct in_conninfo coninf;
+	u_short rx_vlan_id;
+	struct xktls_session_onedir rcv;
+	struct xktls_session_onedir snd;
+/*
+ * Next are
+ * - keydata for rcv, first cipher of length rcv.cipher_key_len, then
+ *    authentication of length rcv.auth_key_len;
+ * - driver data (string) of length rcv.drv_st_len, if the rcv session is
+ *    offloaded to ifnet rcv.ifnet;
+ * - keydata for snd, first cipher of length snd.cipher_key_len, then
+ *    authentication of length snd.auth_key_len;
+ * - driver data (string) of length snd.drv_st_len, if the snd session is
+ *    offloaded to ifnet snd.ifnet;
+ */
+};
+#endif /* _SYS_KTLS_H_ */
+
 #ifdef	_KERNEL
 int	sysctl_setsockopt(SYSCTL_HANDLER_ARGS, struct inpcbinfo *pcbinfo,
 	    int (*ctloutput_set)(struct inpcb *, struct sockopt *));

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -20,7 +20,7 @@
  * proceed where they would get an incorrect digest, cipher result.
  *
  * Maintain a SpinLock for partials in flight per session. Try and acquire this
- * SpinLock. If it cant be acquired return an error straight away to the client
+ * SpinLock. If it can't be acquired return an error straight away to the client
  * as there is already a partial in flight. There is no blocking in the data
  * path for this.
  *

@@ -40,7 +40,7 @@
 #define _IAVF_LIB_H_
 
 #include <sys/malloc.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #ifdef RSS
 #include <net/rss_config.h>

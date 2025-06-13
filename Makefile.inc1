@@ -1999,8 +1999,8 @@ PKG_EXT=	${PKG_FORMAT}
 PKG_EXT=	pkg
 .endif
 
-.if !defined(PKG_VERSION_FROM) && make(real-update-packages)
-.if exists(${PKG_ABI_FILE}) && exists(${REPODIR}/${PKG_ABI})
+.if !defined(PKG_VERSION_FROM) && make(real-update-packages) && \
+    exists(${PKG_ABI_FILE}) && exists(${REPODIR}/${PKG_ABI}/latest)
 PKG_VERSION_FROM!=/usr/bin/readlink ${REPODIR}/${PKG_ABI}/latest
 PKG_VERSION_FROM_DIR=	${REPODIR}/${PKG_ABI}/${PKG_VERSION_FROM}
 # Determine the name of the branch base on the version
@@ -2023,11 +2023,6 @@ BRANCH_EXT_FROM=	rc
 .elif ${PKG_VERSION_FROM:M*.a*}
 BRANCH_EXT_FROM=	alpha
 .endif
-.else
-PKG_VERSION_FROM=
-PKG_VERSION_FROM_DIR=
-BRANCH_EXT_FROM=
-.endif
 .endif
 
 PKGMAKEARGS+=	PKG_VERSION=${PKG_VERSION} \
@@ -2036,8 +2031,8 @@ PKGMAKEARGS+=	PKG_VERSION=${PKG_VERSION} \
 packages: .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} real-packages
 
-update-packages: .PHONY
-	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} real-update-packages
+update-packages: stage-packages .PHONY
+	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} create-packages real-update-packages
 
 package-pkg: .PHONY
 	rm -rf /tmp/ports.${TARGET} || :
@@ -2049,11 +2044,8 @@ package-pkg: .PHONY
 
 real-packages:	stage-packages create-packages sign-packages .PHONY
 
-real-update-packages: stage-packages .PHONY
-	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} create-packages
-.if empty(PKG_VERSION_FROM_DIR)
-	@echo "==> Bootstrapping repository, not checking for new packages"
-.else
+real-update-packages: .PHONY
+.if defined(PKG_VERSION_FROM_DIR)
 	@echo "==> Checking for new packages (comparing ${PKG_VERSION} to ${PKG_VERSION_FROM})"
 	@for pkg in ${PKG_VERSION_FROM_DIR}/${PKG_NAME_PREFIX}-*; do \
 	  pkgname=$$(pkg query -F $${pkg} '%n' | sed 's/${PKG_NAME_PREFIX}-\(.*\)/\1/') ; \
@@ -2071,9 +2063,10 @@ real-update-packages: stage-packages .PHONY
 	    echo "==> New package $${newpkgname}" ; \
 	  fi ; \
 	done
+.else
+	@echo "==> Bootstrapping repository, not checking for new packages"
 .endif
-	${_+_}@cd ${.CURDIR}; \
-		${MAKE} -f Makefile.inc1 PKG_VERSION=${PKG_VERSION} sign-packages
+	${_+_}${MAKE} -C ${.CURDIR} -f Makefile.inc1 PKG_VERSION=${PKG_VERSION} sign-packages
 
 stage-packages-world: .PHONY
 	@mkdir -p ${WSTAGEDIR}
@@ -3512,6 +3505,32 @@ delete-old-files: .PHONY
 			rm ${RM_I} $${catpage} <&3; \
 	        fi; \
 	done
+# Remove compressed copies of uncompressed manpages
+.if ${MK_MANCOMPRESS} != "yes"
+	@exec 3<&0; \
+	find ${DESTDIR}/usr/share/man ${DESTDIR}/usr/share/openssl/man ! -type d ! -name \*.gz 2>/dev/null | \
+	while read manpage; do \
+		if [ -e "$${manpage}.gz" ]; then \
+			rm ${RM_I} $${manpage}.gz <&3; \
+		fi; \
+	done
+# Remove uncompressed copies of compressed manpages
+.else
+	@exec 3<&0; \
+	find ${DESTDIR}/usr/share/man ${DESTDIR}/usr/share/openssl/man ! -type d ! -name \*.gz 2>/dev/null | \
+	while read manpage; do \
+		if [ -e "$${manpage}.gz" ]; then \
+			rm ${RM_I} $${manpage} <&3; \
+		fi; \
+	done
+.endif
+.if !empty(MAN_ARCH) && ${MAN_ARCH} != "all"
+	@exec 3<&0; \
+	find -E /usr/share/man/man4/ -mindepth 1 -type d ! -regex '.*/(${MAN_ARCH:C/[[:space:]]+/|/gW})' | \
+	while read dir; do \
+		find $$dir ! -type d -exec rm ${RM_I} {} + <&3; \
+	done
+.endif
 	@echo ">>> Old files removed"
 
 check-old-files: .PHONY
@@ -3537,6 +3556,29 @@ check-old-files: .PHONY
 			echo $${catpage}; \
 	        fi; \
 	done | sort
+# Check for compressed copies of uncompressed manpages
+.if ${MK_MANCOMPRESS} != "yes"
+	@find ${DESTDIR}/usr/share/man ${DESTDIR}/usr/share/openssl/man ! -type d ! -name \*.gz 2>/dev/null | \
+	while read manpage; do \
+		if [ -e "$${manpage}.gz" ]; then \
+			echo $${manpage}.gz; \
+		fi; \
+	done | sort
+# Check for uncompressed copies of compressed manpages
+.else
+	@find ${DESTDIR}/usr/share/man ${DESTDIR}/usr/share/openssl/man ! -type d ! -name \*.gz 2>/dev/null | \
+	while read manpage; do \
+		if [ -e "$${manpage}.gz" ]; then \
+			echo $${manpage}; \
+		fi; \
+	done | sort
+.endif
+.if !empty(MAN_ARCH) && ${MAN_ARCH} != "all"
+	@find -E /usr/share/man/man4/ -mindepth 1 -type d ! -regex '.*/(${MAN_ARCH:C/[[:space:]]+/|/gW})' | \
+	while read dir; do \
+		find $$dir ! -type d; \
+	done | sort
+.endif
 
 list-old-libs: .PHONY
 	@cd ${.CURDIR}; \

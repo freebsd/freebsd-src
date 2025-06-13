@@ -75,19 +75,19 @@ int	 pfr_buf_add(struct pfr_buffer *, const void *);
 void	*pfr_buf_next(struct pfr_buffer *, const void *);
 int	 pfr_buf_grow(struct pfr_buffer *, int);
 int	 pfr_buf_load(struct pfr_buffer *, char *, int,
-	    int (*)(struct pfr_buffer *, char *, int));
+	    int (*)(struct pfr_buffer *, char *, int, int), int);
 char	*pfr_strerror(int);
 int	 pfi_get_ifaces(const char *, struct pfi_kif *, int *);
 int	 pfi_clr_istats(const char *, int *, int);
 
 void	 pfctl_print_title(char *);
-int	 pfctl_do_clear_tables(const char *, int);
-int	 pfctl_show_tables(const char *, int);
+void	 pfctl_do_clear_tables(const char *, int);
+void	 pfctl_show_tables(const char *, int);
 int	 pfctl_command_tables(int, char *[], char *, const char *, char *,
 	    const char *, int);
 int	 pfctl_show_altq(int, const char *, int, int);
 void	 warn_namespace_collision(const char *);
-int	 pfctl_show_ifaces(const char *, int);
+void	 pfctl_show_ifaces(const char *, int);
 void	pfctl_show_creators(int);
 FILE	*pfctl_fopen(const char *, const char *);
 

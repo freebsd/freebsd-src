@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -7,13 +7,12 @@
 #include "adf_200xx_hw_data.h"
 #include "adf_fw_counters.h"
 #include "adf_cfg_device.h"
+#include "adf_dbgfs.h"
 #include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <machine/bus_dma.h>
 #include <dev/pci/pcireg.h>
-#include "adf_heartbeat_dbg.h"
-#include "adf_cnvnr_freq_counters.h"
 
 static MALLOC_DEFINE(M_QAT_200XX, "qat_200xx", "qat_200xx");
 
@@ -73,6 +72,7 @@ adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 		free(accel_dev->hw_device, M_QAT_200XX);
 		accel_dev->hw_device = NULL;
 	}
+	adf_dbgfs_exit(accel_dev);
 	adf_cfg_dev_remove(accel_dev);
 	adf_devmgr_rm_dev(accel_dev, NULL);
 }
@@ -84,7 +84,7 @@ adf_attach(device_t dev)
 	struct adf_accel_pci *accel_pci_dev;
 	struct adf_hw_device_data *hw_data;
 	unsigned int i = 0, bar_nr = 0, reg_val = 0;
-	int ret, rid;
+	int ret = 0, rid;
 	struct adf_cfg_device *cfg_dev = NULL;
 
 	/* Set pci MaxPayLoad to 256. Implemented to avoid the issue of
@@ -96,6 +96,7 @@ adf_attach(device_t dev)
 
 	accel_dev = device_get_softc(dev);
 
+	mutex_init(&accel_dev->lock);
 	INIT_LIST_HEAD(&accel_dev->crypto_list);
 	accel_pci_dev = &accel_dev->accel_pci_dev;
 	accel_pci_dev->pci_dev = dev;
@@ -108,9 +109,10 @@ adf_attach(device_t dev)
 	/* Add accel device to accel table.
 	 * This should be called before adf_cleanup_accel is called
 	 */
-	if (adf_devmgr_add_dev(accel_dev, NULL)) {
+	ret = adf_devmgr_add_dev(accel_dev, NULL);
+	if (ret) {
 		device_printf(dev, "Failed to add new accelerator device.\n");
-		return ENXIO;
+		goto out_err_lock;
 	}
 
 	/* Allocate and configure device configuration structure */
@@ -213,16 +215,20 @@ adf_attach(device_t dev)
 		bar->base_addr = rman_get_start(bar->virt_addr);
 		bar->size = rman_get_size(bar->virt_addr);
 	}
-	pci_enable_busmaster(dev);
+	ret = pci_enable_busmaster(dev);
+	if (ret)
+		goto out_err;
+
+	adf_dbgfs_init(accel_dev);
 
 	if (!accel_dev->hw_device->config_device) {
 		ret = EFAULT;
-		goto out_err;
+		goto out_err_disable;
 	}
 
 	ret = accel_dev->hw_device->config_device(accel_dev);
 	if (ret)
-		goto out_err;
+		goto out_err_disable;
 
 	ret = adf_dev_init(accel_dev);
 	if (ret)
@@ -241,8 +247,13 @@ out_dev_stop:
 	adf_dev_stop(accel_dev);
 out_dev_shutdown:
 	adf_dev_shutdown(accel_dev);
+out_err_disable:
+	pci_disable_busmaster(dev);
 out_err:
 	adf_cleanup_accel(accel_dev);
+out_err_lock:
+	mutex_destroy(&accel_dev->lock);
+
 	return ret;
 }
 
@@ -258,7 +269,9 @@ adf_detach(device_t dev)
 
 	adf_dev_shutdown(accel_dev);
 
+	pci_disable_busmaster(dev);
 	adf_cleanup_accel(accel_dev);
+	mutex_destroy(&accel_dev->lock);
 
 	return 0;
 }

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #ifndef ADF_DRV_H
 #define ADF_DRV_H
 
@@ -304,6 +304,7 @@ void adf_flush_vf_wq(struct adf_accel_dev *accel_dev);
 int adf_pf2vf_handle_pf_restarting(struct adf_accel_dev *accel_dev);
 int adf_pf2vf_handle_pf_rp_reset(struct adf_accel_dev *accel_dev,
 				 struct pfvf_message msg);
+int adf_pf2vf_handle_pf_error(struct adf_accel_dev *accel_dev);
 bool adf_recv_and_handle_pf2vf_msg(struct adf_accel_dev *accel_dev);
 static inline int
 adf_sriov_configure(device_t *pdev, int numvfs)

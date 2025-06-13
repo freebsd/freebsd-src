@@ -41,11 +41,11 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/pcpu.h>
+#include <sys/stdarg.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
-#include <machine/stdarg.h>
 #include <machine/vmparam.h>
 #include <machine/pc/bios.h>
 #ifdef DEV_ISA

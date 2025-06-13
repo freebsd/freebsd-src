@@ -68,8 +68,7 @@
 #include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/endian.h>
-
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #include <dev/ofw/ofwvar.h>
 #include <dev/ofw/openfirm.h>

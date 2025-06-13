@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 /**
  ***************************************************************************
  * @file sal_types_compression.h
@@ -23,6 +23,8 @@
 
 #define DC_NUM_RX_RINGS (1)
 #define DC_NUM_COMPRESSION_LEVELS (CPA_DC_L12)
+
+#define MAX_SGL_NUM 0x10000
 
 /**
  *****************************************************************************

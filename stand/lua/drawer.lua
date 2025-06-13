@@ -217,6 +217,13 @@ local function defaultframe()
 	return "double"
 end
 
+local function gfxenabled()
+	return (loader.getenv("loader_gfx") or "yes"):lower() ~= "no"
+end
+local function gfxcapable()
+	return core.isFramebufferConsole() and gfx.term_putimage
+end
+
 local function drawframe()
 	local x = menu_position.x - 3
 	local y = menu_position.y - 1
@@ -242,7 +249,7 @@ local function drawframe()
 	x = x + shift.x
 	y = y + shift.y
 
-	if core.isFramebufferConsole() and gfx.term_drawrect ~= nil then
+	if gfxenabled() and gfxcapable() then
 		gfx.term_drawrect(x, y, x + w, y + h)
 		return true
 	end
@@ -323,22 +330,23 @@ local function drawbrand()
 		branddef = getBranddef(drawer.default_brand)
 	end
 
-	local graphic = branddef.graphic
+	local graphic = branddef.ascii.image
 
 	x = x + shift.x
 	y = y + shift.y
-	if branddef.shift ~= nil then
-		x = x +	branddef.shift.x
-		y = y + branddef.shift.y
-	end
 
-	if core.isFramebufferConsole() and
-	    gfx.term_putimage ~= nil and
-	    branddef.image ~= nil then
-		if gfx.term_putimage(branddef.image, x, y, 0, 7, 0)
-		then
+	local gfx_requested = branddef.fb and gfxenabled()
+	if gfx_requested and gfxcapable() then
+		if branddef.fb.shift then
+			x = x + (branddef.fb.shift.x or 0)
+			y = y + (branddef.fb.shift.y or 0)
+		end
+		if gfx.term_putimage(branddef.fb.image, x, y, 0, 7, 0) then
 			return true
 		end
+	elseif branddef.ascii.shift then
+		x = x +	(branddef.ascii.shift.x or 0)
+		y = y + (branddef.ascii.shift.y or 0)
 	end
 	draw(x, y, graphic)
 end
@@ -354,8 +362,8 @@ local function drawlogo()
 
 	local logodef = getLogodef(logo)
 
-	if logodef == nil or logodef.graphic == nil or
-	    (not colored and logodef.requires_color) then
+	if logodef == nil or logodef.ascii == nil or
+	    (not colored and logodef.ascii.requires_color) then
 		-- Choose a sensible default
 		if colored then
 			logodef = getLogodef(drawer.default_color_logodef)
@@ -369,7 +377,10 @@ local function drawlogo()
 		end
 	end
 
-	if logodef ~= nil and logodef.graphic == none then
+	-- This is a special little hack for the "none" logo to re-align the
+	-- menu and the brand to avoid having a lot of extraneous whitespace on
+	-- the right side.
+	if logodef and logodef.ascii.image == none then
 		shift = logodef.shift
 	else
 		shift = default_shift
@@ -378,25 +389,23 @@ local function drawlogo()
 	x = x + shift.x
 	y = y + shift.y
 
-	if logodef ~= nil and logodef.shift ~= nil then
-		x = x + logodef.shift.x
-		y = y + logodef.shift.y
-	end
+	local gfx_requested = logodef.fb and gfxenabled()
+	if gfx_requested and gfxcapable() then
+		local y1 = logodef.fb.width or 15
 
-	if core.isFramebufferConsole() and
-	    gfx.term_putimage ~= nil and
-	    logodef.image ~= nil then
-		local y1 = 15
-
-		if logodef.image_rl ~= nil then
-			y1 = logodef.image_rl
+		if logodef.fb.shift then
+			x = x + (logodef.fb.shift.x or 0)
+			y = y + (logodef.fb.shift.y or 0)
 		end
-		if gfx.term_putimage(logodef.image, x, y, 0, y + y1, 0)
-		then
+		if gfx.term_putimage(logodef.fb.image, x, y, 0, y + y1, 0) then
 			return true
 		end
+	elseif logodef.ascii.shift then
+		x = x + (logodef.ascii.shift.x or 0)
+		y = y + (logodef.ascii.shift.y or 0)
 	end
-	draw(x, y, logodef.graphic)
+
+	draw(x, y, logodef.ascii.image)
 end
 
 local function drawitem(func)
@@ -453,11 +462,15 @@ branddefs = {
 	-- Indexed by valid values for loader_brand in loader.conf(5). Valid
 	-- keys are: graphic (table depicting graphic)
 	["fbsd"] = {
-		graphic = fbsd_brand,
-		image = "/boot/images/freebsd-brand-rev.png",
+		ascii = {
+			image = fbsd_brand,
+		},
+		fb = {
+			image = "/boot/images/freebsd-brand-rev.png",
+		},
 	},
 	["none"] = {
-		graphic = none,
+		fb = { image = none },
 	},
 }
 
@@ -466,13 +479,19 @@ logodefs = {
 	-- are: requires_color (boolean), graphic (table depicting graphic), and
 	-- shift (table containing x and y).
 	["tribute"] = {
-		graphic = fbsd_brand,
+		ascii = {
+			image = fbsd_brand,
+		},
 	},
 	["tributebw"] = {
-		graphic = fbsd_brand,
+		ascii = {
+			image = fbsd_brand,
+		},
 	},
 	["none"] = {
-		graphic = none,
+		ascii = {
+			image = none,
+		},
 		shift = {x = 17, y = 0},
 	},
 }
@@ -492,14 +511,43 @@ drawer.default_bw_logodef = 'orbbw'
 -- drawer module in case it's a filesystem issue.
 drawer.default_fallback_logodef = 'none'
 
--- These should go away after FreeBSD 13; only available for backwards
--- compatibility with old logo- files.
+-- Backwards compatibility shims for previous FreeBSD versions, please document
+-- new additions
+local function adapt_fb_shim(def)
+	-- In FreeBSD 14.x+, we have improved framebuffer support in the loader
+	-- and some graphics may have images that we can actually draw on the
+	-- screen.  Those graphics may come with shifts that are distinct from
+	-- the ASCII version, so we move both ascii and image versions into
+	-- their own tables.
+	if not def.ascii then
+		def.ascii = {
+			image = def.graphic,
+			requires_color = def.requires_color,
+			shift = def.shift,
+		}
+	end
+	if def.image then
+		assert(not def.fb,
+		    "Unrecognized graphic definition format")
+
+		-- Legacy images may have adapted a shift from the ASCII
+		-- version, or perhaps we just didn't care enough to adjust it.
+		-- Steal the shift.
+		def.fb = {
+			image = def.image,
+			width = def.image_rl,
+			shift = def.shift,
+		}
+	end
+	return def
+end
+
 function drawer.addBrand(name, def)
-	branddefs[name] = def
+	branddefs[name] = adapt_fb_shim(def)
 end
 
 function drawer.addLogo(name, def)
-	logodefs[name] = def
+	logodefs[name] = adapt_fb_shim(def)
 end
 
 drawer.frame_styles = {

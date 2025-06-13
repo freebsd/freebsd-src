@@ -45,10 +45,10 @@
 #include <sys/condvar.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/stdarg.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>

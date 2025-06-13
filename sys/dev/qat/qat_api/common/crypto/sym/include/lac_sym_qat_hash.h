@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /**
  *****************************************************************************
@@ -42,7 +42,7 @@
  *      hash precomputes
  *
  * @description
- *      This structure contains infomation on the hash precomputes
+ *      This structure contains information on the hash precomputes
  *
  *****************************************************************************/
 typedef struct lac_sym_qat_hash_precompute_info_s {
@@ -62,7 +62,7 @@ typedef struct lac_sym_qat_hash_precompute_info_s {
  *      hash state prefix buffer info
  *
  * @description
- *      This structure contains infomation on the hash state prefix aad buffer
+ *      This structure contains information on the hash state prefix aad buffer
  *
  *****************************************************************************/
 typedef struct lac_sym_qat_hash_state_buffer_info_s {

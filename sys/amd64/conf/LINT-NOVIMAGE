@@ -1,0 +1,4 @@
+
+include LINT
+ident LINT-NOVIMAGE
+nooptions VIMAGE

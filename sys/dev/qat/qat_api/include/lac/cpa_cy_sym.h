@@ -1,38 +1,5 @@
-/***************************************************************************
- *
- *   BSD LICENSE
- * 
- *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
- *   All rights reserved.
- * 
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- * 
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
- *
- ***************************************************************************/
+/* SPDX-License-Identifier: BSD-3-Clause */
+/* Copyright(c) 2007-2025 Intel Corporation */
 
 /*
  *****************************************************************************
@@ -71,7 +38,7 @@ extern "C" {
  *      is allocated by the client. The size of the memory that the client needs
  *      to allocate is determined by a call to the @ref
  *      cpaCySymSessionCtxGetSize or @ref cpaCySymSessionCtxGetDynamicSize
- *      functions. The session context memory is initialized with a call to 
+ *      functions. The session context memory is initialized with a call to
  *      the @ref cpaCySymInitSession function.
  *      This memory MUST not be freed until a call to @ref
  *      cpaCySymRemoveSession has completed successfully.
@@ -253,7 +220,7 @@ typedef enum _CpaCySymCipherDirection
  *      Symmetric Cipher Setup Data.
  * @description
  *      This structure contains data relating to Cipher (Encryption and
- *      Decryption) to set up a session.
+ *      Decryption) to setup a session.
  *
  *****************************************************************************/
 typedef struct _CpaCySymCipherSetupData {
@@ -272,7 +239,8 @@ typedef struct _CpaCySymCipherSetupData {
      * - Two keys must be provided and cipherKeyLenInBytes refers to total
      *   length of the two keys.
      * - Each key can be either 128 bits (16 bytes) or 256 bits (32 bytes).
-     * - Both keys must have the same size. */
+     * - Both keys must have the same size.
+     */
     Cpa8U *pCipherKey;
     /**< Cipher key
      * For the CPA_CY_SYM_CIPHER_AES_F8 mode of operation, pCipherKey will
@@ -281,7 +249,9 @@ typedef struct _CpaCySymCipherSetupData {
      * bytes to match the length of the encryption key used.
      * For AES-XTS mode of operation, two keys must be provided and pCipherKey
      * must point to the two keys concatenated together (Key1 || Key2).
-     * cipherKeyLenInBytes will contain the total size of both keys. */
+     * cipherKeyLenInBytes will contain the total size of both keys.
+     * These fields are set to NULL if key derivation will be used.
+     */
     CpaCySymCipherDirection cipherDirection;
     /**< This parameter determines if the cipher operation is an encrypt or
      * a decrypt operation.
@@ -651,11 +621,11 @@ typedef enum _CpaCySymAlgChainOrder
  *      setup a session.
  *
  ****************************************************************************/
-typedef struct _CpaCySymSessionSetupData  {
+typedef struct _CpaCySymSessionSetupData {
     CpaCyPriority sessionPriority;
     /**< Priority of this session */
     CpaCySymOp symOperation;
-    /**< Operation to perfom */
+    /**< Operation to perform */
     CpaCySymCipherSetupData cipherSetupData;
     /**< Cipher Setup Data for the session. This member is ignored for the
      * CPA_CY_SYM_OP_HASH operation. */
@@ -665,7 +635,7 @@ typedef struct _CpaCySymSessionSetupData  {
     CpaCySymAlgChainOrder algChainOrder;
     /**< If this operation data structure relates to an algorithm chaining
      * session then this parameter determines the order in which the chained
-     * operations are performed.  If this structure does not relate to an
+     * operations are performed. If this structure does not relate to an
      * algorithm chaining session then this parameter will be ignored.
      *
      * @note In the case of authenticated ciphers (GCM and CCM), which are
@@ -674,7 +644,7 @@ typedef struct _CpaCySymSessionSetupData  {
      * cases. */
     CpaBoolean digestIsAppended;
     /**< Flag indicating whether the digest is appended immediately following
-     * the region over which the digest is computed.  This is true for both
+     * the region over which the digest is computed. This is true for both
      * IPsec packets and SSL/TLS records.
      *
      * If this flag is set, then the value of the pDigestResult field of
@@ -689,7 +659,7 @@ typedef struct _CpaCySymSessionSetupData  {
      */
     CpaBoolean verifyDigest;
     /**< This flag is relevant only for operations which generate a message
-     * digest.  If set to true, the computed digest will not be written back
+     * digest. If set to true, the computed digest will not be written back
      * to the buffer location specified by other parameters, but instead will
      * be verified (i.e. compared to the value passed in at that location).
      * The number of bytes to be written or compared is indicated by the
@@ -697,7 +667,7 @@ typedef struct _CpaCySymSessionSetupData  {
      * @note This option is only valid for full packets and for final
      * partial packets when using partials without algorithm chaining.
      * @note The value of this field is ignored for the authenticated ciphers
-     * (AES_CCM and AES_GCM).  Digest verification is always done for these
+     * (AES_CCM and AES_GCM). Digest verification is always done for these
      * (when the direction is decrypt) and unless the DP API is used,
      * the message buffer will be zeroed if verification fails. When using the
      * DP API, it is the API clients responsibility to clear the message
@@ -938,6 +908,7 @@ typedef struct _CpaCySymOpData {
      * operation, this field is not used and should be set to 0. Instead
      * the AAD data should be placed in the source buffer.
      */
+
 } CpaCySymOpData;
 
 /**
@@ -961,7 +932,7 @@ typedef struct _CpaCySymOpData {
  * @description
  *      This macro sets the additional authentication data in the
  *      appropriate location of the@ref CpaCySymOpData struct for the
- *      authenticated encryptionalgorithm @ref CPA_CY_SYM_HASH_AES_CCM.
+ *      authenticated encryption algorithm @ref CPA_CY_SYM_HASH_AES_CCM.
  ****************************************************************************/
 #define CPA_CY_SYM_CCM_SET_AAD(pOpData, pAad, aadLen) do { \
     memcpy(&pOpData->pAdditionalAuthData[18], pAad, aadLen); \
@@ -1122,10 +1093,10 @@ typedef void (*CpaCySymCbFunc)(void *pCallbackTag,
  *            implementations)
  *        (2) between different releases of the same API implementation.
  *
- *      The size returned by this function is the smallest size needed to 
+ *      The size returned by this function is the smallest size needed to
  *      support all possible combinations of setup data parameters. Some
- *      setup data parameter combinations may fit within a smaller session 
- *      context size. The alternate cpaCySymSessionCtxGetDynamicSize() 
+ *      setup data parameter combinations may fit within a smaller session
+ *      context size. The alternate cpaCySymSessionCtxGetDynamicSize()
  *      function will return the smallest size needed to fit the
  *      provided setup data parameters.
  *
@@ -1183,17 +1154,17 @@ cpaCySymSessionCtxGetSize(const CpaInstanceHandle instanceHandle,
  *      Gets the minimum size required to store a session context.
  *
  * @description
- *      This function is used by the client to determine the smallest size of 
- *      the memory it must allocate in order to store the session context. 
- *      This MUST be called before the client allocates the memory for the 
- *      session context and before the client calls the @ref cpaCySymInitSession 
+ *      This function is used by the client to determine the smallest size of
+ *      the memory it must allocate in order to store the session context.
+ *      This MUST be called before the client allocates the memory for the
+ *      session context and before the client calls the @ref cpaCySymInitSession
  *      function.
  *
  *      This function is an alternate to cpaCySymSessionGetSize().
- *      cpaCySymSessionCtxGetSize() will return a fixed size which is the 
- *      minimum memory size needed to support all possible setup data parameter 
- *      combinations. cpaCySymSessionCtxGetDynamicSize() will return the 
- *      minimum memory size needed to support the specific session setup 
+ *      cpaCySymSessionCtxGetSize() will return a fixed size which is the
+ *      minimum memory size needed to support all possible setup data parameter
+ *      combinations. cpaCySymSessionCtxGetDynamicSize() will return the
+ *      minimum memory size needed to support the specific session setup
  *      data parameters provided. This size may be different for different setup
  *      data parameters.
  *
@@ -1564,7 +1535,7 @@ cpaCySymSessionInUse(CpaCySymSessionCtx sessionCtx,
  *                              a multiple of the relevant block size.
  *                              i.e. padding WILL NOT be applied to the data.
  *                              For optimum performance, the buffer should
- *                              only contain the data region that the 
+ *                              only contain the data region that the
  *                              cryptographic operation(s) must be performed on.
  *                              Any additional data in the source buffer may be
  *                              copied to the destination buffer and this copy

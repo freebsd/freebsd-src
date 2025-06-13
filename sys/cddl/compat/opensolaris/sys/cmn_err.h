@@ -28,7 +28,7 @@
 #define	_OPENSOLARIS_SYS_CMN_ERR_H_
 
 #include <sys/systm.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 
 #ifdef	__cplusplus
 extern "C" {

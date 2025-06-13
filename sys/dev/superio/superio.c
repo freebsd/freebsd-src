@@ -37,11 +37,11 @@
 #include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/sbuf.h>
+#include <sys/stdarg.h>
 #include <sys/time.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <isa/isavar.h>
 

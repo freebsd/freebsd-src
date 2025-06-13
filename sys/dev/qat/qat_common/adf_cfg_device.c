@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "adf_cfg_instance.h"
 #include "adf_cfg_section.h"
 #include "adf_cfg_device.h"
@@ -675,6 +675,18 @@ adf_cfg_device_clear(struct adf_cfg_device *device,
 
 	free(device->instances, M_QAT);
 	device->instances = NULL;
+}
+
+void
+adf_cfg_device_clear_all(struct adf_accel_dev *accel_dev)
+{
+	sx_xlock(&accel_dev->cfg->lock);
+	if (accel_dev->cfg->dev) {
+		adf_cfg_device_clear(accel_dev->cfg->dev, accel_dev);
+                free(accel_dev->cfg->dev, M_QAT);
+		accel_dev->cfg->dev = NULL;
+	}
+	sx_xunlock(&accel_dev->cfg->lock);
 }
 
 /*

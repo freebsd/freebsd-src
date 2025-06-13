@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #include "qat_utils.h"
 
 #include <sys/param.h>
@@ -10,7 +10,7 @@
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/time.h>
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
@@ -20,7 +20,7 @@
  *
  *  Data struct to store the information on the
  *  memory allocated. This structure is stored at the beginning of
- *  the allocated chunck of memory
+ *  the allocated chunk of memory
  *  size is the no of byte passed to the memory allocation functions
  *  mSize is the real size of the memory required to the OS
  *

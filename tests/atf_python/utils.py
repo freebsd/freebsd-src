@@ -46,6 +46,7 @@ class BaseTest(object):
     NEED_ROOT: bool = False  # True if the class needs root privileges for the setup
     TARGET_USER = None  # Set to the target user by the framework
     REQUIRED_MODULES: List[str] = []
+    SKIP_MODULES: List[str] = []
 
     def require_module(self, mod_name: str, skip=True):
         error_code = libc.modfind(mod_name)
@@ -58,9 +59,18 @@ class BaseTest(object):
         else:
             raise ValueError(txt)
 
+    def skip_module(self, mod_name: str):
+        error_code = libc.modfind(mod_name)
+        if error_code == 0:
+            txt = "kernel module '{}' loaded, skip test".format(mod_name)
+            pytest.skip(txt)
+            return
+
     def _check_modules(self):
         for mod_name in self.REQUIRED_MODULES:
             self.require_module(mod_name)
+        for mod_name in self.SKIP_MODULES:
+            self.skip_module(mod_name)
 
     @property
     def atf_vars(self) -> Dict[str, str]:

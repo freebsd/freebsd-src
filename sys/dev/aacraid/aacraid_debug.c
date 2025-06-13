@@ -51,13 +51,12 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-
 #include <sys/bus.h>
 #include <sys/rman.h>
+#include <sys/stdarg.h>
 
 #include <machine/resource.h>
 #include <machine/bus.h>
-#include <machine/stdarg.h>
 
 #include <dev/aacraid/aacraid_debug.h>
 

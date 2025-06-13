@@ -34,10 +34,10 @@
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
-#include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>

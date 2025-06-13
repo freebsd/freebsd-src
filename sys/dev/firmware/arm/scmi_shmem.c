@@ -304,10 +304,10 @@ bool scmi_shmem_poll_msg(device_t dev, uint32_t *msg_header, uint32_t *rx_len)
 
 	ret = (status & (SCMI_SHMEM_CHAN_STAT_CHANNEL_ERROR |
 	    SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE));
-	if (ret == 0)
-		return (ret);
+	if (ret)
+		scmi_shmem_read_msg_header(dev, msg_header, rx_len);
 
-	return (scmi_shmem_read_msg_header(dev, msg_header, rx_len));
+	return (ret);
 }
 
 static device_method_t shmem_methods[] = {

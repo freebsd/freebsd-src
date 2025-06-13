@@ -1657,8 +1657,8 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 	 */
 	(p->p_sysent->sv_set_syscall_retval)(td, EINTR);
 	for (has_sig = 0; !has_sig;) {
-		while (msleep(&p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "pause",
-			0) == 0)
+		while (msleep(&p->p_sigacts, &p->p_mtx, PPAUSE | PCATCH,
+		    "sigsusp", 0) == 0)
 			/* void */;
 		thread_suspend_check(0);
 		mtx_lock(&p->p_sigacts->ps_mtx);
@@ -3732,7 +3732,14 @@ sigparent(struct proc *p, int reason, int status)
 		if (KSI_ONQ(p->p_ksi))
 			return;
 	}
-	pksignal(p->p_pptr, SIGCHLD, p->p_ksi);
+
+	/*
+	 * Do not consume p_ksi if parent is zombie, since signal is
+	 * dropped immediately.  Instead, keep it since it might be
+	 * useful for reaper.
+	 */
+	if (p->p_pptr->p_state != PRS_ZOMBIE)
+		pksignal(p->p_pptr, SIGCHLD, p->p_ksi);
 }
 
 static void

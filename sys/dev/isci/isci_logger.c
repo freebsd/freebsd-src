@@ -37,7 +37,7 @@
 #include <dev/isci/scil/scic_user_callback.h>
 #include <dev/isci/scil/sci_logger.h>
 
-#include <machine/stdarg.h>
+#include <sys/stdarg.h>
 #include <sys/time.h>
 
 #define ERROR_LEVEL	0

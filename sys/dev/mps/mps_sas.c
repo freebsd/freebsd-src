@@ -51,12 +51,11 @@
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
 #include <sys/sbuf.h>
+#include <sys/stdarg.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
-
-#include <machine/stdarg.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>

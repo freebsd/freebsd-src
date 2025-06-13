@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2025 Intel Corporation */
 #ifndef ADF_HEARTBEAT_H_
 #define ADF_HEARTBEAT_H_
 
@@ -18,8 +18,8 @@ struct adf_heartbeat {
 	u64 last_hb_check_time;
 	enum adf_device_heartbeat_status last_hb_status;
 	struct qat_sysctl heartbeat;
-	struct qat_sysctl *heartbeat_sent;
-	struct qat_sysctl *heartbeat_failed;
+	struct qat_sysctl heartbeat_sent;
+	struct qat_sysctl heartbeat_failed;
 };
 
 int adf_heartbeat_init(struct adf_accel_dev *accel_dev);
