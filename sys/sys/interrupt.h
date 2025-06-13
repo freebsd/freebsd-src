@@ -185,9 +185,13 @@ int	intr_event_create(struct intr_event **event, void *source,
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
 	    int (*assign_cpu)(void *, int), const char *fmt, ...)
 	    __printflike(9, 10);
+int	intr_event_describe_handler_(struct intr_event *ie, void *cookie,
+	    const char *descr) __result_use_check;
 int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	    const char *descr);
+int	intr_event_destroy_(struct intr_event *ie) __result_use_check;
 int	intr_event_destroy(struct intr_event *ie);
+int	intr_event_handle_(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(void *cookie);
 int	intr_event_suspend_handler(void *cookie);
