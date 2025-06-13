@@ -690,6 +690,9 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 			break;
 		r.sr.pscr_args = pscr_args;
 		break;
+	case PTLINUX_FIRST ... PTLINUX_LAST:
+		error = EINVAL;
+		break;
 	default:
 		addr = uap->addr;
 		break;
@@ -1166,7 +1169,9 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_GET_SC_ARGS:
-		CTR1(KTR_PTRACE, "PT_GET_SC_ARGS: pid %d", p->p_pid);
+	case PTLINUX_GET_SC_ARGS:
+		CTR2(KTR_PTRACE, "%s: pid %d", req == PT_GET_SC_ARGS ?
+		    "PT_GET_SC_ARGS" : "PT_LINUX_GET_SC_ARGS", p->p_pid);
 		if (((td2->td_dbgflags & (TDB_SCE | TDB_SCX)) == 0 &&
 		     td2->td_sa.code == 0)
 #ifdef COMPAT_FREEBSD32
@@ -1176,11 +1181,21 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			error = EINVAL;
 			break;
 		}
-		bzero(addr, sizeof(td2->td_sa.args));
-		/* See the explanation in linux_ptrace_get_syscall_info(). */
-		bcopy(td2->td_sa.args, addr, SV_PROC_ABI(td->td_proc) ==
-		    SV_ABI_LINUX ? sizeof(td2->td_sa.args) :
-		    td2->td_sa.callp->sy_narg * sizeof(syscallarg_t));
+		if (req == PT_GET_SC_ARGS) {
+			bzero(addr, sizeof(td2->td_sa.args));
+			bcopy(td2->td_sa.args, addr, td2->td_sa.callp->sy_narg *
+			    sizeof(syscallarg_t));
+		} else {
+			/*
+			 * Emulate a Linux bug which which strace(1) depends on:
+			 * at initialization it tests whether ptrace works by
+			 * calling close(2), or some other single-argument
+			 * syscall, _with six arguments_, and then verifies
+			 * whether it can fetch them all using this API;
+			 * otherwise it bails out.
+			 */
+			bcopy(td2->td_sa.args, addr, 6 * sizeof(syscallarg_t));
+		}
 		break;
 
 	case PT_GET_SC_RET:
