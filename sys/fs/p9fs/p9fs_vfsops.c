@@ -345,6 +345,8 @@ p9fs_vget_common(struct mount *mp, struct p9fs_node *np, int flags,
 	P9FS_SET_LINKS(inode);
 
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
+	if (vp->v_type != VFIFO)
+		VN_LOCK_ASHARE(vp);
 	error = insmntque(vp, mp);
 	if (error != 0) {
 		/*
