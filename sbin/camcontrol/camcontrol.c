@@ -5400,6 +5400,19 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 			    nvmf_transport_type(nvmf->trtype));
 		}
 	}
+	if (cts->transport == XPORT_UFSHCI) {
+		struct ccb_trans_settings_ufshci *ufshci =
+		    &cts->xport_specific.ufshci;
+
+		if (ufshci->valid & CTS_UFSHCI_VALID_MODE) {
+			fprintf(stdout, "%sHigh Speed Gear: %d (%d max)\n",
+				pathstr, ufshci->hs_gear, ufshci->max_hs_gear);
+			fprintf(stdout, "%sUnipro TX lanes: %d (%d max)\n", pathstr,
+				ufshci->tx_lanes, ufshci->max_tx_lanes);
+			fprintf(stdout, "%sUnipro RX lanes: %d (%d max)\n", pathstr,
+				ufshci->rx_lanes, ufshci->max_rx_lanes);
+		}
+	}
 	if (cts->protocol == PROTO_ATA) {
 		struct ccb_trans_settings_ata *ata=
 		    &cts->proto_specific.ata;
