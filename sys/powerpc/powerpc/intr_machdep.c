@@ -651,7 +651,7 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 	if (i->ipi)
 		PIC_EOI(i->pic, i->intline, i->priv);
 
-	if (intr_event_handle(ie, tf) != 0) {
+	if (intr_event_handle_(ie, tf) != 0) {
 		goto stray;
 	}
 	return;
