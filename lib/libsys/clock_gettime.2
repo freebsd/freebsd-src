@@ -102,7 +102,9 @@ Returns the execution time of the calling thread.
 .It Dv CLOCK_TAI
 Increments in SI seconds like a wall clock.
 It uses a 1970 epoch and implements the TAI timescale.
-Similar to CLOCK_REALTIME, but without leap seconds.
+Similar to
+.Dv CLOCK_REALTIME ,
+but without leap seconds.
 It will increase monotonically during a leap second.
 Will return
 .Er EINVAL
