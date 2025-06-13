@@ -37,6 +37,10 @@ bool gve_disable_hw_lro = false;
 SYSCTL_BOOL(_hw_gve, OID_AUTO, disable_hw_lro, CTLFLAG_RDTUN,
     &gve_disable_hw_lro, 0, "Controls if hardware LRO is used");
 
+bool gve_allow_4k_rx_buffers = false;
+SYSCTL_BOOL(_hw_gve, OID_AUTO, allow_4k_rx_buffers, CTLFLAG_RDTUN,
+    &gve_allow_4k_rx_buffers, 0, "Controls if 4K RX Buffers are allowed");
+
 char gve_queue_format[8];
 SYSCTL_STRING(_hw_gve, OID_AUTO, queue_format, CTLFLAG_RD,
     &gve_queue_format, 0, "Queue format being used by the iface");
