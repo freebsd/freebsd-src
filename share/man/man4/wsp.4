@@ -55,51 +55,58 @@ A single-finger press generates a left button click.
 A two-finger press maps to the right button; whereas a three-finger
 press gets treated as a middle button click.
 .Pp
-The trackpad functions with presses and taps. A press is a full-forced
-press which causes a physical lowering of the trackpad. A tap is a
+The trackpad functions with presses and taps.
+A press is a full-forced
+press which causes a physical lowering of the trackpad.
+A tap is a
 touch of the trackpad which does not depress the physical trackpad.
 .Pp
 The
 .Nm
-driver supports receiving evdev input device data if enabled. This data
+driver supports receiving evdev input device data if enabled.
+This data
 is used for extended usage of the touchpad like multi-finger support,
-pressure detection, tap support, and gestures. At least the second bit
-of the
+pressure detection, tap support, and gestures.
+At least the second bit of the
 .Xr sysctl 8
 tunable
 .Va kern.evdev.rcpt_mask
-must be set. This can be enabled with
+must be set.
+This can be enabled with
 .Va kern.evdev.rcpt_mask=3 .
 .Pp
 Vertical scrolling (z-axis) is enabled by default with a two-finger
 tap and the movement of a finger up and down.
 Horizontal scrolling (t-axis) is not natively supported by the sysmouse
-protocol, therefore must be enabled with evdev data. This can be enabled
-with the
+protocol, therefore must be enabled with evdev data.
+This can be enabled with the
 .Xr sysctl 8
 tunable
-.Va kern.evdev.sysmouse_t_axis=3.
+.Va kern.evdev.sysmouse_t_axis=3 .
 Horizontal scrolling can be used with a two-finger tap and the movement
-of a finger from side to side. The
+of a finger from side to side.
+The
 .Xr sysctl 8
 tunable
 .Va hw.usb.wsp.t_factor
 must be greater than 0 for horizontal scrolling to be enabled, too.
 .Pp
 Horizontal swiping with a three-finger tap is registered as mouse buttons
-8 and 9, depending on the direction. These buttons default to backwards
-and forwards keyboard events.
+8 and 9, depending on the direction.
+These buttons default to backwards and forwards keyboard events.
 .Sh SYSCTL VARIABLES
 The following variables are available as
 .Xr sysctl 8
 tunables:
 .Bl -tag -width indent
 .It Va hw.usb.wsp.scale_factor
-Controls the pointer sensitivity. Default is 12.
+Controls the pointer sensitivity.
+Default is 12.
 .El
 .Bl -tag -width indent
 .It Va hw.usb.wsp.enable_single_tap_clicks
-Enables single-tap to register as a left-click. Default is 1 (enabled).
+Enables single-tap to register as a left-click.
+Default is 1 (enabled).
 .El
 .Bl -tag -width indent
 .It Va hw.usb.wsp.enable_single_tap_movement
@@ -114,45 +121,55 @@ finger (a lower value is used for palm detection). Default is 1900.
 .Bl -tag -width indent
 .It Va max_scroll_finger_distance
 Specifies the maximum distance between two fingers where z-axis
-and t-axis movements are registered. Z-axis and T-axis movements
+and t-axis movements are registered.
+Z-axis and T-axis movements
 are vertical and horizontal movements with more than one finger
-tapped (not clicked), respectively. Default is 8192.
+tapped (not clicked), respectively.
+Default is 8192.
 .El
 .Bl -tag -width indent
 .It Va hw.usb.wsp.max_double_tap_distance
 Specifies the maximum distance between two fingers that a two-finger
-click will be registered as a right-click. Default is 2500.
+click will be registered as a right-click.
+Default is 2500.
 .El
 .Bl -tag -width indent
 .It Va hw.usb.wsp.scr_threshold
 Specifies the minimum horizontal or vertical distance required to
-register as a scrolling gesture. Default is 20.
+register as a scrolling gesture.
+Default is 20.
 .El
 .Bl -tag -width indent
 .It Va hw.usb.wsp.z_factor
-Z-axis sensitivity. Default is 5.
+Z-axis sensitivity.
+Default is 5.
 .El
 .Bl -tag -width indent
 .It Va hw.usb.wsp.z_invert
-Z-axis inversion. Default is 0 (disabled).
+Z-axis inversion.
+Default is 0 (disabled).
 .El
 .Bl -tag -width indent
 .It Va hw.usb.wsp.t_factor
-T-axis sensitivity. Default is 0 (disabled).
+T-axis sensitivity.
+Default is 0 (disabled).
 .El
 .Bl -tag -width indent
 .It Va hw.usb.wsp.t_invert
-T-axis inversion. Default is 0 (disabled).
+T-axis inversion.
+Default is 0 (disabled).
 .El
 .Bl -tag -width indent
 .It Va hw.usb.wsp.scroll_finger_count
 Specifies the number of tapped fingers which registers as a scrolling
-movement. Default is 2.
+movement.
+Default is 2.
 .El
 .Bl -tag -width indent
 .It Va hw.usb.wsp.horizontal_swipe_finger_count
 Speifies the number of tapped fingers which registers as a swipe
-gesture. Default is 3.
+gesture.
+Default is 3.
 .El
 .Bl -tag -width indent
 .It Va hw.usb.wsp.pressure_touch_threshold
@@ -173,7 +190,9 @@ Default is 120.
 .It Va hw.usb.wsp.debug
 Specifies the
 .Nm
-driver debugging level (0-3). Default is 1.
+driver debugging level (0-3).
+Default is 1.
+.El
 .Sh FILES
 .Nm
 creates a blocking pseudo-device file,
@@ -184,8 +203,7 @@ or
 .Em mousesystems
 type device--see
 .Xr moused 8
-for an explanation of these mouse
-types.
+for an explanation of these mouse types.
 .Sh SEE ALSO
 .Xr sysmouse 4 ,
 .Xr usb 4 ,
