@@ -386,21 +386,11 @@ linux_ptrace_get_syscall_info(struct thread *td, pid_t pid,
 	if (lwpinfo.pl_flags & PL_FLAG_SCE) {
 		si.op = LINUX_PTRACE_SYSCALL_INFO_ENTRY;
 		si.entry.nr = lwpinfo.pl_syscall_code;
-		/*
-		 * The use of PT_GET_SC_ARGS there is special,
-		 * implementation of PT_GET_SC_ARGS for Linux-ABI
-		 * callers emulates Linux bug which strace(1) depends
-		 * on: at initialization it tests whether ptrace works
-		 * by calling close(2), or some other single-argument
-		 * syscall, _with six arguments_, and then verifies
-		 * whether it can fetch them all using this API;
-		 * otherwise it bails out.
-		 */
-		error = kern_ptrace(td, PT_GET_SC_ARGS, pid,
-		    &si.entry.args, sizeof(si.entry.args));
+		error = kern_ptrace(td, PTLINUX_GET_SC_ARGS, pid,
+		    si.entry.args, sizeof(si.entry.args));
 		if (error != 0) {
-			linux_msg(td, "PT_GET_SC_ARGS failed with error %d",
-			    error);
+			linux_msg(td,
+			    "PT_LINUX_GET_SC_ARGS failed with error %d", error);
 			return (error);
 		}
 	} else if (lwpinfo.pl_flags & PL_FLAG_SCX) {
