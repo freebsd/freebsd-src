@@ -41,6 +41,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
@@ -89,11 +90,12 @@ int
 main(int argc, char *argv[])
 {
 	struct stat sb;
-	int ch, fd, match;
+	int ch, match;
 	wchar_t termchar;
 	unsigned char *back, *front;
 	unsigned const char *file;
 	wchar_t *key;
+	cap_rights_t rights;
 
 	(void) setlocale(LC_CTYPE, "");
 
@@ -132,21 +134,37 @@ main(int argc, char *argv[])
 
 	match = 1;
 
-	do {
-		if ((fd = open(file, O_RDONLY, 0)) < 0 || fstat(fd, &sb))
+	cap_rights_init(&rights, CAP_MMAP_R, CAP_READ, CAP_FSTAT);
+	int fds[argc > 1 ? argc - 1 : argc];
+	for (size_t idx = 0;
+	    idx < sizeof(fds) / sizeof(fds[0]);
+	    file = argv[idx++]) {
+		if ((fds[idx] = open(file, O_RDONLY, 0)) < 0)
+			err(2, "%s", file);
+		if (cap_rights_limit(fds[idx], &rights) < 0 && errno != ENOSYS)
+			err(2, "unable to limit rights for %s", file);
+	}
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "failed to enter capability mode");
+
+	for (size_t idx = 0;
+	    idx < sizeof(fds) / sizeof(fds[0]);
+	    file = argv[idx++]) {
+		if (fstat(fds[idx], &sb))
 			err(2, "%s", file);
 		if ((uintmax_t)sb.st_size > (uintmax_t)SIZE_T_MAX)
 			errx(2, "%s: %s", file, strerror(EFBIG));
 		if (sb.st_size == 0) {
-			close(fd);
+			close(fds[idx]);
 			continue;
 		}
-		if ((front = mmap(NULL, (size_t)sb.st_size, PROT_READ, MAP_SHARED, fd, (off_t)0)) == MAP_FAILED)
+		if ((front = mmap(NULL, (size_t)sb.st_size, PROT_READ, MAP_SHARED, fds[idx], (off_t)0)) == MAP_FAILED)
 			err(2, "%s", file);
 		back = front + sb.st_size;
 		match *= (look(key, front, back));
-		close(fd);
-	} while (argc-- > 2 && (file = *argv++));
+		close(fds[idx]);
+	}
 
 	exit(match);
 }
