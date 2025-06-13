@@ -563,7 +563,7 @@ CTASSERT(PAGE_SIZE == PTE2_SIZE);
  *  so some things, which depend on other ones, are defined independently.
  *  Now, it is time to check that we don't screw up something.
  */
-CTASSERT(PDRSHIFT == PTE1_SHIFT);
+CTASSERT(PDR_SHIFT == PTE1_SHIFT);
 /*
  *  Check L1 and L2 page table entries definitions consistency.
  */
