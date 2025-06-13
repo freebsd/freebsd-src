@@ -1342,7 +1342,7 @@ ithread_loop(void *arg)
  * o EINVAL:                    stray interrupt.
  */
 int
-intr_event_handle(struct intr_event *ie, struct trapframe *frame)
+intr_event_handle_(struct intr_event *ie, struct trapframe *frame)
 {
 	struct intr_handler *ih;
 	struct trapframe *oldframe;
@@ -1357,8 +1357,10 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	intr_prof_stack_use(td, frame);
 #endif
 
-	/* An interrupt with no event or handlers is a stray interrupt. */
-	if (ie == NULL || CK_SLIST_EMPTY(&ie->ie_handlers))
+	MPASS(ie != NULL);
+
+	/* An interrupt with no handlers is a stray interrupt. */
+	if (CK_SLIST_EMPTY(&ie->ie_handlers))
 		return (EINVAL);
 
 	/*
@@ -1457,6 +1459,17 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 		return (EINVAL);
 #endif
 	return (0);
+}
+
+int
+intr_event_handle(struct intr_event *ie, struct trapframe *frame)
+{
+
+        /* An interrupt with no event is a stray interrupt. */
+        if (ie == NULL)
+                return (EINVAL);
+
+	return (intr_event_handle_(ie, frame));
 }
 
 #ifdef DDB
