@@ -27,6 +27,15 @@ mountcritlocal_start()
 		;;
 	esac
 
+	while read a b vfstype rest; do
+		if [ "$vfstype" = "zfs" -a "$a" != "#" ]; then
+			# zpool is needed for legacy ZFS
+			echo 'Importing zpools for legacy ZFS'
+			/etc/rc.d/zpool start
+			break
+		fi
+	done < /etc/fstab
+
 	# Mount everything except nfs filesystems.
 	startmsg -n 'Mounting local filesystems:'
 	mount_excludes='no'
