@@ -85,7 +85,7 @@
 
 static MALLOC_DEFINE(M_GVE, "gve", "gve allocations");
 
-_Static_assert(MCLBYTES == GVE_DEFAULT_RX_BUFFER_SIZE,
+_Static_assert(MCLBYTES >= GVE_DEFAULT_RX_BUFFER_SIZE,
     "gve: bad MCLBYTES length");
 _Static_assert(MJUMPAGESIZE >= GVE_4K_RX_BUFFER_SIZE_DQO,
     "gve: bad MJUMPAGESIZE length");
