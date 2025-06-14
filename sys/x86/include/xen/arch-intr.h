@@ -81,7 +81,7 @@ static inline int
 xen_arch_intr_remove_handler(struct xenisrc *isrc, void *cookie)
 {
 
-	return (intr_remove_handler(cookie));
+	return (intr_remove_handler(&isrc->xi_arch.intsrc, cookie));
 }
 
 static inline int
