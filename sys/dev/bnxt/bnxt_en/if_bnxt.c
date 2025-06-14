@@ -4609,34 +4609,34 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_40G_ACTIVE_CABLE:
 		media_type = BNXT_MEDIA_AC;
-		return;
+		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASECX:
 		media_type = BNXT_MEDIA_BASECX;
-		return;
+		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_1G_BASET:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASET:
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASETE:
 		media_type = BNXT_MEDIA_BASET;
-		return;
+		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
 		media_type = BNXT_MEDIA_BASEKX;
-		return;
+		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_SGMIIEXTPHY:
 		media_type = BNXT_MEDIA_BASESGMII;
-		return;
+		break;
 
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_UNKNOWN:
 		/* Only Autoneg is supported for TYPE_UNKNOWN */
-		return;
+		break;
 
         default:
 		/* Only Autoneg is supported for new phy type values */
 		device_printf(softc->dev, "phy type %d not supported by driver\n", phy_type);
-		return;
+		break;
 	}
 
 	switch (link_info->sig_mode) {
