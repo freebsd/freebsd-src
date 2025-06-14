@@ -249,6 +249,12 @@ if line == "#cloud-config" then
 	if not obj then
 		nuage.err("error parsing cloud-config file: " .. ud)
 	end
+	-- always prefer fqdn is specified over hostname
+	if obj.fqdn then
+		nuage.sethostname(obj.fqdn)
+	elseif obj.hostname then
+		nuage.sethostname(obj.hostname)
+	end
 	if obj.groups then
 		for n, g in pairs(obj.groups) do
 			if (type(g) == "string") then

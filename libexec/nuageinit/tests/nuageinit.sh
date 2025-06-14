@@ -28,6 +28,7 @@ atf_test_case config2_userdata_packages
 atf_test_case config2_userdata_update_packages
 atf_test_case config2_userdata_upgrade_packages
 atf_test_case config2_userdata_shebang
+atf_test_case config2_userdata_fqdn_and_hostname
 
 setup_test_adduser()
 {
@@ -837,6 +838,26 @@ EOF
 	fi
 }
 
+config2_userdata_fqdn_and_hostname_body()
+{
+	mkdir -p media/nuageinit
+	setup_test_adduser
+	printf "{}" > media/nuageinit/meta_data.json
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+fqdn: host.domain.tld
+hostname: host
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"hostname=\"host.domain.tld\"\n" cat ${PWD}/etc/rc.conf.d/hostname
+	cat > media/nuageinit/user_data <<EOF
+#cloud-config
+hostname: host
+EOF
+	atf_check -o empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit config-2
+	atf_check -o inline:"hostname=\"host\"\n" cat ${PWD}/etc/rc.conf.d/hostname
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case args
@@ -861,4 +882,5 @@ atf_init_test_cases()
 	atf_add_test_case config2_userdata_update_packages
 	atf_add_test_case config2_userdata_upgrade_packages
 	atf_add_test_case config2_userdata_shebang
+	atf_add_test_case config2_userdata_fqdn_and_hostname
 }
