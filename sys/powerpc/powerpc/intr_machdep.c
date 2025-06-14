@@ -569,10 +569,14 @@ powerpc_setup_intr_int(const char *name, u_int irq, driver_filter_t filter,
 }
 
 int
-powerpc_teardown_intr(void *cookie)
+powerpc_teardown_intr(u_int irq, struct intr_handler *cookie)
 {
+	struct powerpc_intr *i;
 
-	return (intr_event_remove_handler(cookie));
+	i = intr_lookup(irq);
+	if (i == NULL)
+		return (EINVAL);
+	return (intr_event_remove_handler(i->event, cookie));
 }
 
 #ifdef SMP

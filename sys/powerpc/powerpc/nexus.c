@@ -187,7 +187,7 @@ nexus_teardown_intr(device_t bus __unused, device_t child __unused,
 	if (r == NULL)
 		return (EINVAL);
 
-	return (powerpc_teardown_intr(ih));
+	return (powerpc_teardown_intr(rman_get_start(r), ih));
 }
 
 static bus_space_tag_t
