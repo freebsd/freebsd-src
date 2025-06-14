@@ -4618,6 +4618,7 @@ static struct debugtag	dbg_layer[] = {
     {"ACPI_FAN",		ACPI_FAN},
     {"ACPI_POWERRES",		ACPI_POWERRES},
     {"ACPI_PROCESSOR",		ACPI_PROCESSOR},
+    {"ACPI_SPMC",		ACPI_SPMC},
     {"ACPI_THERMAL",		ACPI_THERMAL},
     {"ACPI_TIMER",		ACPI_TIMER},
     {"ACPI_ALL_DRIVERS",	ACPI_ALL_DRIVERS},

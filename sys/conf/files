@@ -776,6 +776,7 @@ dev/acpica/acpi_thermal.c	optional acpi
 dev/acpica/acpi_throttle.c	optional acpi
 dev/acpica/acpi_video.c		optional acpi_video acpi
 dev/acpica/acpi_dock.c		optional acpi_dock acpi
+dev/acpica/acpi_spmc.c		optional acpi
 dev/adlink/adlink.c		optional adlink
 dev/ae/if_ae.c			optional ae pci
 dev/age/if_age.c		optional age pci
