@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd February 27, 2023
+.Dd July 16, 2025
 .Dt DTRACE_KINST 4
 .Os
 .Sh NAME
@@ -43,10 +43,13 @@ creates probes on-demand, meaning it searches for and parses the function's
 instructions each time
 .Xr dtrace 1
 is run, and not at module load time.
-This is in contrast to FBT's load-time parsing, since
+This is in contrast to
+.Xr dtrace_fbt 4 Ap s
+load-time parsing, since
 .Nm kinst
 can potentially create thousands of probes for just a single function, instead
-of up to two (entry and return) in the case of FBT.
+of up to two (entry and return) in the case of
+.Xr dtrace_fbt 4 .
 A result of this is that
 .Cm dtrace -l -P kinst
 will not match any probes.
@@ -79,7 +82,8 @@ Trace all instructions in
 # dtrace -n 'kinst::amd64_syscall:'
 .Ed
 .Sh SEE ALSO
-.Xr dtrace 1
+.Xr dtrace 1 ,
+.Xr dtrace_fbt 4
 .Sh HISTORY
 The
 .Nm kinst
