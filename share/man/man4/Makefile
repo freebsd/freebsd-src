@@ -627,6 +627,7 @@ MAN=	aac.4 \
 	wlan_acl.4 \
 	wlan_amrr.4 \
 	wlan_ccmp.4 \
+	wlan_gcmp.4 \
 	wlan_tkip.4 \
 	wlan_wep.4 \
 	wlan_xauth.4 \
