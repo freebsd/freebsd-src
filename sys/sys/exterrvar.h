@@ -36,11 +36,17 @@
 #define	SET_ERROR_MSG(mmsg)	NULL
 #endif
 
-#define	SET_ERROR2(eerror, mmsg, pp1, pp2)				\
+#define	_SET_ERROR2(eerror, mmsg, pp1, pp2)				\
 	exterr_set(eerror, EXTERR_CATEGORY, SET_ERROR_MSG(mmsg),	\
 	    (uintptr_t)(pp1), (uintptr_t)(pp2), __LINE__)
-#define	SET_ERROR0(eerror, mmsg)	SET_ERROR2(eerror, mmsg, 0, 0)
-#define	SET_ERROR1(eerror, mmsg, pp1)	SET_ERROR2(eerror, mmsg, pp1, 0)
+#define	_SET_ERROR0(eerror, mmsg)	_SET_ERROR2(eerror, mmsg, 0, 0)
+#define	_SET_ERROR1(eerror, mmsg, pp1)	_SET_ERROR2(eerror, mmsg, pp1, 0)
+
+#define	_EXTERROR_MACRO(eerror, mmsg, _1, _2, NAME, ...)		\
+	NAME
+#define	EXTERROR(...)							\
+	_EXTERROR_MACRO(__VA_ARGS__, _SET_ERROR2, _SET_ERROR1,		\
+	    _SET_ERROR0)(__VA_ARGS__)
 
 int exterr_set(int eerror, int category, const char *mmsg, uintptr_t pp1,
     uintptr_t pp2, int line);
