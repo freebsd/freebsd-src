@@ -1136,7 +1136,7 @@ intr_setup_irq(device_t dev, struct resource *res, driver_filter_t filt,
 	}
 	mtx_unlock(&isrc_table_lock);
 	if (error != 0)
-		intr_event_remove_handler(*cookiep);
+		(void)intr_event_remove_handler_(isrc->isrc_event, *cookiep);
 	return (error);
 }
 
@@ -1174,10 +1174,8 @@ intr_teardown_irq(device_t dev, struct resource *res, void *cookie)
 		return (0);
 	}
 #endif
-	if (isrc != intr_handler_source(cookie))
-		return (EINVAL);
 
-	error = intr_event_remove_handler(cookie);
+	error = intr_event_remove_handler_(isrc->isrc_event, cookie);
 	if (error == 0) {
 		mtx_lock(&isrc_table_lock);
 		isrc->isrc_handlers--;
