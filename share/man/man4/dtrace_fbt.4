@@ -1,0 +1,332 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\"
+.Dd July 16, 2025
+.Dt DTRACE_FBT 4
+.Os
+.Sh NAME
+.Nm dtrace_fbt
+.Nd a DTrace provider for dynamic kernel tracing based on function boundaries
+.Sh SYNOPSIS
+.Nm fbt Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&:entry
+.Nm fbt Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&:return
+.Sh DESCRIPTION
+The Function Boundary Tracing
+.Pq Nm fbt
+provider instruments the entry and return of almost every kernel function
+corresponding to an
+.Xr elf 5
+symbol in the kernel and loaded kernel modules.
+.Pp
+.Nm fbt Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&:entry
+fires whenever the
+.Ar function
+is called.
+.Nm fbt Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&:return
+fires when the
+.Ar function
+returns.
+.Pp
+The
+.Ar module
+in the probe description is either the name of the loaded kernel module
+or
+.Ql kernel
+for functions compiled into the kernel.
+.Ss Function Boundary Instrumentation
+The
+.Nm fbt
+will always instrument a function's entry, but
+its return will be intsrumented so long as it can find a
+.Ql ret
+instruction.
+.Pp
+In some cases,
+.Nm fbt
+cannot instrument a function's entry and/or return.
+Refer to subsection
+.Sx Frame Pointer
+for more details.
+.Ss Probe Arguments
+The arguments of the entry probe
+.Pq Nm fbt Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&:entry
+are the arguments of the traced function call.
+.Bl -column -offset indent "Entry Probe Argument" "Definition"
+.It Sy Entry Probe Argument Ta Sy Definition
+.It Fa args[0]  Ta Function's first argument, typed
+.Pq e.g., Xr malloc 9 Ap s Ft size_t Fa size
+.It Fa args[1]  Ta Function's second argument, typed
+.Pq e.g., Xr malloc 9 Ap s Ft struct malloc_type Fa *type
+.It Fa args[2]  Ta Function's third argument, typed
+.Pq e.g., Xr malloc 9 Ap s Ft int Fa flags
+.It Fa ...      Ta ...
+.El
+.Pp
+The arguments of the return probe
+.Pq Nm fbt Ns Cm \&: Ns Ar module Ns Cm \&: Ns Ar function Ns Cm \&:return
+are
+.Fa args[0]
+.Po
+the offset of the firing return instruction within the function;
+useful to tell apart two different return statements in a single function
+.Pc
+and
+.Fa args[1]
+.Pq the return value, if any .
+.Bl -column -offset indent "Return Probe Argument" "Definition"
+.It Sy Return Probe Argument Ta Sy Definition
+.It Fa args[0]  Ta Offset of the traced return instruction
+.It Fa args[1]  Ta Function's return value
+.Po e.g., a kernel virtual address if returning from a successful
+.Xr malloc 9
+.Pc
+.El
+.Pp
+Subsection
+.Sx Example 2 : Getting Details About Probe's Arguments
+shows how to get probe's argument count and types directly with
+.Xr dtrace 1
+without having to resort to the reading function's source code
+or documentation.
+.Sh EXAMPLES
+.Ss Example 1 : Listing Available FBT Probes
+The following example shows how to list all the available
+.Nm fbt
+probes.
+.Bd -literal -offset 2n
+# dtrace -l -P fbt
+   ID   PROVIDER     MODULE              FUNCTION NAME
+[...]
+31868        fbt     kernel           hammer_time entry
+31869        fbt     kernel           hammer_time return
+[...]
+.Ed
+.Pp
+Since
+.Fn hammer_time
+is a part of the kernel and not a separate loaded module, the
+.Ar module
+column displays
+.Ql kernel .
+.Ss Example 2 : Getting Details About Probe's Arguments
+The following example shows how to generate a program stability report of
+.Xr malloc 9 Ap s
+entry and return probes.
+Those reports are useful to view
+the probe's number of arguments and their types.
+.Bd -literal -offset 2n
+# dtrace -l -v -n fbt::malloc:entry
+[...]
+        Argument Types
+                args[0]: size_t
+                args[1]: struct malloc_type *
+                args[2]: int
+.Ed
+.Pp
+The count and types of
+.Nm fbt Ns Cm \&::malloc:entry
+arguments
+match the function signature of
+.Xr malloc 9 :
+.Va args[0]
+is
+.Ft size_t ,
+.Va args[1]
+is
+.Ft "struct malloc_type *" ,
+and
+.Va "args[2]"
+is
+.Ft int .
+.Bd -literal -offset 2n
+# dtrace -l -v -n fbt::malloc:return
+[...]
+        Argument Types
+                args[0]: int
+                args[1]: void *
+.Ed
+.Pp
+The
+.Cm return
+probe reports two arguments and their types:
+the return instruction offset
+.Pq the usual Ft int
+and the function's return value, which in this case is
+.Ft void * ,
+as
+.Xr malloc 9
+returns a kernel virtual address.
+.Ss Example 3 : Counting Kernel Slab Memory Allocation by Function
+.Bd -literal -offset 2n
+# dtrace -n 'fbt::kmem*:entry { @[probefunc] = count(); }'
+dtrace: description 'fbt::kmem*:entry ' matched 47 probes
+^C
+  kmem_alloc_contig                                     1
+  kmem_alloc_contig_domainset                           1
+  kmem_cache_reap_active                                1
+  kmem_alloc_contig_pages                               2
+  kmem_free                                             2
+  kmem_std_destructor                                  19
+  kmem_std_constructor                                 26
+  kmem_cache_free                                     151
+  kmem_cache_alloc                                    181
+.Ed
+.Ss Example 4 : Counting Kernel Slab Memory Allocation by Calling Function
+.Bd -literal -offset 2n
+# dtrace -q -n 'fbt::kmem*:entry { @[caller] = count(); } END { printa("%40a %@16d\en", @); }'
+^C
+                kernel`contigmalloc+0x33                1
+                        kernel`free+0xd3                1
+           kernel`kmem_alloc_contig+0x29                1
+kernel`kmem_alloc_contig_domainset+0x19a                1
+           zfs.ko`arc_reap_cb_check+0x16                1
+.Ed
+.Ss Example 5 : Counting Kernel malloc()'s by Calling Function
+.Bd -literal -offset 2n
+# dtrace -q -n 'fbt::malloc:entry { @[caller] = count(); } END { printa("%45a %@16d\en", @); }'
+^C
+        kernel`devclass_get_devices+0xa8                1
+                   kernel`sys_ioctl+0xb7                1
+           dtrace.ko`dtrace_ioctl+0x15c1                1
+            dtrace.ko`dtrace_ioctl+0x972                2
+        dtrace.ko`dtrace_dof_create+0x35                2
+             kernel`kern_poll_kfds+0x2f0                4
+             kernel`kern_poll_kfds+0x28a               19
+.Ed
+.Ss Example 6 : Counting Kernel malloc()'s by Kernel Stack Trace
+.Bd -literal -offset 2n
+# dtrace -q -n 'fbt::malloc:entry { @[stack()] = count(); }'
+^C
+              dtrace.ko`dtrace_dof_create+0x35
+              dtrace.ko`dtrace_ioctl+0x827
+              kernel`devfs_ioctl+0xd1
+              kernel`VOP_IOCTL_APV+0x2a
+              kernel`vn_ioctl+0xb6
+              kernel`devfs_ioctl_f+0x1e
+              kernel`kern_ioctl+0x286
+              kernel`sys_ioctl+0x12f
+              kernel`amd64_syscall+0x169
+              kernel`0xffffffff81092b0b
+                2
+.Ed
+.Ss Example 7 : Summarizing vmem_alloc()'s by Arena Name and Size Distribution
+.Bd -literal -offset 2n
+# dtrace -q -n 'fbt::vmem_alloc:entry { @[args[0]->vm_name] = quantize(arg1); }'
+^C
+
+  kernel arena dom
+           value  ------------- Distribution ------------- count
+            2048 |                                         0
+            4096 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              4
+            8192 |@@@@@@@@@@@@@                            2
+           16384 |                                         0
+.Ed
+.Ss Example 8 : Measuring Total Time Spent Executing a Function
+This DTrace script measures the total time spent in
+.Fn vm_page*
+kernel functions.
+The
+.Fn quantize
+aggregation organizes the measurements into power-of-two buckets,
+providing a time distribution in nanoseconds for each function.
+.Bd -literal -offset 2n
+fbt::vm_page*:entry {
+    self->start = timestamp;
+}
+
+fbt::vm_page*:return /self->start/ {
+    @[probefunc] = quantize(timestamp - self->start);
+    self->start = 0;
+}
+.Ed
+.Sh SEE ALSO
+.Xr dtrace 1 ,
+.Xr dtrace_kinst 4 ,
+.Xr tracing 7
+.Rs
+.%A Brendan Gregg
+.%A Jim Mauro
+.%B DTrace: Dynamic Tracing in Oracle Solaris, Mac OS X and FreeBSD
+.%I Prentice Hall
+.%P pp. 898\(en903
+.%D 2011
+.%U https://www.brendangregg.com/dtracebook/
+.Re
+.Rs
+.%B The illumos Dynamic Tracing Guide
+.%O Chapter fbt Provider
+.%D 2008
+.%U https://illumos.org/books/dtrace/chp-fbt.html#chp-fbt
+.Re
+.Sh AUTHORS
+This manual page was written by
+.An Mateusz Piotrowski Aq Mt 0mp@FreeBSD.org .
+.Sh CAVEATS
+.Ss Stability and Portability
+.Nm fbt
+probes are by definition tightly coupled to kernel code; if the code underlying
+a script changes, the script may fail to run or may produce incorrect results.
+Scripts written for one version of
+.Fx
+might not work on others,
+and almost certainly will not work on other operating systems.
+.Pp
+Individual
+.Nm fbt
+probes often do not correspond nicely to logical system events.
+For example, consider a DTrace script which prints the destination
+address of every IP packet as the kernel hands them over
+to the network card driver (NIC).
+An
+.Nm fbt Ns -based
+implementation of such a script is a discouragingly difficult task:
+it involves instrumenting at least four different functions in different parts
+of the IPv4 and IPv6 code.
+At the same time, with the
+.Xr dtrace_ip 4
+provider the script is a simple one-liner:
+.Dl dtrace -n 'ip:::send {printf("%s", args[2]->ip_daddr);}'
+.Pp
+Make sure to review available
+.Xr dtrace 1
+providers first
+before implementing a custom script with the
+.Nm fbt
+provider.
+If none of the DTrace providers offer the desired probes,
+consider adding new statically-defined tracing probes
+.Pq Xr SDT 9 .
+.Ss Frame Pointer
+Inline functions are not instrumentable by
+.Nm fbt
+as they lack a frame pointer.
+A developer might explicitly disable inlining by adding the
+.Ql __noinline
+attribute to a function definition,
+but of course this requires a recompilation of the kernel.
+Building the kernel with
+.Fl fno-omit-frame-pointer
+is another way of preserving frame pointers.
+Note, that sometimes compilers will omit the frame pointer in leaf functions,
+even when configured with
+.Fl fno-omit-frame-pointer .
+.Pp
+Function returns via a tail call are also not instrumentable by
+.Nm fbt .
+As a result,
+a function might have an entry probe
+and a mix of instrumented and uninstrumentable returns.
+.Pp
+Use
+.Xr dtrace_kinst 4
+to trace arbitrary instructions inside kernel functions
+and work around some of the
+limitations
+of
+.Nm fbt .
+.Ss Tracing DTrace
+The
+.Nm fbt
+provider cannot attach to functions inside DTrace provider kernel modules.
