@@ -114,6 +114,7 @@ struct intsrc {
 };
 
 struct trapframe;
+struct intr_handler;
 
 #ifdef SMP
 extern cpuset_t intr_cpus;
@@ -147,7 +148,7 @@ u_int	intr_next_cpu(int domain);
 struct intsrc *intr_lookup_source(int vector);
 void	intr_register_pic(struct pic *pic);
 int	intr_register_source(unsigned int vector, struct intsrc *isrc);
-int	intr_remove_handler(void *cookie);
+int	intr_remove_handler(struct intsrc *isrc, struct intr_handler *handler);
 void	intr_resume(bool suspend_cancelled);
 void	intr_suspend(void);
 void	intr_reprogram(void);
