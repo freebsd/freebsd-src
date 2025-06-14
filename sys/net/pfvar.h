@@ -2719,7 +2719,7 @@ int	pf_osfp_match(struct pf_osfp_enlist *, pf_osfp_t);
 void			 pf_print_host(struct pf_addr *, u_int16_t, sa_family_t);
 
 enum pf_test_status	 pf_step_into_anchor(struct pf_test_ctx *, struct pf_krule *);
-int			 pf_match_rule(struct pf_test_ctx *, struct pf_kruleset *);
+enum pf_test_status	 pf_match_rule(struct pf_test_ctx *, struct pf_kruleset *);
 void			 pf_step_into_keth_anchor(struct pf_keth_anchor_stackframe *,
 			    int *, struct pf_keth_ruleset **,
 			    struct pf_keth_rule **, struct pf_keth_rule **,
