@@ -23,8 +23,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>    /* uio struct */
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
-#include <machine/stdarg.h>
 
 #include "krping.h"
 

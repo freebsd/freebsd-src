@@ -306,6 +306,22 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch_str = "as=2";
 			break;
 		}
+	} else if (id == HDA_CODEC_CX20590 &&
+	    subid == LENOVO_T420S_SUBVENDOR) {
+		switch (nid) {
+		case 25:
+			patch_str = "as=1 seq=15";
+			break;
+		case 27:
+			patch_str = "as=2 seq=15";
+			break;
+		case 31:
+			patch_str = "as=1 seq=0";
+			break;
+		case 35:
+			patch_str = "as=2 seq=0";
+			break;
+		}
 	} else if (id == HDA_CODEC_ALC235 && subid == ASUS_GL553VE_SUBVENDOR) {
 		switch (nid) {
 		case 33:

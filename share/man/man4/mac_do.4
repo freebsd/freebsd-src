@@ -8,7 +8,7 @@
 .\" <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
 .\" Foundation.
 .\"
-.Dd December 19, 2024
+.Dd June 11, 2025
 .Dt MAC_DO 4
 .Os
 .Sh NAME
@@ -348,12 +348,12 @@ Here are several examples of single rules matching processes having a real user
 ID of 10001:
 .Bl -tag -width indent
 .It Li uid=10001>uid=10002
-Allows the process to switch any of its real, effective or saved user ID to
+Allows the process to switch all of its real, effective or saved user ID to
 10002, but keeping the groups it is already in, and with the same
 primary/supplementary groups split.
 .It Li uid=10001>uid=10002,uid=10003
 Same as the first example, but also allows to switch to UID 10003 instead of
-10002.
+10002, or possibly having both in different user IDs.
 .It Li uid=10001>uid=10002,gid=10002
 Same as the first example, but the new primary groups must be set to 10002 and
 no supplementary groups should be set.
@@ -387,7 +387,7 @@ group, allowing its members to switch to root without password.
 .It Li gid=10001>gid=10002
 Allows the process to enter GID 10002 as a primary group, but only if
 giving up all its supplementary groups.
-.It Li security.mac.do.rules=gid=10001>gid=10002,+gid=.\&
+.It Li gid=10001>gid=10002,+gid=.\&
 Same as the previous example, but allows to retain any current supplementary
 groups.
 .It Li gid=10001>gid=10002,!gid=.\&

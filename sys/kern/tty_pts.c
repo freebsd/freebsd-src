@@ -55,6 +55,7 @@
 #include <sys/resourcevar.h>
 #include <sys/serial.h>
 #include <sys/stat.h>
+#include <sys/stdarg.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
@@ -64,8 +65,6 @@
 #include <sys/ttycom.h>
 #include <sys/uio.h>
 #include <sys/user.h>
-
-#include <machine/stdarg.h>
 
 /*
  * Our utmp(5) format is limited to 8-byte TTY line names.  This means

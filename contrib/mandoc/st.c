@@ -1,4 +1,4 @@
-/* $Id: st.c,v 1.18 2024/06/16 18:49:04 schwarze Exp $ */
+/* $Id: st.c,v 1.19 2025/01/02 13:34:04 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -56,6 +56,8 @@ LINE("-isoC-tcor1",	"ISO/IEC 9899/TCOR1:1994 (\\(lqISO\\~C90, Technical Corrigen
 LINE("-isoC-tcor2",	"ISO/IEC 9899/TCOR2:1995 (\\(lqISO\\~C90, Technical Corrigendum 2\\(rq)")
 LINE("-isoC-99",	"ISO/IEC 9899:1999 (\\(lqISO\\~C99\\(rq)")
 LINE("-isoC-2011",	"ISO/IEC 9899:2011 (\\(lqISO\\~C11\\(rq)")
+LINE("-isoC-2023",	"ISO/IEC 9899:2024 (\\(lqISO\\~C23\\(rq)")
+/* the -isoC-2024 macro is deprecated in favor of upstream -isoC-2023 */
 LINE("-isoC-2024",	"ISO/IEC 9899:2024 (\\(lqISO\\~C23\\(rq)")
 LINE("-iso9945-1-90",	"ISO/IEC 9945-1:1990 (\\(lqPOSIX.1\\(rq)")
 LINE("-iso9945-1-96",	"ISO/IEC 9945-1:1996 (\\(lqPOSIX.1\\(rq)")

@@ -40,10 +40,9 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
+#include <sys/stdarg.h>
 #include <sys/syscallsubr.h>
 #include <sys/vnode.h>
-
-#include <machine/stdarg.h>
 
 #include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_mib.h>

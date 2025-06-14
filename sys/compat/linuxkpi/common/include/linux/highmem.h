@@ -79,9 +79,7 @@ kmap_atomic_prot(struct page *page, pgprot_t prot)
 	vm_memattr_t attr = pgprot2cachemode(prot);
 
 	if (attr != VM_MEMATTR_DEFAULT) {
-		vm_page_lock(page);
 		page->flags |= PG_FICTITIOUS;
-		vm_page_unlock(page);
 		pmap_page_set_memattr(page, attr);
 	}
 	return (kmap(page));

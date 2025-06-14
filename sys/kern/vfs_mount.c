@@ -56,6 +56,7 @@
 #include <sys/filedesc.h>
 #include <sys/reboot.h>
 #include <sys/sbuf.h>
+#include <sys/stdarg.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/sx.h>
@@ -66,8 +67,6 @@
 #include <vm/uma.h>
 
 #include <geom/geom.h>
-
-#include <machine/stdarg.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>

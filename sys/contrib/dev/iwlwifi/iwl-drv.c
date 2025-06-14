@@ -277,6 +277,9 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 
 		IWL_ERR(drv,
 			"check git://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git\n");
+#if defined(__FreeBSD__)
+		IWL_ERR(drv, "On FreeBSD the firmware package can be installed running fwget(8).\n");
+#endif
 		return -ENOENT;
 	}
 

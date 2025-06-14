@@ -49,8 +49,8 @@
 #include <sys/condvar.h>
 #include <sys/stddef.h>
 #include <sys/ctype.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
-#include <machine/stdarg.h>
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_da.h>

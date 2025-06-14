@@ -858,6 +858,22 @@ commands in sequence.
 All commands must succeed (return a zero exit status), or the jail will
 not be created or removed, as appropriate.
 .Pp
+The following variables are added to the environment:
+.Bl -tag -width indent -offset indent
+.It Ev JID
+The
+.Va jid ,
+or jail identifier.
+.It Ev JNAME
+The
+.Va name
+of the jail.
+.It Ev JPATH
+The
+.Va path
+of the jail.
+.El
+.Pp
 The pseudo-parameters are:
 .Bl -tag -width indent
 .It Va exec.prepare
@@ -922,6 +938,11 @@ is imported from the current environment.
 is set to "/bin:/usr/bin".
 The environment variables from the login class capability database for the
 target login are also set.
+.Ev JID ,
+.Ev JNAME ,
+and
+.Ev JPATH
+are not set.
 If a user is specified (as with
 .Va exec.jail_user ) ,
 commands are run from that (possibly jailed) user's directory.

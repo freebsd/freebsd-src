@@ -464,6 +464,8 @@ FBSD_1.8 {
 	rtld_get_var;
 	rtld_set_var;
 	uexterr_gettext;
+	sig2str;
+	str2sig;
 };
 
 FBSDprivate_1.0 {

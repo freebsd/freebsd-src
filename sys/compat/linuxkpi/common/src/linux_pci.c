@@ -43,13 +43,13 @@
 #include <sys/pctrie.h>
 #include <sys/rman.h>
 #include <sys/rwlock.h>
+#include <sys/stdarg.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>

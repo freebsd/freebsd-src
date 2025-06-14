@@ -84,7 +84,6 @@ ENTRY(_start)
 	/*
 	 * At this point:
 	 * x27 = TTBR0 table
-	 * x26 = Kernel L1 table
 	 * x24 = TTBR1 table
 	 * x22 = PTE shareability attributes
 	 * x21 = BTI guarded page attribute if supported
@@ -481,7 +480,6 @@ LENTRY(create_pagetables)
 	/* Clean the page table */
 	adrp	x6, pagetable
 	add	x6, x6, :lo12:pagetable
-	mov	x26, x6
 	adrp	x27, pagetable_end
 	add	x27, x27, :lo12:pagetable_end
 1:
@@ -591,60 +589,77 @@ common:
 	 * with 2M alignment.
 	 */
 #define	PTE_SHIFT	L3_SHIFT
+#define	LL_PAGE_TABLE	pagetable_l3_ttbr1
 #define	BUILD_PTE_FUNC	build_l3_page_pagetable
 #else
 #define	PTE_SHIFT	L2_SHIFT
+#define	LL_PAGE_TABLE	pagetable_l2_ttbr1
 #define	BUILD_PTE_FUNC	build_l2_block_pagetable
 #endif
 
 	/* Get the number of blocks/pages to allocate, rounded down */
-	lsr	x10, x8, #(PTE_SHIFT)
+	lsr	x14, x8, #(PTE_SHIFT)
+
+	ldr	x25, =etext
+	ldr	x8, =((1 << PTE_SHIFT) - 1)
+	add	x25, x25, x8
+	mov	x8, #(KERNBASE)
+	sub	x25, x25, x8
+	lsr	x25, x25, #(PTE_SHIFT)
 
 	/* Create the kernel space PTE table */
-	mov	x6, x26
+	adrp	x6, LL_PAGE_TABLE
+	add	x6, x6, :lo12:LL_PAGE_TABLE
 	mov	x7, #(ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK))
 	mov	x8, #(KERNBASE)
 	mov	x9, x28
+	mov	x10, x25
+	bl	BUILD_PTE_FUNC
+
+	/* Create the kernel space XN PTE table */
+	lsl	x10, x25, #(PTE_SHIFT)
+	ldr	x7, =(ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) | ATTR_S1_XN)
+	ldr	x8, =(KERNBASE)
+	add	x8, x8, x10
+	add	x9, x28, x10
+	sub	x10, x14, x25
 	bl	BUILD_PTE_FUNC
 
 #undef PTE_SHIFT
+#undef LL_PAGE_TABLE
 #undef BUILD_PTE_FUNC
 
 #if PAGE_SIZE != PAGE_SIZE_4K
-	/* Move to the l2 table */
-	ldr	x9, =(PAGE_SIZE * L3_PAGE_COUNT)
-	add	x26, x26, x9
-
 	/* Link the l2 -> l3 table */
 	mov	x9, x6
-	mov	x6, x26
+	adrp	x6, pagetable_l2_ttbr1
+	add	x6, x6, :lo12:pagetable_l2_ttbr1
 	bl	link_l2_pagetable
 #endif
 
-	/* Move to the l1 table */
-	add	x26, x26, #PAGE_SIZE
-
 	/* Link the l1 -> l2 table */
 	mov	x9, x6
-	mov	x6, x26
+	adrp	x6, pagetable_l1_ttbr1
+	add	x6, x6, :lo12:pagetable_l1_ttbr1
 	bl	link_l1_pagetable
-
-	/* Move to the l0 table */
-	add	x24, x26, #PAGE_SIZE
 
 	/* Link the l0 -> l1 table */
 	mov	x9, x6
-	mov	x6, x24
+	adrp	x6, pagetable_l0_ttbr1
+	add	x6, x6, :lo12:pagetable_l0_ttbr1
 	mov	x10, #1
 	bl	link_l0_pagetable
+
+	/* Save the TTBR1 table physical address */
+	mov	x24, x6
 
 	/*
 	 * Build the TTBR0 maps.  As TTBR0 maps, they must specify ATTR_S1_nG.
 	 * They are only needed early on, so the VA = PA map is uncached.
 	 */
-	add	x27, x24, #PAGE_SIZE
 
-	mov	x6, x27		/* The initial page table */
+	adrp	x6, pagetable_l2_ttbr0_bootstrap
+	add	x6, x6, :lo12:pagetable_l2_ttbr0_bootstrap
 
 	/* Create the VA = PA map */
 	mov	x7, #(ATTR_S1_nG | ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK))
@@ -692,22 +707,21 @@ common:
 1:
 #endif
 
-	/* Move to the l1 table */
-	add	x27, x27, #PAGE_SIZE
-
 	/* Link the l1 -> l2 table */
 	mov	x9, x6
-	mov	x6, x27
+	adrp	x6, pagetable_l1_ttbr0_bootstrap
+	add	x6, x6, :lo12:pagetable_l1_ttbr0_bootstrap
 	bl	link_l1_pagetable
-
-	/* Move to the l0 table */
-	add	x27, x27, #PAGE_SIZE
 
 	/* Link the l0 -> l1 table */
 	mov	x9, x6
-	mov	x6, x27
+	adrp	x6, pagetable_l0_ttbr0_bootstrap
+	add	x6, x6, :lo12:pagetable_l0_ttbr0_bootstrap
 	mov	x10, #1
 	bl	link_l0_pagetable
+
+	/* Save the TTBR0 table physical address */
+	mov	x27, x6
 
 	/* Restore the Link register */
 	mov	x30, x5
@@ -1041,9 +1055,10 @@ initstack_end:
 	.globl pagetable_l0_ttbr1
 pagetable:
 #if PAGE_SIZE != PAGE_SIZE_4K
+pagetable_l3_ttbr1:
 	.space	(PAGE_SIZE * L3_PAGE_COUNT)
-pagetable_l2_ttbr1:
 #endif
+pagetable_l2_ttbr1:
 	.space	PAGE_SIZE
 pagetable_l1_ttbr1:
 	.space	PAGE_SIZE

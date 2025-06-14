@@ -45,9 +45,9 @@
 #include <sys/mutex.h>
 #include <sys/errno.h>
 #include <sys/sbuf.h>
+#include <sys/stdarg.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
-#include <machine/stdarg.h>
 
 static g_access_t g_slice_access;
 static g_start_t g_slice_start;

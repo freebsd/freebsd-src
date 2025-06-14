@@ -29,8 +29,6 @@
 #ifndef _SYS__TYPES_H_
 #define _SYS__TYPES_H_
 
-#include <sys/cdefs.h>
-
 /*
  * Basic types upon which most other types are built.
  *
@@ -181,9 +179,11 @@ typedef	__uint_least32_t __char32_t;
 #endif
 
 typedef struct {
-	long long __max_align1 __aligned(_Alignof(long long));
+	long long __max_align1
+	    __attribute__((__aligned__(__alignof__(long long))));
 #ifndef _STANDALONE
-	long double __max_align2 __aligned(_Alignof(long double));
+	long double __max_align2
+	    __attribute__((__aligned__(__alignof__(long long))));
 #endif
 } __max_align_t;
 

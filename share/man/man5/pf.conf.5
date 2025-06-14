@@ -27,7 +27,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd May 29, 2025
+.Dd June 12, 2025
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -100,6 +100,8 @@ Macro names may not be reserved words (for example
 .Ar in ,
 .Ar out ) .
 Macros are not expanded inside quotes.
+Ranges of network addresses used in macros that will be expanded in lists
+later on must be quoted with additional simple quotes.
 .Pp
 For example,
 .Bd -literal -offset indent
@@ -107,6 +109,11 @@ ext_if = \&"kue0\&"
 all_ifs = \&"{\&" $ext_if lo0 \&"}\&"
 pass out on $ext_if from any to any
 pass in  on $ext_if proto tcp from any to any port 25
+
+usr_lan_range = "'192.0.2.0/24'"
+srv_lan_range = "'198.51.100.0 - 198.51.100.255'"
+nat_ranges = \&"{\&" $usr_lan_range $srv_lan_range \&"}\&"
+nat on $ext_if from $nat_ranges to any -> ($ext_if)
 .Ed
 .Sh TABLES
 Tables are named structures which can hold a collection of addresses and
@@ -719,7 +726,7 @@ Unlike for layer 3 traffic the packet is always silently dropped.
 The packet is passed;
 no state is created for layer 2 traffic.
 .El
-.Sh PARAMETERS
+.Ss Parameters applicable to layer 2 rules
 The rule parameters specify the packets to which a rule applies.
 A packet always comes in on, or goes out through, one interface.
 Most parameters are optional.
@@ -1743,7 +1750,7 @@ handles state tracking.
 See
 .Sx STATEFUL TRACKING OPTIONS
 below for further details.
-.Sh PARAMETERS
+.Ss Parameters
 The rule parameters specify the packets to which a rule applies.
 A packet always comes in on, or goes out through, one interface.
 Most parameters are optional.

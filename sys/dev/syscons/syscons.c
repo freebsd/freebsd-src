@@ -58,6 +58,7 @@
 #include <sys/serial.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/tty.h>
 #include <sys/power.h>
@@ -72,7 +73,6 @@
 #include <machine/psl.h>
 #include <machine/frame.h>
 #endif
-#include <machine/stdarg.h>
 
 #if defined(__amd64__) || defined(__i386__)
 #include <machine/vmparam.h>

@@ -54,6 +54,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/malloc.h>
+#include <sys/stdarg.h>
 #include <sys/syscall.h>
 #include <sys/sysproto.h>
 #include <sys/taskqueue.h>
@@ -70,12 +71,6 @@
 #include <fs/nfsclient/nfs_kdtrace.h>
 
 #include <netinet/in.h>
-
-/*
- * Note that stdarg.h and the ANSI style va_start macro is used for both
- * ANSI and traditional C compilers.
- */
-#include <machine/stdarg.h>
 
 extern struct mtx ncl_iod_mutex;
 extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];

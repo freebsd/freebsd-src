@@ -46,13 +46,13 @@
 #include <sys/sbuf.h>
 #include <sys/selinfo.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/bus.h>
 
 #include <machine/cpu.h>
-#include <machine/stdarg.h>
 
 #include <vm/uma.h>
 #include <vm/vm.h>

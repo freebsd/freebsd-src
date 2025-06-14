@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 12, 2025
+.Dd June 13, 2025
 .Dt IWLWIFI 4
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@ See section
 .Sx "FILES"
 below for how to install the firmware.
 .Pp
-It is discouraged to load the driver from
+It is not possible to load the driver from
 .Xr loader 8 .
 .Sh DESCRIPTION
 The
@@ -302,6 +302,17 @@ driver requires firmware from
 This firmware package will be installed automatically with
 .Xr fwget 8
 if the appropriate hardware is detected at installation or runtime.
+.Pp
+As a last resort for bootstrapping, individual firmware files can be
+manually downloaded, e.g., on a different computer and transferred using a
+.Xr umass 4
+device.
+The firmware files can be found at
+.Lk git://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git
+with names as requested by the driver.
+Copies should be placed into the
+.Pa /boot/firmware
+directory.
 .Sh SEE ALSO
 .Xr iwlwififw 4 ,
 .Xr iwm 4 ,

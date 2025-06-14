@@ -568,9 +568,22 @@ fuse_vfsop_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		goto out;
 
 	feo = (struct fuse_entry_out *)fdi.answ;
+
 	if (feo->nodeid == 0) {
 		/* zero nodeid means ENOENT and cache it */
 		error = ENOENT;
+		goto out;
+	}
+
+	if (feo->nodeid != nodeid) {
+		/*
+		 * Something is very wrong with the server if "foo/." has a
+		 * different inode number than "foo".
+		 */
+		fuse_warn(data, FSESS_WARN_DOT_LOOKUP,
+		    "Inconsistent LOOKUP response: \"FILE/.\" has a different "
+		    "inode number than \"FILE\".");
+		error = EIO;
 		goto out;
 	}
 

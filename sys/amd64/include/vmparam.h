@@ -149,10 +149,6 @@
 #define	VM_LEVEL_0_ORDER	9
 #endif
 
-#ifdef	SMP
-#define	PA_LOCK_COUNT	256
-#endif
-
 /*
  * Kernel physical load address for non-UEFI boot and for legacy UEFI loader.
  * Newer UEFI loader loads kernel anywhere below 4G, with memory allocated

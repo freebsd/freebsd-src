@@ -1,4 +1,4 @@
-/* $Id: mandoc.css,v 1.52 2022/07/06 14:34:59 schwarze Exp $ */
+/* $Id: mandoc.css,v 1.54 2025/01/25 03:18:55 schwarze Exp $ */
 /*
  * Standard style sheet for mandoc(1) -Thtml and man.cgi(8).
  *
@@ -179,7 +179,8 @@ h3.Ss {		margin-top: 1.2em;
 .RsP { }
 .RsQ { }
 .RsR { }
-.RsT {		text-decoration: underline; }
+.RsT {		font-style: normal;
+		font-weight: normal; }
 .RsU { }
 .RsV { }
 

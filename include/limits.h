@@ -139,6 +139,7 @@
 
 #if __POSIX_VISIBLE >= 202405
 #define GETENTROPY_MAX		256
+#define NSIG_MAX		128	/* _SIG_MAXSIG from <signal.h> */
 #endif
 
 #include <sys/limits.h>

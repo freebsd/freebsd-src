@@ -342,7 +342,6 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 #define PV_STAT(x)	do { } while (0)
 #endif
 
-#undef pa_index
 #ifdef NUMA
 #define	pa_index(pa)	({					\
 	KASSERT((pa) <= vm_phys_segs[vm_phys_nsegs - 1].end,	\

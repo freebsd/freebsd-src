@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2006-2008 Joel Dahl <joel@FreeBSD.org>
 .\" Copyright (c) 2008 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
@@ -23,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 16, 2019
+.Dd January 20, 2025
 .Dt SND_HDA 4
 .Os
 .Sh NAME
@@ -384,6 +387,15 @@ Run-time equivalent of the
 .Va hint.pcm.%d.rec.autosrc
 tunable.
 .El
+.Sh HARDWARE
+The
+.Nm
+driver supports PCI class 04h
+.Pq multimedia ,
+subclass 03h
+.Pq HDA
+audio controllers and codecs compatible with the
+Intel High Definition Audio 1.0 specification.
 .Sh EXAMPLES
 Taking HP Compaq DX2300 with Realtek ALC888 HDA codec for example.
 This system has two audio connectors on a front side, three audio connectors
@@ -583,17 +595,6 @@ other random inputs
 Controls have different precision.
 Some could be just an on/off triggers.
 Most of controls use logarithmic scale.
-.Sh HARDWARE
-The
-.Nm
-driver supports controllers having PCI class 4 (multimedia) and
-subclass 3 (HDA), compatible with Intel HDA specification.
-.Pp
-The
-.Nm
-driver supports more than two hundred different controllers and CODECs.
-There is no sense to list all of them here, as in most cases specific CODEC
-configuration and wiring are more important then type of the CODEC itself.
 .Sh SEE ALSO
 .Xr snd_ich 4 ,
 .Xr sound 4 ,

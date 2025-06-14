@@ -65,6 +65,7 @@
 #define ADMINQ_SIZE PAGE_SIZE
 
 #define GVE_DEFAULT_RX_BUFFER_SIZE 2048
+#define GVE_4K_RX_BUFFER_SIZE_DQO 4096
 /* Each RX bounce buffer page can fit two packet buffers. */
 #define GVE_DEFAULT_RX_BUFFER_OFFSET (PAGE_SIZE / 2)
 
@@ -83,6 +84,11 @@
 #define GVE_DEFAULT_MIN_TX_RING_SIZE	256
 
 static MALLOC_DEFINE(M_GVE, "gve", "gve allocations");
+
+_Static_assert(MCLBYTES >= GVE_DEFAULT_RX_BUFFER_SIZE,
+    "gve: bad MCLBYTES length");
+_Static_assert(MJUMPAGESIZE >= GVE_4K_RX_BUFFER_SIZE_DQO,
+    "gve: bad MJUMPAGESIZE length");
 
 struct gve_dma_handle {
 	bus_addr_t	bus_addr;
@@ -633,6 +639,7 @@ struct gve_priv {
 	/* The index of tx queue that the timer service will check on its next invocation */
 	uint16_t check_tx_queue_idx;
 
+	uint16_t rx_buf_size_dqo;
 };
 
 static inline bool
@@ -664,6 +671,18 @@ gve_is_qpl(struct gve_priv *priv)
 {
 	return (priv->queue_format == GVE_GQI_QPL_FORMAT ||
 	    priv->queue_format == GVE_DQO_QPL_FORMAT);
+}
+
+static inline bool
+gve_is_4k_rx_buf(struct gve_priv *priv)
+{
+	return (priv->rx_buf_size_dqo == GVE_4K_RX_BUFFER_SIZE_DQO);
+}
+
+static inline bus_size_t
+gve_rx_dqo_mbuf_segment_size(struct gve_priv *priv)
+{
+	return (gve_is_4k_rx_buf(priv) ? MJUMPAGESIZE : MCLBYTES);
 }
 
 /* Defined in gve_main.c */
@@ -746,6 +765,7 @@ bool gve_timestamp_valid(int64_t *timestamp_sec);
 
 /* Systcl functions defined in gve_sysctl.c */
 extern bool gve_disable_hw_lro;
+extern bool gve_allow_4k_rx_buffers;
 extern char gve_queue_format[8];
 extern char gve_version[8];
 void gve_setup_sysctl(struct gve_priv *priv);

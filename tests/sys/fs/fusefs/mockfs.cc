@@ -420,7 +420,7 @@ MockFS::MockFS(int max_read, int max_readahead, bool allow_other,
 	bool push_symlinks_in, bool ro, enum poll_method pm, uint32_t flags,
 	uint32_t kernel_minor_version, uint32_t max_write, bool async,
 	bool noclusterr, unsigned time_gran, bool nointr, bool noatime,
-	const char *fsname, const char *subtype)
+	const char *fsname, const char *subtype, bool no_auto_init)
 	: m_daemon_id(NULL),
 	  m_kernel_minor_version(kernel_minor_version),
 	  m_kq(pm == KQ ? kqueue() : -1),
@@ -529,7 +529,9 @@ MockFS::MockFS(int max_read, int max_readahead, bool allow_other,
 	ON_CALL(*this, process(_, _))
 		.WillByDefault(Invoke(this, &MockFS::process_default));
 
-	init(flags);
+	if (!no_auto_init)
+		init(flags);
+
 	bzero(&sa, sizeof(sa));
 	sa.sa_handler = sigint_handler;
 	sa.sa_flags = 0;	/* Don't set SA_RESTART! */
@@ -543,10 +545,7 @@ MockFS::MockFS(int max_read, int max_readahead, bool allow_other,
 
 MockFS::~MockFS() {
 	kill_daemon();
-	if (m_daemon_id != NULL) {
-		pthread_join(m_daemon_id, NULL);
-		m_daemon_id = NULL;
-	}
+	join_daemon();
 	::unmount("mountpoint", MNT_FORCE);
 	rmdir("mountpoint");
 	if (m_kq >= 0)
@@ -785,6 +784,13 @@ void MockFS::kill_daemon() {
 	// during the unmount sequence.
 	close(m_fuse_fd);
 	m_fuse_fd = -1;
+}
+
+void MockFS::join_daemon() {
+	if (m_daemon_id != NULL) {
+		pthread_join(m_daemon_id, NULL);
+		m_daemon_id = NULL;
+	}
 }
 
 void MockFS::loop() {

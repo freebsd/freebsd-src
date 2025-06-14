@@ -44,6 +44,7 @@
 #include <sys/rman.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/time.h>
@@ -51,7 +52,6 @@
 #include <dev/pci/pcivar.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>

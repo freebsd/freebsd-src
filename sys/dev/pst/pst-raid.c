@@ -41,11 +41,11 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/stdarg.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 

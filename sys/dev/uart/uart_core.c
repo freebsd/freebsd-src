@@ -38,11 +38,11 @@
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/reboot.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <machine/stdarg.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>

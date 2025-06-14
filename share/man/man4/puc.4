@@ -1,3 +1,6 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
 .\" Copyright (c) 2002 John Hay.
 .\" All rights reserved.
 .\"
@@ -22,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 5, 2025
+.Dd June 11, 2025
 .Dt PUC 4
 .Os
 .Sh NAME
@@ -44,194 +47,47 @@ PCI multi-port serial and parallel adapters to the
 and
 .Xr ppc 4
 driver.
-.Pp
-The list of supported devices is in
-.Pa sys/dev/puc/pucdata.c .
-Support for new cards should be added there.
 .Sh HARDWARE
 The
 .Nm
 driver supports the following
-PCI multi-port serial and parallel adapters:
+PCI/PCIe multi-port serial and parallel adapters:
 .Pp
 .Bl -bullet -compact
 .It
-Sunix SUN1889
+Advantech 2-port PCI PCI-1602/1603 Rev A/B1
 .It
-HP Diva Serial [GSP] Multiport UART:
-.Bl -dash -compact
+Applied Micro Circuits PCI 8 Port UART
 .It
-Tosca Console
+Avlab Technology PCI IO 2S
 .It
-Tosca Secondary
+Avlab Low Profile PCI 4 Serial
 .It
-Maestro SP2
-.It
-Superdome Console
-.It
-Keystone SP2
-.It
-Everest SP2
-.El
-.It
-VScom:
-.Bl -dash -compact
-.It
-PCI-200, PCI-400, and PCI-800
-.El
-.It
-Boca Research Turbo Serial:
-.Bl -dash -compact
-.It
-654 and 658
-.El
-.It
-Dolphin Peripherals:
-.Bl -dash -compact
-.It
-4014 and 4035
-.El
-.It
-Applied Micro Circuits 8 Port UART
-.It
-Digi Neo:
-.Bl -dash -compact
-.It
-PCI 4 and 8 Port
-.It
-PCIe 4 and 8 Port (with and without RJ45)
-.El
-.It
-Comtrol RocketPort:
-.Bl -dash -compact
-550/4 Normal and RJ45
-.It
-550/8 Normal, RJ11 and Octa
-.It
-550/16
-.El
-.It
-IBM SurePOS 300 Series (481033H) serial ports
-.It
-SIIG Cyber Series of UART and parallel port boars:
-.Bl -dash -compact
-.It
-Cyber 2S and 2SP1 PCI 16550
-.It
-Cyber 4 PCI 16550
-.It
-Cyber 4S PCI 16C650 (20x family)
-.It
-Cyber I/O PCI (10x family and 20x family):
-.It
-Cyber Parallel Dual PCI (10x family and 20x family):
-.It
-Cyber Serial Dual PCI (10x family and 20x family):
-.It
-Cyber 2S1P PCI (10x family and 20x family):
-.It
-Cyber 4S PCI (10x family and 20x family):
-.It
-PS8000 8S PCI 16C650 (20x family)
-.It
-Quartet Serial 850
-.El
+Boca Research PCI Turbo Serial 658/654
 .It
 Brainboxes:
 .Bl -dash -compact
 .It
-PX-101
+Instashield PCIe IX-400, IX-200, IX-100
 .It
-PX-246, PX-257, PX-260, PX-279
+Instashield PCI IS-400, IS-200
 .It
-PX-310, PX-313, PX-320, PX-346, PX-368
+PX Series PCIe RS232/RS422/RS485/LPT
 .It
-PX-420, PX-431, PX-475
+UC Series Universal PCI RS232/RS422/RS485/LPT
 .It
-PX-803, PX-820, PX-831, PX-846, PX-857
-.It
-UC-101
-.It
-UC-203, UC-253, UC-257, UC-260, UC-268, UC-279
-.It
-UC-302, UC-310, UC-313, UC-346, UC-357, UC-368
-.It
-UC-414, UC-420, UC-431, UC-475
-.It
-UC-607
-.It
-UC-836
-.It
-UP-189
-.It
-UP-200
-.It
-UP-869, UP-880
+UP Series PCI Dual RS232
 .El
 .It
-Intashield:
-.Bl -dash -compact
+Comtrol RocketPort 550 PCI 16/8/4 port
 .It
-IS-200, IS-400
+Decision Computer PCCOM PCI 8/4/2 port
 .It
-IX-100, IX-200, IX-400
-.El
+Digi Neo PCIe 4 and 8 Port (with and without RJ45)
 .It
-Quatech:
-.Bl -dash -compact
+Digi Neo PCI 4 and 8 Port
 .It
-DSC-100
-.It
-DSC-200/300
-.It
-DSCLP-100
-.It
-DSCLP-200/300
-.It
-ESC-100D
-.It
-ESC-100M
-.It
-QSC-100
-.It
-QSC-200/300
-.It
-QSCLP-100
-.El
-.It
-Moxa Technologies:
-.Bl -dash -compact
-.It
-Smartio CP-102E/PCIe
-.It
-Smartio CP-102EL/PCIe
-.It
-Smartio C104H/PCI
-.It
-Smartio CP-104UL/PCI
-.It
-Smartio CP-104JU/PCI
-.It
-Smartio CP-104EL/PCIe
-.It
-Smartio CP-104EL-A/PCIe
-.It
-CP-112UL
-.It
-Industio CP-114
-.It
-Smartio CP-114EL/PCIe
-.It
-Smartio CP-118EL-A/PCIe
-.It
-C168H/PCI
-.It
-C168U/PCI
-.It
-CP-168EL/PCIe
-.It
-Smartio CP-168EL-A/PCIe
-.El
+Dolphin Peripherals PCI 4035/4014
 .It
 Exar:
 .Bl -dash -compact
@@ -251,29 +107,95 @@ XR17V354
 XR17V358
 .El
 .It
-Advantech
+Feasso PCI FPP-02 2S1P
+.It
+HP Diva Serial [GSP] Multiport UART:
 .Bl -dash -compact
 .It
-PCI-1602 Rev A
+Tosca Console
 .It
-2-port PCI (PCI-1602 Rev B1/PCI-1603)
-.El
+Tosca Secondary
 .It
-Lava Computers:
-.Bl -dash -compact
+Maestro SP2
 .It
-Dual Serial
+Superdome Console
 .It
-Quattro
+Keystone SP2
 .It
-Quattro-PCI
-.It
-Octopus-550 
+Everest SP2
 .El
 .It
 I-O DATA RSA-PCI2/R
 .It
+IBM SurePOS 300 Series (481033H) serial ports
+.It
+IC Book Labs:
+.Bl -dash -compact
+.It
+Dreadnought x16 Pro/Lite
+.It
+Ironclad x8 Pro
+.It
+Gunboat x4 Pro/Lite/Low Profile
+.It
+Gunboat x2 Low Profile
+.El
+.It
 Kuroutoshikou SERIAL4P-LPPCI2
+.It
+Lava Computers:
+.Bl -dash -compact
+.It
+Dual Serial PCI
+.It
+Quattro-PCIe
+.It
+Quattro-PCI
+.It
+Octopus-550 PCI
+.El
+.It
+Moxa Technologies:
+.Bl -dash -compact
+.It
+Smartio CP-102E/PCIe
+.It
+Smartio CP-102EL/PCIe
+.It
+Smartio C104H/PCI
+.It
+Smartio CP-104UL/PCI
+.It
+Smartio CP-104JU/PCI
+.It
+Smartio CP-104EL/PCIe
+.It
+Smartio CP-104EL-A/PCIe
+.It
+CP-112UL PCI
+.It
+Industio CP-114
+.It
+Smartio CP-114EL/PCIe
+.It
+Smartio CP-118EL-A/PCIe
+.It
+C168H/PCI
+.It
+C168U/PCI
+.It
+CP-168EL/PCIe
+.It
+Smartio CP-168EL-A/PCIe
+.El
+.It
+NetMos NM9815 Dual 1284 Printer port PCI
+.It
+NetMos NM9835 2/1 port UART + 1284 Printer PCI
+.It
+NetMos NM9845 4/6 port UART + 1284 Printer PCI
+.It
+NetMos NM9865 4/3/2 port UART + 1/2 port 1284 Printer PCI
 .It
 Oxford Semiconductor based boards:
 .Bl -dash -compact
@@ -287,137 +209,74 @@ OX9160/OX16PCI954 UARTs
 OX16PCI958 UART
 .El
 .It
-Perle:
+Perle Ultraport4 Express PCIe Serial
+.It
+Perle Speed8/Speed4/Speed2 LE PCI Serial
+.It
+Quatech:
 .Bl -dash -compact
 .It
-Ultraport4 Express
+DSC-300/200/100 PCI
 .It
-Speed2 LE
+DSCLP-300/200/100 PCI
 .It
-Speed4 LE
+ESC-100/100D/100M PCI
 .It
-Speed8 LE
+QSC-300/200/100 PCI
+.It
+QSCLP-100 PCI
 .El
+.It
+SIIG Cyber Series of UART and parallel port boards:
+.Bl -dash -compact
+.It
+Cyber 2S and 2SP1 PCI 16550
+.It
+Cyber 4 and 4S PCI 16C650 (10x family and 20x family)
+.It
+Cyber I/O PCI (10x family and 20x family)
+.It
+Cyber Parallel Dual PCI (10x family and 20x family)
+.It
+Cyber Serial Dual PCI (10x family and 20x family)
+.It
+Cyber 2S1P PCI (10x family and 20x family)
+.It
+PS8000 8S PCI 16C650 (20x family)
+.It
+Quartet Serial 850 PCI
+.El
+.It
+Sun 1040 PCI Quad Serial
+.It
+Sunix MIO5xxxx 4/2/1 port UART and 1284 Printer
+.It
+Sunix SUN1889/1888 PCI dual port serial
+.It
+Sunix SER5xxxx 8/4/2 port serial
+.It
+Syba Tech Ltd PCI-4S2P-550-ECP
+.It
+Titan PCI-800H/PCI-200H
 .It
 VScom:
 .Bl -dash -compact
 .It
-PCI-100L
-.It
-PCI-200L
-.It
-200Li
-.El
-.It
-Titan:
-.Bl -dash -compact
-.It
-PCI-800H
-.It
-PCI-800H
-.It
-PCI-200H
-.El
-.It
-Titan VScom:
-.Bl -dash -compact
-.It
-PCI-800L
+PCIex-800H
 .It
 PCI-200HV2
 .It
-PCIex-800H
+200Li uPCI
 .It
-PCIex-800H
+PCI-800L, PCI-200L, and PCI-100L
+.It
+PCI-800, PCI-400, and PCI-200
 .El
-.It
-Avlab Technology PCI IO 2S
-.It
-Avlab Low Profile PCI 4 Serial
-.It
-Syba Tech Ltd PCI-4S2P-550-ECP
-.It
-Sunix SUN1888
-.It
-Sunix SER5xxxx
-.Bl -dash -compact
-.It
-2, 4 and 8 port serial
 .El
-.It
-Sunix MIO5xxxx (1284 Printer port):
-.Bl -dash -compact
-.It
-1, 2 and 4 port serial
-.El
-.It
-Feasso PCI FPP-02 2S1P
-.It
-Sun 1040 PCI Quad Serial
-.It
-Decision Computer Inc PCCOM:
-.Bl -dash -compact
-.It
-4-port serial
-.It
-8-port serial
-.El
-.It
-PCCOM dual port RS232/422/485
-.It
-NetMos NM9815 Dual 1284 Printer port
-.It
-NetMos NM9835:
-.Bl -dash -compact
-.It
-based 1 and 2 port serial
-.It
-Dual UART and 1284 Printer port
-.El
-.It
-NetMos NM9845:
-.Bl -dash -compact
-.It
-6 Port UART
-.It
-Quad UART and 1284 Printer port
-.El
-.It
-NetMos NM9865:
-.Bl -dash -compact
-.It
-Dual UART
-.It
-Triple UART
-.It
-Quad UART
-.It
-Single UART and 1284 Printer port
-.It
-Dual UART and 1284 Printer port
-.It
-Dual 1284 Printer port
-.El
-.It
-IC Book Labs:
-.Bl -dash -compact
-.It
-Gunboat x4 Lite
-.It
-Gunboat x4 Pro
-.It
-Ironclad x8 Lite
-.It
-Ironclad x8 Pro
-.It
-Dreadnought x16 Pro
-.It
-Dreadnought x16 Lite
-.It
-Gunboat x2 Low Profile
-.It
-Gunboat x4 Low Profile
-.El
+.Sh FILES
+.Bl -tag -width "sys/dev/puc/pucdata.c"
+.It Pa sys/dev/puc/pucdata.c
+list of supported devices
 .El
 .Sh SEE ALSO
 .Xr ppc 4 ,

@@ -29,10 +29,10 @@
 
 #include <stand.h>
 #include <sys/types.h>
+#include <sys/stdarg.h>
 #include <sys/stdint.h>
 #include <limits.h>
 #include <string.h>
-#include <machine/stdarg.h>
 
 /*
  * Mini stdio FILE and DIR routines. These are the minimal routines needed by

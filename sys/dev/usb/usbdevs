@@ -1661,6 +1661,7 @@ product CORSAIR STRAFE2		0x1b44	Corsair STRAFE Gaming keyboard
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
 product CREATIVE NOMAD_IIMG	0x4004	Nomad II MG
 product CREATIVE NOMAD		0x4106	Nomad
+product CREATIVE STAGE_SE_MINI  0x3295  Stage SE mini
 product CREATIVE2 VOIP_BLASTER	0x0258	Voip Blaster
 product CREATIVE3 OPTICAL_MOUSE	0x0001	Notebook Optical Mouse
 

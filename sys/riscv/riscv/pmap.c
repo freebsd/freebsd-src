@@ -183,12 +183,13 @@
 
 #define	pmap_l1_pindex(v)	(NUL2E + ((v) >> L1_SHIFT))
 #define	pmap_l2_pindex(v)	((v) >> L2_SHIFT)
+#define	pa_index(pa)		((pa) >> L2_SHIFT)
 #define	pa_to_pvh(pa)		(&pv_table[pa_index(pa)])
 
 #define	NPV_LIST_LOCKS	MAXCPU
 
 #define	PHYS_TO_PV_LIST_LOCK(pa)	\
-			(&pv_list_locks[pmap_l2_pindex(pa) % NPV_LIST_LOCKS])
+			(&pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS])
 
 #define	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa)	do {	\
 	struct rwlock **_lockp = (lockp);		\

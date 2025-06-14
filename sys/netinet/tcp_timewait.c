@@ -127,7 +127,7 @@ tcp_twstart(struct tcpcb *tp)
 
 	if (V_nolocaltimewait && (
 #ifdef INET6
-	    isipv6 ? in6_localaddr(&inp->in6p_faddr) :
+	    isipv6 ? in6_localip(&inp->in6p_faddr) :
 #endif
 #ifdef INET
 	    in_localip(inp->inp_faddr)

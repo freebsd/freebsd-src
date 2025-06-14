@@ -89,6 +89,7 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <sys/proc.h>
+#include <sys/stdarg.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
 #include <sys/taskqueue.h>
@@ -96,7 +97,6 @@
 #include <sys/smp.h>
 #include <sys/sbuf.h>
 #include <machine/smp.h>
-#include <machine/stdarg.h>
 
 #ifdef RSS
 #include <net/rss_config.h>

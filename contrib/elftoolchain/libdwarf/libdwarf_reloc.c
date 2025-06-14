@@ -51,6 +51,8 @@ _dwarf_get_reloc_type(Dwarf_P_Debug dbg, int is64)
 		return (is64 ? R_MIPS_64 : R_MIPS_32);
 	case DW_ISA_RISCV:
 		return (is64 ? R_RISCV_64 : R_RISCV_32);
+	case DW_ISA_LOONGARCH:
+		return (is64 ? R_LARCH_64 : R_LARCH_32);
 	case DW_ISA_IA64:
 		return (is64 ? R_IA_64_DIR64LSB : R_IA_64_DIR32LSB);
 	default:
@@ -113,6 +115,12 @@ _dwarf_get_reloc_size(Dwarf_Debug dbg, Dwarf_Unsigned rel_type)
 		if (rel_type == R_RISCV_32)
 			return (4);
 		else if (rel_type == R_RISCV_64)
+			return (8);
+		break;
+	case EM_LOONGARCH:
+		if (rel_type == R_LARCH_32)
+			return (4);
+		else if (rel_type == R_LARCH_64)
 			return (8);
 		break;
 	case EM_IA_64:

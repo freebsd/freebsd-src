@@ -49,6 +49,7 @@
 #include <sys/proc.h>
 #include <sys/posix4.h>
 #include <sys/time.h>
+#include <sys/timeffc.h>
 #include <sys/timers.h>
 #include <sys/timetc.h>
 #include <sys/vnode.h>
@@ -60,7 +61,7 @@
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#define MAX_CLOCKS 	(CLOCK_MONOTONIC+1)
+#define MAX_CLOCKS 	(CLOCK_TAI+1)
 #define CPUCLOCK_BIT		0x80000000
 #define CPUCLOCK_PROCESS_BIT	0x40000000
 #define CPUCLOCK_ID_MASK	(~(CPUCLOCK_BIT|CPUCLOCK_PROCESS_BIT))
@@ -101,7 +102,6 @@ static int	realtimer_gettime(struct itimer *, struct itimerspec *);
 static int	realtimer_settime(struct itimer *, int,
 			struct itimerspec *, struct itimerspec *);
 static int	realtimer_delete(struct itimer *);
-static void	realtimer_clocktime(clockid_t, struct timespec *);
 static void	realtimer_expire(void *);
 static void	realtimer_expire_l(struct itimer *it, bool proc_locked);
 
@@ -318,7 +318,10 @@ int
 kern_clock_gettime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 {
 	struct timeval sys, user;
+	struct sysclock_snap clk;
+	struct bintime bt;
 	struct proc *p;
+	int error;
 
 	p = td->td_proc;
 	switch (clock_id) {
@@ -328,6 +331,14 @@ kern_clock_gettime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		break;
 	case CLOCK_REALTIME_FAST:
 		getnanotime(ats);
+		break;
+	case CLOCK_TAI:
+		sysclock_getsnapshot(&clk, 0);
+		error = sysclock_snap2bintime(&clk, &bt, clk.sysclock_active,
+		    clk.sysclock_active == SYSCLOCK_FFWD ? FFCLOCK_LERP : 0);
+		if (error != 0)
+			return (error);
+		bintime2timespec(&bt, ats);
 		break;
 	case CLOCK_VIRTUAL:
 		PROC_LOCK(p);
@@ -451,6 +462,7 @@ kern_clock_getres(struct thread *td, clockid_t clock_id, struct timespec *ts)
 	case CLOCK_REALTIME:
 	case CLOCK_REALTIME_FAST:
 	case CLOCK_REALTIME_PRECISE:
+	case CLOCK_TAI:
 	case CLOCK_MONOTONIC:
 	case CLOCK_MONOTONIC_FAST:
 	case CLOCK_MONOTONIC_PRECISE:
@@ -516,6 +528,7 @@ kern_clock_nanosleep(struct thread *td, clockid_t clock_id, int flags,
 		return (EINVAL);
 	switch (clock_id) {
 	case CLOCK_REALTIME:
+	case CLOCK_TAI:
 		precise = nanosleep_precise;
 		is_abs_real = (flags & TIMER_ABSTIME) != 0;
 		break;
@@ -1167,6 +1180,7 @@ itimer_start(void)
 		NULL, NULL, itimer_init, itimer_fini, UMA_ALIGN_PTR, 0);
 	register_posix_clock(CLOCK_REALTIME,  &rt_clock);
 	register_posix_clock(CLOCK_MONOTONIC, &rt_clock);
+	register_posix_clock(CLOCK_TAI, &rt_clock);
 	p31b_setcfg(CTL_P1003_1B_TIMERS, 200112L);
 	p31b_setcfg(CTL_P1003_1B_DELAYTIMER_MAX, INT_MAX);
 	p31b_setcfg(CTL_P1003_1B_TIMER_MAX, TIMER_MAX);
@@ -1327,6 +1341,7 @@ kern_ktimer_create(struct thread *td, clockid_t clock_id, struct sigevent *evp,
 		switch (clock_id) {
 		default:
 		case CLOCK_REALTIME:
+		case CLOCK_TAI:
 			it->it_sigev.sigev_signo = SIGALRM;
 			break;
 		case CLOCK_VIRTUAL:
@@ -1570,10 +1585,14 @@ static int
 realtimer_gettime(struct itimer *it, struct itimerspec *ovalue)
 {
 	struct timespec cts;
+	int error;
 
 	mtx_assert(&it->it_mtx, MA_OWNED);
 
-	realtimer_clocktime(it->it_clockid, &cts);
+	error = kern_clock_gettime(curthread, it->it_clockid, &cts);
+	if (error != 0)
+		return (error);
+
 	*ovalue = it->it_time;
 	if (ovalue->it_value.tv_sec != 0 || ovalue->it_value.tv_nsec != 0) {
 		timespecsub(&ovalue->it_value, &cts, &ovalue->it_value);
@@ -1594,6 +1613,7 @@ realtimer_settime(struct itimer *it, int flags, struct itimerspec *value,
 	struct timespec cts, ts;
 	struct timeval tv;
 	struct itimerspec val;
+	int error;
 
 	mtx_assert(&it->it_mtx, MA_OWNED);
 
@@ -1613,7 +1633,10 @@ realtimer_settime(struct itimer *it, int flags, struct itimerspec *value,
 
 	it->it_time = val;
 	if (timespecisset(&val.it_value)) {
-		realtimer_clocktime(it->it_clockid, &cts);
+		error = kern_clock_gettime(curthread, it->it_clockid, &cts);
+		if (error != 0)
+			return (error);
+
 		ts = val.it_value;
 		if ((flags & TIMER_ABSTIME) == 0) {
 			/* Convert to absolute time. */
@@ -1634,15 +1657,6 @@ realtimer_settime(struct itimer *it, int flags, struct itimerspec *value,
 	}
 
 	return (0);
-}
-
-static void
-realtimer_clocktime(clockid_t id, struct timespec *ts)
-{
-	if (id == CLOCK_REALTIME)
-		getnanotime(ts);
-	else	/* CLOCK_MONOTONIC */
-		getnanouptime(ts);
 }
 
 int
@@ -1689,10 +1703,12 @@ realtimer_expire_l(struct itimer *it, bool proc_locked)
 	struct timeval tv;
 	struct proc *p;
 	uint64_t interval, now, overruns, value;
+	int error;
 
-	realtimer_clocktime(it->it_clockid, &cts);
+	error = kern_clock_gettime(curthread, it->it_clockid, &cts);
+
 	/* Only fire if time is reached. */
-	if (timespeccmp(&cts, &it->it_time.it_value, >=)) {
+	if (error == 0 && timespeccmp(&cts, &it->it_time.it_value, >=)) {
 		if (timespecisset(&it->it_time.it_interval)) {
 			timespecadd(&it->it_time.it_value,
 			    &it->it_time.it_interval,
