@@ -490,8 +490,13 @@ static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
 	int error;
+	struct intsrc *isrc;
 
-	error = intr_remove_handler(ih);
+	isrc = intr_lookup_source(rman_get_start(r));
+	if (isrc == NULL)
+		return (EINVAL);
+
+	error = intr_remove_handler(isrc, ih);
 	if (error == 0)
 		rman_set_irq_cookie(r, NULL);
 	return (error);
