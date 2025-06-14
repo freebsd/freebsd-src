@@ -9,7 +9,9 @@
 #ifndef _AMDSMU_H_
 #define	_AMDSMU_H_
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
 #include <machine/bus.h>
 #include <x86/cputypes.h>
 
@@ -27,12 +29,54 @@ static const struct amdsmu_product {
 	{ CPU_VENDOR_AMD,	PCI_DEVICEID_AMD_STRIX_POINT_ROOT },
 };
 
+static const char *const amdsmu_ip_blocks_names[] = {
+    "DISPLAY",
+    "CPU",
+    "GFX",
+    "VDD",
+    "ACP",
+    "VCN",
+    "ISP",
+    "NBIO",
+    "DF",
+    "USB3_0",
+    "USB3_1",
+    "LAPIC",
+    "USB3_2",
+    "USB3_3",
+    "USB3_4",
+    "USB4_0",
+    "USB4_1",
+    "MPM",
+    "JPEG",
+    "IPU",
+    "UMSCH",
+    "VPE",
+};
+
+CTASSERT(nitems(amdsmu_ip_blocks_names) <= 32);
+
 struct amdsmu_softc {
+	struct sysctl_ctx_list	*sysctlctx;
+	struct sysctl_oid	*sysctlnode;
+
 	struct resource		*res;
 	bus_space_tag_t 	bus_tag;
 
 	bus_space_handle_t	smu_space;
 	bus_space_handle_t	reg_space;
+
+	uint8_t			smu_program;
+	uint8_t			smu_maj, smu_min, smu_rev;
+
+	uint32_t		active_ip_blocks;
+	struct sysctl_oid	*ip_blocks_sysctlnode;
+	size_t			ip_block_count;
+	struct sysctl_oid	*ip_block_sysctlnodes[nitems(amdsmu_ip_blocks_names)];
+	bool			ip_blocks_active[nitems(amdsmu_ip_blocks_names)];
+
+	bus_space_handle_t	metrics_space;
+	struct amdsmu_metrics	metrics;
 };
 
 static inline uint32_t
