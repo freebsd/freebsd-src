@@ -41,6 +41,7 @@
 extern device_t root_pic;
 
 struct trapframe;
+struct intr_handler;
 
 driver_filter_t powerpc_ipi_handler;
 
@@ -53,7 +54,7 @@ void	powerpc_dispatch_intr(u_int, struct trapframe *);
 int	powerpc_enable_intr(void);
 int	powerpc_setup_intr(const char *, u_int, driver_filter_t, driver_intr_t,
 	    void *, enum intr_type, void **, int);
-int	powerpc_teardown_intr(void *);
+int	powerpc_teardown_intr(u_int, struct intr_handler *);
 int	powerpc_bind_intr(u_int irq, u_char cpu);
 int	powerpc_config_intr(int, enum intr_trigger, enum intr_polarity);
 int	powerpc_fw_config_intr(int irq, int sense_code);

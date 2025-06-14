@@ -301,13 +301,13 @@ intr_add_handler(struct intsrc *isrc, const char *name, driver_filter_t filter,
 }
 
 int
-intr_remove_handler(void *cookie)
+intr_remove_handler(struct intsrc *isrc, struct intr_handler *handler)
 {
-	struct intsrc *isrc;
 	int error;
 
-	isrc = intr_handler_source(cookie);
-	error = intr_event_remove_handler(cookie);
+	MPASS(isrc != NULL);
+
+	error = intr_event_remove_handler_(isrc->is_event, handler);
 	if (error == 0) {
 		sx_xlock(&intrsrc_lock);
 		isrc->is_handlers--;
