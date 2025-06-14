@@ -53,9 +53,6 @@
 
 #include <dev/iommu/iommu.h>
 
-#include "pcib_if.h"
-#include "pci_if.h"
-
 /* Hooks for the ACPI CA debugging infrastructure. */
 #define _COMPONENT	ACPI_BUS
 ACPI_MODULE_NAME("PCI")
@@ -266,12 +263,13 @@ acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 	status = acpi_pwr_switch_consumer(h, state);
 	if (ACPI_SUCCESS(status)) {
 		if (bootverbose)
-			device_printf(dev, "set ACPI power state D%d on %s\n",
-			    state, acpi_name(h));
+			device_printf(dev, "set ACPI power state %s on %s\n",
+			    acpi_d_state_to_str(state), acpi_name(h));
 	} else if (status != AE_NOT_FOUND)
 		device_printf(dev,
-		    "failed to set ACPI power state D%d on %s: %s\n",
-		    state, acpi_name(h), AcpiFormatException(status));
+		    "failed to set ACPI power state %s on %s: %s\n",
+		    acpi_d_state_to_str(state), acpi_name(h),
+		    AcpiFormatException(status));
 	if (old_state > state && pci_do_power_resume)
 		error = pci_set_powerstate_method(dev, child, state);
 

@@ -223,11 +223,11 @@ enum pcie_link_width {
 
 typedef int pci_power_t;
 
-#define PCI_D0	PCI_POWERSTATE_D0
-#define PCI_D1	PCI_POWERSTATE_D1
-#define PCI_D2	PCI_POWERSTATE_D2
-#define PCI_D3hot	PCI_POWERSTATE_D3
-#define PCI_D3cold	4
+#define PCI_D0		PCI_POWERSTATE_D0
+#define PCI_D1		PCI_POWERSTATE_D1
+#define PCI_D2		PCI_POWERSTATE_D2
+#define PCI_D3hot	PCI_POWERSTATE_D3_HOT
+#define PCI_D3cold	PCI_POWERSTATE_D3_COLD
 
 #define PCI_POWER_ERROR	PCI_POWERSTATE_UNKNOWN
 
