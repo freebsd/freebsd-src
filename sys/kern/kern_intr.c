@@ -737,26 +737,6 @@ intr_event_describe_handler(struct intr_event *ie, void *cookie,
 }
 
 /*
- * Return the ie_source field from the intr_event an intr_handler is
- * associated with.
- */
-void *
-intr_handler_source(void *cookie)
-{
-	struct intr_handler *ih;
-	struct intr_event *ie;
-
-	ih = (struct intr_handler *)cookie;
-	if (ih == NULL)
-		return (NULL);
-	ie = ih->ih_event;
-	KASSERT(ie != NULL,
-	    ("interrupt handler \"%s\" has a NULL interrupt event",
-	    ih->ih_name));
-	return (ie->ie_source);
-}
-
-/*
  * If intr_event_handle() is running in the ISR context at the time of the call,
  * then wait for it to complete.
  */
@@ -857,16 +837,13 @@ _intr_drain(int irq)
 }
 
 int
-intr_event_remove_handler(void *cookie)
+intr_event_remove_handler_(struct intr_event *ie, struct intr_handler *handler)
 {
-	struct intr_handler *handler = (struct intr_handler *)cookie;
-	struct intr_event *ie;
 	struct intr_handler *ih;
 	struct intr_handler **prevptr;
 
 	if (handler == NULL)
 		return (EINVAL);
-	ie = handler->ih_event;
 	KASSERT(ie != NULL,
 	    ("interrupt handler \"%s\" has a NULL interrupt event",
 	    handler->ih_name));
@@ -878,10 +855,8 @@ intr_event_remove_handler(void *cookie)
 		if (ih == handler)
 			break;
 	}
-	if (ih == NULL) {
-		panic("interrupt handler \"%s\" not found in "
-		    "interrupt event \"%s\"", handler->ih_name, ie->ie_name);
-	}
+	if (ih == NULL)
+		return (EINVAL);
 
 	if (ie->ie_thread == NULL) {
 		/*
@@ -1120,8 +1095,18 @@ swi_sched(void *cookie, int flags)
 int
 swi_remove(void *cookie)
 {
+	struct intr_handler *handler = (struct intr_handler *)cookie;
+	struct intr_event *ie;
 
-	return (intr_event_remove_handler(cookie));
+	if (handler == NULL)
+		return (EINVAL);
+	ie = handler->ih_event;
+
+	if (intr_event_remove_handler_(ie, handler) == EINVAL) {
+		panic("interrupt handler \"%s\" not found in "
+		    "interrupt event \"%s\"", handler->ih_name, ie->ie_name);
+	}
+	return (0);
 }
 
 static void
