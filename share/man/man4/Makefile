@@ -290,8 +290,8 @@ MAN=	aac.4 \
 	linprocfs.4 \
 	linsysfs.4 \
 	${_linux.4} \
-	${_linuxkpi.4} \
-	${_linuxkpi_wlan.4} \
+	linuxkpi.4 \
+	linuxkpi_wlan.4 \
 	liquidio.4 \
 	lm75.4 \
 	lo.4 \
@@ -931,8 +931,6 @@ _gve.4=		gve.4
 _if_vmx.4=	if_vmx.4
 _ipmi.4=	ipmi.4
 _linux.4=	linux.4
-_linuxkpi.4=	linuxkpi.4
-_linuxkpi_wlan.4= linuxkpi_wlan.4
 _ossl.4=	ossl.4
 _pvscsi.4=	pvscsi.4
 _vmx.4=		vmx.4
