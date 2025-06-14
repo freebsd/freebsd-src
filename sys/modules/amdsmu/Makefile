@@ -9,6 +9,7 @@
 
 KMOD=	amdsmu
 SRCS=	amdsmu.c
-SRCS+=	bus_if.h device_if.h pci_if.h
+SRCS+=	bus_if.h device_if.h pci_if.h \
+	opt_acpi.h
 
 .include <bsd.kmod.mk>

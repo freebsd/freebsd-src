@@ -6,11 +6,13 @@
  * This software was developed by Aymeric Wibo <obiwac@freebsd.org>
  * under sponsorship from the FreeBSD Foundation.
  */
+
 #ifndef _AMDSMU_H_
 #define	_AMDSMU_H_
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <machine/bus.h>
 #include <x86/cputypes.h>
@@ -60,6 +62,9 @@ struct amdsmu_softc {
 	struct sysctl_ctx_list	*sysctlctx;
 	struct sysctl_oid	*sysctlnode;
 
+	struct eventhandler_entry	*eh_suspend;
+	struct eventhandler_entry	*eh_resume;
+
 	struct resource		*res;
 	bus_space_tag_t 	bus_tag;
 
@@ -72,8 +77,10 @@ struct amdsmu_softc {
 	uint32_t		active_ip_blocks;
 	struct sysctl_oid	*ip_blocks_sysctlnode;
 	size_t			ip_block_count;
-	struct sysctl_oid	*ip_block_sysctlnodes[nitems(amdsmu_ip_blocks_names)];
-	bool			ip_blocks_active[nitems(amdsmu_ip_blocks_names)];
+	struct sysctl_oid	*ip_block_sysctlnodes[
+				    nitems(amdsmu_ip_blocks_names)];
+	bool			ip_blocks_active[
+				    nitems(amdsmu_ip_blocks_names)];
 
 	bus_space_handle_t	metrics_space;
 	struct amdsmu_metrics	metrics;

@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2025 The FreeBSD Foundation
+ * Copyright (c) 2025-2026 The FreeBSD Foundation
  *
  * This software was developed by Aymeric Wibo <obiwac@freebsd.org>
  * under sponsorship from the FreeBSD Foundation.
@@ -13,6 +13,13 @@
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
+
+#include "opt_acpi.h"
+
+#if defined(DEV_ACPI)
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
+#endif
 
 #include <dev/pci/pcivar.h>
 #include <dev/amdsmu/amdsmu.h>
@@ -289,6 +296,27 @@ amdsmu_fetch_idlemask(device_t dev)
 	sc->idlemask = amdsmu_read4(sc, SMU_REG_IDLEMASK);
 }
 
+static void
+amdsmu_suspend(device_t dev, enum power_stype stype)
+{
+	if (stype != POWER_STYPE_SUSPEND_TO_IDLE)
+		return;
+	if (amdsmu_cmd(dev, SMU_MSG_SLEEP_HINT, true, NULL) != 0)
+		device_printf(dev, "failed to hint to SMU to enter sleep");
+}
+
+static void
+amdsmu_resume(device_t dev, enum power_stype stype)
+{
+	if (stype != POWER_STYPE_SUSPEND_TO_IDLE)
+		return;
+	if (amdsmu_cmd(dev, SMU_MSG_SLEEP_HINT, false, NULL) != 0)
+		device_printf(dev, "failed to hint to SMU to exit sleep");
+	/* Update metrics after resume. */
+	amdsmu_dump_metrics(dev);
+	amdsmu_fetch_idlemask(dev);
+}
+
 static int
 amdsmu_attach(device_t dev)
 {
@@ -422,6 +450,19 @@ amdsmu_attach(device_t dev)
 	    "value is not documented - only used to help AMD internally debug "
 	    "issues");
 
+#if defined(DEV_ACPI)
+	/*
+	 * Register post device suspend/pre device resume eventhandlers.  We use
+	 * a lower priority for the suspend event as we want this to be called
+	 * after the SPMC suspend hook, and a higher priority for the resume
+	 * event as we want this to be called before the SPMC hook.
+	 */
+	sc->eh_suspend = EVENTHANDLER_REGISTER(acpi_post_dev_suspend,
+	    amdsmu_suspend, dev, -10);
+	sc->eh_resume = EVENTHANDLER_REGISTER(acpi_pre_dev_resume,
+	    amdsmu_resume, dev, 10);
+#endif
+
 	return (0);
 err_dump:
 	bus_space_unmap(sc->bus_tag, sc->reg_space, SMU_MEM_SIZE);
@@ -437,6 +478,11 @@ amdsmu_detach(device_t dev)
 {
 	struct amdsmu_softc *sc = device_get_softc(dev);
 	int rid = 0;
+
+#if defined(DEV_ACPI)
+	EVENTHANDLER_DEREGISTER(acpi_post_dev_suspend, sc->eh_suspend);
+	EVENTHANDLER_DEREGISTER(acpi_pre_dev_resume, sc->eh_resume);
+#endif
 
 	bus_space_unmap(sc->bus_tag, sc->smu_space, SMU_MEM_SIZE);
 	bus_space_unmap(sc->bus_tag, sc->reg_space, SMU_MEM_SIZE);
