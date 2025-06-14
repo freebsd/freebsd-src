@@ -69,7 +69,7 @@ moused_start()
 		;;
 	esac
 
-	for ttyv in /dev/ttyv* ; do
+	for ttyv in $(expandpath "/dev/ttyv*"); do
 		vidcontrol < ${ttyv} ${mousechar_arg} -m on
 	done
 }
