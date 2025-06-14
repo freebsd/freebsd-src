@@ -489,29 +489,28 @@ _pctrie_lookup_node(struct pctrie *ptree, struct pctrie_node *node,
 	struct pctrie_node *parent;
 	int slot;
 
+	parent = node;
+	if (parent == NULL)
+		node = pctrie_root_load(ptree, smr, access);
+
 	/*
 	 * Climb the search path to find the lowest node from which to start the
 	 * search for a value matching 'index'.
 	 */
-	while (node != NULL) {
-		KASSERT(access == PCTRIE_SMR || !powerof2(node->pn_popmap),
+	while (parent != NULL) {
+		KASSERT(access == PCTRIE_SMR || !powerof2(parent->pn_popmap),
 		    ("%s: freed node in iter path", __func__));
+		node = parent;
 		if (!pctrie_keybarr(node, index, &slot))
 			break;
-		node = pctrie_parent(node);
-	}
-
-	if (node == NULL) {
-		parent = NULL;
-		node = pctrie_root_load(ptree, smr, access);
-	} else {
-		parent = node;
-		node = pctrie_node_load(&node->pn_child[slot], smr, access);
+		parent = pctrie_parent(node);
 	}
 
 	/* Seek a node that matches index. */
 	while (!pctrie_isleaf(node) && !pctrie_keybarr(node, index, &slot)) {
 		parent = node;
+		KASSERT(access == PCTRIE_SMR || !powerof2(parent->pn_popmap),
+		    ("%s: freed node in iter path", __func__));
 		node = pctrie_node_load(&node->pn_child[slot], smr, access);
 	}
 	*parent_out = parent;
@@ -527,9 +526,9 @@ pctrie_iter_lookup(struct pctrie_iter *it, uint64_t index)
 {
 	struct pctrie_node *node;
 
-	it->index = index;
 	node = _pctrie_lookup_node(it->ptree, it->node, index, &it->node,
 	    NULL, PCTRIE_LOCKED);
+	it->index = index;
 	return (pctrie_match_value(node, index));
 }
 
@@ -543,9 +542,9 @@ pctrie_iter_insert_lookup(struct pctrie_iter *it, uint64_t *val)
 {
 	struct pctrie_node *node;
 
-	it->index = *val;
 	node = _pctrie_lookup_node(it->ptree, it->node, *val, &it->node,
 	    NULL, PCTRIE_LOCKED);
+	it->index = *val;
 	if (node == PCTRIE_NULL) {
 		if (it->node == NULL)
 			pctrie_node_store(pctrie_root(it->ptree),
