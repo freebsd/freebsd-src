@@ -17178,6 +17178,12 @@ rack_log_pacing_delay_calc (struct tcp_rack *rack, uint32_t len, uint32_t slot,
 		log.u_bbr.cwnd_gain |= rack->rc_gp_saw_ss;
 		log.u_bbr.cwnd_gain <<= 1;
 		log.u_bbr.cwnd_gain |= rack->rc_gp_saw_ca;
+		log.u_bbr.cwnd_gain <<= 1;
+		log.u_bbr.cwnd_gain |= rack->use_fixed_rate;
+		log.u_bbr.cwnd_gain <<= 1;
+		log.u_bbr.cwnd_gain |= rack->rc_always_pace;
+		log.u_bbr.cwnd_gain <<= 1;
+		log.u_bbr.cwnd_gain |= rack->gp_ready;
 		log.u_bbr.bbr_substate = quality;
 		log.u_bbr.bbr_state = rack->dgp_on;
 		log.u_bbr.bbr_state <<= 1;
@@ -17539,8 +17545,8 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 						   rack->r_ctl.rc_last_us_rtt,
 						   88, __LINE__, NULL, gain);
 		}
-		if ((bw_est == 0) || (rate_wanted == 0) ||
-		    ((rack->gp_ready == 0) && (rack->use_fixed_rate == 0))) {
+		if (((bw_est == 0) || (rate_wanted == 0)  || (rack->gp_ready == 0)) &&
+		    (rack->use_fixed_rate == 0)) {
 			/*
 			 * No way yet to make a b/w estimate or
 			 * our raise is set incorrectly.
@@ -19039,7 +19045,7 @@ rack_sndbuf_autoscale(struct tcp_rack *rack)
 
 static int
 rack_fast_output(struct tcpcb *tp, struct tcp_rack *rack, uint64_t ts_val,
-		 uint32_t cts, uint32_t ms_cts, struct timeval *tv, long tot_len, int *send_err)
+		 uint32_t cts, uint32_t ms_cts, struct timeval *tv, long *tot_len, int *send_err, int line)
 {
 	/*
 	 * Enter to do fast output. We are given that the sched_pin is
@@ -19212,7 +19218,7 @@ again:
 	}
 	if (rack->r_ctl.fsb.rfo_apply_push &&
 	    (len == rack->r_ctl.fsb.left_to_send)) {
-		tcp_set_flags(th, flags | TH_PUSH);
+		flags |= TH_PUSH;
 		add_flag |= RACK_HAD_PUSH;
 	}
 	if ((m->m_next == NULL) || (len <= 0)){
@@ -19391,11 +19397,11 @@ again:
 		log.u_bbr.inflight = ctf_flight_size(rack->rc_tp, rack->r_ctl.rc_sacked);
 		log.u_bbr.flex5 = log.u_bbr.inflight;
 		log.u_bbr.lt_epoch = rack->r_ctl.cwnd_to_use;
-		log.u_bbr.delivered = 0;
+		log.u_bbr.delivered = rack->r_ctl.fsb.left_to_send;
 		log.u_bbr.rttProp = 0;
 		log.u_bbr.delRate = rack->r_must_retran;
 		log.u_bbr.delRate <<= 1;
-		log.u_bbr.pkt_epoch = __LINE__;
+		log.u_bbr.pkt_epoch = line;
 		/* For fast output no retrans so just inflight and how many mss we send */
 		log.u_bbr.flex5 = log.u_bbr.inflight;
 		log.u_bbr.bbr_substate = (uint8_t)((len + segsiz - 1)/segsiz);
@@ -19468,7 +19474,7 @@ again:
 	tcp_account_for_send(tp, len, 0, 0, rack->r_ctl.fsb.hw_tls);
 
 	rack->forced_ack = 0;	/* If we send something zap the FA flag */
-	tot_len += len;
+	*tot_len += len;
 	if ((tp->t_flags & TF_GPUTINPROG) == 0)
 		rack_start_gp_measurement(tp, rack, tp->snd_max, sb_offset);
 	tp->snd_max += len;
@@ -19504,6 +19510,7 @@ again:
 	}
 	if ((rack->r_ctl.fsb.left_to_send >= segsiz) &&
 	    (max_val > len) &&
+	    (*tot_len < rack->r_ctl.rc_pace_max_segs) &&
 	    (tso == 0)) {
 		max_val -= len;
 		len = segsiz;
@@ -19515,14 +19522,14 @@ again:
 	}
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);
 	counter_u64_add(rack_fto_send, 1);
-	slot = rack_get_pacing_delay(rack, tp, tot_len, NULL, segsiz, __LINE__);
-	rack_start_hpts_timer(rack, tp, cts, slot, tot_len, 0);
+	slot = rack_get_pacing_delay(rack, tp, *tot_len, NULL, segsiz, __LINE__);
+	rack_start_hpts_timer(rack, tp, cts, slot, *tot_len, 0);
 #ifdef TCP_ACCOUNTING
 	crtsc = get_cyclecount();
 	if (tp->t_flags2 & TF2_TCP_ACCOUNTING) {
 		tp->tcp_cnt_counters[SND_OUT_DATA] += cnt_thru;
 		tp->tcp_proc_time[SND_OUT_DATA] += (crtsc - ts_val);
-		tp->tcp_cnt_counters[CNT_OF_MSS_OUT] += ((tot_len + segsiz - 1) / segsiz);
+		tp->tcp_cnt_counters[CNT_OF_MSS_OUT] += ((*tot_len + segsiz - 1) / segsiz);
 	}
 	sched_unpin();
 #endif
@@ -19884,20 +19891,36 @@ rack_output(struct tcpcb *tp)
 	    TCPS_HAVEESTABLISHED(tp->t_state)) {
 		rack_set_state(tp, rack);
 	}
+	segsiz = min(ctf_fixed_maxseg(tp), rack->r_ctl.rc_pace_min_segs);
+	minseg = segsiz;
+	if (rack->r_ctl.rc_pace_max_segs == 0)
+		pace_max_seg = rack->rc_user_set_max_segs * segsiz;
+	else
+		pace_max_seg = rack->r_ctl.rc_pace_max_segs;
 	if ((rack->r_fast_output) &&
 	    (doing_tlp == 0) &&
 	    (tp->rcv_numsacks == 0)) {
 		int ret;
 
 		error = 0;
-		ret = rack_fast_output(tp, rack, ts_val, cts, ms_cts, &tv, tot_len_this_send, &error);
-		if (ret >= 0)
+		ret = rack_fast_output(tp, rack, ts_val, cts, ms_cts, &tv, &tot_len_this_send, &error, __LINE__);
+		if (ret > 0)
 			return(ret);
 		else if (error) {
 			inp = rack->rc_inp;
 			so = inp->inp_socket;
 			sb = &so->so_snd;
 			goto nomore;
+		} else {
+			/* Return == 0, if there is more we can send tot_len wise fall through and send */
+			if (tot_len_this_send >= pace_max_seg) 
+				return (ret);
+#ifdef TCP_ACCOUNTING
+			/* We need to re-pin since fast_output un-pined */
+			sched_pin();
+			ts_val = get_cyclecount();
+#endif
+			/* Fall back out so we can send any more that may bring us to pace_max_seg */
 		}
 	}
 	inp = rack->rc_inp;
@@ -20004,12 +20027,6 @@ again:
 	ms_cts = tcp_tv_to_mssectick(&tv);
 	tso = 0;
 	mtu = 0;
-	segsiz = min(ctf_fixed_maxseg(tp), rack->r_ctl.rc_pace_min_segs);
-	minseg = segsiz;
-	if (rack->r_ctl.rc_pace_max_segs == 0)
-		pace_max_seg = rack->rc_user_set_max_segs * segsiz;
-	else
-		pace_max_seg = rack->r_ctl.rc_pace_max_segs;
 	if (TCPS_HAVEESTABLISHED(tp->t_state) &&
 	    (rack->r_ctl.pcm_max_seg == 0)) {
 		/*
@@ -21593,7 +21610,6 @@ send:
 			flags |= TH_PUSH;
 			add_flag |= RACK_HAD_PUSH;
 		}
-
 		SOCK_SENDBUF_UNLOCK(so);
 	} else {
 		SOCK_SENDBUF_UNLOCK(so);
@@ -22536,7 +22552,7 @@ enobufs:
 					       segsiz, pace_max_seg, hw_tls, flags);
 			if (rack->r_fast_output) {
 				error = 0;
-				ret = rack_fast_output(tp, rack, ts_val, cts, ms_cts, &tv, tot_len_this_send, &error);
+				ret = rack_fast_output(tp, rack, ts_val, cts, ms_cts, &tv, &tot_len_this_send, &error, __LINE__);
 				if (ret >= 0)
 					return (ret);
 			        else if (error)
