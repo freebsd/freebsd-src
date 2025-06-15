@@ -181,12 +181,9 @@
  * 0xffffffff80000000                        KERNBASE
  */
 
-#define	VM_MIN_KERNEL_ADDRESS	KV4ADDR(KPML4BASE, 0, 0, 0)
-#define	VM_MAX_KERNEL_ADDRESS	KV4ADDR(KPML4BASE + NKPML4E - 1, \
-					NPDPEPG-1, NPDEPG-1, NPTEPG-1)
-
-#define	DMAP_MIN_ADDRESS	KV4ADDR(DMPML4I, 0, 0, 0)
-#define	DMAP_MAX_ADDRESS	KV4ADDR(DMPML4I + NDMPML4E, 0, 0, 0)
+#define	VM_MIN_KERNEL_ADDRESS_LA48	KV4ADDR(KPML4BASE, 0, 0, 0)
+#define	VM_MIN_KERNEL_ADDRESS		kva_layout.km_low
+#define	VM_MAX_KERNEL_ADDRESS		kva_layout.km_high
 
 #define	KASAN_MIN_ADDRESS	KV4ADDR(KASANPML4I, 0, 0, 0)
 #define	KASAN_MAX_ADDRESS	KV4ADDR(KASANPML4I + NKASANPML4E, 0, 0, 0)
@@ -198,9 +195,6 @@
 #define	KMSAN_ORIG_MIN_ADDRESS	KV4ADDR(KMSANORIGPML4I, 0, 0, 0)
 #define	KMSAN_ORIG_MAX_ADDRESS	KV4ADDR(KMSANORIGPML4I + NKMSANORIGPML4E, \
 					0, 0, 0)
-
-#define	LARGEMAP_MIN_ADDRESS	KV4ADDR(LMSPML4I, 0, 0, 0)
-#define	LARGEMAP_MAX_ADDRESS	KV4ADDR(LMEPML4I + 1, 0, 0, 0)
 
 /*
  * Formally kernel mapping starts at KERNBASE, but kernel linker
@@ -239,21 +233,21 @@
  * vt fb startup needs to be reworked.
  */
 #define	PHYS_IN_DMAP(pa)	(dmaplimit == 0 || (pa) < dmaplimit)
-#define	VIRT_IN_DMAP(va)	((va) >= DMAP_MIN_ADDRESS &&		\
-    (va) < (DMAP_MIN_ADDRESS + dmaplimit))
+#define	VIRT_IN_DMAP(va)	\
+    ((va) >= kva_layout.dmap_low && (va) < kva_layout.dmap_high)
 
 #define	PMAP_HAS_DMAP	1
-#define	PHYS_TO_DMAP(x)	({						\
+#define	PHYS_TO_DMAP(x)	__extension__ ({				\
 	KASSERT(PHYS_IN_DMAP(x),					\
 	    ("physical address %#jx not covered by the DMAP",		\
 	    (uintmax_t)x));						\
-	(x) | DMAP_MIN_ADDRESS; })
+	(x) + kva_layout.dmap_low; })
 
-#define	DMAP_TO_PHYS(x)	({						\
+#define	DMAP_TO_PHYS(x)	__extension__ ({				\
 	KASSERT(VIRT_IN_DMAP(x),					\
 	    ("virtual address %#jx not covered by the DMAP",		\
 	    (uintmax_t)x));						\
-	(x) & ~DMAP_MIN_ADDRESS; })
+	(x) - kva_layout.dmap_low; })
 
 /*
  * amd64 maps the page array into KVA so that it can be more easily
@@ -274,7 +268,7 @@
  */
 #ifndef VM_KMEM_SIZE_MAX
 #define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \
-    VM_MIN_KERNEL_ADDRESS + 1) * 3 / 5)
+    kva_layout.km_low + 1) * 3 / 5)
 #endif
 
 /* initial pagein size of beginning of executable file */

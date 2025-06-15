@@ -548,6 +548,18 @@ pmap_pml5e_index(vm_offset_t va)
 	return ((va >> PML5SHIFT) & ((1ul << NPML5EPGSHIFT) - 1));
 }
 
+struct kva_layout_s {
+	vm_offset_t kva_min;
+	vm_offset_t dmap_low;	/* DMAP_MIN_ADDRESS */
+	vm_offset_t dmap_high;	/* DMAP_MAX_ADDRESS */
+	vm_offset_t lm_low;	/* LARGEMAP_MIN_ADDRESS */
+	vm_offset_t lm_high;	/* LARGEMAP_MAX_ADDRESS */
+	vm_offset_t km_low;	/* VM_MIN_KERNEL_ADDRESS */
+	vm_offset_t km_high;	/* VM_MAX_KERNEL_ADDRESS */
+	vm_offset_t rec_pt;
+};
+extern struct kva_layout_s kva_layout;
+
 #endif /* !LOCORE */
 
 #endif /* !_MACHINE_PMAP_H_ */
