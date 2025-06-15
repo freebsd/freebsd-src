@@ -37,7 +37,7 @@ static char	*inet_ntop6(const u_char *src, char *dst, socklen_t size);
  * author:
  *	Paul Vixie, 1996.
  */
-char *
+const char *
 inet_ntop(int af, const void *src, char *dst, socklen_t size)
 {
 	switch (af) {
