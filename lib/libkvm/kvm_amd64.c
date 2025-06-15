@@ -109,8 +109,9 @@ _amd64_initvtop(kvm_t *kd)
 {
 	struct kvm_nlist nl[2];
 	amd64_physaddr_t pa;
-	kvaddr_t kernbase;
+	kvaddr_t kernbase, kernphys;
 	amd64_pml4e_t *PML4;
+	int found = 0;
 
 	kd->vmst = (struct vmstate *)_kvm_malloc(kd, sizeof(*kd->vmst));
 	if (kd->vmst == NULL) {
@@ -123,16 +124,43 @@ _amd64_initvtop(kvm_t *kd)
 		if (_kvm_read_core_phdrs(kd, &kd->vmst->phnum,
 		    &kd->vmst->phdr) == -1)
 			return (-1);
+
+		for (size_t i = 0; i < kd->vmst->phnum; i++) {
+			if (kd->vmst->phdr[i].p_type == PT_DUMP_DELTA) {
+				/* Account for the 2M hole at KERNBASE. */
+				kernphys = kd->vmst->phdr[i].p_paddr -
+				    kd->vmst->phdr[i].p_align;
+				kernbase = kd->vmst->phdr[i].p_vaddr;
+
+				found = 1;
+				break;
+			}
+		}
 	}
 
-	nl[0].n_name = "kernbase";
-	nl[1].n_name = 0;
+	if (found == 0) {
+		nl[0].n_name = "kernbase";
+		nl[1].n_name = 0;
 
-	if (kvm_nlist2(kd, nl) != 0) {
-		_kvm_err(kd, kd->program, "bad namelist - no kernbase");
-		return (-1);
+		if (kvm_nlist2(kd, nl) != 0) {
+			_kvm_err(kd, kd->program, "bad namelist - no kernbase");
+			return (-1);
+		}
+
+		nl[0].n_name = "kernphys";
+		nl[1].n_name = 0;
+
+		/* XXX
+		 * Relocatable kernels can still be loaded at 2M.
+		 */
+		if (kvm_nlist2(kd, nl) != 1) {
+			_kvm_err(kd, kd->program, "cannot determine kernphys");
+			return (-1);
+		}
+
+		kernphys = 0;
+		kernbase = nl[0].n_value;
 	}
-	kernbase = nl[0].n_value;
 
 	nl[0].n_name = "KPML4phys";
 	nl[1].n_name = 0;
@@ -141,8 +169,8 @@ _amd64_initvtop(kvm_t *kd)
 		_kvm_err(kd, kd->program, "bad namelist - no KPML4phys");
 		return (-1);
 	}
-	if (kvm_read2(kd, (nl[0].n_value - kernbase), &pa, sizeof(pa)) !=
-	    sizeof(pa)) {
+	if (kvm_read2(kd, (nl[0].n_value - kernbase + kernphys), &pa,
+	    sizeof(pa)) != sizeof(pa)) {
 		_kvm_err(kd, kd->program, "cannot read KPML4phys");
 		return (-1);
 	}
