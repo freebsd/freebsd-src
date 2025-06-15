@@ -228,6 +228,42 @@ local function addsshkey(homedir, key)
 	end
 end
 
+local function addsudo(pwd)
+	local chmodsudoersd = false
+	local chmodsudoers = false
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	local sudoers_dir = "/usr/local/etc/sudoers.d"
+	if root then
+		sudoers_dir= root .. sudoers_dir
+	end
+	local sudoers = sudoers_dir .. "/90-nuageinit-users"
+	local sudoers_attr = lfs.attributes(sudoers)
+	if sudoers_attr == nil then
+		chmodsudoers = true
+		local dirattrs = lfs.attributes(sudoers_dir)
+		if dirattrs == nil then
+			local r, err = mkdir_p(sudoers_dir)
+			if not r then
+				return nil, err .. " (creating " .. sudoers_dir .. ")"
+			end
+			chmodsudoersd = true
+		end
+	end
+	local f = io.open(sudoers, "a")
+	if not f then
+		warnmsg("impossible to open " .. sudoers)
+		return
+	end
+	f:write(pwd.name .. " " .. pwd.sudo .. "\n")
+	f:close()
+	if chmodsudoers then
+		sys_stat.chmod(sudoers, 416)
+	end
+	if chmodsudoersd then
+		sys_stat.chmod(sudoers, 480)
+	end
+end
+
 local function update_sshd_config(key, value)
 	local sshd_config = "/etc/ssh/sshd_config"
 	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
@@ -419,7 +455,8 @@ local n = {
 	pkg_bootstrap = pkg_bootstrap,
 	install_package = install_package,
 	update_packages = update_packages,
-	upgrade_packages = upgrade_packages
+	upgrade_packages = upgrade_packages,
+	addsudo = addsudo
 }
 
 return n

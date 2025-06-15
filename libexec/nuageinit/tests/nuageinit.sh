@@ -117,6 +117,7 @@ users:
   - name: foobar
     gecos: Foo B. Bar
     primary_group: foobar
+    sudo: ALL=(ALL) NOPASSWD:ALL
     groups: users
     passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
 EOF
@@ -138,6 +139,7 @@ EOF
 	sed -i "" "s/freebsd:.*:1001/freebsd:freebsd:1001/" "${PWD}"/etc/master.passwd
 	atf_check -o file:expectedpasswd cat "${PWD}"/etc/master.passwd
 	atf_check -o file:expectedgroup cat "${PWD}"/etc/group
+	atf_check -o inline:"foobar ALL=(ALL) NOPASSWD:ALL\n" cat ${PWD}/usr/local/etc/sudoers.d/90-nuageinit-users
 }
 
 nocloud_network_head()
