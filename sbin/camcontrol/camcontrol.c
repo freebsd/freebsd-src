@@ -5404,7 +5404,7 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 		struct ccb_trans_settings_ufshci *ufshci =
 		    &cts->xport_specific.ufshci;
 
-		if (ufshci->valid & CTS_UFSHCI_VALID_MODE) {
+		if (ufshci->valid & CTS_UFSHCI_VALID_LINK) {
 			fprintf(stdout, "%sHigh Speed Gear: %d (%d max)\n",
 				pathstr, ufshci->hs_gear, ufshci->max_hs_gear);
 			fprintf(stdout, "%sUnipro TX lanes: %d (%d max)\n", pathstr,
