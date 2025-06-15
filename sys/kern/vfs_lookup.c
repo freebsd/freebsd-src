@@ -75,14 +75,20 @@ static void NDVALIDATE_impl(struct nameidata *, int);
 #endif
 
 /*
+ * Reset ndp to its original state.
+ */
+#define	NDRESET(ndp) do {						\
+	NDREINIT_DBG(ndp);						\
+	ndp->ni_resflags = 0;						\
+	ndp->ni_cnd.cn_flags &= ~NAMEI_INTERNAL_FLAGS;			\
+} while (0)
+/*
  * Prepare namei() to restart. Reset components to its original state and set
  * ISRESTARTED flag which signals the underlying lookup code to change the root
  * from ABI root to actual root and prevents a further restarts.
  */
 #define	NDRESTART(ndp) do {						\
-	NDREINIT_DBG(ndp);						\
-	ndp->ni_resflags = 0;						\
-	ndp->ni_cnd.cn_flags &= ~NAMEI_INTERNAL_FLAGS;			\
+	NDRESET(ndp);						\
 	ndp->ni_cnd.cn_flags |= ISRESTARTED;				\
 } while (0)
 
