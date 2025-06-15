@@ -47,7 +47,7 @@ enum iwl_dl {
 	IWL_DL_DROP		= 0x00000010,
 	IWL_DL_EEPROM		= 0x00000020,
 	IWL_DL_FW		= 0x00000040,
-	/*			= 0x00000080, */
+	IWL_DL_DEV_RADIO	= 0x00000080,
 	IWL_DL_HC		= 0x00000100,
 	IWL_DL_HT		= 0x00000200,
 	IWL_DL_INFO		= 0x00000400,
@@ -195,6 +195,8 @@ void __iwl_dbg(struct device *, u32, bool, const char *, const char *fmt, ...);
 	IWL_DPRINTF(_subsys, IWL_DL_WEP, _fmt, ##__VA_ARGS__)
 #define	IWL_DEBUG_WOWLAN(_subsys, _fmt, ...)				\
 	IWL_DPRINTF(_subsys, IWL_DL_WOWLAN, _fmt, ##__VA_ARGS__)
+#define	IWL_DEBUG_DEV_RADIO(_dev, _fmt, ...)				\
+	IWL_DPRINTF_DEV((_dev), IWL_DL_DEV_RADIO, _fmt, ##__VA_ARGS__)
 
 #define	IWL_DEBUG_PCI_RW(_subsys, _fmt, ...)				\
 	IWL_DPRINTF(_subsys, IWL_DL_PCI_RW, _fmt, ##__VA_ARGS__)
