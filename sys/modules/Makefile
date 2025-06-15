@@ -401,6 +401,7 @@ SUBDIR=	\
 	udf \
 	udf_iconv \
 	ufs \
+	${_ufshci} \
 	uinput \
 	unionfs \
 	usb \
@@ -915,6 +916,10 @@ _bcm283x_pwm=  bcm283x_pwm
 # LLVM 10 crashes when building if_malo_pci.c, fixed in LLVM11:
 # https://bugs.llvm.org/show_bug.cgi?id=44351
 _malo=	malo
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
+_ufshci=ufshci
 .endif
 
 SUBDIR+=${MODULES_EXTRA}
