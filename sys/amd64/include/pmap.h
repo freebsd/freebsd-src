@@ -110,12 +110,7 @@
  * Pte related macros.  This is complicated by having to deal with
  * the sign extension of the 48th bit.
  */
-#define KV4ADDR(l4, l3, l2, l1) ( \
-	((unsigned long)-1 << 47) | \
-	((unsigned long)(l4) << PML4SHIFT) | \
-	((unsigned long)(l3) << PDPSHIFT) | \
-	((unsigned long)(l2) << PDRSHIFT) | \
-	((unsigned long)(l1) << PAGE_SHIFT))
+#define KV4ADDR(l4, l3, l2, l1)		KV5ADDR(-1, l4, l3, l2, l1)
 #define KV5ADDR(l5, l4, l3, l2, l1) (		\
 	((unsigned long)-1 << 56) | \
 	((unsigned long)(l5) << PML5SHIFT) | \
