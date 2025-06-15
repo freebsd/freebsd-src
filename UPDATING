@@ -27,6 +27,23 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 15.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20250614:
+	MIT KRB5 (MIT Kerberos5) has been imported into 15-CURRENT. To
+	and install MIT KRB5, add WITH_MITKRB5=yes to /etc/src.conf. This
+	will build and install MIT KRB5 1.21.3. And it will remove Heimdal
+	1.5.2 when delete-old and delete-old-libs are run. To revert back
+	simply buildworld/installworld again with delete-old-libs and
+	delete-old.
+
+	At the moment we only know of a couple of ports that might be
+	affected. Adjusting libmap.conf does not circumvent runtime issues.
+	The few affected ports must be rebuilt. A successful exp-run will be
+	run before MIT KRB5 becomes default.
+
+	Those using the KDC in FreeBSD base may wish to wait. The Heimdal
+	HDB is incompatible with the MIT KRB5 KDC. The migration procedure
+	is a little involved.
+
 20250603:
 	LinuxKPI dma-mapping.h were pulled into the tree from drm-kmod.
 	Bump _FreeBSD_version to 1500045 to be able to detect this change.
