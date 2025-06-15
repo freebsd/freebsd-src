@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20250615: don't install man page for absent function
+OLD_FILES+=usr/share/man/man9/vm_map_simplify_entry.9.gz
+
 # 20250521: don't install zoneinfo version
 OLD_FILES+=usr/share/zoneinfo/version
 
