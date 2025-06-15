@@ -1033,6 +1033,7 @@ quoted_print(FILE *fp, char *str)
 	    : strchr(p, '\'') ? '"'
 	    : strchr(p, '"') ? '\''
 	    : strchr(p, ' ') || strchr(p, '\t') ? '"'
+	    : strchr(p, '|') ? '"'
 	    : 0;
 	if (qc)
 		putc(qc, fp);
