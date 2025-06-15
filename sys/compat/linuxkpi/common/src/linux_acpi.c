@@ -39,6 +39,7 @@
 
 #include <linux/notifier.h>
 #include <linux/suspend.h>
+#include <linux/uuid.h>
 
 #include <acpi/acpi_bus.h>
 #include <acpi/video.h>
@@ -97,6 +98,17 @@ acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const char *uuid, int rev,
 
 	return (ACPI_SUCCESS(acpi_EvaluateDSMTyped(handle, uuid, rev, func,
 	    argv4, &buf, type)) ? (ACPI_OBJECT *)buf.Pointer : NULL);
+}
+
+union linuxkpi_acpi_object *
+acpi_evaluate_dsm(ACPI_HANDLE ObjHandle, const guid_t *guid,
+    UINT64 rev, UINT64 func, union linuxkpi_acpi_object *pkg)
+{
+	ACPI_BUFFER buf;
+
+	return (ACPI_SUCCESS(acpi_EvaluateDSM(ObjHandle, (const uint8_t *)guid,
+	    rev, func, (ACPI_OBJECT *)pkg, &buf)) ?
+	    (union linuxkpi_acpi_object *)buf.Pointer : NULL);
 }
 
 static void
@@ -319,6 +331,13 @@ acpi_check_dsm(ACPI_HANDLE handle, const char *uuid, int rev, uint64_t funcs)
 ACPI_OBJECT *
 acpi_evaluate_dsm_typed(ACPI_HANDLE handle, const char *uuid, int rev,
      int func, ACPI_OBJECT *argv4, ACPI_OBJECT_TYPE type)
+{
+	return (NULL);
+}
+
+union linuxkpi_acpi_object *
+acpi_evaluate_dsm(ACPI_HANDLE ObjHandle, const guid_t *guid,
+    UINT64 rev, UINT64 func, union linuxkpi_acpi_object *pkg)
 {
 	return (NULL);
 }
