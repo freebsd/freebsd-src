@@ -105,8 +105,8 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			 * PAGE_SIZE, the uiomove() call does not
 			 * access past the end of the direct map.
 			 */
-			if (v >= DMAP_MIN_ADDRESS &&
-			    v < DMAP_MIN_ADDRESS + dmaplimit) {
+			if (v >= kva_layout.dmap_low &&
+			    v < kva_layout.dmap_high) {
 				error = uiomove((void *)v, c, uio);
 				break;
 			}
