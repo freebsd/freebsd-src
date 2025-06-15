@@ -8,7 +8,6 @@
 #include "acpi.h"
 #include "debug.h"
 
-#if defined(__linux__)
 static const guid_t rtw89_guid = GUID_INIT(0xD2A8C3E8, 0x4B69, 0x4F00,
 					   0x82, 0xBD, 0xFE, 0x86,
 					   0x07, 0x80, 0x3A, 0xA7);
@@ -149,14 +148,6 @@ int rtw89_acpi_evaluate_dsm(struct rtw89_dev *rtwdev,
 	ACPI_FREE(obj);
 	return ret;
 }
-#elif defined(__FreeBSD__)
-int rtw89_acpi_evaluate_dsm(struct rtw89_dev *rtwdev,
-			    enum rtw89_acpi_dsm_func func,
-			    struct rtw89_acpi_dsm_result *res)
-{
-	return -ENOENT;
-}
-#endif
 
 int rtw89_acpi_evaluate_rtag(struct rtw89_dev *rtwdev,
 			     struct rtw89_acpi_rtag_result *res)
@@ -180,28 +171,15 @@ int rtw89_acpi_evaluate_rtag(struct rtw89_dev *rtwdev,
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
-#if defined(__linux__)
 	obj = buf.pointer;
 	if (obj->type != ACPI_TYPE_BUFFER) {
-#elif defined(__FreeBSD__)
-	obj = buf.Pointer;
-	if (obj->Type != ACPI_TYPE_BUFFER) {
-#endif
 		rtw89_debug(rtwdev, RTW89_DBG_ACPI,
-#if defined(__linux__)
 			    "acpi: expect buffer but type: %d\n", obj->type);
-#elif defined(__FreeBSD__)
-			    "acpi: expect buffer but type: %d\n", obj->Type);
-#endif
 		ret = -EINVAL;
 		goto out;
 	}
 
-#if defined(__linux__)
 	buf_len = obj->buffer.length;
-#elif defined(__FreeBSD__)
-	buf_len = obj->Buffer.Length;
-#endif
 	if (buf_len != sizeof(*res)) {
 		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "%s: invalid buffer length: %u\n",
 			    __func__, buf_len);
@@ -209,11 +187,7 @@ int rtw89_acpi_evaluate_rtag(struct rtw89_dev *rtwdev,
 		goto out;
 	}
 
-#if defined(__linux__)
 	*res = *(struct rtw89_acpi_rtag_result *)obj->buffer.pointer;
-#elif defined(__FreeBSD__)
-	*res = *(struct rtw89_acpi_rtag_result *)obj->Buffer.Pointer;
-#endif
 
 	rtw89_hex_dump(rtwdev, RTW89_DBG_ACPI, "antenna_gain: ", res, sizeof(*res));
 
