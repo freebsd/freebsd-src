@@ -13,6 +13,7 @@ SRCS    += opt_inet.h opt_inet6.h opt_rss.h opt_iflib.h
 SRCS    += ice_lib.c ice_osdep.c ice_resmgr.c ice_strings.c
 SRCS    += ice_iflib_recovery_txrx.c ice_iflib_txrx.c if_ice_iflib.c
 SRCS	+= ice_fw_logging.c ice_ddp_common.c
+SRCS.PCI_IOV += pci_iov_if.h ice_iov.c ice_vf_mbx.c
 
 # RDMA Client interface
 # TODO: Is this the right way to compile this?
