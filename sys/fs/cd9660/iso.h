@@ -212,7 +212,7 @@ struct iso_extended_attributes {
 	u_char len_au			[ISODCL (247, 250)]; /* 723 */
 };
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_WANT_ISO_MNT)
 
 /* CD-ROM Format type */
 enum ISO_FTYPE	{ ISO_FTYPE_DEFAULT, ISO_FTYPE_9660, ISO_FTYPE_RRIP,
@@ -252,6 +252,10 @@ struct iso_mnt {
 	void *im_d2l;
 	void *im_l2d;
 };
+
+#endif /* defined(_KERNEL) || defined(_WANT_ISO_MNT) */
+
+#ifdef _KERNEL
 
 struct ifid {
 	u_short		ifid_len;
