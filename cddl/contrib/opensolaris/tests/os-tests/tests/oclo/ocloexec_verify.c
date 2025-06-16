@@ -23,20 +23,36 @@
  * properly cleared.
  */
 
+#include <sys/types.h>
+#include <sys/user.h>
 #include <err.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdbool.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <libutil.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
+#define strerrorname_np(e) (sys_errlist[e])
 
 static int
-verify_fdwalk_cb(void *arg, int fd)
+getmaxfd(void)
 {
-	int *max = arg;
-	*max = fd;
-	return (0);
+	struct kinfo_file *files;
+	int i, cnt, max;
+
+	if ((files = kinfo_getfile(getpid(), &cnt)) == NULL)
+		err(1, "kinfo_getfile");
+
+	max = -1;
+	for (i = 0; i < cnt; i++)
+		if (files[i].kf_fd > max)
+			max = files[i].kf_fd;
+
+	free(files);
+	return (max);
 }
 
 /*
@@ -103,7 +119,7 @@ verify_flags(int fd, int exp_flags)
 int
 main(int argc, char *argv[])
 {
-	int maxfd = STDIN_FILENO;
+	int maxfd;
 	int ret = EXIT_SUCCESS;
 
 	/*
@@ -112,24 +128,25 @@ main(int argc, char *argv[])
 	 * program name, which we want to skip. Note, the last fd may not exist
 	 * because it was marked for close, hence the use of '>' below.
 	 */
-	(void) fdwalk(verify_fdwalk_cb, &maxfd);
+	maxfd = getmaxfd();
 	if (maxfd - 3 > argc - 1) {
 		errx(EXIT_FAILURE, "TEST FAILED: found more fds %d than "
 		    "arguments %d", maxfd - 3, argc - 1);
 	}
 
 	for (int i = 1; i < argc; i++) {
-		const char *errstr;
+		char *endptr;
 		int targ_fd = i + STDERR_FILENO;
-		long long targ_flags = strtonumx(argv[i], 0,
-		    FD_CLOEXEC | FD_CLOFORK, &errstr, 0);
+		errno = 0;
+		long long val = strtoll(argv[i], &endptr, 0);
 
-		if (errstr != NULL) {
+		if (errno != 0 || *endptr != '\0' ||
+		    (val < 0 || val > (FD_CLOEXEC | FD_CLOFORK))) {
 			errx(EXIT_FAILURE, "TEST FAILED: failed to parse "
-			    "argument %d: %s is %s", i, argv[i], errstr);
+			    "argument %d: %s", i, argv[i]);
 		}
 
-		if (!verify_flags(targ_fd, (int)targ_flags))
+		if (!verify_flags(targ_fd, (int)val))
 			ret = EXIT_FAILURE;
 	}
 
