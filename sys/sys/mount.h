@@ -41,6 +41,10 @@
 #include <sys/tslog.h>
 #include <sys/_mutex.h>
 #include <sys/_sx.h>
+#elif defined(_WANT_MOUNT)
+#include <sys/_lock.h>
+#include <sys/_lockmgr.h>
+#include <sys/_mutex.h>
 #endif
 
 /*
