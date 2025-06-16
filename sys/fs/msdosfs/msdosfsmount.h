@@ -58,8 +58,11 @@
 #ifndef MAKEFS
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
-#include <sys/_task.h>
+#else
+#include <sys/_lock.h>
+#include <sys/_lockmgr.h>
 #endif
+#include <sys/_task.h>
 #include <sys/tree.h>
 
 #ifdef MALLOC_DECLARE
@@ -114,11 +117,9 @@ struct msdosfsmount {
 	void *pm_w2u;	/* Unicode->Local iconv handle */
 	void *pm_u2d;	/* Unicode->DOS iconv handle */
 	void *pm_d2u;	/* DOS->Local iconv handle */
-#ifndef MAKEFS
 	struct lock pm_fatlock;	/* lockmgr protecting allocations */
 	struct lock pm_checkpath_lock; /* protects doscheckpath result */
 	struct task pm_rw2ro_task; /* context for emergency remount ro */
-#endif
 };
 
 /*
