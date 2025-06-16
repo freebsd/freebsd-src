@@ -31,9 +31,8 @@
 #include <stdbool.h>
 
 #include <sys/param.h>
-#define _KERNEL
+#define _WANT_MOUNT
 #include <sys/mount.h>
-#undef _KERNEL
 #include <sys/queue.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>

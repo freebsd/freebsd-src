@@ -32,9 +32,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
-#define _KERNEL
 #include <sys/mount.h>
-#undef _KERNEL
 
 #include <netinet/in.h>
 
