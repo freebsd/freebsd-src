@@ -93,10 +93,10 @@
 #include <machine/ptrace.h>	/* machine-specific requests, if any */
 
 #ifdef _KERNEL
-/* Space for Linux ptrace emulation. */
-#define	PTLINUX_FIRST	128
-#define	PTLINUX_LAST	191
-#define	PTLINUX_GET_SC_ARGS	(PTLINUX_FIRST + 0)
+/* Space for ptrace commands not exposed directly to userspace. */
+#define	PTINTERNAL_FIRST	128
+#define	PTINTERNAL_LAST		191
+#define	PTLINUX_GET_SC_ARGS	(PTINTERNAL_FIRST + 0)
 #endif
 
 /* Events used with PT_GET_EVENT_MASK and PT_SET_EVENT_MASK */
