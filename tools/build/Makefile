@@ -270,6 +270,12 @@ subr_capability.c: ${SRCTOP}/sys/kern/subr_capability.c
 	cp ${.ALLSRC} ${.TARGET}
 SRCS+=	subr_capability.c
 CLEANFILES+=	subr_capability.c
+
+# Headers needed for msdosfs use in makefs
+SYSINCS+=	${SRCTOP}/sys/sys/_callout.h
+SYSINCS+=	${SRCTOP}/sys/sys/_lock.h
+SYSINCS+=	${SRCTOP}/sys/sys/_lockmgr.h
+SYSINCS+=	${SRCTOP}/sys/sys/_task.h
 .endif # ${MAKE.OS} != "FreeBSD"
 
 CASPERINC+=	${SRCTOP}/lib/libcasper/services/cap_fileargs/cap_fileargs.h

@@ -48,3 +48,6 @@ typedef __builtin_va_list __va_list;
 
 /* Needed for opensolaris compat. */
 typedef	__int64_t	off64_t;
+
+/* Needed for sys/_callout.h */
+typedef	__int64_t	__sbintime_t;
