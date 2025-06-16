@@ -4025,9 +4025,9 @@ OLD_FILES+=usr/share/man/man4/twa.4.gz
 OLD_FILES+=usr/share/man/man9/kernel_vmount.9.gz
 
 # 20211115: vm_page busy functions removed
-OLD_FILES+=share/man/man9/vm_page_sbusy.9.gz
-OLD_FILES+=share/man/man9/vm_page_xbusy.9.gz
-OLD_FILES+=share/man/man9/vm_page_sleep_if_busy.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_sbusy.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_xbusy.9.gz
+OLD_FILES+=usr/share/man/man9/vm_page_sleep_if_busy.9.gz
 
 # 20211113: new clang import which bumps version from 12.0.1 to 13.0.0
 OLD_FILES+=usr/lib/clang/12.0.1/include/cuda_wrappers/algorithm
