@@ -70,7 +70,7 @@ local function get_ifaces()
 end
 
 local function sethostname(obj)
-	-- always prefer fqdn is specified over hostname
+	-- always prefer fqdn if specified over hostname
 	if obj.fqdn then
 		nuage.sethostname(obj.fqdn)
 	elseif obj.hostname then
