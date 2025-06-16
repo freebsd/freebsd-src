@@ -2048,7 +2048,7 @@ package-pkg: .PHONY
 
 real-packages:	stage-packages create-packages sign-packages .PHONY
 
-real-update-packages: .PHONY
+real-update-packages: .PHONY create-packages
 .if defined(PKG_VERSION_FROM_DIR)
 	@echo "==> Checking for new packages (comparing ${PKG_VERSION} to ${PKG_VERSION_FROM})"
 	@for pkg in ${PKG_VERSION_FROM_DIR}/${PKG_NAME_PREFIX}-*; do \
