@@ -85,6 +85,7 @@
 
 static void	 display(const FTSENT *, FTSENT *, int);
 static int	 mastercmp(const FTSENT * const *, const FTSENT * const *);
+static void	 printjson(const DISPLAY *);
 static void	 traverse(int, char **, int);
 
 enum {
@@ -104,6 +105,7 @@ static const struct option long_opts[] =
         {"color",        optional_argument,      NULL, COLOR_OPT},
         {"group-directories", optional_argument, NULL, GROUP_OPT},
         {"group-directories-first", no_argument, NULL, GROUP_OPT},
+        {"json",         no_argument,            NULL, 'j'},
         {NULL,           no_argument,            NULL, 0}
 };
 
@@ -119,6 +121,7 @@ int termwidth = 80;		/* default terminal width */
        int f_flags;		/* show flags associated with a file */
 static int f_groupdir = GRP_NONE;/* group directories first/last */
        int f_humanval;		/* show human-readable file sizes */
+       int f_json;		/* JSON output */
        int f_inode;		/* print inode */
 static int f_kblocks;		/* print size in kilobytes */
        int f_label;		/* show MAC label */
@@ -276,7 +279,7 @@ main(int argc, char *argv[])
 		colorflag = COLORFLAG_AUTO;
 #endif
 	while ((ch = getopt_long(argc, argv,
-	    "+1ABCD:FGHILPRSTUWXZabcdfghiklmnopqrstuvwxy,", long_opts,
+	    "+1ABCD:FGHILPRSTUWXZabcdfghiklmnopqrstuvwxy,j", long_opts,
 	    NULL)) != -1) {
 		switch (ch) {
 		/*
@@ -421,6 +424,23 @@ main(int argc, char *argv[])
 		case 'i':
 			f_inode = 1;
 			break;
+		case 'j':
+			f_json = 1;
+			/* JSON output is exclusive of other major formatting options */
+			f_longform = 0;
+			f_singlecol = 0;
+			f_stream = 0;
+			f_sortacross = 0;
+			/* Disable other incompatible options */
+			f_humanval = 0;
+			f_kblocks = 0;
+			f_thousands = 0;
+			/* Disable color */
+#ifdef COLORLS
+			f_color = 0;
+			colorflag = COLORFLAG_NEVER;
+#endif
+			break;
 		case 'k':
 			f_humanval = 0;
 			f_kblocks = 1;
@@ -552,7 +572,7 @@ main(int argc, char *argv[])
 	 * we do need this to determine which colors to display.
 	 */
 	if (!f_inode && !f_longform && !f_size && !f_timesort &&
-	    !f_sizesort && !f_type && f_groupdir == GRP_NONE
+	    !f_sizesort && !f_type && f_groupdir == GRP_NONE && !f_json /* Added !f_json */
 #ifdef COLORLS
 	    && !f_color
 #endif
@@ -640,6 +660,227 @@ main(int argc, char *argv[])
 }
 
 static int output;		/* If anything output. */
+
+/*
+ * Helper function to print a string as a JSON string literal,
+ * escaping necessary characters.
+ */
+static void
+print_json_string(const char *str)
+{
+	if (str == NULL) {
+		printf("\"\"");
+		return;
+	}
+	putchar('"');
+	for (; *str; str++) {
+		switch (*str) {
+		case '"':
+			printf("\\\"");
+			break;
+		case '\\':
+			printf("\\\\");
+			break;
+		case '\b':
+			printf("\\b");
+			break;
+		case '\f':
+			printf("\\f");
+			break;
+		case '\n':
+			printf("\\n");
+			break;
+		case '\r':
+			printf("\\r");
+			break;
+		case '\t':
+			printf("\\t");
+			break;
+		/* Don't escape '/' for readability, it's optional. */
+		default:
+			if (*str >= 0 && *str < 32) {
+				/* Control characters (U+0000 to U+001F) */
+				printf("\\u%04x", (unsigned char)*str);
+			} else {
+				putchar(*str);
+			}
+			break;
+		}
+	}
+	putchar('"');
+}
+
+/*
+ * Print display structure as JSON.
+ */
+static void
+printjson(const DISPLAY *dp)
+{
+	FTSENT *cur;
+	int first_entry = 1;
+	char modebuf[12]; /* For strmode, e.g., "-rwxr-xr-x" + NUL */
+
+	putchar('[');
+
+	if (dp->entries == 0) {
+		putchar(']');
+		putchar('\n');
+		return;
+	}
+
+	for (cur = dp->list; cur; cur = cur->fts_link) {
+		if (cur->fts_number == NO_PRINT)
+			continue;
+
+		if (!first_entry) {
+			putchar(',');
+		}
+		first_entry = 0;
+
+		putchar('{');
+
+		printf("\"name\":");
+		print_json_string(cur->fts_name);
+
+		printf(",\"path\":");
+		print_json_string(cur->fts_path);
+
+		if (cur->fts_statp == NULL) {
+			printf(",\"error\":\"stat unavailable\"");
+			putchar('}');
+			continue; /* Next entry */
+		}
+
+		printf(",\"type\":");
+		switch (cur->fts_info) {
+		case FTS_F:
+			print_json_string("file");
+			break;
+		case FTS_D:
+			print_json_string("directory");
+			break;
+		case FTS_L:
+			print_json_string("link");
+			break;
+		case FTS_SL:
+			print_json_string("symlink"); /* FTS_SL means target does not exist */
+			break;
+		case FTS_SOCK:
+			print_json_string("socket");
+			break;
+		case FTS_FIFO:
+			print_json_string("fifo");
+			break;
+		case FTS_CHR:
+			print_json_string("char_device");
+			break;
+		case FTS_BLK:
+			print_json_string("block_device");
+			break;
+		case FTS_W:
+			print_json_string("whiteout");
+			break;
+		default:
+			print_json_string("unknown");
+			break;
+		}
+
+		printf(",\"inode\":%" PRIuMAX, (uintmax_t)cur->fts_statp->st_ino);
+		printf(",\"size\":%" PRIuMAX, (uintmax_t)cur->fts_statp->st_size);
+		printf(",\"blocks\":%" PRIuMAX, (uintmax_t)cur->fts_statp->st_blocks);
+		printf(",\"nlink\":%" PRIuMAX, (uintmax_t)cur->fts_statp->st_nlink);
+		printf(",\"uid\":%u", cur->fts_statp->st_uid);
+		printf(",\"gid\":%u", cur->fts_statp->st_gid);
+
+		if (!f_numericonly) {
+			const char *user = user_from_uid(cur->fts_statp->st_uid, 0);
+			printf(",\"user\":");
+			print_json_string(user ? user : "");
+
+			const char *group = group_from_gid(cur->fts_statp->st_gid, 0);
+			printf(",\"group\":");
+			print_json_string(group ? group : "");
+		}
+
+		strmode(cur->fts_statp->st_mode, modebuf);
+		printf(",\"mode_string\":");
+		print_json_string(modebuf);
+		printf(",\"mode_octal\":\"%04o\"", cur->fts_statp->st_mode & 07777);
+
+		/* Timestamps */
+		printf(",\"atime\":%ld", (long)cur->fts_statp->st_atim.tv_sec);
+		printf(",\"mtime\":%ld", (long)cur->fts_statp->st_mtim.tv_sec);
+		printf(",\"ctime\":%ld", (long)cur->fts_statp->st_ctim.tv_sec);
+		/* Assuming st_birthtim is available, common in modern BSDs.
+		   If st_birthtim.tv_sec is 0, it might mean unsupported or actual epoch time. */
+		printf(",\"birthtime\":%ld", (long)cur->fts_statp->st_birthtim.tv_sec);
+
+		if (S_ISLNK(cur->fts_statp->st_mode)) {
+			char linkbuf[PATH_MAX + 1];
+			ssize_t linklen = readlink(cur->fts_accpath, linkbuf, sizeof(linkbuf) - 1);
+			if (linklen != -1) {
+				linkbuf[linklen] = '\0';
+				printf(",\"target\":");
+				print_json_string(linkbuf);
+			} else {
+				printf(",\"target_error\":\"%s\"", strerror(errno));
+			}
+		}
+
+		if (f_flags) {
+			char *flags_str = fflagstostr(cur->fts_statp->st_flags);
+			printf(",\"flags\":");
+			if (flags_str && *flags_str) {
+				print_json_string(flags_str);
+			} else {
+				print_json_string("-");
+			}
+			free(flags_str);
+		}
+
+		if (f_label) {
+			char name_for_mac[PATH_MAX + 1];
+			mac_t label;
+			char *labelstr = NULL;
+			int error;
+
+			error = mac_prepare_file_label(&label);
+			if (error == -1) {
+				printf(",\"label_error\":\"mac_prepare_file_label: %s\"", strerror(errno));
+			} else {
+				if (cur->fts_level == FTS_ROOTLEVEL) {
+					snprintf(name_for_mac, sizeof(name_for_mac), "%s", cur->fts_name);
+				} else {
+					snprintf(name_for_mac, sizeof(name_for_mac), "%s/%s", cur->fts_parent->fts_accpath, cur->fts_name);
+				}
+
+				/* Simplified logic for MAC label: get label of link itself, or file if not a link. */
+				if (S_ISLNK(cur->fts_statp->st_mode)) {
+					error = mac_get_link(name_for_mac, label);
+				} else {
+					error = mac_get_file(name_for_mac, label);
+				}
+
+				if (error == -1) {
+					printf(",\"label_error\":\"mac_get_label: %s\"", strerror(errno));
+				} else {
+					error = mac_to_text(label, &labelstr);
+					if (error == -1) {
+						printf(",\"label_error\":\"mac_to_text: %s\"", strerror(errno));
+					} else {
+						printf(",\"label\":");
+						print_json_string(labelstr ? labelstr : "-");
+					}
+				}
+				mac_free(label);
+				if (labelstr) free(labelstr); /* mac_to_text allocates if not NULL */
+			}
+		}
+		putchar('}');
+	}
+	putchar(']');
+	putchar('\n');
+}
 
 /*
  * Traverse() walks the logical directory structure specified by the argv list
@@ -795,13 +1036,19 @@ display(const FTSENT *p, FTSENT *list, int options)
 	maxlen = width[7];
 	maxlabelstr = width[8];
 
-	MAKENINES(maxinode);
-	MAKENINES(maxblock);
-	MAKENINES(maxnlink);
-	MAKENINES(maxsize);
+	if (!f_json) {
+		MAKENINES(maxinode);
+		MAKENINES(maxblock);
+		MAKENINES(maxnlink);
+		MAKENINES(maxsize);
+		d.s_size = 0; /* Max size of device numbers string */
+		sizelen = 0;  /* Current size of device numbers string */
+	} else {
+		/* For JSON, these d.s_* fields are not used by printjson,
+		   but ensure they have a default if accessed elsewhere. */
+		d.s_size = 0;
+	}
 
-	d.s_size = 0;
-	sizelen = 0;
 	flags = NULL;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
 		if (cur->fts_info == FTS_ERR || cur->fts_info == FTS_NS) {
@@ -828,26 +1075,36 @@ display(const FTSENT *p, FTSENT *list, int options)
 				continue;
 			}
 		}
-		if (cur->fts_namelen > maxlen)
-			maxlen = cur->fts_namelen;
-		if (f_octal || f_octal_escape) {
-			u_long t = len_octal(cur->fts_name, cur->fts_namelen);
+		if (!f_json) { /* Columnar display calculations */
+			if (cur->fts_namelen > maxlen)
+				maxlen = cur->fts_namelen;
+			if (f_octal || f_octal_escape) {
+				u_long t = len_octal(cur->fts_name, cur->fts_namelen);
 
-			if (t > maxlen)
-				maxlen = t;
+				if (t > maxlen)
+					maxlen = t;
+			}
 		}
-		if (needstats) {
-			sp = cur->fts_statp;
-			if (sp->st_blocks > maxblock)
-				maxblock = sp->st_blocks;
-			if (sp->st_ino > maxinode)
-				maxinode = sp->st_ino;
-			if (sp->st_nlink > maxnlink)
-				maxnlink = sp->st_nlink;
-			if (sp->st_size > maxsize)
-				maxsize = sp->st_size;
 
-			btotal += sp->st_blocks;
+		if (needstats) { /* This needstats is f_inode || f_longform || f_size */
+			sp = cur->fts_statp;
+			if (!f_json) { /* Columnar display calculations */
+				if (sp->st_blocks > maxblock)
+					maxblock = sp->st_blocks;
+				if (sp->st_ino > maxinode)
+					maxinode = sp->st_ino;
+				if (sp->st_nlink > maxnlink)
+					maxnlink = sp->st_nlink;
+				if (sp->st_size > maxsize)
+					maxsize = sp->st_size;
+			}
+
+			btotal += sp->st_blocks; /* btotal is still calculated for display total if needed by other modes */
+
+			/* This entire f_longform block is skipped if f_json is true,
+			   because f_json forces f_longform = 0.
+			   So, np allocation and maxuser, maxgroup, maxflags, maxlabelstr
+			   are correctly skipped for JSON. */
 			if (f_longform) {
 				if (f_numericonly) {
 					(void)snprintf(nuser, sizeof(nuser),
@@ -955,8 +1212,8 @@ label_out:
 				np->group = &np->data[ulen + 1];
 				(void)strcpy(np->group, group);
 
-				if (S_ISCHR(sp->st_mode) ||
-				    S_ISBLK(sp->st_mode)) {
+				if (!f_json && (S_ISCHR(sp->st_mode) || S_ISBLK(sp->st_mode))) {
+					/* Max size of device numbers string, only for columnar */
 					sizelen = snprintf(NULL, 0,
 					    "%#jx", (uintmax_t)sp->st_rdev);
 					if (d.s_size < sizelen)
@@ -991,27 +1248,42 @@ label_out:
 
 	d.list = list;
 	d.entries = entries;
-	d.maxlen = maxlen;
-	if (needstats) {
-		d.btotal = btotal;
-		d.s_block = snprintf(NULL, 0, f_thousands ? "%'ld" : "%ld",
-		    howmany(maxblock, blocksize));
-		d.s_flags = maxflags;
-		d.s_label = maxlabelstr;
-		d.s_group = maxgroup;
-		d.s_inode = snprintf(NULL, 0, "%ju", maxinode);
-		d.s_nlink = snprintf(NULL, 0, "%lu", maxnlink);
-		sizelen = f_humanval ? HUMANVALSTR_LEN :
-		    snprintf(NULL, 0, "%ju", maxsize);
-		if (d.s_size < sizelen)
-			d.s_size = sizelen;
-		d.s_user = maxuser;
+	if (!f_json) {
+		d.maxlen = maxlen;
+		if (needstats) { /* Populating d.s_* fields for columnar formats */
+			d.s_block = snprintf(NULL, 0, f_thousands ? "%'ld" : "%ld",
+			    howmany(maxblock, blocksize));
+			/* d.s_flags, d.s_label, d.s_group, d.s_user are populated if f_longform,
+			   which is false if f_json. So they are implicitly handled. */
+			d.s_flags = maxflags;
+			d.s_label = maxlabelstr;
+			d.s_group = maxgroup;
+			d.s_user = maxuser;
+
+			d.s_inode = snprintf(NULL, 0, "%ju", maxinode);
+			d.s_nlink = snprintf(NULL, 0, "%lu", maxnlink);
+
+			/* Calculate sizelen for regular files if not already dev size */
+			if (!(S_ISCHR(sp->st_mode) || S_ISBLK(sp->st_mode))) {
+				sizelen = f_humanval ? HUMANVALSTR_LEN :
+					snprintf(NULL, 0, "%ju", maxsize);
+				if (d.s_size < sizelen)
+					d.s_size = sizelen;
+			}
+		}
+		if (f_thousands)			/* make space for commas, only for columnar */
+			d.s_size += (d.s_size - 1) / 3;
 	}
-	if (f_thousands)			/* make space for commas */
-		d.s_size += (d.s_size - 1) / 3;
+	/* d.btotal is always populated if needstats, printjson ignores it. */
+	/* For JSON, only d.list and d.entries are strictly needed by printjson from DISPLAY struct. */
+	/* Globals like f_numericonly, f_flags, f_label are used by printjson directly. */
+	d.btotal = btotal;
+
+
 	printfcn(&d);
 	output = 1;
 
+	/* This free loop is also skipped if f_json, due to f_longform being 0 */
 	if (f_longform)
 		for (cur = list; cur; cur = cur->fts_link)
 			free(cur->fts_pointer);

@@ -33,6 +33,7 @@
 #include <stdbool.h>
 
 extern bool insecure;		/* -i flag, needed here for elfhints.c */
+extern bool f_showsource;	/* -S flag, show source dir for libs in -r output */
 
 __BEGIN_DECLS
 void	list_elf_hints(const char *);
