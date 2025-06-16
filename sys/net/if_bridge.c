@@ -852,7 +852,6 @@ bridge_clone_create(struct if_clone *ifc, char *name, size_t len,
 	ether_ifattach(ifp, sc->sc_defaddr.octet);
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;
-	ifp->if_type = IFT_BRIDGE;
 #ifdef VIMAGE
 	ifp->if_reassign = bridge_reassign;
 #endif
