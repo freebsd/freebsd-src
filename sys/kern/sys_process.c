@@ -690,7 +690,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 			break;
 		r.sr.pscr_args = pscr_args;
 		break;
-	case PTLINUX_FIRST ... PTLINUX_LAST:
+	case PTINTERNAL_FIRST ... PTINTERNAL_LAST:
 		error = EINVAL;
 		break;
 	default:
