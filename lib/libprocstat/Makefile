@@ -52,18 +52,23 @@ MLINKS+=libprocstat.3 procstat_close.3 \
 		libprocstat.3 procstat_open_kvm.3 \
 		libprocstat.3 procstat_open_sysctl.3
 
-# XXX This is a hack.
 .if ${MK_CDDL} != "no"
 CFLAGS+=	-DLIBPROCSTAT_ZFS
 SRCS+=	zfs.c
-OBJS+=	zfs/zfs_defs.o
-SUBDIR=	zfs
-zfs/zfs_defs.o: .PHONY
-	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.o
-zfs/zfs_defs.pico: .PHONY
-	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.pico
-zfs/zfs_defs.pieo: .PHONY
-	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.pieo
+ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
+CFLAGS.zfs.c+=	-DIN_BASE
+CFLAGS.zfs.c+=	-DHAVE_ISSETUGID
+CFLAGS.zfs.c+=	-DZFS_DEBUG
+CFLAGS.zfs.c+=	-I${ZFSTOP}/include
+CFLAGS.zfs.c+=	-I${ZFSTOP}/lib/libspl/include
+CFLAGS.zfs.c+=	-I${ZFSTOP}/lib/libspl/include/os/freebsd
+CFLAGS.zfs.c+=	-I${ZFSTOP}/include/os/freebsd/zfs
+CFLAGS.zfs.c+=	-I${ZFSTOP}/module/icp/include
+CFLAGS.zfs.c+=	-I${SRCTOP}/sys
+CFLAGS.zfs.c+=	-I${SRCTOP}/sys/modules/zfs
+CFLAGS.zfs.c+=	-include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h
+CFLAGS.zfs.c+=	-include ${SRCTOP}/sys/modules/zfs/zfs_config.h
+CFLAGS.zfs.c+=	-Wno-cast-qual
 .endif
 
 .include <bsd.lib.mk>
