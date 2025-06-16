@@ -412,14 +412,21 @@ currecord(void)
 	return (curthread->td_ar);
 }
 
-/*
- * XXXAUDIT: Shouldn't there be logic here to sleep waiting on available
- * pre_q space, suspending the system call until there is room?
- */
 struct kaudit_record *
 audit_new(int event, struct thread *td)
 {
 	struct kaudit_record *ar;
+
+	mtx_lock(&audit_mtx);
+	audit_pre_q_len++;
+
+	/*
+	 * Constrain the number of committed audit records based on
+	 * the configurable parameter.
+	 */
+	while (audit_q_len >= audit_qctrl.aq_hiwater)
+		cv_wait(&audit_watermark_cv, &audit_mtx);
+	mtx_unlock(&audit_mtx);
 
 	/*
 	 * Note: the number of outstanding uncommitted audit records is
@@ -428,11 +435,6 @@ audit_new(int event, struct thread *td)
 	 */
 	ar = uma_zalloc_arg(audit_record_zone, td, M_WAITOK);
 	ar->k_ar.ar_event = event;
-
-	mtx_lock(&audit_mtx);
-	audit_pre_q_len++;
-	mtx_unlock(&audit_mtx);
-
 	return (ar);
 }
 
@@ -565,13 +567,6 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		audit_free(ar);
 		return;
 	}
-
-	/*
-	 * Constrain the number of committed audit records based on the
-	 * configurable parameter.
-	 */
-	while (audit_q_len >= audit_qctrl.aq_hiwater)
-		cv_wait(&audit_watermark_cv, &audit_mtx);
 
 	TAILQ_INSERT_TAIL(&audit_q, ar, k_q);
 	audit_q_len++;
