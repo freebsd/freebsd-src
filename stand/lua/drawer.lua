@@ -462,7 +462,7 @@ branddefs = {
 		},
 	},
 	["none"] = {
-		fb = { image = none },
+		ascii = { image = none },
 	},
 }
 
