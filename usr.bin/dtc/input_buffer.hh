@@ -194,6 +194,13 @@ class input_buffer
 	 */
 	bool consume(const char *str);
 	/**
+	 * Reads unsigned from char literal.  Returns true and advances
+	 * the cursor to next char.
+	 *
+	 * The parsed value is returned via the argument.
+	 */
+	bool consume_char_literal(unsigned long long &outInt);
+	/**
 	 * Reads an integer in base 8, 10, or 16.  Returns true and advances
 	 * the cursor to the end of the integer if the cursor points to an
 	 * integer, returns false and does not move the cursor otherwise.
@@ -411,6 +418,21 @@ class text_input_buffer
 			return false;
 		}
 		return input_stack.top()->consume(str);
+	}
+	/**
+	 * Converts next char into unsigned
+	 *
+	 * The parsed value is returned via the argument.
+	 *
+	 * This method does not scan between files.
+	 */
+	bool consume_char_literal(unsigned long long &outInt)
+	{
+		if (input_stack.empty())
+		{
+			return false;
+		}
+		return input_stack.top()->consume_char_literal(outInt);
 	}
 	/**
 	 * Reads an integer in base 8, 10, or 16.  Returns true and advances
