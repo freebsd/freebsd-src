@@ -69,6 +69,109 @@ local function get_ifaces()
 	return myifaces
 end
 
+local function sethostname(obj)
+	-- always prefer fqdn is specified over hostname
+	if obj.fqdn then
+		nuage.sethostname(obj.fqdn)
+	elseif obj.hostname then
+		nuage.sethostname(obj.hostname)
+	end
+end
+
+local function groups(obj)
+	if obj.groups == nil then return end
+
+	for n, g in pairs(obj.groups) do
+		if (type(g) == "string") then
+			local r = nuage.addgroup({name = g})
+			if not r then
+				nuage.warn("failed to add group: " .. g)
+			end
+		elseif type(g) == "table" then
+			for k, v in pairs(g) do
+				nuage.addgroup({name = k, members = v})
+			end
+		else
+			nuage.warn("invalid type: " .. type(g) .. " for users entry number " .. n)
+		end
+	end
+end
+
+local function create_default_user(obj)
+	if not obj.users then
+	-- default user if none are defined
+		nuage.adduser(default_user)
+	end
+end
+
+local function users(obj)
+	if obj.users == nil then return end
+
+	for n, u in pairs(obj.users) do
+		if type(u) == "string" then
+			if u == "default" then
+				nuage.adduser(default_user)
+			else
+				nuage.adduser({name = u})
+			end
+		elseif type(u) == "table" then
+			-- ignore users without a username
+			if u.name == nil then
+				goto unext
+			end
+			local homedir = nuage.adduser(u)
+			if u.ssh_authorized_keys then
+				for _, v in ipairs(u.ssh_authorized_keys) do
+					nuage.addsshkey(homedir, v)
+				end
+			end
+			if u.sudo then
+				nuage.addsudo(u)
+			end
+		else
+			nuage.warn("invalid type : " .. type(u) .. " for users entry number " .. n)
+		end
+		::unext::
+	end
+end
+
+local function ssh_keys(obj)
+	if obj.ssh_keys == nil then return end
+	if type(obj.ssh_keys) ~= "table" then
+		nuage.warn("Invalid type for ssh_keys")
+		return
+	end
+
+	for key, val in pairs(obj.ssh_keys) do
+		for keyname, keytype in key:gmatch("(%w+)_(%w+)") do
+			local sshkn = nil
+			if keytype == "public" then
+				sshkn =  "ssh_host_" .. keyname .. "_key.pub"
+			elseif keytype == "private" then
+				sshkn = "ssh_host_" .. keyname .. "_key"
+			end
+			if sshkn then
+				local sshkey, path = open_ssh_key(sshkn)
+				if sshkey then
+					sshkey:write(val .. "\n")
+					sshkey:close()
+				end
+				if keytype == "private" then
+					sys_stat.chmod(path, 384)
+				end
+			end
+		end
+	end
+end
+
+local function ssh_authorized_keys(obj)
+	if obj.ssh_authorized_keys == nil then return end
+	local homedir = nuage.adduser(default_user)
+	for _, k in ipairs(obj.ssh_authorized_keys) do
+		nuage.addsshkey(homedir, k)
+	end
+end
+
 local function install_packages(packages)
 	if not nuage.pkg_bootstrap() then
 		nuage.warn("Failed to bootstrap pkg, skip installing packages")
@@ -80,9 +183,104 @@ local function install_packages(packages)
 				nuage.warn("Failed to install : " .. p)
 			end
 		else
-			nuage.warn("Invalid type : " .. type(p) .. " for packages entry number " .. n)
+			nuage.warn("Invalid type: " .. type(p) .. " for packages entry number " .. n)
 		end
 	end
+end
+
+-- Set network configuration from user_data
+local function network_config(obj)
+	if obj.network == nil then return end
+
+	local ifaces = get_ifaces()
+	local network = open_config("network")
+	local routing = open_config("routing")
+	local ipv6 = {}
+	for _, v in pairs(obj.network.ethernets) do
+		if not v.match then
+			goto next
+		end
+		if not v.match.macaddress then
+			goto next
+		end
+		if not ifaces[v.match.macaddress] then
+			nuage.warn("not interface matching: " .. v.match.macaddress)
+			goto next
+		end
+		local interface = ifaces[v.match.macaddress]
+		if v.dhcp4 then
+			network:write("ifconfig_" .. interface .. '="DHCP"\n')
+		elseif v.addresses then
+			for _, a in pairs(v.addresses) do
+				if a:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)") then
+					network:write("ifconfig_" .. interface .. '="inet ' .. a .. '"\n')
+				else
+					network:write("ifconfig_" .. interface .. '_ipv6="inet6 ' .. a .. '"\n')
+					ipv6[#ipv6 + 1] = interface
+				end
+			end
+		end
+		if v.gateway4 then
+			routing:write('defaultrouter="' .. v.gateway4 .. '"\n')
+		end
+		if v.gateway6 then
+			routing:write('ipv6_defaultrouter="' .. v.gateway6 .. '"\n')
+			routing:write("ipv6_route_" .. interface .. '="' .. v.gateway6)
+			routing:write(" -prefixlen 128 -interface " .. interface .. '"\n')
+		end
+		::next::
+	end
+	if #ipv6 > 0 then
+		network:write('ipv6_network_interfaces="')
+		network:write(table.concat(ipv6, " ") .. '"\n')
+		network:write('ipv6_default_interface="' .. ipv6[1] .. '"\n')
+	end
+	network:close()
+	routing:close()
+end
+
+local function ssh_pwauth(obj)
+	if obj.ssh_pwauth == nil then return end
+
+	local value = "no"
+	if obj.ssh_pwauth then
+		value = "yes"
+	end
+	nuage.update_sshd_config("PasswordAuthentication", value)
+end
+
+local function runcmd(obj)
+	if obj.runcmd == nil then return end
+	local f = nil
+	for _, c in ipairs(obj.runcmd) do
+		if f == nil then
+			nuage.mkdir_p(root .. "/var/cache/nuageinit")
+			f = assert(io.open(root .. "/var/cache/nuageinit/runcmds", "w"))
+			f:write("#!/bin/sh\n")
+		end
+		f:write(c .. "\n")
+	end
+	if f ~= nil then
+		f:close()
+		sys_stat.chmod(root .. "/var/cache/nuageinit/runcmds", 493)
+	end
+end
+
+local function packages(obj)
+	if obj.package_update then
+		nuage.update_packages()
+	end
+	if obj.package_upgrade then
+		nuage.upgrade_packages()
+	end
+	if obj.packages then
+		install_packages(obj.packages)
+	end
+end
+
+local function chpasswd(obj)
+	if obj.chpasswd == nil then return end
+	nuage.chpasswd(obj.chpasswd)
 end
 
 local function config2_network(p)
@@ -222,7 +420,7 @@ elseif citype == "nocloud" then
 	if hostname then
 		nuage.sethostname(hostname)
 	end
-else
+elseif citype ~= "postnet" then
 	nuage.err("Unknown cloud init type: " .. citype)
 end
 
@@ -241,185 +439,48 @@ if not f then
 	os.exit(0)
 end
 local line = f:read("*l")
+if citype ~= "postnet" then
+	local content = f:read("*a")
+	nuage.mkdir_p(root .. "/var/cache/nuageinit")
+	local tof = assert(io.open(root .. "/var/cache/nuageinit/user_data", "w"))
+	tof:write(line .. "\n" .. content)
+	tof:close()
+end
 f:close()
 if line == "#cloud-config" then
+	local pre_network_calls = {
+		sethostname,
+		groups,
+		create_default_user,
+		ssh_keys,
+		ssh_authorized_keys,
+		network_config,
+		ssh_pwauth,
+		runcmd
+	}
+
+	local post_network_calls = {
+		packages,
+		users,
+		chpasswd
+	}
+
 	f = io.open(ni_path .. "/" .. ud)
 	local obj = yaml.eval(f:read("*a"))
 	f:close()
 	if not obj then
 		nuage.err("error parsing cloud-config file: " .. ud)
 	end
-	-- always prefer fqdn is specified over hostname
-	if obj.fqdn then
-		nuage.sethostname(obj.fqdn)
-	elseif obj.hostname then
-		nuage.sethostname(obj.hostname)
-	end
-	if obj.groups then
-		for n, g in pairs(obj.groups) do
-			if (type(g) == "string") then
-				local r = nuage.addgroup({name = g})
-				if not r then
-					nuage.warn("failed to add group: " .. g)
-				end
-			elseif type(g) == "table" then
-				for k, v in pairs(g) do
-					nuage.addgroup({name = k, members = v})
-				end
-			else
-				nuage.warn("invalid type: " .. type(g) .. " for users entry number " .. n)
-			end
-		end
-	end
-	if obj.users then
-		for n, u in pairs(obj.users) do
-			if type(u) == "string" then
-				if u == "default" then
-					nuage.adduser(default_user)
-				else
-					nuage.adduser({name = u})
-				end
-			elseif type(u) == "table" then
-				-- ignore users without a username
-				if u.name == nil then
-					goto unext
-				end
-				local homedir = nuage.adduser(u)
-				if u.ssh_authorized_keys then
-					for _, v in ipairs(u.ssh_authorized_keys) do
-						nuage.addsshkey(homedir, v)
-					end
-				end
-				if u.sudo then
-					nuage.addsudo(u)
-				end
-			else
-				nuage.warn("invalid type : " .. type(u) .. " for users entry number " .. n)
-			end
-			::unext::
-		end
-	else
-	-- default user if none are defined
-		nuage.adduser(default_user)
-	end
-	if obj.ssh_keys and type(obj.ssh_keys) == "table" then
-		for key, val in pairs(obj.ssh_keys) do
-			for keyname, keytype in key:gmatch("(%w+)_(%w+)") do
-				local sshkn = nil
-				if keytype == "public" then
-					sshkn =  "ssh_host_" .. keyname .. "_key.pub"
-				elseif keytype == "private" then
-					sshkn = "ssh_host_" .. keyname .. "_key"
-				end
-				if sshkn then
-					local sshkey, path = open_ssh_key(sshkn)
-					if sshkey then
-						sshkey:write(val .. "\n")
-						sshkey:close()
-					end
-					if keytype == "private" then
-						sys_stat.chmod(path, 384)
-					end
-				end
-			end
-		end
-	end
-	if obj.ssh_authorized_keys then
-		local homedir = nuage.adduser(default_user)
-		for _, k in ipairs(obj.ssh_authorized_keys) do
-			nuage.addsshkey(homedir, k)
-		end
-	end
-	if obj.network then
-		local ifaces = get_ifaces()
-		local network = open_config("network")
-		local routing = open_config("routing")
-		local ipv6 = {}
-		for _, v in pairs(obj.network.ethernets) do
-			if not v.match then
-				goto next
-			end
-			if not v.match.macaddress then
-				goto next
-			end
-			if not ifaces[v.match.macaddress] then
-				nuage.warn("not interface matching: " .. v.match.macaddress)
-				goto next
-			end
-			local interface = ifaces[v.match.macaddress]
-			if v.dhcp4 then
-				network:write("ifconfig_" .. interface .. '="DHCP"\n')
-			elseif v.addresses then
-				for _, a in pairs(v.addresses) do
-					if a:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)") then
-						network:write("ifconfig_" .. interface .. '="inet ' .. a .. '"\n')
-					else
-						network:write("ifconfig_" .. interface .. '_ipv6="inet6 ' .. a .. '"\n')
-						ipv6[#ipv6 + 1] = interface
-					end
-				end
-			end
-			if v.gateway4 then
-				routing:write('defaultrouter="' .. v.gateway4 .. '"\n')
-			end
-			if v.gateway6 then
-				routing:write('ipv6_defaultrouter="' .. v.gateway6 .. '"\n')
-				routing:write("ipv6_route_" .. interface .. '="' .. v.gateway6)
-				routing:write(" -prefixlen 128 -interface " .. interface .. '"\n')
-			end
-			::next::
-		end
-		if #ipv6 > 0 then
-			network:write('ipv6_network_interfaces="')
-			network:write(table.concat(ipv6, " ") .. '"\n')
-			network:write('ipv6_default_interface="' .. ipv6[1] .. '"\n')
-		end
-		network:close()
-		routing:close()
-	end
-	if obj.ssh_pwauth ~= nil then
-		local value = "no"
-		if obj.ssh_pwauth then
-			value = "yes"
-		end
-		nuage.update_sshd_config("PasswordAuthentication", value)
-	end
-	if obj.chpasswd ~= nil then
-		nuage.chpasswd(obj.chpasswd)
-	end
-	if obj.runcmd then
-		f = nil
-		for _, c in ipairs(obj.runcmd) do
-			if f == nil then
-				nuage.mkdir_p(root .. "/var/cache/nuageinit")
-				f = assert(io.open(root .. "/var/cache/nuageinit/runcmds", "w"))
-				f:write("#!/bin/sh\n")
-			end
-			f:write(c .. "\n")
-		end
-		if f ~= nil then
-			f:close()
-			sys_stat.chmod(root .. "/var/cache/nuageinit/runcmds", 493)
-		end
-	end
-	if obj.packages then
-		install_packages(obj.packages)
+
+	local calls_table = pre_network_calls
+	if citype == "postnet" then
+		calls_table = post_network_calls
 	end
 
-	if obj.package_update then
-		nuage.update_packages()
-	end
-	if obj.package_upgrade then
-		nuage.upgrade_packages()
+	for i = 1, #calls_table do
+		calls_table[i](obj)
 	end
 elseif line:sub(1, 2) == "#!" then
 	-- delay for execution at rc.local time --
-	f = io.open(ni_path .. "/" .. ud)
-	local content = f:read("*a")
-	f:close()
-	nuage.mkdir_p(root .. "/var/cache/nuageinit")
-	f = assert(io.open(root .. "/var/cache/nuageinit/user_data", "w"))
-	f:write(content)
-	f:close()
 	sys_stat.chmod(root .. "/var/cache/nuageinit/user_data", 493)
 end
