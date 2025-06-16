@@ -346,7 +346,6 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	ifp->if_softc = sc;
 	ifp->if_ioctl = pfsyncioctl;
 	ifp->if_output = pfsyncoutput;
-	ifp->if_type = IFT_PFSYNC;
 	ifp->if_hdrlen = sizeof(struct pfsync_header);
 	ifp->if_mtu = ETHERMTU;
 	mtx_init(&sc->sc_mtx, pfsyncname, NULL, MTX_DEF);
