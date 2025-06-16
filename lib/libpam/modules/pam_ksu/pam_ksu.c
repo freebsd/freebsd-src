@@ -78,10 +78,11 @@ static krb5_error_code
 krb5_make_principal(krb5_context context, krb5_principal principal,
 	krb5_const_realm realm, ...)
 {
+	krb5_realm temp_realm = NULL;
 	krb5_error_code rc;
 	va_list ap;
+
 	if (realm == NULL) {
-		krb5_realm temp_realm = NULL;
 		if ((rc = krb5_get_default_realm(context, &temp_realm)))
 			return (rc);
 		realm=temp_realm;
