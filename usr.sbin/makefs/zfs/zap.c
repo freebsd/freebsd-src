@@ -33,6 +33,7 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -201,6 +202,10 @@ zap_micro_write(zfs_opt_t *zfs, zfs_zap_t *zap)
 	mzap_phys_t *mzap;
 	mzap_ent_phys_t *ment;
 	off_t bytes, loc;
+	uint16_t cd;
+
+	_Static_assert(MZAP_ENT_MAX <= UINT16_MAX,
+	    "micro ZAP collision differentiator must fit in 16 bits");
 
 	memset(zfs->filebuf, 0, sizeof(zfs->filebuf));
 	mzap = (mzap_phys_t *)&zfs->filebuf[0];
@@ -211,10 +216,11 @@ zap_micro_write(zfs_opt_t *zfs, zfs_zap_t *zap)
 	bytes = sizeof(*mzap) + (zap->kvpcnt - 1) * sizeof(*ment);
 	assert(bytes <= (off_t)MZAP_MAX_BLKSZ);
 
+	cd = 0;
 	ment = &mzap->mz_chunk[0];
 	STAILQ_FOREACH(ent, &zap->kvps, next) {
 		memcpy(&ment->mze_value, ent->valp, ent->intsz * ent->intcnt);
-		ment->mze_cd = 0; /* XXX-MJ */
+		ment->mze_cd = cd++;
 		strlcpy(ment->mze_name, ent->name, sizeof(ment->mze_name));
 		ment++;
 	}
