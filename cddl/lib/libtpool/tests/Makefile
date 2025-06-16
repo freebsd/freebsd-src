@@ -9,4 +9,5 @@ CFLAGS+=	-I${ZFSTOP}/include \
 
 LIBADD+=	pthread tpool
 
+.include "${SRCTOP}/cddl/Makefile.inc"
 .include <bsd.test.mk>
