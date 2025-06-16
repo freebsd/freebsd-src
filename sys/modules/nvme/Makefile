@@ -13,7 +13,6 @@ SRCS =	nvme.c			\
 	nvme_sim.c		\
 	nvme_sysctl.c		\
 	nvme_test.c		\
-	nvme_util.c		\
 				\
 	bus_if.h		\
 	device_if.h		\
