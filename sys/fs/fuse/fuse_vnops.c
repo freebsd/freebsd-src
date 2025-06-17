@@ -1022,7 +1022,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	int flags;
 
 	if (fuse_isdeadfs(dvp))
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 
 	/* FUSE expects sockets to be created with FUSE_MKNOD */
 	if (vap->va_type == VSOCK)
@@ -1038,7 +1038,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	bzero(&fdi, sizeof(fdi));
 
 	if (vap->va_type != VREG)
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Only regular files can be created"));
 
 	if (fsess_not_impl(mp, FUSE_CREATE) || vap->va_type == VSOCK) {
 		/* Fallback to FUSE_MKNOD/FUSE_OPEN */
