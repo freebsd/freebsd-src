@@ -7,7 +7,6 @@ SUBDIR=	beyond4.3 \
 	jail \
 	kernmalloc \
 	kerntune \
-	malloc \
 	newvm \
 	relengr \
 	sysperf \
