@@ -258,6 +258,7 @@ struct pf_opt_tbl {
 	char			 pt_name[PF_TABLE_NAME_SIZE];
 	int			 pt_rulecount;
 	int			 pt_generated;
+	uint32_t		 pt_refcnt;
 	struct node_tinithead	 pt_nodes;
 	struct pfr_buffer	*pt_buf;
 };
