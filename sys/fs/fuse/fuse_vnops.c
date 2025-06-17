@@ -2148,12 +2148,12 @@ fuse_vnop_rename(struct vop_rename_args *ap)
 	int err = 0;
 
 	if (fuse_isdeadfs(fdvp)) {
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 	if (fvp->v_mount != tdvp->v_mount ||
 	    (tvp && fvp->v_mount != tvp->v_mount)) {
 		SDT_PROBE2(fusefs, , vnops, trace, 1, "cross-device rename");
-		err = EXDEV;
+		err = EXTERROR(EXDEV, "Cross-device rename");
 		goto out;
 	}
 	cache_purge(fvp);
