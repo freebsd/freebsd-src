@@ -1940,10 +1940,10 @@ fuse_vnop_readdir(struct vop_readdir_args *ap)
 	if (ap->a_eofflag)
 		*ap->a_eofflag = 0;
 	if (fuse_isdeadfs(vp)) {
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 	if (uio_resid(uio) < sizeof(struct dirent))
-		return EINVAL;
+		return (EXTERROR(EINVAL, "Buffer is too small"));
 
 	tresid = uio->uio_resid;
 	err = fuse_filehandle_get_dir(vp, &fufh, cred, pid);
