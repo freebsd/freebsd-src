@@ -2717,10 +2717,11 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 	int err;
 
 	if (fuse_isdeadfs(vp))
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 
 	if (fsess_not_impl(mp, FUSE_SETXATTR))
-		return EOPNOTSUPP;
+		return (EXTERROR(EOPNOTSUPP, "This server does not implement "
+		    "setting extended attributes"));
 
 	if (vfs_isrdonly(mp))
 		return EROFS;
@@ -2732,9 +2733,11 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 		 * return EOPNOTSUPP.
 		 */
 		if (fsess_not_impl(mp, FUSE_REMOVEXATTR))
-			return (EOPNOTSUPP);
+			return (EXTERROR(EOPNOTSUPP, "This serverdoes not implement "
+			    "removing extended attributess"));
 		else
-			return (EINVAL);
+			return (EXTERROR(EINVAL, "DELETEEXTATTR should be used "
+			    "to remove extattrs"));
 	}
 
 	err = fuse_extattr_check_cred(vp, ap->a_attrnamespace, cred, td,
@@ -2780,7 +2783,8 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 
 	if (err == ENOSYS) {
 		fsess_set_notimpl(mp, FUSE_SETXATTR);
-		err = EOPNOTSUPP;
+		err = EXTERROR(EOPNOTSUPP, "This server does not implement "
+		    "setting extended attributes");
 	}
 	if (err == ERESTART) {
 		/* Can't restart after calling uiomove */
