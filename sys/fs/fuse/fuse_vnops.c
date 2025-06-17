@@ -700,7 +700,7 @@ fuse_vnop_bmap(struct vop_bmap_args *ap)
 	int maxrun;
 
 	if (fuse_isdeadfs(vp)) {
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 
 	mp = vnode_mount(vp);
