@@ -488,7 +488,7 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 	dataflags = fuse_get_mpdata(vnode_mount(vp))->dataflags;
 
 	if (fuse_isdeadfs(vp)) {
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 
 	switch(ap->a_op) {
@@ -505,7 +505,7 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 		op = FUSE_SETLK;
 		break;
 	default:
-		return EINVAL;
+		return (EXTERROR(EINVAL, "Unsupported lock flags"));
 	}
 
 	if (!(dataflags & FSESS_POSIX_LOCKS))
@@ -533,14 +533,14 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 		size = vattr.va_size;
 		if (size > OFF_MAX ||
 		    (fl->l_start > 0 && size > OFF_MAX - fl->l_start)) {
-			err = EOVERFLOW;
+			err = EXTERROR(EOVERFLOW, "Offset is too large");
 			goto out;
 		}
 		start = size + fl->l_start;
 		break;
 
 	default:
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "Unsupported offset type"));
 	}
 
 	err = fuse_filehandle_get_anyflags(vp, &fufh, cred, pid);
