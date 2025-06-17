@@ -927,9 +927,12 @@ struct in_conninfo;
 	  + (tp)->t_rttvar) >> TCP_DELTA_SHIFT)
 
 /*
- * TCP statistics.
- * Many of these should be kept per connection,
- * but that's inconvenient at the moment.
+ * Global (per-VNET) TCP statistics.  The below structure represents what we
+ * export to the userland, but in the kernel we have an array of counter_u64_t
+ * with as many elements as there are members in the structure.  The counters
+ * shall be increased by TCPSTAT_INC() or KMOD_TCPSTAT_INC().  Adding new a
+ * new counter also requires adding corresponding SDT probes into in_kdtrace.h
+ * and into in_kdtrace.c.
  */
 struct	tcpstat {
 	uint64_t tcps_connattempt;	/* connections initiated */
