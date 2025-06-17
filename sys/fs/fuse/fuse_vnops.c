@@ -1742,11 +1742,11 @@ fuse_vnop_open(struct vop_open_args *ap)
 	pid_t pid = td->td_proc->p_pid;
 
 	if (fuse_isdeadfs(vp))
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	if (vp->v_type == VCHR || vp->v_type == VBLK || vp->v_type == VFIFO)
-		return (EOPNOTSUPP);
+		return (EXTERROR(EOPNOTSUPP, "Unsupported vnode type", vp->v_type));
 	if ((a_mode & (FREAD | FWRITE | FEXEC)) == 0)
-		return EINVAL;
+		return (EXTERROR(EINVAL, "Illegal mode", a_mode));
 
 	if (fuse_filehandle_validrw(vp, a_mode, cred, pid)) {
 		fuse_vnode_open(vp, 0, td);
