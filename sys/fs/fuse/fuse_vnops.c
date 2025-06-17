@@ -1691,7 +1691,7 @@ fuse_vnop_mkdir(struct vop_mkdir_args *ap)
 	struct fuse_mkdir_in fmdi;
 
 	if (fuse_isdeadfs(dvp)) {
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 	fmdi.mode = MAKEIMODE(vap->va_type, vap->va_mode);
 	fmdi.umask = curthread->td_proc->p_pd->pd_cmask;
