@@ -64,7 +64,6 @@ static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 #include <netinet/tcp_seq.h>
 #define	TCPSTATES
 #include <netinet/tcp_fsm.h>
-#include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
