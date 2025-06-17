@@ -278,6 +278,8 @@ SDT_PROBE_DECLARE(mib, tcp, count, tcps_sc_unreach);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_sc_zonefail);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_sc_sendcookie);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_sc_recvcookie);
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_sc_spurcookie);
+SDT_PROBE_DECLARE(mib, tcp, count, tcps_sc_failcookie);
 
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_hc_added);
 SDT_PROBE_DECLARE(mib, tcp, count, tcps_hc_bucketoverflow);

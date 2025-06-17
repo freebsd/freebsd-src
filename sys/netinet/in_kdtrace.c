@@ -286,6 +286,8 @@ MIB_PROBE_TCP(tcps_sc_unreach);
 MIB_PROBE_TCP(tcps_sc_zonefail);
 MIB_PROBE_TCP(tcps_sc_sendcookie);
 MIB_PROBE_TCP(tcps_sc_recvcookie);
+MIB_PROBE_TCP(tcps_sc_spurcookie);
+MIB_PROBE_TCP(tcps_sc_failcookie);
 
 MIB_PROBE_TCP(tcps_hc_added);
 MIB_PROBE_TCP(tcps_hc_bucketoverflow);
