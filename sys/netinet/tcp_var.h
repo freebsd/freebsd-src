@@ -1015,6 +1015,8 @@ struct	tcpstat {
 	uint64_t tcps_sc_zonefail;	/* zalloc() failed */
 	uint64_t tcps_sc_sendcookie;	/* SYN cookie sent */
 	uint64_t tcps_sc_recvcookie;	/* SYN cookie received */
+	uint64_t tcps_sc_spurcookie;	/* SYN cookie spurious, rejected */
+	uint64_t tcps_sc_failcookie;	/* SYN cookie failed, rejected */
 
 	uint64_t tcps_hc_added;		/* entry added to hostcache */
 	uint64_t tcps_hc_bucketoverflow;/* hostcache per bucket limit hit */
