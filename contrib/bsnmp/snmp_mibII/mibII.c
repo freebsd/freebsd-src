@@ -99,9 +99,6 @@ int mib_netsock;
 /* last time refreshed */
 uint64_t mibarpticks;
 
-/* info on system clocks */
-struct clockinfo clockinfo;
-
 /* list of all New if registrations */
 static struct newifreg_list newifreg_list = TAILQ_HEAD_INITIALIZER(newifreg_list);
 
@@ -1755,19 +1752,7 @@ mibII_start(void)
 static int
 mibII_init(struct lmodule *mod, int argc __unused, char *argv[] __unused)
 {
-	size_t len;
-
 	module = mod;
-
-	len = sizeof(clockinfo);
-	if (sysctlbyname("kern.clockrate", &clockinfo, &len, NULL, 0) == -1) {
-		syslog(LOG_ERR, "kern.clockrate: %m");
-		return (-1);
-	}
-	if (len != sizeof(clockinfo)) {
-		syslog(LOG_ERR, "kern.clockrate: wrong size");
-		return (-1);
-	}
 
 	if ((route = socket(PF_ROUTE, SOCK_RAW, AF_UNSPEC)) == -1) {
 		syslog(LOG_ERR, "PF_ROUTE: %m");
