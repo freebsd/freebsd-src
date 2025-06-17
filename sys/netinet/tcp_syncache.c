@@ -1097,6 +1097,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 */
 		if (locked && !V_tcp_syncookies) {
 			SCH_UNLOCK(sch);
+			TCPSTAT_INC(tcps_sc_spurcookie);
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Spurious ACK, "
 				    "segment rejected (syncookies disabled)\n",
@@ -1106,6 +1107,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		if (locked && !V_tcp_syncookiesonly &&
 		    sch->sch_last_overflow < time_uptime - SYNCOOKIE_LIFETIME) {
 			SCH_UNLOCK(sch);
+			TCPSTAT_INC(tcps_sc_spurcookie);
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Spurious ACK, "
 				    "segment rejected (no syncache entry)\n",
@@ -1119,6 +1121,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			sc = &scs;
 			TCPSTAT_INC(tcps_sc_recvcookie);
 		} else {
+			TCPSTAT_INC(tcps_sc_failcookie);
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Segment failed "
 				    "SYNCOOKIE authentication, segment rejected "
