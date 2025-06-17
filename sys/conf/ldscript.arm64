@@ -15,6 +15,12 @@ SECTIONS
     *(.gnu.warning)
     *(.gnu.linkonce.t*)
   } =0x9090
+  /*
+   * Align to the the largest page size the kernel could be built for.
+   * If we don't then building page tables in locore.S could fail as it
+   * assumes the .text section is on a different page to later sections.
+   */
+  . = ALIGN(CONSTANT(MAXPAGESIZE));
   _etext = .;
   PROVIDE (etext = .);
 
