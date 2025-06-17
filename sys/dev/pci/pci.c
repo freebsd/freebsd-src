@@ -1927,7 +1927,11 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 		}
 	}
 
-	/* Mask all vectors. */
+	/*
+	 * Mask all vectors. Note that the message index assertion in
+	 * pci_mask_msix requires msix_ctrl to be set.
+	 */
+	cfg->msix.msix_ctrl = ctrl;
 	for (i = 0; i < msgnum; i++)
 		pci_mask_msix(child, i);
 
