@@ -2264,7 +2264,7 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	checkperm = dataflags & FSESS_DEFAULT_PERMISSIONS;
 
 	if (fuse_isdeadfs(vp)) {
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 
 	if (vap->va_uid != (uid_t)VNOVAL) {
