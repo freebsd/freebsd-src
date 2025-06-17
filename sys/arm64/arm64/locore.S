@@ -45,6 +45,12 @@
  * space, the same as a single level 2 page with 4k pages.
  */
 #define	L3_PAGE_COUNT	32
+#elif PAGE_SIZE == PAGE_SIZE_4K
+/*
+ * Space for a level 3 table holding the end of the executable memory and
+ * the start of the non-executable data.
+ */
+#define	L3_PAGE_COUNT	1
 #endif
 
 /*
@@ -600,21 +606,63 @@ common:
 	/* Get the number of blocks/pages to allocate, rounded down */
 	lsr	x14, x8, #(PTE_SHIFT)
 
-	ldr	x25, =etext
+	ldr	x26, =etext
+#if PAGE_SIZE != PAGE_SIZE_4K
 	ldr	x8, =((1 << PTE_SHIFT) - 1)
-	add	x25, x25, x8
+	add	x26, x26, x8
+#endif
 	mov	x8, #(KERNBASE)
-	sub	x25, x25, x8
+	sub	x25, x26, x8
 	lsr	x25, x25, #(PTE_SHIFT)
+
+#if PAGE_SIZE == PAGE_SIZE_4K
+	/* Calculate the number of executable level 3 pages to create */
+	lsr	x26, x26, #(L3_SHIFT)
+	bfc	x26, #(Ln_ENTRIES_SHIFT), #(64 - Ln_ENTRIES_SHIFT)
+
+	/* Build the L3 table holding the end of the exectuable code */
+	lsl	x15, x25, #(PTE_SHIFT)
+	adrp	x6, pagetable_l3_ttbr1
+	add	x6, x6, :lo12:pagetable_l3_ttbr1
+	ldr	x7, =(ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) | \
+	    ATTR_S1_AP(ATTR_S1_AP_RO))
+	ldr	x8, =(KERNBASE)
+	add	x8, x8, x15
+	add	x9, x28, x15
+	mov	x10, x26
+	bl	build_l3_page_pagetable
+
+	/* Build the remaining level 3 pages */
+	ldr	x7, =(ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) | ATTR_S1_XN)
+	lsl	x27, x26, #(L3_SHIFT)
+	add	x8, x8, x27
+	add	x9, x28, x15
+	add	x9, x9, x27
+	ldr	x10, =(Ln_ENTRIES)
+	sub	x10, x10, x26
+	bl	build_l3_page_pagetable
+
+	/* Link the l2 -> l3 table */
+	mov	x9, x6
+	adrp	x6, pagetable_l2_ttbr1
+	add	x6, x6, :lo12:pagetable_l2_ttbr1
+	bl	link_l2_pagetable
+#endif
 
 	/* Create the kernel space PTE table */
 	adrp	x6, LL_PAGE_TABLE
 	add	x6, x6, :lo12:LL_PAGE_TABLE
-	mov	x7, #(ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK))
+	ldr	x7, =(ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK) | \
+	    ATTR_S1_AP(ATTR_S1_AP_RO))
 	mov	x8, #(KERNBASE)
 	mov	x9, x28
 	mov	x10, x25
 	bl	BUILD_PTE_FUNC
+
+#if PAGE_SIZE == PAGE_SIZE_4K
+	/* Skip memory mapped through the L2 table */
+	add	x25, x25, #1
+#endif
 
 	/* Create the kernel space XN PTE table */
 	lsl	x10, x25, #(PTE_SHIFT)
@@ -837,7 +885,6 @@ LENTRY(build_l2_block_pagetable)
 	ret
 LEND(build_l2_block_pagetable)
 
-#if PAGE_SIZE != PAGE_SIZE_4K
 /*
  * Builds an L2 -> L3 table descriptor
  *
@@ -881,6 +928,7 @@ LEND(link_l2_pagetable)
  * VA start (x8) modulo L3C_SIZE must equal PA start (x9) modulo L3C_SIZE.
  */
 LENTRY(build_l3_page_pagetable)
+	cbz	x10, 2f
 	/*
 	 * Build the L3 table entry.
 	 */
@@ -920,10 +968,10 @@ LENTRY(build_l3_page_pagetable)
 	add	x11, x11, #1
 	add	x9, x9, #1
 	cbnz	x10, 1b
+2:
 
 	ret
 LEND(build_l3_page_pagetable)
-#endif
 
 LENTRY(start_mmu)
 	dsb	sy
@@ -1054,10 +1102,8 @@ initstack_end:
 	 */
 	.globl pagetable_l0_ttbr1
 pagetable:
-#if PAGE_SIZE != PAGE_SIZE_4K
 pagetable_l3_ttbr1:
 	.space	(PAGE_SIZE * L3_PAGE_COUNT)
-#endif
 pagetable_l2_ttbr1:
 	.space	PAGE_SIZE
 pagetable_l1_ttbr1:
