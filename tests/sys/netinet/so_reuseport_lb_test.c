@@ -505,6 +505,11 @@ ATF_TC_BODY(connect_not_bound, tc)
 	ATF_REQUIRE_MSG(rv == -1 && errno == EOPNOTSUPP,
 	    "Expected EOPNOTSUPP on connect(2) not met. Got %d, errno %d",
 	    rv, errno);
+	rv = sendto(s, "test", 4, 0, (struct sockaddr *)&sin,
+	    sizeof(sin));
+	ATF_REQUIRE_MSG(rv == -1 && errno == EOPNOTSUPP,
+	    "Expected EOPNOTSUPP on sendto(2) not met. Got %d, errno %d",
+	    rv, errno);
 
 	close(p);
 	close(s);
@@ -535,6 +540,11 @@ ATF_TC_BODY(connect_bound, tc)
 	rv = connect(s, (struct sockaddr *)&sin, sizeof(sin));
 	ATF_REQUIRE_MSG(rv == -1 && errno == EOPNOTSUPP,
 	    "Expected EOPNOTSUPP on connect(2) not met. Got %d, errno %d",
+	    rv, errno);
+	rv = sendto(s, "test", 4, 0, (struct sockaddr *)&sin,
+	    sizeof(sin));
+	ATF_REQUIRE_MSG(rv == -1 && errno == EOPNOTSUPP,
+	    "Expected EOPNOTSUPP on sendto(2) not met. Got %d, errno %d",
 	    rv, errno);
 
 	close(p);
