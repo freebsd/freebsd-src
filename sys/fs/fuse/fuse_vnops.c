@@ -606,8 +606,6 @@ fuse_vnop_allocate(struct vop_allocate_args *ap)
 		return (ESPIPE);
 	case VLNK:
 	case VREG:
-		if (vfs_isrdonly(mp))
-			return (EROFS);
 		break;
 	default:
 		return (ENODEV);
