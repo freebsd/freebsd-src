@@ -2625,10 +2625,11 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 	int err;
 
 	if (fuse_isdeadfs(vp))
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 
 	if (fsess_not_impl(mp, FUSE_GETXATTR))
-		return EOPNOTSUPP;
+		return (EXTERROR(EOPNOTSUPP, "This server does not implement "
+		    "extended attributes"));
 
 	err = fuse_extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VREAD);
 	if (err)
@@ -2666,7 +2667,8 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 	if (err != 0) {
 		if (err == ENOSYS) {
 			fsess_set_notimpl(mp, FUSE_GETXATTR);
-			err = EOPNOTSUPP;
+			err = (EXTERROR(EOPNOTSUPP, "This server does not implement "
+			    "extended attributes"));
 		}
 		goto out;
 	}
