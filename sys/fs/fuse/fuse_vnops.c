@@ -2013,7 +2013,7 @@ fuse_vnop_readlink(struct vop_readlink_args *ap)
 	int err;
 
 	if (fuse_isdeadfs(vp)) {
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 	if (!vnode_islnk(vp)) {
 		return EINVAL;
@@ -2024,10 +2024,11 @@ fuse_vnop_readlink(struct vop_readlink_args *ap)
 		goto out;
 	}
 	if (strnlen(fdi.answ, fdi.iosize) + 1 < fdi.iosize) {
+		static const char exterr[] = "Server returned an embedded NUL "
+		    "from FUSE_READLINK.";
 		struct fuse_data *data = fuse_get_mpdata(vnode_mount(vp));
-		fuse_warn(data, FSESS_WARN_READLINK_EMBEDDED_NUL,
-				"Returned an embedded NUL from FUSE_READLINK.");
-		err = EIO;
+		fuse_warn(data, FSESS_WARN_READLINK_EMBEDDED_NUL, exterr);
+		err = EXTERROR(EIO, exterr);
 		goto out;
 	}
 	if (((char *)fdi.answ)[0] == '/' &&
