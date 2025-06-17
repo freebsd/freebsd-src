@@ -345,7 +345,7 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 
 	if (nvlist_exists_binary(params, "mac-addr")) {
 		mac = nvlist_get_binary(params, "mac-addr", &size);
-		bcopy(mac, vf->mac, ETHER_ADDR_LEN);
+		memcpy(vf->mac, mac, ETHER_ADDR_LEN);
 
 		if (nvlist_get_bool(params, "allow-set-mac"))
 			vf->vf_flags |= VF_FLAG_SET_MAC_CAP;
@@ -617,12 +617,14 @@ ice_vc_get_vf_res_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 {
 	struct ice_hw *hw = &sc->hw;
 	struct virtchnl_vf_resource *vf_res;
+	struct virtchnl_vsi_resource *vsi_res;
 	u16 vf_res_len;
 	u32 vf_caps;
 
 	/* XXX: Only support one VSI per VF, so this size doesn't need adjusting */
 	vf_res_len = sizeof(struct virtchnl_vf_resource);
-	vf_res = (struct virtchnl_vf_resource *)malloc(vf_res_len, M_ICE, M_WAITOK | M_ZERO);
+	vf_res = (struct virtchnl_vf_resource *)malloc(vf_res_len, M_ICE,
+	    M_WAITOK | M_ZERO);
 
 	vf_res->num_vsis = 1;
 	vf_res->num_queue_pairs = vf->vsi->num_tx_queues;
@@ -643,10 +645,13 @@ ice_vc_get_vf_res_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
                         vf_res->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_WB_ON_ITR;
 	}
 
-	vf_res->vsi_res[0].vsi_id = vf->vsi->idx;
-	vf_res->vsi_res[0].num_queue_pairs = vf->vsi->num_tx_queues;
-	vf_res->vsi_res[0].vsi_type = VIRTCHNL_VSI_SRIOV;
-	vf_res->vsi_res[0].qset_handle = 0;
+	vsi_res = &vf_res->vsi_res[0];
+	vsi_res->vsi_id = vf->vsi->idx;
+	vsi_res->num_queue_pairs = vf->vsi->num_tx_queues;
+	vsi_res->vsi_type = VIRTCHNL_VSI_SRIOV;
+	vsi_res->qset_handle = 0;
+	if (!ETHER_IS_ZERO(vf->mac))
+		memcpy(vsi_res->default_mac_addr, vf->mac, ETHER_ADDR_LEN);
 
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_GET_VF_RESOURCES,
 	    VIRTCHNL_STATUS_SUCCESS, (u8 *)vf_res, vf_res_len, NULL);
