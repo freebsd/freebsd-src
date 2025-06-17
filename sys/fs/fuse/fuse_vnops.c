@@ -1346,10 +1346,10 @@ fuse_vnop_link(struct vop_link_args *ap)
 	int err;
 
 	if (fuse_isdeadfs(vp)) {
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 	if (vnode_mount(tdvp) != vnode_mount(vp)) {
-		return EXDEV;
+		return (EXTERROR(EXDEV, "Mount points do not match"));
 	}
 
 	/*
@@ -1359,7 +1359,8 @@ fuse_vnop_link(struct vop_link_args *ap)
 	 * validating that nlink does not overflow.
 	 */
 	if (vap != NULL && vap->va_nlink >= FUSE_LINK_MAX)
-		return EMLINK;
+		return (EXTERROR(EMLINK, "Maximum number of hardlinks "
+		    "for this file reached"));
 	fli.oldnodeid = VTOI(vp);
 
 	fdisp_init(&fdi, 0);
@@ -1371,12 +1372,12 @@ fuse_vnop_link(struct vop_link_args *ap)
 	feo = fdi.answ;
 
 	if (fli.oldnodeid != feo->nodeid) {
+		static const char exterr[] = "Assigned wrong inode for a hard link.";
 		struct fuse_data *data = fuse_get_mpdata(vnode_mount(vp));
-		fuse_warn(data, FSESS_WARN_ILLEGAL_INODE,
-			"Assigned wrong inode for a hard link.");
+		fuse_warn(data, FSESS_WARN_ILLEGAL_INODE, exterr);
 		fuse_vnode_clear_attr_cache(vp);
 		fuse_vnode_clear_attr_cache(tdvp);
-		err = EIO;
+		err = EXTERROR(EIO, exterr);
 		goto out;
 	}
 
