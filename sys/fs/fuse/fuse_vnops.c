@@ -2429,7 +2429,7 @@ fuse_vnop_symlink(struct vop_symlink_args *ap)
 	size_t len;
 
 	if (fuse_isdeadfs(dvp)) {
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 	/*
 	 * Unlike the other creator type calls, here we have to create a message
