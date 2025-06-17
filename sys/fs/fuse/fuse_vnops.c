@@ -1219,8 +1219,7 @@ fuse_vnop_getattr(struct vop_getattr_args *ap)
 	if (!(dataflags & FSESS_INITED)) {
 		if (!vnode_isvroot(vp)) {
 			fdata_set_dead(fuse_get_mpdata(vnode_mount(vp)));
-			err = ENOTCONN;
-			return err;
+			return (EXTERROR(ENOTCONN, "FUSE daemon is not initialized"));
 		} else {
 			goto fake;
 		}
