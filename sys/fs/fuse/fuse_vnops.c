@@ -3122,10 +3122,10 @@ fuse_vnop_deleteextattr(struct vop_deleteextattr_args *ap)
 	int err;
 
 	if (fuse_isdeadfs(vp))
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 
 	if (fsess_not_impl(mp, FUSE_REMOVEXATTR))
-		return EOPNOTSUPP;
+		return (EXTERROR(EOPNOTSUPP, "This daemon does not implement extattrs"));
 
 	if (vfs_isrdonly(mp))
 		return EROFS;
@@ -3154,7 +3154,7 @@ fuse_vnop_deleteextattr(struct vop_deleteextattr_args *ap)
 	err = fdisp_wait_answ(&fdi);
 	if (err == ENOSYS) {
 		fsess_set_notimpl(mp, FUSE_REMOVEXATTR);
-		err = EOPNOTSUPP;
+		err = EXTERROR(EOPNOTSUPP, "This daemon does not implement extattrs");
 	}
 
 	fdisp_destroy(&fdi);
