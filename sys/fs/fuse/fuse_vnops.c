@@ -1456,7 +1456,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 
 	if (fuse_isdeadfs(dvp)) {
 		*vpp = NULL;
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 	if (!vnode_isdir(dvp))
 		return ENOTDIR;
@@ -1476,7 +1476,8 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 			 * Since the file system doesn't support ".." lookups,
 			 * we have no way to find this entry.
 			 */
-			return ESTALE;
+			return (EXTERROR(ESTALE, "This server does not support "
+			    "'..' lookups"));
 		}
 		nid = VTOFUD(dvp)->parent_nid;
 		if (nid == 0)
@@ -1599,11 +1600,10 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				vref(dvp);
 				*vpp = dvp;
 			} else {
-				fuse_warn(fuse_get_mpdata(mp),
-				    FSESS_WARN_ILLEGAL_INODE,
-				    "Assigned same inode to both parent and "
-				    "child.");
-				err = EIO;
+				static const char exterr[] = "Server assigned same inode to "
+				    "both parent and child.";
+				fuse_warn(fuse_get_mpdata(mp), FSESS_WARN_ILLEGAL_INODE, exterr);
+				err = EXTERROR(EIO, exterr);
 			}
 
 		} else {
