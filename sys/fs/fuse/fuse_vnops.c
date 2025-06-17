@@ -2475,7 +2475,7 @@ fuse_vnop_write(struct vop_write_args *ap)
 	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 
 	if (fuse_isdeadfs(vp)) {
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 
 	if (VTOFUD(vp)->flag & FN_DIRECTIO) {
