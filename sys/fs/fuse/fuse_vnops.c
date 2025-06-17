@@ -1828,7 +1828,8 @@ fuse_vnop_pathconf(struct vop_pathconf_args *ap)
 			return (0);
 		} else if (fsess_not_impl(mp, FUSE_LSEEK)) {
 			/* FUSE_LSEEK is not implemented */
-			return (EINVAL);
+			return (EXTERROR(EINVAL, "This daemon does not "
+			    "implement FUSE_LSEEK"));
 		} else {
 			return (err);
 		}
