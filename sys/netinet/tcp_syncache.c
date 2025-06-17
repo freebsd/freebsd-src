@@ -1112,14 +1112,13 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				    s, __func__);
 			goto failed;
 		}
+		if (locked)
+			SCH_UNLOCK(sch);
 		bzero(&scs, sizeof(scs));
 		if (syncookie_expand(inc, sch, &scs, th, to, *lsop, port)) {
 			sc = &scs;
 			TCPSTAT_INC(tcps_sc_recvcookie);
-		}
-		if (locked)
-			SCH_UNLOCK(sch);
-		if (sc == NULL) {
+		} else {
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Segment failed "
 				    "SYNCOOKIE authentication, segment rejected "
