@@ -119,6 +119,11 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_min, CTLTYPE_INT | CTLFLAG_RW,
     &tcp_rexmit_min, 0, sysctl_msec_to_ticks, "I",
     "Minimum Retransmission Timeout");
 
+int	tcp_rexmit_max;
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_max, CTLTYPE_INT | CTLFLAG_RW,
+    &tcp_rexmit_max, 0, sysctl_msec_to_ticks, "I",
+    "Maximum Retransmission Timeout");
+
 int	tcp_rexmit_slop;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_slop, CTLTYPE_INT | CTLFLAG_RW,
     &tcp_rexmit_slop, 0, sysctl_msec_to_ticks, "I",
@@ -618,8 +623,7 @@ tcp_timer_rexmt(struct tcpcb *tp)
 		rexmt = tcp_rexmit_initial * tcp_backoff[tp->t_rxtshift];
 	else
 		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
-	TCPT_RANGESET(tp->t_rxtcur, rexmt,
-		      tp->t_rttmin, TCPTV_REXMTMAX);
+	TCPT_RANGESET(tp->t_rxtcur, rexmt, tp->t_rttmin, tcp_rexmit_max);
 
 	/*
 	 * We enter the path for PLMTUD if connection is established or, if
