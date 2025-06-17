@@ -1718,7 +1718,7 @@ fuse_vnop_mknod(struct vop_mknod_args *ap)
 	struct vattr *vap = ap->a_vap;
 
 	if (fuse_isdeadfs(dvp))
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 
 	return fuse_internal_mknod(dvp, vpp, cnp, vap);
 }
