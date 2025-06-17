@@ -241,6 +241,8 @@ int	skip_cmp_src_addr(struct pfctl_rule *, struct pfctl_rule *);
 int	skip_cmp_src_port(struct pfctl_rule *, struct pfctl_rule *);
 int	superblock_inclusive(struct superblock *, struct pf_opt_rule *);
 void	superblock_free(struct pfctl *, struct superblock *);
+struct pf_opt_tbl *pf_opt_table_ref(struct pf_opt_tbl *);
+void	pf_opt_table_unref(struct pf_opt_tbl *);
 
 
 static int (*skip_comparitors[PF_SKIP_COUNT])(struct pfctl_rule *,
@@ -345,9 +347,11 @@ pfctl_optimize_ruleset(struct pfctl *pf, struct pfctl_ruleset *rs)
 			TAILQ_INSERT_TAIL(
 			    rs->rules[PF_RULESET_FILTER].active.ptr,
 			    r, entries);
+			pf_opt_table_unref(por->por_src_tbl);
+			pf_opt_table_unref(por->por_dst_tbl);
 			free(por);
 		}
-		free(block);
+		superblock_free(pf, block);
 	}
 
 	return (0);
@@ -355,16 +359,8 @@ pfctl_optimize_ruleset(struct pfctl *pf, struct pfctl_ruleset *rs)
 error:
 	while ((por = TAILQ_FIRST(&opt_queue))) {
 		TAILQ_REMOVE(&opt_queue, por, por_entry);
-		if (por->por_src_tbl) {
-			pfr_buf_clear(por->por_src_tbl->pt_buf);
-			free(por->por_src_tbl->pt_buf);
-			free(por->por_src_tbl);
-		}
-		if (por->por_dst_tbl) {
-			pfr_buf_clear(por->por_dst_tbl->pt_buf);
-			free(por->por_dst_tbl->pt_buf);
-			free(por->por_dst_tbl);
-		}
+		pf_opt_table_unref(por->por_src_tbl);
+		pf_opt_table_unref(por->por_dst_tbl);
 		free(por);
 	}
 	while ((block = TAILQ_FIRST(&superblocks))) {
@@ -537,12 +533,14 @@ combine_rules(struct pfctl *pf, struct superblock *block)
 				if (add_opt_table(pf, &p1->por_dst_tbl,
 				    p1->por_rule.af, &p2->por_rule.dst))
 					return (1);
-				p2->por_dst_tbl = p1->por_dst_tbl;
 				if (p1->por_dst_tbl->pt_rulecount >=
 				    TABLE_THRESHOLD) {
 					TAILQ_REMOVE(&block->sb_rules, p2,
 					    por_entry);
 					free(p2);
+				} else {
+					p2->por_dst_tbl =
+					    pf_opt_table_ref(p1->por_dst_tbl);
 				}
 			} else if (!src_eq && dst_eq && p1->por_dst_tbl == NULL
 			    && p2->por_src_tbl == NULL &&
@@ -559,12 +557,14 @@ combine_rules(struct pfctl *pf, struct superblock *block)
 				if (add_opt_table(pf, &p1->por_src_tbl,
 				    p1->por_rule.af, &p2->por_rule.src))
 					return (1);
-				p2->por_src_tbl = p1->por_src_tbl;
 				if (p1->por_src_tbl->pt_rulecount >=
 				    TABLE_THRESHOLD) {
 					TAILQ_REMOVE(&block->sb_rules, p2,
 					    por_entry);
 					free(p2);
+				} else {
+					p2->por_src_tbl =
+					    pf_opt_table_ref(p1->por_src_tbl);
 				}
 			}
 		}
@@ -1249,6 +1249,7 @@ add_opt_table(struct pfctl *pf, struct pf_opt_tbl **tbl, sa_family_t af,
 		    ((*tbl)->pt_buf = calloc(1, sizeof(*(*tbl)->pt_buf))) ==
 		    NULL)
 			err(1, "calloc");
+		(*tbl)->pt_refcnt = 1;
 		(*tbl)->pt_buf->pfrb_type = PFRB_ADDRS;
 		SIMPLEQ_INIT(&(*tbl)->pt_nodes);
 
@@ -1657,20 +1658,8 @@ superblock_free(struct pfctl *pf, struct superblock *block)
 	struct pf_opt_rule *por;
 	while ((por = TAILQ_FIRST(&block->sb_rules))) {
 		TAILQ_REMOVE(&block->sb_rules, por, por_entry);
-		if (por->por_src_tbl) {
-			if (por->por_src_tbl->pt_buf) {
-				pfr_buf_clear(por->por_src_tbl->pt_buf);
-				free(por->por_src_tbl->pt_buf);
-			}
-			free(por->por_src_tbl);
-		}
-		if (por->por_dst_tbl) {
-			if (por->por_dst_tbl->pt_buf) {
-				pfr_buf_clear(por->por_dst_tbl->pt_buf);
-				free(por->por_dst_tbl->pt_buf);
-			}
-			free(por->por_dst_tbl);
-		}
+		pf_opt_table_unref(por->por_src_tbl);
+		pf_opt_table_unref(por->por_dst_tbl);
 		free(por);
 	}
 	if (block->sb_profiled_block)
@@ -1678,3 +1667,24 @@ superblock_free(struct pfctl *pf, struct superblock *block)
 	free(block);
 }
 
+struct pf_opt_tbl *
+pf_opt_table_ref(struct pf_opt_tbl *pt)
+{
+	/* parser does not run concurrently, we don't need atomic ops. */
+	if (pt != NULL)
+		pt->pt_refcnt++;
+
+	return (pt);
+}
+
+void
+pf_opt_table_unref(struct pf_opt_tbl *pt)
+{
+	if ((pt != NULL) && ((--pt->pt_refcnt) == 0)) {
+		if (pt->pt_buf != NULL) {
+			pfr_buf_clear(pt->pt_buf);
+			free(pt->pt_buf);
+		}
+		free(pt);
+	}
+}
