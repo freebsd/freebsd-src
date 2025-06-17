@@ -16,6 +16,7 @@
 # kernel modules.
 #
 options 	KDTRACE_HOOKS
+options 	KDTRACE_MIB_SDT
 
 #
 # Most of the following is copied from ARM64 GENERIC.
