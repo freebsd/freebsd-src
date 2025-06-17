@@ -35,7 +35,6 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/syslog.h>
-#include <sys/time.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -200,9 +199,6 @@ extern int mib_iflist_bad;
 
 /* last time refreshed */
 extern uint64_t mibarpticks;
-
-/* info on system clocks */
-extern struct clockinfo clockinfo;
 
 /* baud rate of fastest interface */
 extern uint64_t mibif_maxspeed;
