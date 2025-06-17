@@ -2224,10 +2224,10 @@ fuse_vnop_rmdir(struct vop_rmdir_args *ap)
 	int err;
 
 	if (fuse_isdeadfs(vp)) {
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 	if (VTOFUD(vp) == VTOFUD(dvp)) {
-		return EINVAL;
+		return (EXTERROR(EINVAL, "Directory to be removed contains itself"));
 	}
 	err = fuse_internal_remove(dvp, vp, ap->a_cnp, FUSE_RMDIR);
 
