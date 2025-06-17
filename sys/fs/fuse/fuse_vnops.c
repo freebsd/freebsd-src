@@ -89,6 +89,8 @@
 #include <sys/buf.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
+#define EXTERR_CATEGORY EXTERR_CAT_FUSE
+#include <sys/exterrvar.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -599,7 +601,7 @@ fuse_vnop_allocate(struct vop_allocate_args *ap)
 	int err;
 
 	if (fuse_isdeadfs(vp))
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 
 	switch (vp->v_type) {
 	case VFIFO:
@@ -615,7 +617,7 @@ fuse_vnop_allocate(struct vop_allocate_args *ap)
 		return (EROFS);
 
 	if (fsess_not_impl(mp, FUSE_FALLOCATE))
-		return (EINVAL);
+		return (EXTERROR(EINVAL, "This daemon does not implement FUSE_FALLOCATE"));
 
 	io.uio_offset = *offset;
 	io.uio_resid = *len;
@@ -645,13 +647,13 @@ fuse_vnop_allocate(struct vop_allocate_args *ap)
 
 	if (err == ENOSYS) {
 		fsess_set_notimpl(mp, FUSE_FALLOCATE);
-		err = EINVAL;
+		err = EXTERROR(EINVAL, "This daemon does not implement ALLOCATE");
 	} else if (err == EOPNOTSUPP) {
 		/*
 		 * The file system server does not support FUSE_FALLOCATE with
 		 * the supplied mode for this particular file.
 		 */
-		err = EINVAL;
+		err = EXTERROR(EINVAL, "This file can't be pre-allocated");
 	} else if (!err) {
 		*offset += *len;
 		*len = 0;
