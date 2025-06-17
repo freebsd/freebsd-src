@@ -19,15 +19,15 @@ It is composed of 3
 scripts:
 .Bl -tag -width "nuageinit"
 .It Cm nuageinit
-This script will detect the configuration disk kind of cloud environement the
+This script will detect the configuration disk kind of cloud environment the
 system runs on and gather accordingly the configuration data.
-The following cloud environements are supported right now:
+The following cloud environments are supported right now:
 .Bl -tag -width "OpenStack"
 .It ondisk
 A cloud agnostic environment where the disk is provided to the system
 with the configuration data on it.
 The disk should be formatted in one of the following formats:
-.Xr cd9660 4 ,
+.Xr cd9660 4
 or
 .Xr msdosfs 4
 and be labelled (via filesystem label) either
@@ -44,17 +44,15 @@ description available in
 .Xr kenv 2 .
 .El
 .Pp
-Depending on the cloud environement above
+Depending on the cloud environment above,
 .Nm
 will attempt to configure the instance.
-See
-.Sx CONFIGURATION .
-This script executes early,
+This script executes early
 after all the local filesystem are mounted but before
 the network is configured.
 .It Cm nuageinit_post_net
-This script is reponsible processing the configurations that are network
-dependant:
+This script is responsible for processing the configurations that are network
+dependent:
 .Bl -bullet
 .It
 dealing with packages
@@ -67,7 +65,7 @@ been passed via the configuration to be executed, via the configuration
 or because the user_data provided is a script.
 .El
 .Pp
-The default user for nuageinit is a user named:
+The default user for nuageinit is a user named
 .Va freebsd
 with a password set to
 .Va freebsd
@@ -77,9 +75,8 @@ and a shell set to
 The configuration of
 .Nm
 is typically done via metadata provided by the cloud provider.
-The metadata is presented to nuageinit in different form depending on
+The metadata is presented to nuageinit in different forms depending on
 the provider:
-provider:
 .Bl -tag -width "config-2"
 .It nocloud
 If the data is provided via a disk labelled
@@ -88,20 +85,20 @@ then the metadata is provided in the form of a file named
 .Pa meta-data
 in YAML format.
 .Nm
-Will configure the hostname of the instance according the value of the
+will configure the hostname of the instance according the value of the
 following variables
 .Va local-hostname
 or
 .Va hostname .
 .It config-2
 If the data is provided via a disk labelled
-.Va config-2 ,
-or if fetched from OpenStack,
+.Va config-2
+or if it is fetched from OpenStack,
 the metadata is expected in two json files:
 .Pp
 The
 .Pa meta_data.json
-file supportes the following keys:
+file supports the following keys:
 .Bl -tag -width "public_keys"
 .It Ic hostname
 Set the hostname of the instance.
@@ -125,7 +122,7 @@ Array of network configurations to be set.
 Along with the metadata, a user data file is provided, either named
 .Pa user_data
 or
-.Pa user-data
+.Pa user-data .
 If this file starts with a
 .Qq #! ,
 it will be executed at the end of the boot via
@@ -153,16 +150,16 @@ An array of strings or objects to be created:
 If the entry is a string,
 a group using this string as a name will be created.
 .It
-if the entry is a an object, the
+if the entry is an object, the
 .Qq Ar key
 will be used as the name of the group, the
 .Qq Ar value
-will is expected to be a list of members (array), specified by name.
+is expected to be a list of members (array), specified by name.
 .El
 .It Ic ssh_keys
 An object of multiple key/values,
 .Qq Cm keys
-being in the form:
+being in the form
 .Ar algo_private
 or
 .Ar algo_public ,
@@ -212,15 +209,15 @@ Ignored if an encrypted password is already provided.
 .It Ic groups
 The list of other groups the user should belong to.
 .It Ic locked
-Boolean to determine if the user accound should be locked.
+Boolean to determine if the user account should be locked.
 .It Ic sudo
 An entry which should be appended to
 .Pa /usr/local/etc/sudoers.d/90-nuageinit-users
 .El
 .Pp
-A special case exist: if the entry is a simple string with the following value
-.Qq default
-The the default user is created.
+A special case exist: if the entry is a simple string with the value
+.Qq default ,
+than the default user is created.
 .It Ic chpasswd
 Change the passwords for users, it accepts the following keys:
 .Bl -tag -width "expire"
@@ -230,15 +227,15 @@ Boolean to force the user to changes their password during the first login
 An array of objects:
 .Bl -tag -width "password"
 .It Ic user
-Specify the user who's password will be changed.
+Specify the user whose password will be changed.
 .It Ic password
-Specify a text line with the new password, or
-Specify the user who's password will be changed.
+Specify a text line with the new password or
+specify the user whose password will be changed.
 .Qq Cm RANDOM
 to assign the password randomly.
 If the textline starts with
 .Qq Cm $x$
-Where x is a number, then the password is considered encrypted,
+where x is a number, then the password is considered encrypted,
 otherwise the password is considered plaintext.
 .El
 .El
@@ -276,6 +273,7 @@ ssh_keys:
 .Xr cd9660 4 ,
 .Xr msdosfs 4 ,
 .Xr smbios 4 ,
+.Xr ssh_config 5 ,
 .Xr rc 8
 .Sh STANDARDS
 .Nm
