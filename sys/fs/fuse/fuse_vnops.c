@@ -3222,7 +3222,7 @@ fuse_vnop_vptofh(struct vop_vptofh_args *ap)
 		/* NFS requires lookups for "." and ".." */
 		SDT_PROBE2(fusefs, , vnops, trace, 1,
 			"VOP_VPTOFH without FUSE_EXPORT_SUPPORT");
-		return EOPNOTSUPP;
+		return (EXTERROR(EOPNOTSUPP, "This server is missing FUSE_EXPORT_SUPPORT"));
 	}
 	if ((mp->mnt_flag & MNT_EXPORTED) &&
 		fsess_is_impl(mp, FUSE_OPENDIR))
@@ -3240,7 +3240,8 @@ fuse_vnop_vptofh(struct vop_vptofh_args *ap)
                  */
 		SDT_PROBE2(fusefs, , vnops, trace, 1,
 			"VOP_VPTOFH with FUSE_OPENDIR");
-		return EOPNOTSUPP;
+		return (EXTERROR(EOPNOTSUPP, "This server implements FUSE_OPENDIR so "
+		    "is not compatible with getfh"));
 	}
 
 	err = fuse_internal_getattr(vp, &va, curthread->td_ucred, curthread);
@@ -3254,6 +3255,6 @@ fuse_vnop_vptofh(struct vop_vptofh_args *ap)
 	if (fvdat->generation <= UINT32_MAX)
 		fhp->gen = fvdat->generation;
 	else
-		return EOVERFLOW;
+		return (EXTERROR(EOVERFLOW, "inode generation number overflow"));
 	return (0);
 }
