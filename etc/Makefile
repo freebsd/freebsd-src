@@ -15,12 +15,6 @@ SUBDIR+=termcap
 SUBDIR+=sendmail
 .endif
 
-.if ${MK_MITKRB5} != "no"
-SUBDIR+=gss-krb5
-.else
-SUBDIR+=gss
-.endif
-
 # NB: keep these sorted by MK_* knobs
 
 ETCMAIL=aliases
