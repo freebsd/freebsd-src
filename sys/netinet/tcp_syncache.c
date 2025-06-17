@@ -139,9 +139,10 @@ static void	syncache_pause(struct in_conninfo *);
 static void	syncache_unpause(void *);
 static void	 syncookie_reseed(void *);
 #ifdef INVARIANTS
-static int	 syncookie_cmp(struct in_conninfo *inc, struct syncache_head *sch,
-		    struct syncache *sc, struct tcphdr *th, struct tcpopt *to,
-		    struct socket *lso, uint16_t port);
+static void	syncookie_cmp(struct in_conninfo *,
+		    const struct syncache_head *, struct syncache *,
+		    struct tcphdr *, struct tcpopt *, struct socket *,
+		    uint16_t);
 #endif
 
 /*
@@ -2348,43 +2349,43 @@ syncookie_expand(struct in_conninfo *inc, const struct syncache_head *sch,
 }
 
 #ifdef INVARIANTS
-static int
-syncookie_cmp(struct in_conninfo *inc, struct syncache_head *sch,
+static void
+syncookie_cmp(struct in_conninfo *inc, const struct syncache_head *sch,
     struct syncache *sc, struct tcphdr *th, struct tcpopt *to,
     struct socket *lso, uint16_t port)
 {
-	struct syncache scs, *scx = NULL;
+	struct syncache scs;
 	char *s;
 
 	bzero(&scs, sizeof(scs));
-	if (syncookie_expand(inc, sch, &scs, th, to, lso, port))
-		scx = &scs;
+	if (syncookie_expand(inc, sch, &scs, th, to, lso, port) &&
+	    (sc->sc_peer_mss != scs.sc_peer_mss ||
+	     sc->sc_requested_r_scale != scs.sc_requested_r_scale ||
+	     sc->sc_requested_s_scale != scs.sc_requested_s_scale ||
+	     (sc->sc_flags & SCF_SACK) != (scs.sc_flags & SCF_SACK))) {
 
-	if ((s = tcp_log_addrs(inc, th, NULL, NULL)) == NULL)
-		return (0);
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL)) == NULL)
+			return;
 
-	if (scx != NULL) {
-		if (sc->sc_peer_mss != scx->sc_peer_mss)
+		if (sc->sc_peer_mss != scs.sc_peer_mss)
 			log(LOG_DEBUG, "%s; %s: mss different %i vs %i\n",
-			    s, __func__, sc->sc_peer_mss, scx->sc_peer_mss);
+			    s, __func__, sc->sc_peer_mss, scs.sc_peer_mss);
 
-		if (sc->sc_requested_r_scale != scx->sc_requested_r_scale)
+		if (sc->sc_requested_r_scale != scs.sc_requested_r_scale)
 			log(LOG_DEBUG, "%s; %s: rwscale different %i vs %i\n",
 			    s, __func__, sc->sc_requested_r_scale,
-			    scx->sc_requested_r_scale);
+			    scs.sc_requested_r_scale);
 
-		if (sc->sc_requested_s_scale != scx->sc_requested_s_scale)
+		if (sc->sc_requested_s_scale != scs.sc_requested_s_scale)
 			log(LOG_DEBUG, "%s; %s: swscale different %i vs %i\n",
 			    s, __func__, sc->sc_requested_s_scale,
-			    scx->sc_requested_s_scale);
+			    scs.sc_requested_s_scale);
 
-		if ((sc->sc_flags & SCF_SACK) != (scx->sc_flags & SCF_SACK))
+		if ((sc->sc_flags & SCF_SACK) != (scs.sc_flags & SCF_SACK))
 			log(LOG_DEBUG, "%s; %s: SACK different\n", s, __func__);
-	}
 
-	if (s != NULL)
 		free(s, M_TCPLOG);
-	return (0);
+	}
 }
 #endif /* INVARIANTS */
 
