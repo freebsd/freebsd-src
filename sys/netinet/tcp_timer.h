@@ -111,8 +111,6 @@
 #define TCPTV_CPU_VAR	( hz/5 )		/* cpu variance allowed (200ms) */
 #define	TCPTV_REXMTMAX	( 64*hz)		/* max allowable REXMT value */
 
-#define TCPTV_TWTRUNC	8			/* RTO factor to truncate TW */
-
 #define	TCP_MAXRXTSHIFT	12			/* maximum retransmits */
 
 #define	TCPTV_DELACK	( hz/25 )		/* 40ms timeout */
