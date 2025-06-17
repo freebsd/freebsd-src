@@ -163,6 +163,7 @@ extern int tcp_maxunacktime;		/* max time without making progress */
 extern int tcp_maxpersistidle;
 extern int tcp_rexmit_initial;
 extern int tcp_rexmit_min;
+extern int tcp_rexmit_max;
 extern int tcp_rexmit_slop;
 extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];

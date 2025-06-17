@@ -1052,7 +1052,8 @@ tcp_default_fb_init(struct tcpcb *tp, void **ptr)
 	if (tp->t_rxtshift == 0)
 		tp->t_rxtcur = rexmt;
 	else
-		TCPT_RANGESET(tp->t_rxtcur, rexmt, tp->t_rttmin, TCPTV_REXMTMAX);
+		TCPT_RANGESET(tp->t_rxtcur, rexmt, tp->t_rttmin,
+		    tcp_rexmit_max);
 
 	/*
 	 * Nothing to do for ESTABLISHED or LISTEN states. And, we don't
@@ -1478,6 +1479,7 @@ tcp_init(void *arg __unused)
 	tcp_rexmit_min = TCPTV_MIN;
 	if (tcp_rexmit_min < 1)
 		tcp_rexmit_min = 1;
+	tcp_rexmit_max = TCPTV_REXMTMAX;
 	tcp_persmin = TCPTV_PERSMIN;
 	tcp_persmax = TCPTV_PERSMAX;
 	tcp_rexmit_slop = TCPTV_CPU_VAR;

@@ -443,7 +443,7 @@ syncache_timeout(struct syncache *sc, struct syncache_head *sch, int docallout)
 	else
 		TCPT_RANGESET(rexmt,
 		    tcp_rexmit_initial * tcp_backoff[sc->sc_rxmits],
-		    tcp_rexmit_min, TCPTV_REXMTMAX);
+		    tcp_rexmit_min, tcp_rexmit_max);
 	sc->sc_rxttime = ticks + rexmt;
 	sc->sc_rxmits++;
 	if (TSTMP_LT(sc->sc_rxttime, sch->sch_nextc)) {

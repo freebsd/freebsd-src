@@ -6347,7 +6347,7 @@ activate_tlp:
 		if (to < rack_tlp_min) {
 			to = rack_tlp_min;
 		}
-		if (to > TICKS_2_USEC(TCPTV_REXMTMAX)) {
+		if (to > TICKS_2_USEC(tcp_rexmit_max)) {
 			/*
 			 * If the TLP time works out to larger than the max
 			 * RTO lets not do TLP.. just RTO.
