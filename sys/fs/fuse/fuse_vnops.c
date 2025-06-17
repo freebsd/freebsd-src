@@ -867,19 +867,21 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	pid_t pid;
 	int err;
 
-	err = ENOSYS;
 	if (mp == NULL || mp != vnode_mount(outvp))
-		goto fallback;
+		return (EXTERROR(ENOSYS, "Mount points do not match"));
 
 	if (incred->cr_uid != outcred->cr_uid)
-		goto fallback;
+		return (EXTERROR(ENOSYS, "FUSE_COPY_FILE_RANGE does not support "
+		    "different credentials for infd and outfd"));
 
 	if (incred->cr_groups[0] != outcred->cr_groups[0])
-		goto fallback;
+		return (EXTERROR(ENOSYS, "FUSE_COPY_FILE_RANGE does not support "
+		    "different credentials for infd and outfd"));
 
 	/* Caller busied mp, mnt_data can be safely accessed. */
 	if (fsess_not_impl(mp, FUSE_COPY_FILE_RANGE))
-		goto fallback;
+		return (EXTERROR(ENOSYS, "This daemon does not "
+		    "implement COPY_FILE_RANGE"));
 
 	if (ap->a_fsizetd == NULL)
 		td = curthread;
@@ -889,7 +891,7 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 
 	vn_lock_pair(invp, false, LK_SHARED, outvp, false, LK_EXCLUSIVE);
 	if (invp->v_data == NULL || outvp->v_data == NULL) {
-		err = EBADF;
+		err = EXTERROR(EBADF, "vnode got reclaimed");
 		goto unlock;
 	}
 
@@ -953,7 +955,6 @@ unlock:
 
 	if (err == ENOSYS)
 		fsess_set_notimpl(mp, FUSE_COPY_FILE_RANGE);
-fallback:
 
 	/*
 	 * No need to call vn_rlimit_fsizex_res before return, since the uio is
