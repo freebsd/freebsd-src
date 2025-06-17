@@ -1123,8 +1123,10 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			goto failed;
 		}
 		bzero(&scs, sizeof(scs));
-		if (syncookie_expand(inc, sch, &scs, th, to, *lsop, port))
+		if (syncookie_expand(inc, sch, &scs, th, to, *lsop, port)) {
 			sc = &scs;
+			TCPSTAT_INC(tcps_sc_recvcookie);
+		}
 		if (locked)
 			SCH_UNLOCK(sch);
 		if (sc == NULL) {
@@ -2355,7 +2357,6 @@ syncookie_expand(struct in_conninfo *inc, const struct syncache_head *sch,
 
 	sc->sc_port = port;
 
-	TCPSTAT_INC(tcps_sc_recvcookie);
 	return (true);
 }
 
