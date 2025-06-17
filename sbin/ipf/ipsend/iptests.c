@@ -74,7 +74,6 @@ typedef	int	boolean_t;
 #  include <netinet/in_pcb.h>
 # endif
 #include "ipsend.h"
-# include <netinet/tcp_timer.h>
 # include <netinet/tcp_var.h>
 #if defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 106000000)
 # define USE_NANOSLEEP

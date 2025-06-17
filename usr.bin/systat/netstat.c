@@ -60,7 +60,6 @@
 #include <netinet/tcp_seq.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
-#include <netinet/tcp_timer.h>
 #define	_WANT_TCPCB
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
