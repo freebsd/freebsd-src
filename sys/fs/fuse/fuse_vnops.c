@@ -2112,10 +2112,10 @@ fuse_vnop_remove(struct vop_remove_args *ap)
 	int err;
 
 	if (fuse_isdeadfs(vp)) {
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 	if (vnode_isdir(vp)) {
-		return EPERM;
+		return (EXTERROR(EPERM, "vnode is a directory"));
 	}
 
 	err = fuse_internal_remove(dvp, vp, cnp, FUSE_UNLINK);
