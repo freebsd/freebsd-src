@@ -139,10 +139,10 @@ static void	 syncache_timer(void *);
 static uint32_t	 syncookie_mac(struct in_conninfo *, tcp_seq, uint8_t,
 		    uint8_t *, uintptr_t);
 static tcp_seq	 syncookie_generate(struct syncache_head *, struct syncache *);
-static struct syncache
-		*syncookie_lookup(struct in_conninfo *, struct syncache_head *,
-		    struct syncache *, struct tcphdr *, struct tcpopt *,
-		    struct socket *, uint16_t);
+static bool	syncookie_expand(struct in_conninfo *,
+		    const struct syncache_head *, struct syncache *,
+		    struct tcphdr *, struct tcpopt *, struct socket *,
+		    uint16_t);
 static void	syncache_pause(struct in_conninfo *);
 static void	syncache_unpause(void *);
 static void	 syncookie_reseed(void *);
@@ -1122,7 +1122,8 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			goto failed;
 		}
 		bzero(&scs, sizeof(scs));
-		sc = syncookie_lookup(inc, sch, &scs, th, to, *lsop, port);
+		if (syncookie_expand(inc, sch, &scs, th, to, *lsop, port))
+			sc = &scs;
 		if (locked)
 			SCH_UNLOCK(sch);
 		if (sc == NULL) {
@@ -2260,8 +2261,8 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc)
 	return (iss);
 }
 
-static struct syncache *
-syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
+static bool
+syncookie_expand(struct in_conninfo *inc, const struct syncache_head *sch,
     struct syncache *sc, struct tcphdr *th, struct tcpopt *to,
     struct socket *lso, uint16_t port)
 {
@@ -2291,7 +2292,7 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 
 	/* The recomputed hash matches the ACK if this was a genuine cookie. */
 	if ((ack & ~0xff) != (hash & ~0xff))
-		return (NULL);
+		return (false);
 
 	/* Fill in the syncache values. */
 	sc->sc_flags = 0;
@@ -2354,7 +2355,7 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 	sc->sc_port = port;
 
 	TCPSTAT_INC(tcps_sc_recvcookie);
-	return (sc);
+	return (true);
 }
 
 #ifdef INVARIANTS
@@ -2363,11 +2364,12 @@ syncookie_cmp(struct in_conninfo *inc, struct syncache_head *sch,
     struct syncache *sc, struct tcphdr *th, struct tcpopt *to,
     struct socket *lso, uint16_t port)
 {
-	struct syncache scs, *scx;
+	struct syncache scs, *scx = NULL;
 	char *s;
 
 	bzero(&scs, sizeof(scs));
-	scx = syncookie_lookup(inc, sch, &scs, th, to, lso, port);
+	if (syncookie_expand(inc, sch, &scs, th, to, lso, port))
+		scx = &scs;
 
 	if ((s = tcp_log_addrs(inc, th, NULL, NULL)) == NULL)
 		return (0);
