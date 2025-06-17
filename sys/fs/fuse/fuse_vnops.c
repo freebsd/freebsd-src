@@ -437,7 +437,7 @@ fuse_vnop_access(struct vop_access_args *ap)
 		if (vnode_isvroot(vp)) {
 			return 0;
 		}
-		return ENXIO;
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 	}
 	if (!(data->dataflags & FSESS_INITED)) {
 		if (vnode_isvroot(vp)) {
@@ -446,7 +446,8 @@ fuse_vnop_access(struct vop_access_args *ap)
 				return 0;
 			}
 		}
-		return EBADF;
+		return (EXTERROR(EBADF, "Access denied until FUSE session "
+		    "is initialized"));
 	}
 	if (vnode_islnk(vp)) {
 		return 0;
