@@ -2221,15 +2221,14 @@ Measure the rate of packets matching the rule and states created by it.
 When the specified rate is exceeded, the rule stops matching.
 Only packets in the direction in which the state was created are considered,
 so that typically requests are counted and replies are not.
-For example:
-.Pp
-.Bd -literal -offset indent -compact
+For example,
+to pass up to 100 ICMP packets per 10 seconds:
+.Bd -literal -offset indent
 block in proto icmp
 pass in proto icmp max-pkt-rate 100/10
 .Ed
 .Pp
-passes up to 100 icmp packets per 10 seconds.
-When the rate is exceeded, all icmp is blocked until the rate falls below
+When the rate is exceeded, all ICMP is blocked until the rate falls below
 100 per 10 seconds again.
 .Pp
 .It Xo Ar queue Aq Ar queue
