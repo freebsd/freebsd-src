@@ -36,7 +36,6 @@
 #include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
-#include <netinet/tcp_timer.h>
 #include <netinet/tcp_fsm.h>
 
 struct tcp_index {
@@ -51,7 +50,8 @@ static uint64_t tcps_states[TCP_NSTATES];
 static struct xinpgen *xinpgen;
 static size_t xinpgen_len;
 static u_int tcp_total;
-
+static int tcp_rexmit_min;
+static int tcp_rexmit_max;
 static u_int oidnum;
 static struct tcp_index *tcpoids;
 
@@ -87,6 +87,28 @@ fetch_tcp_stats(void)
 	}
 	if (len != sizeof(tcps_states)) {
 		syslog(LOG_ERR, "net.inet.tcp.states: wrong size");
+		return (-1);
+	}
+
+	len = sizeof(tcp_rexmit_min);
+	if (sysctlbyname("net.inet.tcp.rexmit_min", &tcp_rexmit_min, &len,
+	    NULL, 0) == -1) {
+		syslog(LOG_ERR, "net.inet.tcp.rexmit_min: %m");
+		return (-1);
+	}
+	if (len != sizeof(tcp_rexmit_min)) {
+		syslog(LOG_ERR, "net.inet.tcp.rexmit_min: wrong size");
+		return (-1);
+	}
+
+	len = sizeof(tcp_rexmit_max);
+	if (sysctlbyname("net.inet.tcp.rexmit_max", &tcp_rexmit_max, &len,
+	    NULL, 0) == -1) {
+		syslog(LOG_ERR, "net.inet.tcp.rexmit_max: %m");
+		return (-1);
+	}
+	if (len != sizeof(tcp_rexmit_max)) {
+		syslog(LOG_ERR, "net.inet.tcp.rexmit_max: wrong size");
 		return (-1);
 	}
 
@@ -211,16 +233,13 @@ op_tcp(struct snmp_context *ctx __unused, struct snmp_value *value,
 		value->v.integer = 4;	/* Van Jacobson */
 		break;
 
-#define hz clockinfo.hz
-
 	  case LEAF_tcpRtoMin:
-		value->v.integer = 1000 * TCPTV_MIN / hz;
+		value->v.integer = tcp_rexmit_min;
 		break;
 
 	  case LEAF_tcpRtoMax:
-		value->v.integer = 1000 * TCPTV_REXMTMAX / hz;
+		value->v.integer = tcp_rexmit_max;
 		break;
-#undef hz
 
 	  case LEAF_tcpMaxConn:
 		value->v.integer = -1;
