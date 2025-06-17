@@ -1337,7 +1337,7 @@ again:
 
 
 	if (pfctl_define_table(tbl->pt_name, PFR_TFLAG_CONST, 1,
-	    pf->astack[0]->name, tbl->pt_buf, pf->astack[0]->ruleset.tticket)) {
+	    pf->astack[0]->path, tbl->pt_buf, pf->astack[0]->ruleset.tticket)) {
 		warn("failed to create table %s in %s",
 		    tbl->pt_name, pf->astack[0]->name);
 		return (1);
