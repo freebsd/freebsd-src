@@ -57,6 +57,9 @@ SRCS=	account.c \
 	support.c \
 	vector.c
 
+MAN=	pam-krb5.8
+MLINKS=	pam-krb5.8 pam_krb5.8
+
 CFLAGS=	-I${SRCDIR} \
 	-I${.CURDIR} \
 	-fno-strict-aliasing \
