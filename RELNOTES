@@ -15,7 +15,7 @@ cd240957d7ba
 	for localhost) is now disabled by default.  This functionality can be
 	re-enabled by setting the net.inet.ip.connect_inaddr_wild sysctl to 1.
 
-4d618f6ced86
+b61850c4e6f6
 	The bridge(4) sysctl net.link.bridge.member_ifaddrs now defaults to 0,
 	meaning that interfaces added to a bridge may not have IP addresses
 	assigned.  Refer to bridge(4) for more information.
