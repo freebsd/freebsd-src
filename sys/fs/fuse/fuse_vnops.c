@@ -3018,7 +3018,7 @@ fuse_vnop_deallocate(struct vop_deallocate_args *ap)
 	bool closefufh = false;
 
 	if (fuse_isdeadfs(vp))
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "This FUSE session is about to be closed"));
 
 	if (vfs_isrdonly(mp))
 		return (EROFS);
