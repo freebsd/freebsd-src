@@ -83,16 +83,20 @@ struct netif_driver *netif_drivers[] = {
  * Sort formats so that those that can detect based on arguments
  * rather than reading the file go first.
  */
+#if defined(__amd64__)
 extern struct file_format	i386_elf;
 extern struct file_format	i386_elf_obj;
 extern struct file_format	amd64_elf;
 extern struct file_format	amd64_elf_obj;
+#endif
 
 struct file_format *file_formats[] = {
+#if defined(__amd64__)
     &i386_elf,
     &i386_elf_obj,
     &amd64_elf,
     &amd64_elf_obj,
+#endif
     NULL
 };
 

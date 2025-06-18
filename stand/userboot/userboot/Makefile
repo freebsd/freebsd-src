@@ -13,18 +13,30 @@ SHLIB_NAME=	userboot_${LOADER_INTERP}.so
 STRIP=
 LIBDIR=		/boot
 
+.if ${MACHINE_CPUARCH} == "amd64"
+USERBOOT_KERNEL_SUPPORT=	yes
+.else
+USERBOOT_KERNEL_SUPPORT=	no
+.endif
+
 .PATH:		${.CURDIR}/../userboot
 SRCS=		autoload.c
 SRCS+=		bcache.c
+.if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=		biossmap.c
+.endif
+.if ${USERBOOT_KERNEL_SUPPORT} == "yes"
 SRCS+=		bootinfo.c
 SRCS+=		bootinfo32.c
 SRCS+=		bootinfo64.c
+.endif
 SRCS+=		conf.c
 SRCS+=		copy.c
 SRCS+=		devicename.c
+.if ${USERBOOT_KERNEL_SUPPORT} == "yes"
 SRCS+=		elf32_freebsd.c
 SRCS+=		elf64_freebsd.c
+.endif
 SRCS+=		host.c
 SRCS+=		main.c
 SRCS+=		userboot_cons.c
@@ -47,6 +59,10 @@ VERSION_FILE?=	${.CURDIR}/../userboot/version
 
 .if ${LOADER_INTERP} == ${LOADER_DEFAULT_INTERP}
 LINKS+=		${BINDIR}/${SHLIB_NAME} ${BINDIR}/userboot.so
+.endif
+
+.if ${USERBOOT_KERNEL_SUPPORT} == "yes"
+CFLAGS+=	-DUSERBOOT_KERNEL_SUPPORT
 .endif
 
 .if ${MK_LOADER_ZFS} != "no"
