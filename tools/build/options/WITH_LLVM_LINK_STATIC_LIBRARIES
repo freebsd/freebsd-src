@@ -1,0 +1,6 @@
+Link LLVM libraries (libllvm, libclang, liblldb) statically into each of
+the binaries that use them.
+
+This means that binaries linked against these libraries, such as clang,
+ld.lld and lldb will be much larger and position dependent, but will
+start more quickly.

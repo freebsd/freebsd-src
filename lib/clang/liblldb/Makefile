@@ -1,10 +1,16 @@
-.include <bsd.init.mk>
+.include <src.opts.mk>
 .include "../lldb.pre.mk"
 
+.if ${MK_LLVM_LINK_STATIC_LIBRARIES} == "yes"
+# Build static library when explicitly requested.
+LIB=		lldb
+INTERNALLIB=
+.else
 PACKAGE=	lldb
 SHLIB_CXX=	lldb
 SHLIB_MAJOR=	19
 PRIVATELIB=
+.endif
 
 SHARED_CXXFLAGS+=	-UPIC # To avoid compile errors
 
@@ -753,8 +759,13 @@ SRCS+=		Version/Version.cpp
 LIBDEPS+=	clang
 LIBDEPS+=	llvm
 
+.if defined(TOOLS_PREFIX) || ${MK_LLVM_LINK_STATIC_LIBRARIES} == "yes"
+LIBPRIV=
+LIBEXT=		a
+.else
 LIBPRIV=	private
 LIBEXT=		so
+.endif
 
 .for lib in ${LIBDEPS}
 DPADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${LIBPRIV}${lib}.${LIBEXT}
