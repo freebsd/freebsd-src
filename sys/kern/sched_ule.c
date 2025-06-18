@@ -444,7 +444,7 @@ runq_print(struct runq *rq)
 	int i;
 
 	for (i = 0; i < RQSW_NB; i++) {
-		printf("\t\trunq bits %d 0x%zx\n",
+		printf("\t\trunq bits %d %#lx\n",
 		    i, rq->rq_status.rq_sw[i]);
 		for (j = 0; j < RQSW_BPW; j++)
 			if (rq->rq_status.rq_sw[i] & (1ul << j)) {
