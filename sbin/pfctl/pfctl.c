@@ -2384,17 +2384,17 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 		if (check_commit_altq(dev, opts) != 0)
 			ERRX("errors in altq config");
 
-	/* process "load anchor" directives */
-	if (!anchorname[0])
+	if (trans == NULL) {
+		/* process "load anchor" directives */
 		if (pfctl_load_anchors(dev, &pf, t) == -1)
 			ERRX("load anchors");
 
-	if (trans == NULL && (opts & PF_OPT_NOACTION) == 0) {
-		if (!anchorname[0])
-			if (pfctl_load_options(&pf))
+		if ((opts & PF_OPT_NOACTION) == 0) {
+			if (!anchorname[0] && pfctl_load_options(&pf))
 				goto _error;
-		if (pfctl_trans(dev, t, DIOCXCOMMIT, osize))
-			ERR("DIOCXCOMMIT");
+			if (pfctl_trans(dev, t, DIOCXCOMMIT, osize))
+				ERR("DIOCXCOMMIT");
+		}
 	}
 	free(path);
 	return (0);

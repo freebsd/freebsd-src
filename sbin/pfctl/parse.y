@@ -1205,7 +1205,7 @@ anchorrule	: ANCHOR anchorname dir quick interface af proto fromto
 loadrule	: LOAD ANCHOR string FROM string	{
 			struct loadanchors	*loadanchor;
 
-			if (strlen(pf->anchor->name) + 1 +
+			if (strlen(pf->anchor->path) + 1 +
 			    strlen($3) >= MAXPATHLEN) {
 				yyerror("anchorname %s too long, max %u\n",
 				    $3, MAXPATHLEN - 1);
@@ -1220,7 +1220,7 @@ loadrule	: LOAD ANCHOR string FROM string	{
 				err(1, "loadrule: malloc");
 			if (pf->anchor->name[0])
 				snprintf(loadanchor->anchorname, MAXPATHLEN,
-				    "%s/%s", pf->anchor->name, $3);
+				    "%s/%s", pf->anchor->path, $3);
 			else
 				strlcpy(loadanchor->anchorname, $3, MAXPATHLEN);
 			if ((loadanchor->filename = strdup($5)) == NULL)
