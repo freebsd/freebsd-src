@@ -140,6 +140,11 @@ SYSCTL_COUNTER_U64(_vm_stats_page, OID_AUTO, queue_nops,
     CTLFLAG_RD, &queue_nops,
     "Number of batched queue operations with no effects");
 
+static unsigned long nofreeq_size;
+SYSCTL_ULONG(_vm_stats_page, OID_AUTO, nofreeq_size, CTLFLAG_RD,
+    &nofreeq_size, 0,
+    "Size of the nofree queue");
+
 /*
  * bogus page -- for I/O to/from partially complete buffers,
  * or for paging into sparsely invalid regions.
@@ -2540,7 +2545,7 @@ vm_page_alloc_nofree_domain(int domain, int req)
 		}
 		m->ref_count = count - 1;
 		TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m, plinks.q);
-		VM_CNT_ADD(v_nofree_count, count);
+		atomic_add_long(&nofreeq_size, count);
 	}
 	m = TAILQ_FIRST(&vmd->vmd_nofreeq);
 	TAILQ_REMOVE(&vmd->vmd_nofreeq, m, plinks.q);
@@ -2554,7 +2559,8 @@ vm_page_alloc_nofree_domain(int domain, int req)
 		m->ref_count = 0;
 	}
 	vm_domain_free_unlock(vmd);
-	VM_CNT_ADD(v_nofree_count, -1);
+	atomic_add_long(&nofreeq_size, -1);
+	VM_CNT_INC(v_nofree_count);
 
 	return (m);
 }
@@ -2568,11 +2574,12 @@ vm_page_alloc_nofree_domain(int domain, int req)
 static void __noinline
 vm_page_free_nofree(struct vm_domain *vmd, vm_page_t m)
 {
+	VM_CNT_ADD(v_nofree_count, -1);
+	atomic_add_long(&nofreeq_size, 1);
 	vm_domain_free_lock(vmd);
 	MPASS(m->ref_count == 0);
 	TAILQ_INSERT_HEAD(&vmd->vmd_nofreeq, m, plinks.q);
 	vm_domain_free_unlock(vmd);
-	VM_CNT_ADD(v_nofree_count, 1);
 }
 
 vm_page_t
