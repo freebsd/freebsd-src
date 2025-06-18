@@ -32,7 +32,6 @@ INCS=	_align.h \
 	reg.h \
 	reloc.h \
 	resource.h \
-	runq.h \
 	setjmp.h \
 	signal.h \
 	sysarch.h \
