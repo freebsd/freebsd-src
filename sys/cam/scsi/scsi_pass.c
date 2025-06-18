@@ -60,7 +60,6 @@
 #include <cam/cam_compat.h>
 #include <cam/cam_xpt_periph.h>
 
-#include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_pass.h>
 
 #define PERIPH_NAME "pass"
