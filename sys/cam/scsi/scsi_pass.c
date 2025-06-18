@@ -63,6 +63,8 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_pass.h>
 
+#define PERIPH_NAME "pass"
+
 typedef enum {
 	PASS_FLAG_OPEN			= 0x01,
 	PASS_FLAG_LOCKED		= 0x02,
@@ -185,7 +187,7 @@ static	void		passflags(union ccb *ccb, uint32_t *cam_flags,
 
 static struct periph_driver passdriver =
 {
-	passinit, "pass",
+	passinit, PERIPH_NAME,
 	TAILQ_HEAD_INITIALIZER(passdriver.units), /* generation */ 0
 };
 
@@ -199,7 +201,7 @@ static struct cdevsw pass_cdevsw = {
 	.d_ioctl =	passioctl,
 	.d_poll = 	passpoll,
 	.d_kqfilter = 	passkqfilter,
-	.d_name =	"pass",
+	.d_name =	PERIPH_NAME,
 };
 
 static const struct filterops passread_filtops = {
@@ -505,7 +507,7 @@ passasync(void *callback_arg, uint32_t code,
 		 * process.
 		 */
 		status = cam_periph_alloc(passregister, passoninvalidate,
-					  passcleanup, passstart, "pass",
+					  passcleanup, passstart, PERIPH_NAME,
 					  CAM_PERIPH_BIO, path,
 					  passasync, AC_FOUND_DEVICE, cgd);
 
@@ -616,7 +618,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 */
 	cam_periph_unlock(periph);
 	no_tags = (cgd->inq_data.flags & SID_CmdQue) == 0;
-	softc->device_stats = devstat_new_entry("pass",
+	softc->device_stats = devstat_new_entry(PERIPH_NAME,
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE
 			  | (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
