@@ -22,8 +22,13 @@ LIBDEPS+=	lldb
 LIBDEPS+=	clang
 LIBDEPS+=	llvm
 
+.if defined(TOOLS_PREFIX) || ${MK_LLVM_LINK_STATIC_LIBRARIES} == "yes"
+LIBPRIV=
+LIBEXT=		a
+.else
 LIBPRIV=	private
 LIBEXT=		so
+.endif
 
 .for lib in ${LIBDEPS}
 DPADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${LIBPRIV}${lib}.${LIBEXT}
