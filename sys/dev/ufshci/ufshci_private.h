@@ -503,6 +503,4 @@ ufshci_allocate_request_bio(struct bio *bio, const int how,
 
 void ufshci_ctrlr_shared_handler(void *arg);
 
-static devclass_t ufshci_devclass;
-
 #endif /* __UFSHCI_PRIVATE_H__ */
