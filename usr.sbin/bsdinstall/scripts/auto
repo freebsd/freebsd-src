@@ -202,12 +202,16 @@ else
 	unset PKGBASE_DEFAULT_BUTTON
 fi
 
-bsddialog --backtitle "$OSNAME Installer" --title "Select Installation Type" \
-	--yes-label "Traditional" --no-label "Packages (Experimental)" --yesno \
-	$PKGBASE_DEFAULT_BUTTON \
-	"Would you like to install the base system using traditional distribution sets or packages (experimental)?" 0 0
-if [ $? -eq 1 ]; then
+if [ ! -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
 	PKGBASE=yes
+else
+	bsddialog --backtitle "$OSNAME Installer" --title "Select Installation Type" \
+		--yes-label "Traditional" --no-label "Packages (Experimental)" --yesno \
+		$PKGBASE_DEFAULT_BUTTON \
+		"Would you like to install the base system using traditional distribution sets or packages (experimental)?" 0 0
+	if [ $? -eq 1 ]; then
+		PKGBASE=yes
+	fi
 fi
 
 if [ "$PKGBASE" == yes ]; then
