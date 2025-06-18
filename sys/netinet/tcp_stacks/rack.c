@@ -621,7 +621,7 @@ rack_swap_beta_values(struct tcp_rack *rack, uint8_t flex8)
 	struct tcpcb *tp;
 	uint32_t old_beta;
 	uint32_t old_beta_ecn;
-	int error, failed = 0;
+	int error = 0, failed = 0;
 
 	tp = rack->rc_tp;
 	if (tp->t_cc == NULL) {
@@ -8032,6 +8032,7 @@ skip_time_check:
 		ret = rack_timeout_rack(tp, rack, cts);
 	} else if (timers & PACE_TMR_TLP) {
 		rack->r_ctl.rc_tlp_rxt_last_time = cts;
+		rack->r_fast_output = 0;
 		ret = rack_timeout_tlp(tp, rack, cts, doing_tlp);
 	} else if (timers & PACE_TMR_RXT) {
 		rack->r_ctl.rc_tlp_rxt_last_time = cts;
@@ -20888,6 +20889,7 @@ just_return_nolock:
 			    rack->r_fsb_inited &&
 			    TCPS_HAVEESTABLISHED(tp->t_state) &&
 			    ((IN_RECOVERY(tp->t_flags)) == 0) &&
+			    (doing_tlp == 0) &&
 			    (rack->r_must_retran == 0) &&
 			    ((tp->t_flags & TF_NEEDFIN) == 0) &&
 			    (len > 0) && (orig_len > 0) &&
@@ -21381,7 +21383,8 @@ send:
 				if (max_len <= 0) {
 					len = 0;
 				} else if (len > max_len) {
-					sendalot = 1;
+					if (doing_tlp == 0)
+						sendalot = 1;
 					len = max_len;
 					mark = 2;
 				}
@@ -22078,6 +22081,8 @@ out:
 	 * In transmit state, time the transmission and arrange for the
 	 * retransmit.  In persist state, just set snd_max.
 	 */
+	if ((rsm == NULL) &&  doing_tlp)
+		add_flag |= RACK_TLP;
 	rack_log_output(tp, &to, len, rack_seq, (uint8_t) flags, error,
 			rack_to_usec_ts(&tv),
 			rsm, add_flag, s_mb, s_moff, hw_tls, segsiz);
@@ -22164,15 +22169,14 @@ out:
 			rack->r_ctl.rc_prr_sndcnt = 0;
 	}
 	sub_from_prr = 0;
-	if (doing_tlp) {
-		/* Make sure the TLP is added */
-		add_flag |= RACK_TLP;
-	} else if (rsm) {
-		/* If its a resend without TLP then it must not have the flag */
-		rsm->r_flags &= ~RACK_TLP;
-	}
-
-
+	if (rsm != NULL) {
+		if (doing_tlp)
+			/* Make sure the TLP is added */
+			rsm->r_flags |= RACK_TLP;
+		else
+			/* If its a resend without TLP then it must not have the flag */
+			rsm->r_flags &= ~RACK_TLP;
+ 	}
 	if ((error == 0) &&
 	    (len > 0) &&
 	    (tp->snd_una == tp->snd_max))
@@ -22510,6 +22514,7 @@ enobufs:
 		    ((flags & (TH_SYN|TH_FIN)) == 0) &&
 		    (rsm == NULL) &&
 		    (ipoptlen == 0) &&
+		    (doing_tlp == 0) &&
 		    rack->r_fsb_inited &&
 		    TCPS_HAVEESTABLISHED(tp->t_state) &&
 		    ((IN_RECOVERY(tp->t_flags)) == 0) &&
@@ -22536,6 +22541,7 @@ enobufs:
 		    rack_use_rfo &&
 		    ((flags & (TH_SYN|TH_FIN)) == 0) &&
 		    (rsm == NULL) &&
+		    (doing_tlp == 0) &&
 		    (ipoptlen == 0) &&
 		    (rack->r_must_retran == 0) &&
 		    rack->r_fsb_inited &&
