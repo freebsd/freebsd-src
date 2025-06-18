@@ -86,7 +86,7 @@ SRCS+=		tools/lld/lld.cpp
 
 LIBDEPS+=	llvm
 
-.if defined(TOOLS_PREFIX)
+.if defined(TOOLS_PREFIX) || ${MK_LLVM_LINK_STATIC_LIBRARIES} == "yes"
 LIBPRIV=
 LIBEXT=		a
 .else
