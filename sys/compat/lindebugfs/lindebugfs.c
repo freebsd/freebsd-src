@@ -104,7 +104,7 @@ debugfs_destroy(PFS_DESTROY_ARGS)
 	struct dentry_meta *dm;
 
 	dm = pn->pn_data;
-	if (dm->dm_type == DM_SYMLINK)
+	if (dm != NULL && dm->dm_type == DM_SYMLINK)
 		free(dm->dm_data, M_DFSINT);
 
 	free(dm, M_DFSINT);
