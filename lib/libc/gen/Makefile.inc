@@ -370,7 +370,8 @@ MLINKS+=exec.3 execl.3 \
 	exec.3 exect.3 \
 	exec.3 execv.3 \
 	exec.3 execvP.3 \
-	exec.3 execvp.3
+	exec.3 execvp.3 \
+	exec.3 execvpe.3
 MLINKS+=fpclassify.3 finite.3 \
 	fpclassify.3 finitef.3 \
 	fpclassify.3 isfinite.3 \
