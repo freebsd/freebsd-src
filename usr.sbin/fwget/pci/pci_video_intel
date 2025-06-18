@@ -72,7 +72,7 @@ pci_video_intel()
 			addpkg "gpu-firmware-intel-kmod-alderlake gpu-firmware-intel-kmod-tigerlake"
 			;;
 		*)
-			log "No package found for device $1"
+			log_verbose "No package found for device $1"
 			;;
 	esac
 }
