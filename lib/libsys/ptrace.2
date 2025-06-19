@@ -1,7 +1,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd August 18, 2023
+.Dd June 19, 2025
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -473,6 +473,16 @@ This request is like PT_CONTINUE, except that it does not allow
 specifying an alternate place to continue execution, and after it
 succeeds, the traced process is no longer traced and continues
 execution normally.
+.Pp
+The parent of the traced process will be sent a
+.Dv SIGCHLD
+to indicate that the process has continued from a stopped state regardless of
+whether the process was in a stopped state prior to the corresponding
+.Dv PT_ATTACH
+request.
+A
+.Xr wait 2
+for the traced process would indicate that it had been continued.
 .It Dv PT_GETREGS
 This request reads the traced process's machine registers into the
 .Do

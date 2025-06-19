@@ -2461,8 +2461,6 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			PROC_SLOCK(p);
 			if (p->p_numthreads == p->p_suspcount) {
 				PROC_SUNLOCK(p);
-				p->p_flag |= P_CONTINUED;
-				p->p_xsig = SIGCONT;
 				PROC_LOCK(p->p_pptr);
 				childproc_continued(p);
 				PROC_UNLOCK(p->p_pptr);
@@ -3778,6 +3776,9 @@ childproc_stopped(struct proc *p, int reason)
 void
 childproc_continued(struct proc *p)
 {
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	p->p_flag |= P_CONTINUED;
+	p->p_xsig = SIGCONT;
 	childproc_jobstate(p, CLD_CONTINUED, SIGCONT);
 }
 
