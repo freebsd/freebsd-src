@@ -1983,7 +1983,10 @@ vm_page_iter_rename(struct pctrie_iter *old_pages, vm_page_t m,
  *				intends to allocate
  *	VM_ALLOC_NOBUSY		do not exclusive busy the page
  *	VM_ALLOC_NODUMP		do not include the page in a kernel core dump
+ *	VM_ALLOC_NOFREE		page will never be freed
+ *	VM_ALLOC_NOWAIT		ignored (default behavior)
  *	VM_ALLOC_SBUSY		shared busy the allocated page
+ *	VM_ALLOC_WAITFAIL	in case of failure, sleep before returning
  *	VM_ALLOC_WIRED		wire the allocated page
  *	VM_ALLOC_ZERO		prefer a zeroed page
  */
@@ -2081,11 +2084,12 @@ vm_page_alloc_domain_iter(vm_object_t object, vm_pindex_t pindex, int domain,
 	vm_page_t m;
 	int flags;
 
-#define	VPA_FLAGS	(VM_ALLOC_CLASS_MASK | VM_ALLOC_WAITFAIL |	\
-			 VM_ALLOC_NOWAIT | VM_ALLOC_NOBUSY |		\
-			 VM_ALLOC_SBUSY | VM_ALLOC_WIRED |		\
-			 VM_ALLOC_NODUMP | VM_ALLOC_ZERO |		\
-			 VM_ALLOC_NOFREE | VM_ALLOC_COUNT_MASK)
+#define	VM_ALLOC_COMMON	(VM_ALLOC_CLASS_MASK | VM_ALLOC_NODUMP |	\
+			 VM_ALLOC_NOWAIT | VM_ALLOC_WAITFAIL |		\
+			 VM_ALLOC_WIRED | VM_ALLOC_ZERO)
+#define	VPA_FLAGS	(VM_ALLOC_COMMON | VM_ALLOC_COUNT_MASK |	\
+			 VM_ALLOC_NOBUSY | VM_ALLOC_NOFREE |		\
+			 VM_ALLOC_SBUSY)
 	KASSERT((req & ~VPA_FLAGS) == 0,
 	    ("invalid request %#x", req));
 	KASSERT(((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) !=
@@ -2234,15 +2238,18 @@ found:
  *
  *	allocation classes:
  *	VM_ALLOC_NORMAL		normal process request
- *	VM_ALLOC_SYSTEM		system *really* needs a page
+ *	VM_ALLOC_SYSTEM		system *really* needs the pages
  *	VM_ALLOC_INTERRUPT	interrupt time request
  *
  *	optional allocation flags:
- *	VM_ALLOC_NOBUSY		do not exclusive busy the page
- *	VM_ALLOC_NODUMP		do not include the page in a kernel core dump
- *	VM_ALLOC_SBUSY		shared busy the allocated page
- *	VM_ALLOC_WIRED		wire the allocated page
- *	VM_ALLOC_ZERO		prefer a zeroed page
+ *	VM_ALLOC_NOBUSY		do not exclusive busy the pages
+ *	VM_ALLOC_NODUMP		do not include the pages in a kernel core dump
+ *	VM_ALLOC_NORECLAIM	do not reclaim after initial failure
+ *	VM_ALLOC_NOWAIT		ignored (default behavior)
+ *	VM_ALLOC_SBUSY		shared busy the allocated pages
+ *	VM_ALLOC_WAITFAIL	in case of failure, sleep before returning
+ *	VM_ALLOC_WIRED		wire the allocated pages
+ *	VM_ALLOC_ZERO		prefer zeroed pages
  */
 vm_page_t
 vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
@@ -2321,7 +2328,9 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 	vm_page_t m, m_ret, mpred;
 	u_int busy_lock, flags, oflags;
 
-#define	VPAC_FLAGS	(VPA_FLAGS | VM_ALLOC_NORECLAIM)
+#define	VPAC_FLAGS	(VM_ALLOC_COMMON | VM_ALLOC_COUNT_MASK |	\
+			 VM_ALLOC_NOBUSY | VM_ALLOC_NORECLAIM |		\
+			 VM_ALLOC_SBUSY)
 	KASSERT((req & ~VPAC_FLAGS) == 0,
 	    ("invalid request %#x", req));
 	KASSERT(((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) !=
@@ -2422,11 +2431,8 @@ vm_page_alloc_noobj_domain(int domain, int req)
 	vm_page_t m;
 	int flags;
 
-#define	VPAN_FLAGS	(VM_ALLOC_CLASS_MASK | VM_ALLOC_WAITFAIL |      \
-			 VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK |		\
-			 VM_ALLOC_NOBUSY | VM_ALLOC_WIRED |		\
-			 VM_ALLOC_NODUMP | VM_ALLOC_ZERO |		\
-			 VM_ALLOC_NOFREE | VM_ALLOC_COUNT_MASK)
+#define	VPAN_FLAGS	(VM_ALLOC_COMMON | VM_ALLOC_COUNT_MASK |	\
+			 VM_ALLOC_NOFREE | VM_ALLOC_WAITOK)
 	KASSERT((req & ~VPAN_FLAGS) == 0,
 	    ("invalid request %#x", req));
 
@@ -2624,14 +2630,12 @@ vm_page_alloc_noobj_contig_domain(int domain, int req, u_long npages,
 	vm_page_t m, m_ret;
 	u_int flags;
 
-#define	VPANC_FLAGS	(VPAN_FLAGS | VM_ALLOC_NORECLAIM)
+#define	VPANC_FLAGS	(VM_ALLOC_COMMON | VM_ALLOC_COUNT_MASK |	\
+			 VM_ALLOC_NORECLAIM | VM_ALLOC_WAITOK)
 	KASSERT((req & ~VPANC_FLAGS) == 0,
 	    ("invalid request %#x", req));
 	KASSERT((req & (VM_ALLOC_WAITOK | VM_ALLOC_NORECLAIM)) !=
 	    (VM_ALLOC_WAITOK | VM_ALLOC_NORECLAIM),
-	    ("invalid request %#x", req));
-	KASSERT(((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) !=
-	    (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)),
 	    ("invalid request %#x", req));
 	KASSERT(npages > 0, ("vm_page_alloc_contig: npages is zero"));
 
@@ -5141,15 +5145,20 @@ vm_page_grab_valid_unlocked(vm_page_t *mp, vm_object_t object,
  * allocation classes:
  *	VM_ALLOC_NORMAL		normal process request
  *	VM_ALLOC_SYSTEM		system *really* needs the pages
+ *	VM_ALLOC_INTERRUPT	interrupt time request
  *
  * The caller must always specify that the pages are to be busied and/or
  * wired.
  *
  * optional allocation flags:
  *	VM_ALLOC_IGN_SBUSY	do not sleep on soft busy pages
- *	VM_ALLOC_NOBUSY		do not exclusive busy the page
+ *	VM_ALLOC_NOBUSY		do not exclusive busy the pages
+ *	VM_ALLOC_NODUMP		do not include the pages in a kernel core dump
+ *	VM_ALLOC_NOFREE		pages will never be freed
  *	VM_ALLOC_NOWAIT		do not sleep
- *	VM_ALLOC_SBUSY		set page to sbusy state
+ *	VM_ALLOC_SBUSY		set pages to sbusy state
+ *	VM_ALLOC_WAITFAIL	in case of failure, sleep before returning
+ *	VM_ALLOC_WAITOK		ignored (default behavior)
  *	VM_ALLOC_WIRED		wire the pages
  *	VM_ALLOC_ZERO		zero and validate any invalid pages
  *

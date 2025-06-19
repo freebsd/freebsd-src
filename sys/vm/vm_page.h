@@ -462,13 +462,15 @@ extern long first_page;			/* first physical page number */
 vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
 /*
- * Page allocation parameters for vm_page for the functions
- * vm_page_alloc(), vm_page_grab(), vm_page_alloc_contig() and
- * vm_page_alloc_freelist().  Some functions support only a subset
- * of the flags, and ignore others, see the flags legend.
+ * vm_page allocation arguments for the functions vm_page_alloc(),
+ * vm_page_alloc_contig(), vm_page_alloc_noobj(), vm_page_grab(), and
+ * vm_page_grab_pages().  Each function supports only a subset of the flags.
+ * See the flags legend.
  *
- * The meaning of VM_ALLOC_ZERO differs slightly between the vm_page_alloc*()
- * and the vm_page_grab*() functions.  See these functions for details.
+ * The meaning of VM_ALLOC_ZERO varies: vm_page_alloc_noobj(), vm_page_grab(),
+ * and vm_page_grab_pages() guarantee that the returned pages are zeroed; in
+ * contrast vm_page_alloc() and vm_page_alloc_contig() do not, leaving it to
+ * the caller to test the page's flags for PG_ZERO.
  *
  * Bits 0 - 1 define class.
  * Bits 2 - 15 dedicated for flags.
@@ -476,7 +478,7 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
  * (a) - vm_page_alloc() supports the flag.
  * (c) - vm_page_alloc_contig() supports the flag.
  * (g) - vm_page_grab() supports the flag.
- * (n) - vm_page_alloc_noobj() and vm_page_alloc_freelist() support the flag.
+ * (n) - vm_page_alloc_noobj() supports the flag.
  * (p) - vm_page_grab_pages() supports the flag.
  * Bits above 15 define the count of additional pages that the caller
  * intends to allocate.
@@ -485,26 +487,26 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define VM_ALLOC_INTERRUPT	1
 #define VM_ALLOC_SYSTEM		2
 #define	VM_ALLOC_CLASS_MASK	3
-#define	VM_ALLOC_WAITOK		0x0008	/* (acn) Sleep and retry */
-#define	VM_ALLOC_WAITFAIL	0x0010	/* (acn) Sleep and return error */
+#define	VM_ALLOC_WAITOK		0x0008	/* (gnp) Sleep and retry */
+#define	VM_ALLOC_WAITFAIL	0x0010	/* (acgnp) Sleep and return error */
 #define	VM_ALLOC_WIRED		0x0020	/* (acgnp) Allocate a wired page */
 #define	VM_ALLOC_ZERO		0x0040	/* (acgnp) Allocate a zeroed page */
 #define	VM_ALLOC_NORECLAIM	0x0080	/* (c) Do not reclaim after failure */
-#define	VM_ALLOC_NOFREE		0x0100	/* (an) Page will never be released */
+#define	VM_ALLOC_NOFREE		0x0100	/* (agnp) Page will never be freed */
 #define	VM_ALLOC_NOBUSY		0x0200	/* (acgp) Do not excl busy the page */
-#define	VM_ALLOC_NOCREAT	0x0400	/* (gp) Don't create a page */
+#define	VM_ALLOC_NOCREAT	0x0400	/* (gp) Do not allocate a page */
 #define	VM_ALLOC_AVAIL1		0x0800
-#define	VM_ALLOC_IGN_SBUSY	0x1000	/* (gp) Ignore shared busy flag */
-#define	VM_ALLOC_NODUMP		0x2000	/* (ag) don't include in dump */
+#define	VM_ALLOC_IGN_SBUSY	0x1000	/* (gp) Ignore shared busy state */
+#define	VM_ALLOC_NODUMP		0x2000	/* (acgnp) Do not include in dump */
 #define	VM_ALLOC_SBUSY		0x4000	/* (acgp) Shared busy the page */
 #define	VM_ALLOC_NOWAIT		0x8000	/* (acgnp) Do not sleep */
 #define	VM_ALLOC_COUNT_MAX	0xffff
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT_MASK	(VM_ALLOC_COUNT(VM_ALLOC_COUNT_MAX))
-#define	VM_ALLOC_COUNT(count)	({				\
-	KASSERT((count) <= VM_ALLOC_COUNT_MAX,			\
-	    ("%s: invalid VM_ALLOC_COUNT value", __func__));	\
-	(count) << VM_ALLOC_COUNT_SHIFT;			\
+#define	VM_ALLOC_COUNT(count)	({ 	/* (acgn) Additional pages */	\
+	KASSERT((count) <= VM_ALLOC_COUNT_MAX,				\
+	    ("%s: invalid VM_ALLOC_COUNT value", __func__));		\
+	(count) << VM_ALLOC_COUNT_SHIFT;				\
 })
 
 #ifdef M_NOWAIT
