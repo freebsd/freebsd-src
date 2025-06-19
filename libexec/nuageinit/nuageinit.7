@@ -14,19 +14,19 @@ The
 program is used to initialize instances in a cloud environment.
 .Nm
 runs at the first boot after the system installation.
-It is composed of 3
+It is composed of three
 .Xr rc 8
 scripts:
 .Bl -tag -width "nuageinit"
 .It Cm nuageinit
-This script will detect the configuration disk kind of cloud environment the
-system runs on and gather accordingly the configuration data.
+This script detects the type of cloud environment and gathers
+the configuration data accordingly.
 The following cloud environments are supported right now:
 .Bl -tag -width "OpenStack"
 .It ondisk
 A cloud agnostic environment where the disk is provided to the system
 with the configuration data on it.
-The disk should be formatted in one of the following formats:
+The disk must be formatted using one of the following filesystems:
 .Xr cd9660 4
 or
 .Xr msdosfs 4
@@ -69,12 +69,12 @@ The default user for nuageinit is a user named
 .Va freebsd
 with a password set to
 .Va freebsd
-and a shell set to
+and a login shell set to
 .Va /bin/sh .
 .Sh CONFIGURATION
 The configuration of
 .Nm
-is typically done via metadata provided by the cloud provider.
+is typically provided as metadata by the cloud provider.
 The metadata is presented to nuageinit in different forms depending on
 the provider:
 .Bl -tag -width "config-2"
@@ -85,7 +85,7 @@ then the metadata is provided in the form of a file named
 .Pa meta-data
 in YAML format.
 .Nm
-will configure the hostname of the instance according the value of the
+will configure the hostname of the instance according to the value of the
 following variables
 .Va local-hostname
 or
@@ -127,7 +127,7 @@ If this file starts with a
 .Qq #! ,
 it will be executed at the end of the boot via
 .Cm nuageinit_user_data_script .
-If this files starts with
+If this file starts with
 .Qq #!cloud-config ,
 it will be parsed as a YAML configuration file.
 All other cases will be ignored.
@@ -217,12 +217,12 @@ An entry which should be appended to
 .Pp
 A special case exist: if the entry is a simple string with the value
 .Qq default ,
-than the default user is created.
+then the default user is created.
 .It Ic chpasswd
 Change the passwords for users, it accepts the following keys:
 .Bl -tag -width "expire"
 .It Ic expire
-Boolean to force the user to changes their password during the first login
+Boolean to force the user to change their password on first login.
 .It Ic users
 An array of objects:
 .Bl -tag -width "password"
