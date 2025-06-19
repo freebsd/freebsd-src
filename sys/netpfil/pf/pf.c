@@ -9829,9 +9829,11 @@ pf_walk_header6(struct pf_pdesc *pd, struct ip6_hdr *h, u_short *reason)
 	pd->proto = h->ip6_nxt;
 	for (hdr_cnt = 0; hdr_cnt < PF_HDR_LIMIT; hdr_cnt++) {
 		switch (pd->proto) {
+		case IPPROTO_ROUTING:
 		case IPPROTO_HOPOPTS:
 		case IPPROTO_DSTOPTS:
 			pd->badopts++;
+			break;
 		}
 		switch (pd->proto) {
 		case IPPROTO_FRAGMENT:
