@@ -129,7 +129,7 @@ static struct ieee80211_node *mwl_node_alloc(struct ieee80211vap *,
 static void	mwl_node_cleanup(struct ieee80211_node *);
 static void	mwl_node_drain(struct ieee80211_node *);
 static void	mwl_node_getsignal(const struct ieee80211_node *,
-			int8_t *, int8_t *);
+			net80211_rssi_t *, int8_t *);
 static void	mwl_node_getmimoinfo(const struct ieee80211_node *,
 			struct ieee80211_mimo_info *);
 static int	mwl_rxbuf_init(struct mwl_softc *, struct mwl_rxbuf *);
@@ -2390,7 +2390,7 @@ mwl_node_drain(struct ieee80211_node *ni)
 }
 
 static void
-mwl_node_getsignal(const struct ieee80211_node *ni, int8_t *rssi, int8_t *noise)
+mwl_node_getsignal(const struct ieee80211_node *ni, net80211_rssi_t *rssi, int8_t *noise)
 {
 	*rssi = ni->ni_ic->ic_node_getrssi(ni);
 #ifdef MWL_ANT_INFO_SUPPORT

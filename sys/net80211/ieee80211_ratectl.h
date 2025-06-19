@@ -63,7 +63,7 @@ struct ieee80211_ratectl_tx_status {
 	int		final_rate;	/* transmission rate */
 	uint_fast8_t	short_retries;	/* RTS/CTS retries */
 	uint_fast8_t	long_retries;	/* ACK retries */
-	int8_t		rssi;		/* ACK RSSI */
+	net80211_rssi_t	rssi;		/* ACK RSSI */
 
 	uint8_t		spare[15];	/* for future use */
 };

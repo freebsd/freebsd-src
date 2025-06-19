@@ -379,6 +379,7 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 	struct ieee80211_node_txrate tr;
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211req_sta_info *si;
+	net80211_rssi_t rssi;
 	size_t ielen, len;
 	uint8_t *cp;
 
@@ -398,7 +399,8 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 	si->isi_flags = ni->ni_chan->ic_flags;
 	si->isi_state = ni->ni_flags;
 	si->isi_authmode = ni->ni_authmode;
-	vap->iv_ic->ic_node_getsignal(ni, &si->isi_rssi, &si->isi_noise);
+	vap->iv_ic->ic_node_getsignal(ni, &rssi, &si->isi_noise);
+	si->isi_rssi = rssi;
 	vap->iv_ic->ic_node_getmimoinfo(ni, &si->isi_mimo);
 	si->isi_capinfo = ni->ni_capinfo;
 	si->isi_erp = ni->ni_erp;
