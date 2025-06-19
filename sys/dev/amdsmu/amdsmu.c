@@ -281,6 +281,14 @@ amdsmu_dump_metrics(device_t dev)
 	return (0);
 }
 
+static void
+amdsmu_fetch_idlemask(device_t dev)
+{
+	struct amdsmu_softc *sc = device_get_softc(dev);
+
+	sc->idlemask = amdsmu_read4(sc, SMU_REG_IDLEMASK);
+}
+
 static int
 amdsmu_attach(device_t dev)
 {
@@ -406,6 +414,13 @@ amdsmu_attach(device_t dev)
 	err = amdsmu_get_ip_blocks(dev);
 	if (err != 0)
 		goto err_dump;
+
+	/* Get idlemask & add sysctl. */
+	amdsmu_fetch_idlemask(dev);
+	SYSCTL_ADD_U32(sc->sysctlctx, SYSCTL_CHILDREN(sc->sysctlnode), OID_AUTO,
+	    "idlemask", CTLFLAG_RD, &sc->idlemask, 0, "SMU idlemask. This "
+	    "value is not documented - only used to help AMD internally debug "
+	    "issues");
 
 	return (0);
 err_dump:
