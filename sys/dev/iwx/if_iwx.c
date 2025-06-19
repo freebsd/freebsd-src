@@ -4642,7 +4642,6 @@ iwx_rx_mpdu_mq(struct iwx_softc *sc, struct mbuf *m, void *pktdata,
 	rxs.r_flags |= IEEE80211_R_IEEE | IEEE80211_R_FREQ;
 	rxs.r_flags |= IEEE80211_R_BAND;
 	rxs.r_flags |= IEEE80211_R_NF | IEEE80211_R_RSSI;
-	rxs.r_flags |= IEEE80211_R_RSSI | IEEE80211_R_C_RSSI;
 	rxs.r_flags |= IEEE80211_R_TSF32 | IEEE80211_R_TSF_START;
 
 	rxs.c_ieee = chanidx;
