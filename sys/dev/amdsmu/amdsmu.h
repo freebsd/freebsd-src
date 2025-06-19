@@ -77,6 +77,7 @@ struct amdsmu_softc {
 
 	bus_space_handle_t	metrics_space;
 	struct amdsmu_metrics	metrics;
+	uint32_t		idlemask;
 };
 
 static inline uint32_t

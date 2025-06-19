@@ -32,6 +32,7 @@
 #define SMU_REG_MESSAGE		0x538
 #define SMU_REG_RESPONSE	0x980
 #define SMU_REG_ARGUMENT	0x9BC
+#define SMU_REG_IDLEMASK	0xD14
 
 enum amdsmu_res {
 	SMU_RES_WAIT		= 0x00,
