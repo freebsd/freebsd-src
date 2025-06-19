@@ -611,9 +611,13 @@ passregister(struct cam_periph *periph, void *arg)
 		softc->flags |= PASS_FLAG_UNMAPPED_CAPABLE;
 
 	/*
-	 * We pass in 0 for a blocksize, since we don't 
-	 * know what the blocksize of this device is, if 
-	 * it even has a blocksize.
+	 * We pass in 0 for a blocksize, since we don't know what the blocksize
+	 * of this device is, if it even has a blocksize.
+	 *
+	 * Note: no_tags is valid only for SCSI peripherals, but we don't do any
+	 * devstat accounting for tags on any other transport. SCSI is the only
+	 * transport that uses the tag_action (ata has only vestigial references
+	 * to it, others ignore it entirely).
 	 */
 	cam_periph_unlock(periph);
 	no_tags = (cgd->inq_data.flags & SID_CmdQue) == 0;
@@ -974,6 +978,7 @@ passdone(struct cam_periph *periph, union ccb *done_ccb)
 			    DEVSTAT_TAG_SIMPLE, DEVSTAT_READ, NULL,
 			    &io_req->start_time);
 			break;
+		/* XXX XPT_NVME_IO and XPT_NVME_ADMIN need cases here for resid */
 		default:
 			devstat_end_transaction(softc->device_stats, 0,
 			    DEVSTAT_TAG_NONE, DEVSTAT_NO_DATA, NULL,
