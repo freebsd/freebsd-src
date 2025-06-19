@@ -401,14 +401,13 @@ gpiobus_acquire_pin(device_t bus, uint32_t pin)
 	sc = device_get_softc(bus);
 	/* Consistency check. */
 	if (pin >= sc->sc_npins) {
-		device_printf(bus,
-		    "invalid pin %d, max: %d\n", pin, sc->sc_npins - 1);
-		return (-1);
+		panic("%s: invalid pin %d, max: %d",
+		    device_get_nameunit(bus), pin, sc->sc_npins - 1);
 	}
 	/* Mark pin as mapped and give warning if it's already mapped. */
 	if (sc->sc_pins[pin].mapped) {
 		device_printf(bus, "warning: pin %d is already mapped\n", pin);
-		return (-1);
+		return (EBUSY);
 	}
 	sc->sc_pins[pin].mapped = 1;
 
