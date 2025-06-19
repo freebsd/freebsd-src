@@ -528,8 +528,8 @@ struct ieee80211_node *ieee80211_add_neighbor(struct ieee80211vap *,
 		const struct ieee80211_scanparams *);
 void	ieee80211_node_join(struct ieee80211_node *,int);
 void	ieee80211_node_leave(struct ieee80211_node *);
-int8_t	ieee80211_getrssi(struct ieee80211vap *);
-void	ieee80211_getsignal(struct ieee80211vap *, int8_t *, int8_t *);
+net80211_rssi_t	ieee80211_getrssi(struct ieee80211vap *);
+void	ieee80211_getsignal(struct ieee80211vap *, net80211_rssi_t *, int8_t *);
 
 /* TX sequence space related routines */
 ieee80211_seq	ieee80211_tx_seqno_fetch_incr(struct ieee80211_node *,
