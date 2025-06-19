@@ -4194,6 +4194,19 @@ iwx_rxmq_get_signal_strength(struct iwx_softc *sc,
 	return MAX(energy_a, energy_b);
 }
 
+static int
+iwx_rxmq_get_chains(struct iwx_softc *sc,
+    struct iwx_rx_mpdu_desc *desc)
+{
+
+	if (sc->sc_device_family >= IWX_DEVICE_FAMILY_AX210)
+		return ((desc->v3.rate_n_flags & IWX_RATE_MCS_ANT_AB_MSK) >>
+		    IWX_RATE_MCS_ANT_POS);
+	else
+		return ((desc->v1.rate_n_flags & IWX_RATE_MCS_ANT_AB_MSK) >>
+		    IWX_RATE_MCS_ANT_POS);
+}
+
 static void
 iwx_rx_rx_phy_cmd(struct iwx_softc *sc, struct iwx_rx_packet *pkt,
     struct iwx_rx_data *data)
@@ -4637,7 +4650,9 @@ iwx_rx_mpdu_mq(struct iwx_softc *sc, struct mbuf *m, void *pktdata,
 	    chanidx <= 14 ? IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
 	rxs.c_band = chanidx <= 14 ? IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ;
 	rxs.c_rx_tsf = device_timestamp;
-	rxs.c_chain = chanidx;
+	rxs.c_chain = iwx_rxmq_get_chains(sc, desc);
+	if (rxs.c_chain != 0)
+		rxs.r_flags |= IEEE80211_R_C_CHAIN;
 
 	/* rssi is in 1/2db units */
 	rxs.c_rssi = rssi * 2;
