@@ -570,12 +570,11 @@ sysctl_osreldate(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * NOTICE: The *userland* release date is available in
- * /usr/include/osreldate.h
+ * NOTICE: The *userland* version is available in /usr/include/osreldate.h
  */
 SYSCTL_PROC(_kern, KERN_OSRELDATE, osreldate,
     CTLTYPE_INT | CTLFLAG_CAPRD | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, 0, sysctl_osreldate, "I", "Kernel release date");
+    NULL, 0, sysctl_osreldate, "I", "Kernel version");
 
 /*
  * The build-id is copied from the ELF section .note.gnu.build-id.  The linker
