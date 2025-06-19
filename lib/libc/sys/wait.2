@@ -27,7 +27,7 @@
 .\"
 .\"     @(#)wait.2	8.2 (Berkeley) 4/19/94
 .\"
-.Dd June 24, 2022
+.Dd July 3, 2025
 .Dt WAIT 2
 .Os
 .Sh NAME
@@ -275,6 +275,10 @@ Report the status of selected processes that
 have continued from a job control stop by receiving a
 .Dv SIGCONT
 signal.
+.Xr ptrace 2
+can also cause a process to be continued, when a
+.Dv PT_DETACH
+request is issued to detach the debugger.
 .It Dv WNOHANG
 Do not block when
 there are no processes wishing to report status.
@@ -452,7 +456,7 @@ value:
 .Bl -tag -width Ds
 .It Fn WIFCONTINUED status
 True if the process has not terminated, and
-has continued after a job control stop.
+has continued after a job control stop or detach of a debugger.
 This macro can be true only if the wait call specified the
 .Dv WCONTINUED
 option.
