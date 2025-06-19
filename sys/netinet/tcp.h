@@ -224,6 +224,7 @@ __tcp_set_flags(struct tcphdr *th, uint16_t flags)
 #define	TCP_KEEPINTVL		512	/* L,N interval between keepalives */
 #define	TCP_KEEPCNT		1024	/* L,N number of keepalives before close */
 #define	TCP_FASTOPEN		1025	/* enable TFO / was created via TFO */
+#define TCP_FASTOPEN_CONNECT	1027	/* defer connect until data; attempt TFO */
 /* unused			2048	   was TCP_PCAP_OUT */
 /* unused			4096	   was TCP_PCAP_IN */
 #define	TCP_FUNCTION_BLK	8192	/* Set the tcp function pointers to the specified stack */
