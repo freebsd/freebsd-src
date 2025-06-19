@@ -2327,9 +2327,6 @@ vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
 	KASSERT(((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) !=
 	    (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)),
 	    ("invalid request %#x", req));
-	KASSERT((req & (VM_ALLOC_WAITOK | VM_ALLOC_NORECLAIM)) !=
-	    (VM_ALLOC_WAITOK | VM_ALLOC_NORECLAIM),
-	    ("invalid request %#x", req));
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT((object->flags & OBJ_FICTITIOUS) == 0,
 	    ("vm_page_alloc_contig: object %p has fictitious pages",
