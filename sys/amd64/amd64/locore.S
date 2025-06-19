@@ -40,11 +40,9 @@
 /*
  * Compiled KERNBASE location
  */
-	.globl	kernbase, kernload, dmapbase, dmapend
+	.globl	kernbase, kernload
 	.set	kernbase,KERNBASE
 	.set    kernload,KERNLOAD
-	.set	dmapbase,DMAP_MIN_ADDRESS
-	.set	dmapend,DMAP_MAX_ADDRESS
 
 #define	BOOTSTACK_SIZE	(PAGE_SIZE * KSTACK_PAGES)
 
