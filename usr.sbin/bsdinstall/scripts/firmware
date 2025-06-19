@@ -115,11 +115,23 @@ f_quietly cp -f $BSDINSTALL_TMPETC/resolv.conf $BSDINSTALL_CHROOT/etc/
 ${DIALOG} --title "$DIALOG_TITLE" --backtitle "$DIALOG_BACKTITLE" \
 	--infobox "Installing firmware. This may take a moment." 0 0
 
+pkg_install_fail=
 # Install each of the selected firmware packages
 for fw in ${selected}; do
 	# We install one at a time in case one is not avail.
 	# pkg-install.8 needs an option to skip unavail.
 	ASSUME_ALWAYS_YES=YES chroot $BSDINSTALL_CHROOT pkg install -qy ${fw}
+	if [ $? -ne 0 ]; then
+		pkg_install_fail="$pkg_install_fail $fw"
+	fi
 done
+if [ -n "$pkg_install_fail" ]; then
+	# Error(s) were likely spammed to the console; give the user a moment
+	# to read them.
+	sleep 5
+	bsddialog --backtitle "$OSNAME Installer" --title "Error" \
+	    --msgbox "Error fetching firmware file(s)$pkg_install_fail" 0 0
+		exit 1
+fi
 
 # end
