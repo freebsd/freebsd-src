@@ -516,7 +516,7 @@ mtw_attach(device_t self)
 	struct ieee80211com *ic = &sc->sc_ic;
 	uint32_t ver;
 	int i, ret;
-	//	uint32_t tmp;
+	uint32_t tmp;
 	uint8_t iface_index;
 	int ntries, error;
 
@@ -578,6 +578,11 @@ mtw_attach(device_t self)
 		 sc->asic_rev);
 		goto detach;
 	}
+
+
+	if (mtw_read(sc, MTW_MAC_VER_ID, &tmp) != 0)
+		goto detach;
+	sc->mac_rev = tmp & 0xffff;
 
 	mtw_load_microcode(sc);
 	ret = msleep(&sc->fwloading, &sc->sc_mtx, 0, "fwload", 3 * hz);
