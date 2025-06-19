@@ -371,7 +371,7 @@ racct_getpcpu(struct proc *p, u_int pcpu)
 }
 
 static void
-racct_add_racct(struct racct *dest, const struct racct *src)
+racct_add_racct(struct racct * restrict dest, const struct racct * restrict src)
 {
 	int i;
 
@@ -393,7 +393,7 @@ racct_add_racct(struct racct *dest, const struct racct *src)
 }
 
 static void
-racct_sub_racct(struct racct *dest, const struct racct *src)
+racct_sub_racct(struct racct * restrict dest, const struct racct * restrict src)
 {
 	int i;
 
