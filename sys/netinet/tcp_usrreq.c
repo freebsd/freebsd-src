@@ -530,6 +530,8 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	NET_EPOCH_ENTER(et);
 	if ((error = tcp_connect(tp, sinp, td)) != 0)
 		goto out_in_epoch;
+	if (tp->t_flags2 & TF2_TFO_CONNECT)
+		goto out_in_epoch;
 #ifdef TCP_OFFLOAD
 	if (registered_toedevs > 0 &&
 	    (so->so_options & SO_NO_OFFLOAD) == 0 &&
@@ -923,11 +925,11 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 #ifdef INET6
 	struct sockaddr_in sin;
 #endif
-	struct sockaddr_in *sinp;
+	struct sockaddr_in *sinp = NULL;
 #endif
 #ifdef INET6
-	struct sockaddr_in6 *sin6;
-	int isipv6;
+	struct sockaddr_in6 *sin6 = NULL;
+	int isipv6 = 0;
 #endif
 	u_int8_t incflagsav;
 	u_char vflagsav;
@@ -1063,7 +1065,8 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			tp->t_acktime = ticks;
 		sbappendstream(&so->so_snd, m, flags);
 		m = NULL;
-		if (nam && tp->t_state < TCPS_SYN_SENT) {
+		if ((nam || tp->t_flags2 & TF2_TFO_CONNECT)
+		    && tp->t_state < TCPS_SYN_SENT) {
 			KASSERT(tp->t_state == TCPS_CLOSED,
 			    ("%s: tp %p is listening", __func__, tp));
 
@@ -1474,18 +1477,25 @@ tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
-	if (__predict_false((so->so_state &
-	    (SS_ISCONNECTING | SS_ISCONNECTED | SS_ISDISCONNECTING |
-	    SS_ISDISCONNECTED)) != 0))
-		return (EISCONN);
-	if (__predict_false((so->so_options & SO_REUSEPORT_LB) != 0))
-		return (EOPNOTSUPP);
+	/*
+	 * If not doing the finalization of a TFO lazy-connect,
+	 * bind the remote address.
+	 */
+	if (sin) {
+		if (__predict_false((so->so_state &
+		    (SS_ISCONNECTING | SS_ISCONNECTED | SS_ISDISCONNECTING
+		    | SS_ISDISCONNECTED)
+			) != 0))
+			return (EISCONN);
+		if (__predict_false((so->so_options & SO_REUSEPORT_LB) != 0))
+			return (EOPNOTSUPP);
 
-	INP_HASH_WLOCK(&V_tcbinfo);
-	error = in_pcbconnect(inp, sin, td->td_ucred);
-	INP_HASH_WUNLOCK(&V_tcbinfo);
-	if (error != 0)
-		return (error);
+		INP_HASH_WLOCK(&V_tcbinfo);
+		error = in_pcbconnect(inp, sin, td->td_ucred);
+		INP_HASH_WUNLOCK(&V_tcbinfo);
+		if (error != 0)
+			return (error);
+	}
 
 	/*
 	 * Compute window scaling to request:
@@ -1497,12 +1507,22 @@ tcp_connect(struct tcpcb *tp, struct sockaddr_in *sin, struct thread *td)
 		tp->request_r_scale++;
 
 	soisconnecting(so);
-	TCPSTAT_INC(tcps_connattempt);
-	tcp_state_change(tp, TCPS_SYN_SENT);
-	tp->iss = tcp_new_isn(&inp->inp_inc);
-	if (tp->t_flags & TF_REQ_TSTMP)
-		tp->ts_offset = tcp_new_ts_offset(&inp->inp_inc);
-	tcp_sendseqinit(tp);
+	/*
+	 * If doing the setup stage of a TFO lazy-connect set
+	 * the socket state to connected.  Otherwise (traditional
+	 * case and finalization of TFO lazy-connect) kick off
+	 * the TCP connect sequence.
+	 */
+	if (tp->t_flags2 & TF2_TFO_CONNECT && sin) {
+		soisconnected(so);
+	} else {
+		TCPSTAT_INC(tcps_connattempt);
+		tcp_state_change(tp, TCPS_SYN_SENT);
+		tp->iss = tcp_new_isn(&inp->inp_inc);
+		if (tp->t_flags & TF_REQ_TSTMP)
+			tp->ts_offset = tcp_new_ts_offset(&inp->inp_inc);
+		tcp_sendseqinit(tp);
+	}
 
 	return (0);
 }
@@ -1519,17 +1539,23 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr_in6 *sin6, struct thread *td)
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
 
-	if (__predict_false((so->so_state &
-	    (SS_ISCONNECTING | SS_ISCONNECTED)) != 0))
-		return (EISCONN);
-	if (__predict_false((so->so_options & SO_REUSEPORT_LB) != 0))
-		return (EOPNOTSUPP);
+	/*
+	 * If not doing the finalization of a TFO lazy-connect,
+	 * bind the remote address.
+	 */
+	if (sin6) {
+		if (__predict_false((so->so_state &
+		    (SS_ISCONNECTING | SS_ISCONNECTED)) != 0))
+			return (EISCONN);
+		if (__predict_false((so->so_options & SO_REUSEPORT_LB) != 0))
+			return (EOPNOTSUPP);
 
-	INP_HASH_WLOCK(&V_tcbinfo);
-	error = in6_pcbconnect(inp, sin6, td->td_ucred, true);
-	INP_HASH_WUNLOCK(&V_tcbinfo);
-	if (error != 0)
-		return (error);
+		INP_HASH_WLOCK(&V_tcbinfo);
+		error = in6_pcbconnect(inp, sin6, td->td_ucred, true);
+		INP_HASH_WUNLOCK(&V_tcbinfo);
+		if (error != 0)
+			return (error);
+	}
 
 	/* Compute window scaling to request.  */
 	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
@@ -1537,12 +1563,22 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr_in6 *sin6, struct thread *td)
 		tp->request_r_scale++;
 
 	soisconnecting(so);
-	TCPSTAT_INC(tcps_connattempt);
-	tcp_state_change(tp, TCPS_SYN_SENT);
-	tp->iss = tcp_new_isn(&inp->inp_inc);
-	if (tp->t_flags & TF_REQ_TSTMP)
-		tp->ts_offset = tcp_new_ts_offset(&inp->inp_inc);
-	tcp_sendseqinit(tp);
+	/*
+	 * If doing the setup stage of a TFO lazy-connect set
+	 * the socket state to connected.  Otherwise (traditional
+	 * case and finalization of TFO lazy-connect) kick off
+	 * the TCP connect sequence.
+	 */
+	if (tp->t_flags2 & TF2_TFO_CONNECT && sin6) {
+		soisconnected(so);
+	} else {
+		TCPSTAT_INC(tcps_connattempt);
+		tcp_state_change(tp, TCPS_SYN_SENT);
+		tp->iss = tcp_new_isn(&inp->inp_inc);
+		if (tp->t_flags & TF_REQ_TSTMP)
+			tp->ts_offset = tcp_new_ts_offset(&inp->inp_inc);
+		tcp_sendseqinit(tp);
+	}
 
 	return (0);
 }
@@ -2396,6 +2432,31 @@ unlock_and_done:
 			goto unlock_and_done;
 		}
 
+		case TCP_FASTOPEN_CONNECT:
+			INP_WUNLOCK(inp);
+			if (!V_tcp_fastopen_client_enable &&
+			    !V_tcp_fastopen_server_enable)
+				return (EPERM);
+
+			error = sooptcopyin(sopt, &optval,
+				    sizeof(optval), sizeof(int));
+			if (error)
+				return (error);
+
+			INP_WLOCK_RECHECK(inp);
+			if (tp->t_state != TCPS_CLOSED) {
+				error = EINVAL;
+				goto unlock_and_done;
+			}
+			if (optval) {
+				tp->t_flags |= TF_FASTOPEN;
+				tp->t_flags2 |= TF2_TFO_CONNECT;
+			} else {
+				tp->t_flags &= ~TF_FASTOPEN;
+				tp->t_flags2 &= ~TF2_TFO_CONNECT;
+			}
+			goto unlock_and_done;
+
 #ifdef TCP_BLACKBOX
 		case TCP_LOG:
 			INP_WUNLOCK(inp);
@@ -2580,6 +2641,12 @@ unhold:
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
+		case TCP_FASTOPEN_CONNECT:
+			optval = tp->t_flags2 & TF2_TFO_CONNECT;
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, &optval, sizeof optval);
+			break;
+
 #ifdef TCP_BLACKBOX
 		case TCP_LOG:
 			optval = tcp_get_bblog_state(tp);
