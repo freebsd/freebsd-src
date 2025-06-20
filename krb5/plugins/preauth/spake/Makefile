@@ -28,13 +28,6 @@ SRCS=	edwards25519.c \
 	spake_kdc.c \
 	util.c
 
-INCS=	edwards25519_fiat.h \
-	edwards25519_tables.h \
-	groups.h \
-	iana.h \
-	trace.h \
-	util.h
-
 CFLAGS+=-I${KRB5_DIR}/plugins/preauth/spake \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_SRCTOP}/include

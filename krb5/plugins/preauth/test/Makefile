@@ -24,8 +24,6 @@ SRCS=	cltest.c \
 	common.c \
 	kdctest.c
 
-INCS=	common.h
-
 CFLAGS+=-I${KRB5_DIR}/plugins/preauth/test \
 	-I${KRB5_DIR}/include \
 	-I${KRB5_SRCTOP}/include
