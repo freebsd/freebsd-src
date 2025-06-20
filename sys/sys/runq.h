@@ -60,6 +60,7 @@ struct thread;
 
 typedef unsigned long	rqsw_t;		/* runq's status words type. */
 #define	RQSW_BPW	(sizeof(rqsw_t) * NBBY) /* Bits per runq word. */
+#define RQSW_PRI	"%#lx"		/* printf() directive. */
 
 /* Number of status words to cover RQ_NQS queues. */
 #define	RQSW_NB			(howmany(RQ_NQS, RQSW_BPW))
