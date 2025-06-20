@@ -33,6 +33,8 @@
  */
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
+#include <sys/queue.h>
 
 #include <err.h>
 #include <errno.h>
@@ -44,11 +46,22 @@
 #include <unistd.h>
 #include <wchar.h>
 
+typedef struct _list {
+	STAILQ_ENTRY(_list) entries;
+	FILE *fp;
+	int cnt;
+	int err;
+	char *name;
+} LIST;
+
+static STAILQ_HEAD(head, _list) lh;
+
 static wchar_t *delim;
 static int delimcnt;
+static int filecnt;
 
-static int parallel(char **);
-static int sequential(char **);
+static int parallel(void);
+static int sequential(void);
 static int tr(wchar_t *);
 static void usage(void) __dead2;
 
@@ -57,11 +70,14 @@ static wchar_t tab[] = L"\t";
 int
 main(int argc, char *argv[])
 {
-	int ch, rval, seq;
+	LIST *lp;
+	int ch, failed, rval, seq;
 	wchar_t *warg;
 	const char *arg;
 	size_t len;
+	cap_rights_t rights;
 
+	STAILQ_INIT(&lh);
 	setlocale(LC_CTYPE, "");
 
 	seq = 0;
@@ -71,14 +87,14 @@ main(int argc, char *argv[])
 			arg = optarg;
 			len = mbsrtowcs(NULL, &arg, 0, NULL);
 			if (len == (size_t)-1)
-				err(1, "delimiters");
+				err(EXIT_FAILURE, "delimiters");
 			warg = malloc((len + 1) * sizeof(*warg));
 			if (warg == NULL)
-				err(1, NULL);
+				err(EXIT_FAILURE, NULL);
 			arg = optarg;
 			len = mbsrtowcs(warg, &arg, len + 1, NULL);
 			if (len == (size_t)-1)
-				err(1, "delimiters");
+				err(EXIT_FAILURE, "delimiters");
 			delimcnt = tr(delim = warg);
 			break;
 		case 's':
@@ -98,51 +114,50 @@ main(int argc, char *argv[])
 		delim = tab;
 	}
 
-	if (seq)
-		rval = sequential(argv);
-	else
-		rval = parallel(argv);
+	for (filecnt = 0; *argv; ++argv, ++filecnt) {
+		failed = 0;
+		if ((lp = malloc(sizeof(LIST))) == NULL)
+			err(EXIT_FAILURE, NULL);
+		if ((*argv)[0] == '-' && !(*argv)[1])
+			lp->fp = stdin;
+		else if (!(lp->fp = fopen(*argv, "r"))) {
+			if (!seq)
+				err(EXIT_FAILURE, "%s", *argv);
+			else
+				failed = errno;
+		}
+
+		if (cap_rights_limit(fileno(lp->fp),
+		    cap_rights_init(&rights, CAP_READ)) < 0 &&
+		    errno != ENOSYS)
+			err(EXIT_FAILURE, "unable to limit rights for %s", *argv);
+
+		lp->cnt = filecnt;
+		lp->err = failed;
+		lp->name = *argv;
+
+		STAILQ_INSERT_TAIL(&lh, lp, entries);
+	}
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "failed to enter capability mode");
+
+	rval = seq ? sequential() : parallel();
+
 	exit(rval);
 }
 
-typedef struct _list {
-	struct _list *next;
-	FILE *fp;
-	int cnt;
-	char *name;
-} LIST;
-
 static int
-parallel(char **argv)
+parallel(void)
 {
 	LIST *lp;
-	int cnt;
 	wint_t ich;
 	wchar_t ch;
-	char *p;
-	LIST *head, *tmp;
 	int opencnt, output;
 
-	for (cnt = 0, head = tmp = NULL; (p = *argv); ++argv, ++cnt) {
-		if ((lp = malloc(sizeof(LIST))) == NULL)
-			err(1, NULL);
-		if (p[0] == '-' && !p[1])
-			lp->fp = stdin;
-		else if (!(lp->fp = fopen(p, "r")))
-			err(1, "%s", p);
-		lp->next = NULL;
-		lp->cnt = cnt;
-		lp->name = p;
-		if (!head)
-			head = tmp = lp;
-		else {
-			tmp->next = lp;
-			tmp = lp;
-		}
-	}
-
-	for (opencnt = cnt; opencnt;) {
-		for (output = 0, lp = head; lp; lp = lp->next) {
+	for (opencnt = filecnt; opencnt;) {
+		output = 0;
+		STAILQ_FOREACH(lp, &lh, entries) {
 			if (!lp->fp) {
 				if (output && lp->cnt &&
 				    (ch = delim[(lp->cnt - 1) % delimcnt]))
@@ -164,7 +179,7 @@ parallel(char **argv)
 			 */
 			if (!output) {
 				output = 1;
-				for (cnt = 0; cnt < lp->cnt; ++cnt)
+				for (int cnt = 0; cnt < lp->cnt; ++cnt)
 					if ((ch = delim[cnt % delimcnt]))
 						putwchar(ch);
 			} else if ((ch = delim[(lp->cnt - 1) % delimcnt]))
@@ -183,24 +198,21 @@ parallel(char **argv)
 }
 
 static int
-sequential(char **argv)
+sequential(void)
 {
-	FILE *fp;
+	LIST *lp;
 	int cnt, failed, needdelim;
 	wint_t ch;
-	char *p;
 
 	failed = 0;
-	for (; (p = *argv); ++argv) {
-		if (p[0] == '-' && !p[1])
-			fp = stdin;
-		else if (!(fp = fopen(p, "r"))) {
-			warn("%s", p);
-			failed = 1;
+	STAILQ_FOREACH(lp, &lh, entries) {
+		cnt = needdelim = 0;
+		if (lp->err) {
+			errno = failed = lp->err;
+			warn("%s", lp->name);
 			continue;
 		}
-		cnt = needdelim = 0;
-		while ((ch = getwc(fp)) != WEOF) {
+		while ((ch = getwc(lp->fp)) != WEOF) {
 			if (needdelim) {
 				needdelim = 0;
 				if (delim[cnt] != '\0')
@@ -215,11 +227,11 @@ sequential(char **argv)
 		}
 		if (needdelim)
 			putwchar('\n');
-		if (fp != stdin)
-			(void)fclose(fp);
+		if (lp->fp != stdin)
+			(void)fclose(lp->fp);
 	}
 
-	return (failed != 0);
+	return (failed != EXIT_SUCCESS);
 }
 
 static int
@@ -243,11 +255,12 @@ tr(wchar_t *arg)
 			default:
 				*arg = ch;
 				break;
-		} else
+			}
+		else
 			*arg = ch;
 
 	if (!cnt)
-		errx(1, "no delimiters specified");
+		errx(EXIT_FAILURE, "no delimiters specified");
 	return(cnt);
 }
 
@@ -255,5 +268,5 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "usage: paste [-s] [-d delimiters] file ...\n");
-	exit(1);
+	exit(EXIT_FAILURE);
 }
