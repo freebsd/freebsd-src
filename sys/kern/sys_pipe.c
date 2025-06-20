@@ -548,7 +548,7 @@ sys_pipe2(struct thread *td, struct pipe2_args *uap)
 {
 	int error, fildes[2];
 
-	if (uap->flags & ~(O_CLOEXEC | O_NONBLOCK))
+	if ((uap->flags & ~(O_CLOEXEC | O_CLOFORK | O_NONBLOCK)) != 0)
 		return (EINVAL);
 	error = kern_pipe(td, fildes, uap->flags, NULL, NULL);
 	if (error)
