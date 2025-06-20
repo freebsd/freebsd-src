@@ -67,7 +67,7 @@ static int	xics_probe(device_t);
 static int	xics_attach(device_t);
 
 static void	xicp_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv);
-static void	xicp_dispatch(device_t, struct trapframe *);
+static pic_dispatch_t	xicp_dispatch;
 static void	xicp_enable(device_t, u_int, u_int, void **priv);
 static void	xicp_eoi(device_t, u_int, void *priv);
 static void	xicp_ipi(device_t, u_int);
@@ -361,7 +361,7 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv)
 }
 
 static void
-xicp_dispatch(device_t dev, struct trapframe *tf)
+xicp_dispatch(device_t dev)
 {
 	struct xicp_softc *sc;
 	struct resource *regs = NULL;
@@ -420,7 +420,7 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 			KASSERT(i < sc->nintvecs, ("Unmapped XIRR"));
 		}
 
-		powerpc_dispatch_intr(sc->intvecs[i].vector, tf);
+		powerpc_dispatch_intr(sc->intvecs[i].vector);
 	}
 }
 

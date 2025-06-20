@@ -67,7 +67,6 @@ METHOD void config {
 
 METHOD void dispatch {
 	device_t	dev;
-	struct trapframe *tf;
 };
 
 METHOD void enable {

@@ -636,7 +636,7 @@ powerpc_config_intr(int irq, enum intr_trigger trig, enum intr_polarity pol)
 }
 
 void
-powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
+powerpc_dispatch_intr(u_int vector)
 {
 	struct powerpc_intr *i;
 	struct intr_event *ie;
