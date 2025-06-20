@@ -74,8 +74,12 @@ scandir_dirp(DIR *dirp, struct dirent ***namelist,
 #endif
 {
 	struct dirent *d, *p = NULL, **names = NULL, **names2;
-	size_t arraysz = 0, numitems = 0;
+	size_t arraysz = 32, numitems = 0;
 	int serrno;
+
+	names = malloc(arraysz * sizeof(*names));
+	if (names == NULL)
+		return (-1);
 
 	while ((d = readdir(dirp)) != NULL) {
 		if (select != NULL && !SELECT(d))
