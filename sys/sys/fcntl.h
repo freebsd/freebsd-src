@@ -143,6 +143,10 @@ typedef	__pid_t		pid_t;
 #define	O_NAMEDATTR	0x04000000	/* NFSv4 named attributes */
 #endif
 
+#if __POSIX_VISIBLE >= 202405
+#define	O_CLOFORK	0x08000000
+#endif
+
 /*
  * XXX missing O_RSYNC.
  */
@@ -269,7 +273,13 @@ typedef	__pid_t		pid_t;
 #define	F_GET_SEALS	20
 #define	F_ISUNIONSTACK	21		/* Kludge for libc, don't use it. */
 #define	F_KINFO		22		/* Return kinfo_file for this fd */
+#endif	/* __BSD_VISIBLE */
 
+#if __POSIX_VISIBLE >= 202405
+#define	F_DUPFD_CLOFORK	23		/* Like F_DUPFD, but FD_CLOFORK is set */
+#endif
+
+#if __BSD_VISIBLE
 /* Seals (F_ADD_SEALS, F_GET_SEALS). */
 #define	F_SEAL_SEAL	0x0001		/* Prevent adding sealings */
 #define	F_SEAL_SHRINK	0x0002		/* May not shrink */
@@ -279,6 +289,9 @@ typedef	__pid_t		pid_t;
 
 /* file descriptor flags (F_GETFD, F_SETFD) */
 #define	FD_CLOEXEC	1		/* close-on-exec flag */
+#if __POSIX_VISIBLE >= 202405
+#define	FD_CLOFORK	2		/* close-on-fork flag */
+#endif
 
 /* record locking flags (F_GETLK, F_SETLK, F_SETLKW) */
 #define	F_RDLCK		1		/* shared or read lock */
