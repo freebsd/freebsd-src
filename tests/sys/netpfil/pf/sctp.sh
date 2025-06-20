@@ -810,7 +810,7 @@ related_icmp_body()
 	fi
 
 	# Do we see ICMP traffic if we send overly large traffic?
-	echo "foo" | jexec srv nc --sctp -N -l 1234 >/dev/null &
+	echo "foo" | jexec srv nc --sctp -l 1234 >/dev/null &
 	sleep 1
 
 	atf_check -s exit:0 -o not-match:".*destination unreachable:.*" \
