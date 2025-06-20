@@ -116,7 +116,6 @@ openpic_common_attach(device_t dev, uint32_t node)
 		sc->sc_intr = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 		    &sc->sc_irq, RF_ACTIVE);
 
-		/* XXX Cascaded PICs pass NULL trapframes! */
 		bus_setup_intr(dev, sc->sc_intr, INTR_TYPE_MISC | INTR_MPSAFE,
 		    openpic_intr, NULL, dev, &sc->sc_icookie);
 	} while (0);
@@ -285,14 +284,13 @@ openpic_intr(void *arg)
 {
 	device_t dev = (device_t)(arg);
 
-	/* XXX Cascaded PICs do not pass non-NULL trapframes! */
-	openpic_dispatch(dev, NULL);
+	openpic_dispatch(dev);
 
 	return (FILTER_HANDLED);
 }
 
 void
-openpic_dispatch(device_t dev, struct trapframe *tf)
+openpic_dispatch(device_t dev)
 {
 	struct openpic_softc *sc;
 	u_int cpuid, vector;
@@ -307,7 +305,7 @@ openpic_dispatch(device_t dev, struct trapframe *tf)
 		vector &= OPENPIC_VECTOR_MASK;
 		if (vector == 255)
 			break;
-		powerpc_dispatch_intr(vector, tf);
+		powerpc_dispatch_intr(vector);
 	}
 }
 

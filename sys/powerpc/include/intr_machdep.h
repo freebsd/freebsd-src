@@ -49,7 +49,7 @@ void	intrcnt_add(const char *name, u_long **countp);
 u_int	powerpc_register_pic(device_t, uint32_t, u_int, u_int, u_int);
 u_int	powerpc_get_irq(uint32_t, u_int);
 
-void	powerpc_dispatch_intr(u_int, struct trapframe *);
+void	powerpc_dispatch_intr(u_int);
 int	powerpc_enable_intr(void);
 int	powerpc_setup_intr(const char *, u_int, driver_filter_t, driver_intr_t,
 	    void *, enum intr_type, void **, int);
