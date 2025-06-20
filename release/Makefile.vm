@@ -156,7 +156,7 @@ CLOUDTARGETS+=	cw-${_CW:tl}-${_FMT}
 CLEANFILES+=	${_CW:tl}.${_FMT}
 ${_CW:tu}${_FMT:tu}IMAGE=	${_CW:tl}.${_FMT}
 cw-${_CW:tl}-${_FMT}: cw-${_CW:tl}-${VMFS}-${_FMT}
-	ln -f ${${_CW:tu}${VMFS:tu}${_FMT:tu}IMAGE} ${${_CW:tu}${_FMT:tu}IMAGE}
+	ln -f ${${_CW:tu}${VMFS:tu}${_FMT:tu}IMAGE} ${${_CW:tu}${_FMT:tu}IMAGE} || true
 .  endfor
 
 # Targets without a disk format listed are the first disk format on the list
