@@ -119,14 +119,12 @@ ar5212SetPowerModeNetworkSleep(struct ath_hal *ah, int setChip)
 HAL_BOOL
 ar5212SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode, int setChip)
 {
-#ifdef AH_DEBUG
 	static const char* modes[] = {
 		"AWAKE",
 		"FULL-SLEEP",
 		"NETWORK SLEEP",
 		"UNDEFINED"
 	};
-#endif
 	int status = AH_TRUE;
 
 	HALDEBUG(ah, HAL_DEBUG_POWER, "%s: %s -> %s (%s)\n", __func__,

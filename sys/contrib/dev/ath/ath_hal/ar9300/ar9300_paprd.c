@@ -1857,9 +1857,7 @@ void ar9300_populate_paprd_single_table(struct ath_hal *ah,
     struct ieee80211_channel *chan, int chain_num)
 {
     int i, j, bad_read = 0;
-#ifdef	AH_DEBUG
     HAL_CHANNEL_INTERNAL *ichan = ath_hal_checkchannel(ah, chan);
-#endif
     u_int32_t *paprd_table_val = &AH9300(ah)->pa_table[chain_num][0];
     u_int32_t small_signal_gain = AH9300(ah)->small_signal_gain[chain_num];
     u_int32_t reg = 0;

@@ -799,7 +799,6 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 	struct ath_txq *txq;
 	struct ath_buf *bf;
 	struct ieee80211_node *ni;
-	int nacked = 0;
 	int idx;
 	int i;
 
@@ -1005,7 +1004,6 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		/* XXX duplicate from ath_tx_processq */
 		if (ni != NULL && ts.ts_status == 0 &&
 		    ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0)) {
-			nacked++;
 			sc->sc_stats.ast_tx_rssi = ts.ts_rssi;
 			ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
 			    ts.ts_rssi);
