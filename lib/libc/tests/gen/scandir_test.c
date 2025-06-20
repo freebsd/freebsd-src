@@ -103,10 +103,32 @@ ATF_TC_BODY(scandirat_test, tc)
 	ATF_REQUIRE_EQ(0, close(fd));
 }
 
+static int
+scandir_none(const struct dirent *ent __unused)
+{
+	return (0);
+}
+
+ATF_TC(scandir_none);
+ATF_TC_HEAD(scandir_none, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Test scandir() when no entries are selected");
+}
+ATF_TC_BODY(scandir_none, tc)
+{
+	struct dirent **namelist = NULL;
+
+	ATF_REQUIRE_EQ(0, scandir(".", &namelist, scandir_none, alphasort));
+	ATF_REQUIRE(namelist);
+	free(namelist);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, scandir_test);
 	ATF_TP_ADD_TC(tp, fscandir_test);
 	ATF_TP_ADD_TC(tp, scandirat_test);
+	ATF_TP_ADD_TC(tp, scandir_none);
 	return (atf_no_error());
 }
