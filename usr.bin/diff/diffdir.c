@@ -63,8 +63,8 @@ RB_GENERATE_STATIC(inodetree, inode, entry, inodecmp);
 
 static int
 vscandir(struct inodetree *tree, const char *path, struct dirent ***dirp,
-    int (*select)(const struct dirent *),
-    int (*compar)(const struct dirent **, const struct dirent **))
+    int (*selectf)(const struct dirent *),
+    int (*comparf)(const struct dirent **, const struct dirent **))
 {
 	struct stat sb;
 	struct inode *ino = NULL;
@@ -83,7 +83,7 @@ vscandir(struct inodetree *tree, const char *path, struct dirent ***dirp,
 		*dirp = NULL;
 		return (0);
 	}
-	if ((ret = fscandir(fd, dirp, select, compar)) < 0)
+	if ((ret = fscandir(fd, dirp, selectf, comparf)) < 0)
 		goto fail;
 	RB_INSERT(inodetree, tree, ino);
 	close(fd);
