@@ -22,6 +22,10 @@ ATF_TESTS_C+=		makecontext_test
 ATF_TESTS_C+=		popen_test
 ATF_TESTS_C+=		posix_spawn_test
 ATF_TESTS_C+=		realpath2_test
+ATF_TESTS_C+=		scandir_test
+.if ${COMPILER_FEATURES:Mblocks}
+ATF_TESTS_C+=		scandir_blocks_test
+.endif
 ATF_TESTS_C+=		sig2str_test
 ATF_TESTS_C+=		sigsetops_test
 ATF_TESTS_C+=		wordexp_test
@@ -101,7 +105,7 @@ TESTS_SUBDIRS=	execve
 TESTS_SUBDIRS+=	posix_spawn
 
 # Tests that require blocks support
-.for t in fts_blocks_test glob_blocks_test
+.for t in fts_blocks_test glob_blocks_test scandir_blocks_test
 CFLAGS.${t}.c+=		-fblocks
 LIBADD.${t}+=		BlocksRuntime
 .endfor
