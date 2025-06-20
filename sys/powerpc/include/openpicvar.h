@@ -77,7 +77,7 @@ int	openpic_common_attach(device_t, uint32_t);
  */
 void	openpic_bind(device_t dev, u_int irq, cpuset_t cpumask, void **);
 void	openpic_config(device_t, u_int, enum intr_trigger, enum intr_polarity);
-void	openpic_dispatch(device_t, struct trapframe *);
+pic_dispatch_t	openpic_dispatch;
 void	openpic_enable(device_t, u_int, u_int, void **);
 void	openpic_eoi(device_t, u_int, void *);
 void	openpic_ipi(device_t, u_int);
