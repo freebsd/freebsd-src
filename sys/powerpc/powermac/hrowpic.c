@@ -63,7 +63,7 @@
 static int	hrowpic_probe(device_t);
 static int	hrowpic_attach(device_t);
 
-static void	hrowpic_dispatch(device_t, struct trapframe *);
+static pic_dispatch_t	hrowpic_dispatch;
 static void	hrowpic_enable(device_t, u_int, u_int, void **);
 static void	hrowpic_eoi(device_t, u_int, void *);
 static void	hrowpic_ipi(device_t, u_int);
@@ -207,7 +207,7 @@ hrowpic_toggle_irq(struct hrowpic_softc *sc, int irq, int enable)
  */
 
 static void
-hrowpic_dispatch(device_t dev, struct trapframe *tf)
+hrowpic_dispatch(device_t dev)
 {
 	struct hrowpic_softc *sc;
 	uint64_t mask;
@@ -225,7 +225,7 @@ hrowpic_dispatch(device_t dev, struct trapframe *tf)
 		irq = 0;
 		while (irq < HROWPIC_IRQMAX) {
 			if (mask & 1)
-				powerpc_dispatch_intr(sc->sc_vector[irq], tf);
+				powerpc_dispatch_intr(sc->sc_vector[irq]);
 			mask >>= 1;
 			irq++;
 		}
