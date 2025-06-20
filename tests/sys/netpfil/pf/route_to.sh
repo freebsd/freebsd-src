@@ -813,6 +813,52 @@ sticky_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "ttl" "cleanup"
+ttl_head()
+{
+	atf_set descr 'Ensure we decrement TTL on route-to'
+	atf_set require.user root
+}
+
+ttl_body()
+{
+	pft_init
+
+	epair_one=$(vnet_mkepair)
+	epair_two=$(vnet_mkepair)
+	ifconfig ${epair_one}b 192.0.2.2/24 up
+	route add default 192.0.2.1
+
+	vnet_mkjail alcatraz ${epair_one}a ${epair_two}a
+	jexec alcatraz ifconfig ${epair_one}a 192.0.2.1/24 up
+	jexec alcatraz ifconfig ${epair_two}a 198.51.100.1/24 up
+	jexec alcatraz sysctl net.inet.ip.forwarding=1
+
+	vnet_mkjail singsing ${epair_two}b
+	jexec singsing ifconfig ${epair_two}b 198.51.100.2/24 up
+	jexec singsing route add default 198.51.100.1
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -c 3 198.51.100.2
+
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz \
+		"pass out" \
+		"pass in route-to (${epair_two}a 198.51.100.2)"
+
+	atf_check -s exit:0 -o ignore \
+	    ping -c 3 198.51.100.2
+
+	atf_check -s exit:2 -o ignore \
+	    ping -m 1 -c 3 198.51.100.2
+}
+
+ttl_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4"
@@ -830,4 +876,5 @@ atf_init_test_cases()
 	atf_add_test_case "dummynet_frag"
 	atf_add_test_case "dummynet_double"
 	atf_add_test_case "sticky"
+	atf_add_test_case "ttl"
 }
