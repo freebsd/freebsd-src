@@ -511,6 +511,11 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		error = kern_dup(td, FDDUP_FCNTL, FDDUP_FLAG_CLOEXEC, fd, tmp);
 		break;
 
+	case F_DUPFD_CLOFORK:
+		tmp = arg;
+		error = kern_dup(td, FDDUP_FCNTL, FDDUP_FLAG_CLOFORK, fd, tmp);
+		break;
+
 	case F_DUP2FD:
 		tmp = arg;
 		error = kern_dup(td, FDDUP_FIXED, 0, fd, tmp);
@@ -528,6 +533,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		if (fde != NULL) {
 			td->td_retval[0] =
 			    ((fde->fde_flags & UF_EXCLOSE) ? FD_CLOEXEC : 0) |
+			    ((fde->fde_flags & UF_FOCLOSE) ? FD_CLOFORK : 0) |
 			    ((fde->fde_flags & UF_RESOLVE_BENEATH) ?
 			    FD_RESOLVE_BENEATH : 0);
 			error = 0;
@@ -545,6 +551,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			 */
 			fde->fde_flags = (fde->fde_flags & ~UF_EXCLOSE) |
 			    ((arg & FD_CLOEXEC) != 0 ? UF_EXCLOSE : 0) |
+			    ((arg & FD_CLOFORK) != 0 ? UF_FOCLOSE : 0) |
 			    ((arg & FD_RESOLVE_BENEATH) != 0 ?
 			    UF_RESOLVE_BENEATH : 0);
 			error = 0;
@@ -946,7 +953,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	fdp = p->p_fd;
 	oioctls = NULL;
 
-	MPASS((flags & ~(FDDUP_FLAG_CLOEXEC)) == 0);
+	MPASS((flags & ~(FDDUP_FLAG_CLOEXEC | FDDUP_FLAG_CLOFORK)) == 0);
 	MPASS(mode < FDDUP_LASTMODE);
 
 	AUDIT_ARG_FD(old);
@@ -971,8 +978,10 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 		goto unlock;
 	if (mode == FDDUP_FIXED && old == new) {
 		td->td_retval[0] = new;
-		if (flags & FDDUP_FLAG_CLOEXEC)
+		if ((flags & FDDUP_FLAG_CLOEXEC) != 0)
 			fdp->fd_ofiles[new].fde_flags |= UF_EXCLOSE;
+		if ((flags & FDDUP_FLAG_CLOFORK) != 0)
+			fdp->fd_ofiles[new].fde_flags |= UF_FOCLOSE;
 		error = 0;
 		goto unlock;
 	}
@@ -1047,10 +1056,9 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	fde_copy(oldfde, newfde);
 	filecaps_copy_finish(&oldfde->fde_caps, &newfde->fde_caps,
 	    nioctls);
-	if ((flags & FDDUP_FLAG_CLOEXEC) != 0)
-		newfde->fde_flags = oldfde->fde_flags | UF_EXCLOSE;
-	else
-		newfde->fde_flags = oldfde->fde_flags & ~UF_EXCLOSE;
+	newfde->fde_flags = (oldfde->fde_flags & ~(UF_EXCLOSE | UF_FOCLOSE)) |
+	    ((flags & FDDUP_FLAG_CLOEXEC) != 0 ? UF_EXCLOSE : 0) |
+	    ((flags & FDDUP_FLAG_CLOFORK) != 0 ? UF_FOCLOSE : 0);
 #ifdef CAPABILITIES
 	seqc_write_end(&newfde->fde_seqc);
 #endif
@@ -2172,6 +2180,7 @@ _finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
 #endif
 	fde->fde_file = fp;
 	fde->fde_flags = ((flags & O_CLOEXEC) != 0 ? UF_EXCLOSE : 0) |
+	    ((flags & O_CLOFORK) != 0 ? UF_FOCLOSE : 0) |
 	    ((flags & O_RESOLVE_BENEATH) != 0 ? UF_RESOLVE_BENEATH : 0);
 	if (fcaps != NULL)
 		filecaps_move(fcaps, &fde->fde_caps);
@@ -2432,6 +2441,7 @@ fdcopy(struct filedesc *fdp)
 	newfdp->fd_freefile = fdp->fd_freefile;
 	FILEDESC_FOREACH_FDE(fdp, i, ofde) {
 		if ((ofde->fde_file->f_ops->fo_flags & DFLAG_PASSABLE) == 0 ||
+		    (ofde->fde_flags & UF_FOCLOSE) != 0 ||
 		    !fhold(ofde->fde_file)) {
 			if (newfdp->fd_freefile == fdp->fd_freefile)
 				newfdp->fd_freefile = i;
@@ -2729,6 +2739,12 @@ fdcloseexec(struct thread *td)
 			fdfree(fdp, i);
 			(void) closefp(fdp, i, fp, td, false, false);
 			FILEDESC_UNLOCK_ASSERT(fdp);
+		} else if (fde->fde_flags & UF_FOCLOSE) {
+			/*
+			 * https://austingroupbugs.net/view.php?id=1851
+			 * FD_CLOFORK should not be preserved across exec
+			 */
+			fde->fde_flags &= ~UF_FOCLOSE;
 		}
 	}
 }

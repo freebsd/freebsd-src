@@ -149,6 +149,7 @@ struct filedesc_to_leader {
  */
 #define	UF_EXCLOSE	0x01		/* auto-close on exec */
 #define	UF_RESOLVE_BENEATH 0x02		/* lookups must be beneath this dir */
+#define	UF_FOCLOSE	0x04		/* auto-close on fork */
 
 #ifdef _KERNEL
 
@@ -221,6 +222,7 @@ enum {
 
 /* Flags for kern_dup(). */
 #define	FDDUP_FLAG_CLOEXEC	0x1	/* Atomically set UF_EXCLOSE. */
+#define	FDDUP_FLAG_CLOFORK	0x2	/* Atomically set UF_FOCLOSE. */
 
 /* For backward compatibility. */
 #define	falloc(td, resultfp, resultfd, flags) \
