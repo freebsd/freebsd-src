@@ -71,7 +71,7 @@ static int	atpic_isa_probe(device_t);
 
 static void atpic_config(device_t, u_int, enum intr_trigger,
     enum intr_polarity);
-static void atpic_dispatch(device_t, struct trapframe *);
+static pic_dispatch_t atpic_dispatch;
 static void atpic_enable(device_t, u_int, u_int);
 static void atpic_eoi(device_t, u_int);
 static void atpic_ipi(device_t, u_int);
@@ -131,13 +131,6 @@ atpic_write(struct atpic_softc *sc, int icu, int ofs, uint8_t val)
 	bus_write_1(sc->sc_res[icu], ofs, val);
 	bus_barrier(sc->sc_res[icu], ofs, 2 - ofs,
 	    BUS_SPACE_BARRIER_READ|BUS_SPACE_BARRIER_WRITE);
-}
-
-static void
-atpic_intr(void *arg)
-{
-
-	atpic_dispatch(arg, NULL);
 }
 
 static void
@@ -214,7 +207,7 @@ atpic_isa_attach(device_t dev)
 		goto fail;
 
 	error = bus_setup_intr(dev, sc->sc_ires, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, atpic_intr, dev, &sc->sc_icookie);
+	    NULL, atpic_dispatch, dev, &sc->sc_icookie);
 	if (error)
 		goto fail;
 
@@ -248,7 +241,7 @@ atpic_config(device_t dev, u_int irq, enum intr_trigger trig,
 }
 
 static void
-atpic_dispatch(device_t dev, struct trapframe *tf)
+atpic_dispatch(device_t dev)
 {
 	struct atpic_softc *sc;
 	uint8_t irq;
@@ -268,7 +261,7 @@ atpic_dispatch(device_t dev, struct trapframe *tf)
 			return;
 	}
 
-	powerpc_dispatch_intr(sc->sc_vector[irq & 0x0f], tf);
+	powerpc_dispatch_intr(sc->sc_vector[irq & 0x0f]);
 }
 
 static void
