@@ -66,9 +66,10 @@ CCACHE_BUILD_TYPE?=	command
 # PATH since it is more clear that ccache is used and avoids wasting time
 # for mkdep/linking/asm builds.
 LOCALBASE?=		/usr/local
+CCACHE_NAME?=		ccache
 CCACHE_PKG_PREFIX?=	${LOCALBASE}
 CCACHE_WRAPPER_PATH?=	${CCACHE_PKG_PREFIX}/libexec/ccache
-CCACHE_BIN?=		${CCACHE_PKG_PREFIX}/bin/ccache
+CCACHE_BIN?=		${CCACHE_PKG_PREFIX}/bin/${CCACHE_NAME}
 .if exists(${CCACHE_BIN})
 # Export to ensure sub-makes can filter it out for mkdep/linking and
 # to chain down into kernel build which won't include this file.
@@ -122,7 +123,12 @@ CCACHE_NOCPP2=	1
 .endif
 # Canonicalize CCACHE_DIR for meta mode usage.
 .if !defined(CCACHE_DIR)
+.if !empty(CCACHE_BIN:M*sccache)
+# Get the temp directory and remove beginning and trailing \"
+CCACHE_DIR!=	${CCACHE_BIN} -s | awk '$$2 == "location" && $$3 == "Local" {print substr($$5, 2, length($$5) - 2)}'
+.else
 CCACHE_DIR!=	${CCACHE_BIN} -p | awk '$$2 == "cache_dir" {print $$4}'
+.endif
 .export CCACHE_DIR
 .endif
 .if !empty(CCACHE_DIR) && empty(.MAKE.META.IGNORE_PATHS:M${CCACHE_DIR})
@@ -134,7 +140,11 @@ CCACHE_DIR:=	${CCACHE_DIR:tA}
 # comparisons.
 .MAKE.META.IGNORE_PATHS+= ${CCACHE_BIN}
 ccache-print-options: .PHONY
+.if !empty(CCACHE_BIN:M*sccache)
+	@${CCACHE_BIN} -s
+.else
 	@${CCACHE_BIN} -p
+.endif	# !empty(CCACHE_BIN:M*sccache)
 .endif	# exists(${CCACHE_BIN})
 .endif	# ${MK_CCACHE_BUILD} == "yes"
 
