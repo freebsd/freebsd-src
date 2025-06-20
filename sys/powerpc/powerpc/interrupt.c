@@ -94,7 +94,7 @@ powerpc_interrupt(struct trapframe *framep)
 		++td->td_intr_nesting_level;
 		oldframe = td->td_intr_frame;
 		td->td_intr_frame = framep;
-		PIC_DISPATCH(root_pic, framep);
+		PIC_DISPATCH(root_pic);
 		td->td_intr_frame = oldframe;
 		--td->td_intr_nesting_level;
 		critical_exit();
