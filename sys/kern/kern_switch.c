@@ -326,7 +326,9 @@ runq_sw_set_not_empty_op(int idx, int sw_idx, rqsw_t sw_bit, rqsw_t *swp)
 	rqsw_t old_sw __unused = *swp;
 
 	*swp |= sw_bit;
-	CTR4(KTR_RUNQ, "runq_sw_set_not_empty: idx=%d sw_idx=%d bits=%#x->%#x",
+	CTR4(KTR_RUNQ,
+	    "runq_sw_set_not_empty: idx=%d sw_idx=%d "
+	    "bits=" RQSW_PRI "->" RQSW_PRI,
 	    idx, sw_idx, old_sw, *swp);
 	return (0);
 }
@@ -349,7 +351,9 @@ runq_sw_set_empty_op(int idx, int sw_idx, rqsw_t sw_bit, rqsw_t *swp)
 	rqsw_t old_sw __unused = *swp;
 
 	*swp &= ~sw_bit;
-	CTR4(KTR_RUNQ, "runq_sw_set_empty: idx=%d sw_idx=%d bits=%#x->%#x",
+	CTR4(KTR_RUNQ,
+	    "runq_sw_set_empty: idx=%d sw_idx=%d "
+	    "bits=" RQSW_PRI "->" RQSW_PRI,
 	    idx, sw_idx, old_sw, *swp);
 	return (0);
 }
@@ -525,7 +529,8 @@ last_mask:
 		goto return_idx;
 	return (-1);
 return_idx:
-	CTR4(KTR_RUNQ, "runq_findq: bits=%#x->%#x i=%d idx=%d",
+	CTR4(KTR_RUNQ,
+	    "runq_findq: bits=" RQSW_PRI "->" RQSW_PRI " i=%d idx=%d",
 	    (*rqsw)[i], w, i, idx);
 	return (idx);
 }
