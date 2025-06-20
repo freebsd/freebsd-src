@@ -458,11 +458,14 @@ FBSD_1.8 {
 	aio_read2;
 	aio_write2;
 	execvpe;
+	fscandir;
+	fscandir_b;
 	fts_open_b;
 	glob_b;
 	psiginfo;
 	rtld_get_var;
 	rtld_set_var;
+	scandirat_b;
 	uexterr_gettext;
 	sig2str;
 	str2sig;

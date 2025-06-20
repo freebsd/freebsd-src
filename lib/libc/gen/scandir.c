@@ -38,6 +38,7 @@
 
 #include "namespace.h"
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,7 +65,7 @@ static int scandir_thunk_cmp(const void *p1, const void *p2, void *thunk);
 
 static int
 #ifdef I_AM_SCANDIR_B
-scandir_b_dirp(DIR *dirp, struct dirent ***namelist, select_block select,
+scandir_dirp_b(DIR *dirp, struct dirent ***namelist, select_block select,
     dcomp_block dcomp)
 #else
 scandir_dirp(DIR *dirp, struct dirent ***namelist,
@@ -72,14 +73,9 @@ scandir_dirp(DIR *dirp, struct dirent ***namelist,
     const struct dirent **))
 #endif
 {
-	struct dirent *d, *p, **names = NULL;
-	size_t arraysz, numitems;
-
-	numitems = 0;
-	arraysz = 32;	/* initial estimate of the array size */
-	names = (struct dirent **)malloc(arraysz * sizeof(struct dirent *));
-	if (names == NULL)
-		goto fail;
+	struct dirent *d, *p = NULL, **names = NULL, **names2;
+	size_t arraysz = 0, numitems = 0;
+	int serrno;
 
 	while ((d = readdir(dirp)) != NULL) {
 		if (select != NULL && !SELECT(d))
@@ -87,33 +83,27 @@ scandir_dirp(DIR *dirp, struct dirent ***namelist,
 		/*
 		 * Make a minimum size copy of the data
 		 */
-		p = (struct dirent *)malloc(_GENERIC_DIRSIZ(d));
+		p = malloc(_GENERIC_DIRSIZ(d));
 		if (p == NULL)
 			goto fail;
 		p->d_fileno = d->d_fileno;
 		p->d_type = d->d_type;
 		p->d_reclen = d->d_reclen;
 		p->d_namlen = d->d_namlen;
-		bcopy(d->d_name, p->d_name, p->d_namlen + 1);
+		memcpy(p->d_name, d->d_name, p->d_namlen + 1);
 		/*
 		 * Check to make sure the array has space left and
 		 * realloc the maximum size.
 		 */
 		if (numitems >= arraysz) {
-			struct dirent **names2;
-
-			names2 = reallocarray(names, arraysz,
-			    2 * sizeof(struct dirent *));
-			if (names2 == NULL) {
-				free(p);
+			arraysz = arraysz ? arraysz * 2 : 32;
+			names2 = reallocarray(names, arraysz, sizeof(*names));
+			if (names2 == NULL)
 				goto fail;
-			}
 			names = names2;
-			arraysz *= 2;
 		}
 		names[numitems++] = p;
 	}
-	closedir(dirp);
 	if (numitems && dcomp != NULL)
 #ifdef I_AM_SCANDIR_B
 		qsort_b(names, numitems, sizeof(struct dirent *), (void*)dcomp);
@@ -125,10 +115,12 @@ scandir_dirp(DIR *dirp, struct dirent ***namelist,
 	return (numitems);
 
 fail:
+	serrno = errno;
+	free(p);
 	while (numitems > 0)
 		free(names[--numitems]);
 	free(names);
-	closedir(dirp);
+	errno = serrno;
 	return (-1);
 }
 
@@ -143,39 +135,82 @@ scandir(const char *dirname, struct dirent ***namelist,
 #endif
 {
 	DIR *dirp;
+	int ret, serrno;
 
 	dirp = opendir(dirname);
 	if (dirp == NULL)
 		return (-1);
-	return (
+	ret =
 #ifdef I_AM_SCANDIR_B
-	    scandir_b_dirp
+	    scandir_dirp_b
 #else
 	    scandir_dirp
 #endif
-	    (dirp, namelist, select, dcomp));
+	    (dirp, namelist, select, dcomp);
+	serrno = errno;
+	closedir(dirp);
+	errno = serrno;
+	return (ret);
 }
 
-#ifndef I_AM_SCANDIR_B
 int
+#ifdef I_AM_SCANDIR_B
+fscandir_b(int dirfd, struct dirent ***namelist, select_block select,
+    dcomp_block dcomp)
+#else
+fscandir(int dirfd, struct dirent ***namelist,
+    int (*select)(const struct dirent *), int (*dcomp)(const struct dirent **,
+    const struct dirent **))
+#endif
+{
+	DIR *dirp;
+	int ret, serrno;
+
+	dirp = fdopendir(dirfd);
+	if (dirp == NULL)
+		return (-1);
+	ret =
+#ifdef I_AM_SCANDIR_B
+	    scandir_dirp_b
+#else
+	    scandir_dirp
+#endif
+	    (dirp, namelist, select, dcomp);
+	serrno = errno;
+	fdclosedir(dirp);
+	errno = serrno;
+	return (ret);
+}
+
+int
+#ifdef I_AM_SCANDIR_B
+scandirat_b(int dirfd, const char *dirname, struct dirent ***namelist,
+    select_block select, dcomp_block dcomp)
+#else
 scandirat(int dirfd, const char *dirname, struct dirent ***namelist,
     int (*select)(const struct dirent *), int (*dcomp)(const struct dirent **,
     const struct dirent **))
+#endif
 {
-	DIR *dirp;
-	int fd;
+	int fd, ret, serrno;
 
 	fd = _openat(dirfd, dirname, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
 	if (fd == -1)
 		return (-1);
-	dirp = fdopendir(fd);
-	if (dirp == NULL) {
-		_close(fd);
-		return (-1);
-	}
-	return (scandir_dirp(dirp, namelist, select, dcomp));
+	ret =
+#ifdef I_AM_SCANDIR_B
+	    fscandir_b
+#else
+	    fscandir
+#endif
+	    (fd, namelist, select, dcomp);
+	serrno = errno;
+	_close(fd);
+	errno = serrno;
+	return (ret);
 }
 
+#ifndef I_AM_SCANDIR_B
 /*
  * Alphabetic order comparison routine for those who want it.
  * POSIX 2008 requires that alphasort() uses strcoll().
