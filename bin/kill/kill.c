@@ -99,7 +99,9 @@ main(int argc, char *argv[])
 		argc--, argv++;
 	} else if (**argv == '-' && *(*argv + 1) != '-') {
 		++*argv;
-		if (str2sig(*argv, &numsig) < 0)
+		if (strcmp(*argv, "0") == 0)
+			numsig = 0;
+		else if (str2sig(*argv, &numsig) < 0)
 			nosig(*argv);
 		argc--, argv++;
 	}
