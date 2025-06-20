@@ -40,6 +40,7 @@
 struct resource {
 	resource_size_t start;
 	resource_size_t end;
+	const char *name;
 };
 
 static inline resource_size_t
