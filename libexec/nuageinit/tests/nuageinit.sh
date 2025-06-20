@@ -791,7 +791,7 @@ packages:
   - meh: bla
 EOF
 	chmod 755 "${PWD}"/media/nuageinit/user_data
-	atf_check -o inline:"pkg install -y curl\npkg info -q curl\n" -e inline:"nuageinit: Invalid type : table for packages entry number 2\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+	atf_check -o inline:"pkg install -y curl\npkg info -q curl\n" -e inline:"nuageinit: Invalid type: table for packages entry number 2\n" /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
 }
 
 config2_userdata_update_packages_body()
