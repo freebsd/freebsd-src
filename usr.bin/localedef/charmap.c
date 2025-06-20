@@ -236,7 +236,7 @@ cmap_compare_wc(const void *n1, const void *n2)
 	const charmap_t *c1 = n1;
 	const charmap_t *c2 = n2;
 
-	return ((c1->wc < c2->wc) ? -1 : (c1->wc > c2->wc) ? 1 : 0);
+	return (wchar_cmp(c1->wc, c2->wc));
 }
 
 void
