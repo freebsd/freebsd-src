@@ -158,6 +158,7 @@ struct ice_bar_info {
 #define ICE_MAX_TSO_HDR_SEGS	3
 
 #define ICE_MSIX_BAR		3
+#define ICE_MAX_MSIX_VECTORS	(GLINT_DYN_CTL_MAX_INDEX + 1)
 
 #define ICE_DEFAULT_DESC_COUNT	1024
 #define ICE_MAX_DESC_COUNT	8160
@@ -290,6 +291,12 @@ struct ice_bar_info {
 #define ICE_APPLY_FEC_FC    (ICE_APPLY_FEC | ICE_APPLY_FC)
 #define ICE_APPLY_LS_FEC_FC (ICE_APPLY_LS_FEC | ICE_APPLY_FC)
 
+/*
+ * Mask of valid flags that can be used as an input for the
+ * advertise_speed sysctl.
+ */
+#define ICE_SYSCTL_SPEEDS_VALID_RANGE	0xFFF
+
 /**
  * @enum ice_dyn_idx_t
  * @brief Dynamic Control ITR indexes
@@ -315,6 +322,28 @@ enum ice_dyn_idx_t {
 /* Define the default Tx and Rx ITR as 50us (translates to ~20k int/sec max) */
 #define ICE_DFLT_TX_ITR		50
 #define ICE_DFLT_RX_ITR		50
+
+/* RS FEC register values */
+#define ICE_RS_FEC_REG_SHIFT			2
+#define ICE_RS_FEC_RECV_ID_SHIFT		4
+#define ICE_RS_FEC_CORR_LOW_REG_PORT0		(0x02 << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_CORR_HIGH_REG_PORT0		(0x03 << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_UNCORR_LOW_REG_PORT0		(0x04 << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_UNCORR_HIGH_REG_PORT0	(0x05 << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_CORR_LOW_REG_PORT1		(0x42 << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_CORR_HIGH_REG_PORT1		(0x43 << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_UNCORR_LOW_REG_PORT1		(0x44 << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_UNCORR_HIGH_REG_PORT1	(0x45 << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_CORR_LOW_REG_PORT2		(0x4A << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_CORR_HIGH_REG_PORT2		(0x4B << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_UNCORR_LOW_REG_PORT2		(0x4C << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_UNCORR_HIGH_REG_PORT2	(0x4D << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_CORR_LOW_REG_PORT3		(0x52 << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_CORR_HIGH_REG_PORT3		(0x53 << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_UNCORR_LOW_REG_PORT3		(0x54 << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_UNCORR_HIGH_REG_PORT3	(0x55 << ICE_RS_FEC_REG_SHIFT)
+#define ICE_RS_FEC_RECEIVER_ID_PCS0		(0x33 << ICE_RS_FEC_RECV_ID_SHIFT)
+#define ICE_RS_FEC_RECEIVER_ID_PCS1		(0x34 << ICE_RS_FEC_RECV_ID_SHIFT)
 
 /**
  * ice_itr_to_reg - Convert an ITR setting into its register equivalent
@@ -377,10 +406,11 @@ enum ice_rx_dtype {
 #define ICE_START_LLDP_RETRY_WAIT	(2 * hz)
 
 /*
- * Only certain cluster IDs are valid for the FW debug dump functionality,
- * so define a mask of those here.
+ * Only certain clusters are valid for certain devices for the FW debug dump
+ * functionality, so define masks of those here.
  */
-#define ICE_FW_DEBUG_DUMP_VALID_CLUSTER_MASK	0x4001AF
+#define ICE_FW_DEBUG_DUMP_VALID_CLUSTER_MASK_E810	0x4001AF
+#define ICE_FW_DEBUG_DUMP_VALID_CLUSTER_MASK_E830	0x1AF
 
 struct ice_softc;
 
@@ -431,6 +461,7 @@ struct tx_stats {
 	u64			tx_bytes;
 	u64			tx_packets;
 	u64			mss_too_small;
+	u64			tso;
 	u64			cso[ICE_CSO_STAT_TX_COUNT];
 };
 
@@ -488,6 +519,9 @@ struct ice_pf_sw_stats {
 	/* # of detected MDD events for Tx and Rx */
 	u32 tx_mdd_count;
 	u32 rx_mdd_count;
+
+	u64 rx_roc_error;	/* port oversize packet stats, error_cnt \
+				   from GLV_REPC VSI register + RxOversize */
 };
 
 /**
@@ -581,6 +615,58 @@ struct ice_debug_dump_cmd {
 	u16 reserved1;
 	u32 reserved2;
 	u8 data[];
+};
+
+/**
+ * @struct ice_serdes_equalization
+ * @brief serdes equalization info
+ */
+struct ice_serdes_equalization {
+	int rx_equalization_pre1;
+	int rx_equalization_pre2;
+	int rx_equalization_post1;
+	int rx_equalization_bflf;
+	int rx_equalization_bfhf;
+	int rx_equalization_drate;
+	int tx_equalization_pre1;
+	int tx_equalization_pre2;
+	int tx_equalization_pre3;
+	int tx_equalization_atten;
+	int tx_equalization_post1;
+};
+
+/**
+ * @struct ice_fec_stats_to_sysctl
+ * @brief FEC stats register value of port
+ */
+struct ice_fec_stats_to_sysctl {
+	u16 fec_corr_cnt_low;
+	u16 fec_corr_cnt_high;
+	u16 fec_uncorr_cnt_low;
+	u16 fec_uncorr_cnt_high;
+};
+
+#define ICE_MAX_SERDES_LANE_COUNT	4
+
+/**
+ * @struct ice_regdump_to_sysctl
+ * @brief PHY stats of port
+ */
+struct ice_regdump_to_sysctl {
+	/* A multilane port can have max 4 serdes */
+	struct ice_serdes_equalization equalization[ICE_MAX_SERDES_LANE_COUNT];
+	struct ice_fec_stats_to_sysctl stats;
+};
+
+/**
+ * @struct ice_port_topology
+ * @brief Port topology from lport i.e. serdes mapping, pcsquad, macport, cage
+ */
+struct ice_port_topology {
+	u16 pcs_port;
+	u16 primary_serdes_lane;
+	u16 serdes_lane_count;
+	u16 pcs_quad_select;
 };
 
 /**
@@ -716,7 +802,7 @@ struct ice_str_buf {
 };
 
 struct ice_str_buf _ice_aq_str(enum ice_aq_err aq_err);
-struct ice_str_buf _ice_status_str(enum ice_status status);
+struct ice_str_buf _ice_status_str(int status);
 struct ice_str_buf _ice_err_str(int err);
 struct ice_str_buf _ice_fltr_flag_str(u16 flag);
 struct ice_str_buf _ice_log_sev_str(u8 log_level);
@@ -841,7 +927,7 @@ void ice_deinit_vsi(struct ice_vsi *vsi);
 uint64_t ice_aq_speed_to_rate(struct ice_port_info *pi);
 int  ice_get_phy_type_low(uint64_t phy_type_low);
 int  ice_get_phy_type_high(uint64_t phy_type_high);
-enum ice_status ice_add_media_types(struct ice_softc *sc, struct ifmedia *media);
+int ice_add_media_types(struct ice_softc *sc, struct ifmedia *media);
 void ice_configure_rxq_interrupt(struct ice_hw *hw, u16 rxqid, u16 vector, u8 itr_idx);
 void ice_configure_all_rxq_interrupts(struct ice_vsi *vsi);
 void ice_configure_txq_interrupt(struct ice_hw *hw, u16 txqid, u16 vector, u8 itr_idx);
@@ -867,15 +953,15 @@ void ice_add_sysctls_eth_stats(struct sysctl_ctx_list *ctx,
 void ice_add_vsi_sysctls(struct ice_vsi *vsi);
 void ice_add_sysctls_mac_stats(struct sysctl_ctx_list *ctx,
 			       struct sysctl_oid *parent,
-			       struct ice_hw_port_stats *stats);
+			       struct ice_softc *sc);
 void ice_configure_misc_interrupts(struct ice_softc *sc);
 int  ice_sync_multicast_filters(struct ice_softc *sc);
-enum ice_status ice_add_vlan_hw_filters(struct ice_vsi *vsi, u16 *vid,
+int ice_add_vlan_hw_filters(struct ice_vsi *vsi, u16 *vid,
 					u16 length);
-enum ice_status ice_add_vlan_hw_filter(struct ice_vsi *vsi, u16 vid);
-enum ice_status ice_remove_vlan_hw_filters(struct ice_vsi *vsi, u16 *vid,
+int ice_add_vlan_hw_filter(struct ice_vsi *vsi, u16 vid);
+int ice_remove_vlan_hw_filters(struct ice_vsi *vsi, u16 *vid,
 					   u16 length);
-enum ice_status ice_remove_vlan_hw_filter(struct ice_vsi *vsi, u16 vid);
+int ice_remove_vlan_hw_filter(struct ice_vsi *vsi, u16 vid);
 void ice_add_vsi_tunables(struct ice_vsi *vsi, struct sysctl_oid *parent);
 void ice_del_vsi_sysctl_ctx(struct ice_vsi *vsi);
 void ice_add_device_tunables(struct ice_softc *sc);
@@ -890,7 +976,7 @@ void ice_add_txq_sysctls(struct ice_tx_queue *txq);
 void ice_add_rxq_sysctls(struct ice_rx_queue *rxq);
 int  ice_config_rss(struct ice_vsi *vsi);
 void ice_clean_all_vsi_rss_cfg(struct ice_softc *sc);
-enum ice_status ice_load_pkg_file(struct ice_softc *sc);
+int ice_load_pkg_file(struct ice_softc *sc);
 void ice_log_pkg_init(struct ice_softc *sc, enum ice_ddp_state pkg_status);
 uint64_t ice_get_ifnet_counter(struct ice_vsi *vsi, ift_counter counter);
 void ice_save_pci_info(struct ice_hw *hw, device_t dev);
@@ -927,6 +1013,7 @@ void ice_init_health_events(struct ice_softc *sc);
 void ice_cfg_pba_num(struct ice_softc *sc);
 int ice_handle_debug_dump_ioctl(struct ice_softc *sc, struct ifdrv *ifd);
 u8 ice_dcb_get_tc_map(const struct ice_dcbx_cfg *dcbcfg);
+void ice_print_dual_nac_info(struct ice_softc *sc);
 void ice_do_dcb_reconfig(struct ice_softc *sc, bool pending_mib);
 int ice_setup_vsi_mirroring(struct ice_vsi *vsi);
 
