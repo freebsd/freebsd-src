@@ -92,7 +92,7 @@ svc_nl_create(const char *service)
 		.nl_family = PF_NETLINK,
 	};
 	struct nl_softc *sc;
-	SVCXPRT *xprt;
+	SVCXPRT *xprt = NULL;
 	void *buf = NULL;
 	uint16_t family;
 	ssize_t len = 1024;
@@ -133,6 +133,7 @@ svc_nl_create(const char *service)
 
 	return (xprt);
 fail:
+	free(xprt);
 	free(buf);
 	snl_free(&sc->snl);
 	free(sc);
