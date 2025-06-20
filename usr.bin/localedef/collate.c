@@ -1273,7 +1273,7 @@ dump_collate(void)
 	RB_FOREACH(cc, collchars, &collchars) {
 		int	undef = 0;
 		/* we already gathered those */
-		if (cc->wc <= UCHAR_MAX)
+		if ((uint32_t)cc->wc <= UCHAR_MAX)
 			continue;
 		for (j = 0; j < NUM_WT; j++) {
 			if ((pri = get_weight(cc->ref[j], j)) < 0) {
