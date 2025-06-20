@@ -50,15 +50,17 @@ hellocheck(int wr, int rd)
 ATF_TC_WITHOUT_HEAD(udp_connect);
 ATF_TC_BODY(udp_connect, tc)
 {
-	struct sockaddr sa = {
-		.sa_family = AF_INET,
+	struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+		.sin_addr.s_addr = htonl(INADDR_LOOPBACK),
+		.sin_len = sizeof(sin),
 	};
-	socklen_t slen = sizeof(sa);
+	socklen_t slen = sizeof(sin);
 	int ds, cs, us;
 
 	ATF_REQUIRE((us = socket(PF_INET, SOCK_DGRAM, 0)) > 0);
-	ATF_REQUIRE(bind(us, &sa, sizeof(sa)) == 0);
-	ATF_REQUIRE(getsockname(us, &sa, &slen) == 0);
+	ATF_REQUIRE(bind(us, (struct sockaddr *)&sin, sizeof(sin)) == 0);
+	ATF_REQUIRE(getsockname(us, (struct sockaddr *)&sin, &slen) == 0);
 
 	struct ngm_mkpeer mkp = {
 		.type = NG_KSOCKET_NODE_TYPE,
@@ -69,7 +71,7 @@ ATF_TC_BODY(udp_connect, tc)
 	ATF_REQUIRE(NgSendMsg(cs, ".", NGM_GENERIC_COOKIE, NGM_MKPEER, &mkp,
 	    sizeof(mkp)) >= 0);
 	ATF_REQUIRE(NgSendMsg(cs, ".:" OURHOOK, NGM_KSOCKET_COOKIE,
-	    NGM_KSOCKET_CONNECT, &sa, sizeof(sa)) >= 0);
+	    NGM_KSOCKET_CONNECT, &sin, sizeof(sin)) >= 0);
 
 	hellocheck(ds, us);
 }
@@ -79,6 +81,7 @@ ATF_TC_BODY(udp_bind, tc)
 {
 	struct sockaddr_in sin = {
 		.sin_family = AF_INET,
+		.sin_addr.s_addr = htonl(INADDR_LOOPBACK),
 		.sin_len = sizeof(sin),
 	};
 	struct ng_mesg *rep;
