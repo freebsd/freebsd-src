@@ -207,6 +207,14 @@
 /* Define if revalidate_disk() in block_device_operations */
 /* #undef HAVE_BLOCK_DEVICE_OPERATIONS_REVALIDATE_DISK */
 
+/* Define to 1 if you have the Mac OS X function
+   CFLocaleCopyPreferredLanguages in the CoreFoundation framework. */
+/* #undef HAVE_CFLOCALECOPYPREFERREDLANGUAGES */
+
+/* Define to 1 if you have the Mac OS X function CFPreferencesCopyAppValue in
+   the CoreFoundation framework. */
+/* #undef HAVE_CFPREFERENCESCOPYAPPVALUE */
+
 /* check_disk_change() exists */
 /* #undef HAVE_CHECK_DISK_CHANGE */
 
@@ -223,8 +231,8 @@
 /* DECLARE_EVENT_CLASS() is available */
 /* #undef HAVE_DECLARE_EVENT_CLASS */
 
-/* dequeue_signal() takes a task argument */
-/* #undef HAVE_DEQUEUE_SIGNAL_3ARG_TASK */
+/* 3-arg dequeue_signal() takes a type argument */
+/* #undef HAVE_DEQUEUE_SIGNAL_3ARG_TYPE */
 
 /* dequeue_signal() takes 4 arguments */
 /* #undef HAVE_DEQUEUE_SIGNAL_4ARG */
@@ -243,6 +251,9 @@
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
+
+/* dops->d_revalidate() takes 4 args */
+/* #undef HAVE_D_REVALIDATE_4ARGS */
 
 /* Define to 1 if you have the 'execvpe' function. */
 #define HAVE_EXECVPE 1
@@ -360,6 +371,9 @@
 
 /* iops->create() takes struct user_namespace* */
 /* #undef HAVE_IOPS_CREATE_USERNS */
+
+/* iops->mkdir() returns struct dentry* */
+/* #undef HAVE_IOPS_MKDIR_DENTRY */
 
 /* iops->mkdir() takes struct mnt_idmap* */
 /* #undef HAVE_IOPS_MKDIR_IDMAP */
@@ -582,6 +596,9 @@
 /* STACK_FRAME_NON_STANDARD is defined */
 /* #undef HAVE_STACK_FRAME_NON_STANDARD */
 
+/* STACK_FRAME_NON_STANDARD asm macro is defined */
+/* #undef HAVE_STACK_FRAME_NON_STANDARD_ASM */
+
 /* standalone <linux/stdarg.h> exists */
 /* #undef HAVE_STANDALONE_LINUX_STDARG */
 
@@ -629,6 +646,9 @@
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
+
+/* timer_delete_sync is available */
+/* #undef HAVE_TIMER_DELETE_SYNC */
 
 /* i_op->tmpfile() uses old dentry signature */
 /* #undef HAVE_TMPFILE_DENTRY */
@@ -680,6 +700,12 @@
 
 /* All required iov_iter interfaces are available */
 /* #undef HAVE_VFS_IOV_ITER */
+
+/* migratepage exists */
+/* #undef HAVE_VFS_MIGRATEPAGE */
+
+/* migrate_folio exists */
+/* #undef HAVE_VFS_MIGRATE_FOLIO */
 
 /* address_space_operations->readpages exists */
 /* #undef HAVE_VFS_READPAGES */
@@ -783,7 +809,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.2.7-FreeBSD_ge269af1b3"
+#define ZFS_META_ALIAS "zfs-2.2.8-FreeBSD_g3e4a3e161"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -792,7 +818,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "6.12"
+#define ZFS_META_KVER_MAX "6.15"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "4.18"
@@ -813,10 +839,10 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "FreeBSD_ge269af1b3"
+#define ZFS_META_RELEASE "FreeBSD_g3e4a3e161"
 
 /* Define the project version. */
-#define ZFS_META_VERSION "2.2.7"
+#define ZFS_META_VERSION "2.2.8"
 
 /* count is located in percpu_ref.data */
 /* #undef ZFS_PERCPU_REF_COUNT_IN_DATA */
