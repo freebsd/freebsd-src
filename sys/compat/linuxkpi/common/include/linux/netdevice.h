@@ -4,7 +4,7 @@
  * Copyright (c) 2010 Panasas, Inc.
  * Copyright (c) 2013-2019 Mellanox Technologies, Ltd.
  * All rights reserved.
- * Copyright (c) 2020-2021 The FreeBSD Foundation
+ * Copyright (c) 2020-2025 The FreeBSD Foundation
  * Copyright (c) 2020-2022 Bjoern A. Zeeb
  *
  * Portions of this software were developed by Björn Zeeb
@@ -300,6 +300,13 @@ netdev_rss_key_fill(uint32_t *buf, size_t len)
 	 * iwlwifi is looking for a 10byte "secret" so stay with random for now.
 	 */
 	get_random_bytes(buf, len);
+}
+
+static inline void
+__hw_addr_init(struct netdev_hw_addr_list *list)
+{
+	list->count = 0;
+	INIT_LIST_HEAD(&list->addr_list);
 }
 
 static inline int

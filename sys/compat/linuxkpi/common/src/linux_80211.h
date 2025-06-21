@@ -229,6 +229,9 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	struct sx			lvif_sx;
 
 	struct list_head		lchanctx_list;
+	struct netdev_hw_addr_list	mc_list;
+	unsigned int			mc_flags;
+	struct sx			mc_sx;
 
 	struct mtx			txq_mtx;
 	uint32_t			txq_generation[IEEE80211_NUM_ACS];
@@ -285,7 +288,7 @@ struct lkpi_hw {	/* name it mac80211_sc? */
 	int				max_rates;	/* Maximum number of bitrates supported in any channel. */
 	int				scan_ie_len;	/* Length of common per-band scan IEs. */
 
-	bool				update_mc;
+	bool				mc_all_multi;
 	bool				update_wme;
 	bool				rxq_stopped;
 
@@ -374,6 +377,13 @@ struct lkpi_wiphy {
 
 #define	LKPI_80211_LHW_LVIF_LOCK(_lhw)	sx_xlock(&(_lhw)->lvif_sx)
 #define	LKPI_80211_LHW_LVIF_UNLOCK(_lhw) sx_xunlock(&(_lhw)->lvif_sx)
+
+#define	LKPI_80211_LHW_MC_LOCK_INIT(_lhw)		\
+    sx_init_flags(&lhw->mc_sx, "lhw-mc", 0);
+#define	LKPI_80211_LHW_MC_LOCK_DESTROY(_lhw)		\
+    sx_destroy(&lhw->mc_sx);
+#define	LKPI_80211_LHW_MC_LOCK(_lhw)	sx_xlock(&(_lhw)->mc_sx)
+#define	LKPI_80211_LHW_MC_UNLOCK(_lhw)	sx_xunlock(&(_lhw)->mc_sx)
 
 #define	LKPI_80211_LVIF_LOCK(_lvif)	mtx_lock(&(_lvif)->mtx)
 #define	LKPI_80211_LVIF_UNLOCK(_lvif)	mtx_unlock(&(_lvif)->mtx)
