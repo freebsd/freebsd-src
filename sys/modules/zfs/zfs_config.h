@@ -605,6 +605,9 @@
 /* STACK_FRAME_NON_STANDARD is defined */
 /* #undef HAVE_STACK_FRAME_NON_STANDARD */
 
+/* STACK_FRAME_NON_STANDARD asm macro is defined */
+/* #undef HAVE_STACK_FRAME_NON_STANDARD_ASM */
+
 /* standalone <linux/stdarg.h> exists */
 /* #undef HAVE_STANDALONE_LINUX_STDARG */
 
@@ -637,6 +640,9 @@
 
 /* have super_block s_shrink pointer */
 /* #undef HAVE_SUPER_BLOCK_S_SHRINK_PTR */
+
+/* have super_block s_wb_err */
+/* #undef HAVE_SUPER_BLOCK_S_WB_ERR */
 
 /* sync_blockdev() is declared in include/blkdev.h */
 /* #undef HAVE_SYNC_BLOCKDEV */
@@ -806,7 +812,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.3.99-392-FreeBSD_g3084336ae"
+#define ZFS_META_ALIAS "zfs-2.3.99-437-FreeBSD_g8170eb6eb"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -836,7 +842,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "392-FreeBSD_g3084336ae"
+#define ZFS_META_RELEASE "437-FreeBSD_g8170eb6eb"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.3.99"

@@ -140,7 +140,7 @@ tests = ['tst.destroy_fs', 'tst.destroy_snap', 'tst.get_count_and_limit',
     'tst.promote_multiple', 'tst.promote_simple', 'tst.rollback_mult',
     'tst.rollback_one', 'tst.set_props', 'tst.snapshot_destroy', 'tst.snapshot_neg',
     'tst.snapshot_recursive', 'tst.snapshot_rename', 'tst.snapshot_simple',
-    'tst.bookmark.create', 'tst.bookmark.copy',
+    'tst.bookmark.create', 'tst.bookmark.copy', 'tst.clone',
     'tst.terminate_by_signal'
     ]
 tags = ['functional', 'channel_program', 'synctask_core']
@@ -845,6 +845,15 @@ tests = ['pool_names_001_pos', 'pool_names_002_neg']
 pre =
 post =
 tags = ['functional', 'pool_names']
+
+[tests/functional/projectquota]
+tests = ['defaultprojectquota_002_pos', 'defaultprojectquota_003_neg',
+    'defaultprojectquota_004_pos', 'defaultprojectquota_006_pos',
+    'defaultprojectquota_007_pos', 'projectquota_002_pos',
+    'projectquota_004_neg', 'projectquota_005_pos', 'projectquota_007_pos',
+    'projectquota_008_pos', 'projectquota_009_pos', 'projecttree_002_pos',
+    'projecttree_003_neg']
+tags = ['functional', 'projectquota']
 
 [tests/functional/poolversion]
 tests = ['poolversion_001_pos', 'poolversion_002_pos']
