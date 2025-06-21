@@ -85,7 +85,7 @@ ptrauth_disable(void)
 static bool
 ptrauth_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 {
-	uint64_t isar1;
+	uint64_t isar;
 	int pac_enable;
 
 	/*
@@ -100,9 +100,6 @@ ptrauth_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 		goto out;
 	}
 
-	if (!get_kernel_reg(ID_AA64ISAR1_EL1, &isar1))
-		goto out;
-
 	if (ptrauth_disable())
 		goto out;
 
@@ -111,13 +108,36 @@ ptrauth_check(const struct cpu_feat *feat __unused, u_int midr __unused)
 	 * it will also be available on any non-boot CPUs. If this is ever
 	 * not the case we will have to add a quirk.
 	 */
-	return (ID_AA64ISAR1_APA_VAL(isar1) > 0 ||
-	    ID_AA64ISAR1_API_VAL(isar1) > 0);
+
+	/*
+	 * The QARMA5 or implementation efined algorithms are reported in
+	 * ID_AA64ISAR1_EL1.
+	 */
+	if (get_kernel_reg(ID_AA64ISAR1_EL1, &isar)) {
+		if (ID_AA64ISAR1_APA_VAL(isar) > 0 ||
+		    ID_AA64ISAR1_API_VAL(isar) > 0) {
+			return (true);
+		}
+	}
+
+	/* The QARMA3 algorithm is reported in ID_AA64ISAR2_EL1. */
+	if (get_kernel_reg(ID_AA64ISAR2_EL1, &isar)) {
+		if (ID_AA64ISAR2_APA3_VAL(isar) > 0) {
+			return (true);
+		}
+	}
 
 out:
+	/*
+	 * Pointer authentication may be disabled, mask out the ID fields we
+	 * expose to userspace and the rest of the kernel so they don't try
+	 * to use it.
+	 */
 	update_special_reg(ID_AA64ISAR1_EL1, ID_AA64ISAR1_API_MASK |
 	    ID_AA64ISAR1_APA_MASK | ID_AA64ISAR1_GPA_MASK |
 	    ID_AA64ISAR1_GPI_MASK, 0);
+	update_special_reg(ID_AA64ISAR2_EL1, ID_AA64ISAR2_APA3_MASK, 0);
+
 	return (false);
 }
 
