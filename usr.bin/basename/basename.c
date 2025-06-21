@@ -48,7 +48,7 @@ main(int argc, char **argv)
 {
 	char *p, *suffix;
 	size_t suffixlen;
-	int aflag, ch;
+	int aflag, dflag, ch;
 
 	setlocale(LC_ALL, "");
 
@@ -56,13 +56,17 @@ main(int argc, char **argv)
 		err(1, "capsicum");
 
 	aflag = 0;
+	dflag = 0;
 	suffix = NULL;
 	suffixlen = 0;
 
-	while ((ch = getopt(argc, argv, "as:")) != -1)
+	while ((ch = getopt(argc, argv, "ads:")) != -1)
 		switch(ch) {
 		case 'a':
 			aflag = 1;
+			break;
+		case 'd':
+			dflag = 1;
 			break;
 		case 's':
 			suffix = optarg;
@@ -77,6 +81,23 @@ main(int argc, char **argv)
 	if (argc < 1)
 		usage();
 
+	if (dflag) {
+		if (aflag || suffix != NULL)
+			usage();
+		if (argc > 1) /* -d only accepts one path */
+			usage();
+		if (!*argv[0]) { /* Handle empty string case for dirname */
+			printf(".\n");
+			exit(0);
+		}
+		p = dirname(argv[0]);
+		if (p == NULL)
+			err(1, "dirname %s", argv[0]);
+		printf("%s\n", p);
+		exit(0);
+	}
+
+	/* Existing logic for non -d cases */
 	if (!*argv[0]) {
 		printf("\n");
 		exit(0);
@@ -129,6 +150,7 @@ usage(void)
 
 	(void)fprintf(stderr,
 "usage: basename string [suffix]\n"
-"       basename [-a] [-s suffix] string [...]\n");
+"       basename [-a] [-s suffix] string [...]\n"
+"       basename [-d] string\n");
 	exit(1);
 }
