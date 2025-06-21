@@ -57,8 +57,8 @@ extern int linuxkpi_debug_80211;
 #endif
 #define	TODO(fmt, ...)		if (linuxkpi_debug_80211 & D80211_TODO)	\
     printf("%s:%d: XXX LKPI80211 TODO " fmt "\n",  __func__, __LINE__, ##__VA_ARGS__)
-#define	IMPROVE(...)	if (linuxkpi_debug_80211 & D80211_IMPROVE)	\
-    printf("%s:%d: XXX LKPI80211 IMPROVE\n", __func__, __LINE__)
+#define	IMPROVE(fmt, ...)	if (linuxkpi_debug_80211 & D80211_IMPROVE)	\
+    printf("%s:%d: XXX LKPI80211 IMPROVE " fmt "\n", __func__, __LINE__, ##__VA_ARGS__)
 
 enum rfkill_hard_block_reasons {
 	RFKILL_HARD_BLOCK_NOT_OWNER		= BIT(0),
@@ -1299,10 +1299,9 @@ reg_query_regdb_wmm(uint8_t *alpha2, uint32_t center_freq,
     struct ieee80211_reg_rule *rule)
 {
 
-	/* ETSI has special rules. FreeBSD regdb needs to learn about them. */
-	TODO();
+	IMPROVE("regdomain.xml needs to grow wmm information for at least ETSI");
 
-	return (-ENXIO);
+	return (-ENODATA);
 }
 
 static __inline const u8 *
