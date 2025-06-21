@@ -597,7 +597,7 @@ fuse_device_write(struct cdev *dev, struct uio *uio, int ioflag)
 			 */
 			err = 0;
 		} else {
-			err = EXTERROR(ENOSYS, "FUSE ticket is missing");
+			err = EXTERROR(EINVAL, "FUSE ticket is missing");
 		}
 	}
 
