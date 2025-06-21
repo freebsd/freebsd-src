@@ -427,6 +427,34 @@ class TestSCTP(VnetTestTemplate):
         assert re.search(r"all sctp 192.0.2.4:.*192.0.2.2:1234", states)
 
     @pytest.mark.require_user("root")
+    def test_limit_addresses(self):
+        srv_vnet = self.vnet_map["vnet2"]
+
+        ifname = self.vnet_map["vnet1"].iface_alias_map["if1"].name
+        for i in range(0, 16):
+            ToolsHelper.print_output("/sbin/ifconfig %s inet alias 192.0.2.%d/24" % (ifname, 4 + i))
+
+        ToolsHelper.print_output("/sbin/pfctl -e")
+        ToolsHelper.pf_rules([
+            "block proto sctp",
+            "pass on lo",
+            "pass inet proto sctp to 192.0.2.0/24"])
+
+        # Set up a connection, which will try to create states for all addresses
+        # we have assigned
+        client = SCTPClient("192.0.2.3", 1234)
+        client.send(b"hello", 0)
+        rcvd = self.wait_object(srv_vnet.pipe)
+        print(rcvd)
+        assert rcvd['ppid'] == 0
+        assert rcvd['data'] == "hello"
+
+        # But the number should be limited to 9 (original + 8 extra)
+        states = ToolsHelper.get_output("/sbin/pfctl -ss | grep 192.0.2.2")
+        print(states)
+        assert(states.count('\n') <= 9)
+
+    @pytest.mark.require_user("root")
     def test_disallow_related(self):
         srv_vnet = self.vnet_map["vnet2"]
 

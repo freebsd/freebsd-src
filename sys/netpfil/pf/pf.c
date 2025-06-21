@@ -205,6 +205,8 @@ VNET_DEFINE(size_t, pf_allrulecount);
 VNET_DEFINE(struct pf_krule *, pf_rulemarker);
 #endif
 
+#define PF_SCTP_MAX_ENDPOINTS		8
+
 struct pf_sctp_endpoint;
 RB_HEAD(pf_sctp_endpoints, pf_sctp_endpoint);
 struct pf_sctp_source {
@@ -7297,6 +7299,7 @@ pf_sctp_multihome_add_addr(struct pf_pdesc *pd, struct pf_addr *a, uint32_t v_ta
 	};
 	struct pf_sctp_source *i;
 	struct pf_sctp_endpoint *ep;
+	int count;
 
 	PF_SCTP_ENDPOINTS_LOCK();
 
@@ -7315,11 +7318,19 @@ pf_sctp_multihome_add_addr(struct pf_pdesc *pd, struct pf_addr *a, uint32_t v_ta
 	}
 
 	/* Avoid inserting duplicates. */
+	count = 0;
 	TAILQ_FOREACH(i, &ep->sources, entry) {
+		count++;
 		if (pf_addr_cmp(&i->addr, a, pd->af) == 0) {
 			PF_SCTP_ENDPOINTS_UNLOCK();
 			return;
 		}
+	}
+
+	/* Limit the number of addresses per endpoint. */
+	if (count >= PF_SCTP_MAX_ENDPOINTS) {
+		PF_SCTP_ENDPOINTS_UNLOCK();
+		return;
 	}
 
 	i = malloc(sizeof(*i), M_PFTEMP, M_NOWAIT);
