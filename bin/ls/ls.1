@@ -37,7 +37,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHILPRSTUWZabcdfghiklmnopqrstuvwxy1\&,
+.Op Fl ABCFGHILPRSTUWZabcdfghijklmnopqrstuvwxy1\&,
 .Op Fl -color Ns = Ns Ar when
 .Op Fl -group-directories Ns = Ns Ar order
 .Op Fl -group-directories-first
@@ -325,6 +325,25 @@ This option is not defined in
 .St -p1003.1-2008 .
 .It Fl i
 For each file, print the file's file serial number (inode number).
+.It Fl j
+Force output to be in JSON format.
+The output is an array of JSON objects, each representing a file or directory.
+This option is mutually exclusive with other output format options such as
+.Fl 1 , C , l , m ,
+and
+.Fl x .
+It also disables human-readable sizes
+.Pq Fl h ,
+kilobyte sizes
+.Pq Fl k ,
+the use of thousands separators
+.Pq Fl , ,
+and all color output
+.Pq Fl G , Fl -color .
+For details on the JSON structure, see the
+.Sx The JSON Format
+subsection below.
+This option is a non-standard extension.
 .It Fl k
 This has the same effect as setting environment variable
 .Ev BLOCKSIZE
@@ -459,9 +478,9 @@ This option is not defined in
 .El
 .Pp
 The
-.Fl 1 , C , x ,
+.Fl 1 , C , j , l , m ,
 and
-.Fl l
+.Fl x
 options all override each other; the last one specified determines
 the format used.
 .Pp
@@ -668,6 +687,90 @@ utility does not show the actual ACL;
 use
 .Xr getfacl 1
 to do this.
+.Ss The JSON Format
+If the
+.Fl j
+option is given,
+.Nm
+outputs an array of JSON objects, one for each file or directory.
+Each object contains a selection of the following fields, depending on the file type and available information.
+All strings are UTF-8 encoded, and special characters within strings (such as double quotes or backslashes) are JSON-escaped.
+.Bl -tag -width ".Cm birthtime" -compact
+.It Cm name
+string: The name of the file or directory.
+.It Cm path
+string: The full path to the file or directory as listed.
+.It Cm type
+string: The type of the file. Possible values include:
+.Dq file ,
+.Dq directory ,
+.Dq link
+.Pq for symbolic links where the target is accessible ,
+.Dq symlink
+.Pq for symbolic links where the target might not be accessible or was not followed ,
+.Dq socket ,
+.Dq fifo ,
+.Dq char_device
+.Pq character special file ,
+.Dq block_device
+.Pq block special file ,
+.Dq whiteout ,
+or
+.Dq unknown .
+.It Cm inode
+number: The inode number of the file.
+.It Cm size
+number: The size of the file in bytes.
+.It Cm blocks
+number: The number of file system blocks allocated to the file.
+.It Cm nlink
+number: The number of hard links to the file.
+.It Cm uid
+number: The numeric user ID of the file's owner.
+.It Cm gid
+number: The numeric group ID of the file's group.
+.It Cm user
+string: The username of the file's owner. This field is omitted if numeric IDs are requested (e.g., with the
+.Fl n
+option).
+.It Cm group
+string: The group name of the file's group. This field is omitted if numeric IDs are requested.
+.It Cm mode_string
+string: A string representation of the file mode, similar to the one in
+.Fl l
+output (e.g.,
+.Dq Li -rwxr-xr-x ) .
+.It Cm mode_octal
+string: The file mode in octal format (e.g.,
+.Dq Li "0755" ) .
+.It Cm flags
+string: The file flags, if requested by the
+.Fl o
+option and if supported (e.g.,
+.Dq Li uchg ) .
+If no flags are set or flags are not requested, this field may be omitted or contain a placeholder like
+.Dq Li - .
+.It Cm label
+string: The MAC label of the file, if requested by the
+.Fl Z
+option and if available.
+If no label is available or requested, this field may be omitted or contain a placeholder like
+.Dq Li - .
+.It Cm target
+string: For symbolic links, this field contains the path of the file the link points to.
+This field is only present for symbolic link types.
+.It Cm atime
+number: The last access time of the file, in seconds since the UNIX epoch.
+.It Cm mtime
+number: The last modification time of the file, in seconds since the UNIX epoch.
+.It Cm ctime
+number: The last status change time of the file, in seconds since the UNIX epoch.
+.It Cm birthtime
+number: The birth (creation) time of the file, in seconds since the UNIX epoch, if available.
+.It Cm error
+string: If an error occurs while retrieving information for an entry (e.g., a stat failure), this field may contain an error message.
+Other fields might be absent or null in such a case.
+.El
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
@@ -723,10 +826,18 @@ The
 variable still needs to reference a color capable terminal however
 otherwise it is not possible to determine which color sequences to
 use.
+These variables
+.Pq Ev CLICOLOR , Ev CLICOLOR_FORCE
+have no effect if the
+.Fl j
+option is specified, as JSON output does not include color escape sequences.
 .It Ev COLORTERM
 See description for
 .Ev CLICOLOR
 above.
+Has no effect if the
+.Fl j
+option is specified.
 .It Ev COLUMNS
 If this variable contains a string representing a
 decimal integer, it is used as the
@@ -842,6 +953,9 @@ The default is
 i.e., blue foreground and
 default background for regular directories, black foreground and red
 background for setuid executables, etc.
+This variable has no effect if the
+.Fl j
+option is specified.
 .It Ev LS_COLWIDTHS
 If this variable is set, it is considered to be a
 colon-delimited list of minimum column widths.
@@ -925,7 +1039,7 @@ utility conforms to
 and
 .St -p1003.1-2008 .
 The options
-.Fl B , D , G , I , T , U , W , Z , b , h , v , w , y
+.Fl B , D , G , I , T , U , W , Z , b , h , j , v , w , y
 ,
 .Fl ,
 .Fl -color
