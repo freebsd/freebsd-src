@@ -27,7 +27,7 @@
 .Os
 .Sh NAME
 .Nm pthread_rwlockattr_init
-.Nd initialize a read/write lock
+.Nd initialize a read/write lock attributes object
 .Sh LIBRARY
 .Lb libpthread
 .Sh SYNOPSIS
@@ -50,7 +50,7 @@ The
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
-Insufficient memory exists to initialize the attribute object.
+Insufficient memory exists to initialize the attributes object.
 .El
 .Sh SEE ALSO
 .Xr pthread_rwlock_init 3 ,
