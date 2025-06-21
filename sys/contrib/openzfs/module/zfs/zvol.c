@@ -89,6 +89,7 @@
 #include <sys/zvol_impl.h>
 
 unsigned int zvol_inhibit_dev = 0;
+unsigned int zvol_prefetch_bytes = (128 * 1024);
 unsigned int zvol_volmode = ZFS_VOLMODE_GEOM;
 unsigned int zvol_threads = 0;
 unsigned int zvol_num_taskqs = 0;
@@ -576,7 +577,7 @@ zvol_replay_clone_range(void *arg1, void *arg2, boolean_t byteswap)
 	if (error != 0 || !zv->zv_dn)
 		return (error);
 	tx = dmu_tx_create(os);
-	dmu_tx_hold_clone_by_dnode(tx, zv->zv_dn, off, len);
+	dmu_tx_hold_clone_by_dnode(tx, zv->zv_dn, off, len, blksz);
 	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error != 0) {
 		dmu_tx_abort(tx);
@@ -741,7 +742,8 @@ zvol_clone_range(zvol_state_t *zv_src, uint64_t inoff, zvol_state_t *zv_dst,
 		}
 
 		tx = dmu_tx_create(zv_dst->zv_objset);
-		dmu_tx_hold_clone_by_dnode(tx, zv_dst->zv_dn, outoff, size);
+		dmu_tx_hold_clone_by_dnode(tx, zv_dst->zv_dn, outoff, size,
+		    zv_src->zv_volblocksize);
 		error = dmu_tx_assign(tx, DMU_TX_WAIT);
 		if (error != 0) {
 			dmu_tx_abort(tx);
@@ -2156,6 +2158,10 @@ zvol_fini_impl(void)
 
 ZFS_MODULE_PARAM(zfs_vol, zvol_, inhibit_dev, UINT, ZMOD_RW,
 	"Do not create zvol device nodes");
+ZFS_MODULE_PARAM(zfs_vol, zvol_, prefetch_bytes, UINT, ZMOD_RW,
+	"Prefetch N bytes at zvol start+end");
+ZFS_MODULE_PARAM(zfs_vol, zvol_vol, mode, UINT, ZMOD_RW,
+	"Default volmode property value");
 ZFS_MODULE_PARAM(zfs_vol, zvol_, threads, UINT, ZMOD_RW,
 	"Number of threads for I/O requests. Set to 0 to use all active CPUs");
 ZFS_MODULE_PARAM(zfs_vol, zvol_, num_taskqs, UINT, ZMOD_RW,
