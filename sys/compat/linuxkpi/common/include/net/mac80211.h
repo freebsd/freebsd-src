@@ -87,6 +87,9 @@ enum mcast_filter_flags {
 	FIF_PSPOLL			= BIT(5),
 	FIF_CONTROL			= BIT(6),
 	FIF_MCAST_ACTION		= BIT(7),
+
+	/* Must stay last. */
+	FIF_FLAGS_MASK			= BIT(8)-1,
 };
 
 enum ieee80211_bss_changed {
