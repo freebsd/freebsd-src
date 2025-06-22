@@ -198,18 +198,17 @@ hostent_compare(const struct hostent *hp0, const struct hostent *hp1)
 static void
 runtest(cap_channel_t *capdns, unsigned int expected)
 {
-	unsigned int result, failure;
+	unsigned int result;
 	struct addrinfo *ais, *aic, hints, *hintsp;
 	struct hostent *hps, *hpc;
 	struct in_addr ip4;
 	struct in6_addr ip6;
 	int caperr, syserr;
 
-	failure = result = 0;
+	result = 0;
 
 	hps = gethostbyname("example.com");
 	if (hps == NULL) {
-		failure |= GETHOSTBYNAME;
 		fprintf(stderr, "Unable to resolve %s IPv4.\n", "example.com");
 	} else {
 		hpc = cap_gethostbyname(capdns, "example.com");
@@ -219,7 +218,6 @@ runtest(cap_channel_t *capdns, unsigned int expected)
 
 	hps = gethostbyname2("example.com", AF_INET);
 	if (hps == NULL) {
-		failure |= GETHOSTBYNAME2_AF_INET;
 		fprintf(stderr, "Unable to resolve %s IPv4.\n", "example.com");
 	} else {
 		hpc = cap_gethostbyname2(capdns, "example.com", AF_INET);
@@ -229,7 +227,6 @@ runtest(cap_channel_t *capdns, unsigned int expected)
 
 	hps = gethostbyname2("example.com", AF_INET6);
 	if (hps == NULL) {
-		failure |= GETHOSTBYNAME2_AF_INET6;
 		fprintf(stderr, "Unable to resolve %s IPv6.\n", "example.com");
 	} else {
 		hpc = cap_gethostbyname2(capdns, "example.com", AF_INET6);
@@ -250,7 +247,6 @@ runtest(cap_channel_t *capdns, unsigned int expected)
 
 	syserr = getaddrinfo("freebsd.org", "25", hintsp, &ais);
 	if (syserr != 0) {
-		failure |= GETADDRINFO_AF_UNSPEC;
 		fprintf(stderr,
 		    "Unable to issue [system] getaddrinfo() for AF_UNSPEC: %s\n",
 		    gai_strerror(syserr));
@@ -268,7 +264,6 @@ runtest(cap_channel_t *capdns, unsigned int expected)
 	hints.ai_family = AF_INET;
 	syserr = getaddrinfo("freebsd.org", "25", hintsp, &ais);
 	if (syserr != 0) {
-		failure |= GETADDRINFO_AF_INET;
 		fprintf(stderr,
 		    "Unable to issue [system] getaddrinfo() for AF_UNSPEC: %s\n",
 		    gai_strerror(syserr));
@@ -286,7 +281,6 @@ runtest(cap_channel_t *capdns, unsigned int expected)
 	hints.ai_family = AF_INET6;
 	syserr = getaddrinfo("freebsd.org", "25", hintsp, &ais);
 	if (syserr != 0) {
-		failure |= GETADDRINFO_AF_INET6;
 		fprintf(stderr,
 		    "Unable to issue [system] getaddrinfo() for AF_UNSPEC: %s\n",
 		    gai_strerror(syserr));
@@ -308,7 +302,6 @@ runtest(cap_channel_t *capdns, unsigned int expected)
 	inet_pton(AF_INET, GOOGLE_DNS_IPV4, &ip4);
 	hps = gethostbyaddr(&ip4, sizeof(ip4), AF_INET);
 	if (hps == NULL) {
-		failure |= GETHOSTBYADDR_AF_INET;
 		fprintf(stderr, "Unable to resolve %s.\n", GOOGLE_DNS_IPV4);
 	} else {
 		hpc = cap_gethostbyaddr(capdns, &ip4, sizeof(ip4), AF_INET);
@@ -319,7 +312,6 @@ runtest(cap_channel_t *capdns, unsigned int expected)
 	inet_pton(AF_INET6, GOOGLE_DNS_IPV6, &ip6);
 	hps = gethostbyaddr(&ip6, sizeof(ip6), AF_INET6);
 	if (hps == NULL) {
-		failure |= GETHOSTBYADDR_AF_INET6;
 		fprintf(stderr, "Unable to resolve %s.\n", GOOGLE_DNS_IPV6);
 	} else {
 		hpc = cap_gethostbyaddr(capdns, &ip6, sizeof(ip6), AF_INET6);
@@ -329,21 +321,6 @@ runtest(cap_channel_t *capdns, unsigned int expected)
 		}
 	}
 
-	/*
-	 * If we had any failures, make sure that all lookups failed.  If some
-	 * succeeded and some failed, there's a problem with the test or the DNS
-	 * and we should not fail silently.
-	 */
-	if (failure != 0) {
-		ATF_REQUIRE_MSG(failure == (GETHOSTBYNAME |
-		    GETHOSTBYNAME2_AF_INET | GETHOSTBYNAME2_AF_INET6 |
-		    GETADDRINFO_AF_UNSPEC | GETADDRINFO_AF_INET |
-		    GETADDRINFO_AF_INET6 |
-		    GETHOSTBYADDR_AF_INET | GETHOSTBYADDR_AF_INET6),
-		    "expected all tests to fail, got 0x%x", failure);
-		atf_tc_skip(
-		    "no name lookups succeeded, tests require Internet access");
-	}
 	ATF_REQUIRE_MSG(result == expected,
 	    "expected 0x%x, got 0x%x", expected, result);
 }
@@ -367,6 +344,7 @@ cap_dns_init(void)
 ATF_TC(dns_no_limits);
 ATF_TC_HEAD(dns_no_limits, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_no_limits, tc)
 {
@@ -386,6 +364,7 @@ ATF_TC_BODY(dns_no_limits, tc)
 ATF_TC(dns_all_limits);
 ATF_TC_HEAD(dns_all_limits, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_all_limits, tc)
 {
@@ -417,6 +396,7 @@ ATF_TC_BODY(dns_all_limits, tc)
 ATF_TC(dns_name_limit);
 ATF_TC_HEAD(dns_name_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_name_limit, tc)
 {
@@ -448,6 +428,7 @@ ATF_TC_BODY(dns_name_limit, tc)
 ATF_TC(dns_addr_limit);
 ATF_TC_HEAD(dns_addr_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_addr_limit, tc)
 {
@@ -478,6 +459,7 @@ ATF_TC_BODY(dns_addr_limit, tc)
 ATF_TC(dns_inet_limit);
 ATF_TC_HEAD(dns_inet_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_inet_limit, tc)
 {
@@ -509,6 +491,7 @@ ATF_TC_BODY(dns_inet_limit, tc)
 ATF_TC(dns_inet6_limit);
 ATF_TC_HEAD(dns_inet6_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_inet6_limit, tc)
 {
@@ -540,6 +523,7 @@ ATF_TC_BODY(dns_inet6_limit, tc)
 ATF_TC(dns_name_inet_limit);
 ATF_TC_HEAD(dns_name_inet_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_name_inet_limit, tc)
 {
@@ -581,6 +565,7 @@ ATF_TC_BODY(dns_name_inet_limit, tc)
 ATF_TC(dns_name_inet6_limit);
 ATF_TC_HEAD(dns_name_inet6_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_name_inet6_limit, tc)
 {
@@ -622,6 +607,7 @@ ATF_TC_BODY(dns_name_inet6_limit, tc)
 ATF_TC(dns_addr_inet_limit);
 ATF_TC_HEAD(dns_addr_inet_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_addr_inet_limit, tc)
 {
@@ -662,6 +648,7 @@ ATF_TC_BODY(dns_addr_inet_limit, tc)
 ATF_TC(dns_addr_inet6_limit);
 ATF_TC_HEAD(dns_addr_inet6_limit, tc)
 {
+	atf_tc_set_md_var(tc, "require.config", "allow_network_access");
 }
 ATF_TC_BODY(dns_addr_inet6_limit, tc)
 {
