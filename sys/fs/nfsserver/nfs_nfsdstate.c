@@ -9009,3 +9009,29 @@ nfsrv_issuedelegation(struct vnode *vp, struct nfsclient *clp,
 		nfsrv_delegatecnt++;
 	}
 }
+
+/*
+ * Find and remove any delegations for the fh.
+ */
+void
+nfsrv_removedeleg(fhandle_t *fhp, struct nfsrv_descript *nd, NFSPROC_T *p)
+{
+	struct nfsclient *clp;
+	struct nfsstate *stp, *nstp;
+	struct nfslockfile *lfp;
+	int error;
+
+	NFSLOCKSTATE();
+	error = nfsrv_getclient(nd->nd_clientid, CLOPS_RENEW, &clp, NULL,
+	    (nfsquad_t)((u_quad_t)0), 0, nd, p);
+	if (error == 0)
+		error = nfsrv_getlockfile(NFSLCK_CHECK, NULL, &lfp, fhp, 0);
+	/*
+	 * Now we must free any delegations.
+	 */
+	if (error == 0) {
+		LIST_FOREACH_SAFE(stp, &lfp->lf_deleg, ls_file, nstp)
+			nfsrv_freedeleg(stp);
+	}
+	NFSUNLOCKSTATE();
+}
