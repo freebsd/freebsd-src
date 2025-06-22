@@ -1303,8 +1303,8 @@ static int pmap_change_props_locked(vm_offset_t va, vm_size_t size,
 static boolean_t pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
 static boolean_t pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde,
     vm_offset_t va, struct rwlock **lockp);
-static boolean_t pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe,
-    vm_offset_t va);
+static bool	pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe,
+    vm_offset_t va, vm_page_t m);
 static int	pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		    vm_prot_t prot, struct rwlock **lockp);
 static int	pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde,
@@ -9529,8 +9529,8 @@ pmap_unmapdev(void *p, vm_size_t size)
 /*
  * Tries to demote a 1GB page mapping.
  */
-static boolean_t
-pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va)
+static bool
+pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va, vm_page_t m)
 {
 	pdp_entry_t newpdpe, oldpdpe;
 	pd_entry_t *firstpde, newpde, *pde;
@@ -9547,12 +9547,19 @@ pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va)
 	oldpdpe = *pdpe;
 	KASSERT((oldpdpe & (PG_PS | PG_V)) == (PG_PS | PG_V),
 	    ("pmap_demote_pdpe: oldpdpe is missing PG_PS and/or PG_V"));
-	pdpg = pmap_alloc_pt_page(pmap, va >> PDPSHIFT,
-	    VM_ALLOC_WIRED | VM_ALLOC_INTERRUPT);
-	if (pdpg  == NULL) {
-		CTR2(KTR_PMAP, "pmap_demote_pdpe: failure for va %#lx"
-		    " in pmap %p", va, pmap);
-		return (FALSE);
+	if (m == NULL) {
+		pdpg = pmap_alloc_pt_page(pmap, va >> PDPSHIFT,
+		    VM_ALLOC_WIRED);
+		if (pdpg  == NULL) {
+			CTR2(KTR_PMAP,
+			    "pmap_demote_pdpe: failure for va %#lx in pmap %p",
+			    va, pmap);
+			return (false);
+		}
+	} else {
+		pdpg = m;
+		pdpg->pindex = va >> PDPSHIFT;
+		pmap_pt_page_count_adj(pmap, 1);
 	}
 	pdpgpa = VM_PAGE_TO_PHYS(pdpg);
 	firstpde = (pd_entry_t *)PHYS_TO_DMAP(pdpgpa);
@@ -9762,7 +9769,7 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
 				tmpva += NBPDP;
 				continue;
 			}
-			if (!pmap_demote_pdpe(kernel_pmap, pdpe, tmpva))
+			if (!pmap_demote_pdpe(kernel_pmap, pdpe, tmpva, NULL))
 				return (ENOMEM);
 		}
 		pde = pmap_pdpe_to_pde(pdpe, tmpva);
@@ -9931,25 +9938,37 @@ pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate)
 {
 	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
+	vm_page_t m;
 	vm_offset_t va;
-	boolean_t changed;
+	bool changed;
 
 	if (len == 0)
 		return;
 	KASSERT(powerof2(len), ("pmap_demote_DMAP: len is not a power of 2"));
 	KASSERT((base & (len - 1)) == 0,
 	    ("pmap_demote_DMAP: base is not a multiple of len"));
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "pmap_demote_DMAP");
+
 	if (len < NBPDP && base < dmaplimit) {
 		va = PHYS_TO_DMAP(base);
-		changed = FALSE;
+		changed = false;
+
+		/*
+		 * Assume that it is fine to sleep there.
+		 * The only existing caller of pmap_demote_DMAP() is the
+		 * x86_mr_split_dmap() function.
+		 */
+		m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_WAITOK);
+
 		PMAP_LOCK(kernel_pmap);
 		pdpe = pmap_pdpe(kernel_pmap, va);
 		if ((*pdpe & X86_PG_V) == 0)
 			panic("pmap_demote_DMAP: invalid PDPE");
 		if ((*pdpe & PG_PS) != 0) {
-			if (!pmap_demote_pdpe(kernel_pmap, pdpe, va))
+			if (!pmap_demote_pdpe(kernel_pmap, pdpe, va, m))
 				panic("pmap_demote_DMAP: PDPE failed");
-			changed = TRUE;
+			changed = true;
+			m = NULL;
 		}
 		if (len < NBPDR) {
 			pde = pmap_pdpe_to_pde(pdpe, va);
@@ -9964,6 +9983,10 @@ pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate)
 		if (changed && invalidate)
 			pmap_invalidate_page(kernel_pmap, va);
 		PMAP_UNLOCK(kernel_pmap);
+		if (m != NULL) {
+			vm_page_unwire_noq(m);
+			vm_page_free(m);
+		}
 	}
 }
 
