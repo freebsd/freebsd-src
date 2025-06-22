@@ -39,6 +39,7 @@ struct auxiliary_device_id {
 	char name[AUXILIARY_NAME_SIZE];
 	uint64_t driver_data;
 };
+#define	MODULE_DEVICE_TABLE_BUS_auxiliary(_bus, _table)
 
 struct auxiliary_device {
 	struct device dev;
