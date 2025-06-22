@@ -9927,11 +9927,13 @@ pmap_change_props_locked(vm_offset_t va, vm_size_t size, vm_prot_t prot,
 }
 
 /*
- * Demotes any mapping within the direct map region that covers more than the
- * specified range of physical addresses.  This range's size must be a power
- * of two and its starting address must be a multiple of its size.  Since the
- * demotion does not change any attributes of the mapping, a TLB invalidation
- * is not mandatory.  The caller may, however, request a TLB invalidation.
+ * Demotes any mapping within the direct map region that covers more
+ * than the specified range of physical addresses.  This range's size
+ * must be a power of two and its starting address must be a multiple
+ * of its size, which means that any pdp from the mapping is fully
+ * covered by the range if len > NBPDP.  Since the demotion does not
+ * change any attributes of the mapping, a TLB invalidation is not
+ * mandatory.  The caller may, however, request a TLB invalidation.
  */
 void
 pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate)
