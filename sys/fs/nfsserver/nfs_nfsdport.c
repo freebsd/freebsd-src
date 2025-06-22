@@ -188,6 +188,10 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_stringtouid,
 static int nfsrv_pnfsgetdsattr = 1;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, pnfsgetdsattr, CTLFLAG_RW,
     &nfsrv_pnfsgetdsattr, 0, "When set getattr gets DS attributes via RPC");
+static bool nfsrv_recalldeleg = false;
+SYSCTL_BOOL(_vfs_nfsd, OID_AUTO, recalldeleg, CTLFLAG_RW,
+    &nfsrv_recalldeleg, 0,
+    "When set remove/rename recalls delegations for same client");
 
 /*
  * nfsrv_dsdirsize can only be increased and only when the nfsd threads are
@@ -1483,32 +1487,61 @@ nfsmout:
  * Remove a non-directory object.
  */
 int
-nfsvno_removesub(struct nameidata *ndp, int is_v4, struct ucred *cred,
+nfsvno_removesub(struct nameidata *ndp, bool is_v4, struct nfsrv_descript *nd,
     struct thread *p, struct nfsexstuff *exp)
 {
-	struct vnode *vp, *dsdvp[NFSDEV_MAXMIRRORS];
-	int error = 0, mirrorcnt;
+	struct vnode *vp, *dsdvp[NFSDEV_MAXMIRRORS], *newvp;
+	struct mount *mp;
+	int error = 0, mirrorcnt, ret;
 	char fname[PNFS_FILENAME_LEN + 1];
 	fhandle_t fh;
 
 	vp = ndp->ni_vp;
 	dsdvp[0] = NULL;
-	if (vp->v_type == VDIR)
+	if (vp->v_type == VDIR) {
 		error = NFSERR_ISDIR;
-	else if (is_v4)
-		error = nfsrv_checkremove(vp, 1, NULL, (nfsquad_t)((u_quad_t)0),
-		    p);
+	} else if (is_v4) {
+		if (nfsrv_recalldeleg || (nd->nd_flag & ND_NFSV41) == 0)
+			error = nfsrv_checkremove(vp, 1, NULL,
+			    (nfsquad_t)((u_quad_t)0), p);
+		else
+			error = nfsrv_checkremove(vp, 1, NULL, nd->nd_clientid,
+			    p);
+	}
 	if (error == 0)
 		nfsrv_pnfsremovesetup(vp, p, dsdvp, &mirrorcnt, fname, &fh);
 	if (!error)
 		error = VOP_REMOVE(ndp->ni_dvp, vp, &ndp->ni_cnd);
 	if (error == 0 && dsdvp[0] != NULL)
 		nfsrv_pnfsremove(dsdvp, mirrorcnt, fname, &fh, p);
+	if (is_v4 && (nd->nd_flag & ND_NFSV41) != 0 && error == 0)
+		error = nfsvno_getfh(vp, &fh, p);
 	if (ndp->ni_dvp == vp)
 		vrele(ndp->ni_dvp);
 	else
 		vput(ndp->ni_dvp);
 	vput(vp);
+
+	/* Use ret to determine if the file still exists. */
+	if (is_v4 && (nd->nd_flag & ND_NFSV41) != 0 && error == 0) {
+		mp = vfs_busyfs(&fh.fh_fsid);
+		if (mp != NULL) {
+			/* Find out if the file still exists. */
+			ret = VFS_FHTOVP(mp, &fh.fh_fid, LK_SHARED, &newvp);
+			if (ret == 0)
+				vput(newvp);
+			else
+				ret = ESTALE;
+			vfs_unbusy(mp);
+		} else {
+			ret = ESTALE;
+		}
+		if (ret == ESTALE) {
+			/* Get rid of any delegation. */
+			nfsrv_removedeleg(&fh, nd, p);
+		}
+	}
+
 	nfsvno_relpathbuf(ndp);
 	NFSEXITCODE(error);
 	return (error);
@@ -1559,33 +1592,34 @@ out:
  */
 int
 nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
-    u_int32_t ndstat, u_int32_t ndflag, struct ucred *cred, struct thread *p)
+    struct nfsrv_descript *nd, struct thread *p)
 {
-	struct vnode *fvp, *tvp, *tdvp, *dsdvp[NFSDEV_MAXMIRRORS];
-	int error = 0, mirrorcnt;
+	struct vnode *fvp, *tvp, *tdvp, *dsdvp[NFSDEV_MAXMIRRORS], *newvp;
+	struct mount *mp;
+	int error = 0, mirrorcnt, ret;
 	char fname[PNFS_FILENAME_LEN + 1];
-	fhandle_t fh;
+	fhandle_t fh, fh2;
 
 	dsdvp[0] = NULL;
 	fvp = fromndp->ni_vp;
-	if (ndstat) {
+	if (nd->nd_repstat != 0) {
 		vrele(fromndp->ni_dvp);
 		vrele(fvp);
-		error = ndstat;
+		error = nd->nd_repstat;
 		goto out1;
 	}
 	tdvp = tondp->ni_dvp;
 	tvp = tondp->ni_vp;
 	if (tvp != NULL) {
 		if (fvp->v_type == VDIR && tvp->v_type != VDIR) {
-			error = (ndflag & ND_NFSV2) ? EISDIR : EEXIST;
+			error = (nd->nd_flag & ND_NFSV2) ? EISDIR : EEXIST;
 			goto out;
 		} else if (fvp->v_type != VDIR && tvp->v_type == VDIR) {
-			error = (ndflag & ND_NFSV2) ? ENOTDIR : EEXIST;
+			error = (nd->nd_flag & ND_NFSV2) ? ENOTDIR : EEXIST;
 			goto out;
 		}
 		if (tvp->v_type == VDIR && tvp->v_mountedhere) {
-			error = (ndflag & ND_NFSV2) ? ENOTEMPTY : EXDEV;
+			error = (nd->nd_flag & ND_NFSV2) ? ENOTEMPTY : EXDEV;
 			goto out;
 		}
 
@@ -1604,15 +1638,15 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 		}
 	}
 	if (fvp->v_type == VDIR && fvp->v_mountedhere) {
-		error = (ndflag & ND_NFSV2) ? ENOTEMPTY : EXDEV;
+		error = (nd->nd_flag & ND_NFSV2) ? ENOTEMPTY : EXDEV;
 		goto out;
 	}
 	if (fvp->v_mount != tdvp->v_mount) {
-		error = (ndflag & ND_NFSV2) ? ENOTEMPTY : EXDEV;
+		error = (nd->nd_flag & ND_NFSV2) ? ENOTEMPTY : EXDEV;
 		goto out;
 	}
 	if (fvp == tdvp) {
-		error = (ndflag & ND_NFSV2) ? ENOTEMPTY : EINVAL;
+		error = (nd->nd_flag & ND_NFSV2) ? ENOTEMPTY : EINVAL;
 		goto out;
 	}
 	if (fvp == tvp) {
@@ -1623,16 +1657,25 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 		error = -1;
 		goto out;
 	}
-	if (ndflag & ND_NFSV4) {
+	if (nd->nd_flag & ND_NFSV4) {
 		if (NFSVOPLOCK(fvp, LK_EXCLUSIVE) == 0) {
-			error = nfsrv_checkremove(fvp, 0, NULL,
-			    (nfsquad_t)((u_quad_t)0), p);
+			if (nfsrv_recalldeleg || (nd->nd_flag & ND_NFSV41) == 0)
+				error = nfsrv_checkremove(fvp, 0, NULL,
+				    (nfsquad_t)((u_quad_t)0), p);
+			else
+				error = nfsrv_checkremove(fvp, 0, NULL,
+				    nd->nd_clientid, p);
 			NFSVOPUNLOCK(fvp);
 		} else
 			error = EPERM;
-		if (tvp && !error)
-			error = nfsrv_checkremove(tvp, 1, NULL,
-			    (nfsquad_t)((u_quad_t)0), p);
+		if (tvp && !error) {
+			if (nfsrv_recalldeleg || (nd->nd_flag & ND_NFSV41) == 0)
+				error = nfsrv_checkremove(tvp, 1, NULL,
+				    (nfsquad_t)((u_quad_t)0), p);
+			else
+				error = nfsrv_checkremove(tvp, 1, NULL,
+				    nd->nd_clientid, p);
+		}
 	} else {
 		/*
 		 * For NFSv2 and NFSv3, try to get rid of the delegation, so
@@ -1644,7 +1687,11 @@ nfsvno_rename(struct nameidata *fromndp, struct nameidata *tondp,
 		nfsd_recalldelegation(fvp, p);
 	}
 	if (error == 0 && tvp != NULL) {
-		nfsrv_pnfsremovesetup(tvp, p, dsdvp, &mirrorcnt, fname, &fh);
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			error = nfsvno_getfh(tvp, &fh2, p);
+		if (error == 0)
+			nfsrv_pnfsremovesetup(tvp, p, dsdvp, &mirrorcnt, fname,
+			    &fh);
 		NFSD_DEBUG(4, "nfsvno_rename: pnfsremovesetup"
 		    " dsdvp=%p\n", dsdvp[0]);
 	}
@@ -1674,6 +1721,26 @@ out:
 	if (error == 0 && dsdvp[0] != NULL) {
 		nfsrv_pnfsremove(dsdvp, mirrorcnt, fname, &fh, p);
 		NFSD_DEBUG(4, "nfsvno_rename: pnfsremove\n");
+	}
+
+	/* Use ret to determine if the file still exists. */
+	if ((nd->nd_flag & ND_NFSV41) != 0 && error == 0) {
+		mp = vfs_busyfs(&fh2.fh_fsid);
+		if (mp != NULL) {
+			/* Find out if the file still exists. */
+			ret = VFS_FHTOVP(mp, &fh2.fh_fid, LK_SHARED, &newvp);
+			if (ret == 0)
+				vput(newvp);
+			else
+				ret = ESTALE;
+			vfs_unbusy(mp);
+		} else {
+			ret = ESTALE;
+		}
+		if (ret == ESTALE) {
+			/* Get rid of any delegation. */
+			nfsrv_removedeleg(&fh2, nd, p);
+		}
 	}
 
 	nfsvno_relpathbuf(tondp);

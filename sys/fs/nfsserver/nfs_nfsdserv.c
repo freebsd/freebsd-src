@@ -1599,14 +1599,14 @@ nfsrvd_remove(struct nfsrv_descript *nd, __unused int isdgram,
 				nd->nd_repstat = nfsvno_rmdirsub(&named, 1,
 				    nd->nd_cred, p, exp);
 			else
-				nd->nd_repstat = nfsvno_removesub(&named, 1,
-				    nd->nd_cred, p, exp);
+				nd->nd_repstat = nfsvno_removesub(&named, true,
+				    nd, p, exp);
 		} else if (nd->nd_procnum == NFSPROC_RMDIR) {
 			nd->nd_repstat = nfsvno_rmdirsub(&named, 0,
 			    nd->nd_cred, p, exp);
 		} else {
-			nd->nd_repstat = nfsvno_removesub(&named, 0,
-			    nd->nd_cred, p, exp);
+			nd->nd_repstat = nfsvno_removesub(&named, false, nd, p,
+			    exp);
 		}
 	}
 	if (!(nd->nd_flag & ND_NFSV2)) {
@@ -1770,8 +1770,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	if (fromnd.ni_vp->v_type == VDIR)
 		tond.ni_cnd.cn_flags |= WILLBEDIR;
 	nd->nd_repstat = nfsvno_namei(nd, &tond, tdp, 0, &tnes, &tdirp);
-	nd->nd_repstat = nfsvno_rename(&fromnd, &tond, nd->nd_repstat,
-	    nd->nd_flag, nd->nd_cred, p);
+	nd->nd_repstat = nfsvno_rename(&fromnd, &tond, nd, p);
 	if (fdirp)
 		fdiraft_ret = nfsvno_getattr(fdirp, &fdiraft, nd, p, 0, NULL);
 	if (tdirp)

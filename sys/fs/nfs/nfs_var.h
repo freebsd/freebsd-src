@@ -169,6 +169,7 @@ int nfsrv_mdscopymr(char *, char *, char *, char *, int *, char *, NFSPROC_T *,
     struct vnode **, struct vnode **, struct pnfsdsfile **, struct nfsdevice **,
     struct nfsdevice **);
 void nfsrv_marknospc(char *, bool);
+void nfsrv_removedeleg(fhandle_t *, struct nfsrv_descript *, NFSPROC_T *);
 
 /* nfs_nfsdserv.c */
 int nfsrvd_access(struct nfsrv_descript *, int,
@@ -710,12 +711,12 @@ int nfsvno_symlink(struct nameidata *, struct nfsvattr *, char *, int, int,
     uid_t, struct ucred *, NFSPROC_T *, struct nfsexstuff *);
 int nfsvno_getsymlink(struct nfsrv_descript *, struct nfsvattr *,
     NFSPROC_T *, char **, int *);
-int nfsvno_removesub(struct nameidata *, int, struct ucred *, NFSPROC_T *,
-    struct nfsexstuff *);
+int nfsvno_removesub(struct nameidata *, bool, struct nfsrv_descript *,
+    NFSPROC_T *, struct nfsexstuff *);
 int nfsvno_rmdirsub(struct nameidata *, int, struct ucred *, NFSPROC_T *,
     struct nfsexstuff *);
-int nfsvno_rename(struct nameidata *, struct nameidata *, u_int32_t,
-    u_int32_t, struct ucred *, NFSPROC_T *);
+int nfsvno_rename(struct nameidata *, struct nameidata *,
+    struct nfsrv_descript *, NFSPROC_T *);
 int nfsvno_link(struct nameidata *, vnode_t, nfsquad_t, struct ucred *,
     NFSPROC_T *, struct nfsexstuff *);
 int nfsvno_fsync(vnode_t, u_int64_t, int, struct ucred *, NFSPROC_T *);
