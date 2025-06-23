@@ -1357,6 +1357,12 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	intr_prof_stack_use(td, frame);
 #endif
 
+	/* The assembly <=> C interface is responsible for incrementing
+	 * interrupt nesting level and setting critical state */
+	KASSERT(curthread->td_intr_nesting_level > 0,
+	    ("Unexpected thread context"));
+	CRITICAL_ASSERT(curthread);
+
 	/* An interrupt with no event or handlers is a stray interrupt. */
 	if (ie == NULL || CK_SLIST_EMPTY(&ie->ie_handlers))
 		return (EINVAL);
@@ -1364,11 +1370,9 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	/*
 	 * Execute fast interrupt handlers directly.
 	 */
-	td->td_intr_nesting_level++;
 	filter = false;
 	thread = false;
 	ret = 0;
-	critical_enter();
 	oldframe = td->td_intr_frame;
 	td->td_intr_frame = frame;
 
@@ -1449,8 +1453,6 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 		error =  intr_event_schedule_thread(ie, frame);
 		KASSERT(error == 0, ("bad stray interrupt"));
 	}
-	critical_exit();
-	td->td_intr_nesting_level--;
 #ifdef notyet
 	/* The interrupt is not aknowledged by any filter and has no ithread. */
 	if (!thread && !filter)
