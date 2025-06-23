@@ -318,6 +318,8 @@
             ..
             dynamicpie
             ..
+            errno
+            ..
             static
             ..
         ..
