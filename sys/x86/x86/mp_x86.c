@@ -1724,12 +1724,16 @@ cpuoff_handler(void)
 void
 ipi_swi_handler(struct trapframe frame)
 {
+	struct trapframe *oldframe;
 
 	critical_enter();
 	++curthread->td_intr_nesting_level;
+	oldframe = curthread->td_intr_frame;
+	curthread->td_intr_frame = &frame;
 
-	intr_event_handle(clk_intr_event, &frame);
+	intr_event_handle(clk_intr_event);
 
+	curthread->td_intr_frame = oldframe;
 	--curthread->td_intr_nesting_level;
 	critical_exit();
 }

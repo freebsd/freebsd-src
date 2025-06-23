@@ -364,7 +364,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	 * For stray interrupts, mask and EOI the source, bump the
 	 * stray count, and log the condition.
 	 */
-	if (intr_event_handle(ie, frame) != 0) {
+	if (intr_event_handle(ie) != 0) {
 		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
 		(*isrc->is_straycount)++;
 		if (*isrc->is_straycount < INTR_STRAY_LOG_MAX)
