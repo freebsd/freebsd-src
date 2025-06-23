@@ -346,7 +346,6 @@ xen_intr_active_ports(const struct xen_intr_pcpu_data *const pcpu,
 int
 xen_intr_handle_upcall(void *unused __unused)
 {
-	struct trapframe *trap_frame = curthread->td_intr_frame;
 	u_int l1i, l2i, port, cpu __diagused;
 	u_long masked_l1, masked_l2;
 	struct xenisrc *isrc;
@@ -426,7 +425,7 @@ xen_intr_handle_upcall(void *unused __unused)
 				("Received unexpected event on vCPU#%u, event bound to vCPU#%u",
 				PCPU_GET(cpuid), isrc->xi_cpu));
 
-			xen_arch_intr_execute_handlers(isrc, trap_frame);
+			xen_arch_intr_execute_handlers(isrc);
 
 			/*
 			 * If this is the final port processed,
