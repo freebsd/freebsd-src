@@ -1725,7 +1725,13 @@ void
 ipi_swi_handler(struct trapframe frame)
 {
 
+	critical_enter();
+	++curthread->td_intr_nesting_level;
+
 	intr_event_handle(clk_intr_event, &frame);
+
+	--curthread->td_intr_nesting_level;
+	critical_exit();
 }
 
 /*
